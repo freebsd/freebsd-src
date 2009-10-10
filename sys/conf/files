@@ -91,8 +91,8 @@ pccarddevs.h			standard				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
 teken_state.h		optional sc					   \
-	dependency	"$S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences" \
-	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
+	dependency	"$S/teken/gensequences $S/teken/sequences" \
+	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
 usbdevs.h			optional usb				   \
@@ -220,6 +220,7 @@ contrib/dev/acpica/namespace/nsnames.c	optional acpi
 contrib/dev/acpica/namespace/nsobject.c	optional acpi
 contrib/dev/acpica/namespace/nsparse.c	optional acpi
 contrib/dev/acpica/namespace/nspredef.c	optional acpi
+contrib/dev/acpica/namespace/nsrepair.c	optional acpi
 contrib/dev/acpica/namespace/nssearch.c	optional acpi
 contrib/dev/acpica/namespace/nsutils.c	optional acpi
 contrib/dev/acpica/namespace/nswalk.c	optional acpi
@@ -260,6 +261,7 @@ contrib/dev/acpica/utilities/utdebug.c	optional acpi
 contrib/dev/acpica/utilities/utdelete.c	optional acpi
 contrib/dev/acpica/utilities/uteval.c	optional acpi
 contrib/dev/acpica/utilities/utglobal.c	optional acpi
+contrib/dev/acpica/utilities/utids.c	optional acpi
 contrib/dev/acpica/utilities/utinit.c	optional acpi
 contrib/dev/acpica/utilities/utlock.c	optional acpi
 contrib/dev/acpica/utilities/utmath.c	optional acpi
@@ -772,6 +774,8 @@ dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_aq100x.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci \
@@ -845,8 +849,10 @@ dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
 	compile-with "${NORMAL_C} -finline-limit=13500"
 dev/drm/r300_cmdbuf.c		optional radeondrm
+dev/drm/r600_blit.c		optional radeondrm
 dev/drm/r600_cp.c		optional radeondrm
 dev/drm/radeon_cp.c		optional radeondrm
+dev/drm/radeon_cs.c		optional radeondrm
 dev/drm/radeon_drv.c		optional radeondrm
 dev/drm/radeon_irq.c		optional radeondrm
 dev/drm/radeon_mem.c		optional radeondrm
@@ -1295,6 +1301,7 @@ dev/ppc/ppc_puc.c		optional ppc puc
 dev/pst/pst-iop.c		optional pst
 dev/pst/pst-pci.c		optional pst pci
 dev/pst/pst-raid.c		optional pst
+dev/pty/pty.c			optional pty
 dev/puc/puc.c			optional puc
 dev/puc/puc_cfg.c		optional puc
 dev/puc/puc_pccard.c		optional puc pccard
@@ -1638,6 +1645,7 @@ dev/usb/serial/u3g.c		optional u3g
 dev/usb/serial/uark.c		optional uark
 dev/usb/serial/ubsa.c		optional ubsa
 dev/usb/serial/ubser.c		optional ubser
+dev/usb/serial/uch341.c		optional uch341
 dev/usb/serial/uchcom.c		optional uchcom
 dev/usb/serial/ucycom.c		optional ucycom
 dev/usb/serial/ufoma.c		optional ufoma
@@ -1653,7 +1661,7 @@ dev/usb/serial/uslcom.c		optional uslcom
 dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | \
-	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
+	(u3g | uark | ubsa | ubser | uch341 | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
 #
 # USB misc drivers
 #
@@ -1787,6 +1795,7 @@ fs/procfs/procfs_ioctl.c	optional procfs
 fs/procfs/procfs_map.c		optional procfs
 fs/procfs/procfs_mem.c		optional procfs
 fs/procfs/procfs_note.c		optional procfs
+fs/procfs/procfs_osrel.c	optional procfs
 fs/procfs/procfs_regs.c		optional procfs
 fs/procfs/procfs_rlimit.c	optional procfs
 fs/procfs/procfs_status.c	optional procfs
@@ -2004,6 +2013,7 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
+kern/subr_acl_nfs4.c		standard
 kern/subr_acl_posix1e.c		standard
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
@@ -2057,7 +2067,6 @@ kern/tty_info.c			standard
 kern/tty_inq.c			standard
 kern/tty_outq.c			standard
 kern/tty_pts.c			standard
-kern/tty_pty.c			optional pty
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
 kern/uipc_accf.c		optional inet
@@ -2616,6 +2625,7 @@ security/mac_portacl/mac_portacl.c optional mac_portacl
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test
+teken/teken.c			optional sc
 ufs/ffs/ffs_alloc.c		optional ffs
 ufs/ffs/ffs_balloc.c		optional ffs
 ufs/ffs/ffs_inode.c		optional ffs
@@ -2630,7 +2640,7 @@ ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs
 ufs/ufs/ufs_dirhash.c		optional ffs
 ufs/ufs/ufs_extattr.c		optional ffs
-ufs/ufs/ufs_gjournal.c		optional ffs
+ufs/ufs/ufs_gjournal.c		optional ffs UFS_GJOURNAL
 ufs/ufs/ufs_inode.c		optional ffs
 ufs/ufs/ufs_lookup.c		optional ffs
 ufs/ufs/ufs_quota.c		optional ffs
@@ -2662,12 +2672,12 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 #
 gnu/fs/xfs/xfs_alloc.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \
@@ -2825,4 +2835,3 @@ dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
 dev/xen/xenpci/machine_reboot.c optional xenpci
-

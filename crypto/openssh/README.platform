@@ -56,6 +56,18 @@ using a third party driver. More information is available at:
 	http://www-user.rhrk.uni-kl.de/~nissler/tuntap/
 
 
+Linux
+-----
+
+Some Linux distributions (including Red Hat/Fedora/CentOS) include
+headers and library links in the -devel RPMs rather than the main
+binary RPMs. If you get an error about headers, or complaining about a
+missing prerequisite then you may need to install the equivalent
+development packages.  On Redhat based distros these may be openssl-devel,
+zlib-devel and pam-devel, on Debian based distros these may be
+libssl-dev, libz-dev and libpam-dev.
+
+
 Solaris
 -------
 If you enable BSM auditing on Solaris, you need to update audit_event(4)
@@ -81,4 +93,4 @@ account stacks which will prevent authentication entirely, but will still
 return the output from pam_nologin to the client.
 
 
-$Id: README.platform,v 1.9 2007/08/09 04:31:53 dtucker Exp $
+$Id: README.platform,v 1.10 2009/08/28 23:14:48 dtucker Exp $

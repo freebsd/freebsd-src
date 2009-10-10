@@ -20,6 +20,7 @@ LOCALES=	bg_BG.CP1251 \
 		is_IS.ISO8859-15 \
 		kk_KZ.PT154 \
 		la_LN.ISO8859-1 \
+		la_LN.ISO8859-13 \
 		la_LN.ISO8859-15 \
 		la_LN.ISO8859-2 \
 		la_LN.ISO8859-4 \
@@ -27,7 +28,6 @@ LOCALES=	bg_BG.CP1251 \
 		no_NO.ISO8859-1 \
 		no_NO.ISO8859-15 \
 		lt_LT.ISO8859-4 \
-		lt_LT.ISO8859-13 \
 		pl_PL.ISO8859-2 \
 		ru_RU.CP1251 \
 		ru_RU.CP866 \
@@ -62,7 +62,7 @@ ${locale}.out: map.${locale:E}
 CLEANFILES=	${FILES}
 
 ENCODINGS=	Big5 Big5HKSCS CP949 eucCN eucJP eucKR GB18030 GB2312 GBK \
-		ISO8859-1 ISO8859-2 ISO8859-15 SJIS US-ASCII UTF-8
+		ISO8859-1 ISO8859-2 ISO8859-13 ISO8859-15 SJIS US-ASCII UTF-8
 
 ISO8859-1_Big5=	is_IS:zh_TW
 ISO8859-1_ISO8859-1= ${ISO8859-15_ISO8859-15} pt_PT:pt_BR
@@ -77,6 +77,9 @@ ISO8859-15_ISO8859-15= \
 
 LATIN2LINKS=    hu_HU ro_RO sr_YU
 ISO8859-2_ISO8859-2= ${LATIN2LINKS:C/^/la_LN:/} cs_CZ:sk_SK
+
+LATIN13LINKS=	lt_LT lv_LV
+ISO8859-13_ISO8859-13= ${LATIN13LINKS:C/^/la_LN:/}
 
 US-ASCII_Big5HKSCS= la_LN:zh_HK
 US-ASCII_CP949=	la_LN:ko_KR
@@ -95,7 +98,7 @@ UTF8LINKS=	af_ZA am_ET be_BY bg_BG ca_AD ca_ES ca_FR ca_IT cs_CZ \
 		da_DK de_AT de_CH de_DE \
 		el_GR en_AU en_CA en_GB en_IE en_NZ en_US es_ES et_EE eu_ES \
 		fi_FI fr_BE fr_CA fr_CH fr_FR he_IL hr_HR hu_HU hy_AM \
-		is_IS it_CH it_IT ja_JP kk_KZ ko_KR lt_LT mn_MN \
+		is_IS it_CH it_IT ja_JP kk_KZ ko_KR lt_LT lv_LV mn_MN \
 		nb_NO nl_BE nl_NL nn_NO no_NO pl_PL pt_BR pt_PT \
 		ro_RO ru_RU sk_SK sl_SI sr_YU sv_SE tr_TR uk_UA zh_CN zh_HK \
 		zh_TW

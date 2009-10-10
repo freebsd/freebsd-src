@@ -225,11 +225,7 @@ rp_pcidetach(device_t dev)
 {
 	CONTROLLER_t	*ctlp;
 
-	if (device_get_state(dev) == DS_BUSY)
-		return (EBUSY);
-
 	ctlp = device_get_softc(dev);
-
 	rp_pcireleaseresource(ctlp);
 
 	return (0);
@@ -240,11 +236,7 @@ rp_pcishutdown(device_t dev)
 {
 	CONTROLLER_t	*ctlp;
 
-	if (device_get_state(dev) == DS_BUSY)
-		return (EBUSY);
-
 	ctlp = device_get_softc(dev);
-
 	rp_pcireleaseresource(ctlp);
 
 	return (0);

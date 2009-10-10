@@ -13,6 +13,7 @@ SRCS+=		procfs_ioctl.c
 SRCS+=		procfs_map.c
 SRCS+=		procfs_mem.c
 SRCS+=		procfs_note.c
+SRCS+=		procfs_osrel.c
 SRCS+=		procfs_regs.c
 SRCS+=		procfs_rlimit.c
 SRCS+=		procfs_status.c

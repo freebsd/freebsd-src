@@ -2958,7 +2958,7 @@ uaudio_mixer_get(struct usb_device *udev, uint8_t what,
 	USETW(req.wIndex, mc->wIndex);
 	USETW(req.wLength, len);
 
-	err = usbd_do_request(udev, &Giant, &req, data);
+	err = usbd_do_request(udev, NULL, &req, data);
 	if (err) {
 		DPRINTF("err=%s\n", usbd_errstr(err));
 		return (0);
@@ -3081,7 +3081,7 @@ uaudio_set_speed(struct usb_device *udev, uint8_t endpt, uint32_t speed)
 	data[1] = speed >> 8;
 	data[2] = speed >> 16;
 
-	return (usbd_do_request(udev, &Giant, &req, data));
+	return (usbd_do_request(udev, NULL, &req, data));
 }
 
 static int

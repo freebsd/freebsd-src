@@ -261,6 +261,7 @@ cpu_startup(dummy)
 		    strncmp(sysenv, "MacBook3,1", 10) == 0 ||
 		    strncmp(sysenv, "MacBookPro1,1", 13) == 0 ||
 		    strncmp(sysenv, "MacBookPro1,2", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro3,1", 13) == 0 ||
 		    strncmp(sysenv, "Macmini1,1", 10) == 0) {
 			if (bootverbose)
 				printf("Disabling LEGACY_USB_EN bit on "
@@ -279,19 +280,21 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
+	realmem = Maxmem;
+
+	/*
+	 * Display physical memory if SMBIOS reports reasonable amount.
+	 */
+	memsize = 0;
 	sysenv = getenv("smbios.memory.enabled");
 	if (sysenv != NULL) {
-		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10);
+		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10) << 10;
 		freeenv(sysenv);
-	} else
-		memsize = 0;
-	if (memsize > 0)
-		printf("real memory  = %ju (%ju MB)\n", memsize << 10,
-		    memsize >> 10);
-	else
-		printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
-		    ptoa((uintmax_t)Maxmem) / 1048576);
-	realmem = Maxmem;
+	}
+	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
+		memsize = ptoa((uintmax_t)Maxmem);
+	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -1943,7 +1946,7 @@ sdtossd(sd, ssd)
 static int
 add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 {
-	int i, physmap_idx;
+	int i, insert_idx, physmap_idx;
 
 	physmap_idx = *physmap_idxp;
 	
@@ -1965,17 +1968,34 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	}
 #endif
 
+	/*
+	 * Find insertion point while checking for overlap.  Start off by
+	 * assuming the new entry will be added to the end.
+	 */
+	insert_idx = physmap_idx + 2;
 	for (i = 0; i <= physmap_idx; i += 2) {
 		if (smap->base < physmap[i + 1]) {
+			if (smap->base + smap->length <= physmap[i]) {
+				insert_idx = i;
+				break;
+			}
 			if (boothowto & RB_VERBOSE)
 				printf(
-	"Overlapping or non-monotonic memory region, ignoring second region\n");
+		    "Overlapping memory regions, ignoring second region\n");
 			return (1);
 		}
 	}
 
-	if (smap->base == physmap[physmap_idx + 1]) {
-		physmap[physmap_idx + 1] += smap->length;
+	/* See if we can prepend to the next entry. */
+	if (insert_idx <= physmap_idx &&
+	    smap->base + smap->length == physmap[insert_idx]) {
+		physmap[insert_idx] = smap->base;
+		return (1);
+	}
+
+	/* See if we can append to the previous entry. */
+	if (insert_idx > 0 && smap->base == physmap[insert_idx - 1]) {
+		physmap[insert_idx - 1] += smap->length;
 		return (1);
 	}
 
@@ -1986,8 +2006,19 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 		"Too many segments in the physical address map, giving up\n");
 		return (0);
 	}
-	physmap[physmap_idx] = smap->base;
-	physmap[physmap_idx + 1] = smap->base + smap->length;
+
+	/*
+	 * Move the last 'N' entries down to make room for the new
+	 * entry if needed.
+	 */
+	for (i = physmap_idx; i > insert_idx; i -= 2) {
+		physmap[i] = physmap[i - 2];
+		physmap[i + 1] = physmap[i - 1];
+	}
+
+	/* Insert the new entry. */
+	physmap[insert_idx] = smap->base;
+	physmap[insert_idx + 1] = smap->base + smap->length;
 	return (1);
 }
 
@@ -2567,7 +2598,7 @@ init386(first)
 	default_proc_ldt.ldt_base = (caddr_t)ldt;
 	default_proc_ldt.ldt_len = 6;
 	_default_ldt = (int)&default_proc_ldt;
-	PCPU_SET(currentldt, _default_ldt)
+	PCPU_SET(currentldt, _default_ldt);
 	PT_SET_MA(ldt, *vtopte((unsigned long)ldt) & ~PG_RW);
 	xen_set_ldt((unsigned long) ldt, (sizeof ldt_segs / sizeof ldt_segs[0]));
 	

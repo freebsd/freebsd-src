@@ -1,4 +1,5 @@
 .\" Copyright (c) 2001, 2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2009 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris
@@ -30,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2003
+.Dd August 7, 2009
 .Dt MAC 3
 .Os
 .Sh NAME
@@ -44,81 +45,82 @@
 In the kernel configuration file:
 .Cd "options MAC"
 .Sh DESCRIPTION
-.Fx
-permits administrators to define Mandatory Access Control labels
-defining levels for the privacy and integrity of data,
-overriding discretionary policies
-for those objects.
-Not all objects currently provide support for MAC labels,
-and MAC support must be explicitly enabled by the administrator.
-The library calls include routines to retrieve, duplicate,
-and set MAC labels associated with files and processes.
+Mandatory Access Control labels describe confidentiality, integrity, and
+other security attributes of operating system objects, overriding
+discretionary access control.
+Not all system objects support MAC labeling, and MAC policies must be
+explicitly enabled by the administrator.
+This API, based on POSIX.1e, includes routines to retrieve, manipulate, set,
+and convert to and from text the MAC labels on files and processes.
 .Pp
-POSIX.1e describes a set of MAC manipulation routines
-to manage the contents of MAC labels,
-as well as their relationships with
-files and processes;
-almost all of these support routines
-are implemented in
-.Fx .
+MAC labels consist of a set of (name, value) tuples, representing security
+attributes from MAC policies.
+For example, this label contains security labels defined by two policies,
+.Xr mac_biba 4
+and
+.Xr mac_mls 4 :
+.Bd -literal -offset indent
+biba/low,mls/low
+.Ed
 .Pp
-Available functions, sorted by behavior, include:
-.Bl -tag -width indent
-.It Fn mac_get_fd
-This function is described in
-.Xr mac_get 3 ,
-and may be used to retrieve the
-MAC label associated with
-a specific file descriptor.
-.It Fn mac_get_file
-This function is described in
-.Xr mac_get 3 ,
-and may be used to retrieve the
-MAC label associated with
-a named file.
-.It Fn mac_get_proc
-This function is described in
-.Xr mac_get 3 ,
-and may be used to retrieve the
-MAC label associated with
-the calling process.
-.It Fn mac_set_fd
-This function is described in
-.Xr mac_set 3 ,
-and may be used to set the
-MAC label associated with
-a specific file descriptor.
-.It Fn mac_set_file
-This function is described in
-.Xr mac_set 3 ,
-and may be used to set the
-MAC label associated with
-a named file.
-.It Fn mac_set_proc
-This function is described in
-.Xr mac_set 3 ,
-and may be used to set the
-MAC label associated with
-the calling process.
-.It Fn mac_free
-This function is described in
-.Xr mac_free 3 ,
-and may be used to free
-userland working MAC label storage.
-.It Fn mac_from_text
-This function is described in
-.Xr mac_text 3 ,
-and may be used to convert
-a text-form MAC label
-into a working
-.Vt mac_t .
-.It Fn mac_prepare
-.It Fn mac_prepare_file_label
-.It Fn mac_prepare_ifnet_label
-.It Fn mac_prepare_process_label
-These functions are described in
+Further syntax and semantics of MAC labels may be found in
+.Xr maclabel 7 .
+.Pp
+Applications operate on labels stored in
+.Vt mac_t ,
+but can convert between this internal format and a text format for the
+purposes of presentation to uses or external storage.
+When querying a label on an object, a
+.Vt mac_t
+must first be prepared using the interfaces described in
 .Xr mac_prepare 3 ,
-and may be used to preallocate storage for MAC label retrieval.
+allowing the application to declare which policies it wishes to interogate.
+The application writer can also rely on default label names declared in
+.Xr mac.conf 5 .
+.Pp
+When finished with a
+.Vt mac_t ,
+the application must call
+.Xr mac_free 3
+to release its storage.
+.Pp
+The following functions are defined:
+.Bl -tag -width indent
+.It Fn mac_is_present
+This function, described in
+.Xr mac_is_present 3 ,
+allows applications to test whether MAC is configured, as well as whether
+specific policies are configured.
+.It Fn mac_get_fd , Fn mac_get_file , Fn mac_get_link , Fn mac_get_peer
+These functions, described in
+.Xr mac_get 3 ,
+retrieve the MAC labels associated with file descriptors, files, and socket
+peers.
+.It Fn mac_get_pid , Fn mac_get_proc
+These functions, described in
+.Xr mac_get 3 ,
+retrieve the MAC labels associated with processes.
+.It Fn mac_set_fd , Fn mac_set_file , Fn mac_set_link
+These functions, described in
+.Xr mac_set 3 ,
+set the MAC labels associated with file descriptors and files.
+.It Fn mac_set_proc
+This function, described in
+.Xr mac_set 3 ,
+sets the MAC label associated with the current process.
+.It Fn mac_free
+This function, desribed in
+.Xr mac_free 3 ,
+frees working MAC label storage.
+.It Fn mac_from_text
+This function, described in
+.Xr mac_text 3 ,
+converts a text-form MAC label into working MAC label storage,
+.Vt mac_t .
+.It Fn mac_prepare , Fn mac_prepare_file_label , Fn mac_prepare_ifnet_label , Fn mac_prepare_process_label , Fn mac_prepare_type
+These functions,  described in
+.Xr mac_prepare 3 ,
+allocate working storage for MAC label operations.
 .Xr mac_prepare 3
 prepares a label based on caller-specified label names; the other calls
 rely on the default configuration specified in
@@ -130,15 +132,6 @@ and may be used to convert a
 .Vt mac_t
 into a text-form MAC label.
 .El
-The behavior of some of these calls is influenced by the configuration
-settings found in
-.Xr mac.conf 5 ,
-the MAC library run-time configuration file.
-.Sh IMPLEMENTATION NOTES
-.Fx Ns 's
-support for POSIX.1e interfaces and features
-is
-.Ud .
 .Sh FILES
 .Bl -tag -width ".Pa /etc/mac.conf" -compact
 .It Pa /etc/mac.conf
@@ -150,24 +143,20 @@ system objects, but without policy-specific knowledge.
 .Sh SEE ALSO
 .Xr mac_free 3 ,
 .Xr mac_get 3 ,
+.Xr mac_is_present 3 ,
 .Xr mac_prepare 3 ,
 .Xr mac_set 3 ,
 .Xr mac_text 3 ,
+.Xr posix1e 3 ,
 .Xr mac 4 ,
 .Xr mac.conf 5 ,
 .Xr mac 9
 .Sh STANDARDS
-These APIs are loosely based on the APIs described in POSIX.1e.
-POSIX.1e is described in IEEE POSIX.1e draft 17.
-Discussion of the draft
-continues on the cross-platform POSIX.1e implementation mailing list.
-To join this list, see the
-.Fx
-POSIX.1e implementation page
-for more information.
-However, the resemblance of these APIs to the POSIX APIs is only loose,
-as the POSIX APIs were unable to express many notions required for
-flexible and extensible access control.
+These APIs are loosely based on the APIs described in POSIX.1e, as described
+in IEEE POSIX.1e draft 17.
+However, the resemblence of these APIS to the POSIX APIs is loose, as the
+PSOXI APIS were unable to express some notinos required for flexible and
+extensible access control.
 .Sh HISTORY
 Support for Mandatory Access Control was introduced in
 .Fx 5.0

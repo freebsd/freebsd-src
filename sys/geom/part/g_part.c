@@ -480,6 +480,10 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		gctl_error(req, "%d index '%d'", EEXIST, gpp->gpp_index);
 		return (EEXIST);
 	}
+	if (index > table->gpt_entries) {
+		gctl_error(req, "%d index '%d'", ENOSPC, index);
+		return (ENOSPC);
+	}
 
 	entry = (delent == NULL) ? g_malloc(table->gpt_scheme->gps_entrysz,
 	    M_WAITOK | M_ZERO) : delent;
@@ -1454,6 +1458,10 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, pp->name));
 	g_topology_assert();
+
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
 
 	/*
 	 * Create a GEOM with consumer and hook it up to the provider.

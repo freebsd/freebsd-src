@@ -4,7 +4,7 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol (last character always SPACE)
-CNY
+CNY 
 # currency_symbol
 гд
 # mon_decimal_point

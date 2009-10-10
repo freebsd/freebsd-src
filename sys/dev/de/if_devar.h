@@ -104,7 +104,7 @@ typedef struct {
 	tulip_descinfo_t *ri_descinfo;
 	bus_dma_tag_t	ri_ring_tag;
 	bus_dmamap_t	ri_ring_map;
-	uint32_t	ri_dma_addr;
+	bus_addr_t	ri_dma_addr;
 	bus_dma_tag_t	ri_data_tag;
 	bus_dmamap_t	*ri_data_maps;
 } tulip_ringinfo_t;
@@ -134,11 +134,7 @@ typedef struct {
  * architecture which can't handle unaligned accesses) because with
  * 100Mb/s cards the copying is just too much of a hit.
  */
-#if !defined(__i386__)
-#define	TULIP_COPY_RXDATA	1
-#endif
 
-#define	TULIP_DATA_PER_DESC	2032
 #define	TULIP_TXTIMER		4
 #define	TULIP_RXDESCS		48
 #define	TULIP_TXDESCS		128
@@ -560,7 +556,7 @@ struct tulip_softc {
 	 */
 	bus_dma_tag_t		tulip_setup_tag;
 	bus_dmamap_t		tulip_setup_map;
-	uint32_t		tulip_setup_dma_addr;
+	bus_addr_t		tulip_setup_dma_addr;
 	u_int32_t		*tulip_setupbuf;
 	u_int32_t		tulip_setupdata[192 / sizeof(u_int32_t)];
 	char			tulip_boardid[24];

@@ -73,12 +73,12 @@ struct sgttyb {
 
 #define	OTIOCGETD	_IOR('t', 0, int)	/* get line discipline */
 #define	OTIOCSETD	_IOW('t', 1, int)	/* set line discipline */
-#define	TIOCHPCL	_IO('t', 2)		/* hang up on last close */
-#define	TIOCGETP	_IOR('t', 8,struct sgttyb)/* get parameters -- gtty */
-#define	TIOCSETP	_IOW('t', 9,struct sgttyb)/* set parameters -- stty */
-#define	TIOCSETN	_IOW('t',10,struct sgttyb)/* as above, but no flushtty*/
-#define	TIOCSETC	_IOW('t',17,struct tchars)/* set special characters */
-#define	TIOCGETC	_IOR('t',18,struct tchars)/* get special characters */
+#define	TIOCHPCL	 _IO('t', 2)		/* hang up on last close */
+#define	TIOCGETP	_IOR('t', 8, struct sgttyb) /* get parameters */
+#define	TIOCSETP	_IOW('t', 9, struct sgttyb) /* set parameters */
+#define	TIOCSETN	_IOW('t',10, struct sgttyb) /* as above, but no flush */
+#define	TIOCSETC	_IOW('t',17, struct tchars) /* set special characters */
+#define	TIOCGETC	_IOR('t',18, struct tchars) /* get special characters */
 #define		TANDEM		0x00000001	/* send stopc on out q full */
 #define		CBREAK		0x00000002	/* half-cooked mode */
 #define		LCASE		0x00000004	/* simulate lower case */
@@ -126,9 +126,9 @@ struct sgttyb {
 #define		PENDIN		0x20000000	/* tp->t_rawq needs reread */
 #define		DECCTQ		0x40000000	/* only ^Q starts after ^S */
 #define		NOFLSH		0x80000000	/* no output flush on signal */
-#define	TIOCLBIS	_IOW('t', 127, int)	/* bis local mode bits */
-#define	TIOCLBIC	_IOW('t', 126, int)	/* bic local mode bits */
-#define	TIOCLSET	_IOW('t', 125, int)	/* set entire local mode word */
+#define	OTIOCCONS	 _IO('t', 98)	/* for hp300 -- sans int arg */
+#define	TIOCGLTC	_IOR('t', 116,struct ltchars) /* get special chars */
+#define	TIOCSLTC	_IOW('t', 117,struct ltchars) /* set special chars */
 #define	TIOCLGET	_IOR('t', 124, int)	/* get local modes */
 #define		LCRTBS		(CRTBS>>16)
 #define		LPRTERA		(PRTERA>>16)
@@ -145,8 +145,8 @@ struct sgttyb {
 #define		LPENDIN		(PENDIN>>16)
 #define		LDECCTQ		(DECCTQ>>16)
 #define		LNOFLSH		(NOFLSH>>16)
-#define	TIOCSLTC	_IOW('t',117,struct ltchars)/* set local special chars*/
-#define	TIOCGLTC	_IOR('t',116,struct ltchars)/* get local special chars*/
-#define OTIOCCONS	_IO('t', 98)	/* for hp300 -- sans int arg */
+#define	TIOCLSET	_IOW('t', 125, int)	/* set entire local mode word */
+#define	TIOCLBIC	_IOW('t', 126, int)	/* bic local mode bits */
+#define	TIOCLBIS	_IOW('t', 127, int)	/* bis local mode bits */
 
 #endif /* !_SYS_IOCTL_COMPAT_H_ */

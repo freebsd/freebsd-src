@@ -519,6 +519,7 @@ dtls1_retrieve_buffered_fragment(SSL *s, long max, int *ok)
 
 	if ( s->d1->handshake_read_seq == frag->msg_header.seq)
 		{
+		unsigned long frag_len = frag->msg_header.frag_len;
 		pqueue_pop(s->d1->buffered_messages);
 
 		al=dtls1_preprocess_fragment(s,&frag->msg_header,max);
@@ -536,7 +537,7 @@ dtls1_retrieve_buffered_fragment(SSL *s, long max, int *ok)
 		if (al==0)
 			{
 			*ok = 1;
-			return frag->msg_header.frag_len;
+			return frag_len;
 			}
 
 		ssl3_send_alert(s,SSL3_AL_FATAL,al);
@@ -561,7 +562,16 @@ dtls1_process_out_of_seq_message(SSL *s, struct hm_header_st* msg_hdr, int *ok)
 	if ((msg_hdr->frag_off+frag_len) > msg_hdr->msg_len)
 		goto err;
 
-	if (msg_hdr->seq <= s->d1->handshake_read_seq)
+	/* Try to find item in queue, to prevent duplicate entries */
+	pq_64bit_init(&seq64);
+	pq_64bit_assign_word(&seq64, msg_hdr->seq);
+	item = pqueue_find(s->d1->buffered_messages, seq64);
+	pq_64bit_free(&seq64);
+	
+	/* Discard the message if sequence number was already there, is
+	 * too far in the future or the fragment is already in the queue */
+	if (msg_hdr->seq <= s->d1->handshake_read_seq ||
+		msg_hdr->seq > s->d1->handshake_read_seq + 10 || item != NULL)
 		{
 		unsigned char devnull [256];
 
@@ -575,30 +585,31 @@ dtls1_process_out_of_seq_message(SSL *s, struct hm_header_st* msg_hdr, int *ok)
 			}
 		}
 
-	frag = dtls1_hm_fragment_new(frag_len);
-	if ( frag == NULL)
-		goto err;
-
-	memcpy(&(frag->msg_header), msg_hdr, sizeof(*msg_hdr));
-
 	if (frag_len)
-		{
-		/* read the body of the fragment (header has already been read */
+	{
+		frag = dtls1_hm_fragment_new(frag_len);
+		if ( frag == NULL)
+			goto err;
+
+		memcpy(&(frag->msg_header), msg_hdr, sizeof(*msg_hdr));
+
+		/* read the body of the fragment (header has already been read) */
 		i = s->method->ssl_read_bytes(s,SSL3_RT_HANDSHAKE,
 			frag->fragment,frag_len,0);
 		if (i<=0 || (unsigned long)i!=frag_len)
 			goto err;
-		}
 
-	pq_64bit_init(&seq64);
-	pq_64bit_assign_word(&seq64, msg_hdr->seq);
+		pq_64bit_init(&seq64);
+		pq_64bit_assign_word(&seq64, msg_hdr->seq);
 
-	item = pitem_new(seq64, frag);
-	pq_64bit_free(&seq64);
-	if ( item == NULL)
-		goto err;
+		item = pitem_new(seq64, frag);
+		pq_64bit_free(&seq64);
+		if ( item == NULL)
+			goto err;
 
-	pqueue_insert(s->d1->buffered_messages, item);
+		pqueue_insert(s->d1->buffered_messages, item);
+	}
+
 	return DTLS1_HM_FRAGMENT_RETRY;
 
 err:

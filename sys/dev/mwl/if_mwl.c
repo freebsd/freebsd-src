@@ -304,7 +304,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
-		device_printf(sc->sc_dev, "can not if_alloc()\n");
+		device_printf(sc->sc_dev, "cannot if_alloc()\n");
 		return ENOSPC;
 	}
 	ic = ifp->if_l2com;
@@ -1738,6 +1738,10 @@ mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 		 * WEP keys when the sta reaches AUTH state.
 		 */
 		macaddr = vap->iv_bss->ni_bssid;
+		if ((k->wk_flags & IEEE80211_KEY_GROUP) == 0) {
+			/* XXX plumb to local sta db too for static key wep */
+			mwl_hal_keyset(hvap, &hk, vap->iv_myaddr);
+		}
 	} else if (vap->iv_opmode == IEEE80211_M_WDS &&
 	    vap->iv_state != IEEE80211_S_RUN) {
 		/*
@@ -2299,8 +2303,10 @@ mwl_dma_setup(struct mwl_softc *sc)
 	int error, i;
 
 	error = mwl_rxdma_setup(sc);
-	if (error != 0)
+	if (error != 0) {
+		mwl_rxdma_cleanup(sc);
 		return error;
+	}
 
 	for (i = 0; i < MWL_NUM_TX_QUEUES; i++) {
 		error = mwl_txdma_setup(sc, &sc->sc_txq[i]);

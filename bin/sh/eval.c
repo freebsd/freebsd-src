@@ -713,12 +713,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				do_clearcmdentry = 1;
 			}
 
-		find_command(argv[0], &cmdentry, 1, path);
-		if (cmdentry.cmdtype == CMDUNKNOWN) {	/* command not found */
-			exitstatus = 127;
-			flushout(&errout);
-			return;
-		}
+		find_command(argv[0], &cmdentry, 0, path);
 		/* implement the bltin builtin here */
 		if (cmdentry.cmdtype == CMDBUILTIN && cmdentry.u.index == BLTINCMD) {
 			for (;;) {
@@ -740,7 +735,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* Fork off a child process if necessary. */
 	if (cmd->ncmd.backgnd
-	 || (cmdentry.cmdtype == CMDNORMAL
+	 || ((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN
@@ -785,6 +780,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		INTOFF;
 		savelocalvars = localvars;
 		localvars = NULL;
+		reffunc(cmdentry.u.func);
 		INTON;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
@@ -794,6 +790,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				freeparam(&shellparam);
 				shellparam = saveparam;
 			}
+			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
 			handler = savehandler;
@@ -805,11 +802,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		funcnest++;
 		exitstatus = oexitstatus;
 		if (flags & EV_TESTED)
-			evaltree(cmdentry.u.func, EV_TESTED);
+			evaltree(getfuncnode(cmdentry.u.func), EV_TESTED);
 		else
-			evaltree(cmdentry.u.func, 0);
+			evaltree(getfuncnode(cmdentry.u.func), 0);
 		funcnest--;
 		INTOFF;
+		unreffunc(cmdentry.u.func);
 		poplocalvars();
 		localvars = savelocalvars;
 		freeparam(&shellparam);

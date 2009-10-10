@@ -41,7 +41,6 @@ struct usb_device;		/* linux compat */
 /* "usb_unconfigure()" flags */
 
 #define	USB_UNCFG_FLAG_NONE 0x00
-#define	USB_UNCFG_FLAG_FREE_SUBDEV 0x01		/* subdevices are freed */
 #define	USB_UNCFG_FLAG_FREE_EP0	0x02		/* endpoint zero is freed */
 
 struct usb_clear_stall_msg {
@@ -211,5 +210,8 @@ uint8_t	usb_peer_can_wakeup(struct usb_device *udev);
 struct usb_endpoint *usb_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep);
 void	usb_set_device_state(struct usb_device *udev,
 	    enum usb_dev_state state);
+void	usbd_enum_lock(struct usb_device *);
+void	usbd_enum_unlock(struct usb_device *);
+uint8_t usbd_enum_is_locked(struct usb_device *);
 
 #endif					/* _USB_DEVICE_H_ */

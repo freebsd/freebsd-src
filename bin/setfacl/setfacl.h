@@ -38,15 +38,14 @@
 #define	OP_REMOVE_DEF		0x01	/* remove default acl's (-k) */
 #define	OP_REMOVE_EXT		0x02	/* remove extended acl's (-b) */
 #define	OP_REMOVE_ACL		0x03	/* remove acl's (-xX) */
-
-/* ACL types for the acl array */
-#define ACCESS_ACL	0
-#define DEFAULT_ACL	1
+#define OP_REMOVE_BY_NUMBER	0x04	/* remove acl's (-xX) by acl entry number */
+#define OP_ADD_ACL		0x05	/* add acls entries at a given position */
 
 /* TAILQ entry for acl operations */
 struct sf_entry {
 	uint	op;
 	acl_t	acl;
+	uint	entry_number;
 	TAILQ_ENTRY(sf_entry) next;
 };
 TAILQ_HEAD(, sf_entry) entrylist;
@@ -61,21 +60,21 @@ TAILQ_HEAD(, sf_file) filelist;
 /* files.c */
 acl_t  get_acl_from_file(const char *filename);
 /* merge.c */
-int    merge_acl(acl_t acl, acl_t *prev_acl);
+int    merge_acl(acl_t acl, acl_t *prev_acl, const char *filename);
+int    add_acl(acl_t acl, uint entry_number, acl_t *prev_acl, const char *filename);
 /* remove.c */
-int    remove_acl(acl_t acl, acl_t *prev_acl);
-int    remove_default(acl_t *prev_acl);
-void   remove_ext(acl_t *prev_acl);
+int    remove_acl(acl_t acl, acl_t *prev_acl, const char *filename);
+int    remove_by_number(uint entry_number, acl_t *prev_acl, const char *filename);
+int    remove_default(acl_t *prev_acl, const char *filename);
+void   remove_ext(acl_t *prev_acl, const char *filename);
 /* mask.c */
-int    set_acl_mask(acl_t *prev_acl);
+int    set_acl_mask(acl_t *prev_acl, const char *filename);
 /* util.c */
 void  *zmalloc(size_t size);
 
-acl_type_t acl_type;
 uint       have_mask;
 uint       need_mask;
 uint       have_stdin;
-uint       h_flag;
 uint       n_flag;
 
 #endif /* _SETFACL_H */

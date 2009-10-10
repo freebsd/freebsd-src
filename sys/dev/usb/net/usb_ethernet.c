@@ -221,10 +221,10 @@ ue_attach_post_task(struct usb_proc_msg *_task)
 
 	if (ue->ue_methods->ue_mii_upd != NULL && 
 	    ue->ue_methods->ue_mii_sts != NULL) {
-		newbus_xlock();
+		mtx_lock(&Giant);	/* device_xxx() depends on this */
 		error = mii_phy_probe(ue->ue_dev, &ue->ue_miibus,
 		    ue_ifmedia_upd, ue->ue_methods->ue_mii_sts);
-		newbus_xunlock();
+		mtx_unlock(&Giant);
 		if (error) {
 			device_printf(ue->ue_dev, "MII without any PHY\n");
 			goto error;
@@ -279,12 +279,9 @@ uether_ifdetach(struct usb_ether *ue)
 
 		/* detach miibus */
 		if (ue->ue_miibus != NULL) {
-
-			/*
-			 * It is up to the callers to provide the correct
-			 * newbus locking.
-			 */
+			mtx_lock(&Giant);	/* device_xxx() depends on this */
 			device_delete_child(ue->ue_dev, ue->ue_miibus);
+			mtx_unlock(&Giant);
 		}
 
 		/* detach ethernet */

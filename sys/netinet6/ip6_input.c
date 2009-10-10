@@ -175,7 +175,7 @@ ip6_init(void)
 #ifdef IP6_AUTO_LINKLOCAL
 	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
 #else
-	V_ip6_auto_linklocal = 1;	/* enable by default */
+	V_ip6_auto_linklocal = 1;	/* enabled by default */
 #endif
 	TUNABLE_INT_FETCH("net.inet6.ip6.auto_linklocal",
 	    &V_ip6_auto_linklocal);
@@ -196,7 +196,7 @@ ip6_init(void)
 	V_ip6_sendredirects = IPV6_SENDREDIRECTS;
 	V_ip6_defhlim = IPV6_DEFHLIM;
 	V_ip6_defmcasthlim = IPV6_DEFAULT_MULTICAST_HOPS;
-	V_ip6_accept_rtadv = 0;	 /* "IPV6FORWARDING ? 0 : 1" is dangerous */
+	V_ip6_accept_rtadv = 0;
 	V_ip6_log_interval = 5;
 	V_ip6_hdrnestlimit = 15; /* How many header options will we process? */
 	V_ip6_dad_count = 1;	 /* DupAddrDetectionTransmits */
@@ -628,8 +628,27 @@ passin:
 	    &rt6_key(rin6.ro_rt)->sin6_addr)
 #endif
 	    rin6.ro_rt->rt_ifp->if_type == IFT_LOOP) {
-		struct in6_ifaddr *ia6 =
-			(struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
+		int free_ia6 = 0;
+		struct in6_ifaddr *ia6;
+
+		/*
+		 * found the loopback route to the interface address
+		 */
+		if (rin6.ro_rt->rt_gateway->sa_family == AF_LINK) {
+			struct sockaddr_in6 dest6;
+
+			bzero(&dest6, sizeof(dest6));
+			dest6.sin6_family = AF_INET6;
+			dest6.sin6_len = sizeof(dest6);
+			dest6.sin6_addr = ip6->ip6_dst;
+			ia6 = (struct in6_ifaddr *)
+			    ifa_ifwithaddr((struct sockaddr *)&dest6);
+			if (ia6 == NULL)
+				goto bad;
+			free_ia6 = 1;
+		}
+		else
+			ia6 = (struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
 
 		/*
 		 * record address information into m_tag.
@@ -647,6 +666,8 @@ passin:
 			/* Count the packet in the ip address stats */
 			ia6->ia_ifa.if_ipackets++;
 			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+			if (ia6 != NULL && free_ia6 != 0)
+				ifa_free(&ia6->ia_ifa);
 			goto hbhcheck;
 		} else {
 			char ip6bufs[INET6_ADDRSTRLEN];
@@ -657,6 +678,8 @@ passin:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 
+			if (ia6 != NULL && free_ia6 != 0)
+				ifa_free(&ia6->ia_ifa);
 			goto bad;
 		}
 	}

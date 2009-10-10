@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
@@ -101,6 +102,7 @@ void ni_sti(void);
 void
 ni_cli(void)
 {
+	CTR0(KTR_SPARE2, "ni_cli disabling interrupts");
 	__asm__("pushl %edx;"
 		"pushl %eax;"
 		);
@@ -345,33 +347,53 @@ xen_load_cr3(u_int val)
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
 
-void
-xen_restore_flags(u_int eflags)
+#ifdef KTR
+static __inline u_int
+rebp(void)
 {
-	if (eflags > 1)
-		eflags = ((eflags & PSL_I) == 0);
+	u_int	data;
 
-	__restore_flags(eflags);
+	__asm __volatile("movl 4(%%ebp),%0" : "=r" (data));	
+	return (data);
+}
+#endif
+
+u_int
+read_eflags(void)
+{
+        vcpu_info_t *_vcpu;
+	u_int eflags;
+
+	eflags = _read_eflags();
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()]; 
+	if (_vcpu->evtchn_upcall_mask)
+		eflags &= ~PSL_I;
+
+	return (eflags);
 }
 
-int
-xen_save_and_cli(void)
+void
+write_eflags(u_int eflags)
 {
-	int eflags;
-	
-	__save_and_cli(eflags);
-	return (eflags);
+	u_int intr;
+
+	CTR2(KTR_SPARE2, "%x xen_restore_flags eflags %x", rebp(), eflags);
+	intr = ((eflags & PSL_I) == 0);
+	__restore_flags(intr);
+	_write_eflags(eflags);
 }
 
 void
 xen_cli(void)
 {
+	CTR1(KTR_SPARE2, "%x xen_cli disabling interrupts", rebp());
 	__cli();
 }
 
 void
 xen_sti(void)
 {
+	CTR1(KTR_SPARE2, "%x xen_sti enabling interrupts", rebp());
 	__sti();
 }
 

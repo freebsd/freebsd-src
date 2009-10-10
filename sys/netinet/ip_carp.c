@@ -501,7 +501,7 @@ carpdetach(struct carp_softc *sc, int unlock)
 			ifpromisc(sc->sc_carpdev, 0);
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
-			free(cif, M_IFADDR);
+			free(cif, M_CARP);
 		} else if (unlock)
 			CARP_UNLOCK(cif);
 		sc->sc_carpdev = NULL;
@@ -1639,7 +1639,7 @@ carp_del_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 		if (!--cif->vhif_nvrs) {
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
-			free(cif, M_IFADDR);
+			free(cif, M_CARP);
 		} else {
 			CARP_UNLOCK(cif);
 		}
@@ -1843,7 +1843,7 @@ carp_del_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		if (!--cif->vhif_nvrs) {
 			CARP_LOCK_DESTROY(cif);
 			sc->sc_carpdev->if_carp = NULL;
-			free(cif, M_IFADDR);
+			free(cif, M_CARP);
 		} else
 			CARP_UNLOCK(cif);
 	}

@@ -67,6 +67,8 @@ struct ata_params {
 /*049*/ u_int16_t       capabilities1;
 #define ATA_SUPPORT_DMA                 0x0100
 #define ATA_SUPPORT_LBA                 0x0200
+#define ATA_SUPPORT_IORDY               0x0400
+#define ATA_SUPPORT_IORDYDIS            0x0800
 #define ATA_SUPPORT_OVERLAP             0x4000
 
 /*050*/ u_int16_t       capabilities2;
@@ -108,22 +110,31 @@ struct ata_params {
 /*075*/ u_int16_t       queue;
 #define ATA_QUEUE_LEN(x)                ((x) & 0x001f)
 
-	u_int16_t       satacapabilities;
+/*76*/  u_int16_t       satacapabilities;
 #define ATA_SATA_GEN1                   0x0002
 #define ATA_SATA_GEN2                   0x0004
+#define ATA_SATA_GEN3                   0x0008
 #define ATA_SUPPORT_NCQ                 0x0100
 #define ATA_SUPPORT_IFPWRMNGTRCV        0x0200
 #define ATA_SUPPORT_PHYEVENTCNT         0x0400
 #define ATA_SUPPORT_NCQ_UNLOAD          0x0800
 #define ATA_SUPPORT_NCQ_PRIO            0x1000
+#define ATA_SUPPORT_HAPST               0x2000
+#define ATA_SUPPORT_DAPST               0x4000
+#define ATA_SUPPORT_READLOGDMAEXT       0x8000
 
-	u_int16_t       reserved77;
-	u_int16_t       satasupport;
+/*77*/  u_int16_t       satacapabilities2;
+#define ATA_SATA_CURR_GEN_MASK          0x0006
+#define ATA_SUPPORT_NCQ_STREAM          0x0010
+#define ATA_SUPPORT_NCQ_QMANAGEMENT     0x0020
+/*78*/  u_int16_t       satasupport;
 #define ATA_SUPPORT_NONZERO             0x0002
 #define ATA_SUPPORT_AUTOACTIVATE        0x0004
 #define ATA_SUPPORT_IFPWRMNGT           0x0008
 #define ATA_SUPPORT_INORDERDATA         0x0010
-	u_int16_t       sataenabled;
+#define ATA_SUPPORT_SOFTSETPRESERVE     0x0040
+/*79*/  u_int16_t       sataenabled;
+#define ATA_ENABLED_DAPST               0x0080
 
 /*080*/ u_int16_t       version_major;
 /*081*/ u_int16_t       version_minor;
@@ -161,8 +172,8 @@ struct ata_params {
 #define ATA_SUPPORT_FLUSHCACHE48        0x2000
 
 /*084/087*/ u_int16_t   extension;
-#define ATA_SUPPORT_SMARTTEST		0x0001
-#define ATA_SUPPORT_SMARTLOG		0x0002
+#define ATA_SUPPORT_SMARTLOG		0x0001
+#define ATA_SUPPORT_SMARTTEST		0x0002
 #define ATA_SUPPORT_MEDIASN		0x0004
 #define ATA_SUPPORT_MEDIAPASS		0x0008
 #define ATA_SUPPORT_STREAMING		0x0010
@@ -170,6 +181,7 @@ struct ata_params {
 #define ATA_SUPPORT_WRITEDMAFUAEXT	0x0040
 #define ATA_SUPPORT_WRITEDMAQFUAEXT	0x0080
 #define ATA_SUPPORT_64BITWWN		0x0100
+#define ATA_SUPPORT_UNLOAD		0x2000
 	} __packed support, enabled;
 
 /*088*/ u_int16_t       udmamodes;              /* UltraDMA modes */
@@ -192,14 +204,48 @@ struct ata_params {
 	u_int16_t       lba_size48_2;
 	u_int16_t       lba_size48_3;
 	u_int16_t       lba_size48_4;
-	u_int16_t       reserved104[23];
+	u_int16_t       reserved104[2];
+/*106*/	u_int16_t       pss;
+#define ATA_PSS_LSPPS			0x000F
+#define ATA_PSS_LSSABOVE512		0x2000
+#define ATA_PSS_MULTLS			0x4000
+/*107*/ u_int16_t       isd;
+/*108*/ u_int16_t       wwn[4];
+	u_int16_t       reserved112[5];
+/*117*/ u_int16_t       lss_1;
+/*118*/ u_int16_t       lss_2;
+/*119*/ u_int16_t       support2;
+#define ATA_SUPPORT_WRITEREADVERIFY	0x0002
+#define ATA_SUPPORT_WRITEUNCORREXT	0x0004
+#define ATA_SUPPORT_RWLOGDMAEXT		0x0008
+#define ATA_SUPPORT_MICROCODE3		0x0010
+#define ATA_SUPPORT_FREEFALL		0x0020
+/*120*/ u_int16_t       enabled2;
+	u_int16_t       reserved121[6];
 /*127*/ u_int16_t       removable_status;
 /*128*/ u_int16_t       security_status;
 	u_int16_t       reserved129[31];
 /*160*/ u_int16_t       cfa_powermode1;
 	u_int16_t       reserved161[15];
-/*176*/ u_int16_t       media_serial[30];
-	u_int16_t       reserved206[49];
+/*176*/ u_int8_t        media_serial[60];
+/*206*/ u_int16_t       sct;
+	u_int16_t       reserved206[2];
+/*209*/ u_int16_t       lbalign;
+/*210*/ u_int16_t       wrv_sectors_m3_1;
+	u_int16_t       wrv_sectors_m3_2;
+/*212*/ u_int16_t       wrv_sectors_m2_1;
+	u_int16_t       wrv_sectors_m2_2;
+/*214*/ u_int16_t       nv_cache_caps;
+/*215*/ u_int16_t       nv_cache_size_1;
+	u_int16_t       nv_cache_size_2;
+/*217*/ u_int16_t       media_rotation_rate;
+	u_int16_t       reserved218;
+/*219*/ u_int16_t       nv_cache_opt;
+/*220*/ u_int16_t       wrv_mode;
+	u_int16_t       reserved221;
+/*222*/ u_int16_t       transport_major;
+/*223*/ u_int16_t       transport_minor;
+	u_int16_t       reserved224[31];
 /*255*/ u_int16_t       integrity;
 } __packed;
 

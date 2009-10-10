@@ -63,13 +63,6 @@
  *
  * When the lock is not locked by any thread, it is encoded as a
  * shared lock with zero waiters.
- *
- * A note about memory barriers.  Exclusive locks need to use the same
- * memory barriers as mutexes: _acq when acquiring an exclusive lock
- * and _rel when releasing an exclusive lock.  On the other side,
- * shared lock needs to use an _acq barrier when acquiring the lock
- * but, since they don't update any locked data, no memory barrier is
- * needed when releasing a shared lock.
  */
 
 #define	SX_LOCK_SHARED			0x01
@@ -200,7 +193,7 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 	uintptr_t x = sx->sx_lock;
 
 	if (x == (SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS) ||
-	    !atomic_cmpset_ptr(&sx->sx_lock, x, x - SX_ONE_SHARER))
+	    !atomic_cmpset_rel_ptr(&sx->sx_lock, x, x - SX_ONE_SHARER))
 		_sx_sunlock_hard(sx, file, line);
 }
 

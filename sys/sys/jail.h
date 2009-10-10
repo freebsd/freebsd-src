@@ -341,6 +341,7 @@ void getcredhostuuid(struct ucred *, char *, size_t);
 void getcredhostid(struct ucred *, unsigned long *);
 int prison_allow(struct ucred *, unsigned);
 int prison_check(struct ucred *cred1, struct ucred *cred2);
+int prison_owns_vnet(struct ucred *);
 int prison_canseemount(struct ucred *cred, struct mount *mp);
 void prison_enforce_statfs(struct ucred *cred, struct mount *mp,
     struct statfs *sp);
