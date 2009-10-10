@@ -250,4 +250,6 @@ __ElfType(Auxinfo);
 
 #define	AT_COUNT	16	/* Count of defined aux entry types. */
 
+#define	ET_DYN_LOAD_ADDR 0x0120000
+
 #endif /* !_MACHINE_ELF_H_ */
