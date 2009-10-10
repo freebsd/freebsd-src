@@ -50,7 +50,6 @@
 #include <sys/kernel.h>
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/pfil.h>
@@ -104,14 +103,6 @@ SYSCTL_VNET_STRUCT(_net_inet_ipip, IPSECCTL_STATS,
 #define	M_IPSEC	(M_AUTHIPHDR|M_AUTHIPDGM|M_DECRYPTED)
 
 static void _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp);
-
-#ifdef VIMAGE
-static const vnet_modinfo_t vnet_ipip_modinfo = {
-	.vmi_id		= VNET_MOD_IPIP,
-	.vmi_name	= "ipsec_ipip",
-	.vmi_dependson	= VNET_MOD_IPSEC,
-};
-#endif
 
 #ifdef INET6
 /*
@@ -709,9 +700,6 @@ ipe4_attach(void)
 #ifdef INET6
 	(void) encap_attach_func(AF_INET6, -1,
 		ipe4_encapcheck, (struct protosw *)&ipe6_protosw, NULL);
-#endif
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_ipip_modinfo);
 #endif
 }
 SYSINIT(ipe4_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipe4_attach, NULL);

@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -82,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -150,6 +150,20 @@ icmp6_init(void)
 {
 
 	V_icmp6errpps_count = 0;
+}
+
+/*
+ * Kernel module interface for updating icmp6stat.  The argument is an index
+ * into icmp6stat treated as an array of u_quad_t.  While this encodes the
+ * general layout of icmp6stat into the caller, it doesn't encode its
+ * location, so that future changes to add, for example, per-CPU stats
+ * support won't cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_icmp6stat_inc(int statnum)
+{
+
+	(*((u_quad_t *)&V_icmp6stat + statnum))++;
 }
 
 static void

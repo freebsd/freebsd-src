@@ -39,7 +39,6 @@
 #include <sys/kernel.h>
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

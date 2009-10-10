@@ -91,8 +91,19 @@ struct udpstat {
 };
 
 #ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	UDPSTAT_ADD(name, val)	V_udpstat.name += (val)
 #define	UDPSTAT_INC(name)	UDPSTAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_udpstat_inc(int statnum);
+#define	KMOD_UDPSTAT_INC(name)						\
+	kmod_udpstat_inc(offsetof(struct udpstat, name) / sizeof(u_long))
 #endif
 
 /*

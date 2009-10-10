@@ -772,7 +772,9 @@ mlx_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	 * Scan the controller to see whether new drives have appeared.
 	 */
     case MLX_RESCAN_DRIVES:
+	newbus_xlock();
 	mlx_startup(sc);
+	newbus_xunlock();
 	return(0);
 
 	/*

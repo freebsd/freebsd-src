@@ -56,67 +56,6 @@
 extern int	audit_enabled;
 extern int	audit_suspended;
 
-/*
- * Define the masks for the audited arguments.
- *
- * XXXRW: These need to remain in audit.h for now because our vnode and name
- * lookup audit calls rely on passing in flags to indicate which name or
- * vnode is being logged.  These should move to audit_private.h when that is
- * fixed.
- */
-#define	ARG_EUID		0x0000000000000001ULL
-#define	ARG_RUID		0x0000000000000002ULL
-#define	ARG_SUID		0x0000000000000004ULL
-#define	ARG_EGID		0x0000000000000008ULL
-#define	ARG_RGID		0x0000000000000010ULL
-#define	ARG_SGID		0x0000000000000020ULL
-#define	ARG_PID			0x0000000000000040ULL
-#define	ARG_UID			0x0000000000000080ULL
-#define	ARG_AUID		0x0000000000000100ULL
-#define	ARG_GID			0x0000000000000200ULL
-#define	ARG_FD			0x0000000000000400ULL
-#define	ARG_POSIX_IPC_PERM	0x0000000000000800ULL
-#define	ARG_FFLAGS		0x0000000000001000ULL
-#define	ARG_MODE		0x0000000000002000ULL
-#define	ARG_DEV			0x0000000000004000ULL
-#define	ARG_ADDR		0x0000000000008000ULL
-#define	ARG_LEN			0x0000000000010000ULL
-#define	ARG_MASK		0x0000000000020000ULL
-#define	ARG_SIGNUM		0x0000000000040000ULL
-#define	ARG_LOGIN		0x0000000000080000ULL
-#define	ARG_SADDRINET		0x0000000000100000ULL
-#define	ARG_SADDRINET6		0x0000000000200000ULL
-#define	ARG_SADDRUNIX		0x0000000000400000ULL
-#define	ARG_TERMID_ADDR		0x0000000000400000ULL
-#define	ARG_UNUSED2		0x0000000001000000ULL
-#define	ARG_UPATH1		0x0000000002000000ULL
-#define	ARG_UPATH2		0x0000000004000000ULL
-#define	ARG_TEXT		0x0000000008000000ULL
-#define	ARG_VNODE1		0x0000000010000000ULL
-#define	ARG_VNODE2		0x0000000020000000ULL
-#define	ARG_SVIPC_CMD		0x0000000040000000ULL
-#define	ARG_SVIPC_PERM		0x0000000080000000ULL
-#define	ARG_SVIPC_ID		0x0000000100000000ULL
-#define	ARG_SVIPC_ADDR		0x0000000200000000ULL
-#define	ARG_GROUPSET		0x0000000400000000ULL
-#define	ARG_CMD			0x0000000800000000ULL
-#define	ARG_SOCKINFO		0x0000001000000000ULL
-#define	ARG_ASID		0x0000002000000000ULL
-#define	ARG_TERMID		0x0000004000000000ULL
-#define	ARG_AUDITON		0x0000008000000000ULL
-#define	ARG_VALUE		0x0000010000000000ULL
-#define	ARG_AMASK		0x0000020000000000ULL
-#define	ARG_CTLNAME		0x0000040000000000ULL
-#define	ARG_PROCESS		0x0000080000000000ULL
-#define	ARG_MACHPORT1		0x0000100000000000ULL
-#define	ARG_MACHPORT2		0x0000200000000000ULL
-#define	ARG_EXIT		0x0000400000000000ULL
-#define	ARG_IOVECSTR		0x0000800000000000ULL
-#define	ARG_ARGV		0x0001000000000000ULL
-#define	ARG_ENVV		0x0002000000000000ULL
-#define	ARG_NONE		0x0000000000000000ULL
-#define	ARG_ALL			0xFFFFFFFFFFFFFFFFULL
-
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
 
@@ -132,6 +71,8 @@ union auditon_udata;
 void	 audit_arg_addr(void * addr);
 void	 audit_arg_exit(int status, int retval);
 void	 audit_arg_len(int len);
+void	 audit_arg_atfd1(int atfd);
+void	 audit_arg_atfd2(int atfd);
 void	 audit_arg_fd(int fd);
 void	 audit_arg_fflags(int fflags);
 void	 audit_arg_gid(gid_t gid);
@@ -158,8 +99,10 @@ void	 audit_arg_sockaddr(struct thread *td, struct sockaddr *sa);
 void	 audit_arg_auid(uid_t auid);
 void	 audit_arg_auditinfo(struct auditinfo *au_info);
 void	 audit_arg_auditinfo_addr(struct auditinfo_addr *au_info);
-void	 audit_arg_upath(struct thread *td, char *upath, u_int64_t flags);
-void	 audit_arg_vnode(struct vnode *vp, u_int64_t flags);
+void	 audit_arg_upath1(struct thread *td, char *upath);
+void	 audit_arg_upath2(struct thread *td, char *upath);
+void	 audit_arg_vnode1(struct vnode *vp);
+void	 audit_arg_vnode2(struct vnode *vp);
 void	 audit_arg_text(char *text);
 void	 audit_arg_cmd(int cmd);
 void	 audit_arg_svipc_cmd(int cmd);
@@ -195,6 +138,16 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_ARGV(argv, argc, length) do {				\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_argv((argv), (argc), (length));		\
+} while (0)
+
+#define	AUDIT_ARG_ATFD1(atfd) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_atfd1((atfd));				\
+} while (0)
+
+#define	AUDIT_ARG_ATFD2(atfd) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_atfd2((atfd));				\
 } while (0)
 
 #define	AUDIT_ARG_AUDITON(udata) do {					\
@@ -317,9 +270,14 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_uid((uid));					\
 } while (0)
 
-#define	AUDIT_ARG_UPATH(td, upath, flags) do {				\
+#define	AUDIT_ARG_UPATH1(td, upath) do {				\
 	if (AUDITING_TD(curthread))					\
-		audit_arg_upath((td), (upath), (flags));		\
+		audit_arg_upath1((td), (upath));			\
+} while (0)
+
+#define	AUDIT_ARG_UPATH2(td, upath) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_upath2((td), (upath));			\
 } while (0)
 
 #define	AUDIT_ARG_VALUE(value) do {					\
@@ -327,9 +285,14 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_value((value));				\
 } while (0)
 
-#define	AUDIT_ARG_VNODE(vp, flags) do {					\
+#define	AUDIT_ARG_VNODE1(vp) do {					\
 	if (AUDITING_TD(curthread))					\
-		audit_arg_vnode((vp), (flags));				\
+		audit_arg_vnode1((vp));					\
+} while (0)
+
+#define	AUDIT_ARG_VNODE2(vp) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_vnode2((vp));					\
 } while (0)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
@@ -360,6 +323,8 @@ void	 audit_thread_free(struct thread *td);
 
 #define	AUDIT_ARG_ADDR(addr)
 #define	AUDIT_ARG_ARGV(argv, argc, length)
+#define	AUDIT_ARG_ATFD1(atfd)
+#define	AUDIT_ARG_ATFD2(atfd)
 #define	AUDIT_ARG_AUDITON(udata)
 #define	AUDIT_ARG_CMD(cmd)
 #define	AUDIT_ARG_DEV(dev)
@@ -384,9 +349,11 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_SUID(suid)
 #define	AUDIT_ARG_TEXT(text)
 #define	AUDIT_ARG_UID(uid)
-#define	AUDIT_ARG_UPATH(td, upath, flags)
+#define	AUDIT_ARG_UPATH1(td, upath)
+#define	AUDIT_ARG_UPATH2(td, upath)
 #define	AUDIT_ARG_VALUE(value)
-#define	AUDIT_ARG_VNODE(vp, flags)
+#define	AUDIT_ARG_VNODE1(vp)
+#define	AUDIT_ARG_VNODE2(vp)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)
 #define	AUDIT_SYSCALL_EXIT(error, td)

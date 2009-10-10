@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sx.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>

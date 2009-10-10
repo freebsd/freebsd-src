@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#40 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#41 $
 # $FreeBSD$
 #
 # The mapping between event identifiers and values is also hard-coded in
@@ -272,7 +272,8 @@
 277:AUE_OPENAT_WTC:openat(2) - write,creat,trunc:fc,fd,fw,fa,fm
 278:AUE_OPENAT_RW:openat(2) - read,write:fr,fw
 279:AUE_OPENAT_RWC:openat(2) - read,write,create:fc,fw,fr,fa,fm
-280:AUE_OPENAT_RWTC:openat(2) - read,write,creat,trunc:fc,fd,fw,fr,fa,fm
+280:AUE_OPENAT_RWT:openat(2) - read,write,trunc:fd,fw,fr,fa,fm
+281:AUE_OPENAT_RWTC:openat(2) - read,write,creat,trunc:fc,fd,fw,fr,fa,fm
 282:AUE_RENAMEAT:renameat(2):fc,fd
 283:AUE_FSTATAT:fstatat(2):fa
 284:AUE_FCHOWNAT:fchownat(2):fm

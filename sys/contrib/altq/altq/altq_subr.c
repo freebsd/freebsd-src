@@ -47,9 +47,6 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
-#ifdef __FreeBSD__
-#include <sys/vimage.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_dl.h>

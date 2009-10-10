@@ -90,6 +90,10 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_NODE(_hw, OID_AUTO, amr, CTLFLAG_RD, 0, "AMR driver parameters");
 
+/*
+ * In order to get rid of Giant, amr_state should be protected by
+ * a proper softc lock for the cdev operations.
+ */
 static d_open_t         amr_open;
 static d_close_t        amr_close;
 static d_ioctl_t        amr_ioctl;
@@ -312,9 +316,11 @@ amr_startup(void *arg)
 	config_intrhook_disestablish(&sc->amr_ich);
     sc->amr_ich.ich_func = NULL;
 
+    newbus_xlock();
     /* get up-to-date drive information */
     if (amr_query_controller(sc)) {
 	device_printf(sc->amr_dev, "can't scan controller for drives\n");
+	newbus_xunlock();
 	return;
     }
 
@@ -347,6 +353,7 @@ amr_startup(void *arg)
 
     /* interrupts will be enabled before we do anything more */
     sc->amr_state |= AMR_STATE_INTEN;
+    newbus_xunlock();
 
     /*
      * Start the timeout routine.
@@ -434,7 +441,11 @@ static int
 amr_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     int			unit = dev2unit(dev);
-    struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
+    struct amr_softc	*sc;
+
+    newbus_slock();
+    sc = devclass_get_softc(devclass_find("amr"), unit);
+    newbus_sunlock();
 
     debug_called(1);
 
@@ -490,7 +501,11 @@ static int
 amr_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
     int			unit = dev2unit(dev);
-    struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
+    struct amr_softc	*sc;
+
+    newbus_slock();
+    sc = devclass_get_softc(devclass_find("amr"), unit);
+    newbus_sunlock();
 
     debug_called(1);
 
@@ -507,6 +522,7 @@ amr_rescan_drives(struct cdev *dev)
     struct amr_softc	*sc = (struct amr_softc *)dev->si_drv1;
     int			i, error = 0;
 
+    newbus_xlock();
     sc->amr_state |= AMR_STATE_REMAP_LD;
     while (sc->amr_busyslots) {
 	device_printf(sc->amr_dev, "idle controller\n");
@@ -530,6 +546,7 @@ amr_rescan_drives(struct cdev *dev)
 	     sc->amr_drive[i].al_disk = 0;
 	}
     }
+    newbus_xunlock();
 
 shutdown_out:
     amr_startup(sc);
@@ -805,7 +822,9 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	    struct amr_linux_ioctl	ali;
 	    int				adapter, error;
 
+	    newbus_slock();
 	    devclass = devclass_find("amr");
+	    newbus_sunlock();
 	    if (devclass == NULL)
 		return (ENOENT);
 

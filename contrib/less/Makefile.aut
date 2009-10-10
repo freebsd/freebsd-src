@@ -10,10 +10,10 @@ srcdir = .
 
 SRC = \
 	main.c screen.c brac.c ch.c charset.c cmdbuf.c \
-	command.c decode.c edit.c filename.c forwback.c \
+	command.c cvt.c decode.c edit.c filename.c forwback.c \
 	help.c ifile.c input.c jump.c line.c linenum.c \
 	lsystem.c mark.c optfunc.c option.c opttbl.c os.c \
-	output.c position.c prompt.c search.c signal.c \
+	output.c pattern.c position.c prompt.c search.c signal.c \
 	tags.c ttyin.c version.c  
 DISTFILES_W = \
 	defines.ds  Makefile.dsb Makefile.dsg Makefile.dsu \
@@ -24,7 +24,8 @@ DISTFILES = \
 	${SRC} regexp.c regexp.h \
 	COPYING INSTALL LICENSE Makefile.in Makefile.aut NEWS README \
 	configure configure.ac lesskey.c lessecho.c scrsize.c \
-	charset.h cmd.h funcs.h lglob.h less.h lesskey.h option.h pckeys.h position.h \
+	charset.h cmd.h funcs.h lglob.h less.h lesskey.h option.h \
+	pckeys.h pattern.h position.h \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
 	less.hlp \
@@ -109,6 +110,8 @@ dist: ${DISTFILES}
 	cd $$REL; chmod +w ${DISTFILES_W}; cd ..; \
 	echo "Creating release/$$REL/$$REL.tar.gz"; \
 	tar -cf - $$REL | gzip -c >release/$$REL/$$REL.tar.gz; \
+	echo "Signing release/$$REL/$$REL.tar.gz"; \
+	gpg --detach-sign release/$$REL/$$REL.tar.gz; \
 	echo "Creating release/$$REL/$$REL.zip"; \
 	zip -rq release/$$REL/$$REL.zip $$REL; \
 	rm -rf $$REL

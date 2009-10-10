@@ -1496,7 +1496,9 @@ mmc_delayed_attach(void *xsc)
 {
 	struct mmc_softc *sc = xsc;
 	
+	newbus_xlock();
 	mmc_scan(sc);
+	newbus_xunlock();
 	config_intrhook_disestablish(&sc->config_intrhook);
 }
 

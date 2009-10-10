@@ -4014,6 +4014,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
 	TUNABLE_INT_FETCH("hw.mxge.always_promisc", &mxge_always_promisc);
 	TUNABLE_INT_FETCH("hw.mxge.rss_hash_type", &mxge_rss_hash_type);
+	TUNABLE_INT_FETCH("hw.mxge.rss_hashtype", &mxge_rss_hash_type);
 	TUNABLE_INT_FETCH("hw.mxge.initial_mtu", &mxge_initial_mtu);
 	if (sc->lro_cnt != 0)
 		mxge_lro_cnt = sc->lro_cnt;

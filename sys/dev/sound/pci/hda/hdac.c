@@ -7435,6 +7435,7 @@ hdac_attach2(void *arg)
 		    quirks_on, quirks_off);
 	);
 
+	newbus_xlock();
 	hdac_lock(sc);
 
 	/* Remove ourselves from the config hooks */
@@ -7674,6 +7675,7 @@ hdac_attach2(void *arg)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
 	    "pindump", CTLTYPE_INT | CTLFLAG_RW, sc->dev, sizeof(sc->dev),
 	    sysctl_hdac_pindump, "I", "Dump pin states/data");
+	newbus_xunlock();
 }
 
 /****************************************************************************

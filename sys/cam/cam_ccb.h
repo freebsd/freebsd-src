@@ -173,6 +173,15 @@ typedef enum {
 	XPT_ATA_IO		= 0x18 | XPT_FC_DEV_QUEUED,
 				/* Execute the requested ATA I/O operation */
 
+	XPT_GET_SIM_KNOB	= 0x18,
+				/*
+				 * Get SIM specific knob values.
+				 */
+
+	XPT_SET_SIM_KNOB	= 0x19,
+				/*
+				 * Set SIM specific knob values.
+				 */
 /* HBA engine commands 0x20->0x2F */
 	XPT_ENG_INQ		= 0x20 | XPT_FC_XPT_ONLY,
 				/* HBA engine feature inquiry */
@@ -189,8 +198,12 @@ typedef enum {
 	XPT_CONT_TARGET_IO	= 0x33 | XPT_FC_DEV_QUEUED,
 				/* Continue Host Target I/O Connection */
 	XPT_IMMED_NOTIFY	= 0x34 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
-				/* Notify Host Target driver of event */
+				/* Notify Host Target driver of event (obsolete) */
 	XPT_NOTIFY_ACK		= 0x35,
+				/* Acknowledgement of event (obsolete) */
+	XPT_IMMEDIATE_NOTIFY	= 0x36 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
+				/* Notify Host Target driver of event */
+	XPT_NOTIFY_ACKNOWLEDGE	= 0x37 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
 				/* Acknowledgement of event */
 
 /* Vendor Unique codes: 0x80->0x8F */
@@ -531,12 +544,14 @@ typedef enum {
 struct ccb_pathinq_settings_spi {
 	u_int8_t ppr_options;
 };
+
 struct ccb_pathinq_settings_fc {
 	u_int64_t wwnn;		/* world wide node name */
 	u_int64_t wwpn;		/* world wide port name */
 	u_int32_t port;		/* 24 bit port id, if known */
 	u_int32_t bitrate;	/* Mbps */
 };
+
 struct ccb_pathinq_settings_sas {
 	u_int32_t bitrate;	/* Mbps */
 };
@@ -678,6 +693,7 @@ struct ccb_relsim {
  * Definitions for the asynchronous callback CCB fields.
  */
 typedef enum {
+	AC_CONTRACT		= 0x1000,/* A contractual callback */
 	AC_GETDEV_CHANGED	= 0x800,/* Getdev info might have changed */
 	AC_INQ_CHANGED		= 0x400,/* Inquiry info might have changed */
 	AC_TRANSFER_NEG		= 0x200,/* New transfer settings in effect */
@@ -693,6 +709,26 @@ typedef enum {
 
 typedef void ac_callback_t (void *softc, u_int32_t code,
 			    struct cam_path *path, void *args);
+
+/*
+ * Generic Asynchronous callbacks.
+ *
+ * Generic arguments passed bac which are then interpreted between a per-system
+ * contract number.
+ */
+#define	AC_CONTRACT_DATA_MAX (128 - sizeof (u_int64_t))
+struct ac_contract {
+	u_int64_t	contract_number;
+	u_int8_t	contract_data[AC_CONTRACT_DATA_MAX];
+};
+
+#define	AC_CONTRACT_DEV_CHG	1
+struct ac_device_changed {
+	u_int64_t	wwpn;
+	u_int32_t	port;
+	target_id_t	target;
+	u_int8_t	arrived;
+};
 
 /* Set Asynchronous Callback CCB */
 struct ccb_setasync {
@@ -823,6 +859,50 @@ struct ccb_calc_geometry {
 };
 
 /*
+ * Set or get SIM (and transport) specific knobs
+ */
+
+#define	KNOB_VALID_ADDRESS	0x1
+#define	KNOB_VALID_ROLE		0x2
+
+
+#define	KNOB_ROLE_NONE		0x0
+#define	KNOB_ROLE_INITIATOR	0x1
+#define	KNOB_ROLE_TARGET	0x2
+#define	KNOB_ROLE_BOTH		0x3
+
+struct ccb_sim_knob_settings_spi {
+	u_int		valid;
+	u_int		initiator_id;
+	u_int		role;
+};
+
+struct ccb_sim_knob_settings_fc {
+	u_int		valid;
+	u_int64_t	wwnn;		/* world wide node name */
+	u_int64_t 	wwpn;		/* world wide port name */
+	u_int		role;
+};
+
+struct ccb_sim_knob_settings_sas {
+	u_int		valid;
+	u_int64_t	wwnn;		/* world wide node name */
+	u_int		role;
+};
+#define	KNOB_SETTINGS_SIZE	128
+
+struct ccb_sim_knob {
+	struct	  ccb_hdr ccb_h;
+	union {
+		u_int  valid;	/* Which fields to honor */
+		struct ccb_sim_knob_settings_spi spi;
+		struct ccb_sim_knob_settings_fc fc;
+		struct ccb_sim_knob_settings_sas sas;
+		char pad[KNOB_SETTINGS_SIZE];
+	} xport_specific;
+};
+
+/*
  * Rescan the given bus, or bus/target/lun
  */
 struct ccb_rescan {
@@ -847,6 +927,7 @@ struct ccb_en_lun {
 	u_int8_t  enable;
 };
 
+/* old, barely used immediate notify, binary compatibility */
 struct ccb_immed_notify {
 	struct	  ccb_hdr ccb_h;
 	struct    scsi_sense_data sense_data;
@@ -859,6 +940,22 @@ struct ccb_notify_ack {
 	struct	  ccb_hdr ccb_h;
 	u_int16_t seq_id;		/* Sequence identifier */
 	u_int8_t  event;		/* Event flags */
+};
+
+struct ccb_immediate_notify {
+	struct    ccb_hdr ccb_h;
+	u_int     tag_id;		/* Tag for immediate notify */
+	u_int     seq_id;		/* Tag for target of notify */
+	u_int     initiator_id;		/* Initiator Identifier */
+	u_int     arg;			/* Function specific */
+};
+
+struct ccb_notify_acknowledge {
+	struct    ccb_hdr ccb_h;
+	u_int     tag_id;		/* Tag for immediate notify */
+	u_int     seq_id;		/* Tar for target of notify */
+	u_int     initiator_id;		/* Initiator Identifier */
+	u_int     arg;			/* Function specific */
 };
 
 /* HBA engine structures. */
@@ -935,6 +1032,7 @@ union ccb {
 	struct	ccb_dev_match		cdm;
 	struct	ccb_trans_settings	cts;
 	struct	ccb_calc_geometry	ccg;	
+	struct	ccb_sim_knob		knob;	
 	struct	ccb_abort		cab;
 	struct	ccb_resetbus		crb;
 	struct	ccb_resetdev		crd;
@@ -944,6 +1042,8 @@ union ccb {
 	struct	ccb_en_lun		cel;
 	struct	ccb_immed_notify	cin;
 	struct	ccb_notify_ack		cna;
+	struct	ccb_immediate_notify	cin1;
+	struct	ccb_notify_acknowledge	cna2;
 	struct	ccb_eng_inq		cei;
 	struct	ccb_eng_exec		cee;
 	struct 	ccb_rescan		crcn;

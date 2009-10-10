@@ -1327,11 +1327,11 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	mfi_release_command(cm);
 
 	mtx_unlock(&sc->mfi_io_lock);
-	mtx_lock(&Giant);
+	newbus_xlock();
 	if ((child = device_add_child(sc->mfi_dev, "mfid", -1)) == NULL) {
 		device_printf(sc->mfi_dev, "Failed to add logical disk\n");
 		free(ld_info, M_MFIBUF);
-		mtx_unlock(&Giant);
+		newbus_xunlock();
 		mtx_lock(&sc->mfi_io_lock);
 		return;
 	}
@@ -1339,7 +1339,7 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	device_set_ivars(child, ld_info);
 	device_set_desc(child, "MFI Logical Disk");
 	bus_generic_attach(sc->mfi_dev);
-	mtx_unlock(&Giant);
+	newbus_xunlock();
 	mtx_lock(&sc->mfi_io_lock);
 }
 
@@ -1805,9 +1805,9 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 		KASSERT(ld != NULL, ("volume dissappeared"));
 		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
 			mtx_unlock(&sc->mfi_io_lock);
-			mtx_lock(&Giant);
+			newbus_xlock();
 			device_delete_child(sc->mfi_dev, ld->ld_dev);
-			mtx_unlock(&Giant);
+			newbus_xunlock();
 			mtx_lock(&sc->mfi_io_lock);
 		} else
 			mfi_disk_enable(ld);
@@ -1815,11 +1815,11 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 	case MFI_DCMD_CFG_CLEAR:
 		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
 			mtx_unlock(&sc->mfi_io_lock);
-			mtx_lock(&Giant);
+			newbus_xlock();
 			TAILQ_FOREACH_SAFE(ld, &sc->mfi_ld_tqh, ld_link, ldn) {
 				device_delete_child(sc->mfi_dev, ld->ld_dev);
 			}
-			mtx_unlock(&Giant);
+			newbus_xunlock();
 			mtx_lock(&sc->mfi_io_lock);
 		} else {
 			TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link)
@@ -1985,7 +1985,9 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td
 
 		adapter = ioc->mfi_adapter_no;
 		if (device_get_unit(sc->mfi_dev) == 0 && adapter != 0) {
+			newbus_slock();
 			devclass = devclass_find("mfi");
+			newbus_sunlock();
 			sc = devclass_get_softc(devclass, adapter);
 		}
 		mtx_lock(&sc->mfi_io_lock);
@@ -2173,7 +2175,9 @@ out:
 			struct mfi_linux_ioc_packet l_ioc;
 			int adapter;
 
+			newbus_slock();
 			devclass = devclass_find("mfi");
+			newbus_sunlock();
 			if (devclass == NULL)
 				return (ENOENT);
 
@@ -2194,7 +2198,9 @@ out:
 			struct mfi_linux_ioc_aen l_aen;
 			int adapter;
 
+			newbus_slock();
 			devclass = devclass_find("mfi");
+			newbus_sunlock();
 			if (devclass == NULL)
 				return (ENOENT);
 

@@ -31,7 +31,9 @@
 #include <sys/user.h>
 
 #include <err.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "procstat.h"
 
@@ -39,6 +41,10 @@ void
 procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 {
 	int i;
+	int mib[4];
+	int ngroups;
+	size_t len;
+	gid_t *groups = NULL;
 
 	if (!hflag)
 		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %-20s\n", "PID",
@@ -53,7 +59,39 @@ procstat_cred(pid_t pid, struct kinfo_proc *kipp)
 	printf("%5d ", kipp->ki_groups[0]);
 	printf("%5d ", kipp->ki_rgid);
 	printf("%5d ", kipp->ki_svgid);
-	for (i = 0; i < kipp->ki_ngroups; i++)
-		printf("%s%d", (i > 0) ? "," : "", kipp->ki_groups[i]);
+
+	/*
+	 * We may have too many groups to fit in kinfo_proc's statically
+	 * sized storage.  If that occurs, attempt to retrieve them via
+	 * sysctl.
+	 */
+	if (kipp->ki_cr_flags & KI_CRF_GRP_OVERFLOW) {
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_PROC;
+		mib[2] = KERN_PROC_GROUPS;
+		mib[3] = pid;
+
+		ngroups = sysconf(_SC_NGROUPS_MAX) + 1;
+		len = ngroups * sizeof(gid_t);
+		if((groups = malloc(len)) == NULL)
+			err(-1, "malloc");
+
+		if (sysctl(mib, 4, groups, &len, NULL, 0) == -1) {
+			warn("sysctl: kern.proc.groups: %d "
+			    "group list truncated", pid);
+			free(groups);
+			groups = NULL;
+		}
+		ngroups = len / sizeof(gid_t);
+	}
+	if (groups == NULL) {
+		ngroups = kipp->ki_ngroups;
+		groups = kipp->ki_groups;
+	}
+	for (i = 0; i < ngroups; i++)
+		printf("%s%d", (i > 0) ? "," : "", groups[i]);
+	if (groups != kipp->ki_groups)
+		free(groups);
+
 	printf("\n");
 }

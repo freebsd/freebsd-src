@@ -35,9 +35,9 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/domain.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -50,7 +50,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -1525,4 +1524,4 @@ static struct domain routedomain = {
 	.dom_protoswNPROTOSW =	&routesw[sizeof(routesw)/sizeof(routesw[0])]
 };
 
-DOMAIN_SET(route);
+VNET_DOMAIN_SET(route);

@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -160,26 +159,6 @@ static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
-#endif
-
-#ifdef VIMAGE
-/* XXX only has to stay for .vmi_dependson elsewhere. */
-static void vnet_inet6_register(void);
- 
-static const vnet_modinfo_t vnet_inet6_modinfo = {
-	.vmi_id		= VNET_MOD_INET6,
-	.vmi_name	= "inet6",
-	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
-};
- 
-static void
-vnet_inet6_register(void)
-{
-
-	vnet_mod_register(&vnet_inet6_modinfo);
-}
- 
-SYSINIT(inet6, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet6_register, 0);
 #endif
 
 /*

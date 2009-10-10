@@ -59,7 +59,6 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
-#include <sys/vimage.h>
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
@@ -150,11 +149,6 @@ static void	if_detach_internal(struct ifnet *, int);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
-static int	vnet_net_iattach(const void *);
-#ifdef VIMAGE
-static int	vnet_net_idetach(const void *);
-#endif
-
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
 VNET_DEFINE(int, if_index);
@@ -171,19 +165,9 @@ struct rwlock ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
-#ifdef VIMAGE
-static const vnet_modinfo_t vnet_net_modinfo = {
-	.vmi_id		= VNET_MOD_NET,
-	.vmi_name	= "net",
-	.vmi_iattach	= vnet_net_iattach,
-	.vmi_idetach	= vnet_net_idetach
-};
-#endif
-
 /*
  * System initialization
  */
-SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
 SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL);
 
 MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
@@ -255,44 +239,41 @@ ifaddr_byindex(u_short idx)
  * parameters.
  */
 
-/* ARGSUSED*/
 static void
-if_init(void *dummy __unused)
-{
-
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_net_modinfo);
-#else
-	vnet_net_iattach(NULL);
-#endif
-
-	IFNET_LOCK_INIT();
-	if_clone_init();
-}
-
-static int
-vnet_net_iattach(const void *unused __unused)
+vnet_if_init(const void *unused __unused)
 {
 
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
 	if_grow();				/* create initial table */
-
-	return (0);
+	vnet_if_clone_init();
 }
+VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_FIRST, vnet_if_init,
+    NULL);
+
+/* ARGSUSED*/
+static void
+if_init(void *dummy __unused)
+{
+
+	IFNET_LOCK_INIT();
+	if_clone_init();
+}
+SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_SECOND, if_init, NULL);
+
 
 #ifdef VIMAGE
-static int
-vnet_net_idetach(const void *unused __unused)
+static void
+vnet_if_uninit(const void *unused __unused)
 {
 
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet));
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head));
 
 	free((caddr_t)V_ifindex_table, M_IFNET);
-
-	return (0);
 }
+VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
+    vnet_if_uninit, NULL);
 #endif
 
 void
@@ -911,6 +892,94 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	if_attach_internal(ifp, 1);
 
 	CURVNET_RESTORE();
+}
+
+/*
+ * Move an ifnet to or from another child prison/vnet, specified by the jail id.
+ */
+static int
+if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
+{
+	struct prison *pr;
+	struct ifnet *difp;
+
+	/* Try to find the prison within our visibility. */
+	sx_slock(&allprison_lock);
+	pr = prison_find_child(td->td_ucred->cr_prison, jid);
+	sx_sunlock(&allprison_lock);
+	if (pr == NULL)
+		return (ENXIO);
+	prison_hold_locked(pr);
+	mtx_unlock(&pr->pr_mtx);
+
+	/* Do not try to move the iface from and to the same prison. */
+	if (pr->pr_vnet == ifp->if_vnet) {
+		prison_free(pr);
+		return (EEXIST);
+	}
+
+	/* Make sure the named iface does not exists in the dst. prison/vnet. */
+	/* XXX Lock interfaces to avoid races. */
+	CURVNET_SET(pr->pr_vnet);
+	difp = ifunit(ifname);
+	CURVNET_RESTORE();
+	if (difp != NULL) {
+		prison_free(pr);
+		return (EEXIST);
+	}
+
+	/* Move the interface into the child jail/vnet. */
+	if_vmove(ifp, pr->pr_vnet);
+
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
+
+	prison_free(pr);
+	return (0);
+}
+
+static int
+if_vmove_reclaim(struct thread *td, char *ifname, int jid)
+{
+	struct prison *pr;
+	struct vnet *vnet_dst;
+	struct ifnet *ifp;
+
+	/* Try to find the prison within our visibility. */
+	sx_slock(&allprison_lock);
+	pr = prison_find_child(td->td_ucred->cr_prison, jid);
+	sx_sunlock(&allprison_lock);
+	if (pr == NULL)
+		return (ENXIO);
+	prison_hold_locked(pr);
+	mtx_unlock(&pr->pr_mtx);
+
+	/* Make sure the named iface exists in the source prison/vnet. */
+	CURVNET_SET(pr->pr_vnet);
+	ifp = ifunit(ifname);		/* XXX Lock to avoid races. */
+	if (ifp == NULL) {
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (ENXIO);
+	}
+
+	/* Do not try to move the iface from and to the same prison. */
+	vnet_dst = TD_TO_VNET(td);
+	if (vnet_dst == ifp->if_vnet) {
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (EEXIST);
+	}
+
+	/* Get interface back from child jail/vnet. */
+	if_vmove(ifp, vnet_dst);
+	CURVNET_RESTORE();
+
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
+
+	prison_free(pr);
+	return (0);
 }
 #endif /* VIMAGE */
 
@@ -2008,7 +2077,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFVNET);
 		if (error)
 			return (error);
-		error = vi_if_move(td, ifp, ifr->ifr_name, ifr->ifr_jid);
+		error = if_vmove_loan(td, ifp, ifr->ifr_name, ifr->ifr_jid);
 		break;
 #endif
 
@@ -2202,7 +2271,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFVNET);
 		if (error)
 			return (error);
-		return (vi_if_move(td, NULL, ifr->ifr_name, ifr->ifr_jid));
+		return (if_vmove_reclaim(td, ifr->ifr_name, ifr->ifr_jid));
 #endif
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:

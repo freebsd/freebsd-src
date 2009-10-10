@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
@@ -58,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #define TCPSTATES		/* for logging */
 
@@ -216,6 +216,20 @@ static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 static void inline
 		 tcp_congestion_exp(struct tcpcb *);
+
+/*
+ * Kernel module interface for updating tcpstat.  The argument is an index
+ * into tcpstat treated as an array of u_long.  While this encodes the
+ * general layout of tcpstat into the caller, it doesn't encode its location,
+ * so that future changes to add, for example, per-CPU stats support won't
+ * cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_tcpstat_inc(int statnum)
+{
+
+	(*((u_long *)&V_tcpstat + statnum))++;
+}
 
 static void inline
 tcp_congestion_exp(struct tcpcb *tp)
@@ -758,6 +772,7 @@ findpcb:
 		}
 		inc.inc_fport = th->th_sport;
 		inc.inc_lport = th->th_dport;
+		inc.inc_fibnum = so->so_fibnum;
 
 		/*
 		 * Check for an existing connection attempt in syncache if

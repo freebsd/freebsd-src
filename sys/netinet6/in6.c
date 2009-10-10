@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -1191,7 +1190,11 @@ in6_purgeaddr(struct ifaddr *ifa)
 		ifa_ref(ifa0);
 	IF_ADDR_UNLOCK(ifp);
 
-	if (!(ia->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+	/*
+	 * Remove the loopback route to the interface address.
+	 * The check for the current setting of "nd6_useloopback" is not needed.
+	 */
+	if (!(ia->ia_ifp->if_flags & IFF_LOOPBACK)) {
 		struct rt_addrinfo info;
 		struct sockaddr_dl null_sdl;
 
@@ -1773,7 +1776,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	/*
 	 * add a loopback route to self
 	 */
-	if (!(ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+	if (V_nd6_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
 		struct rt_addrinfo info;
 		struct rtentry *rt = NULL;
 		static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};

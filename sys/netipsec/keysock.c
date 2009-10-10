@@ -50,7 +50,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/raw_cb.h>
@@ -580,4 +579,4 @@ struct domain keydomain = {
 	.dom_protoswNPROTOSW =	&keysw[sizeof(keysw)/sizeof(keysw[0])]
 };
 
-DOMAIN_SET(key);
+VNET_DOMAIN_SET(key);

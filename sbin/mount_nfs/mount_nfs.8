@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2008
+.Dd July 28, 2009
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -132,47 +132,6 @@ short.
 .It Cm fg
 Same as not specifying
 .Cm bg .
-.It Cm gssname Ns = Ns Aq Ar name
-For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p when being
-used for an NFSv4 mount, this option specifies the host based principal
-name to be used for the state related operations SetClientID,
-SetClientIDConfirm, ReleaseLockOwner and Renew.
-It is also used for other operations, such as Getattr for
-.Xr statfs 2
-information and during open/lock state recovery.
-An entry for this principal must exist
-in the client machine's default keytab file.
-If possible, the keytab entry should be created using DES_CBC_CRC
-encryption. If another encryption algorithm is used, the sysctl variable
-.Va vfs.newnfs.keytab_enctype
-must be set to the numeric value representing that encryption algorithm.
-(The numeric values can be found in /usr/include/krb5_asn1.h. Look
-for constants named ETYPE_xxx.)
-If this option is given
-as a name without an ``@<client-fqdn>'', such as ``root'' or ``nfs'',
-``@<client-fqdn>'' will be appended to it.
-.sp
-If this option is not specified
-for NFSv4 mounts using krb5[ip], the above operations will be done using the
-user principal for the user that performed the mount. This
-only works for mounts done by a user other than ``root'' and the user must
-have a valid TGT in their credentials cache at the time the mount is done.
-(Setting the
-.Va vfs.usermount
-to non-zero will allow users to do mounts.)
-Because the user's TGT is used to acquire credentials for these operations,
-it is important that that user's TGT does not expire before
-.Xr umount 8
-is done.
-.It Cm allgssname
-This option can be used along with
-.Cm gssname
-to indicate that all accesses to the mount point are to be done using
-the host based principal specified by the
-.Cm gssname
-option.
-This might be useful for nfsv4 mounts using sec=krb5[ip] that are being accessed
-by batch utilities over long periods of time.
 .It Cm hard
 Same as not specifying
 .Cm soft .

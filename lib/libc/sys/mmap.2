@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2009
+.Dd July 26, 2009
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -353,10 +353,3 @@ Larger files may be possible on 64 bit systems.
 The previous documented limit of 2GB was a documentation bug.
 That limit has not existed since
 .Fx 2.2 .
-.Pp
-Note that an attempt to
-.Fn mmap
-zero bytes has no effect and succeeds, while an attempt to
-.Fn munmap
-zero bytes will return
-.Bq Er EINVAL .

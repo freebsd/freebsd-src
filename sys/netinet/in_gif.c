@@ -46,10 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/protosw.h>
 #include <sys/malloc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -281,14 +281,14 @@ in_gif_input(struct mbuf *m, int off)
 	sc = (struct gif_softc *)encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		return;
 	}
 
 	gifp = GIF2IFP(sc);
 	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		return;
 	}
 
@@ -348,7 +348,7 @@ in_gif_input(struct mbuf *m, int off)
  		break;	
 
 	default:
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		m_freem(m);
 		return;
 	}

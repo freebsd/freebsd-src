@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>

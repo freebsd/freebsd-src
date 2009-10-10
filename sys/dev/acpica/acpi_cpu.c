@@ -732,7 +732,9 @@ acpi_cpu_startup(void *arg)
     int i;
 
     /* Get set of CPU devices */
+    newbus_slock();
     devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
+    newbus_sunlock();
 
     /*
      * Setup any quirks that might necessary now that we have probed

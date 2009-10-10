@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/limits.h>
 #include <sys/queue.h>
-#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
