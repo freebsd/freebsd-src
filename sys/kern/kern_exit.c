@@ -340,10 +340,10 @@ exit1(struct thread *td, int rv)
 
 		if (ttyvp != NULL) {
 			sx_xunlock(&proctree_lock);
-			vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY);
-			if (ttyvp->v_type != VBAD)
+			if (vn_lock(ttyvp, LK_EXCLUSIVE) == 0) {
 				VOP_REVOKE(ttyvp, REVOKEALL);
-			VOP_UNLOCK(ttyvp, 0);
+				VOP_UNLOCK(ttyvp, 0);
+			}
 			sx_xlock(&proctree_lock);
 		}
 	}
