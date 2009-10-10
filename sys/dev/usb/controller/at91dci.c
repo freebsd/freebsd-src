@@ -2326,4 +2326,5 @@ struct usb_bus_methods at91dci_bus_methods =
 	.set_stall = &at91dci_set_stall,
 	.clear_stall = &at91dci_clear_stall,
 	.roothub_exec = &at91dci_roothub_exec,
+	.xfer_poll = &at91dci_do_poll,
 };

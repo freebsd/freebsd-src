@@ -46,7 +46,6 @@
 #include <sys/kernel.h>
 #include <sys/random.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/vnet.h>

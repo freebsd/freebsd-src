@@ -32,6 +32,7 @@
 #define	JP_RAWVALUE	0x01
 #define	JP_BOOL		0x02
 #define	JP_NOBOOL	0x04
+#define	JP_JAILSYS	0x08
 
 #define JAIL_ERRMSGLEN	1024
 

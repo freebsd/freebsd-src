@@ -342,7 +342,15 @@ static const struct fmt wlanstats[] = {
 	{ 4,  "hwmp_rootreqs",	"hwmp_rootreqs",	"root PREQ frames sent" },
 #define	S_HWMP_ROOTANN		AFTER(S_HWMP_ROOTREQS)
 	{ 4,  "hwmp_rootann",	"hwmp_rootann",	"root RANN frames received" },
-#define	S_INPUT			AFTER(S_HWMP_ROOTANN)
+#define	S_MESH_BADAE		AFTER(S_HWMP_ROOTANN)
+	{ 4,  "mesh_badae",	"mesh_badae",	"frame discarded for bad AddressExtension (AE)" },
+#define	S_MESH_RTADDFAILED	AFTER(S_MESH_BADAE)
+	{ 4,  "mesh_rtadd",	"mesh_rtadd",	"mesh route add failed" },
+#define	S_MESH_NOTPROXY		AFTER(S_MESH_RTADDFAILED)
+	{ 8,  "mesh_notproxy",	"mesh_notproxy","frame discarded because station not acting as a proxy" },
+#define	S_RX_BADALIGN		AFTER(S_MESH_NOTPROXY)
+	{ 4,  "rx_badalign",	"rx_badalign","frame discarded because payload re-alignment failed" },
+#define	S_INPUT			AFTER(S_RX_BADALIGN)
 	{ 8,	"input",	"input",	"total data frames received" },
 #define	S_RX_UCAST		AFTER(S_INPUT)
 	{ 8,	"rx_ucast",	"rx_ucast",	"unicast data frames received" },
@@ -796,6 +804,10 @@ wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_HWMP_WRONGSEQ:	STAT(hwmp_wrongseq);
 	case S_HWMP_ROOTREQS:	STAT(hwmp_rootreqs);
 	case S_HWMP_ROOTANN:	STAT(hwmp_rootrann);
+	case S_MESH_BADAE:	STAT(mesh_badae);
+	case S_MESH_RTADDFAILED:STAT(mesh_rtaddfailed);
+	case S_MESH_NOTPROXY:	STAT(mesh_notproxy);
+	case S_RX_BADALIGN:	STAT(rx_badalign);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);
@@ -950,6 +962,10 @@ wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_HWMP_WRONGSEQ:	STAT(hwmp_wrongseq);
 	case S_HWMP_ROOTREQS:	STAT(hwmp_rootreqs);
 	case S_HWMP_ROOTANN:	STAT(hwmp_rootrann);
+	case S_MESH_BADAE:	STAT(mesh_badae);
+	case S_MESH_RTADDFAILED:STAT(mesh_rtaddfailed);
+	case S_MESH_NOTPROXY:	STAT(mesh_notproxy);
+	case S_RX_BADALIGN:	STAT(rx_badalign);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);

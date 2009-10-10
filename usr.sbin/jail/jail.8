@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2009
+.Dd July 25, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -252,14 +252,26 @@ match.
 It is only possible to start multiple jails with the same IP address,
 if none of the jails has more than this single overlapping IP address
 assigned to itself.
-.Pp
-A list of zero elements (an empty string) will stop the jail from using IPv4
-entirely; setting the boolean parameter
-.Ar noip4
-will not restrict the jail at all.
-.It Va ip6.addr
+.It Va ip4
+Control the availablity of IPv4 addresses.
+Possible values are
+.Dq inherit
+to allow unrestricted access to all system addresses,
+.Dq new
+to restrict addresses via
+.Va ip4.addr
+above, and
+.Dq disable
+to stop the jail from using IPv4 entirely.
+Setting the
+.Va ip4.addr
+parameter implies a value of
+.Dq new .
+.It Va ip6.addr , Va ip6
 A list of IPv6 addresses assigned to the prison, the counterpart to
-.Ar ip4.addr
+.Va ip4.addr
+and
+.Va ip4
 above.
 .It Va host.hostname
 Hostname of the prison.
@@ -268,9 +280,15 @@ Other similar parameters are
 .Va host.hostuuid
 and
 .Va host.hostid .
-Setting the boolean parameter
-.Va nohost
-will retain the system values of these settings.
+.It Va host
+Set the origin of hostname and related information.
+Possible values are
+.Dq inherit
+to use the system information and
+.Dq new
+for the jail to use the information from the above fields.
+Setting any of the above fields implies a value of
+.Dq new .
 .It Va securelevel
 The value of the jail's
 .Va kern.securelevel

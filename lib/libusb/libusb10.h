@@ -25,46 +25,89 @@
  */
 
 #ifndef __LIBUSB10_H__
-#define __LIBUSB10_H__
+#define	__LIBUSB10_H__
 
-/*
- * The two following macros were taken from the original LibUSB v1.0
- * for sake of compatibility:
- */
+#include <sys/queue.h>
 
-static int get_next_timeout(libusb_context *ctx, struct timeval *tv, struct timeval *out);
-static int handle_timeouts(struct libusb_context *ctx);
-static int handle_events(struct libusb_context *ctx, struct timeval *tv);
-extern struct libusb_context *usbi_default_context;
-extern pthread_mutex_t libusb20_lock; 
+#define	GET_CONTEXT(ctx) (((ctx) == NULL) ? usbi_default_context : (ctx))
+#define	UNEXPORTED __attribute__((__visibility__("hidden")))
+#define	CTX_LOCK(ctx) pthread_mutex_lock(&(ctx)->ctx_lock)
+#define	CTX_TRYLOCK(ctx) pthread_mutex_trylock(&(ctx)->ctx_lock)
+#define	CTX_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->ctx_lock)
 
-/* if ctx is NULL use default context*/
-
-#define GET_CONTEXT(ctx) \
-	if (ctx == NULL) ctx = usbi_default_context;
-
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#define USB_TIMED_OUT (1<<0)
-#define UNEXPORTED __attribute__((__visibility__("hidden")))
-
-#define DPRINTF(ctx, dbg, format, args...)	\
-if (ctx->debug == dbg) {			\
-	printf("LIBUSB_%s : ", (ctx->debug == LIBUSB_DEBUG_FUNCTION) ? "FUNCTION" : "TRANSFER");	\
-	switch(ctx->debug) {			\
-		case LIBUSB_DEBUG_FUNCTION:	\
-			printf(format, ## args);\
-			break ;			\
-		case LIBUSB_DEBUG_TRANSFER:	\
-			printf(format, ## args);\
-			break ;			\
+#define	DPRINTF(ctx, dbg, format, args...) do {	\
+    if ((ctx)->debug == dbg) {			\
+	switch (dbg) {				\
+	case LIBUSB_DEBUG_FUNCTION:		\
+		printf("LIBUSB_FUNCTION: "	\
+		    format "\n", ## args);	\
+		break;				\
+	case LIBUSB_DEBUG_TRANSFER:		\
+		printf("LIBUSB_TRANSFER: "	\
+		    format "\n", ## args);	\
+		break;				\
+	default:				\
+		break;				\
 	}					\
-	printf("\n");				\
-}
+    }						\
+} while(0)
 
-UNEXPORTED int usb_add_pollfd(libusb_context *ctx, int fd, short events);
-UNEXPORTED void usb_remove_pollfd(libusb_context *ctx, int fd);
-UNEXPORTED void usb_handle_transfer_completion(struct usb_transfer *uxfer, 
-    enum libusb_transfer_status status);
-UNEXPORTED void usb_handle_disconnect(struct libusb_device_handle *devh);
+/* internal structures */
 
-#endif /*__LIBUSB10_H__*/
+struct libusb_super_pollfd {
+	TAILQ_ENTRY(libusb_super_pollfd) entry;
+	struct libusb20_device *pdev;
+	struct libusb_pollfd pollfd;
+};
+
+struct libusb_super_transfer {
+	TAILQ_ENTRY(libusb_super_transfer) entry;
+	uint8_t *curr_data;
+	uint32_t rem_len;
+	uint32_t last_len;
+	uint8_t	flags;
+};
+
+struct libusb_context {
+	int	debug;
+	int	debug_fixed;
+	int	ctrl_pipe[2];
+	int	tr_done_ref;
+	int	tr_done_gen;
+
+	pthread_mutex_t ctx_lock;
+	pthread_cond_t ctx_cond;
+	pthread_t ctx_handler;
+#define	NO_THREAD ((pthread_t)-1)
+
+	TAILQ_HEAD(, libusb_super_pollfd) pollfds;
+	TAILQ_HEAD(, libusb_super_transfer) tr_done;
+
+	struct libusb_super_pollfd ctx_poll;
+
+	libusb_pollfd_added_cb fd_added_cb;
+	libusb_pollfd_removed_cb fd_removed_cb;
+	void   *fd_cb_user_data;
+};
+
+struct libusb_device {
+	int	refcnt;
+
+	uint32_t claimed_interfaces;
+
+	struct libusb_super_pollfd dev_poll;
+
+	struct libusb_context *ctx;
+
+	TAILQ_HEAD(, libusb_super_transfer) tr_head;
+
+	struct libusb20_device *os_priv;
+};
+
+extern struct libusb_context *usbi_default_context;
+
+void	libusb10_add_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd, struct libusb20_device *pdev, int fd, short events);
+void	libusb10_remove_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd);
+void	libusb10_cancel_all_transfer(libusb_device *dev);
+
+#endif					/* __LIBUSB10_H__ */

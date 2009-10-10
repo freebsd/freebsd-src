@@ -85,6 +85,7 @@ struct ctlname {
 #define CTLMASK_SECURE	0x00F00000	/* Secure level */
 #define CTLFLAG_TUN	0x00080000	/* Tunable variable */
 #define CTLFLAG_MPSAFE	0x00040000	/* Handler is MP safe */
+#define CTLFLAG_VNET	0x00020000	/* Prisons with vnet can fiddle */
 #define CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
 
 /*
@@ -486,6 +487,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 					 */
 #define	KERN_PROC_VMMAP		32	/* VM map entries for process */
 #define	KERN_PROC_FILEDESC	33	/* File descriptors for process */
+#define	KERN_PROC_GROUPS	34	/* process groups */
 
 /*
  * KERN_IPC identifiers

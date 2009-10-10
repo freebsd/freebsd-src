@@ -421,7 +421,7 @@ void usage(char *name)
 int main(int argc, char *argv[])
 {
 	struct params p;
-	char *iface = "ath0";
+	char *iface = "wlan0";
 	char *tap = "tap0";
 	int ch;
 

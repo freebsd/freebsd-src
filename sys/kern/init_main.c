@@ -492,6 +492,11 @@ proc0_init(void *dummy __unused)
 	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
+
+	/*
+	 * proc0 is not expected to enter usermode, so there is no special
+	 * handling for sv_minuser here, like is done for exec_new_vmspace().
+	 */
 	vm_map_init(&vmspace0.vm_map, p->p_sysent->sv_minuser,
 	    p->p_sysent->sv_maxuser);
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);

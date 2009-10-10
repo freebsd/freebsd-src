@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/pfil.h>
 #include <net/if.h>
@@ -95,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

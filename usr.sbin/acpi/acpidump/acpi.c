@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -59,6 +60,11 @@ static void	acpi_print_intr(u_int32_t intr, u_int16_t mps_flags);
 static void	acpi_print_apic(struct MADT_APIC *mp);
 static void	acpi_handle_apic(struct ACPIsdt *sdp);
 static void	acpi_handle_hpet(struct ACPIsdt *sdp);
+static void	acpi_print_srat_cpu(uint32_t apic_id, uint32_t proximity_domain,
+		    uint32_t flags);
+static void	acpi_print_srat_memory(struct SRAT_memory *mp);
+static void	acpi_print_srat(struct SRATentry *srat);
+static void	acpi_handle_srat(struct ACPIsdt *sdp);
 static void	acpi_print_sdt(struct ACPIsdt *sdp);
 static void	acpi_print_fadt(struct ACPIsdt *sdp);
 static void	acpi_print_facs(struct FACSbody *facs);
@@ -258,7 +264,10 @@ static void
 acpi_print_apic(struct MADT_APIC *mp)
 {
 
-	printf("\tType=%s\n", apic_types[mp->type]);
+	if (mp->type < sizeof(apic_types) / sizeof(apic_types[0]))
+		printf("\tType=%s\n", apic_types[mp->type]);
+	else
+		printf("\tType=%d (unknown)\n", mp->type);
 	switch (mp->type) {
 	case ACPI_MADT_APIC_TYPE_LOCAL_APIC:
 		acpi_print_local_apic(mp->body.local_apic.cpu_id,
@@ -306,9 +315,6 @@ acpi_print_apic(struct MADT_APIC *mp)
 		    (u_int)mp->body.int_src.sapic_vector);
 		acpi_print_intr(mp->body.int_src.intr,
 		    mp->body.int_src.mps_flags);
-		break;
-	default:
-		printf("\tUnknown type %d\n", (u_int)mp->type);
 		break;
 	}
 }
@@ -393,10 +399,92 @@ acpi_handle_mcfg(struct ACPIsdt *sdp)
 	    sizeof(*mcfg->s);
 	for (i = 0; i < e; i++, mcfg++) {
 		printf("\n");
-		printf("\tBase Address= 0x%016jx\n", mcfg->s[i].baseaddr);
-		printf("\tSegment Group= 0x%04x\n", mcfg->s[i].seg_grp);
-		printf("\tStart Bus= %d\n", mcfg->s[i].start);
-		printf("\tEnd Bus= %d\n", mcfg->s[i].end);
+		printf("\tBase Address=0x%016jx\n", mcfg->s[i].baseaddr);
+		printf("\tSegment Group=0x%04x\n", mcfg->s[i].seg_grp);
+		printf("\tStart Bus=%d\n", mcfg->s[i].start);
+		printf("\tEnd Bus=%d\n", mcfg->s[i].end);
+	}
+	printf(END_COMMENT);
+}
+
+static void
+acpi_print_srat_cpu(uint32_t apic_id, uint32_t proximity_domain,
+    uint32_t flags)
+{
+
+	printf("\tFlags={");
+	if (flags & ACPI_SRAT_CPU_ENABLED)
+		printf("ENABLED");
+	else
+		printf("DISABLED");
+	printf("}\n");
+	printf("\tAPIC ID=%d\n", apic_id);
+	printf("\tProximity Domain=%d\n", proximity_domain);
+}
+
+static void
+acpi_print_srat_memory(struct SRAT_memory *mp)
+{
+
+	printf("\tFlags={");
+	if (mp->flags & ACPI_SRAT_MEM_ENABLED)
+		printf("ENABLED");
+	else
+		printf("DISABLED");
+	if (mp->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)
+		printf(",HOT_PLUGGABLE");
+	if (mp->flags & ACPI_SRAT_MEM_NON_VOLATILE)
+		printf(",NON_VOLATILE");
+	printf("}\n");
+	printf("\tBase Address=0x%016jx\n", (uintmax_t)mp->base_address);
+	printf("\tLength=0x%016jx\n", (uintmax_t)mp->length);
+	printf("\tProximity Domain=%d\n", mp->proximity_domain);
+}
+
+const char *srat_types[] = { "CPU", "Memory", "X2APIC" };
+
+static void
+acpi_print_srat(struct SRATentry *srat)
+{
+
+	if (srat->type < sizeof(srat_types) / sizeof(srat_types[0]))
+		printf("\tType=%s\n", srat_types[srat->type]);
+	else
+		printf("\tType=%d (unknown)\n", srat->type);
+	switch (srat->type) {
+	case ACPI_SRAT_TYPE_CPU_AFFINITY:
+		acpi_print_srat_cpu(srat->body.cpu.apic_id,
+		    srat->body.cpu.proximity_domain_hi[2] << 24 |
+		    srat->body.cpu.proximity_domain_hi[1] << 16 |
+		    srat->body.cpu.proximity_domain_hi[0] << 0 |
+		    srat->body.cpu.proximity_domain_lo, srat->body.cpu.flags);
+		break;
+	case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
+		acpi_print_srat_memory(&srat->body.mem);
+		break;
+	case ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY:
+		acpi_print_srat_cpu(srat->body.x2apic.apic_id,
+		    srat->body.x2apic.proximity_domain,
+		    srat->body.x2apic.flags);
+		break;
+	}
+}
+
+static void
+acpi_handle_srat(struct ACPIsdt *sdp)
+{
+	struct SRATbody *sratp;
+	struct SRATentry *entry;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	sratp = (struct SRATbody *)sdp->body;
+	printf("\tTable Revision=%d\n", sratp->table_revision);
+	entry = sratp->body;
+	while (((uintptr_t)entry) - ((uintptr_t)sdp) < sdp->len) {
+		printf("\n");
+		acpi_print_srat(entry);
+		entry = (struct SRATentry *)((char *)entry + entry->len);
 	}
 	printf(END_COMMENT);
 }
@@ -710,6 +798,8 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 			acpi_handle_ecdt(sdp);
 		else if (!memcmp(sdp->signature, "MCFG", 4))
 			acpi_handle_mcfg(sdp);
+		else if (!memcmp(sdp->signature, "SRAT", 4))
+			acpi_handle_srat(sdp);
 		else {
 			printf(BEGIN_COMMENT);
 			acpi_print_sdt(sdp);

@@ -118,7 +118,7 @@ static int	installboot;	/* non-zero if we should install a boot program */
 static int	allfields;	/* present all fields in edit */
 static char const *xxboot;	/* primary boot */
 
-static off_t mbroffset;
+static uint32_t lba_offset;
 #ifndef LABELSECTOR
 #define LABELSECTOR -1
 #endif
@@ -403,7 +403,7 @@ writelabel(void)
 		readboot();
 	for (i = 0; i < lab.d_npartitions; i++)
 		if (lab.d_partitions[i].p_size)
-			lab.d_partitions[i].p_offset += mbroffset;
+			lab.d_partitions[i].p_offset += lba_offset;
 	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * secsize,
 	    lp);
 	if (alphacksum) {
@@ -479,10 +479,9 @@ get_file_parms(int f)
 static int
 readlabel(int flag)
 {
+	uint32_t lba;
 	int f, i;
 	int error;
-	struct gctl_req *grq;
-	char const *errstr;
 
 	f = open(specname, O_RDONLY);
 	if (f < 0)
@@ -510,22 +509,28 @@ readlabel(int flag)
 
 	if (is_file)
 		return(0);
-	grq = gctl_get_handle();
-	gctl_ro_param(grq, "verb", -1, "read mbroffset");
-	gctl_ro_param(grq, "class", -1, "BSD");
-	gctl_ro_param(grq, "geom", -1, pname);
-	gctl_rw_param(grq, "mbroffset", sizeof(mbroffset), &mbroffset);
-	errstr = gctl_issue(grq);
-	if (errstr != NULL) {
-		mbroffset = 0;
-		gctl_free(grq);
-		return (error);
+
+	/*
+	 * Compensate for absolute block addressing by finding the
+	 * smallest partition offset and if the offset of the 'c'
+	 * partition is equal to that, subtract it from all offsets.
+	 */
+	lba = ~0;
+	for (i = 0; i < lab.d_npartitions; i++) {
+		if (lab.d_partitions[i].p_size)
+			lba = MIN(lba, lab.d_partitions[i].p_offset);
 	}
-	mbroffset /= lab.d_secsize;
-	if (lab.d_partitions[RAW_PART].p_offset == mbroffset)
-		for (i = 0; i < lab.d_npartitions; i++)
+	if (lba != 0 && lab.d_partitions[RAW_PART].p_offset == lba) {
+		for (i = 0; i < lab.d_npartitions; i++) {
 			if (lab.d_partitions[i].p_size)
-				lab.d_partitions[i].p_offset -= mbroffset;
+				lab.d_partitions[i].p_offset -= lba;
+		}
+		/*
+		 * Save the offset so that we can write the label
+		 * back with absolute block addresses.
+		 */
+		lba_offset = lba;
+	}
 	return (error);
 }
 

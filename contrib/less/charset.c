@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2008  Mark Nudelman
+ * Copyright (C) 1984-2009  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -425,7 +425,7 @@ prchar(c)
 
 	c &= 0377;
 	if ((c < 128 || !utf_mode) && !control_char(c))
-		SNPRINTF1(buf, sizeof(buf), "%c", c);
+		SNPRINTF1(buf, sizeof(buf), "%c", (int) c);
 	else if (c == ESC)
 		strcpy(buf, "ESC");
 #if IS_EBCDIC_HOST
@@ -442,7 +442,7 @@ prchar(c)
 		"..V....D....TU.Z"[c]);
 #else
   	else if (c < 128 && !control_char(c ^ 0100))
-  		SNPRINTF1(buf, sizeof(buf), "^%c", c ^ 0100);
+  		SNPRINTF1(buf, sizeof(buf), "^%c", (int) (c ^ 0100));
 #endif
 	else
 		SNPRINTF1(buf, sizeof(buf), binfmt, c);

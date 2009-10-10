@@ -711,7 +711,7 @@ ata_identify(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_device *atadev;
     device_t *children;
-    device_t child;
+    device_t child, master = NULL;
     int nchildren, i, n = ch->devices;
 
     if (bootverbose)
@@ -748,6 +748,15 @@ ata_identify(device_t dev)
 		unit = (device_get_unit(dev) << 1) + i;
 #endif
 	    if ((child = ata_add_child(dev, atadev, unit))) {
+		/*
+		 * PATA slave should be identified first, to allow
+		 * device cable detection on master to work properly.
+		 */
+		if (i == 0 && (n & ATA_PORTMULTIPLIER) == 0 &&
+			(n & ((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << 1)) != 0) {
+		    master = child;
+		    continue;
+		}
 		if (ata_getparam(atadev, 1)) {
 		    device_delete_child(dev, child);
 		    free(atadev, M_ATA);
@@ -755,6 +764,13 @@ ata_identify(device_t dev)
 	    }
 	    else
 		free(atadev, M_ATA);
+	}
+    }
+    if (master) {
+	atadev = device_get_softc(master);
+	if (ata_getparam(atadev, 1)) {
+	    device_delete_child(dev, master);
+	    free(atadev, M_ATA);
 	}
     }
     bus_generic_probe(dev);

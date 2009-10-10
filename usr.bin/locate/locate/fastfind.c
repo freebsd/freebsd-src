@@ -154,9 +154,6 @@ fastfind
 
 	/* init bigram table */
 #ifdef FF_MMAP
-	if (len < (2*NBG))
-		errx(1, "database too small: %s", database);
-	
 	for (c = 0, p = bigram1, s = bigram2; c < NBG; c++, len-= 2) {
 		p[c] = check_bigram_char(*paddr++);
 		s[c] = check_bigram_char(*paddr++);

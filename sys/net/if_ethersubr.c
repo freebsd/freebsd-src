@@ -50,7 +50,6 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -174,7 +173,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	int hlen;	/* link layer header length */
 
 	if (ro != NULL) {
-		lle = ro->ro_lle;
+		if (!(m->m_flags & (M_BCAST | M_MCAST)))
+			lle = ro->ro_lle;
 		rt0 = ro->ro_rt;
 	}
 #ifdef MAC

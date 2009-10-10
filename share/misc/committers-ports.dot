@@ -153,6 +153,7 @@ tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
 wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
+yzlin [label="Yi-Jheng Lin\nyzlin@FreeBSD.org\n2009/07/19"]
 znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 
 # Here are the mentor/mentee relationships.
@@ -260,6 +261,8 @@ lawrance -> itetcu
 leeym -> clsung
 
 lioux -> pat
+
+lwhsu -> yzlin
 
 maho -> tota
 

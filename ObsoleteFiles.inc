@@ -14,6 +14,13 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090904: remove lukemftpd
+OLD_FILES+=usr/libexec/lukemftpd
+OLD_FILES+=usr/share/man/man5/ftpd.conf.5.gz
+OLD_FILES+=usr/share/man/man5/ftpusers.5.gz
+OLD_FILES+=usr/share/man/man8/lukemftpd.8.gz
+# 20090801: vimage.h removed in favour of vnet.h
+OLD_FILES+=usr/include/sys/vimage.h
 # 20090719: library version bump for 8.0
 OLD_LIBS+=lib/libalias.so.6
 OLD_LIBS+=lib/libavl.so.1
@@ -88,6 +95,7 @@ OLD_LIBS+=usr/lib/libtacplus.so.3
 OLD_LIBS+=usr/lib/libugidfw.so.3
 OLD_LIBS+=usr/lib/libusb.so.1
 OLD_LIBS+=usr/lib/libusbhid.so.3
+OLD_LIBS+=usr/lib/libvgl.so.5
 OLD_LIBS+=usr/lib/libwrap.so.5
 OLD_LIBS+=usr/lib/libypclnt.so.3
 OLD_LIBS+=usr/lib/pam_chroot.so.4
@@ -228,6 +236,10 @@ OLD_FILES+=etc/pam.d/gdm
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h
 OLD_FILES+=usr/include/netipsec/vipsec.h
+# 20090712: ieee80211.4 -> net80211.4
+OLD_FILES+=usr/share/man/man4/ieee80211.4.gz
+# 20090711: typo fixed, kproc_resume,.9 -> kproc_resume.9
+OLD_FILES+=usr/share/man/man9/kproc_resume,.9.gz
 # 20090709: msgctl.3 msgget.3 msgrcv.3 msgsnd.3 manual pages moved
 OLD_FILES+=usr/share/man/man3/msgctl.3.gz
 OLD_FILES+=usr/share/man/man3/msgget.3.gz
@@ -482,8 +494,6 @@ OLD_FILES+=usr/include/dev/usb/usb_mem.h
 OLD_FILES+=usr/include/dev/usb/usb_port.h
 OLD_FILES+=usr/include/dev/usb/usb_quirks.h
 OLD_FILES+=usr/include/dev/usb/usbcdc.h
-OLD_FILES+=usr/include/dev/usb/usbdi.h
-OLD_FILES+=usr/include/dev/usb/usbdi_util.h
 OLD_FILES+=usr/include/dev/usb/usbdivar.h
 OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
 # 20090203: removal of pccard header files
@@ -798,8 +808,6 @@ OLD_FILES+=rescue/bsdlabel
 OLD_FILES+=rescue/fdisk
 OLD_FILES+=rescue/gpt
 .endif
-# 20071026: kthread(9)/kproc(9) API changes
-OLD_FILES+=usr/share/man/man9/kthread_create.9.gz
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
@@ -2071,7 +2079,6 @@ OLD_FILES+=usr/sbin/kenv
 OLD_FILES+=usr/bin/kenv
 OLD_FILES+=usr/sbin/elf2aout
 # 200210XX
-OLD_FILES+=usr/include/libusb.h
 OLD_FILES+=usr/include/libusbhid.h
 OLD_FILES+=usr/share/man/man3/All_FreeBSD.3.gz
 OLD_FILES+=usr/share/man/man3/CheckRules.3.gz

@@ -283,7 +283,7 @@ thread_reap(void)
  * Allocate a thread.
  */
 struct thread *
-thread_alloc(void)
+thread_alloc(int pages)
 {
 	struct thread *td;
 
@@ -291,7 +291,7 @@ thread_alloc(void)
 
 	td = (struct thread *)uma_zalloc(thread_zone, M_WAITOK);
 	KASSERT(td->td_kstack == 0, ("thread_alloc got thread with kstack"));
-	if (!vm_thread_new(td, 0)) {
+	if (!vm_thread_new(td, pages)) {
 		uma_zfree(thread_zone, td);
 		return (NULL);
 	}
@@ -299,6 +299,17 @@ thread_alloc(void)
 	return (td);
 }
 
+int
+thread_alloc_stack(struct thread *td, int pages)
+{
+
+	KASSERT(td->td_kstack == 0,
+	    ("thread_alloc_stack called on a thread with kstack"));
+	if (!vm_thread_new(td, pages))
+		return (0);
+	cpu_thread_alloc(td);
+	return (1);
+}
 
 /*
  * Deallocate a thread.
@@ -312,8 +323,6 @@ thread_free(struct thread *td)
 		cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
 	cpu_thread_free(td);
-	if (td->td_altkstack != 0)
-		vm_thread_dispose_altkstack(td);
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
 	uma_zfree(thread_zone, td);

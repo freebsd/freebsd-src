@@ -32,8 +32,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 
 #include <machine/bus.h>
 
@@ -61,6 +63,76 @@ static void decode_win_cesa_dump(void);
 static void decode_win_usb_dump(void);
 
 static uint32_t used_cpu_wins;
+
+static __inline int
+pm_is_disabled(uint32_t mask)
+{
+
+	return (soc_power_ctrl_get(mask) == mask ? 0 : 1);
+}
+
+static __inline uint32_t
+obio_get_pm_mask(uint32_t base)
+{
+	struct obio_device *od;
+
+	for (od = obio_devices; od->od_name != NULL; od++)
+		if (od->od_base == base)
+			return (od->od_pwr_mask);
+
+	return (CPU_PM_CTRL_NONE);
+}
+
+/*
+ * Disable device using power management register.
+ * 1 - Device Power On
+ * 0 - Device Power Off
+ * Mask can be set in loader.
+ * EXAMPLE:
+ * loader> set hw.pm-disable-mask=0x2
+ *
+ * Common mask:
+ * |-------------------------------|
+ * | Device | Kirkwood | Discovery |
+ * |-------------------------------|
+ * | USB0   | 0x00008  | 0x020000  |
+ * |-------------------------------|
+ * | USB1   |     -    | 0x040000  |
+ * |-------------------------------|
+ * | USB2   |     -    | 0x080000  |
+ * |-------------------------------|
+ * | GE0    | 0x00001  | 0x000002  |
+ * |-------------------------------|
+ * | GE1    |     -    | 0x000004  |
+ * |-------------------------------|
+ * | IDMA   |     -    | 0x100000  |
+ * |-------------------------------|
+ * | XOR    | 0x10000  | 0x200000  |
+ * |-------------------------------|
+ * | CESA   | 0x20000  | 0x400000  |
+ * |-------------------------------|
+ * | SATA   | 0x04000  | 0x004000  |
+ * --------------------------------|
+ * This feature can be used only on Kirkwood and Discovery
+ * machines.
+ */
+static __inline void
+pm_disable_device(int mask)
+{
+#ifdef DIAGNOSTIC
+	uint32_t reg;
+
+	reg = soc_power_ctrl_get(CPU_PM_CTRL_ALL);
+	printf("Power Management Register: 0%x\n", reg);
+
+	reg &= ~mask;
+	soc_power_ctrl_set(reg);
+	printf("Device %x is disabled\n", mask);
+
+	reg = soc_power_ctrl_get(CPU_PM_CTRL_ALL);
+	printf("Power Management Register: 0%x\n", reg);
+#endif
+}
 
 uint32_t
 read_cpu_ctrl(uint32_t reg)
@@ -103,14 +175,36 @@ cpu_extra_feat(void)
 	return (ef);
 }
 
+/*
+ * Get the power status of device. This feature is only supported on
+ * Kirkwood and Discovery SoCs.
+ */
 uint32_t
 soc_power_ctrl_get(uint32_t mask)
 {
 
+#ifndef SOC_MV_ORION
 	if (mask != CPU_PM_CTRL_NONE)
 		mask &= read_cpu_ctrl(CPU_PM_CTRL);
 
 	return (mask);
+#else
+	return (mask);
+#endif
+}
+
+/*
+ * Set the power status of device. This feature is only supported on
+ * Kirkwood and Discovery SoCs.
+ */
+void
+soc_power_ctrl_set(uint32_t mask)
+{
+
+#ifndef SOC_MV_ORION
+	if (mask != CPU_PM_CTRL_NONE)
+		write_cpu_ctrl(CPU_PM_CTRL, mask);
+#endif
 }
 
 void
@@ -191,6 +285,13 @@ int
 soc_decode_win(void)
 {
 	uint32_t dev, rev;
+	int mask;
+
+	mask = 0;
+	TUNABLE_INT_FETCH("hw.pm-disable-mask", &mask);
+
+	if (mask != 0)
+		pm_disable_device(mask);
 
 	/* Retrieve our ID: some windows facilities vary between SoC models */
 	soc_id(&dev, &rev);
@@ -623,7 +724,11 @@ decode_win_usb_setup(void)
 
 	/* Disable and clear all USB windows for all ports */
 	m = usb_max_ports();
+
 	for (p = 0; p < m; p++) {
+
+		if (pm_is_disabled(CPU_PM_CTRL_USB(p)))
+			continue;
 
 		for (i = 0; i < MV_WIN_USB_MAX; i++) {
 			win_usb_cr_write(i, p, 0);
@@ -709,6 +814,9 @@ decode_win_eth_setup(uint32_t base)
 {
 	uint32_t br, sz;
 	int i, j;
+
+	if (pm_is_disabled(obio_get_pm_mask(base)))
+		return;
 
 	/* Disable, clear and revoke protection for all ETH windows */
 	for (i = 0; i < MV_WIN_ETH_MAX; i++) {
@@ -880,6 +988,8 @@ decode_win_idma_setup(void)
 	uint32_t br, sz;
 	int i, j;
 
+	if (pm_is_disabled(CPU_PM_CTRL_IDMA))
+		return;
 	/*
 	 * Disable and clear all IDMA windows, revoke protection for all channels
 	 */
@@ -1172,6 +1282,9 @@ decode_win_xor_setup(void)
 	uint32_t br, sz;
 	int i, j, z, e = 1, m, window;
 
+	if (pm_is_disabled(CPU_PM_CTRL_XOR))
+		return;
+
 	/*
 	 * Disable and clear all XOR windows, revoke protection for all
 	 * channels
@@ -1364,6 +1477,9 @@ decode_win_cesa_setup(void)
 	uint32_t br, cr;
 	int i, j;
 
+	if (pm_is_disabled(CPU_PM_CTRL_CRYPTO))
+		return;
+
 	/* Disable and clear all CESA windows */
 	for (i = 0; i < MV_WIN_CESA_MAX; i++) {
 		win_cesa_cr_write(i, 0);
@@ -1431,6 +1547,9 @@ decode_win_sata_setup(void)
 {
 	uint32_t cr, br;
 	int i, j;
+
+	if (pm_is_disabled(CPU_PM_CTRL_SATA))
+		return;
 
 	for (i = 0; i < MV_WIN_SATA_MAX; i++) {
 		win_sata_cr_write(i, 0);

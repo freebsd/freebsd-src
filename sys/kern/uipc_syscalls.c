@@ -64,11 +64,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+
+#include <net/vnet.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -2084,9 +2085,11 @@ retry_space:
 				/*
 				 * Get the page from backing store.
 				 */
-				bsize = vp->v_mount->mnt_stat.f_iosize;
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_SHARED | LK_RETRY);
+				error = vn_lock(vp, LK_SHARED);
+				if (error != 0)
+					goto after_read;
+				bsize = vp->v_mount->mnt_stat.f_iosize;
 
 				/*
 				 * XXXMAC: Because we don't have fp->f_cred
@@ -2099,6 +2102,7 @@ retry_space:
 				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
+			after_read:
 				VFS_UNLOCK_GIANT(vfslocked);
 				VM_OBJECT_LOCK(obj);
 				vm_page_io_finish(pg);

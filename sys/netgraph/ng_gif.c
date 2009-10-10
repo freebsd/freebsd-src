@@ -76,7 +76,6 @@
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -561,7 +560,7 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		ng_gif_input_orphan_p = ng_gif_input_orphan;
 
 		/* Create nodes for any already-existing gif interfaces */
-		VNET_LIST_RLOCK_NOSLEEP();
+		VNET_LIST_RLOCK();
 		IFNET_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET_QUIET(vnet_iter); /* XXX revisit quiet */
@@ -572,7 +571,7 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 			CURVNET_RESTORE();
 		}
 		IFNET_RUNLOCK();
-		VNET_LIST_RUNLOCK_NOSLEEP();
+		VNET_LIST_RUNLOCK();
 		break;
 
 	case MOD_UNLOAD:

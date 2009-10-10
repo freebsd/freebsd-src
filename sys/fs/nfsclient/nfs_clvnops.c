@@ -687,11 +687,17 @@ nfs_close(struct vop_close_args *ap)
 		    int cm = newnfs_commit_on_close ? 1 : 0;
 		    error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
-		} else if (NFS_ISV4(vp) && nfscl_mustflush(vp)) {
-			int cm = newnfs_commit_on_close ? 1 : 0;
-			error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td, cm);
-			/* as above w.r.t. races when clearing NMODIFIED */
-			/* np->n_flag &= ~NMODIFIED; */
+		} else if (NFS_ISV4(vp)) { 
+			if (nfscl_mustflush(vp)) {
+				int cm = newnfs_commit_on_close ? 1 : 0;
+				error = ncl_flush(vp, MNT_WAIT, cred, ap->a_td,
+				    cm);
+				/*
+				 * as above w.r.t races when clearing
+				 * NMODIFIED.
+				 * np->n_flag &= ~NMODIFIED;
+				 */
+			}
 		} else
 		    error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		mtx_lock(&np->n_mtx);
@@ -1399,8 +1405,8 @@ again:
 	}
 	mtx_unlock(&dnp->n_mtx);
 
-	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
+	CURVNET_SET(CRED_TO_VNET(cnp->cn_cred));
 	IN_IFADDR_RLOCK();
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
@@ -1409,9 +1415,9 @@ again:
 		cverf.lval[0] = create_verf;
 #ifdef INET
 	IN_IFADDR_RUNLOCK();
+	CURVNET_RESTORE();
 #endif
 	cverf.lval[1] = ++create_verf;
-	CURVNET_RESTORE();
 	error = nfsrpc_create(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    vap, cverf, fmode, cnp->cn_cred, cnp->cn_thread, &dnfsva, &nfsva,
 	    &nfhp, &attrflag, &dattrflag, NULL);
@@ -2448,7 +2454,7 @@ ncl_flush(struct vnode *vp, int waitfor, struct ucred *cred, struct thread *td,
 	int bvecsize = 0, bveccount;
 
 	if (nmp->nm_flag & NFSMNT_INT)
-		slpflag = PCATCH;
+		slpflag = NFS_PCATCH;
 	if (!commit)
 		passone = 0;
 	bo = &vp->v_bufobj;
@@ -2646,7 +2652,7 @@ loop:
 				error = EINTR;
 				goto done;
 			}
-			if (slpflag == PCATCH) {
+			if (slpflag & PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			}
@@ -2684,7 +2690,7 @@ loop:
 			    error = newnfs_sigintr(nmp, td);
 			    if (error)
 				goto done;
-			    if (slpflag == PCATCH) {
+			    if (slpflag & PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			    }

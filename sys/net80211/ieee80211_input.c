@@ -233,22 +233,17 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 struct mbuf *
 ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 {
-#ifdef IEEE80211_SUPPORT_MESH
-	union {
-		struct ieee80211_qosframe_addr4 wh4;
-		uint8_t b[sizeof(struct ieee80211_qosframe_addr4) +
-			  sizeof(struct ieee80211_meshcntl_ae11)];
-	} whu;
-#define	wh	whu.wh4
-#else
 	struct ieee80211_qosframe_addr4 wh;
-#endif
 	struct ether_header *eh;
 	struct llc *llc;
 
+	KASSERT(hdrlen <= sizeof(wh),
+	    ("hdrlen %d > max %zd", hdrlen, sizeof(wh)));
+
 	if (m->m_len < hdrlen + sizeof(*llc) &&
 	    (m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
-		/* XXX stat, msg */
+		vap->iv_stats.is_rx_tooshort++;
+		/* XXX msg */
 		return NULL;
 	}
 	memcpy(&wh, mtod(m, caddr_t), hdrlen);
@@ -295,7 +290,6 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
 	}
 	return m;
-#undef	wh
 }
 
 /*
@@ -530,7 +524,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_HTINFO:
 			scan->htinfo = frm;
 			break;
-#ifdef IEEE80211_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_MESH
 		case IEEE80211_ELEMID_MESHID:
 			scan->meshid = frm;
 			break;

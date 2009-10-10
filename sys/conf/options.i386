@@ -110,7 +110,6 @@ ASR_COMPAT		opt_asr.h
 
 # Debugging
 NPX_DEBUG		opt_npx.h
-STOP_NMI		opt_cpu.h
 
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h

@@ -1023,6 +1023,8 @@ ath_vap_create(struct ieee80211com *ic,
 		sc->sc_nvaps++;
 		if (opmode == IEEE80211_M_STA)
 			sc->sc_nstavaps++;
+		if (opmode == IEEE80211_M_MBSS)
+			sc->sc_nmeshvaps++;
 	}
 	switch (ic_opmode) {
 	case IEEE80211_M_IBSS:
@@ -1137,6 +1139,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 	    vap->iv_opmode == IEEE80211_M_MBSS) {
 		reclaim_address(sc, vap->iv_myaddr);
 		ath_hal_setbssidmask(ah, sc->sc_hwbssidmask);
+		if (vap->iv_opmode == IEEE80211_M_MBSS)
+			sc->sc_nmeshvaps--;
 	}
 	if (vap->iv_opmode != IEEE80211_M_WDS)
 		sc->sc_nvaps--;
@@ -1232,7 +1236,16 @@ ath_resume(struct ath_softc *sc)
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
-			ieee80211_beacon_miss(ic);
+			/*
+			 * Program the beacon registers using the last rx'd
+			 * beacon frame and enable sync on the next beacon
+			 * we see.  This should handle the case where we
+			 * wakeup and find the same AP and also the case where
+			 * we wakeup and need to roam.  For the latter we
+			 * should get bmiss events that trigger a roam.
+			 */
+			ath_beacon_config(sc, NULL);
+			sc->sc_syncbeacon = 1;
 		} else
 			ieee80211_resume_all(ic);
 	}
@@ -2381,7 +2394,7 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_BEACON;
-	if (ic->ic_opmode == IEEE80211_M_MBSS) {
+	if (sc->sc_nmeshvaps) {
 		rfilt |= HAL_RX_FILTER_BEACON;
 		if (sc->sc_hasbmatch)
 			rfilt |= HAL_RX_FILTER_BSSID;

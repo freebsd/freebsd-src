@@ -224,12 +224,19 @@ null_update_promisc(struct ifnet *ifp)
 }
 
 static int
+null_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	m_freem(m);
+	ifp->if_oerrors++;
+	return EACCES;		/* XXX EIO/EPERM? */
+}
+
+static int
 null_output(struct ifnet *ifp, struct mbuf *m,
 	struct sockaddr *dst, struct route *ro)
 {
 	if_printf(ifp, "discard raw packet\n");
-	m_freem(m);
-	return EIO;
+	return null_transmit(ifp, m);
 }
 
 static void
@@ -515,9 +522,15 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 		ifp->if_baudrate = IF_Mbps(maxrate);
 
 	ether_ifattach(ifp, vap->iv_myaddr);
-	/* hook output method setup by ether_ifattach */
-	vap->iv_output = ifp->if_output;
-	ifp->if_output = ieee80211_output;
+	if (vap->iv_opmode == IEEE80211_M_MONITOR) {
+		/* NB: disallow transmit */
+		ifp->if_transmit = null_transmit;
+		ifp->if_output = null_output;
+	} else {
+		/* hook output method setup by ether_ifattach */
+		vap->iv_output = ifp->if_output;
+		ifp->if_output = ieee80211_output;
+	}
 	/* NB: if_mtu set by ether_ifattach to ETHERMTU */
 
 	IEEE80211_LOCK(ic);
@@ -560,10 +573,12 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 
 	/*
 	 * Flush any deferred vap tasks.
-	 * NB: must be before ether_ifdetach() and removal from ic_vaps list
 	 */
 	ieee80211_draintask(ic, &vap->iv_nstate_task);
 	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
+
+	/* XXX band-aid until ifnet handles this for us */
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 
 	IEEE80211_LOCK(ic);
 	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
@@ -624,7 +639,9 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 			 * drivers don't need to special-case it
 			 */
 			if (flag == IFF_PROMISC &&
-			    vap->iv_opmode == IEEE80211_M_HOSTAP)
+			    !(vap->iv_opmode == IEEE80211_M_MONITOR ||
+			      (vap->iv_opmode == IEEE80211_M_AHDEMO &&
+			       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
 				continue;
 			bit = 1;
 			break;

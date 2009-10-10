@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2008  Mark Nudelman
+ * Copyright (C) 1984-2009  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -33,6 +33,7 @@ extern int bufspace;
 extern int pr_type;
 extern int plusoption;
 extern int swindow;
+extern int sc_width;
 extern int sc_height;
 extern int secure;
 extern int dohelp;
@@ -47,6 +48,8 @@ extern IFILE curr_ifile;
 extern char version[];
 extern int jump_sline;
 extern int jump_sline_fraction;
+extern int shift_count;
+extern int shift_count_fraction;
 extern int less_is_more;
 #if LOGFILE
 extern char *namelogfile;
@@ -219,6 +222,70 @@ calc_jump_sline()
 	if (jump_sline_fraction < 0)
 		return;
 	jump_sline = sc_height * jump_sline_fraction / NUM_FRAC_DENOM;
+}
+
+/*
+ * Handlers for -# option.
+ */
+	public void
+opt_shift(type, s)
+	int type;
+	char *s;
+{
+	PARG parg;
+	char buf[16];
+	int len;
+	int err;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		if (*s == '.')
+		{
+			s++;
+			shift_count_fraction = getfraction(&s, "#", &err);
+			if (err)
+				error("Invalid column fraction", NULL_PARG);
+			else
+				calc_shift_count();
+		} else
+		{
+			int hs = getnum(&s, "#", &err);
+			if (err)
+				error("Invalid column number", NULL_PARG);
+			else
+			{
+				shift_count = hs;
+				shift_count_fraction = -1;
+			}
+		}
+		break;
+	case QUERY:
+		if (shift_count_fraction < 0)
+		{
+			parg.p_int = shift_count;
+			error("Horizontal shift %d columns", &parg);
+		} else
+		{
+
+			sprintf(buf, ".%06d", shift_count_fraction);
+			len = strlen(buf);
+			while (len > 2 && buf[len-1] == '0')
+				len--;
+			buf[len] = '\0';
+			parg.p_string = buf;
+			error("Horizontal shift %s of screen width", &parg);
+		}
+		break;
+	}
+}
+	public void
+calc_shift_count()
+{
+	if (shift_count_fraction < 0)
+		return;
+	shift_count = sc_width * shift_count_fraction / NUM_FRAC_DENOM;
 }
 
 #if USERFILE
@@ -442,7 +509,7 @@ opt__V(type, s)
 		any_display = 1;
 		putstr("less ");
 		putstr(version);
-		putstr("\nCopyright (C) 1984-2008 Mark Nudelman\n\n");
+		putstr("\nCopyright (C) 1984-2009 Mark Nudelman\n\n");
 		putstr("less comes with NO WARRANTY, to the extent permitted by law.\n");
 		putstr("For information about the terms of redistribution,\n");
 		putstr("see the file named README in the less distribution.\n");

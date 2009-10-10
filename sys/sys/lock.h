@@ -155,16 +155,16 @@ struct lock_class {
 
 #define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR5(KTR_LOCK, opname " (%s) %s r = %d at %s:%d",	\
+		CTR6(KTR_LOCK, opname " (%s) %s %p r = %d at %s:%d",	\
 		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
-		    (u_int)(recurse), (file), (line));			\
+		    (lo), (u_int)(recurse), (file), (line));		\
 } while (0)
 
 #define	LOCK_LOG_TRY(opname, lo, flags, result, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR5(KTR_LOCK, "TRY_" opname " (%s) %s result=%d at %s:%d",\
+		CTR6(KTR_LOCK, "TRY_" opname " (%s) %s %p result=%d at %s:%d",\
 		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
-		    (u_int)(result), (file), (line));			\
+		    (lo), (u_int)(result), (file), (line));		\
 } while (0)
 
 #define	LOCK_LOG_INIT(lo, flags) do {					\

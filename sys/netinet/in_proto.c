@@ -50,13 +50,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -383,7 +383,7 @@ struct domain inetdomain = {
 	.dom_ifdetach =		in_domifdetach
 };
 
-DOMAIN_SET(inet);
+VNET_DOMAIN_SET(inet);
 
 SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
 	"Internet Family");

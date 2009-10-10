@@ -78,7 +78,6 @@
 #include <sys/priv.h>
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
-#include <sys/vimage.h>
 #include <fs/fifofs/fifo.h>
 #include <net/if.h>
 #include <net/radix.h>
@@ -910,6 +909,13 @@ struct nfsreq {
 #else
 #define	NFSVNO_DELEGOK(v)	(1)
 #endif
+
+/*
+ * Define this as the flags argument for msleep() when catching signals
+ * while holding a resource that other threads would block for, such as
+ * a vnode lock.
+ */
+#define	NFS_PCATCH	(PCATCH | PBDRY)
 
 #endif	/* _KERNEL */
 

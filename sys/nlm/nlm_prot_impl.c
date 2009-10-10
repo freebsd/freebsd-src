@@ -26,7 +26,6 @@
  */
 
 #include "opt_inet6.h"
-#include "opt_nfs.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -671,8 +670,6 @@ nlm_host_destroy(struct nlm_host *host)
 	free(host, M_NLM);
 }
 
-#ifdef NFSCLIENT
-
 /*
  * Thread start callback for client lock recovery
  */
@@ -694,8 +691,6 @@ nlm_client_recovery_start(void *arg)
 
 	kthread_exit();
 }
-
-#endif
 
 /*
  * This is called when we receive a host state change notification. We
@@ -735,7 +730,6 @@ nlm_host_notify(struct nlm_host *host, int newstate)
 	lf_clearremotesys(host->nh_sysid);
 	host->nh_state = newstate;
 
-#ifdef NFSCLIENT
 	/*
 	 * If we have any remote locks for this host (i.e. it
 	 * represents a remote NFS server that our local NFS client
@@ -750,7 +744,6 @@ nlm_host_notify(struct nlm_host *host, int newstate)
 		kthread_add(nlm_client_recovery_start, host, curproc, &td, 0, 0,
 		    "NFS lock recovery for %s", host->nh_caller_name);
 	}
-#endif
 }
 
 /*
@@ -1479,10 +1472,8 @@ nlm_server_main(int addr_count, char **addrs)
 	enum clnt_stat stat;
 	struct nlm_host *host, *nhost;
 	struct nlm_waiting_lock *nw;
-#ifdef NFSCLIENT
 	vop_advlock_t *old_nfs_advlock;
 	vop_reclaim_t *old_nfs_reclaim;
-#endif
 	int v4_used;
 #ifdef INET6
 	int v6_used;
@@ -1583,20 +1574,16 @@ nlm_server_main(int addr_count, char **addrs)
 	NLM_DEBUG(1, "NLM: local NSM state is %d\n", smstat.state);
 	nlm_nsm_state = smstat.state;
 
-#ifdef NFSCLIENT
 	old_nfs_advlock = nfs_advlock_p;
 	nfs_advlock_p = nlm_advlock;
 	old_nfs_reclaim = nfs_reclaim_p;
 	nfs_reclaim_p = nlm_reclaim;
-#endif
 
 	svc_run(pool);
 	error = 0;
 
-#ifdef NFSCLIENT
 	nfs_advlock_p = old_nfs_advlock;
 	nfs_reclaim_p = old_nfs_reclaim;
-#endif
 
 out:
 	if (pool)

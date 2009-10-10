@@ -1212,7 +1212,7 @@ pmap_l2cache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 		CTR4(KTR_PMAP, "pmap_l2cache_wbinv_range: pmap %p is_kernel %d "
 		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
 		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-			cpu_l2cache_wb_range(va, rest);
+			cpu_l2cache_wbinv_range(va, rest);
 
 		len -= rest;
 		va += rest;
@@ -3101,7 +3101,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 {
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
 

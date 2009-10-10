@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/un.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <netinet/in.h>

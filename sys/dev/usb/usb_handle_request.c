@@ -46,6 +46,7 @@
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include "usb_if.h"
 
 #define	USB_DEBUG_VAR usb_debug
@@ -151,8 +152,8 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 	 * attach:
 	 */
 	USB_XFER_UNLOCK(xfer);
-	mtx_lock(&Giant);		/* XXX */
-	sx_xlock(udev->default_sx + 1);
+
+	usbd_enum_lock(udev);
 
 	if (conf_no == USB_UNCONFIG_NO) {
 		conf_no = USB_UNCONFIG_INDEX;
@@ -175,9 +176,32 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 		goto done;
 	}
 done:
-	mtx_unlock(&Giant);		/* XXX */
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
+	return (err);
+}
+
+static usb_error_t
+usb_check_alt_setting(struct usb_device *udev, 
+     struct usb_interface *iface, uint8_t alt_index)
+{
+	uint8_t do_unlock;
+	usb_error_t err = 0;
+
+	/* automatic locking */
+	if (usbd_enum_is_locked(udev)) {
+		do_unlock = 0;
+	} else {
+		do_unlock = 1;
+		usbd_enum_lock(udev);
+	}
+
+	if (alt_index >= usbd_get_no_alts(udev->cdesc, iface->idesc))
+		err = USB_ERR_INVAL;
+
+	if (do_unlock)
+		usbd_enum_unlock(udev);
+
 	return (err);
 }
 
@@ -211,8 +235,8 @@ usb_handle_iface_request(struct usb_xfer *xfer,
 	 * attach:
 	 */
 	USB_XFER_UNLOCK(xfer);
-	mtx_lock(&Giant);		/* XXX */
-	sx_xlock(udev->default_sx + 1);
+
+	usbd_enum_lock(udev);
 
 	error = ENXIO;
 
@@ -285,42 +309,29 @@ tr_repeat:
 		switch (req.bRequest) {
 		case UR_SET_INTERFACE:
 			/*
-			 * Handle special case. If we have parent interface
-			 * we just reset the endpoints, because this is a
-			 * multi interface device and re-attaching only a
-			 * part of the device is not possible. Also if the
-			 * alternate setting is the same like before we just
-			 * reset the interface endoints.
+			 * We assume that the endpoints are the same
+			 * accross the alternate settings.
+			 *
+			 * Reset the endpoints, because re-attaching
+			 * only a part of the device is not possible.
 			 */
-			if ((iface_parent != NULL) ||
-			    (iface->alt_index == req.wValue[0])) {
-				error = usb_reset_iface_endpoints(udev,
-				    iface_index);
-				if (error) {
-					DPRINTF("alt setting failed %s\n",
-					    usbd_errstr(error));
-					goto tr_stalled;
-				}
-				break;
+			error = usb_check_alt_setting(udev,
+			    iface, req.wValue[0]);
+			if (error) {
+				DPRINTF("alt setting does not exist %s\n",
+				    usbd_errstr(error));
+				goto tr_stalled;
 			}
-			/* 
-			 * Doing the alternate setting will detach the
-			 * interface aswell:
-			 */
-			error = usbd_set_alt_interface_index(udev,
-			    iface_index, req.wValue[0]);
+			error = usb_reset_iface_endpoints(udev, iface_index);
 			if (error) {
 				DPRINTF("alt setting failed %s\n",
 				    usbd_errstr(error));
 				goto tr_stalled;
 			}
-			error = usb_probe_and_attach(udev,
-			    iface_index);
-			if (error) {
-				DPRINTF("alt setting probe failed\n");
-				goto tr_stalled;
-			}
+			/* update the current alternate setting */
+			iface->alt_index = req.wValue[0];
 			break;
+
 		default:
 			goto tr_stalled;
 		}
@@ -341,20 +352,17 @@ tr_repeat:
 		goto tr_stalled;
 	}
 tr_valid:
-	mtx_unlock(&Giant);
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (0);
 
 tr_short:
-	mtx_unlock(&Giant);
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_SHORT_XFER);
 
 tr_stalled:
-	mtx_unlock(&Giant);
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_STALLED);
 }

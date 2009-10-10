@@ -63,10 +63,13 @@
 #endif
 
 #if (__FreeBSD_version >= 800000)
+static struct proc *usbproc;
+static int usb_pcount;
 #define	USB_THREAD_CREATE(f, s, p, ...) \
-		kproc_create((f), (s), (p), RFHIGHPID, 0, __VA_ARGS__)
-#define	USB_THREAD_SUSPEND(p)   kproc_suspend(p,0)
-#define	USB_THREAD_EXIT(err)	kproc_exit(err)
+		kproc_kthread_add((f), (s), &usbproc, (p), RFHIGHPID, \
+		    0, "usb", __VA_ARGS__)
+#define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
+#define	USB_THREAD_EXIT(err)	kthread_exit()
 #else
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kthread_create((f), (s), (p), RFHIGHPID, 0, __VA_ARGS__)
@@ -181,6 +184,11 @@ usb_process(void *arg)
 	up->up_ptr = NULL;
 	cv_signal(&up->up_cv);
 	mtx_unlock(up->up_mtx);
+#if (__FreeBSD_version >= 800000)
+	/* Clear the proc pointer if this is the last thread. */
+	if (--usb_pcount == 0)
+		usbproc = NULL;
+#endif
 
 	USB_THREAD_EXIT(0);
 }
@@ -207,8 +215,8 @@ usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 
 	TAILQ_INIT(&up->up_qhead);
 
-	cv_init(&up->up_cv, "wmsg");
-	cv_init(&up->up_drain, "dmsg");
+	cv_init(&up->up_cv, "-");
+	cv_init(&up->up_drain, "usbdrain");
 
 	if (USB_THREAD_CREATE(&usb_process, up,
 	    &up->up_ptr, pmesg)) {
@@ -216,6 +224,9 @@ usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 		up->up_ptr = NULL;
 		goto error;
 	}
+#if (__FreeBSD_version >= 800000)
+	usb_pcount++;
+#endif
 	return (0);
 
 error:
@@ -445,4 +456,30 @@ usb_proc_drain(struct usb_process *up)
 		    "for USB process drain!\n");
 	}
 	mtx_unlock(up->up_mtx);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_proc_rewakeup
+ *
+ * This function is called to re-wakeup the the given USB
+ * process. This usually happens after that the USB system has been in
+ * polling mode, like during a panic. This function must be called
+ * having "up->up_mtx" locked.
+ *------------------------------------------------------------------------*/
+void
+usb_proc_rewakeup(struct usb_process *up)
+{
+	/* check if not initialised */
+	if (up->up_mtx == NULL)
+		return;
+	/* check if gone */
+	if (up->up_gone)
+		return;
+
+	mtx_assert(up->up_mtx, MA_OWNED);
+
+	if (up->up_msleep == 0) {
+		/* re-wakeup */
+		cv_signal(&up->up_cv);
+	}
 }

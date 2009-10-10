@@ -412,9 +412,6 @@ boot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 
-	/* XXX This doesn't disable interrupts any more.  Reconsider? */
-	splhigh();
-
 	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold && !dumping) 
 		doadump();
 
@@ -487,6 +484,13 @@ shutdown_panic(void *junk, int howto)
 static void
 shutdown_reset(void *junk, int howto)
 {
+
+	/*
+	 * Disable interrupts on CPU0 in order to avoid fast handlers
+	 * to preempt the stopping process and to deadlock against other
+	 * CPUs.
+	 */
+	spinlock_enter();
 
 	printf("Rebooting...\n");
 	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */

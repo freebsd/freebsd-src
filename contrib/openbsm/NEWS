@@ -1,5 +1,11 @@
 OpenBSM Version History
 
+OpenBSM 1.1p2
+
+- Fix audit_event definitions of AUE_OPENAT_RWT and AUE_OPENAT_RWTC.
+- Fix build on Linux.
+- Fix printing of class masks in the audump tool.
+
 OpenBSM 1.1p1
 
 - Fixes to AUT_SOCKUNIX token parsing.
@@ -458,4 +464,4 @@ OpenBSM 1.0 alpha 1
   to support reloading of kernel event table.
 - Allow comments in /etc/security configuration files.
 
-$P4: //depot/projects/trustedbsd/openbsm/NEWS#42 $
+$P4: //depot/projects/trustedbsd/openbsm/NEWS#43 $

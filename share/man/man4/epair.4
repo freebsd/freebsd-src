@@ -28,12 +28,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2008
+.Dd July 26, 2009
 .Dt EPAIR 4
 .Os
 .Sh NAME
 .Nm epair
-.Nd Virtual cross-over Ethernet-like interface pair.
+.Nd A pair of virtual back-to-back connected Ethernet interfaces.
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -52,7 +52,7 @@ if_epair_load="YES"
 The
 .Nm
 is a pair of Ethernet-like software interfaces,
-which are directly connected by a virtual cross-over cable.
+which are connected back-to-back with a virtual cross-over cable.
 .Pp
 Each
 .Nm
