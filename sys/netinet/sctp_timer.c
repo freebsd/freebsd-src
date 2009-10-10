@@ -588,7 +588,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 				/* sa_ignore NO_NULL_CHK */
 				sctp_free_bufspace(stcb, asoc, chk, 1);
 				sctp_m_freem(chk->data);
-				if (PR_SCTP_BUF_ENABLED(chk->flags)) {
+				if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(chk->flags)) {
 					asoc->sent_queue_cnt_removeable--;
 				}
 			}
@@ -757,7 +757,7 @@ start_again:
 					continue;
 				}
 			}
-			if (PR_SCTP_TTL_ENABLED(chk->flags)) {
+			if (stcb->asoc.peer_supports_prsctp && PR_SCTP_TTL_ENABLED(chk->flags)) {
 				/* Is it expired? */
 				if ((now.tv_sec > chk->rec.data.timetodrop.tv_sec) ||
 				    ((chk->rec.data.timetodrop.tv_sec == now.tv_sec) &&
@@ -772,7 +772,7 @@ start_again:
 					continue;
 				}
 			}
-			if (PR_SCTP_RTX_ENABLED(chk->flags)) {
+			if (stcb->asoc.peer_supports_prsctp && PR_SCTP_RTX_ENABLED(chk->flags)) {
 				/* Has it been retransmitted tv_sec times? */
 				if (chk->snd_count > chk->rec.data.timetodrop.tv_sec) {
 					if (chk->data) {

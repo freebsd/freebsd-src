@@ -70,11 +70,6 @@ _posix1e_acl_to_text(acl_t acl, ssize_t *len_p, int flags)
 	if (buf == NULL)
 		return(NULL);
 
-	if (acl == NULL) {
-		errno = EINVAL;
-		return(NULL);
-	}
-
 	acl_int = &acl->ats_acl;
 
 	mask_perm = ACL_PERM_BITS;	/* effective is regular if no mask */
@@ -242,6 +237,11 @@ error_label:
 char *
 acl_to_text_np(acl_t acl, ssize_t *len_p, int flags)
 {
+
+	if (acl == NULL) {
+		errno = EINVAL;
+		return(NULL);
+	}
 
 	switch (_acl_brand(acl)) {
 	case ACL_BRAND_POSIX:

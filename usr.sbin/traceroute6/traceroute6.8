@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 1998
+.Dd August 24, 2009
 .Dt TRACEROUTE6 8
 .Os
 .\"
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Bk -words
-.Op Fl dIlnNrvU
+.Op Fl adIlnNrvU
 .Ek
 .Bk -words
 .Op Fl f Ar firsthop
@@ -64,6 +64,9 @@
 .Op Fl w Ar waittime
 .Ek
 .Bk -words
+.Op Fl A Ar as_server
+.Ek
+.Bk -words
 .Ar target
 .Op Ar datalen
 .Ek
@@ -84,6 +87,10 @@ after the destination host name.
 .Pp
 Other options are:
 .Bl -tag -width Ds
+.It Fl a
+Turn on AS# lookups for each hop encountered.
+.It Fl A Ar as_server
+Turn on AS# lookups and use the given server instead of the default.
 .It Fl d
 Debug mode.
 .It Fl f Ar firsthop

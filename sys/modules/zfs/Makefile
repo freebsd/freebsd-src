@@ -23,6 +23,7 @@ SRCS+=	opensolaris_kstat.c
 SRCS+=	opensolaris_lookup.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
+SRCS+=	opensolaris_taskq.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
@@ -42,7 +43,6 @@ SRCS+=	vnode.c
 SRCS+=	callb.c
 SRCS+=	list.c
 SRCS+=	nvpair_alloc_system.c
-SRCS+=	taskq.c
 
 .PATH:	${SUNW}/uts/common/zmod
 SRCS+=	adler32.c

@@ -597,9 +597,7 @@ bktr_open( struct cdev *dev, int flags, int fmt, struct thread *td )
 		return( ENXIO );	
 
 	/* Record that the device is now busy */
-	newbus_xlock();
 	device_busy(devclass_get_device(bktr_devclass, unit)); 
-	newbus_xunlock();
 
 
 	if (bt848_card != -1) {
@@ -670,11 +668,8 @@ bktr_open( struct cdev *dev, int flags, int fmt, struct thread *td )
 	}
 
 	/* If there was an error opening the device, undo the busy status */
-	if (result != 0) {
-		newbus_xlock();
+	if (result != 0)
 		device_unbusy(devclass_get_device(bktr_devclass, unit)); 
-		newbus_xunlock();
-	}
 	return( result );
 }
 
@@ -694,7 +689,6 @@ bktr_close( struct cdev *dev, int flags, int fmt, struct thread *td )
 	/* Get the device data */
 	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
 	if (bktr == NULL) {
-
 		/* the device is no longer valid/functioning */
 		return (ENXIO);
 	}
@@ -711,11 +705,10 @@ bktr_close( struct cdev *dev, int flags, int fmt, struct thread *td )
 		break;
 	default:
 		return (ENXIO);
+		break;
 	}
 
-	newbus_xlock();
 	device_unbusy(devclass_get_device(bktr_devclass, unit)); 
-	newbus_xunlock();
 	return( result );
 }
 

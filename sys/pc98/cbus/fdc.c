@@ -1499,9 +1499,7 @@ fdstrategy(struct bio *bp)
 	bioq_disksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
 	devstat_start_transaction_bio(fd->device_stats, bp);
-	newbus_xlock();
 	device_busy(fd->dev);
-	newbus_xunlock();
 	fdstart(fdc);
 	splx(s);
 	return;
@@ -2180,9 +2178,7 @@ fdstate(fdc_p fdc)
 			fd->skip = 0;
 			bp->bio_resid = 0;
 			fdc->bp = NULL;
-			newbus_xlock();
 			device_unbusy(fd->dev);
-			newbus_xunlock();
 			biofinish(bp, fd->device_stats, 0);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
@@ -2343,9 +2339,7 @@ retrier(struct fdc_data *fdc)
 			bp->bio_resid = 0;
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
-		newbus_xlock();
 		device_unbusy(fd->dev);
-		newbus_xunlock();
 		biofinish(bp, fdc->fd->device_stats, 0);
 		fdc->state = FINDWORK;
 		fdc->flags |= FDC_NEEDS_RESET;

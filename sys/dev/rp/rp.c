@@ -903,9 +903,7 @@ rpopen(struct tty *tp)
 		rp_callout_handle = timeout(rp_do_poll, 
 					    (void *)NULL, POLL_INTERVAL);
 
-	newbus_xlock();
 	device_busy(rp->rp_ctlp->dev);
-	newbus_xunlock();
 	return(0);
 }
 
@@ -916,9 +914,7 @@ rpclose(struct tty *tp)
 
 	rp = tty_softc(tp);
 	rphardclose(tp);
-	newbus_xlock();
 	device_unbusy(rp->rp_ctlp->dev);
-	newbus_xunlock();
 }
 
 static void

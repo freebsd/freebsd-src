@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2006
+.Dd August 19, 2009
 .Dt FREEBSD-UPDATE.CONF 5
 .Os FreeBSD
 .Sh NAME
@@ -48,7 +48,7 @@ error.
 .Pp
 The possible options and their meanings are as follows:
 .Pp
-.Bl -tag -width "KeepModifiedMetadata"
+.Bl -tag -width ".Cm BackupKernelSymbolFiles"
 .It Cm KeyPrint
 The single parameter following this keyword is the SHA256 hash
 of the RSA key which will be trusted to sign updates.
@@ -171,6 +171,54 @@ command is used ("yes"), or merely as a list of components
 which might be installed, of which
 .Cm freebsd-update
 should identify which in fact are present ("no").
+.It Cm BackupKernel
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+will create a backup of the old kernel before installing a new kernel.
+This backup kernel can be used to recover a system where the newly
+installed kernel somehow did not work.
+Note that the backup kernel is not reverted to its original state by
+the
+.Cm freebsd-update
+rollback command.
+.It Cm BackupKernelDir
+This keyword sets the directory which is used to store a backup
+kernel, if the BackupKernel feature is enabled.
+If the directory already exist, and it was not created by
+.Cm freebsd-update ,
+the directory is skipped.
+In the case of the primary directory name not being usable, a number
+starting with
+.Sq 1
+is appended to the directory name.
+Like with the primary directory name, the constructed directory name is
+only used if the path name does not exist, or if the directory was
+previously created by
+.Cm freebsd-update .
+If the constructed directory still exist the appended number is
+incremented with 1 and the directory search process restarted.
+Should the number increment go above 9,
+.Cm freebsd-update
+will abort.
+.It Cm BackupKernelSymbolFiles
+The single parameter following this keyword must be
+.Dq yes
+or
+.Dq no
+and specifies whether
+.Cm freebsd-update
+will also backup kernel symbol files, if they exist.
+The kernel symbol files takes up a lot of disk space and are not
+needed for recovery purposes.
+If the symbol files are needed, after recovering a system using the
+backup kernel, the
+.Cm freebsd-update
+rollback command will recreate the symbol files along with the old
+kernel.
 .El
 .Sh FILES
 .Bl -tag -width "/etc/freebsd-update.conf"

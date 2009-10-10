@@ -46,7 +46,6 @@ ACPI_MODULE_NAME("AIBOOST")
 
 #define DESCSTRLEN 32
 struct acpi_aiboost_element{
-	ACPI_HANDLE h;
 	uint32_t id;
 	char desc[DESCSTRLEN];
 };
@@ -127,22 +126,23 @@ static ACPI_STATUS acpi_aiboost_getcomponent(device_t dev, char *name, struct  a
 	
 	for(i = 1 ; i < o->Package.Count; i++){
 		elem = &o->Package.Elements[i];
-		if(elem->Type != ACPI_TYPE_ANY){
-			printf("NOREF\n");
-			goto error;
-		}
-		c->elem[ i - 1].h = elem->Reference.Handle;
+		if (elem->Type == ACPI_TYPE_ANY) {
+			buf2.Pointer = NULL;
+			buf2.Length = ACPI_ALLOCATE_BUFFER;
 
-		buf2.Pointer = NULL;
-		buf2.Length = ACPI_ALLOCATE_BUFFER;
-		
-		status = AcpiEvaluateObject(c->elem[i - 1].h, NULL, NULL,
-					    &buf2);
-		if(ACPI_FAILURE(status)){
-			printf("FETCH OBJECT\n");
+			status = AcpiEvaluateObject(elem->Reference.Handle,
+			    NULL, NULL, &buf2);
+			if (ACPI_FAILURE(status)){
+				printf("FETCH OBJECT\n");
+				goto error;
+			}
+			subobj = buf2.Pointer;
+		} else if (elem->Type == ACPI_TYPE_PACKAGE)
+			subobj = elem;
+		else {
+			printf("NO PACKAGE\n");
 			goto error;
 		}
-		subobj = buf2.Pointer;
 		if(ACPI_FAILURE(acpi_PkgInt32(subobj,0, &c->elem[i -1].id))){
 			printf("ID FAILED\n");
 			goto error;
@@ -151,15 +151,17 @@ static ACPI_STATUS acpi_aiboost_getcomponent(device_t dev, char *name, struct  a
 				     sizeof(c->elem[i - 1].desc));
 		if(ACPI_FAILURE(status)){
 			if(status == E2BIG){
-				c->elem[i-1].desc[DESCSTRLEN-1] = 0;
+				c->elem[i - 1].desc[DESCSTRLEN-1] = 0;
 			}else{
 				printf("DESC FAILED %d\n", i-1);
 				goto error;
 			}
 		}
 		
-		if(buf2.Pointer)
-		  AcpiOsFree(buf2.Pointer);
+		if (buf2.Pointer) {
+			AcpiOsFree(buf2.Pointer);
+			buf2.Pointer = NULL;
+		}
 	}
 
 	if(buf.Pointer)

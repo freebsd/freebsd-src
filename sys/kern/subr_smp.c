@@ -104,12 +104,6 @@ SYSCTL_INT(_kern_smp, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
 	   &forward_signal_enabled, 0,
 	   "Forwarding of a signal to a process on a different CPU");
 
-/* Enable forwarding of roundrobin to all other cpus */
-static int forward_roundrobin_enabled = 1;
-SYSCTL_INT(_kern_smp, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
-	   &forward_roundrobin_enabled, 0,
-	   "Forwarding of roundrobin to all other CPUs");
-
 /* Variables needed for SMP rendezvous. */
 static volatile int smp_rv_ncpus;
 static void (*volatile smp_rv_setup_func)(void *arg);
@@ -189,33 +183,6 @@ forward_signal(struct thread *td)
 	ipi_selected(1 << id, IPI_AST);
 }
 
-void
-forward_roundrobin(void)
-{
-	struct pcpu *pc;
-	struct thread *td;
-	cpumask_t id, map, me;
-
-	CTR0(KTR_SMP, "forward_roundrobin()");
-
-	if (!smp_started || cold || panicstr)
-		return;
-	if (!forward_roundrobin_enabled)
-		return;
-	map = 0;
-	me = PCPU_GET(cpumask);
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		td = pc->pc_curthread;
-		id = pc->pc_cpumask;
-		if (id != me && (id & stopped_cpus) == 0 &&
-		    !TD_IS_IDLETHREAD(td)) {
-			td->td_flags |= TDF_NEEDRESCHED;
-			map |= id;
-		}
-	}
-	ipi_selected(map, IPI_AST);
-}
-
 /*
  * When called the executing CPU will send an IPI to all other CPUs
  *  requesting that they halt execution.
@@ -233,18 +200,21 @@ forward_roundrobin(void)
  * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
  *            from executing at same time.
  */
-int
-stop_cpus(cpumask_t map)
+static int
+generic_stop_cpus(cpumask_t map, u_int type)
 {
 	int i;
+
+	KASSERT(type == IPI_STOP || type == IPI_STOP_HARD,
+	    ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
 		return 0;
 
-	CTR1(KTR_SMP, "stop_cpus(%x)", map);
+	CTR2(KTR_SMP, "stop_cpus(%x) with %u type", map, type);
 
 	/* send the stop IPI to all CPUs in map */
-	ipi_selected(map, IPI_STOP);
+	ipi_selected(map, type);
 
 	i = 0;
 	while ((stopped_cpus & map) != map) {
@@ -260,6 +230,20 @@ stop_cpus(cpumask_t map)
 	}
 
 	return 1;
+}
+
+int
+stop_cpus(cpumask_t map)
+{
+
+	return (generic_stop_cpus(map, IPI_STOP));
+}
+
+int
+stop_cpus_hard(cpumask_t map)
+{
+
+	return (generic_stop_cpus(map, IPI_STOP_HARD));
 }
 
 #if defined(__amd64__)

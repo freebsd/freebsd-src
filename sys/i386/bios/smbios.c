@@ -230,12 +230,10 @@ smbios_modevent (mod, what, arg)
 	case MOD_LOAD:
 		break;
 	case MOD_UNLOAD:
-		newbus_xlock();
 		devclass_get_devices(smbios_devclass, &devs, &count);
 		for (i = 0; i < count; i++) {
 			device_delete_child(device_get_parent(devs[i]), devs[i]);
 		}
-		newbus_xunlock();
 		break;
 	default:
 		break;

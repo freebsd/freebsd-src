@@ -675,6 +675,8 @@ acpi_suspend(device_t dev)
     device_t child, *devlist;
     int error, i, numdevs, pstate;
 
+    GIANT_REQUIRED;
+
     /* First give child devices a chance to suspend. */
     error = bus_generic_suspend(dev);
     if (error)
@@ -717,6 +719,8 @@ acpi_resume(device_t dev)
     int i, numdevs, error;
     device_t child, *devlist;
 
+    GIANT_REQUIRED;
+
     /*
      * Put all devices in D0 before resuming them.  Call _S0D on each one
      * since some systems expect this.
@@ -740,6 +744,8 @@ acpi_resume(device_t dev)
 static int
 acpi_shutdown(device_t dev)
 {
+
+    GIANT_REQUIRED;
 
     /* Allow children to shutdown first. */
     bus_generic_shutdown(dev);
@@ -1008,14 +1014,27 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	    continue;
 
 	/*
-	 * Check for matching resources.  We must have at least one,
-	 * and all resources specified have to match.
+	 * Check for matching resources.  We must have at least one match.
+	 * Since I/O and memory resources cannot be shared, if we get a
+	 * match on either of those, ignore any mismatches in IRQs or DRQs.
 	 *
 	 * XXX: We may want to revisit this to be more lenient and wire
 	 * as long as it gets one match.
 	 */
 	matches = 0;
 	if (resource_long_value(name, unit, "port", &value) == 0) {
+	    /*
+	     * Floppy drive controllers are notorious for having a
+	     * wide variety of resources not all of which include the
+	     * first port that is specified by the hint (typically
+	     * 0x3f0) (see the comment above fdc_isa_alloc_resources()
+	     * in fdc_isa.c).  However, they do all seem to include
+	     * port + 2 (e.g. 0x3f2) so for a floppy device, look for
+	     * 'value + 2' in the port resources instead of the hint
+	     * value.
+	     */
+	    if (strcmp(name, "fdc") == 0)
+		value += 2;
 	    if (acpi_match_resource_hint(child, SYS_RES_IOPORT, value))
 		matches++;
 	    else
@@ -1027,6 +1046,8 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	    else
 		continue;
 	}
+	if (matches > 0)
+	    goto matched;
 	if (resource_long_value(name, unit, "irq", &value) == 0) {
 	    if (acpi_match_resource_hint(child, SYS_RES_IRQ, value))
 		matches++;
@@ -1040,6 +1061,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 		continue;
 	}
 
+    matched:
 	if (matches > 0) {
 	    /* We have a winner! */
 	    *unitp = unit;
@@ -2528,7 +2550,11 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     thread_unlock(curthread);
 #endif
 
-    newbus_xlock();
+    /*
+     * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
+     * drivers need this.
+     */
+    mtx_lock(&Giant);
 
     slp_state = ACPI_SS_NONE;
 
@@ -2601,7 +2627,7 @@ backout:
     if (slp_state >= ACPI_SS_SLEPT)
 	acpi_enable_fixed_events(sc);
 
-    newbus_xunlock();
+    mtx_unlock(&Giant);
 
 #ifdef SMP
     thread_lock(curthread);

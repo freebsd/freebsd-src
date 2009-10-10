@@ -88,7 +88,11 @@ struct prison prison0 = {
 	.pr_childmax	= JAIL_MAX,
 	.pr_hostuuid	= DEFAULT_HOSTUUID,
 	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
+#ifdef VIMAGE
+	.pr_flags	= PR_HOST|PR_VNET,
+#else
 	.pr_flags	= PR_HOST,
+#endif
 	.pr_allow	= PR_ALLOW_ALL,
 };
 MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
@@ -472,10 +476,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 	struct vfsopt *opt;
 	struct vfsoptlist *opts;
-	struct prison *pr, *deadpr, *mypr, *ppr, *tpr, *tppr;
+	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
-	char *domain, *errmsg, *host, *name, *p, *path, *uuid;
+	char *domain, *errmsg, *host, *name, *namelc, *p, *path, *uuid;
 #if defined(INET) || defined(INET6)
+	struct prison *tppr;
 	void *op;
 #endif
 	unsigned long hid;
@@ -902,6 +907,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		goto done_unlock_list;
 	}
 	pr = NULL;
+	namelc = NULL;
+	if (cuflags == JAIL_CREATE && jid == 0 && name != NULL) {
+		namelc = strrchr(name, '.');
+		jid = strtoul(namelc != NULL ? namelc + 1 : name, &p, 10);
+		if (*p != '\0')
+			jid = 0;
+	}
 	if (jid != 0) {
 		/*
 		 * See if a requested jid already exists.  There is an
@@ -968,17 +980,19 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 * because that is the jail being updated).
 	 */
 	if (name != NULL) {
-		p = strrchr(name, '.');
-		if (p != NULL) {
+		namelc = strrchr(name, '.');
+		if (namelc == NULL)
+			namelc = name;
+		else {
 			/*
 			 * This is a hierarchical name.  Split it into the
 			 * parent and child names, and make sure the parent
 			 * exists or matches an already found jail.
 			 */
-			*p = '\0';
+			*namelc = '\0';
 			if (pr != NULL) {
-				if (strncmp(name, ppr->pr_name, p - name) ||
-				    ppr->pr_name[p - name] != '\0') {
+				if (strncmp(name, ppr->pr_name, namelc - name)
+				    || ppr->pr_name[namelc - name] != '\0') {
 					mtx_unlock(&pr->pr_mtx);
 					error = EINVAL;
 					vfs_opterror(opts,
@@ -995,7 +1009,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				}
 				mtx_unlock(&ppr->pr_mtx);
 			}
-			name = p + 1;
+			name = ++namelc;
 		}
 		if (name[0] != '\0') {
 			namelen =
@@ -1407,9 +1421,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		/* Give a default name of the jid. */
 		if (name[0] == '\0')
 			snprintf(name = numbuf, sizeof(numbuf), "%d", jid);
-		else if (strtoul(name, &p, 10) != jid && *p == '\0') {
+		else if (*namelc == '0' || (strtoul(namelc, &p, 10) != jid &&
+		    *p == '\0')) {
 			error = EINVAL;
-			vfs_opterror(opts, "name cannot be numeric");
+			vfs_opterror(opts,
+			    "name cannot be numeric (unless it is the jid)");
 			goto done_deref_locked;
 		}
 		/*
@@ -2448,10 +2464,10 @@ prison_deref(struct prison *pr, int flags)
 		ppr = pr->pr_parent;
 		for (tpr = ppr; tpr != NULL; tpr = tpr->pr_parent)
 			tpr->pr_childcount--;
-		sx_downgrade(&allprison_lock);
+		sx_xunlock(&allprison_lock);
 
 #ifdef VIMAGE
-		if (pr->pr_flags & PR_VNET)
+		if (pr->pr_vnet != ppr->pr_vnet)
 			vnet_destroy(pr->pr_vnet);
 #endif
 		if (pr->pr_root != NULL) {
@@ -2474,7 +2490,7 @@ prison_deref(struct prison *pr, int flags)
 		/* Removing a prison frees a reference on its parent. */
 		pr = ppr;
 		mtx_lock(&pr->pr_mtx);
-		flags = PD_DEREF | PD_LIST_SLOCKED;
+		flags = PD_DEREF;
 	}
 }
 
@@ -3306,6 +3322,25 @@ getcredhostid(struct ucred *cred, unsigned long *hostid)
 	*hostid = cred->cr_prison->pr_hostid;
 	mtx_unlock(&cred->cr_prison->pr_mtx);
 }
+
+#ifdef VIMAGE
+/*
+ * Determine whether the prison represented by cred owns
+ * its vnet rather than having it inherited.
+ *
+ * Returns 1 in case the prison owns the vnet, 0 otherwise.
+ */
+int
+prison_owns_vnet(struct ucred *cred)
+{
+
+	/*
+	 * vnets cannot be added/removed after jail creation,
+	 * so no need to lock here.
+	 */
+	return (cred->cr_prison->pr_flags & PR_VNET ? 1 : 0);
+}
+#endif
 
 /*
  * Determine whether the subject represented by cred can "see"

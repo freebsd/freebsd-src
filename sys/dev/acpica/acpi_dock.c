@@ -188,12 +188,12 @@ acpi_dock_attach_later(void *context)
 
 	dev = (device_t)context;
 
-	newbus_xlock();
 	if (!device_is_enabled(dev))
 		device_enable(dev);
 
+	mtx_lock(&Giant);
 	device_probe_and_attach(dev);
-	newbus_xunlock();
+	mtx_unlock(&Giant);
 }
 
 static ACPI_STATUS
@@ -299,11 +299,11 @@ acpi_dock_eject_child(ACPI_HANDLE handle, UINT32 level, void *context,
 	    "ejecting device for %s\n", acpi_name(handle));
 
 	dev = acpi_get_device(handle);
-	newbus_xlock();
 	if (dev != NULL && device_is_attached(dev)) {
+		mtx_lock(&Giant);
 		device_detach(dev);
+		mtx_unlock(&Giant);
 	}
-	newbus_xunlock();
 
 	acpi_SetInteger(handle, "_EJ0", 0);
 out:

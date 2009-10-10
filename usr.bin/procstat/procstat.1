@@ -351,10 +351,8 @@ may be mechanically parsed.
 .Pp
 The display of open file or memory mapping pathnames is implemented using the
 kernel's name cache.
-It therefore does not work for file systems
-that do not use the name cache, such as
-.Xr devfs 4 ,
-or if the name is not present in the cache due to removal.
+If a file system does not use the name cache, or the path to a file is not in
+the cache, a path will not be displayed.
 .Pp
 .Nm
 currently supports extracting data only from a live kernel, and not from

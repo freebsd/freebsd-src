@@ -939,7 +939,7 @@ installFixupKernel(dialogMenuItem *self, int dists)
     if (RunningAsInit) {
 	/*
 	 * Install something as /boot/kernel.  Prefer SMP
-	 * over generic--this should handle the case where
+	 * over GENERIC--this should handle the case where
 	 * both SMP and GENERIC are installed (otherwise we
 	 * select the one kernel that was installed).
 	 *
