@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/pfil.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h> /* for struct arpcom */
 #include <netinet/in_systm.h>
@@ -1800,9 +1801,9 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 		return;
 	}
 
-	if (PFIL_HOOKED(&inet_pfil_hook)
+	if (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    ) {
 		if (bridge_pfil(&m, sc->sc_ifp, ifp, PFIL_OUT) != 0)
@@ -2062,9 +2063,9 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 		ETHER_BPF_MTAP(ifp, m);
 
 	/* run the packet filter */
-	if (PFIL_HOOKED(&inet_pfil_hook)
+	if (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    ) {
 		BRIDGE_UNLOCK(sc);
@@ -2102,9 +2103,9 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 
 	BRIDGE_UNLOCK(sc);
 
-	if (PFIL_HOOKED(&inet_pfil_hook)
+	if (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    ) {
 		if (bridge_pfil(&m, ifp, dst_if, PFIL_OUT) != 0)
@@ -2243,7 +2244,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 #ifdef INET6
 #   define OR_PFIL_HOOKED_INET6 \
-	|| PFIL_HOOKED(&inet6_pfil_hook)
+	|| PFIL_HOOKED(&V_inet6_pfil_hook)
 #else
 #   define OR_PFIL_HOOKED_INET6
 #endif
@@ -2260,7 +2261,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 			iface->if_ipackets++;				\
 			/* Filter on the physical interface. */		\
 			if (pfil_local_phys &&				\
-			    (PFIL_HOOKED(&inet_pfil_hook)		\
+			    (PFIL_HOOKED(&V_inet_pfil_hook)		\
 			     OR_PFIL_HOOKED_INET6)) {			\
 				if (bridge_pfil(&m, NULL, ifp,		\
 				    PFIL_IN) != 0 || m == NULL) {	\
@@ -2349,9 +2350,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	}
 
 	/* Filter on the bridge interface before broadcasting */
-	if (runfilt && (PFIL_HOOKED(&inet_pfil_hook)
+	if (runfilt && (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    )) {
 		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
@@ -2396,9 +2397,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		 * pointer so we do not redundantly filter on the bridge for
 		 * each interface we broadcast on.
 		 */
-		if (runfilt && (PFIL_HOOKED(&inet_pfil_hook)
+		if (runfilt && (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-		    || PFIL_HOOKED(&inet6_pfil_hook)
+		    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 		    )) {
 			if (used == 0) {
@@ -3037,7 +3038,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	if (ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
+	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
 		struct dn_pkt_tag *dn_tag;
 
 		error = -1;
@@ -3057,7 +3058,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		args.next_hop = NULL;
 		args.eh = &eh2;
 		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
-		i = ip_fw_chk_ptr(&args);
+		i = V_ip_fw_chk_ptr(&args);
 		*mp = args.m;
 
 		if (*mp == NULL)
@@ -3109,21 +3110,21 @@ ipfwpass:
 		 *   in_if -> bridge_if -> out_if
 		 */
 		if (pfil_bridge && dir == PFIL_OUT && bifp != NULL)
-			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_member && ifp != NULL)
-			error = pfil_run_hooks(&inet_pfil_hook, mp, ifp,
+			error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
-			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
@@ -3163,21 +3164,21 @@ ipfwpass:
 #ifdef INET6
 	case ETHERTYPE_IPV6:
 		if (pfil_bridge && dir == PFIL_OUT && bifp != NULL)
-			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_member && ifp != NULL)
-			error = pfil_run_hooks(&inet6_pfil_hook, mp, ifp,
+			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, ifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
-			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 		break;
 #endif

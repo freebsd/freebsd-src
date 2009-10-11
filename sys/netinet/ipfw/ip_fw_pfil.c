@@ -515,41 +515,53 @@ ipfw6_unhook(void)
 int
 ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 {
-	int enable = *(int *)arg1;
+	int enable;
+	int oldenable;
 	int error;
 
-#ifdef VIMAGE /* Since enabling is global, only let base do it. */
-	if (! IS_DEFAULT_VNET(curvnet))
-		return (EPERM);
+	if (arg1 == &VNET_NAME(fw_enable)) {
+		enable = V_fw_enable;
+	}
+#ifdef INET6
+	else if (arg1 == &VNET_NAME(fw6_enable)) {
+		enable = V_fw6_enable;
+	}
 #endif
+	else 
+		return (EINVAL);
+
+	oldenable = enable;
+
 	error = sysctl_handle_int(oidp, &enable, 0, req);
+
 	if (error)
 		return (error);
 
 	enable = (enable) ? 1 : 0;
 
-	if (enable == *(int *)arg1)
+	if (enable == oldenable)
 		return (0);
 
-	if (arg1 == &V_fw_enable) {
+	if (arg1 == &VNET_NAME(fw_enable)) {
 		if (enable)
 			error = ipfw_hook();
 		else
 			error = ipfw_unhook();
+		if (error)
+			return (error);
+		V_fw_enable = enable;
 	}
 #ifdef INET6
-	if (arg1 == &V_fw6_enable) {
+	else if (arg1 == &VNET_NAME(fw6_enable)) {
 		if (enable)
 			error = ipfw6_hook();
 		else
 			error = ipfw6_unhook();
+		if (error)
+			return (error);
+		V_fw6_enable = enable;
 	}
 #endif
-
-	if (error)
-		return (error);
-
-	*(int *)arg1 = enable;
 
 	return (0);
 }

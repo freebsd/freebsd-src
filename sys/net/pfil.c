@@ -56,8 +56,9 @@ static int pfil_list_add(pfil_list_t *, struct packet_filter_hook *, int);
 static int pfil_list_remove(pfil_list_t *,
     int (*)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *), void *);
 
-LIST_HEAD(, pfil_head) pfil_head_list =
-    LIST_HEAD_INITIALIZER(&pfil_head_list);
+LIST_HEAD(pfilheadhead, pfil_head);
+VNET_DEFINE(struct pfilheadhead, pfil_head_list);
+#define	V_pfil_head_list	VNET(pfil_head_list)
 
 /*
  * pfil_run_hooks() runs the specified packet filter hooks.
@@ -97,7 +98,7 @@ pfil_head_register(struct pfil_head *ph)
 	struct pfil_head *lph;
 
 	PFIL_LIST_LOCK();
-	LIST_FOREACH(lph, &pfil_head_list, ph_list) {
+	LIST_FOREACH(lph, &V_pfil_head_list, ph_list) {
 		if (ph->ph_type == lph->ph_type &&
 		    ph->ph_un.phu_val == lph->ph_un.phu_val) {
 			PFIL_LIST_UNLOCK();
@@ -108,7 +109,7 @@ pfil_head_register(struct pfil_head *ph)
 	ph->ph_nhooks = 0;
 	TAILQ_INIT(&ph->ph_in);
 	TAILQ_INIT(&ph->ph_out);
-	LIST_INSERT_HEAD(&pfil_head_list, ph, ph_list);
+	LIST_INSERT_HEAD(&V_pfil_head_list, ph, ph_list);
 	PFIL_LIST_UNLOCK();
 	return (0);
 }
@@ -143,7 +144,7 @@ pfil_head_get(int type, u_long val)
 	struct pfil_head *ph;
 
 	PFIL_LIST_LOCK();
-	LIST_FOREACH(ph, &pfil_head_list, ph_list)
+	LIST_FOREACH(ph, &V_pfil_head_list, ph_list)
 		if (ph->ph_type == type && ph->ph_un.phu_val == val)
 			break;
 	PFIL_LIST_UNLOCK();
@@ -284,3 +285,45 @@ pfil_list_remove(pfil_list_t *list,
 		}
 	return ENOENT;
 }
+
+/****************
+ * Stuff that must be initialized for every instance
+ * (including the first of course).
+ */
+static int
+vnet_pfil_init(const void *unused)
+{
+	LIST_INIT(&V_pfil_head_list);
+	return (0);
+}
+
+/***********************
+ * Called for the removal of each instance.
+ */
+static int
+vnet_pfil_uninit(const void *unused)
+{
+	/*  XXX should panic if list is not empty */
+	return 0;
+}
+
+/* Define startup order. */
+#define	PFIL_SYSINIT_ORDER	SI_SUB_PROTO_BEGIN
+#define	PFIL_MODEVENT_ORDER	(SI_ORDER_FIRST) /* On boot slot in here. */
+#define	PFIL_VNET_ORDER		(PFIL_MODEVENT_ORDER + 2) /* Later still. */
+
+/*
+ * Starting up. 
+ * VNET_SYSINIT is called for each existing vnet and each new vnet.
+ */
+VNET_SYSINIT(vnet_pfil_init, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
+	    vnet_pfil_init, NULL);
+ 
+/*
+ * Closing up shop. These are done in REVERSE ORDER, 
+ * Not called on reboot.
+ * VNET_SYSUNINIT is called for each exiting vnet as it exits.
+ */
+VNET_SYSUNINIT(vnet_pfil_uninit, PFIL_SYSINIT_ORDER, PFIL_VNET_ORDER,
+	    vnet_pfil_uninit, NULL);
+
