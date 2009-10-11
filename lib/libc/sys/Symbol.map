@@ -769,6 +769,8 @@ FBSDprivate_1.0 {
 	__sys_olio_listio;
 	_open;
 	__sys_open;
+	_openat;
+	__sys_openat;
 	_pathconf;
 	__sys_pathconf;
 	_pipe;

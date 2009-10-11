@@ -195,6 +195,7 @@ FBSDprivate_1.0 {
 	__msync;
 	__nanosleep;
 	__open;
+	__openat;
 	__poll;
 	__pthread_cond_timedwait;
 	__pthread_cond_wait;
@@ -405,4 +406,8 @@ FBSD_1.1 {
 	pthread_mutex_isowned_np;
 	pthread_mutex_setspinloops_np;
 	pthread_mutex_setyieldloops_np;
+};
+
+FBSD_1.2 {
+	openat;
 };
