@@ -170,7 +170,7 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
     &VNET_NAME(ip_checkinterface), 0,
     "Verify packet arrives on correct interface");
 
-struct pfil_head inet_pfil_hook;	/* Packet filter hooks */
+VNET_DEFINE(struct pfil_head, inet_pfil_hook);	/* Packet filter hooks */
 
 static struct netisr_handler ip_nh = {
 	.nh_name = "ip",
@@ -318,6 +318,13 @@ ip_init(void)
 	    NULL, UMA_ALIGN_PTR, 0);
 	maxnipq_update();
 
+	/* Initialize packet filter hooks. */
+	V_inet_pfil_hook.ph_type = PFIL_TYPE_AF;
+	V_inet_pfil_hook.ph_af = AF_INET;
+	if ((i = pfil_head_register(&V_inet_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to register pfil hook, "
+			"error %d\n", __func__, i);
+
 #ifdef FLOWTABLE
 	TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
 	    &V_ip_output_flowtable_size);
@@ -347,13 +354,6 @@ ip_init(void)
 			if (pr->pr_protocol < IPPROTO_MAX)
 				ip_protox[pr->pr_protocol] = pr - inetsw;
 		}
-
-	/* Initialize packet filter hooks. */
-	inet_pfil_hook.ph_type = PFIL_TYPE_AF;
-	inet_pfil_hook.ph_af = AF_INET;
-	if ((i = pfil_head_register(&inet_pfil_hook)) != 0)
-		printf("%s: WARNING: unable to register pfil hook, "
-			"error %d\n", __func__, i);
 
 	/* Start ipport_tick. */
 	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
@@ -510,11 +510,11 @@ tooshort:
 	 */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passin;
 
 	odst = ip->ip_dst;
-	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_IN, NULL) != 0)
+	if (pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_IN, NULL) != 0)
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
