@@ -143,7 +143,7 @@
 #define		PLL_DDR_DIV_SEL_SHIFT		18
 #define		PLL_DDR_DIV_SEL_MASK		3
 #define		PLL_CPU_DIV_SEL_SHIFT		16
-#define		PLL_CPU_DIV_SEL_MASK		2
+#define		PLL_CPU_DIV_SEL_MASK		3
 #define		PLL_LOOP_BW_SHIFT		12
 #define		PLL_LOOP_BW_MASK		0xf
 #define		PLL_DIV_IN_SHIFT		10
