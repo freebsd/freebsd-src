@@ -162,10 +162,16 @@ static void	filt_pipedetach(struct knote *kn);
 static int	filt_piperead(struct knote *kn, long hint);
 static int	filt_pipewrite(struct knote *kn, long hint);
 
-static struct filterops pipe_rfiltops =
-	{ 1, NULL, filt_pipedetach, filt_piperead };
-static struct filterops pipe_wfiltops =
-	{ 1, NULL, filt_pipedetach, filt_pipewrite };
+static struct filterops pipe_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_pipedetach,
+	.f_event = filt_piperead
+};
+static struct filterops pipe_wfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_pipedetach,
+	.f_event = filt_pipewrite
+};
 
 /*
  * Default pipe buffer size(s), this can be kind-of large now because pipe

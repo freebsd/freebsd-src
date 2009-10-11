@@ -45,17 +45,15 @@ static int xc_mute;
 static void xcons_force_flush(void);
 static void xencons_priv_interrupt(void *);
 
-static cn_probe_t       xccnprobe;
-static cn_init_t        xccninit;
-static cn_getc_t        xccngetc;
-static cn_putc_t        xccnputc;
-static cn_putc_t        xccnputc_dom0;
-static cn_checkc_t      xccncheckc;
+static cn_probe_t       xc_cnprobe;
+static cn_init_t        xc_cninit;
+static cn_term_t        xc_cnterm;
+static cn_getc_t        xc_cngetc;
+static cn_putc_t        xc_cnputc;
 
 #define XC_POLLTIME 	(hz/10)
 
-CONS_DRIVER(xc, xccnprobe, xccninit, NULL, xccngetc, 
-	    xccncheckc, xccnputc, NULL);
+CONSOLE_DRIVER(xc);
 
 static int xen_console_up;
 static boolean_t xc_start_needed;
@@ -105,7 +103,7 @@ static struct ttydevsw xc_ttydevsw = {
 };
 
 static void
-xccnprobe(struct consdev *cp)
+xc_cnprobe(struct consdev *cp)
 {
 	cp->cn_pri = CN_REMOTE;
 	sprintf(cp->cn_name, "%s0", driver_name);
@@ -113,37 +111,19 @@ xccnprobe(struct consdev *cp)
 
 
 static void
-xccninit(struct consdev *cp)
+xc_cninit(struct consdev *cp)
 { 
 	CN_LOCK_INIT(cn_mtx,"XCONS LOCK");
 
 }
-int
-xccngetc(struct consdev *dev)
-{
-	int c;
-	if (xc_mute)
-	    	return 0;
-	do {
-		if ((c = xccncheckc(dev)) == -1) {
-#ifdef KDB
-			if (!kdb_active)
-#endif
-				/*
-				 * Polling without sleeping in Xen
-				 * doesn't work well.  Sleeping gives
-				 * other things like clock a chance to
-				 * run
-				 */
-				tsleep(&cn_mtx, PWAIT | PCATCH,
-				    "console sleep", XC_POLLTIME);
-		}
-	} while(c == -1);
-	return c;
+
+static void
+xc_cnterm(struct consdev *cp)
+{ 
 }
 
-int
-xccncheckc(struct consdev *dev)
+static int
+xc_cngetc(struct consdev *dev)
 {
 	int ret = (xc_mute ? 0 : -1);
 
@@ -162,15 +142,25 @@ xccncheckc(struct consdev *dev)
 }
 
 static void
-xccnputc(struct consdev *dev, int c)
+xc_cnputc_domu(struct consdev *dev, int c)
 {
 	xcons_putc(c);
 }
 
 static void
-xccnputc_dom0(struct consdev *dev, int c)
+xc_cnputc_dom0(struct consdev *dev, int c)
 {
 	HYPERVISOR_console_io(CONSOLEIO_write, 1, (char *)&c);
+}
+
+static void
+xc_cnputc(struct consdev *dev, int c)
+{
+
+	if (xen_start_info->flags & SIF_INITDOMAIN)
+		xc_cnputc_dom0(dev, c);
+	else
+		xc_cnputc_domu(dev, c);
 }
 
 extern int db_active;
@@ -225,10 +215,6 @@ static int
 xc_attach(device_t dev) 
 {
 	int error;
-
-	if (xen_start_info->flags & SIF_INITDOMAIN) {
-		xc_consdev.cn_putc = xccnputc_dom0;
-	} 
 
 	xccons = tty_alloc(&xc_ttydevsw, NULL);
 	tty_makedev(xccons, NULL, "xc%r", 0);
@@ -388,7 +374,7 @@ xc_timeout(void *v)
 	tp = (struct tty *)v;
 
 	tty_lock(tp);
-	while ((c = xccncheckc(NULL)) != -1)
+	while ((c = xc_cngetc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
 
 	if (xc_start_needed) {

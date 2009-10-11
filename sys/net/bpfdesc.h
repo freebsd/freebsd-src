@@ -72,9 +72,7 @@ struct bpf_d {
 	u_long		bd_rtout;	/* Read timeout in 'ticks' */
 	struct bpf_insn *bd_rfilter; 	/* read filter code */
 	struct bpf_insn *bd_wfilter;	/* write filter code */
-#ifdef BPF_JITTER
-	bpf_jit_filter	*bd_bfilter;	/* binary filter code */
-#endif
+	void		*bd_bfilter;	/* binary filter code */
 	u_int64_t	bd_rcount;	/* number of packets received */
 	u_int64_t	bd_dcount;	/* number of packets dropped */
 

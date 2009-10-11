@@ -120,7 +120,7 @@ Process scope sampling PMCs.
 Process scope counting PMCs that have been configured to report PMC
 readings on process context switches or process exits.
 .El
-Upto one log file may be configured per owner process.
+Up to one log file may be configured per owner process.
 Events logged to a log file may be subsequently analyzed using the
 .Xr pmclog 3
 family of functions.
@@ -187,7 +187,7 @@ enumeration.
 Supported PMC kinds include:
 .Bl -tag -width "Li PMC_CLASS_IAF" -compact
 .It Li PMC_CLASS_IAF
-Fixed function hardwre counters presents in CPUs conforming to the
+Fixed function hardware counters presents in CPUs conforming to the
 .Tn Intel
 performance measurement architecture version 2 and later.
 .It Li PMC_CLASS_IAP
@@ -262,7 +262,7 @@ CPU is running unprivileged code.
 The ability to write to performance counters.
 .El
 .Ss CPU Naming Conventions
-CPUs are named using small integers from zero uptil, but
+CPUs are named using small integers from zero up to, but
 excluding, the value returned by function
 .Fn pmc_ncpu .
 On platforms supporting sparsely numbered CPUs not all the numbers in
@@ -423,7 +423,7 @@ The PMCs would then be started using function
 .Fn pmc_start .
 .It
 Once started, the values of counting PMCs may be read using function
-.Fn pmc_start .
+.Fn pmc_read .
 For PMCs that write events to the log file, this logged data would be
 read and parsed using the
 .Xr pmclog 3

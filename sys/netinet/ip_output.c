@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
@@ -156,7 +157,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		 * longer than that long for the stability of ro_rt.  The
 		 * flow ID assignment must have happened before this point.
 		 */
-		if (flowtable_lookup(V_ip_ft, m, ro) == 0)
+		if (flowtable_lookup(V_ip_ft, m, ro, M_GETFIB(m)) == 0)
 			nortfree = 1;
 #endif
 	}
@@ -204,6 +205,7 @@ again:
 		if (!nortfree)
 			RTFREE(ro->ro_rt);
 		ro->ro_rt = (struct rtentry *)NULL;
+		ro->ro_lle = (struct llentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
 	if (ro->ro_rt == NULL && fwd_tag == NULL) {
@@ -487,12 +489,12 @@ sendit:
 #endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passout;
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	error = pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
+	error = pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
 

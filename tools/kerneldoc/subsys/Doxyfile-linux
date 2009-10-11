@@ -1,4 +1,4 @@
-# Doxyfile 1.4.1
+# Doxyfile 1.5.2
 
 # $FreeBSD$
 
@@ -12,6 +12,8 @@ EXTRACT_ALL            = YES    # for undocumented src, no warnings enabled
 # configuration options related to the input files
 #---------------------------------------------------------------------------
 INPUT                  = $(DOXYGEN_SRC_PATH)/compat/linux \
+			 $(DOXYGEN_SRC_PATH)/compat/linprocfs \
+			 $(DOXYGEN_SRC_PATH)/compat/linsysfs \
                          $(DOXYGEN_LINUX_PATH) $(NOTREVIEWED)
 
 GENERATE_TAGFILE       = linux/linux.tag

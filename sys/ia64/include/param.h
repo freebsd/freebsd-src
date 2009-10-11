@@ -39,28 +39,17 @@
  *	@(#)param.h	8.1 (Berkeley) 6/10/93
  */
 
+#ifndef _IA64_INCLUDE_PARAM_H_
+#define	_IA64_INCLUDE_PARAM_H_
+
 /*
  * Machine dependent constants for the IA64.
  */
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value for all
- * data types (int, long, ...).   The result is u_long and must be cast to
- * any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define	_ALIGNBYTES		15
-#endif
-#ifndef _ALIGN
-#define	_ALIGN(p)		(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
-#endif
 
-#ifndef _NO_NAMESPACE_POLLUTION
+#include <machine/_align.h>
 
 #define __HAVE_ACPI
 #define __PCI_REROUTE_INTERRUPT
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
 #define	MACHINE		"ia64"
@@ -100,6 +89,8 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+
 #ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	4		/* pages of kernel stack */
 #endif
@@ -119,5 +110,4 @@
 
 #define pgtok(x)                ((x) * (PAGE_SIZE / 1024)) 
 
-#endif	/* !_MACHINE_PARAM_H_ */
-#endif	/* !_NO_NAMESPACE_POLLUTION */
+#endif	/* !_IA64_INCLUDE_PARAM_H_ */

@@ -154,8 +154,8 @@ initializecpu(void)
 		pg_nx = PG_NX;
 	}
 	if (cpu_vendor_id == CPU_VENDOR_CENTAUR &&
-	    AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
-	    AMD64_CPU_MODEL(cpu_id) >= 0xf)
+	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+	    CPUID_TO_MODEL(cpu_id) >= 0xf)
 		init_via();
 
 	/*
@@ -165,4 +165,10 @@ initializecpu(void)
 	 */
 	if ((cpu_feature & CPUID_CLFSH) != 0)
 		cpu_clflush_line_size = ((cpu_procinfo >> 8) & 0xff) * 8;
+	/*
+	 * XXXKIB: (temporary) hack to work around traps generated when
+	 * CLFLUSHing APIC registers window.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_INTEL && !(cpu_feature & CPUID_SS))
+		cpu_feature &= ~CPUID_CLFSH;
 }

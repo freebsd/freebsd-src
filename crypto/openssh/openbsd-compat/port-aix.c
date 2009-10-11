@@ -57,6 +57,8 @@
 
 #include "port-aix.h"
 
+static char *lastlogin_msg = NULL;
+
 # ifdef HAVE_SETAUTHDB
 static char old_registry[REGISTRY_SIZE] = "";
 # endif
@@ -276,21 +278,28 @@ sys_auth_record_login(const char *user, const char *host, const char *ttynm,
     Buffer *loginmsg)
 {
 	char *msg = NULL;
-	static int msg_done = 0;
 	int success = 0;
 
 	aix_setauthdb(user);
 	if (loginsuccess((char *)user, (char *)host, (char *)ttynm, &msg) == 0) {
 		success = 1;
-		if (msg != NULL && loginmsg != NULL && !msg_done) {
+		if (msg != NULL) {
 			debug("AIX/loginsuccess: msg %s", msg);
-			buffer_append(loginmsg, msg, strlen(msg));
-			xfree(msg);
-			msg_done = 1;
+			if (lastlogin_msg == NULL)
+				lastlogin_msg = msg;
 		}
 	}
 	aix_restoreauthdb();
 	return (success);
+}
+
+char *
+sys_auth_get_lastlogin_msg(const char *user, uid_t uid)
+{
+	char *msg = lastlogin_msg;
+
+	lastlogin_msg = NULL;
+	return msg;
 }
 
 #  ifdef CUSTOM_FAILED_LOGIN

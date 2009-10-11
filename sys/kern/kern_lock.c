@@ -241,7 +241,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * and return.
 		 */
 		if (LK_SHARERS(x) > 1) {
-			if (atomic_cmpset_ptr(&lk->lk_lock, x,
+			if (atomic_cmpset_rel_ptr(&lk->lk_lock, x,
 			    x - LK_ONE_SHARER))
 				break;
 			continue;
@@ -254,7 +254,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		if ((x & LK_ALL_WAITERS) == 0) {
 			MPASS((x & ~LK_EXCLUSIVE_SPINNERS) ==
 			    LK_SHARERS_LOCK(1));
-			if (atomic_cmpset_ptr(&lk->lk_lock, x, LK_UNLOCKED))
+			if (atomic_cmpset_rel_ptr(&lk->lk_lock, x, LK_UNLOCKED))
 				break;
 			continue;
 		}
@@ -280,7 +280,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 			queue = SQ_SHARED_QUEUE;
 		}
 
-		if (!atomic_cmpset_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x,
+		if (!atomic_cmpset_rel_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x,
 		    v)) {
 			sleepq_release(&lk->lock_object);
 			continue;
@@ -334,6 +334,9 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 	int iflags;
 
 	MPASS((flags & ~LK_INIT_MASK) == 0);
+	ASSERT_ATOMIC_LOAD_PTR(lk->lk_lock,
+            ("%s: lockmgr not aligned for %s: %p", __func__, wmesg,
+            &lk->lk_lock));
 
 	iflags = LO_SLEEPABLE | LO_UPGRADABLE;
 	if (flags & LK_CANRECURSE)
@@ -464,7 +467,10 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			/*
 			 * If the owner is running on another CPU, spin until
 			 * the owner stops running or the state of the lock
-			 * changes.
+			 * changes.  We need a double-state handle here
+			 * because for a failed acquisition the lock can be
+			 * either held in exclusive mode or shared mode
+			 * (for the writer starvation avoidance technique).
 			 */
 			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
 			    LK_HOLDER(x) != LK_KERNPROC) {
@@ -488,8 +494,10 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
+				GIANT_RESTORE();
+				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
-			    (x & LK_SHARE) !=0 && LK_SHARERS(x) &&
+			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
 			    spintries < alk_retries) {
 				if (flags & LK_INTERLOCK) {
 					class->lc_unlock(ilk);
@@ -508,6 +516,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
+				GIANT_RESTORE();
 				if (i != alk_loops)
 					continue;
 			}
@@ -701,6 +710,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
+				GIANT_RESTORE();
+				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
 			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
 			    spintries < alk_retries) {
@@ -724,6 +735,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
+				GIANT_RESTORE();
 				if (i != alk_loops)
 					continue;
 			}

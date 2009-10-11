@@ -603,7 +603,7 @@ tcp_tw_2msl_scan(int reuse)
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	for (;;) {
 		tw = TAILQ_FIRST(&V_twq_2msl);
-		if (tw == NULL || (!reuse && tw->tw_time > ticks))
+		if (tw == NULL || (!reuse && (tw->tw_time - ticks) > 0))
 			break;
 		INP_WLOCK(tw->tw_inpcb);
 		tcp_twclose(tw, reuse);

@@ -359,7 +359,7 @@ print_jail(int pflags, int jflags)
 				    ipbuf, sizeof(ipbuf)) == NULL)
 					err(1, "inet_ntop");
 				else
-					printf("%6s  %-15.15s\n", "", ipbuf);
+					printf("%6s  %s\n", "", ipbuf);
 		}
 	} else if (pflags & PRINT_DEFAULT)
 		printf("%6d  %-15.15s %-29.29s %.74s\n",

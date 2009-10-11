@@ -701,6 +701,8 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sain)));
 		if (ia == NULL)
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
+		if (ia == NULL)
+			ia = ifatoia(ifa_ifwithaddr(sintosa(&sain)));
 
 		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
 			if (ia == NULL) {

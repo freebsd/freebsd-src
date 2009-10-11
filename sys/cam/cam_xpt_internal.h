@@ -106,7 +106,6 @@ struct cam_ed {
 	u_int8_t	 queue_flags;	/* Queue flags from the control page */
 	u_int8_t	 serial_num_len;
 	u_int8_t	*serial_num;
-	u_int32_t	 qfrozen_cnt;
 	u_int32_t	 flags;
 #define CAM_DEV_UNCONFIGURED	 	0x01
 #define CAM_DEV_REL_TIMEOUT_PENDING	0x02

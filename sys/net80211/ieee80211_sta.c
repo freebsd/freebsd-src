@@ -431,7 +431,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		break;
 	case IEEE80211_S_SLEEP:
-		ieee80211_sta_pwrsave(vap, 0);
+		ieee80211_sta_pwrsave(vap, 1);
 		break;
 	default:
 	invalid:

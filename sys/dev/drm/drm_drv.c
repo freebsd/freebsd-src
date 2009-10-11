@@ -53,9 +53,6 @@ static void drm_unload(struct drm_device *dev);
 static drm_pci_id_list_t *drm_find_description(int vendor, int device,
     drm_pci_id_list_t *idlist);
 
-#define DRIVER_SOFTC(unit) \
-	((struct drm_device *)devclass_get_softc(drm_devclass, unit))
-
 MODULE_VERSION(drm, 1);
 MODULE_DEPEND(drm, agp, 1, 1, 1);
 MODULE_DEPEND(drm, pci, 1, 1, 1);
@@ -136,6 +133,9 @@ static struct cdevsw drm_cdevsw = {
 
 static int drm_msi = 1;	/* Enable by default. */
 TUNABLE_INT("hw.drm.msi", &drm_msi);
+SYSCTL_NODE(_hw, OID_AUTO, drm, CTLFLAG_RW, NULL, "DRM device");
+SYSCTL_INT(_hw_drm, OID_AUTO, msi, CTLFLAG_RDTUN, &drm_msi, 1,
+    "Enable MSI interrupts for drm devices");
 
 static struct drm_msi_blacklist_entry drm_msi_blacklist[] = {
 	{0x8086, 0x2772}, /* Intel i945G	*/ \
@@ -210,11 +210,12 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 	dev->device = kdev;
 #endif
 	dev->devnode = make_dev(&drm_cdevsw,
-			unit,
+			0,
 			DRM_DEV_UID,
 			DRM_DEV_GID,
 			DRM_DEV_MODE,
 			"dri/card%d", unit);
+	dev->devnode->si_drv1 = dev;
 
 #if __FreeBSD_version >= 700053
 	dev->pci_domain = pci_get_domain(dev->device);
@@ -606,7 +607,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	struct drm_device *dev = NULL;
 	int retcode = 0;
 
-	dev = DRIVER_SOFTC(dev2unit(kdev));
+	dev = kdev->si_drv1;
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
@@ -614,13 +615,11 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 
 	if (!retcode) {
 		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
-		newbus_xlock();
 		DRM_LOCK();
 		device_busy(dev->device);
 		if (!dev->open_count++)
 			retcode = drm_firstopen(dev);
 		DRM_UNLOCK();
-		newbus_xunlock();
 	}
 
 	return retcode;
@@ -634,11 +633,6 @@ void drm_close(void *data)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
-	/*
-	 * We require to lock newbus here for handling device_unbusy() and
-	 * avoid a LOR with DRM_LOCK.
-	 */
-	newbus_xlock();
 	DRM_LOCK();
 
 	if (dev->driver->preclose != NULL)
@@ -715,7 +709,6 @@ void drm_close(void *data)
 	}
 
 	DRM_UNLOCK();
-	newbus_xunlock();
 }
 
 /* drm_ioctl is called whenever a process performs an ioctl on /dev/drm.

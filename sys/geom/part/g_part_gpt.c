@@ -409,9 +409,9 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	last = (pp->mediasize / pp->sectorsize) - 1;
 
 	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
-	table->mbr[DOSPARTOFF + 1] = 0xff;		/* shd */
-	table->mbr[DOSPARTOFF + 2] = 0xff;		/* ssect */
-	table->mbr[DOSPARTOFF + 3] = 0xff;		/* scyl */
+	table->mbr[DOSPARTOFF + 1] = 0x01;		/* shd */
+	table->mbr[DOSPARTOFF + 2] = 0x01;		/* ssect */
+	table->mbr[DOSPARTOFF + 3] = 0x00;		/* scyl */
 	table->mbr[DOSPARTOFF + 4] = 0xee;		/* typ */
 	table->mbr[DOSPARTOFF + 5] = 0xff;		/* ehd */
 	table->mbr[DOSPARTOFF + 6] = 0xff;		/* esect */

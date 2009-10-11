@@ -45,25 +45,33 @@ __FBSDID("$FreeBSD$");
  */
 static int drm_alloc_resource(struct drm_device *dev, int resource)
 {
+	struct resource *res;
+	int rid;
+
+	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
+
 	if (resource >= DRM_MAX_PCI_RESOURCE) {
 		DRM_ERROR("Resource %d too large\n", resource);
 		return 1;
 	}
 
-	DRM_UNLOCK();
 	if (dev->pcir[resource] != NULL) {
-		DRM_LOCK();
 		return 0;
 	}
 
-	dev->pcirid[resource] = PCIR_BAR(resource);
-	dev->pcir[resource] = bus_alloc_resource_any(dev->device,
-	    SYS_RES_MEMORY, &dev->pcirid[resource], RF_SHAREABLE);
+	DRM_UNLOCK();
+	rid = PCIR_BAR(resource);
+	res = bus_alloc_resource_any(dev->device, SYS_RES_MEMORY, &rid,
+	    RF_SHAREABLE);
 	DRM_LOCK();
-
-	if (dev->pcir[resource] == NULL) {
+	if (res == NULL) {
 		DRM_ERROR("Couldn't find resource 0x%x\n", resource);
 		return 1;
+	}
+
+	if (dev->pcir[resource] == NULL) {
+		dev->pcirid[resource] = rid;
+		dev->pcir[resource] = res;
 	}
 
 	return 0;

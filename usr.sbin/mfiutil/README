@@ -1,0 +1,104 @@
+# $FreeBSD$
+
+This package includes a mfiutil command for administering mfi(4) controllers
+on FreeBSD.
+
+Version 1.0.13
+	* Cleaned up warnings in preparation for integration with FreeBSD
+
+Version 1.0.12
+	* Add 'drive clear' command to wipe drives with all 0x00 characters
+
+Version 1.0.11
+	* Display serial number for drives
+	* Display location info for drives with 'show config'
+
+Version 1.0.10
+	* Display min and max stripe size supported by adapters.
+	* Added support for examining the controller event log.
+
+Version 1.0.9
+	* Display stripe size for volumes.
+	* Added support for setting the stripe size for new volumes.
+	* Fix a regression in 1.0.8 that broke creation of RAID-5 and RAID-50
+	  arrays.
+
+Version 1.0.8
+	* Added support for RAID-60 arrays.
+	* Added 'flash' command to support firmware flashing.
+
+Version 1.0.7
+	* Renamed 'clear config' to 'clear, 'create volume' to 'create',
+	  'delete volume' to 'delete', 'create spare' to 'add', and
+	  'delete spare' to 'remove'.  The old names still work.
+	* Added support for RAID-6 arrays.
+
+Version 1.0.6
+	* Added 'show patrol', 'patrol', 'start patrol', and 'stop patrol'
+	  commands to manage patrol reads.
+
+Version 1.0.5
+	* Added 'create volume' and 'delete volume' commands to manage volumes.
+	* Added 'clear config' command to clear entire configuration.
+	* Added more detailed error reporting based on firmware status codes.
+	* Renamed 'progress' command to 'drive progress'.
+	* Added 'volume progress' command to display progress of volume-level
+	  activites such as background inits.
+	* Fixed 'create spare' to properly add global spares.
+
+Version 1.0.4
+	* Added 'create spare' and 'delete spare' commands to manage hot spares.
+	* Added 'good' command to mark unconfigured bad drives as good.
+	* Display more information about hot spares in 'show config'
+	* Allow physical drives to be specified via Exx:Syy similar to megacli
+	* Display onboard memory size in 'show adapter'
+
+Version 1.0.3
+	* Added 'cache' command to manage cache settings for volumes.
+	* Added 'name' command to name volumes.
+	* Added manpage.
+
+Version 1.0.2
+	* Added 'show adapter' and 'show battery' commands.
+	* Added RAID level of volumes to 'show config' and 'show volumes'.
+	* Added drive model info to 'show config' and 'show drives'.
+	* Added package firmware version to 'show firmware'.
+	* Added read and write cache status to 'show volumes'.
+	* Map volume IDs to mfidX device names on newer kernels.
+
+Version 1.0.1
+	* Added 'show firmware' command
+
+Version 1.0.0
+	* Initial release
+
+usage: mfiutil [-u unit] <command> ...
+
+Commands include:
+    version
+    show adapter              - display controller information
+    show battery              - display battery information
+    show config               - display RAID configuration
+    show drives               - list physical drives
+    show firmware             - list firmware images
+    show volumes              - list logical volumes
+    show patrol               - display patrol read status
+    fail <drive>              - fail a physical drive
+    good <drive>              - mark a bad physical drive as good
+    rebuild <drive>           - mark failed drive ready for rebuild
+    drive progress <drive>    - display status of active operations
+    start rebuild <drive>
+    abort rebuild <drive>
+    locate <drive> <on|off>   - toggle drive LED
+    cache <volume> [command [setting]]
+    name <volume> <name>
+    volume progress <volume>  - display status of active operations
+    clear                     - clear volume configuration
+    create <type> [-v] <drive>[,<drive>[,...]] [<drive>[,<drive>[,...]]
+    delete <volume>
+    add <drive> [volume]      - add a hot spare
+    remove <drive>            - remove a hot spare
+    patrol <disable|auto|manual> [interval [start]]
+    start patrol              - start a patrol read
+    stop patrol               - stop a patrol read
+    flash <firmware>

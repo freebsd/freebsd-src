@@ -190,6 +190,8 @@ _inq(struct cam_sim *sim, union ccb *ccb, int maxluns)
      strncpy(cpi->hba_vid, "iSCSI", HBA_IDLEN);
      strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
      cpi->unit_number = cam_sim_unit(sim);
+     cpi->transport = XPORT_ISCSI;
+     cpi->transport_version = 0;
      cpi->ccb_h.status = CAM_REQ_CMP;
 }
 

@@ -732,9 +732,7 @@ acpi_cpu_startup(void *arg)
     int i;
 
     /* Get set of CPU devices */
-    newbus_slock();
     devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
-    newbus_sunlock();
 
     /*
      * Setup any quirks that might necessary now that we have probed
@@ -942,7 +940,7 @@ acpi_cpu_idle()
      * get the time very close to the CPU start/stop clock logic, this
      * is the only reliable time source.
      */
-    AcpiRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
     CPU_GET_REG(cx_next->p_lvlx, 1);
 
     /*
@@ -951,8 +949,8 @@ acpi_cpu_idle()
      * the processor has stopped.  Doing it again provides enough
      * margin that we are certain to have a correct value.
      */
-    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
 
     /* Enable bus master arbitration and disable bus master wakeup. */
     if (cx_next->type == ACPI_STATE_C3 &&

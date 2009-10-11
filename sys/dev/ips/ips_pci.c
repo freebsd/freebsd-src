@@ -173,12 +173,10 @@ ips_intrhook(void *arg)
 	struct ips_softc *sc = (struct ips_softc *)arg;
 
 	config_intrhook_disestablish(&sc->ips_ich);
-	newbus_xlock();
 	if (ips_adapter_init(sc))
 		ips_pci_free(sc);
 	else
 		sc->configured = 1;
-	newbus_xunlock();
 }
 
 static int ips_pci_free(ips_softc_t *sc)

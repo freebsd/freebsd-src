@@ -41,6 +41,7 @@ SUBDIR=	${_3dfx} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
+	bwi \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -151,6 +152,7 @@ SUBDIR=	${_3dfx} \
 	libiconv \
 	libmbpool \
 	libmchain \
+	${_lindev} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
@@ -226,6 +228,7 @@ SUBDIR=	${_3dfx} \
 	procfs \
 	pseudofs \
 	${_pst} \
+	pty  \
 	puc \
 	ral \
 	ralfw \
@@ -298,6 +301,7 @@ SUBDIR=	${_3dfx} \
 	wlan_xauth \
 	${_wpi} \
 	${_wpifw} \
+	${_x86bios} \
 	${_xe} \
 	xfs \
 	xl \
@@ -372,6 +376,7 @@ _ie=		ie
 _if_ndis=	if_ndis
 _igb=		igb
 _io=		io
+_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -455,6 +460,7 @@ _padlock=	padlock
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+_x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
@@ -481,6 +487,7 @@ _cpufreq=	cpufreq
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic
 .endif
+_dpms=		dpms
 _drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
@@ -507,6 +514,7 @@ _ipwfw=		ipwfw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -526,14 +534,18 @@ _padlock=	padlock
 .endif
 _pccard=	pccard
 _rdma=		rdma	
+_s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
+_splash=	splash
 _sppp=		sppp
 _tmpfs=		tmpfs
 _twa=		twa
+_vesa=		vesa
+_x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi
 _wpifw=		wpifw

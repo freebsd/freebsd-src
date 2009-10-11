@@ -104,7 +104,7 @@ struct nfhret {
 #define	OF_NOINET6	8
 int retrycnt = -1;
 int opflags = 0;
-int nfsproto = IPPROTO_UDP;
+int nfsproto = IPPROTO_TCP;
 int mnttcp_ok = 1;
 int noconn = 0;
 char *portspec = NULL;	/* Server nfs port; NULL means look up via rpcbind. */

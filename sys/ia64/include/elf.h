@@ -141,4 +141,6 @@ __ElfType(Auxinfo);
 
 #define	DT_IA_64_PLT_RESERVE	0x70000000
 
+#define	ET_DYN_LOAD_ADDR 0x2500000000000000
+
 #endif /* !_MACHINE_ELF_H_ */

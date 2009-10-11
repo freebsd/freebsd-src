@@ -906,6 +906,9 @@ key_allocsa_policy(const struct secasindex *saidx)
 	u_int stateidx, arraysize;
 	const u_int *state_valid;
 
+	state_valid = NULL;	/* silence gcc */
+	arraysize = 0;		/* silence gcc */
+
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
@@ -918,15 +921,13 @@ key_allocsa_policy(const struct secasindex *saidx)
 				state_valid = saorder_state_valid_prefer_new;
 				arraysize = N(saorder_state_valid_prefer_new);
 			}
-			SAHTREE_UNLOCK();
-			goto found;
+			break;
 		}
 	}
 	SAHTREE_UNLOCK();
+	if (sah == NULL)
+		return NULL;
 
-	return NULL;
-
-    found:
 	/* search valid state */
 	for (stateidx = 0; stateidx < arraysize; stateidx++) {
 		sav = key_do_allocsa_policy(sah, state_valid[stateidx]);
@@ -1924,18 +1925,8 @@ key_spdadd(so, m, mhp)
 		return key_senderror(so, m, EINVAL);
 	}
 #if 1
-	if (newsp->req && newsp->req->saidx.src.sa.sa_family) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(src0 + 1);
-		if (sa->sa_family != newsp->req->saidx.src.sa.sa_family) {
-			_key_delsp(newsp);
-			return key_senderror(so, m, EINVAL);
-		}
-	}
-	if (newsp->req && newsp->req->saidx.dst.sa.sa_family) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(dst0 + 1);
-		if (sa->sa_family != newsp->req->saidx.dst.sa.sa_family) {
+	if (newsp->req && newsp->req->saidx.src.sa.sa_family && newsp->req->saidx.dst.sa.sa_family) {
+		if (newsp->req->saidx.src.sa.sa_family != newsp->req->saidx.dst.sa.sa_family) {
 			_key_delsp(newsp);
 			return key_senderror(so, m, EINVAL);
 		}

@@ -125,6 +125,8 @@ static VNET_DEFINE(struct inpcbinfo, divcbinfo);
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
 static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 
+static eventhandler_tag ip_divert_event_tag;
+
 /*
  * Initialize divert connection block queue.
  */
@@ -152,7 +154,7 @@ div_inpcb_fini(void *mem, int size)
 	INP_LOCK_DESTROY(inp);
 }
 
-void
+static void
 div_init(void)
 {
 
@@ -174,8 +176,17 @@ div_init(void)
 	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR,
 	    UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
-	EVENTHANDLER_REGISTER(maxsockets_change, div_zone_change,
-		NULL, EVENTHANDLER_PRI_ANY);
+}
+
+static void
+div_destroy(void)
+{
+
+	INP_INFO_LOCK_DESTROY(&V_divcbinfo);
+	uma_zdestroy(V_divcbinfo.ipi_zone);
+	hashdestroy(V_divcbinfo.ipi_hashbase, M_PCB, V_divcbinfo.ipi_hashmask);
+	hashdestroy(V_divcbinfo.ipi_porthashbase, M_PCB,
+	    V_divcbinfo.ipi_porthashmask);
 }
 
 /*
@@ -709,6 +720,9 @@ struct protosw div_protosw = {
 	.pr_ctlinput =		div_ctlinput,
 	.pr_ctloutput =		ip_ctloutput,
 	.pr_init =		div_init,
+#ifdef VIMAGE
+	.pr_destroy =		div_destroy,
+#endif
 	.pr_usrreqs =		&div_usrreqs
 };
 
@@ -716,7 +730,9 @@ static int
 div_modevent(module_t mod, int type, void *unused)
 {
 	int err = 0;
+#ifndef VIMAGE
 	int n;
+#endif
 
 	switch (type) {
 	case MOD_LOAD:
@@ -726,7 +742,11 @@ div_modevent(module_t mod, int type, void *unused)
 		 * a true IP protocol that goes over the wire.
 		 */
 		err = pf_proto_register(PF_INET, &div_protosw);
+		if (err != 0)
+			return (err);
 		ip_divert_ptr = divert_packet;
+		ip_divert_event_tag = EVENTHANDLER_REGISTER(maxsockets_change,
+		    div_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 		break;
 	case MOD_QUIESCE:
 		/*
@@ -737,6 +757,10 @@ div_modevent(module_t mod, int type, void *unused)
 		err = EPERM;
 		break;
 	case MOD_UNLOAD:
+#ifdef VIMAGE
+		err = EPERM;
+		break;
+#else
 		/*
 		 * Forced unload.
 		 *
@@ -758,9 +782,10 @@ div_modevent(module_t mod, int type, void *unused)
 		ip_divert_ptr = NULL;
 		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
 		INP_INFO_WUNLOCK(&V_divcbinfo);
-		INP_INFO_LOCK_DESTROY(&V_divcbinfo);
-		uma_zdestroy(V_divcbinfo.ipi_zone);
+		div_destroy();
+		EVENTHANDLER_DEREGISTER(maxsockets_change, ip_divert_event_tag);
 		break;
+#endif /* !VIMAGE */
 	default:
 		err = EOPNOTSUPP;
 		break;

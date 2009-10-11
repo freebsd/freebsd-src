@@ -243,6 +243,7 @@ typedef enum {
 	XPORT_ATA,	/* AT Attachment */
 	XPORT_SAS,	/* Serial Attached SCSI */
 	XPORT_SATA,	/* Serial AT Attachment */
+	XPORT_ISCSI,	/* iSCSI */
 } cam_xport;
 
 #define PROTO_VERSION_UNKNOWN (UINT_MAX - 1)

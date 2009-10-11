@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/uio.h>
 
+#include <net/vnet.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
 
@@ -197,11 +199,14 @@ clnt_dg_create(
 		return (NULL);
 	}
 
+	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
 		rpc_createerr.cf_stat = RPC_TLIERROR;
 		rpc_createerr.cf_error.re_errno = 0;
+		CURVNET_RESTORE();
 		return (NULL);
 	}
+	CURVNET_RESTORE();
 
 	/*
 	 * Find the receive and the send size

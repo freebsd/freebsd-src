@@ -529,7 +529,7 @@ label:
 			buf++;
 			i = 0;
 			for (len = 4; len > 0; len--) {
-				if (isdigit((int)*buf)) {
+				if (isdigit((unsigned char)*buf)) {
 					i *= 10;
 					i += *buf - '0';
 					buf++;

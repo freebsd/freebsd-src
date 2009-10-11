@@ -80,7 +80,9 @@ ata_print_ident(struct ata_params *ident_data)
 	printf("<%s %s> ATA/ATAPI-%d",
 	    product, revision, ata_version(ident_data->version_major));
 	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
-		if (ident_data->satacapabilities & ATA_SATA_GEN2)
+		if (ident_data->satacapabilities & ATA_SATA_GEN3)
+			printf(" SATA 3.x");
+		else if (ident_data->satacapabilities & ATA_SATA_GEN2)
 			printf(" SATA 2.x");
 		else if (ident_data->satacapabilities & ATA_SATA_GEN1)
 			printf(" SATA 1.x");
@@ -91,7 +93,7 @@ ata_print_ident(struct ata_params *ident_data)
 }
 
 void
-ata_36bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
+ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
     uint32_t lba, uint8_t sector_count)
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));

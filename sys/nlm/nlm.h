@@ -49,6 +49,12 @@ extern struct timeval nlm_zero_tv;
 extern int nlm_nsm_state;
 
 /*
+ * Make a struct netobj.
+ */ 
+extern void nlm_make_netobj(struct netobj *dst, caddr_t srt,
+    size_t srcsize, struct malloc_type *type);
+
+/*
  * Copy a struct netobj.
  */ 
 extern void nlm_copy_netobj(struct netobj *dst, struct netobj *src,
@@ -191,6 +197,12 @@ extern int nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result,
  */
 extern int nlm_do_granted(nlm4_testargs *argp, nlm4_res *result,
     struct svc_req *rqstp, CLIENT **rpcp);
+
+/*
+ * Implementation for the granted result RPC. The client may reject the granted
+ * message, in which case we need to handle it appropriately.
+ */
+extern void nlm_do_granted_res(nlm4_res *argp, struct svc_req *rqstp);
 
 /*
  * Free all locks associated with the hostname argp->name.

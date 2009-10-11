@@ -5,4 +5,4 @@
 
 # Clean the dust.
 cd ${RD}/trees/lib32 && \
-    find . ! -path '*/libexec/*' ! -path '*/usr/lib32/*' -delete
+    find . '(' -path '*/usr/share/*' -or -path '*/usr/lib/*' ')' -delete

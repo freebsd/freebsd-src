@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.64 2009/02/12 03:00:56 djm Exp $ */
+/* $OpenBSD: canohost.c,v 1.65 2009/05/27 06:31:25 andreas Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,6 +35,8 @@
 #include "misc.h"
 
 static void check_ip_options(int, char *);
+static char *canonical_host_ip = NULL;
+static int cached_port = -1;
 
 /*
  * Return the canonical name of the host at the other end of the socket. The
@@ -304,6 +306,16 @@ get_local_name(int sock)
 	return get_socket_address(sock, 0, NI_NAMEREQD);
 }
 
+void
+clear_cached_addr(void)
+{
+	if (canonical_host_ip != NULL) {
+		xfree(canonical_host_ip);
+		canonical_host_ip = NULL;
+	}
+	cached_port = -1;
+}
+
 /*
  * Returns the IP-address of the remote host as a string.  The returned
  * string must not be freed.
@@ -312,8 +324,6 @@ get_local_name(int sock)
 const char *
 get_remote_ipaddr(void)
 {
-	static char *canonical_host_ip = NULL;
-
 	/* Check whether we have cached the ipaddr. */
 	if (canonical_host_ip == NULL) {
 		if (packet_connection_is_on_socket()) {
@@ -402,13 +412,11 @@ get_peer_port(int sock)
 int
 get_remote_port(void)
 {
-	static int port = -1;
-
 	/* Cache to avoid getpeername() on a dead connection */
-	if (port == -1)
-		port = get_port(0);
+	if (cached_port == -1)
+		cached_port = get_port(0);
 
-	return port;
+	return cached_port;
 }
 
 int

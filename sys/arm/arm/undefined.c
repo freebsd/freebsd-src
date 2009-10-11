@@ -82,11 +82,10 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/db_output.h>
-#include <machine/db_machdep.h>
 #endif
 
-#ifdef acorn26
-#include <machine/machdep.h>
+#ifdef KDB
+#include <machine/db_machdep.h>
 #endif
 
 static int gdb_trapper(u_int, u_int, struct trapframe *, int);

@@ -137,6 +137,8 @@ typedef int d_poll_t(struct cdev *dev, int events, struct thread *td);
 typedef int d_kqfilter_t(struct cdev *dev, struct knote *kn);
 typedef int d_mmap_t(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
    		     int nprot);
+typedef int d_mmap2_t(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
+		     int nprot, vm_memattr_t *memattr);
 typedef int d_mmap_single_t(struct cdev *cdev, vm_ooffset_t *offset,
     vm_size_t size, struct vm_object **object, int nprot);
 typedef void d_purge_t(struct cdev *dev);
@@ -170,6 +172,7 @@ typedef int dumper_t(
 #define D_PSEUDO	0x00200000	/* make_dev() can return NULL */
 #define D_NEEDGIANT	0x00400000	/* driver want Giant */
 #define	D_NEEDMINOR	0x00800000	/* driver uses clone_create() */
+#define	D_MMAP2		0x01000000	/* driver uses d_mmap2() */
 
 /*
  * Version numbers.
@@ -198,7 +201,10 @@ struct cdevsw {
 	d_write_t		*d_write;
 	d_ioctl_t		*d_ioctl;
 	d_poll_t		*d_poll;
-	d_mmap_t		*d_mmap;
+	union {
+		d_mmap_t		*old;
+		d_mmap2_t		*new;
+	} __d_mmap;
 	d_strategy_t		*d_strategy;
 	dumper_t		*d_dump;
 	d_kqfilter_t		*d_kqfilter;
@@ -218,6 +224,8 @@ struct cdevsw {
 		SLIST_ENTRY(cdevsw)	postfree_list;
 	} __d_giant;
 };
+#define	d_mmap			__d_mmap.old
+#define	d_mmap2			__d_mmap.new
 #define	d_gianttrick		__d_giant.gianttrick
 #define	d_postfree_list		__d_giant.postfree_list
 

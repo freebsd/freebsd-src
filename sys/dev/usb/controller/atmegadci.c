@@ -301,8 +301,8 @@ atmegadci_setup_rx(struct atmegadci_td *td)
 		sc->sc_dv_addr = 0xFF;
 	}
 
-	/* clear SETUP packet interrupt */
-	ATMEGA_WRITE_1(sc, ATMEGA_UEINTX, ~ATMEGA_UEINTX_RXSTPI);
+	/* Clear SETUP packet interrupt and all other previous interrupts */
+	ATMEGA_WRITE_1(sc, ATMEGA_UEINTX, 0);
 	return (0);			/* complete */
 
 not_complete:

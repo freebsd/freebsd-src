@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
@@ -352,6 +353,7 @@ sc_attach_unit(int unit, int flags)
 #endif
     int vc;
     struct cdev *dev;
+    unsigned int vmode = 0;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -372,16 +374,20 @@ sc_attach_unit(int unit, int flags)
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
+    (void)resource_int_value("sc", unit, "vesa_mode", &vmode);
+    if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX)
+	vmode = M_VESA_FULL_800;
+
 #ifdef SC_PIXEL_MODE
-    if ((sc->config & SC_VESA800X600)
-	&& (vidd_get_info(sc->adp, M_VESA_800x600, &info) == 0)) {
+    if ((sc->config & SC_VESAMODE)
+	&& (vidd_get_info(sc->adp, vmode, &info) == 0)) {
 #ifdef DEV_SPLASH
 	if (sc->flags & SC_SPLASH_SCRN)
 	    splash_term(sc->adp);
 #endif
-	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
-	sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
-	sc->initial_mode = M_VESA_800x600;
+	sc_set_graphics_mode(scp, NULL, vmode);
+	sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
+	sc->initial_mode = vmode;
 #ifdef DEV_SPLASH
 	/* put up the splash again! */
 	if (sc->flags & SC_SPLASH_SCRN)
@@ -517,7 +523,7 @@ sctty_open(struct tty *tp)
     if (scp == NULL) {
 	scp = SC_STAT(tp) = alloc_scp(sc, SC_VTY(tp));
 	if (ISGRAPHSC(scp))
-	    sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
+	    sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
     }
     if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
 	tp->t_winsize.ws_col = scp->xsize;
@@ -628,14 +634,8 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    break;
 	case FKEY:  /* function key, return string */
 	    cp = kbdd_get_fkeystr(thiskbd, KEYCHAR(c), &len);
-	    if (cp != NULL) {
-		if (ttydisc_can_bypass(cur_tty)) {
-		    ttydisc_rint_bypass(cur_tty, cp, len);
-	    	} else {
-		    while (len-- >  0)
-			ttydisc_rint(cur_tty, *cp++, 0);
-		}
-	    }
+	    if (cp != NULL)
+	    	ttydisc_rint_simple(cur_tty, cp, len);
 	    break;
 	case MKEY:  /* meta is active, prepend ESC */
 	    ttydisc_rint(cur_tty, 0x1b, 0);
@@ -2995,6 +2995,8 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ysize = info.vi_height;
 	scp->xpixel = scp->xsize*info.vi_cwidth;
 	scp->ypixel = scp->ysize*info.vi_cheight;
+    }
+
 	scp->font_size = info.vi_cheight;
 	scp->font_width = info.vi_cwidth;
 	if (info.vi_cheight < 14) {
@@ -3016,7 +3018,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	    scp->font = NULL;
 #endif
 	}
-    }
+
     sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
 #ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, 0, 0, NULL, FALSE);
@@ -3559,19 +3561,18 @@ sc_paste(scr_stat *scp, const u_char *p, int count)
 }
 
 void
-sc_respond(scr_stat *scp, const u_char *p, int count) 
+sc_respond(scr_stat *scp, const u_char *p, int count, int wakeup) 
 {
     struct tty *tp;
 
     tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
     if (!tty_opened(tp))
 	return;
-    for (; count > 0; --count)
-	ttydisc_rint(tp, *p++, 0);
-#if 0
-    /* XXX: we can't call ttydisc_rint_done() here! */
-    ttydisc_rint_done(tp);
-#endif
+    ttydisc_rint_simple(tp, p, count);
+    if (wakeup) {
+	/* XXX: we can't always call ttydisc_rint_done() here! */
+	ttydisc_rint_done(tp);
+    }
 }
 
 void

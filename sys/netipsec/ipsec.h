@@ -61,7 +61,7 @@
  * specifies ICMPv6 type, and the port field in "dst" specifies ICMPv6 code.
  */
 struct secpolicyindex {
-	u_int8_t dir;			/* direction of packet flow, see blow */
+	u_int8_t dir;			/* direction of packet flow, see below */
 	union sockaddr_union src;	/* IP src address for SP */
 	union sockaddr_union dst;	/* IP dst address for SP */
 	u_int8_t prefs;			/* prefix length in bits for src */

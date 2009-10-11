@@ -1389,7 +1389,8 @@ txp_alloc_rings(struct txp_softc *sc)
 
 	/* High priority rx ring. */
 	error = txp_dma_alloc(sc, "hi priority rx ring",
-	    &sc->sc_cdata.txp_rxhiring_tag, sizeof(struct txp_rx_desc), 0,
+	    &sc->sc_cdata.txp_rxhiring_tag,
+	    roundup(sizeof(struct txp_rx_desc), 16), 0,
 	    &sc->sc_cdata.txp_rxhiring_map, (void **)&sc->sc_ldata.txp_rxhiring,
 	    sizeof(struct txp_rx_desc) * RX_ENTRIES,
 	    &sc->sc_ldata.txp_rxhiring_paddr);
@@ -1409,7 +1410,8 @@ txp_alloc_rings(struct txp_softc *sc)
 
 	/* Low priority rx ring. */
 	error = txp_dma_alloc(sc, "low priority rx ring",
-	    &sc->sc_cdata.txp_rxloring_tag, sizeof(struct txp_rx_desc), 0,
+	    &sc->sc_cdata.txp_rxloring_tag,
+	    roundup(sizeof(struct txp_rx_desc), 16), 0,
 	    &sc->sc_cdata.txp_rxloring_map, (void **)&sc->sc_ldata.txp_rxloring,
 	    sizeof(struct txp_rx_desc) * RX_ENTRIES,
 	    &sc->sc_ldata.txp_rxloring_paddr);

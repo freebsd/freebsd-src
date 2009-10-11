@@ -135,6 +135,7 @@ static void uslcom_start_read(struct ucom_softc *);
 static void uslcom_stop_read(struct ucom_softc *);
 static void uslcom_start_write(struct ucom_softc *);
 static void uslcom_stop_write(struct ucom_softc *);
+static void uslcom_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uslcom_config[USLCOM_N_TRANSFER] = {
 
@@ -170,6 +171,7 @@ static struct ucom_callback uslcom_callback = {
 	.ucom_stop_read = &uslcom_stop_read,
 	.ucom_start_write = &uslcom_start_write,
 	.ucom_stop_write = &uslcom_stop_write,
+	.ucom_poll = &uslcom_poll,
 };
 
 static const struct usb_device_id uslcom_devs[] = {
@@ -561,4 +563,11 @@ uslcom_stop_write(struct ucom_softc *ucom)
 	struct uslcom_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[USLCOM_BULK_DT_WR]);
+}
+
+static void
+uslcom_poll(struct ucom_softc *ucom)
+{
+	struct uslcom_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, USLCOM_N_TRANSFER);
 }

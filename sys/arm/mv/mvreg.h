@@ -218,6 +218,7 @@
  */
 #define CPU_PM_CTRL		0x1C
 #define CPU_PM_CTRL_NONE	0
+#define CPU_PM_CTRL_ALL		~0x0
 
 #if defined(SOC_MV_KIRKWOOD)
 #define CPU_PM_CTRL_GE0		(1 << 0)
@@ -234,8 +235,11 @@
 #define CPU_PM_CTRL_SATA1	(1 << 15)
 #define CPU_PM_CTRL_XOR1	(1 << 16)
 #define CPU_PM_CTRL_CRYPTO	(1 << 17)
-#define CPU_PM_CTRL_GE1		(1 << 18)
-#define CPU_PM_CTRL_TDM		(1 << 19)
+#define CPU_PM_CTRL_GE1		(1 << 19)
+#define CPU_PM_CTRL_TDM		(1 << 20)
+#define CPU_PM_CTRL_XOR		(CPU_PM_CTRL_XOR0 | CPU_PM_CTRL_XOR1)
+#define CPU_PM_CTRL_USB(u)	(CPU_PM_CTRL_USB0)
+#define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_SATA0 | CPU_PM_CTRL_SATA1)
 #elif defined(SOC_MV_DISCOVERY)
 #define CPU_PM_CTRL_GE0		(1 << 1)
 #define CPU_PM_CTRL_GE1		(1 << 2)
@@ -258,6 +262,14 @@
 #define CPU_PM_CTRL_XOR		(1 << 21)
 #define CPU_PM_CTRL_CRYPTO	(1 << 22)
 #define CPU_PM_CTRL_DEVICE	(1 << 23)
+#define CPU_PM_CTRL_USB(u)	(1 << (17 + (u)))
+#define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_SATA0 | CPU_PM_CTRL_SATA1)
+#else
+#define CPU_PM_CTRL_CRYPTO	(CPU_PM_CTRL_NONE)
+#define CPU_PM_CTRL_IDMA	(CPU_PM_CTRL_NONE)
+#define CPU_PM_CTRL_XOR		(CPU_PM_CTRL_NONE)
+#define CPU_PM_CTRL_SATA	(CPU_PM_CTRL_NONE)
+#define CPU_PM_CTRL_USB(u)	(CPU_PM_CTRL_NONE)
 #endif
 
 /*

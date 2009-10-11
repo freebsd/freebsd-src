@@ -94,6 +94,7 @@ SUBDIR=	${_ac} \
 	manctl \
 	memcontrol \
 	mergemaster \
+	mfiutil \
 	mixer \
 	${_mld6query} \
 	mlxcontrol \
@@ -103,6 +104,7 @@ SUBDIR=	${_ac} \
 	${_mount_smbfs} \
 	${_moused} \
 	${_mptable} \
+	mptutil \
 	mtest \
 	mtree \
 	${_named} \
@@ -465,6 +467,9 @@ _boot98cfg=	boot98cfg
 .if ${MACHINE_ARCH} == "amd64"
 .if ${MK_ACPI} != "no"
 _acpi=		acpi
+.endif
+.if ${MK_APM} != "no"
+_apm=		apm
 .endif
 _asf=		asf
 _boot0cfg=	boot0cfg

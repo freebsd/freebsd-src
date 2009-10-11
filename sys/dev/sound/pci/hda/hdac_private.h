@@ -339,6 +339,7 @@ struct hdac_softc {
 	int		num_iss;
 	int		num_oss;
 	int		num_bss;
+	int		num_sdo;
 	int		support_64bit;
 	int		streamcnt;
 
