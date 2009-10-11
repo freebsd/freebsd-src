@@ -1059,9 +1059,9 @@ usbd_req_get_alt_interface_no(struct usb_device *udev, struct mtx *mtx,
 	struct usb_interface *iface = usbd_get_iface(udev, iface_index);
 	struct usb_device_request req;
 
-	if ((iface == NULL) || (iface->idesc == NULL)) {
+	if ((iface == NULL) || (iface->idesc == NULL))
 		return (USB_ERR_INVAL);
-	}
+
 	req.bmRequestType = UT_READ_INTERFACE;
 	req.bRequest = UR_GET_INTERFACE;
 	USETW(req.wValue, 0);
@@ -1085,9 +1085,9 @@ usbd_req_set_alt_interface_no(struct usb_device *udev, struct mtx *mtx,
 	struct usb_interface *iface = usbd_get_iface(udev, iface_index);
 	struct usb_device_request req;
 
-	if ((iface == NULL) || (iface->idesc == NULL)) {
+	if ((iface == NULL) || (iface->idesc == NULL))
 		return (USB_ERR_INVAL);
-	}
+
 	req.bmRequestType = UT_WRITE_INTERFACE;
 	req.bRequest = UR_SET_INTERFACE;
 	req.wValue[0] = alt_no;

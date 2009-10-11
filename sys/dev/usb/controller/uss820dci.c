@@ -2360,4 +2360,5 @@ struct usb_bus_methods uss820dci_bus_methods =
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,
 	.roothub_exec = &uss820dci_roothub_exec,
+	.xfer_poll = &uss820dci_do_poll,
 };

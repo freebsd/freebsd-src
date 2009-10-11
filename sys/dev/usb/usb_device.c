@@ -847,18 +847,13 @@ usbd_set_alt_interface_index(struct usb_device *udev,
 		err = USB_ERR_INVAL;
 		goto done;
 	}
-	if (udev->flags.usb_mode == USB_MODE_DEVICE) {
-		usb_detach_device(udev, iface_index,
-		    USB_UNCFG_FLAG_FREE_SUBDEV);
-	} else {
-		if (iface->alt_index == alt_index) {
-			/* 
-			 * Optimise away duplicate setting of
-			 * alternate setting in USB Host Mode!
-			 */
-			err = 0;
-			goto done;
-		}
+	if (iface->alt_index == alt_index) {
+		/* 
+		 * Optimise away duplicate setting of
+		 * alternate setting in USB Host Mode!
+		 */
+		err = 0;
+		goto done;
 	}
 #if USB_HAVE_UGEN
 	/*
@@ -872,6 +867,12 @@ usbd_set_alt_interface_index(struct usb_device *udev,
 	if (err) {
 		goto done;
 	}
+	if (iface->alt_index != alt_index) {
+		/* the alternate setting does not exist */
+		err = USB_ERR_INVAL;
+		goto done;
+	}
+
 	err = usbd_req_set_alt_interface_no(udev, NULL, iface_index,
 	    iface->idesc->bAlternateSetting);
 
@@ -973,7 +974,6 @@ usb_reset_iface_endpoints(struct usb_device *udev, uint8_t iface_index)
 {
 	struct usb_endpoint *ep;
 	struct usb_endpoint *ep_end;
-	usb_error_t err;
 
 	ep = udev->endpoints;
 	ep_end = udev->endpoints + udev->endpoints_max;
@@ -985,10 +985,7 @@ usb_reset_iface_endpoints(struct usb_device *udev, uint8_t iface_index)
 			continue;
 		}
 		/* simulate a clear stall from the peer */
-		err = usbd_set_endpoint_stall(udev, ep, 0);
-		if (err) {
-			/* just ignore */
-		}
+		usbd_set_endpoint_stall(udev, ep, 0);
 	}
 	return (0);
 }
@@ -1295,6 +1292,7 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		uaa.info.bIfaceNum =
 		    iface->idesc->bInterfaceNumber;
 		uaa.use_generic = 0;
+		uaa.driver_info = 0;	/* reset driver_info */
 
 		DPRINTFN(2, "iclass=%u/%u/%u iindex=%u/%u\n",
 		    uaa.info.bInterfaceClass,
@@ -1311,6 +1309,7 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		/* try generic interface drivers last */
 
 		uaa.use_generic = 1;
+		uaa.driver_info = 0;	/* reset driver_info */
 
 		if (usb_probe_and_attach_sub(udev, &uaa)) {
 			/* ignore */
@@ -2377,6 +2376,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    "devclass=0x%02x "
 	    "devsubclass=0x%02x "
 	    "sernum=\"%s\" "
+	    "release=0x%04x "
 	    "at "
 	    "port=%u "
 	    "on "
@@ -2388,6 +2388,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    udev->ddesc.bDeviceClass,
 	    udev->ddesc.bDeviceSubClass,
 	    udev->serial,
+	    UGETW(udev->ddesc.bcdDevice),
 	    udev->port_no,
 	    udev->parent_hub != NULL ?
 		udev->parent_hub->ugen_name :
