@@ -668,6 +668,7 @@ void	_pthread_cleanup_pop(int);
 #ifdef  _SYS_FCNTL_H_
 int     __sys_fcntl(int, int, ...);
 int     __sys_open(const char *, int, ...);
+int     __sys_openat(int, const char *, int, ...);
 #endif
 
 /* #include <signal.h> */
