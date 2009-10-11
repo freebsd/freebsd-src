@@ -1919,7 +1919,6 @@ gnu/fs/reiserfs/reiserfs_vnops.c	optional reiserfs
 isa/isa_if.m			standard
 isa/isa_common.c		optional isa
 isa/isahint.c			optional isa
-isa/orm.c			optional isa
 isa/pnp.c			optional isa isapnp
 isa/pnpparse.c			optional isa isapnp
 fs/cd9660/cd9660_bmap.c	optional cd9660
