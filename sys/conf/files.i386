@@ -362,6 +362,7 @@ i386/svr4/svr4_locore.s		optional compat_svr4	\
 i386/svr4/svr4_machdep.c	optional compat_svr4
 #
 isa/atrtc.c			optional atpic
+isa/orm.c			optional isa
 isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
 kern/imgact_aout.c		optional compat_aout
