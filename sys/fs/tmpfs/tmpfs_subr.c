@@ -124,7 +124,9 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 		nnode->tn_dir.tn_readdir_lastn = 0;
 		nnode->tn_dir.tn_readdir_lastp = NULL;
 		nnode->tn_links++;
+		TMPFS_NODE_LOCK(nnode->tn_dir.tn_parent);
 		nnode->tn_dir.tn_parent->tn_links++;
+		TMPFS_NODE_UNLOCK(nnode->tn_dir.tn_parent);
 		break;
 
 	case VFIFO:
@@ -187,6 +189,7 @@ tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 #ifdef INVARIANTS
 	TMPFS_NODE_LOCK(node);
 	MPASS(node->tn_vnode == NULL);
+	MPASS((node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0);
 	TMPFS_NODE_UNLOCK(node);
 #endif
 
@@ -312,6 +315,7 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
 loop:
 	TMPFS_NODE_LOCK(node);
 	if ((vp = node->tn_vnode) != NULL) {
+		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
 		VI_LOCK(vp);
 		TMPFS_NODE_UNLOCK(node);
 		vholdl(vp);
@@ -327,6 +331,14 @@ loop:
 			goto loop;
 		}
 
+		goto out;
+	}
+
+	if ((node->tn_vpstate & TMPFS_VNODE_DOOMED) ||
+	    (node->tn_type == VDIR && node->tn_dir.tn_parent == NULL)) {
+		TMPFS_NODE_UNLOCK(node);
+		error = ENOENT;
+		vp = NULL;
 		goto out;
 	}
 
@@ -375,6 +387,7 @@ loop:
 		vp->v_op = &tmpfs_fifoop_entries;
 		break;
 	case VDIR:
+		MPASS(node->tn_dir.tn_parent != NULL);
 		if (node->tn_dir.tn_parent == node)
 			vp->v_vflag |= VV_ROOT;
 		break;
@@ -428,10 +441,9 @@ tmpfs_free_vp(struct vnode *vp)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	TMPFS_NODE_LOCK(node);
+	mtx_assert(TMPFS_NODE_MTX(node), MA_OWNED);
 	node->tn_vnode = NULL;
 	vp->v_data = NULL;
-	TMPFS_NODE_UNLOCK(node);
 }
 
 /* --------------------------------------------------------------------- */
@@ -653,7 +665,18 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 	TMPFS_VALIDATE_DIR(node);
 	MPASS(uio->uio_offset == TMPFS_DIRCOOKIE_DOTDOT);
 
+	/*
+	 * Return ENOENT if the current node is already removed.
+	 */
+	TMPFS_ASSERT_LOCKED(node);
+	if (node->tn_dir.tn_parent == NULL) {
+		return (ENOENT);
+	}
+
+	TMPFS_NODE_LOCK(node->tn_dir.tn_parent);
 	dent.d_fileno = node->tn_dir.tn_parent->tn_id;
+	TMPFS_NODE_UNLOCK(node->tn_dir.tn_parent);
+
 	dent.d_type = DT_DIR;
 	dent.d_namlen = 2;
 	dent.d_name[0] = '.';
