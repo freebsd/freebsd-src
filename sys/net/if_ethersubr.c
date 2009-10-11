@@ -434,7 +434,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
 #if defined(INET) || defined(INET6)
 
-	if (ip_fw_chk_ptr && V_ether_ipfw != 0) {
+	if (V_ip_fw_chk_ptr && V_ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, ifp, 0) == 0) {
 			if (m) {
 				m_freem(m);
@@ -502,7 +502,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	args.inp = NULL;	/* used by ipfw uid/gid/jail rules	*/
-	i = ip_fw_chk_ptr(&args);
+	i = V_ip_fw_chk_ptr(&args);
 	m = args.m;
 	if (m != NULL) {
 		/*
@@ -775,7 +775,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	 * Allow dummynet and/or ipfw to claim the frame.
 	 * Do not do this for PROMISC frames in case we are re-entered.
 	 */
-	if (ip_fw_chk_ptr && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
+	if (V_ip_fw_chk_ptr && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
 		if (ether_ipfw_chk(&m, NULL, 0) == 0) {
 			if (m)
 				m_freem(m);	/* dropped; free mbuf chain */

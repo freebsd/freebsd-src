@@ -2495,6 +2495,10 @@ do {									\
 	}
 
 	IPFW_RLOCK(chain);
+	if (! V_ipfw_vnet_ready) { /* shutting down, leave NOW. */
+		IPFW_RUNLOCK(chain);
+		return (IP_FW_PASS);	/* accept */
+	}
 	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
 	if (args->rule) {
 		/*
@@ -4637,27 +4641,19 @@ ipfw_init(void)
 		printf("limited to %d packets/entry by default\n",
 		    V_verbose_limit);
 
-	/*
-	 * Hook us up to pfil.
-	 * Eventually pfil will be per vnet.
-	 */
-	if ((error = ipfw_hook()) != 0) {
-		printf("ipfw_hook() error\n");
-		return (error);
-	}
-#ifdef INET6
-	if ((error = ipfw6_hook()) != 0) {
-		printf("ipfw6_hook() error\n");
-		return (error);
-	}
-#endif
-	/*
-	 * Other things that are only done the first time.
-	 * (now that we are guaranteed of success).
-	 */
-	ip_fw_ctl_ptr = ipfw_ctl;
-	ip_fw_chk_ptr = ipfw_chk;
 	return (error);
+}
+
+/**********************
+ * Called for the removal of the last instance only on module unload.
+ */
+static void
+ipfw_destroy(void)
+{
+
+	uma_zdestroy(ipfw_dyn_rule_zone);
+	IPFW_DYN_LOCK_DESTROY();
+	printf("IP firewall unloaded\n");
 }
 
 /****************
@@ -4743,19 +4739,30 @@ vnet_ipfw_init(const void *unused)
 
 	/* First set up some values that are compile time options */
 	V_ipfw_vnet_ready = 1;		/* Open for business */
+
+	/* Hook up the raw inputs */
+	V_ip_fw_ctl_ptr = ipfw_ctl;
+	V_ip_fw_chk_ptr = ipfw_chk;
+
+	/*
+	 * Hook us up to pfil.
+	 */
+	if (V_fw_enable) {
+		if ((error = ipfw_hook()) != 0) {
+			printf("ipfw_hook() error\n");
+			return (error);
+		}
+	}
+#ifdef INET6
+	if (V_fw6_enable) {
+		if ((error = ipfw6_hook()) != 0) {
+			printf("ipfw6_hook() error\n");
+			/* XXX should we unhook everything else? */
+			return (error);
+		}
+	}
+#endif
 	return (0);
-}
-
-/**********************
- * Called for the removal of the last instance only on module unload.
- */
-static void
-ipfw_destroy(void)
-{
-
-	uma_zdestroy(ipfw_dyn_rule_zone);
-	IPFW_DYN_LOCK_DESTROY();
-	printf("IP firewall unloaded\n");
 }
 
 /***********************
@@ -4767,9 +4774,18 @@ vnet_ipfw_uninit(const void *unused)
 	struct ip_fw *reap;
 
 	V_ipfw_vnet_ready = 0; /* tell new callers to go away */
-	callout_drain(&V_ipfw_timeout);
-	/* We wait on the wlock here until the last user leaves */
+	ipfw_unhook();
+#ifdef INET6
+	ipfw6_unhook();
+#endif
+	/* layer2 and other entrypoints still come in this way. */
+	V_ip_fw_chk_ptr = NULL;
+	V_ip_fw_ctl_ptr = NULL;
 	IPFW_WLOCK(&V_layer3_chain);
+	/* We wait on the wlock here until the last user leaves */
+	IPFW_WUNLOCK(&V_layer3_chain);
+	IPFW_WLOCK(&V_layer3_chain);
+	callout_drain(&V_ipfw_timeout);
 	flush_tables(&V_layer3_chain);
 	V_layer3_chain.reap = NULL;
 	free_chain(&V_layer3_chain, 1 /* kill default rule */);
@@ -4803,21 +4819,10 @@ ipfw_modevent(module_t mod, int type, void *unused)
 		/* Called once at module load or
 	 	 * system boot if compiled in. */
 		break;
-	case MOD_UNLOAD:
-		break;
 	case MOD_QUIESCE:
-		/* Yes, the unhooks can return errors, we can safely ignore
-		 * them. Eventually these will be done per jail as they
-		 * shut down. We will wait on each vnet's l3 lock as existing
-		 * callers go away.
-		 */
-		ipfw_unhook();
-#ifdef INET6
-		ipfw6_unhook();
-#endif
-		/* layer2 and other entrypoints still come in this way. */
-		ip_fw_chk_ptr = NULL;
-		ip_fw_ctl_ptr = NULL;
+		/* Called before unload. May veto unloading. */
+		break;
+	case MOD_UNLOAD:
 		/* Called during unload. */
 		break;
 	case MOD_SHUTDOWN:
@@ -4866,4 +4871,3 @@ SYSUNINIT(ipfw_destroy, IPFW_SI_SUB_FIREWALL, IPFW_MODULE_ORDER,
 VNET_SYSUNINIT(vnet_ipfw_uninit, IPFW_SI_SUB_FIREWALL, IPFW_VNET_ORDER,
 	    vnet_ipfw_uninit, NULL);
 
- 
