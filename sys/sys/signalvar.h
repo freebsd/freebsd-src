@@ -252,9 +252,10 @@ typedef struct sigqueue {
 
 /* Return nonzero if process p has an unmasked pending signal. */
 #define	SIGPENDING(td)							\
-	(!SIGISEMPTY((td)->td_siglist) &&				\
-	    !sigsetmasked(&(td)->td_siglist, &(td)->td_sigmask))
-
+	((!SIGISEMPTY((td)->td_siglist) &&				\
+	    !sigsetmasked(&(td)->td_siglist, &(td)->td_sigmask)) ||	\
+	 (!SIGISEMPTY((td)->td_proc->p_siglist) &&			\
+	    !sigsetmasked(&(td)->td_proc->p_siglist, &(td)->td_sigmask)))
 /*
  * Return the value of the pseudo-expression ((*set & ~*mask) != 0).  This
  * is an optimized version of SIGISEMPTY() on a temporary variable
@@ -336,6 +337,7 @@ void	sigexit(struct thread *td, int signum) __dead2;
 int	sig_ffs(sigset_t *set);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
+void	tdsigcleanup(struct thread *td);
 int	tdsignal(struct proc *p, struct thread *td, int sig,
 	    ksiginfo_t *ksi);
 void	trapsignal(struct thread *td, ksiginfo_t *);
