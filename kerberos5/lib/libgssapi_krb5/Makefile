@@ -2,8 +2,8 @@
 
 LIB=	gssapi_krb5
 LDFLAGS= -Wl,-Bsymbolic
-LDADD=	-lkrb5 -lhx509 -lcrypto -lroken -lasn1 -lcom_err -lcrypt
-DPADD=	${LIBKRB5} ${LIBHX509} ${LIBCRYPTO} ${LIBROKEN} ${LIBASN1} \
+LDADD=	-lgssapi -lkrb5 -lhx509 -lcrypto -lroken -lasn1 -lcom_err -lcrypt
+DPADD=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBCRYPTO} ${LIBROKEN} ${LIBASN1} \
 	${LIBCOM_ERR} ${LIBCRYPT}
 
 INCS=	${KRB5DIR}/lib/gssapi/gssapi/gssapi_krb5.h
