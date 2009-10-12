@@ -69,7 +69,8 @@
  */
 #if defined(KLD_MODULE) || !defined(__GNUCLIKE_ASM)
 #define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
-void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
+void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);	\
+void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int	atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
@@ -91,8 +92,9 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 #endif
 
 /*
- * The assembly is volatilized to demark potential before-and-after side
- * effects if an interrupt or SMP collision were to occur.
+ * The assembly is volatilized to avoid code chunk removal by the compiler.
+ * GCC aggressively reorders operations and memory clobbering is necessary
+ * in order to avoid that for memory barriers.
  */
 #define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)		\
 static __inline void					\
@@ -101,6 +103,15 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	__asm __volatile(MPLOCKED OP			\
 	: "=m" (*p)					\
 	: CONS (V), "m" (*p));				\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	__asm __volatile(MPLOCKED OP			\
+	: "=m" (*p)					\
+	: CONS (V), "m" (*p)				\
+	: "memory");					\
 }							\
 struct __hack
 
@@ -190,18 +201,23 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
  * PentiumPro or higher, reads may pass writes, so for that case we have
  * to use a serializing instruction (i.e. with LOCK) to do the load in
  * SMP kernels.  For UP kernels, however, the cache of the single processor
- * is always consistent, so we don't need any memory barriers.
+ * is always consistent, so we only need to take care of compiler.
  */
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
-	return (*p);					\
+	u_##TYPE tmp;					\
+							\
+	tmp = *p;					\
+	__asm __volatile("" : : : "memory");		\
+	return (tmp);					\
 }							\
 							\
 static __inline void					\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
+	__asm __volatile("" : : : "memory");		\
 	*p = v;						\
 }							\
 struct __hack
@@ -232,7 +248,8 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	__asm __volatile(SOP				\
 	: "=m" (*p),			/* 0 */		\
 	  "+r" (v)			/* 1 */		\
-	: "m" (*p));			/* 2 */		\
+	: "m" (*p)			/* 2 */		\
+	: "memory");					\
 }							\
 struct __hack
 
@@ -327,44 +344,43 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 
 #endif /* __GNUCLIKE_ASM */
 
-/* Acquire and release variants are identical to the normal ones. */
-#define	atomic_set_acq_char		atomic_set_char
-#define	atomic_set_rel_char		atomic_set_char
-#define	atomic_clear_acq_char		atomic_clear_char
-#define	atomic_clear_rel_char		atomic_clear_char
-#define	atomic_add_acq_char		atomic_add_char
-#define	atomic_add_rel_char		atomic_add_char
-#define	atomic_subtract_acq_char	atomic_subtract_char
-#define	atomic_subtract_rel_char	atomic_subtract_char
+#define	atomic_set_acq_char		atomic_set_barr_char
+#define	atomic_set_rel_char		atomic_set_barr_char
+#define	atomic_clear_acq_char		atomic_clear_barr_char
+#define	atomic_clear_rel_char		atomic_clear_barr_char
+#define	atomic_add_acq_char		atomic_add_barr_char
+#define	atomic_add_rel_char		atomic_add_barr_char
+#define	atomic_subtract_acq_char	atomic_subtract_barr_char
+#define	atomic_subtract_rel_char	atomic_subtract_barr_char
 
-#define	atomic_set_acq_short		atomic_set_short
-#define	atomic_set_rel_short		atomic_set_short
-#define	atomic_clear_acq_short		atomic_clear_short
-#define	atomic_clear_rel_short		atomic_clear_short
-#define	atomic_add_acq_short		atomic_add_short
-#define	atomic_add_rel_short		atomic_add_short
-#define	atomic_subtract_acq_short	atomic_subtract_short
-#define	atomic_subtract_rel_short	atomic_subtract_short
+#define	atomic_set_acq_short		atomic_set_barr_short
+#define	atomic_set_rel_short		atomic_set_barr_short
+#define	atomic_clear_acq_short		atomic_clear_barr_short
+#define	atomic_clear_rel_short		atomic_clear_barr_short
+#define	atomic_add_acq_short		atomic_add_barr_short
+#define	atomic_add_rel_short		atomic_add_barr_short
+#define	atomic_subtract_acq_short	atomic_subtract_barr_short
+#define	atomic_subtract_rel_short	atomic_subtract_barr_short
 
-#define	atomic_set_acq_int		atomic_set_int
-#define	atomic_set_rel_int		atomic_set_int
-#define	atomic_clear_acq_int		atomic_clear_int
-#define	atomic_clear_rel_int		atomic_clear_int
-#define	atomic_add_acq_int		atomic_add_int
-#define	atomic_add_rel_int		atomic_add_int
-#define	atomic_subtract_acq_int		atomic_subtract_int
-#define	atomic_subtract_rel_int		atomic_subtract_int
+#define	atomic_set_acq_int		atomic_set_barr_int
+#define	atomic_set_rel_int		atomic_set_barr_int
+#define	atomic_clear_acq_int		atomic_clear_barr_int
+#define	atomic_clear_rel_int		atomic_clear_barr_int
+#define	atomic_add_acq_int		atomic_add_barr_int
+#define	atomic_add_rel_int		atomic_add_barr_int
+#define	atomic_subtract_acq_int		atomic_subtract_barr_int
+#define	atomic_subtract_rel_int		atomic_subtract_barr_int
 #define	atomic_cmpset_acq_int		atomic_cmpset_int
 #define	atomic_cmpset_rel_int		atomic_cmpset_int
 
-#define	atomic_set_acq_long		atomic_set_long
-#define	atomic_set_rel_long		atomic_set_long
-#define	atomic_clear_acq_long		atomic_clear_long
-#define	atomic_clear_rel_long		atomic_clear_long
-#define	atomic_add_acq_long		atomic_add_long
-#define	atomic_add_rel_long		atomic_add_long
-#define	atomic_subtract_acq_long	atomic_subtract_long
-#define	atomic_subtract_rel_long	atomic_subtract_long
+#define	atomic_set_acq_long		atomic_set_barr_long
+#define	atomic_set_rel_long		atomic_set_barr_long
+#define	atomic_clear_acq_long		atomic_clear_barr_long
+#define	atomic_clear_rel_long		atomic_clear_barr_long
+#define	atomic_add_acq_long		atomic_add_barr_long
+#define	atomic_add_rel_long		atomic_add_barr_long
+#define	atomic_subtract_acq_long	atomic_subtract_barr_long
+#define	atomic_subtract_rel_long	atomic_subtract_barr_long
 #define	atomic_cmpset_acq_long		atomic_cmpset_long
 #define	atomic_cmpset_rel_long		atomic_cmpset_long
 
