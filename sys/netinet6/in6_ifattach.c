@@ -751,16 +751,19 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	 * assign a link-local address, if there's none.
 	 */
 	if (ifp->if_type != IFT_BRIDGE &&
+	    !(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 	    ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) {
 		int error;
 
 		ia = in6ifa_ifpforlinklocal(ifp, 0);
 		if (ia == NULL) {
 			error = in6_ifattach_linklocal(ifp, altifp);
+#if 0
 			if (error)
 				log(LOG_NOTICE, "in6_ifattach_linklocal: "
 				    "failed to add a link-local addr to %s\n",
 				    if_name(ifp));
+#endif
 		} else
 			ifa_free(&ia->ia_ifa);
 	}
