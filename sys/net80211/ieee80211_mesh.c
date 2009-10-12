@@ -2421,7 +2421,7 @@ ieee80211_add_meshpeer(uint8_t *frm, uint8_t subtype, uint16_t localid,
 	*frm++ = IEEE80211_ELEMID_MESHPEER;
 	switch (subtype) {
 	case IEEE80211_MESH_PEER_LINK_OPEN:
-		frm++ = 6;		/* length */
+		*frm++ = 6;		/* length */
 		memcpy(frm, meshpeerproto, 4);
 		frm += 4;
 		ADDSHORT(frm, localid);	/* local ID */
