@@ -238,7 +238,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * and return.
 		 */
 		if (LK_SHARERS(x) > 1) {
-			if (atomic_cmpset_ptr(&lk->lk_lock, x,
+			if (atomic_cmpset_rel_ptr(&lk->lk_lock, x,
 			    x - LK_ONE_SHARER))
 				break;
 			continue;
@@ -251,7 +251,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		if ((x & LK_ALL_WAITERS) == 0) {
 			MPASS((x & ~LK_EXCLUSIVE_SPINNERS) ==
 			    LK_SHARERS_LOCK(1));
-			if (atomic_cmpset_ptr(&lk->lk_lock, x, LK_UNLOCKED))
+			if (atomic_cmpset_rel_ptr(&lk->lk_lock, x, LK_UNLOCKED))
 				break;
 			continue;
 		}
@@ -277,7 +277,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 			queue = SQ_SHARED_QUEUE;
 		}
 
-		if (!atomic_cmpset_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x,
+		if (!atomic_cmpset_rel_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x,
 		    v)) {
 			sleepq_release(&lk->lock_object);
 			continue;
