@@ -49,7 +49,11 @@ struct usb_process {
 	struct cv up_cv;
 	struct cv up_drain;
 
+#if (__FreeBSD_version >= 800000)
+	struct thread *up_ptr;
+#else
 	struct proc *up_ptr;
+#endif
 	struct thread *up_curtd;
 	struct mtx *up_mtx;
 
@@ -71,5 +75,6 @@ void	usb_proc_drain(struct usb_process *up);
 void	usb_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
 void	usb_proc_free(struct usb_process *up);
 void   *usb_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
+void	usb_proc_rewakeup(struct usb_process *up);
 
 #endif					/* _USB_PROCESS_H_ */

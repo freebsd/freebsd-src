@@ -426,6 +426,9 @@ ulpt_open(struct usb_fifo *fifo, int fflags)
 	/* we assume that open is a serial process */
 
 	if (sc->sc_fflags == 0) {
+
+		/* reset USB paralell port */
+
 		ulpt_reset(sc);
 	}
 	return (unlpt_open(fifo, fflags));
@@ -720,7 +723,12 @@ ulpt_watchdog(void *arg)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	usbd_transfer_start(sc->sc_xfer[ULPT_INTR_DT_RD]);
+	/* 
+	 * Only read status while the device is not opened, due to
+	 * possible hardware or firmware bug in some printers.
+	 */
+	if (sc->sc_fflags == 0)
+		usbd_transfer_start(sc->sc_xfer[ULPT_INTR_DT_RD]);
 
 	usb_callout_reset(&sc->sc_watchdog,
 	    hz, &ulpt_watchdog, sc);
