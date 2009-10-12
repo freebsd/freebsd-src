@@ -2197,6 +2197,24 @@ interfaces previously configured with
 Another name for the
 .Fl tunnel
 parameter.
+.It Cm accept_rev_ethip_ver
+Set a flag to acccept both correct EtherIP packets and ones
+with reversed version field.  Enabled by default.
+This is for backward compatibility with
+.Fx 6.1 ,
+6.2, 6.3, 7.0, and 7.1.
+.It Cm -accept_rev_ethip_ver
+Clear a flag
+.Cm accept_rev_ethip_ver .
+.It Cm send_rev_ethip_ver
+Set a flag to send EtherIP packets with reversed version
+field intentionally.  Disabled by default.
+This is for backward compatibility with
+.Fx 6.1 ,
+6.2, 6.3, 7.0, and 7.1.
+.It Cm -send_rev_ethip_ver
+Clear a flag
+.Cm send_rev_ethip_ver .
 .El
 .Pp
 The following parameters are specific to GRE tunnel interfaces,
@@ -2457,6 +2475,7 @@ tried to alter an interface's configuration.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr carp 4 ,
+.Xr gif 4 ,
 .Xr netintro 4 ,
 .Xr pfsync 4 ,
 .Xr polling 4 ,
