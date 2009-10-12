@@ -1014,7 +1014,7 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 	}
 
 	/*
-	 * The new_block set contains signals that were not previosly
+	 * The new_block set contains signals that were not previously
 	 * blocked, but are blocked now.
 	 *
 	 * In case we block any signal that was not previously blocked
