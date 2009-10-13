@@ -2104,13 +2104,13 @@ xl_txeof(struct xl_softc *sc)
 		m_freem(cur_tx->xl_mbuf);
 		cur_tx->xl_mbuf = NULL;
 		ifp->if_opackets++;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		cur_tx->xl_next = sc->xl_cdata.xl_tx_free;
 		sc->xl_cdata.xl_tx_free = cur_tx;
 	}
 
 	if (sc->xl_cdata.xl_tx_head == NULL) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->xl_wdog_timer = 0;
 		sc->xl_cdata.xl_tx_tail = NULL;
 	} else {
@@ -2547,6 +2547,9 @@ xl_start_locked(struct ifnet *ifp)
 
 	XL_LOCK_ASSERT(sc);
 
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return;
 	/*
 	 * Check for an available queue slot. If there are none,
 	 * punt.
@@ -2675,7 +2678,8 @@ xl_start_90xB_locked(struct ifnet *ifp)
 
 	XL_LOCK_ASSERT(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	idx = sc->xl_cdata.xl_tx_prod;
