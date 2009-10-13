@@ -145,7 +145,7 @@ gz_compress_insandbox(int in, int out, off_t *gsizep, const char *origname,
 	    fdarray, 2, &iov_rep, 1, &len, NULL, NULL) < 0)
 		err(-1, "lch_rpc_rights");
 	if (len != sizeof(rep))
-		errx(-1, "lch_rpc_rights len %d", len);
+		errx(-1, "lch_rpc_rights len %zu", len);
 	if (gsizep != NULL)
 		*gsizep = rep.hgc_rep_gsize;
 	close(fdarray[0]);
@@ -162,7 +162,7 @@ sandbox_gz_compress_buffer(struct lc_host *lchp, uint32_t opno,
 	struct iovec iov;
 
 	if (len != sizeof(req))
-		err(-1, "sandbox_gz_compress_buffer: len %d", len);
+		err(-1, "sandbox_gz_compress_buffer: len %zu", len);
 
 	bcopy(buffer, &req, sizeof(req));
 	bzero(&rep, sizeof(rep));
@@ -226,7 +226,7 @@ gz_uncompress_insandbox(int in, int out, char *pre, size_t prelen,
 	    fdarray, 2, &iov_rep, 1, &len, NULL, NULL) < 0)
 		err(-1, "lch_rpc_rights");
 	if (len != sizeof(rep))
-		errx(-1, "lch_rpc_rights len %d", len);
+		errx(-1, "lch_rpc_rights len %zu", len);
 	if (gsizep != NULL)
 		*gsizep = rep.hgu_rep_gsize;
 	close(fdarray[0]);
@@ -244,7 +244,7 @@ sandbox_gz_uncompress_buffer(struct lc_host *lchp, uint32_t opno,
 	char *pre;
 
 	if (len != sizeof(req))
-		err(-1, "sandbox_gz_uncompress_buffer: len %d", len);
+		err(-1, "sandbox_gz_uncompress_buffer: len %zu", len);
 
 	bcopy(buffer, &req, sizeof(req));
 	pre = buffer + sizeof(req);
@@ -306,7 +306,7 @@ unbzip2_insandbox(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 	    fdarray, 2, &iov_rep, 1, &len, NULL, NULL) < 0)
 		err(-1, "lch_rpc_rights");
 	if (len != sizeof(rep))
-		errx(-1, "lch_rpc_rights len %d", len);
+		errx(-1, "lch_rpc_rights len %zu", len);
 	if (bytes_in != NULL)
 		*bytes_in = rep.hub_rep_bytes_in;
 	close(fdarray[0]);
@@ -324,7 +324,7 @@ sandbox_unbzip2_buffer(struct lc_host *lchp, uint32_t opno,
 	char *pre;
 
 	if (len != sizeof(req))
-		err(-1, "sandbox_gz_uncompress_buffer: len %d", len);
+		err(-1, "sandbox_gz_uncompress_buffer: len %zu", len);
 
 	bcopy(buffer, &req, sizeof(req));
 	pre = buffer + sizeof(req);
