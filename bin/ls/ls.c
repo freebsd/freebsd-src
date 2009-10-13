@@ -399,7 +399,7 @@ main(int argc, char *argv[])
 	 * If not -F, -d or -l options, follow any symbolic links listed on
 	 * the command line.
 	 */
-	if (!f_longform && !f_listdir && !f_type)
+	if (!f_longform && !f_listdir && (!f_type || f_slash))
 		fts_options |= FTS_COMFOLLOW;
 
 	/*
