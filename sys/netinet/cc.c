@@ -47,14 +47,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 
 #include <netinet/cc.h>
 #include <netinet/cc_module.h>
-#include <netinet/vinet.h>
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
+#include <netinet/tcp_var.h>
 
 /*
  * List of available cc algorithms on the current system. First element
