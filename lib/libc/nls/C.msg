@@ -181,6 +181,16 @@ $ ENOATTR
 87 Attribute not found
 $ EDOOFUS
 88 Programming error
+$ EBADMSG
+89 Bad message
+$ EMULTIHOP
+90 Multihop attempted
+$ ENOLINK
+91 Link has been severed
+$ EPROTO
+92 Protocol error
+$ ENOTCAPABLE
+93 Capabilities insufficient
 $
 $ strsignal() support catalog
 $
