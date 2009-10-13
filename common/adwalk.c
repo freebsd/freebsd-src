@@ -118,7 +118,6 @@
 #include "accommon.h"
 #include "acparser.h"
 #include "amlcode.h"
-#include "acdebug.h"
 #include "acdisasm.h"
 #include "acdispat.h"
 #include "acnamesp.h"
@@ -184,7 +183,7 @@ AcpiDmResourceDescendingOp (
  *
  * FUNCTION:    AcpiDmDumpTree
  *
- * PARAMETERS:  Origin          - Starting object
+ * PARAMETERS:  Origin              - Starting object
  *
  * RETURN:      None
  *
@@ -218,7 +217,7 @@ AcpiDmDumpTree (
  *
  * FUNCTION:    AcpiDmFindOrphanMethods
  *
- * PARAMETERS:  Origin          - Starting object
+ * PARAMETERS:  Origin              - Starting object
  *
  * RETURN:      None
  *
@@ -426,7 +425,6 @@ AcpiDmDumpDescending (
     void                    *Context)
 {
     ACPI_OP_WALK_INFO       *Info = Context;
-    const ACPI_OPCODE_INFO  *OpInfo;
     char                    *Path;
 
 
@@ -435,11 +433,9 @@ AcpiDmDumpDescending (
         return (AE_OK);
     }
 
-    OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
-    Info->Count++;
-
     /* Most of the information (count, level, name) here */
 
+    Info->Count++;
     AcpiOsPrintf ("% 5d [%2.2d] ", Info->Count, Level);
     AcpiDmIndent (Level);
     AcpiOsPrintf ("%-28s", AcpiPsGetOpcodeName (Op->Common.AmlOpcode));
@@ -472,7 +468,7 @@ AcpiDmDumpDescending (
     case AML_METHOD_OP:
     case AML_DEVICE_OP:
     case AML_INT_NAMEDFIELD_OP:
-        AcpiOsPrintf ("%4.4s", &Op->Named.Name);
+        AcpiOsPrintf ("%4.4s", ACPI_CAST_PTR (char, &Op->Named.Name));
         break;
 
     default:
@@ -536,7 +532,7 @@ AcpiDmFindOrphanDescending (
             {
                 /* This NamePath has no args, assume it is an integer */
 
-                AcpiDmAddToExternalList (ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
                 return (AE_OK);
             }
 
@@ -547,11 +543,11 @@ AcpiDmFindOrphanDescending (
             {
                 /* One Arg means this is just a Store(Name,Target) */
 
-                AcpiDmAddToExternalList (ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
                 return (AE_OK);
             }
 
-            AcpiDmAddToExternalList (ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
+            AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
         }
         break;
 #endif
@@ -567,7 +563,7 @@ AcpiDmFindOrphanDescending (
             {
                 /* This NamePath has no args, assume it is an integer */
 
-                AcpiDmAddToExternalList (ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
                 return (AE_OK);
             }
 
@@ -576,11 +572,11 @@ AcpiDmFindOrphanDescending (
             {
                 /* One Arg means this is just a Store(Name,Target) */
 
-                AcpiDmAddToExternalList (ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_INTEGER, 0);
                 return (AE_OK);
             }
 
-            AcpiDmAddToExternalList (ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
+            AcpiDmAddToExternalList (ChildOp, ChildOp->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
         }
         break;
 
@@ -611,7 +607,7 @@ AcpiDmFindOrphanDescending (
                      /* And namepath is the first argument */
                      (ParentOp->Common.Value.Arg == Op))
                 {
-                    AcpiDmAddToExternalList (Op->Common.Value.String, ACPI_TYPE_INTEGER, 0);
+                    AcpiDmAddToExternalList (Op, Op->Common.Value.String, ACPI_TYPE_INTEGER, 0);
                     break;
                 }
             }
@@ -621,7 +617,7 @@ AcpiDmFindOrphanDescending (
              * operator) - it *must* be a method invocation, nothing else is
              * grammatically possible.
              */
-            AcpiDmAddToExternalList (Op->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
+            AcpiDmAddToExternalList (Op, Op->Common.Value.String, ACPI_TYPE_METHOD, ArgCount);
 
         }
         break;
@@ -858,7 +854,7 @@ AcpiDmXrefDescendingOp (
     {
         if (Status == AE_NOT_FOUND)
         {
-            AcpiDmAddToExternalList (Path, (UINT8) ObjectType, 0);
+            AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType, 0);
 
             /*
              * We could install this into the namespace, but we catch duplicate
@@ -888,12 +884,12 @@ AcpiDmXrefDescendingOp (
 
         if (ObjectType2 == ACPI_TYPE_METHOD)
         {
-            AcpiDmAddToExternalList (Path, ACPI_TYPE_METHOD,
+            AcpiDmAddToExternalList (Op, Path, ACPI_TYPE_METHOD,
                 Object->Method.ParamCount);
         }
         else
         {
-            AcpiDmAddToExternalList (Path, (UINT8) ObjectType2, 0);
+            AcpiDmAddToExternalList (Op, Path, (UINT8) ObjectType2, 0);
         }
 
         Op->Common.Node = Node;

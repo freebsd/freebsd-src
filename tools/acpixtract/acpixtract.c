@@ -119,20 +119,20 @@
 #include <string.h>
 #include <ctype.h>
 
-#define VERSION             0x20060324
 
+/* Note: This is a 32-bit program only */
+
+#define VERSION             0x20091002
 #define FIND_HEADER         0
 #define EXTRACT_DATA        1
 #define BUFFER_SIZE         256
 
-char                        Filename[16];
-unsigned char               Data[16];
 
 /* Local prototypes */
 
 void
 CheckAscii (
-    unsigned char           *Name,
+    char                    *Name,
     int                     Count);
 
 void
@@ -174,6 +174,20 @@ DisplayUsage (
     void);
 
 
+typedef struct acpi_table_header
+{
+    char                    Signature[4];
+    int                     Length;
+    unsigned char           Revision;
+    unsigned char           Checksum;
+    char                    OemId[6];
+    char                    OemTableId[8];
+    int                     OemRevision;
+    char                    AslCompilerId[4];
+    int                     AslCompilerRevision;
+
+} ACPI_TABLE_HEADER;
+
 struct TableInfo
 {
     unsigned int            Signature;
@@ -183,6 +197,8 @@ struct TableInfo
 };
 
 struct TableInfo            *ListHead = NULL;
+char                        Filename[16];
+unsigned char               Data[16];
 
 
 /******************************************************************************
@@ -226,7 +242,7 @@ DisplayUsage (
 
 void
 CheckAscii (
-    unsigned char           *Name,
+    char                    *Name,
     int                     Count)
 {
     int                     i;
@@ -246,7 +262,7 @@ CheckAscii (
  *
  * FUNCTION:    NormalizeSignature
  *
- * PARAMETERS:  Name                - Ascii string
+ * PARAMETERS:  Name                - Ascii string containing an ACPI signature
  *
  * RETURN:      None
  *
@@ -270,6 +286,11 @@ NormalizeSignature (
  *
  * FUNCTION:    ConvertLine
  *
+ * PARAMETERS:  InputLine           - One line from the input acpidump file
+ *              OutputData          - Where the converted data is returned
+ *
+ * RETURN:      The number of bytes actually converted
+ *
  * DESCRIPTION: Convert one line of ascii text binary (up to 16 bytes)
  *
  ******************************************************************************/
@@ -290,7 +311,7 @@ ConvertLine (
     End = strstr (InputLine + 2, "  ");
     if (!End)
     {
-        return 0;   /* Don't understand the format */
+        return (0); /* Don't understand the format */
     }
     *End = 0;
 
@@ -323,7 +344,12 @@ ConvertLine (
  *
  * FUNCTION:    GetTableHeader
  *
- * DESCRIPTION: Extract and convert a table heaader
+ * PARAMETERS:  InputFile           - Handle for the input acpidump file
+ *              OutputData          - Where the table header is returned
+ *
+ * RETURN:      The actual number of bytes converted
+ *
+ * DESCRIPTION: Extract and convert an ACPI table header
  *
  ******************************************************************************/
 
@@ -344,7 +370,7 @@ GetTableHeader (
     {
         if (!fgets (Buffer, BUFFER_SIZE, InputFile))
         {
-            return TotalConverted;
+            return (TotalConverted);
         }
 
         BytesConverted = ConvertLine (Buffer, OutputData);
@@ -353,11 +379,11 @@ GetTableHeader (
 
         if (BytesConverted != 16)
         {
-            return TotalConverted;
+            return (TotalConverted);
         }
     }
 
-    return TotalConverted;
+    return (TotalConverted);
 }
 
 
@@ -365,7 +391,13 @@ GetTableHeader (
  *
  * FUNCTION:    CountTableInstances
  *
- * DESCRIPTION: Count the instances of table <Signature> within the input file
+ * PARAMETERS:  InputPathname       - Filename for acpidump file
+ *              Signature           - Requested signature to count
+ *
+ * RETURN:      The number of instances of the signature
+ *
+ * DESCRIPTION: Count the instances of tables with the given signature within
+ *              the input acpidump file.
  *
  ******************************************************************************/
 
@@ -383,7 +415,7 @@ CountTableInstances (
     if (!InputFile)
     {
         printf ("Could not open %s\n", InputPathname);
-        return 0;
+        return (0);
     }
 
     /* Count the number of instances of this signature */
@@ -406,7 +438,7 @@ CountTableInstances (
     }
 
     fclose (InputFile);
-    return Instances;
+    return (Instances);
 }
 
 
@@ -414,7 +446,16 @@ CountTableInstances (
  *
  * FUNCTION:    GetNextInstance
  *
- * DESCRIPTION:
+ * PARAMETERS:  InputPathname       - Filename for acpidump file
+ *              Signature           - Requested ACPI signature
+ *
+ * RETURN:      The next instance number for this signature. Zero if this
+ *              is the first instance of this signature.
+ *
+ * DESCRIPTION: Get the next instance number of the specified table. If this
+ *              is the first instance of the table, create a new instance
+ *              block. Note: only SSDT and PSDT tables can have multiple
+ *              instances.
  *
  ******************************************************************************/
 
@@ -439,12 +480,18 @@ GetNextInstance (
 
     if (!Info)
     {
+        /* Signature not found, create new table info block */
+
         Info = malloc (sizeof (struct TableInfo));
+        if (!Info)
+        {
+            printf ("Could not allocate memory\n");
+            exit (0);
+        }
 
         Info->Signature = *(unsigned int *) Signature;
         Info->Instances = CountTableInstances (InputPathname, Signature);
         Info->NextInstance = 1;
-
         Info->Next = ListHead;
         ListHead = Info;
     }
@@ -461,6 +508,13 @@ GetNextInstance (
 /******************************************************************************
  *
  * FUNCTION:    ExtractTables
+ *
+ * PARAMETERS:  InputPathname       - Filename for acpidump file
+ *              Signature           - Requested ACPI signature to extract.
+ *                                    NULL means extract ALL tables.
+ *              MinimumInstances    - Min instances that are acceptable
+ *
+ * RETURN:      Status
  *
  * DESCRIPTION: Convert text ACPI tables to binary
  *
@@ -483,6 +537,7 @@ ExtractTables (
     unsigned int            Instances = 0;
     unsigned int            ThisInstance;
     char                    ThisSignature[4];
+    int                     Status = 0;
 
 
     /* Open input in text mode, output is in binary mode */
@@ -491,7 +546,7 @@ ExtractTables (
     if (!InputFile)
     {
         printf ("Could not open %s\n", InputPathname);
-        return -1;
+        return (-1);
     }
 
     if (Signature)
@@ -504,12 +559,13 @@ ExtractTables (
         if (Instances < MinimumInstances)
         {
             printf ("Table %s was not found in %s\n", Signature, InputPathname);
-            return -1;
+            Status = -1;
+            goto CleanupAndExit;
         }
 
         if (Instances == 0)
         {
-            return 0;
+            goto CleanupAndExit;
         }
     }
 
@@ -542,8 +598,10 @@ ExtractTables (
                 }
             }
 
-            /* Get the instance # for this signature */
-
+            /*
+             * Get the instance number for this signature. Only the
+             * SSDT and PSDT tables can have multiple instances.
+             */
             ThisInstance = GetNextInstance (InputPathname, ThisSignature);
 
             /* Build an output filename and create/open the output file */
@@ -561,7 +619,8 @@ ExtractTables (
             if (!OutputFile)
             {
                 printf ("Could not open %s\n", Filename);
-                return -1;
+                Status = -1;
+                goto CleanupAndExit;
             }
 
             State = EXTRACT_DATA;
@@ -580,7 +639,7 @@ ExtractTables (
                 OutputFile = NULL;
                 State = FIND_HEADER;
 
-                printf ("Acpi table [%4.4s] - % 6d bytes written to %s\n",
+                printf ("Acpi table [%4.4s] - % 7d bytes written to %s\n",
                     ThisSignature, TotalBytesWritten, Filename);
                 continue;
             }
@@ -596,14 +655,17 @@ ExtractTables (
             {
                 printf ("Write error on %s\n", Filename);
                 fclose (OutputFile);
-                return -1;
+                OutputFile = NULL;
+                Status = -1;
+                goto CleanupAndExit;
             }
 
             TotalBytesWritten += BytesConverted;
             continue;
 
         default:
-            return -1;
+            Status = -1;
+            goto CleanupAndExit;
         }
     }
 
@@ -612,6 +674,9 @@ ExtractTables (
         printf ("Table %s was not found in %s\n", Signature, InputPathname);
     }
 
+
+CleanupAndExit:
+
     if (OutputFile)
     {
         fclose (OutputFile);
@@ -619,13 +684,13 @@ ExtractTables (
         {
             /* Received an EOF while extracting data */
 
-            printf ("Acpi table [%4.4s] - % 6d bytes written to %s\n",
+            printf ("Acpi table [%4.4s] - % 7d bytes written to %s\n",
                 ThisSignature, TotalBytesWritten, Filename);
         }
     }
 
     fclose (InputFile);
-    return 0;
+    return (Status);
 }
 
 
@@ -633,7 +698,12 @@ ExtractTables (
  *
  * FUNCTION:    ListTables
  *
- * DESCRIPTION: Display info for all ACPI tables found in input
+ * PARAMETERS:  InputPathname       - Filename for acpidump file
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Display info for all ACPI tables found in input. Does not
+ *              perform an actual extraction of the tables.
  *
  ******************************************************************************/
 
@@ -646,6 +716,7 @@ ListTables (
     size_t                  HeaderSize;
     unsigned char           Header[48];
     int                     TableCount = 0;
+    ACPI_TABLE_HEADER       *TableHeader = (ACPI_TABLE_HEADER *) Header;
 
 
     /* Open input in text mode, output is in binary mode */
@@ -654,10 +725,13 @@ ListTables (
     if (!InputFile)
     {
         printf ("Could not open %s\n", InputPathname);
-        return -1;
+        return (-1);
     }
 
-    printf ("\nSignature Length  OemId     OemTableId   OemRevision CompilerId CompilerRevision\n\n");
+    /* Dump the headers for all tables found in the input file */
+
+    printf ("\nSignature Length Revision  OemId     OemTableId"
+            "   OemRevision CompilerId CompilerRevision\n\n");
 
     while (fgets (Buffer, BUFFER_SIZE, InputFile))
     {
@@ -679,15 +753,15 @@ ListTables (
 
         /* RSDP has an oddball signature and header */
 
-        if (!strncmp ((char *) Header, "RSD PTR ", 8))
+        if (!strncmp (TableHeader->Signature, "RSD PTR ", 8))
         {
-            CheckAscii (&Header[9], 6);
-            printf ("%8.4s          \"%6.6s\"\n", "RSDP", &Header[9]);
+            CheckAscii ((char *) &Header[9], 6);
+            printf ("%8.4s                   \"%6.6s\"\n", "RSDP", &Header[9]);
             TableCount++;
             continue;
         }
 
-        /* Minimum size */
+        /* Minimum size for table with standard header */
 
         if (HeaderSize < 36)
         {
@@ -697,11 +771,11 @@ ListTables (
         /* Signature and Table length */
 
         TableCount++;
-        printf ("%8.4s % 7d", Header, *(int *) &Header[4]);
+        printf ("%8.4s % 7d", TableHeader->Signature, TableHeader->Length);
 
         /* FACS has only signature and length */
 
-        if (!strncmp ((char *) Header, "FACS", 4))
+        if (!strncmp (TableHeader->Signature, "FACS", 4))
         {
             printf ("\n");
             continue;
@@ -709,18 +783,19 @@ ListTables (
 
         /* OEM IDs and Compiler IDs */
 
-        CheckAscii (&Header[10], 6);
-        CheckAscii (&Header[16], 8);
-        CheckAscii (&Header[28], 4);
+        CheckAscii (TableHeader->OemId, 6);
+        CheckAscii (TableHeader->OemTableId, 8);
+        CheckAscii (TableHeader->AslCompilerId, 4);
 
-        printf ("  \"%6.6s\"  \"%8.8s\"    %8.8X    \"%4.4s\"     %8.8X\n",
-            &Header[10], &Header[16], *(int *) &Header[24],
-            &Header[28], *(int *) &Header[32]);
+        printf ("     %2.2X    \"%6.6s\"  \"%8.8s\"    %8.8X    \"%4.4s\"     %8.8X\n",
+            TableHeader->Revision, TableHeader->OemId,
+            TableHeader->OemTableId, TableHeader->OemRevision,
+            TableHeader->AslCompilerId, TableHeader->AslCompilerRevision);
     }
 
     printf ("\nFound %d ACPI tables [%8.8X]\n", TableCount, VERSION);
     fclose (InputFile);
-    return 0;
+    return (0);
 }
 
 
@@ -743,7 +818,7 @@ main (
     if (argc < 2)
     {
         DisplayUsage ();
-        return 0;
+        return (0);
     }
 
     if (argv[1][0] == '-')
@@ -751,23 +826,32 @@ main (
         if (argc < 3)
         {
             DisplayUsage ();
-            return 0;
+            return (0);
         }
 
         switch (argv[1][1])
         {
         case 'a':
+
+            /* Extract all tables found */
+
             return (ExtractTables (argv[2], NULL, 0));
 
         case 'l':
+
+            /* List tables only, do not extract */
+
             return (ListTables (argv[2]));
 
         case 's':
+
+            /* Extract only tables with this signature */
+
             return (ExtractTables (argv[2], &argv[1][2], 1));
 
         default:
             DisplayUsage ();
-            return 0;
+            return (0);
         }
     }
 
@@ -778,7 +862,7 @@ main (
     Status = ExtractTables (argv[1], "DSDT", 1);
     if (Status)
     {
-        return Status;
+        return (Status);
     }
 
     Status = ExtractTables (argv[1], "SSDT", 0);
