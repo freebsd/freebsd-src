@@ -148,6 +148,10 @@ _fdisk=		fdisk
 _mca=		mca
 .endif
 
+.if ${MACHINE_ARCH} == "mips"
+_fdisk=		fdisk
+.endif
+
 .if ${MACHINE_ARCH} == "sparc64"
 _sunlabel=	sunlabel
 .endif
