@@ -126,12 +126,18 @@ typedef struct CommandInfo
 
 } COMMAND_INFO;
 
-
 typedef struct ArgumentInfo
 {
     char                    *Name;          /* Argument Name */
 
 } ARGUMENT_INFO;
+
+typedef struct acpi_execute_walk
+{
+    UINT32                  Count;
+    UINT32                  MaxCount;
+
+} ACPI_EXECUTE_WALK;
 
 
 #define PARAM_LIST(pl)                  pl
@@ -265,7 +271,7 @@ AcpiDbCheckPredefinedNames (
 
 void
 AcpiDbBatchExecute (
-    void);
+    char                    *CountArg);
 
 /*
  * dbdisply - debug display commands

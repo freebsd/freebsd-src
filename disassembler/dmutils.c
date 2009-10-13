@@ -129,9 +129,6 @@
         ACPI_MODULE_NAME    ("dmutils")
 
 
-ACPI_EXTERNAL_LIST              *AcpiGbl_ExternalList = NULL;
-
-
 /* Data used in keeping track of fields */
 #if 0
 const char                      *AcpiGbl_FENames[] =
@@ -200,121 +197,6 @@ const char                      *AcpiGbl_IrqDecode[] =
     "IRQNoFlags",
     "IRQ"
 };
-
-
-#ifdef ACPI_ASL_COMPILER
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDmAddToExternalList
- *
- * PARAMETERS:  Path            - Internal (AML) path to the object
- *
- * RETURN:      None
- *
- * DESCRIPTION: Insert a new path into the list of Externals which will in
- *              turn be emitted as an External() declaration in the disassembled
- *              output.
- *
- ******************************************************************************/
-
-void
-AcpiDmAddToExternalList (
-    char                    *Path,
-    UINT8                   Type,
-    UINT32                  Value)
-{
-    char                    *ExternalPath;
-    ACPI_EXTERNAL_LIST      *NewExternal;
-    ACPI_EXTERNAL_LIST      *NextExternal;
-    ACPI_EXTERNAL_LIST      *PrevExternal = NULL;
-    ACPI_STATUS             Status;
-
-
-    if (!Path)
-    {
-        return;
-    }
-
-    /* Externalize the ACPI path */
-
-    Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, Path,
-                    NULL, &ExternalPath);
-    if (ACPI_FAILURE (Status))
-    {
-        return;
-    }
-
-    /* Ensure that we don't have duplicate externals */
-
-    NextExternal = AcpiGbl_ExternalList;
-    while (NextExternal)
-    {
-        /* Allow upgrade of type from ANY */
-
-        if (!ACPI_STRCMP (ExternalPath, NextExternal->Path))
-        {
-            /* Duplicate method, check that the Value (ArgCount) is the same */
-
-            if ((NextExternal->Type == ACPI_TYPE_METHOD) &&
-                (NextExternal->Value != Value))
-            {
-                ACPI_ERROR ((AE_INFO, "Argument count mismatch for method %s %d %d",
-                    NextExternal->Path, NextExternal->Value, Value));
-            }
-            if (NextExternal->Type == ACPI_TYPE_ANY)
-            {
-                NextExternal->Type = Type;
-                NextExternal->Value = Value;
-            }
-            ACPI_FREE (ExternalPath);
-            return;
-        }
-        NextExternal = NextExternal->Next;
-    }
-
-    /* Allocate and init a new External() descriptor */
-
-    NewExternal = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_EXTERNAL_LIST));
-    NewExternal->InternalPath = Path;
-    NewExternal->Path = ExternalPath;
-    NewExternal->Type = Type;
-    NewExternal->Value = Value;
-    NewExternal->Length = (UINT16) ACPI_STRLEN (ExternalPath);
-
-    /* Link the new descriptor into the global list, ordered by string length */
-
-    NextExternal = AcpiGbl_ExternalList;
-    while (NextExternal)
-    {
-        if (NewExternal->Length <= NextExternal->Length)
-        {
-            if (PrevExternal)
-            {
-                PrevExternal->Next = NewExternal;
-            }
-            else
-            {
-                AcpiGbl_ExternalList = NewExternal;
-            }
-
-            NewExternal->Next = NextExternal;
-            return;
-        }
-
-        PrevExternal = NextExternal;
-        NextExternal = NextExternal->Next;
-    }
-
-    if (PrevExternal)
-    {
-        PrevExternal->Next = NewExternal;
-    }
-    else
-    {
-        AcpiGbl_ExternalList = NewExternal;
-    }
-}
-#endif
 
 
 /*******************************************************************************

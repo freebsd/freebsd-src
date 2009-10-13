@@ -281,6 +281,7 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_EXCEPTION_HANDLER",              SRC_TYPE_SIMPLE},
     {"ACPI_EXDUMP_INFO",                    SRC_TYPE_STRUCT},
     {"ACPI_EXECUTE_TYPE",                   SRC_TYPE_SIMPLE},
+    {"ACPI_EXECUTE_WALK",                   SRC_TYPE_STRUCT},
     {"ACPI_EXTERNAL_LIST",                  SRC_TYPE_STRUCT},
     {"ACPI_FADT_INFO",                      SRC_TYPE_STRUCT},
     {"ACPI_FADT_PM_INFO",                   SRC_TYPE_STRUCT},

@@ -71,6 +71,7 @@ SRCS=	aslcompilerparse.c aslcompilerlex.c aslanalyze.c aslcodegen.c \
 	../common/adfile.c \
 	../common/adisasm.c \
 	../common/adwalk.c \
+	../common/dmextern.c \
 	../common/dmrestag.c \
 	../common/dmtable.c \
 	../common/dmtbinfo.c \
