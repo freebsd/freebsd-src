@@ -624,7 +624,7 @@ lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 		while ((ppb_rstr(ppbus) &
 			(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
-			/* wait 1/4 second, give up if we get a signal */
+			/* wait 1 second, give up if we get a signal */
 			if (ppb_sleep(ppbus, lptdev, LPPRI | PCATCH, "lpclose",
 			    hz) != EWOULDBLOCK)
 				break;
