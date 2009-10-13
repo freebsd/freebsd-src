@@ -341,7 +341,7 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 					zap->zap_m.zap_num_entries++;
 				else {
 					printf("ZFS WARNING: Duplicated ZAP "
-					    "entry detected (%s).",
+					    "entry detected (%s).\n",
 					    mze->mze_name);
 				}
 				zap_name_free(zn);
