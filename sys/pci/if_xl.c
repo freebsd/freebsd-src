@@ -3216,11 +3216,30 @@ xl_watchdog(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	u_int16_t		status = 0;
+	int			misintr;
 
 	XL_LOCK_ASSERT(sc);
 
 	if (sc->xl_wdog_timer == 0 || --sc->xl_wdog_timer != 0)
 		return (0);
+
+	xl_rxeof(sc);
+	xl_txeoc(sc);
+	misintr = 0;
+	if (sc->xl_type == XL_TYPE_905B) {
+		xl_txeof_90xB(sc);
+		if (sc->xl_cdata.xl_tx_cnt == 0)
+			misintr++;
+	} else {
+		xl_txeof(sc);
+		if (sc->xl_cdata.xl_tx_head == NULL)
+			misintr++;
+	}
+	if (misintr != 0) {
+		device_printf(sc->xl_dev,
+		    "watchdog timeout (missed Tx interrupts) -- recovering\n");
+		return (0);
+	}
 
 	ifp->if_oerrors++;
 	XL_SEL_WIN(4);
@@ -3231,9 +3250,6 @@ xl_watchdog(struct xl_softc *sc)
 		device_printf(sc->xl_dev,
 		    "no carrier - transceiver cable problem?\n");
 
-	xl_txeoc(sc);
-	xl_txeof(sc);
-	xl_rxeof(sc);
 	xl_reset(sc);
 	xl_init_locked(sc);
 
