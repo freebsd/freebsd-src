@@ -41,14 +41,4 @@ NFS_ROOT=	1
 SRCS+=	nfs_diskless.c
 .endif
 
-EXPORT_SYMS=						\
-	dtrace_nfsclient_accesscache_flush_done_probe	\
-	dtrace_nfsclient_accesscache_get_hit_probe	\
-	dtrace_nfsclient_accesscache_get_miss_probe	\
-	dtrace_nfsclient_accesscache_load_done_probe	\
-	nfsclient_accesscache_flush_done_id		\
-	nfsclient_accesscache_get_hit_id		\
-	nfsclient_accesscache_get_miss_id		\
-	nfsclient_accesscache_load_done_id
-
 .include <bsd.kmod.mk>
