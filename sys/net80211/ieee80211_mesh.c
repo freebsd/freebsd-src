@@ -2398,6 +2398,7 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
 		*frm |= IEEE80211_MESHCONF_FORM_MP;
 	frm += 1;
+	*frm = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_AP)
 		*frm |= IEEE80211_MESHCONF_CAP_AP;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
