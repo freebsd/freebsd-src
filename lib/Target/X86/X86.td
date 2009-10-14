@@ -19,12 +19,17 @@ include "llvm/Target/Target.td"
 //===----------------------------------------------------------------------===//
 // X86 Subtarget features.
 //===----------------------------------------------------------------------===//
- 
+
+def FeatureCMOV    : SubtargetFeature<"cmov","HasCMov", "true",
+                                      "Enable conditional move instructions">;
+
 def FeatureMMX     : SubtargetFeature<"mmx","X86SSELevel", "MMX",
                                       "Enable MMX instructions">;
 def FeatureSSE1    : SubtargetFeature<"sse", "X86SSELevel", "SSE1",
                                       "Enable SSE instructions",
-                                      [FeatureMMX]>;
+                                      // SSE codegen depends on cmovs, and all
+                                      // SSE1+ processors support them. 
+                                      [FeatureMMX, FeatureCMOV]>;
 def FeatureSSE2    : SubtargetFeature<"sse2", "X86SSELevel", "SSE2",
                                       "Enable SSE2 instructions",
                                       [FeatureSSE1]>;
@@ -76,8 +81,8 @@ def : Proc<"i586",            []>;
 def : Proc<"pentium",         []>;
 def : Proc<"pentium-mmx",     [FeatureMMX]>;
 def : Proc<"i686",            []>;
-def : Proc<"pentiumpro",      []>;
-def : Proc<"pentium2",        [FeatureMMX]>;
+def : Proc<"pentiumpro",      [FeatureCMOV]>;
+def : Proc<"pentium2",        [FeatureMMX, FeatureCMOV]>;
 def : Proc<"pentium3",        [FeatureSSE1]>;
 def : Proc<"pentium-m",       [FeatureSSE2, FeatureSlowBTMem]>;
 def : Proc<"pentium4",        [FeatureSSE2]>;
@@ -178,21 +183,34 @@ include "X86CallingConv.td"
 // Assembly Printers
 //===----------------------------------------------------------------------===//
 
+// Currently the X86 assembly parser only supports ATT syntax.
+def ATTAsmParser : AsmParser {
+  string AsmParserClassName  = "ATTAsmParser";
+  int Variant = 0;
+
+  // Discard comments in assembly strings.
+  string CommentDelimiter = "#";
+
+  // Recognize hard coded registers.
+  string RegisterPrefix = "%";
+}
+
 // The X86 target supports two different syntaxes for emitting machine code.
 // This is controlled by the -x86-asm-syntax={att|intel}
 def ATTAsmWriter : AsmWriter {
-  string AsmWriterClassName  = "ATTAsmPrinter";
+  string AsmWriterClassName  = "ATTInstPrinter";
   int Variant = 0;
 }
 def IntelAsmWriter : AsmWriter {
-  string AsmWriterClassName  = "IntelAsmPrinter";
+  string AsmWriterClassName  = "IntelInstPrinter";
   int Variant = 1;
 }
-
 
 def X86 : Target {
   // Information about the instructions...
   let InstructionSet = X86InstrInfo;
+
+  let AssemblyParsers = [ATTAsmParser];
 
   let AssemblyWriters = [ATTAsmWriter, IntelAsmWriter];
 }

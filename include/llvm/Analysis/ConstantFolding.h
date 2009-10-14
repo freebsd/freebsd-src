@@ -1,4 +1,4 @@
-//===-- ConstantFolding.h - Analyze constant folding possibilities --------===//
+//===-- ConstantFolding.h - Fold instructions into constants --------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,8 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This family of functions determines the possibility of performing constant
-// folding.
+// This file declares routines for folding instructions into constants.
+//
+// Also, to supplement the basic VMCore ConstantExpr simplifications,
+// this file declares some additional folding routines that can make use of
+// TargetData information. These functions cannot go in VMCore due to library
+// dependency issues.
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,18 +26,20 @@ namespace llvm {
   class TargetData;
   class Function;
   class Type;
+  class LLVMContext;
 
 /// ConstantFoldInstruction - Attempt to constant fold the specified
 /// instruction.  If successful, the constant result is returned, if not, null
 /// is returned.  Note that this function can only fail when attempting to fold
 /// instructions like loads and stores, which have no constant expression form.
 ///
-Constant *ConstantFoldInstruction(Instruction *I, const TargetData *TD = 0);
+Constant *ConstantFoldInstruction(Instruction *I, LLVMContext &Context,
+                                  const TargetData *TD = 0);
 
 /// ConstantFoldConstantExpression - Attempt to fold the constant expression
 /// using the specified TargetData.  If successful, the constant result is
 /// result is returned, if not, null is returned.
-Constant *ConstantFoldConstantExpression(ConstantExpr *CE,
+Constant *ConstantFoldConstantExpression(ConstantExpr *CE, LLVMContext &Context,
                                          const TargetData *TD = 0);
 
 /// ConstantFoldInstOperands - Attempt to constant fold an instruction with the
@@ -44,6 +50,7 @@ Constant *ConstantFoldConstantExpression(ConstantExpr *CE,
 ///
 Constant *ConstantFoldInstOperands(unsigned Opcode, const Type *DestTy,
                                    Constant*const * Ops, unsigned NumOps,
+                                   LLVMContext &Context,
                                    const TargetData *TD = 0);
 
 /// ConstantFoldCompareInstOperands - Attempt to constant fold a compare
@@ -52,6 +59,7 @@ Constant *ConstantFoldInstOperands(unsigned Opcode, const Type *DestTy,
 ///
 Constant *ConstantFoldCompareInstOperands(unsigned Predicate,
                                           Constant*const * Ops, unsigned NumOps,
+                                          LLVMContext &Context,
                                           const TargetData *TD = 0);
 
 

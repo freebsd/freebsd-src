@@ -19,7 +19,7 @@
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include <iostream>
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 int main() {
@@ -30,7 +30,8 @@ int main() {
   Module *M = new Module("test", Context);
 
   // Create the main function: first create the type 'int ()'
-  FunctionType *FT = FunctionType::get(Type::Int32Ty, /*not vararg*/false);
+  FunctionType *FT =
+    FunctionType::get(Type::getInt32Ty(Context), /*not vararg*/false);
 
   // By passing a module as the last parameter to the Function constructor,
   // it automatically gets appended to the Module.
@@ -38,11 +39,11 @@ int main() {
 
   // Add a basic block to the function... again, it automatically inserts
   // because of the last argument.
-  BasicBlock *BB = BasicBlock::Create("EntryBlock", F);
+  BasicBlock *BB = BasicBlock::Create(Context, "EntryBlock", F);
 
   // Get pointers to the constant integers...
-  Value *Two = ConstantInt::get(Type::Int32Ty, 2);
-  Value *Three = ConstantInt::get(Type::Int32Ty, 3);
+  Value *Two = ConstantInt::get(Type::getInt32Ty(Context), 2);
+  Value *Three = ConstantInt::get(Type::getInt32Ty(Context), 3);
 
   // Create the add instruction... does not insert...
   Instruction *Add = BinaryOperator::Create(Instruction::Add, Two, Three,
@@ -52,10 +53,10 @@ int main() {
   BB->getInstList().push_back(Add);
 
   // Create the return instruction and add it to the basic block
-  BB->getInstList().push_back(ReturnInst::Create(Add));
+  BB->getInstList().push_back(ReturnInst::Create(Context, Add));
 
   // Output the bitcode file to stdout
-  WriteBitcodeToFile(M, std::cout);
+  WriteBitcodeToFile(M, outs());
 
   // Delete the module and all of its contents.
   delete M;

@@ -33,13 +33,18 @@ the order in which they were specified on the command line.
 
 =item B<-f>
 
-Overwrite output files.  By default, B<llvm-link> will not overwrite an output
-file if it already exists.
+Enable binary output on terminals.  Normally, B<llvm-link> will refuse to
+write raw bitcode output if the output stream is a terminal. With this option,
+B<llvm-link> will write raw bitcode regardless of the output device.
 
 =item B<-o> F<filename>
 
 Specify the output file name.  If F<filename> is C<->, then B<llvm-link> will
 write its output to standard output.
+
+=item B<-S>
+
+Write output in LLVM intermediate language (instead of bitcode).
 
 =item B<-d>
 

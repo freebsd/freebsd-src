@@ -21,6 +21,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "XCoreGenInstrInfo.inc"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
 namespace XCore {
@@ -36,7 +37,7 @@ namespace XCore {
 
 using namespace llvm;
 
-XCoreInstrInfo::XCoreInstrInfo(void)
+XCoreInstrInfo::XCoreInstrInfo()
   : TargetInstrInfoImpl(XCoreInsts, array_lengthof(XCoreInsts)),
     RI(*this) {
 }
@@ -115,30 +116,6 @@ XCoreInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
   return 0;
 }
 
-/// isInvariantLoad - Return true if the specified instruction (which is marked
-/// mayLoad) is loading from a location whose value is invariant across the
-/// function.  For example, loading a value from the constant pool or from
-/// from the argument area of a function if it does not change.  This should
-/// only return true of *all* loads the instruction does are invariant (if it
-/// does multiple loads).
-bool
-XCoreInstrInfo::isInvariantLoad(const MachineInstr *MI) const {
-  // Loads from constants pools and loads from invariant argument slots are
-  // invariant
-  int Opcode = MI->getOpcode();
-  if (Opcode == XCore::LDWCP_ru6 || Opcode == XCore::LDWCP_lru6) {
-    return MI->getOperand(1).isCPI();
-  }
-  int FrameIndex;
-  if (isLoadFromStackSlot(MI, FrameIndex)) {
-    const MachineFrameInfo &MFI =
-      *MI->getParent()->getParent()->getFrameInfo();
-    return MFI.isFixedObjectIndex(FrameIndex) &&
-           MFI.isImmutableObjectIndex(FrameIndex);
-  }
-  return false;
-}
-
 //===----------------------------------------------------------------------===//
 // Branch Analysis
 //===----------------------------------------------------------------------===//
@@ -186,7 +163,7 @@ static XCore::CondCode GetCondFromBranchOpc(unsigned BrOpc)
 static inline unsigned GetCondBranchFromCond(XCore::CondCode CC) 
 {
   switch (CC) {
-  default: assert(0 && "Illegal condition code!");
+  default: llvm_unreachable("Illegal condition code!");
   case XCore::COND_TRUE   : return XCore::BRFT_lru6;
   case XCore::COND_FALSE  : return XCore::BRFF_lru6;
   }
@@ -197,7 +174,7 @@ static inline unsigned GetCondBranchFromCond(XCore::CondCode CC)
 static inline XCore::CondCode GetOppositeBranchCondition(XCore::CondCode CC)
 {
   switch (CC) {
-  default: assert(0 && "Illegal condition code!");
+  default: llvm_unreachable("Illegal condition code!");
   case XCore::COND_TRUE   : return XCore::COND_FALSE;
   case XCore::COND_FALSE  : return XCore::COND_TRUE;
   }
@@ -402,14 +379,6 @@ void XCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
     .addImm(0);
 }
 
-void XCoreInstrInfo::storeRegToAddr(MachineFunction &MF, unsigned SrcReg,
-                            bool isKill, SmallVectorImpl<MachineOperand> &Addr,
-                            const TargetRegisterClass *RC,
-                            SmallVectorImpl<MachineInstr*> &NewMIs) const
-{
-  assert(0 && "unimplemented\n");
-}
-
 void XCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           MachineBasicBlock::iterator I,
                                           unsigned DestReg, int FrameIndex,
@@ -420,14 +389,6 @@ void XCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   BuildMI(MBB, I, DL, get(XCore::LDWFI), DestReg)
     .addFrameIndex(FrameIndex)
     .addImm(0);
-}
-
-void XCoreInstrInfo::loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
-                              SmallVectorImpl<MachineOperand> &Addr,
-                              const TargetRegisterClass *RC,
-                              SmallVectorImpl<MachineInstr*> &NewMIs) const
-{
-  assert(0 && "unimplemented\n");
 }
 
 bool XCoreInstrInfo::spillCalleeSavedRegisters(MachineBasicBlock &MBB,

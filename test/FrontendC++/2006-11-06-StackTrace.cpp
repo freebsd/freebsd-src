@@ -1,7 +1,7 @@
 // This is a regression test on debug info to make sure that we can get a
 // meaningful stack trace from a C++ program.
 // RUN: %llvmgcc -S -O0 -g %s -o - | llvm-as | \
-// RUN:    llc --disable-fp-elim -o %t.s -f -O0 -relocation-model=pic
+// RUN:    llc --disable-fp-elim -o %t.s -O0 -relocation-model=pic
 // RUN: %compile_c %t.s -o %t.o
 // RUN: %link %t.o -o %t.exe
 // RUN: echo {break DeepStack::deepest\nrun 17\nwhere\n} > %t.in 
@@ -10,8 +10,9 @@
 // RUN: gdb -q -batch -n -x %t.in %t.exe | \
 // RUN:   grep {#7  0x.* in main.*(argc=\[12\],.*argv=.*)}
 
-// Only works on ppc, x86 and x86_64.  Should generalize?
-// XFAIL: alpha|ia64|arm
+// Only works on ppc (but not apple-darwin9), x86 and x86_64.  Should
+// generalize?
+// XFAIL: alpha|arm|powerpc-apple-darwin9
 
 #include <stdlib.h>
 

@@ -40,6 +40,7 @@ namespace llvm {
       tCALL,        // Thumb function call.
       BRCOND,       // Conditional branch.
       BR_JT,        // Jumptable branch.
+      BR2_JT,       // Jumptable branch (2 level - jumptable entry is a jump).
       RET_FLAG,     // Return with a flag operand.
 
       PIC_ADD,      // Add with a PC operand and a PIC label.
@@ -64,10 +65,12 @@ namespace llvm {
       FMRRD,        // double to two gprs.
       FMDRR,        // Two gprs to double.
 
-      EH_SJLJ_SETJMP,    // SjLj exception handling setjmp
-      EH_SJLJ_LONGJMP,   // SjLj exception handling longjmp
+      EH_SJLJ_SETJMP,    // SjLj exception handling setjmp.
+      EH_SJLJ_LONGJMP,   // SjLj exception handling longjmp.
 
       THREAD_POINTER,
+
+      DYN_ALLOC,    // Dynamic allocation on the stack.
 
       VCEQ,         // Vector compare equal.
       VCGE,         // Vector compare greater than or equal.
@@ -112,8 +115,18 @@ namespace llvm {
       VGETLANEu,    // zero-extend vector extract element
       VGETLANEs,    // sign-extend vector extract element
 
-      // Vector duplicate lane (128-bit result only; 64-bit is a shuffle)
-      VDUPLANEQ     // splat a lane from a 64-bit vector to a 128-bit vector
+      // Vector duplicate:
+      VDUP,
+      VDUPLANE,
+
+      // Vector shuffles:
+      VEXT,         // extract
+      VREV64,       // reverse elements within 64-bit doublewords
+      VREV32,       // reverse elements within 32-bit words
+      VREV16,       // reverse elements within 16-bit halfwords
+      VZIP,         // zip (interleave)
+      VUZP,         // unzip (deinterleave)
+      VTRN          // transpose
     };
   }
 
@@ -147,11 +160,18 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
     virtual MachineBasicBlock *EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                  MachineBasicBlock *MBB) const;
+                                                         MachineBasicBlock *MBB,
+                       DenseMap<MachineBasicBlock*, MachineBasicBlock*>*) const;
+
+    /// allowsUnalignedMemoryAccesses - Returns true if the target allows
+    /// unaligned memory accesses. of the specified type.
+    /// FIXME: Add getOptimalMemOpType to implement memcpy with NEON?
+    virtual bool allowsUnalignedMemoryAccesses(EVT VT) const;
 
     /// isLegalAddressingMode - Return true if the addressing mode represented
     /// by AM is legal for this target, for a load/store of the specified type.
     virtual bool isLegalAddressingMode(const AddrMode &AM, const Type *Ty)const;
+    bool isLegalT2ScaledAddressingMode(const AddrMode &AM, EVT VT) const;
 
     /// getPreIndexedAddressParts - returns true by value, base pointer and
     /// offset pointer and addressing mode by reference if the node's address
@@ -175,13 +195,15 @@ namespace llvm {
                                                 APInt &KnownOne,
                                                 const SelectionDAG &DAG,
                                                 unsigned Depth) const;
+
+
     ConstraintType getConstraintType(const std::string &Constraint) const;
     std::pair<unsigned, const TargetRegisterClass*>
       getRegForInlineAsmConstraint(const std::string &Constraint,
-                                   MVT VT) const;
+                                   EVT VT) const;
     std::vector<unsigned>
     getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                      MVT VT) const;
+                                      EVT VT) const;
 
     /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
     /// vector.  If it is invalid, don't add anything to Ops. If hasMemory is
@@ -200,21 +222,23 @@ namespace llvm {
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
 
+    bool isShuffleMaskLegal(const SmallVectorImpl<int> &M, EVT VT) const;
+    bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
   private:
     /// Subtarget - Keep a pointer to the ARMSubtarget around so that we can
     /// make the right decision when generating code for different targets.
     const ARMSubtarget *Subtarget;
 
-    /// ARMPCLabelIndex - Keep track the number of ARM PC labels created.
+    /// ARMPCLabelIndex - Keep track of the number of ARM PC labels created.
     ///
     unsigned ARMPCLabelIndex;
 
-    void addTypeForNEON(MVT VT, MVT PromotedLdStVT, MVT PromotedBitwiseVT);
-    void addDRTypeForNEON(MVT VT);
-    void addQRTypeForNEON(MVT VT);
+    void addTypeForNEON(EVT VT, EVT PromotedLdStVT, EVT PromotedBitwiseVT);
+    void addDRTypeForNEON(EVT VT);
+    void addQRTypeForNEON(EVT VT);
 
     typedef SmallVector<std::pair<unsigned, SDValue>, 8> RegsToPassVector;
-    void PassF64ArgInRegs(CallSDNode *TheCall, SelectionDAG &DAG,
+    void PassF64ArgInRegs(DebugLoc dl, SelectionDAG &DAG,
                           SDValue Chain, SDValue &Arg,
                           RegsToPassVector &RegsToPass,
                           CCValAssign &VA, CCValAssign &NextVA,
@@ -224,15 +248,13 @@ namespace llvm {
     SDValue GetF64FormalArgument(CCValAssign &VA, CCValAssign &NextVA,
                                  SDValue &Root, SelectionDAG &DAG, DebugLoc dl);
 
-    CCAssignFn *CCAssignFnForNode(unsigned CC, bool Return) const;
-    SDValue LowerMemOpCallTo(CallSDNode *TheCall, SelectionDAG &DAG,
-                             const SDValue &StackPtr, const CCValAssign &VA,
-                             SDValue Chain, SDValue Arg, ISD::ArgFlagsTy Flags);
-    SDNode *LowerCallResult(SDValue Chain, SDValue InFlag, CallSDNode *TheCall,
-                            unsigned CallingConv, SelectionDAG &DAG);
-    SDValue LowerCALL(SDValue Op, SelectionDAG &DAG);
+    CCAssignFn *CCAssignFnForNode(CallingConv::ID CC, bool Return, bool isVarArg) const;
+    SDValue LowerMemOpCallTo(SDValue Chain, SDValue StackPtr, SDValue Arg,
+                             DebugLoc dl, SelectionDAG &DAG,
+                             const CCValAssign &VA,
+                             ISD::ArgFlagsTy Flags);
+    SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG);
     SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerRET(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalAddressDarwin(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalAddressELF(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG);
@@ -241,9 +263,9 @@ namespace llvm {
     SDValue LowerToTLSExecModels(GlobalAddressSDNode *GA,
                                    SelectionDAG &DAG);
     SDValue LowerGLOBAL_OFFSET_TABLE(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFORMAL_ARGUMENTS(SDValue Op, SelectionDAG &DAG);
     SDValue LowerBR_JT(SDValue Op, SelectionDAG &DAG);
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG);
 
     SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                                       SDValue Chain,
@@ -252,6 +274,33 @@ namespace llvm {
                                       bool AlwaysInline,
                                       const Value *DstSV, uint64_t DstSVOff,
                                       const Value *SrcSV, uint64_t SrcSVOff);
+    SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
+                            CallingConv::ID CallConv, bool isVarArg,
+                            const SmallVectorImpl<ISD::InputArg> &Ins,
+                            DebugLoc dl, SelectionDAG &DAG,
+                            SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerFormalArguments(SDValue Chain,
+                           CallingConv::ID CallConv, bool isVarArg,
+                           const SmallVectorImpl<ISD::InputArg> &Ins,
+                           DebugLoc dl, SelectionDAG &DAG,
+                           SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerCall(SDValue Chain, SDValue Callee,
+                CallingConv::ID CallConv, bool isVarArg,
+                bool isTailCall,
+                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                const SmallVectorImpl<ISD::InputArg> &Ins,
+                DebugLoc dl, SelectionDAG &DAG,
+                SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerReturn(SDValue Chain,
+                  CallingConv::ID CallConv, bool isVarArg,
+                  const SmallVectorImpl<ISD::OutputArg> &Outs,
+                  DebugLoc dl, SelectionDAG &DAG);
   };
 }
 

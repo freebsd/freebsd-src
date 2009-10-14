@@ -35,7 +35,7 @@ namespace dont_use
     // important to make the is_class<T>::value idiom zero cost. it
     // evaluates to a constant 1 or 0 depending on whether the
     // parameter T is a class or not (respectively).
-    template<typename T> char is_class_helper(void(T::*)(void));
+    template<typename T> char is_class_helper(void(T::*)());
     template<typename T> double is_class_helper(...);
 }
 
@@ -47,6 +47,44 @@ struct is_class
   // http://groups.google.com/groups?hl=en&selm=000001c1cc83%24e154d5e0%247772e50c%40c161550a&rnum=1
  public:
     enum { value = sizeof(char) == sizeof(dont_use::is_class_helper<T>(0)) };
+};
+
+/// \brief Metafunction that determines whether the two given types are 
+/// equivalent.
+template<typename T, typename U>
+struct is_same {
+  static const bool value = false;
+};
+
+template<typename T>
+struct is_same<T, T> {
+  static const bool value = true;
+};
+  
+// enable_if_c - Enable/disable a template based on a metafunction
+template<bool Cond, typename T = void>
+struct enable_if_c {
+  typedef T type;
+};
+
+template<typename T> struct enable_if_c<false, T> { };
+  
+// enable_if - Enable/disable a template based on a metafunction
+template<typename Cond, typename T = void>
+struct enable_if : public enable_if_c<Cond::value, T> { };
+
+namespace dont_use {
+  template<typename Base> char base_of_helper(const volatile Base*);
+  template<typename Base> double base_of_helper(...);
+}
+
+/// is_base_of - Metafunction to determine whether one type is a base class of
+/// (or identical to) another type.
+template<typename Base, typename Derived>
+struct is_base_of {
+  static const bool value 
+    = is_class<Base>::value && is_class<Derived>::value &&
+      sizeof(char) == sizeof(dont_use::base_of_helper<Base>((Derived*)0));
 };
 
 }

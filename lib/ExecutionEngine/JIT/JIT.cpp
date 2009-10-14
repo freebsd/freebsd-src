@@ -27,6 +27,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetJITInfo.h"
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MutexGuard.h"
 #include "llvm/System/DynamicLibrary.h"
 #include "llvm/Config/config.h"
@@ -196,25 +197,44 @@ void DarwinRegisterFrame(void* FrameBegin) {
 ExecutionEngine *ExecutionEngine::createJIT(ModuleProvider *MP,
                                             std::string *ErrorStr,
                                             JITMemoryManager *JMM,
-                                            CodeGenOpt::Level OptLevel) {
-  ExecutionEngine *EE = JIT::createJIT(MP, ErrorStr, JMM, OptLevel);
-  if (!EE) return 0;
-  
+                                            CodeGenOpt::Level OptLevel,
+                                            bool GVsWithCode) {
+    return JIT::createJIT(MP, ErrorStr, JMM, OptLevel, GVsWithCode);
+}
+
+ExecutionEngine *JIT::createJIT(ModuleProvider *MP,
+                                std::string *ErrorStr,
+                                JITMemoryManager *JMM,
+                                CodeGenOpt::Level OptLevel,
+                                bool GVsWithCode) {
   // Make sure we can resolve symbols in the program as well. The zero arg
   // to the function tells DynamicLibrary to load the program, not a library.
-  sys::DynamicLibrary::LoadLibraryPermanently(0, ErrorStr);
-  return EE;
+  if (sys::DynamicLibrary::LoadLibraryPermanently(0, ErrorStr))
+    return 0;
+
+  // Pick a target either via -march or by guessing the native arch.
+  TargetMachine *TM = JIT::selectTarget(MP, ErrorStr);
+  if (!TM || (ErrorStr && ErrorStr->length() > 0)) return 0;
+
+  // If the target supports JIT code generation, create a the JIT.
+  if (TargetJITInfo *TJ = TM->getJITInfo()) {
+    return new JIT(MP, *TM, *TJ, JMM, OptLevel, GVsWithCode);
+  } else {
+    if (ErrorStr)
+      *ErrorStr = "target does not support JIT code generation";
+    return 0;
+  }
 }
 
 JIT::JIT(ModuleProvider *MP, TargetMachine &tm, TargetJITInfo &tji,
-         JITMemoryManager *JMM, CodeGenOpt::Level OptLevel)
-  : ExecutionEngine(MP), TM(tm), TJI(tji) {
+         JITMemoryManager *JMM, CodeGenOpt::Level OptLevel, bool GVsWithCode)
+  : ExecutionEngine(MP), TM(tm), TJI(tji), AllocateGVsWithCode(GVsWithCode) {
   setTargetData(TM.getTargetData());
 
   jitstate = new JITState(MP);
 
   // Initialize JCE
-  JCE = createEmitter(*this, JMM);
+  JCE = createEmitter(*this, JMM, TM);
 
   // Add target data
   MutexGuard locked(lock);
@@ -224,8 +244,7 @@ JIT::JIT(ModuleProvider *MP, TargetMachine &tm, TargetJITInfo &tji,
   // Turn the machine code intermediate representation into bytes in memory that
   // may be executed.
   if (TM.addPassesToEmitMachineCode(PM, *JCE, OptLevel)) {
-    cerr << "Target does not support machine code emission!\n";
-    abort();
+    llvm_report_error("Target does not support machine code emission!");
   }
   
   // Register routine for informing unwinding runtime about new EH frames
@@ -273,8 +292,7 @@ void JIT::addModuleProvider(ModuleProvider *MP) {
     // Turn the machine code intermediate representation into bytes in memory
     // that may be executed.
     if (TM.addPassesToEmitMachineCode(PM, *JCE, CodeGenOpt::Default)) {
-      cerr << "Target does not support machine code emission!\n";
-      abort();
+      llvm_report_error("Target does not support machine code emission!");
     }
     
     // Initialize passes.
@@ -306,8 +324,7 @@ Module *JIT::removeModuleProvider(ModuleProvider *MP, std::string *E) {
     // Turn the machine code intermediate representation into bytes in memory
     // that may be executed.
     if (TM.addPassesToEmitMachineCode(PM, *JCE, CodeGenOpt::Default)) {
-      cerr << "Target does not support machine code emission!\n";
-      abort();
+      llvm_report_error("Target does not support machine code emission!");
     }
     
     // Initialize passes.
@@ -338,8 +355,7 @@ void JIT::deleteModuleProvider(ModuleProvider *MP, std::string *E) {
     // Turn the machine code intermediate representation into bytes in memory
     // that may be executed.
     if (TM.addPassesToEmitMachineCode(PM, *JCE, CodeGenOpt::Default)) {
-      cerr << "Target does not support machine code emission!\n";
-      abort();
+      llvm_report_error("Target does not support machine code emission!");
     }
     
     // Initialize passes.
@@ -366,10 +382,11 @@ GenericValue JIT::runFunction(Function *F,
 
   // Handle some common cases first.  These cases correspond to common `main'
   // prototypes.
-  if (RetTy == Type::Int32Ty || RetTy == Type::VoidTy) {
+  if (RetTy == Type::getInt32Ty(F->getContext()) ||
+      RetTy == Type::getVoidTy(F->getContext())) {
     switch (ArgValues.size()) {
     case 3:
-      if (FTy->getParamType(0) == Type::Int32Ty &&
+      if (FTy->getParamType(0) == Type::getInt32Ty(F->getContext()) &&
           isa<PointerType>(FTy->getParamType(1)) &&
           isa<PointerType>(FTy->getParamType(2))) {
         int (*PF)(int, char **, const char **) =
@@ -384,7 +401,7 @@ GenericValue JIT::runFunction(Function *F,
       }
       break;
     case 2:
-      if (FTy->getParamType(0) == Type::Int32Ty &&
+      if (FTy->getParamType(0) == Type::getInt32Ty(F->getContext()) &&
           isa<PointerType>(FTy->getParamType(1))) {
         int (*PF)(int, char **) = (int(*)(int, char **))(intptr_t)FPtr;
 
@@ -397,7 +414,7 @@ GenericValue JIT::runFunction(Function *F,
       break;
     case 1:
       if (FTy->getNumParams() == 1 &&
-          FTy->getParamType(0) == Type::Int32Ty) {
+          FTy->getParamType(0) == Type::getInt32Ty(F->getContext())) {
         GenericValue rv;
         int (*PF)(int) = (int(*)(int))(intptr_t)FPtr;
         rv.IntVal = APInt(32, PF(ArgValues[0].IntVal.getZExtValue()));
@@ -411,7 +428,7 @@ GenericValue JIT::runFunction(Function *F,
   if (ArgValues.empty()) {
     GenericValue rv;
     switch (RetTy->getTypeID()) {
-    default: assert(0 && "Unknown return type for function call!");
+    default: llvm_unreachable("Unknown return type for function call!");
     case Type::IntegerTyID: {
       unsigned BitWidth = cast<IntegerType>(RetTy)->getBitWidth();
       if (BitWidth == 1)
@@ -425,7 +442,7 @@ GenericValue JIT::runFunction(Function *F,
       else if (BitWidth <= 64)
         rv.IntVal = APInt(BitWidth, ((int64_t(*)())(intptr_t)FPtr)());
       else 
-        assert(0 && "Integer types > 64 bits not supported");
+        llvm_unreachable("Integer types > 64 bits not supported");
       return rv;
     }
     case Type::VoidTyID:
@@ -440,7 +457,7 @@ GenericValue JIT::runFunction(Function *F,
     case Type::X86_FP80TyID:
     case Type::FP128TyID:
     case Type::PPC_FP128TyID:
-      assert(0 && "long double not supported yet");
+      llvm_unreachable("long double not supported yet");
       return rv;
     case Type::PointerTyID:
       return PTOGV(((void*(*)())(intptr_t)FPtr)());
@@ -458,7 +475,7 @@ GenericValue JIT::runFunction(Function *F,
                                     F->getParent());
 
   // Insert a basic block.
-  BasicBlock *StubBB = BasicBlock::Create("", Stub);
+  BasicBlock *StubBB = BasicBlock::Create(F->getContext(), "", Stub);
 
   // Convert all of the GenericValue arguments over to constants.  Note that we
   // currently don't support varargs.
@@ -468,28 +485,31 @@ GenericValue JIT::runFunction(Function *F,
     const Type *ArgTy = FTy->getParamType(i);
     const GenericValue &AV = ArgValues[i];
     switch (ArgTy->getTypeID()) {
-    default: assert(0 && "Unknown argument type for function call!");
+    default: llvm_unreachable("Unknown argument type for function call!");
     case Type::IntegerTyID:
-        C = ConstantInt::get(AV.IntVal);
+        C = ConstantInt::get(F->getContext(), AV.IntVal);
         break;
     case Type::FloatTyID:
-        C = ConstantFP::get(APFloat(AV.FloatVal));
+        C = ConstantFP::get(F->getContext(), APFloat(AV.FloatVal));
         break;
     case Type::DoubleTyID:
-        C = ConstantFP::get(APFloat(AV.DoubleVal));
+        C = ConstantFP::get(F->getContext(), APFloat(AV.DoubleVal));
         break;
     case Type::PPC_FP128TyID:
     case Type::X86_FP80TyID:
     case Type::FP128TyID:
-        C = ConstantFP::get(APFloat(AV.IntVal));
+        C = ConstantFP::get(F->getContext(), APFloat(AV.IntVal));
         break;
     case Type::PointerTyID:
       void *ArgPtr = GVTOP(AV);
       if (sizeof(void*) == 4)
-        C = ConstantInt::get(Type::Int32Ty, (int)(intptr_t)ArgPtr);
+        C = ConstantInt::get(Type::getInt32Ty(F->getContext()), 
+                             (int)(intptr_t)ArgPtr);
       else
-        C = ConstantInt::get(Type::Int64Ty, (intptr_t)ArgPtr);
-      C = ConstantExpr::getIntToPtr(C, ArgTy);  // Cast the integer to pointer
+        C = ConstantInt::get(Type::getInt64Ty(F->getContext()),
+                             (intptr_t)ArgPtr);
+      // Cast the integer to pointer
+      C = ConstantExpr::getIntToPtr(C, ArgTy);
       break;
     }
     Args.push_back(C);
@@ -499,10 +519,11 @@ GenericValue JIT::runFunction(Function *F,
                                        "", StubBB);
   TheCall->setCallingConv(F->getCallingConv());
   TheCall->setTailCall();
-  if (TheCall->getType() != Type::VoidTy)
-    ReturnInst::Create(TheCall, StubBB);    // Return result of the call.
+  if (TheCall->getType() != Type::getVoidTy(F->getContext()))
+    // Return result of the call.
+    ReturnInst::Create(F->getContext(), TheCall, StubBB);
   else
-    ReturnInst::Create(StubBB);             // Just return void.
+    ReturnInst::Create(F->getContext(), StubBB);           // Just return void.
 
   // Finally, return the value returned by our nullary stub function.
   return runFunction(Stub, std::vector<GenericValue>());
@@ -629,9 +650,8 @@ void *JIT::getPointerToFunction(Function *F) {
     
     std::string ErrorMsg;
     if (MP->materializeFunction(F, &ErrorMsg)) {
-      cerr << "Error reading function '" << F->getName()
-           << "' from bitcode file: " << ErrorMsg << "\n";
-      abort();
+      llvm_report_error("Error reading function '" + F->getName()+
+                        "' from bitcode file: " + ErrorMsg);
     }
 
     // Now retry to get the address.
@@ -669,45 +689,18 @@ void *JIT::getOrEmitGlobalVariable(const GlobalVariable *GV) {
     if (GV->getName() == "__dso_handle")
       return (void*)&__dso_handle;
 #endif
-    Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(GV->getName().c_str());
+    Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(GV->getName());
     if (Ptr == 0 && !areDlsymStubsEnabled()) {
-      cerr << "Could not resolve external global address: "
-           << GV->getName() << "\n";
-      abort();
+      llvm_report_error("Could not resolve external global address: "
+                        +GV->getName());
     }
     addGlobalMapping(GV, Ptr);
   } else {
-    // GlobalVariable's which are not "constant" will cause trouble in a server
-    // situation. It's returned in the same block of memory as code which may
-    // not be writable.
-    if (isGVCompilationDisabled() && !GV->isConstant()) {
-      cerr << "Compilation of non-internal GlobalValue is disabled!\n";
-      abort();
-    }
     // If the global hasn't been emitted to memory yet, allocate space and
-    // emit it into memory.  It goes in the same array as the generated
-    // code, jump tables, etc.
-    const Type *GlobalType = GV->getType()->getElementType();
-    size_t S = getTargetData()->getTypeAllocSize(GlobalType);
-    size_t A = getTargetData()->getPreferredAlignment(GV);
-    if (GV->isThreadLocal()) {
-      MutexGuard locked(lock);
-      Ptr = TJI.allocateThreadLocalMemory(S);
-    } else if (TJI.allocateSeparateGVMemory()) {
-      if (A <= 8) {
-        Ptr = malloc(S);
-      } else {
-        // Allocate S+A bytes of memory, then use an aligned pointer within that
-        // space.
-        Ptr = malloc(S+A);
-        unsigned MisAligned = ((intptr_t)Ptr & (A-1));
-        Ptr = (char*)Ptr + (MisAligned ? (A-MisAligned) : 0);
-      }
-    } else {
-      Ptr = JCE->allocateSpace(S, A);
-    }
+    // emit it into memory.
+    Ptr = getMemoryForGV(GV);
     addGlobalMapping(GV, Ptr);
-    EmitGlobalVariable(GV);
+    EmitGlobalVariable(GV);  // Initialize the variable.
   }
   return Ptr;
 }
@@ -742,14 +735,41 @@ void *JIT::recompileAndRelinkFunction(Function *F) {
 /// on the target.
 ///
 char* JIT::getMemoryForGV(const GlobalVariable* GV) {
-  const Type *ElTy = GV->getType()->getElementType();
-  size_t GVSize = (size_t)getTargetData()->getTypeAllocSize(ElTy);
+  char *Ptr;
+
+  // GlobalVariable's which are not "constant" will cause trouble in a server
+  // situation. It's returned in the same block of memory as code which may
+  // not be writable.
+  if (isGVCompilationDisabled() && !GV->isConstant()) {
+    llvm_report_error("Compilation of non-internal GlobalValue is disabled!");
+  }
+
+  // Some applications require globals and code to live together, so they may
+  // be allocated into the same buffer, but in general globals are allocated
+  // through the memory manager which puts them near the code but not in the
+  // same buffer.
+  const Type *GlobalType = GV->getType()->getElementType();
+  size_t S = getTargetData()->getTypeAllocSize(GlobalType);
+  size_t A = getTargetData()->getPreferredAlignment(GV);
   if (GV->isThreadLocal()) {
     MutexGuard locked(lock);
-    return TJI.allocateThreadLocalMemory(GVSize);
+    Ptr = TJI.allocateThreadLocalMemory(S);
+  } else if (TJI.allocateSeparateGVMemory()) {
+    if (A <= 8) {
+      Ptr = (char*)malloc(S);
+    } else {
+      // Allocate S+A bytes of memory, then use an aligned pointer within that
+      // space.
+      Ptr = (char*)malloc(S+A);
+      unsigned MisAligned = ((intptr_t)Ptr & (A-1));
+      Ptr = Ptr + (MisAligned ? (A-MisAligned) : 0);
+    }
+  } else if (AllocateGVsWithCode) {
+    Ptr = (char*)JCE->allocateSpace(S, A);
   } else {
-    return new char[GVSize];
+    Ptr = (char*)JCE->allocateGlobal(S, A);
   }
+  return Ptr;
 }
 
 void JIT::addPendingFunction(Function *F) {

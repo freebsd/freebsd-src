@@ -31,6 +31,8 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -79,12 +81,12 @@ getRegisterNumbering(unsigned RegEnum)
     case Mips::SP   : case Mips::F29: return 29;
     case Mips::FP   : case Mips::F30: case Mips::D15: return 30;
     case Mips::RA   : case Mips::F31: return 31;
-    default: assert(0 && "Unknown register number!");
+    default: llvm_unreachable("Unknown register number!");
   }    
   return 0; // Not reached
 }
 
-unsigned MipsRegisterInfo::getPICCallReg(void) { return Mips::T9; }
+unsigned MipsRegisterInfo::getPICCallReg() { return Mips::T9; }
 
 //===----------------------------------------------------------------------===//
 // Callee Saved Registers methods 
@@ -210,7 +212,7 @@ getReservedRegs(const MachineFunction &MF) const
 //   The emitted instruction will be something like:
 //     lw REGX, 16+StackSize(SP)
 //
-// Since the total stack size is unknown on LowerFORMAL_ARGUMENTS, all
+// Since the total stack size is unknown on LowerFormalArguments, all
 // stack references (ObjectOffset) created to reference the function 
 // arguments, are negative numbers. This way, on eliminateFrameIndex it's
 // possible to detect those references and the offsets are adjusted to
@@ -232,7 +234,7 @@ void MipsRegisterInfo::adjustMipsStackFrame(MachineFunction &MF) const
   int TopCPUSavedRegOff = -1, TopFPUSavedRegOff = -1;
 
   // Replace the dummy '0' SPOffset by the negative offsets, as explained on 
-  // LowerFORMAL_ARGUMENTS. Leaving '0' for while is necessary to avoid 
+  // LowerFormalArguments. Leaving '0' for while is necessary to avoid
   // the approach done by calculateFrameObjectOffsets to the stack frame.
   MipsFI->adjustLoadArgsFI(MFI);
   MipsFI->adjustStoreVarArgsFI(MFI); 
@@ -346,9 +348,9 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
 // FrameIndex represent objects inside a abstract stack.
 // We must replace FrameIndex with an stack/frame pointer
 // direct reference.
-void MipsRegisterInfo::
-eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj, 
-                    RegScavenger *RS) const 
+unsigned MipsRegisterInfo::
+eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
+                    int *Value, RegScavenger *RS) const
 {
   MachineInstr &MI = *II;
   MachineFunction &MF = *MI.getParent()->getParent();
@@ -360,34 +362,27 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
            "Instr doesn't have FrameIndex operand!");
   }
 
-  #ifndef NDEBUG
-  DOUT << "\nFunction : " << MF.getFunction()->getName() << "\n";
-  DOUT << "<--------->\n";
-  MI.print(DOUT);
-  #endif
+  DEBUG(errs() << "\nFunction : " << MF.getFunction()->getName() << "\n";
+        errs() << "<--------->\n" << MI);
 
   int FrameIndex = MI.getOperand(i).getIndex();
   int stackSize  = MF.getFrameInfo()->getStackSize();
   int spOffset   = MF.getFrameInfo()->getObjectOffset(FrameIndex);
 
-  #ifndef NDEBUG
-  DOUT << "FrameIndex : " << FrameIndex << "\n";
-  DOUT << "spOffset   : " << spOffset << "\n";
-  DOUT << "stackSize  : " << stackSize << "\n";
-  #endif
+  DEBUG(errs() << "FrameIndex : " << FrameIndex << "\n"
+               << "spOffset   : " << spOffset << "\n"
+               << "stackSize  : " << stackSize << "\n");
 
-  // as explained on LowerFORMAL_ARGUMENTS, detect negative offsets 
+  // as explained on LowerFormalArguments, detect negative offsets
   // and adjust SPOffsets considering the final stack size.
   int Offset = ((spOffset < 0) ? (stackSize + (-(spOffset+4))) : (spOffset));
   Offset    += MI.getOperand(i-1).getImm();
 
-  #ifndef NDEBUG
-  DOUT << "Offset     : " << Offset << "\n";
-  DOUT << "<--------->\n";
-  #endif
+  DEBUG(errs() << "Offset     : " << Offset << "\n" << "<--------->\n");
 
   MI.getOperand(i-1).ChangeToImmediate(Offset);
   MI.getOperand(i).ChangeToRegister(getFrameRegister(MF), false);
+  return 0;
 }
 
 void MipsRegisterInfo::
@@ -515,19 +510,19 @@ getFrameRegister(MachineFunction &MF) const {
 
 unsigned MipsRegisterInfo::
 getEHExceptionRegister() const {
-  assert(0 && "What is the exception register");
+  llvm_unreachable("What is the exception register");
   return 0;
 }
 
 unsigned MipsRegisterInfo::
 getEHHandlerRegister() const {
-  assert(0 && "What is the exception handler register");
+  llvm_unreachable("What is the exception handler register");
   return 0;
 }
 
 int MipsRegisterInfo::
 getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  assert(0 && "What is the dwarf register number");
+  llvm_unreachable("What is the dwarf register number");
   return -1;
 }
 

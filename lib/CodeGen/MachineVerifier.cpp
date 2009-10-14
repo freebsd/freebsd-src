@@ -23,21 +23,23 @@
 // the verifier errors.
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/SetOperations.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Function.h"
 #include "llvm/CodeGen/LiveVariables.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/SetOperations.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
-#include <fstream>
-
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
@@ -53,6 +55,7 @@ namespace {
 
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
+      MachineFunctionPass::getAnalysisUsage(AU);
     }
 
     bool runOnMachineFunction(MachineFunction &MF);
@@ -61,7 +64,7 @@ namespace {
     const bool allowPhysDoubleDefs;
 
     const char *const OutFileName;
-    std::ostream *OS;
+    raw_ostream *OS;
     const MachineFunction *MF;
     const TargetMachine *TM;
     const TargetRegisterInfo *TRI;
@@ -75,7 +78,8 @@ namespace {
 
     BitVector regsReserved;
     RegSet regsLive;
-    RegVector regsDefined, regsImpDefined, regsDead, regsKilled;
+    RegVector regsDefined, regsDead, regsKilled;
+    RegSet regsLiveInButUnused;
 
     // Add Reg and any sub-registers to RV
     void addRegWithSubRegs(RegVector &RV, unsigned Reg) {
@@ -83,14 +87,6 @@ namespace {
       if (TargetRegisterInfo::isPhysicalRegister(Reg))
         for (const unsigned *R = TRI->getSubRegisters(Reg); *R; R++)
           RV.push_back(*R);
-    }
-
-    // Does RS contain any super-registers of Reg?
-    bool anySuperRegisters(const RegSet &RS, unsigned Reg) {
-      for (const unsigned *R = TRI->getSuperRegisters(Reg); *R; R++)
-        if (RS.count(*R))
-          return true;
-      return false;
     }
 
     struct BBInfo {
@@ -148,7 +144,7 @@ namespace {
     DenseMap<const MachineBasicBlock*, BBInfo> MBBInfoMap;
 
     bool isReserved(unsigned Reg) {
-      return Reg < regsReserved.size() && regsReserved[Reg];
+      return Reg < regsReserved.size() && regsReserved.test(Reg);
     }
 
     void visitMachineFunctionBefore();
@@ -176,21 +172,24 @@ static RegisterPass<MachineVerifier>
 MachineVer("machineverifier", "Verify generated machine code");
 static const PassInfo *const MachineVerifyID = &MachineVer;
 
-FunctionPass *
-llvm::createMachineVerifierPass(bool allowPhysDoubleDefs)
-{
+FunctionPass *llvm::createMachineVerifierPass(bool allowPhysDoubleDefs) {
   return new MachineVerifier(allowPhysDoubleDefs);
 }
 
-bool
-MachineVerifier::runOnMachineFunction(MachineFunction &MF)
-{
-  std::ofstream OutFile;
+bool MachineVerifier::runOnMachineFunction(MachineFunction &MF) {
+  raw_ostream *OutFile = 0;
   if (OutFileName) {
-    OutFile.open(OutFileName, std::ios::out | std::ios::app);
-    OS = &OutFile;
+    std::string ErrorInfo;
+    OutFile = new raw_fd_ostream(OutFileName, ErrorInfo,
+                                 raw_fd_ostream::F_Append);
+    if (!ErrorInfo.empty()) {
+      errs() << "Error opening '" << OutFileName << "': " << ErrorInfo << '\n';
+      exit(1);
+    }
+
+    OS = OutFile;
   } else {
-    OS = cerr.stream();
+    OS = &errs();
   }
 
   foundErrors = 0;
@@ -215,51 +214,48 @@ MachineVerifier::runOnMachineFunction(MachineFunction &MF)
   }
   visitMachineFunctionAfter();
 
-  if (OutFileName)
-    OutFile.close();
+  if (OutFile)
+    delete OutFile;
+  else if (foundErrors)
+    llvm_report_error("Found "+Twine(foundErrors)+" machine code errors.");
 
-  if (foundErrors) {
-    cerr << "\nStopping with " << foundErrors << " machine code errors.\n";
-    exit(1);
-  }
+  // Clean up.
+  regsLive.clear();
+  regsDefined.clear();
+  regsDead.clear();
+  regsKilled.clear();
+  regsLiveInButUnused.clear();
+  MBBInfoMap.clear();
 
   return false;                 // no changes
 }
 
-void
-MachineVerifier::report(const char *msg, const MachineFunction *MF)
-{
+void MachineVerifier::report(const char *msg, const MachineFunction *MF) {
   assert(MF);
-  *OS << "\n";
+  *OS << '\n';
   if (!foundErrors++)
-    MF->print(OS);
+    MF->print(*OS);
   *OS << "*** Bad machine code: " << msg << " ***\n"
-      << "- function:    " << MF->getFunction()->getName() << "\n";
+      << "- function:    " << MF->getFunction()->getNameStr() << "\n";
 }
 
-void
-MachineVerifier::report(const char *msg, const MachineBasicBlock *MBB)
-{
+void MachineVerifier::report(const char *msg, const MachineBasicBlock *MBB) {
   assert(MBB);
   report(msg, MBB->getParent());
-  *OS << "- basic block: " << MBB->getBasicBlock()->getName()
+  *OS << "- basic block: " << MBB->getBasicBlock()->getNameStr()
       << " " << (void*)MBB
       << " (#" << MBB->getNumber() << ")\n";
 }
 
-void
-MachineVerifier::report(const char *msg, const MachineInstr *MI)
-{
+void MachineVerifier::report(const char *msg, const MachineInstr *MI) {
   assert(MI);
   report(msg, MI->getParent());
   *OS << "- instruction: ";
-  MI->print(OS, TM);
+  MI->print(*OS, TM);
 }
 
-void
-MachineVerifier::report(const char *msg,
-                        const MachineOperand *MO, unsigned MONum)
-{
+void MachineVerifier::report(const char *msg,
+                             const MachineOperand *MO, unsigned MONum) {
   assert(MO);
   report(msg, MO->getParent());
   *OS << "- operand " << MONum << ":   ";
@@ -267,9 +263,7 @@ MachineVerifier::report(const char *msg,
   *OS << "\n";
 }
 
-void
-MachineVerifier::markReachable(const MachineBasicBlock *MBB)
-{
+void MachineVerifier::markReachable(const MachineBasicBlock *MBB) {
   BBInfo &MInfo = MBBInfoMap[MBB];
   if (!MInfo.reachable) {
     MInfo.reachable = true;
@@ -279,16 +273,158 @@ MachineVerifier::markReachable(const MachineBasicBlock *MBB)
   }
 }
 
-void
-MachineVerifier::visitMachineFunctionBefore()
-{
+void MachineVerifier::visitMachineFunctionBefore() {
   regsReserved = TRI->getReservedRegs(*MF);
+
+  // A sub-register of a reserved register is also reserved
+  for (int Reg = regsReserved.find_first(); Reg>=0;
+       Reg = regsReserved.find_next(Reg)) {
+    for (const unsigned *Sub = TRI->getSubRegisters(Reg); *Sub; ++Sub) {
+      // FIXME: This should probably be:
+      // assert(regsReserved.test(*Sub) && "Non-reserved sub-register");
+      regsReserved.set(*Sub);
+    }
+  }
   markReachable(&MF->front());
 }
 
-void
-MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB)
-{
+void MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB) {
+  const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
+
+  // Start with minimal CFG sanity checks.
+  MachineFunction::const_iterator MBBI = MBB;
+  ++MBBI;
+  if (MBBI != MF->end()) {
+    // Block is not last in function.
+    if (!MBB->isSuccessor(MBBI)) {
+      // Block does not fall through.
+      if (MBB->empty()) {
+        report("MBB doesn't fall through but is empty!", MBB);
+      }
+    }
+    if (TII->BlockHasNoFallThrough(*MBB)) {
+      if (MBB->empty()) {
+        report("TargetInstrInfo says the block has no fall through, but the "
+               "block is empty!", MBB);
+      } else if (!MBB->back().getDesc().isBarrier()) {
+        report("TargetInstrInfo says the block has no fall through, but the "
+               "block does not end in a barrier!", MBB);
+      }
+    }
+  } else {
+    // Block is last in function.
+    if (MBB->empty()) {
+      report("MBB is last in function but is empty!", MBB);
+    }
+  }
+
+  // Call AnalyzeBranch. If it succeeds, there several more conditions to check.
+  MachineBasicBlock *TBB = 0, *FBB = 0;
+  SmallVector<MachineOperand, 4> Cond;
+  if (!TII->AnalyzeBranch(*const_cast<MachineBasicBlock *>(MBB),
+                          TBB, FBB, Cond)) {
+    // Ok, AnalyzeBranch thinks it knows what's going on with this block. Let's
+    // check whether its answers match up with reality.
+    if (!TBB && !FBB) {
+      // Block falls through to its successor.
+      MachineFunction::const_iterator MBBI = MBB;
+      ++MBBI;
+      if (MBBI == MF->end()) {
+        // It's possible that the block legitimately ends with a noreturn
+        // call or an unreachable, in which case it won't actually fall
+        // out the bottom of the function.
+      } else if (MBB->succ_empty()) {
+        // It's possible that the block legitimately ends with a noreturn
+        // call or an unreachable, in which case it won't actuall fall
+        // out of the block.
+      } else if (MBB->succ_size() != 1) {
+        report("MBB exits via unconditional fall-through but doesn't have "
+               "exactly one CFG successor!", MBB);
+      } else if (MBB->succ_begin()[0] != MBBI) {
+        report("MBB exits via unconditional fall-through but its successor "
+               "differs from its CFG successor!", MBB);
+      }
+      if (!MBB->empty() && MBB->back().getDesc().isBarrier()) {
+        report("MBB exits via unconditional fall-through but ends with a "
+               "barrier instruction!", MBB);
+      }
+      if (!Cond.empty()) {
+        report("MBB exits via unconditional fall-through but has a condition!",
+               MBB);
+      }
+    } else if (TBB && !FBB && Cond.empty()) {
+      // Block unconditionally branches somewhere.
+      if (MBB->succ_size() != 1) {
+        report("MBB exits via unconditional branch but doesn't have "
+               "exactly one CFG successor!", MBB);
+      } else if (MBB->succ_begin()[0] != TBB) {
+        report("MBB exits via unconditional branch but the CFG "
+               "successor doesn't match the actual successor!", MBB);
+      }
+      if (MBB->empty()) {
+        report("MBB exits via unconditional branch but doesn't contain "
+               "any instructions!", MBB);
+      } else if (!MBB->back().getDesc().isBarrier()) {
+        report("MBB exits via unconditional branch but doesn't end with a "
+               "barrier instruction!", MBB);
+      } else if (!MBB->back().getDesc().isTerminator()) {
+        report("MBB exits via unconditional branch but the branch isn't a "
+               "terminator instruction!", MBB);
+      }
+    } else if (TBB && !FBB && !Cond.empty()) {
+      // Block conditionally branches somewhere, otherwise falls through.
+      MachineFunction::const_iterator MBBI = MBB;
+      ++MBBI;
+      if (MBBI == MF->end()) {
+        report("MBB conditionally falls through out of function!", MBB);
+      } if (MBB->succ_size() != 2) {
+        report("MBB exits via conditional branch/fall-through but doesn't have "
+               "exactly two CFG successors!", MBB);
+      } else if ((MBB->succ_begin()[0] == TBB && MBB->succ_end()[1] == MBBI) ||
+                 (MBB->succ_begin()[1] == TBB && MBB->succ_end()[0] == MBBI)) {
+        report("MBB exits via conditional branch/fall-through but the CFG "
+               "successors don't match the actual successors!", MBB);
+      }
+      if (MBB->empty()) {
+        report("MBB exits via conditional branch/fall-through but doesn't "
+               "contain any instructions!", MBB);
+      } else if (MBB->back().getDesc().isBarrier()) {
+        report("MBB exits via conditional branch/fall-through but ends with a "
+               "barrier instruction!", MBB);
+      } else if (!MBB->back().getDesc().isTerminator()) {
+        report("MBB exits via conditional branch/fall-through but the branch "
+               "isn't a terminator instruction!", MBB);
+      }
+    } else if (TBB && FBB) {
+      // Block conditionally branches somewhere, otherwise branches
+      // somewhere else.
+      if (MBB->succ_size() != 2) {
+        report("MBB exits via conditional branch/branch but doesn't have "
+               "exactly two CFG successors!", MBB);
+      } else if ((MBB->succ_begin()[0] == TBB && MBB->succ_end()[1] == FBB) ||
+                 (MBB->succ_begin()[1] == TBB && MBB->succ_end()[0] == FBB)) {
+        report("MBB exits via conditional branch/branch but the CFG "
+               "successors don't match the actual successors!", MBB);
+      }
+      if (MBB->empty()) {
+        report("MBB exits via conditional branch/branch but doesn't "
+               "contain any instructions!", MBB);
+      } else if (!MBB->back().getDesc().isBarrier()) {
+        report("MBB exits via conditional branch/branch but doesn't end with a "
+               "barrier instruction!", MBB);
+      } else if (!MBB->back().getDesc().isTerminator()) {
+        report("MBB exits via conditional branch/branch but the branch "
+               "isn't a terminator instruction!", MBB);
+      }
+      if (Cond.empty()) {
+        report("MBB exits via conditinal branch/branch but there's no "
+               "condition!", MBB);
+      }
+    } else {
+      report("AnalyzeBranch returned invalid data!", MBB);
+    }
+  }
+
   regsLive.clear();
   for (MachineBasicBlock::const_livein_iterator I = MBB->livein_begin(),
          E = MBB->livein_end(); I != E; ++I) {
@@ -300,32 +436,41 @@ MachineVerifier::visitMachineBasicBlockBefore(const MachineBasicBlock *MBB)
     for (const unsigned *R = TRI->getSubRegisters(*I); *R; R++)
       regsLive.insert(*R);
   }
+  regsLiveInButUnused = regsLive;
+
+  const MachineFrameInfo *MFI = MF->getFrameInfo();
+  assert(MFI && "Function has no frame info");
+  BitVector PR = MFI->getPristineRegs(MBB);
+  for (int I = PR.find_first(); I>0; I = PR.find_next(I)) {
+    regsLive.insert(I);
+    for (const unsigned *R = TRI->getSubRegisters(I); *R; R++)
+      regsLive.insert(*R);
+  }
+
   regsKilled.clear();
   regsDefined.clear();
-  regsImpDefined.clear();
 }
 
-void
-MachineVerifier::visitMachineInstrBefore(const MachineInstr *MI)
-{
+void MachineVerifier::visitMachineInstrBefore(const MachineInstr *MI) {
   const TargetInstrDesc &TI = MI->getDesc();
-  if (MI->getNumExplicitOperands() < TI.getNumOperands()) {
+  if (MI->getNumOperands() < TI.getNumOperands()) {
     report("Too few operands", MI);
     *OS << TI.getNumOperands() << " operands expected, but "
         << MI->getNumExplicitOperands() << " given.\n";
   }
-  if (!TI.isVariadic()) {
-    if (MI->getNumExplicitOperands() > TI.getNumOperands()) {
-      report("Too many operands", MI);
-      *OS << TI.getNumOperands() << " operands expected, but "
-          << MI->getNumExplicitOperands() << " given.\n";
-    }
+
+  // Check the MachineMemOperands for basic consistency.
+  for (MachineInstr::mmo_iterator I = MI->memoperands_begin(),
+       E = MI->memoperands_end(); I != E; ++I) {
+    if ((*I)->isLoad() && !TI.mayLoad())
+      report("Missing mayLoad flag", MI);
+    if ((*I)->isStore() && !TI.mayStore())
+      report("Missing mayStore flag", MI);
   }
 }
 
 void
-MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum)
-{
+MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum) {
   const MachineInstr *MI = MO->getParent();
   const TargetInstrDesc &TI = MI->getDesc();
 
@@ -337,6 +482,16 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum)
       report("Explicit definition marked as use", MO, MONum);
     else if (MO->isImplicit())
       report("Explicit definition marked as implicit", MO, MONum);
+  } else if (MONum < TI.getNumOperands()) {
+    if (MO->isReg()) {
+      if (MO->isDef())
+        report("Explicit operand marked as def", MO, MONum);
+      if (MO->isImplicit())
+        report("Explicit operand marked as implicit", MO, MONum);
+    }
+  } else {
+    if (MO->isReg() && !MO->isImplicit() && !TI.isVariadic())
+      report("Extra explicit operand on non-variadic instruction", MO, MONum);
   }
 
   switch (MO->getType()) {
@@ -346,18 +501,26 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum)
       return;
 
     // Check Live Variables.
-    if (MO->isUse()) {
+    if (MO->isUndef()) {
+      // An <undef> doesn't refer to any register, so just skip it.
+    } else if (MO->isUse()) {
+      regsLiveInButUnused.erase(Reg);
+
       if (MO->isKill()) {
         addRegWithSubRegs(regsKilled, Reg);
+        // Tied operands on two-address instuctions MUST NOT have a <kill> flag.
+        if (MI->isRegTiedToDefOperand(MONum))
+            report("Illegal kill flag on two-address instruction operand",
+                   MO, MONum);
       } else {
-        // TwoAddress instr modyfying a reg is treated as kill+def.
+        // TwoAddress instr modifying a reg is treated as kill+def.
         unsigned defIdx;
         if (MI->isRegTiedToDefOperand(MONum, &defIdx) &&
             MI->getOperand(defIdx).getReg() == Reg)
           addRegWithSubRegs(regsKilled, Reg);
       }
-      // Explicit use of a dead register.
-      if (!MO->isImplicit() && !regsLive.count(Reg)) {
+      // Use of a dead register.
+      if (!regsLive.count(Reg)) {
         if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
           // Reserved registers may be used even when 'dead'.
           if (!isReserved(Reg))
@@ -374,15 +537,13 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum)
         }
       }
     } else {
+      assert(MO->isDef());
       // Register defined.
       // TODO: verify that earlyclobber ops are not used.
-      if (MO->isImplicit())
-        addRegWithSubRegs(regsImpDefined, Reg);
-      else
-        addRegWithSubRegs(regsDefined, Reg);
-
       if (MO->isDead())
         addRegWithSubRegs(regsDead, Reg);
+      else
+        addRegWithSubRegs(regsDefined, Reg);
     }
 
     // Check register classes.
@@ -401,8 +562,7 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum)
           }
           sr = s;
         }
-        if (TOI.RegClass) {
-          const TargetRegisterClass *DRC = TRI->getRegClass(TOI.RegClass);
+        if (const TargetRegisterClass *DRC = TOI.getRegClass(TRI)) {
           if (!DRC->contains(sr)) {
             report("Illegal physical register for instruction", MO, MONum);
             *OS << TRI->getName(sr) << " is not a "
@@ -419,8 +579,7 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum)
           }
           RC = *(RC->subregclasses_begin()+SubIdx);
         }
-        if (TOI.RegClass) {
-          const TargetRegisterClass *DRC = TRI->getRegClass(TOI.RegClass);
+        if (const TargetRegisterClass *DRC = TOI.getRegClass(TRI)) {
           if (RC != DRC && !RC->hasSuperClass(DRC)) {
             report("Illegal virtual register for instruction", MO, MONum);
             *OS << "Expected a " << DRC->getName() << " register, but got a "
@@ -431,34 +590,35 @@ MachineVerifier::visitMachineOperand(const MachineOperand *MO, unsigned MONum)
     }
     break;
   }
-    // Can PHI instrs refer to MBBs not in the CFG? X86 and ARM do.
-    // case MachineOperand::MO_MachineBasicBlock:
-    //   if (MI->getOpcode() == TargetInstrInfo::PHI) {
-    //     if (!MO->getMBB()->isSuccessor(MI->getParent()))
-    //       report("PHI operand is not in the CFG", MO, MONum);
-    //   }
-    //   break;
+
+  case MachineOperand::MO_MachineBasicBlock:
+    if (MI->getOpcode() == TargetInstrInfo::PHI) {
+      if (!MO->getMBB()->isSuccessor(MI->getParent()))
+        report("PHI operand is not in the CFG", MO, MONum);
+    }
+    break;
+
   default:
     break;
   }
 }
 
-void
-MachineVerifier::visitMachineInstrAfter(const MachineInstr *MI)
-{
+void MachineVerifier::visitMachineInstrAfter(const MachineInstr *MI) {
   BBInfo &MInfo = MBBInfoMap[MI->getParent()];
   set_union(MInfo.regsKilled, regsKilled);
   set_subtract(regsLive, regsKilled);
   regsKilled.clear();
 
-  for (RegVector::const_iterator I = regsDefined.begin(),
-         E = regsDefined.end(); I != E; ++I) {
+  // Verify that both <def> and <def,dead> operands refer to dead registers.
+  RegVector defs(regsDefined);
+  defs.append(regsDead.begin(), regsDead.end());
+
+  for (RegVector::const_iterator I = defs.begin(), E = defs.end();
+       I != E; ++I) {
     if (regsLive.count(*I)) {
       if (TargetRegisterInfo::isPhysicalRegister(*I)) {
-        // We allow double defines to physical registers with live
-        // super-registers.
         if (!allowPhysDoubleDefs && !isReserved(*I) &&
-            !anySuperRegisters(regsLive, *I)) {
+            !regsLiveInButUnused.count(*I)) {
           report("Redefining a live physical register", MI);
           *OS << "Register " << TRI->getName(*I)
               << " was defined but already live.\n";
@@ -478,14 +638,12 @@ MachineVerifier::visitMachineInstrAfter(const MachineInstr *MI)
     }
   }
 
-  set_union(regsLive, regsDefined); regsDefined.clear();
-  set_union(regsLive, regsImpDefined); regsImpDefined.clear();
   set_subtract(regsLive, regsDead); regsDead.clear();
+  set_union(regsLive, regsDefined); regsDefined.clear();
 }
 
 void
-MachineVerifier::visitMachineBasicBlockAfter(const MachineBasicBlock *MBB)
-{
+MachineVerifier::visitMachineBasicBlockAfter(const MachineBasicBlock *MBB) {
   MBBInfoMap[MBB].regsLiveOut = regsLive;
   regsLive.clear();
 }
@@ -493,9 +651,7 @@ MachineVerifier::visitMachineBasicBlockAfter(const MachineBasicBlock *MBB)
 // Calculate the largest possible vregsPassed sets. These are the registers that
 // can pass through an MBB live, but may not be live every time. It is assumed
 // that all vregsPassed sets are empty before the call.
-void
-MachineVerifier::calcMaxRegsPassed()
-{
+void MachineVerifier::calcMaxRegsPassed() {
   // First push live-out regs to successors' vregsPassed. Remember the MBBs that
   // have any vregsPassed.
   DenseSet<const MachineBasicBlock*> todo;
@@ -533,9 +689,7 @@ MachineVerifier::calcMaxRegsPassed()
 // Calculate the minimum vregsPassed set. These are the registers that always
 // pass live through an MBB. The calculation assumes that calcMaxRegsPassed has
 // been called earlier.
-void
-MachineVerifier::calcMinRegsPassed()
-{
+void MachineVerifier::calcMinRegsPassed() {
   DenseSet<const MachineBasicBlock*> todo;
   for (MachineFunction::const_iterator MFI = MF->begin(), MFE = MF->end();
        MFI != MFE; ++MFI)
@@ -570,9 +724,7 @@ MachineVerifier::calcMinRegsPassed()
 
 // Check PHI instructions at the beginning of MBB. It is assumed that
 // calcMinRegsPassed has been run so BBInfo::isLiveOut is valid.
-void
-MachineVerifier::checkPHIOps(const MachineBasicBlock *MBB)
-{
+void MachineVerifier::checkPHIOps(const MachineBasicBlock *MBB) {
   for (MachineBasicBlock::const_iterator BBI = MBB->begin(), BBE = MBB->end();
        BBI != BBE && BBI->getOpcode() == TargetInstrInfo::PHI; ++BBI) {
     DenseSet<const MachineBasicBlock*> seen;
@@ -601,9 +753,7 @@ MachineVerifier::checkPHIOps(const MachineBasicBlock *MBB)
   }
 }
 
-void
-MachineVerifier::visitMachineFunctionAfter()
-{
+void MachineVerifier::visitMachineFunctionAfter() {
   calcMaxRegsPassed();
 
   // With the maximal set of vregsPassed we can verify dead-in registers.

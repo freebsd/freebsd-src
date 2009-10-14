@@ -199,12 +199,13 @@ unsigned SubtargetEmitter::CollectAllItinClasses(raw_ostream &OS,
 }
 
 //
-// FormItineraryString - Compose a string containing the data initialization
-// for the specified itinerary.  N is the number of stages.
+// FormItineraryStageString - Compose a string containing the stage
+// data initialization for the specified itinerary.  N is the number
+// of stages.
 //
-void SubtargetEmitter::FormItineraryString(Record *ItinData,
-                                           std::string &ItinString,
-                                           unsigned &NStages) {
+void SubtargetEmitter::FormItineraryStageString(Record *ItinData,
+                                                std::string &ItinString,
+                                                unsigned &NStages) {
   // Get states list
   const std::vector<Record*> &StageList =
     ItinData->getValueAsListOfDefs("Stages");
@@ -215,7 +216,7 @@ void SubtargetEmitter::FormItineraryString(Record *ItinData,
     // Next stage
     const Record *Stage = StageList[i];
   
-    // Form string as ,{ cycles, u1 | u2 | ... | un }
+    // Form string as ,{ cycles, u1 | u2 | ... | un, timeinc }
     int Cycles = Stage->getValueAsInt("Cycles");
     ItinString += "  { " + itostr(Cycles) + ", ";
     
@@ -229,6 +230,9 @@ void SubtargetEmitter::FormItineraryString(Record *ItinData,
       if (++j < M) ItinString += " | ";
     }
     
+    int TimeInc = Stage->getValueAsInt("TimeInc");
+    ItinString += ", " + itostr(TimeInc);
+
     // Close off stage
     ItinString += " }";
     if (++i < N) ItinString += ", ";
@@ -236,10 +240,32 @@ void SubtargetEmitter::FormItineraryString(Record *ItinData,
 }
 
 //
-// EmitStageData - Generate unique itinerary stages.  Record itineraries for 
-// processors.
+// FormItineraryOperandCycleString - Compose a string containing the
+// operand cycle initialization for the specified itinerary.  N is the
+// number of operands that has cycles specified.
 //
-void SubtargetEmitter::EmitStageData(raw_ostream &OS,
+void SubtargetEmitter::FormItineraryOperandCycleString(Record *ItinData,
+                         std::string &ItinString, unsigned &NOperandCycles) {
+  // Get operand cycle list
+  const std::vector<int64_t> &OperandCycleList =
+    ItinData->getValueAsListOfInts("OperandCycles");
+
+  // For each operand cycle
+  unsigned N = NOperandCycles = OperandCycleList.size();
+  for (unsigned i = 0; i < N;) {
+    // Next operand cycle
+    const int OCycle = OperandCycleList[i];
+  
+    ItinString += "  " + itostr(OCycle);
+    if (++i < N) ItinString += ", ";
+  }
+}
+
+//
+// EmitStageAndOperandCycleData - Generate unique itinerary stages and
+// operand cycle tables.  Record itineraries for processors.
+//
+void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
        unsigned NItinClasses,
        std::map<std::string, unsigned> &ItinClassesMap, 
        std::vector<std::vector<InstrItinerary> > &ProcList) {
@@ -251,12 +277,16 @@ void SubtargetEmitter::EmitStageData(raw_ostream &OS,
   if (ProcItinList.size() < 2) return;
 
   // Begin stages table
-  OS << "static const llvm::InstrStage Stages[] = {\n"
-        "  { 0, 0 }, // No itinerary\n";
+  std::string StageTable = "static const llvm::InstrStage Stages[] = {\n";
+  StageTable += "  { 0, 0, 0 }, // No itinerary\n";
         
-  unsigned StageCount = 1;
-  unsigned ItinEnum = 1;
-  std::map<std::string, unsigned> ItinMap;
+  // Begin operand cycle table
+  std::string OperandCycleTable = "static const unsigned OperandCycles[] = {\n";
+  OperandCycleTable += "  0, // No itinerary\n";
+        
+  unsigned StageCount = 1, OperandCycleCount = 1;
+  unsigned ItinStageEnum = 1, ItinOperandCycleEnum = 1;
+  std::map<std::string, unsigned> ItinStageMap, ItinOperandCycleMap;
   for (unsigned i = 0, N = ProcItinList.size(); i < N; i++) {
     // Next record
     Record *Proc = ProcItinList[i];
@@ -280,29 +310,53 @@ void SubtargetEmitter::EmitStageData(raw_ostream &OS,
       Record *ItinData = ItinDataList[j];
       
       // Get string and stage count
-      std::string ItinString;
+      std::string ItinStageString;
       unsigned NStages;
-      FormItineraryString(ItinData, ItinString, NStages);
+      FormItineraryStageString(ItinData, ItinStageString, NStages);
 
-      // Check to see if it already exists
-      unsigned Find = ItinMap[ItinString];
+      // Get string and operand cycle count
+      std::string ItinOperandCycleString;
+      unsigned NOperandCycles;
+      FormItineraryOperandCycleString(ItinData, ItinOperandCycleString,
+                                      NOperandCycles);
+
+      // Check to see if stage already exists and create if it doesn't
+      unsigned FindStage = 0;
+      if (NStages > 0) {
+        FindStage = ItinStageMap[ItinStageString];
+        if (FindStage == 0) {
+          // Emit as { cycles, u1 | u2 | ... | un, timeinc }, // index
+          StageTable += ItinStageString + ", // " + itostr(ItinStageEnum) + "\n";
+          // Record Itin class number.
+          ItinStageMap[ItinStageString] = FindStage = StageCount;
+          StageCount += NStages;
+          ItinStageEnum++;
+        }
+      }
       
-      // If new itinerary
-      if (Find == 0) {
-        // Emit as { cycles, u1 | u2 | ... | un }, // index
-        OS << ItinString << ", // " << ItinEnum << "\n";
-        // Record Itin class number.
-        ItinMap[ItinString] = Find = StageCount;
-        StageCount += NStages;
-        ItinEnum++;
+      // Check to see if operand cycle already exists and create if it doesn't
+      unsigned FindOperandCycle = 0;
+      if (NOperandCycles > 0) {
+        FindOperandCycle = ItinOperandCycleMap[ItinOperandCycleString];
+        if (FindOperandCycle == 0) {
+          // Emit as  cycle, // index
+          OperandCycleTable += ItinOperandCycleString + ", // " + 
+            itostr(ItinOperandCycleEnum) + "\n";
+          // Record Itin class number.
+          ItinOperandCycleMap[ItinOperandCycleString] = 
+            FindOperandCycle = OperandCycleCount;
+          OperandCycleCount += NOperandCycles;
+          ItinOperandCycleEnum++;
+        }
       }
       
       // Set up itinerary as location and location + stage count
-      InstrItinerary Intinerary = { Find, Find + NStages };
+      InstrItinerary Intinerary = { FindStage, FindStage + NStages,
+                                    FindOperandCycle, FindOperandCycle + NOperandCycles};
 
       // Locate where to inject into processor itinerary table
       const std::string &Name = ItinData->getValueAsDef("TheClass")->getName();
-      Find = ItinClassesMap[Name];
+      unsigned Find = ItinClassesMap[Name];
       
       // Inject - empty slots will be 0, 0
       ItinList[Find] = Intinerary;
@@ -313,13 +367,21 @@ void SubtargetEmitter::EmitStageData(raw_ostream &OS,
   }
   
   // Closing stage
-  OS << "  { 0, 0 } // End itinerary\n";
-  // End stages table
-  OS << "};\n";
+  StageTable += "  { 0, 0, 0 } // End itinerary\n";
+  StageTable += "};\n";
+
+  // Closing operand cycles
+  OperandCycleTable += "  0 // End itinerary\n";
+  OperandCycleTable += "};\n";
+
+  // Emit tables.
+  OS << StageTable;
+  OS << OperandCycleTable;
   
-  // Emit size of table
+  // Emit size of tables
   OS<<"\nenum {\n";
-  OS<<"  StagesSize = sizeof(Stages)/sizeof(llvm::InstrStage)\n";
+  OS<<"  StagesSize = sizeof(Stages)/sizeof(llvm::InstrStage),\n";
+  OS<<"  OperandCyclesSize = sizeof(OperandCycles)/sizeof(unsigned)\n";
   OS<<"};\n";
 }
 
@@ -351,23 +413,25 @@ void SubtargetEmitter::EmitProcessorData(raw_ostream &OS,
     
     // For each itinerary class
     std::vector<InstrItinerary> &ItinList = *ProcListIter++;
-    for (unsigned j = 0, M = ItinList.size(); j < M;) {
+    for (unsigned j = 0, M = ItinList.size(); j < M; ++j) {
       InstrItinerary &Intinerary = ItinList[j];
       
-      // Emit in the form of { first, last } // index
-      if (Intinerary.First == 0) {
-        OS << "  { 0, 0 }";
+      // Emit in the form of 
+      // { firstStage, lastStage, firstCycle, lastCycle } // index
+      if (Intinerary.FirstStage == 0) {
+        OS << "  { 0, 0, 0, 0 }";
       } else {
-        OS << "  { " << Intinerary.First << ", " << Intinerary.Last << " }";
+        OS << "  { " << Intinerary.FirstStage << ", " << 
+          Intinerary.LastStage << ", " << 
+          Intinerary.FirstOperandCycle << ", " << 
+          Intinerary.LastOperandCycle << " }";
       }
       
-      // If more in list add comma
-      if (++j < M) OS << ",";
-      
-      OS << " // " << (j - 1) << "\n";
+      OS << ", // " << j << "\n";
     }
     
     // End processor itinerary table
+    OS << "  { ~0U, ~0U, ~0U, ~0U } // end marker\n";
     OS << "};\n";
   }
 }
@@ -432,7 +496,7 @@ void SubtargetEmitter::EmitData(raw_ostream &OS) {
   
   if (HasItineraries) {
     // Emit the stage data
-    EmitStageData(OS, NItinClasses, ItinClassesMap, ProcList);
+    EmitStageAndOperandCycleData(OS, NItinClasses, ItinClassesMap, ProcList);
     // Emit the processor itinerary data
     EmitProcessorData(OS, ProcList);
     // Emit the processor lookup data
@@ -479,7 +543,7 @@ void SubtargetEmitter::ParseFeaturesFunction(raw_ostream &OS) {
     OS << "\n"
        << "  InstrItinerary *Itinerary = (InstrItinerary *)"
        <<              "Features.getInfo(ProcItinKV, ProcItinKVSize);\n"
-       << "  InstrItins = InstrItineraryData(Stages, Itinerary);\n";
+       << "  InstrItins = InstrItineraryData(Stages, OperandCycles, Itinerary);\n";
   }
 
   OS << "  return Features.getCPU();\n"

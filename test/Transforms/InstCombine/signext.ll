@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | \
+; RUN: opt < %s -instcombine -S | \
 ; RUN:    not grep {(and\|xor\|add\|shl\|shr)}
 ; END.
 

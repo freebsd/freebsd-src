@@ -14,12 +14,13 @@
 #include "llvm/Linker.h"
 #include "llvm/Module.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/Config/config.h"
+#include "llvm/System/Path.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Config/config.h"
 using namespace llvm;
 
-Linker::Linker(const std::string& progname, const std::string& modname,
+Linker::Linker(const StringRef &progname, const StringRef &modname,
                LLVMContext& C, unsigned flags): 
   Context(C),
   Composite(new Module(modname, C)),
@@ -28,7 +29,7 @@ Linker::Linker(const std::string& progname, const std::string& modname,
   Error(),
   ProgramName(progname) { }
 
-Linker::Linker(const std::string& progname, Module* aModule, unsigned flags) : 
+Linker::Linker(const StringRef &progname, Module* aModule, unsigned flags) : 
   Context(aModule->getContext()),
   Composite(aModule),
   LibPaths(),
@@ -41,25 +42,25 @@ Linker::~Linker() {
 }
 
 bool
-Linker::error(const std::string& message) {
+Linker::error(const StringRef &message) {
   Error = message;
   if (!(Flags&QuietErrors))
-    cerr << ProgramName << ": error: " << message << "\n";
+    errs() << ProgramName << ": error: " << message << "\n";
   return true;
 }
 
 bool
-Linker::warning(const std::string& message) {
+Linker::warning(const StringRef &message) {
   Error = message;
   if (!(Flags&QuietWarnings))
-    cerr << ProgramName << ": warning: " << message << "\n";
+    errs() << ProgramName << ": warning: " << message << "\n";
   return false;
 }
 
 void
-Linker::verbose(const std::string& message) {
+Linker::verbose(const StringRef &message) {
   if (Flags&Verbose)
-    cerr << "  " << message << "\n";
+    errs() << "  " << message << "\n";
 }
 
 void
@@ -69,11 +70,8 @@ Linker::addPath(const sys::Path& path) {
 
 void
 Linker::addPaths(const std::vector<std::string>& paths) {
-  for (unsigned i = 0; i != paths.size(); ++i) {
-    sys::Path aPath;
-    aPath.set(paths[i]);
-    LibPaths.push_back(aPath);
-  }
+  for (unsigned i = 0, e = paths.size(); i != e; ++i)
+    LibPaths.push_back(sys::Path(paths[i]));
 }
 
 void
@@ -100,16 +98,15 @@ Linker::LoadObject(const sys::Path &FN) {
   std::string ParseErrorMessage;
   Module *Result = 0;
   
-  const std::string &FNS = FN.toString();
-  std::auto_ptr<MemoryBuffer> Buffer(MemoryBuffer::getFileOrSTDIN(FNS.c_str()));
+  std::auto_ptr<MemoryBuffer> Buffer(MemoryBuffer::getFileOrSTDIN(FN.c_str()));
   if (Buffer.get())
     Result = ParseBitcodeFile(Buffer.get(), Context, &ParseErrorMessage);
   else
-    ParseErrorMessage = "Error reading file '" + FNS + "'";
+    ParseErrorMessage = "Error reading file '" + FN.str() + "'";
     
   if (Result)
     return std::auto_ptr<Module>(Result);
-  Error = "Bitcode file '" + FN.toString() + "' could not be loaded";
+  Error = "Bitcode file '" + FN.str() + "' could not be loaded";
   if (ParseErrorMessage.size())
     Error += ": " + ParseErrorMessage;
   return std::auto_ptr<Module>();
@@ -117,13 +114,13 @@ Linker::LoadObject(const sys::Path &FN) {
 
 // IsLibrary - Determine if "Name" is a library in "Directory". Return
 // a non-empty sys::Path if its found, an empty one otherwise.
-static inline sys::Path IsLibrary(const std::string& Name,
-                                  const sys::Path& Directory) {
+static inline sys::Path IsLibrary(const StringRef &Name,
+                                  const sys::Path &Directory) {
 
   sys::Path FullPath(Directory);
 
   // Try the libX.a form
-  FullPath.appendComponent("lib" + Name);
+  FullPath.appendComponent(("lib" + Name).str());
   FullPath.appendSuffix("a");
   if (FullPath.isArchive())
     return FullPath;
@@ -156,7 +153,7 @@ static inline sys::Path IsLibrary(const std::string& Name,
 /// Path if no matching file can be found.
 ///
 sys::Path
-Linker::FindLib(const std::string &Filename) {
+Linker::FindLib(const StringRef &Filename) {
   // Determine if the pathname can be found as it stands.
   sys::Path FilePath(Filename);
   if (FilePath.canRead() &&
@@ -167,7 +164,7 @@ Linker::FindLib(const std::string &Filename) {
   // there.
   for (unsigned Index = 0; Index != LibPaths.size(); ++Index) {
     sys::Path Directory(LibPaths[Index]);
-    sys::Path FullPath = IsLibrary(Filename,Directory);
+    sys::Path FullPath = IsLibrary(Filename, Directory);
     if (!FullPath.isEmpty())
       return FullPath;
   }

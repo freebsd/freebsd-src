@@ -19,6 +19,7 @@
 #include "llvm/CallGraphSCCPass.h"
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Analysis/CallGraph.h"
@@ -40,7 +41,7 @@ namespace {
     PruneEH() : CallGraphSCCPass(&ID) {}
 
     // runOnSCC - Analyze the SCC, performing the transformation if possible.
-    bool runOnSCC(const std::vector<CallGraphNode *> &SCC);
+    bool runOnSCC(std::vector<CallGraphNode *> &SCC);
 
     bool SimplifyFunction(Function *F);
     void DeleteBasicBlock(BasicBlock *BB);
@@ -54,7 +55,7 @@ X("prune-eh", "Remove unused exception handling info");
 Pass *llvm::createPruneEHPass() { return new PruneEH(); }
 
 
-bool PruneEH::runOnSCC(const std::vector<CallGraphNode *> &SCC) {
+bool PruneEH::runOnSCC(std::vector<CallGraphNode *> &SCC) {
   SmallPtrSet<CallGraphNode *, 8> SCCNodes;
   CallGraph &CG = getAnalysis<CallGraph>();
   bool MadeChange = false;
@@ -164,9 +165,6 @@ bool PruneEH::runOnSCC(const std::vector<CallGraphNode *> &SCC) {
 // function if we have invokes to non-unwinding functions or code after calls to
 // no-return functions.
 bool PruneEH::SimplifyFunction(Function *F) {
-  CallGraph &CG = getAnalysis<CallGraph>();
-  CallGraphNode *CGN = CG[F];
-
   bool MadeChange = false;
   for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
     if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator()))
@@ -180,13 +178,12 @@ bool PruneEH::SimplifyFunction(Function *F) {
         Call->setAttributes(II->getAttributes());
 
         // Anything that used the value produced by the invoke instruction
-        // now uses the value produced by the call instruction.
+        // now uses the value produced by the call instruction.  Note that we
+        // do this even for void functions and calls with no uses so that the
+        // callgraph edge is updated.
         II->replaceAllUsesWith(Call);
         BasicBlock *UnwindBlock = II->getUnwindDest();
         UnwindBlock->removePredecessor(II->getParent());
-
-        // Fix up the call graph.
-        CGN->replaceCallSite(II, Call);
 
         // Insert a branch to the normal destination right before the
         // invoke.
@@ -214,7 +211,7 @@ bool PruneEH::SimplifyFunction(Function *F) {
 
           // Remove the uncond branch and add an unreachable.
           BB->getInstList().pop_back();
-          new UnreachableInst(BB);
+          new UnreachableInst(BB->getContext(), BB);
 
           DeleteBasicBlock(New);  // Delete the new BB.
           MadeChange = true;

@@ -33,7 +33,9 @@ namespace bitc {
     CONSTANTS_BLOCK_ID,
     FUNCTION_BLOCK_ID,
     TYPE_SYMTAB_BLOCK_ID,
-    VALUE_SYMTAB_BLOCK_ID
+    VALUE_SYMTAB_BLOCK_ID,
+    METADATA_BLOCK_ID,
+    METADATA_ATTACHMENT_ID
   };
 
 
@@ -106,6 +108,14 @@ namespace bitc {
     VST_CODE_BBENTRY = 2   // VST_BBENTRY: [bbid, namechar x N]
   };
 
+  enum MetadataCodes {
+    METADATA_STRING        = 1,   // MDSTRING:      [values]
+    METADATA_NODE          = 2,   // MDNODE:        [n x (type num, value num)]
+    METADATA_NAME          = 3,   // STRING:        [values]
+    METADATA_NAMED_NODE    = 4,   // NAMEDMDNODE:   [n x mdnodes]
+    METADATA_KIND          = 5,   // [n x [id, name]]
+    METADATA_ATTACHMENT    = 6    // [m x [value, [n x [id, mdnode]]]
+  };
   // The constants block (CONSTANTS_BLOCK_ID) describes emission for each
   // constant and maintains an implicit current type value.
   enum ConstantsCodes {
@@ -128,8 +138,7 @@ namespace bitc {
     CST_CODE_CE_CMP        = 17,  // CE_CMP:        [opty, opval, opval, pred]
     CST_CODE_INLINEASM     = 18,  // INLINEASM:     [sideeffect,asmstr,conststr]
     CST_CODE_CE_SHUFVEC_EX = 19,  // SHUFVEC_EX:    [opty, opval, opval, opval]
-    CST_CODE_MDSTRING      = 20,  // MDSTRING:      [values]
-    CST_CODE_MDNODE        = 21   // MDNODE:        [n x (type num, value num)]
+    CST_CODE_CE_INBOUNDS_GEP = 20 // INBOUNDS_GEP:  [n x operands]
   };
 
   /// CastOpcodes - These are values used in the bitcode files to encode which
@@ -171,6 +180,18 @@ namespace bitc {
     BINOP_XOR  = 12
   };
 
+  /// OverflowingBinaryOperatorOptionalFlags - Flags for serializing
+  /// OverflowingBinaryOperator's SubclassOptionalData contents.
+  enum OverflowingBinaryOperatorOptionalFlags {
+    OBO_NO_UNSIGNED_WRAP = 0,
+    OBO_NO_SIGNED_WRAP = 1
+  };
+
+  /// SDivOperatorOptionalFlags - Flags for serializing SDivOperator's
+  /// SubclassOptionalData contents.
+  enum SDivOperatorOptionalFlags {
+    SDIV_EXACT = 0
+  };
 
   // The function body block (FUNCTION_BLOCK_ID) describes function bodies.  It
   // can contain a constant block (CONSTANTS_BLOCK_ID).
@@ -210,10 +231,12 @@ namespace bitc {
     FUNC_CODE_INST_GETRESULT   = 25, // GETRESULT:  [ty, opval, n]
     FUNC_CODE_INST_EXTRACTVAL  = 26, // EXTRACTVAL: [n x operands]
     FUNC_CODE_INST_INSERTVAL   = 27, // INSERTVAL:  [n x operands]
-    // fcmp/icmp returning Int1TY or vector of Int1Ty, NOT for vicmp/vfcmp
+    // fcmp/icmp returning Int1TY or vector of Int1Ty. Same as CMP, exists to
+    // support legacy vicmp/vfcmp instructions.
     FUNC_CODE_INST_CMP2        = 28, // CMP2:       [opty, opval, opval, pred]
     // new select on i1 or [N x i1]
-    FUNC_CODE_INST_VSELECT     = 29  // VSELECT:    [ty,opval,opval,predty,pred]
+    FUNC_CODE_INST_VSELECT     = 29, // VSELECT:    [ty,opval,opval,predty,pred]
+    FUNC_CODE_INST_INBOUNDS_GEP = 30 // INBOUNDS_GEP: [n x operands]
   };
 } // End bitc namespace
 } // End llvm namespace

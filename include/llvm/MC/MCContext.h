@@ -18,8 +18,11 @@ namespace llvm {
   class MCValue;
   class MCSection;
   class MCSymbol;
+  class StringRef;
 
-  /// MCContext - Context object for machine code objects.
+  /// MCContext - Context object for machine code objects.  This class owns all
+  /// of the sections that it creates.
+  ///
   class MCContext {
     MCContext(const MCContext&); // DO NOT IMPLEMENT
     MCContext &operator=(const MCContext&); // DO NOT IMPLEMENT
@@ -33,32 +36,33 @@ namespace llvm {
     /// SymbolValues - Bindings of symbols to values.
     //
     // FIXME: Is there a good reason to not just put this in the MCSymbol?
-    DenseMap<MCSymbol*, MCValue> SymbolValues;
+    DenseMap<const MCSymbol*, MCValue> SymbolValues;
 
     /// Allocator - Allocator object used for creating machine code objects.
     ///
     /// We use a bump pointer allocator to avoid the need to track all allocated
     /// objects.
     BumpPtrAllocator Allocator;
-
   public:
     MCContext();
     ~MCContext();
 
-    /// GetSection - Get or create a new section with the given @param Name.
-    MCSection *GetSection(const char *Name);
-    
+    /// @name Symbol Managment
+    /// @{
+
     /// CreateSymbol - Create a new symbol with the specified @param Name.
     ///
     /// @param Name - The symbol name, which must be unique across all symbols.
-    MCSymbol *CreateSymbol(const char *Name);
+    MCSymbol *CreateSymbol(const StringRef &Name);
 
     /// GetOrCreateSymbol - Lookup the symbol inside with the specified
     /// @param Name.  If it exists, return it.  If not, create a forward
     /// reference and return it.
     ///
     /// @param Name - The symbol name, which must be unique across all symbols.
-    MCSymbol *GetOrCreateSymbol(const char *Name);
+    /// @param IsTemporary - Whether this symbol is an assembler temporary,
+    /// which should not survive into the symbol table for the translation unit.
+    MCSymbol *GetOrCreateSymbol(const StringRef &Name);
     
     /// CreateTemporarySymbol - Create a new temporary symbol with the specified
     /// @param Name.
@@ -66,22 +70,26 @@ namespace llvm {
     /// @param Name - The symbol name, for debugging purposes only, temporary
     /// symbols do not surive assembly. If non-empty the name must be unique
     /// across all symbols.
-    MCSymbol *CreateTemporarySymbol(const char *Name = "");
+    MCSymbol *CreateTemporarySymbol(const StringRef &Name = "");
 
     /// LookupSymbol - Get the symbol for @param Name, or null.
-    MCSymbol *LookupSymbol(const char *Name) const;
+    MCSymbol *LookupSymbol(const StringRef &Name) const;
 
-    /// ClearSymbolValue - Erase a value binding for @param Symbol, if one
-    /// exists.
-    void ClearSymbolValue(MCSymbol *Symbol);
+    /// @}
+    /// @name Symbol Value Table
+    /// @{
 
-    /// SetSymbolValue - Set the value binding for @param Symbol to @param
-    /// Value.
-    void SetSymbolValue(MCSymbol *Symbol, const MCValue &Value);
+    /// ClearSymbolValue - Erase a value binding for @arg Symbol, if one exists.
+    void ClearSymbolValue(const MCSymbol *Symbol);
 
-    /// GetSymbolValue - Return the current value for @param Symbol, or null if
+    /// SetSymbolValue - Set the value binding for @arg Symbol to @arg Value.
+    void SetSymbolValue(const MCSymbol *Symbol, const MCValue &Value);
+
+    /// GetSymbolValue - Return the current value for @arg Symbol, or null if
     /// none exists.
-    const MCValue *GetSymbolValue(MCSymbol *Symbol) const;
+    const MCValue *GetSymbolValue(const MCSymbol *Symbol) const;
+
+    /// @}
 
     void *Allocate(unsigned Size, unsigned Align = 8) {
       return Allocator.Allocate(Size, Align);

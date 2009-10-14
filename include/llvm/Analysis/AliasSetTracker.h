@@ -18,9 +18,8 @@
 #define LLVM_ANALYSIS_ALIASSETTRACKER_H
 
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/ValueHandle.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/iterator.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include <vector>
@@ -155,12 +154,12 @@ public:
   iterator end()   const { return iterator(); }
   bool empty() const { return PtrList == 0; }
 
-  void print(std::ostream &OS) const;
-  void print(std::ostream *OS) const { if (OS) print(*OS); }
+  void print(raw_ostream &OS) const;
   void dump() const;
 
   /// Define an iterator for alias sets... this is just a forward iterator.
-  class iterator : public forward_iterator<PointerRec, ptrdiff_t> {
+  class iterator : public std::iterator<std::forward_iterator_tag,
+                                        PointerRec, ptrdiff_t> {
     PointerRec *CurNode;
   public:
     explicit iterator(PointerRec *CN = 0) : CurNode(CN) {}
@@ -245,18 +244,38 @@ private:
   bool aliasesCallSite(CallSite CS, AliasAnalysis &AA) const;
 };
 
-inline std::ostream& operator<<(std::ostream &OS, const AliasSet &AS) {
+inline raw_ostream& operator<<(raw_ostream &OS, const AliasSet &AS) {
   AS.print(OS);
   return OS;
 }
 
 
 class AliasSetTracker {
+  /// CallbackVH - A CallbackVH to arrange for AliasSetTracker to be
+  /// notified whenever a Value is deleted.
+  class ASTCallbackVH : public CallbackVH {
+    AliasSetTracker *AST;
+    virtual void deleted();
+  public:
+    ASTCallbackVH(Value *V, AliasSetTracker *AST = 0);
+    ASTCallbackVH &operator=(Value *V);
+  };
+  /// ASTCallbackVHDenseMapInfo - Traits to tell DenseMap that ASTCallbackVH
+  /// is not a POD (it needs its destructor called).
+  struct ASTCallbackVHDenseMapInfo : public DenseMapInfo<Value *> {
+    static bool isPod() { return false; }
+  };
+
   AliasAnalysis &AA;
   ilist<AliasSet> AliasSets;
 
+  typedef DenseMap<ASTCallbackVH, AliasSet::PointerRec*,
+                   ASTCallbackVHDenseMapInfo>
+    PointerMapType;
+
   // Map from pointers to their node
-  DenseMap<Value*, AliasSet::PointerRec*> PointerMap;
+  PointerMapType PointerMap;
+
 public:
   /// AliasSetTracker ctor - Create an empty collection of AliasSets, and use
   /// the specified alias analysis object to disambiguate load and store
@@ -354,8 +373,7 @@ public:
   iterator begin() { return AliasSets.begin(); }
   iterator end()   { return AliasSets.end(); }
 
-  void print(std::ostream &OS) const;
-  void print(std::ostream *OS) const { if (OS) print(*OS); }
+  void print(raw_ostream &OS) const;
   void dump() const;
 
 private:
@@ -365,7 +383,7 @@ private:
   // getEntryFor - Just like operator[] on the map, except that it creates an
   // entry for the pointer if it doesn't already exist.
   AliasSet::PointerRec &getEntryFor(Value *V) {
-    AliasSet::PointerRec *&Entry = PointerMap[V];
+    AliasSet::PointerRec *&Entry = PointerMap[ASTCallbackVH(V, this)];
     if (Entry == 0)
       Entry = new AliasSet::PointerRec(V);
     return *Entry;
@@ -383,7 +401,7 @@ private:
   AliasSet *findAliasSetForCallSite(CallSite CS);
 };
 
-inline std::ostream& operator<<(std::ostream &OS, const AliasSetTracker &AST) {
+inline raw_ostream& operator<<(raw_ostream &OS, const AliasSetTracker &AST) {
   AST.print(OS);
   return OS;
 }

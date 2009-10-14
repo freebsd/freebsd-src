@@ -18,11 +18,13 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
 #include <iostream>
 #include <algorithm>
 #include <iomanip>
 #include <memory>
+#include <fstream>
 using namespace llvm;
 
 // Option for compatibility with AIX, not used but must allow it to be present.
@@ -363,7 +365,7 @@ bool doPrint(std::string* ErrMsg) {
           continue;
 
         if (Verbose)
-          std::cout << "Printing " << I->getPath().toString() << "\n";
+          std::cout << "Printing " << I->getPath().str() << "\n";
 
         unsigned len = I->getSize();
         std::cout.write(data, len);
@@ -421,11 +423,10 @@ doDisplayTable(std::string* ErrMsg) {
         std::cout << " " << std::setw(4) << I->getUser();
         std::cout << "/" << std::setw(4) << I->getGroup();
         std::cout << " " << std::setw(8) << I->getSize();
-        std::cout << " " << std::setw(20) <<
-          I->getModTime().toString().substr(4);
-        std::cout << " " << I->getPath().toString() << "\n";
+        std::cout << " " << std::setw(20) << I->getModTime().str().substr(4);
+        std::cout << " " << I->getPath().str() << "\n";
       } else {
-        std::cout << I->getPath().toString() << "\n";
+        std::cout << I->getPath().str() << "\n";
       }
     }
   }
@@ -527,7 +528,7 @@ doMove(std::string* ErrMsg) {
   if (AddBefore || InsertBefore || AddAfter) {
     for (Archive::iterator I = TheArchive->begin(), E= TheArchive->end();
          I != E; ++I ) {
-      if (RelPos == I->getPath().toString()) {
+      if (RelPos == I->getPath().str()) {
         if (AddAfter) {
           moveto_spot = I;
           moveto_spot++;
@@ -615,7 +616,7 @@ doReplaceOrInsert(std::string* ErrMsg) {
     std::set<sys::Path>::iterator found = remaining.end();
     for (std::set<sys::Path>::iterator RI = remaining.begin(),
          RE = remaining.end(); RI != RE; ++RI ) {
-      std::string compare(RI->toString());
+      std::string compare(RI->str());
       if (TruncateNames && compare.length() > 15) {
         const char* nm = compare.c_str();
         unsigned len = compare.length();
@@ -628,7 +629,7 @@ doReplaceOrInsert(std::string* ErrMsg) {
           len = 15;
         compare.assign(nm,len);
       }
-      if (compare == I->getPath().toString()) {
+      if (compare == I->getPath().str()) {
         found = RI;
         break;
       }
@@ -660,9 +661,9 @@ doReplaceOrInsert(std::string* ErrMsg) {
     }
 
     // Determine if this is the place where we should insert
-    if ((AddBefore || InsertBefore) && (RelPos == I->getPath().toString()))
+    if ((AddBefore || InsertBefore) && RelPos == I->getPath().str())
       insert_spot = I;
-    else if (AddAfter && (RelPos == I->getPath().toString())) {
+    else if (AddAfter && RelPos == I->getPath().str()) {
       insert_spot = I;
       insert_spot++;
     }
@@ -691,7 +692,7 @@ int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
-  LLVMContext Context;
+  LLVMContext &Context = getGlobalContext();
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
   // Have the command line options parsed and handle things
@@ -718,15 +719,15 @@ int main(int argc, char **argv) {
     if (!ArchivePath.exists()) {
       // Produce a warning if we should and we're creating the archive
       if (!Create)
-        std::cerr << argv[0] << ": creating " << ArchivePath.toString() << "\n";
+        errs() << argv[0] << ": creating " << ArchivePath.str() << "\n";
       TheArchive = Archive::CreateEmpty(ArchivePath, Context);
       TheArchive->writeToDisk();
     } else {
       std::string Error;
       TheArchive = Archive::OpenAndLoad(ArchivePath, Context, &Error);
       if (TheArchive == 0) {
-        std::cerr << argv[0] << ": error loading '" << ArchivePath << "': "
-                  << Error << "!\n";
+        errs() << argv[0] << ": error loading '" << ArchivePath.str() << "': "
+               << Error << "!\n";
         return 1;
       }
     }
@@ -749,27 +750,27 @@ int main(int argc, char **argv) {
       case DisplayTable:    haveError = doDisplayTable(&ErrMsg); break;
       case Extract:         haveError = doExtract(&ErrMsg); break;
       case NoOperation:
-        std::cerr << argv[0] << ": No operation was selected.\n";
+        errs() << argv[0] << ": No operation was selected.\n";
         break;
     }
     if (haveError) {
-      std::cerr << argv[0] << ": " << ErrMsg << "\n";
+      errs() << argv[0] << ": " << ErrMsg << "\n";
       return 1;
     }
   } catch (const char*msg) {
     // These errors are usage errors, thrown only by the various checks in the
     // code above.
-    std::cerr << argv[0] << ": " << msg << "\n\n";
+    errs() << argv[0] << ": " << msg << "\n\n";
     cl::PrintHelpMessage();
     exitCode = 1;
   } catch (const std::string& msg) {
     // These errors are thrown by LLVM libraries (e.g. lib System) and represent
     // a more serious error so we bump the exitCode and don't print the usage.
-    std::cerr << argv[0] << ": " << msg << "\n";
+    errs() << argv[0] << ": " << msg << "\n";
     exitCode = 2;
   } catch (...) {
     // This really shouldn't happen, but just in case ....
-    std::cerr << argv[0] << ": An unexpected unknown exception occurred.\n";
+    errs() << argv[0] << ": An unexpected unknown exception occurred.\n";
     exitCode = 3;
   }
 

@@ -12,12 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Mangler.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
-#include "llvm/System/Atomic.h"
+#include "llvm/Function.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 static char HexDigit(int V) {
@@ -32,13 +32,9 @@ static std::string MangleLetter(unsigned char C) {
 /// makeNameProper - We don't want identifier names non-C-identifier characters
 /// in them, so mangle them as appropriate.
 ///
-std::string Mangler::makeNameProper(const std::string &X, const char *Prefix,
-                                    const char *PrivatePrefix) {
-  if (X.empty()) return X;  // Empty names are uniqued by the caller.
-  
-  // If PreserveAsmNames is set, names with asm identifiers are not modified. 
-  if (PreserveAsmNames && X[0] == 1)
-    return X;
+std::string Mangler::makeNameProper(const std::string &X,
+                                    ManglerPrefixTy PrefixTy) {
+  assert(!X.empty() && "Cannot mangle empty strings");
   
   if (!UseQuotes) {
     std::string Result;
@@ -51,8 +47,9 @@ std::string Mangler::makeNameProper(const std::string &X, const char *Prefix,
       ++I;  // Skip over the marker.
     }
     
-    // Mangle the first letter specially, don't allow numbers.
-    if (*I >= '0' && *I <= '9')
+    // Mangle the first letter specially, don't allow numbers unless the target
+    // explicitly allows them.
+    if (!SymbolsCanStartWithDigit && *I >= '0' && *I <= '9')
       Result += MangleLetter(*I++);
 
     for (std::string::const_iterator E = X.end(); I != E; ++I) {
@@ -63,11 +60,14 @@ std::string Mangler::makeNameProper(const std::string &X, const char *Prefix,
     }
 
     if (NeedPrefix) {
-      if (Prefix)
-        Result = Prefix + Result;
-      if (PrivatePrefix)
+      Result = Prefix + Result;
+
+      if (PrefixTy == Mangler::Private)
         Result = PrivatePrefix + Result;
+      else if (PrefixTy == Mangler::LinkerPrivate)
+        Result = LinkerPrivatePrefix + Result;
     }
+
     return Result;
   }
 
@@ -95,17 +95,21 @@ std::string Mangler::makeNameProper(const std::string &X, const char *Prefix,
     
   // In the common case, we don't need quotes.  Handle this quickly.
   if (!NeedQuotes) {
-    if (NeedPrefix) {
-      if (Prefix)
-        Result = Prefix + X;
-      else
-        Result = X;
-      if (PrivatePrefix)
-        Result = PrivatePrefix + Result;
-      return Result;
-    } else
-      return X.substr(1);
+    if (!NeedPrefix)
+      return X.substr(1);   // Strip off the \001.
+    
+    Result = Prefix + X;
+
+    if (PrefixTy == Mangler::Private)
+      Result = PrivatePrefix + Result;
+    else if (PrefixTy == Mangler::LinkerPrivate)
+      Result = LinkerPrivatePrefix + Result;
+
+    return Result;
   }
+
+  if (NeedPrefix)
+    Result = X.substr(0, I-X.begin());
     
   // Otherwise, construct the string the expensive way.
   for (std::string::const_iterator E = X.end(); I != E; ++I) {
@@ -118,72 +122,93 @@ std::string Mangler::makeNameProper(const std::string &X, const char *Prefix,
   }
 
   if (NeedPrefix) {
-    if (Prefix)
-      Result = Prefix + X;
-    else
-      Result = X;
-    if (PrivatePrefix)
+    Result = Prefix + Result;
+
+    if (PrefixTy == Mangler::Private)
       Result = PrivatePrefix + Result;
+    else if (PrefixTy == Mangler::LinkerPrivate)
+      Result = LinkerPrivatePrefix + Result;
   }
+
   Result = '"' + Result + '"';
   return Result;
 }
 
-/// getTypeID - Return a unique ID for the specified LLVM type.
+/// getMangledName - Returns the mangled name of V, an LLVM Value,
+/// in the current module.  If 'Suffix' is specified, the name ends with the
+/// specified suffix.  If 'ForcePrivate' is specified, the label is specified
+/// to have a private label prefix.
 ///
-unsigned Mangler::getTypeID(const Type *Ty) {
-  unsigned &E = TypeMap[Ty];
-  if (E == 0) E = ++TypeCounter;
-  return E;
+std::string Mangler::getMangledName(const GlobalValue *GV, const char *Suffix,
+                                    bool ForcePrivate) {
+  assert((!isa<Function>(GV) || !cast<Function>(GV)->isIntrinsic()) &&
+         "Intrinsic functions cannot be mangled by Mangler");
+
+  ManglerPrefixTy PrefixTy =
+    (GV->hasPrivateLinkage() || ForcePrivate) ? Mangler::Private :
+      GV->hasLinkerPrivateLinkage() ? Mangler::LinkerPrivate : Mangler::Default;
+
+  if (GV->hasName())
+    return makeNameProper(GV->getNameStr() + Suffix, PrefixTy);
+  
+  // Get the ID for the global, assigning a new one if we haven't got one
+  // already.
+  unsigned &ID = AnonGlobalIDs[GV];
+  if (ID == 0) ID = NextAnonGlobalID++;
+  
+  // Must mangle the global into a unique ID.
+  return makeNameProper("__unnamed_" + utostr(ID) + Suffix, PrefixTy);
 }
 
-std::string Mangler::getValueName(const Value *V) {
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
-    return getValueName(GV);
-  
-  std::string &Name = Memo[V];
-  if (!Name.empty())
-    return Name;       // Return the already-computed name for V.
-  
-  // Always mangle local names.
-  Name = "ltmp_" + utostr(Count++) + "_" + utostr(getTypeID(V->getType()));
-  return Name;
-}
 
-
-std::string Mangler::getValueName(const GlobalValue *GV, const char * Suffix) {
-  // Check to see whether we've already named V.
-  std::string &Name = Memo[GV];
-  if (!Name.empty())
-    return Name;       // Return the already-computed name for V.
-
-  // Name mangling occurs as follows:
-  // - If V is an intrinsic function, do not change name at all
-  // - Otherwise, mangling occurs if global collides with existing name.
-  if (isa<Function>(GV) && cast<Function>(GV)->isIntrinsic()) {
-    Name = GV->getNameStart(); // Is an intrinsic function
-  } else if (!GV->hasName()) {
-    // Must mangle the global into a unique ID.
-    unsigned TypeUniqueID = getTypeID(GV->getType());
-    static uint32_t GlobalID = 0;
-    
-    unsigned OldID = GlobalID;
-    sys::AtomicIncrement(&GlobalID);
-    
-    Name = "__unnamed_" + utostr(TypeUniqueID) + "_" + utostr(OldID);
-  } else {
-    if (GV->hasPrivateLinkage())
-      Name = makeNameProper(GV->getName() + Suffix, Prefix, PrivatePrefix);
-    else
-      Name = makeNameProper(GV->getName() + Suffix, Prefix);
+/// getNameWithPrefix - Fill OutName with the name of the appropriate prefix
+/// and the specified global variable's name.  If the global variable doesn't
+/// have a name, this fills in a unique name for the global.
+void Mangler::getNameWithPrefix(SmallVectorImpl<char> &OutName,
+                                const GlobalValue *GV,
+                                bool isImplicitlyPrivate) {
+   
+  // If the global is anonymous or not led with \1, then add the appropriate
+  // prefix.
+  if (!GV->hasName() || GV->getName()[0] != '\1') {
+    if (GV->hasPrivateLinkage() || isImplicitlyPrivate)
+      OutName.append(PrivatePrefix, PrivatePrefix+strlen(PrivatePrefix));
+    else if (GV->hasLinkerPrivateLinkage())
+      OutName.append(LinkerPrivatePrefix,
+                     LinkerPrivatePrefix+strlen(LinkerPrivatePrefix));;
+    OutName.append(Prefix, Prefix+strlen(Prefix));
   }
 
-  return Name;
+  // If the global has a name, just append it now.
+  if (GV->hasName()) {
+    StringRef Name = GV->getName();
+    
+    // Strip off the prefix marker if present.
+    if (Name[0] != '\1')
+      OutName.append(Name.begin(), Name.end());
+    else
+      OutName.append(Name.begin()+1, Name.end());
+    return;
+  }
+  
+  // If the global variable doesn't have a name, return a unique name for the
+  // global based on a numbering.
+  
+  // Get the ID for the global, assigning a new one if we haven't got one
+  // already.
+  unsigned &ID = AnonGlobalIDs[GV];
+  if (ID == 0) ID = NextAnonGlobalID++;
+  
+  // Must mangle the global into a unique ID.
+  raw_svector_ostream(OutName) << "__unnamed_" << ID;
 }
 
-Mangler::Mangler(Module &M, const char *prefix, const char *privatePrefix)
-  : Prefix(prefix), PrivatePrefix (privatePrefix), UseQuotes(false),
-    PreserveAsmNames(false), Count(0), TypeCounter(0) {
+
+Mangler::Mangler(Module &M, const char *prefix, const char *privatePrefix,
+                 const char *linkerPrivatePrefix)
+  : Prefix(prefix), PrivatePrefix(privatePrefix),
+    LinkerPrivatePrefix(linkerPrivatePrefix), UseQuotes(false),
+    SymbolsCanStartWithDigit(false), NextAnonGlobalID(1) {
   std::fill(AcceptableChars, array_endof(AcceptableChars), 0);
 
   // Letters and numbers are acceptable.
@@ -198,4 +223,5 @@ Mangler::Mangler(Module &M, const char *prefix, const char *privatePrefix)
   markCharAcceptable('_');
   markCharAcceptable('$');
   markCharAcceptable('.');
+  markCharAcceptable('@');
 }

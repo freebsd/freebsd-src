@@ -32,6 +32,8 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -106,22 +108,16 @@ private:
 
 /// InstructionSelect - This callback is invoked by
 /// SelectionDAGISel when it has created a SelectionDAG for us to codegen.
-void MipsDAGToDAGISel::
-InstructionSelect() 
-{
+void MipsDAGToDAGISel::InstructionSelect() {
   DEBUG(BB->dump());
   // Codegen the basic block.
-  #ifndef NDEBUG
-  DOUT << "===== Instruction selection begins:\n";
-  Indent = 0;
-  #endif
+  DEBUG(errs() << "===== Instruction selection begins:\n");
+  DEBUG(Indent = 0);
 
   // Select target instructions for the DAG.
   SelectRoot(*CurDAG);
 
-  #ifndef NDEBUG
-  DOUT << "===== Instruction selection ends:\n";
-  #endif
+  DEBUG(errs() << "===== Instruction selection ends:\n");
 
   CurDAG->RemoveDeadNodes();
 }
@@ -129,7 +125,6 @@ InstructionSelect()
 /// getGlobalBaseReg - Output the instructions required to put the
 /// GOT address into a register.
 SDNode *MipsDAGToDAGISel::getGlobalBaseReg() {
-  MachineFunction *MF = BB->getParent();
   unsigned GlobalBaseReg = getInstrInfo()->getGlobalBaseReg(MF);
   return CurDAG->getRegister(GlobalBaseReg, TLI.getPointerTy()).getNode();
 }
@@ -186,29 +181,23 @@ SelectAddr(SDValue Op, SDValue Addr, SDValue &Offset, SDValue &Base)
 
 /// Select instructions not customized! Used for
 /// expanded, promoted and normal instructions
-SDNode* MipsDAGToDAGISel::
-Select(SDValue N) 
-{
+SDNode* MipsDAGToDAGISel::Select(SDValue N) {
   SDNode *Node = N.getNode();
   unsigned Opcode = Node->getOpcode();
   DebugLoc dl = Node->getDebugLoc();
 
   // Dump information about the Node being selected
-  #ifndef NDEBUG
-  DOUT << std::string(Indent, ' ') << "Selecting: ";
-  DEBUG(Node->dump(CurDAG));
-  DOUT << "\n";
-  Indent += 2;
-  #endif
+  DEBUG(errs().indent(Indent) << "Selecting: ";
+        Node->dump(CurDAG);
+        errs() << "\n");
+  DEBUG(Indent += 2);
 
   // If we have a custom node, we already have selected!
   if (Node->isMachineOpcode()) {
-    #ifndef NDEBUG
-    DOUT << std::string(Indent-2, ' ') << "== ";
-    DEBUG(Node->dump(CurDAG));
-    DOUT << "\n";
-    Indent -= 2;
-    #endif
+    DEBUG(errs().indent(Indent-2) << "== ";
+          Node->dump(CurDAG);
+          errs() << "\n");
+    DEBUG(Indent -= 2);
     return NULL;
   }
 
@@ -242,10 +231,10 @@ Select(SDValue N)
       SDValue LHS = Node->getOperand(0);
       SDValue RHS = Node->getOperand(1);
 
-      MVT VT = LHS.getValueType();
-      SDNode *Carry = CurDAG->getTargetNode(Mips::SLTu, dl, VT, Ops, 2);
-      SDNode *AddCarry = CurDAG->getTargetNode(Mips::ADDu, dl, VT, 
-                                               SDValue(Carry,0), RHS);
+      EVT VT = LHS.getValueType();
+      SDNode *Carry = CurDAG->getMachineNode(Mips::SLTu, dl, VT, Ops, 2);
+      SDNode *AddCarry = CurDAG->getMachineNode(Mips::ADDu, dl, VT, 
+                                                SDValue(Carry,0), RHS);
 
       return CurDAG->SelectNodeTo(N.getNode(), MOp, VT, MVT::Flag,
                                   LHS, SDValue(AddCarry,0));
@@ -265,13 +254,13 @@ Select(SDValue N)
       else
         Op = (Opcode == ISD::UDIVREM ? Mips::DIVu : Mips::DIV);
 
-      SDNode *Node = CurDAG->getTargetNode(Op, dl, MVT::Flag, Op1, Op2);
+      SDNode *Node = CurDAG->getMachineNode(Op, dl, MVT::Flag, Op1, Op2);
 
       SDValue InFlag = SDValue(Node, 0);
-      SDNode *Lo = CurDAG->getTargetNode(Mips::MFLO, dl, MVT::i32, 
-                                         MVT::Flag, InFlag);
+      SDNode *Lo = CurDAG->getMachineNode(Mips::MFLO, dl, MVT::i32, 
+                                          MVT::Flag, InFlag);
       InFlag = SDValue(Lo,1);
-      SDNode *Hi = CurDAG->getTargetNode(Mips::MFHI, dl, MVT::i32, InFlag);
+      SDNode *Hi = CurDAG->getMachineNode(Mips::MFHI, dl, MVT::i32, InFlag);
 
       if (!N.getValue(0).use_empty()) 
         ReplaceUses(N.getValue(0), SDValue(Lo,0));
@@ -290,15 +279,15 @@ Select(SDValue N)
       SDValue MulOp2 = Node->getOperand(1);
 
       unsigned MulOp  = (Opcode == ISD::MULHU ? Mips::MULTu : Mips::MULT);
-      SDNode *MulNode = CurDAG->getTargetNode(MulOp, dl, 
-                                              MVT::Flag, MulOp1, MulOp2);
+      SDNode *MulNode = CurDAG->getMachineNode(MulOp, dl, 
+                                               MVT::Flag, MulOp1, MulOp2);
 
       SDValue InFlag = SDValue(MulNode, 0);
 
       if (MulOp == ISD::MUL)
-        return CurDAG->getTargetNode(Mips::MFLO, dl, MVT::i32, InFlag);
+        return CurDAG->getMachineNode(Mips::MFLO, dl, MVT::i32, InFlag);
       else
-        return CurDAG->getTargetNode(Mips::MFHI, dl, MVT::i32, InFlag);
+        return CurDAG->getMachineNode(Mips::MFHI, dl, MVT::i32, InFlag);
     }
 
     /// Div/Rem operations
@@ -317,10 +306,10 @@ Select(SDValue N)
         Op  = (Opcode == ISD::SREM ? Mips::DIV : Mips::DIVu);
         MOp = Mips::MFHI;
       }
-      SDNode *Node = CurDAG->getTargetNode(Op, dl, MVT::Flag, Op1, Op2);
+      SDNode *Node = CurDAG->getMachineNode(Op, dl, MVT::Flag, Op1, Op2);
 
       SDValue InFlag = SDValue(Node, 0);
-      return CurDAG->getTargetNode(MOp, dl, MVT::i32, InFlag);
+      return CurDAG->getMachineNode(MOp, dl, MVT::i32, InFlag);
     }
 
     // Get target GOT address.
@@ -333,7 +322,6 @@ Select(SDValue N)
     /// be loaded with 3 instructions. 
     case MipsISD::JmpLink: {
       if (TM.getRelocationModel() == Reloc::PIC_) {
-        //bool isCodeLarge = (TM.getCodeModel() == CodeModel::Large);
         SDValue Chain  = Node->getOperand(0);
         SDValue Callee = Node->getOperand(1);
         SDValue T9Reg = CurDAG->getRegister(Mips::T9, MVT::i32);
@@ -347,7 +335,7 @@ Select(SDValue N)
 
           // Use load to get GOT target
           SDValue Ops[] = { Callee, GPReg, Chain };
-          SDValue Load = SDValue(CurDAG->getTargetNode(Mips::LW, dl, MVT::i32, 
+          SDValue Load = SDValue(CurDAG->getMachineNode(Mips::LW, dl, MVT::i32, 
                                      MVT::Other, Ops, 3), 0);
           Chain = Load.getValue(1);
 
@@ -358,7 +346,7 @@ Select(SDValue N)
           Chain = CurDAG->getCopyToReg(Chain, dl, T9Reg, Callee, InFlag);
 
         // Emit Jump and Link Register
-        SDNode *ResNode = CurDAG->getTargetNode(Mips::JALR, dl, MVT::Other,
+        SDNode *ResNode = CurDAG->getMachineNode(Mips::JALR, dl, MVT::Other,
                                   MVT::Flag, T9Reg, Chain);
         Chain  = SDValue(ResNode, 0);
         InFlag = SDValue(ResNode, 1);
@@ -372,15 +360,13 @@ Select(SDValue N)
   // Select the default instruction
   SDNode *ResNode = SelectCode(N);
 
-  #ifndef NDEBUG
-  DOUT << std::string(Indent-2, ' ') << "=> ";
+  DEBUG(errs().indent(Indent-2) << "=> ");
   if (ResNode == NULL || ResNode == N.getNode())
     DEBUG(N.getNode()->dump(CurDAG));
   else
     DEBUG(ResNode->dump(CurDAG));
-  DOUT << "\n";
-  Indent -= 2;
-  #endif
+  DEBUG(errs() << "\n");
+  DEBUG(Indent -= 2);
 
   return ResNode;
 }

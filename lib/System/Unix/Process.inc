@@ -46,11 +46,11 @@ Process::GetPageSize()
   // On Cygwin, getpagesize() returns 64k but the page size for the purposes of
   // memory protection and mmap() is 4k.
   // See http://www.cygwin.com/ml/cygwin/2009-01/threads.html#00492
-  static const int page_size = 0x1000;
+  const int page_size = 0x1000;
 #elif defined(HAVE_GETPAGESIZE)
-  static const int page_size = ::getpagesize();
+  const int page_size = ::getpagesize();
 #elif defined(HAVE_SYSCONF)
-  static long page_size = ::sysconf(_SC_PAGE_SIZE);
+  long page_size = ::sysconf(_SC_PAGE_SIZE);
 #else
 #warning Cannot get the page size on this machine
 #endif
@@ -91,7 +91,7 @@ Process::GetTotalMemoryUsage()
   malloc_statistics_t Stats;
   malloc_zone_statistics(malloc_default_zone(), &Stats);
   return Stats.size_allocated;   // darwin
-#elif defined(HAVE_GETRUSAGE)
+#elif defined(HAVE_GETRUSAGE) && !defined(__HAIKU__)
   struct rusage usage;
   ::getrusage(RUSAGE_SELF, &usage);
   return usage.ru_maxrss;
@@ -179,27 +179,24 @@ void Process::PreventCoreFiles() {
 }
 
 bool Process::StandardInIsUserInput() {
-#if HAVE_ISATTY
-  return isatty(0);
-#endif
-  // If we don't have isatty, just return false.
-  return false;
+  return FileDescriptorIsDisplayed(STDIN_FILENO);
 }
 
 bool Process::StandardOutIsDisplayed() {
-#if HAVE_ISATTY
-  return isatty(1);
-#endif
-  // If we don't have isatty, just return false.
-  return false;
+  return FileDescriptorIsDisplayed(STDOUT_FILENO);
 }
 
 bool Process::StandardErrIsDisplayed() {
+  return FileDescriptorIsDisplayed(STDERR_FILENO);
+}
+
+bool Process::FileDescriptorIsDisplayed(int fd) {
 #if HAVE_ISATTY
-  return isatty(2);
-#endif
+  return isatty(fd);
+#else
   // If we don't have isatty, just return false.
   return false;
+#endif
 }
 
 static unsigned getColumns(int FileID) {

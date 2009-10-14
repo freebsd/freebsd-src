@@ -55,6 +55,10 @@ use Socket;
 #                   override the default.
 #  -ldflags         Next argument specifies that linker options that override
 #                   the default.
+#  -test-cflags     Next argument specifies that C compilation options that
+#                   override the default when running the testsuite.
+#  -test-cxxflags   Next argument specifies that C++ compilation options that
+#                   override the default when running the testsuite.
 #  -compileflags    Next argument specifies extra options passed to make when
 #                   building LLVM.
 #  -use-gmake       Use gmake instead of the default make command to build
@@ -101,7 +105,7 @@ my $HOME       = $ENV{'HOME'};
 my $SVNURL     = $ENV{"SVNURL"};
 $SVNURL        = 'http://llvm.org/svn/llvm-project' unless $SVNURL;
 my $TestSVNURL = $ENV{"TestSVNURL"};
-$TestSVNURL    = 'https://llvm.org/svn/llvm-project' unless $TestSVNURL;
+$TestSVNURL    = 'http://llvm.org/svn/llvm-project' unless $TestSVNURL;
 my $CVSRootDir = $ENV{'CVSROOT'};
 $CVSRootDir    = "/home/vadve/shared/PublicCVS" unless $CVSRootDir;
 my $BuildDir   = $ENV{'BUILDDIR'};
@@ -139,6 +143,7 @@ $SUBMITSCRIPT = "/nightlytest/NightlyTestAccept.php";
 $SUBMITAUX="";
 $SUBMIT = 1;
 $PARALLELJOBS = "2";
+my $TESTFLAGS="";
 
 while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   shift;
@@ -148,6 +153,7 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   if (/^-nocheckout$/)     { $NOCHECKOUT = 1; next; }
   if (/^-nocvsstats$/)     { $NOCVSSTATS = 1; next; }
   if (/^-noremove$/)       { $NOREMOVE = 1; next; }
+  if (/^-noremoveatend$/)  { $NOREMOVEATEND = 1; next; }
   if (/^-noremoveresults$/){ $NOREMOVERESULTS = 1; next; }
   if (/^-notest$/)         { $NOTEST = 1; next; }
   if (/^-norunningtests$/) { next; } # Backward compatibility, ignored.
@@ -180,6 +186,8 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
                              shift; next; }
   if (/^-with-externals$/) { $CONFIGUREARGS .= " --with-externals=$ARGV[0]";
                              shift; next; }
+  if (/^-configure-args$/) { $CONFIGUREARGS .= " $ARGV[0]";
+                             shift; next; }
   if (/^-submit-server/)   { $SUBMITSERVER = "$ARGV[0]"; shift; next; }
   if (/^-submit-script/)   { $SUBMITSCRIPT = "$ARGV[0]"; shift; next; }
   if (/^-submit-aux/)      { $SUBMITAUX = "$ARGV[0]"; shift; next; }
@@ -199,6 +207,10 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   if (/^-cxxflags/)        { $MAKEOPTS = "$MAKEOPTS CXX.Flags=\'$ARGV[0]\'";
                              shift; next; }
   if (/^-ldflags/)         { $MAKEOPTS = "$MAKEOPTS LD.Flags=\'$ARGV[0]\'";
+                             shift; next; }
+  if (/^-test-cflags/)     { $TESTFLAGS = "$TESTFLAGS CFLAGS=\'$ARGV[0]\'";
+                             shift; next; }
+  if (/^-test-cxxflags/)   { $TESTFLAGS = "$TESTFLAGS CXXFLAGS=\'$ARGV[0]\'";
                              shift; next; }
   if (/^-compileflags/)    { $MAKEOPTS = "$MAKEOPTS $ARGV[0]"; shift; next; }
   if (/^-use-gmake/)       { $MAKECMD = "gmake"; shift; next; }
@@ -921,10 +933,11 @@ sub TestDirectory {
   if (!$NOTEST) {
     if( $VERBOSE) {
       print "$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
-            "TEST=nightly > $ProgramTestLog 2>&1\n";
+            "$TESTFLAGS TEST=nightly > $ProgramTestLog 2>&1\n";
     }
     RunLoggedCommand("$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
-                     "TEST=nightly", $ProgramTestLog, "TEST DIRECTORY $SubDir");
+                     "$TESTFLAGS TEST=nightly",
+                     $ProgramTestLog, "TEST DIRECTORY $SubDir");
     $llcbeta_options=`$MAKECMD print-llcbeta-option`;
   }
 
@@ -1147,6 +1160,6 @@ if ($SUBMIT || !($SUBMITAUX eq "")) {
 #
 ##############################################################
 system ( "$NICE rm -rf $BuildDir")
-  if (!$NOCHECKOUT and !$NOREMOVE);
+  if (!$NOCHECKOUT and !$NOREMOVE and !$NOREMOVEATEND);
 system ( "$NICE rm -rf $WebDir")
   if (!$NOCHECKOUT and !$NOREMOVE and !$NOREMOVERESULTS);

@@ -45,7 +45,6 @@ struct ConvertConstantType;
 /// represents both boolean and integral constants.
 /// @brief Class for constant integers.
 class ConstantInt : public Constant {
-  static ConstantInt *TheTrueVal, *TheFalseVal;
   void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
   ConstantInt(const ConstantInt &);      // DO NOT IMPLEMENT
   ConstantInt(const IntegerType *Ty, const APInt& V);
@@ -56,10 +55,47 @@ protected:
     return User::operator new(s, 0);
   }
 public:
+  static ConstantInt *getTrue(LLVMContext &Context);
+  static ConstantInt *getFalse(LLVMContext &Context);
+  
+  /// If Ty is a vector type, return a Constant with a splat of the given
+  /// value. Otherwise return a ConstantInt for the given value.
+  static Constant *get(const Type *Ty, uint64_t V, bool isSigned = false);
+                              
+  /// Return a ConstantInt with the specified integer value for the specified
+  /// type. If the type is wider than 64 bits, the value will be zero-extended
+  /// to fit the type, unless isSigned is true, in which case the value will
+  /// be interpreted as a 64-bit signed integer and sign-extended to fit
+  /// the type.
+  /// @brief Get a ConstantInt for a specific value.
+  static ConstantInt *get(const IntegerType *Ty, uint64_t V,
+                          bool isSigned = false);
+
+  /// Return a ConstantInt with the specified value for the specified type. The
+  /// value V will be canonicalized to a an unsigned APInt. Accessing it with
+  /// either getSExtValue() or getZExtValue() will yield a correctly sized and
+  /// signed value for the type Ty.
+  /// @brief Get a ConstantInt for a specific signed value.
+  static ConstantInt *getSigned(const IntegerType *Ty, int64_t V);
+  static Constant *getSigned(const Type *Ty, int64_t V);
+  
+  /// Return a ConstantInt with the specified value and an implied Type. The
+  /// type is the integer type that corresponds to the bit width of the value.
+  static ConstantInt *get(LLVMContext &Context, const APInt &V);
+
+  /// Return a ConstantInt constructed from the string strStart with the given
+  /// radix. 
+  static ConstantInt *get(const IntegerType *Ty, const StringRef &Str,
+                          uint8_t radix);
+  
+  /// If Ty is a vector type, return a Constant with a splat of the given
+  /// value. Otherwise return a ConstantInt for the given value.
+  static Constant *get(const Type* Ty, const APInt& V);
+  
   /// Return the constant as an APInt value reference. This allows clients to
   /// obtain a copy of the value, with all its precision in tact.
   /// @brief Return the constant's value.
-  inline const APInt& getValue() const {
+  inline const APInt &getValue() const {
     return Val;
   }
   
@@ -91,49 +127,6 @@ public:
   bool equalsInt(uint64_t V) const {
     return Val == V;
   }
-
-  /// getTrue/getFalse - Return the singleton true/false values.
-  static inline ConstantInt *getTrue() {
-    if (TheTrueVal) return TheTrueVal;
-    return CreateTrueFalseVals(true);
-  }
-  static inline ConstantInt *getFalse() {
-    if (TheFalseVal) return TheFalseVal;
-    return CreateTrueFalseVals(false);
-  }
-
-  /// Return a ConstantInt with the specified integer value for the specified
-  /// type. If the type is wider than 64 bits, the value will be zero-extended
-  /// to fit the type, unless isSigned is true, in which case the value will
-  /// be interpreted as a 64-bit signed integer and sign-extended to fit
-  /// the type.
-  /// @brief Get a ConstantInt for a specific value.
-  static ConstantInt *get(const IntegerType *Ty,
-                          uint64_t V, bool isSigned = false);
-
-  /// If Ty is a vector type, return a Constant with a splat of the given
-  /// value. Otherwise return a ConstantInt for the given value.
-  static Constant *get(const Type *Ty, uint64_t V, bool isSigned = false);
-
-  /// Return a ConstantInt with the specified value for the specified type. The
-  /// value V will be canonicalized to a an unsigned APInt. Accessing it with
-  /// either getSExtValue() or getZExtValue() will yield a correctly sized and
-  /// signed value for the type Ty.
-  /// @brief Get a ConstantInt for a specific signed value.
-  static ConstantInt *getSigned(const IntegerType *Ty, int64_t V) {
-    return get(Ty, V, true);
-  }
-  static Constant *getSigned(const Type *Ty, int64_t V) {
-    return get(Ty, V, true);
-  }
-
-  /// Return a ConstantInt with the specified value and an implied Type. The
-  /// type is the integer type that corresponds to the bit width of the value.
-  static ConstantInt *get(const APInt &V);
-
-  /// If Ty is a vector type, return a Constant with a splat of the given
-  /// value. Otherwise return a ConstantInt for the given value.
-  static Constant *get(const Type *Ty, const APInt &V);
 
   /// getType - Specialize the getType() method to always return an IntegerType,
   /// which reduces the amount of casting needed in parts of the compiler.
@@ -227,19 +220,11 @@ public:
     return Val.getLimitedValue(Limit);
   }
 
-  /// @returns the value for an integer constant of the given type that has all
-  /// its bits set to true.
-  /// @brief Get the all ones value
-  static ConstantInt *getAllOnesValue(const Type *Ty);
-
   /// @brief Methods to support type inquiry through isa, cast, and dyn_cast.
   static inline bool classof(const ConstantInt *) { return true; }
   static bool classof(const Value *V) {
     return V->getValueID() == ConstantIntVal;
   }
-  static void ResetTrueFalse() { TheTrueVal = TheFalseVal = 0; }
-private:
-  static ConstantInt *CreateTrueFalseVals(bool WhichOne);
 };
 
 
@@ -250,6 +235,7 @@ class ConstantFP : public Constant {
   APFloat Val;
   void *operator new(size_t, unsigned);// DO NOT IMPLEMENT
   ConstantFP(const ConstantFP &);      // DO NOT IMPLEMENT
+  friend class LLVMContextImpl;
 protected:
   ConstantFP(const Type *Ty, const APFloat& V);
 protected:
@@ -258,26 +244,35 @@ protected:
     return User::operator new(s, 0);
   }
 public:
-  /// get() - Static factory methods - Return objects of the specified value
-  static ConstantFP *get(const APFloat &V);
-
+  /// Floating point negation must be implemented with f(x) = -0.0 - x. This
+  /// method returns the negative zero constant for floating point or vector
+  /// floating point types; for all other types, it returns the null value.
+  static Constant *getZeroValueForNegation(const Type *Ty);
+  
   /// get() - This returns a ConstantFP, or a vector containing a splat of a
   /// ConstantFP, for the specified value in the specified type.  This should
   /// only be used for simple constant values like 2.0/1.0 etc, that are
   /// known-valid both as host double and as the target format.
-  static Constant *get(const Type *Ty, double V);
-
+  static Constant *get(const Type* Ty, double V);
+  static Constant *get(const Type* Ty, const StringRef &Str);
+  static ConstantFP *get(LLVMContext &Context, const APFloat &V);
+  static ConstantFP *getNegativeZero(const Type* Ty);
+  static ConstantFP *getInfinity(const Type *Ty, bool Negative = false);
+  
   /// isValueValidForType - return true if Ty is big enough to represent V.
-  static bool isValueValidForType(const Type *Ty, const APFloat& V);
+  static bool isValueValidForType(const Type *Ty, const APFloat &V);
   inline const APFloat& getValueAPF() const { return Val; }
 
   /// isNullValue - Return true if this is the value that would be returned by
   /// getNullValue.  Don't depend on == for doubles to tell us it's zero, it
   /// considers -0.0 to be null as well as 0.0.  :(
   virtual bool isNullValue() const;
-
-  // Get a negative zero.
-  static ConstantFP *getNegativeZero(const Type* Ty);
+  
+  /// isNegativeZeroValue - Return true if the value is what would be returned 
+  /// by getZeroValueForNegation.
+  virtual bool isNegativeZeroValue() const {
+    return Val.isZero() && Val.isNegative();
+  }
 
   /// isExactlyValue - We don't rely on operator== working on double values, as
   /// it returns true for things that are clearly not equal, like -0.0 and 0.0.
@@ -285,7 +280,7 @@ public:
   /// two floating point values.  The version with a double operand is retained
   /// because it's so convenient to write isExactlyValue(2.0), but please use
   /// it only for simple constants.
-  bool isExactlyValue(const APFloat& V) const;
+  bool isExactlyValue(const APFloat &V) const;
 
   bool isExactlyValue(double V) const {
     bool ignored;
@@ -319,10 +314,8 @@ protected:
     return User::operator new(s, 0);
   }
 public:
-  /// get() - static factory method for creating a null aggregate.  It is
-  /// illegal to call this method with a non-aggregate type.
-  static ConstantAggregateZero *get(const Type *Ty);
-
+  static ConstantAggregateZero* get(const Type *Ty);
+  
   /// isNullValue - Return true if this is the value that would be returned by
   /// getNullValue.
   virtual bool isNullValue() const { return true; }
@@ -348,22 +341,20 @@ class ConstantArray : public Constant {
 protected:
   ConstantArray(const ArrayType *T, const std::vector<Constant*> &Val);
 public:
-  /// get() - Static factory methods - Return objects of the specified value
-  static Constant *get(const ArrayType *T, const std::vector<Constant*> &);
-  static Constant *get(const ArrayType *T,
-                       Constant*const*Vals, unsigned NumVals) {
-    // FIXME: make this the primary ctor method.
-    return get(T, std::vector<Constant*>(Vals, Vals+NumVals));
-  }
-
+  // ConstantArray accessors
+  static Constant *get(const ArrayType *T, const std::vector<Constant*> &V);
+  static Constant *get(const ArrayType *T, Constant *const *Vals, 
+                       unsigned NumVals);
+                             
   /// This method constructs a ConstantArray and initializes it with a text
   /// string. The default behavior (AddNull==true) causes a null terminator to
   /// be placed at the end of the array. This effectively increases the length
   /// of the array by one (you've been warned).  However, in some situations 
   /// this is not desired so if AddNull==false then the string is copied without
-  /// null termination. 
-  static Constant *get(const std::string &Initializer, bool AddNull = true);
-
+  /// null termination.
+  static Constant *get(LLVMContext &Context, const StringRef &Initializer,
+                       bool AddNull = true);
+  
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
 
@@ -406,7 +397,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ConstantArray> : VariadicOperandTraits<> {
+struct OperandTraits<ConstantArray> : public VariadicOperandTraits<> {
 };
 
 DEFINE_TRANSPARENT_CASTED_OPERAND_ACCESSORS(ConstantArray, Constant)
@@ -421,16 +412,13 @@ class ConstantStruct : public Constant {
 protected:
   ConstantStruct(const StructType *T, const std::vector<Constant*> &Val);
 public:
-  /// get() - Static factory methods - Return objects of the specified value
-  ///
+  // ConstantStruct accessors
   static Constant *get(const StructType *T, const std::vector<Constant*> &V);
-  static Constant *get(const std::vector<Constant*> &V, bool Packed = false);
-  static Constant *get(Constant*const* Vals, unsigned NumVals,
-                       bool Packed = false) {
-    // FIXME: make this the primary ctor method.
-    return get(std::vector<Constant*>(Vals, Vals+NumVals), Packed);
-  }
-  
+  static Constant *get(LLVMContext &Context, 
+                       const std::vector<Constant*> &V, bool Packed);
+  static Constant *get(LLVMContext &Context,
+                       Constant *const *Vals, unsigned NumVals, bool Packed);
+
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
 
@@ -458,7 +446,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ConstantStruct> : VariadicOperandTraits<> {
+struct OperandTraits<ConstantStruct> : public VariadicOperandTraits<> {
 };
 
 DEFINE_TRANSPARENT_CASTED_OPERAND_ACCESSORS(ConstantStruct, Constant)
@@ -473,13 +461,10 @@ class ConstantVector : public Constant {
 protected:
   ConstantVector(const VectorType *T, const std::vector<Constant*> &Val);
 public:
-  /// get() - Static factory methods - Return objects of the specified value
-  static Constant *get(const VectorType *T, const std::vector<Constant*> &);
+  // ConstantVector accessors
+  static Constant *get(const VectorType *T, const std::vector<Constant*> &V);
   static Constant *get(const std::vector<Constant*> &V);
-  static Constant *get(Constant*const* Vals, unsigned NumVals) {
-    // FIXME: make this the primary ctor method.
-    return get(std::vector<Constant*>(Vals, Vals+NumVals));
-  }
+  static Constant *get(Constant *const *Vals, unsigned NumVals);
   
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
@@ -490,11 +475,6 @@ public:
   inline const VectorType *getType() const {
     return reinterpret_cast<const VectorType*>(Value::getType());
   }
-
-  /// @returns the value for a vector integer constant of the given type that
-  /// has all its bits set to true.
-  /// @brief Get the all ones value
-  static ConstantVector *getAllOnesValue(const VectorType *Ty);
   
   /// isNullValue - Return true if this is the value that would be returned by
   /// getNullValue.  This always returns false because zero vectors are always
@@ -522,7 +502,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ConstantVector> : VariadicOperandTraits<> {
+struct OperandTraits<ConstantVector> : public VariadicOperandTraits<> {
 };
 
 DEFINE_TRANSPARENT_CASTED_OPERAND_ACCESSORS(ConstantVector, Constant)
@@ -590,13 +570,17 @@ protected:
   // These private methods are used by the type resolution code to create
   // ConstantExprs in intermediate forms.
   static Constant *getTy(const Type *Ty, unsigned Opcode,
-                         Constant *C1, Constant *C2);
+                         Constant *C1, Constant *C2,
+                         unsigned Flags = 0);
   static Constant *getCompareTy(unsigned short pred, Constant *C1,
                                 Constant *C2);
   static Constant *getSelectTy(const Type *Ty,
                                Constant *C1, Constant *C2, Constant *C3);
   static Constant *getGetElementPtrTy(const Type *Ty, Constant *C,
                                       Value* const *Idxs, unsigned NumIdxs);
+  static Constant *getInBoundsGetElementPtrTy(const Type *Ty, Constant *C,
+                                              Value* const *Idxs,
+                                              unsigned NumIdxs);
   static Constant *getExtractElementTy(const Type *Ty, Constant *Val,
                                        Constant *Idx);
   static Constant *getInsertElementTy(const Type *Ty, Constant *Val,
@@ -617,6 +601,43 @@ public:
 
   /// Cast constant expr
   ///
+
+  /// getAlignOf constant expr - computes the alignment of a type in a target
+  /// independent way (Note: the return type is an i32; Note: assumes that i8
+  /// is byte aligned).
+  static Constant *getAlignOf(const Type* Ty);
+  
+  /// getSizeOf constant expr - computes the size of a type in a target
+  /// independent way (Note: the return type is an i64).
+  ///
+  static Constant *getSizeOf(const Type* Ty);
+
+  /// getOffsetOf constant expr - computes the offset of a field in a target
+  /// independent way (Note: the return type is an i64).
+  ///
+  static Constant *getOffsetOf(const StructType* Ty, unsigned FieldNo);
+  
+  static Constant *getNeg(Constant *C);
+  static Constant *getFNeg(Constant *C);
+  static Constant *getNot(Constant *C);
+  static Constant *getAdd(Constant *C1, Constant *C2);
+  static Constant *getFAdd(Constant *C1, Constant *C2);
+  static Constant *getSub(Constant *C1, Constant *C2);
+  static Constant *getFSub(Constant *C1, Constant *C2);
+  static Constant *getMul(Constant *C1, Constant *C2);
+  static Constant *getFMul(Constant *C1, Constant *C2);
+  static Constant *getUDiv(Constant *C1, Constant *C2);
+  static Constant *getSDiv(Constant *C1, Constant *C2);
+  static Constant *getFDiv(Constant *C1, Constant *C2);
+  static Constant *getURem(Constant *C1, Constant *C2);
+  static Constant *getSRem(Constant *C1, Constant *C2);
+  static Constant *getFRem(Constant *C1, Constant *C2);
+  static Constant *getAnd(Constant *C1, Constant *C2);
+  static Constant *getOr(Constant *C1, Constant *C2);
+  static Constant *getXor(Constant *C1, Constant *C2);
+  static Constant *getShl(Constant *C1, Constant *C2);
+  static Constant *getLShr(Constant *C1, Constant *C2);
+  static Constant *getAShr(Constant *C1, Constant *C2);
   static Constant *getTrunc   (Constant *C, const Type *Ty);
   static Constant *getSExt    (Constant *C, const Type *Ty);
   static Constant *getZExt    (Constant *C, const Type *Ty);
@@ -629,6 +650,10 @@ public:
   static Constant *getPtrToInt(Constant *C, const Type *Ty);
   static Constant *getIntToPtr(Constant *C, const Type *Ty);
   static Constant *getBitCast (Constant *C, const Type *Ty);
+
+  static Constant *getNSWAdd(Constant *C1, Constant *C2);
+  static Constant *getNSWSub(Constant *C1, Constant *C2);
+  static Constant *getExactSDiv(Constant *C1, Constant *C2);
 
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
@@ -688,69 +713,51 @@ public:
   /// and the getIndices() method may be used.
   bool hasIndices() const;
 
+  /// @brief Return true if this is a getelementptr expression and all
+  /// the index operands are compile-time known integers within the
+  /// corresponding notional static array extents. Note that this is
+  /// not equivalant to, a subset of, or a superset of the "inbounds"
+  /// property.
+  bool isGEPWithNoNotionalOverIndexing() const;
+
   /// Select constant expr
   ///
   static Constant *getSelect(Constant *C, Constant *V1, Constant *V2) {
     return getSelectTy(V1->getType(), C, V1, V2);
   }
 
-  /// getAlignOf constant expr - computes the alignment of a type in a target
-  /// independent way (Note: the return type is an i32; Note: assumes that i8
-  /// is byte aligned).
-  ///
-  static Constant *getAlignOf(const Type *Ty);
-
-  /// getSizeOf constant expr - computes the size of a type in a target
-  /// independent way (Note: the return type is an i64).
-  ///
-  static Constant *getSizeOf(const Type *Ty);
-
-  /// ConstantExpr::get - Return a binary or shift operator constant expression,
+  /// get - Return a binary or shift operator constant expression,
   /// folding if possible.
   ///
-  static Constant *get(unsigned Opcode, Constant *C1, Constant *C2);
+  static Constant *get(unsigned Opcode, Constant *C1, Constant *C2,
+                       unsigned Flags = 0);
 
-  /// @brief Return an ICmp, FCmp, VICmp, or VFCmp comparison operator constant
-  /// expression.
+  /// @brief Return an ICmp or FCmp comparison operator constant expression.
   static Constant *getCompare(unsigned short pred, Constant *C1, Constant *C2);
 
-  /// ConstantExpr::get* - Return some common constants without having to
+  /// get* - Return some common constants without having to
   /// specify the full Instruction::OPCODE identifier.
   ///
-  static Constant *getNeg(Constant *C);
-  static Constant *getFNeg(Constant *C);
-  static Constant *getNot(Constant *C);
-  static Constant *getAdd(Constant *C1, Constant *C2);
-  static Constant *getFAdd(Constant *C1, Constant *C2);
-  static Constant *getSub(Constant *C1, Constant *C2);
-  static Constant *getFSub(Constant *C1, Constant *C2);
-  static Constant *getMul(Constant *C1, Constant *C2);
-  static Constant *getFMul(Constant *C1, Constant *C2);
-  static Constant *getUDiv(Constant *C1, Constant *C2);
-  static Constant *getSDiv(Constant *C1, Constant *C2);
-  static Constant *getFDiv(Constant *C1, Constant *C2);
-  static Constant *getURem(Constant *C1, Constant *C2); // unsigned rem
-  static Constant *getSRem(Constant *C1, Constant *C2); // signed rem
-  static Constant *getFRem(Constant *C1, Constant *C2);
-  static Constant *getAnd(Constant *C1, Constant *C2);
-  static Constant *getOr(Constant *C1, Constant *C2);
-  static Constant *getXor(Constant *C1, Constant *C2);
   static Constant *getICmp(unsigned short pred, Constant *LHS, Constant *RHS);
   static Constant *getFCmp(unsigned short pred, Constant *LHS, Constant *RHS);
-  static Constant *getVICmp(unsigned short pred, Constant *LHS, Constant *RHS);
-  static Constant *getVFCmp(unsigned short pred, Constant *LHS, Constant *RHS);
-  static Constant *getShl(Constant *C1, Constant *C2);
-  static Constant *getLShr(Constant *C1, Constant *C2);
-  static Constant *getAShr(Constant *C1, Constant *C2);
 
   /// Getelementptr form.  std::vector<Value*> is only accepted for convenience:
   /// all elements must be Constant's.
   ///
   static Constant *getGetElementPtr(Constant *C,
-                                    Constant* const *IdxList, unsigned NumIdx);
+                                    Constant *const *IdxList, unsigned NumIdx);
   static Constant *getGetElementPtr(Constant *C,
                                     Value* const *IdxList, unsigned NumIdx);
-  
+
+  /// Create an "inbounds" getelementptr. See the documentation for the
+  /// "inbounds" flag in LangRef.html for details.
+  static Constant *getInBoundsGetElementPtr(Constant *C,
+                                            Constant *const *IdxList,
+                                            unsigned NumIdx);
+  static Constant *getInBoundsGetElementPtr(Constant *C,
+                                            Value* const *IdxList,
+                                            unsigned NumIdx);
+
   static Constant *getExtractElement(Constant *Vec, Constant *Idx);
   static Constant *getInsertElement(Constant *Vec, Constant *Elt,Constant *Idx);
   static Constant *getShuffleVector(Constant *V1, Constant *V2, Constant *Mask);
@@ -758,11 +765,6 @@ public:
                                    const unsigned *IdxList, unsigned NumIdx);
   static Constant *getInsertValue(Constant *Agg, Constant *Val,
                                   const unsigned *IdxList, unsigned NumIdx);
-
-  /// Floating point negation must be implemented with f(x) = -0.0 - x. This
-  /// method returns the negative zero constant for floating point or vector
-  /// floating point types; for all other types, it returns the null value.
-  static Constant *getZeroValueForNegationExpr(const Type *Ty);
 
   /// isNullValue - Return true if this is the value that would be returned by
   /// getNullValue.
@@ -792,7 +794,7 @@ public:
   Constant *getWithOperands(const std::vector<Constant*> &Ops) const {
     return getWithOperands(&Ops[0], (unsigned)Ops.size());
   }
-  Constant *getWithOperands(Constant* const *Ops, unsigned NumOps) const;
+  Constant *getWithOperands(Constant *const *Ops, unsigned NumOps) const;
   
   virtual void destroyConstant();
   virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
@@ -805,7 +807,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ConstantExpr> : VariadicOperandTraits<1> {
+struct OperandTraits<ConstantExpr> : public VariadicOperandTraits<1> {
 };
 
 DEFINE_TRANSPARENT_CASTED_OPERAND_ACCESSORS(ConstantExpr, Constant)
@@ -845,62 +847,6 @@ public:
     return V->getValueID() == UndefValueVal;
   }
 };
-
-//===----------------------------------------------------------------------===//
-/// MDString - a single uniqued string.
-/// These are used to efficiently contain a byte sequence for metadata.
-///
-class MDString : public Constant {
-  MDString(const MDString &);            // DO NOT IMPLEMENT
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-  MDString(const char *begin, const char *end);
-
-  const char *StrBegin, *StrEnd;
-protected:
-  // allocate space for exactly zero operands
-  void *operator new(size_t s) {
-    return User::operator new(s, 0);
-  }
-public:
-  /// get() - Static factory methods - Return objects of the specified value.
-  ///
-  static MDString *get(const char *StrBegin, const char *StrEnd);
-  static MDString *get(const std::string &Str);
-
-  /// size() - The length of this string.
-  ///
-  intptr_t size() const { return StrEnd - StrBegin; }
-
-  /// begin() - Pointer to the first byte of the string.
-  ///
-  const char *begin() const { return StrBegin; }
-
-  /// end() - Pointer to one byte past the end of the string.
-  ///
-  const char *end() const { return StrEnd; }
-
-  /// getType() specialization - Type is always MetadataTy.
-  ///
-  inline const Type *getType() const {
-    return Type::MetadataTy;
-  }
-
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  This always returns false because getNullValue will never
-  /// produce metadata.
-  virtual bool isNullValue() const {
-    return false;
-  }
-
-  virtual void destroyConstant();
-
-  /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const MDString *) { return true; }
-  static bool classof(const Value *V) {
-    return V->getValueID() == MDStringVal;
-  }
-};
-
 } // End llvm namespace
 
 #endif

@@ -1,10 +1,10 @@
 //====- ARMMachineFuctionInfo.h - ARM machine function info -----*- C++ -*-===//
-// 
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file declares ARM-specific per-machine-function information.
@@ -52,10 +52,6 @@ class ARMFunctionInfo : public MachineFunctionInfo {
   /// enable far jump.
   bool LRSpilledForFarJump;
 
-  /// R3IsLiveIn - True if R3 is live in to this function.
-  /// FIXME: Remove when register scavenger for Thumb is done.
-  bool R3IsLiveIn;
-
   /// FramePtrSpillOffset - If HasStackFrame, this records the frame pointer
   /// spill stack offset.
   unsigned FramePtrSpillOffset;
@@ -100,7 +96,7 @@ public:
     hasThumb2(false),
     Align(2U),
     VarArgsRegSaveSize(0), HasStackFrame(false),
-    LRSpilledForFarJump(false), R3IsLiveIn(false),
+    LRSpilledForFarJump(false),
     FramePtrSpillOffset(0), GPRCS1Offset(0), GPRCS2Offset(0), DPRCSOffset(0),
     GPRCS1Size(0), GPRCS2Size(0), DPRCSSize(0),
     GPRCS1Frames(0), GPRCS2Frames(0), DPRCSFrames(0),
@@ -111,7 +107,7 @@ public:
     hasThumb2(MF.getTarget().getSubtarget<ARMSubtarget>().hasThumb2()),
     Align(isThumb ? 1U : 2U),
     VarArgsRegSaveSize(0), HasStackFrame(false),
-    LRSpilledForFarJump(false), R3IsLiveIn(false),
+    LRSpilledForFarJump(false),
     FramePtrSpillOffset(0), GPRCS1Offset(0), GPRCS2Offset(0), DPRCSOffset(0),
     GPRCS1Size(0), GPRCS2Size(0), DPRCSSize(0),
     GPRCS1Frames(32), GPRCS2Frames(32), DPRCSFrames(32),
@@ -119,6 +115,7 @@ public:
     JumpTableUId(0), ConstPoolEntryUId(0) {}
 
   bool isThumbFunction() const { return isThumb; }
+  bool isThumb1OnlyFunction() const { return isThumb && !hasThumb2; }
   bool isThumb2Function() const { return isThumb && hasThumb2; }
 
   unsigned getAlign() const { return Align; }
@@ -133,13 +130,9 @@ public:
   bool isLRSpilledForFarJump() const { return LRSpilledForFarJump; }
   void setLRIsSpilledForFarJump(bool s) { LRSpilledForFarJump = s; }
 
-  // FIXME: Remove when register scavenger for Thumb is done.
-  bool isR3LiveIn() const { return R3IsLiveIn; }
-  void setR3IsLiveIn(bool l) { R3IsLiveIn = l; }
-
   unsigned getFramePtrSpillOffset() const { return FramePtrSpillOffset; }
   void setFramePtrSpillOffset(unsigned o) { FramePtrSpillOffset = o; }
-  
+
   unsigned getGPRCalleeSavedArea1Offset() const { return GPRCS1Offset; }
   unsigned getGPRCalleeSavedArea2Offset() const { return GPRCS2Offset; }
   unsigned getDPRCalleeSavedAreaOffset()  const { return DPRCSOffset; }

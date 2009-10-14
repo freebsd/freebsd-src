@@ -15,11 +15,12 @@
 #define ARMSUBTARGET_H
 
 #include "llvm/Target/TargetInstrItineraries.h"
+#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSubtarget.h"
 #include <string>
 
 namespace llvm {
-class Module;
+class GlobalValue;
 
 class ARMSubtarget : public TargetSubtarget {
 protected:
@@ -43,11 +44,19 @@ protected:
   /// ARMFPUType - Floating Point Unit type.
   ARMFPEnum ARMFPUType;
 
+  /// UseNEONForSinglePrecisionFP - if the NEONFP attribute has been
+  /// specified. Use the method useNEONForSinglePrecisionFP() to
+  /// determine if NEON should actually be used.
+  bool UseNEONForSinglePrecisionFP;
+
   /// IsThumb - True if we are in thumb mode, false if in ARM mode.
   bool IsThumb;
 
   /// ThumbMode - Indicates supported Thumb version.
   ThumbTypeEnum ThumbMode;
+
+  /// PostRAScheduler - True if using post-register-allocation scheduler.
+  bool PostRAScheduler;
 
   /// IsR9Reserved - True if R9 is a not available as general purpose register.
   bool IsR9Reserved;
@@ -61,7 +70,7 @@ protected:
 
   /// Selected instruction itineraries (one entry per itinerary class.)
   InstrItineraryData InstrItins;
-  
+
  public:
   enum {
     isELF, isDarwin
@@ -73,9 +82,9 @@ protected:
   } TargetABI;
 
   /// This constructor initializes the data members to match that
-  /// of the specified module.
+  /// of the specified triple.
   ///
-  ARMSubtarget(const Module &M, const std::string &FS, bool isThumb);
+  ARMSubtarget(const std::string &TT, const std::string &FS, bool isThumb);
 
   /// getMaxInlineSizeThreshold - Returns the maximum memset / memcpy size
   /// that still makes it profitable to inline the call.
@@ -99,6 +108,8 @@ protected:
   bool hasVFP2() const { return ARMFPUType >= VFPv2; }
   bool hasVFP3() const { return ARMFPUType >= VFPv3; }
   bool hasNEON() const { return ARMFPUType >= NEON;  }
+  bool useNEONForSinglePrecisionFP() const {
+    return hasNEON() && UseNEONForSinglePrecisionFP; }
 
   bool isTargetDarwin() const { return TargetType == isDarwin; }
   bool isTargetELF() const { return TargetType == isELF; }
@@ -108,14 +119,18 @@ protected:
 
   bool isThumb() const { return IsThumb; }
   bool isThumb1Only() const { return IsThumb && (ThumbMode == Thumb1); }
-  bool isThumb2() const { return IsThumb && (ThumbMode >= Thumb2); }
+  bool isThumb2() const { return IsThumb && (ThumbMode == Thumb2); }
   bool hasThumb2() const { return ThumbMode >= Thumb2; }
 
   bool isR9Reserved() const { return IsR9Reserved; }
 
   const std::string & getCPUString() const { return CPUString; }
+  
+  /// enablePostRAScheduler - From TargetSubtarget, return true to
+  /// enable post-RA scheduler.
+  bool enablePostRAScheduler() const { return PostRAScheduler; }
 
-  /// getInstrItins - Return the instruction itineraies based on subtarget 
+  /// getInstrItins - Return the instruction itineraies based on subtarget
   /// selection.
   const InstrItineraryData &getInstrItineraryData() const { return InstrItins; }
 
@@ -123,6 +138,10 @@ protected:
   /// stack frame on entry to the function and which must be maintained by every
   /// function for this subtarget.
   unsigned getStackAlignment() const { return stackAlignment; }
+
+  /// GVIsIndirectSymbol - true if the GV will be accessed via an indirect
+  /// symbol.
+  bool GVIsIndirectSymbol(GlobalValue *GV, Reloc::Model RelocM) const;
 };
 } // End llvm namespace
 

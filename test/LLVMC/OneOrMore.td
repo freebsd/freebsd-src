@@ -1,6 +1,6 @@
 // Check that (one_or_more) and (zero_or_one) properties work.
 // The dummy tool and graph are required to silence warnings.
-// RUN: tblgen -I $srcroot/include --gen-llvmc %s -o %t
+// RUN: tblgen -I %p/../../include --gen-llvmc %s -o %t
 // RUN: grep cl::ZeroOrOne %t | count 1
 // RUN: grep cl::OneOrMore %t | count 1
 
@@ -11,7 +11,7 @@ def OptList : OptionList<[
     (parameter_list_option "baz", (zero_or_one))]>;
 
 def dummy_tool : Tool<[
-(cmd_line "dummy_cmd"),
+(cmd_line "dummy_cmd $INFILE"),
 (in_language "dummy"),
 (out_language "dummy"),
 (actions (case

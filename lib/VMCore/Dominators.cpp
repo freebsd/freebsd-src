@@ -23,22 +23,20 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/DominatorInternals.h"
 #include "llvm/Instructions.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/CommandLine.h"
 #include <algorithm>
 using namespace llvm;
 
-namespace llvm {
-static std::ostream &operator<<(std::ostream &o,
-                                const std::set<BasicBlock*> &BBs) {
-  for (std::set<BasicBlock*>::const_iterator I = BBs.begin(), E = BBs.end();
-       I != E; ++I)
-    if (*I)
-      WriteAsOperand(o, *I, false);
-    else
-      o << " <<exit node>>";
-  return o;
-}
-}
+// Always verify dominfo if expensive checking is enabled.
+#ifdef XDEBUG
+bool VerifyDomInfo = true;
+#else
+bool VerifyDomInfo = false;
+#endif
+static cl::opt<bool,true>
+VerifyDomInfoX("verify-dom-info", cl::location(VerifyDomInfo),
+               cl::desc("Verify dominator info (time consuming)"));
 
 //===----------------------------------------------------------------------===//
 //  DominatorTree Implementation
@@ -61,6 +59,47 @@ bool DominatorTree::runOnFunction(Function &F) {
   return false;
 }
 
+void DominatorTree::verifyAnalysis() const {
+  if (!VerifyDomInfo) return;
+
+  Function &F = *getRoot()->getParent();
+
+  DominatorTree OtherDT;
+  OtherDT.getBase().recalculate(F);
+  assert(!compare(OtherDT) && "Invalid DominatorTree info!");
+}
+
+void DominatorTree::print(raw_ostream &OS, const Module *) const {
+  DT->print(OS);
+}
+
+// dominates - Return true if A dominates a use in B. This performs the
+// special checks necessary if A and B are in the same basic block.
+bool DominatorTree::dominates(const Instruction *A, const Instruction *B) const{
+  const BasicBlock *BBA = A->getParent(), *BBB = B->getParent();
+  
+  // If A is an invoke instruction, its value is only available in this normal
+  // successor block.
+  if (const InvokeInst *II = dyn_cast<InvokeInst>(A))
+    BBA = II->getNormalDest();
+  
+  if (BBA != BBB) return dominates(BBA, BBB);
+  
+  // It is not possible to determine dominance between two PHI nodes 
+  // based on their ordering.
+  if (isa<PHINode>(A) && isa<PHINode>(B)) 
+    return false;
+  
+  // Loop through the basic block until we find A or B.
+  BasicBlock::const_iterator I = BBA->begin();
+  for (; &*I != A && &*I != B; ++I)
+    /*empty*/;
+  
+  return &*I == A;
+}
+
+
+
 //===----------------------------------------------------------------------===//
 //  DominanceFrontier Implementation
 //===----------------------------------------------------------------------===//
@@ -69,6 +108,17 @@ char DominanceFrontier::ID = 0;
 static RegisterPass<DominanceFrontier>
 G("domfrontier", "Dominance Frontier Construction", true, true);
 
+void DominanceFrontier::verifyAnalysis() const {
+  if (!VerifyDomInfo) return;
+
+  DominatorTree &DT = getAnalysis<DominatorTree>();
+
+  DominanceFrontier OtherDF;
+  const std::vector<BasicBlock*> &DTRoots = DT.getRoots();
+  OtherDF.calculate(DT, DT.getNode(DTRoots[0]));
+  assert(!compare(OtherDF) && "Invalid DominanceFrontier info!");
+}
+
 // NewBB is split and now it has one successor. Update dominace frontier to
 // reflect this change.
 void DominanceFrontier::splitBlock(BasicBlock *NewBB) {
@@ -76,7 +126,7 @@ void DominanceFrontier::splitBlock(BasicBlock *NewBB) {
          && "NewBB should have a single successor!");
   BasicBlock *NewBBSucc = NewBB->getTerminator()->getSuccessor(0);
 
-  std::vector<BasicBlock*> PredBlocks;
+  SmallVector<BasicBlock*, 8> PredBlocks;
   for (pred_iterator PI = pred_begin(NewBB), PE = pred_end(NewBB);
        PI != PE; ++PI)
       PredBlocks.push_back(*PI);  
@@ -153,7 +203,7 @@ void DominanceFrontier::splitBlock(BasicBlock *NewBB) {
     // Verify whether this block dominates a block in predblocks.  If not, do
     // not update it.
     bool BlockDominatesAny = false;
-    for (std::vector<BasicBlock*>::const_iterator BI = PredBlocks.begin(), 
+    for (SmallVectorImpl<BasicBlock*>::const_iterator BI = PredBlocks.begin(), 
            BE = PredBlocks.end(); BI != BE; ++BI) {
       if (DT.dominates(FI, *BI)) {
         BlockDominatesAny = true;
@@ -270,18 +320,24 @@ DominanceFrontier::calculate(const DominatorTree &DT,
   return *Result;
 }
 
-void DominanceFrontierBase::print(std::ostream &o, const Module* ) const {
+void DominanceFrontierBase::print(raw_ostream &OS, const Module* ) const {
   for (const_iterator I = begin(), E = end(); I != E; ++I) {
-    o << "  DomFrontier for BB";
+    OS << "  DomFrontier for BB";
     if (I->first)
-      WriteAsOperand(o, I->first, false);
+      WriteAsOperand(OS, I->first, false);
     else
-      o << " <<exit node>>";
-    o << " is:\t" << I->second << "\n";
+      OS << " <<exit node>>";
+    OS << " is:\t";
+    
+    const std::set<BasicBlock*> &BBs = I->second;
+    
+    for (std::set<BasicBlock*>::const_iterator I = BBs.begin(), E = BBs.end();
+         I != E; ++I)
+      if (*I)
+        WriteAsOperand(OS, *I, false);
+      else
+        OS << " <<exit node>>";
+    OS << "\n";
   }
-}
-
-void DominanceFrontierBase::dump() {
-  print (llvm::cerr);
 }
 

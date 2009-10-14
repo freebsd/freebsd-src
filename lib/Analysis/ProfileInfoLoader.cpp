@@ -16,7 +16,7 @@
 #include "llvm/Analysis/ProfileInfoTypes.h"
 #include "llvm/Module.h"
 #include "llvm/InstrTypes.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -26,10 +26,17 @@ using namespace llvm;
 //
 static inline unsigned ByteSwap(unsigned Var, bool Really) {
   if (!Really) return Var;
-  return ((Var & (255<< 0)) << 24) |
-         ((Var & (255<< 8)) <<  8) |
-         ((Var & (255<<16)) >>  8) |
-         ((Var & (255<<24)) >> 24);
+  return ((Var & (255U<< 0U)) << 24U) |
+         ((Var & (255U<< 8U)) <<  8U) |
+         ((Var & (255U<<16U)) >>  8U) |
+         ((Var & (255U<<24U)) >> 24U);
+}
+
+static unsigned AddCounts(unsigned A, unsigned B) {
+  // If either value is undefined, use the other.
+  if (A == ProfileInfoLoader::Uncounted) return B;
+  if (B == ProfileInfoLoader::Uncounted) return A;
+  return A + B;
 }
 
 static void ReadProfilingBlock(const char *ToolName, FILE *F,
@@ -38,7 +45,7 @@ static void ReadProfilingBlock(const char *ToolName, FILE *F,
   // Read the number of entries...
   unsigned NumEntries;
   if (fread(&NumEntries, sizeof(unsigned), 1, F) != 1) {
-    cerr << ToolName << ": data packet truncated!\n";
+    errs() << ToolName << ": data packet truncated!\n";
     perror(0);
     exit(1);
   }
@@ -49,35 +56,41 @@ static void ReadProfilingBlock(const char *ToolName, FILE *F,
 
   // Read in the block of data...
   if (fread(&TempSpace[0], sizeof(unsigned)*NumEntries, 1, F) != 1) {
-    cerr << ToolName << ": data packet truncated!\n";
+    errs() << ToolName << ": data packet truncated!\n";
     perror(0);
     exit(1);
   }
 
-  // Make sure we have enough space...
+  // Make sure we have enough space... The space is initialised to -1 to
+  // facitiltate the loading of missing values for OptimalEdgeProfiling.
   if (Data.size() < NumEntries)
-    Data.resize(NumEntries);
+    Data.resize(NumEntries, ProfileInfoLoader::Uncounted);
 
   // Accumulate the data we just read into the data.
   if (!ShouldByteSwap) {
-    for (unsigned i = 0; i != NumEntries; ++i)
-      Data[i] += TempSpace[i];
+    for (unsigned i = 0; i != NumEntries; ++i) {
+      Data[i] = AddCounts(TempSpace[i], Data[i]);
+    }
   } else {
-    for (unsigned i = 0; i != NumEntries; ++i)
-      Data[i] += ByteSwap(TempSpace[i], true);
+    for (unsigned i = 0; i != NumEntries; ++i) {
+      Data[i] = AddCounts(ByteSwap(TempSpace[i], true), Data[i]);
+    }
   }
 }
+
+const unsigned ProfileInfoLoader::Uncounted = ~0U;
 
 // ProfileInfoLoader ctor - Read the specified profiling data file, exiting the
 // program if the file is invalid or broken.
 //
 ProfileInfoLoader::ProfileInfoLoader(const char *ToolName,
                                      const std::string &Filename,
-                                     Module &TheModule) : 
-                              M(TheModule), Warned(false) {
-  FILE *F = fopen(Filename.c_str(), "r");
+                                     Module &TheModule) :
+                                     Filename(Filename), 
+                                     M(TheModule), Warned(false) {
+  FILE *F = fopen(Filename.c_str(), "rb");
   if (F == 0) {
-    cerr << ToolName << ": Error opening '" << Filename << "': ";
+    errs() << ToolName << ": Error opening '" << Filename << "': ";
     perror(0);
     exit(1);
   }
@@ -95,7 +108,7 @@ ProfileInfoLoader::ProfileInfoLoader(const char *ToolName,
     case ArgumentInfo: {
       unsigned ArgLength;
       if (fread(&ArgLength, sizeof(unsigned), 1, F) != 1) {
-        cerr << ToolName << ": arguments packet truncated!\n";
+        errs() << ToolName << ": arguments packet truncated!\n";
         perror(0);
         exit(1);
       }
@@ -106,7 +119,7 @@ ProfileInfoLoader::ProfileInfoLoader(const char *ToolName,
 
       if (ArgLength)
         if (fread(&Chars[0], (ArgLength+3) & ~3, 1, F) != 1) {
-          cerr << ToolName << ": arguments packet truncated!\n";
+          errs() << ToolName << ": arguments packet truncated!\n";
           perror(0);
           exit(1);
         }
@@ -126,12 +139,16 @@ ProfileInfoLoader::ProfileInfoLoader(const char *ToolName,
       ReadProfilingBlock(ToolName, F, ShouldByteSwap, EdgeCounts);
       break;
 
+    case OptEdgeInfo:
+      ReadProfilingBlock(ToolName, F, ShouldByteSwap, OptimalEdgeCounts);
+      break;
+
     case BBTraceInfo:
       ReadProfilingBlock(ToolName, F, ShouldByteSwap, BBTrace);
       break;
 
     default:
-      cerr << ToolName << ": Unknown packet type #" << PacketType << "!\n";
+      errs() << ToolName << ": Unknown packet type #" << PacketType << "!\n";
       exit(1);
     }
   }
@@ -139,139 +156,3 @@ ProfileInfoLoader::ProfileInfoLoader(const char *ToolName,
   fclose(F);
 }
 
-
-// getFunctionCounts - This method is used by consumers of function counting
-// information.  If we do not directly have function count information, we
-// compute it from other, more refined, types of profile information.
-//
-void ProfileInfoLoader::getFunctionCounts(std::vector<std::pair<Function*,
-                                                      unsigned> > &Counts) {
-  if (FunctionCounts.empty()) {
-    if (hasAccurateBlockCounts()) {
-      // Synthesize function frequency information from the number of times
-      // their entry blocks were executed.
-      std::vector<std::pair<BasicBlock*, unsigned> > BlockCounts;
-      getBlockCounts(BlockCounts);
-
-      for (unsigned i = 0, e = BlockCounts.size(); i != e; ++i)
-        if (&BlockCounts[i].first->getParent()->getEntryBlock() ==
-            BlockCounts[i].first)
-          Counts.push_back(std::make_pair(BlockCounts[i].first->getParent(),
-                                          BlockCounts[i].second));
-    } else {
-      cerr << "Function counts are not available!\n";
-    }
-    return;
-  }
-
-  unsigned Counter = 0;
-  for (Module::iterator I = M.begin(), E = M.end();
-       I != E && Counter != FunctionCounts.size(); ++I)
-    if (!I->isDeclaration())
-      Counts.push_back(std::make_pair(I, FunctionCounts[Counter++]));
-}
-
-// getBlockCounts - This method is used by consumers of block counting
-// information.  If we do not directly have block count information, we
-// compute it from other, more refined, types of profile information.
-//
-void ProfileInfoLoader::getBlockCounts(std::vector<std::pair<BasicBlock*,
-                                                         unsigned> > &Counts) {
-  if (BlockCounts.empty()) {
-    if (hasAccurateEdgeCounts()) {
-      // Synthesize block count information from edge frequency information.
-      // The block execution frequency is equal to the sum of the execution
-      // frequency of all outgoing edges from a block.
-      //
-      // If a block has no successors, this will not be correct, so we have to
-      // special case it. :(
-      std::vector<std::pair<Edge, unsigned> > EdgeCounts;
-      getEdgeCounts(EdgeCounts);
-
-      std::map<BasicBlock*, unsigned> InEdgeFreqs;
-
-      BasicBlock *LastBlock = 0;
-      TerminatorInst *TI = 0;
-      for (unsigned i = 0, e = EdgeCounts.size(); i != e; ++i) {
-        if (EdgeCounts[i].first.first != LastBlock) {
-          LastBlock = EdgeCounts[i].first.first;
-          TI = LastBlock->getTerminator();
-          Counts.push_back(std::make_pair(LastBlock, 0));
-        }
-        Counts.back().second += EdgeCounts[i].second;
-        unsigned SuccNum = EdgeCounts[i].first.second;
-        if (SuccNum >= TI->getNumSuccessors()) {
-          if (!Warned) {
-            cerr << "WARNING: profile info doesn't seem to match"
-                 << " the program!\n";
-            Warned = true;
-          }
-        } else {
-          // If this successor has no successors of its own, we will never
-          // compute an execution count for that block.  Remember the incoming
-          // edge frequencies to add later.
-          BasicBlock *Succ = TI->getSuccessor(SuccNum);
-          if (Succ->getTerminator()->getNumSuccessors() == 0)
-            InEdgeFreqs[Succ] += EdgeCounts[i].second;
-        }
-      }
-
-      // Now we have to accumulate information for those blocks without
-      // successors into our table.
-      for (std::map<BasicBlock*, unsigned>::iterator I = InEdgeFreqs.begin(),
-             E = InEdgeFreqs.end(); I != E; ++I) {
-        unsigned i = 0;
-        for (; i != Counts.size() && Counts[i].first != I->first; ++i)
-          /*empty*/;
-        if (i == Counts.size()) Counts.push_back(std::make_pair(I->first, 0));
-        Counts[i].second += I->second;
-      }
-
-    } else {
-      cerr << "Block counts are not available!\n";
-    }
-    return;
-  }
-
-  unsigned Counter = 0;
-  for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F)
-    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
-      Counts.push_back(std::make_pair(BB, BlockCounts[Counter++]));
-      if (Counter == BlockCounts.size())
-        return;
-    }
-}
-
-// getEdgeCounts - This method is used by consumers of edge counting
-// information.  If we do not directly have edge count information, we compute
-// it from other, more refined, types of profile information.
-//
-void ProfileInfoLoader::getEdgeCounts(std::vector<std::pair<Edge,
-                                                  unsigned> > &Counts) {
-  if (EdgeCounts.empty()) {
-    cerr << "Edge counts not available, and no synthesis "
-         << "is implemented yet!\n";
-    return;
-  }
-
-  unsigned Counter = 0;
-  for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F)
-    for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB)
-      for (unsigned i = 0, e = BB->getTerminator()->getNumSuccessors();
-           i != e; ++i) {
-        Counts.push_back(std::make_pair(Edge(BB, i), EdgeCounts[Counter++]));
-        if (Counter == EdgeCounts.size())
-          return;
-      }
-}
-
-// getBBTrace - This method is used by consumers of basic-block trace
-// information.
-//
-void ProfileInfoLoader::getBBTrace(std::vector<BasicBlock *> &Trace) {
-  if (BBTrace.empty ()) {
-    cerr << "Basic block trace is not available!\n";
-    return;
-  }
-  cerr << "Basic block trace loading is not implemented yet!\n";
-}

@@ -114,6 +114,10 @@ delete them on exit. This option can also take an argument: the
 <tt class="docutils literal"><span class="pre">--save-temps=obj</span></tt> switch will write files into the directory specified with
 the <tt class="docutils literal"><span class="pre">-o</span></tt> option. The <tt class="docutils literal"><span class="pre">--save-temps=cwd</span></tt> and <tt class="docutils literal"><span class="pre">--save-temps</span></tt> switches are
 both synonyms for the default behaviour.</li>
+<li><tt class="docutils literal"><span class="pre">--temp-dir</span> <span class="pre">DIRECTORY</span></tt> - Store temporary files in the given directory. This
+directory is deleted on exit unless <tt class="docutils literal"><span class="pre">--save-temps</span></tt> is specified. If
+<tt class="docutils literal"><span class="pre">--save-temps=obj</span></tt> is also specified, <tt class="docutils literal"><span class="pre">--temp-dir</span></tt> is given the
+precedence.</li>
 <li><tt class="docutils literal"><span class="pre">--check-graph</span></tt> - Check the compilation for common errors like mismatched
 output/input language names, multiple default edges and cycles. Because of
 plugins, these checks can't be performed at compile-time. Exit with code zero
@@ -303,13 +307,13 @@ separate option groups syntactically.</p>
 <tt class="docutils literal"><span class="pre">-std=c99</span></tt>. It is also allowed to use spaces instead of the equality
 sign: <tt class="docutils literal"><span class="pre">-std</span> <span class="pre">c99</span></tt>. At most one occurrence is allowed.</li>
 <li><tt class="docutils literal"><span class="pre">parameter_list_option</span></tt> - same as the above, but more than one option
-occurence is allowed.</li>
+occurrence is allowed.</li>
 <li><tt class="docutils literal"><span class="pre">prefix_option</span></tt> - same as the parameter_option, but the option name and
 argument do not have to be separated. Example: <tt class="docutils literal"><span class="pre">-ofile</span></tt>. This can be also
 specified as <tt class="docutils literal"><span class="pre">-o</span> <span class="pre">file</span></tt>; however, <tt class="docutils literal"><span class="pre">-o=file</span></tt> will be parsed incorrectly
 (<tt class="docutils literal"><span class="pre">=file</span></tt> will be interpreted as option value). At most one occurrence is
 allowed.</li>
-<li><tt class="docutils literal"><span class="pre">prefix_list_option</span></tt> - same as the above, but more than one occurence of
+<li><tt class="docutils literal"><span class="pre">prefix_list_option</span></tt> - same as the above, but more than one occurrence of
 the option is allowed; example: <tt class="docutils literal"><span class="pre">-lm</span> <span class="pre">-lpthread</span></tt>.</li>
 <li><tt class="docutils literal"><span class="pre">alias_option</span></tt> - a special option type for creating aliases. Unlike other
 option types, aliases are not allowed to have any properties besides the
@@ -341,6 +345,11 @@ output.</li>
 special cases). Usage example: <tt class="docutils literal"><span class="pre">(parameter_list_option</span> <span class="pre">&quot;foo&quot;,</span> <span class="pre">(multi_val</span>
 <span class="pre">3))</span></tt>. Only list options can have this attribute; you can, however, use
 the <tt class="docutils literal"><span class="pre">one_or_more</span></tt> and <tt class="docutils literal"><span class="pre">zero_or_one</span></tt> properties.</li>
+<li><tt class="docutils literal"><span class="pre">init</span></tt> - this option has a default value, either a string (if it is a
+parameter), or a boolean (if it is a switch; boolean constants are called
+<tt class="docutils literal"><span class="pre">true</span></tt> and <tt class="docutils literal"><span class="pre">false</span></tt>). List options can't have this attribute. Usage
+examples: <tt class="docutils literal"><span class="pre">(switch_option</span> <span class="pre">&quot;foo&quot;,</span> <span class="pre">(init</span> <span class="pre">true))</span></tt>; <tt class="docutils literal"><span class="pre">(prefix_option</span> <span class="pre">&quot;bar&quot;,</span>
+<span class="pre">(init</span> <span class="pre">&quot;baz&quot;))</span></tt>.</li>
 <li><tt class="docutils literal"><span class="pre">extern</span></tt> - this option is defined in some other plugin, see below.</li>
 </ul>
 </blockquote>
@@ -358,7 +367,8 @@ for. Example:</p>
 (switch_option &quot;E&quot;, (extern))
 ...
 </pre>
-<p>See also the section on plugin <a class="reference internal" href="#priorities">priorities</a>.</p>
+<p>If an external option has additional attributes besides 'extern', they are
+ignored. See also the section on plugin <a class="reference internal" href="#priorities">priorities</a>.</p>
 </div>
 </div>
 <div class="section" id="conditional-evaluation">
@@ -428,15 +438,21 @@ user.
 Example: <tt class="docutils literal"><span class="pre">(not_empty</span> <span class="pre">&quot;o&quot;)</span></tt>.</li>
 <li><tt class="docutils literal"><span class="pre">empty</span></tt> - The opposite of <tt class="docutils literal"><span class="pre">not_empty</span></tt>. Equivalent to <tt class="docutils literal"><span class="pre">(not</span> <span class="pre">(not_empty</span>
 <span class="pre">X))</span></tt>. Provided for convenience.</li>
+<li><tt class="docutils literal"><span class="pre">single_input_file</span></tt> - Returns true if there was only one input file
+provided on the command-line. Used without arguments:
+<tt class="docutils literal"><span class="pre">(single_input_file)</span></tt>.</li>
+<li><tt class="docutils literal"><span class="pre">multiple_input_files</span></tt> - Equivalent to <tt class="docutils literal"><span class="pre">(not</span> <span class="pre">(single_input_file))</span></tt> (the
+case of zero input files is considered an error).</li>
 <li><tt class="docutils literal"><span class="pre">default</span></tt> - Always evaluates to true. Should always be the last
 test in the <tt class="docutils literal"><span class="pre">case</span></tt> expression.</li>
-<li><tt class="docutils literal"><span class="pre">and</span></tt> - A standard logical combinator that returns true iff all
-of its arguments return true. Used like this: <tt class="docutils literal"><span class="pre">(and</span> <span class="pre">(test1),</span>
-<span class="pre">(test2),</span> <span class="pre">...</span> <span class="pre">(testN))</span></tt>. Nesting of <tt class="docutils literal"><span class="pre">and</span></tt> and <tt class="docutils literal"><span class="pre">or</span></tt> is allowed,
-but not encouraged.</li>
-<li><tt class="docutils literal"><span class="pre">or</span></tt> - Another logical combinator that returns true only if any
-one of its arguments returns true. Example: <tt class="docutils literal"><span class="pre">(or</span> <span class="pre">(test1),</span>
-<span class="pre">(test2),</span> <span class="pre">...</span> <span class="pre">(testN))</span></tt>.</li>
+<li><tt class="docutils literal"><span class="pre">and</span></tt> - A standard binary logical combinator that returns true iff all of
+its arguments return true. Used like this: <tt class="docutils literal"><span class="pre">(and</span> <span class="pre">(test1),</span> <span class="pre">(test2),</span>
+<span class="pre">...</span> <span class="pre">(testN))</span></tt>. Nesting of <tt class="docutils literal"><span class="pre">and</span></tt> and <tt class="docutils literal"><span class="pre">or</span></tt> is allowed, but not
+encouraged.</li>
+<li><tt class="docutils literal"><span class="pre">or</span></tt> - A binary logical combinator that returns true iff any of its
+arguments returns true. Example: <tt class="docutils literal"><span class="pre">(or</span> <span class="pre">(test1),</span> <span class="pre">(test2),</span> <span class="pre">...</span> <span class="pre">(testN))</span></tt>.</li>
+<li><tt class="docutils literal"><span class="pre">not</span></tt> - Standard unary logical combinator that negates its
+argument. Example: <tt class="docutils literal"><span class="pre">(not</span> <span class="pre">(or</span> <span class="pre">(test1),</span> <span class="pre">(test2),</span> <span class="pre">...</span> <span class="pre">(testN)))</span></tt>.</li>
 </ul>
 </li>
 </ul>
@@ -666,7 +682,7 @@ the <tt class="docutils literal"><span class="pre">Base</span></tt> plugin behav
 <a href="mailto:foldr@codedgers.com">Mikhail Glushenkov</a><br />
 <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br />
 
-Last modified: $Date: 2009-06-30 02:16:43 +0200 (Tue, 30 Jun 2009) $
+Last modified: $Date: 2009-10-12 16:46:08 +0200 (Mon, 12 Oct 2009) $
 </address></div>
 </div>
 </div>

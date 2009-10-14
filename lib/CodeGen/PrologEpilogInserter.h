@@ -27,6 +27,7 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/ADT/SparseBitVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
   class RegScavenger;
@@ -93,6 +94,17 @@ namespace llvm {
     // functions.
     bool ShrinkWrapThisFunction;
 
+    // Flag to control whether to use the register scavenger to resolve
+    // frame index materialization registers. Set according to
+    // TRI->requiresFrameIndexScavenging() for the curren function.
+    bool FrameIndexVirtualScavenging;
+
+    // When using the scavenger post-pass to resolve frame reference
+    // materialization registers, maintain a map of the registers to
+    // the constant value and SP adjustment associated with it.
+    typedef std::pair<int, int> FrameConstantEntry;
+    DenseMap<unsigned, FrameConstantEntry> FrameConstantRegMap;
+
 #ifndef NDEBUG
     // Machine function handle.
     MachineFunction* MF;
@@ -118,10 +130,12 @@ namespace llvm {
                                CSRegBlockMap &prevRestores);
     void placeSpillsAndRestores(MachineFunction &Fn);
     void placeCSRSpillsAndRestores(MachineFunction &Fn);
+    void calculateCallsInformation(MachineFunction &Fn);
     void calculateCalleeSavedRegisters(MachineFunction &Fn);
     void insertCSRSpillsAndRestores(MachineFunction &Fn);
     void calculateFrameObjectOffsets(MachineFunction &Fn);
     void replaceFrameIndices(MachineFunction &Fn);
+    void scavengeFrameVirtualRegs(MachineFunction &Fn);
     void insertPrologEpilogCode(MachineFunction &Fn);
 
     // Initialize DFA sets, called before iterations.

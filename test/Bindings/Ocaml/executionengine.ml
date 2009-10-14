@@ -1,4 +1,4 @@
-(* RUN: %ocamlc -warn-error A llvm.cma llvm_target.cma llvm_executionengine.cma %s -o %t 2> /dev/null
+(* RUN: %ocamlopt -warn-error A llvm.cmxa llvm_target.cmxa llvm_executionengine.cmxa %s -o %t
  * RUN: ./%t %t.bc
  *)
 
@@ -8,6 +8,12 @@ open Llvm_target
 
 (* Note that this takes a moment to link, so it's best to keep the number of
    individual tests low. *)
+
+let context = global_context ()
+let i8_type = Llvm.i8_type context
+let i32_type = Llvm.i32_type context
+let i64_type = Llvm.i64_type context
+let double_type = Llvm.double_type context
 
 let bomb msg =
   prerr_endline msg;
@@ -19,14 +25,14 @@ let define_main_fn m retval =
     define_function "main" (function_type i32_type [| i32_type;
                                                       str_arr_type;
                                                       str_arr_type |]) m in
-  let b = builder_at_end (entry_block fn) in
+  let b = builder_at_end (global_context ()) (entry_block fn) in
   ignore (build_ret (const_int i32_type retval) b);
   fn
 
 let define_plus m =
   let fn = define_function "plus" (function_type i32_type [| i32_type;
                                                              i32_type |]) m in
-  let b = builder_at_end (entry_block fn) in
+  let b = builder_at_end (global_context ()) (entry_block fn) in
   let add = build_add (param fn 0) (param fn 1) "sum" b in
   ignore (build_ret add b)
 
@@ -52,10 +58,10 @@ let test_genericvalue () =
 
 let test_executionengine () =
   (* create *)
-  let m = create_module "test_module" in
+  let m = create_module (global_context ()) "test_module" in
   let main = define_main_fn m 42 in
   
-  let m2 = create_module "test_module2" in
+  let m2 = create_module (global_context ()) "test_module2" in
   define_plus m2;
   
   let ee = ExecutionEngine.create (ModuleProvider.create m) in

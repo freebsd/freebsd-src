@@ -67,7 +67,7 @@
 
 <ol>
 
-  <li><p><a href=http://www.cmake.org/cmake/resources/software.html>Download</a>
+  <li><p><a href="http://www.cmake.org/cmake/resources/software.html">Download</a>
       and install CMake. Version 2.6.2 is the minimum required.</p>
 
   <li><p>Open a shell. Your development tools must be reachable from this
@@ -180,7 +180,7 @@
   </div>
 
   <p>Variables are stored on the CMake cache. This is a file
-    named <it>CMakeCache.txt</it> on the root of the build
+    named <tt>CMakeCache.txt</tt> on the root of the build
     directory. Do not hand-edit it.</p>
 
   <p>Variables are listed here appending its type after a colon. It is
@@ -250,6 +250,12 @@
     to <i>X86</i>. On the other cases defaults to <i>all</i>. Example:
     <i>-DLLVM_TARGETS_TO_BUILD="X86;PowerPC;Alpha"</i>.</dd>
 
+  <dt><b>LLVM_BUILD_TOOLS</b>:BOOL</dt>
+  <dd>Build LLVM tools. Defaults to ON.</dd>
+
+  <dt><b>LLVM_BUILD_EXAMPLES</b>:BOOL</dt>
+  <dd>Build LLVM examples. Defaults to ON.</dd>
+
   <dt><b>LLVM_ENABLE_THREADS</b>:BOOL</dt>
   <dd>Build with threads support, if available. Defaults to ON.</dd>
 
@@ -258,18 +264,21 @@
     CMAKE_BUILD_TYPE is <i>Release</i>.</dd>
 
   <dt><b>LLVM_ENABLE_PIC</b>:BOOL</dt>
-  <dd>Add the <i>-fPIC</i> flag to the compiler command-line, if the
-    compiler supports this flag. Some systems, like Windows, does not
-    need this flag. Defaults to OFF.</dd>
+  <dd>Add the <i>-fPIC</i> flag for the compiler command-line, if the
+    compiler supports this flag. Some systems, like Windows, do not
+    need this flag. Defaults to ON.</dd>
 
   <dt><b>LLVM_BUILD_32_BITS</b>:BOOL</dt>
   <dd>Build 32-bits executables and libraries on 64-bits systems. This
   option is available only on some 64-bits unix systems. Defaults to
   OFF.</dd>
 
-  <dt><b>LLVM_PLO_FLAGS</b>:STRING</dt>
-  <dd>Extra flags for creating partially linked objects. Visual C++
-    does not use this.</dd>
+  <dt><b>LLVM_TARGET_ARCH</b>:STRING</dt>
+  <dd>LLVM target to use for native code generation. This is required
+    for JIT generation. It defaults to "host", meaning that it shall
+    pick the architecture of the machine where LLVM is being built. If
+    you are cross-compiling, set it to the target architecture
+    name.</dd>
 
   <dt><b>LLVM_TABLEGEN</b>:STRING</dt>
   <dd>Full path to a native TableGen executable (usually
@@ -309,6 +318,9 @@
     <a href="http://www.vtk.org/Wiki/CMake_Cross_Compiling#Information_how_to_set_up_various_cross_compiling_toolchains">this
     section</a> for a quick solution.</p>
 
+<p>Also see the <a href="#llvmvars">LLVM-specific variables</a>
+  section for variables used when cross-compiling.</p>
+
 </div>
 
 <!-- *********************************************************************** -->
@@ -334,26 +346,6 @@
 <div class="doc_text">
 
 <p>Notes for specific compilers and/or platforms.</p>
-
-</div>
-
-<!-- ======================================================================= -->
-<div class="doc_subsection">
-  <a name="msvc">Microsoft Visual C++</a>
-</div>
-
-<div class="doc_text">
-
-  <p>For linking the JIT into your executable, add</p>
-
-  <div class="doc_code">
-    <p><tt>/INCLUDE:_X86TargetMachineModule</tt></p>
-  </div>
-
-  <p>to your linker options. This is required for adding the relevant
-    LLVM object code to the executable. Not doing this will result on
-    some methods returning NULL (<i>ExecutionEngine::create</i>, for
-    instance).</p>
 
 </div>
 

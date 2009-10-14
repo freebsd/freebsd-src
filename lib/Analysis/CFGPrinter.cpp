@@ -25,38 +25,36 @@
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/GraphWriter.h"
-#include "llvm/Config/config.h"
-#include <iosfwd>
-#include <sstream>
-#include <fstream>
 using namespace llvm;
 
 namespace llvm {
 template<>
 struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
   static std::string getGraphName(const Function *F) {
-    return "CFG for '" + F->getName() + "' function";
+    return "CFG for '" + F->getNameStr() + "' function";
   }
 
   static std::string getNodeLabel(const BasicBlock *Node,
                                   const Function *Graph,
                                   bool ShortNames) {
     if (ShortNames && !Node->getName().empty())
-      return Node->getName() + ":";
+      return Node->getNameStr() + ":";
 
-    std::ostringstream Out;
+    std::string Str;
+    raw_string_ostream OS(Str);
+
     if (ShortNames) {
-      WriteAsOperand(Out, Node, false);
-      return Out.str();
+      WriteAsOperand(OS, Node, false);
+      return OS.str();
     }
 
     if (Node->getName().empty()) {
-      WriteAsOperand(Out, Node, false);
-      Out << ":";
+      WriteAsOperand(OS, Node, false);
+      OS << ":";
     }
-
-    Out << *Node;
-    std::string OutStr = Out.str();
+    
+    OS << *Node;
+    std::string OutStr = OS.str();
     if (OutStr[0] == '\n') OutStr.erase(OutStr.begin());
 
     // Process string output to make it nicer...
@@ -94,7 +92,7 @@ namespace {
       return false;
     }
 
-    void print(std::ostream &OS, const Module* = 0) const {}
+    void print(raw_ostream &OS, const Module* = 0) const {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
@@ -112,11 +110,11 @@ namespace {
     CFGOnlyViewer() : FunctionPass(&ID) {}
 
     virtual bool runOnFunction(Function &F) {
-      F.viewCFG();
+      F.viewCFGOnly();
       return false;
     }
 
-    void print(std::ostream &OS, const Module* = 0) const {}
+    void print(raw_ostream &OS, const Module* = 0) const {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
@@ -136,19 +134,21 @@ namespace {
     explicit CFGPrinter(void *pid) : FunctionPass(pid) {}
 
     virtual bool runOnFunction(Function &F) {
-      std::string Filename = "cfg." + F.getName() + ".dot";
-      cerr << "Writing '" << Filename << "'...";
-      std::ofstream File(Filename.c_str());
+      std::string Filename = "cfg." + F.getNameStr() + ".dot";
+      errs() << "Writing '" << Filename << "'...";
+      
+      std::string ErrorInfo;
+      raw_fd_ostream File(Filename.c_str(), ErrorInfo);
 
-      if (File.good())
+      if (ErrorInfo.empty())
         WriteGraph(File, (const Function*)&F);
       else
-        cerr << "  error opening file for writing!";
-      cerr << "\n";
+        errs() << "  error opening file for writing!";
+      errs() << "\n";
       return false;
     }
 
-    void print(std::ostream &OS, const Module* = 0) const {}
+    void print(raw_ostream &OS, const Module* = 0) const {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
@@ -166,18 +166,20 @@ namespace {
     CFGOnlyPrinter() : FunctionPass(&ID) {}
     explicit CFGOnlyPrinter(void *pid) : FunctionPass(pid) {}
     virtual bool runOnFunction(Function &F) {
-      std::string Filename = "cfg." + F.getName() + ".dot";
-      cerr << "Writing '" << Filename << "'...";
-      std::ofstream File(Filename.c_str());
+      std::string Filename = "cfg." + F.getNameStr() + ".dot";
+      errs() << "Writing '" << Filename << "'...";
 
-      if (File.good())
+      std::string ErrorInfo;
+      raw_fd_ostream File(Filename.c_str(), ErrorInfo);
+      
+      if (ErrorInfo.empty())
         WriteGraph(File, (const Function*)&F, true);
       else
-        cerr << "  error opening file for writing!";
-      cerr << "\n";
+        errs() << "  error opening file for writing!";
+      errs() << "\n";
       return false;
     }
-    void print(std::ostream &OS, const Module* = 0) const {}
+    void print(raw_ostream &OS, const Module* = 0) const {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
@@ -196,7 +198,7 @@ P2("dot-cfg-only",
 /// being a 'dot' and 'gv' program in your path.
 ///
 void Function::viewCFG() const {
-  ViewGraph(this, "cfg" + getName());
+  ViewGraph(this, "cfg" + getNameStr());
 }
 
 /// viewCFGOnly - This function is meant for use from the debugger.  It works
@@ -205,7 +207,7 @@ void Function::viewCFG() const {
 /// his can make the graph smaller.
 ///
 void Function::viewCFGOnly() const {
-  ViewGraph(this, "cfg" + getName(), true);
+  ViewGraph(this, "cfg" + getNameStr(), true);
 }
 
 FunctionPass *llvm::createCFGPrinterPass () {

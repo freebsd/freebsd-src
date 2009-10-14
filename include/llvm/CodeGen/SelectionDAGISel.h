@@ -19,6 +19,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Constant.h"
 #include "llvm/CodeGen/SelectionDAG.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 
 namespace llvm {
   class FastISel;
@@ -39,7 +40,7 @@ namespace llvm {
  
 /// SelectionDAGISel - This is the common base class used for SelectionDAG-based
 /// pattern-matching instruction selectors.
-class SelectionDAGISel : public FunctionPass {
+class SelectionDAGISel : public MachineFunctionPass {
 public:
   const TargetMachine &TM;
   TargetLowering &TLI;
@@ -62,9 +63,9 @@ public:
 
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
 
-  virtual bool runOnFunction(Function &Fn);
+  virtual bool runOnMachineFunction(MachineFunction &MF);
 
-  unsigned MakeReg(MVT VT);
+  unsigned MakeReg(EVT VT);
 
   virtual void EmitFunctionEntryCode(Function &Fn, MachineFunction &MF) {}
   virtual void InstructionSelect() = 0;

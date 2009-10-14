@@ -18,7 +18,6 @@
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/RegisterCoalescer.h"
 #include "llvm/ADT/BitVector.h"
-#include <queue>
 
 namespace llvm {
   class SimpleRegisterCoalescing;
@@ -33,44 +32,8 @@ namespace llvm {
   struct CopyRec {
     MachineInstr *MI;
     unsigned LoopDepth;
-    bool isBackEdge;
-    CopyRec(MachineInstr *mi, unsigned depth, bool be)
-      : MI(mi), LoopDepth(depth), isBackEdge(be) {};
-  };
-
-  template<class SF> class JoinPriorityQueue;
-
-  /// CopyRecSort - Sorting function for coalescer queue.
-  ///
-  struct CopyRecSort : public std::binary_function<CopyRec,CopyRec,bool> {
-    JoinPriorityQueue<CopyRecSort> *JPQ;
-    explicit CopyRecSort(JoinPriorityQueue<CopyRecSort> *jpq) : JPQ(jpq) {}
-    CopyRecSort(const CopyRecSort &RHS) : JPQ(RHS.JPQ) {}
-    bool operator()(CopyRec left, CopyRec right) const;
-  };
-
-  /// JoinQueue - A priority queue of copy instructions the coalescer is
-  /// going to process.
-  template<class SF>
-  class JoinPriorityQueue {
-    SimpleRegisterCoalescing *Rc;
-    std::priority_queue<CopyRec, std::vector<CopyRec>, SF> Queue;
-
-  public:
-    explicit JoinPriorityQueue(SimpleRegisterCoalescing *rc)
-      : Rc(rc), Queue(SF(this)) {}
-
-    bool empty() const { return Queue.empty(); }
-    void push(CopyRec R) { Queue.push(R); }
-    CopyRec pop() {
-      if (empty()) return CopyRec(0, 0, false);
-      CopyRec R = Queue.top();
-      Queue.pop();
-      return R;
-    }
-
-    // Callbacks to SimpleRegisterCoalescing.
-    unsigned getRepIntervalSize(unsigned Reg);
+    CopyRec(MachineInstr *mi, unsigned depth)
+      : MI(mi), LoopDepth(depth) {};
   };
 
   class SimpleRegisterCoalescing : public MachineFunctionPass,
@@ -82,13 +45,10 @@ namespace llvm {
     const TargetInstrInfo* tii_;
     LiveIntervals *li_;
     const MachineLoopInfo* loopInfo;
+    AliasAnalysis *AA;
     
     BitVector allocatableRegs_;
     DenseMap<const TargetRegisterClass*, BitVector> allocatableRCRegs_;
-
-    /// JoinQueue - A priority queue of copy instructions the coalescer is
-    /// going to process.
-    JoinPriorityQueue<CopyRecSort> *JoinQueue;
 
     /// JoinedCopies - Keep track of copies eliminated due to coalescing.
     ///
@@ -127,20 +87,8 @@ namespace llvm {
       return false;
     };
 
-    /// getRepIntervalSize - Called from join priority queue sorting function.
-    /// It returns the size of the interval that represent the given register.
-    unsigned getRepIntervalSize(unsigned Reg) {
-      if (!li_->hasInterval(Reg))
-        return 0;
-      return li_->getApproximateInstructionCount(li_->getInterval(Reg)) *
-             LiveInterval::InstrSlots::NUM;
-    }
-
     /// print - Implement the dump method.
-    virtual void print(std::ostream &O, const Module* = 0) const;
-    void print(std::ostream *O, const Module* M = 0) const {
-      if (O) print(*O, M);
-    }
+    virtual void print(raw_ostream &O, const Module* = 0) const;
 
   private:
     /// joinIntervals - join compatible live intervals
@@ -176,7 +124,6 @@ namespace llvm {
     /// classes.  The registers may be either phys or virt regs.
     bool differingRegisterClasses(unsigned RegA, unsigned RegB) const;
 
-
     /// AdjustCopiesBackFrom - We found a non-trivially-coalescable copy. If
     /// the source value number is defined by a copy from the destination reg
     /// see if we can merge these two destination reg valno# into a single
@@ -199,20 +146,14 @@ namespace llvm {
     /// TrimLiveIntervalToLastUse - If there is a last use in the same basic
     /// block as the copy instruction, trim the ive interval to the last use
     /// and return true.
-    bool TrimLiveIntervalToLastUse(unsigned CopyIdx,
+    bool TrimLiveIntervalToLastUse(LiveIndex CopyIdx,
                                    MachineBasicBlock *CopyMBB,
                                    LiveInterval &li, const LiveRange *LR);
 
     /// ReMaterializeTrivialDef - If the source of a copy is defined by a trivial
     /// computation, replace the copy by rematerialize the definition.
     bool ReMaterializeTrivialDef(LiveInterval &SrcInt, unsigned DstReg,
-                                 MachineInstr *CopyMI);
-
-    /// TurnCopyIntoImpDef - If source of the specified copy is an implicit def,
-    /// turn the copy into an implicit def.
-    bool TurnCopyIntoImpDef(MachineBasicBlock::iterator &I,
-                            MachineBasicBlock *MBB,
-                            unsigned DstReg, unsigned SrcReg);
+                                 unsigned DstSubIdx, MachineInstr *CopyMI);
 
     /// CanCoalesceWithImpDef - Returns true if the specified copy instruction
     /// from an implicit def to another register can be coalesced away.
@@ -266,20 +207,12 @@ namespace llvm {
     bool RangeIsDefinedByCopyFromReg(LiveInterval &li, LiveRange *LR,
                                      unsigned Reg);
 
-    /// isBackEdgeCopy - Return true if CopyMI is a back edge copy.
-    ///
-    bool isBackEdgeCopy(MachineInstr *CopyMI, unsigned DstReg) const;
-
     /// UpdateRegDefsUses - Replace all defs and uses of SrcReg to DstReg and
     /// update the subregister number if it is not zero. If DstReg is a
     /// physical register and the existing subregister number of the def / use
     /// being updated is not zero, make sure to set it to the correct physical
     /// subregister.
     void UpdateRegDefsUses(unsigned SrcReg, unsigned DstReg, unsigned SubIdx);
-
-    /// RemoveDeadImpDef - Remove implicit_def instructions which are
-    /// "re-defining" registers due to insert_subreg coalescing. e.g.
-    void RemoveDeadImpDef(unsigned Reg, LiveInterval &LI);
 
     /// RemoveUnnecessaryKills - Remove kill markers that are no longer accurate
     /// due to live range lengthening as the result of coalescing.
@@ -302,8 +235,13 @@ namespace llvm {
 
     /// lastRegisterUse - Returns the last use of the specific register between
     /// cycles Start and End or NULL if there are no uses.
-    MachineOperand *lastRegisterUse(unsigned Start, unsigned End, unsigned Reg,
-                                    unsigned &LastUseIdx) const;
+    MachineOperand *lastRegisterUse(LiveIndex Start,
+                                    LiveIndex End, unsigned Reg,
+                                    LiveIndex &LastUseIdx) const;
+
+    /// CalculateSpillWeights - Compute spill weights for all virtual register
+    /// live intervals.
+    void CalculateSpillWeights();
 
     void printRegName(unsigned reg) const;
   };

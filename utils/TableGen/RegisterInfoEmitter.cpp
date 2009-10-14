@@ -222,7 +222,7 @@ void RegisterInfoEmitter::run(raw_ostream &OS) {
     // Emit the register list now.
     OS << "  // " << Name 
        << " Register Class Value Types...\n"
-       << "  static const MVT " << Name
+       << "  static const EVT " << Name
        << "[] = {\n    ";
     for (unsigned i = 0, e = RC.VTs.size(); i != e; ++i)
       OS << getEnumName(RC.VTs[i]) << ", ";
@@ -252,7 +252,7 @@ void RegisterInfoEmitter::run(raw_ostream &OS) {
       OS << "  // " << Name
          << " Sub-register Classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "SubRegClasses [] = {\n    ";
+         << Name << "SubRegClasses[] = {\n    ";
 
       bool Empty = true;
 
@@ -298,7 +298,7 @@ void RegisterInfoEmitter::run(raw_ostream &OS) {
       OS << "  // " << Name
          << " Super-register Classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "SuperRegClasses [] = {\n    ";
+         << Name << "SuperRegClasses[] = {\n    ";
 
       bool Empty = true;
       std::map<unsigned, std::set<unsigned> >::iterator I =
@@ -334,7 +334,7 @@ void RegisterInfoEmitter::run(raw_ostream &OS) {
       OS << "  // " << Name 
          << " Register Class sub-classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "Subclasses [] = {\n    ";
+         << Name << "Subclasses[] = {\n    ";
 
       bool Empty = true;
       for (unsigned rc2 = 0, e2 = RegisterClasses.size(); rc2 != e2; ++rc2) {
@@ -382,7 +382,7 @@ void RegisterInfoEmitter::run(raw_ostream &OS) {
       OS << "  // " << Name 
          << " Register Class super-classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "Superclasses [] = {\n    ";
+         << Name << "Superclasses[] = {\n    ";
 
       bool Empty = true;
       std::map<unsigned, std::set<unsigned> >::iterator I =
@@ -767,7 +767,7 @@ void RegisterInfoEmitter::run(raw_ostream &OS) {
   }
 
   OS<<"\n  const TargetRegisterDesc RegisterDescriptors[] = { // Descriptors\n";
-  OS << "    { \"NOREG\",\t\"NOREG\",\t0,\t0,\t0 },\n";
+  OS << "    { \"NOREG\",\t0,\t0,\t0 },\n";
 
   // Now that register alias and sub-registers sets have been emitted, emit the
   // register descriptors now.
@@ -775,11 +775,6 @@ void RegisterInfoEmitter::run(raw_ostream &OS) {
   for (unsigned i = 0, e = Registers.size(); i != e; ++i) {
     const CodeGenRegister &Reg = Registers[i];
     OS << "    { \"";
-    if (!Reg.TheDef->getValueAsString("AsmName").empty())
-      OS << Reg.TheDef->getValueAsString("AsmName");
-    else
-      OS << Reg.getName();
-    OS << "\",\t\"";
     OS << Reg.getName() << "\",\t";
     if (RegisterAliases.count(Reg.TheDef))
       OS << Reg.getName() << "_AliasSet,\t";

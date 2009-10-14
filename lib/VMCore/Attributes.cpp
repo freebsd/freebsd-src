@@ -15,8 +15,10 @@
 #include "llvm/Type.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/FoldingSet.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/System/Atomic.h"
+#include "llvm/System/Mutex.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -40,7 +42,7 @@ std::string Attribute::getAsString(Attributes Attrs) {
   if (Attrs & Attribute::NoCapture)
     Result += "nocapture ";
   if (Attrs & Attribute::StructRet)
-    Result += "sret ";  
+    Result += "sret ";
   if (Attrs & Attribute::ByVal)
     Result += "byval ";
   if (Attrs & Attribute::Nest)
@@ -53,6 +55,8 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "optsize ";
   if (Attrs & Attribute::NoInline)
     Result += "noinline ";
+  if (Attrs & Attribute::InlineHint)
+    Result += "inlinehint ";
   if (Attrs & Attribute::AlwaysInline)
     Result += "alwaysinline ";
   if (Attrs & Attribute::StackProtect)
@@ -63,6 +67,8 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "noredzone ";
   if (Attrs & Attribute::NoImplicitFloat)
     Result += "noimplicitfloat ";
+  if (Attrs & Attribute::Naked)
+    Result += "naked ";
   if (Attrs & Attribute::Alignment) {
     Result += "align ";
     Result += utostr(Attribute::getAlignmentFromAttrs(Attrs));
@@ -94,7 +100,7 @@ Attributes Attribute::typeIncompatible(const Type *Ty) {
 
 namespace llvm {
 class AttributeListImpl : public FoldingSetNode {
-  unsigned RefCount;
+  sys::cas_flag RefCount;
   
   // AttributesList is uniqued, these should not be publicly available.
   void operator=(const AttributeListImpl &); // Do not implement
@@ -108,8 +114,11 @@ public:
     RefCount = 0;
   }
   
-  void AddRef() { ++RefCount; }
-  void DropRef() { if (--RefCount == 0) delete this; }
+  void AddRef() { sys::AtomicIncrement(&RefCount); }
+  void DropRef() {
+    sys::cas_flag old = sys::AtomicDecrement(&RefCount);
+    if (old == 0) delete this;
+  }
   
   void Profile(FoldingSetNodeID &ID) const {
     Profile(ID, Attrs.data(), Attrs.size());
@@ -122,9 +131,11 @@ public:
 };
 }
 
+static ManagedStatic<sys::SmartMutex<true> > ALMutex;
 static ManagedStatic<FoldingSet<AttributeListImpl> > AttributesLists;
 
 AttributeListImpl::~AttributeListImpl() {
+  sys::SmartScopedLock<true> Lock(*ALMutex);
   AttributesLists->RemoveNode(this);
 }
 
@@ -147,6 +158,9 @@ AttrListPtr AttrListPtr::get(const AttributeWithIndex *Attrs, unsigned NumAttrs)
   FoldingSetNodeID ID;
   AttributeListImpl::Profile(ID, Attrs, NumAttrs);
   void *InsertPos;
+  
+  sys::SmartScopedLock<true> Lock(*ALMutex);
+  
   AttributeListImpl *PAL =
     AttributesLists->FindNodeOrInsertPos(ID, InsertPos);
   
@@ -304,11 +318,11 @@ AttrListPtr AttrListPtr::removeAttr(unsigned Idx, Attributes Attrs) const {
 }
 
 void AttrListPtr::dump() const {
-  cerr << "PAL[ ";
+  errs() << "PAL[ ";
   for (unsigned i = 0; i < getNumSlots(); ++i) {
     const AttributeWithIndex &PAWI = getSlot(i);
-    cerr << "{" << PAWI.Index << "," << PAWI.Attrs << "} ";
+    errs() << "{" << PAWI.Index << "," << PAWI.Attrs << "} ";
   }
   
-  cerr << "]\n";
+  errs() << "]\n";
 }

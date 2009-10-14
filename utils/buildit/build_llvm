@@ -56,13 +56,19 @@ DIR=`pwd`
 DARWIN_VERS=`uname -r | sed 's/\..*//'`
 echo DARWIN_VERS = $DARWIN_VERS
 
-# If the user has CC set in their environment unset it now
-unset CC
-
-DT_HOME=$DEST_DIR/Developer/usr
-DEST_ROOT="/Developer$DEST_ROOT"
+if [ "x$RC_ProjectName" = "xllvmCore_Embedded" ]; then
+    DT_HOME=$DEST_DIR/Developer/Platforms/iPhoneOS.platform/Developer/usr
+    DEST_ROOT="/Developer/Platforms/iPhoneOS.platform/Developer$DEST_ROOT"
+else
+    DT_HOME=$DEST_DIR/Developer/usr
+    DEST_ROOT="/Developer$DEST_ROOT"
+fi
 if [ "x$DEVELOPER_BIN" != "x" ]; then
-    DT_HOME=$DEST_DIR/$DEVELOPER_DIR/usr
+    if [ "x$RC_ProjectName" = "xllvmCore_Embedded" ]; then
+        DT_HOME=$DEST_DIR/Developer/Platforms/iPhoneOS.platform/$DEVELOPER_DIR/usr
+    else
+        DT_HOME=$DEST_DIR/$DEVELOPER_DIR/usr
+    fi
     DEST_ROOT="/$DEVELOPER_DIR$DEST_ROOT"
 fi
 
@@ -81,11 +87,23 @@ ln -s $ORIG_SRC_DIR/* $SRC_DIR/ || exit 1
 mkdir -p $DIR/obj-llvm || exit 1
 cd $DIR/obj-llvm || exit 1
 
+# If the user has set CC or CXX, respect their wishes.  If not,
+# compile with LLVM-GCC/LLVM-G++ if available; if LLVM is not
+# available, fall back to usual GCC/G++ default.
+savedPATH=$PATH ; PATH="$PATH:/Developer/usr/bin"
+XTMPCC=$(which llvm-gcc)
+if [ x$CC  = x -a x$XTMPCC != x ] ; then export CC=$XTMPCC  ; fi
+XTMPCC=$(which llvm-g++)
+if [ x$CXX = x -a x$XTMPCC != x ] ; then export CXX=$XTMPCC ; fi
+PATH=$savedPATH
+unset XTMPCC savedPATH
+
 if [ \! -f Makefile.config ]; then
     $SRC_DIR/configure --prefix=$DT_HOME/local \
         --enable-targets=arm,x86,powerpc,cbe \
         --enable-assertions=$LLVM_ASSERTIONS \
         --enable-optimized=$LLVM_OPTIMIZED \
+        --disable-bindings \
         || exit 1
 fi
 
@@ -136,12 +154,13 @@ if [ "x$MAJ_VER" != "x4" -o "x$MIN_VER" != "x0" ]; then
 fi
 
 make $JOBS_FLAG $OPTIMIZE_OPTS UNIVERSAL=1 UNIVERSAL_ARCH="$TARGETS" \
+    NO_RUNTIME_LIBS=1 \
     LLVM_SUBMIT_VERSION=$LLVM_SUBMIT_VERSION \
     LLVM_SUBMIT_SUBVERSION=$LLVM_SUBMIT_SUBVERSION \
     CXXFLAGS="-DLLVM_VERSION_INFO='\" Apple Build #$LLVM_VERSION\"'" \
     VERBOSE=1
 
-if ! test $? == 0 ; then
+if [ $? != 0 ] ; then
     echo "error: LLVM 'make' failed!"
     exit 1
 fi 
@@ -159,6 +178,7 @@ cd $DIR/obj-llvm || exit 1
 
 # Install the tree into the destination directory.
 make $LOCAL_MAKEFLAGS $OPTIMIZE_OPTS UNIVERSAL=1 UNIVERSAL_ARCH="$TARGETS" \
+    NO_RUNTIME_LIBS=1 \
     LLVM_SUBMIT_VERSION=$LLVM_SUBMIT_VERSION \
     LLVM_SUBMIT_SUBVERSION=$LLVM_SUBMIT_SUBVERSION \
     OPTIMIZE_OPTION='-O3' VERBOSE=1 install

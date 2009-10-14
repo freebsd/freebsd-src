@@ -141,24 +141,26 @@ EmitIntrinsicToOverloadTable(const std::vector<CodeGenIntrinsic> &Ints,
 }
 
 static void EmitTypeForValueType(raw_ostream &OS, MVT::SimpleValueType VT) {
-  if (MVT(VT).isInteger()) {
-    unsigned BitWidth = MVT(VT).getSizeInBits();
-    OS << "IntegerType::get(" << BitWidth << ")";
+  if (EVT(VT).isInteger()) {
+    unsigned BitWidth = EVT(VT).getSizeInBits();
+    OS << "IntegerType::get(Context, " << BitWidth << ")";
   } else if (VT == MVT::Other) {
     // MVT::OtherVT is used to mean the empty struct type here.
-    OS << "StructType::get()";
+    OS << "StructType::get(Context)";
   } else if (VT == MVT::f32) {
-    OS << "Type::FloatTy";
+    OS << "Type::getFloatTy(Context)";
   } else if (VT == MVT::f64) {
-    OS << "Type::DoubleTy";
+    OS << "Type::getDoubleTy(Context)";
   } else if (VT == MVT::f80) {
-    OS << "Type::X86_FP80Ty";
+    OS << "Type::getX86_FP80Ty(Context)";
   } else if (VT == MVT::f128) {
-    OS << "Type::FP128Ty";
+    OS << "Type::getFP128Ty(Context)";
   } else if (VT == MVT::ppcf128) {
-    OS << "Type::PPC_FP128Ty";
+    OS << "Type::getPPC_FP128Ty(Context)";
   } else if (VT == MVT::isVoid) {
-    OS << "Type::VoidTy";
+    OS << "Type::getVoidTy(Context)";
+  } else if (VT == MVT::Metadata) {
+    OS << "Type::getMetadataTy(Context)";
   } else {
     assert(false && "Unsupported ValueType!");
   }
@@ -175,7 +177,7 @@ static void EmitTypeGenerate(raw_ostream &OS,
     return;
   }
 
-  OS << "StructType::get(";
+  OS << "StructType::get(Context, ";
 
   for (std::vector<Record*>::const_iterator
          I = ArgTypes.begin(), E = ArgTypes.end(); I != E; ++I) {
@@ -201,17 +203,17 @@ static void EmitTypeGenerate(raw_ostream &OS, const Record *ArgType,
          << "(dyn_cast<VectorType>(Tys[" << Number << "]))";
     else
       OS << "Tys[" << Number << "]";
-  } else if (VT == MVT::iAny || VT == MVT::fAny) {
+  } else if (VT == MVT::iAny || VT == MVT::fAny || VT == MVT::vAny) {
     // NOTE: The ArgNo variable here is not the absolute argument number, it is
     // the index of the "arbitrary" type in the Tys array passed to the
     // Intrinsic::getDeclaration function. Consequently, we only want to
     // increment it when we actually hit an overloaded type. Getting this wrong
     // leads to very subtle bugs!
     OS << "Tys[" << ArgNo++ << "]";
-  } else if (MVT(VT).isVector()) {
-    MVT VVT = VT;
+  } else if (EVT(VT).isVector()) {
+    EVT VVT = VT;
     OS << "VectorType::get(";
-    EmitTypeForValueType(OS, VVT.getVectorElementType().getSimpleVT());
+    EmitTypeForValueType(OS, VVT.getVectorElementType().getSimpleVT().SimpleTy);
     OS << ", " << VVT.getVectorNumElements() << ")";
   } else if (VT == MVT::iPTR) {
     OS << "PointerType::getUnqual(";
@@ -227,7 +229,7 @@ static void EmitTypeGenerate(raw_ostream &OS, const Record *ArgType,
     ++ArgNo;
   } else if (VT == MVT::isVoid) {
     if (ArgNo == 0)
-      OS << "Type::VoidTy";
+      OS << "Type::getVoidTy(Context)";
     else
       // MVT::isVoid is used to mean varargs here.
       OS << "...";
@@ -302,6 +304,7 @@ void IntrinsicEmitter::EmitVerifier(const std::vector<CodeGenIntrinsic> &Ints,
     const RecPair &ArgTypes = I->first;
     const std::vector<Record*> &RetTys = ArgTypes.first;
     const std::vector<Record*> &ParamTys = ArgTypes.second;
+    std::vector<unsigned> OverloadedTypeIndices;
 
     OS << "    VerifyIntrinsicPrototype(ID, IF, " << RetTys.size() << ", "
        << ParamTys.size();
@@ -313,6 +316,9 @@ void IntrinsicEmitter::EmitVerifier(const std::vector<CodeGenIntrinsic> &Ints,
 
       if (ArgType->isSubClassOf("LLVMMatchType")) {
         unsigned Number = ArgType->getValueAsInt("Number");
+        assert(Number < OverloadedTypeIndices.size() &&
+               "Invalid matching number!");
+        Number = OverloadedTypeIndices[Number];
         if (ArgType->isSubClassOf("LLVMExtendedElementVectorType"))
           OS << "~(ExtendedElementVectorType | " << Number << ")";
         else if (ArgType->isSubClassOf("LLVMTruncatedElementVectorType"))
@@ -322,6 +328,9 @@ void IntrinsicEmitter::EmitVerifier(const std::vector<CodeGenIntrinsic> &Ints,
       } else {
         MVT::SimpleValueType VT = getValueType(ArgType->getValueAsDef("VT"));
         OS << getEnumName(VT);
+
+        if (EVT(VT).isOverloaded())
+          OverloadedTypeIndices.push_back(j);
 
         if (VT == MVT::isVoid && j != 0 && j != je - 1)
           throw "Var arg type not last argument";
@@ -335,6 +344,9 @@ void IntrinsicEmitter::EmitVerifier(const std::vector<CodeGenIntrinsic> &Ints,
 
       if (ArgType->isSubClassOf("LLVMMatchType")) {
         unsigned Number = ArgType->getValueAsInt("Number");
+        assert(Number < OverloadedTypeIndices.size() &&
+               "Invalid matching number!");
+        Number = OverloadedTypeIndices[Number];
         if (ArgType->isSubClassOf("LLVMExtendedElementVectorType"))
           OS << "~(ExtendedElementVectorType | " << Number << ")";
         else if (ArgType->isSubClassOf("LLVMTruncatedElementVectorType"))
@@ -344,6 +356,9 @@ void IntrinsicEmitter::EmitVerifier(const std::vector<CodeGenIntrinsic> &Ints,
       } else {
         MVT::SimpleValueType VT = getValueType(ArgType->getValueAsDef("VT"));
         OS << getEnumName(VT);
+
+        if (EVT(VT).isOverloaded())
+          OverloadedTypeIndices.push_back(j + RetTys.size());
 
         if (VT == MVT::isVoid && j != 0 && j != je - 1)
           throw "Var arg type not last argument";

@@ -53,8 +53,8 @@ FPVAL               ::= ESAPINTVAL ^ "." ^ EUAPINTVAL | "0x" ^ HexDigitSeq ;
 The rest of this file is derived directly from llvmAsmParser.y.
 *)
 
-ArithmeticOps ::= add | fadd | sub | fsub | mul | fmul |
-                  udiv | sdiv | fdiv | urem | srem | frem ;
+ArithmeticOps ::= + OptNW add | fadd | OptNW sub | fsub | OptNW mul | fmul |
+                  udiv | OptExact sdiv | fdiv | urem | srem | frem ;
 LogicalOps    ::= shl | lshr | ashr | and | or | xor;
 CastOps       ::= trunc | zext | sext | fptrunc | fpext | bitcast |
                   uitofp | sitofp | fptoui | fptosi | inttoptr | ptrtoint ;
@@ -89,6 +89,7 @@ GVInternalLinkage
  | appending
  | dllexport
  | common
+ | private
  ;
 
 GVExternalLinkage
@@ -160,6 +161,7 @@ FuncAttr      ::= noreturn
  | signext
  | readnone
  | readonly
+ | inlinehint
  | noinline
  | alwaysinline
  | optsize
@@ -232,14 +234,12 @@ ConstVal::= Types "[" ^ ConstVector ^ "]"
  | Types FPVAL ;
 
 ConstExpr::= CastOps "(" ^ ConstVal to Types ^ ")"
- | getelementptr "(" ^ ConstVal IndexList ^ ")"
+ | getelementptr OptInBounds "(" ^ ConstVal IndexList ^ ")"
  | select "(" ^ ConstVal ^ "," ConstVal ^ "," ConstVal ^ ")"
  | ArithmeticOps "(" ^ ConstVal ^ "," ConstVal ^ ")"
  | LogicalOps "(" ^ ConstVal ^ "," ConstVal ^ ")"
  | icmp IPredicates "(" ^ ConstVal ^ "," ConstVal ^ ")"
  | fcmp FPredicates "(" ^ ConstVal ^ "," ConstVal ^ ")"
- | vicmp IPredicates "(" ^ ConstVal ^ "," ConstVal ^ ")"
- | vfcmp FPredicates "(" ^ ConstVal ^ "," ConstVal ^ ")"
  | extractelement "(" ^ ConstVal ^ "," ConstVal ^ ")"
  | insertelement "(" ^ ConstVal ^ "," ConstVal ^ "," ConstVal ^ ")"
  | shufflevector "(" ^ ConstVal ^ "," ConstVal ^ "," ConstVal ^ ")"
@@ -382,8 +382,6 @@ InstVal ::=
  | LogicalOps Types ValueRef ^ "," ValueRef
  | icmp IPredicates Types ValueRef ^ "," ValueRef
  | fcmp FPredicates Types ValueRef ^ "," ValueRef
- | vicmp IPredicates Types ValueRef ^ "," ValueRef
- | vfcmp FPredicates Types ValueRef ^ "," ValueRef
  | CastOps ResolvedVal to Types
  | select ResolvedVal ^ "," ResolvedVal ^ "," ResolvedVal
  | "va_arg" ResolvedVal ^ "," Types
@@ -396,6 +394,11 @@ InstVal ::=
  | MemoryInst ;
 
 OptVolatile ::= - volatile | _ ;
+OptExact ::= - exact | _ ;
+OptNSW ::= - nsw | _ ;
+OptNUW ::= - nuw | _ ;
+OptNW  ::= OptNUW OptNSW ;
+OptInBounds  ::= - inbounds | _ ;
 
 MemoryInst ::= malloc Types OptCAlign
  | malloc Types ^ "," INTTYPE ValueRef OptCAlign
@@ -405,6 +408,6 @@ MemoryInst ::= malloc Types OptCAlign
  | OptVolatile load Types ValueRef OptCAlign
  | OptVolatile store ResolvedVal ^ "," Types ValueRef OptCAlign
  | getresult Types ValueRef ^ "," EUINT64VAL
- | getelementptr Types ValueRef IndexList
+ | getelementptr OptInBounds Types ValueRef IndexList
  | extractvalue Types ValueRef ^ ConstantIndexList 
  | insertvalue Types ValueRef ^ "," Types ValueRef ^ ConstantIndexList ;

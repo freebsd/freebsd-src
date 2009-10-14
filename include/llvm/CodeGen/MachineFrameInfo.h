@@ -14,17 +14,20 @@
 #ifndef LLVM_CODEGEN_MACHINEFRAMEINFO_H
 #define LLVM_CODEGEN_MACHINEFRAMEINFO_H
 
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
-#include <iosfwd>
 #include <vector>
 
 namespace llvm {
+class raw_ostream;
 class TargetData;
 class TargetRegisterClass;
 class Type;
 class MachineModuleInfo;
 class MachineFunction;
+class MachineBasicBlock;
 class TargetFrameInfo;
 
 /// The CalleeSavedInfo class tracks the information need to locate where a
@@ -130,11 +133,14 @@ class MachineFrameInfo {
   uint64_t StackSize;
   
   /// OffsetAdjustment - The amount that a frame offset needs to be adjusted to
-  /// have the actual offset from the stack/frame pointer.  The calculation is 
-  /// MFI->getObjectOffset(Index) + StackSize - TFI.getOffsetOfLocalArea() +
-  /// OffsetAdjustment.  If OffsetAdjustment is zero (default) then offsets are
-  /// away from TOS. If OffsetAdjustment == StackSize then offsets are toward
-  /// TOS.
+  /// have the actual offset from the stack/frame pointer.  The exact usage of
+  /// this is target-dependent, but it is typically used to adjust between
+  /// SP-relative and FP-relative offsets.  E.G., if objects are accessed via
+  /// SP then OffsetAdjustment is zero; if FP is used, OffsetAdjustment is set
+  /// to the distance between the initial SP and the value in FP.  For many
+  /// targets, this value is only used when generating debug info (via
+  /// TargetRegisterInfo::getFrameIndexOffset); when generating code, the
+  /// corresponding adjustments are performed directly.
   int OffsetAdjustment;
   
   /// MaxAlignment - The prolog/epilog code inserter may process objects 
@@ -166,7 +172,10 @@ class MachineFrameInfo {
   /// epilog code inserter, this data used for debug info and exception
   /// handling.
   std::vector<CalleeSavedInfo> CSInfo;
-  
+
+  /// CSIValid - Has CSInfo been set yet?
+  bool CSIValid;
+
   /// MMI - This field is set (via setMachineModuleInfo) by a module info
   /// consumer (ex. DwarfWriter) to indicate that frame layout information
   /// should be acquired.  Typically, it's the responsibility of the target's
@@ -185,6 +194,7 @@ public:
     HasCalls = false;
     StackProtectorIdx = -1;
     MaxCallFrameSize = 0;
+    CSIValid = false;
     MMI = 0;
   }
 
@@ -389,6 +399,22 @@ public:
     CSInfo = CSI;
   }
 
+  /// isCalleeSavedInfoValid - Has the callee saved info been calculated yet?
+  bool isCalleeSavedInfoValid() const { return CSIValid; }
+
+  void setCalleeSavedInfoValid(bool v) { CSIValid = v; }
+
+  /// getPristineRegs - Return a set of physical registers that are pristine on
+  /// entry to the MBB.
+  ///
+  /// Pristine registers hold a value that is useless to the current function,
+  /// but that must be preserved - they are callee saved registers that have not
+  /// been saved yet.
+  ///
+  /// Before the PrologueEpilogueInserter has placed the CSR spill code, this
+  /// method always returns an empty set.
+  BitVector getPristineRegs(const MachineBasicBlock *MBB) const;
+
   /// getMachineModuleInfo - Used by a prologue/epilogue
   /// emitter (TargetRegisterInfo) to provide frame layout information. 
   MachineModuleInfo *getMachineModuleInfo() const { return MMI; }
@@ -400,9 +426,9 @@ public:
   /// print - Used by the MachineFunction printer to print information about
   /// stack objects.  Implemented in MachineFunction.cpp
   ///
-  void print(const MachineFunction &MF, std::ostream &OS) const;
+  void print(const MachineFunction &MF, raw_ostream &OS) const;
 
-  /// dump - Call print(MF, std::cerr) to be called from the debugger.
+  /// dump - Print the function to stderr.
   void dump(const MachineFunction &MF) const;
 };
 

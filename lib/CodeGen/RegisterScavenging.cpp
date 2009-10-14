@@ -16,45 +16,20 @@
 
 #define DEBUG_TYPE "reg-scavenging"
 #include "llvm/CodeGen/RegisterScavenging.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 using namespace llvm;
-
-/// RedefinesSuperRegPart - Return true if the specified register is redefining
-/// part of a super-register.
-static bool RedefinesSuperRegPart(const MachineInstr *MI, unsigned SubReg,
-                                  const TargetRegisterInfo *TRI) {
-  bool SeenSuperUse = false;
-  bool SeenSuperDef = false;
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
-    if (!MO.isReg() || MO.isUndef())
-      continue;
-    if (TRI->isSuperRegister(SubReg, MO.getReg())) {
-      if (MO.isUse())
-        SeenSuperUse = true;
-      else if (MO.isImplicit())
-        SeenSuperDef = true;
-    }
-  }
-
-  return SeenSuperDef && SeenSuperUse;
-}
-
-static bool RedefinesSuperRegPart(const MachineInstr *MI,
-                                  const MachineOperand &MO,
-                                  const TargetRegisterInfo *TRI) {
-  assert(MO.isReg() && MO.isDef() && "Not a register def!");
-  return RedefinesSuperRegPart(MI, MO.getReg(), TRI);
-}
 
 /// setUsed - Set the register and its sub-registers as being used.
 void RegScavenger::setUsed(unsigned Reg) {
@@ -65,14 +40,38 @@ void RegScavenger::setUsed(unsigned Reg) {
     RegsAvailable.reset(SubReg);
 }
 
-/// setUnused - Set the register and its sub-registers as being unused.
-void RegScavenger::setUnused(unsigned Reg, const MachineInstr *MI) {
-  RegsAvailable.set(Reg);
+bool RegScavenger::isAliasUsed(unsigned Reg) const {
+  if (isUsed(Reg))
+    return true;
+  for (const unsigned *R = TRI->getAliasSet(Reg); *R; ++R)
+    if (isUsed(*R))
+      return true;
+  return false;
+}
 
-  for (const unsigned *SubRegs = TRI->getSubRegisters(Reg);
-       unsigned SubReg = *SubRegs; ++SubRegs)
-    if (!RedefinesSuperRegPart(MI, Reg, TRI))
-      RegsAvailable.set(SubReg);
+void RegScavenger::initRegState() {
+  ScavengedReg = 0;
+  ScavengedRC = NULL;
+  ScavengeRestore = NULL;
+
+  // All registers started out unused.
+  RegsAvailable.set();
+
+  // Reserved registers are always used.
+  RegsAvailable ^= ReservedRegs;
+
+  if (!MBB)
+    return;
+
+  // Live-in registers are in use.
+  for (MachineBasicBlock::const_livein_iterator I = MBB->livein_begin(),
+         E = MBB->livein_end(); I != E; ++I)
+    setUsed(*I);
+
+  // Pristine CSRs are also unavailable.
+  BitVector PR = MBB->getParent()->getFrameInfo()->getPristineRegs(MBB);
+  for (int I = PR.find_first(); I>0; I = PR.find_next(I))
+    setUsed(I);
 }
 
 void RegScavenger::enterBasicBlock(MachineBasicBlock *mbb) {
@@ -85,6 +84,7 @@ void RegScavenger::enterBasicBlock(MachineBasicBlock *mbb) {
   assert((NumPhysRegs == 0 || NumPhysRegs == TRI->getNumRegs()) &&
          "Target changed?");
 
+  // Self-initialize.
   if (!MBB) {
     NumPhysRegs = TRI->getNumRegs();
     RegsAvailable.resize(NumPhysRegs);
@@ -100,73 +100,26 @@ void RegScavenger::enterBasicBlock(MachineBasicBlock *mbb) {
         CalleeSavedRegs.set(CSRegs[i]);
   }
 
-  MBB = mbb;
-  ScavengedReg = 0;
-  ScavengedRC = NULL;
-  ScavengeRestore = NULL;
-  CurrDist = 0;
-  DistanceMap.clear();
-
-  // All registers started out unused.
-  RegsAvailable.set();
-
-  // Reserved registers are always used.
-  RegsAvailable ^= ReservedRegs;
-
-  // Live-in registers are in use.
-  if (!MBB->livein_empty())
-    for (MachineBasicBlock::const_livein_iterator I = MBB->livein_begin(),
-           E = MBB->livein_end(); I != E; ++I)
-      setUsed(*I);
+  // RS used within emit{Pro,Epi}logue()
+  if (mbb != MBB) {
+    MBB = mbb;
+    initRegState();
+  }
 
   Tracking = false;
 }
 
-void RegScavenger::restoreScavengedReg() {
-  TII->loadRegFromStackSlot(*MBB, MBBI, ScavengedReg,
-                            ScavengingFrameIndex, ScavengedRC);
-  MachineBasicBlock::iterator II = prior(MBBI);
-  TRI->eliminateFrameIndex(II, 0, this);
-  setUsed(ScavengedReg);
-  ScavengedReg = 0;
-  ScavengedRC = NULL;
+void RegScavenger::addRegWithSubRegs(BitVector &BV, unsigned Reg) {
+  BV.set(Reg);
+  for (const unsigned *R = TRI->getSubRegisters(Reg); *R; R++)
+    BV.set(*R);
 }
 
-#ifndef NDEBUG
-/// isLiveInButUnusedBefore - Return true if register is livein the MBB not
-/// not used before it reaches the MI that defines register.
-static bool isLiveInButUnusedBefore(unsigned Reg, MachineInstr *MI,
-                                    MachineBasicBlock *MBB,
-                                    const TargetRegisterInfo *TRI,
-                                    MachineRegisterInfo* MRI) {
-  // First check if register is livein.
-  bool isLiveIn = false;
-  for (MachineBasicBlock::const_livein_iterator I = MBB->livein_begin(),
-         E = MBB->livein_end(); I != E; ++I)
-    if (Reg == *I || TRI->isSuperRegister(Reg, *I)) {
-      isLiveIn = true;
-      break;
-    }
-  if (!isLiveIn)
-    return false;
-
-  // Is there any use of it before the specified MI?
-  SmallPtrSet<MachineInstr*, 4> UsesInMBB;
-  for (MachineRegisterInfo::use_iterator UI = MRI->use_begin(Reg),
-         UE = MRI->use_end(); UI != UE; ++UI) {
-    MachineInstr *UseMI = &*UI;
-    if (UseMI->getParent() == MBB)
-      UsesInMBB.insert(UseMI);
-  }
-  if (UsesInMBB.empty())
-    return true;
-
-  for (MachineBasicBlock::iterator I = MBB->begin(), E = MI; I != E; ++I)
-    if (UsesInMBB.count(&*I))
-      return false;
-  return true;
+void RegScavenger::addRegWithAliases(BitVector &BV, unsigned Reg) {
+  BV.set(Reg);
+  for (const unsigned *R = TRI->getAliasSet(Reg); *R; R++)
+    BV.set(*R);
 }
-#endif
 
 void RegScavenger::forward() {
   // Move ptr forward.
@@ -179,7 +132,6 @@ void RegScavenger::forward() {
   }
 
   MachineInstr *MI = MBBI;
-  DistanceMap.insert(std::make_pair(MI, CurrDist++));
 
   if (MI == ScavengeRestore) {
     ScavengedReg = 0;
@@ -187,153 +139,63 @@ void RegScavenger::forward() {
     ScavengeRestore = NULL;
   }
 
-#if 0
-  if (MI->getOpcode() == TargetInstrInfo::IMPLICIT_DEF)
-    return;
-#endif
-
-  // Separate register operands into 3 classes: uses, defs, earlyclobbers.
-  SmallVector<std::pair<const MachineOperand*,unsigned>, 4> UseMOs;
-  SmallVector<std::pair<const MachineOperand*,unsigned>, 4> DefMOs;
-  SmallVector<std::pair<const MachineOperand*,unsigned>, 4> EarlyClobberMOs;
-  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
-    const MachineOperand &MO = MI->getOperand(i);
-    if (!MO.isReg() || MO.getReg() == 0 || MO.isUndef())
-      continue;
-    if (MO.isUse())
-      UseMOs.push_back(std::make_pair(&MO,i));
-    else if (MO.isEarlyClobber())
-      EarlyClobberMOs.push_back(std::make_pair(&MO,i));
-    else
-      DefMOs.push_back(std::make_pair(&MO,i));
-  }
-
-  // Process uses first.
+  // Find out which registers are early clobbered, killed, defined, and marked
+  // def-dead in this instruction.
+  BitVector EarlyClobberRegs(NumPhysRegs);
   BitVector KillRegs(NumPhysRegs);
-  for (unsigned i = 0, e = UseMOs.size(); i != e; ++i) {
-    const MachineOperand MO = *UseMOs[i].first;
-    unsigned Reg = MO.getReg();
-
-    assert(isUsed(Reg) && "Using an undefined register!");
-
-    if (MO.isKill() && !isReserved(Reg)) {
-      KillRegs.set(Reg);
-
-      // Mark sub-registers as used.
-      for (const unsigned *SubRegs = TRI->getSubRegisters(Reg);
-           unsigned SubReg = *SubRegs; ++SubRegs)
-        KillRegs.set(SubReg);
-    }
-  }
-
-  // Change states of all registers after all the uses are processed to guard
-  // against multiple uses.
-  setUnused(KillRegs);
-
-  // Process early clobber defs then process defs. We can have a early clobber
-  // that is dead, it should not conflict with a def that happens one "slot"
-  // (see InstrSlots in LiveIntervalAnalysis.h) later.
-  unsigned NumECs = EarlyClobberMOs.size();
-  unsigned NumDefs = DefMOs.size();
-
-  for (unsigned i = 0, e = NumECs + NumDefs; i != e; ++i) {
-    const MachineOperand &MO = (i < NumECs)
-      ? *EarlyClobberMOs[i].first : *DefMOs[i-NumECs].first;
-    unsigned Idx = (i < NumECs)
-      ? EarlyClobberMOs[i].second : DefMOs[i-NumECs].second;
-    unsigned Reg = MO.getReg();
-    if (MO.isUndef())
-      continue;
-
-    // If it's dead upon def, then it is now free.
-    if (MO.isDead()) {
-      setUnused(Reg, MI);
-      continue;
-    }
-
-    // Skip two-address destination operand.
-    unsigned UseIdx;
-    if (MI->isRegTiedToUseOperand(Idx, &UseIdx) &&
-        !MI->getOperand(UseIdx).isUndef()) {
-      assert(isUsed(Reg) && "Using an undefined register!");
-      continue;
-    }
-
-    // Skip if this is merely redefining part of a super-register.
-    if (RedefinesSuperRegPart(MI, MO, TRI))
-      continue;
-
-    // Implicit def is allowed to "re-define" any register. Similarly,
-    // implicitly defined registers can be clobbered.
-    assert((isReserved(Reg) || isUnused(Reg) ||
-            isLiveInButUnusedBefore(Reg, MI, MBB, TRI, MRI)) &&
-           "Re-defining a live register!");
-    setUsed(Reg);
-  }
-}
-
-void RegScavenger::backward() {
-  assert(Tracking && "Not tracking states!");
-  assert(MBBI != MBB->begin() && "Already at start of basic block!");
-  // Move ptr backward.
-  MBBI = prior(MBBI);
-
-  MachineInstr *MI = MBBI;
-  DistanceMap.erase(MI);
-  --CurrDist;
-
-  // Separate register operands into 3 classes: uses, defs, earlyclobbers.
-  SmallVector<std::pair<const MachineOperand*,unsigned>, 4> UseMOs;
-  SmallVector<std::pair<const MachineOperand*,unsigned>, 4> DefMOs;
-  SmallVector<std::pair<const MachineOperand*,unsigned>, 4> EarlyClobberMOs;
+  BitVector DefRegs(NumPhysRegs);
+  BitVector DeadRegs(NumPhysRegs);
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
-    if (!MO.isReg() || MO.getReg() == 0 || MO.isUndef())
+    if (!MO.isReg() || MO.isUndef())
       continue;
-    if (MO.isUse())
-      UseMOs.push_back(std::make_pair(&MO,i));
-    else if (MO.isEarlyClobber())
-      EarlyClobberMOs.push_back(std::make_pair(&MO,i));
-    else
-      DefMOs.push_back(std::make_pair(&MO,i));
-  }
-
-
-  // Process defs first.
-  unsigned NumECs = EarlyClobberMOs.size();
-  unsigned NumDefs = DefMOs.size();
-  for (unsigned i = 0, e = NumECs + NumDefs; i != e; ++i) {
-    const MachineOperand &MO = (i < NumDefs)
-      ? *DefMOs[i].first : *EarlyClobberMOs[i-NumDefs].first;
-    unsigned Idx = (i < NumECs)
-      ? DefMOs[i].second : EarlyClobberMOs[i-NumDefs].second;
-    if (MO.isUndef())
-      continue;
-
-    // Skip two-address destination operand.
-    if (MI->isRegTiedToUseOperand(Idx))
-      continue;
-
     unsigned Reg = MO.getReg();
-    assert(isUsed(Reg));
-    if (!isReserved(Reg))
-      setUnused(Reg, MI);
+    if (!Reg || isReserved(Reg))
+      continue;
+
+    if (MO.isUse()) {
+      // Two-address operands implicitly kill.
+      if (MO.isKill() || MI->isRegTiedToDefOperand(i))
+        addRegWithSubRegs(KillRegs, Reg);
+    } else {
+      assert(MO.isDef());
+      if (MO.isDead())
+        addRegWithSubRegs(DeadRegs, Reg);
+      else
+        addRegWithSubRegs(DefRegs, Reg);
+      if (MO.isEarlyClobber())
+        addRegWithAliases(EarlyClobberRegs, Reg);
+    }
   }
 
-  // Process uses.
-  BitVector UseRegs(NumPhysRegs);
-  for (unsigned i = 0, e = UseMOs.size(); i != e; ++i) {
-    const MachineOperand MO = *UseMOs[i].first;
+  // Verify uses and defs.
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = MI->getOperand(i);
+    if (!MO.isReg() || MO.isUndef())
+      continue;
     unsigned Reg = MO.getReg();
-    assert(isUnused(Reg) || isReserved(Reg));
-    UseRegs.set(Reg);
-
-    // Set the sub-registers as "used".
-    for (const unsigned *SubRegs = TRI->getSubRegisters(Reg);
-         unsigned SubReg = *SubRegs; ++SubRegs)
-      UseRegs.set(SubReg);
+    if (!Reg || isReserved(Reg))
+      continue;
+    if (MO.isUse()) {
+      assert(isUsed(Reg) && "Using an undefined register!");
+      assert((!EarlyClobberRegs.test(Reg) || MI->isRegTiedToDefOperand(i)) &&
+             "Using an early clobbered register!");
+    } else {
+      assert(MO.isDef());
+#if 0
+      // FIXME: Enable this once we've figured out how to correctly transfer
+      // implicit kills during codegen passes like the coalescer.
+      assert((KillRegs.test(Reg) || isUnused(Reg) ||
+              isLiveInButUnusedBefore(Reg, MI, MBB, TRI, MRI)) &&
+             "Re-defining a live register!");
+#endif
+    }
   }
-  setUsed(UseRegs);
+
+  // Commit the changes.
+  setUnused(KillRegs);
+  setUnused(DeadRegs);
+  setUsed(DefRegs);
 }
 
 void RegScavenger::getRegsUsed(BitVector &used, bool includeReserved) {
@@ -351,129 +213,110 @@ static void CreateRegClassMask(const TargetRegisterClass *RC, BitVector &Mask) {
     Mask.set(*I);
 }
 
-unsigned RegScavenger::FindUnusedReg(const TargetRegisterClass *RegClass,
-                                     const BitVector &Candidates) const {
-  // Mask off the registers which are not in the TargetRegisterClass.
-  BitVector RegsAvailableCopy(NumPhysRegs, false);
-  CreateRegClassMask(RegClass, RegsAvailableCopy);
-  RegsAvailableCopy &= RegsAvailable;
-
-  // Restrict the search to candidates.
-  RegsAvailableCopy &= Candidates;
-
-  // Returns the first unused (bit is set) register, or 0 is none is found.
-  int Reg = RegsAvailableCopy.find_first();
-  return (Reg == -1) ? 0 : Reg;
+unsigned RegScavenger::FindUnusedReg(const TargetRegisterClass *RC) const {
+  for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end();
+       I != E; ++I)
+    if (!isAliasUsed(*I))
+      return *I;
+  return 0;
 }
 
-unsigned RegScavenger::FindUnusedReg(const TargetRegisterClass *RegClass,
-                                     bool ExCalleeSaved) const {
-  // Mask off the registers which are not in the TargetRegisterClass.
-  BitVector RegsAvailableCopy(NumPhysRegs, false);
-  CreateRegClassMask(RegClass, RegsAvailableCopy);
-  RegsAvailableCopy &= RegsAvailable;
+/// findSurvivorReg - Return the candidate register that is unused for the
+/// longest after MBBI. UseMI is set to the instruction where the search
+/// stopped.
+///
+/// No more than InstrLimit instructions are inspected.
+///
+unsigned RegScavenger::findSurvivorReg(MachineBasicBlock::iterator MI,
+                                       BitVector &Candidates,
+                                       unsigned InstrLimit,
+                                       MachineBasicBlock::iterator &UseMI) {
+  int Survivor = Candidates.find_first();
+  assert(Survivor > 0 && "No candidates for scavenging");
 
-  // If looking for a non-callee-saved register, mask off all the callee-saved
-  // registers.
-  if (ExCalleeSaved)
-    RegsAvailableCopy &= ~CalleeSavedRegs;
+  MachineBasicBlock::iterator ME = MBB->getFirstTerminator();
+  assert(MI != ME && "MI already at terminator");
 
-  // Returns the first unused (bit is set) register, or 0 is none is found.
-  int Reg = RegsAvailableCopy.find_first();
-  return (Reg == -1) ? 0 : Reg;
-}
+  for (++MI; InstrLimit > 0 && MI != ME; ++MI, --InstrLimit) {
+    // Remove any candidates touched by instruction.
+    for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+      const MachineOperand &MO = MI->getOperand(i);
+      if (!MO.isReg() || MO.isUndef() || !MO.getReg() ||
+          TargetRegisterInfo::isVirtualRegister(MO.getReg()))
+        continue;
+      Candidates.reset(MO.getReg());
+      for (const unsigned *R = TRI->getAliasSet(MO.getReg()); *R; R++)
+        Candidates.reset(*R);
+    }
 
-/// findFirstUse - Calculate the distance to the first use of the
-/// specified register.
-MachineInstr*
-RegScavenger::findFirstUse(MachineBasicBlock *MBB,
-                           MachineBasicBlock::iterator I, unsigned Reg,
-                           unsigned &Dist) {
-  MachineInstr *UseMI = 0;
-  Dist = ~0U;
-  for (MachineRegisterInfo::reg_iterator RI = MRI->reg_begin(Reg),
-         RE = MRI->reg_end(); RI != RE; ++RI) {
-    MachineInstr *UDMI = &*RI;
-    if (UDMI->getParent() != MBB)
+    // Was our survivor untouched by this instruction?
+    if (Candidates.test(Survivor))
       continue;
-    DenseMap<MachineInstr*, unsigned>::iterator DI = DistanceMap.find(UDMI);
-    if (DI == DistanceMap.end()) {
-      // If it's not in map, it's below current MI, let's initialize the
-      // map.
-      I = next(I);
-      unsigned Dist = CurrDist + 1;
-      while (I != MBB->end()) {
-        DistanceMap.insert(std::make_pair(I, Dist++));
-        I = next(I);
-      }
-    }
-    DI = DistanceMap.find(UDMI);
-    if (DI->second > CurrDist && DI->second < Dist) {
-      Dist = DI->second;
-      UseMI = UDMI;
-    }
+
+    // All candidates gone?
+    if (Candidates.none())
+      break;
+
+    Survivor = Candidates.find_first();
   }
-  return UseMI;
+
+  // We ran out of candidates, so stop the search.
+  UseMI = MI;
+  return Survivor;
 }
 
 unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
                                         MachineBasicBlock::iterator I,
                                         int SPAdj) {
-  assert(ScavengingFrameIndex >= 0 &&
-         "Cannot scavenge a register without an emergency spill slot!");
-
   // Mask off the registers which are not in the TargetRegisterClass.
   BitVector Candidates(NumPhysRegs, false);
   CreateRegClassMask(RC, Candidates);
-  Candidates ^= ReservedRegs;  // Do not include reserved registers.
+  // Do not include reserved registers.
+  Candidates ^= ReservedRegs & Candidates;
 
   // Exclude all the registers being used by the instruction.
   for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
     MachineOperand &MO = I->getOperand(i);
-    if (MO.isReg())
+    if (MO.isReg() && MO.getReg() != 0 &&
+        !TargetRegisterInfo::isVirtualRegister(MO.getReg()))
       Candidates.reset(MO.getReg());
   }
 
   // Find the register whose use is furthest away.
-  unsigned SReg = 0;
-  unsigned MaxDist = 0;
-  MachineInstr *MaxUseMI = 0;
-  int Reg = Candidates.find_first();
-  while (Reg != -1) {
-    unsigned Dist;
-    MachineInstr *UseMI = findFirstUse(MBB, I, Reg, Dist);
-    for (const unsigned *AS = TRI->getAliasSet(Reg); *AS; ++AS) {
-      unsigned AsDist;
-      MachineInstr *AsUseMI = findFirstUse(MBB, I, *AS, AsDist);
-      if (AsDist < Dist) {
-        Dist = AsDist;
-        UseMI = AsUseMI;
-      }
-    }
-    if (Dist >= MaxDist) {
-      MaxDist = Dist;
-      MaxUseMI = UseMI;
-      SReg = Reg;
-    }
-    Reg = Candidates.find_next(Reg);
-  }
+  MachineBasicBlock::iterator UseMI;
+  unsigned SReg = findSurvivorReg(I, Candidates, 25, UseMI);
 
-  if (ScavengedReg != 0) {
-    assert(0 && "Scavenger slot is live, unable to scavenge another register!");
-    abort();
-  }
+  // If we found an unused register there is no reason to spill it. We have
+  // probably found a callee-saved register that has been saved in the
+  // prologue, but happens to be unused at this point.
+  if (!isAliasUsed(SReg))
+    return SReg;
 
-  // Spill the scavenged register before I.
-  TII->storeRegToStackSlot(*MBB, I, SReg, true, ScavengingFrameIndex, RC);
-  MachineBasicBlock::iterator II = prior(I);
-  TRI->eliminateFrameIndex(II, SPAdj, this);
+  assert(ScavengedReg == 0 &&
+         "Scavenger slot is live, unable to scavenge another register!");
 
-  // Restore the scavenged register before its use (or first terminator).
-  II = MaxUseMI
-    ? MachineBasicBlock::iterator(MaxUseMI) : MBB->getFirstTerminator();
-  TII->loadRegFromStackSlot(*MBB, II, SReg, ScavengingFrameIndex, RC);
-  ScavengeRestore = prior(II);
+  // Avoid infinite regress
   ScavengedReg = SReg;
+
+  // If the target knows how to save/restore the register, let it do so;
+  // otherwise, use the emergency stack spill slot.
+  if (!TRI->saveScavengerRegister(*MBB, I, RC, SReg)) {
+    // Spill the scavenged register before I.
+    assert(ScavengingFrameIndex >= 0 &&
+           "Cannot scavenge register without an emergency spill slot!");
+    TII->storeRegToStackSlot(*MBB, I, SReg, true, ScavengingFrameIndex, RC);
+    MachineBasicBlock::iterator II = prior(I);
+    TRI->eliminateFrameIndex(II, SPAdj, NULL, this);
+
+    // Restore the scavenged register before its use (or first terminator).
+    TII->loadRegFromStackSlot(*MBB, UseMI, SReg, ScavengingFrameIndex, RC);
+  } else
+    TRI->restoreScavengerRegister(*MBB, UseMI, RC, SReg);
+
+  ScavengeRestore = prior(UseMI);
+
+  // Doing this here leads to infinite regress.
+  // ScavengedReg = SReg;
   ScavengedRC = RC;
 
   return SReg;

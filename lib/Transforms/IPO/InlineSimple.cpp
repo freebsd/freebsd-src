@@ -18,11 +18,11 @@
 #include "llvm/Module.h"
 #include "llvm/Type.h"
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/InlineCost.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
-#include "llvm/Transforms/Utils/InlineCost.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
 using namespace llvm;
@@ -78,7 +78,7 @@ bool SimpleInliner::doInitialization(CallGraph &CG) {
     return false;
 
   // Don't crash on invalid code
-  if (!GV->hasInitializer())
+  if (!GV->hasDefinitiveInitializer())
     return false;
   
   const ConstantArray *InitList = dyn_cast<ConstantArray>(GV->getInitializer());

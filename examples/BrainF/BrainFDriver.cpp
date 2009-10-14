@@ -32,11 +32,12 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/Target/TargetSelect.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Target/TargetSelect.h"
-#include <fstream>
+#include "llvm/Support/raw_ostream.h"
 #include <iostream>
+#include <fstream>
 using namespace llvm;
 
 //Command line options
@@ -58,9 +59,10 @@ JIT("jit", cl::desc("Run program Just-In-Time"));
 void addMainFunction(Module *mod) {
   //define i32 @main(i32 %argc, i8 **%argv)
   Function *main_func = cast<Function>(mod->
-    getOrInsertFunction("main", IntegerType::Int32Ty, IntegerType::Int32Ty,
+    getOrInsertFunction("main", IntegerType::getInt32Ty(mod->getContext()),
+                        IntegerType::getInt32Ty(mod->getContext()),
                         PointerType::getUnqual(PointerType::getUnqual(
-                          IntegerType::Int8Ty)), NULL));
+                          IntegerType::getInt8Ty(mod->getContext()))), NULL));
   {
     Function::arg_iterator args = main_func->arg_begin();
     Value *arg_0 = args++;
@@ -70,7 +72,7 @@ void addMainFunction(Module *mod) {
   }
 
   //main.0:
-  BasicBlock *bb = BasicBlock::Create("main.0", main_func);
+  BasicBlock *bb = BasicBlock::Create(mod->getContext(), "main.0", main_func);
 
   //call void @brainf()
   {
@@ -80,59 +82,58 @@ void addMainFunction(Module *mod) {
   }
 
   //ret i32 0
-  ReturnInst::Create(ConstantInt::get(APInt(32, 0)), bb);
+  ReturnInst::Create(mod->getContext(),
+                     ConstantInt::get(mod->getContext(), APInt(32, 0)), bb);
 }
 
 int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, " BrainF compiler\n");
 
-  LLVMContext Context;
+  LLVMContext &Context = getGlobalContext();
 
   if (InputFilename == "") {
-    std::cerr<<"Error: You must specify the filename of the program to "
+    errs() << "Error: You must specify the filename of the program to "
     "be compiled.  Use --help to see the options.\n";
     abort();
   }
 
   //Get the output stream
-  std::ostream *out = &std::cout;
+  raw_ostream *out = &outs();
   if (!JIT) {
     if (OutputFilename == "") {
       std::string base = InputFilename;
-      if (InputFilename == "-") {base = "a";}
+      if (InputFilename == "-") { base = "a"; }
 
-      //Use default filename
-      const char *suffix = ".bc";
-      OutputFilename = base+suffix;
+      // Use default filename.
+      OutputFilename = base+".bc";
     }
     if (OutputFilename != "-") {
-      out = new std::
-        ofstream(OutputFilename.c_str(),
-                 std::ios::out | std::ios::trunc | std::ios::binary);
+      std::string ErrInfo;
+      out = new raw_fd_ostream(OutputFilename.c_str(), ErrInfo,
+                               raw_fd_ostream::F_Binary);
     }
   }
 
   //Get the input stream
   std::istream *in = &std::cin;
-  if (InputFilename != "-") {
+  if (InputFilename != "-")
     in = new std::ifstream(InputFilename.c_str());
-  }
 
   //Gather the compile flags
   BrainF::CompileFlags cf = BrainF::flag_off;
-  if (ArrayBoundsChecking) {
+  if (ArrayBoundsChecking)
     cf = BrainF::CompileFlags(cf | BrainF::flag_arraybounds);
-  }
 
   //Read the BrainF program
   BrainF bf;
   Module *mod = bf.parse(in, 65536, cf, Context); //64 KiB
-  if (in != &std::cin) {delete in;}
+  if (in != &std::cin)
+    delete in;
   addMainFunction(mod);
 
   //Verify generated code
   if (verifyModule(*mod)) {
-    std::cerr<<"Error: module failed verification.  This shouldn't happen.\n";
+    errs() << "Error: module failed verification.  This shouldn't happen.\n";
     abort();
   }
 
@@ -140,9 +141,8 @@ int main(int argc, char **argv) {
   if (JIT) {
     InitializeNativeTarget();
 
-    std::cout << "------- Running JIT -------\n";
-    ExistingModuleProvider *mp = new ExistingModuleProvider(mod);
-    ExecutionEngine *ee = ExecutionEngine::create(mp, false);
+    outs() << "------- Running JIT -------\n";
+    ExecutionEngine *ee = EngineBuilder(mod).create();
     std::vector<GenericValue> args;
     Function *brainf_func = mod->getFunction("brainf");
     GenericValue gv = ee->runFunction(brainf_func, args);
@@ -151,7 +151,8 @@ int main(int argc, char **argv) {
   }
 
   //Clean up
-  if (out != &std::cout) {delete out;}
+  if (out != &outs())
+    delete out;
   delete mod;
 
   llvm_shutdown();

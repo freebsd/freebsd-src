@@ -179,7 +179,7 @@ source tree in the <tt>lib/Transforms/Hello</tt> directory.</p>
 <div class="doc_code"><pre>
 # Makefile for hello pass
 
-# Path to top level of LLVM heirarchy
+# Path to top level of LLVM hierarchy
 LEVEL = ../../..
 
 # Name of the library to build
@@ -223,12 +223,14 @@ Start out with:</p>
 <div class="doc_code"><pre>
 <b>#include</b> "<a href="http://llvm.org/doxygen/Pass_8h-source.html">llvm/Pass.h</a>"
 <b>#include</b> "<a href="http://llvm.org/doxygen/Function_8h-source.html">llvm/Function.h</a>"
+<b>#include</b> "<a href="http://llvm.org/doxygen/raw__ostream_8h.html">llvm/Support/raw_ostream.h</a>"
 </pre></div>
 
 <p>Which are needed because we are writing a <tt><a
-href="http://llvm.org/doxygen/classllvm_1_1Pass.html">Pass</a></tt>, and
+href="http://llvm.org/doxygen/classllvm_1_1Pass.html">Pass</a></tt>,
 we are operating on <tt><a
-href="http://llvm.org/doxygen/classllvm_1_1Function.html">Function</a></tt>'s.</p>
+href="http://llvm.org/doxygen/classllvm_1_1Function.html">Function</a></tt>'s,
+and we will be doing some printing.</p>
 
 <p>Next we have:</p>
 <div class="doc_code"><pre>
@@ -273,7 +275,7 @@ avoid using expensive C++ runtime information.</p>
 
 <div class="doc_code"><pre>
     <b>virtual bool</b> <a href="#runOnFunction">runOnFunction</a>(Function &amp;F) {
-      llvm::cerr &lt;&lt; "<i>Hello: </i>" &lt;&lt; F.getName() &lt;&lt; "\n";
+      errs() &lt;&lt; "<i>Hello: </i>" &lt;&lt; F.getName() &lt;&lt; "\n";
       <b>return false</b>;
     }
   };  <i>// end of struct Hello</i>
@@ -312,6 +314,7 @@ is supplied as fourth argument. </p>
 <div class="doc_code"><pre>
 <b>#include</b> "<a href="http://llvm.org/doxygen/Pass_8h-source.html">llvm/Pass.h</a>"
 <b>#include</b> "<a href="http://llvm.org/doxygen/Function_8h-source.html">llvm/Function.h</a>"
+<b>#include</b> "<a href="http://llvm.org/doxygen/raw__ostream_8h.html">llvm/Support/raw_ostream.h</a>"
 
 <b>using namespace llvm;</b>
 
@@ -322,7 +325,7 @@ is supplied as fourth argument. </p>
     Hello() : FunctionPass(&amp;ID) {}
 
     <b>virtual bool</b> <a href="#runOnFunction">runOnFunction</a>(Function &amp;F) {
-      llvm::cerr &lt;&lt; "<i>Hello: </i>" &lt;&lt; F.getName() &lt;&lt; "\n";
+      errs() &lt;&lt; "<i>Hello: </i>" &lt;&lt; F.getName() &lt;&lt; "\n";
       <b>return false</b>;
     }
   };
@@ -450,7 +453,7 @@ available, from the most general to the most specific.</p>
 <p>When choosing a superclass for your Pass, you should choose the <b>most
 specific</b> class possible, while still being able to meet the requirements
 listed.  This gives the LLVM Pass Infrastructure information necessary to
-optimize how passes are run, so that the resultant compiler isn't unneccesarily
+optimize how passes are run, so that the resultant compiler isn't unnecessarily
 slow.</p>
 
 </div>
@@ -489,7 +492,7 @@ invalidated, and are never "run".</p>
 href="http://llvm.org/doxygen/classllvm_1_1ModulePass.html">ModulePass</a></tt>"
 class is the most general of all superclasses that you can use.  Deriving from
 <tt>ModulePass</tt> indicates that your pass uses the entire program as a unit,
-refering to function bodies in no predictable order, or adding and removing
+referring to function bodies in no predictable order, or adding and removing
 functions.  Because nothing is known about the behavior of <tt>ModulePass</tt>
 subclasses, no optimization can be done for their execution.</p>
 
@@ -497,7 +500,7 @@ subclasses, no optimization can be done for their execution.</p>
 the getAnalysis interface
 <tt>getAnalysis&lt;DominatorTree&gt;(llvm::Function *)</tt> to provide the
 function to retrieve analysis result for, if the function pass does not require
-any module passes. Note that this can only be done for functions for which the
+any module or immutable passes. Note that this can only be done for functions for which the
 analysis ran, e.g. in the case of dominators you should only ask for the
 DominatorTree for function definitions, not declarations.</p>
 
@@ -1826,7 +1829,7 @@ Despite that, we have kept the LLVM passes SMP ready, and you should too.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-07-02 01:38:44 +0200 (Thu, 02 Jul 2009) $
+  Last modified: $Date: 2009-10-12 16:46:08 +0200 (Mon, 12 Oct 2009) $
 </address>
 
 </body>

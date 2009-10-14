@@ -16,10 +16,12 @@
 
 #include "llvm/Target/TargetInstrItineraries.h"
 #include <cassert>
+#include <string>
 
 namespace llvm {
 
-class TargetAsmInfo;
+class Target;
+class MCAsmInfo;
 class TargetData;
 class TargetSubtarget;
 class TargetInstrInfo;
@@ -29,14 +31,14 @@ class TargetLowering;
 class TargetFrameInfo;
 class MachineCodeEmitter;
 class JITCodeEmitter;
+class ObjectCodeEmitter;
 class TargetRegisterInfo;
-class Module;
 class PassManagerBase;
 class PassManager;
 class Pass;
 class TargetMachOWriterInfo;
 class TargetELFWriterInfo;
-class raw_ostream;
+class formatted_raw_ostream;
 
 // Relocation model types.
 namespace Reloc {
@@ -79,15 +81,6 @@ namespace CodeGenOpt {
 }
 
 
-// Possible float ABI settings. Used with FloatABIType in TargetOptions.h.
-namespace FloatABI {
-  enum ABIType {
-    Default, // Target-specific (either soft of hard depending on triple, etc).
-    Soft, // Soft float.
-    Hard  // Hard float.
-  };
-}
-
 //===----------------------------------------------------------------------===//
 ///
 /// TargetMachine - Primary interface to the complete machine description for
@@ -98,35 +91,23 @@ class TargetMachine {
   TargetMachine(const TargetMachine &);   // DO NOT IMPLEMENT
   void operator=(const TargetMachine &);  // DO NOT IMPLEMENT
 protected: // Can only create subclasses.
-  TargetMachine();
+  TargetMachine(const Target &);
 
   /// getSubtargetImpl - virtual method implemented by subclasses that returns
   /// a reference to that target's TargetSubtarget-derived member variable.
   virtual const TargetSubtarget *getSubtargetImpl() const { return 0; }
+
+  /// TheTarget - The Target that this machine was created for.
+  const Target &TheTarget;
   
   /// AsmInfo - Contains target specific asm information.
   ///
-  mutable const TargetAsmInfo *AsmInfo;
+  const MCAsmInfo *AsmInfo;
   
-  /// createTargetAsmInfo - Create a new instance of target specific asm
-  /// information.
-  virtual const TargetAsmInfo *createTargetAsmInfo() const { return 0; }
-
 public:
   virtual ~TargetMachine();
 
-  /// getModuleMatchQuality - This static method should be implemented by
-  /// targets to indicate how closely they match the specified module.  This is
-  /// used by the LLC tool to determine which target to use when an explicit
-  /// -march option is not specified.  If a target returns zero, it will never
-  /// be chosen without an explicit -march option.
-  static unsigned getModuleMatchQuality(const Module &) { return 0; }
-
-  /// getJITMatchQuality - This static method should be implemented by targets
-  /// that provide JIT capabilities to indicate how suitable they are for
-  /// execution on the current host.  If a value of 0 is returned, the target
-  /// will not be used unless an explicit -march option is used.
-  static unsigned getJITMatchQuality() { return 0; }
+  const Target &getTarget() const { return TheTarget; }
 
   // Interfaces to the major aspects of target machine information:
   // -- Instruction opcode and operand information
@@ -139,12 +120,9 @@ public:
   virtual       TargetLowering    *getTargetLowering() const { return 0; }
   virtual const TargetData            *getTargetData() const { return 0; }
   
-  /// getTargetAsmInfo - Return target specific asm information.
+  /// getMCAsmInfo - Return target specific asm information.
   ///
-  const TargetAsmInfo *getTargetAsmInfo() const {
-    if (!AsmInfo) AsmInfo = createTargetAsmInfo();
-    return AsmInfo;
-  }
+  const MCAsmInfo *getMCAsmInfo() const { return AsmInfo; }
   
   /// getSubtarget - This method returns a pointer to the specified type of
   /// TargetSubtarget.  In debug builds, it verifies that the object being
@@ -225,13 +203,12 @@ public:
 
   /// addPassesToEmitFile - Add passes to the specified pass manager to get the
   /// specified file emitted.  Typically this will involve several steps of code
-  /// generation.  If Fast is set to true, the code generator should emit code
-  /// as fast as possible, though the generated code may be less efficient.
+  /// generation.
   /// This method should return FileModel::Error if emission of this file type
   /// is not supported.
   ///
   virtual FileModel::Model addPassesToEmitFile(PassManagerBase &,
-                                               raw_ostream &,
+                                               formatted_raw_ostream &,
                                                CodeGenFileType,
                                                CodeGenOpt::Level) {
     return FileModel::None;
@@ -253,6 +230,16 @@ public:
   ///
   virtual bool addPassesToEmitFileFinish(PassManagerBase &,
                                          JITCodeEmitter *,
+                                         CodeGenOpt::Level) {
+    return true;
+  }
+ 
+  /// addPassesToEmitFileFinish - If the passes to emit the specified file had
+  /// to be split up (e.g., to add an object writer pass), this method can be
+  /// used to finish up adding passes to emit the file, if necessary.
+  ///
+  virtual bool addPassesToEmitFileFinish(PassManagerBase &,
+                                         ObjectCodeEmitter *,
                                          CodeGenOpt::Level) {
     return true;
   }
@@ -285,7 +272,7 @@ public:
   /// require having the entire module at once.  This is not recommended, do not
   /// use this.
   virtual bool WantsWholeFile() const { return false; }
-  virtual bool addPassesToEmitWholeFile(PassManager &, raw_ostream &,
+  virtual bool addPassesToEmitWholeFile(PassManager &, formatted_raw_ostream &,
                                         CodeGenFileType,
                                         CodeGenOpt::Level) {
     return true;
@@ -297,8 +284,8 @@ public:
 ///
 class LLVMTargetMachine : public TargetMachine {
 protected: // Can only create subclasses.
-  LLVMTargetMachine() { }
-
+  LLVMTargetMachine(const Target &T, const std::string &TargetTriple);
+  
   /// addCommonCodeGenPasses - Add standard LLVM codegen passes used for
   /// both emitting to assembly files or machine code output.
   ///
@@ -318,7 +305,7 @@ public:
   /// target-specific passes in standard locations.
   ///
   virtual FileModel::Model addPassesToEmitFile(PassManagerBase &PM,
-                                               raw_ostream &Out,
+                                               formatted_raw_ostream &Out,
                                                CodeGenFileType FileType,
                                                CodeGenOpt::Level);
   
@@ -335,7 +322,15 @@ public:
   /// used to finish up adding passes to emit the file, if necessary.
   ///
   virtual bool addPassesToEmitFileFinish(PassManagerBase &PM,
-                                         JITCodeEmitter *MCE,
+                                         JITCodeEmitter *JCE,
+                                         CodeGenOpt::Level);
+ 
+  /// addPassesToEmitFileFinish - If the passes to emit the specified file had
+  /// to be split up (e.g., to add an object writer pass), this method can be
+  /// used to finish up adding passes to emit the file, if necessary.
+  ///
+  virtual bool addPassesToEmitFileFinish(PassManagerBase &PM,
+                                         ObjectCodeEmitter *OCE,
                                          CodeGenOpt::Level);
  
   /// addPassesToEmitMachineCode - Add passes to the specified pass manager to
@@ -367,18 +362,26 @@ public:
     return true;
   }
 
-  /// addPreRegAllocPasses - This method may be implemented by targets that want
-  /// to run passes immediately before register allocation. This should return
+  /// addPreRegAlloc - This method may be implemented by targets that want to
+  /// run passes immediately before register allocation. This should return
   /// true if -print-machineinstrs should print after these passes.
   virtual bool addPreRegAlloc(PassManagerBase &, CodeGenOpt::Level) {
     return false;
   }
 
-  /// addPostRegAllocPasses - This method may be implemented by targets that
-  /// want to run passes after register allocation but before prolog-epilog
+  /// addPostRegAlloc - This method may be implemented by targets that want
+  /// to run passes after register allocation but before prolog-epilog
   /// insertion.  This should return true if -print-machineinstrs should print
   /// after these passes.
   virtual bool addPostRegAlloc(PassManagerBase &, CodeGenOpt::Level) {
+    return false;
+  }
+
+  /// addPreSched2 - This method may be implemented by targets that want to
+  /// run passes after prolog-epilog insertion and before the second instruction
+  /// scheduling pass.  This should return true if -print-machineinstrs should
+  /// print after these passes.
+  virtual bool addPreSched2(PassManagerBase &, CodeGenOpt::Level) {
     return false;
   }
   
@@ -390,51 +393,57 @@ public:
   }
   
   
-  /// addAssemblyEmitter - This pass should be overridden by the target to add
-  /// the asmprinter, if asm emission is supported.  If this is not supported,
-  /// 'true' should be returned.
-  virtual bool addAssemblyEmitter(PassManagerBase &, CodeGenOpt::Level,
-                                  bool /* VerboseAsmDefault */, raw_ostream &) {
-    return true;
-  }
-  
   /// addCodeEmitter - This pass should be overridden by the target to add a
   /// code emitter, if supported.  If this is not supported, 'true' should be
-  /// returned. If DumpAsm is true, the generated assembly is printed to cerr.
+  /// returned.
   virtual bool addCodeEmitter(PassManagerBase &, CodeGenOpt::Level,
-                              bool /*DumpAsm*/, MachineCodeEmitter &) {
+                              MachineCodeEmitter &) {
     return true;
   }
 
   /// addCodeEmitter - This pass should be overridden by the target to add a
   /// code emitter, if supported.  If this is not supported, 'true' should be
-  /// returned. If DumpAsm is true, the generated assembly is printed to cerr.
+  /// returned.
   virtual bool addCodeEmitter(PassManagerBase &, CodeGenOpt::Level,
-                              bool /*DumpAsm*/, JITCodeEmitter &) {
+                              JITCodeEmitter &) {
     return true;
   }
 
   /// addSimpleCodeEmitter - This pass should be overridden by the target to add
   /// a code emitter (without setting flags), if supported.  If this is not
-  /// supported, 'true' should be returned.  If DumpAsm is true, the generated
-  /// assembly is printed to cerr.
+  /// supported, 'true' should be returned.
   virtual bool addSimpleCodeEmitter(PassManagerBase &, CodeGenOpt::Level,
-                                    bool /*DumpAsm*/, MachineCodeEmitter &) {
+                                    MachineCodeEmitter &) {
     return true;
   }
 
   /// addSimpleCodeEmitter - This pass should be overridden by the target to add
   /// a code emitter (without setting flags), if supported.  If this is not
-  /// supported, 'true' should be returned.  If DumpAsm is true, the generated
-  /// assembly is printed to cerr.
+  /// supported, 'true' should be returned.
   virtual bool addSimpleCodeEmitter(PassManagerBase &, CodeGenOpt::Level,
-                                    bool /*DumpAsm*/, JITCodeEmitter &) {
+                                    JITCodeEmitter &) {
+    return true;
+  }
+
+  /// addSimpleCodeEmitter - This pass should be overridden by the target to add
+  /// a code emitter (without setting flags), if supported.  If this is not
+  /// supported, 'true' should be returned.
+  virtual bool addSimpleCodeEmitter(PassManagerBase &, CodeGenOpt::Level,
+                                    ObjectCodeEmitter &) {
     return true;
   }
 
   /// getEnableTailMergeDefault - the default setting for -enable-tail-merge
   /// on this target.  User flag overrides.
   virtual bool getEnableTailMergeDefault() const { return true; }
+
+  /// addAssemblyEmitter - Helper function which creates a target specific
+  /// assembly printer, if available.
+  ///
+  /// \return Returns 'false' on success.
+  bool addAssemblyEmitter(PassManagerBase &, CodeGenOpt::Level,
+                          bool /* VerboseAsmDefault */,
+                          formatted_raw_ostream &);
 };
 
 } // End llvm namespace

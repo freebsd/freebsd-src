@@ -1,10 +1,10 @@
 //===- llvm/System/Unix/Program.cpp -----------------------------*- C++ -*-===//
-// 
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file implements the Unix specific portion of the Program class.
@@ -18,7 +18,6 @@
 
 #include <llvm/Config/config.h>
 #include "Unix.h"
-#include <iostream>
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -35,6 +34,15 @@
 namespace llvm {
 using namespace sys;
 
+Program::Program() : Data_(0) {}
+
+Program::~Program() {}
+
+unsigned Program::GetPid() const {
+  uint64_t pid = reinterpret_cast<uint64_t>(Data_);
+  return static_cast<unsigned>(pid);
+}
+
 // This function just uses the PATH environment variable to find the program.
 Path
 Program::FindProgramByName(const std::string& progName) {
@@ -45,16 +53,17 @@ Program::FindProgramByName(const std::string& progName) {
   Path temp;
   if (!temp.set(progName)) // invalid name
     return Path();
-  // FIXME: have to check for absolute filename - we cannot assume anything
-  // about "." being in $PATH
-  if (temp.canExecute()) // already executable as is
+  // Use the given path verbatim if it contains any slashes; this matches
+  // the behavior of sh(1) and friends.
+  if (progName.find('/') != std::string::npos)
     return temp;
 
-  // At this point, the file name is valid and its not executable
- 
+  // At this point, the file name does not contain slashes. Search for it
+  // through the directories specified in the PATH environment variable.
+
   // Get the path. If its empty, we can't do anything to find it.
   const char *PathStr = getenv("PATH");
-  if (PathStr == 0) 
+  if (PathStr == 0)
     return Path();
 
   // Now we have a colon separated list of directories to search; try them.
@@ -93,7 +102,7 @@ static bool RedirectIO(const Path *Path, int FD, std::string* ErrMsg) {
     // Redirect empty paths to /dev/null
     File = "/dev/null";
   else
-    File = Path->toString();
+    File = Path->str();
 
   // Open the file
   int InFD = open(File.c_str(), FD == 0 ? O_RDONLY : O_WRONLY|O_CREAT, 0666);
@@ -110,11 +119,6 @@ static bool RedirectIO(const Path *Path, int FD, std::string* ErrMsg) {
   }
   close(InFD);      // Close the original FD
   return false;
-}
-
-static bool Timeout = false;
-static void TimeOutHandler(int Sig) {
-  Timeout = true;
 }
 
 static void SetMemoryLimits (unsigned size)
@@ -142,49 +146,47 @@ static void SetMemoryLimits (unsigned size)
 #endif
 }
 
-int 
-Program::ExecuteAndWait(const Path& path, 
-                        const char** args,
-                        const char** envp,
-                        const Path** redirects,
-                        unsigned secondsToWait,
-                        unsigned memoryLimit,
-                        std::string* ErrMsg) 
+bool
+Program::Execute(const Path& path,
+                 const char** args,
+                 const char** envp,
+                 const Path** redirects,
+                 unsigned memoryLimit,
+                 std::string* ErrMsg)
 {
   if (!path.canExecute()) {
     if (ErrMsg)
-      *ErrMsg = path.toString() + " is not executable";
-    return -1;
+      *ErrMsg = path.str() + " is not executable";
+    return false;
   }
 
-#ifdef HAVE_SYS_WAIT_H
   // Create a child process.
   int child = fork();
   switch (child) {
     // An error occured:  Return to the caller.
     case -1:
       MakeErrMsg(ErrMsg, "Couldn't fork");
-      return -1;
+      return false;
 
     // Child process: Execute the program.
     case 0: {
       // Redirect file descriptors...
       if (redirects) {
         // Redirect stdin
-        if (RedirectIO(redirects[0], 0, ErrMsg)) { return -1; }
+        if (RedirectIO(redirects[0], 0, ErrMsg)) { return false; }
         // Redirect stdout
-        if (RedirectIO(redirects[1], 1, ErrMsg)) { return -1; }
-        if (redirects[1] && redirects[2] && 
+        if (RedirectIO(redirects[1], 1, ErrMsg)) { return false; }
+        if (redirects[1] && redirects[2] &&
             *(redirects[1]) == *(redirects[2])) {
           // If stdout and stderr should go to the same place, redirect stderr
           // to the FD already open for stdout.
           if (-1 == dup2(1,2)) {
             MakeErrMsg(ErrMsg, "Can't redirect stderr to stdout");
-            return -1;
+            return false;
           }
         } else {
           // Just redirect stderr
-          if (RedirectIO(redirects[2], 2, ErrMsg)) { return -1; }
+          if (RedirectIO(redirects[2], 2, ErrMsg)) { return false; }
         }
       }
 
@@ -192,15 +194,19 @@ Program::ExecuteAndWait(const Path& path,
       if (memoryLimit!=0) {
         SetMemoryLimits(memoryLimit);
       }
-      
+
       // Execute!
       if (envp != 0)
-        execve (path.c_str(), (char**)args, (char**)envp);
+        execve(path.c_str(), (char**)args, (char**)envp);
       else
-        execv (path.c_str(), (char**)args);
-      // If the execve() failed, we should exit and let the parent pick up
-      // our non-zero exit status.
-      exit (errno);
+        execv(path.c_str(), (char**)args);
+      // If the execve() failed, we should exit. Follow Unix protocol and
+      // return 127 if the executable was not found, and 126 otherwise.
+      // Use _exit rather than exit so that atexit functions and static
+      // object destructors cloned from the parent process aren't
+      // redundantly run, and so that any data buffered in stdio buffers
+      // cloned from the parent aren't redundantly written out.
+      _exit(errno == ENOENT ? 127 : 126);
     }
 
     // Parent process: Break out of the switch to do our processing.
@@ -208,32 +214,41 @@ Program::ExecuteAndWait(const Path& path,
       break;
   }
 
-  // Make sure stderr and stdout have been flushed
-  std::cerr << std::flush;
-  std::cout << std::flush;
-  fsync(1);
-  fsync(2);
+  Data_ = reinterpret_cast<void*>(child);
 
+  return true;
+}
+
+int
+Program::Wait(unsigned secondsToWait,
+              std::string* ErrMsg)
+{
+#ifdef HAVE_SYS_WAIT_H
   struct sigaction Act, Old;
+
+  if (Data_ == 0) {
+    MakeErrMsg(ErrMsg, "Process not started!");
+    return -1;
+  }
 
   // Install a timeout handler.
   if (secondsToWait) {
-    Timeout = false;
-    Act.sa_sigaction = 0;
-    Act.sa_handler = TimeOutHandler;
+    memset(&Act, 0, sizeof(Act));
+    Act.sa_handler = SIG_IGN;
     sigemptyset(&Act.sa_mask);
-    Act.sa_flags = 0;
     sigaction(SIGALRM, &Act, &Old);
     alarm(secondsToWait);
   }
 
   // Parent process: Wait for the child process to terminate.
   int status;
+  uint64_t pid = reinterpret_cast<uint64_t>(Data_);
+  pid_t child = static_cast<pid_t>(pid);
   while (wait(&status) != child)
     if (secondsToWait && errno == EINTR) {
       // Kill the child.
       kill(child, SIGKILL);
-        
+
       // Turn off the alarm and restore the signal handler
       alarm(0);
       sigaction(SIGALRM, &Old, 0);
@@ -271,7 +286,25 @@ Program::ExecuteAndWait(const Path& path,
 #else
   return -99;
 #endif
-    
+
+}
+
+bool
+Program::Kill(std::string* ErrMsg) {
+  if (Data_ == 0) {
+    MakeErrMsg(ErrMsg, "Process not started!");
+    return true;
+  }
+
+  uint64_t pid64 = reinterpret_cast<uint64_t>(Data_);
+  pid_t pid = static_cast<pid_t>(pid64);
+
+  if (kill(pid, SIGKILL) != 0) {
+    MakeErrMsg(ErrMsg, "The process couldn't be killed!");
+    return true;
+  }
+
+  return false;
 }
 
 bool Program::ChangeStdinToBinary(){

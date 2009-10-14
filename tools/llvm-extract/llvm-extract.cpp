@@ -15,17 +15,19 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
+#include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/IRReader.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/SystemUtils.h"
 #include "llvm/System/Signals.h"
-#include <iostream>
 #include <memory>
-#include <fstream>
 using namespace llvm;
 
 // InputFilename - The filename to read from.
@@ -38,7 +40,7 @@ OutputFilename("o", cl::desc("Specify output filename"),
                cl::value_desc("filename"), cl::init("-"));
 
 static cl::opt<bool>
-Force("f", cl::desc("Overwrite output files"));
+Force("f", cl::desc("Enable binary output on terminals"));
 
 static cl::opt<bool>
 DeleteFn("delete", cl::desc("Delete specified Globals from Module"));
@@ -57,28 +59,25 @@ static cl::opt<std::string>
 ExtractGlobal("glob", cl::desc("Specify global to extract"), cl::init(""),
               cl::value_desc("global"));
 
+static cl::opt<bool>
+OutputAssembly("S",
+               cl::desc("Write output as LLVM assembly"), cl::Hidden);
+
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
 
-  LLVMContext Context;
+  LLVMContext &Context = getGlobalContext();
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm extractor\n");
 
+  SMDiagnostic Err;
   std::auto_ptr<Module> M;
-  
-  MemoryBuffer *Buffer = MemoryBuffer::getFileOrSTDIN(InputFilename);
-  if (Buffer == 0) {
-    cerr << argv[0] << ": Error reading file '" + InputFilename + "'\n";
-    return 1;
-  } else {
-    M.reset(ParseBitcodeFile(Buffer, Context));
-  }
-  delete Buffer;
-  
+  M.reset(ParseIRFile(InputFilename, Err, Context));
+
   if (M.get() == 0) {
-    cerr << argv[0] << ": bitcode didn't read correctly.\n";
+    Err.Print(argv[0], errs());
     return 1;
   }
 
@@ -91,8 +90,8 @@ int main(int argc, char **argv) {
   Function *F = M.get()->getFunction(ExtractFunc);
 
   if (F == 0 && G == 0) {
-    cerr << argv[0] << ": program doesn't contain function named '"
-         << ExtractFunc << "' or a global named '" << ExtractGlobal << "'!\n";
+    errs() << argv[0] << ": program doesn't contain function named '"
+           << ExtractFunc << "' or a global named '" << ExtractGlobal << "'!\n";
     return 1;
   }
 
@@ -111,28 +110,24 @@ int main(int argc, char **argv) {
   Passes.add(createDeadTypeEliminationPass());   // Remove dead types...
   Passes.add(createStripDeadPrototypesPass());   // Remove dead func decls
 
-  std::ostream *Out = 0;
+  // Make sure that the Output file gets unlinked from the disk if we get a
+  // SIGINT
+  sys::RemoveFileOnSignal(sys::Path(OutputFilename));
 
-  if (OutputFilename != "-") {  // Not stdout?
-    if (!Force && std::ifstream(OutputFilename.c_str())) {
-      // If force is not specified, make sure not to overwrite a file!
-      cerr << argv[0] << ": error opening '" << OutputFilename
-           << "': file exists!\n"
-           << "Use -f command line argument to force output\n";
-      return 1;
-    }
-    std::ios::openmode io_mode = std::ios::out | std::ios::trunc |
-                                 std::ios::binary;
-    Out = new std::ofstream(OutputFilename.c_str(), io_mode);
-  } else {                      // Specified stdout
-    // FIXME: cout is not binary!
-    Out = &std::cout;
+  std::string ErrorInfo;
+  raw_fd_ostream Out(OutputFilename.c_str(), ErrorInfo,
+                     raw_fd_ostream::F_Binary);
+  if (!ErrorInfo.empty()) {
+    errs() << ErrorInfo << '\n';
+    return 1;
   }
 
-  Passes.add(CreateBitcodeWriterPass(*Out));
+  if (OutputAssembly)
+    Passes.add(createPrintModulePass(&Out));
+  else if (Force || !CheckBitcodeOutputToConsole(Out, true))
+    Passes.add(createBitcodeWriterPass(Out));
+
   Passes.run(*M.get());
 
-  if (Out != &std::cout)
-    delete Out;
   return 0;
 }

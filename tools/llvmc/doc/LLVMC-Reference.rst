@@ -97,6 +97,11 @@ configuration libraries:
   the ``-o`` option. The ``--save-temps=cwd`` and ``--save-temps`` switches are
   both synonyms for the default behaviour.
 
+* ``--temp-dir DIRECTORY`` - Store temporary files in the given directory. This
+  directory is deleted on exit unless ``--save-temps`` is specified. If
+  ``--save-temps=obj`` is also specified, ``--temp-dir`` is given the
+  precedence.
+
 * ``--check-graph`` - Check the compilation for common errors like mismatched
   output/input language names, multiple default edges and cycles. Because of
   plugins, these checks can't be performed at compile-time. Exit with code zero
@@ -347,6 +352,12 @@ separate option groups syntactically.
      3))``. Only list options can have this attribute; you can, however, use
      the ``one_or_more`` and ``zero_or_one`` properties.
 
+   - ``init`` - this option has a default value, either a string (if it is a
+     parameter), or a boolean (if it is a switch; boolean constants are called
+     ``true`` and ``false``). List options can't have this attribute. Usage
+     examples: ``(switch_option "foo", (init true))``; ``(prefix_option "bar",
+     (init "baz"))``.
+
    - ``extern`` - this option is defined in some other plugin, see below.
 
 External options
@@ -362,7 +373,8 @@ for. Example::
      (switch_option "E", (extern))
      ...
 
-See also the section on plugin `priorities`__.
+If an external option has additional attributes besides 'extern', they are
+ignored. See also the section on plugin `priorities`__.
 
 __ priorities_
 
@@ -446,17 +458,27 @@ use TableGen inheritance instead.
   - ``empty`` - The opposite of ``not_empty``. Equivalent to ``(not (not_empty
     X))``. Provided for convenience.
 
+  - ``single_input_file`` - Returns true if there was only one input file
+    provided on the command-line. Used without arguments:
+    ``(single_input_file)``.
+
+  - ``multiple_input_files`` - Equivalent to ``(not (single_input_file))`` (the
+    case of zero input files is considered an error).
+
   - ``default`` - Always evaluates to true. Should always be the last
     test in the ``case`` expression.
 
-  - ``and`` - A standard logical combinator that returns true iff all
-    of its arguments return true. Used like this: ``(and (test1),
-    (test2), ... (testN))``. Nesting of ``and`` and ``or`` is allowed,
-    but not encouraged.
+  - ``and`` - A standard binary logical combinator that returns true iff all of
+    its arguments return true. Used like this: ``(and (test1), (test2),
+    ... (testN))``. Nesting of ``and`` and ``or`` is allowed, but not
+    encouraged.
 
-  - ``or`` - Another logical combinator that returns true only if any
-    one of its arguments returns true. Example: ``(or (test1),
-    (test2), ... (testN))``.
+  - ``or`` - A binary logical combinator that returns true iff any of its
+    arguments returns true. Example: ``(or (test1), (test2), ... (testN))``.
+
+  - ``not`` - Standard unary logical combinator that negates its
+    argument. Example: ``(not (or (test1), (test2), ... (testN)))``.
+
 
 
 Writing a tool description
@@ -487,8 +509,8 @@ The complete list of all currently implemented tool properties follows.
   - ``in_language`` - input language name. Can be either a string or a
     list, in case the tool supports multiple input languages.
 
-  - ``out_language`` - output language name. Tools are not allowed to
-    have multiple output languages.
+  - ``out_language`` - output language name. Multiple output languages are not
+    allowed.
 
   - ``output_suffix`` - output file suffix. Can also be changed
     dynamically, see documentation on actions.

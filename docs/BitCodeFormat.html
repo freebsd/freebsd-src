@@ -254,7 +254,7 @@ Blocks in a bitstream denote nested regions of the stream, and are identified by
 a content-specific id number (for example, LLVM IR uses an ID of 12 to represent
 function bodies).  Block IDs 0-7 are reserved for <a href="#stdblocks">standard blocks</a>
 whose meaning is defined by Bitcode; block IDs 8 and greater are
-application specific. Nested blocks capture the hierachical structure of the data
+application specific. Nested blocks capture the hierarchical structure of the data
 encoded in it, and various properties are associated with blocks as the file is
 parsed.  Block definitions allow the reader to efficiently skip blocks
 in constant time if the reader wants a summary of blocks, or if it wants to
@@ -462,23 +462,23 @@ emitted as their code, followed by the extra data.
 <p>The possible operand encodings are:</p>
 
 <ol>
-<li value="1">Fixed: The field should be emitted as
+<li>Fixed: The field should be emitted as
     a <a href="#fixedwidth">fixed-width value</a>, whose width is specified by
     the operand's extra data.</li>
-<li value="2">VBR: The field should be emitted as
+<li>VBR: The field should be emitted as
     a <a href="#variablewidth">variable-width value</a>, whose width is
     specified by the operand's extra data.</li>
-<li value="3">Array: This field is an array of values.  The array operand
+<li>Array: This field is an array of values.  The array operand
     has no extra data, but expects another operand to follow it which indicates
     the element type of the array.  When reading an array in an abbreviated
     record, the first integer is a vbr6 that indicates the array length,
     followed by the encoded elements of the array.  An array may only occur as
     the last operand of an abbreviation (except for the one final operand that
     gives the array's type).</li>
-<li value="4">Char6: This field should be emitted as
+<li>Char6: This field should be emitted as
     a <a href="#char6">char6-encoded value</a>.  This operand type takes no
     extra data.</li>
-<li value="5">Blob: This field is emitted as a vbr6, followed by padding to a
+<li>Blob: This field is emitted as a vbr6, followed by padding to a
     32-bit boundary (for alignment) and an array of 8-bit objects.  The array of
     bytes is further followed by tail padding to ensure that its total length is
     a multiple of 4 bytes.  This makes it very efficient for the reader to
@@ -755,7 +755,7 @@ LLVM IR is defined with the following blocks:
  src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
  <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
 <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-Last modified: $Date: 2009-04-27 00:21:57 +0200 (Mon, 27 Apr 2009) $
+Last modified: $Date: 2009-10-12 16:46:08 +0200 (Mon, 12 Oct 2009) $
 </address>
 </body>
 </html>

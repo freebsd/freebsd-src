@@ -14,6 +14,7 @@
 #include "llvm/Module.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -35,7 +36,7 @@ template class SymbolTableListTraits<BasicBlock, Function>;
 // Argument Implementation
 //===----------------------------------------------------------------------===//
 
-Argument::Argument(const Type *Ty, const std::string &Name, Function *Par)
+Argument::Argument(const Type *Ty, const Twine &Name, Function *Par)
   : Value(Ty, Value::ArgumentVal) {
   Parent = 0;
 
@@ -114,10 +115,8 @@ void Argument::removeAttr(Attributes attr) {
 // Helper Methods in Function
 //===----------------------------------------------------------------------===//
 
-LLVMContext* Function::getContext() {
-  Module* M = getParent();
-  if (M) return &M->getContext();
-  return 0;
+LLVMContext &Function::getContext() const {
+  return getType()->getContext();
 }
 
 const FunctionType *Function::getFunctionType() const {
@@ -145,7 +144,7 @@ void Function::eraseFromParent() {
 //===----------------------------------------------------------------------===//
 
 Function::Function(const FunctionType *Ty, LinkageTypes Linkage,
-                   const std::string &name, Module *ParentModule)
+                   const Twine &name, Module *ParentModule)
   : GlobalValue(PointerType::getUnqual(Ty), 
                 Value::FunctionVal, 0, 0, Linkage, name) {
   assert(FunctionType::isValidReturnType(getReturnType()) &&
@@ -183,7 +182,7 @@ void Function::BuildLazyArguments() const {
   // Create the arguments vector, all arguments start out unnamed.
   const FunctionType *FT = getFunctionType();
   for (unsigned i = 0, e = FT->getNumParams(); i != e; ++i) {
-    assert(FT->getParamType(i) != Type::VoidTy &&
+    assert(FT->getParamType(i) != Type::getVoidTy(FT->getContext()) &&
            "Cannot have void typed arguments!");
     ArgumentList.push_back(new Argument(FT->getParamType(i)));
   }
@@ -242,18 +241,18 @@ static StringPool *GCNamePool;
 static ManagedStatic<sys::SmartRWMutex<true> > GCLock;
 
 bool Function::hasGC() const {
-  sys::SmartScopedReader<true> Reader(&*GCLock);
+  sys::SmartScopedReader<true> Reader(*GCLock);
   return GCNames && GCNames->count(this);
 }
 
 const char *Function::getGC() const {
   assert(hasGC() && "Function has no collector");
-  sys::SmartScopedReader<true> Reader(&*GCLock);
+  sys::SmartScopedReader<true> Reader(*GCLock);
   return *(*GCNames)[this];
 }
 
 void Function::setGC(const char *Str) {
-  sys::SmartScopedWriter<true> Writer(&*GCLock);
+  sys::SmartScopedWriter<true> Writer(*GCLock);
   if (!GCNamePool)
     GCNamePool = new StringPool();
   if (!GCNames)
@@ -262,7 +261,7 @@ void Function::setGC(const char *Str) {
 }
 
 void Function::clearGC() {
-  sys::SmartScopedWriter<true> Writer(&*GCLock);
+  sys::SmartScopedWriter<true> Writer(*GCLock);
   if (GCNames) {
     GCNames->erase(this);
     if (GCNames->empty()) {
@@ -328,15 +327,16 @@ std::string Intrinsic::getName(ID id, const Type **Tys, unsigned numTys) {
   for (unsigned i = 0; i < numTys; ++i) {
     if (const PointerType* PTyp = dyn_cast<PointerType>(Tys[i])) {
       Result += ".p" + llvm::utostr(PTyp->getAddressSpace()) + 
-                MVT::getMVT(PTyp->getElementType()).getMVTString();
+                EVT::getEVT(PTyp->getElementType()).getEVTString();
     }
     else if (Tys[i])
-      Result += "." + MVT::getMVT(Tys[i]).getMVTString();
+      Result += "." + EVT::getEVT(Tys[i]).getEVTString();
   }
   return Result;
 }
 
-const FunctionType *Intrinsic::getType(ID id, const Type **Tys, 
+const FunctionType *Intrinsic::getType(LLVMContext &Context,
+                                       ID id, const Type **Tys, 
                                        unsigned numTys) {
   const Type *ResultTy = NULL;
   std::vector<const Type*> ArgTys;
@@ -370,7 +370,8 @@ Function *Intrinsic::getDeclaration(Module *M, ID id, const Type **Tys,
   // because intrinsics must be a specific type.
   return
     cast<Function>(M->getOrInsertFunction(getName(id, Tys, numTys),
-                                          getType(id, Tys, numTys)));
+                                          getType(M->getContext(),
+                                                  id, Tys, numTys)));
 }
 
 // This defines the "Intrinsic::getIntrinsicForGCCBuiltin()" method.

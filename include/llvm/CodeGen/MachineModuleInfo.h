@@ -42,18 +42,34 @@
 #include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/GlobalValue.h"
 #include "llvm/Pass.h"
+#include "llvm/Metadata.h"
+
+#define ATTACH_DEBUG_INFO_TO_AN_INSN 1
 
 namespace llvm {
 
 //===----------------------------------------------------------------------===//
 // Forward declarations.
 class Constant;
+class MDNode;
 class GlobalVariable;
 class MachineBasicBlock;
 class MachineFunction;
 class Module;
 class PointerType;
 class StructType;
+  
+  
+/// MachineModuleInfoImpl - This class can be derived from and used by targets
+/// to hold private target-specific information for each Module.  Objects of
+/// type are accessed/created with MMI::getInfo and destroyed when the
+/// MachineModuleInfo is destroyed.
+class MachineModuleInfoImpl {
+public:
+  virtual ~MachineModuleInfoImpl();
+};
+  
+  
 
 //===----------------------------------------------------------------------===//
 /// LandingPadInfo - This structure is used to retain landing pad info for
@@ -80,7 +96,11 @@ struct LandingPadInfo {
 /// schemes and reformated for specific use.
 ///
 class MachineModuleInfo : public ImmutablePass {
-private:
+  /// ObjFileMMI - This is the object-file-format-specific implementation of
+  /// MachineModuleInfoImpl, which lets targets accumulate whatever info they
+  /// want.
+  MachineModuleInfoImpl *ObjFileMMI;
+
   // LabelIDList - One entry per assigned label.  Normally the entry is equal to
   // the list index(+1).  If the entry is zero then the label has been deleted.
   // Any other value indicates the label has been deleted by is mapped to
@@ -112,8 +132,9 @@ private:
   // common EH frames.
   std::vector<Function *> Personalities;
 
-  // UsedFunctions - the functions in the llvm.used list in a more easily
-  // searchable format.
+  /// UsedFunctions - The functions in the @llvm.used list in a more easily
+  /// searchable format.  This does not include the functions in
+  /// llvm.compiler.used.
   SmallPtrSet<const Function *, 32> UsedFunctions;
 
   /// UsedDbgLabels - labels are used by debug info entries.
@@ -125,28 +146,45 @@ private:
   /// DbgInfoAvailable - True if debugging information is available
   /// in this module.
   bool DbgInfoAvailable;
+
 public:
   static char ID; // Pass identification, replacement for typeid
+
+  typedef SmallVector< std::pair< WeakMetadataVH, unsigned>, 4 > VariableDbgInfoMapTy;
+  VariableDbgInfoMapTy VariableDbgInfo;
 
   MachineModuleInfo();
   ~MachineModuleInfo();
   
-  /// doInitialization - Initialize the state for a new module.
-  ///
   bool doInitialization();
-  
-  /// doFinalization - Tear down the state after completion of a module.
-  ///
   bool doFinalization();
-  
+
   /// BeginFunction - Begin gathering function meta information.
   ///
-  void BeginFunction(MachineFunction *MF);
+  void BeginFunction(MachineFunction *) {}
   
   /// EndFunction - Discard function meta information.
   ///
   void EndFunction();
 
+  /// getInfo - Keep track of various per-function pieces of information for
+  /// backends that would like to do so.
+  ///
+  template<typename Ty>
+  Ty &getObjFileInfo() {
+    if (ObjFileMMI == 0)
+      ObjFileMMI = new Ty(*this);
+    
+    assert((void*)dynamic_cast<Ty*>(ObjFileMMI) == (void*)ObjFileMMI &&
+           "Invalid concrete type or multiple inheritence for getInfo");
+    return *static_cast<Ty*>(ObjFileMMI);
+  }
+  
+  template<typename Ty>
+  const Ty &getObjFileInfo() const {
+    return const_cast<MachineModuleInfo*>(this)->getObjFileInfo<Ty>();
+  }
+  
   /// AnalyzeModule - Scan the module for global debug information.
   ///
   void AnalyzeModule(Module &M);
@@ -240,9 +278,11 @@ public:
     return Personalities;
   }
 
-  // UsedFunctions - Return set of the functions in the llvm.used list.
-  const SmallPtrSet<const Function *, 32>& getUsedFunctions() const {
-    return UsedFunctions;
+  /// isUsedFunction - Return true if the functions in the llvm.used list.  This
+  /// does not return true for things in llvm.compiler.used unless they are also
+  /// in llvm.used.
+  bool isUsedFunction(const Function *F) {
+    return UsedFunctions.count(F);
   }
 
   /// addCatchTypeInfo - Provide the catch typeinfo for a landing pad.
@@ -292,6 +332,14 @@ public:
   /// getPersonality - Return a personality function if available.  The presence
   /// of one is required to emit exception handling info.
   Function *getPersonality() const;
+
+  /// setVariableDbgInfo - Collect information used to emit debugging information
+  /// of a variable.
+  void setVariableDbgInfo(MDNode *N, unsigned S) {
+    VariableDbgInfo.push_back(std::make_pair(N, S));
+  }
+
+  VariableDbgInfoMapTy &getVariableDbgInfo() {  return VariableDbgInfo;  }
 
 }; // End class MachineModuleInfo
 

@@ -1,4 +1,4 @@
-//===- Base.td - LLVMC2 toolchain descriptions -------------*- tablegen -*-===//
+//===- Base.td - LLVMC toolchain descriptions --------------*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains compilation graph description used by llvmc2.
+// This file contains compilation graph description used by llvmc.
 //
 //===----------------------------------------------------------------------===//
 
@@ -32,10 +32,17 @@ def OptList : OptionList<[
     (help "Enable threads")),
  (parameter_option "linker",
     (help "Choose linker (possible values: gcc, g++)")),
+ (parameter_option "MF",
+    (help "Specify a file to write dependencies to"), (hidden)),
+ (parameter_option "MT",
+    (help "Change the name of the rule emitted by dependency generation"),
+    (hidden)),
  (parameter_list_option "include",
     (help "Include the named file prior to preprocessing")),
  (prefix_list_option "I",
     (help "Add a directory to include path")),
+ (prefix_list_option "D",
+    (help "Define a macro")),
  (prefix_list_option "Wa,",
     (help "Pass options to assembler")),
  (prefix_list_option "Wllc,",
@@ -70,19 +77,25 @@ class llvm_gcc_based <string cmd_prefix, string in_lang, string E_ext> : Tool<
               !strconcat(cmd_prefix, " -c $INFILE -o $OUTFILE -emit-llvm"))),
  (actions
      (case
+         (and (multiple_input_files), (or (switch_on "S"), (switch_on "c"))),
+              (error "cannot specify -o with -c or -S with multiple files"),
          (switch_on "E"), [(stop_compilation), (output_suffix E_ext)],
          (and (switch_on "emit-llvm"), (switch_on "S")),
               [(output_suffix "ll"), (stop_compilation)],
          (and (switch_on "emit-llvm"), (switch_on "c")), (stop_compilation),
          (switch_on "fsyntax-only"), (stop_compilation),
          (not_empty "include"), (forward "include"),
-         (not_empty "I"), (forward "I"))),
+         (not_empty "I"), (forward "I"),
+         (not_empty "D"), (forward "D"),
+         (not_empty "MF"), (forward "MF"),
+         (not_empty "MT"), (forward "MT"))),
  (sink)
 ]>;
 
 def llvm_gcc_c : llvm_gcc_based<"@LLVMGCCCOMMAND@ -x c", "c", "i">;
 def llvm_gcc_cpp : llvm_gcc_based<"@LLVMGXXCOMMAND@ -x c++", "c++", "i">;
-def llvm_gcc_m : llvm_gcc_based<"@LLVMGCCCOMMAND@ -x objective-c", "objective-c", "mi">;
+def llvm_gcc_m : llvm_gcc_based<"@LLVMGCCCOMMAND@ -x objective-c",
+                                                  "objective-c", "mi">;
 def llvm_gcc_mxx : llvm_gcc_based<"@LLVMGCCCOMMAND@ -x objective-c++",
                                   "objective-c++", "mi">;
 
@@ -98,7 +111,8 @@ def llvm_as : Tool<
 [(in_language "llvm-assembler"),
  (out_language "llvm-bitcode"),
  (output_suffix "bc"),
- (cmd_line "llvm-as $INFILE -o $OUTFILE")
+ (cmd_line "llvm-as $INFILE -o $OUTFILE"),
+ (actions (case (switch_on "emit-llvm"), (stop_compilation)))
 ]>;
 
 def llvm_gcc_assembler : Tool<
@@ -112,7 +126,7 @@ def llvm_gcc_assembler : Tool<
 ]>;
 
 def llc : Tool<
-[(in_language "llvm-bitcode"),
+[(in_language ["llvm-bitcode", "llvm-assembler"]),
  (out_language "assembler"),
  (output_suffix "s"),
  (cmd_line "llc -f $INFILE -o $OUTFILE"),
@@ -132,7 +146,7 @@ class llvm_gcc_based_linker <string cmd_prefix> : Tool<
           (switch_on "pthread"), (append_cmd "-lpthread"),
           (not_empty "L"), (forward "L"),
           (not_empty "l"), (forward "l"),
-          (not_empty "Wl,"), (unpack_values "Wl,")))
+          (not_empty "Wl,"), (forward "Wl,")))
 ]>;
 
 // Default linker
@@ -165,7 +179,7 @@ def CompilationGraph : CompilationGraph<[
     Edge<"root", "llvm_gcc_cpp">,
     Edge<"root", "llvm_gcc_m">,
     Edge<"root", "llvm_gcc_mxx">,
-    Edge<"root", "llvm_as">,
+    Edge<"root", "llc">,
 
     Edge<"llvm_gcc_c", "llc">,
     Edge<"llvm_gcc_cpp", "llc">,
@@ -173,6 +187,8 @@ def CompilationGraph : CompilationGraph<[
     Edge<"llvm_gcc_mxx", "llc">,
     Edge<"llvm_as", "llc">,
 
+    OptionalEdge<"root", "llvm_as",
+                         (case (switch_on "emit-llvm"), (inc_weight))>,
     OptionalEdge<"llvm_gcc_c", "opt", (case (switch_on "opt"), (inc_weight))>,
     OptionalEdge<"llvm_gcc_cpp", "opt", (case (switch_on "opt"), (inc_weight))>,
     OptionalEdge<"llvm_gcc_m", "opt", (case (switch_on "opt"), (inc_weight))>,

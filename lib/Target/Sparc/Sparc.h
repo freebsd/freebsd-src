@@ -15,19 +15,21 @@
 #ifndef TARGET_SPARC_H
 #define TARGET_SPARC_H
 
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetMachine.h"
 #include <cassert>
 
 namespace llvm {
   class FunctionPass;
   class SparcTargetMachine;
-  class raw_ostream;
+  class formatted_raw_ostream;
 
   FunctionPass *createSparcISelDag(SparcTargetMachine &TM);
-  FunctionPass *createSparcCodePrinterPass(raw_ostream &OS, TargetMachine &TM,
-                                           bool Verbose);
   FunctionPass *createSparcDelaySlotFillerPass(TargetMachine &TM);
   FunctionPass *createSparcFPMoverPass(TargetMachine &TM);
+
+  extern Target TheSparcTarget;
+
 } // end namespace llvm;
 
 // Defines symbolic names for Sparc registers.  This defines a mapping from
@@ -83,7 +85,7 @@ namespace llvm {
   
   inline static const char *SPARCCondCodeToString(SPCC::CondCodes CC) {
     switch (CC) {
-    default: assert(0 && "Unknown condition code");
+    default: llvm_unreachable("Unknown condition code");
     case SPCC::ICC_NE:  return "ne";
     case SPCC::ICC_E:   return "e";
     case SPCC::ICC_G:   return "g";

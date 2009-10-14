@@ -197,13 +197,6 @@ _bar:   addic r3,r3,-1
 
 //===---------------------------------------------------------------------===//
 
-Legalize should lower ctlz like this:
-  ctlz(x) = popcnt((x-1) & ~x)
-
-on targets that have popcnt but not ctlz.  itanium, what else?
-
-//===---------------------------------------------------------------------===//
-
 quantum_sigma_x in 462.libquantum contains the following loop:
 
       for(i=0; i<reg->size; i++)
@@ -227,7 +220,20 @@ so cool to turn it into something like:
 ... which would only do one 32-bit XOR per loop iteration instead of two.
 
 It would also be nice to recognize the reg->size doesn't alias reg->node[i], but
-alas...
+alas.
+
+//===---------------------------------------------------------------------===//
+
+This should be optimized to one 'and' and one 'or', from PR4216:
+
+define i32 @test_bitfield(i32 %bf.prev.low) nounwind ssp {
+entry:
+  %bf.prev.lo.cleared10 = or i32 %bf.prev.low, 32962 ; <i32> [#uses=1]
+  %0 = and i32 %bf.prev.low, -65536               ; <i32> [#uses=1]
+  %1 = and i32 %bf.prev.lo.cleared10, 40186       ; <i32> [#uses=1]
+  %2 = or i32 %1, %0                              ; <i32> [#uses=1]
+  ret i32 %2
+}
 
 //===---------------------------------------------------------------------===//
 
@@ -335,11 +341,6 @@ when it is declared U32.
 
 //===---------------------------------------------------------------------===//
 
-Promote for i32 bswap can use i64 bswap + shr.  Useful on targets with 64-bit
-regs and bswap, like itanium.
-
-//===---------------------------------------------------------------------===//
-
 LSR should know what GPR types a target has.  This code:
 
 volatile short X, Y; // globals
@@ -349,24 +350,22 @@ void foo(int N) {
   for (i = 0; i < N; i++) { X = i; Y = i*4; }
 }
 
-produces two identical IV's (after promotion) on PPC/ARM:
+produces two near identical IV's (after promotion) on PPC/ARM:
 
-LBB1_1: @bb.preheader
-        mov r3, #0
-        mov r2, r3
-        mov r1, r3
-LBB1_2: @bb
-        ldr r12, LCPI1_0
-        ldr r12, [r12]
-        strh r2, [r12]
-        ldr r12, LCPI1_1
-        ldr r12, [r12]
-        strh r3, [r12]
-        add r1, r1, #1    <- [0,+,1]
-        add r3, r3, #4
-        add r2, r2, #1    <- [0,+,1]
-        cmp r1, r0
-        bne LBB1_2      @bb
+LBB1_2:
+	ldr r3, LCPI1_0
+	ldr r3, [r3]
+	strh r2, [r3]
+	ldr r3, LCPI1_1
+	ldr r3, [r3]
+	strh r1, [r3]
+	add r1, r1, #4
+	add r2, r2, #1   <- [0,+,1]
+	sub r0, r0, #1   <- [0,-,1]
+	cmp r0, #0
+	bne LBB1_2
+
+LSR should reuse the "+" IV for the exit test.
 
 
 //===---------------------------------------------------------------------===//
@@ -597,25 +596,6 @@ once.
 
 We should add an FRINT node to the DAG to model targets that have legal
 implementations of ceil/floor/rint.
-
-//===---------------------------------------------------------------------===//
-
-This GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34043
-contains a testcase that compiles down to:
-
-	%struct.XMM128 = type { <4 x float> }
-..
-	%src = alloca %struct.XMM128
-..
-	%tmp6263 = bitcast %struct.XMM128* %src to <2 x i64>*
-	%tmp65 = getelementptr %struct.XMM128* %src, i32 0, i32 0
-	store <2 x i64> %tmp5899, <2 x i64>* %tmp6263, align 16
-	%tmp66 = load <4 x float>* %tmp65, align 16		
-	%tmp71 = add <4 x float> %tmp66, %tmp66		
-
-If the mid-level optimizer turned the bitcast of pointer + store of tmp5899
-into a bitcast of the vector value and a store to the pointer, then the 
-store->load could be easily removed.
 
 //===---------------------------------------------------------------------===//
 
@@ -1123,16 +1103,6 @@ optimized with "clang -emit-llvm-bc | opt -std-compile-opts".
 
 //===---------------------------------------------------------------------===//
 
-We would like to do the following transform in the instcombiner:
-
-  -X/C -> X/-C
-
-However, this isn't valid if (-X) overflows. We can implement this when we
-have the concept of a "C signed subtraction" operator that which is undefined
-on overflow.
-
-//===---------------------------------------------------------------------===//
-
 This was noticed in the entryblock for grokdeclarator in 403.gcc:
 
         %tmp = icmp eq i32 %decl_context, 4          
@@ -1311,6 +1281,8 @@ http://gcc.gnu.org/bugzilla/show_bug.cgi?id=35287 [LPRE crit edge splitting]
 http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34677 (licm does this, LPRE crit edge)
   llvm-gcc t2.c -S -o - -O0 -emit-llvm | llvm-as | opt -mem2reg -simplifycfg -gvn | llvm-dis
 
+http://gcc.gnu.org/bugzilla/show_bug.cgi?id=16799 [BITCAST PHI TRANS]
+
 //===---------------------------------------------------------------------===//
 
 Type based alias analysis:
@@ -1318,31 +1290,25 @@ http://gcc.gnu.org/bugzilla/show_bug.cgi?id=14705
 
 //===---------------------------------------------------------------------===//
 
-When GVN/PRE finds a store of float* to a must aliases pointer when expecting
-an int*, it should turn it into a bitcast.  This is a nice generalization of
-the SROA hack that would apply to other cases, e.g.:
-
-int foo(int C, int *P, float X) {
-  if (C) {
-    bar();
-    *P = 42;
-  } else
-    *(float*)P = X;
-
-   return *P;
-}
-
-
-One example (that requires crazy phi translation) is:
-http://gcc.gnu.org/bugzilla/show_bug.cgi?id=16799 [BITCAST PHI TRANS]
-
-//===---------------------------------------------------------------------===//
-
 A/B get pinned to the stack because we turn an if/then into a select instead
 of PRE'ing the load/store.  This may be fixable in instcombine:
 http://gcc.gnu.org/bugzilla/show_bug.cgi?id=37892
 
+struct X { int i; };
+int foo (int x) {
+  struct X a;
+  struct X b;
+  struct X *p;
+  a.i = 1;
+  b.i = 2;
+  if (x)
+    p = &a;
+  else
+    p = &b;
+  return p->i;
+}
 
+//===---------------------------------------------------------------------===//
 
 Interesting missed case because of control flow flattening (should be 2 loads):
 http://gcc.gnu.org/bugzilla/show_bug.cgi?id=26629
@@ -1675,5 +1641,6 @@ entry:
 
 Instcombine should be able to optimize away the loads (and thus the globals).
 
+See also PR4973
 
 //===---------------------------------------------------------------------===//

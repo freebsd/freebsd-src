@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -functionattrs | llvm-dis | not grep read
+; RUN: opt < %s -functionattrs -S | not grep read
 ; PR3754
 
 define i8* @m(i32 %size) {

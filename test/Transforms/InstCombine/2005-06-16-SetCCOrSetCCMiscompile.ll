@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | \
+; RUN: opt < %s -instcombine -S | \
 ; RUN:   grep {ret i1 true}
 ; PR586
 

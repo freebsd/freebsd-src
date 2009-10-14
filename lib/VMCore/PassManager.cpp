@@ -13,16 +13,16 @@
 
 
 #include "llvm/PassManagers.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Mutex.h"
 #include "llvm/System/Threading.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm-c/Core.h"
 #include <algorithm>
 #include <cstdio>
@@ -45,16 +45,6 @@ enum PassDebugLevel {
   None, Arguments, Structure, Executions, Details
 };
 
-// Always verify dominfo if expensive checking is enabled.
-#ifdef XDEBUG
-bool VerifyDomInfo = true;
-#else
-bool VerifyDomInfo = false;
-#endif
-static cl::opt<bool,true>
-VerifyDomInfoX("verify-dom-info", cl::location(VerifyDomInfo),
-               cl::desc("Verify dominator info (time consuming)"));
-
 static cl::opt<enum PassDebugLevel>
 PassDebugging("debug-pass", cl::Hidden,
                   cl::desc("Print PassManager debugging information"),
@@ -66,6 +56,15 @@ PassDebugging("debug-pass", cl::Hidden,
   clEnumVal(Details   , "print pass details when it is executed"),
                              clEnumValEnd));
 } // End of llvm namespace
+
+/// isPassDebuggingExecutionsOrMore - Return true if -debug-pass=Executions
+/// or higher is specified.
+bool PMDataManager::isPassDebuggingExecutionsOrMore() const {
+  return PassDebugging >= Executions;
+}
+
+
+
 
 void PassManagerPrettyStackEntry::print(raw_ostream &OS) const {
   if (V == 0 && M == 0)
@@ -134,7 +133,7 @@ public:
 
   // Print passes managed by this manager
   void dumpPassStructure(unsigned Offset) {
-    llvm::cerr << std::string(Offset*2, ' ') << "BasicBlockPass Manager\n";
+    llvm::errs() << std::string(Offset*2, ' ') << "BasicBlockPass Manager\n";
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       BasicBlockPass *BP = getContainedPass(Index);
       BP->dumpPassStructure(Offset + 1);
@@ -274,7 +273,7 @@ public:
 
   // Print passes managed by this manager
   void dumpPassStructure(unsigned Offset) {
-    llvm::cerr << std::string(Offset*2, ' ') << "ModulePass Manager\n";
+    llvm::errs() << std::string(Offset*2, ' ') << "ModulePass Manager\n";
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       ModulePass *MP = getContainedPass(Index);
       MP->dumpPassStructure(Offset + 1);
@@ -388,25 +387,19 @@ public:
   // null.  It may be called multiple times.
   static void createTheTimeInfo();
 
-  void passStarted(Pass *P) {
+  /// passStarted - This method creates a timer for the given pass if it doesn't
+  /// already have one, and starts the timer.
+  Timer *passStarted(Pass *P) {
     if (dynamic_cast<PMDataManager *>(P)) 
-      return;
+      return 0;
 
-    sys::SmartScopedLock<true> Lock(&*TimingInfoMutex);
+    sys::SmartScopedLock<true> Lock(*TimingInfoMutex);
     std::map<Pass*, Timer>::iterator I = TimingData.find(P);
     if (I == TimingData.end())
       I=TimingData.insert(std::make_pair(P, Timer(P->getPassName(), TG))).first;
-    I->second.startTimer();
-  }
-  
-  void passEnded(Pass *P) {
-    if (dynamic_cast<PMDataManager *>(P)) 
-      return;
-
-    sys::SmartScopedLock<true> Lock(&*TimingInfoMutex);
-    std::map<Pass*, Timer>::iterator I = TimingData.find(P);
-    assert(I != TimingData.end() && "passStarted/passEnded not nested right!");
-    I->second.stopTimer();
+    Timer *T = &I->second;
+    T->startTimer();
+    return T;
   }
 };
 
@@ -603,11 +596,11 @@ void PMTopLevelManager::dumpArguments() const {
   if (PassDebugging < Arguments)
     return;
 
-  cerr << "Pass Arguments: ";
+  errs() << "Pass Arguments: ";
   for (SmallVector<PMDataManager *, 8>::const_iterator I = PassManagers.begin(),
          E = PassManagers.end(); I != E; ++I)
     (*I)->dumpPassArguments();
-  cerr << "\n";
+  errs() << "\n";
 }
 
 void PMTopLevelManager::initializeAllAnalysisInfo() {
@@ -700,47 +693,13 @@ void PMDataManager::verifyPreservedAnalysis(Pass *P) {
   for (AnalysisUsage::VectorType::const_iterator I = PreservedSet.begin(),
          E = PreservedSet.end(); I != E; ++I) {
     AnalysisID AID = *I;
-    if (Pass *AP = findAnalysisPass(AID, true))
+    if (Pass *AP = findAnalysisPass(AID, true)) {
+
+      Timer *T = 0;
+      if (TheTimeInfo) T = TheTimeInfo->passStarted(AP);
       AP->verifyAnalysis();
-  }
-}
-
-/// verifyDomInfo - Verify dominator information if it is available.
-void PMDataManager::verifyDomInfo(Pass &P, Function &F) {
-  if (!VerifyDomInfo || !P.getResolver())
-    return;
-
-  DominatorTree *DT = P.getAnalysisIfAvailable<DominatorTree>();
-  if (!DT)
-    return;
-
-  DominatorTree OtherDT;
-  OtherDT.getBase().recalculate(F);
-  if (DT->compare(OtherDT)) {
-    cerr << "Dominator Information for " << F.getNameStart() << "\n";
-    cerr << "Pass '" << P.getPassName() << "'\n";
-    cerr << "----- Valid -----\n";
-    OtherDT.dump();
-    cerr << "----- Invalid -----\n";
-    DT->dump();
-    assert(0 && "Invalid dominator info");
-  }
-
-  DominanceFrontier *DF = P.getAnalysisIfAvailable<DominanceFrontier>();
-  if (!DF) 
-    return;
-
-  DominanceFrontier OtherDF;
-  std::vector<BasicBlock*> DTRoots = DT->getRoots();
-  OtherDF.calculate(*DT, DT->getNode(DTRoots[0]));
-  if (DF->compare(OtherDF)) {
-    cerr << "Dominator Information for " << F.getNameStart() << "\n";
-    cerr << "Pass '" << P.getPassName() << "'\n";
-    cerr << "----- Valid -----\n";
-    OtherDF.dump();
-    cerr << "----- Invalid -----\n";
-    DF->dump();
-    assert(0 && "Invalid dominator info");
+      if (T) T->stopTimer();
+    }
   }
 }
 
@@ -760,8 +719,8 @@ void PMDataManager::removeNotPreservedAnalysis(Pass *P) {
       // Remove this analysis
       if (PassDebugging >= Details) {
         Pass *S = Info->second;
-        cerr << " -- '" <<  P->getPassName() << "' is not preserving '";
-        cerr << S->getPassName() << "'\n";
+        errs() << " -- '" <<  P->getPassName() << "' is not preserving '";
+        errs() << S->getPassName() << "'\n";
       }
       AvailableAnalysis.erase(Info);
     }
@@ -788,7 +747,7 @@ void PMDataManager::removeNotPreservedAnalysis(Pass *P) {
 }
 
 /// Remove analysis passes that are not used any longer
-void PMDataManager::removeDeadPasses(Pass *P, const char *Msg,
+void PMDataManager::removeDeadPasses(Pass *P, const StringRef &Msg,
                                      enum PassDebuggingString DBG_STR) {
 
   SmallVector<Pass *, 12> DeadPasses;
@@ -800,40 +759,41 @@ void PMDataManager::removeDeadPasses(Pass *P, const char *Msg,
   TPM->collectLastUses(DeadPasses, P);
 
   if (PassDebugging >= Details && !DeadPasses.empty()) {
-    cerr << " -*- '" <<  P->getPassName();
-    cerr << "' is the last user of following pass instances.";
-    cerr << " Free these instances\n";
+    errs() << " -*- '" <<  P->getPassName();
+    errs() << "' is the last user of following pass instances.";
+    errs() << " Free these instances\n";
   }
 
   for (SmallVector<Pass *, 12>::iterator I = DeadPasses.begin(),
-         E = DeadPasses.end(); I != E; ++I) {
+         E = DeadPasses.end(); I != E; ++I)
+    freePass(*I, Msg, DBG_STR);
+}
 
-    dumpPassInfo(*I, FREEING_MSG, DBG_STR, Msg);
+void PMDataManager::freePass(Pass *P, const StringRef &Msg,
+                             enum PassDebuggingString DBG_STR) {
+  dumpPassInfo(P, FREEING_MSG, DBG_STR, Msg);
 
-    {
-      // If the pass crashes releasing memory, remember this.
-      PassManagerPrettyStackEntry X(*I);
-      
-      if (TheTimeInfo) TheTimeInfo->passStarted(*I);
-      (*I)->releaseMemory();
-      if (TheTimeInfo) TheTimeInfo->passEnded(*I);
-    }
-    if (const PassInfo *PI = (*I)->getPassInfo()) {
+  {
+    // If the pass crashes releasing memory, remember this.
+    PassManagerPrettyStackEntry X(P);
+    
+    Timer *T = StartPassTimer(P);
+    P->releaseMemory();
+    StopPassTimer(P, T);
+  }
+
+  if (const PassInfo *PI = P->getPassInfo()) {
+    // Remove the pass itself (if it is not already removed).
+    AvailableAnalysis.erase(PI);
+
+    // Remove all interfaces this pass implements, for which it is also
+    // listed as the available implementation.
+    const std::vector<const PassInfo*> &II = PI->getInterfacesImplemented();
+    for (unsigned i = 0, e = II.size(); i != e; ++i) {
       std::map<AnalysisID, Pass*>::iterator Pos =
-        AvailableAnalysis.find(PI);
-
-      // It is possible that pass is already removed from the AvailableAnalysis
-      if (Pos != AvailableAnalysis.end())
+        AvailableAnalysis.find(II[i]);
+      if (Pos != AvailableAnalysis.end() && Pos->second == P)
         AvailableAnalysis.erase(Pos);
-
-      // Remove all interfaces this pass implements, for which it is also
-      // listed as the available implementation.
-      const std::vector<const PassInfo*> &II = PI->getInterfacesImplemented();
-      for (unsigned i = 0, e = II.size(); i != e; ++i) {
-        Pos = AvailableAnalysis.find(II[i]);
-        if (Pos != AvailableAnalysis.end() && Pos->second == *I)
-          AvailableAnalysis.erase(Pos);
-      }
     }
   }
 }
@@ -882,7 +842,7 @@ void PMDataManager::add(Pass *P, bool ProcessAnalysis) {
       // Keep track of higher level analysis used by this manager.
       HigherLevelAnalysis.push_back(PRequired);
     } else 
-      assert(0 && "Unable to accomodate Required Pass");
+      llvm_unreachable("Unable to accomodate Required Pass");
   }
 
   // Set P as P's last user until someone starts using P.
@@ -994,7 +954,7 @@ void PMDataManager::dumpLastUses(Pass *P, unsigned Offset) const{
   
   for (SmallVector<Pass *, 12>::iterator I = LUses.begin(),
          E = LUses.end(); I != E; ++I) {
-    llvm::cerr << "--" << std::string(Offset*2, ' ');
+    llvm::errs() << "--" << std::string(Offset*2, ' ');
     (*I)->dumpPassStructure(0);
   }
 }
@@ -1007,44 +967,44 @@ void PMDataManager::dumpPassArguments() const {
     else
       if (const PassInfo *PI = (*I)->getPassInfo())
         if (!PI->isAnalysisGroup())
-          cerr << " -" << PI->getPassArgument();
+          errs() << " -" << PI->getPassArgument();
   }
 }
 
 void PMDataManager::dumpPassInfo(Pass *P, enum PassDebuggingString S1,
                                  enum PassDebuggingString S2,
-                                 const char *Msg) {
+                                 const StringRef &Msg) {
   if (PassDebugging < Executions)
     return;
-  cerr << (void*)this << std::string(getDepth()*2+1, ' ');
+  errs() << (void*)this << std::string(getDepth()*2+1, ' ');
   switch (S1) {
   case EXECUTION_MSG:
-    cerr << "Executing Pass '" << P->getPassName();
+    errs() << "Executing Pass '" << P->getPassName();
     break;
   case MODIFICATION_MSG:
-    cerr << "Made Modification '" << P->getPassName();
+    errs() << "Made Modification '" << P->getPassName();
     break;
   case FREEING_MSG:
-    cerr << " Freeing Pass '" << P->getPassName();
+    errs() << " Freeing Pass '" << P->getPassName();
     break;
   default:
     break;
   }
   switch (S2) {
   case ON_BASICBLOCK_MSG:
-    cerr << "' on BasicBlock '" << Msg << "'...\n";
+    errs() << "' on BasicBlock '" << Msg << "'...\n";
     break;
   case ON_FUNCTION_MSG:
-    cerr << "' on Function '" << Msg << "'...\n";
+    errs() << "' on Function '" << Msg << "'...\n";
     break;
   case ON_MODULE_MSG:
-    cerr << "' on Module '"  << Msg << "'...\n";
+    errs() << "' on Module '"  << Msg << "'...\n";
     break;
   case ON_LOOP_MSG:
-    cerr << "' on Loop " << Msg << "'...\n";
+    errs() << "' on Loop '" << Msg << "'...\n";
     break;
   case ON_CG_MSG:
-    cerr << "' on Call Graph " << Msg << "'...\n";
+    errs() << "' on Call Graph Nodes '" << Msg << "'...\n";
     break;
   default:
     break;
@@ -1069,17 +1029,17 @@ void PMDataManager::dumpPreservedSet(const Pass *P) const {
   dumpAnalysisUsage("Preserved", P, analysisUsage.getPreservedSet());
 }
 
-void PMDataManager::dumpAnalysisUsage(const char *Msg, const Pass *P,
+void PMDataManager::dumpAnalysisUsage(const StringRef &Msg, const Pass *P,
                                    const AnalysisUsage::VectorType &Set) const {
   assert(PassDebugging >= Details);
   if (Set.empty())
     return;
-  cerr << (void*)P << std::string(getDepth()*2+3, ' ') << Msg << " Analyses:";
+  errs() << (void*)P << std::string(getDepth()*2+3, ' ') << Msg << " Analyses:";
   for (unsigned i = 0; i != Set.size(); ++i) {
-    if (i) cerr << ",";
-    cerr << " " << Set[i]->getPassName();
+    if (i) errs() << ',';
+    errs() << ' ' << Set[i]->getPassName();
   }
-  cerr << "\n";
+  errs() << '\n';
 }
 
 /// Add RequiredPass into list of lower level passes required by pass P.
@@ -1102,10 +1062,10 @@ void PMDataManager::addLowerLevelRequiredPass(Pass *P, Pass *RequiredPass) {
   // checks whether any lower level manager will be able to provide this 
   // analysis info on demand or not.
 #ifndef NDEBUG
-  cerr << "Unable to schedule '" << RequiredPass->getPassName();
-  cerr << "' required by '" << P->getPassName() << "'\n";
+  errs() << "Unable to schedule '" << RequiredPass->getPassName();
+  errs() << "' required by '" << P->getPassName() << "'\n";
 #endif
-  assert(0 && "Unable to schedule pass");
+  llvm_unreachable("Unable to schedule pass");
 }
 
 // Destructor
@@ -1143,7 +1103,7 @@ bool BBPassManager::runOnFunction(Function &F) {
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       BasicBlockPass *BP = getContainedPass(Index);
 
-      dumpPassInfo(BP, EXECUTION_MSG, ON_BASICBLOCK_MSG, I->getNameStart());
+      dumpPassInfo(BP, EXECUTION_MSG, ON_BASICBLOCK_MSG, I->getName());
       dumpRequiredSet(BP);
 
       initializeAnalysisImpl(BP);
@@ -1152,20 +1112,20 @@ bool BBPassManager::runOnFunction(Function &F) {
         // If the pass crashes, remember this.
         PassManagerPrettyStackEntry X(BP, *I);
       
-        if (TheTimeInfo) TheTimeInfo->passStarted(BP);
+        Timer *T = StartPassTimer(BP);
         Changed |= BP->runOnBasicBlock(*I);
-        if (TheTimeInfo) TheTimeInfo->passEnded(BP);
+        StopPassTimer(BP, T);
       }
 
       if (Changed) 
         dumpPassInfo(BP, MODIFICATION_MSG, ON_BASICBLOCK_MSG,
-                     I->getNameStart());
+                     I->getName());
       dumpPreservedSet(BP);
 
       verifyPreservedAnalysis(BP);
       removeNotPreservedAnalysis(BP);
       recordAvailableAnalysis(BP);
-      removeDeadPasses(BP, I->getNameStart(), ON_BASICBLOCK_MSG);
+      removeDeadPasses(BP, I->getName(), ON_BASICBLOCK_MSG);
     }
 
   return Changed |= doFinalization(F);
@@ -1248,8 +1208,7 @@ void FunctionPassManager::add(Pass *P) {
 bool FunctionPassManager::run(Function &F) {
   std::string errstr;
   if (MP->materializeFunction(&F, &errstr)) {
-    cerr << "Error reading bitcode file: " << errstr << "\n";
-    abort();
+    llvm_report_error("Error reading bitcode file: " + errstr);
   }
   return FPM->run(F);
 }
@@ -1336,7 +1295,7 @@ bool FunctionPassManagerImpl::run(Function &F) {
 char FPPassManager::ID = 0;
 /// Print passes managed by this manager
 void FPPassManager::dumpPassStructure(unsigned Offset) {
-  llvm::cerr << std::string(Offset*2, ' ') << "FunctionPass Manager\n";
+  llvm::errs() << std::string(Offset*2, ' ') << "FunctionPass Manager\n";
   for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
     FunctionPass *FP = getContainedPass(Index);
     FP->dumpPassStructure(Offset + 1);
@@ -1360,7 +1319,7 @@ bool FPPassManager::runOnFunction(Function &F) {
   for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
     FunctionPass *FP = getContainedPass(Index);
 
-    dumpPassInfo(FP, EXECUTION_MSG, ON_FUNCTION_MSG, F.getNameStart());
+    dumpPassInfo(FP, EXECUTION_MSG, ON_FUNCTION_MSG, F.getName());
     dumpRequiredSet(FP);
 
     initializeAnalysisImpl(FP);
@@ -1368,22 +1327,19 @@ bool FPPassManager::runOnFunction(Function &F) {
     {
       PassManagerPrettyStackEntry X(FP, F);
 
-      if (TheTimeInfo) TheTimeInfo->passStarted(FP);
+      Timer *T = StartPassTimer(FP);
       Changed |= FP->runOnFunction(F);
-      if (TheTimeInfo) TheTimeInfo->passEnded(FP);
+      StopPassTimer(FP, T);
     }
 
     if (Changed) 
-      dumpPassInfo(FP, MODIFICATION_MSG, ON_FUNCTION_MSG, F.getNameStart());
+      dumpPassInfo(FP, MODIFICATION_MSG, ON_FUNCTION_MSG, F.getName());
     dumpPreservedSet(FP);
 
     verifyPreservedAnalysis(FP);
     removeNotPreservedAnalysis(FP);
     recordAvailableAnalysis(FP);
-    removeDeadPasses(FP, F.getNameStart(), ON_FUNCTION_MSG);
-
-    // If dominator information is available then verify the info if requested.
-    verifyDomInfo(*FP, F);
+    removeDeadPasses(FP, F.getName(), ON_FUNCTION_MSG);
   }
   return Changed;
 }
@@ -1444,9 +1400,9 @@ MPPassManager::runOnModule(Module &M) {
 
     {
       PassManagerPrettyStackEntry X(MP, M);
-      if (TheTimeInfo) TheTimeInfo->passStarted(MP);
+      Timer *T = StartPassTimer(MP);
       Changed |= MP->runOnModule(M);
-      if (TheTimeInfo) TheTimeInfo->passEnded(MP);
+      StopPassTimer(MP, T);
     }
 
     if (Changed) 
@@ -1582,15 +1538,15 @@ void TimingInfo::createTheTimeInfo() {
 }
 
 /// If TimingInfo is enabled then start pass timer.
-void StartPassTimer(Pass *P) {
+Timer *llvm::StartPassTimer(Pass *P) {
   if (TheTimeInfo) 
-    TheTimeInfo->passStarted(P);
+    return TheTimeInfo->passStarted(P);
+  return 0;
 }
 
 /// If TimingInfo is enabled then stop pass timer.
-void StopPassTimer(Pass *P) {
-  if (TheTimeInfo) 
-    TheTimeInfo->passEnded(P);
+void llvm::StopPassTimer(Pass *P, Timer *T) {
+  if (T) T->stopTimer();
 }
 
 //===----------------------------------------------------------------------===//

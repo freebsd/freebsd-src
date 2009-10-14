@@ -19,12 +19,15 @@
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
+#include "llvm/CodeGen/ObjectCodeEmitter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
@@ -55,8 +58,7 @@ namespace {
 
   template <class CodeEmitter>
   class VISIBILITY_HIDDEN Emitter : public MachineFunctionPass,
-      public PPCCodeEmitter
-  {
+      public PPCCodeEmitter {
     TargetMachine &TM;
     CodeEmitter &MCE;
 
@@ -88,9 +90,10 @@ namespace {
   template <class CodeEmitter>
     char Emitter<CodeEmitter>::ID = 0;
 }
-	
+
 /// createPPCCodeEmitterPass - Return a pass that emits the collected PPC code
 /// to the specified MCE object.
+
 FunctionPass *llvm::createPPCCodeEmitterPass(PPCTargetMachine &TM,
                                              MachineCodeEmitter &MCE) {
   return new Emitter<MachineCodeEmitter>(TM, MCE);
@@ -99,6 +102,11 @@ FunctionPass *llvm::createPPCCodeEmitterPass(PPCTargetMachine &TM,
 FunctionPass *llvm::createPPCJITCodeEmitterPass(PPCTargetMachine &TM,
                                                 JITCodeEmitter &JCE) {
   return new Emitter<JITCodeEmitter>(TM, JCE);
+}
+
+FunctionPass *llvm::createPPCObjectCodeEmitterPass(PPCTargetMachine &TM,
+                                                   ObjectCodeEmitter &OCE) {
+  return new Emitter<ObjectCodeEmitter>(TM, OCE);
 }
 
 template <class CodeEmitter>
@@ -121,9 +129,10 @@ bool Emitter<CodeEmitter>::runOnMachineFunction(MachineFunction &MF) {
 template <class CodeEmitter>
 void Emitter<CodeEmitter>::emitBasicBlock(MachineBasicBlock &MBB) {
   MCE.StartMachineBasicBlock(&MBB);
-  
+
   for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end(); I != E; ++I){
     const MachineInstr &MI = *I;
+    MCE.processDebugLoc(MI.getDebugLoc(), true);
     switch (MI.getOpcode()) {
     default:
       MCE.emitWordBE(getBinaryCodeForInstr(MI));
@@ -133,6 +142,7 @@ void Emitter<CodeEmitter>::emitBasicBlock(MachineBasicBlock &MBB) {
       MCE.emitLabel(MI.getOperand(0).getImm());
       break;
     case TargetInstrInfo::IMPLICIT_DEF:
+    case TargetInstrInfo::KILL:
       break; // pseudo opcode, no side effects
     case PPC::MovePCtoLR:
     case PPC::MovePCtoLR8:
@@ -141,6 +151,7 @@ void Emitter<CodeEmitter>::emitBasicBlock(MachineBasicBlock &MBB) {
       MCE.emitWordBE(0x48000005);   // bl 1
       break;
     }
+    MCE.processDebugLoc(MI.getDebugLoc(), false);
   }
 }
 
@@ -172,7 +183,7 @@ unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
         assert(MovePCtoLROffset && "MovePCtoLR not seen yet?");
       }
       switch (MI.getOpcode()) {
-      default: MI.dump(); assert(0 && "Unknown instruction for relocation!");
+      default: MI.dump(); llvm_unreachable("Unknown instruction for relocation!");
       case PPC::LIS:
       case PPC::LIS8:
       case PPC::ADDIS:
@@ -193,7 +204,7 @@ unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
       case PPC::LWZ8:
       case PPC::LFS:
       case PPC::LFD:
-      
+
       // Stores.
       case PPC::STB:
       case PPC::STB8:
@@ -214,7 +225,7 @@ unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
         break;
       }
     }
-    
+
     MachineRelocation R;
     if (MO.isGlobal()) {
       R = MachineRelocation::getGV(MCE.getCurrentPCOffset(), Reloc,
@@ -231,7 +242,7 @@ unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
       R = MachineRelocation::getJumpTable(MCE.getCurrentPCOffset(),
                                           Reloc, MO.getIndex(), 0);
     }
-    
+
     // If in PIC mode, we need to encode the negated address of the
     // 'movepctolr' into the unrelocated field.  After relocation, we'll have
     // &gv-&movepctolr-4 in the imm field.  Once &movepctolr is added to the imm
@@ -242,7 +253,7 @@ unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
       R.setConstantVal(-(intptr_t)MovePCtoLROffset - 4);
     }
     MCE.addRelocation(R);
-    
+
   } else if (MO.isMBB()) {
     unsigned Reloc = 0;
     unsigned Opcode = MI.getOpcode();
@@ -252,15 +263,17 @@ unsigned PPCCodeEmitter::getMachineOpValue(const MachineInstr &MI,
       Reloc = PPC::reloc_pcrel_bx;
     else // BCC instruction
       Reloc = PPC::reloc_pcrel_bcx;
+
     MCE.addRelocation(MachineRelocation::getBB(MCE.getCurrentPCOffset(),
                                                Reloc, MO.getMBB()));
   } else {
-    cerr << "ERROR: Unknown type of MachineOperand: " << MO << "\n";
-    abort();
+#ifndef NDEBUG
+    errs() << "ERROR: Unknown type of MachineOperand: " << MO << "\n";
+#endif
+    llvm_unreachable(0);
   }
 
   return rv;
 }
 
 #include "PPCGenCodeEmitter.inc"
-

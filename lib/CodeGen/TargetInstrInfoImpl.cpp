@@ -13,21 +13,35 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 // commuteInstruction - The default implementation of this method just exchanges
-// operand 1 and 2.
+// the two operands returned by findCommutedOpIndices.
 MachineInstr *TargetInstrInfoImpl::commuteInstruction(MachineInstr *MI,
                                                       bool NewMI) const {
   const TargetInstrDesc &TID = MI->getDesc();
   bool HasDef = TID.getNumDefs();
-  unsigned Idx1 = HasDef ? 1 : 0;
-  unsigned Idx2 = HasDef ? 2 : 1;
+  if (HasDef && !MI->getOperand(0).isReg())
+    // No idea how to commute this instruction. Target should implement its own.
+    return 0;
+  unsigned Idx1, Idx2;
+  if (!findCommutedOpIndices(MI, Idx1, Idx2)) {
+    std::string msg;
+    raw_string_ostream Msg(msg);
+    Msg << "Don't know how to commute: " << *MI;
+    llvm_report_error(Msg.str());
+  }
 
   assert(MI->getOperand(Idx1).isReg() && MI->getOperand(Idx2).isReg() &&
          "This only knows how to commute register operands so far");
@@ -70,26 +84,24 @@ MachineInstr *TargetInstrInfoImpl::commuteInstruction(MachineInstr *MI,
   return MI;
 }
 
-/// CommuteChangesDestination - Return true if commuting the specified
-/// instruction will also changes the destination operand. Also return the
-/// current operand index of the would be new destination register by
-/// reference. This can happen when the commutable instruction is also a
-/// two-address instruction.
-bool TargetInstrInfoImpl::CommuteChangesDestination(MachineInstr *MI,
-                                                    unsigned &OpIdx) const{
+/// findCommutedOpIndices - If specified MI is commutable, return the two
+/// operand indices that would swap value. Return true if the instruction
+/// is not in a form which this routine understands.
+bool TargetInstrInfoImpl::findCommutedOpIndices(MachineInstr *MI,
+                                                unsigned &SrcOpIdx1,
+                                                unsigned &SrcOpIdx2) const {
   const TargetInstrDesc &TID = MI->getDesc();
-  if (!TID.getNumDefs())
+  if (!TID.isCommutable())
     return false;
-  assert(MI->getOperand(1).isReg() && MI->getOperand(2).isReg() &&
-         "This only knows how to commute register operands so far");
-  if (MI->getOperand(0).getReg() == MI->getOperand(1).getReg()) {
-    // Must be two address instruction!
-    assert(MI->getDesc().getOperandConstraint(0, TOI::TIED_TO) &&
-           "Expecting a two-address instruction!");
-    OpIdx = 2;
-    return true;
-  }
-  return false;
+  // This assumes v0 = op v1, v2 and commuting would swap v1 and v2. If this
+  // is not true, then the target must implement this.
+  SrcOpIdx1 = TID.getNumDefs();
+  SrcOpIdx2 = SrcOpIdx1 + 1;
+  if (!MI->getOperand(SrcOpIdx1).isReg() ||
+      !MI->getOperand(SrcOpIdx2).isReg())
+    // No idea.
+    return false;
+  return true;
 }
 
 
@@ -122,9 +134,12 @@ bool TargetInstrInfoImpl::PredicateInstruction(MachineInstr *MI,
 void TargetInstrInfoImpl::reMaterialize(MachineBasicBlock &MBB,
                                         MachineBasicBlock::iterator I,
                                         unsigned DestReg,
+                                        unsigned SubIdx,
                                         const MachineInstr *Orig) const {
   MachineInstr *MI = MBB.getParent()->CloneMachineInstr(Orig);
-  MI->getOperand(0).setReg(DestReg);
+  MachineOperand &MO = MI->getOperand(0);
+  MO.setReg(DestReg);
+  MO.setSubReg(SubIdx);
   MBB.insert(I, MI);
 }
 
@@ -171,11 +186,11 @@ TargetInstrInfo::foldMemoryOperand(MachineFunction &MF,
          "Folded a use to a non-load!");
   const MachineFrameInfo &MFI = *MF.getFrameInfo();
   assert(MFI.getObjectOffset(FrameIndex) != -1);
-  MachineMemOperand MMO(PseudoSourceValue::getFixedStack(FrameIndex),
-                        Flags,
-                        MFI.getObjectOffset(FrameIndex),
-                        MFI.getObjectSize(FrameIndex),
-                        MFI.getObjectAlignment(FrameIndex));
+  MachineMemOperand *MMO =
+    MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FrameIndex),
+                            Flags, /*Offset=*/0,
+                            MFI.getObjectSize(FrameIndex),
+                            MFI.getObjectAlignment(FrameIndex));
   NewMI->addMemOperand(MF, MMO);
 
   return NewMI;
@@ -200,9 +215,93 @@ TargetInstrInfo::foldMemoryOperand(MachineFunction &MF,
   if (!NewMI) return 0;
 
   // Copy the memoperands from the load to the folded instruction.
-  for (std::list<MachineMemOperand>::iterator I = LoadMI->memoperands_begin(),
-       E = LoadMI->memoperands_end(); I != E; ++I)
-    NewMI->addMemOperand(MF, *I);
+  NewMI->setMemRefs(LoadMI->memoperands_begin(),
+                    LoadMI->memoperands_end());
 
   return NewMI;
+}
+
+bool
+TargetInstrInfo::isReallyTriviallyReMaterializableGeneric(const MachineInstr *
+                                                            MI,
+                                                          AliasAnalysis *
+                                                            AA) const {
+  const MachineFunction &MF = *MI->getParent()->getParent();
+  const MachineRegisterInfo &MRI = MF.getRegInfo();
+  const TargetMachine &TM = MF.getTarget();
+  const TargetInstrInfo &TII = *TM.getInstrInfo();
+  const TargetRegisterInfo &TRI = *TM.getRegisterInfo();
+
+  // A load from a fixed stack slot can be rematerialized. This may be
+  // redundant with subsequent checks, but it's target-independent,
+  // simple, and a common case.
+  int FrameIdx = 0;
+  if (TII.isLoadFromStackSlot(MI, FrameIdx) &&
+      MF.getFrameInfo()->isImmutableObjectIndex(FrameIdx))
+    return true;
+
+  const TargetInstrDesc &TID = MI->getDesc();
+
+  // Avoid instructions obviously unsafe for remat.
+  if (TID.hasUnmodeledSideEffects() || TID.isNotDuplicable() ||
+      TID.mayStore())
+    return false;
+
+  // Avoid instructions which load from potentially varying memory.
+  if (TID.mayLoad() && !MI->isInvariantLoad(AA))
+    return false;
+
+  // If any of the registers accessed are non-constant, conservatively assume
+  // the instruction is not rematerializable.
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = MI->getOperand(i);
+    if (!MO.isReg()) continue;
+    unsigned Reg = MO.getReg();
+    if (Reg == 0)
+      continue;
+
+    // Check for a well-behaved physical register.
+    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      if (MO.isUse()) {
+        // If the physreg has no defs anywhere, it's just an ambient register
+        // and we can freely move its uses. Alternatively, if it's allocatable,
+        // it could get allocated to something with a def during allocation.
+        if (!MRI.def_empty(Reg))
+          return false;
+        BitVector AllocatableRegs = TRI.getAllocatableSet(MF, 0);
+        if (AllocatableRegs.test(Reg))
+          return false;
+        // Check for a def among the register's aliases too.
+        for (const unsigned *Alias = TRI.getAliasSet(Reg); *Alias; ++Alias) {
+          unsigned AliasReg = *Alias;
+          if (!MRI.def_empty(AliasReg))
+            return false;
+          if (AllocatableRegs.test(AliasReg))
+            return false;
+        }
+      } else {
+        // A physreg def. We can't remat it.
+        return false;
+      }
+      continue;
+    }
+
+    // Only allow one virtual-register def, and that in the first operand.
+    if (MO.isDef() != (i == 0))
+      return false;
+
+    // For the def, it should be the only def of that register.
+    if (MO.isDef() && (next(MRI.def_begin(Reg)) != MRI.def_end() ||
+                       MRI.isLiveIn(Reg)))
+      return false;
+
+    // Don't allow any virtual-register uses. Rematting an instruction with
+    // virtual register uses would length the live ranges of the uses, which
+    // is not necessarily a good idea, certainly not "trivial".
+    if (MO.isUse())
+      return false;
+  }
+
+  // Everything checked out.
+  return true;
 }

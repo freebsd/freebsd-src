@@ -21,6 +21,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/Statistic.h"
 #include <fstream>
 #include <set>
@@ -86,7 +87,7 @@ void InternalizePass::LoadFile(const char *Filename) {
   // Load the APIFile...
   std::ifstream In(Filename);
   if (!In.good()) {
-    cerr << "WARNING: Internalize couldn't load file '" << Filename
+    errs() << "WARNING: Internalize couldn't load file '" << Filename
          << "'! Continuing as if it's empty.\n";
     return; // Just continue as if the file were empty
   }
@@ -101,7 +102,7 @@ void InternalizePass::LoadFile(const char *Filename) {
 bool InternalizePass::runOnModule(Module &M) {
   CallGraph *CG = getAnalysisIfAvailable<CallGraph>();
   CallGraphNode *ExternalNode = CG ? CG->getExternalCallingNode() : 0;
-
+  
   if (ExternalNames.empty()) {
     // Return if we're not in 'all but main' mode and have no external api
     if (!AllButMain)
@@ -131,12 +132,14 @@ bool InternalizePass::runOnModule(Module &M) {
       if (ExternalNode) ExternalNode->removeOneAbstractEdgeTo((*CG)[I]);
       Changed = true;
       ++NumFunctions;
-      DOUT << "Internalizing func " << I->getName() << "\n";
+      DEBUG(errs() << "Internalizing func " << I->getName() << "\n");
     }
 
   // Never internalize the llvm.used symbol.  It is used to implement
   // attribute((used)).
+  // FIXME: Shouldn't this just filter on llvm.metadata section??
   ExternalNames.insert("llvm.used");
+  ExternalNames.insert("llvm.compiler.used");
 
   // Never internalize anchors used by the machine module info, else the info
   // won't find them.  (see MachineModuleInfo.)
@@ -158,7 +161,7 @@ bool InternalizePass::runOnModule(Module &M) {
       I->setLinkage(GlobalValue::InternalLinkage);
       Changed = true;
       ++NumGlobals;
-      DOUT << "Internalized gvar " << I->getName() << "\n";
+      DEBUG(errs() << "Internalized gvar " << I->getName() << "\n");
     }
 
   // Mark all aliases that are not in the api as internal as well.
@@ -169,7 +172,7 @@ bool InternalizePass::runOnModule(Module &M) {
       I->setLinkage(GlobalValue::InternalLinkage);
       Changed = true;
       ++NumAliases;
-      DOUT << "Internalized alias " << I->getName() << "\n";
+      DEBUG(errs() << "Internalized alias " << I->getName() << "\n");
     }
 
   return Changed;

@@ -19,6 +19,7 @@
 #include "llvm/Target/TargetInstrDesc.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/LeakDetector.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -31,7 +32,7 @@ MachineBasicBlock::~MachineBasicBlock() {
   LeakDetector::removeGarbageObject(this);
 }
 
-std::ostream& llvm::operator<<(std::ostream &OS, const MachineBasicBlock &MBB) {
+raw_ostream &llvm::operator<<(raw_ostream &OS, const MachineBasicBlock &MBB) {
   MBB.print(OS);
   return OS;
 }
@@ -43,7 +44,7 @@ std::ostream& llvm::operator<<(std::ostream &OS, const MachineBasicBlock &MBB) {
 /// MBBs start out as #-1. When a MBB is added to a MachineFunction, it
 /// gets the next available unique MBB number. If it is removed from a
 /// MachineFunction, it goes back to being #-1.
-void ilist_traits<MachineBasicBlock>::addNodeToList(MachineBasicBlock* N) {
+void ilist_traits<MachineBasicBlock>::addNodeToList(MachineBasicBlock *N) {
   MachineFunction &MF = *N->getParent();
   N->Number = MF.addToMBBNumbering(N);
 
@@ -55,7 +56,7 @@ void ilist_traits<MachineBasicBlock>::addNodeToList(MachineBasicBlock* N) {
   LeakDetector::removeGarbageObject(N);
 }
 
-void ilist_traits<MachineBasicBlock>::removeNodeFromList(MachineBasicBlock* N) {
+void ilist_traits<MachineBasicBlock>::removeNodeFromList(MachineBasicBlock *N) {
   N->getParent()->removeFromMBBNumbering(N->Number);
   N->Number = -1;
   LeakDetector::addGarbageObject(N);
@@ -65,7 +66,7 @@ void ilist_traits<MachineBasicBlock>::removeNodeFromList(MachineBasicBlock* N) {
 /// addNodeToList (MI) - When we add an instruction to a basic block
 /// list, we update its parent pointer and add its operands from reg use/def
 /// lists if appropriate.
-void ilist_traits<MachineInstr>::addNodeToList(MachineInstr* N) {
+void ilist_traits<MachineInstr>::addNodeToList(MachineInstr *N) {
   assert(N->getParent() == 0 && "machine instruction already in a basic block");
   N->setParent(Parent);
   
@@ -80,7 +81,7 @@ void ilist_traits<MachineInstr>::addNodeToList(MachineInstr* N) {
 /// removeNodeFromList (MI) - When we remove an instruction from a basic block
 /// list, we update its parent pointer and remove its operands from reg use/def
 /// lists if appropriate.
-void ilist_traits<MachineInstr>::removeNodeFromList(MachineInstr* N) {
+void ilist_traits<MachineInstr>::removeNodeFromList(MachineInstr *N) {
   assert(N->getParent() != 0 && "machine instruction not in a basic block");
 
   // Remove from the use/def lists.
@@ -94,10 +95,10 @@ void ilist_traits<MachineInstr>::removeNodeFromList(MachineInstr* N) {
 /// transferNodesFromList (MI) - When moving a range of instructions from one
 /// MBB list to another, we need to update the parent pointers and the use/def
 /// lists.
-void ilist_traits<MachineInstr>::transferNodesFromList(
-      ilist_traits<MachineInstr>& fromList,
-      MachineBasicBlock::iterator first,
-      MachineBasicBlock::iterator last) {
+void ilist_traits<MachineInstr>::
+transferNodesFromList(ilist_traits<MachineInstr> &fromList,
+                      MachineBasicBlock::iterator first,
+                      MachineBasicBlock::iterator last) {
   assert(Parent->getParent() == fromList.Parent->getParent() &&
         "MachineInstr parent mismatch!");
 
@@ -123,21 +124,41 @@ MachineBasicBlock::iterator MachineBasicBlock::getFirstTerminator() {
   return I;
 }
 
-bool
-MachineBasicBlock::isOnlyReachableByFallthrough() const {
-  return !isLandingPad() &&
-         !pred_empty() &&
-         next(pred_begin()) == pred_end() &&
-         (*pred_begin())->isLayoutSuccessor(this) &&
-         ((*pred_begin())->empty() ||
-          !(*pred_begin())->back().getDesc().isBarrier());
+/// isOnlyReachableViaFallthough - Return true if this basic block has
+/// exactly one predecessor and the control transfer mechanism between
+/// the predecessor and this block is a fall-through.
+bool MachineBasicBlock::isOnlyReachableByFallthrough() const {
+  // If this is a landing pad, it isn't a fall through.  If it has no preds,
+  // then nothing falls through to it.
+  if (isLandingPad() || pred_empty())
+    return false;
+  
+  // If there isn't exactly one predecessor, it can't be a fall through.
+  const_pred_iterator PI = pred_begin(), PI2 = PI;
+  ++PI2;
+  if (PI2 != pred_end())
+    return false;
+  
+  // The predecessor has to be immediately before this block.
+  const MachineBasicBlock *Pred = *PI;
+  
+  if (!Pred->isLayoutSuccessor(this))
+    return false;
+  
+  // If the block is completely empty, then it definitely does fall through.
+  if (Pred->empty())
+    return true;
+  
+  // Otherwise, check the last instruction.
+  const MachineInstr &LastInst = Pred->back();
+  return !LastInst.getDesc().isBarrier();
 }
 
 void MachineBasicBlock::dump() const {
-  print(*cerr.stream());
+  print(errs());
 }
 
-static inline void OutputReg(std::ostream &os, unsigned RegNo,
+static inline void OutputReg(raw_ostream &os, unsigned RegNo,
                              const TargetRegisterInfo *TRI = 0) {
   if (!RegNo || TargetRegisterInfo::isPhysicalRegister(RegNo)) {
     if (TRI)
@@ -148,16 +169,16 @@ static inline void OutputReg(std::ostream &os, unsigned RegNo,
     os << " %reg" << RegNo;
 }
 
-void MachineBasicBlock::print(std::ostream &OS) const {
+void MachineBasicBlock::print(raw_ostream &OS) const {
   const MachineFunction *MF = getParent();
-  if(!MF) {
+  if (!MF) {
     OS << "Can't print out MachineBasicBlock because parent MachineFunction"
        << " is null\n";
     return;
   }
 
   const BasicBlock *LBB = getBasicBlock();
-  OS << "\n";
+  OS << '\n';
   if (LBB) OS << LBB->getName() << ": ";
   OS << (const void*)this
      << ", LLVM BB @" << (const void*) LBB << ", ID#" << getNumber();
@@ -170,18 +191,18 @@ void MachineBasicBlock::print(std::ostream &OS) const {
     OS << "Live Ins:";
     for (const_livein_iterator I = livein_begin(),E = livein_end(); I != E; ++I)
       OutputReg(OS, *I, TRI);
-    OS << "\n";
+    OS << '\n';
   }
   // Print the preds of this block according to the CFG.
   if (!pred_empty()) {
     OS << "    Predecessors according to CFG:";
     for (const_pred_iterator PI = pred_begin(), E = pred_end(); PI != E; ++PI)
-      OS << " " << *PI << " (#" << (*PI)->getNumber() << ")";
-    OS << "\n";
+      OS << ' ' << *PI << " (#" << (*PI)->getNumber() << ')';
+    OS << '\n';
   }
   
   for (const_iterator I = begin(); I != end(); ++I) {
-    OS << "\t";
+    OS << '\t';
     I->print(OS, &getParent()->getTarget());
   }
 
@@ -189,8 +210,8 @@ void MachineBasicBlock::print(std::ostream &OS) const {
   if (!succ_empty()) {
     OS << "    Successors according to CFG:";
     for (const_succ_iterator SI = succ_begin(), E = succ_end(); SI != E; ++SI)
-      OS << " " << *SI << " (#" << (*SI)->getNumber() << ")";
-    OS << "\n";
+      OS << ' ' << *SI << " (#" << (*SI)->getNumber() << ')';
+    OS << '\n';
   }
 }
 
@@ -245,16 +266,15 @@ void MachineBasicBlock::removePredecessor(MachineBasicBlock *pred) {
   Predecessors.erase(I);
 }
 
-void MachineBasicBlock::transferSuccessors(MachineBasicBlock *fromMBB)
-{
+void MachineBasicBlock::transferSuccessors(MachineBasicBlock *fromMBB) {
   if (this == fromMBB)
     return;
   
-  for(MachineBasicBlock::succ_iterator iter = fromMBB->succ_begin(), 
-      end = fromMBB->succ_end(); iter != end; ++iter) {
-      addSuccessor(*iter);
-  }
-  while(!fromMBB->succ_empty())
+  for (MachineBasicBlock::succ_iterator I = fromMBB->succ_begin(), 
+       E = fromMBB->succ_end(); I != E; ++I)
+    addSuccessor(*I);
+  
+  while (!fromMBB->succ_empty())
     fromMBB->removeSuccessor(fromMBB->succ_begin());
 }
 

@@ -17,13 +17,14 @@
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/TargetFolder.h"
+#include <set>
 
 namespace llvm {
   /// SCEVExpander - This class uses information about analyze scalars to
   /// rewrite expressions in canonical form.
   ///
   /// Clients should create an instance of this class when rewriting is needed,
-  /// and destroy it when finished to allow the release of the associated 
+  /// and destroy it when finished to allow the release of the associated
   /// memory.
   struct SCEVExpander : public SCEVVisitor<SCEVExpander, Value*> {
     ScalarEvolution &SE;
@@ -37,7 +38,8 @@ namespace llvm {
     friend struct SCEVVisitor<SCEVExpander, Value*>;
   public:
     explicit SCEVExpander(ScalarEvolution &se)
-      : SE(se), Builder(TargetFolder(se.TD)) {}
+      : SE(se), Builder(se.getContext(),
+                        TargetFolder(se.TD, se.getContext())) {}
 
     /// clear - Erase the contents of the InsertedExpressions map so that users
     /// trying to expand the same expression into multiple BasicBlocks or
@@ -53,12 +55,14 @@ namespace llvm {
     /// expandCodeFor - Insert code to directly compute the specified SCEV
     /// expression into the program.  The inserted code is inserted into the
     /// specified block.
-    Value *expandCodeFor(const SCEV* SH, const Type *Ty, Instruction *IP) {
+    Value *expandCodeFor(const SCEV *SH, const Type *Ty, Instruction *IP) {
       Builder.SetInsertPoint(IP->getParent(), IP);
       return expandCodeFor(SH, Ty);
     }
 
   private:
+    LLVMContext &getContext() const { return SE.getContext(); }
+
     /// InsertBinop - Insert the specified binary operator, doing a small amount
     /// of work to avoid inserting an obviously redundant operation.
     Value *InsertBinop(Instruction::BinaryOps Opcode, Value *LHS, Value *RHS);
@@ -70,8 +74,8 @@ namespace llvm {
 
     /// expandAddToGEP - Expand a SCEVAddExpr with a pointer type into a GEP
     /// instead of using ptrtoint+arithmetic+inttoptr.
-    Value *expandAddToGEP(const SCEV* const *op_begin,
-                          const SCEV* const *op_end,
+    Value *expandAddToGEP(const SCEV *const *op_begin,
+                          const SCEV *const *op_end,
                           const PointerType *PTy, const Type *Ty, Value *V);
 
     Value *expand(const SCEV *S);
@@ -80,7 +84,7 @@ namespace llvm {
     /// expression into the program.  The inserted code is inserted into the
     /// SCEVExpander's current insertion point. If a type is specified, the
     /// result will be expanded to have that type, with a cast if necessary.
-    Value *expandCodeFor(const SCEV* SH, const Type *Ty = 0);
+    Value *expandCodeFor(const SCEV *SH, const Type *Ty = 0);
 
     /// isInsertedInstruction - Return true if the specified instruction was
     /// inserted by the code rewriter.  If so, the client should not modify the
@@ -111,6 +115,10 @@ namespace llvm {
 
     Value *visitUMaxExpr(const SCEVUMaxExpr *S);
 
+    Value *visitFieldOffsetExpr(const SCEVFieldOffsetExpr *S);
+
+    Value *visitAllocSizeExpr(const SCEVAllocSizeExpr *S);
+
     Value *visitUnknown(const SCEVUnknown *S) {
       return S->getValue();
     }
@@ -118,4 +126,3 @@ namespace llvm {
 }
 
 #endif
-

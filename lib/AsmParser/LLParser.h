@@ -28,6 +28,7 @@ namespace llvm {
   class Instruction;
   class Constant;
   class GlobalValue;
+  class MetadataBase;
   class MDString;
   class MDNode;
   struct ValID;
@@ -45,7 +46,9 @@ namespace llvm {
     std::map<unsigned, std::pair<PATypeHolder, LocTy> > ForwardRefTypeIDs;
     std::vector<PATypeHolder> NumberedTypes;
     /// MetadataCache - This map keeps track of parsed metadata constants.
-    std::map<unsigned, Constant *> MetadataCache;
+    std::map<unsigned, MetadataBase *> MetadataCache;
+    std::map<unsigned, std::pair<MetadataBase *, LocTy> > ForwardRefMDNodes;
+    SmallVector<std::pair<unsigned, MDNode *>, 2> MDsOnInst;
     struct UpRefRecord {
       /// Loc - This is the location of the upref.
       LocTy Loc;
@@ -74,7 +77,7 @@ namespace llvm {
     std::vector<GlobalValue*> NumberedVals;
   public:
     LLParser(MemoryBuffer *F, SourceMgr &SM, SMDiagnostic &Err, Module *m) : 
-      Context(m->getContext()), Lex(F, SM, Err), M(m) {}
+      Context(m->getContext()), Lex(F, SM, Err, m->getContext()), M(m) {}
     bool Run();
 
     LLVMContext& getContext() { return Context; }
@@ -123,9 +126,10 @@ namespace llvm {
       bool HasLinkage; return ParseOptionalLinkage(Linkage, HasLinkage);
     }
     bool ParseOptionalVisibility(unsigned &Visibility);
-    bool ParseOptionalCallingConv(unsigned &CC);
+    bool ParseOptionalCallingConv(CallingConv::ID &CC);
     bool ParseOptionalAlignment(unsigned &Alignment);
-    bool ParseOptionalCommaAlignment(unsigned &Alignment);
+    bool ParseOptionalCustomMetadata();
+    bool ParseOptionalInfo(unsigned &Alignment);
     bool ParseIndexList(SmallVectorImpl<unsigned> &Indices);
 
     // Top-Level Entities
@@ -140,11 +144,15 @@ namespace llvm {
     bool ParseDefine();
 
     bool ParseGlobalType(bool &IsConstant);
+    bool ParseUnnamedGlobal();
     bool ParseNamedGlobal();
     bool ParseGlobal(const std::string &Name, LocTy Loc, unsigned Linkage,
                      bool HasLinkage, unsigned Visibility);
     bool ParseAlias(const std::string &Name, LocTy Loc, unsigned Visibility);
     bool ParseStandaloneMetadata();
+    bool ParseNamedMetadata();
+    bool ParseMDString(MetadataBase *&S);
+    bool ParseMDNode(MetadataBase *&N);
 
     // Type Parsing.
     bool ParseType(PATypeHolder &Result, bool AllowVoid = false);

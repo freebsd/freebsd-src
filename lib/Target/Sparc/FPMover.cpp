@@ -20,6 +20,8 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 STATISTIC(NumFpDs , "Number of instructions translated");
@@ -75,7 +77,7 @@ static void getDoubleRegPair(unsigned DoubleReg, unsigned &EvenReg,
       OddReg = OddHalvesOfPairs[i];
       return;
     }
-  assert(0 && "Can't find reg");
+  llvm_unreachable("Can't find reg");
 }
 
 /// runOnMachineBasicBlock - Fixup FpMOVD instructions in this MBB.
@@ -108,16 +110,16 @@ bool FPMover::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
       else if (MI->getOpcode() == SP::FpABSD)
         MI->setDesc(TII->get(SP::FABSS));
       else
-        assert(0 && "Unknown opcode!");
+        llvm_unreachable("Unknown opcode!");
         
       MI->getOperand(0).setReg(EvenDestReg);
       MI->getOperand(1).setReg(EvenSrcReg);
-      DOUT << "FPMover: the modified instr is: " << *MI;
+      DEBUG(errs() << "FPMover: the modified instr is: " << *MI);
       // Insert copy for the other half of the double.
       if (DestDReg != SrcDReg) {
         MI = BuildMI(MBB, I, dl, TM.getInstrInfo()->get(SP::FMOVS), OddDestReg)
           .addReg(OddSrcReg);
-        DOUT << "FPMover: the inserted instr is: " << *MI;
+        DEBUG(errs() << "FPMover: the inserted instr is: " << *MI);
       }
       ++NumFpDs;
     }

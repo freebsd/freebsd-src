@@ -39,18 +39,9 @@ class PPCTargetMachine : public LLVMTargetMachine {
   InstrItineraryData  InstrItins;
   PPCMachOWriterInfo  MachOWriterInfo;
 
-protected:
-  virtual const TargetAsmInfo *createTargetAsmInfo() const;
-
-  // To avoid having target depend on the asmprinter stuff libraries, asmprinter
-  // set this functions to ctor pointer at startup time if they are linked in.
-  typedef FunctionPass *(*AsmPrinterCtorFn)(raw_ostream &o,
-                                            PPCTargetMachine &tm, 
-                                            bool verbose);
-  static AsmPrinterCtorFn AsmPrinterCtor;
-
 public:
-  PPCTargetMachine(const Module &M, const std::string &FS, bool is64Bit);
+  PPCTargetMachine(const Target &T, const std::string &TT,
+                   const std::string &FS, bool is64Bit);
 
   virtual const PPCInstrInfo     *getInstrInfo() const { return &InstrInfo; }
   virtual const PPCFrameInfo     *getFrameInfo() const { return &FrameInfo; }
@@ -71,26 +62,24 @@ public:
     return &MachOWriterInfo;
   }
 
-  static void registerAsmPrinter(AsmPrinterCtorFn F) {
-    AsmPrinterCtor = F;
-  }
-
   // Pass Pipeline Configuration
   virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addAssemblyEmitter(PassManagerBase &PM,
-                                  CodeGenOpt::Level OptLevel, 
-                                  bool Verbose, raw_ostream &Out);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              bool DumpAsm, MachineCodeEmitter &MCE);
+                              MachineCodeEmitter &MCE);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              bool DumpAsm, JITCodeEmitter &JCE);
+                              JITCodeEmitter &JCE);
+  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
+                              ObjectCodeEmitter &OCE);
   virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
                                     CodeGenOpt::Level OptLevel,
-                                    bool DumpAsm, MachineCodeEmitter &MCE);
+                                    MachineCodeEmitter &MCE);
   virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
                                     CodeGenOpt::Level OptLevel,
-                                    bool DumpAsm, JITCodeEmitter &JCE);
+                                    JITCodeEmitter &JCE);
+  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
+                                    CodeGenOpt::Level OptLevel,
+                                    ObjectCodeEmitter &OCE);
   virtual bool getEnableTailMergeDefault() const;
 };
 
@@ -98,20 +87,16 @@ public:
 ///
 class PPC32TargetMachine : public PPCTargetMachine {
 public:
-  PPC32TargetMachine(const Module &M, const std::string &FS);
-  
-  static unsigned getJITMatchQuality();
-  static unsigned getModuleMatchQuality(const Module &M);
+  PPC32TargetMachine(const Target &T, const std::string &TT,
+                     const std::string &FS);
 };
 
 /// PPC64TargetMachine - PowerPC 64-bit target machine.
 ///
 class PPC64TargetMachine : public PPCTargetMachine {
 public:
-  PPC64TargetMachine(const Module &M, const std::string &FS);
-  
-  static unsigned getJITMatchQuality();
-  static unsigned getModuleMatchQuality(const Module &M);
+  PPC64TargetMachine(const Target &T, const std::string &TT,
+                     const std::string &FS);
 };
 
 } // end namespace llvm

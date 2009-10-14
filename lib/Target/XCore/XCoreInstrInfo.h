@@ -22,7 +22,7 @@ namespace llvm {
 class XCoreInstrInfo : public TargetInstrInfoImpl {
   const XCoreRegisterInfo RI;
 public:
-  XCoreInstrInfo(void);
+  XCoreInstrInfo();
 
   /// getRegisterInfo - TargetInstrInfo is a superset of MRegister info.  As
   /// such, whenever a client has an instance of instruction info, it should
@@ -52,8 +52,6 @@ public:
   virtual unsigned isStoreToStackSlot(const MachineInstr *MI,
                                       int &FrameIndex) const;
   
-  virtual bool isInvariantLoad(const MachineInstr *MI) const;
-  
   virtual bool AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
                              MachineBasicBlock *&FBB,
                              SmallVectorImpl<MachineOperand> &Cond,
@@ -76,20 +74,10 @@ public:
                                    unsigned SrcReg, bool isKill, int FrameIndex,
                                    const TargetRegisterClass *RC) const;
 
-  virtual void storeRegToAddr(MachineFunction &MF, unsigned SrcReg, bool isKill,
-                              SmallVectorImpl<MachineOperand> &Addr,
-                              const TargetRegisterClass *RC,
-                              SmallVectorImpl<MachineInstr*> &NewMIs) const;
-
   virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator MI,
                                     unsigned DestReg, int FrameIndex,
                                     const TargetRegisterClass *RC) const;
-
-  virtual void loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
-                               SmallVectorImpl<MachineOperand> &Addr,
-                               const TargetRegisterClass *RC,
-                               SmallVectorImpl<MachineInstr*> &NewMIs) const;
 
   virtual bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
                                         MachineBasicBlock::iterator MI,

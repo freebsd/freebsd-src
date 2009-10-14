@@ -19,6 +19,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Instructions.h"
 #include "llvm/Constants.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Pass.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Target/TargetData.h"
@@ -28,17 +29,17 @@ using namespace llvm;
 STATISTIC(NumLowered, "Number of allocations lowered");
 
 namespace {
-  /// LowerAllocations - Turn malloc and free instructions into %malloc and
-  /// %free calls.
+  /// LowerAllocations - Turn malloc and free instructions into @malloc and
+  /// @free calls.
   ///
   class VISIBILITY_HIDDEN LowerAllocations : public BasicBlockPass {
-    Constant *MallocFunc;   // Functions in the module we are processing
-    Constant *FreeFunc;     // Initialized by doInitialization
+    Constant *FreeFunc;   // Functions in the module we are processing
+                          // Initialized by doInitialization
     bool LowerMallocArgToInteger;
   public:
     static char ID; // Pass ID, replacement for typeid
     explicit LowerAllocations(bool LowerToInt = false)
-      : BasicBlockPass(&ID), MallocFunc(0), FreeFunc(0), 
+      : BasicBlockPass(&ID), FreeFunc(0), 
         LowerMallocArgToInteger(LowerToInt) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -86,12 +87,9 @@ Pass *llvm::createLowerAllocationsPass(bool LowerMallocArgToInteger) {
 // This function is always successful.
 //
 bool LowerAllocations::doInitialization(Module &M) {
-  const Type *BPTy = PointerType::getUnqual(Type::Int8Ty);
-  // Prototype malloc as "char* malloc(...)", because we don't know in
-  // doInitialization whether size_t is int or long.
-  FunctionType *FT = FunctionType::get(BPTy, true);
-  MallocFunc = M.getOrInsertFunction("malloc", FT);
-  FreeFunc = M.getOrInsertFunction("free"  , Type::VoidTy, BPTy, (Type *)0);
+  const Type *BPTy = Type::getInt8PtrTy(M.getContext());
+  FreeFunc = M.getOrInsertFunction("free"  , Type::getVoidTy(M.getContext()),
+                                   BPTy, (Type *)0);
   return true;
 }
 
@@ -100,57 +98,22 @@ bool LowerAllocations::doInitialization(Module &M) {
 //
 bool LowerAllocations::runOnBasicBlock(BasicBlock &BB) {
   bool Changed = false;
-  assert(MallocFunc && FreeFunc && "Pass not initialized!");
+  assert(FreeFunc && "Pass not initialized!");
 
   BasicBlock::InstListType &BBIL = BB.getInstList();
 
   const TargetData &TD = getAnalysis<TargetData>();
-  const Type *IntPtrTy = TD.getIntPtrType();
+  const Type *IntPtrTy = TD.getIntPtrType(BB.getContext());
 
   // Loop over all of the instructions, looking for malloc or free instructions
   for (BasicBlock::iterator I = BB.begin(), E = BB.end(); I != E; ++I) {
     if (MallocInst *MI = dyn_cast<MallocInst>(I)) {
-      const Type *AllocTy = MI->getType()->getElementType();
-
-      // malloc(type) becomes i8 *malloc(size)
-      Value *MallocArg;
-      if (LowerMallocArgToInteger)
-        MallocArg = ConstantInt::get(Type::Int64Ty,
-                                     TD.getTypeAllocSize(AllocTy));
-      else
-        MallocArg = ConstantExpr::getSizeOf(AllocTy);
-      MallocArg = ConstantExpr::getTruncOrBitCast(cast<Constant>(MallocArg), 
-                                                  IntPtrTy);
-
-      if (MI->isArrayAllocation()) {
-        if (isa<ConstantInt>(MallocArg) &&
-            cast<ConstantInt>(MallocArg)->isOne()) {
-          MallocArg = MI->getOperand(0);         // Operand * 1 = Operand
-        } else if (Constant *CO = dyn_cast<Constant>(MI->getOperand(0))) {
-          CO = ConstantExpr::getIntegerCast(CO, IntPtrTy, false /*ZExt*/);
-          MallocArg = ConstantExpr::getMul(CO, cast<Constant>(MallocArg));
-        } else {
-          Value *Scale = MI->getOperand(0);
-          if (Scale->getType() != IntPtrTy)
-            Scale = CastInst::CreateIntegerCast(Scale, IntPtrTy, false /*ZExt*/,
-                                                "", I);
-
-          // Multiply it by the array size if necessary...
-          MallocArg = BinaryOperator::Create(Instruction::Mul, Scale,
-                                             MallocArg, "", I);
-        }
-      }
-
-      // Create the call to Malloc.
-      CallInst *MCall = CallInst::Create(MallocFunc, MallocArg, "", I);
-      MCall->setTailCall();
-
-      // Create a cast instruction to convert to the right type...
-      Value *MCast;
-      if (MCall->getType() != Type::VoidTy)
-        MCast = new BitCastInst(MCall, MI->getType(), "", I);
-      else
-        MCast = Constant::getNullValue(MI->getType());
+      Value *ArraySize = MI->getOperand(0);
+      if (ArraySize->getType() != IntPtrTy)
+        ArraySize = CastInst::CreateIntegerCast(ArraySize, IntPtrTy,
+                                                false /*ZExt*/, "", I);
+      Value *MCast = CallInst::CreateMalloc(I, IntPtrTy,
+                                            MI->getAllocatedType(), ArraySize);
 
       // Replace all uses of the old malloc inst with the cast inst
       MI->replaceAllUsesWith(MCast);
@@ -160,7 +123,7 @@ bool LowerAllocations::runOnBasicBlock(BasicBlock &BB) {
     } else if (FreeInst *FI = dyn_cast<FreeInst>(I)) {
       Value *PtrCast = 
         new BitCastInst(FI->getOperand(0),
-                        PointerType::getUnqual(Type::Int8Ty), "", I);
+               Type::getInt8PtrTy(BB.getContext()), "", I);
 
       // Insert a call to the free function...
       CallInst::Create(FreeFunc, PtrCast, "", I)->setTailCall();

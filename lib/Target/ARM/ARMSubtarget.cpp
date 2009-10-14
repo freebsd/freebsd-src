@@ -13,8 +13,7 @@
 
 #include "ARMSubtarget.h"
 #include "ARMGenSubtarget.inc"
-#include "llvm/Module.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/GlobalValue.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/CommandLine.h"
 using namespace llvm;
@@ -22,13 +21,19 @@ using namespace llvm;
 static cl::opt<bool>
 ReserveR9("arm-reserve-r9", cl::Hidden,
           cl::desc("Reserve R9, making it unavailable as GPR"));
+static cl::opt<bool>
+UseNEONFP("arm-use-neon-fp",
+          cl::desc("Use NEON for single-precision FP"),
+          cl::init(false), cl::Hidden);
 
-ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
+ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &FS,
                            bool isThumb)
   : ARMArchVersion(V4T)
   , ARMFPUType(None)
+  , UseNEONForSinglePrecisionFP(UseNEONFP)
   , IsThumb(isThumb)
   , ThumbMode(Thumb1)
+  , PostRAScheduler(false)
   , IsR9Reserved(ReserveR9)
   , stackAlignment(4)
   , CPUString("generic")
@@ -45,7 +50,6 @@ ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
 
   // Set the boolean corresponding to the current target triple, or the default
   // if one cannot be determined, to true.
-  const std::string& TT = M.getTargetTriple();
   unsigned Len = TT.length();
   unsigned Idx = 0;
 
@@ -75,14 +79,14 @@ ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
     }
   }
 
+  // Thumb2 implies at least V6T2.
+  if (ARMArchVersion < V6T2 && ThumbMode >= Thumb2)
+    ARMArchVersion = V6T2;
+
   if (Len >= 10) {
     if (TT.find("-darwin") != std::string::npos)
       // arm-darwin
       TargetType = isDarwin;
-  } else if (TT.empty()) {
-#if defined(__APPLE__)
-    TargetType = isDarwin;
-#endif
   }
 
   if (TT.find("eabi") != std::string::npos)
@@ -93,4 +97,61 @@ ARMSubtarget::ARMSubtarget(const Module &M, const std::string &FS,
 
   if (isTargetDarwin())
     IsR9Reserved = ReserveR9 | (ARMArchVersion < V6);
+
+  // Set CPU specific features.
+  if (CPUString == "cortex-a8") {
+    PostRAScheduler = true;
+    if (UseNEONFP.getPosition() == 0)
+      UseNEONForSinglePrecisionFP = true;
+  }
+}
+
+/// GVIsIndirectSymbol - true if the GV will be accessed via an indirect symbol.
+bool
+ARMSubtarget::GVIsIndirectSymbol(GlobalValue *GV, Reloc::Model RelocM) const {
+  if (RelocM == Reloc::Static)
+    return false;
+
+  // GV with ghost linkage (in JIT lazy compilation mode) do not require an
+  // extra load from stub.
+  bool isDecl = GV->isDeclaration() && !GV->hasNotBeenReadFromBitcode();
+
+  if (!isTargetDarwin()) {
+    // Extra load is needed for all externally visible.
+    if (GV->hasLocalLinkage() || GV->hasHiddenVisibility())
+      return false;
+    return true;
+  } else {
+    if (RelocM == Reloc::PIC_) {
+      // If this is a strong reference to a definition, it is definitely not
+      // through a stub.
+      if (!isDecl && !GV->isWeakForLinker())
+        return false;
+
+      // Unless we have a symbol with hidden visibility, we have to go through a
+      // normal $non_lazy_ptr stub because this symbol might be resolved late.
+      if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
+        return true;
+
+      // If symbol visibility is hidden, we have a stub for common symbol
+      // references and external declarations.
+      if (isDecl || GV->hasCommonLinkage())
+        // Hidden $non_lazy_ptr reference.
+        return true;
+
+      return false;
+    } else {
+      // If this is a strong reference to a definition, it is definitely not
+      // through a stub.
+      if (!isDecl && !GV->isWeakForLinker())
+        return false;
+    
+      // Unless we have a symbol with hidden visibility, we have to go through a
+      // normal $non_lazy_ptr stub because this symbol might be resolved late.
+      if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
+        return true;
+    }
+  }
+
+  return false;
 }

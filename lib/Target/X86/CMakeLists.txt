@@ -7,13 +7,15 @@ tablegen(X86GenInstrNames.inc -gen-instr-enums)
 tablegen(X86GenInstrInfo.inc -gen-instr-desc)
 tablegen(X86GenAsmWriter.inc -gen-asm-writer)
 tablegen(X86GenAsmWriter1.inc -gen-asm-writer -asmwriternum=1)
+tablegen(X86GenAsmMatcher.inc -gen-asm-matcher)
 tablegen(X86GenDAGISel.inc -gen-dag-isel)
 tablegen(X86GenFastISel.inc -gen-fast-isel)
 tablegen(X86GenCallingConv.inc -gen-callingconv)
 tablegen(X86GenSubtarget.inc -gen-subtarget)
 
-add_llvm_target(X86CodeGen
+set(sources
   X86CodeEmitter.cpp
+  X86COFFMachineModuleInfo.cpp
   X86ELFWriterInfo.cpp
   X86FloatingPoint.cpp
   X86FloatingPointRegKill.cpp
@@ -21,11 +23,19 @@ add_llvm_target(X86CodeGen
   X86ISelLowering.cpp
   X86InstrInfo.cpp
   X86JITInfo.cpp
+  X86MCAsmInfo.cpp
   X86RegisterInfo.cpp
   X86Subtarget.cpp
-  X86TargetAsmInfo.cpp
   X86TargetMachine.cpp
+  X86TargetObjectFile.cpp
   X86FastISel.cpp
   )
+
+if( CMAKE_CL_64 )
+  enable_language(ASM_MASM)
+  set(sources ${sources} X86CompilationCallback_Win64.asm)
+endif()
+
+add_llvm_target(X86CodeGen ${sources})
 
 target_link_libraries (LLVMX86CodeGen LLVMSelectionDAG)

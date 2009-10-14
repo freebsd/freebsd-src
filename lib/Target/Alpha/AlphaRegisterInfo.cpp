@@ -28,6 +28,8 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
@@ -149,8 +151,10 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
 //variable locals
 //<- SP
 
-void AlphaRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                            int SPAdj, RegScavenger *RS) const {
+unsigned
+AlphaRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+                                       int SPAdj, int *Value,
+                                       RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
 
   unsigned i = 0;
@@ -172,16 +176,16 @@ void AlphaRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // Now add the frame object offset to the offset from the virtual frame index.
   int Offset = MF.getFrameInfo()->getObjectOffset(FrameIndex);
 
-  DOUT << "FI: " << FrameIndex << " Offset: " << Offset << "\n";
+  DEBUG(errs() << "FI: " << FrameIndex << " Offset: " << Offset << "\n");
 
   Offset += MF.getFrameInfo()->getStackSize();
 
-  DOUT << "Corrected Offset " << Offset
-       << " for stack size: " << MF.getFrameInfo()->getStackSize() << "\n";
+  DEBUG(errs() << "Corrected Offset " << Offset
+       << " for stack size: " << MF.getFrameInfo()->getStackSize() << "\n");
 
   if (Offset > IMM_HIGH || Offset < IMM_LOW) {
-    DOUT << "Unconditionally using R28 for evil purposes Offset: "
-         << Offset << "\n";
+    DEBUG(errs() << "Unconditionally using R28 for evil purposes Offset: "
+          << Offset << "\n");
     //so in this case, we need to use a temporary register, and move the
     //original inst off the SP/FP
     //fix up the old:
@@ -195,6 +199,7 @@ void AlphaRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   } else {
     MI.getOperand(i).ChangeToImmediate(Offset);
   }
+  return 0;
 }
 
 
@@ -244,8 +249,10 @@ void AlphaRegisterInfo::emitPrologue(MachineFunction &MF) const {
     BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30)
       .addImm(getLower16(NumBytes)).addReg(Alpha::R30);
   } else {
-    cerr << "Too big a stack frame at " << NumBytes << "\n";
-    abort();
+    std::string msg;
+    raw_string_ostream Msg(msg); 
+    Msg << "Too big a stack frame at " + NumBytes;
+    llvm_report_error(Msg.str());
   }
 
   //now if we need to, save the old FP and set the new
@@ -294,14 +301,16 @@ void AlphaRegisterInfo::emitEpilogue(MachineFunction &MF,
       BuildMI(MBB, MBBI, dl, TII.get(Alpha::LDA), Alpha::R30)
         .addImm(getLower16(NumBytes)).addReg(Alpha::R30);
     } else {
-      cerr << "Too big a stack frame at " << NumBytes << "\n";
-      abort();
+      std::string msg;
+      raw_string_ostream Msg(msg); 
+      Msg << "Too big a stack frame at " + NumBytes;
+      llvm_report_error(Msg.str());
     }
   }
 }
 
 unsigned AlphaRegisterInfo::getRARegister() const {
-  assert(0 && "What is the return address register");
+  llvm_unreachable("What is the return address register");
   return 0;
 }
 
@@ -310,17 +319,17 @@ unsigned AlphaRegisterInfo::getFrameRegister(MachineFunction &MF) const {
 }
 
 unsigned AlphaRegisterInfo::getEHExceptionRegister() const {
-  assert(0 && "What is the exception register");
+  llvm_unreachable("What is the exception register");
   return 0;
 }
 
 unsigned AlphaRegisterInfo::getEHHandlerRegister() const {
-  assert(0 && "What is the exception handler register");
+  llvm_unreachable("What is the exception handler register");
   return 0;
 }
 
 int AlphaRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  assert(0 && "What is the dwarf register number");
+  llvm_unreachable("What is the dwarf register number");
   return -1;
 }
 

@@ -30,7 +30,6 @@
 #include "llvm/Module.h"
 #include "llvm/Attributes.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Pass.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -40,7 +39,7 @@ using namespace llvm;
 STATISTIC(NumSimpl, "Number of blocks simplified");
 
 namespace {
-  struct VISIBILITY_HIDDEN CFGSimplifyPass : public FunctionPass {
+  struct CFGSimplifyPass : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     CFGSimplifyPass() : FunctionPass(&ID) {}
 
@@ -58,20 +57,20 @@ FunctionPass *llvm::createCFGSimplificationPass() {
 
 /// ChangeToUnreachable - Insert an unreachable instruction before the specified
 /// instruction, making it and the rest of the code in the block dead.
-static void ChangeToUnreachable(Instruction *I, LLVMContext* Context) {
+static void ChangeToUnreachable(Instruction *I, LLVMContext &Context) {
   BasicBlock *BB = I->getParent();
   // Loop over all of the successors, removing BB's entry from any PHI
   // nodes.
   for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
     (*SI)->removePredecessor(BB);
   
-  new UnreachableInst(I);
+  new UnreachableInst(I->getContext(), I);
   
   // All instructions after this are dead.
   BasicBlock::iterator BBI = I, BBE = BB->end();
   while (BBI != BBE) {
     if (!BBI->use_empty())
-      BBI->replaceAllUsesWith(Context->getUndef(BBI->getType()));
+      BBI->replaceAllUsesWith(UndefValue::get(BBI->getType()));
     BB->getInstList().erase(BBI++);
   }
 }
@@ -97,7 +96,7 @@ static void ChangeToCall(InvokeInst *II) {
 
 static bool MarkAliveBlocks(BasicBlock *BB,
                             SmallPtrSet<BasicBlock*, 128> &Reachable,
-                            LLVMContext* Context) {
+                            LLVMContext &Context) {
   
   SmallVector<BasicBlock*, 128> Worklist;
   Worklist.push_back(BB);
@@ -132,7 +131,7 @@ static bool MarkAliveBlocks(BasicBlock *BB,
         
         if (isa<UndefValue>(Ptr) ||
             (isa<ConstantPointerNull>(Ptr) &&
-             cast<PointerType>(Ptr->getType())->getAddressSpace() == 0)) {
+             SI->getPointerAddressSpace() == 0)) {
           ChangeToUnreachable(SI, Context);
           Changed = true;
           break;

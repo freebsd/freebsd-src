@@ -12,96 +12,38 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPC.h"
-#include "PPCTargetAsmInfo.h"
+#include "PPCMCAsmInfo.h"
 #include "PPCTargetMachine.h"
-#include "llvm/Module.h"
 #include "llvm/PassManager.h"
-#include "llvm/Target/TargetMachineRegistry.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/FormattedStream.h"
 using namespace llvm;
 
-/// PowerPCTargetMachineModule - Note that this is used on hosts that
-/// cannot link in a library unless there are references into the
-/// library.  In particular, it seems that it is not possible to get
-/// things to work on Win32 without this.  Though it is unused, do not
-/// remove it.
-extern "C" int PowerPCTargetMachineModule;
-int PowerPCTargetMachineModule = 0;
-
-// Register the targets
-static RegisterTarget<PPC32TargetMachine>
-X("ppc32", "PowerPC 32");
-static RegisterTarget<PPC64TargetMachine>
-Y("ppc64", "PowerPC 64");
-
-// Force static initialization.
-extern "C" void LLVMInitializePowerPCTarget() { }
-
-// No assembler printer by default
-PPCTargetMachine::AsmPrinterCtorFn PPCTargetMachine::AsmPrinterCtor = 0;
-
-const TargetAsmInfo *PPCTargetMachine::createTargetAsmInfo() const {
-  if (Subtarget.isDarwin())
-    return new PPCDarwinTargetAsmInfo(*this);
-  else
-    return new PPCLinuxTargetAsmInfo(*this);
+static const MCAsmInfo *createMCAsmInfo(const Target &T,
+                                                const StringRef &TT) {
+  Triple TheTriple(TT);
+  bool isPPC64 = TheTriple.getArch() == Triple::ppc64;
+  if (TheTriple.getOS() == Triple::Darwin)
+    return new PPCMCAsmInfoDarwin(isPPC64);
+  return new PPCLinuxMCAsmInfo(isPPC64);
+  
 }
 
-unsigned PPC32TargetMachine::getJITMatchQuality() {
-#if defined(__POWERPC__) || defined (__ppc__) || defined(_POWER) || defined(__PPC__)
-  if (sizeof(void*) == 4)
-    return 10;
-#endif
-  return 0;
-}
-unsigned PPC64TargetMachine::getJITMatchQuality() {
-#if defined(__POWERPC__) || defined (__ppc__) || defined(_POWER) || defined(__PPC__)
-  if (sizeof(void*) == 8)
-    return 10;
-#endif
-  return 0;
-}
-
-unsigned PPC32TargetMachine::getModuleMatchQuality(const Module &M) {
-  // We strongly match "powerpc-*".
-  std::string TT = M.getTargetTriple();
-  if (TT.size() >= 8 && std::string(TT.begin(), TT.begin()+8) == "powerpc-")
-    return 20;
+extern "C" void LLVMInitializePowerPCTarget() {
+  // Register the targets
+  RegisterTargetMachine<PPC32TargetMachine> A(ThePPC32Target);  
+  RegisterTargetMachine<PPC64TargetMachine> B(ThePPC64Target);
   
-  // If the target triple is something non-powerpc, we don't match.
-  if (!TT.empty()) return 0;
-  
-  if (M.getEndianness()  == Module::BigEndian &&
-      M.getPointerSize() == Module::Pointer32)
-    return 10;                                   // Weak match
-  else if (M.getEndianness() != Module::AnyEndianness ||
-           M.getPointerSize() != Module::AnyPointerSize)
-    return 0;                                    // Match for some other target
-  
-  return getJITMatchQuality()/2;
-}
-
-unsigned PPC64TargetMachine::getModuleMatchQuality(const Module &M) {
-  // We strongly match "powerpc64-*".
-  std::string TT = M.getTargetTriple();
-  if (TT.size() >= 10 && std::string(TT.begin(), TT.begin()+10) == "powerpc64-")
-    return 20;
-  
-  if (M.getEndianness()  == Module::BigEndian &&
-      M.getPointerSize() == Module::Pointer64)
-    return 10;                                   // Weak match
-  else if (M.getEndianness() != Module::AnyEndianness ||
-           M.getPointerSize() != Module::AnyPointerSize)
-    return 0;                                    // Match for some other target
-  
-  return getJITMatchQuality()/2;
+  RegisterAsmInfoFn C(ThePPC32Target, createMCAsmInfo);
+  RegisterAsmInfoFn D(ThePPC64Target, createMCAsmInfo);
 }
 
 
-PPCTargetMachine::PPCTargetMachine(const Module &M, const std::string &FS,
-                                   bool is64Bit)
-  : Subtarget(*this, M, FS, is64Bit),
+PPCTargetMachine::PPCTargetMachine(const Target &T, const std::string &TT,
+                                   const std::string &FS, bool is64Bit)
+  : LLVMTargetMachine(T, TT),
+    Subtarget(TT, FS, is64Bit),
     DataLayout(Subtarget.getTargetDataString()), InstrInfo(*this),
     FrameInfo(*this, is64Bit), JITInfo(*this, is64Bit), TLInfo(*this),
     InstrItins(Subtarget.getInstrItineraryData()), MachOWriterInfo(*this) {
@@ -118,13 +60,15 @@ PPCTargetMachine::PPCTargetMachine(const Module &M, const std::string &FS,
 /// groups, which typically degrades performance.
 bool PPCTargetMachine::getEnableTailMergeDefault() const { return false; }
 
-PPC32TargetMachine::PPC32TargetMachine(const Module &M, const std::string &FS) 
-  : PPCTargetMachine(M, FS, false) {
+PPC32TargetMachine::PPC32TargetMachine(const Target &T, const std::string &TT, 
+                                       const std::string &FS) 
+  : PPCTargetMachine(T, TT, FS, false) {
 }
 
 
-PPC64TargetMachine::PPC64TargetMachine(const Module &M, const std::string &FS)
-  : PPCTargetMachine(M, FS, true) {
+PPC64TargetMachine::PPC64TargetMachine(const Target &T, const std::string &TT, 
+                                       const std::string &FS)
+  : PPCTargetMachine(T, TT, FS, true) {
 }
 
 
@@ -146,20 +90,9 @@ bool PPCTargetMachine::addPreEmitPass(PassManagerBase &PM,
   return false;
 }
 
-bool PPCTargetMachine::addAssemblyEmitter(PassManagerBase &PM,
-                                          CodeGenOpt::Level OptLevel,
-                                          bool Verbose,
-                                          raw_ostream &Out) {
-  assert(AsmPrinterCtor && "AsmPrinter was not linked in");
-  if (AsmPrinterCtor)
-    PM.add(AsmPrinterCtor(Out, *this, Verbose));
-
-  return false;
-}
-
 bool PPCTargetMachine::addCodeEmitter(PassManagerBase &PM,
                                       CodeGenOpt::Level OptLevel,
-                                      bool DumpAsm, MachineCodeEmitter &MCE) {
+                                      MachineCodeEmitter &MCE) {
   // The JIT should use the static relocation model in ppc32 mode, PIC in ppc64.
   // FIXME: This should be moved to TargetJITInfo!!
   if (Subtarget.isPPC64()) {
@@ -180,18 +113,13 @@ bool PPCTargetMachine::addCodeEmitter(PassManagerBase &PM,
   
   // Machine code emitter pass for PowerPC.
   PM.add(createPPCCodeEmitterPass(*this, MCE));
-  if (DumpAsm) {
-    assert(AsmPrinterCtor && "AsmPrinter was not linked in");
-    if (AsmPrinterCtor)
-      PM.add(AsmPrinterCtor(errs(), *this, true));
-  }
 
   return false;
 }
 
 bool PPCTargetMachine::addCodeEmitter(PassManagerBase &PM,
                                       CodeGenOpt::Level OptLevel,
-                                      bool DumpAsm, JITCodeEmitter &JCE) {
+                                      JITCodeEmitter &JCE) {
   // The JIT should use the static relocation model in ppc32 mode, PIC in ppc64.
   // FIXME: This should be moved to TargetJITInfo!!
   if (Subtarget.isPPC64()) {
@@ -212,42 +140,59 @@ bool PPCTargetMachine::addCodeEmitter(PassManagerBase &PM,
   
   // Machine code emitter pass for PowerPC.
   PM.add(createPPCJITCodeEmitterPass(*this, JCE));
-  if (DumpAsm) {
-    assert(AsmPrinterCtor && "AsmPrinter was not linked in");
-    if (AsmPrinterCtor)
-      PM.add(AsmPrinterCtor(errs(), *this, true));
+
+  return false;
+}
+
+bool PPCTargetMachine::addCodeEmitter(PassManagerBase &PM,
+                                      CodeGenOpt::Level OptLevel,
+                                      ObjectCodeEmitter &OCE) {
+  // The JIT should use the static relocation model in ppc32 mode, PIC in ppc64.
+  // FIXME: This should be moved to TargetJITInfo!!
+  if (Subtarget.isPPC64()) {
+    // We use PIC codegen in ppc64 mode, because otherwise we'd have to use many
+    // instructions to materialize arbitrary global variable + function +
+    // constant pool addresses.
+    setRelocationModel(Reloc::PIC_);
+    // Temporary workaround for the inability of PPC64 JIT to handle jump
+    // tables.
+    DisableJumpTables = true;      
+  } else {
+    setRelocationModel(Reloc::Static);
   }
+  
+  // Inform the subtarget that we are in JIT mode.  FIXME: does this break macho
+  // writing?
+  Subtarget.SetJITMode();
+  
+  // Machine code emitter pass for PowerPC.
+  PM.add(createPPCObjectCodeEmitterPass(*this, OCE));
 
   return false;
 }
 
 bool PPCTargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
                                             CodeGenOpt::Level OptLevel,
-                                            bool DumpAsm, 
                                             MachineCodeEmitter &MCE) {
   // Machine code emitter pass for PowerPC.
   PM.add(createPPCCodeEmitterPass(*this, MCE));
-  if (DumpAsm) {
-    assert(AsmPrinterCtor && "AsmPrinter was not linked in");
-    if (AsmPrinterCtor)
-      PM.add(AsmPrinterCtor(errs(), *this, true));
-  }
-
   return false;
 }
 
 bool PPCTargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
                                             CodeGenOpt::Level OptLevel,
-                                            bool DumpAsm,
                                             JITCodeEmitter &JCE) {
   // Machine code emitter pass for PowerPC.
   PM.add(createPPCJITCodeEmitterPass(*this, JCE));
-  if (DumpAsm) {
-    assert(AsmPrinterCtor && "AsmPrinter was not linked in");
-    if (AsmPrinterCtor)
-      PM.add(AsmPrinterCtor(errs(), *this, true));
-  }
-
   return false;
 }
+
+bool PPCTargetMachine::addSimpleCodeEmitter(PassManagerBase &PM,
+                                            CodeGenOpt::Level OptLevel,
+                                            ObjectCodeEmitter &OCE) {
+  // Machine code emitter pass for PowerPC.
+  PM.add(createPPCObjectCodeEmitterPass(*this, OCE));
+  return false;
+}
+
 

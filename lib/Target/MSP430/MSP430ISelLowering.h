@@ -33,7 +33,7 @@ namespace llvm {
       /// Y = RRC X, rotate right via carry
       RRC,
 
-      /// CALL/TAILCALL - These operations represent an abstract call
+      /// CALL - These operations represent an abstract call
       /// instruction, which includes a bunch of information.
       CALL,
 
@@ -77,10 +77,6 @@ namespace llvm {
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
 
-    SDValue LowerFORMAL_ARGUMENTS(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerCALL(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerRET(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerCCCArguments(SDValue Op, SelectionDAG &DAG);
     SDValue LowerShifts(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG);
     SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG);
@@ -88,16 +84,58 @@ namespace llvm {
     SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG);
     SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG);
 
-    SDValue LowerCCCCallTo(SDValue Op, SelectionDAG &DAG,
-                           unsigned CC);
-    SDNode* LowerCallResult(SDValue Chain, SDValue InFlag,
-                            CallSDNode *TheCall,
-                            unsigned CallingConv, SelectionDAG &DAG);
+    TargetLowering::ConstraintType
+    getConstraintType(const std::string &Constraint) const;
+    std::pair<unsigned, const TargetRegisterClass*>
+    getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const;
 
     MachineBasicBlock* EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                   MachineBasicBlock *BB) const;
+                                                   MachineBasicBlock *BB,
+                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
 
   private:
+    SDValue LowerCCCCallTo(SDValue Chain, SDValue Callee,
+                           CallingConv::ID CallConv, bool isVarArg,
+                           bool isTailCall,
+                           const SmallVectorImpl<ISD::OutputArg> &Outs,
+                           const SmallVectorImpl<ISD::InputArg> &Ins,
+                           DebugLoc dl, SelectionDAG &DAG,
+                           SmallVectorImpl<SDValue> &InVals);
+
+    SDValue LowerCCCArguments(SDValue Chain,
+                              CallingConv::ID CallConv,
+                              bool isVarArg,
+                              const SmallVectorImpl<ISD::InputArg> &Ins,
+                              DebugLoc dl,
+                              SelectionDAG &DAG,
+                              SmallVectorImpl<SDValue> &InVals);
+
+    SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
+                            CallingConv::ID CallConv, bool isVarArg,
+                            const SmallVectorImpl<ISD::InputArg> &Ins,
+                            DebugLoc dl, SelectionDAG &DAG,
+                            SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerFormalArguments(SDValue Chain,
+                           CallingConv::ID CallConv, bool isVarArg,
+                           const SmallVectorImpl<ISD::InputArg> &Ins,
+                           DebugLoc dl, SelectionDAG &DAG,
+                           SmallVectorImpl<SDValue> &InVals);
+    virtual SDValue
+      LowerCall(SDValue Chain, SDValue Callee,
+                CallingConv::ID CallConv, bool isVarArg, bool isTailCall,
+                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                const SmallVectorImpl<ISD::InputArg> &Ins,
+                DebugLoc dl, SelectionDAG &DAG,
+                SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerReturn(SDValue Chain,
+                  CallingConv::ID CallConv, bool isVarArg,
+                  const SmallVectorImpl<ISD::OutputArg> &Outs,
+                  DebugLoc dl, SelectionDAG &DAG);
+
     const MSP430Subtarget &Subtarget;
     const MSP430TargetMachine &TM;
   };

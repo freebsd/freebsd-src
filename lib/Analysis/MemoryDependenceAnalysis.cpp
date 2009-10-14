@@ -16,16 +16,15 @@
 
 #define DEBUG_TYPE "memdep"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
-#include "llvm/Constants.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Function.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/MallocHelper.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/PredIteratorCache.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetData.h"
 using namespace llvm;
 
 STATISTIC(NumCacheNonLocal, "Number of fully cached non-local responses");
@@ -71,12 +70,10 @@ void MemoryDependenceAnalysis::releaseMemory() {
 void MemoryDependenceAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
   AU.addRequiredTransitive<AliasAnalysis>();
-  AU.addRequiredTransitive<TargetData>();
 }
 
 bool MemoryDependenceAnalysis::runOnFunction(Function &) {
   AA = &getAnalysis<AliasAnalysis>();
-  TD = &getAnalysis<TargetData>();
   if (PredCache == 0)
     PredCache.reset(new PredIteratorCache());
   return false;
@@ -112,10 +109,10 @@ getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
     uint64_t PointerSize = 0;
     if (StoreInst *S = dyn_cast<StoreInst>(Inst)) {
       Pointer = S->getPointerOperand();
-      PointerSize = TD->getTypeStoreSize(S->getOperand(0)->getType());
+      PointerSize = AA->getTypeStoreSize(S->getOperand(0)->getType());
     } else if (VAArgInst *V = dyn_cast<VAArgInst>(Inst)) {
       Pointer = V->getOperand(0);
-      PointerSize = TD->getTypeStoreSize(V->getType());
+      PointerSize = AA->getTypeStoreSize(V->getType());
     } else if (FreeInst *F = dyn_cast<FreeInst>(Inst)) {
       Pointer = F->getPointerOperand();
       
@@ -185,7 +182,7 @@ getPointerDependencyFrom(Value *MemPtr, uint64_t MemSize, bool isLoad,
     // a load depends on another must aliased load from the same value.
     if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
       Value *Pointer = LI->getPointerOperand();
-      uint64_t PointerSize = TD->getTypeStoreSize(LI->getType());
+      uint64_t PointerSize = AA->getTypeStoreSize(LI->getType());
       
       // If we found a pointer, check if it could be the same as our pointer.
       AliasAnalysis::AliasResult R =
@@ -211,7 +208,7 @@ getPointerDependencyFrom(Value *MemPtr, uint64_t MemSize, bool isLoad,
       // Ok, this store might clobber the query pointer.  Check to see if it is
       // a must alias: in this case, we want to return this as a def.
       Value *Pointer = SI->getPointerOperand();
-      uint64_t PointerSize = TD->getTypeStoreSize(SI->getOperand(0)->getType());
+      uint64_t PointerSize = AA->getTypeStoreSize(SI->getOperand(0)->getType());
       
       // If we found a pointer, check if it could be the same as our pointer.
       AliasAnalysis::AliasResult R =
@@ -228,15 +225,19 @@ getPointerDependencyFrom(Value *MemPtr, uint64_t MemSize, bool isLoad,
     // the allocation, return Def.  This means that there is no dependence and
     // the access can be optimized based on that.  For example, a load could
     // turn into undef.
-    if (AllocationInst *AI = dyn_cast<AllocationInst>(Inst)) {
+    // Note: Only determine this to be a malloc if Inst is the malloc call, not
+    // a subsequent bitcast of the malloc call result.  There can be stores to
+    // the malloced memory between the malloc call and its bitcast uses, and we
+    // need to continue scanning until the malloc call.
+    if (isa<AllocationInst>(Inst) || extractMallocCall(Inst)) {
       Value *AccessPtr = MemPtr->getUnderlyingObject();
       
-      if (AccessPtr == AI ||
-          AA->alias(AI, 1, AccessPtr, 1) == AliasAnalysis::MustAlias)
-        return MemDepResult::getDef(AI);
+      if (AccessPtr == Inst ||
+          AA->alias(Inst, 1, AccessPtr, 1) == AliasAnalysis::MustAlias)
+        return MemDepResult::getDef(Inst);
       continue;
     }
-    
+
     // See if this instruction (e.g. a call or vaarg) mod/ref's the pointer.
     switch (AA->getModRefInfo(Inst, MemPtr, MemSize)) {
     case AliasAnalysis::NoModRef:
@@ -302,7 +303,7 @@ MemDepResult MemoryDependenceAnalysis::getDependency(Instruction *QueryInst) {
       LocalCache = MemDepResult::getClobber(--BasicBlock::iterator(ScanPos));
     else {
       MemPtr = SI->getPointerOperand();
-      MemSize = TD->getTypeStoreSize(SI->getOperand(0)->getType());
+      MemSize = AA->getTypeStoreSize(SI->getOperand(0)->getType());
     }
   } else if (LoadInst *LI = dyn_cast<LoadInst>(QueryInst)) {
     // If this is a volatile load, don't mess around with it.  Just return the
@@ -311,7 +312,7 @@ MemDepResult MemoryDependenceAnalysis::getDependency(Instruction *QueryInst) {
       LocalCache = MemDepResult::getClobber(--BasicBlock::iterator(ScanPos));
     else {
       MemPtr = LI->getPointerOperand();
-      MemSize = TD->getTypeStoreSize(LI->getType());
+      MemSize = AA->getTypeStoreSize(LI->getType());
     }
   } else if (isa<CallInst>(QueryInst) || isa<InvokeInst>(QueryInst)) {
     CallSite QueryCS = CallSite::get(QueryInst);
@@ -513,7 +514,7 @@ getNonLocalPointerDependency(Value *Pointer, bool isLoad, BasicBlock *FromBB,
   // We know that the pointer value is live into FromBB find the def/clobbers
   // from presecessors.
   const Type *EltTy = cast<PointerType>(Pointer->getType())->getElementType();
-  uint64_t PointeeSize = TD->getTypeStoreSize(EltTy);
+  uint64_t PointeeSize = AA->getTypeStoreSize(EltTy);
   
   // This is the set of blocks we've inspected, and the pointer we consider in
   // each block.  Because of critical edges, we currently bail out if querying
@@ -597,6 +598,42 @@ GetNonLocalInfoForBlock(Value *Pointer, uint64_t PointeeSize,
   ValueIsLoadPair CacheKey(Pointer, isLoad);
   ReverseNonLocalPtrDeps[Inst].insert(CacheKey);
   return Dep;
+}
+
+/// SortNonLocalDepInfoCache - Sort the a NonLocalDepInfo cache, given a certain
+/// number of elements in the array that are already properly ordered.  This is
+/// optimized for the case when only a few entries are added.
+static void 
+SortNonLocalDepInfoCache(MemoryDependenceAnalysis::NonLocalDepInfo &Cache,
+                         unsigned NumSortedEntries) {
+  switch (Cache.size() - NumSortedEntries) {
+  case 0:
+    // done, no new entries.
+    break;
+  case 2: {
+    // Two new entries, insert the last one into place.
+    MemoryDependenceAnalysis::NonLocalDepEntry Val = Cache.back();
+    Cache.pop_back();
+    MemoryDependenceAnalysis::NonLocalDepInfo::iterator Entry =
+      std::upper_bound(Cache.begin(), Cache.end()-1, Val);
+    Cache.insert(Entry, Val);
+    // FALL THROUGH.
+  }
+  case 1:
+    // One new entry, Just insert the new value at the appropriate position.
+    if (Cache.size() != 1) {
+      MemoryDependenceAnalysis::NonLocalDepEntry Val = Cache.back();
+      Cache.pop_back();
+      MemoryDependenceAnalysis::NonLocalDepInfo::iterator Entry =
+        std::upper_bound(Cache.begin(), Cache.end(), Val);
+      Cache.insert(Entry, Val);
+    }
+    break;
+  default:
+    // Added many values, do a full scale sort.
+    std::sort(Cache.begin(), Cache.end());
+    break;
+  }
 }
 
 
@@ -731,10 +768,22 @@ getNonLocalPointerDepFromBB(Value *Pointer, uint64_t PointeeSize,
     // If we do need to do phi translation, then there are a bunch of different
     // cases, because we have to find a Value* live in the predecessor block. We
     // know that PtrInst is defined in this block at least.
+
+    // We may have added values to the cache list before this PHI translation.
+    // If so, we haven't done anything to ensure that the cache remains sorted.
+    // Sort it now (if needed) so that recursive invocations of
+    // getNonLocalPointerDepFromBB and other routines that could reuse the cache
+    // value will only see properly sorted cache arrays.
+    if (Cache && NumSortedEntries != Cache->size()) {
+      SortNonLocalDepInfoCache(*Cache, NumSortedEntries);
+      NumSortedEntries = Cache->size();
+    }
     
     // If this is directly a PHI node, just use the incoming values for each
     // pred as the phi translated version.
     if (PHINode *PtrPHI = dyn_cast<PHINode>(PtrInst)) {
+      Cache = 0;
+      
       for (BasicBlock **PI = PredCache->GetPreds(BB); *PI; ++PI) {
         BasicBlock *Pred = *PI;
         Value *PredPtr = PtrPHI->getIncomingValueForBlock(Pred);
@@ -759,15 +808,6 @@ getNonLocalPointerDepFromBB(Value *Pointer, uint64_t PointeeSize,
           goto PredTranslationFailure;
         }
 
-        // We may have added values to the cache list before this PHI
-        // translation.  If so, we haven't done anything to ensure that the
-        // cache remains sorted.  Sort it now (if needed) so that recursive
-        // invocations of getNonLocalPointerDepFromBB that could reuse the cache
-        // value will only see properly sorted cache arrays.
-        if (Cache && NumSortedEntries != Cache->size())
-          std::sort(Cache->begin(), Cache->end());
-        Cache = 0;
-        
         // FIXME: it is entirely possible that PHI translating will end up with
         // the same value.  Consider PHI translating something like:
         // X = phi [x, bb1], [y, bb2].  PHI translating for bb1 doesn't *need*
@@ -779,7 +819,7 @@ getNonLocalPointerDepFromBB(Value *Pointer, uint64_t PointeeSize,
                                         Result, Visited))
           goto PredTranslationFailure;
       }
-
+      
       // Refresh the CacheInfo/Cache pointer so that it isn't invalidated.
       CacheInfo = &NonLocalPointerDeps[CacheKey];
       Cache = &CacheInfo->second;
@@ -806,11 +846,8 @@ getNonLocalPointerDepFromBB(Value *Pointer, uint64_t PointeeSize,
       CacheInfo = &NonLocalPointerDeps[CacheKey];
       Cache = &CacheInfo->second;
       NumSortedEntries = Cache->size();
-    } else if (NumSortedEntries != Cache->size()) {
-      std::sort(Cache->begin(), Cache->end());
-      NumSortedEntries = Cache->size();
     }
-
+    
     // Since we did phi translation, the "Cache" set won't contain all of the
     // results for the query.  This is ok (we can still use it to accelerate
     // specific block queries) but we can't do the fastpath "return all
@@ -841,33 +878,7 @@ getNonLocalPointerDepFromBB(Value *Pointer, uint64_t PointeeSize,
   }
 
   // Okay, we're done now.  If we added new values to the cache, re-sort it.
-  switch (Cache->size()-NumSortedEntries) {
-  case 0:
-    // done, no new entries.
-    break;
-  case 2: {
-    // Two new entries, insert the last one into place.
-    NonLocalDepEntry Val = Cache->back();
-    Cache->pop_back();
-    NonLocalDepInfo::iterator Entry =
-    std::upper_bound(Cache->begin(), Cache->end()-1, Val);
-    Cache->insert(Entry, Val);
-    // FALL THROUGH.
-  }
-  case 1:
-    // One new entry, Just insert the new value at the appropriate position.
-    if (Cache->size() != 1) {
-      NonLocalDepEntry Val = Cache->back();
-      Cache->pop_back();
-      NonLocalDepInfo::iterator Entry =
-        std::upper_bound(Cache->begin(), Cache->end(), Val);
-      Cache->insert(Entry, Val);
-    }
-    break;
-  default:
-    // Added many values, do a full scale sort.
-    std::sort(Cache->begin(), Cache->end());
-  }
+  SortNonLocalDepInfoCache(*Cache, NumSortedEntries);
   DEBUG(AssertSorted(*Cache));
   return false;
 }

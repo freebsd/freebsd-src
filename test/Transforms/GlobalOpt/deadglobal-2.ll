@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -globalopt | llvm-dis | not grep internal
+; RUN: opt < %s -globalopt -S | not grep internal
 
 ; This is a harder case to delete as the GEP has a variable index.
 

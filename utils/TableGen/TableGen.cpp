@@ -17,24 +17,25 @@
 
 #include "Record.h"
 #include "TGParser.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/System/Signals.h"
-#include "llvm/Support/FileUtilities.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/raw_ostream.h"
 #include "CallingConvEmitter.h"
 #include "CodeEmitterGen.h"
 #include "RegisterInfoEmitter.h"
 #include "InstrInfoEmitter.h"
 #include "InstrEnumEmitter.h"
 #include "AsmWriterEmitter.h"
+#include "AsmMatcherEmitter.h"
 #include "DAGISelEmitter.h"
 #include "FastISelEmitter.h"
 #include "SubtargetEmitter.h"
 #include "IntrinsicEmitter.h"
 #include "LLVMCConfigurationEmitter.h"
 #include "ClangDiagnosticsEmitter.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Signals.h"
 #include <algorithm>
 #include <cstdio>
 using namespace llvm;
@@ -43,7 +44,7 @@ enum ActionType {
   PrintRecords,
   GenEmitter,
   GenRegisterEnums, GenRegister, GenRegisterHeader,
-  GenInstrEnums, GenInstrs, GenAsmWriter,
+  GenInstrEnums, GenInstrs, GenAsmWriter, GenAsmMatcher,
   GenCallingConv,
   GenClangDiagsDefs,
   GenClangDiagGroups,
@@ -77,6 +78,8 @@ namespace {
                                "Generate calling convention descriptions"),
                     clEnumValN(GenAsmWriter, "gen-asm-writer",
                                "Generate assembly writer"),
+                    clEnumValN(GenAsmMatcher, "gen-asm-matcher",
+                               "Generate assembly instruction matcher"),
                     clEnumValN(GenDAGISel, "gen-dag-isel",
                                "Generate a DAG instruction selector"),
                     clEnumValN(GenFastISel, "gen-fast-isel",
@@ -138,7 +141,7 @@ static bool ParseFile(const std::string &Filename,
   std::string ErrorStr;
   MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrorStr);
   if (F == 0) {
-    errs() << "Could not open input file '" + Filename + "': " 
+    errs() << "Could not open input file '" << Filename << "': " 
            << ErrorStr <<"\n";
     return true;
   }
@@ -168,7 +171,7 @@ int main(int argc, char **argv) {
   raw_ostream *Out = &outs();
   if (OutputFilename != "-") {
     std::string Error;
-    Out = new raw_fd_ostream(OutputFilename.c_str(), false, Error);
+    Out = new raw_fd_ostream(OutputFilename.c_str(), Error);
 
     if (!Error.empty()) {
       errs() << argv[0] << ": error opening " << OutputFilename 
@@ -209,6 +212,9 @@ int main(int argc, char **argv) {
       break;
     case GenAsmWriter:
       AsmWriterEmitter(Records).run(*Out);
+      break;
+    case GenAsmMatcher:
+      AsmMatcherEmitter(Records).run(*Out);
       break;
     case GenClangDiagsDefs:
       ClangDiagsDefsEmitter(Records, ClangComponent).run(*Out);

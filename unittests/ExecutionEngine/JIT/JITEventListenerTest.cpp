@@ -65,8 +65,10 @@ struct RecordingJITEventListener : public JITEventListener {
 class JITEventListenerTest : public testing::Test {
  protected:
   JITEventListenerTest()
-      : M(new Module("module", *new LLVMContext())),
-        EE(ExecutionEngine::createJIT(new ExistingModuleProvider(M))) {
+      : M(new Module("module", getGlobalContext())),
+        EE(EngineBuilder(M)
+           .setEngineKind(EngineKind::JIT)
+           .create()) {
   }
 
   Module *M;
@@ -75,11 +77,11 @@ class JITEventListenerTest : public testing::Test {
 
 Function *buildFunction(Module *M) {
   Function *Result = Function::Create(
-      TypeBuilder<int32_t(int32_t), false>::get(),
+      TypeBuilder<int32_t(int32_t), false>::get(getGlobalContext()),
       GlobalValue::ExternalLinkage, "id", M);
   Value *Arg = Result->arg_begin();
-  BasicBlock *BB = BasicBlock::Create("entry", Result);
-  ReturnInst::Create(Arg, BB);
+  BasicBlock *BB = BasicBlock::Create(M->getContext(), "entry", Result);
+  ReturnInst::Create(M->getContext(), Arg, BB);
   return Result;
 }
 
@@ -232,7 +234,7 @@ TEST_F(JITEventListenerTest, MatchesMachineCodeInfo) {
 
 class JITEnvironment : public testing::Environment {
   virtual void SetUp() {
-    // Required for ExecutionEngine::createJIT to create a JIT.
+    // Required to create a JIT.
     InitializeNativeTarget();
   }
 };

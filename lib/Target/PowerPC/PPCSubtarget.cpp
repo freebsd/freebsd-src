@@ -13,7 +13,7 @@
 
 #include "PPCSubtarget.h"
 #include "PPC.h"
-#include "llvm/Module.h"
+#include "llvm/GlobalValue.h"
 #include "llvm/Target/TargetMachine.h"
 #include "PPCGenSubtarget.inc"
 #include <cstdlib>
@@ -57,10 +57,9 @@ static const char *GetCurrentPowerPCCPU() {
 #endif
 
 
-PPCSubtarget::PPCSubtarget(const TargetMachine &tm, const Module &M,
-                           const std::string &FS, bool is64Bit)
-  : TM(tm)
-  , StackAlignment(16)
+PPCSubtarget::PPCSubtarget(const std::string &TT, const std::string &FS,
+                           bool is64Bit)
+  : StackAlignment(16)
   , DarwinDirective(PPC::DIR_NONE)
   , IsGigaProcessor(false)
   , Has64BitSupport(false)
@@ -95,7 +94,6 @@ PPCSubtarget::PPCSubtarget(const TargetMachine &tm, const Module &M,
   
   // Set the boolean corresponding to the current target triple, or the default
   // if one cannot be determined, to true.
-  const std::string &TT = M.getTargetTriple();
   if (TT.length() > 7) {
     // Determine which version of darwin this is.
     size_t DarwinPos = TT.find("-darwin");
@@ -105,24 +103,11 @@ PPCSubtarget::PPCSubtarget(const TargetMachine &tm, const Module &M,
       else
         DarwinVers = 8;  // Minimum supported darwin is Tiger.
     }
-  } else if (TT.empty()) {
-    // Try to autosense the subtarget from the host compiler.
-#if defined(__APPLE__)
-#if __APPLE_CC__ > 5400
-    DarwinVers = 9;  // GCC 5400+ is Leopard.
-#else
-    DarwinVers = 8;  // Minimum supported darwin is Tiger.
-#endif
-#endif
   }
 
   // Set up darwin-specific properties.
-  if (isDarwin()) {
+  if (isDarwin())
     HasLazyResolverStubs = true;
-    AsmFlavor = NewMnemonic;
-  } else {
-    AsmFlavor = OldMnemonic;
-  }
 }
 
 /// SetJITMode - This is called to inform the subtarget info that we are
@@ -138,7 +123,8 @@ void PPCSubtarget::SetJITMode() {
 /// hasLazyResolverStub - Return true if accesses to the specified global have
 /// to go through a dyld lazy resolution stub.  This means that an extra load
 /// is required to get the address of the global.
-bool PPCSubtarget::hasLazyResolverStub(const GlobalValue *GV) const {
+bool PPCSubtarget::hasLazyResolverStub(const GlobalValue *GV,
+                                       const TargetMachine &TM) const {
   // We never hae stubs if HasLazyResolverStubs=false or if in static mode.
   if (!HasLazyResolverStubs || TM.getRelocationModel() == Reloc::Static)
     return false;

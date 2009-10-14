@@ -16,7 +16,7 @@
 //===          is guaranteed to work on *all* UNIX variants.
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Config/alloca.h"
+#include "llvm/ADT/SmallVector.h"
 #include "Unix.h"
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -57,6 +57,10 @@
 #include <dlfcn.h>
 #endif
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
 // Put in a hack for Cygwin which falsely reports that the mkdtemp function
 // is available when it is not.
 #ifdef __CYGWIN__
@@ -92,15 +96,7 @@ Path::isValid() const {
   // Check some obvious things
   if (path.empty())
     return false;
-  else if (path.length() >= MAXPATHLEN)
-    return false;
-
-  // Check that the characters are ascii chars
-  size_t len = path.length();
-  unsigned i = 0;
-  while (i < len && isascii(path[i]))
-    ++i;
-  return i >= len;
+  return path.length() < MAXPATHLEN;
 }
 
 bool
@@ -117,6 +113,19 @@ Path::isAbsolute() const {
     return false;
   return path[0] == '/';
 }
+
+void Path::makeAbsolute() {
+  if (isAbsolute())
+    return;
+
+  Path CWD = Path::GetCurrentDirectory();
+  assert(CWD.isAbsolute() && "GetCurrentDirectory returned relative path!");
+
+  CWD.appendComponent(path);
+
+  path = CWD.str();
+}
+
 Path
 Path::GetRootDirectory() {
   Path result;
@@ -331,7 +340,17 @@ getprogpath(char ret[PATH_MAX], const char *bin)
 /// GetMainExecutable - Return the path to the main executable, given the
 /// value of argv[0] from program startup.
 Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
-#if defined(__FreeBSD__)
+#if defined(__APPLE__)
+  // On OS X the executable path is saved to the stack by dyld. Reading it
+  // from there is much faster than calling dladdr, especially for large
+  // binaries with symbols.
+  char exe_path[MAXPATHLEN];
+  uint32_t size = sizeof(exe_path);
+  if (_NSGetExecutablePath(exe_path, &size) == 0) {
+    char link_path[MAXPATHLEN];
+    return Path(std::string(realpath(exe_path, link_path)));
+  }
+#elif defined(__FreeBSD__)
   char exe_path[PATH_MAX];
 
   if (getprogpath(exe_path, argv0) != NULL)
@@ -339,10 +358,8 @@ Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
 #elif defined(__linux__) || defined(__CYGWIN__)
   char exe_path[MAXPATHLEN];
   ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path));
-  if (len > 0 && len < MAXPATHLEN - 1) {
-    exe_path[len] = '\0';
-    return Path(std::string(exe_path));
-  }
+  if (len >= 0)
+    return Path(std::string(exe_path, len));
 #elif defined(HAVE_DLFCN_H)
   // Use dladdr to get executable path if available.
   Dl_info DLInfo;
@@ -397,7 +414,9 @@ Path::getSuffix() const {
 
 bool Path::getMagicNumber(std::string& Magic, unsigned len) const {
   assert(len < 1024 && "Request for magic string too long");
-  char* buf = (char*) alloca(1 + len);
+  SmallVector<char, 128> Buf;
+  Buf.resize(1 + len);
+  char* buf = Buf.data();
   int fd = ::open(path.c_str(), O_RDONLY);
   if (fd < 0)
     return false;
@@ -426,12 +445,12 @@ Path::isDirectory() const {
 
 bool
 Path::canRead() const {
-  return 0 == access(path.c_str(), F_OK | R_OK );
+  return 0 == access(path.c_str(), R_OK);
 }
 
 bool
 Path::canWrite() const {
-  return 0 == access(path.c_str(), F_OK | W_OK );
+  return 0 == access(path.c_str(), W_OK);
 }
 
 bool
@@ -499,7 +518,7 @@ static bool AddPermissionBits(const Path &File, int bits) {
 
   // Get the file's current mode.
   struct stat buf;
-  if (0 != stat(File.toString().c_str(), &buf))
+  if (0 != stat(File.c_str(), &buf))
     return false;
   // Change the file to have whichever permissions bits from 'bits'
   // that the umask would not disable.
@@ -631,7 +650,7 @@ Path::eraseSuffix() {
 
 static bool createDirectoryHelper(char* beg, char* end, bool create_parents) {
 
-  if (access(beg, F_OK | R_OK | W_OK) == 0)
+  if (access(beg, R_OK | W_OK) == 0)
     return false;
 
   if (create_parents) {
@@ -756,7 +775,7 @@ bool
 Path::renamePathOnDisk(const Path& newName, std::string* ErrMsg) {
   if (0 != ::rename(path.c_str(), newName.c_str()))
     return MakeErrMsg(ErrMsg, std::string("can't rename '") + path + "' as '" +
-               newName.toString() + "'");
+               newName.str() + "'");
   return false;
 }
 
@@ -778,13 +797,13 @@ sys::CopyFile(const sys::Path &Dest, const sys::Path &Src, std::string* ErrMsg){
   int outFile = -1;
   inFile = ::open(Src.c_str(), O_RDONLY);
   if (inFile == -1)
-    return MakeErrMsg(ErrMsg, Src.toString() +
+    return MakeErrMsg(ErrMsg, Src.str() +
       ": can't open source file to copy");
 
   outFile = ::open(Dest.c_str(), O_WRONLY|O_CREAT, 0666);
   if (outFile == -1) {
     ::close(inFile);
-    return MakeErrMsg(ErrMsg, Dest.toString() +
+    return MakeErrMsg(ErrMsg, Dest.str() +
       ": can't create destination file for copy");
   }
 
@@ -794,7 +813,7 @@ sys::CopyFile(const sys::Path &Dest, const sys::Path &Src, std::string* ErrMsg){
       if (errno != EINTR && errno != EAGAIN) {
         ::close(inFile);
         ::close(outFile);
-        return MakeErrMsg(ErrMsg, Src.toString()+": can't read source file");
+        return MakeErrMsg(ErrMsg, Src.str()+": can't read source file");
       }
     } else {
       char *BufPtr = Buffer;
@@ -804,7 +823,7 @@ sys::CopyFile(const sys::Path &Dest, const sys::Path &Src, std::string* ErrMsg){
           if (errno != EINTR && errno != EAGAIN) {
             ::close(inFile);
             ::close(outFile);
-            return MakeErrMsg(ErrMsg, Dest.toString() +
+            return MakeErrMsg(ErrMsg, Dest.str() +
               ": can't write destination file");
           }
         } else {
@@ -826,7 +845,9 @@ Path::makeUnique(bool reuse_current, std::string* ErrMsg) {
 
   // Append an XXXXXX pattern to the end of the file for use with mkstemp,
   // mktemp or our own implementation.
-  char *FNBuffer = (char*) alloca(path.size()+8);
+  SmallVector<char, 128> Buf;
+  Buf.resize(path.size()+8);
+  char *FNBuffer = Buf.data();
     path.copy(FNBuffer,path.size());
   if (isDirectory())
     strcpy(FNBuffer+path.size(), "/XXXXXX");

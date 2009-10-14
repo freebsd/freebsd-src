@@ -37,7 +37,6 @@ public:
     bool                addModule(class LTOModule*, std::string& errMsg);
     bool                setDebugInfo(lto_debug_model, std::string& errMsg);
     bool                setCodePICModel(lto_codegen_model, std::string& errMsg);
-    void                setGccPath(const char* path);
     void                setAssemblerPath(const char* path);
     void                addMustPreserveSymbol(const char* sym);
     bool                writeMergedModules(const char* path, 
@@ -45,7 +44,7 @@ public:
     const void*         compile(size_t* length, std::string& errMsg);
     void                setCodeGenDebugOptions(const char *opts); 
 private:
-    bool                generateAssemblyCode(llvm::raw_ostream& out, 
+    bool                generateAssemblyCode(llvm::formatted_raw_ostream& out, 
                                              std::string& errMsg);
     bool                assemble(const std::string& asmPath, 
                             const std::string& objPath, std::string& errMsg);
@@ -63,7 +62,6 @@ private:
     StringSet                   _mustPreserveSymbols;
     llvm::MemoryBuffer*         _nativeObjectFile;
     std::vector<const char*>    _codegenOptions;
-    llvm::sys::Path*            _gccPath;
     llvm::sys::Path*            _assemblerPath;
 };
 

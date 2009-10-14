@@ -11,15 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "LLVMContextImpl.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Constants.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/LLVMContext.h"
+#include "llvm/Metadata.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/SCCIterator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -38,25 +42,13 @@ using namespace llvm;
 
 AbstractTypeUser::~AbstractTypeUser() {}
 
+void AbstractTypeUser::setType(Value *V, const Type *NewTy) {
+  V->VTy = NewTy;
+}
 
 //===----------------------------------------------------------------------===//
 //                         Type Class Implementation
 //===----------------------------------------------------------------------===//
-
-// Lock used for guarding access to the type maps.
-static ManagedStatic<sys::SmartMutex<true> > TypeMapLock;
-
-// Recursive lock used for guarding access to AbstractTypeUsers.
-// NOTE: The true template parameter means this will no-op when we're not in
-// multithreaded mode.
-static ManagedStatic<sys::SmartMutex<true> > AbstractTypeUsersLock;
-
-// Concrete/Abstract TypeDescriptions - We lazily calculate type descriptions
-// for types as they are needed.  Because resolution of types must invalidate
-// all of the abstract type descriptions, we keep them in a seperate map to make
-// this easy.
-static ManagedStatic<TypePrinting> ConcreteTypeDescriptions;
-static ManagedStatic<TypePrinting> AbstractTypeDescriptions;
 
 /// Because of the way Type subclasses are allocated, this function is necessary
 /// to use the correct kind of "delete" operator to deallocate the Type object.
@@ -99,26 +91,26 @@ void Type::destroy() const {
   delete this; 
 }
 
-const Type *Type::getPrimitiveType(TypeID IDNumber) {
+const Type *Type::getPrimitiveType(LLVMContext &C, TypeID IDNumber) {
   switch (IDNumber) {
-  case VoidTyID      : return VoidTy;
-  case FloatTyID     : return FloatTy;
-  case DoubleTyID    : return DoubleTy;
-  case X86_FP80TyID  : return X86_FP80Ty;
-  case FP128TyID     : return FP128Ty;
-  case PPC_FP128TyID : return PPC_FP128Ty;
-  case LabelTyID     : return LabelTy;
-  case MetadataTyID  : return MetadataTy;
+  case VoidTyID      : return getVoidTy(C);
+  case FloatTyID     : return getFloatTy(C);
+  case DoubleTyID    : return getDoubleTy(C);
+  case X86_FP80TyID  : return getX86_FP80Ty(C);
+  case FP128TyID     : return getFP128Ty(C);
+  case PPC_FP128TyID : return getPPC_FP128Ty(C);
+  case LabelTyID     : return getLabelTy(C);
+  case MetadataTyID  : return getMetadataTy(C);
   default:
     return 0;
   }
 }
 
-const Type *Type::getVAArgsPromotedType() const {
+const Type *Type::getVAArgsPromotedType(LLVMContext &C) const {
   if (ID == IntegerTyID && getSubclassData() < 32)
-    return Type::Int32Ty;
+    return Type::getInt32Ty(C);
   else if (ID == FloatTyID)
-    return Type::DoubleTy;
+    return Type::getDoubleTy(C);
   else
     return this;
 }
@@ -264,16 +256,19 @@ const Type *Type::getForwardedTypeInternal() const {
 }
 
 void Type::refineAbstractType(const DerivedType *OldTy, const Type *NewTy) {
-  abort();
+  llvm_unreachable("Attempting to refine a derived type!");
 }
 void Type::typeBecameConcrete(const DerivedType *AbsTy) {
-  abort();
+  llvm_unreachable("DerivedType is already a concrete type!");
 }
 
 
 std::string Type::getDescription() const {
+  LLVMContextImpl *pImpl = getContext().pImpl;
   TypePrinting &Map =
-    isAbstract() ? *AbstractTypeDescriptions : *ConcreteTypeDescriptions;
+    isAbstract() ?
+      pImpl->AbstractTypeDescriptions :
+      pImpl->ConcreteTypeDescriptions;
   
   std::string DescStr;
   raw_string_ostream DescOS(DescStr);
@@ -284,7 +279,7 @@ std::string Type::getDescription() const {
 
 bool StructType::indexValid(const Value *V) const {
   // Structure indexes require 32-bit integer constants.
-  if (V->getType() == Type::Int32Ty)
+  if (V->getType() == Type::getInt32Ty(V->getContext()))
     if (const ConstantInt *CU = dyn_cast<ConstantInt>(V))
       return indexValid(CU->getZExtValue());
   return false;
@@ -311,25 +306,97 @@ const Type *StructType::getTypeAtIndex(unsigned Idx) const {
 //                          Primitive 'Type' data
 //===----------------------------------------------------------------------===//
 
-const Type *Type::VoidTy       = new Type(Type::VoidTyID);
-const Type *Type::FloatTy      = new Type(Type::FloatTyID);
-const Type *Type::DoubleTy     = new Type(Type::DoubleTyID);
-const Type *Type::X86_FP80Ty   = new Type(Type::X86_FP80TyID);
-const Type *Type::FP128Ty      = new Type(Type::FP128TyID);
-const Type *Type::PPC_FP128Ty  = new Type(Type::PPC_FP128TyID);
-const Type *Type::LabelTy      = new Type(Type::LabelTyID);
-const Type *Type::MetadataTy   = new Type(Type::MetadataTyID);
-
-namespace {
-  struct BuiltinIntegerType : public IntegerType {
-    explicit BuiltinIntegerType(unsigned W) : IntegerType(W) {}
-  };
+const Type *Type::getVoidTy(LLVMContext &C) {
+  return &C.pImpl->VoidTy;
 }
-const IntegerType *Type::Int1Ty  = new BuiltinIntegerType(1);
-const IntegerType *Type::Int8Ty  = new BuiltinIntegerType(8);
-const IntegerType *Type::Int16Ty = new BuiltinIntegerType(16);
-const IntegerType *Type::Int32Ty = new BuiltinIntegerType(32);
-const IntegerType *Type::Int64Ty = new BuiltinIntegerType(64);
+
+const Type *Type::getLabelTy(LLVMContext &C) {
+  return &C.pImpl->LabelTy;
+}
+
+const Type *Type::getFloatTy(LLVMContext &C) {
+  return &C.pImpl->FloatTy;
+}
+
+const Type *Type::getDoubleTy(LLVMContext &C) {
+  return &C.pImpl->DoubleTy;
+}
+
+const Type *Type::getMetadataTy(LLVMContext &C) {
+  return &C.pImpl->MetadataTy;
+}
+
+const Type *Type::getX86_FP80Ty(LLVMContext &C) {
+  return &C.pImpl->X86_FP80Ty;
+}
+
+const Type *Type::getFP128Ty(LLVMContext &C) {
+  return &C.pImpl->FP128Ty;
+}
+
+const Type *Type::getPPC_FP128Ty(LLVMContext &C) {
+  return &C.pImpl->PPC_FP128Ty;
+}
+
+const IntegerType *Type::getInt1Ty(LLVMContext &C) {
+  return &C.pImpl->Int1Ty;
+}
+
+const IntegerType *Type::getInt8Ty(LLVMContext &C) {
+  return &C.pImpl->Int8Ty;
+}
+
+const IntegerType *Type::getInt16Ty(LLVMContext &C) {
+  return &C.pImpl->Int16Ty;
+}
+
+const IntegerType *Type::getInt32Ty(LLVMContext &C) {
+  return &C.pImpl->Int32Ty;
+}
+
+const IntegerType *Type::getInt64Ty(LLVMContext &C) {
+  return &C.pImpl->Int64Ty;
+}
+
+const PointerType *Type::getFloatPtrTy(LLVMContext &C, unsigned AS) {
+  return getFloatTy(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getDoublePtrTy(LLVMContext &C, unsigned AS) {
+  return getDoubleTy(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getX86_FP80PtrTy(LLVMContext &C, unsigned AS) {
+  return getX86_FP80Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getFP128PtrTy(LLVMContext &C, unsigned AS) {
+  return getFP128Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getPPC_FP128PtrTy(LLVMContext &C, unsigned AS) {
+  return getPPC_FP128Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getInt1PtrTy(LLVMContext &C, unsigned AS) {
+  return getInt1Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getInt8PtrTy(LLVMContext &C, unsigned AS) {
+  return getInt8Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getInt16PtrTy(LLVMContext &C, unsigned AS) {
+  return getInt16Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getInt32PtrTy(LLVMContext &C, unsigned AS) {
+  return getInt32Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getInt64PtrTy(LLVMContext &C, unsigned AS) {
+  return getInt64Ty(C)->getPointerTo(AS);
+}
 
 //===----------------------------------------------------------------------===//
 //                          Derived Type Constructors
@@ -338,42 +405,20 @@ const IntegerType *Type::Int64Ty = new BuiltinIntegerType(64);
 /// isValidReturnType - Return true if the specified type is valid as a return
 /// type.
 bool FunctionType::isValidReturnType(const Type *RetTy) {
-  if (RetTy->isFirstClassType()) {
-    if (const PointerType *PTy = dyn_cast<PointerType>(RetTy))
-      return PTy->getElementType() != Type::MetadataTy;
-    return true;
-  }
-  if (RetTy == Type::VoidTy || RetTy == Type::MetadataTy ||
-      isa<OpaqueType>(RetTy))
-    return true;
-  
-  // If this is a multiple return case, verify that each return is a first class
-  // value and that there is at least one value.
-  const StructType *SRetTy = dyn_cast<StructType>(RetTy);
-  if (SRetTy == 0 || SRetTy->getNumElements() == 0)
-    return false;
-  
-  for (unsigned i = 0, e = SRetTy->getNumElements(); i != e; ++i)
-    if (!SRetTy->getElementType(i)->isFirstClassType())
-      return false;
-  return true;
+  return RetTy->getTypeID() != LabelTyID &&
+         RetTy->getTypeID() != MetadataTyID;
 }
 
 /// isValidArgumentType - Return true if the specified type is valid as an
 /// argument type.
 bool FunctionType::isValidArgumentType(const Type *ArgTy) {
-  if ((!ArgTy->isFirstClassType() && !isa<OpaqueType>(ArgTy)) ||
-      (isa<PointerType>(ArgTy) &&
-       cast<PointerType>(ArgTy)->getElementType() == Type::MetadataTy))
-    return false;
-
-  return true;
+  return ArgTy->isFirstClassType() || isa<OpaqueType>(ArgTy);
 }
 
 FunctionType::FunctionType(const Type *Result,
                            const std::vector<const Type*> &Params,
                            bool IsVarArgs)
-  : DerivedType(FunctionTyID), isVarArgs(IsVarArgs) {
+  : DerivedType(Result->getContext(), FunctionTyID), isVarArgs(IsVarArgs) {
   ContainedTys = reinterpret_cast<PATypeHandle*>(this+1);
   NumContainedTys = Params.size() + 1; // + 1 for result type
   assert(isValidReturnType(Result) && "invalid return type for function");
@@ -393,8 +438,9 @@ FunctionType::FunctionType(const Type *Result,
   setAbstract(isAbstract);
 }
 
-StructType::StructType(const std::vector<const Type*> &Types, bool isPacked)
-  : CompositeType(StructTyID) {
+StructType::StructType(LLVMContext &C, 
+                       const std::vector<const Type*> &Types, bool isPacked)
+  : CompositeType(C, StructTyID) {
   ContainedTys = reinterpret_cast<PATypeHandle*>(this + 1);
   NumContainedTys = Types.size();
   setSubclassData(isPacked);
@@ -437,10 +483,10 @@ PointerType::PointerType(const Type *E, unsigned AddrSpace)
   setAbstract(E->isAbstract());
 }
 
-OpaqueType::OpaqueType() : DerivedType(OpaqueTyID) {
+OpaqueType::OpaqueType(LLVMContext &C) : DerivedType(C, OpaqueTyID) {
   setAbstract(true);
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "Derived new type: " << *this << "\n";
+  DEBUG(errs() << "Derived new type: " << *this << "\n");
 #endif
 }
 
@@ -464,8 +510,8 @@ void DerivedType::dropAllTypeUses() {
         llvm_acquire_global_lock();
         tmp = AlwaysOpaqueTy;
         if (!tmp) {
-          tmp = OpaqueType::get();
-          PATypeHolder* tmp2 = new PATypeHolder(AlwaysOpaqueTy);
+          tmp = OpaqueType::get(getContext());
+          PATypeHolder* tmp2 = new PATypeHolder(tmp);
           sys::MemoryFence();
           AlwaysOpaqueTy = tmp;
           Holder = tmp2;
@@ -473,8 +519,8 @@ void DerivedType::dropAllTypeUses() {
       
         llvm_release_global_lock();
       }
-    } else {
-      AlwaysOpaqueTy = OpaqueType::get();
+    } else if (!AlwaysOpaqueTy) {
+      AlwaysOpaqueTy = OpaqueType::get(getContext());
       Holder = new PATypeHolder(AlwaysOpaqueTy);
     } 
         
@@ -482,9 +528,11 @@ void DerivedType::dropAllTypeUses() {
 
     // Change the rest of the types to be Int32Ty's.  It doesn't matter what we
     // pick so long as it doesn't point back to this type.  We choose something
-    // concrete to avoid overhead for adding to AbstracTypeUser lists and stuff.
+    // concrete to avoid overhead for adding to AbstractTypeUser lists and
+    // stuff.
+    const Type *ConcreteTy = Type::getInt32Ty(getContext());
     for (unsigned i = 1, e = NumContainedTys; i != e; ++i)
-      ContainedTys[i] = Type::Int32Ty;
+      ContainedTys[i] = ConcreteTy;
   }
 }
 
@@ -633,7 +681,7 @@ static bool TypesEqual(const Type *Ty, const Type *Ty2,
     }
     return true;
   } else {
-    assert(0 && "Unknown derived type!");
+    llvm_unreachable("Unknown derived type!");
     return false;
   }
 }
@@ -695,327 +743,41 @@ static bool TypeHasCycleThroughItself(const Type *Ty) {
   return false;
 }
 
-/// getSubElementHash - Generate a hash value for all of the SubType's of this
-/// type.  The hash value is guaranteed to be zero if any of the subtypes are 
-/// an opaque type.  Otherwise we try to mix them in as well as possible, but do
-/// not look at the subtype's subtype's.
-static unsigned getSubElementHash(const Type *Ty) {
-  unsigned HashVal = 0;
-  for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end();
-       I != E; ++I) {
-    HashVal *= 32;
-    const Type *SubTy = I->get();
-    HashVal += SubTy->getTypeID();
-    switch (SubTy->getTypeID()) {
-    default: break;
-    case Type::OpaqueTyID: return 0;    // Opaque -> hash = 0 no matter what.
-    case Type::IntegerTyID:
-      HashVal ^= (cast<IntegerType>(SubTy)->getBitWidth() << 3);
-      break;
-    case Type::FunctionTyID:
-      HashVal ^= cast<FunctionType>(SubTy)->getNumParams()*2 + 
-                 cast<FunctionType>(SubTy)->isVarArg();
-      break;
-    case Type::ArrayTyID:
-      HashVal ^= cast<ArrayType>(SubTy)->getNumElements();
-      break;
-    case Type::VectorTyID:
-      HashVal ^= cast<VectorType>(SubTy)->getNumElements();
-      break;
-    case Type::StructTyID:
-      HashVal ^= cast<StructType>(SubTy)->getNumElements();
-      break;
-    case Type::PointerTyID:
-      HashVal ^= cast<PointerType>(SubTy)->getAddressSpace();
-      break;
-    }
-  }
-  return HashVal ? HashVal : 1;  // Do not return zero unless opaque subty.
-}
-
-//===----------------------------------------------------------------------===//
-//                       Derived Type Factory Functions
-//===----------------------------------------------------------------------===//
-
-namespace llvm {
-class TypeMapBase {
-protected:
-  /// TypesByHash - Keep track of types by their structure hash value.  Note
-  /// that we only keep track of types that have cycles through themselves in
-  /// this map.
-  ///
-  std::multimap<unsigned, PATypeHolder> TypesByHash;
-
-public:
-  ~TypeMapBase() {
-    // PATypeHolder won't destroy non-abstract types.
-    // We can't destroy them by simply iterating, because
-    // they may contain references to each-other.
-#if 0
-    for (std::multimap<unsigned, PATypeHolder>::iterator I
-         = TypesByHash.begin(), E = TypesByHash.end(); I != E; ++I) {
-      Type *Ty = const_cast<Type*>(I->second.Ty);
-      I->second.destroy();
-      // We can't invoke destroy or delete, because the type may
-      // contain references to already freed types.
-      // So we have to destruct the object the ugly way.
-      if (Ty) {
-        Ty->AbstractTypeUsers.clear();
-        static_cast<const Type*>(Ty)->Type::~Type();
-        operator delete(Ty);
-      }
-    }
-#endif
-  }
-
-  void RemoveFromTypesByHash(unsigned Hash, const Type *Ty) {
-    std::multimap<unsigned, PATypeHolder>::iterator I =
-      TypesByHash.lower_bound(Hash);
-    for (; I != TypesByHash.end() && I->first == Hash; ++I) {
-      if (I->second == Ty) {
-        TypesByHash.erase(I);
-        return;
-      }
-    }
-    
-    // This must be do to an opaque type that was resolved.  Switch down to hash
-    // code of zero.
-    assert(Hash && "Didn't find type entry!");
-    RemoveFromTypesByHash(0, Ty);
-  }
-  
-  /// TypeBecameConcrete - When Ty gets a notification that TheType just became
-  /// concrete, drop uses and make Ty non-abstract if we should.
-  void TypeBecameConcrete(DerivedType *Ty, const DerivedType *TheType) {
-    // If the element just became concrete, remove 'ty' from the abstract
-    // type user list for the type.  Do this for as many times as Ty uses
-    // OldType.
-    for (Type::subtype_iterator I = Ty->subtype_begin(), E = Ty->subtype_end();
-         I != E; ++I)
-      if (I->get() == TheType)
-        TheType->removeAbstractTypeUser(Ty);
-    
-    // If the type is currently thought to be abstract, rescan all of our
-    // subtypes to see if the type has just become concrete!  Note that this
-    // may send out notifications to AbstractTypeUsers that types become
-    // concrete.
-    if (Ty->isAbstract())
-      Ty->PromoteAbstractToConcrete();
-  }
-};
-}
-
-
-// TypeMap - Make sure that only one instance of a particular type may be
-// created on any given run of the compiler... note that this involves updating
-// our map if an abstract type gets refined somehow.
-//
-namespace llvm {
-template<class ValType, class TypeClass>
-class TypeMap : public TypeMapBase {
-  std::map<ValType, PATypeHolder> Map;
-public:
-  typedef typename std::map<ValType, PATypeHolder>::iterator iterator;
-  ~TypeMap() { print("ON EXIT"); }
-
-  inline TypeClass *get(const ValType &V) {
-    iterator I = Map.find(V);
-    return I != Map.end() ? cast<TypeClass>((Type*)I->second.get()) : 0;
-  }
-
-  inline void add(const ValType &V, TypeClass *Ty) {
-    Map.insert(std::make_pair(V, Ty));
-
-    // If this type has a cycle, remember it.
-    TypesByHash.insert(std::make_pair(ValType::hashTypeStructure(Ty), Ty));
-    print("add");
-  }
-  
-  /// RefineAbstractType - This method is called after we have merged a type
-  /// with another one.  We must now either merge the type away with
-  /// some other type or reinstall it in the map with it's new configuration.
-  void RefineAbstractType(TypeClass *Ty, const DerivedType *OldType,
-                        const Type *NewType) {
-#ifdef DEBUG_MERGE_TYPES
-    DOUT << "RefineAbstractType(" << (void*)OldType << "[" << *OldType
-         << "], " << (void*)NewType << " [" << *NewType << "])\n";
-#endif
-    
-    // Otherwise, we are changing one subelement type into another.  Clearly the
-    // OldType must have been abstract, making us abstract.
-    assert(Ty->isAbstract() && "Refining a non-abstract type!");
-    assert(OldType != NewType);
-
-    // Make a temporary type holder for the type so that it doesn't disappear on
-    // us when we erase the entry from the map.
-    PATypeHolder TyHolder = Ty;
-
-    // The old record is now out-of-date, because one of the children has been
-    // updated.  Remove the obsolete entry from the map.
-    unsigned NumErased = Map.erase(ValType::get(Ty));
-    assert(NumErased && "Element not found!"); NumErased = NumErased;
-
-    // Remember the structural hash for the type before we start hacking on it,
-    // in case we need it later.
-    unsigned OldTypeHash = ValType::hashTypeStructure(Ty);
-
-    // Find the type element we are refining... and change it now!
-    for (unsigned i = 0, e = Ty->getNumContainedTypes(); i != e; ++i)
-      if (Ty->ContainedTys[i] == OldType)
-        Ty->ContainedTys[i] = NewType;
-    unsigned NewTypeHash = ValType::hashTypeStructure(Ty);
-    
-    // If there are no cycles going through this node, we can do a simple,
-    // efficient lookup in the map, instead of an inefficient nasty linear
-    // lookup.
-    if (!TypeHasCycleThroughItself(Ty)) {
-      typename std::map<ValType, PATypeHolder>::iterator I;
-      bool Inserted;
-
-      tie(I, Inserted) = Map.insert(std::make_pair(ValType::get(Ty), Ty));
-      if (!Inserted) {
-        // Refined to a different type altogether?
-        RemoveFromTypesByHash(OldTypeHash, Ty);
-
-        // We already have this type in the table.  Get rid of the newly refined
-        // type.
-        TypeClass *NewTy = cast<TypeClass>((Type*)I->second.get());
-        Ty->unlockedRefineAbstractTypeTo(NewTy);
-        return;
-      }
-    } else {
-      // Now we check to see if there is an existing entry in the table which is
-      // structurally identical to the newly refined type.  If so, this type
-      // gets refined to the pre-existing type.
-      //
-      std::multimap<unsigned, PATypeHolder>::iterator I, E, Entry;
-      tie(I, E) = TypesByHash.equal_range(NewTypeHash);
-      Entry = E;
-      for (; I != E; ++I) {
-        if (I->second == Ty) {
-          // Remember the position of the old type if we see it in our scan.
-          Entry = I;
-        } else {
-          if (TypesEqual(Ty, I->second)) {
-            TypeClass *NewTy = cast<TypeClass>((Type*)I->second.get());
-
-            // Remove the old entry form TypesByHash.  If the hash values differ
-            // now, remove it from the old place.  Otherwise, continue scanning
-            // withing this hashcode to reduce work.
-            if (NewTypeHash != OldTypeHash) {
-              RemoveFromTypesByHash(OldTypeHash, Ty);
-            } else {
-              if (Entry == E) {
-                // Find the location of Ty in the TypesByHash structure if we
-                // haven't seen it already.
-                while (I->second != Ty) {
-                  ++I;
-                  assert(I != E && "Structure doesn't contain type??");
-                }
-                Entry = I;
-              }
-              TypesByHash.erase(Entry);
-            }
-            Ty->unlockedRefineAbstractTypeTo(NewTy);
-            return;
-          }
-        }
-      }
-
-      // If there is no existing type of the same structure, we reinsert an
-      // updated record into the map.
-      Map.insert(std::make_pair(ValType::get(Ty), Ty));
-    }
-
-    // If the hash codes differ, update TypesByHash
-    if (NewTypeHash != OldTypeHash) {
-      RemoveFromTypesByHash(OldTypeHash, Ty);
-      TypesByHash.insert(std::make_pair(NewTypeHash, Ty));
-    }
-    
-    // If the type is currently thought to be abstract, rescan all of our
-    // subtypes to see if the type has just become concrete!  Note that this
-    // may send out notifications to AbstractTypeUsers that types become
-    // concrete.
-    if (Ty->isAbstract())
-      Ty->PromoteAbstractToConcrete();
-  }
-
-  void print(const char *Arg) const {
-#ifdef DEBUG_MERGE_TYPES
-    DOUT << "TypeMap<>::" << Arg << " table contents:\n";
-    unsigned i = 0;
-    for (typename std::map<ValType, PATypeHolder>::const_iterator I
-           = Map.begin(), E = Map.end(); I != E; ++I)
-      DOUT << " " << (++i) << ". " << (void*)I->second.get() << " "
-           << *I->second.get() << "\n";
-#endif
-  }
-
-  void dump() const { print("dump output"); }
-};
-}
-
-
 //===----------------------------------------------------------------------===//
 // Function Type Factory and Value Class...
 //
-
-//===----------------------------------------------------------------------===//
-// Integer Type Factory...
-//
-namespace llvm {
-class IntegerValType {
-  uint32_t bits;
-public:
-  IntegerValType(uint16_t numbits) : bits(numbits) {}
-
-  static IntegerValType get(const IntegerType *Ty) {
-    return IntegerValType(Ty->getBitWidth());
-  }
-
-  static unsigned hashTypeStructure(const IntegerType *Ty) {
-    return (unsigned)Ty->getBitWidth();
-  }
-
-  inline bool operator<(const IntegerValType &IVT) const {
-    return bits < IVT.bits;
-  }
-};
-}
-
-static ManagedStatic<TypeMap<IntegerValType, IntegerType> > IntegerTypes;
-
-const IntegerType *IntegerType::get(unsigned NumBits) {
+const IntegerType *IntegerType::get(LLVMContext &C, unsigned NumBits) {
   assert(NumBits >= MIN_INT_BITS && "bitwidth too small");
   assert(NumBits <= MAX_INT_BITS && "bitwidth too large");
 
   // Check for the built-in integer types
   switch (NumBits) {
-    case  1: return cast<IntegerType>(Type::Int1Ty);
-    case  8: return cast<IntegerType>(Type::Int8Ty);
-    case 16: return cast<IntegerType>(Type::Int16Ty);
-    case 32: return cast<IntegerType>(Type::Int32Ty);
-    case 64: return cast<IntegerType>(Type::Int64Ty);
+    case  1: return cast<IntegerType>(Type::getInt1Ty(C));
+    case  8: return cast<IntegerType>(Type::getInt8Ty(C));
+    case 16: return cast<IntegerType>(Type::getInt16Ty(C));
+    case 32: return cast<IntegerType>(Type::getInt32Ty(C));
+    case 64: return cast<IntegerType>(Type::getInt64Ty(C));
     default: 
       break;
   }
+
+  LLVMContextImpl *pImpl = C.pImpl;
   
   IntegerValType IVT(NumBits);
   IntegerType *ITy = 0;
   
   // First, see if the type is already in the table, for which
   // a reader lock suffices.
-  sys::SmartScopedLock<true> L(&*TypeMapLock);
-  ITy = IntegerTypes->get(IVT);
+  sys::SmartScopedLock<true> L(pImpl->TypeMapLock);
+  ITy = pImpl->IntegerTypes.get(IVT);
     
   if (!ITy) {
     // Value not found.  Derive a new type!
-    ITy = new IntegerType(NumBits);
-    IntegerTypes->add(IVT, ITy);
+    ITy = new IntegerType(C, NumBits);
+    pImpl->IntegerTypes.add(IVT, ITy);
   }
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "Derived new type: " << *ITy << "\n";
+  DEBUG(errs() << "Derived new type: " << *ITy << "\n");
 #endif
   return ITy;
 }
@@ -1028,39 +790,6 @@ bool IntegerType::isPowerOf2ByteWidth() const {
 APInt IntegerType::getMask() const {
   return APInt::getAllOnesValue(getBitWidth());
 }
-
-// FunctionValType - Define a class to hold the key that goes into the TypeMap
-//
-namespace llvm {
-class FunctionValType {
-  const Type *RetTy;
-  std::vector<const Type*> ArgTypes;
-  bool isVarArg;
-public:
-  FunctionValType(const Type *ret, const std::vector<const Type*> &args,
-                  bool isVA) : RetTy(ret), ArgTypes(args), isVarArg(isVA) {}
-
-  static FunctionValType get(const FunctionType *FT);
-
-  static unsigned hashTypeStructure(const FunctionType *FT) {
-    unsigned Result = FT->getNumParams()*2 + FT->isVarArg();
-    return Result;
-  }
-
-  inline bool operator<(const FunctionValType &MTV) const {
-    if (RetTy < MTV.RetTy) return true;
-    if (RetTy > MTV.RetTy) return false;
-    if (isVarArg < MTV.isVarArg) return true;
-    if (isVarArg > MTV.isVarArg) return false;
-    if (ArgTypes < MTV.ArgTypes) return true;
-    if (ArgTypes > MTV.ArgTypes) return false;
-    return false;
-  }
-};
-}
-
-// Define the actual map itself now...
-static ManagedStatic<TypeMap<FunctionValType, FunctionType> > FunctionTypes;
 
 FunctionValType FunctionValType::get(const FunctionType *FT) {
   // Build up a FunctionValType
@@ -1079,48 +808,23 @@ FunctionType *FunctionType::get(const Type *ReturnType,
   FunctionValType VT(ReturnType, Params, isVarArg);
   FunctionType *FT = 0;
   
-  sys::SmartScopedLock<true> L(&*TypeMapLock);
-  FT = FunctionTypes->get(VT);
+  LLVMContextImpl *pImpl = ReturnType->getContext().pImpl;
+  
+  sys::SmartScopedLock<true> L(pImpl->TypeMapLock);
+  FT = pImpl->FunctionTypes.get(VT);
   
   if (!FT) {
     FT = (FunctionType*) operator new(sizeof(FunctionType) +
                                     sizeof(PATypeHandle)*(Params.size()+1));
     new (FT) FunctionType(ReturnType, Params, isVarArg);
-    FunctionTypes->add(VT, FT);
+    pImpl->FunctionTypes.add(VT, FT);
   }
 
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "Derived new type: " << FT << "\n";
+  DEBUG(errs() << "Derived new type: " << FT << "\n");
 #endif
   return FT;
 }
-
-//===----------------------------------------------------------------------===//
-// Array Type Factory...
-//
-namespace llvm {
-class ArrayValType {
-  const Type *ValTy;
-  uint64_t Size;
-public:
-  ArrayValType(const Type *val, uint64_t sz) : ValTy(val), Size(sz) {}
-
-  static ArrayValType get(const ArrayType *AT) {
-    return ArrayValType(AT->getElementType(), AT->getNumElements());
-  }
-
-  static unsigned hashTypeStructure(const ArrayType *AT) {
-    return (unsigned)AT->getNumElements();
-  }
-
-  inline bool operator<(const ArrayValType &MTV) const {
-    if (Size < MTV.Size) return true;
-    return Size == MTV.Size && ValTy < MTV.ValTy;
-  }
-};
-}
-
-static ManagedStatic<TypeMap<ArrayValType, ArrayType> > ArrayTypes;
 
 ArrayType *ArrayType::get(const Type *ElementType, uint64_t NumElements) {
   assert(ElementType && "Can't get array of <null> types!");
@@ -1128,59 +832,26 @@ ArrayType *ArrayType::get(const Type *ElementType, uint64_t NumElements) {
 
   ArrayValType AVT(ElementType, NumElements);
   ArrayType *AT = 0;
+
+  LLVMContextImpl *pImpl = ElementType->getContext().pImpl;
   
-  sys::SmartScopedLock<true> L(&*TypeMapLock);
-  AT = ArrayTypes->get(AVT);
+  sys::SmartScopedLock<true> L(pImpl->TypeMapLock);
+  AT = pImpl->ArrayTypes.get(AVT);
       
   if (!AT) {
     // Value not found.  Derive a new type!
-    ArrayTypes->add(AVT, AT = new ArrayType(ElementType, NumElements));
+    pImpl->ArrayTypes.add(AVT, AT = new ArrayType(ElementType, NumElements));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "Derived new type: " << *AT << "\n";
+  DEBUG(errs() << "Derived new type: " << *AT << "\n");
 #endif
   return AT;
 }
 
 bool ArrayType::isValidElementType(const Type *ElemTy) {
-  if (ElemTy == Type::VoidTy || ElemTy == Type::LabelTy ||
-      ElemTy == Type::MetadataTy)
-    return false;
-
-  if (const PointerType *PTy = dyn_cast<PointerType>(ElemTy))
-    if (PTy->getElementType() == Type::MetadataTy)
-      return false;
-
-  return true;
+  return ElemTy->getTypeID() != VoidTyID && ElemTy->getTypeID() != LabelTyID &&
+         ElemTy->getTypeID() != MetadataTyID && !isa<FunctionType>(ElemTy);
 }
-
-
-//===----------------------------------------------------------------------===//
-// Vector Type Factory...
-//
-namespace llvm {
-class VectorValType {
-  const Type *ValTy;
-  unsigned Size;
-public:
-  VectorValType(const Type *val, int sz) : ValTy(val), Size(sz) {}
-
-  static VectorValType get(const VectorType *PT) {
-    return VectorValType(PT->getElementType(), PT->getNumElements());
-  }
-
-  static unsigned hashTypeStructure(const VectorType *PT) {
-    return PT->getNumElements();
-  }
-
-  inline bool operator<(const VectorValType &MTV) const {
-    if (Size < MTV.Size) return true;
-    return Size == MTV.Size && ValTy < MTV.ValTy;
-  }
-};
-}
-
-static ManagedStatic<TypeMap<VectorValType, VectorType> > VectorTypes;
 
 VectorType *VectorType::get(const Type *ElementType, unsigned NumElements) {
   assert(ElementType && "Can't get vector of <null> types!");
@@ -1188,85 +859,54 @@ VectorType *VectorType::get(const Type *ElementType, unsigned NumElements) {
   VectorValType PVT(ElementType, NumElements);
   VectorType *PT = 0;
   
-  sys::SmartScopedLock<true> L(&*TypeMapLock);
-  PT = VectorTypes->get(PVT);
+  LLVMContextImpl *pImpl = ElementType->getContext().pImpl;
+  
+  sys::SmartScopedLock<true> L(pImpl->TypeMapLock);
+  PT = pImpl->VectorTypes.get(PVT);
     
   if (!PT) {
-    VectorTypes->add(PVT, PT = new VectorType(ElementType, NumElements));
+    pImpl->VectorTypes.add(PVT, PT = new VectorType(ElementType, NumElements));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "Derived new type: " << *PT << "\n";
+  DEBUG(errs() << "Derived new type: " << *PT << "\n");
 #endif
   return PT;
 }
 
 bool VectorType::isValidElementType(const Type *ElemTy) {
-  if (ElemTy->isInteger() || ElemTy->isFloatingPoint() ||
-      isa<OpaqueType>(ElemTy))
-    return true;
-
-  return false;
+  return ElemTy->isInteger() || ElemTy->isFloatingPoint() ||
+         isa<OpaqueType>(ElemTy);
 }
 
 //===----------------------------------------------------------------------===//
 // Struct Type Factory...
 //
 
-namespace llvm {
-// StructValType - Define a class to hold the key that goes into the TypeMap
-//
-class StructValType {
-  std::vector<const Type*> ElTypes;
-  bool packed;
-public:
-  StructValType(const std::vector<const Type*> &args, bool isPacked)
-    : ElTypes(args), packed(isPacked) {}
-
-  static StructValType get(const StructType *ST) {
-    std::vector<const Type *> ElTypes;
-    ElTypes.reserve(ST->getNumElements());
-    for (unsigned i = 0, e = ST->getNumElements(); i != e; ++i)
-      ElTypes.push_back(ST->getElementType(i));
-
-    return StructValType(ElTypes, ST->isPacked());
-  }
-
-  static unsigned hashTypeStructure(const StructType *ST) {
-    return ST->getNumElements();
-  }
-
-  inline bool operator<(const StructValType &STV) const {
-    if (ElTypes < STV.ElTypes) return true;
-    else if (ElTypes > STV.ElTypes) return false;
-    else return (int)packed < (int)STV.packed;
-  }
-};
-}
-
-static ManagedStatic<TypeMap<StructValType, StructType> > StructTypes;
-
-StructType *StructType::get(const std::vector<const Type*> &ETypes, 
+StructType *StructType::get(LLVMContext &Context,
+                            const std::vector<const Type*> &ETypes, 
                             bool isPacked) {
   StructValType STV(ETypes, isPacked);
   StructType *ST = 0;
   
-  sys::SmartScopedLock<true> L(&*TypeMapLock);
-  ST = StructTypes->get(STV);
+  LLVMContextImpl *pImpl = Context.pImpl;
+  
+  sys::SmartScopedLock<true> L(pImpl->TypeMapLock);
+  ST = pImpl->StructTypes.get(STV);
     
   if (!ST) {
     // Value not found.  Derive a new type!
     ST = (StructType*) operator new(sizeof(StructType) +
                                     sizeof(PATypeHandle) * ETypes.size());
-    new (ST) StructType(ETypes, isPacked);
-    StructTypes->add(STV, ST);
+    new (ST) StructType(Context, ETypes, isPacked);
+    pImpl->StructTypes.add(STV, ST);
   }
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "Derived new type: " << *ST << "\n";
+  DEBUG(errs() << "Derived new type: " << *ST << "\n");
 #endif
   return ST;
 }
 
-StructType *StructType::get(const Type *type, ...) {
+StructType *StructType::get(LLVMContext &Context, const Type *type, ...) {
   va_list ap;
   std::vector<const llvm::Type*> StructFields;
   va_start(ap, type);
@@ -1274,19 +914,12 @@ StructType *StructType::get(const Type *type, ...) {
     StructFields.push_back(type);
     type = va_arg(ap, llvm::Type*);
   }
-  return llvm::StructType::get(StructFields);
+  return llvm::StructType::get(Context, StructFields);
 }
 
 bool StructType::isValidElementType(const Type *ElemTy) {
-  if (ElemTy == Type::VoidTy || ElemTy == Type::LabelTy ||
-      ElemTy == Type::MetadataTy)
-    return false;
-
-  if (const PointerType *PTy = dyn_cast<PointerType>(ElemTy))
-    if (PTy->getElementType() == Type::MetadataTy)
-      return false;
-
-  return true;
+  return ElemTy->getTypeID() != VoidTyID && ElemTy->getTypeID() != LabelTyID &&
+         ElemTy->getTypeID() != MetadataTyID && !isa<FunctionType>(ElemTy);
 }
 
 
@@ -1294,67 +927,38 @@ bool StructType::isValidElementType(const Type *ElemTy) {
 // Pointer Type Factory...
 //
 
-// PointerValType - Define a class to hold the key that goes into the TypeMap
-//
-namespace llvm {
-class PointerValType {
-  const Type *ValTy;
-  unsigned AddressSpace;
-public:
-  PointerValType(const Type *val, unsigned as) : ValTy(val), AddressSpace(as) {}
-
-  static PointerValType get(const PointerType *PT) {
-    return PointerValType(PT->getElementType(), PT->getAddressSpace());
-  }
-
-  static unsigned hashTypeStructure(const PointerType *PT) {
-    return getSubElementHash(PT);
-  }
-
-  bool operator<(const PointerValType &MTV) const {
-    if (AddressSpace < MTV.AddressSpace) return true;
-    return AddressSpace == MTV.AddressSpace && ValTy < MTV.ValTy;
-  }
-};
-}
-
-static ManagedStatic<TypeMap<PointerValType, PointerType> > PointerTypes;
-
 PointerType *PointerType::get(const Type *ValueType, unsigned AddressSpace) {
   assert(ValueType && "Can't get a pointer to <null> type!");
-  assert(ValueType != Type::VoidTy &&
+  assert(ValueType->getTypeID() != VoidTyID &&
          "Pointer to void is not valid, use i8* instead!");
   assert(isValidElementType(ValueType) && "Invalid type for pointer element!");
   PointerValType PVT(ValueType, AddressSpace);
 
   PointerType *PT = 0;
   
-  sys::SmartScopedLock<true> L(&*TypeMapLock);
-  PT = PointerTypes->get(PVT);
+  LLVMContextImpl *pImpl = ValueType->getContext().pImpl;
+  
+  sys::SmartScopedLock<true> L(pImpl->TypeMapLock);
+  PT = pImpl->PointerTypes.get(PVT);
   
   if (!PT) {
     // Value not found.  Derive a new type!
-    PointerTypes->add(PVT, PT = new PointerType(ValueType, AddressSpace));
+    pImpl->PointerTypes.add(PVT, PT = new PointerType(ValueType, AddressSpace));
   }
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "Derived new type: " << *PT << "\n";
+  DEBUG(errs() << "Derived new type: " << *PT << "\n");
 #endif
   return PT;
 }
 
-PointerType *Type::getPointerTo(unsigned addrs) const {
+const PointerType *Type::getPointerTo(unsigned addrs) const {
   return PointerType::get(this, addrs);
 }
 
 bool PointerType::isValidElementType(const Type *ElemTy) {
-  if (ElemTy == Type::VoidTy || ElemTy == Type::LabelTy)
-    return false;
-
-  if (const PointerType *PTy = dyn_cast<PointerType>(ElemTy))
-    if (PTy->getElementType() == Type::MetadataTy)
-      return false;
-
-  return true;
+  return ElemTy->getTypeID() != VoidTyID &&
+         ElemTy->getTypeID() != LabelTyID &&
+         ElemTy->getTypeID() != MetadataTyID;
 }
 
 
@@ -1366,9 +970,10 @@ bool PointerType::isValidElementType(const Type *ElemTy) {
 // it.  This function is called primarily by the PATypeHandle class.
 void Type::addAbstractTypeUser(AbstractTypeUser *U) const {
   assert(isAbstract() && "addAbstractTypeUser: Current type not abstract!");
-  AbstractTypeUsersLock->acquire();
+  LLVMContextImpl *pImpl = getContext().pImpl;
+  pImpl->AbstractTypeUsersLock.acquire();
   AbstractTypeUsers.push_back(U);
-  AbstractTypeUsersLock->release();
+  pImpl->AbstractTypeUsersLock.release();
 }
 
 
@@ -1378,7 +983,8 @@ void Type::addAbstractTypeUser(AbstractTypeUser *U) const {
 // is annihilated, because there is no way to get a reference to it ever again.
 //
 void Type::removeAbstractTypeUser(AbstractTypeUser *U) const {
-  AbstractTypeUsersLock->acquire();
+  LLVMContextImpl *pImpl = getContext().pImpl;
+  pImpl->AbstractTypeUsersLock.acquire();
   
   // Search from back to front because we will notify users from back to
   // front.  Also, it is likely that there will be a stack like behavior to
@@ -1394,20 +1000,20 @@ void Type::removeAbstractTypeUser(AbstractTypeUser *U) const {
   AbstractTypeUsers.erase(AbstractTypeUsers.begin()+i);
 
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "  remAbstractTypeUser[" << (void*)this << ", "
-       << *this << "][" << i << "] User = " << U << "\n";
+  DEBUG(errs() << "  remAbstractTypeUser[" << (void*)this << ", "
+               << *this << "][" << i << "] User = " << U << "\n");
 #endif
 
   if (AbstractTypeUsers.empty() && getRefCount() == 0 && isAbstract()) {
 #ifdef DEBUG_MERGE_TYPES
-    DOUT << "DELETEing unused abstract type: <" << *this
-         << ">[" << (void*)this << "]" << "\n";
+    DEBUG(errs() << "DELETEing unused abstract type: <" << *this
+                 << ">[" << (void*)this << "]" << "\n");
 #endif
   
   this->destroy();
   }
   
-  AbstractTypeUsersLock->release();
+  pImpl->AbstractTypeUsersLock.release();
 }
 
 // unlockedRefineAbstractTypeTo - This function is used when it is discovered
@@ -1421,21 +1027,22 @@ void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
   assert(this != NewType && "Can't refine to myself!");
   assert(ForwardType == 0 && "This type has already been refined!");
 
+  LLVMContextImpl *pImpl = getContext().pImpl;
+
   // The descriptions may be out of date.  Conservatively clear them all!
-  if (AbstractTypeDescriptions.isConstructed())
-    AbstractTypeDescriptions->clear();
+  pImpl->AbstractTypeDescriptions.clear();
 
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "REFINING abstract type [" << (void*)this << " "
-       << *this << "] to [" << (void*)NewType << " "
-       << *NewType << "]!\n";
+  DEBUG(errs() << "REFINING abstract type [" << (void*)this << " "
+               << *this << "] to [" << (void*)NewType << " "
+               << *NewType << "]!\n");
 #endif
 
   // Make sure to put the type to be refined to into a holder so that if IT gets
   // refined, that we will not continue using a dead reference...
   //
   PATypeHolder NewTy(NewType);
-  // Any PATypeHolders referring to this type will now automatically forward o
+  // Any PATypeHolders referring to this type will now automatically forward to
   // the type we are resolved to.
   ForwardType = NewType;
   if (NewType->isAbstract())
@@ -1458,23 +1065,23 @@ void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
   // will not cause users to drop off of the use list.  If we resolve to ourself
   // we succeed!
   //
-  AbstractTypeUsersLock->acquire();
+  pImpl->AbstractTypeUsersLock.acquire();
   while (!AbstractTypeUsers.empty() && NewTy != this) {
     AbstractTypeUser *User = AbstractTypeUsers.back();
 
     unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
 #ifdef DEBUG_MERGE_TYPES
-    DOUT << " REFINING user " << OldSize-1 << "[" << (void*)User
-         << "] of abstract type [" << (void*)this << " "
-         << *this << "] to [" << (void*)NewTy.get() << " "
-         << *NewTy << "]!\n";
+    DEBUG(errs() << " REFINING user " << OldSize-1 << "[" << (void*)User
+                 << "] of abstract type [" << (void*)this << " "
+                 << *this << "] to [" << (void*)NewTy.get() << " "
+                 << *NewTy << "]!\n");
 #endif
     User->refineAbstractType(this, NewTy);
 
     assert(AbstractTypeUsers.size() != OldSize &&
            "AbsTyUser did not remove self from user list!");
   }
-  AbstractTypeUsersLock->release();
+  pImpl->AbstractTypeUsersLock.release();
 
   // If we were successful removing all users from the type, 'this' will be
   // deleted when the last PATypeHolder is destroyed or updated from this type.
@@ -1488,7 +1095,7 @@ void DerivedType::unlockedRefineAbstractTypeTo(const Type *NewType) {
 void DerivedType::refineAbstractTypeTo(const Type *NewType) {
   // All recursive calls will go through unlockedRefineAbstractTypeTo,
   // to avoid deadlock problems.
-  sys::SmartScopedLock<true> L(&*TypeMapLock);
+  sys::SmartScopedLock<true> L(NewType->getContext().pImpl->TypeMapLock);
   unlockedRefineAbstractTypeTo(NewType);
 }
 
@@ -1497,10 +1104,12 @@ void DerivedType::refineAbstractTypeTo(const Type *NewType) {
 //
 void DerivedType::notifyUsesThatTypeBecameConcrete() {
 #ifdef DEBUG_MERGE_TYPES
-  DOUT << "typeIsREFINED type: " << (void*)this << " " << *this << "\n";
+  DEBUG(errs() << "typeIsREFINED type: " << (void*)this << " " << *this <<"\n");
 #endif
 
-  AbstractTypeUsersLock->acquire();
+  LLVMContextImpl *pImpl = getContext().pImpl;
+
+  pImpl->AbstractTypeUsersLock.acquire();
   unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
   while (!AbstractTypeUsers.empty()) {
     AbstractTypeUser *ATU = AbstractTypeUsers.back();
@@ -1509,7 +1118,7 @@ void DerivedType::notifyUsesThatTypeBecameConcrete() {
     assert(AbstractTypeUsers.size() < OldSize-- &&
            "AbstractTypeUser did not remove itself from the use list!");
   }
-  AbstractTypeUsersLock->release();
+  pImpl->AbstractTypeUsersLock.release();
 }
 
 // refineAbstractType - Called when a contained type is found to be more
@@ -1518,11 +1127,13 @@ void DerivedType::notifyUsesThatTypeBecameConcrete() {
 //
 void FunctionType::refineAbstractType(const DerivedType *OldType,
                                       const Type *NewType) {
-  FunctionTypes->RefineAbstractType(this, OldType, NewType);
+  LLVMContextImpl *pImpl = OldType->getContext().pImpl;
+  pImpl->FunctionTypes.RefineAbstractType(this, OldType, NewType);
 }
 
 void FunctionType::typeBecameConcrete(const DerivedType *AbsTy) {
-  FunctionTypes->TypeBecameConcrete(this, AbsTy);
+  LLVMContextImpl *pImpl = AbsTy->getContext().pImpl;
+  pImpl->FunctionTypes.TypeBecameConcrete(this, AbsTy);
 }
 
 
@@ -1532,11 +1143,13 @@ void FunctionType::typeBecameConcrete(const DerivedType *AbsTy) {
 //
 void ArrayType::refineAbstractType(const DerivedType *OldType,
                                    const Type *NewType) {
-  ArrayTypes->RefineAbstractType(this, OldType, NewType);
+  LLVMContextImpl *pImpl = OldType->getContext().pImpl;
+  pImpl->ArrayTypes.RefineAbstractType(this, OldType, NewType);
 }
 
 void ArrayType::typeBecameConcrete(const DerivedType *AbsTy) {
-  ArrayTypes->TypeBecameConcrete(this, AbsTy);
+  LLVMContextImpl *pImpl = AbsTy->getContext().pImpl;
+  pImpl->ArrayTypes.TypeBecameConcrete(this, AbsTy);
 }
 
 // refineAbstractType - Called when a contained type is found to be more
@@ -1545,11 +1158,13 @@ void ArrayType::typeBecameConcrete(const DerivedType *AbsTy) {
 //
 void VectorType::refineAbstractType(const DerivedType *OldType,
                                    const Type *NewType) {
-  VectorTypes->RefineAbstractType(this, OldType, NewType);
+  LLVMContextImpl *pImpl = OldType->getContext().pImpl;
+  pImpl->VectorTypes.RefineAbstractType(this, OldType, NewType);
 }
 
 void VectorType::typeBecameConcrete(const DerivedType *AbsTy) {
-  VectorTypes->TypeBecameConcrete(this, AbsTy);
+  LLVMContextImpl *pImpl = AbsTy->getContext().pImpl;
+  pImpl->VectorTypes.TypeBecameConcrete(this, AbsTy);
 }
 
 // refineAbstractType - Called when a contained type is found to be more
@@ -1558,11 +1173,13 @@ void VectorType::typeBecameConcrete(const DerivedType *AbsTy) {
 //
 void StructType::refineAbstractType(const DerivedType *OldType,
                                     const Type *NewType) {
-  StructTypes->RefineAbstractType(this, OldType, NewType);
+  LLVMContextImpl *pImpl = OldType->getContext().pImpl;
+  pImpl->StructTypes.RefineAbstractType(this, OldType, NewType);
 }
 
 void StructType::typeBecameConcrete(const DerivedType *AbsTy) {
-  StructTypes->TypeBecameConcrete(this, AbsTy);
+  LLVMContextImpl *pImpl = AbsTy->getContext().pImpl;
+  pImpl->StructTypes.TypeBecameConcrete(this, AbsTy);
 }
 
 // refineAbstractType - Called when a contained type is found to be more
@@ -1571,11 +1188,13 @@ void StructType::typeBecameConcrete(const DerivedType *AbsTy) {
 //
 void PointerType::refineAbstractType(const DerivedType *OldType,
                                      const Type *NewType) {
-  PointerTypes->RefineAbstractType(this, OldType, NewType);
+  LLVMContextImpl *pImpl = OldType->getContext().pImpl;
+  pImpl->PointerTypes.RefineAbstractType(this, OldType, NewType);
 }
 
 void PointerType::typeBecameConcrete(const DerivedType *AbsTy) {
-  PointerTypes->TypeBecameConcrete(this, AbsTy);
+  LLVMContextImpl *pImpl = AbsTy->getContext().pImpl;
+  pImpl->PointerTypes.TypeBecameConcrete(this, AbsTy);
 }
 
 bool SequentialType::indexValid(const Value *V) const {
@@ -1585,19 +1204,6 @@ bool SequentialType::indexValid(const Value *V) const {
 }
 
 namespace llvm {
-std::ostream &operator<<(std::ostream &OS, const Type *T) {
-  if (T == 0)
-    OS << "<null> value!\n";
-  else
-    T->print(OS);
-  return OS;
-}
-
-std::ostream &operator<<(std::ostream &OS, const Type &T) {
-  T.print(OS);
-  return OS;
-}
-
 raw_ostream &operator<<(raw_ostream &OS, const Type &T) {
   T.print(OS);
   return OS;

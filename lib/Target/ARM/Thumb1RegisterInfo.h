@@ -20,28 +20,28 @@
 
 namespace llvm {
   class ARMSubtarget;
-  class TargetInstrInfo;
+  class ARMBaseInstrInfo;
   class Type;
 
 struct Thumb1RegisterInfo : public ARMBaseRegisterInfo {
 public:
-  Thumb1RegisterInfo(const TargetInstrInfo &tii, const ARMSubtarget &STI);
+  Thumb1RegisterInfo(const ARMBaseInstrInfo &tii, const ARMSubtarget &STI);
 
   /// emitLoadConstPool - Emits a load from constpool to materialize the
   /// specified immediate.
-  void emitLoadConstPool(MachineBasicBlock &MBB,
-                         MachineBasicBlock::iterator &MBBI,
-                         unsigned DestReg, int Val,
-                         const TargetInstrInfo *TII,
-                         DebugLoc dl) const;
+ void emitLoadConstPool(MachineBasicBlock &MBB,
+                        MachineBasicBlock::iterator &MBBI,
+                        DebugLoc dl,
+                        unsigned DestReg, unsigned SubIdx, int Val,
+                        ARMCC::CondCodes Pred = ARMCC::AL,
+                        unsigned PredReg = 0) const;
 
   /// Code Generation virtual methods...
   const TargetRegisterClass *
-    getPhysicalRegisterRegClass(unsigned Reg, MVT VT = MVT::Other) const;
-
-  bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;
+    getPhysicalRegisterRegClass(unsigned Reg, EVT VT = MVT::Other) const;
 
   bool requiresRegisterScavenging(const MachineFunction &MF) const;
+  bool requiresFrameIndexScavenging(const MachineFunction &MF) const;
 
   bool hasReservedCallFrame(MachineFunction &MF) const;
 
@@ -49,8 +49,23 @@ public:
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
 
-  void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+  // rewrite MI to access 'Offset' bytes from the FP. Return the offset that
+  // could not be handled directly in MI.
+  int rewriteFrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
+                        unsigned FrameReg, int Offset,
+                        unsigned MOVOpc, unsigned ADDriOpc, unsigned SUBriOpc) const;
+
+  bool saveScavengerRegister(MachineBasicBlock &MBB,
+                             MachineBasicBlock::iterator I,
+                             const TargetRegisterClass *RC,
+                             unsigned Reg) const;
+  void restoreScavengerRegister(MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator I,
+                                const TargetRegisterClass *RC,
+                                unsigned Reg) const;
+  unsigned eliminateFrameIndex(MachineBasicBlock::iterator II,
+                               int SPAdj, int *Value = NULL,
+                               RegScavenger *RS = NULL) const;
 
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;

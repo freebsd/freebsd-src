@@ -56,10 +56,11 @@ Module *llvm::CloneModule(const Module *M,
   //
   for (Module::const_global_iterator I = M->global_begin(), E = M->global_end();
        I != E; ++I) {
-    GlobalVariable *GV = new GlobalVariable(I->getType()->getElementType(),
+    GlobalVariable *GV = new GlobalVariable(*New, 
+                                            I->getType()->getElementType(),
                                             false,
                                             GlobalValue::ExternalLinkage, 0,
-                                            I->getName(), New);
+                                            I->getName());
     GV->setAlignment(I->getAlignment());
     ValueMap[I] = GV;
   }
@@ -88,7 +89,8 @@ Module *llvm::CloneModule(const Module *M,
     GlobalVariable *GV = cast<GlobalVariable>(ValueMap[I]);
     if (I->hasInitializer())
       GV->setInitializer(cast<Constant>(MapValue(I->getInitializer(),
-                                                 ValueMap)));
+                                                 ValueMap,
+                                                 M->getContext())));
     GV->setLinkage(I->getLinkage());
     GV->setThreadLocal(I->isThreadLocal());
     GV->setConstant(I->isConstant());
@@ -106,7 +108,7 @@ Module *llvm::CloneModule(const Module *M,
         ValueMap[J] = DestI++;
       }
 
-      std::vector<ReturnInst*> Returns;  // Ignore returns cloned...
+      SmallVector<ReturnInst*, 8> Returns;  // Ignore returns cloned.
       CloneFunctionInto(F, I, ValueMap, Returns);
     }
 
@@ -119,7 +121,7 @@ Module *llvm::CloneModule(const Module *M,
     GlobalAlias *GA = cast<GlobalAlias>(ValueMap[I]);
     GA->setLinkage(I->getLinkage());
     if (const Constant* C = I->getAliasee())
-      GA->setAliasee(cast<Constant>(MapValue(C, ValueMap)));
+      GA->setAliasee(cast<Constant>(MapValue(C, ValueMap, M->getContext())));
   }
   
   return New;

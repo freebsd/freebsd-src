@@ -15,6 +15,7 @@
 #define MIPSINSTRUCTIONINFO_H
 
 #include "Mips.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "MipsRegisterInfo.h"
 
@@ -92,7 +93,7 @@ namespace Mips {
   inline static const char *MipsFCCToString(Mips::CondCode CC) 
   {
     switch (CC) {
-      default: assert(0 && "Unknown condition code");
+      default: llvm_unreachable("Unknown condition code");
       case FCOND_F:
       case FCOND_T:   return "f";
       case FCOND_UN:
@@ -127,6 +128,38 @@ namespace Mips {
       case FCOND_GT:  return "gt";
     }
   }
+}
+
+/// MipsII - This namespace holds all of the target specific flags that
+/// instruction info tracks.
+///
+namespace MipsII {
+  /// Target Operand Flag enum.
+  enum TOF {
+    //===------------------------------------------------------------------===//
+    // Mips Specific MachineOperand flags.
+ 
+    MO_NO_FLAG,
+
+    /// MO_GOT - Represents the offset into the global offset table at which
+    /// the address the relocation entry symbol resides during execution.
+    MO_GOT,
+
+    /// MO_GOT_CALL - Represents the offset into the global offset table at 
+    /// which the address of a call site relocation entry symbol resides 
+    /// during execution. This is different from the above since this flag
+    /// can only be present in call instructions.
+    MO_GOT_CALL,
+
+    /// MO_GPREL - Represents the offset from the current gp value to be used 
+    /// for the relocatable object file being produced.
+    MO_GPREL,
+
+    /// MO_ABS_HILO - Represents the hi or low part of an absolute symbol
+    /// address. 
+    MO_ABS_HILO
+
+  };
 }
 
 class MipsInstrInfo : public TargetInstrInfoImpl {
@@ -182,21 +215,11 @@ public:
                                    unsigned SrcReg, bool isKill, int FrameIndex,
                                    const TargetRegisterClass *RC) const;
 
-  virtual void storeRegToAddr(MachineFunction &MF, unsigned SrcReg, bool isKill,
-                              SmallVectorImpl<MachineOperand> &Addr,
-                              const TargetRegisterClass *RC,
-                              SmallVectorImpl<MachineInstr*> &NewMIs) const;
-
   virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
                                     MachineBasicBlock::iterator MBBI,
                                     unsigned DestReg, int FrameIndex,
                                     const TargetRegisterClass *RC) const;
 
-  virtual void loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
-                               SmallVectorImpl<MachineOperand> &Addr,
-                               const TargetRegisterClass *RC,
-                               SmallVectorImpl<MachineInstr*> &NewMIs) const;
-  
   virtual MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
                                               MachineInstr* MI,
                                            const SmallVectorImpl<unsigned> &Ops,

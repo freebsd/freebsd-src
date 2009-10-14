@@ -15,6 +15,7 @@
 #include "InstrInfoEmitter.h"
 #include "CodeGenTarget.h"
 #include "Record.h"
+#include "llvm/ADT/StringExtras.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -94,13 +95,16 @@ InstrInfoEmitter::GetOperandInfo(const CodeGenInstruction &Inst) {
       
       if (OpR->isSubClassOf("RegisterClass"))
         Res += getQualifiedName(OpR) + "RegClassID, ";
+      else if (OpR->isSubClassOf("PointerLikeRegClass"))
+        Res += utostr(OpR->getValueAsInt("RegClassKind")) + ", ";
       else
         Res += "0, ";
+      
       // Fill in applicable flags.
       Res += "0";
         
       // Ptr value whose register class is resolved via callback.
-      if (OpR->getName() == "ptr_rc")
+      if (OpR->isSubClassOf("PointerLikeRegClass"))
         Res += "|(1<<TOI::LookupPtrRegClass)";
 
       // Predicate operands.  Check to see if the original unexpanded operand
@@ -276,6 +280,8 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   if (Inst.isVariadic)         OS << "|(1<<TID::Variadic)";
   if (Inst.hasSideEffects)     OS << "|(1<<TID::UnmodeledSideEffects)";
   if (Inst.isAsCheapAsAMove)   OS << "|(1<<TID::CheapAsAMove)";
+  if (Inst.hasExtraSrcRegAllocReq) OS << "|(1<<TID::ExtraSrcRegAllocReq)";
+  if (Inst.hasExtraDefRegAllocReq) OS << "|(1<<TID::ExtraDefRegAllocReq)";
   OS << ", 0";
 
   // Emit all of the target-specific flags...
@@ -335,7 +341,7 @@ void InstrInfoEmitter::emitShiftedValue(Record *R, StringInit *Val,
         R->getName() != "DBG_LABEL" &&
         R->getName() != "EH_LABEL" &&
         R->getName() != "GC_LABEL" &&
-        R->getName() != "DECLARE" &&
+        R->getName() != "KILL" &&
         R->getName() != "EXTRACT_SUBREG" &&
         R->getName() != "INSERT_SUBREG" &&
         R->getName() != "IMPLICIT_DEF" &&

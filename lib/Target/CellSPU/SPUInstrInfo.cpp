@@ -17,8 +17,9 @@
 #include "SPUTargetMachine.h"
 #include "SPUGenInstrInfo.inc"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -313,51 +314,13 @@ SPUInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
   } else if (RC == SPU::VECREGRegisterClass) {
     opc = (isValidFrameIdx) ? SPU::STQDv16i8 : SPU::STQXv16i8;
   } else {
-    assert(0 && "Unknown regclass!");
-    abort();
+    llvm_unreachable("Unknown regclass!");
   }
 
   DebugLoc DL = DebugLoc::getUnknownLoc();
   if (MI != MBB.end()) DL = MI->getDebugLoc();
   addFrameReference(BuildMI(MBB, MI, DL, get(opc))
                     .addReg(SrcReg, getKillRegState(isKill)), FrameIdx);
-}
-
-void SPUInstrInfo::storeRegToAddr(MachineFunction &MF, unsigned SrcReg,
-                                  bool isKill,
-                                  SmallVectorImpl<MachineOperand> &Addr,
-                                  const TargetRegisterClass *RC,
-                                  SmallVectorImpl<MachineInstr*> &NewMIs) const {
-  cerr << "storeRegToAddr() invoked!\n";
-  abort();
-
-  if (Addr[0].isFI()) {
-    /* do what storeRegToStackSlot does here */
-  } else {
-    unsigned Opc = 0;
-    if (RC == SPU::GPRCRegisterClass) {
-      /* Opc = PPC::STW; */
-    } else if (RC == SPU::R16CRegisterClass) {
-      /* Opc = PPC::STD; */
-    } else if (RC == SPU::R32CRegisterClass) {
-      /* Opc = PPC::STFD; */
-    } else if (RC == SPU::R32FPRegisterClass) {
-      /* Opc = PPC::STFD; */
-    } else if (RC == SPU::R64FPRegisterClass) {
-      /* Opc = PPC::STFS; */
-    } else if (RC == SPU::VECREGRegisterClass) {
-      /* Opc = PPC::STVX; */
-    } else {
-      assert(0 && "Unknown regclass!");
-      abort();
-    }
-    DebugLoc DL = DebugLoc::getUnknownLoc();
-    MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc))
-      .addReg(SrcReg, getKillRegState(isKill));
-    for (unsigned i = 0, e = Addr.size(); i != e; ++i)
-      MIB.addOperand(Addr[i]);
-    NewMIs.push_back(MIB);
-  }
 }
 
 void
@@ -385,54 +348,12 @@ SPUInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
   } else if (RC == SPU::VECREGRegisterClass) {
     opc = (isValidFrameIdx) ? SPU::LQDv16i8 : SPU::LQXv16i8;
   } else {
-    assert(0 && "Unknown regclass in loadRegFromStackSlot!");
-    abort();
+    llvm_unreachable("Unknown regclass in loadRegFromStackSlot!");
   }
 
   DebugLoc DL = DebugLoc::getUnknownLoc();
   if (MI != MBB.end()) DL = MI->getDebugLoc();
   addFrameReference(BuildMI(MBB, MI, DL, get(opc), DestReg), FrameIdx);
-}
-
-/*!
-  \note We are really pessimistic here about what kind of a load we're doing.
- */
-void SPUInstrInfo::loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
-                                   SmallVectorImpl<MachineOperand> &Addr,
-                                   const TargetRegisterClass *RC,
-                                   SmallVectorImpl<MachineInstr*> &NewMIs)
-    const {
-  cerr << "loadRegToAddr() invoked!\n";
-  abort();
-
-  if (Addr[0].isFI()) {
-    /* do what loadRegFromStackSlot does here... */
-  } else {
-    unsigned Opc = 0;
-    if (RC == SPU::R8CRegisterClass) {
-      /* do brilliance here */
-    } else if (RC == SPU::R16CRegisterClass) {
-      /* Opc = PPC::LWZ; */
-    } else if (RC == SPU::R32CRegisterClass) {
-      /* Opc = PPC::LD; */
-    } else if (RC == SPU::R32FPRegisterClass) {
-      /* Opc = PPC::LFD; */
-    } else if (RC == SPU::R64FPRegisterClass) {
-      /* Opc = PPC::LFS; */
-    } else if (RC == SPU::VECREGRegisterClass) {
-      /* Opc = PPC::LVX; */
-    } else if (RC == SPU::GPRCRegisterClass) {
-      /* Opc = something else! */
-    } else {
-      assert(0 && "Unknown regclass!");
-      abort();
-    }
-    DebugLoc DL = DebugLoc::getUnknownLoc();
-    MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc), DestReg);
-    for (unsigned i = 0, e = Addr.size(); i != e; ++i)
-      MIB.addOperand(Addr[i]);
-    NewMIs.push_back(MIB);
-  }
 }
 
 //! Return true if the specified load or store can be folded
@@ -543,7 +464,7 @@ SPUInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
     } else if (isCondBranch(LastInst)) {
       // Block ends with fall-through condbranch.
       TBB = LastInst->getOperand(1).getMBB();
-      DEBUG(cerr << "Pushing LastInst:               ");
+      DEBUG(errs() << "Pushing LastInst:               ");
       DEBUG(LastInst->dump());
       Cond.push_back(MachineOperand::CreateImm(LastInst->getOpcode()));
       Cond.push_back(LastInst->getOperand(0));
@@ -564,7 +485,7 @@ SPUInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
   // If the block ends with a conditional and unconditional branch, handle it.
   if (isCondBranch(SecondLastInst) && isUncondBranch(LastInst)) {
     TBB =  SecondLastInst->getOperand(1).getMBB();
-    DEBUG(cerr << "Pushing SecondLastInst:         ");
+    DEBUG(errs() << "Pushing SecondLastInst:         ");
     DEBUG(SecondLastInst->dump());
     Cond.push_back(MachineOperand::CreateImm(SecondLastInst->getOpcode()));
     Cond.push_back(SecondLastInst->getOperand(0));
@@ -596,7 +517,7 @@ SPUInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
     return 0;
 
   // Remove the first branch.
-  DEBUG(cerr << "Removing branch:                ");
+  DEBUG(errs() << "Removing branch:                ");
   DEBUG(I->dump());
   I->eraseFromParent();
   I = MBB.end();
@@ -608,7 +529,7 @@ SPUInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
     return 1;
 
   // Remove the second branch.
-  DEBUG(cerr << "Removing second branch:         ");
+  DEBUG(errs() << "Removing second branch:         ");
   DEBUG(I->dump());
   I->eraseFromParent();
   return 2;
@@ -632,14 +553,14 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
       MachineInstrBuilder MIB = BuildMI(&MBB, dl, get(SPU::BR));
       MIB.addMBB(TBB);
 
-      DEBUG(cerr << "Inserted one-way uncond branch: ");
+      DEBUG(errs() << "Inserted one-way uncond branch: ");
       DEBUG((*MIB).dump());
     } else {
       // Conditional branch
       MachineInstrBuilder  MIB = BuildMI(&MBB, dl, get(Cond[0].getImm()));
       MIB.addReg(Cond[1].getReg()).addMBB(TBB);
 
-      DEBUG(cerr << "Inserted one-way cond branch:   ");
+      DEBUG(errs() << "Inserted one-way cond branch:   ");
       DEBUG((*MIB).dump());
     }
     return 1;
@@ -651,9 +572,9 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
     MIB.addReg(Cond[1].getReg()).addMBB(TBB);
     MIB2.addMBB(FBB);
 
-    DEBUG(cerr << "Inserted conditional branch:    ");
+    DEBUG(errs() << "Inserted conditional branch:    ");
     DEBUG((*MIB).dump());
-    DEBUG(cerr << "part 2: ");
+    DEBUG(errs() << "part 2: ");
     DEBUG((*MIB2).dump());
    return 2;
   }

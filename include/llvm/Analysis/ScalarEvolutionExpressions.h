@@ -15,6 +15,7 @@
 #define LLVM_ANALYSIS_SCALAREVOLUTION_EXPRESSIONS_H
 
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
   class ConstantInt;
@@ -25,8 +26,8 @@ namespace llvm {
     // These should be ordered in terms of increasing complexity to make the
     // folders simpler.
     scConstant, scTruncate, scZeroExtend, scSignExtend, scAddExpr, scMulExpr,
-    scUDivExpr, scAddRecExpr, scUMaxExpr, scSMaxExpr, scUnknown,
-    scCouldNotCompute
+    scUDivExpr, scAddRecExpr, scUMaxExpr, scSMaxExpr,
+    scFieldOffset, scAllocSize, scUnknown, scCouldNotCompute
   };
 
   //===--------------------------------------------------------------------===//
@@ -36,11 +37,9 @@ namespace llvm {
     friend class ScalarEvolution;
 
     ConstantInt *V;
-    explicit SCEVConstant(ConstantInt *v) :
-      SCEV(scConstant), V(v) {}
+    SCEVConstant(const FoldingSetNodeID &ID, ConstantInt *v) :
+      SCEV(ID, scConstant), V(v) {}
   public:
-    virtual void Profile(FoldingSetNodeID &ID) const;
-
     ConstantInt *getValue() const { return V; }
 
     virtual bool isLoopInvariant(const Loop *L) const {
@@ -53,13 +52,15 @@ namespace llvm {
 
     virtual const Type *getType() const;
 
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const {
-      return this;
+    virtual bool hasOperand(const SCEV *) const {
+      return false;
     }
 
     bool dominates(BasicBlock *BB, DominatorTree *DT) const {
+      return true;
+    }
+
+    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const {
       return true;
     }
 
@@ -77,15 +78,14 @@ namespace llvm {
   ///
   class SCEVCastExpr : public SCEV {
   protected:
-    const SCEV* Op;
+    const SCEV *Op;
     const Type *Ty;
 
-    SCEVCastExpr(unsigned SCEVTy, const SCEV* op, const Type *ty);
+    SCEVCastExpr(const FoldingSetNodeID &ID,
+                 unsigned SCEVTy, const SCEV *op, const Type *ty);
 
   public:
-    virtual void Profile(FoldingSetNodeID &ID) const;
-
-    const SCEV* getOperand() const { return Op; }
+    const SCEV *getOperand() const { return Op; }
     virtual const Type *getType() const { return Ty; }
 
     virtual bool isLoopInvariant(const Loop *L) const {
@@ -96,7 +96,13 @@ namespace llvm {
       return Op->hasComputableLoopEvolution(L);
     }
 
+    virtual bool hasOperand(const SCEV *O) const {
+      return Op == O || Op->hasOperand(O);
+    }
+
     virtual bool dominates(BasicBlock *BB, DominatorTree *DT) const;
+
+    virtual bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVCastExpr *S) { return true; }
@@ -114,18 +120,10 @@ namespace llvm {
   class SCEVTruncateExpr : public SCEVCastExpr {
     friend class ScalarEvolution;
 
-    SCEVTruncateExpr(const SCEV* op, const Type *ty);
+    SCEVTruncateExpr(const FoldingSetNodeID &ID,
+                     const SCEV *op, const Type *ty);
 
   public:
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const {
-      const SCEV* H = Op->replaceSymbolicValuesWithConcrete(Sym, Conc, SE);
-      if (H == Op)
-        return this;
-      return SE.getTruncateExpr(H, Ty);
-    }
-
     virtual void print(raw_ostream &OS) const;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -142,18 +140,10 @@ namespace llvm {
   class SCEVZeroExtendExpr : public SCEVCastExpr {
     friend class ScalarEvolution;
 
-    SCEVZeroExtendExpr(const SCEV* op, const Type *ty);
+    SCEVZeroExtendExpr(const FoldingSetNodeID &ID,
+                       const SCEV *op, const Type *ty);
 
   public:
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const {
-      const SCEV* H = Op->replaceSymbolicValuesWithConcrete(Sym, Conc, SE);
-      if (H == Op)
-        return this;
-      return SE.getZeroExtendExpr(H, Ty);
-    }
-
     virtual void print(raw_ostream &OS) const;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -170,18 +160,10 @@ namespace llvm {
   class SCEVSignExtendExpr : public SCEVCastExpr {
     friend class ScalarEvolution;
 
-    SCEVSignExtendExpr(const SCEV* op, const Type *ty);
+    SCEVSignExtendExpr(const FoldingSetNodeID &ID,
+                       const SCEV *op, const Type *ty);
 
   public:
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const {
-      const SCEV* H = Op->replaceSymbolicValuesWithConcrete(Sym, Conc, SE);
-      if (H == Op)
-        return this;
-      return SE.getSignExtendExpr(H, Ty);
-    }
-
     virtual void print(raw_ostream &OS) const;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -198,22 +180,23 @@ namespace llvm {
   ///
   class SCEVNAryExpr : public SCEV {
   protected:
-    SmallVector<const SCEV*, 8> Operands;
+    SmallVector<const SCEV *, 8> Operands;
 
-    SCEVNAryExpr(enum SCEVTypes T, const SmallVectorImpl<const SCEV*> &ops)
-      : SCEV(T), Operands(ops.begin(), ops.end()) {}
+    SCEVNAryExpr(const FoldingSetNodeID &ID,
+                 enum SCEVTypes T, const SmallVectorImpl<const SCEV *> &ops)
+      : SCEV(ID, T), Operands(ops.begin(), ops.end()) {}
 
   public:
-    virtual void Profile(FoldingSetNodeID &ID) const;
-
     unsigned getNumOperands() const { return (unsigned)Operands.size(); }
-    const SCEV* getOperand(unsigned i) const {
+    const SCEV *getOperand(unsigned i) const {
       assert(i < Operands.size() && "Operand index out of range!");
       return Operands[i];
     }
 
-    const SmallVectorImpl<const SCEV*> &getOperands() const { return Operands; }
-    typedef SmallVectorImpl<const SCEV*>::const_iterator op_iterator;
+    const SmallVectorImpl<const SCEV *> &getOperands() const {
+      return Operands;
+    }
+    typedef SmallVectorImpl<const SCEV *>::const_iterator op_iterator;
     op_iterator op_begin() const { return Operands.begin(); }
     op_iterator op_end() const { return Operands.end(); }
 
@@ -238,9 +221,27 @@ namespace llvm {
       return HasVarying;
     }
 
+    virtual bool hasOperand(const SCEV *O) const {
+      for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
+        if (O == getOperand(i) || getOperand(i)->hasOperand(O))
+          return true;
+      return false;
+    }
+
     bool dominates(BasicBlock *BB, DominatorTree *DT) const;
 
+    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
+
     virtual const Type *getType() const { return getOperand(0)->getType(); }
+
+    bool hasNoUnsignedWrap() const { return SubclassData & (1 << 0); }
+    void setHasNoUnsignedWrap(bool B) {
+      SubclassData = (SubclassData & ~(1 << 0)) | (B << 0);
+    }
+    bool hasNoSignedWrap() const { return SubclassData & (1 << 1); }
+    void setHasNoSignedWrap(bool B) {
+      SubclassData = (SubclassData & ~(1 << 1)) | (B << 1);
+    }
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVNAryExpr *S) { return true; }
@@ -259,15 +260,12 @@ namespace llvm {
   ///
   class SCEVCommutativeExpr : public SCEVNAryExpr {
   protected:
-    SCEVCommutativeExpr(enum SCEVTypes T,
-                        const SmallVectorImpl<const SCEV*> &ops)
-      : SCEVNAryExpr(T, ops) {}
+    SCEVCommutativeExpr(const FoldingSetNodeID &ID,
+                        enum SCEVTypes T,
+                        const SmallVectorImpl<const SCEV *> &ops)
+      : SCEVNAryExpr(ID, T, ops) {}
 
   public:
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const;
-
     virtual const char *getOperationStr() const = 0;
 
     virtual void print(raw_ostream &OS) const;
@@ -289,8 +287,9 @@ namespace llvm {
   class SCEVAddExpr : public SCEVCommutativeExpr {
     friend class ScalarEvolution;
 
-    explicit SCEVAddExpr(const SmallVectorImpl<const SCEV*> &ops)
-      : SCEVCommutativeExpr(scAddExpr, ops) {
+    SCEVAddExpr(const FoldingSetNodeID &ID,
+                const SmallVectorImpl<const SCEV *> &ops)
+      : SCEVCommutativeExpr(ID, scAddExpr, ops) {
     }
 
   public:
@@ -309,8 +308,9 @@ namespace llvm {
   class SCEVMulExpr : public SCEVCommutativeExpr {
     friend class ScalarEvolution;
 
-    explicit SCEVMulExpr(const SmallVectorImpl<const SCEV*> &ops)
-      : SCEVCommutativeExpr(scMulExpr, ops) {
+    SCEVMulExpr(const FoldingSetNodeID &ID,
+                const SmallVectorImpl<const SCEV *> &ops)
+      : SCEVCommutativeExpr(ID, scMulExpr, ops) {
     }
 
   public:
@@ -330,16 +330,14 @@ namespace llvm {
   class SCEVUDivExpr : public SCEV {
     friend class ScalarEvolution;
 
-    const SCEV* LHS;
-    const SCEV* RHS;
-    SCEVUDivExpr(const SCEV* lhs, const SCEV* rhs)
-      : SCEV(scUDivExpr), LHS(lhs), RHS(rhs) {}
+    const SCEV *LHS;
+    const SCEV *RHS;
+    SCEVUDivExpr(const FoldingSetNodeID &ID, const SCEV *lhs, const SCEV *rhs)
+      : SCEV(ID, scUDivExpr), LHS(lhs), RHS(rhs) {}
 
   public:
-    virtual void Profile(FoldingSetNodeID &ID) const;
-
-    const SCEV* getLHS() const { return LHS; }
-    const SCEV* getRHS() const { return RHS; }
+    const SCEV *getLHS() const { return LHS; }
+    const SCEV *getRHS() const { return RHS; }
 
     virtual bool isLoopInvariant(const Loop *L) const {
       return LHS->isLoopInvariant(L) && RHS->isLoopInvariant(L);
@@ -350,18 +348,13 @@ namespace llvm {
              RHS->hasComputableLoopEvolution(L);
     }
 
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const {
-      const SCEV* L = LHS->replaceSymbolicValuesWithConcrete(Sym, Conc, SE);
-      const SCEV* R = RHS->replaceSymbolicValuesWithConcrete(Sym, Conc, SE);
-      if (L == LHS && R == RHS)
-        return this;
-      else
-        return SE.getUDivExpr(L, R);
+    virtual bool hasOperand(const SCEV *O) const {
+      return O == LHS || O == RHS || LHS->hasOperand(O) || RHS->hasOperand(O);
     }
 
     bool dominates(BasicBlock *BB, DominatorTree *DT) const;
+
+    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
 
     virtual const Type *getType() const;
 
@@ -389,25 +382,25 @@ namespace llvm {
 
     const Loop *L;
 
-    SCEVAddRecExpr(const SmallVectorImpl<const SCEV*> &ops, const Loop *l)
-      : SCEVNAryExpr(scAddRecExpr, ops), L(l) {
+    SCEVAddRecExpr(const FoldingSetNodeID &ID,
+                   const SmallVectorImpl<const SCEV *> &ops, const Loop *l)
+      : SCEVNAryExpr(ID, scAddRecExpr, ops), L(l) {
       for (size_t i = 0, e = Operands.size(); i != e; ++i)
         assert(Operands[i]->isLoopInvariant(l) &&
                "Operands of AddRec must be loop-invariant!");
     }
 
   public:
-    virtual void Profile(FoldingSetNodeID &ID) const;
-
-    const SCEV* getStart() const { return Operands[0]; }
+    const SCEV *getStart() const { return Operands[0]; }
     const Loop *getLoop() const { return L; }
 
     /// getStepRecurrence - This method constructs and returns the recurrence
     /// indicating how much this expression steps by.  If this is a polynomial
     /// of degree N, it returns a chrec of degree N-1.
-    const SCEV* getStepRecurrence(ScalarEvolution &SE) const {
+    const SCEV *getStepRecurrence(ScalarEvolution &SE) const {
       if (isAffine()) return getOperand(1);
-      return SE.getAddRecExpr(SmallVector<const SCEV*, 3>(op_begin()+1,op_end()),
+      return SE.getAddRecExpr(SmallVector<const SCEV *, 3>(op_begin()+1,
+                                                           op_end()),
                               getLoop());
     }
 
@@ -435,7 +428,7 @@ namespace llvm {
 
     /// evaluateAtIteration - Return the value of this chain of recurrences at
     /// the specified iteration number.
-    const SCEV* evaluateAtIteration(const SCEV* It, ScalarEvolution &SE) const;
+    const SCEV *evaluateAtIteration(const SCEV *It, ScalarEvolution &SE) const;
 
     /// getNumIterationsInRange - Return the number of iterations of this loop
     /// that produce values in the specified constant range.  Another way of
@@ -443,12 +436,14 @@ namespace llvm {
     /// value is not in the condition, thus computing the exit count.  If the
     /// iteration count can't be computed, an instance of SCEVCouldNotCompute is
     /// returned.
-    const SCEV* getNumIterationsInRange(ConstantRange Range,
+    const SCEV *getNumIterationsInRange(ConstantRange Range,
                                        ScalarEvolution &SE) const;
 
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const;
+    /// getPostIncExpr - Return an expression representing the value of
+    /// this expression one iteration of the loop ahead.
+    const SCEVAddRecExpr *getPostIncExpr(ScalarEvolution &SE) const {
+      return cast<SCEVAddRecExpr>(SE.getAddExpr(this, getStepRecurrence(SE)));
+    }
 
     virtual void print(raw_ostream &OS) const;
 
@@ -466,8 +461,12 @@ namespace llvm {
   class SCEVSMaxExpr : public SCEVCommutativeExpr {
     friend class ScalarEvolution;
 
-    explicit SCEVSMaxExpr(const SmallVectorImpl<const SCEV*> &ops)
-      : SCEVCommutativeExpr(scSMaxExpr, ops) {
+    SCEVSMaxExpr(const FoldingSetNodeID &ID,
+                 const SmallVectorImpl<const SCEV *> &ops)
+      : SCEVCommutativeExpr(ID, scSMaxExpr, ops) {
+      // Max never overflows.
+      setHasNoUnsignedWrap(true);
+      setHasNoSignedWrap(true);
     }
 
   public:
@@ -487,8 +486,12 @@ namespace llvm {
   class SCEVUMaxExpr : public SCEVCommutativeExpr {
     friend class ScalarEvolution;
 
-    explicit SCEVUMaxExpr(const SmallVectorImpl<const SCEV*> &ops)
-      : SCEVCommutativeExpr(scUMaxExpr, ops) {
+    SCEVUMaxExpr(const FoldingSetNodeID &ID,
+                 const SmallVectorImpl<const SCEV *> &ops)
+      : SCEVCommutativeExpr(ID, scUMaxExpr, ops) {
+      // Max never overflows.
+      setHasNoUnsignedWrap(true);
+      setHasNoSignedWrap(true);
     }
 
   public:
@@ -501,22 +504,108 @@ namespace llvm {
     }
   };
 
+  //===--------------------------------------------------------------------===//
+  /// SCEVTargetDataConstant - This node is the base class for representing
+  /// target-dependent values in a target-independent way.
+  ///
+  class SCEVTargetDataConstant : public SCEV {
+  protected:
+    const Type *Ty;
+    SCEVTargetDataConstant(const FoldingSetNodeID &ID, enum SCEVTypes T,
+                           const Type *ty) :
+      SCEV(ID, T), Ty(ty) {}
+
+  public:
+    virtual bool isLoopInvariant(const Loop *) const { return true; }
+    virtual bool hasComputableLoopEvolution(const Loop *) const {
+      return false; // not computable
+    }
+
+    virtual bool hasOperand(const SCEV *) const {
+      return false;
+    }
+
+    bool dominates(BasicBlock *, DominatorTree *) const {
+      return true;
+    }
+
+    bool properlyDominates(BasicBlock *, DominatorTree *) const {
+      return true;
+    }
+
+    virtual const Type *getType() const { return Ty; }
+
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    static inline bool classof(const SCEVTargetDataConstant *S) { return true; }
+    static inline bool classof(const SCEV *S) {
+      return S->getSCEVType() == scFieldOffset ||
+             S->getSCEVType() == scAllocSize;
+    }
+  };
+
+  //===--------------------------------------------------------------------===//
+  /// SCEVFieldOffsetExpr - This node represents an offsetof expression.
+  ///
+  class SCEVFieldOffsetExpr : public SCEVTargetDataConstant {
+    friend class ScalarEvolution;
+
+    const StructType *STy;
+    unsigned FieldNo;
+    SCEVFieldOffsetExpr(const FoldingSetNodeID &ID, const Type *ty,
+                        const StructType *sty, unsigned fieldno) :
+      SCEVTargetDataConstant(ID, scFieldOffset, ty),
+      STy(sty), FieldNo(fieldno) {}
+
+  public:
+    const StructType *getStructType() const { return STy; }
+    unsigned getFieldNo() const { return FieldNo; }
+
+    virtual void print(raw_ostream &OS) const;
+
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    static inline bool classof(const SCEVFieldOffsetExpr *S) { return true; }
+    static inline bool classof(const SCEV *S) {
+      return S->getSCEVType() == scFieldOffset;
+    }
+  };
+
+  //===--------------------------------------------------------------------===//
+  /// SCEVAllocSize - This node represents a sizeof expression.
+  ///
+  class SCEVAllocSizeExpr : public SCEVTargetDataConstant {
+    friend class ScalarEvolution;
+
+    const Type *AllocTy;
+    SCEVAllocSizeExpr(const FoldingSetNodeID &ID,
+                      const Type *ty, const Type *allocty) :
+      SCEVTargetDataConstant(ID, scAllocSize, ty),
+      AllocTy(allocty) {}
+
+  public:
+    const Type *getAllocType() const { return AllocTy; }
+
+    virtual void print(raw_ostream &OS) const;
+
+    /// Methods for support type inquiry through isa, cast, and dyn_cast:
+    static inline bool classof(const SCEVAllocSizeExpr *S) { return true; }
+    static inline bool classof(const SCEV *S) {
+      return S->getSCEVType() == scAllocSize;
+    }
+  };
 
   //===--------------------------------------------------------------------===//
   /// SCEVUnknown - This means that we are dealing with an entirely unknown SCEV
-  /// value, and only represent it as it's LLVM Value.  This is the "bottom"
+  /// value, and only represent it as its LLVM Value.  This is the "bottom"
   /// value for the analysis.
   ///
   class SCEVUnknown : public SCEV {
     friend class ScalarEvolution;
 
     Value *V;
-    explicit SCEVUnknown(Value *v) :
-      SCEV(scUnknown), V(v) {}
-      
-  public:
-    virtual void Profile(FoldingSetNodeID &ID) const;
+    SCEVUnknown(const FoldingSetNodeID &ID, Value *v) :
+      SCEV(ID, scUnknown), V(v) {}
 
+  public:
     Value *getValue() const { return V; }
 
     virtual bool isLoopInvariant(const Loop *L) const;
@@ -524,14 +613,13 @@ namespace llvm {
       return false; // not computable
     }
 
-    const SCEV* replaceSymbolicValuesWithConcrete(const SCEV* Sym,
-                                                 const SCEV* Conc,
-                                                 ScalarEvolution &SE) const {
-      if (&*Sym == this) return Conc;
-      return this;
+    virtual bool hasOperand(const SCEV *) const {
+      return false;
     }
 
     bool dominates(BasicBlock *BB, DominatorTree *DT) const;
+
+    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
 
     virtual const Type *getType() const;
 
@@ -570,19 +658,21 @@ namespace llvm {
         return ((SC*)this)->visitSMaxExpr((const SCEVSMaxExpr*)S);
       case scUMaxExpr:
         return ((SC*)this)->visitUMaxExpr((const SCEVUMaxExpr*)S);
+      case scFieldOffset:
+        return ((SC*)this)->visitFieldOffsetExpr((const SCEVFieldOffsetExpr*)S);
+      case scAllocSize:
+        return ((SC*)this)->visitAllocSizeExpr((const SCEVAllocSizeExpr*)S);
       case scUnknown:
         return ((SC*)this)->visitUnknown((const SCEVUnknown*)S);
       case scCouldNotCompute:
         return ((SC*)this)->visitCouldNotCompute((const SCEVCouldNotCompute*)S);
       default:
-        assert(0 && "Unknown SCEV type!");
-        abort();
+        llvm_unreachable("Unknown SCEV type!");
       }
     }
 
     RetVal visitCouldNotCompute(const SCEVCouldNotCompute *S) {
-      assert(0 && "Invalid use of SCEVCouldNotCompute!");
-      abort();
+      llvm_unreachable("Invalid use of SCEVCouldNotCompute!");
       return RetVal();
     }
   };

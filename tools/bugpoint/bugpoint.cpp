@@ -22,10 +22,10 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/StandardPasses.h"
 #include "llvm/System/Process.h"
 #include "llvm/System/Signals.h"
 #include "llvm/LinkAllVMCore.h"
-#include <iostream>
 using namespace llvm;
 
 // AsChild - Specifies that this invocation of bugpoint is being generated
@@ -58,11 +58,36 @@ MemoryLimit("mlimit", cl::init(100), cl::value_desc("MBytes"),
 static cl::list<const PassInfo*, bool, PassNameParser>
 PassList(cl::desc("Passes available:"), cl::ZeroOrMore);
 
+static cl::opt<bool>
+StandardCompileOpts("std-compile-opts", 
+                   cl::desc("Include the standard compile time optimizations"));
+
+static cl::opt<bool>
+StandardLinkOpts("std-link-opts", 
+                 cl::desc("Include the standard link time optimizations"));
+
+static cl::opt<std::string>
+OverrideTriple("mtriple", cl::desc("Override target triple for module"));
+
 /// BugpointIsInterrupted - Set to true when the user presses ctrl-c.
 bool llvm::BugpointIsInterrupted = false;
 
 static void BugpointInterruptFunction() {
   BugpointIsInterrupted = true;
+}
+
+// Hack to capture a pass list.
+namespace {
+  class AddToDriver : public PassManager {
+    BugDriver &D;
+  public:
+    AddToDriver(BugDriver &_D) : D(_D) {}
+    
+    virtual void add(Pass *P) {
+      const PassInfo *PI = P->getPassInfo();
+      D.addPasses(&PI, &PI + 1);
+    }
+  };
 }
 
 int main(int argc, char **argv) {
@@ -75,9 +100,33 @@ int main(int argc, char **argv) {
                               " for more information.\n");
   sys::SetInterruptFunction(BugpointInterruptFunction);
 
-  LLVMContext Context;
+  LLVMContext& Context = getGlobalContext();
+  // If we have an override, set it and then track the triple we want Modules
+  // to use.
+  if (!OverrideTriple.empty()) {
+    TargetTriple.setTriple(OverrideTriple);
+    outs() << "Override triple set to '" << OverrideTriple << "'\n";
+  }
+
   BugDriver D(argv[0], AsChild, FindBugs, TimeoutValue, MemoryLimit, Context);
   if (D.addSources(InputFilenames)) return 1;
+  
+  AddToDriver PM(D);
+  if (StandardCompileOpts) {
+    createStandardModulePasses(&PM, 3,
+                               /*OptimizeSize=*/ false,
+                               /*UnitAtATime=*/ true,
+                               /*UnrollLoops=*/ true,
+                               /*SimplifyLibCalls=*/ true,
+                               /*HaveExceptions=*/ true,
+                               createFunctionInliningPass());
+  }
+      
+  if (StandardLinkOpts)
+    createStandardLTOPasses(&PM, /*Internalize=*/true,
+                            /*RunInliner=*/true,
+                            /*VerifyEach=*/false);
+
   D.addPasses(PassList.begin(), PassList.end());
 
   // Bugpoint has the ability of generating a plethora of core files, so to
@@ -87,20 +136,20 @@ int main(int argc, char **argv) {
   try {
     return D.run();
   } catch (ToolExecutionError &TEE) {
-    std::cerr << "Tool execution error: " << TEE.what() << '\n';
+    errs() << "Tool execution error: " << TEE.what() << '\n';
   } catch (const std::string& msg) {
-    std::cerr << argv[0] << ": " << msg << "\n";
-  } catch (const std::bad_alloc &e) {
-    std::cerr << "Oh no, a bugpoint process ran out of memory!\n"
-                 "To increase the allocation limits for bugpoint child\n"
-                 "processes, use the -mlimit option.\n";
+    errs() << argv[0] << ": " << msg << "\n";
+  } catch (const std::bad_alloc&) {
+    errs() << "Oh no, a bugpoint process ran out of memory!\n"
+              "To increase the allocation limits for bugpoint child\n"
+              "processes, use the -mlimit option.\n";
   } catch (const std::exception &e) {
-    std::cerr << "Whoops, a std::exception leaked out of bugpoint: "
-              << e.what() << "\n"
-              << "This is a bug in bugpoint!\n";
+    errs() << "Whoops, a std::exception leaked out of bugpoint: "
+           << e.what() << "\n"
+           << "This is a bug in bugpoint!\n";
   } catch (...) {
-    std::cerr << "Whoops, an exception leaked out of bugpoint.  "
-              << "This is a bug in bugpoint!\n";
+    errs() << "Whoops, an exception leaked out of bugpoint.  "
+           << "This is a bug in bugpoint!\n";
   }
   return 1;
 }

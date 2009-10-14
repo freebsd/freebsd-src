@@ -44,8 +44,9 @@ class BitcodeReaderValueList {
   /// number that holds the resolved value.
   typedef std::vector<std::pair<Constant*, unsigned> > ResolveConstantsTy;
   ResolveConstantsTy ResolveConstants;
+  LLVMContext& Context;
 public:
-  BitcodeReaderValueList() {}
+  BitcodeReaderValueList(LLVMContext& C) : Context(C) {}
   ~BitcodeReaderValueList() {
     assert(ResolveConstants.empty() && "Constants not resolved?");
   }
@@ -85,6 +86,41 @@ public:
   void ResolveConstantForwardRefs();
 };
 
+
+//===----------------------------------------------------------------------===//
+//                          BitcodeReaderMDValueList Class
+//===----------------------------------------------------------------------===//
+
+class BitcodeReaderMDValueList {
+  std::vector<WeakVH> MDValuePtrs;
+  
+  LLVMContext& Context;
+public:
+  BitcodeReaderMDValueList(LLVMContext& C) : Context(C) {}
+
+  // vector compatibility methods
+  unsigned size() const       { return MDValuePtrs.size(); }
+  void resize(unsigned N)     { MDValuePtrs.resize(N); }
+  void push_back(Value *V)    { MDValuePtrs.push_back(V);  }
+  void clear()                { MDValuePtrs.clear();  }
+  Value *back() const         { return MDValuePtrs.back(); }
+  void pop_back()             { MDValuePtrs.pop_back(); }
+  bool empty() const          { return MDValuePtrs.empty(); }
+  
+  Value *operator[](unsigned i) const {
+    assert(i < MDValuePtrs.size());
+    return MDValuePtrs[i];
+  }
+  
+  void shrinkTo(unsigned N) {
+    assert(N <= size() && "Invalid shrinkTo request!");
+    MDValuePtrs.resize(N);
+  }
+
+  Value *getValueFwdRef(unsigned Idx);
+  void AssignValue(Value *V, unsigned Idx);
+};
+
 class BitcodeReader : public ModuleProvider {
   LLVMContext& Context;
   MemoryBuffer *Buffer;
@@ -95,6 +131,9 @@ class BitcodeReader : public ModuleProvider {
   
   std::vector<PATypeHolder> TypeList;
   BitcodeReaderValueList ValueList;
+  BitcodeReaderMDValueList MDValueList;
+  SmallVector<Instruction *, 64> InstructionList;
+
   std::vector<std::pair<GlobalVariable*, unsigned> > GlobalInits;
   std::vector<std::pair<GlobalAlias*, unsigned> > AliasInits;
   
@@ -126,7 +165,7 @@ class BitcodeReader : public ModuleProvider {
   DenseMap<Function*, std::pair<uint64_t, unsigned> > DeferredFunctionInfo;
 public:
   explicit BitcodeReader(MemoryBuffer *buffer, LLVMContext& C)
-      : Context(C), Buffer(buffer), ErrorString(0) {
+    : Context(C), Buffer(buffer), ErrorString(0), ValueList(C), MDValueList(C) {
     HasReversedFunctionsWithBodies = false;
   }
   ~BitcodeReader() {
@@ -159,7 +198,10 @@ public:
 private:
   const Type *getTypeByID(unsigned ID, bool isTypeTable = false);
   Value *getFnValueByID(unsigned ID, const Type *Ty) {
-    return ValueList.getValueFwdRef(ID, Ty);
+    if (Ty == Type::getMetadataTy(Context))
+      return MDValueList.getValueFwdRef(ID);
+    else
+      return ValueList.getValueFwdRef(ID, Ty);
   }
   BasicBlock *getBasicBlock(unsigned ID) const {
     if (ID >= FunctionBBs.size()) return 0; // Invalid ID
@@ -209,6 +251,8 @@ private:
   bool RememberAndSkipFunctionBody();
   bool ParseFunctionBody(Function *F);
   bool ResolveGlobalAndAliasInits();
+  bool ParseMetadata();
+  bool ParseMetadataAttachment();
 };
   
 } // End llvm namespace

@@ -20,6 +20,7 @@ namespace llvm {
 
 class Value;
 class FoldingSetNodeID;
+class raw_ostream;
 
 //===----------------------------------------------------------------------===//
 /// MachineMemOperand - A description of a memory reference used in the backend.
@@ -47,14 +48,17 @@ public:
   };
 
   /// MachineMemOperand - Construct an MachineMemOperand object with the
-  /// specified address Value, flags, offset, size, and alignment.
+  /// specified address Value, flags, offset, size, and base alignment.
   MachineMemOperand(const Value *v, unsigned int f, int64_t o, uint64_t s,
-                    unsigned int a);
+                    unsigned int base_alignment);
 
-  /// getValue - Return the base address of the memory access.
-  /// Special values are PseudoSourceValue::FPRel, PseudoSourceValue::SPRel,
-  /// and the other PseudoSourceValue members which indicate references to
-  /// frame/stack pointer relative references and other special references.
+  /// getValue - Return the base address of the memory access. This may either
+  /// be a normal LLVM IR Value, or one of the special values used in CodeGen.
+  /// Special values are those obtained via
+  /// PseudoSourceValue::getFixedStack(int), PseudoSourceValue::getStack, and
+  /// other PseudoSourceValue member functions which return objects which stand
+  /// for frame/stack pointer relative references and other special references
+  /// which are not representable in the high-level IR.
   const Value *getValue() const { return V; }
 
   /// getFlags - Return the raw flags of the source value, \see MemOperandFlags.
@@ -69,17 +73,33 @@ public:
   uint64_t getSize() const { return Size; }
 
   /// getAlignment - Return the minimum known alignment in bytes of the
-  /// memory reference.
-  unsigned int getAlignment() const { return (1u << (Flags >> 3)) >> 1; }
+  /// actual memory reference.
+  uint64_t getAlignment() const;
+
+  /// getBaseAlignment - Return the minimum known alignment in bytes of the
+  /// base address, without the offset.
+  uint64_t getBaseAlignment() const { return (1u << (Flags >> 3)) >> 1; }
 
   bool isLoad() const { return Flags & MOLoad; }
   bool isStore() const { return Flags & MOStore; }
   bool isVolatile() const { return Flags & MOVolatile; }
 
+  /// refineAlignment - Update this MachineMemOperand to reflect the alignment
+  /// of MMO, if it has a greater alignment. This must only be used when the
+  /// new alignment applies to all users of this MachineMemOperand.
+  void refineAlignment(const MachineMemOperand *MMO);
+
+  /// setValue - Change the SourceValue for this MachineMemOperand. This
+  /// should only be used when an object is being relocated and all references
+  /// to it are being updated.
+  void setValue(const Value *NewSV) { V = NewSV; }
+
   /// Profile - Gather unique data for the object.
   ///
   void Profile(FoldingSetNodeID &ID) const;
 };
+
+raw_ostream &operator<<(raw_ostream &OS, const MachineMemOperand &MRO);
 
 } // End llvm namespace
 

@@ -43,9 +43,6 @@ namespace llvm {
       VEC2PREFSLOT,             ///< Extract element 0
       SHLQUAD_L_BITS,           ///< Rotate quad left, by bits
       SHLQUAD_L_BYTES,          ///< Rotate quad left, by bytes
-      VEC_SHL,                  ///< Vector shift left
-      VEC_SRL,                  ///< Vector shift right (logical)
-      VEC_SRA,                  ///< Vector shift right (arithmetic)
       VEC_ROTL,                 ///< Vector rotate left
       VEC_ROTR,                 ///< Vector rotate right
       ROTBYTES_LEFT,            ///< Rotate bytes (loads -> ROTQBYI)
@@ -64,22 +61,22 @@ namespace llvm {
   //! Utility functions specific to CellSPU:
   namespace SPU {
     SDValue get_vec_u18imm(SDNode *N, SelectionDAG &DAG,
-                             MVT ValueType);
+                             EVT ValueType);
     SDValue get_vec_i16imm(SDNode *N, SelectionDAG &DAG,
-                             MVT ValueType);
+                             EVT ValueType);
     SDValue get_vec_i10imm(SDNode *N, SelectionDAG &DAG,
-                             MVT ValueType);
+                             EVT ValueType);
     SDValue get_vec_i8imm(SDNode *N, SelectionDAG &DAG,
-                            MVT ValueType);
+                            EVT ValueType);
     SDValue get_ILHUvec_imm(SDNode *N, SelectionDAG &DAG,
-                              MVT ValueType);
+                              EVT ValueType);
     SDValue get_v4i32_imm(SDNode *N, SelectionDAG &DAG);
     SDValue get_v2i64_imm(SDNode *N, SelectionDAG &DAG);
 
     SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG,
                               const SPUTargetMachine &TM);
-    //! Simplify a MVT::v2i64 constant splat to CellSPU-ready form
-    SDValue LowerV2I64Splat(MVT OpVT, SelectionDAG &DAG, uint64_t splat,
+    //! Simplify a EVT::v2i64 constant splat to CellSPU-ready form
+    SDValue LowerV2I64Splat(EVT OpVT, SelectionDAG &DAG, uint64_t splat,
                              DebugLoc dl);
   }
 
@@ -109,7 +106,7 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
     /// getSetCCResultType - Return the ValueType for ISD::SETCC
-    virtual MVT getSetCCResultType(MVT VT) const;
+    virtual MVT::SimpleValueType getSetCCResultType(EVT VT) const;
 
     //! Custom lowering hooks
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG);
@@ -134,7 +131,7 @@ namespace llvm {
 
     std::pair<unsigned, const TargetRegisterClass*>
       getRegForInlineAsmConstraint(const std::string &Constraint,
-                                   MVT VT) const;
+                                   EVT VT) const;
 
     void LowerAsmOperandForConstraint(SDValue Op, char ConstraintLetter,
                                       bool hasMemory,
@@ -150,6 +147,28 @@ namespace llvm {
 
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
+
+    virtual SDValue
+      LowerFormalArguments(SDValue Chain,
+                           CallingConv::ID CallConv, bool isVarArg,
+                           const SmallVectorImpl<ISD::InputArg> &Ins,
+                           DebugLoc dl, SelectionDAG &DAG,
+                           SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerCall(SDValue Chain, SDValue Callee,
+                CallingConv::ID CallConv, bool isVarArg,
+                bool isTailCall,
+                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                const SmallVectorImpl<ISD::InputArg> &Ins,
+                DebugLoc dl, SelectionDAG &DAG,
+                SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerReturn(SDValue Chain,
+                  CallingConv::ID CallConv, bool isVarArg,
+                  const SmallVectorImpl<ISD::OutputArg> &Outs,
+                  DebugLoc dl, SelectionDAG &DAG);
   };
 }
 

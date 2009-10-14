@@ -33,8 +33,7 @@ extern "C" void LLVMLinkInInterpreter() { }
 
 /// create - Create a new interpreter object.  This can never fail.
 ///
-ExecutionEngine *Interpreter::create(ModuleProvider *MP, std::string* ErrStr,
-                                     CodeGenOpt::Level OptLevel /*unused*/) {
+ExecutionEngine *Interpreter::create(ModuleProvider *MP, std::string* ErrStr) {
   // Tell this ModuleProvide to materialize and release the module
   if (!MP->materializeModule(ErrStr))
     // We got an error, just return 0
@@ -98,4 +97,3 @@ Interpreter::runFunction(Function *F,
 
   return ExitValue;
 }
-

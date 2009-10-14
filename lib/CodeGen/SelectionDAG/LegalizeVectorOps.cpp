@@ -20,8 +20,8 @@
 // type i8 which must be promoted.
 //
 // This does not legalize vector manipulations like ISD::BUILD_VECTOR,
-// or operations that happen to take a vector which are custom-lowered like
-// ISD::CALL; the legalization for such operations never produces nodes
+// or operations that happen to take a vector which are custom-lowered;
+// the legalization for such operations never produces nodes
 // with illegal types, so it's okay to put off legalizing them until
 // SelectionDAG::Legalize runs.
 //
@@ -129,7 +129,7 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
   if (!HasVectorValue)
     return TranslateLegalizeResults(Op, Result);
 
-  MVT QueryType;
+  EVT QueryType;
   switch (Op.getOpcode()) {
   default:
     return TranslateLegalizeResults(Op, Result);
@@ -231,10 +231,10 @@ SDValue VectorLegalizer::PromoteVectorOp(SDValue Op) {
   // Vector "promotion" is basically just bitcasting and doing the operation
   // in a different type.  For example, x86 promotes ISD::AND on v2i32 to
   // v1i64.
-  MVT VT = Op.getValueType();
+  EVT VT = Op.getValueType();
   assert(Op.getNode()->getNumValues() == 1 &&
          "Can't promote a vector with multiple results!");
-  MVT NVT = TLI.getTypeToPromoteTo(Op.getOpcode(), VT);
+  EVT NVT = TLI.getTypeToPromoteTo(Op.getOpcode(), VT);
   DebugLoc dl = Op.getDebugLoc();
   SmallVector<SDValue, 4> Operands(Op.getNumOperands());
 
@@ -260,11 +260,11 @@ SDValue VectorLegalizer::ExpandFNEG(SDValue Op) {
 }
 
 SDValue VectorLegalizer::UnrollVSETCC(SDValue Op) {
-  MVT VT = Op.getValueType();
+  EVT VT = Op.getValueType();
   unsigned NumElems = VT.getVectorNumElements();
-  MVT EltVT = VT.getVectorElementType();
+  EVT EltVT = VT.getVectorElementType();
   SDValue LHS = Op.getOperand(0), RHS = Op.getOperand(1), CC = Op.getOperand(2);
-  MVT TmpEltVT = LHS.getValueType().getVectorElementType();
+  EVT TmpEltVT = LHS.getValueType().getVectorElementType();
   DebugLoc dl = Op.getDebugLoc();
   SmallVector<SDValue, 8> Ops(NumElems);
   for (unsigned i = 0; i < NumElems; ++i) {
@@ -287,11 +287,11 @@ SDValue VectorLegalizer::UnrollVSETCC(SDValue Op) {
 /// the operation be expanded.  "Unroll" the vector, splitting out the scalars
 /// and operating on each element individually.
 SDValue VectorLegalizer::UnrollVectorOp(SDValue Op) {
-  MVT VT = Op.getValueType();
+  EVT VT = Op.getValueType();
   assert(Op.getNode()->getNumValues() == 1 &&
          "Can't unroll a vector with multiple results!");
   unsigned NE = VT.getVectorNumElements();
-  MVT EltVT = VT.getVectorElementType();
+  EVT EltVT = VT.getVectorElementType();
   DebugLoc dl = Op.getDebugLoc();
 
   SmallVector<SDValue, 8> Scalars;
@@ -299,10 +299,10 @@ SDValue VectorLegalizer::UnrollVectorOp(SDValue Op) {
   for (unsigned i = 0; i != NE; ++i) {
     for (unsigned j = 0; j != Op.getNumOperands(); ++j) {
       SDValue Operand = Op.getOperand(j);
-      MVT OperandVT = Operand.getValueType();
+      EVT OperandVT = Operand.getValueType();
       if (OperandVT.isVector()) {
         // A vector operand; extract a single element.
-        MVT OperandEltVT = OperandVT.getVectorElementType();
+        EVT OperandEltVT = OperandVT.getVectorElementType();
         Operands[j] = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl,
                                   OperandEltVT,
                                   Operand,

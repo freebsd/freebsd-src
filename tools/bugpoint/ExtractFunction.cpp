@@ -15,10 +15,12 @@
 #include "BugDriver.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/Verifier.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -27,15 +29,15 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Signals.h"
 #include <set>
-#include <fstream>
-#include <iostream>
 using namespace llvm;
 
 namespace llvm {
   bool DisableSimplifyCFG = false;
+  extern cl::opt<std::string> OutputPrefix;
 } // End llvm namespace
 
 namespace {
@@ -73,7 +75,7 @@ Module *BugDriver::deleteInstructionFromProgram(const Instruction *I,
   // If this instruction produces a value, replace any users with null values
   if (isa<StructType>(TheInst->getType()))
     TheInst->replaceAllUsesWith(UndefValue::get(TheInst->getType()));
-  else if (TheInst->getType() != Type::VoidTy)
+  else if (TheInst->getType() != Type::getVoidTy(I->getContext()))
     TheInst->replaceAllUsesWith(Constant::getNullValue(TheInst->getType()));
 
   // Remove the instruction from the program.
@@ -125,7 +127,7 @@ Module *BugDriver::performFinalCleanups(Module *M, bool MayModifySemantics) {
 
   Module *New = runPassesOn(M, CleanupPasses);
   if (New == 0) {
-    std::cerr << "Final cleanups failed.  Sorry. :(  Please report a bug!\n";
+    errs() << "Final cleanups failed.  Sorry. :(  Please report a bug!\n";
     return M;
   }
   delete M;
@@ -143,9 +145,9 @@ Module *BugDriver::ExtractLoop(Module *M) {
   Module *NewM = runPassesOn(M, LoopExtractPasses);
   if (NewM == 0) {
     Module *Old = swapProgramIn(M);
-    std::cout << "*** Loop extraction failed: ";
+    outs() << "*** Loop extraction failed: ";
     EmitProgressBitcode("loopextraction", true);
-    std::cout << "*** Sorry. :(  Please report a bug!\n";
+    outs() << "*** Sorry. :(  Please report a bug!\n";
     swapProgramIn(Old);
     return 0;
   }
@@ -184,9 +186,11 @@ static Constant *GetTorInit(std::vector<std::pair<Function*, int> > &TorList) {
   std::vector<Constant*> ArrayElts;
   for (unsigned i = 0, e = TorList.size(); i != e; ++i) {
     std::vector<Constant*> Elts;
-    Elts.push_back(ConstantInt::get(Type::Int32Ty, TorList[i].second));
+    Elts.push_back(ConstantInt::get(
+          Type::getInt32Ty(TorList[i].first->getContext()), TorList[i].second));
     Elts.push_back(TorList[i].first);
-    ArrayElts.push_back(ConstantStruct::get(Elts));
+    ArrayElts.push_back(ConstantStruct::get(TorList[i].first->getContext(),
+                                            Elts, false));
   }
   return ConstantArray::get(ArrayType::get(ArrayElts[0]->getType(), 
                                            ArrayElts.size()),
@@ -236,8 +240,9 @@ static void SplitStaticCtorDtor(const char *GlobalName, Module *M1, Module *M2,
   GV->eraseFromParent();
   if (!M1Tors.empty()) {
     Constant *M1Init = GetTorInit(M1Tors);
-    new GlobalVariable(M1Init->getType(), false, GlobalValue::AppendingLinkage,
-                       M1Init, GlobalName, M1);
+    new GlobalVariable(*M1, M1Init->getType(), false,
+                       GlobalValue::AppendingLinkage,
+                       M1Init, GlobalName);
   }
 
   GV = M2->getNamedGlobal(GlobalName);
@@ -247,8 +252,9 @@ static void SplitStaticCtorDtor(const char *GlobalName, Module *M1, Module *M2,
   GV->eraseFromParent();
   if (!M2Tors.empty()) {
     Constant *M2Init = GetTorInit(M2Tors);
-    new GlobalVariable(M2Init->getType(), false, GlobalValue::AppendingLinkage,
-                       M2Init, GlobalName, M2);
+    new GlobalVariable(*M2, M2Init->getType(), false,
+                       GlobalValue::AppendingLinkage,
+                       M2Init, GlobalName);
   }
 }
 
@@ -266,8 +272,8 @@ llvm::SplitFunctionsOutOfModule(Module *M,
     I->setLinkage(GlobalValue::ExternalLinkage);
   for (Module::global_iterator I = M->global_begin(), E = M->global_end();
        I != E; ++I) {
-    if (I->hasName() && *I->getNameStart() == '\01')
-      I->setName(I->getNameStart()+1, I->getNameLen()-1);
+    if (I->hasName() && I->getName()[0] == '\01')
+      I->setName(I->getName().substr(1));
     I->setLinkage(GlobalValue::ExternalLinkage);
   }
 
@@ -283,9 +289,9 @@ llvm::SplitFunctionsOutOfModule(Module *M,
   std::set<Function *> TestFunctions;
   for (unsigned i = 0, e = F.size(); i != e; ++i) {
     Function *TNOF = cast<Function>(ValueMap[F[i]]);
-    DEBUG(std::cerr << "Removing function ");
-    DEBUG(WriteAsOperand(std::cerr, TNOF, false));
-    DEBUG(std::cerr << "\n");
+    DEBUG(errs() << "Removing function ");
+    DEBUG(WriteAsOperand(errs(), TNOF, false));
+    DEBUG(errs() << "\n");
     TestFunctions.insert(cast<Function>(NewValueMap[TNOF]));
     DeleteFunctionBody(TNOF);       // Function is now external in this module!
   }
@@ -319,11 +325,11 @@ Module *BugDriver::ExtractMappedBlocksFromModule(const
                                                  Module *M) {
   char *ExtraArg = NULL;
 
-  sys::Path uniqueFilename("bugpoint-extractblocks");
+  sys::Path uniqueFilename(OutputPrefix + "-extractblocks");
   std::string ErrMsg;
   if (uniqueFilename.createTemporaryFileOnDisk(true, &ErrMsg)) {
-    std::cout << "*** Basic Block extraction failed!\n";
-    std::cerr << "Error creating temporary file: " << ErrMsg << "\n";
+    outs() << "*** Basic Block extraction failed!\n";
+    errs() << "Error creating temporary file: " << ErrMsg << "\n";
     M = swapProgramIn(M);
     EmitProgressBitcode("basicblockextractfail", true);
     swapProgramIn(M);
@@ -331,11 +337,12 @@ Module *BugDriver::ExtractMappedBlocksFromModule(const
   }
   sys::RemoveFileOnSignal(uniqueFilename);
 
-  std::ofstream BlocksToNotExtractFile(uniqueFilename.c_str());
-  if (!BlocksToNotExtractFile) {
-    std::cout << "*** Basic Block extraction failed!\n";
-    std::cerr << "Error writing list of blocks to not extract: " << ErrMsg
-              << "\n";
+  std::string ErrorInfo;
+  raw_fd_ostream BlocksToNotExtractFile(uniqueFilename.c_str(), ErrorInfo);
+  if (!ErrorInfo.empty()) {
+    outs() << "*** Basic Block extraction failed!\n";
+    errs() << "Error writing list of blocks to not extract: " << ErrorInfo
+           << "\n";
     M = swapProgramIn(M);
     EmitProgressBitcode("basicblockextractfail", true);
     swapProgramIn(M);
@@ -347,7 +354,7 @@ Module *BugDriver::ExtractMappedBlocksFromModule(const
     // If the BB doesn't have a name, give it one so we have something to key
     // off of.
     if (!BB->hasName()) BB->setName("tmpbb");
-    BlocksToNotExtractFile << BB->getParent()->getName() << " "
+    BlocksToNotExtractFile << BB->getParent()->getNameStr() << " "
                            << BB->getName() << "\n";
   }
   BlocksToNotExtractFile.close();
@@ -366,7 +373,7 @@ Module *BugDriver::ExtractMappedBlocksFromModule(const
   free(ExtraArg);
 
   if (Ret == 0) {
-    std::cout << "*** Basic Block extraction failed, please report a bug!\n";
+    outs() << "*** Basic Block extraction failed, please report a bug!\n";
     M = swapProgramIn(M);
     EmitProgressBitcode("basicblockextractfail", true);
     swapProgramIn(M);

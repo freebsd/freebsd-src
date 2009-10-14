@@ -18,23 +18,22 @@
 #include <string>
 
 namespace llvm {
-class Module;
 class GlobalValue;
 class TargetMachine;
   
+/// PICStyles - The X86 backend supports a number of different styles of PIC.
+/// 
 namespace PICStyles {
 enum Style {
-  Stub, GOT, RIPRel, WinPIC, None
+  StubPIC,          // Used on i386-darwin in -fPIC mode.
+  StubDynamicNoPIC, // Used on i386-darwin in -mdynamic-no-pic mode.
+  GOT,              // Used on many 32-bit unices in -fPIC mode.
+  RIPRel,           // Used on X86-64 when not in -static mode.
+  None              // Set when in -static mode (not PIC or DynamicNoPIC mode).
 };
 }
 
 class X86Subtarget : public TargetSubtarget {
-public:
-  enum AsmWriterFlavorTy {
-    // Note: This numbering has to match the GCC assembler dialects for inline
-    // asm alternatives to work right.
-    ATT = 0, Intel = 1, Unset
-  };
 protected:
   enum X86SSEEnum {
     NoMMXSSE, MMX, SSE1, SSE2, SSE3, SSSE3, SSE41, SSE42
@@ -43,10 +42,6 @@ protected:
   enum X863DNowEnum {
     NoThreeDNow, ThreeDNow, ThreeDNowA
   };
-
-  /// AsmFlavor - Which x86 asm dialect to use.
-  ///
-  AsmWriterFlavorTy AsmFlavor;
 
   /// PICStyle - Which PIC style to use
   ///
@@ -60,6 +55,10 @@ protected:
   ///
   X863DNowEnum X863DNowLevel;
 
+  /// HasCMov - True if this processor has conditional move instructions
+  /// (generally pentium pro+).
+  bool HasCMov;
+  
   /// HasX86_64 - True if the processor supports X86-64 instructions.
   ///
   bool HasX86_64;
@@ -95,7 +94,7 @@ protected:
   unsigned MaxInlineSizeThreshold;
 
 private:
-  /// Is64Bit - True if the processor supports 64-bit instructions and module
+  /// Is64Bit - True if the processor supports 64-bit instructions and
   /// pointer size is 64 bit.
   bool Is64Bit;
 
@@ -105,9 +104,9 @@ public:
   } TargetType;
 
   /// This constructor initializes the data members to match that
-  /// of the specified module.
+  /// of the specified triple.
   ///
-  X86Subtarget(const Module &M, const std::string &FS, bool is64Bit);
+  X86Subtarget(const std::string &TT, const std::string &FS, bool is64Bit);
 
   /// getStackAlignment - Returns the minimum alignment known to hold of the
   /// stack frame on entry to the function and which must be maintained by every
@@ -145,66 +144,67 @@ public:
   bool hasAVX() const { return HasAVX; }
   bool hasFMA3() const { return HasFMA3; }
   bool hasFMA4() const { return HasFMA4; }
-
   bool isBTMemSlow() const { return IsBTMemSlow; }
 
-  unsigned getAsmFlavor() const {
-    return AsmFlavor != Unset ? unsigned(AsmFlavor) : 0;
-  }
-
-  bool isFlavorAtt() const { return AsmFlavor == ATT; }
-  bool isFlavorIntel() const { return AsmFlavor == Intel; }
-
   bool isTargetDarwin() const { return TargetType == isDarwin; }
-  bool isTargetELF() const {
-    return TargetType == isELF;
-  }
+  bool isTargetELF() const { return TargetType == isELF; }
+  
   bool isTargetWindows() const { return TargetType == isWindows; }
   bool isTargetMingw() const { return TargetType == isMingw; }
-  bool isTargetCygMing() const { return (TargetType == isMingw ||
-                                         TargetType == isCygwin); }
   bool isTargetCygwin() const { return TargetType == isCygwin; }
+  bool isTargetCygMing() const {
+    return TargetType == isMingw || TargetType == isCygwin;
+  }
+  
+  /// isTargetCOFF - Return true if this is any COFF/Windows target variant.
+  bool isTargetCOFF() const {
+    return TargetType == isMingw || TargetType == isCygwin ||
+           TargetType == isWindows;
+  }
+  
   bool isTargetWin64() const {
-    return (Is64Bit && (TargetType == isMingw || TargetType == isWindows));
+    return Is64Bit && (TargetType == isMingw || TargetType == isWindows);
   }
 
   std::string getDataLayout() const {
     const char *p;
     if (is64Bit())
       p = "e-p:64:64-s:64-f64:64:64-i64:64:64-f80:128:128";
-    else {
-      if (isTargetDarwin())
-        p = "e-p:32:32-f64:32:64-i64:32:64-f80:128:128";
-      else
-        p = "e-p:32:32-f64:32:64-i64:32:64-f80:32:32";
-    }
+    else if (isTargetDarwin())
+      p = "e-p:32:32-f64:32:64-i64:32:64-f80:128:128";
+    else
+      p = "e-p:32:32-f64:32:64-i64:32:64-f80:32:32";
     return std::string(p);
   }
 
   bool isPICStyleSet() const { return PICStyle != PICStyles::None; }
   bool isPICStyleGOT() const { return PICStyle == PICStyles::GOT; }
-  bool isPICStyleStub() const { return PICStyle == PICStyles::Stub; }
   bool isPICStyleRIPRel() const { return PICStyle == PICStyles::RIPRel; }
-  bool isPICStyleWinPIC() const { return PICStyle == PICStyles::WinPIC; }
+
+  bool isPICStyleStubPIC() const {
+    return PICStyle == PICStyles::StubPIC;
+  }
+
+  bool isPICStyleStubNoDynamic() const {
+    return PICStyle == PICStyles::StubDynamicNoPIC;
+  }
+  bool isPICStyleStubAny() const {
+    return PICStyle == PICStyles::StubDynamicNoPIC ||
+           PICStyle == PICStyles::StubPIC; }
   
-  /// getDarwinVers - Return the darwin version number, 8 = tiger, 9 = leopard.
+  /// getDarwinVers - Return the darwin version number, 8 = Tiger, 9 = Leopard,
+  /// 10 = Snow Leopard, etc.
   unsigned getDarwinVers() const { return DarwinVers; }
   
   /// isLinux - Return true if the target is "Linux".
   bool isLinux() const { return IsLinux; }
 
-  /// True if accessing the GV requires an extra load. For Windows, dllimported
-  /// symbols are indirect, loading the value at address GV rather then the
-  /// value of GV itself. This means that the GlobalAddress must be in the base
-  /// or index register of the address, not the GV offset field.
-  bool GVRequiresExtraLoad(const GlobalValue* GV, const TargetMachine& TM,
-                           bool isDirectCall) const;
-
-  /// True if accessing the GV requires a register.  This is a superset of the
-  /// cases where GVRequiresExtraLoad is true.  Some variations of PIC require
-  /// a register, but not an extra load.
-  bool GVRequiresRegister(const GlobalValue* GV, const TargetMachine& TM,
-                           bool isDirectCall) const;
+  
+  /// ClassifyGlobalReference - Classify a global variable reference for the
+  /// current subtarget according to how we should reference it in a non-pcrel
+  /// context.
+  unsigned char ClassifyGlobalReference(const GlobalValue *GV,
+                                        const TargetMachine &TM)const;
 
   /// IsLegalToCallImmediateAddr - Return true if the subtarget allows calls
   /// to immediate address.
@@ -223,13 +223,6 @@ public:
   /// should be attempted.
   unsigned getSpecialAddressLatency() const;
 };
-
-namespace X86 {
-  /// GetCpuIDAndInfo - Execute the specified cpuid and return the 4 values in
-  /// the specified arguments.  If we can't run cpuid on the host, return true.
-  bool GetCpuIDAndInfo(unsigned value, unsigned *rEAX, unsigned *rEBX,
-                       unsigned *rECX, unsigned *rEDX);
-}
 
 } // End llvm namespace
 

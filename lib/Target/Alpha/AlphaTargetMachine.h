@@ -34,18 +34,9 @@ class AlphaTargetMachine : public LLVMTargetMachine {
   AlphaSubtarget Subtarget;
   AlphaTargetLowering TLInfo;
 
-protected:
-  virtual const TargetAsmInfo *createTargetAsmInfo() const;
-
-  // To avoid having target depend on the asmprinter stuff libraries, asmprinter
-  // set this functions to ctor pointer at startup time if they are linked in.
-  typedef FunctionPass *(*AsmPrinterCtorFn)(raw_ostream &o,
-                                            TargetMachine &tm,
-                                            bool verbose);
-  static AsmPrinterCtorFn AsmPrinterCtor;
-
 public:
-  AlphaTargetMachine(const Module &M, const std::string &FS);
+  AlphaTargetMachine(const Target &T, const std::string &TT,
+                     const std::string &FS);
 
   virtual const AlphaInstrInfo *getInstrInfo() const { return &InstrInfo; }
   virtual const TargetFrameInfo  *getFrameInfo() const { return &FrameInfo; }
@@ -61,31 +52,24 @@ public:
     return &JITInfo;
   }
 
-  static unsigned getJITMatchQuality();
-  static unsigned getModuleMatchQuality(const Module &M);
-
   // Pass Pipeline Configuration
   virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addAssemblyEmitter(PassManagerBase &PM,
-                                  CodeGenOpt::Level OptLevel,
-                                  bool Verbose, raw_ostream &Out);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              bool DumpAsm, MachineCodeEmitter &MCE);
+                              MachineCodeEmitter &MCE);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              bool DumpAsm, JITCodeEmitter &JCE);
+                              JITCodeEmitter &JCE);
+  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
+                              ObjectCodeEmitter &JCE);
   virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
                                     CodeGenOpt::Level OptLevel,
-                                    bool DumpAsm,
                                     MachineCodeEmitter &MCE);
   virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
                                     CodeGenOpt::Level OptLevel,
-                                    bool DumpAsm,
                                     JITCodeEmitter &JCE);
-
-  static void registerAsmPrinter(AsmPrinterCtorFn F) {
-    AsmPrinterCtor = F;
-  }
+  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
+                                    CodeGenOpt::Level OptLevel,
+                                    ObjectCodeEmitter &OCE);
 };
 
 } // end namespace llvm

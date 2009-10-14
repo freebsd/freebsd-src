@@ -41,8 +41,15 @@ public:
 
   /// getType - get type of this MachineConstantPoolValue.
   ///
-  inline const Type *getType() const { return Ty; }
+  const Type *getType() const { return Ty; }
 
+  
+  /// getRelocationInfo - This method classifies the entry according to
+  /// whether or not it may generate a relocation entry.  This must be
+  /// conservative, so if it might codegen to a relocatable entry, it should say
+  /// so.  The return values are the same as Constant::getRelocationInfo().
+  virtual unsigned getRelocationInfo() const = 0;
+  
   virtual int getExistingMachineCPValue(MachineConstantPool *CP,
                                         unsigned Alignment) = 0;
 
@@ -82,7 +89,7 @@ public:
   MachineConstantPoolEntry(MachineConstantPoolValue *V, unsigned A)
     : Alignment(A) {
     Val.MachineCPVal = V; 
-    Alignment |= 1 << (sizeof(unsigned)*CHAR_BIT-1);
+    Alignment |= 1U << (sizeof(unsigned)*CHAR_BIT-1);
   }
 
   bool isMachineConstantPoolEntry() const {
@@ -94,6 +101,19 @@ public:
   }
 
   const Type *getType() const;
+  
+  /// getRelocationInfo - This method classifies the entry according to
+  /// whether or not it may generate a relocation entry.  This must be
+  /// conservative, so if it might codegen to a relocatable entry, it should say
+  /// so.  The return values are:
+  /// 
+  ///  0: This constant pool entry is guaranteed to never have a relocation
+  ///     applied to it (because it holds a simple constant like '4').
+  ///  1: This entry has relocations, but the entries are guaranteed to be
+  ///     resolvable by the static linker, so the dynamic linker will never see
+  ///     them.
+  ///  2: This entry may have arbitrary relocations. 
+  unsigned getRelocationInfo() const;
 };
   
 /// The MachineConstantPool class keeps track of constants referenced by a
