@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/ASTConsumers.h"
-#include "clang/Frontend/DocumentXML.h" 
+#include "clang/Frontend/DocumentXML.h"
 #include "clang/Frontend/PathDiagnosticClients.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
@@ -20,13 +20,16 @@
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/CodeGen/ModuleBuilder.h"
 #include "llvm/Module.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
+#include <cstdio>
+
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -36,11 +39,11 @@ namespace {
   class ASTPrinter : public ASTConsumer {
     llvm::raw_ostream &Out;
     bool Dump;
-    
+
   public:
-    ASTPrinter(llvm::raw_ostream* o = NULL, bool Dump = false) 
+    ASTPrinter(llvm::raw_ostream* o = NULL, bool Dump = false)
       : Out(o? *o : llvm::errs()), Dump(Dump) { }
-    
+
     virtual void HandleTranslationUnit(ASTContext &Context) {
       PrintingPolicy Policy = Context.PrintingPolicy;
       Policy.Dump = Dump;
@@ -62,21 +65,19 @@ namespace {
 
   public:
     ASTPrinterXML(llvm::raw_ostream& o) : Doc("CLANG_XML", o) {}
-    
+
     void Initialize(ASTContext &Context) {
       Doc.initialize(Context);
     }
 
     virtual void HandleTranslationUnit(ASTContext &Ctx) {
       Doc.addSubNode("TranslationUnit");
-      for (DeclContext::decl_iterator 
+      for (DeclContext::decl_iterator
              D = Ctx.getTranslationUnitDecl()->decls_begin(),
              DEnd = Ctx.getTranslationUnitDecl()->decls_end();
-           D != DEnd; 
+           D != DEnd;
            ++D)
-      {
         Doc.PrintDecl(*D);
-      }
       Doc.toParent();
       Doc.finalize();
     }
@@ -87,9 +88,9 @@ namespace {
 ASTConsumer *clang::CreateASTPrinterXML(llvm::raw_ostream* out) {
   return new ASTPrinterXML(out ? *out : llvm::outs());
 }
- 
-ASTConsumer *clang::CreateASTDumper() { 
-  return new ASTPrinter(0, true); 
+
+ASTConsumer *clang::CreateASTDumper() {
+  return new ASTPrinter(0, true);
 }
 
 //===----------------------------------------------------------------------===//
@@ -107,7 +108,7 @@ namespace {
       for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I)
         HandleTopLevelSingleDecl(*I);
     }
-    
+
     void HandleTopLevelSingleDecl(Decl *D);
   };
 }
@@ -115,22 +116,22 @@ namespace {
 void ASTViewer::HandleTopLevelSingleDecl(Decl *D) {
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     FD->print(llvm::errs());
-    
-    if (FD->getBodyIfAvailable()) {
-      llvm::cerr << '\n';
-      FD->getBodyIfAvailable()->viewAST();
-      llvm::cerr << '\n';
+
+    if (Stmt *Body = FD->getBody()) {
+      llvm::errs() << '\n';
+      Body->viewAST();
+      llvm::errs() << '\n';
     }
     return;
   }
-  
+
   if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
     MD->print(llvm::errs());
-    
+
     if (MD->getBody()) {
-      llvm::cerr << '\n';
+      llvm::errs() << '\n';
       MD->getBody()->viewAST();
-      llvm::cerr << '\n';
+      llvm::errs() << '\n';
     }
   }
 }
@@ -156,7 +157,7 @@ public:
 };
 }  // end anonymous namespace
 
-void DeclContextPrinter::PrintDeclContext(const DeclContext* DC, 
+void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
                                           unsigned Indentation) {
   // Print DeclContext name.
   switch (DC->getDeclKind()) {
@@ -230,7 +231,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     // Print the parameters.
     Out << "(";
     bool PrintComma = false;
-    for (FunctionDecl::param_const_iterator I = FD->param_begin(), 
+    for (FunctionDecl::param_const_iterator I = FD->param_begin(),
            E = FD->param_end(); I != E; ++I) {
       if (PrintComma)
         Out << ", ";
@@ -253,7 +254,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     // Print the parameters.
     Out << "(";
     bool PrintComma = false;
-    for (FunctionDecl::param_const_iterator I = D->param_begin(), 
+    for (FunctionDecl::param_const_iterator I = D->param_begin(),
            E = D->param_end(); I != E; ++I) {
       if (PrintComma)
         Out << ", ";
@@ -283,7 +284,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     // Print the parameters.
     Out << "(";
     bool PrintComma = false;
-    for (FunctionDecl::param_const_iterator I = D->param_begin(), 
+    for (FunctionDecl::param_const_iterator I = D->param_begin(),
            E = D->param_end(); I != E; ++I) {
       if (PrintComma)
         Out << ", ";
@@ -353,7 +354,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     case Decl::CXXRecord:
     case Decl::ObjCMethod:
     case Decl::ObjCInterface:
-    case Decl::ObjCCategory: 
+    case Decl::ObjCCategory:
     case Decl::ObjCProtocol:
     case Decl::ObjCImplementation:
     case Decl::ObjCCategoryImpl:
@@ -415,8 +416,150 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
     }
   }
 }
-ASTConsumer *clang::CreateDeclContextPrinter() { 
-  return new DeclContextPrinter(); 
+ASTConsumer *clang::CreateDeclContextPrinter() {
+  return new DeclContextPrinter();
+}
+
+//===----------------------------------------------------------------------===//
+/// RecordLayoutDumper - C++ Record Layout Dumping.
+namespace {
+class RecordLayoutDumper : public ASTConsumer {
+  llvm::raw_ostream& Out;
+  
+  void PrintOffset(uint64_t Offset, unsigned IndentLevel) {
+    Out << llvm::format("%4d | ", Offset);
+    for (unsigned I = 0; I < IndentLevel * 2; ++I) Out << ' ';
+  }
+  
+  void DumpRecordLayoutOffsets(const CXXRecordDecl *RD, ASTContext &C,
+                               uint64_t Offset,
+                               unsigned IndentLevel, const char* Description,
+                               bool IncludeVirtualBases) {
+    const ASTRecordLayout &Info = C.getASTRecordLayout(RD);
+
+    PrintOffset(Offset, IndentLevel);
+    Out << C.getTypeDeclType((CXXRecordDecl *)RD).getAsString();
+    if (Description)
+      Out << ' ' << Description;
+    if (RD->isEmpty())
+      Out << " (empty)";
+    Out << '\n';
+    
+    IndentLevel++;
+    
+    const CXXRecordDecl *PrimaryBase = Info.getPrimaryBase();
+    
+    // Vtable pointer.
+    if (RD->isDynamicClass() && !PrimaryBase) {
+      PrintOffset(Offset, IndentLevel);
+      Out << '(' << RD->getNameAsString() << " vtable pointer)\n";
+    }
+    // Dump (non-virtual) bases
+    for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
+         E = RD->bases_end(); I != E; ++I) {
+      if (I->isVirtual())
+        continue;
+      
+      const CXXRecordDecl *Base =
+        cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
+      
+      uint64_t BaseOffset = Offset + Info.getBaseClassOffset(Base) / 8;
+      
+      DumpRecordLayoutOffsets(Base, C, BaseOffset, IndentLevel, 
+                              Base == PrimaryBase ? "(primary base)" : "(base)",
+                              /*IncludeVirtualBases=*/false);
+    }
+    
+    // Dump fields.
+    uint64_t FieldNo = 0;
+    for (CXXRecordDecl::field_iterator I = RD->field_begin(),
+         E = RD->field_end(); I != E; ++I, ++FieldNo) {      
+      const FieldDecl *Field = *I;
+      uint64_t FieldOffset = Offset + Info.getFieldOffset(FieldNo) / 8;
+      
+      if (const RecordType *RT = Field->getType()->getAs<RecordType>()) {
+        if (const CXXRecordDecl *D = dyn_cast<CXXRecordDecl>(RT->getDecl())) {
+          DumpRecordLayoutOffsets(D, C, FieldOffset, IndentLevel, 
+                                  Field->getNameAsCString(),
+                                  /*IncludeVirtualBases=*/true);
+          continue;
+        }
+      }
+      
+      PrintOffset(FieldOffset, IndentLevel);
+      Out << Field->getType().getAsString() << ' ';
+      Out << Field->getNameAsString() << '\n';
+    }
+    
+    if (!IncludeVirtualBases)
+      return;
+    
+    // Dump virtual bases.
+    for (CXXRecordDecl::base_class_const_iterator I = RD->vbases_begin(),
+         E = RD->vbases_end(); I != E; ++I) {
+      assert(I->isVirtual() && "Found non-virtual class!");
+      const CXXRecordDecl *VBase =
+        cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
+      
+      uint64_t VBaseOffset = Offset + Info.getVBaseClassOffset(VBase) / 8;
+      DumpRecordLayoutOffsets(VBase, C, VBaseOffset, IndentLevel, 
+                              VBase == PrimaryBase ? 
+                              "(primary virtual base)" : "(virtual base)",
+                              /*IncludeVirtualBases=*/false);
+    }
+  }
+  
+  // FIXME: Maybe this could be useful in ASTContext.cpp.
+  void DumpRecordLayout(const CXXRecordDecl *RD, ASTContext &C) {
+    const ASTRecordLayout &Info = C.getASTRecordLayout(RD);
+    
+    DumpRecordLayoutOffsets(RD, C, 0, 0, 0, 
+                            /*IncludeVirtualBases=*/true);
+    Out << "  sizeof=" << Info.getSize() / 8;
+    Out << ", dsize=" << Info.getDataSize() / 8;
+    Out << ", align=" << Info.getAlignment() / 8 << '\n';
+    Out << "  nvsize=" << Info.getNonVirtualSize() / 8;
+    Out << ", nvalign=" << Info.getNonVirtualAlign() / 8 << '\n';
+    Out << '\n';
+  }
+  
+public:
+  RecordLayoutDumper() : Out(llvm::errs()) {}
+  
+  void HandleTranslationUnit(ASTContext &C) {
+    for (ASTContext::type_iterator I = C.types_begin(), E = C.types_end(); 
+         I != E; ++I) {
+      const RecordType *RT = dyn_cast<RecordType>(*I);
+      if (!RT)
+        continue;
+      
+      const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(RT->getDecl());
+      if (!RD)
+        continue;
+      
+      if (RD->isImplicit())
+        continue;
+
+      if (RD->isDependentType())
+        continue;
+      
+      if (RD->isInvalidDecl())
+        continue;
+      
+      if (!RD->getDefinition(C))
+        continue;
+      
+      // FIXME: Do we really need to hard code this?
+      if (RD->getQualifiedNameAsString() == "__va_list_tag")
+        continue;
+      
+      DumpRecordLayout(RD, C);
+   }
+  }
+};
+} // end anonymous namespace
+ASTConsumer *clang::CreateRecordLayoutDumper() {
+  return new RecordLayoutDumper();
 }
 
 //===----------------------------------------------------------------------===//
@@ -427,7 +570,7 @@ class InheritanceViewer : public ASTConsumer {
   const std::string clsname;
 public:
   InheritanceViewer(const std::string& cname) : clsname(cname) {}
-  
+
   void HandleTranslationUnit(ASTContext &C) {
     for (ASTContext::type_iterator I=C.types_begin(),E=C.types_end(); I!=E; ++I)
       if (RecordType *T = dyn_cast<RecordType>(*I)) {
@@ -435,12 +578,12 @@ public:
           // FIXME: This lookup needs to be generalized to handle namespaces and
           // (when we support them) templates.
           if (D->getNameAsString() == clsname) {
-            D->viewInheritance(C);      
+            D->viewInheritance(C);
           }
         }
       }
   }
-}; 
+};
 }
 
 ASTConsumer *clang::CreateInheritanceViewer(const std::string& clsname) {

@@ -21,7 +21,7 @@ namespace driver {
   class Driver;
 
 namespace toolchains {
-  class Darwin_X86;
+  class Darwin;
 }
 
 namespace tools {
@@ -33,6 +33,9 @@ namespace tools {
                                  const InputInfo &Output,
                                  const InputInfoList &Inputs) const;
 
+    void AddARMTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
+    void AddX86TargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
+
   public:
     Clang(const ToolChain &TC) : Tool("clang", TC) {}
 
@@ -42,9 +45,9 @@ namespace tools {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
 
@@ -56,9 +59,9 @@ namespace gcc {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
 
     /// RenderExtraToolArgs - Render any arguments necessary to force
@@ -66,7 +69,7 @@ namespace gcc {
     virtual void RenderExtraToolArgs(ArgStringList &CmdArgs) const = 0;
   };
 
-  
+
   class VISIBILITY_HIDDEN Preprocess : public Common {
   public:
     Preprocess(const ToolChain &TC) : Common("gcc::Preprocess", TC) {}
@@ -124,13 +127,26 @@ namespace gcc {
 } // end namespace gcc
 
 namespace darwin {
-  class VISIBILITY_HIDDEN CC1 : public Tool  {
+  class VISIBILITY_HIDDEN DarwinTool : public Tool {
+  protected:
+    void AddDarwinArch(const ArgList &Args, ArgStringList &CmdArgs) const;
+    void AddDarwinSubArch(const ArgList &Args, ArgStringList &CmdArgs) const;
+
+    const toolchains::Darwin &getDarwinToolChain() const {
+      return reinterpret_cast<const toolchains::Darwin&>(getToolChain());
+    }
+
   public:
-    static const char *getBaseInputName(const ArgList &Args, 
+    DarwinTool(const char *Name, const ToolChain &TC) : Tool(Name, TC) {};
+  };
+
+  class VISIBILITY_HIDDEN CC1 : public DarwinTool  {
+  public:
+    static const char *getBaseInputName(const ArgList &Args,
                                  const InputInfoList &Input);
-    static const char *getBaseInputStem(const ArgList &Args, 
+    static const char *getBaseInputStem(const ArgList &Args,
                                  const InputInfoList &Input);
-    static const char *getDependencyFileName(const ArgList &Args, 
+    static const char *getDependencyFileName(const ArgList &Args,
                                              const InputInfoList &Inputs);
 
   protected:
@@ -143,13 +159,13 @@ namespace darwin {
     void AddCPPOptionsArgs(const ArgList &Args, ArgStringList &CmdArgs,
                            const InputInfoList &Inputs,
                            const ArgStringList &OutputArgs) const;
-    void AddCPPUniqueOptionsArgs(const ArgList &Args, 
+    void AddCPPUniqueOptionsArgs(const ArgList &Args,
                                  ArgStringList &CmdArgs,
                                  const InputInfoList &Inputs) const;
     void AddCPPArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
 
   public:
-    CC1(const char *Name, const ToolChain &TC) : Tool(Name, TC) {}
+    CC1(const char *Name, const ToolChain &TC) : DarwinTool(Name, TC) {}
 
     virtual bool acceptsPipedInput() const { return true; }
     virtual bool canPipeOutput() const { return true; }
@@ -162,9 +178,9 @@ namespace darwin {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
 
@@ -174,15 +190,15 @@ namespace darwin {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
 
-  class VISIBILITY_HIDDEN Assemble : public Tool  {
+  class VISIBILITY_HIDDEN Assemble : public DarwinTool  {
   public:
-    Assemble(const ToolChain &TC) : Tool("darwin::Assemble", TC) {}
+    Assemble(const ToolChain &TC) : DarwinTool("darwin::Assemble", TC) {}
 
     virtual bool acceptsPipedInput() const { return true; }
     virtual bool canPipeOutput() const { return false; }
@@ -190,27 +206,17 @@ namespace darwin {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
 
-  class VISIBILITY_HIDDEN Link : public Tool  {
-    void AddDarwinArch(const ArgList &Args, ArgStringList &CmdArgs) const;
-    void AddDarwinSubArch(const ArgList &Args, ArgStringList &CmdArgs) const;
+  class VISIBILITY_HIDDEN Link : public DarwinTool  {
     void AddLinkArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
 
-    /// The default macosx-version-min.
-    const char *MacosxVersionMin;
-
-    const toolchains::Darwin_X86 &getDarwinToolChain() const;
-
   public:
-    Link(const ToolChain &TC,
-         const char *_MacosxVersionMin) 
-      : Tool("darwin::Link", TC), MacosxVersionMin(_MacosxVersionMin) {
-    }
+    Link(const ToolChain &TC) : DarwinTool("darwin::Link", TC) {}
 
     virtual bool acceptsPipedInput() const { return false; }
     virtual bool canPipeOutput() const { return false; }
@@ -218,15 +224,15 @@ namespace darwin {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
 
-  class VISIBILITY_HIDDEN Lipo : public Tool  {
+  class VISIBILITY_HIDDEN Lipo : public DarwinTool  {
   public:
-    Lipo(const ToolChain &TC) : Tool("darwin::Lipo", TC) {}
+    Lipo(const ToolChain &TC) : DarwinTool("darwin::Lipo", TC) {}
 
     virtual bool acceptsPipedInput() const { return false; }
     virtual bool canPipeOutput() const { return false; }
@@ -234,9 +240,9 @@ namespace darwin {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
 }
@@ -253,9 +259,9 @@ namespace openbsd {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
   class VISIBILITY_HIDDEN Link : public Tool  {
@@ -268,12 +274,12 @@ namespace openbsd {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
-}
+} // end namespace openbsd
 
   /// freebsd -- Directly call GNU Binutils assembler and linker
 namespace freebsd {
@@ -287,9 +293,9 @@ namespace freebsd {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
   class VISIBILITY_HIDDEN Link : public Tool  {
@@ -302,12 +308,46 @@ namespace freebsd {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
-}
+} // end namespace freebsd
+
+  /// auroraux -- Directly call GNU Binutils assembler and linker
+namespace auroraux {
+  class VISIBILITY_HIDDEN Assemble : public Tool  {
+  public:
+    Assemble(const ToolChain &TC) : Tool("auroraux::Assemble", TC) {}
+
+    virtual bool acceptsPipedInput() const { return true; }
+    virtual bool canPipeOutput() const { return true; }
+    virtual bool hasIntegratedCPP() const { return false; }
+
+    virtual void ConstructJob(Compilation &C, const JobAction &JA,
+                              Job &Dest,
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
+                              const char *LinkingOutput) const;
+  };
+  class VISIBILITY_HIDDEN Link : public Tool  {
+  public:
+    Link(const ToolChain &TC) : Tool("auroraux::Link", TC) {}
+
+    virtual bool acceptsPipedInput() const { return true; }
+    virtual bool canPipeOutput() const { return true; }
+    virtual bool hasIntegratedCPP() const { return false; }
+
+    virtual void ConstructJob(Compilation &C, const JobAction &JA,
+                              Job &Dest,
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
+                              const char *LinkingOutput) const;
+  };
+} // end namespace auroraux
 
   /// dragonfly -- Directly call GNU Binutils assembler and linker
 namespace dragonfly {
@@ -321,9 +361,9 @@ namespace dragonfly {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
   class VISIBILITY_HIDDEN Link : public Tool  {
@@ -336,15 +376,15 @@ namespace dragonfly {
 
     virtual void ConstructJob(Compilation &C, const JobAction &JA,
                               Job &Dest,
-                              const InputInfo &Output, 
-                              const InputInfoList &Inputs, 
-                              const ArgList &TCArgs, 
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
                               const char *LinkingOutput) const;
   };
-}
+} // end namespace dragonfly
 
 } // end namespace toolchains
 } // end namespace driver
 } // end namespace clang
 
-#endif
+#endif // CLANG_LIB_DRIVER_TOOLS_H_

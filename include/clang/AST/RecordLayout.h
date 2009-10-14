@@ -18,83 +18,175 @@
 
 namespace clang {
   class ASTContext;
+  class FieldDecl;
   class RecordDecl;
+  class CXXRecordDecl;
 
-/// ASTRecordLayout - 
+/// ASTRecordLayout -
 /// This class contains layout information for one RecordDecl,
 /// which is a struct/union/class.  The decl represented must be a definition,
-/// not a forward declaration.  
-/// This class is also used to contain layout information for one 
+/// not a forward declaration.
+/// This class is also used to contain layout information for one
 /// ObjCInterfaceDecl. FIXME - Find appropriate name.
 /// These objects are managed by ASTContext.
 class ASTRecordLayout {
-  uint64_t Size;        // Size of record in bits.
-  uint64_t NextOffset;  // Next available offset
-  uint64_t *FieldOffsets;
-  unsigned Alignment;   // Alignment of record in bits.
-  unsigned FieldCount;  // Number of fields
-  friend class ASTContext;
+  /// Size - Size of record in bits.
+  uint64_t Size;
 
-  ASTRecordLayout(uint64_t S = 0, unsigned A = 8) 
-    : Size(S), NextOffset(S), Alignment(A), FieldCount(0) {}
+  /// DataSize - Size of record in bits without tail padding.
+  uint64_t DataSize;
+
+  /// FieldOffsets - Array of field offsets in bits.
+  uint64_t *FieldOffsets;
+
+  // Alignment - Alignment of record in bits.
+  unsigned Alignment;
+
+  // FieldCount - Number of fields.
+  unsigned FieldCount;
+
+  struct CXXRecordLayoutInfo {
+    /// NonVirtualSize - The non-virtual size (in bits) of an object, which is
+    /// the size of the object without virtual bases.
+    uint64_t NonVirtualSize;
+
+    /// NonVirtualAlign - The non-virtual alignment (in bits) of an object,
+    /// which is the alignment of the object without virtual bases.
+    uint64_t NonVirtualAlign;
+
+    /// PrimaryBase - The primary base for our vtable.
+    const CXXRecordDecl *PrimaryBase;
+    /// PrimaryBase - Wether or not the primary base was a virtual base.
+    bool PrimaryBaseWasVirtual;
+
+    /// BaseOffsets - Contains a map from base classes to their offset.
+    /// FIXME: This should really use a SmallPtrMap, once we have one in LLVM :)
+    llvm::DenseMap<const CXXRecordDecl *, uint64_t> BaseOffsets;
+
+    /// VBaseOffsets - Contains a map from vbase classes to their offset.
+    /// FIXME: This should really use a SmallPtrMap, once we have one in LLVM :)
+    llvm::DenseMap<const CXXRecordDecl *, uint64_t> VBaseOffsets;
+  };
+
+  /// CXXInfo - If the record layout is for a C++ record, this will have
+  /// C++ specific information about the record.
+  CXXRecordLayoutInfo *CXXInfo;
+
+  friend class ASTContext;
+  friend class ASTRecordLayoutBuilder;
+
+  ASTRecordLayout(uint64_t size, unsigned alignment, unsigned datasize,
+                  const uint64_t *fieldoffsets, unsigned fieldcount)
+  : Size(size), DataSize(datasize), FieldOffsets(0), Alignment(alignment),
+    FieldCount(fieldcount), CXXInfo(0) {
+    if (FieldCount > 0)  {
+      FieldOffsets = new uint64_t[FieldCount];
+      for (unsigned i = 0; i < FieldCount; ++i)
+        FieldOffsets[i] = fieldoffsets[i];
+    }
+  }
+
+  // Constructor for C++ records.
+  ASTRecordLayout(uint64_t size, unsigned alignment, uint64_t datasize,
+                  const uint64_t *fieldoffsets, unsigned fieldcount,
+                  uint64_t nonvirtualsize, unsigned nonvirtualalign,
+                  const CXXRecordDecl *PB, bool PBVirtual,
+                  const std::pair<const CXXRecordDecl *, uint64_t> *bases,
+                  unsigned numbases,
+                  const std::pair<const CXXRecordDecl *, uint64_t> *vbases,
+                  unsigned numvbases)
+  : Size(size), DataSize(datasize), FieldOffsets(0), Alignment(alignment),
+  FieldCount(fieldcount), CXXInfo(new CXXRecordLayoutInfo) {
+    if (FieldCount > 0)  {
+      FieldOffsets = new uint64_t[FieldCount];
+      for (unsigned i = 0; i < FieldCount; ++i)
+        FieldOffsets[i] = fieldoffsets[i];
+    }
+
+    CXXInfo->PrimaryBase = PB;
+    CXXInfo->PrimaryBaseWasVirtual = PBVirtual;
+    CXXInfo->NonVirtualSize = nonvirtualsize;
+    CXXInfo->NonVirtualAlign = nonvirtualalign;
+    for (unsigned i = 0; i != numbases; ++i)
+      CXXInfo->BaseOffsets[bases[i].first] = bases[i].second;
+    for (unsigned i = 0; i != numvbases; ++i)
+      CXXInfo->VBaseOffsets[vbases[i].first] = vbases[i].second;
+  }
+
   ~ASTRecordLayout() {
     delete [] FieldOffsets;
+    delete CXXInfo;
   }
 
-  /// Initialize record layout. N is the number of fields in this record.
-  void InitializeLayout(unsigned N) {
-    FieldCount = N;
-    FieldOffsets = new uint64_t[N];
-  }
-
-  /// Finalize record layout. Adjust record size based on the alignment.
-  void FinalizeLayout(bool ForceNonEmpty = false) {
-    // In C++, records cannot be of size 0.
-    if (ForceNonEmpty && Size == 0)
-      Size = 8;
-    // Finally, round the size of the record up to the alignment of the
-    // record itself.
-    Size = (Size + (Alignment-1)) & ~(Alignment-1);
-  }
-
-  void SetFieldOffset(unsigned FieldNo, uint64_t Offset) {
-    assert (FieldNo < FieldCount && "Invalid Field No");
-    FieldOffsets[FieldNo] = Offset;
-  }
-
-  void SetAlignment(unsigned A) {  Alignment = A; }
-
-  /// LayoutField - Field layout. StructPacking is the specified
-  /// packing alignment (maximum alignment) in bits to use for the
-  /// structure, or 0 if no packing alignment is specified.
-  void LayoutField(const FieldDecl *FD, unsigned FieldNo,
-                   bool IsUnion, unsigned StructPacking,
-                   ASTContext &Context);
-  
   ASTRecordLayout(const ASTRecordLayout&);   // DO NOT IMPLEMENT
   void operator=(const ASTRecordLayout&); // DO NOT IMPLEMENT
 public:
-  
+
   /// getAlignment - Get the record alignment in bits.
   unsigned getAlignment() const { return Alignment; }
 
   /// getSize - Get the record size in bits.
   uint64_t getSize() const { return Size; }
-  
+
   /// getFieldCount - Get the number of fields in the layout.
   unsigned getFieldCount() const { return FieldCount; }
-  
+
   /// getFieldOffset - Get the offset of the given field index, in
   /// bits.
   uint64_t getFieldOffset(unsigned FieldNo) const {
     assert (FieldNo < FieldCount && "Invalid Field No");
     return FieldOffsets[FieldNo];
   }
-    
-  /// getNextOffset - Get the next available (unused) offset in the
-  /// structure, in bits.
-  uint64_t getNextOffset() const {
-    return NextOffset;
+
+  /// getDataSize() - Get the record data size, which is the record size
+  /// without tail padding, in bits.
+  uint64_t getDataSize() const {
+    return DataSize;
+  }
+
+  /// getNonVirtualSize - Get the non-virtual size (in bits) of an object,
+  /// which is the size of the object without virtual bases.
+  uint64_t getNonVirtualSize() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+
+    return CXXInfo->NonVirtualSize;
+  }
+
+  /// getNonVirtualSize - Get the non-virtual alignment (in bits) of an object,
+  /// which is the alignment of the object without virtual bases.
+  unsigned getNonVirtualAlign() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+
+    return CXXInfo->NonVirtualAlign;
+  }
+
+  /// getPrimaryBase - Get the primary base.
+  const CXXRecordDecl *getPrimaryBase() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+
+    return CXXInfo->PrimaryBase;
+  }
+  /// getPrimaryBaseWasVirtual - Indicates if the primary base was virtual.
+  bool getPrimaryBaseWasVirtual() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+
+    return CXXInfo->PrimaryBaseWasVirtual;
+  }
+
+  /// getBaseClassOffset - Get the offset, in bits, for the given base class.
+  uint64_t getBaseClassOffset(const CXXRecordDecl *Base) const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+    assert(CXXInfo->BaseOffsets.count(Base) && "Did not find base!");
+
+    return CXXInfo->BaseOffsets[Base];
+  }
+
+  /// getVBaseClassOffset - Get the offset, in bits, for the given base class.
+  uint64_t getVBaseClassOffset(const CXXRecordDecl *VBase) const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+    assert(CXXInfo->VBaseOffsets.count(VBase) && "Did not find base!");
+
+    return CXXInfo->VBaseOffsets[VBase];
   }
 };
 

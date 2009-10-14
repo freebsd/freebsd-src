@@ -60,9 +60,9 @@ int test8(void) {
 struct f { int x : 4;  float y[]; };
 int test9(struct f *P) {
   int R;
-  R = __alignof(P->x);  // expected-error {{invalid application of '__alignof' to bitfield}}
+  R = __alignof(P->x);  // expected-error {{invalid application of '__alignof' to bit-field}}
   R = __alignof(P->y);   // ok.
-  R = sizeof(P->x); // expected-error {{invalid application of 'sizeof' to bitfield}}
+  R = sizeof(P->x); // expected-error {{invalid application of 'sizeof' to bit-field}}
   return R;
 }
 
@@ -94,15 +94,12 @@ void test13(
   P = ^(){}; // expected-error {{blocks support disabled - compile with -fblocks}}
 }
 
-
-// rdar://6326239 - Vector comparisons are not fully trusted yet, until the
-// backend is known to work, just unconditionally reject them.
 void test14() {
   typedef long long __m64 __attribute__((__vector_size__(8)));
   typedef short __v4hi __attribute__((__vector_size__(8)));
 
+  // Ok.
   __v4hi a;
-  __m64 mask = (__m64)((__v4hi)a >  // expected-error {{comparison of vector types ('__v4hi' and '__v4hi') not supported yet}}
-                      (__v4hi)a);
+  __m64 mask = (__m64)((__v4hi)a > (__v4hi)a);
 }
 

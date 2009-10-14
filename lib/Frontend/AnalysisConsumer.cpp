@@ -17,37 +17,49 @@
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "clang/AST/CFG.h"
+#include "clang/Analysis/CFG.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/PathDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/AST/ParentMap.h"
+#include "clang/Analysis/PathSensitive/AnalysisManager.h"
 #include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/LocalCheckers.h"
 #include "clang/Analysis/PathSensitive/GRTransferFuncs.h"
 #include "clang/Analysis/PathSensitive/GRExprEngine.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Program.h"
+#include "llvm/ADT/OwningPtr.h"
 
 using namespace clang;
 
-static ExplodedNodeImpl::Auditor* CreateUbiViz();
+static ExplodedNode::Auditor* CreateUbiViz();
 
 //===----------------------------------------------------------------------===//
 // Basic type definitions.
 //===----------------------------------------------------------------------===//
 
-namespace {  
-  class AnalysisManager;
-  typedef void (*CodeAction)(AnalysisManager& Mgr);
+namespace {
+  typedef void (*CodeAction)(AnalysisManager& Mgr, Decl *D);
 } // end anonymous namespace
+
+//===----------------------------------------------------------------------===//
+// Special PathDiagnosticClients.
+//===----------------------------------------------------------------------===//
+
+static PathDiagnosticClient*
+CreatePlistHTMLDiagnosticClient(const std::string& prefix, Preprocessor* PP,
+                            PreprocessorFactory* PPF) {
+  llvm::sys::Path F(prefix);
+  PathDiagnosticClientFactory *PF =
+    CreateHTMLDiagnosticClientFactory(F.getDirname(), PP, PPF);
+  return CreatePlistDiagnosticClient(prefix, PP, PPF, PF);
+}
 
 //===----------------------------------------------------------------------===//
 // AnalysisConsumer declaration.
@@ -61,16 +73,24 @@ namespace {
     Actions ObjCMethodActions;
     Actions ObjCImplementationActions;
     Actions TranslationUnitActions;
-    
+
   public:
-    const LangOptions& LOpts;    
+    const LangOptions& LOpts;
     Diagnostic &Diags;
     ASTContext* Ctx;
     Preprocessor* PP;
     PreprocessorFactory* PPF;
     const std::string OutDir;
     AnalyzerOptions Opts;
-    llvm::OwningPtr<PathDiagnosticClient> PD;
+
+
+    // PD is owned by AnalysisManager.
+    PathDiagnosticClient *PD;
+
+    StoreManagerCreator CreateStoreMgr;
+    ConstraintManagerCreator CreateConstraintMgr;
+
+    llvm::OwningPtr<AnalysisManager> Mgr;
 
     AnalysisConsumer(Diagnostic &diags, Preprocessor* pp,
                      PreprocessorFactory* ppf,
@@ -79,181 +99,30 @@ namespace {
                      const AnalyzerOptions& opts)
       : LOpts(lopts), Diags(diags),
         Ctx(0), PP(pp), PPF(ppf),
-        OutDir(outdir), Opts(opts) {}
-    
-    void addCodeAction(CodeAction action) {
-      FunctionActions.push_back(action);
-      ObjCMethodActions.push_back(action);
+        OutDir(outdir), Opts(opts), PD(0) {
+      DigestAnalyzerOptions();
     }
-    
-    void addObjCImplementationAction(CodeAction action) {
-      ObjCImplementationActions.push_back(action);
-    }
-    
-    void addTranslationUnitAction(CodeAction action) {
-      TranslationUnitActions.push_back(action);
-    }
-    
-    virtual void Initialize(ASTContext &Context) {
-      Ctx = &Context;
-    }
-    
-    virtual void HandleTopLevelDecl(DeclGroupRef D) {
-      for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I)
-        HandleTopLevelSingleDecl(*I);
-    }
-    
-    void HandleTopLevelSingleDecl(Decl *D);
-    virtual void HandleTranslationUnit(ASTContext &C);
-    
-    void HandleCode(Decl* D, Stmt* Body, Actions& actions);
-  };
-    
-  
-  class VISIBILITY_HIDDEN AnalysisManager : public BugReporterData {
-    Decl* D; Stmt* Body; 
-    
-    enum AnalysisScope { ScopeTU, ScopeDecl } AScope;
-      
-    AnalysisConsumer& C;
-    bool DisplayedFunction;
-    
-    llvm::OwningPtr<CFG> cfg;
-    llvm::OwningPtr<LiveVariables> liveness;
-    llvm::OwningPtr<ParentMap> PM;
 
-    // Configurable components creators.
-    StoreManagerCreator CreateStoreMgr;
-    ConstraintManagerCreator CreateConstraintMgr;
-
-  public:
-    AnalysisManager(AnalysisConsumer& c, Decl* d, Stmt* b, bool displayProgress) 
-      : D(d), Body(b), AScope(ScopeDecl), C(c), 
-        DisplayedFunction(!displayProgress) {
-      setManagerCreators();
-    }
-    
-    AnalysisManager(AnalysisConsumer& c, bool displayProgress) 
-      : D(0), Body(0), AScope(ScopeTU), C(c),
-        DisplayedFunction(!displayProgress) {
-      setManagerCreators();
-    }
-    
-    Decl* getCodeDecl() const { 
-      assert (AScope == ScopeDecl);
-      return D;
-    }
-    
-    Stmt* getBody() const {
-      assert (AScope == ScopeDecl);
-      return Body;
-    }
-    
-    StoreManagerCreator getStoreManagerCreator() {
-      return CreateStoreMgr;
-    };
-
-    ConstraintManagerCreator getConstraintManagerCreator() {
-      return CreateConstraintMgr;
-    }
-    
-    virtual CFG* getCFG() {
-      if (!cfg) cfg.reset(CFG::buildCFG(getBody()));
-      return cfg.get();
-    }
-    
-    virtual ParentMap& getParentMap() {
-      if (!PM) 
-        PM.reset(new ParentMap(getBody()));
-      return *PM.get();
-    }
-    
-    virtual ASTContext& getContext() {
-      return *C.Ctx;
-    }
-    
-    virtual SourceManager& getSourceManager() {
-      return getContext().getSourceManager();
-    }
-    
-    virtual Diagnostic& getDiagnostic() {
-      return C.Diags;
-    }
-    
-    const LangOptions& getLangOptions() const {
-      return C.LOpts;
-    }
-    
-    virtual PathDiagnosticClient* getPathDiagnosticClient() {
-      if (C.PD.get() == 0 && !C.OutDir.empty()) {
-        switch (C.Opts.AnalysisDiagOpt) {
-          default:
-#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN, AUTOCREATE)\
-case PD_##NAME: C.PD.reset(CREATEFN(C.OutDir, C.PP, C.PPF)); break;
+    void DigestAnalyzerOptions() {
+      // Create the PathDiagnosticClient.
+      if (!OutDir.empty()) {
+        switch (Opts.AnalysisDiagOpt) {
+        default:
+#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN, AUTOCREATE) \
+          case PD_##NAME: PD = CREATEFN(OutDir, PP, PPF); break;
 #include "clang/Frontend/Analyses.def"
         }
       }
-      return C.PD.get();      
-    }
-      
-    virtual LiveVariables* getLiveVariables() {
-      if (!liveness) {
-        CFG* c = getCFG();
-        if (!c) return 0;
-        
-        liveness.reset(new LiveVariables(getContext(), *c));
-        liveness->runOnCFG(*c);
-        liveness->runOnAllBlocks(*c, 0, true);
-      }
-      
-      return liveness.get();
-    }
-    
-    bool shouldVisualizeGraphviz() const { return C.Opts.VisualizeEGDot; }
 
-    bool shouldVisualizeUbigraph() const { return C.Opts.VisualizeEGUbi; }
-
-    bool shouldVisualize() const {
-      return C.Opts.VisualizeEGDot || C.Opts.VisualizeEGUbi;
-    }
-
-    bool shouldTrimGraph() const { return C.Opts.TrimGraph; }
-
-    bool shouldPurgeDead() const { return C.Opts.PurgeDead; }
-
-    bool shouldEagerlyAssume() const { return C.Opts.EagerlyAssume; }
-
-    void DisplayFunction() {
-      
-      if (DisplayedFunction)
-        return;
-      
-      DisplayedFunction = true;
-      
-      // FIXME: Is getCodeDecl() always a named decl?
-      if (isa<FunctionDecl>(getCodeDecl()) ||
-          isa<ObjCMethodDecl>(getCodeDecl())) {
-        NamedDecl *ND = cast<NamedDecl>(getCodeDecl());
-        SourceManager &SM = getContext().getSourceManager();
-        llvm::cerr << "ANALYZE: "
-          << SM.getPresumedLoc(ND->getLocation()).getFilename()
-          << ' ' << ND->getNameAsString() << '\n';
-      }
-    }
-
-  private:
-    /// Set configurable analyzer components creators. First check if there are
-    /// components registered at runtime. Otherwise fall back to builtin
-    /// components.
-    void setManagerCreators() {
+      // Create the analyzer component creators.
       if (ManagerRegistry::StoreMgrCreator != 0) {
         CreateStoreMgr = ManagerRegistry::StoreMgrCreator;
       }
       else {
-        switch (C.Opts.AnalysisStoreOpt) {
+        switch (Opts.AnalysisStoreOpt) {
         default:
           assert(0 && "Unknown store manager.");
-#define ANALYSIS_STORE(NAME, CMDFLAG, DESC, CREATEFN)     \
+#define ANALYSIS_STORE(NAME, CMDFLAG, DESC, CREATEFN)           \
           case NAME##Model: CreateStoreMgr = CREATEFN; break;
 #include "clang/Frontend/Analyses.def"
         }
@@ -262,7 +131,7 @@ case PD_##NAME: C.PD.reset(CREATEFN(C.OutDir, C.PP, C.PPF)); break;
       if (ManagerRegistry::ConstraintMgrCreator != 0)
         CreateConstraintMgr = ManagerRegistry::ConstraintMgrCreator;
       else {
-        switch (C.Opts.AnalysisConstraintsOpt) {
+        switch (Opts.AnalysisConstraintsOpt) {
         default:
           assert(0 && "Unknown store manager.");
 #define ANALYSIS_CONSTRAINTS(NAME, CMDFLAG, DESC, CREATEFN)     \
@@ -270,19 +139,43 @@ case PD_##NAME: C.PD.reset(CREATEFN(C.OutDir, C.PP, C.PPF)); break;
 #include "clang/Frontend/Analyses.def"
         }
       }
-
-      
-      // Some DiagnosticClients should be created all the time instead of
-      // lazily.  Create those now.
-      switch (C.Opts.AnalysisDiagOpt) {
-        default: break;
-#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN, AUTOCREATE)\
-case PD_##NAME: if (AUTOCREATE) getPathDiagnosticClient(); break;
-#include "clang/Frontend/Analyses.def"
-      }      
     }
 
+    void addCodeAction(CodeAction action) {
+      FunctionActions.push_back(action);
+      ObjCMethodActions.push_back(action);
+    }
+
+    void addObjCImplementationAction(CodeAction action) {
+      ObjCImplementationActions.push_back(action);
+    }
+
+    void addTranslationUnitAction(CodeAction action) {
+      TranslationUnitActions.push_back(action);
+    }
+
+    virtual void Initialize(ASTContext &Context) {
+      Ctx = &Context;
+      Mgr.reset(new AnalysisManager(*Ctx, Diags, LOpts, PD,
+                                    CreateStoreMgr, CreateConstraintMgr,
+                                    Opts.AnalyzerDisplayProgress,
+                                    Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
+                                    Opts.PurgeDead, Opts.EagerlyAssume,
+                                    Opts.TrimGraph));
+    }
+
+    virtual void HandleTopLevelDecl(DeclGroupRef D) {
+      for (DeclGroupRef::iterator I = D.begin(), E = D.end(); I != E; ++I)
+        HandleTopLevelSingleDecl(*I);
+    }
+
+    void HandleTopLevelSingleDecl(Decl *D);
+    virtual void HandleTranslationUnit(ASTContext &C);
+
+    void HandleCode(Decl* D, Stmt* Body, Actions& actions);
   };
+
+
 
 } // end anonymous namespace
 
@@ -291,71 +184,85 @@ namespace llvm {
     static inline void Profile(CodeAction X, FoldingSetNodeID& ID) {
       ID.AddPointer(reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(X)));
     }
-  };   
+  };
 }
 
 //===----------------------------------------------------------------------===//
 // AnalysisConsumer implementation.
 //===----------------------------------------------------------------------===//
 
-void AnalysisConsumer::HandleTopLevelSingleDecl(Decl *D) { 
+void AnalysisConsumer::HandleTopLevelSingleDecl(Decl *D) {
   switch (D->getKind()) {
     case Decl::Function: {
       FunctionDecl* FD = cast<FunctionDecl>(D);
 
-      if (Opts.AnalyzeSpecificFunction.size() > 0 && 
+      if (Opts.AnalyzeSpecificFunction.size() > 0 &&
           Opts.AnalyzeSpecificFunction != FD->getIdentifier()->getName())
         break;
-      
+
       Stmt* Body = FD->getBody();
       if (Body) HandleCode(FD, Body, FunctionActions);
       break;
     }
-      
+
     case Decl::ObjCMethod: {
       ObjCMethodDecl* MD = cast<ObjCMethodDecl>(D);
-      
+
       if (Opts.AnalyzeSpecificFunction.size() > 0 &&
           Opts.AnalyzeSpecificFunction != MD->getSelector().getAsString())
         return;
-      
+
       Stmt* Body = MD->getBody();
       if (Body) HandleCode(MD, Body, ObjCMethodActions);
       break;
     }
-      
+
     default:
       break;
   }
 }
 
 void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
+  
+  TranslationUnitDecl *TU = C.getTranslationUnitDecl();
+  
+  if (!TranslationUnitActions.empty()) {  
+    // Find the entry function definition (if any).
+    FunctionDecl *FD = 0;
+    
+    if (!Opts.AnalyzeSpecificFunction.empty()) {
+      for (DeclContext::decl_iterator I=TU->decls_begin(), E=TU->decls_end();
+           I != E; ++I) {
+        if (FunctionDecl *fd = dyn_cast<FunctionDecl>(*I))
+          if (fd->isThisDeclarationADefinition() &&
+              fd->getNameAsString() == Opts.AnalyzeSpecificFunction) {
+            FD = fd;
+            break;
+          }
+      }
+    }
 
-  if(!TranslationUnitActions.empty()) {
-    AnalysisManager mgr(*this, Opts.AnalyzerDisplayProgress);
     for (Actions::iterator I = TranslationUnitActions.begin(), 
          E = TranslationUnitActions.end(); I != E; ++I)
-      (*I)(mgr);  
+      (*I)(*Mgr, FD);  
   }
 
   if (!ObjCImplementationActions.empty()) {
-    TranslationUnitDecl *TUD = C.getTranslationUnitDecl();
-    
-    for (DeclContext::decl_iterator I = TUD->decls_begin(),
-                                    E = TUD->decls_end();
+    for (DeclContext::decl_iterator I = TU->decls_begin(),
+                                    E = TU->decls_end();
          I != E; ++I)
       if (ObjCImplementationDecl* ID = dyn_cast<ObjCImplementationDecl>(*I))
         HandleCode(ID, 0, ObjCImplementationActions);
   }
-  
-  // Delete the PathDiagnosticClient here just in case the AnalysisConsumer
-  // object doesn't get released.  This will cause any side-effects in the
-  // destructor of the PathDiagnosticClient to get executed.
-  PD.reset();
+
+  // Explicitly destroy the PathDiagnosticClient.  This will flush its output.
+  // FIXME: This should be replaced with something that doesn't rely on
+  // side-effects in PathDiagnosticClient's destructor.
+  Mgr.reset(NULL);
 }
 
-void AnalysisConsumer::HandleCode(Decl* D, Stmt* Body, Actions& actions) {
-  
+void AnalysisConsumer::HandleCode(Decl *D, Stmt* Body, Actions& actions) {
+
   // Don't run the actions if an error has occured with parsing the file.
   if (Diags.hasErrorOccurred())
     return;
@@ -364,154 +271,170 @@ void AnalysisConsumer::HandleCode(Decl* D, Stmt* Body, Actions& actions) {
   // otherwise specified.
   if (!Opts.AnalyzeAll &&
       !Ctx->getSourceManager().isFromMainFile(D->getLocation()))
-    return;  
+    return;
 
-  // Create an AnalysisManager that will manage the state for analyzing
-  // this method/function.
-  AnalysisManager mgr(*this, D, Body, Opts.AnalyzerDisplayProgress);
-  
-  // Dispatch on the actions.  
+  // Dispatch on the actions.
   for (Actions::iterator I = actions.begin(), E = actions.end(); I != E; ++I)
-    (*I)(mgr);  
+    (*I)(*Mgr, D);  
 }
 
 //===----------------------------------------------------------------------===//
 // Analyses
 //===----------------------------------------------------------------------===//
 
-static void ActionWarnDeadStores(AnalysisManager& mgr) {
-  if (LiveVariables* L = mgr.getLiveVariables()) {
+static void ActionWarnDeadStores(AnalysisManager& mgr, Decl *D) {
+  if (LiveVariables *L = mgr.getLiveVariables(D)) {
     BugReporter BR(mgr);
-    CheckDeadStores(*L, BR);
+    CheckDeadStores(*mgr.getCFG(D), *L, mgr.getParentMap(D), BR);
   }
 }
 
-static void ActionWarnUninitVals(AnalysisManager& mgr) {
-  if (CFG* c = mgr.getCFG())
-    CheckUninitializedValues(*c, mgr.getContext(), mgr.getDiagnostic());
+static void ActionWarnUninitVals(AnalysisManager& mgr, Decl *D) {
+  if (CFG* c = mgr.getCFG(D))
+    CheckUninitializedValues(*c, mgr.getASTContext(), mgr.getDiagnostic());
 }
 
 
-static void ActionGRExprEngine(AnalysisManager& mgr, GRTransferFuncs* tf,
-                               bool StandardWarnings = true) {
-  
-  
+static void ActionGRExprEngine(AnalysisManager& mgr, Decl *D, 
+                               GRTransferFuncs* tf) {
+
+
   llvm::OwningPtr<GRTransferFuncs> TF(tf);
 
   // Display progress.
-  mgr.DisplayFunction();
+  mgr.DisplayFunction(D);
 
-  // Construct the analysis engine.
-  LiveVariables* L = mgr.getLiveVariables();
-  if (!L) return;
-
-  GRExprEngine Eng(*mgr.getCFG(), *mgr.getCodeDecl(), mgr.getContext(), *L, mgr,
-                   mgr.shouldPurgeDead(), mgr.shouldEagerlyAssume(),
-                   mgr.getStoreManagerCreator(), 
-                   mgr.getConstraintManagerCreator());
+  // Construct the analysis engine.  We first query for the LiveVariables
+  // information to see if the CFG is valid.
+  // FIXME: Inter-procedural analysis will need to handle invalid CFGs.
+  if (!mgr.getLiveVariables(D))
+    return;  
+  
+  GRExprEngine Eng(mgr);
 
   Eng.setTransferFunctions(tf);
-  
-  if (StandardWarnings) {
-    Eng.RegisterInternalChecks();
-    RegisterAppleChecks(Eng);
-  }
+  Eng.RegisterInternalChecks(); // FIXME: Internal checks should just
+                                // automatically register.
+  RegisterAppleChecks(Eng, *D);
+
 
   // Set the graph auditor.
-  llvm::OwningPtr<ExplodedNodeImpl::Auditor> Auditor;
+  llvm::OwningPtr<ExplodedNode::Auditor> Auditor;
   if (mgr.shouldVisualizeUbigraph()) {
     Auditor.reset(CreateUbiViz());
-    ExplodedNodeImpl::SetAuditor(Auditor.get());
+    ExplodedNode::SetAuditor(Auditor.get());
   }
-  
+
   // Execute the worklist algorithm.
-  Eng.ExecuteWorkList();
-  
+  Eng.ExecuteWorkList(mgr.getStackFrame(D));
+
   // Release the auditor (if any) so that it doesn't monitor the graph
   // created BugReporter.
-  ExplodedNodeImpl::SetAuditor(0);
+  ExplodedNode::SetAuditor(0);
 
   // Visualize the exploded graph.
   if (mgr.shouldVisualizeGraphviz())
     Eng.ViewGraph(mgr.shouldTrimGraph());
-  
+
   // Display warnings.
   Eng.getBugReporter().FlushReports();
 }
 
-static void ActionCheckerCFRefAux(AnalysisManager& mgr, bool GCEnabled,
-                                  bool StandardWarnings) {
-  
-  GRTransferFuncs* TF = MakeCFRefCountTF(mgr.getContext(),
+static void ActionCheckerCFRefAux(AnalysisManager& mgr, Decl *D,
+                                  bool GCEnabled) {
+
+  GRTransferFuncs* TF = MakeCFRefCountTF(mgr.getASTContext(),
                                          GCEnabled,
                                          mgr.getLangOptions());
-    
-  ActionGRExprEngine(mgr, TF, StandardWarnings);
+
+  ActionGRExprEngine(mgr, D, TF);
 }
 
-static void ActionCheckerCFRef(AnalysisManager& mgr) {
-     
+static void ActionCheckerCFRef(AnalysisManager& mgr, Decl *D) {
+
  switch (mgr.getLangOptions().getGCMode()) {
    default:
      assert (false && "Invalid GC mode.");
    case LangOptions::NonGC:
-     ActionCheckerCFRefAux(mgr, false, true);
+     ActionCheckerCFRefAux(mgr, D, false);
      break;
-    
+
    case LangOptions::GCOnly:
-     ActionCheckerCFRefAux(mgr, true, true);
+     ActionCheckerCFRefAux(mgr, D, true);
      break;
-     
+
    case LangOptions::HybridGC:
-     ActionCheckerCFRefAux(mgr, false, true);
-     ActionCheckerCFRefAux(mgr, true, false);
+     ActionCheckerCFRefAux(mgr, D, false);
+     ActionCheckerCFRefAux(mgr, D, true);
      break;
  }
 }
 
-static void ActionDisplayLiveVariables(AnalysisManager& mgr) {
-  if (LiveVariables* L = mgr.getLiveVariables()) {
-    mgr.DisplayFunction();  
+static void ActionDisplayLiveVariables(AnalysisManager& mgr, Decl *D) {
+  if (LiveVariables* L = mgr.getLiveVariables(D)) {
+    mgr.DisplayFunction(D);
     L->dumpBlockLiveness(mgr.getSourceManager());
   }
 }
 
-static void ActionCFGDump(AnalysisManager& mgr) {
-  if (CFG* c = mgr.getCFG()) {
-    mgr.DisplayFunction();
-    LangOptions LO;  // FIXME!
-    c->dump(LO);
+static void ActionCFGDump(AnalysisManager& mgr, Decl *D) {
+  if (CFG* c = mgr.getCFG(D)) {
+    mgr.DisplayFunction(D);
+    c->dump(mgr.getLangOptions());
   }
 }
 
-static void ActionCFGView(AnalysisManager& mgr) {
-  if (CFG* c = mgr.getCFG()) {
-    mgr.DisplayFunction();
-    LangOptions LO; // FIXME!
-    c->viewCFG(LO);
+static void ActionCFGView(AnalysisManager& mgr, Decl *D) {
+  if (CFG* c = mgr.getCFG(D)) {
+    mgr.DisplayFunction(D);
+    c->viewCFG(mgr.getLangOptions());
   }
 }
 
-static void ActionWarnObjCDealloc(AnalysisManager& mgr) {
+static void ActionSecuritySyntacticChecks(AnalysisManager &mgr, Decl *D) {
+  BugReporter BR(mgr);
+  CheckSecuritySyntaxOnly(D, BR);
+}
+
+static void ActionWarnObjCDealloc(AnalysisManager& mgr, Decl *D) {
   if (mgr.getLangOptions().getGCMode() == LangOptions::GCOnly)
     return;
-      
+
   BugReporter BR(mgr);
-  
-  CheckObjCDealloc(cast<ObjCImplementationDecl>(mgr.getCodeDecl()), 
-                   mgr.getLangOptions(), BR);  
+  CheckObjCDealloc(cast<ObjCImplementationDecl>(D), mgr.getLangOptions(), BR);  
 }
 
-static void ActionWarnObjCUnusedIvars(AnalysisManager& mgr) {
+static void ActionWarnObjCUnusedIvars(AnalysisManager& mgr, Decl *D) {
   BugReporter BR(mgr);
-  CheckObjCUnusedIvar(cast<ObjCImplementationDecl>(mgr.getCodeDecl()), BR);  
+  CheckObjCUnusedIvar(cast<ObjCImplementationDecl>(D), BR);  
 }
 
-static void ActionWarnObjCMethSigs(AnalysisManager& mgr) {
+static void ActionWarnObjCMethSigs(AnalysisManager& mgr, Decl *D) {
   BugReporter BR(mgr);
+
+  CheckObjCInstMethSignature(cast<ObjCImplementationDecl>(D), BR);
+}
+
+static void ActionInlineCall(AnalysisManager &mgr, Decl *D) {
+  if (!D)
+    return;
+
+  llvm::OwningPtr<GRTransferFuncs> TF(CreateCallInliner(mgr.getASTContext()));
+
+  // Construct the analysis engine.
+  GRExprEngine Eng(mgr);
+
+  Eng.setTransferFunctions(TF.get());
   
-  CheckObjCInstMethSignature(cast<ObjCImplementationDecl>(mgr.getCodeDecl()),
-                             BR);
+  Eng.RegisterInternalChecks();
+  RegisterAppleChecks(Eng, *D);
+
+  // Execute the worklist algorithm.
+  Eng.ExecuteWorkList(mgr.getStackFrame(D));
+  
+  // Visualize the exploded graph.
+  if (mgr.shouldVisualizeGraphviz())
+    Eng.ViewGraph(mgr.shouldTrimGraph());
 }
 
 //===----------------------------------------------------------------------===//
@@ -537,7 +460,7 @@ ASTConsumer* clang::CreateAnalysisConsumer(Diagnostic &diags, Preprocessor* pp,
 #include "clang/Frontend/Analyses.def"
       default: break;
     }
-  
+
   // Last, disable the effects of '-Werror' when using the AnalysisConsumer.
   diags.setWarningsAsErrors(false);
 
@@ -549,29 +472,29 @@ ASTConsumer* clang::CreateAnalysisConsumer(Diagnostic &diags, Preprocessor* pp,
 //===----------------------------------------------------------------------===//
 
 namespace {
-  
-class UbigraphViz : public ExplodedNodeImpl::Auditor {
+
+class UbigraphViz : public ExplodedNode::Auditor {
   llvm::OwningPtr<llvm::raw_ostream> Out;
   llvm::sys::Path Dir, Filename;
   unsigned Cntr;
 
   typedef llvm::DenseMap<void*,unsigned> VMap;
   VMap M;
-  
+
 public:
   UbigraphViz(llvm::raw_ostream* out, llvm::sys::Path& dir,
               llvm::sys::Path& filename);
-  
+
   ~UbigraphViz();
-  
-  virtual void AddEdge(ExplodedNodeImpl* Src, ExplodedNodeImpl* Dst);  
+
+  virtual void AddEdge(ExplodedNode* Src, ExplodedNode* Dst);
 };
-  
+
 } // end anonymous namespace
 
-static ExplodedNodeImpl::Auditor* CreateUbiViz() {
+static ExplodedNode::Auditor* CreateUbiViz() {
   std::string ErrMsg;
-  
+
   llvm::sys::Path Dir = llvm::sys::Path::GetTemporaryDirectory(&ErrMsg);
   if (!ErrMsg.empty())
     return 0;
@@ -583,33 +506,32 @@ static ExplodedNodeImpl::Auditor* CreateUbiViz() {
   if (!ErrMsg.empty())
     return 0;
 
-  llvm::cerr << "Writing '" << Filename << "'.\n";
-  
+  llvm::errs() << "Writing '" << Filename.str() << "'.\n";
+
   llvm::OwningPtr<llvm::raw_fd_ostream> Stream;
-  std::string filename = Filename.toString();
-  Stream.reset(new llvm::raw_fd_ostream(filename.c_str(), false, ErrMsg));
+  Stream.reset(new llvm::raw_fd_ostream(Filename.c_str(), ErrMsg));
 
   if (!ErrMsg.empty())
     return 0;
-  
+
   return new UbigraphViz(Stream.take(), Dir, Filename);
 }
 
-void UbigraphViz::AddEdge(ExplodedNodeImpl* Src, ExplodedNodeImpl* Dst) {
-  
+void UbigraphViz::AddEdge(ExplodedNode* Src, ExplodedNode* Dst) {
+
   assert (Src != Dst && "Self-edges are not allowed.");
-  
+
   // Lookup the Src.  If it is a new node, it's a root.
   VMap::iterator SrcI= M.find(Src);
   unsigned SrcID;
-  
+
   if (SrcI == M.end()) {
     M[Src] = SrcID = Cntr++;
     *Out << "('vertex', " << SrcID << ", ('color','#00ff00'))\n";
   }
   else
     SrcID = SrcI->second;
-  
+
   // Lookup the Dst.
   VMap::iterator DstI= M.find(Dst);
   unsigned DstID;
@@ -625,7 +547,7 @@ void UbigraphViz::AddEdge(ExplodedNodeImpl* Src, ExplodedNodeImpl* Dst) {
   }
 
   // Add the edge.
-  *Out << "('edge', " << SrcID << ", " << DstID 
+  *Out << "('edge', " << SrcID << ", " << DstID
        << ", ('arrow','true'), ('oriented', 'true'))\n";
 }
 
@@ -640,18 +562,18 @@ UbigraphViz::UbigraphViz(llvm::raw_ostream* out, llvm::sys::Path& dir,
 
 UbigraphViz::~UbigraphViz() {
   Out.reset(0);
-  llvm::cerr << "Running 'ubiviz' program... ";
+  llvm::errs() << "Running 'ubiviz' program... ";
   std::string ErrMsg;
   llvm::sys::Path Ubiviz = llvm::sys::Program::FindProgramByName("ubiviz");
   std::vector<const char*> args;
   args.push_back(Ubiviz.c_str());
   args.push_back(Filename.c_str());
   args.push_back(0);
-  
+
   if (llvm::sys::Program::ExecuteAndWait(Ubiviz, &args[0],0,0,0,0,&ErrMsg)) {
-    llvm::cerr << "Error viewing graph: " << ErrMsg << "\n";
+    llvm::errs() << "Error viewing graph: " << ErrMsg << "\n";
   }
-  
+
   // Delete the directory.
-  Dir.eraseFromDisk(true); 
+  Dir.eraseFromDisk(true);
 }

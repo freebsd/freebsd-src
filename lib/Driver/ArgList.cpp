@@ -11,6 +11,10 @@
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/Option.h"
 
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/Support/raw_ostream.h"
+
 using namespace clang::driver;
 
 ArgList::ArgList(arglist_type &_Args) : Args(_Args) {
@@ -31,13 +35,13 @@ Arg *ArgList::getLastArg(options::ID Id, bool Claim) const {
       return *it;
     }
   }
-  
+
   return 0;
 }
 
 Arg *ArgList::getLastArg(options::ID Id0, options::ID Id1, bool Claim) const {
   Arg *Res, *A0 = getLastArg(Id0, false), *A1 = getLastArg(Id1, false);
-  
+
   if (A0 && A1)
     Res = A0->getIndex() > A1->getIndex() ? A0 : A1;
   else
@@ -102,7 +106,7 @@ void ArgList::AddAllArgs(ArgStringList &Output, options::ID Id0) const {
   }
 }
 
-void ArgList::AddAllArgs(ArgStringList &Output, options::ID Id0, 
+void ArgList::AddAllArgs(ArgStringList &Output, options::ID Id0,
                          options::ID Id1) const {
   // FIXME: Make fast.
   for (const_iterator it = begin(), ie = end(); it != ie; ++it) {
@@ -114,7 +118,7 @@ void ArgList::AddAllArgs(ArgStringList &Output, options::ID Id0,
   }
 }
 
-void ArgList::AddAllArgs(ArgStringList &Output, options::ID Id0, 
+void ArgList::AddAllArgs(ArgStringList &Output, options::ID Id0,
                          options::ID Id1, options::ID Id2) const {
   // FIXME: Make fast.
   for (const_iterator it = begin(), ie = end(); it != ie; ++it) {
@@ -139,7 +143,7 @@ void ArgList::AddAllArgValues(ArgStringList &Output, options::ID Id0) const {
   }
 }
 
-void ArgList::AddAllArgValues(ArgStringList &Output, options::ID Id0, 
+void ArgList::AddAllArgValues(ArgStringList &Output, options::ID Id0,
                               options::ID Id1) const {
   // FIXME: Make fast.
   for (const_iterator it = begin(), ie = end(); it != ie; ++it) {
@@ -182,11 +186,16 @@ void ArgList::ClaimAllArgs(options::ID Id0) const {
   }
 }
 
+const char *ArgList::MakeArgString(const llvm::Twine &T) const {
+  llvm::SmallString<256> Str;
+  T.toVector(Str);
+  return MakeArgString(Str.str());
+}
+
 //
 
-InputArgList::InputArgList(const char **ArgBegin, const char **ArgEnd) 
-  : ArgList(ActualArgs), NumInputArgStrings(ArgEnd - ArgBegin) 
-{
+InputArgList::InputArgList(const char **ArgBegin, const char **ArgEnd)
+  : ArgList(ActualArgs), NumInputArgStrings(ArgEnd - ArgBegin) {
   ArgStrings.append(ArgBegin, ArgEnd);
 }
 
@@ -196,7 +205,7 @@ InputArgList::~InputArgList() {
     delete *it;
 }
 
-unsigned InputArgList::MakeIndex(const char *String0) const {
+unsigned InputArgList::MakeIndex(llvm::StringRef String0) const {
   unsigned Index = ArgStrings.size();
 
   // Tuck away so we have a reliable const char *.
@@ -206,8 +215,8 @@ unsigned InputArgList::MakeIndex(const char *String0) const {
   return Index;
 }
 
-unsigned InputArgList::MakeIndex(const char *String0, 
-                                 const char *String1) const {
+unsigned InputArgList::MakeIndex(llvm::StringRef String0,
+                                 llvm::StringRef String1) const {
   unsigned Index0 = MakeIndex(String0);
   unsigned Index1 = MakeIndex(String1);
   assert(Index0 + 1 == Index1 && "Unexpected non-consecutive indices!");
@@ -215,7 +224,7 @@ unsigned InputArgList::MakeIndex(const char *String0,
   return Index0;
 }
 
-const char *InputArgList::MakeArgString(const char *Str) const {
+const char *InputArgList::MakeArgString(llvm::StringRef Str) const {
   return getArgString(MakeIndex(Str));
 }
 
@@ -223,18 +232,17 @@ const char *InputArgList::MakeArgString(const char *Str) const {
 
 DerivedArgList::DerivedArgList(InputArgList &_BaseArgs, bool _OnlyProxy)
   : ArgList(_OnlyProxy ? _BaseArgs.getArgs() : ActualArgs),
-    BaseArgs(_BaseArgs), OnlyProxy(_OnlyProxy)
-{
+    BaseArgs(_BaseArgs), OnlyProxy(_OnlyProxy) {
 }
 
 DerivedArgList::~DerivedArgList() {
   // We only own the arguments we explicitly synthesized.
-  for (iterator it = SynthesizedArgs.begin(), ie = SynthesizedArgs.end(); 
+  for (iterator it = SynthesizedArgs.begin(), ie = SynthesizedArgs.end();
        it != ie; ++it)
     delete *it;
 }
 
-const char *DerivedArgList::MakeArgString(const char *Str) const {
+const char *DerivedArgList::MakeArgString(llvm::StringRef Str) const {
   return BaseArgs.MakeArgString(Str);
 }
 
@@ -242,19 +250,19 @@ Arg *DerivedArgList::MakeFlagArg(const Arg *BaseArg, const Option *Opt) const {
   return new FlagArg(Opt, BaseArgs.MakeIndex(Opt->getName()), BaseArg);
 }
 
-Arg *DerivedArgList::MakePositionalArg(const Arg *BaseArg, const Option *Opt, 
-                                       const char *Value) const {
+Arg *DerivedArgList::MakePositionalArg(const Arg *BaseArg, const Option *Opt,
+                                       llvm::StringRef Value) const {
   return new PositionalArg(Opt, BaseArgs.MakeIndex(Value), BaseArg);
 }
 
-Arg *DerivedArgList::MakeSeparateArg(const Arg *BaseArg, const Option *Opt, 
-                                     const char *Value) const {
-  return new SeparateArg(Opt, BaseArgs.MakeIndex(Opt->getName(), Value), 1, 
+Arg *DerivedArgList::MakeSeparateArg(const Arg *BaseArg, const Option *Opt,
+                                     llvm::StringRef Value) const {
+  return new SeparateArg(Opt, BaseArgs.MakeIndex(Opt->getName(), Value), 1,
                          BaseArg);
 }
 
-Arg *DerivedArgList::MakeJoinedArg(const Arg *BaseArg, const Option *Opt, 
-                                   const char *Value) const {
+Arg *DerivedArgList::MakeJoinedArg(const Arg *BaseArg, const Option *Opt,
+                                   llvm::StringRef Value) const {
   std::string Joined(Opt->getName());
   Joined += Value;
   return new JoinedArg(Opt, BaseArgs.MakeIndex(Joined.c_str()), BaseArg);

@@ -1,4 +1,5 @@
-// RUN: clang-cc -ast-print %s
+// RUN: clang-cc -triple i386-unknown-unknown -ast-print %s &&
+// RUN: clang-cc -triple x86_64-apple-darwin10  -ast-print %s
 
 @interface current 
 {

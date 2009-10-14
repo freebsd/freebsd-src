@@ -1,5 +1,5 @@
 //==- GRWorkList.h - Worklist class used by GRCoreEngine -----------*- C++ -*-//
-//             
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
@@ -17,31 +17,31 @@
 
 #include "clang/Analysis/PathSensitive/GRBlockCounter.h"
 
-namespace clang {  
+namespace clang {
 
 class ExplodedNodeImpl;
-  
+
 class GRWorkListUnit {
-  ExplodedNodeImpl* Node;
+  ExplodedNode* Node;
   GRBlockCounter Counter;
   CFGBlock* Block;
   unsigned BlockIdx;
-  
+
 public:
-  GRWorkListUnit(ExplodedNodeImpl* N, GRBlockCounter C,
+  GRWorkListUnit(ExplodedNode* N, GRBlockCounter C,
                  CFGBlock* B, unsigned idx)
   : Node(N),
     Counter(C),
     Block(B),
     BlockIdx(idx) {}
-  
-  explicit GRWorkListUnit(ExplodedNodeImpl* N, GRBlockCounter C)
+
+  explicit GRWorkListUnit(ExplodedNode* N, GRBlockCounter C)
   : Node(N),
     Counter(C),
     Block(NULL),
     BlockIdx(0) {}
-  
-  ExplodedNodeImpl* getNode()         const { return Node; }
+
+  ExplodedNode* getNode()         const { return Node; }
   GRBlockCounter    getBlockCounter() const { return Counter; }
   CFGBlock*         getBlock()        const { return Block; }
   unsigned          getIndex()        const { return BlockIdx; }
@@ -52,25 +52,25 @@ class GRWorkList {
 public:
   virtual ~GRWorkList();
   virtual bool hasWork() const = 0;
-    
+
   virtual void Enqueue(const GRWorkListUnit& U) = 0;
 
-  void Enqueue(ExplodedNodeImpl* N, CFGBlock& B, unsigned idx) {    
+  void Enqueue(ExplodedNode* N, CFGBlock& B, unsigned idx) {
     Enqueue(GRWorkListUnit(N, CurrentCounter, &B, idx));
   }
-  
-  void Enqueue(ExplodedNodeImpl* N) {
+
+  void Enqueue(ExplodedNode* N) {
     Enqueue(GRWorkListUnit(N, CurrentCounter));
   }
-  
+
   virtual GRWorkListUnit Dequeue() = 0;
-  
+
   void setBlockCounter(GRBlockCounter C) { CurrentCounter = C; }
   GRBlockCounter getBlockCounter() const { return CurrentCounter; }
-  
+
   static GRWorkList *MakeDFS();
   static GRWorkList *MakeBFS();
   static GRWorkList *MakeBFSBlockDFSContents();
 };
-} // end clang namespace  
+} // end clang namespace
 #endif

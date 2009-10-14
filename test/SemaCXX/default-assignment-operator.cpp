@@ -26,7 +26,7 @@ Z z2;
 
 // Test1
 void f(X x, const X cx) {
-  x = cx;	// expected-note {{synthesized method is first required here}}
+  x = cx;  // expected-note {{synthesized method is first required here}}
   x = cx;
   z1 = z2;
 }
@@ -36,8 +36,7 @@ class T {};
 T t1;
 T t2;
 
-void g()
-{
+void g() {
   t1 = t2;
 }
 
@@ -51,8 +50,7 @@ public:
 class W : V {};
 W w1, w2;
 
-void h()
-{
+void h() {
   w1 = w2;
 }
 
@@ -67,8 +65,22 @@ public:
 class D1 : B1 {};
 D1 d1, d2;
 
-void i()
-{
-	d1 = d2;
+void i() {
+  d1 = d2;
+}
+
+// Test5
+
+class E1 { // expected-error{{cannot define the implicit default assignment operator for 'class E1', because non-static const member 'a' can't use default assignment operator}}
+public:
+  const int a; // expected-note{{declared at}}
+  E1() : a(0) {}  
+
+};
+
+E1 e1, e2;
+
+void j() {
+  e1 = e2; // expected-note{{synthesized method is first required here}}
 }
 

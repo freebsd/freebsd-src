@@ -22,6 +22,7 @@
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/Ownership.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/ADT/PointerUnion.h"
 
 namespace clang {
   // Semantic.
@@ -49,7 +50,7 @@ namespace clang {
   template<> struct IsResultPtrLowBitFree<3> { static const bool value = true;};
   template<> struct IsResultPtrLowBitFree<4> { static const bool value = true;};
   template<> struct IsResultPtrLowBitFree<5> { static const bool value = true;};
-  
+
 /// Action - As the parser reads the input file and recognizes the productions
 /// of the grammar, it invokes methods on this class to turn the parsed input
 /// into something useful: e.g. a parse tree.
@@ -102,22 +103,22 @@ public:
   typedef ASTMultiPtr<&ActionBase::DeleteStmt> MultiStmtArg;
   typedef ASTMultiPtr<&ActionBase::DeleteTemplateParams> MultiTemplateParamsArg;
 
-  class FullExprArg {    
+  class FullExprArg {
   public:
     // FIXME: The const_cast here is ugly. RValue references would make this
-    // much nicer (or we could duplicate a bunch of the move semantics 
+    // much nicer (or we could duplicate a bunch of the move semantics
     // emulation code from Ownership.h).
     FullExprArg(const FullExprArg& Other)
       : Expr(move(const_cast<FullExprArg&>(Other).Expr)) {}
-    
+
     OwningExprResult release() {
       return move(Expr);
     }
-    
+
     ExprArg* operator->() {
       return &Expr;
     }
-    
+
   private:
     // FIXME: No need to make the entire Action class a friend when it's just
     // Action::FullExpr that needs access to the constructor below.
@@ -128,7 +129,7 @@ public:
 
     ExprArg Expr;
   };
-  
+
   template<typename T>
   FullExprArg FullExpr(T &Arg) {
       return FullExprArg(ActOnFinishFullExpr(move(Arg)));
@@ -149,31 +150,47 @@ public:
   virtual void PrintStats() const {}
 
   /// getDeclName - Return a pretty name for the specified decl if possible, or
-  /// an empty string if not.  This is used for pretty crash reporting. 
+  /// an empty string if not.  This is used for pretty crash reporting.
   virtual std::string getDeclName(DeclPtrTy D) { return ""; }
-  
+
   /// \brief Invoked for each comment in the source code, providing the source
   /// range that contains the comment.
   virtual void ActOnComment(SourceRange Comment) { }
-  
+
   //===--------------------------------------------------------------------===//
   // Declaration Tracking Callbacks.
   //===--------------------------------------------------------------------===//
-  
+
   /// ConvertDeclToDeclGroup - If the parser has one decl in a context where it
   /// needs a decl group, it calls this to convert between the two
   /// representations.
   virtual DeclGroupPtrTy ConvertDeclToDeclGroup(DeclPtrTy Ptr) {
     return DeclGroupPtrTy();
   }
-  
+
   /// getTypeName - Return non-null if the specified identifier is a type name
   /// in the current scope.
-  /// An optional CXXScopeSpec can be passed to indicate the C++ scope (class or
-  /// namespace) that the identifier must be a member of.
-  /// i.e. for "foo::bar", 'II' will be "bar" and 'SS' will be "foo::".
+  ///
+  /// \param II the identifier for which we are performing name lookup
+  ///
+  /// \param NameLoc the location of the identifier
+  ///
+  /// \param S the scope in which this name lookup occurs
+  ///
+  /// \param SS if non-NULL, the C++ scope specifier that precedes the
+  /// identifier
+  ///
+  /// \param isClassName whether this is a C++ class-name production, in
+  /// which we can end up referring to a member of an unknown specialization
+  /// that we know (from the grammar) is supposed to be a type. For example,
+  /// this occurs when deriving from "std::vector<T>::allocator_type", where T
+  /// is a template parameter.
+  ///
+  /// \returns the type referred to by this identifier, or NULL if the type
+  /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
-                              Scope *S, const CXXScopeSpec *SS = 0) = 0;
+                              Scope *S, const CXXScopeSpec *SS = 0,
+                              bool isClassName = false) = 0;
 
   /// isTagName() - This method is called *for error recovery purposes only*
   /// to determine if the specified name is a valid tag name ("struct foo").  If
@@ -183,20 +200,69 @@ public:
   virtual DeclSpec::TST isTagName(IdentifierInfo &II, Scope *S) {
     return DeclSpec::TST_unspecified;
   }
-  
+
+  /// \brief Action called as part of error recovery when the parser has 
+  /// determined that the given name must refer to a type, but 
+  /// \c getTypeName() did not return a result.
+  ///
+  /// This callback permits the action to give a detailed diagnostic when an
+  /// unknown type name is encountered and, potentially, to try to recover
+  /// by producing a new type in \p SuggestedType.
+  ///
+  /// \param II the name that should be a type.
+  ///
+  /// \param IILoc the location of the name in the source.
+  ///
+  /// \param S the scope in which name lookup was performed.
+  ///
+  /// \param SS if non-NULL, the C++ scope specifier that preceded the name.
+  ///
+  /// \param SuggestedType if the action sets this type to a non-NULL type,
+  /// the parser will recovery by consuming the type name token and then 
+  /// pretending that the given type was the type it parsed.
+  ///
+  /// \returns true if a diagnostic was emitted, false otherwise. When false,
+  /// the parser itself will emit a generic "unknown type name" diagnostic.
+  virtual bool DiagnoseUnknownTypeName(const IdentifierInfo &II, 
+                                       SourceLocation IILoc,
+                                       Scope *S,
+                                       const CXXScopeSpec *SS,
+                                       TypeTy *&SuggestedType) {
+    return false;
+  }
+                                       
   /// isCurrentClassName - Return true if the specified name is the
   /// name of the innermost C++ class type currently being defined.
   virtual bool isCurrentClassName(const IdentifierInfo &II, Scope *S,
                                   const CXXScopeSpec *SS = 0) = 0;
 
-  /// \brief Determines whether the identifier II is a template name
-  /// in the current scope. If so, the kind of template name is
-  /// returned, and \p TemplateDecl receives the declaration. An
-  /// optional CXXScope can be passed to indicate the C++ scope in
-  /// which the identifier will be found.
-  virtual TemplateNameKind isTemplateName(const IdentifierInfo &II, Scope *S,
-                                          TemplateTy &Template,
-                                          const CXXScopeSpec *SS = 0) = 0;
+  /// \brief Determine whether the given identifier refers to the name of a
+  /// template.
+  ///
+  /// \param S the scope in which name lookup occurs
+  ///
+  /// \param II the identifier that we are querying to determine whether it
+  /// is a template.
+  ///
+  /// \param IdLoc the source location of the identifier
+  ///
+  /// \param SS the C++ scope specifier that precedes the template name, if
+  /// any.
+  ///
+  /// \param EnteringContext whether we are potentially entering the context
+  /// referred to by the scope specifier \p SS
+  ///
+  /// \param Template if the name does refer to a template, the declaration
+  /// of the template that the name refers to.
+  ///
+  /// \returns the kind of template that this name refers to.
+  virtual TemplateNameKind isTemplateName(Scope *S,
+                                          const IdentifierInfo &II,
+                                          SourceLocation IdLoc,
+                                          const CXXScopeSpec *SS,
+                                          TypeTy *ObjectType,
+                                          bool EnteringContext,
+                                          TemplateTy &Template) = 0;
 
   /// ActOnCXXGlobalScopeSpecifier - Return the object that represents the
   /// global scope ('::').
@@ -205,17 +271,40 @@ public:
     return 0;
   }
 
-  /// ActOnCXXNestedNameSpecifier - Called during parsing of a
-  /// nested-name-specifier. e.g. for "foo::bar::" we parsed "foo::" and now
-  /// we want to resolve "bar::". 'SS' is empty or the previously parsed
-  /// nested-name part ("foo::"), 'IdLoc' is the source location of 'bar',
-  /// 'CCLoc' is the location of '::' and 'II' is the identifier for 'bar'.
-  /// Returns a CXXScopeTy* object representing the C++ scope.
+  /// \brief Parsed an identifier followed by '::' in a C++
+  /// nested-name-specifier.
+  ///
+  /// \param S the scope in which the nested-name-specifier was parsed.
+  ///
+  /// \param SS the nested-name-specifier that precedes the identifier. For
+  /// example, if we are parsing "foo::bar::", \p SS will describe the "foo::"
+  /// that has already been parsed.
+  ///
+  /// \param IdLoc the location of the identifier we have just parsed (e.g.,
+  /// the "bar" in "foo::bar::".
+  ///
+  /// \param CCLoc the location of the '::' at the end of the
+  /// nested-name-specifier.
+  ///
+  /// \param II the identifier that represents the scope that this
+  /// nested-name-specifier refers to, e.g., the "bar" in "foo::bar::".
+  ///
+  /// \param ObjectType if this nested-name-specifier occurs as part of a
+  /// C++ member access expression such as "x->Base::f", the type of the base
+  /// object (e.g., *x in the example, if "x" were a pointer).
+  ///
+  /// \param EnteringContext if true, then we intend to immediately enter the
+  /// context of this nested-name-specifier, e.g., for an out-of-line
+  /// definition of a class member.
+  ///
+  /// \returns a CXXScopeTy* object representing the C++ scope.
   virtual CXXScopeTy *ActOnCXXNestedNameSpecifier(Scope *S,
                                                   const CXXScopeSpec &SS,
                                                   SourceLocation IdLoc,
                                                   SourceLocation CCLoc,
-                                                  IdentifierInfo &II) {
+                                                  IdentifierInfo &II,
+                                                  TypeTy *ObjectType,
+                                                  bool EnteringContext) {
     return 0;
   }
 
@@ -232,7 +321,7 @@ public:
                                                   TypeTy *Type,
                                                   SourceRange TypeRange,
                                                   SourceLocation CCLoc) {
-    return 0; 
+    return 0;
   }
 
   /// ActOnCXXEnterDeclaratorScope - Called when a C++ scope specifier (global
@@ -241,7 +330,9 @@ public:
   /// looked up in the declarator-id's scope, until the declarator is parsed and
   /// ActOnCXXExitDeclaratorScope is called.
   /// The 'SS' should be a non-empty valid CXXScopeSpec.
-  virtual void ActOnCXXEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
+  /// \returns true if an error occurred, false otherwise.
+  virtual bool ActOnCXXEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
+    return false;
   }
 
   /// ActOnCXXExitDeclaratorScope - Called when a declarator that previously
@@ -281,14 +372,14 @@ public:
     return DeclPtrTy();
   }
 
-  /// AddInitializerToDecl - This action is called immediately after 
-  /// ActOnDeclarator (when an initializer is present). The code is factored 
+  /// AddInitializerToDecl - This action is called immediately after
+  /// ActOnDeclarator (when an initializer is present). The code is factored
   /// this way to make sure we are able to handle the following:
   ///   void func() { int xx = xx; }
   /// This allows ActOnDeclarator to register "xx" prior to parsing the
-  /// initializer. The declaration above should still result in a warning, 
+  /// initializer. The declaration above should still result in a warning,
   /// since the reference to "xx" is uninitialized.
-  virtual void AddInitializerToDecl(DeclPtrTy Dcl, FullExprArg Init) {
+  virtual void AddInitializerToDecl(DeclPtrTy Dcl, ExprArg Init) {
     return;
   }
 
@@ -302,7 +393,10 @@ public:
 
   /// ActOnUninitializedDecl - This action is called immediately after
   /// ActOnDeclarator (when an initializer is *not* present).
-  virtual void ActOnUninitializedDecl(DeclPtrTy Dcl) {
+  /// If TypeContainsUndeducedAuto is true, then the type of the declarator
+  /// has an undeduced 'auto' type somewhere.
+  virtual void ActOnUninitializedDecl(DeclPtrTy Dcl,
+                                      bool TypeContainsUndeducedAuto) {
     return;
   }
 
@@ -314,7 +408,7 @@ public:
     return DeclGroupPtrTy();
   }
 
-  
+
   /// @brief Indicates that all K&R-style parameter declarations have
   /// been parsed prior to a function definition.
   /// @param S  The function prototype scope.
@@ -352,7 +446,7 @@ public:
                                           ExprArg AsmString) {
     return DeclPtrTy();
   }
-  
+
   /// ActOnPopScope - This callback is called immediately before the specified
   /// scope is popped and deleted.
   virtual void ActOnPopScope(SourceLocation Loc, Scope *S) {}
@@ -360,7 +454,7 @@ public:
   /// ActOnTranslationUnitScope - This callback is called once, immediately
   /// after creating the translation unit scope (in Parser::Initialize).
   virtual void ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {}
-    
+
   /// ParsedFreeStandingDeclSpec - This method is invoked when a declspec with
   /// no declarator (e.g. "struct foo;") is parsed.
   virtual DeclPtrTy ParsedFreeStandingDeclSpec(Scope *S, DeclSpec &DS) {
@@ -397,7 +491,7 @@ public:
   /// translation unit when EOF is reached and all but the top-level scope is
   /// popped.
   virtual void ActOnEndOfTranslationUnit() {}
-  
+
   //===--------------------------------------------------------------------===//
   // Type Parsing Callbacks.
   //===--------------------------------------------------------------------===//
@@ -406,24 +500,90 @@ public:
   virtual TypeResult ActOnTypeName(Scope *S, Declarator &D) {
     return TypeResult();
   }
-  
-  enum TagKind {
-    TK_Reference,   // Reference to a tag:  'struct foo *X;'
-    TK_Declaration, // Fwd decl of a tag:   'struct foo;'
-    TK_Definition   // Definition of a tag: 'struct foo { int X; } Y;'
+
+  enum TagUseKind {
+    TUK_Reference,   // Reference to a tag:  'struct foo *X;'
+    TUK_Declaration, // Fwd decl of a tag:   'struct foo;'
+    TUK_Definition,  // Definition of a tag: 'struct foo { int X; } Y;'
+    TUK_Friend       // Friend declaration:  'friend struct foo;'
   };
-  virtual DeclPtrTy ActOnTag(Scope *S, unsigned TagSpec, TagKind TK,
+
+  /// \brief The parser has encountered a tag (e.g., "class X") that should be
+  /// turned into a declaration by the action module.
+  ///
+  /// \param S the scope in which this tag occurs.
+  ///
+  /// \param TagSpec an instance of DeclSpec::TST, indicating what kind of tag
+  /// this is (struct/union/enum/class).
+  ///
+  /// \param TUK how the tag we have encountered is being used, which
+  /// can be a reference to a (possibly pre-existing) tag, a
+  /// declaration of that tag, or the beginning of a definition of
+  /// that tag.
+  ///
+  /// \param KWLoc the location of the "struct", "class", "union", or "enum"
+  /// keyword.
+  ///
+  /// \param SS C++ scope specifier that precedes the name of the tag, e.g.,
+  /// the "std::" in "class std::type_info".
+  ///
+  /// \param Name the name of the tag, e.g., "X" in "struct X". This parameter
+  /// may be NULL, to indicate an anonymous class/struct/union/enum type.
+  ///
+  /// \param NameLoc the location of the name of the tag.
+  ///
+  /// \param Attr the set of attributes that appertain to the tag.
+  ///
+  /// \param AS when this tag occurs within a C++ class, provides the
+  /// current access specifier (AS_public, AS_private, AS_protected).
+  /// Otherwise, it will be AS_none.
+  ///
+  /// \param TemplateParameterLists the set of C++ template parameter lists
+  /// that apply to this tag, if the tag is a declaration or definition (see
+  /// the \p TK parameter). The action module is responsible for determining,
+  /// based on the template parameter lists and the scope specifier, whether
+  /// the declared tag is a class template or not.
+  ///
+  /// \param OwnedDecl the callee should set this flag true when the returned
+  /// declaration is "owned" by this reference. Ownership is handled entirely
+  /// by the action module.
+  ///
+  /// \returns the declaration to which this tag refers.
+  virtual DeclPtrTy ActOnTag(Scope *S, unsigned TagSpec, TagUseKind TUK,
                              SourceLocation KWLoc, const CXXScopeSpec &SS,
                              IdentifierInfo *Name, SourceLocation NameLoc,
                              AttributeList *Attr, AccessSpecifier AS,
-                             bool &OwnedDecl) {
-    // TagType is an instance of DeclSpec::TST, indicating what kind of tag this
-    // is (struct/union/enum/class).
+                             MultiTemplateParamsArg TemplateParameterLists,
+                             bool &OwnedDecl, bool &IsDependent) {
     return DeclPtrTy();
   }
-  
+
+  /// Acts on a reference to a dependent tag name.  This arises in
+  /// cases like:
+  ///
+  ///    template <class T> class A;
+  ///    template <class T> class B {
+  ///      friend class A<T>::M;  // here
+  ///    };
+  ///
+  /// \param TagSpec an instance of DeclSpec::TST corresponding to the
+  /// tag specifier.
+  ///
+  /// \param TUK the tag use kind (either TUK_Friend or TUK_Reference)
+  ///
+  /// \param SS the scope specifier (always defined)
+  virtual TypeResult ActOnDependentTag(Scope *S,
+                                       unsigned TagSpec,
+                                       TagUseKind TUK,
+                                       const CXXScopeSpec &SS,
+                                       IdentifierInfo *Name,
+                                       SourceLocation KWLoc,
+                                       SourceLocation NameLoc) {
+    return TypeResult();
+  }
+
   /// Act on @defs() element found when parsing a structure.  ClassName is the
-  /// name of the referenced class.   
+  /// name of the referenced class.
   virtual void ActOnDefs(Scope *S, DeclPtrTy TagD, SourceLocation DeclStart,
                          IdentifierInfo *ClassName,
                          llvm::SmallVectorImpl<DeclPtrTy> &Decls) {}
@@ -432,19 +592,19 @@ public:
                                Declarator &D, ExprTy *BitfieldWidth) {
     return DeclPtrTy();
   }
-  
+
   virtual DeclPtrTy ActOnIvar(Scope *S, SourceLocation DeclStart,
                               DeclPtrTy IntfDecl,
                               Declarator &D, ExprTy *BitfieldWidth,
                               tok::ObjCKeywordKind visibility) {
     return DeclPtrTy();
   }
-  
+
   virtual void ActOnFields(Scope* S, SourceLocation RecLoc, DeclPtrTy TagDecl,
-                           DeclPtrTy *Fields, unsigned NumFields, 
+                           DeclPtrTy *Fields, unsigned NumFields,
                            SourceLocation LBrac, SourceLocation RBrac,
                            AttributeList *AttrList) {}
-  
+
   /// ActOnTagStartDefinition - Invoked when we have entered the
   /// scope of a tag's definition (e.g., for an enumeration, class,
   /// struct, or union).
@@ -452,7 +612,8 @@ public:
 
   /// ActOnTagFinishDefinition - Invoked once we have finished parsing
   /// the definition of a tag (enumeration, class, struct, or union).
-  virtual void ActOnTagFinishDefinition(Scope *S, DeclPtrTy TagDecl) { }
+  virtual void ActOnTagFinishDefinition(Scope *S, DeclPtrTy TagDecl,
+                                        SourceLocation RBraceLoc) { }
 
   virtual DeclPtrTy ActOnEnumConstant(Scope *S, DeclPtrTy EnumDecl,
                                       DeclPtrTy LastEnumConstant,
@@ -462,7 +623,8 @@ public:
   }
   virtual void ActOnEnumBody(SourceLocation EnumLoc, SourceLocation LBraceLoc,
                              SourceLocation RBraceLoc, DeclPtrTy EnumDecl,
-                             DeclPtrTy *Elements, unsigned NumElements) {}
+                             DeclPtrTy *Elements, unsigned NumElements,
+                             Scope *S, AttributeList *AttrList) {}
 
   //===--------------------------------------------------------------------===//
   // Statement Parsing Callbacks.
@@ -496,10 +658,10 @@ public:
                                          SourceLocation ColonLoc) {
     return StmtEmpty();
   }
-  
+
   /// ActOnCaseStmtBody - This installs a statement as the body of a case.
   virtual void ActOnCaseStmtBody(StmtTy *CaseStmt, StmtArg SubStmt) {}
-  
+
   virtual OwningStmtResult ActOnDefaultStmt(SourceLocation DefaultLoc,
                                             SourceLocation ColonLoc,
                                             StmtArg SubStmt, Scope *CurScope){
@@ -513,8 +675,8 @@ public:
     return StmtEmpty();
   }
 
-  virtual OwningStmtResult ActOnIfStmt(SourceLocation IfLoc, 
-                                       FullExprArg CondVal, StmtArg ThenVal, 
+  virtual OwningStmtResult ActOnIfStmt(SourceLocation IfLoc,
+                                       FullExprArg CondVal, StmtArg ThenVal,
                                        SourceLocation ElseLoc,
                                        StmtArg ElseVal) {
     return StmtEmpty();
@@ -529,12 +691,12 @@ public:
     return StmtEmpty();
   }
 
-  virtual OwningStmtResult ActOnWhileStmt(SourceLocation WhileLoc, 
+  virtual OwningStmtResult ActOnWhileStmt(SourceLocation WhileLoc,
                                           FullExprArg Cond, StmtArg Body) {
     return StmtEmpty();
   }
   virtual OwningStmtResult ActOnDoStmt(SourceLocation DoLoc, StmtArg Body,
-                                       SourceLocation WhileLoc, 
+                                       SourceLocation WhileLoc,
                                        SourceLocation CondLParen,
                                        ExprArg Cond,
                                        SourceLocation CondRParen) {
@@ -572,11 +734,11 @@ public:
     return StmtEmpty();
   }
   virtual OwningStmtResult ActOnReturnStmt(SourceLocation ReturnLoc,
-                                           FullExprArg RetValExp) {
+                                           ExprArg RetValExp) {
     return StmtEmpty();
   }
   virtual OwningStmtResult ActOnAsmStmt(SourceLocation AsmLoc,
-                                        bool IsSimple,                                  
+                                        bool IsSimple,
                                         bool IsVolatile,
                                         unsigned NumOutputs,
                                         unsigned NumInputs,
@@ -647,15 +809,15 @@ public:
     /// \brief The current expression and its subexpressions occur within an
     /// unevaluated operand (C++0x [expr]p8), such as a constant expression
     /// or the subexpression of \c sizeof, where the type or the value of the
-    /// expression may be significant but no code will be generated to evaluate 
+    /// expression may be significant but no code will be generated to evaluate
     /// the value of the expression at run time.
     Unevaluated,
-    
-    /// \brief The current expression is potentially evaluated at run time, 
-    /// which means that code may be generated to evaluate the value of the 
+
+    /// \brief The current expression is potentially evaluated at run time,
+    /// which means that code may be generated to evaluate the value of the
     /// expression at run time.
     PotentiallyEvaluated,
-    
+
     /// \brief The current expression may be potentially evaluated or it may
     /// be unevaluated, but it is impossible to tell from the lexical context.
     /// This evaluation context is used primary for the operand of the C++
@@ -663,17 +825,17 @@ public:
     /// it is an lvalue of polymorphic class type (C++ [basic.def.odr]p2).
     PotentiallyPotentiallyEvaluated
   };
-  
+
   /// \brief The parser is entering a new expression evaluation context.
   ///
   /// \param NewContext is the new expression evaluation context.
   ///
   /// \returns the previous expression evaluation context.
-  virtual ExpressionEvaluationContext 
+  virtual ExpressionEvaluationContext
   PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext) {
     return PotentiallyEvaluated;
   }
-  
+
   /// \brief The parser is existing an expression evaluation context.
   ///
   /// \param OldContext the expression evaluation context that the parser is
@@ -681,10 +843,10 @@ public:
   ///
   /// \param NewContext the expression evaluation context that the parser is
   /// returning to.
-  virtual void 
+  virtual void
   PopExpressionEvaluationContext(ExpressionEvaluationContext OldContext,
                                  ExpressionEvaluationContext NewContext) { }
-  
+
   // Primary Expressions.
 
   /// \brief Retrieve the source range that corresponds to the given
@@ -756,6 +918,12 @@ public:
     return move(Val);  // Default impl returns operand.
   }
 
+  virtual OwningExprResult ActOnParenListExpr(SourceLocation L,
+                                              SourceLocation R,
+                                              MultiExprArg Val) {
+    return ExprEmpty();
+  }
+
   // Postfix Expressions.
   virtual OwningExprResult ActOnPostfixUnaryOp(Scope *S, SourceLocation OpLoc,
                                                tok::TokenKind Kind,
@@ -773,7 +941,8 @@ public:
                                                     tok::TokenKind OpKind,
                                                     SourceLocation MemberLoc,
                                                     IdentifierInfo &Member,
-                                                    DeclPtrTy ObjCImpDecl) {
+                                                    DeclPtrTy ObjCImpDecl,
+                                                const CXXScopeSpec *SS = 0) {
     return ExprEmpty();
   }
 
@@ -811,8 +980,8 @@ public:
                                          SourceLocation RParenLoc) {
     return ExprEmpty();
   }
-  /// @brief Parsed a C99 designated initializer. 
-  /// 
+  /// @brief Parsed a C99 designated initializer.
+  ///
   /// @param Desig Contains the designation with one or more designators.
   ///
   /// @param Loc The location of the '=' or ':' prior to the
@@ -831,8 +1000,9 @@ public:
     return ExprEmpty();
   }
 
-  virtual OwningExprResult ActOnCastExpr(SourceLocation LParenLoc, TypeTy *Ty,
-                                         SourceLocation RParenLoc, ExprArg Op) {
+  virtual OwningExprResult ActOnCastExpr(Scope *S, SourceLocation LParenLoc,
+                                         TypeTy *Ty, SourceLocation RParenLoc,
+                                         ExprArg Op) {
     return ExprEmpty();
   }
 
@@ -885,13 +1055,13 @@ public:
   }
 
   // __builtin_types_compatible_p(type1, type2)
-  virtual OwningExprResult ActOnTypesCompatibleExpr(SourceLocation BuiltinLoc, 
+  virtual OwningExprResult ActOnTypesCompatibleExpr(SourceLocation BuiltinLoc,
                                                     TypeTy *arg1, TypeTy *arg2,
                                                     SourceLocation RPLoc) {
     return ExprEmpty();
   }
   // __builtin_choose_expr(constExpr, expr1, expr2)
-  virtual OwningExprResult ActOnChooseExpr(SourceLocation BuiltinLoc, 
+  virtual OwningExprResult ActOnChooseExpr(SourceLocation BuiltinLoc,
                                            ExprArg cond, ExprArg expr1,
                                            ExprArg expr2, SourceLocation RPLoc){
     return ExprEmpty();
@@ -971,6 +1141,7 @@ public:
 
   /// ActOnUsingDirective - This is called when using-directive is parsed.
   virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
+                                          AccessSpecifier AS,
                                           SourceLocation UsingLoc,
                                           const CXXScopeSpec &SS,
                                           SourceLocation IdentLoc,
@@ -978,7 +1149,7 @@ public:
                                           OverloadedOperatorKind Op,
                                           AttributeList *AttrList,
                                           bool IsTypeName);
-                                         
+
   /// ActOnParamDefaultArgument - Parse default argument for function parameter
   virtual void ActOnParamDefaultArgument(DeclPtrTy param,
                                          SourceLocation EqualLoc,
@@ -989,7 +1160,7 @@ public:
   /// argument for a function parameter, but we can't parse it yet
   /// because we're inside a class definition. Note that this default
   /// argument will be parsed later.
-  virtual void ActOnParamUnparsedDefaultArgument(DeclPtrTy param, 
+  virtual void ActOnParamUnparsedDefaultArgument(DeclPtrTy param,
                                                  SourceLocation EqualLoc,
                                                  SourceLocation ArgLoc) { }
 
@@ -997,7 +1168,7 @@ public:
   /// the default argument for the parameter param failed.
   virtual void ActOnParamDefaultArgumentError(DeclPtrTy param) { }
 
-  /// AddCXXDirectInitializerToDecl - This action is called immediately after 
+  /// AddCXXDirectInitializerToDecl - This action is called immediately after
   /// ActOnDeclarator, when a C++ direct initializer is present.
   /// e.g: "int x(1);"
   virtual void AddCXXDirectInitializerToDecl(DeclPtrTy Dcl,
@@ -1063,13 +1234,22 @@ public:
     return DeclPtrTy();
   }
 
-  /// ActOnFriendDecl - This action is called when a friend declaration is
-  /// encountered. Returns false on success.
-  virtual bool ActOnFriendDecl(Scope *S, SourceLocation FriendLoc,
-                               DeclPtrTy Dcl) {
-    return false;
+  /// ActOnFriendFunctionDecl - Parsed a friend function declarator.
+  /// The name is actually a slight misnomer, because the declarator
+  /// is not necessarily a function declarator.
+  virtual DeclPtrTy ActOnFriendFunctionDecl(Scope *S,
+                                            Declarator &D,
+                                            bool IsDefinition,
+                                            MultiTemplateParamsArg TParams) {
+    return DeclPtrTy();
   }
-  
+
+  /// ActOnFriendTypeDecl - Parsed a friend type declaration.
+  virtual DeclPtrTy ActOnFriendTypeDecl(Scope *S,
+                                        const DeclSpec &DS,
+                                        MultiTemplateParamsArg TParams) {
+    return DeclPtrTy();
+  }
 
   //===------------------------- C++ Expressions --------------------------===//
 
@@ -1171,6 +1351,119 @@ public:
     return ExprEmpty();
   }
 
+  /// \brief Invoked when the parser is starting to parse a C++ member access
+  /// expression such as x.f or x->f.
+  ///
+  /// \param S the scope in which the member access expression occurs.
+  ///
+  /// \param Base the expression in which a member is being accessed, e.g., the
+  /// "x" in "x.f".
+  ///
+  /// \param OpLoc the location of the member access operator ("." or "->")
+  ///
+  /// \param OpKind the kind of member access operator ("." or "->")
+  ///
+  /// \param ObjectType originally NULL. The action should fill in this type
+  /// with the type into which name lookup should look to find the member in
+  /// the member access expression.
+  ///
+  /// \returns the (possibly modified) \p Base expression
+  virtual OwningExprResult ActOnStartCXXMemberReference(Scope *S,
+                                                        ExprArg Base,
+                                                        SourceLocation OpLoc,
+                                                        tok::TokenKind OpKind,
+                                                        TypeTy *&ObjectType) {
+    return ExprEmpty();
+  }
+
+  /// ActOnDestructorReferenceExpr - Parsed a destructor reference, for example:
+  ///
+  /// t->~T();
+  virtual OwningExprResult
+  ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
+                               SourceLocation OpLoc,
+                               tok::TokenKind OpKind,
+                               SourceLocation ClassNameLoc,
+                               IdentifierInfo *ClassName,
+                               const CXXScopeSpec &SS,
+                               bool HasTrailingLParen) {
+    return ExprEmpty();
+  }
+
+  /// ActOnOverloadedOperatorReferenceExpr - Parsed an overloaded operator
+  /// reference, for example:
+  ///
+  /// t.operator++();
+  virtual OwningExprResult
+  ActOnOverloadedOperatorReferenceExpr(Scope *S, ExprArg Base,
+                                       SourceLocation OpLoc,
+                                       tok::TokenKind OpKind,
+                                       SourceLocation ClassNameLoc,
+                                       OverloadedOperatorKind OverOpKind,
+                                       const CXXScopeSpec *SS = 0) {
+    return ExprEmpty();
+  }
+
+  /// ActOnConversionOperatorReferenceExpr - Parsed an overloaded conversion
+  /// function reference, for example:
+  ///
+  /// t.operator int();
+  virtual OwningExprResult
+  ActOnConversionOperatorReferenceExpr(Scope *S, ExprArg Base,
+                                       SourceLocation OpLoc,
+                                       tok::TokenKind OpKind,
+                                       SourceLocation ClassNameLoc,
+                                       TypeTy *Ty,
+                                       const CXXScopeSpec *SS = 0) {
+    return ExprEmpty();
+  }
+
+  /// \brief Parsed a reference to a member template-id.
+  ///
+  /// This callback will occur instead of ActOnMemberReferenceExpr() when the
+  /// member in question is a template for which the code provides an
+  /// explicitly-specified template argument list, e.g.,
+  ///
+  /// \code
+  /// x.f<int>()
+  /// \endcode
+  ///
+  /// \param S the scope in which the member reference expression occurs
+  ///
+  /// \param Base the expression to the left of the "." or "->".
+  ///
+  /// \param OpLoc the location of the "." or "->".
+  ///
+  /// \param OpKind the kind of operator, which will be "." or "->".
+  ///
+  /// \param SS the scope specifier that precedes the template-id in, e.g.,
+  /// \c x.Base::f<int>().
+  ///
+  /// \param Template the declaration of the template that is being referenced.
+  ///
+  /// \param TemplateNameLoc the location of the template name referred to by
+  /// \p Template.
+  ///
+  /// \param LAngleLoc the location of the left angle bracket ('<')
+  ///
+  /// \param TemplateArgs the (possibly-empty) template argument list provided
+  /// as part of the member reference.
+  ///
+  /// \param RAngleLoc the location of the right angle bracket ('>')
+  virtual OwningExprResult
+  ActOnMemberTemplateIdReferenceExpr(Scope *S, ExprArg Base,
+                                     SourceLocation OpLoc,
+                                     tok::TokenKind OpKind,
+                                     const CXXScopeSpec &SS,
+                                     // FIXME: "template" keyword?
+                                     TemplateTy Template,
+                                     SourceLocation TemplateNameLoc,
+                                     SourceLocation LAngleLoc,
+                                     ASTTemplateArgsPtr TemplateArgs,
+                                     SourceLocation *TemplateArgLocs,
+                                     SourceLocation RAngleLoc) {
+    return ExprEmpty();
+  }
 
   /// ActOnFinishFullExpr - Called whenever a full expression has been parsed.
   /// (C++ [intro.execution]p12).
@@ -1180,18 +1473,18 @@ public:
 
   //===---------------------------- C++ Classes ---------------------------===//
   /// ActOnBaseSpecifier - Parsed a base specifier
-  virtual BaseResult ActOnBaseSpecifier(DeclPtrTy classdecl, 
+  virtual BaseResult ActOnBaseSpecifier(DeclPtrTy classdecl,
                                         SourceRange SpecifierRange,
                                         bool Virtual, AccessSpecifier Access,
-                                        TypeTy *basetype, 
+                                        TypeTy *basetype,
                                         SourceLocation BaseLoc) {
     return BaseResult();
   }
 
-  virtual void ActOnBaseSpecifiers(DeclPtrTy ClassDecl, BaseTy **Bases, 
+  virtual void ActOnBaseSpecifiers(DeclPtrTy ClassDecl, BaseTy **Bases,
                                    unsigned NumBases) {
   }
-                                   
+
   /// ActOnCXXMemberDeclarator - This is invoked when a C++ class member
   /// declarator is parsed. 'AS' is the access specifier, 'BitfieldWidth'
   /// specifies the bitfield width if there is one and 'Init' specifies the
@@ -1199,6 +1492,7 @@ public:
   /// specifier on the function.
   virtual DeclPtrTy ActOnCXXMemberDeclarator(Scope *S, AccessSpecifier AS,
                                              Declarator &D,
+                                 MultiTemplateParamsArg TemplateParameterLists,
                                              ExprTy *BitfieldWidth,
                                              ExprTy *Init,
                                              bool Deleted = false) {
@@ -1223,11 +1517,13 @@ public:
   /// is the function declaration (which will be a C++ constructor in
   /// a well-formed program), ColonLoc is the location of the ':' that
   /// starts the constructor initializer, and MemInit/NumMemInits
-  /// contains the individual member (and base) initializers. 
-  virtual void ActOnMemInitializers(DeclPtrTy ConstructorDecl, 
+  /// contains the individual member (and base) initializers.
+  virtual void ActOnMemInitializers(DeclPtrTy ConstructorDecl,
                                     SourceLocation ColonLoc,
                                     MemInitTy **MemInits, unsigned NumMemInits){
   }
+
+ virtual void ActOnDefaultCtorInitializers(DeclPtrTy CDtorDecl) {}
 
   /// ActOnFinishCXXMemberSpecification - Invoked after all member declarators
   /// are parsed but *before* parsing of inline method definitions.
@@ -1242,17 +1538,17 @@ public:
   /// ActOnTypeParameter - Called when a C++ template type parameter
   /// (e.g., "typename T") has been parsed. Typename specifies whether
   /// the keyword "typename" was used to declare the type parameter
-  /// (otherwise, "class" was used), ellipsis specifies whether this is a 
+  /// (otherwise, "class" was used), ellipsis specifies whether this is a
   /// C++0x parameter pack, EllipsisLoc specifies the start of the ellipsis,
-  /// and KeyLoc is the location of the "class" or "typename" keyword. 
-  //  ParamName is the name of the parameter (NULL indicates an unnamed template 
+  /// and KeyLoc is the location of the "class" or "typename" keyword.
+  //  ParamName is the name of the parameter (NULL indicates an unnamed template
   //  parameter) and ParamNameLoc is the location of the parameter name (if any)
   /// If the type parameter has a default argument, it will be added
   /// later via ActOnTypeParameterDefault. Depth and Position provide
   /// the number of enclosing templates (see
   /// ActOnTemplateParameterList) and the number of previous
   /// parameters within this template parameter list.
-  virtual DeclPtrTy ActOnTypeParameter(Scope *S, bool Typename, bool Ellipsis, 
+  virtual DeclPtrTy ActOnTypeParameter(Scope *S, bool Typename, bool Ellipsis,
                                        SourceLocation EllipsisLoc,
                                        SourceLocation KeyLoc,
                                        IdentifierInfo *ParamName,
@@ -1262,8 +1558,8 @@ public:
   }
 
   /// ActOnTypeParameterDefault - Adds a default argument (the type
-  /// Default) to the given template type parameter (TypeParam). 
-  virtual void ActOnTypeParameterDefault(DeclPtrTy TypeParam, 
+  /// Default) to the given template type parameter (TypeParam).
+  virtual void ActOnTypeParameterDefault(DeclPtrTy TypeParam,
                                          SourceLocation EqualLoc,
                                          SourceLocation DefaultLoc,
                                          TypeTy *Default) {
@@ -1277,7 +1573,7 @@ public:
   /// ActOnTemplateParameterList) and the number of previous
   /// parameters within this template parameter list.
   virtual DeclPtrTy ActOnNonTypeTemplateParameter(Scope *S, Declarator &D,
-                                                  unsigned Depth, 
+                                                  unsigned Depth,
                                                   unsigned Position) {
     return DeclPtrTy();
   }
@@ -1335,7 +1631,7 @@ public:
   /// @endcode
   ///
   /// ExportLoc, if valid, is the position of the "export"
-  /// keyword. Otherwise, "export" was not specified. 
+  /// keyword. Otherwise, "export" was not specified.
   /// TemplateLoc is the position of the template keyword, LAngleLoc
   /// is the position of the left angle bracket, and RAngleLoc is the
   /// position of the corresponding right angle bracket.
@@ -1344,23 +1640,11 @@ public:
   virtual TemplateParamsTy *
   ActOnTemplateParameterList(unsigned Depth,
                              SourceLocation ExportLoc,
-                             SourceLocation TemplateLoc, 
+                             SourceLocation TemplateLoc,
                              SourceLocation LAngleLoc,
                              DeclPtrTy *Params, unsigned NumParams,
                              SourceLocation RAngleLoc) {
     return 0;
-  }
-
-  /// \brief Process the declaration or definition of a class template
-  /// with the given template parameter lists.
-  virtual DeclResult
-  ActOnClassTemplate(Scope *S, unsigned TagSpec, TagKind TK,
-                     SourceLocation KWLoc, const CXXScopeSpec &SS,
-                     IdentifierInfo *Name, SourceLocation NameLoc,
-                     AttributeList *Attr,
-                     MultiTemplateParamsArg TemplateParameterLists,
-                     AccessSpecifier AS) {
-    return DeclResult();
   }
 
   /// \brief Form a type from a template and a list of template
@@ -1372,10 +1656,6 @@ public:
   ///
   /// \param Template  A template whose specialization results in a
   /// type, e.g., a class template or template template parameter.
-  /// 
-  /// \param IsSpecialization true when we are naming the class
-  /// template specialization as part of an explicit class
-  /// specialization or class template partial specialization.
   virtual TypeResult ActOnTemplateIdType(TemplateTy Template,
                                          SourceLocation TemplateLoc,
                                          SourceLocation LAngleLoc,
@@ -1384,6 +1664,25 @@ public:
                                          SourceLocation RAngleLoc) {
     return TypeResult();
   };
+
+  /// \brief Note that a template ID was used with a tag.
+  ///
+  /// \param Type The result of ActOnTemplateIdType.
+  ///
+  /// \param TUK Either TUK_Reference or TUK_Friend.  Declarations and
+  /// definitions are interpreted as explicit instantiations or
+  /// specializations.
+  ///
+  /// \param TagSpec The tag keyword that was provided as part of the
+  /// elaborated-type-specifier;  either class, struct, union, or enum.
+  ///
+  /// \param TagLoc The location of the tag keyword.
+  virtual TypeResult ActOnTagTemplateIdType(TypeResult Type,
+                                            TagUseKind TUK,
+                                            DeclSpec::TST TagSpec,
+                                            SourceLocation TagLoc) {
+    return TypeResult();
+  }
 
   /// \brief Form a reference to a template-id (that will refer to a function)
   /// from a template and a list of template arguments.
@@ -1402,7 +1701,7 @@ public:
                                                SourceLocation RAngleLoc) {
     return ExprError();
   }
-  
+
   /// \brief Form a dependent template name.
   ///
   /// This action forms a dependent template name given the template
@@ -1410,10 +1709,26 @@ public:
   /// example, given "MetaFun::template apply", the scope specifier \p
   /// SS will be "MetaFun::", \p TemplateKWLoc contains the location
   /// of the "template" keyword, and "apply" is the \p Name.
+  ///
+  /// \param TemplateKWLoc the location of the "template" keyword (if any).
+  ///
+  /// \param Name the name of the template (an identifier)
+  ///
+  /// \param NameLoc the location of the identifier
+  ///
+  /// \param SS the nested-name-specifier that precedes the "template" keyword
+  /// or the template name. FIXME: If the dependent template name occurs in
+  /// a member access expression, e.g., "x.template f<T>", this
+  /// nested-name-specifier will be empty.
+  ///
+  /// \param ObjectType if this dependent template name occurs in the
+  /// context of a member access expression, the type of the object being
+  /// accessed.
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
                                                 const IdentifierInfo &Name,
                                                 SourceLocation NameLoc,
-                                                const CXXScopeSpec &SS) {
+                                                const CXXScopeSpec &SS,
+                                                TypeTy *ObjectType) {
     return TemplateTy();
   }
 
@@ -1444,8 +1759,8 @@ public:
   /// \param TagSpec whether this declares a class, struct, or union
   /// (template)
   ///
-  /// \param TK whether this is a declaration or a definition
-  /// 
+  /// \param TUK whether this is a declaration or a definition
+  ///
   /// \param KWLoc the location of the 'class', 'struct', or 'union'
   /// keyword.
   ///
@@ -1464,8 +1779,8 @@ public:
   /// parameter lists (such as a missing \c template<> prior to a
   /// specialization); the parser does not check this condition.
   virtual DeclResult
-  ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagKind TK,
-                                   SourceLocation KWLoc, 
+  ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagUseKind TUK,
+                                   SourceLocation KWLoc,
                                    const CXXScopeSpec &SS,
                                    TemplateTy Template,
                                    SourceLocation TemplateNameLoc,
@@ -1482,22 +1797,22 @@ public:
   /// lists has been parsed.
   ///
   /// This action is similar to ActOnDeclarator(), except that the declaration
-  /// being created somehow involves a template, e.g., it is a template 
+  /// being created somehow involves a template, e.g., it is a template
   /// declaration or specialization.
-  virtual DeclPtrTy ActOnTemplateDeclarator(Scope *S, 
+  virtual DeclPtrTy ActOnTemplateDeclarator(Scope *S,
                               MultiTemplateParamsArg TemplateParameterLists,
                                             Declarator &D) {
     return DeclPtrTy();
   }
-  
+
   /// \brief Invoked when the parser is beginning to parse a function template
   /// or function template specialization definition.
-  virtual DeclPtrTy ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope, 
+  virtual DeclPtrTy ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope,
                                 MultiTemplateParamsArg TemplateParameterLists,
                                                     Declarator &D) {
     return DeclPtrTy();
   }
-  
+
   /// \brief Process the explicit instantiation of a class template
   /// specialization.
   ///
@@ -1512,6 +1827,9 @@ public:
   /// \endcode
   ///
   /// \param S the current scope
+  ///
+  /// \param ExternLoc the location of the 'extern' keyword that specifies that
+  /// this is an extern template (if any).
   ///
   /// \param TemplateLoc the location of the 'template' keyword that
   /// specifies that this is an explicit instantiation.
@@ -1538,8 +1856,10 @@ public:
   ///
   /// \param Attr attributes that apply to this instantiation.
   virtual DeclResult
-  ActOnExplicitInstantiation(Scope *S, SourceLocation TemplateLoc,
-                             unsigned TagSpec, 
+  ActOnExplicitInstantiation(Scope *S,
+                             SourceLocation ExternLoc,
+                             SourceLocation TemplateLoc,
+                             unsigned TagSpec,
                              SourceLocation KWLoc,
                              const CXXScopeSpec &SS,
                              TemplateTy Template,
@@ -1551,7 +1871,7 @@ public:
                              AttributeList *Attr) {
     return DeclResult();
   }
-                             
+
   /// \brief Process the explicit instantiation of a member class of a
   /// class template specialization.
   ///
@@ -1568,6 +1888,9 @@ public:
   ///
   /// \param S the current scope
   ///
+  /// \param ExternLoc the location of the 'extern' keyword that specifies that
+  /// this is an extern template (if any).
+  ///
   /// \param TemplateLoc the location of the 'template' keyword that
   /// specifies that this is an explicit instantiation.
   ///
@@ -1593,8 +1916,10 @@ public:
   ///
   /// \param Attr attributes that apply to this instantiation.
   virtual DeclResult
-  ActOnExplicitInstantiation(Scope *S, SourceLocation TemplateLoc,
-                             unsigned TagSpec, 
+  ActOnExplicitInstantiation(Scope *S,
+                             SourceLocation ExternLoc,
+                             SourceLocation TemplateLoc,
+                             unsigned TagSpec,
                              SourceLocation KWLoc,
                              const CXXScopeSpec &SS,
                              IdentifierInfo *Name,
@@ -1603,6 +1928,38 @@ public:
     return DeclResult();
   }
 
+  /// \brief Process the explicit instantiation of a function template or a
+  /// member of a class template.
+  ///
+  /// This routine is invoked when an explicit instantiation of a
+  /// function template or member function of a class template specialization 
+  /// is encountered. In the following example,
+  /// ActOnExplicitInstantiation will be invoked to force the
+  /// instantiation of X<int>:
+  ///
+  /// \code
+  /// template<typename T> void f(T);
+  /// template void f(int); // explicit instantiation
+  /// \endcode
+  ///
+  /// \param S the current scope
+  ///
+  /// \param ExternLoc the location of the 'extern' keyword that specifies that
+  /// this is an extern template (if any).
+  ///
+  /// \param TemplateLoc the location of the 'template' keyword that
+  /// specifies that this is an explicit instantiation.
+  ///
+  /// \param D the declarator describing the declaration to be implicitly
+  /// instantiated.
+  virtual DeclResult ActOnExplicitInstantiation(Scope *S,
+                                                SourceLocation ExternLoc,
+                                                SourceLocation TemplateLoc,
+                                                Declarator &D) {
+    return DeclResult();
+  }
+                             
+                              
   /// \brief Called when the parser has parsed a C++ typename
   /// specifier that ends in an identifier, e.g., "typename T::type".
   ///
@@ -1617,7 +1974,7 @@ public:
   }
 
   /// \brief Called when the parser has parsed a C++ typename
-  /// specifier that ends in a template-id, e.g., 
+  /// specifier that ends in a template-id, e.g.,
   /// "typename MetaFun::template apply<T1, T2>".
   ///
   /// \param TypenameLoc the location of the 'typename' keyword
@@ -1631,22 +1988,22 @@ public:
   }
 
   //===----------------------- Obj-C Declarations -------------------------===//
-  
+
   // ActOnStartClassInterface - this action is called immediately after parsing
-  // the prologue for a class interface (before parsing the instance 
+  // the prologue for a class interface (before parsing the instance
   // variables). Instance variables are processed by ActOnFields().
   virtual DeclPtrTy ActOnStartClassInterface(SourceLocation AtInterfaceLoc,
-                                             IdentifierInfo *ClassName, 
+                                             IdentifierInfo *ClassName,
                                              SourceLocation ClassLoc,
-                                             IdentifierInfo *SuperName, 
+                                             IdentifierInfo *SuperName,
                                              SourceLocation SuperLoc,
-                                             const DeclPtrTy *ProtoRefs, 
+                                             const DeclPtrTy *ProtoRefs,
                                              unsigned NumProtoRefs,
                                              SourceLocation EndProtoLoc,
                                              AttributeList *AttrList) {
     return DeclPtrTy();
   }
-  
+
   /// ActOnCompatiblityAlias - this action is called after complete parsing of
   /// @compaatibility_alias declaration. It sets up the alias relationships.
   virtual DeclPtrTy ActOnCompatiblityAlias(
@@ -1655,11 +2012,11 @@ public:
     IdentifierInfo *ClassName, SourceLocation ClassLocation) {
     return DeclPtrTy();
   }
-  
+
   // ActOnStartProtocolInterface - this action is called immdiately after
   // parsing the prologue for a protocol interface.
   virtual DeclPtrTy ActOnStartProtocolInterface(SourceLocation AtProtoLoc,
-                                                IdentifierInfo *ProtocolName, 
+                                                IdentifierInfo *ProtocolName,
                                                 SourceLocation ProtocolLoc,
                                                 const DeclPtrTy *ProtoRefs,
                                                 unsigned NumProtoRefs,
@@ -1670,9 +2027,9 @@ public:
   // ActOnStartCategoryInterface - this action is called immdiately after
   // parsing the prologue for a category interface.
   virtual DeclPtrTy ActOnStartCategoryInterface(SourceLocation AtInterfaceLoc,
-                                                IdentifierInfo *ClassName, 
+                                                IdentifierInfo *ClassName,
                                                 SourceLocation ClassLoc,
-                                                IdentifierInfo *CategoryName, 
+                                                IdentifierInfo *CategoryName,
                                                 SourceLocation CategoryLoc,
                                                 const DeclPtrTy *ProtoRefs,
                                                 unsigned NumProtoRefs,
@@ -1680,13 +2037,13 @@ public:
     return DeclPtrTy();
   }
   // ActOnStartClassImplementation - this action is called immdiately after
-  // parsing the prologue for a class implementation. Instance variables are 
+  // parsing the prologue for a class implementation. Instance variables are
   // processed by ActOnFields().
   virtual DeclPtrTy ActOnStartClassImplementation(
     SourceLocation AtClassImplLoc,
-    IdentifierInfo *ClassName, 
+    IdentifierInfo *ClassName,
     SourceLocation ClassLoc,
-    IdentifierInfo *SuperClassname, 
+    IdentifierInfo *SuperClassname,
     SourceLocation SuperClassLoc) {
     return DeclPtrTy();
   }
@@ -1694,12 +2051,12 @@ public:
   // parsing the prologue for a category implementation.
   virtual DeclPtrTy ActOnStartCategoryImplementation(
     SourceLocation AtCatImplLoc,
-    IdentifierInfo *ClassName, 
+    IdentifierInfo *ClassName,
     SourceLocation ClassLoc,
     IdentifierInfo *CatName,
     SourceLocation CatLoc) {
     return DeclPtrTy();
-  }  
+  }
   // ActOnPropertyImplDecl - called for every property implementation
   virtual DeclPtrTy ActOnPropertyImplDecl(
    SourceLocation AtLoc,              // location of the @synthesize/@dynamic
@@ -1711,7 +2068,7 @@ public:
    IdentifierInfo *propertyIvar) {    // name of the ivar
     return DeclPtrTy();
   }
-  
+
   struct ObjCArgInfo {
     IdentifierInfo *Name;
     SourceLocation NameLoc;
@@ -1719,12 +2076,12 @@ public:
     // in this case.
     TypeTy *Type;
     ObjCDeclSpec DeclSpec;
-    
+
     /// ArgAttrs - Attribute list for this argument.
     AttributeList *ArgAttrs;
   };
 
-  // ActOnMethodDeclaration - called for all method declarations. 
+  // ActOnMethodDeclaration - called for all method declarations.
   virtual DeclPtrTy ActOnMethodDeclaration(
     SourceLocation BeginLoc,   // location of the + or -.
     SourceLocation EndLoc,     // location of the ; or {.
@@ -1736,20 +2093,20 @@ public:
     ObjCArgInfo *ArgInfo,      // ArgInfo: Has 'Sel.getNumArgs()' entries.
     llvm::SmallVectorImpl<Declarator> &Cdecls, // c-style args
     AttributeList *MethodAttrList, // optional
-    // tok::objc_not_keyword, tok::objc_optional, tok::objc_required    
+    // tok::objc_not_keyword, tok::objc_optional, tok::objc_required
     tok::ObjCKeywordKind impKind,
     bool isVariadic = false) {
     return DeclPtrTy();
   }
   // ActOnAtEnd - called to mark the @end. For declarations (interfaces,
-  // protocols, categories), the parser passes all methods/properties. 
+  // protocols, categories), the parser passes all methods/properties.
   // For class implementations, these values default to 0. For implementations,
   // methods are processed incrementally (by ActOnMethodDeclaration above).
-  virtual void ActOnAtEnd(SourceLocation AtEndLoc, 
+  virtual void ActOnAtEnd(SourceLocation AtEndLoc,
                           DeclPtrTy classDecl,
-                          DeclPtrTy *allMethods = 0, 
+                          DeclPtrTy *allMethods = 0,
                           unsigned allNum = 0,
-                          DeclPtrTy *allProperties = 0, 
+                          DeclPtrTy *allProperties = 0,
                           unsigned pNum = 0,
                           DeclGroupPtrTy *allTUVars = 0,
                           unsigned tuvNum = 0) {
@@ -1763,7 +2120,7 @@ public:
                                   tok::ObjCKeywordKind MethodImplKind) {
     return DeclPtrTy();
   }
-                                     
+
   virtual OwningExprResult ActOnClassPropertyRefExpr(
     IdentifierInfo &receiverName,
     IdentifierInfo &propertyName,
@@ -1771,17 +2128,17 @@ public:
     SourceLocation &propertyNameLoc) {
     return ExprEmpty();
   }
-  
+
   // ActOnClassMessage - used for both unary and keyword messages.
   // ArgExprs is optional - if it is present, the number of expressions
   // is obtained from NumArgs.
   virtual ExprResult ActOnClassMessage(
     Scope *S,
-    IdentifierInfo *receivingClassName, 
+    IdentifierInfo *receivingClassName,
     Selector Sel,
     SourceLocation lbrac, SourceLocation receiverLoc,
     SourceLocation selectorLoc,
-    SourceLocation rbrac, 
+    SourceLocation rbrac,
     ExprTy **ArgExprs, unsigned NumArgs) {
     return ExprResult();
   }
@@ -1790,7 +2147,7 @@ public:
   // is obtained from NumArgs.
   virtual ExprResult ActOnInstanceMessage(
     ExprTy *receiver, Selector Sel,
-    SourceLocation lbrac, SourceLocation selectorLoc, SourceLocation rbrac, 
+    SourceLocation lbrac, SourceLocation selectorLoc, SourceLocation rbrac,
     ExprTy **ArgExprs, unsigned NumArgs) {
     return ExprResult();
   }
@@ -1807,7 +2164,7 @@ public:
     AttributeList *AttrList) {
     return DeclPtrTy();
   }
-  
+
   /// FindProtocolDeclaration - This routine looks up protocols and
   /// issues error if they are not declared. It returns list of valid
   /// protocols found.
@@ -1819,7 +2176,7 @@ public:
 
   //===----------------------- Obj-C Expressions --------------------------===//
 
-  virtual ExprResult ParseObjCStringLiteral(SourceLocation *AtLocs, 
+  virtual ExprResult ParseObjCStringLiteral(SourceLocation *AtLocs,
                                             ExprTy **Strings,
                                             unsigned NumStrings) {
     return ExprResult();
@@ -1832,7 +2189,7 @@ public:
                                                SourceLocation RParenLoc) {
     return ExprResult();
   }
-  
+
   virtual ExprResult ParseObjCSelectorExpression(Selector Sel,
                                                  SourceLocation AtLoc,
                                                  SourceLocation SelLoc,
@@ -1840,37 +2197,38 @@ public:
                                                  SourceLocation RParenLoc) {
     return ExprResult();
   }
-  
+
   virtual ExprResult ParseObjCProtocolExpression(IdentifierInfo *ProtocolId,
                                                  SourceLocation AtLoc,
                                                  SourceLocation ProtoLoc,
                                                  SourceLocation LParenLoc,
                                                  SourceLocation RParenLoc) {
     return ExprResult();
-  } 
+  }
 
   //===---------------------------- Pragmas -------------------------------===//
 
   enum PragmaPackKind {
-    PPK_Default, // #pragma pack([n]) 
+    PPK_Default, // #pragma pack([n])
     PPK_Show,    // #pragma pack(show), only supported by MSVC.
     PPK_Push,    // #pragma pack(push, [identifier], [n])
     PPK_Pop      // #pragma pack(pop, [identifier], [n])
   };
-  
+
   /// ActOnPragmaPack - Called on well formed #pragma pack(...).
   virtual void ActOnPragmaPack(PragmaPackKind Kind,
                                IdentifierInfo *Name,
                                ExprTy *Alignment,
-                               SourceLocation PragmaLoc, 
+                               SourceLocation PragmaLoc,
                                SourceLocation LParenLoc,
                                SourceLocation RParenLoc) {
     return;
   }
-  
+
   /// ActOnPragmaUnused - Called on well formed #pragma unused(...).
-  virtual void ActOnPragmaUnused(ExprTy **Exprs, unsigned NumExprs,
-                                 SourceLocation PragmaLoc, 
+  virtual void ActOnPragmaUnused(const Token *Identifiers,
+                                 unsigned NumIdentifiers, Scope *CurScope,
+                                 SourceLocation PragmaLoc,
                                  SourceLocation LParenLoc,
                                  SourceLocation RParenLoc) {
     return;
@@ -1891,6 +2249,136 @@ public:
                                     SourceLocation AliasNameLoc) {
     return;
   }
+  
+  /// \name Code completion actions
+  ///
+  /// These actions are used to signal that a code-completion token has been
+  /// found at a point in the grammar where the Action implementation is
+  /// likely to be able to provide a list of possible completions, e.g.,
+  /// after the "." or "->" of a member access expression.
+  /// 
+  /// \todo Code completion for designated field initializers
+  /// \todo Code completion for call arguments after a function template-id
+  /// \todo Code completion within a call expression, object construction, etc.
+  /// \todo Code completion within a template argument list.
+  /// \todo Code completion for attributes.
+  //@{
+  
+  /// \brief Code completion for an ordinary name that occurs within the given
+  /// scope.
+  ///
+  /// \param S the scope in which the name occurs.
+  virtual void CodeCompleteOrdinaryName(Scope *S) { }
+  
+  /// \brief Code completion for a member access expression.
+  ///
+  /// This code completion action is invoked when the code-completion token
+  /// is found after the "." or "->" of a member access expression.
+  ///
+  /// \param S the scope in which the member access expression occurs.
+  ///
+  /// \param Base the base expression (e.g., the x in "x.foo") of the member
+  /// access.
+  ///
+  /// \param OpLoc the location of the "." or "->" operator.
+  ///
+  /// \param IsArrow true when the operator is "->", false when it is ".".
+  virtual void CodeCompleteMemberReferenceExpr(Scope *S, ExprTy *Base,
+                                               SourceLocation OpLoc,
+                                               bool IsArrow) { }
+  
+  /// \brief Code completion for a reference to a tag.
+  ///
+  /// This code completion action is invoked when the code-completion
+  /// token is found after a tag keyword (struct, union, enum, or class).
+  ///
+  /// \param S the scope in which the tag reference occurs.
+  ///
+  /// \param TagSpec an instance of DeclSpec::TST, indicating what kind of tag
+  /// this is (struct/union/enum/class).
+  virtual void CodeCompleteTag(Scope *S, unsigned TagSpec) { }
+  
+  /// \brief Code completion for a case statement.
+  ///
+  /// \brief S the scope in which the case statement occurs.
+  virtual void CodeCompleteCase(Scope *S) { }
+  
+  /// \brief Code completion for a call.
+  ///
+  /// \brief S the scope in which the call occurs.
+  ///
+  /// \param Fn the expression describing the function being called.
+  ///
+  /// \param Args the arguments to the function call (so far).
+  ///
+  /// \param NumArgs the number of arguments in \p Args.
+  virtual void CodeCompleteCall(Scope *S, ExprTy *Fn,
+                                ExprTy **Args, unsigned NumArgs) { }
+                                
+  /// \brief Code completion for a C++ nested-name-specifier that precedes a
+  /// qualified-id of some form.
+  ///
+  /// This code completion action is invoked when the code-completion token
+  /// is found after the "::" of a nested-name-specifier.
+  ///
+  /// \param S the scope in which the nested-name-specifier occurs.
+  /// 
+  /// \param SS the scope specifier ending with "::".
+  ///
+  /// \parame EnteringContext whether we're entering the context of this
+  /// scope specifier.
+  virtual void CodeCompleteQualifiedId(Scope *S, const CXXScopeSpec &SS,
+                                       bool EnteringContext) { }
+  
+  /// \brief Code completion for a C++ "using" declaration or directive.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after the "using" keyword.
+  ///
+  /// \param S the scope in which the "using" occurs.
+  virtual void CodeCompleteUsing(Scope *S) { }
+  
+  /// \brief Code completion for a C++ using directive.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after "using namespace".
+  ///
+  /// \param S the scope in which the "using namespace" occurs.
+  virtual void CodeCompleteUsingDirective(Scope *S) { }
+  
+  /// \brief Code completion for a C++ namespace declaration or namespace
+  /// alias declaration.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after "namespace".
+  ///
+  /// \param S the scope in which the "namespace" token occurs.
+  virtual void CodeCompleteNamespaceDecl(Scope *S) { }
+
+  /// \brief Code completion for a C++ namespace alias declaration.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after "namespace identifier = ".
+  ///
+  /// \param S the scope in which the namespace alias declaration occurs.
+  virtual void CodeCompleteNamespaceAliasDecl(Scope *S) { }
+  
+  /// \brief Code completion for an operator name.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after the keyword "operator".
+  ///
+  /// \param S the scope in which the operator keyword occurs.
+  virtual void CodeCompleteOperatorName(Scope *S) { }
+
+  /// \brief Code completion for an ObjC property decl.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after the left paren.
+  ///
+  /// \param S the scope in which the operator keyword occurs.  
+  virtual void CodeCompleteObjCProperty(Scope *S, ObjCDeclSpec &ODS) { }
+  //@}
 };
 
 /// MinimalAction - Minimal actions are used by light-weight clients of the
@@ -1913,38 +2401,61 @@ public:
 
   /// getTypeName - This looks at the IdentifierInfo::FETokenInfo field to
   /// determine whether the name is a typedef or not in this scope.
+  ///
+  /// \param II the identifier for which we are performing name lookup
+  ///
+  /// \param NameLoc the location of the identifier
+  ///
+  /// \param S the scope in which this name lookup occurs
+  ///
+  /// \param SS if non-NULL, the C++ scope specifier that precedes the
+  /// identifier
+  ///
+  /// \param isClassName whether this is a C++ class-name production, in
+  /// which we can end up referring to a member of an unknown specialization
+  /// that we know (from the grammar) is supposed to be a type. For example,
+  /// this occurs when deriving from "std::vector<T>::allocator_type", where T
+  /// is a template parameter.
+  ///
+  /// \returns the type referred to by this identifier, or NULL if the type
+  /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
-                              Scope *S, const CXXScopeSpec *SS);
+                              Scope *S, const CXXScopeSpec *SS,
+                              bool isClassName = false);
 
   /// isCurrentClassName - Always returns false, because MinimalAction
   /// does not support C++ classes with constructors.
   virtual bool isCurrentClassName(const IdentifierInfo& II, Scope *S,
                                   const CXXScopeSpec *SS);
 
-  virtual TemplateNameKind isTemplateName(const IdentifierInfo &II, Scope *S,
-                                          TemplateTy &Template,
-                                          const CXXScopeSpec *SS = 0);
+  virtual TemplateNameKind isTemplateName(Scope *S,
+                                          const IdentifierInfo &II,
+                                          SourceLocation IdLoc,
+                                          const CXXScopeSpec *SS,
+                                          TypeTy *ObjectType,
+                                          bool EnteringContext,
+                                          TemplateTy &Template);
 
   /// ActOnDeclarator - If this is a typedef declarator, we modify the
   /// IdentifierInfo::FETokenInfo field to keep track of this fact, until S is
   /// popped.
   virtual DeclPtrTy ActOnDeclarator(Scope *S, Declarator &D);
-  
-  /// ActOnPopScope - When a scope is popped, if any typedefs are now 
+
+  /// ActOnPopScope - When a scope is popped, if any typedefs are now
   /// out-of-scope, they are removed from the IdentifierInfo::FETokenInfo field.
   virtual void ActOnPopScope(SourceLocation Loc, Scope *S);
   virtual void ActOnTranslationUnitScope(SourceLocation Loc, Scope *S);
-  
+
   virtual DeclPtrTy ActOnForwardClassDeclaration(SourceLocation AtClassLoc,
                                                  IdentifierInfo **IdentList,
                                                  unsigned NumElts);
-  
+
   virtual DeclPtrTy ActOnStartClassInterface(SourceLocation interLoc,
                                              IdentifierInfo *ClassName,
                                              SourceLocation ClassLoc,
                                              IdentifierInfo *SuperName,
                                              SourceLocation SuperLoc,
-                                             const DeclPtrTy *ProtoRefs, 
+                                             const DeclPtrTy *ProtoRefs,
                                              unsigned NumProtoRefs,
                                              SourceLocation EndProtoLoc,
                                              AttributeList *AttrList);
@@ -1964,15 +2475,15 @@ public:
                               Action &actions, SourceManager &sm,
                               const char *Msg)
   : TheDecl(Decl), Loc(L), Actions(actions), SM(sm), Message(Msg) {}
-  
+
   virtual void print(llvm::raw_ostream &OS) const;
-};  
-  
+};
+
 /// \brief RAII object that enters a new expression evaluation context.
-class EnterExpressionEvaluationContext {    
+class EnterExpressionEvaluationContext {
   /// \brief The action object.
   Action &Actions;
-  
+
   /// \brief The previous expression evaluation context.
   Action::ExpressionEvaluationContext PrevContext;
 
@@ -1981,16 +2492,16 @@ class EnterExpressionEvaluationContext {
 
 public:
   EnterExpressionEvaluationContext(Action &Actions,
-                              Action::ExpressionEvaluationContext NewContext) 
-    : Actions(Actions), CurContext(NewContext) { 
+                              Action::ExpressionEvaluationContext NewContext)
+    : Actions(Actions), CurContext(NewContext) {
       PrevContext = Actions.PushExpressionEvaluationContext(NewContext);
   }
-    
+
   ~EnterExpressionEvaluationContext() {
     Actions.PopExpressionEvaluationContext(CurContext, PrevContext);
   }
 };
-  
+
 }  // end namespace clang
 
 #endif

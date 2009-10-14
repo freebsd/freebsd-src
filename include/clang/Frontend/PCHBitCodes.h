@@ -29,7 +29,11 @@ namespace clang {
     /// incompatible with previous versions (such that a reader
     /// designed for the previous version could not support reading
     /// the new version), this number should be increased.
-    const unsigned VERSION_MAJOR = 1;
+    ///
+    /// Version 3 of PCH files also requires that the Subversion branch and
+    /// revision match exactly, since there is no backward compatibility of
+    /// PCH files at this time.
+    const unsigned VERSION_MAJOR = 3;
 
     /// \brief PCH minor version number supported by this version of
     /// Clang.
@@ -65,7 +69,7 @@ namespace clang {
     typedef uint32_t IdentID;
 
     typedef uint32_t SelectorID;
-    
+
     /// \brief Describes the various kinds of blocks that occur within
     /// a PCH file.
     enum BlockIDs {
@@ -106,7 +110,7 @@ namespace clang {
       /// TYPE_OFFSET block to determine the offset of that type's
       /// corresponding record within the TYPES_BLOCK_ID block.
       TYPE_OFFSET = 1,
-      
+
       /// \brief Record code for the offsets of each decl.
       ///
       /// The DECL_OFFSET constant describes the record that occurs
@@ -182,7 +186,7 @@ namespace clang {
       /// \brief Record code for the array of locally-scoped external
       /// declarations.
       LOCALLY_SCOPED_EXTERNAL_DECLS = 11,
-      
+
       /// \brief Record code for the table of offsets into the
       /// Objective-C method pool.
       SELECTOR_OFFSETS = 12,
@@ -212,17 +216,17 @@ namespace clang {
       /// \brief Record code for the set of ext_vector type names.
       EXT_VECTOR_DECLS = 18,
 
-      /// \brief Record code for the set of Objective-C category
-      /// implementations.
-      OBJC_CATEGORY_IMPLEMENTATIONS = 19,
-
       /// \brief Record code for the original file that was used to
       /// generate the precompiled header.
-      ORIGINAL_FILE_NAME = 20,
-      
+      ORIGINAL_FILE_NAME = 19,
+
       /// \brief Record code for the sorted array of source ranges where
       /// comments were encountered in the source code.
-      COMMENT_RANGES = 21
+      COMMENT_RANGES = 20,
+      
+      /// \brief Record code for the Subversion branch and revision information
+      /// of the compiler used to build this PCH file.
+      SVN_BRANCH_REVISION = 21
     };
 
     /// \brief Record types used within a source manager block.
@@ -247,7 +251,7 @@ namespace clang {
       /// ControllingMacro is optional.
       SM_HEADER_FILE_INFO = 6
     };
-    
+
     /// \brief Record types used within a preprocessor block.
     enum PreprocessorRecordTypes {
       // The macros in the PP section are a PP_MACRO_* instance followed by a
@@ -261,7 +265,7 @@ namespace clang {
       /// [PP_MACRO_FUNCTION_LIKE, <ObjectLikeStuff>, IsC99Varargs, IsGNUVarars,
       ///  NumArgs, ArgIdentInfoID* ]
       PP_MACRO_FUNCTION_LIKE = 2,
-      
+
       /// \brief Describes one token.
       /// [PP_TOKEN, SLoc, Length, IdentInfoID, Kind, Flags]
       PP_TOKEN = 3
@@ -329,7 +333,15 @@ namespace clang {
       /// \brief The '__int128_t' type.
       PREDEF_TYPE_INT128_ID     = 22,
       /// \brief The type of 'nullptr'.
-      PREDEF_TYPE_NULLPTR_ID    = 23
+      PREDEF_TYPE_NULLPTR_ID    = 23,
+      /// \brief The C++ 'char16_t' type.
+      PREDEF_TYPE_CHAR16_ID     = 24,
+      /// \brief The C++ 'char32_t' type.
+      PREDEF_TYPE_CHAR32_ID     = 25,
+      /// \brief The ObjC 'id' type.
+      PREDEF_TYPE_OBJC_ID       = 26,
+      /// \brief The ObjC 'Class' type.
+      PREDEF_TYPE_OBJC_CLASS    = 27
     };
 
     /// \brief The number of predefined type IDs that are reserved for
@@ -388,12 +400,18 @@ namespace clang {
       TYPE_ENUM                     = 20,
       /// \brief An ObjCInterfaceType record.
       TYPE_OBJC_INTERFACE           = 21,
-      /// \brief An ObjCQualifiedInterfaceType record.
-      TYPE_OBJC_QUALIFIED_INTERFACE = 22,
       /// \brief An ObjCObjectPointerType record.
-      TYPE_OBJC_OBJECT_POINTER      = 23,
+      TYPE_OBJC_OBJECT_POINTER      = 22,
+      /// \brief An ObjCProtocolListType record.
+      TYPE_OBJC_PROTOCOL_LIST       = 23,
       /// \brief a DecltypeType record.
-      TYPE_DECLTYPE                 = 24
+      TYPE_DECLTYPE                 = 24,
+      /// \brief A ConstantArrayWithExprType record.
+      TYPE_CONSTANT_ARRAY_WITH_EXPR = 25,
+      /// \brief A ConstantArrayWithoutExprType record.
+      TYPE_CONSTANT_ARRAY_WITHOUT_EXPR = 26,
+      /// \brief An ElaboratedType record.
+      TYPE_ELABORATED               = 27
     };
 
     /// \brief The type IDs for special types constructed by semantic
@@ -415,7 +433,17 @@ namespace clang {
       /// \brief CFConstantString type
       SPECIAL_TYPE_CF_CONSTANT_STRING          = 5,
       /// \brief Objective-C fast enumeration state type
-      SPECIAL_TYPE_OBJC_FAST_ENUMERATION_STATE = 6
+      SPECIAL_TYPE_OBJC_FAST_ENUMERATION_STATE = 6,
+      /// \brief C FILE typedef type
+      SPECIAL_TYPE_FILE                        = 7,
+      /// \brief C jmp_buf typedef type
+      SPECIAL_TYPE_jmp_buf                     = 8,
+      /// \brief C sigjmp_buf typedef type
+      SPECIAL_TYPE_sigjmp_buf                  = 9,
+      /// \brief Objective-C "id" redefinition type
+      SPECIAL_TYPE_OBJC_ID_REDEFINITION        = 10,
+      /// \brief Objective-C "Class" redefinition type
+      SPECIAL_TYPE_OBJC_CLASS_REDEFINITION     = 11
     };
 
     /// \brief Record codes for each kind of declaration.
@@ -611,7 +639,7 @@ namespace clang {
       EXPR_BLOCK_DECL_REF,
       
       // Objective-C
-      
+
       /// \brief An ObjCStringLiteral record.
       EXPR_OBJC_STRING_LITERAL,
       /// \brief An ObjCEncodeExpr record.
@@ -624,25 +652,34 @@ namespace clang {
       EXPR_OBJC_IVAR_REF_EXPR,
       /// \brief An ObjCPropertyRefExpr record.
       EXPR_OBJC_PROPERTY_REF_EXPR,
-      /// \brief An ObjCKVCRefExpr record.
+      /// \brief An ObjCImplicitSetterGetterRefExpr record.
       EXPR_OBJC_KVC_REF_EXPR,
       /// \brief An ObjCMessageExpr record.
       EXPR_OBJC_MESSAGE_EXPR,
       /// \brief An ObjCSuperExpr record.
       EXPR_OBJC_SUPER_EXPR,
+      /// \brief An ObjCIsa Expr record.
+      EXPR_OBJC_ISA,
 
-      /// \brief An ObjCForCollectionStmt record.      
+      /// \brief An ObjCForCollectionStmt record.
       STMT_OBJC_FOR_COLLECTION,
-      /// \brief An ObjCAtCatchStmt record.      
+      /// \brief An ObjCAtCatchStmt record.
       STMT_OBJC_CATCH,
-      /// \brief An ObjCAtFinallyStmt record.      
+      /// \brief An ObjCAtFinallyStmt record.
       STMT_OBJC_FINALLY,
-      /// \brief An ObjCAtTryStmt record.      
+      /// \brief An ObjCAtTryStmt record.
       STMT_OBJC_AT_TRY,
-      /// \brief An ObjCAtSynchronizedStmt record.      
+      /// \brief An ObjCAtSynchronizedStmt record.
       STMT_OBJC_AT_SYNCHRONIZED,
-      /// \brief An ObjCAtThrowStmt record.      
-      STMT_OBJC_AT_THROW
+      /// \brief An ObjCAtThrowStmt record.
+      STMT_OBJC_AT_THROW,
+
+      // C++
+
+      /// \brief A CXXOperatorCallExpr record.
+      EXPR_CXX_OPERATOR_CALL,
+      /// \brief A CXXConstructExpr record.
+      EXPR_CXX_CONSTRUCT
     };
 
     /// \brief The kinds of designators that can occur in a

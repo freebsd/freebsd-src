@@ -1,7 +1,5 @@
 // RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s
-
-// RegionStore now has an infinite recursion with this test case.
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s &&
 // RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify %s &&
 // RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify %s
 
@@ -145,7 +143,7 @@ void f15() {
   int a[10];
   bar(a);
   if (a[1]) // no-warning
-    1;
+    (void)1;
 }
 
 struct s3 p[1];

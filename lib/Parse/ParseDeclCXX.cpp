@@ -38,7 +38,7 @@ using namespace clang;
 ///
 ///       extension-namespace-definition:
 ///         'namespace' original-namespace-name '{' namespace-body '}'
-///  
+///
 ///       namespace-alias-definition:  [C++ 7.3.2: namespace.alias]
 ///         'namespace' identifier '=' qualified-namespace-specifier ';'
 ///
@@ -46,17 +46,22 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
                                          SourceLocation &DeclEnd) {
   assert(Tok.is(tok::kw_namespace) && "Not a namespace!");
   SourceLocation NamespaceLoc = ConsumeToken();  // eat the 'namespace'.
+
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteNamespaceDecl(CurScope);
+    ConsumeToken();
+  }
   
   SourceLocation IdentLoc;
   IdentifierInfo *Ident = 0;
 
   Token attrTok;
-  
+
   if (Tok.is(tok::identifier)) {
     Ident = Tok.getIdentifierInfo();
     IdentLoc = ConsumeToken();  // eat the identifier.
   }
-  
+
   // Read label attributes, if present.
   Action::AttrTy *AttrList = 0;
   if (Tok.is(tok::kw___attribute)) {
@@ -65,20 +70,20 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
     // FIXME: save these somewhere.
     AttrList = ParseAttributes();
   }
-  
+
   if (Tok.is(tok::equal)) {
     if (AttrList)
       Diag(attrTok, diag::err_unexpected_namespace_attributes_alias);
 
     return ParseNamespaceAlias(NamespaceLoc, IdentLoc, Ident, DeclEnd);
   }
-  
+
   if (Tok.isNot(tok::l_brace)) {
-    Diag(Tok, Ident ? diag::err_expected_lbrace : 
+    Diag(Tok, Ident ? diag::err_expected_lbrace :
          diag::err_expected_ident_lbrace);
     return DeclPtrTy();
   }
-  
+
   SourceLocation LBrace = ConsumeBrace();
 
   // Enter a scope for the namespace.
@@ -90,10 +95,10 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
   PrettyStackTraceActionsDecl CrashInfo(NamespcDecl, NamespaceLoc, Actions,
                                         PP.getSourceManager(),
                                         "parsing namespace");
-  
+
   while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof))
     ParseExternalDeclaration();
-  
+
   // Leave the namespace scope.
   NamespaceScope.Exit();
 
@@ -108,16 +113,21 @@ Parser::DeclPtrTy Parser::ParseNamespace(unsigned Context,
 /// alias definition.
 ///
 Parser::DeclPtrTy Parser::ParseNamespaceAlias(SourceLocation NamespaceLoc,
-                                              SourceLocation AliasLoc, 
+                                              SourceLocation AliasLoc,
                                               IdentifierInfo *Alias,
                                               SourceLocation &DeclEnd) {
   assert(Tok.is(tok::equal) && "Not equal token");
-  
+
   ConsumeToken(); // eat the '='.
+
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteNamespaceAliasDecl(CurScope);
+    ConsumeToken();
+  }
   
   CXXScopeSpec SS;
   // Parse (optional) nested-name-specifier.
-  ParseOptionalCXXScopeSpecifier(SS);
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, false);
 
   if (SS.isInvalid() || Tok.isNot(tok::identifier)) {
     Diag(Tok, diag::err_expected_namespace_name);
@@ -129,13 +139,13 @@ Parser::DeclPtrTy Parser::ParseNamespaceAlias(SourceLocation NamespaceLoc,
   // Parse identifier.
   IdentifierInfo *Ident = Tok.getIdentifierInfo();
   SourceLocation IdentLoc = ConsumeToken();
-  
+
   // Eat the ';'.
   DeclEnd = Tok.getLocation();
   ExpectAndConsume(tok::semi, diag::err_expected_semi_after_namespace_name,
                    "", tok::semi);
-  
-  return Actions.ActOnNamespaceAliasDef(CurScope, NamespaceLoc, AliasLoc, Alias, 
+
+  return Actions.ActOnNamespaceAliasDef(CurScope, NamespaceLoc, AliasLoc, Alias,
                                         SS, IdentLoc, Ident);
 }
 
@@ -157,18 +167,18 @@ Parser::DeclPtrTy Parser::ParseLinkage(unsigned Context) {
   SourceLocation Loc = ConsumeStringToken();
 
   ParseScope LinkageScope(this, Scope::DeclScope);
-  DeclPtrTy LinkageSpec 
-    = Actions.ActOnStartLinkageSpecification(CurScope, 
+  DeclPtrTy LinkageSpec
+    = Actions.ActOnStartLinkageSpecification(CurScope,
                                              /*FIXME: */SourceLocation(),
                                              Loc, LangBufPtr, StrSize,
-                                       Tok.is(tok::l_brace)? Tok.getLocation() 
+                                       Tok.is(tok::l_brace)? Tok.getLocation()
                                                            : SourceLocation());
 
   if (Tok.isNot(tok::l_brace)) {
     ParseDeclarationOrFunctionDefinition();
-    return Actions.ActOnFinishLinkageSpecification(CurScope, LinkageSpec, 
+    return Actions.ActOnFinishLinkageSpecification(CurScope, LinkageSpec,
                                                    SourceLocation());
-  } 
+  }
 
   SourceLocation LBrace = ConsumeBrace();
   while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
@@ -188,6 +198,11 @@ Parser::DeclPtrTy Parser::ParseUsingDirectiveOrDeclaration(unsigned Context,
   // Eat 'using'.
   SourceLocation UsingLoc = ConsumeToken();
 
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteUsing(CurScope);
+    ConsumeToken();
+  }
+  
   if (Tok.is(tok::kw_namespace))
     // Next token after 'using' is 'namespace' so it must be using-directive
     return ParseUsingDirective(Context, UsingLoc, DeclEnd);
@@ -214,9 +229,14 @@ Parser::DeclPtrTy Parser::ParseUsingDirective(unsigned Context,
   // Eat 'namespace'.
   SourceLocation NamespcLoc = ConsumeToken();
 
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteUsingDirective(CurScope);
+    ConsumeToken();
+  }
+  
   CXXScopeSpec SS;
   // Parse (optional) nested-name-specifier.
-  ParseOptionalCXXScopeSpecifier(SS);
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, false);
 
   AttributeList *AttrList = 0;
   IdentifierInfo *NamespcName = 0;
@@ -230,15 +250,15 @@ Parser::DeclPtrTy Parser::ParseUsingDirective(unsigned Context,
     // FIXME: Are there cases, when we would like to call ActOnUsingDirective?
     return DeclPtrTy();
   }
-  
+
   // Parse identifier.
   NamespcName = Tok.getIdentifierInfo();
   IdentLoc = ConsumeToken();
-  
+
   // Parse (optional) attributes (most likely GNU strong-using extension).
   if (Tok.is(tok::kw___attribute))
     AttrList = ParseAttributes();
-  
+
   // Eat ';'.
   DeclEnd = Tok.getLocation();
   ExpectAndConsume(tok::semi,
@@ -259,7 +279,8 @@ Parser::DeclPtrTy Parser::ParseUsingDirective(unsigned Context,
 ///
 Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
                                                 SourceLocation UsingLoc,
-                                                SourceLocation &DeclEnd) {
+                                                SourceLocation &DeclEnd,
+                                                AccessSpecifier AS) {
   CXXScopeSpec SS;
   bool IsTypeName;
 
@@ -272,7 +293,7 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
     IsTypeName = false;
 
   // Parse nested-name-specifier.
-  ParseOptionalCXXScopeSpecifier(SS);
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, false);
 
   AttributeList *AttrList = 0;
 
@@ -282,15 +303,17 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
     return DeclPtrTy();
   }
   if (Tok.is(tok::annot_template_id)) {
-    Diag(Tok, diag::err_unexpected_template_spec_in_using);
+    // C++0x N2914 [namespace.udecl]p5:
+    // A using-declaration shall not name a template-id.
+    Diag(Tok, diag::err_using_decl_can_not_refer_to_template_spec);
     SkipUntil(tok::semi);
     return DeclPtrTy();
   }
-  
+
   IdentifierInfo *TargetName = 0;
   OverloadedOperatorKind Op = OO_None;
   SourceLocation IdentLoc;
-  
+
   if (Tok.is(tok::kw_operator)) {
     IdentLoc = Tok.getLocation();
 
@@ -312,17 +335,17 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
     SkipUntil(tok::semi);
     return DeclPtrTy();
   }
-  
+
   // Parse (optional) attributes (most likely GNU strong-using extension).
   if (Tok.is(tok::kw___attribute))
     AttrList = ParseAttributes();
-  
+
   // Eat ';'.
   DeclEnd = Tok.getLocation();
   ExpectAndConsume(tok::semi, diag::err_expected_semi_after,
                    AttrList ? "attributes list" : "namespace name", tok::semi);
 
-  return Actions.ActOnUsingDeclaration(CurScope, UsingLoc, SS,
+  return Actions.ActOnUsingDeclaration(CurScope, AS, UsingLoc, SS,
                                        IdentLoc, TargetName, Op,
                                        AttrList, IsTypeName);
 }
@@ -335,12 +358,12 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
 Parser::DeclPtrTy Parser::ParseStaticAssertDeclaration(SourceLocation &DeclEnd){
   assert(Tok.is(tok::kw_static_assert) && "Not a static_assert declaration");
   SourceLocation StaticAssertLoc = ConsumeToken();
-  
+
   if (Tok.isNot(tok::l_paren)) {
     Diag(Tok, diag::err_expected_lparen);
     return DeclPtrTy();
   }
-  
+
   SourceLocation LParenLoc = ConsumeParen();
 
   OwningExprResult AssertExpr(ParseConstantExpression());
@@ -348,7 +371,7 @@ Parser::DeclPtrTy Parser::ParseStaticAssertDeclaration(SourceLocation &DeclEnd){
     SkipUntil(tok::semi);
     return DeclPtrTy();
   }
-  
+
   if (ExpectAndConsume(tok::comma, diag::err_expected_comma, "", tok::semi))
     return DeclPtrTy();
 
@@ -357,17 +380,17 @@ Parser::DeclPtrTy Parser::ParseStaticAssertDeclaration(SourceLocation &DeclEnd){
     SkipUntil(tok::semi);
     return DeclPtrTy();
   }
-  
+
   OwningExprResult AssertMessage(ParseStringLiteralExpression());
-  if (AssertMessage.isInvalid()) 
+  if (AssertMessage.isInvalid())
     return DeclPtrTy();
 
   MatchRHSPunctuation(tok::r_paren, LParenLoc);
-  
+
   DeclEnd = Tok.getLocation();
   ExpectAndConsume(tok::semi, diag::err_expected_semi_after_static_assert);
 
-  return Actions.ActOnStaticAssertDeclaration(StaticAssertLoc, move(AssertExpr), 
+  return Actions.ActOnStaticAssertDeclaration(StaticAssertLoc, move(AssertExpr),
                                               move(AssertMessage));
 }
 
@@ -380,15 +403,15 @@ void Parser::ParseDecltypeSpecifier(DeclSpec &DS) {
 
   SourceLocation StartLoc = ConsumeToken();
   SourceLocation LParenLoc = Tok.getLocation();
-  
-  if (ExpectAndConsume(tok::l_paren, diag::err_expected_lparen_after, 
+
+  if (ExpectAndConsume(tok::l_paren, diag::err_expected_lparen_after,
                        "decltype")) {
     SkipUntil(tok::r_paren);
     return;
   }
-  
+
   // Parse the expression
-  
+
   // C++0x [dcl.type.simple]p4:
   //   The operand of the decltype specifier is an unevaluated operand.
   EnterExpressionEvaluationContext Unevaluated(Actions,
@@ -398,22 +421,23 @@ void Parser::ParseDecltypeSpecifier(DeclSpec &DS) {
     SkipUntil(tok::r_paren);
     return;
   }
-  
+
   // Match the ')'
   SourceLocation RParenLoc;
   if (Tok.is(tok::r_paren))
     RParenLoc = ConsumeParen();
   else
     MatchRHSPunctuation(tok::r_paren, LParenLoc);
-  
+
   if (RParenLoc.isInvalid())
     return;
 
   const char *PrevSpec = 0;
+  unsigned DiagID;
   // Check for duplicate type specifiers (e.g. "int decltype(a)").
-  if (DS.SetTypeSpecType(DeclSpec::TST_decltype, StartLoc, PrevSpec, 
-                         Result.release()))
-    Diag(StartLoc, diag::err_invalid_decl_spec_combination) << PrevSpec;
+  if (DS.SetTypeSpecType(DeclSpec::TST_decltype, StartLoc, PrevSpec,
+                         DiagID, Result.release()))
+    Diag(StartLoc, DiagID) << PrevSpec;
 }
 
 /// ParseClassName - Parse a C++ class-name, which names a class. Note
@@ -425,12 +449,13 @@ void Parser::ParseDecltypeSpecifier(DeclSpec &DS) {
 ///       class-name: [C++ 9.1]
 ///         identifier
 ///         simple-template-id
-/// 
+///
 Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
-                                          const CXXScopeSpec *SS) {
+                                          const CXXScopeSpec *SS,
+                                          bool DestrExpected) {
   // Check whether we have a template-id that names a type.
   if (Tok.is(tok::annot_template_id)) {
-    TemplateIdAnnotation *TemplateId 
+    TemplateIdAnnotation *TemplateId
       = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
     if (TemplateId->Kind == TNK_Type_template) {
       AnnotateTemplateIdTokenAsType(SS);
@@ -454,10 +479,12 @@ Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
   }
 
   // We have an identifier; check whether it is actually a type.
-  TypeTy *Type = Actions.getTypeName(*Tok.getIdentifierInfo(), 
-                                     Tok.getLocation(), CurScope, SS);
+  TypeTy *Type = Actions.getTypeName(*Tok.getIdentifierInfo(),
+                                     Tok.getLocation(), CurScope, SS,
+                                     true);
   if (!Type) {
-    Diag(Tok, diag::err_expected_class_name);
+    Diag(Tok, DestrExpected ? diag::err_destructor_class_name
+                            : diag::err_expected_class_name);
     return true;
   }
 
@@ -480,9 +507,9 @@ Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
 ///         class-key nested-name-specifier[opt] simple-template-id
 ///                          base-clause[opt]
 /// [GNU]   class-key attributes[opt] identifier[opt] base-clause[opt]
-/// [GNU]   class-key attributes[opt] nested-name-specifier 
+/// [GNU]   class-key attributes[opt] nested-name-specifier
 ///                          identifier base-clause[opt]
-/// [GNU]   class-key attributes[opt] nested-name-specifier[opt] 
+/// [GNU]   class-key attributes[opt] nested-name-specifier[opt]
 ///                          simple-template-id base-clause[opt]
 ///       class-key:
 ///         'class'
@@ -490,9 +517,9 @@ Parser::TypeResult Parser::ParseClassName(SourceLocation &EndLocation,
 ///         'union'
 ///
 ///       elaborated-type-specifier: [C++ dcl.type.elab]
-///         class-key ::[opt] nested-name-specifier[opt] identifier 
-///         class-key ::[opt] nested-name-specifier[opt] 'template'[opt] 
-///                          simple-template-id 
+///         class-key ::[opt] nested-name-specifier[opt] identifier
+///         class-key ::[opt] nested-name-specifier[opt] 'template'[opt]
+///                          simple-template-id
 ///
 ///  Note that the C++ class-specifier and elaborated-type-specifier,
 ///  together, subsume the C99 struct-or-union-specifier:
@@ -520,6 +547,12 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     TagType = DeclSpec::TST_union;
   }
 
+  if (Tok.is(tok::code_completion)) {
+    // Code completion for a struct, class, or union name.
+    Actions.CodeCompleteTag(CurScope, TagType);
+    ConsumeToken();
+  }
+  
   AttributeList *Attr = 0;
   // If attributes exist after tag, parse them.
   if (Tok.is(tok::kw___attribute))
@@ -528,10 +561,31 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   // If declspecs exist after tag, parse them.
   if (Tok.is(tok::kw___declspec))
     Attr = ParseMicrosoftDeclSpec(Attr);
-  
+
+  if (TagType == DeclSpec::TST_struct && Tok.is(tok::kw___is_pod)) {
+    // GNU libstdc++ 4.2 uses __is_pod as the name of a struct template, but
+    // __is_pod is a keyword in GCC >= 4.3. Therefore, when we see the
+    // token sequence "struct __is_pod", make __is_pod into a normal
+    // identifier rather than a keyword, to allow libstdc++ 4.2 to work
+    // properly.
+    Tok.getIdentifierInfo()->setTokenID(tok::identifier);
+    Tok.setKind(tok::identifier);
+  }
+
+  if (TagType == DeclSpec::TST_struct && Tok.is(tok::kw___is_empty)) {
+    // GNU libstdc++ 4.2 uses __is_empty as the name of a struct template, but
+    // __is_empty is a keyword in GCC >= 4.3. Therefore, when we see the
+    // token sequence "struct __is_empty", make __is_empty into a normal
+    // identifier rather than a keyword, to allow libstdc++ 4.2 to work
+    // properly.
+    Tok.getIdentifierInfo()->setTokenID(tok::identifier);
+    Tok.setKind(tok::identifier);
+  }
+
   // Parse the (optional) nested-name-specifier.
   CXXScopeSpec SS;
-  if (getLang().CPlusPlus && ParseOptionalCXXScopeSpecifier(SS))
+  if (getLang().CPlusPlus &&
+      ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true))
     if (Tok.isNot(tok::identifier) && Tok.isNot(tok::annot_template_id))
       Diag(Tok, diag::err_expected_ident);
 
@@ -556,7 +610,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
 
       Diag(TemplateId->LAngleLoc, diag::err_template_spec_syntax_non_template)
         << Name << static_cast<int>(TemplateId->Kind) << Range;
-      
+
       DS.SetTypeSpecError();
       SkipUntil(tok::semi, false, true);
       TemplateId->Destroy();
@@ -564,19 +618,33 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     }
   }
 
-  // There are three options here.  If we have 'struct foo;', then
-  // this is a forward declaration.  If we have 'struct foo {...' or
+  // There are four options here.  If we have 'struct foo;', then this
+  // is either a forward declaration or a friend declaration, which
+  // have to be treated differently.  If we have 'struct foo {...' or
   // 'struct foo :...' then this is a definition. Otherwise we have
   // something like 'struct foo xyz', a reference.
-  Action::TagKind TK;
-  if (Tok.is(tok::l_brace) || (getLang().CPlusPlus && Tok.is(tok::colon)))
-    TK = Action::TK_Definition;
-  else if (Tok.is(tok::semi) && !DS.isFriendSpecified())
-    TK = Action::TK_Declaration;
-  else
-    TK = Action::TK_Reference;
+  Action::TagUseKind TUK;
+  if (Tok.is(tok::l_brace) || (getLang().CPlusPlus && Tok.is(tok::colon))) {
+    if (DS.isFriendSpecified()) {
+      // C++ [class.friend]p2:
+      //   A class shall not be defined in a friend declaration.
+      Diag(Tok.getLocation(), diag::err_friend_decl_defines_class)
+        << SourceRange(DS.getFriendSpecLoc());
 
-  if (!Name && !TemplateId && TK != Action::TK_Definition) {
+      // Skip everything up to the semicolon, so that this looks like a proper
+      // friend class (or template thereof) declaration.
+      SkipUntil(tok::semi, true, true);
+      TUK = Action::TUK_Friend;
+    } else {
+      // Okay, this is a class definition.
+      TUK = Action::TUK_Definition;
+    }
+  } else if (Tok.is(tok::semi))
+    TUK = DS.isFriendSpecified() ? Action::TUK_Friend : Action::TUK_Declaration;
+  else
+    TUK = Action::TUK_Reference;
+
+  if (!Name && !TemplateId && TUK != Action::TUK_Definition) {
     // We have a declaration or reference to an anonymous class.
     Diag(StartLoc, diag::err_anon_type_definition)
       << DeclSpec::getSpecifierName(TagType);
@@ -590,36 +658,49 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   }
 
   // Create the tag portion of the class or class template.
-  Action::DeclResult TagOrTempResult;
+  Action::DeclResult TagOrTempResult = true; // invalid
+  Action::TypeResult TypeResult = true; // invalid
   TemplateParameterLists *TemplateParams = TemplateInfo.TemplateParams;
 
-  // FIXME: When TK == TK_Reference and we have a template-id, we need
+  // FIXME: When TUK == TUK_Reference and we have a template-id, we need
   // to turn that template-id into a type.
 
   bool Owned = false;
-  if (TemplateId && TK != Action::TK_Reference) {
+  if (TemplateId) {
     // Explicit specialization, class template partial specialization,
     // or explicit instantiation.
-    ASTTemplateArgsPtr TemplateArgsPtr(Actions, 
+    ASTTemplateArgsPtr TemplateArgsPtr(Actions,
                                        TemplateId->getTemplateArgs(),
                                        TemplateId->getTemplateArgIsType(),
                                        TemplateId->NumArgs);
     if (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation &&
-        TK == Action::TK_Declaration) {
+        TUK == Action::TUK_Declaration) {
       // This is an explicit instantiation of a class template.
       TagOrTempResult
-        = Actions.ActOnExplicitInstantiation(CurScope, 
-                                             TemplateInfo.TemplateLoc, 
+        = Actions.ActOnExplicitInstantiation(CurScope,
+                                             TemplateInfo.ExternLoc,
+                                             TemplateInfo.TemplateLoc,
                                              TagType,
-                                             StartLoc, 
+                                             StartLoc,
                                              SS,
-                                     TemplateTy::make(TemplateId->Template), 
-                                             TemplateId->TemplateNameLoc, 
-                                             TemplateId->LAngleLoc, 
+                                     TemplateTy::make(TemplateId->Template),
+                                             TemplateId->TemplateNameLoc,
+                                             TemplateId->LAngleLoc,
                                              TemplateArgsPtr,
                                       TemplateId->getTemplateArgLocations(),
-                                             TemplateId->RAngleLoc, 
+                                             TemplateId->RAngleLoc,
                                              Attr);
+    } else if (TUK == Action::TUK_Reference) {
+      TypeResult
+        = Actions.ActOnTemplateIdType(TemplateTy::make(TemplateId->Template),
+                                      TemplateId->TemplateNameLoc,
+                                      TemplateId->LAngleLoc,
+                                      TemplateArgsPtr,
+                                      TemplateId->getTemplateArgLocations(),
+                                      TemplateId->RAngleLoc);
+
+      TypeResult = Actions.ActOnTagTemplateIdType(TypeResult, TUK,
+                                                  TagType, StartLoc);
     } else {
       // This is an explicit specialization or a class template
       // partial specialization.
@@ -634,11 +715,11 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
         // but it actually has a definition. Most likely, this was
         // meant to be an explicit specialization, but the user forgot
         // the '<>' after 'template'.
-        assert(TK == Action::TK_Definition && "Expected a definition here");
+        assert(TUK == Action::TUK_Definition && "Expected a definition here");
 
-        SourceLocation LAngleLoc 
+        SourceLocation LAngleLoc
           = PP.getLocForEndOfToken(TemplateInfo.TemplateLoc);
-        Diag(TemplateId->TemplateNameLoc, 
+        Diag(TemplateId->TemplateNameLoc,
              diag::err_explicit_instantiation_with_definition)
           << SourceRange(TemplateInfo.TemplateLoc)
           << CodeModificationHint::CreateInsertion(LAngleLoc, "<>");
@@ -647,60 +728,64 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
         // "template<>", so that we treat this construct as a class
         // template specialization.
         FakedParamLists.push_back(
-          Actions.ActOnTemplateParameterList(0, SourceLocation(), 
+          Actions.ActOnTemplateParameterList(0, SourceLocation(),
                                              TemplateInfo.TemplateLoc,
-                                             LAngleLoc, 
-                                             0, 0, 
+                                             LAngleLoc,
+                                             0, 0,
                                              LAngleLoc));
         TemplateParams = &FakedParamLists;
       }
 
       // Build the class template specialization.
       TagOrTempResult
-        = Actions.ActOnClassTemplateSpecialization(CurScope, TagType, TK,
+        = Actions.ActOnClassTemplateSpecialization(CurScope, TagType, TUK,
                        StartLoc, SS,
-                       TemplateTy::make(TemplateId->Template), 
-                       TemplateId->TemplateNameLoc, 
-                       TemplateId->LAngleLoc, 
+                       TemplateTy::make(TemplateId->Template),
+                       TemplateId->TemplateNameLoc,
+                       TemplateId->LAngleLoc,
                        TemplateArgsPtr,
                        TemplateId->getTemplateArgLocations(),
-                       TemplateId->RAngleLoc, 
+                       TemplateId->RAngleLoc,
                        Attr,
-                       Action::MultiTemplateParamsArg(Actions, 
+                       Action::MultiTemplateParamsArg(Actions,
                                     TemplateParams? &(*TemplateParams)[0] : 0,
                                  TemplateParams? TemplateParams->size() : 0));
     }
     TemplateId->Destroy();
-  } else if (TemplateParams && TK != Action::TK_Reference) {
-    // Class template declaration or definition.
-    TagOrTempResult = Actions.ActOnClassTemplate(CurScope, TagType, TK, 
-                                                 StartLoc, SS, Name, NameLoc, 
-                                                 Attr,
-                       Action::MultiTemplateParamsArg(Actions, 
-                                                      &(*TemplateParams)[0],
-                                                      TemplateParams->size()),
-                                                 AS);
   } else if (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation &&
-             TK == Action::TK_Declaration) {
+             TUK == Action::TUK_Declaration) {
     // Explicit instantiation of a member of a class template
     // specialization, e.g.,
     //
     //   template struct Outer<int>::Inner;
     //
     TagOrTempResult
-      = Actions.ActOnExplicitInstantiation(CurScope, 
-                                           TemplateInfo.TemplateLoc, 
-                                           TagType, StartLoc, SS, Name, 
+      = Actions.ActOnExplicitInstantiation(CurScope,
+                                           TemplateInfo.ExternLoc,
+                                           TemplateInfo.TemplateLoc,
+                                           TagType, StartLoc, SS, Name,
                                            NameLoc, Attr);
   } else {
     if (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation &&
-        TK == Action::TK_Definition) {
+        TUK == Action::TUK_Definition) {
       // FIXME: Diagnose this particular error.
     }
 
+    bool IsDependent = false;
+
     // Declaration or definition of a class type
-    TagOrTempResult = Actions.ActOnTag(CurScope, TagType, TK, StartLoc, SS, 
-                                       Name, NameLoc, Attr, AS, Owned);
+    TagOrTempResult = Actions.ActOnTag(CurScope, TagType, TUK, StartLoc, SS,
+                                       Name, NameLoc, Attr, AS,
+                                  Action::MultiTemplateParamsArg(Actions,
+                                    TemplateParams? &(*TemplateParams)[0] : 0,
+                                    TemplateParams? TemplateParams->size() : 0),
+                                       Owned, IsDependent);
+
+    // If ActOnTag said the type was dependent, try again with the
+    // less common call.
+    if (IsDependent)
+      TypeResult = Actions.ActOnDependentTag(CurScope, TagType, TUK,
+                                             SS, Name, StartLoc, NameLoc);      
   }
 
   // Parse the optional base clause (C++ only).
@@ -713,28 +798,33 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
       ParseCXXMemberSpecification(StartLoc, TagType, TagOrTempResult.get());
     else
       ParseStructUnionBody(StartLoc, TagType, TagOrTempResult.get());
-  else if (TK == Action::TK_Definition) {
+  else if (TUK == Action::TUK_Definition) {
     // FIXME: Complain that we have a base-specifier list but no
     // definition.
     Diag(Tok, diag::err_expected_lbrace);
   }
 
-  const char *PrevSpec = 0;
-  if (TagOrTempResult.isInvalid()) {
+  void *Result;
+  if (!TypeResult.isInvalid()) {
+    TagType = DeclSpec::TST_typename;
+    Result = TypeResult.get();
+    Owned = false;
+  } else if (!TagOrTempResult.isInvalid()) {
+    Result = TagOrTempResult.get().getAs<void>();
+  } else {
     DS.SetTypeSpecError();
     return;
   }
-  
-  if (DS.SetTypeSpecType(TagType, StartLoc, PrevSpec, 
-                         TagOrTempResult.get().getAs<void>(), Owned))
-    Diag(StartLoc, diag::err_invalid_decl_spec_combination) << PrevSpec;
-  
-  if (DS.isFriendSpecified())
-    Actions.ActOnFriendDecl(CurScope, DS.getFriendSpecLoc(), 
-                            TagOrTempResult.get());
+
+  const char *PrevSpec = 0;
+  unsigned DiagID;
+
+  if (DS.SetTypeSpecType(TagType, StartLoc, PrevSpec, DiagID,
+                         Result, Owned))
+    Diag(StartLoc, DiagID) << PrevSpec;
 }
 
-/// ParseBaseClause - Parse the base-clause of a C++ class [C++ class.derived]. 
+/// ParseBaseClause - Parse the base-clause of a C++ class [C++ class.derived].
 ///
 ///       base-clause : [C++ class.derived]
 ///         ':' base-specifier-list
@@ -763,7 +853,7 @@ void Parser::ParseBaseClause(DeclPtrTy ClassDecl) {
     // If the next token is a comma, consume it and keep reading
     // base-specifiers.
     if (Tok.isNot(tok::comma)) break;
-    
+
     // Consume the comma.
     ConsumeToken();
   }
@@ -797,7 +887,7 @@ Parser::BaseResult Parser::ParseBaseSpecifier(DeclPtrTy ClassDecl) {
   AccessSpecifier Access = getAccessSpecifierIfPresent();
   if (Access)
     ConsumeToken();
-  
+
   // Parse the 'virtual' keyword (again!), in case it came after the
   // access specifier.
   if (Tok.is(tok::kw_virtual))  {
@@ -813,7 +903,7 @@ Parser::BaseResult Parser::ParseBaseSpecifier(DeclPtrTy ClassDecl) {
 
   // Parse optional '::' and optional nested-name-specifier.
   CXXScopeSpec SS;
-  ParseOptionalCXXScopeSpecifier(SS);
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true);
 
   // The location of the base class itself.
   SourceLocation BaseLoc = Tok.getLocation();
@@ -823,10 +913,10 @@ Parser::BaseResult Parser::ParseBaseSpecifier(DeclPtrTy ClassDecl) {
   TypeResult BaseType = ParseClassName(EndLocation, &SS);
   if (BaseType.isInvalid())
     return true;
-  
-  // Find the complete source range for the base-specifier.  
+
+  // Find the complete source range for the base-specifier.
   SourceRange Range(StartLoc, EndLocation);
-  
+
   // Notify semantic analysis that we have parsed a complete
   // base-specifier.
   return Actions.ActOnBaseSpecifier(ClassDecl, Range, IsVirtual, Access,
@@ -840,13 +930,46 @@ Parser::BaseResult Parser::ParseBaseSpecifier(DeclPtrTy ClassDecl) {
 ///         'private'
 ///         'protected'
 ///         'public'
-AccessSpecifier Parser::getAccessSpecifierIfPresent() const
-{
+AccessSpecifier Parser::getAccessSpecifierIfPresent() const {
   switch (Tok.getKind()) {
   default: return AS_none;
   case tok::kw_private: return AS_private;
   case tok::kw_protected: return AS_protected;
   case tok::kw_public: return AS_public;
+  }
+}
+
+void Parser::HandleMemberFunctionDefaultArgs(Declarator& DeclaratorInfo,
+                                             DeclPtrTy ThisDecl) {
+  // We just declared a member function. If this member function
+  // has any default arguments, we'll need to parse them later.
+  LateParsedMethodDeclaration *LateMethod = 0;
+  DeclaratorChunk::FunctionTypeInfo &FTI
+    = DeclaratorInfo.getTypeObject(0).Fun;
+  for (unsigned ParamIdx = 0; ParamIdx < FTI.NumArgs; ++ParamIdx) {
+    if (LateMethod || FTI.ArgInfo[ParamIdx].DefaultArgTokens) {
+      if (!LateMethod) {
+        // Push this method onto the stack of late-parsed method
+        // declarations.
+        getCurrentClass().MethodDecls.push_back(
+                                LateParsedMethodDeclaration(ThisDecl));
+        LateMethod = &getCurrentClass().MethodDecls.back();
+        LateMethod->TemplateScope = CurScope->isTemplateParamScope();
+
+        // Add all of the parameters prior to this one (they don't
+        // have default arguments).
+        LateMethod->DefaultArgs.reserve(FTI.NumArgs);
+        for (unsigned I = 0; I < ParamIdx; ++I)
+          LateMethod->DefaultArgs.push_back(
+                    LateParsedDefaultArgument(FTI.ArgInfo[ParamIdx].Param));
+      }
+
+      // Add this parameter to the list of parameters (it or may
+      // not have a default argument).
+      LateMethod->DefaultArgs.push_back(
+        LateParsedDefaultArgument(FTI.ArgInfo[ParamIdx].Param,
+                                  FTI.ArgInfo[ParamIdx].DefaultArgTokens));
+    }
   }
 }
 
@@ -876,17 +999,21 @@ AccessSpecifier Parser::getAccessSpecifierIfPresent() const
 ///       constant-initializer:
 ///         '=' constant-expression
 ///
-void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
+void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
+                                       const ParsedTemplateInfo &TemplateInfo) {
   // static_assert-declaration
   if (Tok.is(tok::kw_static_assert)) {
+    // FIXME: Check for templates
     SourceLocation DeclEnd;
     ParseStaticAssertDeclaration(DeclEnd);
     return;
   }
-      
+
   if (Tok.is(tok::kw_template)) {
+    assert(!TemplateInfo.TemplateParams &&
+           "Nested template improperly parsed?");
     SourceLocation DeclEnd;
-    ParseDeclarationStartingWithTemplate(Declarator::MemberContext, DeclEnd, 
+    ParseDeclarationStartingWithTemplate(Declarator::MemberContext, DeclEnd,
                                          AS);
     return;
   }
@@ -896,10 +1023,12 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
     // __extension__ silences extension warnings in the subexpression.
     ExtensionRAIIObject O(Diags);  // Use RAII to do this.
     ConsumeToken();
-    return ParseCXXClassMemberDeclaration(AS);
+    return ParseCXXClassMemberDeclaration(AS, TemplateInfo);
   }
 
   if (Tok.is(tok::kw_using)) {
+    // FIXME: Check for template aliases
+
     // Eat 'using'.
     SourceLocation UsingLoc = ConsumeToken();
 
@@ -910,7 +1039,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
     else {
       SourceLocation DeclEnd;
       // Otherwise, it must be using-declaration.
-      ParseUsingDeclaration(Declarator::MemberContext, UsingLoc, DeclEnd);
+      ParseUsingDeclaration(Declarator::MemberContext, UsingLoc, DeclEnd, AS);
     }
     return;
   }
@@ -919,24 +1048,16 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
   // decl-specifier-seq:
   // Parse the common declaration-specifiers piece.
   DeclSpec DS;
-  ParseDeclarationSpecifiers(DS, ParsedTemplateInfo(), AS);
+  ParseDeclarationSpecifiers(DS, TemplateInfo, AS, DSC_class);
+
+  Action::MultiTemplateParamsArg TemplateParams(Actions,
+      TemplateInfo.TemplateParams? TemplateInfo.TemplateParams->data() : 0,
+      TemplateInfo.TemplateParams? TemplateInfo.TemplateParams->size() : 0);
 
   if (Tok.is(tok::semi)) {
     ConsumeToken();
-    // C++ 9.2p7: The member-declarator-list can be omitted only after a
-    // class-specifier or an enum-specifier or in a friend declaration.
-    // FIXME: Friend declarations.
-    switch (DS.getTypeSpecType()) {
-    case DeclSpec::TST_struct:
-    case DeclSpec::TST_union:
-    case DeclSpec::TST_class:
-    case DeclSpec::TST_enum:
-      Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
-      return;
-    default:
-      Diag(DSStart, diag::err_no_declarators);
-      return;
-    }
+    Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    return;
   }
 
   Declarator DeclaratorInfo(DS, Declarator::MemberContext);
@@ -974,7 +1095,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
         return;
       }
 
-      ParseCXXInlineMethodDef(AS, DeclaratorInfo);
+      ParseCXXInlineMethodDef(AS, DeclaratorInfo, TemplateInfo);
       return;
     }
   }
@@ -1001,7 +1122,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
       if (BitfieldSize.isInvalid())
         SkipUntil(tok::comma, true, true);
     }
-    
+
     // pure-specifier:
     //   '= 0'
     //
@@ -1034,62 +1155,44 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS) {
     // NOTE: If Sema is the Action module and declarator is an instance field,
     // this call will *not* return the created decl; It will return null.
     // See Sema::ActOnCXXMemberDeclarator for details.
-    DeclPtrTy ThisDecl = Actions.ActOnCXXMemberDeclarator(CurScope, AS,
-                                                          DeclaratorInfo,
-                                                          BitfieldSize.release(),
-                                                          Init.release(),
-                                                          Deleted);
+
+    DeclPtrTy ThisDecl;
+    if (DS.isFriendSpecified()) {
+      // TODO: handle initializers, bitfields, 'delete'
+      ThisDecl = Actions.ActOnFriendFunctionDecl(CurScope, DeclaratorInfo,
+                                                 /*IsDefinition*/ false,
+                                                 move(TemplateParams));
+    } else {
+      ThisDecl = Actions.ActOnCXXMemberDeclarator(CurScope, AS,
+                                                  DeclaratorInfo,
+                                                  move(TemplateParams),
+                                                  BitfieldSize.release(),
+                                                  Init.release(),
+                                                  Deleted);
+    }
     if (ThisDecl)
       DeclsInGroup.push_back(ThisDecl);
 
     if (DeclaratorInfo.isFunctionDeclarator() &&
-        DeclaratorInfo.getDeclSpec().getStorageClassSpec() 
+        DeclaratorInfo.getDeclSpec().getStorageClassSpec()
           != DeclSpec::SCS_typedef) {
-      // We just declared a member function. If this member function
-      // has any default arguments, we'll need to parse them later.
-      LateParsedMethodDeclaration *LateMethod = 0;
-      DeclaratorChunk::FunctionTypeInfo &FTI 
-        = DeclaratorInfo.getTypeObject(0).Fun;
-      for (unsigned ParamIdx = 0; ParamIdx < FTI.NumArgs; ++ParamIdx) {
-        if (LateMethod || FTI.ArgInfo[ParamIdx].DefaultArgTokens) {
-          if (!LateMethod) {
-            // Push this method onto the stack of late-parsed method
-            // declarations.
-            getCurrentClass().MethodDecls.push_back(
-                                   LateParsedMethodDeclaration(ThisDecl));
-            LateMethod = &getCurrentClass().MethodDecls.back();
-
-            // Add all of the parameters prior to this one (they don't
-            // have default arguments).
-            LateMethod->DefaultArgs.reserve(FTI.NumArgs);
-            for (unsigned I = 0; I < ParamIdx; ++I)
-              LateMethod->DefaultArgs.push_back(
-                        LateParsedDefaultArgument(FTI.ArgInfo[ParamIdx].Param));
-          }
-
-          // Add this parameter to the list of parameters (it or may
-          // not have a default argument).
-          LateMethod->DefaultArgs.push_back(
-            LateParsedDefaultArgument(FTI.ArgInfo[ParamIdx].Param,
-                                      FTI.ArgInfo[ParamIdx].DefaultArgTokens));
-        }
-      }
+      HandleMemberFunctionDefaultArgs(DeclaratorInfo, ThisDecl);
     }
 
     // If we don't have a comma, it is either the end of the list (a ';')
     // or an error, bail out.
     if (Tok.isNot(tok::comma))
       break;
-    
+
     // Consume the comma.
     ConsumeToken();
-    
+
     // Parse the next declarator.
     DeclaratorInfo.clear();
     BitfieldSize = 0;
     Init = 0;
     Deleted = false;
-    
+
     // Attributes are only allowed on the second declarator.
     if (Tok.is(tok::kw___attribute)) {
       SourceLocation Loc;
@@ -1131,11 +1234,11 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
   PrettyStackTraceActionsDecl CrashInfo(TagDecl, RecordLoc, Actions,
                                         PP.getSourceManager(),
                                         "parsing struct/union/class body");
-  
+
   SourceLocation LBraceLoc = ConsumeBrace();
 
   // Determine whether this is a top-level (non-nested) class.
-  bool TopLevelClass = ClassStack.empty() || 
+  bool TopLevelClass = ClassStack.empty() ||
     CurScope->isInCXXInlineMethodScope();
 
   // Enter a scope for the class.
@@ -1163,7 +1266,7 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
   // While we still have something to read, read the member-declarations.
   while (Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
     // Each iteration of this loop reads one member-declaration.
-    
+
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
       Diag(Tok, diag::ext_extra_struct_semi);
@@ -1180,12 +1283,14 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
       continue;
     }
 
+    // FIXME: Make sure we don't have a template here.
+
     // Parse all the comma separated declarators.
     ParseCXXClassMemberDeclaration(CurAS);
   }
-  
+
   SourceLocation RBraceLoc = MatchRHSPunctuation(tok::r_brace, LBraceLoc);
-  
+
   AttributeList *AttrList = 0;
   // If attributes exist after class contents, parse them.
   if (Tok.is(tok::kw___attribute))
@@ -1213,7 +1318,7 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
   ParsingDef.Pop();
   ClassScope.Exit();
 
-  Actions.ActOnTagFinishDefinition(CurScope, TagDecl);
+  Actions.ActOnTagFinishDefinition(CurScope, TagDecl, RBraceLoc);
 }
 
 /// ParseConstructorInitializer - Parse a C++ constructor initializer,
@@ -1231,19 +1336,19 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
 /// };
 /// @endcode
 ///
-/// [C++]  ctor-initializer: 
-///          ':' mem-initializer-list 
+/// [C++]  ctor-initializer:
+///          ':' mem-initializer-list
 ///
-/// [C++]  mem-initializer-list: 
-///          mem-initializer 
-///          mem-initializer , mem-initializer-list 
+/// [C++]  mem-initializer-list:
+///          mem-initializer
+///          mem-initializer , mem-initializer-list
 void Parser::ParseConstructorInitializer(DeclPtrTy ConstructorDecl) {
   assert(Tok.is(tok::colon) && "Constructor initializer always starts with ':'");
 
   SourceLocation ColonLoc = ConsumeToken();
-  
+
   llvm::SmallVector<MemInitTy*, 4> MemInitializers;
-  
+
   do {
     MemInitResult MemInit = ParseMemInitializer(ConstructorDecl);
     if (!MemInit.isInvalid())
@@ -1261,7 +1366,7 @@ void Parser::ParseConstructorInitializer(DeclPtrTy ConstructorDecl) {
     }
   } while (true);
 
-  Actions.ActOnMemInitializers(ConstructorDecl, ColonLoc, 
+  Actions.ActOnMemInitializers(ConstructorDecl, ColonLoc,
                                MemInitializers.data(), MemInitializers.size());
 }
 
@@ -1272,14 +1377,14 @@ void Parser::ParseConstructorInitializer(DeclPtrTy ConstructorDecl) {
 ///
 /// [C++] mem-initializer:
 ///         mem-initializer-id '(' expression-list[opt] ')'
-/// 
+///
 /// [C++] mem-initializer-id:
 ///         '::'[opt] nested-name-specifier[opt] class-name
 ///         identifier
 Parser::MemInitResult Parser::ParseMemInitializer(DeclPtrTy ConstructorDecl) {
   // parse '::'[opt] nested-name-specifier[opt]
   CXXScopeSpec SS;
-  ParseOptionalCXXScopeSpecifier(SS);
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, false);
   TypeTy *TemplateTypeTy = 0;
   if (Tok.is(tok::annot_template_id)) {
     TemplateIdAnnotation *TemplateId
@@ -1295,7 +1400,7 @@ Parser::MemInitResult Parser::ParseMemInitializer(DeclPtrTy ConstructorDecl) {
     Diag(Tok, diag::err_expected_member_or_base_name);
     return true;
   }
-  
+
   // Get the identifier. This may be a member name or a class name,
   // but we'll let the semantic analysis determine which it is.
   IdentifierInfo *II = Tok.is(tok::identifier) ? Tok.getIdentifierInfo() : 0;
@@ -1331,7 +1436,7 @@ Parser::MemInitResult Parser::ParseMemInitializer(DeclPtrTy ConstructorDecl) {
 ///       exception-specification:
 ///         'throw' '(' type-id-list [opt] ')'
 /// [MS]    'throw' '(' '...' ')'
-///      
+///
 ///       type-id-list:
 ///         type-id
 ///         type-id-list ',' type-id
@@ -1343,9 +1448,9 @@ bool Parser::ParseExceptionSpecification(SourceLocation &EndLoc,
                                              &Ranges,
                                          bool &hasAnyExceptionSpec) {
   assert(Tok.is(tok::kw_throw) && "expected throw");
-  
+
   SourceLocation ThrowLoc = ConsumeToken();
-  
+
   if (!Tok.is(tok::l_paren)) {
     return Diag(Tok, diag::err_expected_lparen_after) << "throw";
   }
@@ -1384,7 +1489,7 @@ bool Parser::ParseExceptionSpecification(SourceLocation &EndLoc,
 /// so push that class onto our stack of classes that is currently
 /// being parsed.
 void Parser::PushParsingClass(DeclPtrTy ClassDecl, bool TopLevelClass) {
-  assert((TopLevelClass || !ClassStack.empty()) && 
+  assert((TopLevelClass || !ClassStack.empty()) &&
          "Nested class without outer class");
   ClassStack.push(new ParsingClass(ClassDecl, TopLevelClass));
 }
@@ -1408,7 +1513,7 @@ void Parser::DeallocateParsedClasses(Parser::ParsingClass *Class) {
 /// false otherwise.
 void Parser::PopParsingClass() {
   assert(!ClassStack.empty() && "Mismatched push/pop for class parsing");
-  
+
   ParsingClass *Victim = ClassStack.top();
   ClassStack.pop();
   if (Victim->TopLevelClass) {
@@ -1416,7 +1521,7 @@ void Parser::PopParsingClass() {
     // recursively: we don't need to keep any of this information.
     DeallocateParsedClasses(Victim);
     return;
-  } 
+  }
   assert(!ClassStack.empty() && "Missing top-level class?");
 
   if (Victim->MethodDecls.empty() && Victim->MethodDefs.empty() &&

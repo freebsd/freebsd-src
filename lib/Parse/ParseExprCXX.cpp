@@ -16,10 +16,11 @@
 #include "clang/Parse/DeclSpec.h"
 using namespace clang;
 
-/// ParseOptionalCXXScopeSpecifier - Parse global scope or
-/// nested-name-specifier if present.  Returns true if a nested-name-specifier
-/// was parsed from the token stream.  Note that this routine will not parse
-/// ::new or ::delete, it will just leave them in the token stream.
+/// \brief Parse global scope or nested-name-specifier if present.
+///
+/// Parses a C++ global scope specifier ('::') or nested-name-specifier (which
+/// may be preceded by '::'). Note that this routine will not parse ::new or
+/// ::delete; it will just leave them in the token stream.
 ///
 ///       '::'[opt] nested-name-specifier
 ///       '::'
@@ -28,9 +29,23 @@ using namespace clang;
 ///         type-name '::'
 ///         namespace-name '::'
 ///         nested-name-specifier identifier '::'
-///         nested-name-specifier 'template'[opt] simple-template-id '::' [TODO]
+///         nested-name-specifier 'template'[opt] simple-template-id '::'
 ///
-bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS) {
+///
+/// \param SS the scope specifier that will be set to the parsed
+/// nested-name-specifier (or empty)
+///
+/// \param ObjectType if this nested-name-specifier is being parsed following
+/// the "." or "->" of a member access expression, this parameter provides the
+/// type of the object whose members are being accessed.
+///
+/// \param EnteringContext whether we will be entering into the context of
+/// the nested-name-specifier after parsing it.
+///
+/// \returns true if a scope specifier was parsed.
+bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
+                                            Action::TypeTy *ObjectType,
+                                            bool EnteringContext) {
   assert(getLang().CPlusPlus &&
          "Call sites of this function should be guarded by checking for C++");
 
@@ -48,7 +63,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS) {
     tok::TokenKind NextKind = NextToken().getKind();
     if (NextKind == tok::kw_new || NextKind == tok::kw_delete)
       return false;
-    
+
     // '::' - Global scope qualifier.
     SourceLocation CCLoc = ConsumeToken();
     SS.setBeginLoc(CCLoc);
@@ -58,21 +73,48 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS) {
   }
 
   while (true) {
+    if (HasScopeSpecifier) {
+      // C++ [basic.lookup.classref]p5:
+      //   If the qualified-id has the form
+      //
+      //       ::class-name-or-namespace-name::...
+      //
+      //   the class-name-or-namespace-name is looked up in global scope as a
+      //   class-name or namespace-name.
+      //
+      // To implement this, we clear out the object type as soon as we've
+      // seen a leading '::' or part of a nested-name-specifier.
+      ObjectType = 0;
+      
+      if (Tok.is(tok::code_completion)) {
+        // Code completion for a nested-name-specifier, where the code
+        // code completion token follows the '::'.
+        Actions.CodeCompleteQualifiedId(CurScope, SS, EnteringContext);
+        ConsumeToken();
+      }
+    }
+
     // nested-name-specifier:
     //   nested-name-specifier 'template'[opt] simple-template-id '::'
 
     // Parse the optional 'template' keyword, then make sure we have
     // 'identifier <' after it.
     if (Tok.is(tok::kw_template)) {
+      // If we don't have a scope specifier or an object type, this isn't a
+      // nested-name-specifier, since they aren't allowed to start with
+      // 'template'.
+      if (!HasScopeSpecifier && !ObjectType)
+        break;
+
       SourceLocation TemplateKWLoc = ConsumeToken();
-      
+
       if (Tok.isNot(tok::identifier)) {
-        Diag(Tok.getLocation(), 
+        Diag(Tok.getLocation(),
              diag::err_id_after_template_in_nested_name_spec)
           << SourceRange(TemplateKWLoc);
         break;
       }
-      
+
       if (NextToken().isNot(tok::less)) {
         Diag(NextToken().getLocation(),
              diag::err_less_after_template_name_in_nested_name_spec)
@@ -80,49 +122,51 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS) {
           << SourceRange(TemplateKWLoc, Tok.getLocation());
         break;
       }
-      
-      TemplateTy Template 
+
+      TemplateTy Template
         = Actions.ActOnDependentTemplateName(TemplateKWLoc,
                                              *Tok.getIdentifierInfo(),
-                                             Tok.getLocation(), SS);
+                                             Tok.getLocation(), SS,
+                                             ObjectType);
+      if (!Template)
+        break;
       if (AnnotateTemplateIdToken(Template, TNK_Dependent_template_name,
                                   &SS, TemplateKWLoc, false))
         break;
-      
+
       continue;
     }
-    
+
     if (Tok.is(tok::annot_template_id) && NextToken().is(tok::coloncolon)) {
-      // We have 
+      // We have
       //
       //   simple-template-id '::'
       //
       // So we need to check whether the simple-template-id is of the
       // right kind (it should name a type or be dependent), and then
       // convert it into a type within the nested-name-specifier.
-      TemplateIdAnnotation *TemplateId 
+      TemplateIdAnnotation *TemplateId
         = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
 
-      if (TemplateId->Kind == TNK_Type_template || 
+      if (TemplateId->Kind == TNK_Type_template ||
           TemplateId->Kind == TNK_Dependent_template_name) {
         AnnotateTemplateIdTokenAsType(&SS);
-        SS.setScopeRep(0);
 
-        assert(Tok.is(tok::annot_typename) && 
+        assert(Tok.is(tok::annot_typename) &&
                "AnnotateTemplateIdTokenAsType isn't working");
         Token TypeToken = Tok;
         ConsumeToken();
         assert(Tok.is(tok::coloncolon) && "NextToken() not working properly!");
         SourceLocation CCLoc = ConsumeToken();
-        
+
         if (!HasScopeSpecifier) {
           SS.setBeginLoc(TypeToken.getLocation());
           HasScopeSpecifier = true;
         }
-        
+
         if (TypeToken.getAnnotationValue())
           SS.setScopeRep(
-            Actions.ActOnCXXNestedNameSpecifier(CurScope, SS, 
+            Actions.ActOnCXXNestedNameSpecifier(CurScope, SS,
                                                 TypeToken.getAnnotationValue(),
                                                 TypeToken.getAnnotationRange(),
                                                 CCLoc));
@@ -131,7 +175,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS) {
         SS.setEndLoc(CCLoc);
         continue;
       }
-      
+
       assert(false && "FIXME: Only type template names supported here");
     }
 
@@ -154,27 +198,32 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS) {
       SourceLocation IdLoc = ConsumeToken();
       assert(Tok.is(tok::coloncolon) && "NextToken() not working properly!");
       SourceLocation CCLoc = ConsumeToken();
-      
+
       if (!HasScopeSpecifier) {
         SS.setBeginLoc(IdLoc);
         HasScopeSpecifier = true;
       }
-      
+
       if (SS.isInvalid())
         continue;
-      
+
       SS.setScopeRep(
-        Actions.ActOnCXXNestedNameSpecifier(CurScope, SS, IdLoc, CCLoc, II));
+        Actions.ActOnCXXNestedNameSpecifier(CurScope, SS, IdLoc, CCLoc, II,
+                                            ObjectType, EnteringContext));
       SS.setEndLoc(CCLoc);
       continue;
     }
-    
+
     // nested-name-specifier:
     //   type-name '<'
     if (Next.is(tok::less)) {
       TemplateTy Template;
-      if (TemplateNameKind TNK = Actions.isTemplateName(II, CurScope,
-                                                        Template, &SS)) {
+      if (TemplateNameKind TNK = Actions.isTemplateName(CurScope, II,
+                                                        Tok.getLocation(),
+                                                        &SS,
+                                                        ObjectType,
+                                                        EnteringContext,
+                                                        Template)) {
         // We have found a template name, so annotate this this token
         // with a template-id annotation. We do not permit the
         // template-id to be translated into a type annotation,
@@ -192,7 +241,7 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS) {
     // nested-name-specifier, so we're done.
     break;
   }
-    
+
   return HasScopeSpecifier;
 }
 
@@ -257,7 +306,7 @@ Parser::OwningExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand) {
   //   '::' unqualified-id
   //
   CXXScopeSpec SS;
-  ParseOptionalCXXScopeSpecifier(SS);
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, false);
 
   // unqualified-id:
   //   identifier
@@ -295,17 +344,17 @@ Parser::OwningExprResult Parser::ParseCXXIdExpression(bool isAddressOfOperand) {
   }
 
   case tok::annot_template_id: {
-    TemplateIdAnnotation *TemplateId 
+    TemplateIdAnnotation *TemplateId
       = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
     assert((TemplateId->Kind == TNK_Function_template ||
             TemplateId->Kind == TNK_Dependent_template_name) &&
            "A template type name is not an ID expression");
 
-    ASTTemplateArgsPtr TemplateArgsPtr(Actions, 
+    ASTTemplateArgsPtr TemplateArgsPtr(Actions,
                                        TemplateId->getTemplateArgs(),
                                        TemplateId->getTemplateArgIsType(),
                                        TemplateId->NumArgs);
-    
+
     OwningExprResult Result
       = Actions.ActOnTemplateIdExpr(TemplateTy::make(TemplateId->Template),
                                     TemplateId->TemplateNameLoc,
@@ -361,11 +410,11 @@ Parser::OwningExprResult Parser::ParseCXXCasts() {
     return ExprError();
 
   OwningExprResult Result = ParseExpression();
-  
+
   // Match the ')'.
   if (Result.isInvalid())
     SkipUntil(tok::r_paren);
-  
+
   if (Tok.is(tok::r_paren))
     RParenLoc = ConsumeParen();
   else
@@ -413,11 +462,11 @@ Parser::OwningExprResult Parser::ParseCXXTypeid() {
                                     Ty.get(), RParenLoc);
   } else {
     // C++0x [expr.typeid]p3:
-    //   When typeid is applied to an expression other than an lvalue of a 
-    //   polymorphic class type [...] The expression is an unevaluated 
+    //   When typeid is applied to an expression other than an lvalue of a
+    //   polymorphic class type [...] The expression is an unevaluated
     //   operand (Clause 5).
     //
-    // Note that we can't tell whether the expression is an lvalue of a 
+    // Note that we can't tell whether the expression is an lvalue of a
     // polymorphic class type until after we've parsed the expression, so
     // we the expression is potentially potentially evaluated.
     EnterExpressionEvaluationContext Unevaluated(Actions,
@@ -516,6 +565,10 @@ Parser::ParseCXXTypeConstructExpression(const DeclSpec &DS) {
   // Match the ')'.
   SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
 
+  // TypeRep could be null, if it references an invalid typedef.
+  if (!TypeRep)
+    return ExprError();
+
   assert((Exprs.size() == 0 || Exprs.size()-1 == CommaLocs.size())&&
          "Unexpected number of commas!");
   return Actions.ActOnCXXTypeConstructExpr(DS.getSourceRange(), TypeRep,
@@ -606,58 +659,65 @@ Parser::OwningExprResult Parser::ParseCXXCondition() {
 void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
   DS.SetRangeStart(Tok.getLocation());
   const char *PrevSpec;
+  unsigned DiagID;
   SourceLocation Loc = Tok.getLocation();
-  
+
   switch (Tok.getKind()) {
   case tok::identifier:   // foo::bar
   case tok::coloncolon:   // ::foo::bar
     assert(0 && "Annotation token should already be formed!");
-  default: 
+  default:
     assert(0 && "Not a simple-type-specifier token!");
     abort();
 
   // type-name
   case tok::annot_typename: {
-    DS.SetTypeSpecType(DeclSpec::TST_typename, Loc, PrevSpec,
+    DS.SetTypeSpecType(DeclSpec::TST_typename, Loc, PrevSpec, DiagID,
                        Tok.getAnnotationValue());
     break;
   }
-    
+
   // builtin types
   case tok::kw_short:
-    DS.SetTypeSpecWidth(DeclSpec::TSW_short, Loc, PrevSpec);
+    DS.SetTypeSpecWidth(DeclSpec::TSW_short, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_long:
-    DS.SetTypeSpecWidth(DeclSpec::TSW_long, Loc, PrevSpec);
+    DS.SetTypeSpecWidth(DeclSpec::TSW_long, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_signed:
-    DS.SetTypeSpecSign(DeclSpec::TSS_signed, Loc, PrevSpec);
+    DS.SetTypeSpecSign(DeclSpec::TSS_signed, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_unsigned:
-    DS.SetTypeSpecSign(DeclSpec::TSS_unsigned, Loc, PrevSpec);
+    DS.SetTypeSpecSign(DeclSpec::TSS_unsigned, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_void:
-    DS.SetTypeSpecType(DeclSpec::TST_void, Loc, PrevSpec);
+    DS.SetTypeSpecType(DeclSpec::TST_void, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_char:
-    DS.SetTypeSpecType(DeclSpec::TST_char, Loc, PrevSpec);
+    DS.SetTypeSpecType(DeclSpec::TST_char, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_int:
-    DS.SetTypeSpecType(DeclSpec::TST_int, Loc, PrevSpec);
+    DS.SetTypeSpecType(DeclSpec::TST_int, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_float:
-    DS.SetTypeSpecType(DeclSpec::TST_float, Loc, PrevSpec);
+    DS.SetTypeSpecType(DeclSpec::TST_float, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_double:
-    DS.SetTypeSpecType(DeclSpec::TST_double, Loc, PrevSpec);
+    DS.SetTypeSpecType(DeclSpec::TST_double, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_wchar_t:
-    DS.SetTypeSpecType(DeclSpec::TST_wchar, Loc, PrevSpec);
+    DS.SetTypeSpecType(DeclSpec::TST_wchar, Loc, PrevSpec, DiagID);
+    break;
+  case tok::kw_char16_t:
+    DS.SetTypeSpecType(DeclSpec::TST_char16, Loc, PrevSpec, DiagID);
+    break;
+  case tok::kw_char32_t:
+    DS.SetTypeSpecType(DeclSpec::TST_char32, Loc, PrevSpec, DiagID);
     break;
   case tok::kw_bool:
-    DS.SetTypeSpecType(DeclSpec::TST_bool, Loc, PrevSpec);
+    DS.SetTypeSpecType(DeclSpec::TST_bool, Loc, PrevSpec, DiagID);
     break;
-  
+
   // GNU typeof support.
   case tok::kw_typeof:
     ParseTypeofSpecifier(DS);
@@ -686,15 +746,16 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
 bool Parser::ParseCXXTypeSpecifierSeq(DeclSpec &DS) {
   DS.SetRangeStart(Tok.getLocation());
   const char *PrevSpec = 0;
-  int isInvalid = 0;
+  unsigned DiagID;
+  bool isInvalid = 0;
 
   // Parse one or more of the type specifiers.
-  if (!ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec)) {
+  if (!ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec, DiagID)) {
     Diag(Tok, diag::err_operator_missing_type_specifier);
     return true;
   }
-  
-  while (ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec)) ;
+
+  while (ParseOptionalTypeSpecifier(DS, isInvalid, PrevSpec, DiagID)) ;
 
   return false;
 }
@@ -774,6 +835,18 @@ Parser::TryParseOperatorFunctionId(SourceLocation *EndLoc) {
       *EndLoc = Loc;
     return OO_Subscript;
 
+  case tok::code_completion: {
+    // Code completion for the operator name.
+    Actions.CodeCompleteOperatorName(CurScope);
+    
+    // Consume the 'operator' token, then replace the code-completion token
+    // with an 'operator' token and try again.
+    SourceLocation OperatorLoc = ConsumeToken();
+    Tok.setLocation(OperatorLoc);
+    Tok.setKind(tok::kw_operator);
+    return TryParseOperatorFunctionId(EndLoc);
+  }
+      
   default:
     return OO_None;
   }
@@ -824,7 +897,7 @@ Parser::TypeTy *Parser::ParseConversionFunctionId(SourceLocation *EndLoc) {
 
 /// ParseCXXNewExpression - Parse a C++ new-expression. New is used to allocate
 /// memory in a typesafe manner and call constructors.
-/// 
+///
 /// This method is called to parse the new expression after the optional :: has
 /// been already parsed.  If the :: was present, "UseGlobal" is true and "Start"
 /// is its location.  Otherwise, "Start" is the location of the 'new' token.
@@ -966,7 +1039,7 @@ void Parser::ParseDirectNewDeclarator(Declarator &D) {
 
     SourceLocation RLoc = MatchRHSPunctuation(tok::r_square, LLoc);
     D.AddTypeInfo(DeclaratorChunk::getArray(0, /*static=*/false, /*star=*/false,
-                                            Size.release(), LLoc),
+                                            Size.release(), LLoc, RLoc),
                   RLoc);
 
     if (RLoc.isInvalid())
@@ -1033,8 +1106,7 @@ Parser::ParseCXXDeleteExpression(bool UseGlobal, SourceLocation Start) {
   return Actions.ActOnCXXDelete(Start, UseGlobal, ArrayDelete, move(Operand));
 }
 
-static UnaryTypeTrait UnaryTypeTraitFromTokKind(tok::TokenKind kind)
-{
+static UnaryTypeTrait UnaryTypeTraitFromTokKind(tok::TokenKind kind) {
   switch(kind) {
   default: assert(false && "Not a known unary type trait.");
   case tok::kw___has_nothrow_assign:      return UTT_HasNothrowAssign;
@@ -1062,8 +1134,7 @@ static UnaryTypeTrait UnaryTypeTraitFromTokKind(tok::TokenKind kind)
 ///       primary-expression:
 /// [GNU]             unary-type-trait '(' type-id ')'
 ///
-Parser::OwningExprResult Parser::ParseUnaryTypeTrait()
-{
+Parser::OwningExprResult Parser::ParseUnaryTypeTrait() {
   UnaryTypeTrait UTT = UnaryTypeTraitFromTokKind(Tok.getKind());
   SourceLocation Loc = ConsumeToken();
 
@@ -1118,7 +1189,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
   // parsing a cast-expression), and then we re-introduce the cached tokens
   // into the token stream and parse them appropriately.
 
-  ParenParseOption ParseAs;  
+  ParenParseOption ParseAs;
   CachedTokens Toks;
 
   // Store the tokens of the parentheses. We will parse them after we determine
@@ -1142,7 +1213,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
       // will be consumed.
       Result = ParseCastExpression(false/*isUnaryExpression*/,
                                    false/*isAddressofOperand*/,
-                                   NotCastExpr);
+                                   NotCastExpr, false);
     }
 
     // If we parsed a cast-expression, it's really a type-id, otherwise it's
@@ -1150,7 +1221,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
     ParseAs = NotCastExpr ? SimpleExpr : CastExpr;
   }
 
-  // The current token should go after the cached tokens. 
+  // The current token should go after the cached tokens.
   Toks.push_back(Tok);
   // Re-enter the stored parenthesized tokens into the token stream, so we may
   // parse them now.
@@ -1173,7 +1244,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
       ExprType = CompoundLiteral;
       return ParseCompoundLiteralExpression(Ty.get(), LParenLoc, RParenLoc);
     }
-    
+
     // We parsed '(' type-id ')' and the thing after it wasn't a '{'.
     assert(ParseAs == CastExpr);
 
@@ -1184,10 +1255,11 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
 
     // Result is what ParseCastExpression returned earlier.
     if (!Result.isInvalid())
-      Result = Actions.ActOnCastExpr(LParenLoc, CastTy, RParenLoc,move(Result));
+      Result = Actions.ActOnCastExpr(CurScope, LParenLoc, CastTy, RParenLoc,
+                                     move(Result));
     return move(Result);
   }
-  
+
   // Not a compound literal, and not followed by a cast-expression.
   assert(ParseAs == SimpleExpr);
 
@@ -1201,7 +1273,7 @@ Parser::ParseCXXAmbiguousParenExpression(ParenParseOption &ExprType,
     SkipUntil(tok::r_paren);
     return ExprError();
   }
-  
+
   if (Tok.is(tok::r_paren))
     RParenLoc = ConsumeParen();
   else

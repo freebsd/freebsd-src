@@ -57,7 +57,7 @@ int f7(int *p) {
 
 int f8(int *p) {
   extern int *baz();
-  if (p = baz()) // expected-warning{{Although the value}}
+  if ((p = baz())) // expected-warning{{Although the value}}
     return 1;
   return 0;
 }
@@ -129,14 +129,15 @@ int f16(int x) {
 }
 
 // Self-assignments should not be flagged as dead stores.
-int f17() {
+void f17() {
   int x = 1;
   x = x; // no-warning
 }
 
 // <rdar://problem/6506065>
 // The values of dead stores are only "consumed" in an enclosing expression
-// what that value is actually used.  In other words, don't say "Although the value stored to 'x' is used...".
+// what that value is actually used.  In other words, don't say "Although the
+// value stored to 'x' is used...".
 int f18() {
    int x = 0; // no-warning
    if (1)
@@ -171,3 +172,167 @@ void f20(void) {
 #pragma unused(x)
 }
 
+void halt() __attribute__((noreturn));
+int f21() {
+  int x = 4;
+  
+  ++x; // expected-warning{{never read}}
+  if (1) {
+    halt();
+    (void)x;
+  }
+  return 1;
+}
+
+int j;
+void f22() {
+  int x = 4;
+  int y1 = 4;
+  int y2 = 4;
+  int y3 = 4;
+  int y4 = 4;
+  int y5 = 4;
+  int y6 = 4;
+  int y7 = 4;
+  int y8 = 4;
+  int y9 = 4;
+  int y10 = 4;
+  int y11 = 4;
+  int y12 = 4;
+  int y13 = 4;
+  int y14 = 4;
+  int y15 = 4;
+  int y16 = 4;
+  int y17 = 4;
+  int y18 = 4;
+  int y19 = 4;
+  int y20 = 4;
+
+  ++x; // expected-warning{{never read}}
+  ++y1;
+  ++y2;
+  ++y3;
+  ++y4;
+  ++y5;
+  ++y6;
+  ++y7;
+  ++y8;
+  ++y9;
+  ++y10;
+  ++y11;
+  ++y12;
+  ++y13;
+  ++y14;
+  ++y15;
+  ++y16;
+  ++y17;
+  ++y18;
+  ++y19;
+  ++y20;
+
+  switch (j) {
+  case 1:
+    if (0)
+      (void)x;
+    if (1) {
+      (void)y1;
+      return;
+    }
+    (void)x;
+    break;
+  case 2:
+    if (0)
+      (void)x;
+    else {
+      (void)y2;
+      return;
+    }
+    (void)x;
+    break;
+  case 3:
+    if (1) {
+      (void)y3;
+      return;
+    } else
+      (void)x;
+    (void)x;
+  break;
+  case 4:
+    0 ? : ((void)y4, ({ return; }));
+    (void)x;
+    break;
+  case 5:
+    1 ? : (void)x;
+    0 ? (void)x : ((void)y5, ({ return; }));
+    (void)x;
+    break;
+  case 6:
+    1 ? ((void)y6, ({ return; })) : (void)x;
+    (void)x;
+    break;
+  case 7:
+    (void)(0 && x);
+    (void)y7;
+    (void)(0 || (y8, ({ return; }), 1));
+    (void)x;
+    break;
+  case 8:
+    (void)(1 && (y9, ({ return; }), 1));
+    (void)x;
+    break;
+  case 9:
+    (void)(1 || x);
+    (void)y10;
+    break;
+  case 10:
+    while (0) {
+      (void)x;
+    }
+    (void)y11;
+    break;
+  case 11:
+    while (1) {
+      (void)y12;
+    }
+    (void)x;
+    break;
+  case 12:
+    do {
+      (void)y13;
+    } while (0);
+    (void)y14;
+    break;
+  case 13:
+    do {
+      (void)y15;
+    } while (1);
+    (void)x;
+    break;
+  case 14:
+    for (;;) {
+      (void)y16;
+    }
+    (void)x;    
+    break;
+  case 15:
+    for (;1;) {
+      (void)y17;
+    }
+    (void)x;
+    break;
+  case 16:
+    for (;0;) {
+      (void)x;
+    }
+    (void)y18;
+    break;
+  case 17:
+    __builtin_choose_expr(0, (void)x, ((void)y19, ({ return; })));
+    (void)x;
+    break;
+  case 19:
+    __builtin_choose_expr(1, ((void)y20, ({ return; })), (void)x);
+    (void)x;
+    break;
+  }
+}

@@ -40,6 +40,24 @@ class SourceManager;
 class SwitchCase;
 class TargetInfo;
 
+/// A structure for putting "fast"-unqualified QualTypes into a
+/// DenseMap.  This uses the standard pointer hash function.
+struct UnsafeQualTypeDenseMapInfo {
+  static inline bool isEqual(QualType A, QualType B) { return A == B; }
+  static inline bool isPod() { return true; }
+  static inline QualType getEmptyKey() {
+    return QualType::getFromOpaquePtr((void*) 1);
+  }
+  static inline QualType getTombstoneKey() {
+    return QualType::getFromOpaquePtr((void*) 2);
+  }
+  static inline unsigned getHashValue(QualType T) {
+    assert(!T.getFastQualifiers() && "hash invalid for types with fast quals");
+    uintptr_t v = reinterpret_cast<uintptr_t>(T.getAsOpaquePtr());
+    return (unsigned(v) >> 4) ^ (unsigned(v) >> 9);
+  }
+};
+
 /// \brief Writes a precompiled header containing the contents of a
 /// translation unit.
 ///
@@ -76,9 +94,11 @@ private:
   ///
   /// The ID numbers of types are consecutive (in order of discovery)
   /// and start at 1. 0 is reserved for NULL. When types are actually
-  /// stored in the stream, the ID number is shifted by 3 bits to
-  /// allow for the const/volatile/restrict qualifiers.
-  llvm::DenseMap<const Type *, pch::TypeID> TypeIDs;
+  /// stored in the stream, the ID number is shifted by 2 bits to
+  /// allow for the const/volatile qualifiers.
+  ///
+  /// Keys in the map never have const/volatile qualifiers.
+  llvm::DenseMap<QualType, pch::TypeID, UnsafeQualTypeDenseMapInfo> TypeIDs;
 
   /// \brief Offset of each type in the bitstream, indexed by
   /// the type's ID.
@@ -89,7 +109,7 @@ private:
 
   /// \brief Queue containing the types that we still need to
   /// emit.
-  std::queue<const Type *> TypesToEmit;
+  std::queue<QualType> TypesToEmit;
 
   /// \brief Map that provides the ID numbers of each identifier in
   /// the output stream.
@@ -98,21 +118,21 @@ private:
   /// discovery), starting at 1. An ID of zero refers to a NULL
   /// IdentifierInfo.
   llvm::DenseMap<const IdentifierInfo *, pch::IdentID> IdentifierIDs;
-  
+
   /// \brief Offsets of each of the identifier IDs into the identifier
   /// table.
   std::vector<uint32_t> IdentifierOffsets;
 
   /// \brief Map that provides the ID numbers of each Selector.
   llvm::DenseMap<Selector, pch::SelectorID> SelectorIDs;
-  
+
   /// \brief Offset of each selector within the method pool/selector
   /// table, indexed by the Selector ID (-1).
   std::vector<uint32_t> SelectorOffsets;
 
   /// \brief A vector of all Selectors (ordered by ID).
   std::vector<Selector> SelVector;
-  
+
   /// \brief Offsets of each of the macro identifiers into the
   /// bitstream.
   ///
@@ -141,7 +161,7 @@ private:
 
   /// \brief Mapping from SwitchCase statements to IDs.
   std::map<SwitchCase *, unsigned> SwitchCaseIDs;
-  
+
   /// \brief Mapping from LabelStmt statements to IDs.
   std::map<LabelStmt *, unsigned> LabelIDs;
 
@@ -160,18 +180,19 @@ private:
   unsigned NumVisibleDeclContexts;
 
   void WriteBlockInfoBlock();
-  void WriteMetadata(ASTContext &Context);
+  void WriteMetadata(ASTContext &Context, const char *isysroot);
   void WriteLanguageOptions(const LangOptions &LangOpts);
-  void WriteStatCache(MemorizeStatCalls &StatCalls);
-  void WriteSourceManagerBlock(SourceManager &SourceMgr, 
-                               const Preprocessor &PP);
+  void WriteStatCache(MemorizeStatCalls &StatCalls, const char* isysroot);
+  void WriteSourceManagerBlock(SourceManager &SourceMgr,
+                               const Preprocessor &PP,
+                               const char* isysroot);
   void WritePreprocessor(const Preprocessor &PP);
   void WriteComments(ASTContext &Context);
-  void WriteType(const Type *T);
+  void WriteType(QualType T);
   void WriteTypesBlock(ASTContext &Context);
   uint64_t WriteDeclContextLexicalBlock(ASTContext &Context, DeclContext *DC);
   uint64_t WriteDeclContextVisibleBlock(ASTContext &Context, DeclContext *DC);
-  
+
   void WriteDeclsBlock(ASTContext &Context);
   void WriteMethodPool(Sema &SemaRef);
   void WriteIdentifierTable(Preprocessor &PP);
@@ -179,14 +200,24 @@ private:
 
   unsigned ParmVarDeclAbbrev;
   void WriteDeclsBlockAbbrevs();
-  
+
 public:
   /// \brief Create a new precompiled header writer that outputs to
   /// the given bitstream.
   PCHWriter(llvm::BitstreamWriter &Stream);
-  
+
   /// \brief Write a precompiled header for the given semantic analysis.
-  void WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls);
+  ///
+  /// \param SemaRef a reference to the semantic analysis object that processed
+  /// the AST to be written into the precompiled header.
+  ///
+  /// \param StatCalls the object that cached all of the stat() calls made while
+  /// searching for source files and headers.
+  ///
+  /// \param isysroot if non-NULL, write a relocatable PCH file whose headers
+  /// are relative to the given system root.
+  void WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
+                const char* isysroot);
 
   /// \brief Emit a source location.
   void AddSourceLocation(SourceLocation Loc, RecordData &Record);
@@ -205,7 +236,7 @@ public:
 
   /// \brief Emit a Selector (which is a smart pointer reference)
   void AddSelectorRef(const Selector, RecordData &Record);
-  
+
   /// \brief Get the unique number used to refer to the given
   /// identifier.
   pch::IdentID getIdentifierRef(const IdentifierInfo *II);
@@ -215,7 +246,7 @@ public:
   ///
   /// The identifier must refer to a macro.
   uint64_t getMacroOffset(const IdentifierInfo *II) {
-    assert(MacroOffsets.find(II) != MacroOffsets.end() && 
+    assert(MacroOffsets.find(II) != MacroOffsets.end() &&
            "Identifier does not name a macro");
     return MacroOffsets[II];
   }

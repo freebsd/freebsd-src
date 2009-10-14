@@ -1,4 +1,4 @@
-// RUN: clang-cc -triple i386-apple-darwin9 -analyze -checker-cfref -verify %s &&
+// RUN: clang-cc -triple i386-apple-darwin9 -analyze -checker-cfref -analyzer-store=basic -verify %s &&
 // RUN: clang-cc -triple i386-apple-darwin9 -analyze -checker-cfref -analyzer-store=region -verify %s
 
 // This test case was crashing due to how CFRefCount.cpp resolved the
@@ -56,6 +56,7 @@ CMProfileLocation;
 - (GSEbayCategory *) parent;
 - (GSEbayCategory*) subcategoryWithID:(int) inID;
 @end   @implementation GBCategoryChooserPanelController  + (int) chooseCategoryIDFromCategories:(NSArray*) inCategories        searchRequest:(GBSearchRequest*)inRequest         parentWindow:(NSWindow*) inParent {
+  return 0;
 }
 - (void) addCategory:(EBayCategoryType*)inCategory toRootTreeCategory:(NSMutableArray*)inRootTreeCategories {
   GSEbayCategory *category = [rootCategory subcategoryWithID:[[inCategory categoryID] intValue]];

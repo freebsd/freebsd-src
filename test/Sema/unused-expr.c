@@ -25,7 +25,7 @@ void bar(volatile int *VP, int *P, int A,
   __real__ VC;
   
   // We know this can't change errno because of -fno-math-errno.
-  sqrt(A);  // expected-warning {{expression result unused}}
+  sqrt(A);  // expected-warning {{ignoring return value of function declared with const attribute}}
 }
 
 extern void t1();
@@ -43,4 +43,56 @@ void nowarn(unsigned char* a, unsigned char* b)
 {
   unsigned char c = 1;
   *a |= c, *b += c;
+
+
+  // PR4633
+  int y, x;
+  ((void)0), y = x;
 }
+
+void t4(int a) {
+  int b = 0;
+
+  if (a)
+    b == 1; // expected-warning{{expression result unused}}
+  else
+    b == 2; // expected-warning{{expression result unused}}
+    
+  while (1)
+    b == 3; // expected-warning{{expression result unused}}
+
+  do
+    b == 4; // expected-warning{{expression result unused}}
+  while (1);
+  
+  for (;;)
+    b == 5; // expected-warning{{expression result unused}}
+    
+  for (b == 1;;) {} // expected-warning{{expression result unused}}
+  for (;b == 1;) {}
+  for (;;b == 1) {} // expected-warning{{expression result unused}}
+}
+
+// rdar://7186119
+int t5f(void) __attribute__((warn_unused_result));
+void t5() {
+  t5f();   // expected-warning {{ignoring return value of function declared with warn_unused_result}}
+}
+
+
+int fn1() __attribute__ ((warn_unused_result));
+int fn2() __attribute__ ((pure));
+int fn3() __attribute__ ((const));
+// rdar://6587766
+int t6() {
+  if (fn1() < 0 || fn2(2,1) < 0 || fn3(2) < 0)  // no warnings
+    return -1;
+  
+  fn1();  // expected-warning {{ignoring return value of function declared with warn_unused_result attribute}}
+  fn2(92, 21);  // expected-warning {{ignoring return value of function declared with pure attribute}}
+  fn3(42);  // expected-warning {{ignoring return value of function declared with const attribute}}
+  return 0;
+}
+
+int t7 __attribute__ ((warn_unused_result)); // expected-warning {{warning: 'warn_unused_result' attribute only applies to function types}}
+

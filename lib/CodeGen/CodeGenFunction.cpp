@@ -19,15 +19,16 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
 
-CodeGenFunction::CodeGenFunction(CodeGenModule &cgm) 
+CodeGenFunction::CodeGenFunction(CodeGenModule &cgm)
   : BlockFunction(cgm, *this, Builder), CGM(cgm),
     Target(CGM.getContext().Target),
-    DebugInfo(0), SwitchInsn(0), CaseRangeBlock(0), InvokeDest(0), 
+    Builder(cgm.getModule().getContext()),
+    DebugInfo(0), IndirectGotoSwitch(0),
+    SwitchInsn(0), CaseRangeBlock(0), InvokeDest(0),
     CXXThisDecl(0) {
   LLVMIntTy = ConvertType(getContext().IntTy);
   LLVMPointerWidth = Target.getPointerWidth(0);
@@ -41,7 +42,7 @@ ASTContext &CodeGenFunction::getContext() const {
 llvm::BasicBlock *CodeGenFunction::getBasicBlockForLabel(const LabelStmt *S) {
   llvm::BasicBlock *&BB = LabelMap[S];
   if (BB) return BB;
-  
+
   // Create, but don't insert, the new block.
   return BB = createBasicBlock(S->getName());
 }
@@ -66,11 +67,8 @@ const llvm::Type *CodeGenFunction::ConvertType(QualType T) {
 }
 
 bool CodeGenFunction::hasAggregateLLVMType(QualType T) {
-  // FIXME: Use positive checks instead of negative ones to be more robust in
-  // the face of extension.
-  return !T->hasPointerRepresentation() &&!T->isRealType() &&
-    !T->isVoidType() && !T->isVectorType() && !T->isFunctionType() && 
-    !T->isBlockPointerType();
+  return T->isRecordType() || T->isArrayType() || T->isAnyComplexType() ||
+    T->isMemberFunctionPointerType();
 }
 
 void CodeGenFunction::EmitReturnBlock() {
@@ -81,11 +79,12 @@ void CodeGenFunction::EmitReturnBlock() {
   if (CurBB) {
     assert(!CurBB->getTerminator() && "Unexpected terminated block.");
 
-    // We have a valid insert point, reuse it if there are no explicit
-    // jumps to the return block.
-    if (ReturnBlock->use_empty())
+    // We have a valid insert point, reuse it if it is empty or there are no
+    // explicit jumps to the return block.
+    if (CurBB->empty() || ReturnBlock->use_empty()) {
+      ReturnBlock->replaceAllUsesWith(CurBB);
       delete ReturnBlock;
-    else
+    } else
       EmitBlock(ReturnBlock);
     return;
   }
@@ -94,7 +93,7 @@ void CodeGenFunction::EmitReturnBlock() {
   // branch then we can just put the code in that block instead. This
   // cleans up functions which started with a unified return block.
   if (ReturnBlock->hasOneUse()) {
-    llvm::BranchInst *BI = 
+    llvm::BranchInst *BI =
       dyn_cast<llvm::BranchInst>(*ReturnBlock->use_begin());
     if (BI && BI->isUnconditional() && BI->getSuccessor(0) == ReturnBlock) {
       // Reset insertion point and delete the branch.
@@ -113,17 +112,14 @@ void CodeGenFunction::EmitReturnBlock() {
 }
 
 void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
-  // Finish emission of indirect switches.
-  EmitIndirectSwitches();
-
   assert(BreakContinueStack.empty() &&
          "mismatched push/pop in break/continue stack!");
   assert(BlockScopes.empty() &&
          "did not remove all blocks from block scope map!");
   assert(CleanupEntries.empty() &&
          "mismatched push/pop in cleanup stack!");
-  
-  // Emit function epilog (to return). 
+
+  // Emit function epilog (to return).
   EmitReturnBlock();
 
   // Emit debug descriptor for function end.
@@ -140,10 +136,12 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   Ptr->eraseFromParent();
 }
 
-void CodeGenFunction::StartFunction(const Decl *D, QualType RetTy, 
+void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
                                     llvm::Function *Fn,
                                     const FunctionArgList &Args,
                                     SourceLocation StartLoc) {
+  const Decl *D = GD.getDecl();
+  
   DidCallStackSave = false;
   CurCodeDecl = CurFuncDecl = D;
   FnRetTy = RetTy;
@@ -155,28 +153,31 @@ void CodeGenFunction::StartFunction(const Decl *D, QualType RetTy,
   // Create a marker to make it easy to insert allocas into the entryblock
   // later.  Don't create this with the builder, because we don't want it
   // folded.
-  llvm::Value *Undef = llvm::UndefValue::get(llvm::Type::Int32Ty);
-  AllocaInsertPt = new llvm::BitCastInst(Undef, llvm::Type::Int32Ty, "",
+  llvm::Value *Undef = llvm::UndefValue::get(llvm::Type::getInt32Ty(VMContext));
+  AllocaInsertPt = new llvm::BitCastInst(Undef,
+                                         llvm::Type::getInt32Ty(VMContext), "",
                                          EntryBB);
   if (Builder.isNamePreserving())
     AllocaInsertPt->setName("allocapt");
-  
+
   ReturnBlock = createBasicBlock("return");
   ReturnValue = 0;
   if (!RetTy->isVoidType())
     ReturnValue = CreateTempAlloca(ConvertType(RetTy), "retval");
-    
+
   Builder.SetInsertPoint(EntryBB);
-  
+
   // Emit subprogram debug descriptor.
   // FIXME: The cast here is a huge hack.
   if (CGDebugInfo *DI = getDebugInfo()) {
     DI->setLocation(StartLoc);
-    if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-      DI->EmitFunctionStart(CGM.getMangledName(FD), RetTy, CurFn, Builder);
+    if (isa<FunctionDecl>(D)) {
+      DI->EmitFunctionStart(CGM.getMangledName(GD), RetTy, CurFn, Builder);
     } else {
       // Just use LLVM function name.
-      DI->EmitFunctionStart(Fn->getName().c_str(), 
+
+      // FIXME: Remove unnecessary conversion to std::string when API settles.
+      DI->EmitFunctionStart(std::string(Fn->getName()).c_str(),
                             RetTy, CurFn, Builder);
     }
   }
@@ -184,7 +185,7 @@ void CodeGenFunction::StartFunction(const Decl *D, QualType RetTy,
   // FIXME: Leaked.
   CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args);
   EmitFunctionProlog(*CurFnInfo, CurFn, Args);
-  
+
   // If any of the arguments have a variably modified type, make sure to
   // emit the type size.
   for (FunctionArgList::const_iterator i = Args.begin(), e = Args.end();
@@ -196,40 +197,96 @@ void CodeGenFunction::StartFunction(const Decl *D, QualType RetTy,
   }
 }
 
-void CodeGenFunction::GenerateCode(const FunctionDecl *FD,
+void CodeGenFunction::GenerateCode(GlobalDecl GD,
                                    llvm::Function *Fn) {
+  const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
+  
   // Check if we should generate debug info for this function.
-  if (CGM.getDebugInfo() && !FD->hasAttr<NodebugAttr>())
+  if (CGM.getDebugInfo() && !FD->hasAttr<NoDebugAttr>())
     DebugInfo = CGM.getDebugInfo();
-  
+
   FunctionArgList Args;
-  
+
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
     if (MD->isInstance()) {
       // Create the implicit 'this' decl.
       // FIXME: I'm not entirely sure I like using a fake decl just for code
       // generation. Maybe we can come up with a better way?
       CXXThisDecl = ImplicitParamDecl::Create(getContext(), 0, SourceLocation(),
-                                              &getContext().Idents.get("this"), 
+                                              &getContext().Idents.get("this"),
                                               MD->getThisType(getContext()));
       Args.push_back(std::make_pair(CXXThisDecl, CXXThisDecl->getType()));
     }
   }
-  
+
   if (FD->getNumParams()) {
-    const FunctionProtoType* FProto = FD->getType()->getAsFunctionProtoType();
+    const FunctionProtoType* FProto = FD->getType()->getAs<FunctionProtoType>();
     assert(FProto && "Function def must have prototype!");
 
     for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i)
-      Args.push_back(std::make_pair(FD->getParamDecl(i), 
+      Args.push_back(std::make_pair(FD->getParamDecl(i),
                                     FProto->getArgType(i)));
   }
 
   // FIXME: Support CXXTryStmt here, too.
   if (const CompoundStmt *S = FD->getCompoundBody()) {
-    StartFunction(FD, FD->getResultType(), Fn, Args, S->getLBracLoc());
+    StartFunction(GD, FD->getResultType(), Fn, Args, S->getLBracLoc());
+    const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD);
+    llvm::BasicBlock *DtorEpilogue = 0;
+    if (DD) {
+      DtorEpilogue = createBasicBlock("dtor.epilogue");
+    
+      PushCleanupBlock(DtorEpilogue);
+    }
+    
+    if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD))
+      EmitCtorPrologue(CD, GD.getCtorType());
     EmitStmt(S);
+      
+    if (DD) {
+      CleanupBlockInfo Info = PopCleanupBlock();
+
+      assert(Info.CleanupBlock == DtorEpilogue && "Block mismatch!");
+      EmitBlock(DtorEpilogue);
+      EmitDtorEpilogue(DD, GD.getDtorType());
+      
+      if (Info.SwitchBlock)
+        EmitBlock(Info.SwitchBlock);
+      if (Info.EndBlock)
+        EmitBlock(Info.EndBlock);
+    }
     FinishFunction(S->getRBracLoc());
+  } else if (FD->isImplicit()) {
+    const CXXRecordDecl *ClassDecl =
+      cast<CXXRecordDecl>(FD->getDeclContext());
+    (void) ClassDecl;
+    if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
+      // FIXME: For C++0x, we want to look for implicit *definitions* of
+      // these special member functions, rather than implicit *declarations*.
+      if (CD->isCopyConstructor(getContext())) {
+        assert(!ClassDecl->hasUserDeclaredCopyConstructor() &&
+               "Cannot synthesize a non-implicit copy constructor");
+        SynthesizeCXXCopyConstructor(CD, GD.getCtorType(), Fn, Args);
+      } else if (CD->isDefaultConstructor()) {
+        assert(!ClassDecl->hasUserDeclaredConstructor() &&
+               "Cannot synthesize a non-implicit default constructor.");
+        SynthesizeDefaultConstructor(CD, GD.getCtorType(), Fn, Args);
+      } else {
+        assert(false && "Implicit constructor cannot be synthesized");
+      }
+    } else if (const CXXDestructorDecl *CD = dyn_cast<CXXDestructorDecl>(FD)) {
+      assert(!ClassDecl->hasUserDeclaredDestructor() &&
+             "Cannot synthesize a non-implicit destructor");
+      SynthesizeDefaultDestructor(CD, GD.getDtorType(), Fn, Args);
+    } else if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
+      assert(MD->isCopyAssignment() && 
+             !ClassDecl->hasUserDeclaredCopyAssignment() &&
+             "Cannot synthesize a method that is not an implicit-defined "
+             "copy constructor");
+      SynthesizeCXXCopyAssignment(MD, Fn, Args);
+    } else {
+      assert(false && "Cannot synthesize unknown implicit function");
+    }
   }
 
   // Destroy the 'this' declaration.
@@ -243,27 +300,27 @@ void CodeGenFunction::GenerateCode(const FunctionDecl *FD,
 bool CodeGenFunction::ContainsLabel(const Stmt *S, bool IgnoreCaseStmts) {
   // Null statement, not a label!
   if (S == 0) return false;
-  
+
   // If this is a label, we have to emit the code, consider something like:
   // if (0) {  ...  foo:  bar(); }  goto foo;
   if (isa<LabelStmt>(S))
     return true;
-  
+
   // If this is a case/default statement, and we haven't seen a switch, we have
   // to emit the code.
   if (isa<SwitchCase>(S) && !IgnoreCaseStmts)
     return true;
-  
+
   // If this is a switch statement, we want to ignore cases below it.
   if (isa<SwitchStmt>(S))
     IgnoreCaseStmts = true;
-  
+
   // Scan subexpressions for verboten labels.
   for (Stmt::const_child_iterator I = S->child_begin(), E = S->child_end();
        I != E; ++I)
     if (ContainsLabel(*I, IgnoreCaseStmts))
       return true;
-  
+
   return false;
 }
 
@@ -276,13 +333,13 @@ int CodeGenFunction::ConstantFoldsToSimpleInteger(const Expr *Cond) {
   // FIXME: Rename and handle conversion of other evaluatable things
   // to bool.
   Expr::EvalResult Result;
-  if (!Cond->Evaluate(Result, getContext()) || !Result.Val.isInt() || 
+  if (!Cond->Evaluate(Result, getContext()) || !Result.Val.isInt() ||
       Result.HasSideEffects)
     return 0;  // Not foldable, not integer or not fully evaluatable.
-  
+
   if (CodeGenFunction::ContainsLabel(Cond))
     return 0;  // Contains a label.
-  
+
   return Result.Val.getInt().getBoolValue() ? 1 : -1;
 }
 
@@ -296,7 +353,7 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
                                            llvm::BasicBlock *FalseBlock) {
   if (const ParenExpr *PE = dyn_cast<ParenExpr>(Cond))
     return EmitBranchOnBoolExpr(PE->getSubExpr(), TrueBlock, FalseBlock);
-  
+
   if (const BinaryOperator *CondBOp = dyn_cast<BinaryOperator>(Cond)) {
     // Handle X && Y in a condition.
     if (CondBOp->getOpcode() == BinaryOperator::LAnd) {
@@ -306,20 +363,20 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
         // br(1 && X) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
       }
-      
+
       // If we have "X && 1", simplify the code to use an uncond branch.
       // "X && 0" would have been constant folded to 0.
       if (ConstantFoldsToSimpleInteger(CondBOp->getRHS()) == 1) {
         // br(X && 1) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getLHS(), TrueBlock, FalseBlock);
       }
-      
+
       // Emit the LHS as a conditional.  If the LHS conditional is false, we
       // want to jump to the FalseBlock.
       llvm::BasicBlock *LHSTrue = createBasicBlock("land.lhs.true");
       EmitBranchOnBoolExpr(CondBOp->getLHS(), LHSTrue, FalseBlock);
       EmitBlock(LHSTrue);
-      
+
       EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
       return;
     } else if (CondBOp->getOpcode() == BinaryOperator::LOr) {
@@ -329,31 +386,31 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
         // br(0 || X) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
       }
-      
+
       // If we have "X || 0", simplify the code to use an uncond branch.
       // "X || 1" would have been constant folded to 1.
       if (ConstantFoldsToSimpleInteger(CondBOp->getRHS()) == -1) {
         // br(X || 0) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getLHS(), TrueBlock, FalseBlock);
       }
-      
+
       // Emit the LHS as a conditional.  If the LHS conditional is true, we
       // want to jump to the TrueBlock.
       llvm::BasicBlock *LHSFalse = createBasicBlock("lor.lhs.false");
       EmitBranchOnBoolExpr(CondBOp->getLHS(), TrueBlock, LHSFalse);
       EmitBlock(LHSFalse);
-      
+
       EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
       return;
     }
   }
-  
+
   if (const UnaryOperator *CondUOp = dyn_cast<UnaryOperator>(Cond)) {
     // br(!x, t, f) -> br(x, f, t)
     if (CondUOp->getOpcode() == UnaryOperator::LNot)
       return EmitBranchOnBoolExpr(CondUOp->getSubExpr(), FalseBlock, TrueBlock);
   }
-  
+
   if (const ConditionalOperator *CondOp = dyn_cast<ConditionalOperator>(Cond)) {
     // Handle ?: operator.
 
@@ -376,15 +433,6 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
   Builder.CreateCondBr(CondV, TrueBlock, FalseBlock);
 }
 
-/// getCGRecordLayout - Return record layout info.
-const CGRecordLayout *CodeGenFunction::getCGRecordLayout(CodeGenTypes &CGT,
-                                                         QualType Ty) {
-  const RecordType *RTy = Ty->getAsRecordType();
-  assert (RTy && "Unexpected type. RecordType expected here.");
-
-  return CGT.getCGRecordLayout(RTy->getDecl());
-}
-
 /// ErrorUnsupported - Print out an error that codegen doesn't support the
 /// specified stmt yet.
 void CodeGenFunction::ErrorUnsupported(const Stmt *S, const char *Type,
@@ -392,13 +440,8 @@ void CodeGenFunction::ErrorUnsupported(const Stmt *S, const char *Type,
   CGM.ErrorUnsupported(S, Type, OmitOnError);
 }
 
-unsigned CodeGenFunction::GetIDForAddrOfLabel(const LabelStmt *L) {
-  // Use LabelIDs.size() as the new ID if one hasn't been assigned.
-  return LabelIDs.insert(std::make_pair(L, LabelIDs.size())).first->second;
-}
-
 void CodeGenFunction::EmitMemSetToZero(llvm::Value *DestPtr, QualType Ty) {
-  const llvm::Type *BP = llvm::PointerType::getUnqual(llvm::Type::Int8Ty);
+  const llvm::Type *BP = llvm::Type::getInt8PtrTy(VMContext);
   if (DestPtr->getType() != BP)
     DestPtr = Builder.CreateBitCast(DestPtr, BP, "tmp");
 
@@ -408,93 +451,141 @@ void CodeGenFunction::EmitMemSetToZero(llvm::Value *DestPtr, QualType Ty) {
   // Don't bother emitting a zero-byte memset.
   if (TypeInfo.first == 0)
     return;
-  
+
   // FIXME: Handle variable sized types.
-  const llvm::Type *IntPtr = llvm::IntegerType::get(LLVMPointerWidth);
+  const llvm::Type *IntPtr = llvm::IntegerType::get(VMContext,
+                                                    LLVMPointerWidth);
 
   Builder.CreateCall4(CGM.getMemSetFn(), DestPtr,
-                      llvm::ConstantInt::getNullValue(llvm::Type::Int8Ty),
+                 llvm::Constant::getNullValue(llvm::Type::getInt8Ty(VMContext)),
                       // TypeInfo.first describes size in bits.
                       llvm::ConstantInt::get(IntPtr, TypeInfo.first/8),
-                      llvm::ConstantInt::get(llvm::Type::Int32Ty, 
+                      llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
                                              TypeInfo.second/8));
 }
 
-void CodeGenFunction::EmitIndirectSwitches() {
-  llvm::BasicBlock *Default;
+unsigned CodeGenFunction::GetIDForAddrOfLabel(const LabelStmt *L) {
+  // Use LabelIDs.size()+1 as the new ID if one hasn't been assigned.
+  unsigned &Entry = LabelIDs[L];
+  if (Entry) return Entry;
   
-  if (IndirectSwitches.empty())
-    return;
+  Entry = LabelIDs.size();
   
-  if (!LabelIDs.empty()) {
-    Default = getBasicBlockForLabel(LabelIDs.begin()->first);
-  } else {
-    // No possible targets for indirect goto, just emit an infinite
-    // loop.
-    Default = createBasicBlock("indirectgoto.loop", CurFn);
-    llvm::BranchInst::Create(Default, Default);
-  }
-
-  for (std::vector<llvm::SwitchInst*>::iterator i = IndirectSwitches.begin(),
-         e = IndirectSwitches.end(); i != e; ++i) {
-    llvm::SwitchInst *I = *i;
-    
-    I->setSuccessor(0, Default);
-    for (std::map<const LabelStmt*,unsigned>::iterator LI = LabelIDs.begin(), 
-           LE = LabelIDs.end(); LI != LE; ++LI) {
-      I->addCase(llvm::ConstantInt::get(llvm::Type::Int32Ty,
-                                        LI->second), 
-                 getBasicBlockForLabel(LI->first));
+  // If this is the first "address taken" of a label and the indirect goto has
+  // already been seen, add this to it.
+  if (IndirectGotoSwitch) {
+    // If this is the first address-taken label, set it as the default dest.
+    if (Entry == 1)
+      IndirectGotoSwitch->setSuccessor(0, getBasicBlockForLabel(L));
+    else {
+      // Otherwise add it to the switch as a new dest.
+      const llvm::IntegerType *Int32Ty = llvm::Type::getInt32Ty(VMContext);
+      IndirectGotoSwitch->addCase(llvm::ConstantInt::get(Int32Ty, Entry),
+                                  getBasicBlockForLabel(L));
     }
-  }         
+  }
+  
+  return Entry;
 }
 
-llvm::Value *CodeGenFunction::GetVLASize(const VariableArrayType *VAT)
-{
-  llvm::Value *&SizeEntry = VLASizeMap[VAT];
+llvm::BasicBlock *CodeGenFunction::GetIndirectGotoBlock() {
+  // If we already made the switch stmt for indirect goto, return its block.
+  if (IndirectGotoSwitch) return IndirectGotoSwitch->getParent();
   
+  EmitBlock(createBasicBlock("indirectgoto"));
+  
+  // Create the PHI node that indirect gotos will add entries to.
+  llvm::Value *DestVal =
+    Builder.CreatePHI(llvm::Type::getInt32Ty(VMContext), "indirect.goto.dest");
+  
+  // Create the switch instruction.  For now, set the insert block to this block
+  // which will be fixed as labels are added.
+  IndirectGotoSwitch = Builder.CreateSwitch(DestVal, Builder.GetInsertBlock());
+  
+  // Clear the insertion point to indicate we are in unreachable code.
+  Builder.ClearInsertionPoint();
+  
+  // If we already have labels created, add them.
+  if (!LabelIDs.empty()) {
+    // Invert LabelID's so that the order is determinstic.
+    std::vector<const LabelStmt*> AddrTakenLabelsByID;
+    AddrTakenLabelsByID.resize(LabelIDs.size());
+    
+    for (std::map<const LabelStmt*,unsigned>::iterator 
+         LI = LabelIDs.begin(), LE = LabelIDs.end(); LI != LE; ++LI) {
+      assert(LI->second-1 < AddrTakenLabelsByID.size() &&
+             "Numbering inconsistent");
+      AddrTakenLabelsByID[LI->second-1] = LI->first;
+    }
+    
+    // Set the default entry as the first block.
+    IndirectGotoSwitch->setSuccessor(0,
+                                getBasicBlockForLabel(AddrTakenLabelsByID[0]));
+    
+    const llvm::IntegerType *Int32Ty = llvm::Type::getInt32Ty(VMContext);
+    
+    // FIXME: The iteration order of this is nondeterminstic!
+    for (unsigned i = 1, e = AddrTakenLabelsByID.size(); i != e; ++i)
+      IndirectGotoSwitch->addCase(llvm::ConstantInt::get(Int32Ty, i+1),
+                                 getBasicBlockForLabel(AddrTakenLabelsByID[i]));
+  } else {
+    // Otherwise, create a dead block and set it as the default dest.  This will
+    // be removed by the optimizers after the indirect goto is set up.
+    llvm::BasicBlock *Dummy = createBasicBlock("indgoto.dummy");
+    EmitBlock(Dummy);
+    IndirectGotoSwitch->setSuccessor(0, Dummy);
+    Builder.CreateUnreachable();
+    Builder.ClearInsertionPoint();
+  }
+
+  return IndirectGotoSwitch->getParent();
+}
+
+llvm::Value *CodeGenFunction::GetVLASize(const VariableArrayType *VAT) {
+  llvm::Value *&SizeEntry = VLASizeMap[VAT->getSizeExpr()];
+
   assert(SizeEntry && "Did not emit size for type");
   return SizeEntry;
 }
 
-llvm::Value *CodeGenFunction::EmitVLASize(QualType Ty)
-{
+llvm::Value *CodeGenFunction::EmitVLASize(QualType Ty) {
   assert(Ty->isVariablyModifiedType() &&
          "Must pass variably modified type to EmitVLASizes!");
-  
-  if (const VariableArrayType *VAT = getContext().getAsVariableArrayType(Ty)) {
-    llvm::Value *&SizeEntry = VLASizeMap[VAT];
-    
-    if (!SizeEntry) {
-      // Get the element size;
-      llvm::Value *ElemSize;
-    
-      QualType ElemTy = VAT->getElementType();
 
+  EnsureInsertPoint();
+
+  if (const VariableArrayType *VAT = getContext().getAsVariableArrayType(Ty)) {
+    llvm::Value *&SizeEntry = VLASizeMap[VAT->getSizeExpr()];
+
+    if (!SizeEntry) {
       const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
-                                             
+
+      // Get the element size;
+      QualType ElemTy = VAT->getElementType();
+      llvm::Value *ElemSize;
       if (ElemTy->isVariableArrayType())
         ElemSize = EmitVLASize(ElemTy);
-      else {
+      else
         ElemSize = llvm::ConstantInt::get(SizeTy,
                                           getContext().getTypeSize(ElemTy) / 8);
-      }
-    
+
       llvm::Value *NumElements = EmitScalarExpr(VAT->getSizeExpr());
       NumElements = Builder.CreateIntCast(NumElements, SizeTy, false, "tmp");
-      
+
       SizeEntry = Builder.CreateMul(ElemSize, NumElements);
     }
-    
+
     return SizeEntry;
-  } else if (const ArrayType *AT = dyn_cast<ArrayType>(Ty)) {
-    EmitVLASize(AT->getElementType());
-  } else if (const PointerType *PT = Ty->getAsPointerType())
-    EmitVLASize(PT->getPointeeType());
-  else {
-    assert(0 && "unknown VM type!");
   }
-  
+
+  if (const ArrayType *AT = dyn_cast<ArrayType>(Ty)) {
+    EmitVLASize(AT->getElementType());
+    return 0;
+  }
+
+  const PointerType *PT = Ty->getAs<PointerType>();
+  assert(PT && "unknown VM type!");
+  EmitVLASize(PT->getPointeeType());
   return 0;
 }
 
@@ -505,32 +596,29 @@ llvm::Value* CodeGenFunction::EmitVAListRef(const Expr* E) {
   return EmitLValue(E).getAddress();
 }
 
-void CodeGenFunction::PushCleanupBlock(llvm::BasicBlock *CleanupBlock)
-{
+void CodeGenFunction::PushCleanupBlock(llvm::BasicBlock *CleanupBlock) {
   CleanupEntries.push_back(CleanupEntry(CleanupBlock));
 }
 
-void CodeGenFunction::EmitCleanupBlocks(size_t OldCleanupStackSize)
-{
-  assert(CleanupEntries.size() >= OldCleanupStackSize && 
+void CodeGenFunction::EmitCleanupBlocks(size_t OldCleanupStackSize) {
+  assert(CleanupEntries.size() >= OldCleanupStackSize &&
          "Cleanup stack mismatch!");
-  
+
   while (CleanupEntries.size() > OldCleanupStackSize)
     EmitCleanupBlock();
 }
 
-CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock()
-{
+CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
   CleanupEntry &CE = CleanupEntries.back();
-  
+
   llvm::BasicBlock *CleanupBlock = CE.CleanupBlock;
-  
+
   std::vector<llvm::BasicBlock *> Blocks;
   std::swap(Blocks, CE.Blocks);
-  
+
   std::vector<llvm::BranchInst *> BranchFixups;
   std::swap(BranchFixups, CE.BranchFixups);
-  
+
   CleanupEntries.pop_back();
 
   // Check if any branch fixups pointed to the scope we just popped. If so,
@@ -538,12 +626,12 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock()
   for (size_t i = 0, e = BranchFixups.size(); i != e; ++i) {
     llvm::BasicBlock *Dest = BranchFixups[i]->getSuccessor(0);
     BlockScopeMap::iterator I = BlockScopes.find(Dest);
-      
+
     if (I == BlockScopes.end())
       continue;
-      
+
     assert(I->second <= CleanupEntries.size() && "Invalid branch fixup!");
-      
+
     if (I->second == CleanupEntries.size()) {
       // We don't need to do this branch fixup.
       BranchFixups[i] = BranchFixups.back();
@@ -553,32 +641,32 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock()
       continue;
     }
   }
-  
+
   llvm::BasicBlock *SwitchBlock = 0;
   llvm::BasicBlock *EndBlock = 0;
   if (!BranchFixups.empty()) {
     SwitchBlock = createBasicBlock("cleanup.switch");
     EndBlock = createBasicBlock("cleanup.end");
-    
+
     llvm::BasicBlock *CurBB = Builder.GetInsertBlock();
-    
+
     Builder.SetInsertPoint(SwitchBlock);
 
-    llvm::Value *DestCodePtr = CreateTempAlloca(llvm::Type::Int32Ty, 
+    llvm::Value *DestCodePtr = CreateTempAlloca(llvm::Type::getInt32Ty(VMContext),
                                                 "cleanup.dst");
     llvm::Value *DestCode = Builder.CreateLoad(DestCodePtr, "tmp");
-    
+
     // Create a switch instruction to determine where to jump next.
-    llvm::SwitchInst *SI = Builder.CreateSwitch(DestCode, EndBlock, 
+    llvm::SwitchInst *SI = Builder.CreateSwitch(DestCode, EndBlock,
                                                 BranchFixups.size());
 
     // Restore the current basic block (if any)
     if (CurBB) {
       Builder.SetInsertPoint(CurBB);
-      
+
       // If we had a current basic block, we also need to emit an instruction
       // to initialize the cleanup destination.
-      Builder.CreateStore(llvm::Constant::getNullValue(llvm::Type::Int32Ty),
+      Builder.CreateStore(llvm::Constant::getNullValue(llvm::Type::getInt32Ty(VMContext)),
                           DestCodePtr);
     } else
       Builder.ClearInsertionPoint();
@@ -586,39 +674,39 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock()
     for (size_t i = 0, e = BranchFixups.size(); i != e; ++i) {
       llvm::BranchInst *BI = BranchFixups[i];
       llvm::BasicBlock *Dest = BI->getSuccessor(0);
-      
+
       // Fixup the branch instruction to point to the cleanup block.
       BI->setSuccessor(0, CleanupBlock);
-      
+
       if (CleanupEntries.empty()) {
         llvm::ConstantInt *ID;
-        
+
         // Check if we already have a destination for this block.
         if (Dest == SI->getDefaultDest())
-          ID = llvm::ConstantInt::get(llvm::Type::Int32Ty, 0);
+          ID = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), 0);
         else {
           ID = SI->findCaseDest(Dest);
           if (!ID) {
             // No code found, get a new unique one by using the number of
             // switch successors.
-            ID = llvm::ConstantInt::get(llvm::Type::Int32Ty, 
+            ID = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
                                         SI->getNumSuccessors());
             SI->addCase(ID, Dest);
           }
         }
-        
+
         // Store the jump destination before the branch instruction.
         new llvm::StoreInst(ID, DestCodePtr, BI);
       } else {
         // We need to jump through another cleanup block. Create a pad block
         // with a branch instruction that jumps to the final destination and
         // add it as a branch fixup to the current cleanup scope.
-        
+
         // Create the pad block.
         llvm::BasicBlock *CleanupPad = createBasicBlock("cleanup.pad", CurFn);
 
         // Create a unique case ID.
-        llvm::ConstantInt *ID = llvm::ConstantInt::get(llvm::Type::Int32Ty, 
+        llvm::ConstantInt *ID = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
                                                        SI->getNumSuccessors());
 
         // Store the jump destination before the branch instruction.
@@ -626,89 +714,86 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock()
 
         // Add it as the destination.
         SI->addCase(ID, CleanupPad);
-        
+
         // Create the branch to the final destination.
         llvm::BranchInst *BI = llvm::BranchInst::Create(Dest);
         CleanupPad->getInstList().push_back(BI);
-        
+
         // And add it as a branch fixup.
         CleanupEntries.back().BranchFixups.push_back(BI);
       }
     }
   }
-  
+
   // Remove all blocks from the block scope map.
   for (size_t i = 0, e = Blocks.size(); i != e; ++i) {
     assert(BlockScopes.count(Blocks[i]) &&
            "Did not find block in scope map!");
-    
+
     BlockScopes.erase(Blocks[i]);
   }
-  
+
   return CleanupBlockInfo(CleanupBlock, SwitchBlock, EndBlock);
 }
 
-void CodeGenFunction::EmitCleanupBlock()
-{
+void CodeGenFunction::EmitCleanupBlock() {
   CleanupBlockInfo Info = PopCleanupBlock();
-  
+
   llvm::BasicBlock *CurBB = Builder.GetInsertBlock();
-  if (CurBB && !CurBB->getTerminator() && 
+  if (CurBB && !CurBB->getTerminator() &&
       Info.CleanupBlock->getNumUses() == 0) {
     CurBB->getInstList().splice(CurBB->end(), Info.CleanupBlock->getInstList());
     delete Info.CleanupBlock;
-  } else 
+  } else
     EmitBlock(Info.CleanupBlock);
-  
+
   if (Info.SwitchBlock)
     EmitBlock(Info.SwitchBlock);
   if (Info.EndBlock)
     EmitBlock(Info.EndBlock);
 }
 
-void CodeGenFunction::AddBranchFixup(llvm::BranchInst *BI)
-{
-  assert(!CleanupEntries.empty() && 
+void CodeGenFunction::AddBranchFixup(llvm::BranchInst *BI) {
+  assert(!CleanupEntries.empty() &&
          "Trying to add branch fixup without cleanup block!");
-  
+
   // FIXME: We could be more clever here and check if there's already a branch
   // fixup for this destination and recycle it.
   CleanupEntries.back().BranchFixups.push_back(BI);
 }
 
-void CodeGenFunction::EmitBranchThroughCleanup(llvm::BasicBlock *Dest)
-{
+void CodeGenFunction::EmitBranchThroughCleanup(llvm::BasicBlock *Dest) {
   if (!HaveInsertPoint())
     return;
-  
+
   llvm::BranchInst* BI = Builder.CreateBr(Dest);
-  
+
   Builder.ClearInsertionPoint();
-  
+
   // The stack is empty, no need to do any cleanup.
   if (CleanupEntries.empty())
     return;
-  
+
   if (!Dest->getParent()) {
     // We are trying to branch to a block that hasn't been inserted yet.
     AddBranchFixup(BI);
     return;
   }
-  
+
   BlockScopeMap::iterator I = BlockScopes.find(Dest);
   if (I == BlockScopes.end()) {
     // We are trying to jump to a block that is outside of any cleanup scope.
     AddBranchFixup(BI);
     return;
   }
-  
+
   assert(I->second < CleanupEntries.size() &&
          "Trying to branch into cleanup region");
-  
+
   if (I->second == CleanupEntries.size() - 1) {
     // We have a branch to a block in the same scope.
     return;
   }
-  
+
   AddBranchFixup(BI);
 }

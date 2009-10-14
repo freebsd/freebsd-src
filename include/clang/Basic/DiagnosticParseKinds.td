@@ -35,6 +35,7 @@ def err_invalid_short_spec : Error<"'short %0' is invalid">;
 def err_invalid_long_spec : Error<"'long %0' is invalid">;
 def err_invalid_longlong_spec : Error<"'long long %0' is invalid">;
 def err_invalid_complex_spec : Error<"'_Complex %0' is invalid">;
+def err_friend_storage_spec : Error<"'%0' is invalid in friend declarations">;
 
 def ext_ident_list_in_param : Extension<
   "type-less parameter names in function declaration">;
@@ -77,7 +78,7 @@ def err_expected_rparen : Error<"expected ')'">;
 def err_expected_rsquare : Error<"expected ']'">;
 def err_expected_rbrace : Error<"expected '}'">;
 def err_expected_greater : Error<"expected '>'">;
-def err_expected_semi_declation : Error<
+def err_expected_semi_declaration : Error<
   "expected ';' at end of declaration">;
 def err_expected_semi_decl_list : Error<
   "expected ';' at end of declaration list">;
@@ -135,9 +136,13 @@ def err_rvalue_reference : Error<
 def err_argument_required_after_attribute : Error<
   "argument required after attribute">;
 def err_missing_param : Error<"expected parameter declarator">;
+def err_missing_comma_before_ellipsis : Error<
+  "C requires a comma prior to the ellipsis in a variadic function type">;
 def err_unexpected_typedef_ident : Error<
   "unexpected type name %0: expected identifier">;
 def err_expected_class_name : Error<"expected class name">;
+def err_destructor_class_name : Error<
+  "expected the class name after '~' to name a destructor">;
 def err_unspecified_vla_size_with_static : Error<
   "'static' may not be used with an unspecified variable length array size">;
 
@@ -150,14 +155,16 @@ def err_typename_invalid_functionspec : Error<
   "type name does not allow function specifier to be specified">;
 def err_invalid_decl_spec_combination : Error<
   "cannot combine with previous '%0' declaration specifier">;
+def err_friend_invalid_in_context : Error<
+  "'friend' used outside of class">;
 def err_unknown_typename : Error<
   "unknown type name %0">;
 def err_use_of_tag_name_without_tag : Error<
   "use of tagged type %0 without '%1' tag">;
 def err_expected_ident_in_using : Error<
   "expected an identifier in using directive">;
-def err_unexpected_template_spec_in_using : Error<
-  "use of template specialization in using directive not allowed">;
+def err_using_decl_can_not_refer_to_template_spec : Error<
+  "using declaration can not refer to template specialization">;
 
 
 /// Objective-C parser diagnostics
@@ -272,6 +279,10 @@ def err_expected_type_name_after_typename : Error<
 
 def err_variadic_templates : Error<
   "variadic templates are only allowed in C++0x">;
+  
+// C++ declarations
+def err_friend_decl_defines_class : Error<
+  "cannot define a type in a friend declaration">;
 
 // Language specific pragmas
 // - Generic warnings

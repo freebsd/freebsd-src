@@ -36,7 +36,7 @@ void Preprocessor::CommitBacktrackedTokens() {
 }
 
 /// Backtrack - Make Preprocessor re-lex the tokens that were lexed since
-/// EnableBacktrackAtThisPos() was previously called. 
+/// EnableBacktrackAtThisPos() was previously called.
 void Preprocessor::Backtrack() {
   assert(!BacktrackPositions.empty()
          && "EnableBacktrackAtThisPos was not called!");
@@ -102,7 +102,8 @@ void Preprocessor::AnnotatePreviousCachedTokens(const Token &Tok) {
       assert((BacktrackPositions.empty() || BacktrackPositions.back() < i) &&
              "The backtrack pos points inside the annotated tokens!");
       // Replace the cached tokens with the single annotation token.
-      CachedTokens.erase(AnnotBegin + 1, CachedTokens.begin() + CachedLexPos);
+      if (i < CachedLexPos)
+        CachedTokens.erase(AnnotBegin + 1, CachedTokens.begin() + CachedLexPos);
       *AnnotBegin = Tok;
       CachedLexPos = i;
       return;

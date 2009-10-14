@@ -14,7 +14,6 @@
 
 #include "clang/Analysis/PathSensitive/GRState.h"
 #include "clang/Basic/IdentifierTable.h"
-#include "llvm/Support/Streams.h"
 
 using namespace clang;
 using llvm::dyn_cast;
@@ -43,52 +42,32 @@ bool SVal::hasConjuredSymbol() const {
       SymbolRef sym = SR->getSymbol();
       if (isa<SymbolConjured>(sym))
         return true;
-    } else if (const CodeTextRegion *CTR = dyn_cast<CodeTextRegion>(R)) {
-      if (CTR->isSymbolic()) {
-        SymbolRef sym = CTR->getSymbol();
-        if (isa<SymbolConjured>(sym))
-          return true;
-      }
     }
   }
 
   return false;
 }
 
-const FunctionDecl* SVal::getAsFunctionDecl() const {
+const FunctionDecl *SVal::getAsFunctionDecl() const {
   if (const loc::MemRegionVal* X = dyn_cast<loc::MemRegionVal>(this)) {
     const MemRegion* R = X->getRegion();
-    if (const CodeTextRegion* CTR = R->getAs<CodeTextRegion>()) {
-      if (CTR->isDeclared())
-        return CTR->getDecl();
-    }
+    if (const CodeTextRegion *CTR = R->getAs<CodeTextRegion>())
+      return CTR->getDecl();
   }
 
-  return 0;
+  return NULL;
 }
 
-/// getAsLocSymbol - If this SVal is a location (subclasses Loc) and 
+/// getAsLocSymbol - If this SVal is a location (subclasses Loc) and
 ///  wraps a symbol, return that SymbolRef.  Otherwise return 0.
 // FIXME: should we consider SymbolRef wrapped in CodeTextRegion?
 SymbolRef SVal::getAsLocSymbol() const {
   if (const loc::MemRegionVal *X = dyn_cast<loc::MemRegionVal>(this)) {
-    const MemRegion *R = X->getRegion();
-    
-    while (R) {
-      // Blast through region views.
-      if (const TypedViewRegion *View = dyn_cast<TypedViewRegion>(R)) {
-        R = View->getSuperRegion();
-        continue;
-      }
-      
-      if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(R))
-        return SymR->getSymbol();
-      
-      break;
-    }
+    const MemRegion *R = X->getBaseRegion();
+    if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(R))
+      return SymR->getSymbol();
   }
-  
-  return 0;
+  return NULL;
 }
 
 /// getAsSymbol - If this Sval wraps a symbol return that SymbolRef.
@@ -97,11 +76,11 @@ SymbolRef SVal::getAsLocSymbol() const {
 SymbolRef SVal::getAsSymbol() const {
   if (const nonloc::SymbolVal *X = dyn_cast<nonloc::SymbolVal>(this))
     return X->getSymbol();
-  
+
   if (const nonloc::SymExprVal *X = dyn_cast<nonloc::SymExprVal>(this))
     if (SymbolRef Y = dyn_cast<SymbolData>(X->getSymbolicExpression()))
       return Y;
-  
+
   return getAsLocSymbol();
 }
 
@@ -110,7 +89,7 @@ SymbolRef SVal::getAsSymbol() const {
 const SymExpr *SVal::getAsSymbolicExpression() const {
   if (const nonloc::SymExprVal *X = dyn_cast<nonloc::SymExprVal>(this))
     return X->getSymbolicExpression();
-  
+
   return getAsSymbol();
 }
 
@@ -119,6 +98,11 @@ const MemRegion *SVal::getAsRegion() const {
     return X->getRegion();
 
   return 0;
+}
+
+const MemRegion *loc::MemRegionVal::getBaseRegion() const {
+  const MemRegion *R = getRegion();
+  return R ?  R->getBaseRegion() : NULL;
 }
 
 bool SVal::symbol_iterator::operator==(const symbol_iterator &X) const {
@@ -131,13 +115,13 @@ bool SVal::symbol_iterator::operator!=(const symbol_iterator &X) const {
 
 SVal::symbol_iterator::symbol_iterator(const SymExpr *SE) {
   itr.push_back(SE);
-  while (!isa<SymbolData>(itr.back())) expand();  
+  while (!isa<SymbolData>(itr.back())) expand();
 }
 
 SVal::symbol_iterator& SVal::symbol_iterator::operator++() {
   assert(!itr.empty() && "attempting to iterate on an 'end' iterator");
   assert(isa<SymbolData>(itr.back()));
-  itr.pop_back();         
+  itr.pop_back();
   if (!itr.empty())
     while (!isa<SymbolData>(itr.back())) expand();
   return *this;
@@ -151,18 +135,26 @@ SymbolRef SVal::symbol_iterator::operator*() {
 void SVal::symbol_iterator::expand() {
   const SymExpr *SE = itr.back();
   itr.pop_back();
-    
+
   if (const SymIntExpr *SIE = dyn_cast<SymIntExpr>(SE)) {
     itr.push_back(SIE->getLHS());
     return;
-  }  
+  }
   else if (const SymSymExpr *SSE = dyn_cast<SymSymExpr>(SE)) {
     itr.push_back(SSE->getLHS());
     itr.push_back(SSE->getRHS());
     return;
   }
-  
+
   assert(false && "unhandled expansion case");
+}
+
+const GRState *nonloc::LazyCompoundVal::getState() const {
+  return static_cast<const LazyCompoundValData*>(Data)->getState();
+}
+
+const TypedRegion *nonloc::LazyCompoundVal::getRegion() const {
+  return static_cast<const LazyCompoundValData*>(Data)->getRegion();
 }
 
 //===----------------------------------------------------------------------===//
@@ -197,10 +189,10 @@ bool SVal::isZeroConstant() const {
 
 SVal nonloc::ConcreteInt::evalBinOp(ValueManager &ValMgr,
                                     BinaryOperator::Opcode Op,
-                                    const nonloc::ConcreteInt& R) const {  
+                                    const nonloc::ConcreteInt& R) const {
   const llvm::APSInt* X =
     ValMgr.getBasicValueFactory().EvaluateAPSInt(Op, getValue(), R.getValue());
-  
+
   if (X)
     return nonloc::ConcreteInt(*X);
   else
@@ -223,12 +215,12 @@ nonloc::ConcreteInt nonloc::ConcreteInt::evalMinus(ValueManager &ValMgr) const {
 SVal loc::ConcreteInt::EvalBinOp(BasicValueFactory& BasicVals,
                                  BinaryOperator::Opcode Op,
                                  const loc::ConcreteInt& R) const {
-  
+
   assert (Op == BinaryOperator::Add || Op == BinaryOperator::Sub ||
           (Op >= BinaryOperator::LT && Op <= BinaryOperator::NE));
-  
+
   const llvm::APSInt* X = BasicVals.EvaluateAPSInt(Op, getValue(), R.getValue());
-  
+
   if (X)
     return loc::ConcreteInt(*X);
   else
@@ -239,98 +231,89 @@ SVal loc::ConcreteInt::EvalBinOp(BasicValueFactory& BasicVals,
 // Pretty-Printing.
 //===----------------------------------------------------------------------===//
 
-void SVal::printStdErr() const { print(llvm::errs()); }
+void SVal::dump() const { dumpToStream(llvm::errs()); }
 
-void SVal::print(llvm::raw_ostream& Out) const {
-
+void SVal::dumpToStream(llvm::raw_ostream& os) const {
   switch (getBaseKind()) {
-      
     case UnknownKind:
-      Out << "Invalid"; break;
-      
+      os << "Invalid";
+      break;
     case NonLocKind:
-      cast<NonLoc>(this)->print(Out); break;
-      
+      cast<NonLoc>(this)->dumpToStream(os);
+      break;
     case LocKind:
-      cast<Loc>(this)->print(Out); break;
-      
+      cast<Loc>(this)->dumpToStream(os);
+      break;
     case UndefinedKind:
-      Out << "Undefined"; break;
-      
+      os << "Undefined";
+      break;
     default:
       assert (false && "Invalid SVal.");
   }
 }
 
-void NonLoc::print(llvm::raw_ostream& Out) const {
-
-  switch (getSubKind()) {  
-
+void NonLoc::dumpToStream(llvm::raw_ostream& os) const {
+  switch (getSubKind()) {
     case nonloc::ConcreteIntKind:
-      Out << cast<nonloc::ConcreteInt>(this)->getValue().getZExtValue();
-
+      os << cast<nonloc::ConcreteInt>(this)->getValue().getZExtValue();
       if (cast<nonloc::ConcreteInt>(this)->getValue().isUnsigned())
-        Out << 'U';
-      
+        os << 'U';
       break;
-      
     case nonloc::SymbolValKind:
-      Out << '$' << cast<nonloc::SymbolVal>(this)->getSymbol();
+      os << '$' << cast<nonloc::SymbolVal>(this)->getSymbol();
       break;
-     
     case nonloc::SymExprValKind: {
       const nonloc::SymExprVal& C = *cast<nonloc::SymExprVal>(this);
       const SymExpr *SE = C.getSymbolicExpression();
-      Out << SE;
+      os << SE;
       break;
     }
-    
     case nonloc::LocAsIntegerKind: {
       const nonloc::LocAsInteger& C = *cast<nonloc::LocAsInteger>(this);
-      C.getLoc().print(Out);
-      Out << " [as " << C.getNumBits() << " bit integer]";
+      os << C.getLoc() << " [as " << C.getNumBits() << " bit integer]";
       break;
     }
-      
     case nonloc::CompoundValKind: {
       const nonloc::CompoundVal& C = *cast<nonloc::CompoundVal>(this);
-      Out << " {";
+      os << "compoundVal{";
       bool first = true;
       for (nonloc::CompoundVal::iterator I=C.begin(), E=C.end(); I!=E; ++I) {
-        if (first) { Out << ' '; first = false; }
-        else Out << ", ";
-        (*I).print(Out);
+        if (first) {
+          os << ' '; first = false;
+        }
+        else
+          os << ", ";
+
+        (*I).dumpToStream(os);
       }
-      Out << " }";
+      os << "}";
       break;
     }
-      
+    case nonloc::LazyCompoundValKind: {
+      const nonloc::LazyCompoundVal &C = *cast<nonloc::LazyCompoundVal>(this);
+      os << "lazyCompoundVal{" << (void*) C.getState() << ',' << C.getRegion()
+         << '}';
+      break;
+    }
     default:
       assert (false && "Pretty-printed not implemented for this NonLoc.");
       break;
   }
 }
 
-void Loc::print(llvm::raw_ostream& Out) const {
-  
-  switch (getSubKind()) {        
-
+void Loc::dumpToStream(llvm::raw_ostream& os) const {
+  switch (getSubKind()) {
     case loc::ConcreteIntKind:
-      Out << cast<loc::ConcreteInt>(this)->getValue().getZExtValue()
-          << " (Loc)";
+      os << cast<loc::ConcreteInt>(this)->getValue().getZExtValue() << " (Loc)";
       break;
-      
     case loc::GotoLabelKind:
-      Out << "&&"
-          << cast<loc::GotoLabel>(this)->getLabel()->getID()->getName();
+      os << "&&" << cast<loc::GotoLabel>(this)->getLabel()->getID()->getName();
       break;
-
     case loc::MemRegionKind:
-      Out << '&' << cast<loc::MemRegionVal>(this)->getRegion()->getString();
+      os << '&' << cast<loc::MemRegionVal>(this)->getRegion()->getString();
       break;
-      
     default:
-      assert (false && "Pretty-printing not implemented for this Loc.");
+      assert(false && "Pretty-printing not implemented for this Loc.");
       break;
   }
 }

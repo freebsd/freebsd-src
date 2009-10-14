@@ -59,7 +59,7 @@ namespace clang {
     ICC_Conversion                 ///< Conversion
   };
 
-  ImplicitConversionCategory 
+  ImplicitConversionCategory
   GetConversionCategory(ImplicitConversionKind Kind);
 
   /// ImplicitConversionRank - The rank of an implicit conversion
@@ -98,7 +98,7 @@ namespace clang {
     ImplicitConversionKind Third : 8;
 
     /// Deprecated - Whether this the deprecated conversion of a
-    /// string literal to a pointer to non-const character data 
+    /// string literal to a pointer to non-const character data
     /// (C++ 4.2p2).
     bool Deprecated : 1;
 
@@ -106,11 +106,11 @@ namespace clang {
     /// that we should warn about (if we actually use it).
     bool IncompatibleObjC : 1;
 
-    /// ReferenceBinding - True when this is a reference binding 
+    /// ReferenceBinding - True when this is a reference binding
     /// (C++ [over.ics.ref]).
     bool ReferenceBinding : 1;
 
-    /// DirectBinding - True when this is a reference binding that is a 
+    /// DirectBinding - True when this is a reference binding that is a
     /// direct binding (C++ [dcl.init.ref]).
     bool DirectBinding : 1;
 
@@ -134,7 +134,7 @@ namespace clang {
     /// conversions.
     CXXConstructorDecl *CopyConstructor;
 
-    void setAsIdentityConversion();        
+    void setAsIdentityConversion();
     ImplicitConversionRank getRank() const;
     bool isPointerConversionToBool() const;
     bool isPointerConversionToVoidPointer(ASTContext& Context) const;
@@ -159,7 +159,7 @@ namespace clang {
     /// After - Represents the standard conversion that occurs after
     /// the actual user-defined conversion.
     StandardConversionSequence After;
-    
+
     /// ConversionFunction - The function that will perform the
     /// user-defined conversion.
     FunctionDecl* ConversionFunction;
@@ -168,7 +168,7 @@ namespace clang {
   };
 
   /// ImplicitConversionSequence - Represents an implicit conversion
-  /// sequence, which may be a standard conversion sequence 
+  /// sequence, which may be a standard conversion sequence
   /// (C++ 13.3.3.1.1), user-defined conversion sequence (C++ 13.3.3.1.2),
   /// or an ellipsis conversion sequence (C++ 13.3.3.1.3).
   struct ImplicitConversionSequence {
@@ -195,7 +195,11 @@ namespace clang {
       /// details of the user-defined conversion sequence.
       UserDefinedConversionSequence UserDefined;
     };
-
+    
+    /// When ConversionKind == BadConversion due to multiple conversion
+    /// functions, this will list those functions.
+    llvm::SmallVector<FunctionDecl*, 4> ConversionFunctionSet;
+    
     // The result of a comparison between implicit conversion
     // sequences. Use Sema::CompareImplicitConversionSequences to
     // actually perform the comparison.
@@ -211,8 +215,8 @@ namespace clang {
   /// OverloadCandidate - A single candidate in an overload set (C++ 13.3).
   struct OverloadCandidate {
     /// Function - The actual function that this candidate
-    /// represents. When NULL, this is a built-in candidate 
-    /// (C++ [over.oper]) or a surrogate for a conversion to a 
+    /// represents. When NULL, this is a built-in candidate
+    /// (C++ [over.oper]) or a surrogate for a conversion to a
     /// function pointer or reference (C++ [over.call.object]).
     FunctionDecl *Function;
 
@@ -222,7 +226,7 @@ namespace clang {
       QualType ResultTy;
       QualType ParamTypes[3];
     } BuiltinTypes;
-    
+
     /// Surrogate - The conversion function for which this candidate
     /// is a surrogate, but only if IsSurrogate is true.
     CXXConversionDecl *Surrogate;
@@ -257,7 +261,16 @@ namespace clang {
 
   /// OverloadCandidateSet - A set of overload candidates, used in C++
   /// overload resolution (C++ 13.3).
-  typedef llvm::SmallVector<OverloadCandidate, 16> OverloadCandidateSet;
+  class OverloadCandidateSet : public llvm::SmallVector<OverloadCandidate, 16> {
+    llvm::SmallPtrSet<Decl *, 16> Functions;
+    
+  public:
+    /// \brief Determine when this overload candidate will be new to the
+    /// overload set.
+    bool isNewCandidate(Decl *F) { 
+      return Functions.insert(F->getCanonicalDecl()); 
+    }
+  };
 } // end namespace clang
 
 #endif // LLVM_CLANG_SEMA_OVERLOAD_H

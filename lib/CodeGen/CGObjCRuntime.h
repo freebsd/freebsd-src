@@ -86,7 +86,7 @@ protected:
                                   llvm::Value *BaseValue,
                                   const ObjCIvarDecl *Ivar,
                                   unsigned CVRQualifiers,
-                                  llvm::Value *Offset);  
+                                  llvm::Value *Offset);
 
 public:
   virtual ~CGObjCRuntime();
@@ -95,16 +95,13 @@ public:
   /// this compilation unit with the runtime library.
   virtual llvm::Function *ModuleInitFunction() = 0;
 
-  /// Add metadata globals to the 'used' globals for final output.
-  virtual void MergeMetadataGlobals(std::vector<llvm::Constant*> &UsedArray) = 0;
-
   /// Get a selector for the specified name and type values. The
   /// return value should have the LLVM type for pointer-to
   /// ASTContext::getObjCSelType().
   virtual llvm::Value *GetSelector(CGBuilderTy &Builder,
                                    Selector Sel) = 0;
 
-  /// Get a typed selector.  
+  /// Get a typed selector.
   virtual llvm::Value *GetSelector(CGBuilderTy &Builder,
                                    const ObjCMethodDecl *Method) = 0;
 
@@ -117,20 +114,26 @@ public:
 
   /// Generate a class stucture for this class.
   virtual void GenerateClass(const ObjCImplementationDecl *OID) = 0;
-  
-  /// Generate an Objective-C message send operation. 
-  virtual CodeGen::RValue 
+
+  /// Generate an Objective-C message send operation.
+  ///
+  /// \param Method - The method being called, this may be null if synthesizing
+  /// a property setter or getter.
+  virtual CodeGen::RValue
   GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
                       QualType ResultType,
                       Selector Sel,
                       llvm::Value *Receiver,
                       bool IsClassMessage,
                       const CallArgList &CallArgs,
-                      const ObjCMethodDecl *Method=0) = 0;
+                      const ObjCMethodDecl *Method = 0) = 0;
 
   /// Generate an Objective-C message send operation to the super
   /// class initiated in a method for Class and with the given Self
   /// object.
+  ///
+  /// \param Method - The method being called, this may be null if synthesizing
+  /// a property setter or getter.
   virtual CodeGen::RValue
   GenerateMessageSendSuper(CodeGen::CodeGenFunction &CGF,
                            QualType ResultType,
@@ -139,41 +142,42 @@ public:
                            bool isCategoryImpl,
                            llvm::Value *Self,
                            bool IsClassMessage,
-                           const CallArgList &CallArgs) = 0;
+                           const CallArgList &CallArgs,
+                           const ObjCMethodDecl *Method = 0) = 0;
 
   /// Emit the code to return the named protocol as an object, as in a
   /// @protocol expression.
   virtual llvm::Value *GenerateProtocolRef(CGBuilderTy &Builder,
                                            const ObjCProtocolDecl *OPD) = 0;
 
-  /// Generate the named protocol.  Protocols contain method metadata but no 
-  /// implementations. 
+  /// Generate the named protocol.  Protocols contain method metadata but no
+  /// implementations.
   virtual void GenerateProtocol(const ObjCProtocolDecl *OPD) = 0;
 
   /// Generate a function preamble for a method with the specified
-  /// types.  
+  /// types.
 
   // FIXME: Current this just generates the Function definition, but really this
   // should also be generating the loads of the parameters, as the runtime
   // should have full control over how parameters are passed.
-  virtual llvm::Function *GenerateMethod(const ObjCMethodDecl *OMD, 
+  virtual llvm::Function *GenerateMethod(const ObjCMethodDecl *OMD,
                                          const ObjCContainerDecl *CD) = 0;
 
   /// Return the runtime function for getting properties.
   virtual llvm::Constant *GetPropertyGetFunction() = 0;
-  
+
   /// Return the runtime function for setting properties.
   virtual llvm::Constant *GetPropertySetFunction() = 0;
 
   /// GetClass - Return a reference to the class for the given
   /// interface decl.
-  virtual llvm::Value *GetClass(CGBuilderTy &Builder, 
+  virtual llvm::Value *GetClass(CGBuilderTy &Builder,
                                 const ObjCInterfaceDecl *OID) = 0;
 
   /// EnumerationMutationFunction - Return the function that's called by the
   /// compiler when a mutation is detected during foreach iteration.
   virtual llvm::Constant *EnumerationMutationFunction() = 0;
-  
+
   virtual void EmitTryOrSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
                                          const Stmt &S) = 0;
   virtual void EmitThrowStmt(CodeGen::CodeGenFunction &CGF,
@@ -185,10 +189,11 @@ public:
   virtual void EmitObjCGlobalAssign(CodeGen::CodeGenFunction &CGF,
                                     llvm::Value *src, llvm::Value *dest) = 0;
   virtual void EmitObjCIvarAssign(CodeGen::CodeGenFunction &CGF,
-                                  llvm::Value *src, llvm::Value *dest) = 0;
+                                  llvm::Value *src, llvm::Value *dest,
+                                  llvm::Value *ivarOffset) = 0;
   virtual void EmitObjCStrongCastAssign(CodeGen::CodeGenFunction &CGF,
                                         llvm::Value *src, llvm::Value *dest) = 0;
-  
+
   virtual LValue EmitObjCValueForIvar(CodeGen::CodeGenFunction &CGF,
                                       QualType ObjectTy,
                                       llvm::Value *BaseValue,
@@ -197,9 +202,13 @@ public:
   virtual llvm::Value *EmitIvarOffset(CodeGen::CodeGenFunction &CGF,
                                       const ObjCInterfaceDecl *Interface,
                                       const ObjCIvarDecl *Ivar) = 0;
+  virtual void EmitGCMemmoveCollectable(CodeGen::CodeGenFunction &CGF,
+                                        llvm::Value *DestPtr,
+                                        llvm::Value *SrcPtr,
+                                        QualType Ty) = 0;
 };
 
-/// Creates an instance of an Objective-C runtime class.  
+/// Creates an instance of an Objective-C runtime class.
 //TODO: This should include some way of selecting which runtime to target.
 CGObjCRuntime *CreateGNUObjCRuntime(CodeGenModule &CGM);
 CGObjCRuntime *CreateMacObjCRuntime(CodeGenModule &CGM);

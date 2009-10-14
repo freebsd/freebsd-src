@@ -24,7 +24,7 @@ void (**j)() throw(int); // expected-error {{not allowed beyond a single}}
 // Pointer to function returning pointer to pointer to function with spec
 void (**(*h())())() throw(int); // expected-error {{not allowed beyond a single}}
 
-struct Incomplete;
+struct Incomplete; // expected-note 3 {{forward declaration}}
 
 // Exception spec must not have incomplete types, or pointers to them, except
 // void.
@@ -61,3 +61,127 @@ void r7() throw(float); // expected-error {{exception specification in declarati
 // Top-level const doesn't matter.
 void r8() throw(int);
 void r8() throw(const int);
+
+// Multiple appearances don't matter.
+void r9() throw(int, int);
+void r9() throw(int, int);
+
+struct A
+{
+};
+
+struct B1 : A
+{
+};
+
+struct B2 : A
+{
+};
+
+struct D : B1, B2
+{
+};
+
+struct P : private A
+{
+};
+
+struct Base
+{
+  virtual void f1() throw();
+  virtual void f2();
+  virtual void f3() throw(...);
+  virtual void f4() throw(int, float);
+
+  virtual void f5() throw(int, float);
+  virtual void f6() throw(A);
+  virtual void f7() throw(A, int, float);
+  virtual void f8();
+
+  virtual void g1() throw(); // expected-note {{overridden virtual function is here}}
+  virtual void g2() throw(int); // expected-note {{overridden virtual function is here}}
+  virtual void g3() throw(A); // expected-note {{overridden virtual function is here}}
+  virtual void g4() throw(B1); // expected-note {{overridden virtual function is here}}
+  virtual void g5() throw(A); // expected-note {{overridden virtual function is here}}
+};
+struct Derived : Base
+{
+  virtual void f1() throw();
+  virtual void f2() throw(...);
+  virtual void f3();
+  virtual void f4() throw(float, int);
+
+  virtual void f5() throw(float);
+  virtual void f6() throw(B1);
+  virtual void f7() throw(B1, B2, int);
+  virtual void f8() throw(B2, B2, int, float, char, double, bool);
+
+  virtual void g1() throw(int); // expected-error {{exception specification of overriding function is more lax}}
+  virtual void g2(); // expected-error {{exception specification of overriding function is more lax}}
+  virtual void g3() throw(D); // expected-error {{exception specification of overriding function is more lax}}
+  virtual void g4() throw(A); // expected-error {{exception specification of overriding function is more lax}}
+  virtual void g5() throw(P); // expected-error {{exception specification of overriding function is more lax}}
+};
+
+// Some functions to play with below.
+void s1() throw();
+void s2() throw(int);
+void s3() throw(A);
+void s4() throw(B1);
+void s5() throw(D);
+void s6();
+void s7() throw(int, float);
+void (*s8())() throw(B1); // s8 returns a pointer to function with spec
+void s9(void (*)() throw(B1)); // s9 takes pointer to function with spec
+
+void fnptrs()
+{
+  // Assignment and initialization of function pointers.
+  void (*t1)() throw() = &s1;    // valid
+  t1 = &s2;                      // expected-error {{not superset}} expected-error {{incompatible type}}
+  t1 = &s3;                      // expected-error {{not superset}} expected-error {{incompatible type}}
+  void (&t2)() throw() = s2;     // expected-error {{not superset}}
+  void (*t3)() throw(int) = &s2; // valid
+  void (*t4)() throw(A) = &s1;   // valid
+  t4 = &s3;                      // valid
+  t4 = &s4;                      // valid
+  t4 = &s5;                      // expected-error {{not superset}} expected-error {{incompatible type}}
+  void (*t5)() = &s1;            // valid
+  t5 = &s2;                      // valid
+  t5 = &s6;                      // valid
+  t5 = &s7;                      // valid
+  t1 = t3;                       // expected-error {{not superset}} expected-error {{incompatible type}}
+  t3 = t1;                       // valid
+  void (*t6)() throw(B1);
+  t6 = t4;                       // expected-error {{not superset}} expected-error {{incompatible type}}
+  t4 = t6;                       // valid
+  t5 = t1;                       // valid
+  t1 = t5;                       // expected-error {{not superset}} expected-error {{incompatible type}}
+
+  // return types and arguments must match exactly, no inheritance allowed
+  void (*(*t7)())() throw(B1) = &s8;       // valid
+  void (*(*t8)())() throw(A) = &s8;        // expected-error {{return types differ}} expected-error {{incompatible type}}
+  void (*(*t9)())() throw(D) = &s8;        // expected-error {{return types differ}} expected-error {{incompatible type}}
+  void (*t10)(void (*)() throw(B1)) = &s9; // valid   expected-warning{{disambiguated}}
+  void (*t11)(void (*)() throw(A)) = &s9;  // expected-error {{argument types differ}} expected-error {{incompatible type}} expected-warning{{disambiguated}}
+  void (*t12)(void (*)() throw(D)) = &s9;  // expected-error {{argument types differ}} expected-error {{incompatible type}} expected-warning{{disambiguated}}
+}
+
+// Member function stuff
+
+struct Str1 { void f() throw(int); }; // expected-note {{previous declaration}}
+void Str1::f() // expected-error {{does not match previous declaration}}
+{
+}
+
+void mfnptr()
+{
+  void (Str1::*pfn1)() throw(int) = &Str1::f; // valid
+  void (Str1::*pfn2)() = &Str1::f; // valid
+  void (Str1::*pfn3)() throw() = &Str1::f; // expected-error {{not superset}} expected-error {{incompatible type}}
+}
+
+// Don't suppress errors in template instantiation.
+template <typename T> struct TEx; // expected-note {{template is declared here}}
+
+void tf() throw(TEx<int>); // expected-error {{implicit instantiation of undefined template}}

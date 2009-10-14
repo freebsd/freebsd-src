@@ -25,21 +25,24 @@
 #define LLVM_CLANG_ANALYSIS_BASICOBJCFOUNDATIONCHECKS
 
 namespace clang {
-  
+
 class GRSimpleAPICheck;
 class ASTContext;
-class GRStateManager;  
+class GRStateManager;
 class BugReporter;
 class GRExprEngine;
-  
-GRSimpleAPICheck* CreateBasicObjCFoundationChecks(ASTContext& Ctx,
+
+GRSimpleAPICheck *CreateBasicObjCFoundationChecks(ASTContext& Ctx,
                                                   BugReporter& BR);
-  
-GRSimpleAPICheck* CreateAuditCFNumberCreate(ASTContext& Ctx,
+
+GRSimpleAPICheck *CreateAuditCFNumberCreate(ASTContext& Ctx,
                                             BugReporter& BR);
-  
-void RegisterNSErrorChecks(BugReporter& BR, GRExprEngine &Eng);
-  
+
+GRSimpleAPICheck *CreateAuditCFRetainRelease(ASTContext& Ctx,
+                                             BugReporter& BR);
+
+void RegisterNSErrorChecks(BugReporter& BR, GRExprEngine &Eng, const Decl &D);
+
 } // end clang namespace
 
 #endif

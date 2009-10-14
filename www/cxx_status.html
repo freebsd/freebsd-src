@@ -24,7 +24,7 @@
 <!--*************************************************************************-->
 <h1>C++ Support in Clang</h1>
 <!--*************************************************************************-->
-<p>Last updated: $Date: 2009-06-27 21:33:58 +0200 (Sat, 27 Jun 2009) $</p>
+<p>Last updated: $Date: 2009-10-13 21:41:44 +0200 (Tue, 13 Oct 2009) $</p>
 
 <p>
 This page tracks the status of C++ support in Clang.<br>
@@ -321,8 +321,21 @@ welcome!</p>
   <td class="na">N/A</td>
   <td></td>
 </tr>
-<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;3.3.5 [basic.scope.namespace]</td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;3.3.6 [basic.scope.class]</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr>
+  <td>&nbsp;&nbsp;&nbsp;&nbsp;3.3.5 [basic.scope.namespace]</td>
+  <td class="na">N/A</td>
+  <td class="na">N/A</td>
+  <td class="complete"></td>
+  <td class="na">N/A</td>
+</tr>
+<tr>
+  <td>&nbsp;&nbsp;&nbsp;&nbsp;3.3.6 [basic.scope.class]</td>
+  <td class="na">N/A</td>
+  <td class="na">N/A</td>
+  <td class="advanced"></td>
+  <td class="na">N/A</td>
+  <td>Does not check that reordering the members of a class maintains semantics.</td>
+</tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;3.3.7 [basic.scope.hiding]</td>
   <td class="na">N/A</td>
@@ -343,17 +356,17 @@ welcome!</p>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.1 [basic.lookup.unqual]</td>
   <td class="na">N/A</td>
   <td class="na">N/A</td>
-  <td class="medium"></td>
+  <td class="advanced"></td>
   <td class="na">N/A</td>
-  <td>Many cases beyond simple global and function-local lookup don't work</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.2 [basic.lookup.argdep]</td>
   <td class="na">N/A</td>
-  <td class="advanced" align="center"></td>
-  <td class="advanced" align="center"></td>
   <td class="na">N/A</td>
-  <td>Missing support for templates, friend functions.</td>
+  <td class="complete"></td>
+  <td class="na">N/A</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.3 [basic.lookup.qual]</td>
@@ -380,8 +393,21 @@ welcome!</p>
   <td></td>  
 </tr>
 <tr><td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.4 [basic.lookup.elab]</td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.5 [basic.lookup.classref]</td><td></td><td></td><td></td><td></td><td></td></tr>
-<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.6 [basic.lookup.udir]</td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr>
+  <td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.5 [basic.lookup.classref]</td>
+  <td class="na">N/A</td>
+  <td class="na">N/A</td>
+  <td class="advanced"></td>
+  <td class="na">N/A</td>
+  <td>Missing ambiguity/consistency checks for paragraphs 3 (~type-name) and 7 (conversion-type-id)</td>
+</tr>
+<tr>
+  <td>&nbsp;&nbsp;&nbsp;&nbsp;3.4.6 [basic.lookup.udir]</td>
+  <td class="na">N/A</td>
+  <td class="na">N/A</td>
+  <td class="medium"></td>
+  <td class="na">N/A</td>
+</tr>
 <tr><td>&nbsp;&nbsp;3.5 [basic.link]</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>&nbsp;&nbsp;3.6 [basic.start]</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>&nbsp;&nbsp;&nbsp;&nbsp;3.6.1 [basic.start.main]</td><td></td><td></td><td></td><td></td><td></td></tr>
@@ -508,17 +534,18 @@ welcome!</p>
   <td>5 [expr]</td>
   <td class="na">N/A</td>
   <td class="na">N/A</td>
-  <td class="complete" align="center"></td>
-  <td></td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="na">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;5.1 [expr.prim]</td>
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td></td>
-  <td>template-ids are not supported, name lookup is not complete</td>
+  <td>cannot parse operator-function-ids that have explicit template argument 
+  lists</td>
 </tr>
 <tr><td>&nbsp;&nbsp;5.2 [expr.post]</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr>
@@ -540,26 +567,26 @@ welcome!</p>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;5.2.3 [expr.type.conv]</td>
   <td class="complete" align="center"></td>
-  <td class="complete" align="center"></td>
-  <td class="basic"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced"></td>
   <td></td>
-  <td>Only between non-class types</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;5.2.4 [expr.pseudo]</td>
-  <td class="broken"></td>
-  <td class="broken"></td>
-  <td class="broken"></td>
-  <td></td>
+  <td class="complete"></td>
+  <td class="complete"></td>
+  <td class="complete"></td>
+  <td class="complete"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;5.2.5 [expr.ref]</td>
   <td class="complete" align="center"></td>
-  <td class="medium"></td>
-  <td class="medium"></td>
+  <td class="complete"></td>
+  <td class="complete"></td>
   <td></td>
-  <td>Cannot look up operator names, qualified-ids, or names in base classes</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;5.2.6 [expr.post.incr]</td>
@@ -588,10 +615,10 @@ welcome!</p>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;5.2.9 [expr.static.cast]</td>
   <td class="complete" align="center"></td>
-  <td class="complete" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
   <td></td>
-  <td>Some custom conversions don't work.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;5.2.10 [expr.reinterpret.cast]</td>
@@ -694,10 +721,10 @@ welcome!</p>
 <tr>
   <td>&nbsp;&nbsp;5.4 [expr.cast]</td>
   <td class="complete" align="center"></td>
-  <td class="complete" align="center"></td>
-  <td class="medium"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced"></td>
   <td></td>
-  <td>Too lenient, and may not always have correct semantics</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;5.5 [expr.mptr.oper]</td>
@@ -953,7 +980,7 @@ welcome!</p>
   <td class="complete" align="center"></td>
   <td class="advanced" align="center"></td>
   <td></td>
-  <td>Skipping of initialization is not flagged. Existence and accessibility of destructors is not tested for.</td>
+  <td>Existence and accessibility of destructors is not tested for.</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;6.8 [stmt.ambig]</td>
@@ -970,7 +997,7 @@ welcome!</p>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
   <td></td>
-  <td>No support for friend declarations.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;7.1.1 [dcl.stc]</td>
@@ -998,9 +1025,9 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;7.1.4 [dcl.friend]</td>
-  <td class="broken"></td>
-  <td class="broken"></td>
-  <td class="broken"></td>
+  <td class="medium"></td>
+  <td class="medium"></td>
+  <td class="medium"></td>
   <td></td>
   <td></td>
 </tr>
@@ -1022,19 +1049,19 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7.1.5.2 [dcl.type.simple]</td>
-  <td class="medium"></td>
+  <td class="advanced"></td>
   <td class="advanced"></td>
   <td class="advanced"></td>
   <td></td>
-  <td>Cannot parse template IDs.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7.1.5.3 [dcl.type.elab]</td>
-  <td class="medium"></td>
+  <td class="advanced"></td>
   <td class="advanced"></td>
   <td class="advanced"></td>
   <td></td>
-  <td>Cannot parse template IDs.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;7.2 [dcl.enum]</td>
@@ -1054,11 +1081,11 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;7.3.1 [namespace.def]</td>
-  <td class="medium"></td>
-  <td class="medium"></td>
-  <td class="medium"></td>
+  <td class="advanced"></td>
+  <td class="advanced"></td>
+  <td class="advanced"></td>
   <td></td>
-  <td>Cannot parse namespace aliases.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7.3.1.1 [namespace.unnamed]</td>
@@ -1074,7 +1101,7 @@ welcome!</p>
   <td class="complete" align="center"></td>
   <td class="advanced"></td>
   <td></td>
-  <td>The friend stuff is not supported.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;7.3.2 [namespace.alias]</td>
@@ -1086,9 +1113,9 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;7.3.3 [namespace.udecl]</td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="basic" align="center"></td>
   <td></td>
   <td></td>
 </tr>
@@ -1141,7 +1168,7 @@ welcome!</p>
   <td class="complete" align="center"></td>
   <td class="advanced" align="center"></td>
   <td class="na">N/A</td>
-  <td>Qualified declarator-ids are not fully implemented.</td>
+  <td></td>
 </tr>
   <tr>
     <td>&nbsp;&nbsp;&nbsp;&nbsp;8.3.1 [dcl.ptr]</td>
@@ -1189,21 +1216,21 @@ welcome!</p>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
   <td class="na">N/A</td>
-  <td>Missing default arguments for templates.</td>
+  <td>Partial support for default arguments of templates.</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;8.4 [dcl.fct.def]</td>
   <td class="complete" align="center"></td>
   <td class="complete" align="center"></td>
+  <td class="complete" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td>ctor-initializers are not fully type-checked.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;8.5 [dcl.init]</td>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
   <td></td>
 </tr>
@@ -1213,7 +1240,7 @@ welcome!</p>
   <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
   <td class="basic" align="center"></td>
-  <td>No CodeGen for initializing non-aggregates or dynamic initialization.</td>
+  <td>No CodeGen for dynamic initialization.</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;8.5.2[dcl.init.string]</td>
@@ -1253,7 +1280,7 @@ welcome!</p>
   <td class="medium" align="center"></td>
   <td class="medium" align="center"></td>
   <td class="basic" align="center"></td>
-  <td>No parser support for using declarations or member templates.</td>
+  <td>Basic parser support for using declarations.</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;9.3 [class.mfct]</td>
@@ -1266,16 +1293,16 @@ welcome!</p>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;9.3.1 [class.mfct.non-static]</td>
   <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="basic" align="center"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;9.3.2 [class.this]</td>
   <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="basic"></td>
   <td></td>
 </tr>
@@ -1283,7 +1310,7 @@ welcome!</p>
   <td>&nbsp;&nbsp;9.4 [class.static]</td>
   <td class="complete" align="center"></td>  
   <td class="complete" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="basic"></td>
   <td></td>
 </tr>
@@ -1291,7 +1318,7 @@ welcome!</p>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;9.4.1 [class.static.mfct]</td>
   <td class="complete" align="center"></td>  
   <td class="complete" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="basic"></td>
   <td></td>
 </tr>
@@ -1299,7 +1326,7 @@ welcome!</p>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;9.4.2 [class.static.data]</td>
   <td class="complete" align="center"></td>  
   <td class="complete" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="basic"></td>
   <td></td>
 </tr>
@@ -1307,9 +1334,9 @@ welcome!</p>
   <td>&nbsp;&nbsp;9.5 [class.union]</td>
   <td class="complete" align="center"></td>  
   <td class="complete" align="center"></td>
-  <td class="medium"></td>
-  <td class="medium"></td>
-  <td>Semantic analysis does not yet check all of the requirements placed on the members of unions.</td>
+  <td class="complete"></td>
+  <td class="complete"></td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;9.6 [class.bit]</td>
@@ -1347,7 +1374,7 @@ welcome!</p>
   <td>10 [class.derived]</td>
   <td class="advanced" align="center"></td>  
   <td class="advanced" align="center"></td>  
-  <td class="medium" align="center"></td>  
+  <td class="advanced" align="center"></td>  
   <td class="broken" align="center"></td>
   <td></td>
 </tr>
@@ -1356,8 +1383,8 @@ welcome!</p>
   <td class="advanced" align="center"></td>  
   <td class="advanced" align="center"></td>  
   <td class="medium" align="center"></td>  
-  <td class="broken" align="center"></td>
-  <td>No layout of base classes</td>
+  <td class="basic" align="center"></td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;10.2 [class.member.lookup]</td>
@@ -1371,9 +1398,9 @@ welcome!</p>
   <td>&nbsp;&nbsp;10.3 [class.virtual]</td>
   <td class="advanced" align="center"></td>  
   <td class="medium" align="center"></td>  
-  <td class="basic" align="center"></td>  
-  <td class="broken" align="center"></td>
-  <td>No semantic analysis for overriding virtual functions or inheriting a virtual function. No layout of classes with virtual functions.</td>
+  <td class="medium" align="center"></td>  
+  <td class="basic" align="center"></td>
+  <td>Basic layout of classes with virtual functions.</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;10.4 [class.abstract]</td>
@@ -1417,9 +1444,9 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;11.4 [class.friend]</td>
-  <td class="broken" align="center"></td>  
-  <td class="broken" align="center"></td>  
-  <td class="broken" align="center"></td>  
+  <td class="medium" align="center"></td>  
+  <td class="medium" align="center"></td>  
+  <td class="medium" align="center"></td>  
   <td class="na" align="center">N/A</td>
   <td></td>  
 </tr>
@@ -1460,9 +1487,9 @@ welcome!</p>
   <td>&nbsp;&nbsp;12.1 [class.ctor]</td>
   <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td>Implicitly-declared constructors are never defined.</td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td>Most of the semantics of constructors are implemented.</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;12.2 [class.temporary]</td>
@@ -1476,8 +1503,8 @@ welcome!</p>
   <td>&nbsp;&nbsp;12.3 [class.conv]</td>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td></td>
 </tr>
 <tr>
@@ -1485,7 +1512,7 @@ welcome!</p>
   <td class="complete" align="center"></td>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td></td>
 </tr>
 <tr>
@@ -1493,16 +1520,15 @@ welcome!</p>
   <td class="complete" align="center"></td>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>No support for inheritance of conversion functions.</td>
+  <td class="advanced" align="center"></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;12.4 [class.dtor]</td>
   <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>Most of the semantics of destructors are unimplemented.</td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td>Most of the semantics of destructors are implemented.</td>
 </tr>
 <tr><td>&nbsp;&nbsp;12.5 [class.free]</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>&nbsp;&nbsp;12.6 [class.init]</td><td></td><td></td><td></td><td></td><td></td></tr>
@@ -1511,205 +1537,202 @@ welcome!</p>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;12.6.2 [class.base.init]</td>
   <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>No actual direct initialization; implicit initialization not checked.</td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td>Most of the semantics of base initializations are implemented.</td>
 </tr>
 <tr><td>&nbsp;&nbsp;12.7 [class.cdtor]</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr>
   <td>&nbsp;&nbsp;12.8 [class.copy]</td>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>Copy assignment operators are mostly ignored by semantic analysis.</td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td>Most of the semantics of copy constructors are implemented.</td>
 </tr>
 
 <tr><td>13 [over]</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr>
   <td>&nbsp;&nbsp;13.1 [over.load]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>Missing name mangling.</td>
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;13.2 [over.dcl]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;13.3 [over.match]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;13.3.1 [over.match.funcs]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.1 [over.match.call]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.1.1 [over.call.func]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.1.2 [over.call.object]</td>
-  <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
-  <td>Missing AST representation for the implicit conversion to a function reference/pointer</td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.2 [over.match.oper]</td>
-  <td class="complete" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.3 [over.match.ctor]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.4 [over.match.copy]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.5 [over.match.conv]</td>
-  <td class="complete" align="center"></td>  
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.6 [over.match.ref]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;13.3.2 [over.match.viable]</td>
-  <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;13.3.3 [over.match.best]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
-  <td></td>
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="na" align="center">N/A</td>  
+  <td>Missing support for member pointers</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.3.1 [over.best.ics]</td>
-  <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.3.1.1 [over.ics.scs]</td>
-  <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.3.1.2 [over.ics.user]</td>
-  <td class="complete" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.3.1.3 [over.ics.ellipsis]</td>
-  <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.3.1.4 [over.ics.ref]</td>
-  <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.3.2 [over.ics.rank]</td>
-  <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;13.4 [over.over]</td>
-  <td class="advanced" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>  
-  <td>Error messages need some work. Without templates or using
-  declarations, we don't have any ambiguities, so the semantic
-  analysis is incomplete.</td>
+  <td class="na" align="center">N/A</td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;13.5 [over.oper]</td>
   <td class="advanced" align="center"></td>  
   <td class="advanced" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
-  <td>Some overloaded operators can only be called with function syntax, e.g., <code>operator[](x)</code>.</td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>  
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;13.5.1 [over.unary]</td>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
@@ -1717,7 +1740,7 @@ welcome!</p>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
@@ -1725,7 +1748,7 @@ welcome!</p>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
@@ -1733,7 +1756,7 @@ welcome!</p>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
@@ -1741,7 +1764,7 @@ welcome!</p>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
@@ -1749,7 +1772,7 @@ welcome!</p>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
@@ -1757,7 +1780,7 @@ welcome!</p>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="broken" align="center"></td>  
+  <td class="na" align="center">N/A</td>  
   <td></td>
 </tr>
 <tr>
@@ -1765,15 +1788,15 @@ welcome!</p>
   <td class="na" align="center">N/A</td>  
   <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>  
-  <td>Missing pointer-to-member versions (p11, p16) and support for
+  <td class="na" align="center">N/A</td>  
+  <td>Missing support for the ->* operator (p11, p16) and support for
   the ternary operator (p24, p25).</td>
 </tr>
 <tr>
   <td>14 [temp]</td>
   <td class="basic" align="center">N/A</td>  
   <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="basic" align="center"></td>
   <td class="broken" align="center"></td>
   <td></td>
 </tr>
@@ -1787,19 +1810,19 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;14.2 [temp.names]</td>
-  <td class="medium" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
+  <td class="complete" align="center"></td>  
+  <td class="complete" align="center"></td>
+  <td class="complete" align="center"></td>
   <td class="na" align="center">N/A</td>
-  <td>Cannot name function template specializations</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;14.3 [temp.arg]</td>
   <td class="complete" align="center"></td>  
-  <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
+  <td class="complete" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>
-  <td>Cannot name function template specializations</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.3.1 [temp.arg.type]</td>
@@ -1838,48 +1861,48 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.5.1 [temp.class]</td>
-  <td class="medium" align="center"></td>  
+  <td class="advanced" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>No out-of-line definitions of the members of a template.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.5.1.1 [temp.mem.func]</td>
-  <td class="medium" align="center"></td>  
+  <td class="advanced" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>No out-of-line definitions of the member functions of a class template.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.5.1.2 [temp.mem.class]</td>
-  <td class="medium" align="center"></td>  
+  <td class="advanced" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>No out-of-line definitions of the member classes of a class template.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.5.1.3 [temp.static]</td>
-  <td class="medium" align="center"></td>  
+  <td class="advanced" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>No out-of-line definitions of the static data members of a class template.</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.5.2 [temp.mem]</td>
-  <td class="broken" align="center"></td>  
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="advanced" align="center"></td>  
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="na" align="center"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.5.3 [temp.friend]</td>
-  <td class="broken" align="center"></td>  
-  <td class="broken" align="center"></td>
+  <td class="medium" align="center"></td>  
+  <td class="medium" align="center"></td>
   <td class="broken" align="center"></td>
   <td class="na" align="center">N/A</td>
   <td></td>
@@ -1902,49 +1925,49 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.5.4.2 [temp.class.order]</td>
-  <td class="broken" align="center"></td>  
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="na" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.5.5.3 [temp.class.spec.mfunc]</td>
-  <td class="broken" align="center"></td>  
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="advanced" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.5.5 [temp.fct]</td>
-  <td class="medium" align="center"></td>  
+  <td class="advanced" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.5.5.1 [temp.over.link]</td>
   <td class="na" align="center"></td>  
   <td class="complete" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.5.5.2 [temp.func.order]</td>
-  <td class="broken" align="center"></td>  
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="na" align="center"></td>  
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;14.6 [temp.res]</td>
-  <td class="basic" align="center"></td>  
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
+  <td class="medium" align="center"></td>  
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
   <td class="na" align="center"></td>
   <td></td>
 </tr>
@@ -2007,8 +2030,8 @@ welcome!</p>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.6.4 [temp.dep.res]</td>
   <td class="na" align="center">N/A</td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
   <td class="na" align="center"></td>
   <td></td>
 </tr>
@@ -2031,105 +2054,105 @@ welcome!</p>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.6.5 [temp.inject]</td>
   <td class="na" align="center">N/A</td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="basic" align="center"></td>
+  <td class="basic" align="center"></td>
   <td class="na" align="center"></td>
   <td></td>  
 </tr>
 <tr>
   <td>&nbsp;&nbsp;14.7 [temp.spec]</td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
   <td class="broken" align="center"></td>
-  <td>Function templates cannot be instantiated</td>  
+  <td></td>  
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.7.1 [temp.inst]</td>
   <td class="na" align="center">N/A</td>
+  <td class="na" align="center"></td>
+  <td class="medium" align="center"></td>
   <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>Function templates cannot be instantiated</td>  
+  <td></td>  
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.7.2 [temp.explicit]</td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
   <td class="broken" align="center"></td>
-  <td>Function templates cannot be instantiated</td>  
+  <td></td>  
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.7.3 [temp.expl.spec]</td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td>Only class template specialization is available</td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="advanced" align="center"></td>
+  <td class="complete" align="center">&#x2713;</td>
+  <td class="complete" align="center"></td>
+  <td>ASTs do not carry enough information to reproduce source code accurately</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;14.8 [temp.fct.spec]</td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
+  <td class="medium" align="center"></td>
   <td class="broken" align="center"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.8.1 [temp.arg.explicit]</td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="basic" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.8.2 [temp.deduct]</td>
   <td class="na" align="center">N/A</td>
   <td class="na" align="center">N/A</td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.8.2.1 [temp.deduct.call]</td>
-  <td class="broken" align="center"></td>
+  <td class="na" align="center"></td>
   <td class="complete" align="center"></td>
-  <td class="basic" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.8.2.2 [temp.deduct.funcaddr]</td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="na" align="center">N/A</td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.8.2.3 [temp.deduct.conv]</td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="na" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center"></td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;14.8.2.4 [temp.deduct.type]</td>
   <td class="na" align="center">N/A</td>
   <td class="complete" align="center"></td>
-  <td class="medium" align="center"></td>
+  <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>
   <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.8.3 [temp.over]</td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td class="broken" align="center"></td>
+  <td class="na" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="advanced" align="center"></td>
+  <td class="na" align="center"></td>
   <td></td>
 </tr>
 <tr>
@@ -2167,9 +2190,9 @@ welcome!</p>
 <tr>
   <td>&nbsp;&nbsp;15.4 [except.spec]</td>
   <td class="complete" align="center"></td>
-  <td></td>
-  <td></td>
-  <td></td>
+  <td class="complete" align="center"></td>
+  <td class="complete" align="center"></td>
+  <td class="broken"></td>
   <td></td>
 </tr>
 <tr>

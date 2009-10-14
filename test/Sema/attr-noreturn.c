@@ -4,7 +4,7 @@ static void (*fp0)(void) __attribute__((noreturn));
 
 static void __attribute__((noreturn)) f0(void) {
   fatal();
-}
+} // expected-warning {{function declared 'noreturn' should not return}}
 
 // On K&R
 int f1() __attribute__((noreturn));
@@ -25,3 +25,11 @@ void f4() {
   return;  // expected-warning {{function 'f4' declared 'noreturn' should not return}}
 }
 
+// PR4685
+extern void f5 (unsigned long) __attribute__ ((__noreturn__));
+
+void
+f5 (unsigned long size)
+{
+  
+}
