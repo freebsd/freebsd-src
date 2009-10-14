@@ -3,7 +3,7 @@
 .include	"../../Makefile.inc"
 
 LIB=		dtrace
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 WARNS=		1
 

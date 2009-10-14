@@ -424,7 +424,11 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 
-	pcpu->pc_acpi_id = cpuid;
+	/*
+	 * Set pc_acpi_id to "uninitialized".
+	 * See sys/dev/acpica/acpi_cpu.c
+	 */
+	pcpu->pc_acpi_id = 0xffffffff;
 }
 
 void

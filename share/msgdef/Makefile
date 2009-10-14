@@ -40,6 +40,8 @@ LOCALES=	af_ZA.ISO8859-1 \
 		ko_KR.UTF-8 \
 		ko_KR.eucKR \
 		lt_LT.ISO8859-13 \
+		lv_LV.ISO8859-13 \
+		lv_LV.UTF-8 \
 		mn_MN.UTF-8 \
 		nl_NL.ISO8859-1 \
 		no_NO.ISO8859-1 \

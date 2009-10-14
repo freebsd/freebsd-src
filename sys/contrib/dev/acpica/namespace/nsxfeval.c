@@ -658,10 +658,11 @@ AcpiNsGetDeviceCallback (
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
     UINT32                  Flags;
-    ACPI_DEVICE_ID          Hid;
-    ACPI_COMPATIBLE_ID_LIST *Cid;
+    ACPI_DEVICE_ID          *Hid;
+    ACPI_DEVICE_ID_LIST     *Cid;
     UINT32                  i;
     BOOLEAN                 Found;
+    int                     NoMatch;
 
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
@@ -715,7 +716,10 @@ AcpiNsGetDeviceCallback (
             return (AE_CTRL_DEPTH);
         }
 
-        if (ACPI_STRNCMP (Hid.Value, Info->Hid, sizeof (Hid.Value)) != 0)
+        NoMatch = ACPI_STRCMP (Hid->String, Info->Hid);
+        ACPI_FREE (Hid);
+
+        if (NoMatch)
         {
             /*
              * HID does not match, attempt match within the
@@ -736,8 +740,7 @@ AcpiNsGetDeviceCallback (
             Found = FALSE;
             for (i = 0; i < Cid->Count; i++)
             {
-                if (ACPI_STRNCMP (Cid->Id[i].Value, Info->Hid,
-                        sizeof (ACPI_COMPATIBLE_ID)) == 0)
+                if (ACPI_STRCMP (Cid->Ids[i].String, Info->Hid) == 0)
                 {
                     /* Found a matching CID */
 

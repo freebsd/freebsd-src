@@ -241,7 +241,8 @@ scan_space(const struct ieee80211_scan_entry *se, int *ielen)
 	 * packet is <3Kbytes so we are sure this doesn't overflow
 	 * 16-bits; if this is a concern we can drop the ie's.
 	 */
-	len = sizeof(struct ieee80211req_scan_result) + se->se_ssid[1] + *ielen;
+	len = sizeof(struct ieee80211req_scan_result) + se->se_ssid[1] +
+	    se->se_meshid[1] + *ielen;
 	return roundup(len, sizeof(uint32_t));
 }
 
@@ -286,14 +287,19 @@ get_scan_result(void *arg, const struct ieee80211_scan_entry *se)
 	memcpy(sr->isr_rates+nr, se->se_xrates+2, nxr);
 	sr->isr_nrates = nr + nxr;
 
+	/* copy SSID */
 	sr->isr_ssid_len = se->se_ssid[1];
 	cp = ((uint8_t *)sr) + sr->isr_ie_off;
 	memcpy(cp, se->se_ssid+2, sr->isr_ssid_len);
 
-	if (ielen) {
-		cp += sr->isr_ssid_len;
+	/* copy mesh id */
+	cp += sr->isr_ssid_len;
+	sr->isr_meshid_len = se->se_meshid[1];
+	memcpy(cp, se->se_meshid+2, sr->isr_meshid_len);
+	cp += sr->isr_meshid_len;
+
+	if (ielen)
 		memcpy(cp, se->se_ies.data, ielen);
-	}
 
 	req->space -= len;
 	req->sr = (struct ieee80211req_scan_result *)(((uint8_t *)sr) + len);
@@ -435,6 +441,9 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 	else
 		si->isi_inact = vap->iv_inact_init;
 	si->isi_inact = (si->isi_inact - ni->ni_inact) * IEEE80211_INACT_WAIT;
+	si->isi_localid = ni->ni_mllid;
+	si->isi_peerid = ni->ni_mlpid;
+	si->isi_peerstate = ni->ni_mlstate;
 
 	if (ielen) {
 		cp = ((uint8_t *)si) + si->isi_ie_off;
@@ -2847,6 +2856,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		break;
 	case IEEE80211_IOC_DTIM_PERIOD:
 		if (vap->iv_opmode != IEEE80211_M_HOSTAP &&
+		    vap->iv_opmode != IEEE80211_M_MBSS &&
 		    vap->iv_opmode != IEEE80211_M_IBSS)
 			return EINVAL;
 		if (IEEE80211_DTIM_MIN <= ireq->i_val &&
@@ -2858,6 +2868,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		break;
 	case IEEE80211_IOC_BEACON_INTERVAL:
 		if (vap->iv_opmode != IEEE80211_M_HOSTAP &&
+		    vap->iv_opmode != IEEE80211_M_MBSS &&
 		    vap->iv_opmode != IEEE80211_M_IBSS)
 			return EINVAL;
 		if (IEEE80211_BINTVAL_MIN <= ireq->i_val &&

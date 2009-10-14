@@ -230,12 +230,12 @@ static void	ufoma_start_read(struct ucom_softc *);
 static void	ufoma_stop_read(struct ucom_softc *);
 static void	ufoma_start_write(struct ucom_softc *);
 static void	ufoma_stop_write(struct ucom_softc *);
+static void	ufoma_poll(struct ucom_softc *ucom);
 
 /*sysctl stuff*/
 static int ufoma_sysctl_support(SYSCTL_HANDLER_ARGS);
 static int ufoma_sysctl_current(SYSCTL_HANDLER_ARGS);
 static int ufoma_sysctl_open(SYSCTL_HANDLER_ARGS);
-
 
 static const struct usb_config
 	ufoma_ctrl_config[UFOMA_CTRL_ENDPT_MAX] = {
@@ -304,6 +304,7 @@ static const struct ucom_callback ufoma_callback = {
 	.ucom_stop_read = &ufoma_stop_read,
 	.ucom_start_write = &ufoma_start_write,
 	.ucom_stop_write = &ufoma_stop_write,
+	.ucom_poll = &ufoma_poll,
 };
 
 static device_method_t ufoma_methods[] = {
@@ -1240,4 +1241,12 @@ static int ufoma_sysctl_open(SYSCTL_HANDLER_ARGS)
 	}
 	
 	return EINVAL;
+}
+
+static void
+ufoma_poll(struct ucom_softc *ucom)
+{
+	struct ufoma_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_ctrl_xfer, UFOMA_CTRL_ENDPT_MAX);
+	usbd_transfer_poll(sc->sc_bulk_xfer, UFOMA_BULK_ENDPT_MAX);
 }

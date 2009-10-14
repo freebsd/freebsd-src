@@ -32,7 +32,7 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2009
+.Dd July 7, 2009
 .Os
 .Dt DLOPEN 3
 .Sh NAME
@@ -148,6 +148,13 @@ The same behaviour may be requested by
 .Fl "z nodelete"
 option of the static linker
 .Xr ld 1 .
+.It Dv RTLD_NOLOAD
+Ony return valid handle for the object if it is already loaded in
+the process address space, otherwise
+.Dv NULL
+is returned.
+Other mode flags may be specified, which will be applied for promotion
+for the found object.
 .El
 .Pp
 If

@@ -1025,6 +1025,8 @@ g_valid_obj(void const *ptr)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 
+	g_topology_assert();
+
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (ptr == mp)
 			return (1);

@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
@@ -58,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #define TCPSTATES		/* for logging */
 
@@ -86,11 +86,6 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
-#include <netinet/vinet.h>
-
-#ifdef INET6
-#include <netinet6/vinet6.h>
-#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -103,105 +98,90 @@ __FBSDID("$FreeBSD$");
 
 static const int tcprexmtthresh = 3;
 
-#ifdef VIMAGE_GLOBALS
-struct	tcpstat tcpstat;
-int	blackhole;
-int	tcp_delack_enabled;
-int	drop_synfin;
-int	tcp_do_rfc3042;
-int	tcp_do_rfc3390;
-int	tcp_do_ecn;
-int	tcp_ecn_maxretries;
-int	tcp_insecure_rst;
-int	tcp_do_autorcvbuf;
-int	tcp_autorcvbuf_inc;
-int	tcp_autorcvbuf_max;
-int	tcp_do_rfc3465;
-int	tcp_abc_l_var;
-#endif
+VNET_DEFINE(struct tcpstat, tcpstat);
+VNET_DEFINE(int, blackhole);
+VNET_DEFINE(int, tcp_delack_enabled);
+VNET_DEFINE(int, drop_synfin);
+VNET_DEFINE(int, tcp_do_rfc3042);
+VNET_DEFINE(int, tcp_do_rfc3390);
+VNET_DEFINE(int, tcp_do_ecn);
+VNET_DEFINE(int, tcp_ecn_maxretries);
+VNET_DEFINE(int, tcp_insecure_rst);
+VNET_DEFINE(int, tcp_do_autorcvbuf);
+VNET_DEFINE(int, tcp_autorcvbuf_inc);
+VNET_DEFINE(int, tcp_autorcvbuf_max);
+VNET_DEFINE(int, tcp_do_rfc3465);
+VNET_DEFINE(int, tcp_abc_l_var);
 
-SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
-    CTLFLAG_RW, tcpstat , tcpstat,
+SYSCTL_VNET_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
+    &VNET_NAME(tcpstat), tcpstat,
     "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
 int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
-    &tcp_log_in_vain, 0, "Log all incoming TCP segments to closed ports");
+    &tcp_log_in_vain, 0,
+    "Log all incoming TCP segments to closed ports");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
-    blackhole, 0, "Do not send RST on segments to closed ports");
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
+    &VNET_NAME(blackhole), 0,
+    "Do not send RST on segments to closed ports");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, delayed_ack,
-    CTLFLAG_RW, tcp_delack_enabled, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
+    &VNET_NAME(tcp_delack_enabled), 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, drop_synfin,
-    CTLFLAG_RW, drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
+    &VNET_NAME(drop_synfin), 0,
+    "Drop TCP packets with SYN+FIN set");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
-    tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
+    &VNET_NAME(tcp_do_rfc3042), 0,
+    "Enable RFC 3042 (Limited Transmit)");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
-    tcp_do_rfc3390, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
+    &VNET_NAME(tcp_do_rfc3390), 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
-    tcp_do_rfc3465, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
+    &VNET_NAME(tcp_do_rfc3465), 0,
     "Enable RFC 3465 (Appropriate Byte Counting)");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
-    tcp_abc_l_var, 2,
+
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
+    &VNET_NAME(tcp_abc_l_var), 2,
     "Cap the max cwnd increment during slow-start to this number of segments");
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, enable,
-    CTLFLAG_RW, tcp_do_ecn, 0, "TCP ECN support");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, maxretries,
-    CTLFLAG_RW, tcp_ecn_maxretries, 0, "Max retries before giving up on ECN");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, insecure_rst,
-    CTLFLAG_RW, tcp_insecure_rst, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_RW,
+    &VNET_NAME(tcp_do_ecn), 0,
+    "TCP ECN support");
+
+SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_RW,
+    &VNET_NAME(tcp_ecn_maxretries), 0,
+    "Max retries before giving up on ECN");
+
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
+    &VNET_NAME(tcp_insecure_rst), 0,
     "Follow the old (insecure) criteria for accepting RST packets");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_auto,
-    CTLFLAG_RW, tcp_do_autorcvbuf, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_RW,
+    &VNET_NAME(tcp_do_autorcvbuf), 0,
     "Enable automatic receive buffer sizing");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_inc,
-    CTLFLAG_RW, tcp_autorcvbuf_inc, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
+    &VNET_NAME(tcp_autorcvbuf_inc), 0,
     "Incrementor step size of automatic receive buffer");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_max,
-    CTLFLAG_RW, tcp_autorcvbuf_max, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
+    &VNET_NAME(tcp_autorcvbuf_max), 0,
     "Max size of automatic receive buffer");
 
 int	tcp_read_locking = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, read_locking, CTLFLAG_RW,
     &tcp_read_locking, 0, "Enable read locking strategy");
 
-int	tcp_rlock_atfirst;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, rlock_atfirst, CTLFLAG_RD,
-    &tcp_rlock_atfirst, 0, "");
-
-int	tcp_wlock_atfirst;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_wlock_atfirst, CTLFLAG_RD,
-    &tcp_wlock_atfirst, 0, "");
-
-int	tcp_wlock_upgraded;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_upgraded, CTLFLAG_RD,
-    &tcp_wlock_upgraded, 0, "");
-
-int	tcp_wlock_relocked;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_relocked, CTLFLAG_RD,
-    &tcp_wlock_relocked, 0, "");
-
-int	tcp_wlock_looped;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_looped, CTLFLAG_RD,
-    &tcp_wlock_looped, 0, "");
-
-#ifdef VIMAGE_GLOBALS
-struct inpcbhead tcb;
-struct inpcbinfo tcbinfo;
-#endif
+VNET_DEFINE(struct inpcbhead, tcb);
+VNET_DEFINE(struct inpcbinfo, tcbinfo);
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
@@ -216,6 +196,20 @@ static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 static void inline
 		 tcp_congestion_exp(struct tcpcb *);
+
+/*
+ * Kernel module interface for updating tcpstat.  The argument is an index
+ * into tcpstat treated as an array of u_long.  While this encodes the
+ * general layout of tcpstat into the caller, it doesn't encode its location,
+ * so that future changes to add, for example, per-CPU stats support won't
+ * cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_tcpstat_inc(int statnum)
+{
+
+	(*((u_long *)&V_tcpstat + statnum))++;
+}
 
 static void inline
 tcp_congestion_exp(struct tcpcb *tp)
@@ -271,7 +265,6 @@ do { \
 int
 tcp6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct in6_ifaddr *ia6;
 
@@ -300,13 +293,6 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 void
 tcp_input(struct mbuf *m, int off0)
 {
-	INIT_VNET_INET(curvnet);
-#ifdef INET6
-	INIT_VNET_INET6(curvnet);
-#endif
-#ifdef IPSEC
-	INIT_VNET_IPSEC(curvnet);
-#endif
 	struct tcphdr *th;
 	struct ip *ip = NULL;
 	struct ipovly *ipov;
@@ -499,11 +485,9 @@ tcp_input(struct mbuf *m, int off0)
 	    tcp_read_locking == 0) {
 		INP_INFO_WLOCK(&V_tcbinfo);
 		ti_locked = TI_WLOCKED;
-		tcp_wlock_atfirst++;
 	} else {
 		INP_INFO_RLOCK(&V_tcbinfo);
 		ti_locked = TI_RLOCKED;
-		tcp_rlock_atfirst++;
 	}
 
 findpcb:
@@ -642,6 +626,7 @@ findpcb:
 	 * tried to free the inpcb, in which case we need to loop back and
 	 * try to find a new inpcb to deliver to.
 	 */
+relocked:
 	if (inp->inp_flags & INP_TIMEWAIT) {
 		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
 		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
@@ -655,15 +640,11 @@ findpcb:
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
 				if (in_pcbrele(inp)) {
-					tcp_wlock_looped++;
 					inp = NULL;
 					goto findpcb;
 				}
-				tcp_wlock_relocked++;
-			} else {
+			} else
 				ti_locked = TI_WLOCKED;
-				tcp_wlock_upgraded++;
-			}
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
@@ -692,7 +673,8 @@ findpcb:
 	 * We've identified a valid inpcb, but it could be that we need an
 	 * inpcbinfo write lock and have only a read lock.  In this case,
 	 * attempt to upgrade/relock using the same strategy as the TIMEWAIT
-	 * case above.
+	 * case above.  If we relock, we have to jump back to 'relocked' as
+	 * the connection might now be in TIMEWAIT.
 	 */
 	if (tp->t_state != TCPS_ESTABLISHED ||
 	    (thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
@@ -709,15 +691,12 @@ findpcb:
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
 				if (in_pcbrele(inp)) {
-					tcp_wlock_looped++;
 					inp = NULL;
 					goto findpcb;
 				}
-				tcp_wlock_relocked++;
-			} else {
+				goto relocked;
+			} else
 				ti_locked = TI_WLOCKED;
-				tcp_wlock_upgraded++;
-			}
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	}
@@ -766,6 +745,7 @@ findpcb:
 		}
 		inc.inc_fport = th->th_sport;
 		inc.inc_lport = th->th_dport;
+		inc.inc_fibnum = so->so_fibnum;
 
 		/*
 		 * Check for an existing connection attempt in syncache if
@@ -1083,7 +1063,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos,
     int ti_locked)
 {
-	INIT_VNET_INET(tp->t_vnet);
 	int thflags, acked, ourfinisacked, needoutput = 0;
 	int rstreason, todrop, win;
 	u_long tiwin;
@@ -2868,7 +2847,6 @@ drop:
 static void
 tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 {
-	INIT_VNET_INET(curvnet);
 	int opt, optlen;
 
 	to->to_flags = 0;
@@ -2996,7 +2974,6 @@ tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
 static void
 tcp_xmit_timer(struct tcpcb *tp, int rtt)
 {
-	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	int delta;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -3103,7 +3080,6 @@ void
 tcp_mss_update(struct tcpcb *tp, int offer,
     struct hc_metrics_lite *metricptr, int *mtuflags)
 {
-	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	int mss;
 	u_long maxmtu;
 	struct inpcb *inp = tp->t_inpcb;
@@ -3269,7 +3245,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 	int isipv6;
 #endif
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
-	INIT_VNET_INET(tp->t_vnet);
 	
 	tcp_mss_update(tp, offer, &metrics, &mtuflags);
 
@@ -3396,7 +3371,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 int
 tcp_mssopt(struct in_conninfo *inc)
 {
-	INIT_VNET_INET(curvnet);
 	int mss = 0;
 	u_long maxmtu = 0;
 	u_long thcmtu = 0;

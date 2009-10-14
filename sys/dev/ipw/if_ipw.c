@@ -2462,6 +2462,9 @@ ipw_config(struct ipw_softc *sc)
 	case IEEE80211_M_MONITOR:
 		data = htole32(IPW_MODE_MONITOR);
 		break;
+	default:
+		device_printf(sc->sc_dev, "unknown opmode %d\n", ic->ic_opmode);
+		return EINVAL;
 	}
 	DPRINTF(("Setting mode to %u\n", le32toh(data)));
 	error = ipw_cmd(sc, IPW_CMD_SET_MODE, &data, sizeof data);

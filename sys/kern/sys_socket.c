@@ -48,10 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -172,6 +172,14 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 	case FIONWRITE:
 		/* Unlocked read. */
 		*(int *)data = so->so_snd.sb_cc;
+		break;
+
+	case FIONSPACE:
+		if ((so->so_snd.sb_hiwat < so->so_snd.sb_cc) ||
+		    (so->so_snd.sb_mbmax < so->so_snd.sb_mbcnt))
+			*(int *)data = 0;
+		else
+			*(int *)data = sbspace(&so->so_snd);
 		break;
 
 	case FIOSETOWN:

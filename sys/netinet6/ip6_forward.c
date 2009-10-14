@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -65,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 
 #include <netinet/in_pcb.h>
 
@@ -92,7 +90,6 @@ __FBSDID("$FreeBSD$");
 void
 ip6_forward(struct mbuf *m, int srcrt)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct sockaddr_in6 *dst = NULL;
 	struct rtentry *rt = NULL;
@@ -103,7 +100,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 	u_int32_t inzone, outzone;
 	struct in6_addr src_in6, dst_in6;
 #ifdef IPSEC
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
 #endif
@@ -555,11 +551,11 @@ skip_routing:
 	in6_clearscope(&ip6->ip6_dst);
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet6_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto pass;
 
 	/* Run through list of hooks for output packets. */
-	error = pfil_run_hooks(&inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT, NULL);
+	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT, NULL);
 	if (error != 0)
 		goto senderr;
 	if (m == NULL)

@@ -326,11 +326,13 @@ acpi_wmi_detach(device_t dev)
 static int
 acpi_wmi_provides_guid_string_method(device_t dev, const char *guid_string)
 {
+	struct wmi_info *winfo;
 	int ret;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_BEGIN(acpi_wmi);
-	ret = (acpi_wmi_lookup_wmi_info_by_guid_string(guid_string) == NULL)?0:1;
+	winfo = acpi_wmi_lookup_wmi_info_by_guid_string(guid_string);
+	ret = (winfo == NULL)?0:winfo->ginfo.max_instance+1;
 	ACPI_SERIAL_END(acpi_wmi);
 
 	return (ret);

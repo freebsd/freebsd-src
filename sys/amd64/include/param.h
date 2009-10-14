@@ -39,38 +39,19 @@
  * $FreeBSD$
  */
 
+
+#ifndef _AMD64_INCLUDE_PARAM_H_
+#define	_AMD64_INCLUDE_PARAM_H_
+
+#include <machine/_align.h>
+
 /*
  * Machine dependent constants for AMD64.
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is u_long and
- * must be cast to any desired pointer type.
- *
- * ALIGNED_POINTER is a boolean macro that checks whether an address
- * is valid to fetch data elements of type t from on this architecture.
- * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
- *
- */
-#ifndef _ALIGNBYTES
-#define	_ALIGNBYTES	(sizeof(long) - 1)
-#endif
-#ifndef _ALIGN
-#define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
-#endif
-#ifndef _ALIGNED_POINTER
-#define	_ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
-#endif
-
-#ifndef _NO_NAMESPACE_POLLUTION
 
 #define __HAVE_ACPI
 #define __PCI_REROUTE_INTERRUPT
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
 #define	MACHINE		"amd64"
@@ -87,7 +68,13 @@
 
 #define	ALIGNBYTES		_ALIGNBYTES
 #define	ALIGN(p)		_ALIGN(p)
-#define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
+/*
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ */
+#define	ALIGNED_POINTER(p, t)	1
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -121,6 +108,8 @@
 #define	NBPML4		(1ul<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4-1)
 
+#define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
+
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef	KSTACK_PAGES
@@ -153,5 +142,4 @@
 
 #define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
 
-#endif /* !_MACHINE_PARAM_H_ */
-#endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_AMD64_INCLUDE_PARAM_H_ */

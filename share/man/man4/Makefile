@@ -23,6 +23,7 @@ MAN=	aac.4 \
 	aha.4 \
 	ahb.4 \
 	ahc.4 \
+	ahci.4 \
 	ahd.4 \
 	aio.4 \
 	alc.4 \
@@ -84,6 +85,7 @@ MAN=	aac.4 \
 	digi.4 \
 	disc.4 \
 	divert.4 \
+	${_dpms.4} \
 	dpt.4 \
 	dummynet.4 \
 	ed.4 \
@@ -93,6 +95,7 @@ MAN=	aac.4 \
 	em.4 \
 	en.4 \
 	enc.4 \
+	epair.4 \
 	esp.4 \
 	et.4 \
 	exca.4 \
@@ -130,7 +133,6 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	idt.4 \
-	ieee80211.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
@@ -171,6 +173,7 @@ MAN=	aac.4 \
 	le.4 \
 	led.4 \
 	lge.4 \
+	${_lindev.4} \
 	${_linux.4} \
 	lmc.4 \
 	lo.4 \
@@ -215,6 +218,7 @@ MAN=	aac.4 \
 	ncr.4 \
 	ncv.4 \
 	${_ndis.4} \
+	net80211.4 \
 	netgraph.4 \
 	netintro.4 \
 	${_nfe.4} \
@@ -331,6 +335,7 @@ MAN=	aac.4 \
 	sf.4 \
 	si.4 \
 	sio.4 \
+	siis.4 \
 	sis.4 \
 	sk.4 \
 	smb.4 \
@@ -488,6 +493,7 @@ MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4
+MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
 MLINKS+=faith.4 if_faith.4
 MLINKS+=fatm.4 if_fatm.4
@@ -607,6 +613,7 @@ _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
+_dpms.4=	dpms.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
@@ -619,6 +626,7 @@ _if_urtw.4=	if_urtw.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
 _io.4=		io.4
+_lindev.4=	lindev.4
 _linux.4=	linux.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
@@ -630,6 +638,8 @@ _speaker.4=	speaker.4
 _spkr.4=	spkr.4
 _urtw.4=	urtw.4
 _wpi.4=		wpi.4
+
+MLINKS+=lindev.4 full.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})

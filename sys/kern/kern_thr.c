@@ -176,7 +176,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 	/* Initialize our td */
-	newtd = thread_alloc();
+	newtd = thread_alloc(0);
 	if (newtd == NULL)
 		return (ENOMEM);
 
@@ -282,7 +282,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	}
 
 	PROC_LOCK(p);
-	sigqueue_flush(&td->td_sigqueue);
+	tdsigcleanup(td);
 	PROC_SLOCK(p);
 
 	/*

@@ -32,4 +32,4 @@ struct device;
 extern struct device *exec_Create(struct physical *);
 extern struct device *exec_iov2device(int, struct physical *,
                                       struct iovec *, int *, int, int *, int *);
-#define exec_DeviceSize physical_DeviceSize
+extern unsigned exec_DeviceSize(void);

@@ -282,7 +282,6 @@ FBSD_1.0 {
 	socket;
 	socketpair;
 	__stack_chk_fail;
-	__stack_chk_fail_local;
 	__stack_chk_guard;
 	stat;
 	statfs;
@@ -346,6 +345,7 @@ FBSD_1.1 {
 	jail_set;
 	jail_remove;
 	linkat;
+	lpathconf;
 	mkdirat;
 	mkfifoat;
 	mknodat;
@@ -769,6 +769,8 @@ FBSDprivate_1.0 {
 	__sys_olio_listio;
 	_open;
 	__sys_open;
+	_openat;
+	__sys_openat;
 	_pathconf;
 	__sys_pathconf;
 	_pipe;

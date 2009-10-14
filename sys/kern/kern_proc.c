@@ -203,14 +203,6 @@ proc_dtor(void *mem, int size, void *arg)
 #endif
 		/* Free all OSD associated to this thread. */
 		osd_thread_exit(td);
-
-		/* Dispose of an alternate kstack, if it exists.
-		 * XXX What if there are more than one thread in the proc?
-		 *     The first thread in the proc is special and not
-		 *     freed, so you gotta do this here.
-		 */
-		if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
-			vm_thread_dispose_altkstack(td);
 	}
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
@@ -730,11 +722,17 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_uid = cred->cr_uid;
 		kp->ki_ruid = cred->cr_ruid;
 		kp->ki_svuid = cred->cr_svuid;
-		kp->ki_ngroups = cred->cr_ngroups;
-		kp->ki_groups = cred->cr_groups;
+		kp->ki_cr_flags = cred->cr_flags;
+		/* XXX bde doesn't like KI_NGROUPS */
+		if (cred->cr_ngroups > KI_NGROUPS) {
+			kp->ki_ngroups = KI_NGROUPS;
+			kp->ki_cr_flags |= KI_CRF_GRP_OVERFLOW;
+		} else
+			kp->ki_ngroups = cred->cr_ngroups;
+		bcopy(cred->cr_groups, kp->ki_groups,
+		    kp->ki_ngroups * sizeof(gid_t));
 		kp->ki_rgid = cred->cr_rgid;
 		kp->ki_svgid = cred->cr_svgid;
-		kp->ki_cr_flags = cred->cr_flags;
 		/* If jailed(cred), emulate the old P_JAILED flag. */
 		if (jailed(cred)) {
 			kp->ki_flag |= P_JAILED;
@@ -761,8 +759,6 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		FOREACH_THREAD_IN_PROC(p, td0) {
 			if (!TD_IS_SWAPPED(td0))
 				kp->ki_rssize += td0->td_kstack_pages;
-			if (td0->td_altkstack_obj != NULL)
-				kp->ki_rssize += td0->td_altkstack_pages;
 		}
 		kp->ki_swrss = vm->vm_swrss;
 		kp->ki_tsize = vm->vm_tsize;
@@ -851,8 +847,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
 	else
 		bzero(kp->ki_wmesg, sizeof(kp->ki_wmesg));
-	if (td->td_name[0] != '\0')
-		strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
+	strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
 	if (TD_ON_LOCK(td)) {
 		kp->ki_kiflag |= KI_LOCKBLOCK;
 		strlcpy(kp->ki_lockname, td->td_lockname,
@@ -1486,6 +1481,9 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			case OBJT_DEAD:
 				kve->kve_type = KVME_TYPE_DEAD;
 				break;
+			case OBJT_SG:
+				kve->kve_type = KVME_TYPE_SG;
+				break;
 			default:
 				kve->kve_type = KVME_TYPE_UNKNOWN;
 				break;
@@ -1658,6 +1656,9 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			case OBJT_DEAD:
 				kve->kve_type = KVME_TYPE_DEAD;
 				break;
+			case OBJT_SG:
+				kve->kve_type = KVME_TYPE_SG;
+				break;
 			default:
 				kve->kve_type = KVME_TYPE_UNKNOWN;
 				break;
@@ -1814,6 +1815,43 @@ repeat:
 }
 #endif
 
+/*
+ * This sysctl allows a process to retrieve the full list of groups from
+ * itself or another process.
+ */
+static int
+sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
+{
+	pid_t *pidp = (pid_t *)arg1;
+	unsigned int arglen = arg2;
+	struct proc *p;
+	struct ucred *cred;
+	int error;
+
+	if (arglen != 1)
+		return (EINVAL);
+	if (*pidp == -1) {	/* -1 means this process */
+		p = req->td->td_proc;
+	} else {
+		p = pfind(*pidp);
+		if (p == NULL)
+			return (ESRCH);
+		if ((error = p_cansee(curthread, p)) != 0) {
+			PROC_UNLOCK(p);
+			return (error);
+		}
+	}
+
+	cred = crhold(p->p_ucred);
+	if (*pidp != -1)
+		PROC_UNLOCK(p);
+
+	error = SYSCTL_OUT(req, cred->cr_groups,
+	    cred->cr_ngroups * sizeof(gid_t));
+	crfree(cred);
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -1898,3 +1936,6 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_VMMAP, vmmap, CTLFLAG_RD |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_kstack, "Process kernel stacks");
 #endif
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_GROUPS, groups, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_groups, "Process groups");

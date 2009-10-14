@@ -986,6 +986,9 @@ mpt_pio_read(struct mpt_softc *mpt, int offset)
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   	256
 
+/* Max i/o size, based on legacy MAXPHYS.  Can be increased. */
+#define MPT_MAXPHYS		(128 * 1024)
+
 /*
  * Must be less than 16384 in order for target mode to work
  */

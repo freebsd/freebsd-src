@@ -57,8 +57,15 @@ fwrite(buf, size, count, fp)
 	struct __suio uio;
 	struct __siov iov;
 
+	/*
+	 * ANSI and SUSv2 require a return value of 0 if size or count are 0.
+	 */
+	n = count * size;
+	if (n == 0)
+		return (0);
+
 	iov.iov_base = (void *)buf;
-	uio.uio_resid = iov.iov_len = n = count * size;
+	uio.uio_resid = iov.iov_len = n;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
 

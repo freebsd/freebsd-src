@@ -1285,7 +1285,7 @@ diskLabel(Device *dev)
 
 #ifndef __ia64__
 	case '|':
-	    if (!msgNoYes("Are you sure you want to go into Wizard mode?\n\n"
+	    if (!msgNoYes("Are you sure you want to go into Expert mode?\n\n"
 			  "This is an entirely undocumented feature which you are not\n"
 			  "expected to understand!")) {
 		int i;

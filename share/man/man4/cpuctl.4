@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2008
+.Dd June 30, 2009
 .Dt CPUCTL 4
 .Os
 .Sh NAME
@@ -81,6 +81,11 @@ typedef struct {
 	uint64_t	data;
 } cpuctl_msr_args_t;
 .Ed
+.It Dv CPUCTL_MSRSBIT Fa cpuctl_msr_args_t *args
+.It Dv CPUCTL_MSRCBIT Fa cpuctl_msr_args_t *args
+Set/clear MSR bits according to the mask given in the
+.Va data
+field.
 .It Dv CPUCTL_CPUID Fa cpuctl_cpuid_args_t *args
 Retrieve CPUID information.
 Arguments are supplied in

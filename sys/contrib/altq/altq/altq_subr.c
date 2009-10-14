@@ -47,9 +47,6 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
-#ifdef __FreeBSD__
-#include <sys/vimage.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -465,11 +462,10 @@ tbr_timeout(arg)
 	s = splimp();
 #endif
 #if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
-	IFNET_RLOCK();
-	VNET_LIST_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_NET(vnet_iter);
 #endif
 		for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 		    ifp = TAILQ_NEXT(ifp, if_list)) {
@@ -484,8 +480,8 @@ tbr_timeout(arg)
 #if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
-	IFNET_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
+	IFNET_RUNLOCK_NOSLEEP();
 #endif
 	splx(s);
 	if (active > 0)

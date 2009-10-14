@@ -93,6 +93,8 @@ struct thread;
 #define	SLEEPQ_SX		0x03		/* Used by an sx lock. */
 #define	SLEEPQ_LK		0x04		/* Used by a lockmgr. */
 #define	SLEEPQ_INTERRUPTIBLE	0x100		/* Sleep is interruptible. */
+#define	SLEEPQ_STOP_ON_BDRY	0x200		/* Stop sleeping thread on
+						   user mode boundary */
 
 void	init_sleepqueues(void);
 int	sleepq_abort(struct thread *td, int intrval);

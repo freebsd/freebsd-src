@@ -102,7 +102,8 @@
  * The number of dma segments supported.  The sequencer can handle any number
  * of physically contiguous S/G entrys.  To reduce the driver's memory
  * consumption, we limit the number supported to be sufficient to handle
- * the largest mapping supported by the kernel, MAXPHYS.  Assuming the
+ * the largest mapping supported by the the legacy kernel MAXPHYS setting of
+ * 128K.  This can be increased once some testing is done.  Assuming the
  * transfer is as fragmented as possible and unaligned, this turns out to
  * be the number of paged sized transfers in MAXPHYS plus an extra element
  * to handle any unaligned residual.  The sequencer fetches SG elements
@@ -110,7 +111,8 @@
  * multiple of 16 which should align us on even the largest of cacheline
  * boundaries. 
  */
-#define AHD_NSEG (roundup(btoc(MAXPHYS) + 1, 16))
+#define AHD_MAXPHYS (128 * 1024)
+#define AHD_NSEG (roundup(btoc(AHD_MAXPHYS) + 1, 16))
 
 /* This driver supports target mode */
 #ifdef NOT_YET

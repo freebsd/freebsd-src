@@ -46,6 +46,12 @@ static struct db_variable db_vars[] = {
 	{ "maxwidth",	&db_max_width, FCN_NULL },
 	{ "tabstops",	&db_tab_stop_width, FCN_NULL },
 	{ "lines",	&db_lines_per_page, FCN_NULL },
+	{ "curcpu",	NULL, db_var_curcpu },
+	{ "db_cpu",	NULL, db_var_db_cpu },
+#ifdef VIMAGE
+	{ "curvnet",	NULL, db_var_curvnet },
+	{ "db_vnet",	NULL, db_var_db_vnet },
+#endif
 };
 static struct db_variable *db_evars =
 	db_vars + sizeof(db_vars)/sizeof(db_vars[0]);

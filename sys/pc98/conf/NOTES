@@ -29,10 +29,6 @@ device		apic			# I/O apic
 #
 options 	MP_WATCHDOG
 
-# Debugging options.
-#
-options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
-
 
 
 #####################################################################
@@ -568,6 +564,9 @@ options 	LINSYSFS
 options 	COMPAT_SVR4	# build emulator statically
 options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
+
+# Linux-specific pseudo devices support
+device		lindev
 
 
 #####################################################################

@@ -209,6 +209,7 @@ static const char *scan_modnames[IEEE80211_OPMODE_MAX] = {
 	"wlan_scan_sta",	/* IEEE80211_M_AHDEMO */
 	"wlan_scan_ap",		/* IEEE80211_M_HOSTAP */
 	"wlan_scan_monitor",	/* IEEE80211_M_MONITOR */
+	"wlan_scan_sta",	/* IEEE80211_M_MBSS */
 };
 static const struct ieee80211_scanner *scanners[IEEE80211_OPMODE_MAX];
 

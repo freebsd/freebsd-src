@@ -69,10 +69,10 @@
 #include <sys/syslog.h>
 #include <sys/socket.h>
 #include <sys/ctype.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/ethernet.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
@@ -634,7 +634,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 	/* Run packet through ipfw processing, if enabled */
 #if 0
-	if (priv->conf.ipfw[linkNum] && V_fw_enable && ip_fw_chk_ptr != NULL) {
+	if (priv->conf.ipfw[linkNum] && V_fw_enable && V_ip_fw_chk_ptr != NULL) {
 		/* XXX not implemented yet */
 	}
 #endif

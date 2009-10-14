@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -96,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -107,7 +105,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 
 extern int in6_mcast_loop;
 
@@ -191,8 +188,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
     struct route_in6 *ro, int flags, struct ip6_moptions *im6o,
     struct ifnet **ifpp, struct inpcb *inp)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6, *mhip6;
 	struct ifnet *ifp, *origifp;
 	struct mbuf *m = m0;
@@ -607,15 +602,12 @@ again:
 		rt->rt_use++;
 	}
 
+
 	/*
 	 * The outgoing interface must be in the zone of source and
-	 * destination addresses.  We should use ia_ifp to support the
-	 * case of sending packets to an address of our own.
+	 * destination addresses.  
 	 */
-	if (ia != NULL && ia->ia_ifp)
-		origifp = ia->ia_ifp;
-	else
-		origifp = ifp;
+	origifp = ifp;
 
 	src0 = ip6->ip6_src;
 	if (in6_setscope(&src0, origifp, &zone))
@@ -638,6 +630,12 @@ again:
 	if (sa6_recoverscope(&dst_sa) || zone != dst_sa.sin6_scope_id) {
 		goto badscope;
 	}
+
+	/* We should use ia_ifp to support the case of 
+	 * sending packets to an address of our own.
+	 */
+	if (ia != NULL && ia->ia_ifp)
+		ifp = ia->ia_ifp;
 
 	/* scope check is done. */
 	goto routefound;
@@ -807,12 +805,12 @@ again:
 	}
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet6_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto passout;
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
-	error = pfil_run_hooks(&inet6_pfil_hook, &m, ifp, PFIL_OUT, inp);
+	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -2420,8 +2418,6 @@ static int
 ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
     struct ucred *cred, int sticky, int cmsg, int uproto)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	int minmtupolicy, preftemp;
 	int error;
 

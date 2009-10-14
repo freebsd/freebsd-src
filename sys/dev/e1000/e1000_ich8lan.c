@@ -307,7 +307,6 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
-	union ich8_hws_flash_status hsfsts;
 	u32 gfpreg, sector_base_addr, sector_end_addr;
 	s32 ret_val = E1000_SUCCESS;
 	u16 i;
@@ -345,20 +344,6 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
 	nvm->flash_bank_size /= 2;
 	/* Adjust to word count */
 	nvm->flash_bank_size /= sizeof(u16);
-
-	/*
-	 * Make sure the flash bank size does not overwrite the 4k
-	 * sector ranges. We may have 64k allotted to us but we only care
-	 * about the first 2 4k sectors. Therefore, if we have anything less
-	 * than 64k set in the HSFSTS register, we will reduce the bank size
-	 * down to 4k and let the rest remain unused. If berasesz == 3, then
-	 * we are working in 64k mode. Otherwise we are not.
-	 */
-	if (nvm->flash_bank_size > E1000_SHADOW_RAM_WORDS) {
-		hsfsts.regval = E1000_READ_FLASH_REG16(hw, ICH_FLASH_HSFSTS);
-		if (hsfsts.hsf_status.berasesz != 3)
-			nvm->flash_bank_size = E1000_SHADOW_RAM_WORDS;
-	}
 
 	nvm->word_size = E1000_SHADOW_RAM_WORDS;
 
@@ -1961,13 +1946,8 @@ static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank)
 		iteration = 1;
 		break;
 	case 2:
-		if (hw->mac.type == e1000_ich9lan) {
-			sector_size = ICH_FLASH_SEG_SIZE_8K;
-			iteration = flash_bank_size / ICH_FLASH_SEG_SIZE_8K;
-		} else {
-			ret_val = -E1000_ERR_NVM;
-			goto out;
-		}
+		sector_size = ICH_FLASH_SEG_SIZE_8K;
+		iteration = 1;
 		break;
 	case 3:
 		sector_size = ICH_FLASH_SEG_SIZE_64K;

@@ -150,7 +150,6 @@ struct pmc_mdep;
  */
 
 void	start_exceptions(void), end_exceptions(void);
-void	pmc_x86_lapic_enable_pmc_interrupt(void);
 
 struct pmc_mdep *pmc_amd_initialize(void);
 void	pmc_amd_finalize(struct pmc_mdep *_md);

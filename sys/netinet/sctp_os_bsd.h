@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/limits.h>
 #include <sys/queue.h>
-#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -78,12 +77,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
-#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
-#include <netipsec/vipsec.h>
 #endif				/* IPSEC */
 
 #ifdef INET6
@@ -98,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6protosw.h>
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 #endif				/* INET6 */
 
 
@@ -137,25 +133,21 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTP_CTR6 CTR6
 #endif
 
-#define SCTP_BASE_INFO(__m) system_base_info.sctppcbinfo.__m
-#define SCTP_BASE_STATS system_base_info.sctpstat
-#define SCTP_BASE_STAT(__m)     system_base_info.sctpstat.__m
-#define SCTP_BASE_SYSCTL(__m) system_base_info.sctpsysctl.__m
-#define SCTP_BASE_VAR(__m) system_base_info.__m
-
 /*
  * Macros to expand out globals defined by various modules
  * to either a real global or a virtualized instance of one,
  * depending on whether VIMAGE is defined.
  */
-/* first define modules that supply us information */
-#define MOD_NET net
-#define MOD_INET inet
-#define MOD_INET6 inet6
-#define MOD_IPSEC ipsec
-
 /* then define the macro(s) that hook into the vimage macros */
-#define MODULE_GLOBAL(__MODULE, __SYMBOL) V_ ## __SYMBOL
+#define MODULE_GLOBAL(__SYMBOL) V_##__SYMBOL
+
+#define V_system_base_info VNET(system_base_info)
+#define SCTP_BASE_INFO(__m) V_system_base_info.sctppcbinfo.__m
+#define SCTP_BASE_STATS V_system_base_info.sctpstat
+#define SCTP_BASE_STATS_SYSCTL VNET_NAME(system_base_info.sctpstat)
+#define SCTP_BASE_STAT(__m)     V_system_base_info.sctpstat.__m
+#define SCTP_BASE_SYSCTL(__m) VNET_NAME(system_base_info.sctpsysctl.__m)
+#define SCTP_BASE_VAR(__m) V_system_base_info.__m
 
 /*
  *

@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -2006,7 +2005,6 @@ bstp_same_bridgeid(uint64_t id1, uint64_t id2)
 void
 bstp_reinit(struct bstp_state *bs)
 {
-	INIT_VNET_NET(curvnet);
 	struct bstp_port *bp;
 	struct ifnet *ifp, *mif;
 	u_char *e_addr;
@@ -2021,7 +2019,7 @@ bstp_reinit(struct bstp_state *bs)
 	 * not need to be part of the bridge, it just needs to be a unique
 	 * value.
 	 */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
 			continue;
@@ -2038,7 +2036,7 @@ bstp_reinit(struct bstp_state *bs)
 			continue;
 		}
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	if (LIST_EMPTY(&bs->bs_bplist) || mif == NULL) {
 		/* Set the bridge and root id (lower bits) to zero */

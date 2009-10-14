@@ -1277,6 +1277,13 @@ int	linux_vmsplice(struct thread *, struct linux_vmsplice_args *);
 
 #endif /* COMPAT_FREEBSD6 */
 
+
+#ifdef COMPAT_FREEBSD7
+
+#define	nosys	linux_nosys
+
+#endif /* COMPAT_FREEBSD7 */
+
 #define	LINUX_SYS_AUE_linux_fork	AUE_FORK
 #define	LINUX_SYS_AUE_linux_open	AUE_OPEN_RWTC
 #define	LINUX_SYS_AUE_linux_waitpid	AUE_WAIT4

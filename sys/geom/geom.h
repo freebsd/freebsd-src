@@ -134,6 +134,7 @@ struct g_geom {
 	void			*softc;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1
+#define	G_GEOM_VOLATILE_BIO	2
 };
 
 /*

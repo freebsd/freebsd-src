@@ -121,41 +121,154 @@ static const char *auth_alg_text[]={"Open System","Shared Key","EAP"};
 #define NUM_AUTH_ALGS	(sizeof auth_alg_text / sizeof auth_alg_text[0])
 
 static const char *status_text[] = {
-	"Succesful",  /*  0  */
-	"Unspecified failure",  /*  1  */
-	"Reserved",	  /*  2  */
-	"Reserved",	  /*  3  */
-	"Reserved",	  /*  4  */
-	"Reserved",	  /*  5  */
-	"Reserved",	  /*  6  */
-	"Reserved",	  /*  7  */
-	"Reserved",	  /*  8  */
-	"Reserved",	  /*  9  */
-	"Cannot Support all requested capabilities in the Capability Information field",	  /*  10  */
-	"Reassociation denied due to inability to confirm that association exists",	  /*  11  */
-	"Association denied due to reason outside the scope of the standard",	  /*  12  */
-	"Responding station does not support the specified authentication algorithm ",	  /*  13  */
-	"Received an Authentication frame with authentication transaction " \
-		"sequence number out of expected sequence",	  /*  14  */
-	"Authentication rejected because of challenge failure",	  /*  15 */
-	"Authentication rejected due to timeout waiting for next frame in sequence",	  /*  16 */
-	"Association denied because AP is unable to handle additional associated stations",	  /*  17 */
-	"Association denied due to requesting station not supporting all of the " \
-		"data rates in BSSBasicRateSet parameter",	  /*  18 */
+	"Succesful",						/*  0 */
+	"Unspecified failure",					/*  1 */
+	"Reserved",						/*  2 */
+	"Reserved",						/*  3 */
+	"Reserved",						/*  4 */
+	"Reserved",						/*  5 */
+	"Reserved",						/*  6 */
+	"Reserved",						/*  7 */
+	"Reserved",						/*  8 */
+	"Reserved",						/*  9 */
+	"Cannot Support all requested capabilities in the Capability "
+	  "Information field",	  				/* 10 */
+	"Reassociation denied due to inability to confirm that association "
+	  "exists",						/* 11 */
+	"Association denied due to reason outside the scope of the "
+	  "standard",						/* 12 */
+	"Responding station does not support the specified authentication "
+	  "algorithm ",						/* 13 */
+	"Received an Authentication frame with authentication transaction "
+	  "sequence number out of expected sequence",		/* 14 */
+	"Authentication rejected because of challenge failure",	/* 15 */
+	"Authentication rejected due to timeout waiting for next frame in "
+	  "sequence",	  					/* 16 */
+	"Association denied because AP is unable to handle additional"
+	  "associated stations",	  			/* 17 */
+	"Association denied due to requesting station not supporting all of "
+	  "the data rates in BSSBasicRateSet parameter",	/* 18 */
+	"Association denied due to requesting station not supporting "
+	  "short preamble operation",				/* 19 */
+	"Association denied due to requesting station not supporting "
+	  "PBCC encoding",					/* 20 */
+	"Association denied due to requesting station not supporting "
+	  "channel agility",					/* 21 */
+	"Association request rejected because Spectrum Management "
+	  "capability is required",				/* 22 */
+	"Association request rejected because the information in the "
+	  "Power Capability element is unacceptable",		/* 23 */
+	"Association request rejected because the information in the "
+	  "Supported Channels element is unacceptable",		/* 24 */
+	"Association denied due to requesting station not supporting "
+	  "short slot operation",				/* 25 */
+	"Association denied due to requesting station not supporting "
+	  "DSSS-OFDM operation",				/* 26 */
+	"Association denied because the requested STA does not support HT "
+	  "features",						/* 27 */
+	"Reserved",						/* 28 */
+	"Association denied because the requested STA does not support "
+	  "the PCO transition time required by the AP",		/* 29 */
+	"Reserved",						/* 30 */
+	"Reserved",						/* 31 */
+	"Unspecified, QoS-related failure",			/* 32 */
+	"Association denied due to QAP having insufficient bandwidth "
+	  "to handle another QSTA",				/* 33 */
+	"Association denied due to excessive frame loss rates and/or "
+	  "poor conditions on current operating channel",	/* 34 */
+	"Association (with QBSS) denied due to requesting station not "
+	  "supporting the QoS facility",			/* 35 */
+	"Association denied due to requesting station not supporting "
+	  "Block Ack",						/* 36 */
+	"The request has been declined",			/* 37 */
+	"The request has not been successful as one or more parameters "
+	  "have invalid values",				/* 38 */
+	"The TS has not been created because the request cannot be honored. "
+	  "However, a suggested TSPEC is provided so that the initiating QSTA"
+	  "may attempt to set another TS with the suggested changes to the "
+	  "TSPEC",						/* 39 */
+	"Invalid Information Element",				/* 40 */
+	"Group Cipher is not valid",				/* 41 */
+	"Pairwise Cipher is not valid",				/* 42 */
+	"AKMP is not valid",					/* 43 */
+	"Unsupported RSN IE version",				/* 44 */
+	"Invalid RSN IE Capabilities",				/* 45 */
+	"Cipher suite is rejected per security policy",		/* 46 */
+	"The TS has not been created. However, the HC may be capable of "
+	  "creating a TS, in response to a request, after the time indicated "
+	  "in the TS Delay element",				/* 47 */
+	"Direct Link is not allowed in the BSS by policy",	/* 48 */
+	"Destination STA is not present within this QBSS.",	/* 49 */
+	"The Destination STA is not a QSTA.",			/* 50 */
+
 };
 #define NUM_STATUSES	(sizeof status_text / sizeof status_text[0])
 
 static const char *reason_text[] = {
-	"Reserved", /* 0 */
-	"Unspecified reason", /* 1 */
-	"Previous authentication no longer valid",  /* 2 */
-	"Deauthenticated because sending station is leaving (or has left) IBSS or ESS", /* 3 */
-	"Disassociated due to inactivity", /* 4 */
-	"Disassociated because AP is unable to handle all currently associated stations", /* 5 */
+	"Reserved",						/* 0 */
+	"Unspecified reason",					/* 1 */
+	"Previous authentication no longer valid",  		/* 2 */
+	"Deauthenticated because sending station is leaving (or has left) "
+	  "IBSS or ESS",					/* 3 */
+	"Disassociated due to inactivity",			/* 4 */
+	"Disassociated because AP is unable to handle all currently "
+	  " associated stations",				/* 5 */
 	"Class 2 frame received from nonauthenticated station", /* 6 */
-	"Class 3 frame received from nonassociated station", /* 7 */
-	"Disassociated because sending station is leaving (or has left) BSS", /* 8 */
-	"Station requesting (re)association is not authenticated with responding station", /* 9 */
+	"Class 3 frame received from nonassociated station",	/* 7 */
+	"Disassociated because sending station is leaving "
+	  "(or has left) BSS",					/* 8 */
+	"Station requesting (re)association is not authenticated with "
+	  "responding station",					/* 9 */
+	"Disassociated because the information in the Power Capability "
+	  "element is unacceptable",				/* 10 */
+	"Disassociated because the information in the SupportedChannels "
+	  "element is unacceptable",				/* 11 */
+	"Invalid Information Element",				/* 12 */
+	"Reserved",						/* 13 */
+	"Michael MIC failure",					/* 14 */
+	"4-Way Handshake timeout",				/* 15 */
+	"Group key update timeout",				/* 16 */
+	"Information element in 4-Way Handshake different from (Re)Association"
+	  "Request/Probe Response/Beacon",			/* 17 */
+	"Group Cipher is not valid",				/* 18 */
+	"AKMP is not valid",					/* 20 */
+	"Unsupported RSN IE version",				/* 21 */
+	"Invalid RSN IE Capabilities",				/* 22 */
+	"IEEE 802.1X Authentication failed",			/* 23 */
+	"Cipher suite is rejected per security policy",		/* 24 */
+	"Reserved",						/* 25 */
+	"Reserved",						/* 26 */
+	"Reserved",						/* 27 */
+	"Reserved",						/* 28 */
+	"Reserved",						/* 29 */
+	"Reserved",						/* 30 */
+	"TS deleted because QoS AP lacks sufficient bandwidth for this "
+	  "QoS STA due to a change in BSS service characteristics or "
+	  "operational mode (e.g. an HT BSS change from 40 MHz channel "
+	  "to 20 MHz channel)",					/* 31 */
+	"Disassociated for unspecified, QoS-related reason",	/* 32 */
+	"Disassociated because QoS AP lacks sufficient bandwidth for this "
+	  "QoS STA",						/* 33 */
+	"Disassociated because of excessive number of frames that need to be "
+          "acknowledged, but are not acknowledged for AP transmissions "
+	  "and/or poor channel conditions",			/* 34 */
+	"Disassociated because STA is transmitting outside the limits "
+	  "of its TXOPs",					/* 35 */
+	"Requested from peer STA as the STA is leaving the BSS "
+	  "(or resetting)",					/* 36 */
+	"Requested from peer STA as it does not want to use the "
+	  "mechanism",						/* 37 */
+	"Requested from peer STA as the STA received frames using the "
+	  "mechanism for which a set up is required",		/* 38 */
+	"Requested from peer STA due to time out",		/* 39 */
+	"Reserved",						/* 40 */
+	"Reserved",						/* 41 */
+	"Reserved",						/* 42 */
+	"Reserved",						/* 43 */
+	"Reserved",						/* 44 */
+	"Peer STA does not support the requested cipher suite",	/* 45 */
+	"Association denied due to requesting STA not supporting HT "
+	  "features",						/* 46 */
 };
 #define NUM_REASONS	(sizeof reason_text / sizeof reason_text[0])
 
@@ -571,6 +684,66 @@ handle_deauth(const struct mgmt_header_t *pmh, const u_char *p)
 	return 1;
 }
 
+#define	PRINT_HT_ACTION(v) (\
+	(v) == 0 ? printf("TxChWidth") : \
+	(v) == 1 ? printf("MIMOPwrSave") : \
+		   printf("Act#%d", (v)) \
+)
+#define	PRINT_BA_ACTION(v) (\
+	(v) == 0 ? printf("ADDBA Request") : \
+	(v) == 1 ? printf("ADDBA Response") : \
+	(v) == 2 ? printf("DELBA") : \
+		   printf("Act#%d", (v)) \
+)
+#define	PRINT_MESHLINK_ACTION(v) (\
+	(v) == 0 ? printf("Request") : \
+	(v) == 1 ? printf("Report") : \
+		   printf("Act#%d", (v)) \
+)
+#define	PRINT_MESHPEERING_ACTION(v) (\
+	(v) == 0 ? printf("Open") : \
+	(v) == 1 ? printf("Confirm") : \
+	(v) == 2 ? printf("Close") : \
+		   printf("Act#%d", (v)) \
+)
+#define	PRINT_MESHPATH_ACTION(v) (\
+	(v) == 0 ? printf("Request") : \
+	(v) == 1 ? printf("Report") : \
+	(v) == 2 ? printf("Error") : \
+	(v) == 3 ? printf("RootAnnouncement") : \
+		   printf("Act#%d", (v)) \
+)
+
+static int
+handle_action(const struct mgmt_header_t *pmh, const u_char *p)
+{
+	if (!TTEST2(*p, 2))
+		return 0;
+	if (eflag) {
+		printf(": ");
+	} else {
+		printf(" (%s): ", etheraddr_string(pmh->sa));
+	}
+	switch (p[0]) {
+	case 0: printf("Spectrum Management Act#%d", p[1]); break;
+	case 1: printf("QoS Act#%d", p[1]); break;
+	case 2: printf("DLS Act#%d", p[1]); break;
+	case 3: printf("BA "); PRINT_BA_ACTION(p[1]); break;
+	case 7: printf("HT "); PRINT_HT_ACTION(p[1]); break;
+	case 13: printf("MeshLMetric "); PRINT_MESHLINK_ACTION(p[1]); break;
+	case 15: printf("Interwork Act#%d", p[1]); break;
+	case 16: printf("Resource Act#%d", p[1]); break;
+	case 17: printf("Proxy Act#%d", p[1]); break;
+	case 30: printf("MeshPeering "); PRINT_MESHPEERING_ACTION(p[1]); break;
+	case 32: printf("MeshPath "); PRINT_MESHPATH_ACTION(p[1]); break;
+	case 127: printf("Vendor Act#%d", p[1]); break;
+	default:
+		printf("Reserved(%d) Act#%d", p[0], p[1]);
+		break;
+	}
+	return 1;
+}
+
 
 /*********************************************************************************
  * Print Body funcs
@@ -622,6 +795,10 @@ mgmt_body_print(u_int16_t fc, const struct mgmt_header_t *pmh,
 		printf("DeAuthentication");
 		return handle_deauth(pmh, p);
 		break;
+	case ST_ACTION:
+		printf("Action");
+		return handle_action(pmh, p);
+		break;
 	default:
 		printf("Unhandled Management subtype(%x)",
 		    FC_SUBTYPE(fc));
@@ -648,6 +825,14 @@ ctrl_body_print(u_int16_t fc, const u_char *p)
 			    etheraddr_string(((const struct ctrl_bar_t *)p)->ta),
 			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
 			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq)));
+		break;
+	case CTRL_BA:
+		printf("BA");
+		if (!TTEST2(*p, CTRL_BA_HDRLEN))
+			return 0;
+		if (!eflag)
+			printf(" RA:%s ",
+			    etheraddr_string(((const struct ctrl_ba_t *)p)->ra));
 		break;
 	case CTRL_PS_POLL:
 		printf("Power Save-Poll");
@@ -829,6 +1014,10 @@ ctrl_header_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
 		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
 		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq)));
 		break;
+	case CTRL_BA:
+		printf("RA:%s ",
+		    etheraddr_string(((const struct ctrl_ba_t *)p)->ra));
+		break;
 	case CTRL_PS_POLL:
 		printf("BSSID:%s TA:%s ",
 		    etheraddr_string(((const struct ctrl_ps_poll_t *)p)->bssid),
@@ -901,14 +1090,20 @@ extract_header_length(u_int16_t fc)
 	}
 }
 
+static int
+extract_mesh_header_length(const u_char *p)
+{
+	return (p[0] &~ 3) ? 0 : 6*(1 + (p[0] & 3));
+}
+
 /*
  * Print the 802.11 MAC header if eflag is set, and set "*srcp" and "*dstp"
  * to point to the source and destination MAC addresses in any case if
  * "srcp" and "dstp" aren't null.
  */
-static inline void
-ieee_802_11_hdr_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
-    const u_int8_t **dstp)
+static void
+ieee_802_11_hdr_print(u_int16_t fc, const u_char *p, u_int hdrlen,
+    u_int meshdrlen, const u_int8_t **srcp, const u_int8_t **dstp)
 {
 	if (vflag) {
 		if (FC_MORE_DATA(fc))
@@ -927,6 +1122,21 @@ ieee_802_11_hdr_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
 			printf("%dus ",
 			    EXTRACT_LE_16BITS(
 			        &((const struct mgmt_header_t *)p)->duration));
+	}
+	if (meshdrlen != 0) {
+		const struct meshcntl_t *mc =
+		    (const struct meshcntl_t *)&p[hdrlen - meshdrlen];
+		int ae = mc->flags & 3;
+
+		printf("MeshData (AE %d TTL %u seq %u", ae, mc->ttl,
+		    EXTRACT_LE_32BITS(mc->seq));
+		if (ae > 0)
+			printf(" A4:%s", etheraddr_string(mc->addr4));
+		if (ae > 1)
+			printf(" A5:%s", etheraddr_string(mc->addr5));
+		if (ae > 2)
+			printf(" A6:%s", etheraddr_string(mc->addr6));
+		printf(") ");
 	}
 
 	switch (FC_TYPE(fc)) {
@@ -956,7 +1166,7 @@ static u_int
 ieee802_11_print(const u_char *p, u_int length, u_int caplen, int pad)
 {
 	u_int16_t fc;
-	u_int hdrlen;
+	u_int hdrlen, meshdrlen;
 	const u_int8_t *src, *dst;
 	u_short extracted_ethertype;
 
@@ -969,13 +1179,19 @@ ieee802_11_print(const u_char *p, u_int length, u_int caplen, int pad)
 	hdrlen = extract_header_length(fc);
 	if (pad)
 		hdrlen = roundup2(hdrlen, 4);
+	if (FC_TYPE(fc) == T_DATA && DATA_FRAME_IS_QOS(FC_SUBTYPE(fc))) {
+		meshdrlen = extract_mesh_header_length(p+hdrlen);
+		hdrlen += meshdrlen;
+	} else
+		meshdrlen = 0;
+
 
 	if (caplen < hdrlen) {
 		printf("[|802.11]");
 		return hdrlen;
 	}
 
-	ieee_802_11_hdr_print(fc, p, &src, &dst);
+	ieee_802_11_hdr_print(fc, p, hdrlen, meshdrlen, &src, &dst);
 
 	/*
 	 * Go past the 802.11 header.
@@ -1014,8 +1230,8 @@ ieee802_11_print(const u_char *p, u_int length, u_int caplen, int pad)
 			 * handle intelligently
 			 */
 			if (!eflag)
-				ieee_802_11_hdr_print(fc, p - hdrlen, NULL,
-				    NULL);
+				ieee_802_11_hdr_print(fc, p - hdrlen, hdrlen,
+				    meshdrlen, NULL, NULL);
 			if (extracted_ethertype)
 				printf("(LLC %s) ",
 				    etherproto_string(

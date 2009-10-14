@@ -101,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
-#include <sys/vimage.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -110,17 +109,16 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/pfil.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h> /* for struct arpcom */
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/vinet.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/vinet6.h>
 #endif
 #if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
@@ -172,6 +170,11 @@ __FBSDID("$FreeBSD$");
  * List of capabilities to possibly mask on the member interface.
  */
 #define	BRIDGE_IFCAPS_MASK		(IFCAP_TOE|IFCAP_TSO|IFCAP_TXCSUM)
+
+/*
+ * List of capabilities to strip
+ */
+#define	BRIDGE_IFCAPS_STRIP		IFCAP_LRO
 
 /*
  * Bridge interface list entry.
@@ -805,16 +808,10 @@ bridge_mutecaps(struct bridge_softc *sc)
 
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		enabled = bif->bif_ifp->if_capenable;
+		enabled &= ~BRIDGE_IFCAPS_STRIP;
 		/* strip off mask bits and enable them again if allowed */
 		enabled &= ~BRIDGE_IFCAPS_MASK;
 		enabled |= mask;
-		/*
-		 * Receive offload can only be enabled if all members also
-		 * support send offload.
-		 */
-		if ((enabled & IFCAP_TSO) == 0)
-			enabled &= ~IFCAP_LRO;
-
 		bridge_set_ifcap(sc, bif, enabled);
 	}
 
@@ -1804,9 +1801,9 @@ bridge_dummynet(struct mbuf *m, struct ifnet *ifp)
 		return;
 	}
 
-	if (PFIL_HOOKED(&inet_pfil_hook)
+	if (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    ) {
 		if (bridge_pfil(&m, sc->sc_ifp, ifp, PFIL_OUT) != 0)
@@ -2066,9 +2063,9 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 		ETHER_BPF_MTAP(ifp, m);
 
 	/* run the packet filter */
-	if (PFIL_HOOKED(&inet_pfil_hook)
+	if (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    ) {
 		BRIDGE_UNLOCK(sc);
@@ -2106,9 +2103,9 @@ bridge_forward(struct bridge_softc *sc, struct bridge_iflist *sbif,
 
 	BRIDGE_UNLOCK(sc);
 
-	if (PFIL_HOOKED(&inet_pfil_hook)
+	if (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    ) {
 		if (bridge_pfil(&m, ifp, dst_if, PFIL_OUT) != 0)
@@ -2247,7 +2244,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 #ifdef INET6
 #   define OR_PFIL_HOOKED_INET6 \
-	|| PFIL_HOOKED(&inet6_pfil_hook)
+	|| PFIL_HOOKED(&V_inet6_pfil_hook)
 #else
 #   define OR_PFIL_HOOKED_INET6
 #endif
@@ -2264,7 +2261,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 			iface->if_ipackets++;				\
 			/* Filter on the physical interface. */		\
 			if (pfil_local_phys &&				\
-			    (PFIL_HOOKED(&inet_pfil_hook)		\
+			    (PFIL_HOOKED(&V_inet_pfil_hook)		\
 			     OR_PFIL_HOOKED_INET6)) {			\
 				if (bridge_pfil(&m, NULL, ifp,		\
 				    PFIL_IN) != 0 || m == NULL) {	\
@@ -2353,9 +2350,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 	}
 
 	/* Filter on the bridge interface before broadcasting */
-	if (runfilt && (PFIL_HOOKED(&inet_pfil_hook)
+	if (runfilt && (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    )) {
 		if (bridge_pfil(&m, sc->sc_ifp, NULL, PFIL_OUT) != 0)
@@ -2400,9 +2397,9 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 		 * pointer so we do not redundantly filter on the bridge for
 		 * each interface we broadcast on.
 		 */
-		if (runfilt && (PFIL_HOOKED(&inet_pfil_hook)
+		if (runfilt && (PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-		    || PFIL_HOOKED(&inet6_pfil_hook)
+		    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 		    )) {
 			if (used == 0) {
@@ -3041,8 +3038,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	if (ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
-		INIT_VNET_INET(curvnet);
+	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
 		struct dn_pkt_tag *dn_tag;
 
 		error = -1;
@@ -3062,7 +3058,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		args.next_hop = NULL;
 		args.eh = &eh2;
 		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
-		i = ip_fw_chk_ptr(&args);
+		i = V_ip_fw_chk_ptr(&args);
 		*mp = args.m;
 
 		if (*mp == NULL)
@@ -3114,21 +3110,21 @@ ipfwpass:
 		 *   in_if -> bridge_if -> out_if
 		 */
 		if (pfil_bridge && dir == PFIL_OUT && bifp != NULL)
-			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_member && ifp != NULL)
-			error = pfil_run_hooks(&inet_pfil_hook, mp, ifp,
+			error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
-			error = pfil_run_hooks(&inet_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
@@ -3168,21 +3164,21 @@ ipfwpass:
 #ifdef INET6
 	case ETHERTYPE_IPV6:
 		if (pfil_bridge && dir == PFIL_OUT && bifp != NULL)
-			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_member && ifp != NULL)
-			error = pfil_run_hooks(&inet6_pfil_hook, mp, ifp,
+			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, ifp,
 					dir, NULL);
 
 		if (*mp == NULL || error != 0) /* filter may consume */
 			break;
 
 		if (pfil_bridge && dir == PFIL_IN && bifp != NULL)
-			error = pfil_run_hooks(&inet6_pfil_hook, mp, bifp,
+			error = pfil_run_hooks(&V_inet6_pfil_hook, mp, bifp,
 					dir, NULL);
 		break;
 #endif
@@ -3236,7 +3232,6 @@ bad:
 static int
 bridge_ip_checkbasic(struct mbuf **mp)
 {
-	INIT_VNET_INET(curvnet);
 	struct mbuf *m = *mp;
 	struct ip *ip;
 	int len, hlen;
@@ -3249,12 +3244,12 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		if ((m = m_copyup(m, sizeof(struct ip),
 			(max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
-			IPSTAT_INC(ips_toosmall);
+			KMOD_IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	} else if (__predict_false(m->m_len < sizeof (struct ip))) {
 		if ((m = m_pullup(m, sizeof (struct ip))) == NULL) {
-			IPSTAT_INC(ips_toosmall);
+			KMOD_IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	}
@@ -3262,17 +3257,17 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	if (ip == NULL) goto bad;
 
 	if (ip->ip_v != IPVERSION) {
-		IPSTAT_INC(ips_badvers);
+		KMOD_IPSTAT_INC(ips_badvers);
 		goto bad;
 	}
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) { /* minimum header length */
-		IPSTAT_INC(ips_badhlen);
+		KMOD_IPSTAT_INC(ips_badhlen);
 		goto bad;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
-			IPSTAT_INC(ips_badhlen);
+			KMOD_IPSTAT_INC(ips_badhlen);
 			goto bad;
 		}
 		ip = mtod(m, struct ip *);
@@ -3289,7 +3284,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		}
 	}
 	if (sum) {
-		IPSTAT_INC(ips_badsum);
+		KMOD_IPSTAT_INC(ips_badsum);
 		goto bad;
 	}
 
@@ -3300,7 +3295,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Check for additional length bogosity
 	 */
 	if (len < hlen) {
-		IPSTAT_INC(ips_badlen);
+		KMOD_IPSTAT_INC(ips_badlen);
 		goto bad;
 	}
 
@@ -3310,7 +3305,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Drop packet if shorter than we expect.
 	 */
 	if (m->m_pkthdr.len < len) {
-		IPSTAT_INC(ips_tooshort);
+		KMOD_IPSTAT_INC(ips_tooshort);
 		goto bad;
 	}
 
@@ -3332,7 +3327,6 @@ bad:
 static int
 bridge_ip6_checkbasic(struct mbuf **mp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6;
 
@@ -3387,7 +3381,6 @@ static int
 bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
     int snap, struct llc *llc)
 {
-	INIT_VNET_INET(curvnet);
 	struct mbuf *m0;
 	struct ip *ip;
 	int error = -1;
@@ -3425,7 +3418,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 	}
 
 	if (error == 0)
-		IPSTAT_INC(ips_fragmented);
+		KMOD_IPSTAT_INC(ips_fragmented);
 
 	return (error);
 

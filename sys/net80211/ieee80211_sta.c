@@ -431,7 +431,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			goto invalid;
 		break;
 	case IEEE80211_S_SLEEP:
-		ieee80211_sta_pwrsave(vap, 0);
+		ieee80211_sta_pwrsave(vap, 1);
 		break;
 	default:
 	invalid:
@@ -1717,7 +1717,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	case IEEE80211_FC0_SUBTYPE_ACTION:
 		if (vap->iv_state == IEEE80211_S_RUN) {
 			if (ieee80211_parse_action(ni, m0) == 0)
-				ic->ic_recv_action(ni, frm, efrm);
+				ic->ic_recv_action(ni, wh, frm, efrm);
 		} else
 			vap->iv_stats.is_rx_mgtdiscard++;
 		break;

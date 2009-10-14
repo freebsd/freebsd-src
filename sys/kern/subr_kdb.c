@@ -88,7 +88,8 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
  * Flag indicating whether or not to IPI the other CPUs to stop them on
  * entering the debugger.  Sometimes, this will result in a deadlock as
  * stop_cpus() waits for the other cpus to stop, so we allow it to be
- * disabled.
+ * disabled.  In order to maximize the chances of success, use a hard
+ * stop for that.
  */
 #ifdef SMP
 static int kdb_stop_cpus = 1;
@@ -226,7 +227,7 @@ kdb_panic(const char *msg)
 {
 	
 #ifdef SMP
-	stop_cpus(PCPU_GET(other_cpus));
+	stop_cpus_hard(PCPU_GET(other_cpus));
 #endif
 	printf("KDB: panic\n");
 	panic(msg);
@@ -518,7 +519,7 @@ kdb_trap(int type, int code, struct trapframe *tf)
 
 #ifdef SMP
 	if ((did_stop_cpus = kdb_stop_cpus) != 0)
-		stop_cpus(PCPU_GET(other_cpus));
+		stop_cpus_hard(PCPU_GET(other_cpus));
 #endif
 
 	kdb_active++;

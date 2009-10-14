@@ -815,9 +815,9 @@ em_attach(device_t dev)
 #if __FreeBSD_version >= 700029
 	/* Register for VLAN events */
 	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
-	    em_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	    em_register_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
-	    em_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST); 
+	    em_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST); 
 #endif
 
 	/* Tell the stack that the interface is not active */
@@ -919,9 +919,6 @@ em_detach(device_t dev)
 	bus_generic_detach(dev);
 	if_free(ifp);
 
-#if __FreeBSD_version >= 800000
-	drbr_free(adapter->br, M_DEVBUF);
-#endif
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -1037,9 +1034,10 @@ em_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
 		return (error);
 	} else if (drbr_empty(ifp, adapter->br) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
-		if (em_xmit(adapter, &m)) {
-			if (m && (error = drbr_enqueue(ifp, adapter->br, m)) != 0)
-				return (error);
+		if ((error = em_xmit(adapter, &m)) != 0) {
+			if (m != NULL)
+				error = drbr_enqueue(ifp, adapter->br, m);
+			return (error);
 		} else {
 			/*
 			 * We've bypassed the buf ring so we need to update
@@ -1066,8 +1064,12 @@ process:
                 next = drbr_dequeue(ifp, adapter->br);
                 if (next == NULL)
                         break;
-                if (em_xmit(adapter, &next))
+                if ((error = em_xmit(adapter, &next)) != 0) {
+			if (next != NULL)
+				error = drbr_enqueue(ifp, adapter->br, next);
                         break;
+		}
+		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
                 ETHER_BPF_MTAP(ifp, next);
                 /* Set the watchdog */
                 adapter->watchdog_timer = EM_TX_TIMEOUT;
@@ -1076,7 +1078,7 @@ process:
         if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
                 ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -1207,7 +1209,8 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				em_init_locked(adapter);
 				EM_CORE_UNLOCK(adapter);
 			}
-			arp_ifinit(ifp, ifa);
+			if (!(ifp->if_flags & IFF_NOARP))
+				arp_ifinit(ifp, ifa);
 		} else
 #endif
 			error = ether_ioctl(ifp, command, data);
@@ -3644,7 +3647,8 @@ em_free_transmit_structures(struct adapter *adapter)
 		adapter->txtag = NULL;
 	}
 #if __FreeBSD_version >= 800000
-        buf_ring_free(adapter->br, M_DEVBUF);
+	if (adapter->br != NULL)
+        	buf_ring_free(adapter->br, M_DEVBUF);
 #endif
 }
 
@@ -4446,7 +4450,7 @@ em_rxeof(struct adapter *adapter, int count)
 	struct mbuf	*mp;
 	u8		status, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
-	u32		i, rx_sent = 0;
+	int		i, rx_sent = 0;
 	struct e1000_rx_desc   *current_desc;
 
 	EM_RX_LOCK(adapter);
@@ -4715,12 +4719,15 @@ em_receive_checksum(struct adapter *adapter,
  * config EVENT
  */
 static void
-em_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+em_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
 
-	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
+	if (ifp->if_softc !=  arg)   /* Not our event */
+		return;
+
+	if ((vtag == 0) || (vtag > 4095))       /* Invalid ID */
                 return;
 
 	index = (vtag >> 5) & 0x7F;
@@ -4736,10 +4743,13 @@ em_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
  * unconfig EVENT
  */
 static void
-em_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+em_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
+
+	if (ifp->if_softc !=  arg)
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;

@@ -59,13 +59,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/netisr.h> 
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_divert.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
-#include <netinet/vinet.h>
 #ifdef SCTP
 #include <netinet/sctp_crc32.h>
 #endif
@@ -117,13 +116,16 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Internal variables. */
-#ifdef VIMAGE_GLOBALS
-static struct inpcbhead divcb;
-static struct inpcbinfo divcbinfo;
-#endif
+static VNET_DEFINE(struct inpcbhead, divcb);
+static VNET_DEFINE(struct inpcbinfo, divcbinfo);
+
+#define	V_divcb				VNET(divcb)
+#define	V_divcbinfo			VNET(divcbinfo)
 
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
 static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
+
+static eventhandler_tag ip_divert_event_tag;
 
 /*
  * Initialize divert connection block queue.
@@ -131,7 +133,6 @@ static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 static void
 div_zone_change(void *tag)
 {
-	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
 }
@@ -153,10 +154,9 @@ div_inpcb_fini(void *mem, int size)
 	INP_LOCK_DESTROY(inp);
 }
 
-void
+static void
 div_init(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	INP_INFO_LOCK_INIT(&V_divcbinfo, "div");
 	LIST_INIT(&V_divcb);
@@ -176,8 +176,17 @@ div_init(void)
 	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR,
 	    UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_divcbinfo.ipi_zone, maxsockets);
-	EVENTHANDLER_REGISTER(maxsockets_change, div_zone_change,
-		NULL, EVENTHANDLER_PRI_ANY);
+}
+
+static void
+div_destroy(void)
+{
+
+	INP_INFO_LOCK_DESTROY(&V_divcbinfo);
+	uma_zdestroy(V_divcbinfo.ipi_zone);
+	hashdestroy(V_divcbinfo.ipi_hashbase, M_PCB, V_divcbinfo.ipi_hashmask);
+	hashdestroy(V_divcbinfo.ipi_porthashbase, M_PCB,
+	    V_divcbinfo.ipi_porthashmask);
 }
 
 /*
@@ -187,9 +196,8 @@ div_init(void)
 void
 div_input(struct mbuf *m, int off)
 {
-	INIT_VNET_INET(curvnet);
 
-	IPSTAT_INC(ips_noproto);
+	KMOD_IPSTAT_INC(ips_noproto);
 	m_freem(m);
 }
 
@@ -202,7 +210,6 @@ div_input(struct mbuf *m, int off)
 static void
 divert_packet(struct mbuf *m, int incoming)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip;
 	struct inpcb *inp;
 	struct socket *sa;
@@ -314,8 +321,8 @@ divert_packet(struct mbuf *m, int incoming)
 	INP_INFO_RUNLOCK(&V_divcbinfo);
 	if (sa == NULL) {
 		m_freem(m);
-		IPSTAT_INC(ips_noproto);
-		IPSTAT_DEC(ips_delivered);
+		KMOD_IPSTAT_INC(ips_noproto);
+		KMOD_IPSTAT_DEC(ips_delivered);
         }
 }
 
@@ -330,7 +337,6 @@ static int
 div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
     struct mbuf *control)
 {
-	INIT_VNET_INET(curvnet);
 	struct m_tag *mtag;
 	struct divert_tag *dt;
 	int error = 0;
@@ -401,7 +407,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			ip->ip_off = ntohs(ip->ip_off);
 
 			/* Send packet to output processing */
-			IPSTAT_INC(ips_rawout);			/* XXX */
+			KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
 
 #ifdef MAC
 			mac_inpcb_create_mbuf(inp, m);
@@ -483,7 +489,6 @@ cantsend:
 static int
 div_attach(struct socket *so, int proto, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -515,7 +520,6 @@ div_attach(struct socket *so, int proto, struct thread *td)
 static void
 div_detach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -530,7 +534,6 @@ div_detach(struct socket *so)
 static int
 div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -571,12 +574,11 @@ static int
 div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 
 	/* Packet must have a header (but that's about it) */
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
-		IPSTAT_INC(ips_toosmall);
+		KMOD_IPSTAT_INC(ips_toosmall);
 		m_freem(m);
 		return EINVAL;
 	}
@@ -600,7 +602,6 @@ div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
@@ -719,15 +720,19 @@ struct protosw div_protosw = {
 	.pr_ctlinput =		div_ctlinput,
 	.pr_ctloutput =		ip_ctloutput,
 	.pr_init =		div_init,
+#ifdef VIMAGE
+	.pr_destroy =		div_destroy,
+#endif
 	.pr_usrreqs =		&div_usrreqs
 };
 
 static int
 div_modevent(module_t mod, int type, void *unused)
 {
-	INIT_VNET_INET(curvnet); /* XXX move to iattach - revisit!!! */
 	int err = 0;
+#ifndef VIMAGE
 	int n;
+#endif
 
 	switch (type) {
 	case MOD_LOAD:
@@ -737,7 +742,11 @@ div_modevent(module_t mod, int type, void *unused)
 		 * a true IP protocol that goes over the wire.
 		 */
 		err = pf_proto_register(PF_INET, &div_protosw);
+		if (err != 0)
+			return (err);
 		ip_divert_ptr = divert_packet;
+		ip_divert_event_tag = EVENTHANDLER_REGISTER(maxsockets_change,
+		    div_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 		break;
 	case MOD_QUIESCE:
 		/*
@@ -748,6 +757,10 @@ div_modevent(module_t mod, int type, void *unused)
 		err = EPERM;
 		break;
 	case MOD_UNLOAD:
+#ifdef VIMAGE
+		err = EPERM;
+		break;
+#else
 		/*
 		 * Forced unload.
 		 *
@@ -769,9 +782,10 @@ div_modevent(module_t mod, int type, void *unused)
 		ip_divert_ptr = NULL;
 		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
 		INP_INFO_WUNLOCK(&V_divcbinfo);
-		INP_INFO_LOCK_DESTROY(&V_divcbinfo);
-		uma_zdestroy(V_divcbinfo.ipi_zone);
+		div_destroy();
+		EVENTHANDLER_DEREGISTER(maxsockets_change, ip_divert_event_tag);
 		break;
+#endif /* !VIMAGE */
 	default:
 		err = EOPNOTSUPP;
 		break;

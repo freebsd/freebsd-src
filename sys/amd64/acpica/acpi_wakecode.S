@@ -54,18 +54,17 @@
 	.data				/* So we can modify it */
 
 	ALIGN_TEXT
-wakeup_start:
 	.code16
+wakeup_start:
 	/*
 	 * Set up segment registers for real mode, a small stack for
 	 * any calls we make, and clear any flags.
 	 */
 	cli				/* make sure no interrupts */
-	cld
 	mov	%cs, %ax		/* copy %cs to %ds.  Remember these */
 	mov	%ax, %ds		/* are offsets rather than selectors */
 	mov	%ax, %ss
-	movw	$PAGE_SIZE - 8, %sp
+	movw	$PAGE_SIZE, %sp
 	xorw	%ax, %ax
 	pushw	%ax
 	popfw
@@ -129,6 +128,7 @@ wakeup_sw32:
 	/*
 	 * At this point, we are running in 32 bit legacy protected mode.
 	 */
+	ALIGN_TEXT
 	.code32
 wakeup_32:
 

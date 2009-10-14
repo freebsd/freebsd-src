@@ -44,9 +44,9 @@
 #include <sys/queue.h>
 #endif
 #include <sys/socket.h>
-#include <sys/vimage.h>
 
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netipsec/key_var.h>
 #include <netipsec/key_debug.h>

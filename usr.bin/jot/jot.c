@@ -101,13 +101,13 @@ main(int argc, char **argv)
 	int	ch;
 	int	mask = 0;
 	int	n = 0;
-	double	begin;
+	double	begin = BEGIN_DEF;
 	double	divisor;
-	double	ender;
-	double	s;
+	double	ender = ENDER_DEF;
+	double	s = STEP_DEF;
 	double	x, y;
 	long	i;
-	long	reps;
+	long	reps = REPS_DEF;
 
 	while ((ch = getopt(argc, argv, "b:cnp:rs:w:")) != -1)
 		switch (ch) {

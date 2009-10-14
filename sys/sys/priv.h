@@ -185,6 +185,7 @@
 #define	PRIV_SCHED_SET		204	/* Can set thread scheduler. */
 #define	PRIV_SCHED_SETPARAM	205	/* Can set thread scheduler params. */
 #define	PRIV_SCHED_CPUSET	206	/* Can manipulate cpusets. */
+#define	PRIV_SCHED_CPUSET_INTR	207	/* Can adjust IRQ to CPU binding. */
 
 /*
  * POSIX semaphore privileges.
@@ -475,9 +476,15 @@
 #define	PRIV_C4B_TRACE		651	/* Unrestricted CAPI message tracing. */
 
 /*
+ * OpenAFS privileges.
+ */
+#define	PRIV_AFS_ADMIN		660	/* Can change AFS client settings. */
+#define	PRIV_AFS_DAEMON		661	/* Can become the AFS daemon. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		652
+#define	_PRIV_HIGHEST		662
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

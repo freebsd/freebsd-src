@@ -30,26 +30,14 @@
  * $FreeBSD$
  */
 
+#ifndef _SUN4V_INCLUDE_PARAM_H_
+#define	_SUN4V_INCLUDE_PARAM_H_
+
 /*
  * Machine dependent constants for sparc64.
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define _ALIGNBYTES	0xf
-#endif
-#ifndef _ALIGN
-#define _ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
-#endif
-
-#ifndef _NO_NAMESPACE_POLLUTION
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
+#include <machine/_align.h>
 
 #ifndef MACHINE
 #define MACHINE		"sun4v"
@@ -70,6 +58,13 @@
 
 #define ALIGNBYTES	_ALIGNBYTES
 #define ALIGN(p)	_ALIGN(p)
+/*
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ */
+#define	ALIGNED_POINTER(p, t)	((((u_long)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -109,6 +104,8 @@
 #define PAGE_SIZE_MAX	PAGE_SIZE_4M
 #define PAGE_MASK_MAX	PAGE_MASK_4M
 
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+
 #ifndef KSTACK_PAGES
 #define KSTACK_PAGES		4	/* pages of kernel stack (with pcb) */
 #endif
@@ -140,7 +137,4 @@
 #define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
 #endif /* LOCORE */
 
-
-
-#endif /* !_MACHINE_PARAM_H_ */
-#endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_SUN4V_INCLUDE_PARAM_H_ */

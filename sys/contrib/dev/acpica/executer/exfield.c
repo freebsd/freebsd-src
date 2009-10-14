@@ -151,6 +151,7 @@ AcpiExReadDataFromField (
     ACPI_OPERAND_OBJECT     *BufferDesc;
     ACPI_SIZE               Length;
     void                    *Buffer;
+    UINT32                  Function;
 
 
     ACPI_FUNCTION_TRACE_PTR (ExReadDataFromField, ObjDesc);
@@ -183,13 +184,27 @@ AcpiExReadDataFromField (
         }
     }
     else if ((ObjDesc->Common.Type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
-             (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS))
+             (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS ||
+              ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_IPMI))
     {
         /*
-         * This is an SMBus read.  We must create a buffer to hold the data
-         * and directly access the region handler.
+         * This is an SMBus or IPMI read. We must create a buffer to hold
+         * the data and then directly access the region handler.
+         *
+         * Note: Smbus protocol value is passed in upper 16-bits of Function
          */
-        BufferDesc = AcpiUtCreateBufferObject (ACPI_SMBUS_BUFFER_SIZE);
+        if (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS)
+        {
+            Length = ACPI_SMBUS_BUFFER_SIZE;
+            Function = ACPI_READ | (ObjDesc->Field.Attribute << 16);
+        }
+        else /* IPMI */
+        {
+            Length = ACPI_IPMI_BUFFER_SIZE;
+            Function = ACPI_READ;
+        }
+
+        BufferDesc = AcpiUtCreateBufferObject (Length);
         if (!BufferDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
@@ -199,13 +214,11 @@ AcpiExReadDataFromField (
 
         AcpiExAcquireGlobalLock (ObjDesc->CommonField.FieldFlags);
 
-        /*
-         * Perform the read.
-         * Note: Smbus protocol value is passed in upper 16-bits of Function
-         */
+        /* Call the region handler for the read */
+
         Status = AcpiExAccessRegion (ObjDesc, 0,
                     ACPI_CAST_PTR (ACPI_INTEGER, BufferDesc->Buffer.Pointer),
-                    ACPI_READ | (ObjDesc->Field.Attribute << 16));
+                    Function);
         AcpiExReleaseGlobalLock (ObjDesc->CommonField.FieldFlags);
         goto Exit;
     }
@@ -304,6 +317,7 @@ AcpiExWriteDataToField (
     UINT32                  Length;
     void                    *Buffer;
     ACPI_OPERAND_OBJECT     *BufferDesc;
+    UINT32                  Function;
 
 
     ACPI_FUNCTION_TRACE_PTR (ExWriteDataToField, ObjDesc);
@@ -332,40 +346,59 @@ AcpiExWriteDataToField (
         }
     }
     else if ((ObjDesc->Common.Type == ACPI_TYPE_LOCAL_REGION_FIELD) &&
-             (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS))
+             (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS ||
+              ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_IPMI))
     {
         /*
-         * This is an SMBus write.  We will bypass the entire field mechanism
-         * and handoff the buffer directly to the handler.
+         * This is an SMBus or IPMI write. We will bypass the entire field
+         * mechanism and handoff the buffer directly to the handler. For
+         * these address spaces, the buffer is bi-directional; on a write,
+         * return data is returned in the same buffer.
          *
-         * Source must be a buffer of sufficient size (ACPI_SMBUS_BUFFER_SIZE).
+         * Source must be a buffer of sufficient size:
+         * ACPI_SMBUS_BUFFER_SIZE or ACPI_IPMI_BUFFER_SIZE.
+         *
+         * Note: SMBus protocol type is passed in upper 16-bits of Function
          */
         if (SourceDesc->Common.Type != ACPI_TYPE_BUFFER)
         {
-            ACPI_ERROR ((AE_INFO, "SMBus write requires Buffer, found type %s",
+            ACPI_ERROR ((AE_INFO,
+                "SMBus or IPMI write requires Buffer, found type %s",
                 AcpiUtGetObjectTypeName (SourceDesc)));
 
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
 
-        if (SourceDesc->Buffer.Length < ACPI_SMBUS_BUFFER_SIZE)
+        if (ObjDesc->Field.RegionObj->Region.SpaceId == ACPI_ADR_SPACE_SMBUS)
+        {
+            Length = ACPI_SMBUS_BUFFER_SIZE;
+            Function = ACPI_WRITE | (ObjDesc->Field.Attribute << 16);
+        }
+        else /* IPMI */
+        {
+            Length = ACPI_IPMI_BUFFER_SIZE;
+            Function = ACPI_WRITE;
+        }
+
+        if (SourceDesc->Buffer.Length < Length)
         {
             ACPI_ERROR ((AE_INFO,
-                "SMBus write requires Buffer of length %X, found length %X",
-                ACPI_SMBUS_BUFFER_SIZE, SourceDesc->Buffer.Length));
+                "SMBus or IPMI write requires Buffer of length %X, found length %X",
+                Length, SourceDesc->Buffer.Length));
 
             return_ACPI_STATUS (AE_AML_BUFFER_LIMIT);
         }
 
-        BufferDesc = AcpiUtCreateBufferObject (ACPI_SMBUS_BUFFER_SIZE);
+        /* Create the bi-directional buffer */
+
+        BufferDesc = AcpiUtCreateBufferObject (Length);
         if (!BufferDesc)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
         Buffer = BufferDesc->Buffer.Pointer;
-        ACPI_MEMCPY (Buffer, SourceDesc->Buffer.Pointer,
-            ACPI_SMBUS_BUFFER_SIZE);
+        ACPI_MEMCPY (Buffer, SourceDesc->Buffer.Pointer, Length);
 
         /* Lock entire transaction if requested */
 
@@ -374,11 +407,9 @@ AcpiExWriteDataToField (
         /*
          * Perform the write (returns status and perhaps data in the
          * same buffer)
-         * Note: SMBus protocol type is passed in upper 16-bits of Function.
          */
         Status = AcpiExAccessRegion (ObjDesc, 0,
-                        (ACPI_INTEGER *) Buffer,
-                        ACPI_WRITE | (ObjDesc->Field.Attribute << 16));
+                    (ACPI_INTEGER *) Buffer, Function);
         AcpiExReleaseGlobalLock (ObjDesc->CommonField.FieldFlags);
 
         *ResultDesc = BufferDesc;

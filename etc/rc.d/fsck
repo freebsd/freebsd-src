@@ -23,7 +23,7 @@ fsck_start()
 					# During fsck ignore SIGQUIT
 		trap : 3
 
-		[ -z "${rc_quiet}" ] && echo "Starting file system checks:"
+		check_startmsgs && echo "Starting file system checks:"
 		if checkyesno background_fsck; then
 			fsck -F -p
 		else

@@ -121,7 +121,7 @@ See
 below for more information.
 .It Li edge
 Configure the counter to count false to true transitions of the threshold
-comparision output.
+comparison output.
 This qualifier only takes effect if a threshold qualifier has also been
 specified.
 .It Li complement
@@ -547,7 +547,7 @@ Count cycles when the processor is active.
 .It Li p4-instr-retired Op Li ,mask= Ns Ar flags
 .Pq "TS event"
 Count instructions retired during a clock cycle.
-Qualifer
+Qualifier
 .Ar flags
 comprises of the following strings separated by
 .Ql +
@@ -589,7 +589,7 @@ Count read entries.
 .It Li all-write
 Count write entries.
 .It Li mem-uc
-Count entries accessing uncacheable memory.
+Count entries accessing un-cacheable memory.
 .It Li mem-wc
 Count entries accessing write-combining memory.
 .It Li mem-wt
@@ -620,7 +620,7 @@ The default is 0.
 The
 .Dq Li edge
 qualifier should not be used when counting cycles with this event.
-The exact behaviour of this event depends on the processor revision.
+The exact behavior of this event depends on the processor revision.
 .It Li p4-ioq-allocation Xo
 .Op Li ,mask= Ns Ar qualifier
 .Op Li ,busreqtype= Ns Ar req-type
@@ -644,7 +644,7 @@ Count read entries.
 .It Li all-write
 Count write entries.
 .It Li mem-uc
-Count entries accessing uncacheable memory.
+Count entries accessing un-cacheable memory.
 .It Li mem-wc
 Count entries accessing write-combining memory.
 .It Li mem-wt
@@ -676,10 +676,10 @@ The
 .Dq Li edge
 qualifier is normally used with this event to prevent multiple
 counting.
-The exact behaviour of this event depends on the processor revision.
+The exact behavior of this event depends on the processor revision.
 .It Li p4-itlb-reference Op mask= Ns Ar qualifier
 .Pq "TS event"
-Count translations using the intruction translation look-aside
+Count translations using the instruction translation look-aside
 buffer.
 The
 .Ar qualifier
@@ -693,7 +693,7 @@ Count ITLB hits.
 .It Li miss
 Count ITLB misses.
 .It Li hit-uc
-Count uncacheable ITLB hits.
+Count un-cacheable ITLB hits.
 .El
 .Pp
 If no
@@ -730,7 +730,7 @@ Count non-bogus retired branch instructions.
 .It Li p4-machine-clear Op Li ,mask= Ns Ar flags
 .Pq "TS event"
 Count the number of pipeline clears seen by the processor.
-Qualifer
+Qualifier
 .Ar flags
 is a list of the following strings separated by
 .Ql +
@@ -753,7 +753,7 @@ The default qualifier is
 .Dq Li clear .
 .It Li p4-memory-cancel Op Li ,mask= Ns Ar event-list
 .Pq "TS event"
-Count the cancelling of various kinds of requests in the data cache
+Count the canceling of various kinds of requests in the data cache
 address control unit of the CPU.
 The qualifier
 .Ar event-list
@@ -773,8 +773,8 @@ If
 is not specified, then the default is to count both kinds of events.
 .It Li p4-memory-complete Op Li ,mask= Ns Ar event-list
 .Pq "TS event"
-Count the completion of load split, store split, uncacheable split and
-uncacheable load operations selected by qualifier
+Count the completion of load split, store split, un-cacheable split and
+un-cacheable load operations selected by qualifier
 .Ar event-list .
 The qualifier
 .Ar event-list
@@ -784,7 +784,7 @@ separated list of the following flags:
 .Pp
 .Bl -tag -width indent -compact
 .It Li lsc
-Count load splits completed, excluding loads from uncacheable or
+Count load splits completed, excluding loads from un-cacheable or
 write-combining areas.
 .It Li ssc
 Count any split stores completed.
@@ -1065,7 +1065,7 @@ The default qualifier counts all the above kinds of uops.
 .Pq "TS event"
 This event is used in conjunction with the front-end at-retirement
 mechanism to tag load and store uops.
-Qualifer
+Qualifier
 .Ar flags
 comprises the following strings separated by
 .Ql +
@@ -1112,7 +1112,7 @@ WC buffer evictions due to any cause.
 WC buffer evictions due to no WC buffer being available.
 .El
 .Pp
-The default qualifer counts both kinds of evictions.
+The default qualifier counts both kinds of evictions.
 .It Li p4-x87-assist Op Li ,mask= Ns Ar flags
 .Pq "TS event"
 Count the retirement of x87 instructions that required special

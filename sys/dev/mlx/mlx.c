@@ -1979,7 +1979,7 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
      * initial contents
      */
     if (mu->mu_datasize > 0) {
-	if (mu->mu_datasize > MAXPHYS) {
+	if (mu->mu_datasize > MLX_MAXPHYS) {
 	    error = EINVAL;
 	    goto out;
 	}

@@ -313,6 +313,7 @@ AcpiDbDisplayArgumentObject (
     ACPI_OPERAND_OBJECT     *ObjDesc,
     ACPI_WALK_STATE         *WalkState);
 
+
 /*
  * dbexec - debugger control method execution
  */

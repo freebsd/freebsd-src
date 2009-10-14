@@ -124,6 +124,7 @@ struct selfd {
 };
 
 static uma_zone_t selfd_zone;
+static struct mtx_pool *mtxpool_select;
 
 #ifndef _SYS_SYSPROTO_H_
 struct read_args {
@@ -692,6 +693,8 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 	int error;
 	int tmp;
 
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_CMD(com);
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
@@ -771,12 +774,13 @@ select(td, uap)
 	} else
 		tvp = NULL;
 
-	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
+	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
+	    NFDBITS));
 }
 
 int
 kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
-    fd_set *fd_ex, struct timeval *tvp)
+    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits)
 {
 	struct filedesc *fdp;
 	/*
@@ -789,16 +793,13 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv, rtv, ttv;
 	int error, timo;
-	u_int nbufbytes, ncpbytes, nfdbits;
+	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
 
 	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
-	
-	FILEDESC_SLOCK(fdp);
-	if (nd > td->td_proc->p_fd->fd_nfiles)
-		nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
-	FILEDESC_SUNLOCK(fdp);
+	if (nd > fdp->fd_lastfile + 1)
+		nd = fdp->fd_lastfile + 1;
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the
@@ -806,6 +807,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	nfdbits = roundup(nd, NFDBITS);
 	ncpbytes = nfdbits / NBBY;
+	ncpubytes = roundup(nd, abi_nfdbits) / NBBY;
 	nbufbytes = 0;
 	if (fd_in != NULL)
 		nbufbytes += 2 * ncpbytes;
@@ -832,9 +834,11 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			ibits[x] = sbp + nbufbytes / 2 / sizeof *sbp;	\
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
-			error = copyin(name, ibits[x], ncpbytes);	\
+			error = copyin(name, ibits[x], ncpubytes);	\
 			if (error != 0)					\
 				goto done;				\
+			bzero((char *)ibits[x] + ncpubytes,		\
+			    ncpbytes - ncpubytes);			\
 		}							\
 	} while (0)
 	getbits(fd_in, 0);
@@ -888,7 +892,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 #define	putbits(name, x) \
-	if (name && (error2 = copyout(obits[x], name, ncpbytes))) \
+	if (name && (error2 = copyout(obits[x], name, ncpubytes))) \
 		error = error2;
 	if (error == 0) {
 		int error2;
@@ -1228,6 +1232,13 @@ pollscan(td, fds, nfd)
 				selfdalloc(td, fds);
 				fds->revents = fo_poll(fp, fds->events,
 				    td->td_ucred, td);
+				/*
+				 * POSIX requires POLLOUT to be never
+				 * set simultaneously with POLLHUP.
+				 */
+				if ((fds->revents & POLLHUP) != 0)
+					fds->revents &= ~POLLOUT;
+
 				if (fds->revents != 0)
 					n++;
 			}
@@ -1373,7 +1384,9 @@ selrecord(selector, sip)
 		stp->st_free2 = NULL;
 	else
 		panic("selrecord: No free selfd on selq");
-	mtxp = mtx_pool_find(mtxpool_sleep, sip);
+	mtxp = sip->si_mtx;
+	if (mtxp == NULL)
+		mtxp = mtx_pool_find(mtxpool_select, sip);
 	/*
 	 * Initialize the sfp and queue it in the thread.
 	 */
@@ -1529,6 +1542,8 @@ SYSINIT(select, SI_SUB_SYSCALLS, SI_ORDER_ANY, selectinit, NULL);
 static void
 selectinit(void *dummy __unused)
 {
+
 	selfd_zone = uma_zcreate("selfd", sizeof(struct selfd), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	mtxpool_select = mtx_pool_create("select mtxpool", 128, MTX_DEF);
 }

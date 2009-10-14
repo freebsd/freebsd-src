@@ -39,7 +39,7 @@
 .Nm jailparam_set ,
 .Nm jailparam_get ,
 .Nm jailparam_export ,
-.Nm jailparam_free ,
+.Nm jailparam_free
 .Nd create and manage system jails
 .Sh LIBRARY
 .Lb libjail
@@ -89,14 +89,16 @@ knowing the parameter formats.
 The
 .Fn jail_getid
 function returns the JID of the jail identified by
-.Ar name ,
+.Fa name ,
 or \-1 if the jail does not exist.
 .Pp
 The
 .Fn jail_getname
 function returns the name of the jail identified by
-.Ar jid ,
-or NULL if the jail does not exist.
+.Fa jid ,
+or
+.Dv NULL
+if the jail does not exist.
 .Pp
 The
 .Fn jail_setv
@@ -116,7 +118,7 @@ returned parameters.
 The
 .Fn jailparam_all
 function sets
-.Ar jpp
+.Fa jpp
 to a list of all known jail parameters, and returns the number of
 parameters.
 The list should later be freed with
@@ -127,14 +129,15 @@ and
 The
 .Fn jailparam_init
 function clears a parameter record and copies the
-.Ar name
-to it.  After use, it should be freed with
+.Fa name
+to it.
+After use, it should be freed with
 .Fn jailparam_free .
 .Pp
 The
 .Fn jailparam_import
 function adds a
-.Ar value
+.Fa value
 to a parameter record, converting it from a string to its native form.
 The
 .Fn jailparam_import_raw
@@ -151,7 +154,7 @@ and
 .Pp
 The
 .Fn jailparam_get
-function function passes a list of parameters to
+function passes a list of parameters to
 .Xr jail_get 2 .
 The parameters are assumed to have been created with
 .Fn jailparam_init
@@ -163,7 +166,7 @@ with one parameter (the key) having been given a value with
 The
 .Fn jailparam_export
 function returns the string equivalent of a parameter value.
-The returned string should freed after use.
+The returned string should be freed after use.
 .Pp
 The
 .Fn jailparam_free
@@ -171,6 +174,43 @@ function frees the stored names and values in a parameter list.
 If the list itself came from
 .Fn jailparam_all ,
 it should be freed as well.
+.Sh RETURN VALUES
+The
+.Fn jail_getid ,
+.Fn jail_setv ,
+.Fn jail_getv ,
+.Fn jailparam_set
+and
+.Fn jailparam_get
+functions return a JID on success, or \-1 on error.
+.Pp
+The
+.Fn jail_getname
+and
+.Fn jailparam_export
+functions return a dynamically allocated string on success, or
+.Dv NULL
+on error.
+.Pp
+The
+.Fn jailparam_all
+function returns the number of parameters on success, or \-1 on error.
+.Pp
+The
+.Fn jailparam_init ,
+.Fn jailparam_import
+and
+.Fn jailparam_import_raw
+functions return 0 on success, or \-1 on error.
+.Pp
+Whenever an error is returned,
+.Va errno
+is set, and the global string
+.Va jail_errmsg
+contains a description of the error, possibly from
+.Xr jail_set 2
+or
+.Xr jail_get 2 .
 .Sh EXAMPLES
 Set the hostname of jail
 .Dq foo
@@ -209,41 +249,6 @@ jailparam_get(params, 2, 0);
 hostname = jailparam_export(&params[1]);
 jailparam_free(params, 2);
 .Ed
-.Sh RETURN VALUES
-The
-.Fn jail_getid ,
-.Fn jail_setv ,
-.Fn jail_getv ,
-.Fn jailparam_set
-and
-.Fn jailparam_get
-functions return a JID on success, or \-1 on error.
-.Pp
-The
-.Fn jail_getname
-and
-.Fn jailparam_export
-functions return a dynamically allocated string on success, or NULL on error.
-.Pp
-The
-.Fn jailparam_all
-function returns the number of parameters on success, or \-1 on error.
-.Pp
-The
-.Fn jailparam_init ,
-.Fn jailparam_import
-and
-.Fn jailparam_import_raw
-functions return 0 on success, or \-1 on error.
-.Pp
-Whenever an error is returned,
-.Va errno
-is set, and the global string
-.Va jail_errmsg
-contains a descrption of the error, possibly from
-.Xr jail_set 2
-or
-.Xr jail_get 2 .
 .Sh ERRORS
 The
 .Nm jail
@@ -256,16 +261,17 @@ or
 In addition, the following errors are possible:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-A prameter value cannot be convert from the passed string to its
+A parameter value cannot be converted from the passed string to its
 internal form.
 .It Bq Er ENOENT
 The named parameter does not exist.
 .It Bq Er ENOENT
 A parameter is of an unknown type.
+.El
 .Sh SEE ALSO
 .Xr jail 2 ,
-.Xr jail 8 ,
-.Xr sysctl 3
+.Xr sysctl 3 ,
+.Xr jail 8
 .Sh HISTORY
 The
 .Nm jail

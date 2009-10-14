@@ -54,6 +54,7 @@ extern int kstack_pages;	/* number of kernel stack pages */
 
 extern int nswap;		/* size of swap space */
 
+extern u_long pagesizes[];	/* supported page sizes */
 extern long physmem;		/* physical memory */
 extern long realmem;		/* 'real' memory */
 
@@ -88,6 +89,17 @@ extern int maxusers;		/* system tune hint */
 #define	_CTASSERT(x, y)		__CTASSERT(x, y)
 #define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
 #endif
+
+/*
+ * Assert that a pointer can be loaded from memory atomically.
+ *
+ * This assertion enforces stronger alignment than necessary.  For example,
+ * on some architectures, atomicity for unaligned loads will depend on
+ * whether or not the load spans multiple cache lines.
+ */
+#define	ASSERT_ATOMIC_LOAD_PTR(var, msg)				\
+	KASSERT(sizeof(var) == sizeof(void *) &&			\
+	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
 
 /*
  * XXX the hints declarations are even more misplaced than most declarations

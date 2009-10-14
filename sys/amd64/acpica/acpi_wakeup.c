@@ -31,13 +31,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/smp.h>
-#include <sys/types.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -46,11 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
-#include <machine/vmparam.h>
 
 #ifdef SMP
 #include <machine/apicreg.h>
 #include <machine/smp.h>
+#include <machine/vmparam.h>
 #endif
 
 #include <contrib/dev/acpica/include/acpi.h>
@@ -62,10 +60,6 @@ __FBSDID("$FreeBSD$");
 
 /* Make sure the code is less than a page and leave room for the stack. */
 CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
-
-#ifndef _SYS_CDEFS_H_
-#error this file needs sys/cdefs.h as a prerequisite
-#endif
 
 extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
@@ -79,7 +73,7 @@ static struct xpcb	*stopxpcbs;
 int			acpi_restorecpu(struct xpcb *, vm_offset_t);
 int			acpi_savecpu(struct xpcb *);
 
-static void		acpi_alloc_wakeup_handler(void);
+static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
 
 #ifdef SMP
@@ -322,49 +316,50 @@ out:
 	return (ret);
 }
 
-static vm_offset_t	acpi_wakeaddr;
-
-static void
+static void *
 acpi_alloc_wakeup_handler(void)
 {
 	void		*wakeaddr;
 
-	if (!cold)
-		return;
-
 	/*
 	 * Specify the region for our wakeup code.  We want it in the low 1 MB
-	 * region, excluding video memory and above (0xa0000).  We ask for
-	 * it to be page-aligned, just to be safe.
+	 * region, excluding real mode IVT (0-0x3ff), BDA (0x400-0x4ff), EBDA
+	 * (less than 128KB, below 0xa0000, must be excluded by SMAP and DSDT),
+	 * and ROM area (0xa0000 and above).  The temporary page tables must be
+	 * page-aligned.
 	 */
-	wakeaddr = contigmalloc(4 * PAGE_SIZE, M_DEVBUF, M_NOWAIT, 0, 0x9ffff,
-	    PAGE_SIZE, 0ul);
+	wakeaddr = contigmalloc(4 * PAGE_SIZE, M_DEVBUF, M_NOWAIT, 0x500,
+	    0xa0000, PAGE_SIZE, 0ul);
 	if (wakeaddr == NULL) {
 		printf("%s: can't alloc wake memory\n", __func__);
-		return;
+		return (NULL);
 	}
 	stopxpcbs = malloc(mp_ncpus * sizeof(*stopxpcbs), M_DEVBUF, M_NOWAIT);
 	if (stopxpcbs == NULL) {
 		contigfree(wakeaddr, 4 * PAGE_SIZE, M_DEVBUF);
 		printf("%s: can't alloc CPU state memory\n", __func__);
-		return;
+		return (NULL);
 	}
-	acpi_wakeaddr = (vm_offset_t)wakeaddr;
-}
 
-SYSINIT(acpiwakeup, SI_SUB_KMEM, SI_ORDER_ANY, acpi_alloc_wakeup_handler, 0);
+	return (wakeaddr);
+}
 
 void
 acpi_install_wakeup_handler(struct acpi_softc *sc)
 {
+	static void	*wakeaddr = NULL;
 	uint64_t	*pt4, *pt3, *pt2;
 	int		i;
 
-	if (acpi_wakeaddr == 0ul)
+	if (wakeaddr != NULL)
 		return;
 
-	sc->acpi_wakeaddr = acpi_wakeaddr;
-	sc->acpi_wakephys = vtophys(acpi_wakeaddr);
+	wakeaddr = acpi_alloc_wakeup_handler();
+	if (wakeaddr == NULL)
+		return;
+
+	sc->acpi_wakeaddr = (vm_offset_t)wakeaddr;
+	sc->acpi_wakephys = vtophys(wakeaddr);
 
 	bcopy(wakecode, (void *)WAKECODE_VADDR(sc), sizeof(wakecode));
 
@@ -390,7 +385,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	WAKECODE_FIXUP(wakeup_sfmask, uint64_t, rdmsr(MSR_SF_MASK));
 
 	/* Build temporary page tables below realmode code. */
-	pt4 = (uint64_t *)acpi_wakeaddr;
+	pt4 = wakeaddr;
 	pt3 = pt4 + (PAGE_SIZE) / sizeof(uint64_t);
 	pt2 = pt3 + (PAGE_SIZE) / sizeof(uint64_t);
 

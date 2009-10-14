@@ -480,14 +480,6 @@ g_io_deliver(struct bio *bp, int error)
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	pp = bp->bio_to;
 	KASSERT(pp != NULL, ("NULL bio_to in g_io_deliver"));
-#ifdef DIAGNOSTIC
-	KASSERT(bp->bio_caller1 == bp->_bio_caller1,
-	    ("bio_caller1 used by the provider %s", pp->name));
-	KASSERT(bp->bio_caller2 == bp->_bio_caller2,
-	    ("bio_caller2 used by the provider %s", pp->name));
-	KASSERT(bp->bio_cflags == bp->_bio_cflags,
-	    ("bio_cflags used by the provider %s", pp->name));
-#endif
 	cp = bp->bio_from;
 	if (cp == NULL) {
 		bp->bio_error = error;
@@ -496,6 +488,21 @@ g_io_deliver(struct bio *bp, int error)
 	}
 	KASSERT(cp != NULL, ("NULL bio_from in g_io_deliver"));
 	KASSERT(cp->geom != NULL, ("NULL bio_from->geom in g_io_deliver"));
+#ifdef DIAGNOSTIC
+	/*
+	 * Some classes - GJournal in particular - can modify bio's
+	 * private fields while the bio is in transit; G_GEOM_VOLATILE_BIO
+	 * flag means it's an expected behaviour for that particular geom.
+	 */
+	if ((cp->geom->flags & G_GEOM_VOLATILE_BIO) == 0) {
+		KASSERT(bp->bio_caller1 == bp->_bio_caller1,
+		    ("bio_caller1 used by the provider %s", pp->name));
+		KASSERT(bp->bio_caller2 == bp->_bio_caller2,
+		    ("bio_caller2 used by the provider %s", pp->name));
+		KASSERT(bp->bio_cflags == bp->_bio_cflags,
+		    ("bio_cflags used by the provider %s", pp->name));
+	}
+#endif
 	KASSERT(bp->bio_completed >= 0, ("bio_completed can't be less than 0"));
 	KASSERT(bp->bio_completed <= bp->bio_length,
 	    ("bio_completed can't be greater than bio_length"));
@@ -560,7 +567,7 @@ g_io_schedule_down(struct thread *tp __unused)
 		if (bp == NULL) {
 			CTR0(KTR_GEOM, "g_down going to sleep");
 			msleep(&g_wait_down, &g_bio_run_down.bio_queue_lock,
-			    PRIBIO | PDROP, "-", hz/10);
+			    PRIBIO | PDROP, "-", 0);
 			continue;
 		}
 		CTR0(KTR_GEOM, "g_down has work to do");
@@ -665,7 +672,7 @@ g_io_schedule_up(struct thread *tp __unused)
 		}
 		CTR0(KTR_GEOM, "g_up going to sleep");
 		msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
-		    PRIBIO | PDROP, "-", hz/10);
+		    PRIBIO | PDROP, "-", 0);
 	}
 }
 

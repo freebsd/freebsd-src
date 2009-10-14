@@ -28,11 +28,12 @@
 .\"	@(#)pathconf.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2009
+.Dd July 7, 2009
 .Dt PATHCONF 2
 .Os
 .Sh NAME
 .Nm pathconf ,
+.Nm lpathconf ,
 .Nm fpathconf
 .Nd get configurable pathname variables
 .Sh LIBRARY
@@ -42,10 +43,13 @@
 .Ft long
 .Fn pathconf "const char *path" "int name"
 .Ft long
+.Fn lpathconf "const char *path" "int name"
+.Ft long
 .Fn fpathconf "int fd" "int name"
 .Sh DESCRIPTION
 The
-.Fn pathconf
+.Fn pathconf ,
+.Fn lpathconf
 and
 .Fn fpathconf
 system calls provide a method for applications to determine the current
@@ -53,7 +57,9 @@ value of a configurable system limit or option variable associated
 with a pathname or file descriptor.
 .Pp
 For
-.Fn pathconf ,
+.Fn pathconf
+and
+.Fn lpathconf ,
 the
 .Fa path
 argument is the name of a file or directory.
@@ -67,6 +73,18 @@ The
 argument specifies the system variable to be queried.
 Symbolic constants for each name value are found in the include file
 .Li <unistd.h> .
+.Pp
+The
+.Fn lpathconf
+system call is like
+.Fn pathconf
+except in the case where the named file is a symbolic link,
+in which case
+.Fn lpathconf
+returns information about the link,
+while
+.Fn pathconf
+returns information about the file the link references.
 .Pp
 The available values are as follows:
 .Pp
@@ -239,3 +257,7 @@ and
 .Fn fpathconf
 system calls first appeared in
 .Bx 4.4 .
+The
+.Fn lpathconf
+system call first appeared in
+.Fx 8.0 .

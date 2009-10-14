@@ -72,10 +72,7 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
 #include <curses.h>
 #endif
 
-#ifdef HAS_CTYPE
 #include <ctype.h>
-#endif
-
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -83,6 +80,7 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
 #include <errno.h>
 #include <string.h>
 #include <pwd.h>
+#include <locale.h>
 
 #ifdef HAS_SYS_WAIT
 #include <sys/wait.h>
@@ -100,9 +98,7 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
 #include <unistd.h>
 #endif
 
-
 #ifndef NO_CATGETS
-#include <locale.h>
 #include <nl_types.h>
 
 nl_catd catalog;
@@ -726,7 +722,7 @@ int character;			/* new character			*/
 	}
 	*point = character;	/* insert new character			*/
 	wclrtoeol(text_win);
-	if (((character >= 0) && (character < ' ')) || (character >= 127)) /* check for TAB character*/
+	if (!isprint((unsigned char)character)) /* check for TAB character*/
 	{
 		scr_pos = scr_horz += out_char(text_win, character, scr_horz);
 		point++;
@@ -734,7 +730,7 @@ int character;			/* new character			*/
 	}
 	else
 	{
-		waddch(text_win, character);
+		waddch(text_win, (unsigned char)character);
 		scr_pos = ++scr_horz;
 		point++;
 		position ++;
@@ -969,17 +965,17 @@ int column;
 		}
 		else
 		{
-			waddch(window, (char)character );
+			waddch(window, (unsigned char)character );
 			return(1);
 		}
 	}
 	else
 	{
-		waddch(window, (char)character);
+		waddch(window, (unsigned char)character);
 		return(1);
 	}
 	for (i2 = 0; (string[i2] != '\0') && (((column+i2+1)-horiz_offset) < last_col); i2++)
-		waddch(window, string[i2]);
+		waddch(window, (unsigned char)string[i2]);
 	return(strlen(string));
 }
 
@@ -1044,7 +1040,7 @@ int length;	/* length (in bytes) of line			*/
 	wclrtoeol(text_win);
 	while ((posit < length) && (column <= last_col))
 	{
-		if ((*temp < 32) || (*temp >= 127))
+		if (!isprint(*temp))
 		{
 			column += len_char(*temp, abs_column);
 			abs_column += out_char(text_win, *temp, abs_column);
@@ -1923,13 +1919,13 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 			}
 			*nam_str = in;
 			g_pos++;
-			if (((in < ' ') || (in > 126)) && (g_horz < (last_col - 1)))
+			if (!isprint((unsigned char)in) && (g_horz < (last_col - 1)))
 				g_horz += out_char(com_win, in, g_horz);
 			else
 			{
 				g_horz++;
 				if (g_horz < (last_col - 1))
-					waddch(com_win, in);
+					waddch(com_win, (unsigned char)in);
 			}
 			nam_str++;
 		}
@@ -1974,7 +1970,7 @@ int sensitive;
 		}
 		else
 		{
-			if (toupper(*strng1) != toupper(*strng2))
+			if (toupper((unsigned char)*strng1) != toupper((unsigned char)*strng2))
 				equal = FALSE;
 		}
 		strng1++;
@@ -2446,7 +2442,7 @@ int noverify;
 	if ((text_changes) && (!noverify))
 	{
 		ans = get_string(changes_made_prompt, TRUE);
-		if (toupper(*ans) == toupper(*yes_char))
+		if (toupper((unsigned char)*ans) == toupper((unsigned char)*yes_char))
 			text_changes = FALSE;
 		else
 			return(0);
@@ -2523,7 +2519,7 @@ int warn_if_exists;
 		if ((temp_fp = fopen(file_name, "r")))
 		{
 			tmp_point = get_string(file_exists_prompt, TRUE);
-			if (toupper(*tmp_point) == toupper(*yes_char))
+			if (toupper((unsigned char)*tmp_point) == toupper((unsigned char)*yes_char))
 				write_flag = TRUE;
 			else 
 				write_flag = FALSE;
@@ -3438,14 +3434,13 @@ struct menu_entries menu_list[];
 		if (input == -1)
 			exit(0);
 
-		if (((tolower(input) >= 'a') && (tolower(input) <= 'z')) || 
-		    ((input >= '0') && (input <= '9')))
+		if (isascii(input) && isalnum(input))
 		{
-			if ((tolower(input) >= 'a') && (tolower(input) <= 'z'))
+			if (isalpha(input))
 			{
 				temp = 1 + tolower(input) - 'a';
 			}
-			else if ((input >= '0') && (input <= '9'))
+			else if (isdigit(input))
 			{
 				temp = (2 + 'z' - 'a') + (input - '0');
 			}
@@ -5085,8 +5080,8 @@ strings_init()
 {
 	int counter;
 
-#ifndef NO_CATGETS
 	setlocale(LC_ALL, "");
+#ifndef NO_CATGETS
 	catalog = catopen("ee", NL_CAT_LOCALE);
 #endif /* NO_CATGETS */
 

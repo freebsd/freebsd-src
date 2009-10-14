@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -68,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/vnet.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
@@ -359,7 +357,6 @@ bootpboot_p_tree(struct radix_node *rn)
 void
 bootpboot_p_rtlist(void)
 {
-	INIT_VNET_NET(curvnet);
 	struct radix_node_head *rnh;
 
 	printf("Routing table:\n");
@@ -388,12 +385,11 @@ bootpboot_p_if(struct ifnet *ifp, struct ifaddr *ifa)
 void
 bootpboot_p_iflist(void)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
 	printf("Interface list:\n");
-	IFNET_RLOCK(); /* could sleep, but okay for debugging XXX */
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet);
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
@@ -1598,7 +1594,6 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 void
 bootpc_init(void)
 {
-	INIT_VNET_NET(curvnet);
 	struct bootpc_ifcontext *ifctx, *nctx;	/* Interface BOOTP contexts */
 	struct bootpc_globalcontext *gctx; 	/* Global BOOTP context */
 	struct ifnet *ifp;
@@ -1776,6 +1771,13 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 	int authcount;
 	int authver;
 
+#define	RPCPROG_MNT	100005
+#define	RPCMNT_VER1	1
+#define RPCMNT_VER3	3
+#define	RPCMNT_MOUNT	1
+#define	AUTH_SYS	1		/* unix style (uid, gids) */
+#define AUTH_UNIX	AUTH_SYS
+
 	/* XXX honor v2/v3 flags in args->flags? */
 #ifdef BOOTP_NFSV3
 	/* First try NFS v3 */
@@ -1836,7 +1838,7 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 		while (authcount > 0) {
 			if (xdr_int_decode(&m, &authver) != 0)
 				goto bad;
-			if (authver == RPCAUTH_UNIX)
+			if (authver == AUTH_UNIX)
 				authunixok = 1;
 			authcount--;
 		}

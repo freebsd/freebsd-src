@@ -115,6 +115,14 @@ zmutex_destroy(kmutex_t *mp)
 	mp->initialized = B_FALSE;
 }
 
+int
+zmutex_owned(kmutex_t *mp)
+{
+	ASSERT(mp->initialized == B_TRUE);
+
+	return (mp->m_owner == curthread);
+}
+
 void
 mutex_enter(kmutex_t *mp)
 {

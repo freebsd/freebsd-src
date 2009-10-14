@@ -115,7 +115,7 @@ struct mwl_hal_bastream {
 	MWL_HAL_BASTREAM public;	/* public state */
 	uint8_t	stream;			/* stream # */
 	uint8_t	setup;			/* f/w cmd sent */
-	uint8_t ba_type;
+	uint8_t ba_policy;		/* direct/delayed BA policy */
 	uint8_t	tid;
 	uint8_t	paraminfo;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
@@ -578,9 +578,9 @@ mwl_hal_gethwspecs(struct mwl_hal *mh0, struct mwl_hal_hwspec *hw)
 	if (retval == 0) {
 		IEEE80211_ADDR_COPY(hw->macAddr, pCmd->PermanentAddr);
 		hw->wcbBase[0] = le32toh(pCmd->WcbBase0) & 0x0000ffff;
-		hw->wcbBase[1] = le32toh(pCmd->WcbBase1) & 0x0000ffff;
-		hw->wcbBase[2] = le32toh(pCmd->WcbBase2) & 0x0000ffff;
-		hw->wcbBase[3] = le32toh(pCmd->WcbBase3) & 0x0000ffff;
+		hw->wcbBase[1] = le32toh(pCmd->WcbBase1[0]) & 0x0000ffff;
+		hw->wcbBase[2] = le32toh(pCmd->WcbBase1[1]) & 0x0000ffff;
+		hw->wcbBase[3] = le32toh(pCmd->WcbBase1[2]) & 0x0000ffff;
 		hw->rxDescRead = le32toh(pCmd->RxPdRdPtr)& 0x0000ffff;
 		hw->rxDescWrite = le32toh(pCmd->RxPdWrPtr)& 0x0000ffff;
 		hw->regionCode = le16toh(pCmd->RegionCode) & 0x00ff;
@@ -1375,16 +1375,17 @@ mwl_hal_setchannel(struct mwl_hal *mh0, const MWL_HAL_CHANNEL *chan)
 }
 
 static int
-bastream_check_available(struct mwl_hal_priv *mh, int qid,
+bastream_check_available(struct mwl_hal_vap *vap, int qid,
 	const uint8_t Macaddr[IEEE80211_ADDR_LEN],
 	uint8_t Tid, uint8_t ParamInfo)
 {
+	struct mwl_hal_priv *mh = MWLVAP(vap);
 	HostCmd_FW_BASTREAM *pCmd;
 	int retval;
 
 	MWL_HAL_LOCK_ASSERT(mh);
 
-	_CMD_SETUP(pCmd, HostCmd_FW_BASTREAM, HostCmd_CMD_BASTREAM);
+	_VCMD_SETUP(vap, pCmd, HostCmd_FW_BASTREAM, HostCmd_CMD_BASTREAM);
 	pCmd->ActionType = htole32(BaCheckCreateStream);
 	pCmd->BaInfo.CreateParams.BarThrs = htole32(63);
 	pCmd->BaInfo.CreateParams.WindowSize = htole32(64); 
@@ -1395,7 +1396,7 @@ bastream_check_available(struct mwl_hal_priv *mh, int qid,
 	pCmd->BaInfo.CreateParams.QueueId = qid;
 	pCmd->BaInfo.CreateParams.ParamInfo = (uint8_t) ParamInfo;
 #if 0
-	cvtBAFlags(&pCmd->BaInfo.CreateParams.Flags, sp->ba_type, 0);
+	cvtBAFlags(&pCmd->BaInfo.CreateParams.Flags, sp->ba_policy, 0);
 #else
 	pCmd->BaInfo.CreateParams.Flags =
 			  htole32(BASTREAM_FLAG_IMMEDIATE_TYPE)
@@ -1417,11 +1418,11 @@ bastream_check_available(struct mwl_hal_priv *mh, int qid,
 }
 
 const MWL_HAL_BASTREAM *
-mwl_hal_bastream_alloc(struct mwl_hal *mh0, int ba_type,
+mwl_hal_bastream_alloc(struct mwl_hal_vap *vap, int ba_policy,
 	const uint8_t Macaddr[IEEE80211_ADDR_LEN],
 	uint8_t Tid, uint8_t ParamInfo, void *a1, void *a2)
 {
-	struct mwl_hal_priv *mh = MWLPRIV(mh0);
+	struct mwl_hal_priv *mh = MWLVAP(vap);
 	struct mwl_hal_bastream *sp;
 	int s;
 
@@ -1433,7 +1434,7 @@ mwl_hal_bastream_alloc(struct mwl_hal *mh0, int ba_type,
 	}
 	for (s = 0; (mh->mh_bastreams & (1<<s)) == 0; s++)
 		;
-	if (bastream_check_available(mh, s, Macaddr, Tid, ParamInfo)) {
+	if (bastream_check_available(vap, s, Macaddr, Tid, ParamInfo)) {
 		MWL_HAL_UNLOCK(mh);
 		return NULL;
 	}
@@ -1445,7 +1446,7 @@ mwl_hal_bastream_alloc(struct mwl_hal *mh0, int ba_type,
 	sp->tid = Tid;
 	sp->paraminfo = ParamInfo;
 	sp->setup = 0;
-	sp->ba_type = ba_type;
+	sp->ba_policy = ba_policy;
 	MWL_HAL_UNLOCK(mh);
 	return sp != NULL ? &sp->public : NULL;
 }
@@ -1467,22 +1468,24 @@ mwl_hal_bastream_lookup(struct mwl_hal *mh0, int s)
 #endif
 
 int
-mwl_hal_bastream_create(struct mwl_hal *mh0,
+mwl_hal_bastream_create(struct mwl_hal_vap *vap,
 	const MWL_HAL_BASTREAM *s, int BarThrs, int WindowSize, uint16_t seqno)
 {
-	struct mwl_hal_priv *mh = MWLPRIV(mh0);
+	struct mwl_hal_priv *mh = MWLVAP(vap);
 	struct mwl_hal_bastream *sp = __DECONST(struct mwl_hal_bastream *, s);
 	HostCmd_FW_BASTREAM *pCmd;
 	int retval;
 
 	MWL_HAL_LOCK(mh);
-	_CMD_SETUP(pCmd, HostCmd_FW_BASTREAM, HostCmd_CMD_BASTREAM);
+	_VCMD_SETUP(vap, pCmd, HostCmd_FW_BASTREAM, HostCmd_CMD_BASTREAM);
 	pCmd->ActionType = htole32(BaCreateStream);
-	pCmd->BaInfo.CreateParams.BarThrs = htole32(63);//BarThrs;
-	pCmd->BaInfo.CreateParams.WindowSize = htole32(64); /*WindowSize;*/
+	pCmd->BaInfo.CreateParams.BarThrs = htole32(BarThrs);
+	pCmd->BaInfo.CreateParams.WindowSize = htole32(WindowSize);
 	pCmd->BaInfo.CreateParams.IdleThrs = htole32(0x22000);
 	IEEE80211_ADDR_COPY(&pCmd->BaInfo.CreateParams.PeerMacAddr[0],
 	    sp->macaddr);
+	/* XXX proxy STA */
+	memset(&pCmd->BaInfo.CreateParams.StaSrcMacAddr, 0, IEEE80211_ADDR_LEN);
 #if 0
 	pCmd->BaInfo.CreateParams.DialogToken = DialogToken;
 #else
@@ -1494,7 +1497,7 @@ mwl_hal_bastream_create(struct mwl_hal *mh0,
 	/* NB: ResetSeqNo known to be zero */
 	pCmd->BaInfo.CreateParams.StartSeqNo = htole16(seqno);
 #if 0
-	cvtBAFlags(&pCmd->BaInfo.CreateParams.Flags, sp->ba_type, 0);
+	cvtBAFlags(&pCmd->BaInfo.CreateParams.Flags, sp->ba_policy, 0);
 #else
 	pCmd->BaInfo.CreateParams.Flags =
 			  htole32(BASTREAM_FLAG_IMMEDIATE_TYPE)
@@ -1551,7 +1554,8 @@ mwl_hal_bastream_destroy(struct mwl_hal *mh0, const MWL_HAL_BASTREAM *s)
 
 int
 mwl_hal_bastream_get_seqno(struct mwl_hal *mh0,
-	const MWL_HAL_BASTREAM *s, uint16_t *pseqno)
+	const MWL_HAL_BASTREAM *s, const uint8_t Macaddr[IEEE80211_ADDR_LEN],
+	uint16_t *pseqno)
 {
 	struct mwl_hal_priv *mh = MWLPRIV(mh0);
 	struct mwl_hal_bastream *sp = __DECONST(struct mwl_hal_bastream *, s);
@@ -1560,7 +1564,7 @@ mwl_hal_bastream_get_seqno(struct mwl_hal *mh0,
 
 	MWL_HAL_LOCK(mh);
 	_CMD_SETUP(pCmd, HostCmd_GET_SEQNO, HostCmd_CMD_GET_SEQNO);
-	IEEE80211_ADDR_COPY(pCmd->MacAddr, sp->macaddr);
+	IEEE80211_ADDR_COPY(pCmd->MacAddr, Macaddr);
 	pCmd->TID = sp->tid;
 
 	retval = mwlExecuteCmd(mh, HostCmd_CMD_GET_SEQNO);
@@ -1589,6 +1593,82 @@ mwl_hal_getwatchdogbitmap(struct mwl_hal *mh0, uint8_t bitmap[1])
 			bitmap[0] = qid2ba[bitmap[0]];
 	}
 	MWL_HAL_UNLOCK(mh);
+	return retval;
+}
+
+/*
+ * Configure aggressive Ampdu rate mode.
+ */
+int
+mwl_hal_setaggampduratemode(struct mwl_hal *mh0, int mode, int threshold)
+{
+	struct mwl_hal_priv *mh = MWLPRIV(mh0);
+	HostCmd_FW_AMPDU_RETRY_RATEDROP_MODE *pCmd;
+	int retval;
+
+	MWL_HAL_LOCK(mh);
+	_CMD_SETUP(pCmd, HostCmd_FW_AMPDU_RETRY_RATEDROP_MODE,
+		HostCmd_CMD_AMPDU_RETRY_RATEDROP_MODE);
+	pCmd->Action = htole16(1);
+	pCmd->Option = htole32(mode);
+	pCmd->Threshold = htole32(threshold);
+
+	retval = mwlExecuteCmd(mh, HostCmd_CMD_AMPDU_RETRY_RATEDROP_MODE);
+	MWL_HAL_UNLOCK(mh);   
+	return retval;
+}
+
+int
+mwl_hal_getaggampduratemode(struct mwl_hal *mh0, int *mode, int *threshold)
+{
+	struct mwl_hal_priv *mh = MWLPRIV(mh0);
+	HostCmd_FW_AMPDU_RETRY_RATEDROP_MODE *pCmd;
+	int retval;
+
+	MWL_HAL_LOCK(mh);
+	_CMD_SETUP(pCmd, HostCmd_FW_AMPDU_RETRY_RATEDROP_MODE,
+		HostCmd_CMD_AMPDU_RETRY_RATEDROP_MODE);
+	pCmd->Action = htole16(0);
+
+	retval = mwlExecuteCmd(mh, HostCmd_CMD_AMPDU_RETRY_RATEDROP_MODE);
+	MWL_HAL_UNLOCK(mh);   
+	*mode =  le32toh(pCmd->Option);
+	*threshold = le32toh(pCmd->Threshold);
+	return retval;
+}
+
+/*
+ * Set CFEND status Enable/Disable
+ */
+int
+mwl_hal_setcfend(struct mwl_hal *mh0, int ena)
+{
+	struct mwl_hal_priv *mh = MWLPRIV(mh0);
+	HostCmd_CFEND_ENABLE *pCmd;
+	int retval;
+
+	MWL_HAL_LOCK(mh);
+	_CMD_SETUP(pCmd, HostCmd_CFEND_ENABLE,
+		HostCmd_CMD_CFEND_ENABLE);
+	pCmd->Enable = htole32(ena);
+
+	retval = mwlExecuteCmd(mh, HostCmd_CMD_CFEND_ENABLE);
+	MWL_HAL_UNLOCK(mh); 
+	return retval;
+}
+
+int
+mwl_hal_setdwds(struct mwl_hal *mh0, int ena)
+{
+	HostCmd_DWDS_ENABLE *pCmd;
+	struct mwl_hal_priv *mh = MWLPRIV(mh0);
+   	int retval;
+
+	MWL_HAL_LOCK(mh);
+	_CMD_SETUP(pCmd, HostCmd_DWDS_ENABLE, HostCmd_CMD_DWDS_ENABLE);
+	pCmd->Enable = htole32(ena);
+	retval = mwlExecuteCmd(mh, HostCmd_CMD_DWDS_ENABLE);
+  	MWL_HAL_UNLOCK(mh);
 	return retval;
 }
 
@@ -2659,6 +2739,9 @@ mwlcmdname(int cmd)
 	CMD(SET_TIM);
 	CMD(GET_TIM);
 	CMD(GET_SEQNO);
+	CMD(DWDS_ENABLE);
+	CMD(AMPDU_RETRY_RATEDROP_MODE);
+	CMD(CFEND_ENABLE);
 	}
 	snprintf(buf, sizeof(buf), "0x%x", cmd);
 	return buf;

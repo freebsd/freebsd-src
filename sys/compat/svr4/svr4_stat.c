@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/namei.h>
 #include <sys/unistd.h>
 #include <sys/time.h>
 #include <sys/syscallsubr.h>
@@ -669,7 +670,7 @@ svr4_sys_pathconf(td, uap)
 		return (0);
 	default:
 		CHECKALTEXIST(td, uap->path, &path);
-		error = kern_pathconf(td, path, UIO_SYSSPACE, name);
+		error = kern_pathconf(td, path, UIO_SYSSPACE, name, FOLLOW);
 		free(path, M_TEMP);
 		return (error);
 	}

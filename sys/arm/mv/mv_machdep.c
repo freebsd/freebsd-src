@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 
 #include <arm/mv/mvvar.h>	/* XXX eventually this should be eliminated */
+#include <arm/mv/mvwin.h>
 
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
@@ -133,7 +134,9 @@ struct pcpu *pcpup = &__pcpu;
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
 vm_offset_t physical_pages;
+vm_offset_t pmap_bootstrap_lastaddr;
 
+const struct pmap_devmap *pmap_devmap_bootstrap_table;
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
 struct pv_addr irqstack;
@@ -423,8 +426,8 @@ initarm(void *mdp, void *unused __unused)
 		while (1);
 
 	/* Platform-specific initialisation */
-	if (platform_pmap_init() != 0)
-		return (NULL);
+	pmap_bootstrap_lastaddr = MV_BASE - ARM_NOCACHE_KVA_SIZE;
+	pmap_devmap_bootstrap_table = &pmap_devmap[0];
 
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -528,9 +531,9 @@ initarm(void *mdp, void *unused __unused)
 	    L2_TABLE_SIZE_REAL * l2size,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 
-	/* Map allocated stacks and msgbuf */
-	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
-	    freemempos - irqstack.pv_va,
+	/* Map allocated DPCPU, stacks and msgbuf */
+	pmap_map_chunk(l1pagetable, dpcpu.pv_va, dpcpu.pv_pa,
+	    freemempos - dpcpu.pv_va,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	/* Link and map the vector page */

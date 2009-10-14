@@ -39,8 +39,10 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
+#ifndef _MIPS_INCLUDE_PARAM_H_
+#define	_MIPS_INCLUDE_PARAM_H_
+
+#include <machine/_align.h>
 
 #include <sys/cdefs.h>
 #ifdef _KERNEL
@@ -82,12 +84,16 @@
  * data types (int, long, ...).	  The result is u_int and must be cast to
  * any desired pointer type.
  */
-#define	_ALIGNBYTES	7
-#define	_ALIGN(p)	(((u_int)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
-#define	ALIGNED_POINTER(p, t)	((((u_int32_t)(p)) & (sizeof (t) - 1)) == 0)
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
+/*
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ */
+#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -108,6 +114,8 @@
 #define	NBSEG		0x400000	/* bytes/segment */
 #define	SEGOFSET	(NBSEG-1)	/* byte offset into segment */
 #define	SEGSHIFT	22		/* LOG2(NBSEG) */
+
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
 
 /* XXXimp: This has moved to vmparam.h */
 /* Also, this differs from the mips2 definition, but likely is better */
@@ -161,4 +169,4 @@
 #define	DELAY(n)	{ register int N = (n); while (--N > 0); }
 #endif /* !_KERNEL */
 
-#endif /* !_MACHINE_PARAM_H_ */
+#endif /* !_MIPS_INCLUDE_PARAM_H_ */

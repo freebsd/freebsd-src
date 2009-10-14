@@ -18,18 +18,6 @@ if [ -z "$ifn" ]; then
 	return 1
 fi
 
-is_wired_interface()
-{
-	media=`ifconfig $1 2>/dev/null | while read line; do
-		case "$line" in
-		*media:?Ethernet*)
-			echo Ethernet
-			;;
-		esac
-	done`
-	test "$media" = "Ethernet"
-}
-
 is_ndis_interface()
 {
 	case `sysctl -n net.wlan.${1#wlan}.%parent 2>/dev/null` in

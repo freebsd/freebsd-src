@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 #else
 #include <sys/timeout.h>
 #include <sys/pool.h>
@@ -3703,7 +3702,6 @@ static int
 pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
-	INIT_VNET_NET(curvnet);
 
 	/*
 	 * IPv6 is not affected by ip_len/ip_off byte order changes.

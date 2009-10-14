@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.h,v 3.146 2006/07/03 22:59:01 mitr Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.h,v 3.150 2009/06/25 21:27:37 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */
@@ -94,7 +94,7 @@ typedef unsigned long uChar;
 typedef wint_t eChar; /* Can contain any Char value or CHAR_ERR */
 #define CHAR_ERR WEOF /* Pretty please, use bit 31... */
 #define normal_mbtowc(PWC, S, N) rt_mbtowc(PWC, S, N)
-#define reset_mbtowc() mbtowc(NULL, NULL, 0)
+#define reset_mbtowc() IGNORE(mbtowc(NULL, NULL, 0))
 # else
 typedef short Char;
 typedef unsigned short uChar;
@@ -116,6 +116,11 @@ typedef int eChar;
 
 /* Elide unused argument warnings */
 #define USE(a)	(void) (a)
+#define IGNORE(a)	ignore((intptr_t)a)
+static inline void ignore(intptr_t a)
+{
+    USE(a);
+}
 
 /*
  * Return true if the path is absolute
@@ -552,6 +557,7 @@ EXTERN int    havhash IZERO;	/* path hashing is available */
 EXTERN int    editing IZERO;	/* doing filename expansion and line editing */
 EXTERN int    noediting IZERO;	/* initial $term defaulted to noedit */
 EXTERN int    bslash_quote IZERO;/* PWP: tcsh-style quoting?  (in sh.c) */
+EXTERN int    compat_expr IZERO;/* csh-style expressions? */
 EXTERN int    isoutatty IZERO;	/* is SHOUT a tty */
 EXTERN int    isdiagatty IZERO;/* is SHDIAG a tty */
 EXTERN int    is1atty IZERO;	/* is file descriptor 1 a tty (didfds mode) */
@@ -691,13 +697,17 @@ extern struct sigaction parterm;	/* Parents terminate catch */
 /* 31st char bit used for 'ing (not 32nd, we want all values nonnegative) */
 # define	QUOTE		0x40000000
 # define	TRIM		0x3FFFFFFF /* Mask to strip quote bit */
-# define	UNDER		0x20000000 /* Underline flag */
-# define	BOLD		0x10000000 /* Bold flag */
-# define	STANDOUT	0x08000000 /* Standout flag */
-# define	LITERAL		0x04000000 /* Literal character flag */
-# define	ATTRIBUTES	0x3C000000 /* The bits used for attributes */
-# define	INVALID_BYTE	0x00200000 /* Invalid character on input */
-# define	CHAR		0x003FFFFF /* Mask to mask out the character */
+# define	UNDER		0x08000000 /* Underline flag */
+# define	BOLD		0x04000000 /* Bold flag */
+# define	STANDOUT	0x02000000 /* Standout flag */
+# define	LITERAL		0x01000000 /* Literal character flag */
+# define	ATTRIBUTES	0x0F000000 /* The bits used for attributes */
+# define	INVALID_BYTE	0x00800000 /* Invalid character on input */
+# ifdef SOLARIS2
+#  define	CHAR		0x30FFFFFF /* Mask to mask out the character */
+# else
+#  define	CHAR		0x00FFFFFF /* Mask to mask out the character */
+# endif
 #elif defined (SHORT_STRINGS)
 # define	QUOTE 	((Char)	0100000)/* 16nth char bit used for 'ing */
 # define	TRIM		0073777	/* Mask to strip quote/lit bit */

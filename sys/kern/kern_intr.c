@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
@@ -304,9 +305,14 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 
 	if (ie->ie_assign_cpu == NULL)
 		return (EOPNOTSUPP);
+
+	error = priv_check(curthread, PRIV_SCHED_CPUSET_INTR);
+	if (error)
+		return (error);
+
 	/*
-	 * If we have any ithreads try to set their mask first since this
-	 * can fail.
+	 * If we have any ithreads try to set their mask first to verify
+	 * permissions, etc.
 	 */
 	mtx_lock(&ie->ie_lock);
 	if (ie->ie_thread != NULL) {
@@ -323,8 +329,22 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 	} else
 		mtx_unlock(&ie->ie_lock);
 	error = ie->ie_assign_cpu(ie->ie_source, cpu);
-	if (error)
+	if (error) {
+		mtx_lock(&ie->ie_lock);
+		if (ie->ie_thread != NULL) {
+			CPU_ZERO(&mask);
+			if (ie->ie_cpu == NOCPU)
+				CPU_COPY(cpuset_root, &mask);
+			else
+				CPU_SET(cpu, &mask);
+			id = ie->ie_thread->it_thread->td_tid;
+			mtx_unlock(&ie->ie_lock);
+			(void)cpuset_setthread(id, &mask);
+		} else
+			mtx_unlock(&ie->ie_lock);
 		return (error);
+	}
+
 	mtx_lock(&ie->ie_lock);
 	ie->ie_cpu = cpu;
 	mtx_unlock(&ie->ie_lock);

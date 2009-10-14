@@ -46,6 +46,7 @@ CODE {
 
 #
 # Check if given GUID exists in WMI
+# Returns number of instances (max_instace+1) or 0 if guid doesn't exist
 #
 # device_t dev:	Device to probe
 # const char* guid_string: String form of the GUID

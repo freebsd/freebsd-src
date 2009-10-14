@@ -536,25 +536,23 @@ ttydev_poll(struct cdev *dev, int events, struct thread *td)
 	int error, revents = 0;
 
 	error = ttydev_enter(tp);
-	if (error) {
-		/* Don't return the error here, but the event mask. */
-		return (events &
-		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
-	}
+	if (error)
+		return ((events & (POLLIN|POLLRDNORM)) | POLLHUP);
 
 	if (events & (POLLIN|POLLRDNORM)) {
 		/* See if we can read something. */
 		if (ttydisc_read_poll(tp) > 0)
 			revents |= events & (POLLIN|POLLRDNORM);
 	}
-	if (events & (POLLOUT|POLLWRNORM)) {
+
+	if (tp->t_flags & TF_ZOMBIE) {
+		/* Hangup flag on zombie state. */
+		revents |= POLLHUP;
+	} else if (events & (POLLOUT|POLLWRNORM)) {
 		/* See if we can write something. */
 		if (ttydisc_write_poll(tp) > 0)
 			revents |= events & (POLLOUT|POLLWRNORM);
 	}
-	if (tp->t_flags & TF_ZOMBIE)
-		/* Hangup flag on zombie state. */
-		revents |= events & POLLHUP;
 
 	if (revents == 0) {
 		if (events & (POLLIN|POLLRDNORM))
@@ -637,10 +635,16 @@ tty_kqops_write_event(struct knote *kn, long hint)
 	}
 }
 
-static struct filterops tty_kqops_read =
-    { 1, NULL, tty_kqops_read_detach, tty_kqops_read_event };
-static struct filterops tty_kqops_write =
-    { 1, NULL, tty_kqops_write_detach, tty_kqops_write_event };
+static struct filterops tty_kqops_read = {
+	.f_isfd = 1,
+	.f_detach = tty_kqops_read_detach,
+	.f_event = tty_kqops_read_event,
+};
+static struct filterops tty_kqops_write = {
+	.f_isfd = 1,
+	.f_detach = tty_kqops_write_detach,
+	.f_event = tty_kqops_write_event,
+};
 
 static int
 ttydev_kqfilter(struct cdev *dev, struct knote *kn)

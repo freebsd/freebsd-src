@@ -89,13 +89,13 @@ Configure the PMC to increment only if the number of configured
 events measured in a cycle is greater than or equal to
 .Ar value .
 .It Li edge
-Configure the PMC to count the number of deasserted to asserted
+Configure the PMC to count the number of de-asserted to asserted
 transitions of the conditions expressed by the other qualifiers.
 If specified, the counter will increment only once whenever a
 condition becomes true, irrespective of the number of clocks during
 which the condition remains true.
 .It Li inv
-Invert the sense of comparision when the
+Invert the sense of comparison when the
 .Dq Li cmask
 qualifier is present, making the counter increment when the number of
 events per cycle is less than the value specified by the
@@ -584,7 +584,7 @@ Count SSE2 scalar-double instructions.
 .El
 .Pp
 The default is to count SSE packed-single instructions.
-.It Li p6-emon-sse-sse2-inst-retired Op Li ,umask= Ns Ar qualifer
+.It Li p6-emon-sse-sse2-inst-retired Op Li ,umask= Ns Ar qualifier
 .Pq Event D8H , Tn "Pentium M"
 Count the number of SSE instructions retired.
 An additional qualifier can be specified, and can be one of the

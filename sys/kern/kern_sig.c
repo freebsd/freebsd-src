@@ -100,7 +100,7 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 static int	coredump(struct thread *);
 static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
-static int	issignal(struct thread *p);
+static int	issignal(struct thread *td, int stop_allowed);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
@@ -111,8 +111,12 @@ static struct thread *sigtd(struct proc *p, int sig, int prop);
 static void	sigqueue_start(void);
 
 static uma_zone_t	ksiginfo_zone = NULL;
-struct filterops sig_filtops =
-	{ 0, filt_sigattach, filt_sigdetach, filt_signal };
+struct filterops sig_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_sigattach,
+	.f_detach = filt_sigdetach,
+	.f_event = filt_signal,
+};
 
 int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
@@ -158,7 +162,7 @@ SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 
 int sugid_coredump;
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
-    &sugid_coredump, 0, "Enable coredumping set user/group ID processes");
+    &sugid_coredump, 0, "Allow setuid and setgid processes to dump core");
 
 static int	do_coredump = 1;
 SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
@@ -215,6 +219,8 @@ static int sigproptbl[NSIG] = {
         SA_KILL|SA_PROC,		/* SIGUSR1 */
         SA_KILL|SA_PROC,		/* SIGUSR2 */
 };
+
+static void reschedule_signals(struct proc *p, sigset_t block);
 
 static void
 sigqueue_start(void)
@@ -558,12 +564,14 @@ sigqueue_delete_stopmask_proc(struct proc *p)
  * action, the process stops in issignal().
  */
 int
-cursig(struct thread *td)
+cursig(struct thread *td, int stop_allowed)
 {
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	KASSERT(stop_allowed == SIG_STOP_ALLOWED ||
+	    stop_allowed == SIG_STOP_NOT_ALLOWED, ("cursig: stop_allowed"));
 	mtx_assert(&td->td_proc->p_sigacts->ps_mtx, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
-	return (SIGPENDING(td) ? issignal(td) : 0);
+	return (SIGPENDING(td) ? issignal(td, stop_allowed) : 0);
 }
 
 /*
@@ -575,20 +583,11 @@ void
 signotify(struct thread *td)
 {
 	struct proc *p;
-	sigset_t set;
 
 	p = td->td_proc;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	/*
-	 * If our mask changed we may have to move signal that were
-	 * previously masked by all threads to our sigqueue.
-	 */
-	set = p->p_sigqueue.sq_signals;
-	SIGSETNAND(set, td->td_sigmask);
-	if (! SIGISEMPTY(set))
-		sigqueue_move_set(&p->p_sigqueue, &td->td_sigqueue, &set);
 	if (SIGPENDING(td)) {
 		thread_lock(td);
 		td->td_flags |= TDF_NEEDSIGCHK | TDF_ASTPENDING;
@@ -970,24 +969,28 @@ execsigs(struct proc *p)
  *	Manipulate signal mask.
  */
 int
-kern_sigprocmask(td, how, set, oset, old)
-	struct thread *td;
-	int how;
-	sigset_t *set, *oset;
-	int old;
+kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
+    int old)
 {
+	sigset_t new_block, oset1;
+	struct proc *p;
 	int error;
 
-	PROC_LOCK(td->td_proc);
+	p = td->td_proc;
+	PROC_LOCK(p);
 	if (oset != NULL)
 		*oset = td->td_sigmask;
 
 	error = 0;
+	SIGEMPTYSET(new_block);
 	if (set != NULL) {
 		switch (how) {
 		case SIG_BLOCK:
 			SIG_CANTMASK(*set);
+			oset1 = td->td_sigmask;
 			SIGSETOR(td->td_sigmask, *set);
+			new_block = td->td_sigmask;
+			SIGSETNAND(new_block, oset1);
 			break;
 		case SIG_UNBLOCK:
 			SIGSETNAND(td->td_sigmask, *set);
@@ -995,10 +998,13 @@ kern_sigprocmask(td, how, set, oset, old)
 			break;
 		case SIG_SETMASK:
 			SIG_CANTMASK(*set);
+			oset1 = td->td_sigmask;
 			if (old)
 				SIGSETLO(td->td_sigmask, *set);
 			else
 				td->td_sigmask = *set;
+			new_block = td->td_sigmask;
+			SIGSETNAND(new_block, oset1);
 			signotify(td);
 			break;
 		default:
@@ -1006,7 +1012,20 @@ kern_sigprocmask(td, how, set, oset, old)
 			break;
 		}
 	}
-	PROC_UNLOCK(td->td_proc);
+
+	/*
+	 * The new_block set contains signals that were not previously
+	 * blocked, but are blocked now.
+	 *
+	 * In case we block any signal that was not previously blocked
+	 * for td, and process has the signal pending, try to schedule
+	 * signal delivery to some thread that does not block the signal,
+	 * possibly waking it up.
+	 */
+	if (p->p_numthreads != 1)
+		reschedule_signals(p, new_block);
+
+	PROC_UNLOCK(p);
 	return (error);
 }
 
@@ -1191,7 +1210,7 @@ restart:
 		SIG_CANTMASK(td->td_sigmask);
 		SIGDELSET(td->td_sigmask, i);
 		mtx_lock(&ps->ps_mtx);
-		sig = cursig(td);
+		sig = cursig(td, SIG_STOP_ALLOWED);
 		mtx_unlock(&ps->ps_mtx);
 		if (sig)
 			goto out;
@@ -1886,7 +1905,7 @@ sigtd(struct proc *p, int sig, int prop)
 
 	/*
 	 * Check if current thread can handle the signal without
-	 * switching conetxt to another thread.
+	 * switching context to another thread.
 	 */
 	if (curproc == p && !SIGISMEMBER(curthread->td_sigmask, sig))
 		return (curthread);
@@ -1979,17 +1998,9 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	KNOTE_LOCKED(&p->p_klist, NOTE_SIGNAL | sig);
 	prop = sigprop(sig);
 
-	/*
-	 * If the signal is blocked and not destined for this thread, then
-	 * assign it to the process so that we can find it later in the first
-	 * thread that unblocks it.  Otherwise, assign it to this thread now.
-	 */
 	if (td == NULL) {
 		td = sigtd(p, sig, prop);
-		if (SIGISMEMBER(td->td_sigmask, sig))
-			sigqueue = &p->p_sigqueue;
-		else
-			sigqueue = &td->td_sigqueue;
+		sigqueue = &p->p_sigqueue;
 	} else {
 		KASSERT(td->td_proc == p, ("invalid thread"));
 		sigqueue = &td->td_sigqueue;
@@ -2310,18 +2321,28 @@ static void
 sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 {
 	struct thread *td2;
+	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
+	wakeup_swapper = 0;
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
 		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
-		    (td2->td_flags & TDF_SINTR) &&
-		    !TD_IS_SUSPENDED(td2)) {
-			thread_suspend_one(td2);
-		} else {
+		    (td2->td_flags & TDF_SINTR)) {
+			if (td2->td_flags & TDF_SBDRY) {
+				if (TD_IS_SUSPENDED(td2))
+					wakeup_swapper |=
+					    thread_unsuspend_one(td2);
+				if (TD_ON_SLEEPQ(td2))
+					wakeup_swapper |=
+					    sleepq_abort(td2, ERESTART);
+			} else if (!TD_IS_SUSPENDED(td2)) {
+				thread_suspend_one(td2);
+			}
+		} else if (!TD_IS_SUSPENDED(td2)) {
 			if (sending || td != td2)
 				td2->td_flags |= TDF_ASTPENDING;
 #ifdef SMP
@@ -2331,6 +2352,8 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 		}
 		thread_unlock(td2);
 	}
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 int
@@ -2374,6 +2397,62 @@ stopme:
 	return (td->td_xsig);
 }
 
+static void
+reschedule_signals(struct proc *p, sigset_t block)
+{
+	struct sigacts *ps;
+	struct thread *td;
+	int i;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	ps = p->p_sigacts;
+	for (i = 1; !SIGISEMPTY(block); i++) {
+		if (!SIGISMEMBER(block, i))
+			continue;
+		SIGDELSET(block, i);
+		if (!SIGISMEMBER(p->p_siglist, i))
+			continue;
+
+		td = sigtd(p, i, 0);
+		signotify(td);
+		mtx_lock(&ps->ps_mtx);
+		if (p->p_flag & P_TRACED || SIGISMEMBER(ps->ps_sigcatch, i))
+			tdsigwakeup(td, i, SIG_CATCH,
+			    (SIGISMEMBER(ps->ps_sigintr, i) ? EINTR :
+			     ERESTART));
+		mtx_unlock(&ps->ps_mtx);
+	}
+}
+
+void
+tdsigcleanup(struct thread *td)
+{
+	struct proc *p;
+	sigset_t unblocked;
+
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	sigqueue_flush(&td->td_sigqueue);
+	if (p->p_numthreads == 1)
+		return;
+
+	/*
+	 * Since we cannot handle signals, notify signal post code
+	 * about this by filling the sigmask.
+	 *
+	 * Also, if needed, wake up thread(s) that do not block the
+	 * same signals as the exiting thread, since the thread might
+	 * have been selected for delivery and woken up.
+	 */
+	SIGFILLSET(unblocked);
+	SIGSETNAND(unblocked, td->td_sigmask);
+	SIGFILLSET(td->td_sigmask);
+	reschedule_signals(p, unblocked);
+
+}
+
 /*
  * If the current process has received a signal (should be caught or cause
  * termination, should interrupt current syscall), return the signal number.
@@ -2387,13 +2466,13 @@ stopme:
  *		postsig(sig);
  */
 static int
-issignal(td)
-	struct thread *td;
+issignal(struct thread *td, int stop_allowed)
 {
 	struct proc *p;
 	struct sigacts *ps;
+	struct sigqueue *queue;
 	sigset_t sigpending;
-	int sig, prop, newsig;
+	int sig, prop, newsig, signo;
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
@@ -2403,6 +2482,7 @@ issignal(td)
 		int traced = (p->p_flag & P_TRACED) || (p->p_stops & S_SIG);
 
 		sigpending = td->td_sigqueue.sq_signals;
+		SIGSETOR(sigpending, p->p_sigqueue.sq_signals);
 		SIGSETNAND(sigpending, td->td_sigmask);
 
 		if (p->p_flag & P_PPWAIT)
@@ -2423,6 +2503,7 @@ issignal(td)
 		 */
 		if (SIGISMEMBER(ps->ps_sigignore, sig) && (traced == 0)) {
 			sigqueue_delete(&td->td_sigqueue, sig);
+			sigqueue_delete(&p->p_sigqueue, sig);
 			continue;
 		}
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
@@ -2435,12 +2516,18 @@ issignal(td)
 
 			if (sig != newsig) {
 				ksiginfo_t ksi;
+
+				queue = &td->td_sigqueue;
 				/*
 				 * clear old signal.
 				 * XXX shrug off debugger, it causes siginfo to
 				 * be thrown away.
 				 */
-				sigqueue_get(&td->td_sigqueue, sig, &ksi);
+				if (sigqueue_get(queue, sig, &ksi) == 0) {
+					queue = &p->p_sigqueue;
+					signo = sigqueue_get(queue, sig, &ksi);
+					KASSERT(signo == sig, ("signo != sig"));
+				}
 
 				/*
 				 * If parent wants us to take the signal,
@@ -2455,7 +2542,7 @@ issignal(td)
 				 * Put the new signal into td_sigqueue. If the
 				 * signal is being masked, look for other signals.
 				 */
-				SIGADDSET(td->td_sigqueue.sq_signals, sig);
+				SIGADDSET(queue->sq_signals, sig);
 				if (SIGISMEMBER(td->td_sigmask, sig))
 					continue;
 				signotify(td);
@@ -2506,6 +2593,10 @@ issignal(td)
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
+
+				/* Ignore, but do not drop the stop signal. */
+				if (stop_allowed != SIG_STOP_ALLOWED)
+					return (sig);
 				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
@@ -2546,6 +2637,7 @@ issignal(td)
 			return (sig);
 		}
 		sigqueue_delete(&td->td_sigqueue, sig);		/* take the signal! */
+		sigqueue_delete(&p->p_sigqueue, sig);
 	}
 	/* NOTREACHED */
 }
@@ -2592,7 +2684,9 @@ postsig(sig)
 	ps = p->p_sigacts;
 	mtx_assert(&ps->ps_mtx, MA_OWNED);
 	ksiginfo_init(&ksi);
-	sigqueue_get(&td->td_sigqueue, sig, &ksi);
+	if (sigqueue_get(&td->td_sigqueue, sig, &ksi) == 0 &&
+	    sigqueue_get(&p->p_sigqueue, sig, &ksi) == 0)
+		return;
 	ksi.ksi_signo = sig;
 	if (ksi.ksi_code == SI_TIMER)
 		itimer_accept(p, ksi.ksi_timerid, &ksi);

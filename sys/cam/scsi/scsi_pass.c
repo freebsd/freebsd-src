@@ -528,7 +528,8 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * ready), it will save a few cycles if we check for it here.
 	 */
 	if (((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0)
-	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO)
+	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO ||
+	       ccb->ccb_h.func_code == XPT_ATA_IO)
 	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))
 	  || (ccb->ccb_h.func_code == XPT_DEV_MATCH))) {
 

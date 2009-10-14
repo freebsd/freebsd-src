@@ -270,11 +270,7 @@ cpu_fork(td1, p2, td2, flags)
 	/*
 	 * XXX XEN need to check on PSL_USER is handled
 	 */
-#ifdef XEN
-	td2->td_md.md_saved_flags = 0;
-#else	
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
-#endif
 	/*
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
@@ -446,11 +442,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-#ifdef XEN	
-	td->td_md.md_saved_flags = 0;	
-#else
 	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
-#endif
 }
 
 /*
@@ -720,6 +712,39 @@ sf_buf_init(void *arg)
 }
 
 /*
+ * Invalidate the cache lines that may belong to the page, if
+ * (possibly old) mapping of the page by sf buffer exists.  Returns
+ * TRUE when mapping was found and cache invalidated.
+ */
+boolean_t
+sf_buf_invalidate_cache(vm_page_t m)
+{
+	struct sf_head *hash_list;
+	struct sf_buf *sf;
+	boolean_t ret;
+
+	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
+	ret = FALSE;
+	mtx_lock(&sf_buf_lock);
+	LIST_FOREACH(sf, hash_list, list_entry) {
+		if (sf->m == m) {
+			/*
+			 * Use pmap_qenter to update the pte for
+			 * existing mapping, in particular, the PAT
+			 * settings are recalculated.
+			 */
+			pmap_qenter(sf->kva, &m, 1);
+			pmap_invalidate_cache_range(sf->kva, sf->kva +
+			    PAGE_SIZE);
+			ret = TRUE;
+			break;
+		}
+	}
+	mtx_unlock(&sf_buf_lock);
+	return (ret);
+}
+
+/*
  * Get an sf_buf from the freelist.  May block if none are available.
  */
 struct sf_buf *
@@ -787,9 +812,10 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	opte = *ptep;
 #ifdef XEN
        PT_SET_MA(sf->kva, xpmap_ptom(VM_PAGE_TO_PHYS(m)) | pgeflag
-	   | PG_RW | PG_V);
+	   | PG_RW | PG_V | pmap_cache_bits(m->md.pat_mode, 0));
 #else
-	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V |
+	    pmap_cache_bits(m->md.pat_mode, 0);
 #endif
 
 	/*

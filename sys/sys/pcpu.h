@@ -56,12 +56,14 @@ struct thread;
 extern uintptr_t *__start_set_pcpu;
 extern uintptr_t *__stop_set_pcpu;
 
+__asm__(
 #if defined(__arm__)
-__asm__(".section set_pcpu, \"aw\", %progbits");
+	".section set_pcpu, \"aw\", %progbits\n"
 #else
-__asm__(".section set_pcpu, \"aw\", @progbits");
+	".section set_pcpu, \"aw\", @progbits\n"
 #endif
-__asm__(".previous");
+	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
+	"\t.previous");
 
 /*
  * Array of dynamic pcpu base offsets.  Indexed by id.
@@ -183,6 +185,7 @@ extern struct cpuhead cpuhead;
 #ifndef curthread
 #define	curthread	PCPU_GET(curthread)
 #endif
+#define	curvidata	PCPU_GET(vidata)
 
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for

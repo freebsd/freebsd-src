@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-#include <sys/vimage.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -132,7 +131,12 @@ exit1(struct thread *td, int rv)
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	p = td->td_proc;
-	if (p == initproc) {
+	/*
+	 * XXX in case we're rebooting we just let init die in order to
+	 * work around an unsolved stack overflow seen very late during
+	 * shutdown on sparc64 when the gmirror worker process exists.
+	 */ 
+	if (p == initproc && rebooting == 0) {
 		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
@@ -334,11 +338,12 @@ exit1(struct thread *td, int rv)
 			tty_unlock(tp);
 		}
 
-		if (ttyvp != NULL && ttyvp->v_type != VBAD) {
+		if (ttyvp != NULL) {
 			sx_xunlock(&proctree_lock);
-			VOP_LOCK(ttyvp, LK_EXCLUSIVE);
-			VOP_REVOKE(ttyvp, REVOKEALL);
-			VOP_UNLOCK(ttyvp, 0);
+			if (vn_lock(ttyvp, LK_EXCLUSIVE) == 0) {
+				VOP_REVOKE(ttyvp, REVOKEALL);
+				VOP_UNLOCK(ttyvp, 0);
+			}
 			sx_xlock(&proctree_lock);
 		}
 	}
@@ -686,7 +691,6 @@ static void
 proc_reap(struct thread *td, struct proc *p, int *status, int options,
     struct rusage *rusage)
 {
-	INIT_VPROCG(P_TO_VPROCG(p));
 	struct proc *q, *t;
 
 	sx_assert(&proctree_lock, SA_XLOCKED);
@@ -790,9 +794,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	uma_zfree(proc_zone, p);
 	sx_xlock(&allproc_lock);
 	nprocs--;
-#ifdef VIMAGE
-	vprocg->nprocs--;
-#endif
 	sx_xunlock(&allproc_lock);
 }
 
@@ -804,6 +805,7 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	int error, nfound;
 
 	AUDIT_ARG_PID(pid);
+	AUDIT_ARG_VALUE(options);
 
 	q = td->td_proc;
 	if (pid == 0) {

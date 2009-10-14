@@ -78,6 +78,8 @@
         ..
     ..
     cam
+        ata
+        ..
         scsi
         ..
     ..
@@ -106,6 +108,8 @@
         ..
         lmc
         ..
+	mfi
+	..
         mpt
             mpilib
             ..

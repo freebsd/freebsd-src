@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 800100	/* Master, propagated to newvers */
+#define __FreeBSD_version 900002	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
@@ -111,8 +111,6 @@
 #ifndef _KERNEL
 #include <sys/limits.h>
 #endif
-
-#ifndef _NO_NAMESPACE_POLLUTION
 
 #ifndef DEV_BSHIFT
 #define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
@@ -182,11 +180,10 @@
 	((off_t)(db) << DEV_BSHIFT)
 #endif
 
-#endif /* _NO_NAMESPACE_POLLUTION */
-
 #define	PRIMASK	0x0ff
 #define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */
 #define	PDROP	0x200	/* OR'd with pri to stop re-entry of interlock mutex */
+#define	PBDRY	0x400	/* for PCATCH stop is done on the user boundary */
 
 #define	NZERO	0		/* default "nice" */
 

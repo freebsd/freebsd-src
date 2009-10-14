@@ -287,6 +287,7 @@ rt2661_attach(device_t dev, int id)
 		| IEEE80211_C_MONITOR		/* monitor mode */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_WDS		/* 4-address traffic works */
+		| IEEE80211_C_MBSS		/* mesh point link mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
@@ -387,6 +388,8 @@ rt2661_vap_create(struct ieee80211com *ic,
 	case IEEE80211_M_AHDEMO:
 	case IEEE80211_M_MONITOR:
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
+		/* XXXRP: TBD */
 		if (!TAILQ_EMPTY(&ic->ic_vaps)) {
 			if_printf(ifp, "only 1 vap supported\n");
 			return NULL;
@@ -818,7 +821,8 @@ rt2661_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
-		    vap->iv_opmode == IEEE80211_M_IBSS) {
+		    vap->iv_opmode == IEEE80211_M_IBSS ||
+		    vap->iv_opmode == IEEE80211_M_MBSS) {
 			error = rt2661_prepare_beacon(sc, vap);
 			if (error != 0)
 				return error;
@@ -2428,7 +2432,8 @@ rt2661_init_locked(struct rt2661_softc *sc)
 	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
 		tmp |= RT2661_DROP_CTL | RT2661_DROP_VER_ERROR |
 		       RT2661_DROP_ACKCTS;
-		if (ic->ic_opmode != IEEE80211_M_HOSTAP)
+		if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
+		    ic->ic_opmode != IEEE80211_M_MBSS)
 			tmp |= RT2661_DROP_TODS;
 		if (!(ifp->if_flags & IFF_PROMISC))
 			tmp |= RT2661_DROP_NOT_TO_ME;

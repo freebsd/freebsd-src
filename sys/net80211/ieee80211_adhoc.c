@@ -879,7 +879,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			}
 			break;
 		}
-		ic->ic_recv_action(ni, frm, efrm);
+		ic->ic_recv_action(ni, wh, frm, efrm);
 		break;
 	}
 

@@ -194,6 +194,10 @@ vdev_geom_worker(void *arg)
 	zio_t *zio;
 	struct bio *bp;
 
+	thread_lock(curthread);
+	sched_prio(curthread, PRIBIO);
+	thread_unlock(curthread);
+
 	ctx = arg;
 	for (;;) {
 		mtx_lock(&ctx->gc_queue_mtx);
@@ -203,7 +207,7 @@ vdev_geom_worker(void *arg)
 				ctx->gc_state = 2;
 				wakeup_one(&ctx->gc_state);
 				mtx_unlock(&ctx->gc_queue_mtx);
-				kproc_exit(0);
+				kthread_exit();
 			}
 			msleep(&ctx->gc_queue, &ctx->gc_queue_mtx,
 			    PRIBIO | PDROP, "vgeom:io", 0);
@@ -429,7 +433,7 @@ vdev_geom_open_by_guid(vdev_t *vd)
 	if (cp != NULL) {
 		len = strlen(cp->provider->name) + strlen("/dev/") + 1;
 		buf = kmem_alloc(len, KM_SLEEP);
-	
+
 		snprintf(buf, len, "/dev/%s", cp->provider->name);
 		spa_strfree(vd->vdev_path);
 		vd->vdev_path = buf;
@@ -530,8 +534,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	vd->vdev_tsd = ctx;
 	pp = cp->provider;
 
-	kproc_create(vdev_geom_worker, ctx, NULL, 0, 0, "vdev:worker %s",
-	    pp->name);
+	kproc_kthread_add(vdev_geom_worker, ctx, &zfsproc, NULL, 0, 0,
+	    "zfskern", "vdev %s", pp->name);
 
 	/*
 	 * Determine the actual size of the device.
@@ -658,26 +662,6 @@ sendreq:
 static void
 vdev_geom_io_done(zio_t *zio)
 {
-
-	/*																						    
-	 * If the device returned ENXIO, then attempt we should verify if GEOM														
-	 * provider has been removed. If this is the case, then we trigger an														 
-	 * asynchronous removal of the device.																		
-	 */																						   
-	if (zio->io_error == ENXIO) {
-		vdev_t *vd = zio->io_vd;
-		vdev_geom_ctx_t *ctx;
-		struct g_provider *pp = NULL;
-
-		ctx = vd->vdev_tsd;
-		if (ctx != NULL && ctx->gc_consumer != NULL)
-			pp = ctx->gc_consumer->provider;
-
-		if (pp == NULL || (pp->flags & G_PF_ORPHAN)) {
-			vd->vdev_remove_wanted = B_TRUE;
-			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
-		}
-	}
 }
 
 vdev_ops_t vdev_geom_ops = {

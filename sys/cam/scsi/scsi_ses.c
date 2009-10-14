@@ -251,6 +251,9 @@ sesasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 			break;
 		}
 
+		if (cgd->protocol != PROTO_SCSI)
+			break;
+
 		inq_len = cgd->inq_data.additional_length + 4;
 
 		/*

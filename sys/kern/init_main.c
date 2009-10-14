@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/cpuset.h>
-#include <sys/vimage.h>
 
 #include <machine/cpu.h>
 
@@ -285,15 +284,28 @@ restart:
  ***************************************************************************
  */
 static void
-print_caddr_t(void *data __unused)
+print_caddr_t(void *data)
 {
 	printf("%s", (char *)data);
 }
+
+static void
+print_version(void *data __unused)
+{
+	int len;
+
+	/* Strip a trailing newline from version. */
+	len = strlen(version);
+	while (len > 0 && version[len - 1] == '\n')
+		len--;
+	printf("%.*s %s\n", len, version, machine);
+}
+
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
     copyright);
 SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
     trademark);
-SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_caddr_t, version);
+SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
 
 #ifdef WITNESS
 static char wit_warn[] =
@@ -454,12 +466,6 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
 	p->p_ucred->cr_prison = &prison0;
-#ifdef VIMAGE
-	KASSERT(LIST_FIRST(&vimage_head) != NULL, ("vimage_head empty"));
-	P_TO_VIMAGE(p) =  LIST_FIRST(&vimage_head); /* set ucred->cr_vimage */
-	refcount_acquire(&P_TO_VIMAGE(p)->vi_ucredrefc);
-	LIST_FIRST(&vprocg_head)->nprocs++;
-#endif
 #ifdef AUDIT
 	audit_cred_kproc0(p->p_ucred);
 #endif
@@ -499,6 +505,11 @@ proc0_init(void *dummy __unused)
 	pmap_pinit0(vmspace_pmap(&vmspace0));
 	p->p_vmspace = &vmspace0;
 	vmspace0.vm_refcnt = 1;
+
+	/*
+	 * proc0 is not expected to enter usermode, so there is no special
+	 * handling for sv_minuser here, like is done for exec_new_vmspace().
+	 */
 	vm_map_init(&vmspace0.vm_map, p->p_sysent->sv_minuser,
 	    p->p_sysent->sv_maxuser);
 	vmspace0.vm_map.pmap = vmspace_pmap(&vmspace0);

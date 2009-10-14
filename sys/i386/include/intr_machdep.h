@@ -93,7 +93,7 @@ struct pic {
 	void (*pic_resume)(struct pic *);
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
-	void (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
+	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
 	STAILQ_ENTRY(pic) pics;
 };
 

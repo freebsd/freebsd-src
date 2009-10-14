@@ -310,8 +310,13 @@ packets are avoided for proxy buffers.
 .Pp
 .
 .Fn libusb20_tr_get_max_total_length
-function will return the maximum value for the length sum of all
-USB frames associated with an USB transfer.
+function will return the maximum value for the data length sum of all USB
+frames associated with an USB transfer.
+In case of control transfers the value returned does not include the
+length of the SETUP packet, 8 bytes, which is part of frame zero.
+The returned value of this function is always aligned to the maximum
+packet size, wMaxPacketSize, of the endpoint which the USB transfer is
+bound to.
 .
 .Pp
 .

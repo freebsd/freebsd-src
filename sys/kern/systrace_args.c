@@ -3064,6 +3064,14 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* lpathconf */
+	case 513: {
+		struct lpathconf_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* char * */
+		iarg[1] = p->name; /* int */
+		*n_args = 2;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8128,6 +8136,19 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "struct shmid_ds *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* lpathconf */
+	case 513:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "int";
 			break;
 		default:
 			break;

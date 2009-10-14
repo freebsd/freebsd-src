@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/uio.h>
 
+#include <net/vnet.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
 
@@ -197,11 +199,14 @@ clnt_dg_create(
 		return (NULL);
 	}
 
+	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
 		rpc_createerr.cf_stat = RPC_TLIERROR;
 		rpc_createerr.cf_error.re_errno = 0;
+		CURVNET_RESTORE();
 		return (NULL);
 	}
+	CURVNET_RESTORE();
 
 	/*
 	 * Find the receive and the send size
@@ -547,11 +552,13 @@ get_reply:
 		tv -= time_waited;
 
 		if (tv > 0) {
-			if (cu->cu_closing || cu->cu_closed)
+			if (cu->cu_closing || cu->cu_closed) {
 				error = 0;
-			else
+				cr->cr_error = ESHUTDOWN;
+			} else {
 				error = msleep(cr, &cs->cs_lock,
 				    cu->cu_waitflag, cu->cu_waitchan, tv);
+			}
 		} else {
 			error = EWOULDBLOCK;
 		}

@@ -600,8 +600,19 @@ struct icmp6stat {
 };
 
 #ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	ICMP6STAT_ADD(name, val)	V_icmp6stat.name += (val)
 #define	ICMP6STAT_INC(name)		ICMP6STAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_icmp6stat_inc(int statnum);
+#define	KMOD_ICMP6STAT_INC(name)					\
+	kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(u_quad_t))
 #endif
 
 /*
@@ -716,10 +727,11 @@ do { \
 		} \
 } while (/*CONSTCOND*/ 0)
 
-#ifdef VIMAGE_GLOBALS
-extern int	icmp6_rediraccept;	/* accept/process redirects */
-extern int	icmp6_redirtimeout;	/* cache time for redirect routes */
-#endif
+VNET_DECLARE(int, icmp6_rediraccept);	/* accept/process redirects */
+VNET_DECLARE(int, icmp6_redirtimeout);	/* cache time for redirect routes */
+
+#define	V_icmp6_rediraccept	VNET(icmp6_rediraccept)
+#define	V_icmp6_redirtimeout	VNET(icmp6_redirtimeout)
 
 #define ICMP6_NODEINFO_FQDNOK		0x1
 #define ICMP6_NODEINFO_NODEADDROK	0x2

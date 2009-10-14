@@ -509,9 +509,11 @@ main(int argc, char **argv)
       if (!sw.fg)
         setsid();
     } else {
-      /* -direct - STDIN_FILENO gets used by physical_Open */
+      /*
+       * -direct - STDIN_FILENO gets used by physical_Open.  STDOUT_FILENO
+       * *may* get used in exec/pipe mode.
+       */
       prompt_TtyInit(NULL);
-      close(STDOUT_FILENO);
       close(STDERR_FILENO);
     }
   } else {

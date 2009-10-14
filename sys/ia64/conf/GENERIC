@@ -58,6 +58,7 @@ options 	STACK		# stack(9) support
 options 	SYSVMSG		# SYSV-style message queues
 options 	SYSVSEM		# SYSV-style semaphores
 options 	SYSVSHM		# SYSV-style shared memory
+options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	UFS_ACL		# Support for access control lists
 options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	UFS_GJOURNAL	# Enable gjournal-based UFS journaling

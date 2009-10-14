@@ -32,7 +32,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#62 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#63 $
  */
 
 #include <sys/types.h>
@@ -3176,19 +3176,25 @@ print_sock_inet128_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 
 /*
  * socket family           2 bytes
- * path                    104 bytes
+ * path                    (up to) 104 bytes + NULL (NULL terminated string).
  */
 static int
 fetch_sock_unix_tok(tokenstr_t *tok, u_char *buf, int len)
 {
 	int err = 0;
+	u_char *p;
+	int slen;
+
 
 	READ_TOKEN_U_INT16(buf, len, tok->tt.sockunix.family, tok->len, err);
 	if (err)
 		return (-1);
 
-	READ_TOKEN_BYTES(buf, len, tok->tt.sockunix.path, 104, tok->len,
-	    err);
+	/* slen = strnlen((buf + tok->len), 104) + 1; */
+	p = (u_char *)memchr((const void *)(buf + tok->len), '\0', 104);
+	slen = (p ? (int)(p - (buf + tok->len))  : 104) + 1; 
+
+	READ_TOKEN_BYTES(buf, len, tok->tt.sockunix.path, slen, tok->len, err);
 	if (err)
 		return (-1);
 

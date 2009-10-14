@@ -2,7 +2,7 @@
 
 WARNS?=		3
 LIB=		memstat
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 DPADD=		${LIBKVM}
 LDADD=		-lkvm
 SRCS+=		memstat.c

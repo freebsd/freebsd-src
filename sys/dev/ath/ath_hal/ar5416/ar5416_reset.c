@@ -1045,7 +1045,7 @@ ar5416SetResetPowerOn(struct ath_hal *ah)
 static HAL_BOOL
 ar5416SetReset(struct ath_hal *ah, int type)
 {
-    uint32_t tmpReg;
+    uint32_t tmpReg, mask;
 
     /*
      * Force wake
@@ -1091,23 +1091,22 @@ ar5416SetReset(struct ath_hal *ah, int type)
     /* Clear AHB reset */
     OS_REG_WRITE(ah, AR_RC, 0);
 
-   /* Set register and descriptor swapping on 
-    * Bigendian platforms on cold reset 
-    */
-#ifdef __BIG_ENDIAN__
-    if (type == HAL_RESET_COLD) {
-    		uint32_t	mask;
-		
-		HALDEBUG(ah, HAL_DEBUG_RESET,
-		    "%s Applying descriptor swap\n", __func__);
-
-		mask = INIT_CONFIG_STATUS | AR_CFG_SWRD | AR_CFG_SWRG;
+	if (type == HAL_RESET_COLD) {
+		if (isBigEndian()) {
+			/*
+			 * Set CFG, little-endian for register
+			 * and descriptor accesses.
+			 */
+			mask = INIT_CONFIG_STATUS | AR_CFG_SWRD | AR_CFG_SWRG;
 #ifndef AH_NEED_DESC_SWAP
-		mask |= AR_CFG_SWTD;
+			mask |= AR_CFG_SWTD;
 #endif
-		OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+			HALDEBUG(ah, HAL_DEBUG_RESET,
+			    "%s Applying descriptor swap\n", __func__);
+			OS_REG_WRITE(ah, AR_CFG, LE_READ_4(&mask));
+		} else
+			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
-#endif
 
     ar5416InitPLL(ah, AH_NULL);
 

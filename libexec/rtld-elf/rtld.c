@@ -105,7 +105,7 @@ static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
-static Obj_Entry *load_object(const char *, const Obj_Entry *);
+static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *, bool, int *);
 static void objlist_call_init(Objlist *, int *);
@@ -474,6 +474,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
     sym_zero.st_shndx = SHN_UNDEF;
+    sym_zero.st_value = -(uintptr_t)obj_main->relocbase;
 
     if (!libmap_disable)
         libmap_disable = (bool)lm_init(libmap_override);
@@ -991,26 +992,26 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 
     obj = obj_new();
     for (ph = phdr;  ph < phlimit;  ph++) {
+	if (ph->p_type != PT_PHDR)
+	    continue;
+
+	obj->phdr = phdr;
+	obj->phsize = ph->p_memsz;
+	obj->relocbase = (caddr_t)phdr - ph->p_vaddr;
+	break;
+    }
+
+    for (ph = phdr;  ph < phlimit;  ph++) {
 	switch (ph->p_type) {
 
-	case PT_PHDR:
-	    if ((const Elf_Phdr *)ph->p_vaddr != phdr) {
-		_rtld_error("%s: invalid PT_PHDR", path);
-		return NULL;
-	    }
-	    obj->phdr = (const Elf_Phdr *) ph->p_vaddr;
-	    obj->phsize = ph->p_memsz;
-	    break;
-
 	case PT_INTERP:
-	    obj->interp = (const char *) ph->p_vaddr;
+	    obj->interp = (const char *)(ph->p_vaddr + obj->relocbase);
 	    break;
 
 	case PT_LOAD:
 	    if (nsegs == 0) {	/* First load segment */
 		obj->vaddrbase = trunc_page(ph->p_vaddr);
-		obj->mapbase = (caddr_t) obj->vaddrbase;
-		obj->relocbase = obj->mapbase - obj->vaddrbase;
+		obj->mapbase = obj->vaddrbase + obj->relocbase;
 		obj->textsize = round_page(ph->p_vaddr + ph->p_memsz) -
 		  obj->vaddrbase;
 	    } else {		/* Last load segment */
@@ -1021,7 +1022,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 
 	case PT_DYNAMIC:
-	    obj->dynamic = (const Elf_Dyn *) ph->p_vaddr;
+	    obj->dynamic = (const Elf_Dyn *)(ph->p_vaddr + obj->relocbase);
 	    break;
 
 	case PT_TLS:
@@ -1029,7 +1030,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    obj->tlssize = ph->p_memsz;
 	    obj->tlsalign = ph->p_align;
 	    obj->tlsinitsize = ph->p_filesz;
-	    obj->tlsinit = (void*) ph->p_vaddr;
+	    obj->tlsinit = (void*)(ph->p_vaddr + obj->relocbase);
 	    break;
 	}
     }
@@ -1432,7 +1433,8 @@ load_needed_objects(Obj_Entry *first)
 	Needed_Entry *needed;
 
 	for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	    obj1 = needed->obj = load_object(obj->strtab + needed->name, obj);
+	    obj1 = needed->obj = load_object(obj->strtab + needed->name, obj,
+		false);
 	    if (obj1 == NULL && !ld_tracing)
 		return -1;
 	    if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
@@ -1463,7 +1465,7 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, NULL) == NULL)
+	if (load_object(p, NULL, false) == NULL)
 	    return -1;	/* XXX - cleanup */
 	p[len] = savech;
 	p += len;
@@ -1480,7 +1482,7 @@ load_preload_objects(void)
  * on failure.
  */
 static Obj_Entry *
-load_object(const char *name, const Obj_Entry *refobj)
+load_object(const char *name, const Obj_Entry *refobj, int noload)
 {
     Obj_Entry *obj;
     int fd = -1;
@@ -1526,6 +1528,8 @@ load_object(const char *name, const Obj_Entry *refobj)
 	close(fd);
 	return obj;
     }
+    if (noload)
+	return (NULL);
 
     /* First use of this object, so we must map it in */
     obj = do_load_object(fd, name, path, &sb);
@@ -1982,13 +1986,14 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    int result, lockstate, nodelete;
+    int result, lockstate, nodelete, noload;
 
     LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
 	environ = (char **)*get_program_var_addr("environ");
     nodelete = mode & RTLD_NODELETE;
+    noload = mode & RTLD_NOLOAD;
 
     objlist_init(&initlist);
 
@@ -2001,7 +2006,7 @@ dlopen(const char *name, int mode)
 	obj = obj_main;
 	obj->refcount++;
     } else {
-	obj = load_object(name, obj_main);
+	obj = load_object(name, obj_main, noload);
     }
 
     if (obj) {

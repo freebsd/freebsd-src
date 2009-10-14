@@ -51,11 +51,12 @@
 #include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/vnet.h>
+#include <net/flowtable.h>
 
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
@@ -63,7 +64,6 @@
 
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
-#include <netinet/vinet.h>
 
 #include <vm/uma.h>
 
@@ -88,68 +88,18 @@ SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
     &rt_add_addr_allfibs, 0, "");
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
-#ifdef VIMAGE_GLOBALS
-struct radix_node_head	*rt_tables;
-static uma_zone_t	rtzone;		/* Routing table UMA zone. */
-int			rttrash;	/* routes not in table but not freed */
-struct rtstat		rtstat;
-#endif
+VNET_DEFINE(struct radix_node_head *, rt_tables);
+static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
+VNET_DEFINE(struct rtstat, rtstat);
 
-#ifndef VIMAGE_GLOBALS
-struct vnet_rtable {
-	struct radix_node_head *_rt_tables;
-	uma_zone_t		_rtzone;
-	int			_rttrash;
-	struct rtstat		_rtstat;
-};
-
-/* Size guard. See sys/vimage.h. */
-VIMAGE_CTASSERT(SIZEOF_vnet_rtable, sizeof(struct vnet_rtable));
-
-#ifndef VIMAGE
-static struct vnet_rtable vnet_rtable_0;
-#endif
-#endif
- 
-/*
- * Symbol translation macros
- */
-#define	INIT_VNET_RTABLE(vnet) \
-	INIT_FROM_VNET(vnet, VNET_MOD_RTABLE, struct vnet_rtable, vnet_rtable)
-
-#define	VNET_RTABLE(sym)	VSYM(vnet_rtable, sym)
-
-#define	V_rt_tables		VNET_RTABLE(rt_tables)
-#define	V_rtstat		VNET_RTABLE(rtstat)
-#define	V_rttrash		VNET_RTABLE(rttrash)
-#define	V_rtzone		VNET_RTABLE(rtzone)
+#define	V_rt_tables	VNET(rt_tables)
+#define	V_rtzone	VNET(rtzone)
+#define	V_rttrash	VNET(rttrash)
+#define	V_rtstat	VNET(rtstat)
 
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
-static int vnet_route_iattach(const void *);
-#ifdef VIMAGE
-static int vnet_route_idetach(const void *);
-#endif
-
-#ifndef VIMAGE_GLOBALS
-static struct vnet_symmap vnet_rtable_symmap[] = {
-	VNET_SYMMAP(rtable, rt_tables),
-	VNET_SYMMAP(rtable, rtstat),
-	VNET_SYMMAP(rtable, rttrash),
-	VNET_SYMMAP_END
-};
-
-static const vnet_modinfo_t vnet_rtable_modinfo = {
-	.vmi_id		= VNET_MOD_RTABLE,
-	.vmi_name	= "rtable",
-	.vmi_size	= sizeof(struct vnet_rtable),
-	.vmi_symmap	= vnet_rtable_symmap,
-	.vmi_iattach	= vnet_route_iattach,
-#ifdef VIMAGE
-	.vmi_idetach	= vnet_route_idetach
-#endif
-};
-#endif /* !VIMAGE_GLOBALS */
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -192,7 +142,6 @@ SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
 static __inline struct radix_node_head **
 rt_tables_get_rnh_ptr(int table, int fam)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node_head **rnh;
 
 	KASSERT(table >= 0 && table < rt_numfibs, ("%s: table out of bounds.",
@@ -215,6 +164,10 @@ rt_tables_get_rnh(int table, int fam)
 	return (*rt_tables_get_rnh_ptr(table, fam));
 }
 
+/*
+ * route initialization must occur before ip6_init2(), which happenas at
+ * SI_ORDER_MIDDLE.
+ */
 static void
 route_init(void)
 {
@@ -225,18 +178,12 @@ route_init(void)
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
 	rn_init();	/* initialize all zeroes, all ones, mask table */
-
-#ifndef VIMAGE_GLOBALS
-	vnet_mod_register(&vnet_rtable_modinfo);
-#else
-	vnet_route_iattach(NULL);
-#endif
 }
+SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
 
-static int
-vnet_route_iattach(const void *unused __unused)
+static void
+vnet_route_init(const void *unused __unused)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct domain *dom;
 	struct radix_node_head **rnh;
 	int table;
@@ -271,13 +218,13 @@ vnet_route_iattach(const void *unused __unused)
 			}
 		}
 	}
-
-	return (0);
 }
+VNET_SYSINIT(vnet_route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
+    vnet_route_init, 0);
 
 #ifdef VIMAGE
-static int
-vnet_route_idetach(const void *unused __unused)
+static void
+vnet_route_uninit(const void *unused __unused)
 {
 	int table;
 	int fam;
@@ -301,8 +248,9 @@ vnet_route_idetach(const void *unused __unused)
 			}
 		}
 	}
-	return (0);
 }
+VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    vnet_route_uninit, 0);
 #endif
 
 #ifndef _SYS_SYSPROTO_H_
@@ -382,7 +330,6 @@ struct rtentry *
 rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		    u_int fibnum)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node_head *rnh;
 	struct rtentry *rt;
 	struct radix_node *rn;
@@ -452,7 +399,6 @@ done:
 void
 rtfree(struct rtentry *rt)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node_head *rnh;
 
 	KASSERT(rt != NULL,("%s: NULL rt", __func__));
@@ -551,7 +497,6 @@ rtredirect_fib(struct sockaddr *dst,
 	struct sockaddr *src,
 	u_int fibnum)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct rtentry *rt, *rt0 = NULL;
 	int error = 0;
 	short *stat = NULL;
@@ -880,7 +825,6 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 int
 rtexpunge(struct rtentry *rt)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node *rn;
 	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
@@ -987,7 +931,16 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 			    (rt->rt_gateway->sa_len != gateway->sa_len ||
 				memcmp(rt->rt_gateway, gateway, gateway->sa_len)))
 				error = ESRCH;
-			goto done;
+			else {
+				/*
+				 * remove from tree before returning it
+				 * to the caller
+				 */
+				rn = rnh->rnh_deladdr(dst, netmask, rnh);
+				KASSERT(rt == RNTORT(rn), ("radix node disappeared"));
+				goto gwdelete;
+			}
+			
 		}
 		/*
 		 * use the normal delete code to remove
@@ -1005,11 +958,10 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 	 */
 	if ((req == RTM_DELETE) && !rt_mpath_deldup(rto, rt))
 		panic ("rtrequest1: rt_mpath_deldup");
+gwdelete:
 	RT_LOCK(rt);
 	RT_ADDREF(rt);
 	if (req == RTM_DELETE) {
-		INIT_VNET_RTABLE(curvnet);
-
 		rt->rt_flags &= ~RTF_UP;
 		/*
 		 * One more rtentry floating around that is not
@@ -1017,7 +969,6 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 		 * when RTFREE(rt) is eventually called.
 		 */
 		V_rttrash++;
-		
 	}
 	
 nondelete:
@@ -1044,9 +995,11 @@ int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
-	INIT_VNET_RTABLE(curvnet);
 	int error = 0, needlock = 0;
 	register struct rtentry *rt;
+#ifdef FLOWTABLE
+	register struct rtentry *rt0;
+#endif
 	register struct radix_node *rn;
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
@@ -1204,6 +1157,55 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		}
 #endif
 
+#ifdef FLOWTABLE
+		rt0 = NULL;
+		/* XXX
+		 * "flow-table" only support IPv4 at the moment.
+		 */
+#ifdef INET
+		if (dst->sa_family == AF_INET) {
+			rn = rnh->rnh_matchaddr(dst, rnh);
+			if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
+				struct sockaddr *mask;
+				u_char *m, *n;
+				int len;
+				
+				/*
+				 * compare mask to see if the new route is
+				 * more specific than the existing one
+				 */
+				rt0 = RNTORT(rn);
+				RT_LOCK(rt0);
+				RT_ADDREF(rt0);
+				RT_UNLOCK(rt0);
+				/*
+				 * A host route is already present, so 
+				 * leave the flow-table entries as is.
+				 */
+				if (rt0->rt_flags & RTF_HOST) {
+					RTFREE(rt0);
+					rt0 = NULL;
+				} else if (!(flags & RTF_HOST) && netmask) {
+					mask = rt_mask(rt0);
+					len = mask->sa_len;
+					m = (u_char *)mask;
+					n = (u_char *)netmask;
+					while (len-- > 0) {
+						if (*n != *m)
+							break;
+						n++;
+						m++;
+					}
+					if (len == 0 || (*n < *m)) {
+						RTFREE(rt0);
+						rt0 = NULL;
+					}
+				}
+			}
+		}
+#endif
+#endif
+
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
 		/*
@@ -1216,8 +1218,20 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);
+#ifdef FLOWTABLE
+			if (rt0 != NULL)
+				RTFREE(rt0);
+#endif
 			senderr(EEXIST);
+		} 
+#ifdef FLOWTABLE
+		else if (rt0 != NULL) {
+#ifdef INET
+			flowtable_route_flush(V_ip_ft, rt0);
+#endif
+			RTFREE(rt0);
 		}
+#endif
 
 		/*
 		 * If this protocol has something to add to this then
@@ -1550,6 +1564,3 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 		fib = -1;
 	return (rtinit1(ifa, cmd, flags, fib));
 }
-
-/* This must be before ip6_init2(), which is now SI_ORDER_MIDDLE */
-SYSINIT(route, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);

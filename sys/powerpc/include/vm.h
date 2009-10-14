@@ -31,10 +31,12 @@
 
 #include <machine/pte.h>
 
-/* Cache control options. */
-#define	VM_CACHE_INHIBIT		((vm_cache_mode_t)PTE_I)
-#define	VM_CACHE_WRITE_THROUGH		((vm_cache_mode_t)PTE_W)
+/* Memory attributes. */
+#define	VM_MEMATTR_CACHING_INHIBIT	((vm_memattr_t)PTE_I)
+#define	VM_MEMATTR_GUARD		((vm_memattr_t)PTE_G)
+#define	VM_MEMATTR_MEMORY_COHERENCE	((vm_memattr_t)PTE_M)
+#define	VM_MEMATTR_WRITE_THROUGH	((vm_memattr_t)PTE_W)
 
-#define	VM_CACHE_DEFAULT		0
+#define	VM_MEMATTR_DEFAULT		0
 
 #endif /* !_MACHINE_VM_H_ */

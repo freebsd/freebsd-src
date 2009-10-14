@@ -100,6 +100,13 @@ bsrq(u_long mask)
 }
 
 static __inline void
+clflush(u_long addr)
+{
+
+	__asm __volatile("clflush %0" : : "m" (*(char *)addr));
+}
+
+static __inline void
 disable_intr(void)
 {
 	__asm __volatile("cli" : : : "memory");
@@ -264,6 +271,13 @@ static __inline void
 outw(u_int port, u_short data)
 {
 	__asm volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
+}
+
+static __inline void
+mfence(void)
+{
+
+	__asm __volatile("mfence" : : : "memory");
 }
 
 static __inline void
@@ -443,14 +457,14 @@ load_es(u_int sel)
 	__asm __volatile("mov %0,%%es" : : "rm" (sel));
 }
 
-static inline void
+static __inline void
 cpu_monitor(const void *addr, int extensions, int hints)
 {
 	__asm __volatile("monitor;"
 	    : :"a" (addr), "c" (extensions), "d"(hints));
 }
 
-static inline void
+static __inline void
 cpu_mwait(int extensions, int hints)
 {
 	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));

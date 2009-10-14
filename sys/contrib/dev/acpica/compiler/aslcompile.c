@@ -217,11 +217,11 @@ AslCompilerSignon (
             "%s", CompilerId);
     }
 
-    /* Version, build date, copyright, compliance */
+    /* Version, copyright, compliance */
 
     FlPrintFile (FileId,
-        " version %X [%s]\n%s%s\n%s%s\n%s\n",
-        (UINT32) ACPI_CA_VERSION, __DATE__,
+        " version %X\n%s%s\n%s%s\n%s\n",
+        (UINT32) ACPI_CA_VERSION,
         Prefix, CompilerCopyright,
         Prefix, CompilerCompliance,
         Prefix);

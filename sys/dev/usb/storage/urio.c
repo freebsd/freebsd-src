@@ -390,9 +390,6 @@ urio_open(struct usb_fifo *fifo, int fflags)
 {
 	struct urio_softc *sc = usb_fifo_softc(fifo);
 
-	if ((fflags & (FWRITE | FREAD)) != (FWRITE | FREAD)) {
-		return (EACCES);
-	}
 	if (fflags & FREAD) {
 		/* clear stall first */
 		mtx_lock(&sc->sc_mtx);

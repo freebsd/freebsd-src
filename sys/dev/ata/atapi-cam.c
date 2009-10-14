@@ -376,7 +376,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);
 	cpi->base_transfer_speed = 3300;
-	cpi->transport = XPORT_ATA;
+	cpi->transport = XPORT_SPI;
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
@@ -418,6 +418,8 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	    }
 	}
+	cpi->maxio = softc->ata_ch->dma.max_iosize ?
+	    softc->ata_ch->dma.max_iosize : DFLTPHYS;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
@@ -456,7 +458,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	struct ccb_trans_settings *cts = &ccb->cts;
 	cts->protocol = PROTO_SCSI;
 	cts->protocol_version = SCSI_REV_2;
-	cts->transport = XPORT_ATA;
+	cts->transport = XPORT_SPI;
 	cts->transport_version = XPORT_VERSION_UNSPECIFIED;
     	cts->proto_specific.valid = 0;
     	cts->xport_specific.valid = 0;
@@ -666,13 +668,11 @@ action_oom:
     xpt_freeze_simq(sim, /*count*/ 1);
     ccb_h->status = CAM_REQUEUE_REQ;
     xpt_done(ccb);
-    mtx_unlock(&softc->state_lock);
     return;
 
 action_invalid:
     ccb_h->status = CAM_REQ_INVALID;
     xpt_done(ccb);
-    mtx_unlock(&softc->state_lock);
     return;
 }
 

@@ -183,6 +183,11 @@ pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused,
 	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
 	if (pam_err != PAM_SUCCESS)
 		goto err;
+	if (tty == NULL) {
+		PAM_LOG("No PAM_TTY");
+		pam_err = PAM_SERVICE_ERR;
+		goto err;
+	}
 	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		tty = (const char *)tty + strlen(_PATH_DEV);
 	if (*(const char *)tty == '\0')

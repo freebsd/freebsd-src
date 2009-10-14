@@ -456,7 +456,7 @@ lptout(void *arg)
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
-			sc->sc_backoff = sc->sc_backoff > hz/LPTOUTMAX;
+			sc->sc_backoff = hz/LPTOUTMAX;
 		callout_reset(&sc->sc_timer, sc->sc_backoff, lptout, sc);
 	} else
 		sc->sc_state &= ~TOUT;
@@ -624,7 +624,7 @@ lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 		while ((ppb_rstr(ppbus) &
 			(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
-			/* wait 1/4 second, give up if we get a signal */
+			/* wait 1 second, give up if we get a signal */
 			if (ppb_sleep(ppbus, lptdev, LPPRI | PCATCH, "lpclose",
 			    hz) != EWOULDBLOCK)
 				break;

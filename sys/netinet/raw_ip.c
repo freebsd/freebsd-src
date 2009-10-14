@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
@@ -68,27 +67,26 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_mroute.h>
 
-#include <netinet/vinet.h>
-
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #endif /*IPSEC*/
 
 #include <security/mac/mac_framework.h>
 
-#ifdef VIMAGE_GLOBALS
-struct	inpcbhead ripcb;
-struct	inpcbinfo ripcbinfo;
-#endif
+VNET_DEFINE(struct inpcbhead, ripcb);
+VNET_DEFINE(struct inpcbinfo, ripcbinfo);
+
+#define	V_ripcb			VNET(ripcb)
+#define	V_ripcbinfo		VNET(ripcbinfo)
 
 /*
  * Control and data hooks for ipfw and dummynet.
  * The data hooks are not used here but it is convenient
  * to keep them all in one place.
  */
-int (*ip_fw_ctl_ptr)(struct sockopt *) = NULL;
+VNET_DEFINE(ip_fw_chk_ptr_t, ip_fw_chk_ptr) = NULL;
+VNET_DEFINE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr) = NULL;
 int (*ip_dn_ctl_ptr)(struct sockopt *) = NULL;
-int (*ip_fw_chk_ptr)(struct ip_fw_args *args) = NULL;
 int (*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa) = NULL;
 
 /*
@@ -99,9 +97,7 @@ int (*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa) = NULL;
 /*
  * The socket used to communicate with the multicast routing daemon.
  */
-#ifdef VIMAGE_GLOBALS
-struct socket  *ip_mrouter;
-#endif
+VNET_DEFINE(struct socket *, ip_mrouter);
 
 /*
  * The various mrouter and rsvp functions.
@@ -168,7 +164,6 @@ rip_delhash(struct inpcb *inp)
 static void
 rip_zone_change(void *tag)
 {
-	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_ripcbinfo.ipi_zone, maxsockets);
 }
@@ -185,7 +180,6 @@ rip_inpcb_init(void *mem, int size, int flags)
 void
 rip_init(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	INP_INFO_LOCK_INIT(&V_ripcbinfo, "rip");
 	LIST_INIT(&V_ripcb);
@@ -208,7 +202,6 @@ rip_init(void)
 void
 rip_destroy(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	hashdestroy(V_ripcbinfo.ipi_hashbase, M_PCB,
 	    V_ripcbinfo.ipi_hashmask);
@@ -268,7 +261,6 @@ rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
 void
 rip_input(struct mbuf *m, int off)
 {
-	INIT_VNET_INET(curvnet);
 	struct ifnet *ifp;
 	struct ip *ip = mtod(m, struct ip *);
 	int proto = ip->ip_p;
@@ -398,7 +390,6 @@ rip_input(struct mbuf *m, int off)
 int
 rip_output(struct mbuf *m, struct socket *so, u_long dst)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct ip *ip;
 	int error;
 	struct inpcb *inp = sotoinpcb(so);
@@ -532,8 +523,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_LIST:
 		case IP_FW_NAT_GET_CONFIG:
 		case IP_FW_NAT_GET_LOG:
-			if (ip_fw_ctl_ptr != NULL)
-				error = ip_fw_ctl_ptr(sopt);
+			if (V_ip_fw_ctl_ptr != NULL)
+				error = V_ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
 			break;
@@ -593,8 +584,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_FLUSH:
 		case IP_FW_NAT_CFG:
 		case IP_FW_NAT_DEL:
-			if (ip_fw_ctl_ptr != NULL)
-				error = ip_fw_ctl_ptr(sopt);
+			if (V_ip_fw_ctl_ptr != NULL)
+				error = V_ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
 			break;
@@ -670,7 +661,6 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 void
 rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
-	INIT_VNET_INET(curvnet);
 	struct in_ifaddr *ia;
 	struct ifnet *ifp;
 	int err;
@@ -725,6 +715,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
+		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
 		ifa_free(&ia->ia_ifa);
 		break;
 	}
@@ -741,7 +732,6 @@ SYSCTL_ULONG(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
 static int
 rip_attach(struct socket *so, int proto, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -775,7 +765,6 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 static void
 rip_detach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -815,7 +804,6 @@ rip_dodisconnect(struct socket *so, struct inpcb *inp)
 static void
 rip_abort(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -831,7 +819,6 @@ rip_abort(struct socket *so)
 static void
 rip_close(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -847,7 +834,6 @@ rip_close(struct socket *so)
 static int
 rip_disconnect(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	if ((so->so_state & SS_ISCONNECTED) == 0)
@@ -867,8 +853,6 @@ rip_disconnect(struct socket *so)
 static int
 rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_NET(so->so_vnet);
-	INIT_VNET_INET(so->so_vnet);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
 	struct inpcb *inp;
 	int error;
@@ -903,8 +887,6 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_NET(so->so_vnet);
-	INIT_VNET_INET(so->so_vnet);
 	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
 	struct inpcb *inp;
 
@@ -975,7 +957,6 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 static int
 rip_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;

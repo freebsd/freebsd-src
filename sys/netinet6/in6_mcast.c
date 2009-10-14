@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/ktr.h>
 #include <sys/tree.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -66,9 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/vinet.h>
-#include <netinet6/vinet6.h>
 #include <netinet6/mld6_var.h>
+#include <netinet6/scope6_var.h>
 
 #ifndef KTR_MLD
 #define KTR_MLD KTR_INET6
@@ -1319,7 +1317,6 @@ in6_mc_leave_locked(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 static int
 in6p_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -1482,7 +1479,6 @@ out_in6p_locked:
 static struct ip6_moptions *
 in6p_findmoptions(struct inpcb *inp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_moptions	 *imo;
 	struct in6_multi		**immp;
 	struct in6_mfilter	 *imfp;
@@ -1560,7 +1556,6 @@ ip6_freemoptions(struct ip6_moptions *imo)
 static int
 in6p_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct __msfilterreq	 msfr;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;
@@ -1685,7 +1680,6 @@ in6p_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 int
 ip6_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_moptions	*im6o;
 	int			 error;
 	u_int			 optval;
@@ -1808,7 +1802,6 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p __unused,
 static int
 in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -2055,8 +2048,6 @@ out_in6p_locked:
 static int
 in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct ipv6_mreq		 mreq;
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
@@ -2168,14 +2159,24 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		if (error)
 			return (EADDRNOTAVAIL);
 		/*
+		 * Some badly behaved applications don't pass an ifindex
+		 * or a scope ID, which is an API violation. In this case,
+		 * perform a lookup as per a v6 join.
+		 *
 		 * XXX For now, stomp on zone ID for the corner case.
 		 * This is not the 'KAME way', but we need to see the ifp
 		 * directly until such time as this implementation is
 		 * refactored, assuming the scope IDs are the way to go.
 		 */
 		ifindex = ntohs(gsa->sin6.sin6_addr.s6_addr16[1]);
-		KASSERT(ifindex != 0, ("%s: bad zone ID", __func__));
-		ifp = ifnet_byindex(ifindex);
+		if (ifindex == 0) {
+			CTR2(KTR_MLD, "%s: warning: no ifindex, looking up "
+			    "ifp for group %s.", __func__,
+			    ip6_sprintf(ip6tbuf, &gsa->sin6.sin6_addr));
+			ifp = in6p_lookup_mcast_ifp(inp, &gsa->sin6);
+		} else {
+			ifp = ifnet_byindex(ifindex);
+		}
 		if (ifp == NULL)
 			return (EADDRNOTAVAIL);
 	}
@@ -2292,7 +2293,6 @@ out_in6p_locked:
 static int
 in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet		*ifp;
 	struct ip6_moptions	*imo;
 	u_int			 ifindex;
@@ -2326,7 +2326,6 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 static int
 in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct __msfilterreq	 msfr;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;
@@ -2507,7 +2506,6 @@ out_in6p_locked:
 int
 ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_moptions	*im6o;
 	int			 error;
 
@@ -2615,7 +2613,6 @@ ip6_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 static int
 sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_NET(curvnet);
 	struct in6_addr			 mcaddr;
 	struct in6_addr			 src;
 	struct ifnet			*ifp;

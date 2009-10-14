@@ -32,14 +32,14 @@
 
 #include <machine/specialreg.h>
 
-/* Cache control options. */
-#define	VM_CACHE_UNCACHEABLE		((vm_cache_mode_t)PAT_UNCACHEABLE)
-#define	VM_CACHE_WRITE_COMBINING	((vm_cache_mode_t)PAT_WRITE_COMBINING)
-#define	VM_CACHE_WRITE_THROUGH		((vm_cache_mode_t)PAT_WRITE_THROUGH)
-#define	VM_CACHE_WRITE_PROTECTED	((vm_cache_mode_t)PAT_WRITE_PROTECTED)
-#define	VM_CACHE_WRITE_BACK		((vm_cache_mode_t)PAT_WRITE_BACK)
-#define	VM_CACHE_UNCACHED		((vm_cache_mode_t)PAT_UNCACHED)
+/* Memory attributes. */
+#define	VM_MEMATTR_UNCACHEABLE		((vm_memattr_t)PAT_UNCACHEABLE)
+#define	VM_MEMATTR_WRITE_COMBINING	((vm_memattr_t)PAT_WRITE_COMBINING)
+#define	VM_MEMATTR_WRITE_THROUGH	((vm_memattr_t)PAT_WRITE_THROUGH)
+#define	VM_MEMATTR_WRITE_PROTECTED	((vm_memattr_t)PAT_WRITE_PROTECTED)
+#define	VM_MEMATTR_WRITE_BACK		((vm_memattr_t)PAT_WRITE_BACK)
+#define	VM_MEMATTR_UNCACHED		((vm_memattr_t)PAT_UNCACHED)
 
-#define	VM_CACHE_DEFAULT		VM_CACHE_WRITE_BACK
+#define	VM_MEMATTR_DEFAULT		VM_MEMATTR_WRITE_BACK
 
 #endif /* !_MACHINE_VM_H_ */

@@ -7,7 +7,7 @@ MAN=		bluetooth.3
 WARNS?=		2
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../sys
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 
 SRCS=		bluetooth.c dev.c hci.c
 INCS=		bluetooth.h

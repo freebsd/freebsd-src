@@ -83,9 +83,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sx.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/route.h>
 #include <net/if_llatbl.h>
 #ifdef RADIX_MPATH
@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#include <netinet/vinet.h>
 
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
@@ -108,7 +107,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 
 static struct mtx addrsel_lock;
 #define	ADDRSEL_LOCK_INIT()	mtx_init(&addrsel_lock, "addrsel_lock", NULL, MTX_DEF)
@@ -125,10 +123,10 @@ static struct sx addrsel_sxlock;
 
 #define ADDR_LABEL_NOTAPP (-1)
 
-#ifdef VIMAGE_GLOBALS
-struct in6_addrpolicy defaultaddrpolicy;
-int ip6_prefer_tempaddr;
-#endif
+static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
+VNET_DEFINE(int, ip6_prefer_tempaddr);
+
+#define	V_defaultaddrpolicy		VNET(defaultaddrpolicy)
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -184,7 +182,6 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_addr dst;
 	struct ifnet *ifp = NULL;
 	struct in6_ifaddr *ia = NULL, *ia_best = NULL;
@@ -488,7 +485,6 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro,
     struct ifnet **retifp, struct rtentry **retrt, int norouteok)
 {
-	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	struct ifnet *ifp = NULL;
 	struct rtentry *rt = NULL;
@@ -702,8 +698,25 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (error == EHOSTUNREACH)
 		V_ip6stat.ip6s_noroute++;
 
-	if (retifp != NULL)
+	if (retifp != NULL) {
 		*retifp = ifp;
+
+		/*
+		 * Adjust the "outgoing" interface.  If we're going to loop 
+		 * the packet back to ourselves, the ifp would be the loopback 
+		 * interface. However, we'd rather know the interface associated 
+		 * to the destination address (which should probably be one of 
+		 * our own addresses.)
+		 */
+		if (rt) {
+			if ((rt->rt_ifp->if_flags & IFF_LOOPBACK) &&
+			    (rt->rt_gateway->sa_family == AF_LINK))
+				*retifp = 
+					ifnet_byindex(((struct sockaddr_dl *)
+						       rt->rt_gateway)->sdl_index);
+		}
+	}
+
 	if (retrt != NULL)
 		*retrt = rt;	/* rt may be NULL */
 
@@ -755,16 +768,6 @@ in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		return (flags);
 	}
 
-	/*
-	 * Adjust the "outgoing" interface.  If we're going to loop the packet
-	 * back to ourselves, the ifp would be the loopback interface.
-	 * However, we'd rather know the interface associated to the
-	 * destination address (which should probably be one of our own
-	 * addresses.)
-	 */
-	if (rt && rt->rt_ifa && rt->rt_ifa->ifa_ifp)
-		*retifp = rt->rt_ifa->ifa_ifp;
-
 	if (ro == &sro && rt && rt == sro.ro_rt)
 		RTFREE(rt);
 	return (0);
@@ -793,7 +796,6 @@ in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 int
 in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(curvnet);
 
 	if (in6p && in6p->in6p_hops >= 0)
 		return (in6p->in6p_hops);
@@ -826,7 +828,6 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 int
 in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 {
-	INIT_VNET_INET(curvnet);
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0, first, last, *lastport;
 	int count, error, wild = 0, dorandom;
@@ -928,7 +929,6 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 void
 addrsel_policy_init(void)
 {
-	INIT_VNET_INET6(curvnet);
 
 	V_ip6_prefer_tempaddr = 0;
 
@@ -948,7 +948,6 @@ addrsel_policy_init(void)
 static struct in6_addrpolicy *
 lookup_addrsel_policy(struct sockaddr_in6 *key)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_addrpolicy *match = NULL;
 
 	ADDRSEL_LOCK();
@@ -1035,14 +1034,12 @@ struct addrsel_policyent {
 
 TAILQ_HEAD(addrsel_policyhead, addrsel_policyent);
 
-#ifdef VIMAGE_GLOBALS
-struct addrsel_policyhead addrsel_policytab;
-#endif
+static VNET_DEFINE(struct addrsel_policyhead, addrsel_policytab);
+#define	V_addrsel_policytab		VNET(addrsel_policytab)
 
 static void
 init_policy_queue(void)
 {
-	INIT_VNET_INET6(curvnet);
 
 	TAILQ_INIT(&V_addrsel_policytab);
 }
@@ -1050,7 +1047,6 @@ init_policy_queue(void)
 static int
 add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 {
-	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *new, *pol;
 
 	new = malloc(sizeof(*new), M_IFADDR,
@@ -1086,7 +1082,6 @@ add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 static int
 delete_addrsel_policyent(struct in6_addrpolicy *key)
 {
-	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *pol;
 
 	ADDRSEL_XLOCK();
@@ -1118,7 +1113,6 @@ static int
 walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *),
     void *w)
 {
-	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *pol;
 	int error = 0;
 
@@ -1147,7 +1141,6 @@ dump_addrsel_policyent(struct in6_addrpolicy *pol, void *arg)
 static struct in6_addrpolicy *
 match_addrsel_policy(struct sockaddr_in6 *key)
 {
-	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *pent;
 	struct in6_addrpolicy *bestpol = NULL, *pol;
 	int matchlen, bestmatchlen = -1;

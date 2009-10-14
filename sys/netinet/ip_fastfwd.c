@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/pfil.h>
 #include <net/if.h>
@@ -95,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -103,20 +103,18 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_options.h>
-#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 
-#ifdef VIMAGE_GLOBALS
-static int ipfastforward_active;
-#endif
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, fastforwarding,
-    CTLFLAG_RW, ipfastforward_active, 0, "Enable fast IP forwarding");
+static VNET_DEFINE(int, ipfastforward_active);
+#define	V_ipfastforward_active		VNET(ipfastforward_active)
+
+SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
+    &VNET_NAME(ipfastforward_active), 0, "Enable fast IP forwarding");
 
 static struct sockaddr_in *
 ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
 	struct sockaddr_in *dst;
 	struct rtentry *rt;
 
@@ -153,14 +151,13 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 /*
  * Try to forward a packet based on the destination address.
  * This is a fast path optimized for the plain forwarding case.
- * If the packet is handled (and consumed) here then we return 1;
- * otherwise 0 is returned and the packet should be delivered
+ * If the packet is handled (and consumed) here then we return NULL;
+ * otherwise mbuf is returned and the packet should be delivered
  * to ip_input for full processing.
  */
 struct mbuf *
 ip_fastforward(struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip;
 	struct mbuf *m0 = NULL;
 	struct route ro;
@@ -354,10 +351,11 @@ ip_fastforward(struct mbuf *m)
 	/*
 	 * Run through list of ipfilter hooks for input packets
 	 */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passin;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
+	if (pfil_run_hooks(
+	    &V_inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
 	    m == NULL)
 		goto drop;
 
@@ -441,10 +439,10 @@ passin:
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passout;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
+	if (pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
 		goto drop;
 	}
 

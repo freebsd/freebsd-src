@@ -29,7 +29,7 @@
 #ifndef _MACHINE_VM_H_
 #define	_MACHINE_VM_H_
 
-/* Cache control is not (yet) implemented. */
-#define	VM_CACHE_DEFAULT	0
+/* Memory attribute configuration is not (yet) implemented. */
+#define	VM_MEMATTR_DEFAULT	0
 
 #endif /* !_MACHINE_VM_H_ */

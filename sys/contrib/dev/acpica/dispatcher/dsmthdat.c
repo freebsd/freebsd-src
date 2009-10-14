@@ -548,9 +548,10 @@ AcpiDsMethodDataGetValue (
 
         case ACPI_REFCLASS_LOCAL:
 
-            ACPI_ERROR ((AE_INFO,
-                "Uninitialized Local[%d] at node %p", Index, Node));
-
+            /*
+             * No error message for this case, will be trapped again later to
+             * detect and ignore cases of Store(LocalX,LocalX)
+             */
             return_ACPI_STATUS (AE_AML_UNINITIALIZED_LOCAL);
 
         default:

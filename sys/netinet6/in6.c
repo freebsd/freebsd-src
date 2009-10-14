@@ -79,9 +79,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -103,7 +103,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
-#include <netinet6/vinet6.h>
 
 /*
  * Definitions of some costant IP6 addresses.
@@ -181,7 +180,6 @@ int
 in6_control(struct socket *so, u_long cmd, caddr_t data,
     struct ifnet *ifp, struct thread *td)
 {
-	INIT_VNET_INET6(curvnet);
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
@@ -682,7 +680,6 @@ int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	int error = 0, hostIsNew = 0, plen = -1;
 	struct sockaddr_in6 dst6;
 	struct in6_addrlifetime *lt;
@@ -921,6 +918,10 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	if (hostIsNew && in6if_do_dad(ifp))
 		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
+	/* DAD should be performed after ND6_IFF_IFDISABLED is cleared. */
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+		ia->ia6_flags |= IN6_IFF_TENTATIVE;
+
 	/*
 	 * We are done if we have simply modified an existing address.
 	 */
@@ -958,7 +959,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			 * being configured.  It also means delaying
 			 * transmission of the corresponding MLD report to
 			 * avoid report collision.
-			 * [draft-ietf-ipv6-rfc2462bis-02.txt]
+			 * [RFC 4861, Section 6.3.7]
 			 */
 			delay = arc4random() %
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
@@ -1194,6 +1195,14 @@ in6_purgeaddr(struct ifaddr *ifa)
 		ifa_ref(ifa0);
 	IF_ADDR_UNLOCK(ifp);
 
+	/*
+	 * Remove the loopback route to the interface address.
+	 * The check for the current setting of "nd6_useloopback" 
+	 * is not needed.
+	 */
+	error = ifa_del_loopback_route((struct ifaddr *)ia,
+			       (struct sockaddr *)&ia->ia_addr);
+
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 
@@ -1369,7 +1378,6 @@ cleanup:
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	int	s = splnet();
 
 	IF_ADDR_LOCK(ifp);
@@ -1732,27 +1740,28 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * interface that share the same destination.
 	 */
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
-	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128) {
-		struct sockaddr *dstaddr;
+	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
+	    ia->ia_dstaddr.sin6_family == AF_INET6) {
 		int rtflags = RTF_UP | RTF_HOST;
 
-		/* 
-		 * use the interface address if configuring an
-		 * interface address with a /128 prefix len
-		 */
-		if (ia->ia_dstaddr.sin6_family == AF_INET6)
-			dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
-		else
-			dstaddr = (struct sockaddr *)&ia->ia_addr;
-
 		error = rtrequest(RTM_ADD,
-		    (struct sockaddr *)dstaddr,
+		    (struct sockaddr *)&ia->ia_dstaddr,
 		    (struct sockaddr *)&ia->ia_addr,
 		    (struct sockaddr *)&ia->ia_prefixmask,
 		    ia->ia_flags | rtflags, NULL);
 		if (error != 0)
 			return (error);
 		ia->ia_flags |= IFA_ROUTE;
+	}
+
+	/*
+	 * add a loopback route to self
+	 */
+	if (!(ia->ia_flags & IFA_ROUTE)
+	    && (V_nd6_useloopback
+		|| (ifp->if_flags & IFF_LOOPBACK))) {
+		error = ifa_add_loopback_route((struct ifaddr *)ia,
+				       (struct sockaddr *)&ia->ia_addr);
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
@@ -1918,7 +1927,6 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 int
 in6_localaddr(struct in6_addr *in6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
@@ -1940,7 +1948,6 @@ in6_localaddr(struct in6_addr *in6)
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK();
@@ -2037,7 +2044,6 @@ in6_prefixlen2mask(struct in6_addr *maskp, int len)
 struct in6_ifaddr *
 in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 {
-	INIT_VNET_INET6(curvnet);
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = 0;
@@ -2161,6 +2167,9 @@ in6if_do_dad(struct ifnet *ifp)
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
 		return (0);
 
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+		return (0);
+
 	switch (ifp->if_type) {
 #ifdef IFT_DUMMY
 	case IFT_DUMMY:
@@ -2198,12 +2207,10 @@ in6if_do_dad(struct ifnet *ifp)
 void
 in6_setmaxmtu(void)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 	    ifp = TAILQ_NEXT(ifp, if_list)) {
 		/* this function can be called during ifnet initialization */
@@ -2213,7 +2220,7 @@ in6_setmaxmtu(void)
 		    IN6_LINKMTU(ifp) > maxmtu)
 			maxmtu = IN6_LINKMTU(ifp);
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	if (maxmtu)	     /* update only when maxmtu is positive */
 		V_in6_maxmtu = maxmtu;
 }
@@ -2464,12 +2471,10 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	} ndpc;
 	int i, error;
 
-	/* XXXXX
-	 * current IFNET_RLOCK() is mapped to IFNET_WLOCK()
-	 * so it is okay to use this ASSERT, change it when
-	 * IFNET lock is finalized
-	 */
-	IFNET_WLOCK_ASSERT();
+	if (ifp->if_flags & IFF_LOOPBACK)
+		return 0;
+
+	LLTABLE_LOCK_ASSERT();
 
 	error = 0;
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {

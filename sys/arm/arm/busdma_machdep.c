@@ -630,10 +630,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 			    ((vm_offset_t)*vaddr & PAGE_MASK));
 			newmap->origbuffer = *vaddr;
 			newmap->allocbuffer = tmpaddr;
-			cpu_idcache_wbinv_range((vm_offset_t)*vaddr, 
-			    dmat->maxsize);
-			cpu_l2cache_wbinv_range((vm_offset_t)*vaddr,
-			    dmat->maxsize);
 			*vaddr = tmpaddr;
 		} else
 			newmap->origbuffer = newmap->allocbuffer = NULL;
