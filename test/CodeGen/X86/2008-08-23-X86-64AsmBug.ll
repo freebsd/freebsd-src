@@ -1,6 +1,7 @@
-; RUN: llvm-as < %s | llc -mtriple=x86_64-apple-darwin | grep movd | count 1
-; RUN: llvm-as < %s | llc -mtriple=x86_64-apple-darwin | grep movq
+; RUN: llc < %s -mtriple=x86_64-apple-darwin | grep movd | count 1
+; RUN: llc < %s -mtriple=x86_64-apple-darwin | grep movq
 ; PR2677
+
 
 	%struct.Bigint = type { %struct.Bigint*, i32, i32, i32, i32, [1 x i32] }
 

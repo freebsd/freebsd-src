@@ -52,6 +52,159 @@ namespace llvm {
     EV_CURRENT = 1
   };
 
+  /// ELFSym - This struct contains information about each symbol that is
+  /// added to logical symbol table for the module.  This is eventually
+  /// turned into a real symbol table in the file.
+  struct ELFSym {
+
+    // ELF symbols are related to llvm ones by being one of the two llvm
+    // types, for the other ones (section, file, func) a null pointer is
+    // assumed by default.
+    union {
+      const GlobalValue *GV;  // If this is a pointer to a GV
+      const char *Ext;        // If this is a pointer to a named symbol
+    } Source;
+
+    // Describes from which source type this ELF symbol comes from,
+    // they can be GlobalValue, ExternalSymbol or neither.
+    enum {
+      isGV,      // The Source.GV field is valid.
+      isExtSym,  // The Source.ExtSym field is valid.
+      isOther    // Not a GlobalValue or External Symbol
+    };
+    unsigned SourceType;
+
+    bool isGlobalValue() const { return SourceType == isGV; }
+    bool isExternalSym() const { return SourceType == isExtSym; }
+
+    // getGlobalValue - If this is a global value which originated the
+    // elf symbol, return a reference to it.
+    const GlobalValue *getGlobalValue() const {
+      assert(SourceType == isGV && "This is not a global value");
+      return Source.GV;
+    };
+
+    // getExternalSym - If this is an external symbol which originated the
+    // elf symbol, return a reference to it.
+    const char *getExternalSymbol() const {
+      assert(SourceType == isExtSym && "This is not an external symbol");
+      return Source.Ext;
+    };
+
+    // getGV - From a global value return a elf symbol to represent it
+    static ELFSym *getGV(const GlobalValue *GV, unsigned Bind,
+                         unsigned Type, unsigned Visibility) {
+      ELFSym *Sym = new ELFSym();
+      Sym->Source.GV = GV;
+      Sym->setBind(Bind);
+      Sym->setType(Type);
+      Sym->setVisibility(Visibility);
+      Sym->SourceType = isGV;
+      return Sym;
+    }
+
+    // getExtSym - Create and return an elf symbol to represent an
+    // external symbol
+    static ELFSym *getExtSym(const char *Ext) {
+      ELFSym *Sym = new ELFSym();
+      Sym->Source.Ext = Ext;
+      Sym->setBind(STB_GLOBAL);
+      Sym->setType(STT_NOTYPE);
+      Sym->setVisibility(STV_DEFAULT);
+      Sym->SourceType = isExtSym;
+      return Sym;
+    }
+
+    // getSectionSym - Returns a elf symbol to represent an elf section
+    static ELFSym *getSectionSym() {
+      ELFSym *Sym = new ELFSym();
+      Sym->setBind(STB_LOCAL);
+      Sym->setType(STT_SECTION);
+      Sym->setVisibility(STV_DEFAULT);
+      Sym->SourceType = isOther;
+      return Sym;
+    }
+
+    // getFileSym - Returns a elf symbol to represent the module identifier
+    static ELFSym *getFileSym() {
+      ELFSym *Sym = new ELFSym();
+      Sym->setBind(STB_LOCAL);
+      Sym->setType(STT_FILE);
+      Sym->setVisibility(STV_DEFAULT);
+      Sym->SectionIdx = 0xfff1;  // ELFSection::SHN_ABS;
+      Sym->SourceType = isOther;
+      return Sym;
+    }
+
+    // getUndefGV - Returns a STT_NOTYPE symbol
+    static ELFSym *getUndefGV(const GlobalValue *GV, unsigned Bind) {
+      ELFSym *Sym = new ELFSym();
+      Sym->Source.GV = GV;
+      Sym->setBind(Bind);
+      Sym->setType(STT_NOTYPE);
+      Sym->setVisibility(STV_DEFAULT);
+      Sym->SectionIdx = 0;  //ELFSection::SHN_UNDEF;
+      Sym->SourceType = isGV;
+      return Sym;
+    }
+
+    // ELF specific fields
+    unsigned NameIdx;         // Index in .strtab of name, once emitted.
+    uint64_t Value;
+    unsigned Size;
+    uint8_t Info;
+    uint8_t Other;
+    unsigned short SectionIdx;
+
+    // Symbol index into the Symbol table
+    unsigned SymTabIdx;
+
+    enum {
+      STB_LOCAL = 0,  // Local sym, not visible outside obj file containing def
+      STB_GLOBAL = 1, // Global sym, visible to all object files being combined
+      STB_WEAK = 2    // Weak symbol, like global but lower-precedence
+    };
+
+    enum {
+      STT_NOTYPE = 0,  // Symbol's type is not specified
+      STT_OBJECT = 1,  // Symbol is a data object (variable, array, etc.)
+      STT_FUNC = 2,    // Symbol is executable code (function, etc.)
+      STT_SECTION = 3, // Symbol refers to a section
+      STT_FILE = 4     // Local, absolute symbol that refers to a file
+    };
+
+    enum {
+      STV_DEFAULT = 0,  // Visibility is specified by binding type
+      STV_INTERNAL = 1, // Defined by processor supplements
+      STV_HIDDEN = 2,   // Not visible to other components
+      STV_PROTECTED = 3 // Visible in other components but not preemptable
+    };
+
+    ELFSym() : SourceType(isOther), NameIdx(0), Value(0),
+               Size(0), Info(0), Other(STV_DEFAULT), SectionIdx(0),
+               SymTabIdx(0) {}
+
+    unsigned getBind() const { return (Info >> 4) & 0xf; }
+    unsigned getType() const { return Info & 0xf; }
+    bool isLocalBind() const { return getBind() == STB_LOCAL; }
+    bool isFileType() const { return getType() == STT_FILE; }
+
+    void setBind(unsigned X) {
+      assert(X == (X & 0xF) && "Bind value out of range!");
+      Info = (Info & 0x0F) | (X << 4);
+    }
+
+    void setType(unsigned X) {
+      assert(X == (X & 0xF) && "Type value out of range!");
+      Info = (Info & 0xF0) | X;
+    }
+
+    void setVisibility(unsigned V) {
+      assert(V == (V & 0x3) && "Visibility value out of range!");
+      Other = V;
+    }
+  };
+
   /// ELFSection - This struct contains information about each section that is
   /// emitted to the file.  This is eventually turned into the section header
   /// table at the end of the file.
@@ -117,78 +270,19 @@ namespace llvm {
     /// SectionIdx - The number of the section in the Section Table.
     unsigned short SectionIdx;
 
+    /// Sym - The symbol to represent this section if it has one.
+    ELFSym *Sym;
+
+    /// getSymIndex - Returns the symbol table index of the symbol
+    /// representing this section.
+    unsigned getSymbolTableIndex() const {
+      assert(Sym && "section not present in the symbol table");
+      return Sym->SymTabIdx;
+    }
+
     ELFSection(const std::string &name, bool isLittleEndian, bool is64Bit)
       : BinaryObject(name, isLittleEndian, is64Bit), Type(0), Flags(0), Addr(0),
-        Offset(0), Size(0), Link(0), Info(0), Align(0), EntSize(0) {}
-  };
-
-  /// ELFSym - This struct contains information about each symbol that is
-  /// added to logical symbol table for the module.  This is eventually
-  /// turned into a real symbol table in the file.
-  struct ELFSym {
-    // The global value this corresponds to. Global symbols can be on of the 
-    // 3 types : if this symbol has a zero initializer, it is common or should
-    // be placed in bss section otherwise it's a constant.
-    const GlobalValue *GV;
-    bool IsCommon;
-    bool IsBss;
-    bool IsConstant;
-
-    // ELF specific fields
-    unsigned NameIdx;         // Index in .strtab of name, once emitted.
-    uint64_t Value;
-    unsigned Size;
-    uint8_t Info;
-    uint8_t Other;
-    unsigned short SectionIdx;
-
-    // Symbol index into the Symbol table
-    unsigned SymTabIdx;
-
-    enum { 
-      STB_LOCAL = 0,
-      STB_GLOBAL = 1,
-      STB_WEAK = 2 
-    };
-
-    enum { 
-      STT_NOTYPE = 0,
-      STT_OBJECT = 1,
-      STT_FUNC = 2,
-      STT_SECTION = 3,
-      STT_FILE = 4 
-    };
-
-    enum {
-      STV_DEFAULT = 0,  // Visibility is specified by binding type
-      STV_INTERNAL = 1, // Defined by processor supplements
-      STV_HIDDEN = 2,   // Not visible to other components
-      STV_PROTECTED = 3 // Visible in other components but not preemptable
-    };
-
-    ELFSym(const GlobalValue *gv) : GV(gv), IsCommon(false), IsBss(false),
-                                    IsConstant(false), NameIdx(0), Value(0),
-                                    Size(0), Info(0), Other(STV_DEFAULT),
-                                    SectionIdx(ELFSection::SHN_UNDEF),
-                                    SymTabIdx(0) {}
-
-    unsigned getBind() { return (Info >> 4) & 0xf; }
-    unsigned getType() { return Info & 0xf; }
-
-    void setBind(unsigned X) {
-      assert(X == (X & 0xF) && "Bind value out of range!");
-      Info = (Info & 0x0F) | (X << 4);
-    }
-
-    void setType(unsigned X) {
-      assert(X == (X & 0xF) && "Type value out of range!");
-      Info = (Info & 0xF0) | X;
-    }
-
-    void setVisibility(unsigned V) {
-      assert(V == (V & 0x3) && "Type value out of range!");
-      Other = V;
-    }
+        Offset(0), Size(0), Link(0), Info(0), Align(0), EntSize(0), Sym(0) {}
   };
 
   /// ELFRelocation - This class contains all the information necessary to

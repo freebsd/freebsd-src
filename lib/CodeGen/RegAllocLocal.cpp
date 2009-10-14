@@ -25,6 +25,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/SmallSet.h"
@@ -151,6 +153,7 @@ namespace {
     }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      AU.setPreservesCFG();
       AU.addRequiredID(PHIEliminationID);
       AU.addRequiredID(TwoAddressInstructionPassID);
       MachineFunctionPass::getAnalysisUsage(AU);
@@ -291,11 +294,11 @@ void RALocal::spillVirtReg(MachineBasicBlock &MBB,
   assert(VirtReg && "Spilling a physical register is illegal!"
          " Must not have appropriate kill for the register or use exists beyond"
          " the intended one.");
-  DOUT << "  Spilling register " << TRI->getName(PhysReg)
-       << " containing %reg" << VirtReg;
+  DEBUG(errs() << "  Spilling register " << TRI->getName(PhysReg)
+               << " containing %reg" << VirtReg);
   
   if (!isVirtRegModified(VirtReg)) {
-    DOUT << " which has not been modified, so no store necessary!";
+    DEBUG(errs() << " which has not been modified, so no store necessary!");
     std::pair<MachineInstr*, unsigned> &LastUse = getVirtRegLastUse(VirtReg);
     if (LastUse.first)
       LastUse.first->getOperand(LastUse.second).setIsKill();
@@ -305,7 +308,7 @@ void RALocal::spillVirtReg(MachineBasicBlock &MBB,
     // modified.
     const TargetRegisterClass *RC = MF->getRegInfo().getRegClass(VirtReg);
     int FrameIndex = getStackSpaceFor(VirtReg, RC);
-    DOUT << " to stack slot #" << FrameIndex;
+    DEBUG(errs() << " to stack slot #" << FrameIndex);
     // If the instruction reads the register that's spilled, (e.g. this can
     // happen if it is a move to a physical register), then the spill
     // instruction is not a kill.
@@ -316,7 +319,7 @@ void RALocal::spillVirtReg(MachineBasicBlock &MBB,
 
   getVirt2PhysRegMapSlot(VirtReg) = 0;   // VirtReg no longer available
 
-  DOUT << "\n";
+  DEBUG(errs() << '\n');
   removePhysReg(PhysReg);
 }
 
@@ -505,8 +508,8 @@ MachineInstr *RALocal::reloadVirtReg(MachineBasicBlock &MBB, MachineInstr *MI,
 
   markVirtRegModified(VirtReg, false);   // Note that this reg was just reloaded
 
-  DOUT << "  Reloading %reg" << VirtReg << " into "
-       << TRI->getName(PhysReg) << "\n";
+  DEBUG(errs() << "  Reloading %reg" << VirtReg << " into "
+               << TRI->getName(PhysReg) << "\n");
 
   // Add move instruction(s)
   TII->loadRegFromStackSlot(MBB, MI, PhysReg, FrameIndex, RC);
@@ -517,24 +520,28 @@ MachineInstr *RALocal::reloadVirtReg(MachineBasicBlock &MBB, MachineInstr *MI,
   getVirtRegLastUse(VirtReg) = std::make_pair(MI, OpNum);
 
   if (!ReloadedRegs.insert(PhysReg)) {
-    cerr << "Ran out of registers during register allocation!\n";
+    std::string msg;
+    raw_string_ostream Msg(msg);
+    Msg << "Ran out of registers during register allocation!";
     if (MI->getOpcode() == TargetInstrInfo::INLINEASM) {
-      cerr << "Please check your inline asm statement for invalid "
+      Msg << "\nPlease check your inline asm statement for invalid "
            << "constraints:\n";
-      MI->print(cerr.stream(), TM);
+      MI->print(Msg, TM);
     }
-    exit(1);
+    llvm_report_error(Msg.str());
   }
   for (const unsigned *SubRegs = TRI->getSubRegisters(PhysReg);
        *SubRegs; ++SubRegs) {
     if (!ReloadedRegs.insert(*SubRegs)) {
-      cerr << "Ran out of registers during register allocation!\n";
+      std::string msg;
+      raw_string_ostream Msg(msg);
+      Msg << "Ran out of registers during register allocation!";
       if (MI->getOpcode() == TargetInstrInfo::INLINEASM) {
-        cerr << "Please check your inline asm statement for invalid "
+        Msg << "\nPlease check your inline asm statement for invalid "
              << "constraints:\n";
-        MI->print(cerr.stream(), TM);
+        MI->print(Msg, TM);
       }
-      exit(1);
+      llvm_report_error(Msg.str());
     }
   }
 
@@ -707,8 +714,11 @@ void RALocal::AllocateBasicBlock(MachineBasicBlock &MBB) {
   // loop over each instruction
   MachineBasicBlock::iterator MII = MBB.begin();
   
-  DEBUG(const BasicBlock *LBB = MBB.getBasicBlock();
-        if (LBB) DOUT << "\nStarting RegAlloc of BB: " << LBB->getName());
+  DEBUG({
+      const BasicBlock *LBB = MBB.getBasicBlock();
+      if (LBB)
+        errs() << "\nStarting RegAlloc of BB: " << LBB->getName();
+    });
 
   // Add live-in registers as active.
   for (MachineBasicBlock::livein_iterator I = MBB.livein_begin(),
@@ -733,13 +743,15 @@ void RALocal::AllocateBasicBlock(MachineBasicBlock &MBB) {
   while (MII != MBB.end()) {
     MachineInstr *MI = MII++;
     const TargetInstrDesc &TID = MI->getDesc();
-    DEBUG(DOUT << "\nStarting RegAlloc of: " << *MI;
-          DOUT << "  Regs have values: ";
-          for (unsigned i = 0; i != TRI->getNumRegs(); ++i)
-            if (PhysRegsUsed[i] != -1 && PhysRegsUsed[i] != -2)
-               DOUT << "[" << TRI->getName(i)
-                    << ",%reg" << PhysRegsUsed[i] << "] ";
-          DOUT << "\n");
+    DEBUG({
+        errs() << "\nStarting RegAlloc of: " << *MI;
+        errs() << "  Regs have values: ";
+        for (unsigned i = 0; i != TRI->getNumRegs(); ++i)
+          if (PhysRegsUsed[i] != -1 && PhysRegsUsed[i] != -2)
+            errs() << "[" << TRI->getName(i)
+                   << ",%reg" << PhysRegsUsed[i] << "] ";
+        errs() << '\n';
+      });
 
     // Loop over the implicit uses, making sure that they are at the head of the
     // use order list, so they don't get reallocated.
@@ -783,8 +795,8 @@ void RALocal::AllocateBasicBlock(MachineBasicBlock &MBB) {
             markVirtRegModified(DestVirtReg);
             getVirtRegLastUse(DestVirtReg) =
                    std::make_pair((MachineInstr*)0, 0);
-            DOUT << "  Assigning " << TRI->getName(DestPhysReg)
-                 << " to %reg" << DestVirtReg << "\n";
+            DEBUG(errs() << "  Assigning " << TRI->getName(DestPhysReg)
+                         << " to %reg" << DestVirtReg << "\n");
             MO.setReg(DestPhysReg);  // Assign the earlyclobber register
           } else {
             unsigned Reg = MO.getReg();
@@ -849,15 +861,15 @@ void RALocal::AllocateBasicBlock(MachineBasicBlock &MBB) {
       }
 
       if (PhysReg) {
-        DOUT << "  Last use of " << TRI->getName(PhysReg)
-             << "[%reg" << VirtReg <<"], removing it from live set\n";
+        DEBUG(errs() << "  Last use of " << TRI->getName(PhysReg)
+                     << "[%reg" << VirtReg <<"], removing it from live set\n");
         removePhysReg(PhysReg);
         for (const unsigned *SubRegs = TRI->getSubRegisters(PhysReg);
              *SubRegs; ++SubRegs) {
           if (PhysRegsUsed[*SubRegs] != -2) {
-            DOUT  << "  Last use of "
-                  << TRI->getName(*SubRegs)
-                  << "[%reg" << VirtReg <<"], removing it from live set\n";
+            DEBUG(errs()  << "  Last use of "
+                          << TRI->getName(*SubRegs) << "[%reg" << VirtReg
+                          <<"], removing it from live set\n");
             removePhysReg(*SubRegs);
           }
         }
@@ -942,8 +954,8 @@ void RALocal::AllocateBasicBlock(MachineBasicBlock &MBB) {
         MF->getRegInfo().setPhysRegUsed(DestPhysReg);
         markVirtRegModified(DestVirtReg);
         getVirtRegLastUse(DestVirtReg) = std::make_pair((MachineInstr*)0, 0);
-        DOUT << "  Assigning " << TRI->getName(DestPhysReg)
-             << " to %reg" << DestVirtReg << "\n";
+        DEBUG(errs() << "  Assigning " << TRI->getName(DestPhysReg)
+                     << " to %reg" << DestVirtReg << "\n");
         MO.setReg(DestPhysReg);  // Assign the output register
       }
     }
@@ -965,16 +977,16 @@ void RALocal::AllocateBasicBlock(MachineBasicBlock &MBB) {
       }
 
       if (PhysReg) {
-        DOUT  << "  Register " << TRI->getName(PhysReg)
-              << " [%reg" << VirtReg
-              << "] is never used, removing it from live set\n";
+        DEBUG(errs()  << "  Register " << TRI->getName(PhysReg)
+                      << " [%reg" << VirtReg
+                      << "] is never used, removing it from live set\n");
         removePhysReg(PhysReg);
         for (const unsigned *AliasSet = TRI->getAliasSet(PhysReg);
              *AliasSet; ++AliasSet) {
           if (PhysRegsUsed[*AliasSet] != -2) {
-            DOUT  << "  Register " << TRI->getName(*AliasSet)
-                  << " [%reg" << *AliasSet
-                  << "] is never used, removing it from live set\n";
+            DEBUG(errs()  << "  Register " << TRI->getName(*AliasSet)
+                          << " [%reg" << *AliasSet
+                          << "] is never used, removing it from live set\n");
             removePhysReg(*AliasSet);
           }
         }
@@ -1022,7 +1034,7 @@ void RALocal::AllocateBasicBlock(MachineBasicBlock &MBB) {
 /// runOnMachineFunction - Register allocate the whole function
 ///
 bool RALocal::runOnMachineFunction(MachineFunction &Fn) {
-  DOUT << "Machine Function " << "\n";
+  DEBUG(errs() << "Machine Function\n");
   MF = &Fn;
   TM = &Fn.getTarget();
   TRI = TM->getRegisterInfo();

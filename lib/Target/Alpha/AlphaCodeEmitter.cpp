@@ -19,16 +19,19 @@
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
+#include "llvm/CodeGen/ObjectCodeEmitter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Function.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
-  	
+
   class AlphaCodeEmitter {
     MachineCodeEmitter &MCE;
   public:
@@ -57,7 +60,7 @@ namespace {
   public:
     static char ID;
     explicit Emitter(TargetMachine &tm, CodeEmitter &mce)
-      : MachineFunctionPass(&ID), AlphaCodeEmitter(mce), 
+      : MachineFunctionPass(&ID), AlphaCodeEmitter(mce),
         II(0), TM(tm), MCE(mce) {}
     Emitter(TargetMachine &tm, CodeEmitter &mce, const AlphaInstrInfo& ii)
       : MachineFunctionPass(&ID), AlphaCodeEmitter(mce),
@@ -68,8 +71,6 @@ namespace {
     virtual const char *getPassName() const {
       return "Alpha Machine Code Emitter";
     }
-
-    void emitInstruction(const MachineInstr &MI);
 
   private:
     void emitBasicBlock(MachineBasicBlock &MBB);
@@ -91,6 +92,10 @@ FunctionPass *llvm::createAlphaJITCodeEmitterPass(AlphaTargetMachine &TM,
                                                   JITCodeEmitter &JCE) {
   return new Emitter<JITCodeEmitter>(TM, JCE);
 }
+FunctionPass *llvm::createAlphaObjectCodeEmitterPass(AlphaTargetMachine &TM,
+                                                     ObjectCodeEmitter &OCE) {
+  return new Emitter<ObjectCodeEmitter>(TM, OCE);
+}
 
 template <class CodeEmitter>
 bool Emitter<CodeEmitter>::runOnMachineFunction(MachineFunction &MF) {
@@ -111,6 +116,7 @@ void Emitter<CodeEmitter>::emitBasicBlock(MachineBasicBlock &MBB) {
   for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end();
        I != E; ++I) {
     const MachineInstr &MI = *I;
+    MCE.processDebugLoc(MI.getDebugLoc(), true);
     switch(MI.getOpcode()) {
     default:
       MCE.emitWordLE(getBinaryCodeForInstr(*I));
@@ -119,8 +125,10 @@ void Emitter<CodeEmitter>::emitBasicBlock(MachineBasicBlock &MBB) {
     case Alpha::PCLABEL:
     case Alpha::MEMLABEL:
     case TargetInstrInfo::IMPLICIT_DEF:
+    case TargetInstrInfo::KILL:
       break; //skip these
     }
+    MCE.processDebugLoc(MI.getDebugLoc(), false);
   }
 }
 
@@ -159,13 +167,12 @@ static unsigned getAlphaRegNumber(unsigned Reg) {
   case Alpha::R30 : case Alpha::F30 : return 30;
   case Alpha::R31 : case Alpha::F31 : return 31;
   default:
-    assert(0 && "Unhandled reg");
-    abort();
+    llvm_unreachable("Unhandled reg");
   }
 }
 
 unsigned AlphaCodeEmitter::getMachineOpValue(const MachineInstr &MI,
-                           		             const MachineOperand &MO) {
+                                             const MachineOperand &MO) {
 
   unsigned rv = 0; // Return value; defaults to 0 for unhandled cases
                    // or things that get fixed up later by the JIT.
@@ -175,7 +182,7 @@ unsigned AlphaCodeEmitter::getMachineOpValue(const MachineInstr &MI,
   } else if (MO.isImm()) {
     rv = MO.getImm();
   } else if (MO.isGlobal() || MO.isSymbol() || MO.isCPI()) {
-    DOUT << MO << " is a relocated op for " << MI << "\n";
+    DEBUG(errs() << MO << " is a relocated op for " << MI << "\n");
     unsigned Reloc = 0;
     int Offset = 0;
     bool useGOT = false;
@@ -211,8 +218,7 @@ unsigned AlphaCodeEmitter::getMachineOpValue(const MachineInstr &MI,
       Offset = MI.getOperand(3).getImm();
       break;
     default:
-      assert(0 && "unknown relocatable instruction");
-      abort();
+      llvm_unreachable("unknown relocatable instruction");
     }
     if (MO.isGlobal())
       MCE.addRelocation(MachineRelocation::getGV(MCE.getCurrentPCOffset(),
@@ -229,14 +235,14 @@ unsigned AlphaCodeEmitter::getMachineOpValue(const MachineInstr &MI,
   } else if (MO.isMBB()) {
     MCE.addRelocation(MachineRelocation::getBB(MCE.getCurrentPCOffset(),
                                                Alpha::reloc_bsr, MO.getMBB()));
-  }else {
-    cerr << "ERROR: Unknown type of MachineOperand: " << MO << "\n";
-    abort();
+  } else {
+#ifndef NDEBUG
+    errs() << "ERROR: Unknown type of MachineOperand: " << MO << "\n";
+#endif
+    llvm_unreachable(0);
   }
 
   return rv;
 }
 
 #include "AlphaGenCodeEmitter.inc"
-
-

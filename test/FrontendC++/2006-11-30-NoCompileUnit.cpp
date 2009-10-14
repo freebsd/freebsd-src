@@ -1,13 +1,13 @@
 // This is a regression test on debug info to make sure we don't hit a compile 
 // unit size issue with gdb.
 // RUN: %llvmgcc -S -O0 -g %s -o - | llvm-as | \
-// RUN:   llc --disable-fp-elim -o NoCompileUnit.s -f
+// RUN:   llc --disable-fp-elim -o NoCompileUnit.s
 // RUN: %compile_c NoCompileUnit.s -o NoCompileUnit.o
 // RUN: %link NoCompileUnit.o -o NoCompileUnit.exe
 // RUN: echo {break main\nrun\np NoCompileUnit::pubname} > %t2
 // RUN: gdb -q -batch -n -x %t2 NoCompileUnit.exe | \
 // RUN:   tee NoCompileUnit.out | not grep {"low == high"}
-// XFAIL: alpha|ia64|arm
+// XFAIL: alpha|arm
 // XFAIL: *
 // See PR2454
 

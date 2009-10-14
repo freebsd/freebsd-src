@@ -19,24 +19,23 @@
 
 namespace llvm {
 
-class raw_ostream;
+class formatted_raw_ostream;
 
 struct CPPTargetMachine : public TargetMachine {
-  const TargetData DataLayout;       // Calculates type size & alignment
-
-  CPPTargetMachine(const Module &M, const std::string &FS)
-    : DataLayout(&M) {}
+  CPPTargetMachine(const Target &T, const std::string &TT,
+                   const std::string &FS)
+    : TargetMachine(T) {}
 
   virtual bool WantsWholeFile() const { return true; }
-  virtual bool addPassesToEmitWholeFile(PassManager &PM, raw_ostream &Out,
+  virtual bool addPassesToEmitWholeFile(PassManager &PM,
+                                        formatted_raw_ostream &Out,
                                         CodeGenFileType FileType,
                                         CodeGenOpt::Level OptLevel);
 
-  // This class always works, but shouldn't be the default in most cases.
-  static unsigned getModuleMatchQuality(const Module &M) { return 1; }
-
-  virtual const TargetData *getTargetData() const { return &DataLayout; }
+  virtual const TargetData *getTargetData() const { return 0; }
 };
+
+extern Target TheCppBackendTarget;
 
 } // End llvm namespace
 

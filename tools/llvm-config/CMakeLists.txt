@@ -1,5 +1,6 @@
 include(TestBigEndian)
 
+include(FindPerl)
 if( NOT PERL_FOUND )
   message(FATAL_ERROR "Perl required but not found!")
 endif( NOT PERL_FOUND )
@@ -7,6 +8,8 @@ endif( NOT PERL_FOUND )
 set(PERL ${PERL_EXECUTABLE})
 set(VERSION PACKAGE_VERSION)
 set(PREFIX ${LLVM_BINARY_DIR}) # TODO: Root for `make install'.
+set(abs_top_srcdir ${LLVM_MAIN_SRC_DIR})
+set(abs_top_builddir ${LLVM_BINARY_DIR})
 execute_process(COMMAND date
   OUTPUT_VARIABLE LLVM_CONFIGTIME
   OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -26,7 +29,7 @@ endif( IS_BIG_ENDIAN )
 set(SHLIBEXT ${LTDL_SHLIB_EXT})
 #EXEEXT already set.
 set(OS "${CMAKE_SYSTEM}")
-set(ARCH "X86") # TODO: This gives "i686" in Linux: "${CMAKE_SYSTEM_PROCESSOR}")
+set(ARCH "${LLVM_NATIVE_ARCH}")
 
 get_system_libs(LLVM_SYSTEM_LIBS_LIST)
 foreach(l ${LLVM_SYSTEM_LIBS_LIST})
@@ -103,7 +106,6 @@ add_custom_command(OUTPUT ${LLVM_CONFIG}
   COMMAND ${CMAKE_COMMAND} -E remove -f temp.sed
   COMMAND cat ${FINAL_LIBDEPS} >> ${LLVM_CONFIG}
   COMMAND chmod +x ${LLVM_CONFIG}
-  COMMAND cd ${CMAKE_BINARY_DIR} && ${CMAKE_COMMAND} -U HAVE_LLVM_CONFIG -D LLVM_BINARY_DIR="${LLVM_BINARY_DIR}" ${CMAKE_SOURCE_DIR}
   DEPENDS ${FINAL_LIBDEPS} ${LLVM_CONFIG_IN}
   COMMENT "Building llvm-config script."
   )
@@ -113,7 +115,37 @@ add_custom_target(llvm-config.target ALL
 
 add_dependencies(llvm-config.target ${llvm_lib_targets})
 
+# Make sure that llvm-config builds before the llvm tools, so we have
+# LibDeps.txt and can use it for updating the hard-coded library
+# dependencies on cmake/modules/LLVMLibDeps.cmake when the tools'
+# build fail due to outdated dependencies:
+set(LLVM_COMMON_DEPENDS ${LLVM_COMMON_DEPENDS} llvm-config.target)
+
 install(FILES ${LLVM_CONFIG}
   PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE
   WORLD_READ WORLD_EXECUTE
   DESTINATION bin)
+
+
+# Regeneration of library dependencies.
+
+# See the comments at the end of cmake/modules/LLVMConfig.cmake for
+# notes and guidelines.
+
+set(LLVMLibDeps ${LLVM_MAIN_SRC_DIR}/cmake/modules/LLVMLibDeps.cmake)
+set(LLVMLibDeps_TMP ${CMAKE_CURRENT_BINARY_DIR}/LLVMLibDeps.cmake.tmp)
+
+add_custom_command(OUTPUT ${LLVMLibDeps_TMP}
+  COMMAND sed -e s'@\\.a@@g' -e s'@\\.so@@g' -e 's@libLLVM@LLVM@g' -e 's@: @ @' -e 's@\\\(.*\\\)@set\(MSVC_LIB_DEPS_\\1\)@' ${FINAL_LIBDEPS} > ${LLVMLibDeps_TMP}
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${LLVMLibDeps_TMP} ${LLVMLibDeps}
+  DEPENDS ${FINAL_LIBDEPS}
+  COMMENT "Updating cmake library dependencies file ${LLVMLibDeps}"
+  )
+
+if( LLVM_TARGETS_TO_BUILD STREQUAL LLVM_ALL_TARGETS )
+  add_custom_target(llvmlibdeps.target ALL DEPENDS ${LLVMLibDeps_TMP})
+  add_dependencies(llvmlibdeps.target llvm-config.target)
+  set(LLVM_COMMON_DEPENDS ${LLVM_COMMON_DEPENDS} llvmlibdeps.target)
+endif()
+
+set(LLVM_COMMON_DEPENDS ${LLVM_COMMON_DEPENDS} PARENT_SCOPE)

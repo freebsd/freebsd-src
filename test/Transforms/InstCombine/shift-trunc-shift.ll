@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | grep lshr.*63
+; RUN: opt < %s -instcombine -S | grep lshr.*63
 
 define i32 @t1(i64 %d18) {
 entry:

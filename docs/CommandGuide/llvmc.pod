@@ -71,6 +71,12 @@ write files into the directory specified with the I<-o> option. The
 I<--save-temps=cwd> and I<--save-temps> switches are both synonyms for the
 default behaviour.
 
+=item B<--temp-dir> I<directory>
+
+Store temporary files in the given directory. This directory is deleted on exit
+unless I<--save-temps> is specified. If I<--save-temps=obj> is also specified,
+I<--temp-dir> is given the precedence.
+
 =item B<--help>
 
 Print a summary of command-line options and exit.

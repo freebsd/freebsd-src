@@ -26,7 +26,7 @@
 
 namespace llvm {
   
-class raw_ostream;
+class formatted_raw_ostream;
 
 class X86TargetMachine : public LLVMTargetMachine {
   X86Subtarget      Subtarget;
@@ -38,18 +38,9 @@ class X86TargetMachine : public LLVMTargetMachine {
   X86ELFWriterInfo  ELFWriterInfo;
   Reloc::Model      DefRelocModel; // Reloc model before it's overridden.
 
-protected:
-  virtual const TargetAsmInfo *createTargetAsmInfo() const;
-
-  // To avoid having target depend on the asmprinter stuff libraries, asmprinter
-  // set this functions to ctor pointer at startup time if they are linked in.
-  typedef FunctionPass *(*AsmPrinterCtorFn)(raw_ostream &o,
-                                            X86TargetMachine &tm,
-                                            bool verbose);
-  static AsmPrinterCtorFn AsmPrinterCtor;
-
 public:
-  X86TargetMachine(const Module &M, const std::string &FS, bool is64Bit);
+  X86TargetMachine(const Target &T, const std::string &TT, 
+                   const std::string &FS, bool is64Bit);
 
   virtual const X86InstrInfo     *getInstrInfo() const { return &InstrInfo; }
   virtual const TargetFrameInfo  *getFrameInfo() const { return &FrameInfo; }
@@ -66,50 +57,41 @@ public:
     return Subtarget.isTargetELF() ? &ELFWriterInfo : 0;
   }
 
-  static unsigned getModuleMatchQuality(const Module &M);
-  static unsigned getJITMatchQuality();
-
-  static void registerAsmPrinter(AsmPrinterCtorFn F) {
-    AsmPrinterCtor = F;
-  }
-
   // Set up the pass pipeline.
   virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addPreRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
   virtual bool addPostRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addAssemblyEmitter(PassManagerBase &PM,
-                                  CodeGenOpt::Level OptLevel, 
-                                  bool Verbose, raw_ostream &Out);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              bool DumpAsm, MachineCodeEmitter &MCE);
+                              MachineCodeEmitter &MCE);
   virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
-                              bool DumpAsm, JITCodeEmitter &JCE);
+                              JITCodeEmitter &JCE);
+  virtual bool addCodeEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel,
+                              ObjectCodeEmitter &OCE);
   virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
                                     CodeGenOpt::Level OptLevel,
-                                    bool DumpAsm, MachineCodeEmitter &MCE);
+                                    MachineCodeEmitter &MCE);
   virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
                                     CodeGenOpt::Level OptLevel,
-                                    bool DumpAsm, JITCodeEmitter &JCE);
+                                    JITCodeEmitter &JCE);
+  virtual bool addSimpleCodeEmitter(PassManagerBase &PM,
+                                    CodeGenOpt::Level OptLevel,
+                                    ObjectCodeEmitter &OCE);
 };
 
 /// X86_32TargetMachine - X86 32-bit target machine.
 ///
 class X86_32TargetMachine : public X86TargetMachine {
 public:
-  X86_32TargetMachine(const Module &M, const std::string &FS);
-  
-  static unsigned getJITMatchQuality();
-  static unsigned getModuleMatchQuality(const Module &M);
+  X86_32TargetMachine(const Target &T, const std::string &M,
+                      const std::string &FS);
 };
 
 /// X86_64TargetMachine - X86 64-bit target machine.
 ///
 class X86_64TargetMachine : public X86TargetMachine {
 public:
-  X86_64TargetMachine(const Module &M, const std::string &FS);
-  
-  static unsigned getJITMatchQuality();
-  static unsigned getModuleMatchQuality(const Module &M);
+  X86_64TargetMachine(const Target &T, const std::string &TT,
+                      const std::string &FS);
 };
 
 } // End llvm namespace

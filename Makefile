@@ -24,7 +24,7 @@ ifeq ($(BUILD_DIRS_ONLY),1)
   OPTIONAL_DIRS :=
 else
   DIRS := lib/System lib/Support utils lib/VMCore lib tools/llvm-config \
-          tools runtime docs
+          tools runtime docs unittests
   OPTIONAL_DIRS := examples projects bindings
 endif
 
@@ -36,7 +36,7 @@ include $(LEVEL)/Makefile.config
 # FIXME: Remove runtime entirely once we have an understanding of where
 # libprofile etc should go.
 #ifeq ($(LLVMGCC_MAJVERS),4)
-  DIRS := $(filter-out runtime, $(DIRS))
+#  DIRS := $(filter-out runtime, $(DIRS))
 #endif
 
 ifeq ($(MAKECMDGOALS),libs-only)
@@ -62,7 +62,7 @@ ifeq ($(MAKECMDGOALS),install-clang)
 endif
 
 ifeq ($(MAKECMDGOALS),clang-only)
-  DIRS := $(filter-out tools runtime docs, $(DIRS)) tools/clang
+  DIRS := $(filter-out tools runtime docs unittests, $(DIRS)) tools/clang
   OPTIONAL_DIRS :=
 endif
 
@@ -88,10 +88,19 @@ cross-compile-build-tools:
 	$(Verb) if [ ! -f BuildTools/Makefile ]; then \
           $(MKDIR) BuildTools; \
 	  cd BuildTools ; \
-	  $(PROJ_SRC_DIR)/configure ; \
+	  $(PROJ_SRC_DIR)/configure --build=$(BUILD_TRIPLE) \
+		--host=$(BUILD_TRIPLE) --target=$(BUILD_TRIPLE); \
 	  cd .. ; \
 	fi; \
-        ($(MAKE) -C BuildTools BUILD_DIRS_ONLY=1 ) || exit 1;
+        ($(MAKE) -C BuildTools \
+	  BUILD_DIRS_ONLY=1 \
+	  UNIVERSAL= \
+	  ENABLE_OPTIMIZED=$(ENABLE_OPTIMIZED) \
+	  ENABLE_PROFILING=$(ENABLE_PROFILING) \
+	  ENABLE_COVERAGE=$(ENABLE_COVERAGE) \
+	  DISABLE_ASSERTIONS=$(DISABLE_ASSERTIONS) \
+	  ENABLE_EXPENSIVE_CHECKS=$(ENABLE_EXPENSIVE_CHECKS) \
+	) || exit 1;
 endif
 
 # Include the main makefile machinery.
@@ -117,7 +126,6 @@ debug-opt-prof:
 dist-hook::
 	$(Echo) Eliminating files constructed by configure
 	$(Verb) $(RM) -f \
-	  $(TopDistDir)/include/llvm/ADT/iterator.h  \
 	  $(TopDistDir)/include/llvm/Config/config.h  \
 	  $(TopDistDir)/include/llvm/Support/DataTypes.h  \
 	  $(TopDistDir)/include/llvm/Support/ThreadSupport.h
@@ -137,7 +145,7 @@ FilesToConfig := \
   include/llvm/Config/Targets.def \
 	include/llvm/Config/AsmPrinters.def \
   include/llvm/Support/DataTypes.h \
-  include/llvm/ADT/iterator.h
+	tools/llvmc/plugins/Base/Base.td
 FilesToConfigPATH  := $(addprefix $(LLVM_OBJ_ROOT)/,$(FilesToConfig))
 
 all-local:: $(FilesToConfigPATH)

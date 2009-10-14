@@ -21,13 +21,13 @@
 #define LLVM_CODEGEN_MACHINEJUMPTABLEINFO_H
 
 #include <vector>
-#include <iosfwd>
 #include <cassert>
 
 namespace llvm {
 
 class MachineBasicBlock;
 class TargetData;
+class raw_ostream;
 
 /// MachineJumpTableEntry - One jump table in the jump table info.
 ///
@@ -79,10 +79,9 @@ public:
   /// print - Used by the MachineFunction printer to print information about
   /// jump tables.  Implemented in MachineFunction.cpp
   ///
-  void print(std::ostream &OS) const;
-  void print(std::ostream *OS) const { if (OS) print(*OS); }
+  void print(raw_ostream &OS) const;
 
-  /// dump - Call print(std::cerr) to be called from the debugger.
+  /// dump - Call to stderr.
   ///
   void dump() const;
 };

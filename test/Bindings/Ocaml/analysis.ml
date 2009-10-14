@@ -1,4 +1,4 @@
-(* RUN: %ocamlc -warn-error A llvm.cma llvm_analysis.cma %s -o %t 2> /dev/null
+(* RUN: %ocamlopt -warn-error A llvm.cmxa llvm_analysis.cmxa %s -o %t
  * RUN: ./%t %t.bc
  *)
 
@@ -8,6 +8,8 @@ open Llvm_analysis
 (* Note that this takes a moment to link, so it's best to keep the number of
    individual tests low. *)
 
+let context = global_context ()
+
 let test x = if not x then exit 1 else ()
 
 let bomb msg =
@@ -15,10 +17,10 @@ let bomb msg =
   exit 2
 
 let _ =
-  let fty = function_type void_type [| |] in
-  let m = create_module "valid_m" in
+  let fty = function_type (void_type context) [| |] in
+  let m = create_module context "valid_m" in
   let fn = define_function "valid_fn" fty m in
-  let at_entry = builder_at_end (entry_block fn) in
+  let at_entry = builder_at_end context (entry_block fn) in
   ignore (build_ret_void at_entry);
   
   

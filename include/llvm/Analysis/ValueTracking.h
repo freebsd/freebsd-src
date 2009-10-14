@@ -23,20 +23,33 @@ namespace llvm {
   class Instruction;
   class APInt;
   class TargetData;
+  class LLVMContext;
   
   /// ComputeMaskedBits - Determine which of the bits specified in Mask are
   /// known to be either zero or one and return them in the KnownZero/KnownOne
   /// bit sets.  This code only analyzes bits in Mask, in order to short-circuit
   /// processing.
+  ///
+  /// This function is defined on values with integer type, values with pointer
+  /// type (but only if TD is non-null), and vectors of integers.  In the case
+  /// where V is a vector, the mask, known zero, and known one values are the
+  /// same width as the vector element, and the bit is set only if it is true
+  /// for all of the elements in the vector.
   void ComputeMaskedBits(Value *V, const APInt &Mask, APInt &KnownZero,
-                         APInt &KnownOne, TargetData *TD = 0,
+                         APInt &KnownOne, const TargetData *TD = 0,
                          unsigned Depth = 0);
   
   /// MaskedValueIsZero - Return true if 'V & Mask' is known to be zero.  We use
   /// this predicate to simplify operations downstream.  Mask is known to be
   /// zero for bits that V cannot have.
+  ///
+  /// This function is defined on values with integer type, values with pointer
+  /// type (but only if TD is non-null), and vectors of integers.  In the case
+  /// where V is a vector, the mask, known zero, and known one values are the
+  /// same width as the vector element, and the bit is set only if it is true
+  /// for all of the elements in the vector.
   bool MaskedValueIsZero(Value *V, const APInt &Mask, 
-                         TargetData *TD = 0, unsigned Depth = 0);
+                         const TargetData *TD = 0, unsigned Depth = 0);
 
   
   /// ComputeNumSignBits - Return the number of times the sign bit of the
@@ -47,7 +60,7 @@ namespace llvm {
   ///
   /// 'Op' must have a scalar integer type.
   ///
-  unsigned ComputeNumSignBits(Value *Op, TargetData *TD = 0,
+  unsigned ComputeNumSignBits(Value *Op, const TargetData *TD = 0,
                               unsigned Depth = 0);
 
   /// CannotBeNegativeZero - Return true if we can prove that the specified FP 
@@ -64,14 +77,16 @@ namespace llvm {
   Value *FindInsertedValue(Value *V,
                            const unsigned *idx_begin,
                            const unsigned *idx_end,
+                           LLVMContext &Context,
                            Instruction *InsertBefore = 0);
 
   /// This is a convenience wrapper for finding values indexed by a single index
   /// only.
   inline Value *FindInsertedValue(Value *V, const unsigned Idx,
+                                  LLVMContext &Context,
                                   Instruction *InsertBefore = 0) {
     const unsigned Idxs[1] = { Idx };
-    return FindInsertedValue(V, &Idxs[0], &Idxs[1], InsertBefore);
+    return FindInsertedValue(V, &Idxs[0], &Idxs[1], Context, InsertBefore);
   }
   
   /// GetConstantStringInfo - This function computes the length of a

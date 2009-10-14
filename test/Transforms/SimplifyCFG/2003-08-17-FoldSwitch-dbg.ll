@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -simplifycfg | llvm-dis | \
+; RUN: opt < %s -simplifycfg -S | \
 ; RUN:   not grep switch
 
 

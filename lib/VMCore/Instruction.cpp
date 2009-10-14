@@ -11,9 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "LLVMContextImpl.h"
 #include "llvm/Type.h"
 #include "llvm/Instructions.h"
 #include "llvm/Function.h"
+#include "llvm/Constants.h"
+#include "llvm/GlobalVariable.h"
+#include "llvm/Module.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/LeakDetector.h"
 using namespace llvm;
@@ -47,6 +51,10 @@ Instruction::Instruction(const Type *ty, unsigned it, Use *Ops, unsigned NumOps,
 // Out of line virtual method, so the vtable, etc has a home.
 Instruction::~Instruction() {
   assert(Parent == 0 && "Instruction still linked in the program!");
+  if (hasMetadata()) {
+    LLVMContext &Context = getContext();
+    Context.pImpl->TheMetadata.ValueIsDeleted(this);
+  }
 }
 
 
@@ -143,8 +151,6 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
   // Other instructions...
   case ICmp:           return "icmp";
   case FCmp:           return "fcmp";
-  case VICmp:          return "vicmp";
-  case VFCmp:          return "vfcmp";
   case PHI:            return "phi";
   case Select:         return "select";
   case Call:           return "call";
@@ -168,6 +174,14 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
 /// identical to the current one.  This means that all operands match and any
 /// extra information (e.g. load is volatile) agree.
 bool Instruction::isIdenticalTo(const Instruction *I) const {
+  return isIdenticalToWhenDefined(I) &&
+         SubclassOptionalData == I->SubclassOptionalData;
+}
+
+/// isIdenticalToWhenDefined - This is like isIdenticalTo, except that it
+/// ignores the SubclassOptionalData flags, which specify conditions
+/// under which the instruction's result is undefined.
+bool Instruction::isIdenticalToWhenDefined(const Instruction *I) const {
   if (getOpcode() != I->getOpcode() ||
       getNumOperands() != I->getNumOperands() ||
       getType() != I->getType())
@@ -283,11 +297,11 @@ bool Instruction::isUsedOutsideOfBlock(const BasicBlock *BB) const {
         return true;
       continue;
     }
-    
+
     if (PN->getIncomingBlock(UI) != BB)
       return true;
   }
-  return false;    
+  return false;
 }
 
 /// mayReadFromMemory - Return true if this instruction may read memory.
@@ -367,23 +381,77 @@ bool Instruction::isCommutative(unsigned op) {
   }
 }
 
-/// isTrapping - Return true if the instruction may trap.
-///
-bool Instruction::isTrapping(unsigned op) {
-  switch(op) {
-  case UDiv:
-  case SDiv:
-  case FDiv:
-  case URem:
-  case SRem:
-  case FRem:
-  case Load:
-  case Store:
-  case Call:
-  case Invoke:
-  case VAArg:
-    return true;
-  default:
+// Code here matches isMalloc from MallocHelper, which is not in VMCore.
+static bool isMalloc(const Value* I) {
+  const CallInst *CI = dyn_cast<CallInst>(I);
+  if (!CI) {
+    const BitCastInst *BCI = dyn_cast<BitCastInst>(I);
+    if (!BCI) return false;
+
+    CI = dyn_cast<CallInst>(BCI->getOperand(0));
+  }
+
+  if (!CI) return false;
+
+  const Module* M = CI->getParent()->getParent()->getParent();
+  Constant *MallocFunc = M->getFunction("malloc");
+
+  if (CI->getOperand(0) != MallocFunc)
     return false;
+
+  return true;
+}
+
+bool Instruction::isSafeToSpeculativelyExecute() const {
+  for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
+    if (Constant *C = dyn_cast<Constant>(getOperand(i)))
+      if (C->canTrap())
+        return false;
+
+  switch (getOpcode()) {
+  default:
+    return true;
+  case UDiv:
+  case URem: {
+    // x / y is undefined if y == 0, but calcuations like x / 3 are safe.
+    ConstantInt *Op = dyn_cast<ConstantInt>(getOperand(1));
+    return Op && !Op->isNullValue();
+  }
+  case SDiv:
+  case SRem: {
+    // x / y is undefined if y == 0, and might be undefined if y == -1,
+    // but calcuations like x / 3 are safe.
+    ConstantInt *Op = dyn_cast<ConstantInt>(getOperand(1));
+    return Op && !Op->isNullValue() && !Op->isAllOnesValue();
+  }
+  case Load: {
+    if (cast<LoadInst>(this)->isVolatile())
+      return false;
+    if (isa<AllocationInst>(getOperand(0)) || isMalloc(getOperand(0)))
+      return true;
+    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(getOperand(0)))
+      return !GV->hasExternalWeakLinkage();
+    // FIXME: Handle cases involving GEPs.  We have to be careful because
+    // a load of a out-of-bounds GEP has undefined behavior.
+    return false;
+  }
+  case Call:
+    return false; // The called function could have undefined behavior or
+                  // side-effects.
+                  // FIXME: We should special-case some intrinsics (bswap,
+                  // overflow-checking arithmetic, etc.)
+  case VAArg:
+  case Alloca:
+  case Malloc:
+  case Invoke:
+  case PHI:
+  case Store:
+  case Free:
+  case Ret:
+  case Br:
+  case Switch:
+  case Unwind:
+  case Unreachable:
+    return false; // Misc instructions which have effects
   }
 }

@@ -12,51 +12,32 @@
 //===----------------------------------------------------------------------===//
 
 #include "PIC16.h"
-#include "PIC16TargetAsmInfo.h"
+#include "PIC16MCAsmInfo.h"
 #include "PIC16TargetMachine.h"
-#include "llvm/Module.h"
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetAsmInfo.h"
-#include "llvm/Target/TargetMachineRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 
 using namespace llvm;
 
-/// PIC16TargetMachineModule - Note that this is used on hosts that
-/// cannot link in a library unless there are references into the
-/// library.  In particular, it seems that it is not possible to get
-/// things to work on Win32 without this.  Though it is unused, do not
-/// remove it.
-extern "C" int PIC16TargetMachineModule;
-int PIC16TargetMachineModule = 0;
+extern "C" void LLVMInitializePIC16Target() {
+  // Register the target. Curretnly the codegen works for
+  // enhanced pic16 mid-range.
+  RegisterTargetMachine<PIC16TargetMachine> X(ThePIC16Target);
+  RegisterAsmInfo<PIC16MCAsmInfo> A(ThePIC16Target);
+}
 
 
-// Register the targets
-static RegisterTarget<PIC16TargetMachine> 
-X("pic16", "PIC16 14-bit [experimental].");
-static RegisterTarget<CooperTargetMachine> 
-Y("cooper", "PIC16 Cooper [experimental].");
-
-// Force static initialization.
-extern "C" void LLVMInitializePIC16Target() { }
-
-// PIC16TargetMachine - Traditional PIC16 Machine.
-PIC16TargetMachine::PIC16TargetMachine(const Module &M, const std::string &FS,
-                                       bool Cooper)
-: Subtarget(M, FS, Cooper),
+// PIC16TargetMachine - Enhanced PIC16 mid-range Machine. May also represent
+// a Traditional Machine if 'Trad' is true.
+PIC16TargetMachine::PIC16TargetMachine(const Target &T, const std::string &TT,
+                                       const std::string &FS, bool Trad)
+: LLVMTargetMachine(T, TT),
+  Subtarget(TT, FS, Trad),
   DataLayout("e-p:16:8:8-i8:8:8-i16:8:8-i32:8:8"), 
   InstrInfo(*this), TLInfo(*this),
   FrameInfo(TargetFrameInfo::StackGrowsUp, 8, 0) { }
 
-// CooperTargetMachine - Uses the same PIC16TargetMachine, but makes IsCooper
-// as true.
-CooperTargetMachine::CooperTargetMachine(const Module &M, const std::string &FS)
-  : PIC16TargetMachine(M, FS, true) {}
-
-
-const TargetAsmInfo *PIC16TargetMachine::createTargetAsmInfo() const {
-  return new PIC16TargetAsmInfo(*this);
-}
 
 bool PIC16TargetMachine::addInstSelector(PassManagerBase &PM,
                                          CodeGenOpt::Level OptLevel) {
@@ -65,15 +46,7 @@ bool PIC16TargetMachine::addInstSelector(PassManagerBase &PM,
   return false;
 }
 
-bool PIC16TargetMachine::addAssemblyEmitter(PassManagerBase &PM, 
-                                            CodeGenOpt::Level OptLevel,
-                                            bool Verbose, raw_ostream &Out) {
-  // Output assembly language.
-  PM.add(createPIC16CodePrinterPass(Out, *this, Verbose));
-  return false;
-}
-
-bool PIC16TargetMachine::addPostRegAlloc(PassManagerBase &PM, 
+bool PIC16TargetMachine::addPreEmitPass(PassManagerBase &PM, 
                                          CodeGenOpt::Level OptLevel) {
   PM.add(createPIC16MemSelOptimizerPass());
   return true;  // -print-machineinstr should print after this.

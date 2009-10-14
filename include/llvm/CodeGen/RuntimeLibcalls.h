@@ -224,6 +224,11 @@ namespace RTLIB {
     O_F32,
     O_F64,
 
+    // MEMORY
+    MEMCPY,
+    MEMSET,
+    MEMMOVE,
+
     // EXCEPTION HANDLING
     UNWIND_RESUME,
 
@@ -232,27 +237,27 @@ namespace RTLIB {
 
   /// getFPEXT - Return the FPEXT_*_* value for the given types, or
   /// UNKNOWN_LIBCALL if there is none.
-  Libcall getFPEXT(MVT OpVT, MVT RetVT);
+  Libcall getFPEXT(EVT OpVT, EVT RetVT);
 
   /// getFPROUND - Return the FPROUND_*_* value for the given types, or
   /// UNKNOWN_LIBCALL if there is none.
-  Libcall getFPROUND(MVT OpVT, MVT RetVT);
+  Libcall getFPROUND(EVT OpVT, EVT RetVT);
 
   /// getFPTOSINT - Return the FPTOSINT_*_* value for the given types, or
   /// UNKNOWN_LIBCALL if there is none.
-  Libcall getFPTOSINT(MVT OpVT, MVT RetVT);
+  Libcall getFPTOSINT(EVT OpVT, EVT RetVT);
 
   /// getFPTOUINT - Return the FPTOUINT_*_* value for the given types, or
   /// UNKNOWN_LIBCALL if there is none.
-  Libcall getFPTOUINT(MVT OpVT, MVT RetVT);
+  Libcall getFPTOUINT(EVT OpVT, EVT RetVT);
 
   /// getSINTTOFP - Return the SINTTOFP_*_* value for the given types, or
   /// UNKNOWN_LIBCALL if there is none.
-  Libcall getSINTTOFP(MVT OpVT, MVT RetVT);
+  Libcall getSINTTOFP(EVT OpVT, EVT RetVT);
 
   /// getUINTTOFP - Return the UINTTOFP_*_* value for the given types, or
   /// UNKNOWN_LIBCALL if there is none.
-  Libcall getUINTTOFP(MVT OpVT, MVT RetVT);
+  Libcall getUINTTOFP(EVT OpVT, EVT RetVT);
 }
 }
 

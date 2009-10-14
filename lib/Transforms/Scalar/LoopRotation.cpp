@@ -32,7 +32,7 @@ using namespace llvm;
 STATISTIC(NumRotated, "Number of loops rotated");
 namespace {
 
-  class VISIBILITY_HIDDEN RenameData {
+  class RenameData {
   public:
     RenameData(Instruction *O, Value *P, Instruction *H) 
       : Original(O), PreHeader(P), Header(H) { }
@@ -42,8 +42,7 @@ namespace {
     Instruction *Header; // New header replacement
   };
   
-  class VISIBILITY_HIDDEN LoopRotate : public LoopPass {
-
+  class LoopRotate : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
     LoopRotate() : LoopPass(&ID) {}
@@ -177,6 +176,11 @@ bool LoopRotate::rotateLoop(Loop *Lp, LPPassManager &LPM) {
     return false;
 
   // Now, this loop is suitable for rotation.
+
+  // Anything ScalarEvolution may know about this loop or the PHI nodes
+  // in its header will soon be invalidated.
+  if (ScalarEvolution *SE = getAnalysisIfAvailable<ScalarEvolution>())
+    SE->forgetLoopBackedgeTakenCount(L);
 
   // Find new Loop header. NewHeader is a Header's one and only successor
   // that is inside loop.  Header's other successor is outside the
@@ -435,7 +439,8 @@ void LoopRotate::preserveCanonicalLoopForm(LPPassManager &LPM) {
   // Right now original pre-header has two successors, new header and
   // exit block. Insert new block between original pre-header and
   // new header such that loop's new pre-header has only one successor.
-  BasicBlock *NewPreHeader = BasicBlock::Create("bb.nph",
+  BasicBlock *NewPreHeader = BasicBlock::Create(OrigHeader->getContext(),
+                                                "bb.nph",
                                                 OrigHeader->getParent(), 
                                                 NewHeader);
   LoopInfo &LI = LPM.getAnalysis<LoopInfo>();
@@ -511,26 +516,30 @@ void LoopRotate::preserveCanonicalLoopForm(LPPassManager &LPM) {
       DF->addBasicBlock(L->getHeader(), LatchSet);
     }
 
-    // If a loop block dominates new loop latch then its frontier is
-    // new header and Exit.
+    // If a loop block dominates new loop latch then add to its frontiers
+    // new header and Exit and remove new latch (which is equal to original
+    // header).
     BasicBlock *NewLatch = L->getLoopLatch();
-    DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>();
-    for (Loop::block_iterator BI = L->block_begin(), BE = L->block_end();
-         BI != BE; ++BI) {
-      BasicBlock *B = *BI;
-      if (DT->dominates(B, NewLatch)) {
-        DominanceFrontier::iterator BDFI = DF->find(B);
-        if (BDFI != DF->end()) {
-          DominanceFrontier::DomSetType &BSet = BDFI->second;
-          BSet = BDFI->second;
-          BSet.clear();
-          BSet.insert(L->getHeader());
-          BSet.insert(Exit);
-        } else {
-          DominanceFrontier::DomSetType BSet;
-          BSet.insert(L->getHeader());
-          BSet.insert(Exit);
-          DF->addBasicBlock(B, BSet);
+
+    assert(NewLatch == OrigHeader && "NewLatch is inequal to OrigHeader");
+
+    if (DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>()) {
+      for (Loop::block_iterator BI = L->block_begin(), BE = L->block_end();
+           BI != BE; ++BI) {
+        BasicBlock *B = *BI;
+        if (DT->dominates(B, NewLatch)) {
+          DominanceFrontier::iterator BDFI = DF->find(B);
+          if (BDFI != DF->end()) {
+            DominanceFrontier::DomSetType &BSet = BDFI->second;
+            BSet.erase(NewLatch);
+            BSet.insert(L->getHeader());
+            BSet.insert(Exit);
+          } else {
+            DominanceFrontier::DomSetType BSet;
+            BSet.insert(L->getHeader());
+            BSet.insert(Exit);
+            DF->addBasicBlock(B, BSet);
+          }
         }
       }
     }
@@ -538,22 +547,7 @@ void LoopRotate::preserveCanonicalLoopForm(LPPassManager &LPM) {
 
   // Preserve canonical loop form, which means Exit block should
   // have only one predecessor.
-  BasicBlock *NExit = SplitEdge(L->getLoopLatch(), Exit, this);
-
-  // Preserve LCSSA.
-  for (BasicBlock::iterator I = Exit->begin();
-       (PN = dyn_cast<PHINode>(I)); ++I) {
-    unsigned N = PN->getNumIncomingValues();
-    for (unsigned index = 0; index != N; ++index)
-      if (PN->getIncomingBlock(index) == NExit) {
-        PHINode *NewPN = PHINode::Create(PN->getType(), PN->getName(),
-                                         NExit->begin());
-        NewPN->addIncoming(PN->getIncomingValue(index), L->getLoopLatch());
-        PN->setIncomingValue(index, NewPN);
-        PN->setIncomingBlock(index, NExit);
-        break;
-      }
-  }
+  SplitEdge(L->getLoopLatch(), Exit, this);
 
   assert(NewHeader && L->getHeader() == NewHeader &&
          "Invalid loop header after loop rotation");

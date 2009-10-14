@@ -20,8 +20,10 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstIterator.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 /// mergeSetIn - Merge the specified alias set into this alias set.
@@ -186,8 +188,8 @@ bool AliasSet::aliasesCallSite(CallSite CS, AliasAnalysis &AA) const {
 
 void AliasSetTracker::clear() {
   // Delete all the PointerRec entries.
-  for (DenseMap<Value*, AliasSet::PointerRec*>::iterator I = PointerMap.begin(),
-       E = PointerMap.end(); I != E; ++I)
+  for (PointerMapType::iterator I = PointerMap.begin(), E = PointerMap.end();
+       I != E; ++I)
     I->second->eraseFromList();
   
   PointerMap.clear();
@@ -279,7 +281,7 @@ bool AliasSetTracker::add(Value *Ptr, unsigned Size) {
 bool AliasSetTracker::add(LoadInst *LI) {
   bool NewPtr;
   AliasSet &AS = addPointer(LI->getOperand(0),
-                            AA.getTargetData().getTypeStoreSize(LI->getType()),
+                            AA.getTypeStoreSize(LI->getType()),
                             AliasSet::Refs, NewPtr);
   if (LI->isVolatile()) AS.setVolatile();
   return NewPtr;
@@ -289,7 +291,7 @@ bool AliasSetTracker::add(StoreInst *SI) {
   bool NewPtr;
   Value *Val = SI->getOperand(0);
   AliasSet &AS = addPointer(SI->getOperand(1),
-                            AA.getTargetData().getTypeStoreSize(Val->getType()),
+                            AA.getTypeStoreSize(Val->getType()),
                             AliasSet::Mods, NewPtr);
   if (SI->isVolatile()) AS.setVolatile();
   return NewPtr;
@@ -411,7 +413,7 @@ bool AliasSetTracker::remove(Value *Ptr, unsigned Size) {
 }
 
 bool AliasSetTracker::remove(LoadInst *LI) {
-  unsigned Size = AA.getTargetData().getTypeStoreSize(LI->getType());
+  unsigned Size = AA.getTypeStoreSize(LI->getType());
   AliasSet *AS = findAliasSetForPointer(LI->getOperand(0), Size);
   if (!AS) return false;
   remove(*AS);
@@ -419,8 +421,7 @@ bool AliasSetTracker::remove(LoadInst *LI) {
 }
 
 bool AliasSetTracker::remove(StoreInst *SI) {
-  unsigned Size =
-    AA.getTargetData().getTypeStoreSize(SI->getOperand(0)->getType());
+  unsigned Size = AA.getTypeStoreSize(SI->getOperand(0)->getType());
   AliasSet *AS = findAliasSetForPointer(SI->getOperand(1), Size);
   if (!AS) return false;
   remove(*AS);
@@ -485,7 +486,7 @@ void AliasSetTracker::deleteValue(Value *PtrVal) {
         AS->removeCallSite(CS);
 
   // First, look up the PointerRec for this pointer.
-  DenseMap<Value*, AliasSet::PointerRec*>::iterator I = PointerMap.find(PtrVal);
+  PointerMapType::iterator I = PointerMap.find(PtrVal);
   if (I == PointerMap.end()) return;  // Noop
 
   // If we found one, remove the pointer from the alias set it is in.
@@ -511,7 +512,7 @@ void AliasSetTracker::copyValue(Value *From, Value *To) {
   AA.copyValue(From, To);
 
   // First, look up the PointerRec for this pointer.
-  DenseMap<Value*, AliasSet::PointerRec*>::iterator I = PointerMap.find(From);
+  PointerMapType::iterator I = PointerMap.find(From);
   if (I == PointerMap.end())
     return;  // Noop
   assert(I->second->hasAliasSet() && "Dead entry?");
@@ -531,15 +532,15 @@ void AliasSetTracker::copyValue(Value *From, Value *To) {
 //               AliasSet/AliasSetTracker Printing Support
 //===----------------------------------------------------------------------===//
 
-void AliasSet::print(std::ostream &OS) const {
-  OS << "  AliasSet[" << (void*)this << "," << RefCount << "] ";
+void AliasSet::print(raw_ostream &OS) const {
+  OS << "  AliasSet[" << format("0x%p", (void*)this) << "," << RefCount << "] ";
   OS << (AliasTy == MustAlias ? "must" : "may") << " alias, ";
   switch (AccessTy) {
   case NoModRef: OS << "No access "; break;
   case Refs    : OS << "Ref       "; break;
   case Mods    : OS << "Mod       "; break;
   case ModRef  : OS << "Mod/Ref   "; break;
-  default: assert(0 && "Bad value for AccessTy!");
+  default: llvm_unreachable("Bad value for AccessTy!");
   }
   if (isVolatile()) OS << "[volatile] ";
   if (Forward)
@@ -564,7 +565,7 @@ void AliasSet::print(std::ostream &OS) const {
   OS << "\n";
 }
 
-void AliasSetTracker::print(std::ostream &OS) const {
+void AliasSetTracker::print(raw_ostream &OS) const {
   OS << "Alias Set Tracker: " << AliasSets.size() << " alias sets for "
      << PointerMap.size() << " pointer values.\n";
   for (const_iterator I = begin(), E = end(); I != E; ++I)
@@ -572,8 +573,26 @@ void AliasSetTracker::print(std::ostream &OS) const {
   OS << "\n";
 }
 
-void AliasSet::dump() const { print (cerr); }
-void AliasSetTracker::dump() const { print(cerr); }
+void AliasSet::dump() const { print(errs()); }
+void AliasSetTracker::dump() const { print(errs()); }
+
+//===----------------------------------------------------------------------===//
+//                     ASTCallbackVH Class Implementation
+//===----------------------------------------------------------------------===//
+
+void AliasSetTracker::ASTCallbackVH::deleted() {
+  assert(AST && "ASTCallbackVH called with a null AliasSetTracker!");
+  AST->deleteValue(getValPtr());
+  // this now dangles!
+}
+
+AliasSetTracker::ASTCallbackVH::ASTCallbackVH(Value *V, AliasSetTracker *ast)
+  : CallbackVH(V), AST(ast) {}
+
+AliasSetTracker::ASTCallbackVH &
+AliasSetTracker::ASTCallbackVH::operator=(Value *V) {
+  return *this = ASTCallbackVH(V, AST);
+}
 
 //===----------------------------------------------------------------------===//
 //                            AliasSetPrinter Pass
@@ -596,7 +615,7 @@ namespace {
 
       for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I)
         Tracker->add(&*I);
-      Tracker->print(cerr);
+      Tracker->print(errs());
       delete Tracker;
       return false;
     }

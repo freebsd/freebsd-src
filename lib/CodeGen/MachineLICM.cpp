@@ -28,11 +28,12 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -43,8 +44,11 @@ namespace {
   class VISIBILITY_HIDDEN MachineLICM : public MachineFunctionPass {
     const TargetMachine   *TM;
     const TargetInstrInfo *TII;
+    const TargetRegisterInfo *TRI;
+    BitVector AllocatableSet;
 
     // Various analyses that we use...
+    AliasAnalysis        *AA;      // Alias analysis info.
     MachineLoopInfo      *LI;      // Current MachineLoopInfo
     MachineDominatorTree *DT;      // Machine dominator tree for the cur loop
     MachineRegisterInfo  *RegInfo; // Machine register information
@@ -70,6 +74,7 @@ namespace {
       AU.setPreservesCFG();
       AU.addRequired<MachineLoopInfo>();
       AU.addRequired<MachineDominatorTree>();
+      AU.addRequired<AliasAnalysis>();
       AU.addPreserved<MachineLoopInfo>();
       AU.addPreserved<MachineDominatorTree>();
       MachineFunctionPass::getAnalysisUsage(AU);
@@ -126,20 +131,19 @@ static bool LoopIsOuterMostWithPreheader(MachineLoop *CurLoop) {
 /// loop.
 ///
 bool MachineLICM::runOnMachineFunction(MachineFunction &MF) {
-  const Function *F = MF.getFunction();
-  if (F->hasFnAttr(Attribute::OptimizeForSize))
-    return false;
-
-  DOUT << "******** Machine LICM ********\n";
+  DEBUG(errs() << "******** Machine LICM ********\n");
 
   Changed = false;
   TM = &MF.getTarget();
   TII = TM->getInstrInfo();
+  TRI = TM->getRegisterInfo();
   RegInfo = &MF.getRegInfo();
+  AllocatableSet = TRI->getAllocatableSet(MF);
 
   // Get our Loop information...
   LI = &getAnalysis<MachineLoopInfo>();
   DT = &getAnalysis<MachineDominatorTree>();
+  AA = &getAnalysis<AliasAnalysis>();
 
   for (MachineLoopInfo::iterator
          I = LI->begin(), E = LI->end(); I != E; ++I) {
@@ -210,7 +214,7 @@ bool MachineLICM::IsLoopInvariantInst(MachineInstr &I) {
     // Okay, this instruction does a load. As a refinement, we allow the target
     // to decide whether the loaded value is actually a constant. If so, we can
     // actually use it as a load.
-    if (!TII->isInvariantLoad(&I))
+    if (!I.isInvariantLoad(AA))
       // FIXME: we should be able to sink loads with no other side effects if
       // there is nothing that can change memory from here until the end of
       // block. This is a trivial form of alias analysis.
@@ -218,28 +222,28 @@ bool MachineLICM::IsLoopInvariantInst(MachineInstr &I) {
   }
 
   DEBUG({
-      DOUT << "--- Checking if we can hoist " << I;
+      errs() << "--- Checking if we can hoist " << I;
       if (I.getDesc().getImplicitUses()) {
-        DOUT << "  * Instruction has implicit uses:\n";
+        errs() << "  * Instruction has implicit uses:\n";
 
         const TargetRegisterInfo *TRI = TM->getRegisterInfo();
         for (const unsigned *ImpUses = I.getDesc().getImplicitUses();
              *ImpUses; ++ImpUses)
-          DOUT << "      -> " << TRI->getName(*ImpUses) << "\n";
+          errs() << "      -> " << TRI->getName(*ImpUses) << "\n";
       }
 
       if (I.getDesc().getImplicitDefs()) {
-        DOUT << "  * Instruction has implicit defines:\n";
+        errs() << "  * Instruction has implicit defines:\n";
 
         const TargetRegisterInfo *TRI = TM->getRegisterInfo();
         for (const unsigned *ImpDefs = I.getDesc().getImplicitDefs();
              *ImpDefs; ++ImpDefs)
-          DOUT << "      -> " << TRI->getName(*ImpDefs) << "\n";
+          errs() << "      -> " << TRI->getName(*ImpDefs) << "\n";
       }
     });
 
   if (I.getDesc().getImplicitDefs() || I.getDesc().getImplicitUses()) {
-    DOUT << "Cannot hoist with implicit defines or uses\n";
+    DEBUG(errs() << "Cannot hoist with implicit defines or uses\n");
     return false;
   }
 
@@ -254,8 +258,30 @@ bool MachineLICM::IsLoopInvariantInst(MachineInstr &I) {
     if (Reg == 0) continue;
 
     // Don't hoist an instruction that uses or defines a physical register.
-    if (TargetRegisterInfo::isPhysicalRegister(Reg))
-      return false;
+    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      if (MO.isUse()) {
+        // If the physreg has no defs anywhere, it's just an ambient register
+        // and we can freely move its uses. Alternatively, if it's allocatable,
+        // it could get allocated to something with a def during allocation.
+        if (!RegInfo->def_empty(Reg))
+          return false;
+        if (AllocatableSet.test(Reg))
+          return false;
+        // Check for a def among the register's aliases too.
+        for (const unsigned *Alias = TRI->getAliasSet(Reg); *Alias; ++Alias) {
+          unsigned AliasReg = *Alias;
+          if (!RegInfo->def_empty(AliasReg))
+            return false;
+          if (AllocatableSet.test(AliasReg))
+            return false;
+        }
+        // Otherwise it's safe to move.
+        continue;
+      } else if (!MO.isDead()) {
+        // A def that isn't dead. We can't move it.
+        return false;
+      }
+    }
 
     if (!MO.isUse())
       continue;
@@ -291,13 +317,10 @@ bool MachineLICM::IsProfitableToHoist(MachineInstr &MI) {
   if (MI.getOpcode() == TargetInstrInfo::IMPLICIT_DEF)
     return false;
 
-  const TargetInstrDesc &TID = MI.getDesc();
-
   // FIXME: For now, only hoist re-materilizable instructions. LICM will
   // increase register pressure. We want to make sure it doesn't increase
   // spilling.
-  if (!TID.mayLoad() && (!TID.isRematerializable() ||
-                         !TII->isTriviallyReMaterializable(&MI)))
+  if (!TII->isTriviallyReMaterializable(&MI, AA))
     return false;
 
   // If result(s) of this instruction is used by PHIs, then don't hoist it.
@@ -355,14 +378,14 @@ void MachineLICM::Hoist(MachineInstr &MI) {
   // Now move the instructions to the predecessor, inserting it before any
   // terminator instructions.
   DEBUG({
-      DOUT << "Hoisting " << MI;
+      errs() << "Hoisting " << MI;
       if (CurPreheader->getBasicBlock())
-        DOUT << " to MachineBasicBlock "
-             << CurPreheader->getBasicBlock()->getName();
+        errs() << " to MachineBasicBlock "
+               << CurPreheader->getBasicBlock()->getName();
       if (MI.getParent()->getBasicBlock())
-        DOUT << " from MachineBasicBlock "
-             << MI.getParent()->getBasicBlock()->getName();
-      DOUT << "\n";
+        errs() << " from MachineBasicBlock "
+               << MI.getParent()->getBasicBlock()->getName();
+      errs() << "\n";
     });
 
   // Look for opportunity to CSE the hoisted instruction.
@@ -374,8 +397,7 @@ void MachineLICM::Hoist(MachineInstr &MI) {
   if (CI != CSEMap.end()) {
     const MachineInstr *Dup = LookForDuplicate(&MI, CI->second, RegInfo);
     if (Dup) {
-      DOUT << "CSEing " << MI;
-      DOUT << " with " << *Dup;
+      DEBUG(errs() << "CSEing " << MI << " with " << *Dup);
       for (unsigned i = 0, e = MI.getNumOperands(); i != e; ++i) {
         const MachineOperand &MO = MI.getOperand(i);
         if (MO.isReg() && MO.isDef())

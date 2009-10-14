@@ -12,35 +12,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "Mips.h"
-#include "MipsTargetAsmInfo.h"
+#include "MipsMCAsmInfo.h"
 #include "MipsTargetMachine.h"
-#include "llvm/Module.h"
 #include "llvm/PassManager.h"
-#include "llvm/Target/TargetMachineRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
-/// MipsTargetMachineModule - Note that this is used on hosts that
-/// cannot link in a library unless there are references into the
-/// library.  In particular, it seems that it is not possible to get
-/// things to work on Win32 without this.  Though it is unused, do not
-/// remove it.
-extern "C" int MipsTargetMachineModule;
-int MipsTargetMachineModule = 0;
-
-// Register the target.
-static RegisterTarget<MipsTargetMachine>    X("mips", "Mips");
-static RegisterTarget<MipselTargetMachine>  Y("mipsel", "Mipsel");
-
-MipsTargetMachine::AsmPrinterCtorFn MipsTargetMachine::AsmPrinterCtor = 0;
-
-
-// Force static initialization.
-extern "C" void LLVMInitializeMipsTarget() { }
-
-const TargetAsmInfo *MipsTargetMachine::
-createTargetAsmInfo() const 
-{
-  return new MipsTargetAsmInfo(*this);
+extern "C" void LLVMInitializeMipsTarget() {
+  // Register the target.
+  RegisterTargetMachine<MipsTargetMachine> X(TheMipsTarget);
+  RegisterTargetMachine<MipselTargetMachine> Y(TheMipselTarget);
+  RegisterAsmInfo<MipsMCAsmInfo> A(TheMipsTarget);
+  RegisterAsmInfo<MipsMCAsmInfo> B(TheMipselTarget);
 }
 
 // DataLayout --> Big-endian, 32-bit pointer/ABI/alignment
@@ -51,17 +34,22 @@ createTargetAsmInfo() const
 // an easier handling.
 // Using CodeModel::Large enables different CALL behavior.
 MipsTargetMachine::
-MipsTargetMachine(const Module &M, const std::string &FS, bool isLittle=false):
-  Subtarget(*this, M, FS, isLittle), 
+MipsTargetMachine(const Target &T, const std::string &TT, const std::string &FS,
+                  bool isLittle=false):
+  LLVMTargetMachine(T, TT),
+  Subtarget(TT, FS, isLittle), 
   DataLayout(isLittle ? std::string("e-p:32:32:32-i8:8:32-i16:16:32") :
                         std::string("E-p:32:32:32-i8:8:32-i16:16:32")), 
   InstrInfo(*this), 
   FrameInfo(TargetFrameInfo::StackGrowsUp, 8, 0),
-  TLInfo(*this) 
-{
+  TLInfo(*this) {
   // Abicall enables PIC by default
-  if (Subtarget.hasABICall())
-    setRelocationModel(Reloc::PIC_);  
+  if (getRelocationModel() == Reloc::Default) {
+    if (Subtarget.isABI_O32())
+      setRelocationModel(Reloc::PIC_);
+    else
+      setRelocationModel(Reloc::Static);
+  }
 
   // TODO: create an option to enable long calls, like -mlong-calls, 
   // that would be our CodeModel::Large. It must not work with Abicall.
@@ -70,43 +58,9 @@ MipsTargetMachine(const Module &M, const std::string &FS, bool isLittle=false):
 }
 
 MipselTargetMachine::
-MipselTargetMachine(const Module &M, const std::string &FS) :
-  MipsTargetMachine(M, FS, true) {}
-
-// return 0 and must specify -march to gen MIPS code.
-unsigned MipsTargetMachine::
-getModuleMatchQuality(const Module &M) 
-{
-  // We strongly match "mips*-*".
-  std::string TT = M.getTargetTriple();
-  if (TT.size() >= 5 && std::string(TT.begin(), TT.begin()+5) == "mips-")
-    return 20;
-  
-  if (TT.size() >= 13 && std::string(TT.begin(), 
-      TT.begin()+13) == "mipsallegrex-")
-    return 20;
-
-  return 0;
-}
-
-// return 0 and must specify -march to gen MIPSEL code.
-unsigned MipselTargetMachine::
-getModuleMatchQuality(const Module &M) 
-{
-  // We strongly match "mips*el-*".
-  std::string TT = M.getTargetTriple();
-  if (TT.size() >= 7 && std::string(TT.begin(), TT.begin()+7) == "mipsel-")
-    return 20;
-
-  if (TT.size() >= 15 && std::string(TT.begin(), 
-      TT.begin()+15) == "mipsallegrexel-")
-    return 20;
-
-  if (TT.size() == 3 && std::string(TT.begin(), TT.begin()+3) == "psp")
-    return 20;
-  
-  return 0;
-}
+MipselTargetMachine(const Target &T, const std::string &TT,
+                    const std::string &FS) :
+  MipsTargetMachine(T, TT, FS, true) {}
 
 // Install an instruction selector pass using 
 // the ISelDag to gen Mips code.
@@ -125,15 +79,4 @@ addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel)
 {
   PM.add(createMipsDelaySlotFillerPass(*this));
   return true;
-}
-
-// Implements the AssemblyEmitter for the target. Must return
-// true if AssemblyEmitter is supported
-bool MipsTargetMachine::
-addAssemblyEmitter(PassManagerBase &PM, CodeGenOpt::Level OptLevel, 
-                   bool Verbose, raw_ostream &Out)  {
-  // Output assembly language.
-  assert(AsmPrinterCtor && "AsmPrinter was not linked in");
-  PM.add(AsmPrinterCtor(Out, *this, Verbose));
-  return false;
 }

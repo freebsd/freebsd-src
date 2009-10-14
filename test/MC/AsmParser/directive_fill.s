@@ -1,11 +1,17 @@
-# RUN: llvm-mc %s > %t
+# RUN: llvm-mc -triple i386-unknown-unknown %s | FileCheck %s
 
-# RUN: grep -A 2 TEST0 %t > %t2
-# RUN: grep ".byte 10" %t2 | count 1
+# CHECK: TEST0:
+# CHECK: .byte 10
 TEST0:  
         .fill 1, 1, 10
 
-# RUN: grep -A 3 TEST1 %t > %t2
-# RUN: grep ".short 3" %t2 | count 2
+# CHECK: TEST1:
+# CHECK: .short 3
+# CHECK: .short 3
 TEST1:  
         .fill 2, 2, 3
+
+# CHECK: TEST2:
+# CHECK: .quad 4
+TEST2:  
+        .fill 1, 8, 4

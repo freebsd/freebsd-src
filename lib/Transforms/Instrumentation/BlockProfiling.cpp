@@ -19,12 +19,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "RSProfiling.h"
 #include "ProfilingUtils.h"
@@ -52,8 +51,8 @@ ModulePass *llvm::createFunctionProfilerPass() {
 bool FunctionProfiler::runOnModule(Module &M) {
   Function *Main = M.getFunction("main");
   if (Main == 0) {
-    cerr << "WARNING: cannot insert function profiling into a module"
-         << " with no main function!\n";
+    errs() << "WARNING: cannot insert function profiling into a module"
+           << " with no main function!\n";
     return false;  // No main, no instrumentation!
   }
 
@@ -62,10 +61,11 @@ bool FunctionProfiler::runOnModule(Module &M) {
     if (!I->isDeclaration())
       ++NumFunctions;
 
-  const Type *ATy = ArrayType::get(Type::Int32Ty, NumFunctions);
+  const Type *ATy = ArrayType::get(Type::getInt32Ty(M.getContext()),
+                                   NumFunctions);
   GlobalVariable *Counters =
-    new GlobalVariable(ATy, false, GlobalValue::InternalLinkage,
-                       Constant::getNullValue(ATy), "FuncProfCounters", &M);
+    new GlobalVariable(M, ATy, false, GlobalValue::InternalLinkage,
+                       Constant::getNullValue(ATy), "FuncProfCounters");
 
   // Instrument all of the functions...
   unsigned i = 0;
@@ -98,26 +98,29 @@ ModulePass *llvm::createBlockProfilerPass() { return new BlockProfiler(); }
 bool BlockProfiler::runOnModule(Module &M) {
   Function *Main = M.getFunction("main");
   if (Main == 0) {
-    cerr << "WARNING: cannot insert block profiling into a module"
-         << " with no main function!\n";
+    errs() << "WARNING: cannot insert block profiling into a module"
+           << " with no main function!\n";
     return false;  // No main, no instrumentation!
   }
 
   unsigned NumBlocks = 0;
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
-    NumBlocks += I->size();
+    if (!I->isDeclaration())
+      NumBlocks += I->size();
 
-  const Type *ATy = ArrayType::get(Type::Int32Ty, NumBlocks);
+  const Type *ATy = ArrayType::get(Type::getInt32Ty(M.getContext()), NumBlocks);
   GlobalVariable *Counters =
-    new GlobalVariable(ATy, false, GlobalValue::InternalLinkage,
-                       Constant::getNullValue(ATy), "BlockProfCounters", &M);
+    new GlobalVariable(M, ATy, false, GlobalValue::InternalLinkage,
+                       Constant::getNullValue(ATy), "BlockProfCounters");
 
   // Instrument all of the blocks...
   unsigned i = 0;
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
+  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
+    if (I->isDeclaration()) continue;
     for (Function::iterator BB = I->begin(), E = I->end(); BB != E; ++BB)
       // Insert counter at the start of the block
       IncrementCounterInBlock(BB, i++, Counters);
+  }
 
   // Add the initialization call to main.
   InsertProfilingInitCall(Main, "llvm_start_block_profiling", Counters);

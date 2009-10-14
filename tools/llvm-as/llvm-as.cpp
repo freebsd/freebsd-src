@@ -24,12 +24,9 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
-#include <fstream>
-#include <iostream>
 #include <memory>
 using namespace llvm;
 
@@ -41,7 +38,7 @@ OutputFilename("o", cl::desc("Override output filename"),
                cl::value_desc("filename"));
 
 static cl::opt<bool>
-Force("f", cl::desc("Overwrite output files"));
+Force("f", cl::desc("Enable binary output on terminals"));
 
 static cl::opt<bool>
 DisableOutput("disable-output", cl::desc("Disable output"), cl::init(false));
@@ -57,96 +54,64 @@ int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
-  LLVMContext Context;
+  LLVMContext &Context = getGlobalContext();
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
   cl::ParseCommandLineOptions(argc, argv, "llvm .ll -> .bc assembler\n");
 
-  int exitCode = 0;
-  std::ostream *Out = 0;
-  try {
-    // Parse the file now...
-    SMDiagnostic Err;
-    std::auto_ptr<Module> M(ParseAssemblyFile(InputFilename, Err, Context));
-    if (M.get() == 0) {
-      Err.Print(argv[0], errs());
-      return 1;
-    }
-
-    if (!DisableVerify) {
-      std::string Err;
-      if (verifyModule(*M.get(), ReturnStatusAction, &Err)) {
-        cerr << argv[0]
-             << ": assembly parsed, but does not verify as correct!\n";
-        cerr << Err;
-        return 1;
-      } 
-    }
-
-    if (DumpAsm) cerr << "Here's the assembly:\n" << *M.get();
-
-    if (OutputFilename != "") {   // Specified an output filename?
-      if (OutputFilename != "-") {  // Not stdout?
-        if (!Force && std::ifstream(OutputFilename.c_str())) {
-          // If force is not specified, make sure not to overwrite a file!
-          cerr << argv[0] << ": error opening '" << OutputFilename
-               << "': file exists!\n"
-               << "Use -f command line argument to force output\n";
-          return 1;
-        }
-        Out = new std::ofstream(OutputFilename.c_str(), std::ios::out |
-                                std::ios::trunc | std::ios::binary);
-      } else {                      // Specified stdout
-        // FIXME: cout is not binary!
-        Out = &std::cout;
-      }
-    } else {
-      if (InputFilename == "-") {
-        OutputFilename = "-";
-        Out = &std::cout;
-      } else {
-        std::string IFN = InputFilename;
-        int Len = IFN.length();
-        if (IFN[Len-3] == '.' && IFN[Len-2] == 'l' && IFN[Len-1] == 'l') {
-          // Source ends in .ll
-          OutputFilename = std::string(IFN.begin(), IFN.end()-3);
-        } else {
-          OutputFilename = IFN;   // Append a .bc to it
-        }
-        OutputFilename += ".bc";
-
-        if (!Force && std::ifstream(OutputFilename.c_str())) {
-          // If force is not specified, make sure not to overwrite a file!
-          cerr << argv[0] << ": error opening '" << OutputFilename
-               << "': file exists!\n"
-               << "Use -f command line argument to force output\n";
-          return 1;
-        }
-
-        Out = new std::ofstream(OutputFilename.c_str(), std::ios::out |
-                                std::ios::trunc | std::ios::binary);
-        // Make sure that the Out file gets unlinked from the disk if we get a
-        // SIGINT
-        sys::RemoveFileOnSignal(sys::Path(OutputFilename));
-      }
-    }
-
-    if (!Out->good()) {
-      cerr << argv[0] << ": error opening " << OutputFilename << "!\n";
-      return 1;
-    }
-
-    if (!DisableOutput)
-      if (Force || !CheckBitcodeOutputToConsole(Out,true))
-        WriteBitcodeToFile(M.get(), *Out);
-  } catch (const std::string& msg) {
-    cerr << argv[0] << ": " << msg << "\n";
-    exitCode = 1;
-  } catch (...) {
-    cerr << argv[0] << ": Unexpected unknown exception occurred.\n";
-    exitCode = 1;
+  // Parse the file now...
+  SMDiagnostic Err;
+  std::auto_ptr<Module> M(ParseAssemblyFile(InputFilename, Err, Context));
+  if (M.get() == 0) {
+    Err.Print(argv[0], errs());
+    return 1;
   }
 
-  if (Out != &std::cout) delete Out;
-  return exitCode;
+  if (!DisableVerify) {
+    std::string Err;
+    if (verifyModule(*M.get(), ReturnStatusAction, &Err)) {
+      errs() << argv[0]
+             << ": assembly parsed, but does not verify as correct!\n";
+      errs() << Err;
+      return 1;
+    } 
+  }
+
+  if (DumpAsm) errs() << "Here's the assembly:\n" << *M.get();
+
+  // Infer the output filename if needed.
+  if (OutputFilename.empty()) {
+    if (InputFilename == "-") {
+      OutputFilename = "-";
+    } else {
+      std::string IFN = InputFilename;
+      int Len = IFN.length();
+      if (IFN[Len-3] == '.' && IFN[Len-2] == 'l' && IFN[Len-1] == 'l') {
+        // Source ends in .ll
+        OutputFilename = std::string(IFN.begin(), IFN.end()-3);
+      } else {
+        OutputFilename = IFN;   // Append a .bc to it
+      }
+      OutputFilename += ".bc";
+    }
+  }
+
+  // Make sure that the Out file gets unlinked from the disk if we get a
+  // SIGINT.
+  if (OutputFilename != "-")
+    sys::RemoveFileOnSignal(sys::Path(OutputFilename));
+
+  std::string ErrorInfo;
+  std::auto_ptr<raw_ostream> Out
+  (new raw_fd_ostream(OutputFilename.c_str(), ErrorInfo,
+                      raw_fd_ostream::F_Binary));
+  if (!ErrorInfo.empty()) {
+    errs() << ErrorInfo << '\n';
+    return 1;
+  }
+
+  if (!DisableOutput)
+    if (Force || !CheckBitcodeOutputToConsole(*Out, true))
+      WriteBitcodeToFile(M.get(), *Out);
+  return 0;
 }
 

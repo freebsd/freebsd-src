@@ -23,8 +23,17 @@ class Type;
 class Module;
 class Value;
 class GlobalValue;
+template <typename T> class SmallVectorImpl; 
 
 class Mangler {
+public:
+  enum ManglerPrefixTy {
+    Default,               ///< Emit default string before each symbol.
+    Private,               ///< Emit "private" prefix before each symbol.
+    LinkerPrivate          ///< Emit "linker private" prefix before each symbol.
+  };
+
+private:
   /// Prefix - This string is added to each symbol that is emitted, unless the
   /// symbol is marked as not needing this prefix.
   const char *Prefix;
@@ -33,48 +42,50 @@ class Mangler {
   /// linkage.
   const char *PrivatePrefix;
 
+  /// LinkerPrivatePrefix - This string is emitted before each symbol with
+  /// "linker_private" linkage.
+  const char *LinkerPrivatePrefix;
+
   /// UseQuotes - If this is set, the target accepts global names in quotes,
   /// e.g. "foo bar" is a legal name.  This syntax is used instead of escaping
   /// the space character.  By default, this is false.
   bool UseQuotes;
 
-  /// PreserveAsmNames - If this is set, the asm escape character is not removed
-  /// from names with 'asm' specifiers.
-  bool PreserveAsmNames;
+  /// SymbolsCanStartWithDigit - If this is set, the target allows symbols to
+  /// start with digits (e.g., "0x0021").  By default, this is false.
+  bool SymbolsCanStartWithDigit;
 
-  /// Memo - This is used to remember the name that we assign a value.
+  /// AnonGlobalIDs - We need to give global values the same name every time
+  /// they are mangled.  This keeps track of the number we give to anonymous
+  /// ones.
   ///
-  DenseMap<const Value*, std::string> Memo;
+  DenseMap<const GlobalValue*, unsigned> AnonGlobalIDs;
 
-  /// Count - This simple counter is used to unique value names.
+  /// NextAnonGlobalID - This simple counter is used to unique value names.
   ///
-  unsigned Count;
-
-  /// TypeMap - If the client wants us to unique types, this keeps track of the
-  /// current assignments and TypeCounter keeps track of the next id to assign.
-  DenseMap<const Type*, unsigned> TypeMap;
-  unsigned TypeCounter;
+  unsigned NextAnonGlobalID;
 
   /// AcceptableChars - This bitfield contains a one for each character that is
   /// allowed to be part of an unmangled name.
-  unsigned AcceptableChars[256/32];
-public:
+  unsigned AcceptableChars[256 / 32];
 
+public:
   // Mangler ctor - if a prefix is specified, it will be prepended onto all
   // symbols.
-  Mangler(Module &M, const char *Prefix = "", const char *privatePrefix = "");
+  Mangler(Module &M, const char *Prefix = "", const char *privatePrefix = "",
+          const char *linkerPrivatePrefix = "");
 
   /// setUseQuotes - If UseQuotes is set to true, this target accepts quoted
   /// strings for assembler labels.
   void setUseQuotes(bool Val) { UseQuotes = Val; }
 
-  /// setPreserveAsmNames - If the mangler should not strip off the asm name
-  /// @verbatim identifier (\001), this should be set. @endverbatim
-  void setPreserveAsmNames(bool Val) { PreserveAsmNames = Val; }
+  /// setSymbolsCanStartWithDigit - If SymbolsCanStartWithDigit is set to true,
+  /// this target allows symbols to start with digits.
+  void setSymbolsCanStartWithDigit(bool Val) { SymbolsCanStartWithDigit = Val; }
 
   /// Acceptable Characters - This allows the target to specify which characters
   /// are acceptable to the assembler without being mangled.  By default we
-  /// allow letters, numbers, '_', '$', and '.', which is what GAS accepts.
+  /// allow letters, numbers, '_', '$', '.', which is what GAS accepts, and '@'.
   void markCharAcceptable(unsigned char X) {
     AcceptableChars[X/32] |= 1 << (X&31);
   }
@@ -85,11 +96,13 @@ public:
     return (AcceptableChars[X/32] & (1 << (X&31))) != 0;
   }
 
-  /// getValueName - Returns the mangled name of V, an LLVM Value,
-  /// in the current module.
+  /// getMangledName - Returns the mangled name of V, an LLVM Value,
+  /// in the current module.  If 'Suffix' is specified, the name ends with the
+  /// specified suffix.  If 'ForcePrivate' is specified, the label is specified
+  /// to have a private label prefix.
   ///
-  std::string getValueName(const GlobalValue *V, const char *Suffix = "");
-  std::string getValueName(const Value *V);
+  std::string getMangledName(const GlobalValue *V, const char *Suffix = "",
+                             bool ForcePrivate = false);
 
   /// makeNameProper - We don't want identifier names with ., space, or
   /// - in them, so we mangle these characters into the strings "d_",
@@ -98,13 +111,14 @@ public:
   /// does this for you, so there's no point calling it on the result
   /// from getValueName.
   ///
-  std::string makeNameProper(const std::string &x, const char *Prefix = 0,
-                             const char *PrivatePrefix = 0);
-
-private:
-  /// getTypeID - Return a unique ID for the specified LLVM type.
-  ///
-  unsigned getTypeID(const Type *Ty);
+  std::string makeNameProper(const std::string &x,
+                             ManglerPrefixTy PrefixTy = Mangler::Default);
+  
+  /// getNameWithPrefix - Fill OutName with the name of the appropriate prefix
+  /// and the specified global variable's name.  If the global variable doesn't
+  /// have a name, this fills in a unique name for the global.
+  void getNameWithPrefix(SmallVectorImpl<char> &OutName, const GlobalValue *GV,
+                         bool isImplicitlyPrivate);
 };
 
 } // End llvm namespace

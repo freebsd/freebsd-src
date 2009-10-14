@@ -12,22 +12,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/Streams.h"
 #include "llvm/Support/SystemUtils.h"
 #include "llvm/System/Process.h"
 #include "llvm/System/Program.h"
-#include <ostream>
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-bool llvm::CheckBitcodeOutputToConsole(std::ostream* stream_to_check,
+bool llvm::CheckBitcodeOutputToConsole(raw_ostream &stream_to_check,
                                        bool print_warning) {
-  if (stream_to_check == cout.stream() &&
-      sys::Process::StandardOutIsDisplayed()) {
+  if (stream_to_check.is_displayed()) {
     if (print_warning) {
-      cerr << "WARNING: You're attempting to print out a bitcode file.\n"
-           << "This is inadvisable as it may cause display problems. If\n"
-           << "you REALLY want to taste LLVM bitcode first-hand, you\n"
-           << "can force output with the `-f' option.\n\n";
+      errs() << "WARNING: You're attempting to print out a bitcode file.\n"
+             << "This is inadvisable as it may cause display problems. If\n"
+             << "you REALLY want to taste LLVM bitcode first-hand, you\n"
+             << "can force output with the `-f' option.\n\n";
     }
     return true;
   }
@@ -35,24 +33,17 @@ bool llvm::CheckBitcodeOutputToConsole(std::ostream* stream_to_check,
 }
 
 /// FindExecutable - Find a named executable, giving the argv[0] of program
-/// being executed. This allows us to find another LLVM tool if it is built
-/// into the same directory, but that directory is neither the current
-/// directory, nor in the PATH.  If the executable cannot be found, return an
-/// empty string. Return the input string if given a full path to an executable.
-///
+/// being executed. This allows us to find another LLVM tool if it is built in
+/// the same directory.  If the executable cannot be found, return an
+/// empty string.
+/// @brief Find a named executable.
 #undef FindExecutable   // needed on windows :(
 sys::Path llvm::FindExecutable(const std::string &ExeName,
-                               const std::string &ProgramPath) {
-  // First check if the given name is already a valid path to an executable.
-  sys::Path Result(ExeName);
-  Result.makeAbsolute();
-  if (Result.canExecute())
-    return Result;
-
-  // Otherwise check the directory that the calling program is in.  We can do
+                               const char *Argv0, void *MainAddr) {
+  // Check the directory that the calling program is in.  We can do
   // this if ProgramPath contains at least one / character, indicating that it
-  // is a relative path to bugpoint itself.
-  Result = ProgramPath;
+  // is a relative path to the executable itself.
+  sys::Path Result = sys::Path::GetMainExecutable(Argv0, MainAddr);
   Result.eraseComponent();
   if (!Result.isEmpty()) {
     Result.appendComponent(ExeName);
@@ -60,5 +51,5 @@ sys::Path llvm::FindExecutable(const std::string &ExeName,
       return Result;
   }
 
-  return sys::Program::FindProgramByName(ExeName);
+  return sys::Path();
 }

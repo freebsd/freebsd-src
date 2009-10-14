@@ -23,14 +23,23 @@
 class FuncUnit;
 
 //===----------------------------------------------------------------------===//
-// Instruction stage - These values represent a step in the execution of an
-// instruction.  The latency represents the number of discrete time slots used
-// need to complete the stage.  Units represent the choice of functional units
-// that can be used to complete the stage.  Eg. IntUnit1, IntUnit2.
+// Instruction stage - These values represent a non-pipelined step in
+// the execution of an instruction.  Cycles represents the number of
+// discrete time slots needed to complete the stage.  Units represent
+// the choice of functional units that can be used to complete the
+// stage.  Eg. IntUnit1, IntUnit2. NextCycles indicates how many
+// cycles should elapse from the start of this stage to the start of
+// the next stage in the itinerary.  For example:
 //
-class InstrStage<int cycles, list<FuncUnit> units> {
+// A stage is specified in one of two ways:
+//
+//   InstrStage<1, [FU_x, FU_y]>     - TimeInc defaults to Cycles
+//   InstrStage<1, [FU_x, FU_y], 0>  - TimeInc explicit
+//
+class InstrStage<int cycles, list<FuncUnit> units, int timeinc = -1> {
   int Cycles          = cycles;       // length of stage in machine cycles
   list<FuncUnit> Units = units;       // choice of functional units
+  int TimeInc         = timeinc;      // cycles till start of next stage
 }
 
 //===----------------------------------------------------------------------===//
@@ -51,11 +60,13 @@ def NoItinerary : InstrItinClass;
 
 //===----------------------------------------------------------------------===//
 // Instruction itinerary data - These values provide a runtime map of an 
-// instruction itinerary class (name) to it's itinerary data.
+// instruction itinerary class (name) to its itinerary data.
 //
-class InstrItinData<InstrItinClass Class, list<InstrStage> stages> {
+class InstrItinData<InstrItinClass Class, list<InstrStage> stages,
+                    list<int> operandcycles = []> {
   InstrItinClass TheClass = Class;
   list<InstrStage> Stages = stages;
+  list<int> OperandCycles = operandcycles;
 }
 
 //===----------------------------------------------------------------------===//

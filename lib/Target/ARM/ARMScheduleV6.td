@@ -1,4 +1,4 @@
-//===- ARMSchedule.td - ARM v6 Scheduling Definitions ------*- tablegen -*-===//
+//===- ARMScheduleV6.td - ARM v6 Scheduling Definitions ----*- tablegen -*-===//
 // 
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,12 +11,4 @@
 //
 //===----------------------------------------------------------------------===//
 
-def V6Itineraries : ProcessorItineraries<[
-  InstrItinData<IIC_iALU    , [InstrStage<1, [FU_iALU]>]>,
-  InstrItinData<IIC_iLoad   , [InstrStage<2, [FU_iLdSt]>]>,
-  InstrItinData<IIC_iStore  , [InstrStage<1, [FU_iLdSt]>]>,
-  InstrItinData<IIC_fpALU   , [InstrStage<6, [FU_FpALU]>]>,
-  InstrItinData<IIC_fpLoad  , [InstrStage<2, [FU_FpLdSt]>]>,
-  InstrItinData<IIC_fpStore , [InstrStage<1, [FU_FpLdSt]>]>,
-  InstrItinData<IIC_Br      , [InstrStage<3, [FU_Br]>]>
-]>;
+// TODO: Add model for an ARM11

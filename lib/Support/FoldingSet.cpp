@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <cassert>
 #include <cstring>
@@ -50,7 +51,7 @@ void FoldingSetNodeID::AddInteger(unsigned long I) {
   else if (sizeof(long) == sizeof(long long)) {
     AddInteger((unsigned long long)I);
   } else {
-    assert(0 && "unexpected sizeof(long)");
+    llvm_unreachable("unexpected sizeof(long)");
   }
 }
 void FoldingSetNodeID::AddInteger(long long I) {
@@ -62,14 +63,14 @@ void FoldingSetNodeID::AddInteger(unsigned long long I) {
     Bits.push_back(unsigned(I >> 32));
 }
 
-void FoldingSetNodeID::AddString(const char *String, const char *End) {
-  unsigned Size =  static_cast<unsigned>(End - String);
+void FoldingSetNodeID::AddString(StringRef String) {
+  unsigned Size =  String.size();
   Bits.push_back(Size);
   if (!Size) return;
 
   unsigned Units = Size / 4;
   unsigned Pos = 0;
-  const unsigned *Base = (const unsigned *)String;
+  const unsigned *Base = (const unsigned*) String.data();
   
   // If the string is aligned do a bulk transfer.
   if (!((intptr_t)Base & 3)) {
@@ -97,14 +98,6 @@ void FoldingSetNodeID::AddString(const char *String, const char *End) {
   }
 
   Bits.push_back(V);
-}
-
-void FoldingSetNodeID::AddString(const char *String) {
-  AddString(String, String + strlen(String));
-}
-
-void FoldingSetNodeID::AddString(const std::string &String) {
-  AddString(&*String.begin(), &*String.end());
 }
 
 /// ComputeHash - Compute a strong hash value for this FoldingSetNodeID, used to 

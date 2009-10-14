@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | grep and | count 2
+; RUN: opt < %s -instcombine -S | grep and | count 2
 
 ; Should be optimized to one and.
 define i1 @test1(i33 %a, i33 %b) {

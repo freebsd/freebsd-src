@@ -79,7 +79,8 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
   
     virtual MachineBasicBlock *EmitInstrWithCustomInserter(MachineInstr *MI,
-                                                  MachineBasicBlock *MBB) const;
+                                                         MachineBasicBlock *MBB,
+                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
 
     virtual bool isLegalAddressingMode(const AddrMode &AM,
                                        const Type *Ty) const;
@@ -92,18 +93,31 @@ namespace llvm {
     const XCoreSubtarget &Subtarget;
   
     // Lower Operand helpers
-    SDValue LowerCCCArguments(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerCCCCallTo(SDValue Op, SelectionDAG &DAG, unsigned CC);
-    SDNode *LowerCallResult(SDValue Chain, SDValue InFlag, CallSDNode*TheCall,
-                            unsigned CallingConv, SelectionDAG &DAG);
+    SDValue LowerCCCArguments(SDValue Chain,
+                              CallingConv::ID CallConv,
+                              bool isVarArg,
+                              const SmallVectorImpl<ISD::InputArg> &Ins,
+                              DebugLoc dl, SelectionDAG &DAG,
+                              SmallVectorImpl<SDValue> &InVals);
+    SDValue LowerCCCCallTo(SDValue Chain, SDValue Callee,
+                           CallingConv::ID CallConv, bool isVarArg,
+                           bool isTailCall,
+                           const SmallVectorImpl<ISD::OutputArg> &Outs,
+                           const SmallVectorImpl<ISD::InputArg> &Ins,
+                           DebugLoc dl, SelectionDAG &DAG,
+                           SmallVectorImpl<SDValue> &InVals);
+    SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
+                            CallingConv::ID CallConv, bool isVarArg,
+                            const SmallVectorImpl<ISD::InputArg> &Ins,
+                            DebugLoc dl, SelectionDAG &DAG,
+                            SmallVectorImpl<SDValue> &InVals);
     SDValue getReturnAddressFrameIndex(SelectionDAG &DAG);
     SDValue getGlobalAddressWrapper(SDValue GA, GlobalValue *GV,
                                     SelectionDAG &DAG);
 
     // Lower Operand specifics
-    SDValue LowerRET(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerCALL(SDValue Op, SelectionDAG &DAG);
-    SDValue LowerFORMAL_ARGUMENTS(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG);
     SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG);
@@ -116,10 +130,35 @@ namespace llvm {
     // Inline asm support
     std::vector<unsigned>
     getRegClassForInlineAsmConstraint(const std::string &Constraint,
-              MVT VT) const;
+              EVT VT) const;
   
     // Expand specifics
     SDValue ExpandADDSUB(SDNode *Op, SelectionDAG &DAG);
+
+    virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
+
+    virtual SDValue
+      LowerFormalArguments(SDValue Chain,
+                           CallingConv::ID CallConv,
+                           bool isVarArg,
+                           const SmallVectorImpl<ISD::InputArg> &Ins,
+                           DebugLoc dl, SelectionDAG &DAG,
+                           SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerCall(SDValue Chain, SDValue Callee,
+                CallingConv::ID CallConv, bool isVarArg,
+                bool isTailCall,
+                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                const SmallVectorImpl<ISD::InputArg> &Ins,
+                DebugLoc dl, SelectionDAG &DAG,
+                SmallVectorImpl<SDValue> &InVals);
+
+    virtual SDValue
+      LowerReturn(SDValue Chain,
+                  CallingConv::ID CallConv, bool isVarArg,
+                  const SmallVectorImpl<ISD::OutputArg> &Outs,
+                  DebugLoc dl, SelectionDAG &DAG);
   };
 }
 

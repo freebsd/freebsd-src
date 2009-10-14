@@ -1,7 +1,7 @@
 ; PR1109
-; RUN: llvm-as < %s | opt -basicaa -gvn -instcombine | llvm-dis | \
+; RUN: opt < %s -basicaa -gvn -instcombine -S | \
 ; RUN:   grep {sub i32}
-; RUN: llvm-as < %s | opt -basicaa -gvn -instcombine | llvm-dis | \
+; RUN: opt < %s -basicaa -gvn -instcombine -S | \
 ; RUN:   not grep {ret i32 0}
 ; END.
 

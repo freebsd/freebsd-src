@@ -19,10 +19,11 @@
 #--------------------------------------------------------------------
 # Define the various target sets
 #--------------------------------------------------------------------
-RecursiveTargets := all clean clean-all install uninstall install-bytecode
+RecursiveTargets := all clean clean-all install uninstall install-bytecode \
+                    unitcheck
 LocalTargets     := all-local clean-local clean-all-local check-local \
                     install-local printvars uninstall-local \
-		    install-bytecode-local unittests
+		    install-bytecode-local
 TopLevelTargets  := check dist dist-check dist-clean dist-gzip dist-bzip2 \
                     dist-zip unittests
 UserTargets      := $(RecursiveTargets) $(LocalTargets) $(TopLevelTargets)
@@ -128,8 +129,11 @@ reconfigure:
 	  $(ConfigStatusScript) --recheck $(ConfigureScriptFLAGS) && \
 	  $(ConfigStatusScript)
 
+# FIXME: The {PIC16,MSP430}/AsmPrinter line here is a hack to force a reconfigure to pick
+# up AsmPrinter changes. Remove it after a reasonable delay from 2009-08-13.
+
 .PRECIOUS: $(ConfigStatusScript)
-$(ConfigStatusScript): $(ConfigureScript)
+$(ConfigStatusScript): $(ConfigureScript) $(LLVM_SRC_ROOT)/lib/Target/PIC16/AsmPrinter/Makefile $(LLVM_SRC_ROOT)/lib/Target/MSP430/AsmPrinter/Makefile
 	$(Echo) Reconfiguring with $<
 	$(Verb) cd $(PROJ_OBJ_ROOT) && \
 	  if test -w $(PROJ_OBJ_ROOT)/config.cache ; then \
@@ -242,6 +246,12 @@ LLVMC_BUILTIN_PLUGIN_2 = $(word 2, $(LLVMC_BUILTIN_PLUGINS))
 LLVMC_BUILTIN_PLUGIN_3 = $(word 3, $(LLVMC_BUILTIN_PLUGINS))
 LLVMC_BUILTIN_PLUGIN_4 = $(word 4, $(LLVMC_BUILTIN_PLUGINS))
 LLVMC_BUILTIN_PLUGIN_5 = $(word 5, $(LLVMC_BUILTIN_PLUGINS))
+LLVMC_BUILTIN_PLUGIN_6 = $(word 6, $(LLVMC_BUILTIN_PLUGINS))
+LLVMC_BUILTIN_PLUGIN_7 = $(word 7, $(LLVMC_BUILTIN_PLUGINS))
+LLVMC_BUILTIN_PLUGIN_8 = $(word 8, $(LLVMC_BUILTIN_PLUGINS))
+LLVMC_BUILTIN_PLUGIN_9 = $(word 9, $(LLVMC_BUILTIN_PLUGINS))
+LLVMC_BUILTIN_PLUGIN_10 = $(word 10, $(LLVMC_BUILTIN_PLUGINS))
+
 
 ifneq ($(LLVMC_BUILTIN_PLUGIN_1),)
 CPP.Flags += -DLLVMC_BUILTIN_PLUGIN_1=$(LLVMC_BUILTIN_PLUGIN_1)
@@ -262,6 +272,27 @@ endif
 ifneq ($(LLVMC_BUILTIN_PLUGIN_5),)
 CPP.Flags += -DLLVMC_BUILTIN_PLUGIN_5=$(LLVMC_BUILTIN_PLUGIN_5)
 endif
+
+ifneq ($(LLVMC_BUILTIN_PLUGIN_6),)
+CPP.Flags += -DLLVMC_BUILTIN_PLUGIN_5=$(LLVMC_BUILTIN_PLUGIN_6)
+endif
+
+ifneq ($(LLVMC_BUILTIN_PLUGIN_7),)
+CPP.Flags += -DLLVMC_BUILTIN_PLUGIN_5=$(LLVMC_BUILTIN_PLUGIN_7)
+endif
+
+ifneq ($(LLVMC_BUILTIN_PLUGIN_8),)
+CPP.Flags += -DLLVMC_BUILTIN_PLUGIN_5=$(LLVMC_BUILTIN_PLUGIN_8)
+endif
+
+ifneq ($(LLVMC_BUILTIN_PLUGIN_9),)
+CPP.Flags += -DLLVMC_BUILTIN_PLUGIN_5=$(LLVMC_BUILTIN_PLUGIN_9)
+endif
+
+ifneq ($(LLVMC_BUILTIN_PLUGIN_10),)
+CPP.Flags += -DLLVMC_BUILTIN_PLUGIN_5=$(LLVMC_BUILTIN_PLUGIN_10)
+endif
+
 
 endif
 
@@ -284,7 +315,7 @@ CPP.Defines :=
 # OPTIMIZE_OPTION - The optimization level option we want to build LLVM with
 # this can be overridden on the make command line.
 ifndef OPTIMIZE_OPTION
-  ifneq ($(OS),MingW)
+  ifneq ($(HOST_OS),MingW)
     OPTIMIZE_OPTION := -O3
   else
     OPTIMIZE_OPTION := -O2
@@ -294,8 +325,8 @@ endif
 ifeq ($(ENABLE_OPTIMIZED),1)
   BuildMode := Release
   # Don't use -fomit-frame-pointer on Darwin or FreeBSD.
-  ifneq ($(OS),FreeBSD)
-  ifneq ($(OS),Darwin)
+  ifneq ($(HOST_OS),FreeBSD)
+  ifneq ($(HOST_OS),Darwin)
     OmitFramePointer := -fomit-frame-pointer
   endif
   endif
@@ -303,12 +334,19 @@ ifeq ($(ENABLE_OPTIMIZED),1)
   # Darwin requires -fstrict-aliasing to be explicitly enabled.
   # Avoid -fstrict-aliasing on Darwin for now, there are unresolved issues
   # with -fstrict-aliasing and ipa-type-escape radr://6756684
-  #ifeq ($(OS),Darwin)
+  #ifeq ($(HOST_OS),Darwin)
   #  EXTRA_OPTIONS += -fstrict-aliasing -Wstrict-aliasing
   #endif
   CXX.Flags += $(OPTIMIZE_OPTION) $(OmitFramePointer)
   C.Flags   += $(OPTIMIZE_OPTION) $(OmitFramePointer)
   LD.Flags  += $(OPTIMIZE_OPTION)
+  ifdef DEBUG_SYMBOLS
+    BuildMode := $(BuildMode)+Debug
+    CXX.Flags += -g
+    C.Flags   += -g
+    LD.Flags  += -g
+    KEEP_SYMBOLS := 1
+  endif
 else
   BuildMode := Debug
   CXX.Flags += -g
@@ -334,9 +372,16 @@ ifndef REQUIRES_EH
   CXX.Flags += -fno-exceptions
 endif
 
-# IF REQUIRES_RTTI=1 is specified then don't disable run-time type id
-ifndef REQUIRES_RTTI
-#  CXX.Flags += -fno-rtti
+ifdef REQUIRES_FRAME_POINTER
+  CXX.Flags := $(filter-out -fomit-frame-pointer,$(CXX.Flags))
+  C.Flags   := $(filter-out -fomit-frame-pointer,$(C.Flags))
+  LD.Flags  := $(filter-out -fomit-frame-pointer,$(LD.Flags))
+endif
+
+# If REQUIRES_RTTI=1 is specified then don't disable run-time type id.
+ifeq ($(REQUIRES_RTTI), 1)
+  CXX.Flags := $(filter-out -fno-rtti,$(CXX.Flags))
+  CXXFLAGS := $(filter-out -fno-rtti,$(CXXFLAGS))
 endif
 
 ifdef ENABLE_COVERAGE
@@ -376,10 +421,10 @@ ifdef SHARED_LIBRARY
 endif
 
 ifeq ($(ENABLE_PIC),1)
-  ifeq ($(OS), $(filter $(OS), Cygwin MingW))
+  ifeq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
     # Nothing. Win32 defaults to PIC and warns when given -fPIC
   else
-    ifeq ($(OS),Darwin)
+    ifeq ($(HOST_OS),Darwin)
       # Common symbols not allowed in dylib files
       CXX.Flags += -fno-common
       C.Flags   += -fno-common
@@ -390,17 +435,14 @@ ifeq ($(ENABLE_PIC),1)
     endif
   endif
 else
-  ifeq ($(OS),Darwin)
+  ifeq ($(HOST_OS),Darwin)
       CXX.Flags += -mdynamic-no-pic
       C.Flags   += -mdynamic-no-pic
   endif
 endif
 
-CXX.Flags     += $(CXXFLAGS) -Woverloaded-virtual
-C.Flags       += $(CFLAGS)
-CPP.Defines   += $(CPPFLAGS)
+CXX.Flags     += -Woverloaded-virtual
 CPP.BaseFlags += $(CPP.Defines)
-LD.Flags      += $(LDFLAGS)
 AR.Flags      := cru
 
 # Make Floating point IEEE compliant on Alpha.
@@ -417,7 +459,7 @@ ifeq ($(ARCH),Alpha)
   LD.Flags += -Wl,--no-relax
 endif
 
-ifeq ($(OS),MingW)
+ifeq ($(HOST_OS),MingW)
   ifeq ($(LLVM_CROSS_COMPILING),1)
     # Work around http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=525016
     ifdef TOOLNAME
@@ -430,6 +472,7 @@ ifdef ENABLE_EXPENSIVE_CHECKS
   # GNU libstdc++ uses RTTI if you define _GLIBCXX_DEBUG, which we did above.
   # See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=40160
   CXX.Flags := $(filter-out -fno-rtti,$(CXX.Flags))
+  CXXFLAGS := $(filter-out -fno-rtti,$(CXXFLAGS))
 endif
 
 #--------------------------------------------------------------------
@@ -499,7 +542,7 @@ endif
 # Adjust to user's request
 #--------------------------------------------------------------------
 
-ifeq ($(OS),Darwin)
+ifeq ($(HOST_OS),Darwin)
   DARWIN_VERSION := `sw_vers -productVersion`
   # Strip a number like 10.4.7 to 10.4
   DARWIN_VERSION := $(shell echo $(DARWIN_VERSION)| sed -E 's/(10.[0-9]).*/\1/')
@@ -507,14 +550,22 @@ ifeq ($(OS),Darwin)
   DARWIN_MAJVERS := $(shell echo $(DARWIN_VERSION)| sed -E 's/10.([0-9]).*/\1/')
 
   SharedLinkOptions=-Wl,-flat_namespace -Wl,-undefined -Wl,suppress \
-                    -dynamiclib -mmacosx-version-min=$(DARWIN_VERSION)
-  TargetCommonOpts += -mmacosx-version-min=$(DARWIN_VERSION)
+                    -dynamiclib
+  ifneq ($(ARCH),ARM)
+    SharedLinkOptions += -mmacosx-version-min=$(DARWIN_VERSION)
+  endif
 else
-  ifeq ($(OS),Cygwin)
+  ifeq ($(HOST_OS),Cygwin)
     SharedLinkOptions=-shared -nostdlib -Wl,--export-all-symbols \
                       -Wl,--enable-auto-import -Wl,--enable-auto-image-base
   else
     SharedLinkOptions=-shared
+  endif
+endif
+
+ifeq ($(TARGET_OS),Darwin)
+  ifneq ($(ARCH),ARM)
+    TargetCommonOpts += -mmacosx-version-min=$(DARWIN_VERSION)
   endif
 endif
 
@@ -555,7 +606,7 @@ ifndef KEEP_SYMBOLS
 endif
 
 # Adjust linker flags for building an executable
-ifneq ($(OS),Darwin)
+ifneq ($(HOST_OS),Darwin)
 ifneq ($(DARWIN_MAJVERS),4)
 ifdef TOOLNAME
 ifdef EXAMPLE_TOOL
@@ -577,7 +628,7 @@ endif
 CompileCommonOpts += -Wall -W -Wno-unused-parameter -Wwrite-strings \
                      $(EXTRA_OPTIONS)
 
-ifeq ($(OS),HP-UX)
+ifeq ($(HOST_OS),HP-UX)
   CompileCommonOpts := -D_REENTRANT -D_HPUX_SOURCE
 endif
 
@@ -605,7 +656,7 @@ ifdef UNIVERSAL
   # Building universal cannot compute dependencies automatically.
   DISABLE_AUTO_DEPENDENCIES=1
 else
-  ifeq ($(OS),Darwin)
+  ifeq ($(TARGET_OS),Darwin)
     ifeq ($(ARCH),x86_64)
       TargetCommonOpts = -m64
     else
@@ -616,9 +667,13 @@ else
   endif
 endif
 
-ifeq ($(OS),SunOS)
+ifeq ($(HOST_OS),SunOS)
 CPP.BaseFlags += -include llvm/System/Solaris.h
 endif
+
+ifeq ($(HOST_OS),AuroraUX)
+CPP.BaseFlags += -include llvm/System/Solaris.h
+endif # !HOST_OS - AuroraUX.
 
 LD.Flags      += -L$(LibDir) -L$(LLVMLibDir)
 CPP.BaseFlags += -D_GNU_SOURCE -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
@@ -630,31 +685,35 @@ CPP.Flags     += $(sort -I$(PROJ_OBJ_DIR) -I$(PROJ_SRC_DIR) \
 	         $(CPP.BaseFlags)
 
 ifeq ($(BUILD_COMPONENT), 1)
-  Compile.C     = $(BUILD_CC) $(CPP.Flags) $(C.Flags) \
+  Compile.C     = $(BUILD_CC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Compile.CXX   = $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) \
+  Compile.CXX   = $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
+		  $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Preprocess.CXX= $(BUILD_CXX) $(CPP.Flags) $(TargetCommonOpts) \
+  Preprocess.CXX= $(BUILD_CXX) $(CPP.Flags) $(CPPFLAGS) $(TargetCommonOpts) \
                   $(CompileCommonOpts) $(CXX.Flags) -E
-  Link          = $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) \
+  Link          = $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
+		  $(LDFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) $(LD.Flags) $(Strip)
 else
-  Compile.C     = $(CC) $(CPP.Flags) $(C.Flags) \
+  Compile.C     = $(CC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Compile.CXX   = $(CXX) $(CPP.Flags) $(CXX.Flags) \
+  Compile.CXX   = $(CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Preprocess.CXX= $(CXX) $(CPP.Flags) $(TargetCommonOpts) \
+  Preprocess.CXX= $(CXX) $(CPP.Flags) $(TargetCommonOpts) $(CPPFLAGS) \
                   $(CompileCommonOpts) $(CXX.Flags) -E
-  Link          = $(CXX) $(CPP.Flags) $(CXX.Flags) \
+  Link          = $(CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) $(LDFLAGS) \
                   $(TargetCommonOpts)  $(CompileCommonOpts) $(LD.Flags) $(Strip)
 endif
 
-BCCompile.C   = $(LLVMGCCWITHPATH) $(CPP.Flags) $(C.Flags) \
+BCCompile.C   = $(LLVMGCCWITHPATH) $(CPP.Flags) $(C.Flags) $(CFLAGS) \
+		$(CPPFLAGS) \
                 $(TargetCommonOpts) $(CompileCommonOpts)
-Preprocess.C  = $(CC) $(CPP.Flags) $(C.Flags) \
+Preprocess.C  = $(CC) $(CPP.Flags) $(C.Flags) $(CPPFLAGS) \
                 $(TargetCommonOpts) $(CompileCommonOpts) -E
 
-BCCompile.CXX = $(LLVMGXXWITHPATH) $(CPP.Flags) $(CXX.Flags) \
+BCCompile.CXX = $(LLVMGXXWITHPATH) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
+		$(CPPFLAGS) \
                 $(TargetCommonOpts) $(CompileCommonOpts)
 
 ProgInstall   = $(INSTALL) $(Install.StripFlag) -m 0755
@@ -780,6 +839,7 @@ clean-all:: $(addsuffix /.makeclean-all,$(PARALLEL_DIRS))
 install  :: $(addsuffix /.makeinstall  ,$(PARALLEL_DIRS))
 uninstall:: $(addsuffix /.makeuninstall,$(PARALLEL_DIRS))
 install-bytecode  :: $(addsuffix /.makeinstall-bytecode,$(PARALLEL_DIRS))
+unitcheck:: $(addsuffix /.makeunitcheck,$(PARALLEL_DIRS))
 
 ParallelTargets := $(foreach T,$(RecursiveTargets),%/.make$(T))
 
@@ -888,7 +948,7 @@ $(ToolDir)/$(strip $(TOOLNAME))$(EXEEXT): $(LLVM_CONFIG)
 
 LLVMLibsOptions += $(shell $(LLVM_CONFIG) --libs     $(LINK_COMPONENTS))
 LLVMLibsPaths   += $(LLVM_CONFIG) \
-                  $(shell $(LLVM_CONFIG) --libfiles $(LINK_COMPONENTS))
+                   $(shell $(LLVM_CONFIG) --libfiles $(LINK_COMPONENTS))
 endif
 endif
 
@@ -960,7 +1020,7 @@ endif
 # if we're building a library ...
 ifdef LIBRARYNAME
 
-# Make sure there isn't any extranous whitespace on the LIBRARYNAME option
+# Make sure there isn't any extraneous whitespace on the LIBRARYNAME option
 LIBRARYNAME := $(strip $(LIBRARYNAME))
 ifdef LOADABLE_MODULE
 LibName.A  := $(LibDir)/$(LIBRARYNAME).a
@@ -1045,9 +1105,9 @@ $(LibName.BCA): $(ObjectsBC) $(LibDir)/.dir $(LLVMLD) \
                 $(LLVMToolDir)/llvm-ar
 	$(Echo) Building $(BuildMode) Bytecode Archive $(notdir $@) \
 	  "(internalize)"
-	$(Verb) $(BCLinkLib) -o $(ObjDir)/$(LIBRARYNAME).o $(ObjectsBC)
+	$(Verb) $(BCLinkLib) -o $(ObjDir)/$(LIBRARYNAME).internalize $(ObjectsBC)
 	$(Verb) $(RM) -f $@
-	$(Verb) $(LArchive) $@ $(ObjDir)/$(LIBRARYNAME).o
+	$(Verb) $(LArchive) $@ $(ObjDir)/$(LIBRARYNAME).internalize.bc
 else
 $(LibName.BCA): $(ObjectsBC) $(LibDir)/.dir \
                 $(LLVMToolDir)/llvm-ar
@@ -1169,7 +1229,7 @@ endif
 # not exporting all of the weak symbols from the binary.  This reduces dyld
 # startup time by 4x on darwin in some cases.
 ifdef TOOL_NO_EXPORTS
-ifeq ($(OS),Darwin)
+ifeq ($(HOST_OS),Darwin)
 
 # Tiger tools don't support this.
 ifneq ($(DARWIN_MAJVERS),4)
@@ -1177,7 +1237,7 @@ LD.Flags += -Wl,-exported_symbol -Wl,_main
 endif
 endif
 
-ifeq ($(OS), $(filter $(OS), Linux NetBSD FreeBSD))
+ifeq ($(HOST_OS), $(filter $(HOST_OS), Linux NetBSD FreeBSD))
 LD.Flags += -Wl,--version-script=$(LLVM_SRC_ROOT)/autoconf/ExportMap.map
 endif
 endif
@@ -1212,7 +1272,7 @@ install-local::
 uninstall-local::
 	$(Echo) Uninstall circumvented with NO_INSTALL
 else
-DestTool = $(PROJ_bindir)/$(TOOLNAME)
+DestTool = $(PROJ_bindir)/$(TOOLNAME)$(EXEEXT)
 
 install-local:: $(DestTool)
 
@@ -1231,7 +1291,7 @@ endif
 ###############################################################################
 
 # FIXME: This should be checking for "if not GCC or ICC", not for "if HP-UX"
-ifeq ($(OS),HP-UX)
+ifeq ($(HOST_OS),HP-UX)
   DISABLE_AUTO_DEPENDENCIES=1
 endif
 
@@ -1251,7 +1311,7 @@ DEPEND_MOVEFILE = then $(MV) -f "$(ObjDir)/$*.d.tmp" "$(ObjDir)/$*.d"; \
                   else $(RM) "$(ObjDir)/$*.d.tmp"; exit 1; fi
 
 $(ObjDir)/%.o: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES)
-	$(Echo) "Compiling $*.cpp for $(BuildMode) build " $(PIC_FLAG)
+	$(Echo) "Compiling $*.cpp for $(BuildMode) build" $(PIC_FLAG)
 	$(Verb) if $(Compile.CXX) $(DEPEND_OPTIONS) $< -o $(ObjDir)/$*.o ; \
 	        $(DEPEND_MOVEFILE)
 
@@ -1354,14 +1414,13 @@ $(ObjDir)/%.s: %.c $(ObjDir)/.dir $(BUILT_SOURCES)
 
 # make the C and C++ compilers strip debug info out of bytecode libraries.
 ifdef DEBUG_RUNTIME
-$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LLVMAS) $(LOPT)
+$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LOPT)
 	$(Echo) "Compiling $*.ll to $*.bc for $(BuildMode) build (bytecode)"
-	$(Verb) $(LLVMAS) $< -o - | $(LOPT) -std-compile-opts -o $@ -f
+	$(Verb) $(LOPT) $< -std-compile-opts -o $@
 else
-$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LLVMAS) $(LOPT)
+$(ObjectsBC): $(ObjDir)/%.bc: $(ObjDir)/%.ll $(LOPT)
 	$(Echo) "Compiling $*.ll to $*.bc for $(BuildMode) build (bytecode)"
-	$(Verb) $(LLVMAS) $< -o - | \
-	   $(LOPT) -std-compile-opts -strip-debug -o $@ -f
+	$(Verb) $(LOPT) $< -std-compile-opts -strip-debug -o $@
 endif
 
 
@@ -1449,6 +1508,11 @@ $(TARGET:%=$(ObjDir)/%GenAsmWriter1.inc.tmp): \
 $(ObjDir)/%GenAsmWriter1.inc.tmp : %.td $(ObjDir)/.dir
 	$(Echo) "Building $(<F) assembly writer #1 with tblgen"
 	$(Verb) $(TableGen) -gen-asm-writer -asmwriternum=1 -o $(call SYSPATH, $@) $<
+
+$(TARGET:%=$(ObjDir)/%GenAsmMatcher.inc.tmp): \
+$(ObjDir)/%GenAsmMatcher.inc.tmp : %.td $(ObjDir)/.dir
+	$(Echo) "Building $(<F) assembly matcher with tblgen"
+	$(Verb) $(TableGen) -gen-asm-matcher -o $(call SYSPATH, $@) $<
 
 $(TARGET:%=$(ObjDir)/%GenCodeEmitter.inc.tmp): \
 $(ObjDir)/%GenCodeEmitter.inc.tmp: %.td $(ObjDir)/.dir
@@ -1575,6 +1639,30 @@ check::
 	  $(EchoCmd) No test directory ; \
 	fi
 
+check-lit::
+	$(Verb) if test -d "$(PROJ_OBJ_ROOT)/test" ; then \
+	  if test -f "$(PROJ_OBJ_ROOT)/test/Makefile" ; then \
+	    $(EchoCmd) Running test suite ; \
+	    $(MAKE) -C $(PROJ_OBJ_ROOT)/test check-local-lit ; \
+	  else \
+	    $(EchoCmd) No Makefile in test directory ; \
+	  fi ; \
+	else \
+	  $(EchoCmd) No test directory ; \
+	fi
+
+check-all::
+	$(Verb) if test -d "$(PROJ_OBJ_ROOT)/test" ; then \
+	  if test -f "$(PROJ_OBJ_ROOT)/test/Makefile" ; then \
+	    $(EchoCmd) Running test suite ; \
+	    $(MAKE) -C $(PROJ_OBJ_ROOT)/test check-local-all ; \
+	  else \
+	    $(EchoCmd) No Makefile in test directory ; \
+	  fi ; \
+	else \
+	  $(EchoCmd) No test directory ; \
+	fi
+
 ###############################################################################
 # UNITTESTS: Running the unittests test suite
 ###############################################################################
@@ -1583,7 +1671,7 @@ unittests::
 	$(Verb) if test -d "$(PROJ_OBJ_ROOT)/unittests" ; then \
 	  if test -f "$(PROJ_OBJ_ROOT)/unittests/Makefile" ; then \
 	    $(EchoCmd) Running unittests test suite ; \
-	    $(MAKE) -C $(PROJ_OBJ_ROOT)/unittests ; \
+	    $(MAKE) -C $(PROJ_OBJ_ROOT)/unittests unitcheck; \
 	  else \
 	    $(EchoCmd) No Makefile in unittests directory ; \
 	  fi ; \

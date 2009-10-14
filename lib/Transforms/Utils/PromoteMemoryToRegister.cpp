@@ -23,13 +23,13 @@
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/AliasSetTracker.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Compiler.h"
@@ -41,7 +41,6 @@ STATISTIC(NumSingleStore,   "Number of alloca's promoted with a single store");
 STATISTIC(NumDeadAlloca,    "Number of dead alloca's removed");
 STATISTIC(NumPHIInsert,     "Number of PHI nodes inserted");
 
-// Provide DenseMapInfo for all pointers.
 namespace llvm {
 template<>
 struct DenseMapInfo<std::pair<BasicBlock*, unsigned> > {
@@ -181,6 +180,8 @@ namespace {
     /// AST - An AliasSetTracker object to update.  If null, don't update it.
     ///
     AliasSetTracker *AST;
+    
+    LLVMContext &Context;
 
     /// AllocaLookup - Reverse mapping of Allocas.
     ///
@@ -212,8 +213,9 @@ namespace {
     DenseMap<const BasicBlock*, unsigned> BBNumPreds;
   public:
     PromoteMem2Reg(const std::vector<AllocaInst*> &A, DominatorTree &dt,
-                   DominanceFrontier &df, AliasSetTracker *ast)
-      : Allocas(A), DT(dt), DF(df), AST(ast) {}
+                   DominanceFrontier &df, AliasSetTracker *ast,
+                   LLVMContext &C)
+      : Allocas(A), DT(dt), DF(df), AST(ast), Context(C) {}
 
     void run();
 
@@ -291,10 +293,9 @@ namespace {
       // As we scan the uses of the alloca instruction, keep track of stores,
       // and decide whether all of the loads and stores to the alloca are within
       // the same basic block.
-      for (Value::use_iterator U = AI->use_begin(), E = AI->use_end();
-           U != E;)  {
-        Instruction *User = cast<Instruction>(*U);
-        ++U;
+      for (Value::use_iterator UI = AI->use_begin(), E = AI->use_end();
+           UI != E;)  {
+        Instruction *User = cast<Instruction>(*UI++);
         if (BitCastInst *BC = dyn_cast<BitCastInst>(User)) {
           // Remove any uses of this alloca in DbgInfoInstrinsics.
           assert(BC->hasOneUse() && "Unexpected alloca uses!");
@@ -303,7 +304,8 @@ namespace {
           BC->eraseFromParent();
           continue;
         } 
-        else if (StoreInst *SI = dyn_cast<StoreInst>(User)) {
+        
+        if (StoreInst *SI = dyn_cast<StoreInst>(User)) {
           // Remember the basic blocks which define new values for the alloca
           DefiningBlocks.push_back(SI->getParent());
           AllocaPointerVal = SI->getOperand(0);
@@ -491,17 +493,14 @@ void PromoteMem2Reg::run() {
       PHINode *PN = I->second;
       
       // If this PHI node merges one value and/or undefs, get the value.
-      if (Value *V = PN->hasConstantValue(true)) {
-        if (!isa<Instruction>(V) ||
-            properlyDominates(cast<Instruction>(V), PN)) {
-          if (AST && isa<PointerType>(PN->getType()))
-            AST->deleteValue(PN);
-          PN->replaceAllUsesWith(V);
-          PN->eraseFromParent();
-          NewPhiNodes.erase(I++);
-          EliminatedAPHI = true;
-          continue;
-        }
+      if (Value *V = PN->hasConstantValue(&DT)) {
+        if (AST && isa<PointerType>(PN->getType()))
+          AST->deleteValue(PN);
+        PN->replaceAllUsesWith(V);
+        PN->eraseFromParent();
+        NewPhiNodes.erase(I++);
+        EliminatedAPHI = true;
+        continue;
       }
       ++I;
     }
@@ -603,7 +602,9 @@ ComputeLiveInBlocks(AllocaInst *AI, AllocaInfo &Info,
         LiveInBlockWorklist.pop_back();
         --i, --e;
         break;
-      } else if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
+      }
+      
+      if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
         if (LI->getOperand(0) != AI) continue;
         
         // Okay, we found a load before a store to the alloca.  It is actually
@@ -757,6 +758,7 @@ void PromoteMem2Reg::RewriteSingleStoreAlloca(AllocaInst *AI,
   }
 }
 
+namespace {
 
 /// StoreIndexSearchPredicate - This is a helper predicate used to search by the
 /// first element of a pair.
@@ -766,6 +768,8 @@ struct StoreIndexSearchPredicate {
     return LHS.first < RHS.first;
   }
 };
+
+}
 
 /// PromoteSingleBlockAlloca - Many allocas are only used within a single basic
 /// block.  If this is the case, avoid traversing the CFG and inserting a lot of
@@ -864,8 +868,8 @@ bool PromoteMem2Reg::QueuePhiNode(BasicBlock *BB, unsigned AllocaNo,
   // Create a PhiNode using the dereferenced type... and add the phi-node to the
   // BasicBlock.
   PN = PHINode::Create(Allocas[AllocaNo]->getAllocatedType(),
-                       Allocas[AllocaNo]->getName() + "." +
-                       utostr(Version++), BB->begin());
+                       Allocas[AllocaNo]->getName() + "." + Twine(Version++), 
+                       BB->begin());
   ++NumPHIInsert;
   PhiToAllocaMap[PN] = AllocaNo;
   PN->reserveOperandSpace(getNumPreds(BB));
@@ -995,9 +999,9 @@ NextIteration:
 ///
 void llvm::PromoteMemToReg(const std::vector<AllocaInst*> &Allocas,
                            DominatorTree &DT, DominanceFrontier &DF,
-                           AliasSetTracker *AST) {
+                           LLVMContext &Context, AliasSetTracker *AST) {
   // If there is nothing to do, bail out...
   if (Allocas.empty()) return;
 
-  PromoteMem2Reg(Allocas, DT, DF, AST).run();
+  PromoteMem2Reg(Allocas, DT, DF, AST, Context).run();
 }

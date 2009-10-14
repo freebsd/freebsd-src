@@ -39,7 +39,8 @@ AllocaInst* llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
   // Create a stack slot to hold the value.
   AllocaInst *Slot;
   if (AllocaPoint) {
-    Slot = new AllocaInst(I.getType(), 0, I.getName()+".reg2mem", AllocaPoint);
+    Slot = new AllocaInst(I.getType(), 0,
+                          I.getName()+".reg2mem", AllocaPoint);
   } else {
     Function *F = I.getParent()->getParent();
     Slot = new AllocaInst(I.getType(), 0, I.getName()+".reg2mem",
@@ -116,7 +117,8 @@ AllocaInst* llvm::DemotePHIToStack(PHINode *P, Instruction *AllocaPoint) {
   // Create a stack slot to hold the value.
   AllocaInst *Slot;
   if (AllocaPoint) {
-    Slot = new AllocaInst(P->getType(), 0, P->getName()+".reg2mem", AllocaPoint);
+    Slot = new AllocaInst(P->getType(), 0,
+                          P->getName()+".reg2mem", AllocaPoint);
   } else {
     Function *F = P->getParent()->getParent();
     Slot = new AllocaInst(P->getType(), 0, P->getName()+".reg2mem",

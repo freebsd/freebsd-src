@@ -22,15 +22,13 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Config/config.h"
 using namespace llvm;
 
 namespace {
   /// This pass optimizes well half_powr function calls.
   ///
-  class VISIBILITY_HIDDEN SimplifyHalfPowrLibCalls : public FunctionPass {
+  class SimplifyHalfPowrLibCalls : public FunctionPass {
     const TargetData *TD;
   public:
     static char ID; // Pass identification
@@ -39,7 +37,6 @@ namespace {
     bool runOnFunction(Function &F);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addRequired<TargetData>();
     }
 
     Instruction *
@@ -60,8 +57,9 @@ FunctionPass *llvm::createSimplifyHalfPowrLibCallsPass() {
 /// InlineHalfPowrs - Inline a sequence of adjacent half_powr calls, rearranging
 /// their control flow to better facilitate subsequent optimization.
 Instruction *
-SimplifyHalfPowrLibCalls::InlineHalfPowrs(const std::vector<Instruction *> &HalfPowrs,
-                                        Instruction *InsertPt) {
+SimplifyHalfPowrLibCalls::
+InlineHalfPowrs(const std::vector<Instruction *> &HalfPowrs,
+                Instruction *InsertPt) {
   std::vector<BasicBlock *> Bodies;
   BasicBlock *NewBlock = 0;
 
@@ -123,7 +121,7 @@ SimplifyHalfPowrLibCalls::InlineHalfPowrs(const std::vector<Instruction *> &Half
 /// runOnFunction - Top level algorithm.
 ///
 bool SimplifyHalfPowrLibCalls::runOnFunction(Function &F) {
-  TD = &getAnalysis<TargetData>();
+  TD = getAnalysisIfAvailable<TargetData>();
   
   bool Changed = false;
   std::vector<Instruction *> HalfPowrs;
@@ -136,8 +134,7 @@ bool SimplifyHalfPowrLibCalls::runOnFunction(Function &F) {
         Function *Callee = CI->getCalledFunction();
         if (Callee && Callee->hasExternalLinkage()) {
           // Look for calls with well-known names.
-          const char *CalleeName = Callee->getNameStart();
-          if (strcmp(CalleeName, "__half_powrf4") == 0)
+          if (Callee->getName() == "__half_powrf4")
             IsHalfPowr = true;
         }
       }

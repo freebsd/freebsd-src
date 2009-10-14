@@ -22,63 +22,29 @@
 
 using namespace llvm;
 
-Thumb1InstrInfo::Thumb1InstrInfo(const ARMSubtarget &STI)
-  : ARMBaseInstrInfo(STI), RI(*this, STI) {
+Thumb1InstrInfo::Thumb1InstrInfo(const ARMSubtarget &STI) : RI(*this, STI) {
 }
 
-bool Thumb1InstrInfo::isMoveInstr(const MachineInstr &MI,
-                                  unsigned &SrcReg, unsigned &DstReg,
-                                  unsigned& SrcSubIdx, unsigned& DstSubIdx) const {
-  SrcSubIdx = DstSubIdx = 0; // No sub-registers.
+unsigned Thumb1InstrInfo::getUnindexedOpcode(unsigned Opc) const {
+  return 0;
+}
 
-  unsigned oc = MI.getOpcode();
-  switch (oc) {
-  default:
-    return false;
-  case ARM::tMOVr:
-  case ARM::tMOVhir2lor:
-  case ARM::tMOVlor2hir:
-  case ARM::tMOVhir2hir:
-    assert(MI.getDesc().getNumOperands() >= 2 &&
-           MI.getOperand(0).isReg() &&
-           MI.getOperand(1).isReg() &&
-           "Invalid Thumb MOV instruction");
-    SrcReg = MI.getOperand(1).getReg();
-    DstReg = MI.getOperand(0).getReg();
+bool
+Thumb1InstrInfo::BlockHasNoFallThrough(const MachineBasicBlock &MBB) const {
+  if (MBB.empty()) return false;
+
+  switch (MBB.back().getOpcode()) {
+  case ARM::tBX_RET:
+  case ARM::tBX_RET_vararg:
+  case ARM::tPOP_RET:
+  case ARM::tB:
+  case ARM::tBR_JTr:
     return true;
-  }
-}
-
-unsigned Thumb1InstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
-                                              int &FrameIndex) const {
-  switch (MI->getOpcode()) {
-  default: break;
-  case ARM::tRestore:
-    if (MI->getOperand(1).isFI() &&
-        MI->getOperand(2).isImm() &&
-        MI->getOperand(2).getImm() == 0) {
-      FrameIndex = MI->getOperand(1).getIndex();
-      return MI->getOperand(0).getReg();
-    }
+  default:
     break;
   }
-  return 0;
-}
 
-unsigned Thumb1InstrInfo::isStoreToStackSlot(const MachineInstr *MI,
-                                             int &FrameIndex) const {
-  switch (MI->getOpcode()) {
-  default: break;
-  case ARM::tSpill:
-    if (MI->getOperand(1).isFI() &&
-        MI->getOperand(2).isImm() &&
-        MI->getOperand(2).getImm() == 0) {
-      FrameIndex = MI->getOperand(1).getIndex();
-      return MI->getOperand(0).getReg();
-    }
-    break;
-  }
-  return 0;
+  return false;
 }
 
 bool Thumb1InstrInfo::copyRegToReg(MachineBasicBlock &MBB,
@@ -91,15 +57,15 @@ bool Thumb1InstrInfo::copyRegToReg(MachineBasicBlock &MBB,
 
   if (DestRC == ARM::GPRRegisterClass) {
     if (SrcRC == ARM::GPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVhir2hir), DestReg).addReg(SrcReg);
+      BuildMI(MBB, I, DL, get(ARM::tMOVgpr2gpr), DestReg).addReg(SrcReg);
       return true;
     } else if (SrcRC == ARM::tGPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVlor2hir), DestReg).addReg(SrcReg);
+      BuildMI(MBB, I, DL, get(ARM::tMOVtgpr2gpr), DestReg).addReg(SrcReg);
       return true;
     }
   } else if (DestRC == ARM::tGPRRegisterClass) {
     if (SrcRC == ARM::GPRRegisterClass) {
-      BuildMI(MBB, I, DL, get(ARM::tMOVhir2lor), DestReg).addReg(SrcReg);
+      BuildMI(MBB, I, DL, get(ARM::tMOVgpr2tgpr), DestReg).addReg(SrcReg);
       return true;
     } else if (SrcRC == ARM::tGPRRegisterClass) {
       BuildMI(MBB, I, DL, get(ARM::tMOVr), DestReg).addReg(SrcReg);
@@ -120,17 +86,19 @@ canFoldMemoryOperand(const MachineInstr *MI,
   switch (Opc) {
   default: break;
   case ARM::tMOVr:
-  case ARM::tMOVlor2hir:
-  case ARM::tMOVhir2lor:
-  case ARM::tMOVhir2hir: {
+  case ARM::tMOVtgpr2gpr:
+  case ARM::tMOVgpr2tgpr:
+  case ARM::tMOVgpr2gpr: {
     if (OpNum == 0) { // move -> store
       unsigned SrcReg = MI->getOperand(1).getReg();
-      if (RI.isPhysicalRegister(SrcReg) && !isARMLowRegister(SrcReg))
+      if (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
+          !isARMLowRegister(SrcReg))
         // tSpill cannot take a high register operand.
         return false;
     } else {          // move -> load
       unsigned DstReg = MI->getOperand(0).getReg();
-      if (RI.isPhysicalRegister(DstReg) && !isARMLowRegister(DstReg))
+      if (TargetRegisterInfo::isPhysicalRegister(DstReg) &&
+          !isARMLowRegister(DstReg))
         // tRestore cannot target a high register operand.
         return false;
     }
@@ -148,34 +116,15 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   DebugLoc DL = DebugLoc::getUnknownLoc();
   if (I != MBB.end()) DL = I->getDebugLoc();
 
-  assert(RC == ARM::tGPRRegisterClass && "Unknown regclass!");
+  assert((RC == ARM::tGPRRegisterClass ||
+          (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
+           isARMLowRegister(SrcReg))) && "Unknown regclass!");
 
   if (RC == ARM::tGPRRegisterClass) {
-    BuildMI(MBB, I, DL, get(ARM::tSpill))
-      .addReg(SrcReg, getKillRegState(isKill))
-      .addFrameIndex(FI).addImm(0);
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tSpill))
+                   .addReg(SrcReg, getKillRegState(isKill))
+                   .addFrameIndex(FI).addImm(0));
   }
-}
-
-void Thumb1InstrInfo::storeRegToAddr(MachineFunction &MF, unsigned SrcReg,
-                                     bool isKill,
-                                     SmallVectorImpl<MachineOperand> &Addr,
-                                     const TargetRegisterClass *RC,
-                                     SmallVectorImpl<MachineInstr*> &NewMIs) const{
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  unsigned Opc = 0;
-
-  assert(RC == ARM::GPRRegisterClass && "Unknown regclass!");
-  if (RC == ARM::GPRRegisterClass) {
-    Opc = Addr[0].isFI() ? ARM::tSpill : ARM::tSTR;
-  }
-
-  MachineInstrBuilder MIB =
-    BuildMI(MF, DL,  get(Opc)).addReg(SrcReg, getKillRegState(isKill));
-  for (unsigned i = 0, e = Addr.size(); i != e; ++i)
-    MIB.addOperand(Addr[i]);
-  NewMIs.push_back(MIB);
-  return;
 }
 
 void Thumb1InstrInfo::
@@ -185,31 +134,14 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   DebugLoc DL = DebugLoc::getUnknownLoc();
   if (I != MBB.end()) DL = I->getDebugLoc();
 
-  assert(RC == ARM::tGPRRegisterClass && "Unknown regclass!");
+  assert((RC == ARM::tGPRRegisterClass ||
+          (TargetRegisterInfo::isPhysicalRegister(DestReg) &&
+           isARMLowRegister(DestReg))) && "Unknown regclass!");
 
   if (RC == ARM::tGPRRegisterClass) {
-    BuildMI(MBB, I, DL, get(ARM::tRestore), DestReg)
-      .addFrameIndex(FI).addImm(0);
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tRestore), DestReg)
+                   .addFrameIndex(FI).addImm(0));
   }
-}
-
-void Thumb1InstrInfo::
-loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
-                SmallVectorImpl<MachineOperand> &Addr,
-                const TargetRegisterClass *RC,
-                SmallVectorImpl<MachineInstr*> &NewMIs) const {
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  unsigned Opc = 0;
-
-  if (RC == ARM::GPRRegisterClass) {
-    Opc = Addr[0].isFI() ? ARM::tRestore : ARM::tLDR;
-  }
-
-  MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc), DestReg);
-  for (unsigned i = 0, e = Addr.size(); i != e; ++i)
-    MIB.addOperand(Addr[i]);
-  NewMIs.push_back(MIB);
-  return;
 }
 
 bool Thumb1InstrInfo::
@@ -223,6 +155,8 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
   if (MI != MBB.end()) DL = MI->getDebugLoc();
 
   MachineInstrBuilder MIB = BuildMI(MBB, MI, DL, get(ARM::tPUSH));
+  AddDefaultPred(MIB);
+  MIB.addReg(0); // No write back.
   for (unsigned i = CSI.size(); i != 0; --i) {
     unsigned Reg = CSI[i-1].getReg();
     // Add the callee-saved register as live-in. It's killed at the spill.
@@ -242,7 +176,12 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
     return false;
 
   bool isVarArg = AFI->getVarArgsRegSaveSize() > 0;
-  MachineInstr *PopMI = MF.CreateMachineInstr(get(ARM::tPOP),MI->getDebugLoc());
+  DebugLoc DL = MI->getDebugLoc();
+  MachineInstrBuilder MIB = BuildMI(MF, DL, get(ARM::tPOP));
+  AddDefaultPred(MIB);
+  MIB.addReg(0); // No write back.
+
+  bool NumRegs = 0;
   for (unsigned i = CSI.size(); i != 0; --i) {
     unsigned Reg = CSI[i-1].getReg();
     if (Reg == ARM::LR) {
@@ -250,15 +189,16 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
       if (isVarArg)
         continue;
       Reg = ARM::PC;
-      PopMI->setDesc(get(ARM::tPOP_RET));
+      (*MIB).setDesc(get(ARM::tPOP_RET));
       MI = MBB.erase(MI);
     }
-    PopMI->addOperand(MachineOperand::CreateReg(Reg, true));
+    MIB.addReg(Reg, getDefRegState(true));
+    ++NumRegs;
   }
 
   // It's illegal to emit pop instruction without operands.
-  if (PopMI->getNumOperands() > 0)
-    MBB.insert(MI, PopMI);
+  if (NumRegs)
+    MBB.insert(MI, &*MIB);
 
   return true;
 }
@@ -274,27 +214,30 @@ foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
   switch (Opc) {
   default: break;
   case ARM::tMOVr:
-  case ARM::tMOVlor2hir:
-  case ARM::tMOVhir2lor:
-  case ARM::tMOVhir2hir: {
+  case ARM::tMOVtgpr2gpr:
+  case ARM::tMOVgpr2tgpr:
+  case ARM::tMOVgpr2gpr: {
     if (OpNum == 0) { // move -> store
       unsigned SrcReg = MI->getOperand(1).getReg();
       bool isKill = MI->getOperand(1).isKill();
-      if (RI.isPhysicalRegister(SrcReg) && !isARMLowRegister(SrcReg))
+      if (TargetRegisterInfo::isPhysicalRegister(SrcReg) &&
+          !isARMLowRegister(SrcReg))
         // tSpill cannot take a high register operand.
         break;
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::tSpill))
-        .addReg(SrcReg, getKillRegState(isKill))
-        .addFrameIndex(FI).addImm(0);
+      NewMI = AddDefaultPred(BuildMI(MF, MI->getDebugLoc(), get(ARM::tSpill))
+                             .addReg(SrcReg, getKillRegState(isKill))
+                             .addFrameIndex(FI).addImm(0));
     } else {          // move -> load
       unsigned DstReg = MI->getOperand(0).getReg();
-      if (RI.isPhysicalRegister(DstReg) && !isARMLowRegister(DstReg))
+      if (TargetRegisterInfo::isPhysicalRegister(DstReg) &&
+          !isARMLowRegister(DstReg))
         // tRestore cannot target a high register operand.
         break;
       bool isDead = MI->getOperand(0).isDead();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::tRestore))
-        .addReg(DstReg, RegState::Define | getDeadRegState(isDead))
-        .addFrameIndex(FI).addImm(0);
+      NewMI = AddDefaultPred(BuildMI(MF, MI->getDebugLoc(), get(ARM::tRestore))
+                             .addReg(DstReg,
+                                     RegState::Define | getDeadRegState(isDead))
+                             .addFrameIndex(FI).addImm(0));
     }
     break;
   }

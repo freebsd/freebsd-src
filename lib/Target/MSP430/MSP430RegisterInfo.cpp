@@ -23,6 +23,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
@@ -45,7 +46,7 @@ MSP430RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   return CalleeSavedRegs;
 }
 
-const TargetRegisterClass* const*
+const TargetRegisterClass *const *
 MSP430RegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
   static const TargetRegisterClass * const CalleeSavedRegClasses[] = {
     &MSP430::GR16RegClass, &MSP430::GR16RegClass,
@@ -58,8 +59,7 @@ MSP430RegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
   return CalleeSavedRegClasses;
 }
 
-BitVector
-MSP430RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
+BitVector MSP430RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
 
   // Mark 4 special registers as reserved.
@@ -75,7 +75,8 @@ MSP430RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   return Reserved;
 }
 
-const TargetRegisterClass* MSP430RegisterInfo::getPointerRegClass() const {
+const TargetRegisterClass *
+MSP430RegisterInfo::getPointerRegClass(unsigned Kind) const {
   return &MSP430::GR16RegClass;
 }
 
@@ -146,9 +147,10 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
   MBB.erase(I);
 }
 
-void
+unsigned
 MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                        int SPAdj, RegScavenger *RS) const {
+                                        int SPAdj, int *Value,
+                                        RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
 
   unsigned i = 0;
@@ -186,7 +188,7 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     MI.getOperand(i).ChangeToRegister(BasePtr, false);
 
     if (Offset == 0)
-      return;
+      return 0;
 
     // We need to materialize the offset via add instruction.
     unsigned DstReg = MI.getOperand(0).getReg();
@@ -197,11 +199,12 @@ MSP430RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       BuildMI(MBB, next(II), dl, TII.get(MSP430::ADD16ri), DstReg)
         .addReg(DstReg).addImm(Offset);
 
-    return;
+    return 0;
   }
 
   MI.getOperand(i).ChangeToRegister(BasePtr, false);
   MI.getOperand(i+1).ChangeToImmediate(Offset);
+  return 0;
 }
 
 void
@@ -291,7 +294,7 @@ void MSP430RegisterInfo::emitEpilogue(MachineFunction &MF,
   switch (RetOpcode) {
   case MSP430::RET: break;  // These are ok
   default:
-    assert(0 && "Can only insert epilog into returning blocks");
+    llvm_unreachable("Can only insert epilog into returning blocks");
   }
 
   // Get the number of bytes to allocate from the FrameInfo
@@ -310,7 +313,6 @@ void MSP430RegisterInfo::emitEpilogue(MachineFunction &MF,
     NumBytes = StackSize - CSSize;
 
   // Skip the callee-saved pop instructions.
-  MachineBasicBlock::iterator LastCSPop = MBBI;
   while (MBBI != MBB.begin()) {
     MachineBasicBlock::iterator PI = prior(MBBI);
     unsigned Opc = PI->getOpcode();
@@ -327,7 +329,16 @@ void MSP430RegisterInfo::emitEpilogue(MachineFunction &MF,
   //  mergeSPUpdatesUp(MBB, MBBI, StackPtr, &NumBytes);
 
   if (MFI->hasVarSizedObjects()) {
-    assert(0 && "Not implemented yet!");
+    BuildMI(MBB, MBBI, DL,
+            TII.get(MSP430::MOV16rr), MSP430::SPW).addReg(MSP430::FPW);
+    if (CSSize) {
+      MachineInstr *MI =
+        BuildMI(MBB, MBBI, DL,
+                TII.get(MSP430::SUB16ri), MSP430::SPW)
+        .addReg(MSP430::SPW).addImm(CSSize);
+      // The SRW implicit def is dead.
+      MI->getOperand(3).setIsDead();
+    }
   } else {
     // adjust stack pointer back: SPW += numbytes
     if (NumBytes) {
@@ -349,7 +360,7 @@ unsigned MSP430RegisterInfo::getFrameRegister(MachineFunction &MF) const {
 }
 
 int MSP430RegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  assert(0 && "Not implemented yet!");
+  llvm_unreachable("Not implemented yet!");
   return 0;
 }
 

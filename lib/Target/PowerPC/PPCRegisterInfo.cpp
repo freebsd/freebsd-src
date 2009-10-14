@@ -37,7 +37,9 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
@@ -111,8 +113,7 @@ unsigned PPCRegisterInfo::getRegisterNumbering(unsigned RegEnum) {
   case R30:  case X30:  case F30:  case V30: case CR7EQ: return 30;
   case R31:  case X31:  case F31:  case V31: case CR7UN: return 31;
   default:
-    cerr << "Unhandled reg in PPCRegisterInfo::getRegisterNumbering!\n";
-    abort();
+    llvm_unreachable("Unhandled reg in PPCRegisterInfo::getRegisterNumbering!");
   }
 }
 
@@ -139,11 +140,11 @@ PPCRegisterInfo::PPCRegisterInfo(const PPCSubtarget &ST,
 
 /// getPointerRegClass - Return the register class to use to hold pointers.
 /// This is used for addressing modes.
-const TargetRegisterClass *PPCRegisterInfo::getPointerRegClass() const {
+const TargetRegisterClass *
+PPCRegisterInfo::getPointerRegClass(unsigned Kind) const {
   if (Subtarget.isPPC64())
     return &PPC::G8RCRegClass;
-  else
-    return &PPC::GPRCRegClass;
+  return &PPC::GPRCRegClass;
 }
 
 const unsigned*
@@ -173,7 +174,8 @@ PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     
     PPC::LR,  0
   };
-  
+
+  // 32-bit SVR4 calling convention.
   static const unsigned SVR4_CalleeSavedRegs[] = {
                         PPC::R14, PPC::R15,
     PPC::R16, PPC::R17, PPC::R18, PPC::R19,
@@ -199,7 +201,7 @@ PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     PPC::CR3LT, PPC::CR3GT, PPC::CR3EQ, PPC::CR3UN,
     PPC::CR4LT, PPC::CR4GT, PPC::CR4EQ, PPC::CR4UN,
     
-    PPC::LR,  0
+    0
   };
   // 64-bit Darwin calling convention. 
   static const unsigned Darwin64_CalleeSavedRegs[] = {
@@ -226,12 +228,41 @@ PPCRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     
     PPC::LR8,  0
   };
+
+  // 64-bit SVR4 calling convention.
+  static const unsigned SVR4_64_CalleeSavedRegs[] = {
+    PPC::X14, PPC::X15,
+    PPC::X16, PPC::X17, PPC::X18, PPC::X19,
+    PPC::X20, PPC::X21, PPC::X22, PPC::X23,
+    PPC::X24, PPC::X25, PPC::X26, PPC::X27,
+    PPC::X28, PPC::X29, PPC::X30, PPC::X31,
+
+    PPC::F14, PPC::F15, PPC::F16, PPC::F17,
+    PPC::F18, PPC::F19, PPC::F20, PPC::F21,
+    PPC::F22, PPC::F23, PPC::F24, PPC::F25,
+    PPC::F26, PPC::F27, PPC::F28, PPC::F29,
+    PPC::F30, PPC::F31,
+
+    PPC::CR2, PPC::CR3, PPC::CR4,
+
+    PPC::VRSAVE,
+
+    PPC::V20, PPC::V21, PPC::V22, PPC::V23,
+    PPC::V24, PPC::V25, PPC::V26, PPC::V27,
+    PPC::V28, PPC::V29, PPC::V30, PPC::V31,
+
+    PPC::CR2LT, PPC::CR2GT, PPC::CR2EQ, PPC::CR2UN,
+    PPC::CR3LT, PPC::CR3GT, PPC::CR3EQ, PPC::CR3UN,
+    PPC::CR4LT, PPC::CR4GT, PPC::CR4EQ, PPC::CR4UN,
+
+    0
+  };
   
   if (Subtarget.isDarwinABI())
     return Subtarget.isPPC64() ? Darwin64_CalleeSavedRegs :
                                  Darwin32_CalleeSavedRegs;
-  
-  return SVR4_CalleeSavedRegs;
+
+  return Subtarget.isPPC64() ? SVR4_64_CalleeSavedRegs : SVR4_CalleeSavedRegs;
 }
 
 const TargetRegisterClass* const*
@@ -266,6 +297,7 @@ PPCRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
     &PPC::GPRCRegClass, 0
   };
   
+  // 32-bit SVR4 calling convention.
   static const TargetRegisterClass * const SVR4_CalleeSavedRegClasses[] = {
                                           &PPC::GPRCRegClass,&PPC::GPRCRegClass,
     &PPC::GPRCRegClass,&PPC::GPRCRegClass,&PPC::GPRCRegClass,&PPC::GPRCRegClass,
@@ -294,7 +326,7 @@ PPCRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
     &PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,
     &PPC::CRBITRCRegClass, 
     
-    &PPC::GPRCRegClass, 0
+    0
   };
   
   // 64-bit Darwin calling convention.
@@ -326,12 +358,45 @@ PPCRegisterInfo::getCalleeSavedRegClasses(const MachineFunction *MF) const {
     
     &PPC::G8RCRegClass, 0
   };
+
+  // 64-bit SVR4 calling convention.
+  static const TargetRegisterClass * const SVR4_64_CalleeSavedRegClasses[] = {
+    &PPC::G8RCRegClass,&PPC::G8RCRegClass,
+    &PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,
+    &PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,
+    &PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,
+    &PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,&PPC::G8RCRegClass,
+
+    &PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,
+    &PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,
+    &PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,
+    &PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,&PPC::F8RCRegClass,
+    &PPC::F8RCRegClass,&PPC::F8RCRegClass,
+
+    &PPC::CRRCRegClass,&PPC::CRRCRegClass,&PPC::CRRCRegClass,
+
+    &PPC::VRSAVERCRegClass,
+
+    &PPC::VRRCRegClass,&PPC::VRRCRegClass,&PPC::VRRCRegClass,&PPC::VRRCRegClass,
+    &PPC::VRRCRegClass,&PPC::VRRCRegClass,&PPC::VRRCRegClass,&PPC::VRRCRegClass,
+    &PPC::VRRCRegClass,&PPC::VRRCRegClass,&PPC::VRRCRegClass,&PPC::VRRCRegClass,
+
+    &PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,
+    &PPC::CRBITRCRegClass,
+    &PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,
+    &PPC::CRBITRCRegClass,
+    &PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,&PPC::CRBITRCRegClass,
+    &PPC::CRBITRCRegClass,
+
+    0
+  };
   
   if (Subtarget.isDarwinABI())
     return Subtarget.isPPC64() ? Darwin64_CalleeSavedRegClasses :
                                  Darwin32_CalleeSavedRegClasses;
   
-  return SVR4_CalleeSavedRegClasses;
+  return Subtarget.isPPC64() ? SVR4_64_CalleeSavedRegClasses
+                             : SVR4_CalleeSavedRegClasses;
 }
 
 // needsFP - Return true if the specified function should have a dedicated frame
@@ -363,9 +428,9 @@ BitVector PPCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
     Reserved.set(PPC::R13); // Small Data Area pointer register
   }
   
-  // On PPC64, r13 is the thread pointer. Never allocate this register. Note
-  // that this is over conservative, as it also prevents allocation of R31 when
-  // the FP is not needed.
+  // On PPC64, r13 is the thread pointer. Never allocate this register.
+  // Note that this is over conservative, as it also prevents allocation of R31
+  // when the FP is not needed.
   if (Subtarget.isPPC64()) {
     Reserved.set(PPC::R13);
     Reserved.set(PPC::R31);
@@ -377,6 +442,11 @@ BitVector PPCRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
     Reserved.set(PPC::X1);
     Reserved.set(PPC::X13);
     Reserved.set(PPC::X31);
+
+    // The 64-bit SVR4 ABI reserves r2 for the TOC pointer.
+    if (Subtarget.isSVR4ABI()) {
+      Reserved.set(PPC::X2);
+    }
   }
 
   if (needsFP(MF))
@@ -457,7 +527,7 @@ static
 unsigned findScratchRegister(MachineBasicBlock::iterator II, RegScavenger *RS,
                              const TargetRegisterClass *RC, int SPAdj) {
   assert(RS && "Register scavenging must be on");
-  unsigned Reg = RS->FindUnusedReg(RC, true);
+  unsigned Reg = RS->FindUnusedReg(RC);
   // FIXME: move ARM callee-saved reg scan to target independent code, then 
   // search for already spilled CS register here.
   if (Reg == 0)
@@ -629,8 +699,10 @@ void PPCRegisterInfo::lowerCRSpilling(MachineBasicBlock::iterator II,
   MBB.erase(II);
 }
 
-void PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                          int SPAdj, RegScavenger *RS) const {
+unsigned
+PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+                                     int SPAdj, int *Value,
+                                     RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
 
   // Get the instruction.
@@ -669,14 +741,14 @@ void PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   if (FPSI && FrameIndex == FPSI &&
       (OpC == PPC::DYNALLOC || OpC == PPC::DYNALLOC8)) {
     lowerDynamicAlloc(II, SPAdj, RS);
-    return;
+    return 0;
   }
 
   // Special case for pseudo-op SPILL_CR.
   if (EnableRegisterScavenging) // FIXME (64-bit): Enable by default.
     if (OpC == PPC::SPILL_CR) {
       lowerCRSpilling(II, FrameIndex, SPAdj, RS);
-      return;
+      return 0;
     }
 
   // Replace the FrameIndex with base register with GPR1 (SP) or GPR31 (FP).
@@ -718,7 +790,7 @@ void PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     if (isIXAddr)
       Offset >>= 2;    // The actual encoded value has the low two bits zero.
     MI.getOperand(OffsetOperandNo).ChangeToImmediate(Offset);
-    return;
+    return 0;
   }
 
   // The offset doesn't fit into a single register, scavenge one to build the
@@ -758,6 +830,7 @@ void PPCRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   unsigned StackReg = MI.getOperand(FIOperandNo).getReg();
   MI.getOperand(OperandBase).ChangeToRegister(StackReg, false);
   MI.getOperand(OperandBase + 1).ChangeToRegister(SReg, false);
+  return 0;
 }
 
 /// VRRegNo - Map from a numbered VR register to its enum value.
@@ -910,7 +983,7 @@ void PPCRegisterInfo::determineFrameLayout(MachineFunction &MF) const {
   // don't have a frame pointer, calls, or dynamic alloca then we do not need
   // to adjust the stack pointer (we fit in the Red Zone).
   bool DisableRedZone = MF.getFunction()->hasFnAttr(Attribute::NoRedZone);
-  // FIXME SVR4 The SVR4 ABI has no red zone.
+  // FIXME SVR4 The 32-bit SVR4 ABI has no red zone.
   if (!DisableRedZone &&
       FrameSize <= 224 &&                          // Fits in red zone.
       !MFI->hasVarSizedObjects() &&                // No dynamic alloca.
@@ -1005,7 +1078,7 @@ PPCRegisterInfo::processFunctionBeforeFrameFinalized(MachineFunction &MF)
   if (!Subtarget.isSVR4ABI()) {
     return;
   }
-  
+
   // Get callee saved register information.
   MachineFrameInfo *FFI = MF.getFrameInfo();
   const std::vector<CalleeSavedInfo> &CSI = FFI->getCalleeSavedInfo();
@@ -1016,16 +1089,19 @@ PPCRegisterInfo::processFunctionBeforeFrameFinalized(MachineFunction &MF)
   }
   
   unsigned MinGPR = PPC::R31;
+  unsigned MinG8R = PPC::X31;
   unsigned MinFPR = PPC::F31;
   unsigned MinVR = PPC::V31;
   
   bool HasGPSaveArea = false;
+  bool HasG8SaveArea = false;
   bool HasFPSaveArea = false;
   bool HasCRSaveArea = false;
   bool HasVRSAVESaveArea = false;
   bool HasVRSaveArea = false;
   
   SmallVector<CalleeSavedInfo, 18> GPRegs;
+  SmallVector<CalleeSavedInfo, 18> G8Regs;
   SmallVector<CalleeSavedInfo, 18> FPRegs;
   SmallVector<CalleeSavedInfo, 18> VRegs;
   
@@ -1040,6 +1116,14 @@ PPCRegisterInfo::processFunctionBeforeFrameFinalized(MachineFunction &MF)
       
       if (Reg < MinGPR) {
         MinGPR = Reg;
+      }
+    } else if (RC == PPC::G8RCRegisterClass) {
+      HasG8SaveArea = true;
+
+      G8Regs.push_back(CSI[i]);
+
+      if (Reg < MinG8R) {
+        MinG8R = Reg;
       }
     } else if (RC == PPC::F8RCRegisterClass) {
       HasFPSaveArea = true;
@@ -1064,7 +1148,7 @@ PPCRegisterInfo::processFunctionBeforeFrameFinalized(MachineFunction &MF)
         MinVR = Reg;
       }
     } else {
-      assert(0 && "Unknown RegisterClass!");
+      llvm_unreachable("Unknown RegisterClass!");
     }
   }
 
@@ -1103,7 +1187,7 @@ PPCRegisterInfo::processFunctionBeforeFrameFinalized(MachineFunction &MF)
   
   // General register save area starts right below the Floating-point
   // register save area.
-  if (HasGPSaveArea) {
+  if (HasGPSaveArea || HasG8SaveArea) {
     // Move general register save area spill slots down, taking into account
     // the size of the Floating-point register save area.
     for (unsigned i = 0, e = GPRegs.size(); i != e; ++i) {
@@ -1112,7 +1196,22 @@ PPCRegisterInfo::processFunctionBeforeFrameFinalized(MachineFunction &MF)
       FFI->setObjectOffset(FI, LowerBound + FFI->getObjectOffset(FI));
     }
     
-    LowerBound -= (31 - getRegisterNumbering(MinGPR) + 1) * 4;
+    // Move general register save area spill slots down, taking into account
+    // the size of the Floating-point register save area.
+    for (unsigned i = 0, e = G8Regs.size(); i != e; ++i) {
+      int FI = G8Regs[i].getFrameIdx();
+
+      FFI->setObjectOffset(FI, LowerBound + FFI->getObjectOffset(FI));
+    }
+
+    unsigned MinReg = std::min<unsigned>(getRegisterNumbering(MinGPR),
+                                         getRegisterNumbering(MinG8R));
+
+    if (Subtarget.isPPC64()) {
+      LowerBound -= (31 - MinReg + 1) * 8;
+    } else {
+      LowerBound -= (31 - MinReg + 1) * 4;
+    }
   }
   
   // The CR save area is below the general register save area.

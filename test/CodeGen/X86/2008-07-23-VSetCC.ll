@@ -1,11 +1,12 @@
-; RUN: llvm-as < %s | llc -march=x86 -mcpu=pentium
+; RUN: llc < %s -march=x86 -mcpu=pentium
 ; PR2575
 
 define void @entry(i32 %m_task_id, i32 %start_x, i32 %end_x) nounwind  {
 	br i1 false, label %bb.nph, label %._crit_edge
 
 bb.nph:		; preds = %bb.nph, %0
-	vicmp sgt <4 x i32> zeroinitializer, < i32 -128, i32 -128, i32 -128, i32 -128 >		; <<4 x i32>>:1 [#uses=1]
+	%X = icmp sgt <4 x i32> zeroinitializer, < i32 -128, i32 -128, i32 -128, i32 -128 >		; <<4 x i32>>:1 [#uses=1]
+        sext <4 x i1> %X to <4 x i32>
 	extractelement <4 x i32> %1, i32 3		; <i32>:2 [#uses=1]
 	lshr i32 %2, 31		; <i32>:3 [#uses=1]
 	trunc i32 %3 to i1		; <i1>:4 [#uses=1]
@@ -26,5 +27,6 @@ bb.nph:		; preds = %bb.nph, %0
 ._crit_edge:		; preds = %0
 	ret void
 }
+
 
 declare float @fmaxf(float, float)

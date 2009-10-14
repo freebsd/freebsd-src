@@ -14,11 +14,14 @@
 #include "LLLexer.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Instruction.h"
+#include "llvm/LLVMContext.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Assembly/Parser.h"
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 using namespace llvm;
@@ -180,8 +183,9 @@ static const char *isLabelTail(const char *CurPtr) {
 // Lexer definition.
 //===----------------------------------------------------------------------===//
 
-LLLexer::LLLexer(MemoryBuffer *StartBuf, SourceMgr &sm, SMDiagnostic &Err)
-  : CurBuf(StartBuf), ErrorInfo(Err), SM(sm), APFloatVal(0.0) {
+LLLexer::LLLexer(MemoryBuffer *StartBuf, SourceMgr &sm, SMDiagnostic &Err,
+                 LLVMContext &C)
+  : CurBuf(StartBuf), ErrorInfo(Err), SM(sm), Context(C), APFloatVal(0.0) {
   CurPtr = CurBuf->getBufferStart();
 }
 
@@ -250,7 +254,7 @@ lltok::Kind LLLexer::LexToken() {
   case ';':
     SkipLineComment();
     return LexToken();
-  case '!': return lltok::Metadata;
+  case '!': return LexMetadata();
   case '0': case '1': case '2': case '3': case '4':
   case '5': case '6': case '7': case '8': case '9':
   case '-':
@@ -418,7 +422,23 @@ static bool JustWhitespaceNewLine(const char *&Ptr) {
   return false;
 }
 
+/// LexMetadata:
+///    !{...}
+///    !42
+///    !foo
+lltok::Kind LLLexer::LexMetadata() {
+  if (isalpha(CurPtr[0])) {
+    ++CurPtr;
+    while (isalnum(CurPtr[0]) || CurPtr[0] == '-' || CurPtr[0] == '$' ||
+           CurPtr[0] == '.' || CurPtr[0] == '_')
+      ++CurPtr;
 
+    StrVal.assign(TokStart+1, CurPtr);   // Skip !
+    return lltok::NamedOrCustomMD;
+  }
+  return lltok::Metadata;
+}
+  
 /// LexIdentifier: Handle several related productions:
 ///    Label           [-a-zA-Z$._0-9]+:
 ///    IntegerType     i[0-9]+
@@ -452,7 +472,7 @@ lltok::Kind LLLexer::LexIdentifier() {
       Error("bitwidth for integer type out of range!");
       return lltok::Error;
     }
-    TyVal = IntegerType::get(NumBits);
+    TyVal = IntegerType::get(Context, NumBits);
     return lltok::Type;
   }
 
@@ -471,6 +491,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(global);  KEYWORD(constant);
 
   KEYWORD(private);
+  KEYWORD(linker_private);
   KEYWORD(internal);
   KEYWORD(available_externally);
   KEYWORD(linkonce);
@@ -497,6 +518,10 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(deplibs);
   KEYWORD(datalayout);
   KEYWORD(volatile);
+  KEYWORD(nuw);
+  KEYWORD(nsw);
+  KEYWORD(exact);
+  KEYWORD(inbounds);
   KEYWORD(align);
   KEYWORD(addrspace);
   KEYWORD(section);
@@ -504,6 +529,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(module);
   KEYWORD(asm);
   KEYWORD(sideeffect);
+  KEYWORD(msasm);
   KEYWORD(gc);
 
   KEYWORD(ccc);
@@ -531,6 +557,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(readnone);
   KEYWORD(readonly);
 
+  KEYWORD(inlinehint);
   KEYWORD(noinline);
   KEYWORD(alwaysinline);
   KEYWORD(optsize);
@@ -538,6 +565,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(sspreq);
   KEYWORD(noredzone);
   KEYWORD(noimplicitfloat);
+  KEYWORD(naked);
 
   KEYWORD(type);
   KEYWORD(opaque);
@@ -554,14 +582,14 @@ lltok::Kind LLLexer::LexIdentifier() {
 #define TYPEKEYWORD(STR, LLVMTY) \
   if (Len == strlen(STR) && !memcmp(StartChar, STR, strlen(STR))) { \
     TyVal = LLVMTY; return lltok::Type; }
-  TYPEKEYWORD("void",      Type::VoidTy);
-  TYPEKEYWORD("float",     Type::FloatTy);
-  TYPEKEYWORD("double",    Type::DoubleTy);
-  TYPEKEYWORD("x86_fp80",  Type::X86_FP80Ty);
-  TYPEKEYWORD("fp128",     Type::FP128Ty);
-  TYPEKEYWORD("ppc_fp128", Type::PPC_FP128Ty);
-  TYPEKEYWORD("label",     Type::LabelTy);
-  TYPEKEYWORD("metadata",  Type::MetadataTy);
+  TYPEKEYWORD("void",      Type::getVoidTy(Context));
+  TYPEKEYWORD("float",     Type::getFloatTy(Context));
+  TYPEKEYWORD("double",    Type::getDoubleTy(Context));
+  TYPEKEYWORD("x86_fp80",  Type::getX86_FP80Ty(Context));
+  TYPEKEYWORD("fp128",     Type::getFP128Ty(Context));
+  TYPEKEYWORD("ppc_fp128", Type::getPPC_FP128Ty(Context));
+  TYPEKEYWORD("label",     Type::getLabelTy(Context));
+  TYPEKEYWORD("metadata",  Type::getMetadataTy(Context));
 #undef TYPEKEYWORD
 
   // Handle special forms for autoupgrading.  Drop these in LLVM 3.0.  This is
@@ -589,7 +617,6 @@ lltok::Kind LLLexer::LexIdentifier() {
   INSTKEYWORD(shl,   Shl);  INSTKEYWORD(lshr,  LShr); INSTKEYWORD(ashr,  AShr);
   INSTKEYWORD(and,   And);  INSTKEYWORD(or,    Or);   INSTKEYWORD(xor,   Xor);
   INSTKEYWORD(icmp,  ICmp); INSTKEYWORD(fcmp,  FCmp);
-  INSTKEYWORD(vicmp, VICmp); INSTKEYWORD(vfcmp, VFCmp);
 
   INSTKEYWORD(phi,         PHI);
   INSTKEYWORD(call,        Call);
@@ -635,7 +662,7 @@ lltok::Kind LLLexer::LexIdentifier() {
       TokStart[1] == '0' && TokStart[2] == 'x' && isxdigit(TokStart[3])) {
     int len = CurPtr-TokStart-3;
     uint32_t bits = len * 4;
-    APInt Tmp(bits, TokStart+3, len, 16);
+    APInt Tmp(bits, StringRef(TokStart+3, len), 16);
     uint32_t activeBits = Tmp.getActiveBits();
     if (activeBits > 0 && activeBits < bits)
       Tmp.trunc(activeBits);
@@ -698,7 +725,7 @@ lltok::Kind LLLexer::Lex0x() {
 
   uint64_t Pair[2];
   switch (Kind) {
-  default: assert(0 && "Unknown kind!");
+  default: llvm_unreachable("Unknown kind!");
   case 'K':
     // F80HexFPConstant - x87 long double in hexadecimal format (10 bytes)
     FP80HexToIntPair(TokStart+3, CurPtr, Pair);
@@ -761,7 +788,7 @@ lltok::Kind LLLexer::LexDigitOrNegative() {
       return Lex0x();
     unsigned Len = CurPtr-TokStart;
     uint32_t numBits = ((Len * 64) / 19) + 2;
-    APInt Tmp(numBits, TokStart, Len, 10);
+    APInt Tmp(numBits, StringRef(TokStart, Len), 10);
     if (TokStart[0] == '-') {
       uint32_t minBits = Tmp.getMinSignedBits();
       if (minBits > 0 && minBits < numBits)

@@ -206,6 +206,8 @@ add a set of optimizations to run.  The code looks like this:</p>
   (* Simplify the control flow graph (deleting unreachable blocks, etc). *)
   add_cfg_simplification the_fpm;
 
+  ignore (PassManager.initialize the_fpm);
+
   (* Run the main "interpreter loop" now. *)
   Toplevel.main_loop the_fpm the_execution_engine stream;
 </pre>
@@ -222,7 +224,7 @@ requires a pointer to the <tt>the_module</tt> (through the
 <tt>the_module_provider</tt>) to construct itself.  Once it is set up, we use a
 series of "add" calls to add a bunch of LLVM passes.  The first pass is
 basically boilerplate, it adds a pass so that later optimizations know how the
-data structures in the program are layed out.  The
+data structures in the program are laid out.  The
 "<tt>the_execution_engine</tt>" variable is related to the JIT, which we will
 get to in the next section.</p>
 
@@ -795,8 +797,9 @@ open Llvm
 
 exception Error of string
 
-let the_module = create_module "my cool jit"
-let builder = builder ()
+let context = global_context ()
+let the_module = create_module context "my cool jit"
+let builder = builder context
 let named_values:(string, llvalue) Hashtbl.t = Hashtbl.create 10
 
 let rec codegen_expr = function
@@ -959,6 +962,8 @@ open Llvm_target
 open Llvm_scalar_opts
 
 let main () =
+  ignore (initialize_native_target ());
+
   (* Install standard binary operators.
    * 1 is the lowest precedence. *)
   Hashtbl.add Parser.binop_precedence '&lt;' 10;
@@ -990,6 +995,8 @@ let main () =
 
   (* Simplify the control flow graph (deleting unreachable blocks, etc). *)
   add_cfg_simplification the_fpm;
+
+  ignore (PassManager.initialize the_fpm);
 
   (* Run the main "interpreter loop" now. *)
   Toplevel.main_loop the_fpm the_execution_engine stream;

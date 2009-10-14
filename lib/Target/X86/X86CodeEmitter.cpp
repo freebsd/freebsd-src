@@ -22,21 +22,27 @@
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
+#include "llvm/CodeGen/ObjectCodeEmitter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Function.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/MC/MCCodeEmitter.h"
+#include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
 STATISTIC(NumEmitted, "Number of machine instructions emitted");
 
 namespace {
-template<class CodeEmitter>
+  template<class CodeEmitter>
   class VISIBILITY_HIDDEN Emitter : public MachineFunctionPass {
     const X86InstrInfo  *II;
     const TargetData    *TD;
@@ -67,6 +73,7 @@ template<class CodeEmitter>
                          const TargetInstrDesc *Desc);
     
     void getAnalysisUsage(AnalysisUsage &AU) const {
+      AU.setPreservesAll();
       AU.addRequired<MachineModuleInfo>();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
@@ -83,7 +90,7 @@ template<class CodeEmitter>
                               intptr_t PCAdj = 0);
 
     void emitDisplacementField(const MachineOperand *RelocOp, int DispVal,
-                               intptr_t PCAdj = 0);
+                               intptr_t Adj = 0, bool IsPCRel = true);
 
     void emitRegModRMByte(unsigned ModRMReg, unsigned RegOpcodeField);
     void emitRegModRMByte(unsigned RegOpcodeField);
@@ -95,29 +102,27 @@ template<class CodeEmitter>
                           intptr_t PCAdj = 0);
 
     unsigned getX86RegNum(unsigned RegNo) const;
-
-    bool gvNeedsNonLazyPtr(const GlobalValue *GV);
   };
 
 template<class CodeEmitter>
   char Emitter<CodeEmitter>::ID = 0;
-}
+} // end anonymous namespace.
 
 /// createX86CodeEmitterPass - Return a pass that emits the collected X86 code
 /// to the specified templated MachineCodeEmitter object.
 
-namespace llvm {
-	
-FunctionPass *createX86CodeEmitterPass(X86TargetMachine &TM,
-                                       MachineCodeEmitter &MCE) {
+FunctionPass *llvm::createX86CodeEmitterPass(X86TargetMachine &TM,
+                                             MachineCodeEmitter &MCE) {
   return new Emitter<MachineCodeEmitter>(TM, MCE);
 }
-FunctionPass *createX86JITCodeEmitterPass(X86TargetMachine &TM,
-                                          JITCodeEmitter &JCE) {
+FunctionPass *llvm::createX86JITCodeEmitterPass(X86TargetMachine &TM,
+                                                JITCodeEmitter &JCE) {
   return new Emitter<JITCodeEmitter>(TM, JCE);
 }
-
-} // end namespace llvm
+FunctionPass *llvm::createX86ObjectCodeEmitterPass(X86TargetMachine &TM,
+                                                   ObjectCodeEmitter &OCE) {
+  return new Emitter<ObjectCodeEmitter>(TM, OCE);
+}
 
 template<class CodeEmitter>
 bool Emitter<CodeEmitter>::runOnMachineFunction(MachineFunction &MF) {
@@ -130,7 +135,8 @@ bool Emitter<CodeEmitter>::runOnMachineFunction(MachineFunction &MF) {
   IsPIC = TM.getRelocationModel() == Reloc::PIC_;
   
   do {
-    DOUT << "JITTing function '" << MF.getFunction()->getName() << "'\n";
+    DEBUG(errs() << "JITTing function '" 
+          << MF.getFunction()->getName() << "'\n");
     MCE.startFunction(MF);
     for (MachineFunction::iterator MBB = MF.begin(), E = MF.end(); 
          MBB != E; ++MBB) {
@@ -172,7 +178,7 @@ void Emitter<CodeEmitter>::emitGlobalAddress(GlobalValue *GV, unsigned Reloc,
                                 intptr_t PCAdj /* = 0 */,
                                 bool NeedStub /* = false */,
                                 bool Indirect /* = false */) {
-  intptr_t RelocCST = 0;
+  intptr_t RelocCST = Disp;
   if (Reloc == X86::reloc_picrel_word)
     RelocCST = PICBaseOffset;
   else if (Reloc == X86::reloc_pcrel_word)
@@ -291,53 +297,61 @@ static bool isDisp8(int Value) {
   return Value == (signed char)Value;
 }
 
-template<class CodeEmitter>
-bool Emitter<CodeEmitter>::gvNeedsNonLazyPtr(const GlobalValue *GV) {
-  // For Darwin, simulate the linktime GOT by using the same non-lazy-pointer
+static bool gvNeedsNonLazyPtr(const MachineOperand &GVOp,
+                              const TargetMachine &TM) {
+  // For Darwin-64, simulate the linktime GOT by using the same non-lazy-pointer
   // mechanism as 32-bit mode.
-  return (!Is64BitMode || TM.getSubtarget<X86Subtarget>().isTargetDarwin()) &&
-    TM.getSubtarget<X86Subtarget>().GVRequiresExtraLoad(GV, TM, false);
+  if (TM.getSubtarget<X86Subtarget>().is64Bit() && 
+      !TM.getSubtarget<X86Subtarget>().isTargetDarwin())
+    return false;
+  
+  // Return true if this is a reference to a stub containing the address of the
+  // global, not the global itself.
+  return isGlobalStubReference(GVOp.getTargetFlags());
 }
 
 template<class CodeEmitter>
 void Emitter<CodeEmitter>::emitDisplacementField(const MachineOperand *RelocOp,
-                                                 int DispVal, intptr_t PCAdj) {
+                                                 int DispVal,
+                                                 intptr_t Adj /* = 0 */,
+                                                 bool IsPCRel /* = true */) {
   // If this is a simple integer displacement that doesn't require a relocation,
   // emit it now.
   if (!RelocOp) {
     emitConstant(DispVal, 4);
     return;
   }
-  
+
   // Otherwise, this is something that requires a relocation.  Emit it as such
   // now.
+  unsigned RelocType = Is64BitMode ?
+    (IsPCRel ? X86::reloc_pcrel_word : X86::reloc_absolute_word_sext)
+    : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
   if (RelocOp->isGlobal()) {
     // In 64-bit static small code model, we could potentially emit absolute.
-    // But it's probably not beneficial.
+    // But it's probably not beneficial. If the MCE supports using RIP directly
+    // do it, otherwise fallback to absolute (this is determined by IsPCRel). 
     //  89 05 00 00 00 00     mov    %eax,0(%rip)  # PC-relative
     //  89 04 25 00 00 00 00  mov    %eax,0x0      # Absolute
-    unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
-      : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
     bool NeedStub = isa<Function>(RelocOp->getGlobal());
-    bool Indirect = gvNeedsNonLazyPtr(RelocOp->getGlobal());
-    emitGlobalAddress(RelocOp->getGlobal(), rt, RelocOp->getOffset(),
-                      PCAdj, NeedStub, Indirect);
+    bool Indirect = gvNeedsNonLazyPtr(*RelocOp, TM);
+    emitGlobalAddress(RelocOp->getGlobal(), RelocType, RelocOp->getOffset(),
+                      Adj, NeedStub, Indirect);
+  } else if (RelocOp->isSymbol()) {
+    emitExternalSymbolAddress(RelocOp->getSymbolName(), RelocType);
   } else if (RelocOp->isCPI()) {
-    unsigned rt = Is64BitMode ? X86::reloc_pcrel_word : X86::reloc_picrel_word;
-    emitConstPoolAddress(RelocOp->getIndex(), rt,
-                         RelocOp->getOffset(), PCAdj);
-  } else if (RelocOp->isJTI()) {
-    unsigned rt = Is64BitMode ? X86::reloc_pcrel_word : X86::reloc_picrel_word;
-    emitJumpTableAddress(RelocOp->getIndex(), rt, PCAdj);
+    emitConstPoolAddress(RelocOp->getIndex(), RelocType,
+                         RelocOp->getOffset(), Adj);
   } else {
-    assert(0 && "Unknown value to relocate!");
+    assert(RelocOp->isJTI() && "Unexpected machine operand!");
+    emitJumpTableAddress(RelocOp->getIndex(), RelocType, Adj);
   }
 }
 
 template<class CodeEmitter>
 void Emitter<CodeEmitter>::emitMemModRMByte(const MachineInstr &MI,
-                               unsigned Op, unsigned RegOpcodeField,
-                               intptr_t PCAdj) {
+                                            unsigned Op,unsigned RegOpcodeField,
+                                            intptr_t PCAdj) {
   const MachineOperand &Op3 = MI.getOperand(Op+3);
   int DispVal = 0;
   const MachineOperand *DispForReloc = 0;
@@ -345,15 +359,17 @@ void Emitter<CodeEmitter>::emitMemModRMByte(const MachineInstr &MI,
   // Figure out what sort of displacement we have to handle here.
   if (Op3.isGlobal()) {
     DispForReloc = &Op3;
+  } else if (Op3.isSymbol()) {
+    DispForReloc = &Op3;
   } else if (Op3.isCPI()) {
-    if (Is64BitMode || IsPIC) {
+    if (!MCE.earlyResolveAddresses() || Is64BitMode || IsPIC) {
       DispForReloc = &Op3;
     } else {
       DispVal += MCE.getConstantPoolEntryAddress(Op3.getIndex());
       DispVal += Op3.getOffset();
     }
   } else if (Op3.isJTI()) {
-    if (Is64BitMode || IsPIC) {
+    if (!MCE.earlyResolveAddresses() || Is64BitMode || IsPIC) {
       DispForReloc = &Op3;
     } else {
       DispVal += MCE.getJumpTableEntryAddress(Op3.getIndex());
@@ -368,17 +384,23 @@ void Emitter<CodeEmitter>::emitMemModRMByte(const MachineInstr &MI,
 
   unsigned BaseReg = Base.getReg();
 
+  // Indicate that the displacement will use an pcrel or absolute reference
+  // by default. MCEs able to resolve addresses on-the-fly use pcrel by default
+  // while others, unless explicit asked to use RIP, use absolute references.
+  bool IsPCRel = MCE.earlyResolveAddresses() ? true : false;
+
   // Is a SIB byte needed?
+  // If no BaseReg, issue a RIP relative instruction only if the MCE can 
+  // resolve addresses on-the-fly, otherwise use SIB (Intel Manual 2A, table
+  // 2-7) and absolute references.
   if ((!Is64BitMode || DispForReloc || BaseReg != 0) &&
-      IndexReg.getReg() == 0 &&
-      (BaseReg == 0 || BaseReg == X86::RIP ||
-       getX86RegNum(BaseReg) != N86::ESP)) {
-    if (BaseReg == 0 ||
-        BaseReg == X86::RIP) {  // Just a displacement?
+      IndexReg.getReg() == 0 && 
+      ((BaseReg == 0 && MCE.earlyResolveAddresses()) || BaseReg == X86::RIP || 
+       (BaseReg != 0 && getX86RegNum(BaseReg) != N86::ESP))) {
+    if (BaseReg == 0 || BaseReg == X86::RIP) {  // Just a displacement?
       // Emit special case [disp32] encoding
       MCE.emitByte(ModRMByte(0, RegOpcodeField, 5));
-      
-      emitDisplacementField(DispForReloc, DispVal, PCAdj);
+      emitDisplacementField(DispForReloc, DispVal, PCAdj, true);
     } else {
       unsigned BaseRegNo = getX86RegNum(BaseReg);
       if (!DispForReloc && DispVal == 0 && BaseRegNo != N86::EBP) {
@@ -391,7 +413,7 @@ void Emitter<CodeEmitter>::emitMemModRMByte(const MachineInstr &MI,
       } else {
         // Emit the most general non-SIB encoding: [REG+disp32]
         MCE.emitByte(ModRMByte(2, RegOpcodeField, BaseRegNo));
-        emitDisplacementField(DispForReloc, DispVal, PCAdj);
+        emitDisplacementField(DispForReloc, DispVal, PCAdj, IsPCRel);
       }
     }
 
@@ -427,13 +449,13 @@ void Emitter<CodeEmitter>::emitMemModRMByte(const MachineInstr &MI,
     unsigned SS = SSTable[Scale.getImm()];
 
     if (BaseReg == 0) {
-      // Handle the SIB byte for the case where there is no base.  The
-      // displacement has already been output.
+      // Handle the SIB byte for the case where there is no base, see Intel 
+      // Manual 2A, table 2-7. The displacement has already been output.
       unsigned IndexRegNo;
       if (IndexReg.getReg())
         IndexRegNo = getX86RegNum(IndexReg.getReg());
-      else
-        IndexRegNo = 4;   // For example [ESP+1*<noreg>+4]
+      else // Examples: [ESP+1*<noreg>+4] or [scaled idx]+disp32 (MOD=0,BASE=5)
+        IndexRegNo = 4;
       emitSIBByte(SS, IndexRegNo, 5);
     } else {
       unsigned BaseRegNo = getX86RegNum(BaseReg);
@@ -449,21 +471,23 @@ void Emitter<CodeEmitter>::emitMemModRMByte(const MachineInstr &MI,
     if (ForceDisp8) {
       emitConstant(DispVal, 1);
     } else if (DispVal != 0 || ForceDisp32) {
-      emitDisplacementField(DispForReloc, DispVal, PCAdj);
+      emitDisplacementField(DispForReloc, DispVal, PCAdj, IsPCRel);
     }
   }
 }
 
 template<class CodeEmitter>
-void Emitter<CodeEmitter>::emitInstruction(
-                              const MachineInstr &MI,
-                              const TargetInstrDesc *Desc) {
-  DOUT << MI;
+void Emitter<CodeEmitter>::emitInstruction(const MachineInstr &MI,
+                                           const TargetInstrDesc *Desc) {
+  DEBUG(errs() << MI);
+
+  MCE.processDebugLoc(MI.getDebugLoc(), true);
 
   unsigned Opcode = Desc->Opcode;
 
   // Emit the lock opcode prefix as needed.
-  if (Desc->TSFlags & X86II::LOCK) MCE.emitByte(0xF0);
+  if (Desc->TSFlags & X86II::LOCK)
+    MCE.emitByte(0xF0);
 
   // Emit segment override opcode prefix as needed.
   switch (Desc->TSFlags & X86II::SegOvrMask) {
@@ -473,24 +497,31 @@ void Emitter<CodeEmitter>::emitInstruction(
   case X86II::GS:
     MCE.emitByte(0x65);
     break;
-  default: assert(0 && "Invalid segment!");
+  default: llvm_unreachable("Invalid segment!");
   case 0: break;  // No segment override!
   }
 
   // Emit the repeat opcode prefix as needed.
-  if ((Desc->TSFlags & X86II::Op0Mask) == X86II::REP) MCE.emitByte(0xF3);
+  if ((Desc->TSFlags & X86II::Op0Mask) == X86II::REP)
+    MCE.emitByte(0xF3);
 
   // Emit the operand size opcode prefix as needed.
-  if (Desc->TSFlags & X86II::OpSize) MCE.emitByte(0x66);
+  if (Desc->TSFlags & X86II::OpSize)
+    MCE.emitByte(0x66);
 
   // Emit the address size opcode prefix as needed.
-  if (Desc->TSFlags & X86II::AdSize) MCE.emitByte(0x67);
+  if (Desc->TSFlags & X86II::AdSize)
+    MCE.emitByte(0x67);
 
   bool Need0FPrefix = false;
   switch (Desc->TSFlags & X86II::Op0Mask) {
   case X86II::TB:  // Two-byte opcode prefix
   case X86II::T8:  // 0F 38
   case X86II::TA:  // 0F 3A
+    Need0FPrefix = true;
+    break;
+  case X86II::TF: // F2 0F 38
+    MCE.emitByte(0xF2);
     Need0FPrefix = true;
     break;
   case X86II::REP: break; // already handled.
@@ -508,14 +539,13 @@ void Emitter<CodeEmitter>::emitInstruction(
                  (((Desc->TSFlags & X86II::Op0Mask)-X86II::D8)
                                    >> X86II::Op0Shift));
     break; // Two-byte opcode prefix
-  default: assert(0 && "Invalid prefix!");
+  default: llvm_unreachable("Invalid prefix!");
   case 0: break;  // No prefix!
   }
 
+  // Handle REX prefix.
   if (Is64BitMode) {
-    // REX prefix
-    unsigned REX = X86InstrInfo::determineREX(MI);
-    if (REX)
+    if (unsigned REX = X86InstrInfo::determineREX(MI))
       MCE.emitByte(0x40 | REX);
   }
 
@@ -524,7 +554,8 @@ void Emitter<CodeEmitter>::emitInstruction(
     MCE.emitByte(0x0F);
 
   switch (Desc->TSFlags & X86II::Op0Mask) {
-  case X86II::T8:  // 0F 38
+  case X86II::TF:    // F2 0F 38
+  case X86II::T8:    // 0F 38
     MCE.emitByte(0x38);
     break;
   case X86II::TA:    // 0F 3A
@@ -543,29 +574,29 @@ void Emitter<CodeEmitter>::emitInstruction(
 
   unsigned char BaseOpcode = II->getBaseOpcodeFor(Desc);
   switch (Desc->TSFlags & X86II::FormMask) {
-  default: assert(0 && "Unknown FormMask value in X86 MachineCodeEmitter!");
+  default:
+    llvm_unreachable("Unknown FormMask value in X86 MachineCodeEmitter!");
   case X86II::Pseudo:
     // Remember the current PC offset, this is the PIC relocation
     // base address.
     switch (Opcode) {
     default: 
-      assert(0 && "psuedo instructions should be removed before code emission");
+      llvm_unreachable("psuedo instructions should be removed before code"
+                       " emission");
       break;
-    case TargetInstrInfo::INLINEASM: {
+    case TargetInstrInfo::INLINEASM:
       // We allow inline assembler nodes with empty bodies - they can
       // implicitly define registers, which is ok for JIT.
-      if (MI.getOperand(0).getSymbolName()[0]) {
-        assert(0 && "JIT does not support inline asm!\n");
-        abort();
-      }
+      if (MI.getOperand(0).getSymbolName()[0])
+        llvm_report_error("JIT does not support inline asm!");
       break;
-    }
     case TargetInstrInfo::DBG_LABEL:
     case TargetInstrInfo::EH_LABEL:
+    case TargetInstrInfo::GC_LABEL:
       MCE.emitLabel(MI.getOperand(0).getImm());
       break;
     case TargetInstrInfo::IMPLICIT_DEF:
-    case TargetInstrInfo::DECLARE:
+    case TargetInstrInfo::KILL:
     case X86::DWARF_LOC:
     case X86::FP_REG_KILL:
       break;
@@ -582,73 +613,86 @@ void Emitter<CodeEmitter>::emitInstruction(
     }
     CurOp = NumOps;
     break;
-  case X86II::RawFrm:
+  case X86II::RawFrm: {
     MCE.emitByte(BaseOpcode);
 
-    if (CurOp != NumOps) {
-      const MachineOperand &MO = MI.getOperand(CurOp++);
+    if (CurOp == NumOps)
+      break;
+      
+    const MachineOperand &MO = MI.getOperand(CurOp++);
 
-      DOUT << "RawFrm CurOp " << CurOp << "\n";
-      DOUT << "isMBB " << MO.isMBB() << "\n";
-      DOUT << "isGlobal " << MO.isGlobal() << "\n";
-      DOUT << "isSymbol " << MO.isSymbol() << "\n";
-      DOUT << "isImm " << MO.isImm() << "\n";
+    DEBUG(errs() << "RawFrm CurOp " << CurOp << "\n");
+    DEBUG(errs() << "isMBB " << MO.isMBB() << "\n");
+    DEBUG(errs() << "isGlobal " << MO.isGlobal() << "\n");
+    DEBUG(errs() << "isSymbol " << MO.isSymbol() << "\n");
+    DEBUG(errs() << "isImm " << MO.isImm() << "\n");
 
-      if (MO.isMBB()) {
-        emitPCRelativeBlockAddress(MO.getMBB());
-      } else if (MO.isGlobal()) {
-        // Assume undefined functions may be outside the Small codespace.
-        bool NeedStub = 
-          (Is64BitMode && 
-              (TM.getCodeModel() == CodeModel::Large ||
-               TM.getSubtarget<X86Subtarget>().isTargetDarwin())) ||
-          Opcode == X86::TAILJMPd;
-        emitGlobalAddress(MO.getGlobal(), X86::reloc_pcrel_word,
-                          MO.getOffset(), 0, NeedStub);
-      } else if (MO.isSymbol()) {
-        emitExternalSymbolAddress(MO.getSymbolName(), X86::reloc_pcrel_word);
-      } else if (MO.isImm()) {
-        if (Opcode == X86::CALLpcrel32 || Opcode == X86::CALL64pcrel32) {
-          // Fix up immediate operand for pc relative calls.
-          intptr_t Imm = (intptr_t)MO.getImm();
-          Imm = Imm - MCE.getCurrentPCValue() - 4;
-          emitConstant(Imm, X86InstrInfo::sizeOfImm(Desc));
-        } else
-          emitConstant(MO.getImm(), X86InstrInfo::sizeOfImm(Desc));
-      } else {
-        assert(0 && "Unknown RawFrm operand!");
-      }
+    if (MO.isMBB()) {
+      emitPCRelativeBlockAddress(MO.getMBB());
+      break;
     }
+    
+    if (MO.isGlobal()) {
+      // Assume undefined functions may be outside the Small codespace.
+      bool NeedStub = 
+        (Is64BitMode && 
+            (TM.getCodeModel() == CodeModel::Large ||
+             TM.getSubtarget<X86Subtarget>().isTargetDarwin())) ||
+        Opcode == X86::TAILJMPd;
+      emitGlobalAddress(MO.getGlobal(), X86::reloc_pcrel_word,
+                        MO.getOffset(), 0, NeedStub);
+      break;
+    }
+    
+    if (MO.isSymbol()) {
+      emitExternalSymbolAddress(MO.getSymbolName(), X86::reloc_pcrel_word);
+      break;
+    }
+    
+    assert(MO.isImm() && "Unknown RawFrm operand!");
+    if (Opcode == X86::CALLpcrel32 || Opcode == X86::CALL64pcrel32) {
+      // Fix up immediate operand for pc relative calls.
+      intptr_t Imm = (intptr_t)MO.getImm();
+      Imm = Imm - MCE.getCurrentPCValue() - 4;
+      emitConstant(Imm, X86InstrInfo::sizeOfImm(Desc));
+    } else
+      emitConstant(MO.getImm(), X86InstrInfo::sizeOfImm(Desc));
     break;
-
-  case X86II::AddRegFrm:
+  }
+      
+  case X86II::AddRegFrm: {
     MCE.emitByte(BaseOpcode + getX86RegNum(MI.getOperand(CurOp++).getReg()));
     
-    if (CurOp != NumOps) {
-      const MachineOperand &MO1 = MI.getOperand(CurOp++);
-      unsigned Size = X86InstrInfo::sizeOfImm(Desc);
-      if (MO1.isImm())
-        emitConstant(MO1.getImm(), Size);
-      else {
-        unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
-          : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
-        // This should not occur on Darwin for relocatable objects.
-        if (Opcode == X86::MOV64ri)
-          rt = X86::reloc_absolute_dword;  // FIXME: add X86II flag?
-        if (MO1.isGlobal()) {
-          bool NeedStub = isa<Function>(MO1.getGlobal());
-          bool Indirect = gvNeedsNonLazyPtr(MO1.getGlobal());
-          emitGlobalAddress(MO1.getGlobal(), rt, MO1.getOffset(), 0,
-                            NeedStub, Indirect);
-        } else if (MO1.isSymbol())
-          emitExternalSymbolAddress(MO1.getSymbolName(), rt);
-        else if (MO1.isCPI())
-          emitConstPoolAddress(MO1.getIndex(), rt);
-        else if (MO1.isJTI())
-          emitJumpTableAddress(MO1.getIndex(), rt);
-      }
+    if (CurOp == NumOps)
+      break;
+      
+    const MachineOperand &MO1 = MI.getOperand(CurOp++);
+    unsigned Size = X86InstrInfo::sizeOfImm(Desc);
+    if (MO1.isImm()) {
+      emitConstant(MO1.getImm(), Size);
+      break;
     }
+    
+    unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
+      : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
+    if (Opcode == X86::MOV64ri64i32)
+      rt = X86::reloc_absolute_word;  // FIXME: add X86II flag?
+    // This should not occur on Darwin for relocatable objects.
+    if (Opcode == X86::MOV64ri)
+      rt = X86::reloc_absolute_dword;  // FIXME: add X86II flag?
+    if (MO1.isGlobal()) {
+      bool NeedStub = isa<Function>(MO1.getGlobal());
+      bool Indirect = gvNeedsNonLazyPtr(MO1, TM);
+      emitGlobalAddress(MO1.getGlobal(), rt, MO1.getOffset(), 0,
+                        NeedStub, Indirect);
+    } else if (MO1.isSymbol())
+      emitExternalSymbolAddress(MO1.getSymbolName(), rt);
+    else if (MO1.isCPI())
+      emitConstPoolAddress(MO1.getIndex(), rt);
+    else if (MO1.isJTI())
+      emitJumpTableAddress(MO1.getIndex(), rt);
     break;
+  }
 
   case X86II::MRMDestReg: {
     MCE.emitByte(BaseOpcode);
@@ -656,7 +700,8 @@ void Emitter<CodeEmitter>::emitInstruction(
                      getX86RegNum(MI.getOperand(CurOp+1).getReg()));
     CurOp += 2;
     if (CurOp != NumOps)
-      emitConstant(MI.getOperand(CurOp++).getImm(), X86InstrInfo::sizeOfImm(Desc));
+      emitConstant(MI.getOperand(CurOp++).getImm(),
+                   X86InstrInfo::sizeOfImm(Desc));
     break;
   }
   case X86II::MRMDestMem: {
@@ -666,7 +711,8 @@ void Emitter<CodeEmitter>::emitInstruction(
                                   .getReg()));
     CurOp +=  X86AddrNumOperands + 1;
     if (CurOp != NumOps)
-      emitConstant(MI.getOperand(CurOp++).getImm(), X86InstrInfo::sizeOfImm(Desc));
+      emitConstant(MI.getOperand(CurOp++).getImm(),
+                   X86InstrInfo::sizeOfImm(Desc));
     break;
   }
 
@@ -729,29 +775,31 @@ void Emitter<CodeEmitter>::emitInstruction(
                        (Desc->TSFlags & X86II::FormMask)-X86II::MRM0r);
     }
 
-    if (CurOp != NumOps) {
-      const MachineOperand &MO1 = MI.getOperand(CurOp++);
-      unsigned Size = X86InstrInfo::sizeOfImm(Desc);
-      if (MO1.isImm())
-        emitConstant(MO1.getImm(), Size);
-      else {
-        unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
-          : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
-        if (Opcode == X86::MOV64ri32)
-          rt = X86::reloc_absolute_word;  // FIXME: add X86II flag?
-        if (MO1.isGlobal()) {
-          bool NeedStub = isa<Function>(MO1.getGlobal());
-          bool Indirect = gvNeedsNonLazyPtr(MO1.getGlobal());
-          emitGlobalAddress(MO1.getGlobal(), rt, MO1.getOffset(), 0,
-                            NeedStub, Indirect);
-        } else if (MO1.isSymbol())
-          emitExternalSymbolAddress(MO1.getSymbolName(), rt);
-        else if (MO1.isCPI())
-          emitConstPoolAddress(MO1.getIndex(), rt);
-        else if (MO1.isJTI())
-          emitJumpTableAddress(MO1.getIndex(), rt);
-      }
+    if (CurOp == NumOps)
+      break;
+    
+    const MachineOperand &MO1 = MI.getOperand(CurOp++);
+    unsigned Size = X86InstrInfo::sizeOfImm(Desc);
+    if (MO1.isImm()) {
+      emitConstant(MO1.getImm(), Size);
+      break;
     }
+    
+    unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
+      : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
+    if (Opcode == X86::MOV64ri32)
+      rt = X86::reloc_absolute_word_sext;  // FIXME: add X86II flag?
+    if (MO1.isGlobal()) {
+      bool NeedStub = isa<Function>(MO1.getGlobal());
+      bool Indirect = gvNeedsNonLazyPtr(MO1, TM);
+      emitGlobalAddress(MO1.getGlobal(), rt, MO1.getOffset(), 0,
+                        NeedStub, Indirect);
+    } else if (MO1.isSymbol())
+      emitExternalSymbolAddress(MO1.getSymbolName(), rt);
+    else if (MO1.isCPI())
+      emitConstPoolAddress(MO1.getIndex(), rt);
+    else if (MO1.isJTI())
+      emitJumpTableAddress(MO1.getIndex(), rt);
     break;
   }
 
@@ -768,29 +816,31 @@ void Emitter<CodeEmitter>::emitInstruction(
                      PCAdj);
     CurOp += X86AddrNumOperands;
 
-    if (CurOp != NumOps) {
-      const MachineOperand &MO = MI.getOperand(CurOp++);
-      unsigned Size = X86InstrInfo::sizeOfImm(Desc);
-      if (MO.isImm())
-        emitConstant(MO.getImm(), Size);
-      else {
-        unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
-          : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
-        if (Opcode == X86::MOV64mi32)
-          rt = X86::reloc_absolute_word;  // FIXME: add X86II flag?
-        if (MO.isGlobal()) {
-          bool NeedStub = isa<Function>(MO.getGlobal());
-          bool Indirect = gvNeedsNonLazyPtr(MO.getGlobal());
-          emitGlobalAddress(MO.getGlobal(), rt, MO.getOffset(), 0,
-                            NeedStub, Indirect);
-        } else if (MO.isSymbol())
-          emitExternalSymbolAddress(MO.getSymbolName(), rt);
-        else if (MO.isCPI())
-          emitConstPoolAddress(MO.getIndex(), rt);
-        else if (MO.isJTI())
-          emitJumpTableAddress(MO.getIndex(), rt);
-      }
+    if (CurOp == NumOps)
+      break;
+    
+    const MachineOperand &MO = MI.getOperand(CurOp++);
+    unsigned Size = X86InstrInfo::sizeOfImm(Desc);
+    if (MO.isImm()) {
+      emitConstant(MO.getImm(), Size);
+      break;
     }
+    
+    unsigned rt = Is64BitMode ? X86::reloc_pcrel_word
+      : (IsPIC ? X86::reloc_picrel_word : X86::reloc_absolute_word);
+    if (Opcode == X86::MOV64mi32)
+      rt = X86::reloc_absolute_word_sext;  // FIXME: add X86II flag?
+    if (MO.isGlobal()) {
+      bool NeedStub = isa<Function>(MO.getGlobal());
+      bool Indirect = gvNeedsNonLazyPtr(MO, TM);
+      emitGlobalAddress(MO.getGlobal(), rt, MO.getOffset(), 0,
+                        NeedStub, Indirect);
+    } else if (MO.isSymbol())
+      emitExternalSymbolAddress(MO.getSymbolName(), rt);
+    else if (MO.isCPI())
+      emitConstPoolAddress(MO.getIndex(), rt);
+    else if (MO.isJTI())
+      emitJumpTableAddress(MO.getIndex(), rt);
     break;
   }
 
@@ -804,10 +854,264 @@ void Emitter<CodeEmitter>::emitInstruction(
   }
 
   if (!Desc->isVariadic() && CurOp != NumOps) {
-    cerr << "Cannot encode: ";
-    MI.dump();
-    cerr << '\n';
-    abort();
+#ifndef NDEBUG
+    errs() << "Cannot encode all operands of: " << MI << "\n";
+#endif
+    llvm_unreachable(0);
   }
+
+  MCE.processDebugLoc(MI.getDebugLoc(), false);
 }
 
+// Adapt the Emitter / CodeEmitter interfaces to MCCodeEmitter.
+//
+// FIXME: This is a total hack designed to allow work on llvm-mc to proceed
+// without being blocked on various cleanups needed to support a clean interface
+// to instruction encoding.
+//
+// Look away!
+
+#include "llvm/DerivedTypes.h"
+
+namespace {
+class MCSingleInstructionCodeEmitter : public MachineCodeEmitter {
+  uint8_t Data[256];
+
+public:
+  MCSingleInstructionCodeEmitter() { reset(); }
+
+  void reset() { 
+    BufferBegin = Data;
+    BufferEnd = array_endof(Data);
+    CurBufferPtr = Data;
+  }
+
+  StringRef str() {
+    return StringRef(reinterpret_cast<char*>(BufferBegin),
+                     CurBufferPtr - BufferBegin);
+  }
+
+  virtual void startFunction(MachineFunction &F) {}
+  virtual bool finishFunction(MachineFunction &F) { return false; }
+  virtual void emitLabel(uint64_t LabelID) {}
+  virtual void StartMachineBasicBlock(MachineBasicBlock *MBB) {}
+  virtual bool earlyResolveAddresses() const { return false; }
+  virtual void addRelocation(const MachineRelocation &MR) { }
+  virtual uintptr_t getConstantPoolEntryAddress(unsigned Index) const {
+    return 0;
+  }
+  virtual uintptr_t getJumpTableEntryAddress(unsigned Index) const {
+    return 0;
+  }
+  virtual uintptr_t getMachineBasicBlockAddress(MachineBasicBlock *MBB) const {
+    return 0;
+  }
+  virtual uintptr_t getLabelAddress(uint64_t LabelID) const {
+    return 0;
+  }
+  virtual void setModuleInfo(MachineModuleInfo* Info) {}
+};
+
+class X86MCCodeEmitter : public MCCodeEmitter {
+  X86MCCodeEmitter(const X86MCCodeEmitter &); // DO NOT IMPLEMENT
+  void operator=(const X86MCCodeEmitter &); // DO NOT IMPLEMENT
+
+private:
+  X86TargetMachine &TM;
+  llvm::Function *DummyF;
+  TargetData *DummyTD;
+  mutable llvm::MachineFunction *DummyMF;
+  llvm::MachineBasicBlock *DummyMBB;
+  
+  MCSingleInstructionCodeEmitter *InstrEmitter;
+  Emitter<MachineCodeEmitter> *Emit;
+
+public:
+  X86MCCodeEmitter(X86TargetMachine &_TM) : TM(_TM) {
+    // Verily, thou shouldst avert thine eyes.
+    const llvm::FunctionType *FTy =
+      FunctionType::get(llvm::Type::getVoidTy(getGlobalContext()), false);
+    DummyF = Function::Create(FTy, GlobalValue::InternalLinkage);
+    DummyTD = new TargetData("");
+    DummyMF = new MachineFunction(DummyF, TM);
+    DummyMBB = DummyMF->CreateMachineBasicBlock();
+
+    InstrEmitter = new MCSingleInstructionCodeEmitter();
+    Emit = new Emitter<MachineCodeEmitter>(TM, *InstrEmitter, 
+                                           *TM.getInstrInfo(),
+                                           *DummyTD, false);
+  }
+  ~X86MCCodeEmitter() {
+    delete Emit;
+    delete InstrEmitter;
+    delete DummyMF;
+    delete DummyF;
+  }
+
+  bool AddRegToInstr(const MCInst &MI, MachineInstr *Instr,
+                     unsigned Start) const {
+    if (Start + 1 > MI.getNumOperands())
+      return false;
+
+    const MCOperand &Op = MI.getOperand(Start);
+    if (!Op.isReg()) return false;
+
+    Instr->addOperand(MachineOperand::CreateReg(Op.getReg(), false));
+    return true;
+  }
+
+  bool AddImmToInstr(const MCInst &MI, MachineInstr *Instr,
+                     unsigned Start) const {
+    if (Start + 1 > MI.getNumOperands())
+      return false;
+
+    const MCOperand &Op = MI.getOperand(Start);
+    if (Op.isImm()) {
+      Instr->addOperand(MachineOperand::CreateImm(Op.getImm()));
+      return true;
+    }
+    if (!Op.isExpr())
+      return false;
+
+    const MCExpr *Expr = Op.getExpr();
+    if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Expr)) {
+      Instr->addOperand(MachineOperand::CreateImm(CE->getValue()));
+      return true;
+    }
+
+    // FIXME: Relocation / fixup.
+    Instr->addOperand(MachineOperand::CreateImm(0));
+    return true;
+  }
+
+  bool AddLMemToInstr(const MCInst &MI, MachineInstr *Instr,
+                     unsigned Start) const {
+    return (AddRegToInstr(MI, Instr, Start + 0) &&
+            AddImmToInstr(MI, Instr, Start + 1) &&
+            AddRegToInstr(MI, Instr, Start + 2) &&
+            AddImmToInstr(MI, Instr, Start + 3));
+  }
+
+  bool AddMemToInstr(const MCInst &MI, MachineInstr *Instr,
+                     unsigned Start) const {
+    return (AddRegToInstr(MI, Instr, Start + 0) &&
+            AddImmToInstr(MI, Instr, Start + 1) &&
+            AddRegToInstr(MI, Instr, Start + 2) &&
+            AddImmToInstr(MI, Instr, Start + 3) &&
+            AddRegToInstr(MI, Instr, Start + 4));
+  }
+
+  void EncodeInstruction(const MCInst &MI, raw_ostream &OS) const {
+    // Don't look yet!
+
+    // Convert the MCInst to a MachineInstr so we can (ab)use the regular
+    // emitter.
+    const X86InstrInfo &II = *TM.getInstrInfo();
+    const TargetInstrDesc &Desc = II.get(MI.getOpcode());    
+    MachineInstr *Instr = DummyMF->CreateMachineInstr(Desc, DebugLoc());
+    DummyMBB->push_back(Instr);
+
+    unsigned Opcode = MI.getOpcode();
+    unsigned NumOps = MI.getNumOperands();
+    unsigned CurOp = 0;
+    if (NumOps > 1 && Desc.getOperandConstraint(1, TOI::TIED_TO) != -1) {
+      Instr->addOperand(MachineOperand::CreateReg(0, false));
+      ++CurOp;
+    } else if (NumOps > 2 && 
+             Desc.getOperandConstraint(NumOps-1, TOI::TIED_TO)== 0)
+      // Skip the last source operand that is tied_to the dest reg. e.g. LXADD32
+      --NumOps;
+
+    bool OK = true;
+    switch (Desc.TSFlags & X86II::FormMask) {
+    case X86II::MRMDestReg:
+    case X86II::MRMSrcReg:
+      // Matching doesn't fill this in completely, we have to choose operand 0
+      // for a tied register.
+      OK &= AddRegToInstr(MI, Instr, 0); CurOp++;
+      OK &= AddRegToInstr(MI, Instr, CurOp++);
+      if (CurOp < NumOps)
+        OK &= AddImmToInstr(MI, Instr, CurOp);
+      break;
+
+    case X86II::RawFrm:
+      if (CurOp < NumOps) {
+        // Hack to make branches work.
+        if (!(Desc.TSFlags & X86II::ImmMask) &&
+            MI.getOperand(0).isExpr() &&
+            isa<MCSymbolRefExpr>(MI.getOperand(0).getExpr()))
+          Instr->addOperand(MachineOperand::CreateMBB(DummyMBB));
+        else
+          OK &= AddImmToInstr(MI, Instr, CurOp);
+      }
+      break;
+
+    case X86II::AddRegFrm:
+      OK &= AddRegToInstr(MI, Instr, CurOp++);
+      if (CurOp < NumOps)
+        OK &= AddImmToInstr(MI, Instr, CurOp);
+      break;
+
+    case X86II::MRM0r: case X86II::MRM1r:
+    case X86II::MRM2r: case X86II::MRM3r:
+    case X86II::MRM4r: case X86II::MRM5r:
+    case X86II::MRM6r: case X86II::MRM7r:
+      // Matching doesn't fill this in completely, we have to choose operand 0
+      // for a tied register.
+      OK &= AddRegToInstr(MI, Instr, 0); CurOp++;
+      if (CurOp < NumOps)
+        OK &= AddImmToInstr(MI, Instr, CurOp);
+      break;
+      
+    case X86II::MRM0m: case X86II::MRM1m:
+    case X86II::MRM2m: case X86II::MRM3m:
+    case X86II::MRM4m: case X86II::MRM5m:
+    case X86II::MRM6m: case X86II::MRM7m:
+      OK &= AddMemToInstr(MI, Instr, CurOp); CurOp += 5;
+      if (CurOp < NumOps)
+        OK &= AddImmToInstr(MI, Instr, CurOp);
+      break;
+
+    case X86II::MRMSrcMem:
+      OK &= AddRegToInstr(MI, Instr, CurOp++);
+      if (Opcode == X86::LEA64r || Opcode == X86::LEA64_32r ||
+          Opcode == X86::LEA16r || Opcode == X86::LEA32r)
+        OK &= AddLMemToInstr(MI, Instr, CurOp);
+      else
+        OK &= AddMemToInstr(MI, Instr, CurOp);
+      break;
+
+    case X86II::MRMDestMem:
+      OK &= AddMemToInstr(MI, Instr, CurOp); CurOp += 5;
+      OK &= AddRegToInstr(MI, Instr, CurOp);
+      break;
+
+    default:
+    case X86II::MRMInitReg:
+    case X86II::Pseudo:
+      OK = false;
+      break;
+    }
+
+    if (!OK) {
+      errs() << "couldn't convert inst '";
+      MI.dump();
+      errs() << "' to machine instr:\n";
+      Instr->dump();
+    }
+
+    InstrEmitter->reset();
+    if (OK)
+      Emit->emitInstruction(*Instr, &Desc);
+    OS << InstrEmitter->str();
+
+    Instr->eraseFromParent();
+  }
+};
+}
+
+// Ok, now you can look.
+MCCodeEmitter *llvm::createX86MCCodeEmitter(const Target &,
+                                            TargetMachine &TM) {
+  return new X86MCCodeEmitter(static_cast<X86TargetMachine&>(TM));
+}

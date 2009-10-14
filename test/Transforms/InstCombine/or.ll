@@ -1,6 +1,6 @@
 ; This test makes sure that these instructions are properly eliminated.
 ;
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | \
+; RUN: opt < %s -instcombine -S | \
 ; RUN:    grep -v xor | not grep {or }
 ; END.
 

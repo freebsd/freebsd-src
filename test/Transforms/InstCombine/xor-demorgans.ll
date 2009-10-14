@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | not grep {= or}
+; RUN: opt < %s -instcombine -S | not grep {= or}
 ; PR3266
 ; XFAIL: *
 

@@ -1,7 +1,7 @@
 ; This test makes sure that these instructions are properly eliminated.
 ; PR1822
 
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | not grep select
+; RUN: opt < %s -instcombine -S | not grep select
 
 define i32 @test1(i32 %A, i32 %B) {
         %C = select i1 false, i32 %A, i32 %B            ; <i32> [#uses=1]
@@ -200,5 +200,66 @@ define i1 @test23(i1 %a, i1 %b) {
 define i1 @test24(i1 %a, i1 %b) {
         %c = select i1 %a, i1 %a, i1 %b         ; <i1> [#uses=1]
         ret i1 %c
+}
+
+define i32 @test25(i1 %c)  {
+entry:
+  br i1 %c, label %jump, label %ret
+jump:
+  br label %ret 
+ret:
+  %a = phi i1 [true, %jump], [false, %entry]
+  %b = select i1 %a, i32 10, i32 20
+  ret i32 %b
+}
+
+define i32 @test26(i1 %cond)  {
+entry:
+  br i1 %cond, label %jump, label %ret
+jump:
+  %c = or i1 false, false
+  br label %ret 
+ret:
+  %a = phi i1 [true, %jump], [%c, %entry]
+  %b = select i1 %a, i32 10, i32 20
+  ret i32 %b
+}
+
+define i32 @test27(i1 %c, i32 %A, i32 %B)  {
+entry:
+  br i1 %c, label %jump, label %ret
+jump:
+  br label %ret 
+ret:
+  %a = phi i1 [true, %jump], [false, %entry]
+  %b = select i1 %a, i32 %A, i32 %B
+  ret i32 %b
+}
+
+define i32 @test28(i1 %cond, i32 %A, i32 %B)  {
+entry:
+  br i1 %cond, label %jump, label %ret
+jump:
+  br label %ret 
+ret:
+  %c = phi i32 [%A, %jump], [%B, %entry]
+  %a = phi i1 [true, %jump], [false, %entry]
+  %b = select i1 %a, i32 %A, i32 %c
+  ret i32 %b
+}
+
+define i32 @test29(i1 %cond, i32 %A, i32 %B)  {
+entry:
+  br i1 %cond, label %jump, label %ret
+jump:
+  br label %ret 
+ret:
+  %c = phi i32 [%A, %jump], [%B, %entry]
+  %a = phi i1 [true, %jump], [false, %entry]
+  br label %next
+  
+next:
+  %b = select i1 %a, i32 %A, i32 %c
+  ret i32 %b
 }
 

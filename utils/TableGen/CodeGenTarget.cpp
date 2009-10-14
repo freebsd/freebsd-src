@@ -23,6 +23,10 @@
 using namespace llvm;
 
 static cl::opt<unsigned>
+AsmParserNum("asmparsernum", cl::init(0),
+             cl::desc("Make -gen-asm-parser emit assembly parser #N"));
+
+static cl::opt<unsigned>
 AsmWriterNum("asmwriternum", cl::init(0),
              cl::desc("Make -gen-asm-writer emit assembly writer #N"));
 
@@ -34,47 +38,10 @@ MVT::SimpleValueType llvm::getValueType(Record *Rec) {
 
 std::string llvm::getName(MVT::SimpleValueType T) {
   switch (T) {
-  case MVT::Other: return "UNKNOWN";
-  case MVT::i1:    return "MVT::i1";
-  case MVT::i8:    return "MVT::i8";
-  case MVT::i16:   return "MVT::i16";
-  case MVT::i32:   return "MVT::i32";
-  case MVT::i64:   return "MVT::i64";
-  case MVT::i128:  return "MVT::i128";
-  case MVT::iAny:  return "MVT::iAny";
-  case MVT::fAny:  return "MVT::fAny";
-  case MVT::f32:   return "MVT::f32";
-  case MVT::f64:   return "MVT::f64";
-  case MVT::f80:   return "MVT::f80";
-  case MVT::f128:  return "MVT::f128";
-  case MVT::ppcf128:  return "MVT::ppcf128";
-  case MVT::Flag:  return "MVT::Flag";
-  case MVT::isVoid:return "MVT::isVoid";
-  case MVT::v2i8:  return "MVT::v2i8";
-  case MVT::v4i8:  return "MVT::v4i8";
-  case MVT::v8i8:  return "MVT::v8i8";
-  case MVT::v16i8: return "MVT::v16i8";
-  case MVT::v32i8: return "MVT::v32i8";
-  case MVT::v2i16: return "MVT::v2i16";
-  case MVT::v4i16: return "MVT::v4i16";
-  case MVT::v8i16: return "MVT::v8i16";
-  case MVT::v16i16: return "MVT::v16i16";
-  case MVT::v2i32: return "MVT::v2i32";
-  case MVT::v4i32: return "MVT::v4i32";
-  case MVT::v8i32: return "MVT::v8i32";
-  case MVT::v1i64: return "MVT::v1i64";
-  case MVT::v2i64: return "MVT::v2i64";
-  case MVT::v4i64: return "MVT::v4i64";
-  case MVT::v2f32: return "MVT::v2f32";
-  case MVT::v4f32: return "MVT::v4f32";
-  case MVT::v8f32: return "MVT::v8f32";
-  case MVT::v2f64: return "MVT::v2f64";
-  case MVT::v4f64: return "MVT::v4f64";
-  case MVT::v3i32: return "MVT::v3i32";
-  case MVT::v3f32: return "MVT::v3f32";
-  case MVT::iPTR:  return "TLI.getPointerTy()";
-  case MVT::iPTRAny:  return "TLI.getPointerTy()";
-  default: assert(0 && "ILLEGAL VALUE TYPE!"); return "";
+  case MVT::Other:   return "UNKNOWN";
+  case MVT::iPTR:    return "TLI.getPointerTy()";
+  case MVT::iPTRAny: return "TLI.getPointerTy()";
+  default: return getEnumName(T);
   }
 }
 
@@ -89,6 +56,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::i128:  return "MVT::i128";
   case MVT::iAny:  return "MVT::iAny";
   case MVT::fAny:  return "MVT::fAny";
+  case MVT::vAny:  return "MVT::vAny";
   case MVT::f32:   return "MVT::f32";
   case MVT::f64:   return "MVT::f64";
   case MVT::f80:   return "MVT::f80";
@@ -116,8 +84,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v8f32: return "MVT::v8f32";
   case MVT::v2f64: return "MVT::v2f64";
   case MVT::v4f64: return "MVT::v4f64";
-  case MVT::v3i32: return "MVT::v3i32";
-  case MVT::v3f32: return "MVT::v3f32";
+  case MVT::Metadata: return "MVT::Metadata";
   case MVT::iPTR:  return "MVT::iPTR";
   case MVT::iPTRAny:  return "MVT::iPTRAny";
   default: assert(0 && "ILLEGAL VALUE TYPE!"); return "";
@@ -169,6 +136,15 @@ std::string CodeGenTarget::getInstNamespace() const {
 
 Record *CodeGenTarget::getInstructionSet() const {
   return TargetRec->getValueAsDef("InstructionSet");
+}
+
+/// getAsmParser - Return the AssemblyParser definition for this target.
+///
+Record *CodeGenTarget::getAsmParser() const {
+  std::vector<Record*> LI = TargetRec->getValueAsListOfDefs("AssemblyParsers");
+  if (AsmParserNum >= LI.size())
+    throw "Target does not have an AsmParser #" + utostr(AsmParserNum) + "!";
+  return LI[AsmParserNum];
 }
 
 /// getAsmWriter - Return the AssemblyWriter definition for this target.
@@ -265,7 +241,7 @@ CodeGenRegisterClass::CodeGenRegisterClass(Record *R) : TheDef(R) {
   unsigned Size = R->getValueAsInt("Size");
 
   Namespace = R->getValueAsString("Namespace");
-  SpillSize = Size ? Size : MVT(VTs[0]).getSizeInBits();
+  SpillSize = Size ? Size : EVT(VTs[0]).getSizeInBits();
   SpillAlignment = R->getValueAsInt("Alignment");
   CopyCost = R->getValueAsInt("CopyCost");
   MethodBodies = R->getValueAsCode("MethodBodies");
@@ -332,9 +308,9 @@ getInstructionsByEnumValue(std::vector<const CodeGenInstruction*>
   if (I == Instructions.end()) throw "Could not find 'GC_LABEL' instruction!";
   const CodeGenInstruction *GC_LABEL = &I->second;
   
-  I = getInstructions().find("DECLARE");
-  if (I == Instructions.end()) throw "Could not find 'DECLARE' instruction!";
-  const CodeGenInstruction *DECLARE = &I->second;
+  I = getInstructions().find("KILL");
+  if (I == Instructions.end()) throw "Could not find 'KILL' instruction!";
+  const CodeGenInstruction *KILL = &I->second;
   
   I = getInstructions().find("EXTRACT_SUBREG");
   if (I == Instructions.end()) 
@@ -367,7 +343,7 @@ getInstructionsByEnumValue(std::vector<const CodeGenInstruction*>
   NumberedInstructions.push_back(DBG_LABEL);
   NumberedInstructions.push_back(EH_LABEL);
   NumberedInstructions.push_back(GC_LABEL);
-  NumberedInstructions.push_back(DECLARE);
+  NumberedInstructions.push_back(KILL);
   NumberedInstructions.push_back(EXTRACT_SUBREG);
   NumberedInstructions.push_back(INSERT_SUBREG);
   NumberedInstructions.push_back(IMPLICIT_DEF);
@@ -379,7 +355,7 @@ getInstructionsByEnumValue(std::vector<const CodeGenInstruction*>
         &II->second != DBG_LABEL &&
         &II->second != EH_LABEL &&
         &II->second != GC_LABEL &&
-        &II->second != DECLARE &&
+        &II->second != KILL &&
         &II->second != EXTRACT_SUBREG &&
         &II->second != INSERT_SUBREG &&
         &II->second != IMPLICIT_DEF &&
@@ -517,11 +493,12 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       // overloaded, all the types can be specified directly.
       assert(((!TyEl->isSubClassOf("LLVMExtendedElementVectorType") &&
                !TyEl->isSubClassOf("LLVMTruncatedElementVectorType")) ||
-              VT == MVT::iAny) && "Expected iAny type");
+              VT == MVT::iAny || VT == MVT::vAny) &&
+             "Expected iAny or vAny type");
     } else {
       VT = getValueType(TyEl->getValueAsDef("VT"));
     }
-    if (VT == MVT::iAny || VT == MVT::fAny || VT == MVT::iPTRAny) {
+    if (EVT(VT).isOverloaded()) {
       OverloadedVTs.push_back(VT);
       isOverloaded |= true;
     }
@@ -548,10 +525,11 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
       // overloaded, all the types can be specified directly.
       assert(((!TyEl->isSubClassOf("LLVMExtendedElementVectorType") &&
                !TyEl->isSubClassOf("LLVMTruncatedElementVectorType")) ||
-              VT == MVT::iAny) && "Expected iAny type");
+              VT == MVT::iAny || VT == MVT::vAny) &&
+             "Expected iAny or vAny type");
     } else
       VT = getValueType(TyEl->getValueAsDef("VT"));
-    if (VT == MVT::iAny || VT == MVT::fAny || VT == MVT::iPTRAny) {
+    if (EVT(VT).isOverloaded()) {
       OverloadedVTs.push_back(VT);
       isOverloaded |= true;
     }

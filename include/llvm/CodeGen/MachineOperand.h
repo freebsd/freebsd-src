@@ -16,7 +16,6 @@
 
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
-#include <iosfwd>
 
 namespace llvm {
   
@@ -111,7 +110,7 @@ private:
         GlobalValue *GV;          // For MO_GlobalAddress.
         MDNode *Node;             // For MO_Metadata.
       } Val;
-      int64_t Offset;   // An offset from the object.
+      int64_t Offset;             // An offset from the object.
     } OffsetedInfo;
   } Contents;
   
@@ -119,12 +118,6 @@ private:
     TargetFlags = 0;
   }
 public:
-  MachineOperand(const MachineOperand &M) {
-    *this = M;
-  }
-  
-  ~MachineOperand() {}
-  
   /// getType - Returns the MachineOperandType for this operand.
   ///
   MachineOperandType getType() const { return (MachineOperandType)OpKind; }
@@ -139,7 +132,6 @@ public:
   MachineInstr *getParent() { return ParentMI; }
   const MachineInstr *getParent() const { return ParentMI; }
   
-  void print(std::ostream &os, const TargetMachine *TM = 0) const;
   void print(raw_ostream &os, const TargetMachine *TM = 0) const;
 
   //===--------------------------------------------------------------------===//
@@ -164,6 +156,8 @@ public:
   bool isGlobal() const { return OpKind == MO_GlobalAddress; }
   /// isSymbol - Tests if this is a MO_ExternalSymbol operand.
   bool isSymbol() const { return OpKind == MO_ExternalSymbol; }
+  /// isMetadata - Tests if this is a MO_Metadata operand.
+  bool isMetadata() const { return OpKind == MO_Metadata; }
 
   //===--------------------------------------------------------------------===//
   // Accessors for Register Operands
@@ -304,6 +298,8 @@ public:
     return Contents.OffsetedInfo.Val.Node;
   }
   
+  /// getOffset - Return the offset from the symbol in this operand. This always
+  /// returns 0 for ExternalSymbol operands.
   int64_t getOffset() const {
     assert((isGlobal() || isSymbol() || isCPI()) &&
            "Wrong MachineOperand accessor");
@@ -325,7 +321,7 @@ public:
   }
 
   void setOffset(int64_t Offset) {
-    assert((isGlobal() || isSymbol() || isCPI()) &&
+    assert((isGlobal() || isSymbol() || isCPI() || isMetadata()) &&
         "Wrong MachineOperand accessor");
     Contents.OffsetedInfo.Offset = Offset;
   }
@@ -438,27 +434,13 @@ public:
     Op.setTargetFlags(TargetFlags);
     return Op;
   }
-  static MachineOperand CreateES(const char *SymName, int64_t Offset = 0,
+  static MachineOperand CreateES(const char *SymName,
                                  unsigned char TargetFlags = 0) {
     MachineOperand Op(MachineOperand::MO_ExternalSymbol);
     Op.Contents.OffsetedInfo.Val.SymbolName = SymName;
-    Op.setOffset(Offset);
+    Op.setOffset(0); // Offset is always 0.
     Op.setTargetFlags(TargetFlags);
     return Op;
-  }
-  const MachineOperand &operator=(const MachineOperand &MO) {
-    OpKind   = MO.OpKind;
-    IsDef    = MO.IsDef;
-    IsImp    = MO.IsImp;
-    IsKill   = MO.IsKill;
-    IsDead   = MO.IsDead;
-    IsUndef  = MO.IsUndef;
-    IsEarlyClobber = MO.IsEarlyClobber;
-    SubReg   = MO.SubReg;
-    ParentMI = MO.ParentMI;
-    Contents = MO.Contents;
-    TargetFlags = MO.TargetFlags;
-    return *this;
   }
 
   friend class MachineInstr;
@@ -485,11 +467,6 @@ private:
   /// MachineRegisterInfo it is linked with.
   void RemoveRegOperandFromRegInfo();
 };
-
-inline std::ostream &operator<<(std::ostream &OS, const MachineOperand &MO) {
-  MO.print(OS, 0);
-  return OS;
-}
 
 inline raw_ostream &operator<<(raw_ostream &OS, const MachineOperand& MO) {
   MO.print(OS, 0);

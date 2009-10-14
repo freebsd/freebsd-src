@@ -24,7 +24,9 @@
 // [0, 0)     = {}       = Empty set
 // [255, 255) = {0..255} = Full Set
 //
-// Note that ConstantRange always keeps unsigned values.
+// Note that ConstantRange can be used to represent either signed or
+// unsigned ranges.
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_SUPPORT_CONSTANT_RANGE_H
@@ -35,11 +37,14 @@
 
 namespace llvm {
 
+/// ConstantRange - This class represents an range of values.
+///
 class ConstantRange {
   APInt Lower, Upper;
   static ConstantRange intersect1Wrapped(const ConstantRange &LHS,
                                          const ConstantRange &RHS);
- public:
+
+public:
   /// Initialize a full (the default) or empty set for the specified bit width.
   ///
   explicit ConstantRange(uint32_t BitWidth, bool isFullSet = true);
@@ -52,6 +57,16 @@ class ConstantRange {
   /// Lower==Upper and Lower != Min or Max value for its type. It will also
   /// assert out if the two APInt's are not the same bit width.
   ConstantRange(const APInt& Lower, const APInt& Upper);
+
+  /// makeICmpRegion - Produce the smallest range that contains all values that
+  /// might satisfy the comparison specified by Pred when compared to any value
+  /// contained within Other.
+  ///
+  /// Solves for range X in 'for all x in X, there exists a y in Y such that
+  /// icmp op x, y is true'. Every value that might make the comparison true
+  /// is included in the resulting range.
+  static ConstantRange makeICmpRegion(unsigned Pred,
+                                      const ConstantRange &Other);
 
   /// getLower - Return the lower value for this range...
   ///
@@ -82,6 +97,10 @@ class ConstantRange {
   /// contains - Return true if the specified value is in the set.
   ///
   bool contains(const APInt &Val) const;
+
+  /// contains - Return true if the other range is a subset of this one.
+  ///
+  bool contains(const ConstantRange &CR) const;
 
   /// getSingleElement - If this set contains a single element, return it,
   /// otherwise return null.
@@ -134,21 +153,13 @@ class ConstantRange {
   ConstantRange subtract(const APInt &CI) const;
 
   /// intersectWith - Return the range that results from the intersection of
-  /// this range with another range.  The resultant range is pruned as much as
-  /// possible, but there may be cases where elements are included that are in
-  /// one of the sets but not the other.  For example: [100, 8) intersect [3,
-  /// 120) yields [3, 120)
-  ///
-  ConstantRange intersectWith(const ConstantRange &CR) const;
-
-  /// maximalIntersectWith - Return the range that results from the intersection
-  /// of this range with another range.  The resultant range is guaranteed to
+  /// this range with another range.  The resultant range is guaranteed to
   /// include all elements contained in both input ranges, and to have the
   /// smallest possible set size that does so.  Because there may be two
-  /// intersections with the same set size, A.maximalIntersectWith(B) might not
-  /// be equal to B.maximalIntersectWith(A).
+  /// intersections with the same set size, A.intersectWith(B) might not
+  /// be equal to B.intersectWith(A).
   ///
-  ConstantRange maximalIntersectWith(const ConstantRange &CR) const;
+  ConstantRange intersectWith(const ConstantRange &CR) const;
 
   /// unionWith - Return the range that results from the union of this range
   /// with another range.  The resultant range is guaranteed to include the
@@ -175,6 +186,28 @@ class ConstantRange {
   /// correspond to the possible range of values if the source range had been
   /// truncated to the specified type.
   ConstantRange truncate(uint32_t BitWidth) const;
+
+  /// add - Return a new range representing the possible values resulting
+  /// from an addition of a value in this range and a value in Other.
+  ConstantRange add(const ConstantRange &Other) const;
+
+  /// multiply - Return a new range representing the possible values resulting
+  /// from a multiplication of a value in this range and a value in Other.
+  /// TODO: This isn't fully implemented yet.
+  ConstantRange multiply(const ConstantRange &Other) const;
+
+  /// smax - Return a new range representing the possible values resulting
+  /// from a signed maximum of a value in this range and a value in Other.
+  ConstantRange smax(const ConstantRange &Other) const;
+
+  /// umax - Return a new range representing the possible values resulting
+  /// from an unsigned maximum of a value in this range and a value in Other.
+  ConstantRange umax(const ConstantRange &Other) const;
+
+  /// udiv - Return a new range representing the possible values resulting
+  /// from an unsigned division of a value in this range and a value in Other.
+  /// TODO: This isn't fully implemented yet.
+  ConstantRange udiv(const ConstantRange &Other) const;
 
   /// print - Print out the bounds to a stream...
   ///

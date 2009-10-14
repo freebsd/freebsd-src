@@ -19,7 +19,6 @@
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
 
@@ -69,14 +68,6 @@ class RegScavenger {
   /// available, unset means the register is currently being used.
   BitVector RegsAvailable;
 
-  /// CurrDist - Distance from MBB entry to the current instruction MBBI.
-  ///
-  unsigned CurrDist;
-
-  /// DistanceMap - Keep track the distance of a MI from the start of the
-  /// current basic block.
-  DenseMap<MachineInstr*, unsigned> DistanceMap;
-
 public:
   RegScavenger()
     : MBB(NULL), NumPhysRegs(0), Tracking(false),
@@ -86,56 +77,30 @@ public:
   /// basic block.
   void enterBasicBlock(MachineBasicBlock *mbb);
 
-  /// forward / backward - Move the internal MBB iterator and update register
-  /// states.
-  void forward();
-  void backward();
+  /// initRegState - allow resetting register state info for multiple
+  /// passes over/within the same function.
+  void initRegState();
 
-  /// forward / backward - Move the internal MBB iterator and update register
-  /// states until it has processed the specific iterator.
+  /// forward - Move the internal MBB iterator and update register states.
+  void forward();
+
+  /// forward - Move the internal MBB iterator and update register states until
+  /// it has processed the specific iterator.
   void forward(MachineBasicBlock::iterator I) {
     if (!Tracking && MBB->begin() != I) forward();
     while (MBBI != I) forward();
-  }
-  void backward(MachineBasicBlock::iterator I) {
-    while (MBBI != I) backward();
   }
 
   /// skipTo - Move the internal MBB iterator but do not update register states.
   ///
   void skipTo(MachineBasicBlock::iterator I) { MBBI = I; }
 
-  /// isReserved - Returns true if a register is reserved. It is never "unused".
-  bool isReserved(unsigned Reg) const { return ReservedRegs[Reg]; }
-
-  /// isUsed / isUsed - Test if a register is currently being used.
-  ///
-  bool isUsed(unsigned Reg) const   { return !RegsAvailable[Reg]; }
-  bool isUnused(unsigned Reg) const { return RegsAvailable[Reg]; }
-
   /// getRegsUsed - return all registers currently in use in used.
   void getRegsUsed(BitVector &used, bool includeReserved);
 
-  /// setUsed / setUnused - Mark the state of one or a number of registers.
-  ///
-  void setUsed(unsigned Reg);
-  void setUsed(BitVector &Regs) {
-    RegsAvailable &= ~Regs;
-  }
-  void setUnused(unsigned Reg, const MachineInstr *MI);
-  void setUnused(BitVector &Regs) {
-    RegsAvailable |= Regs;
-  }
-
-  /// FindUnusedReg - Find a unused register of the specified register class
-  /// from the specified set of registers. It return 0 is none is found.
-  unsigned FindUnusedReg(const TargetRegisterClass *RegClass,
-                         const BitVector &Candidates) const;
-
   /// FindUnusedReg - Find a unused register of the specified register class.
-  /// Exclude callee saved registers if directed. It return 0 is none is found.
-  unsigned FindUnusedReg(const TargetRegisterClass *RegClass,
-                         bool ExCalleeSaved = false) const;
+  /// Return 0 if none is found.
+  unsigned FindUnusedReg(const TargetRegisterClass *RegClass) const;
 
   /// setScavengingFrameIndex / getScavengingFrameIndex - accessor and setter of
   /// ScavengingFrameIndex.
@@ -152,16 +117,43 @@ public:
     return scavengeRegister(RegClass, MBBI, SPAdj);
   }
 
+  /// setUsed - Tell the scavenger a register is used.
+  ///
+  void setUsed(unsigned Reg);
 private:
-  /// restoreScavengedReg - Restore scavenged by loading it back from the
-  /// emergency spill slot. Mark it used.
-  void restoreScavengedReg();
+  /// isReserved - Returns true if a register is reserved. It is never "unused".
+  bool isReserved(unsigned Reg) const { return ReservedRegs.test(Reg); }
 
-  MachineInstr *findFirstUse(MachineBasicBlock *MBB,
-                             MachineBasicBlock::iterator I, unsigned Reg,
-                             unsigned &Dist);
+  /// isUsed / isUnused - Test if a register is currently being used.
+  ///
+  bool isUsed(unsigned Reg) const   { return !RegsAvailable.test(Reg); }
+  bool isUnused(unsigned Reg) const { return RegsAvailable.test(Reg); }
+
+  /// isAliasUsed - Is Reg or an alias currently in use?
+  bool isAliasUsed(unsigned Reg) const;
+
+  /// setUsed / setUnused - Mark the state of one or a number of registers.
+  ///
+  void setUsed(BitVector &Regs) {
+    RegsAvailable &= ~Regs;
+  }
+  void setUnused(BitVector &Regs) {
+    RegsAvailable |= Regs;
+  }
+
+  /// Add Reg and all its sub-registers to BV.
+  void addRegWithSubRegs(BitVector &BV, unsigned Reg);
+
+  /// Add Reg and its aliases to BV.
+  void addRegWithAliases(BitVector &BV, unsigned Reg);
+
+  unsigned findSurvivorReg(MachineBasicBlock::iterator MI,
+                           BitVector &Candidates,
+                           unsigned InstrLimit,
+                           MachineBasicBlock::iterator &UseMI);
+
 };
- 
+
 } // End llvm namespace
 
 #endif

@@ -36,8 +36,9 @@ namespace lltok {
     kw_declare, kw_define,
     kw_global,  kw_constant,
 
-    kw_private, kw_internal, kw_linkonce, kw_linkonce_odr, kw_weak, kw_weak_odr,
-    kw_appending, kw_dllimport, kw_dllexport, kw_common,kw_available_externally,
+    kw_private, kw_linker_private, kw_internal, kw_linkonce, kw_linkonce_odr,
+    kw_weak, kw_weak_odr, kw_appending, kw_dllimport, kw_dllexport, kw_common,
+    kw_available_externally,
     kw_default, kw_hidden, kw_protected,
     kw_extern_weak,
     kw_external, kw_thread_local,
@@ -50,6 +51,10 @@ namespace lltok {
     kw_deplibs,
     kw_datalayout,
     kw_volatile,
+    kw_nuw,
+    kw_nsw,
+    kw_exact,
+    kw_inbounds,
     kw_align,
     kw_addrspace,
     kw_section,
@@ -57,7 +62,9 @@ namespace lltok {
     kw_module,
     kw_asm,
     kw_sideeffect,
+    kw_msasm,
     kw_gc,
+    kw_dbg,
     kw_c,
 
     kw_cc, kw_ccc, kw_fastcc, kw_coldcc,
@@ -77,6 +84,7 @@ namespace lltok {
     kw_readnone,
     kw_readonly,
 
+    kw_inlinehint,
     kw_noinline,
     kw_alwaysinline,
     kw_optsize,
@@ -84,6 +92,7 @@ namespace lltok {
     kw_sspreq,
     kw_noredzone,
     kw_noimplicitfloat,
+    kw_naked,
 
     kw_type,
     kw_opaque,
@@ -96,7 +105,7 @@ namespace lltok {
     kw_add,  kw_fadd, kw_sub,  kw_fsub, kw_mul,  kw_fmul,
     kw_udiv, kw_sdiv, kw_fdiv,
     kw_urem, kw_srem, kw_frem, kw_shl,  kw_lshr, kw_ashr,
-    kw_and,  kw_or,   kw_xor,  kw_icmp, kw_fcmp, kw_vicmp, kw_vfcmp,
+    kw_and,  kw_or,   kw_xor,  kw_icmp, kw_fcmp,
 
     kw_phi, kw_call,
     kw_trunc, kw_zext, kw_sext, kw_fptrunc, kw_fpext, kw_uitofp, kw_sitofp,
@@ -119,6 +128,7 @@ namespace lltok {
     GlobalVar,         // @foo @"foo"
     LocalVar,          // %foo %"foo"
     StringConstant,    // "foo"
+    NamedOrCustomMD,   // !foo
 
     // Metadata valued tokens.
     Metadata,          // !"foo" !{i8 42}

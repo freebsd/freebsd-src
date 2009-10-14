@@ -36,16 +36,18 @@
 #include "llvm/Module.h"
 #include "llvm/CallGraphSCCPass.h"
 #include "llvm/Instructions.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/CallSite.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/Compiler.h"
 #include <set>
 using namespace llvm;
 
@@ -60,11 +62,10 @@ namespace {
   struct VISIBILITY_HIDDEN ArgPromotion : public CallGraphSCCPass {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<AliasAnalysis>();
-      AU.addRequired<TargetData>();
       CallGraphSCCPass::getAnalysisUsage(AU);
     }
 
-    virtual bool runOnSCC(const std::vector<CallGraphNode *> &SCC);
+    virtual bool runOnSCC(std::vector<CallGraphNode *> &SCC);
     static char ID; // Pass identification, replacement for typeid
     explicit ArgPromotion(unsigned maxElements = 3)
       : CallGraphSCCPass(&ID), maxElements(maxElements) {}
@@ -73,11 +74,11 @@ namespace {
     typedef std::vector<uint64_t> IndicesVector;
 
   private:
-    bool PromoteArguments(CallGraphNode *CGN);
+    CallGraphNode *PromoteArguments(CallGraphNode *CGN);
     bool isSafeToPromoteArgument(Argument *Arg, bool isByVal) const;
-    Function *DoPromotion(Function *F,
-                          SmallPtrSet<Argument*, 8> &ArgsToPromote,
-                          SmallPtrSet<Argument*, 8> &ByValArgsToTransform);
+    CallGraphNode *DoPromotion(Function *F,
+                               SmallPtrSet<Argument*, 8> &ArgsToPromote,
+                               SmallPtrSet<Argument*, 8> &ByValArgsToTransform);
     /// The maximum number of elements to expand, or 0 for unlimited.
     unsigned maxElements;
   };
@@ -91,14 +92,17 @@ Pass *llvm::createArgumentPromotionPass(unsigned maxElements) {
   return new ArgPromotion(maxElements);
 }
 
-bool ArgPromotion::runOnSCC(const std::vector<CallGraphNode *> &SCC) {
+bool ArgPromotion::runOnSCC(std::vector<CallGraphNode *> &SCC) {
   bool Changed = false, LocalChange;
 
   do {  // Iterate until we stop promoting from this SCC.
     LocalChange = false;
     // Attempt to promote arguments from all functions in this SCC.
     for (unsigned i = 0, e = SCC.size(); i != e; ++i)
-      LocalChange |= PromoteArguments(SCC[i]);
+      if (CallGraphNode *CGN = PromoteArguments(SCC[i])) {
+        LocalChange = true;
+        SCC[i] = CGN;
+      }
     Changed |= LocalChange;               // Remember that we changed something.
   } while (LocalChange);
 
@@ -110,11 +114,11 @@ bool ArgPromotion::runOnSCC(const std::vector<CallGraphNode *> &SCC) {
 /// example, all callers are direct).  If safe to promote some arguments, it
 /// calls the DoPromotion method.
 ///
-bool ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
+CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
   Function *F = CGN->getFunction();
 
   // Make sure that it is local to this module.
-  if (!F || !F->hasLocalLinkage()) return false;
+  if (!F || !F->hasLocalLinkage()) return 0;
 
   // First check: see if there are any pointer arguments!  If not, quick exit.
   SmallVector<std::pair<Argument*, unsigned>, 16> PointerArgs;
@@ -123,12 +127,12 @@ bool ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
        I != E; ++I, ++ArgNo)
     if (isa<PointerType>(I->getType()))
       PointerArgs.push_back(std::pair<Argument*, unsigned>(I, ArgNo));
-  if (PointerArgs.empty()) return false;
+  if (PointerArgs.empty()) return 0;
 
   // Second check: make sure that all callers are direct callers.  We can't
   // transform functions that have indirect callers.
   if (F->hasAddressTaken())
-    return false;
+    return 0;
 
   // Check to see which arguments are promotable.  If an argument is promotable,
   // add it to ArgsToPromote.
@@ -144,9 +148,9 @@ bool ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
       const Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
       if (const StructType *STy = dyn_cast<StructType>(AgTy)) {
         if (maxElements > 0 && STy->getNumElements() > maxElements) {
-          DOUT << "argpromotion disable promoting argument '"
-               << PtrArg->getName() << "' because it would require adding more "
-               << "than " << maxElements << " arguments to the function.\n";
+          DEBUG(errs() << "argpromotion disable promoting argument '"
+                << PtrArg->getName() << "' because it would require adding more"
+                << " than " << maxElements << " arguments to the function.\n");
         } else {
           // If all the elements are single-value types, we can promote it.
           bool AllSimple = true;
@@ -173,13 +177,10 @@ bool ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
   }
 
   // No promotable pointer arguments.
-  if (ArgsToPromote.empty() && ByValArgsToTransform.empty()) return false;
+  if (ArgsToPromote.empty() && ByValArgsToTransform.empty()) 
+    return 0;
 
-  Function *NewF = DoPromotion(F, ArgsToPromote, ByValArgsToTransform);
-
-  // Update the call graph to know that the function has been transformed.
-  getAnalysis<CallGraph>().changeFunction(F, NewF);
-  return true;
+  return DoPromotion(F, ArgsToPromote, ByValArgsToTransform);
 }
 
 /// IsAlwaysValidPointer - Return true if the specified pointer is always legal
@@ -409,9 +410,9 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
     // to do.
     if (ToPromote.find(Operands) == ToPromote.end()) {
       if (maxElements > 0 && ToPromote.size() == maxElements) {
-        DOUT << "argpromotion not promoting argument '"
-             << Arg->getName() << "' because it would require adding more "
-             << "than " << maxElements << " arguments to the function.\n";
+        DEBUG(errs() << "argpromotion not promoting argument '"
+              << Arg->getName() << "' because it would require adding more "
+              << "than " << maxElements << " arguments to the function.\n");
         // We limit aggregate promotion to only promoting up to a fixed number
         // of elements of the aggregate.
         return false;
@@ -432,7 +433,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
   SmallPtrSet<BasicBlock*, 16> TranspBlocks;
 
   AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
-  TargetData &TD = getAnalysis<TargetData>();
+  TargetData *TD = getAnalysisIfAvailable<TargetData>();
+  if (!TD) return false; // Without TargetData, assume the worst.
 
   for (unsigned i = 0, e = Loads.size(); i != e; ++i) {
     // Check to see if the load is invalidated from the start of the block to
@@ -442,7 +444,7 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
 
     const PointerType *LoadTy =
       cast<PointerType>(Load->getPointerOperand()->getType());
-    unsigned LoadSize = (unsigned)TD.getTypeStoreSize(LoadTy->getElementType());
+    unsigned LoadSize =(unsigned)TD->getTypeStoreSize(LoadTy->getElementType());
 
     if (AA.canInstructionRangeModify(BB->front(), *Load, Arg, LoadSize))
       return false;  // Pointer is invalidated!
@@ -467,8 +469,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
 /// DoPromotion - This method actually performs the promotion of the specified
 /// arguments, and returns the new function.  At this point, we know that it's
 /// safe to do so.
-Function *ArgPromotion::DoPromotion(Function *F,
-                                    SmallPtrSet<Argument*, 8> &ArgsToPromote,
+CallGraphNode *ArgPromotion::DoPromotion(Function *F,
+                               SmallPtrSet<Argument*, 8> &ArgsToPromote,
                               SmallPtrSet<Argument*, 8> &ByValArgsToTransform) {
 
   // Start by computing a new prototype for the function, which is the same as
@@ -581,19 +583,24 @@ Function *ArgPromotion::DoPromotion(Function *F,
   bool ExtraArgHack = false;
   if (Params.empty() && FTy->isVarArg()) {
     ExtraArgHack = true;
-    Params.push_back(Type::Int32Ty);
+    Params.push_back(Type::getInt32Ty(F->getContext()));
   }
 
   // Construct the new function type using the new arguments.
   FunctionType *NFTy = FunctionType::get(RetTy, Params, FTy->isVarArg());
 
-  // Create the new function body and insert it into the module...
+  // Create the new function body and insert it into the module.
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getName());
   NF->copyAttributesFrom(F);
 
+  
+  DEBUG(errs() << "ARG PROMOTION:  Promoting to:" << *NF << "\n"
+        << "From: " << *F);
+  
   // Recompute the parameter attributes list based on the new arguments for
   // the function.
-  NF->setAttributes(AttrListPtr::get(AttributesVec.begin(), AttributesVec.end()));
+  NF->setAttributes(AttrListPtr::get(AttributesVec.begin(),
+                                     AttributesVec.end()));
   AttributesVec.clear();
 
   F->getParent()->getFunctionList().insert(F, NF);
@@ -606,6 +613,10 @@ Function *ArgPromotion::DoPromotion(Function *F,
   // Get the callgraph information that we need to update to reflect our
   // changes.
   CallGraph &CG = getAnalysis<CallGraph>();
+  
+  // Get a new callgraph node for NF.
+  CallGraphNode *NF_CGN = CG.getOrInsertFunction(NF);
+  
 
   // Loop over all of the callers of the function, transforming the call sites
   // to pass in the loaded pointers.
@@ -636,9 +647,10 @@ Function *ArgPromotion::DoPromotion(Function *F,
         // Emit a GEP and load for each element of the struct.
         const Type *AgTy = cast<PointerType>(I->getType())->getElementType();
         const StructType *STy = cast<StructType>(AgTy);
-        Value *Idxs[2] = { ConstantInt::get(Type::Int32Ty, 0), 0 };
+        Value *Idxs[2] = {
+              ConstantInt::get(Type::getInt32Ty(F->getContext()), 0), 0 };
         for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
-          Idxs[1] = ConstantInt::get(Type::Int32Ty, i);
+          Idxs[1] = ConstantInt::get(Type::getInt32Ty(F->getContext()), i);
           Value *Idx = GetElementPtrInst::Create(*AI, Idxs, Idxs+2,
                                                  (*AI)->getName()+"."+utostr(i),
                                                  Call);
@@ -662,7 +674,9 @@ Function *ArgPromotion::DoPromotion(Function *F,
                  IE = SI->end(); II != IE; ++II) {
               // Use i32 to index structs, and i64 for others (pointers/arrays).
               // This satisfies GEP constraints.
-              const Type *IdxTy = (isa<StructType>(ElTy) ? Type::Int32Ty : Type::Int64Ty);
+              const Type *IdxTy = (isa<StructType>(ElTy) ?
+                    Type::getInt32Ty(F->getContext()) : 
+                    Type::getInt64Ty(F->getContext()));
               Ops.push_back(ConstantInt::get(IdxTy, *II));
               // Keep track of the type we're currently indexing
               ElTy = cast<CompositeType>(ElTy)->getTypeAtIndex(*II);
@@ -679,7 +693,7 @@ Function *ArgPromotion::DoPromotion(Function *F,
       }
 
     if (ExtraArgHack)
-      Args.push_back(Constant::getNullValue(Type::Int32Ty));
+      Args.push_back(Constant::getNullValue(Type::getInt32Ty(F->getContext())));
 
     // Push any varargs arguments on the list
     for (; AI != CS.arg_end(); ++AI, ++ArgIndex) {
@@ -715,7 +729,8 @@ Function *ArgPromotion::DoPromotion(Function *F,
     AA.replaceWithNewValue(Call, New);
 
     // Update the callgraph to know that the callsite has been transformed.
-    CG[Call->getParent()->getParent()]->replaceCallSite(Call, New);
+    CallGraphNode *CalleeNode = CG[Call->getParent()->getParent()];
+    CalleeNode->replaceCallEdge(Call, New, NF_CGN);
 
     if (!Call->use_empty()) {
       Call->replaceAllUsesWith(New);
@@ -756,14 +771,16 @@ Function *ArgPromotion::DoPromotion(Function *F,
       const Type *AgTy = cast<PointerType>(I->getType())->getElementType();
       Value *TheAlloca = new AllocaInst(AgTy, 0, "", InsertPt);
       const StructType *STy = cast<StructType>(AgTy);
-      Value *Idxs[2] = { ConstantInt::get(Type::Int32Ty, 0), 0 };
+      Value *Idxs[2] = {
+            ConstantInt::get(Type::getInt32Ty(F->getContext()), 0), 0 };
 
       for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
-        Idxs[1] = ConstantInt::get(Type::Int32Ty, i);
-        std::string Name = TheAlloca->getName()+"."+utostr(i);
-        Value *Idx = GetElementPtrInst::Create(TheAlloca, Idxs, Idxs+2,
-                                               Name, InsertPt);
-        I2->setName(I->getName()+"."+utostr(i));
+        Idxs[1] = ConstantInt::get(Type::getInt32Ty(F->getContext()), i);
+        Value *Idx = 
+          GetElementPtrInst::Create(TheAlloca, Idxs, Idxs+2,
+                                    TheAlloca->getName()+"."+Twine(i), 
+                                    InsertPt);
+        I2->setName(I->getName()+"."+Twine(i));
         new StoreInst(I2++, Idx, InsertPt);
       }
 
@@ -792,8 +809,8 @@ Function *ArgPromotion::DoPromotion(Function *F,
         LI->replaceAllUsesWith(I2);
         AA.replaceWithNewValue(LI, I2);
         LI->eraseFromParent();
-        DOUT << "*** Promoted load of argument '" << I->getName()
-             << "' in function '" << F->getName() << "'\n";
+        DEBUG(errs() << "*** Promoted load of argument '" << I->getName()
+              << "' in function '" << F->getName() << "'\n");
       } else {
         GetElementPtrInst *GEP = cast<GetElementPtrInst>(I->use_back());
         IndicesVector Operands;
@@ -819,8 +836,8 @@ Function *ArgPromotion::DoPromotion(Function *F,
         NewName += ".val";
         TheArg->setName(NewName);
 
-        DOUT << "*** Promoted agg argument '" << TheArg->getName()
-             << "' of function '" << NF->getName() << "'\n";
+        DEBUG(errs() << "*** Promoted agg argument '" << TheArg->getName()
+              << "' of function '" << NF->getName() << "'\n");
 
         // All of the uses must be load instructions.  Replace them all with
         // the argument specified by ArgNo.
@@ -842,13 +859,18 @@ Function *ArgPromotion::DoPromotion(Function *F,
 
   // Notify the alias analysis implementation that we inserted a new argument.
   if (ExtraArgHack)
-    AA.copyValue(Constant::getNullValue(Type::Int32Ty), NF->arg_begin());
+    AA.copyValue(Constant::getNullValue(Type::getInt32Ty(F->getContext())), 
+                 NF->arg_begin());
 
 
   // Tell the alias analysis that the old function is about to disappear.
   AA.replaceWithNewValue(F, NF);
 
+  
+  NF_CGN->stealCalledFunctionsFrom(CG[F]);
+  
   // Now that the old function is dead, delete it.
-  F->eraseFromParent();
-  return NF;
+  delete CG.removeFunctionFromModule(F);
+  
+  return NF_CGN;
 }

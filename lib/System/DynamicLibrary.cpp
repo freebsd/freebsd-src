@@ -9,32 +9,35 @@
 //
 //  This header file implements the operating system DynamicLibrary concept.
 //
+// FIXME: This file leaks the ExplicitSymbols and OpenedHandles vector, and is
+// not thread safe!
+//
 //===----------------------------------------------------------------------===//
 
 #include "llvm/System/DynamicLibrary.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/System/RWMutex.h"
 #include "llvm/Config/config.h"
 #include <cstdio>
 #include <cstring>
 #include <map>
+#include <vector>
 
 // Collection of symbol name/value pairs to be searched prior to any libraries.
-static std::map<std::string, void*> symbols;
-static llvm::sys::SmartRWMutex<true> SymbolsLock;
+static std::map<std::string, void*> *ExplicitSymbols = 0;
 
+static struct ExplicitSymbolsDeleter {
+  ~ExplicitSymbolsDeleter() {
+    if (ExplicitSymbols)
+      delete ExplicitSymbols;
+  }
+} Dummy;
 
 void llvm::sys::DynamicLibrary::AddSymbol(const char* symbolName,
                                           void *symbolValue) {
-  llvm::sys::SmartScopedWriter<true> Writer(&SymbolsLock);
-  symbols[symbolName] = symbolValue;
+  if (ExplicitSymbols == 0)
+    ExplicitSymbols = new std::map<std::string, void*>();
+  (*ExplicitSymbols)[symbolName] = symbolValue;
 }
-
-// It is not possible to use ltdl.c on VC++ builds as the terms of its LGPL
-// license and special exception would cause all of LLVM to be placed under
-// the LGPL.  This is because the exception applies only when libtool is
-// used, and obviously libtool is not used with Visual Studio.  An entirely
-// separate implementation is provided in win32/DynamicLibrary.cpp.
 
 #ifdef LLVM_ON_WIN32
 
@@ -42,9 +45,7 @@ void llvm::sys::DynamicLibrary::AddSymbol(const char* symbolName,
 
 #else
 
-//#include "ltdl.h"
 #include <dlfcn.h>
-#include <cassert>
 using namespace llvm;
 using namespace llvm::sys;
 
@@ -53,56 +54,44 @@ using namespace llvm::sys;
 //===          independent code.
 //===----------------------------------------------------------------------===//
 
-//static std::vector<lt_dlhandle> OpenedHandles;
-static std::vector<void *> OpenedHandles;
+static std::vector<void *> *OpenedHandles = 0;
 
-DynamicLibrary::DynamicLibrary() {}
-
-DynamicLibrary::~DynamicLibrary() {
-  SmartScopedWriter<true> Writer(&SymbolsLock);
-  while(!OpenedHandles.empty()) {
-    void *H = OpenedHandles.back();   OpenedHandles.pop_back(); 
-    dlclose(H);
-  }
-}
 
 bool DynamicLibrary::LoadLibraryPermanently(const char *Filename,
                                             std::string *ErrMsg) {
-  SmartScopedWriter<true> Writer(&SymbolsLock);                                              
   void *H = dlopen(Filename, RTLD_LAZY|RTLD_GLOBAL);
   if (H == 0) {
-    if (ErrMsg)
-      *ErrMsg = dlerror();
+    if (ErrMsg) *ErrMsg = dlerror();
     return true;
   }
-  OpenedHandles.push_back(H);
+  if (OpenedHandles == 0)
+    OpenedHandles = new std::vector<void *>();
+  OpenedHandles->push_back(H);
   return false;
 }
 
 void* DynamicLibrary::SearchForAddressOfSymbol(const char* symbolName) {
-  //  check_ltdl_initialization();
-  
   // First check symbols added via AddSymbol().
-  SymbolsLock.reader_acquire();
-  std::map<std::string, void *>::iterator I = symbols.find(symbolName);
-  std::map<std::string, void *>::iterator E = symbols.end();
-  SymbolsLock.reader_release();
+  if (ExplicitSymbols) {
+    std::map<std::string, void *>::iterator I =
+      ExplicitSymbols->find(symbolName);
+    std::map<std::string, void *>::iterator E = ExplicitSymbols->end();
   
-  if (I != E)
-    return I->second;
+    if (I != E)
+      return I->second;
+  }
 
-  SymbolsLock.writer_acquire();
   // Now search the libraries.
-  for (std::vector<void *>::iterator I = OpenedHandles.begin(),
-       E = OpenedHandles.end(); I != E; ++I) {
-    //lt_ptr ptr = lt_dlsym(*I, symbolName);
-    void *ptr = dlsym(*I, symbolName);
-    if (ptr) {
-      SymbolsLock.writer_release();
-      return ptr;
+  if (OpenedHandles) {
+    for (std::vector<void *>::iterator I = OpenedHandles->begin(),
+         E = OpenedHandles->end(); I != E; ++I) {
+      //lt_ptr ptr = lt_dlsym(*I, symbolName);
+      void *ptr = dlsym(*I, symbolName);
+      if (ptr) {
+        return ptr;
+      }
     }
   }
-  SymbolsLock.writer_release();
 
 #define EXPLICIT_SYMBOL(SYM) \
    extern void *SYM; if (!strcmp(symbolName, #SYM)) return &SYM

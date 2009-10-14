@@ -20,6 +20,8 @@
 
 namespace llvm {
 
+class LLVMContext;
+
 template<typename ValueSubClass, typename ItemParentClass>
   class SymbolTableListTraits;
 
@@ -51,6 +53,11 @@ public:
   /// identical to the current one.  This means that all operands match and any
   /// extra information (e.g. load is volatile) agree.
   bool isIdenticalTo(const Instruction *I) const;
+
+  /// isIdenticalToWhenDefined - This is like isIdenticalTo, except that it
+  /// ignores the SubclassOptionalData flags, which specify conditions
+  /// under which the instruction's result is undefined.
+  bool isIdenticalToWhenDefined(const Instruction *I) const;
 
   /// This function determines if the specified instruction executes the same
   /// operation as the current one. This means that the opcodes, type, operand
@@ -166,13 +173,6 @@ public:
   bool isCommutative() const { return isCommutative(getOpcode()); }
   static bool isCommutative(unsigned op);
 
-  /// isTrapping - Return true if the instruction may trap.
-  ///
-  bool isTrapping() const {
-    return isTrapping(getOpcode());
-  }
-  static bool isTrapping(unsigned op);
-
   /// mayWriteToMemory - Return true if this instruction may modify memory.
   ///
   bool mayWriteToMemory() const;
@@ -187,9 +187,33 @@ public:
 
   /// mayHaveSideEffects - Return true if the instruction may have side effects.
   ///
+  /// Note that this does not consider malloc and alloca to have side
+  /// effects because the newly allocated memory is completely invisible to
+  /// instructions which don't used the returned value.  For cases where this
+  /// matters, isSafeToSpeculativelyExecute may be more appropriate.
   bool mayHaveSideEffects() const {
     return mayWriteToMemory() || mayThrow();
   }
+
+  /// isSafeToSpeculativelyExecute - Return true if the instruction does not
+  /// have any effects besides calculating the result and does not have
+  /// undefined behavior.
+  ///
+  /// This method never returns true for an instruction that returns true for
+  /// mayHaveSideEffects; however, this method also does some other checks in
+  /// addition. It checks for undefined behavior, like dividing by zero or
+  /// loading from an invalid pointer (but not for undefined results, like a
+  /// shift with a shift amount larger than the width of the result). It checks
+  /// for malloc and alloca because speculatively executing them might cause a
+  /// memory leak. It also returns false for instructions related to control
+  /// flow, specifically terminators and PHI nodes.
+  ///
+  /// This method only looks at the instruction itself and its operands, so if
+  /// this method returns true, it is safe to move the instruction as long as
+  /// the correct dominance relationships for the operands and users hold.
+  /// However, this method can return true for instructions that read memory;
+  /// for such instructions, moving them may change the resulting value.
+  bool isSafeToSpeculativelyExecute() const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Instruction *) { return true; }

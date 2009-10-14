@@ -115,6 +115,8 @@ def PIC16Brcond : SDNode<"PIC16ISD::BRCOND", SDT_PIC16Brcond,
 def PIC16Selecticc : SDNode<"PIC16ISD::SELECT_ICC", SDT_PIC16Selecticc, 
                          [SDNPInFlag]>;
 
+def PIC16ret       : SDNode<"PIC16ISD::RET", SDTNone, [SDNPHasChain]>;
+
 //===----------------------------------------------------------------------===//
 // PIC16 Operand Definitions.
 //===----------------------------------------------------------------------===//
@@ -375,8 +377,9 @@ def subfw_2: SUBFW<0, "subwf", subc>;
 let Uses = [STATUS] in
 def subfwb: SUBFW<0, "subwfb", sube>;  // With Borrow.
 
-def subfw_cc: SUBFW<0, "subwf", PIC16Subcc>;
 }
+let Defs = [STATUS], isTerminator = 1 in
+def subfw_cc: SUBFW<0, "subwf", PIC16Subcc>;
 
 // [F] -= W ; 
 let mayStore = 1 in
@@ -425,8 +428,9 @@ class SUBLW<bits<6> opcode, SDNode OpNode> :
 let Defs = [STATUS] in {
 def sublw_1 : SUBLW<0, sub>;
 def sublw_2 : SUBLW<0, subc>;
-def sublw_cc : SUBLW<0, PIC16Subcc>;
 }
+let Defs = [STATUS], isTerminator = 1 in 
+def sublw_cc : SUBLW<0, PIC16Subcc>;
 
 // Call instruction.
 let isCall = 1,
@@ -489,8 +493,9 @@ def pagesel :
 
 
 // Return insn.
+let isTerminator = 1, isBarrier = 1, isReturn = 1 in
 def Return : 
-  ControlFormat<0, (outs), (ins), "return", [(ret)]>;
+  ControlFormat<0, (outs), (ins), "return", [(PIC16ret)]>;
 
 //===----------------------------------------------------------------------===//
 // PIC16 Replacment Patterns.

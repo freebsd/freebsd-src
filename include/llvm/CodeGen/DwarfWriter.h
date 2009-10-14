@@ -33,8 +33,8 @@ class MachineFunction;
 class MachineInstr;
 class Value;
 class Module;
-class GlobalVariable;
-class TargetAsmInfo;
+class MDNode;
+class MCAsmInfo;
 class raw_ostream;
 class Instruction;
 class DICompileUnit;
@@ -68,7 +68,7 @@ public:
   /// BeginModule - Emit all Dwarf sections that should come prior to the
   /// content.
   void BeginModule(Module *M, MachineModuleInfo *MMI, raw_ostream &OS,
-                   AsmPrinter *A, const TargetAsmInfo *T);
+                   AsmPrinter *A, const MCAsmInfo *T);
   
   /// EndModule - Emit all Dwarf sections that should come after the content.
   ///
@@ -85,21 +85,20 @@ public:
   /// RecordSourceLine - Register a source line with debug info. Returns a
   /// unique label ID used to generate a label and provide correspondence to
   /// the source line list.
-  unsigned RecordSourceLine(unsigned Line, unsigned Col, DICompileUnit CU);
+  unsigned RecordSourceLine(unsigned Line, unsigned Col, MDNode *Scope);
 
   /// RecordRegionStart - Indicate the start of a region.
-  unsigned RecordRegionStart(GlobalVariable *V);
+  unsigned RecordRegionStart(MDNode *N);
 
   /// RecordRegionEnd - Indicate the end of a region.
-  unsigned RecordRegionEnd(GlobalVariable *V);
+  unsigned RecordRegionEnd(MDNode *N);
 
   /// getRecordSourceLineCount - Count source lines.
   unsigned getRecordSourceLineCount();
 
   /// RecordVariable - Indicate the declaration of  a local variable.
   ///
-  void RecordVariable(GlobalVariable *GV, unsigned FrameIndex, 
-                      const MachineInstr *MI);
+  void RecordVariable(MDNode *N, unsigned FrameIndex);
 
   /// ShouldEmitDwarfDebug - Returns true if Dwarf debugging declarations should
   /// be emitted.
@@ -111,12 +110,9 @@ public:
 
   /// RecordInlinedFnEnd - Indicate the end of inlined subroutine.
   unsigned RecordInlinedFnEnd(DISubprogram SP);
-
-  /// RecordVariableScope - Record scope for the variable declared by
-  /// DeclareMI. DeclareMI must describe TargetInstrInfo::DECLARE.
-  void RecordVariableScope(DIVariable &DV, const MachineInstr *DeclareMI);
+  void SetDbgScopeBeginLabels(const MachineInstr *MI, unsigned L);
+  void SetDbgScopeEndLabels(const MachineInstr *MI, unsigned L);
 };
-
 
 } // end llvm namespace
 

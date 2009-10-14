@@ -13,35 +13,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/CodeGen/FileWriters.h"
-#include "llvm/CodeGen/LinkAllCodegenComponents.h"
-#include "llvm/CodeGen/LinkAllAsmWriterComponents.h"
-#include "llvm/Target/SubtargetFeature.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetMachineRegistry.h"
-#include "llvm/Transforms/Scalar.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
 #include "llvm/Pass.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/Analysis/Verifier.h"
+#include "llvm/Support/IRReader.h"
+#include "llvm/CodeGen/FileWriters.h"
+#include "llvm/CodeGen/LinkAllAsmWriterComponents.h"
+#include "llvm/CodeGen/LinkAllCodegenComponents.h"
+#include "llvm/CodeGen/ObjectCodeEmitter.h"
+#include "llvm/Config/config.h"
+#include "llvm/LinkAllVMCore.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/RegistryParser.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Analysis/Verifier.h"
+#include "llvm/System/Host.h"
 #include "llvm/System/Signals.h"
-#include "llvm/Config/config.h"
-#include "llvm/LinkAllVMCore.h"
+#include "llvm/Target/SubtargetFeature.h"
+#include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetSelect.h"
-#include <fstream>
-#include <iostream>
+#include "llvm/Transforms/Scalar.h"
 #include <memory>
 using namespace llvm;
 
@@ -55,7 +55,8 @@ InputFilename(cl::Positional, cl::desc("<input bitcode>"), cl::init("-"));
 static cl::opt<std::string>
 OutputFilename("o", cl::desc("Output filename"), cl::value_desc("filename"));
 
-static cl::opt<bool> Force("f", cl::desc("Overwrite output files"));
+static cl::opt<bool>
+Force("f", cl::desc("Enable binary output on terminals"));
 
 // Determine optimization level.
 static cl::opt<char>
@@ -69,9 +70,8 @@ OptLevel("O",
 static cl::opt<std::string>
 TargetTriple("mtriple", cl::desc("Override target triple for module"));
 
-static cl::opt<const TargetMachineRegistry::entry*, false,
-               RegistryParser<TargetMachine> >
-MArch("march", cl::desc("Architecture to generate code for:"));
+static cl::opt<std::string>
+MArch("march", cl::desc("Architecture to generate code for (see --version)"));
 
 static cl::opt<std::string>
 MCPU("mcpu",
@@ -119,7 +119,9 @@ GetFileNameRoot(const std::string &InputFilename) {
   std::string outputFilename;
   int Len = IFN.length();
   if ((Len > 2) &&
-      IFN[Len-3] == '.' && IFN[Len-2] == 'b' && IFN[Len-1] == 'c') {
+      IFN[Len-3] == '.' &&
+      ((IFN[Len-2] == 'b' && IFN[Len-1] == 'c') ||
+       (IFN[Len-2] == 'l' && IFN[Len-1] == 'l'))) {
     outputFilename = std::string(IFN.begin(), IFN.end()-3); // s/.bc/.s/
   } else {
     outputFilename = IFN;
@@ -127,37 +129,34 @@ GetFileNameRoot(const std::string &InputFilename) {
   return outputFilename;
 }
 
-static raw_ostream *GetOutputStream(const char *ProgName) {
+static formatted_raw_ostream *GetOutputStream(const char *TargetName, 
+                                              const char *ProgName) {
   if (OutputFilename != "") {
     if (OutputFilename == "-")
-      return &outs();
+      return &fouts();
 
-    // Specified an output filename?
-    if (!Force && std::ifstream(OutputFilename.c_str())) {
-      // If force is not specified, make sure not to overwrite a file!
-      std::cerr << ProgName << ": error opening '" << OutputFilename
-                << "': file exists!\n"
-                << "Use -f command line argument to force output\n";
-      return 0;
-    }
     // Make sure that the Out file gets unlinked from the disk if we get a
     // SIGINT
     sys::RemoveFileOnSignal(sys::Path(OutputFilename));
 
     std::string error;
-    raw_ostream *Out = new raw_fd_ostream(OutputFilename.c_str(), true, error);
+    raw_fd_ostream *FDOut =
+      new raw_fd_ostream(OutputFilename.c_str(), error,
+                         raw_fd_ostream::F_Binary);
     if (!error.empty()) {
-      std::cerr << error << '\n';
-      delete Out;
+      errs() << error << '\n';
+      delete FDOut;
       return 0;
     }
+    formatted_raw_ostream *Out =
+      new formatted_raw_ostream(*FDOut, formatted_raw_ostream::DELETE_STREAM);
 
     return Out;
   }
 
   if (InputFilename == "-") {
     OutputFilename = "-";
-    return &outs();
+    return &fouts();
   }
 
   OutputFilename = GetFileNameRoot(InputFilename);
@@ -165,10 +164,10 @@ static raw_ostream *GetOutputStream(const char *ProgName) {
   bool Binary = false;
   switch (FileType) {
   case TargetMachine::AssemblyFile:
-    if (MArch->Name[0] == 'c') {
-      if (MArch->Name[1] == 0)
+    if (TargetName[0] == 'c') {
+      if (TargetName[1] == 0)
         OutputFilename += ".cbe.c";
-      else if (MArch->Name[1] == 'p' && MArch->Name[2] == 'p')
+      else if (TargetName[1] == 'p' && TargetName[2] == 'p')
         OutputFilename += ".cpp";
       else
         OutputFilename += ".s";
@@ -185,25 +184,23 @@ static raw_ostream *GetOutputStream(const char *ProgName) {
     break;
   }
 
-  if (!Force && std::ifstream(OutputFilename.c_str())) {
-    // If force is not specified, make sure not to overwrite a file!
-    std::cerr << ProgName << ": error opening '" << OutputFilename
-                          << "': file exists!\n"
-                          << "Use -f command line argument to force output\n";
-    return 0;
-  }
-
   // Make sure that the Out file gets unlinked from the disk if we get a
   // SIGINT
   sys::RemoveFileOnSignal(sys::Path(OutputFilename));
 
   std::string error;
-  raw_ostream *Out = new raw_fd_ostream(OutputFilename.c_str(), Binary, error);
+  unsigned OpenFlags = 0;
+  if (Binary) OpenFlags |= raw_fd_ostream::F_Binary;
+  raw_fd_ostream *FDOut = new raw_fd_ostream(OutputFilename.c_str(), error,
+                                             OpenFlags);
   if (!error.empty()) {
-    std::cerr << error << '\n';
-    delete Out;
+    errs() << error << '\n';
+    delete FDOut;
     return 0;
   }
+
+  formatted_raw_ostream *Out =
+    new formatted_raw_ostream(*FDOut, formatted_raw_ostream::DELETE_STREAM);
 
   return Out;
 }
@@ -213,24 +210,22 @@ static raw_ostream *GetOutputStream(const char *ProgName) {
 int main(int argc, char **argv) {
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
-  LLVMContext Context;
+  LLVMContext &Context = getGlobalContext();
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
-  cl::ParseCommandLineOptions(argc, argv, "llvm system compiler\n");
 
+  // Initialize targets first, so that --version shows registered targets.
   InitializeAllTargets();
   InitializeAllAsmPrinters();
+
+  cl::ParseCommandLineOptions(argc, argv, "llvm system compiler\n");
   
   // Load the module to be compiled...
-  std::string ErrorMessage;
+  SMDiagnostic Err;
   std::auto_ptr<Module> M;
 
-  std::auto_ptr<MemoryBuffer> Buffer(
-                   MemoryBuffer::getFileOrSTDIN(InputFilename, &ErrorMessage));
-  if (Buffer.get())
-    M.reset(ParseBitcodeFile(Buffer.get(), Context, &ErrorMessage));
+  M.reset(ParseIRFile(InputFilename, Err, Context));
   if (M.get() == 0) {
-    std::cerr << argv[0] << ": bitcode didn't read correctly.\n";
-    std::cerr << "Reason: " << ErrorMessage << "\n";
+    Err.Print(argv[0], errs());
     return 1;
   }
   Module &mod = *M.get();
@@ -239,15 +234,40 @@ int main(int argc, char **argv) {
   if (!TargetTriple.empty())
     mod.setTargetTriple(TargetTriple);
 
-  // Allocate target machine.  First, check whether the user has
-  // explicitly specified an architecture to compile for.
-  if (MArch == 0) {
+  Triple TheTriple(mod.getTargetTriple());
+  if (TheTriple.getTriple().empty())
+    TheTriple.setTriple(sys::getHostTriple());
+
+  // Allocate target machine.  First, check whether the user has explicitly
+  // specified an architecture to compile for. If so we have to look it up by
+  // name, because it might be a backend that has no mapping to a target triple.
+  const Target *TheTarget = 0;
+  if (!MArch.empty()) {
+    for (TargetRegistry::iterator it = TargetRegistry::begin(),
+           ie = TargetRegistry::end(); it != ie; ++it) {
+      if (MArch == it->getName()) {
+        TheTarget = &*it;
+        break;
+      }
+    }
+
+    if (!TheTarget) {
+      errs() << argv[0] << ": error: invalid target '" << MArch << "'.\n";
+      return 1;
+    }
+
+    // Adjust the triple to match (if known), otherwise stick with the
+    // module/host triple.
+    Triple::ArchType Type = Triple::getArchTypeForLLVMName(MArch);
+    if (Type != Triple::UnknownArch)
+      TheTriple.setArch(Type);
+  } else {
     std::string Err;
-    MArch = TargetMachineRegistry::getClosestStaticTargetForModule(mod, Err);
-    if (MArch == 0) {
-      std::cerr << argv[0] << ": error auto-selecting target for module '"
-                << Err << "'.  Please use the -march option to explicitly "
-                << "pick a target.\n";
+    TheTarget = TargetRegistry::lookupTarget(TheTriple.getTriple(), Err);
+    if (TheTarget == 0) {
+      errs() << argv[0] << ": error auto-selecting target for module '"
+             << Err << "'.  Please use the -march option to explicitly "
+             << "pick a target.\n";
       return 1;
     }
   }
@@ -262,18 +282,19 @@ int main(int argc, char **argv) {
     FeaturesStr = Features.getString();
   }
 
-  std::auto_ptr<TargetMachine> target(MArch->CtorFn(mod, FeaturesStr));
+  std::auto_ptr<TargetMachine> 
+    target(TheTarget->createTargetMachine(TheTriple.getTriple(), FeaturesStr));
   assert(target.get() && "Could not allocate target machine!");
   TargetMachine &Target = *target.get();
 
   // Figure out where we are going to send the output...
-  raw_ostream *Out = GetOutputStream(argv[0]);
+  formatted_raw_ostream *Out = GetOutputStream(TheTarget->getName(), argv[0]);
   if (Out == 0) return 1;
 
   CodeGenOpt::Level OLvl = CodeGenOpt::Default;
   switch (OptLevel) {
   default:
-    std::cerr << argv[0] << ": invalid optimization level.\n";
+    errs() << argv[0] << ": invalid optimization level.\n";
     return 1;
   case ' ': break;
   case '0': OLvl = CodeGenOpt::None; break;
@@ -286,15 +307,21 @@ int main(int argc, char **argv) {
   // used by strange things like the C backend.
   if (Target.WantsWholeFile()) {
     PassManager PM;
-    PM.add(new TargetData(*Target.getTargetData()));
+
+    // Add the target data from the target machine, if it exists, or the module.
+    if (const TargetData *TD = Target.getTargetData())
+      PM.add(new TargetData(*TD));
+    else
+      PM.add(new TargetData(&mod));
+
     if (!NoVerify)
       PM.add(createVerifierPass());
 
     // Ask the target to add backend passes as necessary.
     if (Target.addPassesToEmitWholeFile(PM, *Out, FileType, OLvl)) {
-      std::cerr << argv[0] << ": target does not support generation of this"
-                << " file type!\n";
-      if (Out != &outs()) delete Out;
+      errs() << argv[0] << ": target does not support generation of this"
+             << " file type!\n";
+      if (Out != &fouts()) delete Out;
       // And the Out file is empty and useless, so remove it now.
       sys::Path(OutputFilename).eraseFromDisk();
       return 1;
@@ -304,7 +331,12 @@ int main(int argc, char **argv) {
     // Build up all of the passes that we want to do to the module.
     ExistingModuleProvider Provider(M.release());
     FunctionPassManager Passes(&Provider);
-    Passes.add(new TargetData(*Target.getTargetData()));
+
+    // Add the target data from the target machine, if it exists, or the module.
+    if (const TargetData *TD = Target.getTargetData())
+      Passes.add(new TargetData(*TD));
+    else
+      Passes.add(new TargetData(&mod));
 
 #ifndef NDEBUG
     if (!NoVerify)
@@ -312,7 +344,7 @@ int main(int argc, char **argv) {
 #endif
 
     // Ask the target to add backend passes as necessary.
-    MachineCodeEmitter *MCE = 0;
+    ObjectCodeEmitter *OCE = 0;
 
     // Override default to generate verbose assembly.
     Target.setAsmVerbosityDefault(true);
@@ -322,26 +354,26 @@ int main(int argc, char **argv) {
       assert(0 && "Invalid file model!");
       return 1;
     case FileModel::Error:
-      std::cerr << argv[0] << ": target does not support generation of this"
-                << " file type!\n";
-      if (Out != &outs()) delete Out;
+      errs() << argv[0] << ": target does not support generation of this"
+             << " file type!\n";
+      if (Out != &fouts()) delete Out;
       // And the Out file is empty and useless, so remove it now.
       sys::Path(OutputFilename).eraseFromDisk();
       return 1;
     case FileModel::AsmFile:
       break;
     case FileModel::MachOFile:
-      MCE = AddMachOWriter(Passes, *Out, Target);
+      OCE = AddMachOWriter(Passes, *Out, Target);
       break;
     case FileModel::ElfFile:
-      MCE = AddELFWriter(Passes, *Out, Target);
+      OCE = AddELFWriter(Passes, *Out, Target);
       break;
     }
 
-    if (Target.addPassesToEmitFileFinish(Passes, MCE, OLvl)) {
-      std::cerr << argv[0] << ": target does not support generation of this"
-                << " file type!\n";
-      if (Out != &outs()) delete Out;
+    if (Target.addPassesToEmitFileFinish(Passes, OCE, OLvl)) {
+      errs() << argv[0] << ": target does not support generation of this"
+             << " file type!\n";
+      if (Out != &fouts()) delete Out;
       // And the Out file is empty and useless, so remove it now.
       sys::Path(OutputFilename).eraseFromDisk();
       return 1;
@@ -364,7 +396,7 @@ int main(int argc, char **argv) {
   }
 
   // Delete the ostream if it's not a stdout stream
-  if (Out != &outs()) delete Out;
+  if (Out != &fouts()) delete Out;
 
   return 0;
 }

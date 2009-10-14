@@ -16,8 +16,6 @@
 
 #include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Module.h"
-#include "llvm/Target/TargetAsmInfo.h" 
-#include <map>
 
 namespace llvm {
   class MachineFunction;
@@ -90,11 +88,11 @@ namespace llvm {
     };
   }
 
-  class raw_ostream;
+  class formatted_raw_ostream;
 
   class PIC16DbgInfo {
-    raw_ostream &O;
-    const TargetAsmInfo *TAI;
+    formatted_raw_ostream &O;
+    const MCAsmInfo *MAI;
     std::string CurFile;
     unsigned CurLine;
 
@@ -103,7 +101,8 @@ namespace llvm {
     bool EmitDebugDirectives;
 
   public:
-    PIC16DbgInfo(raw_ostream &o, const TargetAsmInfo *T) : O(o), TAI(T) {
+    PIC16DbgInfo(formatted_raw_ostream &o, const MCAsmInfo *T)
+      : O(o), MAI(T) {
       CurFile = "";
       CurLine = 0;
       EmitDebugDirectives = false; 
@@ -118,7 +117,7 @@ namespace llvm {
 
 
     private:
-    void SwitchToCU (GlobalVariable *CU);
+    void SwitchToCU (MDNode *CU);
     void SwitchToLine (unsigned Line, bool IsInBeginFunction = false);
 
     void PopulateDebugInfo (DIType Ty, unsigned short &TypeNo, bool &HasAux,
@@ -144,8 +143,7 @@ namespace llvm {
     short getStorageClass(DIGlobalVariable DIGV);
     void EmitFunctBeginDI(const Function *F);
     void EmitCompositeTypeDecls(Module &M);
-    void EmitCompositeTypeElements (DICompositeType CTy,
-                                    std::string UniqueSuffix);
+    void EmitCompositeTypeElements (DICompositeType CTy, std::string Suffix);
     void EmitFunctEndDI(const Function *F, unsigned Line);
     void EmitAuxEntry(const std::string VarName, int Aux[], 
                       int num = PIC16Dbg::AuxSize, std::string TagName = "");

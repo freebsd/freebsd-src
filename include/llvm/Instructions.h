@@ -20,6 +20,8 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Attributes.h"
 #include "llvm/BasicBlock.h"
+#include "llvm/CallingConv.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/ADT/SmallVector.h"
 #include <iterator>
 
@@ -28,6 +30,8 @@ namespace llvm {
 class ConstantInt;
 class ConstantRange;
 class APInt;
+class LLVMContext;
+class DominatorTree;
 
 //===----------------------------------------------------------------------===//
 //                             AllocationInst Class
@@ -38,10 +42,12 @@ class APInt;
 ///
 class AllocationInst : public UnaryInstruction {
 protected:
-  AllocationInst(const Type *Ty, Value *ArraySize, unsigned iTy, unsigned Align,
-                 const std::string &Name = "", Instruction *InsertBefore = 0);
-  AllocationInst(const Type *Ty, Value *ArraySize, unsigned iTy, unsigned Align,
-                 const std::string &Name, BasicBlock *InsertAtEnd);
+  AllocationInst(const Type *Ty, Value *ArraySize, 
+                 unsigned iTy, unsigned Align, const Twine &Name = "", 
+                 Instruction *InsertBefore = 0);
+  AllocationInst(const Type *Ty, Value *ArraySize,
+                 unsigned iTy, unsigned Align, const Twine &Name,
+                 BasicBlock *InsertAtEnd);
 public:
   // Out of line virtual method, so the vtable, etc. has a home.
   virtual ~AllocationInst();
@@ -51,7 +57,7 @@ public:
   ///
   bool isArrayAllocation() const;
 
-  /// getArraySize - Get the number of element allocated, for a simple
+  /// getArraySize - Get the number of elements allocated. For a simple
   /// allocation of a single element, this will return a constant 1 value.
   ///
   const Value *getArraySize() const { return getOperand(0); }
@@ -74,7 +80,7 @@ public:
   unsigned getAlignment() const { return (1u << SubclassData) >> 1; }
   void setAlignment(unsigned Align);
 
-  virtual Instruction *clone() const = 0;
+  virtual AllocationInst *clone() const = 0;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const AllocationInst *) { return true; }
@@ -95,30 +101,33 @@ public:
 /// MallocInst - an instruction to allocated memory on the heap
 ///
 class MallocInst : public AllocationInst {
-  MallocInst(const MallocInst &MI);
 public:
   explicit MallocInst(const Type *Ty, Value *ArraySize = 0,
-                      const std::string &NameStr = "",
+                      const Twine &NameStr = "",
                       Instruction *InsertBefore = 0)
-    : AllocationInst(Ty, ArraySize, Malloc, 0, NameStr, InsertBefore) {}
-  MallocInst(const Type *Ty, Value *ArraySize, const std::string &NameStr,
-             BasicBlock *InsertAtEnd)
+    : AllocationInst(Ty, ArraySize, Malloc,
+                     0, NameStr, InsertBefore) {}
+  MallocInst(const Type *Ty, Value *ArraySize,
+             const Twine &NameStr, BasicBlock *InsertAtEnd)
     : AllocationInst(Ty, ArraySize, Malloc, 0, NameStr, InsertAtEnd) {}
 
-  MallocInst(const Type *Ty, const std::string &NameStr,
+  MallocInst(const Type *Ty, const Twine &NameStr,
              Instruction *InsertBefore = 0)
     : AllocationInst(Ty, 0, Malloc, 0, NameStr, InsertBefore) {}
-  MallocInst(const Type *Ty, const std::string &NameStr,
+  MallocInst(const Type *Ty, const Twine &NameStr,
              BasicBlock *InsertAtEnd)
     : AllocationInst(Ty, 0, Malloc, 0, NameStr, InsertAtEnd) {}
 
-  MallocInst(const Type *Ty, Value *ArraySize, unsigned Align,
-             const std::string &NameStr, BasicBlock *InsertAtEnd)
-    : AllocationInst(Ty, ArraySize, Malloc, Align, NameStr, InsertAtEnd) {}
-  MallocInst(const Type *Ty, Value *ArraySize, unsigned Align,
-                      const std::string &NameStr = "",
-                      Instruction *InsertBefore = 0)
-    : AllocationInst(Ty, ArraySize, Malloc, Align, NameStr, InsertBefore) {}
+  MallocInst(const Type *Ty, Value *ArraySize,
+             unsigned Align, const Twine &NameStr,
+             BasicBlock *InsertAtEnd)
+    : AllocationInst(Ty, ArraySize, Malloc,
+                     Align, NameStr, InsertAtEnd) {}
+  MallocInst(const Type *Ty, Value *ArraySize,
+             unsigned Align, const Twine &NameStr = "", 
+             Instruction *InsertBefore = 0)
+    : AllocationInst(Ty, ArraySize,
+                     Malloc, Align, NameStr, InsertBefore) {}
 
   virtual MallocInst *clone() const;
 
@@ -140,29 +149,35 @@ public:
 /// AllocaInst - an instruction to allocate memory on the stack
 ///
 class AllocaInst : public AllocationInst {
-  AllocaInst(const AllocaInst &);
 public:
-  explicit AllocaInst(const Type *Ty, Value *ArraySize = 0,
-                      const std::string &NameStr = "",
+  explicit AllocaInst(const Type *Ty,
+                      Value *ArraySize = 0,
+                      const Twine &NameStr = "",
                       Instruction *InsertBefore = 0)
-    : AllocationInst(Ty, ArraySize, Alloca, 0, NameStr, InsertBefore) {}
-  AllocaInst(const Type *Ty, Value *ArraySize, const std::string &NameStr,
+    : AllocationInst(Ty, ArraySize, Alloca,
+                     0, NameStr, InsertBefore) {}
+  AllocaInst(const Type *Ty,
+             Value *ArraySize, const Twine &NameStr,
              BasicBlock *InsertAtEnd)
     : AllocationInst(Ty, ArraySize, Alloca, 0, NameStr, InsertAtEnd) {}
 
-  AllocaInst(const Type *Ty, const std::string &NameStr,
+  AllocaInst(const Type *Ty, const Twine &NameStr,
              Instruction *InsertBefore = 0)
     : AllocationInst(Ty, 0, Alloca, 0, NameStr, InsertBefore) {}
-  AllocaInst(const Type *Ty, const std::string &NameStr,
+  AllocaInst(const Type *Ty, const Twine &NameStr,
              BasicBlock *InsertAtEnd)
     : AllocationInst(Ty, 0, Alloca, 0, NameStr, InsertAtEnd) {}
 
-  AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
-             const std::string &NameStr = "", Instruction *InsertBefore = 0)
-    : AllocationInst(Ty, ArraySize, Alloca, Align, NameStr, InsertBefore) {}
-  AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
-             const std::string &NameStr, BasicBlock *InsertAtEnd)
-    : AllocationInst(Ty, ArraySize, Alloca, Align, NameStr, InsertAtEnd) {}
+  AllocaInst(const Type *Ty, Value *ArraySize,
+             unsigned Align, const Twine &NameStr = "",
+             Instruction *InsertBefore = 0)
+    : AllocationInst(Ty, ArraySize, Alloca,
+                     Align, NameStr, InsertBefore) {}
+  AllocaInst(const Type *Ty, Value *ArraySize,
+             unsigned Align, const Twine &NameStr,
+             BasicBlock *InsertAtEnd)
+    : AllocationInst(Ty, ArraySize, Alloca,
+                     Align, NameStr, InsertAtEnd) {}
 
   virtual AllocaInst *clone() const;
 
@@ -219,27 +234,17 @@ public:
 /// SubclassData field in Value to store whether or not the load is volatile.
 ///
 class LoadInst : public UnaryInstruction {
-
-  LoadInst(const LoadInst &LI)
-    : UnaryInstruction(LI.getType(), Load, LI.getOperand(0)) {
-    setVolatile(LI.isVolatile());
-    setAlignment(LI.getAlignment());
-
-#ifndef NDEBUG
-    AssertOK();
-#endif
-  }
   void AssertOK();
 public:
-  LoadInst(Value *Ptr, const std::string &NameStr, Instruction *InsertBefore);
-  LoadInst(Value *Ptr, const std::string &NameStr, BasicBlock *InsertAtEnd);
-  LoadInst(Value *Ptr, const std::string &NameStr, bool isVolatile = false,
+  LoadInst(Value *Ptr, const Twine &NameStr, Instruction *InsertBefore);
+  LoadInst(Value *Ptr, const Twine &NameStr, BasicBlock *InsertAtEnd);
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile = false,
            Instruction *InsertBefore = 0);
-  LoadInst(Value *Ptr, const std::string &NameStr, bool isVolatile,
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
            unsigned Align, Instruction *InsertBefore = 0);
-  LoadInst(Value *Ptr, const std::string &NameStr, bool isVolatile,
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
            BasicBlock *InsertAtEnd);
-  LoadInst(Value *Ptr, const std::string &NameStr, bool isVolatile,
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
            unsigned Align, BasicBlock *InsertAtEnd);
 
   LoadInst(Value *Ptr, const char *NameStr, Instruction *InsertBefore);
@@ -274,6 +279,11 @@ public:
   const Value *getPointerOperand() const { return getOperand(0); }
   static unsigned getPointerOperandIndex() { return 0U; }
 
+  unsigned getPointerAddressSpace() const {
+    return cast<PointerType>(getPointerOperand()->getType())->getAddressSpace();
+  }
+  
+  
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const LoadInst *) { return true; }
   static inline bool classof(const Instruction *I) {
@@ -293,18 +303,6 @@ public:
 ///
 class StoreInst : public Instruction {
   void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-
-  StoreInst(const StoreInst &SI) : Instruction(SI.getType(), Store,
-                                               &Op<0>(), 2) {
-    Op<0>() = SI.Op<0>();
-    Op<1>() = SI.Op<1>();
-    setVolatile(SI.isVolatile());
-    setAlignment(SI.getAlignment());
-
-#ifndef NDEBUG
-    AssertOK();
-#endif
-  }
   void AssertOK();
 public:
   // allocate space for exactly two operands
@@ -350,6 +348,10 @@ public:
   const Value *getPointerOperand() const { return getOperand(1); }
   static unsigned getPointerOperandIndex() { return 1U; }
 
+  unsigned getPointerAddressSpace() const {
+    return cast<PointerType>(getPointerOperand()->getType())->getAddressSpace();
+  }
+  
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const StoreInst *) { return true; }
   static inline bool classof(const Instruction *I) {
@@ -361,7 +363,7 @@ public:
 };
 
 template <>
-struct OperandTraits<StoreInst> : FixedNumOperandTraits<2> {
+struct OperandTraits<StoreInst> : public FixedNumOperandTraits<2> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(StoreInst, Value)
@@ -384,12 +386,12 @@ static inline const Type *checkType(const Type *Ty) {
 class GetElementPtrInst : public Instruction {
   GetElementPtrInst(const GetElementPtrInst &GEPI);
   void init(Value *Ptr, Value* const *Idx, unsigned NumIdx,
-            const std::string &NameStr);
-  void init(Value *Ptr, Value *Idx, const std::string &NameStr);
+            const Twine &NameStr);
+  void init(Value *Ptr, Value *Idx, const Twine &NameStr);
 
   template<typename InputIterator>
   void init(Value *Ptr, InputIterator IdxBegin, InputIterator IdxEnd,
-            const std::string &NameStr,
+            const Twine &NameStr,
             // This argument ensures that we have an iterator we can
             // do arithmetic on in constant time
             std::random_access_iterator_tag) {
@@ -436,25 +438,25 @@ class GetElementPtrInst : public Instruction {
   inline GetElementPtrInst(Value *Ptr, InputIterator IdxBegin,
                            InputIterator IdxEnd,
                            unsigned Values,
-                           const std::string &NameStr,
+                           const Twine &NameStr,
                            Instruction *InsertBefore);
   template<typename InputIterator>
   inline GetElementPtrInst(Value *Ptr,
                            InputIterator IdxBegin, InputIterator IdxEnd,
                            unsigned Values,
-                           const std::string &NameStr, BasicBlock *InsertAtEnd);
+                           const Twine &NameStr, BasicBlock *InsertAtEnd);
 
   /// Constructors - These two constructors are convenience methods because one
   /// and two index getelementptr instructions are so common.
-  GetElementPtrInst(Value *Ptr, Value *Idx, const std::string &NameStr = "",
+  GetElementPtrInst(Value *Ptr, Value *Idx, const Twine &NameStr = "",
                     Instruction *InsertBefore = 0);
   GetElementPtrInst(Value *Ptr, Value *Idx,
-                    const std::string &NameStr, BasicBlock *InsertAtEnd);
+                    const Twine &NameStr, BasicBlock *InsertAtEnd);
 public:
   template<typename InputIterator>
   static GetElementPtrInst *Create(Value *Ptr, InputIterator IdxBegin,
                                    InputIterator IdxEnd,
-                                   const std::string &NameStr = "",
+                                   const Twine &NameStr = "",
                                    Instruction *InsertBefore = 0) {
     typename std::iterator_traits<InputIterator>::difference_type Values =
       1 + std::distance(IdxBegin, IdxEnd);
@@ -464,7 +466,7 @@ public:
   template<typename InputIterator>
   static GetElementPtrInst *Create(Value *Ptr,
                                    InputIterator IdxBegin, InputIterator IdxEnd,
-                                   const std::string &NameStr,
+                                   const Twine &NameStr,
                                    BasicBlock *InsertAtEnd) {
     typename std::iterator_traits<InputIterator>::difference_type Values =
       1 + std::distance(IdxBegin, IdxEnd);
@@ -475,14 +477,52 @@ public:
   /// Constructors - These two creators are convenience methods because one
   /// index getelementptr instructions are so common.
   static GetElementPtrInst *Create(Value *Ptr, Value *Idx,
-                                   const std::string &NameStr = "",
+                                   const Twine &NameStr = "",
                                    Instruction *InsertBefore = 0) {
     return new(2) GetElementPtrInst(Ptr, Idx, NameStr, InsertBefore);
   }
   static GetElementPtrInst *Create(Value *Ptr, Value *Idx,
-                                   const std::string &NameStr,
+                                   const Twine &NameStr,
                                    BasicBlock *InsertAtEnd) {
     return new(2) GetElementPtrInst(Ptr, Idx, NameStr, InsertAtEnd);
+  }
+
+  /// Create an "inbounds" getelementptr. See the documentation for the
+  /// "inbounds" flag in LangRef.html for details.
+  template<typename InputIterator>
+  static GetElementPtrInst *CreateInBounds(Value *Ptr, InputIterator IdxBegin,
+                                           InputIterator IdxEnd,
+                                           const Twine &NameStr = "",
+                                           Instruction *InsertBefore = 0) {
+    GetElementPtrInst *GEP = Create(Ptr, IdxBegin, IdxEnd,
+                                    NameStr, InsertBefore);
+    GEP->setIsInBounds(true);
+    return GEP;
+  }
+  template<typename InputIterator>
+  static GetElementPtrInst *CreateInBounds(Value *Ptr,
+                                           InputIterator IdxBegin,
+                                           InputIterator IdxEnd,
+                                           const Twine &NameStr,
+                                           BasicBlock *InsertAtEnd) {
+    GetElementPtrInst *GEP = Create(Ptr, IdxBegin, IdxEnd,
+                                    NameStr, InsertAtEnd);
+    GEP->setIsInBounds(true);
+    return GEP;
+  }
+  static GetElementPtrInst *CreateInBounds(Value *Ptr, Value *Idx,
+                                           const Twine &NameStr = "",
+                                           Instruction *InsertBefore = 0) {
+    GetElementPtrInst *GEP = Create(Ptr, Idx, NameStr, InsertBefore);
+    GEP->setIsInBounds(true);
+    return GEP;
+  }
+  static GetElementPtrInst *CreateInBounds(Value *Ptr, Value *Idx,
+                                           const Twine &NameStr,
+                                           BasicBlock *InsertAtEnd) {
+    GetElementPtrInst *GEP = Create(Ptr, Idx, NameStr, InsertAtEnd);
+    GEP->setIsInBounds(true);
+    return GEP;
   }
 
   virtual GetElementPtrInst *clone() const;
@@ -532,6 +572,10 @@ public:
   static unsigned getPointerOperandIndex() {
     return 0U;                      // get index for modifying correct operand
   }
+  
+  unsigned getPointerAddressSpace() const {
+    return cast<PointerType>(getType())->getAddressSpace();
+  }
 
   /// getPointerOperandType - Method to return the pointer operand as a
   /// PointerType.
@@ -558,6 +602,12 @@ public:
   /// a constant offset between them.
   bool hasAllConstantIndices() const;
 
+  /// setIsInBounds - Set or clear the inbounds flag on this GEP instruction.
+  /// See LangRef.html for the meaning of inbounds on a getelementptr.
+  void setIsInBounds(bool b = true);
+
+  /// isInBounds - Determine whether the GEP has the inbounds flag.
+  bool isInBounds() const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const GetElementPtrInst *) { return true; }
@@ -570,7 +620,7 @@ public:
 };
 
 template <>
-struct OperandTraits<GetElementPtrInst> : VariadicOperandTraits<1> {
+struct OperandTraits<GetElementPtrInst> : public VariadicOperandTraits<1> {
 };
 
 template<typename InputIterator>
@@ -578,7 +628,7 @@ GetElementPtrInst::GetElementPtrInst(Value *Ptr,
                                      InputIterator IdxBegin,
                                      InputIterator IdxEnd,
                                      unsigned Values,
-                                     const std::string &NameStr,
+                                     const Twine &NameStr,
                                      Instruction *InsertBefore)
   : Instruction(PointerType::get(checkType(
                                    getIndexedType(Ptr->getType(),
@@ -596,7 +646,7 @@ GetElementPtrInst::GetElementPtrInst(Value *Ptr,
                                      InputIterator IdxBegin,
                                      InputIterator IdxEnd,
                                      unsigned Values,
-                                     const std::string &NameStr,
+                                     const Twine &NameStr,
                                      BasicBlock *InsertAtEnd)
   : Instruction(PointerType::get(checkType(
                                    getIndexedType(Ptr->getType(),
@@ -626,11 +676,11 @@ class ICmpInst: public CmpInst {
 public:
   /// @brief Constructor with insert-before-instruction semantics.
   ICmpInst(
+    Instruction *InsertBefore,  ///< Where to insert
     Predicate pred,  ///< The predicate to use for the comparison
     Value *LHS,      ///< The left-hand-side of the expression
     Value *RHS,      ///< The right-hand-side of the expression
-    const std::string &NameStr = "",  ///< Name of the instruction
-    Instruction *InsertBefore = 0  ///< Where to insert
+    const Twine &NameStr = ""  ///< Name of the instruction
   ) : CmpInst(makeCmpResultType(LHS->getType()),
               Instruction::ICmp, pred, LHS, RHS, NameStr,
               InsertBefore) {
@@ -645,16 +695,35 @@ public:
            "Invalid operand types for ICmp instruction");
   }
 
-  /// @brief Constructor with insert-at-block-end semantics.
+  /// @brief Constructor with insert-at-end semantics.
+  ICmpInst(
+    BasicBlock &InsertAtEnd, ///< Block to insert into.
+    Predicate pred,  ///< The predicate to use for the comparison
+    Value *LHS,      ///< The left-hand-side of the expression
+    Value *RHS,      ///< The right-hand-side of the expression
+    const Twine &NameStr = ""  ///< Name of the instruction
+  ) : CmpInst(makeCmpResultType(LHS->getType()),
+              Instruction::ICmp, pred, LHS, RHS, NameStr,
+              &InsertAtEnd) {
+    assert(pred >= CmpInst::FIRST_ICMP_PREDICATE &&
+          pred <= CmpInst::LAST_ICMP_PREDICATE &&
+          "Invalid ICmp predicate value");
+    assert(getOperand(0)->getType() == getOperand(1)->getType() &&
+          "Both operands to ICmp instruction are not of the same type!");
+    // Check that the operands are the right type
+    assert((getOperand(0)->getType()->isIntOrIntVector() ||
+            isa<PointerType>(getOperand(0)->getType())) &&
+           "Invalid operand types for ICmp instruction");
+  }
+
+  /// @brief Constructor with no-insertion semantics
   ICmpInst(
     Predicate pred, ///< The predicate to use for the comparison
     Value *LHS,     ///< The left-hand-side of the expression
     Value *RHS,     ///< The right-hand-side of the expression
-    const std::string &NameStr,  ///< Name of the instruction
-    BasicBlock *InsertAtEnd   ///< Block to insert into.
+    const Twine &NameStr = "" ///< Name of the instruction
   ) : CmpInst(makeCmpResultType(LHS->getType()),
-              Instruction::ICmp, pred, LHS, RHS, NameStr,
-              InsertAtEnd) {
+              Instruction::ICmp, pred, LHS, RHS, NameStr) {
     assert(pred >= CmpInst::FIRST_ICMP_PREDICATE &&
            pred <= CmpInst::LAST_ICMP_PREDICATE &&
            "Invalid ICmp predicate value");
@@ -781,11 +850,11 @@ class FCmpInst: public CmpInst {
 public:
   /// @brief Constructor with insert-before-instruction semantics.
   FCmpInst(
+    Instruction *InsertBefore, ///< Where to insert
     Predicate pred,  ///< The predicate to use for the comparison
     Value *LHS,      ///< The left-hand-side of the expression
     Value *RHS,      ///< The right-hand-side of the expression
-    const std::string &NameStr = "",  ///< Name of the instruction
-    Instruction *InsertBefore = 0  ///< Where to insert
+    const Twine &NameStr = ""  ///< Name of the instruction
   ) : CmpInst(makeCmpResultType(LHS->getType()),
               Instruction::FCmp, pred, LHS, RHS, NameStr,
               InsertBefore) {
@@ -797,17 +866,34 @@ public:
     assert(getOperand(0)->getType()->isFPOrFPVector() &&
            "Invalid operand types for FCmp instruction");
   }
+  
+  /// @brief Constructor with insert-at-end semantics.
+  FCmpInst(
+    BasicBlock &InsertAtEnd, ///< Block to insert into.
+    Predicate pred,  ///< The predicate to use for the comparison
+    Value *LHS,      ///< The left-hand-side of the expression
+    Value *RHS,      ///< The right-hand-side of the expression
+    const Twine &NameStr = ""  ///< Name of the instruction
+  ) : CmpInst(makeCmpResultType(LHS->getType()),
+              Instruction::FCmp, pred, LHS, RHS, NameStr,
+              &InsertAtEnd) {
+    assert(pred <= FCmpInst::LAST_FCMP_PREDICATE &&
+           "Invalid FCmp predicate value");
+    assert(getOperand(0)->getType() == getOperand(1)->getType() &&
+           "Both operands to FCmp instruction are not of the same type!");
+    // Check that the operands are the right type
+    assert(getOperand(0)->getType()->isFPOrFPVector() &&
+           "Invalid operand types for FCmp instruction");
+  }
 
-  /// @brief Constructor with insert-at-block-end semantics.
+  /// @brief Constructor with no-insertion semantics
   FCmpInst(
     Predicate pred, ///< The predicate to use for the comparison
     Value *LHS,     ///< The left-hand-side of the expression
     Value *RHS,     ///< The right-hand-side of the expression
-    const std::string &NameStr,  ///< Name of the instruction
-    BasicBlock *InsertAtEnd   ///< Block to insert into.
+    const Twine &NameStr = "" ///< Name of the instruction
   ) : CmpInst(makeCmpResultType(LHS->getType()),
-              Instruction::FCmp, pred, LHS, RHS, NameStr,
-              InsertAtEnd) {
+              Instruction::FCmp, pred, LHS, RHS, NameStr) {
     assert(pred <= FCmpInst::LAST_FCMP_PREDICATE &&
            "Invalid FCmp predicate value");
     assert(getOperand(0)->getType() == getOperand(1)->getType() &&
@@ -858,119 +944,6 @@ public:
   static inline bool classof(const Value *V) {
     return isa<Instruction>(V) && classof(cast<Instruction>(V));
   }
-
-};
-
-//===----------------------------------------------------------------------===//
-//                               VICmpInst Class
-//===----------------------------------------------------------------------===//
-
-/// This instruction compares its operands according to the predicate given
-/// to the constructor. It only operates on vectors of integers.
-/// The operands must be identical types.
-/// @brief Represents a vector integer comparison operator.
-class VICmpInst: public CmpInst {
-public:
-  /// @brief Constructor with insert-before-instruction semantics.
-  VICmpInst(
-    Predicate pred,  ///< The predicate to use for the comparison
-    Value *LHS,      ///< The left-hand-side of the expression
-    Value *RHS,      ///< The right-hand-side of the expression
-    const std::string &NameStr = "",  ///< Name of the instruction
-    Instruction *InsertBefore = 0  ///< Where to insert
-  ) : CmpInst(LHS->getType(), Instruction::VICmp, pred, LHS, RHS, NameStr,
-              InsertBefore) {
-    assert(pred >= CmpInst::FIRST_ICMP_PREDICATE &&
-           pred <= CmpInst::LAST_ICMP_PREDICATE &&
-           "Invalid VICmp predicate value");
-    assert(getOperand(0)->getType() == getOperand(1)->getType() &&
-          "Both operands to VICmp instruction are not of the same type!");
-  }
-
-  /// @brief Constructor with insert-at-block-end semantics.
-  VICmpInst(
-    Predicate pred, ///< The predicate to use for the comparison
-    Value *LHS,     ///< The left-hand-side of the expression
-    Value *RHS,     ///< The right-hand-side of the expression
-    const std::string &NameStr,  ///< Name of the instruction
-    BasicBlock *InsertAtEnd   ///< Block to insert into.
-  ) : CmpInst(LHS->getType(), Instruction::VICmp, pred, LHS, RHS, NameStr,
-              InsertAtEnd) {
-    assert(pred >= CmpInst::FIRST_ICMP_PREDICATE &&
-           pred <= CmpInst::LAST_ICMP_PREDICATE &&
-           "Invalid VICmp predicate value");
-    assert(getOperand(0)->getType() == getOperand(1)->getType() &&
-          "Both operands to VICmp instruction are not of the same type!");
-  }
-
-  /// @brief Return the predicate for this instruction.
-  Predicate getPredicate() const { return Predicate(SubclassData); }
-
-  virtual VICmpInst *clone() const;
-
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const VICmpInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::VICmp;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
-};
-
-//===----------------------------------------------------------------------===//
-//                               VFCmpInst Class
-//===----------------------------------------------------------------------===//
-
-/// This instruction compares its operands according to the predicate given
-/// to the constructor. It only operates on vectors of floating point values.
-/// The operands must be identical types.
-/// @brief Represents a vector floating point comparison operator.
-class VFCmpInst: public CmpInst {
-public:
-  /// @brief Constructor with insert-before-instruction semantics.
-  VFCmpInst(
-    Predicate pred,  ///< The predicate to use for the comparison
-    Value *LHS,      ///< The left-hand-side of the expression
-    Value *RHS,      ///< The right-hand-side of the expression
-    const std::string &NameStr = "",  ///< Name of the instruction
-    Instruction *InsertBefore = 0  ///< Where to insert
-  ) : CmpInst(VectorType::getInteger(cast<VectorType>(LHS->getType())),
-              Instruction::VFCmp, pred, LHS, RHS, NameStr, InsertBefore) {
-    assert(pred <= CmpInst::LAST_FCMP_PREDICATE &&
-           "Invalid VFCmp predicate value");
-    assert(getOperand(0)->getType() == getOperand(1)->getType() &&
-           "Both operands to VFCmp instruction are not of the same type!");
-  }
-
-  /// @brief Constructor with insert-at-block-end semantics.
-  VFCmpInst(
-    Predicate pred, ///< The predicate to use for the comparison
-    Value *LHS,     ///< The left-hand-side of the expression
-    Value *RHS,     ///< The right-hand-side of the expression
-    const std::string &NameStr,  ///< Name of the instruction
-    BasicBlock *InsertAtEnd   ///< Block to insert into.
-  ) : CmpInst(VectorType::getInteger(cast<VectorType>(LHS->getType())),
-              Instruction::VFCmp, pred, LHS, RHS, NameStr, InsertAtEnd) {
-    assert(pred <= CmpInst::LAST_FCMP_PREDICATE &&
-           "Invalid VFCmp predicate value");
-    assert(getOperand(0)->getType() == getOperand(1)->getType() &&
-           "Both operands to VFCmp instruction are not of the same type!");
-  }
-
-  /// @brief Return the predicate for this instruction.
-  Predicate getPredicate() const { return Predicate(SubclassData); }
-
-  virtual VFCmpInst *clone() const;
-
-  /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const VFCmpInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::VFCmp;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -992,7 +965,7 @@ class CallInst : public Instruction {
 
   template<typename InputIterator>
   void init(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
-            const std::string &NameStr,
+            const Twine &NameStr,
             // This argument ensures that we have an iterator we can
             // do arithmetic on in constant time
             std::random_access_iterator_tag) {
@@ -1011,7 +984,7 @@ class CallInst : public Instruction {
   /// @brief Construct a CallInst from a range of arguments
   template<typename InputIterator>
   CallInst(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
-           const std::string &NameStr, Instruction *InsertBefore);
+           const Twine &NameStr, Instruction *InsertBefore);
 
   /// Construct a CallInst given a range of arguments.  InputIterator
   /// must be a random-access iterator pointing to contiguous storage
@@ -1021,20 +994,20 @@ class CallInst : public Instruction {
   /// @brief Construct a CallInst from a range of arguments
   template<typename InputIterator>
   inline CallInst(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
-                  const std::string &NameStr, BasicBlock *InsertAtEnd);
+                  const Twine &NameStr, BasicBlock *InsertAtEnd);
 
-  CallInst(Value *F, Value *Actual, const std::string& NameStr,
+  CallInst(Value *F, Value *Actual, const Twine &NameStr,
            Instruction *InsertBefore);
-  CallInst(Value *F, Value *Actual, const std::string& NameStr,
+  CallInst(Value *F, Value *Actual, const Twine &NameStr,
            BasicBlock *InsertAtEnd);
-  explicit CallInst(Value *F, const std::string &NameStr,
+  explicit CallInst(Value *F, const Twine &NameStr,
                     Instruction *InsertBefore);
-  CallInst(Value *F, const std::string &NameStr, BasicBlock *InsertAtEnd);
+  CallInst(Value *F, const Twine &NameStr, BasicBlock *InsertAtEnd);
 public:
   template<typename InputIterator>
   static CallInst *Create(Value *Func,
                           InputIterator ArgBegin, InputIterator ArgEnd,
-                          const std::string &NameStr = "",
+                          const Twine &NameStr = "",
                           Instruction *InsertBefore = 0) {
     return new((unsigned)(ArgEnd - ArgBegin + 1))
       CallInst(Func, ArgBegin, ArgEnd, NameStr, InsertBefore);
@@ -1042,27 +1015,39 @@ public:
   template<typename InputIterator>
   static CallInst *Create(Value *Func,
                           InputIterator ArgBegin, InputIterator ArgEnd,
-                          const std::string &NameStr, BasicBlock *InsertAtEnd) {
+                          const Twine &NameStr, BasicBlock *InsertAtEnd) {
     return new((unsigned)(ArgEnd - ArgBegin + 1))
       CallInst(Func, ArgBegin, ArgEnd, NameStr, InsertAtEnd);
   }
   static CallInst *Create(Value *F, Value *Actual,
-                          const std::string& NameStr = "",
+                          const Twine &NameStr = "",
                           Instruction *InsertBefore = 0) {
     return new(2) CallInst(F, Actual, NameStr, InsertBefore);
   }
-  static CallInst *Create(Value *F, Value *Actual, const std::string& NameStr,
+  static CallInst *Create(Value *F, Value *Actual, const Twine &NameStr,
                           BasicBlock *InsertAtEnd) {
     return new(2) CallInst(F, Actual, NameStr, InsertAtEnd);
   }
-  static CallInst *Create(Value *F, const std::string &NameStr = "",
+  static CallInst *Create(Value *F, const Twine &NameStr = "",
                           Instruction *InsertBefore = 0) {
     return new(1) CallInst(F, NameStr, InsertBefore);
   }
-  static CallInst *Create(Value *F, const std::string &NameStr,
+  static CallInst *Create(Value *F, const Twine &NameStr,
                           BasicBlock *InsertAtEnd) {
     return new(1) CallInst(F, NameStr, InsertAtEnd);
   }
+  /// CreateMalloc - Generate the IR for a call to malloc:
+  /// 1. Compute the malloc call's argument as the specified type's size,
+  ///    possibly multiplied by the array size if the array size is not
+  ///    constant 1.
+  /// 2. Call malloc with that argument.
+  /// 3. Bitcast the result of the malloc call to the specified type.
+  static Value *CreateMalloc(Instruction *InsertBefore, const Type *IntPtrTy,
+                             const Type *AllocTy, Value *ArraySize = 0,
+                             const Twine &Name = "");
+  static Value *CreateMalloc(BasicBlock *InsertAtEnd, const Type *IntPtrTy,
+                             const Type *AllocTy, Value *ArraySize = 0,
+                             const Twine &Name = "");
 
   ~CallInst();
 
@@ -1078,9 +1063,11 @@ public:
 
   /// getCallingConv/setCallingConv - Get or set the calling convention of this
   /// function call.
-  unsigned getCallingConv() const { return SubclassData >> 1; }
-  void setCallingConv(unsigned CC) {
-    SubclassData = (SubclassData & 1) | (CC << 1);
+  CallingConv::ID getCallingConv() const {
+    return static_cast<CallingConv::ID>(SubclassData >> 1);
+  }
+  void setCallingConv(CallingConv::ID CC) {
+    SubclassData = (SubclassData & 1) | (static_cast<unsigned>(CC) << 1);
   }
 
   /// getAttributes - Return the parameter attributes for this call.
@@ -1176,12 +1163,12 @@ public:
 };
 
 template <>
-struct OperandTraits<CallInst> : VariadicOperandTraits<1> {
+struct OperandTraits<CallInst> : public VariadicOperandTraits<1> {
 };
 
 template<typename InputIterator>
 CallInst::CallInst(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
-                   const std::string &NameStr, BasicBlock *InsertAtEnd)
+                   const Twine &NameStr, BasicBlock *InsertAtEnd)
   : Instruction(cast<FunctionType>(cast<PointerType>(Func->getType())
                                    ->getElementType())->getReturnType(),
                 Instruction::Call,
@@ -1193,7 +1180,7 @@ CallInst::CallInst(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
 
 template<typename InputIterator>
 CallInst::CallInst(Value *Func, InputIterator ArgBegin, InputIterator ArgEnd,
-                   const std::string &NameStr, Instruction *InsertBefore)
+                   const Twine &NameStr, Instruction *InsertBefore)
   : Instruction(cast<FunctionType>(cast<PointerType>(Func->getType())
                                    ->getElementType())->getReturnType(),
                 Instruction::Call,
@@ -1219,18 +1206,14 @@ class SelectInst : public Instruction {
     Op<2>() = S2;
   }
 
-  SelectInst(const SelectInst &SI)
-    : Instruction(SI.getType(), SI.getOpcode(), &Op<0>(), 3) {
-    init(SI.Op<0>(), SI.Op<1>(), SI.Op<2>());
-  }
-  SelectInst(Value *C, Value *S1, Value *S2, const std::string &NameStr,
+  SelectInst(Value *C, Value *S1, Value *S2, const Twine &NameStr,
              Instruction *InsertBefore)
     : Instruction(S1->getType(), Instruction::Select,
                   &Op<0>(), 3, InsertBefore) {
     init(C, S1, S2);
     setName(NameStr);
   }
-  SelectInst(Value *C, Value *S1, Value *S2, const std::string &NameStr,
+  SelectInst(Value *C, Value *S1, Value *S2, const Twine &NameStr,
              BasicBlock *InsertAtEnd)
     : Instruction(S1->getType(), Instruction::Select,
                   &Op<0>(), 3, InsertAtEnd) {
@@ -1239,20 +1222,23 @@ class SelectInst : public Instruction {
   }
 public:
   static SelectInst *Create(Value *C, Value *S1, Value *S2,
-                            const std::string &NameStr = "",
+                            const Twine &NameStr = "",
                             Instruction *InsertBefore = 0) {
     return new(3) SelectInst(C, S1, S2, NameStr, InsertBefore);
   }
   static SelectInst *Create(Value *C, Value *S1, Value *S2,
-                            const std::string &NameStr,
+                            const Twine &NameStr,
                             BasicBlock *InsertAtEnd) {
     return new(3) SelectInst(C, S1, S2, NameStr, InsertAtEnd);
   }
 
-  Value *getCondition() const { return Op<0>(); }
-  Value *getTrueValue() const { return Op<1>(); }
-  Value *getFalseValue() const { return Op<2>(); }
-
+  const Value *getCondition() const { return Op<0>(); }
+  const Value *getTrueValue() const { return Op<1>(); }
+  const Value *getFalseValue() const { return Op<2>(); }
+  Value *getCondition() { return Op<0>(); }
+  Value *getTrueValue() { return Op<1>(); }
+  Value *getFalseValue() { return Op<2>(); }
+  
   /// areInvalidOperands - Return a string if the specified operands are invalid
   /// for a select operation, otherwise return null.
   static const char *areInvalidOperands(Value *Cond, Value *True, Value *False);
@@ -1277,7 +1263,7 @@ public:
 };
 
 template <>
-struct OperandTraits<SelectInst> : FixedNumOperandTraits<3> {
+struct OperandTraits<SelectInst> : public FixedNumOperandTraits<3> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(SelectInst, Value)
@@ -1290,15 +1276,13 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(SelectInst, Value)
 /// an argument of the specified type given a va_list and increments that list
 ///
 class VAArgInst : public UnaryInstruction {
-  VAArgInst(const VAArgInst &VAA)
-    : UnaryInstruction(VAA.getType(), VAArg, VAA.getOperand(0)) {}
 public:
-  VAArgInst(Value *List, const Type *Ty, const std::string &NameStr = "",
+  VAArgInst(Value *List, const Type *Ty, const Twine &NameStr = "",
              Instruction *InsertBefore = 0)
     : UnaryInstruction(Ty, VAArg, List, InsertBefore) {
     setName(NameStr);
   }
-  VAArgInst(Value *List, const Type *Ty, const std::string &NameStr,
+  VAArgInst(Value *List, const Type *Ty, const Twine &NameStr,
             BasicBlock *InsertAtEnd)
     : UnaryInstruction(Ty, VAArg, List, InsertAtEnd) {
     setName(NameStr);
@@ -1324,25 +1308,21 @@ public:
 /// element from a VectorType value
 ///
 class ExtractElementInst : public Instruction {
-  ExtractElementInst(const ExtractElementInst &EE) :
-    Instruction(EE.getType(), ExtractElement, &Op<0>(), 2) {
-    Op<0>() = EE.Op<0>();
-    Op<1>() = EE.Op<1>();
-  }
-
+  ExtractElementInst(Value *Vec, Value *Idx, const Twine &NameStr = "",
+                     Instruction *InsertBefore = 0);
+  ExtractElementInst(Value *Vec, Value *Idx, const Twine &NameStr,
+                     BasicBlock *InsertAtEnd);
 public:
-  // allocate space for exactly two operands
-  void *operator new(size_t s) {
-    return User::operator new(s, 2); // FIXME: "unsigned Idx" forms of ctor?
+  static ExtractElementInst *Create(Value *Vec, Value *Idx,
+                                   const Twine &NameStr = "",
+                                   Instruction *InsertBefore = 0) {
+    return new(2) ExtractElementInst(Vec, Idx, NameStr, InsertBefore);
   }
-  ExtractElementInst(Value *Vec, Value *Idx, const std::string &NameStr = "",
-                     Instruction *InsertBefore = 0);
-  ExtractElementInst(Value *Vec, unsigned Idx, const std::string &NameStr = "",
-                     Instruction *InsertBefore = 0);
-  ExtractElementInst(Value *Vec, Value *Idx, const std::string &NameStr,
-                     BasicBlock *InsertAtEnd);
-  ExtractElementInst(Value *Vec, unsigned Idx, const std::string &NameStr,
-                     BasicBlock *InsertAtEnd);
+  static ExtractElementInst *Create(Value *Vec, Value *Idx,
+                                   const Twine &NameStr,
+                                   BasicBlock *InsertAtEnd) {
+    return new(2) ExtractElementInst(Vec, Idx, NameStr, InsertAtEnd);
+  }
 
   /// isValidOperands - Return true if an extractelement instruction can be
   /// formed with the specified operands.
@@ -1350,6 +1330,16 @@ public:
 
   virtual ExtractElementInst *clone() const;
 
+  Value *getVectorOperand() { return Op<0>(); }
+  Value *getIndexOperand() { return Op<1>(); }
+  const Value *getVectorOperand() const { return Op<0>(); }
+  const Value *getIndexOperand() const { return Op<1>(); }
+  
+  const VectorType *getVectorOperandType() const {
+    return reinterpret_cast<const VectorType*>(getVectorOperand()->getType());
+  }
+  
+  
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
@@ -1364,7 +1354,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ExtractElementInst> : FixedNumOperandTraits<2> {
+struct OperandTraits<ExtractElementInst> : public FixedNumOperandTraits<2> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ExtractElementInst, Value)
@@ -1377,38 +1367,19 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ExtractElementInst, Value)
 /// element into a VectorType value
 ///
 class InsertElementInst : public Instruction {
-  InsertElementInst(const InsertElementInst &IE);
   InsertElementInst(Value *Vec, Value *NewElt, Value *Idx,
-                    const std::string &NameStr = "",
-                    Instruction *InsertBefore = 0);
-  InsertElementInst(Value *Vec, Value *NewElt, unsigned Idx,
-                    const std::string &NameStr = "",
+                    const Twine &NameStr = "",
                     Instruction *InsertBefore = 0);
   InsertElementInst(Value *Vec, Value *NewElt, Value *Idx,
-                    const std::string &NameStr, BasicBlock *InsertAtEnd);
-  InsertElementInst(Value *Vec, Value *NewElt, unsigned Idx,
-                    const std::string &NameStr, BasicBlock *InsertAtEnd);
+                    const Twine &NameStr, BasicBlock *InsertAtEnd);
 public:
-  static InsertElementInst *Create(const InsertElementInst &IE) {
-    return new(IE.getNumOperands()) InsertElementInst(IE);
-  }
   static InsertElementInst *Create(Value *Vec, Value *NewElt, Value *Idx,
-                                   const std::string &NameStr = "",
-                                   Instruction *InsertBefore = 0) {
-    return new(3) InsertElementInst(Vec, NewElt, Idx, NameStr, InsertBefore);
-  }
-  static InsertElementInst *Create(Value *Vec, Value *NewElt, unsigned Idx,
-                                   const std::string &NameStr = "",
+                                   const Twine &NameStr = "",
                                    Instruction *InsertBefore = 0) {
     return new(3) InsertElementInst(Vec, NewElt, Idx, NameStr, InsertBefore);
   }
   static InsertElementInst *Create(Value *Vec, Value *NewElt, Value *Idx,
-                                   const std::string &NameStr,
-                                   BasicBlock *InsertAtEnd) {
-    return new(3) InsertElementInst(Vec, NewElt, Idx, NameStr, InsertAtEnd);
-  }
-  static InsertElementInst *Create(Value *Vec, Value *NewElt, unsigned Idx,
-                                   const std::string &NameStr,
+                                   const Twine &NameStr,
                                    BasicBlock *InsertAtEnd) {
     return new(3) InsertElementInst(Vec, NewElt, Idx, NameStr, InsertAtEnd);
   }
@@ -1440,7 +1411,7 @@ public:
 };
 
 template <>
-struct OperandTraits<InsertElementInst> : FixedNumOperandTraits<3> {
+struct OperandTraits<InsertElementInst> : public FixedNumOperandTraits<3> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(InsertElementInst, Value)
@@ -1453,17 +1424,16 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(InsertElementInst, Value)
 /// input vectors.
 ///
 class ShuffleVectorInst : public Instruction {
-  ShuffleVectorInst(const ShuffleVectorInst &IE);
 public:
   // allocate space for exactly three operands
   void *operator new(size_t s) {
     return User::operator new(s, 3);
   }
   ShuffleVectorInst(Value *V1, Value *V2, Value *Mask,
-                    const std::string &NameStr = "",
+                    const Twine &NameStr = "",
                     Instruction *InsertBefor = 0);
   ShuffleVectorInst(Value *V1, Value *V2, Value *Mask,
-                    const std::string &NameStr, BasicBlock *InsertAtEnd);
+                    const Twine &NameStr, BasicBlock *InsertAtEnd);
 
   /// isValidOperands - Return true if a shufflevector instruction can be
   /// formed with the specified operands.
@@ -1497,7 +1467,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ShuffleVectorInst> : FixedNumOperandTraits<3> {
+struct OperandTraits<ShuffleVectorInst> : public FixedNumOperandTraits<3> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ShuffleVectorInst, Value)
@@ -1514,12 +1484,12 @@ class ExtractValueInst : public UnaryInstruction {
 
   ExtractValueInst(const ExtractValueInst &EVI);
   void init(const unsigned *Idx, unsigned NumIdx,
-            const std::string &NameStr);
-  void init(unsigned Idx, const std::string &NameStr);
+            const Twine &NameStr);
+  void init(unsigned Idx, const Twine &NameStr);
 
   template<typename InputIterator>
   void init(InputIterator IdxBegin, InputIterator IdxEnd,
-            const std::string &NameStr,
+            const Twine &NameStr,
             // This argument ensures that we have an iterator we can
             // do arithmetic on in constant time
             std::random_access_iterator_tag) {
@@ -1569,12 +1539,12 @@ class ExtractValueInst : public UnaryInstruction {
   template<typename InputIterator>
   inline ExtractValueInst(Value *Agg, InputIterator IdxBegin,
                           InputIterator IdxEnd,
-                          const std::string &NameStr,
+                          const Twine &NameStr,
                           Instruction *InsertBefore);
   template<typename InputIterator>
   inline ExtractValueInst(Value *Agg,
                           InputIterator IdxBegin, InputIterator IdxEnd,
-                          const std::string &NameStr, BasicBlock *InsertAtEnd);
+                          const Twine &NameStr, BasicBlock *InsertAtEnd);
 
   // allocate space for exactly one operand
   void *operator new(size_t s) {
@@ -1585,7 +1555,7 @@ public:
   template<typename InputIterator>
   static ExtractValueInst *Create(Value *Agg, InputIterator IdxBegin,
                                   InputIterator IdxEnd,
-                                  const std::string &NameStr = "",
+                                  const Twine &NameStr = "",
                                   Instruction *InsertBefore = 0) {
     return new
       ExtractValueInst(Agg, IdxBegin, IdxEnd, NameStr, InsertBefore);
@@ -1593,7 +1563,7 @@ public:
   template<typename InputIterator>
   static ExtractValueInst *Create(Value *Agg,
                                   InputIterator IdxBegin, InputIterator IdxEnd,
-                                  const std::string &NameStr,
+                                  const Twine &NameStr,
                                   BasicBlock *InsertAtEnd) {
     return new ExtractValueInst(Agg, IdxBegin, IdxEnd, NameStr, InsertAtEnd);
   }
@@ -1602,13 +1572,13 @@ public:
   /// index extractvalue instructions are much more common than those with
   /// more than one.
   static ExtractValueInst *Create(Value *Agg, unsigned Idx,
-                                  const std::string &NameStr = "",
+                                  const Twine &NameStr = "",
                                   Instruction *InsertBefore = 0) {
     unsigned Idxs[1] = { Idx };
     return new ExtractValueInst(Agg, Idxs, Idxs + 1, NameStr, InsertBefore);
   }
   static ExtractValueInst *Create(Value *Agg, unsigned Idx,
-                                  const std::string &NameStr,
+                                  const Twine &NameStr,
                                   BasicBlock *InsertAtEnd) {
     unsigned Idxs[1] = { Idx };
     return new ExtractValueInst(Agg, Idxs, Idxs + 1, NameStr, InsertAtEnd);
@@ -1668,7 +1638,7 @@ template<typename InputIterator>
 ExtractValueInst::ExtractValueInst(Value *Agg,
                                    InputIterator IdxBegin,
                                    InputIterator IdxEnd,
-                                   const std::string &NameStr,
+                                   const Twine &NameStr,
                                    Instruction *InsertBefore)
   : UnaryInstruction(checkType(getIndexedType(Agg->getType(),
                                               IdxBegin, IdxEnd)),
@@ -1680,7 +1650,7 @@ template<typename InputIterator>
 ExtractValueInst::ExtractValueInst(Value *Agg,
                                    InputIterator IdxBegin,
                                    InputIterator IdxEnd,
-                                   const std::string &NameStr,
+                                   const Twine &NameStr,
                                    BasicBlock *InsertAtEnd)
   : UnaryInstruction(checkType(getIndexedType(Agg->getType(),
                                               IdxBegin, IdxEnd)),
@@ -1703,13 +1673,13 @@ class InsertValueInst : public Instruction {
   void *operator new(size_t, unsigned); // Do not implement
   InsertValueInst(const InsertValueInst &IVI);
   void init(Value *Agg, Value *Val, const unsigned *Idx, unsigned NumIdx,
-            const std::string &NameStr);
-  void init(Value *Agg, Value *Val, unsigned Idx, const std::string &NameStr);
+            const Twine &NameStr);
+  void init(Value *Agg, Value *Val, unsigned Idx, const Twine &NameStr);
 
   template<typename InputIterator>
   void init(Value *Agg, Value *Val,
             InputIterator IdxBegin, InputIterator IdxEnd,
-            const std::string &NameStr,
+            const Twine &NameStr,
             // This argument ensures that we have an iterator we can
             // do arithmetic on in constant time
             std::random_access_iterator_tag) {
@@ -1733,20 +1703,20 @@ class InsertValueInst : public Instruction {
   template<typename InputIterator>
   inline InsertValueInst(Value *Agg, Value *Val, InputIterator IdxBegin,
                          InputIterator IdxEnd,
-                         const std::string &NameStr,
+                         const Twine &NameStr,
                          Instruction *InsertBefore);
   template<typename InputIterator>
   inline InsertValueInst(Value *Agg, Value *Val,
                          InputIterator IdxBegin, InputIterator IdxEnd,
-                         const std::string &NameStr, BasicBlock *InsertAtEnd);
+                         const Twine &NameStr, BasicBlock *InsertAtEnd);
 
   /// Constructors - These two constructors are convenience methods because one
   /// and two index insertvalue instructions are so common.
   InsertValueInst(Value *Agg, Value *Val,
-                  unsigned Idx, const std::string &NameStr = "",
+                  unsigned Idx, const Twine &NameStr = "",
                   Instruction *InsertBefore = 0);
   InsertValueInst(Value *Agg, Value *Val, unsigned Idx,
-                  const std::string &NameStr, BasicBlock *InsertAtEnd);
+                  const Twine &NameStr, BasicBlock *InsertAtEnd);
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -1756,7 +1726,7 @@ public:
   template<typename InputIterator>
   static InsertValueInst *Create(Value *Agg, Value *Val, InputIterator IdxBegin,
                                  InputIterator IdxEnd,
-                                 const std::string &NameStr = "",
+                                 const Twine &NameStr = "",
                                  Instruction *InsertBefore = 0) {
     return new InsertValueInst(Agg, Val, IdxBegin, IdxEnd,
                                NameStr, InsertBefore);
@@ -1764,7 +1734,7 @@ public:
   template<typename InputIterator>
   static InsertValueInst *Create(Value *Agg, Value *Val,
                                  InputIterator IdxBegin, InputIterator IdxEnd,
-                                 const std::string &NameStr,
+                                 const Twine &NameStr,
                                  BasicBlock *InsertAtEnd) {
     return new InsertValueInst(Agg, Val, IdxBegin, IdxEnd,
                                NameStr, InsertAtEnd);
@@ -1774,12 +1744,12 @@ public:
   /// index insertvalue instructions are much more common than those with
   /// more than one.
   static InsertValueInst *Create(Value *Agg, Value *Val, unsigned Idx,
-                                 const std::string &NameStr = "",
+                                 const Twine &NameStr = "",
                                  Instruction *InsertBefore = 0) {
     return new InsertValueInst(Agg, Val, Idx, NameStr, InsertBefore);
   }
   static InsertValueInst *Create(Value *Agg, Value *Val, unsigned Idx,
-                                 const std::string &NameStr,
+                                 const Twine &NameStr,
                                  BasicBlock *InsertAtEnd) {
     return new InsertValueInst(Agg, Val, Idx, NameStr, InsertAtEnd);
   }
@@ -1832,7 +1802,7 @@ public:
 };
 
 template <>
-struct OperandTraits<InsertValueInst> : FixedNumOperandTraits<2> {
+struct OperandTraits<InsertValueInst> : public FixedNumOperandTraits<2> {
 };
 
 template<typename InputIterator>
@@ -1840,7 +1810,7 @@ InsertValueInst::InsertValueInst(Value *Agg,
                                  Value *Val,
                                  InputIterator IdxBegin,
                                  InputIterator IdxEnd,
-                                 const std::string &NameStr,
+                                 const Twine &NameStr,
                                  Instruction *InsertBefore)
   : Instruction(Agg->getType(), InsertValue,
                 OperandTraits<InsertValueInst>::op_begin(this),
@@ -1853,7 +1823,7 @@ InsertValueInst::InsertValueInst(Value *Agg,
                                  Value *Val,
                                  InputIterator IdxBegin,
                                  InputIterator IdxEnd,
-                                 const std::string &NameStr,
+                                 const Twine &NameStr,
                                  BasicBlock *InsertAtEnd)
   : Instruction(Agg->getType(), InsertValue,
                 OperandTraits<InsertValueInst>::op_begin(this),
@@ -1882,24 +1852,24 @@ class PHINode : public Instruction {
   void *operator new(size_t s) {
     return User::operator new(s, 0);
   }
-  explicit PHINode(const Type *Ty, const std::string &NameStr = "",
+  explicit PHINode(const Type *Ty, const Twine &NameStr = "",
                    Instruction *InsertBefore = 0)
     : Instruction(Ty, Instruction::PHI, 0, 0, InsertBefore),
       ReservedSpace(0) {
     setName(NameStr);
   }
 
-  PHINode(const Type *Ty, const std::string &NameStr, BasicBlock *InsertAtEnd)
+  PHINode(const Type *Ty, const Twine &NameStr, BasicBlock *InsertAtEnd)
     : Instruction(Ty, Instruction::PHI, 0, 0, InsertAtEnd),
       ReservedSpace(0) {
     setName(NameStr);
   }
 public:
-  static PHINode *Create(const Type *Ty, const std::string &NameStr = "",
+  static PHINode *Create(const Type *Ty, const Twine &NameStr = "",
                          Instruction *InsertBefore = 0) {
     return new PHINode(Ty, NameStr, InsertBefore);
   }
-  static PHINode *Create(const Type *Ty, const std::string &NameStr,
+  static PHINode *Create(const Type *Ty, const Twine &NameStr,
                          BasicBlock *InsertAtEnd) {
     return new PHINode(Ty, NameStr, InsertAtEnd);
   }
@@ -1940,19 +1910,29 @@ public:
     return i/2;
   }
 
+  /// getIncomingBlock - Return incoming basic block #i.
+  ///
+  BasicBlock *getIncomingBlock(unsigned i) const {
+    return cast<BasicBlock>(getOperand(i*2+1));
+  }
+  
   /// getIncomingBlock - Return incoming basic block corresponding
-  /// to value use iterator
+  /// to an operand of the PHI.
+  ///
+  BasicBlock *getIncomingBlock(const Use &U) const {
+    assert(this == U.getUser() && "Iterator doesn't point to PHI's Uses?");
+    return cast<BasicBlock>((&U + 1)->get());
+  }
+  
+  /// getIncomingBlock - Return incoming basic block corresponding
+  /// to value use iterator.
   ///
   template <typename U>
   BasicBlock *getIncomingBlock(value_use_iterator<U> I) const {
-    assert(this == *I && "Iterator doesn't point to PHI's Uses?");
-    return static_cast<BasicBlock*>((&I.getUse() + 1)->get());
+    return getIncomingBlock(I.getUse());
   }
-  /// getIncomingBlock - Return incoming basic block number x
-  ///
-  BasicBlock *getIncomingBlock(unsigned i) const {
-    return static_cast<BasicBlock*>(getOperand(i*2+1));
-  }
+  
+  
   void setIncomingBlock(unsigned i, BasicBlock *BB) {
     setOperand(i*2+1, BB);
   }
@@ -2013,7 +1993,12 @@ public:
   /// hasConstantValue - If the specified PHI node always merges together the
   /// same value, return the value, otherwise return null.
   ///
-  Value *hasConstantValue(bool AllowNonDominatingInstruction = false) const;
+  /// If the PHI has undef operands, but all the rest of the operands are
+  /// some unique value, return that value if it can be proved that the
+  /// value dominates the PHI. If DT is null, use a conservative check,
+  /// otherwise use DT to test for dominance.
+  ///
+  Value *hasConstantValue(DominatorTree *DT = 0) const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const PHINode *) { return true; }
@@ -2028,7 +2013,7 @@ public:
 };
 
 template <>
-struct OperandTraits<PHINode> : HungoffOperandTraits<2> {
+struct OperandTraits<PHINode> : public HungoffOperandTraits<2> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(PHINode, Value)
@@ -2057,18 +2042,21 @@ private:
   //
   // NOTE: If the Value* passed is of type void then the constructor behaves as
   // if it was passed NULL.
-  explicit ReturnInst(Value *retVal = 0, Instruction *InsertBefore = 0);
-  ReturnInst(Value *retVal, BasicBlock *InsertAtEnd);
-  explicit ReturnInst(BasicBlock *InsertAtEnd);
+  explicit ReturnInst(LLVMContext &C, Value *retVal = 0,
+                      Instruction *InsertBefore = 0);
+  ReturnInst(LLVMContext &C, Value *retVal, BasicBlock *InsertAtEnd);
+  explicit ReturnInst(LLVMContext &C, BasicBlock *InsertAtEnd);
 public:
-  static ReturnInst* Create(Value *retVal = 0, Instruction *InsertBefore = 0) {
-    return new(!!retVal) ReturnInst(retVal, InsertBefore);
+  static ReturnInst* Create(LLVMContext &C, Value *retVal = 0,
+                            Instruction *InsertBefore = 0) {
+    return new(!!retVal) ReturnInst(C, retVal, InsertBefore);
   }
-  static ReturnInst* Create(Value *retVal, BasicBlock *InsertAtEnd) {
-    return new(!!retVal) ReturnInst(retVal, InsertAtEnd);
+  static ReturnInst* Create(LLVMContext &C, Value *retVal,
+                            BasicBlock *InsertAtEnd) {
+    return new(!!retVal) ReturnInst(C, retVal, InsertAtEnd);
   }
-  static ReturnInst* Create(BasicBlock *InsertAtEnd) {
-    return new(0) ReturnInst(InsertAtEnd);
+  static ReturnInst* Create(LLVMContext &C, BasicBlock *InsertAtEnd) {
+    return new(0) ReturnInst(C, InsertAtEnd);
   }
   virtual ~ReturnInst();
 
@@ -2101,7 +2089,7 @@ public:
 };
 
 template <>
-struct OperandTraits<ReturnInst> : OptionalOperandTraits<> {
+struct OperandTraits<ReturnInst> : public OptionalOperandTraits<> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ReturnInst, Value)
@@ -2209,7 +2197,7 @@ private:
 };
 
 template <>
-struct OperandTraits<BranchInst> : VariadicOperandTraits<1> {};
+struct OperandTraits<BranchInst> : public VariadicOperandTraits<1> {};
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(BranchInst, Value)
 
@@ -2358,7 +2346,7 @@ private:
 };
 
 template <>
-struct OperandTraits<SwitchInst> : HungoffOperandTraits<2> {
+struct OperandTraits<SwitchInst> : public HungoffOperandTraits<2> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(SwitchInst, Value)
@@ -2380,7 +2368,7 @@ class InvokeInst : public TerminatorInst {
   template<typename InputIterator>
   void init(Value *Func, BasicBlock *IfNormal, BasicBlock *IfException,
             InputIterator ArgBegin, InputIterator ArgEnd,
-            const std::string &NameStr,
+            const Twine &NameStr,
             // This argument ensures that we have an iterator we can
             // do arithmetic on in constant time
             std::random_access_iterator_tag) {
@@ -2402,7 +2390,7 @@ class InvokeInst : public TerminatorInst {
   inline InvokeInst(Value *Func, BasicBlock *IfNormal, BasicBlock *IfException,
                     InputIterator ArgBegin, InputIterator ArgEnd,
                     unsigned Values,
-                    const std::string &NameStr, Instruction *InsertBefore);
+                    const Twine &NameStr, Instruction *InsertBefore);
 
   /// Construct an InvokeInst given a range of arguments.
   /// InputIterator must be a random-access iterator pointing to
@@ -2415,13 +2403,13 @@ class InvokeInst : public TerminatorInst {
   inline InvokeInst(Value *Func, BasicBlock *IfNormal, BasicBlock *IfException,
                     InputIterator ArgBegin, InputIterator ArgEnd,
                     unsigned Values,
-                    const std::string &NameStr, BasicBlock *InsertAtEnd);
+                    const Twine &NameStr, BasicBlock *InsertAtEnd);
 public:
   template<typename InputIterator>
   static InvokeInst *Create(Value *Func,
                             BasicBlock *IfNormal, BasicBlock *IfException,
                             InputIterator ArgBegin, InputIterator ArgEnd,
-                            const std::string &NameStr = "",
+                            const Twine &NameStr = "",
                             Instruction *InsertBefore = 0) {
     unsigned Values(ArgEnd - ArgBegin + 3);
     return new(Values) InvokeInst(Func, IfNormal, IfException, ArgBegin, ArgEnd,
@@ -2431,7 +2419,7 @@ public:
   static InvokeInst *Create(Value *Func,
                             BasicBlock *IfNormal, BasicBlock *IfException,
                             InputIterator ArgBegin, InputIterator ArgEnd,
-                            const std::string &NameStr,
+                            const Twine &NameStr,
                             BasicBlock *InsertAtEnd) {
     unsigned Values(ArgEnd - ArgBegin + 3);
     return new(Values) InvokeInst(Func, IfNormal, IfException, ArgBegin, ArgEnd,
@@ -2445,9 +2433,11 @@ public:
 
   /// getCallingConv/setCallingConv - Get or set the calling convention of this
   /// function call.
-  unsigned getCallingConv() const { return SubclassData; }
-  void setCallingConv(unsigned CC) {
-    SubclassData = CC;
+  CallingConv::ID getCallingConv() const {
+    return static_cast<CallingConv::ID>(SubclassData);
+  }
+  void setCallingConv(CallingConv::ID CC) {
+    SubclassData = static_cast<unsigned>(CC);
   }
 
   /// getAttributes - Return the parameter attributes for this invoke.
@@ -2474,7 +2464,7 @@ public:
 
   /// @brief Determine if the call does not access memory.
   bool doesNotAccessMemory() const {
-    return paramHasAttr(0, Attribute::ReadNone);
+    return paramHasAttr(~0, Attribute::ReadNone);
   }
   void setDoesNotAccessMemory(bool NotAccessMemory = true) {
     if (NotAccessMemory) addAttribute(~0, Attribute::ReadNone);
@@ -2574,7 +2564,7 @@ private:
 };
 
 template <>
-struct OperandTraits<InvokeInst> : VariadicOperandTraits<3> {
+struct OperandTraits<InvokeInst> : public VariadicOperandTraits<3> {
 };
 
 template<typename InputIterator>
@@ -2582,7 +2572,7 @@ InvokeInst::InvokeInst(Value *Func,
                        BasicBlock *IfNormal, BasicBlock *IfException,
                        InputIterator ArgBegin, InputIterator ArgEnd,
                        unsigned Values,
-                       const std::string &NameStr, Instruction *InsertBefore)
+                       const Twine &NameStr, Instruction *InsertBefore)
   : TerminatorInst(cast<FunctionType>(cast<PointerType>(Func->getType())
                                       ->getElementType())->getReturnType(),
                    Instruction::Invoke,
@@ -2596,7 +2586,7 @@ InvokeInst::InvokeInst(Value *Func,
                        BasicBlock *IfNormal, BasicBlock *IfException,
                        InputIterator ArgBegin, InputIterator ArgEnd,
                        unsigned Values,
-                       const std::string &NameStr, BasicBlock *InsertAtEnd)
+                       const Twine &NameStr, BasicBlock *InsertAtEnd)
   : TerminatorInst(cast<FunctionType>(cast<PointerType>(Func->getType())
                                       ->getElementType())->getReturnType(),
                    Instruction::Invoke,
@@ -2623,8 +2613,8 @@ public:
   void *operator new(size_t s) {
     return User::operator new(s, 0);
   }
-  explicit UnwindInst(Instruction *InsertBefore = 0);
-  explicit UnwindInst(BasicBlock *InsertAtEnd);
+  explicit UnwindInst(LLVMContext &C, Instruction *InsertBefore = 0);
+  explicit UnwindInst(LLVMContext &C, BasicBlock *InsertAtEnd);
 
   virtual UnwindInst *clone() const;
 
@@ -2660,8 +2650,8 @@ public:
   void *operator new(size_t s) {
     return User::operator new(s, 0);
   }
-  explicit UnreachableInst(Instruction *InsertBefore = 0);
-  explicit UnreachableInst(BasicBlock *InsertAtEnd);
+  explicit UnreachableInst(LLVMContext &C, Instruction *InsertBefore = 0);
+  explicit UnreachableInst(LLVMContext &C, BasicBlock *InsertAtEnd);
 
   virtual UnreachableInst *clone() const;
 
@@ -2687,16 +2677,12 @@ private:
 
 /// @brief This class represents a truncation of integer types.
 class TruncInst : public CastInst {
-  /// Private copy constructor
-  TruncInst(const TruncInst &CI)
-    : CastInst(CI.getType(), Trunc, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   TruncInst(
     Value *S,                     ///< The value to be truncated
     const Type *Ty,               ///< The (smaller) type to truncate to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2704,12 +2690,12 @@ public:
   TruncInst(
     Value *S,                     ///< The value to be truncated
     const Type *Ty,               ///< The (smaller) type to truncate to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical TruncInst
-  virtual CastInst *clone() const;
+  virtual TruncInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const TruncInst *) { return true; }
@@ -2727,16 +2713,12 @@ public:
 
 /// @brief This class represents zero extension of integer types.
 class ZExtInst : public CastInst {
-  /// @brief Private copy constructor
-  ZExtInst(const ZExtInst &CI)
-    : CastInst(CI.getType(), ZExt, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   ZExtInst(
     Value *S,                     ///< The value to be zero extended
     const Type *Ty,               ///< The type to zero extend to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2744,12 +2726,12 @@ public:
   ZExtInst(
     Value *S,                     ///< The value to be zero extended
     const Type *Ty,               ///< The type to zero extend to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical ZExtInst
-  virtual CastInst *clone() const;
+  virtual ZExtInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const ZExtInst *) { return true; }
@@ -2767,16 +2749,12 @@ public:
 
 /// @brief This class represents a sign extension of integer types.
 class SExtInst : public CastInst {
-  /// @brief Private copy constructor
-  SExtInst(const SExtInst &CI)
-    : CastInst(CI.getType(), SExt, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   SExtInst(
     Value *S,                     ///< The value to be sign extended
     const Type *Ty,               ///< The type to sign extend to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2784,12 +2762,12 @@ public:
   SExtInst(
     Value *S,                     ///< The value to be sign extended
     const Type *Ty,               ///< The type to sign extend to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical SExtInst
-  virtual CastInst *clone() const;
+  virtual SExtInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const SExtInst *) { return true; }
@@ -2807,15 +2785,12 @@ public:
 
 /// @brief This class represents a truncation of floating point types.
 class FPTruncInst : public CastInst {
-  FPTruncInst(const FPTruncInst &CI)
-    : CastInst(CI.getType(), FPTrunc, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   FPTruncInst(
     Value *S,                     ///< The value to be truncated
     const Type *Ty,               ///< The type to truncate to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2823,12 +2798,12 @@ public:
   FPTruncInst(
     Value *S,                     ///< The value to be truncated
     const Type *Ty,               ///< The type to truncate to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical FPTruncInst
-  virtual CastInst *clone() const;
+  virtual FPTruncInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const FPTruncInst *) { return true; }
@@ -2846,15 +2821,12 @@ public:
 
 /// @brief This class represents an extension of floating point types.
 class FPExtInst : public CastInst {
-  FPExtInst(const FPExtInst &CI)
-    : CastInst(CI.getType(), FPExt, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   FPExtInst(
     Value *S,                     ///< The value to be extended
     const Type *Ty,               ///< The type to extend to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2862,12 +2834,12 @@ public:
   FPExtInst(
     Value *S,                     ///< The value to be extended
     const Type *Ty,               ///< The type to extend to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical FPExtInst
-  virtual CastInst *clone() const;
+  virtual FPExtInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const FPExtInst *) { return true; }
@@ -2885,15 +2857,12 @@ public:
 
 /// @brief This class represents a cast unsigned integer to floating point.
 class UIToFPInst : public CastInst {
-  UIToFPInst(const UIToFPInst &CI)
-    : CastInst(CI.getType(), UIToFP, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   UIToFPInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2901,12 +2870,12 @@ public:
   UIToFPInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical UIToFPInst
-  virtual CastInst *clone() const;
+  virtual UIToFPInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const UIToFPInst *) { return true; }
@@ -2924,15 +2893,12 @@ public:
 
 /// @brief This class represents a cast from signed integer to floating point.
 class SIToFPInst : public CastInst {
-  SIToFPInst(const SIToFPInst &CI)
-    : CastInst(CI.getType(), SIToFP, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   SIToFPInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2940,12 +2906,12 @@ public:
   SIToFPInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical SIToFPInst
-  virtual CastInst *clone() const;
+  virtual SIToFPInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const SIToFPInst *) { return true; }
@@ -2963,15 +2929,12 @@ public:
 
 /// @brief This class represents a cast from floating point to unsigned integer
 class FPToUIInst  : public CastInst {
-  FPToUIInst(const FPToUIInst &CI)
-    : CastInst(CI.getType(), FPToUI, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   FPToUIInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -2979,12 +2942,12 @@ public:
   FPToUIInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< Where to insert the new instruction
   );
 
   /// @brief Clone an identical FPToUIInst
-  virtual CastInst *clone() const;
+  virtual FPToUIInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const FPToUIInst *) { return true; }
@@ -3002,15 +2965,12 @@ public:
 
 /// @brief This class represents a cast from floating point to signed integer.
 class FPToSIInst  : public CastInst {
-  FPToSIInst(const FPToSIInst &CI)
-    : CastInst(CI.getType(), FPToSI, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   FPToSIInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -3018,12 +2978,12 @@ public:
   FPToSIInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical FPToSIInst
-  virtual CastInst *clone() const;
+  virtual FPToSIInst *clone() const;
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const FPToSIInst *) { return true; }
@@ -3041,15 +3001,12 @@ public:
 
 /// @brief This class represents a cast from an integer to a pointer.
 class IntToPtrInst : public CastInst {
-  IntToPtrInst(const IntToPtrInst &CI)
-    : CastInst(CI.getType(), IntToPtr, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   IntToPtrInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -3057,12 +3014,12 @@ public:
   IntToPtrInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical IntToPtrInst
-  virtual CastInst *clone() const;
+  virtual IntToPtrInst *clone() const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const IntToPtrInst *) { return true; }
@@ -3080,15 +3037,12 @@ public:
 
 /// @brief This class represents a cast from a pointer to an integer
 class PtrToIntInst : public CastInst {
-  PtrToIntInst(const PtrToIntInst &CI)
-    : CastInst(CI.getType(), PtrToInt, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   PtrToIntInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -3096,12 +3050,12 @@ public:
   PtrToIntInst(
     Value *S,                     ///< The value to be converted
     const Type *Ty,               ///< The type to convert to
-    const std::string &NameStr,   ///< A name for the new instruction
+    const Twine &NameStr,   ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical PtrToIntInst
-  virtual CastInst *clone() const;
+  virtual PtrToIntInst *clone() const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const PtrToIntInst *) { return true; }
@@ -3119,15 +3073,12 @@ public:
 
 /// @brief This class represents a no-op cast from one type to another.
 class BitCastInst : public CastInst {
-  BitCastInst(const BitCastInst &CI)
-    : CastInst(CI.getType(), BitCast, CI.getOperand(0)) {
-  }
 public:
   /// @brief Constructor with insert-before-instruction semantics
   BitCastInst(
     Value *S,                     ///< The value to be casted
     const Type *Ty,               ///< The type to casted to
-    const std::string &NameStr = "", ///< A name for the new instruction
+    const Twine &NameStr = "", ///< A name for the new instruction
     Instruction *InsertBefore = 0 ///< Where to insert the new instruction
   );
 
@@ -3135,12 +3086,12 @@ public:
   BitCastInst(
     Value *S,                     ///< The value to be casted
     const Type *Ty,               ///< The type to casted to
-    const std::string &NameStr,      ///< A name for the new instruction
+    const Twine &NameStr,      ///< A name for the new instruction
     BasicBlock *InsertAtEnd       ///< The block to insert the instruction into
   );
 
   /// @brief Clone an identical BitCastInst
-  virtual CastInst *clone() const;
+  virtual BitCastInst *clone() const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const BitCastInst *) { return true; }

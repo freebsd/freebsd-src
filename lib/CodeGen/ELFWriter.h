@@ -16,23 +16,35 @@
 
 #include "llvm/ADT/SetVector.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include <list>
 #include <map>
 
 namespace llvm {
   class BinaryObject;
   class Constant;
+  class ConstantInt;
   class ConstantStruct;
   class ELFCodeEmitter;
+  class ELFRelocation;
+  class ELFSection;
+  struct ELFSym;
   class GlobalVariable;
+  class JITDebugRegisterer;
   class Mangler;
   class MachineCodeEmitter;
-  class TargetAsmInfo;
+  class MachineConstantPoolEntry;
+  class ObjectCodeEmitter;
+  class MCAsmInfo;
   class TargetELFWriterInfo;
+  class TargetLoweringObjectFile;
   class raw_ostream;
-  class ELFSection;
-  class ELFSym;
-  class ELFRelocation;
+  class SectionKind;
+  class MCContext;
+
+  typedef std::vector<ELFSym*>::iterator ELFSymIter;
+  typedef std::vector<ELFSection*>::iterator ELFSectionIter;
+  typedef SetVector<const GlobalValue*>::const_iterator PendingGblsIter;
+  typedef SetVector<const char *>::const_iterator PendingExtsIter;
+  typedef std::pair<const Constant *, int64_t> CstExprResTy;
 
   /// ELFWriter - This class implements the common target-independent code for
   /// writing ELF files.  Targets should derive a class from this to
@@ -40,17 +52,17 @@ namespace llvm {
   ///
   class ELFWriter : public MachineFunctionPass {
     friend class ELFCodeEmitter;
+    friend class JITDebugRegisterer;
   public:
     static char ID;
 
-    MachineCodeEmitter &getMachineCodeEmitter() const {
-      return *(MachineCodeEmitter*)MCE;
+    /// Return the ELFCodeEmitter as an instance of ObjectCodeEmitter
+    ObjectCodeEmitter *getObjectCodeEmitter() {
+      return reinterpret_cast<ObjectCodeEmitter*>(ElfCE);
     }
 
     ELFWriter(raw_ostream &O, TargetMachine &TM);
     ~ELFWriter();
-
-    typedef std::vector<unsigned char> DataBuffer;
 
   protected:
     /// Output stream to send the resultant object file to.
@@ -59,6 +71,9 @@ namespace llvm {
     /// Target machine description.
     TargetMachine &TM;
 
+    /// Context object for machine code objects.
+    MCContext &OutContext;
+    
     /// Target Elf Writer description.
     const TargetELFWriterInfo *TEW;
 
@@ -67,11 +82,15 @@ namespace llvm {
 
     /// MCE - The MachineCodeEmitter object that we are exposing to emit machine
     /// code for functions to the .o file.
-    ELFCodeEmitter *MCE;
+    ELFCodeEmitter *ElfCE;
 
-    /// TAI - Target Asm Info, provide information about section names for
+    /// TLOF - Target Lowering Object File, provide section names for globals 
+    /// and other object file specific stuff
+    const TargetLoweringObjectFile &TLOF;
+
+    /// MAI - Target Asm Info, provide information about section names for
     /// globals and other target specific stuff.
-    const TargetAsmInfo *TAI;
+    const MCAsmInfo *MAI;
 
     //===------------------------------------------------------------------===//
     // Properties inferred automatically from the target machine.
@@ -95,96 +114,55 @@ namespace llvm {
     BinaryObject ElfHdr;
 
     /// SectionList - This is the list of sections that we have emitted to the
-    /// file.  Once the file has been completely built, the section header table
+    /// file. Once the file has been completely built, the section header table
     /// is constructed from this info.
-    std::list<ELFSection> SectionList;
+    std::vector<ELFSection*> SectionList;
     unsigned NumSections;   // Always = SectionList.size()
 
     /// SectionLookup - This is a mapping from section name to section number in
-    /// the SectionList.
+    /// the SectionList. Used to quickly gather the Section Index from MAI names
     std::map<std::string, ELFSection*> SectionLookup;
 
+    /// PendingGlobals - Globals not processed as symbols yet.
+    SetVector<const GlobalValue*> PendingGlobals;
+
     /// GblSymLookup - This is a mapping from global value to a symbol index
-    /// in the symbol table. This is useful since relocations symbol references
-    /// must be quickly mapped to a symbol table index
+    /// in the symbol table or private symbols list. This is useful since reloc
+    /// symbol references must be quickly mapped to their indices on the lists.
     std::map<const GlobalValue*, uint32_t> GblSymLookup;
 
-    /// SymbolList - This is the list of symbols emitted to the symbol table
-    /// Local symbols go to the front and Globals to the back.
-    std::list<ELFSym> SymbolList;
+    /// PendingExternals - Externals not processed as symbols yet.
+    SetVector<const char *> PendingExternals;
 
-    /// PendingGlobals - List of externally defined symbols that we have been
-    /// asked to emit, but have not seen a reference to.  When a reference
-    /// is seen, the symbol will move from this list to the SymbolList.
-    SetVector<GlobalValue*> PendingGlobals;
+    /// ExtSymLookup - This is a mapping from externals to a symbol index
+    /// in the symbol table list. This is useful since reloc symbol references
+    /// must be quickly mapped to their symbol table indices.
+    std::map<const char *, uint32_t> ExtSymLookup;
 
-    // Remove tab from section name prefix. This is necessary becase TAI 
-    // sometimes return a section name prefixed with a "\t" char. This is
-    // a little bit dirty. FIXME: find a better approach, maybe add more
-    // methods to TAI to get the clean name?
-    void fixNameForSection(std::string &Name) {
-      size_t Pos = Name.find("\t");
-      if (Pos != std::string::npos)
-        Name.erase(Pos, 1);
+    /// SymbolList - This is the list of symbols emitted to the symbol table.
+    /// When the SymbolList is finally built, local symbols must be placed in
+    /// the beginning while non-locals at the end.
+    std::vector<ELFSym*> SymbolList;
 
-      Pos = Name.find(".section ");
-      if (Pos != std::string::npos)
-        Name.erase(Pos, 9);
-
-      Pos = Name.find("\n");
-      if (Pos != std::string::npos)
-        Name.erase(Pos, 1);
-    }
+    /// PrivateSyms - Record private symbols, every symbol here must never be
+    /// present in the SymbolList.
+    std::vector<ELFSym*> PrivateSyms;
 
     /// getSection - Return the section with the specified name, creating a new
     /// section if one does not already exist.
     ELFSection &getSection(const std::string &Name, unsigned Type,
                            unsigned Flags = 0, unsigned Align = 0) {
-      std::string SectionName(Name);
-      fixNameForSection(SectionName);
-
-      ELFSection *&SN = SectionLookup[SectionName];
+      ELFSection *&SN = SectionLookup[Name];
       if (SN) return *SN;
 
-      SectionList.push_back(ELFSection(SectionName, isLittleEndian, is64Bit));
-      SN = &SectionList.back();
+      SectionList.push_back(new ELFSection(Name, isLittleEndian, is64Bit));
+      SN = SectionList.back();
       SN->SectionIdx = NumSections++;
       SN->Type = Type;
       SN->Flags = Flags;
       SN->Link = ELFSection::SHN_UNDEF;
       SN->Align = Align;
       return *SN;
-    }
-
-    /// TODO: support mangled names here to emit the right .text section
-    /// for c++ object files.
-    ELFSection &getTextSection() {
-      return getSection(".text", ELFSection::SHT_PROGBITS,
-                        ELFSection::SHF_EXECINSTR | ELFSection::SHF_ALLOC);
-    }
-
-    /// Get jump table section on the section name returned by TAI
-    ELFSection &getJumpTableSection(std::string SName, unsigned Align) {
-      return getSection(SName, ELFSection::SHT_PROGBITS,
-                        ELFSection::SHF_ALLOC, Align);
-    }
-
-    /// Get a constant pool section based on the section name returned by TAI
-    ELFSection &getConstantPoolSection(std::string SName, unsigned Align) {
-      return getSection(SName, ELFSection::SHT_PROGBITS,
-                        ELFSection::SHF_MERGE | ELFSection::SHF_ALLOC, Align);
-    }
-
-    /// Return the relocation section of section 'S'. 'RelA' is true
-    /// if the relocation section contains entries with addends.
-    ELFSection &getRelocSection(std::string SName, bool RelA, unsigned Align) {
-      std::string RelSName(".rel");
-      unsigned SHdrTy = RelA ? ELFSection::SHT_RELA : ELFSection::SHT_REL;
-
-      if (RelA) RelSName.append("a");
-      RelSName.append(SName);
-
-      return getSection(RelSName, SHdrTy, 0, Align);
     }
 
     ELFSection &getNonExecStackSection() {
@@ -203,24 +181,38 @@ namespace llvm {
       return getSection(".shstrtab", ELFSection::SHT_STRTAB, 0, 1);
     }
 
-    ELFSection &getDataSection() {
-      return getSection(".data", ELFSection::SHT_PROGBITS,
-                        ELFSection::SHF_WRITE | ELFSection::SHF_ALLOC, 4);
-    }
-
-    ELFSection &getBSSSection() {
-      return getSection(".bss", ELFSection::SHT_NOBITS,
-                        ELFSection::SHF_WRITE | ELFSection::SHF_ALLOC, 4);
-    }
-
     ELFSection &getNullSection() {
       return getSection("", ELFSection::SHT_NULL, 0);
     }
 
+    ELFSection &getDataSection();
+    ELFSection &getBSSSection();
+    ELFSection &getCtorSection();
+    ELFSection &getDtorSection();
+    ELFSection &getJumpTableSection();
+    ELFSection &getConstantPoolSection(MachineConstantPoolEntry &CPE);
+    ELFSection &getTextSection(Function *F);
+    ELFSection &getRelocSection(ELFSection &S);
+
     // Helpers for obtaining ELF specific info.
-    unsigned getGlobalELFLinkage(const GlobalValue *GV);
+    unsigned getGlobalELFBinding(const GlobalValue *GV);
+    unsigned getGlobalELFType(const GlobalValue *GV);
     unsigned getGlobalELFVisibility(const GlobalValue *GV);
-    unsigned getElfSectionFlags(unsigned Flags);
+
+    // AddPendingGlobalSymbol - Add a global to be processed and to
+    // the global symbol lookup, use a zero index because the table
+    // index will be determined later.
+    void AddPendingGlobalSymbol(const GlobalValue *GV, 
+                                bool AddToLookup = false);
+    
+    // AddPendingExternalSymbol - Add the external to be processed
+    // and to the external symbol lookup, use a zero index because
+    // the symbol table index will be determined later.
+    void AddPendingExternalSymbol(const char *External);
+
+    // AddToSymbolList - Update the symbol lookup and If the symbol is 
+    // private add it to PrivateSyms list, otherwise to SymbolList. 
+    void AddToSymbolList(ELFSym *GblSym);
 
     // As we complete the ELF file, we need to update fields in the ELF header
     // (e.g. the location of the section table).  These members keep track of
@@ -231,20 +223,27 @@ namespace llvm {
     unsigned ELFHdr_e_shnum_Offset;     // e_shnum    in ELF header.
 
   private:
-    void EmitFunctionDeclaration(const Function *F);
-    void EmitGlobalVar(const GlobalVariable *GV);
+    void EmitGlobal(const GlobalValue *GV);
     void EmitGlobalConstant(const Constant *C, ELFSection &GblS);
     void EmitGlobalConstantStruct(const ConstantStruct *CVS,
                                   ELFSection &GblS);
-    ELFSection &getGlobalSymELFSection(const GlobalVariable *GV, ELFSym &Sym);
+    void EmitGlobalConstantLargeInt(const ConstantInt *CI, ELFSection &S);
+    void EmitGlobalDataRelocation(const GlobalValue *GV, unsigned Size, 
+                                  ELFSection &GblS, int64_t Offset = 0);
+    bool EmitSpecialLLVMGlobal(const GlobalVariable *GV);
+    void EmitXXStructorList(Constant *List, ELFSection &Xtor);
     void EmitRelocations();
     void EmitRelocation(BinaryObject &RelSec, ELFRelocation &Rel, bool HasRelA);
     void EmitSectionHeader(BinaryObject &SHdrTab, const ELFSection &SHdr);
     void EmitSectionTableStringTable();
     void EmitSymbol(BinaryObject &SymbolTable, ELFSym &Sym);
     void EmitSymbolTable();
-    void EmitStringTable();
+    void EmitStringTable(const std::string &ModuleName);
     void OutputSectionsAndSectionTable();
+    void RelocateField(BinaryObject &BO, uint32_t Offset, int64_t Value,
+                       unsigned Size);
+    unsigned SortSymbols();
+    CstExprResTy ResolveConstantExpr(const Constant *CV);
   };
 }
 

@@ -196,7 +196,8 @@ TEST_F(SmallVectorTest, ResizeGrowTest) {
 
   theVector.resize(2);
   
-  // XXX: I don't know where the extra construct/destruct is coming from.
+  // The extra constructor/destructor calls come from the temporary object used
+  // to initialize the contents of the resized array (via copy construction).
   EXPECT_EQ(3, Constructable::getNumConstructorCalls());
   EXPECT_EQ(1, Constructable::getNumDestructorCalls());
   EXPECT_EQ(2u, theVector.size());
@@ -214,16 +215,16 @@ TEST_F(SmallVectorTest, ResizeFillTest) {
 TEST_F(SmallVectorTest, OverflowTest) {
   SCOPED_TRACE("OverflowTest");
 
-  // Push more elements than the fixed size
+  // Push more elements than the fixed size.
   makeSequence(theVector, 1, 10);
 
-  // test size and values
+  // Test size and values.
   EXPECT_EQ(10u, theVector.size());
   for (int i = 0; i < 10; ++i) {
     EXPECT_EQ(i+1, theVector[i].getValue());
   }
   
-  // Now resize back to fixed size
+  // Now resize back to fixed size.
   theVector.resize(1);
   
   assertValuesInOrder(theVector, 1u, 1);
@@ -378,6 +379,24 @@ TEST_F(SmallVectorTest, ConstVectorTest) {
   EXPECT_EQ(0u, constVector.size());
   EXPECT_TRUE(constVector.empty());
   EXPECT_TRUE(constVector.begin() == constVector.end());
+}
+
+// Direct array access.
+TEST_F(SmallVectorTest, DirectVectorTest) {
+  EXPECT_EQ(0u, theVector.size());
+  EXPECT_EQ(4u, theVector.capacity());
+  EXPECT_EQ(0, Constructable::getNumConstructorCalls());
+  theVector.end()[0] = 1;
+  theVector.end()[1] = 2;
+  theVector.end()[2] = 3;
+  theVector.end()[3] = 4;
+  theVector.set_size(4);
+  EXPECT_EQ(4u, theVector.size());
+  EXPECT_EQ(4, Constructable::getNumConstructorCalls());
+  EXPECT_EQ(1, theVector[0].getValue());
+  EXPECT_EQ(2, theVector[1].getValue());
+  EXPECT_EQ(3, theVector[2].getValue());
+  EXPECT_EQ(4, theVector[3].getValue());
 }
 
 }

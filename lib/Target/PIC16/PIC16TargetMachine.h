@@ -37,12 +37,9 @@ class PIC16TargetMachine : public LLVMTargetMachine {
   // any PIC16 specific FrameInfo class.
   TargetFrameInfo       FrameInfo;
 
-protected:
-  virtual const TargetAsmInfo *createTargetAsmInfo() const;
-
 public:
-  PIC16TargetMachine(const Module &M, const std::string &FS, 
-                     bool Cooper = false);
+  PIC16TargetMachine(const Target &T, const std::string &TT,
+                     const std::string &FS, bool Cooper = false);
 
   virtual const TargetFrameInfo *getFrameInfo() const { return &FrameInfo; }
   virtual const PIC16InstrInfo *getInstrInfo() const  { return &InstrInfo; }
@@ -59,17 +56,8 @@ public:
 
   virtual bool addInstSelector(PassManagerBase &PM,
                                CodeGenOpt::Level OptLevel);
-  virtual bool addAssemblyEmitter(PassManagerBase &PM,
-                                  CodeGenOpt::Level OptLevel,
-                                  bool Verbose, raw_ostream &Out);
-  virtual bool addPostRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
+  virtual bool addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
 }; // PIC16TargetMachine.
-
-/// CooperTargetMachine
-class CooperTargetMachine : public PIC16TargetMachine {
-public:
-  CooperTargetMachine(const Module &M, const std::string &FS);
-}; // CooperTargetMachine.
 
 } // end namespace llvm
 

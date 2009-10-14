@@ -32,9 +32,7 @@ namespace {
 
       (void) llvm::createDeadMachineInstructionElimPass();
 
-      (void) llvm::createSimpleRegisterAllocator();
       (void) llvm::createLocalRegisterAllocator();
-      (void) llvm::createBigBlockRegisterAllocator();
       (void) llvm::createLinearScanRegisterAllocator();
       (void) llvm::createPBQPRegisterAllocator();
 

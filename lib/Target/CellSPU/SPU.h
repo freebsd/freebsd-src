@@ -21,12 +21,9 @@
 namespace llvm {
   class SPUTargetMachine;
   class FunctionPass;
-  class raw_ostream;
+  class formatted_raw_ostream;
 
   FunctionPass *createSPUISelDag(SPUTargetMachine &TM);
-  FunctionPass *createSPUAsmPrinterPass(raw_ostream &o,
-                                        SPUTargetMachine &tm,
-                                        bool verbose);
 
   /*--== Utility functions/predicates/etc used all over the place: --==*/
   //! Predicate test for a signed 10-bit value
@@ -92,6 +89,9 @@ namespace llvm {
   inline bool isU10Constant(uint64_t Value) {
     return (Value == (Value & 0x3ff));
   }
+
+  extern Target TheCellSPUTarget;
+
 }
 
 // Defines symbolic names for the SPU instructions.

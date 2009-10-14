@@ -9,7 +9,7 @@ set -o errexit
 echo -n "Welcome to LLVM Linux/X86_64 -> Linux/ARM crosstool "
 echo "builder/installer; some steps will require sudo privileges."
 
-readonly INSTALL_ROOT="${INSTALL_ROOT:-/usr/local}"
+readonly INSTALL_ROOT="${INSTALL_ROOT:-/usr/local/crosstool}"
 # Both $USER and root *must* have read/write access to this dir.
 readonly SCRATCH_ROOT=$(mktemp -d "${TMPDIR:-/tmp}/llvm-project.XXXXXX")
 readonly SRC_ROOT="${SCRATCH_ROOT}/src"
@@ -17,6 +17,7 @@ readonly OBJ_ROOT="${SCRATCH_ROOT}/obj"
 
 readonly CROSS_HOST="x86_64-unknown-linux-gnu"
 readonly CROSS_TARGET="arm-none-linux-gnueabi"
+readonly CROSS_MARCH="${CROSS_MARCH:-armv6}"
 
 readonly CODE_SOURCERY="${INSTALL_ROOT}/codesourcery"
 readonly CODE_SOURCERY_PKG_PATH="${CODE_SOURCERY_PKG_PATH:-${HOME}/codesourcery}"
@@ -32,33 +33,23 @@ readonly CROSS_TARGET_LD="${CODE_SOURCERY_BIN}/${CROSS_TARGET}-ld"
 
 readonly SYSROOT="${CODE_SOURCERY_ROOT}/${CROSS_TARGET}/libc"
 
-readonly LLVM_PROJECT="${INSTALL_ROOT}/llvm-project"
-readonly LLVM_INSTALL_ROOT="${LLVM_PROJECT}/${CROSS_HOST}/${CROSS_TARGET}"
 readonly LLVM_PKG_PATH="${LLVM_PKG_PATH:-${HOME}/llvm-project/snapshots}"
 
-# Latest SVN revision known to be working in this configuration.
-readonly LLVM_DEFAULT_REV="70786"
+# Latest SVN revisions known to be working in this configuration.
+readonly LLVM_DEFAULT_REV="74530"
+readonly LLVMGCC_DEFAULT_REV="74535"
 
 readonly LLVM_PKG="llvm-${LLVM_SVN_REV:-${LLVM_DEFAULT_REV}}.tar.bz2"
 readonly LLVM_SRC_DIR="${SRC_ROOT}/llvm"
 readonly LLVM_OBJ_DIR="${OBJ_ROOT}/llvm"
-readonly LLVM_INSTALL_DIR="${LLVM_INSTALL_ROOT}/llvm"
+readonly LLVM_INSTALL_DIR="${INSTALL_ROOT}/${CROSS_TARGET}/llvm"
 
-readonly LLVMGCC_PKG="llvm-gcc-4.2-${LLVMGCC_SVN_REV:-${LLVM_DEFAULT_REV}}.tar.bz2"
+readonly LLVMGCC_PKG="llvm-gcc-4.2-${LLVMGCC_SVN_REV:-${LLVMGCC_DEFAULT_REV}}.tar.bz2"
 readonly LLVMGCC_SRC_DIR="${SRC_ROOT}/llvm-gcc-4.2"
 readonly LLVMGCC_OBJ_DIR="${OBJ_ROOT}/llvm-gcc-4.2"
-readonly LLVMGCC_INSTALL_DIR="${LLVM_INSTALL_ROOT}/llvm-gcc-4.2"
+readonly LLVMGCC_INSTALL_DIR="${INSTALL_ROOT}/${CROSS_TARGET}/llvm-gcc-4.2"
 
-readonly MAKE_OPTS="-j2"
-
-# Verify we aren't going to install into an existing directory as this might
-# create problems as we won't have a clean install.
-verifyNotDir() {
-  if [[ -d $1 ]]; then
-    echo "Install dir $1 already exists; remove it to continue."
-    exit
-  fi
-}
+readonly MAKE_OPTS="${MAKE_OPTS:--j2}"
 
 # Params:
 #   $1: directory to be created
@@ -104,12 +95,9 @@ runAndLog() {
 }
 
 installCodeSourcery() {
-  # Create CodeSourcery dir, if necessary.
-  verifyNotDir ${CODE_SOURCERY}
-  sudoCreateDir ${CODE_SOURCERY}
-
-  # Unpack the tarball.
+  # Unpack the tarball, creating the CodeSourcery dir, if necessary.
   if [[ ! -d ${CODE_SOURCERY_ROOT} ]]; then
+    sudoCreateDir ${CODE_SOURCERY}
     cd ${CODE_SOURCERY}
     if [[ -e ${CODE_SOURCERY_PKG_PATH}/${CODE_SOURCERY_PKG} ]]; then
       runCommand "Unpacking CodeSourcery in ${CODE_SOURCERY}" \
@@ -122,7 +110,7 @@ installCodeSourcery() {
       exit
     fi
   else
-    echo "CodeSourcery install dir already exists."
+    echo "CodeSourcery install dir already exists; skipping."
   fi
 
   # Verify our CodeSourcery toolchain installation.
@@ -141,7 +129,11 @@ installCodeSourcery() {
 }
 
 installLLVM() {
-  verifyNotDir ${LLVM_INSTALL_DIR}
+  if [[ -d ${LLVM_INSTALL_DIR} ]]; then
+    echo "LLVM install dir ${LLVM_INSTALL_DIR} exists; skipping."
+    return
+  fi
+
   sudoCreateDir ${LLVM_INSTALL_DIR}
 
   # Unpack LLVM tarball; should create the directory "llvm".
@@ -165,7 +157,11 @@ installLLVM() {
 }
 
 installLLVMGCC() {
-  verifyNotDir ${LLVMGCC_INSTALL_DIR}
+  if [[ -d ${LLVMGCC_INSTALL_DIR} ]]; then
+    echo "LLVM-GCC install dir ${LLVMGCC_INSTALL_DIR} exists; skipping."
+    return
+  fi
+
   sudoCreateDir ${LLVMGCC_INSTALL_DIR}
 
   # Unpack LLVM-GCC tarball; should create the directory "llvm-gcc-4.2".
@@ -182,8 +178,9 @@ installLLVMGCC() {
       --prefix=${LLVMGCC_INSTALL_DIR} \
       --program-prefix=llvm- \
       --target=${CROSS_TARGET} \
-      --with-gnu-as=${CROSS_TARGET_AS} \
-      --with-gnu-ld=${CROSS_TARGET_LD} \
+      --with-arch=${CROSS_MARCH} \
+      --with-as=${CROSS_TARGET_AS} \
+      --with-ld=${CROSS_TARGET_LD} \
       --with-sysroot=${SYSROOT}
   runAndLog "Building LLVM-GCC" ${LLVMGCC_OBJ_DIR}/llvmgcc-build.log \
       make

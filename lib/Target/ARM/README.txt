@@ -537,3 +537,66 @@ Split out LDR (literal) from normal ARM LDR instruction. Also consider spliting
 LDR into imm12 and so_reg forms. This allows us to clean up some code. e.g.
 ARMLoadStoreOptimizer does not need to look at LDR (literal) and LDR (so_reg)
 while ARMConstantIslandPass only need to worry about LDR (literal).
+
+//===---------------------------------------------------------------------===//
+
+We need to fix constant isel for ARMv6t2 to use MOVT.
+
+//===---------------------------------------------------------------------===//
+
+Constant island pass should make use of full range SoImm values for LEApcrel.
+Be careful though as the last attempt caused infinite looping on lencod.
+
+//===---------------------------------------------------------------------===//
+
+Predication issue. This function:   
+
+extern unsigned array[ 128 ];
+int     foo( int x ) {
+  int     y;
+  y = array[ x & 127 ];
+  if ( x & 128 )
+     y = 123456789 & ( y >> 2 );
+  else
+     y = 123456789 & y;
+  return y;
+}
+
+compiles to:
+
+_foo:
+	and r1, r0, #127
+	ldr r2, LCPI1_0
+	ldr r2, [r2]
+	ldr r1, [r2, +r1, lsl #2]
+	mov r2, r1, lsr #2
+	tst r0, #128
+	moveq r2, r1
+	ldr r0, LCPI1_1
+	and r0, r2, r0
+	bx lr
+
+It would be better to do something like this, to fold the shift into the
+conditional move:
+
+	and r1, r0, #127
+	ldr r2, LCPI1_0
+	ldr r2, [r2]
+	ldr r1, [r2, +r1, lsl #2]
+	tst r0, #128
+	movne r1, r1, lsr #2
+	ldr r0, LCPI1_1
+	and r0, r1, r0
+	bx lr
+
+it saves an instruction and a register.
+
+//===---------------------------------------------------------------------===//
+
+add/sub/and/or + i32 imm can be simplified by folding part of the immediate
+into the operation.
+
+//===---------------------------------------------------------------------===//
+
+It might be profitable to cse MOVi16 if there are lots of 32-bit immediates
+with the same bottom half.

@@ -51,7 +51,6 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "loop-index-split"
-
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
@@ -61,7 +60,6 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/Statistic.h"
 
@@ -73,8 +71,7 @@ STATISTIC(NumRestrictBounds, "Number of loop iteration space restricted");
 
 namespace {
 
-  class VISIBILITY_HIDDEN LoopIndexSplit : public LoopPass {
-
+  class LoopIndexSplit : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
     LoopIndexSplit() : LoopPass(&ID) {}
@@ -294,31 +291,33 @@ static bool isUsedOutsideLoop(Value *V, Loop *L) {
 
 // Return V+1
 static Value *getPlusOne(Value *V, bool Sign, Instruction *InsertPt, 
-                         LLVMContext* Context) {
-  Constant *One = Context->getConstantInt(V->getType(), 1, Sign);
+                         LLVMContext &Context) {
+  Constant *One = ConstantInt::get(V->getType(), 1, Sign);
   return BinaryOperator::CreateAdd(V, One, "lsp", InsertPt);
 }
 
 // Return V-1
 static Value *getMinusOne(Value *V, bool Sign, Instruction *InsertPt,
-                          LLVMContext* Context) {
-  Constant *One = Context->getConstantInt(V->getType(), 1, Sign);
+                          LLVMContext &Context) {
+  Constant *One = ConstantInt::get(V->getType(), 1, Sign);
   return BinaryOperator::CreateSub(V, One, "lsp", InsertPt);
 }
 
 // Return min(V1, V1)
 static Value *getMin(Value *V1, Value *V2, bool Sign, Instruction *InsertPt) {
  
-  Value *C = new ICmpInst(Sign ? ICmpInst::ICMP_SLT : ICmpInst::ICMP_ULT,
-                          V1, V2, "lsp", InsertPt);
+  Value *C = new ICmpInst(InsertPt,
+                          Sign ? ICmpInst::ICMP_SLT : ICmpInst::ICMP_ULT,
+                          V1, V2, "lsp");
   return SelectInst::Create(C, V1, V2, "lsp", InsertPt);
 }
 
 // Return max(V1, V2)
 static Value *getMax(Value *V1, Value *V2, bool Sign, Instruction *InsertPt) {
  
-  Value *C = new ICmpInst(Sign ? ICmpInst::ICMP_SLT : ICmpInst::ICMP_ULT,
-                          V1, V2, "lsp", InsertPt);
+  Value *C = new ICmpInst(InsertPt, 
+                          Sign ? ICmpInst::ICMP_SLT : ICmpInst::ICMP_ULT,
+                          V1, V2, "lsp");
   return SelectInst::Create(C, V2, V1, "lsp", InsertPt);
 }
 
@@ -427,15 +426,15 @@ bool LoopIndexSplit::processOneIterationLoop() {
   //      c1 = icmp uge i32 SplitValue, StartValue
   //      c2 = icmp ult i32 SplitValue, ExitValue
   //      and i32 c1, c2 
-  Instruction *C1 = new ICmpInst(ExitCondition->isSignedPredicate() ? 
+  Instruction *C1 = new ICmpInst(BR, ExitCondition->isSignedPredicate() ? 
                                  ICmpInst::ICMP_SGE : ICmpInst::ICMP_UGE,
-                                 SplitValue, StartValue, "lisplit", BR);
+                                 SplitValue, StartValue, "lisplit");
 
   CmpInst::Predicate C2P  = ExitCondition->getPredicate();
   BranchInst *LatchBR = cast<BranchInst>(Latch->getTerminator());
-  if (LatchBR->getOperand(0) != Header)
+  if (LatchBR->getOperand(1) != Header)
     C2P = CmpInst::getInversePredicate(C2P);
-  Instruction *C2 = new ICmpInst(C2P, SplitValue, ExitValue, "lisplit", BR);
+  Instruction *C2 = new ICmpInst(BR, C2P, SplitValue, ExitValue, "lisplit");
   Instruction *NSplitCond = BinaryOperator::CreateAnd(C1, C2, "lisplit", BR);
 
   SplitCondition->replaceAllUsesWith(NSplitCond);
@@ -490,6 +489,8 @@ bool LoopIndexSplit::restrictLoopBound(ICmpInst &Op) {
     EBR->setSuccessor(0, EBR->getSuccessor(1));
     EBR->setSuccessor(1, T);
   }
+
+  LLVMContext &Context = Op.getContext();
 
   // New upper and lower bounds.
   Value *NLB = NULL;
@@ -698,7 +699,8 @@ void LoopIndexSplit::removeBlocks(BasicBlock *DeadBB, Loop *LP,
          E = df_end(DN); DI != E; ++DI) {
     BasicBlock *BB = DI->getBlock();
     WorkList.push_back(BB);
-    BB->replaceAllUsesWith(UndefValue::get(Type::LabelTy));
+    BB->replaceAllUsesWith(UndefValue::get(
+                                       Type::getLabelTy(DeadBB->getContext())));
   }
 
   while (!WorkList.empty()) {
@@ -876,6 +878,8 @@ bool LoopIndexSplit::splitLoop() {
   // loop may not be split safely.
   BasicBlock *ExitingBlock = ExitCondition->getParent();
   if (!cleanBlock(ExitingBlock)) return false;
+
+  LLVMContext &Context = Header->getContext();
 
   for (Loop::block_iterator I = L->block_begin(), E = L->block_end();
        I != E; ++I) {

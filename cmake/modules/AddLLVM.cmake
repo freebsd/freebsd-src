@@ -12,6 +12,13 @@ macro(add_llvm_library name)
   install(TARGETS ${name}
     LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
     ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+  # The LLVM Target library shall be built before its sublibraries
+  # (asmprinter, etc) because those may use tablegenned files which
+  # generation is triggered by the main LLVM target library. Necessary
+  # for parallel builds:
+  if( CURRENT_LLVM_TARGET )
+    add_dependencies(${name} ${CURRENT_LLVM_TARGET})
+  endif()
 endmacro(add_llvm_library name)
 
 
@@ -26,11 +33,13 @@ macro(add_llvm_executable name)
   if( LLVM_LINK_COMPONENTS )
     llvm_config(${name} ${LLVM_LINK_COMPONENTS})
   endif( LLVM_LINK_COMPONENTS )
-  target_link_libraries(${name} ${llvm_libs})
   get_system_libs(llvm_system_libs)
   if( llvm_system_libs )
     target_link_libraries(${name} ${llvm_system_libs})
   endif()
+  if( LLVM_COMMON_DEPENDS )
+    add_dependencies( ${name} ${LLVM_COMMON_DEPENDS} )
+  endif( LLVM_COMMON_DEPENDS )
 endmacro(add_llvm_executable name)
 
 
@@ -61,4 +70,5 @@ macro(add_llvm_target target_name)
   if ( TABLEGEN_OUTPUT )
     add_dependencies(LLVM${target_name} ${target_name}Table_gen)
   endif (TABLEGEN_OUTPUT)
+  set(CURRENT_LLVM_TARGET LLVM${target_name} PARENT_SCOPE)
 endmacro(add_llvm_target)

@@ -1,5 +1,5 @@
-; RUN: llvm-as < %s | opt -gvn | llvm-dis | not grep DEADLOAD
-; RUN: llvm-as < %s | opt -gvn | llvm-dis | not grep DEADGEP
+; RUN: opt < %s -gvn -S | not grep DEADLOAD
+; RUN: opt < %s -gvn -S | not grep DEADGEP
 
 define i32 @main(i32** %p) {
 block1:

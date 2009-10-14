@@ -24,7 +24,6 @@
 #include "llvm/Constant.h"
 #include "llvm/Instruction.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include <set>
@@ -33,7 +32,7 @@ using namespace llvm;
 STATISTIC(NumInstKilled, "Number of instructions killed");
 
 namespace {
-  struct VISIBILITY_HIDDEN ConstantPropagation : public FunctionPass {
+  struct ConstantPropagation : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     ConstantPropagation() : FunctionPass(&ID) {}
 
@@ -67,7 +66,7 @@ bool ConstantPropagation::runOnFunction(Function &F) {
     WorkList.erase(WorkList.begin());    // Get an element from the worklist...
 
     if (!I->use_empty())                 // Don't muck with dead instructions...
-      if (Constant *C = ConstantFoldInstruction(I)) {
+      if (Constant *C = ConstantFoldInstruction(I, F.getContext())) {
         // Add all of the users of this instruction to the worklist, they might
         // be constant propagatable now...
         for (Value::use_iterator UI = I->use_begin(), UE = I->use_end();

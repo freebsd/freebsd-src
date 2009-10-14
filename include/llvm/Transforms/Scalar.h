@@ -220,12 +220,12 @@ extern const PassInfo *const BreakCriticalEdgesID;
 //
 //   AU.addRequiredID(LoopSimplifyID);
 //
-FunctionPass *createLoopSimplifyPass();
+Pass *createLoopSimplifyPass();
 extern const PassInfo *const LoopSimplifyID;
 
 //===----------------------------------------------------------------------===//
 //
-// LowerAllocations - Turn malloc and free instructions into %malloc and %free
+// LowerAllocations - Turn malloc and free instructions into @malloc and @free
 // calls.
 //
 //   AU.addRequiredID(LowerAllocationsID);
@@ -278,20 +278,6 @@ extern const PassInfo *const LCSSAID;
 
 //===----------------------------------------------------------------------===//
 //
-// PredicateSimplifier - This pass collapses duplicate variables into one
-// canonical form, and tries to simplify expressions along the way.
-//
-FunctionPass *createPredicateSimplifierPass();
-
-//===----------------------------------------------------------------------===//
-//
-// GVN-PRE - This pass performs global value numbering and partial redundancy
-// elimination.
-//
-FunctionPass *createGVNPREPass();
-
-//===----------------------------------------------------------------------===//
-//
 // GVN - This pass performs global value numbering and redundant load 
 // elimination cotemporaneously.
 //
@@ -329,6 +315,11 @@ FunctionPass *createSimplifyHalfPowrLibCallsPass();
 //
 FunctionPass *createCodeGenPreparePass(const TargetLowering *TLI = 0);
 
+//===----------------------------------------------------------------------===//
+//
+// CodeGenLICM - This pass performs late LICM; hoisting constants out of loops.
+//
+Pass *createCodeGenLICMPass();
   
 //===----------------------------------------------------------------------===//
 //
@@ -339,9 +330,17 @@ extern const PassInfo *const InstructionNamerID;
   
 //===----------------------------------------------------------------------===//
 //
-// SSI - This pass converts to Static Single Information form.
+// SSI - This pass converts instructions to Static Single Information form
+// on demand.
 //
 FunctionPass *createSSIPass();
+
+//===----------------------------------------------------------------------===//
+//
+// SSI - This pass converts every non-void instuction to Static Single
+// Information form.
+//
+FunctionPass *createSSIEverythingPass();
 
 } // End llvm namespace
 

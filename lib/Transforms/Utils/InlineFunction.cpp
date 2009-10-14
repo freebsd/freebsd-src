@@ -15,6 +15,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
@@ -28,12 +29,72 @@
 #include "llvm/Support/CallSite.h"
 using namespace llvm;
 
-bool llvm::InlineFunction(CallInst *CI, CallGraph *CG, const TargetData *TD) {
-  return InlineFunction(CallSite(CI), CG, TD);
+bool llvm::InlineFunction(CallInst *CI, CallGraph *CG, const TargetData *TD,
+                          SmallVectorImpl<AllocaInst*> *StaticAllocas) {
+  return InlineFunction(CallSite(CI), CG, TD, StaticAllocas);
 }
-bool llvm::InlineFunction(InvokeInst *II, CallGraph *CG, const TargetData *TD) {
-  return InlineFunction(CallSite(II), CG, TD);
+bool llvm::InlineFunction(InvokeInst *II, CallGraph *CG, const TargetData *TD,
+                          SmallVectorImpl<AllocaInst*> *StaticAllocas) {
+  return InlineFunction(CallSite(II), CG, TD, StaticAllocas);
 }
+
+
+/// HandleCallsInBlockInlinedThroughInvoke - When we inline a basic block into
+/// an invoke, we have to turn all of the calls that can throw into
+/// invokes.  This function analyze BB to see if there are any calls, and if so,
+/// it rewrites them to be invokes that jump to InvokeDest and fills in the PHI
+/// nodes in that block with the values specified in InvokeDestPHIValues.
+///
+static void HandleCallsInBlockInlinedThroughInvoke(BasicBlock *BB,
+                                                   BasicBlock *InvokeDest,
+                           const SmallVectorImpl<Value*> &InvokeDestPHIValues) {
+  for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E; ) {
+    Instruction *I = BBI++;
+    
+    // We only need to check for function calls: inlined invoke
+    // instructions require no special handling.
+    CallInst *CI = dyn_cast<CallInst>(I);
+    if (CI == 0) continue;
+    
+    // If this call cannot unwind, don't convert it to an invoke.
+    if (CI->doesNotThrow())
+      continue;
+    
+    // Convert this function call into an invoke instruction.
+    // First, split the basic block.
+    BasicBlock *Split = BB->splitBasicBlock(CI, CI->getName()+".noexc");
+    
+    // Next, create the new invoke instruction, inserting it at the end
+    // of the old basic block.
+    SmallVector<Value*, 8> InvokeArgs(CI->op_begin()+1, CI->op_end());
+    InvokeInst *II =
+      InvokeInst::Create(CI->getCalledValue(), Split, InvokeDest,
+                         InvokeArgs.begin(), InvokeArgs.end(),
+                         CI->getName(), BB->getTerminator());
+    II->setCallingConv(CI->getCallingConv());
+    II->setAttributes(CI->getAttributes());
+    
+    // Make sure that anything using the call now uses the invoke!  This also
+    // updates the CallGraph if present.
+    CI->replaceAllUsesWith(II);
+    
+    // Delete the unconditional branch inserted by splitBasicBlock
+    BB->getInstList().pop_back();
+    Split->getInstList().pop_front();  // Delete the original call
+    
+    // Update any PHI nodes in the exceptional block to indicate that
+    // there is now a new entry in them.
+    unsigned i = 0;
+    for (BasicBlock::iterator I = InvokeDest->begin();
+         isa<PHINode>(I); ++I, ++i)
+      cast<PHINode>(I)->addIncoming(InvokeDestPHIValues[i], BB);
+    
+    // This basic block is now complete, the caller will continue scanning the
+    // next one.
+    return;
+  }
+}
+  
 
 /// HandleInlinedInvoke - If we inlined an invoke site, we need to convert calls
 /// in the body of the inlined function into invokes and turn unwind
@@ -43,10 +104,9 @@ bool llvm::InlineFunction(InvokeInst *II, CallGraph *CG, const TargetData *TD) {
 /// block of the inlined code (the last block is the end of the function),
 /// and InlineCodeInfo is information about the code that got inlined.
 static void HandleInlinedInvoke(InvokeInst *II, BasicBlock *FirstNewBlock,
-                                ClonedCodeInfo &InlinedCodeInfo,
-                                CallGraph *CG) {
+                                ClonedCodeInfo &InlinedCodeInfo) {
   BasicBlock *InvokeDest = II->getUnwindDest();
-  std::vector<Value*> InvokeDestPHIValues;
+  SmallVector<Value*, 8> InvokeDestPHIValues;
 
   // If there are PHI nodes in the unwind destination block, we need to
   // keep track of which values came into them from this invoke, then remove
@@ -62,92 +122,39 @@ static void HandleInlinedInvoke(InvokeInst *II, BasicBlock *FirstNewBlock,
 
   // The inlined code is currently at the end of the function, scan from the
   // start of the inlined code to its end, checking for stuff we need to
-  // rewrite.
-  if (InlinedCodeInfo.ContainsCalls || InlinedCodeInfo.ContainsUnwinds) {
-    for (Function::iterator BB = FirstNewBlock, E = Caller->end();
-         BB != E; ++BB) {
-      if (InlinedCodeInfo.ContainsCalls) {
-        for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E; ){
-          Instruction *I = BBI++;
+  // rewrite.  If the code doesn't have calls or unwinds, we know there is
+  // nothing to rewrite.
+  if (!InlinedCodeInfo.ContainsCalls && !InlinedCodeInfo.ContainsUnwinds) {
+    // Now that everything is happy, we have one final detail.  The PHI nodes in
+    // the exception destination block still have entries due to the original
+    // invoke instruction.  Eliminate these entries (which might even delete the
+    // PHI node) now.
+    InvokeDest->removePredecessor(II->getParent());
+    return;
+  }
+  
+  for (Function::iterator BB = FirstNewBlock, E = Caller->end(); BB != E; ++BB){
+    if (InlinedCodeInfo.ContainsCalls)
+      HandleCallsInBlockInlinedThroughInvoke(BB, InvokeDest,
+                                             InvokeDestPHIValues);
 
-          // We only need to check for function calls: inlined invoke
-          // instructions require no special handling.
-          if (!isa<CallInst>(I)) continue;
-          CallInst *CI = cast<CallInst>(I);
+    if (UnwindInst *UI = dyn_cast<UnwindInst>(BB->getTerminator())) {
+      // An UnwindInst requires special handling when it gets inlined into an
+      // invoke site.  Once this happens, we know that the unwind would cause
+      // a control transfer to the invoke exception destination, so we can
+      // transform it into a direct branch to the exception destination.
+      BranchInst::Create(InvokeDest, UI);
 
-          // If this call cannot unwind, don't convert it to an invoke.
-          if (CI->doesNotThrow())
-            continue;
+      // Delete the unwind instruction!
+      UI->eraseFromParent();
 
-          // Convert this function call into an invoke instruction.
-          // First, split the basic block.
-          BasicBlock *Split = BB->splitBasicBlock(CI, CI->getName()+".noexc");
-
-          // Next, create the new invoke instruction, inserting it at the end
-          // of the old basic block.
-          SmallVector<Value*, 8> InvokeArgs(CI->op_begin()+1, CI->op_end());
-          InvokeInst *II =
-            InvokeInst::Create(CI->getCalledValue(), Split, InvokeDest,
-                               InvokeArgs.begin(), InvokeArgs.end(),
-                               CI->getName(), BB->getTerminator());
-          II->setCallingConv(CI->getCallingConv());
-          II->setAttributes(CI->getAttributes());
-
-          // Make sure that anything using the call now uses the invoke!
-          CI->replaceAllUsesWith(II);
-
-          // Update the callgraph.
-          if (CG) {
-            // We should be able to do this:
-            //   (*CG)[Caller]->replaceCallSite(CI, II);
-            // but that fails if the old call site isn't in the call graph,
-            // which, because of LLVM bug 3601, it sometimes isn't.
-            CallGraphNode *CGN = (*CG)[Caller];
-            for (CallGraphNode::iterator NI = CGN->begin(), NE = CGN->end();
-                 NI != NE; ++NI) {
-              if (NI->first == CI) {
-                NI->first = II;
-                break;
-              }
-            }
-          }
-
-          // Delete the unconditional branch inserted by splitBasicBlock
-          BB->getInstList().pop_back();
-          Split->getInstList().pop_front();  // Delete the original call
-
-          // Update any PHI nodes in the exceptional block to indicate that
-          // there is now a new entry in them.
-          unsigned i = 0;
-          for (BasicBlock::iterator I = InvokeDest->begin();
-               isa<PHINode>(I); ++I, ++i) {
-            PHINode *PN = cast<PHINode>(I);
-            PN->addIncoming(InvokeDestPHIValues[i], BB);
-          }
-
-          // This basic block is now complete, start scanning the next one.
-          break;
-        }
-      }
-
-      if (UnwindInst *UI = dyn_cast<UnwindInst>(BB->getTerminator())) {
-        // An UnwindInst requires special handling when it gets inlined into an
-        // invoke site.  Once this happens, we know that the unwind would cause
-        // a control transfer to the invoke exception destination, so we can
-        // transform it into a direct branch to the exception destination.
-        BranchInst::Create(InvokeDest, UI);
-
-        // Delete the unwind instruction!
-        UI->eraseFromParent();
-
-        // Update any PHI nodes in the exceptional block to indicate that
-        // there is now a new entry in them.
-        unsigned i = 0;
-        for (BasicBlock::iterator I = InvokeDest->begin();
-             isa<PHINode>(I); ++I, ++i) {
-          PHINode *PN = cast<PHINode>(I);
-          PN->addIncoming(InvokeDestPHIValues[i], BB);
-        }
+      // Update any PHI nodes in the exceptional block to indicate that
+      // there is now a new entry in them.
+      unsigned i = 0;
+      for (BasicBlock::iterator I = InvokeDest->begin();
+           isa<PHINode>(I); ++I, ++i) {
+        PHINode *PN = cast<PHINode>(I);
+        PN->addIncoming(InvokeDestPHIValues[i], BB);
       }
     }
   }
@@ -185,17 +192,19 @@ static void UpdateCallGraphAfterInlining(CallSite CS,
   }
 
   for (; I != E; ++I) {
-    const Instruction *OrigCall = I->first.getInstruction();
+    const Value *OrigCall = I->first;
 
     DenseMap<const Value*, Value*>::iterator VMI = ValueMap.find(OrigCall);
     // Only copy the edge if the call was inlined!
-    if (VMI != ValueMap.end() && VMI->second) {
-      // If the call was inlined, but then constant folded, there is no edge to
-      // add.  Check for this case.
-      if (Instruction *NewCall = dyn_cast<Instruction>(VMI->second))
-        CallerNode->addCalledFunction(CallSite::get(NewCall), I->second);
-    }
+    if (VMI == ValueMap.end() || VMI->second == 0)
+      continue;
+    
+    // If the call was inlined, but then constant folded, there is no edge to
+    // add.  Check for this case.
+    if (Instruction *NewCall = dyn_cast<Instruction>(VMI->second))
+      CallerNode->addCalledFunction(CallSite::get(NewCall), I->second);
   }
+  
   // Update the call graph by deleting the edge from Callee to Caller.  We must
   // do this after the loop above in case Caller and Callee are the same.
   CallerNode->removeCallEdgeFor(CS);
@@ -204,25 +213,27 @@ static void UpdateCallGraphAfterInlining(CallSite CS,
 /// findFnRegionEndMarker - This is a utility routine that is used by
 /// InlineFunction. Return llvm.dbg.region.end intrinsic that corresponds
 /// to the llvm.dbg.func.start of the function F. Otherwise return NULL.
+///
 static const DbgRegionEndInst *findFnRegionEndMarker(const Function *F) {
 
-  GlobalVariable *FnStart = NULL;
+  MDNode *FnStart = NULL;
   const DbgRegionEndInst *FnEnd = NULL;
   for (Function::const_iterator FI = F->begin(), FE =F->end(); FI != FE; ++FI) 
     for (BasicBlock::const_iterator BI = FI->begin(), BE = FI->end(); BI != BE;
          ++BI) {
       if (FnStart == NULL)  {
         if (const DbgFuncStartInst *FSI = dyn_cast<DbgFuncStartInst>(BI)) {
-          DISubprogram SP(cast<GlobalVariable>(FSI->getSubprogram()));
+          DISubprogram SP(FSI->getSubprogram());
           assert (SP.isNull() == false && "Invalid llvm.dbg.func.start");
           if (SP.describes(F))
-            FnStart = SP.getGV();
+            FnStart = SP.getNode();
         }
-      } else {
-        if (const DbgRegionEndInst *REI = dyn_cast<DbgRegionEndInst>(BI))
-          if (REI->getContext() == FnStart)
-            FnEnd = REI;
+        continue;
       }
+      
+      if (const DbgRegionEndInst *REI = dyn_cast<DbgRegionEndInst>(BI))
+        if (REI->getContext() == FnStart)
+          FnEnd = REI;
     }
   return FnEnd;
 }
@@ -236,8 +247,10 @@ static const DbgRegionEndInst *findFnRegionEndMarker(const Function *F) {
 // exists in the instruction stream.  Similiarly this will inline a recursive
 // function by one level.
 //
-bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
+bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD,
+                          SmallVectorImpl<AllocaInst*> *StaticAllocas) {
   Instruction *TheCall = CS.getInstruction();
+  LLVMContext &Context = TheCall->getContext();
   assert(TheCall->getParent() && TheCall->getParent()->getParent() &&
          "Instruction not in function!");
 
@@ -277,7 +290,7 @@ bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
 
   // Make sure to capture all of the return instructions from the cloned
   // function.
-  std::vector<ReturnInst*> Returns;
+  SmallVector<ReturnInst*, 8> Returns;
   ClonedCodeInfo InlinedFunctionInfo;
   Function::iterator FirstNewBlock;
 
@@ -302,15 +315,17 @@ bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
       if (CalledFunc->paramHasAttr(ArgNo+1, Attribute::ByVal) &&
           !CalledFunc->onlyReadsMemory()) {
         const Type *AggTy = cast<PointerType>(I->getType())->getElementType();
-        const Type *VoidPtrTy = PointerType::getUnqual(Type::Int8Ty);
+        const Type *VoidPtrTy = 
+            Type::getInt8PtrTy(Context);
 
         // Create the alloca.  If we have TargetData, use nice alignment.
         unsigned Align = 1;
         if (TD) Align = TD->getPrefTypeAlignment(AggTy);
-        Value *NewAlloca = new AllocaInst(AggTy, 0, Align, I->getName(),
-                                          Caller->begin()->begin());
+        Value *NewAlloca = new AllocaInst(AggTy, 0, Align, 
+                                          I->getName(), 
+                                          &*Caller->begin()->begin());
         // Emit a memcpy.
-        const Type *Tys[] = { Type::Int64Ty };
+        const Type *Tys[] = { Type::getInt64Ty(Context) };
         Function *MemCpyFn = Intrinsic::getDeclaration(Caller->getParent(),
                                                        Intrinsic::memcpy, 
                                                        Tys, 1);
@@ -321,13 +336,15 @@ bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
         if (TD == 0)
           Size = ConstantExpr::getSizeOf(AggTy);
         else
-          Size = ConstantInt::get(Type::Int64Ty, TD->getTypeStoreSize(AggTy));
+          Size = ConstantInt::get(Type::getInt64Ty(Context),
+                                         TD->getTypeStoreSize(AggTy));
 
         // Always generate a memcpy of alignment 1 here because we don't know
         // the alignment of the src pointer.  Other optimizations can infer
         // better alignment.
         Value *CallArgs[] = {
-          DestCast, SrcCast, Size, ConstantInt::get(Type::Int32Ty, 1)
+          DestCast, SrcCast, Size,
+          ConstantInt::get(Type::getInt32Ty(Context), 1)
         };
         CallInst *TheMemCpy =
           CallInst::Create(MemCpyFn, CallArgs, CallArgs+4, "", TheCall);
@@ -352,13 +369,12 @@ bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
     // call site. The function body cloner does not clone original
     // region end marker from the CalledFunc. This will ensure that
     // inlined function's scope ends at the right place. 
-    const DbgRegionEndInst *DREI = findFnRegionEndMarker(CalledFunc);
-    if (DREI) {
-      for (BasicBlock::iterator BI = TheCall, 
-             BE = TheCall->getParent()->end(); BI != BE; ++BI) {
+    if (const DbgRegionEndInst *DREI = findFnRegionEndMarker(CalledFunc)) {
+      for (BasicBlock::iterator BI = TheCall, BE = TheCall->getParent()->end();
+           BI != BE; ++BI) {
         if (DbgStopPointInst *DSPI = dyn_cast<DbgStopPointInst>(BI)) {
           if (DbgRegionEndInst *NewDREI = 
-              dyn_cast<DbgRegionEndInst>(DREI->clone()))
+                dyn_cast<DbgRegionEndInst>(DREI->clone()))
             NewDREI->insertAfter(DSPI);
           break;
         }
@@ -388,31 +404,39 @@ bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
   {
     BasicBlock::iterator InsertPoint = Caller->begin()->begin();
     for (BasicBlock::iterator I = FirstNewBlock->begin(),
-           E = FirstNewBlock->end(); I != E; )
-      if (AllocaInst *AI = dyn_cast<AllocaInst>(I++)) {
-        // If the alloca is now dead, remove it.  This often occurs due to code
-        // specialization.
-        if (AI->use_empty()) {
-          AI->eraseFromParent();
-          continue;
-        }
-
-        if (isa<Constant>(AI->getArraySize())) {
-          // Scan for the block of allocas that we can move over, and move them
-          // all at once.
-          while (isa<AllocaInst>(I) &&
-                 isa<Constant>(cast<AllocaInst>(I)->getArraySize()))
-            ++I;
-
-          // Transfer all of the allocas over in a block.  Using splice means
-          // that the instructions aren't removed from the symbol table, then
-          // reinserted.
-          Caller->getEntryBlock().getInstList().splice(
-              InsertPoint,
-              FirstNewBlock->getInstList(),
-              AI, I);
-        }
+         E = FirstNewBlock->end(); I != E; ) {
+      AllocaInst *AI = dyn_cast<AllocaInst>(I++);
+      if (AI == 0) continue;
+      
+      // If the alloca is now dead, remove it.  This often occurs due to code
+      // specialization.
+      if (AI->use_empty()) {
+        AI->eraseFromParent();
+        continue;
       }
+
+      if (!isa<Constant>(AI->getArraySize()))
+        continue;
+      
+      // Keep track of the static allocas that we inline into the caller if the
+      // StaticAllocas pointer is non-null.
+      if (StaticAllocas) StaticAllocas->push_back(AI);
+      
+      // Scan for the block of allocas that we can move over, and move them
+      // all at once.
+      while (isa<AllocaInst>(I) &&
+             isa<Constant>(cast<AllocaInst>(I)->getArraySize())) {
+        if (StaticAllocas) StaticAllocas->push_back(cast<AllocaInst>(I));
+        ++I;
+      }
+
+      // Transfer all of the allocas over in a block.  Using splice means
+      // that the instructions aren't removed from the symbol table, then
+      // reinserted.
+      Caller->getEntryBlock().getInstList().splice(InsertPoint,
+                                                   FirstNewBlock->getInstList(),
+                                                   AI, I);
+    }
   }
 
   // If the inlined code contained dynamic alloca instructions, wrap the inlined
@@ -486,7 +510,7 @@ bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
          BB != E; ++BB) {
       TerminatorInst *Term = BB->getTerminator();
       if (isa<UnwindInst>(Term)) {
-        new UnreachableInst(Term);
+        new UnreachableInst(Context, Term);
         BB->getInstList().erase(Term);
       }
     }
@@ -495,7 +519,7 @@ bool llvm::InlineFunction(CallSite CS, CallGraph *CG, const TargetData *TD) {
   // any inlined 'unwind' instructions into branches to the invoke exception
   // destination, and call instructions into invoke instructions.
   if (InvokeInst *II = dyn_cast<InvokeInst>(TheCall))
-    HandleInlinedInvoke(II, FirstNewBlock, InlinedFunctionInfo, CG);
+    HandleInlinedInvoke(II, FirstNewBlock, InlinedFunctionInfo);
 
   // If we cloned in _exactly one_ basic block, and if that block ends in a
   // return instruction, we splice the body of the inlined callee directly into

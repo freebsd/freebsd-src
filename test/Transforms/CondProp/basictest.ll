@@ -1,6 +1,6 @@
-; RUN: llvm-as < %s | opt -condprop | llvm-dis | \
+; RUN: opt < %s -condprop -S | \
 ; RUN:    not grep {br label}
-; RUN: llvm-as < %s | opt -condprop | llvm-dis | not grep T2
+; RUN: opt < %s -condprop -S | not grep T2
 
 
 define i32 @test(i1 %C) {

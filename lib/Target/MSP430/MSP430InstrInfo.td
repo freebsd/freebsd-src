@@ -155,7 +155,7 @@ let isCall = 1 in
   let Defs = [R12W, R13W, R14W, R15W, SRW],
       Uses = [SPW] in {
     def CALLi     : Pseudo<(outs), (ins i16imm:$dst, variable_ops),
-                           "call\t${dst:call}", [(MSP430call imm:$dst)]>;
+                           "call\t$dst", [(MSP430call imm:$dst)]>;
     def CALLr     : Pseudo<(outs), (ins GR16:$dst, variable_ops),
                            "call\t$dst", [(MSP430call GR16:$dst)]>;
     def CALLm     : Pseudo<(outs), (ins memsrc:$dst, variable_ops),
@@ -242,6 +242,13 @@ def MOV8mr  : Pseudo<(outs), (ins memdst:$dst, GR8:$src),
 def MOV16mr : Pseudo<(outs), (ins memdst:$dst, GR16:$src),
                 "mov.w\t{$src, $dst}",
                 [(store GR16:$src, addr:$dst)]>;
+
+def MOV8mm  : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
+                "mov.b\t{$src, $dst}",
+                [(store (i8 (load addr:$src)), addr:$dst)]>;
+def MOV16mm : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
+                "mov.w\t{$src, $dst}",
+                [(store (i16 (load addr:$src)), addr:$dst)]>;
 
 //===----------------------------------------------------------------------===//
 // Arithmetic Instructions
@@ -671,30 +678,26 @@ def OR16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
 let isTwoAddress = 0 in {
 def OR8mr  : Pseudo<(outs), (ins memdst:$dst, GR8:$src),
                 "bis.b\t{$src, $dst}",
-                [(store (or (load addr:$dst), GR8:$src), addr:$dst),
-                 (implicit SRW)]>;
+                [(store (or (load addr:$dst), GR8:$src), addr:$dst)]>;
 def OR16mr : Pseudo<(outs), (ins memdst:$dst, GR16:$src),
                 "bis.w\t{$src, $dst}",
-                [(store (or (load addr:$dst), GR16:$src), addr:$dst),
-                 (implicit SRW)]>;
+                [(store (or (load addr:$dst), GR16:$src), addr:$dst)]>;
 
 def OR8mi  : Pseudo<(outs), (ins memdst:$dst, i8imm:$src),
                 "bis.b\t{$src, $dst}",
-                [(store (or (load addr:$dst), (i8 imm:$src)), addr:$dst),
-                 (implicit SRW)]>;
+                [(store (or (load addr:$dst), (i8 imm:$src)), addr:$dst)]>;
 def OR16mi : Pseudo<(outs), (ins memdst:$dst, i16imm:$src),
                 "bis.w\t{$src, $dst}",
-                [(store (or (load addr:$dst), (i16 imm:$src)), addr:$dst),
-                 (implicit SRW)]>;
+                [(store (or (load addr:$dst), (i16 imm:$src)), addr:$dst)]>;
 
 def OR8mm  : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
                 "bis.b\t{$src, $dst}",
-                [(store (or (load addr:$dst), (i8 (load addr:$src))), addr:$dst),
-                 (implicit SRW)]>;
+                [(store (or (i8 (load addr:$dst)),
+                            (i8 (load addr:$src))), addr:$dst)]>;
 def OR16mm : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
                 "bis.w\t{$src, $dst}",
-                [(store (or (load addr:$dst), (i16 (load addr:$src))), addr:$dst),
-                 (implicit SRW)]>;
+                 [(store (or (i16 (load addr:$dst)),
+                             (i16 (load addr:$src))), addr:$dst)]>;
 }
 
 } // isTwoAddress = 1
@@ -721,59 +724,6 @@ def CMP8im  : Pseudo<(outs), (ins i8imm:$src1, memsrc:$src2),
 def CMP16im : Pseudo<(outs), (ins i16imm:$src1, memsrc:$src2),
                      "cmp.w\t{$src1, $src2}",
                       [(MSP430cmp (i16 imm:$src1), (load addr:$src2)), (implicit SRW)]>;
-
-// FIXME: imm is allowed only on src operand, not on dst.
-
-//def CMP8ri  : Pseudo<(outs), (ins GR8:$src1, i8imm:$src2),
-//                   "cmp.b\t{$src1, $src2}",
-//                   [(MSP430cmp GR8:$src1, imm:$src2), (implicit SRW)]>;
-//def CMP16ri : Pseudo<(outs), (ins GR16:$src1, i16imm:$src2),
-//                     "cmp.w\t{$src1, $src2}",
-//                     [(MSP430cmp GR16:$src1, imm:$src2), (implicit SRW)]>;
-
-//def CMP8mi  : Pseudo<(outs), (ins memsrc:$src1, i8imm:$src2),
-//                "cmp.b\t{$src1, $src2}",
-//                [(MSP430cmp (load addr:$src1), (i8 imm:$src2)), (implicit SRW)]>;
-//def CMP16mi : Pseudo<(outs), (ins memsrc:$src1, i16imm:$src2),
-//                "cmp.w\t{$src1, $src2}",
-//                [(MSP430cmp (load addr:$src1), (i16 imm:$src2)), (implicit SRW)]>;
-
-
-// Imm 0, +1, +2, +4, +8 are encoded via constant generator registers.
-// That's why we can use them as dest operands. 
-// We don't define new class for them, since they would need special encoding
-// in the future.
-
-def CMP8ri0 : Pseudo<(outs), (ins GR8:$src1),
-                     "cmp.b\t{$src1, #0}",
-                     [(MSP430cmp GR8:$src1, 0), (implicit SRW)]>;
-def CMP16ri0: Pseudo<(outs), (ins GR16:$src1),
-                     "cmp.w\t{$src1, #0}",
-                     [(MSP430cmp GR16:$src1, 0), (implicit SRW)]>;
-def CMP8ri1 : Pseudo<(outs), (ins GR8:$src1),
-                     "cmp.b\t{$src1, #1}",
-                     [(MSP430cmp GR8:$src1, 1), (implicit SRW)]>;
-def CMP16ri1: Pseudo<(outs), (ins GR16:$src1),
-                     "cmp.w\t{$src1, #1}",
-                     [(MSP430cmp GR16:$src1, 1), (implicit SRW)]>;
-def CMP8ri2 : Pseudo<(outs), (ins GR8:$src1),
-                     "cmp.b\t{$src1, #2}",
-                     [(MSP430cmp GR8:$src1, 2), (implicit SRW)]>;
-def CMP16ri2: Pseudo<(outs), (ins GR16:$src1),
-                     "cmp.w\t{$src1, #2}",
-                     [(MSP430cmp GR16:$src1, 2), (implicit SRW)]>;
-def CMP8ri4 : Pseudo<(outs), (ins GR8:$src1),
-                     "cmp.b\t{$src1, #4}",
-                     [(MSP430cmp GR8:$src1, 4), (implicit SRW)]>;
-def CMP16ri4: Pseudo<(outs), (ins GR16:$src1),
-                     "cmp.w\t{$src1, #4}",
-                     [(MSP430cmp GR16:$src1, 4), (implicit SRW)]>;
-def CMP8ri8 : Pseudo<(outs), (ins GR8:$src1),
-                     "cmp.b\t{$src1, #8}",
-                     [(MSP430cmp GR8:$src1, 8), (implicit SRW)]>;
-def CMP16ri8: Pseudo<(outs), (ins GR16:$src1),
-                     "cmp.w\t{$src1, #8}",
-                     [(MSP430cmp GR16:$src1, 8), (implicit SRW)]>;
 
 def CMP8rm  : Pseudo<(outs), (ins GR8:$src1, memsrc:$src2),
                      "cmp.b\t{$src1, $src2}",

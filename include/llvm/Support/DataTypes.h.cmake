@@ -1,22 +1,25 @@
-//===-- include/Support/DataTypes.h - Define fixed size types ---*- C++ -*-===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file was developed by the LLVM research group and is distributed under
-// the University of Illinois Open Source License. See LICENSE.TXT for details.
-//
-//===----------------------------------------------------------------------===//
-//
-// This file contains definitions to figure out the size of _HOST_ data types.
-// This file is important because different host OS's define different macros,
-// which makes portability tough.  This file exports the following definitions:
-//
-//   [u]int(32|64)_t : typedefs for signed and unsigned 32/64 bit system types
-//   [U]INT(8|16|32|64)_(MIN|MAX) : Constants for the min and max values.
-//
-// No library is required when using these functinons.
-//
-//===----------------------------------------------------------------------===//
+/*===-- include/Support/DataTypes.h - Define fixed size types -----*- C -*-===*\
+|*                                                                            *|
+|*                     The LLVM Compiler Infrastructure                       *|
+|*                                                                            *|
+|* This file is distributed under the University of Illinois Open Source      *|
+|* License. See LICENSE.TXT for details.                                      *|
+|*                                                                            *|
+|*===----------------------------------------------------------------------===*|
+|*                                                                            *|
+|* This file contains definitions to figure out the size of _HOST_ data types.*|
+|* This file is important because different host OS's define different macros,*|
+|* which makes portability tough.  This file exports the following            *|
+|* definitions:                                                               *|
+|*                                                                            *|
+|*   [u]int(32|64)_t : typedefs for signed and unsigned 32/64 bit system types*|
+|*   [U]INT(8|16|32|64)_(MIN|MAX) : Constants for the min and max values.     *|
+|*                                                                            *|
+|* No library is required when using these functinons.                        *|
+|*                                                                            *|
+|*===----------------------------------------------------------------------===*/
+
+/* Please leave this file C-compatible. */
 
 #ifndef SUPPORT_DATATYPES_H
 #define SUPPORT_DATATYPES_H
@@ -24,18 +27,21 @@
 #cmakedefine HAVE_SYS_TYPES_H ${HAVE_SYS_TYPES_H}
 #cmakedefine HAVE_INTTYPES_H ${HAVE_INTTYPES_H}
 #cmakedefine HAVE_STDINT_H ${HAVE_STDINT_H}
-#undef HAVE_UINT64_T
-#undef HAVE_U_INT64_T
+#cmakedefine HAVE_UINT64_T ${HAVE_UINT64_T}
+#cmakedefine HAVE_U_INT64_T ${HAVE_U_INT64_T}
 
-// FIXME: UGLY HACK (Added by Kevin)
-#define HAVE_UINT64_T 1
+#ifdef __cplusplus
+#include <cmath>
+#else
+#include <math.h>
+#endif
 
 #ifndef _MSC_VER
 
-// Note that this header's correct operation depends on __STDC_LIMIT_MACROS
-// being defined.  We would define it here, but in order to prevent Bad Things
-// happening when system headers or C++ STL headers include stdint.h before
-// we define it here, we define it on the g++ command line (in Makefile.rules).
+/* Note that this header's correct operation depends on __STDC_LIMIT_MACROS
+   being defined.  We would define it here, but in order to prevent Bad Things
+   happening when system headers or C++ STL headers include stdint.h before we
+   define it here, we define it on the g++ command line (in Makefile.rules). */
 #if !defined(__STDC_LIMIT_MACROS)
 # error "Must #define __STDC_LIMIT_MACROS before #including Support/DataTypes.h"
 #endif
@@ -45,7 +51,7 @@
         "#including Support/DataTypes.h"
 #endif
 
-// Note that <inttypes.h> includes <stdint.h>, if this is a C99 system.
+/* Note that <inttypes.h> includes <stdint.h>, if this is a C99 system. */
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -58,17 +64,11 @@
 #include <stdint.h>
 #endif
 
-#ifdef __cplusplus
-#include <cmath>
-#else
-#include <math.h>
-#endif
-
 #ifdef _AIX
 #include "llvm/Support/AIXDataTypesFix.h"
 #endif
 
-// Handle incorrect definition of uint64_t as u_int64_t
+/* Handle incorrect definition of uint64_t as u_int64_t */
 #ifndef HAVE_UINT64_T
 #ifdef HAVE_U_INT64_T
 typedef u_int64_t uint64_t;
@@ -90,11 +90,16 @@ typedef u_int64_t uint64_t;
 #endif
 
 #else /* _MSC_VER */
-// Visual C++ doesn't provide standard integer headers, but it does provide
-// built-in data types.
+/* Visual C++ doesn't provide standard integer headers, but it does provide
+   built-in data types. */
 #include <stdlib.h>
 #include <stddef.h>
 #include <sys/types.h>
+#ifdef __cplusplus
+#include <cmath>
+#else
+#include <math.h>
+#endif
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
 typedef signed int int32_t;

@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | llc -march=mips -f 
+; RUN: llc < %s -march=mips
 ; Mips must ignore fastcc
 
 target datalayout =

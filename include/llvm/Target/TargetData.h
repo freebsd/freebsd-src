@@ -22,6 +22,7 @@
 
 #include "llvm/Pass.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
 #include <string>
 
@@ -33,6 +34,7 @@ class IntegerType;
 class StructType;
 class StructLayout;
 class GlobalVariable;
+class LLVMContext;
 
 /// Enum used to categorize the alignment types stored by TargetAlignElem
 enum AlignTypeEnum {
@@ -89,6 +91,9 @@ private:
    */
   static const TargetAlignElem InvalidAlignmentElem;
 
+  // Opaque pointer for the StructType -> StructLayout map.
+  mutable void* LayoutMap;
+
   //! Set/initialize target alignments
   void setAlignment(AlignTypeEnum align_type, unsigned char abi_align,
                     unsigned char pref_align, uint32_t bit_width);
@@ -111,9 +116,8 @@ public:
   /// @note This has to exist, because this is a pass, but it should never be
   /// used.
   TargetData() : ImmutablePass(&ID) {
-    assert(0 && "ERROR: Bad TargetData ctor used.  "
-           "Tool did not specify a TargetData to use?");
-    abort();
+    llvm_report_error("Bad TargetData ctor used.  "
+                      "Tool did not specify a TargetData to use?");
   }
 
   /// Constructs a TargetData from a specification string. See init().
@@ -131,7 +135,8 @@ public:
     PointerMemSize(TD.PointerMemSize),
     PointerABIAlign(TD.PointerABIAlign),
     PointerPrefAlign(TD.PointerPrefAlign),
-    Alignments(TD.Alignments)
+    Alignments(TD.Alignments),
+    LayoutMap(0)
   { }
 
   ~TargetData();  // Not virtual, do not subclass this class
@@ -229,7 +234,7 @@ public:
   /// getIntPtrType - Return an unsigned integer type that is the same size or
   /// greater to the host pointer size.
   ///
-  const IntegerType *getIntPtrType() const;
+  const IntegerType *getIntPtrType(LLVMContext &C) const;
 
   /// getIndexedOffset - return the offset from the beginning of the type for
   /// the specified indices.  This is used to implement getelementptr.

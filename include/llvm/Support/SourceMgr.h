@@ -65,10 +65,14 @@ class SourceMgr {
   // include files in.
   std::vector<std::string> IncludeDirectories;
   
+  /// LineNoCache - This is a cache for line number queries, its implementation
+  /// is really private to SourceMgr.cpp.
+  mutable void *LineNoCache;
+  
   SourceMgr(const SourceMgr&);    // DO NOT IMPLEMENT
   void operator=(const SourceMgr&); // DO NOT IMPLEMENT
 public:
-  SourceMgr() {}
+  SourceMgr() : LineNoCache(0) {}
   ~SourceMgr();
   
   void setIncludeDirs(const std::vector<std::string> &Dirs) {
@@ -145,17 +149,6 @@ public:
                const std::string &Msg, const std::string &LineStr)
     : Filename(FN), LineNo(Line), ColumnNo(Col), Message(Msg),
       LineContents(LineStr) {}
-  SMDiagnostic(const SMDiagnostic &RHS) {
-    operator=(RHS);
-  }
-
-  void operator=(const SMDiagnostic &E) {
-    Filename = E.Filename;
-    LineNo = E.LineNo;
-    ColumnNo = E.ColumnNo;
-    Message = E.Message;
-    LineContents = E.LineContents;
-  }
 
   void Print(const char *ProgName, raw_ostream &S);
 };

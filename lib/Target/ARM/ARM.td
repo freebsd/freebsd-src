@@ -89,27 +89,20 @@ def : ProcNoItin<"xscale",          [ArchV5TE]>;
 def : ProcNoItin<"iwmmxt",          [ArchV5TE]>;
 
 // V6 Processors.
-def : Processor<"arm1136j-s",       V6Itineraries,
-                [ArchV6]>;
-def : Processor<"arm1136jf-s",      V6Itineraries,
-                [ArchV6, FeatureVFP2]>;
-def : Processor<"arm1176jz-s",      V6Itineraries,
-                [ArchV6]>;
-def : Processor<"arm1176jzf-s",     V6Itineraries,
-                [ArchV6, FeatureVFP2]>;
-def : Processor<"mpcorenovfp",      V6Itineraries,
-                [ArchV6]>;
-def : Processor<"mpcore",           V6Itineraries,
-                [ArchV6, FeatureVFP2]>;
+def : ProcNoItin<"arm1136j-s",      [ArchV6]>;
+def : ProcNoItin<"arm1136jf-s",     [ArchV6, FeatureVFP2]>;
+def : ProcNoItin<"arm1176jz-s",     [ArchV6]>;
+def : ProcNoItin<"arm1176jzf-s",    [ArchV6, FeatureVFP2]>;
+def : ProcNoItin<"mpcorenovfp",     [ArchV6]>;
+def : ProcNoItin<"mpcore",          [ArchV6, FeatureVFP2]>;
 
 // V6T2 Processors.
-def : Processor<"arm1156t2-s",     V6Itineraries,
-                [ArchV6T2, FeatureThumb2]>;
-def : Processor<"arm1156t2f-s",    V6Itineraries,
-                [ArchV6T2, FeatureThumb2, FeatureVFP2]>;
+def : ProcNoItin<"arm1156t2-s",     [ArchV6T2, FeatureThumb2]>;
+def : ProcNoItin<"arm1156t2f-s",    [ArchV6T2, FeatureThumb2, FeatureVFP2]>;
 
 // V7 Processors.
-def : ProcNoItin<"cortex-a8",       [ArchV7A, FeatureThumb2, FeatureNEON]>;
+def : Processor<"cortex-a8",        CortexA8Itineraries,
+                [ArchV7A, FeatureThumb2, FeatureNEON]>;
 def : ProcNoItin<"cortex-a9",       [ArchV7A, FeatureThumb2, FeatureNEON]>;
 
 //===----------------------------------------------------------------------===//
@@ -131,13 +124,13 @@ def ARMInstrInfo : InstrInfo {
   let TSFlagsFields = ["AddrModeBits",
                        "SizeFlag",
                        "IndexModeBits",
-                       "isUnaryDataProc",
-                       "Form"];
+                       "Form",
+                       "isUnaryDataProc"];
   let TSFlagsShifts = [0,
                        4,
                        7,
                        9,
-                       10];
+                       15];
 }
 
 //===----------------------------------------------------------------------===//

@@ -90,6 +90,10 @@ N: Alkis Evlogimenos
 E: alkis@evlogimenos.com
 D: Linear scan register allocator, many codegen improvements, Java frontend
 
+N: Ryan Flynn
+E: pizza@parseerror.com
+D: Miscellaneous bug fixes
+
 N: Brian Gaeke
 E: gaeke@uiuc.edu
 W: http://www.students.uiuc.edu/~gaeke/
@@ -116,6 +120,10 @@ D: Author of llvmc2
 N: Dan Gohman
 E: gohman@apple.com
 D: Miscellaneous bug fixes
+
+N: David Goodwin
+E: david@goodwinz.net
+D: Thumb-2 code generator
 
 N: David Greene
 E: greened@obbligato.org
@@ -160,6 +168,10 @@ N: Brad Jones
 E: kungfoomaster@nondot.org
 D: Support for packed types
 
+N: Rod Kay
+E: rkay@auroraux.org
+D: Author of LLVM Ada bindings
+
 N: Eric Kidd
 W: http://randomhacks.net/
 D: llvm-config script
@@ -173,6 +185,10 @@ D: Switch lowering refactoring
 N: Sumant Kowshik
 E: kowshik@uiuc.edu
 D: Author of the original C backend
+
+N: Benjamin Kramer
+E: benny.kra@gmail.com
+D: Miscellaneous bug fixes
 
 N: Christopher Lamb
 E: christopher.lamb@gmail.com
@@ -242,6 +258,11 @@ N: Morten Ofstad
 E: morten@hue.no
 D: Visual C++ compatibility fixes
 
+N: Jakob Stoklund Olesen
+E: stoklund@2pi.dk
+D: Machine code verifier
+D: Blackfin backend
+
 N: Richard Osborne
 E: richard@xmos.com
 D: XCore backend
@@ -251,6 +272,10 @@ E: dpatel@apple.com
 D: LTO tool, PassManager rewrite, Loop Pass Manager, Loop Rotate
 D: GCC PCH Integration (llvm-gcc), llvm-gcc improvements
 D: Optimizer improvements, Loop Index Split
+
+N: Sandeep Patel
+E: deeppatel1987@gmail.com
+D: ARM calling conventions rewrite, hard float support
 
 N: Vladimir Prus
 W: http://vladimir_prus.blogspot.com
@@ -298,6 +323,10 @@ N: Lauro Ramos Venancio
 E: lauro.venancio@indt.org.br
 D: ARM backend improvements
 D: Thread Local Storage implementation
+
+N: Xerxes Ranby
+E: xerxes@zafena.se
+D: Cmake dependency chain and various bug fixes
 
 N: Bill Wendling
 E: isanbard@gmail.com

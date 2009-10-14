@@ -16,7 +16,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "JIT.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/System/DynamicLibrary.h"
 #include "llvm/Config/config.h"
 using namespace llvm;
@@ -56,6 +56,7 @@ static void runAtExitHandlers() {
  * linking with libc_nonshared.a and -Wl,--export-dynamic doesn't make 'stat' 
  * available as an exported symbol, so we have to add it explicitly.
  */
+namespace {
 class StatSymbols {
 public:
   StatSymbols() {
@@ -72,6 +73,7 @@ public:
     sys::DynamicLibrary::AddSymbol("mknod", (void*)(intptr_t)mknod);
   }
 };
+}
 static StatSymbols initStatSymbols;
 #endif // __linux__
 
@@ -82,7 +84,7 @@ static void jit_exit(int Status) {
 }
 
 // jit_atexit - Used to intercept the "atexit" library call.
-static int jit_atexit(void (*Fn)(void)) {
+static int jit_atexit(void (*Fn)()) {
   AtExitHandlers.push_back(Fn);    // Take note of atexit handler...
   return 0;  // Always successful
 }
@@ -140,9 +142,8 @@ void *JIT::getPointerToNamedFunction(const std::string &Name,
       return RP;
 
   if (AbortOnFailure) {
-    cerr << "ERROR: Program used external function '" << Name
-         << "' which could not be resolved!\n";
-    abort();
+    llvm_report_error("Program used external function '"+Name+
+                      "' which could not be resolved!");
   }
   return 0;
 }

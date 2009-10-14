@@ -23,18 +23,6 @@
 include "XCoreInstrFormats.td"
 
 //===----------------------------------------------------------------------===//
-// Feature predicates.
-//===----------------------------------------------------------------------===//
-
-// HasXS1A - This predicate is true when the target processor supports XS1A
-// instructions.
-def HasXS1A   : Predicate<"Subtarget.isXS1A()">;
-
-// HasXS1B - This predicate is true when the target processor supports XS1B
-// instructions.
-def HasXS1B : Predicate<"Subtarget.isXS1B()">;
-
-//===----------------------------------------------------------------------===//
 // XCore specific DAG Nodes.
 //
 
@@ -95,6 +83,12 @@ def neg_xform : SDNodeXForm<imm, [{
   return getI32Imm(-value);
 }]>;
 
+def bpwsub_xform : SDNodeXForm<imm, [{
+  // Transformation function: 32-imm
+  uint32_t value = N->getZExtValue();
+  return getI32Imm(32-value);
+}]>;
+
 def div4neg_xform : SDNodeXForm<imm, [{
   // Transformation function: -imm/4
   uint32_t value = N->getZExtValue();
@@ -136,9 +130,6 @@ def immU20 : PatLeaf<(imm), [{
   return (uint32_t)N->getZExtValue() < (1 << 20);
 }]>;
 
-// FIXME check subtarget. Currently we check if the immediate
-// is in the common subset of legal immediate values for both
-// XS1A and XS1B.
 def immMskBitp : PatLeaf<(imm), [{
   uint32_t value = (uint32_t)N->getZExtValue();
   if (!isMask_32(value)) {
@@ -151,15 +142,20 @@ def immMskBitp : PatLeaf<(imm), [{
           || msksize == 32;
 }]>;
 
-// FIXME check subtarget. Currently we check if the immediate
-// is in the common subset of legal immediate values for both
-// XS1A and XS1B.
 def immBitp : PatLeaf<(imm), [{
   uint32_t value = (uint32_t)N->getZExtValue();
   return (value >= 1 && value <= 8)
           || value == 16
           || value == 24
           || value == 32;
+}]>;
+
+def immBpwSubBitp : PatLeaf<(imm), [{
+  uint32_t value = (uint32_t)N->getZExtValue();
+  return (value >= 24 && value <= 31)
+          || value == 16
+          || value == 8
+          || value == 0;
 }]>;
 
 def lda16f : PatFrag<(ops node:$addr, node:$offset),
@@ -469,7 +465,7 @@ def ST8_l3r : _FL3R<(outs), (ins GRRegs:$val, GRRegs:$addr, GRRegs:$offset),
 }
 
 // Four operand long
-let Predicates = [HasXS1B], Constraints = "$src1 = $dst1,$src2 = $dst2" in {
+let Constraints = "$src1 = $dst1,$src2 = $dst2" in {
 def MACCU_l4r : _L4R<(outs GRRegs:$dst1, GRRegs:$dst2),
                     (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3,
                       GRRegs:$src4),
@@ -485,7 +481,6 @@ def MACCS_l4r : _L4R<(outs GRRegs:$dst1, GRRegs:$dst2),
 
 // Five operand long
 
-let Predicates = [HasXS1B] in {
 def LADD_l5r : _L5R<(outs GRRegs:$dst1, GRRegs:$dst2),
                     (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
                     "ladd $dst1, $dst2, $src1, $src2, $src3",
@@ -500,7 +495,6 @@ def LDIV_l5r : _L5R<(outs GRRegs:$dst1, GRRegs:$dst2),
                     (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3),
                     "ldiv $dst1, $dst2, $src1, $src2, $src3",
                     []>;
-}
 
 // Six operand long
 
@@ -508,13 +502,6 @@ def LMUL_l6r : _L6R<(outs GRRegs:$dst1, GRRegs:$dst2),
                     (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3,
                       GRRegs:$src4),
                     "lmul $dst1, $dst2, $src1, $src2, $src3, $src4",
-                    []>;
-
-let Predicates = [HasXS1A] in
-def MACC_l6r : _L6R<(outs GRRegs:$dst1, GRRegs:$dst2),
-                    (ins GRRegs:$src1, GRRegs:$src2, GRRegs:$src3,
-                      GRRegs:$src4),
-                    "macc $dst1, $dst2, $src1, $src2, $src3, $src4",
                     []>;
 
 // Register - U6
@@ -664,13 +651,12 @@ def BRFU_lu6 : _FLU6<
 }
 
 //let Uses = [CP] in ...
-let Predicates = [HasXS1B], Defs = [R11], neverHasSideEffects = 1,
-  isReMaterializable = 1 in
+let Defs = [R11], neverHasSideEffects = 1, isReMaterializable = 1 in
 def LDAWCP_u6: _FRU6<(outs), (ins MEMii:$a),
                     "ldaw r11, cp[$a]",
                     []>;
 
-let Predicates = [HasXS1B], Defs = [R11], isReMaterializable = 1 in
+let Defs = [R11], isReMaterializable = 1 in
 def LDAWCP_lu6: _FLRU6<
                     (outs), (ins MEMii:$a),
                     "ldaw r11, cp[$a]",
@@ -821,7 +807,7 @@ def : Pat<(zextloadi8 (add GRRegs:$addr, GRRegs:$offset)),
           (LD8U_3r GRRegs:$addr, GRRegs:$offset)>;
 def : Pat<(zextloadi8 GRRegs:$addr), (LD8U_3r GRRegs:$addr, (LDC_ru6 0))>;
 
-def : Pat<(zextloadi16 (lda16f GRRegs:$addr, GRRegs:$offset)),
+def : Pat<(sextloadi16 (lda16f GRRegs:$addr, GRRegs:$offset)),
           (LD16S_3r GRRegs:$addr, GRRegs:$offset)>;
 def : Pat<(sextloadi16 GRRegs:$addr), (LD16S_3r GRRegs:$addr, (LDC_ru6 0))>;
 
@@ -989,3 +975,21 @@ def : Pat<(mul GRRegs:$src, -3),
 def : Pat<(sra GRRegs:$src, 31),
           (ASHR_l2rus GRRegs:$src, 32)>;
 
+def : Pat<(brcond (setlt GRRegs:$lhs, 0), bb:$dst),
+          (BRFT_lru6 (ASHR_l2rus GRRegs:$lhs, 32), bb:$dst)>;
+
+// setge X, 0 is canonicalized to setgt X, -1
+def : Pat<(brcond (setgt GRRegs:$lhs, -1), bb:$dst),
+          (BRFF_lru6 (ASHR_l2rus GRRegs:$lhs, 32), bb:$dst)>;
+
+def : Pat<(select (setlt GRRegs:$lhs, 0), GRRegs:$T, GRRegs:$F),
+          (SELECT_CC (ASHR_l2rus GRRegs:$lhs, 32), GRRegs:$T, GRRegs:$F)>;
+
+def : Pat<(select (setgt GRRegs:$lhs, -1), GRRegs:$T, GRRegs:$F),
+          (SELECT_CC (ASHR_l2rus GRRegs:$lhs, 32), GRRegs:$F, GRRegs:$T)>;
+
+def : Pat<(setgt GRRegs:$lhs, -1),
+          (EQ_2rus (ASHR_l2rus GRRegs:$lhs, 32), 0)>;
+
+def : Pat<(sra (shl GRRegs:$src, immBpwSubBitp:$imm), immBpwSubBitp:$imm),
+          (SEXT_rus GRRegs:$src, (bpwsub_xform immBpwSubBitp:$imm))>;

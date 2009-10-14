@@ -33,22 +33,27 @@ namespace llvm {
   class CodeGenDAGPatterns;
   class ComplexPattern;
 
-/// EMVT::DAGISelGenValueType - These are some extended forms of
+/// EEVT::DAGISelGenValueType - These are some extended forms of
 /// MVT::SimpleValueType that we use as lattice values during type inference.
-namespace EMVT {
+/// The existing MVT iAny, fAny and vAny types suffice to represent
+/// arbitrary integer, floating-point, and vector types, so only an unknown
+/// value is needed.
+namespace EEVT {
   enum DAGISelGenValueType {
-    isFP  = MVT::LAST_VALUETYPE,
-    isInt,
-    isUnknown
+    isUnknown  = MVT::LAST_VALUETYPE
   };
 
-  /// isExtIntegerVT - Return true if the specified extended value type vector
-  /// contains isInt or an integer value type.
+  /// isExtIntegerInVTs - Return true if the specified extended value type
+  /// vector contains iAny or an integer value type.
   bool isExtIntegerInVTs(const std::vector<unsigned char> &EVTs);
 
-  /// isExtFloatingPointVT - Return true if the specified extended value type 
-  /// vector contains isFP or a FP value type.
+  /// isExtFloatingPointInVTs - Return true if the specified extended value
+  /// type vector contains fAny or a FP value type.
   bool isExtFloatingPointInVTs(const std::vector<unsigned char> &EVTs);
+
+  /// isExtVectorinVTs - Return true if the specified extended value type 
+  /// vector contains vAny or a vector value type.
+  bool isExtVectorInVTs(const std::vector<unsigned char> &EVTs);
 }
 
 /// Set type used to track multiply used variables in patterns
@@ -61,7 +66,7 @@ struct SDTypeConstraint {
   
   unsigned OperandNo;   // The operand # this constraint applies to.
   enum { 
-    SDTCisVT, SDTCisPtrTy, SDTCisInt, SDTCisFP, SDTCisSameAs, 
+    SDTCisVT, SDTCisPtrTy, SDTCisInt, SDTCisFP, SDTCisVec, SDTCisSameAs, 
     SDTCisVTSmallerThanOp, SDTCisOpSmallerThanOp, SDTCisEltOfVec
   } ConstraintType;
   
@@ -140,7 +145,7 @@ public:
 /// patterns), and as such should be ref counted.  We currently just leak all
 /// TreePatternNode objects!
 class TreePatternNode {
-  /// The inferred type for this node, or EMVT::isUnknown if it hasn't
+  /// The inferred type for this node, or EEVT::isUnknown if it hasn't
   /// been determined yet. This is a std::vector because during inference
   /// there may be multiple possible types.
   std::vector<unsigned char> Types;
@@ -169,10 +174,10 @@ class TreePatternNode {
 public:
   TreePatternNode(Record *Op, const std::vector<TreePatternNode*> &Ch) 
     : Types(), Operator(Op), Val(0), TransformFn(0),
-    Children(Ch) { Types.push_back(EMVT::isUnknown); }
+    Children(Ch) { Types.push_back(EEVT::isUnknown); }
   TreePatternNode(Init *val)    // leaf ctor
     : Types(), Operator(0), Val(val), TransformFn(0) {
-    Types.push_back(EMVT::isUnknown);
+    Types.push_back(EEVT::isUnknown);
   }
   ~TreePatternNode();
   
@@ -185,7 +190,7 @@ public:
           (Types[0] == MVT::iPTRAny);
   }
   bool isTypeCompletelyUnknown() const {
-    return Types[0] == EMVT::isUnknown;
+    return Types[0] == EEVT::isUnknown;
   }
   bool isTypeDynamicallyResolved() const {
     return (Types[0] == MVT::iPTR) || (Types[0] == MVT::iPTRAny);
@@ -201,7 +206,7 @@ public:
   }
   const std::vector<unsigned char> &getExtTypes() const { return Types; }
   void setTypes(const std::vector<unsigned char> &T) { Types = T; }
-  void removeTypes() { Types = std::vector<unsigned char>(1, EMVT::isUnknown); }
+  void removeTypes() { Types = std::vector<unsigned char>(1, EEVT::isUnknown); }
   
   Init *getLeafValue() const { assert(isLeaf()); return Val; }
   Record *getOperator() const { assert(!isLeaf()); return Operator; }
@@ -457,6 +462,10 @@ struct PatternToMatch {
   std::string getPredicateCheck() const;
 };
 
+// Deterministic comparison of Record*.
+struct RecordPtrCmp {
+  bool operator()(const Record *LHS, const Record *RHS) const;
+};
   
 class CodeGenDAGPatterns {
   RecordKeeper &Records;
@@ -464,12 +473,12 @@ class CodeGenDAGPatterns {
   std::vector<CodeGenIntrinsic> Intrinsics;
   std::vector<CodeGenIntrinsic> TgtIntrinsics;
   
-  std::map<Record*, SDNodeInfo> SDNodes;
-  std::map<Record*, std::pair<Record*, std::string> > SDNodeXForms;
-  std::map<Record*, ComplexPattern> ComplexPatterns;
-  std::map<Record*, TreePattern*> PatternFragments;
-  std::map<Record*, DAGDefaultOperand> DefaultOperands;
-  std::map<Record*, DAGInstruction> Instructions;
+  std::map<Record*, SDNodeInfo, RecordPtrCmp> SDNodes;
+  std::map<Record*, std::pair<Record*, std::string>, RecordPtrCmp> SDNodeXForms;
+  std::map<Record*, ComplexPattern, RecordPtrCmp> ComplexPatterns;
+  std::map<Record*, TreePattern*, RecordPtrCmp> PatternFragments;
+  std::map<Record*, DAGDefaultOperand, RecordPtrCmp> DefaultOperands;
+  std::map<Record*, DAGInstruction, RecordPtrCmp> Instructions;
   
   // Specific SDNode definitions:
   Record *intrinsic_void_sdnode;
@@ -500,7 +509,8 @@ public:
     return SDNodeXForms.find(R)->second;
   }
   
-  typedef std::map<Record*, NodeXForm>::const_iterator nx_iterator;
+  typedef std::map<Record*, NodeXForm, RecordPtrCmp>::const_iterator
+          nx_iterator;
   nx_iterator nx_begin() const { return SDNodeXForms.begin(); }
   nx_iterator nx_end() const { return SDNodeXForms.end(); }
 
@@ -547,7 +557,8 @@ public:
     assert(PatternFragments.count(R) && "Invalid pattern fragment request!");
     return PatternFragments.find(R)->second;
   }
-  typedef std::map<Record*, TreePattern*>::const_iterator pf_iterator;
+  typedef std::map<Record*, TreePattern*, RecordPtrCmp>::const_iterator
+          pf_iterator;
   pf_iterator pf_begin() const { return PatternFragments.begin(); }
   pf_iterator pf_end() const { return PatternFragments.end(); }
 

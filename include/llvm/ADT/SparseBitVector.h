@@ -15,13 +15,14 @@
 #ifndef LLVM_ADT_SPARSEBITVECTOR_H
 #define LLVM_ADT_SPARSEBITVECTOR_H
 
+#include "llvm/ADT/ilist.h"
+#include "llvm/ADT/ilist_node.h"
+#include "llvm/Support/DataTypes.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <climits>
 #include <cstring>
-#include "llvm/Support/DataTypes.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/MathExtras.h"
-#include "llvm/ADT/ilist.h"
 
 namespace llvm {
 
@@ -41,7 +42,7 @@ namespace llvm {
 
 template <unsigned ElementSize = 128>
 struct SparseBitVectorElement
-  : ilist_node<SparseBitVectorElement<ElementSize> > {
+  : public ilist_node<SparseBitVectorElement<ElementSize> > {
 public:
   typedef unsigned long BitWord;
   enum {
@@ -887,7 +888,7 @@ operator-(const SparseBitVector<ElementSize> &LHS,
 
 // Dump a SparseBitVector to a stream
 template <unsigned ElementSize>
-void dump(const SparseBitVector<ElementSize> &LHS, llvm::OStream &out) {
+void dump(const SparseBitVector<ElementSize> &LHS, raw_ostream &out) {
   out << "[ ";
 
   typename SparseBitVector<ElementSize>::iterator bi;

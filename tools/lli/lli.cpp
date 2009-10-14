@@ -28,10 +28,10 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Process.h"
 #include "llvm/System/Signals.h"
 #include "llvm/Target/TargetSelect.h"
-#include <iostream>
 #include <cerrno>
 using namespace llvm;
 
@@ -94,8 +94,13 @@ int main(int argc, char **argv, char * const *envp) {
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
   
-  LLVMContext Context;
+  LLVMContext &Context = getGlobalContext();
   atexit(do_shutdown);  // Call llvm_shutdown() on exit.
+
+  // If we have a native target, initialize it to ensure it is linked in and
+  // usable by the JIT.
+  InitializeNativeTarget();
+
   cl::ParseCommandLineOptions(argc, argv,
                               "llvm interpreter & dynamic compiler\n");
 
@@ -112,8 +117,8 @@ int main(int argc, char **argv, char * const *envp) {
   }
   
   if (!MP) {
-    std::cerr << argv[0] << ": error loading program '" << InputFile << "': "
-              << ErrorMsg << "\n";
+    errs() << argv[0] << ": error loading program '" << InputFile << "': "
+           << ErrorMsg << "\n";
     exit(1);
   }
 
@@ -121,10 +126,16 @@ int main(int argc, char **argv, char * const *envp) {
   Module *Mod = NoLazyCompilation
     ? MP->materializeModule(&ErrorMsg) : MP->getModule();
   if (!Mod) {
-    std::cerr << argv[0] << ": bitcode didn't read correctly.\n";
-    std::cerr << "Reason: " << ErrorMsg << "\n";
+    errs() << argv[0] << ": bitcode didn't read correctly.\n";
+    errs() << "Reason: " << ErrorMsg << "\n";
     exit(1);
   }
+
+  EngineBuilder builder(MP);
+  builder.setErrorStr(&ErrorMsg);
+  builder.setEngineKind(ForceInterpreter
+                        ? EngineKind::Interpreter
+                        : EngineKind::JIT);
 
   // If we are supposed to override the target triple, do so now.
   if (!TargetTriple.empty())
@@ -133,7 +144,7 @@ int main(int argc, char **argv, char * const *envp) {
   CodeGenOpt::Level OLvl = CodeGenOpt::Default;
   switch (OptLevel) {
   default:
-    std::cerr << argv[0] << ": invalid optimization level.\n";
+    errs() << argv[0] << ": invalid optimization level.\n";
     return 1;
   case ' ': break;
   case '0': OLvl = CodeGenOpt::None; break;
@@ -141,18 +152,19 @@ int main(int argc, char **argv, char * const *envp) {
   case '2': OLvl = CodeGenOpt::Default; break;
   case '3': OLvl = CodeGenOpt::Aggressive; break;
   }
-  
-  // If we have a native target, initialize it to ensure it is linked in and
-  // usable by the JIT.
-  InitializeNativeTarget();
+  builder.setOptLevel(OLvl);
 
-  EE = ExecutionEngine::create(MP, ForceInterpreter, &ErrorMsg, OLvl);
-  if (!EE && !ErrorMsg.empty()) {
-    std::cerr << argv[0] << ":error creating EE: " << ErrorMsg << "\n";
+  EE = builder.create();
+  if (!EE) {
+    if (!ErrorMsg.empty())
+      errs() << argv[0] << ": error creating EE: " << ErrorMsg << "\n";
+    else
+      errs() << argv[0] << ": unknown error creating EE!\n";
     exit(1);
   }
 
   EE->RegisterJITEventListener(createMacOSJITEventListener());
+  EE->RegisterJITEventListener(createOProfileJITEventListener());
 
   if (NoLazyCompilation)
     EE->DisableLazyCompilation();
@@ -178,14 +190,15 @@ int main(int argc, char **argv, char * const *envp) {
   //
   Function *EntryFn = Mod->getFunction(EntryFunc);
   if (!EntryFn) {
-    std::cerr << '\'' << EntryFunc << "\' function not found in module.\n";
+    errs() << '\'' << EntryFunc << "\' function not found in module.\n";
     return -1;
   }
 
   // If the program doesn't explicitly call exit, we will need the Exit 
   // function later on to make an explicit call, so get the function now. 
-  Constant *Exit = Mod->getOrInsertFunction("exit", Type::VoidTy,
-                                                        Type::Int32Ty, NULL);
+  Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
+                                                    Type::getInt32Ty(Context),
+                                                    NULL);
   
   // Reset errno to zero on entry to main.
   errno = 0;
@@ -215,10 +228,10 @@ int main(int argc, char **argv, char * const *envp) {
     ResultGV.IntVal = APInt(32, Result);
     Args.push_back(ResultGV);
     EE->runFunction(ExitF, Args);
-    std::cerr << "ERROR: exit(" << Result << ") returned!\n";
+    errs() << "ERROR: exit(" << Result << ") returned!\n";
     abort();
   } else {
-    std::cerr << "ERROR: exit defined with wrong prototype!\n";
+    errs() << "ERROR: exit defined with wrong prototype!\n";
     abort();
   }
 }

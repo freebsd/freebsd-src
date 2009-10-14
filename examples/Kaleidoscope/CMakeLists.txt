@@ -1,5 +1,6 @@
-set(LLVM_LINK_COMPONENTS core jit native)
-
-add_llvm_example(Kaleidoscope
-  toy.cpp
-  )
+add_subdirectory(Chapter2)
+add_subdirectory(Chapter3)
+add_subdirectory(Chapter4)
+add_subdirectory(Chapter5)
+add_subdirectory(Chapter6)
+add_subdirectory(Chapter7)

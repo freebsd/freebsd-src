@@ -16,7 +16,7 @@
 #include "PIC16.h"
 #include "PIC16RegisterInfo.h"
 #include "llvm/ADT/BitVector.h"
-
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
@@ -51,10 +51,13 @@ bool PIC16RegisterInfo::hasFP(const MachineFunction &MF) const {
   return false;
 }
 
-void PIC16RegisterInfo::
+unsigned PIC16RegisterInfo::
 eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
-                    RegScavenger *RS) const
-{    /* NOT YET IMPLEMENTED */  }
+                    int *Value, RegScavenger *RS) const
+{
+  /* NOT YET IMPLEMENTED */
+  return 0;
+}
 
 void PIC16RegisterInfo::emitPrologue(MachineFunction &MF) const
 {    /* NOT YET IMPLEMENTED */  }
@@ -65,17 +68,17 @@ emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const
 
 int PIC16RegisterInfo::
 getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  assert(0 && "Not keeping track of debug information yet!!");
+  llvm_unreachable("Not keeping track of debug information yet!!");
   return -1;
 }
 
 unsigned PIC16RegisterInfo::getFrameRegister(MachineFunction &MF) const {
-  assert(0 && "PIC16 Does not have any frame register");
+  llvm_unreachable("PIC16 Does not have any frame register");
   return 0;
 }
 
 unsigned PIC16RegisterInfo::getRARegister() const {
-  assert(0 && "PIC16 Does not have any return address register");
+  llvm_unreachable("PIC16 Does not have any return address register");
   return 0;
 }
 

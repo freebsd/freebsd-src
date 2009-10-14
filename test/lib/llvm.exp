@@ -46,8 +46,8 @@ proc execOneLine { test PRS outcome lineno line } {
 # This procedure performs variable substitutions on the RUN: lines of a test
 # cases.
 proc substitute { line test tmpFile } {
-  global srcroot objroot srcdir objdir subdir target_triplet prcontext
-  global llvmgcc llvmgxx llvmgcc_version llvmgccmajvers ocamlc
+  global srcroot objroot srcdir objdir subdir target_triplet
+  global llvmgcc llvmgxx llvmgcc_version llvmgccmajvers ocamlopt
   global gccpath gxxpath compile_c compile_cxx link shlibext llvmlibsdir
   global llvmdsymutil valgrind grep gas bugpoint_topts
   set path [file join $srcdir $subdir]
@@ -57,8 +57,8 @@ proc substitute { line test tmpFile } {
 
   #replace %% with _#MARKER#_ to make the replacement of %% more predictable
   regsub -all {%%} $new_line {_#MARKER#_} new_line
-  #replace %prcontext with prcontext.tcl (Must replace before %p)
-  regsub -all {%prcontext} $new_line $prcontext new_line
+  #replace %llvmgcc_only with actual path to llvmgcc
+  regsub -all {%llvmgcc_only} $new_line "$llvmgcc" new_line
   #replace %llvmgcc with actual path to llvmgcc
   regsub -all {%llvmgcc} $new_line "$llvmgcc -emit-llvm -w" new_line
   #replace %llvmgxx with actual path to llvmg++
@@ -71,8 +71,8 @@ proc substitute { line test tmpFile } {
   regsub -all {%link} $new_line "$link" new_line
   #replace %shlibext with shared library extension
   regsub -all {%shlibext} $new_line "$shlibext" new_line
-  #replace %ocamlc with ocaml compiler command
-  regsub -all {%ocamlc} $new_line "$ocamlc" new_line
+  #replace %ocamlopt with ocaml compiler command
+  regsub -all {%ocamlopt} $new_line "$ocamlopt" new_line
   #replace %llvmdsymutil with dsymutil command
   regsub -all {%llvmdsymutil} $new_line "$llvmdsymutil" new_line
   #replace %llvmlibsdir with configure library directory
@@ -85,6 +85,8 @@ proc substitute { line test tmpFile } {
   regsub -all {%s} $new_line $test new_line
   #replace %t with temp filenames
   regsub -all {%t} $new_line $tmpFile new_line
+  #replace %abs_tmp with absolute temp filenames
+  regsub -all {%abs_tmp} $new_line [file join [pwd] $tmpFile] new_line
   #replace _#MARKER#_ with %
   regsub -all {_#MARKER#_} $new_line % new_line
 
@@ -293,6 +295,18 @@ proc llvm_supports_target { tgtName } {
   global TARGETS_TO_BUILD
   foreach target [split $TARGETS_TO_BUILD] {
     if { [regexp $tgtName $target match] } {
+      return 1
+    }
+  }
+  return 0
+}
+
+# This procedure provides an interface to check the BINDINGS_TO_BUILD makefile
+# variable to see if a particular binding has been configured to build.
+proc llvm_supports_binding { name } {
+  global llvm_bindings
+  foreach item [split $llvm_bindings] {
+    if { [regexp $name $item match] } {
       return 1
     }
   }

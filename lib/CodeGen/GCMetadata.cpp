@@ -18,17 +18,20 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Function.h"
 #include "llvm/Support/Compiler.h"
-
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
   
   class VISIBILITY_HIDDEN Printer : public FunctionPass {
     static char ID;
-    std::ostream &OS;
+    raw_ostream &OS;
     
   public:
-    explicit Printer(std::ostream &OS = *cerr);
+    Printer() : FunctionPass(&ID), OS(errs()) {}
+    explicit Printer(raw_ostream &OS) : FunctionPass(&ID), OS(OS) {}
+
     
     const char *getPassName() const;
     void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -74,27 +77,24 @@ GCModuleInfo::~GCModuleInfo() {
 
 GCStrategy *GCModuleInfo::getOrCreateStrategy(const Module *M,
                                               const std::string &Name) {
-  const char *Start = Name.c_str();
-  
-  strategy_map_type::iterator NMI =
-    StrategyMap.find(Start, Start + Name.size());
+  strategy_map_type::iterator NMI = StrategyMap.find(Name);
   if (NMI != StrategyMap.end())
     return NMI->getValue();
   
   for (GCRegistry::iterator I = GCRegistry::begin(),
                             E = GCRegistry::end(); I != E; ++I) {
-    if (strcmp(Start, I->getName()) == 0) {
+    if (Name == I->getName()) {
       GCStrategy *S = I->instantiate();
       S->M = M;
       S->Name = Name;
-      StrategyMap.GetOrCreateValue(Start, Start + Name.size()).setValue(S);
+      StrategyMap.GetOrCreateValue(Name).setValue(S);
       StrategyList.push_back(S);
       return S;
     }
   }
-  
-  cerr << "unsupported GC: " << Name << "\n";
-  abort();
+ 
+  errs() << "unsupported GC: " << Name << "\n";
+  llvm_unreachable(0);
 }
 
 GCFunctionInfo &GCModuleInfo::getFunctionInfo(const Function &F) {
@@ -124,12 +124,10 @@ void GCModuleInfo::clear() {
 
 char Printer::ID = 0;
 
-FunctionPass *llvm::createGCInfoPrinter(std::ostream &OS) {
+FunctionPass *llvm::createGCInfoPrinter(raw_ostream &OS) {
   return new Printer(OS);
 }
 
-Printer::Printer(std::ostream &OS)
-  : FunctionPass(&ID), OS(OS) {}
 
 const char *Printer::getPassName() const {
   return "Print Garbage Collector Information";
@@ -143,7 +141,7 @@ void Printer::getAnalysisUsage(AnalysisUsage &AU) const {
 
 static const char *DescKind(GC::PointKind Kind) {
   switch (Kind) {
-    default: assert(0 && "Unknown GC point kind");
+    default: llvm_unreachable("Unknown GC point kind");
     case GC::Loop:     return "loop";
     case GC::Return:   return "return";
     case GC::PreCall:  return "pre-call";
@@ -155,12 +153,12 @@ bool Printer::runOnFunction(Function &F) {
   if (!F.hasGC()) {
     GCFunctionInfo *FD = &getAnalysis<GCModuleInfo>().getFunctionInfo(F);
     
-    OS << "GC roots for " << FD->getFunction().getNameStart() << ":\n";
+    OS << "GC roots for " << FD->getFunction().getNameStr() << ":\n";
     for (GCFunctionInfo::roots_iterator RI = FD->roots_begin(),
                                         RE = FD->roots_end(); RI != RE; ++RI)
       OS << "\t" << RI->Num << "\t" << RI->StackOffset << "[sp]\n";
     
-    OS << "GC safe points for " << FD->getFunction().getNameStart() << ":\n";
+    OS << "GC safe points for " << FD->getFunction().getNameStr() << ":\n";
     for (GCFunctionInfo::iterator PI = FD->begin(),
                                   PE = FD->end(); PI != PE; ++PI) {
       

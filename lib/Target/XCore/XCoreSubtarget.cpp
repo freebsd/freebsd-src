@@ -13,16 +13,8 @@
 
 #include "XCoreSubtarget.h"
 #include "XCore.h"
-#include "XCoreGenSubtarget.inc"
 using namespace llvm;
 
-XCoreSubtarget::XCoreSubtarget(const TargetMachine &TM, const Module &M, 
-                             const std::string &FS)
-  : IsXS1A(false),
-    IsXS1B(false)
+XCoreSubtarget::XCoreSubtarget(const std::string &TT, const std::string &FS)
 {
-  std::string CPU = "xs1a-generic";
-
-  // Parse features string.
-  ParseSubtargetFeatures(FS, CPU);
 }

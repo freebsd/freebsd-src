@@ -35,7 +35,7 @@ class DbgScope;
 class DbgConcreteScope;
 class MachineFrameInfo;
 class MachineModuleInfo;
-class TargetAsmInfo;
+class MCAsmInfo;
 class Timer;
 
 //===----------------------------------------------------------------------===//
@@ -120,7 +120,7 @@ class VISIBILITY_HIDDEN DwarfDebug : public Dwarf {
 
   /// SectionMap - Provides a unique id per text section.
   ///
-  UniqueVector<const Section*> SectionMap;
+  UniqueVector<const MCSection*> SectionMap;
 
   /// SectionSourceLines - Tracks line numbers per text section.
   ///
@@ -139,34 +139,38 @@ class VISIBILITY_HIDDEN DwarfDebug : public Dwarf {
   DbgScope *FunctionDbgScope;
   
   /// DbgScopeMap - Tracks the scopes in the current function.
-  DenseMap<GlobalVariable *, DbgScope *> DbgScopeMap;
+  DenseMap<MDNode *, DbgScope *> DbgScopeMap;
+
+  /// ScopedGVs - Tracks global variables that are not at file scope.
+  /// For example void f() { static int b = 42; }
+  SmallVector<WeakVH, 4> ScopedGVs;
+
+  typedef DenseMap<const MachineInstr *, SmallVector<DbgScope *, 2> > 
+    InsnToDbgScopeMapTy;
+
+  /// DbgScopeBeginMap - Maps instruction with a list DbgScopes it starts.
+  InsnToDbgScopeMapTy DbgScopeBeginMap;
+
+  /// DbgScopeEndMap - Maps instruction with a list DbgScopes it ends.
+  InsnToDbgScopeMapTy DbgScopeEndMap;
 
   /// DbgAbstractScopeMap - Tracks abstract instance scopes in the current
   /// function.
-  DenseMap<GlobalVariable *, DbgScope *> DbgAbstractScopeMap;
+  DenseMap<MDNode *, DbgScope *> DbgAbstractScopeMap;
 
   /// DbgConcreteScopeMap - Tracks concrete instance scopes in the current
   /// function.
-  DenseMap<GlobalVariable *,
+  DenseMap<MDNode *,
            SmallVector<DbgScope *, 8> > DbgConcreteScopeMap;
 
   /// InlineInfo - Keep track of inlined functions and their location.  This
   /// information is used to populate debug_inlined section.
-  DenseMap<GlobalVariable *, SmallVector<unsigned, 4> > InlineInfo;
-
-  /// InlinedVariableScopes - Scopes information for the inlined subroutine
-  /// variables.
-  DenseMap<const MachineInstr *, DbgScope *> InlinedVariableScopes;
+  DenseMap<MDNode *, SmallVector<unsigned, 4> > InlineInfo;
 
   /// AbstractInstanceRootMap - Map of abstract instance roots of inlined
   /// functions. These are subroutine entries that contain a DW_AT_inline
   /// attribute.
-  DenseMap<const GlobalVariable *, DbgScope *> AbstractInstanceRootMap;
-
-  /// InlinedParamMap - A map keeping track of which parameters are assigned to
-  /// which abstract instance.
-  DenseMap<const GlobalVariable *,
-    SmallSet<const GlobalVariable *, 32> > InlinedParamMap;
+  DenseMap<const MDNode *, DbgScope *> AbstractInstanceRootMap;
 
   /// AbstractInstanceRootList - List of abstract instance roots of inlined
   /// functions. These are subroutine entries that contain a DW_AT_inline
@@ -284,17 +288,32 @@ class VISIBILITY_HIDDEN DwarfDebug : public Dwarf {
   /// AddSourceLine - Add location information to specified debug information
   /// entry.
   void AddSourceLine(DIE *Die, const DIVariable *V);
-
-  /// AddSourceLine - Add location information to specified debug information
-  /// entry.
   void AddSourceLine(DIE *Die, const DIGlobal *G);
-
+  void AddSourceLine(DIE *Die, const DISubprogram *SP);
   void AddSourceLine(DIE *Die, const DIType *Ty);
 
   /// AddAddress - Add an address attribute to a die based on the location
   /// provided.
   void AddAddress(DIE *Die, unsigned Attribute,
                   const MachineLocation &Location);
+
+  /// AddComplexAddress - Start with the address based on the location provided,
+  /// and generate the DWARF information necessary to find the actual variable
+  /// (navigating the extra location information encoded in the type) based on
+  /// the starting location.  Add the DWARF information to the die.
+  ///
+  void AddComplexAddress(DbgVariable *&DV, DIE *Die, unsigned Attribute,
+                         const MachineLocation &Location);
+
+  // FIXME: Should be reformulated in terms of AddComplexAddress.
+  /// AddBlockByrefAddress - Start with the address based on the location
+  /// provided, and generate the DWARF information necessary to find the
+  /// actual Block variable (navigating the Block struct) based on the
+  /// starting location.  Add the DWARF information to the die.  Obsolete,
+  /// please use AddComplexAddress instead.
+  ///
+  void AddBlockByrefAddress(DbgVariable *&DV, DIE *Die, unsigned Attribute,
+                            const MachineLocation &Location);
 
   /// AddType - Add a new type attribute to the specified entity.
   void AddType(CompileUnit *DW_Unit, DIE *Entity, DIType Ty);
@@ -342,9 +361,10 @@ class VISIBILITY_HIDDEN DwarfDebug : public Dwarf {
   ///
   DIE *CreateDbgScopeVariable(DbgVariable *DV, CompileUnit *Unit);
 
-  /// getOrCreateScope - Returns the scope associated with the given descriptor.
+  /// getDbgScope - Returns the scope associated with the given descriptor.
   ///
-  DbgScope *getOrCreateScope(GlobalVariable *V);
+  DbgScope *getOrCreateScope(MDNode *N);
+  DbgScope *getDbgScope(MDNode *N, const MachineInstr *MI);
 
   /// ConstructDbgScope - Construct the components of a scope.
   ///
@@ -454,20 +474,26 @@ class VISIBILITY_HIDDEN DwarfDebug : public Dwarf {
   /// source file names. If none currently exists, create a new id and insert it
   /// in the SourceIds map. This can update DirectoryNames and SourceFileNames maps
   /// as well.
-  unsigned GetOrCreateSourceID(const std::string &DirName,
-                               const std::string &FileName);
+  unsigned GetOrCreateSourceID(const char *DirName,
+                               const char *FileName);
 
-  void ConstructCompileUnit(GlobalVariable *GV);
+  void ConstructCompileUnit(MDNode *N);
 
-  void ConstructGlobalVariableDIE(GlobalVariable *GV);
+  void ConstructGlobalVariableDIE(MDNode *N);
 
-  void ConstructSubprogram(GlobalVariable *GV);
+  void ConstructSubprogram(MDNode *N);
+
+  // FIXME: This should go away in favor of complex addresses.
+  /// Find the type the programmer originally declared the variable to be
+  /// and return that type.  Obsolete, use GetComplexAddrType instead.
+  ///
+  DIType GetBlockByrefType(DIType Ty, std::string Name);
 
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
   //
-  DwarfDebug(raw_ostream &OS, AsmPrinter *A, const TargetAsmInfo *T);
+  DwarfDebug(raw_ostream &OS, AsmPrinter *A, const MCAsmInfo *T);
   virtual ~DwarfDebug();
 
   /// ShouldEmitDwarfDebug - Returns true if Dwarf debugging declarations should
@@ -493,12 +519,7 @@ public:
   /// RecordSourceLine - Records location information and associates it with a 
   /// label. Returns a unique label ID used to generate a label and provide
   /// correspondence to the source line list.
-  unsigned RecordSourceLine(Value *V, unsigned Line, unsigned Col);
-  
-  /// RecordSourceLine - Records location information and associates it with a 
-  /// label. Returns a unique label ID used to generate a label and provide
-  /// correspondence to the source line list.
-  unsigned RecordSourceLine(unsigned Line, unsigned Col, DICompileUnit CU);
+  unsigned RecordSourceLine(unsigned Line, unsigned Col, MDNode *Scope);
 
   /// getRecordSourceLineCount - Return the number of source lines in the debug
   /// info.
@@ -515,14 +536,13 @@ public:
                                const std::string &FileName);
 
   /// RecordRegionStart - Indicate the start of a region.
-  unsigned RecordRegionStart(GlobalVariable *V);
+  unsigned RecordRegionStart(MDNode *N);
 
   /// RecordRegionEnd - Indicate the end of a region.
-  unsigned RecordRegionEnd(GlobalVariable *V);
+  unsigned RecordRegionEnd(MDNode *N);
 
   /// RecordVariable - Indicate the declaration of  a local variable.
-  void RecordVariable(GlobalVariable *GV, unsigned FrameIndex,
-                      const MachineInstr *MI);
+  void RecordVariable(MDNode *N, unsigned FrameIndex);
 
   //// RecordInlinedFnStart - Indicate the start of inlined subroutine.
   unsigned RecordInlinedFnStart(DISubprogram &SP, DICompileUnit CU,
@@ -531,11 +551,20 @@ public:
   /// RecordInlinedFnEnd - Indicate the end of inlined subroutine.
   unsigned RecordInlinedFnEnd(DISubprogram &SP);
 
-  /// RecordVariableScope - Record scope for the variable declared by
-  /// DeclareMI. DeclareMI must describe TargetInstrInfo::DECLARE. Record scopes
-  /// for only inlined subroutine variables. Other variables's scopes are
-  /// determined during RecordVariable().
-  void RecordVariableScope(DIVariable &DV, const MachineInstr *DeclareMI);
+  /// ExtractScopeInformation - Scan machine instructions in this function
+  /// and collect DbgScopes. Return true, if atleast one scope was found.
+  bool ExtractScopeInformation(MachineFunction *MF);
+
+  /// CollectVariableInfo - Populate DbgScope entries with variables' info.
+  void CollectVariableInfo();
+
+  /// SetDbgScopeBeginLabels - Update DbgScope begin labels for the scopes that
+  /// start with this machine instruction.
+  void SetDbgScopeBeginLabels(const MachineInstr *MI, unsigned Label);
+
+  /// SetDbgScopeEndLabels - Update DbgScope end labels for the scopes that
+  /// end with this machine instruction.
+  void SetDbgScopeEndLabels(const MachineInstr *MI, unsigned Label);
 };
 
 } // End of namespace llvm

@@ -20,40 +20,23 @@
 
 namespace llvm {
   class ARMSubtarget;
-  class TargetInstrInfo;
+  class ARMBaseInstrInfo;
   class Type;
 
 struct Thumb2RegisterInfo : public ARMBaseRegisterInfo {
 public:
-  Thumb2RegisterInfo(const TargetInstrInfo &tii, const ARMSubtarget &STI);
+  Thumb2RegisterInfo(const ARMBaseInstrInfo &tii, const ARMSubtarget &STI);
 
   /// emitLoadConstPool - Emits a load from constpool to materialize the
   /// specified immediate.
   void emitLoadConstPool(MachineBasicBlock &MBB,
                          MachineBasicBlock::iterator &MBBI,
-                         unsigned DestReg, int Val,
-                         const TargetInstrInfo *TII,
-                         DebugLoc dl) const;
-
-  /// Code Generation virtual methods...
-  const TargetRegisterClass *
-    getPhysicalRegisterRegClass(unsigned Reg, MVT VT = MVT::Other) const;
-
-  bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;
+                         DebugLoc dl,
+                         unsigned DestReg, unsigned SubIdx, int Val,
+                         ARMCC::CondCodes Pred = ARMCC::AL,
+                         unsigned PredReg = 0) const;
 
   bool requiresRegisterScavenging(const MachineFunction &MF) const;
-
-  bool hasReservedCallFrame(MachineFunction &MF) const;
-
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
-
-  void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
-
-  void emitPrologue(MachineFunction &MF) const;
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
 };
 }
 

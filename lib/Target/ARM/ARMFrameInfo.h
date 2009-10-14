@@ -15,15 +15,15 @@
 #define ARM_FRAMEINFO_H
 
 #include "ARM.h"
-#include "llvm/Target/TargetFrameInfo.h"
 #include "ARMSubtarget.h"
+#include "llvm/Target/TargetFrameInfo.h"
 
 namespace llvm {
 
 class ARMFrameInfo : public TargetFrameInfo {
 public:
   explicit ARMFrameInfo(const ARMSubtarget &ST)
-    : TargetFrameInfo(StackGrowsDown, ST.getStackAlignment(), 0) {
+    : TargetFrameInfo(StackGrowsDown, ST.getStackAlignment(), 0, 4) {
   }
 };
 

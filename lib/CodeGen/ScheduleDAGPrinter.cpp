@@ -86,14 +86,14 @@ void ScheduleDAG::viewGraph() {
 // This code is only for debugging!
 #ifndef NDEBUG
   if (BB->getBasicBlock())
-    ViewGraph(this, "dag." + MF.getFunction()->getName(), false,
-              "Scheduling-Units Graph for " + MF.getFunction()->getName() + ':' +
-              BB->getBasicBlock()->getName());
+    ViewGraph(this, "dag." + MF.getFunction()->getNameStr(), false,
+              "Scheduling-Units Graph for " + MF.getFunction()->getNameStr() + 
+              ":" + BB->getBasicBlock()->getNameStr());
   else
-    ViewGraph(this, "dag." + MF.getFunction()->getName(), false,
-              "Scheduling-Units Graph for " + MF.getFunction()->getName());
+    ViewGraph(this, "dag." + MF.getFunction()->getNameStr(), false,
+              "Scheduling-Units Graph for " + MF.getFunction()->getNameStr());
 #else
-  cerr << "ScheduleDAG::viewGraph is only available in debug builds on "
-       << "systems with Graphviz or gv!\n";
+  errs() << "ScheduleDAG::viewGraph is only available in debug builds on "
+         << "systems with Graphviz or gv!\n";
 #endif  // NDEBUG
 }

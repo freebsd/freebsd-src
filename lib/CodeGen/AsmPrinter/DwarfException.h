@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_ASMPRINTER_DWARFEXCEPTION_H__
-#define CODEGEN_ASMPRINTER_DWARFEXCEPTION_H__
+#ifndef LLVM_CODEGEN_ASMPRINTER_DWARFEXCEPTION_H
+#define LLVM_CODEGEN_ASMPRINTER_DWARFEXCEPTION_H
 
 #include "DIE.h"
 #include "DwarfPrinter.h"
@@ -24,7 +24,7 @@ namespace llvm {
 
 struct LandingPadInfo;
 class MachineModuleInfo;
-class TargetAsmInfo;
+class MCAsmInfo;
 class Timer;
 class raw_ostream;
 
@@ -51,6 +51,11 @@ class VISIBILITY_HIDDEN DwarfException : public Dwarf {
 
   std::vector<FunctionEHFrameInfo> EHFrames;
 
+  /// UsesLSDA - Indicates whether an FDE that uses the CIE at the given index
+  /// uses an LSDA. If so, then we need to encode that information in the CIE's
+  /// augmentation.
+  DenseMap<unsigned, bool> UsesLSDA;
+
   /// shouldEmitTable - Per-function flag to indicate if EH tables should
   /// be emitted.
   bool shouldEmitTable;
@@ -70,13 +75,16 @@ class VISIBILITY_HIDDEN DwarfException : public Dwarf {
   /// ExceptionTimer - Timer for the Dwarf exception writer.
   Timer *ExceptionTimer;
 
-  /// EmitCommonEHFrame - Emit the common eh unwind frame.
-  ///
-  void EmitCommonEHFrame(const Function *Personality, unsigned Index);
+  /// SizeOfEncodedValue - Return the size of the encoding in bytes.
+  unsigned SizeOfEncodedValue(unsigned Encoding);
 
-  /// EmitEHFrame - Emit function exception frame information.
-  ///
-  void EmitEHFrame(const FunctionEHFrameInfo &EHFrameInfo);
+  /// EmitCIE - Emit a Common Information Entry (CIE). This holds information
+  /// that is shared among many Frame Description Entries.  There is at least
+  /// one CIE in every non-empty .debug_frame section.
+  void EmitCIE(const Function *Personality, unsigned Index);
+
+  /// EmitFDE - Emit the Frame Description Entry (FDE) for the function.
+  void EmitFDE(const FunctionEHFrameInfo &EHFrameInfo);
 
   /// EmitExceptionTable - Emit landing pads and actions.
   ///
@@ -113,13 +121,6 @@ class VISIBILITY_HIDDEN DwarfException : public Dwarf {
     static bool isPod() { return true; }
   };
 
-  /// ActionEntry - Structure describing an entry in the actions table.
-  struct ActionEntry {
-    int ValueForTypeID; // The value to write - may not be equal to the type id.
-    int NextAction;
-    struct ActionEntry *Previous;
-  };
-
   /// PadRange - Structure holding a try-range and the associated landing pad.
   struct PadRange {
     // The index of the landing pad.
@@ -130,23 +131,48 @@ class VISIBILITY_HIDDEN DwarfException : public Dwarf {
 
   typedef DenseMap<unsigned, PadRange, KeyInfo> RangeMapType;
 
+  /// ActionEntry - Structure describing an entry in the actions table.
+  struct ActionEntry {
+    int ValueForTypeID; // The value to write - may not be equal to the type id.
+    int NextAction;
+    struct ActionEntry *Previous;
+  };
+
   /// CallSiteEntry - Structure describing an entry in the call-site table.
   struct CallSiteEntry {
     // The 'try-range' is BeginLabel .. EndLabel.
     unsigned BeginLabel; // zero indicates the start of the function.
     unsigned EndLabel;   // zero indicates the end of the function.
+
     // The landing pad starts at PadLabel.
     unsigned PadLabel;   // zero indicates that there is no landing pad.
     unsigned Action;
   };
 
+  /// ComputeActionsTable - Compute the actions table and gather the first
+  /// action index for each landing pad site.
+  unsigned ComputeActionsTable(const SmallVectorImpl<const LandingPadInfo*>&LPs,
+                               SmallVectorImpl<ActionEntry> &Actions,
+                               SmallVectorImpl<unsigned> &FirstActions);
+
+  /// ComputeCallSiteTable - Compute the call-site table.  The entry for an
+  /// invoke has a try-range containing the call, a non-zero landing pad and an
+  /// appropriate action.  The entry for an ordinary call has a try-range
+  /// containing the call and zero for the landing pad and the action.  Calls
+  /// marked 'nounwind' have no entry and must not be contained in the try-range
+  /// of any entry - they form gaps in the table.  Entries must be ordered by
+  /// try-range address.
+  void ComputeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
+                            const RangeMapType &PadMap,
+                            const SmallVectorImpl<const LandingPadInfo *> &LPs,
+                            const SmallVectorImpl<unsigned> &FirstActions);
   void EmitExceptionTable();
 
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
   //
-  DwarfException(raw_ostream &OS, AsmPrinter *A, const TargetAsmInfo *T);
+  DwarfException(raw_ostream &OS, AsmPrinter *A, const MCAsmInfo *T);
   virtual ~DwarfException();
 
   /// BeginModule - Emit all exception information that should come prior to the

@@ -27,10 +27,9 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Program.h"
-#include "llvm/Config/alloca.h"
 
 #define DONT_GET_PLUGIN_LOADER_OPTION
 #include "llvm/Support/PluginLoader.h"
@@ -38,6 +37,9 @@
 #include <fstream>
 using namespace llvm;
 
+namespace llvm {
+  extern cl::opt<std::string> OutputPrefix;
+}
 
 namespace {
   // ChildOutput - This option captures the name of the child output file that
@@ -52,10 +54,10 @@ namespace {
 ///
 bool BugDriver::writeProgramToFile(const std::string &Filename,
                                    Module *M) const {
-  std::ios::openmode io_mode = std::ios::out | std::ios::trunc |
-                               std::ios::binary;
-  std::ofstream Out(Filename.c_str(), io_mode);
-  if (!Out.good()) return true;
+  std::string ErrInfo;
+  raw_fd_ostream Out(Filename.c_str(), ErrInfo,
+                     raw_fd_ostream::F_Binary);
+  if (!ErrInfo.empty()) return true;
   
   WriteBitcodeToFile(M ? M : Program, Out);
   return false;
@@ -69,26 +71,26 @@ void BugDriver::EmitProgressBitcode(const std::string &ID, bool NoFlyer) {
   // Output the input to the current pass to a bitcode file, emit a message
   // telling the user how to reproduce it: opt -foo blah.bc
   //
-  std::string Filename = "bugpoint-" + ID + ".bc";
+  std::string Filename = OutputPrefix + "-" + ID + ".bc";
   if (writeProgramToFile(Filename)) {
-    cerr <<  "Error opening file '" << Filename << "' for writing!\n";
+    errs() <<  "Error opening file '" << Filename << "' for writing!\n";
     return;
   }
 
-  cout << "Emitted bitcode to '" << Filename << "'\n";
+  outs() << "Emitted bitcode to '" << Filename << "'\n";
   if (NoFlyer || PassesToRun.empty()) return;
-  cout << "\n*** You can reproduce the problem with: ";
-  cout << "opt " << Filename << " ";
-  cout << getPassesString(PassesToRun) << "\n";
+  outs() << "\n*** You can reproduce the problem with: ";
+  if (UseValgrind) outs() << "valgrind ";
+  outs() << "opt " << Filename << " ";
+  outs() << getPassesString(PassesToRun) << "\n";
 }
 
 int BugDriver::runPassesAsChild(const std::vector<const PassInfo*> &Passes) {
-
-  std::ios::openmode io_mode = std::ios::out | std::ios::trunc |
-                               std::ios::binary;
-  std::ofstream OutFile(ChildOutput.c_str(), io_mode);
-  if (!OutFile.good()) {
-    cerr << "Error opening bitcode file: " << ChildOutput << "\n";
+  std::string ErrInfo;
+  raw_fd_ostream OutFile(ChildOutput.c_str(), ErrInfo,
+                         raw_fd_ostream::F_Binary);
+  if (!ErrInfo.empty()) {
+    errs() << "Error opening bitcode file: " << ChildOutput << "\n";
     return 1;
   }
 
@@ -100,13 +102,13 @@ int BugDriver::runPassesAsChild(const std::vector<const PassInfo*> &Passes) {
     if (Passes[i]->getNormalCtor())
       PM.add(Passes[i]->getNormalCtor()());
     else
-      cerr << "Cannot create pass yet: " << Passes[i]->getPassName() << "\n";
+      errs() << "Cannot create pass yet: " << Passes[i]->getPassName() << "\n";
   }
   // Check that the module is well formed on completion of optimization
   PM.add(createVerifierPass());
 
   // Write bitcode out to disk as the last step...
-  PM.add(CreateBitcodeWriterPass(OutFile));
+  PM.add(createBitcodeWriterPass(OutFile));
 
   // Run all queued passes.
   PM.run(*Program);
@@ -121,58 +123,58 @@ cl::opt<bool> SilencePasses("silence-passes", cl::desc("Suppress output of runni
 /// optimizations fail for some reason (optimizer crashes), return true,
 /// otherwise return false.  If DeleteOutput is set to true, the bitcode is
 /// deleted on success, and the filename string is undefined.  This prints to
-/// cout a single line message indicating whether compilation was successful or
-/// failed.
+/// outs() a single line message indicating whether compilation was successful
+/// or failed.
 ///
 bool BugDriver::runPasses(const std::vector<const PassInfo*> &Passes,
                           std::string &OutputFilename, bool DeleteOutput,
                           bool Quiet, unsigned NumExtraArgs,
                           const char * const *ExtraArgs) const {
   // setup the output file name
-  cout << std::flush;
-  sys::Path uniqueFilename("bugpoint-output.bc");
+  outs().flush();
+  sys::Path uniqueFilename(OutputPrefix + "-output.bc");
   std::string ErrMsg;
   if (uniqueFilename.makeUnique(true, &ErrMsg)) {
-    cerr << getToolName() << ": Error making unique filename: " 
-         << ErrMsg << "\n";
+    errs() << getToolName() << ": Error making unique filename: "
+           << ErrMsg << "\n";
     return(1);
   }
-  OutputFilename = uniqueFilename.toString();
+  OutputFilename = uniqueFilename.str();
 
   // set up the input file name
-  sys::Path inputFilename("bugpoint-input.bc");
+  sys::Path inputFilename(OutputPrefix + "-input.bc");
   if (inputFilename.makeUnique(true, &ErrMsg)) {
-    cerr << getToolName() << ": Error making unique filename: " 
-         << ErrMsg << "\n";
+    errs() << getToolName() << ": Error making unique filename: "
+           << ErrMsg << "\n";
     return(1);
   }
-  std::ios::openmode io_mode = std::ios::out | std::ios::trunc |
-                               std::ios::binary;
-  std::ofstream InFile(inputFilename.c_str(), io_mode);
-  if (!InFile.good()) {
-    cerr << "Error opening bitcode file: " << inputFilename << "\n";
-    return(1);
+  
+  std::string ErrInfo;
+  raw_fd_ostream InFile(inputFilename.c_str(), ErrInfo,
+                        raw_fd_ostream::F_Binary);
+  
+  
+  if (!ErrInfo.empty()) {
+    errs() << "Error opening bitcode file: " << inputFilename.str() << "\n";
+    return 1;
   }
   WriteBitcodeToFile(Program, InFile);
   InFile.close();
 
   // setup the child process' arguments
-  const char** args = (const char**)
-    alloca(sizeof(const char*) * 
-           (Passes.size()+13+2*PluginLoader::getNumPlugins()+NumExtraArgs));
-  int n = 0;
+  SmallVector<const char*, 8> Args;
   sys::Path tool = sys::Program::FindProgramByName(ToolName);
   if (UseValgrind) {
-    args[n++] = "valgrind";
-    args[n++] = "--error-exitcode=1";
-    args[n++] = "-q";
-    args[n++] = tool.c_str();
+    Args.push_back("valgrind");
+    Args.push_back("--error-exitcode=1");
+    Args.push_back("-q");
+    Args.push_back(tool.c_str());
   } else
-    args[n++] = ToolName.c_str();
+    Args.push_back(ToolName);
 
-  args[n++] = "-as-child";
-  args[n++] = "-child-output";
-  args[n++] = OutputFilename.c_str();
+  Args.push_back("-as-child");
+  Args.push_back("-child-output");
+  Args.push_back(OutputFilename.c_str());
   std::vector<std::string> pass_args;
   for (unsigned i = 0, e = PluginLoader::getNumPlugins(); i != e; ++i) {
     pass_args.push_back( std::string("-load"));
@@ -183,11 +185,11 @@ bool BugDriver::runPasses(const std::vector<const PassInfo*> &Passes,
     pass_args.push_back( std::string("-") + (*I)->getPassArgument() );
   for (std::vector<std::string>::const_iterator I = pass_args.begin(),
        E = pass_args.end(); I != E; ++I )
-    args[n++] = I->c_str();
-  args[n++] = inputFilename.c_str();
+    Args.push_back(I->c_str());
+  Args.push_back(inputFilename.c_str());
   for (unsigned i = 0; i < NumExtraArgs; ++i)
-    args[n++] = *ExtraArgs;
-  args[n++] = 0;
+    Args.push_back(*ExtraArgs);
+  Args.push_back(0);
 
   sys::Path prog;
   if (UseValgrind)
@@ -199,7 +201,8 @@ bool BugDriver::runPasses(const std::vector<const PassInfo*> &Passes,
   sys::Path Nowhere;
   const sys::Path *Redirects[3] = {0, &Nowhere, &Nowhere};
 
-  int result = sys::Program::ExecuteAndWait(prog, args, 0, (SilencePasses ? Redirects : 0),
+  int result = sys::Program::ExecuteAndWait(prog, Args.data(), 0,
+                                            (SilencePasses ? Redirects : 0),
                                             Timeout, MemoryLimit, &ErrMsg);
 
   // If we are supposed to delete the bitcode file or if the passes crashed,
@@ -212,17 +215,17 @@ bool BugDriver::runPasses(const std::vector<const PassInfo*> &Passes,
 
   if (!Quiet) {
     if (result == 0)
-      cout << "Success!\n";
+      outs() << "Success!\n";
     else if (result > 0)
-      cout << "Exited with error code '" << result << "'\n";
+      outs() << "Exited with error code '" << result << "'\n";
     else if (result < 0) {
       if (result == -1)
-        cout << "Execute failed: " << ErrMsg << "\n";
+        outs() << "Execute failed: " << ErrMsg << "\n";
       else
-        cout << "Crashed with signal #" << abs(result) << "\n";
+        outs() << "Crashed with signal #" << abs(result) << "\n";
     }
     if (result & 0x01000000)
-      cout << "Dumped core\n";
+      outs() << "Dumped core\n";
   }
 
   // Was the child successful?
@@ -242,8 +245,8 @@ Module *BugDriver::runPassesOn(Module *M,
   if (runPasses(Passes, BitcodeResult, false/*delete*/, true/*quiet*/,
                 NumExtraArgs, ExtraArgs)) {
     if (AutoDebugCrashes) {
-      cerr << " Error running this sequence of passes"
-           << " on the input program!\n";
+      errs() << " Error running this sequence of passes"
+             << " on the input program!\n";
       delete OldProgram;
       EmitProgressBitcode("pass-error",  false);
       exit(debugOptimizerCrash());
@@ -257,8 +260,8 @@ Module *BugDriver::runPassesOn(Module *M,
 
   Module *Ret = ParseInputFile(BitcodeResult, Context);
   if (Ret == 0) {
-    cerr << getToolName() << ": Error reading bitcode file '"
-         << BitcodeResult << "'!\n";
+    errs() << getToolName() << ": Error reading bitcode file '"
+           << BitcodeResult << "'!\n";
     exit(1);
   }
   sys::Path(BitcodeResult).eraseFromDisk();  // No longer need the file on disk

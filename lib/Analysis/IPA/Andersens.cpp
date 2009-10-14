@@ -60,9 +60,11 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/MallocHelper.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/System/Atomic.h"
@@ -84,7 +86,9 @@
 #define FULL_UNIVERSAL 0
 
 using namespace llvm;
+#ifndef NDEBUG
 STATISTIC(NumIters      , "Number of iterations to reach convergence");
+#endif
 STATISTIC(NumConstraints, "Number of constraints");
 STATISTIC(NumNodes      , "Number of nodes");
 STATISTIC(NumUnified    , "Number of variables unified");
@@ -507,7 +511,7 @@ namespace {
 #ifndef NDEBUG
         V->dump();
 #endif
-        assert(0 && "Value does not have a node in the points-to graph!");
+        llvm_unreachable("Value does not have a node in the points-to graph!");
       }
       return I->second;
     }
@@ -589,9 +593,12 @@ namespace {
     friend class InstVisitor<Andersens>;
     void visitReturnInst(ReturnInst &RI);
     void visitInvokeInst(InvokeInst &II) { visitCallSite(CallSite(&II)); }
-    void visitCallInst(CallInst &CI) { visitCallSite(CallSite(&CI)); }
+    void visitCallInst(CallInst &CI) { 
+      if (isMalloc(&CI)) visitAllocationInst(CI);
+      else visitCallSite(CallSite(&CI)); 
+    }
     void visitCallSite(CallSite CS);
-    void visitAllocationInst(AllocationInst &AI);
+    void visitAllocationInst(Instruction &I);
     void visitLoadInst(LoadInst &LI);
     void visitStoreInst(StoreInst &SI);
     void visitGetElementPtrInst(GetElementPtrInst &GEP);
@@ -606,7 +613,7 @@ namespace {
     //===------------------------------------------------------------------===//
     // Implement Analyize interface
     //
-    void print(std::ostream &O, const Module* M) const {
+    void print(raw_ostream &O, const Module*) const {
       PrintPointsToGraph();
     }
   };
@@ -614,7 +621,8 @@ namespace {
 
 char Andersens::ID = 0;
 static RegisterPass<Andersens>
-X("anders-aa", "Andersen's Interprocedural Alias Analysis", false, true);
+X("anders-aa", "Andersen's Interprocedural Alias Analysis (experimental)",
+  false, true);
 static RegisterAnalysisGroup<AliasAnalysis> Y(X);
 
 // Initialize Timestamp Counter (static).
@@ -786,6 +794,8 @@ void Andersens::IdentifyObjects(Module &M) {
         ValueNodes[&*II] = NumObjects++;
         if (AllocationInst *AI = dyn_cast<AllocationInst>(&*II))
           ObjectNodes[AI] = NumObjects++;
+        else if (isMalloc(&*II))
+          ObjectNodes[&*II] = NumObjects++;
       }
 
       // Calls to inline asm need to be added as well because the callee isn't
@@ -825,11 +835,11 @@ unsigned Andersens::getNodeForConstantPointer(Constant *C) {
     case Instruction::BitCast:
       return getNodeForConstantPointer(CE->getOperand(0));
     default:
-      cerr << "Constant Expr not yet handled: " << *CE << "\n";
-      assert(0);
+      errs() << "Constant Expr not yet handled: " << *CE << "\n";
+      llvm_unreachable(0);
     }
   } else {
-    assert(0 && "Unknown constant pointer!");
+    llvm_unreachable("Unknown constant pointer!");
   }
   return 0;
 }
@@ -852,11 +862,11 @@ unsigned Andersens::getNodeForConstantPointerTarget(Constant *C) {
     case Instruction::BitCast:
       return getNodeForConstantPointerTarget(CE->getOperand(0));
     default:
-      cerr << "Constant Expr not yet handled: " << *CE << "\n";
-      assert(0);
+      errs() << "Constant Expr not yet handled: " << *CE << "\n";
+      llvm_unreachable(0);
     }
   } else {
-    assert(0 && "Unknown constant pointer!");
+    llvm_unreachable("Unknown constant pointer!");
   }
   return 0;
 }
@@ -996,7 +1006,7 @@ bool Andersens::AnalyzeUsesOfFunction(Value *V) {
   if (!isa<PointerType>(V->getType())) return true;
 
   for (Value::use_iterator UI = V->use_begin(), E = V->use_end(); UI != E; ++UI)
-    if (dyn_cast<LoadInst>(*UI)) {
+    if (isa<LoadInst>(*UI)) {
       return false;
     } else if (StoreInst *SI = dyn_cast<StoreInst>(*UI)) {
       if (V == SI->getOperand(1)) {
@@ -1027,7 +1037,7 @@ bool Andersens::AnalyzeUsesOfFunction(Value *V) {
     } else if (ICmpInst *ICI = dyn_cast<ICmpInst>(*UI)) {
       if (!isa<ConstantPointerNull>(ICI->getOperand(1)))
         return true;  // Allow comparison against null.
-    } else if (dyn_cast<FreeInst>(*UI)) {
+    } else if (isa<FreeInst>(*UI)) {
       return false;
     } else {
       return true;
@@ -1060,7 +1070,7 @@ void Andersens::CollectConstraints(Module &M) {
     Constraints.push_back(Constraint(Constraint::AddressOf, getNodeValue(*I),
                                      ObjectIndex));
 
-    if (I->hasInitializer()) {
+    if (I->hasDefinitiveInitializer()) {
       AddGlobalInitializerConstraints(ObjectIndex, I->getInitializer());
     } else {
       // If it doesn't have an initializer (i.e. it's defined in another
@@ -1152,15 +1162,15 @@ void Andersens::visitInstruction(Instruction &I) {
     return;
   default:
     // Is this something we aren't handling yet?
-    cerr << "Unknown instruction: " << I;
-    abort();
+    errs() << "Unknown instruction: " << I;
+    llvm_unreachable(0);
   }
 }
 
-void Andersens::visitAllocationInst(AllocationInst &AI) {
-  unsigned ObjectIndex = getObject(&AI);
-  GraphNodes[ObjectIndex].setValue(&AI);
-  Constraints.push_back(Constraint(Constraint::AddressOf, getNodeValue(AI),
+void Andersens::visitAllocationInst(Instruction &I) {
+  unsigned ObjectIndex = getObject(&I);
+  GraphNodes[ObjectIndex].setValue(&I);
+  Constraints.push_back(Constraint(Constraint::AddressOf, getNodeValue(I),
                                    ObjectIndex));
 }
 
@@ -1243,7 +1253,7 @@ void Andersens::visitSelectInst(SelectInst &SI) {
 }
 
 void Andersens::visitVAArg(VAArgInst &I) {
-  assert(0 && "vaarg not handled yet!");
+  llvm_unreachable("vaarg not handled yet!");
 }
 
 /// AddConstraintsForCall - Add constraints for a call with actual arguments
@@ -1395,12 +1405,6 @@ bool Andersens::Node::intersectsIgnoring(Node *N, unsigned Ignoring) const {
   return Result;
 }
 
-void dumpToDOUT(SparseBitVector<> *bitmap) {
-#ifndef NDEBUG
-  dump(*bitmap, DOUT);
-#endif
-}
-
 
 /// Clump together address taken variables so that the points-to sets use up
 /// less space and can be operated on faster.
@@ -1424,7 +1428,7 @@ void Andersens::ClumpAddressTaken() {
     unsigned Pos = NewPos++;
     Translate[i] = Pos;
     NewGraphNodes.push_back(GraphNodes[i]);
-    DOUT << "Renumbering node " << i << " to node " << Pos << "\n";
+    DEBUG(errs() << "Renumbering node " << i << " to node " << Pos << "\n");
   }
 
   // I believe this ends up being faster than making two vectors and splicing
@@ -1434,7 +1438,7 @@ void Andersens::ClumpAddressTaken() {
       unsigned Pos = NewPos++;
       Translate[i] = Pos;
       NewGraphNodes.push_back(GraphNodes[i]);
-      DOUT << "Renumbering node " << i << " to node " << Pos << "\n";
+      DEBUG(errs() << "Renumbering node " << i << " to node " << Pos << "\n");
     }
   }
 
@@ -1443,7 +1447,7 @@ void Andersens::ClumpAddressTaken() {
       unsigned Pos = NewPos++;
       Translate[i] = Pos;
       NewGraphNodes.push_back(GraphNodes[i]);
-      DOUT << "Renumbering node " << i << " to node " << Pos << "\n";
+      DEBUG(errs() << "Renumbering node " << i << " to node " << Pos << "\n");
     }
   }
 
@@ -1515,7 +1519,7 @@ void Andersens::ClumpAddressTaken() {
 /// receive &D from E anyway.
 
 void Andersens::HVN() {
-  DOUT << "Beginning HVN\n";
+  DEBUG(errs() << "Beginning HVN\n");
   // Build a predecessor graph.  This is like our constraint graph with the
   // edges going in the opposite direction, and there are edges for all the
   // constraints, instead of just copy constraints.  We also build implicit
@@ -1586,7 +1590,7 @@ void Andersens::HVN() {
   Node2DFS.clear();
   Node2Deleted.clear();
   Node2Visited.clear();
-  DOUT << "Finished HVN\n";
+  DEBUG(errs() << "Finished HVN\n");
 
 }
 
@@ -1710,7 +1714,7 @@ void Andersens::HVNValNum(unsigned NodeIndex) {
 /// and is equivalent to value numbering the collapsed constraint graph
 /// including evaluating unions.
 void Andersens::HU() {
-  DOUT << "Beginning HU\n";
+  DEBUG(errs() << "Beginning HU\n");
   // Build a predecessor graph.  This is like our constraint graph with the
   // edges going in the opposite direction, and there are edges for all the
   // constraints, instead of just copy constraints.  We also build implicit
@@ -1790,7 +1794,7 @@ void Andersens::HU() {
   }
   // PEClass nodes will be deleted by the deleting of N->PointsTo in our caller.
   Set2PEClass.clear();
-  DOUT << "Finished HU\n";
+  DEBUG(errs() << "Finished HU\n");
 }
 
 
@@ -1968,12 +1972,12 @@ void Andersens::RewriteConstraints() {
     // to anything.
     if (LHSLabel == 0) {
       DEBUG(PrintNode(&GraphNodes[LHSNode]));
-      DOUT << " is a non-pointer, ignoring constraint.\n";
+      DEBUG(errs() << " is a non-pointer, ignoring constraint.\n");
       continue;
     }
     if (RHSLabel == 0) {
       DEBUG(PrintNode(&GraphNodes[RHSNode]));
-      DOUT << " is a non-pointer, ignoring constraint.\n";
+      DEBUG(errs() << " is a non-pointer, ignoring constraint.\n");
       continue;
     }
     // This constraint may be useless, and it may become useless as we translate
@@ -2021,19 +2025,19 @@ void Andersens::PrintLabels() const {
     if (i < FirstRefNode) {
       PrintNode(&GraphNodes[i]);
     } else if (i < FirstAdrNode) {
-      DOUT << "REF(";
+      DEBUG(errs() << "REF(");
       PrintNode(&GraphNodes[i-FirstRefNode]);
-      DOUT <<")";
+      DEBUG(errs() <<")");
     } else {
-      DOUT << "ADR(";
+      DEBUG(errs() << "ADR(");
       PrintNode(&GraphNodes[i-FirstAdrNode]);
-      DOUT <<")";
+      DEBUG(errs() <<")");
     }
 
-    DOUT << " has pointer label " << GraphNodes[i].PointerEquivLabel
+    DEBUG(errs() << " has pointer label " << GraphNodes[i].PointerEquivLabel
          << " and SCC rep " << VSSCCRep[i]
          << " and is " << (GraphNodes[i].Direct ? "Direct" : "Not direct")
-         << "\n";
+         << "\n");
   }
 }
 
@@ -2047,7 +2051,7 @@ void Andersens::PrintLabels() const {
 /// operation are stored in SDT and are later used in SolveContraints()
 /// and UniteNodes().
 void Andersens::HCD() {
-  DOUT << "Starting HCD.\n";
+  DEBUG(errs() << "Starting HCD.\n");
   HCDSCCRep.resize(GraphNodes.size());
 
   for (unsigned i = 0; i < GraphNodes.size(); ++i) {
@@ -2096,7 +2100,7 @@ void Andersens::HCD() {
   Node2Visited.clear();
   Node2Deleted.clear();
   HCDSCCRep.clear();
-  DOUT << "HCD complete.\n";
+  DEBUG(errs() << "HCD complete.\n");
 }
 
 // Component of HCD: 
@@ -2168,7 +2172,7 @@ void Andersens::Search(unsigned Node) {
 /// Optimize the constraints by performing offline variable substitution and
 /// other optimizations.
 void Andersens::OptimizeConstraints() {
-  DOUT << "Beginning constraint optimization\n";
+  DEBUG(errs() << "Beginning constraint optimization\n");
 
   SDTActive = false;
 
@@ -2252,7 +2256,7 @@ void Andersens::OptimizeConstraints() {
 
   // HCD complete.
 
-  DOUT << "Finished constraint optimization\n";
+  DEBUG(errs() << "Finished constraint optimization\n");
   FirstRefNode = 0;
   FirstAdrNode = 0;
 }
@@ -2260,7 +2264,7 @@ void Andersens::OptimizeConstraints() {
 /// Unite pointer but not location equivalent variables, now that the constraint
 /// graph is built.
 void Andersens::UnitePointerEquivalences() {
-  DOUT << "Uniting remaining pointer equivalences\n";
+  DEBUG(errs() << "Uniting remaining pointer equivalences\n");
   for (unsigned i = 0; i < GraphNodes.size(); ++i) {
     if (GraphNodes[i].AddressTaken && GraphNodes[i].isRep()) {
       unsigned Label = GraphNodes[i].PointerEquivLabel;
@@ -2269,7 +2273,7 @@ void Andersens::UnitePointerEquivalences() {
         UniteNodes(i, PENLEClass2Node[Label]);
     }
   }
-  DOUT << "Finished remaining pointer equivalences\n";
+  DEBUG(errs() << "Finished remaining pointer equivalences\n");
   PENLEClass2Node.clear();
 }
 
@@ -2425,7 +2429,7 @@ void Andersens::SolveConstraints() {
   std::vector<unsigned int> RSV;
 #endif
   while( !CurrWL->empty() ) {
-    DOUT << "Starting iteration #" << ++NumIters << "\n";
+    DEBUG(errs() << "Starting iteration #" << ++NumIters << "\n");
 
     Node* CurrNode;
     unsigned CurrNodeIndex;
@@ -2728,11 +2732,11 @@ unsigned Andersens::UniteNodes(unsigned First, unsigned Second,
   SecondNode->OldPointsTo = NULL;
 
   NumUnified++;
-  DOUT << "Unified Node ";
+  DEBUG(errs() << "Unified Node ");
   DEBUG(PrintNode(FirstNode));
-  DOUT << " and Node ";
+  DEBUG(errs() << " and Node ");
   DEBUG(PrintNode(SecondNode));
-  DOUT << "\n";
+  DEBUG(errs() << "\n");
 
   if (SDTActive)
     if (SDT[Second] >= 0) {
@@ -2777,17 +2781,17 @@ unsigned Andersens::FindNode(unsigned NodeIndex) const {
 
 void Andersens::PrintNode(const Node *N) const {
   if (N == &GraphNodes[UniversalSet]) {
-    cerr << "<universal>";
+    errs() << "<universal>";
     return;
   } else if (N == &GraphNodes[NullPtr]) {
-    cerr << "<nullptr>";
+    errs() << "<nullptr>";
     return;
   } else if (N == &GraphNodes[NullObject]) {
-    cerr << "<null>";
+    errs() << "<null>";
     return;
   }
   if (!N->getValue()) {
-    cerr << "artificial" << (intptr_t) N;
+    errs() << "artificial" << (intptr_t) N;
     return;
   }
 
@@ -2796,85 +2800,85 @@ void Andersens::PrintNode(const Node *N) const {
   if (Function *F = dyn_cast<Function>(V)) {
     if (isa<PointerType>(F->getFunctionType()->getReturnType()) &&
         N == &GraphNodes[getReturnNode(F)]) {
-      cerr << F->getName() << ":retval";
+      errs() << F->getName() << ":retval";
       return;
     } else if (F->getFunctionType()->isVarArg() &&
                N == &GraphNodes[getVarargNode(F)]) {
-      cerr << F->getName() << ":vararg";
+      errs() << F->getName() << ":vararg";
       return;
     }
   }
 
   if (Instruction *I = dyn_cast<Instruction>(V))
-    cerr << I->getParent()->getParent()->getName() << ":";
+    errs() << I->getParent()->getParent()->getName() << ":";
   else if (Argument *Arg = dyn_cast<Argument>(V))
-    cerr << Arg->getParent()->getName() << ":";
+    errs() << Arg->getParent()->getName() << ":";
 
   if (V->hasName())
-    cerr << V->getName();
+    errs() << V->getName();
   else
-    cerr << "(unnamed)";
+    errs() << "(unnamed)";
 
-  if (isa<GlobalValue>(V) || isa<AllocationInst>(V))
+  if (isa<GlobalValue>(V) || isa<AllocationInst>(V) || isMalloc(V))
     if (N == &GraphNodes[getObject(V)])
-      cerr << "<mem>";
+      errs() << "<mem>";
 }
 void Andersens::PrintConstraint(const Constraint &C) const {
   if (C.Type == Constraint::Store) {
-    cerr << "*";
+    errs() << "*";
     if (C.Offset != 0)
-      cerr << "(";
+      errs() << "(";
   }
   PrintNode(&GraphNodes[C.Dest]);
   if (C.Type == Constraint::Store && C.Offset != 0)
-    cerr << " + " << C.Offset << ")";
-  cerr << " = ";
+    errs() << " + " << C.Offset << ")";
+  errs() << " = ";
   if (C.Type == Constraint::Load) {
-    cerr << "*";
+    errs() << "*";
     if (C.Offset != 0)
-      cerr << "(";
+      errs() << "(";
   }
   else if (C.Type == Constraint::AddressOf)
-    cerr << "&";
+    errs() << "&";
   PrintNode(&GraphNodes[C.Src]);
   if (C.Offset != 0 && C.Type != Constraint::Store)
-    cerr << " + " << C.Offset;
+    errs() << " + " << C.Offset;
   if (C.Type == Constraint::Load && C.Offset != 0)
-    cerr << ")";
-  cerr << "\n";
+    errs() << ")";
+  errs() << "\n";
 }
 
 void Andersens::PrintConstraints() const {
-  cerr << "Constraints:\n";
+  errs() << "Constraints:\n";
 
   for (unsigned i = 0, e = Constraints.size(); i != e; ++i)
     PrintConstraint(Constraints[i]);
 }
 
 void Andersens::PrintPointsToGraph() const {
-  cerr << "Points-to graph:\n";
+  errs() << "Points-to graph:\n";
   for (unsigned i = 0, e = GraphNodes.size(); i != e; ++i) {
     const Node *N = &GraphNodes[i];
     if (FindNode(i) != i) {
       PrintNode(N);
-      cerr << "\t--> same as ";
+      errs() << "\t--> same as ";
       PrintNode(&GraphNodes[FindNode(i)]);
-      cerr << "\n";
+      errs() << "\n";
     } else {
-      cerr << "[" << (N->PointsTo->count()) << "] ";
+      errs() << "[" << (N->PointsTo->count()) << "] ";
       PrintNode(N);
-      cerr << "\t--> ";
+      errs() << "\t--> ";
 
       bool first = true;
       for (SparseBitVector<>::iterator bi = N->PointsTo->begin();
            bi != N->PointsTo->end();
            ++bi) {
         if (!first)
-          cerr << ", ";
+          errs() << ", ";
         PrintNode(&GraphNodes[*bi]);
         first = false;
       }
-      cerr << "\n";
+      errs() << "\n";
     }
   }
 }

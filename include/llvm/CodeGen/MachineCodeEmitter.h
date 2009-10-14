@@ -18,6 +18,7 @@
 #define LLVM_CODEGEN_MACHINECODEEMITTER_H
 
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/DebugLoc.h"
 
 namespace llvm {
 
@@ -74,24 +75,6 @@ public:
   /// false.
   ///
   virtual bool finishFunction(MachineFunction &F) = 0;
-  
-  /// startGVStub - This callback is invoked when the JIT needs the
-  /// address of a GV (e.g. function) that has not been code generated yet.
-  /// The StubSize specifies the total size required by the stub.
-  ///
-  virtual void startGVStub(const GlobalValue* GV, unsigned StubSize,
-                           unsigned Alignment = 1) = 0;
-
-  /// startGVStub - This callback is invoked when the JIT needs the address of a 
-  /// GV (e.g. function) that has not been code generated yet.  Buffer points to
-  /// memory already allocated for this stub.
-  ///
-  virtual void startGVStub(const GlobalValue* GV, void *Buffer,
-                           unsigned StubSize) = 0;
-  
-  /// finishGVStub - This callback is invoked to terminate a GV stub.
-  ///
-  virtual void *finishGVStub(const GlobalValue* F) = 0;
 
   /// emitByte - This callback is invoked when a byte needs to be written to the
   /// output stream.
@@ -250,7 +233,12 @@ public:
       (*(uint64_t*)Addr) = (uint64_t)Value;
   }
   
-  
+  /// processDebugLoc - Records debug location information about a
+  /// MachineInstruction.  This is called before emitting any bytes associated
+  /// with the instruction.  Even if successive instructions have the same debug
+  /// location, this method will be called for each one.
+  virtual void processDebugLoc(DebugLoc DL, bool BeforePrintintInsn) {}
+
   /// emitLabel - Emits a label
   virtual void emitLabel(uint64_t LabelID) = 0;
 
@@ -288,14 +276,20 @@ public:
 
   /// getCurrentPCOffset - Return the offset from the start of the emitted
   /// buffer that we are currently writing to.
-  uintptr_t getCurrentPCOffset() const {
+  virtual uintptr_t getCurrentPCOffset() const {
     return CurBufferPtr-BufferBegin;
   }
+
+  /// earlyResolveAddresses - True if the code emitter can use symbol addresses 
+  /// during code emission time. The JIT is capable of doing this because it
+  /// creates jump tables or constant pools in memory on the fly while the
+  /// object code emitters rely on a linker to have real addresses and should
+  /// use relocations instead.
+  virtual bool earlyResolveAddresses() const = 0;
 
   /// addRelocation - Whenever a relocatable address is needed, it should be
   /// noted with this interface.
   virtual void addRelocation(const MachineRelocation &MR) = 0;
-
   
   /// FIXME: These should all be handled with relocations!
   

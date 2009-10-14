@@ -16,17 +16,17 @@
 
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/ADT/GraphTraits.h"
-#include "llvm/Support/Streams.h"
 
 namespace llvm {
 
 class BasicBlock;
 class MachineFunction;
+class raw_ostream;
 
 template <>
 struct ilist_traits<MachineInstr> : public ilist_default_traits<MachineInstr> {
 private:
-  mutable ilist_node<MachineInstr> Sentinel;
+  mutable ilist_half_node<MachineInstr> Sentinel;
 
   // this is only set by the MachineBasicBlock owning the LiveList
   friend class MachineBasicBlock;
@@ -310,8 +310,7 @@ public:
 
   // Debugging methods.
   void dump() const;
-  void print(std::ostream &OS) const;
-  void print(std::ostream *OS) const { if (OS) print(*OS); }
+  void print(raw_ostream &OS) const;
 
   /// getNumber - MachineBasicBlocks are uniquely numbered at the function
   /// level, unless they're not in a MachineFunction yet, in which case this
@@ -339,7 +338,7 @@ private:   // Methods used to maintain doubly linked list of blocks...
   void removePredecessor(MachineBasicBlock *pred);
 };
 
-std::ostream& operator<<(std::ostream &OS, const MachineBasicBlock &MBB);
+raw_ostream& operator<<(raw_ostream &OS, const MachineBasicBlock &MBB);
 
 //===--------------------------------------------------------------------===//
 // GraphTraits specializations for machine basic block graphs (machine-CFGs)

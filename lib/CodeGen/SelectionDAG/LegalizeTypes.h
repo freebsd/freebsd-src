@@ -64,7 +64,7 @@ private:
     SoftenFloat,     // Convert this float type to a same size integer type.
     ExpandFloat,     // Split this float type into two of half the size.
     ScalarizeVector, // Replace this one-element vector with its element type.
-    SplitVector,     // This vector type should be split into smaller vectors.
+    SplitVector,     // Split this vector type into two of half the size.
     WidenVector      // This vector type should be widened into a larger vector.
   };
 
@@ -74,8 +74,8 @@ private:
   TargetLowering::ValueTypeActionImpl ValueTypeActions;
 
   /// getTypeAction - Return how we should legalize values of this type.
-  LegalizeAction getTypeAction(MVT VT) const {
-    switch (ValueTypeActions.getTypeAction(VT)) {
+  LegalizeAction getTypeAction(EVT VT) const {
+    switch (ValueTypeActions.getTypeAction(*DAG.getContext(), VT)) {
     default:
       assert(false && "Unknown legalize action!");
     case TargetLowering::Legal:
@@ -96,7 +96,7 @@ private:
         if (VT.isInteger())
           return ExpandInteger;
         else if (VT.getSizeInBits() ==
-                 TLI.getTypeToTransformTo(VT).getSizeInBits())
+                 TLI.getTypeToTransformTo(*DAG.getContext(), VT).getSizeInBits())
           return SoftenFloat;
         else
           return ExpandFloat;
@@ -109,8 +109,9 @@ private:
   }
 
   /// isTypeLegal - Return true if this type is legal on this target.
-  bool isTypeLegal(MVT VT) const {
-    return ValueTypeActions.getTypeAction(VT) == TargetLowering::Legal;
+  bool isTypeLegal(EVT VT) const {
+    return (ValueTypeActions.getTypeAction(*DAG.getContext(), VT) == 
+            TargetLowering::Legal);
   }
 
   /// IgnoreNodeResults - Pretend all of this node's results are legal.
@@ -185,19 +186,19 @@ private:
   // Common routines.
   SDValue BitConvertToInteger(SDValue Op);
   SDValue BitConvertVectorToIntegerVector(SDValue Op);
-  SDValue CreateStackStoreLoad(SDValue Op, MVT DestVT);
-  bool CustomLowerNode(SDNode *N, MVT VT, bool LegalizeResult);
-  SDValue GetVectorElementPointer(SDValue VecPtr, MVT EltVT, SDValue Index);
+  SDValue CreateStackStoreLoad(SDValue Op, EVT DestVT);
+  bool CustomLowerNode(SDNode *N, EVT VT, bool LegalizeResult);
+  SDValue GetVectorElementPointer(SDValue VecPtr, EVT EltVT, SDValue Index);
   SDValue JoinIntegers(SDValue Lo, SDValue Hi);
   SDValue LibCallify(RTLIB::Libcall LC, SDNode *N, bool isSigned);
-  SDValue MakeLibCall(RTLIB::Libcall LC, MVT RetVT,
+  SDValue MakeLibCall(RTLIB::Libcall LC, EVT RetVT,
                       const SDValue *Ops, unsigned NumOps, bool isSigned,
                       DebugLoc dl);
-  SDValue PromoteTargetBoolean(SDValue Bool, MVT VT);
+  SDValue PromoteTargetBoolean(SDValue Bool, EVT VT);
   void ReplaceValueWith(SDValue From, SDValue To);
   void ReplaceValueWithHelper(SDValue From, SDValue To);
   void SplitInteger(SDValue Op, SDValue &Lo, SDValue &Hi);
-  void SplitInteger(SDValue Op, MVT LoVT, MVT HiVT,
+  void SplitInteger(SDValue Op, EVT LoVT, EVT HiVT,
                     SDValue &Lo, SDValue &Hi);
 
   //===--------------------------------------------------------------------===//
@@ -224,7 +225,7 @@ private:
   /// SExtPromotedInteger - Get a promoted operand and sign extend it to the
   /// final size.
   SDValue SExtPromotedInteger(SDValue Op) {
-    MVT OldVT = Op.getValueType();
+    EVT OldVT = Op.getValueType();
     DebugLoc dl = Op.getDebugLoc();
     Op = GetPromotedInteger(Op);
     return DAG.getNode(ISD::SIGN_EXTEND_INREG, dl, Op.getValueType(), Op,
@@ -234,7 +235,7 @@ private:
   /// ZExtPromotedInteger - Get a promoted operand and zero extend it to the
   /// final size.
   SDValue ZExtPromotedInteger(SDValue Op) {
-    MVT OldVT = Op.getValueType();
+    EVT OldVT = Op.getValueType();
     DebugLoc dl = Op.getDebugLoc();
     Op = GetPromotedInteger(Op);
     return DAG.getZeroExtendInReg(Op, dl, OldVT);
@@ -506,7 +507,6 @@ private:
   // Vector Result Scalarization: <1 x ty> -> ty.
   void ScalarizeVectorResult(SDNode *N, unsigned OpNo);
   SDValue ScalarizeVecRes_BinOp(SDNode *N);
-  SDValue ScalarizeVecRes_ShiftOp(SDNode *N);
   SDValue ScalarizeVecRes_UnaryOp(SDNode *N);
 
   SDValue ScalarizeVecRes_BIT_CONVERT(SDNode *N);
@@ -518,6 +518,7 @@ private:
   SDValue ScalarizeVecRes_SCALAR_TO_VECTOR(SDNode *N);
   SDValue ScalarizeVecRes_SELECT(SDNode *N);
   SDValue ScalarizeVecRes_SELECT_CC(SDNode *N);
+  SDValue ScalarizeVecRes_SETCC(SDNode *N);
   SDValue ScalarizeVecRes_UNDEF(SDNode *N);
   SDValue ScalarizeVecRes_VECTOR_SHUFFLE(SDNode *N);
   SDValue ScalarizeVecRes_VSETCC(SDNode *N);
@@ -533,8 +534,8 @@ private:
   // Vector Splitting Support: LegalizeVectorTypes.cpp
   //===--------------------------------------------------------------------===//
 
-  /// GetSplitVector - Given a processed vector Op which was split into smaller
-  /// vectors, this method returns the smaller vectors.  The first elements of
+  /// GetSplitVector - Given a processed vector Op which was split into vectors
+  /// of half the size, this method returns the halves.  The first elements of
   /// Op coincide with the elements of Lo; the remaining elements of Op coincide
   /// with the elements of Hi: Op is what you would get by concatenating Lo and
   /// Hi.  For example, if Op is a v8i32 that was split into two v4i32's, then
@@ -558,10 +559,10 @@ private:
   void SplitVecRes_INSERT_VECTOR_ELT(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_LOAD(LoadSDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_SCALAR_TO_VECTOR(SDNode *N, SDValue &Lo, SDValue &Hi);
+  void SplitVecRes_SETCC(SDNode *N, SDValue &Lo, SDValue &Hi);
   void SplitVecRes_UNDEF(SDNode *N, SDValue &Lo, SDValue &Hi);
-  void SplitVecRes_VECTOR_SHUFFLE(ShuffleVectorSDNode *N, SDValue &Lo, 
+  void SplitVecRes_VECTOR_SHUFFLE(ShuffleVectorSDNode *N, SDValue &Lo,
                                   SDValue &Hi);
-  void SplitVecRes_VSETCC(SDNode *N, SDValue &Lo, SDValue &Hi);
 
   // Vector Operand Splitting: <128 x ty> -> 2 x <64 x ty>.
   bool SplitVectorOperand(SDNode *N, unsigned OpNo);
@@ -641,7 +642,7 @@ private:
                               SDValue BasePtr, const Value *SV,
                               int SVOffset, unsigned Alignment,
                               bool isVolatile, unsigned LdWidth,
-                              MVT ResType, DebugLoc dl);
+                              EVT ResType, DebugLoc dl);
 
   /// Helper genWidenVectorStores - Helper function to generate a set of
   /// stores to store a widen vector into non widen memory
@@ -664,7 +665,7 @@ private:
 
   /// Modifies a vector input (widen or narrows) to a vector of NVT.  The
   /// input vector must have the same element type as NVT.
-  SDValue ModifyToType(SDValue InOp, MVT WidenVT);
+  SDValue ModifyToType(SDValue InOp, EVT WidenVT);
 
 
   //===--------------------------------------------------------------------===//
@@ -686,7 +687,7 @@ private:
 
   /// GetSplitDestVTs - Compute the VTs needed for the low/hi parts of a type
   /// which is split (or expanded) into two not necessarily identical pieces.
-  void GetSplitDestVTs(MVT InVT, MVT &LoVT, MVT &HiVT);
+  void GetSplitDestVTs(EVT InVT, EVT &LoVT, EVT &HiVT);
 
   /// GetPairElements - Use ISD::EXTRACT_ELEMENT nodes to extract the low and
   /// high parts of the given value.

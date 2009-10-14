@@ -61,11 +61,10 @@ int main(int argc, char** argv) {
   Args[1] = strcat(strcpy((char*)malloc(strlen(argv[0])+4), argv[0]), ".bc");
 
   /* The rest of the args are as before. */
-  memcpy(Args+2, argv+1, sizeof(char*)*argc);
+  memcpy((char **)Args+2, argv+1, sizeof(char*)*argc);
 
   /* Run the JIT. */
-  execvp(Interp, (char *const*)Args);
-
+  execvp(Interp, (char **)Args);
   /* if _execv returns, the JIT could not be started. */
   fprintf(stderr, "Could not execute the LLVM JIT.  Either add 'lli' to your"
           " path, or set the\ninterpreter you want to use in the LLVMINTERP "

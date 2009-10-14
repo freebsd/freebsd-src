@@ -23,7 +23,7 @@
 #define VISIBILITY_HIDDEN
 #endif
 
-#if (__GNUC__ >= 4)
+#if (__GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
 #define ATTRIBUTE_USED __attribute__((__used__))
 #else
 #define ATTRIBUTE_USED
@@ -54,6 +54,12 @@
 #define DISABLE_INLINE __attribute__((noinline))
 #else
 #define DISABLE_INLINE
+#endif
+
+#ifdef __GNUC__
+#define NORETURN __attribute__((noreturn))
+#else
+#define NORETURN
 #endif
 
 #endif

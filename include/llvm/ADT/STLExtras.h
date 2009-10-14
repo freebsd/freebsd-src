@@ -19,14 +19,21 @@
 
 #include <cstddef> // for std::size_t
 #include <functional>
+#include <iterator>
 #include <utility> // for std::pair
-#include "llvm/ADT/iterator.h"
 
 namespace llvm {
 
 //===----------------------------------------------------------------------===//
 //     Extra additions to <functional>
 //===----------------------------------------------------------------------===//
+
+template<class Ty>
+struct less_ptr : public std::binary_function<Ty, Ty, bool> {
+  bool operator()(const Ty* left, const Ty* right) const {
+    return *left < *right;
+  }
+};
 
 template<class Ty>
 struct greater_ptr : public std::binary_function<Ty, Ty, bool> {

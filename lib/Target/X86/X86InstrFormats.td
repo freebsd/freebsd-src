@@ -79,6 +79,7 @@ class XD     { bits<4> Prefix = 11; }
 class XS     { bits<4> Prefix = 12; }
 class T8     { bits<4> Prefix = 13; }
 class TA     { bits<4> Prefix = 14; }
+class TF     { bits<4> Prefix = 15; }
 
 class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
               string AsmStr>
@@ -140,6 +141,24 @@ class FpI_<dag outs, dag ins, FPFormat fp, list<dag> pattern>
   : X86Inst<0, Pseudo, NoImm, outs, ins, ""> {
   let FPForm = fp; let FPFormBits = FPForm.Value;
   let Pattern = pattern;
+}
+
+// Templates for instructions that use a 16- or 32-bit segmented address as
+//  their only operand: lcall (FAR CALL) and ljmp (FAR JMP)
+//
+//   Iseg16 - 16-bit segment selector, 16-bit offset
+//   Iseg32 - 16-bit segment selector, 32-bit offset
+
+class Iseg16 <bits<8> o, Format f, dag outs, dag ins, string asm, 
+              list<dag> pattern> : X86Inst<o, f, NoImm, outs, ins, asm> {
+  let Pattern = pattern;
+  let CodeSize = 3;
+}
+
+class Iseg32 <bits<8> o, Format f, dag outs, dag ins, string asm, 
+              list<dag> pattern> : X86Inst<o, f, NoImm, outs, ins, asm> {
+  let Pattern = pattern;
+  let CodeSize = 3;
 }
 
 // SSE1 Instruction Templates:
@@ -229,6 +248,16 @@ class SS428I<bits<8> o, Format F, dag outs, dag ins, string asm,
              list<dag> pattern>
       : I<o, F, outs, ins, asm, pattern>, T8, Requires<[HasSSE42]>;
 
+//   SS42FI - SSE 4.2 instructions with TF prefix.
+class SS42FI<bits<8> o, Format F, dag outs, dag ins, string asm,
+              list<dag> pattern>
+      : I<o, F, outs, ins, asm, pattern>, TF, Requires<[HasSSE42]>;
+      
+//   SS42AI = SSE 4.2 instructions with TA prefix
+class SS42AI<bits<8> o, Format F, dag outs, dag ins, string asm,
+	     list<dag> pattern>
+      : I<o, F, outs, ins, asm, pattern>, TA, Requires<[HasSSE42]>;
+
 // X86-64 Instruction templates...
 //
 
@@ -282,4 +311,3 @@ class MMXID<bits<8> o, Format F, dag outs, dag ins, string asm, list<dag> patter
       : Ii8<o, F, outs, ins, asm, pattern>, XD, Requires<[HasMMX]>;
 class MMXIS<bits<8> o, Format F, dag outs, dag ins, string asm, list<dag> pattern>
       : Ii8<o, F, outs, ins, asm, pattern>, XS, Requires<[HasMMX]>;
-

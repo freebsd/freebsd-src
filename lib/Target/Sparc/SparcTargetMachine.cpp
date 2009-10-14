@@ -10,61 +10,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SparcTargetAsmInfo.h"
+#include "SparcMCAsmInfo.h"
 #include "SparcTargetMachine.h"
 #include "Sparc.h"
-#include "llvm/Module.h"
 #include "llvm/PassManager.h"
-#include "llvm/Target/TargetMachineRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
-// Register the target.
-static RegisterTarget<SparcTargetMachine> X("sparc", "SPARC");
+extern "C" void LLVMInitializeSparcTarget() {
+  // Register the target.
+  RegisterTargetMachine<SparcTargetMachine> X(TheSparcTarget);
+  RegisterAsmInfo<SparcELFMCAsmInfo> Y(TheSparcTarget);
 
-// No assembler printer by default
-SparcTargetMachine::AsmPrinterCtorFn SparcTargetMachine::AsmPrinterCtor = 0;
-
-
-// Force static initialization.
-extern "C" void LLVMInitializeSparcTarget() { }
-
-const TargetAsmInfo *SparcTargetMachine::createTargetAsmInfo() const {
-  // FIXME: Handle Solaris subtarget someday :)
-  return new SparcELFTargetAsmInfo(*this);
 }
 
 /// SparcTargetMachine ctor - Create an ILP32 architecture model
 ///
-SparcTargetMachine::SparcTargetMachine(const Module &M, const std::string &FS)
-  : DataLayout("E-p:32:32-f128:128:128"),
-    Subtarget(M, FS), TLInfo(*this), InstrInfo(Subtarget),
+SparcTargetMachine::SparcTargetMachine(const Target &T, const std::string &TT, 
+                                       const std::string &FS)
+  : LLVMTargetMachine(T, TT),
+    DataLayout("E-p:32:32-f128:128:128"),
+    Subtarget(TT, FS), TLInfo(*this), InstrInfo(Subtarget),
     FrameInfo(TargetFrameInfo::StackGrowsDown, 8, 0) {
-}
-
-unsigned SparcTargetMachine::getModuleMatchQuality(const Module &M) {
-  std::string TT = M.getTargetTriple();
-  if (TT.size() >= 6 && std::string(TT.begin(), TT.begin()+6) == "sparc-")
-    return 20;
-  
-  // If the target triple is something non-sparc, we don't match.
-  if (!TT.empty()) return 0;
-
-  if (M.getEndianness()  == Module::BigEndian &&
-      M.getPointerSize() == Module::Pointer32)
-#ifdef __sparc__
-    return 20;   // BE/32 ==> Prefer sparc on sparc
-#else
-    return 5;    // BE/32 ==> Prefer ppc elsewhere
-#endif
-  else if (M.getEndianness() != Module::AnyEndianness ||
-           M.getPointerSize() != Module::AnyPointerSize)
-    return 0;                                    // Match for some other target
-
-#if defined(__sparc__)
-  return 10;
-#else
-  return 0;
-#endif
 }
 
 bool SparcTargetMachine::addInstSelector(PassManagerBase &PM,
@@ -81,15 +48,4 @@ bool SparcTargetMachine::addPreEmitPass(PassManagerBase &PM,
   PM.add(createSparcFPMoverPass(*this));
   PM.add(createSparcDelaySlotFillerPass(*this));
   return true;
-}
-
-bool SparcTargetMachine::addAssemblyEmitter(PassManagerBase &PM,
-                                            CodeGenOpt::Level OptLevel,
-                                            bool Verbose,
-                                            raw_ostream &Out) {
-  // Output assembly language.
-  assert(AsmPrinterCtor && "AsmPrinter was not linked in");
-  if (AsmPrinterCtor)
-    PM.add(AsmPrinterCtor(Out, *this, Verbose));
-  return false;
 }
