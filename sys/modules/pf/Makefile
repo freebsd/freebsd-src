@@ -28,7 +28,7 @@ opt_bpf.h:
 # pflog can be loaded as a module, have the additional checks turned on
 opt_pf.h:
 	echo "#define DEV_PF 1" > opt_pf.h
-	echo "#define DEF_PFLOG 1" >> opt_pf.h
+	echo "#define DEV_PFLOG 1" >> opt_pf.h
 .endif
 
 .include <bsd.kmod.mk>
