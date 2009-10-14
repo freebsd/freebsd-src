@@ -5,6 +5,6 @@
 # http://llvm.org/bugs/show_bug.cgi?id=879
 SRCS+=	_setjmp.S _set_tp.c rfork_thread.S setjmp.S sigsetjmp.S \
 	fabs.S modf.S \
-	infinity.c ldexp.s makecontext.c signalcontext.c \
+	infinity.c ldexp.S makecontext.c signalcontext.c \
 	flt_rounds.c fpgetmask.c fpsetmask.c fpgetprec.c fpsetprec.c \
 	fpgetround.c fpsetround.c fpgetsticky.c
