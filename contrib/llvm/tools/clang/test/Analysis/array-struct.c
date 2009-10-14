@@ -1,9 +1,7 @@
 // RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s
-
-// RegionStore now has an infinite recursion with this test case.
-// NOWORK: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify %s &&
-// NOWORK: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify %s
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s &&
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify %s &&
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify %s
 
 struct s {
   int data;
@@ -145,7 +143,7 @@ void f15() {
   int a[10];
   bar(a);
   if (a[1]) // no-warning
-    1;
+    (void)1;
 }
 
 struct s3 p[1];
@@ -156,4 +154,27 @@ struct s3 p[1];
 // assigns to 'a'. 
 void f16(struct s3 *p) {
   struct s3 a = *((struct s3*) ((char*) &p[0]));
+}
+
+void inv(struct s1 *);
+
+// Invalidate the struct field.
+void f17() {
+  struct s1 t;
+  int x;
+  inv(&t);
+  if (t.e.d)
+    x = 1;
+}
+
+void read(char*);
+
+void f18() {
+  char *q;
+  char *p = (char *) __builtin_alloca(10);
+  read(p);
+  q = p;
+  q++;
+  if (*q) { // no-warning
+  }
 }

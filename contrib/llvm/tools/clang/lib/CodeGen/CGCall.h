@@ -49,9 +49,9 @@ namespace CodeGen {
   /// FunctionArgList - Type for representing both the decl and type
   /// of parameters to a function. The decl must be either a
   /// ParmVarDecl or ImplicitParamDecl.
-  typedef llvm::SmallVector<std::pair<const VarDecl*, QualType>, 
+  typedef llvm::SmallVector<std::pair<const VarDecl*, QualType>,
                             16> FunctionArgList;
-  
+
   /// CGFunctionInfo - Class to encapsulate the information about a
   /// function definition.
   class CGFunctionInfo : public llvm::FoldingSetNode {
@@ -60,6 +60,14 @@ namespace CodeGen {
       ABIArgInfo info;
     };
 
+    /// The LLVM::CallingConv to use for this function (as specified by the
+    /// user).
+    unsigned CallingConvention;
+
+    /// The LLVM::CallingConv to actually use for this function, which may
+    /// depend on the ABI.
+    unsigned EffectiveCallingConvention;
+
     unsigned NumArgs;
     ArgInfo *Args;
 
@@ -67,7 +75,8 @@ namespace CodeGen {
     typedef const ArgInfo *const_arg_iterator;
     typedef ArgInfo *arg_iterator;
 
-    CGFunctionInfo(QualType ResTy, 
+    CGFunctionInfo(unsigned CallingConvention,
+                   QualType ResTy,
                    const llvm::SmallVector<QualType, 16> &ArgTys);
     ~CGFunctionInfo() { delete[] Args; }
 
@@ -78,21 +87,37 @@ namespace CodeGen {
 
     unsigned  arg_size() const { return NumArgs; }
 
+    /// getCallingConvention - Return the user specified calling
+    /// convention.
+    unsigned getCallingConvention() const { return CallingConvention; }
+
+    /// getEffectiveCallingConvention - Return the actual calling convention to
+    /// use, which may depend on the ABI.
+    unsigned getEffectiveCallingConvention() const {
+      return EffectiveCallingConvention;
+    }
+    void setEffectiveCallingConvention(unsigned Value) {
+      EffectiveCallingConvention = Value;
+    }
+
     QualType getReturnType() const { return Args[0].type; }
 
     ABIArgInfo &getReturnInfo() { return Args[0].info; }
     const ABIArgInfo &getReturnInfo() const { return Args[0].info; }
 
     void Profile(llvm::FoldingSetNodeID &ID) {
+      ID.AddInteger(getCallingConvention());
       getReturnType().Profile(ID);
       for (arg_iterator it = arg_begin(), ie = arg_end(); it != ie; ++it)
         it->type.Profile(ID);
     }
     template<class Iterator>
-    static void Profile(llvm::FoldingSetNodeID &ID, 
+    static void Profile(llvm::FoldingSetNodeID &ID,
+                        unsigned CallingConvention,
                         QualType ResTy,
                         Iterator begin,
                         Iterator end) {
+      ID.AddInteger(CallingConvention);
       ResTy.Profile(ID);
       for (; begin != end; ++begin)
         begin->Profile(ID);

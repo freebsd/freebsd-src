@@ -18,6 +18,7 @@
 #include "clang/AST/Type.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
+#include <vector>
 namespace clang {
 
 class ASTConsumer;
@@ -32,7 +33,7 @@ struct VisibleDeclaration {
   /// \brief The name of the declarations.
   DeclarationName Name;
 
-  /// \brief The ID numbers of all of the declarations with this name. 
+  /// \brief The ID numbers of all of the declarations with this name.
   ///
   /// These declarations have not necessarily been de-serialized.
   llvm::SmallVector<unsigned, 4> Declarations;
@@ -56,6 +57,14 @@ public:
   ExternalASTSource() : SemaSource(false) { }
 
   virtual ~ExternalASTSource();
+
+  /// \brief Reads the source ranges that correspond to comments from
+  /// an external AST source.
+  ///
+  /// \param Comments the contents of this vector will be
+  /// replaced with the sorted set of source ranges corresponding to
+  /// comments in the source code.
+  virtual void ReadComments(std::vector<SourceRange> &Comments) = 0;
 
   /// \brief Resolve a type ID into a type, potentially building a new
   /// type.
@@ -142,7 +151,7 @@ public:
     this->Ptr = reinterpret_cast<uint64_t>(Ptr);
     return *this;
   }
-  
+
   LazyOffsetPtr &operator=(uint64_t Offset) {
     assert((Offset << 1 >> 1) == Offset && "Offsets must require < 63 bits");
     if (Offset == 0)
@@ -168,7 +177,7 @@ public:
   /// \returns a pointer to the AST node.
   T* get(ExternalASTSource *Source) const {
     if (isOffset()) {
-      assert(Source && 
+      assert(Source &&
              "Cannot deserialize a lazy pointer without an AST source");
       Ptr = reinterpret_cast<uint64_t>((Source->*Get)(Ptr >> 1));
     }

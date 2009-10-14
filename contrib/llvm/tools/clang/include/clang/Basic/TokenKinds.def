@@ -92,6 +92,7 @@ PPKEYWORD(unassert)
 TOK(unknown)             // Not a token.
 TOK(eof)                 // End of file.
 TOK(eom)                 // End of macro (end of line inside a macro).
+TOK(code_completion)     // Code completion marker
 
 // C99 6.4.9: Comments.
 TOK(comment)             // Comment (only in -E -C[C] mode)
@@ -224,7 +225,7 @@ KEYWORD(__func__                    , KEYALL)
 
 // C++ 2.11p1: Keywords.
 KEYWORD(asm                         , KEYCXX|KEYGNU)
-KEYWORD(bool                        , KEYCXX|BOOLSUPPORT)
+KEYWORD(bool                        , BOOLSUPPORT)
 KEYWORD(catch                       , KEYCXX)
 KEYWORD(class                       , KEYCXX)
 KEYWORD(const_cast                  , KEYCXX)
@@ -232,7 +233,7 @@ KEYWORD(delete                      , KEYCXX)
 KEYWORD(dynamic_cast                , KEYCXX)
 KEYWORD(explicit                    , KEYCXX)
 KEYWORD(export                      , KEYCXX)
-KEYWORD(false                       , KEYCXX|BOOLSUPPORT)
+KEYWORD(false                       , BOOLSUPPORT)
 KEYWORD(friend                      , KEYCXX)
 KEYWORD(mutable                     , KEYCXX)
 KEYWORD(namespace                   , KEYCXX)
@@ -246,7 +247,7 @@ KEYWORD(static_cast                 , KEYCXX)
 KEYWORD(template                    , KEYCXX)
 KEYWORD(this                        , KEYCXX)
 KEYWORD(throw                       , KEYCXX)
-KEYWORD(true                        , KEYCXX|BOOLSUPPORT)
+KEYWORD(true                        , BOOLSUPPORT)
 KEYWORD(try                         , KEYCXX)
 KEYWORD(typename                    , KEYCXX)
 KEYWORD(typeid                      , KEYCXX)

@@ -112,7 +112,8 @@ def pp_poisoning_existing_macro : Warning<"poisoning existing macro">;
 def pp_out_of_date_dependency : Warning<
   "current file is older than dependency %0">;
 def pp_undef_builtin_macro : Warning<"undefining builtin macro">;
-def pp_redef_builtin_macro : Warning<"redefining builtin macro">;
+def pp_redef_builtin_macro : Warning<"redefining builtin macro">,
+  InGroup<DiagGroup<"builtin-macro-redefined">>;
 def pp_macro_not_used : Warning<"macro is not used">, DefaultIgnore,
   InGroup<DiagGroup<"unused-macros">>;
 def warn_pp_undef_identifier : Warning<
@@ -226,9 +227,16 @@ def ext_stdc_pragma_syntax_eom :
 def warn_stdc_fenv_access_not_supported :
    Warning<"pragma STDC FENV_ACCESS ON is not supported, ignoring pragma">,
    InGroup<UnknownPragmas>;
-def warn_pragma_diagnostic_invalid :
+def warn_pragma_diagnostic_gcc_invalid :
    ExtWarn<"pragma diagnostic expected 'error', 'warning', 'ignored', or"
             " 'fatal'">,
+   InGroup<UnknownPragmas>;
+def warn_pragma_diagnostic_clang_invalid :
+   ExtWarn<"pragma diagnostic expected 'error', 'warning', 'ignored', 'fatal'"
+            " 'push', or 'pop'">,
+   InGroup<UnknownPragmas>;
+def warn_pragma_diagnostic_clang_cannot_ppp :
+   ExtWarn<"pragma diagnostic pop could not pop, no matching push">,
    InGroup<UnknownPragmas>;
 def warn_pragma_diagnostic_invalid_option :
    ExtWarn<"pragma diagnostic expected option name (e.g. \"-Wundef\")">,

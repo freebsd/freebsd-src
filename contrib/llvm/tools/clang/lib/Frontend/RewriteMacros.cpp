@@ -16,10 +16,11 @@
 #include "clang/Rewrite/Rewriter.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/ADT/OwningPtr.h"
+#include <cstdio>
+
 using namespace clang;
 
 /// isSameToken - Return true if the two specified tokens start have the same
@@ -30,14 +31,14 @@ static bool isSameToken(Token &RawTok, Token &PPTok) {
   if (PPTok.getKind() == RawTok.getKind() &&
       PPTok.getIdentifierInfo() == RawTok.getIdentifierInfo())
     return true;
-  
+
   // Otherwise, if they are different but have the same identifier info, they
   // are also considered to be the same.  This allows keywords and raw lexed
   // identifiers with the same name to be treated the same.
   if (PPTok.getIdentifierInfo() &&
       PPTok.getIdentifierInfo() == RawTok.getIdentifierInfo())
     return true;
-  
+
   return false;
 }
 
@@ -47,11 +48,11 @@ static bool isSameToken(Token &RawTok, Token &PPTok) {
 static const Token &GetNextRawTok(const std::vector<Token> &RawTokens,
                                   unsigned &CurTok, bool ReturnComment) {
   assert(CurTok < RawTokens.size() && "Overran eof!");
-  
+
   // If the client doesn't want comments and we have one, skip it.
   if (!ReturnComment && RawTokens[CurTok].is(tok::comment))
     ++CurTok;
-  
+
   return RawTokens[CurTok++];
 }
 
@@ -61,24 +62,24 @@ static const Token &GetNextRawTok(const std::vector<Token> &RawTokens,
 static void LexRawTokensFromMainFile(Preprocessor &PP,
                                      std::vector<Token> &RawTokens) {
   SourceManager &SM = PP.getSourceManager();
-  
+
   // Create a lexer to lex all the tokens of the main file in raw mode.  Even
   // though it is in raw mode, it will not return comments.
   Lexer RawLex(SM.getMainFileID(), SM, PP.getLangOptions());
 
   // Switch on comment lexing because we really do want them.
   RawLex.SetCommentRetentionState(true);
-  
+
   Token RawTok;
   do {
     RawLex.LexFromRawLexer(RawTok);
-    
+
     // If we have an identifier with no identifier info for our raw token, look
     // up the indentifier info.  This is important for equality comparison of
     // identifier tokens.
     if (RawTok.is(tok::identifier) && !RawTok.getIdentifierInfo())
       RawTok.setIdentifierInfo(PP.LookUpIdentifierInfo(RawTok));
-    
+
     RawTokens.push_back(RawTok);
   } while (RawTok.isNot(tok::eof));
 }
@@ -87,7 +88,7 @@ static void LexRawTokensFromMainFile(Preprocessor &PP,
 /// RewriteMacrosInInput - Implement -rewrite-macros mode.
 void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
   SourceManager &SM = PP.getSourceManager();
-  
+
   Rewriter Rewrite;
   Rewrite.setSourceMgr(SM, PP.getLangOptions());
   RewriteBuffer &RB = Rewrite.getEditBuffer(SM.getMainFileID());
@@ -97,12 +98,12 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
   unsigned CurRawTok = 0;
   Token RawTok = GetNextRawTok(RawTokens, CurRawTok, false);
 
-  
+
   // Get the first preprocessing token.
   PP.EnterMainSourceFile();
   Token PPTok;
   PP.Lex(PPTok);
-  
+
   // Preprocess the input file in parallel with raw lexing the main file. Ignore
   // all tokens that are preprocessed from a file other than the main file (e.g.
   // a header).  If we see tokens that are in the preprocessed file but not the
@@ -117,7 +118,7 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
       PP.Lex(PPTok);
       continue;
     }
-    
+
     // If the raw file hits a preprocessor directive, they will be extra tokens
     // in the raw file that don't exist in the preprocsesed file.  However, we
     // choose to preserve them in the output file and otherwise handle them
@@ -129,16 +130,16 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
         const IdentifierInfo *II = RawTokens[CurRawTok].getIdentifierInfo();
         if (!strcmp(II->getName(), "warning")) {
           // Comment out #warning.
-          RB.InsertTextAfter(SM.getFileOffset(RawTok.getLocation()), "//", 2);
+          RB.InsertTextAfter(SM.getFileOffset(RawTok.getLocation()), "//");
         } else if (!strcmp(II->getName(), "pragma") &&
                    RawTokens[CurRawTok+1].is(tok::identifier) &&
                   !strcmp(RawTokens[CurRawTok+1].getIdentifierInfo()->getName(),
                           "mark")){
           // Comment out #pragma mark.
-          RB.InsertTextAfter(SM.getFileOffset(RawTok.getLocation()), "//", 2);
+          RB.InsertTextAfter(SM.getFileOffset(RawTok.getLocation()), "//");
         }
       }
-      
+
       // Otherwise, if this is a #include or some other directive, just leave it
       // in the file by skipping over the line.
       RawTok = GetNextRawTok(RawTokens, CurRawTok, false);
@@ -146,7 +147,7 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
         RawTok = GetNextRawTok(RawTokens, CurRawTok, false);
       continue;
     }
-    
+
     // Okay, both tokens are from the same file.  Get their offsets from the
     // start of the file.
     unsigned PPOffs = SM.getFileOffset(PPLoc);
@@ -165,7 +166,7 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
       // Comment out a whole run of tokens instead of bracketing each one with
       // comments.  Add a leading space if RawTok didn't have one.
       bool HasSpace = RawTok.hasLeadingSpace();
-      RB.InsertTextAfter(RawOffs, " /*"+HasSpace, 2+!HasSpace);
+      RB.InsertTextAfter(RawOffs, " /*"+HasSpace);
       unsigned EndPos;
 
       do {
@@ -173,20 +174,20 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
 
         RawTok = GetNextRawTok(RawTokens, CurRawTok, true);
         RawOffs = SM.getFileOffset(RawTok.getLocation());
-        
+
         if (RawTok.is(tok::comment)) {
           // Skip past the comment.
           RawTok = GetNextRawTok(RawTokens, CurRawTok, false);
           break;
         }
-        
+
       } while (RawOffs <= PPOffs && !RawTok.isAtStartOfLine() &&
                (PPOffs != RawOffs || !isSameToken(RawTok, PPTok)));
 
-      RB.InsertTextBefore(EndPos, "*/", 2);
+      RB.InsertTextBefore(EndPos, "*/");
       continue;
     }
-    
+
     // Otherwise, there was a replacement an expansion.  Insert the new token
     // in the output buffer.  Insert the whole run of new tokens at once to get
     // them in the right order.
@@ -199,12 +200,12 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream *OS) {
       PPOffs = SM.getFileOffset(PPLoc);
     }
     Expansion += ' ';
-    RB.InsertTextBefore(InsertPos, &Expansion[0], Expansion.size());
+    RB.InsertTextBefore(InsertPos, Expansion);
   }
 
   // Get the buffer corresponding to MainFileID.  If we haven't changed it, then
   // we are done.
-  if (const RewriteBuffer *RewriteBuf = 
+  if (const RewriteBuffer *RewriteBuf =
       Rewrite.getRewriteBufferFor(SM.getMainFileID())) {
     //printf("Changed:\n");
     *OS << std::string(RewriteBuf->begin(), RewriteBuf->end());

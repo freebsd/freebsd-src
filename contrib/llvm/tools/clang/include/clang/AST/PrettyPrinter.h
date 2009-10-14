@@ -22,6 +22,7 @@ namespace clang {
 
 class Stmt;
 class TagDecl;
+class LangOptions;
 
 class PrinterHelper {
 public:
@@ -33,16 +34,16 @@ public:
 /// declarations should be printed.
 struct PrintingPolicy {
   /// \brief Create a default printing policy for C.
-  PrintingPolicy() 
-    : Indentation(2), CPlusPlus(false), SuppressSpecifiers(false),
-      SuppressTag(false), SuppressTagKind(false), Dump(false) { }
+  PrintingPolicy(const LangOptions &LO)
+    : Indentation(2), LangOpts(LO), SuppressSpecifiers(false),
+      SuppressTag(false), SuppressTagKind(false), SuppressScope(false),
+      Dump(false), ConstantArraySizeAsWritten(false) { }
 
   /// \brief The number of spaces to use to indent each line.
   unsigned Indentation : 8;
 
-  /// \brief Whether we're printing C++ code (otherwise, we're
-  /// printing C code).
-  bool CPlusPlus : 1;
+  /// \brief What language we're printing.
+  const LangOptions &LangOpts;
 
   /// \brief Whether we should suppress printing of the actual specifiers for
   /// the given type or declaration.
@@ -74,11 +75,32 @@ struct PrintingPolicy {
   /// kind of tag, e.g., "struct", "union", "enum".
   bool SuppressTagKind : 1;
 
+  /// \brief Suppresses printing of scope specifiers.
+  bool SuppressScope : 1;
+
   /// \brief True when we are "dumping" rather than "pretty-printing",
   /// where dumping involves printing the internal details of the AST
   /// and pretty-printing involves printing something similar to
   /// source code.
   bool Dump : 1;
+
+  /// \brief Whether we should print the sizes of constant array expressions
+  /// as written in the sources.
+  ///
+  /// This flag is determines whether arrays types declared as
+  ///
+  /// \code
+  /// int a[4+10*10];
+  /// char a[] = "A string";
+  /// \endcode
+  ///
+  /// will be printed as written or as follows:
+  ///
+  /// \code
+  /// int a[104];
+  /// char a[9] = "A string";
+  /// \endcode
+  bool ConstantArraySizeAsWritten : 1;
 };
 
 } // end namespace clang

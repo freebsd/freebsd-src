@@ -1,33 +1,33 @@
 set(LLVM_NO_RTTI 1)
 
 add_clang_library(clangSema
+  CodeCompleteConsumer.cpp
   IdentifierResolver.cpp
   JumpDiagnostics.cpp
   ParseAST.cpp
   Sema.cpp
   SemaAccess.cpp
   SemaAttr.cpp
-  SemaChecking.cpp
+  SemaCXXCast.cpp
   SemaCXXScopeSpec.cpp
-  SemaDeclAttr.cpp
+  SemaChecking.cpp
+  SemaCodeComplete.cpp
   SemaDecl.cpp
+  SemaDeclAttr.cpp
   SemaDeclCXX.cpp
   SemaDeclObjC.cpp
+  SemaExceptionSpec.cpp
   SemaExpr.cpp
   SemaExprCXX.cpp
   SemaExprObjC.cpp
-  SemaInherit.cpp
   SemaInit.cpp
   SemaLookup.cpp
-  SemaNamedCast.cpp
   SemaOverload.cpp
   SemaStmt.cpp
   SemaTemplate.cpp
   SemaTemplateDeduction.cpp
   SemaTemplateInstantiate.cpp
   SemaTemplateInstantiateDecl.cpp
-  SemaTemplateInstantiateExpr.cpp
-  SemaTemplateInstantiateStmt.cpp
   SemaType.cpp
   )
 

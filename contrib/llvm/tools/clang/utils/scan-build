@@ -148,6 +148,7 @@ my %AnalysesDefaultEnabled = (
   # Do not enable the missing -dealloc check by default.
   #  '-warn-objc-missing-dealloc' => 1,
   '-warn-objc-unused-ivars' => 1,
+  '-warn-security-syntactic' => 1
 );
 
 ##----------------------------------------------------------------------------##
@@ -382,32 +383,25 @@ sub ScanFile {
   my $BugCategory;
   my $BugPathLength = 1;
   my $BugLine = 0;
-  my $found = 0;
 
   while (<IN>) {
-
-    last if ($found == 5);
+    last if (/<!-- BUGMETAEND -->/);
 
     if (/<!-- BUGTYPE (.*) -->$/) {
       $BugType = $1;
-      ++$found;
     }
     elsif (/<!-- BUGFILE (.*) -->$/) {
       $BugFile = abs_path($1);
       UpdatePrefix($BugFile);
-      ++$found;
     }
     elsif (/<!-- BUGPATHLENGTH (.*) -->$/) {
       $BugPathLength = $1;
-      ++$found;
     }
     elsif (/<!-- BUGLINE (.*) -->$/) {
       $BugLine = $1;    
-      ++$found;
     }
     elsif (/<!-- BUGCATEGORY (.*) -->$/) {
       $BugCategory = $1;
-      ++$found;
     }
   }
 
@@ -955,9 +949,14 @@ ADVANCED OPTIONS:
                         used by checker-0.160 and earlier.
 
  -store [model] - Specify the store model used by the analyzer. By default,
-                  the 'basic' store model is used. 'region' specifies a field-
-                  sensitive store model. Be warned that the 'region' model
-                  is still in very early testing phase and may often crash.
+                  the 'region' store model is used. 'region' specifies a field-
+                  sensitive store model. Users can also specify 'basic', which
+                  is far less precise but can more quickly analyze code.
+                  'basic' was the default store model for checker-0.221 and
+                  earlier.
+
+ -no-failure-reports - Do not create a 'failures' subdirectory that includes
+                       analyzer crash reports and preprocessed source files.
 
 AVAILABLE ANALYSES (multiple analyses may be specified):
 
@@ -1032,7 +1031,7 @@ my $ExitStatusFoundBugs = 0; # Exit status reflects whether bugs were found
 my @AnalysesToRun;
 my $StoreModel;
 my $ConstraintsModel;
-my $OutputFormat;
+my $OutputFormat = "html";
 
 if (!@ARGV) {
   DisplayHelp();
@@ -1166,7 +1165,17 @@ while (@ARGV) {
     $OutputFormat = "plist";
     next;
   }
+  if ($arg eq "-plist-html") {
+    shift @ARGV;
+    $OutputFormat = "plist-html";
+    next;
+  }
   
+  if ($arg eq "-no-failure-reports") {
+    $ENV{"CCC_REPORT_FAILURES"} = 0;
+    next;
+  }
+
   DieDiag("unrecognized option '$arg'\n") if ($arg =~ /^-/);
   
   last;
@@ -1252,25 +1261,27 @@ if (defined $OutputFormat) {
 # Run the build.
 my $ExitStatus = RunBuildCommand(\@ARGV, $IgnoreErrors, $Cmd);
 
-if (defined $OutputFormat and $OutputFormat eq "plist") {
-  Diag "Analysis run complete.\n";
-  Diag "Analysis results (plist files) deposited in '$HtmlDir'\n";
-}
-else {
-  # Postprocess the HTML directory.
-  my $NumBugs = Postprocess($HtmlDir, $BaseDir);
-
-  if ($ViewResults and -r "$HtmlDir/index.html") {
+if (defined $OutputFormat) {
+  if ($OutputFormat =~ /plist/) {
     Diag "Analysis run complete.\n";
-    Diag "Viewing analysis results in '$HtmlDir' using scan-view.\n";
-    my $ScanView = Cwd::realpath("$RealBin/scan-view");
-    if (! -x $ScanView) { $ScanView = "scan-view"; }
-    exec $ScanView, "$HtmlDir";
+    Diag "Analysis results (plist files) deposited in '$HtmlDir'\n";
   }
+  elsif ($OutputFormat =~ /html/) {
+    # Postprocess the HTML directory.
+    my $NumBugs = Postprocess($HtmlDir, $BaseDir);
 
-  if ($ExitStatusFoundBugs) {
-    exit 1 if ($NumBugs > 0);
-    exit 0;
+    if ($ViewResults and -r "$HtmlDir/index.html") {
+      Diag "Analysis run complete.\n";
+      Diag "Viewing analysis results in '$HtmlDir' using scan-view.\n";
+      my $ScanView = Cwd::realpath("$RealBin/scan-view");
+      if (! -x $ScanView) { $ScanView = "scan-view"; }
+      exec $ScanView, "$HtmlDir";
+    }
+
+    if ($ExitStatusFoundBugs) {
+      exit 1 if ($NumBugs > 0);
+      exit 0;
+    }
   }
 }
 

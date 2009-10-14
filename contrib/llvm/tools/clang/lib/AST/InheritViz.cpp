@@ -89,8 +89,8 @@ void InheritanceHierarchyWriter::WriteNode(QualType Type, bool FromVirtual) {
   Out << " \"];\n";
 
   // Display the base classes.
-  const CXXRecordDecl *Decl 
-    = static_cast<const CXXRecordDecl *>(Type->getAsRecordType()->getDecl());
+  const CXXRecordDecl *Decl
+    = static_cast<const CXXRecordDecl *>(Type->getAs<RecordType>()->getDecl());
   for (CXXRecordDecl::base_class_const_iterator Base = Decl->bases_begin();
        Base != Decl->bases_end(); ++Base) {
     QualType CanonBaseType = Context.getCanonicalType(Base->getType());
@@ -120,8 +120,8 @@ void InheritanceHierarchyWriter::WriteNode(QualType Type, bool FromVirtual) {
 /// WriteNodeReference - Write out a reference to the given node,
 /// using a unique identifier for each direct base and for the
 /// (only) virtual base.
-llvm::raw_ostream& 
-InheritanceHierarchyWriter::WriteNodeReference(QualType Type, 
+llvm::raw_ostream&
+InheritanceHierarchyWriter::WriteNodeReference(QualType Type,
                                                bool FromVirtual) {
   QualType CanonType = Context.getCanonicalType(Type);
 
@@ -149,7 +149,7 @@ void CXXRecordDecl::viewInheritance(ASTContext& Context) const {
 
   llvm::errs() << "Writing '" << Filename.c_str() << "'... ";
 
-  llvm::raw_fd_ostream O(Filename.c_str(), false, ErrMsg);
+  llvm::raw_fd_ostream O(Filename.c_str(), ErrMsg);
 
   if (ErrMsg.empty()) {
     InheritanceHierarchyWriter Writer(Context, O);

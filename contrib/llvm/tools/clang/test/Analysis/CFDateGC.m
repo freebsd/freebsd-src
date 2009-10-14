@@ -1,6 +1,6 @@
-// RUN: clang-cc -analyze -checker-cfref -verify -fobjc-gc -analyzer-constraints=basic %s &&
-// RUN: clang-cc -analyze -checker-cfref -verify -fobjc-gc -analyzer-constraints=range %s &&
-// RUN: clang-cc -analyze -checker-cfref -verify -fobjc-gc -disable-free %s &&
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify -fobjc-gc -analyzer-constraints=basic %s &&
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify -fobjc-gc -analyzer-constraints=range %s &&
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify -fobjc-gc -disable-free %s &&
 // RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify -fobjc-gc %s &&
 // RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify -fobjc-gc %s
 
@@ -25,7 +25,7 @@ extern CFDateRef CFDateCreate(CFAllocatorRef allocator, CFAbsoluteTime at);
 extern CFAbsoluteTime CFDateGetAbsoluteTime(CFDateRef theDate);
 typedef struct objc_object {} *id;
 typedef signed char BOOL;
-static __inline__ __attribute__((always_inline)) id NSMakeCollectable(CFTypeRef cf) {}
+static __inline__ __attribute__((always_inline)) id NSMakeCollectable(CFTypeRef cf) { return 0; }
 @protocol NSObject  - (BOOL)isEqual:(id)object;
 - (oneway void)release;
 - (id)retain;

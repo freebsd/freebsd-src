@@ -34,10 +34,40 @@ void test7() {
 
 // atomics.
 
-unsigned char test9(short v) {
+void test9(short v) {
   unsigned i, old;
   
   old = __sync_fetch_and_add();  // expected-error {{too few arguments to function call}}
   old = __sync_fetch_and_add(&old);  // expected-error {{too few arguments to function call}}
   old = __sync_fetch_and_add((int**)0, 42i); // expected-warning {{imaginary constants are an extension}}
+}
+
+
+// rdar://7236819
+void test10(void) __attribute__((noreturn));
+
+void test10(void) {
+  __asm__("int3");  
+  __builtin_unreachable();
+ 
+  // No warning about falling off the end of a noreturn function.
+}
+
+void test11(int X) {
+  switch (X) {  
+  case __builtin_eh_return_data_regno(0):  // constant foldable.
+    break;
+  }
+
+  __builtin_eh_return_data_regno(X);  // expected-error {{not an integer constant expression}}
+}
+
+// PR5062
+void test12(void) __attribute__((__noreturn__));
+void test12(void) {
+  __builtin_trap();  // no warning because trap is noreturn.
+}
+
+void test_unknown_builtin(int a, int b) {
+  __builtin_foo(a, b); // expected-error{{use of unknown builtin}}
 }

@@ -31,6 +31,12 @@
 //    type that is always dependent. Clients that do not need to deal
 //    with uninstantiated C++ templates can ignore these types.
 //
+//  There is a fifth macro, independent of the others.  Most clients
+//  will not need to use it.
+//
+//    LEAF_TYPE(Class) - A type that never has inner types.  Clients
+//    which can operate on such types more efficiently may wish to do so.
+//
 //===----------------------------------------------------------------------===//
 
 #ifndef ABSTRACT_TYPE
@@ -45,7 +51,6 @@
 #  define DEPENDENT_TYPE(Class, Base) TYPE(Class, Base)
 #endif
 
-TYPE(ExtQual, Type)
 TYPE(Builtin, Type)
 TYPE(FixedWidthInt, Type)
 TYPE(Complex, Type)
@@ -57,6 +62,8 @@ TYPE(RValueReference, ReferenceType)
 TYPE(MemberPointer, Type)
 ABSTRACT_TYPE(Array, Type)
 TYPE(ConstantArray, ArrayType)
+NON_CANONICAL_TYPE(ConstantArrayWithExpr, ConstantArrayType)
+NON_CANONICAL_TYPE(ConstantArrayWithoutExpr, ConstantArrayType)
 TYPE(IncompleteArray, ArrayType)
 TYPE(VariableArray, ArrayType)
 DEPENDENT_TYPE(DependentSizedArray, ArrayType)
@@ -73,13 +80,25 @@ NON_CANONICAL_TYPE(Decltype, Type)
 ABSTRACT_TYPE(Tag, Type)
 TYPE(Record, TagType)
 TYPE(Enum, TagType)
+NON_CANONICAL_TYPE(Elaborated, Type)
 DEPENDENT_TYPE(TemplateTypeParm, Type)
 TYPE(TemplateSpecialization, Type)
 NON_CANONICAL_TYPE(QualifiedName, Type)
 DEPENDENT_TYPE(Typename, Type)
 TYPE(ObjCInterface, Type)
 TYPE(ObjCObjectPointer, Type)
-TYPE(ObjCQualifiedInterface, ObjCInterfaceType)
+NON_CANONICAL_TYPE(ObjCProtocolList, Type)
+
+// These types are always leaves in the type hierarchy.
+#ifdef LEAF_TYPE
+LEAF_TYPE(Enum)
+LEAF_TYPE(Builtin)
+LEAF_TYPE(FixedWidthInt)
+LEAF_TYPE(ObjCInterface)
+LEAF_TYPE(ObjCObjectPointer)
+LEAF_TYPE(TemplateTypeParm)
+#undef LEAF_TYPE
+#endif
 
 #undef DEPENDENT_TYPE
 #undef NON_CANONICAL_TYPE

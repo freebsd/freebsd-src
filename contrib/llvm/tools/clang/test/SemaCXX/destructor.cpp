@@ -40,8 +40,9 @@ struct F {
   ~F(); // expected-error {{destructor cannot be redeclared}}
 };
 
-~; // expected-error {{expected class name}}
-~undef(); // expected-error {{expected class name}}
+~; // expected-error {{expected the class name after '~' to name a destructor}}
+~undef(); // expected-error {{expected the class name after '~' to name a destructor}}
+~operator+(int, int);  // expected-error {{expected the class name after '~' to name a destructor}}
 ~F(){} // expected-error {{destructor must be a non-static member function}}
 
 struct G {
@@ -53,4 +54,10 @@ G::~G() { }
 // <rdar://problem/6841210>
 struct H {
   ~H(void) { } 
+};
+
+struct X {};
+
+struct Y {
+  ~X(); // expected-error {{expected the class name after '~' to name the enclosing class}}
 };

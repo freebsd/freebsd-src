@@ -1,24 +1,24 @@
 // RUN: clang-cc -fsyntax-only -verify %s
 
-int test1() {
+void test1() {
   { ; {  ;;}} ;;
 }
 
-int test2() {
+void test2() {
   if (0) { if (1) {} } else { }
 
   do { } while (0); 
   
   while (0) while(0) do ; while(0);
 
-  for (0;0;0)
+  for ((void)0;0;(void)0)
     for (;;)
-      for (9;0;2)
+      for ((void)9;0;(void)2)
         ;
-  for (int X = 0; 0; 0);
+  for (int X = 0; 0; (void)0);
 }
 
-int test3() {
+void test3() {
     switch (0) {
     
     case 4:
@@ -30,7 +30,7 @@ int test3() {
   }
 }
 
-int test4() {
+void test4() {
   if (0);  // expected-warning {{if statement has empty body}}
   
   int X;  // declaration in a block.

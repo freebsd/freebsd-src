@@ -19,6 +19,8 @@
 #define LLVM_CLANG_CODEGEN_MANGLE_H
 
 #include "CGCXX.h"
+#include "clang/AST/Type.h"
+#include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
   class raw_ostream;
@@ -28,17 +30,47 @@ namespace clang {
   class ASTContext;
   class CXXConstructorDecl;
   class CXXDestructorDecl;
+  class FunctionDecl;
   class NamedDecl;
   class VarDecl;
-  
-  bool mangleName(const NamedDecl *D, ASTContext &Context, 
+
+  class MangleContext {
+    ASTContext &Context;
+    
+    llvm::DenseMap<const TagDecl *, uint64_t> AnonStructIds;
+
+  public:
+    explicit MangleContext(ASTContext &Context)
+    : Context(Context) { }
+    
+    ASTContext &getASTContext() const { return Context; }
+    
+    uint64_t getAnonymousStructId(const TagDecl *TD) {
+      std::pair<llvm::DenseMap<const TagDecl *, 
+                               uint64_t>::iterator, bool> Result =
+      AnonStructIds.insert(std::make_pair(TD, AnonStructIds.size()));
+      return Result.first->second;
+    }
+  };
+
+  bool mangleName(MangleContext &Context, const NamedDecl *D,
                   llvm::raw_ostream &os);
-  void mangleGuardVariable(const VarDecl *D, ASTContext &Context,
+  void mangleThunk(MangleContext &Context, const FunctionDecl *FD, 
+                   int64_t n, int64_t vn, llvm::raw_ostream &os);
+  void mangleCovariantThunk(MangleContext &Context, const FunctionDecl *FD, 
+                            int64_t nv_t, int64_t v_t,
+                            int64_t nv_r, int64_t v_r,
+                            llvm::raw_ostream &os);
+  void mangleGuardVariable(MangleContext &Context, const VarDecl *D,
                            llvm::raw_ostream &os);
-  void mangleCXXCtor(const CXXConstructorDecl *D, CXXCtorType Type,
-                     ASTContext &Context, llvm::raw_ostream &os);
-  void mangleCXXDtor(const CXXDestructorDecl *D, CXXDtorType Type,
-                     ASTContext &Context, llvm::raw_ostream &os);
+  void mangleCXXVtable(MangleContext &Context, const CXXRecordDecl *RD,
+                       llvm::raw_ostream &os);
+  void mangleCXXRtti(MangleContext &Context, const CXXRecordDecl *RD, 
+                     llvm::raw_ostream &os);
+  void mangleCXXCtor(MangleContext &Context, const CXXConstructorDecl *D, 
+                     CXXCtorType Type, llvm::raw_ostream &os);
+  void mangleCXXDtor(MangleContext &Context, const CXXDestructorDecl *D, 
+                     CXXDtorType Type, llvm::raw_ostream &os);  
 }
 
-#endif 
+#endif

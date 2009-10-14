@@ -1,4 +1,5 @@
-// RUN: clang-cc -analyze -checker-cfref -analyzer-constraints=basic -analyzer-store=basic -verify %s
+// RUN: clang-cc -analyze -checker-cfref -analyzer-constraints=basic -analyzer-store=basic -verify %s &&
+// RUN: clang-cc -analyze -checker-cfref -analyzer-constraints=basic -analyzer-store=region -verify %s
 //
 // This test case mainly checks that the retain/release checker doesn't crash
 // on this file.
@@ -51,7 +52,7 @@ typedef struct _NSRunArrayItem {
 @end
 @implementation Bar
 static Baz Qux = 0;
-- (id)copyWithZone:(NSZone *)zone {}
+- (id)copyWithZone:(NSZone *)zone { return 0; }
 - (void)encodeWithCoder:(NSCoder *)coder {}
 @end
 @implementation Bar (BarBotnet)
@@ -59,5 +60,6 @@ static Baz Qux = 0;
   if (!(*(BarAuxiliary **)&self->_support)->auxCFlags.botnetIsSet) {
     _cFlags.botnet = [self _initialBotnetZorg];
   }
+  while (1) {}
 }
 @end

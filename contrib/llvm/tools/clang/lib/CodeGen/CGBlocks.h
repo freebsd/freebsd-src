@@ -16,6 +16,7 @@
 
 #include "CodeGenTypes.h"
 #include "clang/AST/Type.h"
+#include "llvm/Module.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "clang/Basic/TargetInfo.h"
@@ -38,6 +39,7 @@ namespace llvm {
   class TargetData;
   class FunctionType;
   class Value;
+  class LLVMContext;
 }
 
 namespace clang {
@@ -63,7 +65,8 @@ class BlockModule : public BlockBase {
   const llvm::TargetData &TheTargetData;
   CodeGenTypes &Types;
   CodeGenModule &CGM;
-  
+  llvm::LLVMContext &VMContext;
+
   ASTContext &getContext() const { return Context; }
   llvm::Module &getModule() const { return TheModule; }
   CodeGenTypes &getTypes() { return Types; }
@@ -86,7 +89,7 @@ public:
   /// NSConcreteStackBlock - Cached reference to the class poinnter for stack
   /// blocks.
   llvm::Constant *NSConcreteStackBlock;
-  
+
   const llvm::Type *BlockDescriptorType;
   const llvm::Type *GenericBlockLiteralType;
   const llvm::Type *GenericExtendedBlockLiteralType;
@@ -104,12 +107,22 @@ public:
   BlockModule(ASTContext &C, llvm::Module &M, const llvm::TargetData &TD,
               CodeGenTypes &T, CodeGenModule &CodeGen)
     : Context(C), TheModule(M), TheTargetData(TD), Types(T),
-      CGM(CodeGen),
+      CGM(CodeGen), VMContext(M.getContext()),
       NSConcreteGlobalBlock(0), NSConcreteStackBlock(0), BlockDescriptorType(0),
       GenericBlockLiteralType(0), GenericExtendedBlockLiteralType(0),
       BlockObjectAssign(0), BlockObjectDispose(0) {
     Block.GlobalUniqueCount = 0;
-    PtrToInt8Ty = llvm::PointerType::getUnqual(llvm::Type::Int8Ty);
+    PtrToInt8Ty = llvm::Type::getInt8PtrTy(M.getContext());
+  }
+
+  bool BlockRequiresCopying(QualType Ty) {
+    if (Ty->isBlockPointerType())
+      return true;
+    if (getContext().isObjCNSObjectType(Ty))
+      return true;
+    if (Ty->isObjCObjectPointerType())
+      return true;
+    return false;
   }
 };
 
@@ -117,6 +130,9 @@ class BlockFunction : public BlockBase {
   CodeGenModule &CGM;
   CodeGenFunction &CGF;
   ASTContext &getContext() const;
+
+protected:
+  llvm::LLVMContext &VMContext;
 
 public:
   const llvm::Type *PtrToInt8Ty;
@@ -150,11 +166,11 @@ public:
     /// ByCopyDeclRefs - Variables from parent scopes that have been imported
     /// into this block.
     llvm::SmallVector<const BlockDeclRefExpr *, 8> ByCopyDeclRefs;
-    
-    // ByRefDeclRefs - __block variables from parent scopes that have been 
+
+    // ByRefDeclRefs - __block variables from parent scopes that have been
     // imported into this block.
     llvm::SmallVector<const BlockDeclRefExpr *, 8> ByRefDeclRefs;
-    
+
     BlockInfo(const llvm::Type *blt, const char *n)
       : BlockLiteralTy(blt), Name(n) {
       // Skip asm prefix, if any.
@@ -212,15 +228,7 @@ public:
   llvm::Value *getBlockObjectDispose();
   void BuildBlockRelease(llvm::Value *DeclPtr, int flag = BLOCK_FIELD_IS_BYREF);
 
-  bool BlockRequiresCopying(QualType Ty) {
-    if (Ty->isBlockPointerType())
-      return true;
-    if (getContext().isObjCNSObjectType(Ty))
-      return true;
-    if (getContext().isObjCObjectPointerType(Ty))
-      return true;
-    return false;
-  }
+  bool BlockRequiresCopying(QualType Ty);
 };
 
 }  // end namespace CodeGen

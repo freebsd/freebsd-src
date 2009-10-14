@@ -163,7 +163,7 @@ void StmtLocResolver::VisitStmt(Stmt *Node) {
 void DeclLocResolver::VisitDeclContext(DeclContext *DC) {
   DeclLocResolver DLR(Ctx, Loc);
   for (DeclContext::decl_iterator
-         I = DC->decls_begin(Ctx), E = DC->decls_end(Ctx); I != E; ++I) {
+         I = DC->decls_begin(), E = DC->decls_end(); I != E; ++I) {
     DLR.Visit(*I);
     if (DLR.Finished()) {
       if (DLR.FoundIt())
@@ -211,7 +211,7 @@ void DeclLocResolver::VisitFunctionDecl(FunctionDecl *D) {
   // Finally, search through the body of the function.
   if (D->isThisDeclarationADefinition()) {
     StmtLocResolver SLR(Ctx, Loc);
-    SLR.Visit(D->getBody(Ctx));
+    SLR.Visit(D->getBody());
     if (SLR.FoundIt()) {
       llvm::tie(Dcl, Stm) = SLR.getResult();
       // If we didn't find a more immediate 'parent' declaration for the
@@ -287,7 +287,7 @@ void LocResolverBase::FixRange(SourceRange &Range) {
 void LocResolverBase::print(Decl *D) {
   llvm::raw_ostream &OS = llvm::outs();
   OS << "#### DECL ####\n";
-  D->print(OS, Ctx);
+  D->print(OS);
   OS << " <";
   D->getLocStart().print(OS, Ctx.getSourceManager());
   OS << " > - <";
@@ -299,7 +299,7 @@ void LocResolverBase::print(Decl *D) {
 void LocResolverBase::print(Stmt *Node) {
   llvm::raw_ostream &OS = llvm::outs();
   OS << "#### STMT ####\n";
-  Node->printPretty(OS, Ctx);
+  Node->printPretty(OS, Ctx, 0, PrintingPolicy(Ctx.getLangOptions()));
   OS << " <";
   Node->getLocStart().print(OS, Ctx.getSourceManager());
   OS << " > - <";

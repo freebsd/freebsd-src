@@ -16,7 +16,7 @@ int B::*pbi; // expected-error {{expected a class or namespace}} \
              // expected-error{{does not point into a class}}
 int C::*pci; // expected-error {{'pci' does not point into a class}}
 void A::*pdv; // expected-error {{'pdv' declared as a member pointer to void}}
-int& A::*pdr; // expected-error {{'pdr' declared as a pointer to a reference}}
+int& A::*pdr; // expected-error {{'pdr' declared as a member pointer to a reference}}
 
 void f() {
   // This requires tentative parsing.
@@ -40,6 +40,14 @@ void f() {
 
   // Conversion to member of base.
   pdi1 = pdid; // expected-error {{incompatible type assigning 'int struct D::*', expected 'int struct A::*'}}
+  
+  // Comparisons
+  int (A::*pf2)(int, int);
+  int (D::*pf3)(int, int) = 0;
+  bool b1 = (pf == pf2); (void)b1;
+  bool b2 = (pf != pf2); (void)b2;
+  bool b3 = (pf == pf3); (void)b3;
+  bool b4 = (pf != 0); (void)b4;
 }
 
 struct TheBase
@@ -91,7 +99,7 @@ void h() {
   int i = phm->*pi;
   (void)&(hm.*pi);
   (void)&(phm->*pi);
-  (void)&((&hm)->*pi); // expected-error {{address expression must be an lvalue or a function designator}}
+  (void)&((&hm)->*pi); 
 
   void (HasMembers::*pf)() = &HasMembers::f;
   (hm.*pf)();

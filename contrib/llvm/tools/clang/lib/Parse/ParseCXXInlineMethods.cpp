@@ -21,17 +21,31 @@ using namespace clang;
 /// Declarator is a well formed C++ inline method definition. Now lex its body
 /// and store its tokens for parsing after the C++ class is complete.
 Parser::DeclPtrTy
-Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, Declarator &D) {
+Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, Declarator &D,
+                                const ParsedTemplateInfo &TemplateInfo) {
   assert(D.getTypeObject(0).Kind == DeclaratorChunk::Function &&
          "This isn't a function declarator!");
   assert((Tok.is(tok::l_brace) || Tok.is(tok::colon) || Tok.is(tok::kw_try)) &&
          "Current token not a '{', ':' or 'try'!");
 
-  DeclPtrTy FnD = Actions.ActOnCXXMemberDeclarator(CurScope, AS, D, 0, 0);
+  Action::MultiTemplateParamsArg TemplateParams(Actions,
+                                                TemplateInfo.TemplateParams? TemplateInfo.TemplateParams->data() : 0,
+                                                TemplateInfo.TemplateParams? TemplateInfo.TemplateParams->size() : 0);
+  DeclPtrTy FnD;
+  if (D.getDeclSpec().isFriendSpecified())
+    // FIXME: Friend templates
+    FnD = Actions.ActOnFriendFunctionDecl(CurScope, D, true, move(TemplateParams));
+  else // FIXME: pass template information through
+    FnD = Actions.ActOnCXXMemberDeclarator(CurScope, AS, D,
+                                           move(TemplateParams), 0, 0);
+
+  HandleMemberFunctionDefaultArgs(D, FnD);
 
   // Consume the tokens and store them for later parsing.
 
   getCurrentClass().MethodDefs.push_back(LexedMethod(FnD));
+  getCurrentClass().MethodDefs.back().TemplateScope
+    = CurScope->isTemplateParamScope();
   CachedTokens &Toks = getCurrentClass().MethodDefs.back().Toks;
 
   tok::TokenKind kind = Tok.getKind();
@@ -40,7 +54,7 @@ Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, Declarator &D) {
     // Consume everything up to (and including) the left brace.
     if (!ConsumeAndStoreUntil(tok::l_brace, tok::unknown, Toks, tok::semi)) {
       // We didn't find the left-brace we expected after the
-      // constructor initializer. 
+      // constructor initializer.
       if (Tok.is(tok::semi)) {
         // We found a semicolon; complain, consume the semicolon, and
         // don't try to parse this method later.
@@ -52,7 +66,7 @@ Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, Declarator &D) {
     }
 
   } else {
-    // Begin by storing the '{' token. 
+    // Begin by storing the '{' token.
     Toks.push_back(Tok);
     ConsumeBrace();
   }
@@ -86,16 +100,18 @@ void Parser::ParseLexedMethodDeclarations(ParsingClass &Class) {
 
   for (; !Class.MethodDecls.empty(); Class.MethodDecls.pop_front()) {
     LateParsedMethodDeclaration &LM = Class.MethodDecls.front();
-    
-    // FIXME: For member function templates, we'll need to introduce a
-    // scope for the template parameters.
+
+    // If this is a member template, introduce the template parameter scope.
+    ParseScope TemplateScope(this, Scope::TemplateParamScope, LM.TemplateScope);
+    if (LM.TemplateScope)
+      Actions.ActOnReenterTemplateScope(CurScope, LM.Method);
 
     // Start the delayed C++ method declaration
     Actions.ActOnStartDelayedCXXMethodDeclaration(CurScope, LM.Method);
 
     // Introduce the parameters into scope and parse their default
     // arguments.
-    ParseScope PrototypeScope(this, 
+    ParseScope PrototypeScope(this,
                               Scope::FunctionPrototypeScope|Scope::DeclScope);
     for (unsigned I = 0, N = LM.DefaultArgs.size(); I != N; ++I) {
       // Introduce the parameter into scope.
@@ -149,11 +165,16 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
   for (; !Class.MethodDefs.empty(); Class.MethodDefs.pop_front()) {
     LexedMethod &LM = Class.MethodDefs.front();
 
+    // If this is a member template, introduce the template parameter scope.
+    ParseScope TemplateScope(this, Scope::TemplateParamScope, LM.TemplateScope);
+    if (LM.TemplateScope)
+      Actions.ActOnReenterTemplateScope(CurScope, LM.D);
+
     assert(!LM.Toks.empty() && "Empty body!");
     // Append the current token at the end of the new token stream so that it
     // doesn't get lost.
     LM.Toks.push_back(Tok);
-    PP.EnterTokenStream(&LM.Toks.front(), LM.Toks.size(), true, false);
+    PP.EnterTokenStream(LM.Toks.data(), LM.Toks.size(), true, false);
 
     // Consume the previously pushed token.
     ConsumeAnyToken();
@@ -171,6 +192,9 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
     }
     if (Tok.is(tok::colon))
       ParseConstructorInitializer(LM.D);
+    else
+      Actions.ActOnDefaultCtorInitializers(LM.D);
+
     // FIXME: What if ParseConstructorInitializer doesn't leave us with a '{'??
     ParseFunctionStatementBody(LM.D);
   }
@@ -181,7 +205,7 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 
 /// ConsumeAndStoreUntil - Consume and store the token at the passed token
 /// container until the token 'T' is reached (which gets
-/// consumed/stored too, if ConsumeFinalToken). 
+/// consumed/stored too, if ConsumeFinalToken).
 /// If EarlyAbortIf is specified, then we will stop early if we find that
 /// token at the top level.
 /// Returns true if token 'T1' or 'T2' was found.

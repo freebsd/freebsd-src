@@ -12,14 +12,14 @@ void f() {
   __typeof(int)(a,5)<<a; // expected-error {{function-style cast to a builtin type can only take one argument}}
   void(a), ++a; // expected-warning {{expression result unused}}
   if (int(a)+1) {}
-  for (int(a)+1;;) {}
+  for (int(a)+1;;) {} // expected-warning {{expression result unused}}
   a = sizeof(int()+1);
   a = sizeof(int(1));
   typeof(int()+1) a2; // expected-error {{extension used}}
   (int(1)); // expected-warning {{expression result unused}}
 
   // type-id
-  (int())1; // expected-error {{used type 'int ()' where arithmetic or pointer type is required}}
+  (int())1; // expected-error {{C-style cast from 'int' to 'int ()' is not allowed}}
 
   // Declarations.
   int fd(T(a)); // expected-warning {{parentheses were disambiguated as a function declarator}}

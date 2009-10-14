@@ -32,10 +32,10 @@ namespace driver {
 /// invocation.
 class Compilation {
   /// The driver we were created by.
-  Driver &TheDriver;
+  const Driver &TheDriver;
 
   /// The default tool chain.
-  ToolChain &DefaultToolChain;
+  const ToolChain &DefaultToolChain;
 
   /// The original (untranslated) input argument list.
   InputArgList *Args;
@@ -47,7 +47,8 @@ class Compilation {
   JobList Jobs;
 
   /// Cache of translated arguments for a particular tool chain.
-  llvm::DenseMap<const ToolChain*, DerivedArgList*> TCArgs;
+  llvm::DenseMap<std::pair<const ToolChain*, const char*>,
+                 DerivedArgList*> TCArgs;
 
   /// Temporary files which should be removed on exit.
   ArgStringList TempFiles;
@@ -56,7 +57,8 @@ class Compilation {
   ArgStringList ResultFiles;
 
 public:
-  Compilation(Driver &D, ToolChain &DefaultToolChain, InputArgList *Args);
+  Compilation(const Driver &D, const ToolChain &DefaultToolChain,
+              InputArgList *Args);
   ~Compilation();
 
   const Driver &getDriver() const { return TheDriver; }
@@ -69,16 +71,24 @@ public:
   const ActionList &getActions() const { return Actions; }
 
   JobList &getJobs() { return Jobs; }
+  const JobList &getJobs() const { return Jobs; }
+
+  const ArgStringList &getTempFiles() const { return TempFiles; }
+
+  const ArgStringList &getResultFiles() const { return ResultFiles; }
 
   /// getArgsForToolChain - Return the derived argument list for the
   /// tool chain \arg TC (or the default tool chain, if TC is not
   /// specified).
-  const DerivedArgList &getArgsForToolChain(const ToolChain *TC = 0);
+  ///
+  /// \param BoundArch - The bound architecture name, or 0.
+  const DerivedArgList &getArgsForToolChain(const ToolChain *TC,
+                                            const char *BoundArch);
 
   /// addTempFile - Add a file to remove on exit, and returns its
   /// argument.
-  const char *addTempFile(const char *Name) { 
-    TempFiles.push_back(Name); 
+  const char *addTempFile(const char *Name) {
+    TempFiles.push_back(Name);
     return Name;
   }
 
@@ -89,36 +99,35 @@ public:
     return Name;
   }
 
-  /// Execute - Execute the compilation jobs and return an
-  /// appropriate exit code.
-  int Execute() const;
-
-private:
   /// CleanupFileList - Remove the files in the given list.
   ///
   /// \param IssueErrors - Report failures as errors.
   /// \return Whether all files were removed successfully.
-  bool CleanupFileList(const ArgStringList &Files, 
+  bool CleanupFileList(const ArgStringList &Files,
                        bool IssueErrors=false) const;
 
   /// PrintJob - Print one job in -### format.
   ///
-  /// OS - The stream to print on.
-  /// J - The job to print.
-  /// Terminator - A string to print at the end of the line.
-  /// Quote - Should separate arguments be quoted.
-  void PrintJob(llvm::raw_ostream &OS, const Job &J, 
+  /// \param OS - The stream to print on.
+  /// \param J - The job to print.
+  /// \param Terminator - A string to print at the end of the line.
+  /// \param Quote - Should separate arguments be quoted.
+  void PrintJob(llvm::raw_ostream &OS, const Job &J,
                 const char *Terminator, bool Quote) const;
 
   /// ExecuteCommand - Execute an actual command.
   ///
+  /// \param FailingCommand - For non-zero results, this will be set to the
+  /// Command which failed, if any.
   /// \return The result code of the subprocess.
-  int ExecuteCommand(const Command &C) const;
+  int ExecuteCommand(const Command &C, const Command *&FailingCommand) const;
 
   /// ExecuteJob - Execute a single job.
   ///
+  /// \param FailingCommand - For non-zero results, this will be set to the
+  /// Command which failed.
   /// \return The accumulated result code of the job.
-  int ExecuteJob(const Job &J) const;
+  int ExecuteJob(const Job &J, const Command *&FailingCommand) const;
 };
 
 } // end namespace driver

@@ -2,20 +2,20 @@
 // PR4289
 
 struct funcptr {
-    int (*func)();
+  int (*func)();
 };
 
 static int func(f)
-        void *f;
+  void *f;
 {
+  return 0;
 }
 
 int
 main(int argc, char *argv[])
 {
-        struct funcptr fp;
+  struct funcptr fp;
 
-        fp.func = &func;
-        fp.func = func;
+  fp.func = &func;
+  fp.func = func;
 }
-

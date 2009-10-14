@@ -38,10 +38,11 @@ void good_news()
   ia4 *pai = new (int[3][4]);
   pi = ::new int;
   U *pu = new (ps) U;
-  // FIXME: Inherited functions are not looked up currently.
-  //V *pv = new (ps) V;
+  V *pv = new (ps) V;
   
   pi = new (S(1.0f, 2)) int;
+  
+  (void)new int[true];
 }
 
 struct abstract {
@@ -95,3 +96,43 @@ void bad_deletes()
   delete (T*)0; // expected-warning {{deleting pointer to incomplete type}}
   ::S::delete (int*)0; // expected-error {{expected unqualified-id}}
 }
+
+struct X0 { };
+
+struct X1 {
+  operator int*();
+  operator float();
+};
+
+struct X2 {
+  operator int*(); // expected-note {{candidate function}}
+  operator float*(); // expected-note {{candidate function}}
+};
+
+void test_delete_conv(X0 x0, X1 x1, X2 x2) {
+  delete x0; // expected-error{{cannot delete}}
+  delete x1;
+  delete x2; // expected-error{{ambiguous conversion of delete expression of type 'struct X2' to a pointer}}
+}
+
+// PR4782
+class X3 {
+public:
+  static void operator delete(void * mem, unsigned long size);
+};
+
+class X4 {
+public:
+  static void release(X3 *x);
+  static void operator delete(void * mem, unsigned long size);
+};
+
+
+void X4::release(X3 *x) {
+  delete x;
+}
+
+class X5 {
+public:
+  void Destroy() const { delete this; }
+};

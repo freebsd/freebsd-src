@@ -22,6 +22,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ValueHandle.h"
 #include <map>
+#include "CodeGenModule.h"
 #include "CGBlocks.h"
 #include "CGBuilder.h"
 #include "CGCall.h"
@@ -30,6 +31,7 @@
 
 namespace llvm {
   class BasicBlock;
+  class LLVMContext;
   class Module;
   class SwitchInst;
   class Value;
@@ -38,6 +40,7 @@ namespace llvm {
 namespace clang {
   class ASTContext;
   class CXXDestructorDecl;
+  class CXXTryStmt;
   class Decl;
   class EnumConstantDecl;
   class FunctionDecl;
@@ -145,7 +148,11 @@ public:
 
     ~CleanupScope() {
       CGF.PushCleanupBlock(CleanupBB);
-      CGF.Builder.SetInsertPoint(CurBB);
+      // FIXME: This is silly, move this into the builder.
+      if (CurBB)
+        CGF.Builder.SetInsertPoint(CurBB);
+      else
+        CGF.Builder.ClearInsertionPoint();
     }
   };
 
@@ -160,20 +167,20 @@ public:
   /// this behavior for branches?
   void EmitBranchThroughCleanup(llvm::BasicBlock *Dest);
 
-  /// PushConditionalTempDestruction - Should be called before a conditional 
+  /// PushConditionalTempDestruction - Should be called before a conditional
   /// part of an expression is emitted. For example, before the RHS of the
   /// expression below is emitted:
-  /// 
+  ///
   /// b && f(T());
   ///
   /// This is used to make sure that any temporaryes created in the conditional
   /// branch are only destroyed if the branch is taken.
   void PushConditionalTempDestruction();
-  
-  /// PopConditionalTempDestruction - Should be called after a conditional 
+
+  /// PopConditionalTempDestruction - Should be called after a conditional
   /// part of an expression has been emitted.
   void PopConditionalTempDestruction();
-  
+
 private:
   CGDebugInfo* DebugInfo;
 
@@ -182,10 +189,12 @@ private:
   /// labels inside getIDForAddrOfLabel().
   std::map<const LabelStmt*, unsigned> LabelIDs;
 
-  /// IndirectSwitches - Record the list of switches for indirect
-  /// gotos. Emission of the actual switching code needs to be delayed until all
-  /// AddrLabelExprs have been seen.
-  std::vector<llvm::SwitchInst*> IndirectSwitches;
+  /// IndirectGotoSwitch - The first time an indirect goto is seen we create a
+  /// block with the switch for the indirect gotos.  Every time we see the
+  /// address of a label taken, we add the label to the indirect goto.  Every
+  /// subsequent indirect goto is codegen'd as a jump to the
+  /// IndirectGotoSwitch's basic block.
+  llvm::SwitchInst *IndirectGotoSwitch;
 
   /// LocalDeclMap - This keeps track of the LLVM allocas or globals for local C
   /// decls.
@@ -218,9 +227,12 @@ private:
   llvm::BasicBlock *InvokeDest;
 
   // VLASizeMap - This keeps track of the associated size for each VLA type.
+  // We track this by the size expression rather than the type itself because
+  // in certain situations, like a const qualifier applied to an VLA typedef,
+  // multiple VLA types can share the same size expression.
   // FIXME: Maybe this could be a stack of maps that is pushed/popped as we
   // enter/leave scopes.
-  llvm::DenseMap<const VariableArrayType*, llvm::Value*> VLASizeMap;
+  llvm::DenseMap<const Expr*, llvm::Value*> VLASizeMap;
 
   /// DidCallStackSave - Whether llvm.stacksave has been called. Used to avoid
   /// calling llvm.stacksave for multiple VLAs in the same scope.
@@ -252,36 +264,46 @@ private:
   /// CXXThisDecl - When parsing an C++ function, this will hold the implicit
   /// 'this' declaration.
   ImplicitParamDecl *CXXThisDecl;
-  
+
   /// CXXLiveTemporaryInfo - Holds information about a live C++ temporary.
   struct CXXLiveTemporaryInfo {
     /// Temporary - The live temporary.
     const CXXTemporary *Temporary;
-    
+
     /// ThisPtr - The pointer to the temporary.
     llvm::Value *ThisPtr;
-    
+
     /// DtorBlock - The destructor block.
     llvm::BasicBlock *DtorBlock;
-    
+
     /// CondPtr - If this is a conditional temporary, this is the pointer to
     /// the condition variable that states whether the destructor should be
     /// called or not.
     llvm::Value *CondPtr;
-    
+
     CXXLiveTemporaryInfo(const CXXTemporary *temporary,
                          llvm::Value *thisptr, llvm::BasicBlock *dtorblock,
                          llvm::Value *condptr)
-      : Temporary(temporary), ThisPtr(thisptr), DtorBlock(dtorblock), 
+      : Temporary(temporary), ThisPtr(thisptr), DtorBlock(dtorblock),
       CondPtr(condptr) { }
   };
-  
+
   llvm::SmallVector<CXXLiveTemporaryInfo, 4> LiveTemporaries;
 
-  /// ConditionalTempDestructionStack - Contains the number of live temporaries 
+  /// ConditionalTempDestructionStack - Contains the number of live temporaries
   /// when PushConditionalTempDestruction was called. This is used so that
   /// we know how many temporaries were created by a certain expression.
   llvm::SmallVector<size_t, 4> ConditionalTempDestructionStack;
+
+
+  /// ByrefValueInfoMap - For each __block variable, contains a pair of the LLVM
+  /// type as well as the field number that contains the actual data.
+  llvm::DenseMap<const ValueDecl *, std::pair<const llvm::Type *, 
+                                              unsigned> > ByRefValueInfo;
+  
+  /// getByrefValueFieldNumber - Given a declaration, returns the LLVM field
+  /// number that holds the value.
+  unsigned getByRefValueLLVMField(const ValueDecl *VD) const;
   
 public:
   CodeGenFunction(CodeGenModule &cgm);
@@ -291,6 +313,8 @@ public:
 
   llvm::BasicBlock *getInvokeDest() { return InvokeDest; }
   void setInvokeDest(llvm::BasicBlock *B) { InvokeDest = B; }
+
+  llvm::LLVMContext &getLLVMContext() { return VMContext; }
 
   //===--------------------------------------------------------------------===//
   //                                  Objective-C
@@ -332,12 +356,10 @@ public:
   llvm::Value *LoadBlockStruct();
 
   llvm::Value *GetAddrOfBlockDecl(const BlockDeclRefExpr *E);
+  const llvm::Type *BuildByRefType(const ValueDecl *D);
 
-  const llvm::Type *BuildByRefType(QualType Ty, uint64_t Align);
-
-  void GenerateCode(const FunctionDecl *FD,
-                    llvm::Function *Fn);
-  void StartFunction(const Decl *D, QualType RetTy,
+  void GenerateCode(GlobalDecl GD, llvm::Function *Fn);
+  void StartFunction(GlobalDecl GD, QualType RetTy,
                      llvm::Function *Fn,
                      const FunctionArgList &Args,
                      SourceLocation StartLoc);
@@ -349,6 +371,44 @@ public:
   /// FinishFunction - Complete IR generation of the current function. It is
   /// legal to call this function even if there is no current insertion point.
   void FinishFunction(SourceLocation EndLoc=SourceLocation());
+
+  /// GenerateVtable - Generate the vtable for the given type.
+  llvm::Value *GenerateVtable(const CXXRecordDecl *RD);
+
+  /// GenerateThunk - Generate a thunk for the given method
+  llvm::Constant *GenerateThunk(llvm::Function *Fn, const CXXMethodDecl *MD,
+                                bool Extern, int64_t nv, int64_t v);
+  llvm::Constant *GenerateCovariantThunk(llvm::Function *Fn,
+                                         const CXXMethodDecl *MD, bool Extern,
+                                         int64_t nv_t, int64_t v_t,
+                                         int64_t nv_r, int64_t v_r);
+
+  void EmitCtorPrologue(const CXXConstructorDecl *CD, CXXCtorType Type);
+
+  void SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
+                                    CXXCtorType Type,
+                                    llvm::Function *Fn,
+                                    const FunctionArgList &Args);
+
+  void SynthesizeCXXCopyAssignment(const CXXMethodDecl *CD,
+                                   llvm::Function *Fn,
+                                   const FunctionArgList &Args);
+
+  void SynthesizeDefaultConstructor(const CXXConstructorDecl *Ctor,
+                                    CXXCtorType Type,
+                                    llvm::Function *Fn,
+                                    const FunctionArgList &Args);
+
+  void SynthesizeDefaultDestructor(const CXXDestructorDecl *Dtor,
+                                   CXXDtorType Type,
+                                   llvm::Function *Fn,
+                                   const FunctionArgList &Args);
+
+  /// EmitDtorEpilogue - Emit all code that comes at the end of class's
+  /// destructor. This is to call destructors on members and base classes
+  /// in reverse order of their construction.
+  void EmitDtorEpilogue(const CXXDestructorDecl *Dtor,
+                        CXXDtorType Type);
 
   /// EmitFunctionProlog - Emit the target specific LLVM code to load the
   /// arguments for the given function. This is also responsible for naming the
@@ -380,9 +440,9 @@ public:
                                      llvm::Function *Parent=0,
                                      llvm::BasicBlock *InsertBefore=0) {
 #ifdef NDEBUG
-    return llvm::BasicBlock::Create("", Parent, InsertBefore);
+    return llvm::BasicBlock::Create(VMContext, "", Parent, InsertBefore);
 #else
-    return llvm::BasicBlock::Create(Name, Parent, InsertBefore);
+    return llvm::BasicBlock::Create(VMContext, Name, Parent, InsertBefore);
 #endif
   }
 
@@ -439,6 +499,12 @@ public:
   //                                  Helpers
   //===--------------------------------------------------------------------===//
 
+  Qualifiers MakeQualifiers(QualType T) {
+    Qualifiers Quals = T.getQualifiers();
+    Quals.setObjCGCAttr(getContext().getObjCGCAttrKind(T));
+    return Quals;
+  }
+
   /// CreateTempAlloca - This creates a alloca and inserts it into the entry
   /// block.
   llvm::AllocaInst *CreateTempAlloca(const llvm::Type *Ty,
@@ -455,7 +521,8 @@ public:
   ///
   /// \param IgnoreResult - True if the resulting value isn't used.
   RValue EmitAnyExpr(const Expr *E, llvm::Value *AggLoc = 0,
-                     bool isAggLocVolatile = false, bool IgnoreResult = false);
+                     bool IsAggLocVolatile = false, bool IgnoreResult = false,
+                     bool IsInitializer = false);
 
   // EmitVAListRef - Emit a "reference" to a va_list; this is either the address
   // or the value of the expression, depending on how va_list is defined.
@@ -463,8 +530,8 @@ public:
 
   /// EmitAnyExprToTemp - Similary to EmitAnyExpr(), however, the result will
   /// always be accessible even if no aggregate location is provided.
-  RValue EmitAnyExprToTemp(const Expr *E, llvm::Value *AggLoc = 0,
-                           bool isAggLocVolatile = false);
+  RValue EmitAnyExprToTemp(const Expr *E, bool IsAggLocVolatile = false,
+                           bool IsInitializer = false);
 
   /// EmitAggregateCopy - Emit an aggrate copy.
   ///
@@ -479,9 +546,6 @@ public:
   /// then reuse it.
   void StartBlock(const char *N);
 
-  /// getCGRecordLayout - Return record layout info.
-  const CGRecordLayout *getCGRecordLayout(CodeGenTypes &CGT, QualType RTy);
-
   /// GetAddrOfStaticLocalVar - Return the address of a static local variable.
   llvm::Constant *GetAddrOfStaticLocalVar(const VarDecl *BVD);
 
@@ -493,6 +557,7 @@ public:
   static unsigned getAccessedFieldNo(unsigned Idx, const llvm::Constant *Elts);
 
   unsigned GetIDForAddrOfLabel(const LabelStmt *L);
+  llvm::BasicBlock *GetIndirectGotoBlock();
 
   /// EmitMemSetToZero - Generate code to memset a value of the given type to 0.
   void EmitMemSetToZero(llvm::Value *DestPtr, QualType Ty);
@@ -506,6 +571,8 @@ public:
   // EmitVLASize - Generate code for any VLA size expressions that might occur
   // in a variably modified type. If Ty is a VLA, will return the value that
   // corresponds to the size in bytes of the VLA type. Will return 0 otherwise.
+  ///
+  /// This function can be called with a null (unreachable) insert point.
   llvm::Value *EmitVLASize(QualType Ty);
 
   // GetVLASize - Returns an LLVM value that corresponds to the size in bytes
@@ -515,27 +582,87 @@ public:
   /// LoadCXXThis - Load the value of 'this'. This function is only valid while
   /// generating code for an C++ member function.
   llvm::Value *LoadCXXThis();
+
+  /// GetAddressCXXOfBaseClass - This function will add the necessary delta
+  /// to the load of 'this' and returns address of the base class.
+  // FIXME. This currently only does a derived to non-virtual base conversion.
+  // Other kinds of conversions will come later.
+  llvm::Value *GetAddressCXXOfBaseClass(llvm::Value *BaseValue,
+                                        const CXXRecordDecl *ClassDecl,
+                                        const CXXRecordDecl *BaseClassDecl,
+                                        bool NullCheckValue);
   
-  void EmitCXXConstructorCall(const CXXConstructorDecl *D, CXXCtorType Type, 
+  llvm::Value *
+  GetVirtualCXXBaseClassOffset(llvm::Value *This,
+                               const CXXRecordDecl *ClassDecl,
+                               const CXXRecordDecl *BaseClassDecl);
+    
+  void EmitClassAggrMemberwiseCopy(llvm::Value *DestValue,
+                                   llvm::Value *SrcValue,
+                                   const ArrayType *Array,
+                                   const CXXRecordDecl *BaseClassDecl,
+                                   QualType Ty);
+
+  void EmitClassAggrCopyAssignment(llvm::Value *DestValue,
+                                   llvm::Value *SrcValue,
+                                   const ArrayType *Array,
+                                   const CXXRecordDecl *BaseClassDecl,
+                                   QualType Ty);
+
+  void EmitClassMemberwiseCopy(llvm::Value *DestValue, llvm::Value *SrcValue,
+                               const CXXRecordDecl *ClassDecl,
+                               const CXXRecordDecl *BaseClassDecl,
+                               QualType Ty);
+
+  void EmitClassCopyAssignment(llvm::Value *DestValue, llvm::Value *SrcValue,
+                               const CXXRecordDecl *ClassDecl,
+                               const CXXRecordDecl *BaseClassDecl,
+                               QualType Ty);
+
+  void EmitCXXConstructorCall(const CXXConstructorDecl *D, CXXCtorType Type,
                               llvm::Value *This,
                               CallExpr::const_arg_iterator ArgBeg,
                               CallExpr::const_arg_iterator ArgEnd);
 
+  void EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
+                                  const ConstantArrayType *ArrayTy,
+                                  llvm::Value *ArrayPtr);
+  void EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
+                                  llvm::Value *NumElements,
+                                  llvm::Value *ArrayPtr);
+
+  void EmitCXXAggrDestructorCall(const CXXDestructorDecl *D,
+                                 const ArrayType *Array,
+                                 llvm::Value *This);
+
   void EmitCXXDestructorCall(const CXXDestructorDecl *D, CXXDtorType Type,
                              llvm::Value *This);
-  
+
   void PushCXXTemporary(const CXXTemporary *Temporary, llvm::Value *Ptr);
   void PopCXXTemporary();
-  
+
   llvm::Value *EmitCXXNewExpr(const CXXNewExpr *E);
-  
+  void EmitCXXDeleteExpr(const CXXDeleteExpr *E);
+
   //===--------------------------------------------------------------------===//
   //                            Declaration Emission
   //===--------------------------------------------------------------------===//
 
+  /// EmitDecl - Emit a declaration.
+  ///
+  /// This function can be called with a null (unreachable) insert point.
   void EmitDecl(const Decl &D);
+
+  /// EmitBlockVarDecl - Emit a block variable declaration.
+  ///
+  /// This function can be called with a null (unreachable) insert point.
   void EmitBlockVarDecl(const VarDecl &D);
+
+  /// EmitLocalBlockVarDecl - Emit a local block variable declaration.
+  ///
+  /// This function can be called with a null (unreachable) insert point.
   void EmitLocalBlockVarDecl(const VarDecl &D);
+
   void EmitStaticBlockVarDecl(const VarDecl &D);
 
   /// EmitParmDecl - Emit a ParmVarDecl or an ImplicitParamDecl.
@@ -593,6 +720,8 @@ public:
   void EmitObjCAtThrowStmt(const ObjCAtThrowStmt &S);
   void EmitObjCAtSynchronizedStmt(const ObjCAtSynchronizedStmt &S);
 
+  void EmitCXXTryStmt(const CXXTryStmt &S);
+  
   //===--------------------------------------------------------------------===//
   //                         LValue Expression Emission
   //===--------------------------------------------------------------------===//
@@ -685,7 +814,7 @@ public:
   LValue EmitExtVectorElementExpr(const ExtVectorElementExpr *E);
   LValue EmitMemberExpr(const MemberExpr *E);
   LValue EmitCompoundLiteralLValue(const CompoundLiteralExpr *E);
-  LValue EmitConditionalOperator(const ConditionalOperator *E);
+  LValue EmitConditionalOperatorLValue(const ConditionalOperator *E);
   LValue EmitCastLValue(const CastExpr *E);
 
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
@@ -704,11 +833,12 @@ public:
   LValue EmitCXXConditionDeclLValue(const CXXConditionDeclExpr *E);
   LValue EmitCXXConstructLValue(const CXXConstructExpr *E);
   LValue EmitCXXBindTemporaryLValue(const CXXBindTemporaryExpr *E);
+  LValue EmitCXXExprWithTemporariesLValue(const CXXExprWithTemporaries *E);
   
   LValue EmitObjCMessageExprLValue(const ObjCMessageExpr *E);
   LValue EmitObjCIvarRefLValue(const ObjCIvarRefExpr *E);
   LValue EmitObjCPropertyRefLValue(const ObjCPropertyRefExpr *E);
-  LValue EmitObjCKVCRefLValue(const ObjCKVCRefExpr *E);
+  LValue EmitObjCKVCRefLValue(const ObjCImplicitSetterGetterRefExpr *E);
   LValue EmitObjCSuperExprLValue(const ObjCSuperExpr *E);
   LValue EmitStmtExprLValue(const StmtExpr *E);
 
@@ -727,24 +857,28 @@ public:
                   llvm::Value *Callee,
                   const CallArgList &Args,
                   const Decl *TargetDecl = 0);
-  
+
   RValue EmitCall(llvm::Value *Callee, QualType FnType,
                   CallExpr::const_arg_iterator ArgBeg,
                   CallExpr::const_arg_iterator ArgEnd,
                   const Decl *TargetDecl = 0);
   RValue EmitCallExpr(const CallExpr *E);
-  
+
+  llvm::Value *BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *&This,
+                                const llvm::Type *Ty);
   RValue EmitCXXMemberCall(const CXXMethodDecl *MD,
                            llvm::Value *Callee,
                            llvm::Value *This,
                            CallExpr::const_arg_iterator ArgBeg,
                            CallExpr::const_arg_iterator ArgEnd);
   RValue EmitCXXMemberCallExpr(const CXXMemberCallExpr *E);
+  RValue EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E);
 
   RValue EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
                                        const CXXMethodDecl *MD);
+
   
-  RValue EmitBuiltinExpr(const FunctionDecl *FD, 
+  RValue EmitBuiltinExpr(const FunctionDecl *FD,
                          unsigned BuiltinID, const CallExpr *E);
 
   RValue EmitBlockCallExpr(const CallExpr *E);
@@ -772,8 +906,9 @@ public:
 
   /// EmitReferenceBindingToExpr - Emits a reference binding to the passed in
   /// expression. Will emit a temporary variable if E is not an LValue.
-  RValue EmitReferenceBindingToExpr(const Expr* E, QualType DestType);
-  
+  RValue EmitReferenceBindingToExpr(const Expr* E, QualType DestType,
+                                    bool IsInitializer = false);
+
   //===--------------------------------------------------------------------===//
   //                           Expression Emission
   //===--------------------------------------------------------------------===//
@@ -782,7 +917,7 @@ public:
 
   /// EmitScalarExpr - Emit the computation of the specified expression of LLVM
   /// scalar type, returning the result.
-  llvm::Value *EmitScalarExpr(const Expr *E , bool IgnoreResultAssign=false);
+  llvm::Value *EmitScalarExpr(const Expr *E , bool IgnoreResultAssign = false);
 
   /// EmitScalarConversion - Emit a conversion from the specified type to the
   /// specified destination type, both of which are LLVM scalar types.
@@ -800,7 +935,13 @@ public:
   /// aggregate type.  The result is computed into DestPtr.  Note that if
   /// DestPtr is null, the value of the aggregate expression is not needed.
   void EmitAggExpr(const Expr *E, llvm::Value *DestPtr, bool VolatileDest,
-                   bool IgnoreResult = false);
+                   bool IgnoreResult = false, bool IsInitializer = false,
+                   bool RequiresGCollection = false);
+
+  /// EmitGCMemmoveCollectable - Emit special API for structs with object
+  /// pointers.
+  void EmitGCMemmoveCollectable(llvm::Value *DestPtr, llvm::Value *SrcPtr,
+                                QualType Ty);
 
   /// EmitComplexExpr - Emit the computation of the specified expression of
   /// complex type, returning the result.
@@ -827,17 +968,33 @@ public:
                                                   llvm::GlobalValue::LinkageTypes
                                                   Linkage);
 
-  /// GenerateStaticCXXBlockVarDecl - Create the initializer for a C++
+  /// EmitStaticCXXBlockVarDeclInit - Create the initializer for a C++
   /// runtime initialized static block var decl.
-  void GenerateStaticCXXBlockVarDeclInit(const VarDecl &D,
-                                         llvm::GlobalVariable *GV);
+  void EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
+                                     llvm::GlobalVariable *GV);
+
+  /// EmitCXXGlobalVarDeclInit - Create the initializer for a C++
+  /// variable with global storage.
+  void EmitCXXGlobalVarDeclInit(const VarDecl &D, llvm::Constant *DeclPtr);
+
+  /// EmitCXXGlobalDtorRegistration - Emits a call to register the global ptr
+  /// with the C++ runtime so that its destructor will be called at exit.
+  void EmitCXXGlobalDtorRegistration(const CXXDestructorDecl *Dtor,
+                                     llvm::Constant *DeclPtr);
+
+  /// GenerateCXXGlobalInitFunc - Generates code for initializing global
+  /// variables.
+  void GenerateCXXGlobalInitFunc(llvm::Function *Fn,
+                                 const VarDecl **Decls,
+                                 unsigned NumDecls);
 
   void EmitCXXConstructExpr(llvm::Value *Dest, const CXXConstructExpr *E);
-  
+
   RValue EmitCXXExprWithTemporaries(const CXXExprWithTemporaries *E,
-                                    llvm::Value *AggLoc = 0, 
-                                    bool isAggLocVolatile = false);
-                                  
+                                    llvm::Value *AggLoc = 0,
+                                    bool IsAggLocVolatile = false,
+                                    bool IsInitializer = false);
+
   //===--------------------------------------------------------------------===//
   //                             Internal Helpers
   //===--------------------------------------------------------------------===//
@@ -860,10 +1017,6 @@ public:
                             llvm::BasicBlock *FalseBlock);
 private:
 
-  /// EmitIndirectSwitches - Emit code for all of the switch
-  /// instructions in IndirectSwitches.
-  void EmitIndirectSwitches();
-
   void EmitReturnOfRValue(RValue RV, QualType Ty);
 
   /// ExpandTypeFromArgs - Reconstruct a structure of type \arg Ty
@@ -882,7 +1035,7 @@ private:
   void ExpandTypeToArgs(QualType Ty, RValue Src,
                         llvm::SmallVector<llvm::Value*, 16> &Args);
 
-  llvm::Value* EmitAsmInput(const AsmStmt &S, 
+  llvm::Value* EmitAsmInput(const AsmStmt &S,
                             const TargetInfo::ConstraintInfo &Info,
                             const Expr *InputExpr, std::string &ConstraintStr);
 
@@ -895,9 +1048,9 @@ private:
 
   /// EmitCallArg - Emit a single call argument.
   RValue EmitCallArg(const Expr *E, QualType ArgType);
-  
+
   /// EmitCallArgs - Emit call arguments for a function.
-  /// The CallArgTypeInfo parameter is used for iterating over the known 
+  /// The CallArgTypeInfo parameter is used for iterating over the known
   /// argument types of the function being called.
   template<typename T>
   void EmitCallArgs(CallArgList& Args, const T* CallArgTypeInfo,
@@ -912,21 +1065,21 @@ private:
         QualType ArgType = *I;
 
         assert(getContext().getCanonicalType(ArgType.getNonReferenceType()).
-               getTypePtr() == 
-               getContext().getCanonicalType(Arg->getType()).getTypePtr() && 
+               getTypePtr() ==
+               getContext().getCanonicalType(Arg->getType()).getTypePtr() &&
                "type mismatch in call argument!");
-        
-        Args.push_back(std::make_pair(EmitCallArg(*Arg, ArgType), 
+
+        Args.push_back(std::make_pair(EmitCallArg(*Arg, ArgType),
                                       ArgType));
       }
-      
-      // Either we've emitted all the call args, or we have a call to a 
+
+      // Either we've emitted all the call args, or we have a call to a
       // variadic function.
-      assert((Arg == ArgEnd || CallArgTypeInfo->isVariadic()) && 
+      assert((Arg == ArgEnd || CallArgTypeInfo->isVariadic()) &&
              "Extra arguments in non-variadic function!");
-      
+
     }
-    
+
     // If we still have any arguments, emit them using the type of the argument.
     for (; Arg != ArgEnd; ++Arg) {
       QualType ArgType = Arg->getType();
@@ -935,7 +1088,7 @@ private:
     }
   }
 };
-  
+
 
 }  // end namespace CodeGen
 }  // end namespace clang

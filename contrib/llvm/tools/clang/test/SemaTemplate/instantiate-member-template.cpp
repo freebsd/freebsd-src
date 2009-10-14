@@ -1,0 +1,105 @@
+// RUN: clang-cc -fsyntax-only -verify %s
+
+template<typename T>
+struct X0 {
+  template<typename U> T f0(U);
+  template<typename U> U& f1(T*, U); // expected-error{{pointer to a reference}} \
+                                     // expected-note{{candidate}}
+};
+
+X0<int> x0i;
+X0<void> x0v;
+X0<int&> x0ir; // expected-note{{instantiation}}
+
+void test_X0(int *ip, double *dp) {
+  X0<int> xi;
+  int i1 = xi.f0(ip);
+  double *&dpr = xi.f1(ip, dp);
+  xi.f1(dp, dp); // expected-error{{no matching}}
+
+  X0<void> xv;
+  double *&dpr2 = xv.f1(ip, dp);
+}
+
+template<typename T>
+struct X1 {
+  template<typename U>
+  struct Inner0 {
+    U x; 
+    T y; // expected-error{{void}}
+  };
+
+  template<typename U>
+  struct Inner1 {
+    U x; // expected-error{{void}}
+    T y;
+  };
+  
+  template<typename U>
+  struct Inner2 {
+    struct SuperInner {
+      U z; // expected-error{{void}}
+    };
+  };
+  
+  template<typename U>
+  struct Inner3 {
+    void f0(T t, U u) {
+      (void)(t + u); // expected-error{{invalid operands}}
+    }
+    
+    template<typename V>
+    V f1(T t, U u, V) {
+      return t + u; // expected-error{{incompatible type}}
+    }
+  };
+  
+  template<typename U>
+  struct Inner4;
+};
+
+template<typename T>
+template<typename U>
+struct X1<T>::Inner4 {
+  template<typename V>
+  V f2(T t, U u, V);
+  
+  static U value;
+};
+
+template<typename T>
+template<typename U>
+U X1<T>::Inner4<U>::value; // expected-error{{reference variable}}
+
+template<typename T>
+template<typename U>
+template<typename V>
+V X1<T>::Inner4<U>::f2(T t, U u, V) {
+  return t + u; // expected-error{{incompatible type}}
+}
+
+void test_X1(int *ip, int i, double *dp) {
+  X1<void>::Inner0<int> *xvip; // okay
+  X1<void>::Inner0<int> xvi; // expected-note{{instantiation}}
+  
+  X1<int>::Inner1<void> *xivp; // okay
+  X1<int>::Inner1<void> xiv; // expected-note{{instantiation}}
+  
+  X1<int>::Inner2<void>::SuperInner *xisivp; // okay
+  X1<int>::Inner2<void>::SuperInner xisiv; // expected-note{{instantiation}}
+  
+  X1<int*>::Inner3<int> id3;
+  id3.f0(ip, i);
+  id3.f0(dp, i); // expected-error{{incompatible type}}
+  id3.f1(ip, i, ip);
+  id3.f1(ip, i, dp); // expected-note{{instantiation}}
+  
+  X1<int*>::Inner3<double*> id3b;
+  id3b.f0(ip, dp); // expected-note{{instantiation}}
+  
+  X1<int*>::Inner4<int> id4;
+  id4.f2(ip, i, dp); // expected-note{{instantiation}}
+  
+  X1<int*>::Inner4<int>::value = 17;
+  i = X1<int*>::Inner4<int&>::value; // expected-note{{instantiation}}
+}

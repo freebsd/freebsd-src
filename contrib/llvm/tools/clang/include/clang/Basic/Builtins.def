@@ -35,7 +35,10 @@
 //  a -> __builtin_va_list
 //  A -> "reference" to __builtin_va_list
 //  V -> Vector, following num elements and a base type.
+//  X -> _Complex, followed by the base type.
 //  P -> FILE
+//  J -> jmp_buf
+//  SJ -> sigjmp_buf
 //  . -> "...".  This may only occur at the end of the function list.
 //
 // Types maybe prefixed with the following modifiers:
@@ -54,15 +57,16 @@
 // of the function.  These must be kept in sync with the predicates in the
 // Builtin::Context class.  Currently we have:
 //  n -> nothrow
+//  r -> noreturn
 //  c -> const
 //  F -> this is a libc/libm function with a '__builtin_' prefix added.
 //  f -> this is a libc/libm function without the '__builtin_' prefix. It can
 //       be followed by ':headername:' to state which header this function
 //       comes from.
-//  p:N: -> this is a printf-like function whose Nth argument is the format 
+//  p:N: -> this is a printf-like function whose Nth argument is the format
 //          string.
 //  P:N: -> similar to the p:N: attribute, but the function is like vprintf
-//          in that it accepts its arguments as a va_list rather than 
+//          in that it accepts its arguments as a va_list rather than
 //          through an ellipsis
 //  e -> const, but only when -fmath-errno=0
 //  FIXME: gcc has nonnull
@@ -72,28 +76,152 @@
 #endif
 
 // Standard libc/libm functions:
+BUILTIN(__builtin_atan2 , "ddd"  , "nc")
+BUILTIN(__builtin_atan2f, "fff"  , "nc")
+BUILTIN(__builtin_atan2l, "LdLdLd", "nc")
+BUILTIN(__builtin_abs  , "ii"  , "ncF")
+BUILTIN(__builtin_copysign, "ddd", "ncF")
+BUILTIN(__builtin_copysignf, "fff", "ncF")
+BUILTIN(__builtin_copysignl, "LdLdLd", "ncF")
+BUILTIN(__builtin_fabs , "dd"  , "ncF")
+BUILTIN(__builtin_fabsf, "ff"  , "ncF")
+BUILTIN(__builtin_fabsl, "LdLd", "ncF")
+BUILTIN(__builtin_fmod , "ddd"  , "nc")
+BUILTIN(__builtin_fmodf, "fff"  , "nc")
+BUILTIN(__builtin_fmodl, "LdLdLd", "nc")
+BUILTIN(__builtin_frexp , "ddi*"  , "nc")
+BUILTIN(__builtin_frexpf, "ffi*"  , "nc")
+BUILTIN(__builtin_frexpl, "LdLdi*", "nc")
 BUILTIN(__builtin_huge_val, "d", "nc")
 BUILTIN(__builtin_huge_valf, "f", "nc")
 BUILTIN(__builtin_huge_vall, "Ld", "nc")
 BUILTIN(__builtin_inf  , "d"   , "nc")
 BUILTIN(__builtin_inff , "f"   , "nc")
 BUILTIN(__builtin_infl , "Ld"  , "nc")
+BUILTIN(__builtin_ldexp , "ddi"  , "nc")
+BUILTIN(__builtin_ldexpf, "ffi"  , "nc")
+BUILTIN(__builtin_ldexpl, "LdLdi", "nc")
+BUILTIN(__builtin_modf , "ddd*"  , "nc")
+BUILTIN(__builtin_modff, "fff*"  , "nc")
+BUILTIN(__builtin_modfl, "LdLdLd*", "nc")
 BUILTIN(__builtin_nan,  "dcC*" , "ncF")
 BUILTIN(__builtin_nanf, "fcC*" , "ncF")
 BUILTIN(__builtin_nanl, "LdcC*", "ncF")
 BUILTIN(__builtin_nans,  "dcC*" , "ncF")
 BUILTIN(__builtin_nansf, "fcC*" , "ncF")
 BUILTIN(__builtin_nansl, "LdcC*", "ncF")
-BUILTIN(__builtin_abs  , "ii"  , "ncF")
-BUILTIN(__builtin_fabs , "dd"  , "ncF")
-BUILTIN(__builtin_fabsf, "ff"  , "ncF")
-BUILTIN(__builtin_fabsl, "LdLd", "ncF")
-BUILTIN(__builtin_copysign, "ddd", "ncF")
-BUILTIN(__builtin_copysignf, "fff", "ncF")
-BUILTIN(__builtin_copysignl, "LdLdLd", "ncF")
 BUILTIN(__builtin_powi , "ddi"  , "nc")
 BUILTIN(__builtin_powif, "ffi"  , "nc")
 BUILTIN(__builtin_powil, "LdLdi", "nc")
+BUILTIN(__builtin_pow , "ddd"  , "nc")
+BUILTIN(__builtin_powf, "fff"  , "nc")
+BUILTIN(__builtin_powl, "LdLdLd", "nc")
+
+// Standard unary libc/libm functions with double/float/long double variants:
+BUILTIN(__builtin_acos , "dd"  , "nc")
+BUILTIN(__builtin_acosf, "ff"  , "nc")
+BUILTIN(__builtin_acosl, "LdLd", "nc")
+BUILTIN(__builtin_asin , "dd"  , "nc")
+BUILTIN(__builtin_asinf, "ff"  , "nc")
+BUILTIN(__builtin_asinl, "LdLd", "nc")
+BUILTIN(__builtin_atan , "dd"  , "nc")
+BUILTIN(__builtin_atanf, "ff"  , "nc")
+BUILTIN(__builtin_atanl, "LdLd", "nc")
+BUILTIN(__builtin_ceil , "dd"  , "nc")
+BUILTIN(__builtin_ceilf, "ff"  , "nc")
+BUILTIN(__builtin_ceill, "LdLd", "nc")
+BUILTIN(__builtin_cos , "dd"  , "nc")
+BUILTIN(__builtin_cosf, "ff"  , "nc")
+BUILTIN(__builtin_cosh , "dd"  , "nc")
+BUILTIN(__builtin_coshf, "ff"  , "nc")
+BUILTIN(__builtin_coshl, "LdLd", "nc")
+BUILTIN(__builtin_cosl, "LdLd", "nc")
+BUILTIN(__builtin_exp , "dd"  , "nc")
+BUILTIN(__builtin_expf, "ff"  , "nc")
+BUILTIN(__builtin_expl, "LdLd", "nc")
+BUILTIN(__builtin_floor , "dd"  , "nc")
+BUILTIN(__builtin_floorf, "ff"  , "nc")
+BUILTIN(__builtin_floorl, "LdLd", "nc")
+BUILTIN(__builtin_log , "dd"  , "nc")
+BUILTIN(__builtin_log10 , "dd"  , "nc")
+BUILTIN(__builtin_log10f, "ff"  , "nc")
+BUILTIN(__builtin_log10l, "LdLd", "nc")
+BUILTIN(__builtin_logf, "ff"  , "nc")
+BUILTIN(__builtin_logl, "LdLd", "nc")
+BUILTIN(__builtin_sin , "dd"  , "nc")
+BUILTIN(__builtin_sinf, "ff"  , "nc")
+BUILTIN(__builtin_sinh , "dd"  , "nc")
+BUILTIN(__builtin_sinhf, "ff"  , "nc")
+BUILTIN(__builtin_sinhl, "LdLd", "nc")
+BUILTIN(__builtin_sinl, "LdLd", "nc")
+BUILTIN(__builtin_sqrt , "dd"  , "nc")
+BUILTIN(__builtin_sqrtf, "ff"  , "nc")
+BUILTIN(__builtin_sqrtl, "LdLd", "nc")
+BUILTIN(__builtin_tan , "dd"  , "nc")
+BUILTIN(__builtin_tanf, "ff"  , "nc")
+BUILTIN(__builtin_tanh , "dd"  , "nc")
+BUILTIN(__builtin_tanhf, "ff"  , "nc")
+BUILTIN(__builtin_tanhl, "LdLd", "nc")
+BUILTIN(__builtin_tanl, "LdLd", "nc")
+
+// C99 complex builtins
+BUILTIN(__builtin_cabs, "dXd", "Fnc")
+BUILTIN(__builtin_cabsf, "fXf", "Fnc")
+BUILTIN(__builtin_cabsl, "LdXLd", "Fnc")
+BUILTIN(__builtin_cacos, "XdXd", "Fnc")
+BUILTIN(__builtin_cacosf, "XfXf", "Fnc")
+BUILTIN(__builtin_cacosl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_carg, "dXd", "Fnc")
+BUILTIN(__builtin_cargf, "fXf", "Fnc")
+BUILTIN(__builtin_cargl, "LdXLd", "Fnc")
+BUILTIN(__builtin_casin, "XdXd", "Fnc")
+BUILTIN(__builtin_casinf, "XfXf", "Fnc")
+BUILTIN(__builtin_casinl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_catan, "XdXd", "Fnc")
+BUILTIN(__builtin_catanf, "XfXf", "Fnc")
+BUILTIN(__builtin_catanl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_ccos, "XdXd", "Fnc")
+BUILTIN(__builtin_ccosf, "XfXf", "Fnc")
+BUILTIN(__builtin_ccosl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_ccosh, "XdXd", "Fnc")
+BUILTIN(__builtin_ccoshf, "XfXf", "Fnc")
+BUILTIN(__builtin_ccoshl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_cexp, "XdXd", "Fnc")
+BUILTIN(__builtin_cexpf, "XfXf", "Fnc")
+BUILTIN(__builtin_cexpl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_cimag, "dXd", "Fnc")
+BUILTIN(__builtin_cimagf, "fXf", "Fnc")
+BUILTIN(__builtin_cimagl, "LdXLd", "Fnc")
+BUILTIN(__builtin_conj, "dXd", "Fnc")
+BUILTIN(__builtin_conjf, "fXf", "Fnc")
+BUILTIN(__builtin_conjl, "LdXLd", "Fnc")
+BUILTIN(__builtin_clog, "XdXd", "Fnc")
+BUILTIN(__builtin_clogf, "XfXf", "Fnc")
+BUILTIN(__builtin_clogl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_cproj, "XdXd", "Fnc")
+BUILTIN(__builtin_cprojf, "XfXf", "Fnc")
+BUILTIN(__builtin_cprojl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_cpow, "XdXdXd", "Fnc")
+BUILTIN(__builtin_cpowf, "XfXfXf", "Fnc")
+BUILTIN(__builtin_cpowl, "XLdXLdXLd", "Fnc")
+BUILTIN(__builtin_creal, "dXd", "Fnc")
+BUILTIN(__builtin_crealf, "fXf", "Fnc")
+BUILTIN(__builtin_creall, "LdXLd", "Fnc")
+BUILTIN(__builtin_csin, "XdXd", "Fnc")
+BUILTIN(__builtin_csinf, "XfXf", "Fnc")
+BUILTIN(__builtin_csinl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_csinh, "XdXd", "Fnc")
+BUILTIN(__builtin_csinhf, "XfXf", "Fnc")
+BUILTIN(__builtin_csinhl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_csqrt, "XdXd", "Fnc")
+BUILTIN(__builtin_csqrtf, "XfXf", "Fnc")
+BUILTIN(__builtin_csqrtl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_ctan, "XdXd", "Fnc")
+BUILTIN(__builtin_ctanf, "XfXf", "Fnc")
+BUILTIN(__builtin_ctanl, "XLdXLd", "Fnc")
+BUILTIN(__builtin_ctanh, "XdXd", "Fnc")
+BUILTIN(__builtin_ctanhf, "XfXf", "Fnc")
+BUILTIN(__builtin_ctanhl, "XLdXLd", "Fnc")
 
 // FP Comparisons.
 BUILTIN(__builtin_isgreater     , "i.", "nc")
@@ -102,6 +230,14 @@ BUILTIN(__builtin_isless        , "i.", "nc")
 BUILTIN(__builtin_islessequal   , "i.", "nc")
 BUILTIN(__builtin_islessgreater , "i.", "nc")
 BUILTIN(__builtin_isunordered   , "i.", "nc")
+
+// Unary FP classification
+// BUILTIN(__builtin_fpclassify, "iiiii.", "nc")
+BUILTIN(__builtin_isfinite,   "i.", "nc")
+BUILTIN(__builtin_isinf,      "i.", "nc")
+BUILTIN(__builtin_isinf_sign, "i.", "nc")
+BUILTIN(__builtin_isnan,      "i.", "nc")
+BUILTIN(__builtin_isnormal,   "i.", "nc")
 
 // Builtins for arithmetic.
 BUILTIN(__builtin_clz  , "iUi"  , "nc")
@@ -138,6 +274,7 @@ BUILTIN(__builtin_stdarg_start, "vA.", "n")
 BUILTIN(__builtin_bcmp, "iv*v*z", "n")
 BUILTIN(__builtin_bcopy, "vv*v*z", "n")
 BUILTIN(__builtin_bzero, "vv*z", "n")
+BUILTIN(__builtin_memchr, "v*vC*iz", "nF")
 BUILTIN(__builtin_memcmp, "ivC*vC*z", "nF")
 BUILTIN(__builtin_memcpy, "v*v*vC*z", "nF")
 BUILTIN(__builtin_memmove, "v*v*vC*z", "nF")
@@ -169,6 +306,8 @@ BUILTIN(__builtin_flt_rounds, "i", "nc")
 BUILTIN(__builtin_setjmp, "iv**", "")
 BUILTIN(__builtin_longjmp, "vv**i", "")
 BUILTIN(__builtin_unwind_init, "v", "")
+BUILTIN(__builtin_eh_return_data_regno, "ii", "nc")
+BUILTIN(__builtin_vsnprintf, "ic*zcC*a", "nFP:2:")
 
 // GCC Object size checking builtins
 BUILTIN(__builtin_object_size, "zv*i", "n")
@@ -192,7 +331,9 @@ BUILTIN(__builtin___vprintf_chk, "iicC*a", "FP:1:")
 
 BUILTIN(__builtin_expect, "iii"   , "nc")
 BUILTIN(__builtin_prefetch, "vvC*.", "nc")
-BUILTIN(__builtin_trap, "v", "n")
+BUILTIN(__builtin_abort, "v", "Fnr")
+BUILTIN(__builtin_trap, "v", "nr")
+BUILTIN(__builtin_unreachable, "v", "nr")
 
 BUILTIN(__builtin_shufflevector, "v."   , "nc")
 
@@ -335,6 +476,8 @@ BUILTIN(__sync_fetch_and_umax, "UiUi*Ui", "n")
 // C99 library functions
 // C99 stdlib.h
 LIBBUILTIN(calloc, "v*zz",        "f",     "stdlib.h")
+LIBBUILTIN(exit, "vi",            "fr",    "stdlib.h")
+LIBBUILTIN(_Exit, "vi",           "fr",    "stdlib.h")
 LIBBUILTIN(malloc, "v*z",         "f",     "stdlib.h")
 LIBBUILTIN(realloc, "v*v*z",      "f",     "stdlib.h")
 // C99 string.h
@@ -365,6 +508,8 @@ LIBBUILTIN(vprintf, "icC*a",      "fP:0:", "stdio.h")
 LIBBUILTIN(vfprintf, "i.",        "fP:1:", "stdio.h")
 LIBBUILTIN(vsnprintf, "ic*zcC*a", "fP:2:", "stdio.h")
 LIBBUILTIN(vsprintf, "ic*cC*a",   "fP:1:", "stdio.h")
+// C99
+LIBBUILTIN(longjmp, "vJi",        "fr",    "setjmp.h")
 
 // Non-C library functions
 // FIXME: Non-C-standard stuff shouldn't be builtins in non-GNU mode!
@@ -377,14 +522,16 @@ LIBBUILTIN(strndup, "c*cC*z",     "f",     "string.h")
 // POSIX strings.h
 LIBBUILTIN(index, "c*cC*i",       "f",     "strings.h")
 LIBBUILTIN(rindex, "c*cC*i",      "f",     "strings.h")
+// POSIX unistd.h
+LIBBUILTIN(_exit, "vi",           "fr",    "unistd.h")
+// POSIX setjmp.h
+LIBBUILTIN(_longjmp, "vJi",       "fr",    "setjmp.h")
+LIBBUILTIN(siglongjmp, "vSJi",    "fr",    "setjmp.h")
 
 // FIXME: This type isn't very correct, it should be
 //   id objc_msgSend(id, SEL)
 // but we need new type letters for that.
 LIBBUILTIN(objc_msgSend, "v*.",   "f",     "objc/message.h")
-
-// FIXME: asprintf and vasprintf aren't C99 functions. Should they be
-// target-specific builtins, perhaps? 
 
 // Builtin math library functions
 LIBBUILTIN(pow, "ddd", "fe", "math.h")
