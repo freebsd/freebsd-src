@@ -60,7 +60,7 @@ more easily.</p>
 <p>Once you have a reduced test-case, go to <a
 href="http://llvm.org/bugs/enter_bug.cgi">the LLVM Bug Tracking
 System</a> and fill out the form with the necessary details (note that you don't
-need to pick a catagory, just use the "new-bugs" catagory if you're not sure).
+need to pick a category, just use the "new-bugs" category if you're not sure).
 The bug description should contain the following
 information:</p>
 
@@ -183,12 +183,12 @@ to llvm-gcc (in addition to the options you already pass).  Once your have
 foo.bc, one of the following commands should fail:</p>
 
 <ol>
-<li><tt><b>llc</b> foo.bc -f</tt></li>
-<li><tt><b>llc</b> foo.bc -f -relocation-model=pic</tt></li>
-<li><tt><b>llc</b> foo.bc -f -relocation-model=static</tt></li>
-<li><tt><b>llc</b> foo.bc -f -enable-eh</tt></li>
-<li><tt><b>llc</b> foo.bc -f -relocation-model=pic -enable-eh</tt></li>
-<li><tt><b>llc</b> foo.bc -f -relocation-model=static -enable-eh</tt></li>
+<li><tt><b>llc</b> foo.bc</tt></li>
+<li><tt><b>llc</b> foo.bc -relocation-model=pic</tt></li>
+<li><tt><b>llc</b> foo.bc -relocation-model=static</tt></li>
+<li><tt><b>llc</b> foo.bc -enable-eh</tt></li>
+<li><tt><b>llc</b> foo.bc -relocation-model=pic -enable-eh</tt></li>
+<li><tt><b>llc</b> foo.bc -relocation-model=static -enable-eh</tt></li>
 </ol>
 
 <p>If none of these crash, please follow the instructions for a
@@ -320,7 +320,7 @@ the following:</p>
 
 <div class="doc_code">
 <p><tt>
-<b>llc</b> test.bc -o test.s -f<br>
+<b>llc</b> test.bc -o test.s<br>
 <b>gcc</b> test.s safe.so -o test.llc<br>
 ./test.llc [program options]
 </tt></p>
@@ -348,7 +348,7 @@ the following:</p>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2009-04-05 02:41:19 +0200 (Sun, 05 Apr 2009) $
+  Last modified: $Date: 2009-10-12 16:46:08 +0200 (Mon, 12 Oct 2009) $
 </address>
 
 </body>

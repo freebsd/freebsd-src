@@ -17,7 +17,7 @@
 #include "CodeGenTarget.h"
 using namespace llvm;
 
-void CallingConvEmitter::run(std::ostream &O) {
+void CallingConvEmitter::run(raw_ostream &O) {
   EmitSourceFileHeader("Calling Convention Implementation Fragment", O);
 
   std::vector<Record*> CCs = Records.getAllDerivedDefinitions("CallingConv");
@@ -26,9 +26,9 @@ void CallingConvEmitter::run(std::ostream &O) {
   // other.
   for (unsigned i = 0, e = CCs.size(); i != e; ++i) {
     O << "static bool " << CCs[i]->getName()
-      << "(unsigned ValNo, MVT ValVT,\n"
+      << "(unsigned ValNo, EVT ValVT,\n"
       << std::string(CCs[i]->getName().size()+13, ' ')
-      << "MVT LocVT, CCValAssign::LocInfo LocInfo,\n"
+      << "EVT LocVT, CCValAssign::LocInfo LocInfo,\n"
       << std::string(CCs[i]->getName().size()+13, ' ')
       << "ISD::ArgFlagsTy ArgFlags, CCState &State);\n";
   }
@@ -39,14 +39,14 @@ void CallingConvEmitter::run(std::ostream &O) {
 }
 
 
-void CallingConvEmitter::EmitCallingConv(Record *CC, std::ostream &O) {
+void CallingConvEmitter::EmitCallingConv(Record *CC, raw_ostream &O) {
   ListInit *CCActions = CC->getValueAsListInit("Actions");
   Counter = 0;
 
   O << "\n\nstatic bool " << CC->getName()
-    << "(unsigned ValNo, MVT ValVT,\n"
+    << "(unsigned ValNo, EVT ValVT,\n"
     << std::string(CC->getName().size()+13, ' ')
-    << "MVT LocVT, CCValAssign::LocInfo LocInfo,\n"
+    << "EVT LocVT, CCValAssign::LocInfo LocInfo,\n"
     << std::string(CC->getName().size()+13, ' ')
     << "ISD::ArgFlagsTy ArgFlags, CCState &State) {\n";
   // Emit all of the actions, in order.
@@ -60,7 +60,7 @@ void CallingConvEmitter::EmitCallingConv(Record *CC, std::ostream &O) {
 }
 
 void CallingConvEmitter::EmitAction(Record *Action,
-                                    unsigned Indent, std::ostream &O) {
+                                    unsigned Indent, raw_ostream &O) {
   std::string IndentStr = std::string(Indent, ' ');
   
   if (Action->isSubClassOf("CCPredicateAction")) {
@@ -163,12 +163,12 @@ void CallingConvEmitter::EmitAction(Record *Action,
         O << Size << ", ";
       else
         O << "\n" << IndentStr << "  State.getTarget().getTargetData()"
-          "->getTypeAllocSize(LocVT.getTypeForMVT()), ";
+          "->getTypeAllocSize(LocVT.getTypeForEVT(State.getContext())), ";
       if (Align)
         O << Align;
       else
         O << "\n" << IndentStr << "  State.getTarget().getTargetData()"
-          "->getABITypeAlignment(LocVT.getTypeForMVT())";
+          "->getABITypeAlignment(LocVT.getTypeForEVT(State.getContext()))";
       O << ");\n" << IndentStr
         << "State.addLoc(CCValAssign::getMem(ValNo, ValVT, Offset"
         << Counter << ", LocVT, LocInfo));\n";
@@ -186,6 +186,10 @@ void CallingConvEmitter::EmitAction(Record *Action,
       Record *DestTy = Action->getValueAsDef("DestTy");
       O << IndentStr << "LocVT = " << getEnumName(getValueType(DestTy)) <<";\n";
       O << IndentStr << "LocInfo = CCValAssign::BCvt;\n";
+    } else if (Action->isSubClassOf("CCPassIndirect")) {
+      Record *DestTy = Action->getValueAsDef("DestTy");
+      O << IndentStr << "LocVT = " << getEnumName(getValueType(DestTy)) <<";\n";
+      O << IndentStr << "LocInfo = CCValAssign::Indirect;\n";
     } else if (Action->isSubClassOf("CCPassByVal")) {
       int Size = Action->getValueAsInt("Size");
       int Align = Action->getValueAsInt("Align");

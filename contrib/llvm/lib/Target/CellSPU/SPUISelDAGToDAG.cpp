@@ -30,9 +30,12 @@
 #include "llvm/Constants.h"
 #include "llvm/GlobalValue.h"
 #include "llvm/Intrinsics.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -100,7 +103,7 @@ namespace {
   bool
   isIntS16Immediate(ConstantSDNode *CN, short &Imm)
   {
-    MVT vt = CN->getValueType(0);
+    EVT vt = CN->getValueType(0);
     Imm = (short) CN->getZExtValue();
     if (vt.getSimpleVT() >= MVT::i1 && vt.getSimpleVT() <= MVT::i16) {
       return true;
@@ -129,7 +132,7 @@ namespace {
   static bool
   isFPS16Immediate(ConstantFPSDNode *FPN, short &Imm)
   {
-    MVT vt = FPN->getValueType(0);
+    EVT vt = FPN->getValueType(0);
     if (vt == MVT::f32) {
       int val = FloatToBits(FPN->getValueAPF().convertToFloat());
       int sval = (int) ((val << 16) >> 16);
@@ -151,10 +154,10 @@ namespace {
   }
 
   //===------------------------------------------------------------------===//
-  //! MVT to "useful stuff" mapping structure:
+  //! EVT to "useful stuff" mapping structure:
 
   struct valtype_map_s {
-    MVT VT;
+    EVT VT;
     unsigned ldresult_ins;      /// LDRESULT instruction (0 = undefined)
     bool ldresult_imm;          /// LDRESULT instruction requires immediate?
     unsigned lrinst;            /// LR instruction
@@ -178,7 +181,7 @@ namespace {
 
   const size_t n_valtype_map = sizeof(valtype_map) / sizeof(valtype_map[0]);
 
-  const valtype_map_s *getValueTypeMapEntry(MVT VT)
+  const valtype_map_s *getValueTypeMapEntry(EVT VT)
   {
     const valtype_map_s *retval = 0;
     for (size_t i = 0; i < n_valtype_map; ++i) {
@@ -191,10 +194,11 @@ namespace {
 
 #ifndef NDEBUG
     if (retval == 0) {
-      cerr << "SPUISelDAGToDAG.cpp: getValueTypeMapEntry returns NULL for "
-           << VT.getMVTString()
-           << "\n";
-      abort();
+      std::string msg;
+      raw_string_ostream Msg(msg);
+      Msg << "SPUISelDAGToDAG.cpp: getValueTypeMapEntry returns NULL for "
+           << VT.getEVTString();
+      llvm_report_error(Msg.str());
     }
 #endif
 
@@ -249,10 +253,10 @@ namespace {
       SPUtli(*tm.getTargetLowering())
     { }
 
-    virtual bool runOnFunction(Function &Fn) {
+    virtual bool runOnMachineFunction(MachineFunction &MF) {
       // Make sure we re-emit a set of the global base reg if necessary
       GlobalBaseReg = 0;
-      SelectionDAGISel::runOnFunction(Fn);
+      SelectionDAGISel::runOnMachineFunction(MF);
       return true;
     }
 
@@ -274,8 +278,8 @@ namespace {
       }
 
     SDNode *emitBuildVector(SDValue build_vec) {
-      MVT vecVT = build_vec.getValueType();
-      MVT eltVT = vecVT.getVectorElementType();
+      EVT vecVT = build_vec.getValueType();
+      EVT eltVT = vecVT.getVectorElementType();
       SDNode *bvNode = build_vec.getNode();
       DebugLoc dl = bvNode->getDebugLoc();
 
@@ -319,19 +323,19 @@ namespace {
     SDNode *Select(SDValue Op);
 
     //! Emit the instruction sequence for i64 shl
-    SDNode *SelectSHLi64(SDValue &Op, MVT OpVT);
+    SDNode *SelectSHLi64(SDValue &Op, EVT OpVT);
 
     //! Emit the instruction sequence for i64 srl
-    SDNode *SelectSRLi64(SDValue &Op, MVT OpVT);
+    SDNode *SelectSRLi64(SDValue &Op, EVT OpVT);
 
     //! Emit the instruction sequence for i64 sra
-    SDNode *SelectSRAi64(SDValue &Op, MVT OpVT);
+    SDNode *SelectSRAi64(SDValue &Op, EVT OpVT);
 
     //! Emit the necessary sequence for loading i64 constants:
-    SDNode *SelectI64Constant(SDValue &Op, MVT OpVT, DebugLoc dl);
+    SDNode *SelectI64Constant(SDValue &Op, EVT OpVT, DebugLoc dl);
 
     //! Alternate instruction emit sequence for loading i64 constants
-    SDNode *SelectI64Constant(uint64_t i64const, MVT OpVT, DebugLoc dl);
+    SDNode *SelectI64Constant(uint64_t i64const, EVT OpVT, DebugLoc dl);
 
     //! Returns true if the address N is an A-form (local store) address
     bool SelectAFormAddr(SDValue Op, SDValue N, SDValue &Base,
@@ -375,7 +379,7 @@ namespace {
         break;
       case 'v':   // not offsetable
 #if 1
-        assert(0 && "InlineAsmMemoryOperand 'v' constraint not handled.");
+        llvm_unreachable("InlineAsmMemoryOperand 'v' constraint not handled.");
 #else
         SelectAddrIdxOnly(Op, Op, Op0, Op1);
 #endif
@@ -430,23 +434,21 @@ bool
 SPUDAGToDAGISel::SelectAFormAddr(SDValue Op, SDValue N, SDValue &Base,
                     SDValue &Index) {
   // These match the addr256k operand type:
-  MVT OffsVT = MVT::i16;
+  EVT OffsVT = MVT::i16;
   SDValue Zero = CurDAG->getTargetConstant(0, OffsVT);
 
   switch (N.getOpcode()) {
   case ISD::Constant:
   case ISD::ConstantPool:
   case ISD::GlobalAddress:
-    cerr << "SPU SelectAFormAddr: Constant/Pool/Global not lowered.\n";
-    abort();
+    llvm_report_error("SPU SelectAFormAddr: Constant/Pool/Global not lowered.");
     /*NOTREACHED*/
 
   case ISD::TargetConstant:
   case ISD::TargetGlobalAddress:
   case ISD::TargetJumpTable:
-    cerr << "SPUSelectAFormAddr: Target Constant/Pool/Global not wrapped as "
-         << "A-form address.\n";
-    abort();
+    llvm_report_error("SPUSelectAFormAddr: Target Constant/Pool/Global "
+                      "not wrapped as A-form address.");
     /*NOTREACHED*/
 
   case SPUISD::AFormAddr:
@@ -512,13 +514,13 @@ SPUDAGToDAGISel::DFormAddressPredicate(SDValue Op, SDValue N, SDValue &Base,
                                       SDValue &Index, int minOffset,
                                       int maxOffset) {
   unsigned Opc = N.getOpcode();
-  MVT PtrTy = SPUtli.getPointerTy();
+  EVT PtrTy = SPUtli.getPointerTy();
 
   if (Opc == ISD::FrameIndex) {
     // Stack frame index must be less than 512 (divided by 16):
     FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(N);
     int FI = int(FIN->getIndex());
-    DEBUG(cerr << "SelectDFormAddr: ISD::FrameIndex = "
+    DEBUG(errs() << "SelectDFormAddr: ISD::FrameIndex = "
                << FI << "\n");
     if (SPUFrameInfo::FItoStackOffset(FI) < maxOffset) {
       Base = CurDAG->getTargetConstant(0, PtrTy);
@@ -543,7 +545,7 @@ SPUDAGToDAGISel::DFormAddressPredicate(SDValue Op, SDValue N, SDValue &Base,
       if (Op0.getOpcode() == ISD::FrameIndex) {
         FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Op0);
         int FI = int(FIN->getIndex());
-        DEBUG(cerr << "SelectDFormAddr: ISD::ADD offset = " << offset
+        DEBUG(errs() << "SelectDFormAddr: ISD::ADD offset = " << offset
                    << " frame index = " << FI << "\n");
 
         if (SPUFrameInfo::FItoStackOffset(FI) < maxOffset) {
@@ -564,7 +566,7 @@ SPUDAGToDAGISel::DFormAddressPredicate(SDValue Op, SDValue N, SDValue &Base,
       if (Op1.getOpcode() == ISD::FrameIndex) {
         FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Op1);
         int FI = int(FIN->getIndex());
-        DEBUG(cerr << "SelectDFormAddr: ISD::ADD offset = " << offset
+        DEBUG(errs() << "SelectDFormAddr: ISD::ADD offset = " << offset
                    << " frame index = " << FI << "\n");
 
         if (SPUFrameInfo::FItoStackOffset(FI) < maxOffset) {
@@ -690,7 +692,7 @@ SPUDAGToDAGISel::Select(SDValue Op) {
   unsigned Opc = N->getOpcode();
   int n_ops = -1;
   unsigned NewOpc;
-  MVT OpVT = Op.getValueType();
+  EVT OpVT = Op.getValueType();
   SDValue Ops[8];
   DebugLoc dl = N->getDebugLoc();
 
@@ -711,8 +713,9 @@ SPUDAGToDAGISel::Select(SDValue Op) {
     } else {
       NewOpc = SPU::Ar32;
       Ops[0] = CurDAG->getRegister(SPU::R1, Op.getValueType());
-      Ops[1] = SDValue(CurDAG->getTargetNode(SPU::ILAr32, dl, Op.getValueType(),
-                                             TFI, Imm0), 0);
+      Ops[1] = SDValue(CurDAG->getMachineNode(SPU::ILAr32, dl,
+                                              Op.getValueType(), TFI, Imm0),
+                       0);
       n_ops = 2;
     }
   } else if (Opc == ISD::Constant && OpVT == MVT::i64) {
@@ -723,17 +726,17 @@ SPUDAGToDAGISel::Select(SDValue Op) {
   } else if ((Opc == ISD::ZERO_EXTEND || Opc == ISD::ANY_EXTEND)
              && OpVT == MVT::i64) {
     SDValue Op0 = Op.getOperand(0);
-    MVT Op0VT = Op0.getValueType();
-    MVT Op0VecVT = MVT::getVectorVT(Op0VT, (128 / Op0VT.getSizeInBits()));
-    MVT OpVecVT = MVT::getVectorVT(OpVT, (128 / OpVT.getSizeInBits()));
+    EVT Op0VT = Op0.getValueType();
+    EVT Op0VecVT = EVT::getVectorVT(*CurDAG->getContext(),
+                                    Op0VT, (128 / Op0VT.getSizeInBits()));
+    EVT OpVecVT = EVT::getVectorVT(*CurDAG->getContext(), 
+                                   OpVT, (128 / OpVT.getSizeInBits()));
     SDValue shufMask;
 
-    switch (Op0VT.getSimpleVT()) {
+    switch (Op0VT.getSimpleVT().SimpleTy) {
     default:
-      cerr << "CellSPU Select: Unhandled zero/any extend MVT\n";
-      abort();
+      llvm_report_error("CellSPU Select: Unhandled zero/any extend EVT");
       /*NOTREACHED*/
-      break;
     case MVT::i32:
       shufMask = CurDAG->getNode(ISD::BUILD_VECTOR, dl, MVT::v4i32,
                                  CurDAG->getConstant(0x80808080, MVT::i32),
@@ -811,8 +814,8 @@ SPUDAGToDAGISel::Select(SDValue Op) {
 
         if (shift_amt >= 32) {
           SDNode *hi32 =
-                  CurDAG->getTargetNode(SPU::ORr32_r64, dl, OpVT,
-                                        Op0.getOperand(0));
+                  CurDAG->getMachineNode(SPU::ORr32_r64, dl, OpVT,
+                                         Op0.getOperand(0));
 
           shift_amt -= 32;
           if (shift_amt > 0) {
@@ -823,8 +826,8 @@ SPUDAGToDAGISel::Select(SDValue Op) {
             if (Op0.getOpcode() == ISD::SRL)
               Opc = SPU::ROTMr32;
 
-            hi32 = CurDAG->getTargetNode(Opc, dl, OpVT, SDValue(hi32, 0),
-                                         shift);
+            hi32 = CurDAG->getMachineNode(Opc, dl, OpVT, SDValue(hi32, 0),
+                                          shift);
           }
 
           return hi32;
@@ -856,10 +859,10 @@ SPUDAGToDAGISel::Select(SDValue Op) {
         if (OpVT == MVT::v2f64)
           Opc = SPU::DFNMSv2f64;
 
-        return CurDAG->getTargetNode(Opc, dl, OpVT,
-                                     Op00.getOperand(0),
-                                     Op00.getOperand(1),
-                                     Op0.getOperand(1));
+        return CurDAG->getMachineNode(Opc, dl, OpVT,
+                                      Op00.getOperand(0),
+                                      Op00.getOperand(1),
+                                      Op0.getOperand(1));
       }
     }
 
@@ -876,43 +879,44 @@ SPUDAGToDAGISel::Select(SDValue Op) {
                                                  negConst, negConst));
     }
 
-    return CurDAG->getTargetNode(Opc, dl, OpVT,
-                                 Op.getOperand(0), SDValue(signMask, 0));
+    return CurDAG->getMachineNode(Opc, dl, OpVT,
+                                  Op.getOperand(0), SDValue(signMask, 0));
   } else if (Opc == ISD::FABS) {
     if (OpVT == MVT::f64) {
       SDNode *signMask = SelectI64Constant(0x7fffffffffffffffULL, MVT::i64, dl);
-      return CurDAG->getTargetNode(SPU::ANDfabs64, dl, OpVT,
-                                   Op.getOperand(0), SDValue(signMask, 0));
+      return CurDAG->getMachineNode(SPU::ANDfabs64, dl, OpVT,
+                                    Op.getOperand(0), SDValue(signMask, 0));
     } else if (OpVT == MVT::v2f64) {
       SDValue absConst = CurDAG->getConstant(0x7fffffffffffffffULL, MVT::i64);
       SDValue absVec = CurDAG->getNode(ISD::BUILD_VECTOR, dl, MVT::v2i64,
                                        absConst, absConst);
       SDNode *signMask = emitBuildVector(absVec);
-      return CurDAG->getTargetNode(SPU::ANDfabsvec, dl, OpVT,
-                                   Op.getOperand(0), SDValue(signMask, 0));
+      return CurDAG->getMachineNode(SPU::ANDfabsvec, dl, OpVT,
+                                    Op.getOperand(0), SDValue(signMask, 0));
     }
   } else if (Opc == SPUISD::LDRESULT) {
     // Custom select instructions for LDRESULT
-    MVT VT = N->getValueType(0);
+    EVT VT = N->getValueType(0);
     SDValue Arg = N->getOperand(0);
     SDValue Chain = N->getOperand(1);
     SDNode *Result;
     const valtype_map_s *vtm = getValueTypeMapEntry(VT);
 
     if (vtm->ldresult_ins == 0) {
-      cerr << "LDRESULT for unsupported type: "
-           << VT.getMVTString()
-           << "\n";
-      abort();
+      std::string msg;
+      raw_string_ostream Msg(msg);
+      Msg << "LDRESULT for unsupported type: "
+           << VT.getEVTString();
+      llvm_report_error(Msg.str());
     }
 
     Opc = vtm->ldresult_ins;
     if (vtm->ldresult_imm) {
       SDValue Zero = CurDAG->getTargetConstant(0, VT);
 
-      Result = CurDAG->getTargetNode(Opc, dl, VT, MVT::Other, Arg, Zero, Chain);
+      Result = CurDAG->getMachineNode(Opc, dl, VT, MVT::Other, Arg, Zero, Chain);
     } else {
-      Result = CurDAG->getTargetNode(Opc, dl, VT, MVT::Other, Arg, Arg, Chain);
+      Result = CurDAG->getMachineNode(Opc, dl, VT, MVT::Other, Arg, Arg, Chain);
     }
 
     return Result;
@@ -923,7 +927,7 @@ SPUDAGToDAGISel::Select(SDValue Op) {
     // SPUInstrInfo catches the following patterns:
     // (SPUindirect (SPUhi ...), (SPUlo ...))
     // (SPUindirect $sp, imm)
-    MVT VT = Op.getValueType();
+    EVT VT = Op.getValueType();
     SDValue Op0 = N->getOperand(0);
     SDValue Op1 = N->getOperand(1);
     RegisterSDNode *RN;
@@ -948,7 +952,7 @@ SPUDAGToDAGISel::Select(SDValue Op) {
     if (N->hasOneUse())
       return CurDAG->SelectNodeTo(N, NewOpc, OpVT, Ops, n_ops);
     else
-      return CurDAG->getTargetNode(NewOpc, dl, OpVT, Ops, n_ops);
+      return CurDAG->getMachineNode(NewOpc, dl, OpVT, Ops, n_ops);
   } else
     return SelectCode(Op);
 }
@@ -966,24 +970,25 @@ SPUDAGToDAGISel::Select(SDValue Op) {
  * @return The SDNode with the entire instruction sequence
  */
 SDNode *
-SPUDAGToDAGISel::SelectSHLi64(SDValue &Op, MVT OpVT) {
+SPUDAGToDAGISel::SelectSHLi64(SDValue &Op, EVT OpVT) {
   SDValue Op0 = Op.getOperand(0);
-  MVT VecVT = MVT::getVectorVT(OpVT, (128 / OpVT.getSizeInBits()));
+  EVT VecVT = EVT::getVectorVT(*CurDAG->getContext(), 
+                               OpVT, (128 / OpVT.getSizeInBits()));
   SDValue ShiftAmt = Op.getOperand(1);
-  MVT ShiftAmtVT = ShiftAmt.getValueType();
+  EVT ShiftAmtVT = ShiftAmt.getValueType();
   SDNode *VecOp0, *SelMask, *ZeroFill, *Shift = 0;
   SDValue SelMaskVal;
   DebugLoc dl = Op.getDebugLoc();
 
-  VecOp0 = CurDAG->getTargetNode(SPU::ORv2i64_i64, dl, VecVT, Op0);
+  VecOp0 = CurDAG->getMachineNode(SPU::ORv2i64_i64, dl, VecVT, Op0);
   SelMaskVal = CurDAG->getTargetConstant(0xff00ULL, MVT::i16);
-  SelMask = CurDAG->getTargetNode(SPU::FSMBIv2i64, dl, VecVT, SelMaskVal);
-  ZeroFill = CurDAG->getTargetNode(SPU::ILv2i64, dl, VecVT,
-                                   CurDAG->getTargetConstant(0, OpVT));
-  VecOp0 = CurDAG->getTargetNode(SPU::SELBv2i64, dl, VecVT,
-                                 SDValue(ZeroFill, 0),
-                                 SDValue(VecOp0, 0),
-                                 SDValue(SelMask, 0));
+  SelMask = CurDAG->getMachineNode(SPU::FSMBIv2i64, dl, VecVT, SelMaskVal);
+  ZeroFill = CurDAG->getMachineNode(SPU::ILv2i64, dl, VecVT,
+                                    CurDAG->getTargetConstant(0, OpVT));
+  VecOp0 = CurDAG->getMachineNode(SPU::SELBv2i64, dl, VecVT,
+                                  SDValue(ZeroFill, 0),
+                                  SDValue(VecOp0, 0),
+                                  SDValue(SelMask, 0));
 
   if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(ShiftAmt)) {
     unsigned bytes = unsigned(CN->getZExtValue()) >> 3;
@@ -991,35 +996,35 @@ SPUDAGToDAGISel::SelectSHLi64(SDValue &Op, MVT OpVT) {
 
     if (bytes > 0) {
       Shift =
-        CurDAG->getTargetNode(SPU::SHLQBYIv2i64, dl, VecVT,
-                              SDValue(VecOp0, 0),
-                              CurDAG->getTargetConstant(bytes, ShiftAmtVT));
+        CurDAG->getMachineNode(SPU::SHLQBYIv2i64, dl, VecVT,
+                               SDValue(VecOp0, 0),
+                               CurDAG->getTargetConstant(bytes, ShiftAmtVT));
     }
 
     if (bits > 0) {
       Shift =
-        CurDAG->getTargetNode(SPU::SHLQBIIv2i64, dl, VecVT,
-                              SDValue((Shift != 0 ? Shift : VecOp0), 0),
-                              CurDAG->getTargetConstant(bits, ShiftAmtVT));
+        CurDAG->getMachineNode(SPU::SHLQBIIv2i64, dl, VecVT,
+                               SDValue((Shift != 0 ? Shift : VecOp0), 0),
+                               CurDAG->getTargetConstant(bits, ShiftAmtVT));
     }
   } else {
     SDNode *Bytes =
-      CurDAG->getTargetNode(SPU::ROTMIr32, dl, ShiftAmtVT,
-                            ShiftAmt,
-                            CurDAG->getTargetConstant(3, ShiftAmtVT));
+      CurDAG->getMachineNode(SPU::ROTMIr32, dl, ShiftAmtVT,
+                             ShiftAmt,
+                             CurDAG->getTargetConstant(3, ShiftAmtVT));
     SDNode *Bits =
-      CurDAG->getTargetNode(SPU::ANDIr32, dl, ShiftAmtVT,
-                            ShiftAmt,
-                            CurDAG->getTargetConstant(7, ShiftAmtVT));
+      CurDAG->getMachineNode(SPU::ANDIr32, dl, ShiftAmtVT,
+                             ShiftAmt,
+                             CurDAG->getTargetConstant(7, ShiftAmtVT));
     Shift =
-      CurDAG->getTargetNode(SPU::SHLQBYv2i64, dl, VecVT,
-                            SDValue(VecOp0, 0), SDValue(Bytes, 0));
+      CurDAG->getMachineNode(SPU::SHLQBYv2i64, dl, VecVT,
+                             SDValue(VecOp0, 0), SDValue(Bytes, 0));
     Shift =
-      CurDAG->getTargetNode(SPU::SHLQBIv2i64, dl, VecVT,
-                            SDValue(Shift, 0), SDValue(Bits, 0));
+      CurDAG->getMachineNode(SPU::SHLQBIv2i64, dl, VecVT,
+                             SDValue(Shift, 0), SDValue(Bits, 0));
   }
 
-  return CurDAG->getTargetNode(SPU::ORi64_v2i64, dl, OpVT, SDValue(Shift, 0));
+  return CurDAG->getMachineNode(SPU::ORi64_v2i64, dl, OpVT, SDValue(Shift, 0));
 }
 
 /*!
@@ -1031,15 +1036,16 @@ SPUDAGToDAGISel::SelectSHLi64(SDValue &Op, MVT OpVT) {
  * @return The SDNode with the entire instruction sequence
  */
 SDNode *
-SPUDAGToDAGISel::SelectSRLi64(SDValue &Op, MVT OpVT) {
+SPUDAGToDAGISel::SelectSRLi64(SDValue &Op, EVT OpVT) {
   SDValue Op0 = Op.getOperand(0);
-  MVT VecVT = MVT::getVectorVT(OpVT, (128 / OpVT.getSizeInBits()));
+  EVT VecVT = EVT::getVectorVT(*CurDAG->getContext(),
+                               OpVT, (128 / OpVT.getSizeInBits()));
   SDValue ShiftAmt = Op.getOperand(1);
-  MVT ShiftAmtVT = ShiftAmt.getValueType();
+  EVT ShiftAmtVT = ShiftAmt.getValueType();
   SDNode *VecOp0, *Shift = 0;
   DebugLoc dl = Op.getDebugLoc();
 
-  VecOp0 = CurDAG->getTargetNode(SPU::ORv2i64_i64, dl, VecVT, Op0);
+  VecOp0 = CurDAG->getMachineNode(SPU::ORv2i64_i64, dl, VecVT, Op0);
 
   if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(ShiftAmt)) {
     unsigned bytes = unsigned(CN->getZExtValue()) >> 3;
@@ -1047,45 +1053,45 @@ SPUDAGToDAGISel::SelectSRLi64(SDValue &Op, MVT OpVT) {
 
     if (bytes > 0) {
       Shift =
-        CurDAG->getTargetNode(SPU::ROTQMBYIv2i64, dl, VecVT,
-                              SDValue(VecOp0, 0),
-                              CurDAG->getTargetConstant(bytes, ShiftAmtVT));
+        CurDAG->getMachineNode(SPU::ROTQMBYIv2i64, dl, VecVT,
+                               SDValue(VecOp0, 0),
+                               CurDAG->getTargetConstant(bytes, ShiftAmtVT));
     }
 
     if (bits > 0) {
       Shift =
-        CurDAG->getTargetNode(SPU::ROTQMBIIv2i64, dl, VecVT,
-                              SDValue((Shift != 0 ? Shift : VecOp0), 0),
-                              CurDAG->getTargetConstant(bits, ShiftAmtVT));
+        CurDAG->getMachineNode(SPU::ROTQMBIIv2i64, dl, VecVT,
+                               SDValue((Shift != 0 ? Shift : VecOp0), 0),
+                               CurDAG->getTargetConstant(bits, ShiftAmtVT));
     }
   } else {
     SDNode *Bytes =
-      CurDAG->getTargetNode(SPU::ROTMIr32, dl, ShiftAmtVT,
-                            ShiftAmt,
-                            CurDAG->getTargetConstant(3, ShiftAmtVT));
+      CurDAG->getMachineNode(SPU::ROTMIr32, dl, ShiftAmtVT,
+                             ShiftAmt,
+                             CurDAG->getTargetConstant(3, ShiftAmtVT));
     SDNode *Bits =
-      CurDAG->getTargetNode(SPU::ANDIr32, dl, ShiftAmtVT,
-                            ShiftAmt,
-                            CurDAG->getTargetConstant(7, ShiftAmtVT));
+      CurDAG->getMachineNode(SPU::ANDIr32, dl, ShiftAmtVT,
+                             ShiftAmt,
+                             CurDAG->getTargetConstant(7, ShiftAmtVT));
 
     // Ensure that the shift amounts are negated!
-    Bytes = CurDAG->getTargetNode(SPU::SFIr32, dl, ShiftAmtVT,
-                                  SDValue(Bytes, 0),
+    Bytes = CurDAG->getMachineNode(SPU::SFIr32, dl, ShiftAmtVT,
+                                   SDValue(Bytes, 0),
+                                   CurDAG->getTargetConstant(0, ShiftAmtVT));
+
+    Bits = CurDAG->getMachineNode(SPU::SFIr32, dl, ShiftAmtVT,
+                                  SDValue(Bits, 0),
                                   CurDAG->getTargetConstant(0, ShiftAmtVT));
 
-    Bits = CurDAG->getTargetNode(SPU::SFIr32, dl, ShiftAmtVT,
-                                 SDValue(Bits, 0),
-                                 CurDAG->getTargetConstant(0, ShiftAmtVT));
-
     Shift =
-      CurDAG->getTargetNode(SPU::ROTQMBYv2i64, dl, VecVT,
-                            SDValue(VecOp0, 0), SDValue(Bytes, 0));
+      CurDAG->getMachineNode(SPU::ROTQMBYv2i64, dl, VecVT,
+                             SDValue(VecOp0, 0), SDValue(Bytes, 0));
     Shift =
-      CurDAG->getTargetNode(SPU::ROTQMBIv2i64, dl, VecVT,
-                            SDValue(Shift, 0), SDValue(Bits, 0));
+      CurDAG->getMachineNode(SPU::ROTQMBIv2i64, dl, VecVT,
+                             SDValue(Shift, 0), SDValue(Bits, 0));
   }
 
-  return CurDAG->getTargetNode(SPU::ORi64_v2i64, dl, OpVT, SDValue(Shift, 0));
+  return CurDAG->getMachineNode(SPU::ORi64_v2i64, dl, OpVT, SDValue(Shift, 0));
 }
 
 /*!
@@ -1097,33 +1103,34 @@ SPUDAGToDAGISel::SelectSRLi64(SDValue &Op, MVT OpVT) {
  * @return The SDNode with the entire instruction sequence
  */
 SDNode *
-SPUDAGToDAGISel::SelectSRAi64(SDValue &Op, MVT OpVT) {
+SPUDAGToDAGISel::SelectSRAi64(SDValue &Op, EVT OpVT) {
   // Promote Op0 to vector
-  MVT VecVT = MVT::getVectorVT(OpVT, (128 / OpVT.getSizeInBits()));
+  EVT VecVT = EVT::getVectorVT(*CurDAG->getContext(), 
+                               OpVT, (128 / OpVT.getSizeInBits()));
   SDValue ShiftAmt = Op.getOperand(1);
-  MVT ShiftAmtVT = ShiftAmt.getValueType();
+  EVT ShiftAmtVT = ShiftAmt.getValueType();
   DebugLoc dl = Op.getDebugLoc();
 
   SDNode *VecOp0 =
-    CurDAG->getTargetNode(SPU::ORv2i64_i64, dl, VecVT, Op.getOperand(0));
+    CurDAG->getMachineNode(SPU::ORv2i64_i64, dl, VecVT, Op.getOperand(0));
 
   SDValue SignRotAmt = CurDAG->getTargetConstant(31, ShiftAmtVT);
   SDNode *SignRot =
-    CurDAG->getTargetNode(SPU::ROTMAIv2i64_i32, dl, MVT::v2i64,
-                          SDValue(VecOp0, 0), SignRotAmt);
+    CurDAG->getMachineNode(SPU::ROTMAIv2i64_i32, dl, MVT::v2i64,
+                           SDValue(VecOp0, 0), SignRotAmt);
   SDNode *UpperHalfSign =
-    CurDAG->getTargetNode(SPU::ORi32_v4i32, dl, MVT::i32, SDValue(SignRot, 0));
+    CurDAG->getMachineNode(SPU::ORi32_v4i32, dl, MVT::i32, SDValue(SignRot, 0));
 
   SDNode *UpperHalfSignMask =
-    CurDAG->getTargetNode(SPU::FSM64r32, dl, VecVT, SDValue(UpperHalfSign, 0));
+    CurDAG->getMachineNode(SPU::FSM64r32, dl, VecVT, SDValue(UpperHalfSign, 0));
   SDNode *UpperLowerMask =
-    CurDAG->getTargetNode(SPU::FSMBIv2i64, dl, VecVT,
-                          CurDAG->getTargetConstant(0xff00ULL, MVT::i16));
+    CurDAG->getMachineNode(SPU::FSMBIv2i64, dl, VecVT,
+                           CurDAG->getTargetConstant(0xff00ULL, MVT::i16));
   SDNode *UpperLowerSelect =
-    CurDAG->getTargetNode(SPU::SELBv2i64, dl, VecVT,
-                          SDValue(UpperHalfSignMask, 0),
-                          SDValue(VecOp0, 0),
-                          SDValue(UpperLowerMask, 0));
+    CurDAG->getMachineNode(SPU::SELBv2i64, dl, VecVT,
+                           SDValue(UpperHalfSignMask, 0),
+                           SDValue(VecOp0, 0),
+                           SDValue(UpperLowerMask, 0));
 
   SDNode *Shift = 0;
 
@@ -1134,46 +1141,46 @@ SPUDAGToDAGISel::SelectSRAi64(SDValue &Op, MVT OpVT) {
     if (bytes > 0) {
       bytes = 31 - bytes;
       Shift =
-        CurDAG->getTargetNode(SPU::ROTQBYIv2i64, dl, VecVT,
-                              SDValue(UpperLowerSelect, 0),
-                              CurDAG->getTargetConstant(bytes, ShiftAmtVT));
+        CurDAG->getMachineNode(SPU::ROTQBYIv2i64, dl, VecVT,
+                               SDValue(UpperLowerSelect, 0),
+                               CurDAG->getTargetConstant(bytes, ShiftAmtVT));
     }
 
     if (bits > 0) {
       bits = 8 - bits;
       Shift =
-        CurDAG->getTargetNode(SPU::ROTQBIIv2i64, dl, VecVT,
-                              SDValue((Shift != 0 ? Shift : UpperLowerSelect), 0),
-                              CurDAG->getTargetConstant(bits, ShiftAmtVT));
+        CurDAG->getMachineNode(SPU::ROTQBIIv2i64, dl, VecVT,
+                               SDValue((Shift != 0 ? Shift : UpperLowerSelect), 0),
+                               CurDAG->getTargetConstant(bits, ShiftAmtVT));
     }
   } else {
     SDNode *NegShift =
-      CurDAG->getTargetNode(SPU::SFIr32, dl, ShiftAmtVT,
-                            ShiftAmt, CurDAG->getTargetConstant(0, ShiftAmtVT));
+      CurDAG->getMachineNode(SPU::SFIr32, dl, ShiftAmtVT,
+                             ShiftAmt, CurDAG->getTargetConstant(0, ShiftAmtVT));
 
     Shift =
-      CurDAG->getTargetNode(SPU::ROTQBYBIv2i64_r32, dl, VecVT,
-                            SDValue(UpperLowerSelect, 0), SDValue(NegShift, 0));
+      CurDAG->getMachineNode(SPU::ROTQBYBIv2i64_r32, dl, VecVT,
+                             SDValue(UpperLowerSelect, 0), SDValue(NegShift, 0));
     Shift =
-      CurDAG->getTargetNode(SPU::ROTQBIv2i64, dl, VecVT,
-                            SDValue(Shift, 0), SDValue(NegShift, 0));
+      CurDAG->getMachineNode(SPU::ROTQBIv2i64, dl, VecVT,
+                             SDValue(Shift, 0), SDValue(NegShift, 0));
   }
 
-  return CurDAG->getTargetNode(SPU::ORi64_v2i64, dl, OpVT, SDValue(Shift, 0));
+  return CurDAG->getMachineNode(SPU::ORi64_v2i64, dl, OpVT, SDValue(Shift, 0));
 }
 
 /*!
  Do the necessary magic necessary to load a i64 constant
  */
-SDNode *SPUDAGToDAGISel::SelectI64Constant(SDValue& Op, MVT OpVT,
+SDNode *SPUDAGToDAGISel::SelectI64Constant(SDValue& Op, EVT OpVT,
                                            DebugLoc dl) {
   ConstantSDNode *CN = cast<ConstantSDNode>(Op.getNode());
   return SelectI64Constant(CN->getZExtValue(), OpVT, dl);
 }
 
-SDNode *SPUDAGToDAGISel::SelectI64Constant(uint64_t Value64, MVT OpVT,
+SDNode *SPUDAGToDAGISel::SelectI64Constant(uint64_t Value64, EVT OpVT,
                                            DebugLoc dl) {
-  MVT OpVecVT = MVT::getVectorVT(OpVT, 2);
+  EVT OpVecVT = EVT::getVectorVT(*CurDAG->getContext(), OpVT, 2);
   SDValue i64vec =
           SPU::LowerV2I64Splat(OpVecVT, *CurDAG, Value64, dl);
 
@@ -1186,8 +1193,8 @@ SDNode *SPUDAGToDAGISel::SelectI64Constant(uint64_t Value64, MVT OpVT,
     SDValue Op0 = i64vec.getOperand(0);
 
     ReplaceUses(i64vec, Op0);
-    return CurDAG->getTargetNode(SPU::ORi64_v2i64, dl, OpVT,
-                                 SDValue(emitBuildVector(Op0), 0));
+    return CurDAG->getMachineNode(SPU::ORi64_v2i64, dl, OpVT,
+                                  SDValue(emitBuildVector(Op0), 0));
   } else if (i64vec.getOpcode() == SPUISD::SHUFB) {
     SDValue lhs = i64vec.getOperand(0);
     SDValue rhs = i64vec.getOperand(1);
@@ -1225,14 +1232,14 @@ SDNode *SPUDAGToDAGISel::SelectI64Constant(uint64_t Value64, MVT OpVT,
                                    SDValue(lhsNode, 0), SDValue(rhsNode, 0),
                                    SDValue(shufMaskNode, 0)));
 
-    return CurDAG->getTargetNode(SPU::ORi64_v2i64, dl, OpVT,
-                                 SDValue(shufNode, 0));
+    return CurDAG->getMachineNode(SPU::ORi64_v2i64, dl, OpVT,
+                                  SDValue(shufNode, 0));
   } else if (i64vec.getOpcode() == ISD::BUILD_VECTOR) {
-    return CurDAG->getTargetNode(SPU::ORi64_v2i64, dl, OpVT,
-                                 SDValue(emitBuildVector(i64vec), 0));
+    return CurDAG->getMachineNode(SPU::ORi64_v2i64, dl, OpVT,
+                                  SDValue(emitBuildVector(i64vec), 0));
   } else {
-    cerr << "SPUDAGToDAGISel::SelectI64Constant: Unhandled i64vec condition\n";
-    abort();
+    llvm_report_error("SPUDAGToDAGISel::SelectI64Constant: Unhandled i64vec"
+                      "condition");
   }
 }
 

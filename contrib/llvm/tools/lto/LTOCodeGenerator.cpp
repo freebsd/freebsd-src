@@ -19,6 +19,7 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Linker.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
@@ -29,26 +30,25 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/FileWriters.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Mangler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/SystemUtils.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Host.h"
+#include "llvm/System/Program.h"
 #include "llvm/System/Signals.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetAsmInfo.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetMachineRegistry.h"
+#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetSelect.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Config/config.h"
-
-
 #include <cstdlib>
-#include <fstream>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -70,14 +70,14 @@ const char* LTOCodeGenerator::getVersionString()
 
 
 LTOCodeGenerator::LTOCodeGenerator() 
-    : _linker("LinkTimeOptimizer", "ld-temp.o"), _target(NULL),
+    : _context(getGlobalContext()),
+      _linker("LinkTimeOptimizer", "ld-temp.o", _context), _target(NULL),
       _emitDwarfDebugInfo(false), _scopeRestrictionsDone(false),
       _codeModel(LTO_CODEGEN_PIC_MODEL_DYNAMIC),
-      _nativeObjectFile(NULL), _gccPath(NULL), _assemblerPath(NULL)
+      _nativeObjectFile(NULL), _assemblerPath(NULL)
 {
-  InitializeAllTargets();
-  InitializeAllAsmPrinters();
-
+    InitializeAllTargets();
+    InitializeAllAsmPrinters();
 }
 
 LTOCodeGenerator::~LTOCodeGenerator()
@@ -124,13 +124,6 @@ bool LTOCodeGenerator::setCodePICModel(lto_codegen_model model,
     return true;
 }
 
-void LTOCodeGenerator::setGccPath(const char* path)
-{
-    if ( _gccPath )
-        delete _gccPath;
-    _gccPath = new sys::Path(path);
-}
-
 void LTOCodeGenerator::setAssemblerPath(const char* path)
 {
     if ( _assemblerPath )
@@ -144,31 +137,34 @@ void LTOCodeGenerator::addMustPreserveSymbol(const char* sym)
 }
 
 
-bool LTOCodeGenerator::writeMergedModules(const char* path, std::string& errMsg)
-{
-    if ( this->determineTarget(errMsg) ) 
-        return true;
+bool LTOCodeGenerator::writeMergedModules(const char *path,
+                                          std::string &errMsg) {
+  if (determineTarget(errMsg))
+    return true;
 
-    // mark which symbols can not be internalized 
-    this->applyScopeRestrictions();
+  // mark which symbols can not be internalized 
+  applyScopeRestrictions();
 
-    // create output file
-    std::ofstream out(path, std::ios_base::out|std::ios::trunc|std::ios::binary);
-    if ( out.fail() ) {
-        errMsg = "could not open bitcode file for writing: ";
-        errMsg += path;
-        return true;
-    }
+  // create output file
+  std::string ErrInfo;
+  raw_fd_ostream Out(path, ErrInfo,
+                     raw_fd_ostream::F_Binary);
+  if (!ErrInfo.empty()) {
+    errMsg = "could not open bitcode file for writing: ";
+    errMsg += path;
+    return true;
+  }
     
-    // write bitcode to it
-    WriteBitcodeToFile(_linker.getModule(), out);
-    if ( out.fail() ) {
-        errMsg = "could not write bitcode file: ";
-        errMsg += path;
-        return true;
-    }
-    
-    return false;
+  // write bitcode to it
+  WriteBitcodeToFile(_linker.getModule(), Out);
+  
+  if (Out.has_error()) {
+    errMsg = "could not write bitcode file: ";
+    errMsg += path;
+    return true;
+  }
+  
+  return false;
 }
 
 
@@ -183,7 +179,8 @@ const void* LTOCodeGenerator::compile(size_t* length, std::string& errMsg)
     // generate assembly code
     bool genResult = false;
     {
-      raw_fd_ostream asmFile(uniqueAsmPath.c_str(), false, errMsg);
+      raw_fd_ostream asmFD(uniqueAsmPath.c_str(), errMsg);
+      formatted_raw_ostream asmFile(asmFD);
       if (!errMsg.empty())
         return NULL;
       genResult = this->generateAssemblyCode(asmFile, errMsg);
@@ -204,9 +201,8 @@ const void* LTOCodeGenerator::compile(size_t* length, std::string& errMsg)
     sys::RemoveFileOnSignal(uniqueObjPath);
 
     // assemble the assembly code
-    const std::string& uniqueObjStr = uniqueObjPath.toString();
-    bool asmResult = this->assemble(uniqueAsmPath.toString(), 
-                                                        uniqueObjStr, errMsg);
+    const std::string& uniqueObjStr = uniqueObjPath.str();
+    bool asmResult = this->assemble(uniqueAsmPath.str(), uniqueObjStr, errMsg);
     if ( !asmResult ) {
         // remove old buffer if compile() called twice
         delete _nativeObjectFile;
@@ -235,9 +231,6 @@ bool LTOCodeGenerator::assemble(const std::string& asmPath,
     if ( _assemblerPath ) {
         tool = *_assemblerPath;
         needsCompilerOptions = false;
-    }
-    else if ( _gccPath ) {
-        tool = *_gccPath;
     } else {
         // find compiler driver
         tool = sys::Program::FindProgramByName("gcc");
@@ -322,11 +315,12 @@ bool LTOCodeGenerator::assemble(const std::string& asmPath,
 bool LTOCodeGenerator::determineTarget(std::string& errMsg)
 {
     if ( _target == NULL ) {
+        std::string Triple = _linker.getModule()->getTargetTriple();
+        if (Triple.empty())
+          Triple = sys::getHostTriple();
+
         // create target machine from info for merged modules
-        Module* mergedModule = _linker.getModule();
-        const TargetMachineRegistry::entry* march = 
-          TargetMachineRegistry::getClosestStaticTargetForModule(
-                                                       *mergedModule, errMsg);
+        const Target *march = TargetRegistry::lookupTarget(Triple, errMsg);
         if ( march == NULL )
             return true;
 
@@ -345,9 +339,8 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg)
         }
 
         // construct LTModule, hand over ownership of module and target
-        std::string FeatureStr =
-          getFeatureString(_linker.getModule()->getTargetTriple().c_str());
-        _target = march->CtorFn(*mergedModule, FeatureStr.c_str());
+        std::string FeatureStr = getFeatureString(Triple.c_str());
+        _target = march->createTargetMachine(Triple, FeatureStr);
     }
     return false;
 }
@@ -364,19 +357,19 @@ void LTOCodeGenerator::applyScopeRestrictions()
         // mark which symbols can not be internalized 
         if ( !_mustPreserveSymbols.empty() ) {
             Mangler mangler(*mergedModule, 
-                                _target->getTargetAsmInfo()->getGlobalPrefix());
+                                _target->getMCAsmInfo()->getGlobalPrefix());
             std::vector<const char*> mustPreserveList;
             for (Module::iterator f = mergedModule->begin(), 
                                         e = mergedModule->end(); f != e; ++f) {
                 if ( !f->isDeclaration() 
-                  && _mustPreserveSymbols.count(mangler.getValueName(f)) )
-                    mustPreserveList.push_back(::strdup(f->getName().c_str()));
+                  && _mustPreserveSymbols.count(mangler.getMangledName(f)) )
+                  mustPreserveList.push_back(::strdup(f->getNameStr().c_str()));
             }
             for (Module::global_iterator v = mergedModule->global_begin(), 
                                  e = mergedModule->global_end(); v !=  e; ++v) {
                 if ( !v->isDeclaration()
-                  && _mustPreserveSymbols.count(mangler.getValueName(v)) )
-                    mustPreserveList.push_back(::strdup(v->getName().c_str()));
+                  && _mustPreserveSymbols.count(mangler.getMangledName(v)) )
+                  mustPreserveList.push_back(::strdup(v->getNameStr().c_str()));
             }
             passes.add(createInternalizePass(mustPreserveList));
         }
@@ -388,10 +381,10 @@ void LTOCodeGenerator::applyScopeRestrictions()
 }
 
 /// Optimize merged modules using various IPO passes
-bool LTOCodeGenerator::generateAssemblyCode(raw_ostream& out,
+bool LTOCodeGenerator::generateAssemblyCode(formatted_raw_ostream& out,
                                             std::string& errMsg)
 {
-    if (  this->determineTarget(errMsg) ) 
+    if ( this->determineTarget(errMsg) ) 
         return true;
 
     // mark which symbols can not be internalized 
@@ -399,9 +392,19 @@ bool LTOCodeGenerator::generateAssemblyCode(raw_ostream& out,
 
     Module* mergedModule = _linker.getModule();
 
-     // If target supports exception handling then enable it now.
-    if ( _target->getTargetAsmInfo()->doesSupportExceptionHandling() )
-        llvm::ExceptionHandling = true;
+    // If target supports exception handling then enable it now.
+    switch (_target->getMCAsmInfo()->getExceptionHandlingType()) {
+    case ExceptionHandling::Dwarf:
+      llvm::DwarfExceptionHandling = true;
+      break;
+    case ExceptionHandling::SjLj:
+      llvm::SjLjExceptionHandling = true;
+      break;
+    case ExceptionHandling::None:
+      break;
+    default:
+      assert (0 && "Unknown exception handling model!");
+    }
 
     // if options were requested, set them
     if ( !_codegenOptions.empty() )
@@ -428,16 +431,16 @@ bool LTOCodeGenerator::generateAssemblyCode(raw_ostream& out,
 
     codeGenPasses->add(new TargetData(*_target->getTargetData()));
 
-    MachineCodeEmitter* mce = NULL;
+    ObjectCodeEmitter* oce = NULL;
 
     switch (_target->addPassesToEmitFile(*codeGenPasses, out,
                                          TargetMachine::AssemblyFile,
                                          CodeGenOpt::Aggressive)) {
         case FileModel::MachOFile:
-            mce = AddMachOWriter(*codeGenPasses, out, *_target);
+            oce = AddMachOWriter(*codeGenPasses, out, *_target);
             break;
         case FileModel::ElfFile:
-            mce = AddELFWriter(*codeGenPasses, out, *_target);
+            oce = AddELFWriter(*codeGenPasses, out, *_target);
             break;
         case FileModel::AsmFile:
             break;
@@ -447,7 +450,7 @@ bool LTOCodeGenerator::generateAssemblyCode(raw_ostream& out,
             return true;
     }
 
-    if (_target->addPassesToEmitFileFinish(*codeGenPasses, mce,
+    if (_target->addPassesToEmitFileFinish(*codeGenPasses, oce,
                                            CodeGenOpt::Aggressive)) {
         errMsg = "target does not support generation of this file type";
         return true;
@@ -465,6 +468,7 @@ bool LTOCodeGenerator::generateAssemblyCode(raw_ostream& out,
         codeGenPasses->run(*it);
 
     codeGenPasses->doFinalization();
+
     return false; // success
 }
 

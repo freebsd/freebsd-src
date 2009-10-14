@@ -27,41 +27,36 @@ let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
 
   // The following classes do not correspond directly to GCC builtins.
   class Neon_1Arg_Intrinsic
-    : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>], [IntrNoMem]>;
-  class Neon_1Arg_Float_Intrinsic
-    : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>], [IntrNoMem]>;
+    : Intrinsic<[llvm_anyvector_ty], [LLVMMatchType<0>], [IntrNoMem]>;
   class Neon_1Arg_Narrow_Intrinsic
-    : Intrinsic<[llvm_anyint_ty],
+    : Intrinsic<[llvm_anyvector_ty],
                 [LLVMExtendedElementVectorType<0>], [IntrNoMem]>;
   class Neon_1Arg_Long_Intrinsic
-    : Intrinsic<[llvm_anyint_ty],
+    : Intrinsic<[llvm_anyvector_ty],
                 [LLVMTruncatedElementVectorType<0>], [IntrNoMem]>;
   class Neon_2Arg_Intrinsic
-    : Intrinsic<[llvm_anyint_ty], [LLVMMatchType<0>, LLVMMatchType<0>],
-                [IntrNoMem]>;
-  class Neon_2Arg_Float_Intrinsic
-    : Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>, LLVMMatchType<0>],
+    : Intrinsic<[llvm_anyvector_ty], [LLVMMatchType<0>, LLVMMatchType<0>],
                 [IntrNoMem]>;
   class Neon_2Arg_Narrow_Intrinsic
-    : Intrinsic<[llvm_anyint_ty],
+    : Intrinsic<[llvm_anyvector_ty],
                 [LLVMExtendedElementVectorType<0>,
                  LLVMExtendedElementVectorType<0>],
                 [IntrNoMem]>;
   class Neon_2Arg_Long_Intrinsic
-    : Intrinsic<[llvm_anyint_ty],
+    : Intrinsic<[llvm_anyvector_ty],
                 [LLVMTruncatedElementVectorType<0>,
                  LLVMTruncatedElementVectorType<0>],
                 [IntrNoMem]>;
   class Neon_2Arg_Wide_Intrinsic
-    : Intrinsic<[llvm_anyint_ty],
+    : Intrinsic<[llvm_anyvector_ty],
                 [LLVMMatchType<0>, LLVMTruncatedElementVectorType<0>],
                 [IntrNoMem]>;
   class Neon_3Arg_Intrinsic
-    : Intrinsic<[llvm_anyint_ty],
+    : Intrinsic<[llvm_anyvector_ty],
                 [LLVMMatchType<0>, LLVMMatchType<0>, LLVMMatchType<0>],
                 [IntrNoMem]>;
   class Neon_3Arg_Long_Intrinsic
-    : Intrinsic<[llvm_anyint_ty],
+    : Intrinsic<[llvm_anyvector_ty],
                 [LLVMMatchType<0>,
                  LLVMTruncatedElementVectorType<0>,
                  LLVMTruncatedElementVectorType<0>],
@@ -70,6 +65,28 @@ let TargetPrefix = "arm" in {  // All intrinsics start with "llvm.arm.".
     : Intrinsic<[llvm_anyfloat_ty], [llvm_anyint_ty, llvm_i32_ty], [IntrNoMem]>;
   class Neon_CvtFPToFx_Intrinsic
     : Intrinsic<[llvm_anyint_ty], [llvm_anyfloat_ty, llvm_i32_ty], [IntrNoMem]>;
+
+  // The table operands for VTBL and VTBX consist of 1 to 4 v8i8 vectors.
+  // Besides the table, VTBL has one other v8i8 argument and VTBX has two.
+  // Overall, the classes range from 2 to 6 v8i8 arguments.
+  class Neon_Tbl2Arg_Intrinsic
+    : Intrinsic<[llvm_v8i8_ty],
+                [llvm_v8i8_ty, llvm_v8i8_ty], [IntrNoMem]>;
+  class Neon_Tbl3Arg_Intrinsic
+    : Intrinsic<[llvm_v8i8_ty],
+                [llvm_v8i8_ty, llvm_v8i8_ty, llvm_v8i8_ty], [IntrNoMem]>;
+  class Neon_Tbl4Arg_Intrinsic
+    : Intrinsic<[llvm_v8i8_ty],
+                [llvm_v8i8_ty, llvm_v8i8_ty, llvm_v8i8_ty, llvm_v8i8_ty],
+                [IntrNoMem]>;
+  class Neon_Tbl5Arg_Intrinsic
+    : Intrinsic<[llvm_v8i8_ty],
+                [llvm_v8i8_ty, llvm_v8i8_ty, llvm_v8i8_ty, llvm_v8i8_ty,
+                 llvm_v8i8_ty], [IntrNoMem]>;
+  class Neon_Tbl6Arg_Intrinsic
+    : Intrinsic<[llvm_v8i8_ty],
+                [llvm_v8i8_ty, llvm_v8i8_ty, llvm_v8i8_ty, llvm_v8i8_ty,
+                 llvm_v8i8_ty, llvm_v8i8_ty], [IntrNoMem]>;
 }
 
 // Arithmetic ops
@@ -110,18 +127,16 @@ let Properties = [IntrNoMem, Commutative] in {
   // Vector Maximum.
   def int_arm_neon_vmaxs : Neon_2Arg_Intrinsic;
   def int_arm_neon_vmaxu : Neon_2Arg_Intrinsic;
-  def int_arm_neon_vmaxf : Neon_2Arg_Float_Intrinsic;
 
   // Vector Minimum.
   def int_arm_neon_vmins : Neon_2Arg_Intrinsic;
   def int_arm_neon_vminu : Neon_2Arg_Intrinsic;
-  def int_arm_neon_vminf : Neon_2Arg_Float_Intrinsic;
 
   // Vector Reciprocal Step.
-  def int_arm_neon_vrecps : Neon_2Arg_Float_Intrinsic;
+  def int_arm_neon_vrecps : Neon_2Arg_Intrinsic;
 
   // Vector Reciprocal Square Root Step.
-  def int_arm_neon_vrsqrts : Neon_2Arg_Float_Intrinsic;
+  def int_arm_neon_vrsqrts : Neon_2Arg_Intrinsic;
 }
 
 // Vector Subtract.
@@ -155,7 +170,6 @@ let TargetPrefix = "arm" in {
 // Vector Absolute Differences.
 def int_arm_neon_vabds : Neon_2Arg_Intrinsic;
 def int_arm_neon_vabdu : Neon_2Arg_Intrinsic;
-def int_arm_neon_vabdf : Neon_2Arg_Float_Intrinsic;
 def int_arm_neon_vabdls : Neon_2Arg_Long_Intrinsic;
 def int_arm_neon_vabdlu : Neon_2Arg_Long_Intrinsic;
 
@@ -166,17 +180,16 @@ def int_arm_neon_vabals : Neon_3Arg_Long_Intrinsic;
 def int_arm_neon_vabalu : Neon_3Arg_Long_Intrinsic;
 
 // Vector Pairwise Add.
-def int_arm_neon_vpaddi : Neon_2Arg_Intrinsic;
-def int_arm_neon_vpaddf : Neon_2Arg_Float_Intrinsic;
+def int_arm_neon_vpadd : Neon_2Arg_Intrinsic;
 
 // Vector Pairwise Add Long.
 // Note: This is different than the other "long" NEON intrinsics because
 // the result vector has half as many elements as the source vector.
 // The source and destination vector types must be specified separately.
 let TargetPrefix = "arm" in {
-  def int_arm_neon_vpaddls : Intrinsic<[llvm_anyint_ty], [llvm_anyint_ty],
+  def int_arm_neon_vpaddls : Intrinsic<[llvm_anyvector_ty], [llvm_anyvector_ty],
                                        [IntrNoMem]>;
-  def int_arm_neon_vpaddlu : Intrinsic<[llvm_anyint_ty], [llvm_anyint_ty],
+  def int_arm_neon_vpaddlu : Intrinsic<[llvm_anyvector_ty], [llvm_anyvector_ty],
                                        [IntrNoMem]>;
 }
 
@@ -184,21 +197,19 @@ let TargetPrefix = "arm" in {
 // Note: This is similar to vpaddl but the destination vector also appears
 // as the first argument.
 let TargetPrefix = "arm" in {
-  def int_arm_neon_vpadals : Intrinsic<[llvm_anyint_ty],
-                                       [LLVMMatchType<0>, llvm_anyint_ty],
+  def int_arm_neon_vpadals : Intrinsic<[llvm_anyvector_ty],
+                                       [LLVMMatchType<0>, llvm_anyvector_ty],
                                        [IntrNoMem]>;
-  def int_arm_neon_vpadalu : Intrinsic<[llvm_anyint_ty],
-                                       [LLVMMatchType<0>, llvm_anyint_ty],
+  def int_arm_neon_vpadalu : Intrinsic<[llvm_anyvector_ty],
+                                       [LLVMMatchType<0>, llvm_anyvector_ty],
                                        [IntrNoMem]>;
 }
 
 // Vector Pairwise Maximum and Minimum.
 def int_arm_neon_vpmaxs : Neon_2Arg_Intrinsic;
 def int_arm_neon_vpmaxu : Neon_2Arg_Intrinsic;
-def int_arm_neon_vpmaxf : Neon_2Arg_Float_Intrinsic;
 def int_arm_neon_vpmins : Neon_2Arg_Intrinsic;
 def int_arm_neon_vpminu : Neon_2Arg_Intrinsic;
-def int_arm_neon_vpminf : Neon_2Arg_Float_Intrinsic;
 
 // Vector Shifts:
 //
@@ -253,7 +264,6 @@ def int_arm_neon_vshiftins : Neon_3Arg_Intrinsic;
 
 // Vector Absolute Value and Saturating Absolute Value.
 def int_arm_neon_vabs : Neon_1Arg_Intrinsic;
-def int_arm_neon_vabsf : Neon_1Arg_Float_Intrinsic;
 def int_arm_neon_vqabs : Neon_1Arg_Intrinsic;
 
 // Vector Saturating Negate.
@@ -268,11 +278,9 @@ def int_arm_neon_vcnt : Neon_1Arg_Intrinsic;
 
 // Vector Reciprocal Estimate.
 def int_arm_neon_vrecpe : Neon_1Arg_Intrinsic;
-def int_arm_neon_vrecpef : Neon_1Arg_Float_Intrinsic;
 
 // Vector Reciprocal Square Root Estimate.
 def int_arm_neon_vrsqrte : Neon_1Arg_Intrinsic;
-def int_arm_neon_vrsqrtef : Neon_1Arg_Float_Intrinsic;
 
 // Vector Conversions Between Floating-point and Fixed-point.
 def int_arm_neon_vcvtfp2fxs : Neon_CvtFPToFx_Intrinsic;
@@ -288,38 +296,81 @@ def int_arm_neon_vqmovnsu : Neon_1Arg_Narrow_Intrinsic;
 def int_arm_neon_vmovls : Neon_1Arg_Long_Intrinsic;
 def int_arm_neon_vmovlu : Neon_1Arg_Long_Intrinsic;
 
+// Vector Table Lookup.
+// The first 1-4 arguments are the table.
+def int_arm_neon_vtbl1 : Neon_Tbl2Arg_Intrinsic;
+def int_arm_neon_vtbl2 : Neon_Tbl3Arg_Intrinsic;
+def int_arm_neon_vtbl3 : Neon_Tbl4Arg_Intrinsic;
+def int_arm_neon_vtbl4 : Neon_Tbl5Arg_Intrinsic;
+
+// Vector Table Extension.
+// Some elements of the destination vector may not be updated, so the original
+// value of that vector is passed as the first argument.  The next 1-4
+// arguments after that are the table.
+def int_arm_neon_vtbx1 : Neon_Tbl3Arg_Intrinsic;
+def int_arm_neon_vtbx2 : Neon_Tbl4Arg_Intrinsic;
+def int_arm_neon_vtbx3 : Neon_Tbl5Arg_Intrinsic;
+def int_arm_neon_vtbx4 : Neon_Tbl6Arg_Intrinsic;
+
 let TargetPrefix = "arm" in {
 
   // De-interleaving vector loads from N-element structures.
-  def int_arm_neon_vld3i : Intrinsic<[llvm_anyint_ty],
-                                     [llvm_ptr_ty], [IntrReadArgMem]>;
-  def int_arm_neon_vld3f : Intrinsic<[llvm_anyfloat_ty],
-                                     [llvm_ptr_ty], [IntrReadArgMem]>;
-  def int_arm_neon_vld4i : Intrinsic<[llvm_anyint_ty],
-                                     [llvm_ptr_ty], [IntrReadArgMem]>;
-  def int_arm_neon_vld4f : Intrinsic<[llvm_anyfloat_ty],
-                                     [llvm_ptr_ty], [IntrReadArgMem]>;
+  def int_arm_neon_vld1 : Intrinsic<[llvm_anyvector_ty],
+                                    [llvm_ptr_ty], [IntrReadArgMem]>;
+  def int_arm_neon_vld2 : Intrinsic<[llvm_anyvector_ty, LLVMMatchType<0>],
+                                    [llvm_ptr_ty], [IntrReadArgMem]>;
+  def int_arm_neon_vld3 : Intrinsic<[llvm_anyvector_ty, LLVMMatchType<0>,
+                                     LLVMMatchType<0>],
+                                    [llvm_ptr_ty], [IntrReadArgMem]>;
+  def int_arm_neon_vld4 : Intrinsic<[llvm_anyvector_ty, LLVMMatchType<0>,
+                                     LLVMMatchType<0>, LLVMMatchType<0>],
+                                    [llvm_ptr_ty], [IntrReadArgMem]>;
+
+  // Vector load N-element structure to one lane.
+  def int_arm_neon_vld2lane : Intrinsic<[llvm_anyvector_ty, LLVMMatchType<0>],
+                                        [llvm_ptr_ty, LLVMMatchType<0>,
+                                         LLVMMatchType<0>, llvm_i32_ty],
+                                        [IntrReadArgMem]>;
+  def int_arm_neon_vld3lane : Intrinsic<[llvm_anyvector_ty, LLVMMatchType<0>,
+                                         LLVMMatchType<0>],
+                                        [llvm_ptr_ty, LLVMMatchType<0>,
+                                         LLVMMatchType<0>, LLVMMatchType<0>,
+                                         llvm_i32_ty], [IntrReadArgMem]>;
+  def int_arm_neon_vld4lane : Intrinsic<[llvm_anyvector_ty, LLVMMatchType<0>,
+                                         LLVMMatchType<0>, LLVMMatchType<0>],
+                                        [llvm_ptr_ty, LLVMMatchType<0>,
+                                         LLVMMatchType<0>, LLVMMatchType<0>,
+                                         LLVMMatchType<0>, llvm_i32_ty],
+                                        [IntrReadArgMem]>;
 
   // Interleaving vector stores from N-element structures.
-  def int_arm_neon_vst3i : Intrinsic<[llvm_void_ty],
-                                     [llvm_ptr_ty, llvm_anyint_ty],
+  def int_arm_neon_vst1 : Intrinsic<[llvm_void_ty],
+                                    [llvm_ptr_ty, llvm_anyvector_ty],
+                                    [IntrWriteArgMem]>;
+  def int_arm_neon_vst2 : Intrinsic<[llvm_void_ty],
+                                    [llvm_ptr_ty, llvm_anyvector_ty,
+                                     LLVMMatchType<0>], [IntrWriteArgMem]>;
+  def int_arm_neon_vst3 : Intrinsic<[llvm_void_ty],
+                                    [llvm_ptr_ty, llvm_anyvector_ty,
+                                     LLVMMatchType<0>, LLVMMatchType<0>],
                                      [IntrWriteArgMem]>;
-  def int_arm_neon_vst3f : Intrinsic<[llvm_void_ty],
-                                     [llvm_ptr_ty, llvm_anyfloat_ty],
-                                     [IntrWriteArgMem]>;
-  def int_arm_neon_vst4i : Intrinsic<[llvm_void_ty],
-                                     [llvm_ptr_ty, llvm_anyint_ty],
-                                     [IntrWriteArgMem]>;
-  def int_arm_neon_vst4f : Intrinsic<[llvm_void_ty],
-                                     [llvm_ptr_ty, llvm_anyfloat_ty],
-                                     [IntrWriteArgMem]>;
+  def int_arm_neon_vst4 : Intrinsic<[llvm_void_ty],
+                                    [llvm_ptr_ty, llvm_anyvector_ty,
+                                     LLVMMatchType<0>, LLVMMatchType<0>,
+                                     LLVMMatchType<0>], [IntrWriteArgMem]>;
 
-  // Vector Table Lookup
-  def int_arm_neon_vtbl : Intrinsic<[llvm_v8i8_ty],
-                                    [llvm_anyint_ty, llvm_v8i8_ty],
-                                    [IntrNoMem]>;
-  // Vector Table Extension
-  def int_arm_neon_vtbx : Intrinsic<[llvm_v8i8_ty],
-                                    [llvm_v8i8_ty, llvm_anyint_ty,
-                                     llvm_v8i8_ty], [IntrNoMem]>;
+  // Vector store N-element structure from one lane.
+  def int_arm_neon_vst2lane : Intrinsic<[llvm_void_ty],
+                                        [llvm_ptr_ty, llvm_anyvector_ty,
+                                         LLVMMatchType<0>, llvm_i32_ty],
+                                        [IntrWriteArgMem]>;
+  def int_arm_neon_vst3lane : Intrinsic<[llvm_void_ty],
+                                        [llvm_ptr_ty, llvm_anyvector_ty,
+                                         LLVMMatchType<0>, LLVMMatchType<0>,
+                                         llvm_i32_ty], [IntrWriteArgMem]>;
+  def int_arm_neon_vst4lane : Intrinsic<[llvm_void_ty],
+                                        [llvm_ptr_ty, llvm_anyvector_ty,
+                                         LLVMMatchType<0>, LLVMMatchType<0>,
+                                         LLVMMatchType<0>, llvm_i32_ty],
+                                        [IntrWriteArgMem]>;
 }

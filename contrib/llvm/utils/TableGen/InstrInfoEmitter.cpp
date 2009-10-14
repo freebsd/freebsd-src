@@ -15,12 +15,12 @@
 #include "InstrInfoEmitter.h"
 #include "CodeGenTarget.h"
 #include "Record.h"
+#include "llvm/ADT/StringExtras.h"
 #include <algorithm>
-#include <iostream>
 using namespace llvm;
 
 static void PrintDefList(const std::vector<Record*> &Uses,
-                         unsigned Num, std::ostream &OS) {
+                         unsigned Num, raw_ostream &OS) {
   OS << "static const unsigned ImplicitList" << Num << "[] = { ";
   for (unsigned i = 0, e = Uses.size(); i != e; ++i)
     OS << getQualifiedName(Uses[i]) << ", ";
@@ -28,7 +28,7 @@ static void PrintDefList(const std::vector<Record*> &Uses,
 }
 
 static void PrintBarriers(std::vector<Record*> &Barriers,
-                          unsigned Num, std::ostream &OS) {
+                          unsigned Num, raw_ostream &OS) {
   OS << "static const TargetRegisterClass* Barriers" << Num << "[] = { ";
   for (unsigned i = 0, e = Barriers.size(); i != e; ++i)
     OS << "&" << getQualifiedName(Barriers[i]) << "RegClass, ";
@@ -95,13 +95,16 @@ InstrInfoEmitter::GetOperandInfo(const CodeGenInstruction &Inst) {
       
       if (OpR->isSubClassOf("RegisterClass"))
         Res += getQualifiedName(OpR) + "RegClassID, ";
+      else if (OpR->isSubClassOf("PointerLikeRegClass"))
+        Res += utostr(OpR->getValueAsInt("RegClassKind")) + ", ";
       else
         Res += "0, ";
+      
       // Fill in applicable flags.
       Res += "0";
         
       // Ptr value whose register class is resolved via callback.
-      if (OpR->getName() == "ptr_rc")
+      if (OpR->isSubClassOf("PointerLikeRegClass"))
         Res += "|(1<<TOI::LookupPtrRegClass)";
 
       // Predicate operands.  Check to see if the original unexpanded operand
@@ -123,7 +126,7 @@ InstrInfoEmitter::GetOperandInfo(const CodeGenInstruction &Inst) {
   return Result;
 }
 
-void InstrInfoEmitter::EmitOperandInfo(std::ostream &OS, 
+void InstrInfoEmitter::EmitOperandInfo(raw_ostream &OS, 
                                        OperandInfoMapTy &OperandInfoIDs) {
   // ID #0 is for no operand info.
   unsigned OperandListNum = 0;
@@ -177,7 +180,7 @@ void InstrInfoEmitter::DetectRegisterClassBarriers(std::vector<Record*> &Defs,
 //===----------------------------------------------------------------------===//
 
 // run - Emit the main instruction description records for the target...
-void InstrInfoEmitter::run(std::ostream &OS) {
+void InstrInfoEmitter::run(raw_ostream &OS) {
   GatherItinClasses();
 
   EmitSourceFileHeader("Target Instruction Descriptors", OS);
@@ -243,7 +246,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
                          std::map<std::vector<Record*>, unsigned> &EmittedLists,
                                   std::map<Record*, unsigned> &BarriersMap,
                                   const OperandInfoMapTy &OpInfo,
-                                  std::ostream &OS) {
+                                  raw_ostream &OS) {
   int MinOperands = 0;
   if (!Inst.OperandList.empty())
     // Each logical operand can be multiple MI operands.
@@ -277,6 +280,8 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   if (Inst.isVariadic)         OS << "|(1<<TID::Variadic)";
   if (Inst.hasSideEffects)     OS << "|(1<<TID::UnmodeledSideEffects)";
   if (Inst.isAsCheapAsAMove)   OS << "|(1<<TID::CheapAsAMove)";
+  if (Inst.hasExtraSrcRegAllocReq) OS << "|(1<<TID::ExtraSrcRegAllocReq)";
+  if (Inst.hasExtraDefRegAllocReq) OS << "|(1<<TID::ExtraDefRegAllocReq)";
   OS << ", 0";
 
   // Emit all of the target-specific flags...
@@ -323,7 +328,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
 
 
 void InstrInfoEmitter::emitShiftedValue(Record *R, StringInit *Val,
-                                        IntInit *ShiftInt, std::ostream &OS) {
+                                        IntInit *ShiftInt, raw_ostream &OS) {
   if (Val == 0 || ShiftInt == 0)
     throw std::string("Illegal value or shift amount in TargetInfo*!");
   RecordVal *RV = R->getValue(Val->getValue());
@@ -336,7 +341,7 @@ void InstrInfoEmitter::emitShiftedValue(Record *R, StringInit *Val,
         R->getName() != "DBG_LABEL" &&
         R->getName() != "EH_LABEL" &&
         R->getName() != "GC_LABEL" &&
-        R->getName() != "DECLARE" &&
+        R->getName() != "KILL" &&
         R->getName() != "EXTRACT_SUBREG" &&
         R->getName() != "INSERT_SUBREG" &&
         R->getName() != "IMPLICIT_DEF" &&
@@ -375,7 +380,7 @@ void InstrInfoEmitter::emitShiftedValue(Record *R, StringInit *Val,
     return;
   }
 
-  std::cerr << "Unhandled initializer: " << *Val << "\n";
+  errs() << "Unhandled initializer: " << *Val << "\n";
   throw "In record '" + R->getName() + "' for TSFlag emission.";
 }
 

@@ -13,7 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <cstring>
 
@@ -122,27 +124,30 @@ assertArithmeticOK(const llvm::fltSemantics &semantics) {
    If the exponent overflows, returns a large exponent with the
    appropriate sign.  */
 static int
-readExponent(const char *p)
+readExponent(StringRef::iterator begin, StringRef::iterator end)
 {
   bool isNegative;
   unsigned int absExponent;
   const unsigned int overlargeExponent = 24000;  /* FIXME.  */
+  StringRef::iterator p = begin;
+
+  assert(p != end && "Exponent has no digits");
 
   isNegative = (*p == '-');
-  if (*p == '-' || *p == '+')
+  if (*p == '-' || *p == '+') {
     p++;
+    assert(p != end && "Exponent has no digits");
+  }
 
   absExponent = decDigitValue(*p++);
-  assert (absExponent < 10U);
+  assert(absExponent < 10U && "Invalid character in exponent");
 
-  for (;;) {
+  for (; p != end; ++p) {
     unsigned int value;
 
     value = decDigitValue(*p);
-    if (value >= 10U)
-      break;
+    assert(value < 10U && "Invalid character in exponent");
 
-    p++;
     value += absExponent * 10;
     if (absExponent >= overlargeExponent) {
       absExponent = overlargeExponent;
@@ -150,6 +155,8 @@ readExponent(const char *p)
     }
     absExponent = value;
   }
+
+  assert(p == end && "Invalid exponent in exponent");
 
   if (isNegative)
     return -(int) absExponent;
@@ -160,28 +167,29 @@ readExponent(const char *p)
 /* This is ugly and needs cleaning up, but I don't immediately see
    how whilst remaining safe.  */
 static int
-totalExponent(const char *p, int exponentAdjustment)
+totalExponent(StringRef::iterator p, StringRef::iterator end,
+              int exponentAdjustment)
 {
   int unsignedExponent;
   bool negative, overflow;
   int exponent;
 
-  /* Move past the exponent letter and sign to the digits.  */
-  p++;
+  assert(p != end && "Exponent has no digits");
+
   negative = *p == '-';
-  if(*p == '-' || *p == '+')
+  if(*p == '-' || *p == '+') {
     p++;
+    assert(p != end && "Exponent has no digits");
+  }
 
   unsignedExponent = 0;
   overflow = false;
-  for(;;) {
+  for(; p != end; ++p) {
     unsigned int value;
 
     value = decDigitValue(*p);
-    if(value >= 10U)
-      break;
+    assert(value < 10U && "Invalid character in exponent");
 
-    p++;
     unsignedExponent = unsignedExponent * 10 + value;
     if(unsignedExponent > 65535)
       overflow = true;
@@ -205,16 +213,21 @@ totalExponent(const char *p, int exponentAdjustment)
   return exponent;
 }
 
-static const char *
-skipLeadingZeroesAndAnyDot(const char *p, const char **dot)
+static StringRef::iterator
+skipLeadingZeroesAndAnyDot(StringRef::iterator begin, StringRef::iterator end,
+                           StringRef::iterator *dot)
 {
-  *dot = 0;
-  while(*p == '0')
+  StringRef::iterator p = begin;
+  *dot = end;
+  while(*p == '0' && p != end)
     p++;
 
   if(*p == '.') {
     *dot = p++;
-    while(*p == '0')
+
+    assert(end - begin != 1 && "Significand has no digits");
+
+    while(*p == '0' && p != end)
       p++;
   }
 
@@ -242,41 +255,50 @@ struct decimalInfo {
 };
 
 static void
-interpretDecimal(const char *p, decimalInfo *D)
+interpretDecimal(StringRef::iterator begin, StringRef::iterator end,
+                 decimalInfo *D)
 {
-  const char *dot;
-
-  p = skipLeadingZeroesAndAnyDot (p, &dot);
+  StringRef::iterator dot = end;
+  StringRef::iterator p = skipLeadingZeroesAndAnyDot (begin, end, &dot);
 
   D->firstSigDigit = p;
   D->exponent = 0;
   D->normalizedExponent = 0;
 
-  for (;;) {
+  for (; p != end; ++p) {
     if (*p == '.') {
-      assert(dot == 0);
+      assert(dot == end && "String contains multiple dots");
       dot = p++;
+      if (p == end)
+        break;
     }
     if (decDigitValue(*p) >= 10U)
       break;
-    p++;
   }
 
-  /* If number is all zerooes accept any exponent.  */
-  if (p != D->firstSigDigit) {
-    if (*p == 'e' || *p == 'E')
-      D->exponent = readExponent(p + 1);
+  if (p != end) {
+    assert((*p == 'e' || *p == 'E') && "Invalid character in significand");
+    assert(p != begin && "Significand has no digits");
+    assert((dot == end || p - begin != 1) && "Significand has no digits");
+
+    /* p points to the first non-digit in the string */
+    D->exponent = readExponent(p + 1, end);
 
     /* Implied decimal point?  */
-    if (!dot)
+    if (dot == end)
       dot = p;
+  }
 
+  /* If number is all zeroes accept any exponent.  */
+  if (p != D->firstSigDigit) {
     /* Drop insignificant trailing zeroes.  */
-    do
+    if (p != begin) {
       do
-        p--;
-      while (*p == '0');
-    while (*p == '.');
+        do
+          p--;
+        while (p != begin && *p == '0');
+      while (p != begin && *p == '.');
+    }
 
     /* Adjust the exponents for any decimal point.  */
     D->exponent += static_cast<exponent_t>((dot - p) - (dot > p));
@@ -292,7 +314,8 @@ interpretDecimal(const char *p, decimalInfo *D)
    DIGITVALUE is the first hex digit of the fraction, P points to
    the next digit.  */
 static lostFraction
-trailingHexadecimalFraction(const char *p, unsigned int digitValue)
+trailingHexadecimalFraction(StringRef::iterator p, StringRef::iterator end,
+                            unsigned int digitValue)
 {
   unsigned int hexDigit;
 
@@ -306,6 +329,8 @@ trailingHexadecimalFraction(const char *p, unsigned int digitValue)
   /* Otherwise we need to find the first non-zero digit.  */
   while(*p == '0')
     p++;
+
+  assert(p != end && "Invalid trailing hexadecimal fraction!");
 
   hexDigit = hexDigitValue(*p);
 
@@ -667,6 +692,14 @@ APFloat::APFloat(const fltSemantics &ourSemantics, integerPart value)
   normalize(rmNearestTiesToEven, lfExactlyZero);
 }
 
+APFloat::APFloat(const fltSemantics &ourSemantics) {
+  assertArithmeticOK(ourSemantics);
+  initialize(&ourSemantics);
+  category = fcZero;
+  sign = false;
+}
+
+
 APFloat::APFloat(const fltSemantics &ourSemantics,
                  fltCategory ourCategory, bool negative, unsigned type)
 {
@@ -680,7 +713,7 @@ APFloat::APFloat(const fltSemantics &ourSemantics,
     makeNaN(type);
 }
 
-APFloat::APFloat(const fltSemantics &ourSemantics, const char *text)
+APFloat::APFloat(const fltSemantics &ourSemantics, const StringRef& text)
 {
   assertArithmeticOK(ourSemantics);
   initialize(&ourSemantics);
@@ -1068,7 +1101,7 @@ APFloat::roundAwayFromZero(roundingMode rounding_mode,
 
   switch (rounding_mode) {
   default:
-    assert(0);
+    llvm_unreachable(0);
 
   case rmNearestTiesToAway:
     return lost_fraction == lfExactlyHalf || lost_fraction == lfMoreThanHalf;
@@ -1207,7 +1240,7 @@ APFloat::addOrSubtractSpecials(const APFloat &rhs, bool subtract)
 {
   switch (convolve(category, rhs.category)) {
   default:
-    assert(0);
+    llvm_unreachable(0);
 
   case convolve(fcNaN, fcZero):
   case convolve(fcNaN, fcNormal):
@@ -1331,7 +1364,7 @@ APFloat::multiplySpecials(const APFloat &rhs)
 {
   switch (convolve(category, rhs.category)) {
   default:
-    assert(0);
+    llvm_unreachable(0);
 
   case convolve(fcNaN, fcZero):
   case convolve(fcNaN, fcNormal):
@@ -1373,7 +1406,7 @@ APFloat::divideSpecials(const APFloat &rhs)
 {
   switch (convolve(category, rhs.category)) {
   default:
-    assert(0);
+    llvm_unreachable(0);
 
   case convolve(fcNaN, fcZero):
   case convolve(fcNaN, fcNormal):
@@ -1415,7 +1448,7 @@ APFloat::modSpecials(const APFloat &rhs)
 {
   switch (convolve(category, rhs.category)) {
   default:
-    assert(0);
+    llvm_unreachable(0);
 
   case convolve(fcNaN, fcZero):
   case convolve(fcNaN, fcNormal):
@@ -1692,7 +1725,7 @@ APFloat::compare(const APFloat &rhs) const
 
   switch (convolve(category, rhs.category)) {
   default:
-    assert(0);
+    llvm_unreachable(0);
 
   case convolve(fcNaN, fcZero):
   case convolve(fcNaN, fcNormal):
@@ -2106,13 +2139,13 @@ APFloat::convertFromZeroExtendedInteger(const integerPart *parts,
 }
 
 APFloat::opStatus
-APFloat::convertFromHexadecimalString(const char *p,
+APFloat::convertFromHexadecimalString(const StringRef &s,
                                       roundingMode rounding_mode)
 {
-  lostFraction lost_fraction;
+  lostFraction lost_fraction = lfExactlyZero;
   integerPart *significand;
   unsigned int bitPos, partsCount;
-  const char *dot, *firstSignificantDigit;
+  StringRef::iterator dot, firstSignificantDigit;
 
   zeroSignificand();
   exponent = 0;
@@ -2123,47 +2156,58 @@ APFloat::convertFromHexadecimalString(const char *p,
   bitPos = partsCount * integerPartWidth;
 
   /* Skip leading zeroes and any (hexa)decimal point.  */
-  p = skipLeadingZeroesAndAnyDot(p, &dot);
+  StringRef::iterator begin = s.begin();
+  StringRef::iterator end = s.end();
+  StringRef::iterator p = skipLeadingZeroesAndAnyDot(begin, end, &dot);
   firstSignificantDigit = p;
 
-  for(;;) {
+  for(; p != end;) {
     integerPart hex_value;
 
     if(*p == '.') {
-      assert(dot == 0);
+      assert(dot == end && "String contains multiple dots");
       dot = p++;
+      if (p == end) {
+        break;
+      }
     }
 
     hex_value = hexDigitValue(*p);
     if(hex_value == -1U) {
-      lost_fraction = lfExactlyZero;
       break;
     }
 
     p++;
 
-    /* Store the number whilst 4-bit nibbles remain.  */
-    if(bitPos) {
-      bitPos -= 4;
-      hex_value <<= bitPos % integerPartWidth;
-      significand[bitPos / integerPartWidth] |= hex_value;
-    } else {
-      lost_fraction = trailingHexadecimalFraction(p, hex_value);
-      while(hexDigitValue(*p) != -1U)
-        p++;
+    if (p == end) {
       break;
+    } else {
+      /* Store the number whilst 4-bit nibbles remain.  */
+      if(bitPos) {
+        bitPos -= 4;
+        hex_value <<= bitPos % integerPartWidth;
+        significand[bitPos / integerPartWidth] |= hex_value;
+      } else {
+        lost_fraction = trailingHexadecimalFraction(p, end, hex_value);
+        while(p != end && hexDigitValue(*p) != -1U)
+          p++;
+        break;
+      }
     }
   }
 
   /* Hex floats require an exponent but not a hexadecimal point.  */
-  assert(*p == 'p' || *p == 'P');
+  assert(p != end && "Hex strings require an exponent");
+  assert((*p == 'p' || *p == 'P') && "Invalid character in significand");
+  assert(p != begin && "Significand has no digits");
+  assert((dot == end || p - begin != 1) && "Significand has no digits");
 
   /* Ignore the exponent if we are zero.  */
   if(p != firstSignificantDigit) {
     int expAdjustment;
 
     /* Implicit hexadecimal point?  */
-    if(!dot)
+    if (dot == end)
       dot = p;
 
     /* Calculate the exponent adjustment implicit in the number of
@@ -2179,7 +2223,7 @@ APFloat::convertFromHexadecimalString(const char *p,
     expAdjustment -= partsCount * integerPartWidth;
 
     /* Adjust for the given exponent.  */
-    exponent = totalExponent(p, expAdjustment);
+    exponent = totalExponent(p + 1, end, expAdjustment);
   }
 
   return normalize(rounding_mode, lost_fraction);
@@ -2271,13 +2315,14 @@ APFloat::roundSignificandWithExponent(const integerPart *decSigParts,
 }
 
 APFloat::opStatus
-APFloat::convertFromDecimalString(const char *p, roundingMode rounding_mode)
+APFloat::convertFromDecimalString(const StringRef &str, roundingMode rounding_mode)
 {
   decimalInfo D;
   opStatus fs;
 
   /* Scan the text.  */
-  interpretDecimal(p, &D);
+  StringRef::iterator p = str.begin();
+  interpretDecimal(p, str.end(), &D);
 
   /* Handle the quick cases.  First the case of no significant digits,
      i.e. zero, and then exponents that are obviously too large or too
@@ -2332,10 +2377,14 @@ APFloat::convertFromDecimalString(const char *p, roundingMode rounding_mode)
       multiplier = 1;
 
       do {
-        if (*p == '.')
+        if (*p == '.') {
           p++;
-
+          if (p == str.end()) {
+            break;
+          }
+        }
         decValue = decDigitValue(*p++);
+        assert(decValue < 10U && "Invalid character in significand");
         multiplier *= 10;
         val = val * 10 + decValue;
         /* The maximum number that can be multiplied by ten with any
@@ -2363,20 +2412,28 @@ APFloat::convertFromDecimalString(const char *p, roundingMode rounding_mode)
 }
 
 APFloat::opStatus
-APFloat::convertFromString(const char *p, roundingMode rounding_mode)
+APFloat::convertFromString(const StringRef &str, roundingMode rounding_mode)
 {
   assertArithmeticOK(*semantics);
+  assert(!str.empty() && "Invalid string length");
 
   /* Handle a leading minus sign.  */
-  if(*p == '-')
-    sign = 1, p++;
-  else
-    sign = 0;
+  StringRef::iterator p = str.begin();
+  size_t slen = str.size();
+  sign = *p == '-' ? 1 : 0;
+  if(*p == '-' || *p == '+') {
+    p++;
+    slen--;
+    assert(slen && "String has no digits");
+  }
 
-  if(p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))
-    return convertFromHexadecimalString(p + 2, rounding_mode);
+  if(slen >= 2 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+    assert(slen - 2 && "Invalid string");
+    return convertFromHexadecimalString(StringRef(p + 2, slen - 2),
+                                        rounding_mode);
+  }
 
-  return convertFromDecimalString(p, rounding_mode);
+  return convertFromDecimalString(StringRef(p, slen), rounding_mode);
 }
 
 /* Write out a hexadecimal representation of the floating point value
@@ -2661,6 +2718,42 @@ APFloat::convertPPCDoubleDoubleAPFloatToAPInt() const
 }
 
 APInt
+APFloat::convertQuadrupleAPFloatToAPInt() const
+{
+  assert(semantics == (const llvm::fltSemantics*)&IEEEquad);
+  assert (partCount()==2);
+
+  uint64_t myexponent, mysignificand, mysignificand2;
+
+  if (category==fcNormal) {
+    myexponent = exponent+16383; //bias
+    mysignificand = significandParts()[0];
+    mysignificand2 = significandParts()[1];
+    if (myexponent==1 && !(mysignificand2 & 0x1000000000000LL))
+      myexponent = 0;   // denormal
+  } else if (category==fcZero) {
+    myexponent = 0;
+    mysignificand = mysignificand2 = 0;
+  } else if (category==fcInfinity) {
+    myexponent = 0x7fff;
+    mysignificand = mysignificand2 = 0;
+  } else {
+    assert(category == fcNaN && "Unknown category!");
+    myexponent = 0x7fff;
+    mysignificand = significandParts()[0];
+    mysignificand2 = significandParts()[1];
+  }
+
+  uint64_t words[2];
+  words[0] = mysignificand;
+  words[1] = ((uint64_t)(sign & 1) << 63) |
+             ((myexponent & 0x7fff) << 48) |
+             (mysignificand2 & 0xffffffffffffLL);
+
+  return APInt(128, 2, words);
+}
+
+APInt
 APFloat::convertDoubleAPFloatToAPInt() const
 {
   assert(semantics == (const llvm::fltSemantics*)&IEEEdouble);
@@ -2728,9 +2821,12 @@ APFloat::bitcastToAPInt() const
 {
   if (semantics == (const llvm::fltSemantics*)&IEEEsingle)
     return convertFloatAPFloatToAPInt();
-  
+
   if (semantics == (const llvm::fltSemantics*)&IEEEdouble)
     return convertDoubleAPFloatToAPInt();
+
+  if (semantics == (const llvm::fltSemantics*)&IEEEquad)
+    return convertQuadrupleAPFloatToAPInt();
 
   if (semantics == (const llvm::fltSemantics*)&PPCDoubleDouble)
     return convertPPCDoubleDoubleAPFloatToAPInt();
@@ -2743,7 +2839,8 @@ APFloat::bitcastToAPInt() const
 float
 APFloat::convertToFloat() const
 {
-  assert(semantics == (const llvm::fltSemantics*)&IEEEsingle);
+  assert(semantics == (const llvm::fltSemantics*)&IEEEsingle &&
+         "Float semantics are not IEEEsingle");
   APInt api = bitcastToAPInt();
   return api.bitsToFloat();
 }
@@ -2751,7 +2848,8 @@ APFloat::convertToFloat() const
 double
 APFloat::convertToDouble() const
 {
-  assert(semantics == (const llvm::fltSemantics*)&IEEEdouble);
+  assert(semantics == (const llvm::fltSemantics*)&IEEEdouble &&
+         "Float semantics are not IEEEdouble");
   APInt api = bitcastToAPInt();
   return api.bitsToDouble();
 }
@@ -2848,6 +2946,46 @@ APFloat::initFromPPCDoubleDoubleAPInt(const APInt &api)
 }
 
 void
+APFloat::initFromQuadrupleAPInt(const APInt &api)
+{
+  assert(api.getBitWidth()==128);
+  uint64_t i1 = api.getRawData()[0];
+  uint64_t i2 = api.getRawData()[1];
+  uint64_t myexponent = (i2 >> 48) & 0x7fff;
+  uint64_t mysignificand  = i1;
+  uint64_t mysignificand2 = i2 & 0xffffffffffffLL;
+
+  initialize(&APFloat::IEEEquad);
+  assert(partCount()==2);
+
+  sign = static_cast<unsigned int>(i2>>63);
+  if (myexponent==0 &&
+      (mysignificand==0 && mysignificand2==0)) {
+    // exponent, significand meaningless
+    category = fcZero;
+  } else if (myexponent==0x7fff &&
+             (mysignificand==0 && mysignificand2==0)) {
+    // exponent, significand meaningless
+    category = fcInfinity;
+  } else if (myexponent==0x7fff &&
+             (mysignificand!=0 || mysignificand2 !=0)) {
+    // exponent meaningless
+    category = fcNaN;
+    significandParts()[0] = mysignificand;
+    significandParts()[1] = mysignificand2;
+  } else {
+    category = fcNormal;
+    exponent = myexponent - 16383;
+    significandParts()[0] = mysignificand;
+    significandParts()[1] = mysignificand2;
+    if (myexponent==0)          // denormal
+      exponent = -16382;
+    else
+      significandParts()[1] |= 0x1000000000000LL;  // integer bit
+  }
+}
+
+void
 APFloat::initFromDoubleAPInt(const APInt &api)
 {
   assert(api.getBitWidth()==64);
@@ -2926,10 +3064,11 @@ APFloat::initFromAPInt(const APInt& api, bool isIEEE)
     return initFromDoubleAPInt(api);
   else if (api.getBitWidth()==80)
     return initFromF80LongDoubleAPInt(api);
-  else if (api.getBitWidth()==128 && !isIEEE)
-    return initFromPPCDoubleDoubleAPInt(api);
+  else if (api.getBitWidth()==128)
+    return (isIEEE ?
+            initFromQuadrupleAPInt(api) : initFromPPCDoubleDoubleAPInt(api));
   else
-    assert(0);
+    llvm_unreachable(0);
 }
 
 APFloat::APFloat(const APInt& api, bool isIEEE)

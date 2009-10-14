@@ -54,6 +54,14 @@ class CCIfInReg<CCAction A> : CCIf<"ArgFlags.isInReg()", A> {}
 /// the specified action.
 class CCIfNest<CCAction A> : CCIf<"ArgFlags.isNest()", A> {}
 
+/// CCIfSplit - If this argument is marked with the 'split' attribute, apply
+/// the specified action.
+class CCIfSplit<CCAction A> : CCIf<"ArgFlags.isSplit()", A> {}
+
+/// CCIfSRet - If this argument is marked with the 'sret' attribute, apply
+/// the specified action.
+class CCIfSRet<CCAction A> : CCIf<"ArgFlags.isSRet()", A> {}
+
 /// CCIfNotVarArg - If the current function is not vararg - apply the action
 class CCIfNotVarArg<CCAction A> : CCIf<"!State.isVarArg()", A> {}
 
@@ -98,6 +106,12 @@ class CCPromoteToType<ValueType destTy> : CCAction {
 /// CCBitConvertToType - If applied, this bitconverts the specified current
 /// value to the specified type.
 class CCBitConvertToType<ValueType destTy> : CCAction {
+  ValueType DestTy = destTy;
+}
+
+/// CCPassIndirect - If applied, this stores the value to stack and passes the pointer
+/// as normal argument.
+class CCPassIndirect<ValueType destTy> : CCAction {
   ValueType DestTy = destTy;
 }
 

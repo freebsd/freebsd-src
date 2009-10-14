@@ -17,6 +17,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "MipsGenInstrInfo.inc"
 
 using namespace llvm;
@@ -208,29 +209,6 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
           .addImm(0).addFrameIndex(FI);
 }
 
-void MipsInstrInfo::storeRegToAddr(MachineFunction &MF, unsigned SrcReg,
-  bool isKill, SmallVectorImpl<MachineOperand> &Addr, 
-  const TargetRegisterClass *RC, SmallVectorImpl<MachineInstr*> &NewMIs) const 
-{
-  unsigned Opc;
-  if (RC == Mips::CPURegsRegisterClass) 
-    Opc = Mips::SW;
-  else if (RC == Mips::FGR32RegisterClass)
-    Opc = Mips::SWC1;
-  else {
-    assert(RC == Mips::AFGR64RegisterClass);
-    Opc = Mips::SDC1;
-  }
-  
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc))
-    .addReg(SrcReg, getKillRegState(isKill));
-  for (unsigned i = 0, e = Addr.size(); i != e; ++i)
-    MIB.addOperand(Addr[i]);
-  NewMIs.push_back(MIB);
-  return;
-}
-
 void MipsInstrInfo::
 loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                      unsigned DestReg, int FI,
@@ -251,28 +229,6 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   BuildMI(MBB, I, DL, get(Opc), DestReg).addImm(0).addFrameIndex(FI);
 }
 
-void MipsInstrInfo::loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
-                                    SmallVectorImpl<MachineOperand> &Addr,
-                                    const TargetRegisterClass *RC,
-                                 SmallVectorImpl<MachineInstr*> &NewMIs) const {
-  unsigned Opc;
-  if (RC == Mips::CPURegsRegisterClass) 
-    Opc = Mips::LW;
-  else if (RC == Mips::FGR32RegisterClass)
-    Opc = Mips::LWC1;
-  else {
-    assert(RC == Mips::AFGR64RegisterClass);
-    Opc = Mips::LDC1;
-  }
-
-  DebugLoc DL = DebugLoc::getUnknownLoc();
-  MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc), DestReg);
-  for (unsigned i = 0, e = Addr.size(); i != e; ++i)
-    MIB.addOperand(Addr[i]);
-  NewMIs.push_back(MIB);
-  return;
-}
-
 MachineInstr *MipsInstrInfo::
 foldMemoryOperandImpl(MachineFunction &MF,
                       MachineInstr* MI,
@@ -291,14 +247,17 @@ foldMemoryOperandImpl(MachineFunction &MF,
       if (Ops[0] == 0) {    // COPY -> STORE
         unsigned SrcReg = MI->getOperand(2).getReg();
         bool isKill = MI->getOperand(2).isKill();
+        bool isUndef = MI->getOperand(2).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(Mips::SW))
-          .addReg(SrcReg, getKillRegState(isKill))
+          .addReg(SrcReg, getKillRegState(isKill) | getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI);
       } else {              // COPY -> LOAD
         unsigned DstReg = MI->getOperand(0).getReg();
         bool isDead = MI->getOperand(0).isDead();
+        bool isUndef = MI->getOperand(0).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(Mips::LW))
-          .addReg(DstReg, RegState::Define | getDeadRegState(isDead))
+          .addReg(DstReg, RegState::Define | getDeadRegState(isDead) |
+                  getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI);
       }
     }
@@ -321,14 +280,17 @@ foldMemoryOperandImpl(MachineFunction &MF,
       if (Ops[0] == 0) {    // COPY -> STORE
         unsigned SrcReg = MI->getOperand(1).getReg();
         bool isKill = MI->getOperand(1).isKill();
+        bool isUndef = MI->getOperand(2).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(StoreOpc))
-          .addReg(SrcReg, getKillRegState(isKill))
+          .addReg(SrcReg, getKillRegState(isKill) | getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI) ;
       } else {              // COPY -> LOAD
         unsigned DstReg = MI->getOperand(0).getReg();
         bool isDead = MI->getOperand(0).isDead();
+        bool isUndef = MI->getOperand(0).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(LoadOpc))
-          .addReg(DstReg, RegState::Define | getDeadRegState(isDead))
+          .addReg(DstReg, RegState::Define | getDeadRegState(isDead) |
+                  getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI);
       }
     }
@@ -366,7 +328,7 @@ static Mips::CondCode GetCondFromBranchOpc(unsigned BrOpc)
 unsigned Mips::GetCondBranchFromCond(Mips::CondCode CC) 
 {
   switch (CC) {
-  default: assert(0 && "Illegal condition code!");
+  default: llvm_unreachable("Illegal condition code!");
   case Mips::COND_E   : return Mips::BEQ;
   case Mips::COND_NE  : return Mips::BNE;
   case Mips::COND_GZ  : return Mips::BGTZ;
@@ -415,7 +377,7 @@ unsigned Mips::GetCondBranchFromCond(Mips::CondCode CC)
 Mips::CondCode Mips::GetOppositeBranchCondition(Mips::CondCode CC) 
 {
   switch (CC) {
-  default: assert(0 && "Illegal condition code!");
+  default: llvm_unreachable("Illegal condition code!");
   case Mips::COND_E   : return Mips::COND_NE;
   case Mips::COND_NE  : return Mips::COND_E;
   case Mips::COND_GZ  : return Mips::COND_LEZ;
@@ -645,6 +607,7 @@ unsigned MipsInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
                               Mips::CPURegsRegisterClass,
                               Mips::CPURegsRegisterClass);
   assert(Ok && "Couldn't assign to global base register!");
+  Ok = Ok; // Silence warning when assertions are turned off.
   RegInfo.addLiveIn(Mips::GP);
 
   MipsFI->setGlobalBaseReg(GlobalBaseReg);

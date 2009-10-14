@@ -19,7 +19,7 @@
 
 #include <string>
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 
 using namespace std;
@@ -162,17 +162,26 @@ public:
   /// alignment (saturated to BufferEnd of course).
   void emitAlignment(unsigned Alignment) {
     if (Alignment == 0) Alignment = 1;
+    uint8_t *NewPtr = (uint8_t*)RoundUpToAlignment((uintptr_t)CurBufferPtr,
+                                                   Alignment);
+    CurBufferPtr = std::min(NewPtr, BufferEnd);
+  }
 
-    if(Alignment <= (uintptr_t)(BufferEnd-CurBufferPtr)) {
-      // Move the current buffer ptr up to the specified alignment.
-      CurBufferPtr =
-        (uint8_t*)(((uintptr_t)CurBufferPtr+Alignment-1) &
-                   ~(uintptr_t)(Alignment-1));
-    } else {
+  /// emitAlignmentWithFill - Similar to emitAlignment, except that the
+  /// extra bytes are filled with the provided byte.
+  void emitAlignmentWithFill(unsigned Alignment, uint8_t Fill) {
+    if (Alignment == 0) Alignment = 1;
+    uint8_t *NewPtr = (uint8_t*)RoundUpToAlignment((uintptr_t)CurBufferPtr,
+                                                   Alignment);
+    // Fail if we don't have room.
+    if (NewPtr > BufferEnd) {
       CurBufferPtr = BufferEnd;
+      return;
+    }
+    while (CurBufferPtr < NewPtr) {
+      *CurBufferPtr++ = Fill;
     }
   }
-  
 
   /// emitULEB128Bytes - This callback is invoked when a ULEB128 needs to be
   /// written to the output stream.
@@ -267,6 +276,11 @@ public:
     return Result;
   }
 
+  /// allocateGlobal - Allocate memory for a global.  Unlike allocateSpace,
+  /// this method does not allocate memory in the current output buffer,
+  /// because a global may live longer than the current function.
+  virtual void *allocateGlobal(uintptr_t Size, unsigned Alignment) = 0;
+
   /// StartMachineBasicBlock - This should be called by the target when a new
   /// basic block is about to be emitted.  This way the MCE knows where the
   /// start of the block is, and can implement getMachineBasicBlockAddress.
@@ -284,6 +298,13 @@ public:
   uintptr_t getCurrentPCOffset() const {
     return CurBufferPtr-BufferBegin;
   }
+
+  /// earlyResolveAddresses - True if the code emitter can use symbol addresses 
+  /// during code emission time. The JIT is capable of doing this because it
+  /// creates jump tables or constant pools in memory on the fly while the
+  /// object code emitters rely on a linker to have real addresses and should
+  /// use relocations instead.
+  bool earlyResolveAddresses() const { return true; }
 
   /// addRelocation - Whenever a relocatable address is needed, it should be
   /// noted with this interface.

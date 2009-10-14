@@ -33,28 +33,37 @@ def f128   : ValueType<128, 10>;   // 128-bit floating point value
 def ppcf128: ValueType<128, 11>;   // PPC 128-bit floating point value
 def FlagVT : ValueType<0  , 12>;   // Condition code or machine flag
 def isVoid : ValueType<0  , 13>;   // Produces no value
+
 def v2i8   : ValueType<16 , 14>;   //  2 x i8  vector value
 def v4i8   : ValueType<32 , 15>;   //  4 x i8  vector value
-def v2i16  : ValueType<32 , 16>;   //  2 x i16 vector value
-def v8i8   : ValueType<64 , 17>;   //  8 x i8  vector value
-def v4i16  : ValueType<64 , 18>;   //  4 x i16 vector value
-def v2i32  : ValueType<64 , 19>;   //  2 x i32 vector value
-def v1i64  : ValueType<64 , 20>;   //  1 x i64 vector value
-
-def v16i8  : ValueType<128, 21>;   // 16 x i8  vector value
-def v8i16  : ValueType<128, 22>;   //  8 x i16 vector value
-def v3i32  : ValueType<96 , 23>;   //  3 x i32 vector value
+def v8i8   : ValueType<64 , 16>;   //  8 x i8  vector value
+def v16i8  : ValueType<128, 17>;   // 16 x i8  vector value
+def v32i8  : ValueType<256, 18>;   // 32 x i8 vector value
+def v2i16  : ValueType<32 , 19>;   //  2 x i16 vector value
+def v4i16  : ValueType<64 , 20>;   //  4 x i16 vector value
+def v8i16  : ValueType<128, 21>;   //  8 x i16 vector value
+def v16i16 : ValueType<256, 22>;   // 16 x i16 vector value
+def v2i32  : ValueType<64 , 23>;   //  2 x i32 vector value
 def v4i32  : ValueType<128, 24>;   //  4 x i32 vector value
-def v2i64  : ValueType<128, 25>;   //  2 x i64 vector value
+def v8i32  : ValueType<256, 25>;   //  8 x i32 vector value
+def v1i64  : ValueType<64 , 26>;   //  1 x i64 vector value
+def v2i64  : ValueType<128, 27>;   //  2 x i64 vector value
+def v4i64  : ValueType<256, 28>;   //  4 x f64 vector value
 
-def v2f32  : ValueType<64,  26>;   //  2 x f32 vector value
-def v3f32  : ValueType<96 , 27>;   //  3 x f32 vector value
-def v4f32  : ValueType<128, 28>;   //  4 x f32 vector value
-def v2f64  : ValueType<128, 29>;   //  2 x f64 vector value
+def v2f32  : ValueType<64,  29>;   //  2 x f32 vector value
+def v4f32  : ValueType<128, 30>;   //  4 x f32 vector value
+def v8f32  : ValueType<256, 31>;   //  8 x f32 vector value
+def v2f64  : ValueType<128, 32>;   //  2 x f64 vector value
+def v4f64  : ValueType<256, 33>;   //  4 x f64 vector value
+
+def MetadataVT: ValueType<0, 250>; // Metadata
 
 // Pseudo valuetype mapped to the current pointer size to any address space.
 // Should only be used in TableGen.
-def iPTRAny   : ValueType<0, 252>;
+def iPTRAny   : ValueType<0, 251>;
+
+// Pseudo valuetype to represent "vector of any size"
+def vAny   : ValueType<0  , 252>;
 
 // Pseudo valuetype to represent "float of any format"
 def fAny   : ValueType<0  , 253>;

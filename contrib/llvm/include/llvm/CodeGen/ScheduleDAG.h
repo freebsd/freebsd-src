@@ -23,6 +23,7 @@
 #include "llvm/ADT/PointerIntPair.h"
 
 namespace llvm {
+  class AliasAnalysis;
   class SUnit;
   class MachineConstantPool;
   class MachineFunction;
@@ -145,6 +146,11 @@ namespace llvm {
       return Latency;
     }
 
+    /// setLatency - Set the latency for this edge.
+    void setLatency(unsigned Lat) {
+      Latency = Lat;
+    }
+
     //// getSUnit - Return the SUnit to which this edge points.
     SUnit *getSUnit() const {
       return Dep.getPointer();
@@ -238,10 +244,10 @@ namespace llvm {
     unsigned NodeNum;                   // Entry # of node in the node vector.
     unsigned NodeQueueId;               // Queue id of node.
     unsigned short Latency;             // Node latency.
-    short NumPreds;                     // # of SDep::Data preds.
-    short NumSuccs;                     // # of SDep::Data sucss.
-    short NumPredsLeft;                 // # of preds not scheduled.
-    short NumSuccsLeft;                 // # of succs not scheduled.
+    unsigned NumPreds;                  // # of SDep::Data preds.
+    unsigned NumSuccs;                  // # of SDep::Data sucss.
+    unsigned NumPredsLeft;              // # of preds not scheduled.
+    unsigned NumSuccsLeft;              // # of succs not scheduled.
     bool isTwoAddress     : 1;          // Is a two-address instruction.
     bool isCommutable     : 1;          // Is a commutable instruction.
     bool hasPhysRegDefs   : 1;          // Has physreg defs that are being used.
@@ -429,8 +435,8 @@ namespace llvm {
 
   class ScheduleDAG {
   public:
-    MachineBasicBlock *BB;                // The block in which to insert instructions.
-    MachineBasicBlock::iterator InsertPos;// The position to insert instructions.
+    MachineBasicBlock *BB;          // The block in which to insert instructions
+    MachineBasicBlock::iterator InsertPos;// The position to insert instructions
     const TargetMachine &TM;              // Target processor
     const TargetInstrInfo *TII;           // Target instruction information
     const TargetRegisterInfo *TRI;        // Target processor register info
@@ -456,7 +462,8 @@ namespace llvm {
     /// EmitSchedule - Insert MachineInstrs into the MachineBasicBlock
     /// according to the order specified in Sequence.
     ///
-    virtual MachineBasicBlock *EmitSchedule() = 0;
+    virtual MachineBasicBlock*
+    EmitSchedule(DenseMap<MachineBasicBlock*, MachineBasicBlock*>*) = 0;
 
     void dumpSchedule() const;
 
@@ -484,19 +491,25 @@ namespace llvm {
     /// BuildSchedGraph - Build SUnits and set up their Preds and Succs
     /// to form the scheduling dependency graph.
     ///
-    virtual void BuildSchedGraph() = 0;
+    virtual void BuildSchedGraph(AliasAnalysis *AA) = 0;
 
     /// ComputeLatency - Compute node latency.
     ///
     virtual void ComputeLatency(SUnit *SU) = 0;
+
+    /// ComputeOperandLatency - Override dependence edge latency using
+    /// operand use/def information
+    ///
+    virtual void ComputeOperandLatency(SUnit *Def, SUnit *Use,
+                                       SDep& dep) const { };
 
     /// Schedule - Order nodes according to selected style, filling
     /// in the Sequence member.
     ///
     virtual void Schedule() = 0;
 
-    /// ForceUnitLatencies - Return true if all scheduling edges should be given a
-    /// latency value of one.  The default is to return false; schedulers may
+    /// ForceUnitLatencies - Return true if all scheduling edges should be given
+    /// a latency value of one.  The default is to return false; schedulers may
     /// override this as needed.
     virtual bool ForceUnitLatencies() const { return false; }
 
@@ -504,27 +517,11 @@ namespace llvm {
     ///
     void EmitNoop();
 
-    void AddMemOperand(MachineInstr *MI, const MachineMemOperand &MO);
-
     void EmitPhysRegCopy(SUnit *SU, DenseMap<SUnit*, unsigned> &VRBaseMap);
-
-  private:
-    /// EmitLiveInCopy - Emit a copy for a live in physical register. If the
-    /// physical register has only a single copy use, then coalesced the copy
-    /// if possible.
-    void EmitLiveInCopy(MachineBasicBlock *MBB,
-                        MachineBasicBlock::iterator &InsertPos,
-                        unsigned VirtReg, unsigned PhysReg,
-                        const TargetRegisterClass *RC,
-                        DenseMap<MachineInstr*, unsigned> &CopyRegMap);
-
-    /// EmitLiveInCopies - If this is the first basic block in the function,
-    /// and if it has live ins that need to be copied into vregs, emit the
-    /// copies into the top of the block.
-    void EmitLiveInCopies(MachineBasicBlock *MBB);
   };
 
-  class SUnitIterator : public forward_iterator<SUnit, ptrdiff_t> {
+  class SUnitIterator : public std::iterator<std::forward_iterator_tag,
+                                             SUnit, ptrdiff_t> {
     SUnit *Node;
     unsigned Operand;
 
@@ -536,7 +533,7 @@ namespace llvm {
     bool operator!=(const SUnitIterator& x) const { return !operator==(x); }
 
     const SUnitIterator &operator=(const SUnitIterator &I) {
-      assert(I.Node == Node && "Cannot assign iterators to two different nodes!");
+      assert(I.Node==Node && "Cannot assign iterators to two different nodes!");
       Operand = I.Operand;
       return *this;
     }

@@ -26,9 +26,8 @@ namespace llvm {
 
 struct VISIBILITY_HIDDEN X86IntelAsmPrinter : public AsmPrinter {
   explicit X86IntelAsmPrinter(raw_ostream &O, X86TargetMachine &TM,
-                              const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                              bool V)
-    : AsmPrinter(O, TM, T, OL, V) {}
+                              const TargetAsmInfo *T, bool V)
+    : AsmPrinter(O, TM, T, V) {}
 
   virtual const char *getPassName() const {
     return "X86 Intel-Style Assembly Printer";
@@ -76,6 +75,10 @@ struct VISIBILITY_HIDDEN X86IntelAsmPrinter : public AsmPrinter {
     O << "XMMWORD PTR ";
     printMemReference(MI, OpNo);
   }
+  void printi256mem(const MachineInstr *MI, unsigned OpNo) {
+    O << "YMMWORD PTR ";
+    printMemReference(MI, OpNo);
+  }
   void printf32mem(const MachineInstr *MI, unsigned OpNo) {
     O << "DWORD PTR ";
     printMemReference(MI, OpNo);
@@ -90,6 +93,10 @@ struct VISIBILITY_HIDDEN X86IntelAsmPrinter : public AsmPrinter {
   }
   void printf128mem(const MachineInstr *MI, unsigned OpNo) {
     O << "XMMWORD PTR ";
+    printMemReference(MI, OpNo);
+  }
+  void printf256mem(const MachineInstr *MI, unsigned OpNo) {
+    O << "YMMWORD PTR ";
     printMemReference(MI, OpNo);
   }
   void printlea32mem(const MachineInstr *MI, unsigned OpNo) {

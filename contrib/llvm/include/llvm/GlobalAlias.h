@@ -40,7 +40,7 @@ public:
   }
   /// GlobalAlias ctor - If a parent module is specified, the alias is
   /// automatically inserted into the end of the specified module's alias list.
-  GlobalAlias(const Type *Ty, LinkageTypes Linkage, const std::string &Name = "",
+  GlobalAlias(const Type *Ty, LinkageTypes Linkage, const Twine &Name = "",
               Constant* Aliasee = 0, Module *Parent = 0);
 
   /// Provide fast operand accessors
@@ -88,7 +88,7 @@ public:
 };
 
 template <>
-struct OperandTraits<GlobalAlias> : FixedNumOperandTraits<1> {
+struct OperandTraits<GlobalAlias> : public FixedNumOperandTraits<1> {
 };
 
 DEFINE_TRANSPARENT_OPERAND_ACCESSORS(GlobalAlias, Value)

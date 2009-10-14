@@ -251,7 +251,7 @@ namespace sys {
       return seconds_ - PosixZeroTime.seconds_;
     }
 
-    /// Converts the TiemValue into the correspodning number of "ticks" for
+    /// Converts the TimeValue into the corresponding number of "ticks" for
     /// Win32 platforms, correcting for the difference in Win32 zero time.
     /// @brief Convert to windows time (seconds since 12:00:00a Jan 1, 1601)
     uint64_t toWin32Time() const {
@@ -271,7 +271,7 @@ namespace sys {
     /// Provides conversion of the TimeValue into a readable time & date.
     /// @returns std::string containing the readable time value
     /// @brief Convert time to a string.
-    std::string toString() const;
+    std::string str() const;
 
   /// @}
   /// @name Mutators

@@ -93,9 +93,16 @@ public:
   /// Code Generation virtual methods...
   /// 
 
+  /// getMatchingSuperRegClass - Return a subclass of the specified register
+  /// class A so that each register in it has a sub-register of the
+  /// specified sub-register index which is in the specified register class B.
+  virtual const TargetRegisterClass *
+  getMatchingSuperRegClass(const TargetRegisterClass *A,
+                           const TargetRegisterClass *B, unsigned Idx) const;
+
   /// getPointerRegClass - Returns a TargetRegisterClass used for pointer
   /// values.
-  const TargetRegisterClass *getPointerRegClass() const;
+  const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
 
   /// getCrossCopyRegClass - Returns a legal register class to copy a register
   /// in the specified class to or from. Returns NULL if it is possible to copy
@@ -125,22 +132,24 @@ public:
 
   bool hasReservedCallFrame(MachineFunction &MF) const;
 
+  bool hasReservedSpillSlot(MachineFunction &MF, unsigned Reg,
+                            int &FrameIdx) const;
+
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator MI) const;
 
-  void eliminateFrameIndex(MachineBasicBlock::iterator MI,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+  unsigned eliminateFrameIndex(MachineBasicBlock::iterator MI,
+                               int SPAdj, int *Value = NULL,
+                               RegScavenger *RS = NULL) const;
 
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                             RegScavenger *RS = NULL) const;
 
+  void emitCalleeSavedFrameMoves(MachineFunction &MF, unsigned LabelId,
+                                 unsigned FramePtr) const;
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
-
-  void emitFrameMoves(MachineFunction &MF,
-                      unsigned FrameLabelId, unsigned ReadyLabelId) const;
 
   // Debug information queries.
   unsigned getRARegister() const;
@@ -155,8 +164,8 @@ public:
 
 // getX86SubSuperRegister - X86 utility function. It returns the sub or super
 // register of a specific X86 register.
-// e.g. getX86SubSuperRegister(X86::EAX, MVT::i16) return X86:AX
-unsigned getX86SubSuperRegister(unsigned, MVT, bool High=false);
+// e.g. getX86SubSuperRegister(X86::EAX, EVT::i16) return X86:AX
+unsigned getX86SubSuperRegister(unsigned, EVT, bool High=false);
 
 } // End llvm namespace
 

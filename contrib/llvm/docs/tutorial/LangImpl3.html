@@ -79,7 +79,7 @@ public:
 class NumberExprAST : public ExprAST {
   double Val;
 public:
-  explicit NumberExprAST(double val) : Val(val) {}
+  NumberExprAST(double val) : Val(val) {}
   <b>virtual Value *Codegen();</b>
 };
 ...
@@ -115,7 +115,7 @@ undeclared parameter):</p>
 Value *ErrorV(const char *Str) { Error(Str); return 0; }
 
 static Module *TheModule;
-static IRBuilder&lt;&gt; Builder;
+static IRBuilder&lt;&gt; Builder(getGlobalContext());
 static std::map&lt;std::string, Value*&gt; NamedValues;
 </pre>
 </div>
@@ -159,7 +159,7 @@ we'll do numeric literals:</p>
 <div class="doc_code">
 <pre>
 Value *NumberExprAST::Codegen() {
-  return ConstantFP::get(APFloat(Val));
+  return ConstantFP::get(getGlobalContext(), APFloat(Val));
 }
 </pre>
 </div>
@@ -170,7 +170,7 @@ internally (<tt>APFloat</tt> has the capability of holding floating point
 constants of <em>A</em>rbitrary <em>P</em>recision).  This code basically just
 creates and returns a <tt>ConstantFP</tt>.  Note that in the LLVM IR
 that constants are all uniqued together and shared.  For this reason, the API
-uses "the foo::get(..)" idiom instead of "new foo(..)" or "foo::Create(..)".</p>
+uses "the Context.get..." idiom instead of "new foo(..)" or "foo::Create(..)".</p>
 
 <div class="doc_code">
 <pre>
@@ -183,7 +183,7 @@ Value *VariableExprAST::Codegen() {
 </div>
 
 <p>References to variables are also quite simple using LLVM.  In the simple version
-of Kaleidoscope, we assume that the variable has already been emited somewhere
+of Kaleidoscope, we assume that the variable has already been emitted somewhere
 and its value is available.  In practice, the only values that can be in the
 <tt>NamedValues</tt> map are function arguments.  This
 code simply checks to see that the specified name is in the map (if not, an 
@@ -206,7 +206,8 @@ Value *BinaryExprAST::Codegen() {
   case '&lt;':
     L = Builder.CreateFCmpULT(L, R, "cmptmp");
     // Convert bool 0/1 to double 0.0 or 1.0
-    return Builder.CreateUIToFP(L, Type::DoubleTy, "booltmp");
+    return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()),
+                                "booltmp");
   default: return ErrorV("invalid binary operator");
   }
 }
@@ -307,8 +308,10 @@ bodies and external function declarations.  The code starts with:</p>
 <pre>
 Function *PrototypeAST::Codegen() {
   // Make the function type:  double(double,double) etc.
-  std::vector&lt;const Type*&gt; Doubles(Args.size(), Type::DoubleTy);
-  FunctionType *FT = FunctionType::get(Type::DoubleTy, Doubles, false);
+  std::vector&lt;const Type*&gt; Doubles(Args.size(),
+                                   Type::getDoubleTy(getGlobalContext()));
+  FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()),
+                                       Doubles, false);
   
   Function *F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
 </pre>
@@ -320,10 +323,10 @@ really talks about the external interface for a function (not the value computed
 by an expression), it makes sense for it to return the LLVM Function it
 corresponds to when codegen'd.</p>
 
-<p>The call to <tt>FunctionType::get</tt> creates
+<p>The call to <tt>Context.get</tt> creates
 the <tt>FunctionType</tt> that should be used for a given Prototype.  Since all
 function arguments in Kaleidoscope are of type double, the first line creates
-a vector of "N" LLVM double types.  It then uses the <tt>FunctionType::get</tt>
+a vector of "N" LLVM double types.  It then uses the <tt>Context.get</tt>
 method to create a function type that takes "N" doubles as arguments, returns
 one double as a result, and that is not vararg (the false parameter indicates
 this).  Note that Types in LLVM are uniqued just like Constants are, so you
@@ -359,7 +362,7 @@ definition of this function.</p>
 first, we want to allow 'extern'ing a function more than once, as long as the
 prototypes for the externs match (since all arguments have the same type, we
 just have to check that the number of arguments match).  Second, we want to
-allow 'extern'ing a function and then definining a body for it.  This is useful
+allow 'extern'ing a function and then defining a body for it.  This is useful
 when defining mutually recursive functions.</p>
 
 <p>In order to implement this, the code above first checks to see if there is
@@ -439,7 +442,7 @@ is an LLVM Function object that is ready to go for us.</p>
 <div class="doc_code">
 <pre>
   // Create a new basic block to start insertion into.
-  BasicBlock *BB = BasicBlock::Create("entry", TheFunction);
+  BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);
   Builder.SetInsertPoint(BB);
   
   if (Value *RetVal = Body-&gt;Codegen()) {
@@ -461,9 +464,10 @@ block at this point.  We'll fix this in <a href="LangImpl5.html">Chapter 5</a> :
   if (Value *RetVal = Body-&gt;Codegen()) {
     // Finish off the function.
     Builder.CreateRet(RetVal);
-    
+
     // Validate the generated code, checking for consistency.
     verifyFunction(*TheFunction);
+
     return TheFunction;
   }
 </pre>
@@ -682,6 +686,7 @@ our makefile/command line about which options to use:</p>
 // See example below.
 
 #include "llvm/DerivedTypes.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Support/IRBuilder.h"
@@ -704,7 +709,7 @@ enum Token {
   tok_def = -2, tok_extern = -3,
 
   // primary
-  tok_identifier = -4, tok_number = -5,
+  tok_identifier = -4, tok_number = -5
 };
 
 static std::string IdentifierStr;  // Filled in if tok_identifier
@@ -773,7 +778,7 @@ public:
 class NumberExprAST : public ExprAST {
   double Val;
 public:
-  explicit NumberExprAST(double val) : Val(val) {}
+  NumberExprAST(double val) : Val(val) {}
   virtual Value *Codegen();
 };
 
@@ -781,7 +786,7 @@ public:
 class VariableExprAST : public ExprAST {
   std::string Name;
 public:
-  explicit VariableExprAST(const std::string &amp;name) : Name(name) {}
+  VariableExprAST(const std::string &amp;name) : Name(name) {}
   virtual Value *Codegen();
 };
 
@@ -806,7 +811,8 @@ public:
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
-/// which captures its argument names as well as if it is an operator.
+/// which captures its name, and its argument names (thus implicitly the number
+/// of arguments the function takes).
 class PrototypeAST {
   std::string Name;
   std::vector&lt;std::string&gt; Args;
@@ -833,7 +839,7 @@ public:
 //===----------------------------------------------------------------------===//
 
 /// CurTok/getNextToken - Provide a simple token buffer.  CurTok is the current
-/// token the parser it looking at.  getNextToken reads another token from the
+/// token the parser is looking at.  getNextToken reads another token from the
 /// lexer and updates CurTok with its results.
 static int CurTok;
 static int getNextToken() {
@@ -881,9 +887,9 @@ static ExprAST *ParseIdentifierExpr() {
       ExprAST *Arg = ParseExpression();
       if (!Arg) return 0;
       Args.push_back(Arg);
-    
+
       if (CurTok == ')') break;
-    
+
       if (CurTok != ',')
         return Error("Expected ')' or ',' in argument list");
       getNextToken();
@@ -1027,13 +1033,13 @@ static PrototypeAST *ParseExtern() {
 //===----------------------------------------------------------------------===//
 
 static Module *TheModule;
-static IRBuilder&lt;&gt; Builder;
+static IRBuilder&lt;&gt; Builder(getGlobalContext());
 static std::map&lt;std::string, Value*&gt; NamedValues;
 
 Value *ErrorV(const char *Str) { Error(Str); return 0; }
 
 Value *NumberExprAST::Codegen() {
-  return ConstantFP::get(APFloat(Val));
+  return ConstantFP::get(getGlobalContext(), APFloat(Val));
 }
 
 Value *VariableExprAST::Codegen() {
@@ -1054,7 +1060,8 @@ Value *BinaryExprAST::Codegen() {
   case '&lt;':
     L = Builder.CreateFCmpULT(L, R, "cmptmp");
     // Convert bool 0/1 to double 0.0 or 1.0
-    return Builder.CreateUIToFP(L, Type::DoubleTy, "booltmp");
+    return Builder.CreateUIToFP(L, Type::getDoubleTy(getGlobalContext()),
+                                "booltmp");
   default: return ErrorV("invalid binary operator");
   }
 }
@@ -1080,8 +1087,10 @@ Value *CallExprAST::Codegen() {
 
 Function *PrototypeAST::Codegen() {
   // Make the function type:  double(double,double) etc.
-  std::vector&lt;const Type*&gt; Doubles(Args.size(), Type::DoubleTy);
-  FunctionType *FT = FunctionType::get(Type::DoubleTy, Doubles, false);
+  std::vector&lt;const Type*&gt; Doubles(Args.size(),
+                                   Type::getDoubleTy(getGlobalContext()));
+  FunctionType *FT = FunctionType::get(Type::getDoubleTy(getGlobalContext()),
+                                       Doubles, false);
   
   Function *F = Function::Create(FT, Function::ExternalLinkage, Name, TheModule);
   
@@ -1126,15 +1135,16 @@ Function *FunctionAST::Codegen() {
     return 0;
   
   // Create a new basic block to start insertion into.
-  BasicBlock *BB = BasicBlock::Create("entry", TheFunction);
+  BasicBlock *BB = BasicBlock::Create(getGlobalContext(), "entry", TheFunction);
   Builder.SetInsertPoint(BB);
   
   if (Value *RetVal = Body-&gt;Codegen()) {
     // Finish off the function.
     Builder.CreateRet(RetVal);
-    
+
     // Validate the generated code, checking for consistency.
     verifyFunction(*TheFunction);
+
     return TheFunction;
   }
   
@@ -1172,7 +1182,7 @@ static void HandleExtern() {
 }
 
 static void HandleTopLevelExpression() {
-  // Evaluate a top level expression into an anonymous function.
+  // Evaluate a top-level expression into an anonymous function.
   if (FunctionAST *F = ParseTopLevelExpr()) {
     if (Function *LF = F-&gt;Codegen()) {
       fprintf(stderr, "Read top-level expression:");
@@ -1190,15 +1200,13 @@ static void MainLoop() {
     fprintf(stderr, "ready&gt; ");
     switch (CurTok) {
     case tok_eof:    return;
-    case ';':        getNextToken(); break;  // ignore top level semicolons.
+    case ';':        getNextToken(); break;  // ignore top-level semicolons.
     case tok_def:    HandleDefinition(); break;
     case tok_extern: HandleExtern(); break;
     default:         HandleTopLevelExpression(); break;
     }
   }
 }
-
-
 
 //===----------------------------------------------------------------------===//
 // "Library" functions that can be "extern'd" from user code.
@@ -1216,7 +1224,7 @@ double putchard(double X) {
 //===----------------------------------------------------------------------===//
 
 int main() {
-  TheModule = new Module("my cool jit");
+  LLVMContext &amp;Context = getGlobalContext();
 
   // Install standard binary operators.
   // 1 is lowest precedence.
@@ -1229,8 +1237,15 @@ int main() {
   fprintf(stderr, "ready&gt; ");
   getNextToken();
 
+  // Make the module, which holds all the code.
+  TheModule = new Module("my cool jit", Context);
+
+  // Run the main "interpreter loop" now.
   MainLoop();
+
+  // Print out all of the generated code.
   TheModule-&gt;dump();
+
   return 0;
 }
 </pre>
@@ -1248,7 +1263,7 @@ int main() {
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2007-10-17 11:05:13 -0700 (Wed, 17 Oct 2007) $
+  Last modified: $Date: 2009-07-21 11:05:13 -0700 (Tue, 21 Jul 2009) $
 </address>
 </body>
 </html>

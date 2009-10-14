@@ -19,6 +19,7 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -129,7 +130,8 @@ bool IPCP::PropagateConstantsIntoArguments(Function &F) {
   Function::arg_iterator AI = F.arg_begin();
   for (unsigned i = 0, e = ArgumentConstants.size(); i != e; ++i, ++AI) {
     // Do we have a constant argument?
-    if (ArgumentConstants[i].second || AI->use_empty())
+    if (ArgumentConstants[i].second || AI->use_empty() ||
+        (AI->hasByValAttr() && !F.onlyReadsMemory()))
       continue;
   
     Value *V = ArgumentConstants[i].first;
@@ -151,13 +153,15 @@ bool IPCP::PropagateConstantsIntoArguments(Function &F) {
 // callers will be updated to use the value they pass in directly instead of
 // using the return value.
 bool IPCP::PropagateConstantReturn(Function &F) {
-  if (F.getReturnType() == Type::VoidTy)
+  if (F.getReturnType() == Type::getVoidTy(F.getContext()))
     return false; // No return value.
 
   // If this function could be overridden later in the link stage, we can't
   // propagate information about its results into callers.
   if (F.mayBeOverridden())
     return false;
+    
+  LLVMContext &Context = F.getContext();
   
   // Check to see if this function returns a constant.
   SmallVector<Value *,4> RetVals;
@@ -182,7 +186,7 @@ bool IPCP::PropagateConstantReturn(Function &F) {
         if (!STy)
           V = RI->getOperand(i);
         else
-          V = FindInsertedValue(RI->getOperand(0), i);
+          V = FindInsertedValue(RI->getOperand(0), i, Context);
 
         if (V) {
           // Ignore undefs, we can change them into anything

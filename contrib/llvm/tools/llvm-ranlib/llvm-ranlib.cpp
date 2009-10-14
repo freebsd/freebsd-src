@@ -11,11 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Bitcode/Archive.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
 #include <iostream>
 #include <iomanip>
@@ -46,7 +48,8 @@ int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
-  
+
+  LLVMContext &Context = getGlobalContext();
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
   // Have the command line options parsed and handle things
@@ -73,7 +76,7 @@ int main(int argc, char **argv) {
 
     std::string err_msg;
     std::auto_ptr<Archive>
-      AutoArchive(Archive::OpenAndLoad(ArchivePath,&err_msg));
+      AutoArchive(Archive::OpenAndLoad(ArchivePath, Context, &err_msg));
     Archive* TheArchive = AutoArchive.get();
     if (!TheArchive)
       throw err_msg;
@@ -85,13 +88,13 @@ int main(int argc, char **argv) {
       printSymbolTable(TheArchive);
 
   } catch (const char* msg) {
-    std::cerr << argv[0] << ": " << msg << "\n\n";
+    errs() << argv[0] << ": " << msg << "\n\n";
     exitCode = 1;
   } catch (const std::string& msg) {
-    std::cerr << argv[0] << ": " << msg << "\n";
+    errs() << argv[0] << ": " << msg << "\n";
     exitCode = 2;
   } catch (...) {
-    std::cerr << argv[0] << ": An unexpected unknown exception occurred.\n";
+    errs() << argv[0] << ": An unexpected unknown exception occurred.\n";
     exitCode = 3;
   }
   return exitCode;

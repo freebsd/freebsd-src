@@ -14,11 +14,11 @@
 #include "llvm/BasicBlock.h"
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Type.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/LeakDetector.h"
-#include "llvm/Support/Compiler.h"
 #include "SymbolTableListTraitsImpl.h"
 #include <algorithm>
 using namespace llvm;
@@ -29,14 +29,18 @@ ValueSymbolTable *BasicBlock::getValueSymbolTable() {
   return 0;
 }
 
+LLVMContext &BasicBlock::getContext() const {
+  return getType()->getContext();
+}
+
 // Explicit instantiation of SymbolTableListTraits since some of the methods
 // are not in the public header file...
 template class SymbolTableListTraits<Instruction, BasicBlock>;
 
 
-BasicBlock::BasicBlock(const std::string &Name, Function *NewParent,
+BasicBlock::BasicBlock(LLVMContext &C, const Twine &Name, Function *NewParent,
                        BasicBlock *InsertBefore)
-  : Value(Type::LabelTy, Value::BasicBlockVal), Parent(0) {
+  : Value(Type::getLabelTy(C), Value::BasicBlockVal), Parent(0) {
 
   // Make sure that we get added to a function
   LeakDetector::addGarbageObject(this);
@@ -235,14 +239,15 @@ void BasicBlock::removePredecessor(BasicBlock *Pred,
 /// cause a degenerate basic block to be formed, having a terminator inside of
 /// the basic block).
 ///
-BasicBlock *BasicBlock::splitBasicBlock(iterator I, const std::string &BBName) {
+BasicBlock *BasicBlock::splitBasicBlock(iterator I, const Twine &BBName) {
   assert(getTerminator() && "Can't use splitBasicBlock on degenerate BB!");
   assert(I != InstList.end() &&
          "Trying to get me to create degenerate basic block!");
 
   BasicBlock *InsertBefore = next(Function::iterator(this))
                                .getNodePtrUnchecked();
-  BasicBlock *New = BasicBlock::Create(BBName, getParent(), InsertBefore);
+  BasicBlock *New = BasicBlock::Create(getContext(), BBName,
+                                       getParent(), InsertBefore);
 
   // Move all of the specified instructions from the original basic block into
   // the new basic block.

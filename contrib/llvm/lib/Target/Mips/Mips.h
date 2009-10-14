@@ -21,14 +21,14 @@ namespace llvm {
   class MipsTargetMachine;
   class FunctionPass;
   class MachineCodeEmitter;
-  class raw_ostream;
+  class formatted_raw_ostream;
 
   FunctionPass *createMipsISelDag(MipsTargetMachine &TM);
   FunctionPass *createMipsDelaySlotFillerPass(MipsTargetMachine &TM);
-  FunctionPass *createMipsCodePrinterPass(raw_ostream &OS, 
-                                          MipsTargetMachine &TM,
-                                          CodeGenOpt::Level OptLevel,
-                                          bool Verbose);
+
+  extern Target TheMipsTarget;
+  extern Target TheMipselTarget;
+
 } // end namespace llvm;
 
 // Defines symbolic names for Mips registers.  This defines a mapping from

@@ -67,7 +67,6 @@ extern "C" {
                                     PVOID UserContext)
 #endif
   {
-    llvm::sys::SmartScopedWriter<true> Writer(&SymbolsLock);
     // Ignore VC++ runtimes prior to 7.1.  Somehow some of them get loaded
     // into the process.
     if (stricmp(ModuleName, "msvci70") != 0 &&
@@ -89,36 +88,9 @@ extern "C" {
   }
 }
 
-DynamicLibrary::DynamicLibrary() : handle(0) {
-  SmartScopedWriter<true> Writer(&SymbolsLock);
-  handle = GetModuleHandle(NULL);
-  OpenedHandles.push_back((HMODULE)handle);
-}
-
-DynamicLibrary::~DynamicLibrary() {
-  llvm::sys::SmartScopedWriter<true> Writer(&SymbolsLock);
-  if (handle == 0)
-    return;
-
-  // GetModuleHandle() does not increment the ref count, so we must not free
-  // the handle to the executable.
-  if (handle != GetModuleHandle(NULL))
-    FreeLibrary((HMODULE)handle);
-  handle = 0;
-
-  for (std::vector<HMODULE>::iterator I = OpenedHandles.begin(),
-       E = OpenedHandles.end(); I != E; ++I) {
-    if (*I == handle) {
-      // Note: don't use the swap/pop_back trick here. Order is important.
-      OpenedHandles.erase(I);
-    }
-  }
-}
- 
 bool DynamicLibrary::LoadLibraryPermanently(const char *filename,
                                             std::string *ErrMsg) {                                            
   if (filename) {
-    llvm::sys::SmartScopedWriter<true> Writer(&SymbolsLock);
     HMODULE a_handle = LoadLibrary(filename);
 
     if (a_handle == 0)
@@ -170,24 +142,22 @@ bool DynamicLibrary::LoadLibraryPermanently(const char *filename,
 
 void* DynamicLibrary::SearchForAddressOfSymbol(const char* symbolName) {
   // First check symbols added via AddSymbol().
-  SymbolsLock.reader_acquire();
-  std::map<std::string, void *>::iterator I = symbols.find(symbolName);
-  std::map<std::string, void *>::iterator E = symbols.end();
-  SymbolsLock.reader_release();
-  if (I != E)
-    return I->second;
+  if (ExplicitSymbols) {
+    std::map<std::string, void *>::iterator I = 
+      ExplicitSymbols->find(symbolName);
+    std::map<std::string, void *>::iterator E = ExplicitSymbols->end();
+    if (I != E)
+      return I->second;
+  }
 
   // Now search the libraries.
-  SymbolsLock.writer_acquire();
   for (std::vector<HMODULE>::iterator I = OpenedHandles.begin(),
        E = OpenedHandles.end(); I != E; ++I) {
     FARPROC ptr = GetProcAddress((HMODULE)*I, symbolName);
     if (ptr) {
-      SymbolsLock.writer_release();
       return (void *) ptr;
     }
   }
-  SymbolsLock.writer_release();
 
 #if defined(__MINGW32__)
   {

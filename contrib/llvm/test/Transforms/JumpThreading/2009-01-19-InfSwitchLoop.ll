@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -jump-threading | llvm-dis
+; RUN: opt < %s -jump-threading -S
 ; PR3353
 
 define i32 @test(i8 %X) {

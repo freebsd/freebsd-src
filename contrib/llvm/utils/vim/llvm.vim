@@ -29,6 +29,7 @@ syn keyword llvmStatement icmp fcmp
 syn keyword llvmStatement eq ne ugt uge ult ule sgt sge slt sle
 syn keyword llvmStatement oeq ogt oge olt ole one ord ueq ugt uge
 syn keyword llvmStatement ult ule une uno
+syn keyword llvmStatement nuw nsw exact inbounds
 syn keyword llvmStatement phi call select shl lshr ashr va_arg
 syn keyword llvmStatement trunc zext sext
 syn keyword llvmStatement fptrunc fpext fptoui fptosi uitofp sitofp
@@ -40,7 +41,7 @@ syn keyword llvmStatement extractvalue insertvalue
 
 " Keywords.
 syn keyword llvmKeyword define declare global constant
-syn keyword llvmKeyword internal external
+syn keyword llvmKeyword internal external private
 syn keyword llvmKeyword linkonce linkonce_odr weak weak_odr appending
 syn keyword llvmKeyword common extern_weak
 syn keyword llvmKeyword thread_local dllimport dllexport
@@ -49,8 +50,9 @@ syn keyword llvmKeyword except deplibs
 syn keyword llvmKeyword volatile fastcc coldcc cc ccc
 syn keyword llvmKeyword x86_stdcallcc x86_fastcallcc
 syn keyword llvmKeyword signext zeroext inreg sret nounwind noreturn
-syn keyword llvmKeyword nocapture byval nest readnone readonly
-syn keyword llvmKeyword noinline alwaysinline optsize ssp sspreq
+syn keyword llvmKeyword nocapture byval nest readnone readonly noalias
+syn keyword llvmKeyword inlinehint noinline alwaysinline optsize ssp sspreq
+syn keyword llvmKeyword noredzone noimplicitfloat naked
 syn keyword llvmKeyword module asm align tail to
 syn keyword llvmKeyword addrspace section alias sideeffect c gc
 syn keyword llvmKeyword target datalayout triple

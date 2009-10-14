@@ -15,7 +15,6 @@
 #ifndef LLVM_CODEGEN_PASSES_H
 #define LLVM_CODEGEN_PASSES_H
 
-#include <iosfwd>
 #include <string>
 
 namespace llvm {
@@ -25,6 +24,7 @@ namespace llvm {
   class TargetMachine;
   class TargetLowering;
   class RegisterCoalescer;
+  class raw_ostream;
 
   /// createUnreachableBlockEliminationPass - The LLVM code generator does not
   /// work well with unreachable basic blocks (what live ranges make sense for a
@@ -35,8 +35,8 @@ namespace llvm {
   FunctionPass *createUnreachableBlockEliminationPass();
 
   /// MachineFunctionPrinter pass - This pass prints out the machine function to
-  /// standard error, as a debugging tool.
-  FunctionPass *createMachineFunctionPrinterPass(std::ostream *OS,
+  /// the given stream, as a debugging tool.
+  FunctionPass *createMachineFunctionPrinterPass(raw_ostream &OS,
                                                  const std::string &Banner ="");
 
   /// MachineLoopInfo pass - This pass is a loop analysis pass.
@@ -87,26 +87,11 @@ namespace llvm {
   ///
   FunctionPass *createRegisterAllocator();
 
-  /// SimpleRegisterAllocation Pass - This pass converts the input machine code
-  /// from SSA form to use explicit registers by spilling every register.  Wow,
-  /// great policy huh?
-  ///
-  FunctionPass *createSimpleRegisterAllocator();
-
   /// LocalRegisterAllocation Pass - This pass register allocates the input code
   /// a basic block at a time, yielding code better than the simple register
   /// allocator, but not as good as a global allocator.
   ///
   FunctionPass *createLocalRegisterAllocator();
-
-  /// BigBlockRegisterAllocation Pass - The BigBlock register allocator
-  /// munches single basic blocks at a time, like the local register
-  /// allocator.  While the BigBlock allocator is a little slower, and uses
-  /// somewhat more memory than the local register allocator, it tends to
-  /// yield the best allocations (of any of the allocators) for blocks that
-  /// have hundreds or thousands of instructions in sequence.
-  ///
-  FunctionPass *createBigBlockRegisterAllocator();
 
   /// LinearScanRegisterAllocation Pass - This pass implements the linear scan
   /// register allocation algorithm, a global register allocator.
@@ -155,11 +140,6 @@ namespace llvm {
   /// by seeing if the labels map to the same reduced label.
   FunctionPass *createDebugLabelFoldingPass();
 
-  /// MachineCodeDeletion Pass - This pass deletes all of the machine code for
-  /// the current function, which should happen after the function has been
-  /// emitted to a .s file or to memory.
-  FunctionPass *createMachineCodeDeleter();
-
   /// getRegisterAllocator - This creates an instance of the register allocator
   /// for the Sparc.
   FunctionPass *getRegisterAllocator(TargetMachine &T);
@@ -180,7 +160,7 @@ namespace llvm {
   
   /// Creates a pass to print GC metadata.
   /// 
-  FunctionPass *createGCInfoPrinter(std::ostream &OS);
+  FunctionPass *createGCInfoPrinter(raw_ostream &OS);
   
   /// createMachineLICMPass - This pass performs LICM on machine instructions.
   /// 
@@ -206,6 +186,10 @@ namespace llvm {
   /// createDwarfEHPass - This pass mulches exception handling code into a form
   /// adapted to code generation.  Required if using dwarf exception handling.
   FunctionPass *createDwarfEHPass(const TargetLowering *tli, bool fast);
+
+  /// createSjLjEHPass - This pass adapts exception handling code to use
+  /// the GCC-style builtin setjmp/longjmp (sjlj) to handling EH control flow.
+  FunctionPass *createSjLjEHPass(const TargetLowering *tli);
 
 } // End llvm namespace
 

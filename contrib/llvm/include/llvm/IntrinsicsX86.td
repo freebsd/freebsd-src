@@ -1,10 +1,10 @@
 //===- IntrinsicsX86.td - Defines X86 intrinsics -----------*- tablegen -*-===//
-// 
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file defines all of the X86-specific intrinsics.
@@ -129,7 +129,7 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
   def int_x86_sse_cvttps2pi: GCCBuiltin<"__builtin_ia32_cvttps2pi">,
               Intrinsic<[llvm_v2i32_ty], [llvm_v4f32_ty], [IntrNoMem]>;
   def int_x86_sse_cvtpi2ps : GCCBuiltin<"__builtin_ia32_cvtpi2ps">,
-              Intrinsic<[llvm_v4f32_ty], [llvm_v4f32_ty, 
+              Intrinsic<[llvm_v4f32_ty], [llvm_v4f32_ty,
                          llvm_v2i32_ty], [IntrNoMem]>;
 }
 
@@ -814,9 +814,6 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
 
 // Vector insert
 let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
-  def int_x86_sse41_pinsrb         : GCCBuiltin<"__builtin_ia32_vec_set_v16qi">,
-          Intrinsic<[llvm_v16i8_ty], [llvm_v16i8_ty, llvm_i32_ty, llvm_i32_ty],
-                    [IntrNoMem]>;
   def int_x86_sse41_insertps       : GCCBuiltin<"__builtin_ia32_insertps128">,
           Intrinsic<[llvm_v4f32_ty], [llvm_v4f32_ty, llvm_v4f32_ty,llvm_i32_ty],
                     [IntrNoMem]>;
@@ -867,6 +864,105 @@ let TargetPrefix = "x86" in {  // All intrinsics start with "llvm.x86.".
           Intrinsic<[llvm_v2i64_ty], [llvm_ptr_ty], [IntrReadMem]>;
 }
 
+// Test instruction with bitwise comparison.
+let TargetPrefix = "x86" in { // All intrinsics start with "llvm.x86.".
+  def int_x86_sse41_ptestz          : GCCBuiltin<"__builtin_ia32_ptestz128">,
+          Intrinsic<[llvm_i32_ty], [llvm_v4f32_ty, llvm_v4f32_ty],
+                    [IntrNoMem]>;
+  def int_x86_sse41_ptestc          : GCCBuiltin<"__builtin_ia32_ptestc128">,
+          Intrinsic<[llvm_i32_ty], [llvm_v4f32_ty, llvm_v4f32_ty],
+                    [IntrNoMem]>;
+  def int_x86_sse41_ptestnzc        : GCCBuiltin<"__builtin_ia32_ptestnzc128">,
+          Intrinsic<[llvm_i32_ty], [llvm_v4f32_ty, llvm_v4f32_ty],
+                    [IntrNoMem]>;
+}
+
+//===----------------------------------------------------------------------===//
+// SSE4.2
+
+// Miscellaneous
+// CRC Instruction
+let TargetPrefix = "x86" in { // All intrinsics start with "llvm.x86.".
+  def int_x86_sse42_crc32_8         : GCCBuiltin<"__builtin_ia32_crc32qi">,
+          Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i8_ty],
+                    [IntrNoMem]>;
+  def int_x86_sse42_crc32_16         : GCCBuiltin<"__builtin_ia32_crc32hi">,
+          Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i16_ty],
+                    [IntrNoMem]>;
+  def int_x86_sse42_crc32_32         : GCCBuiltin<"__builtin_ia32_crc32si">,
+          Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+                    [IntrNoMem]>;
+  def int_x86_sse42_crc32_64         : GCCBuiltin<"__builtin_ia32_crc32di">,
+          Intrinsic<[llvm_i64_ty], [llvm_i64_ty, llvm_i64_ty],
+                    [IntrNoMem]>;
+}
+
+// String/text processing ops.
+let TargetPrefix = "x86" in { // All intrinsics start with "llvm.x86.".
+  def int_x86_sse42_pcmpistrm128  : GCCBuiltin<"__builtin_ia32_pcmpistrm128">,
+	  Intrinsic<[llvm_v16i8_ty],
+		    [llvm_v16i8_ty, llvm_v16i8_ty, llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpistri128  : GCCBuiltin<"__builtin_ia32_pcmpistri128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_v16i8_ty, llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpistria128 : GCCBuiltin<"__builtin_ia32_pcmpistria128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_v16i8_ty, llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpistric128 : GCCBuiltin<"__builtin_ia32_pcmpistric128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_v16i8_ty, llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpistrio128 : GCCBuiltin<"__builtin_ia32_pcmpistrio128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_v16i8_ty, llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpistris128 : GCCBuiltin<"__builtin_ia32_pcmpistris128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_v16i8_ty, llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpistriz128 : GCCBuiltin<"__builtin_ia32_pcmpistriz128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_v16i8_ty, llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpestrm128  : GCCBuiltin<"__builtin_ia32_pcmpestrm128">,
+	  Intrinsic<[llvm_v16i8_ty],
+		    [llvm_v16i8_ty, llvm_i32_ty, llvm_v16i8_ty, llvm_i32_ty,
+		     llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpestri128  : GCCBuiltin<"__builtin_ia32_pcmpestri128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_i32_ty, llvm_v16i8_ty, llvm_i32_ty,
+		     llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpestria128 : GCCBuiltin<"__builtin_ia32_pcmpestria128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_i32_ty, llvm_v16i8_ty, llvm_i32_ty,
+		     llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpestric128 : GCCBuiltin<"__builtin_ia32_pcmpestric128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_i32_ty, llvm_v16i8_ty, llvm_i32_ty,
+		     llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpestrio128 : GCCBuiltin<"__builtin_ia32_pcmpestrio128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_i32_ty, llvm_v16i8_ty, llvm_i32_ty,
+		     llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpestris128 : GCCBuiltin<"__builtin_ia32_pcmpestris128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_i32_ty, llvm_v16i8_ty, llvm_i32_ty,
+		     llvm_i8_ty],
+		    [IntrNoMem]>;
+  def int_x86_sse42_pcmpestriz128 : GCCBuiltin<"__builtin_ia32_pcmpestriz128">,
+	  Intrinsic<[llvm_i32_ty],
+		    [llvm_v16i8_ty, llvm_i32_ty, llvm_v16i8_ty, llvm_i32_ty,
+		     llvm_i8_ty],
+		    [IntrNoMem]>;
+}
 
 //===----------------------------------------------------------------------===//
 // MMX

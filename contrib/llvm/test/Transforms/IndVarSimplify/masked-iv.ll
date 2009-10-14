@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -indvars | llvm-dis > %t
+; RUN: opt < %s -indvars -S > %t
 ; RUN: not grep trunc %t
 ; RUN: grep and %t | count 1
 

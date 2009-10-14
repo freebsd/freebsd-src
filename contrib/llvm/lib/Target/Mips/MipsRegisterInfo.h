@@ -34,7 +34,7 @@ struct MipsRegisterInfo : public MipsGenRegisterInfo {
   static unsigned getRegisterNumbering(unsigned RegEnum);
 
   /// Get PIC indirect call register
-  static unsigned getPICCallReg(void); 
+  static unsigned getPICCallReg();
 
   /// Adjust the Mips stack frame.
   void adjustMipsStackFrame(MachineFunction &MF) const;
@@ -54,8 +54,9 @@ struct MipsRegisterInfo : public MipsGenRegisterInfo {
                                      MachineBasicBlock::iterator I) const;
 
   /// Stack Frame Processing Methods
-  void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+  unsigned eliminateFrameIndex(MachineBasicBlock::iterator II,
+                               int SPAdj, int *Value = NULL,
+                               RegScavenger *RS = NULL) const;
 
   void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
 

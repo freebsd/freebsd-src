@@ -38,9 +38,8 @@ class VISIBILITY_HIDDEN X86ATTAsmPrinter : public AsmPrinter {
   MCStreamer *Streamer;
  public:
   explicit X86ATTAsmPrinter(raw_ostream &O, X86TargetMachine &TM,
-                            const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                            bool V)
-    : AsmPrinter(O, TM, T, OL, V) {
+                            const TargetAsmInfo *T, bool V)
+    : AsmPrinter(O, TM, T, V) {
     Subtarget = &TM.getSubtarget<X86Subtarget>();
     Context = 0;
     Streamer = 0;
@@ -140,6 +139,9 @@ class VISIBILITY_HIDDEN X86ATTAsmPrinter : public AsmPrinter {
   void printi128mem(const MachineInstr *MI, unsigned OpNo) {
     printMemReference(MI, OpNo);
   }
+  void printi256mem(const MachineInstr *MI, unsigned OpNo) {
+    printMemReference(MI, OpNo);
+  }
   void printf32mem(const MachineInstr *MI, unsigned OpNo) {
     printMemReference(MI, OpNo);
   }
@@ -150,6 +152,9 @@ class VISIBILITY_HIDDEN X86ATTAsmPrinter : public AsmPrinter {
     printMemReference(MI, OpNo);
   }
   void printf128mem(const MachineInstr *MI, unsigned OpNo) {
+    printMemReference(MI, OpNo);
+  }
+  void printf256mem(const MachineInstr *MI, unsigned OpNo) {
     printMemReference(MI, OpNo);
   }
   void printlea32mem(const MachineInstr *MI, unsigned OpNo) {

@@ -12,46 +12,56 @@
 //===----------------------------------------------------------------------===//
 
 #include "AsmLexer.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Config/config.h"  // for strtoull.
+#include "llvm/MC/MCAsmInfo.h"
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 using namespace llvm;
 
-static StringSet<> &getSS(void *TheSS) {
-  return *(StringSet<>*)TheSS;
-}
-
-AsmLexer::AsmLexer(SourceMgr &SM) : SrcMgr(SM) {
+AsmLexer::AsmLexer(SourceMgr &SM, const MCAsmInfo &_MAI) : SrcMgr(SM),
+                                                           MAI(_MAI)  {
   CurBuffer = 0;
   CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
   CurPtr = CurBuf->getBufferStart();
   TokStart = 0;
-  
-  TheStringSet = new StringSet<>();
 }
 
 AsmLexer::~AsmLexer() {
-  delete &getSS(TheStringSet);
 }
 
 SMLoc AsmLexer::getLoc() const {
   return SMLoc::getFromPointer(TokStart);
 }
 
-void AsmLexer::PrintMessage(SMLoc Loc, const std::string &Msg) const {
-  SrcMgr.PrintMessage(Loc, Msg);
+void AsmLexer::PrintMessage(SMLoc Loc, const std::string &Msg, 
+                            const char *Type) const {
+  SrcMgr.PrintMessage(Loc, Msg, Type);
 }
 
 /// ReturnError - Set the error to the specified string at the specified
-/// location.  This is defined to always return asmtok::Error.
-asmtok::TokKind AsmLexer::ReturnError(const char *Loc, const std::string &Msg) {
-  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), Msg);
-  return asmtok::Error;
+/// location.  This is defined to always return AsmToken::Error.
+AsmToken AsmLexer::ReturnError(const char *Loc, const std::string &Msg) {
+  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), Msg, "error");
+  return AsmToken(AsmToken::Error, StringRef(Loc, 0));
 }
+
+/// EnterIncludeFile - Enter the specified file.  This prints an error and
+/// returns true on failure.
+bool AsmLexer::EnterIncludeFile(const std::string &Filename) {
+  int NewBuf = SrcMgr.AddIncludeFile(Filename, SMLoc::getFromPointer(CurPtr));
+  if (NewBuf == -1)
+    return true;
+  
+  // Save the line number and lex buffer of the includer.
+  CurBuffer = NewBuf;
+  CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
+  CurPtr = CurBuf->getBufferStart();
+  return false;
+}
+
 
 int AsmLexer::getNextChar() {
   char CurChar = *CurPtr++;
@@ -71,6 +81,10 @@ int AsmLexer::getNextChar() {
       CurBuffer = SrcMgr.FindBufferContainingLoc(ParentIncludeLoc);
       CurBuf = SrcMgr.getMemoryBuffer(CurBuffer);
       CurPtr = ParentIncludeLoc.getPointer();
+      
+      // Reset the token start pointer to the start of the new file.
+      TokStart = CurPtr;
+      
       return getNextChar();
     }
     
@@ -82,35 +96,21 @@ int AsmLexer::getNextChar() {
 }
 
 /// LexIdentifier: [a-zA-Z_.][a-zA-Z0-9_$.@]*
-asmtok::TokKind AsmLexer::LexIdentifier() {
+AsmToken AsmLexer::LexIdentifier() {
   while (isalnum(*CurPtr) || *CurPtr == '_' || *CurPtr == '$' ||
          *CurPtr == '.' || *CurPtr == '@')
     ++CurPtr;
-  // Unique string.
-  CurStrVal =
-    getSS(TheStringSet).GetOrCreateValue(TokStart, CurPtr, 0).getKeyData();
-  return asmtok::Identifier;
-}
-
-/// LexPercent: Register: %[a-zA-Z0-9]+
-asmtok::TokKind AsmLexer::LexPercent() {
-  if (!isalnum(*CurPtr))
-    return asmtok::Percent;  // Single %.
-  
-  while (isalnum(*CurPtr))
-    ++CurPtr;
-  
-  // Unique string.
-  CurStrVal =
-    getSS(TheStringSet).GetOrCreateValue(TokStart, CurPtr, 0).getKeyData();
-  return asmtok::Register;
+  return AsmToken(AsmToken::Identifier, StringRef(TokStart, CurPtr - TokStart));
 }
 
 /// LexSlash: Slash: /
 ///           C-Style Comment: /* ... */
-asmtok::TokKind AsmLexer::LexSlash() {
-  if (*CurPtr != '*')
-    return asmtok::Slash;
+AsmToken AsmLexer::LexSlash() {
+  switch (*CurPtr) {
+  case '*': break; // C style comment.
+  case '/': return ++CurPtr, LexLineComment();
+  default:  return AsmToken(AsmToken::Slash, StringRef(CurPtr, 1));
+  }
 
   // C Style comment.
   ++CurPtr;  // skip the star.
@@ -129,15 +129,18 @@ asmtok::TokKind AsmLexer::LexSlash() {
   }
 }
 
-/// LexHash: Comment: #[^\n]*
-asmtok::TokKind AsmLexer::LexHash() {
+/// LexLineComment: Comment: #[^\n]*
+///                        : //[^\n]*
+AsmToken AsmLexer::LexLineComment() {
+  // FIXME: This is broken if we happen to a comment at the end of a file, which
+  // was .included, and which doesn't end with a newline.
   int CurChar = getNextChar();
   while (CurChar != '\n' && CurChar != '\n' && CurChar != EOF)
     CurChar = getNextChar();
   
   if (CurChar == EOF)
-    return asmtok::Eof;
-  return asmtok::EndOfStatement;
+    return AsmToken(AsmToken::Eof, StringRef(CurPtr, 0));
+  return AsmToken(AsmToken::EndOfStatement, StringRef(CurPtr, 0));
 }
 
 
@@ -149,7 +152,7 @@ asmtok::TokKind AsmLexer::LexHash() {
 ///   Hex integer: 0x[0-9a-fA-F]+
 ///   Decimal integer: [1-9][0-9]*
 /// TODO: FP literal.
-asmtok::TokKind AsmLexer::LexDigit() {
+AsmToken AsmLexer::LexDigit() {
   if (*CurPtr == ':')
     return ReturnError(TokStart, "FIXME: local label not implemented");
   if (*CurPtr == 'f' || *CurPtr == 'b')
@@ -159,8 +162,8 @@ asmtok::TokKind AsmLexer::LexDigit() {
   if (CurPtr[-1] != '0') {
     while (isdigit(*CurPtr))
       ++CurPtr;
-    CurIntVal = strtoll(TokStart, 0, 10);
-    return asmtok::IntVal;
+    return AsmToken(AsmToken::Integer, StringRef(TokStart, CurPtr - TokStart), 
+                    strtoll(TokStart, 0, 10));
   }
   
   if (*CurPtr == 'b') {
@@ -172,8 +175,8 @@ asmtok::TokKind AsmLexer::LexDigit() {
     // Requires at least one binary digit.
     if (CurPtr == NumStart)
       return ReturnError(CurPtr-2, "Invalid binary number");
-    CurIntVal = strtoll(NumStart, 0, 2);
-    return asmtok::IntVal;
+    return AsmToken(AsmToken::Integer, StringRef(TokStart, CurPtr - TokStart),
+                    strtoll(NumStart, 0, 2));
   }
  
   if (*CurPtr == 'x') {
@@ -187,29 +190,28 @@ asmtok::TokKind AsmLexer::LexDigit() {
       return ReturnError(CurPtr-2, "Invalid hexadecimal number");
     
     errno = 0;
-    CurIntVal = strtoll(NumStart, 0, 16);
     if (errno == EINVAL)
       return ReturnError(CurPtr-2, "Invalid hexadecimal number");
     if (errno == ERANGE) {
       errno = 0;
-      CurIntVal = (int64_t)strtoull(NumStart, 0, 16);
       if (errno == EINVAL)
         return ReturnError(CurPtr-2, "Invalid hexadecimal number");
       if (errno == ERANGE)
         return ReturnError(CurPtr-2, "Hexadecimal number out of range");
     }
-    return asmtok::IntVal;
+    return AsmToken(AsmToken::Integer, StringRef(TokStart, CurPtr - TokStart),
+                    (int64_t) strtoull(NumStart, 0, 16));
   }
   
   // Must be an octal number, it starts with 0.
   while (*CurPtr >= '0' && *CurPtr <= '7')
     ++CurPtr;
-  CurIntVal = strtoll(TokStart, 0, 8);
-  return asmtok::IntVal;
+  return AsmToken(AsmToken::Integer, StringRef(TokStart, CurPtr - TokStart),
+                  strtoll(TokStart, 0, 8));
 }
 
 /// LexQuote: String: "..."
-asmtok::TokKind AsmLexer::LexQuote() {
+AsmToken AsmLexer::LexQuote() {
   int CurChar = getNextChar();
   // TODO: does gas allow multiline string constants?
   while (CurChar != '"') {
@@ -224,18 +226,35 @@ asmtok::TokKind AsmLexer::LexQuote() {
     CurChar = getNextChar();
   }
   
-  // Unique string, include quotes for now.
-  CurStrVal =
-    getSS(TheStringSet).GetOrCreateValue(TokStart, CurPtr, 0).getKeyData();
-  return asmtok::String;
+  return AsmToken(AsmToken::String, StringRef(TokStart, CurPtr - TokStart));
 }
 
+StringRef AsmLexer::LexUntilEndOfStatement() {
+  TokStart = CurPtr;
 
-asmtok::TokKind AsmLexer::LexToken() {
+  while (!isAtStartOfComment(*CurPtr) && // Start of line comment.
+	  *CurPtr != ';' &&  // End of statement marker.
+         *CurPtr != '\n' &&
+         *CurPtr != '\r' &&
+         (*CurPtr != 0 || CurPtr != CurBuf->getBufferEnd())) {
+    ++CurPtr;
+  }
+  return StringRef(TokStart, CurPtr-TokStart);
+}
+
+bool AsmLexer::isAtStartOfComment(char Char) {
+  // FIXME: This won't work for multi-character comment indicators like "//".
+  return Char == *MAI.getCommentString();
+}
+
+AsmToken AsmLexer::LexToken() {
   TokStart = CurPtr;
   // This always consumes at least one character.
   int CurChar = getNextChar();
   
+  if (isAtStartOfComment(CurChar))
+    return LexLineComment();
+
   switch (CurChar) {
   default:
     // Handle identifier: [a-zA-Z_.][a-zA-Z0-9_$.@]*
@@ -244,7 +263,7 @@ asmtok::TokKind AsmLexer::LexToken() {
     
     // Unknown character, emit an error.
     return ReturnError(TokStart, "invalid character in input");
-  case EOF: return asmtok::Eof;
+  case EOF: return AsmToken(AsmToken::Eof, StringRef(TokStart, 0));
   case 0:
   case ' ':
   case '\t':
@@ -252,42 +271,62 @@ asmtok::TokKind AsmLexer::LexToken() {
     return LexToken();
   case '\n': // FALL THROUGH.
   case '\r': // FALL THROUGH.
-  case ';': return asmtok::EndOfStatement;
-  case ':': return asmtok::Colon;
-  case '+': return asmtok::Plus;
-  case '-': return asmtok::Minus;
-  case '~': return asmtok::Tilde;
-  case '(': return asmtok::LParen;
-  case ')': return asmtok::RParen;
-  case '*': return asmtok::Star;
-  case ',': return asmtok::Comma;
-  case '$': return asmtok::Dollar;
-  case '=': return asmtok::Equal;
-  case '|': return asmtok::Pipe;
-  case '^': return asmtok::Caret;
-  case '&': return asmtok::Amp;
-  case '!': return asmtok::Exclaim;
-  case '%': return LexPercent();
+  case ';': return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
+  case ':': return AsmToken(AsmToken::Colon, StringRef(TokStart, 1));
+  case '+': return AsmToken(AsmToken::Plus, StringRef(TokStart, 1));
+  case '-': return AsmToken(AsmToken::Minus, StringRef(TokStart, 1));
+  case '~': return AsmToken(AsmToken::Tilde, StringRef(TokStart, 1));
+  case '(': return AsmToken(AsmToken::LParen, StringRef(TokStart, 1));
+  case ')': return AsmToken(AsmToken::RParen, StringRef(TokStart, 1));
+  case '[': return AsmToken(AsmToken::LBrac, StringRef(TokStart, 1));
+  case ']': return AsmToken(AsmToken::RBrac, StringRef(TokStart, 1));
+  case '{': return AsmToken(AsmToken::LCurly, StringRef(TokStart, 1));
+  case '}': return AsmToken(AsmToken::RCurly, StringRef(TokStart, 1));
+  case '*': return AsmToken(AsmToken::Star, StringRef(TokStart, 1));
+  case ',': return AsmToken(AsmToken::Comma, StringRef(TokStart, 1));
+  case '$': return AsmToken(AsmToken::Dollar, StringRef(TokStart, 1));
+  case '=': 
+    if (*CurPtr == '=')
+      return ++CurPtr, AsmToken(AsmToken::EqualEqual, StringRef(TokStart, 2));
+    return AsmToken(AsmToken::Equal, StringRef(TokStart, 1));
+  case '|': 
+    if (*CurPtr == '|')
+      return ++CurPtr, AsmToken(AsmToken::PipePipe, StringRef(TokStart, 2));
+    return AsmToken(AsmToken::Pipe, StringRef(TokStart, 1));
+  case '^': return AsmToken(AsmToken::Caret, StringRef(TokStart, 1));
+  case '&': 
+    if (*CurPtr == '&')
+      return ++CurPtr, AsmToken(AsmToken::AmpAmp, StringRef(TokStart, 2));
+    return AsmToken(AsmToken::Amp, StringRef(TokStart, 1));
+  case '!': 
+    if (*CurPtr == '=')
+      return ++CurPtr, AsmToken(AsmToken::ExclaimEqual, StringRef(TokStart, 2));
+    return AsmToken(AsmToken::Exclaim, StringRef(TokStart, 1));
+  case '%': return AsmToken(AsmToken::Percent, StringRef(TokStart, 1));
   case '/': return LexSlash();
-  case '#': return LexHash();
+  case '#': return AsmToken(AsmToken::Hash, StringRef(TokStart, 1));
   case '"': return LexQuote();
   case '0': case '1': case '2': case '3': case '4':
   case '5': case '6': case '7': case '8': case '9':
     return LexDigit();
   case '<':
-    if (*CurPtr == '<') {
-      ++CurPtr;
-      return asmtok::LessLess;
+    switch (*CurPtr) {
+    case '<': return ++CurPtr, AsmToken(AsmToken::LessLess, 
+                                        StringRef(TokStart, 2));
+    case '=': return ++CurPtr, AsmToken(AsmToken::LessEqual, 
+                                        StringRef(TokStart, 2));
+    case '>': return ++CurPtr, AsmToken(AsmToken::LessGreater, 
+                                        StringRef(TokStart, 2));
+    default: return AsmToken(AsmToken::Less, StringRef(TokStart, 1));
     }
-    // Don't have any use for bare '<' yet.
-    return ReturnError(TokStart, "invalid character in input");
   case '>':
-    if (*CurPtr == '>') {
-      ++CurPtr;
-      return asmtok::GreaterGreater;
+    switch (*CurPtr) {
+    case '>': return ++CurPtr, AsmToken(AsmToken::GreaterGreater, 
+                                        StringRef(TokStart, 2));
+    case '=': return ++CurPtr, AsmToken(AsmToken::GreaterEqual, 
+                                        StringRef(TokStart, 2));
+    default: return AsmToken(AsmToken::Greater, StringRef(TokStart, 1));
     }
-    // Don't have any use for bare '>' yet.
-    return ReturnError(TokStart, "invalid character in input");
       
   // TODO: Quoted identifiers (objc methods etc)
   // local labels: [0-9][:]

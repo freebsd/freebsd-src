@@ -10,15 +10,16 @@
 #ifndef ELFCODEEMITTER_H
 #define ELFCODEEMITTER_H
 
-#include "ELFWriter.h"
-#include "llvm/CodeGen/MachineCodeEmitter.h"
+#include "llvm/CodeGen/ObjectCodeEmitter.h"
 #include <vector>
 
 namespace llvm {
+  class ELFWriter;
+  class ELFSection;
 
   /// ELFCodeEmitter - This class is used by the ELFWriter to 
   /// emit the code for functions to the ELF file.
-  class ELFCodeEmitter : public MachineCodeEmitter {
+  class ELFCodeEmitter : public ObjectCodeEmitter {
     ELFWriter &EW;
 
     /// Target machine description
@@ -27,95 +28,48 @@ namespace llvm {
     /// Section containing code for functions
     ELFSection *ES;
 
-    /// Relocations - These are the relocations that the function needs, as
-    /// emitted.
+    /// Relocations - Record relocations needed by the current function 
     std::vector<MachineRelocation> Relocations;
 
-    /// CPLocations - This is a map of constant pool indices to offsets from the
-    /// start of the section for that constant pool index.
-    std::vector<uintptr_t> CPLocations;
+    /// JTRelocations - Record relocations needed by the relocation
+    /// section.
+    std::vector<MachineRelocation> JTRelocations;
 
-    /// CPSections - This is a map of constant pool indices to the MachOSection
-    /// containing the constant pool entry for that index.
-    std::vector<unsigned> CPSections;
-
-    /// MBBLocations - This vector is a mapping from MBB ID's to their address.
-    /// It is filled in by the StartMachineBasicBlock callback and queried by
-    /// the getMachineBasicBlockAddress callback.
-    std::vector<uintptr_t> MBBLocations;
-
-    /// FnStartPtr - Pointer to the start location of the current function
-    /// in the buffer
-    uint8_t *FnStartPtr;
+    /// FnStartPtr - Function offset from the beginning of ELFSection 'ES'
+    uintptr_t FnStartOff;
   public:
     explicit ELFCodeEmitter(ELFWriter &ew) : EW(ew), TM(EW.TM) {}
 
-    void startFunction(MachineFunction &F);
-    bool finishFunction(MachineFunction &F);
-
+    /// addRelocation - Register new relocations for this function
     void addRelocation(const MachineRelocation &MR) {
       Relocations.push_back(MR);
     }
 
-    virtual void StartMachineBasicBlock(MachineBasicBlock *MBB) {
-      if (MBBLocations.size() <= (unsigned)MBB->getNumber())
-        MBBLocations.resize((MBB->getNumber()+1)*2);
-      MBBLocations[MBB->getNumber()] = getCurrentPCOffset();
-    }
-
-    virtual uintptr_t getMachineBasicBlockAddress(MachineBasicBlock *MBB) {
-      assert(MBBLocations.size() > (unsigned)MBB->getNumber() && 
-             MBBLocations[MBB->getNumber()] && "MBB not emitted!");
-      return MBBLocations[MBB->getNumber()];
-    }
-
-    virtual uintptr_t getConstantPoolEntryAddress(unsigned Index) const {
-      assert(CPLocations.size() > Index && "CP not emitted!");
-      return CPLocations[Index];
-    }
-
-    virtual uintptr_t getJumpTableEntryAddress(unsigned Index) const {
-      assert(0 && "JT not implementated yet!");
-      return 0;
-    }
-
-    virtual uintptr_t getMachineBasicBlockAddress(MachineBasicBlock *MBB) const {
-      assert(0 && "JT not implementated yet!");
-      return 0;
-    }
-
-    virtual uintptr_t getLabelAddress(uint64_t Label) const {
-      assert(0 && "Label address not implementated yet!");
-      abort();
-      return 0;
-    }
-
-    virtual void emitLabel(uint64_t LabelID) {
-      assert(0 && "emit Label not implementated yet!");
-      abort();
-    }
-
-    /// emitConstantPool - For each constant pool entry, figure out which section
-    /// the constant should live in and emit the constant.
+    /// emitConstantPool - For each constant pool entry, figure out which
+    /// section the constant should live in and emit data to it
     void emitConstantPool(MachineConstantPool *MCP);
 
-    virtual void setModuleInfo(llvm::MachineModuleInfo* MMI) { }
+    /// emitJumpTables - Emit all the jump tables for a given jump table
+    /// info and record them to the appropriate section.
+    void emitJumpTables(MachineJumpTableInfo *MJTI);
 
-    /// JIT SPECIFIC FUNCTIONS - DO NOT IMPLEMENT THESE HERE!
-    void startGVStub(const GlobalValue* F, unsigned StubSize,
-                     unsigned Alignment = 1) {
-      assert(0 && "JIT specific function called!");
-      abort();
+    void startFunction(MachineFunction &F);
+    bool finishFunction(MachineFunction &F);
+
+    /// emitLabel - Emits a label
+    virtual void emitLabel(uint64_t LabelID) {
+      assert("emitLabel not implemented");
     }
-    void startGVStub(const GlobalValue* F,  void *Buffer, unsigned StubSize) {
-      assert(0 && "JIT specific function called!");
-      abort();
-    }
-    void *finishGVStub(const GlobalValue *F) {
-      assert(0 && "JIT specific function called!");
-      abort();
+
+    /// getLabelAddress - Return the address of the specified LabelID, 
+    /// only usable after the LabelID has been emitted.
+    virtual uintptr_t getLabelAddress(uint64_t Label) const {
+      assert("getLabelAddress not implemented");
       return 0;
     }
+
+    virtual void setModuleInfo(llvm::MachineModuleInfo* MMI) {}
+
 };  // end class ELFCodeEmitter
 
 } // end namespace llvm

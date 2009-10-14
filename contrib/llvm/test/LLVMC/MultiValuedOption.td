@@ -1,6 +1,6 @@
 // Check that multivalued options work.
 // The dummy tool and graph are required to silence warnings.
-// RUN: tblgen -I $srcroot/include --gen-llvmc %s -o %t
+// RUN: tblgen -I %p/../../include --gen-llvmc %s -o %t
 // RUN: grep cl::multi_val(2) %t | count 1
 
 include "llvm/CompilerDriver/Common.td"
@@ -10,7 +10,7 @@ def OptList : OptionList<[
     (parameter_list_option "baz", (multi_val 2), (extern))]>;
 
 def dummy_tool : Tool<[
-(cmd_line "dummy_cmd"),
+(cmd_line "dummy_cmd $INFILE"),
 (in_language "dummy"),
 (out_language "dummy"),
 (actions (case

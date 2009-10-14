@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | not grep bitcast
+; RUN: opt < %s -instcombine -S | not grep bitcast
 ; PR2165
 
 define <1 x i64> @test() {

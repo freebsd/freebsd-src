@@ -19,6 +19,7 @@ namespace llvm {
 
 class User;
 class BasicBlock;
+class BranchInst;
 class Instruction;
 class Value;
 class Pass;
@@ -26,6 +27,7 @@ class PHINode;
 class AllocaInst;
 class ConstantExpr;
 class TargetData;
+class LLVMContext;
 struct DbgInfoIntrinsic;
 
 template<typename T> class SmallVectorImpl;
@@ -81,7 +83,7 @@ void RecursivelyDeleteDeadPHINode(PHINode *PN);
 /// between them, moving the instructions in the predecessor into BB.  This
 /// deletes the predecessor block.
 ///
-void MergeBasicBlockIntoOnlyPred(BasicBlock *BB);
+void MergeBasicBlockIntoOnlyPred(BasicBlock *BB, Pass *P = 0);
     
   
 /// SimplifyCFG - This function is used to do simplification of a CFG.  For
@@ -94,13 +96,20 @@ void MergeBasicBlockIntoOnlyPred(BasicBlock *BB);
 ///
 bool SimplifyCFG(BasicBlock *BB);
 
+/// FoldBranchToCommonDest - If this basic block is ONLY a setcc and a branch,
+/// and if a predecessor branches to us and one of our successors, fold the
+/// setcc into the predecessor and use logical operations to pick the right
+/// destination.
+bool FoldBranchToCommonDest(BranchInst *BI);
+
 /// DemoteRegToStack - This function takes a virtual register computed by an
 /// Instruction and replaces it with a slot in the stack frame, allocated via
 /// alloca.  This allows the CFG to be changed around without fear of
 /// invalidating the SSA information for the value.  It returns the pointer to
 /// the alloca inserted to create a stack slot for X.
 ///
-AllocaInst *DemoteRegToStack(Instruction &X, bool VolatileLoads = false,
+AllocaInst *DemoteRegToStack(Instruction &X,
+                             bool VolatileLoads = false,
                              Instruction *AllocaPoint = 0);
 
 /// DemotePHIToStack - This function takes a virtual register computed by a phi

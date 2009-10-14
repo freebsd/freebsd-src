@@ -17,10 +17,11 @@
 
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/raw_ostream.h"
 #include <map>
-#include <ostream>
 
 namespace llvm {
+class raw_ostream;
   
 // RecTy subclasses.
 class BitRecTy;
@@ -65,7 +66,7 @@ struct RecTy {
   virtual ~RecTy() {}
 
   virtual std::string getAsString() const = 0;
-  void print(std::ostream &OS) const { OS << getAsString(); }
+  void print(raw_ostream &OS) const { OS << getAsString(); }
   void dump() const;
 
   /// typeIsConvertibleTo - Return true if all values of 'this' type can be
@@ -113,7 +114,7 @@ public:   // These methods should only be called by subclasses of RecTy.
   virtual bool baseClassOf(const RecordRecTy *RHS) const { return false; }
 };
 
-inline std::ostream &operator<<(std::ostream &OS, const RecTy &Ty) {
+inline raw_ostream &operator<<(raw_ostream &OS, const RecTy &Ty) {
   Ty.print(OS);
   return OS;
 }
@@ -459,13 +460,13 @@ struct Init {
   virtual bool isComplete() const { return true; }
 
   /// print - Print out this value.
-  void print(std::ostream &OS) const { OS << getAsString(); }
+  void print(raw_ostream &OS) const { OS << getAsString(); }
 
   /// getAsString - Convert this value to a string form.
   virtual std::string getAsString() const = 0;
 
   /// dump - Debugging method that may be called through a debugger, just
-  /// invokes print on cerr.
+  /// invokes print on stderr.
   void dump() const;
 
   /// convertInitializerTo - This virtual function is a simple call-back
@@ -516,7 +517,7 @@ struct Init {
   }
 };
 
-inline std::ostream &operator<<(std::ostream &OS, const Init &I) {
+inline raw_ostream &operator<<(raw_ostream &OS, const Init &I) {
   I.print(OS); return OS;
 }
 
@@ -613,9 +614,9 @@ public:
 
   // printXX - Print this bitstream with the specified format, returning true if
   // it is not possible.
-  bool printInHex(std::ostream &OS) const;
-  bool printAsVariable(std::ostream &OS) const;
-  bool printAsUnset(std::ostream &OS) const;
+  bool printInHex(raw_ostream &OS) const;
+  bool printAsVariable(raw_ostream &OS) const;
+  bool printAsUnset(raw_ostream &OS) const;
 };
 
 
@@ -781,7 +782,7 @@ public:
   // Clone - Clone this operator, replacing arguments with the new list
   virtual OpInit *clone(std::vector<Init *> &Operands) = 0;
 
-  virtual int getNumOperands(void) const = 0;
+  virtual int getNumOperands() const = 0;
   virtual Init *getOperand(int i) = 0;
 
   // Fold - If possible, fold this to a simpler init.  Return this if not
@@ -819,7 +820,7 @@ public:
     return new UnOpInit(getOpcode(), *Operands.begin(), getType());
   }
 
-  int getNumOperands(void) const { return 1; }
+  int getNumOperands() const { return 1; }
   Init *getOperand(int i) {
     assert(i == 0 && "Invalid operand id for unary operator");
     return getOperand();
@@ -834,6 +835,12 @@ public:
 
   virtual Init *resolveReferences(Record &R, const RecordVal *RV);
   
+  /// getFieldType - This method is used to implement the FieldInit class.
+  /// Implementors of this method should return the type of the named field if
+  /// they are of record type.
+  ///
+  virtual RecTy *getFieldType(const std::string &FieldName) const;
+
   virtual std::string getAsString() const;
 };
 
@@ -857,7 +864,7 @@ public:
     return new BinOpInit(getOpcode(), Operands[0], Operands[1], getType());
   }
 
-  int getNumOperands(void) const { return 2; }
+  int getNumOperands() const { return 2; }
   Init *getOperand(int i) {
     assert((i == 0 || i == 1) && "Invalid operand id for binary operator");
     if (i == 0) {
@@ -902,7 +909,7 @@ public:
                           getType());
   }
 
-  int getNumOperands(void) const { return 3; }
+  int getNumOperands() const { return 3; }
   Init *getOperand(int i) {
     assert((i == 0 || i == 1 || i == 2) &&
            "Invalid operand id for ternary operator");
@@ -1204,15 +1211,19 @@ public:
   }
 
   void dump() const;
-  void print(std::ostream &OS, bool PrintSem = true) const;
+  void print(raw_ostream &OS, bool PrintSem = true) const;
 };
 
-inline std::ostream &operator<<(std::ostream &OS, const RecordVal &RV) {
+inline raw_ostream &operator<<(raw_ostream &OS, const RecordVal &RV) {
   RV.print(OS << "  ");
   return OS;
 }
 
 class Record {
+  static unsigned LastID;
+
+  // Unique record ID.
+  unsigned ID;
   std::string Name;
   SMLoc Loc;
   std::vector<std::string> TemplateArgs;
@@ -1220,9 +1231,12 @@ class Record {
   std::vector<Record*> SuperClasses;
 public:
 
-  explicit Record(const std::string &N, SMLoc loc) : Name(N), Loc(loc) {}
+  explicit Record(const std::string &N, SMLoc loc) : 
+    ID(LastID++), Name(N), Loc(loc) {}
   ~Record() {}
   
+  unsigned getID() const { return ID; }
+
   const std::string &getName() const { return Name; }
   void setName(const std::string &Name);  // Also updates RecordKeeper.
   
@@ -1234,24 +1248,24 @@ public:
   const std::vector<RecordVal> &getValues() const { return Values; }
   const std::vector<Record*>   &getSuperClasses() const { return SuperClasses; }
 
-  bool isTemplateArg(const std::string &Name) const {
+  bool isTemplateArg(StringRef Name) const {
     for (unsigned i = 0, e = TemplateArgs.size(); i != e; ++i)
       if (TemplateArgs[i] == Name) return true;
     return false;
   }
 
-  const RecordVal *getValue(const std::string &Name) const {
+  const RecordVal *getValue(StringRef Name) const {
     for (unsigned i = 0, e = Values.size(); i != e; ++i)
       if (Values[i].getName() == Name) return &Values[i];
     return 0;
   }
-  RecordVal *getValue(const std::string &Name) {
+  RecordVal *getValue(StringRef Name) {
     for (unsigned i = 0, e = Values.size(); i != e; ++i)
       if (Values[i].getName() == Name) return &Values[i];
     return 0;
   }
 
-  void addTemplateArg(const std::string &Name) {
+  void addTemplateArg(StringRef Name) {
     assert(!isTemplateArg(Name) && "Template arg already defined!");
     TemplateArgs.push_back(Name);
   }
@@ -1261,7 +1275,7 @@ public:
     Values.push_back(RV);
   }
 
-  void removeValue(const std::string &Name) {
+  void removeValue(StringRef Name) {
     assert(getValue(Name) && "Cannot remove an entry that does not exist!");
     for (unsigned i = 0, e = Values.size(); i != e; ++i)
       if (Values[i].getName() == Name) {
@@ -1278,7 +1292,7 @@ public:
     return false;
   }
 
-  bool isSubClassOf(const std::string &Name) const {
+  bool isSubClassOf(StringRef Name) const {
     for (unsigned i = 0, e = SuperClasses.size(); i != e; ++i)
       if (SuperClasses[i]->getName() == Name)
         return true;
@@ -1309,70 +1323,70 @@ public:
   /// getValueInit - Return the initializer for a value with the specified name,
   /// or throw an exception if the field does not exist.
   ///
-  Init *getValueInit(const std::string &FieldName) const;
+  Init *getValueInit(StringRef FieldName) const;
 
   /// getValueAsString - This method looks up the specified field and returns
   /// its value as a string, throwing an exception if the field does not exist
   /// or if the value is not a string.
   ///
-  std::string getValueAsString(const std::string &FieldName) const;
+  std::string getValueAsString(StringRef FieldName) const;
 
   /// getValueAsBitsInit - This method looks up the specified field and returns
   /// its value as a BitsInit, throwing an exception if the field does not exist
   /// or if the value is not the right type.
   ///
-  BitsInit *getValueAsBitsInit(const std::string &FieldName) const;
+  BitsInit *getValueAsBitsInit(StringRef FieldName) const;
 
   /// getValueAsListInit - This method looks up the specified field and returns
   /// its value as a ListInit, throwing an exception if the field does not exist
   /// or if the value is not the right type.
   ///
-  ListInit *getValueAsListInit(const std::string &FieldName) const;
+  ListInit *getValueAsListInit(StringRef FieldName) const;
 
   /// getValueAsListOfDefs - This method looks up the specified field and
   /// returns its value as a vector of records, throwing an exception if the
   /// field does not exist or if the value is not the right type.
   ///
-  std::vector<Record*> getValueAsListOfDefs(const std::string &FieldName) const;
+  std::vector<Record*> getValueAsListOfDefs(StringRef FieldName) const;
 
   /// getValueAsListOfInts - This method looks up the specified field and returns
   /// its value as a vector of integers, throwing an exception if the field does
   /// not exist or if the value is not the right type.
   ///
-  std::vector<int64_t> getValueAsListOfInts(const std::string &FieldName) const;
+  std::vector<int64_t> getValueAsListOfInts(StringRef FieldName) const;
   
   /// getValueAsDef - This method looks up the specified field and returns its
   /// value as a Record, throwing an exception if the field does not exist or if
   /// the value is not the right type.
   ///
-  Record *getValueAsDef(const std::string &FieldName) const;
+  Record *getValueAsDef(StringRef FieldName) const;
 
   /// getValueAsBit - This method looks up the specified field and returns its
   /// value as a bit, throwing an exception if the field does not exist or if
   /// the value is not the right type.
   ///
-  bool getValueAsBit(const std::string &FieldName) const;
+  bool getValueAsBit(StringRef FieldName) const;
 
   /// getValueAsInt - This method looks up the specified field and returns its
   /// value as an int64_t, throwing an exception if the field does not exist or
   /// if the value is not the right type.
   ///
-  int64_t getValueAsInt(const std::string &FieldName) const;
+  int64_t getValueAsInt(StringRef FieldName) const;
 
   /// getValueAsDag - This method looks up the specified field and returns its
   /// value as an Dag, throwing an exception if the field does not exist or if
   /// the value is not the right type.
   ///
-  DagInit *getValueAsDag(const std::string &FieldName) const;
+  DagInit *getValueAsDag(StringRef FieldName) const;
   
   /// getValueAsCode - This method looks up the specified field and returns
   /// its value as the string data in a CodeInit, throwing an exception if the
   /// field does not exist or if the value is not a code object.
   ///
-  std::string getValueAsCode(const std::string &FieldName) const;
+  std::string getValueAsCode(StringRef FieldName) const;
 };
 
-std::ostream &operator<<(std::ostream &OS, const Record &R);
+raw_ostream &operator<<(raw_ostream &OS, const Record &R);
 
 struct MultiClass {
   Record Rec;  // Placeholder for template args and Name.
@@ -1471,7 +1485,7 @@ public:
 };
   
   
-std::ostream &operator<<(std::ostream &OS, const RecordKeeper &RK);
+raw_ostream &operator<<(raw_ostream &OS, const RecordKeeper &RK);
 
 extern RecordKeeper Records;
 

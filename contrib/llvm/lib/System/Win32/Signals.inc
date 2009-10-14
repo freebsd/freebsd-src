@@ -43,6 +43,9 @@ static std::vector<llvm::sys::Path> *FilesToRemove = NULL;
 static std::vector<std::pair<void(*)(void*), void*> > *CallBacksToRun = 0;
 static bool RegisteredUnhandledExceptionFilter = false;
 static bool CleanupExecuted = false;
+#ifdef _MSC_VER
+static bool ExitOnUnhandledExceptions = false;
+#endif
 static PTOP_LEVEL_EXCEPTION_FILTER OldFilter = NULL;
 
 // Windows creates a new thread to execute the console handler when an event
@@ -57,8 +60,38 @@ namespace llvm {
 //===          and must not be UNIX code
 //===----------------------------------------------------------------------===//
 
+#ifdef _MSC_VER
+/// CRTReportHook - Function called on a CRT debugging event.
+static int CRTReportHook(int ReportType, char *Message, int *Return) {
+  // Don't cause a DebugBreak() on return.
+  if (Return)
+    *Return = 0;
 
-static void RegisterHandler() { 
+  switch (ReportType) {
+  default:
+  case _CRT_ASSERT:
+    fprintf(stderr, "CRT assert: %s\n", Message);
+    // FIXME: Is there a way to just crash? Perhaps throw to the unhandled
+    // exception code? Perhaps SetErrorMode() handles this.
+    _exit(3);
+    break;
+  case _CRT_ERROR:
+    fprintf(stderr, "CRT error: %s\n", Message);
+    // FIXME: Is there a way to just crash? Perhaps throw to the unhandled
+    // exception code? Perhaps SetErrorMode() handles this.
+    _exit(3);
+    break;
+  case _CRT_WARN:
+    fprintf(stderr, "CRT warn: %s\n", Message);
+    break;
+  }
+
+  // Don't call _CrtDbgReport.
+  return TRUE;
+}
+#endif
+
+static void RegisterHandler() {
   if (RegisteredUnhandledExceptionFilter) {
     EnterCriticalSection(&CriticalSection);
     return;
@@ -75,6 +108,14 @@ static void RegisterHandler() {
   RegisteredUnhandledExceptionFilter = true;
   OldFilter = SetUnhandledExceptionFilter(LLVMUnhandledExceptionFilter);
   SetConsoleCtrlHandler(LLVMConsoleCtrlHandler, TRUE);
+
+  // Environment variable to disable any kind of crash dialog.
+#ifdef _MSC_VER
+  if (getenv("LLVM_DISABLE_CRT_DEBUG")) {
+    _CrtSetReportHook(CRTReportHook);
+    ExitOnUnhandledExceptions = true;
+  }
+#endif
 
   // IMPORTANT NOTE: Caller must call LeaveCriticalSection(&CriticalSection) or
   // else multi-threading problems will ensue.
@@ -136,10 +177,7 @@ static void Cleanup() {
 
   if (FilesToRemove != NULL)
     while (!FilesToRemove->empty()) {
-      try {
-        FilesToRemove->back().eraseFromDisk();
-      } catch (...) {
-      }
+      FilesToRemove->back().eraseFromDisk();
       FilesToRemove->pop_back();
     }
 
@@ -237,6 +275,11 @@ static LONG WINAPI LLVMUnhandledExceptionFilter(LPEXCEPTION_POINTERS ep) {
   } catch (...) {
       assert(0 && "Crashed in LLVMUnhandledExceptionFilter");
   }
+
+#ifdef _MSC_VER
+  if (ExitOnUnhandledExceptions)
+  	_exit(-3);
+#endif
 
   // Allow dialog box to pop up allowing choice to start debugger.
   if (OldFilter)

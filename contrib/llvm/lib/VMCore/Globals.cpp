@@ -16,8 +16,10 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/GlobalAlias.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/LeakDetector.h"
 using namespace llvm;
 
@@ -76,8 +78,7 @@ void GlobalValue::removeDeadConstantUsers() const {
 /// Override destroyConstant to make sure it doesn't get called on
 /// GlobalValue's because they shouldn't be treated like other constants.
 void GlobalValue::destroyConstant() {
-  assert(0 && "You can't GV->destroyConstant()!");
-  abort();
+  llvm_unreachable("You can't GV->destroyConstant()!");
 }
 
 /// copyAttributesFrom - copy all additional attributes (those not needed to
@@ -93,11 +94,12 @@ void GlobalValue::copyAttributesFrom(const GlobalValue *Src) {
 // GlobalVariable Implementation
 //===----------------------------------------------------------------------===//
 
-GlobalVariable::GlobalVariable(const Type *Ty, bool constant, LinkageTypes Link,
-                               Constant *InitVal, const std::string &Name,
-                               Module *ParentModule, bool ThreadLocal, 
-                               unsigned AddressSpace)
-  : GlobalValue(PointerType::get(Ty, AddressSpace), Value::GlobalVariableVal,
+GlobalVariable::GlobalVariable(LLVMContext &Context, const Type *Ty,
+                               bool constant, LinkageTypes Link,
+                               Constant *InitVal, const Twine &Name,
+                               bool ThreadLocal, unsigned AddressSpace)
+  : GlobalValue(PointerType::get(Ty, AddressSpace), 
+                Value::GlobalVariableVal,
                 OperandTraits<GlobalVariable>::op_begin(this),
                 InitVal != 0, Link, Name),
     isConstantGlobal(constant), isThreadLocalSymbol(ThreadLocal) {
@@ -108,16 +110,15 @@ GlobalVariable::GlobalVariable(const Type *Ty, bool constant, LinkageTypes Link,
   }
 
   LeakDetector::addGarbageObject(this);
-
-  if (ParentModule)
-    ParentModule->getGlobalList().push_back(this);
 }
 
-GlobalVariable::GlobalVariable(const Type *Ty, bool constant, LinkageTypes Link,
-                               Constant *InitVal, const std::string &Name,
+GlobalVariable::GlobalVariable(Module &M, const Type *Ty, bool constant,
+                               LinkageTypes Link, Constant *InitVal,
+                               const Twine &Name,
                                GlobalVariable *Before, bool ThreadLocal,
                                unsigned AddressSpace)
-  : GlobalValue(PointerType::get(Ty, AddressSpace), Value::GlobalVariableVal,
+  : GlobalValue(PointerType::get(Ty, AddressSpace), 
+                Value::GlobalVariableVal,
                 OperandTraits<GlobalVariable>::op_begin(this),
                 InitVal != 0, Link, Name),
     isConstantGlobal(constant), isThreadLocalSymbol(ThreadLocal) {
@@ -131,6 +132,8 @@ GlobalVariable::GlobalVariable(const Type *Ty, bool constant, LinkageTypes Link,
   
   if (Before)
     Before->getParent()->getGlobalList().insert(Before, this);
+  else
+    M.getGlobalList().push_back(this);
 }
 
 void GlobalVariable::setParent(Module *parent) {
@@ -184,7 +187,7 @@ void GlobalVariable::copyAttributesFrom(const GlobalValue *Src) {
 //===----------------------------------------------------------------------===//
 
 GlobalAlias::GlobalAlias(const Type *Ty, LinkageTypes Link,
-                         const std::string &Name, Constant* aliasee,
+                         const Twine &Name, Constant* aliasee,
                          Module *ParentModule)
   : GlobalValue(Ty, Value::GlobalAliasVal, &Op<0>(), 1, Link, Name) {
   LeakDetector::addGarbageObject(this);
@@ -242,7 +245,7 @@ const GlobalValue *GlobalAlias::getAliasedGlobal() const {
            CE->getOpcode() == Instruction::GetElementPtr))
         return dyn_cast<GlobalValue>(CE->getOperand(0));
       else
-        assert(0 && "Unsupported aliasee");
+        llvm_unreachable("Unsupported aliasee");
     }
   }
   return 0;

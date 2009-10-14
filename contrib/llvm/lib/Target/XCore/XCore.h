@@ -21,13 +21,12 @@ namespace llvm {
   class FunctionPass;
   class TargetMachine;
   class XCoreTargetMachine;
-  class raw_ostream;
+  class formatted_raw_ostream;
 
   FunctionPass *createXCoreISelDag(XCoreTargetMachine &TM);
-  FunctionPass *createXCoreCodePrinterPass(raw_ostream &OS,
-                                           XCoreTargetMachine &TM,
-                                           CodeGenOpt::Level OptLevel,
-                                           bool Verbose);
+
+  extern Target TheXCoreTarget;
+
 } // end namespace llvm;
 
 // Defines symbolic names for XCore registers.  This defines a mapping from

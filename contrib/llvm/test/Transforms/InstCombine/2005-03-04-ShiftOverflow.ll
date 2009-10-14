@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -instcombine | llvm-dis | \
+; RUN: opt < %s -instcombine -S | \
 ; RUN:   not grep {ret i1 false}
 
 define i1 @test(i64 %tmp.169) {

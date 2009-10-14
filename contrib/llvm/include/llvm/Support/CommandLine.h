@@ -21,18 +21,17 @@
 #define LLVM_SUPPORT_COMMANDLINE_H
 
 #include "llvm/Support/type_traits.h"
-#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Twine.h"
 #include <cassert>
 #include <climits>
 #include <cstdarg>
-#include <string>
 #include <utility>
 #include <vector>
 
 namespace llvm {
-
+  
 /// cl Namespace - This namespace contains all of the command line option
 /// processing machinery.  It is intentionally a short name to make qualified
 /// usage concise.
@@ -68,7 +67,7 @@ void MarkOptionsChanged();
 // Flags permitted to be passed to command line arguments
 //
 
-enum NumOccurrences {          // Flags for the number of occurrences allowed
+enum NumOccurrencesFlag {      // Flags for the number of occurrences allowed
   Optional        = 0x01,      // Zero or One occurrence
   ZeroOrMore      = 0x02,      // Zero or more occurrences allowed
   Required        = 0x03,      // One occurrence required
@@ -143,8 +142,8 @@ class Option {
   // an argument.  Should return true if there was an error processing the
   // argument and the program should exit.
   //
-  virtual bool handleOccurrence(unsigned pos, const char *ArgName,
-                                const std::string &Arg) = 0;
+  virtual bool handleOccurrence(unsigned pos, StringRef ArgName,
+                                StringRef Arg) = 0;
 
   virtual enum ValueExpected getValueExpectedFlagDefault() const {
     return ValueOptional;
@@ -163,8 +162,8 @@ public:
   const char *HelpStr;    // The descriptive text message for --help
   const char *ValueStr;   // String describing what the value of this option is
 
-  inline enum NumOccurrences getNumOccurrencesFlag() const {
-    return static_cast<enum NumOccurrences>(Flags & OccurrencesMask);
+  inline enum NumOccurrencesFlag getNumOccurrencesFlag() const {
+    return static_cast<enum NumOccurrencesFlag>(Flags & OccurrencesMask);
   }
   inline enum ValueExpected getValueExpectedFlag() const {
     int VE = Flags & ValueMask;
@@ -198,7 +197,7 @@ public:
     Flags |= Flag;
   }
 
-  void setNumOccurrencesFlag(enum NumOccurrences Val) {
+  void setNumOccurrencesFlag(enum NumOccurrencesFlag Val) {
     setFlag(Val, OccurrencesMask);
   }
   void setValueExpectedFlag(enum ValueExpected Val) { setFlag(Val, ValueMask); }
@@ -215,8 +214,7 @@ protected:
            getOptionHiddenFlag() != 0 && "Not all default flags specified!");
   }
 
-  inline void setNumAdditionalVals(unsigned n)
-  { AdditionalVals = n; }
+  inline void setNumAdditionalVals(unsigned n) { AdditionalVals = n; }
 public:
   // addArgument - Register this argument with the commandline system.
   //
@@ -232,15 +230,15 @@ public:
   //
   virtual void printOptionInfo(size_t GlobalWidth) const = 0;
 
-  virtual void getExtraOptionNames(std::vector<const char*> &) {}
+  virtual void getExtraOptionNames(SmallVectorImpl<const char*> &) {}
 
-  // addOccurrence - Wrapper around handleOccurrence that enforces Flags
+  // addOccurrence - Wrapper around handleOccurrence that enforces Flags.
   //
-  bool addOccurrence(unsigned pos, const char *ArgName,
-                     const std::string &Value, bool MultiArg = false);
+  bool addOccurrence(unsigned pos, StringRef ArgName,
+                     StringRef Value, bool MultiArg = false);
 
   // Prints option name followed by message.  Always returns true.
-  bool error(std::string Message, const char *ArgName = 0);
+  bool error(const Twine &Message, StringRef ArgName = StringRef());
 
 public:
   inline int getNumOccurrences() const { return NumOccurrences; }
@@ -399,7 +397,7 @@ struct generic_parser_base {
     hasArgStr = O.hasArgStr();
   }
 
-  void getExtraOptionNames(std::vector<const char*> &OptionNames) {
+  void getExtraOptionNames(SmallVectorImpl<const char*> &OptionNames) {
     // If there has been no argstr specified, that means that we need to add an
     // argument for every possible option.  This ensures that our options are
     // vectored to us.
@@ -458,9 +456,8 @@ public:
   }
 
   // parse - Return true on error.
-  bool parse(Option &O, const char *ArgName, const std::string &Arg,
-             DataType &V) {
-    std::string ArgVal;
+  bool parse(Option &O, StringRef ArgName, StringRef Arg, DataType &V) {
+    StringRef ArgVal;
     if (hasArgStr)
       ArgVal = Arg;
     else
@@ -468,12 +465,12 @@ public:
 
     for (unsigned i = 0, e = static_cast<unsigned>(Values.size());
          i != e; ++i)
-      if (ArgVal == Values[i].first) {
+      if (Values[i].first == ArgVal) {
         V = Values[i].second.first;
         return false;
       }
 
-    return O.error(": Cannot find option named '" + ArgVal + "'!");
+    return O.error("Cannot find option named '" + ArgVal + "'!");
   }
 
   /// addLiteralOption - Add an entry to the mapping table.
@@ -505,7 +502,7 @@ struct basic_parser_impl {  // non-template implementation of basic_parser<t>
     return ValueRequired;
   }
 
-  void getExtraOptionNames(std::vector<const char*> &) {}
+  void getExtraOptionNames(SmallVectorImpl<const char*> &) {}
 
   void initialize(Option &) {}
 
@@ -541,7 +538,7 @@ class parser<bool> : public basic_parser<bool> {
 public:
 
   // parse - Return true on error.
-  bool parse(Option &O, const char *ArgName, const std::string &Arg, bool &Val);
+  bool parse(Option &O, StringRef ArgName, StringRef Arg, bool &Val);
 
   template <class Opt>
   void initialize(Opt &O) {
@@ -568,8 +565,7 @@ template<>
 class parser<boolOrDefault> : public basic_parser<boolOrDefault> {
 public:
   // parse - Return true on error.
-  bool parse(Option &O, const char *ArgName, const std::string &Arg,
-             boolOrDefault &Val);
+  bool parse(Option &O, StringRef ArgName, StringRef Arg, boolOrDefault &Val);
 
   enum ValueExpected getValueExpectedFlagDefault() const {
     return ValueOptional;
@@ -591,7 +587,7 @@ template<>
 class parser<int> : public basic_parser<int> {
 public:
   // parse - Return true on error.
-  bool parse(Option &O, const char *ArgName, const std::string &Arg, int &Val);
+  bool parse(Option &O, StringRef ArgName, StringRef Arg, int &Val);
 
   // getValueName - Overload in subclass to provide a better default value.
   virtual const char *getValueName() const { return "int"; }
@@ -610,7 +606,7 @@ template<>
 class parser<unsigned> : public basic_parser<unsigned> {
 public:
   // parse - Return true on error.
-  bool parse(Option &O, const char *AN, const std::string &Arg, unsigned &Val);
+  bool parse(Option &O, StringRef ArgName, StringRef Arg, unsigned &Val);
 
   // getValueName - Overload in subclass to provide a better default value.
   virtual const char *getValueName() const { return "uint"; }
@@ -628,7 +624,7 @@ template<>
 class parser<double> : public basic_parser<double> {
 public:
   // parse - Return true on error.
-  bool parse(Option &O, const char *AN, const std::string &Arg, double &Val);
+  bool parse(Option &O, StringRef ArgName, StringRef Arg, double &Val);
 
   // getValueName - Overload in subclass to provide a better default value.
   virtual const char *getValueName() const { return "number"; }
@@ -646,7 +642,7 @@ template<>
 class parser<float> : public basic_parser<float> {
 public:
   // parse - Return true on error.
-  bool parse(Option &O, const char *AN, const std::string &Arg, float &Val);
+  bool parse(Option &O, StringRef ArgName, StringRef Arg, float &Val);
 
   // getValueName - Overload in subclass to provide a better default value.
   virtual const char *getValueName() const { return "number"; }
@@ -664,9 +660,8 @@ template<>
 class parser<std::string> : public basic_parser<std::string> {
 public:
   // parse - Return true on error.
-  bool parse(Option &, const char *, const std::string &Arg,
-             std::string &Value) {
-    Value = Arg;
+  bool parse(Option &, StringRef ArgName, StringRef Arg, std::string &Value) {
+    Value = Arg.str();
     return false;
   }
 
@@ -686,8 +681,7 @@ template<>
 class parser<char> : public basic_parser<char> {
 public:
   // parse - Return true on error.
-  bool parse(Option &, const char *, const std::string &Arg,
-             char &Value) {
+  bool parse(Option &, StringRef ArgName, StringRef Arg, char &Value) {
     Value = Arg[0];
     return false;
   }
@@ -726,8 +720,10 @@ template<> struct applicator<const char*> {
   static void opt(const char *Str, Opt &O) { O.setArgStr(Str); }
 };
 
-template<> struct applicator<NumOccurrences> {
-  static void opt(NumOccurrences NO, Option &O) { O.setNumOccurrencesFlag(NO); }
+template<> struct applicator<NumOccurrencesFlag> {
+  static void opt(NumOccurrencesFlag NO, Option &O) {
+    O.setNumOccurrencesFlag(NO);
+  }
 };
 template<> struct applicator<ValueExpected> {
   static void opt(ValueExpected VE, Option &O) { O.setValueExpectedFlag(VE); }
@@ -770,7 +766,7 @@ public:
 
   bool setLocation(Option &O, DataType &L) {
     if (Location)
-      return O.error(": cl::location(x) specified more than once!");
+      return O.error("cl::location(x) specified more than once!");
     Location = &L;
     return false;
   }
@@ -833,8 +829,8 @@ class opt : public Option,
                                is_class<DataType>::value> {
   ParserClass Parser;
 
-  virtual bool handleOccurrence(unsigned pos, const char *ArgName,
-                                const std::string &Arg) {
+  virtual bool handleOccurrence(unsigned pos, StringRef ArgName,
+                                StringRef Arg) {
     typename ParserClass::parser_data_type Val =
        typename ParserClass::parser_data_type();
     if (Parser.parse(*this, ArgName, Arg, Val))
@@ -847,7 +843,7 @@ class opt : public Option,
   virtual enum ValueExpected getValueExpectedFlagDefault() const {
     return Parser.getValueExpectedFlagDefault();
   }
-  virtual void getExtraOptionNames(std::vector<const char*> &OptionNames) {
+  virtual void getExtraOptionNames(SmallVectorImpl<const char*> &OptionNames) {
     return Parser.getExtraOptionNames(OptionNames);
   }
 
@@ -964,7 +960,7 @@ public:
 
   bool setLocation(Option &O, StorageClass &L) {
     if (Location)
-      return O.error(": cl::location(x) specified more than once!");
+      return O.error("cl::location(x) specified more than once!");
     Location = &L;
     return false;
   }
@@ -1002,12 +998,11 @@ class list : public Option, public list_storage<DataType, Storage> {
   virtual enum ValueExpected getValueExpectedFlagDefault() const {
     return Parser.getValueExpectedFlagDefault();
   }
-  virtual void getExtraOptionNames(std::vector<const char*> &OptionNames) {
+  virtual void getExtraOptionNames(SmallVectorImpl<const char*> &OptionNames) {
     return Parser.getExtraOptionNames(OptionNames);
   }
 
-  virtual bool handleOccurrence(unsigned pos, const char *ArgName,
-                                const std::string &Arg) {
+  virtual bool handleOccurrence(unsigned pos, StringRef ArgName, StringRef Arg){
     typename ParserClass::parser_data_type Val =
       typename ParserClass::parser_data_type();
     if (Parser.parse(*this, ArgName, Arg, Val))
@@ -1139,7 +1134,7 @@ public:
 
   bool setLocation(Option &O, unsigned &L) {
     if (Location)
-      return O.error(": cl::location(x) specified more than once!");
+      return O.error("cl::location(x) specified more than once!");
     Location = &L;
     return false;
   }
@@ -1202,12 +1197,11 @@ class bits : public Option, public bits_storage<DataType, Storage> {
   virtual enum ValueExpected getValueExpectedFlagDefault() const {
     return Parser.getValueExpectedFlagDefault();
   }
-  virtual void getExtraOptionNames(std::vector<const char*> &OptionNames) {
+  virtual void getExtraOptionNames(SmallVectorImpl<const char*> &OptionNames) {
     return Parser.getExtraOptionNames(OptionNames);
   }
 
-  virtual bool handleOccurrence(unsigned pos, const char *ArgName,
-                                const std::string &Arg) {
+  virtual bool handleOccurrence(unsigned pos, StringRef ArgName, StringRef Arg){
     typename ParserClass::parser_data_type Val =
       typename ParserClass::parser_data_type();
     if (Parser.parse(*this, ArgName, Arg, Val))
@@ -1307,8 +1301,8 @@ public:
 
 class alias : public Option {
   Option *AliasFor;
-  virtual bool handleOccurrence(unsigned pos, const char * /*ArgName*/,
-                                const std::string &Arg) {
+  virtual bool handleOccurrence(unsigned pos, StringRef /*ArgName*/,
+                                StringRef Arg) {
     return AliasFor->handleOccurrence(pos, AliasFor->ArgStr, Arg);
   }
   // Handle printing stuff...
@@ -1317,15 +1311,15 @@ class alias : public Option {
 
   void done() {
     if (!hasArgStr())
-      error(": cl::alias must have argument name specified!");
+      error("cl::alias must have argument name specified!");
     if (AliasFor == 0)
-      error(": cl::alias must have an cl::aliasopt(option) specified!");
+      error("cl::alias must have an cl::aliasopt(option) specified!");
       addArgument();
   }
 public:
   void setAliasFor(Option &O) {
     if (AliasFor)
-      error(": cl::alias must only have one cl::aliasopt(...) specified!");
+      error("cl::alias must only have one cl::aliasopt(...) specified!");
     AliasFor = &O;
   }
 
@@ -1366,7 +1360,7 @@ struct aliasopt {
 
 // extrahelp - provide additional help at the end of the normal help
 // output. All occurrences of cl::extrahelp will be accumulated and
-// printed to std::cerr at the end of the regular help, just before
+// printed to stderr at the end of the regular help, just before
 // exit is called.
 struct extrahelp {
   const char * morehelp;

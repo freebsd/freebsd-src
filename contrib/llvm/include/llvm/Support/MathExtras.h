@@ -52,6 +52,16 @@ inline bool isUInt32(int64_t Value) {
   return static_cast<uint32_t>(Value) == Value;
 }
 
+template<unsigned N>
+inline bool isInt(int64_t x) {
+  return N >= 64 || (-(INT64_C(1)<<(N-1)) <= x && x < (INT64_C(1)<<(N-1)));
+}
+
+template<unsigned N>
+inline bool isUint(uint64_t x) {
+  return N >= 64 || x < (UINT64_C(1)<<N);
+}
+
 /// isMask_32 - This function returns true if the argument is a sequence of ones
 /// starting at the least significant bit with the remainder zero (32 bit
 /// version).   Ex. isMask_32(0x0000FFFFU) == true.
@@ -108,7 +118,7 @@ inline uint16_t ByteSwap_16(uint16_t Value) {
 /// ByteSwap_32 - This function returns a byte-swapped representation of the
 /// 32-bit argument, Value.
 inline uint32_t ByteSwap_32(uint32_t Value) {
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)) && !defined(__ICC)
   return __builtin_bswap32(Value);
 #elif defined(_MSC_VER) && !defined(_DEBUG)
   return _byteswap_ulong(Value);
@@ -124,7 +134,7 @@ inline uint32_t ByteSwap_32(uint32_t Value) {
 /// ByteSwap_64 - This function returns a byte-swapped representation of the
 /// 64-bit argument, Value.
 inline uint64_t ByteSwap_64(uint64_t Value) {
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+#if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3)) && !defined(__ICC)
   return __builtin_bswap64(Value);
 #elif defined(_MSC_VER) && !defined(_DEBUG)
   return _byteswap_uint64(Value);
@@ -423,6 +433,13 @@ static inline uint64_t NextPowerOf2(uint64_t A) {
 /// RoundUpToAlignment(~0LL, 8) = 0
 inline uint64_t RoundUpToAlignment(uint64_t Value, uint64_t Align) {
   return ((Value + Align - 1) / Align) * Align;
+}
+
+/// OffsetToAlignment - Return the offset to the next integer (mod 2**64) that
+/// is greater than or equal to \arg Value and is a multiple of \arg
+/// Align. Align must be non-zero.
+inline uint64_t OffsetToAlignment(uint64_t Value, uint64_t Align) {
+  return RoundUpToAlignment(Value, Align) - Value;
 }
 
 /// abs64 - absolute value of a 64-bit int.  Not all environments support

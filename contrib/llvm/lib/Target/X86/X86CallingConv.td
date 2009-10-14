@@ -89,7 +89,7 @@ def RetCC_X86_64_C : CallingConv<[
 // X86-Win64 C return-value convention.
 def RetCC_X86_Win64_C : CallingConv<[
   // The X86-Win64 calling convention always returns __m64 values in RAX.
-  CCIfType<[v8i8, v4i16, v2i32, v1i64], CCAssignToReg<[RAX]>>,
+  CCIfType<[v8i8, v4i16, v2i32, v1i64], CCBitConvertToType<i64>>,
 
   // And FP in XMM0 only.
   CCIfType<[f32], CCAssignToReg<[XMM0]>>,
@@ -137,26 +137,26 @@ def CC_X86_64_C : CallingConv<[
   // The 'nest' parameter, if any, is passed in R10.
   CCIfNest<CCAssignToReg<[R10]>>,
 
+  // The first 6 v1i64 vector arguments are passed in GPRs on Darwin.
+  CCIfType<[v1i64],
+            CCIfSubtarget<"isTargetDarwin()",
+            CCBitConvertToType<i64>>>,
+
   // The first 6 integer arguments are passed in integer registers.
   CCIfType<[i32], CCAssignToReg<[EDI, ESI, EDX, ECX, R8D, R9D]>>,
   CCIfType<[i64], CCAssignToReg<[RDI, RSI, RDX, RCX, R8 , R9 ]>>,
-  
-  // The first 8 FP/Vector arguments are passed in XMM registers.
-  CCIfType<[f32, f64, v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
-            CCIfSubtarget<"hasSSE1()",
-            CCAssignToReg<[XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7]>>>,
 
   // The first 8 MMX (except for v1i64) vector arguments are passed in XMM
   // registers on Darwin.
   CCIfType<[v8i8, v4i16, v2i32, v2f32],
             CCIfSubtarget<"isTargetDarwin()",
             CCIfSubtarget<"hasSSE2()",
-            CCAssignToReg<[XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7]>>>>,
+            CCPromoteToType<v2i64>>>>,
 
-  // The first 8 v1i64 vector arguments are passed in GPRs on Darwin.
-  CCIfType<[v1i64],
-            CCIfSubtarget<"isTargetDarwin()",
-            CCAssignToReg<[RDI, RSI, RDX, RCX, R8]>>>,
+  // The first 8 FP/Vector arguments are passed in XMM registers.
+  CCIfType<[f32, f64, v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+            CCIfSubtarget<"hasSSE1()",
+            CCAssignToReg<[XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7]>>>,
  
   // Integer/FP values get stored in stack slots that are 8 bytes in size and
   // 8-byte aligned if there are no more registers to hold them.
@@ -184,6 +184,13 @@ def CC_X86_Win64_C : CallingConv<[
   // The 'nest' parameter, if any, is passed in R10.
   CCIfNest<CCAssignToReg<[R10]>>,
 
+  // 128 bit vectors are passed by pointer
+  CCIfType<[v16i8, v8i16, v4i32, v2i64, v4f32, v2f64], CCPassIndirect<i64>>,
+
+  // The first 4 MMX vector arguments are passed in GPRs.
+  CCIfType<[v8i8, v4i16, v2i32, v1i64, v2f32],
+           CCBitConvertToType<i64>>,
+
   // The first 4 integer arguments are passed in integer registers.
   CCIfType<[i32], CCAssignToRegWithShadow<[ECX , EDX , R8D , R9D ],
                                           [XMM0, XMM1, XMM2, XMM3]>>,
@@ -195,24 +202,16 @@ def CC_X86_Win64_C : CallingConv<[
            CCAssignToRegWithShadow<[XMM0, XMM1, XMM2, XMM3],
                                    [RCX , RDX , R8  , R9  ]>>,
 
-  // The first 4 MMX vector arguments are passed in GPRs.
-  CCIfType<[v8i8, v4i16, v2i32, v1i64, v2f32],
-           CCAssignToRegWithShadow<[RCX , RDX , R8  , R9  ],
-                                   [XMM0, XMM1, XMM2, XMM3]>>,
-
   // Integer/FP values get stored in stack slots that are 8 bytes in size and
-  // 16-byte aligned if there are no more registers to hold them.
-  CCIfType<[i32, i64, f32, f64], CCAssignToStack<8, 16>>,
+  // 8-byte aligned if there are no more registers to hold them.
+  CCIfType<[i32, i64, f32, f64], CCAssignToStack<8, 8>>,
 
   // Long doubles get stack slots whose size and alignment depends on the
   // subtarget.
   CCIfType<[f80], CCAssignToStack<0, 0>>,
 
-  // Vectors get 16-byte stack slots that are 16-byte aligned.
-  CCIfType<[v16i8, v8i16, v4i32, v2i64, v4f32, v2f64], CCAssignToStack<16, 16>>,
-
-  // __m64 vectors get 8-byte stack slots that are 16-byte aligned.
-  CCIfType<[v8i8, v4i16, v2i32, v1i64], CCAssignToStack<8, 16>>
+  // __m64 vectors get 8-byte stack slots that are 8-byte aligned.
+  CCIfType<[v8i8, v4i16, v2i32, v1i64], CCAssignToStack<8, 8>>
 ]>;
 
 //===----------------------------------------------------------------------===//

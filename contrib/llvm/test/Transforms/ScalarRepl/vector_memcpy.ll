@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -scalarrepl | llvm-dis > %t
+; RUN: opt < %s -scalarrepl -S > %t
 ; RUN: grep {ret <16 x float> %A} %t
 ; RUN: grep {ret <16 x float> zeroinitializer} %t
 

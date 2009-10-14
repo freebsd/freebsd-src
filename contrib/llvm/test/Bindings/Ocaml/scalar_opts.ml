@@ -1,7 +1,7 @@
-(* RUN: %ocamlc -warn-error A llvm.cma llvm_scalar_opts.cma llvm_target.cma %s -o %t 2> /dev/null
+(* RUN: %ocamlopt -warn-error A llvm.cmxa llvm_scalar_opts.cmxa llvm_target.cmxa %s -o %t
  *)
 
-(* Note: It takes several seconds for ocamlc to link an executable with
+(* Note: It takes several seconds for ocamlopt to link an executable with
          libLLVMCore.a, so it's better to write a big test than a bunch of
          little ones. *)
 
@@ -9,6 +9,8 @@ open Llvm
 open Llvm_scalar_opts
 open Llvm_target
 
+let context = global_context ()
+let void_type = Llvm.void_type context
 
 (* Tiny unit test framework - really just to help find which line is busted *)
 let suite name f =
@@ -19,7 +21,7 @@ let suite name f =
 (*===-- Fixture -----------------------------------------------------------===*)
 
 let filename = Sys.argv.(1)
-let m = create_module filename
+let m = create_module context filename
 let mp = ModuleProvider.create m
 
 
@@ -30,7 +32,7 @@ let test_transforms () =
 
   let fty = function_type void_type [| |] in
   let fn = define_function "fn" fty m in
-  ignore (build_ret_void (builder_at_end (entry_block fn)));
+  ignore (build_ret_void (builder_at_end context (entry_block fn)));
   
   let td = TargetData.create (target_triple m) in
   

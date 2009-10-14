@@ -14,9 +14,10 @@
 #include "DIE.h"
 #include "DwarfPrinter.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/Target/TargetAsmInfo.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Target/TargetData.h"
-#include <ostream>
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -75,24 +76,24 @@ void DIEAbbrev::Emit(const AsmPrinter *Asm) const {
 }
 
 #ifndef NDEBUG
-void DIEAbbrev::print(std::ostream &O) {
+void DIEAbbrev::print(raw_ostream &O) {
   O << "Abbreviation @"
-    << std::hex << (intptr_t)this << std::dec
+    << format("0x%lx", (long)(intptr_t)this)
     << "  "
     << dwarf::TagString(Tag)
     << " "
     << dwarf::ChildrenString(ChildrenFlag)
-    << "\n";
+    << '\n';
 
   for (unsigned i = 0, N = Data.size(); i < N; ++i) {
     O << "  "
       << dwarf::AttributeString(Data[i].getAttribute())
       << "  "
       << dwarf::FormEncodingString(Data[i].getForm())
-      << "\n";
+      << '\n';
   }
 }
-void DIEAbbrev::dump() { print(cerr); }
+void DIEAbbrev::dump() { print(errs()); }
 #endif
 
 //===----------------------------------------------------------------------===//
@@ -125,7 +126,7 @@ void DIE::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIE::print(std::ostream &O, unsigned IncIndent) {
+void DIE::print(raw_ostream &O, unsigned IncIndent) {
   IndentCount += IncIndent;
   const std::string Indent(IndentCount, ' ');
   bool isBlock = Abbrev.getTag() == 0;
@@ -133,7 +134,7 @@ void DIE::print(std::ostream &O, unsigned IncIndent) {
   if (!isBlock) {
     O << Indent
       << "Die: "
-      << "0x" << std::hex << (intptr_t)this << std::dec
+      << format("0x%lx", (long)(intptr_t)this)
       << ", Offset: " << Offset
       << ", Size: " << Size
       << "\n";
@@ -175,14 +176,14 @@ void DIE::print(std::ostream &O, unsigned IncIndent) {
 }
 
 void DIE::dump() {
-  print(cerr);
+  print(errs());
 }
 #endif
 
 
 #ifndef NDEBUG
 void DIEValue::dump() {
-  print(cerr);
+  print(errs());
 }
 #endif
 
@@ -206,7 +207,7 @@ void DIEInteger::EmitValue(Dwarf *D, unsigned Form) const {
   case dwarf::DW_FORM_data8: Asm->EmitInt64(Integer);        break;
   case dwarf::DW_FORM_udata: Asm->EmitULEB128Bytes(Integer); break;
   case dwarf::DW_FORM_sdata: Asm->EmitSLEB128Bytes(Integer); break;
-  default: assert(0 && "DIE Value form not supported yet");  break;
+  default: llvm_unreachable("DIE Value form not supported yet");
   }
 }
 
@@ -223,9 +224,9 @@ unsigned DIEInteger::SizeOf(const TargetData *TD, unsigned Form) const {
   case dwarf::DW_FORM_data4: return sizeof(int32_t);
   case dwarf::DW_FORM_ref8:  // Fall thru
   case dwarf::DW_FORM_data8: return sizeof(int64_t);
-  case dwarf::DW_FORM_udata: return TargetAsmInfo::getULEB128Size(Integer);
-  case dwarf::DW_FORM_sdata: return TargetAsmInfo::getSLEB128Size(Integer);
-  default: assert(0 && "DIE Value form not supported yet"); break;
+  case dwarf::DW_FORM_udata: return MCAsmInfo::getULEB128Size(Integer);
+  case dwarf::DW_FORM_sdata: return MCAsmInfo::getSLEB128Size(Integer);
+  default: llvm_unreachable("DIE Value form not supported yet"); break;
   }
   return 0;
 }
@@ -241,9 +242,9 @@ void DIEInteger::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIEInteger::print(std::ostream &O) {
+void DIEInteger::print(raw_ostream &O) {
   O << "Int: " << (int64_t)Integer
-    << "  0x" << std::hex << Integer << std::dec;
+    << format("  0x%llx", (unsigned long long)Integer);
 }
 #endif
 
@@ -268,7 +269,7 @@ void DIEString::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIEString::print(std::ostream &O) {
+void DIEString::print(raw_ostream &O) {
   O << "Str: \"" << Str << "\"";
 }
 #endif
@@ -302,7 +303,7 @@ void DIEDwarfLabel::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIEDwarfLabel::print(std::ostream &O) {
+void DIEDwarfLabel::print(raw_ostream &O) {
   O << "Lbl: ";
   Label.print(O);
 }
@@ -337,7 +338,7 @@ void DIEObjectLabel::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIEObjectLabel::print(std::ostream &O) {
+void DIEObjectLabel::print(raw_ostream &O) {
   O << "Obj: " << Label;
 }
 #endif
@@ -377,7 +378,7 @@ void DIESectionOffset::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIESectionOffset::print(std::ostream &O) {
+void DIESectionOffset::print(raw_ostream &O) {
   O << "Off: ";
   Label.print(O);
   O << "-";
@@ -417,7 +418,7 @@ void DIEDelta::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIEDelta::print(std::ostream &O) {
+void DIEDelta::print(raw_ostream &O) {
   O << "Del: ";
   LabelHi.print(O);
   O << "-";
@@ -451,8 +452,8 @@ void DIEEntry::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIEEntry::print(std::ostream &O) {
-  O << "Die: 0x" << std::hex << (intptr_t)Entry << std::dec;
+void DIEEntry::print(raw_ostream &O) {
+  O << format("Die: 0x%lx", (long)(intptr_t)Entry);
 }
 #endif
 
@@ -481,7 +482,7 @@ void DIEBlock::EmitValue(Dwarf *D, unsigned Form) const {
   case dwarf::DW_FORM_block2: Asm->EmitInt16(Size);        break;
   case dwarf::DW_FORM_block4: Asm->EmitInt32(Size);        break;
   case dwarf::DW_FORM_block:  Asm->EmitULEB128Bytes(Size); break;
-  default: assert(0 && "Improper form for block");         break;
+  default: llvm_unreachable("Improper form for block");         break;
   }
 
   const SmallVector<DIEAbbrevData, 8> &AbbrevData = Abbrev.getData();
@@ -498,8 +499,8 @@ unsigned DIEBlock::SizeOf(const TargetData *TD, unsigned Form) const {
   case dwarf::DW_FORM_block1: return Size + sizeof(int8_t);
   case dwarf::DW_FORM_block2: return Size + sizeof(int16_t);
   case dwarf::DW_FORM_block4: return Size + sizeof(int32_t);
-  case dwarf::DW_FORM_block: return Size + TargetAsmInfo::getULEB128Size(Size);
-  default: assert(0 && "Improper form for block"); break;
+  case dwarf::DW_FORM_block: return Size + MCAsmInfo::getULEB128Size(Size);
+  default: llvm_unreachable("Improper form for block"); break;
   }
   return 0;
 }
@@ -510,7 +511,7 @@ void DIEBlock::Profile(FoldingSetNodeID &ID) {
 }
 
 #ifndef NDEBUG
-void DIEBlock::print(std::ostream &O) {
+void DIEBlock::print(raw_ostream &O) {
   O << "Blk: ";
   DIE::print(O, 5);
 }

@@ -16,12 +16,13 @@
 #ifndef LLVM_MC_MCINST_H
 #define LLVM_MC_MCINST_H
 
-#include "llvm/MC/MCValue.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/DebugLoc.h"
 
 namespace llvm {
+class raw_ostream;
+class MCAsmInfo;
+class MCExpr;
 
 /// MCOperand - Instances of this class represent operands of the MCInst class.
 /// This is a simple discriminated union.
@@ -30,28 +31,24 @@ class MCOperand {
     kInvalid,                 ///< Uninitialized.
     kRegister,                ///< Register operand.
     kImmediate,               ///< Immediate operand.
-    kMBBLabel,                ///< Basic block label.
-    kMCValue
+    kExpr                     ///< Relocatable immediate operand.
   };
   unsigned char Kind;
   
   union {
     unsigned RegVal;
     int64_t ImmVal;
-    MCValue MCValueVal;
-    struct {
-      unsigned FunctionNo;
-      unsigned BlockNo;
-    } MBBLabel;
+    const MCExpr *ExprVal;
   };
 public:
   
   MCOperand() : Kind(kInvalid) {}
   MCOperand(const MCOperand &RHS) { *this = RHS; }
 
+  bool isValid() const { return Kind != kInvalid; }
   bool isReg() const { return Kind == kRegister; }
   bool isImm() const { return Kind == kImmediate; }
-  bool isMBBLabel() const { return Kind == kMBBLabel; }
+  bool isExpr() const { return Kind == kExpr; }
   
   /// getReg - Returns the register number.
   unsigned getReg() const {
@@ -74,28 +71,36 @@ public:
     ImmVal = Val;
   }
   
-  unsigned getMBBLabelFunction() const {
-    assert(isMBBLabel() && "Wrong accessor");
-    return MBBLabel.FunctionNo; 
+  const MCExpr *getExpr() const {
+    assert(isExpr() && "This is not an expression");
+    return ExprVal;
   }
-  unsigned getMBBLabelBlock() const {
-    assert(isMBBLabel() && "Wrong accessor");
-    return MBBLabel.BlockNo; 
+  void setExpr(const MCExpr *Val) {
+    assert(isExpr() && "This is not an expression");
+    ExprVal = Val;
   }
   
-  void MakeReg(unsigned Reg) {
-    Kind = kRegister;
-    RegVal = Reg;
+  static MCOperand CreateReg(unsigned Reg) {
+    MCOperand Op;
+    Op.Kind = kRegister;
+    Op.RegVal = Reg;
+    return Op;
   }
-  void MakeImm(int64_t Val) {
-    Kind = kImmediate;
-    ImmVal = Val;
+  static MCOperand CreateImm(int64_t Val) {
+    MCOperand Op;
+    Op.Kind = kImmediate;
+    Op.ImmVal = Val;
+    return Op;
   }
-  void MakeMBBLabel(unsigned Fn, unsigned MBB) {
-    Kind = kMBBLabel;
-    MBBLabel.FunctionNo = Fn;
-    MBBLabel.BlockNo = MBB;
+  static MCOperand CreateExpr(const MCExpr *Val) {
+    MCOperand Op;
+    Op.Kind = kExpr;
+    Op.ExprVal = Val;
+    return Op;
   }
+
+  void print(raw_ostream &OS, const MCAsmInfo *MAI) const;
+  void dump() const;
 };
 
   
@@ -105,13 +110,12 @@ class MCInst {
   unsigned Opcode;
   SmallVector<MCOperand, 8> Operands;
 public:
-  MCInst() : Opcode(~0U) {}
+  MCInst() : Opcode(0) {}
   
   void setOpcode(unsigned Op) { Opcode = Op; }
   
   unsigned getOpcode() const { return Opcode; }
-  DebugLoc getDebugLoc() const { return DebugLoc(); }
-  
+
   const MCOperand &getOperand(unsigned i) const { return Operands[i]; }
   MCOperand &getOperand(unsigned i) { return Operands[i]; }
   unsigned getNumOperands() const { return Operands.size(); }
@@ -119,7 +123,9 @@ public:
   void addOperand(const MCOperand &Op) {
     Operands.push_back(Op);
   }
-  
+
+  void print(raw_ostream &OS, const MCAsmInfo *MAI) const;
+  void dump() const;
 };
 
 

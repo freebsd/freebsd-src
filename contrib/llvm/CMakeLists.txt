@@ -4,7 +4,7 @@ project(LLVM)
 cmake_minimum_required(VERSION 2.6.1)
 
 set(PACKAGE_NAME llvm)
-set(PACKAGE_VERSION 2.6svn)
+set(PACKAGE_VERSION 2.7svn)
 set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_BUGREPORT "llvmbugs@cs.uiuc.edu")
 
@@ -19,8 +19,6 @@ endif()
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" uppercase_CMAKE_BUILD_TYPE)
 
-include(FindPerl)
-
 set(LLVM_MAIN_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(LLVM_MAIN_INCLUDE_DIR ${LLVM_MAIN_SRC_DIR}/include)
 set(LLVM_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -28,25 +26,41 @@ set(LLVM_TOOLS_BINARY_DIR ${LLVM_BINARY_DIR}/bin)
 set(LLVM_EXAMPLES_BINARY_DIR ${LLVM_BINARY_DIR}/examples)
 set(LLVM_LIBDIR_SUFFIX "" CACHE STRING "Define suffix of library directory name (32/64)" )
 
+if( NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR )
+  file(GLOB_RECURSE
+    tablegenned_files_on_include_dir
+    "${LLVM_MAIN_SRC_DIR}/include/llvm/*.gen")
+  file(GLOB_RECURSE
+    tablegenned_files_on_lib_dir
+    "${LLVM_MAIN_SRC_DIR}/lib/Target/*.inc")
+  if( tablegenned_files_on_include_dir OR tablegenned_files_on_lib_dir)
+    message(FATAL_ERROR "Apparently there is a previous in-source build,
+probably as the result of running `configure' and `make' on
+${LLVM_MAIN_SRC_DIR}.
+This may cause problems. The suspicious files are:
+${tablegenned_files_on_lib_dir}
+${tablegenned_files_on_include_dir}
+Please clean the source directory.")
+  endif()
+endif()
+
 set(LLVM_ALL_TARGETS
   Alpha
   ARM
+  Blackfin
   CBackend
   CellSPU
   CppBackend
-  IA64
   Mips
   MSIL
+  MSP430
   PIC16
   PowerPC
   Sparc
+  SystemZ
   X86
   XCore
   )
-
-# List of targets whose asmprinters need to be forced to link
-# into executables on some platforms (i.e. Windows):
-set(LLVM_ASMPRINTERS_FORCE_LINK X86 PowerPC)
 
 if( MSVC )
   set(LLVM_TARGETS_TO_BUILD X86
@@ -55,6 +69,9 @@ else( MSVC )
   set(LLVM_TARGETS_TO_BUILD ${LLVM_ALL_TARGETS}
     CACHE STRING "Semicolon-separated list of targets to build, or \"all\".")
 endif( MSVC )
+
+set(LLVM_TARGET_ARCH "host"
+  CACHE STRING "Set target to use for LLVM JIT or use \"host\" for automatic detection.")
 
 option(LLVM_ENABLE_THREADS "Use threads if available." ON)
 
@@ -65,7 +82,10 @@ else()
 endif()
 
 if( LLVM_ENABLE_ASSERTIONS )
-  add_definitions( -D_DEBUG )
+  # MSVC doesn't like _DEBUG on release builds. See PR 4379.
+  if( NOT MSVC )
+    add_definitions( -D_DEBUG )
+  endif()
   # On Release builds cmake automatically defines NDEBUG, so we
   # explicitly undefine it:
   if( uppercase_CMAKE_BUILD_TYPE STREQUAL "RELEASE" )
@@ -85,7 +105,7 @@ set(LLVM_ENUM_TARGETS "")
 foreach(c ${LLVM_TARGETS_TO_BUILD})
   list(FIND LLVM_ALL_TARGETS ${c} idx)
   if( idx LESS 0 )
-    message(FATAL_ERROR "The target `${c}' does not exists.
+    message(FATAL_ERROR "The target `${c}' does not exist.
     It should be one of\n${LLVM_ALL_TARGETS}")
   else()
     set(LLVM_ENUM_TARGETS "${LLVM_ENUM_TARGETS}LLVM_TARGET(${c})\n")
@@ -125,7 +145,11 @@ else(WIN32)
   if(UNIX)
     set(LLVM_ON_WIN32 0)
     set(LLVM_ON_UNIX 1)
-    set(LTDL_SHLIB_EXT ".so")
+    if(APPLE)
+      set(LTDL_SHLIB_EXT ".dylib")
+    else(APPLE)
+      set(LTDL_SHLIB_EXT ".so")
+    endif(APPLE)
     set(EXEEXT "")
     # FIXME: Maximum path length is currently set to 'safe' fixed value
     set(MAXPATHLEN 2024)
@@ -134,13 +158,9 @@ else(WIN32)
   endif(UNIX)
 endif(WIN32)
 
-if( EXISTS ${LLVM_TOOLS_BINARY_DIR}/llvm-config )
-  set(HAVE_LLVM_CONFIG 1)
-endif( EXISTS ${LLVM_TOOLS_BINARY_DIR}/llvm-config )
-
 include(config-ix)
 
-option(LLVM_ENABLE_PIC "Build Position-Independent Code" OFF)
+option(LLVM_ENABLE_PIC "Build Position-Independent Code" ON)
 
 set(ENABLE_PIC 0)
 if( LLVM_ENABLE_PIC )
@@ -170,7 +190,6 @@ if( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
     add_llvm_definitions( -m32 )
     list(APPEND CMAKE_EXE_LINKER_FLAGS -m32)
     list(APPEND CMAKE_SHARED_LINKER_FLAGS -m32)
-    set( LLVM_PLO_FLAGS -melf_i386 ${LLVM_PLO_FLAGS} )
   endif( LLVM_BUILD_32_BITS )
 endif( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
 
@@ -187,6 +206,9 @@ if( MSVC )
   add_llvm_definitions( -wd4146 -wd4503 -wd4996 -wd4800 -wd4244 -wd4624 )
   add_llvm_definitions( -wd4355 -wd4715 -wd4180 -wd4345 -wd4224 )
 
+  # Suppress 'new behavior: elements of array 'array' will be default initialized'
+  add_llvm_definitions( -wd4351 )
+
   if (NOT ${LLVM_USE_CRT} STREQUAL "")
     list(FIND MSVC_CRT ${LLVM_USE_CRT} idx)
     if (idx LESS 0)
@@ -198,6 +220,10 @@ if( MSVC )
 endif( MSVC )
 
 include_directories( ${LLVM_BINARY_DIR}/include ${LLVM_MAIN_INCLUDE_DIR})
+
+if( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
+   SET(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-include llvm/System/Solaris.h")
+endif( ${CMAKE_SYSTEM_NAME} MATCHES SunOS )
 
 include(AddLLVM)
 include(TableGen)
@@ -237,16 +263,29 @@ add_subdirectory(lib/Linker)
 add_subdirectory(lib/Analysis)
 add_subdirectory(lib/Analysis/IPA)
 add_subdirectory(lib/MC)
+add_subdirectory(test)
 
- set(LLVM_ENUM_ASM_PRINTERS "")
- foreach(t ${LLVM_TARGETS_TO_BUILD})
+add_subdirectory(utils/FileCheck)
+add_subdirectory(utils/count)
+add_subdirectory(utils/not)
+
+set(LLVM_ENUM_ASM_PRINTERS "")
+set(LLVM_ENUM_ASM_PARSERS "")
+foreach(t ${LLVM_TARGETS_TO_BUILD})
   message(STATUS "Targeting ${t}")
   add_subdirectory(lib/Target/${t})
+  add_subdirectory(lib/Target/${t}/TargetInfo)
   if( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmPrinter/CMakeLists.txt )
-   add_subdirectory(lib/Target/${t}/AsmPrinter)
+    add_subdirectory(lib/Target/${t}/AsmPrinter)
     set(LLVM_ENUM_ASM_PRINTERS 
-        "${LLVM_ENUM_ASM_PRINTERS}LLVM_ASM_PRINTER(${t})\n")
- endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmPrinter/CMakeLists.txt )
+      "${LLVM_ENUM_ASM_PRINTERS}LLVM_ASM_PRINTER(${t})\n")
+  endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmPrinter/CMakeLists.txt )
+  if( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmParser/CMakeLists.txt )
+    add_subdirectory(lib/Target/${t}/AsmParser)
+    set(LLVM_ENUM_ASM_PARSERS 
+      "${LLVM_ENUM_ASM_PARSERS}LLVM_ASM_PARSER(${t})\n")
+  endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmParser/CMakeLists.txt )
+  set(CURRENT_LLVM_TARGET)
 endforeach(t)
 
 # Produce llvm/Config/AsmPrinters.def
@@ -255,19 +294,28 @@ configure_file(
   ${LLVM_BINARY_DIR}/include/llvm/Config/AsmPrinters.def
   )
 
+# Produce llvm/Config/AsmParsers.def
+configure_file(
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/AsmParsers.def.in
+  ${LLVM_BINARY_DIR}/include/llvm/Config/AsmParsers.def
+  )
+
 add_subdirectory(lib/ExecutionEngine)
 add_subdirectory(lib/ExecutionEngine/Interpreter)
 add_subdirectory(lib/ExecutionEngine/JIT)
 add_subdirectory(lib/Target)
 add_subdirectory(lib/AsmParser)
-add_subdirectory(lib/Debugger)
 add_subdirectory(lib/Archive)
 
 add_subdirectory(projects)
-add_subdirectory(tools)
 
-option(LLVM_EXAMPLES "Build LLVM example programs." OFF)
-if (LLVM_EXAMPLES)
+option(LLVM_BUILD_TOOLS "Build LLVM tool programs." ON)
+if(LLVM_BUILD_TOOLS)
+  add_subdirectory(tools)
+endif()
+
+option(LLVM_BUILD_EXAMPLES "Build LLVM example programs." ON)
+if(LLVM_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif ()
 
@@ -276,6 +324,7 @@ install(DIRECTORY include
   PATTERN ".svn" EXCLUDE
   PATTERN "*.cmake" EXCLUDE
   PATTERN "*.in" EXCLUDE
+  PATTERN "*.tmp" EXCLUDE
   )
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include

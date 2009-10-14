@@ -31,12 +31,13 @@ class PointerValType;
 class VectorValType;
 class IntegerValType;
 class APInt;
+class LLVMContext;
 
 class DerivedType : public Type {
   friend class Type;
 
 protected:
-  explicit DerivedType(TypeID id) : Type(id) {}
+  explicit DerivedType(LLVMContext &C, TypeID id) : Type(C, id) {}
 
   /// notifyUsesThatTypeBecameConcrete - Notify AbstractTypeUsers of this type
   /// that the current type has transitioned from being abstract to being
@@ -82,8 +83,11 @@ public:
 /// Int64Ty.
 /// @brief Integer representation type
 class IntegerType : public DerivedType {
+  friend class LLVMContextImpl;
+  
 protected:
-  explicit IntegerType(unsigned NumBits) : DerivedType(IntegerTyID) {
+  explicit IntegerType(LLVMContext &C, unsigned NumBits) : 
+      DerivedType(C, IntegerTyID) {
     setSubclassData(NumBits);
   }
   friend class TypeMap<IntegerValType, IntegerType>;
@@ -101,7 +105,7 @@ public:
   /// that instance will be returned. Otherwise a new one will be created. Only
   /// one instance with a given NumBits value is ever created.
   /// @brief Get or create an IntegerType instance.
-  static const IntegerType* get(unsigned NumBits);
+  static const IntegerType* get(LLVMContext &C, unsigned NumBits);
 
   /// @brief Get the number of bits in this IntegerType
   unsigned getBitWidth() const { return getSubclassData(); }
@@ -159,6 +163,15 @@ public:
     bool isVarArg  ///< Whether this is a variable argument length function
   );
 
+  /// FunctionType::get - Create a FunctionType taking no parameters.
+  ///
+  static FunctionType *get(
+    const Type *Result, ///< The result type
+    bool isVarArg  ///< Whether this is a variable argument length function
+  ) {
+    return get(Result, std::vector<const Type *>(), isVarArg);
+  }
+
   /// isValidReturnType - Return true if the specified type is valid as a return
   /// type.
   static bool isValidReturnType(const Type *RetTy);
@@ -198,7 +211,8 @@ public:
 /// and VectorType
 class CompositeType : public DerivedType {
 protected:
-  inline explicit CompositeType(TypeID id) : DerivedType(id) { }
+  inline explicit CompositeType(LLVMContext &C, TypeID id) :
+    DerivedType(C, id) { }
 public:
 
   /// getTypeAtIndex - Given an index value into the type, return the type of
@@ -226,19 +240,28 @@ class StructType : public CompositeType {
   friend class TypeMap<StructValType, StructType>;
   StructType(const StructType &);                   // Do not implement
   const StructType &operator=(const StructType &);  // Do not implement
-  StructType(const std::vector<const Type*> &Types, bool isPacked);
+  StructType(LLVMContext &C,
+             const std::vector<const Type*> &Types, bool isPacked);
 public:
   /// StructType::get - This static method is the primary way to create a
   /// StructType.
   ///
-  static StructType *get(const std::vector<const Type*> &Params,
+  static StructType *get(LLVMContext &Context, 
+                         const std::vector<const Type*> &Params,
                          bool isPacked=false);
+
+  /// StructType::get - Create an empty structure type.
+  ///
+  static StructType *get(LLVMContext &Context, bool isPacked=false) {
+    return get(Context, std::vector<const Type*>(), isPacked);
+  }
 
   /// StructType::get - This static method is a convenience method for
   /// creating structure types by specifying the elements as arguments.
   /// Note that this method always returns a non-packed struct.  To get
   /// an empty struct, pass NULL, NULL.
-  static StructType *get(const Type *type, ...) END_WITH_NULL;
+  static StructType *get(LLVMContext &Context, 
+                         const Type *type, ...) END_WITH_NULL;
 
   /// isValidElementType - Return true if the specified type is valid as a
   /// element type.
@@ -295,7 +318,7 @@ class SequentialType : public CompositeType {
   SequentialType* this_() { return this; }
 protected:
   SequentialType(TypeID TID, const Type *ElType)
-    : CompositeType(TID), ContainedType(ElType, this_()) {
+    : CompositeType(ElType->getContext(), TID), ContainedType(ElType, this_()) {
     ContainedTys = &ContainedType;
     NumContainedTys = 1;
   }
@@ -381,7 +404,7 @@ public:
   ///
   static VectorType *getInteger(const VectorType *VTy) {
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
-    const Type *EltTy = IntegerType::get(EltBits);
+    const Type *EltTy = IntegerType::get(VTy->getContext(), EltBits);
     return VectorType::get(EltTy, VTy->getNumElements());
   }
 
@@ -391,7 +414,7 @@ public:
   ///
   static VectorType *getExtendedElementVectorType(const VectorType *VTy) {
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
-    const Type *EltTy = IntegerType::get(EltBits * 2);
+    const Type *EltTy = IntegerType::get(VTy->getContext(), EltBits * 2);
     return VectorType::get(EltTy, VTy->getNumElements());
   }
 
@@ -403,7 +426,7 @@ public:
     unsigned EltBits = VTy->getElementType()->getPrimitiveSizeInBits();
     assert((EltBits & 1) == 0 &&
            "Cannot truncate vector element with odd bit-width");
-    const Type *EltTy = IntegerType::get(EltBits / 2);
+    const Type *EltTy = IntegerType::get(VTy->getContext(), EltBits / 2);
     return VectorType::get(EltTy, VTy->getNumElements());
   }
 
@@ -416,7 +439,7 @@ public:
 
   /// @brief Return the number of bits in the Vector type.
   inline unsigned getBitWidth() const {
-    return NumElements *getElementType()->getPrimitiveSizeInBits();
+    return NumElements * getElementType()->getPrimitiveSizeInBits();
   }
 
   // Implement the AbstractTypeUser interface.
@@ -475,12 +498,12 @@ public:
 class OpaqueType : public DerivedType {
   OpaqueType(const OpaqueType &);                   // DO NOT IMPLEMENT
   const OpaqueType &operator=(const OpaqueType &);  // DO NOT IMPLEMENT
-  OpaqueType();
+  OpaqueType(LLVMContext &C);
 public:
   /// OpaqueType::get - Static factory method for the OpaqueType class...
   ///
-  static OpaqueType *get() {
-    return new OpaqueType();           // All opaque types are distinct
+  static OpaqueType *get(LLVMContext &C) {
+    return new OpaqueType(C);           // All opaque types are distinct
   }
 
   // Implement support for type inquiry through isa, cast, and dyn_cast:

@@ -28,6 +28,8 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -70,7 +72,8 @@ namespace {
     void FindSafePoints(MachineFunction &MF);
     void VisitCallPoint(MachineBasicBlock::iterator MI);
     unsigned InsertLabel(MachineBasicBlock &MBB, 
-                         MachineBasicBlock::iterator MI) const;
+                         MachineBasicBlock::iterator MI,
+                         DebugLoc DL) const;
     
     void FindStackOffsets(MachineFunction &MF);
     
@@ -107,8 +110,8 @@ GCStrategy::~GCStrategy() {
 bool GCStrategy::initializeCustomLowering(Module &M) { return false; }
  
 bool GCStrategy::performCustomLowering(Function &F) {
-  cerr << "gc " << getName() << " must override performCustomLowering.\n";
-  abort();
+  errs() << "gc " << getName() << " must override performCustomLowering.\n";
+  llvm_unreachable(0);
   return 0;
 }
 
@@ -327,11 +330,13 @@ void MachineCodeAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 unsigned MachineCodeAnalysis::InsertLabel(MachineBasicBlock &MBB, 
-                                     MachineBasicBlock::iterator MI) const {
+                                     MachineBasicBlock::iterator MI,
+                                     DebugLoc DL) const {
   unsigned Label = MMI->NextLabelID();
-  // N.B. we assume that MI is *not* equal to the "end()" iterator.
-  BuildMI(MBB, MI, MI->getDebugLoc(),
+  
+  BuildMI(MBB, MI, DL,
           TII->get(TargetInstrInfo::GC_LABEL)).addImm(Label);
+  
   return Label;
 }
 
@@ -342,10 +347,12 @@ void MachineCodeAnalysis::VisitCallPoint(MachineBasicBlock::iterator CI) {
   ++RAI;                                
   
   if (FI->getStrategy().needsSafePoint(GC::PreCall))
-    FI->addSafePoint(GC::PreCall, InsertLabel(*CI->getParent(), CI));
+    FI->addSafePoint(GC::PreCall, InsertLabel(*CI->getParent(), CI,
+                                              CI->getDebugLoc()));
   
   if (FI->getStrategy().needsSafePoint(GC::PostCall))
-    FI->addSafePoint(GC::PostCall, InsertLabel(*CI->getParent(), RAI));
+    FI->addSafePoint(GC::PostCall, InsertLabel(*CI->getParent(), RAI,
+                                               CI->getDebugLoc()));
 }
 
 void MachineCodeAnalysis::FindSafePoints(MachineFunction &MF) {

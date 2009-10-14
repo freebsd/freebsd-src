@@ -29,7 +29,8 @@ namespace RegState {
     Implicit       = 0x4,
     Kill           = 0x8,
     Dead           = 0x10,
-    EarlyClobber   = 0x20,
+    Undef          = 0x20,
+    EarlyClobber   = 0x40,
     ImplicitDefine = Implicit | Define,
     ImplicitKill   = Implicit | Kill
   };
@@ -38,6 +39,7 @@ namespace RegState {
 class MachineInstrBuilder {
   MachineInstr *MI;
 public:
+  MachineInstrBuilder() : MI(0) {}
   explicit MachineInstrBuilder(MachineInstr *mi) : MI(mi) {}
 
   /// Allow automatic conversion to the machine instruction we are working on.
@@ -57,8 +59,9 @@ public:
                                              flags & RegState::Implicit,
                                              flags & RegState::Kill,
                                              flags & RegState::Dead,
-                                             SubReg,
-                                             flags & RegState::EarlyClobber));
+                                             flags & RegState::Undef,
+                                             flags & RegState::EarlyClobber,
+                                             SubReg));
     return *this;
   }
 
@@ -105,14 +108,20 @@ public:
     return *this;
   }
 
-  const MachineInstrBuilder &addExternalSymbol(const char *FnName,
-                                               int64_t Offset = 0,
-                                          unsigned char TargetFlags = 0) const {
-    MI->addOperand(MachineOperand::CreateES(FnName, Offset, TargetFlags));
+  const MachineInstrBuilder &addMetadata(MDNode *N,
+                                         int64_t Offset = 0,
+                                         unsigned char TargetFlags = 0) const {
+    MI->addOperand(MachineOperand::CreateMDNode(N, Offset, TargetFlags));
     return *this;
   }
 
-  const MachineInstrBuilder &addMemOperand(const MachineMemOperand &MMO) const {
+  const MachineInstrBuilder &addExternalSymbol(const char *FnName,
+                                          unsigned char TargetFlags = 0) const {
+    MI->addOperand(MachineOperand::CreateES(FnName, TargetFlags));
+    return *this;
+  }
+
+  const MachineInstrBuilder &addMemOperand(MachineMemOperand *MMO) const {
     MI->addMemOperand(*MI->getParent()->getParent(), MMO);
     return *this;
   }
@@ -182,7 +191,7 @@ inline MachineInstrBuilder BuildMI(MachineBasicBlock *BB,
 
 /// BuildMI - This version of the builder inserts the newly-built
 /// instruction at the end of the given MachineBasicBlock, and sets up the first
-/// operand as a destination virtual register. 
+/// operand as a destination virtual register.
 ///
 inline MachineInstrBuilder BuildMI(MachineBasicBlock *BB,
                                    DebugLoc DL,
@@ -202,6 +211,9 @@ inline unsigned getKillRegState(bool B) {
 }
 inline unsigned getDeadRegState(bool B) {
   return B ? RegState::Dead : 0;
+}
+inline unsigned getUndefRegState(bool B) {
+  return B ? RegState::Undef : 0;
 }
 
 } // End llvm namespace

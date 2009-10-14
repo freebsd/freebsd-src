@@ -20,7 +20,6 @@
 #include "FastISelEmitter.h"
 #include "Record.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/ADT/VectorExtras.h"
 using namespace llvm;
 
@@ -119,7 +118,7 @@ struct OperandsSignature {
     return true;
   }
 
-  void PrintParameters(std::ostream &OS) const {
+  void PrintParameters(raw_ostream &OS) const {
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
       if (Operands[i] == "r") {
         OS << "unsigned Op" << i;
@@ -136,7 +135,7 @@ struct OperandsSignature {
     }
   }
 
-  void PrintArguments(std::ostream &OS,
+  void PrintArguments(raw_ostream &OS,
                       const std::vector<std::string>& PR) const {
     assert(PR.size() == Operands.size());
     bool PrintedArg = false;
@@ -163,7 +162,7 @@ struct OperandsSignature {
     }
   }
 
-  void PrintArguments(std::ostream &OS) const {
+  void PrintArguments(raw_ostream &OS) const {
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
       if (Operands[i] == "r") {
         OS << "Op" << i;
@@ -181,7 +180,7 @@ struct OperandsSignature {
   }
 
 
-  void PrintManglingSuffix(std::ostream &OS,
+  void PrintManglingSuffix(raw_ostream &OS,
                            const std::vector<std::string>& PR) const {
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
       if (PR[i] != "")
@@ -195,7 +194,7 @@ struct OperandsSignature {
     }
   }
 
-  void PrintManglingSuffix(std::ostream &OS) const {
+  void PrintManglingSuffix(raw_ostream &OS) const {
     for (unsigned i = 0, e = Operands.size(); i != e; ++i) {
       OS << Operands[i];
     }
@@ -217,8 +216,7 @@ public:
   explicit FastISelMap(std::string InstNS);
 
   void CollectPatterns(CodeGenDAGPatterns &CGP);
-  void PrintClass(std::ostream &OS);
-  void PrintFunctionDefinitions(std::ostream &OS);
+  void PrintFunctionDefinitions(raw_ostream &OS);
 };
 
 }
@@ -368,7 +366,7 @@ void FastISelMap::CollectPatterns(CodeGenDAGPatterns &CGP) {
   }
 }
 
-void FastISelMap::PrintFunctionDefinitions(std::ostream &OS) {
+void FastISelMap::PrintFunctionDefinitions(raw_ostream &OS) {
   // Now emit code for all the patterns that we collected.
   for (OperandsOpcodeTypeRetPredMap::const_iterator OI = SimplePatterns.begin(),
        OE = SimplePatterns.end(); OI != OE; ++OI) {
@@ -462,11 +460,11 @@ void FastISelMap::PrintFunctionDefinitions(std::ostream &OS) {
              << getLegalCName(Opcode) << "_"
              << getLegalCName(getName(VT)) << "_";
           Operands.PrintManglingSuffix(OS);
-          OS << "(MVT::SimpleValueType RetVT";
+          OS << "(MVT RetVT";
           if (!Operands.empty())
             OS << ", ";
           Operands.PrintParameters(OS);
-          OS << ") {\nswitch (RetVT) {\n";
+          OS << ") {\nswitch (RetVT.SimpleTy) {\n";
           for (RetPredMap::const_iterator RI = RM.begin(), RE = RM.end();
                RI != RE; ++RI) {
             MVT::SimpleValueType RetVT = RI->first;
@@ -486,13 +484,13 @@ void FastISelMap::PrintFunctionDefinitions(std::ostream &OS) {
              << getLegalCName(Opcode) << "_"
              << getLegalCName(getName(VT)) << "_";
           Operands.PrintManglingSuffix(OS);
-          OS << "(MVT::SimpleValueType RetVT";
+          OS << "(MVT RetVT";
           if (!Operands.empty())
             OS << ", ";
           Operands.PrintParameters(OS);
           OS << ") {\n";
           
-          OS << "  if (RetVT != " << getName(RM.begin()->first)
+          OS << "  if (RetVT.SimpleTy != " << getName(RM.begin()->first)
              << ")\n    return 0;\n";
           
           const PredMap &PM = RM.begin()->second;
@@ -556,12 +554,12 @@ void FastISelMap::PrintFunctionDefinitions(std::ostream &OS) {
       OS << "unsigned FastEmit_"
          << getLegalCName(Opcode) << "_";
       Operands.PrintManglingSuffix(OS);
-      OS << "(MVT::SimpleValueType VT, MVT::SimpleValueType RetVT";
+      OS << "(MVT VT, MVT RetVT";
       if (!Operands.empty())
         OS << ", ";
       Operands.PrintParameters(OS);
       OS << ") {\n";
-      OS << "  switch (VT) {\n";
+      OS << "  switch (VT.SimpleTy) {\n";
       for (TypeRetPredMap::const_iterator TI = TM.begin(), TE = TM.end();
            TI != TE; ++TI) {
         MVT::SimpleValueType VT = TI->first;
@@ -588,7 +586,7 @@ void FastISelMap::PrintFunctionDefinitions(std::ostream &OS) {
     // on opcode and type.
     OS << "unsigned FastEmit_";
     Operands.PrintManglingSuffix(OS);
-    OS << "(MVT::SimpleValueType VT, MVT::SimpleValueType RetVT, ISD::NodeType Opcode";
+    OS << "(MVT VT, MVT RetVT, ISD::NodeType Opcode";
     if (!Operands.empty())
       OS << ", ";
     Operands.PrintParameters(OS);
@@ -614,7 +612,7 @@ void FastISelMap::PrintFunctionDefinitions(std::ostream &OS) {
   }
 }
 
-void FastISelEmitter::run(std::ostream &OS) {
+void FastISelEmitter::run(raw_ostream &OS) {
   const CodeGenTarget &Target = CGP.getTargetInfo();
 
   // Determine the target's namespace name.

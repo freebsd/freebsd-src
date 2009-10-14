@@ -13,79 +13,110 @@
 
 #define DEBUG_TYPE "subtarget"
 #include "X86Subtarget.h"
+#include "X86InstrInfo.h"
 #include "X86GenSubtarget.inc"
-#include "llvm/Module.h"
-#include "llvm/Support/CommandLine.h"
+#include "llvm/GlobalValue.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 using namespace llvm;
 
 #if defined(_MSC_VER)
-    #include <intrin.h>
+#include <intrin.h>
 #endif
 
-static cl::opt<X86Subtarget::AsmWriterFlavorTy>
-AsmWriterFlavor("x86-asm-syntax", cl::init(X86Subtarget::Unset),
-  cl::desc("Choose style of code to emit from X86 backend:"),
-  cl::values(
-    clEnumValN(X86Subtarget::ATT,   "att",   "Emit AT&T-style assembly"),
-    clEnumValN(X86Subtarget::Intel, "intel", "Emit Intel-style assembly"),
-    clEnumValEnd));
+/// ClassifyGlobalReference - Classify a global variable reference for the
+/// current subtarget according to how we should reference it in a non-pcrel
+/// context.
+unsigned char X86Subtarget::
+ClassifyGlobalReference(const GlobalValue *GV, const TargetMachine &TM) const {
+  // DLLImport only exists on windows, it is implemented as a load from a
+  // DLLIMPORT stub.
+  if (GV->hasDLLImportLinkage())
+    return X86II::MO_DLLIMPORT;
 
+  // GV with ghost linkage (in JIT lazy compilation mode) do not require an
+  // extra load from stub.
+  bool isDecl = GV->isDeclaration() && !GV->hasNotBeenReadFromBitcode();
 
-/// True if accessing the GV requires an extra load. For Windows, dllimported
-/// symbols are indirect, loading the value at address GV rather then the
-/// value of GV itself. This means that the GlobalAddress must be in the base
-/// or index register of the address, not the GV offset field.
-bool X86Subtarget::GVRequiresExtraLoad(const GlobalValue* GV,
-                                       const TargetMachine& TM,
-                                       bool isDirectCall) const
-{
-  // FIXME: PIC
-  if (TM.getRelocationModel() != Reloc::Static &&
-      TM.getCodeModel() != CodeModel::Large) {
+  // X86-64 in PIC mode.
+  if (isPICStyleRIPRel()) {
+    // Large model never uses stubs.
+    if (TM.getCodeModel() == CodeModel::Large)
+      return X86II::MO_NO_FLAG;
+      
     if (isTargetDarwin()) {
-      if (isDirectCall)
-        return false;
-      bool isDecl = GV->isDeclaration() && !GV->hasNotBeenReadFromBitcode();
-      if (GV->hasHiddenVisibility() &&
-          (Is64Bit || (!isDecl && !GV->hasCommonLinkage())))
-        // If symbol visibility is hidden, the extra load is not needed if
-        // target is x86-64 or the symbol is definitely defined in the current
-        // translation unit.
-        return false;
-      return !isDirectCall && (isDecl || GV->isWeakForLinker());
-    } else if (isTargetELF()) {
+      // If symbol visibility is hidden, the extra load is not needed if
+      // target is x86-64 or the symbol is definitely defined in the current
+      // translation unit.
+      if (GV->hasDefaultVisibility() &&
+          (isDecl || GV->isWeakForLinker()))
+        return X86II::MO_GOTPCREL;
+    } else {
+      assert(isTargetELF() && "Unknown rip-relative target");
+
       // Extra load is needed for all externally visible.
-      if (isDirectCall)
-        return false;
-      if (GV->hasLocalLinkage() || GV->hasHiddenVisibility())
-        return false;
-      return true;
-    } else if (isTargetCygMing() || isTargetWindows()) {
-      return (GV->hasDLLImportLinkage());
+      if (!GV->hasLocalLinkage() && GV->hasDefaultVisibility())
+        return X86II::MO_GOTPCREL;
     }
+
+    return X86II::MO_NO_FLAG;
   }
-  return false;
+  
+  if (isPICStyleGOT()) {   // 32-bit ELF targets.
+    // Extra load is needed for all externally visible.
+    if (GV->hasLocalLinkage() || GV->hasHiddenVisibility())
+      return X86II::MO_GOTOFF;
+    return X86II::MO_GOT;
+  }
+  
+  if (isPICStyleStubPIC()) {  // Darwin/32 in PIC mode.
+    // Determine whether we have a stub reference and/or whether the reference
+    // is relative to the PIC base or not.
+    
+    // If this is a strong reference to a definition, it is definitely not
+    // through a stub.
+    if (!isDecl && !GV->isWeakForLinker())
+      return X86II::MO_PIC_BASE_OFFSET;
+
+    // Unless we have a symbol with hidden visibility, we have to go through a
+    // normal $non_lazy_ptr stub because this symbol might be resolved late.
+    if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
+      return X86II::MO_DARWIN_NONLAZY_PIC_BASE;
+    
+    // If symbol visibility is hidden, we have a stub for common symbol
+    // references and external declarations.
+    if (isDecl || GV->hasCommonLinkage()) {
+      // Hidden $non_lazy_ptr reference.
+      return X86II::MO_DARWIN_HIDDEN_NONLAZY_PIC_BASE;
+    }
+    
+    // Otherwise, no stub.
+    return X86II::MO_PIC_BASE_OFFSET;
+  }
+  
+  if (isPICStyleStubNoDynamic()) {  // Darwin/32 in -mdynamic-no-pic mode.
+    // Determine whether we have a stub reference.
+    
+    // If this is a strong reference to a definition, it is definitely not
+    // through a stub.
+    if (!isDecl && !GV->isWeakForLinker())
+      return X86II::MO_NO_FLAG;
+    
+    // Unless we have a symbol with hidden visibility, we have to go through a
+    // normal $non_lazy_ptr stub because this symbol might be resolved late.
+    if (!GV->hasHiddenVisibility())  // Non-hidden $non_lazy_ptr reference.
+      return X86II::MO_DARWIN_NONLAZY;
+
+    // Otherwise, no stub.
+    return X86II::MO_NO_FLAG;
+  }
+  
+  // Direct static reference to global.
+  return X86II::MO_NO_FLAG;
 }
 
-/// True if accessing the GV requires a register.  This is a superset of the
-/// cases where GVRequiresExtraLoad is true.  Some variations of PIC require
-/// a register, but not an extra load.
-bool X86Subtarget::GVRequiresRegister(const GlobalValue *GV,
-                                      const TargetMachine& TM,
-                                      bool isDirectCall) const
-{
-  if (GVRequiresExtraLoad(GV, TM, isDirectCall))
-    return true;
-  // Code below here need only consider cases where GVRequiresExtraLoad
-  // returns false.
-  if (TM.getRelocationModel() == Reloc::PIC_)
-    return !isDirectCall && 
-      (GV->hasLocalLinkage() || GV->hasExternalLinkage());
-  return false;
-}
 
 /// getBZeroEntry - This function returns the name of a function which has an
 /// interface like the non-standard bzero function, if such a function exists on
@@ -120,9 +151,9 @@ unsigned X86Subtarget::getSpecialAddressLatency() const {
 
 /// GetCpuIDAndInfo - Execute the specified cpuid and return the 4 values in the
 /// specified arguments.  If we can't run cpuid on the host, return true.
-bool X86::GetCpuIDAndInfo(unsigned value, unsigned *rEAX, unsigned *rEBX,
-                          unsigned *rECX, unsigned *rEDX) {
-#if defined(__x86_64__) || defined(_M_AMD64)
+static bool GetCpuIDAndInfo(unsigned value, unsigned *rEAX,
+                            unsigned *rEBX, unsigned *rECX, unsigned *rEDX) {
+#if defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
   #if defined(__GNUC__)
     // gcc doesn't know cpuid would clobber ebx/rbx. Preseve it manually.
     asm ("movq\t%%rbx, %%rsi\n\t"
@@ -192,18 +223,19 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
     char     c[12];
   } text;
   
-  if (X86::GetCpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1))
+  if (GetCpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1))
     return;
 
-  X86::GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX);
+  GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX);
   
-  if ((EDX >> 23) & 0x1) X86SSELevel = MMX;
-  if ((EDX >> 25) & 0x1) X86SSELevel = SSE1;
-  if ((EDX >> 26) & 0x1) X86SSELevel = SSE2;
-  if (ECX & 0x1)         X86SSELevel = SSE3;
-  if ((ECX >> 9)  & 0x1) X86SSELevel = SSSE3;
-  if ((ECX >> 19) & 0x1) X86SSELevel = SSE41;
-  if ((ECX >> 20) & 0x1) X86SSELevel = SSE42;
+  if ((EDX >> 15) & 1) HasCMov = true;
+  if ((EDX >> 23) & 1) X86SSELevel = MMX;
+  if ((EDX >> 25) & 1) X86SSELevel = SSE1;
+  if ((EDX >> 26) & 1) X86SSELevel = SSE2;
+  if (ECX & 0x1)       X86SSELevel = SSE3;
+  if ((ECX >> 9)  & 1) X86SSELevel = SSSE3;
+  if ((ECX >> 19) & 1) X86SSELevel = SSE41;
+  if ((ECX >> 20) & 1) X86SSELevel = SSE42;
 
   bool IsIntel = memcmp(text.c, "GenuineIntel", 12) == 0;
   bool IsAMD   = !IsIntel && memcmp(text.c, "AuthenticAMD", 12) == 0;
@@ -218,7 +250,7 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
     DetectFamilyModel(EAX, Family, Model);
     IsBTMemSlow = IsAMD || (Family == 6 && Model >= 13);
 
-    X86::GetCpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
+    GetCpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
     HasX86_64 = (EDX >> 29) & 0x1;
     HasSSE4A = IsAMD && ((ECX >> 6) & 0x1);
     HasFMA4 = IsAMD && ((ECX >> 16) & 0x1);
@@ -227,13 +259,13 @@ void X86Subtarget::AutoDetectSubtargetFeatures() {
 
 static const char *GetCurrentX86CPU() {
   unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
-  if (X86::GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX))
+  if (GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX))
     return "generic";
   unsigned Family = 0;
   unsigned Model  = 0;
   DetectFamilyModel(EAX, Family, Model);
 
-  X86::GetCpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
+  GetCpuIDAndInfo(0x80000001, &EAX, &EBX, &ECX, &EDX);
   bool Em64T = (EDX >> 29) & 0x1;
   bool HasSSE3 = (ECX & 0x1);
 
@@ -242,7 +274,7 @@ static const char *GetCurrentX86CPU() {
     char     c[12];
   } text;
 
-  X86::GetCpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1);
+  GetCpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1);
   if (memcmp(text.c, "GenuineIntel", 12) == 0) {
     switch (Family) {
       case 3:
@@ -319,9 +351,7 @@ static const char *GetCurrentX86CPU() {
         }
       case 15:
         if (HasSSE3) {
-          switch (Model) {
-          default: return "k8-sse3";
-          }
+          return "k8-sse3";
         } else {
           switch (Model) {
           case 1:  return "opteron";
@@ -330,9 +360,7 @@ static const char *GetCurrentX86CPU() {
           }
         }
       case 16:
-        switch (Model) {
-        default: return "amdfam10";
-        }
+        return "amdfam10";
     default:
       return "generic";
     }
@@ -341,11 +369,12 @@ static const char *GetCurrentX86CPU() {
   }
 }
 
-X86Subtarget::X86Subtarget(const Module &M, const std::string &FS, bool is64Bit)
-  : AsmFlavor(AsmWriterFlavor)
-  , PICStyle(PICStyles::None)
+X86Subtarget::X86Subtarget(const std::string &TT, const std::string &FS, 
+                           bool is64Bit)
+  : PICStyle(PICStyles::None)
   , X86SSELevel(NoMMXSSE)
   , X863DNowLevel(NoThreeDNow)
+  , HasCMov(false)
   , HasX86_64(false)
   , HasSSE4A(false)
   , HasAVX(false)
@@ -384,15 +413,14 @@ X86Subtarget::X86Subtarget(const Module &M, const std::string &FS, bool is64Bit)
   if (Is64Bit)
     HasX86_64 = true;
 
-  DOUT << "Subtarget features: SSELevel " << X86SSELevel
-       << ", 3DNowLevel " << X863DNowLevel
-       << ", 64bit " << HasX86_64 << "\n";
+  DEBUG(errs() << "Subtarget features: SSELevel " << X86SSELevel
+               << ", 3DNowLevel " << X863DNowLevel
+               << ", 64bit " << HasX86_64 << "\n");
   assert((!Is64Bit || HasX86_64) &&
          "64-bit code requested on a subtarget that doesn't support it!");
 
   // Set the boolean corresponding to the current target triple, or the default
   // if one cannot be determined, to true.
-  const std::string& TT = M.getTargetTriple();
   if (TT.length() > 5) {
     size_t Pos;
     if ((Pos = TT.find("-darwin")) != std::string::npos) {
@@ -415,38 +443,10 @@ X86Subtarget::X86Subtarget(const Module &M, const std::string &FS, bool is64Bit)
       TargetType = isWindows;
     } else if (TT.find("windows") != std::string::npos) {
       TargetType = isWindows;
-    }
-    else if (TT.find("-cl") != std::string::npos) {
+    } else if (TT.find("-cl") != std::string::npos) {
       TargetType = isDarwin;
       DarwinVers = 9;
     }
-  } else if (TT.empty()) {
-#if defined(__CYGWIN__)
-    TargetType = isCygwin;
-#elif defined(__MINGW32__) || defined(__MINGW64__)
-    TargetType = isMingw;
-#elif defined(__APPLE__)
-    TargetType = isDarwin;
-#if __APPLE_CC__ > 5400
-    DarwinVers = 9;  // GCC 5400+ is Leopard.
-#else
-    DarwinVers = 8;  // Minimum supported darwin is Tiger.
-#endif
-    
-#elif defined(_WIN32) || defined(_WIN64)
-    TargetType = isWindows;
-#elif defined(__linux__)
-    // Linux doesn't imply ELF, but we don't currently support anything else.
-    TargetType = isELF;
-    IsLinux = true;
-#endif
-  }
-
-  // If the asm syntax hasn't been overridden on the command line, use whatever
-  // the target wants.
-  if (AsmFlavor == X86Subtarget::Unset) {
-    AsmFlavor = (TargetType == isWindows)
-      ? X86Subtarget::Intel : X86Subtarget::ATT;
   }
 
   // Stack alignment is 16 bytes on Darwin (both 32 and 64 bit) and for all 64

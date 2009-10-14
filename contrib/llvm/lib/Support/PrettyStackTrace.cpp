@@ -19,6 +19,10 @@
 #include "llvm/ADT/SmallString.h"
 using namespace llvm;
 
+namespace llvm {
+  bool DisablePrettyStackTrace = false;
+}
+
 // FIXME: This should be thread local when llvm supports threads.
 static sys::ThreadLocal<const PrettyStackTraceEntry> PrettyStackTraceHead;
 
@@ -67,15 +71,16 @@ static void CrashHandler(void *Cookie) {
   }
   
   if (!TmpStr.empty()) {
-    __crashreporter_info__ = strdup(TmpStr.c_str());
-    errs() << __crashreporter_info__;
+    __crashreporter_info__ = strdup(std::string(TmpStr.str()).c_str());
+    errs() << TmpStr.str();
   }
   
 #endif
 }
 
 static bool RegisterCrashPrinter() {
-  sys::AddSignalHandler(CrashHandler, 0);
+  if (!DisablePrettyStackTrace)
+    sys::AddSignalHandler(CrashHandler, 0);
   return false;
 }
 

@@ -15,28 +15,55 @@
 #define LLVM_MC_MCVALUE_H
 
 #include "llvm/Support/DataTypes.h"
+#include "llvm/MC/MCSymbol.h"
+#include <cassert>
 
 namespace llvm {
 class MCSymbol;
+class raw_ostream;
 
 /// MCValue - This represents an "assembler immediate".  In its most general
 /// form, this can hold "SymbolA - SymbolB + imm64".  Not all targets supports
 /// relocations of this general form, but we need to represent this anyway.
 ///
+/// In the general form, SymbolB can only be defined if SymbolA is, and both
+/// must be in the same (non-external) section. The latter constraint is not
+/// enforced, since a symbol's section may not be known at construction.
+///
 /// Note that this class must remain a simple POD value class, because we need
 /// it to live in unions etc.
 class MCValue {
-  MCSymbol *SymA, *SymB;
+  const MCSymbol *SymA, *SymB;
   int64_t Cst;
 public:
 
-  int64_t getCst() const { return Cst; }
-  MCSymbol *getSymA() const { return SymA; }
-  MCSymbol *getSymB() const { return SymB; }
+  int64_t getConstant() const { return Cst; }
+  const MCSymbol *getSymA() const { return SymA; }
+  const MCSymbol *getSymB() const { return SymB; }
+
+  /// isAbsolute - Is this an absolute (as opposed to relocatable) value.
+  bool isAbsolute() const { return !SymA && !SymB; }
+
+  /// getAssociatedSection - For relocatable values, return the section the
+  /// value is associated with.
+  ///
+  /// @result - The value's associated section, or null for external or constant
+  /// values.
+  //
+  // FIXME: Switch to a tagged section, so this can return the tagged section
+  // value.
+  const MCSection *getAssociatedSection() const;
+
+  /// print - Print the value to the stream \arg OS.
+  void print(raw_ostream &OS, const MCAsmInfo *MAI) const;
   
-  
-  static MCValue get(MCSymbol *SymA, MCSymbol *SymB = 0, int64_t Val = 0) {
+  /// dump - Print the value to stderr.
+  void dump() const;
+
+  static MCValue get(const MCSymbol *SymA, const MCSymbol *SymB = 0,
+                     int64_t Val = 0) {
     MCValue R;
+    assert((!SymB || SymA) && "Invalid relocatable MCValue!");
     R.Cst = Val;
     R.SymA = SymA;
     R.SymB = SymB;

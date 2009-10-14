@@ -1,32 +1,48 @@
-; RUN: llvm-as < %s | llc -march=thumb -mattr=+thumb2 | grep {adc\\W*r\[0-9\],\\W*r\[0-9\],\\W*#\[0-9\]*} | grep {#171\\|#1179666\\|#872428544\\|#1448498774\\|#66846720} | count 5
+; RUN: llc < %s -march=thumb -mattr=+thumb2 | FileCheck %s
 
-; 734439407617 = 0x000000ab00000001
+; 734439407618 = 0x000000ab00000002
 define i64 @f1(i64 %a) {
-    %tmp = add i64 %a, 734439407617
+; CHECK: f1:
+; CHECK: adds r0, #2
+    %tmp = add i64 %a, 734439407618
     ret i64 %tmp
 }
 
-; 5066626890203137 = 0x0012001200000001
+; 5066626890203138 = 0x0012001200000002
 define i64 @f2(i64 %a) {
-    %tmp = add i64 %a, 5066626890203137
+; CHECK: f2:
+; CHECK: adds r0, #2
+    %tmp = add i64 %a, 5066626890203138
     ret i64 %tmp
 }
 
-; 3747052064576897025 = 0x3400340000000001
+; 3747052064576897026 = 0x3400340000000002
 define i64 @f3(i64 %a) {
-    %tmp = add i64 %a, 3747052064576897025
+; CHECK: f3:
+; CHECK: adds r0, #2
+    %tmp = add i64 %a, 3747052064576897026
     ret i64 %tmp
 }
 
-; 6221254862626095105 = 0x5656565600000001
+; 6221254862626095106 = 0x5656565600000002
 define i64 @f4(i64 %a) {
-    %tmp = add i64 %a, 6221254862626095105 
+; CHECK: f4:
+; CHECK: adds r0, #2
+    %tmp = add i64 %a, 6221254862626095106 
     ret i64 %tmp
 }
 
-; 287104476244869121 = 0x03fc000000000001
+; 287104476244869122 = 0x03fc000000000002
 define i64 @f5(i64 %a) {
-    %tmp = add i64 %a, 287104476244869121 
+; CHECK: f5:
+; CHECK: adds r0, #2
+    %tmp = add i64 %a, 287104476244869122
     ret i64 %tmp
 }
 
+define i64 @f6(i64 %a, i64 %b) {
+; CHECK: f6:
+; CHECK: adds r0, r0, r2
+    %tmp = add i64 %a, %b
+    ret i64 %tmp
+}

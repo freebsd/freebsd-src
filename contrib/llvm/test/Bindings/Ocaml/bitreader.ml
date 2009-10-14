@@ -1,4 +1,4 @@
-(* RUN: %ocamlc -warn-error A llvm.cma llvm_bitreader.cma llvm_bitwriter.cma %s -o %t 2> /dev/null
+(* RUN: %ocamlopt -warn-error A llvm.cmxa llvm_bitreader.cmxa llvm_bitwriter.cmxa %s -o %t
  * RUN: ./%t %t.bc
  * RUN: llvm-dis < %t.bc | grep caml_int_ty
  *)
@@ -6,13 +6,15 @@
 (* Note that this takes a moment to link, so it's best to keep the number of
    individual tests low. *)
 
+let context = Llvm.global_context ()
+
 let test x = if not x then exit 1 else ()
 
 let _ =
   let fn = Sys.argv.(1) in
-  let m = Llvm.create_module "ocaml_test_module" in
+  let m = Llvm.create_module context "ocaml_test_module" in
   
-  ignore (Llvm.define_type_name "caml_int_ty" Llvm.i32_type m);
+  ignore (Llvm.define_type_name "caml_int_ty" (Llvm.i32_type context) m);
   
   test (Llvm_bitwriter.write_bitcode_file m fn);
   
@@ -22,7 +24,7 @@ let _ =
   begin
     let mb = Llvm.MemoryBuffer.of_file fn in
     begin try
-      let m = Llvm_bitreader.parse_bitcode mb in
+      let m = Llvm_bitreader.parse_bitcode context mb in
       Llvm.dispose_module m
     with x ->
       Llvm.MemoryBuffer.dispose mb;
@@ -43,7 +45,7 @@ let _ =
   begin
     let mb = Llvm.MemoryBuffer.of_file fn in
     let mp = begin try
-      Llvm_bitreader.get_module_provider mb
+      Llvm_bitreader.get_module_provider context mb
     with x ->
       Llvm.MemoryBuffer.dispose mb;
       raise x
@@ -63,7 +65,7 @@ let _ =
     try
       let mb = Llvm.MemoryBuffer.of_file fn in
       let mp = begin try
-        Llvm_bitreader.get_module_provider mb
+        Llvm_bitreader.get_module_provider context mb
       with x ->
         Llvm.MemoryBuffer.dispose mb;
         raise x

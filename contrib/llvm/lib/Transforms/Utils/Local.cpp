@@ -20,9 +20,11 @@
 #include "llvm/Instructions.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
@@ -183,8 +185,8 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB) {
     } else if (SI->getNumSuccessors() == 2) {
       // Otherwise, we can fold this switch into a conditional branch
       // instruction if it has only one non-default destination.
-      Value *Cond = new ICmpInst(ICmpInst::ICMP_EQ, SI->getCondition(),
-                                 SI->getSuccessorValue(1), "cond", SI);
+      Value *Cond = new ICmpInst(SI, ICmpInst::ICMP_EQ, SI->getCondition(),
+                                 SI->getSuccessorValue(1), "cond");
       // Insert the new branch...
       BranchInst::Create(SI->getSuccessor(1), SI->getSuccessor(0), Cond, SI);
 
@@ -262,7 +264,6 @@ void llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V) {
 /// too, recursively.
 void
 llvm::RecursivelyDeleteDeadPHINode(PHINode *PN) {
-
   // We can remove a PHI if it is on a cycle in the def-use graph
   // where each node in the cycle has degree one, i.e. only one use,
   // and is an instruction with no side effects.
@@ -294,7 +295,7 @@ llvm::RecursivelyDeleteDeadPHINode(PHINode *PN) {
 /// between them, moving the instructions in the predecessor into DestBB and
 /// deleting the predecessor block.
 ///
-void llvm::MergeBasicBlockIntoOnlyPred(BasicBlock *DestBB) {
+void llvm::MergeBasicBlockIntoOnlyPred(BasicBlock *DestBB, Pass *P) {
   // If BB has single-entry PHI nodes, fold them.
   while (PHINode *PN = dyn_cast<PHINode>(DestBB->begin())) {
     Value *NewVal = PN->getIncomingValue(0);
@@ -314,6 +315,13 @@ void llvm::MergeBasicBlockIntoOnlyPred(BasicBlock *DestBB) {
   // Anything that branched to PredBB now branches to DestBB.
   PredBB->replaceAllUsesWith(DestBB);
   
+  if (P) {
+    ProfileInfo *PI = P->getAnalysisIfAvailable<ProfileInfo>();
+    if (PI) {
+      PI->replaceAllUses(PredBB, DestBB);
+      PI->removeEdge(ProfileInfo::getEdge(PredBB, DestBB));
+    }
+  }
   // Nuke BB.
   PredBB->eraseFromParent();
 }

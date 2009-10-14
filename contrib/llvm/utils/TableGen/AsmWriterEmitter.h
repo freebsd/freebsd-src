@@ -32,9 +32,12 @@ namespace llvm {
     AsmWriterEmitter(RecordKeeper &R) : Records(R) {}
 
     // run - Output the asmwriter, returning true on failure.
-    void run(std::ostream &o);
+    void run(raw_ostream &o);
 
 private:
+    void EmitPrintInstruction(raw_ostream &o);
+    void EmitGetRegisterName(raw_ostream &o);
+    
     AsmWriterInst *getAsmWriterInstByID(unsigned ID) const {
       assert(ID < NumberedInstructions.size());
       std::map<const CodeGenInstruction*, AsmWriterInst*>::const_iterator I =

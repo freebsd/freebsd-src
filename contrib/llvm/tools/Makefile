@@ -19,9 +19,9 @@ DIRS := llvm-config
 PARALLEL_DIRS := opt llvm-as llvm-dis \
                  llc llvm-ranlib llvm-ar llvm-nm \
                  llvm-ld llvm-prof llvm-link \
-                 lli gccas gccld llvm-extract llvm-db \
-                 bugpoint llvm-bcanalyzer llvm-stub llvmc \
-                 llvm-mc
+                 lli llvm-extract \
+                 bugpoint llvm-bcanalyzer llvm-stub \
+                 llvm-mc llvmc
 
 # Let users override the set of tools to build from the command line.
 ifdef ONLY_TOOLS
@@ -39,7 +39,7 @@ ifeq ($(ENABLE_PIC),1)
 endif
 
 # No support for lto / gold on windows targets
-ifeq ($(OS), $(filter $(OS), Cygwin MingW))
+ifeq ($(TARGET_OS), $(filter $(TARGET_OS), Cygwin MingW))
   DIRS := $(filter-out lto gold, $(DIRS))
 endif
 

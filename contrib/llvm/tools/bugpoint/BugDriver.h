@@ -30,6 +30,7 @@ class Function;
 class BasicBlock;
 class AbstractInterpreter;
 class Instruction;
+class LLVMContext;
 
 class DebugCrashes;
 
@@ -42,7 +43,8 @@ extern bool DisableSimplifyCFG;
 extern bool BugpointIsInterrupted;
 
 class BugDriver {
-  const std::string ToolName;  // Name of bugpoint
+  LLVMContext& Context;
+  const char *ToolName;            // argv[0] of bugpoint
   std::string ReferenceOutputFile; // Name of `good' output file
   Module *Program;             // The raw program, linked together
   std::vector<const PassInfo*> PassesToRun;
@@ -60,9 +62,11 @@ class BugDriver {
 
 public:
   BugDriver(const char *toolname, bool as_child, bool find_bugs,
-            unsigned timeout, unsigned memlimit);
+            unsigned timeout, unsigned memlimit, LLVMContext& ctxt);
 
-  const std::string &getToolName() const { return ToolName; }
+  const char *getToolName() const { return ToolName; }
+
+  LLVMContext& getContext() { return Context; }
 
   // Set up methods... these methods are used to copy information about the
   // command line arguments into instance variables of BugDriver.
@@ -244,7 +248,7 @@ public:
   /// optimizations fail for some reason (optimizer crashes), return true,
   /// otherwise return false.  If DeleteOutput is set to true, the bitcode is
   /// deleted on success, and the filename string is undefined.  This prints to
-  /// cout a single line message indicating whether compilation was successful
+  /// outs() a single line message indicating whether compilation was successful
   /// or failed, unless Quiet is set.  ExtraArgs specifies additional arguments
   /// to pass to the child bugpoint instance.
   ///
@@ -290,7 +294,8 @@ private:
 /// ParseInputFile - Given a bitcode or assembly input filename, parse and
 /// return it, or return null if not possible.
 ///
-Module *ParseInputFile(const std::string &InputFilename);
+Module *ParseInputFile(const std::string &InputFilename,
+                       LLVMContext& ctxt);
 
 
 /// getPassesString - Turn a list of passes into a string which indicates the

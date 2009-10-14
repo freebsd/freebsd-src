@@ -14,7 +14,6 @@
 #ifndef LLVM_BITCODE_H
 #define LLVM_BITCODE_H
 
-#include <iosfwd>
 #include <string>
 
 namespace llvm {
@@ -23,6 +22,7 @@ namespace llvm {
   class MemoryBuffer;
   class ModulePass;
   class BitstreamWriter;
+  class LLVMContext;
   class raw_ostream;
   
   /// getBitcodeModuleProvider - Read the header of the specified bitcode buffer
@@ -31,16 +31,14 @@ namespace llvm {
   /// error, this returns null, *does not* take ownership of Buffer, and fills
   /// in *ErrMsg with an error description if ErrMsg is non-null.
   ModuleProvider *getBitcodeModuleProvider(MemoryBuffer *Buffer,
+                                           LLVMContext& Context,
                                            std::string *ErrMsg = 0);
 
   /// ParseBitcodeFile - Read the specified bitcode file, returning the module.
   /// If an error occurs, this returns null and fills in *ErrMsg if it is
   /// non-null.  This method *never* takes ownership of Buffer.
-  Module *ParseBitcodeFile(MemoryBuffer *Buffer, std::string *ErrMsg = 0);
-
-  /// WriteBitcodeToFile - Write the specified module to the specified output
-  /// stream.
-  void WriteBitcodeToFile(const Module *M, std::ostream &Out);
+  Module *ParseBitcodeFile(MemoryBuffer *Buffer, LLVMContext& Context,
+                           std::string *ErrMsg = 0);
 
   /// WriteBitcodeToFile - Write the specified module to the specified
   /// raw output stream.
@@ -50,23 +48,48 @@ namespace llvm {
   /// raw output stream.
   void WriteBitcodeToStream(const Module *M, BitstreamWriter &Stream);
 
-  /// CreateBitcodeWriterPass - Create and return a pass that writes the module
-  /// to the specified ostream.
-  ModulePass *CreateBitcodeWriterPass(std::ostream &Str);
-
   /// createBitcodeWriterPass - Create and return a pass that writes the module
   /// to the specified ostream.
   ModulePass *createBitcodeWriterPass(raw_ostream &Str);
   
   
-  /// isBitcodeWrapper - Return true fi this is a wrapper for LLVM IR bitcode
-  /// files.
-  static bool inline isBitcodeWrapper(unsigned char *BufPtr,
-                                      unsigned char *BufEnd) {
-    return (BufPtr != BufEnd && BufPtr[0] == 0xDE && BufPtr[1] == 0xC0 && 
-            BufPtr[2] == 0x17 && BufPtr[3] == 0x0B);
+  /// isBitcodeWrapper - Return true if the given bytes are the magic bytes
+  /// for an LLVM IR bitcode wrapper.
+  ///
+  static inline bool isBitcodeWrapper(const unsigned char *BufPtr,
+                                      const unsigned char *BufEnd) {
+    // See if you can find the hidden message in the magic bytes :-).
+    // (Hint: it's a little-endian encoding.)
+    return BufPtr != BufEnd &&
+           BufPtr[0] == 0xDE &&
+           BufPtr[1] == 0xC0 &&
+           BufPtr[2] == 0x17 &&
+           BufPtr[3] == 0x0B;
   }
-  
+
+  /// isRawBitcode - Return true if the given bytes are the magic bytes for
+  /// raw LLVM IR bitcode (without a wrapper).
+  ///
+  static inline bool isRawBitcode(const unsigned char *BufPtr,
+                                  const unsigned char *BufEnd) {
+    // These bytes sort of have a hidden message, but it's not in
+    // little-endian this time, and it's a little redundant.
+    return BufPtr != BufEnd &&
+           BufPtr[0] == 'B' &&
+           BufPtr[1] == 'C' &&
+           BufPtr[2] == 0xc0 &&
+           BufPtr[3] == 0xde;
+  }
+
+  /// isBitcode - Return true if the given bytes are the magic bytes for
+  /// LLVM IR bitcode, either with or without a wrapper.
+  ///
+  static bool inline isBitcode(const unsigned char *BufPtr,
+                               const unsigned char *BufEnd) {
+    return isBitcodeWrapper(BufPtr, BufEnd) ||
+           isRawBitcode(BufPtr, BufEnd);
+  }
+
   /// SkipBitcodeWrapperHeader - Some systems wrap bc files with a special
   /// header for padding or other reasons.  The format of this header is:
   ///

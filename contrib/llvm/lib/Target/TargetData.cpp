@@ -23,6 +23,7 @@
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/System/Mutex.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringExtras.h"
@@ -155,13 +156,13 @@ const TargetAlignElem TargetData::InvalidAlignmentElem =
  <br><br>
  <i>@verbatim<type><size>:<abi_align>:<pref_align>@endverbatim</i>: Numeric type
  alignment. Type is
- one of <i>i|f|v|a</i>, corresponding to integer, floating point, vector (aka
- packed) or aggregate.  Size indicates the size, e.g., 32 or 64 bits.
+ one of <i>i|f|v|a</i>, corresponding to integer, floating point, vector, or
+ aggregate.  Size indicates the size, e.g., 32 or 64 bits.
  \p
- The default string, fully specified is:
+ The default string, fully specified, is:
  <br><br>
- "E-p:64:64:64-a0:0:0-f32:32:32-f64:0:64"
- "-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:0:64"
+ "E-p:64:64:64-a0:0:8-f32:32:32-f64:64:64"
+ "-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64"
  "-v64:64:64-v128:128:128"
  <br><br>
  Note that in the case of aggregates, 0 is the default ABI and preferred
@@ -171,6 +172,7 @@ const TargetAlignElem TargetData::InvalidAlignmentElem =
 void TargetData::init(const std::string &TargetDescription) {
   std::string temp = TargetDescription;
   
+  LayoutMap = 0;
   LittleEndian = false;
   PointerMemSize = 8;
   PointerABIAlign   = 8;
@@ -184,9 +186,9 @@ void TargetData::init(const std::string &TargetDescription) {
   setAlignment(INTEGER_ALIGN,   4,  8, 64);  // i64
   setAlignment(FLOAT_ALIGN,     4,  4, 32);  // float
   setAlignment(FLOAT_ALIGN,     8,  8, 64);  // double
-  setAlignment(VECTOR_ALIGN,    8,  8, 64);  // v2i32
+  setAlignment(VECTOR_ALIGN,    8,  8, 64);  // v2i32, v1i64, ...
   setAlignment(VECTOR_ALIGN,   16, 16, 128); // v16i8, v8i16, v4i32, ...
-  setAlignment(AGGREGATE_ALIGN, 0,  8,  0);  // struct, union, class, ...
+  setAlignment(AGGREGATE_ALIGN, 0,  8,  0);  // struct
 
   while (!temp.empty()) {
     std::string token = getToken(temp, "-");
@@ -316,61 +318,30 @@ unsigned TargetData::getAlignmentInfo(AlignTypeEnum AlignType,
                  : Alignments[BestMatchIdx].PrefAlign;
 }
 
-namespace {
-
-/// LayoutInfo - The lazy cache of structure layout information maintained by
-/// TargetData.  Note that the struct types must have been free'd before
-/// llvm_shutdown is called (and thus this is deallocated) because all the
-/// targets with cached elements should have been destroyed.
-///
-typedef std::pair<const TargetData*,const StructType*> LayoutKey;
-
-struct DenseMapLayoutKeyInfo {
-  static inline LayoutKey getEmptyKey() { return LayoutKey(0, 0); }
-  static inline LayoutKey getTombstoneKey() {
-    return LayoutKey((TargetData*)(intptr_t)-1, 0);
-  }
-  static unsigned getHashValue(const LayoutKey &Val) {
-    return DenseMapInfo<void*>::getHashValue(Val.first) ^
-           DenseMapInfo<void*>::getHashValue(Val.second);
-  }
-  static bool isEqual(const LayoutKey &LHS, const LayoutKey &RHS) {
-    return LHS == RHS;
-  }
-
-  static bool isPod() { return true; }
-};
-
-typedef DenseMap<LayoutKey, StructLayout*, DenseMapLayoutKeyInfo> LayoutInfoTy;
-
-}
-
-static ManagedStatic<LayoutInfoTy> LayoutInfo;
-static ManagedStatic<sys::SmartMutex<true> > LayoutLock;
+typedef DenseMap<const StructType*, StructLayout*>LayoutInfoTy;
 
 TargetData::~TargetData() {
-  if (!LayoutInfo.isConstructed())
+  if (!LayoutMap)
     return;
   
-  sys::SmartScopedLock<true> Lock(&*LayoutLock);
   // Remove any layouts for this TD.
-  LayoutInfoTy &TheMap = *LayoutInfo;
+  LayoutInfoTy &TheMap = *static_cast<LayoutInfoTy*>(LayoutMap);
   for (LayoutInfoTy::iterator I = TheMap.begin(), E = TheMap.end(); I != E; ) {
-    if (I->first.first == this) {
-      I->second->~StructLayout();
-      free(I->second);
-      TheMap.erase(I++);
-    } else {
-      ++I;
-    }
+    I->second->~StructLayout();
+    free(I->second);
+    TheMap.erase(I++);
   }
+  
+  delete static_cast<LayoutInfoTy*>(LayoutMap);
 }
 
 const StructLayout *TargetData::getStructLayout(const StructType *Ty) const {
-  LayoutInfoTy &TheMap = *LayoutInfo;
+  if (!LayoutMap)
+    LayoutMap = static_cast<void*>(new LayoutInfoTy());
   
-  sys::SmartScopedLock<true> Lock(&*LayoutLock);
-  StructLayout *&SL = TheMap[LayoutKey(this, Ty)];
+  LayoutInfoTy &TheMap = *static_cast<LayoutInfoTy*>(LayoutMap);
+  
+  StructLayout *&SL = TheMap[Ty];
   if (SL) return SL;
 
   // Otherwise, create the struct layout.  Because it is variable length, we 
@@ -392,10 +363,10 @@ const StructLayout *TargetData::getStructLayout(const StructType *Ty) const {
 /// removed, this method must be called whenever a StructType is removed to
 /// avoid a dangling pointer in this cache.
 void TargetData::InvalidateStructLayoutInfo(const StructType *Ty) const {
-  if (!LayoutInfo.isConstructed()) return;  // No cache.
+  if (!LayoutMap) return;  // No cache.
   
-  sys::SmartScopedLock<true> Lock(&*LayoutLock);
-  LayoutInfoTy::iterator I = LayoutInfo->find(LayoutKey(this, Ty));
+  LayoutInfoTy* LayoutInfo = static_cast<LayoutInfoTy*>(LayoutMap);
+  LayoutInfoTy::iterator I = LayoutInfo->find(Ty);
   if (I == LayoutInfo->end()) return;
   
   I->second->~StructLayout();
@@ -453,7 +424,7 @@ uint64_t TargetData::getTypeSizeInBits(const Type *Ty) const {
   case Type::VectorTyID:
     return cast<VectorType>(Ty)->getBitWidth();
   default:
-    assert(0 && "TargetData::getTypeSizeInBits(): Unsupported type");
+    llvm_unreachable("TargetData::getTypeSizeInBits(): Unsupported type");
     break;
   }
   return 0;
@@ -508,7 +479,7 @@ unsigned char TargetData::getAlignment(const Type *Ty, bool abi_or_pref) const {
     AlignType = VECTOR_ALIGN;
     break;
   default:
-    assert(0 && "Bad type for getAlignment!!!");
+    llvm_unreachable("Bad type for getAlignment!!!");
     break;
   }
 
@@ -540,8 +511,8 @@ unsigned char TargetData::getPreferredTypeAlignmentShift(const Type *Ty) const {
 
 /// getIntPtrType - Return an unsigned integer type that is the same size or
 /// greater to the host pointer size.
-const IntegerType *TargetData::getIntPtrType() const {
-  return IntegerType::get(getPointerSizeInBits());
+const IntegerType *TargetData::getIntPtrType(LLVMContext &C) const {
+  return IntegerType::get(C, getPointerSizeInBits());
 }
 
 
@@ -555,7 +526,8 @@ uint64_t TargetData::getIndexedOffset(const Type *ptrTy, Value* const* Indices,
     TI = gep_type_begin(ptrTy, Indices, Indices+NumIndices);
   for (unsigned CurIDX = 0; CurIDX != NumIndices; ++CurIDX, ++TI) {
     if (const StructType *STy = dyn_cast<StructType>(*TI)) {
-      assert(Indices[CurIDX]->getType() == Type::Int32Ty &&
+      assert(Indices[CurIDX]->getType() ==
+             Type::getInt32Ty(ptrTy->getContext()) &&
              "Illegal struct idx");
       unsigned FieldNo = cast<ConstantInt>(Indices[CurIDX])->getZExtValue();
 

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm-c/lto.h"
+#include "llvm-c/Core.h"
 
 #include "LTOModule.h"
 #include "LTOCodeGenerator.h"
@@ -154,7 +155,7 @@ lto_symbol_attributes lto_module_get_symbol_attribute(lto_module_t mod,
 // instantiates a code generator
 // returns NULL if there is an error
 //
-lto_code_gen_t lto_codegen_create()
+lto_code_gen_t lto_codegen_create(void)
 {
      return new LTOCodeGenerator();
 }
@@ -199,14 +200,6 @@ bool lto_codegen_set_debug_model(lto_code_gen_t cg, lto_debug_model debug)
 bool lto_codegen_set_pic_model(lto_code_gen_t cg, lto_codegen_model model)
 {
   return cg->setCodePICModel(model, sLastErrorString);
-}
-
-//
-// sets the path to gcc
-//
-void lto_codegen_set_gcc_path(lto_code_gen_t cg, const char* path)
-{
-  cg->setGccPath(path);
 }
 
 //

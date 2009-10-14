@@ -58,7 +58,7 @@ struct constantint_ty {
     if (const ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
       const APInt &CIV = CI->getValue();
       if (Val >= 0)
-        return CIV == Val;
+        return CIV == static_cast<uint64_t>(Val);
       // If Val is negative, and CI is shorter than it, truncate to the right
       // number of bits.  If it is larger, then we have to sign extend.  Just
       // compare their negated values.
@@ -87,6 +87,18 @@ struct zero_ty {
 /// m_Zero() - Match an arbitrary zero/null constant.
 inline zero_ty m_Zero() { return zero_ty(); }
 
+struct one_ty {
+  template<typename ITy>
+  bool match(ITy *V) {
+    if (const ConstantInt *C = dyn_cast<ConstantInt>(V))
+      return C->isOne();
+    return false;
+  }
+};
+
+/// m_One() - Match a an integer 1.
+inline one_ty m_One() { return one_ty(); }
+  
 
 template<typename Class>
 struct bind_ty {
@@ -311,7 +323,8 @@ struct BinaryOpClass_match {
   template<typename OpTy>
   bool match(OpTy *V) {
     if (Class *I = dyn_cast<Class>(V))
-      if (L.match(I->getOperand(0)) && R.match(I->getOperand(1))) {
+      if (L.match(I->getOperand(0)) &&
+          R.match(I->getOperand(1))) {
         if (Opcode)
           *Opcode = I->getOpcode();
         return true;
@@ -356,7 +369,8 @@ struct CmpClass_match {
   template<typename OpTy>
   bool match(OpTy *V) {
     if (Class *I = dyn_cast<Class>(V))
-      if (L.match(I->getOperand(0)) && R.match(I->getOperand(1))) {
+      if (L.match(I->getOperand(0)) &&
+          R.match(I->getOperand(1))) {
         Predicate = I->getPredicate();
         return true;
       }
@@ -403,7 +417,7 @@ struct SelectClass_match {
 };
 
 template<typename Cond, typename LHS, typename RHS>
-inline SelectClass_match<Cond, RHS, LHS>
+inline SelectClass_match<Cond, LHS, RHS>
 m_Select(const Cond &C, const LHS &L, const RHS &R) {
   return SelectClass_match<Cond, LHS, RHS>(C, L, R);
 }
@@ -503,7 +517,7 @@ struct neg_match {
   }
 private:
   bool matchIfNeg(Value *LHS, Value *RHS) {
-    return LHS == ConstantExpr::getZeroValueForNegationExpr(LHS->getType()) &&
+    return LHS == ConstantFP::getZeroValueForNegation(LHS->getType()) &&
            L.match(RHS);
   }
 };
@@ -532,7 +546,7 @@ struct fneg_match {
   }
 private:
   bool matchIfFNeg(Value *LHS, Value *RHS) {
-    return LHS == ConstantExpr::getZeroValueForNegationExpr(LHS->getType()) &&
+    return LHS == ConstantFP::getZeroValueForNegation(LHS->getType()) &&
            L.match(RHS);
   }
 };

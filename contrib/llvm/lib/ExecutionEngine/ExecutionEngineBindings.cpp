@@ -15,6 +15,7 @@
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cstring>
 
 using namespace llvm;
@@ -45,8 +46,7 @@ LLVMGenericValueRef LLVMCreateGenericValueOfFloat(LLVMTypeRef TyRef, double N) {
     GenVal->DoubleVal = N;
     break;
   default:
-    assert(0 && "LLVMGenericValueToFloat supports only float and double.");
-    break;
+    llvm_unreachable("LLVMGenericValueToFloat supports only float and double.");
   }
   return wrap(GenVal);
 }
@@ -75,7 +75,7 @@ double LLVMGenericValueToFloat(LLVMTypeRef TyRef, LLVMGenericValueRef GenVal) {
   case Type::DoubleTyID:
     return unwrap(GenVal)->DoubleVal;
   default:
-    assert(0 && "LLVMGenericValueToFloat supports only float and double.");
+    llvm_unreachable("LLVMGenericValueToFloat supports only float and double.");
     break;
   }
   return 0; // Not reached
@@ -91,7 +91,10 @@ int LLVMCreateExecutionEngine(LLVMExecutionEngineRef *OutEE,
                               LLVMModuleProviderRef MP,
                               char **OutError) {
   std::string Error;
-  if (ExecutionEngine *EE = ExecutionEngine::create(unwrap(MP), false, &Error)){
+  EngineBuilder builder(unwrap(MP));
+  builder.setEngineKind(EngineKind::Either)
+         .setErrorStr(&Error);
+  if (ExecutionEngine *EE = builder.create()){
     *OutEE = wrap(EE);
     return 0;
   }
@@ -103,8 +106,10 @@ int LLVMCreateInterpreter(LLVMExecutionEngineRef *OutInterp,
                           LLVMModuleProviderRef MP,
                           char **OutError) {
   std::string Error;
-  if (ExecutionEngine *Interp =
-      ExecutionEngine::create(unwrap(MP), true, &Error)) {
+  EngineBuilder builder(unwrap(MP));
+  builder.setEngineKind(EngineKind::Interpreter)
+         .setErrorStr(&Error);
+  if (ExecutionEngine *Interp = builder.create()) {
     *OutInterp = wrap(Interp);
     return 0;
   }
@@ -117,9 +122,11 @@ int LLVMCreateJITCompiler(LLVMExecutionEngineRef *OutJIT,
                           unsigned OptLevel,
                           char **OutError) {
   std::string Error;
-  if (ExecutionEngine *JIT =
-      ExecutionEngine::create(unwrap(MP), false, &Error,
-                                 (CodeGenOpt::Level)OptLevel)) {
+  EngineBuilder builder(unwrap(MP));
+  builder.setEngineKind(EngineKind::JIT)
+         .setErrorStr(&Error)
+         .setOptLevel((CodeGenOpt::Level)OptLevel);
+  if (ExecutionEngine *JIT = builder.create()) {
     *OutJIT = wrap(JIT);
     return 0;
   }

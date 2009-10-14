@@ -37,13 +37,14 @@ public:
     WeakAnyLinkage,     ///< Keep one copy of named function when linking (weak)
     WeakODRLinkage,     ///< Same, but only replaced by something equivalent.
     AppendingLinkage,   ///< Special purpose, only applies to global arrays
-    InternalLinkage,    ///< Rename collisions when linking (static functions)
-    PrivateLinkage,     ///< Like Internal, but omit from symbol table
+    InternalLinkage,    ///< Rename collisions when linking (static functions).
+    PrivateLinkage,     ///< Like Internal, but omit from symbol table.
+    LinkerPrivateLinkage, ///< Like Private, but linker removes.
     DLLImportLinkage,   ///< Function to be imported from DLL
-    DLLExportLinkage,   ///< Function to be accessible from DLL
-    ExternalWeakLinkage,///< ExternalWeak linkage description
-    GhostLinkage,       ///< Stand-in functions for streaming fns from BC files
-    CommonLinkage       ///< Tentative definitions
+    DLLExportLinkage,   ///< Function to be accessible from DLL.
+    ExternalWeakLinkage,///< ExternalWeak linkage description.
+    GhostLinkage,       ///< Stand-in functions for streaming fns from BC files.
+    CommonLinkage       ///< Tentative definitions.
   };
 
   /// @brief An enumeration for the kinds of visibility of global values.
@@ -55,10 +56,10 @@ public:
 
 protected:
   GlobalValue(const Type *ty, ValueTy vty, Use *Ops, unsigned NumOps,
-              LinkageTypes linkage, const std::string &name = "")
+              LinkageTypes linkage, const Twine &Name = "")
     : Constant(ty, vty, Ops, NumOps), Parent(0),
       Linkage(linkage), Visibility(DefaultVisibility), Alignment(0) {
-    if (!name.empty()) setName(name);
+    setName(Name);
   }
 
   Module *Parent;
@@ -80,6 +81,7 @@ public:
   }
 
   VisibilityTypes getVisibility() const { return VisibilityTypes(Visibility); }
+  bool hasDefaultVisibility() const { return Visibility == DefaultVisibility; }
   bool hasHiddenVisibility() const { return Visibility == HiddenVisibility; }
   bool hasProtectedVisibility() const {
     return Visibility == ProtectedVisibility;
@@ -88,7 +90,7 @@ public:
   
   bool hasSection() const { return !Section.empty(); }
   const std::string &getSection() const { return Section; }
-  void setSection(const std::string &S) { Section = S; }
+  void setSection(const StringRef &S) { Section = S; }
   
   /// If the usage is empty (except transitively dead constants), then this
   /// global value can can be safely deleted since the destructor will
@@ -122,8 +124,10 @@ public:
   bool hasAppendingLinkage() const { return Linkage == AppendingLinkage; }
   bool hasInternalLinkage() const { return Linkage == InternalLinkage; }
   bool hasPrivateLinkage() const { return Linkage == PrivateLinkage; }
+  bool hasLinkerPrivateLinkage() const { return Linkage==LinkerPrivateLinkage; }
   bool hasLocalLinkage() const {
-    return Linkage == InternalLinkage || Linkage == PrivateLinkage;
+    return hasInternalLinkage() || hasPrivateLinkage() ||
+      hasLinkerPrivateLinkage();
   }
   bool hasDLLImportLinkage() const { return Linkage == DLLImportLinkage; }
   bool hasDLLExportLinkage() const { return Linkage == DLLExportLinkage; }

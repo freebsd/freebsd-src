@@ -19,13 +19,12 @@
 #include "Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Streams.h"
-#include <set>
 #include <algorithm>
+#include <set>
 using namespace llvm;
 
 // runEnums - Print out enum values for all of the registers.
-void RegisterInfoEmitter::runEnums(std::ostream &OS) {
+void RegisterInfoEmitter::runEnums(raw_ostream &OS) {
   CodeGenTarget Target;
   const std::vector<CodeGenRegister> &Registers = Target.getRegisters();
 
@@ -47,7 +46,7 @@ void RegisterInfoEmitter::runEnums(std::ostream &OS) {
   OS << "} // End llvm namespace \n";
 }
 
-void RegisterInfoEmitter::runHeader(std::ostream &OS) {
+void RegisterInfoEmitter::runHeader(raw_ostream &OS) {
   EmitSourceFileHeader("Register Information Header Fragment", OS);
   CodeGenTarget Target;
   const std::string &TargetName = Target.getName();
@@ -118,9 +117,9 @@ static void addSuperReg(Record *R, Record *S,
                   std::map<Record*, std::set<Record*>, LessRecord> &SuperRegs,
                   std::map<Record*, std::set<Record*>, LessRecord> &Aliases) {
   if (R == S) {
-    cerr << "Error: recursive sub-register relationship between"
-         << " register " << getQualifiedName(R)
-         << " and its sub-registers?\n";
+    errs() << "Error: recursive sub-register relationship between"
+           << " register " << getQualifiedName(R)
+           << " and its sub-registers?\n";
     abort();
   }
   if (!SuperRegs[R].insert(S).second)
@@ -139,9 +138,9 @@ static void addSubSuperReg(Record *R, Record *S,
                    std::map<Record*, std::set<Record*>, LessRecord> &SuperRegs,
                    std::map<Record*, std::set<Record*>, LessRecord> &Aliases) {
   if (R == S) {
-    cerr << "Error: recursive sub-register relationship between"
-         << " register " << getQualifiedName(R)
-         << " and its sub-registers?\n";
+    errs() << "Error: recursive sub-register relationship between"
+           << " register " << getQualifiedName(R)
+           << " and its sub-registers?\n";
     abort();
   }
 
@@ -172,7 +171,7 @@ public:
 
 // RegisterInfoEmitter::run - Main register file description emitter.
 //
-void RegisterInfoEmitter::run(std::ostream &OS) {
+void RegisterInfoEmitter::run(raw_ostream &OS) {
   CodeGenTarget Target;
   EmitSourceFileHeader("Register Information Source Fragment", OS);
 
@@ -223,7 +222,7 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
     // Emit the register list now.
     OS << "  // " << Name 
        << " Register Class Value Types...\n"
-       << "  static const MVT " << Name
+       << "  static const EVT " << Name
        << "[] = {\n    ";
     for (unsigned i = 0, e = RC.VTs.size(); i != e; ++i)
       OS << getEnumName(RC.VTs[i]) << ", ";
@@ -253,7 +252,7 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
       OS << "  // " << Name
          << " Sub-register Classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "SubRegClasses [] = {\n    ";
+         << Name << "SubRegClasses[] = {\n    ";
 
       bool Empty = true;
 
@@ -299,7 +298,7 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
       OS << "  // " << Name
          << " Super-register Classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "SuperRegClasses [] = {\n    ";
+         << Name << "SuperRegClasses[] = {\n    ";
 
       bool Empty = true;
       std::map<unsigned, std::set<unsigned> >::iterator I =
@@ -335,7 +334,7 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
       OS << "  // " << Name 
          << " Register Class sub-classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "Subclasses [] = {\n    ";
+         << Name << "Subclasses[] = {\n    ";
 
       bool Empty = true;
       for (unsigned rc2 = 0, e2 = RegisterClasses.size(); rc2 != e2; ++rc2) {
@@ -383,7 +382,7 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
       OS << "  // " << Name 
          << " Register Class super-classes...\n"
          << "  static const TargetRegisterClass* const "
-         << Name << "Superclasses [] = {\n    ";
+         << Name << "Superclasses[] = {\n    ";
 
       bool Empty = true;
       std::map<unsigned, std::set<unsigned> >::iterator I =
@@ -450,15 +449,15 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
     for (unsigned j = 0, e = LI.size(); j != e; ++j) {
       Record *Reg = LI[j];
       if (RegisterAliases[R].count(Reg))
-        cerr << "Warning: register alias between " << getQualifiedName(R)
-             << " and " << getQualifiedName(Reg)
-             << " specified multiple times!\n";
+        errs() << "Warning: register alias between " << getQualifiedName(R)
+               << " and " << getQualifiedName(Reg)
+               << " specified multiple times!\n";
       RegisterAliases[R].insert(Reg);
 
       if (RegisterAliases[Reg].count(R))
-        cerr << "Warning: register alias between " << getQualifiedName(R)
-             << " and " << getQualifiedName(Reg)
-             << " specified multiple times!\n";
+        errs() << "Warning: register alias between " << getQualifiedName(R)
+               << " and " << getQualifiedName(Reg)
+               << " specified multiple times!\n";
       RegisterAliases[Reg].insert(R);
     }
   }
@@ -471,9 +470,9 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
     for (unsigned j = 0, e = LI.size(); j != e; ++j) {
       Record *SubReg = LI[j];
       if (RegisterSubRegs[R].count(SubReg))
-        cerr << "Warning: register " << getQualifiedName(SubReg)
-             << " specified as a sub-register of " << getQualifiedName(R)
-             << " multiple times!\n";
+        errs() << "Warning: register " << getQualifiedName(SubReg)
+               << " specified as a sub-register of " << getQualifiedName(R)
+               << " multiple times!\n";
       addSubSuperReg(R, SubReg, RegisterSubRegs, RegisterSuperRegs,
                      RegisterAliases);
     }
@@ -768,7 +767,7 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
   }
 
   OS<<"\n  const TargetRegisterDesc RegisterDescriptors[] = { // Descriptors\n";
-  OS << "    { \"NOREG\",\t\"NOREG\",\t0,\t0,\t0 },\n";
+  OS << "    { \"NOREG\",\t0,\t0,\t0 },\n";
 
   // Now that register alias and sub-registers sets have been emitted, emit the
   // register descriptors now.
@@ -776,11 +775,6 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
   for (unsigned i = 0, e = Registers.size(); i != e; ++i) {
     const CodeGenRegister &Reg = Registers[i];
     OS << "    { \"";
-    if (!Reg.TheDef->getValueAsString("AsmName").empty())
-      OS << Reg.TheDef->getValueAsString("AsmName");
-    else
-      OS << Reg.getName();
-    OS << "\",\t\"";
     OS << Reg.getName() << "\",\t";
     if (RegisterAliases.count(Reg.TheDef))
       OS << Reg.getName() << "_AliasSet,\t";
@@ -808,8 +802,8 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
     std::vector<Record*> To   = SubRegs[i]->getValueAsListOfDefs("To");
     
     if (From.size() != To.size()) {
-      cerr << "Error: register list and sub-register list not of equal length"
-           << " in SubRegSet\n";
+      errs() << "Error: register list and sub-register list not of equal length"
+             << " in SubRegSet\n";
       exit(1);
     }
     
@@ -858,8 +852,8 @@ void RegisterInfoEmitter::run(std::ostream &OS) {
     std::vector<int64_t> RegNums = Reg->getValueAsListOfInts("DwarfNumbers");
     maxLength = std::max((size_t)maxLength, RegNums.size());
     if (DwarfRegNums.count(Reg))
-      cerr << "Warning: DWARF numbers for register " << getQualifiedName(Reg)
-           << "specified multiple times\n";
+      errs() << "Warning: DWARF numbers for register " << getQualifiedName(Reg)
+             << "specified multiple times\n";
     DwarfRegNums[Reg] = RegNums;
   }
 

@@ -1,9 +1,9 @@
-; RUN: llvm-as < %s | llc -march=x86-64 > %t
+; RUN: llc < %s -march=x86-64 > %t
 ; RUN: grep movb %t | count 2
 ; RUN: grep {movzb\[wl\]} %t
 
 
-define void @handle_vector_size_attribute() {
+define void @handle_vector_size_attribute() nounwind {
 entry:
 	%tmp69 = load i32* null		; <i32> [#uses=1]
 	switch i32 %tmp69, label %bb84 [

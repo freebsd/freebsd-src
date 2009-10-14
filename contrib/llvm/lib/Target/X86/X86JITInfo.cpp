@@ -15,15 +15,16 @@
 #include "X86JITInfo.h"
 #include "X86Relocations.h"
 #include "X86Subtarget.h"
+#include "X86TargetMachine.h"
 #include "llvm/Function.h"
-#include "llvm/Config/alloca.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cstdlib>
 #include <cstring>
 using namespace llvm;
 
 // Determine the platform we're running on
-#if defined (__x86_64__) || defined (_M_AMD64)
+#if defined (__x86_64__) || defined (_M_AMD64) || defined (_M_X64)
 # define X86_64_JIT
 #elif defined(__i386__) || defined(i386) || defined(_M_IX86)
 # define X86_32_JIT
@@ -50,13 +51,6 @@ static TargetJITInfo::JITCompilerFn JITCompilerFunction;
 #define GETASMPREFIX2(X) #X
 #define GETASMPREFIX(X) GETASMPREFIX2(X)
 #define ASMPREFIX GETASMPREFIX(__USER_LABEL_PREFIX__)
-
-// Check if building with -fPIC
-#if defined(__PIC__) && __PIC__ && defined(__linux__)
-#define ASMCALLSUFFIX "@PLT"
-#else
-#define ASMCALLSUFFIX
-#endif
 
 // For ELF targets, use a .size and .type directive, to let tools
 // know the extent of functions defined in assembler.
@@ -130,7 +124,7 @@ extern "C" {
     // JIT callee
     "movq    %rbp, %rdi\n"    // Pass prev frame and return address
     "movq    8(%rbp), %rsi\n"
-    "call    " ASMPREFIX "X86CompilationCallback2" ASMCALLSUFFIX "\n"
+    "call    " ASMPREFIX "X86CompilationCallback2\n"
     // Restore all XMM arg registers
     "movaps  112(%rsp), %xmm7\n"
     "movaps  96(%rsp), %xmm6\n"
@@ -206,7 +200,7 @@ extern "C" {
     "movl    4(%ebp), %eax\n" // Pass prev frame and return address
     "movl    %eax, 4(%esp)\n"
     "movl    %ebp, (%esp)\n"
-    "call    " ASMPREFIX "X86CompilationCallback2" ASMCALLSUFFIX "\n"
+    "call    " ASMPREFIX "X86CompilationCallback2\n"
     "movl    %ebp, %esp\n"    // Restore ESP
     CFI(".cfi_def_cfa_register %esp\n")
     "subl    $12, %esp\n"
@@ -262,7 +256,7 @@ extern "C" {
     "movl    4(%ebp), %eax\n" // Pass prev frame and return address
     "movl    %eax, 4(%esp)\n"
     "movl    %ebp, (%esp)\n"
-    "call    " ASMPREFIX "X86CompilationCallback2" ASMCALLSUFFIX "\n"
+    "call    " ASMPREFIX "X86CompilationCallback2\n"
     "addl    $16, %esp\n"
     "movaps  48(%esp), %xmm3\n"
     CFI(".cfi_restore %xmm3\n")
@@ -321,8 +315,7 @@ extern "C" {
 
 #else // Not an i386 host
   void X86CompilationCallback() {
-    assert(0 && "Cannot call X86CompilationCallback() on a non-x86 arch!\n");
-    abort();
+    llvm_unreachable("Cannot call X86CompilationCallback() on a non-x86 arch!");
   }
 #endif
 }
@@ -331,14 +324,21 @@ extern "C" {
 /// function stub when we did not know the real target of a call.  This function
 /// must locate the start of the stub or call site and pass it into the JIT
 /// compiler function.
-extern "C" void ATTRIBUTE_USED
+extern "C" {
+#if !(defined (X86_64_JIT) && defined(_MSC_VER))
+ // the following function is called only from this translation unit,
+ // unless we are under 64bit Windows with MSC, where there is 
+ // no support for inline assembly
+static
+#endif
+void ATTRIBUTE_USED
 X86CompilationCallback2(intptr_t *StackPtr, intptr_t RetAddr) {
   intptr_t *RetAddrLoc = &StackPtr[1];
   assert(*RetAddrLoc == RetAddr &&
          "Could not find return address on the stack!");
 
   // It's a stub if there is an interrupt marker after the call.
-  bool isStub = ((unsigned char*)RetAddr)[0] == 0xCD;
+  bool isStub = ((unsigned char*)RetAddr)[0] == 0xCE;
 
   // The call instruction should have pushed the return value onto the stack...
 #if defined (X86_64_JIT)
@@ -348,10 +348,10 @@ X86CompilationCallback2(intptr_t *StackPtr, intptr_t RetAddr) {
 #endif
 
 #if 0
-  DOUT << "In callback! Addr=" << (void*)RetAddr
-       << " ESP=" << (void*)StackPtr
-       << ": Resolving call to function: "
-       << TheVM->getFunctionReferencedName((void*)RetAddr) << "\n";
+  DEBUG(errs() << "In callback! Addr=" << (void*)RetAddr
+               << " ESP=" << (void*)StackPtr
+               << ": Resolving call to function: "
+               << TheVM->getFunctionReferencedName((void*)RetAddr) << "\n");
 #endif
 
   // Sanity check to make sure this really is a call instruction.
@@ -377,7 +377,7 @@ X86CompilationCallback2(intptr_t *StackPtr, intptr_t RetAddr) {
     // If this is a stub, rewrite the call into an unconditional branch
     // instruction so that two return addresses are not pushed onto the stack
     // when the requested function finally gets called.  This also makes the
-    // 0xCD byte (interrupt) dead, so the marker doesn't effect anything.
+    // 0xCE byte (interrupt) dead, so the marker doesn't effect anything.
 #if defined (X86_64_JIT)
     // If the target address is within 32-bit range of the stub, use a
     // PC-relative branch instead of loading the actual address.  (This is
@@ -403,29 +403,24 @@ X86CompilationCallback2(intptr_t *StackPtr, intptr_t RetAddr) {
   *RetAddrLoc -= 5;
 #endif
 }
+}
 
 TargetJITInfo::LazyResolverFn
 X86JITInfo::getLazyResolverFunction(JITCompilerFn F) {
   JITCompilerFunction = F;
 
 #if defined (X86_32_JIT) && !defined (_MSC_VER)
-  unsigned EAX = 0, EBX = 0, ECX = 0, EDX = 0;
-  union {
-    unsigned u[3];
-    char     c[12];
-  } text;
-
-  if (!X86::GetCpuIDAndInfo(0, &EAX, text.u+0, text.u+2, text.u+1)) {
-    // FIXME: support for AMD family of processors.
-    if (memcmp(text.c, "GenuineIntel", 12) == 0) {
-      X86::GetCpuIDAndInfo(0x1, &EAX, &EBX, &ECX, &EDX);
-      if ((EDX >> 25) & 0x1)
-        return X86CompilationCallback_SSE;
-    }
-  }
+  if (Subtarget->hasSSE1())
+    return X86CompilationCallback_SSE;
 #endif
 
   return X86CompilationCallback;
+}
+
+X86JITInfo::X86JITInfo(X86TargetMachine &tm) : TM(tm) {
+  Subtarget = &TM.getSubtarget<X86Subtarget>();
+  useGOT = 0;
+  TLSOffset = 0;
 }
 
 void *X86JITInfo::emitGlobalValueIndirectSym(const GlobalValue* GV, void *ptr,
@@ -485,7 +480,10 @@ void *X86JITInfo::emitFunctionStub(const Function* F, void *Fn,
   JCE.emitWordLE((intptr_t)Fn-JCE.getCurrentPCValue()-4);
 #endif
 
-  JCE.emitByte(0xCD);   // Interrupt - Just a marker identifying the stub!
+  // This used to use 0xCD, but that value is used by JITMemoryManager to
+  // initialize the buffer with garbage, which means it may follow a
+  // noreturn function call, confusing X86CompilationCallback2.  PR 4929.
+  JCE.emitByte(0xCE);   // Interrupt - Just a marker identifying the stub!
   return JCE.finishGVStub(F);
 }
 
@@ -495,9 +493,11 @@ void X86JITInfo::emitFunctionStubAtAddr(const Function* F, void *Fn, void *Stub,
   // complains about casting a function pointer to a normal pointer.
   JCE.startGVStub(F, Stub, 5);
   JCE.emitByte(0xE9);
-#if defined (X86_64_JIT)
-  assert(((((intptr_t)Fn-JCE.getCurrentPCValue()-5) << 32) >> 32) == 
-          ((intptr_t)Fn-JCE.getCurrentPCValue()-5) 
+#if defined (X86_64_JIT) && !defined (NDEBUG)
+  // Yes, we need both of these casts, or some broken versions of GCC (4.2.4)
+  // get the signed-ness of the expression wrong.  Go figure.
+  intptr_t Displacement = (intptr_t)Fn - (intptr_t)JCE.getCurrentPCValue() - 5;
+  assert(((Displacement << 32) >> 32) == Displacement
          && "PIC displacement does not fit in displacement field!");
 #endif
   JCE.emitWordLE((intptr_t)Fn-JCE.getCurrentPCValue()-4);
@@ -538,6 +538,7 @@ void X86JITInfo::relocate(void *Function, MachineRelocation *MR,
       break;
     }
     case X86::reloc_absolute_word:
+    case X86::reloc_absolute_word_sext:
       // Absolute relocation, just add the relocated value to the value already
       // in memory.
       *((unsigned*)RelocPos) += (unsigned)ResultPtr;
@@ -554,7 +555,7 @@ char* X86JITInfo::allocateThreadLocalMemory(size_t size) {
   TLSOffset -= size;
   return TLSOffset;
 #else
-  assert(0 && "Cannot allocate thread local storage on this arch!\n");
+  llvm_unreachable("Cannot allocate thread local storage on this arch!");
   return 0;
 #endif
 }

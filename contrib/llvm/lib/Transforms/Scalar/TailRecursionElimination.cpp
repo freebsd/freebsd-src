@@ -60,14 +60,13 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 using namespace llvm;
 
 STATISTIC(NumEliminated, "Number of tail calls removed");
 STATISTIC(NumAccumAdded, "Number of accumulators introduced");
 
 namespace {
-  struct VISIBILITY_HIDDEN TailCallElim : public FunctionPass {
+  struct TailCallElim : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     TailCallElim() : FunctionPass(&ID) {}
 
@@ -394,7 +393,7 @@ bool TailCallElim::ProcessReturningBlock(ReturnInst *Ret, BasicBlock *&OldEntry,
   // create the new entry block, allowing us to branch back to the old entry.
   if (OldEntry == 0) {
     OldEntry = &F->getEntryBlock();
-    BasicBlock *NewEntry = BasicBlock::Create("", F, OldEntry);
+    BasicBlock *NewEntry = BasicBlock::Create(F->getContext(), "", F, OldEntry);
     NewEntry->takeName(OldEntry);
     OldEntry->setName("tailrecurse");
     BranchInst::Create(OldEntry, NewEntry);

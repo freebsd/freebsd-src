@@ -17,10 +17,11 @@ extrn X86CompilationCallback2: PROC
 X86CompilationCallback proc
     push    rbp
 
-    ; Save RSP
+    ; Save RSP.
     mov     rbp, rsp
 
     ; Save all int arg registers
+    ; WARNING: We cannot use register spill area - we're generating stubs by hands!
     push    rcx
     push    rdx
     push    r8
@@ -29,27 +30,27 @@ X86CompilationCallback proc
     ; Align stack on 16-byte boundary.
     and     rsp, -16
 
-    ; Save all XMM arg registers
-    sub     rsp, 64
-    movaps  [rsp],     xmm0
-    movaps  [rsp+16],  xmm1
-    movaps  [rsp+32],  xmm2
-    movaps  [rsp+48],  xmm3
+    ; Save all XMM arg registers. Also allocate reg spill area.
+    sub     rsp, 96
+    movaps  [rsp   +32],  xmm0
+    movaps  [rsp+16+32],  xmm1
+    movaps  [rsp+32+32],  xmm2
+    movaps  [rsp+48+32],  xmm3
 
     ; JIT callee
 
-    ; Pass prev frame and return address
+    ; Pass prev frame and return address.
     mov     rcx, rbp
     mov     rdx, qword ptr [rbp+8]
     call    X86CompilationCallback2
 
-    ; Restore all XMM arg registers
-    movaps  xmm3, [rsp+48]
-    movaps  xmm2, [rsp+32]
-    movaps  xmm1, [rsp+16]
-    movaps  xmm0, [rsp]
+    ; Restore all XMM arg registers.
+    movaps  xmm3, [rsp+48+32]
+    movaps  xmm2, [rsp+32+32]
+    movaps  xmm1, [rsp+16+32]
+    movaps  xmm0, [rsp   +32]
 
-    ; Restore RSP
+    ; Restore RSP.
     mov     rsp, rbp
 
     ; Restore all int arg registers
@@ -59,7 +60,7 @@ X86CompilationCallback proc
     pop     rdx
     pop     rcx
 
-    ; Restore RBP
+    ; Restore RBP.
     pop     rbp
     ret
 X86CompilationCallback endp

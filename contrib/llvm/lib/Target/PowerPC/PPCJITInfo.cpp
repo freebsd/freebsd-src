@@ -18,6 +18,8 @@
 #include "llvm/Function.h"
 #include "llvm/System/Memory.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 static TargetJITInfo::JITCompilerFn JITCompilerFunction;
@@ -197,8 +199,7 @@ asm(
     );
 #else
 void PPC32CompilationCallback() {
-  assert(0 && "This is not a power pc, you can't execute this!");
-  abort();
+  llvm_unreachable("This is not a power pc, you can't execute this!");
 }
 #endif
 
@@ -264,8 +265,7 @@ asm(
     );
 #else
 void PPC64CompilationCallback() {
-  assert(0 && "This is not a power pc, you can't execute this!");
-  abort();
+  llvm_unreachable("This is not a power pc, you can't execute this!");
 }
 #endif
 
@@ -354,7 +354,7 @@ void *PPCJITInfo::emitFunctionStub(const Function* F, void *Fn,
     JCE.emitWordBE(0xf821ffb1);     // stdu r1,-80(r1)
     JCE.emitWordBE(0x7d6802a6);     // mflr r11
     JCE.emitWordBE(0xf9610060);     // std r11, 96(r1)
-  } else if (TM.getSubtargetImpl()->isMachoABI()){
+  } else if (TM.getSubtargetImpl()->isDarwinABI()){
     JCE.emitWordBE(0x9421ffe0);     // stwu r1,-32(r1)
     JCE.emitWordBE(0x7d6802a6);     // mflr r11
     JCE.emitWordBE(0x91610028);     // stw r11, 40(r1)
@@ -383,7 +383,7 @@ void PPCJITInfo::relocate(void *Function, MachineRelocation *MR,
     unsigned *RelocPos = (unsigned*)Function + MR->getMachineCodeOffset()/4;
     intptr_t ResultPtr = (intptr_t)MR->getResultPointer();
     switch ((PPC::RelocationType)MR->getRelocationType()) {
-    default: assert(0 && "Unknown relocation type!");
+    default: llvm_unreachable("Unknown relocation type!");
     case PPC::reloc_pcrel_bx:
       // PC-relative relocation for b and bl instructions.
       ResultPtr = (ResultPtr-(intptr_t)RelocPos) >> 2;

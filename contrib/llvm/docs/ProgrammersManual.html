@@ -29,6 +29,13 @@
     <ul>
       <li><a href="#isa">The <tt>isa&lt;&gt;</tt>, <tt>cast&lt;&gt;</tt>
 and <tt>dyn_cast&lt;&gt;</tt> templates</a> </li>
+      <li><a href="#string_apis">Passing strings (the <tt>StringRef</tt>
+and <tt>Twine</tt> classes)</a>
+        <ul>
+          <li><a href="#StringRef">The <tt>StringRef</tt> class</a> </li>
+          <li><a href="#Twine">The <tt>Twine</tt> class</a> </li>
+        </ul>
+      </li>
       <li><a href="#DEBUG">The <tt>DEBUG()</tt> macro and <tt>-debug</tt>
 option</a>
         <ul>
@@ -79,6 +86,10 @@ option</a></li>
       <li><a href="#dss_map">&lt;map&gt;</a></li>
       <li><a href="#dss_othermap">Other Map-Like Container Options</a></li>
     </ul></li>
+    <li><a href="#ds_string">String-like containers</a>
+    <!--<ul>
+       todo
+    </ul>--></li>
     <li><a href="#ds_bit">BitVector-like containers</a>
     <ul>
       <li><a href="#dss_bitvector">A dense bitvector</a></li>
@@ -136,6 +147,7 @@ with another <tt>Value</tt></a> </li>
         </a></li>
     <li><a href="#shutdown">Ending execution with <tt>llvm_shutdown()</tt></a></li>
     <li><a href="#managedstatic">Lazy initialization with <tt>ManagedStatic</tt></a></li>
+    <li><a href="#llvmcontext">Achieving Isolation with <tt>LLVMContext</tt></a></li>
   </ul>
   </li>
 
@@ -424,6 +436,107 @@ are lots of examples in the LLVM source base.</p>
 
 </div>
 
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="string_apis">Passing strings (the <tt>StringRef</tt>
+and <tt>Twine</tt> classes)</a>
+</div>
+
+<div class="doc_text">
+
+<p>Although LLVM generally does not do much string manipulation, we do have
+several important APIs which take strings.  Two important examples are the
+Value class -- which has names for instructions, functions, etc. -- and the
+StringMap class which is used extensively in LLVM and Clang.</p>
+
+<p>These are generic classes, and they need to be able to accept strings which
+may have embedded null characters.  Therefore, they cannot simply take
+a <tt>const char *</tt>, and taking a <tt>const std::string&amp;</tt> requires
+clients to perform a heap allocation which is usually unnecessary.  Instead,
+many LLVM APIs use a <tt>const StringRef&amp;</tt> or a <tt>const 
+Twine&amp;</tt> for passing strings efficiently.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="StringRef">The <tt>StringRef</tt> class</a>
+</div>
+
+<div class="doc_text">
+
+<p>The <tt>StringRef</tt> data type represents a reference to a constant string
+(a character array and a length) and supports the common operations available
+on <tt>std:string</tt>, but does not require heap allocation.</p>
+
+<p>It can be implicitly constructed using a C style null-terminated string,
+an <tt>std::string</tt>, or explicitly with a character pointer and length.
+For example, the <tt>StringRef</tt> find function is declared as:</p>
+
+<div class="doc_code">
+  iterator find(const StringRef &amp;Key);
+</div>
+
+<p>and clients can call it using any one of:</p>
+
+<div class="doc_code">
+<pre>
+  Map.find("foo");                 <i>// Lookup "foo"</i>
+  Map.find(std::string("bar"));    <i>// Lookup "bar"</i>
+  Map.find(StringRef("\0baz", 4)); <i>// Lookup "\0baz"</i>
+</pre>
+</div>
+
+<p>Similarly, APIs which need to return a string may return a <tt>StringRef</tt>
+instance, which can be used directly or converted to an <tt>std::string</tt>
+using the <tt>str</tt> member function.  See 
+"<tt><a href="/doxygen/classllvm_1_1StringRef_8h-source.html">llvm/ADT/StringRef.h</a></tt>"
+for more information.</p>
+
+<p>You should rarely use the <tt>StringRef</tt> class directly, because it contains
+pointers to external memory it is not generally safe to store an instance of the
+class (unless you know that the external storage will not be freed).</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="Twine">The <tt>Twine</tt> class</a>
+</div>
+
+<div class="doc_text">
+
+<p>The <tt>Twine</tt> class is an efficient way for APIs to accept concatenated
+strings.  For example, a common LLVM paradigm is to name one instruction based on
+the name of another instruction with a suffix, for example:</p>
+
+<div class="doc_code">
+<pre>
+    New = CmpInst::Create(<i>...</i>, SO->getName() + ".cmp");
+</pre>
+</div>
+
+<p>The <tt>Twine</tt> class is effectively a
+lightweight <a href="http://en.wikipedia.org/wiki/Rope_(computer_science)">rope</a>
+which points to temporary (stack allocated) objects.  Twines can be implicitly
+constructed as the result of the plus operator applied to strings (i.e., a C
+strings, an <tt>std::string</tt>, or a <tt>StringRef</tt>).  The twine delays the
+actual concatentation of strings until it is actually required, at which point
+it can be efficiently rendered directly into a character array.  This avoids
+unnecessary heap allocation involved in constructing the temporary results of
+string concatenation. See
+"<tt><a href="/doxygen/classllvm_1_1Twine_8h-source.html">llvm/ADT/Twine.h</a></tt>"
+for more information.</p>
+
+<p>As with a <tt>StringRef</tt>, <tt>Twine</tt> objects point to external memory
+and should almost never be stored or mentioned directly.  They are intended
+solely for use when defining a function which should be able to efficiently
+accept concatenated strings.</p>
+
+</div>
+
+
 <!-- ======================================================================= -->
 <div class="doc_subsection">
   <a name="DEBUG">The <tt>DEBUG()</tt> macro and <tt>-debug</tt> option</a>
@@ -448,7 +561,7 @@ tool) is run with the '<tt>-debug</tt>' command line argument:</p>
 
 <div class="doc_code">
 <pre>
-DOUT &lt;&lt; "I am here!\n";
+DEBUG(errs() &lt;&lt; "I am here!\n");
 </pre>
 </div>
 
@@ -493,16 +606,16 @@ option as follows:</p>
 
 <div class="doc_code">
 <pre>
-DOUT &lt;&lt; "No debug type\n";
 #undef  DEBUG_TYPE
+DEBUG(errs() &lt;&lt; "No debug type\n");
 #define DEBUG_TYPE "foo"
-DOUT &lt;&lt; "'foo' debug type\n";
+DEBUG(errs() &lt;&lt; "'foo' debug type\n");
 #undef  DEBUG_TYPE
 #define DEBUG_TYPE "bar"
-DOUT &lt;&lt; "'bar' debug type\n";
+DEBUG(errs() &lt;&lt; "'bar' debug type\n"));
 #undef  DEBUG_TYPE
 #define DEBUG_TYPE ""
-DOUT &lt;&lt; "No debug type (2)\n";
+DEBUG(errs() &lt;&lt; "No debug type (2)\n");
 </pre>
 </div>
 
@@ -533,6 +646,21 @@ conflict. If two different modules use the same string, they will all be turned
 on when the name is specified. This allows, for example, all debug information
 for instruction scheduling to be enabled with <tt>-debug-type=InstrSched</tt>,
 even if the source lives in multiple files.</p>
+
+<p>The <tt>DEBUG_WITH_TYPE</tt> macro is also available for situations where you
+would like to set <tt>DEBUG_TYPE</tt>, but only for one specific <tt>DEBUG</tt>
+statement. It takes an additional first parameter, which is the type to use. For
+example, the preceding example could be written as:</p>
+
+
+<div class="doc_code">
+<pre>
+DEBUG_WITH_TYPE("", errs() &lt;&lt; "No debug type\n");
+DEBUG_WITH_TYPE("foo", errs() &lt;&lt; "'foo' debug type\n");
+DEBUG_WITH_TYPE("bar", errs() &lt;&lt; "'bar' debug type\n"));
+DEBUG_WITH_TYPE("", errs() &lt;&lt; "No debug type (2)\n");
+</pre>
+</div>
 
 </div>
 
@@ -725,6 +853,10 @@ access the container.  Based on that, you should use:</p>
     added to the collection.  They permit duplicates and support efficient
     iteration, but do not support efficient look-up based on a key.
 </li>
+
+<li>a <a href="#ds_string">string</a> container is a specialized sequential
+    container or reference structure that is used for character or byte
+    arrays.</li>
 
 <li>a <a href="#ds_bit">bit</a> container provides an efficient way to store and
     perform set operations on sets of numeric id's, while automatically
@@ -1399,6 +1531,20 @@ always better.</p>
 
 <!-- ======================================================================= -->
 <div class="doc_subsection">
+  <a name="ds_string">String-like containers</a>
+</div>
+
+<div class="doc_text">
+
+<p>
+TODO: const char* vs stringref vs smallstring vs std::string.  Describe twine,
+xref to #string_apis.
+</p>
+
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
   <a name="ds_bit">Bit storage containers (BitVector, SparseBitVector)</a>
 </div>
 
@@ -1508,7 +1654,7 @@ an example that prints the name of a <tt>BasicBlock</tt> and the number of
 for (Function::iterator i = func-&gt;begin(), e = func-&gt;end(); i != e; ++i)
   // <i>Print out the name of the basic block if it has one, and then the</i>
   // <i>number of instructions that it contains</i>
-  llvm::cerr &lt;&lt; "Basic block (name=" &lt;&lt; i-&gt;getName() &lt;&lt; ") has "
+  errs() &lt;&lt; "Basic block (name=" &lt;&lt; i-&gt;getName() &lt;&lt; ") has "
              &lt;&lt; i-&gt;size() &lt;&lt; " instructions.\n";
 </pre>
 </div>
@@ -1541,14 +1687,14 @@ a <tt>BasicBlock</tt>:</p>
 for (BasicBlock::iterator i = blk-&gt;begin(), e = blk-&gt;end(); i != e; ++i)
    // <i>The next statement works since operator&lt;&lt;(ostream&amp;,...)</i>
    // <i>is overloaded for Instruction&amp;</i>
-   llvm::cerr &lt;&lt; *i &lt;&lt; "\n";
+   errs() &lt;&lt; *i &lt;&lt; "\n";
 </pre>
 </div>
 
 <p>However, this isn't really the best way to print out the contents of a
 <tt>BasicBlock</tt>!  Since the ostream operators are overloaded for virtually
 anything you'll care about, you could have just invoked the print routine on the
-basic block itself: <tt>llvm::cerr &lt;&lt; *blk &lt;&lt; "\n";</tt>.</p>
+basic block itself: <tt>errs() &lt;&lt; *blk &lt;&lt; "\n";</tt>.</p>
 
 </div>
 
@@ -1574,7 +1720,7 @@ small example that shows how to dump all instructions in a function to the stand
 
 // <i>F is a pointer to a Function instance</i>
 for (inst_iterator I = inst_begin(F), E = inst_end(F); I != E; ++I)
-  llvm::cerr &lt;&lt; *I &lt;&lt; "\n";
+  errs() &lt;&lt; *I &lt;&lt; "\n";
 </pre>
 </div>
 
@@ -1653,7 +1799,7 @@ without actually obtaining it via iteration over some structure:</p>
 void printNextInstruction(Instruction* inst) {
   BasicBlock::iterator it(inst);
   ++it; // <i>After this line, it refers to the instruction after *inst</i>
-  if (it != inst-&gt;getParent()-&gt;end()) llvm::cerr &lt;&lt; *it &lt;&lt; "\n";
+  if (it != inst-&gt;getParent()-&gt;end()) errs() &lt;&lt; *it &lt;&lt; "\n";
 }
 </pre>
 </div>
@@ -1771,8 +1917,8 @@ Function *F = ...;
 
 for (Value::use_iterator i = F-&gt;use_begin(), e = F-&gt;use_end(); i != e; ++i)
   if (Instruction *Inst = dyn_cast&lt;Instruction&gt;(*i)) {
-    llvm::cerr &lt;&lt; "F is used in instruction:\n";
-    llvm::cerr &lt;&lt; *Inst &lt;&lt; "\n";
+    errs() &lt;&lt; "F is used in instruction:\n";
+    errs() &lt;&lt; *Inst &lt;&lt; "\n";
   }
 </pre>
 </div>
@@ -2254,6 +2400,50 @@ The <tt>llvm_acquire_global_lock()</tt> and <tt>llvm_release_global_lock</tt>
 APIs provide access to the global lock used to implement the double-checked
 locking for lazy initialization.  These should only be used internally to LLVM,
 and only if you know what you're doing!
+</p>
+</div>
+
+<!-- ======================================================================= -->
+<div class="doc_subsection">
+  <a name="llvmcontext">Achieving Isolation with <tt>LLVMContext</tt></a>
+</div>
+
+<div class="doc_text">
+<p>
+<tt>LLVMContext</tt> is an opaque class in the LLVM API which clients can use
+to operate multiple, isolated instances of LLVM concurrently within the same
+address space.  For instance, in a hypothetical compile-server, the compilation
+of an individual translation unit is conceptually independent from all the 
+others, and it would be desirable to be able to compile incoming translation 
+units concurrently on independent server threads.  Fortunately, 
+<tt>LLVMContext</tt> exists to enable just this kind of scenario!
+</p>
+
+<p>
+Conceptually, <tt>LLVMContext</tt> provides isolation.  Every LLVM entity 
+(<tt>Module</tt>s, <tt>Value</tt>s, <tt>Type</tt>s, <tt>Constant</tt>s, etc.)
+in LLVM's in-memory IR belongs to an <tt>LLVMContext</tt>.  Entities in 
+different contexts <em>cannot</em> interact with each other: <tt>Module</tt>s in
+different contexts cannot be linked together, <tt>Function</tt>s cannot be added
+to <tt>Module</tt>s in different contexts, etc.  What this means is that is is
+safe to compile on multiple threads simultaneously, as long as no two threads
+operate on entities within the same context.
+</p>
+
+<p>
+In practice, very few places in the API require the explicit specification of a
+<tt>LLVMContext</tt>, other than the <tt>Type</tt> creation/lookup APIs.
+Because every <tt>Type</tt> carries a reference to its owning context, most
+other entities can determine what context they belong to by looking at their
+own <tt>Type</tt>.  If you are adding new entities to LLVM IR, please try to
+maintain this interface design.
+</p>
+
+<p>
+For clients that do <em>not</em> require the benefits of isolation, LLVM 
+provides a convenience API <tt>getGlobalContext()</tt>.  This returns a global,
+lazily initialized <tt>LLVMContext</tt> that may be used in situations where
+isolation is not a concern.
 </p>
 </div>
 
@@ -2793,7 +2983,7 @@ the <tt>lib/VMCore</tt> directory.</p>
   <dt><tt>VectorType</tt></dt>
   <dd>Subclass of SequentialType for vector types. A 
   vector type is similar to an ArrayType but is distinguished because it is 
-  a first class type wherease ArrayType is not. Vector types are used for 
+  a first class type whereas ArrayType is not. Vector types are used for 
   vector operations and are usually small vectors of of an integer or floating 
   point type.</dd>
   <dt><tt>StructType</tt></dt>
@@ -3353,7 +3543,7 @@ Superclasses: <a href="#GlobalValue"><tt>GlobalValue</tt></a>,
 <a href="#Value"><tt>Value</tt></a></p>
 
 <p>The <tt>Function</tt> class represents a single procedure in LLVM.  It is
-actually one of the more complex classes in the LLVM heirarchy because it must
+actually one of the more complex classes in the LLVM hierarchy because it must
 keep track of a large amount of data.  The <tt>Function</tt> class keeps track
 of a list of <a href="#BasicBlock"><tt>BasicBlock</tt></a>s, a list of formal 
 <a href="#Argument"><tt>Argument</tt></a>s, and a 
@@ -3362,7 +3552,7 @@ of a list of <a href="#BasicBlock"><tt>BasicBlock</tt></a>s, a list of formal
 <p>The list of <a href="#BasicBlock"><tt>BasicBlock</tt></a>s is the most
 commonly used part of <tt>Function</tt> objects.  The list imposes an implicit
 ordering of the blocks in the function, which indicate how the code will be
-layed out by the backend.  Additionally, the first <a
+laid out by the backend.  Additionally, the first <a
 href="#BasicBlock"><tt>BasicBlock</tt></a> is the implicit entry node for the
 <tt>Function</tt>.  It is not legal in LLVM to explicitly branch to this initial
 block.  There are no implicit exit nodes, and in fact there may be multiple exit
@@ -3492,7 +3682,7 @@ Superclasses: <a href="#GlobalValue"><tt>GlobalValue</tt></a>,
 <a href="#User"><tt>User</tt></a>,
 <a href="#Value"><tt>Value</tt></a></p>
 
-<p>Global variables are represented with the (suprise suprise)
+<p>Global variables are represented with the (surprise surprise)
 <tt>GlobalVariable</tt> class. Like functions, <tt>GlobalVariable</tt>s are also
 subclasses of <a href="#GlobalValue"><tt>GlobalValue</tt></a>, and as such are
 always referenced by their address (global values must live in memory, so their
@@ -3542,7 +3732,7 @@ never change at runtime).</p>
 
   <li><tt><a href="#Constant">Constant</a> *getInitializer()</tt>
 
-    <p>Returns the intial value for a <tt>GlobalVariable</tt>.  It is not legal
+    <p>Returns the initial value for a <tt>GlobalVariable</tt>.  It is not legal
     to call this method if there is no initializer.</p></li>
 </ul>
 
@@ -3664,7 +3854,7 @@ arguments. An argument has a pointer to the parent Function.</p>
   <a href="mailto:dhurjati@cs.uiuc.edu">Dinakar Dhurjati</a> and
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-06-17 21:12:26 +0000 (Wed, 17 Jun 2009) $
+  Last modified: $Date: 2009-10-12 16:46:08 +0200 (Mon, 12 Oct 2009) $
 </address>
 
 </body>

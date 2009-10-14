@@ -17,17 +17,21 @@
 #include "LLToken.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/Support/SourceMgr.h"
 #include <string>
 
 namespace llvm {
   class MemoryBuffer;
   class Type;
-  class ParseError;
+  class SMDiagnostic;
+  class LLVMContext;
 
   class LLLexer {
     const char *CurPtr;
     MemoryBuffer *CurBuf;
-    ParseError &ErrorInfo;
+    SMDiagnostic &ErrorInfo;
+    SourceMgr &SM;
+    LLVMContext &Context;
 
     // Information about the current token.
     const char *TokStart;
@@ -40,15 +44,16 @@ namespace llvm {
 
     std::string TheError;
   public:
-    explicit LLLexer(MemoryBuffer *StartBuf, ParseError &);
+    explicit LLLexer(MemoryBuffer *StartBuf, SourceMgr &SM, SMDiagnostic &,
+                     LLVMContext &C);
     ~LLLexer() {}
 
     lltok::Kind Lex() {
       return CurKind = LexToken();
     }
 
-    typedef const char* LocTy;
-    LocTy getLoc() const { return TokStart; }
+    typedef SMLoc LocTy;
+    LocTy getLoc() const { return SMLoc::getFromPointer(TokStart); }
     lltok::Kind getKind() const { return CurKind; }
     const std::string getStrVal() const { return StrVal; }
     const Type *getTyVal() const { return TyVal; }
@@ -58,7 +63,7 @@ namespace llvm {
 
 
     bool Error(LocTy L, const std::string &Msg) const;
-    bool Error(const std::string &Msg) const { return Error(CurPtr, Msg); }
+    bool Error(const std::string &Msg) const { return Error(getLoc(), Msg); }
     std::string getFilename() const;
 
   private:
@@ -70,6 +75,7 @@ namespace llvm {
     lltok::Kind LexDigitOrNegative();
     lltok::Kind LexPositive();
     lltok::Kind LexAt();
+    lltok::Kind LexMetadata();
     lltok::Kind LexPercent();
     lltok::Kind LexQuote();
     lltok::Kind Lex0x();

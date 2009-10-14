@@ -29,6 +29,7 @@
   <li><a href="#dgstructure">DejaGNU structure</a>
     <ul>
       <li><a href="#dgcustom">Writing new DejaGNU tests</a></li>
+      <li><a href="#FileCheck">The FileCheck utility</a></li>
       <li><a href="#dgvars">Variables and substitutions</a></li>
       <li><a href="#dgfeatures">Other features</a></li>
    </ul>
@@ -448,7 +449,257 @@ negatives).</p>
 </div>
 
 <!-- _______________________________________________________________________ -->
-<div class="doc_subsection"><a name="dgvars">Variables and substitutions</a></div>
+<div class="doc_subsection"><a name="FileCheck">The FileCheck utility</a></div>
+<!-- _______________________________________________________________________ -->
+
+<div class="doc_text">
+
+<p>A powerful feature of the RUN: lines is that it allows any arbitrary commands
+   to be executed as part of the test harness.  While standard (portable) unix
+   tools like 'grep' work fine on run lines, as you see above, there are a lot
+   of caveats due to interaction with Tcl syntax, and we want to make sure the
+   run lines are portable to a wide range of systems.  Another major problem is
+   that grep is not very good at checking to verify that the output of a tools
+   contains a series of different output in a specific order.  The FileCheck
+   tool was designed to help with these problems.</p>
+
+<p>FileCheck (whose basic command line arguments are described in <a
+   href="http://llvm.org/cmds/FileCheck.html">the FileCheck man page</a> is
+   designed to read a file to check from standard input, and the set of things
+   to verify from a file specified as a command line argument.  A simple example
+   of using FileCheck from a RUN line looks like this:</p>
+   
+<div class="doc_code">
+<pre>
+; RUN: llvm-as &lt; %s | llc -march=x86-64 | <b>FileCheck %s</b>
+</pre>
+</div>
+
+<p>This syntax says to pipe the current file ("%s") into llvm-as, pipe that into
+llc, then pipe the output of llc into FileCheck.  This means that FileCheck will
+be verifying its standard input (the llc output) against the filename argument
+specified (the original .ll file specified by "%s").  To see how this works,
+lets look at the rest of the .ll file (after the RUN line):</p>
+
+<div class="doc_code">
+<pre>
+define void @sub1(i32* %p, i32 %v) {
+entry:
+; <b>CHECK: sub1:</b>
+; <b>CHECK: subl</b>
+        %0 = tail call i32 @llvm.atomic.load.sub.i32.p0i32(i32* %p, i32 %v)
+        ret void
+}
+
+define void @inc4(i64* %p) {
+entry:
+; <b>CHECK: inc4:</b>
+; <b>CHECK: incq</b>
+        %0 = tail call i64 @llvm.atomic.load.add.i64.p0i64(i64* %p, i64 1)
+        ret void
+}
+</pre>
+</div>
+
+<p>Here you can see some "CHECK:" lines specified in comments.  Now you can see
+how the file is piped into llvm-as, then llc, and the machine code output is
+what we are verifying.  FileCheck checks the machine code output to verify that
+it matches what the "CHECK:" lines specify.</p>
+
+<p>The syntax of the CHECK: lines is very simple: they are fixed strings that
+must occur in order.  FileCheck defaults to ignoring horizontal whitespace
+differences (e.g. a space is allowed to match a tab) but otherwise, the contents
+of the CHECK: line is required to match some thing in the test file exactly.</p>
+
+<p>One nice thing about FileCheck (compared to grep) is that it allows merging
+test cases together into logical groups.  For example, because the test above
+is checking for the "sub1:" and "inc4:" labels, it will not match unless there
+is a "subl" in between those labels.  If it existed somewhere else in the file,
+that would not count: "grep subl" matches if subl exists anywhere in the
+file.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection"><a 
+name="FileCheck-check-prefix">The FileCheck -check-prefix option</a></div>
+
+<div class="doc_text">
+
+<p>The FileCheck -check-prefix option allows multiple test configurations to be
+driven from one .ll file.  This is useful in many circumstances, for example,
+testing different architectural variants with llc.  Here's a simple example:</p>
+
+<div class="doc_code">
+<pre>
+; RUN: llvm-as &lt; %s | llc -mtriple=i686-apple-darwin9 -mattr=sse41 \
+; RUN:              | <b>FileCheck %s -check-prefix=X32</b>
+; RUN: llvm-as &lt; %s | llc -mtriple=x86_64-apple-darwin9 -mattr=sse41 \
+; RUN:              | <b>FileCheck %s -check-prefix=X64</b>
+
+define &lt;4 x i32&gt; @pinsrd_1(i32 %s, &lt;4 x i32&gt; %tmp) nounwind {
+        %tmp1 = insertelement &lt;4 x i32&gt; %tmp, i32 %s, i32 1
+        ret &lt;4 x i32&gt; %tmp1
+; <b>X32:</b> pinsrd_1:
+; <b>X32:</b>    pinsrd $1, 4(%esp), %xmm0
+
+; <b>X64:</b> pinsrd_1:
+; <b>X64:</b>    pinsrd $1, %edi, %xmm0
+}
+</pre>
+</div>
+
+<p>In this case, we're testing that we get the expected code generation with
+both 32-bit and 64-bit code generation.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection"><a 
+name="FileCheck-CHECK-NEXT">The "CHECK-NEXT:" directive</a></div>
+
+<div class="doc_text">
+
+<p>Sometimes you want to match lines and would like to verify that matches
+happen on exactly consequtive lines with no other lines in between them.  In
+this case, you can use CHECK: and CHECK-NEXT: directives to specify this.  If
+you specified a custom check prefix, just use "&lt;PREFIX&gt;-NEXT:".  For
+example, something like this works as you'd expect:</p>
+
+<div class="doc_code">
+<pre>
+define void @t2(&lt;2 x double&gt;* %r, &lt;2 x double&gt;* %A, double %B) {
+	%tmp3 = load &lt;2 x double&gt;* %A, align 16
+	%tmp7 = insertelement &lt;2 x double&gt; undef, double %B, i32 0
+	%tmp9 = shufflevector &lt;2 x double&gt; %tmp3,
+                              &lt;2 x double&gt; %tmp7,
+                              &lt;2 x i32&gt; &lt; i32 0, i32 2 &gt;
+	store &lt;2 x double&gt; %tmp9, &lt;2 x double&gt;* %r, align 16
+	ret void
+        
+; <b>CHECK:</b> t2:
+; <b>CHECK:</b> 	movl	8(%esp), %eax
+; <b>CHECK-NEXT:</b> 	movapd	(%eax), %xmm0
+; <b>CHECK-NEXT:</b> 	movhpd	12(%esp), %xmm0
+; <b>CHECK-NEXT:</b> 	movl	4(%esp), %eax
+; <b>CHECK-NEXT:</b> 	movapd	%xmm0, (%eax)
+; <b>CHECK-NEXT:</b> 	ret
+}
+</pre>
+</div>
+
+<p>CHECK-NEXT: directives reject the input unless there is exactly one newline
+between it an the previous directive.  A CHECK-NEXT cannot be the first
+directive in a file.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection"><a 
+name="FileCheck-CHECK-NOT">The "CHECK-NOT:" directive</a></div>
+
+<div class="doc_text">
+
+<p>The CHECK-NOT: directive is used to verify that a string doesn't occur
+between two matches (or the first match and the beginning of the file).  For
+example, to verify that a load is removed by a transformation, a test like this
+can be used:</p>
+
+<div class="doc_code">
+<pre>
+define i8 @coerce_offset0(i32 %V, i32* %P) {
+  store i32 %V, i32* %P
+   
+  %P2 = bitcast i32* %P to i8*
+  %P3 = getelementptr i8* %P2, i32 2
+
+  %A = load i8* %P3
+  ret i8 %A
+; <b>CHECK:</b> @coerce_offset0
+; <b>CHECK-NOT:</b> load
+; <b>CHECK:</b> ret i8
+}
+</pre>
+</div>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection"><a 
+name="FileCheck-Matching">FileCheck Pattern Matching Syntax</a></div>
+
+<div class="doc_text">
+
+<p>The CHECK: and CHECK-NOT: directives both take a pattern to match.  For most
+uses of FileCheck, fixed string matching is perfectly sufficient.  For some
+things, a more flexible form of matching is desired.  To support this, FileCheck
+allows you to specify regular expressions in matching strings, surrounded by
+double braces: <b>{{yourregex}}</b>.  Because we want to use fixed string
+matching for a majority of what we do, FileCheck has been designed to support
+mixing and matching fixed string matching with regular expressions.  This allows
+you to write things like this:</p>
+
+<div class="doc_code">
+<pre>
+; CHECK: movhpd	<b>{{[0-9]+}}</b>(%esp), <b>{{%xmm[0-7]}}</b>
+</pre>
+</div>
+
+<p>In this case, any offset from the ESP register will be allowed, and any xmm
+register will be allowed.</p>
+
+<p>Because regular expressions are enclosed with double braces, they are
+visually distinct, and you don't need to use escape characters within the double
+braces like you would in C.  In the rare case that you want to match double
+braces explicitly from the input, you can use something ugly like
+<b>{{[{][{]}}</b> as your pattern.</p>
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection"><a 
+name="FileCheck-Variables">FileCheck Variables</a></div>
+
+<div class="doc_text">
+
+<p>It is often useful to match a pattern and then verify that it occurs again
+later in the file.  For codegen tests, this can be useful to allow any register,
+but verify that that register is used consistently later.  To do this, FileCheck
+allows named variables to be defined and substituted into patterns.  Here is a
+simple example:</p>
+
+<div class="doc_code">
+<pre>
+; CHECK: test5:
+; CHECK:    notw	<b>[[REGISTER:%[a-z]+]]</b>
+; CHECK:    andw	{{.*}}<b>[[REGISTER]]</b>
+</pre>
+</div>
+
+<p>The first check line matches a regex (<tt>%[a-z]+</tt>) and captures it into
+the variables "REGISTER".  The second line verifies that whatever is in REGISTER
+occurs later in the file after an "andw".  FileCheck variable references are
+always contained in <tt>[[ ]]</tt> pairs, are named, and their names can be
+formed with the regex "<tt>[a-zA-Z][a-zA-Z0-9]*</tt>".  If a colon follows the
+name, then it is a definition of the variable, if not, it is a use.</p>
+
+<p>FileCheck variables can be defined multiple times, and uses always get the
+latest value.  Note that variables are all read at the start of a "CHECK" line
+and are all defined at the end.  This means that if you have something like
+"<tt>CHECK: [[XYZ:.*]]x[[XYZ]]</tt>" that the check line will read the previous
+value of the XYZ variable and define a new one after the match is performed.  If
+you need to do something like this you can probably take advantage of the fact
+that FileCheck is not actually line-oriented when it matches, this allows you to
+define two separate CHECK lines that match on the same line.
+</p>
+
+
+
+</div>
+
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsection"><a name="dgvars">Variables and
+substitutions</a></div>
 <!-- _______________________________________________________________________ -->
 <div class="doc_text">
   <p>With a RUN line there are a number of substitutions that are permitted. In
@@ -501,14 +752,6 @@ negatives).</p>
     <dt><b>target_triplet</b> (%target_triplet)</dt>
     <dd>The target triplet that corresponds to the current host machine (the one
     running the test cases). This should probably be called "host".<dd>
-
-    <dt><b>prcontext</b> (%prcontext)</dt>
-    <dd>Path to the prcontext tcl script that prints some context around a 
-    line that matches a pattern. This isn't strictly necessary as the test suite
-    is run with its PATH altered to include the test/Scripts directory where
-    the prcontext script is located. Note that this script is similar to 
-    <tt>grep -C</tt> but you should use the <tt>prcontext</tt> script because
-    not all platforms support <tt>grep -C</tt>.</dd>
 
     <dt><b>llvmgcc</b> (%llvmgcc)</dt>
     <dd>The full path to the <tt>llvm-gcc</tt> executable as specified in the
@@ -974,7 +1217,7 @@ know. Thanks!</p>
 
   John T. Criswell, Reid Spencer, and Tanya Lattner<br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-06-26 07:44:53 +0200 (Fri, 26 Jun 2009) $
+  Last modified: $Date: 2009-09-27 10:01:44 +0200 (Sun, 27 Sep 2009) $
 </address>
 </body>
 </html>

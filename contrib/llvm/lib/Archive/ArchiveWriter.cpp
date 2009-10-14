@@ -64,9 +64,8 @@ static inline unsigned numVbrBytes(unsigned num) {
 }
 
 // Create an empty archive.
-Archive*
-Archive::CreateEmpty(const sys::Path& FilePath ) {
-  Archive* result = new Archive(FilePath);
+Archive* Archive::CreateEmpty(const sys::Path& FilePath, LLVMContext& C) {
+  Archive* result = new Archive(FilePath, C);
   return result;
 }
 
@@ -96,7 +95,7 @@ Archive::fillHeader(const ArchiveMember &mbr, ArchiveMemberHeader& hdr,
   memcpy(hdr.date,buffer,12);
 
   // Get rid of trailing blanks in the name
-  std::string mbrPath = mbr.getPath().toString();
+  std::string mbrPath = mbr.getPath().str();
   size_t mbrLen = mbrPath.length();
   while (mbrLen > 0 && mbrPath[mbrLen-1] == ' ') {
     mbrPath.erase(mbrLen-1,1);
@@ -174,10 +173,10 @@ Archive::addFileBefore(const sys::Path& filePath, iterator where,
   mbr->info = *FSInfo;
 
   unsigned flags = 0;
-  bool hasSlash = filePath.toString().find('/') != std::string::npos;
+  bool hasSlash = filePath.str().find('/') != std::string::npos;
   if (hasSlash)
     flags |= ArchiveMember::HasPathFlag;
-  if (hasSlash || filePath.toString().length() > 15)
+  if (hasSlash || filePath.str().length() > 15)
     flags |= ArchiveMember::HasLongFilenameFlag;
   std::string magic;
   mbr->path.getMagicNumber(magic,4);
@@ -224,12 +223,11 @@ Archive::writeMember(
   // symbol table if its a bitcode file.
   if (CreateSymbolTable && member.isBitcode()) {
     std::vector<std::string> symbols;
-    std::string FullMemberName = archPath.toString() + "(" +
-      member.getPath().toString()
+    std::string FullMemberName = archPath.str() + "(" + member.getPath().str()
       + ")";
     ModuleProvider* MP = 
       GetBitcodeSymbols((const unsigned char*)data,fSize,
-                        FullMemberName, symbols, ErrMsg);
+                        FullMemberName, Context, symbols, ErrMsg);
 
     // If the bitcode parsed successfully
     if ( MP ) {
@@ -250,7 +248,7 @@ Archive::writeMember(
     } else {
       delete mFile;
       if (ErrMsg)
-        *ErrMsg = "Can't parse bitcode member: " + member.getPath().toString()
+        *ErrMsg = "Can't parse bitcode member: " + member.getPath().str()
           + ": " + *ErrMsg;
       return true;
     }
@@ -267,8 +265,8 @@ Archive::writeMember(
 
   // Write the long filename if its long
   if (writeLongName) {
-    ARFile.write(member.getPath().toString().data(),
-                 member.getPath().toString().length());
+    ARFile.write(member.getPath().str().data(),
+                 member.getPath().str().length());
   }
 
   // Write the (possibly compressed) member's content to the file.
@@ -372,7 +370,7 @@ Archive::writeToDisk(bool CreateSymbolTable, bool TruncateNames, bool Compress,
     if (TmpArchive.exists())
       TmpArchive.eraseFromDisk();
     if (ErrMsg)
-      *ErrMsg = "Error opening archive file: " + archPath.toString();
+      *ErrMsg = "Error opening archive file: " + archPath.str();
     return true;
   }
 
@@ -426,7 +424,7 @@ Archive::writeToDisk(bool CreateSymbolTable, bool TruncateNames, bool Compress,
       if (TmpArchive.exists())
         TmpArchive.eraseFromDisk();
       if (ErrMsg)
-        *ErrMsg = "Error opening archive file: " + FinalFilePath.toString();
+        *ErrMsg = "Error opening archive file: " + FinalFilePath.str();
       return true;
     }
 

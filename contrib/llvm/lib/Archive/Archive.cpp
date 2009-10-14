@@ -31,7 +31,7 @@ ArchiveMember::getMemberSize() const {
 
   // If it has a long filename, include the name length
   if (hasLongFilename())
-    result += path.toString().length() + 1;
+    result += path.str().length() + 1;
 
   // If its now odd lengthed, include the padding byte
   if (result % 2 != 0 )
@@ -76,38 +76,38 @@ bool ArchiveMember::replaceWith(const sys::Path& newFile, std::string* ErrMsg) {
   path = newFile;
 
   // SVR4 symbol tables have an empty name
-  if (path.toString() == ARFILE_SVR4_SYMTAB_NAME)
+  if (path.str() == ARFILE_SVR4_SYMTAB_NAME)
     flags |= SVR4SymbolTableFlag;
   else
     flags &= ~SVR4SymbolTableFlag;
 
   // BSD4.4 symbol tables have a special name
-  if (path.toString() == ARFILE_BSD4_SYMTAB_NAME)
+  if (path.str() == ARFILE_BSD4_SYMTAB_NAME)
     flags |= BSD4SymbolTableFlag;
   else
     flags &= ~BSD4SymbolTableFlag;
 
   // LLVM symbol tables have a very specific name
-  if (path.toString() == ARFILE_LLVM_SYMTAB_NAME)
+  if (path.str() == ARFILE_LLVM_SYMTAB_NAME)
     flags |= LLVMSymbolTableFlag;
   else
     flags &= ~LLVMSymbolTableFlag;
 
   // String table name
-  if (path.toString() == ARFILE_STRTAB_NAME)
+  if (path.str() == ARFILE_STRTAB_NAME)
     flags |= StringTableFlag;
   else
     flags &= ~StringTableFlag;
 
   // If it has a slash then it has a path
-  bool hasSlash = path.toString().find('/') != std::string::npos;
+  bool hasSlash = path.str().find('/') != std::string::npos;
   if (hasSlash)
     flags |= HasPathFlag;
   else
     flags &= ~HasPathFlag;
 
   // If it has a slash or its over 15 chars then its a long filename format
-  if (hasSlash || path.toString().length() > 15)
+  if (hasSlash || path.str().length() > 15)
     flags |= HasLongFilenameFlag;
   else
     flags &= ~HasLongFilenameFlag;
@@ -126,8 +126,11 @@ bool ArchiveMember::replaceWith(const sys::Path& newFile, std::string* ErrMsg) {
       return true;
   }
 
-  // Determine what kind of file it is
+  // Determine what kind of file it is.
   switch (sys::IdentifyFileType(signature,4)) {
+    case sys::Bitcode_FileType:
+      flags |= BitcodeFlag;
+      break;
     default:
       flags &= ~BitcodeFlag;
       break;
@@ -138,9 +141,9 @@ bool ArchiveMember::replaceWith(const sys::Path& newFile, std::string* ErrMsg) {
 // Archive constructor - this is the only constructor that gets used for the
 // Archive class. Everything else (default,copy) is deprecated. This just
 // initializes and maps the file into memory, if requested.
-Archive::Archive(const sys::Path& filename)
+Archive::Archive(const sys::Path& filename, LLVMContext& C)
   : archPath(filename), members(), mapfile(0), base(0), symTab(), strtab(),
-    symTabSize(0), firstFileOffset(0), modules(), foreignST(0) {
+    symTabSize(0), firstFileOffset(0), modules(), foreignST(0), Context(C) {
 }
 
 bool
@@ -208,16 +211,17 @@ static void getSymbols(Module*M, std::vector<std::string>& symbols) {
 
 // Get just the externally visible defined symbols from the bitcode
 bool llvm::GetBitcodeSymbols(const sys::Path& fName,
+                             LLVMContext& Context,
                              std::vector<std::string>& symbols,
                              std::string* ErrMsg) {
   std::auto_ptr<MemoryBuffer> Buffer(
                        MemoryBuffer::getFileOrSTDIN(fName.c_str()));
   if (!Buffer.get()) {
-    if (ErrMsg) *ErrMsg = "Could not open file '" + fName.toString() + "'";
+    if (ErrMsg) *ErrMsg = "Could not open file '" + fName.str() + "'";
     return true;
   }
   
-  ModuleProvider *MP = getBitcodeModuleProvider(Buffer.get(), ErrMsg);
+  ModuleProvider *MP = getBitcodeModuleProvider(Buffer.get(), Context, ErrMsg);
   if (!MP)
     return true;
   
@@ -239,13 +243,14 @@ bool llvm::GetBitcodeSymbols(const sys::Path& fName,
 ModuleProvider*
 llvm::GetBitcodeSymbols(const unsigned char *BufPtr, unsigned Length,
                         const std::string& ModuleID,
+                        LLVMContext& Context,
                         std::vector<std::string>& symbols,
                         std::string* ErrMsg) {
   // Get the module provider
   MemoryBuffer *Buffer =MemoryBuffer::getNewMemBuffer(Length, ModuleID.c_str());
   memcpy((char*)Buffer->getBufferStart(), BufPtr, Length);
   
-  ModuleProvider *MP = getBitcodeModuleProvider(Buffer, ErrMsg);
+  ModuleProvider *MP = getBitcodeModuleProvider(Buffer, Context, ErrMsg);
   if (!MP)
     return 0;
   

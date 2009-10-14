@@ -14,23 +14,15 @@
 #include "llvm/MC/MCValue.h"
 using namespace llvm;
 
-MCContext::MCContext()
-{
+MCContext::MCContext() {
 }
 
 MCContext::~MCContext() {
+  // NOTE: The sections are all allocated out of a bump pointer allocator,
+  // we don't need to free them here.
 }
 
-MCSection *MCContext::GetSection(const char *Name) {
-  MCSection *&Entry = Sections[Name];
-  
-  if (!Entry)
-    Entry = new (*this) MCSection(Name);
-
-  return Entry;
-}
-
-MCSymbol *MCContext::CreateSymbol(const char *Name) {
+MCSymbol *MCContext::CreateSymbol(const StringRef &Name) {
   assert(Name[0] != '\0' && "Normal symbols cannot be unnamed!");
 
   // Create and bind the symbol, and ensure that names are unique.
@@ -39,17 +31,16 @@ MCSymbol *MCContext::CreateSymbol(const char *Name) {
   return Entry = new (*this) MCSymbol(Name, false);
 }
 
-MCSymbol *MCContext::GetOrCreateSymbol(const char *Name) {
+MCSymbol *MCContext::GetOrCreateSymbol(const StringRef &Name) {
   MCSymbol *&Entry = Symbols[Name];
   if (Entry) return Entry;
 
   return Entry = new (*this) MCSymbol(Name, false);
 }
 
-
-MCSymbol *MCContext::CreateTemporarySymbol(const char *Name) {
+MCSymbol *MCContext::CreateTemporarySymbol(const StringRef &Name) {
   // If unnamed, just create a symbol.
-  if (Name[0] == '\0')
+  if (Name.empty())
     new (*this) MCSymbol("", true);
     
   // Otherwise create as usual.
@@ -58,20 +49,20 @@ MCSymbol *MCContext::CreateTemporarySymbol(const char *Name) {
   return Entry = new (*this) MCSymbol(Name, true);
 }
 
-MCSymbol *MCContext::LookupSymbol(const char *Name) const {
+MCSymbol *MCContext::LookupSymbol(const StringRef &Name) const {
   return Symbols.lookup(Name);
 }
 
-void MCContext::ClearSymbolValue(MCSymbol *Sym) {
+void MCContext::ClearSymbolValue(const MCSymbol *Sym) {
   SymbolValues.erase(Sym);
 }
 
-void MCContext::SetSymbolValue(MCSymbol *Sym, const MCValue &Value) {
+void MCContext::SetSymbolValue(const MCSymbol *Sym, const MCValue &Value) {
   SymbolValues[Sym] = Value;
 }
 
-const MCValue *MCContext::GetSymbolValue(MCSymbol *Sym) const {
-  DenseMap<MCSymbol*, MCValue>::iterator it = SymbolValues.find(Sym);
+const MCValue *MCContext::GetSymbolValue(const MCSymbol *Sym) const {
+  DenseMap<const MCSymbol*, MCValue>::iterator it = SymbolValues.find(Sym);
 
   if (it == SymbolValues.end())
     return 0;

@@ -23,7 +23,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
 #include "llvm/Config/config.h"     // Detect libffi
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/System/DynamicLibrary.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -54,7 +54,7 @@ static ManagedStatic<std::map<const Function *, ExFunc> > ExportedFunctions;
 static std::map<std::string, ExFunc> FuncNames;
 
 #ifdef USE_LIBFFI
-typedef void (*RawFunc)(void);
+typedef void (*RawFunc)();
 static ManagedStatic<std::map<const Function *, RawFunc> > RawFunctions;
 #endif
 
@@ -95,15 +95,15 @@ static ExFunc lookupFunction(const Function *F) {
   const FunctionType *FT = F->getFunctionType();
   for (unsigned i = 0, e = FT->getNumContainedTypes(); i != e; ++i)
     ExtName += getTypeID(FT->getContainedType(i));
-  ExtName += "_" + F->getName();
+  ExtName + "_" + F->getNameStr();
 
-  sys::ScopedLock Writer(&*FunctionsLock);
+  sys::ScopedLock Writer(*FunctionsLock);
   ExFunc FnPtr = FuncNames[ExtName];
   if (FnPtr == 0)
-    FnPtr = FuncNames["lle_X_"+F->getName()];
+    FnPtr = FuncNames["lle_X_" + F->getNameStr()];
   if (FnPtr == 0)  // Try calling a generic function... if it exists...
-    FnPtr = (ExFunc)(intptr_t)sys::DynamicLibrary::SearchForAddressOfSymbol(
-            ("lle_X_"+F->getName()).c_str());
+    FnPtr = (ExFunc)(intptr_t)
+      sys::DynamicLibrary::SearchForAddressOfSymbol("lle_X_"+F->getNameStr());
   if (FnPtr != 0)
     ExportedFunctions->insert(std::make_pair(F, FnPtr));  // Cache for later
   return FnPtr;
@@ -126,8 +126,7 @@ static ffi_type *ffiTypeFor(const Type *Ty) {
     default: break;
   }
   // TODO: Support other types such as StructTyID, ArrayTyID, OpaqueTyID, etc.
-  cerr << "Type could not be mapped for use with libffi.\n";
-  abort();
+  llvm_report_error("Type could not be mapped for use with libffi.");
   return NULL;
 }
 
@@ -175,8 +174,7 @@ static void *ffiValueFor(const Type *Ty, const GenericValue &AV,
     default: break;
   }
   // TODO: Support other types such as StructTyID, ArrayTyID, OpaqueTyID, etc.
-  cerr << "Type value could not be mapped for use with libffi.\n";
-  abort();
+  llvm_report_error("Type value could not be mapped for use with libffi.");
   return NULL;
 }
 
@@ -190,9 +188,8 @@ static bool ffiInvoke(RawFunc Fn, Function *F,
   // TODO: We don't have type information about the remaining arguments, because
   // this information is never passed into ExecutionEngine::runFunction().
   if (ArgVals.size() > NumArgs && F->isVarArg()) {
-    cerr << "Calling external var arg function '" << F->getName()
-         << "' is not supported by the Interpreter.\n";
-    abort();
+    llvm_report_error("Calling external var arg function '" + F->getName()
+                      + "' is not supported by the Interpreter.");
   }
 
   unsigned ArgBytes = 0;
@@ -206,9 +203,10 @@ static bool ffiInvoke(RawFunc Fn, Function *F,
     ArgBytes += TD->getTypeStoreSize(ArgTy);
   }
 
-  uint8_t *ArgData = (uint8_t*) alloca(ArgBytes);
-  uint8_t *ArgDataPtr = ArgData;
-  std::vector<void*> values(NumArgs);
+  SmallVector<uint8_t, 128> ArgData;
+  ArgData.resize(ArgBytes);
+  uint8_t *ArgDataPtr = ArgData.data();
+  SmallVector<void*, 16> values(NumArgs);
   for (Function::const_arg_iterator A = F->arg_begin(), E = F->arg_end();
        A != E; ++A) {
     const unsigned ArgNo = A->getArgNo();
@@ -221,22 +219,22 @@ static bool ffiInvoke(RawFunc Fn, Function *F,
   ffi_type *rtype = ffiTypeFor(RetTy);
 
   if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, NumArgs, rtype, &args[0]) == FFI_OK) {
-    void *ret = NULL;
+    SmallVector<uint8_t, 128> ret;
     if (RetTy->getTypeID() != Type::VoidTyID)
-      ret = alloca(TD->getTypeStoreSize(RetTy));
-    ffi_call(&cif, Fn, ret, &values[0]);
+      ret.resize(TD->getTypeStoreSize(RetTy));
+    ffi_call(&cif, Fn, ret.data(), values.data());
     switch (RetTy->getTypeID()) {
       case Type::IntegerTyID:
         switch (cast<IntegerType>(RetTy)->getBitWidth()) {
-          case 8:  Result.IntVal = APInt(8 , *(int8_t *) ret); break;
-          case 16: Result.IntVal = APInt(16, *(int16_t*) ret); break;
-          case 32: Result.IntVal = APInt(32, *(int32_t*) ret); break;
-          case 64: Result.IntVal = APInt(64, *(int64_t*) ret); break;
+          case 8:  Result.IntVal = APInt(8 , *(int8_t *) ret.data()); break;
+          case 16: Result.IntVal = APInt(16, *(int16_t*) ret.data()); break;
+          case 32: Result.IntVal = APInt(32, *(int32_t*) ret.data()); break;
+          case 64: Result.IntVal = APInt(64, *(int64_t*) ret.data()); break;
         }
         break;
-      case Type::FloatTyID:   Result.FloatVal   = *(float *) ret; break;
-      case Type::DoubleTyID:  Result.DoubleVal  = *(double*) ret; break;
-      case Type::PointerTyID: Result.PointerVal = *(void **) ret; break;
+      case Type::FloatTyID:   Result.FloatVal   = *(float *) ret.data(); break;
+      case Type::DoubleTyID:  Result.DoubleVal  = *(double*) ret.data(); break;
+      case Type::PointerTyID: Result.PointerVal = *(void **) ret.data(); break;
       default: break;
     }
     return true;
@@ -272,7 +270,7 @@ GenericValue Interpreter::callExternalFunction(Function *F,
   } else {
     RawFn = RF->second;
   }
-  
+
   FunctionsLock->release();
 
   GenericValue Result;
@@ -280,10 +278,12 @@ GenericValue Interpreter::callExternalFunction(Function *F,
     return Result;
 #endif // USE_LIBFFI
 
-  cerr << "Tried to execute an unknown external function: "
-       << F->getType()->getDescription() << " " << F->getName() << "\n";
-  if (F->getName() != "__main")
-    abort();
+  if (F->getName() == "__main")
+    errs() << "Tried to execute an unknown external function: "
+      << F->getType()->getDescription() << " __main\n";
+  else
+    llvm_report_error("Tried to execute an unknown external function: " +
+                      F->getType()->getDescription() + " " +F->getName());
   return GenericValue();
 }
 
@@ -291,6 +291,12 @@ GenericValue Interpreter::callExternalFunction(Function *F,
 //===----------------------------------------------------------------------===//
 //  Functions "exported" to the running application...
 //
+
+// Visual Studio warns about returning GenericValue in extern "C" linkage
+#ifdef _MSC_VER
+    #pragma warning(disable : 4190)
+#endif
+
 extern "C" {  // Don't add C++ manglings to llvm mangling :)
 
 // void atexit(Function*)
@@ -313,6 +319,8 @@ GenericValue lle_X_exit(const FunctionType *FT,
 // void abort(void)
 GenericValue lle_X_abort(const FunctionType *FT,
                          const std::vector<GenericValue> &Args) {
+  //FIXME: should we report or raise here?
+  //llvm_report_error("Interpreted program raised SIGABRT");
   raise (SIGABRT);
   return GenericValue();
 }
@@ -327,7 +335,7 @@ GenericValue lle_X_sprintf(const FunctionType *FT,
 
   // printf should return # chars printed.  This is completely incorrect, but
   // close enough for now.
-  GenericValue GV; 
+  GenericValue GV;
   GV.IntVal = APInt(32, strlen(FmtStr));
   while (1) {
     switch (*FmtStr) {
@@ -385,7 +393,8 @@ GenericValue lle_X_sprintf(const FunctionType *FT,
         sprintf(Buffer, FmtBuf, (void*)GVTOP(Args[ArgNo++])); break;
       case 's':
         sprintf(Buffer, FmtBuf, (char*)GVTOP(Args[ArgNo++])); break;
-      default:  cerr << "<unknown printf code '" << *FmtStr << "'!>";
+      default:
+        errs() << "<unknown printf code '" << *FmtStr << "'!>";
         ArgNo++; break;
       }
       strcpy(OutputBuffer, Buffer);
@@ -406,11 +415,12 @@ GenericValue lle_X_printf(const FunctionType *FT,
   NewArgs.push_back(PTOGV((void*)&Buffer[0]));
   NewArgs.insert(NewArgs.end(), Args.begin(), Args.end());
   GenericValue GV = lle_X_sprintf(FT, NewArgs);
-  cout << Buffer;
+  outs() << Buffer;
   return GV;
 }
 
-static void ByteswapSCANFResults(const char *Fmt, void *Arg0, void *Arg1,
+static void ByteswapSCANFResults(LLVMContext &C,
+                                 const char *Fmt, void *Arg0, void *Arg1,
                                  void *Arg2, void *Arg3, void *Arg4, void *Arg5,
                                  void *Arg6, void *Arg7, void *Arg8) {
   void *Args[] = { Arg0, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, 0 };
@@ -450,26 +460,26 @@ static void ByteswapSCANFResults(const char *Fmt, void *Arg0, void *Arg1,
         case 'i': case 'o': case 'u': case 'x': case 'X': case 'n': case 'p':
         case 'd':
           if (Long || LongLong) {
-            Size = 8; Ty = Type::Int64Ty;
+            Size = 8; Ty = Type::getInt64Ty(C);
           } else if (Half) {
-            Size = 4; Ty = Type::Int16Ty;
+            Size = 4; Ty = Type::getInt16Ty(C);
           } else {
-            Size = 4; Ty = Type::Int32Ty;
+            Size = 4; Ty = Type::getInt32Ty(C);
           }
           break;
 
         case 'e': case 'g': case 'E':
         case 'f':
           if (Long || LongLong) {
-            Size = 8; Ty = Type::DoubleTy;
+            Size = 8; Ty = Type::getDoubleTy(C);
           } else {
-            Size = 4; Ty = Type::FloatTy;
+            Size = 4; Ty = Type::getFloatTy(C);
           }
           break;
 
         case 's': case 'c': case '[':  // No byteswap needed
           Size = 1;
-          Ty = Type::Int8Ty;
+          Ty = Type::getInt8Ty(C);
           break;
 
         default: break;
@@ -498,7 +508,8 @@ GenericValue lle_X_sscanf(const FunctionType *FT,
   GenericValue GV;
   GV.IntVal = APInt(32, sscanf(Args[0], Args[1], Args[2], Args[3], Args[4],
                         Args[5], Args[6], Args[7], Args[8], Args[9]));
-  ByteswapSCANFResults(Args[1], Args[2], Args[3], Args[4],
+  ByteswapSCANFResults(FT->getContext(),
+                       Args[1], Args[2], Args[3], Args[4],
                        Args[5], Args[6], Args[7], Args[8], Args[9], 0);
   return GV;
 }
@@ -515,7 +526,8 @@ GenericValue lle_X_scanf(const FunctionType *FT,
   GenericValue GV;
   GV.IntVal = APInt(32, scanf( Args[0], Args[1], Args[2], Args[3], Args[4],
                         Args[5], Args[6], Args[7], Args[8], Args[9]));
-  ByteswapSCANFResults(Args[0], Args[1], Args[2], Args[3], Args[4],
+  ByteswapSCANFResults(FT->getContext(),
+                       Args[0], Args[1], Args[2], Args[3], Args[4],
                        Args[5], Args[6], Args[7], Args[8], Args[9]);
   return GV;
 }
@@ -537,9 +549,14 @@ GenericValue lle_X_fprintf(const FunctionType *FT,
 
 } // End extern "C"
 
+// Done with externals; turn the warning back on
+#ifdef _MSC_VER
+    #pragma warning(default: 4190)
+#endif
+
 
 void Interpreter::initializeExternalFunctions() {
-  sys::ScopedLock Writer(&*FunctionsLock);
+  sys::ScopedLock Writer(*FunctionsLock);
   FuncNames["lle_X_atexit"]       = lle_X_atexit;
   FuncNames["lle_X_exit"]         = lle_X_exit;
   FuncNames["lle_X_abort"]        = lle_X_abort;
@@ -550,4 +567,3 @@ void Interpreter::initializeExternalFunctions() {
   FuncNames["lle_X_scanf"]        = lle_X_scanf;
   FuncNames["lle_X_fprintf"]      = lle_X_fprintf;
 }
-

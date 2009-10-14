@@ -58,7 +58,6 @@ typedef struct LTOModule*         lto_module_t;
 /** opaque reference to a code generator */
 typedef struct LTOCodeGenerator*  lto_code_gen_t;
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -75,7 +74,6 @@ lto_get_version(void);
  */
 extern const char*
 lto_get_error_message(void);
-
 
 /**
  * Checks if a file is a loadable object file.

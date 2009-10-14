@@ -23,20 +23,15 @@
 
 namespace llvm {
 
-class Module;
-
 class XCoreTargetMachine : public LLVMTargetMachine {
   XCoreSubtarget Subtarget;
   const TargetData DataLayout;       // Calculates type size & alignment
   XCoreInstrInfo InstrInfo;
   XCoreFrameInfo FrameInfo;
   XCoreTargetLowering TLInfo;
-
-protected:
-  virtual const TargetAsmInfo *createTargetAsmInfo() const;
-
 public:
-  XCoreTargetMachine(const Module &M, const std::string &FS);
+  XCoreTargetMachine(const Target &T, const std::string &TT,
+                     const std::string &FS);
 
   virtual const XCoreInstrInfo *getInstrInfo() const { return &InstrInfo; }
   virtual const XCoreFrameInfo *getFrameInfo() const { return &FrameInfo; }
@@ -49,13 +44,9 @@ public:
     return &InstrInfo.getRegisterInfo();
   }
   virtual const TargetData       *getTargetData() const { return &DataLayout; }
-  static unsigned getModuleMatchQuality(const Module &M);
 
   // Pass Pipeline Configuration
   virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addAssemblyEmitter(PassManagerBase &PM,
-                                  CodeGenOpt::Level OptLevel, 
-                                  bool Verbose, raw_ostream &Out);
 };
 
 } // end namespace llvm

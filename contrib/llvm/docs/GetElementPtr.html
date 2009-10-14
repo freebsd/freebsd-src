@@ -40,7 +40,7 @@
 <div class="doc_text"> 
   <p>This document seeks to dispel the mystery and confusion surrounding LLVM's
   GetElementPtr (GEP) instruction. Questions about the wiley GEP instruction are
-  probably the most frequently occuring questions once a developer gets down to
+  probably the most frequently occurring questions once a developer gets down to
   coding with LLVM. Here we lay out the sources of confusion and show that the
   GEP instruction is really quite simple.
   </p>
@@ -303,13 +303,14 @@ idx3 = (char*) &amp;MyVar + 8
 </div>
 
   <p>In this example, <tt>idx1</tt> computes the address of the second integer
-  in the array that is in the structure in %MyVar, that is <tt>MyVar+4</tt>. The 
-  type of <tt>idx1</tt> is <tt>i32*</tt>. However, <tt>idx2</tt> computes the 
-  address of <i>the next</i> structure after <tt>%MyVar</tt>. The type of 
-  <tt>idx2</tt> is <tt>{ [10 x i32] }*</tt> and its value is equivalent 
-  to <tt>MyVar + 40</tt> because it indexes past the ten 4-byte integers 
-  in <tt>MyVar</tt>. Obviously, in such a situation, the pointers don't 
-  alias.</p>
+  in the array that is in the structure in <tt>%MyVar</tt>, that is
+  <tt>MyVar+4</tt>. The type of <tt>idx1</tt> is <tt>i32*</tt>. However,
+  <tt>idx2</tt> computes the address of <i>the next</i> structure after
+  <tt>%MyVar</tt>. The type of <tt>idx2</tt> is <tt>{ [10 x i32] }*</tt> and its
+  value is equivalent to <tt>MyVar + 40</tt> because it indexes past the ten
+  4-byte integers in <tt>MyVar</tt>. Obviously, in such a situation, the
+  pointers don't alias.</p>
+
 </div>
 
 <!-- *********************************************************************** -->
@@ -364,7 +365,7 @@ idx3 = (char*) &amp;MyVar + 8
   <a href="http://validator.w3.org/check/referer"><img
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br/>
-  Last modified: $Date: 2008-12-11 19:23:24 +0100 (Thu, 11 Dec 2008) $
+  Last modified: $Date: 2009-10-12 16:46:08 +0200 (Mon, 12 Oct 2009) $
 </address>
 </body>
 </html>

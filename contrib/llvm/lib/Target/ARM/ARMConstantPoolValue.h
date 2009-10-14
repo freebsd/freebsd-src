@@ -15,17 +15,16 @@
 #define LLVM_TARGET_ARM_CONSTANTPOOLVALUE_H
 
 #include "llvm/CodeGen/MachineConstantPool.h"
-#include <iosfwd>
 
 namespace llvm {
 
 class GlobalValue;
+class LLVMContext;
 
 namespace ARMCP {
   enum ARMCPKind {
     CPValue,
-    CPNonLazyPtr,
-    CPStub
+    CPLSDA
   };
 }
 
@@ -36,7 +35,7 @@ class ARMConstantPoolValue : public MachineConstantPoolValue {
   GlobalValue *GV;         // GlobalValue being loaded.
   const char *S;           // ExtSymbol being loaded.
   unsigned LabelId;        // Label id of the load.
-  ARMCP::ARMCPKind Kind;   // non_lazy_ptr or stub?
+  ARMCP::ARMCPKind Kind;   // Value or LSDA?
   unsigned char PCAdjust;  // Extra adjustment if constantpool is pc relative.
                            // 8 for ARM, 4 for Thumb.
   const char *Modifier;    // GV modifier i.e. (&GV(modifier)-(LPIC+8))
@@ -47,12 +46,12 @@ public:
                        ARMCP::ARMCPKind Kind = ARMCP::CPValue,
                        unsigned char PCAdj = 0, const char *Modifier = NULL,
                        bool AddCurrentAddress = false);
-  ARMConstantPoolValue(const char *s, unsigned id,
-                       ARMCP::ARMCPKind Kind = ARMCP::CPValue,
+  ARMConstantPoolValue(LLVMContext &C, const char *s, unsigned id,
                        unsigned char PCAdj = 0, const char *Modifier = NULL,
                        bool AddCurrentAddress = false);
-  ARMConstantPoolValue(GlobalValue *GV, ARMCP::ARMCPKind Kind,
-                       const char *Modifier);
+  ARMConstantPoolValue(GlobalValue *GV, const char *Modifier);
+  ARMConstantPoolValue();
+  ~ARMConstantPoolValue();
 
 
   GlobalValue *getGV() const { return GV; }
@@ -61,27 +60,27 @@ public:
   bool hasModifier() const { return Modifier != NULL; }
   bool mustAddCurrentAddress() const { return AddCurrentAddress; }
   unsigned getLabelId() const { return LabelId; }
-  bool isNonLazyPointer() const { return Kind == ARMCP::CPNonLazyPtr; }
-  bool isStub() const { return Kind == ARMCP::CPStub; }
   unsigned char getPCAdjustment() const { return PCAdjust; }
+  bool isLSDA() { return Kind == ARMCP::CPLSDA; }
+
+  virtual unsigned getRelocationInfo() const {
+    // FIXME: This is conservatively claiming that these entries require a
+    // relocation, we may be able to do better than this.
+    return 2;
+  }
+
 
   virtual int getExistingMachineCPValue(MachineConstantPool *CP,
                                         unsigned Alignment);
 
   virtual void AddSelectionDAGCSEId(FoldingSetNodeID &ID);
 
-  void print(std::ostream *O) const { if (O) print(*O); }
-  void print(std::ostream &O) const;
   void print(raw_ostream *O) const { if (O) print(*O); }
   void print(raw_ostream &O) const;
   void dump() const;
 };
 
-  inline std::ostream &operator<<(std::ostream &O, const ARMConstantPoolValue &V) {
-  V.print(O);
-  return O;
-}
-  
+
 inline raw_ostream &operator<<(raw_ostream &O, const ARMConstantPoolValue &V) {
   V.print(O);
   return O;

@@ -17,35 +17,34 @@
 
 #include "Record.h"
 #include "TGParser.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Streams.h"
-#include "llvm/System/Signals.h"
-#include "llvm/Support/FileUtilities.h"
-#include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/PrettyStackTrace.h"
 #include "CallingConvEmitter.h"
 #include "CodeEmitterGen.h"
 #include "RegisterInfoEmitter.h"
 #include "InstrInfoEmitter.h"
 #include "InstrEnumEmitter.h"
 #include "AsmWriterEmitter.h"
+#include "AsmMatcherEmitter.h"
 #include "DAGISelEmitter.h"
 #include "FastISelEmitter.h"
 #include "SubtargetEmitter.h"
 #include "IntrinsicEmitter.h"
 #include "LLVMCConfigurationEmitter.h"
 #include "ClangDiagnosticsEmitter.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileUtilities.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Signals.h"
 #include <algorithm>
 #include <cstdio>
-#include <fstream>
-#include <ios>
 using namespace llvm;
 
 enum ActionType {
   PrintRecords,
   GenEmitter,
   GenRegisterEnums, GenRegister, GenRegisterHeader,
-  GenInstrEnums, GenInstrs, GenAsmWriter,
+  GenInstrEnums, GenInstrs, GenAsmWriter, GenAsmMatcher,
   GenCallingConv,
   GenClangDiagsDefs,
   GenClangDiagGroups,
@@ -79,6 +78,8 @@ namespace {
                                "Generate calling convention descriptions"),
                     clEnumValN(GenAsmWriter, "gen-asm-writer",
                                "Generate assembly writer"),
+                    clEnumValN(GenAsmMatcher, "gen-asm-matcher",
+                               "Generate assembly instruction matcher"),
                     clEnumValN(GenDAGISel, "gen-dag-isel",
                                "Generate a DAG instruction selector"),
                     clEnumValN(GenFastISel, "gen-fast-isel",
@@ -127,7 +128,7 @@ RecordKeeper llvm::Records;
 static SourceMgr SrcMgr;
 
 void llvm::PrintError(SMLoc ErrorLoc, const std::string &Msg) {
-  SrcMgr.PrintMessage(ErrorLoc, Msg);
+  SrcMgr.PrintMessage(ErrorLoc, Msg, "error");
 }
 
 
@@ -140,7 +141,8 @@ static bool ParseFile(const std::string &Filename,
   std::string ErrorStr;
   MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrorStr);
   if (F == 0) {
-    cerr << "Could not open input file '" + Filename + "': " << ErrorStr <<"\n";
+    errs() << "Could not open input file '" << Filename << "': " 
+           << ErrorStr <<"\n";
     return true;
   }
   
@@ -166,12 +168,14 @@ int main(int argc, char **argv) {
   if (ParseFile(InputFilename, IncludeDirs, SrcMgr))
     return 1;
 
-  std::ostream *Out = cout.stream();
+  raw_ostream *Out = &outs();
   if (OutputFilename != "-") {
-    Out = new std::ofstream(OutputFilename.c_str());
+    std::string Error;
+    Out = new raw_fd_ostream(OutputFilename.c_str(), Error);
 
-    if (!Out->good()) {
-      cerr << argv[0] << ": error opening " << OutputFilename << "!\n";
+    if (!Error.empty()) {
+      errs() << argv[0] << ": error opening " << OutputFilename 
+             << ":" << Error << "\n";
       return 1;
     }
 
@@ -208,6 +212,9 @@ int main(int argc, char **argv) {
       break;
     case GenAsmWriter:
       AsmWriterEmitter(Records).run(*Out);
+      break;
+    case GenAsmMatcher:
+      AsmMatcherEmitter(Records).run(*Out);
       break;
     case GenClangDiagsDefs:
       ClangDiagsDefsEmitter(Records, ClangComponent).run(*Out);
@@ -246,23 +253,23 @@ int main(int argc, char **argv) {
       return 1;
     }
     
-    if (Out != cout.stream()) 
+    if (Out != &outs())
       delete Out;                               // Close the file
     return 0;
     
   } catch (const TGError &Error) {
-    cerr << argv[0] << ": error:\n";
+    errs() << argv[0] << ": error:\n";
     PrintError(Error.getLoc(), Error.getMessage());
     
   } catch (const std::string &Error) {
-    cerr << argv[0] << ": " << Error << "\n";
+    errs() << argv[0] << ": " << Error << "\n";
   } catch (const char *Error) {
-    cerr << argv[0] << ": " << Error << "\n";
+    errs() << argv[0] << ": " << Error << "\n";
   } catch (...) {
-    cerr << argv[0] << ": Unknown unexpected exception occurred.\n";
+    errs() << argv[0] << ": Unknown unexpected exception occurred.\n";
   }
   
-  if (Out != cout.stream()) {
+  if (Out != &outs()) {
     delete Out;                             // Close the file
     std::remove(OutputFilename.c_str());    // Remove the file, it's broken
   }

@@ -31,7 +31,6 @@
 #include "llvm/Function.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Transforms/Scalar.h"
 #include <set>
@@ -40,7 +39,7 @@ using namespace llvm;
 STATISTIC(NumMoved, "Number of basic blocks moved");
 
 namespace {
-  struct VISIBILITY_HIDDEN BlockPlacement : public FunctionPass {
+  struct BlockPlacement : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     BlockPlacement() : FunctionPass(&ID) {}
 
@@ -127,13 +126,13 @@ void BlockPlacement::PlaceBlocks(BasicBlock *BB) {
       /*empty*/;
     if (SI == E) return;  // No more successors to place.
 
-    unsigned MaxExecutionCount = PI->getExecutionCount(*SI);
+    double MaxExecutionCount = PI->getExecutionCount(*SI);
     BasicBlock *MaxSuccessor = *SI;
 
     // Scan for more frequently executed successors
     for (; SI != E; ++SI)
       if (!PlacedBlocks.count(*SI)) {
-        unsigned Count = PI->getExecutionCount(*SI);
+        double Count = PI->getExecutionCount(*SI);
         if (Count > MaxExecutionCount ||
             // Prefer to not disturb the code.
             (Count == MaxExecutionCount && *SI == &*InsertPos)) {

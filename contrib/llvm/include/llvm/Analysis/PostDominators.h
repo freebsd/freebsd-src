@@ -49,6 +49,14 @@ struct PostDominatorTree : public FunctionPass {
     return DT->getNode(BB);
   }
   
+  inline bool dominates(DomTreeNode* A, DomTreeNode* B) const {
+    return DT->dominates(A, B);
+  }
+
+  inline bool dominates(const BasicBlock* A, const BasicBlock* B) const {
+    return DT->dominates(A, B);
+  }
+
   inline bool properlyDominates(const DomTreeNode* A, DomTreeNode* B) const {
     return DT->properlyDominates(A, B);
   }
@@ -57,9 +65,11 @@ struct PostDominatorTree : public FunctionPass {
     return DT->properlyDominates(A, B);
   }
 
-  virtual void print(std::ostream &OS, const Module* M= 0) const {
-    DT->print(OS, M);
+  virtual void releaseMemory() {
+    DT->releaseMemory();
   }
+
+  virtual void print(raw_ostream &OS, const Module*) const;
 };
 
 FunctionPass* createPostDomTree();

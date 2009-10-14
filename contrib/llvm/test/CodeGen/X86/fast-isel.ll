@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | llc -fast-isel -fast-isel-abort -march=x86 -mattr=sse2
+; RUN: llc < %s -fast-isel -fast-isel-abort -march=x86 -mattr=sse2
 
 ; This tests very minimal fast-isel functionality.
 
@@ -63,4 +63,13 @@ define i32 @ptrtoint_i32(i8* %p) nounwind {
 define i8* @inttoptr_i32(i32 %p) nounwind {
   %t = inttoptr i32 %p to i8*
   ret i8* %t
+}
+
+define void @store_i1(i1* %p, i1 %t) nounwind {
+  store i1 %t, i1* %p
+  ret void
+}
+define i1 @load_i1(i1* %p) nounwind {
+  %t = load i1* %p
+  ret i1 %t
 }

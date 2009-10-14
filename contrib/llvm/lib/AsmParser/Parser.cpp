@@ -15,73 +15,48 @@
 #include "LLParser.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstring>
 using namespace llvm;
 
-Module *llvm::ParseAssemblyFile(const std::string &Filename, ParseError &Err) {
-  Err.setFilename(Filename);
+Module *llvm::ParseAssembly(MemoryBuffer *F,
+                            Module *M,
+                            SMDiagnostic &Err,
+                            LLVMContext &Context) {
+  SourceMgr SM;
+  SM.AddNewSourceBuffer(F, SMLoc());
 
-  std::string ErrorStr;
-  OwningPtr<MemoryBuffer>
-    F(MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrorStr));
-  if (F == 0) {
-    Err.setError("Could not open input file '" + Filename + "'");
-    return 0;
-  }
-
-  OwningPtr<Module> M(new Module(Filename));
-  if (LLParser(F.get(), Err, M.get()).Run())
-    return 0;
-  return M.take();
-}
-
-Module *llvm::ParseAssemblyString(const char *AsmString, Module *M,
-                                  ParseError &Err) {
-  Err.setFilename("<string>");
-
-  OwningPtr<MemoryBuffer>
-    F(MemoryBuffer::getMemBuffer(AsmString, AsmString+strlen(AsmString),
-                                 "<string>"));
-  
   // If we are parsing into an existing module, do it.
   if (M)
-    return LLParser(F.get(), Err, M).Run() ? 0 : M;
+    return LLParser(F, SM, Err, M).Run() ? 0 : M;
 
   // Otherwise create a new module.
-  OwningPtr<Module> M2(new Module("<string>"));
-  if (LLParser(F.get(), Err, M2.get()).Run())
+  OwningPtr<Module> M2(new Module(F->getBufferIdentifier(), Context));
+  if (LLParser(F, SM, Err, M2.get()).Run())
     return 0;
   return M2.take();
 }
 
-
-//===------------------------------------------------------------------------===
-//                              ParseError Class
-//===------------------------------------------------------------------------===
-
-void ParseError::PrintError(const char *ProgName, raw_ostream &S) {
-  errs() << ProgName << ": ";
-  if (Filename == "-")
-    errs() << "<stdin>";
-  else
-    errs() << Filename;
-
-  if (LineNo != -1) {
-    errs() << ':' << LineNo;
-    if (ColumnNo != -1)
-      errs() << ':' << (ColumnNo+1);
+Module *llvm::ParseAssemblyFile(const std::string &Filename, SMDiagnostic &Err,
+                                LLVMContext &Context) {
+  std::string ErrorStr;
+  MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrorStr);
+  if (F == 0) {
+    Err = SMDiagnostic("", -1, -1,
+                       "Could not open input file '" + Filename + "'", "");
+    return 0;
   }
 
-  errs() << ": " << Message << '\n';
+  return ParseAssembly(F, 0, Err, Context);
+}
 
-  if (LineNo != -1 && ColumnNo != -1) {
-    errs() << LineContents << '\n';
+Module *llvm::ParseAssemblyString(const char *AsmString, Module *M,
+                                  SMDiagnostic &Err, LLVMContext &Context) {
+  MemoryBuffer *F =
+    MemoryBuffer::getMemBuffer(AsmString, AsmString+strlen(AsmString),
+                               "<string>");
 
-    // Print out spaces/tabs before the caret.
-    for (unsigned i = 0; i != unsigned(ColumnNo); ++i)
-      errs() << (LineContents[i] == '\t' ? '\t' : ' ');
-    errs() << "^\n";
-  }
+  return ParseAssembly(F, M, Err, Context);
 }

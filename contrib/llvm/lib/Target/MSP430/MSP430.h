@@ -20,14 +20,13 @@
 namespace llvm {
   class MSP430TargetMachine;
   class FunctionPass;
-  class raw_ostream;
+  class formatted_raw_ostream;
 
   FunctionPass *createMSP430ISelDag(MSP430TargetMachine &TM,
                                     CodeGenOpt::Level OptLevel);
-  FunctionPass *createMSP430CodePrinterPass(raw_ostream &o,
-                                            MSP430TargetMachine &tm,
-                                            CodeGenOpt::Level OptLevel,
-                                            bool verbose);
+
+  extern Target TheMSP430Target;
+
 } // end namespace llvm;
 
 // Defines symbolic names for MSP430 registers.

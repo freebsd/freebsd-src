@@ -38,8 +38,8 @@
 #ifndef LLVM_ADT_ILIST_H
 #define LLVM_ADT_ILIST_H
 
-#include "llvm/ADT/iterator.h"
 #include <cassert>
+#include <iterator>
 
 namespace llvm {
 
@@ -121,15 +121,15 @@ struct ilist_node_traits {
 /// for all common operations.
 ///
 template<typename NodeTy>
-struct ilist_default_traits : ilist_nextprev_traits<NodeTy>,
-                              ilist_sentinel_traits<NodeTy>,
-                              ilist_node_traits<NodeTy> {
+struct ilist_default_traits : public ilist_nextprev_traits<NodeTy>,
+                              public ilist_sentinel_traits<NodeTy>,
+                              public ilist_node_traits<NodeTy> {
 };
 
 // Template traits for intrusive list.  By specializing this template class, you
 // can change what next/prev fields are used to store the links...
 template<typename NodeTy>
-struct ilist_traits : ilist_default_traits<NodeTy> {};
+struct ilist_traits : public ilist_default_traits<NodeTy> {};
 
 // Const traits are the same as nonconst traits...
 template<typename Ty>
@@ -140,11 +140,12 @@ struct ilist_traits<const Ty> : public ilist_traits<Ty> {};
 //
 template<typename NodeTy>
 class ilist_iterator
-  : public bidirectional_iterator<NodeTy, ptrdiff_t> {
+  : public std::iterator<std::bidirectional_iterator_tag, NodeTy, ptrdiff_t> {
 
 public:
   typedef ilist_traits<NodeTy> Traits;
-  typedef bidirectional_iterator<NodeTy, ptrdiff_t> super;
+  typedef std::iterator<std::bidirectional_iterator_tag,
+                        NodeTy, ptrdiff_t> super;
 
   typedef typename super::value_type value_type;
   typedef typename super::difference_type difference_type;
@@ -189,12 +190,10 @@ public:
 
   // Accessors...
   operator pointer() const {
-    assert(Traits::getNext(NodePtr) != 0 && "Dereferencing end()!");
     return NodePtr;
   }
 
   reference operator*() const {
-    assert(Traits::getNext(NodePtr) != 0 && "Dereferencing end()!");
     return *NodePtr;
   }
   pointer operator->() const { return &operator*(); }
@@ -215,7 +214,6 @@ public:
   }
   ilist_iterator &operator++() {      // preincrement - Advance
     NodePtr = Traits::getNext(NodePtr);
-    assert(NodePtr && "++'d off the end of an ilist!");
     return *this;
   }
   ilist_iterator operator--(int) {    // postdecrement operators...
@@ -323,13 +321,13 @@ class iplist : public Traits {
   /// CreateLazySentinel - This method verifies whether the sentinel for the
   /// list has been created and lazily makes it if not.
   void CreateLazySentinel() const {
-    this->Traits::ensureHead(Head);
+    this->ensureHead(Head);
   }
 
   static bool op_less(NodeTy &L, NodeTy &R) { return L < R; }
   static bool op_equal(NodeTy &L, NodeTy &R) { return L == R; }
 
-  // No fundamental reason why iplist can't by copyable, but the default
+  // No fundamental reason why iplist can't be copyable, but the default
   // copy/copy-assign won't do.
   iplist(const iplist &);         // do not implement
   void operator=(const iplist &); // do not implement
@@ -347,7 +345,7 @@ public:
   typedef std::reverse_iterator<const_iterator>  const_reverse_iterator;
   typedef std::reverse_iterator<iterator>  reverse_iterator;
 
-  iplist() : Head(this->Traits::provideInitialHead()) {}
+  iplist() : Head(this->provideInitialHead()) {}
   ~iplist() {
     if (!Head) return;
     clear();

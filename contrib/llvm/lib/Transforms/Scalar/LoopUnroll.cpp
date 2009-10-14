@@ -17,9 +17,9 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/UnrollLoop.h"
 #include <climits>
 
@@ -39,7 +39,7 @@ UnrollAllowPartial("unroll-allow-partial", cl::init(false), cl::Hidden,
            "-unroll-threshold loop size is reached."));
 
 namespace {
-  class VISIBILITY_HIDDEN LoopUnroll : public LoopPass {
+  class LoopUnroll : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
     LoopUnroll() : LoopPass(&ID) {}
@@ -96,10 +96,7 @@ static unsigned ApproximateLoopSize(const Loop *L) {
         // is higher than other instructions. Here 3 and 10 are magic
         // numbers that help one isolated test case from PR2067 without
         // negatively impacting measured benchmarks.
-        if (isa<IntrinsicInst>(I))
-          Size = Size + 3;
-        else
-          Size = Size + 10;
+        Size += isa<IntrinsicInst>(I) ? 3 : 10;
       } else {
         ++Size;
       }
@@ -118,51 +115,48 @@ bool LoopUnroll::runOnLoop(Loop *L, LPPassManager &LPM) {
   LoopInfo *LI = &getAnalysis<LoopInfo>();
 
   BasicBlock *Header = L->getHeader();
-  DOUT << "Loop Unroll: F[" << Header->getParent()->getName()
-       << "] Loop %" << Header->getName() << "\n";
+  DEBUG(errs() << "Loop Unroll: F[" << Header->getParent()->getName()
+        << "] Loop %" << Header->getName() << "\n");
+  (void)Header;
 
   // Find trip count
   unsigned TripCount = L->getSmallConstantTripCount();
   unsigned Count = UnrollCount;
- 
+
   // Automatically select an unroll count.
   if (Count == 0) {
     // Conservative heuristic: if we know the trip count, see if we can
     // completely unroll (subject to the threshold, checked below); otherwise
-    // try to find greatest modulo of the trip count which is still under 
+    // try to find greatest modulo of the trip count which is still under
     // threshold value.
-    if (TripCount != 0) {
-      Count = TripCount;
-    } else {
+    if (TripCount == 0)
       return false;
-    }
+    Count = TripCount;
   }
 
   // Enforce the threshold.
   if (UnrollThreshold != NoThreshold) {
     unsigned LoopSize = ApproximateLoopSize(L);
-    DOUT << "  Loop Size = " << LoopSize << "\n";
+    DEBUG(errs() << "  Loop Size = " << LoopSize << "\n");
     uint64_t Size = (uint64_t)LoopSize*Count;
     if (TripCount != 1 && Size > UnrollThreshold) {
-      DOUT << "  Too large to fully unroll with count: " << Count
-           << " because size: " << Size << ">" << UnrollThreshold << "\n";
-      if (UnrollAllowPartial) {
-        // Reduce unroll count to be modulo of TripCount for partial unrolling
-        Count = UnrollThreshold / LoopSize;        
-        while (Count != 0 && TripCount%Count != 0) {
-          Count--;
-        }        
-        if (Count < 2) {
-          DOUT << "  could not unroll partially\n";
-          return false;
-        } else {
-          DOUT << "  partially unrolling with count: " << Count << "\n";
-        }
-      } else {
-        DOUT << "  will not try to unroll partially because "
-             << "-unroll-allow-partial not given\n";
+      DEBUG(errs() << "  Too large to fully unroll with count: " << Count
+            << " because size: " << Size << ">" << UnrollThreshold << "\n");
+      if (!UnrollAllowPartial) {
+        DEBUG(errs() << "  will not try to unroll partially because "
+              << "-unroll-allow-partial not given\n");
         return false;
       }
+      // Reduce unroll count to be modulo of TripCount for partial unrolling
+      Count = UnrollThreshold / LoopSize;
+      while (Count != 0 && TripCount%Count != 0) {
+        Count--;
+      }
+      if (Count < 2) {
+        DEBUG(errs() << "  could not unroll partially\n");
+        return false;
+      }
+      DEBUG(errs() << "  partially unrolling with count: " << Count << "\n");
     }
   }
 

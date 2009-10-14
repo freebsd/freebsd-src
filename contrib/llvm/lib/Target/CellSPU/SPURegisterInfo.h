@@ -43,7 +43,8 @@ namespace llvm {
 
     /// getPointerRegClass - Return the register class to use to hold pointers.
     /// This is used for addressing modes.
-    virtual const TargetRegisterClass *getPointerRegClass() const;
+    virtual const TargetRegisterClass *
+    getPointerRegClass(unsigned Kind = 0) const;
 
     //! Return the array of callee-saved registers
     virtual const unsigned* getCalleeSavedRegs(const MachineFunction *MF) const;
@@ -62,8 +63,9 @@ namespace llvm {
                                        MachineBasicBlock &MBB,
                                        MachineBasicBlock::iterator I) const;
     //! Convert frame indicies into machine operands
-    void eliminateFrameIndex(MachineBasicBlock::iterator II, int,
-                             RegScavenger *RS) const;
+    unsigned eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
+                                 int *Value = NULL,
+                                 RegScavenger *RS = NULL) const;
     //! Determine the frame's layour
     void determineFrameLayout(MachineFunction &MF) const;
 

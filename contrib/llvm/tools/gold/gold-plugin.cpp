@@ -17,6 +17,7 @@
 #include "llvm-c/lto.h"
 
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Errno.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Program.h"
 
@@ -183,7 +184,7 @@ ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
       (*message)(LDPL_ERROR,
                  "Failed to seek to archive member of %s at offset %d: %s\n", 
                  file->name,
-                 file->offset, strerror(errno));
+                 file->offset, sys::StrError(errno).c_str());
       return LDPS_ERR;
     }
     buf = malloc(file->filesize);
@@ -198,7 +199,7 @@ ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
                  "Failed to read archive member of %s at offset %d: %s\n",
                  file->name,
                  file->offset,
-                 strerror(errno));
+                 sys::StrError(errno).c_str());
       free(buf);
       return LDPS_ERR;
     }
@@ -361,8 +362,9 @@ ld_plugin_status all_symbols_read_hook(void) {
     (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
     return LDPS_ERR;
   }
-  raw_fd_ostream *objFile = new raw_fd_ostream(uniqueObjPath.c_str(), true,
-                                               ErrMsg);
+  raw_fd_ostream *objFile = 
+    new raw_fd_ostream(uniqueObjPath.c_str(), ErrMsg,
+                       raw_fd_ostream::F_Binary);
   if (!ErrMsg.empty()) {
     delete objFile;
     (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());

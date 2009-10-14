@@ -23,6 +23,7 @@ namespace llvm {
 class Type;
 class FunctionType;
 class Function;
+class LLVMContext;
 class Module;
 class AttrListPtr;
 
@@ -47,7 +48,8 @@ namespace Intrinsic {
   
   /// Intrinsic::getType(ID) - Return the function type for an intrinsic.
   ///
-  const FunctionType *getType(ID id, const Type **Tys = 0, unsigned numTys = 0);
+  const FunctionType *getType(LLVMContext &Context, ID id,
+                              const Type **Tys = 0, unsigned numTys = 0);
 
   /// Intrinsic::isOverloaded(ID) - Returns true if the intrinsic can be
   /// overloaded.
@@ -61,7 +63,7 @@ namespace Intrinsic {
   /// declaration for an intrinsic, and return it.
   ///
   /// The Tys and numTys parameters are for intrinsics with overloaded types
-  /// (i.e., those using iAny or fAny). For a declaration for an overloaded
+  /// (e.g., those using iAny or fAny). For a declaration for an overloaded
   /// intrinsic, Tys should point to an array of numTys pointers to Type,
   /// and must provide exactly one type for each overloaded type in the
   /// intrinsic.

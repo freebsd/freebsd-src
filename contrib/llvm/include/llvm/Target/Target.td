@@ -203,6 +203,8 @@ class Instruction {
   bit hasCtrlDep   = 0;     // Does this instruction r/w ctrl-flow chains?
   bit isNotDuplicable = 0;  // Is it unsafe to duplicate this instruction?
   bit isAsCheapAsAMove = 0; // As cheap (or cheaper) than a move instruction.
+  bit hasExtraSrcRegAllocReq = 0; // Sources have special regalloc requirement?
+  bit hasExtraDefRegAllocReq = 0; // Defs have special regalloc requirement?
 
   // Side effect flags - When set, the flags have these meanings:
   //
@@ -220,6 +222,11 @@ class Instruction {
   bit hasSideEffects = 0;
   bit mayHaveSideEffects = 0;
   bit neverHasSideEffects = 0;
+
+  // Is this instruction a "real" instruction (with a distinct machine
+  // encoding), or is it a pseudo instruction used for codegen modeling
+  // purposes.
+  bit isCodeGenOnly = 0;
 
   InstrItinClass Itinerary = NoItinerary;// Execution steps used for scheduling.
 
@@ -258,16 +265,63 @@ def ins;
 /// of operands.
 def variable_ops;
 
+
+/// PointerLikeRegClass - Values that are designed to have pointer width are
+/// derived from this.  TableGen treats the register class as having a symbolic
+/// type that it doesn't know, and resolves the actual regclass to use by using
+/// the TargetRegisterInfo::getPointerRegClass() hook at codegen time.
+class PointerLikeRegClass<int Kind> {
+  int RegClassKind = Kind;
+}
+
+
 /// ptr_rc definition - Mark this operand as being a pointer value whose
 /// register class is resolved dynamically via a callback to TargetInstrInfo.
 /// FIXME: We should probably change this to a class which contain a list of
 /// flags. But currently we have but one flag.
-def ptr_rc;
+def ptr_rc : PointerLikeRegClass<0>;
 
 /// unknown definition - Mark this operand as being of unknown type, causing
 /// it to be resolved by inference in the context it is used.
 def unknown;
 
+/// AsmOperandClass - Representation for the kinds of operands which the target
+/// specific parser can create and the assembly matcher may need to distinguish.
+///
+/// Operand classes are used to define the order in which instructions are
+/// matched, to ensure that the instruction which gets matched for any
+/// particular list of operands is deterministic.
+///
+/// The target specific parser must be able to classify a parsed operand into a
+/// unique class which does not partially overlap with any other classes. It can
+/// match a subset of some other class, in which case the super class field
+/// should be defined.
+class AsmOperandClass {
+  /// The name to use for this class, which should be usable as an enum value.
+  string Name = ?;
+
+  /// The super class of this operand.
+  AsmOperandClass SuperClass = ?;
+
+  /// The name of the method on the target specific operand to call to test
+  /// whether the operand is an instance of this class. If not set, this will
+  /// default to "isFoo", where Foo is the AsmOperandClass name. The method
+  /// signature should be:
+  ///   bool isFoo() const;
+  string PredicateMethod = ?;
+
+  /// The name of the method on the target specific operand to call to add the
+  /// target specific operand to an MCInst. If not set, this will default to
+  /// "addFooOperands", where Foo is the AsmOperandClass name. The method
+  /// signature should be:
+  ///   void addFooOperands(MCInst &Inst, unsigned N) const;
+  string RenderMethod = ?;
+}
+
+def ImmAsmOperand : AsmOperandClass {
+  let Name = "Imm";
+}
+   
 /// Operand Types - These provide the built-in operand types that may be used
 /// by a target.  Targets can optionally provide their own operand types as
 /// needed, though this should not be needed for RISC targets.
@@ -276,6 +330,16 @@ class Operand<ValueType ty> {
   string PrintMethod = "printOperand";
   string AsmOperandLowerMethod = ?;
   dag MIOperandInfo = (ops);
+
+  // ParserMatchClass - The "match class" that operands of this type fit
+  // in. Match classes are used to define the order in which instructions are
+  // match, to ensure that which instructions gets matched is deterministic.
+  //
+  // The target specific parser must be able to classify an parsed operand 
+  // into a unique class, which does not partially overlap with any other 
+  // classes. It can match a subset of some other class, in which case 
+  // ParserMatchSuperClass should be set to the name of that class.
+  AsmOperandClass ParserMatchClass = ImmAsmOperand;
 }
 
 def i1imm  : Operand<i1>;
@@ -302,8 +366,8 @@ class PredicateOperand<ValueType ty, dag OpTypes, dag AlwaysVal>
 }
 
 /// OptionalDefOperand - This is used to define a optional definition operand
-/// for an instruction. DefaultOps is the register the operand represents if none
-/// is supplied, e.g. zero_reg.
+/// for an instruction. DefaultOps is the register the operand represents if
+/// none is supplied, e.g. zero_reg.
 class OptionalDefOperand<ValueType ty, dag OpTypes, dag defaultops>
   : Operand<ty> {
   let MIOperandInfo = OpTypes;
@@ -329,7 +393,8 @@ class InstrInfo {
   bit isLittleEndianEncoding = 0;
 }
 
-// Standard Instructions.
+// Standard Pseudo Instructions.
+let isCodeGenOnly = 1 in {
 def PHI : Instruction {
   let OutOperandList = (ops);
   let InOperandList = (ops variable_ops);
@@ -363,12 +428,12 @@ def GC_LABEL : Instruction {
   let Namespace = "TargetInstrInfo";
   let hasCtrlDep = 1;
 }
-def DECLARE : Instruction {
+def KILL : Instruction {
   let OutOperandList = (ops);
   let InOperandList = (ops variable_ops);
   let AsmString = "";
   let Namespace = "TargetInstrInfo";
-  let hasCtrlDep = 1;
+  let neverHasSideEffects = 1;
 }
 def EXTRACT_SUBREG : Instruction {
   let OutOperandList = (ops unknown:$dst);
@@ -409,6 +474,39 @@ def COPY_TO_REGCLASS : Instruction {
   let neverHasSideEffects = 1;
   let isAsCheapAsAMove = 1;
 }
+}
+
+//===----------------------------------------------------------------------===//
+// AsmParser - This class can be implemented by targets that wish to implement 
+// .s file parsing.
+//
+// Subtargets can have multiple different assembly parsers (e.g. AT&T vs Intel 
+// syntax on X86 for example).
+//
+class AsmParser {
+  // AsmParserClassName - This specifies the suffix to use for the asmparser
+  // class.  Generated AsmParser classes are always prefixed with the target
+  // name.
+  string AsmParserClassName  = "AsmParser";
+ 
+  // Variant - AsmParsers can be of multiple different variants.  Variants are
+  // used to support targets that need to parser multiple formats for the 
+  // assembly language.
+  int Variant = 0;
+
+  // CommentDelimiter - If given, the delimiter string used to recognize
+  // comments which are hard coded in the .td assembler strings for individual
+  // instructions.
+  string CommentDelimiter = "";
+
+  // RegisterPrefix - If given, the token prefix which indicates a register
+  // token. This is used by the matcher to automatically recognize hard coded
+  // register tokens as constrained registers, instead of tokens, for the
+  // purposes of matching.
+  string RegisterPrefix = "";
+}
+def DefaultAsmParser : AsmParser;
+
 
 //===----------------------------------------------------------------------===//
 // AsmWriter - This class can be implemented by targets that need to customize
@@ -434,6 +532,17 @@ class AsmWriter {
   // will specify which alternative to use.  For example "{x|y|z}" with Variant
   // == 1, will expand to "y".
   int Variant = 0;
+  
+  
+  // FirstOperandColumn/OperandSpacing - If the assembler syntax uses a columnar
+  // layout, the asmwriter can actually generate output in this columns (in
+  // verbose-asm mode).  These two values indicate the width of the first column
+  // (the "opcode" area) and the width to reserve for subsequent operands.  When
+  // verbose asm mode is enabled, operands will be indented to respect this.
+  int FirstOperandColumn = -1;
+  
+  // OperandSpacing - Space between operand columns.
+  int OperandSpacing = -1;
 }
 def DefaultAsmWriter : AsmWriter;
 
@@ -444,6 +553,9 @@ def DefaultAsmWriter : AsmWriter;
 class Target {
   // InstructionSet - Instruction set description for this target.
   InstrInfo InstructionSet;
+
+  // AssemblyParsers - The AsmParser instances available for this target.
+  list<AsmParser> AssemblyParsers = [DefaultAsmParser];
 
   // AssemblyWriters - The AsmWriter instances available for this target.
   list<AsmWriter> AssemblyWriters = [DefaultAsmWriter];

@@ -17,11 +17,12 @@
 #include "llvm/Function.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
-#include "llvm/Support/InstVisitor.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Support/CallSite.h"
 #include "llvm/Support/DataTypes.h"
-
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/InstVisitor.h"
+#include "llvm/Support/raw_ostream.h"
 namespace llvm {
 
 class IntrinsicLowering;
@@ -107,8 +108,7 @@ public:
   
   /// create - Create an interpreter ExecutionEngine. This can never fail.
   ///
-  static ExecutionEngine *create(ModuleProvider *M, std::string *ErrorStr = 0,
-                                 CodeGenOpt::Level = CodeGenOpt::Default);
+  static ExecutionEngine *create(ModuleProvider *M, std::string *ErrorStr = 0);
 
   /// run - Start execution with the specified function and arguments.
   ///
@@ -144,7 +144,9 @@ public:
   void visitLoadInst(LoadInst &I);
   void visitStoreInst(StoreInst &I);
   void visitGetElementPtrInst(GetElementPtrInst &I);
-  void visitPHINode(PHINode &PN) { assert(0 && "PHI nodes already handled!"); }
+  void visitPHINode(PHINode &PN) { 
+    llvm_unreachable("PHI nodes already handled!"); 
+  }
   void visitTruncInst(TruncInst &I);
   void visitZExtInst(ZExtInst &I);
   void visitSExtInst(SExtInst &I);
@@ -172,8 +174,8 @@ public:
 
   void visitVAArgInst(VAArgInst &I);
   void visitInstruction(Instruction &I) {
-    cerr << I;
-    assert(0 && "Instruction not interpretable yet!");
+    errs() << I;
+    llvm_unreachable("Instruction not interpretable yet!");
   }
 
   GenericValue callExternalFunction(Function *F,

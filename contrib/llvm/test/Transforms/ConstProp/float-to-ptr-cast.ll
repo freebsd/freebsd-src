@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -constprop | llvm-dis | \
+; RUN: opt < %s -constprop -S | \
 ; RUN:    grep -F {ret i32* null} | count 2
 
 define i32* @test1() {

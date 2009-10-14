@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -scalarrepl -loopsimplify -licm -disable-output -verify-dom-info
+; RUN: opt < %s -scalarrepl -loopsimplify -licm -disable-output -verify-dom-info -verify-loop-info
 
 define void @inflate() {
 entry:

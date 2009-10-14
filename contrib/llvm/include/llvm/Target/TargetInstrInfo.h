@@ -19,6 +19,7 @@
 
 namespace llvm {
 
+class MCAsmInfo;
 class TargetRegisterClass;
 class TargetRegisterInfo;
 class LiveVariables;
@@ -50,7 +51,10 @@ public:
     DBG_LABEL = 2,
     EH_LABEL = 3,
     GC_LABEL = 4,
-    DECLARE = 5,
+
+    /// KILL - This instruction is a noop that is used only to adjust the liveness
+    /// of registers. This can be useful when dealing with sub-registers.
+    KILL = 5,
 
     /// EXTRACT_SUBREG - This instruction takes two operands: a register
     /// that has subregisters, and a subregister index. It returns the
@@ -99,23 +103,34 @@ public:
   /// isTriviallyReMaterializable - Return true if the instruction is trivially
   /// rematerializable, meaning it has no side effects and requires no operands
   /// that aren't always available.
-  bool isTriviallyReMaterializable(const MachineInstr *MI) const {
-    return MI->getDesc().isRematerializable() &&
-           isReallyTriviallyReMaterializable(MI);
+  bool isTriviallyReMaterializable(const MachineInstr *MI,
+                                   AliasAnalysis *AA = 0) const {
+    return MI->getOpcode() == IMPLICIT_DEF ||
+           (MI->getDesc().isRematerializable() &&
+            (isReallyTriviallyReMaterializable(MI, AA) ||
+             isReallyTriviallyReMaterializableGeneric(MI, AA)));
   }
 
 protected:
   /// isReallyTriviallyReMaterializable - For instructions with opcodes for
-  /// which the M_REMATERIALIZABLE flag is set, this function tests whether the
-  /// instruction itself is actually trivially rematerializable, considering
-  /// its operands.  This is used for targets that have instructions that are
-  /// only trivially rematerializable for specific uses.  This predicate must
-  /// return false if the instruction has any side effects other than
-  /// producing a value, or if it requres any address registers that are not
-  /// always available.
-  virtual bool isReallyTriviallyReMaterializable(const MachineInstr *MI) const {
-    return true;
+  /// which the M_REMATERIALIZABLE flag is set, this hook lets the target
+  /// specify whether the instruction is actually trivially rematerializable,
+  /// taking into consideration its operands. This predicate must return false
+  /// if the instruction has any side effects other than producing a value, or
+  /// if it requres any address registers that are not always available.
+  virtual bool isReallyTriviallyReMaterializable(const MachineInstr *MI,
+                                                 AliasAnalysis *AA) const {
+    return false;
   }
+
+private:
+  /// isReallyTriviallyReMaterializableGeneric - For instructions with opcodes
+  /// for which the M_REMATERIALIZABLE flag is set and the target hook
+  /// isReallyTriviallyReMaterializable returns false, this function does
+  /// target-independent tests to determine if the instruction is really
+  /// trivially rematerializable.
+  bool isReallyTriviallyReMaterializableGeneric(const MachineInstr *MI,
+                                                AliasAnalysis *AA) const;
 
 public:
   /// Return true if the instruction is a register to register move and return
@@ -150,19 +165,9 @@ public:
   /// specific location targeting a new destination register.
   virtual void reMaterialize(MachineBasicBlock &MBB,
                              MachineBasicBlock::iterator MI,
-                             unsigned DestReg,
+                             unsigned DestReg, unsigned SubIdx,
                              const MachineInstr *Orig) const = 0;
 
-  /// isInvariantLoad - Return true if the specified instruction (which is
-  /// marked mayLoad) is loading from a location whose value is invariant across
-  /// the function.  For example, loading a value from the constant pool or from
-  /// from the argument area of a function if it does not change.  This should
-  /// only return true of *all* loads the instruction does are invariant (if it
-  /// does multiple loads).
-  virtual bool isInvariantLoad(const MachineInstr *MI) const {
-    return false;
-  }
-  
   /// convertToThreeAddress - This method must be implemented by targets that
   /// set the M_CONVERTIBLE_TO_3_ADDR flag.  When this flag is set, the target
   /// may be able to convert a two-address instruction into one or more true
@@ -194,13 +199,11 @@ public:
   virtual MachineInstr *commuteInstruction(MachineInstr *MI,
                                            bool NewMI = false) const = 0;
 
-  /// CommuteChangesDestination - Return true if commuting the specified
-  /// instruction will also changes the destination operand. Also return the
-  /// current operand index of the would be new destination register by
-  /// reference. This can happen when the commutable instruction is also a
-  /// two-address instruction.
-  virtual bool CommuteChangesDestination(MachineInstr *MI,
-                                         unsigned &OpIdx) const = 0;
+  /// findCommutedOpIndices - If specified MI is commutable, return the two
+  /// operand indices that would swap value. Return true if the instruction
+  /// is not in a form which this routine understands.
+  virtual bool findCommutedOpIndices(MachineInstr *MI, unsigned &SrcOpIdx1,
+                                     unsigned &SrcOpIdx2) const = 0;
 
   /// AnalyzeBranch - Analyze the branching code at the end of MBB, returning
   /// true if it cannot be understood (e.g. it's a switch dispatch or isn't
@@ -212,15 +215,15 @@ public:
   /// 2. If this block ends with only an unconditional branch, it sets TBB to be
   ///    the destination block.
   /// 3. If this block ends with an conditional branch and it falls through to
-  ///    an successor block, it sets TBB to be the branch destination block and
+  ///    a successor block, it sets TBB to be the branch destination block and
   ///    a list of operands that evaluate the condition. These
   ///    operands can be passed to other TargetInstrInfo methods to create new
   ///    branches.
-  /// 4. If this block ends with an conditional branch and an unconditional
-  ///    block, it returns the 'true' destination in TBB, the 'false'
-  ///    destination in FBB, and a list of operands that evaluate the condition.
-  ///    These operands can be passed to other TargetInstrInfo methods to create
-  ///    new branches.
+  /// 4. If this block ends with a conditional branch followed by an
+  ///    unconditional branch, it returns the 'true' destination in TBB, the
+  ///    'false' destination in FBB, and a list of operands that evaluate the
+  ///    condition.  These operands can be passed to other TargetInstrInfo
+  ///    methods to create new branches.
   ///
   /// Note that RemoveBranch and InsertBranch must be implemented to support
   /// cases where this method returns success.
@@ -234,7 +237,7 @@ public:
                              bool AllowModify = false) const {
     return true;
   }
-  
+
   /// RemoveBranch - Remove the branching code at the end of the specific MBB.
   /// This is only invoked in cases where AnalyzeBranch returns success. It
   /// returns the number of instructions that were removed.
@@ -242,13 +245,12 @@ public:
     assert(0 && "Target didn't implement TargetInstrInfo::RemoveBranch!"); 
     return 0;
   }
-  
-  /// InsertBranch - Insert a branch into the end of the specified
-  /// MachineBasicBlock.  This operands to this method are the same as those
-  /// returned by AnalyzeBranch.  This is invoked in cases where AnalyzeBranch
-  /// returns success and when an unconditional branch (TBB is non-null, FBB is
-  /// null, Cond is empty) needs to be inserted. It returns the number of
-  /// instructions inserted.
+
+  /// InsertBranch - Insert branch code into the end of the specified
+  /// MachineBasicBlock.  The operands to this method are the same as those
+  /// returned by AnalyzeBranch.  This is only invoked in cases where
+  /// AnalyzeBranch returns success. It returns the number of instructions
+  /// inserted.
   ///
   /// It is also invoked by tail merging to add unconditional branches in
   /// cases where AnalyzeBranch doesn't apply because there was no original
@@ -285,18 +287,6 @@ public:
     assert(0 && "Target didn't implement TargetInstrInfo::storeRegToStackSlot!");
   }
 
-  /// storeRegToAddr - Store the specified register of the given register class
-  /// to the specified address. The store instruction is to be added to the
-  /// given machine basic block before the specified machine instruction. If
-  /// isKill is true, the register operand is the last use and must be marked
-  /// kill.
-  virtual void storeRegToAddr(MachineFunction &MF, unsigned SrcReg, bool isKill,
-                              SmallVectorImpl<MachineOperand> &Addr,
-                              const TargetRegisterClass *RC,
-                              SmallVectorImpl<MachineInstr*> &NewMIs) const {
-    assert(0 && "Target didn't implement TargetInstrInfo::storeRegToAddr!");
-  }
-
   /// loadRegFromStackSlot - Load the specified register of the given register
   /// class from the specified stack frame index. The load instruction is to be
   /// added to the given machine basic block before the specified machine
@@ -306,16 +296,6 @@ public:
                                     unsigned DestReg, int FrameIndex,
                                     const TargetRegisterClass *RC) const {
     assert(0 && "Target didn't implement TargetInstrInfo::loadRegFromStackSlot!");
-  }
-
-  /// loadRegFromAddr - Load the specified register of the given register class
-  /// class from the specified address. The load instruction is to be added to
-  /// the given machine basic block before the specified machine instruction.
-  virtual void loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
-                               SmallVectorImpl<MachineOperand> &Addr,
-                               const TargetRegisterClass *RC,
-                               SmallVectorImpl<MachineInstr*> &NewMIs) const {
-    assert(0 && "Target didn't implement TargetInstrInfo::loadRegFromAddr!");
   }
   
   /// spillCalleeSavedRegisters - Issues instruction(s) to spill all callee
@@ -429,11 +409,8 @@ public:
   /// insertNoop - Insert a noop into the instruction stream at the specified
   /// point.
   virtual void insertNoop(MachineBasicBlock &MBB, 
-                          MachineBasicBlock::iterator MI) const {
-    assert(0 && "Target didn't implement insertNoop!");
-    abort();
-  }
-
+                          MachineBasicBlock::iterator MI) const;
+  
   /// isPredicated - Returns true if the instruction is already predicated.
   ///
   virtual bool isPredicated(const MachineInstr *MI) const {
@@ -479,9 +456,15 @@ public:
     return 0;
   }
 
-  /// GetFunctionSizeInBytes - Returns the size of the specified MachineFunction.
+  /// GetFunctionSizeInBytes - Returns the size of the specified
+  /// MachineFunction.
   /// 
   virtual unsigned GetFunctionSizeInBytes(const MachineFunction &MF) const = 0;
+  
+  /// Measure the specified inline asm to determine an approximation of its
+  /// length.
+  virtual unsigned getInlineAsmLength(const char *Str,
+                                      const MCAsmInfo &MAI) const;
 };
 
 /// TargetInstrInfoImpl - This is the default implementation of
@@ -495,22 +478,16 @@ protected:
 public:
   virtual MachineInstr *commuteInstruction(MachineInstr *MI,
                                            bool NewMI = false) const;
-  virtual bool CommuteChangesDestination(MachineInstr *MI,
-                                         unsigned &OpIdx) const;
+  virtual bool findCommutedOpIndices(MachineInstr *MI, unsigned &SrcOpIdx1,
+                                     unsigned &SrcOpIdx2) const;
   virtual bool PredicateInstruction(MachineInstr *MI,
                             const SmallVectorImpl<MachineOperand> &Pred) const;
   virtual void reMaterialize(MachineBasicBlock &MBB,
                              MachineBasicBlock::iterator MI,
-                             unsigned DestReg,
+                             unsigned DestReg, unsigned SubReg,
                              const MachineInstr *Orig) const;
   virtual unsigned GetFunctionSizeInBytes(const MachineFunction &MF) const;
 };
-
-/// getInstrOperandRegClass - Return register class of the operand of an
-/// instruction of the specified TargetInstrDesc.
-const TargetRegisterClass*
-getInstrOperandRegClass(const TargetRegisterInfo *TRI,
-                        const TargetInstrDesc &II, unsigned Op);
 
 } // End llvm namespace
 

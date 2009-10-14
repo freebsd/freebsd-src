@@ -107,7 +107,9 @@ FunctionPass *llvm::createDwarfEHPass(const TargetLowering *tli, bool fast) {
 
 /// NormalizeLandingPads - Normalize and discover landing pads, noting them
 /// in the LandingPads set.  A landing pad is normal if the only CFG edges
-/// that end at it are unwind edges from invoke instructions.
+/// that end at it are unwind edges from invoke instructions. If we inlined
+/// through an invoke we could have a normal branch from the previous
+/// unwind block through to the landing pad for the original invoke.
 /// Abnormal landing pads are fixed up by redirecting all unwind edges to
 /// a new basic block which falls through to the original.
 bool DwarfEHPrepare::NormalizeLandingPads() {
@@ -132,6 +134,7 @@ bool DwarfEHPrepare::NormalizeLandingPads() {
         break;
       }
     }
+
     if (OnlyUnwoundTo) {
       // Only unwind edges lead to the landing pad.  Remember the landing pad.
       LandingPads.insert(LPad);
@@ -142,7 +145,8 @@ bool DwarfEHPrepare::NormalizeLandingPads() {
     // edges to a new basic block which falls through into this one.
 
     // Create the new basic block.
-    BasicBlock *NewBB = BasicBlock::Create(LPad->getName() + "_unwind_edge");
+    BasicBlock *NewBB = BasicBlock::Create(F->getContext(),
+                                           LPad->getName() + "_unwind_edge");
 
     // Insert it into the function right before the original landing pad.
     LPad->getParent()->getBasicBlockList().insert(LPad, NewBB);
@@ -218,28 +222,43 @@ bool DwarfEHPrepare::NormalizeLandingPads() {
 /// at runtime if there is no such exception: using unwind to throw a new
 /// exception is currently not supported.
 bool DwarfEHPrepare::LowerUnwinds() {
-  bool Changed = false;
+  SmallVector<TerminatorInst*, 16> UnwindInsts;
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I) {
     TerminatorInst *TI = I->getTerminator();
-    if (!isa<UnwindInst>(TI))
-      continue;
+    if (isa<UnwindInst>(TI))
+      UnwindInsts.push_back(TI);
+  }
+
+  if (UnwindInsts.empty()) return false;
+
+  // Find the rewind function if we didn't already.
+  if (!RewindFunction) {
+    LLVMContext &Ctx = UnwindInsts[0]->getContext();
+    std::vector<const Type*>
+      Params(1, Type::getInt8PtrTy(Ctx));
+    FunctionType *FTy = FunctionType::get(Type::getVoidTy(Ctx),
+                                          Params, false);
+    const char *RewindName = TLI->getLibcallName(RTLIB::UNWIND_RESUME);
+    RewindFunction = F->getParent()->getOrInsertFunction(RewindName, FTy);
+  }
+
+  bool Changed = false;
+
+  for (SmallVectorImpl<TerminatorInst*>::iterator
+         I = UnwindInsts.begin(), E = UnwindInsts.end(); I != E; ++I) {
+    TerminatorInst *TI = *I;
 
     // Replace the unwind instruction with a call to _Unwind_Resume (or the
     // appropriate target equivalent) followed by an UnreachableInst.
 
-    // Find the rewind function if we didn't already.
-    if (!RewindFunction) {
-      std::vector<const Type*> Params(1, PointerType::getUnqual(Type::Int8Ty));
-      FunctionType *FTy = FunctionType::get(Type::VoidTy, Params, false);
-      const char *RewindName = TLI->getLibcallName(RTLIB::UNWIND_RESUME);
-      RewindFunction = F->getParent()->getOrInsertFunction(RewindName, FTy);
-    }
-
     // Create the call...
-    CallInst::Create(RewindFunction, CreateReadOfExceptionValue(I), "", TI);
+    CallInst *CI = CallInst::Create(RewindFunction,
+                                    CreateReadOfExceptionValue(TI->getParent()),
+                                    "", TI);
+    CI->setCallingConv(TLI->getLibcallCallingConv(RTLIB::UNWIND_RESUME));
     // ...followed by an UnreachableInst.
-    new UnreachableInst(TI);
+    new UnreachableInst(TI->getContext(), TI);
 
     // Nuke the unwind instruction.
     TI->eraseFromParent();
@@ -314,7 +333,7 @@ bool DwarfEHPrepare::PromoteStackTemporaries() {
   if (ExceptionValueVar && DT && DF && isAllocaPromotable(ExceptionValueVar)) {
     // Turn the exception temporary into registers and phi nodes if possible.
     std::vector<AllocaInst*> Allocas(1, ExceptionValueVar);
-    PromoteMemToReg(Allocas, *DT, *DF);
+    PromoteMemToReg(Allocas, *DT, *DF, ExceptionValueVar->getContext());
     return true;
   }
   return false;
@@ -354,8 +373,8 @@ Instruction *DwarfEHPrepare::CreateValueLoad(BasicBlock *BB) {
 
   // Create the temporary if we didn't already.
   if (!ExceptionValueVar) {
-    ExceptionValueVar = new AllocaInst(PointerType::getUnqual(Type::Int8Ty),
-                                       "eh.value", F->begin()->begin());
+    ExceptionValueVar = new AllocaInst(PointerType::getUnqual(
+           Type::getInt8Ty(BB->getContext())), "eh.value", F->begin()->begin());
     ++NumStackTempsIntroduced;
   }
 

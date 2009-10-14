@@ -1,4 +1,4 @@
-; RUN: llvm-as < %s | opt -inline | llvm-dis | not grep tail
+; RUN: opt < %s -inline -S | not grep tail
 
 declare void @bar(i32*)
 

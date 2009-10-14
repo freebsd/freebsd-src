@@ -8,6 +8,7 @@
  *===----------------------------------------------------------------------===*)
 
 
+type llcontext
 type llmodule
 type lltype
 type lltypehandle
@@ -26,7 +27,6 @@ module TypeKind = struct
   | Fp128
   | Ppc_fp128
   | Label
-  | Metadata
   | Integer
   | Function
   | Struct
@@ -34,6 +34,7 @@ module TypeKind = struct
   | Pointer
   | Opaque
   | Vector
+  | Metadata
 end
 
 module Linkage = struct
@@ -41,13 +42,18 @@ module Linkage = struct
   | External
   | Available_externally
   | Link_once
+  | Link_once_odr
   | Weak
+  | Weak_odr
   | Appending
   | Internal
+  | Private
   | Dllimport
   | Dllexport
   | External_weak
   | Ghost
+  | Common
+  | Linker_private
 end
 
 module Visibility = struct
@@ -78,6 +84,16 @@ module Attribute = struct
   | Nest
   | Readnone
   | Readonly
+  | Noinline
+  | Alwaysinline
+  | Optsize
+  | Ssp
+  | Sspreq
+  | Nocapture
+  | Noredzone
+  | Noimplicitfloat
+  | Naked
+  | Inlinehint
 end
 
 module Icmp = struct
@@ -127,10 +143,13 @@ type ('a, 'b) llrev_pos =
 | At_start of 'a
 | After of 'b
 
+(*===-- Contexts ----------------------------------------------------------===*)
+external create_context : unit -> llcontext = "llvm_create_context"
+external dispose_context : unit -> llcontext = "llvm_dispose_context"
+external global_context : unit -> llcontext = "llvm_global_context"
 
 (*===-- Modules -----------------------------------------------------------===*)
-
-external create_module : string -> llmodule = "llvm_create_module"
+external create_module : llcontext -> string -> llmodule = "llvm_create_module"
 external dispose_module : llmodule -> unit = "llvm_dispose_module"
 external target_triple: llmodule -> string
                       = "llvm_target_triple"
@@ -147,37 +166,25 @@ external delete_type_name : string -> llmodule -> unit
 external dump_module : llmodule -> unit = "llvm_dump_module"
 
 (*===-- Types -------------------------------------------------------------===*)
-
 external classify_type : lltype -> TypeKind.t = "llvm_classify_type"
+external type_context : lltype -> llcontext = "llvm_type_context"
 
 (*--... Operations on integer types ........................................--*)
-external _i1_type : unit -> lltype = "llvm_i1_type"
-external _i8_type : unit -> lltype = "llvm_i8_type"
-external _i16_type : unit -> lltype = "llvm_i16_type"
-external _i32_type : unit -> lltype = "llvm_i32_type"
-external _i64_type : unit -> lltype = "llvm_i64_type"
+external i1_type : llcontext -> lltype = "llvm_i1_type"
+external i8_type : llcontext -> lltype = "llvm_i8_type"
+external i16_type : llcontext -> lltype = "llvm_i16_type"
+external i32_type : llcontext -> lltype = "llvm_i32_type"
+external i64_type : llcontext -> lltype = "llvm_i64_type"
 
-let i1_type = _i1_type ()
-let i8_type = _i8_type ()
-let i16_type = _i16_type ()
-let i32_type = _i32_type ()
-let i64_type = _i64_type ()
-
-external integer_type : int -> lltype = "llvm_integer_type"
+external integer_type : llcontext -> int -> lltype = "llvm_integer_type"
 external integer_bitwidth : lltype -> int = "llvm_integer_bitwidth"
 
 (*--... Operations on real types ...........................................--*)
-external _float_type : unit -> lltype = "llvm_float_type"
-external _double_type : unit -> lltype = "llvm_double_type"
-external _x86fp80_type : unit -> lltype = "llvm_x86fp80_type"
-external _fp128_type : unit -> lltype = "llvm_fp128_type"
-external _ppc_fp128_type : unit -> lltype = "llvm_ppc_fp128_type"
-
-let float_type = _float_type ()
-let double_type = _double_type ()
-let x86fp80_type = _x86fp80_type ()
-let fp128_type = _fp128_type ()
-let ppc_fp128_type = _ppc_fp128_type ()
+external float_type : llcontext -> lltype = "llvm_float_type"
+external double_type : llcontext -> lltype = "llvm_double_type"
+external x86fp80_type : llcontext -> lltype = "llvm_x86fp80_type"
+external fp128_type : llcontext -> lltype = "llvm_fp128_type"
+external ppc_fp128_type : llcontext -> lltype = "llvm_ppc_fp128_type"
 
 (*--... Operations on function types .......................................--*)
 external function_type : lltype -> lltype array -> lltype = "llvm_function_type"
@@ -188,8 +195,9 @@ external return_type : lltype -> lltype = "LLVMGetReturnType"
 external param_types : lltype -> lltype array = "llvm_param_types"
 
 (*--... Operations on struct types .........................................--*)
-external struct_type : lltype array -> lltype = "llvm_struct_type"
-external packed_struct_type : lltype array -> lltype = "llvm_packed_struct_type"
+external struct_type : llcontext -> lltype array -> lltype = "llvm_struct_type"
+external packed_struct_type : llcontext -> lltype array -> lltype
+                            = "llvm_packed_struct_type"
 external element_types : lltype -> lltype array = "llvm_element_types"
 external is_packed : lltype -> bool = "llvm_is_packed"
 
@@ -206,12 +214,9 @@ external address_space : lltype -> int = "llvm_address_space"
 external vector_size : lltype -> int = "llvm_vector_size"
 
 (*--... Operations on other types ..........................................--*)
-external opaque_type : unit -> lltype = "llvm_opaque_type"
-external _void_type : unit -> lltype = "llvm_void_type"
-external _label_type : unit -> lltype = "llvm_label_type"
-
-let void_type = _void_type ()
-let label_type = _label_type ()
+external opaque_type : llcontext -> lltype = "llvm_opaque_type"
+external void_type : llcontext -> lltype = "llvm_void_type"
+external label_type : llcontext -> lltype = "llvm_label_type"
 
 (*--... Operations on type handles .........................................--*)
 external handle_to_type : lltype -> lltypehandle = "llvm_handle_to_type"
@@ -220,7 +225,6 @@ external refine_type : lltype -> lltype -> unit = "llvm_refine_type"
 
 
 (*===-- Values ------------------------------------------------------------===*)
-
 external type_of : llvalue -> lltype = "llvm_type_of"
 external value_name : llvalue -> string = "llvm_value_name"
 external set_value_name : string -> llvalue -> unit = "llvm_set_value_name"
@@ -238,14 +242,19 @@ external is_undef : llvalue -> bool = "llvm_is_undef"
 external const_int : lltype -> int -> llvalue = "llvm_const_int"
 external const_of_int64 : lltype -> Int64.t -> bool -> llvalue
                         = "llvm_const_of_int64"
+external const_int_of_string : lltype -> string -> int -> llvalue
+                             = "llvm_const_int_of_string"
 external const_float : lltype -> float -> llvalue = "llvm_const_float"
+external const_float_of_string : lltype -> string -> llvalue
+                               = "llvm_const_float_of_string"
 
 (*--... Operations on composite constants ..................................--*)
-external const_string : string -> llvalue = "llvm_const_string"
-external const_stringz : string -> llvalue = "llvm_const_stringz"
+external const_string : llcontext -> string -> llvalue = "llvm_const_string"
+external const_stringz : llcontext -> string -> llvalue = "llvm_const_stringz"
 external const_array : lltype -> llvalue array -> llvalue = "llvm_const_array"
-external const_struct : llvalue array -> llvalue = "llvm_const_struct"
-external const_packed_struct : llvalue array -> llvalue
+external const_struct : llcontext -> llvalue array -> llvalue
+                      = "llvm_const_struct"
+external const_packed_struct : llcontext -> llvalue array -> llvalue
                              = "llvm_const_packed_struct"
 external const_vector : llvalue array -> llvalue = "llvm_const_vector"
 
@@ -253,12 +262,18 @@ external const_vector : llvalue array -> llvalue = "llvm_const_vector"
 external align_of : lltype -> llvalue = "LLVMAlignOf"
 external size_of : lltype -> llvalue = "LLVMSizeOf"
 external const_neg : llvalue -> llvalue = "LLVMConstNeg"
+external const_fneg : llvalue -> llvalue = "LLVMConstFNeg"
 external const_not : llvalue -> llvalue = "LLVMConstNot"
 external const_add : llvalue -> llvalue -> llvalue = "LLVMConstAdd"
+external const_nsw_add : llvalue -> llvalue -> llvalue = "LLVMConstNSWAdd"
+external const_fadd : llvalue -> llvalue -> llvalue = "LLVMConstFAdd"
 external const_sub : llvalue -> llvalue -> llvalue = "LLVMConstSub"
+external const_fsub : llvalue -> llvalue -> llvalue = "LLVMConstFSub"
 external const_mul : llvalue -> llvalue -> llvalue = "LLVMConstMul"
+external const_fmul : llvalue -> llvalue -> llvalue = "LLVMConstFMul"
 external const_udiv : llvalue -> llvalue -> llvalue = "LLVMConstUDiv"
 external const_sdiv : llvalue -> llvalue -> llvalue = "LLVMConstSDiv"
+external const_exact_sdiv : llvalue -> llvalue -> llvalue = "LLVMConstExactSDiv"
 external const_fdiv : llvalue -> llvalue -> llvalue = "LLVMConstFDiv"
 external const_urem : llvalue -> llvalue -> llvalue = "LLVMConstURem"
 external const_srem : llvalue -> llvalue -> llvalue = "LLVMConstSRem"
@@ -274,6 +289,8 @@ external const_shl : llvalue -> llvalue -> llvalue = "LLVMConstShl"
 external const_lshr : llvalue -> llvalue -> llvalue = "LLVMConstLShr"
 external const_ashr : llvalue -> llvalue -> llvalue = "LLVMConstAShr"
 external const_gep : llvalue -> llvalue array -> llvalue = "llvm_const_gep"
+external const_in_bounds_gep : llvalue -> llvalue array -> llvalue
+                            = "llvm_const_in_bounds_gep"
 external const_trunc : llvalue -> lltype -> llvalue = "LLVMConstTrunc"
 external const_sext : llvalue -> lltype -> llvalue = "LLVMConstSExt"
 external const_zext : llvalue -> lltype -> llvalue = "LLVMConstZExt"
@@ -286,6 +303,16 @@ external const_fptosi : llvalue -> lltype -> llvalue = "LLVMConstFPToSI"
 external const_ptrtoint : llvalue -> lltype -> llvalue = "LLVMConstPtrToInt"
 external const_inttoptr : llvalue -> lltype -> llvalue = "LLVMConstIntToPtr"
 external const_bitcast : llvalue -> lltype -> llvalue = "LLVMConstBitCast"
+external const_zext_or_bitcast : llvalue -> lltype -> llvalue
+                             = "LLVMConstZExtOrBitCast"
+external const_sext_or_bitcast : llvalue -> lltype -> llvalue
+                             = "LLVMConstSExtOrBitCast"
+external const_trunc_or_bitcast : llvalue -> lltype -> llvalue
+                              = "LLVMConstTruncOrBitCast"
+external const_pointercast : llvalue -> lltype -> llvalue
+                           = "LLVMConstPointerCast"
+external const_intcast : llvalue -> lltype -> llvalue = "LLVMConstIntCast"
+external const_fpcast : llvalue -> lltype -> llvalue = "LLVMConstFPCast"
 external const_select : llvalue -> llvalue -> llvalue -> llvalue
                       = "LLVMConstSelect"
 external const_extractelement : llvalue -> llvalue -> llvalue
@@ -294,6 +321,10 @@ external const_insertelement : llvalue -> llvalue -> llvalue -> llvalue
                              = "LLVMConstInsertElement"
 external const_shufflevector : llvalue -> llvalue -> llvalue -> llvalue
                              = "LLVMConstShuffleVector"
+external const_extractvalue : llvalue -> int array -> llvalue
+                            = "llvm_const_extractvalue"
+external const_insertvalue : llvalue -> llvalue -> int array -> llvalue
+                           = "llvm_const_insertvalue"
 
 (*--... Operations on global variables, functions, and aliases (globals) ...--*)
 external global_parent : llvalue -> llmodule = "LLVMGetGlobalParent"
@@ -504,8 +535,9 @@ external block_parent : llbasicblock -> llvalue = "LLVMGetBasicBlockParent"
 external basic_blocks : llvalue -> llbasicblock array = "llvm_basic_blocks"
 external entry_block : llvalue -> llbasicblock = "LLVMGetEntryBasicBlock"
 external delete_block : llbasicblock -> unit = "llvm_delete_block"
-external append_block : string -> llvalue -> llbasicblock = "llvm_append_block"
-external insert_block : string -> llbasicblock -> llbasicblock
+external append_block : llcontext -> string -> llvalue -> llbasicblock
+                      = "llvm_append_block"
+external insert_block : llcontext -> string -> llbasicblock -> llbasicblock
                       = "llvm_insert_block"
 external block_begin : llvalue -> (llvalue, llbasicblock) llpos
                      = "llvm_block_begin"
@@ -629,18 +661,20 @@ external incoming : llvalue -> (llvalue * llbasicblock) list = "llvm_incoming"
 
 
 (*===-- Instruction builders ----------------------------------------------===*)
-external builder : unit -> llbuilder = "llvm_builder"
+external builder : llcontext -> llbuilder = "llvm_builder"
 external position_builder : (llbasicblock, llvalue) llpos -> llbuilder -> unit
                           = "llvm_position_builder"
 external insertion_block : llbuilder -> llbasicblock = "llvm_insertion_block"
+external insert_into_builder : llvalue -> string -> llbuilder -> unit
+                             = "llvm_insert_into_builder"
 
-let builder_at ip =
-  let b = builder () in
+let builder_at context ip =
+  let b = builder context in
   position_builder ip b;
   b
 
-let builder_before i = builder_at (Before i)
-let builder_at_end bb = builder_at (At_end bb)
+let builder_before context i = builder_at context (Before i)
+let builder_at_end context bb = builder_at context (At_end bb)
 
 let position_before i = position_builder (Before i)
 let position_at_end bb = position_builder (At_end bb)
@@ -649,6 +683,8 @@ let position_at_end bb = position_builder (At_end bb)
 (*--... Terminators ........................................................--*)
 external build_ret_void : llbuilder -> llvalue = "llvm_build_ret_void"
 external build_ret : llvalue -> llbuilder -> llvalue = "llvm_build_ret"
+external build_aggregate_ret : llvalue array -> llbuilder -> llvalue
+                             = "llvm_build_aggregate_ret"
 external build_br : llbasicblock -> llbuilder -> llvalue = "llvm_build_br"
 external build_cond_br : llvalue -> llbasicblock -> llbasicblock -> llbuilder ->
                          llvalue = "llvm_build_cond_br"
@@ -665,14 +701,24 @@ external build_unreachable : llbuilder -> llvalue = "llvm_build_unreachable"
 (*--... Arithmetic .........................................................--*)
 external build_add : llvalue -> llvalue -> string -> llbuilder -> llvalue
                    = "llvm_build_add"
+external build_nsw_add : llvalue -> llvalue -> string -> llbuilder -> llvalue
+                       = "llvm_build_nsw_add"
+external build_fadd : llvalue -> llvalue -> string -> llbuilder -> llvalue
+                    = "llvm_build_fadd"
 external build_sub : llvalue -> llvalue -> string -> llbuilder -> llvalue
                    = "llvm_build_sub"
+external build_fsub : llvalue -> llvalue -> string -> llbuilder -> llvalue
+                    = "llvm_build_fsub"
 external build_mul : llvalue -> llvalue -> string -> llbuilder -> llvalue
                    = "llvm_build_mul"
+external build_fmul : llvalue -> llvalue -> string -> llbuilder -> llvalue
+                    = "llvm_build_fmul"
 external build_udiv : llvalue -> llvalue -> string -> llbuilder -> llvalue
                     = "llvm_build_udiv"
 external build_sdiv : llvalue -> llvalue -> string -> llbuilder -> llvalue
                     = "llvm_build_sdiv"
+external build_exact_sdiv : llvalue -> llvalue -> string -> llbuilder -> llvalue
+                          = "llvm_build_exact_sdiv"
 external build_fdiv : llvalue -> llvalue -> string -> llbuilder -> llvalue
                     = "llvm_build_fdiv"
 external build_urem : llvalue -> llvalue -> string -> llbuilder -> llvalue
@@ -714,6 +760,15 @@ external build_store : llvalue -> llvalue -> llbuilder -> llvalue
                      = "llvm_build_store"
 external build_gep : llvalue -> llvalue array -> string -> llbuilder -> llvalue
                    = "llvm_build_gep"
+external build_in_bounds_gep : llvalue -> llvalue array -> string ->
+                             llbuilder -> llvalue = "llvm_build_in_bounds_gep"
+external build_struct_gep : llvalue -> int -> string -> llbuilder -> llvalue
+                         = "llvm_build_struct_gep"
+
+external build_global_string : string -> string -> llbuilder -> llvalue
+                             = "llvm_build_global_string"
+external build_global_stringptr  : string -> string -> llbuilder -> llvalue
+                                 = "llvm_build_global_stringptr"
 
 (*--... Casts ..............................................................--*)
 external build_trunc : llvalue -> lltype -> string -> llbuilder -> llvalue
@@ -740,6 +795,18 @@ external build_inttoptr : llvalue -> lltype -> string -> llbuilder -> llvalue
                         = "llvm_build_inttoptr"
 external build_bitcast : llvalue -> lltype -> string -> llbuilder -> llvalue
                        = "llvm_build_bitcast"
+external build_zext_or_bitcast : llvalue -> lltype -> string -> llbuilder ->
+                                 llvalue = "llvm_build_zext_or_bitcast"
+external build_sext_or_bitcast : llvalue -> lltype -> string -> llbuilder ->
+                                 llvalue = "llvm_build_sext_or_bitcast"
+external build_trunc_or_bitcast : llvalue -> lltype -> string -> llbuilder ->
+                                  llvalue = "llvm_build_trunc_or_bitcast"
+external build_pointercast : llvalue -> lltype -> string -> llbuilder -> llvalue
+                           = "llvm_build_pointercast"
+external build_intcast : llvalue -> lltype -> string -> llbuilder -> llvalue
+                       = "llvm_build_intcast"
+external build_fpcast : llvalue -> lltype -> string -> llbuilder -> llvalue
+                      = "llvm_build_fpcast"
 
 (*--... Comparisons ........................................................--*)
 external build_icmp : Icmp.t -> llvalue -> llvalue -> string ->
@@ -762,7 +829,17 @@ external build_insertelement : llvalue -> llvalue -> llvalue -> string ->
                                llbuilder -> llvalue = "llvm_build_insertelement"
 external build_shufflevector : llvalue -> llvalue -> llvalue -> string ->
                                llbuilder -> llvalue = "llvm_build_shufflevector"
+external build_extractvalue : llvalue -> int -> string -> llbuilder -> llvalue
+                            = "llvm_build_extractvalue"
+external build_insertvalue : llvalue -> llvalue -> int -> string -> llbuilder ->
+                             llvalue = "llvm_build_insertvalue"
 
+external build_is_null : llvalue -> string -> llbuilder -> llvalue
+                       = "llvm_build_is_null"
+external build_is_not_null : llvalue -> string -> llbuilder -> llvalue
+                           = "llvm_build_is_not_null"
+external build_ptrdiff : llvalue -> llvalue -> string -> llbuilder -> llvalue
+                       = "llvm_build_ptrdiff"
 
 (*===-- Module providers --------------------------------------------------===*)
 

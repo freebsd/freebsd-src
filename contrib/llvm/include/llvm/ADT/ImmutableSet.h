@@ -51,10 +51,8 @@ public:
 
   /// getLeft - Returns a pointer to the left subtree.  This value
   ///  is NULL if there is no left subtree.
-  ImutAVLTree* getLeft() const {
-    assert (!isMutable() && "Node is incorrectly marked mutable.");
-
-    return reinterpret_cast<ImutAVLTree*>(Left);
+  ImutAVLTree *getLeft() const {
+    return reinterpret_cast<ImutAVLTree*>(Left & ~LeftFlags);
   }
 
   /// getRight - Returns a pointer to the right subtree.  This value is
@@ -168,7 +166,7 @@ public:
   /// contains - Returns true if this tree contains a subtree (node) that
   ///  has an data element that matches the specified key.  Complexity
   ///  is logarithmic in the size of the tree.
-  bool contains(const key_type_ref K) { return (bool) find(K); }
+  bool contains(key_type_ref K) { return (bool) find(K); }
 
   /// foreach - A member template the accepts invokes operator() on a functor
   ///  object (specifed by Callback) for every node/subtree in the tree.
@@ -227,7 +225,7 @@ private:
   ImutAVLTree*     Right;
   unsigned         Height;
   value_type       Value;
-  unsigned         Digest;
+  uint32_t         Digest;
 
   //===----------------------------------------------------===//
   // Internal methods (node manipulation; used by Factory).
@@ -235,12 +233,12 @@ private:
 
 private:
 
-  enum { Mutable = 0x1 };
+  enum { Mutable = 0x1, NoCachedDigest = 0x2, LeftFlags = 0x3 };
 
   /// ImutAVLTree - Internal constructor that is only called by
   ///   ImutAVLFactory.
   ImutAVLTree(ImutAVLTree* l, ImutAVLTree* r, value_type_ref v, unsigned height)
-  : Left(reinterpret_cast<uintptr_t>(l) | Mutable),
+  : Left(reinterpret_cast<uintptr_t>(l) | (Mutable | NoCachedDigest)),
     Right(r), Height(height), Value(v), Digest(0) {}
 
 
@@ -251,13 +249,10 @@ private:
   ///  method returns false for an instance of ImutAVLTree, all subtrees
   ///  will also have this method return false.  The converse is not true.
   bool isMutable() const { return Left & Mutable; }
-
-  /// getSafeLeft - Returns the pointer to the left tree by always masking
-  ///  out the mutable bit.  This is used internally by ImutAVLFactory,
-  ///  as no trees returned to the client should have the mutable flag set.
-  ImutAVLTree* getSafeLeft() const {
-    return reinterpret_cast<ImutAVLTree*>(Left & ~Mutable);
-  }
+  
+  /// hasCachedDigest - Returns true if the digest for this tree is cached.
+  ///  This can only be true if the tree is immutable.
+  bool hasCachedDigest() const { return !(Left & NoCachedDigest); }
 
   //===----------------------------------------------------===//
   // Mutating operations.  A tree root can be manipulated as
@@ -270,64 +265,73 @@ private:
   // immutable.
   //===----------------------------------------------------===//
 
-
   /// MarkImmutable - Clears the mutable flag for a tree.  After this happens,
-  ///   it is an error to call setLeft(), setRight(), and setHeight().  It
-  ///   is also then safe to call getLeft() instead of getSafeLeft().
+  ///   it is an error to call setLeft(), setRight(), and setHeight().
   void MarkImmutable() {
-    assert (isMutable() && "Mutable flag already removed.");
+    assert(isMutable() && "Mutable flag already removed.");
     Left &= ~Mutable;
+  }
+  
+  /// MarkedCachedDigest - Clears the NoCachedDigest flag for a tree.
+  void MarkedCachedDigest() {
+    assert(!hasCachedDigest() && "NoCachedDigest flag already removed.");
+    Left &= ~NoCachedDigest;
   }
 
   /// setLeft - Changes the reference of the left subtree.  Used internally
   ///   by ImutAVLFactory.
   void setLeft(ImutAVLTree* NewLeft) {
-    assert (isMutable() &&
-            "Only a mutable tree can have its left subtree changed.");
-
-    Left = reinterpret_cast<uintptr_t>(NewLeft) | Mutable;
+    assert(isMutable() &&
+           "Only a mutable tree can have its left subtree changed.");
+    Left = reinterpret_cast<uintptr_t>(NewLeft) | LeftFlags;
   }
 
   /// setRight - Changes the reference of the right subtree.  Used internally
   ///  by ImutAVLFactory.
   void setRight(ImutAVLTree* NewRight) {
-    assert (isMutable() &&
-            "Only a mutable tree can have its right subtree changed.");
+    assert(isMutable() &&
+           "Only a mutable tree can have its right subtree changed.");
 
     Right = NewRight;
+    // Set the NoCachedDigest flag.
+    Left = Left | NoCachedDigest;
+
   }
 
   /// setHeight - Changes the height of the tree.  Used internally by
   ///  ImutAVLFactory.
   void setHeight(unsigned h) {
-    assert (isMutable() && "Only a mutable tree can have its height changed.");
+    assert(isMutable() && "Only a mutable tree can have its height changed.");
     Height = h;
   }
 
-
   static inline
-  unsigned ComputeDigest(ImutAVLTree* L, ImutAVLTree* R, value_type_ref V) {
-    unsigned digest = 0;
+  uint32_t ComputeDigest(ImutAVLTree* L, ImutAVLTree* R, value_type_ref V) {
+    uint32_t digest = 0;
 
-    if (L) digest += L->ComputeDigest();
+    if (L)
+      digest += L->ComputeDigest();
 
-    { // Compute digest of stored data.
-      FoldingSetNodeID ID;
-      ImutInfo::Profile(ID,V);
-      digest += ID.ComputeHash();
-    }
+    // Compute digest of stored data.
+    FoldingSetNodeID ID;
+    ImutInfo::Profile(ID,V);
+    digest += ID.ComputeHash();
 
-    if (R) digest += R->ComputeDigest();
+    if (R)
+      digest += R->ComputeDigest();
 
     return digest;
   }
 
-  inline unsigned ComputeDigest() {
-    if (Digest) return Digest;
+  inline uint32_t ComputeDigest() {
+    // Check the lowest bit to determine if digest has actually been
+    // pre-computed.
+    if (hasCachedDigest())
+      return Digest;
 
-    unsigned X = ComputeDigest(getSafeLeft(), getRight(), getValue());
-    if (!isMutable()) Digest = X;
-
+    uint32_t X = ComputeDigest(getLeft(), getRight(), getValue());
+    Digest = X;
+    MarkedCachedDigest();
     return X;
   }
 };
@@ -394,7 +398,7 @@ private:
 
   bool           isEmpty(TreeTy* T) const { return !T; }
   unsigned        Height(TreeTy* T) const { return T ? T->getHeight() : 0; }
-  TreeTy*           Left(TreeTy* T) const { return T->getSafeLeft(); }
+  TreeTy*           Left(TreeTy* T) const { return T->getLeft(); }
   TreeTy*          Right(TreeTy* T) const { return T->getRight(); }
   value_type_ref   Value(TreeTy* T) const { return T->Value; }
 
@@ -403,7 +407,6 @@ private:
     unsigned hr = Height(R);
     return ( hl > hr ? hl : hr ) + 1;
   }
-
 
   static bool CompareTreeWithSection(TreeTy* T,
                                      typename TreeTy::iterator& TI,
@@ -428,62 +431,10 @@ private:
   // returned to the caller.
   //===--------------------------------------------------===//
 
-  TreeTy* CreateNode(TreeTy* L, value_type_ref V, TreeTy* R) {
-    // Search the FoldingSet bucket for a Tree with the same digest.
-    FoldingSetNodeID ID;
-    unsigned digest = TreeTy::ComputeDigest(L, R, V);
-    ID.AddInteger(digest);
-    unsigned hash = ID.ComputeHash();
-
-    typename CacheTy::bucket_iterator I = Cache.bucket_begin(hash);
-    typename CacheTy::bucket_iterator E = Cache.bucket_end(hash);
-
-    for (; I != E; ++I) {
-      TreeTy* T = &*I;
-
-      if (T->ComputeDigest() != digest)
-        continue;
-
-      // We found a collision.  Perform a comparison of Contents('T')
-      // with Contents('L')+'V'+Contents('R').
-
-      typename TreeTy::iterator TI = T->begin(), TE = T->end();
-
-      // First compare Contents('L') with the (initial) contents of T.
-      if (!CompareTreeWithSection(L, TI, TE))
-        continue;
-
-      // Now compare the new data element.
-      if (TI == TE || !TI->ElementEqual(V))
-        continue;
-
-      ++TI;
-
-      // Now compare the remainder of 'T' with 'R'.
-      if (!CompareTreeWithSection(R, TI, TE))
-        continue;
-
-      if (TI != TE) // Contents('R') did not match suffix of 'T'.
-        continue;
-
-      // Trees did match!  Return 'T'.
-      return T;
-    }
-
-    // No tree with the contents: Contents('L')+'V'+Contents('R').
-    // Create it.
-
-    // Allocate the new tree node and insert it into the cache.
+  TreeTy* CreateNode(TreeTy* L, value_type_ref V, TreeTy* R) {   
     BumpPtrAllocator& A = getAllocator();
     TreeTy* T = (TreeTy*) A.Allocate<TreeTy>();
     new (T) TreeTy(L,R,V,IncrementHeight(L,R));
-
-    // We do not insert 'T' into the FoldingSet here.  This is because
-    // this tree is still mutable and things may get rebalanced.
-    // Because our digest is associative and based on the contents of
-    // the set, this should hopefully not cause any strange bugs.
-    // 'T' is inserted by 'MarkImmutable'.
-
     return T;
   }
 
@@ -496,7 +447,8 @@ private:
       OldTree->setHeight(IncrementHeight(L,R));
       return OldTree;
     }
-    else return CreateNode(L, Value(OldTree), R);
+    else
+      return CreateNode(L, Value(OldTree), R);
   }
 
   /// Balance - Used by Add_internal and Remove_internal to
@@ -615,12 +567,56 @@ private:
     T->MarkImmutable();
     MarkImmutable(Left(T));
     MarkImmutable(Right(T));
+  }
+  
+public:
+  TreeTy *GetCanonicalTree(TreeTy *TNew) {
+    if (!TNew)
+      return NULL;    
+    
+    // Search the FoldingSet bucket for a Tree with the same digest.
+    FoldingSetNodeID ID;
+    unsigned digest = TNew->ComputeDigest();
+    ID.AddInteger(digest);
+    unsigned hash = ID.ComputeHash();
+    
+    typename CacheTy::bucket_iterator I = Cache.bucket_begin(hash);
+    typename CacheTy::bucket_iterator E = Cache.bucket_end(hash);
+    
+    for (; I != E; ++I) {
+      TreeTy *T = &*I;
+      
+      if (T->ComputeDigest() != digest)
+        continue;
+      
+      // We found a collision.  Perform a comparison of Contents('T')
+      // with Contents('L')+'V'+Contents('R').
+      typename TreeTy::iterator TI = T->begin(), TE = T->end();
+      
+      // First compare Contents('L') with the (initial) contents of T.
+      if (!CompareTreeWithSection(TNew->getLeft(), TI, TE))
+        continue;
+      
+      // Now compare the new data element.
+      if (TI == TE || !TI->ElementEqual(TNew->getValue()))
+        continue;
+      
+      ++TI;
+      
+      // Now compare the remainder of 'T' with 'R'.
+      if (!CompareTreeWithSection(TNew->getRight(), TI, TE))
+        continue;
+      
+      if (TI != TE)
+        continue; // Contents('R') did not match suffix of 'T'.
+      
+      // Trees did match!  Return 'T'.
+      return T;
+    }
 
-    // Now that the node is immutable it can safely be inserted
-    // into the node cache.
-    llvm::FoldingSetNodeID ID;
-    ID.AddInteger(T->ComputeDigest());
-    Cache.InsertNode(T, (void*) &*Cache.bucket_end(ID.ComputeHash()));
+    // 'TNew' is the only tree of its kind.  Return it.
+    Cache.InsertNode(TNew, (void*) &*Cache.bucket_end(hash));
+    return TNew;
   }
 };
 
@@ -701,7 +697,7 @@ public:
 
     switch (getVisitState()) {
       case VisitedNone:
-        if (TreeTy* L = Current->getSafeLeft())
+        if (TreeTy* L = Current->getLeft())
           stack.push_back(reinterpret_cast<uintptr_t>(L));
         else
           stack.back() |= VisitedLeft;
@@ -940,8 +936,8 @@ public:
   typedef ImutAVLTree<ValInfo> TreeTy;
 
 private:
-  TreeTy* Root;
-
+  TreeTy *Root;
+  
 public:
   /// Constructs a set from a pointer to a tree root.  In general one
   /// should use a Factory object to create sets instead of directly
@@ -951,15 +947,19 @@ public:
 
   class Factory {
     typename TreeTy::Factory F;
+    const bool Canonicalize;
 
   public:
-    Factory() {}
+    Factory(bool canonicalize = true)
+      : Canonicalize(canonicalize) {}
 
-    Factory(BumpPtrAllocator& Alloc)
-      : F(Alloc) {}
+    Factory(BumpPtrAllocator& Alloc, bool canonicalize = true)
+      : F(Alloc), Canonicalize(canonicalize) {}
 
     /// GetEmptySet - Returns an immutable set that contains no elements.
-    ImmutableSet GetEmptySet() { return ImmutableSet(F.GetEmptyTree()); }
+    ImmutableSet GetEmptySet() {
+      return ImmutableSet(F.GetEmptyTree());
+    }
 
     /// Add - Creates a new immutable set that contains all of the values
     ///  of the original set with the addition of the specified value.  If
@@ -969,7 +969,8 @@ public:
     ///  The memory allocated to represent the set is released when the
     ///  factory object that created the set is destroyed.
     ImmutableSet Add(ImmutableSet Old, value_type_ref V) {
-      return ImmutableSet(F.Add(Old.Root,V));
+      TreeTy *NewT = F.Add(Old.Root, V);
+      return ImmutableSet(Canonicalize ? F.GetCanonicalTree(NewT) : NewT);
     }
 
     /// Remove - Creates a new immutable set that contains all of the values
@@ -980,7 +981,8 @@ public:
     ///  The memory allocated to represent the set is released when the
     ///  factory object that created the set is destroyed.
     ImmutableSet Remove(ImmutableSet Old, value_type_ref V) {
-      return ImmutableSet(F.Remove(Old.Root,V));
+      TreeTy *NewT = F.Remove(Old.Root, V);
+      return ImmutableSet(Canonicalize ? F.GetCanonicalTree(NewT) : NewT);
     }
 
     BumpPtrAllocator& getAllocator() { return F.getAllocator(); }
@@ -993,7 +995,7 @@ public:
   friend class Factory;
 
   /// contains - Returns true if the set contains the specified value.
-  bool contains(const value_type_ref V) const {
+  bool contains(value_type_ref V) const {
     return Root ? Root->contains(V) : false;
   }
 
@@ -1005,7 +1007,9 @@ public:
     return Root && RHS.Root ? Root->isNotEqual(*RHS.Root) : Root != RHS.Root;
   }
 
-  TreeTy* getRoot() const { return Root; }
+  TreeTy *getRoot() { 
+    return Root;
+  }
 
   /// isEmpty - Return true if the set contains no elements.
   bool isEmpty() const { return !Root; }
@@ -1026,11 +1030,10 @@ public:
 
   class iterator {
     typename TreeTy::iterator itr;
-
-    iterator() {}
     iterator(TreeTy* t) : itr(t) {}
     friend class ImmutableSet<ValT,ValInfo>;
   public:
+    iterator() {}
     inline value_type_ref operator*() const { return itr->getValue(); }
     inline iterator& operator++() { ++itr; return *this; }
     inline iterator  operator++(int) { iterator tmp(*this); ++itr; return tmp; }

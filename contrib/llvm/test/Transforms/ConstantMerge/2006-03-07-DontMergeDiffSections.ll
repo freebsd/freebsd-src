@@ -1,5 +1,5 @@
-; RUN: llvm-as < %s | opt -constmerge | llvm-dis | grep foo
-; RUN: llvm-as < %s | opt -constmerge | llvm-dis | grep bar
+; RUN: opt < %s -constmerge -S | grep foo
+; RUN: opt < %s -constmerge -S | grep bar
 
 ; Don't merge constants in different sections.
 

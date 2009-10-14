@@ -28,16 +28,41 @@ endif
 
 ifdef VERBOSE
 RUNTESTFLAGS := $(VERBOSE)
+LIT_ARGS := -v
+else
+LIT_ARGS := -s -v
 endif
 
 ifdef TESTSUITE
+LIT_TESTSUITE := $(TESTSUITE)
 CLEANED_TESTSUITE := $(patsubst %/,%,$(TESTSUITE))
 CLEANED_TESTSUITE := $(patsubst test/%,%,$(CLEANED_TESTSUITE))
 RUNTESTFLAGS += --tool $(CLEANED_TESTSUITE)
+else
+LIT_TESTSUITE := .
 endif
 
 ifdef VG
-VALGRIND := valgrind --tool=memcheck --quiet --trace-children=yes --error-exitcode=3 --leak-check=full
+VALGRIND := valgrind --tool=memcheck --quiet --trace-children=yes --error-exitcode=3 --leak-check=full $(VALGRIND_EXTRA_ARGS)
+endif
+
+# Check what to run for -all.
+LIT_ALL_TESTSUITES := $(LIT_TESTSUITE)
+
+extra-lit-site-cfgs::
+.PHONY: extra-lit-site-cfgs
+
+ifneq ($(strip $(filter check-local-all,$(MAKECMDGOALS))),)
+ifndef TESTSUITE
+ifeq ($(shell test -d $(PROJ_SRC_DIR)/../tools/clang && echo OK), OK)
+LIT_ALL_TESTSUITES += $(PROJ_OBJ_DIR)/../tools/clang/test
+
+# Force creation of Clang's lit.site.cfg.
+clang-lit-site-cfg: FORCE
+	$(MAKE) -C $(PROJ_OBJ_DIR)/../tools/clang/test lit.site.cfg
+extra-lit-site-cfgs:: clang-lit-site-cfg
+endif
+endif
 endif
 
 IGNORE_TESTS :=
@@ -46,22 +71,42 @@ ifndef RUNLLVM2CPP
 IGNORE_TESTS += llvm2cpp.exp
 endif
 
-IGNORE_TESTS += $(filter-out $(BINDINGS_TO_BUILD:=.exp),$(ALL_BINDINGS:=.exp))
-
 ifdef IGNORE_TESTS
 RUNTESTFLAGS += --ignore "$(strip $(IGNORE_TESTS))"
 endif
 
+# Both AuroraUX & Solaris do not have the -m flag for ulimit
+ifeq ($(HOST_OS),SunOS)
+ULIMIT=ulimit -t 600 ; ulimit -d 512000 ; ulimit -v 512000 ;
+else
+ULIMIT=ulimit -t 600 ; ulimit -d 512000 ; ulimit -m 512000 ; ulimit -v 512000 ;
+endif
+
 ifneq ($(RUNTEST),)
 check-local:: site.exp
-	( ulimit -t 600 ; ulimit -d 512000 ; \
-	  ulimit -m 512000 ; ulimit -v 512000 ; \
-	  PATH="$(LLVMToolDir):$(LLVM_SRC_ROOT)/test/Scripts:$(PATH)" \
+	( $(ULIMIT) \
+	  PATH="$(LLVMToolDir):$(LLVM_SRC_ROOT)/test/Scripts:$(LLVMGCCDIR)/bin:$(PATH)" \
 	  $(RUNTEST) $(RUNTESTFLAGS) )
 else
 check-local:: site.exp
 	@echo "*** dejagnu not found.  Make sure 'runtest' is in your PATH, then reconfigure LLVM."
 endif
+
+check-local-lit:: lit.site.cfg Unit/lit.site.cfg
+	( $(ULIMIT) \
+	  $(LLVM_SRC_ROOT)/utils/lit/lit.py \
+		--path "$(LLVMToolDir)" \
+		--path "$(LLVM_SRC_ROOT)/test/Scripts" \
+		--path "$(LLVMGCCDIR)/bin" \
+		$(LIT_ARGS) $(LIT_TESTSUITE) )
+
+check-local-all:: lit.site.cfg Unit/lit.site.cfg extra-lit-site-cfgs
+	( $(ULIMIT) \
+	  $(LLVM_SRC_ROOT)/utils/lit/lit.py \
+		--path "$(LLVMToolDir)" \
+		--path "$(LLVM_SRC_ROOT)/test/Scripts" \
+		--path "$(LLVMGCCDIR)/bin" \
+		$(LIT_ARGS) $(LIT_ALL_TESTSUITES) )
 
 ifdef TESTONE
 CLEANED_TESTONE := $(patsubst %/,%,$(TESTONE))
@@ -78,8 +123,7 @@ check-one: site.exp $(TCLSH)
 	  echo "proc verbose args { }" ; \
 	  echo "source $(LLVM_SRC_ROOT)/test/lib/llvm.exp" ; \
 	  echo "RunLLVMTests $(TESTPATH)" ) | \
-	( ulimit -t 600 ; ulimit -d 512000 ; \
-	  ulimit -m 512000 ; ulimit -v 512000 ; \
+	( $(ULIMIT) \
 	  PATH="$(LLVMToolDir):$(LLVM_SRC_ROOT)/test/Scripts:$(PATH)" \
 	  $(TCLSH) )
 endif
@@ -88,7 +132,7 @@ clean::
 	$(RM) -rf `find $(LLVM_OBJ_ROOT)/test -name Output -type d -print`
 
 # dsymutil is used on the Darwin to manipulate DWARF debugging information.
-ifeq ($(OS),Darwin)
+ifeq ($(TARGET_OS),Darwin)
 DSYMUTIL=dsymutil
 else
 DSYMUTIL=true
@@ -97,6 +141,11 @@ ifdef TargetCommonOpts
 BUGPOINT_TOPTS="-gcc-tool-args $(TargetCommonOpts)"
 else
 BUGPOINT_TOPTS=""
+endif
+
+ifneq ($(OCAMLOPT),)
+CC_FOR_OCAMLOPT := $(shell $(OCAMLOPT) -config | grep native_c_compiler | sed -e 's/native_c_compiler: //')
+CXX_FOR_OCAMLOPT := $(subst gcc,g++,$(CC_FOR_OCAMLOPT))
 endif
 
 FORCE:
@@ -110,9 +159,9 @@ site.exp: FORCE
 	@echo 'set TARGETS_TO_BUILD "$(TARGETS_TO_BUILD)"' >> site.tmp
 	@echo 'set llvmgcc_langs "$(LLVMGCC_LANGS)"' >> site.tmp
 	@echo 'set llvmgcc_version "$(LLVMGCC_VERSION)"' >> site.tmp
-	@echo 'set prcontext "$(TCLSH) $(LLVM_SRC_ROOT)/test/Scripts/prcontext.tcl"' >> site.tmp
 	@echo 'set llvmtoolsdir "$(ToolDir)"' >>site.tmp
 	@echo 'set llvmlibsdir "$(LibDir)"' >>site.tmp
+	@echo 'set llvm_bindings "$(BINDINGS_TO_BUILD)"' >> site.tmp
 	@echo 'set srcroot "$(LLVM_SRC_ROOT)"' >>site.tmp
 	@echo 'set objroot "$(LLVM_OBJ_ROOT)"' >>site.tmp
 	@echo 'set srcdir "$(LLVM_SRC_ROOT)/test"' >>site.tmp
@@ -127,7 +176,7 @@ site.exp: FORCE
 	@echo 'set llvmgccmajvers "$(LLVMGCC_MAJVERS)"' >> site.tmp
 	@echo 'set bugpoint_topts $(BUGPOINT_TOPTS)' >> site.tmp
 	@echo 'set shlibext "$(SHLIBEXT)"' >> site.tmp
-	@echo 'set ocamlc "$(OCAMLC) -cc $(CXX) -I $(LibDir)/ocaml"' >> site.tmp
+	@echo 'set ocamlopt "$(OCAMLOPT) -cc \"$(CXX_FOR_OCAMLOPT)\" -I $(LibDir)/ocaml"' >> site.tmp
 	@echo 'set valgrind "$(VALGRIND)"' >> site.tmp
 	@echo 'set grep "$(GREP)"' >>site.tmp
 	@echo 'set gas "$(GAS)"' >>site.tmp
@@ -138,3 +187,26 @@ site.exp: FORCE
 	@-rm -f site.bak
 	@test ! -f site.exp || mv site.exp site.bak
 	@mv site.tmp site.exp
+
+lit.site.cfg: site.exp
+	@echo "Making LLVM 'lit.site.cfg' file..."
+	@sed -e "s#@LLVM_SOURCE_DIR@#$(LLVM_SRC_ROOT)#g" \
+	     -e "s#@LLVM_BINARY_DIR@#$(LLVM_OBJ_ROOT)#g" \
+	     -e "s#@LLVM_TOOLS_DIR@#$(ToolDir)#g" \
+	     -e "s#@LLVMGCCDIR@#$(LLVMGCCDIR)#g" \
+	     $(PROJ_SRC_DIR)/lit.site.cfg.in > $@
+
+Unit/lit.site.cfg: $(PROJ_OBJ_DIR)/Unit/.dir FORCE
+	@echo "Making LLVM unittest 'lit.site.cfg' file..."
+	@echo "## Autogenerated by Makefile ##" > $@
+	@echo "# Do not edit!" >> $@
+	@echo >> $@
+	@echo "# Preserve some key paths for use by main LLVM test suite config." >> $@
+	@echo "config.llvm_obj_root = \"\"\"$(LLVM_OBJ_ROOT)\"\"\"" >> $@
+	@echo >> $@
+	@echo "# Remember the build mode." >> $@
+	@echo "config.llvm_build_mode = \"\"\"$(BuildMode)\"\"\"" >> $@
+	@echo >> $@
+	@echo "# Let the main config do the real work." >> $@
+	@echo "lit.load_config(config, \"\"\"$(LLVM_SRC_ROOT)/test/Unit/lit.cfg\"\"\")" >> $@
+

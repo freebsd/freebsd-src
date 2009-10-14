@@ -1,9 +1,13 @@
 ; Test that the StrCatOptimizer works correctly
 ; PR3661
-; RUN: llvm-as < %s | opt -simplify-libcalls | llvm-dis | \
+; RUN: opt < %s -simplify-libcalls -S | \
 ; RUN:   not grep {call.*strcat}
-; RUN: llvm-as < %s | opt -simplify-libcalls | llvm-dis | \
+; RUN: opt < %s -simplify-libcalls -S | \
 ; RUN:   grep {puts.*%arg1}
+
+; This transformation requires the pointer size, as it assumes that size_t is
+; the size of a pointer.
+target datalayout = "-p:64:64:64"
 
 @hello = constant [6 x i8] c"hello\00"		; <[6 x i8]*> [#uses=1]
 @null = constant [1 x i8] zeroinitializer		; <[1 x i8]*> [#uses=1]

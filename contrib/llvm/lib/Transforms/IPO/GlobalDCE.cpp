@@ -58,6 +58,7 @@ ModulePass *llvm::createGlobalDCEPass() { return new GlobalDCE(); }
 
 bool GlobalDCE::runOnModule(Module &M) {
   bool Changed = false;
+  
   // Loop over the module, adding globals which are obviously necessary.
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     Changed |= RemoveUnusedGlobalValue(*I);
@@ -147,6 +148,9 @@ bool GlobalDCE::runOnModule(Module &M) {
 
   // Make sure that all memory is released
   AliveGlobals.clear();
+
+  // Remove dead metadata.
+  Changed |= M.getContext().RemoveDeadMetadata();
   return Changed;
 }
 

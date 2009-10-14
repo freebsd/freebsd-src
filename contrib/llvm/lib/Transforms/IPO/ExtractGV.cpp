@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Instructions.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Constants.h"
@@ -42,6 +43,7 @@ namespace {
       if (Named.size() == 0) {
         return false;  // Nothing to extract
       }
+      
       
       if (deleteStuff)
         return deleteGV();
@@ -99,7 +101,8 @@ namespace {
       // by putting them in the used array
       {
         std::vector<Constant *> AUGs;
-        const Type *SBP= PointerType::getUnqual(Type::Int8Ty);
+        const Type *SBP=
+              Type::getInt8PtrTy(M.getContext());
         for (std::vector<GlobalValue*>::iterator GI = Named.begin(), 
                GE = Named.end(); GI != GE; ++GI) {
           (*GI)->setLinkage(GlobalValue::ExternalLinkage);
@@ -107,9 +110,9 @@ namespace {
         }
         ArrayType *AT = ArrayType::get(SBP, AUGs.size());
         Constant *Init = ConstantArray::get(AT, AUGs);
-        GlobalValue *gv = new GlobalVariable(AT, false, 
+        GlobalValue *gv = new GlobalVariable(M, AT, false, 
                                              GlobalValue::AppendingLinkage, 
-                                             Init, "llvm.used", &M);
+                                             Init, "llvm.used");
         gv->setSection("llvm.metadata");
       }
 

@@ -1,6 +1,11 @@
-; RUN: llvm-as < %s | llc -march=x86 -relocation-model=static -disable-fp-elim |\
-; RUN:   %prcontext 65534 1 | grep movl | count 1
+; RUN: llc < %s -march=x86 -relocation-model=static -disable-fp-elim | FileCheck %s
 ; PR2536
+
+
+; CHECK: movw %cx
+; CHECK-NEXT: andl    $65534, %
+; CHECK-NEXT: movl %
+; CHECK-NEXT: movl $17
 
 @g_5 = external global i16		; <i16*> [#uses=2]
 @g_107 = external global i16		; <i16*> [#uses=1]

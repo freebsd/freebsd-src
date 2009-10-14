@@ -40,7 +40,7 @@ public:
     getCalleeSavedRegClasses(const MachineFunction *MF = 0) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
-  const TargetRegisterClass* getPointerRegClass() const;
+  const TargetRegisterClass* getPointerRegClass(unsigned Kind = 0) const;
 
   bool hasFP(const MachineFunction &MF) const;
   bool hasReservedCallFrame(MachineFunction &MF) const;
@@ -49,8 +49,9 @@ public:
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
 
-  void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+  unsigned eliminateFrameIndex(MachineBasicBlock::iterator II,
+                               int SPAdj, int *Value = NULL,
+                               RegScavenger *RS = NULL) const;
 
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;

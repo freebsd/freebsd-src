@@ -216,8 +216,18 @@ software you will need.</p>
   <th>Compilers</th>
 </tr>
 <tr>
+  <td>AuroraUX</td>
+  <td>x86<sup><a href="#pf_1">1</a></sup></td>
+  <td>GCC</td>
+</tr>
+<tr>
   <td>Linux</td>
   <td>x86<sup><a href="#pf_1">1</a></sup></td>
+  <td>GCC</td>
+</tr>
+<tr>
+  <td>Linux</td>
+  <td>amd64</td>
   <td>GCC</td>
 </tr>
 <tr>
@@ -239,7 +249,6 @@ software you will need.</p>
   <td>MacOS X<sup><a href="#pf_2">2</a>,<a href="#pf_9">9</a></sup></td>
   <td>x86</td>
   <td>GCC</td>
-
 </tr>
 <tr>
   <td>Cygwin/Win32</td>
@@ -248,13 +257,9 @@ software you will need.</p>
 </tr>
 <tr>
   <td>MinGW/Win32</td>
-  <td>x86<sup><a href="#pf_1">1</a>,<a href="#pf_6">6</a>,<a href="#pf_8">8</a></sup></td>
+  <td>x86<sup><a href="#pf_1">1</a>,<a href="#pf_6">6</a>,
+     <a href="#pf_8">8</a>, <a href="#pf_10">10</a></sup></td>
   <td>GCC 3.4.X, binutils 2.15</td>
-</tr>
-<tr>
-  <td>Linux</td>
-  <td>amd64</td>
-  <td>GCC</td>
 </tr>
 </table>
 
@@ -321,6 +326,11 @@ up</a></li>
     levels greater than 0 (i.e., <i>"-O1"</i> and higher).
     Add <i>OPTIMIZE_OPTION="-O0"</i> to the build command line
     if compiling for LLVM Release or bootstrapping the LLVM toolchain.</li>
+<li><a name="pf_10">For MSYS/MinGW on Windows, be sure to install the MSYS
+    version of the perl package, and be sure it appears in your path
+    before any Windows-based versions such as Strawberry Perl and
+    ActivePerl, as these have Windows-specifics that will cause the
+    build to fail.</a></li>
 </ol>
 </div>
 
@@ -410,19 +420,19 @@ href="GCCFEBuildInstrs.html">try to compile it</a> on your platform.</p>
 
     <tr>
       <td><a href="http://www.gnu.org/software/autoconf">GNU Autoconf</a></td>
-      <td>2.59</td>
+      <td>2.60</td>
       <td>Configuration script builder<sup><a href="#sf4">4</a></sup></td>
     </tr>
 
     <tr>
       <td><a href="http://www.gnu.org/software/automake">GNU Automake</a></td>
-      <td>1.9.2</td>
+      <td>1.9.6</td>
       <td>aclocal macro generator<sup><a href="#sf4">4</a></sup></td>
     </tr>
 
     <tr>
       <td><a href="http://savannah.gnu.org/projects/libtool">libtool</a></td>
-      <td>1.5.10</td>
+      <td>1.5.22</td>
       <td>Shared library manager<sup><a href="#sf4">4</a></sup></td>
     </tr>
 
@@ -548,7 +558,10 @@ as the previous one. It appears to work with ENABLE_OPTIMIZED=0 (the default).</
 <p><b>Cygwin GCC 4.3.2 20080827 (beta) 2</b>:
   Users <a href="http://llvm.org/PR4145">reported</a> various problems related
   with link errors when using this GCC version.</p>
-
+<p><b>Debian GCC 4.3.2 on X86</b>: Crashes building some files in LLVM 2.6.</p>
+<p><b>GCC 4.3.3 (Debian 4.3.3-10) on ARM</b>: Miscompiles parts of LLVM 2.6
+when optimizations are turned on. The symptom is an infinite loop in
+FoldingSetImpl::RemoveNode while running the code generator.</p>
 <p><b>GNU ld 2.16.X</b>. Some 2.16.X versions of the ld linker will produce very
 long warning messages complaining that some ".gnu.linkonce.t.*" symbol was
 defined in a discarded section. You can safely ignore these messages as they are
@@ -1622,7 +1635,7 @@ out:</p>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.x10sys.com/rspencer/">Reid Spencer</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-05-04 12:24:46 +0200 (Mon, 04 May 2009) $
+  Last modified: $Date: 2009-09-27 06:56:27 +0200 (Sun, 27 Sep 2009) $
 </address>
 </body>
 </html>

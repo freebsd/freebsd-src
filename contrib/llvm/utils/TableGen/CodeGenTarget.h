@@ -17,10 +17,10 @@
 #ifndef CODEGEN_TARGET_H
 #define CODEGEN_TARGET_H
 
+#include "llvm/Support/raw_ostream.h"
 #include "CodeGenRegisters.h"
 #include "CodeGenInstruction.h"
 #include <algorithm>
-#include <iosfwd>
 #include <map>
 
 namespace llvm {
@@ -86,6 +86,10 @@ public:
   /// getInstructionSet - Return the InstructionSet object.
   ///
   Record *getInstructionSet() const;
+
+  /// getAsmParser - Return the AssemblyParser definition for this target.
+  ///
+  Record *getAsmParser() const;
 
   /// getAsmWriter - Return the AssemblyWriter definition for this target.
   ///

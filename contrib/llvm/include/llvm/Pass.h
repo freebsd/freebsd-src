@@ -30,9 +30,7 @@
 #define LLVM_PASS_H
 
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/Streams.h"
 #include <cassert>
-#include <iosfwd>
 #include <utility>
 #include <vector>
 
@@ -47,6 +45,8 @@ class ImmutablePass;
 class PMStack;
 class AnalysisResolver;
 class PMDataManager;
+class raw_ostream;
+class StringRef;
 
 // AnalysisID - Use the PassInfo to identify a pass...
 typedef const PassInfo* AnalysisID;
@@ -75,6 +75,7 @@ class Pass {
 
   void operator=(const Pass&);  // DO NOT IMPLEMENT
   Pass(const Pass &);           // DO NOT IMPLEMENT
+  
 public:
   explicit Pass(intptr_t pid) : Resolver(0), PassID(pid) {
     assert(pid && "pid cannot be 0");
@@ -102,9 +103,8 @@ public:
   /// provide the Module* in case the analysis doesn't need it it can just be
   /// ignored.
   ///
-  virtual void print(std::ostream &O, const Module *M) const;
-  void print(std::ostream *O, const Module *M) const { if (O) print(*O, M); }
-  void dump() const; // dump - call print(std::cerr, 0);
+  virtual void print(raw_ostream &O, const Module *M) const;
+  void dump() const; // dump - Print to stderr.
 
   /// Each pass is responsible for assigning a pass manager to itself.
   /// PMS is the stack of available pass manager. 
@@ -165,6 +165,10 @@ public:
   // or null if it is not known.
   static const PassInfo *lookupPassInfo(intptr_t TI);
 
+  // lookupPassInfo - Return the pass info object for the pass with the given
+  // argument string, or null if it is not known.
+  static const PassInfo *lookupPassInfo(const StringRef &Arg);
+
   /// getAnalysisIfAvailable<AnalysisType>() - Subclasses use this function to
   /// get analysis information that might be around, for example to update it.
   /// This is different than getAnalysis in that it can fail (if the analysis
@@ -192,7 +196,7 @@ public:
   AnalysisType &getAnalysis() const; // Defined in PassAnalysisSupport.h
 
   template<typename AnalysisType>
-  AnalysisType &getAnalysis(Function &F); // Defined in PassanalysisSupport.h
+  AnalysisType &getAnalysis(Function &F); // Defined in PassAnalysisSupport.h
 
   template<typename AnalysisType>
   AnalysisType &getAnalysisID(const PassInfo *PI) const;
@@ -201,9 +205,6 @@ public:
   AnalysisType &getAnalysisID(const PassInfo *PI, Function &F);
 };
 
-inline std::ostream &operator<<(std::ostream &OS, const Pass &P) {
-  P.print(OS, 0); return OS;
-}
 
 //===----------------------------------------------------------------------===//
 /// ModulePass class - This class is used to implement unstructured
@@ -275,8 +276,8 @@ public:
   /// doInitialization - Virtual method overridden by subclasses to do
   /// any necessary per-module initialization.
   ///
-  virtual bool doInitialization(Module &) { return false; }
-
+  virtual bool doInitialization(Module &M) { return false; }
+  
   /// runOnFunction - Virtual method overriden by subclasses to do the
   /// per-function processing of the pass.
   ///
@@ -327,7 +328,7 @@ public:
   /// doInitialization - Virtual method overridden by subclasses to do
   /// any necessary per-module initialization.
   ///
-  virtual bool doInitialization(Module &) { return false; }
+  virtual bool doInitialization(Module &M) { return false; }
 
   /// doInitialization - Virtual method overridden by BasicBlockPass subclasses
   /// to do any necessary per-function initialization.

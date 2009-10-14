@@ -62,9 +62,11 @@ namespace {
     Constant *GetFrameMap(Function &F);
     const Type* GetConcreteStackEntryType(Function &F);
     void CollectRoots(Function &F);
-    static GetElementPtrInst *CreateGEP(IRBuilder<> &B, Value *BasePtr,
+    static GetElementPtrInst *CreateGEP(LLVMContext &Context, 
+                                        IRBuilder<> &B, Value *BasePtr,
                                         int Idx1, const char *Name);
-    static GetElementPtrInst *CreateGEP(IRBuilder<> &B, Value *BasePtr,
+    static GetElementPtrInst *CreateGEP(LLVMContext &Context,
+                                        IRBuilder<> &B, Value *BasePtr,
                                         int Idx1, int Idx2, const char *Name);
   };
 
@@ -93,7 +95,7 @@ namespace {
 
   public:
     EscapeEnumerator(Function &F, const char *N = "cleanup")
-      : F(F), CleanupBBName(N), State(0) {}
+      : F(F), CleanupBBName(N), State(0), Builder(F.getContext()) {}
 
     IRBuilder<> *Next() {
       switch (State) {
@@ -136,8 +138,9 @@ namespace {
           return 0;
 
         // Create a cleanup block.
-        BasicBlock *CleanupBB = BasicBlock::Create(CleanupBBName, &F);
-        UnwindInst *UI = new UnwindInst(CleanupBB);
+        BasicBlock *CleanupBB = BasicBlock::Create(F.getContext(),
+                                                   CleanupBBName, &F);
+        UnwindInst *UI = new UnwindInst(F.getContext(), CleanupBB);
 
         // Transform the 'call' instructions into 'invoke's branching to the
         // cleanup block. Go in reverse order to make prettier BB names.
@@ -186,8 +189,7 @@ ShadowStackGC::ShadowStackGC() : Head(0), StackEntryTy(0) {
 
 Constant *ShadowStackGC::GetFrameMap(Function &F) {
   // doInitialization creates the abstract type of this value.
-
-  Type *VoidPtr = PointerType::getUnqual(Type::Int8Ty);
+  const Type *VoidPtr = Type::getInt8PtrTy(F.getContext());
 
   // Truncate the ShadowStackDescriptor if some metadata is null.
   unsigned NumMeta = 0;
@@ -200,17 +202,18 @@ Constant *ShadowStackGC::GetFrameMap(Function &F) {
   }
 
   Constant *BaseElts[] = {
-    ConstantInt::get(Type::Int32Ty, Roots.size(), false),
-    ConstantInt::get(Type::Int32Ty, NumMeta, false),
+    ConstantInt::get(Type::getInt32Ty(F.getContext()), Roots.size(), false),
+    ConstantInt::get(Type::getInt32Ty(F.getContext()), NumMeta, false),
   };
 
   Constant *DescriptorElts[] = {
-    ConstantStruct::get(BaseElts, 2),
+    ConstantStruct::get(F.getContext(), BaseElts, 2, false),
     ConstantArray::get(ArrayType::get(VoidPtr, NumMeta),
                        Metadata.begin(), NumMeta)
   };
 
-  Constant *FrameMap = ConstantStruct::get(DescriptorElts, 2);
+  Constant *FrameMap = ConstantStruct::get(F.getContext(), DescriptorElts, 2,
+                                           false);
 
   std::string TypeName("gc_map.");
   TypeName += utostr(NumMeta);
@@ -229,13 +232,14 @@ Constant *ShadowStackGC::GetFrameMap(Function &F) {
   //        to be a ModulePass (which means it cannot be in the 'llc' pipeline
   //        (which uses a FunctionPassManager (which segfaults (not asserts) if
   //        provided a ModulePass))).
-  Constant *GV = new GlobalVariable(FrameMap->getType(), true,
+  Constant *GV = new GlobalVariable(*F.getParent(), FrameMap->getType(), true,
                                     GlobalVariable::InternalLinkage,
-                                    FrameMap, "__gc_" + F.getName(),
-                                    F.getParent());
+                                    FrameMap, "__gc_" + F.getName());
 
-  Constant *GEPIndices[2] = { ConstantInt::get(Type::Int32Ty, 0),
-                              ConstantInt::get(Type::Int32Ty, 0) };
+  Constant *GEPIndices[2] = {
+                          ConstantInt::get(Type::getInt32Ty(F.getContext()), 0),
+                          ConstantInt::get(Type::getInt32Ty(F.getContext()), 0)
+                          };
   return ConstantExpr::getGetElementPtr(GV, GEPIndices, 2);
 }
 
@@ -245,7 +249,7 @@ const Type* ShadowStackGC::GetConcreteStackEntryType(Function &F) {
   EltTys.push_back(StackEntryTy);
   for (size_t I = 0; I != Roots.size(); I++)
     EltTys.push_back(Roots[I].second->getAllocatedType());
-  Type *Ty = StructType::get(EltTys);
+  Type *Ty = StructType::get(F.getContext(), EltTys);
 
   std::string TypeName("gc_stackentry.");
   TypeName += F.getName();
@@ -263,9 +267,11 @@ bool ShadowStackGC::initializeCustomLowering(Module &M) {
   //   void *Meta[];     // May be absent for roots without metadata.
   // };
   std::vector<const Type*> EltTys;
-  EltTys.push_back(Type::Int32Ty); // 32 bits is ok up to a 32GB stack frame. :)
-  EltTys.push_back(Type::Int32Ty); // Specifies length of variable length array.
-  StructType *FrameMapTy = StructType::get(EltTys);
+  // 32 bits is ok up to a 32GB stack frame. :)
+  EltTys.push_back(Type::getInt32Ty(M.getContext()));
+  // Specifies length of variable length array. 
+  EltTys.push_back(Type::getInt32Ty(M.getContext()));
+  StructType *FrameMapTy = StructType::get(M.getContext(), EltTys);
   M.addTypeName("gc_map", FrameMapTy);
   PointerType *FrameMapPtrTy = PointerType::getUnqual(FrameMapTy);
 
@@ -274,12 +280,12 @@ bool ShadowStackGC::initializeCustomLowering(Module &M) {
   //   FrameMap *Map;          // Pointer to constant FrameMap.
   //   void *Roots[];          // Stack roots (in-place array, so we pretend).
   // };
-  OpaqueType *RecursiveTy = OpaqueType::get();
+  OpaqueType *RecursiveTy = OpaqueType::get(M.getContext());
 
   EltTys.clear();
   EltTys.push_back(PointerType::getUnqual(RecursiveTy));
   EltTys.push_back(FrameMapPtrTy);
-  PATypeHolder LinkTyH = StructType::get(EltTys);
+  PATypeHolder LinkTyH = StructType::get(M.getContext(), EltTys);
 
   RecursiveTy->refineAbstractTypeTo(LinkTyH.get());
   StackEntryTy = cast<StructType>(LinkTyH.get());
@@ -292,10 +298,10 @@ bool ShadowStackGC::initializeCustomLowering(Module &M) {
   if (!Head) {
     // If the root chain does not exist, insert a new one with linkonce
     // linkage!
-    Head = new GlobalVariable(StackEntryPtrTy, false,
+    Head = new GlobalVariable(M, StackEntryPtrTy, false,
                               GlobalValue::LinkOnceAnyLinkage,
                               Constant::getNullValue(StackEntryPtrTy),
-                              "llvm_gc_root_chain", &M);
+                              "llvm_gc_root_chain");
   } else if (Head->hasExternalLinkage() && Head->isDeclaration()) {
     Head->setInitializer(Constant::getNullValue(StackEntryPtrTy));
     Head->setLinkage(GlobalValue::LinkOnceAnyLinkage);
@@ -338,11 +344,11 @@ void ShadowStackGC::CollectRoots(Function &F) {
 }
 
 GetElementPtrInst *
-ShadowStackGC::CreateGEP(IRBuilder<> &B, Value *BasePtr,
+ShadowStackGC::CreateGEP(LLVMContext &Context, IRBuilder<> &B, Value *BasePtr,
                          int Idx, int Idx2, const char *Name) {
-  Value *Indices[] = { ConstantInt::get(Type::Int32Ty, 0),
-                       ConstantInt::get(Type::Int32Ty, Idx),
-                       ConstantInt::get(Type::Int32Ty, Idx2) };
+  Value *Indices[] = { ConstantInt::get(Type::getInt32Ty(Context), 0),
+                       ConstantInt::get(Type::getInt32Ty(Context), Idx),
+                       ConstantInt::get(Type::getInt32Ty(Context), Idx2) };
   Value* Val = B.CreateGEP(BasePtr, Indices, Indices + 3, Name);
 
   assert(isa<GetElementPtrInst>(Val) && "Unexpected folded constant");
@@ -351,10 +357,10 @@ ShadowStackGC::CreateGEP(IRBuilder<> &B, Value *BasePtr,
 }
 
 GetElementPtrInst *
-ShadowStackGC::CreateGEP(IRBuilder<> &B, Value *BasePtr,
+ShadowStackGC::CreateGEP(LLVMContext &Context, IRBuilder<> &B, Value *BasePtr,
                          int Idx, const char *Name) {
-  Value *Indices[] = { ConstantInt::get(Type::Int32Ty, 0),
-                       ConstantInt::get(Type::Int32Ty, Idx) };
+  Value *Indices[] = { ConstantInt::get(Type::getInt32Ty(Context), 0),
+                       ConstantInt::get(Type::getInt32Ty(Context), Idx) };
   Value *Val = B.CreateGEP(BasePtr, Indices, Indices + 2, Name);
 
   assert(isa<GetElementPtrInst>(Val) && "Unexpected folded constant");
@@ -364,6 +370,8 @@ ShadowStackGC::CreateGEP(IRBuilder<> &B, Value *BasePtr,
 
 /// runOnFunction - Insert code to maintain the shadow stack.
 bool ShadowStackGC::performCustomLowering(Function &F) {
+  LLVMContext &Context = F.getContext();
+  
   // Find calls to llvm.gcroot.
   CollectRoots(F);
 
@@ -388,13 +396,14 @@ bool ShadowStackGC::performCustomLowering(Function &F) {
 
   // Initialize the map pointer and load the current head of the shadow stack.
   Instruction *CurrentHead  = AtEntry.CreateLoad(Head, "gc_currhead");
-  Instruction *EntryMapPtr  = CreateGEP(AtEntry, StackEntry,0,1,"gc_frame.map");
+  Instruction *EntryMapPtr  = CreateGEP(Context, AtEntry, StackEntry,
+                                        0,1,"gc_frame.map");
                               AtEntry.CreateStore(FrameMap, EntryMapPtr);
 
   // After all the allocas...
   for (unsigned I = 0, E = Roots.size(); I != E; ++I) {
     // For each root, find the corresponding slot in the aggregate...
-    Value *SlotPtr = CreateGEP(AtEntry, StackEntry, 1 + I, "gc_root");
+    Value *SlotPtr = CreateGEP(Context, AtEntry, StackEntry, 1 + I, "gc_root");
 
     // And use it in lieu of the alloca.
     AllocaInst *OriginalAlloca = Roots[I].second;
@@ -410,17 +419,19 @@ bool ShadowStackGC::performCustomLowering(Function &F) {
   AtEntry.SetInsertPoint(IP->getParent(), IP);
 
   // Push the entry onto the shadow stack.
-  Instruction *EntryNextPtr = CreateGEP(AtEntry,StackEntry,0,0,"gc_frame.next");
-  Instruction *NewHeadVal   = CreateGEP(AtEntry,StackEntry, 0, "gc_newhead");
-                              AtEntry.CreateStore(CurrentHead, EntryNextPtr);
-                              AtEntry.CreateStore(NewHeadVal, Head);
+  Instruction *EntryNextPtr = CreateGEP(Context, AtEntry,
+                                        StackEntry,0,0,"gc_frame.next");
+  Instruction *NewHeadVal   = CreateGEP(Context, AtEntry, 
+                                        StackEntry, 0, "gc_newhead");
+  AtEntry.CreateStore(CurrentHead, EntryNextPtr);
+  AtEntry.CreateStore(NewHeadVal, Head);
 
   // For each instruction that escapes...
   EscapeEnumerator EE(F, "gc_cleanup");
   while (IRBuilder<> *AtExit = EE.Next()) {
     // Pop the entry from the shadow stack. Don't reuse CurrentHead from
     // AtEntry, since that would make the value live for the entire function.
-    Instruction *EntryNextPtr2 = CreateGEP(*AtExit, StackEntry, 0, 0,
+    Instruction *EntryNextPtr2 = CreateGEP(Context, *AtExit, StackEntry, 0, 0,
                                            "gc_frame.next");
     Value *SavedHead = AtExit->CreateLoad(EntryNextPtr2, "gc_savedhead");
                        AtExit->CreateStore(SavedHead, Head);
