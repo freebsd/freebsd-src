@@ -108,6 +108,18 @@ void trapDump(char *msg);
 
 #endif
 
+void MipsFPTrap(u_int, u_int, u_int);
+void MipsKernGenException(void);
+void MipsKernIntr(void);
+void MipsKernTLBInvalidException(void);
+void MipsTLBInvalidException(void);
+void MipsTLBMissException(void);
+void MipsUserGenException(void);
+void MipsUserIntr(void);
+void MipsUserTLBInvalidException(void);
+
+u_int trap(struct trapframe *);
+
 #ifndef LOCORE /* XXX */
 int check_address(void *);
 void platform_trap_enter(void);
