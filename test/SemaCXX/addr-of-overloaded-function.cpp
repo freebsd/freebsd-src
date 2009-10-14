@@ -23,7 +23,34 @@ int g1(char);
 int g2(int);
 int g2(double);
 
+template<typename T> T g3(T);
+int g3(int);
+int g3(char);
+
 void g_test() {
   g(g1);
   g(g2); // expected-error{{call to 'g' is ambiguous; candidates are:}}
+  g(g3);
 }
+
+template<typename T> T h1(T);
+template<typename R, typename A1> R h1(A1);
+int h1(char);
+
+void ha(int (*fp)(int));
+void hb(int (*fp)(double));
+
+void h_test() {
+  ha(h1);
+  hb(h1);
+}
+
+struct A { };
+void f(void (*)(A *));
+
+struct B
+{
+  void g() { f(d); }
+  void d(void *);
+  static void d(A *);
+};

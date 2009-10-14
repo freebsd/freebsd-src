@@ -30,25 +30,24 @@ static bool AreTypesCompatible(QualType Derived, QualType Ancestor,
 
   // Right now don't compare the compatibility of pointers.  That involves
   // looking at subtyping relationships.  FIXME: Future patch.
-  if ((Derived->isPointerType() || Derived->isObjCQualifiedIdType())  && 
-      (Ancestor->isPointerType() || Ancestor->isObjCQualifiedIdType()))
+  if (Derived->isAnyPointerType() &&  Ancestor->isAnyPointerType())
     return true;
 
   return C.typesAreCompatible(Derived, Ancestor);
 }
 
-static void CompareReturnTypes(ObjCMethodDecl* MethDerived,
-                               ObjCMethodDecl* MethAncestor,
-                               BugReporter& BR, ASTContext& Ctx,
-                               ObjCImplementationDecl* ID) {
-    
+static void CompareReturnTypes(const ObjCMethodDecl *MethDerived,
+                               const ObjCMethodDecl *MethAncestor,
+                               BugReporter &BR, ASTContext &Ctx,
+                               const ObjCImplementationDecl *ID) {
+
   QualType ResDerived  = MethDerived->getResultType();
-  QualType ResAncestor = MethAncestor->getResultType(); 
-  
+  QualType ResAncestor = MethAncestor->getResultType();
+
   if (!AreTypesCompatible(ResDerived, ResAncestor, Ctx)) {
     std::string sbuf;
     llvm::raw_string_ostream os(sbuf);
-    
+
     os << "The Objective-C class '"
        << MethDerived->getClassInterface()->getNameAsString()
        << "', which is derived from class '"
@@ -64,31 +63,31 @@ static void CompareReturnTypes(ObjCMethodDecl* MethDerived,
        << ResAncestor.getAsString()
        << "'.  These two types are incompatible, and may result in undefined "
           "behavior for clients of these classes.";
-    
+
     BR.EmitBasicReport("Incompatible instance method return type",
                        os.str().c_str(), MethDerived->getLocStart());
   }
 }
 
-void clang::CheckObjCInstMethSignature(ObjCImplementationDecl* ID,
+void clang::CheckObjCInstMethSignature(const ObjCImplementationDecl* ID,
                                        BugReporter& BR) {
-  
-  ObjCInterfaceDecl* D = ID->getClassInterface();
-  ObjCInterfaceDecl* C = D->getSuperClass();
+
+  const ObjCInterfaceDecl* D = ID->getClassInterface();
+  const ObjCInterfaceDecl* C = D->getSuperClass();
 
   if (!C)
     return;
-  
+
   ASTContext& Ctx = BR.getContext();
-  
+
   // Build a DenseMap of the methods for quick querying.
   typedef llvm::DenseMap<Selector,ObjCMethodDecl*> MapTy;
   MapTy IMeths;
   unsigned NumMethods = 0;
-  
+
   for (ObjCImplementationDecl::instmeth_iterator I=ID->instmeth_begin(),
-       E=ID->instmeth_end(); I!=E; ++I) {    
-    
+       E=ID->instmeth_end(); I!=E; ++I) {
+
     ObjCMethodDecl* M = *I;
     IMeths[M->getSelector()] = M;
     ++NumMethods;
@@ -102,19 +101,19 @@ void clang::CheckObjCInstMethSignature(ObjCImplementationDecl* ID,
 
       ObjCMethodDecl* M = *I;
       Selector S = M->getSelector();
-      
+
       MapTy::iterator MI = IMeths.find(S);
 
       if (MI == IMeths.end() || MI->second == 0)
         continue;
-      
+
       --NumMethods;
       ObjCMethodDecl* MethDerived = MI->second;
       MI->second = 0;
-      
+
       CompareReturnTypes(MethDerived, M, BR, Ctx, ID);
     }
-    
+
     C = C->getSuperClass();
   }
 }

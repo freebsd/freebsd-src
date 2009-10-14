@@ -25,7 +25,7 @@ void test3(int i) {
   int A[i];        /* expected-warning {{variable length array}} */
 }
 
-int test4 = 0LL;		/* expected-warning {{long long}} */
+int test4 = 0LL;   /* expected-warning {{long long}} */
 
 /* PR1999 */
 void test5(register);
@@ -36,7 +36,7 @@ int *__restrict;  /* expected-error {{expected identifier}} */
 
 
 /* Implicit int, always ok */
-test6() {}
+test6() { return 0; }
 
 /* PR2012 */
 test7;  /* expected-warning {{declaration specifier missing, defaulting to 'int'}} */

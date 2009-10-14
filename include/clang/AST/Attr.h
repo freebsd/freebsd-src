@@ -14,6 +14,9 @@
 #ifndef LLVM_CLANG_AST_ATTR_H
 #define LLVM_CLANG_AST_ATTR_H
 
+#include "llvm/Support/Casting.h"
+using llvm::dyn_cast;
+
 #include <cassert>
 #include <cstring>
 #include <string>
@@ -54,22 +57,24 @@ public:
     DLLImport,
     Deprecated,
     Destructor,
-    FastCall,    
+    FastCall,
     Format,
     FormatArg,
     GNUInline,
     IBOutletKind, // Clang-specific.  Use "Kind" suffix to not conflict with
+    Malloc,
+    NoDebug,
+    NoInline,
+    NonNull,
     NoReturn,
     NoThrow,
-    Nodebug,
-    Noinline,
-    NonNull,
     ObjCException,
     ObjCNSObject,
     CFReturnsRetained,   // Clang/Checker-specific.
     NSReturnsRetained,   // Clang/Checker-specific.
     Overloadable, // Clang-specific
     Packed,
+    PragmaPack,
     Pure,
     Regparm,
     ReqdWorkGroupSize,   // OpenCL-specific
@@ -78,14 +83,14 @@ public:
     StdCall,
     TransparentUnion,
     Unavailable,
-    Unused,    
+    Unused,
     Used,
     Visibility,
     WarnUnusedResult,
     Weak,
     WeakImport
   };
-    
+
 private:
   Attr *Next;
   Kind AttrKind;
@@ -99,16 +104,16 @@ protected:
   void operator delete(void* data) throw() {
     assert(0 && "Attrs cannot be released with regular 'delete'.");
   }
-  
+
 protected:
   Attr(Kind AK) : Next(0), AttrKind(AK), Inherited(false) {}
   virtual ~Attr() {
     assert(Next == 0 && "Destroy didn't work");
   }
 public:
-  
+
   void Destroy(ASTContext &C);
-  
+
   /// \brief Whether this attribute should be merged to new
   /// declarations.
   virtual bool isMerged() const { return true; }
@@ -119,17 +124,24 @@ public:
   const Attr *getNext() const { return Next; }
   void setNext(Attr *next) { Next = next; }
 
+  template<typename T> const T *getNext() const {
+    for (const Attr *attr = getNext(); attr; attr = attr->getNext())
+      if (const T *V = dyn_cast<T>(attr))
+        return V;
+    return 0;
+  }
+
   bool isInherited() const { return Inherited; }
   void setInherited(bool value) { Inherited = value; }
 
   void addAttr(Attr *attr) {
     assert((attr != 0) && "addAttr(): attr is null");
-    
+
     // FIXME: This doesn't preserve the order in any way.
     attr->Next = Next;
     Next = attr;
   }
-  
+
   // Clone this attribute.
   virtual Attr* clone(ASTContext &C) const = 0;
 
@@ -146,36 +158,39 @@ public:                                                                 \
   static bool classof(const ATTR##Attr *A) { return true; }             \
 }
 
-class PackedAttr : public Attr {
+DEF_SIMPLE_ATTR(Packed);
+
+class PragmaPackAttr : public Attr {
   unsigned Alignment;
 
 public:
-  PackedAttr(unsigned alignment) : Attr(Packed), Alignment(alignment) {}
+  PragmaPackAttr(unsigned alignment) : Attr(PragmaPack), Alignment(alignment) {}
 
   /// getAlignment - The specified alignment in bits.
   unsigned getAlignment() const { return Alignment; }
 
-  virtual Attr* clone(ASTContext &C) const { 
-    return ::new (C) PackedAttr(Alignment); 
+  virtual Attr* clone(ASTContext &C) const {
+    return ::new (C) PragmaPackAttr(Alignment);
   }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) {
-    return A->getKind() == Packed;
+    return A->getKind() == PragmaPack;
   }
-  static bool classof(const PackedAttr *A) { return true; }
+  static bool classof(const PragmaPackAttr *A) { return true; }
 };
-  
+
 class AlignedAttr : public Attr {
   unsigned Alignment;
 public:
   AlignedAttr(unsigned alignment) : Attr(Aligned), Alignment(alignment) {}
 
+  // FIXME: Should use addressable units, not bits, to match llvm
   /// getAlignment - The specified alignment in bits.
   unsigned getAlignment() const { return Alignment; }
 
   virtual Attr* clone(ASTContext &C) const { return ::new (C) AlignedAttr(Alignment); }
-  
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) {
     return A->getKind() == Aligned;
@@ -187,11 +202,11 @@ class AnnotateAttr : public Attr {
   std::string Annotation;
 public:
   AnnotateAttr(const std::string &ann) : Attr(Annotate), Annotation(ann) {}
-  
+
   const std::string& getAnnotation() const { return Annotation; }
 
   virtual Attr* clone(ASTContext &C) const { return ::new (C) AnnotateAttr(Annotation); }
-  
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) {
     return A->getKind() == Annotate;
@@ -203,11 +218,11 @@ class AsmLabelAttr : public Attr {
   std::string Label;
 public:
   AsmLabelAttr(const std::string &L) : Attr(AsmLabel), Label(L) {}
-  
+
   const std::string& getLabel() const { return Label; }
-  
+
   virtual Attr* clone(ASTContext &C) const { return ::new (C) AsmLabelAttr(Label); }
-  
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) {
     return A->getKind() == AsmLabel;
@@ -237,28 +252,28 @@ public:
   ConstructorAttr(int p) : Attr(Constructor), priority(p) {}
 
   int getPriority() const { return priority; }
-  
+
   virtual Attr *clone(ASTContext &C) const { return ::new (C) ConstructorAttr(priority); }
 
   // Implement isa/cast/dyncast/etc.
-  static bool classof(const Attr *A) { return A->getKind() == Constructor; }  
+  static bool classof(const Attr *A) { return A->getKind() == Constructor; }
   static bool classof(const ConstructorAttr *A) { return true; }
-};  
-  
+};
+
 class DestructorAttr : public Attr {
   int priority;
 public:
   DestructorAttr(int p) : Attr(Destructor), priority(p) {}
 
   int getPriority() const { return priority; }
-  
+
   virtual Attr *clone(ASTContext &C) const { return ::new (C) DestructorAttr(priority); }
 
   // Implement isa/cast/dyncast/etc.
-  static bool classof(const Attr *A) { return A->getKind() == Destructor; }  
+  static bool classof(const Attr *A) { return A->getKind() == Destructor; }
   static bool classof(const DestructorAttr *A) { return true; }
-};  
-    
+};
+
 class GNUInlineAttr : public Attr {
 public:
   GNUInlineAttr() : Attr(GNUInline) {}
@@ -285,15 +300,16 @@ public:
   static bool classof(const IBOutletAttr *A) { return true; }
 };
 
+DEF_SIMPLE_ATTR(Malloc);
 DEF_SIMPLE_ATTR(NoReturn);
-DEF_SIMPLE_ATTR(AnalyzerNoReturn);  
+DEF_SIMPLE_ATTR(AnalyzerNoReturn);
 DEF_SIMPLE_ATTR(Deprecated);
 
 class SectionAttr : public Attr {
   std::string Name;
 public:
   SectionAttr(const std::string &N) : Attr(Section), Name(N) {}
-  
+
   const std::string& getName() const { return Name; }
 
   virtual Attr *clone(ASTContext &C) const { return ::new (C) SectionAttr(Name); }
@@ -307,8 +323,8 @@ public:
 
 DEF_SIMPLE_ATTR(Unavailable);
 DEF_SIMPLE_ATTR(Unused);
-DEF_SIMPLE_ATTR(Used);  
-DEF_SIMPLE_ATTR(Weak);  
+DEF_SIMPLE_ATTR(Used);
+DEF_SIMPLE_ATTR(Weak);
 DEF_SIMPLE_ATTR(WeakImport);
 DEF_SIMPLE_ATTR(NoThrow);
 DEF_SIMPLE_ATTR(Const);
@@ -320,14 +336,14 @@ class NonNullAttr : public Attr {
 public:
   NonNullAttr(unsigned* arg_nums = 0, unsigned size = 0) : Attr(NonNull),
     ArgNums(0), Size(0) {
-  
+
     if (size == 0) return;
     assert(arg_nums);
     ArgNums = new unsigned[size];
     Size = size;
     memcpy(ArgNums, arg_nums, sizeof(*ArgNums)*size);
   }
-  
+
   virtual ~NonNullAttr() {
     delete [] ArgNums;
   }
@@ -339,7 +355,7 @@ public:
 
   bool isNonNull(unsigned arg) const {
     return ArgNums ? std::binary_search(ArgNums, ArgNums+Size, arg) : true;
-  }  
+  }
 
   virtual Attr *clone(ASTContext &C) const { return ::new (C) NonNullAttr(ArgNums, Size); }
 
@@ -359,8 +375,8 @@ public:
   int getFormatIdx() const { return formatIdx; }
   int getFirstArg() const { return firstArg; }
 
-  virtual Attr *clone(ASTContext &C) const { 
-    return ::new (C) FormatAttr(Type, formatIdx, firstArg); 
+  virtual Attr *clone(ASTContext &C) const {
+    return ::new (C) FormatAttr(Type, formatIdx, firstArg);
   }
 
   // Implement isa/cast/dyncast/etc.
@@ -437,8 +453,8 @@ public:
 
   virtual bool isMerged() const { return false; }
 
-  virtual Attr *clone(ASTContext &C) const { 
-    return ::new (C) OverloadableAttr; 
+  virtual Attr *clone(ASTContext &C) const {
+    return ::new (C) OverloadableAttr;
   }
 
   static bool classof(const Attr *A) { return A->getKind() == Overloadable; }
@@ -465,15 +481,15 @@ public:
 };
 
 class FunctionDecl;
-  
+
 class CleanupAttr : public Attr {
   FunctionDecl *FD;
-  
+
 public:
   CleanupAttr(FunctionDecl *fd) : Attr(Cleanup), FD(fd) {}
 
   const FunctionDecl *getFunctionDecl() const { return FD; }
-  
+
   virtual Attr *clone(ASTContext &C) const { return ::new (C) CleanupAttr(FD); }
 
   // Implement isa/cast/dyncast/etc.
@@ -481,9 +497,9 @@ public:
   static bool classof(const CleanupAttr *A) { return true; }
 };
 
-DEF_SIMPLE_ATTR(Nodebug);
-DEF_SIMPLE_ATTR(WarnUnusedResult);  
-DEF_SIMPLE_ATTR(Noinline);
+DEF_SIMPLE_ATTR(NoDebug);
+DEF_SIMPLE_ATTR(WarnUnusedResult);
+DEF_SIMPLE_ATTR(NoInline);
 
 class RegparmAttr : public Attr {
   unsigned NumParams;
@@ -493,11 +509,11 @@ public:
 
   unsigned getNumParams() const { return NumParams; }
 
-  virtual Attr *clone(ASTContext &C) const { 
-    return ::new (C) RegparmAttr(NumParams); 
+  virtual Attr *clone(ASTContext &C) const {
+    return ::new (C) RegparmAttr(NumParams);
   }
 
-  // Implement isa/cast/dyncast/etc.    
+  // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) { return A->getKind() == Regparm; }
   static bool classof(const RegparmAttr *A) { return true; }
 };
@@ -512,23 +528,23 @@ public:
   unsigned getYDim() const { return Y; }
   unsigned getZDim() const { return Z; }
 
-  virtual Attr *clone(ASTContext &C) const { 
-    return ::new (C) ReqdWorkGroupSizeAttr(X, Y, Z); 
+  virtual Attr *clone(ASTContext &C) const {
+    return ::new (C) ReqdWorkGroupSizeAttr(X, Y, Z);
   }
-  
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) {
     return A->getKind() == ReqdWorkGroupSize;
   }
   static bool classof(const ReqdWorkGroupSizeAttr *A) { return true; }
 };
-  
+
 // Checker-specific attributes.
 DEF_SIMPLE_ATTR(CFReturnsRetained);
 DEF_SIMPLE_ATTR(NSReturnsRetained);
 
 #undef DEF_SIMPLE_ATTR
-  
+
 }  // end namespace clang
 
 #endif

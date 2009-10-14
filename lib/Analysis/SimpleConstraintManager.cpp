@@ -23,10 +23,10 @@ SimpleConstraintManager::~SimpleConstraintManager() {}
 bool SimpleConstraintManager::canReasonAbout(SVal X) const {
   if (nonloc::SymExprVal *SymVal = dyn_cast<nonloc::SymExprVal>(&X)) {
     const SymExpr *SE = SymVal->getSymbolicExpression();
-    
+
     if (isa<SymbolData>(SE))
       return true;
-    
+
     if (const SymIntExpr *SIE = dyn_cast<SymIntExpr>(SE)) {
       switch (SIE->getOpcode()) {
           // We don't reason yet about bitwise-constraints on symbolic values.
@@ -46,7 +46,7 @@ bool SimpleConstraintManager::canReasonAbout(SVal X) const {
         // All other cases.
         default:
           return true;
-      }      
+      }
     }
 
     return false;
@@ -54,13 +54,10 @@ bool SimpleConstraintManager::canReasonAbout(SVal X) const {
 
   return true;
 }
-  
-const GRState *SimpleConstraintManager::Assume(const GRState *state,
-                                               SVal Cond, bool Assumption) {
-  if (Cond.isUnknown()) {
-    return state;
-  }
 
+const GRState *SimpleConstraintManager::Assume(const GRState *state,
+                                               DefinedSVal Cond,
+                                               bool Assumption) {
   if (isa<NonLoc>(Cond))
     return Assume(state, cast<NonLoc>(Cond), Assumption);
   else
@@ -74,14 +71,14 @@ const GRState *SimpleConstraintManager::Assume(const GRState *state, Loc Cond,
 
   // EvalAssume is used to call into the GRTransferFunction object to perform
   // any checker-specific update of the state based on this assumption being
-  // true or false.  
+  // true or false.
   return state ? state->getTransferFuncs().EvalAssume(state, Cond, Assumption)
                : NULL;
 }
 
 const GRState *SimpleConstraintManager::AssumeAux(const GRState *state,
                                                   Loc Cond, bool Assumption) {
-  
+
   BasicValueFactory &BasicVals = state->getBasicVals();
 
   switch (Cond.getSubKind()) {
@@ -91,7 +88,7 @@ const GRState *SimpleConstraintManager::AssumeAux(const GRState *state,
 
   case loc::MemRegionKind: {
     // FIXME: Should this go into the storemanager?
-    
+
     const MemRegion *R = cast<loc::MemRegionVal>(Cond).getRegion();
     const SubRegion *SubR = dyn_cast<SubRegion>(R);
 
@@ -99,7 +96,7 @@ const GRState *SimpleConstraintManager::AssumeAux(const GRState *state,
       // FIXME: now we only find the first symbolic region.
       if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(SubR)) {
         if (Assumption)
-          return AssumeSymNE(state, SymR->getSymbol(), 
+          return AssumeSymNE(state, SymR->getSymbol(),
                              BasicVals.getZeroWithPtrWidth());
         else
           return AssumeSymEQ(state, SymR->getSymbol(),
@@ -107,15 +104,15 @@ const GRState *SimpleConstraintManager::AssumeAux(const GRState *state,
       }
       SubR = dyn_cast<SubRegion>(SubR->getSuperRegion());
     }
-    
+
     // FALL-THROUGH.
   }
-      
+
   case loc::GotoLabelKind:
     return Assumption ? state : NULL;
 
   case loc::ConcreteIntKind: {
-    bool b = cast<loc::ConcreteInt>(Cond).getValue() != 0;    
+    bool b = cast<loc::ConcreteInt>(Cond).getValue() != 0;
     bool isFeasible = b ? Assumption : !Assumption;
     return isFeasible ? state : NULL;
   }
@@ -130,7 +127,7 @@ const GRState *SimpleConstraintManager::Assume(const GRState *state,
 
   // EvalAssume is used to call into the GRTransferFunction object to perform
   // any checker-specific update of the state based on this assumption being
-  // true or false.  
+  // true or false.
   return state ? state->getTransferFuncs().EvalAssume(state, Cond, Assumption)
                : NULL;
 }
@@ -138,13 +135,13 @@ const GRState *SimpleConstraintManager::Assume(const GRState *state,
 const GRState *SimpleConstraintManager::AssumeAux(const GRState *state,
                                                   NonLoc Cond,
                                                   bool Assumption) {
-  
+
   // We cannot reason about SymIntExpr and SymSymExpr.
   if (!canReasonAbout(Cond)) {
     // Just return the current state indicating that the path is feasible.
     // This may be an over-approximation of what is possible.
     return state;
-  }  
+  }
 
   BasicValueFactory &BasicVals = state->getBasicVals();
   SymbolManager &SymMgr = state->getSymbolManager();
@@ -156,7 +153,7 @@ const GRState *SimpleConstraintManager::AssumeAux(const GRState *state,
   case nonloc::SymbolValKind: {
     nonloc::SymbolVal& SV = cast<nonloc::SymbolVal>(Cond);
     SymbolRef sym = SV.getSymbol();
-    QualType T =  SymMgr.getType(sym);    
+    QualType T =  SymMgr.getType(sym);
     const llvm::APSInt &zero = BasicVals.getValue(0, T);
 
     return Assumption ? AssumeSymNE(state, sym, zero)
@@ -165,9 +162,20 @@ const GRState *SimpleConstraintManager::AssumeAux(const GRState *state,
 
   case nonloc::SymExprValKind: {
     nonloc::SymExprVal V = cast<nonloc::SymExprVal>(Cond);
-    if (const SymIntExpr *SE = dyn_cast<SymIntExpr>(V.getSymbolicExpression()))
-      return AssumeSymInt(state, Assumption, SE);
-    
+    if (const SymIntExpr *SE = dyn_cast<SymIntExpr>(V.getSymbolicExpression())){
+      // FIXME: This is a hack.  It silently converts the RHS integer to be
+      // of the same type as on the left side.  This should be removed once
+      // we support truncation/extension of symbolic values.      
+      GRStateManager &StateMgr = state->getStateManager();
+      ASTContext &Ctx = StateMgr.getContext();
+      QualType LHSType = SE->getLHS()->getType(Ctx);
+      BasicValueFactory &BasicVals = StateMgr.getBasicVals();
+      const llvm::APSInt &RHS = BasicVals.Convert(LHSType, SE->getRHS());
+      SymIntExpr SENew(SE->getLHS(), SE->getOpcode(), RHS, SE->getType(Ctx));
+
+      return AssumeSymInt(state, Assumption, &SENew);
+    }
+
     // For all other symbolic expressions, over-approximate and consider
     // the constraint feasible.
     return state;
@@ -194,7 +202,7 @@ const GRState *SimpleConstraintManager::AssumeSymInt(const GRState *state,
   // rest of the constraint manager logic.
   SymbolRef Sym = cast<SymbolData>(SE->getLHS());
   const llvm::APSInt &Int = SE->getRHS();
-  
+
   switch (SE->getOpcode()) {
   default:
     // No logic yet for other operators.  Assume the constraint is feasible.
@@ -218,7 +226,7 @@ const GRState *SimpleConstraintManager::AssumeSymInt(const GRState *state,
   case BinaryOperator::LT:
     return Assumption ? AssumeSymLT(state, Sym, Int)
                       : AssumeSymGE(state, Sym, Int);
-      
+
   case BinaryOperator::LE:
     return Assumption ? AssumeSymLE(state, Sym, Int)
                       : AssumeSymGT(state, Sym, Int);
@@ -226,9 +234,9 @@ const GRState *SimpleConstraintManager::AssumeSymInt(const GRState *state,
 }
 
 const GRState *SimpleConstraintManager::AssumeInBound(const GRState *state,
-                                                      SVal Idx, 
-                                                      SVal UpperBound,
-                                                      bool Assumption) { 
+                                                      DefinedSVal Idx,
+                                                      DefinedSVal UpperBound,
+                                                      bool Assumption) {
 
   // Only support ConcreteInt for now.
   if (!(isa<nonloc::ConcreteInt>(Idx) && isa<nonloc::ConcreteInt>(UpperBound)))

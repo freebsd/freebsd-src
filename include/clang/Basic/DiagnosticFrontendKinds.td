@@ -11,8 +11,14 @@ let Component = "Frontend" in {
 
 def err_fe_unknown_triple : Error<
   "unknown target triple '%0', please use -triple or -arch">;
+def err_fe_unknown_target_abi : Error<"unknown target ABI '%0'">;
 def err_fe_error_reading : Error<"error reading '%0'">;
 def err_fe_error_reading_stdin : Error<"error reading stdin">;
+def err_fe_error_backend : Error<"error in backend: %0">, DefaultFatal;
+def err_fe_invalid_ast_file : Error<"invalid AST file: '%0'">, DefaultFatal;
+def err_fe_invalid_ast_action : Error<"invalid action for AST input">, DefaultFatal;
+def err_fe_invalid_code_complete_file 
+  : Error<"cannot locate code-completion file %0">, DefaultFatal;
 
 def note_fixit_applied : Note<"FIX-IT applied suggested code changes">;
 def note_fixit_in_macro : Note<
@@ -24,6 +30,9 @@ def warn_fixit_no_changes : Note<
     "FIX-IT detected errors it could not fix; no output will be generated">;
 
 // PCH reader
+def err_relocatable_without_without_isysroot : Error<
+    "must specify system root with -isysroot when building a relocatable "
+    "PCH file">;
 def warn_pch_target_triple : Error<
     "PCH file was compiled for the target '%0' but the current translation "
     "unit is being compiled for target '%1'">;
@@ -66,6 +75,9 @@ def warn_pch_altivec : Error<
 def warn_pch_opencl : Error<
     "OpenCL language extensions were %select{disabled|enabled}0 in PCH file "
     "but are currently %select{disabled|enabled}1">;
+def warn_pch_elide_constructors : Error<
+    "Elidable copy constructors were %select{disabled|enabled}0 in PCH file "
+    "but are currently %select{disabled|enabled}1">;
 def warn_pch_exceptions : Error<
     "exceptions were %select{disabled|enabled}0 in PCH file but "
     "are currently %select{disabled|enabled}1">;
@@ -80,8 +92,14 @@ def warn_pch_builtins : Error<
     "PCH file was compiled with builtins %select{enabled|disabled}0 but "
     "builtins are currently %select{enabled|disabled}1">;
 def warn_pch_thread_safe_statics : Error<
-    "PCH file was compiled %select{without|with}0 thread-safe statics but"
+    "PCH file was compiled %select{without|with}0 thread-safe statics but "
     "thread-safe statics are currently %select{disabled|enabled}1">;
+def warn_pch_posix_threads : Error<
+    "PCH file was compiled %select{without|with}0 POSIX thread support but "
+    "POSIX threads are currently %select{disabled|enabled}1">;
+def warn_pch_stack_protector : Error<
+    "stack protector was %select{off|on|required}0 in PCH file but "
+    "is currently %select{off|on|required}1">;
 def warn_pch_blocks : Error<
     "blocks were %select{disabled|enabled}0 in PCH file but "
     "are currently %select{disabled|enabled}1">;
@@ -118,6 +136,8 @@ def warn_pch_version_too_old : Error<
     "PCH file uses an older PCH format that is no longer supported">;
 def warn_pch_version_too_new : Error<
     "PCH file uses a newer PCH format that cannot be read">;
+def warn_pch_different_branch : Error<
+    "PCH file built from a different branch (%0) than the compiler (%1)">;
 def warn_cmdline_conflicting_macro_def : Error<
     "definition of the macro '%0' conflicts with the definition used to "
     "build the precompiled header">;

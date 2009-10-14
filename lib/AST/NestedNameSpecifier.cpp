@@ -22,13 +22,13 @@
 using namespace clang;
 
 NestedNameSpecifier *
-NestedNameSpecifier::FindOrInsert(ASTContext &Context, 
+NestedNameSpecifier::FindOrInsert(ASTContext &Context,
                                   const NestedNameSpecifier &Mockup) {
   llvm::FoldingSetNodeID ID;
   Mockup.Profile(ID);
 
   void *InsertPos = 0;
-  NestedNameSpecifier *NNS 
+  NestedNameSpecifier *NNS
     = Context.NestedNameSpecifiers.FindNodeOrInsertPos(ID, InsertPos);
   if (!NNS) {
     NNS = new (Context, 4) NestedNameSpecifier(Mockup);
@@ -39,10 +39,10 @@ NestedNameSpecifier::FindOrInsert(ASTContext &Context,
 }
 
 NestedNameSpecifier *
-NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix, 
+NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
                             IdentifierInfo *II) {
   assert(II && "Identifier cannot be NULL");
-  assert(Prefix && Prefix->isDependent() && "Prefix must be dependent");
+  assert((!Prefix || Prefix->isDependent()) && "Prefix must be dependent");
 
   NestedNameSpecifier Mockup;
   Mockup.Prefix.setPointer(Prefix);
@@ -52,10 +52,10 @@ NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
 }
 
 NestedNameSpecifier *
-NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix, 
+NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
                             NamespaceDecl *NS) {
   assert(NS && "Namespace cannot be NULL");
-  assert((!Prefix || 
+  assert((!Prefix ||
           (Prefix->getAsType() == 0 && Prefix->getAsIdentifier() == 0)) &&
          "Broken nested name specifier");
   NestedNameSpecifier Mockup;
@@ -75,7 +75,17 @@ NestedNameSpecifier::Create(ASTContext &Context, NestedNameSpecifier *Prefix,
   Mockup.Specifier = T;
   return FindOrInsert(Context, Mockup);
 }
-  
+
+NestedNameSpecifier *
+NestedNameSpecifier::Create(ASTContext &Context, IdentifierInfo *II) {
+  assert(II && "Identifier cannot be NULL");
+  NestedNameSpecifier Mockup;
+  Mockup.Prefix.setPointer(0);
+  Mockup.Prefix.setInt(Identifier);
+  Mockup.Specifier = II;
+  return FindOrInsert(Context, Mockup);
+}
+
 NestedNameSpecifier *NestedNameSpecifier::GlobalSpecifier(ASTContext &Context) {
   if (!Context.GlobalNestedNameSpecifier)
     Context.GlobalNestedNameSpecifier = new (Context, 4) NestedNameSpecifier();
@@ -105,8 +115,8 @@ bool NestedNameSpecifier::isDependent() const {
 
 /// \brief Print this nested name specifier to the given output
 /// stream.
-void 
-NestedNameSpecifier::print(llvm::raw_ostream &OS, 
+void
+NestedNameSpecifier::print(llvm::raw_ostream &OS,
                            const PrintingPolicy &Policy) const {
   if (getPrefix())
     getPrefix()->print(OS, Policy);
@@ -131,15 +141,34 @@ NestedNameSpecifier::print(llvm::raw_ostream &OS,
     std::string TypeStr;
     Type *T = getAsType();
 
-    // If this is a qualified name type, suppress the qualification:
-    // it's part of our nested-name-specifier sequence anyway.  FIXME:
-    // We should be able to assert that this doesn't happen.
-    if (const QualifiedNameType *QualT = dyn_cast<QualifiedNameType>(T))
-      T = QualT->getNamedType().getTypePtr();
-    
     PrintingPolicy InnerPolicy(Policy);
     InnerPolicy.SuppressTagKind = true;
-    T->getAsStringInternal(TypeStr, InnerPolicy);
+    InnerPolicy.SuppressScope = true;
+
+    // Nested-name-specifiers are intended to contain minimally-qualified
+    // types. An actual QualifiedNameType will not occur, since we'll store
+    // just the type that is referred to in the nested-name-specifier (e.g.,
+    // a TypedefType, TagType, etc.). However, when we are dealing with
+    // dependent template-id types (e.g., Outer<T>::template Inner<U>),
+    // the type requires its own nested-name-specifier for uniqueness, so we
+    // suppress that nested-name-specifier during printing.
+    assert(!isa<QualifiedNameType>(T) &&
+           "Qualified name type in nested-name-specifier");
+    if (const TemplateSpecializationType *SpecType
+          = dyn_cast<TemplateSpecializationType>(T)) {
+      // Print the template name without its corresponding
+      // nested-name-specifier.
+      SpecType->getTemplateName().print(OS, InnerPolicy, true);
+
+      // Print the template argument list.
+      TypeStr = TemplateSpecializationType::PrintTemplateArgumentList(
+                                                          SpecType->getArgs(),
+                                                       SpecType->getNumArgs(),
+                                                                 InnerPolicy);
+    } else {
+      // Print the type normally
+      T->getAsStringInternal(TypeStr, InnerPolicy);
+    }
     OS << TypeStr;
     break;
   }

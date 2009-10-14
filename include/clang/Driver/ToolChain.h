@@ -68,18 +68,21 @@ public:
 
   // Tool access.
 
-  /// TranslateArgs - Create a new derived argument list for any
-  /// argument translations this ToolChain may wish to perform.
-  virtual DerivedArgList *TranslateArgs(InputArgList &Args) const = 0;
+  /// TranslateArgs - Create a new derived argument list for any argument
+  /// translations this ToolChain may wish to perform.
+  ///
+  /// \param BoundArch - The bound architecture name, or 0.
+  virtual DerivedArgList *TranslateArgs(InputArgList &Args,
+                                        const char *BoundArch) const = 0;
 
   /// SelectTool - Choose a tool to use to handle the action \arg JA.
   virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const = 0;
 
   // Helper methods
 
-  llvm::sys::Path GetFilePath(const Compilation &C, const char *Name) const;
-  llvm::sys::Path GetProgramPath(const Compilation &C, const char *Name,
-                                 bool WantFile = false) const;
+  std::string GetFilePath(const Compilation &C, const char *Name) const;
+  std::string GetProgramPath(const Compilation &C, const char *Name,
+                             bool WantFile = false) const;
 
   // Platform defaults information
 

@@ -14,11 +14,10 @@
 #ifndef DRIVER_ASTCONSUMERS_H
 #define DRIVER_ASTCONSUMERS_H
 
-#include "llvm/Support/raw_ostream.h"
 #include <string>
-#include <iosfwd>
 
 namespace llvm {
+  class raw_ostream;
   class Module;
   class LLVMContext;
   namespace sys { class Path; }
@@ -30,20 +29,20 @@ class Diagnostic;
 class FileManager;
 class Preprocessor;
 class PreprocessorFactory;
-struct CompileOptions;
+class CompileOptions;
 class LangOptions;
 
 // AST pretty-printer: prints out the AST in a format that is close to the
 // original C code.  The output is intended to be in a format such that
 // clang could re-parse the output back into the same AST, but the
 // implementation is still incomplete.
-ASTConsumer *CreateASTPrinter(llvm::raw_ostream* OS);
+ASTConsumer *CreateASTPrinter(llvm::raw_ostream *OS);
 
-// AST XML-printer: prints out the AST in a XML format 
+// AST XML-printer: prints out the AST in a XML format
 // The output is intended to be in a format such that
-// clang or any other tool could re-parse the output back into the same AST, 
+// clang or any other tool could re-parse the output back into the same AST,
 // but the implementation is still incomplete.
-ASTConsumer *CreateASTPrinterXML(llvm::raw_ostream* OS);
+ASTConsumer *CreateASTPrinterXML(llvm::raw_ostream *OS);
 
 // AST dumper: dumps the raw AST in human-readable form to stderr; this is
 // intended for debugging.
@@ -58,10 +57,14 @@ ASTConsumer *CreateASTViewer();
 // to stderr; this is intended for debugging.
 ASTConsumer *CreateDeclContextPrinter();
 
+// RecordLayout dumper: prints out the record layout information for all records
+// in the translation unit; this is intended for debugging.
+ASTConsumer *CreateRecordLayoutDumper();
+
 // ObjC rewriter: attempts tp rewrite ObjC constructs into pure C code.
 // This is considered experimental, and only works with Apple's ObjC runtime.
-ASTConsumer *CreateObjCRewriter(const std::string& InFile,
-                                llvm::raw_ostream* OS,
+ASTConsumer *CreateObjCRewriter(const std::string &InFile,
+                                llvm::raw_ostream *OS,
                                 Diagnostic &Diags,
                                 const LangOptions &LOpts,
                                 bool SilenceRewriteMacroWarning);
@@ -92,7 +95,8 @@ ASTConsumer* CreateHTMLPrinter(llvm::raw_ostream *OS, Diagnostic &D,
 // used later with the PCHReader (clang-cc option -include-pch)
 // to speed up compile times.
 ASTConsumer *CreatePCHGenerator(const Preprocessor &PP,
-                                llvm::raw_ostream *OS);
+                                llvm::raw_ostream *OS,
+                                const char *isysroot = 0);
 
 // Block rewriter: rewrites code using the Apple blocks extension to pure
 // C code.  Output is always sent to stdout.

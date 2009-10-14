@@ -18,9 +18,11 @@
 
 using namespace clang;
 
-static void print(llvm::raw_ostream& os, const SymExpr *SE);
+void SymExpr::dump() const {
+  dumpToStream(llvm::errs());
+}
 
-static void print(llvm::raw_ostream& os, BinaryOperator::Opcode Op) {  
+static void print(llvm::raw_ostream& os, BinaryOperator::Opcode Op) {
   switch (Op) {
     default:
       assert(false && "operator printing not implemented");
@@ -35,92 +37,100 @@ static void print(llvm::raw_ostream& os, BinaryOperator::Opcode Op) {
     case BinaryOperator::LT:  os << "<"  ; break;
     case BinaryOperator::GT:  os << '>'  ; break;
     case BinaryOperator::LE:  os << "<=" ; break;
-    case BinaryOperator::GE:  os << ">=" ; break;    
+    case BinaryOperator::GE:  os << ">=" ; break;
     case BinaryOperator::EQ:  os << "==" ; break;
     case BinaryOperator::NE:  os << "!=" ; break;
     case BinaryOperator::And: os << '&'  ; break;
     case BinaryOperator::Xor: os << '^'  ; break;
     case BinaryOperator::Or:  os << '|'  ; break;
-  }        
-}
-
-static void print(llvm::raw_ostream& os, const SymIntExpr *SE) {
-  os << '(';
-  print(os, SE->getLHS());
-  os << ") ";
-  print(os, SE->getOpcode());
-  os << ' ' << SE->getRHS().getZExtValue();
-  if (SE->getRHS().isUnsigned()) os << 'U';
-}
-  
-static void print(llvm::raw_ostream& os, const SymSymExpr *SE) {
-  os << '(';
-  print(os, SE->getLHS());
-  os << ") ";
-  os << '(';
-  print(os, SE->getRHS());
-  os << ')';  
-}
-
-static void print(llvm::raw_ostream& os, const SymExpr *SE) {
-  switch (SE->getKind()) {
-    case SymExpr::BEGIN_SYMBOLS:
-    case SymExpr::RegionValueKind:
-    case SymExpr::ConjuredKind:
-    case SymExpr::END_SYMBOLS:
-      os << '$' << cast<SymbolData>(SE)->getSymbolID();
-      return;
-    case SymExpr::SymIntKind:
-      print(os, cast<SymIntExpr>(SE));
-      return;
-    case SymExpr::SymSymKind:
-      print(os, cast<SymSymExpr>(SE));
-      return;
   }
 }
 
-
-llvm::raw_ostream& llvm::operator<<(llvm::raw_ostream& os, const SymExpr *SE) {
-  print(os, SE);
-  return os;
+void SymIntExpr::dumpToStream(llvm::raw_ostream& os) const {
+  os << '(';
+  getLHS()->dumpToStream(os);
+  os << ") ";
+  print(os, getOpcode());
+  os << ' ' << getRHS().getZExtValue();
+  if (getRHS().isUnsigned()) os << 'U';
 }
 
-const SymbolRegionValue* 
+void SymSymExpr::dumpToStream(llvm::raw_ostream& os) const {
+  os << '(';
+  getLHS()->dumpToStream(os);
+  os << ") ";
+  os << '(';
+  getRHS()->dumpToStream(os);
+  os << ')';
+}
+
+void SymbolConjured::dumpToStream(llvm::raw_ostream& os) const {
+  os << "conj_$" << getSymbolID() << '{' << T.getAsString() << '}';
+}
+
+void SymbolDerived::dumpToStream(llvm::raw_ostream& os) const {
+  os << "derived_$" << getSymbolID() << '{'
+     << getParentSymbol() << ',' << getRegion() << '}';
+}
+
+void SymbolRegionValue::dumpToStream(llvm::raw_ostream& os) const {
+  os << "reg_$" << getSymbolID() << "<" << R << ">";
+}
+
+const SymbolRegionValue*
 SymbolManager::getRegionValueSymbol(const MemRegion* R, QualType T) {
   llvm::FoldingSetNodeID profile;
   SymbolRegionValue::Profile(profile, R, T);
-  void* InsertPos;  
-  SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);    
-  if (!SD) {  
+  void* InsertPos;
+  SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);
+  if (!SD) {
     SD = (SymExpr*) BPAlloc.Allocate<SymbolRegionValue>();
-    new (SD) SymbolRegionValue(SymbolCounter, R, T);  
+    new (SD) SymbolRegionValue(SymbolCounter, R, T);
     DataSet.InsertNode(SD, InsertPos);
     ++SymbolCounter;
   }
-  
+
   return cast<SymbolRegionValue>(SD);
 }
 
 const SymbolConjured*
 SymbolManager::getConjuredSymbol(const Stmt* E, QualType T, unsigned Count,
                                  const void* SymbolTag) {
-  
+
   llvm::FoldingSetNodeID profile;
   SymbolConjured::Profile(profile, E, T, Count, SymbolTag);
-  void* InsertPos;  
-  SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);  
-  if (!SD) {  
+  void* InsertPos;
+  SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);
+  if (!SD) {
     SD = (SymExpr*) BPAlloc.Allocate<SymbolConjured>();
-    new (SD) SymbolConjured(SymbolCounter, E, T, Count, SymbolTag);  
-    DataSet.InsertNode(SD, InsertPos);  
+    new (SD) SymbolConjured(SymbolCounter, E, T, Count, SymbolTag);
+    DataSet.InsertNode(SD, InsertPos);
     ++SymbolCounter;
   }
-  
+
   return cast<SymbolConjured>(SD);
 }
 
+const SymbolDerived*
+SymbolManager::getDerivedSymbol(SymbolRef parentSymbol,
+                                const TypedRegion *R) {
+
+  llvm::FoldingSetNodeID profile;
+  SymbolDerived::Profile(profile, parentSymbol, R);
+  void* InsertPos;
+  SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);
+  if (!SD) {
+    SD = (SymExpr*) BPAlloc.Allocate<SymbolDerived>();
+    new (SD) SymbolDerived(SymbolCounter, parentSymbol, R);
+    DataSet.InsertNode(SD, InsertPos);
+    ++SymbolCounter;
+  }
+
+  return cast<SymbolDerived>(SD);
+}
+
 const SymIntExpr *SymbolManager::getSymIntExpr(const SymExpr *lhs,
-                                               BinaryOperator::Opcode op, 
+                                               BinaryOperator::Opcode op,
                                                const llvm::APSInt& v,
                                                QualType t) {
   llvm::FoldingSetNodeID ID;
@@ -133,7 +143,7 @@ const SymIntExpr *SymbolManager::getSymIntExpr(const SymExpr *lhs,
     new (data) SymIntExpr(lhs, op, v, t);
     DataSet.InsertNode(data, InsertPos);
   }
-  
+
   return cast<SymIntExpr>(data);
 }
 
@@ -151,12 +161,17 @@ const SymSymExpr *SymbolManager::getSymSymExpr(const SymExpr *lhs,
     new (data) SymSymExpr(lhs, op, rhs, t);
     DataSet.InsertNode(data, InsertPos);
   }
-  
+
   return cast<SymSymExpr>(data);
 }
 
 QualType SymbolConjured::getType(ASTContext&) const {
   return T;
+}
+
+
+QualType SymbolDerived::getType(ASTContext& Ctx) const {
+  return R->getValueType(Ctx);
 }
 
 QualType SymbolRegionValue::getType(ASTContext& C) const {
@@ -165,33 +180,41 @@ QualType SymbolRegionValue::getType(ASTContext& C) const {
 
   if (const TypedRegion* TR = dyn_cast<TypedRegion>(R))
     return TR->getValueType(C);
-  
+
   return QualType();
 }
 
 SymbolManager::~SymbolManager() {}
 
 bool SymbolManager::canSymbolicate(QualType T) {
-  return Loc::IsLocType(T) || T->isIntegerType();  
+  return Loc::IsLocType(T) || (T->isIntegerType() && T->isScalarType());
 }
 
 void SymbolReaper::markLive(SymbolRef sym) {
-  TheLiving = F.Add(TheLiving, sym);
-  TheDead = F.Remove(TheDead, sym);
+  TheLiving.insert(sym);
+  TheDead.erase(sym);
 }
 
 bool SymbolReaper::maybeDead(SymbolRef sym) {
   if (isLive(sym))
     return false;
-  
-  TheDead = F.Add(TheDead, sym);
+
+  TheDead.insert(sym);
   return true;
 }
 
 bool SymbolReaper::isLive(SymbolRef sym) {
-  if (TheLiving.contains(sym))
+  if (TheLiving.count(sym))
     return true;
-  
+
+  if (const SymbolDerived *derived = dyn_cast<SymbolDerived>(sym)) {
+    if (isLive(derived->getParentSymbol())) {
+      markLive(sym);
+      return true;
+    }
+    return false;
+  }
+
   // Interogate the symbol.  It may derive from an input value to
   // the analyzed function/method.
   return isa<SymbolRegionValue>(sym);

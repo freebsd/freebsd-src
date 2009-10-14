@@ -22,6 +22,10 @@ use Text::ParseWords;
 
 my $CC = $ENV{'CCC_CC'};
 if (!defined $CC) { $CC = "gcc"; }
+
+my $ReportFailures = $ENV{'CCC_REPORT_FAILURES'};
+if (!defined $ReportFailures) { $ReportFailures = 1; }
+
 my $CleanupFile;
 my $ResultFile;
 
@@ -61,18 +65,12 @@ sub ProcessClangFailure {
     $prefix = "clang_attribute_ignored";
   }
 
-  # Generate the preprocessed file with cc (i.e., gcc).
+  # Generate the preprocessed file with Clang.
   my ($PPH, $PPFile) = tempfile( $prefix . "_XXXXXX",
                                  SUFFIX => GetPPExt($Lang),
                                  DIR => $Dir);
-
-  system $CC, @$Args, "-E", "-o", $PPFile;
+  system $ClangCC, @$Args, "-E", "-o", $PPFile;
   close ($PPH);
-
-  # Generate the preprocessed file with clang.
-  my $PPFile_Clang = $PPFile;
-  $PPFile_Clang =~ s/[.](.+)$/.clang.$1/;  
-  system $ClangCC, @$Args, "-E", "-o", "$PPFile_Clang";
   
   # Create the info file.
   open (OUT, ">", "$PPFile.info.txt") or die "Cannot open $PPFile.info.txt\n";
@@ -172,6 +170,17 @@ sub Analyze {
   
   my @PrintArgs;
   my $dir;
+
+  if ($RunAnalyzer) {
+    if (defined $ResultFile) {
+      push @CmdArgs,'-o';
+      push @CmdArgs, $ResultFile;
+    }
+    elsif (defined $HtmlDir) {
+      push @CmdArgs,'-o';
+      push @CmdArgs, $HtmlDir;
+    }
+  }
   
   if ($Verbose) {
     $dir = getcwd();
@@ -188,17 +197,6 @@ sub Analyze {
   }
   elsif ($Verbose == 2) {
     print STDERR "#SHELL (cd '$dir' && @PrintArgs)\n";
-  }
-  
-  if ($RunAnalyzer) {
-    if (defined $ResultFile) {
-      push @CmdArgs,'-o';
-      push @CmdArgs, $ResultFile;
-    }
-    elsif (defined $HtmlDir) {
-      push @CmdArgs,'-o';
-      push @CmdArgs, $HtmlDir;
-    }
   }
   
   if (defined $ENV{'CCC_UBI'}) {   
@@ -231,59 +229,61 @@ sub Analyze {
   my $Result = $?;
 
   # Did the command die because of a signal?
-  if ($Result & 127 and $Cmd eq $ClangCC and defined $HtmlDir) {
-    ProcessClangFailure($ClangCC, $Lang, $file, \@CmdArgsSansAnalyses, $HtmlDir,
-                        "Crash", $ofile);
-  }
-  elsif ($Result) {
-    if ($IncludeParserRejects && !($file =~/conftest/)) {
-      ProcessClangFailure($ClangCC, $Lang, $file, \@CmdArgsSansAnalyses, $HtmlDir,
-                          $ParserRejects, $ofile);
+  if ($ReportFailures) {
+    if ($Result & 127 and $Cmd eq $ClangCC and defined $HtmlDir) {
+      ProcessClangFailure($ClangCC, $Lang, $file, \@CmdArgsSansAnalyses,
+                          $HtmlDir, "Crash", $ofile);
     }
-  }
-  else {
-    # Check if there were any unhandled attributes.
-    if (open(CHILD, $ofile)) {
-      my %attributes_not_handled;
-      
-      # Don't flag warnings about the following attributes that we
-      # know are currently not supported by Clang.
-      $attributes_not_handled{"cdecl"} = 1;
-      
-      my $ppfile;
-      while (<CHILD>) {
-        next if (! /warning: '([^\']+)' attribute ignored/);
-
-        # Have we already spotted this unhandled attribute?
-        next if (defined $attributes_not_handled{$1});
-        $attributes_not_handled{$1} = 1;
-        
-        # Get the name of the attribute file.
-        my $dir = "$HtmlDir/failures";
-        my $afile = "$dir/attribute_ignored_$1.txt";
-        
-        # Only create another preprocessed file if the attribute file
-        # doesn't exist yet.
-        next if (-e $afile);
-        
-        # Add this file to the list of files that contained this attribute.
-        # Generate a preprocessed file if we haven't already.
-        if (!(defined $ppfile)) {
-          $ppfile = ProcessClangFailure($ClangCC, $Lang, $file,
-                                        \@CmdArgsSansAnalyses,
-                                        $HtmlDir, $AttributeIgnored, $ofile);
-        }
-
-        mkpath $dir;
-        open(AFILE, ">$afile");
-        print AFILE "$ppfile\n";
-        close(AFILE);
+    elsif ($Result) {
+      if ($IncludeParserRejects && !($file =~/conftest/)) {
+        ProcessClangFailure($ClangCC, $Lang, $file, \@CmdArgsSansAnalyses,
+                            $HtmlDir, $ParserRejects, $ofile);
       }
-      close CHILD;
+    }
+    else {
+      # Check if there were any unhandled attributes.
+      if (open(CHILD, $ofile)) {
+        my %attributes_not_handled;
+      
+        # Don't flag warnings about the following attributes that we
+        # know are currently not supported by Clang.
+        $attributes_not_handled{"cdecl"} = 1;
+      
+        my $ppfile;
+        while (<CHILD>) {
+          next if (! /warning: '([^\']+)' attribute ignored/);
+
+          # Have we already spotted this unhandled attribute?
+          next if (defined $attributes_not_handled{$1});
+          $attributes_not_handled{$1} = 1;
+        
+          # Get the name of the attribute file.
+          my $dir = "$HtmlDir/failures";
+          my $afile = "$dir/attribute_ignored_$1.txt";
+        
+          # Only create another preprocessed file if the attribute file
+          # doesn't exist yet.
+          next if (-e $afile);
+        
+          # Add this file to the list of files that contained this attribute.
+          # Generate a preprocessed file if we haven't already.
+          if (!(defined $ppfile)) {
+            $ppfile = ProcessClangFailure($ClangCC, $Lang, $file,
+                                          \@CmdArgsSansAnalyses,
+                                          $HtmlDir, $AttributeIgnored, $ofile);
+          }
+
+          mkpath $dir;
+          open(AFILE, ">$afile");
+          print AFILE "$ppfile\n";
+          close(AFILE);
+        }
+        close CHILD;
+      }
     }
   }
   
-  `rm -f $ofile`;
+  unlink($ofile);
 }
 
 ##----------------------------------------------------------------------------##
@@ -378,7 +378,7 @@ if (!defined($Analyses)) { $Analyses = '-checker-cfref'; }
 
 # Get the store model.
 my $StoreModel = $ENV{'CCC_ANALYZER_STORE_MODEL'};
-if (!defined $StoreModel) { $StoreModel = "basic"; }
+if (!defined $StoreModel) { $StoreModel = "region"; }
 
 # Get the constraints engine.
 my $ConstraintsModel = $ENV{'CCC_ANALYZER_CONSTRAINTS_MODEL'};
@@ -410,7 +410,7 @@ foreach (my $i = 0; $i < scalar(@ARGV); ++$i) {
   my ($ArgKey) = split /=/,$Arg,2;
 
   # Modes ccc-analyzer supports
-  if ($Arg eq '-E') { $Action = 'preprocess'; }
+  if ($Arg =~ /^-(E|MM?)$/) { $Action = 'preprocess'; }
   elsif ($Arg eq '-c') { $Action = 'compile'; }
   elsif ($Arg =~ /^-print-prog-name/) { exit 0; }
 
@@ -539,11 +539,20 @@ foreach (my $i = 0; $i < scalar(@ARGV); ++$i) {
     open(IN, $ARGV[$i+1]);
     while (<IN>) { s/\015?\012//; push @Files,$_; }
     close(IN);
-    ++$i; next;
+    ++$i;
+    next;
   }
   
+  # Handle -Wno-.  We don't care about extra warnings, but
+  # we should suppress ones that we don't want to see.
+  if ($Arg =~ /^-Wno-/) {
+    push @CompileOpts, $Arg;
+    next;
+  }
+
   if (!($Arg =~ /^-/)) {
-    push @Files,$Arg; next;
+    push @Files, $Arg;
+    next;
   }
 }
 
@@ -584,7 +593,7 @@ if ($Action eq 'compile' or $Action eq 'link') {
 
     if (defined $OutputFormat) {
       push @AnalyzeArgs, "-analyzer-output=" . $OutputFormat;
-      if ($OutputFormat eq "plist") {
+      if ($OutputFormat =~ /plist/) {
         # Change "Output" to be a file.
         my ($h, $f) = tempfile("report-XXXXXX", SUFFIX => ".plist",
                                DIR => $HtmlDir);

@@ -24,6 +24,7 @@
 
 #include "clang/Frontend/AnalysisConsumer.h"
 #include "clang/Frontend/ASTConsumers.h"
+#include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompileOptions.h"
 #include "clang/Frontend/FixItRewriter.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -37,6 +38,7 @@
 #include "clang/Frontend/Utils.h"
 #include "clang/Analysis/PathDiagnostic.h"
 #include "clang/CodeGen/ModuleBuilder.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Sema/ParseAST.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/AST/ASTConsumer.h"
@@ -58,12 +60,13 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PluginLoader.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Streams.h"
 #include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Host.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Process.h"
@@ -108,14 +111,14 @@ static bool HadErrors = false;
 static llvm::cl::opt<bool>
 Verbose("v", llvm::cl::desc("Enable verbose output"));
 static llvm::cl::opt<bool>
-Stats("print-stats", 
+Stats("print-stats",
       llvm::cl::desc("Print performance metrics and statistics"));
 static llvm::cl::opt<bool>
 DisableFree("disable-free",
            llvm::cl::desc("Disable freeing of memory on exit"),
            llvm::cl::init(false));
 static llvm::cl::opt<bool>
-EmptyInputOnly("empty-input-only", 
+EmptyInputOnly("empty-input-only",
       llvm::cl::desc("Force running on an empty input file"));
 
 enum ProgActions {
@@ -128,13 +131,14 @@ enum ProgActions {
   EmitAssembly,                 // Emit a .s file.
   EmitLLVM,                     // Emit a .ll file.
   EmitBC,                       // Emit a .bc file.
-  EmitLLVMOnly,                 // Generate LLVM IR, but do not 
+  EmitLLVMOnly,                 // Generate LLVM IR, but do not
   EmitHTML,                     // Translate input source into HTML.
   ASTPrint,                     // Parse ASTs and print them.
   ASTPrintXML,                  // Parse ASTs and print them in XML.
   ASTDump,                      // Parse ASTs and dump them.
   ASTView,                      // Parse ASTs and view them in Graphviz.
   PrintDeclContext,             // Print DeclContext and their Decls.
+  DumpRecordLayouts,            // Dump record layout information.
   ParsePrintCallbacks,          // Parse and print each callback.
   ParseSyntaxOnly,              // Parse and perform semantic analysis.
   ParseNoop,                    // Parse with noop callbacks.
@@ -142,13 +146,13 @@ enum ProgActions {
   PrintPreprocessedInput,       // -E mode.
   DumpTokens,                   // Dump out preprocessed tokens.
   DumpRawTokens,                // Dump out raw tokens.
-  RunAnalysis,                  // Run one or more source code analyses. 
+  RunAnalysis,                  // Run one or more source code analyses.
   GeneratePTH,                  // Generate pre-tokenized header.
   GeneratePCH,                  // Generate pre-compiled header.
   InheritanceView               // View C++ inheritance for a specified class.
 };
 
-static llvm::cl::opt<ProgActions> 
+static llvm::cl::opt<ProgActions>
 ProgAction(llvm::cl::desc("Choose output type:"), llvm::cl::ZeroOrMore,
            llvm::cl::init(ParseSyntaxOnly),
            llvm::cl::values(
@@ -180,6 +184,8 @@ ProgAction(llvm::cl::desc("Choose output type:"), llvm::cl::ZeroOrMore,
                         "Build ASTs and view them with GraphViz"),
              clEnumValN(PrintDeclContext, "print-decl-contexts",
                         "Print DeclContexts and their Decls"),
+             clEnumValN(DumpRecordLayouts, "dump-record-layouts",
+                        "Dump record layout information"),
              clEnumValN(GeneratePTH, "emit-pth",
                         "Generate pre-tokenized header file"),
              clEnumValN(GeneratePCH, "emit-pch",
@@ -210,6 +216,17 @@ OutputFile("o",
  llvm::cl::value_desc("path"),
  llvm::cl::desc("Specify output file"));
 
+
+static llvm::cl::opt<ParsedSourceLocation>
+CodeCompletionAt("code-completion-at",
+                 llvm::cl::value_desc("file:line:column"),
+              llvm::cl::desc("Dump code-completion information at a location"));
+
+/// \brief Buld a new code-completion consumer that prints the results of
+/// code completion to standard output.
+static CodeCompleteConsumer *BuildPrintingCodeCompleter(Sema &S, void *) {
+  return new PrintingCodeCompleteConsumer(S, llvm::outs());
+}
 
 //===----------------------------------------------------------------------===//
 // PTH.
@@ -261,13 +278,13 @@ PrintDiagnosticOption("fdiagnostics-show-option",
 
 static llvm::cl::opt<unsigned>
 MessageLength("fmessage-length",
-	      llvm::cl::desc("Format message diagnostics so that they fit "
-			     "within N columns or fewer, when possible."),
-	      llvm::cl::value_desc("N"));
+              llvm::cl::desc("Format message diagnostics so that they fit "
+                             "within N columns or fewer, when possible."),
+              llvm::cl::value_desc("N"));
 
 static llvm::cl::opt<bool>
 NoColorDiagnostic("fno-color-diagnostics",
-	      llvm::cl::desc("Don't use colors when showing diagnostics "
+                  llvm::cl::desc("Don't use colors when showing diagnostics "
                              "(automatically turned off if output is not a "
                              "terminal)."));
 //===----------------------------------------------------------------------===//
@@ -317,7 +334,8 @@ enum LangKind {
   langkind_objc_cpp,
   langkind_objcxx,
   langkind_objcxx_cpp,
-  langkind_ocl
+  langkind_ocl,
+  langkind_ast
 };
 
 static llvm::cl::opt<LangKind>
@@ -346,19 +364,20 @@ BaseLang("x", llvm::cl::desc("Base language to compile"),
                                "C++ header"),
                     clEnumValN(langkind_objcxx, "objective-c++-header",
                                "Objective-C++ header"),
+                    clEnumValN(langkind_ast, "ast",
+                               "Clang AST"),
                     clEnumValEnd));
-
-static llvm::cl::opt<bool>
-LangObjC("ObjC", llvm::cl::desc("Set base language to Objective-C"),
-         llvm::cl::Hidden);
-static llvm::cl::opt<bool>
-LangObjCXX("ObjC++", llvm::cl::desc("Set base language to Objective-C++"),
-           llvm::cl::Hidden);
 
 static llvm::cl::opt<bool>
 ObjCExclusiveGC("fobjc-gc-only",
                 llvm::cl::desc("Use GC exclusively for Objective-C related "
                                "memory management"));
+
+static llvm::cl::opt<std::string>
+ObjCConstantStringClass("fconstant-string-class",
+                llvm::cl::value_desc("class name"),
+                llvm::cl::desc("Specify the class to use for constant "
+                               "Objective-C string objects."));
 
 static llvm::cl::opt<bool>
 ObjCEnableGC("fobjc-gc",
@@ -386,39 +405,23 @@ OverflowChecking("ftrapv",
                  llvm::cl::init(false));
 
 static llvm::cl::opt<bool>
-ObjCSenderDispatch("fobjc-sender-dependent-dispatch",
-				 llvm::cl::desc("Enable sender-dependent dispatch for"
-					 "Objective-C messages"), llvm::cl::init(false));
+AltiVec("faltivec", llvm::cl::desc("Enable AltiVec vector initializer syntax"),
+                    llvm::cl::init(false));
 
-/// InitializeBaseLanguage - Handle the -x foo options.
-static void InitializeBaseLanguage() {
-  if (LangObjC)
-    BaseLang = langkind_objc;
-  else if (LangObjCXX)
-    BaseLang = langkind_objcxx;
-}
+static llvm::cl::opt<bool>
+PThread("pthread", llvm::cl::desc("Support POSIX threads in generated code"),
+         llvm::cl::init(false));
 
-static LangKind GetLanguage(const std::string &Filename) {
+static LangKind GetLanguage(llvm::StringRef Filename) {
   if (BaseLang != langkind_unspecified)
     return BaseLang;
-  
-  std::string::size_type DotPos = Filename.rfind('.');
 
-  if (DotPos == std::string::npos) {
-    BaseLang = langkind_c;  // Default to C if no extension.
+  llvm::StringRef Ext = Filename.rsplit('.').second;
+  if (Ext == "ast")
+    return langkind_ast;
+  else if (Ext == "c")
     return langkind_c;
-  }
-  
-  std::string Ext = std::string(Filename.begin()+DotPos+1, Filename.end());
-  // C header: .h
-  // C++ header: .hh or .H;
-  // assembler no preprocessing: .s
-  // assembler: .S
-  if (Ext == "c")
-    return langkind_c;
-  else if (Ext == "S" ||
-           // If the compiler is run on a .s file, preprocess it as .S
-           Ext == "s")
+  else if (Ext == "S" || Ext == "s")
     return langkind_asm_cpp;
   else if (Ext == "i")
     return langkind_c_cpp;
@@ -449,12 +452,12 @@ static void InitializeCOptions(LangOptions &Options) {
 static void InitializeObjCOptions(LangOptions &Options) {
   Options.ObjC1 = Options.ObjC2 = 1;
 }
-  
+
 
 static void InitializeLangOptions(LangOptions &Options, LangKind LK){
   // FIXME: implement -fpreprocessed mode.
   bool NoPreprocess = false;
-  
+
   switch (LK) {
   default: assert(0 && "Unknown language kind!");
   case langkind_asm_cpp:
@@ -492,25 +495,30 @@ static void InitializeLangOptions(LangOptions &Options, LangKind LK){
     Options.LaxVectorConversions = 1;
     break;
   }
-  
+
   if (ObjCExclusiveGC)
     Options.setGCMode(LangOptions::GCOnly);
   else if (ObjCEnableGC)
     Options.setGCMode(LangOptions::HybridGC);
-  
+
   if (ObjCEnableGCBitmapPrint)
     Options.ObjCGCBitmapPrint = 1;
-  
+
+  if (AltiVec)
+    Options.AltiVec = 1;
+
+  if (PThread)
+    Options.POSIXThreads = 1;
+
   Options.setVisibilityMode(SymbolVisibility);
   Options.OverflowChecking = OverflowChecking;
 }
 
 /// LangStds - Language standards we support.
 enum LangStds {
-  lang_unspecified,  
+  lang_unspecified,
   lang_c89, lang_c94, lang_c99,
-  lang_gnu_START,
-  lang_gnu89 = lang_gnu_START, lang_gnu99,
+  lang_gnu89, lang_gnu99,
   lang_cxx98, lang_gnucxx98,
   lang_cxx0x, lang_gnucxx0x
 };
@@ -554,7 +562,7 @@ static llvm::cl::opt<bool>
 PascalStrings("fpascal-strings",
               llvm::cl::desc("Recognize and construct Pascal-style "
                              "string literals"));
-                             
+
 static llvm::cl::opt<bool>
 MSExtensions("fms-extensions",
              llvm::cl::desc("Accept some non-standard constructs used in "
@@ -592,6 +600,10 @@ Exceptions("fexceptions",
            llvm::cl::desc("Enable support for exception handling"));
 
 static llvm::cl::opt<bool>
+Rtti("frtti", llvm::cl::init(true),
+     llvm::cl::desc("Enable generation of rtti information"));
+
+static llvm::cl::opt<bool>
 GNURuntime("fgnu-runtime",
             llvm::cl::desc("Generate output compatible with the standard GNU "
                            "Objective-C runtime"));
@@ -622,7 +634,7 @@ static llvm::cl::opt<bool>
 OptSize("Os", llvm::cl::desc("Optimize for size"));
 
 static llvm::cl::opt<bool>
-DisableLLVMOptimizations("disable-llvm-optzns", 
+DisableLLVMOptimizations("disable-llvm-optzns",
                          llvm::cl::desc("Don't run LLVM optimization passes"));
 
 static llvm::cl::opt<bool>
@@ -636,17 +648,26 @@ MainFileName("main-file-name",
 
 // FIXME: Also add an "-fno-access-control" option.
 static llvm::cl::opt<bool>
-AccessControl("faccess-control", 
+AccessControl("faccess-control",
               llvm::cl::desc("Enable C++ access control"));
+
+static llvm::cl::opt<bool>
+NoElideConstructors("fno-elide-constructors",
+                    llvm::cl::desc("Disable C++ copy constructor elision"));
+
+static llvm::cl::opt<std::string>
+TargetABI("target-abi",
+          llvm::cl::desc("Target a particular ABI type"));
+
 
 // It might be nice to add bounds to the CommandLine library directly.
 struct OptLevelParser : public llvm::cl::parser<unsigned> {
-  bool parse(llvm::cl::Option &O, const char *ArgName,
-             const std::string &Arg, unsigned &Val) {
+  bool parse(llvm::cl::Option &O, llvm::StringRef ArgName,
+             llvm::StringRef Arg, unsigned &Val) {
     if (llvm::cl::parser<unsigned>::parse(O, ArgName, Arg, Val))
       return true;
     if (Val > 3)
-      return O.error(": '" + Arg + "' invalid optimization level!");
+      return O.error("'" + Arg + "' invalid optimization level!");
     return false;
   }
 };
@@ -675,10 +696,11 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   // Pass the map of target features to the target for validation and
   // processing.
   Target->HandleTargetFeatures(Features);
-  
+
   if (LangStd == lang_unspecified) {
     // Based on the base language, pick one.
     switch (LK) {
+    case langkind_ast: assert(0 && "Invalid call for AST inputs");
     case lang_unspecified: assert(0 && "Unknown base language");
     case langkind_ocl:
       LangStd = lang_c99;
@@ -698,7 +720,7 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
       break;
     }
   }
-  
+
   switch (LangStd) {
   default: assert(0 && "Unknown language standard!");
 
@@ -729,18 +751,33 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   }
 
   // GNUMode - Set if we're in gnu99, gnu89, gnucxx98, etc.
-  Options.GNUMode = LangStd >= lang_gnu_START;
-  
+  switch (LangStd) {
+  default: assert(0 && "Unknown language standard!");
+  case lang_gnucxx0x:
+  case lang_gnucxx98:
+  case lang_gnu99:
+  case lang_gnu89:
+    Options.GNUMode = 1;
+    break;
+  case lang_cxx0x:
+  case lang_cxx98:
+  case lang_c99:
+  case lang_c94:
+  case lang_c89:
+    Options.GNUMode = 0;
+    break;
+  }
+
   if (Options.CPlusPlus) {
     Options.C99 = 0;
-    Options.HexFloats = Options.GNUMode;
+    Options.HexFloats = 0;
   }
-  
+
   if (LangStd == lang_c89 || LangStd == lang_c94 || LangStd == lang_gnu89)
     Options.ImplicitInt = 1;
   else
     Options.ImplicitInt = 0;
-  
+
   // Mimicing gcc's behavior, trigraphs are only enabled if -trigraphs
   // is specified, or -std is set to a conforming mode.
   Options.Trigraphs = !Options.GNUMode;
@@ -753,14 +790,14 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   // However, blocks are not turned off when compiling Obj-C or Obj-C++ code.
   if (!Options.ObjC1 && !Options.GNUMode)
     Options.Blocks = 0;
-  
+
   // Default to not accepting '$' in identifiers when preprocessing assembler,
   // but do accept when preprocessing C.  FIXME: these defaults are right for
   // darwin, are they right everywhere?
   Options.DollarIdents = LK != langkind_asm_cpp;
   if (DollarsInIdents.getPosition())  // Explicit setting overrides default.
     Options.DollarIdents = DollarsInIdents;
-  
+
   if (PascalStrings.getPosition())
     Options.PascalStrings = PascalStrings;
   if (MSExtensions.getPosition())
@@ -769,6 +806,7 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   if (NoLaxVectorConversions.getPosition())
       Options.LaxVectorConversions = 0;
   Options.Exceptions = Exceptions;
+  Options.Rtti = Rtti;
   if (EnableBlocks.getPosition())
     Options.Blocks = EnableBlocks;
   if (CharIsSigned.getPosition())
@@ -778,16 +816,18 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
     Options.NoBuiltin = 1;
   if (Freestanding)
     Options.Freestanding = Options.NoBuiltin = 1;
-  
+
   if (EnableHeinousExtensions)
     Options.HeinousExtensions = 1;
 
   if (AccessControl)
     Options.AccessControl = 1;
-  
+
+  Options.ElideConstructors = !NoElideConstructors;
+
   // OpenCL and C++ both have bool, true, false keywords.
   Options.Bool = Options.OpenCL | Options.CPlusPlus;
-  
+
   Options.MathErrno = MathErrno;
 
   Options.InstantiationDepth = TemplateDepth;
@@ -798,18 +838,19 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   else if (GNURuntime)
     Options.NeXTRuntime = 0;
 
+  if (!ObjCConstantStringClass.empty())
+    Options.ObjCConstantStringClass = ObjCConstantStringClass.c_str();
+
   if (ObjCNonFragileABI)
     Options.ObjCNonFragileABI = 1;
 
-  Options.ObjCSenderDispatch = ObjCSenderDispatch;
-  
   if (EmitAllDecls)
     Options.EmitAllDecls = 1;
 
   // The __OPTIMIZE_SIZE__ define is tied to -Oz, which we don't
   // support.
   Options.OptimizeSize = 0;
-  
+
   // -Os implies -O2
   if (OptSize || OptLevel)
     Options.Optimize = 1;
@@ -818,7 +859,7 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   Options.PICLevel = PICLevel;
 
   Options.GNUInline = !Options.C99;
-  // FIXME: This is affected by other options (-fno-inline). 
+  // FIXME: This is affected by other options (-fno-inline).
   Options.NoInline = !OptSize && !OptLevel;
 
   Options.Static = StaticDefine;
@@ -845,70 +886,72 @@ TargetTriple("triple",
   llvm::cl::desc("Specify target triple (e.g. i686-apple-darwin9)"));
 
 static llvm::cl::opt<std::string>
-MacOSVersionMin("mmacosx-version-min", 
+MacOSVersionMin("mmacosx-version-min",
                 llvm::cl::desc("Specify target Mac OS X version (e.g. 10.5)"));
 
 // If -mmacosx-version-min=10.3.9 is specified, change the triple from being
 // something like powerpc-apple-darwin9 to powerpc-apple-darwin7
 
 // FIXME: We should have the driver do this instead.
-static void HandleMacOSVersionMin(std::string &Triple) {
-  std::string::size_type DarwinDashIdx = Triple.find("-darwin");
-  if (DarwinDashIdx == std::string::npos) {
-    fprintf(stderr, 
+static void HandleMacOSVersionMin(llvm::Triple &Triple) {
+  if (Triple.getOS() != llvm::Triple::Darwin) {
+    fprintf(stderr,
             "-mmacosx-version-min only valid for darwin (Mac OS X) targets\n");
     exit(1);
   }
-  unsigned DarwinNumIdx = DarwinDashIdx + strlen("-darwin");
   
-  // Remove the number.
-  Triple.resize(DarwinNumIdx);
-
   // Validate that MacOSVersionMin is a 'version number', starting with 10.[3-9]
-  bool MacOSVersionMinIsInvalid = false;
-  int VersionNum = 0;
   if (MacOSVersionMin.size() < 4 ||
       MacOSVersionMin.substr(0, 3) != "10." ||
       !isdigit(MacOSVersionMin[3])) {
-    MacOSVersionMinIsInvalid = true;
-  } else {
-    const char *Start = MacOSVersionMin.c_str()+3;
-    char *End = 0;
-    VersionNum = (int)strtol(Start, &End, 10);
-
-    // The version number must be in the range 0-9.
-    MacOSVersionMinIsInvalid = (unsigned)VersionNum > 9;
-    
-    // Turn MacOSVersionMin into a darwin number: e.g. 10.3.9 is 3 -> 7.
-    Triple += llvm::itostr(VersionNum+4);
-    
-    if (End[0] == '.' && isdigit(End[1]) && End[2] == '\0') {   // 10.4.7 is ok.
-      // Add the period piece (.7) to the end of the triple.  This gives us
-      // something like ...-darwin8.7
-      Triple += End;
-    } else if (End[0] != '\0') { // "10.4" is ok.  10.4x is not.
-      MacOSVersionMinIsInvalid = true;
-    }
-  }
-  
-  if (MacOSVersionMinIsInvalid) {
-    fprintf(stderr, 
+    fprintf(stderr,
         "-mmacosx-version-min=%s is invalid, expected something like '10.4'.\n",
             MacOSVersionMin.c_str());
     exit(1);
   }
-  else if (VersionNum <= 4 && 
-           !strncmp(Triple.c_str(), "x86_64", strlen("x86_64"))) {
-    fprintf(stderr, 
-        "-mmacosx-version-min=%s is invalid with -arch x86_64.\n",
+  
+  unsigned VersionNum = MacOSVersionMin[3]-'0';
+
+  if (VersionNum <= 4 && Triple.getArch() == llvm::Triple::x86_64) {
+    fprintf(stderr,
+            "-mmacosx-version-min=%s is invalid with -arch x86_64.\n",
             MacOSVersionMin.c_str());
     exit(1);
   }
 
+  
+  llvm::SmallString<16> NewDarwinString;
+  NewDarwinString += "darwin";
+  
+  // Turn MacOSVersionMin into a darwin number: e.g. 10.3.9 is 3 -> darwin7.
+  VersionNum += 4;
+  if (VersionNum > 9) {
+    NewDarwinString += '1';
+    VersionNum -= 10;
+  }
+  NewDarwinString += (VersionNum+'0');
+
+  if (MacOSVersionMin.size() == 4) {
+    // "10.4" is ok.
+  } else if (MacOSVersionMin.size() == 6 &&
+             MacOSVersionMin[4] == '.' &&
+             isdigit(MacOSVersionMin[5])) {   // 10.4.7 is ok.
+    // Add the period piece (.7) to the end of the triple.  This gives us
+    // something like ...-darwin8.7
+    NewDarwinString += '.';
+    NewDarwinString += MacOSVersionMin[5];
+  } else { // "10.4" is ok.  10.4x is not.
+    fprintf(stderr,
+        "-mmacosx-version-min=%s is invalid, expected something like '10.4'.\n",
+            MacOSVersionMin.c_str());
+    exit(1);
+  }
+
+  Triple.setOSName(NewDarwinString.str());
 }
 
 static llvm::cl::opt<std::string>
-IPhoneOSVersionMin("miphoneos-version-min", 
+IPhoneOSVersionMin("miphoneos-version-min",
                 llvm::cl::desc("Specify target iPhone OS version (e.g. 2.0)"));
 
 // If -miphoneos-version-min=2.2 is specified, change the triple from being
@@ -917,68 +960,46 @@ IPhoneOSVersionMin("miphoneos-version-min",
 // number in the minor version and revision.
 
 // FIXME: We should have the driver do this instead.
-static void HandleIPhoneOSVersionMin(std::string &Triple) {
-  std::string::size_type DarwinDashIdx = Triple.find("-darwin");
-  if (DarwinDashIdx == std::string::npos) {
-    fprintf(stderr, 
-            "-miphoneos-version-min only valid for darwin (Mac OS X) targets\n");
+static void HandleIPhoneOSVersionMin(llvm::Triple &Triple) {
+  if (Triple.getOS() != llvm::Triple::Darwin) {
+    fprintf(stderr,
+           "-miphoneos-version-min only valid for darwin (Mac OS X) targets\n");
     exit(1);
   }
-  unsigned DarwinNumIdx = DarwinDashIdx + strlen("-darwin");
-  
-  // Remove the number.
-  Triple.resize(DarwinNumIdx);
-  
-  // Validate that IPhoneOSVersionMin is a 'version number', starting with [2-9].[0-9]
-  bool IPhoneOSVersionMinIsInvalid = false;
-  int VersionNum = 0;
-  if (IPhoneOSVersionMin.size() < 3 ||
-      !isdigit(IPhoneOSVersionMin[0])) {
-    IPhoneOSVersionMinIsInvalid = true;
-  } else {
-    const char *Start = IPhoneOSVersionMin.c_str();
-    char *End = 0;
-    VersionNum = (int)strtol(Start, &End, 10);
-    
-    // The version number must be in the range 0-9.
-    IPhoneOSVersionMinIsInvalid = (unsigned)VersionNum > 9;
-    
-    // Turn IPhoneOSVersionMin into a darwin number: e.g. 2.0 is 2 -> 9.2.
-    Triple += "9." + llvm::itostr(VersionNum);
-    
-    if (End[0] == '.' && isdigit(End[1]) && End[2] == '\0') {   // 2.2 is ok.
-      // Add the period piece (.2) to the end of the triple.  This gives us
-      // something like ...-darwin9.2.2
-      Triple += End;
-    } else if (End[0] != '\0') { // "2.2" is ok.  2x is not.
-      IPhoneOSVersionMinIsInvalid = true;
-    }
-  }
-  
-  if (IPhoneOSVersionMinIsInvalid) {
-    fprintf(stderr, 
-            "-miphoneos-version-min=%s is invalid, expected something like '2.0'.\n",
+
+  // Validate that IPhoneOSVersionMin is a 'version number', starting with
+  // [2-9].[0-9]
+  if (IPhoneOSVersionMin.size() != 3 || !isdigit(IPhoneOSVersionMin[0]) ||
+      IPhoneOSVersionMin[1] != '.' || !isdigit(IPhoneOSVersionMin[2])) {
+    fprintf(stderr,
+       "-miphoneos-version-min=%s is invalid, expected something like '2.0'.\n",
             IPhoneOSVersionMin.c_str());
     exit(1);
   }
+  
+  // Turn IPhoneOSVersionMin into a darwin number: e.g. 2.0 is 2 -> 9.2.0
+  llvm::SmallString<16> NewDarwinString;
+  NewDarwinString += "darwin9.";
+  NewDarwinString += IPhoneOSVersionMin;
+  Triple.setOSName(NewDarwinString.str());
 }
 
 /// CreateTargetTriple - Process the various options that affect the target
 /// triple and build a final aggregate triple that we are compiling for.
-static std::string CreateTargetTriple() {
+static llvm::Triple CreateTargetTriple() {
   // Initialize base triple.  If a -triple option has been specified, use
   // that triple.  Otherwise, default to the host triple.
-  std::string Triple = TargetTriple;
-  if (Triple.empty())
-    Triple = llvm::sys::getHostTriple();
+  llvm::Triple Triple(TargetTriple);
+  if (Triple.getTriple().empty())
+    Triple = llvm::Triple(llvm::sys::getHostTriple());
 
   // If -mmacosx-version-min=10.3.9 is specified, change the triple from being
   // something like powerpc-apple-darwin9 to powerpc-apple-darwin7
   if (!MacOSVersionMin.empty())
     HandleMacOSVersionMin(Triple);
   else if (!IPhoneOSVersionMin.empty())
-    HandleIPhoneOSVersionMin(Triple);;
-  
+    HandleIPhoneOSVersionMin(Triple);
+
   return Triple;
 }
 
@@ -994,14 +1015,14 @@ static bool InitializeSourceManager(Preprocessor &PP,
 
   if (EmptyInputOnly) {
     const char *EmptyStr = "";
-    llvm::MemoryBuffer *SB = 
+    llvm::MemoryBuffer *SB =
       llvm::MemoryBuffer::getMemBuffer(EmptyStr, EmptyStr, "<empty input>");
     SourceMgr.createMainFileIDForMemBuffer(SB);
   } else if (InFile != "-") {
     const FileEntry *File = FileMgr.getFile(InFile);
     if (File) SourceMgr.createMainFileID(File, SourceLocation());
     if (SourceMgr.getMainFileID().isInvalid()) {
-      PP.getDiagnostics().Report(FullSourceLoc(), diag::err_fe_error_reading) 
+      PP.getDiagnostics().Report(FullSourceLoc(), diag::err_fe_error_reading)
         << InFile.c_str();
       return true;
     }
@@ -1017,7 +1038,7 @@ static bool InitializeSourceManager(Preprocessor &PP,
 
     SourceMgr.createMainFileIDForMemBuffer(SB);
     if (SourceMgr.getMainFileID().isInvalid()) {
-      PP.getDiagnostics().Report(FullSourceLoc(), 
+      PP.getDiagnostics().Report(FullSourceLoc(),
                                  diag::err_fe_error_reading_stdin);
       return true;
     }
@@ -1057,6 +1078,10 @@ static llvm::cl::opt<std::string>
 ImplicitIncludePTH("include-pth", llvm::cl::value_desc("file"),
                    llvm::cl::desc("Include file before parsing"));
 
+static llvm::cl::opt<bool>
+RelocatablePCH("relocatable-pch",
+               llvm::cl::desc("Whether to build a relocatable precompiled "
+                              "header"));
 
 //===----------------------------------------------------------------------===//
 // Preprocessor include path information.
@@ -1065,13 +1090,17 @@ ImplicitIncludePTH("include-pth", llvm::cl::value_desc("file"),
 // This tool exports a large number of command line options to control how the
 // preprocessor searches for header files.  At root, however, the Preprocessor
 // object takes a very simple interface: a list of directories to search for
-// 
+//
 // FIXME: -nostdinc++
 // FIXME: -imultilib
 //
 
 static llvm::cl::opt<bool>
 nostdinc("nostdinc", llvm::cl::desc("Disable standard #include directories"));
+
+static llvm::cl::opt<bool>
+nostdclanginc("nostdclanginc",
+	      llvm::cl::desc("Disable standard clang #include directories"));
 
 // Various command line options.  These four add directories to each chain.
 static llvm::cl::list<std::string>
@@ -1108,10 +1137,37 @@ isysroot("isysroot", llvm::cl::value_desc("dir"), llvm::cl::init("/"),
 
 // Finally, implement the code that groks the options above.
 
+// Add the clang headers, which are relative to the clang binary.
+void AddClangIncludePaths(const char *Argv0, InitHeaderSearch *Init) {
+  if (nostdclanginc)
+    return;
+
+  llvm::sys::Path MainExecutablePath =
+     llvm::sys::Path::GetMainExecutable(Argv0,
+                                    (void*)(intptr_t)AddClangIncludePaths);
+  if (MainExecutablePath.isEmpty())
+    return;
+
+  MainExecutablePath.eraseComponent();  // Remove /clang from foo/bin/clang
+  MainExecutablePath.eraseComponent();  // Remove /bin   from foo/bin
+
+  // Get foo/lib/clang/<version>/include
+  MainExecutablePath.appendComponent("lib");
+  MainExecutablePath.appendComponent("clang");
+  MainExecutablePath.appendComponent(CLANG_VERSION_STRING);
+  MainExecutablePath.appendComponent("include");
+
+  // We pass true to ignore sysroot so that we *always* look for clang headers
+  // relative to our executable, never relative to -isysroot.
+  Init->AddPath(MainExecutablePath.c_str(), InitHeaderSearch::System,
+		false, false, false, true /*ignore sysroot*/);
+}
+
 /// InitializeIncludePaths - Process the -I options and set them in the
 /// HeaderSearch object.
 void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
-                            FileManager &FM, const LangOptions &Lang) {
+                            FileManager &FM, const LangOptions &Lang,
+                            llvm::Triple &triple) {
   InitHeaderSearch Init(Headers, Verbose, isysroot);
 
   // Handle -I... and -F... options, walking the lists in parallel.
@@ -1125,22 +1181,22 @@ void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
       ++Fidx;
     }
   }
-  
+
   // Consume what's left from whatever list was longer.
   for (; Iidx != I_dirs.size(); ++Iidx)
     Init.AddPath(I_dirs[Iidx], InitHeaderSearch::Angled, false, true, false);
   for (; Fidx != F_dirs.size(); ++Fidx)
     Init.AddPath(F_dirs[Fidx], InitHeaderSearch::Angled, false, true, true);
-  
+
   // Handle -idirafter... options.
   for (unsigned i = 0, e = idirafter_dirs.size(); i != e; ++i)
     Init.AddPath(idirafter_dirs[i], InitHeaderSearch::After,
         false, true, false);
-  
+
   // Handle -iquote... options.
   for (unsigned i = 0, e = iquote_dirs.size(); i != e; ++i)
     Init.AddPath(iquote_dirs[i], InitHeaderSearch::Quoted, false, true, false);
-  
+
   // Handle -isystem... options.
   for (unsigned i = 0, e = isystem_dirs.size(); i != e; ++i)
     Init.AddPath(isystem_dirs[i], InitHeaderSearch::System, false, true, false);
@@ -1158,28 +1214,28 @@ void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
     bool iwithprefixbefore_done = iwithprefixbefore_vals.empty();
     while (!iprefix_done || !iwithprefix_done || !iwithprefixbefore_done) {
       if (!iprefix_done &&
-          (iwithprefix_done || 
-           iprefix_vals.getPosition(iprefix_idx) < 
+          (iwithprefix_done ||
+           iprefix_vals.getPosition(iprefix_idx) <
            iwithprefix_vals.getPosition(iwithprefix_idx)) &&
-          (iwithprefixbefore_done || 
-           iprefix_vals.getPosition(iprefix_idx) < 
+          (iwithprefixbefore_done ||
+           iprefix_vals.getPosition(iprefix_idx) <
            iwithprefixbefore_vals.getPosition(iwithprefixbefore_idx))) {
         Prefix = iprefix_vals[iprefix_idx];
         ++iprefix_idx;
         iprefix_done = iprefix_idx == iprefix_vals.size();
       } else if (!iwithprefix_done &&
-                 (iwithprefixbefore_done || 
-                  iwithprefix_vals.getPosition(iwithprefix_idx) < 
+                 (iwithprefixbefore_done ||
+                  iwithprefix_vals.getPosition(iwithprefix_idx) <
                   iwithprefixbefore_vals.getPosition(iwithprefixbefore_idx))) {
-        Init.AddPath(Prefix+iwithprefix_vals[iwithprefix_idx], 
+        Init.AddPath(Prefix+iwithprefix_vals[iwithprefix_idx],
                 InitHeaderSearch::System, false, false, false);
         ++iwithprefix_idx;
         iwithprefix_done = iwithprefix_idx == iwithprefix_vals.size();
       } else {
-        Init.AddPath(Prefix+iwithprefixbefore_vals[iwithprefixbefore_idx], 
+        Init.AddPath(Prefix+iwithprefixbefore_vals[iwithprefixbefore_idx],
                 InitHeaderSearch::Angled, false, false, false);
         ++iwithprefixbefore_idx;
-        iwithprefixbefore_done = 
+        iwithprefixbefore_done =
           iwithprefixbefore_idx == iwithprefixbefore_vals.size();
       }
     }
@@ -1187,37 +1243,18 @@ void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
 
   Init.AddDefaultEnvVarPaths(Lang);
 
-  // Add the clang headers, which are relative to the clang binary.
-  llvm::sys::Path MainExecutablePath = 
-     llvm::sys::Path::GetMainExecutable(Argv0,
-                                    (void*)(intptr_t)InitializeIncludePaths);
-  if (!MainExecutablePath.isEmpty()) {
-    MainExecutablePath.eraseComponent();  // Remove /clang from foo/bin/clang
-    MainExecutablePath.eraseComponent();  // Remove /bin   from foo/bin
+  AddClangIncludePaths(Argv0, &Init);
 
-    // Get foo/lib/clang/<version>/include    
-    MainExecutablePath.appendComponent("lib");
-    MainExecutablePath.appendComponent("clang");
-    MainExecutablePath.appendComponent(CLANG_VERSION_STRING);
-    MainExecutablePath.appendComponent("include");
-    
-    // We pass true to ignore sysroot so that we *always* look for clang headers
-    // relative to our executable, never relative to -isysroot.
-    Init.AddPath(MainExecutablePath.c_str(), InitHeaderSearch::System,
-                 false, false, false, true /*ignore sysroot*/);
-  }
-  
-  if (!nostdinc) 
-    Init.AddDefaultSystemIncludePaths(Lang);
+  if (!nostdinc)
+    Init.AddDefaultSystemIncludePaths(Lang, triple);
 
   // Now that we have collected all of the include paths, merge them all
   // together and tell the preprocessor about them.
-  
+
   Init.Realize();
 }
 
-void InitializePreprocessorInitOptions(PreprocessorInitOptions &InitOpts)
-{
+void InitializePreprocessorInitOptions(PreprocessorInitOptions &InitOpts) {
   // Add macros from the command line.
   unsigned d = 0, D = D_macros.size();
   unsigned u = 0, U = U_macros.size();
@@ -1286,17 +1323,17 @@ class VISIBILITY_HIDDEN DriverPreprocessorFactory : public PreprocessorFactory {
   TargetInfo        &Target;
   SourceManager     &SourceMgr;
   HeaderSearch      &HeaderInfo;
-  
+
 public:
   DriverPreprocessorFactory(Diagnostic &diags, const LangOptions &opts,
                             TargetInfo &target, SourceManager &SM,
-                            HeaderSearch &Headers)  
+                            HeaderSearch &Headers)
   : Diags(diags), LangInfo(opts), Target(target),
     SourceMgr(SM), HeaderInfo(Headers) {}
-  
-  
+
+
   virtual ~DriverPreprocessorFactory() {}
-  
+
   virtual Preprocessor* CreatePreprocessor() {
     llvm::OwningPtr<PTHManager> PTHMgr;
 
@@ -1305,23 +1342,23 @@ public:
                       "options\n");
       exit(1);
     }
-    
+
     // Use PTH?
     if (!TokenCache.empty() || !ImplicitIncludePTH.empty()) {
       const std::string& x = TokenCache.empty() ? ImplicitIncludePTH:TokenCache;
-      PTHMgr.reset(PTHManager::Create(x, &Diags, 
+      PTHMgr.reset(PTHManager::Create(x, &Diags,
                                       TokenCache.empty() ? Diagnostic::Error
                                                         : Diagnostic::Warning));
     }
-    
+
     if (Diags.hasErrorOccurred())
       exit(1);
-    
+
     // Create the Preprocessor.
     llvm::OwningPtr<Preprocessor> PP(new Preprocessor(Diags, LangInfo, Target,
                                                       SourceMgr, HeaderInfo,
                                                       PTHMgr.get()));
-    
+
     // Note that this is different then passing PTHMgr to Preprocessor's ctor.
     // That argument is used as the IdentifierInfoLookup argument to
     // IdentifierTable's ctor.
@@ -1347,7 +1384,7 @@ public:
 static void ParseFile(Preprocessor &PP, MinimalAction *PA) {
   Parser P(PP, *PA);
   PP.EnterMainSourceFile();
-  
+
   // Parsing the specified input file.
   P.ParseTranslationUnit();
   delete PA;
@@ -1384,24 +1421,24 @@ NoImplicitFloat("no-implicit-float",
 /// and feature list.
 static void ComputeFeatureMap(TargetInfo *Target,
                               llvm::StringMap<bool> &Features) {
-  assert(Features.empty() && "invalid map"); 
+  assert(Features.empty() && "invalid map");
 
   // Initialize the feature map based on the target.
   Target->getDefaultFeatures(TargetCPU, Features);
 
   // Apply the user specified deltas.
-  for (llvm::cl::list<std::string>::iterator it = TargetFeatures.begin(), 
+  for (llvm::cl::list<std::string>::iterator it = TargetFeatures.begin(),
          ie = TargetFeatures.end(); it != ie; ++it) {
     const char *Name = it->c_str();
-    
+
     // FIXME: Don't handle errors like this.
     if (Name[0] != '-' && Name[0] != '+') {
-      fprintf(stderr, "error: clang-cc: invalid target feature string: %s\n", 
+      fprintf(stderr, "error: clang-cc: invalid target feature string: %s\n",
               Name);
       exit(1);
     }
     if (!Target->setFeatureEnabled(Features, Name + 1, (Name[0] == '+'))) {
-      fprintf(stderr, "error: clang-cc: invalid target feature name: %s\n", 
+      fprintf(stderr, "error: clang-cc: invalid target feature name: %s\n",
               Name + 1);
       exit(1);
     }
@@ -1442,7 +1479,7 @@ static void InitializeCompileOptions(CompileOptions &Opts,
 
   Opts.CPU = TargetCPU;
   Opts.Features.clear();
-  for (llvm::StringMap<bool>::const_iterator it = Features.begin(), 
+  for (llvm::StringMap<bool>::const_iterator it = Features.begin(),
          ie = Features.end(); it != ie; ++it) {
     // FIXME: If we are completely confident that we have the right
     // set, we only need to pass the minuses.
@@ -1450,9 +1487,9 @@ static void InitializeCompileOptions(CompileOptions &Opts,
     Name += it->first();
     Opts.Features.push_back(Name);
   }
-  
+
   Opts.NoCommon = NoCommon | LangOpts.CPlusPlus;
-  
+
   // Handle -ftime-report.
   Opts.TimePasses = TimeReport;
 
@@ -1539,7 +1576,7 @@ clEnumValN(NAME, CMDFLAG, DESC),
 #include "clang/Frontend/Analyses.def"
 clEnumValEnd));
 
-static llvm::cl::opt<AnalysisStores> 
+static llvm::cl::opt<AnalysisStores>
 AnalysisStoreOpt("analyzer-store",
   llvm::cl::desc("Source Code Analysis - Abstract Memory Store Models"),
   llvm::cl::init(BasicStoreModel),
@@ -1549,7 +1586,7 @@ clEnumValN(NAME##Model, CMDFLAG, DESC),
 #include "clang/Frontend/Analyses.def"
 clEnumValEnd));
 
-static llvm::cl::opt<AnalysisConstraints> 
+static llvm::cl::opt<AnalysisConstraints>
 AnalysisConstraintsOpt("analyzer-constraints",
   llvm::cl::desc("Source Code Analysis - Symbolic Constraint Engines"),
   llvm::cl::init(RangeConstraintsModel),
@@ -1641,7 +1678,7 @@ class LoggingDiagnosticClient : public DiagnosticClient {
   llvm::OwningPtr<DiagnosticClient> Chain1;
   llvm::OwningPtr<DiagnosticClient> Chain2;
 public:
-  
+
   LoggingDiagnosticClient(DiagnosticClient *Normal) {
     // Output diags both where requested...
     Chain1.reset(Normal);
@@ -1655,12 +1692,12 @@ public:
                                            !NoDiagnosticsFixIt,
                                            MessageLength));
   }
-  
+
   virtual void setLangOptions(const LangOptions *LO) {
     Chain1->setLangOptions(LO);
     Chain2->setLangOptions(LO);
   }
-  
+
   virtual bool IncludeInDiagnosticCounts() const {
     return Chain1->IncludeInDiagnosticCounts();
   }
@@ -1675,11 +1712,11 @@ public:
 
 static void SetUpBuildDumpLog(unsigned argc, char **argv,
                               llvm::OwningPtr<DiagnosticClient> &DiagClient) {
-  
+
   std::string ErrorInfo;
-  BuildLogFile = new llvm::raw_fd_ostream(DumpBuildInformation.c_str(), false,
+  BuildLogFile = new llvm::raw_fd_ostream(DumpBuildInformation.c_str(),
                                           ErrorInfo);
-  
+
   if (!ErrorInfo.empty()) {
     llvm::errs() << "error opening -dump-build-information file '"
                  << DumpBuildInformation << "', option ignored!\n";
@@ -1693,7 +1730,7 @@ static void SetUpBuildDumpLog(unsigned argc, char **argv,
   for (unsigned i = 0; i != argc; ++i)
     (*BuildLogFile) << argv[i] << ' ';
   (*BuildLogFile) << '\n';
- 
+
   // LoggingDiagnosticClient - Insert a new logging diagnostic client in between
   // the diagnostic producers and the normal receiver.
   DiagClient.reset(new LoggingDiagnosticClient(DiagClient.take()));
@@ -1705,97 +1742,77 @@ static void SetUpBuildDumpLog(unsigned argc, char **argv,
 // Main driver
 //===----------------------------------------------------------------------===//
 
-static llvm::raw_ostream* ComputeOutFile(const std::string& InFile,
-                                         const char* Extension,
+static llvm::raw_ostream *ComputeOutFile(const std::string &InFile,
+                                         const char *Extension,
                                          bool Binary,
                                          llvm::sys::Path& OutPath) {
-  llvm::raw_ostream* Ret;
-  bool UseStdout = false;
+  llvm::raw_ostream *Ret;
   std::string OutFile;
-  if (OutputFile == "-" || (OutputFile.empty() && InFile == "-")) {
-    UseStdout = true;
-  } else if (!OutputFile.empty()) {
+  if (!OutputFile.empty())
     OutFile = OutputFile;
+  else if (InFile == "-") {
+    OutFile = "-";
   } else if (Extension) {
     llvm::sys::Path Path(InFile);
     Path.eraseSuffix();
     Path.appendSuffix(Extension);
-    OutFile = Path.toString();
+    OutFile = Path.str();
   } else {
-    UseStdout = true;
+    OutFile = "-";
   }
 
-  if (UseStdout) {
-    Ret = new llvm::raw_stdout_ostream();
-    if (Binary)
-      llvm::sys::Program::ChangeStdoutToBinary();
-  } else {
-    std::string Error;
-    Ret = new llvm::raw_fd_ostream(OutFile.c_str(), Binary, Error);
-    if (!Error.empty()) {
-      // FIXME: Don't fail this way.
-      llvm::cerr << "ERROR: " << Error << "\n";
-      ::exit(1);
-    }
-    OutPath = OutFile;
+  std::string Error;
+  Ret = new llvm::raw_fd_ostream(OutFile.c_str(), Error,
+                                 (Binary ? llvm::raw_fd_ostream::F_Binary : 0));
+  if (!Error.empty()) {
+    // FIXME: Don't fail this way.
+    llvm::errs() << "ERROR: " << Error << "\n";
+    ::exit(1);
   }
+
+  if (OutFile != "-")
+    OutPath = OutFile;
 
   return Ret;
 }
 
-/// ProcessInputFile - Process a single input file with the specified state.
-///
-static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
-                             const std::string &InFile, ProgActions PA,
-                             const llvm::StringMap<bool> &Features,
-                             llvm::LLVMContext& Context) {
-  llvm::OwningPtr<llvm::raw_ostream> OS;
-  llvm::OwningPtr<ASTConsumer> Consumer;
-  bool ClearSourceMgr = false;
-  FixItRewriter *FixItRewrite = 0;
-  bool CompleteTranslationUnit = true;
-  llvm::sys::Path OutPath;
-
+static ASTConsumer *CreateConsumerAction(Preprocessor &PP,
+                                         const std::string &InFile,
+                                         ProgActions PA,
+                                         llvm::OwningPtr<llvm::raw_ostream> &OS,
+                                         llvm::sys::Path &OutPath,
+                                         const llvm::StringMap<bool> &Features,
+                                         llvm::LLVMContext& Context) {
   switch (PA) {
   default:
-    fprintf(stderr, "Unexpected program action!\n");
-    HadErrors = true;
-    return;
+    return 0;
 
   case ASTPrint:
     OS.reset(ComputeOutFile(InFile, 0, false, OutPath));
-    Consumer.reset(CreateASTPrinter(OS.get()));
-    break;
-    
+    return CreateASTPrinter(OS.get());
+
   case ASTPrintXML:
     OS.reset(ComputeOutFile(InFile, "xml", false, OutPath));
-    Consumer.reset(CreateASTPrinterXML(OS.get()));
-    break;
+    return CreateASTPrinterXML(OS.get());
 
   case ASTDump:
-    Consumer.reset(CreateASTDumper());
-    break;
+    return CreateASTDumper();
 
   case ASTView:
-    Consumer.reset(CreateASTViewer());
-    break;
+    return CreateASTViewer();
 
   case PrintDeclContext:
-    Consumer.reset(CreateDeclContextPrinter());
-    break;
+    return CreateDeclContextPrinter();
 
-  case EmitHTML:
-    OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
-    Consumer.reset(CreateHTMLPrinter(OS.get(), PP.getDiagnostics(), &PP, &PPF));
-    break;
+  case DumpRecordLayouts:
+    return CreateRecordLayoutDumper();
 
   case InheritanceView:
-    Consumer.reset(CreateInheritanceViewer(InheritanceViewCls));
-    break;
+    return CreateInheritanceViewer(InheritanceViewCls);
 
   case EmitAssembly:
   case EmitLLVM:
-  case EmitBC: 
+  case EmitBC:
   case EmitLLVMOnly: {
     BackendAction Act;
     if (ProgAction == EmitAssembly) {
@@ -1813,36 +1830,71 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
 
     CompileOptions Opts;
     InitializeCompileOptions(Opts, PP.getLangOptions(), Features);
-    Consumer.reset(CreateBackendConsumer(Act, PP.getDiagnostics(),
-                                         PP.getLangOptions(), Opts, InFile,
-                                         OS.get(), Context));
-    break;
+    return CreateBackendConsumer(Act, PP.getDiagnostics(), PP.getLangOptions(),
+                                 Opts, InFile, OS.get(), Context);
   }
-
-  case GeneratePCH:
-    OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
-    Consumer.reset(CreatePCHGenerator(PP, OS.get()));
-    CompleteTranslationUnit = false;
-    break;
 
   case RewriteObjC:
     OS.reset(ComputeOutFile(InFile, "cpp", true, OutPath));
-    Consumer.reset(CreateObjCRewriter(InFile, OS.get(), PP.getDiagnostics(),
-                                      PP.getLangOptions(),
-                                      SilenceRewriteMacroWarning));
-    break;
+    return CreateObjCRewriter(InFile, OS.get(), PP.getDiagnostics(),
+                              PP.getLangOptions(), SilenceRewriteMacroWarning);
 
   case RewriteBlocks:
-    Consumer.reset(CreateBlockRewriter(InFile, PP.getDiagnostics(),
-                                       PP.getLangOptions()));
+    return CreateBlockRewriter(InFile, PP.getDiagnostics(),
+                               PP.getLangOptions());
+  }
+}
+
+/// ProcessInputFile - Process a single input file with the specified state.
+///
+static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
+                             const std::string &InFile, ProgActions PA,
+                             const llvm::StringMap<bool> &Features,
+                             llvm::LLVMContext& Context) {
+  llvm::OwningPtr<llvm::raw_ostream> OS;
+  llvm::OwningPtr<ASTConsumer> Consumer;
+  bool ClearSourceMgr = false;
+  FixItRewriter *FixItRewrite = 0;
+  bool CompleteTranslationUnit = true;
+  llvm::sys::Path OutPath;
+
+  switch (PA) {
+  default:
+    Consumer.reset(CreateConsumerAction(PP, InFile, PA, OS, OutPath,
+                                        Features, Context));
+
+    if (!Consumer.get()) {
+      fprintf(stderr, "Unexpected program action!\n");
+      HadErrors = true;
+      return;
+    }
+
+    break;;
+
+  case EmitHTML:
+    OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
+    Consumer.reset(CreateHTMLPrinter(OS.get(), PP.getDiagnostics(), &PP, &PPF));
     break;
 
-  case RunAnalysis: {
+  case RunAnalysis:
     Consumer.reset(CreateAnalysisConsumer(PP.getDiagnostics(), &PP, &PPF,
                                           PP.getLangOptions(), OutputFile,
                                           ReadAnalyzerOptions()));
     break;
-  }
+
+  case GeneratePCH:
+    if (RelocatablePCH.getValue() && !isysroot.getNumOccurrences()) {
+      PP.Diag(SourceLocation(), diag::err_relocatable_without_without_isysroot);
+      RelocatablePCH.setValue(false);
+    }
+
+    OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
+    if (RelocatablePCH.getValue())
+      Consumer.reset(CreatePCHGenerator(PP, OS.get(), isysroot.c_str()));
+    else
+      Consumer.reset(CreatePCHGenerator(PP, OS.get()));
+    CompleteTranslationUnit = false;
+    break;
 
   case DumpRawTokens: {
     llvm::TimeRegion Timer(ClangFrontendTimer);
@@ -1876,28 +1928,28 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
   }
   case RunPreprocessorOnly:
     break;
-      
+
   case GeneratePTH: {
     llvm::TimeRegion Timer(ClangFrontendTimer);
     if (OutputFile.empty() || OutputFile == "-") {
       // FIXME: Don't fail this way.
       // FIXME: Verify that we can actually seek in the given file.
-      llvm::cerr << "ERROR: PTH requires an seekable file for output!\n";
+      llvm::errs() << "ERROR: PTH requires an seekable file for output!\n";
       ::exit(1);
     }
     OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
     CacheTokens(PP, static_cast<llvm::raw_fd_ostream*>(OS.get()));
     ClearSourceMgr = true;
     break;
-  }      
+  }
 
   case PrintPreprocessedInput:
     OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
     break;
-      
+
   case ParseNoop:
     break;
-    
+
   case ParsePrintCallbacks: {
     llvm::TimeRegion Timer(ClangFrontendTimer);
     OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
@@ -1911,13 +1963,13 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
     Consumer.reset(new ASTConsumer());
     break;
   }
-      
+
   case RewriteMacros:
     OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
     RewriteMacrosInInput(PP, OS.get());
     ClearSourceMgr = true;
     break;
-      
+
   case RewriteTest:
     OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
     DoRewriteTest(PP, OS.get());
@@ -1943,7 +1995,7 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
                                        PP.getLangOptions());
 
     bool AddedFixitLocation = false;
-    for (unsigned Idx = 0, Last = FixItAtLocations.size(); 
+    for (unsigned Idx = 0, Last = FixItAtLocations.size();
          Idx != Last; ++Idx) {
       RequestedSourceLocation Requested;
       if (ResolveParsedLocation(FixItAtLocations[Idx],
@@ -1973,13 +2025,19 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
                                       PP.getBuiltinInfo(),
                                       /* FreeMemory = */ !DisableFree,
                                       /* size_reserve = */0));
-   
+
   llvm::OwningPtr<PCHReader> Reader;
   llvm::OwningPtr<ExternalASTSource> Source;
-    
+
   if (!ImplicitIncludePCH.empty()) {
-    Reader.reset(new PCHReader(PP, ContextOwner.get()));
-    
+    // If the user specified -isysroot, it will be used for relocatable PCH
+    // files.
+    const char *isysrootPCH = 0;
+    if (isysroot.getNumOccurrences() != 0)
+      isysrootPCH = isysroot.c_str();
+
+    Reader.reset(new PCHReader(PP, ContextOwner.get(), isysrootPCH));
+
     // The user has asked us to include a precompiled header. Load
     // the precompiled header into the AST context.
     switch (Reader->ReadPCH(ImplicitIncludePCH)) {
@@ -2026,12 +2084,34 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
     if (InitializeSourceManager(PP, InFile))
       return;
   }
-
-
+  
   // If we have an ASTConsumer, run the parser with it.
-  if (Consumer)
-    ParseAST(PP, Consumer.get(), *ContextOwner.get(), Stats, 
-             CompleteTranslationUnit);
+  if (Consumer) {
+    CodeCompleteConsumer *(*CreateCodeCompleter)(Sema &, void *) = 0;
+    void *CreateCodeCompleterData = 0;
+    
+    if (!CodeCompletionAt.FileName.empty()) {
+      // Tell the source manager to chop off the given file at a specific
+      // line and column.
+      if (const FileEntry *Entry 
+            = PP.getFileManager().getFile(CodeCompletionAt.FileName)) {
+        // Truncate the named file at the given line/column.
+        PP.getSourceManager().truncateFileAt(Entry, CodeCompletionAt.Line,
+                                             CodeCompletionAt.Column);
+        
+        // Set up the creation routine for code-completion.
+        CreateCodeCompleter = BuildPrintingCodeCompleter;
+      } else {
+        PP.getDiagnostics().Report(FullSourceLoc(), 
+                                   diag::err_fe_invalid_code_complete_file)
+          << CodeCompletionAt.FileName;
+      }
+    }
+
+    ParseAST(PP, Consumer.get(), *ContextOwner.get(), Stats,
+             CompleteTranslationUnit,
+             CreateCodeCompleter, CreateCodeCompleterData);
+  }
 
   if (PA == RunPreprocessorOnly) {    // Just lex as fast as we can, no output.
     llvm::TimeRegion Timer(ClangFrontendTimer);
@@ -2056,10 +2136,17 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
                                DisableLineMarkers, DumpDefines);
     ClearSourceMgr = true;
   }
-  
+
   if (FixItRewrite)
     FixItRewrite->WriteFixedFile(InFile, OutputFile);
-  
+
+  // Disable the consumer prior to the context, the consumer may perform actions
+  // in its destructor which require the context.
+  if (DisableFree)
+    Consumer.take();
+  else
+    Consumer.reset();
+
   // If in -disable-free mode, don't deallocate ASTContext.
   if (DisableFree)
     ContextOwner.take();
@@ -2079,16 +2166,71 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
     fprintf(stderr, "\n");
   }
 
-  // For a multi-file compilation, some things are ok with nuking the source 
+  // For a multi-file compilation, some things are ok with nuking the source
   // manager tables, other require stable fileid/macroid's across multiple
   // files.
   if (ClearSourceMgr)
     PP.getSourceManager().clearIDTables();
 
-  if (DisableFree)
+  // Always delete the output stream because we don't want to leak file
+  // handles.  Also, we don't want to try to erase an open file.
+  OS.reset();
+
+  if ((HadErrors || (PP.getDiagnostics().getNumErrors() != 0)) &&
+      !OutPath.isEmpty()) {
+    // If we had errors, try to erase the output file.
+    OutPath.eraseFromDisk();
+  }
+}
+
+/// ProcessInputFile - Process a single AST input file with the specified state.
+///
+static void ProcessASTInputFile(const std::string &InFile, ProgActions PA,
+                                const llvm::StringMap<bool> &Features,
+                                Diagnostic &Diags, FileManager &FileMgr,
+                                llvm::LLVMContext& Context) {
+  std::string Error;
+  llvm::OwningPtr<ASTUnit> AST(ASTUnit::LoadFromPCHFile(InFile, Diags, FileMgr,
+                                                        &Error));
+  if (!AST) {
+    Diags.Report(FullSourceLoc(), diag::err_fe_invalid_ast_file) << Error;
+    return;
+  }
+
+  Preprocessor &PP = AST->getPreprocessor();
+
+  llvm::OwningPtr<llvm::raw_ostream> OS;
+  llvm::sys::Path OutPath;
+  llvm::OwningPtr<ASTConsumer> Consumer(CreateConsumerAction(PP, InFile, PA, OS,
+                                                             OutPath, Features,
+                                                             Context));
+
+  if (!Consumer.get()) {
+    Diags.Report(FullSourceLoc(), diag::err_fe_invalid_ast_action);
+    return;
+  }
+
+  // Set the main file ID to an empty file.
+  //
+  // FIXME: We probably shouldn't need this, but for now this is the simplest
+  // way to reuse the logic in ParseAST.
+  const char *EmptyStr = "";
+  llvm::MemoryBuffer *SB =
+    llvm::MemoryBuffer::getMemBuffer(EmptyStr, EmptyStr, "<dummy input>");
+  AST->getSourceManager().createMainFileIDForMemBuffer(SB);
+
+  // Stream the input AST to the consumer.
+  ParseAST(PP, Consumer.get(), AST->getASTContext(), Stats);
+
+  // Release the consumer and the AST, in that order since the consumer may
+  // perform actions in its destructor which require the context.
+  if (DisableFree) {
     Consumer.take();
-  else
+    AST.take();
+  } else {
     Consumer.reset();
+    AST.reset();
+  }
 
   // Always delete the output stream because we don't want to leak file
   // handles.  Also, we don't want to try to erase an open file.
@@ -2104,23 +2246,35 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
 static llvm::cl::list<std::string>
 InputFilenames(llvm::cl::Positional, llvm::cl::desc("<input files>"));
 
+static void LLVMErrorHandler(void *UserData, const std::string &Message) {
+  Diagnostic &Diags = *static_cast<Diagnostic*>(UserData);
+
+  Diags.Report(FullSourceLoc(), diag::err_fe_error_backend) << Message;
+
+  // We cannot recover from llvm errors.
+  exit(1);
+}
+
 int main(int argc, char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
-  llvm::LLVMContext Context;
-  llvm::cl::ParseCommandLineOptions(argc, argv,
-                              "LLVM 'Clang' Compiler: http://clang.llvm.org\n");
-  
+  llvm::LLVMContext &Context = llvm::getGlobalContext();
+
+  // Initialize targets first, so that --version shows registered targets.
   llvm::InitializeAllTargets();
   llvm::InitializeAllAsmPrinters();
-  
+
+  llvm::cl::ParseCommandLineOptions(argc, argv,
+                              "LLVM 'Clang' Compiler: http://clang.llvm.org\n");
+
   if (TimeReport)
     ClangFrontendTimer = new llvm::Timer("Clang front-end time");
-  
+
   if (Verbose)
-    fprintf(stderr, "clang-cc version 1.0 based upon " PACKAGE_STRING
-            " hosted on " LLVM_HOSTTRIPLE "\n");
-  
+    llvm::errs() << "clang-cc version " CLANG_VERSION_STRING
+                 << " based upon " << PACKAGE_STRING
+                 << " hosted on " << llvm::sys::getHostTriple() << "\n";
+
   // If no input was specified, read from stdin.
   if (InputFilenames.empty())
     InputFilenames.push_back("-");
@@ -2164,17 +2318,17 @@ int main(int argc, char **argv) {
   } else {
     DiagClient.reset(CreateHTMLDiagnosticClient(HTMLDiag));
   }
-  
+
   if (!DumpBuildInformation.empty()) {
     if (!HTMLDiag.empty()) {
       fprintf(stderr,
               "-dump-build-information and -html-diags don't work together\n");
       return 1;
     }
-    
+
     SetUpBuildDumpLog(argc, argv, DiagClient);
   }
-  
+
 
   // Configure our handling of diagnostics.
   Diagnostic Diags(DiagClient.get());
@@ -2182,30 +2336,45 @@ int main(int argc, char **argv) {
                             OptNoWarnings))
     return 1;
 
+  // Set an error handler, so that any LLVM backend diagnostics go through our
+  // error handler.
+  llvm::llvm_install_error_handler(LLVMErrorHandler,
+                                   static_cast<void*>(&Diags));
+
   // -I- is a deprecated GCC feature, scan for it and reject it.
   for (unsigned i = 0, e = I_dirs.size(); i != e; ++i) {
     if (I_dirs[i] == "-") {
-      Diags.Report(FullSourceLoc(), diag::err_pp_I_dash_not_supported);      
+      Diags.Report(FullSourceLoc(), diag::err_pp_I_dash_not_supported);
       I_dirs.erase(I_dirs.begin()+i);
       --i;
     }
   }
 
   // Get information about the target being compiled for.
-  std::string Triple = CreateTargetTriple();
-  llvm::OwningPtr<TargetInfo> Target(TargetInfo::CreateTargetInfo(Triple));
-  
+  llvm::Triple Triple = CreateTargetTriple();
+  llvm::OwningPtr<TargetInfo> 
+  Target(TargetInfo::CreateTargetInfo(Triple.getTriple()));
+
   if (Target == 0) {
-    Diags.Report(FullSourceLoc(), diag::err_fe_unknown_triple) 
-      << Triple.c_str();
+    Diags.Report(FullSourceLoc(), diag::err_fe_unknown_triple)
+      << Triple.getTriple().c_str();
     return 1;
   }
-  
+
+  // Set the target ABI if specified.
+  if (!TargetABI.empty()) {
+    if (!Target->setABI(TargetABI)) {
+      Diags.Report(FullSourceLoc(), diag::err_fe_unknown_target_abi)
+        << TargetABI;
+      return 1;
+    }
+  }
+
   if (!InheritanceViewCls.empty())  // C++ visualization?
     ProgAction = InheritanceView;
-    
+
   llvm::OwningPtr<SourceManager> SourceMgr;
-  
+
   // Create a file manager object to provide access to and cache the filesystem.
   FileManager FileMgr;
 
@@ -2215,35 +2384,41 @@ int main(int argc, char **argv) {
 
   for (unsigned i = 0, e = InputFilenames.size(); i != e; ++i) {
     const std::string &InFile = InputFilenames[i];
-    
+
+    LangKind LK = GetLanguage(InFile);
+    // AST inputs are handled specially.
+    if (LK == langkind_ast) {
+      ProcessASTInputFile(InFile, ProgAction, Features,
+                          Diags, FileMgr, Context);
+      continue;
+    }
+
     /// Create a SourceManager object.  This tracks and owns all the file
     /// buffers allocated to a translation unit.
     if (!SourceMgr)
       SourceMgr.reset(new SourceManager());
     else
       SourceMgr->clearIDTables();
-    
+
     // Initialize language options, inferring file types from input filenames.
     LangOptions LangInfo;
     DiagClient->setLangOptions(&LangInfo);
-    
-    InitializeBaseLanguage();
-    LangKind LK = GetLanguage(InFile);
+
     InitializeLangOptions(LangInfo, LK);
     InitializeLanguageStandard(LangInfo, LK, Target.get(), Features);
-          
+
     // Process the -I options and set them in the HeaderInfo.
     HeaderSearch HeaderInfo(FileMgr);
-    
-    
-    InitializeIncludePaths(argv[0], HeaderInfo, FileMgr, LangInfo);
-    
+
+
+    InitializeIncludePaths(argv[0], HeaderInfo, FileMgr, LangInfo, Triple);
+
     // Set up the preprocessor with these options.
     DriverPreprocessorFactory PPFactory(Diags, LangInfo, *Target,
                                         *SourceMgr.get(), HeaderInfo);
-    
+
     llvm::OwningPtr<Preprocessor> PP(PPFactory.CreatePreprocessor());
-          
+
     if (!PP)
       continue;
 
@@ -2252,16 +2427,16 @@ int main(int argc, char **argv) {
       llvm::raw_ostream *DependencyOS;
       if (DependencyTargets.empty()) {
         // FIXME: Use a proper diagnostic
-        llvm::cerr << "-dependency-file requires at least one -MT option\n";
+        llvm::errs() << "-dependency-file requires at least one -MT option\n";
         HadErrors = true;
         continue;
       }
       std::string ErrStr;
       DependencyOS =
-          new llvm::raw_fd_ostream(DependencyFile.c_str(), false, ErrStr);
+          new llvm::raw_fd_ostream(DependencyFile.c_str(), ErrStr);
       if (!ErrStr.empty()) {
         // FIXME: Use a proper diagnostic
-        llvm::cerr << "unable to open dependency file: " + ErrStr;
+        llvm::errs() << "unable to open dependency file: " + ErrStr;
         HadErrors = true;
         continue;
       }
@@ -2274,7 +2449,7 @@ int main(int argc, char **argv) {
     if (ImplicitIncludePCH.empty()) {
       if (InitializeSourceManager(*PP.get(), InFile))
         continue;
-    
+
       // Initialize builtin info.
       PP->getBuiltinInfo().InitializeBuiltins(PP->getIdentifierTable(),
                                               PP->getLangOptions().NoBuiltin);
@@ -2285,7 +2460,7 @@ int main(int argc, char **argv) {
 
     // Process the source file.
     ProcessInputFile(*PP, PPFactory, InFile, ProgAction, Features, Context);
-    
+
     HeaderInfo.ClearFileInfo();
     DiagClient->setLangOptions(0);
   }
@@ -2294,7 +2469,7 @@ int main(int argc, char **argv) {
     if (unsigned NumDiagnostics = Diags.getNumDiagnostics())
       fprintf(stderr, "%d diagnostic%s generated.\n", NumDiagnostics,
               (NumDiagnostics == 1 ? "" : "s"));
-  
+
   if (Stats) {
     FileMgr.PrintStats();
     fprintf(stderr, "\n");
@@ -2302,11 +2477,11 @@ int main(int argc, char **argv) {
 
   delete ClangFrontendTimer;
   delete BuildLogFile;
-  
+
   // If verifying diagnostics and we reached here, all is well.
   if (VerifyDiagnostics)
     return 0;
-  
+
   // Managed static deconstruction. Useful for making things like
   // -time-passes usable.
   llvm::llvm_shutdown();

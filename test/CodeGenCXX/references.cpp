@@ -87,3 +87,16 @@ int reference_decl() {
   const int& b = 1;
   return a+b;
 }
+
+struct A {
+  int& b();
+};
+
+void f(A* a) {
+  int b = a->b();
+}
+
+// PR5122
+void *foo = 0;
+void * const & kFoo = foo;
+

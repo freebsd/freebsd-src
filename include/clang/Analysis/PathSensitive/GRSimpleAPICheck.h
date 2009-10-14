@@ -20,16 +20,16 @@
 #include "clang/Analysis/PathSensitive/GRState.h"
 
 namespace clang {
-  
+
 class Diagnostic;
 class BugReporter;
 class ASTContext;
 class GRExprEngine;
 class PathDiagnosticClient;
-template <typename T> class ExplodedGraph;
-  
-  
-class GRSimpleAPICheck : public GRAuditor<GRState> {
+class ExplodedGraph;
+
+
+class GRSimpleAPICheck : public GRAuditor {
 public:
   GRSimpleAPICheck() {}
   virtual ~GRSimpleAPICheck() {}

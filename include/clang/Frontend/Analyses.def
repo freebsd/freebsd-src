@@ -24,6 +24,10 @@ ANALYSIS(CFGView, "cfg-view",
 ANALYSIS(DisplayLiveVariables, "dump-live-variables",
          "Print results of live variable analysis", Code)
 
+ANALYSIS(SecuritySyntacticChecks, "warn-security-syntactic",
+         "Perform quick security checks that require no data flow",
+         Code)
+
 ANALYSIS(WarnDeadStores, "warn-dead-stores",
          "Warn about stores to dead variables", Code)
 
@@ -43,6 +47,10 @@ ANALYSIS(WarnObjCUnusedIvars, "warn-objc-unused-ivars",
 
 ANALYSIS(CheckerCFRef, "checker-cfref",
          "Run the [Core] Foundation reference count checker", Code)
+
+ANALYSIS(InlineCall, "inline-call",
+         "Experimental transfer function inling callees when its definition"
+         " is available.", TranslationUnit)
 
 #ifndef ANALYSIS_STORE
 #define ANALYSIS_STORE(NAME, CMDFLAG, DESC, CREATFN)
@@ -64,6 +72,7 @@ ANALYSIS_CONSTRAINTS(RangeConstraints, "range", "Use constraint tracking of conc
 
 ANALYSIS_DIAGNOSTICS(HTML,  "html",  "Output analysis results using HTML",   CreateHTMLDiagnosticClient, false)
 ANALYSIS_DIAGNOSTICS(PLIST, "plist", "Output analysis results using Plists", CreatePlistDiagnosticClient, true)
+ANALYSIS_DIAGNOSTICS(PLIST_HTML, "plist-html", "Output analysis results using HTML wrapped with Plists", CreatePlistHTMLDiagnosticClient, true)
 
 #undef ANALYSIS
 #undef ANALYSIS_STORE

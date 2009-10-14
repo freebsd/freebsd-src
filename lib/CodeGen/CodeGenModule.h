@@ -17,15 +17,21 @@
 #include "clang/Basic/LangOptions.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclObjC.h"
 #include "CGBlocks.h"
 #include "CGCall.h"
 #include "CGCXX.h"
+#include "CGVtable.h"
 #include "CodeGenTypes.h"
+#include "Mangle.h"
+#include "llvm/Module.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/ValueHandle.h"
 #include <list>
+
+#define ATTACH_DEBUG_INFO_TO_AN_INSN 1 
 
 namespace llvm {
   class Module;
@@ -34,6 +40,7 @@ namespace llvm {
   class GlobalValue;
   class TargetData;
   class FunctionType;
+  class LLVMContext;
 }
 
 namespace clang {
@@ -68,42 +75,50 @@ namespace CodeGen {
 /// GlobalDecl - represents a global declaration. This can either be a
 /// CXXConstructorDecl and the constructor type (Base, Complete).
 /// a CXXDestructorDecl and the destructor type (Base, Complete) or
-// a regular VarDecl or a FunctionDecl.
+/// a VarDecl, a FunctionDecl or a BlockDecl.
 class GlobalDecl {
-  llvm::PointerIntPair<const ValueDecl*, 2> Value;
+  llvm::PointerIntPair<const Decl*, 2> Value;
+
+  void Init(const Decl *D) {
+    assert(!isa<CXXConstructorDecl>(D) && "Use other ctor with ctor decls!");
+    assert(!isa<CXXDestructorDecl>(D) && "Use other ctor with dtor decls!");
+
+    Value.setPointer(D);
+  }
   
 public:
   GlobalDecl() {}
-  
-  explicit GlobalDecl(const ValueDecl *VD) : Value(VD, 0) {
-    assert(!isa<CXXConstructorDecl>(VD) && "Use other ctor with ctor decls!");
-    assert(!isa<CXXDestructorDecl>(VD) && "Use other ctor with dtor decls!");
-  }
-  GlobalDecl(const CXXConstructorDecl *D, CXXCtorType Type) 
+
+  GlobalDecl(const VarDecl *D) { Init(D);}
+  GlobalDecl(const FunctionDecl *D) { Init(D); }
+  GlobalDecl(const BlockDecl *D) { Init(D); }
+  GlobalDecl(const ObjCMethodDecl *D) { Init(D); }
+
+  GlobalDecl(const CXXConstructorDecl *D, CXXCtorType Type)
   : Value(D, Type) {}
   GlobalDecl(const CXXDestructorDecl *D, CXXDtorType Type)
   : Value(D, Type) {}
-  
-  const ValueDecl *getDecl() const { return Value.getPointer(); }
-  
+
+  const Decl *getDecl() const { return Value.getPointer(); }
+
   CXXCtorType getCtorType() const {
     assert(isa<CXXConstructorDecl>(getDecl()) && "Decl is not a ctor!");
     return static_cast<CXXCtorType>(Value.getInt());
   }
-  
+
   CXXDtorType getDtorType() const {
     assert(isa<CXXDestructorDecl>(getDecl()) && "Decl is not a dtor!");
     return static_cast<CXXDtorType>(Value.getInt());
   }
 };
-  
+
 /// CodeGenModule - This class organizes the cross-function state that is used
 /// while generating LLVM code.
 class CodeGenModule : public BlockModule {
   CodeGenModule(const CodeGenModule&);  // DO NOT IMPLEMENT
   void operator=(const CodeGenModule&); // DO NOT IMPLEMENT
 
-  typedef std::vector< std::pair<llvm::Constant*, int> > CtorList;
+  typedef std::vector<std::pair<llvm::Constant*, int> > CtorList;
 
   ASTContext &Context;
   const LangOptions &Features;
@@ -112,9 +127,14 @@ class CodeGenModule : public BlockModule {
   const llvm::TargetData &TheTargetData;
   Diagnostic &Diags;
   CodeGenTypes Types;
+  MangleContext MangleCtx;
+
+  /// VtableInfo - Holds information about C++ vtables.
+  CGVtableInfo VtableInfo;
+  
   CGObjCRuntime* Runtime;
   CGDebugInfo* DebugInfo;
-
+  
   llvm::Function *MemCpyFn;
   llvm::Function *MemMoveFn;
   llvm::Function *MemSetFn;
@@ -171,9 +191,15 @@ class CodeGenModule : public BlockModule {
   llvm::StringMap<llvm::Constant*> CFConstantStringMap;
   llvm::StringMap<llvm::Constant*> ConstantStringMap;
 
+  /// CXXGlobalInits - Variables with global initializers that need to run
+  /// before main.
+  std::vector<const VarDecl*> CXXGlobalInits;
+
   /// CFConstantStringClassRef - Cached reference to the class for constant
   /// strings. This value has type int * but is actually an Obj-C class pointer.
   llvm::Constant *CFConstantStringClassRef;
+
+  llvm::LLVMContext &VMContext;
 public:
   CodeGenModule(ASTContext &C, const CompileOptions &CompileOpts,
                 llvm::Module &M, const llvm::TargetData &TD, Diagnostic &Diags);
@@ -200,8 +226,11 @@ public:
   const LangOptions &getLangOptions() const { return Features; }
   llvm::Module &getModule() const { return TheModule; }
   CodeGenTypes &getTypes() { return Types; }
+  MangleContext &getMangleContext() { return MangleCtx; }
+  CGVtableInfo &getVtableInfo() { return VtableInfo; }
   Diagnostic &getDiags() const { return Diags; }
   const llvm::TargetData &getTargetData() const { return TheTargetData; }
+  llvm::LLVMContext &getLLVMContext() { return VMContext; }
 
   /// getDeclVisibilityMode - Compute the visibility of the decl \arg D.
   LangOptions::VisibilityMode getDeclVisibilityMode(const Decl *D) const;
@@ -223,6 +252,22 @@ public:
   llvm::Constant *GetAddrOfFunction(GlobalDecl GD,
                                     const llvm::Type *Ty = 0);
 
+  /// GenerateRtti - Generate the rtti information for the given type.
+  llvm::Constant *GenerateRtti(const CXXRecordDecl *RD);
+
+  /// BuildThunk - Build a thunk for the given method
+  llvm::Constant *BuildThunk(const CXXMethodDecl *MD, bool Extern, int64_t nv,
+                             int64_t v);
+  /// BuildCoVariantThunk - Build a thunk for the given method
+  llvm::Constant *BuildCovariantThunk(const CXXMethodDecl *MD, bool Extern,
+                                      int64_t nv_t, int64_t v_t,
+                                      int64_t nv_r, int64_t v_r);
+
+  /// GetCXXBaseClassOffset - Returns the offset from a derived class to its
+  /// base class. Returns null if the offset is 0.
+  llvm::Constant *GetCXXBaseClassOffset(const CXXRecordDecl *ClassDecl,
+                                        const CXXRecordDecl *BaseClassDecl);
+
   /// GetStringForStringLiteral - Return the appropriate bytes for a string
   /// literal, properly padded to match the literal type. If only the address of
   /// a constant is needed consider using GetAddrOfConstantStringLiteral.
@@ -239,7 +284,7 @@ public:
   /// GetAddrOfConstantStringFromObjCEncode - Return a pointer to a constant
   /// array for the given ObjCEncodeExpr node.
   llvm::Constant *GetAddrOfConstantStringFromObjCEncode(const ObjCEncodeExpr *);
-  
+
   /// GetAddrOfConstantString - Returns a pointer to a character array
   /// containing the literal. This contents are exactly that of the given
   /// string, i.e. it will not be null terminated automatically; see
@@ -264,17 +309,18 @@ public:
 
   /// GetAddrOfCXXConstructor - Return the address of the constructor of the
   /// given type.
-  llvm::Function *GetAddrOfCXXConstructor(const CXXConstructorDecl *D, 
+  llvm::Function *GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
                                           CXXCtorType Type);
 
   /// GetAddrOfCXXDestructor - Return the address of the constructor of the
   /// given type.
-  llvm::Function *GetAddrOfCXXDestructor(const CXXDestructorDecl *D, 
+  llvm::Function *GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
                                          CXXDtorType Type);
-  
+
   /// getBuiltinLibFunction - Given a builtin id for a function like
   /// "__builtin_fabsf", return a Function* for "fabsf".
-  llvm::Value *getBuiltinLibFunction(unsigned BuiltinID);
+  llvm::Value *getBuiltinLibFunction(const FunctionDecl *FD,
+                                     unsigned BuiltinID);
 
   llvm::Function *getMemCpyFn();
   llvm::Function *getMemMoveFn();
@@ -355,20 +401,30 @@ public:
   /// as a return type.
   bool ReturnTypeUsesSret(const CGFunctionInfo &FI);
 
+  /// ConstructAttributeList - Get the LLVM attributes and calling convention to
+  /// use for a particular function type.
+  ///
+  /// \param Info - The function type information.
+  /// \param TargetDecl - The decl these attributes are being constructed
+  /// for. If supplied the attributes applied to this decl may contribute to the
+  /// function attributes and calling convention.
+  /// \param PAL [out] - On return, the attribute list to use.
+  /// \param CallingConv [out] - On return, the LLVM calling convention to use.
   void ConstructAttributeList(const CGFunctionInfo &Info,
                               const Decl *TargetDecl,
-                              AttributeListType &PAL);
+                              AttributeListType &PAL,
+                              unsigned &CallingConv);
 
   const char *getMangledName(const GlobalDecl &D);
 
   const char *getMangledName(const NamedDecl *ND);
-  const char *getMangledCXXCtorName(const CXXConstructorDecl *D, 
+  const char *getMangledCXXCtorName(const CXXConstructorDecl *D,
                                     CXXCtorType Type);
-  const char *getMangledCXXDtorName(const CXXDestructorDecl *D, 
+  const char *getMangledCXXDtorName(const CXXDestructorDecl *D,
                                     CXXDtorType Type);
 
   void EmitTentativeDefinition(const VarDecl *D);
-  
+
   enum GVALinkage {
     GVA_Internal,
     GVA_C99Inline,
@@ -376,19 +432,22 @@ public:
     GVA_StrongExternal,
     GVA_TemplateInstantiation
   };
-  
+
 private:
   /// UniqueMangledName - Unique a name by (if necessary) inserting it into the
   /// MangledNames string map.
   const char *UniqueMangledName(const char *NameStart, const char *NameEnd);
-  
+
   llvm::Constant *GetOrCreateLLVMFunction(const char *MangledName,
                                           const llvm::Type *Ty,
                                           GlobalDecl D);
   llvm::Constant *GetOrCreateLLVMGlobal(const char *MangledName,
                                         const llvm::PointerType *PTy,
                                         const VarDecl *D);
-  
+  void DeferredCopyConstructorToEmit(GlobalDecl D);
+  void DeferredCopyAssignmentToEmit(GlobalDecl D);
+  void DeferredDestructorToEmit(GlobalDecl D);
+
   /// SetCommonAttributes - Set attributes which are common to any
   /// form of a global definition (alias, Objective-C method,
   /// function, global variable).
@@ -397,9 +456,9 @@ private:
   void SetCommonAttributes(const Decl *D, llvm::GlobalValue *GV);
 
   /// SetFunctionDefinitionAttributes - Set attributes for a global definition.
-  void SetFunctionDefinitionAttributes(const FunctionDecl *D, 
+  void SetFunctionDefinitionAttributes(const FunctionDecl *D,
                                        llvm::GlobalValue *GV);
-    
+
   /// SetFunctionAttributes - Set function attributes for a function
   /// declaration.
   void SetFunctionAttributes(const FunctionDecl *FD,
@@ -418,26 +477,29 @@ private:
   void EmitObjCPropertyImplementations(const ObjCImplementationDecl *D);
 
   // C++ related functions.
-  
+
   void EmitNamespace(const NamespaceDecl *D);
   void EmitLinkageSpec(const LinkageSpecDecl *D);
 
   /// EmitCXXConstructors - Emit constructors (base, complete) from a
   /// C++ constructor Decl.
   void EmitCXXConstructors(const CXXConstructorDecl *D);
-  
+
   /// EmitCXXConstructor - Emit a single constructor with the given type from
   /// a C++ constructor Decl.
   void EmitCXXConstructor(const CXXConstructorDecl *D, CXXCtorType Type);
-  
-  /// EmitCXXDestructors - Emit destructors (base, complete) from a 
+
+  /// EmitCXXDestructors - Emit destructors (base, complete) from a
   /// C++ destructor Decl.
   void EmitCXXDestructors(const CXXDestructorDecl *D);
-  
+
   /// EmitCXXDestructor - Emit a single destructor with the given type from
   /// a C++ destructor Decl.
   void EmitCXXDestructor(const CXXDestructorDecl *D, CXXDtorType Type);
-  
+
+  /// EmitCXXGlobalInitFunc - Emit a function that initializes C++ globals.
+  void EmitCXXGlobalInitFunc();
+
   // FIXME: Hardcoding priority here is gross.
   void AddGlobalCtor(llvm::Function *Ctor, int Priority=65535);
   void AddGlobalDtor(llvm::Function *Dtor, int Priority=65535);

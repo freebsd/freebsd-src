@@ -17,21 +17,26 @@
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/Config/config.h"
 #include <cstdio>
-#include <vector>
+#ifdef _MSC_VER
+  #define WIN32_LEAN_AND_MEAN 1
+  #include <windows.h>
+#endif
 using namespace clang;
 
-void InitHeaderSearch::AddPath(const std::string &Path, IncludeDirGroup Group,
-                               bool isCXXAware, bool isUserSupplied,
-                               bool isFramework, bool IgnoreSysRoot) {
+void InitHeaderSearch::AddPath(const llvm::StringRef &Path,
+                               IncludeDirGroup Group, bool isCXXAware,
+                               bool isUserSupplied, bool isFramework,
+                               bool IgnoreSysRoot) {
   assert(!Path.empty() && "can't handle empty path here");
   FileManager &FM = Headers.getFileMgr();
-  
+
   // Compute the actual path, taking into consideration -isysroot.
   llvm::SmallString<256> MappedPath;
-  
+
   // Handle isysroot.
   if (Group == System && !IgnoreSysRoot) {
     // FIXME: Portability.  This should be a sys::Path interface, this doesn't
@@ -39,7 +44,7 @@ void InitHeaderSearch::AddPath(const std::string &Path, IncludeDirGroup Group,
     if (isysroot.size() != 1 || isysroot[0] != '/') // Add isysroot if present.
       MappedPath.append(isysroot.begin(), isysroot.end());
   }
-  
+
   MappedPath.append(Path.begin(), Path.end());
 
   // Compute the DirectoryLookup type.
@@ -50,22 +55,19 @@ void InitHeaderSearch::AddPath(const std::string &Path, IncludeDirGroup Group,
     Type = SrcMgr::C_System;
   else
     Type = SrcMgr::C_ExternCSystem;
-  
-  
+
+
   // If the directory exists, add it.
-  if (const DirectoryEntry *DE = FM.getDirectory(&MappedPath[0], 
-                                                 &MappedPath[0]+
-                                                 MappedPath.size())) {
+  if (const DirectoryEntry *DE = FM.getDirectory(MappedPath.str())) {
     IncludeGroup[Group].push_back(DirectoryLookup(DE, Type, isUserSupplied,
                                                   isFramework));
     return;
   }
-  
+
   // Check to see if this is an apple-style headermap (which are not allowed to
   // be frameworks).
   if (!isFramework) {
-    if (const FileEntry *FE = FM.getFile(&MappedPath[0], 
-                                         &MappedPath[0]+MappedPath.size())) {
+    if (const FileEntry *FE = FM.getFile(MappedPath.str())) {
       if (const HeaderMap *HM = Headers.CreateHeaderMap(FE)) {
         // It is a headermap, add it to the search path.
         IncludeGroup[Group].push_back(DirectoryLookup(HM, Type,isUserSupplied));
@@ -73,10 +75,10 @@ void InitHeaderSearch::AddPath(const std::string &Path, IncludeDirGroup Group,
       }
     }
   }
-  
+
   if (Verbose)
-    fprintf(stderr, "ignoring nonexistent directory \"%s\"\n",
-            MappedPath.c_str());
+    llvm::errs() << "ignoring nonexistent directory \""
+                 << MappedPath.str() << "\"\n";
 }
 
 
@@ -90,8 +92,7 @@ void InitHeaderSearch::AddEnvVarPaths(const char *Name) {
     if (delim-at == 0)
       AddPath(".", Angled, false, true, false);
     else
-      AddPath(std::string(at, std::string::size_type(delim-at)), Angled, false,
-              true, false);
+      AddPath(llvm::StringRef(at, delim-at), Angled, false, true, false);
     at = delim + 1;
     delim = strchr(at, llvm::sys::PathSeparator);
   }
@@ -101,104 +102,321 @@ void InitHeaderSearch::AddEnvVarPaths(const char *Name) {
     AddPath(at, Angled, false, true, false);
 }
 
+void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(const std::string &Base,
+                                                   const char *Dir32,
+                                                   const char *Dir64,
+                                                   const llvm::Triple &triple) {
+  llvm::Triple::ArchType arch = triple.getArch();
+  bool is64bit = arch == llvm::Triple::ppc64 || arch == llvm::Triple::x86_64;
 
-void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang) {
-  // FIXME: temporary hack: hard-coded paths.
-  // FIXME: get these from the target?
+  AddPath(Base, System, true, false, false);
+  if (is64bit)
+    AddPath(Base + "/" + Dir64, System, true, false, false);
+  else
+    AddPath(Base + "/" + Dir32, System, true, false, false);
+  AddPath(Base + "/backward", System, true, false, false);
+}
 
-#ifdef LLVM_ON_WIN32
-  if (Lang.CPlusPlus) {
-    // Mingw32 GCC version 4
-    AddPath("c:/mingw/lib/gcc/mingw32/4.3.0/include/c++",
-            System, true, false, false);
-    AddPath("c:/mingw/lib/gcc/mingw32/4.3.0/include/c++/mingw32",
-            System, true, false, false);
-    AddPath("c:/mingw/lib/gcc/mingw32/4.3.0/include/c++/backward",
-            System, true, false, false);
+void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(const std::string &Base,
+                                                     const char *Arch,
+                                                     const char *Version) {
+    std::string localBase = Base + "/" + Arch + "/" + Version + "/include";
+    AddPath(localBase, System, true, false, false);
+    AddPath(localBase + "/c++", System, true, false, false);
+    AddPath(localBase + "/c++/backward", System, true, false, false);
+}
+
+  // FIXME: This probably should goto to some platform utils place.
+#ifdef _MSC_VER
+  // Read registry string.
+bool getSystemRegistryString(const char *keyPath, const char *valueName,
+                       char *value, size_t maxLength) {
+  HKEY hRootKey = NULL;
+  HKEY hKey = NULL;
+  const char* subKey = NULL;
+  DWORD valueType;
+  DWORD valueSize = maxLength - 1;
+  bool returnValue = false;
+  if (strncmp(keyPath, "HKEY_CLASSES_ROOT\\", 18) == 0) {
+    hRootKey = HKEY_CLASSES_ROOT;
+    subKey = keyPath + 18;
   }
+  else if (strncmp(keyPath, "HKEY_USERS\\", 11) == 0) {
+    hRootKey = HKEY_USERS;
+    subKey = keyPath + 11;
+  }
+  else if (strncmp(keyPath, "HKEY_LOCAL_MACHINE\\", 19) == 0) {
+    hRootKey = HKEY_LOCAL_MACHINE;
+    subKey = keyPath + 19;
+  }
+  else if (strncmp(keyPath, "HKEY_CURRENT_USER\\", 18) == 0) {
+    hRootKey = HKEY_CURRENT_USER;
+    subKey = keyPath + 18;
+  }
+  else
+    return(false);
+  long lResult = RegOpenKeyEx(hRootKey, subKey, 0, KEY_READ, &hKey);
+  if (lResult == ERROR_SUCCESS) {
+    lResult = RegQueryValueEx(hKey, valueName, NULL, &valueType,
+      (LPBYTE)value, &valueSize);
+    if (lResult == ERROR_SUCCESS)
+      returnValue = true;
+    RegCloseKey(hKey);
+  }
+  return(returnValue);
+}
+#else // _MSC_VER
+  // Read registry string.
+bool getSystemRegistryString(const char *, const char *, char *, size_t) {
+  return(false);
+}
+#endif // _MSC_VER
 
-  // Mingw32 GCC version 4
-  AddPath("C:/mingw/include", System, false, false, false);
-#else
+  // Get Visual Studio installation directory.
+bool getVisualStudioDir(std::string &path) {
+  // Try the Windows registry first.
+  char vs80IDEInstallDir[256];
+  char vs90IDEInstallDir[256];
+  const char* vsIDEInstallDir = NULL;
+  bool has80 = getSystemRegistryString(
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\8.0",
+    "InstallDir", vs80IDEInstallDir, sizeof(vs80IDEInstallDir) - 1);
+  bool has90 = getSystemRegistryString(
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\9.0",
+    "InstallDir", vs90IDEInstallDir, sizeof(vs90IDEInstallDir) - 1);
+    // If we have both vc80 and vc90, pick version we were compiled with. 
+  if (has80 && has90) {
+    #ifdef _MSC_VER
+      #if (_MSC_VER >= 1500)  // VC90
+          vsIDEInstallDir = vs90IDEInstallDir;
+      #elif (_MSC_VER == 1400) // VC80
+          vsIDEInstallDir = vs80IDEInstallDir;
+      #else
+          vsIDEInstallDir = vs90IDEInstallDir;
+      #endif
+    #else
+      vsIDEInstallDir = vs90IDEInstallDir;
+    #endif
+  }
+  else if (has90)
+    vsIDEInstallDir = vs90IDEInstallDir;
+  else if (has80)
+    vsIDEInstallDir = vs80IDEInstallDir;
+  if (vsIDEInstallDir && *vsIDEInstallDir) {
+    char *p = (char*)strstr(vsIDEInstallDir, "\\Common7\\IDE");
+    if (p)
+      *p = '\0';
+    path = vsIDEInstallDir;
+    return(true);
+  }
+  else {
+    // Try the environment.
+    const char* vs90comntools = getenv("VS90COMNTOOLS");
+    const char* vs80comntools = getenv("VS80COMNTOOLS");
+    const char* vscomntools = NULL;
+      // If we have both vc80 and vc90, pick version we were compiled with. 
+    if (vs90comntools && vs80comntools) {
+      #if (_MSC_VER >= 1500)  // VC90
+          vscomntools = vs90comntools;
+      #elif (_MSC_VER == 1400) // VC80
+          vscomntools = vs80comntools;
+      #else
+          vscomntools = vs90comntools;
+      #endif
+    }
+    else if (vs90comntools)
+      vscomntools = vs90comntools;
+    else if (vs80comntools)
+      vscomntools = vs80comntools;
+    if (vscomntools && *vscomntools) {
+      char *p = (char*)strstr(vscomntools, "\\Common7\\Tools");
+      if (p)
+        *p = '\0';
+      path = vscomntools;
+      return(true);
+    }
+    else
+      return(false);
+  }
+  return(false);
+}
 
-  if (Lang.CPlusPlus) {
-    AddPath("/usr/include/c++/4.2.1", System, true, false, false);
-    AddPath("/usr/include/c++/4.2.1/i686-apple-darwin10", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.2.1/backward", System, true, false, false);
+void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
+                                                    const llvm::Triple &triple) {
+  // FIXME: temporary hack: hard-coded paths.
+  llvm::Triple::OSType os = triple.getOS();
 
-    AddPath("/usr/include/c++/4.0.0", System, true, false, false);
-    AddPath("/usr/include/c++/4.0.0/i686-apple-darwin8", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.0.0/backward", System, true, false, false);
-
-    // Ubuntu 7.10 - Gutsy Gibbon
-    AddPath("/usr/include/c++/4.1.3", System, true, false, false);
-    AddPath("/usr/include/c++/4.1.3/i486-linux-gnu", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.1.3/backward", System, true, false, false);
-
-    // Ubuntu 9.04
-    AddPath("/usr/include/c++/4.3.3", System, true, false, false);
-    AddPath("/usr/include/c++/4.3.3/x86_64-linux-gnu/", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.3.3/backward", System, true, false, false);
-
-    // Fedora 8
-    AddPath("/usr/include/c++/4.1.2", System, true, false, false);
-    AddPath("/usr/include/c++/4.1.2/i386-redhat-linux", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.1.2/backward", System, true, false, false);
-
-    // Fedora 9
-    AddPath("/usr/include/c++/4.3.0", System, true, false, false);
-    AddPath("/usr/include/c++/4.3.0/i386-redhat-linux", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.3.0/backward", System, true, false, false);
-
-    // Fedora 10
-    AddPath("/usr/include/c++/4.3.2", System, true, false, false);
-    AddPath("/usr/include/c++/4.3.2/i386-redhat-linux", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.3.2/backward", System, true, false, false);
-
-    // Arch Linux 2008-06-24
-    AddPath("/usr/include/c++/4.3.1", System, true, false, false);
-    AddPath("/usr/include/c++/4.3.1/i686-pc-linux-gnu", System, true, false,
-        false);
-    AddPath("/usr/include/c++/4.3.1/backward", System, true, false, false);
-    AddPath("/usr/include/c++/4.3.1/x86_64-unknown-linux-gnu", System, true,
-        false, false);
-
-    // Gentoo x86 stable
-    AddPath("/usr/lib/gcc/i686-pc-linux-gnu/4.1.2/include/g++-v4", System,
-            true, false, false);
-    AddPath("/usr/lib/gcc/i686-pc-linux-gnu/4.1.2/include/g++-v4/"
-            "i686-pc-linux-gnu", System, true, false, false);
-    AddPath("/usr/lib/gcc/i686-pc-linux-gnu/4.1.2/include/g++-v4/backward",
-            System, true, false, false);
-
-    // Gentoo amd64 stable
-    AddPath("/usr/lib/gcc/x86_64-pc-linux-gnu/4.1.2/include/g++-v4", System,
-            true, false, false);
-    AddPath("/usr/lib/gcc/x86_64-pc-linux-gnu/4.1.2/include/g++-v4/"
-            "i686-pc-linux-gnu", System, true, false, false);
-    AddPath("/usr/lib/gcc/x86_64-pc-linux-gnu/4.1.2/include/g++-v4/backward",
-            System, true, false, false);
-
-    // DragonFly
-    AddPath("/usr/include/c++/4.1", System, true, false, false);
-
-    // FreeBSD
-    AddPath("/usr/include/c++/4.2", System, true, false, false);
+  switch (os) {
+  case llvm::Triple::Win32:
+    {
+      std::string VSDir;
+      if (getVisualStudioDir(VSDir)) {
+        AddPath(VSDir + "\\VC\\include", System, false, false, false);
+        AddPath(VSDir + "\\VC\\PlatformSDK\\Include",
+          System, false, false, false);
+      }
+      else {
+          // Default install paths.
+        AddPath("C:/Program Files/Microsoft Visual Studio 9.0/VC/include",
+          System, false, false, false);
+        AddPath(
+        "C:/Program Files/Microsoft Visual Studio 9.0/VC/PlatformSDK/Include",
+          System, false, false, false);
+        AddPath("C:/Program Files/Microsoft Visual Studio 8/VC/include",
+          System, false, false, false);
+        AddPath(
+        "C:/Program Files/Microsoft Visual Studio 8/VC/PlatformSDK/Include",
+          System, false, false, false);
+          // For some clang developers.
+        AddPath("G:/Program Files/Microsoft Visual Studio 9.0/VC/include",
+          System, false, false, false);
+        AddPath(
+        "G:/Program Files/Microsoft Visual Studio 9.0/VC/PlatformSDK/Include",
+          System, false, false, false);
+      }
+    }
+    break;
+  case llvm::Triple::Cygwin:
+    if (Lang.CPlusPlus) {
+      AddPath("/lib/gcc/i686-pc-cygwin/3.4.4/include",
+        System, false, false, false);
+      AddPath("/lib/gcc/i686-pc-cygwin/3.4.4/include/c++",
+        System, false, false, false);
+    }
+    AddPath("/usr/include", System, false, false, false);
+    break;
+  case llvm::Triple::MinGW64:
+    if (Lang.CPlusPlus) { // I'm guessing here.
+      // Try gcc 4.4.0
+      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw64", "4.4.0");
+      // Try gcc 4.3.0
+      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw64", "4.3.0");
+    }
+    // Fall through.
+  case llvm::Triple::MinGW32:
+    if (Lang.CPlusPlus) {
+      // Try gcc 4.4.0
+      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.4.0");
+      // Try gcc 4.3.0
+      AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.3.0");
+    }
+    AddPath("c:/mingw/include", System, true, false, false);
+    break;
+  default:
+    if (Lang.CPlusPlus) {
+      switch (os) {
+        case llvm::Triple::Darwin:
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2.1",
+                                      "i686-apple-darwin10",
+                                      "i686-apple-darwin10/x86_64",
+                                      triple);
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.0.0",
+                                      "i686-apple-darwin8",
+                                      "i686-apple-darwin8",
+                                      triple);
+          break;
+        case llvm::Triple::Linux:
+          // Ubuntu 7.10 - Gutsy Gibbon
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.1.3",
+                                      "i486-linux-gnu",
+                                      "i486-linux-gnu",
+                                      triple);
+          // Ubuntu 9.04
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.3",
+                                      "x86_64-linux-gnu/32",
+                                      "x86_64-linux-gnu",
+                                      triple);
+          // Fedora 8
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.1.2",
+                                      "i386-redhat-linux",
+                                      "i386-redhat-linux",
+                                      triple);
+          // Fedora 9
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.0",
+                                      "i386-redhat-linux",
+                                      "i386-redhat-linux",
+                                      triple);
+          // Fedora 10
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.2",
+                                      "i386-redhat-linux",
+                                      "i386-redhat-linux",
+                                      triple);
+          // openSUSE 11.1 32 bit
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3",
+                                      "i586-suse-linux",
+                                      "i586-suse-linux",
+                                      triple);
+          // openSUSE 11.1 64 bit
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3",
+                                      "x86_64-suse-linux/32",
+                                      "x86_64-suse-linux",
+                                      triple);
+          // openSUSE 11.2
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4",
+                                      "i586-suse-linux",
+                                      "i586-suse-linux",
+                                      triple);
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4",
+                                      "x86_64-suse-linux",
+                                      "x86_64-suse-linux",
+                                      triple);
+          // Arch Linux 2008-06-24
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.1",
+                                      "i686-pc-linux-gnu",
+                                      "i686-pc-linux-gnu",
+                                      triple);
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3.1",
+                                      "x86_64-unknown-linux-gnu",
+                                      "x86_64-unknown-linux-gnu",
+                                      triple);
+          // Gentoo x86 2009.0 stable
+          AddGnuCPlusPlusIncludePaths(
+             "/usr/lib/gcc/i686-pc-linux-gnu/4.3.2/include/g++-v4",
+             "i686-pc-linux-gnu",
+             "i686-pc-linux-gnu",
+             triple);
+          // Gentoo x86 2008.0 stable
+          AddGnuCPlusPlusIncludePaths(
+             "/usr/lib/gcc/i686-pc-linux-gnu/4.1.2/include/g++-v4",
+             "i686-pc-linux-gnu",
+             "i686-pc-linux-gnu",
+             triple);
+          // Ubuntu 8.10
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3",
+                                      "i486-pc-linux-gnu",
+                                      "i486-pc-linux-gnu",
+                                      triple);
+          // Gentoo amd64 stable
+          AddGnuCPlusPlusIncludePaths(
+             "/usr/lib/gcc/x86_64-pc-linux-gnu/4.1.2/include/g++-v4",
+             "i686-pc-linux-gnu",
+             "i686-pc-linux-gnu",
+             triple);
+          break;
+        case llvm::Triple::FreeBSD:
+          // DragonFly
+          AddPath("/usr/include/c++/4.1", System, true, false, false);
+          // FreeBSD
+          AddPath("/usr/include/c++/4.2", System, true, false, false);
+          break;
+        case llvm::Triple::Solaris:
+          // AuroraUX
+          AddGnuCPlusPlusIncludePaths("/opt/gcc4/include/c++/4.2.4",
+                                      "i386-pc-solaris2.11",
+                                      "i386-pc-solaris2.11",
+                                      triple);
+          break;
+        default:
+          break;
+      }
+    }
+    break;
   }
 
   AddPath("/usr/local/include", System, false, false, false);
-
   AddPath("/usr/include", System, false, false, false);
   AddPath("/System/Library/Frameworks", System, true, false, true);
   AddPath("/Library/Frameworks", System, true, false, true);
-#endif
 }
 
 void InitHeaderSearch::AddDefaultEnvVarPaths(const LangOptions &Lang) {
@@ -223,9 +441,9 @@ static void RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
   llvm::SmallPtrSet<const HeaderMap *, 8> SeenHeaderMaps;
   for (unsigned i = 0; i != SearchList.size(); ++i) {
     unsigned DirToRemove = i;
-    
+
     const DirectoryLookup &CurEntry = SearchList[i];
-    
+
     if (CurEntry.isNormalDir()) {
       // If this isn't the first time we've seen this dir, remove it.
       if (SeenDirs.insert(CurEntry.getDir()))
@@ -240,7 +458,7 @@ static void RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
       if (SeenHeaderMaps.insert(CurEntry.getHeaderMap()))
         continue;
     }
-    
+
     // If we have a normal #include dir/framework/headermap that is shadowed
     // later in the chain by a system include location, we actually want to
     // ignore the user's request and drop the user dir... keeping the system
@@ -253,13 +471,13 @@ static void RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
       unsigned FirstDir;
       for (FirstDir = 0; ; ++FirstDir) {
         assert(FirstDir != i && "Didn't find dupe?");
-        
+
         const DirectoryLookup &SearchEntry = SearchList[FirstDir];
 
         // If these are different lookup types, then they can't be the dupe.
         if (SearchEntry.getLookupType() != CurEntry.getLookupType())
           continue;
-        
+
         bool isSame;
         if (CurEntry.isNormalDir())
           isSame = SearchEntry.getDir() == CurEntry.getDir();
@@ -269,11 +487,11 @@ static void RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
           assert(CurEntry.isHeaderMap() && "Not a headermap or normal dir?");
           isSame = SearchEntry.getHeaderMap() == CurEntry.getHeaderMap();
         }
-        
+
         if (isSame)
           break;
       }
-      
+
       // If the first dir in the search path is a non-system dir, zap it
       // instead of the system one.
       if (SearchList[FirstDir].getDirCharacteristic() == SrcMgr::C_User)
@@ -287,7 +505,7 @@ static void RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
         fprintf(stderr, "  as it is a non-system directory that duplicates"
                 " a system directory\n");
     }
-    
+
     // This is reached if the current entry is a duplicate.  Remove the
     // DirToRemove (usually the current dir).
     SearchList.erase(SearchList.begin()+DirToRemove);
@@ -306,11 +524,11 @@ void InitHeaderSearch::Realize() {
                     IncludeGroup[After].end());
   RemoveDuplicates(SearchList, Verbose);
   RemoveDuplicates(IncludeGroup[Quoted], Verbose);
-  
+
   // Prepend QUOTED list on the search list.
-  SearchList.insert(SearchList.begin(), IncludeGroup[Quoted].begin(), 
+  SearchList.insert(SearchList.begin(), IncludeGroup[Quoted].begin(),
                     IncludeGroup[Quoted].end());
-  
+
 
   bool DontSearchCurDir = false;  // TODO: set to true if -I- is set?
   Headers.SetSearchPaths(SearchList, IncludeGroup[Quoted].size(),
@@ -338,4 +556,3 @@ void InitHeaderSearch::Realize() {
     fprintf(stderr, "End of search list.\n");
   }
 }
-

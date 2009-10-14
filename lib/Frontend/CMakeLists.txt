@@ -1,9 +1,9 @@
 set(LLVM_NO_RTTI 1)
 
 add_clang_library(clangFrontend
-  AnalysisConsumer.cpp
   ASTConsumers.cpp
   ASTUnit.cpp
+  AnalysisConsumer.cpp
   Backend.cpp
   CacheTokens.cpp
   DeclXML.cpp
@@ -26,7 +26,6 @@ add_clang_library(clangFrontend
   PlistDiagnostics.cpp
   PrintParserCallbacks.cpp
   PrintPreprocessedOutput.cpp
-  ResolveLocation.cpp
   RewriteBlocks.cpp
   RewriteMacros.cpp
   RewriteObjC.cpp
@@ -37,6 +36,14 @@ add_clang_library(clangFrontend
   TypeXML.cpp
   Warnings.cpp
   )
+
+IF(MSVC)
+  get_target_property(NON_ANSI_COMPILE_FLAGS clangFrontend COMPILE_FLAGS)
+  string(REPLACE /Za
+    "" NON_ANSI_COMPILE_FLAGS
+    ${NON_ANSI_COMPILE_FLAGS})
+  set_target_properties(clangFrontend PROPERTIES COMPILE_FLAGS ${NON_ANSI_COMPILE_FLAGS})
+ENDIF(MSVC)
 
 add_dependencies(clangFrontend 
   ClangDiagnosticFrontend 

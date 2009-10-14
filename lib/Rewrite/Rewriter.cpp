@@ -26,7 +26,7 @@ void RewriteBuffer::RemoveText(unsigned OrigOffset, unsigned Size) {
 
   unsigned RealOffset = getMappedOffset(OrigOffset, true);
   assert(RealOffset+Size < Buffer.size() && "Invalid location");
-  
+
   // Remove the dead characters.
   Buffer.erase(RealOffset, Size);
 
@@ -34,30 +34,29 @@ void RewriteBuffer::RemoveText(unsigned OrigOffset, unsigned Size) {
   AddReplaceDelta(OrigOffset, -Size);
 }
 
-void RewriteBuffer::InsertText(unsigned OrigOffset,
-                               const char *StrData, unsigned StrLen,
+void RewriteBuffer::InsertText(unsigned OrigOffset, const llvm::StringRef &Str,
                                bool InsertAfter) {
-  
+
   // Nothing to insert, exit early.
-  if (StrLen == 0) return;
+  if (Str.empty()) return;
 
   unsigned RealOffset = getMappedOffset(OrigOffset, InsertAfter);
-  Buffer.insert(RealOffset, StrData, StrData+StrLen);
-  
+  Buffer.insert(RealOffset, Str.begin(), Str.end());
+
   // Add a delta so that future changes are offset correctly.
-  AddInsertDelta(OrigOffset, StrLen);
+  AddInsertDelta(OrigOffset, Str.size());
 }
 
 /// ReplaceText - This method replaces a range of characters in the input
 /// buffer with a new string.  This is effectively a combined "remove+insert"
 /// operation.
 void RewriteBuffer::ReplaceText(unsigned OrigOffset, unsigned OrigLength,
-                                const char *NewStr, unsigned NewLength) {
+                                const llvm::StringRef &NewStr) {
   unsigned RealOffset = getMappedOffset(OrigOffset, true);
   Buffer.erase(RealOffset, OrigLength);
-  Buffer.insert(RealOffset, NewStr, NewStr+NewLength);
-  if (OrigLength != NewLength)
-    AddReplaceDelta(OrigOffset, NewLength-OrigLength);
+  Buffer.insert(RealOffset, NewStr.begin(), NewStr.end());
+  if (OrigLength != NewStr.size())
+    AddReplaceDelta(OrigOffset, NewStr.size() - OrigLength);
 }
 
 
@@ -70,16 +69,16 @@ void RewriteBuffer::ReplaceText(unsigned OrigOffset, unsigned OrigLength,
 int Rewriter::getRangeSize(SourceRange Range) const {
   if (!isRewritable(Range.getBegin()) ||
       !isRewritable(Range.getEnd())) return -1;
-  
+
   FileID StartFileID, EndFileID;
   unsigned StartOff, EndOff;
-  
+
   StartOff = getLocationOffsetAndFileID(Range.getBegin(), StartFileID);
   EndOff   = getLocationOffsetAndFileID(Range.getEnd(), EndFileID);
-  
+
   if (StartFileID != EndFileID)
     return -1;
-  
+
   // If edits have been made to this buffer, the delta between the range may
   // have changed.
   std::map<FileID, RewriteBuffer>::const_iterator I =
@@ -90,17 +89,17 @@ int Rewriter::getRangeSize(SourceRange Range) const {
     StartOff = RB.getMappedOffset(StartOff);
   }
 
-  
+
   // Adjust the end offset to the end of the last token, instead of being the
   // start of the last token.
   EndOff += Lexer::MeasureTokenLength(Range.getEnd(), *SourceMgr, *LangOpts);
-  
+
   return EndOff-StartOff;
 }
 
 /// getRewritenText - Return the rewritten form of the text in the specified
 /// range.  If the start or end of the range was unrewritable or if they are
-/// in different buffers, this returns an empty string. 
+/// in different buffers, this returns an empty string.
 ///
 /// Note that this method is not particularly efficient.
 ///
@@ -108,15 +107,15 @@ std::string Rewriter::getRewritenText(SourceRange Range) const {
   if (!isRewritable(Range.getBegin()) ||
       !isRewritable(Range.getEnd()))
     return "";
-  
+
   FileID StartFileID, EndFileID;
   unsigned StartOff, EndOff;
   StartOff = getLocationOffsetAndFileID(Range.getBegin(), StartFileID);
   EndOff   = getLocationOffsetAndFileID(Range.getEnd(), EndFileID);
-  
+
   if (StartFileID != EndFileID)
     return ""; // Start and end in different buffers.
-  
+
   // If edits have been made to this buffer, the delta between the range may
   // have changed.
   std::map<FileID, RewriteBuffer>::const_iterator I =
@@ -124,17 +123,17 @@ std::string Rewriter::getRewritenText(SourceRange Range) const {
   if (I == RewriteBuffers.end()) {
     // If the buffer hasn't been rewritten, just return the text from the input.
     const char *Ptr = SourceMgr->getCharacterData(Range.getBegin());
-    
+
     // Adjust the end offset to the end of the last token, instead of being the
     // start of the last token.
     EndOff += Lexer::MeasureTokenLength(Range.getEnd(), *SourceMgr, *LangOpts);
     return std::string(Ptr, Ptr+EndOff-StartOff);
   }
-  
+
   const RewriteBuffer &RB = I->second;
   EndOff = RB.getMappedOffset(EndOff, true);
   StartOff = RB.getMappedOffset(StartOff);
-  
+
   // Adjust the end offset to the end of the last token, instead of being the
   // start of the last token.
   EndOff += Lexer::MeasureTokenLength(Range.getEnd(), *SourceMgr, *LangOpts);
@@ -144,7 +143,7 @@ std::string Rewriter::getRewritenText(SourceRange Range) const {
   std::advance(Start, StartOff);
   RewriteBuffer::iterator End = Start;
   std::advance(End, EndOff-StartOff);
-  
+
   return std::string(Start, End);
 }
 
@@ -162,24 +161,24 @@ unsigned Rewriter::getLocationOffsetAndFileID(SourceLocation Loc,
 RewriteBuffer &Rewriter::getEditBuffer(FileID FID) {
   std::map<FileID, RewriteBuffer>::iterator I =
     RewriteBuffers.lower_bound(FID);
-  if (I != RewriteBuffers.end() && I->first == FID) 
+  if (I != RewriteBuffers.end() && I->first == FID)
     return I->second;
   I = RewriteBuffers.insert(I, std::make_pair(FID, RewriteBuffer()));
-  
+
   std::pair<const char*, const char*> MB = SourceMgr->getBufferData(FID);
   I->second.Initialize(MB.first, MB.second);
-  
+
   return I->second;
 }
 
 /// InsertText - Insert the specified string at the specified location in the
 /// original buffer.
-bool Rewriter::InsertText(SourceLocation Loc, const char *StrData,
-                          unsigned StrLen, bool InsertAfter) {
+bool Rewriter::InsertText(SourceLocation Loc, const llvm::StringRef &Str,
+                          bool InsertAfter) {
   if (!isRewritable(Loc)) return true;
   FileID FID;
   unsigned StartOffs = getLocationOffsetAndFileID(Loc, FID);
-  getEditBuffer(FID).InsertText(StartOffs, StrData, StrLen, InsertAfter);
+  getEditBuffer(FID).InsertText(StartOffs, Str, InsertAfter);
   return false;
 }
 
@@ -196,13 +195,12 @@ bool Rewriter::RemoveText(SourceLocation Start, unsigned Length) {
 /// buffer with a new string.  This is effectively a combined "remove/insert"
 /// operation.
 bool Rewriter::ReplaceText(SourceLocation Start, unsigned OrigLength,
-                           const char *NewStr, unsigned NewLength) {
+                           const llvm::StringRef &NewStr) {
   if (!isRewritable(Start)) return true;
   FileID StartFileID;
   unsigned StartOffs = getLocationOffsetAndFileID(Start, StartFileID);
-  
-  getEditBuffer(StartFileID).ReplaceText(StartOffs, OrigLength,
-                                         NewStr, NewLength);
+
+  getEditBuffer(StartFileID).ReplaceText(StartOffs, OrigLength, NewStr);
   return false;
 }
 
@@ -214,14 +212,14 @@ bool Rewriter::ReplaceStmt(Stmt *From, Stmt *To) {
   int Size = getRangeSize(From->getSourceRange());
   if (Size == -1)
     return true;
-  
+
   // Get the new text.
   std::string SStr;
   llvm::raw_string_ostream S(SStr);
   To->printPretty(S, 0, PrintingPolicy(*LangOpts));
   const std::string &Str = S.str();
 
-  ReplaceText(From->getLocStart(), Size, &Str[0], Str.size());
+  ReplaceText(From->getLocStart(), Size, Str);
   return false;
 }
 

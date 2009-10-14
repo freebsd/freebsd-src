@@ -13,8 +13,8 @@ namespace A {
 }
 
 A:: ; // expected-error {{expected unqualified-id}}
-::A::ax::undef ex3; // expected-error {{expected a class or namespace}} expected-error {{unknown type name 'undef'}}
-A::undef1::undef2 ex4; // expected-error {{no member named 'undef1'}} expected-error {{unknown type name 'undef2'}}
+::A::ax::undef ex3; // expected-error {{no member named}}
+A::undef1::undef2 ex4; // expected-error {{no member named 'undef1'}}
 
 int A::C::Ag1() { return 0; }
 
@@ -35,9 +35,9 @@ class C2 {
   int x;
 };
 
-void C2::m() const { } // expected-error{{out-of-line definition does not match any declaration in 'C2'}}
+void C2::m() const { } // expected-error{{out-of-line definition of 'm' does not match any declaration in 'class C2'}}
 
-void C2::f(int) { } // expected-error{{out-of-line definition does not match any declaration in 'C2'}}
+void C2::f(int) { } // expected-error{{out-of-line definition of 'f' does not match any declaration in 'class C2'}}
 
 void C2::m() {
   x = 0;
@@ -125,7 +125,7 @@ class Operators {
   operator bool();
 };
 
-Operators Operators::operator+(const Operators&) { // expected-error{{out-of-line definition does not match any declaration in 'Operators'}}
+Operators Operators::operator+(const Operators&) { // expected-error{{out-of-line definition of 'operator+' does not match any declaration in 'class Operators'}}
   Operators ops;
   return ops;
 }
@@ -143,13 +143,13 @@ namespace A {
   void g(int&); // expected-note{{member declaration nearly matches}}
 } 
 
-void A::f() {} // expected-error{{out-of-line definition does not match any declaration in 'A'}}
+void A::f() {} // expected-error{{out-of-line definition of 'f' does not match any declaration in namespace 'A'}}
 
-void A::g(const int&) { } // expected-error{{out-of-line definition does not match any declaration in 'A'}}
+void A::g(const int&) { } // expected-error{{out-of-line definition of 'g' does not match any declaration in namespace 'A'}}
 
 struct Struct { };
 
-void Struct::f() { } // expected-error{{out-of-line definition does not match any declaration in 'Struct'}}
+void Struct::f() { } // expected-error{{out-of-line definition of 'f' does not match any declaration in 'struct Struct'}}
 
 void global_func(int);
 void global_func2(int);
@@ -166,13 +166,16 @@ void N::f() { } // okay
 
 struct Y;  // expected-note{{forward declaration of 'struct Y'}}
 Y::foo y; // expected-error{{incomplete type 'struct Y' named in nested name specifier}} \
-         // expected-error{{unknown type name 'foo'}}
+         // expected-error{{no type named 'foo' in}}
 
 X::X() : a(5) { } // expected-error{{use of undeclared identifier 'X'}} \
       // expected-error{{C++ requires a type specifier for all declarations}} \
       // expected-error{{only constructors take base initializers}}
 
-
+struct foo_S {
+  static bool value;
+};
+bool (foo_S::value);
 
 
 namespace somens {

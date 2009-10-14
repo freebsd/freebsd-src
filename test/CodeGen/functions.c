@@ -3,11 +3,11 @@
 int g();
 
 int foo(int i) {
-	return g(i);
+  return g(i);
 }
 
 int g(int i) {
-	return g(i);
+  return g(i);
 }
 
 // rdar://6110827
@@ -32,6 +32,7 @@ void f1() {}
 
 // RUN: grep 'define .* @f3' %t | not grep -F '...'
 struct foo { int X, Y, Z; } f3() {
+  while (1) {}
 }
 
 // PR4423 - This shouldn't crash in codegen

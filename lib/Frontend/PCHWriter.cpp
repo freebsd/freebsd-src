@@ -13,7 +13,7 @@
 
 #include "clang/Frontend/PCHWriter.h"
 #include "../Sema/Sema.h" // FIXME: move header into include/clang/Sema
-#include "../Sema/IdentifierResolver.h" // FIXME: move header 
+#include "../Sema/IdentifierResolver.h" // FIXME: move header
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclContextInternals.h"
@@ -50,7 +50,7 @@ namespace {
     /// \brief Type code that corresponds to the record generated.
     pch::TypeCode Code;
 
-    PCHTypeWriter(PCHWriter &Writer, PCHWriter::RecordData &Record) 
+    PCHTypeWriter(PCHWriter &Writer, PCHWriter::RecordData &Record)
       : Writer(Writer), Record(Record), Code(pch::TYPE_EXT_QUAL) { }
 
     void VisitArrayType(const ArrayType *T);
@@ -62,13 +62,6 @@ namespace {
 #define DEPENDENT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
   };
-}
-
-void PCHTypeWriter::VisitExtQualType(const ExtQualType *T) {
-  Writer.AddTypeRef(QualType(T->getBaseType(), 0), Record);
-  Record.push_back(T->getObjCGCAttr()); // FIXME: use stable values
-  Record.push_back(T->getAddressSpace());
-  Code = pch::TYPE_EXT_QUAL;
 }
 
 void PCHTypeWriter::VisitBuiltinType(const BuiltinType *T) {
@@ -92,7 +85,7 @@ void PCHTypeWriter::VisitPointerType(const PointerType *T) {
 }
 
 void PCHTypeWriter::VisitBlockPointerType(const BlockPointerType *T) {
-  Writer.AddTypeRef(T->getPointeeType(), Record);  
+  Writer.AddTypeRef(T->getPointeeType(), Record);
   Code = pch::TYPE_BLOCK_POINTER;
 }
 
@@ -107,21 +100,38 @@ void PCHTypeWriter::VisitRValueReferenceType(const RValueReferenceType *T) {
 }
 
 void PCHTypeWriter::VisitMemberPointerType(const MemberPointerType *T) {
-  Writer.AddTypeRef(T->getPointeeType(), Record);  
-  Writer.AddTypeRef(QualType(T->getClass(), 0), Record);  
+  Writer.AddTypeRef(T->getPointeeType(), Record);
+  Writer.AddTypeRef(QualType(T->getClass(), 0), Record);
   Code = pch::TYPE_MEMBER_POINTER;
 }
 
 void PCHTypeWriter::VisitArrayType(const ArrayType *T) {
   Writer.AddTypeRef(T->getElementType(), Record);
   Record.push_back(T->getSizeModifier()); // FIXME: stable values
-  Record.push_back(T->getIndexTypeQualifier()); // FIXME: stable values
+  Record.push_back(T->getIndexTypeCVRQualifiers()); // FIXME: stable values
 }
 
 void PCHTypeWriter::VisitConstantArrayType(const ConstantArrayType *T) {
   VisitArrayType(T);
   Writer.AddAPInt(T->getSize(), Record);
   Code = pch::TYPE_CONSTANT_ARRAY;
+}
+
+void PCHTypeWriter
+::VisitConstantArrayWithExprType(const ConstantArrayWithExprType *T) {
+  VisitArrayType(T);
+  Writer.AddSourceLocation(T->getLBracketLoc(), Record);
+  Writer.AddSourceLocation(T->getRBracketLoc(), Record);
+  Writer.AddAPInt(T->getSize(), Record);
+  Writer.AddStmt(T->getSizeExpr());
+  Code = pch::TYPE_CONSTANT_ARRAY_WITH_EXPR;
+}
+
+void PCHTypeWriter
+::VisitConstantArrayWithoutExprType(const ConstantArrayWithoutExprType *T) {
+  VisitArrayType(T);
+  Writer.AddAPInt(T->getSize(), Record);
+  Code = pch::TYPE_CONSTANT_ARRAY_WITHOUT_EXPR;
 }
 
 void PCHTypeWriter::VisitIncompleteArrayType(const IncompleteArrayType *T) {
@@ -131,6 +141,8 @@ void PCHTypeWriter::VisitIncompleteArrayType(const IncompleteArrayType *T) {
 
 void PCHTypeWriter::VisitVariableArrayType(const VariableArrayType *T) {
   VisitArrayType(T);
+  Writer.AddSourceLocation(T->getLBracketLoc(), Record);
+  Writer.AddSourceLocation(T->getRBracketLoc(), Record);
   Writer.AddStmt(T->getSizeExpr());
   Code = pch::TYPE_VARIABLE_ARRAY;
 }
@@ -192,7 +204,7 @@ void PCHTypeWriter::VisitDecltypeType(const DecltypeType *T) {
 
 void PCHTypeWriter::VisitTagType(const TagType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
-  assert(!T->isBeingDefined() && 
+  assert(!T->isBeingDefined() &&
          "Cannot serialize in the middle of a type definition");
 }
 
@@ -206,7 +218,13 @@ void PCHTypeWriter::VisitEnumType(const EnumType *T) {
   Code = pch::TYPE_ENUM;
 }
 
-void 
+void PCHTypeWriter::VisitElaboratedType(const ElaboratedType *T) {
+  Writer.AddTypeRef(T->getUnderlyingType(), Record);
+  Record.push_back(T->getTagKind());
+  Code = pch::TYPE_ELABORATED;
+}
+
+void
 PCHTypeWriter::VisitTemplateSpecializationType(
                                        const TemplateSpecializationType *T) {
   // FIXME: Serialize this type (C++ only)
@@ -220,28 +238,30 @@ void PCHTypeWriter::VisitQualifiedNameType(const QualifiedNameType *T) {
 
 void PCHTypeWriter::VisitObjCInterfaceType(const ObjCInterfaceType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
-  Code = pch::TYPE_OBJC_INTERFACE;
-}
-
-void 
-PCHTypeWriter::VisitObjCQualifiedInterfaceType(
-                                      const ObjCQualifiedInterfaceType *T) {
-  VisitObjCInterfaceType(T);
   Record.push_back(T->getNumProtocols());
   for (ObjCInterfaceType::qual_iterator I = T->qual_begin(),
        E = T->qual_end(); I != E; ++I)
     Writer.AddDeclRef(*I, Record);
-  Code = pch::TYPE_OBJC_QUALIFIED_INTERFACE;
+  Code = pch::TYPE_OBJC_INTERFACE;
 }
 
 void
 PCHTypeWriter::VisitObjCObjectPointerType(const ObjCObjectPointerType *T) {
-  Writer.AddDeclRef(T->getDecl(), Record);
+  Writer.AddTypeRef(T->getPointeeType(), Record);
   Record.push_back(T->getNumProtocols());
   for (ObjCInterfaceType::qual_iterator I = T->qual_begin(),
        E = T->qual_end(); I != E; ++I)
     Writer.AddDeclRef(*I, Record);
   Code = pch::TYPE_OBJC_OBJECT_POINTER;
+}
+
+void PCHTypeWriter::VisitObjCProtocolListType(const ObjCProtocolListType *T) {
+  Writer.AddTypeRef(T->getBaseType(), Record);
+  Record.push_back(T->getNumProtocols());
+  for (ObjCProtocolListType::qual_iterator I = T->qual_begin(),
+       E = T->qual_end(); I != E; ++I)
+    Writer.AddDeclRef(*I, Record);
+  Code = pch::TYPE_OBJC_PROTOCOL_LIST;
 }
 
 //===----------------------------------------------------------------------===//
@@ -344,14 +364,14 @@ static void AddStmtsExprs(llvm::BitstreamWriter &Stream,
   RECORD(STMT_OBJC_AT_THROW);
 #undef RECORD
 }
-  
+
 void PCHWriter::WriteBlockInfoBlock() {
   RecordData Record;
   Stream.EnterSubblock(llvm::bitc::BLOCKINFO_BLOCK_ID, 3);
-  
+
 #define BLOCK(X) EmitBlockID(pch::X ## _ID, #X, Stream, Record)
 #define RECORD(X) EmitRecordID(pch::X, #X, Stream, Record)
- 
+
   // PCH Top-Level Block.
   BLOCK(PCH_BLOCK);
   RECORD(ORIGINAL_FILE_NAME);
@@ -373,8 +393,8 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(SOURCE_LOCATION_PRELOADS);
   RECORD(STAT_CACHE);
   RECORD(EXT_VECTOR_DECLS);
-  RECORD(OBJC_CATEGORY_IMPLEMENTATIONS);
   RECORD(COMMENT_RANGES);
+  RECORD(SVN_BRANCH_REVISION);
   
   // SourceManager Block.
   BLOCK(SOURCE_MANAGER_BLOCK);
@@ -384,7 +404,7 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(SM_SLOC_INSTANTIATION_ENTRY);
   RECORD(SM_LINE_TABLE);
   RECORD(SM_HEADER_FILE_INFO);
-  
+
   // Preprocessor Block.
   BLOCK(PREPROCESSOR_BLOCK);
   RECORD(PP_MACRO_OBJECT_LIKE);
@@ -414,8 +434,8 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(TYPE_RECORD);
   RECORD(TYPE_ENUM);
   RECORD(TYPE_OBJC_INTERFACE);
-  RECORD(TYPE_OBJC_QUALIFIED_INTERFACE);
   RECORD(TYPE_OBJC_OBJECT_POINTER);
+  RECORD(TYPE_OBJC_PROTOCOL_LIST);
   // Statements and Exprs can occur in the Types block.
   AddStmtsExprs(Stream, Record);
 
@@ -457,10 +477,67 @@ void PCHWriter::WriteBlockInfoBlock() {
   Stream.ExitBlock();
 }
 
+/// \brief Adjusts the given filename to only write out the portion of the
+/// filename that is not part of the system root directory.
+///
+/// \param Filename the file name to adjust.
+///
+/// \param isysroot When non-NULL, the PCH file is a relocatable PCH file and
+/// the returned filename will be adjusted by this system root.
+///
+/// \returns either the original filename (if it needs no adjustment) or the
+/// adjusted filename (which points into the @p Filename parameter).
+static const char *
+adjustFilenameForRelocatablePCH(const char *Filename, const char *isysroot) {
+  assert(Filename && "No file name to adjust?");
+
+  if (!isysroot)
+    return Filename;
+
+  // Verify that the filename and the system root have the same prefix.
+  unsigned Pos = 0;
+  for (; Filename[Pos] && isysroot[Pos]; ++Pos)
+    if (Filename[Pos] != isysroot[Pos])
+      return Filename; // Prefixes don't match.
+
+  // We hit the end of the filename before we hit the end of the system root.
+  if (!Filename[Pos])
+    return Filename;
+
+  // If the file name has a '/' at the current position, skip over the '/'.
+  // We distinguish sysroot-based includes from absolute includes by the
+  // absence of '/' at the beginning of sysroot-based includes.
+  if (Filename[Pos] == '/')
+    ++Pos;
+
+  return Filename + Pos;
+}
 
 /// \brief Write the PCH metadata (e.g., i686-apple-darwin9).
-void PCHWriter::WriteMetadata(ASTContext &Context) {
+void PCHWriter::WriteMetadata(ASTContext &Context, const char *isysroot) {
   using namespace llvm;
+
+  // Metadata
+  const TargetInfo &Target = Context.Target;
+  BitCodeAbbrev *MetaAbbrev = new BitCodeAbbrev();
+  MetaAbbrev->Add(BitCodeAbbrevOp(pch::METADATA));
+  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // PCH major
+  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // PCH minor
+  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang major
+  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang minor
+  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // Relocatable
+  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Target triple
+  unsigned MetaAbbrevCode = Stream.EmitAbbrev(MetaAbbrev);
+
+  RecordData Record;
+  Record.push_back(pch::METADATA);
+  Record.push_back(pch::VERSION_MAJOR);
+  Record.push_back(pch::VERSION_MINOR);
+  Record.push_back(CLANG_VERSION_MAJOR);
+  Record.push_back(CLANG_VERSION_MINOR);
+  Record.push_back(isysroot != 0);
+  const std::string &TripleStr = Target.getTriple().getTriple();
+  Stream.EmitRecordWithBlob(MetaAbbrevCode, Record, TripleStr);
 
   // Original file name
   SourceManager &SM = Context.getSourceManager();
@@ -472,40 +549,33 @@ void PCHWriter::WriteMetadata(ASTContext &Context) {
 
     llvm::sys::Path MainFilePath(MainFile->getName());
     std::string MainFileName;
-  
+
     if (!MainFilePath.isAbsolute()) {
       llvm::sys::Path P = llvm::sys::Path::GetCurrentDirectory();
-      P.appendComponent(MainFilePath.toString());
-      MainFileName = P.toString();
+      P.appendComponent(MainFilePath.str());
+      MainFileName = P.str();
     } else {
-      MainFileName = MainFilePath.toString();
+      MainFileName = MainFilePath.str();
     }
 
+    const char *MainFileNameStr = MainFileName.c_str();
+    MainFileNameStr = adjustFilenameForRelocatablePCH(MainFileNameStr,
+                                                      isysroot);
     RecordData Record;
     Record.push_back(pch::ORIGINAL_FILE_NAME);
-    Stream.EmitRecordWithBlob(FileAbbrevCode, Record, MainFileName.c_str(),
-                              MainFileName.size());
+    Stream.EmitRecordWithBlob(FileAbbrevCode, Record, MainFileNameStr);
   }
-
-  // Metadata
-  const TargetInfo &Target = Context.Target;
-  BitCodeAbbrev *MetaAbbrev = new BitCodeAbbrev();
-  MetaAbbrev->Add(BitCodeAbbrevOp(pch::METADATA));
-  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // PCH major
-  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // PCH minor
-  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang major
-  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 16)); // Clang minor
-  MetaAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // Target triple
-  unsigned MetaAbbrevCode = Stream.EmitAbbrev(MetaAbbrev);
-
-  RecordData Record;
-  Record.push_back(pch::METADATA);
-  Record.push_back(pch::VERSION_MAJOR);
-  Record.push_back(pch::VERSION_MINOR);
-  Record.push_back(CLANG_VERSION_MAJOR);
-  Record.push_back(CLANG_VERSION_MINOR);
-  const char *Triple = Target.getTargetTriple();
-  Stream.EmitRecordWithBlob(MetaAbbrevCode, Record, Triple, strlen(Triple));
+  
+  // Subversion branch/version information.
+  BitCodeAbbrev *SvnAbbrev = new BitCodeAbbrev();
+  SvnAbbrev->Add(BitCodeAbbrevOp(pch::SVN_BRANCH_REVISION));
+  SvnAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 32)); // SVN revision
+  SvnAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // SVN branch/tag
+  unsigned SvnAbbrevCode = Stream.EmitAbbrev(SvnAbbrev);
+  Record.clear();
+  Record.push_back(pch::SVN_BRANCH_REVISION);
+  Record.push_back(getClangSubversionRevision());
+  Stream.EmitRecordWithBlob(SvnAbbrevCode, Record, getClangSubversionPath());
 }
 
 /// \brief Write the LangOptions structure.
@@ -524,11 +594,11 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
   Record.push_back(LangOpts.CPlusPlus);  // C++ Support
   Record.push_back(LangOpts.CPlusPlus0x);  // C++0x Support
   Record.push_back(LangOpts.CXXOperatorNames);  // Treat C++ operator names as keywords.
-    
+
   Record.push_back(LangOpts.ObjC1);  // Objective-C 1 support enabled.
   Record.push_back(LangOpts.ObjC2);  // Objective-C 2 support enabled.
   Record.push_back(LangOpts.ObjCNonFragileABI);  // Objective-C modern abi enabled
-    
+
   Record.push_back(LangOpts.PascalStrings);  // Allow Pascal strings
   Record.push_back(LangOpts.WritableStrings);  // Allow writable strings
   Record.push_back(LangOpts.LaxVectorConversions);
@@ -541,6 +611,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
 
   // Whether static initializers are protected by locks.
   Record.push_back(LangOpts.ThreadsafeStatics);
+  Record.push_back(LangOpts.POSIXThreads);
   Record.push_back(LangOpts.Blocks); // block extension to C
   Record.push_back(LangOpts.EmitAllDecls); // Emit all declarations, even if
                                   // they are unused.
@@ -554,7 +625,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
                                   // may be ripped out at any time.
 
   Record.push_back(LangOpts.Optimize); // Whether __OPTIMIZE__ should be defined.
-  Record.push_back(LangOpts.OptimizeSize); // Whether __OPTIMIZE_SIZE__ should be 
+  Record.push_back(LangOpts.OptimizeSize); // Whether __OPTIMIZE_SIZE__ should be
                                   // defined.
   Record.push_back(LangOpts.Static); // Should __STATIC__ be defined (as
                                   // opposed to __DYNAMIC__).
@@ -569,8 +640,10 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
                                            // unsigned type
   Record.push_back(LangOpts.getGCMode());
   Record.push_back(LangOpts.getVisibilityMode());
+  Record.push_back(LangOpts.getStackProtectorMode());
   Record.push_back(LangOpts.InstantiationDepth);
   Record.push_back(LangOpts.OpenCL);
+  Record.push_back(LangOpts.ElideConstructors);
   Stream.EmitRecord(pch::LANGUAGE_OPTIONS, Record);
 }
 
@@ -584,15 +657,15 @@ class VISIBILITY_HIDDEN PCHStatCacheTrait {
 public:
   typedef const char * key_type;
   typedef key_type key_type_ref;
-  
+
   typedef std::pair<int, struct stat> data_type;
   typedef const data_type& data_type_ref;
 
   static unsigned ComputeHash(const char *path) {
     return BernsteinHash(path);
   }
-  
-  std::pair<unsigned,unsigned> 
+
+  std::pair<unsigned,unsigned>
     EmitKeyDataLength(llvm::raw_ostream& Out, const char *path,
                       data_type_ref Data) {
     unsigned StrLen = strlen(path);
@@ -603,19 +676,19 @@ public:
     clang::io::Emit8(Out, DataLen);
     return std::make_pair(StrLen + 1, DataLen);
   }
-  
+
   void EmitKey(llvm::raw_ostream& Out, const char *path, unsigned KeyLen) {
     Out.write(path, KeyLen);
   }
-  
+
   void EmitData(llvm::raw_ostream& Out, key_type_ref,
                 data_type_ref Data, unsigned DataLen) {
     using namespace clang::io;
     uint64_t Start = Out.tell(); (void)Start;
-    
+
     // Result of stat()
     Emit8(Out, Data.first? 1 : 0);
-    
+
     if (Data.first == 0) {
       Emit32(Out, (uint32_t) Data.second.st_ino);
       Emit32(Out, (uint32_t) Data.second.st_dev);
@@ -630,18 +703,22 @@ public:
 } // end anonymous namespace
 
 /// \brief Write the stat() system call cache to the PCH file.
-void PCHWriter::WriteStatCache(MemorizeStatCalls &StatCalls) {
+void PCHWriter::WriteStatCache(MemorizeStatCalls &StatCalls,
+                               const char *isysroot) {
   // Build the on-disk hash table containing information about every
   // stat() call.
   OnDiskChainedHashTableGenerator<PCHStatCacheTrait> Generator;
   unsigned NumStatEntries = 0;
-  for (MemorizeStatCalls::iterator Stat = StatCalls.begin(), 
+  for (MemorizeStatCalls::iterator Stat = StatCalls.begin(),
                                 StatEnd = StatCalls.end();
-       Stat != StatEnd; ++Stat, ++NumStatEntries)
-    Generator.insert(Stat->first(), Stat->second);
-  
+       Stat != StatEnd; ++Stat, ++NumStatEntries) {
+    const char *Filename = Stat->first();
+    Filename = adjustFilenameForRelocatablePCH(Filename, isysroot);
+    Generator.insert(Filename, Stat->second);
+  }
+
   // Create the on-disk hash table in a buffer.
-  llvm::SmallVector<char, 4096> StatCacheData; 
+  llvm::SmallString<4096> StatCacheData;
   uint32_t BucketOffset;
   {
     llvm::raw_svector_ostream Out(StatCacheData);
@@ -664,9 +741,7 @@ void PCHWriter::WriteStatCache(MemorizeStatCalls &StatCalls) {
   Record.push_back(pch::STAT_CACHE);
   Record.push_back(BucketOffset);
   Record.push_back(NumStatEntries);
-  Stream.EmitRecordWithBlob(StatCacheAbbrev, Record, 
-                            &StatCacheData.front(), 
-                            StatCacheData.size());
+  Stream.EmitRecordWithBlob(StatCacheAbbrev, Record, StatCacheData.str());
 }
 
 //===----------------------------------------------------------------------===//
@@ -734,7 +809,8 @@ static unsigned CreateSLocInstantiationAbbrev(llvm::BitstreamWriter &Stream) {
 /// errors), we probably won't have to create file entries for any of
 /// the files in the AST.
 void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
-                                        const Preprocessor &PP) {
+                                        const Preprocessor &PP,
+                                        const char *isysroot) {
   RecordData Record;
 
   // Enter the source manager block.
@@ -755,21 +831,22 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
     for (unsigned I = 0, N = LineTable.getNumFilenames(); I != N; ++I) {
       // Emit the file name
       const char *Filename = LineTable.getFilename(I);
+      Filename = adjustFilenameForRelocatablePCH(Filename, isysroot);
       unsigned FilenameLen = Filename? strlen(Filename) : 0;
       Record.push_back(FilenameLen);
       if (FilenameLen)
         Record.insert(Record.end(), Filename, Filename + FilenameLen);
     }
-    
+
     // Emit the line entries
     for (LineTableInfo::iterator L = LineTable.begin(), LEnd = LineTable.end();
          L != LEnd; ++L) {
       // Emit the file ID
       Record.push_back(L->first);
-      
+
       // Emit the line entries
       Record.push_back(L->second.size());
-      for (std::vector<LineEntry>::iterator LE = L->second.begin(), 
+      for (std::vector<LineEntry>::iterator LE = L->second.begin(),
                                          LEEnd = L->second.end();
            LE != LEEnd; ++LE) {
         Record.push_back(LE->FileOffset);
@@ -783,9 +860,9 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
   }
 
   // Write out entries for all of the header files we know about.
-  HeaderSearch &HS = PP.getHeaderSearchInfo();  
+  HeaderSearch &HS = PP.getHeaderSearchInfo();
   Record.clear();
-  for (HeaderSearch::header_file_iterator I = HS.header_file_begin(), 
+  for (HeaderSearch::header_file_iterator I = HS.header_file_begin(),
                                           E = HS.header_file_end();
        I != E; ++I) {
     Record.push_back(I->isImport);
@@ -801,7 +878,7 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
   std::vector<uint32_t> SLocEntryOffsets;
   RecordData PreloadSLocs;
   SLocEntryOffsets.reserve(SourceMgr.sloc_entry_size() - 1);
-  for (SourceManager::sloc_entry_iterator 
+  for (SourceManager::sloc_entry_iterator
          SLoc = SourceMgr.sloc_entry_begin() + 1,
          SLocEnd = SourceMgr.sloc_entry_end();
        SLoc != SLocEnd; ++SLoc) {
@@ -831,9 +908,20 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
       if (Content->Entry) {
         // The source location entry is a file. The blob associated
         // with this entry is the file name.
-        Stream.EmitRecordWithBlob(SLocFileAbbrv, Record,
-                             Content->Entry->getName(),
-                             strlen(Content->Entry->getName()));
+
+        // Turn the file name into an absolute path, if it isn't already.
+        const char *Filename = Content->Entry->getName();
+        llvm::sys::Path FilePath(Filename, strlen(Filename));
+        std::string FilenameStr;
+        if (!FilePath.isAbsolute()) {
+          llvm::sys::Path P = llvm::sys::Path::GetCurrentDirectory();
+          P.appendComponent(FilePath.str());
+          FilenameStr = P.str();
+          Filename = FilenameStr.c_str();
+        }
+
+        Filename = adjustFilenameForRelocatablePCH(Filename, isysroot);
+        Stream.EmitRecordWithBlob(SLocFileAbbrv, Record, Filename);
 
         // FIXME: For now, preload all file source locations, so that
         // we get the appropriate File entries in the reader. This is
@@ -848,12 +936,13 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
         // the reader side).
         const llvm::MemoryBuffer *Buffer = Content->getBuffer();
         const char *Name = Buffer->getBufferIdentifier();
-        Stream.EmitRecordWithBlob(SLocBufferAbbrv, Record, Name, strlen(Name) + 1);
+        Stream.EmitRecordWithBlob(SLocBufferAbbrv, Record,
+                                  llvm::StringRef(Name, strlen(Name) + 1));
         Record.clear();
         Record.push_back(pch::SM_SLOC_BUFFER_BLOB);
         Stream.EmitRecordWithBlob(SLocBufferBlobAbbrv, Record,
-                             Buffer->getBufferStart(),
-                             Buffer->getBufferSize() + 1);
+                                  llvm::StringRef(Buffer->getBufferStart(),
+                                                  Buffer->getBufferSize() + 1));
 
         if (strcmp(Name, "<built-in>") == 0)
           PreloadSLocs.push_back(SLocEntryOffsets.size());
@@ -889,13 +978,13 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 16)); // next offset
   Abbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob)); // offsets
   unsigned SLocOffsetsAbbrev = Stream.EmitAbbrev(Abbrev);
-  
+
   Record.clear();
   Record.push_back(pch::SOURCE_LOCATION_OFFSETS);
   Record.push_back(SLocEntryOffsets.size());
   Record.push_back(SourceMgr.getNextOffset());
   Stream.EmitRecordWithBlob(SLocOffsetsAbbrev, Record,
-                            (const char *)&SLocEntryOffsets.front(), 
+                            (const char *)&SLocEntryOffsets.front(),
                            SLocEntryOffsets.size()*sizeof(SLocEntryOffsets[0]));
 
   // Write the source location entry preloads array, telling the PCH
@@ -922,12 +1011,12 @@ void PCHWriter::WritePreprocessor(const Preprocessor &PP) {
 
   // Enter the preprocessor block.
   Stream.EnterSubblock(pch::PREPROCESSOR_BLOCK_ID, 2);
-  
+
   // If the PCH file contains __DATE__ or __TIME__ emit a warning about this.
   // FIXME: use diagnostics subsystem for localization etc.
   if (PP.SawDateOrTime())
     fprintf(stderr, "warning: precompiled header used __DATE__ or __TIME__.\n");
-    
+
   // Loop over all the macro definitions that are live at the end of the file,
   // emitting each to the PP section.
   for (Preprocessor::macro_iterator I = PP.macro_begin(), E = PP.macro_end();
@@ -946,13 +1035,13 @@ void PCHWriter::WritePreprocessor(const Preprocessor &PP) {
     MacroOffsets[I->first] = Stream.GetCurrentBitNo();
     Record.push_back(MI->getDefinitionLoc().getRawEncoding());
     Record.push_back(MI->isUsed());
-    
+
     unsigned Code;
     if (MI->isObjectLike()) {
       Code = pch::PP_MACRO_OBJECT_LIKE;
     } else {
       Code = pch::PP_MACRO_FUNCTION_LIKE;
-      
+
       Record.push_back(MI->isC99Varargs());
       Record.push_back(MI->isGNUVarargs());
       Record.push_back(MI->getNumArgs());
@@ -969,19 +1058,19 @@ void PCHWriter::WritePreprocessor(const Preprocessor &PP) {
       // tokens in it because they are created by the parser, and thus can't be
       // in a macro definition.
       const Token &Tok = MI->getReplacementToken(TokNo);
-      
+
       Record.push_back(Tok.getLocation().getRawEncoding());
       Record.push_back(Tok.getLength());
 
       // FIXME: When reading literal tokens, reconstruct the literal pointer if
       // it is needed.
       AddIdentifierRef(Tok.getIdentifierInfo(), Record);
-      
+
       // FIXME: Should translate token kind to a stable encoding.
       Record.push_back(Tok.getKind());
       // FIXME: Should translate token flags to a stable encoding.
       Record.push_back(Tok.getFlags());
-      
+
       Stream.EmitRecord(pch::PP_TOKEN, Record);
       Record.clear();
     }
@@ -992,18 +1081,18 @@ void PCHWriter::WritePreprocessor(const Preprocessor &PP) {
 
 void PCHWriter::WriteComments(ASTContext &Context) {
   using namespace llvm;
-  
+
   if (Context.Comments.empty())
     return;
-  
+
   BitCodeAbbrev *CommentAbbrev = new BitCodeAbbrev();
   CommentAbbrev->Add(BitCodeAbbrevOp(pch::COMMENT_RANGES));
   CommentAbbrev->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Blob));
   unsigned CommentCode = Stream.EmitAbbrev(CommentAbbrev);
-  
+
   RecordData Record;
   Record.push_back(pch::COMMENT_RANGES);
-  Stream.EmitRecordWithBlob(CommentCode, Record, 
+  Stream.EmitRecordWithBlob(CommentCode, Record,
                             (const char*)&Context.Comments[0],
                             Context.Comments.size() * sizeof(SourceRange));
 }
@@ -1013,11 +1102,11 @@ void PCHWriter::WriteComments(ASTContext &Context) {
 //===----------------------------------------------------------------------===//
 
 /// \brief Write the representation of a type to the PCH stream.
-void PCHWriter::WriteType(const Type *T) {
+void PCHWriter::WriteType(QualType T) {
   pch::TypeID &ID = TypeIDs[T];
   if (ID == 0) // we haven't seen this type before.
     ID = NextTypeID++;
-  
+
   // Record the offset for this type.
   if (TypeOffsets.size() == ID - pch::NUM_PREDEF_TYPE_IDS)
     TypeOffsets.push_back(Stream.GetCurrentBitNo());
@@ -1027,25 +1116,33 @@ void PCHWriter::WriteType(const Type *T) {
   }
 
   RecordData Record;
-  
+
   // Emit the type's representation.
   PCHTypeWriter W(*this, Record);
-  switch (T->getTypeClass()) {
-    // For all of the concrete, non-dependent types, call the
-    // appropriate visitor function.
+
+  if (T.hasNonFastQualifiers()) {
+    Qualifiers Qs = T.getQualifiers();
+    AddTypeRef(T.getUnqualifiedType(), Record);
+    Record.push_back(Qs.getAsOpaqueValue());
+    W.Code = pch::TYPE_EXT_QUAL;
+  } else {
+    switch (T->getTypeClass()) {
+      // For all of the concrete, non-dependent types, call the
+      // appropriate visitor function.
 #define TYPE(Class, Base) \
-    case Type::Class: W.Visit##Class##Type(cast<Class##Type>(T)); break;
+      case Type::Class: W.Visit##Class##Type(cast<Class##Type>(T)); break;
 #define ABSTRACT_TYPE(Class, Base)
 #define DEPENDENT_TYPE(Class, Base)
 #include "clang/AST/TypeNodes.def"
 
-    // For all of the dependent type nodes (which only occur in C++
-    // templates), produce an error.
+      // For all of the dependent type nodes (which only occur in C++
+      // templates), produce an error.
 #define TYPE(Class, Base)
 #define DEPENDENT_TYPE(Class, Base) case Type::Class:
 #include "clang/AST/TypeNodes.def"
-    assert(false && "Cannot serialize dependent type nodes");
-    break;
+      assert(false && "Cannot serialize dependent type nodes");
+      break;
+    }
   }
 
   // Emit the serialized record.
@@ -1062,9 +1159,8 @@ void PCHWriter::WriteTypesBlock(ASTContext &Context) {
 
   // Emit all of the types that need to be emitted (so far).
   while (!TypesToEmit.empty()) {
-    const Type *T = TypesToEmit.front();
+    QualType T = TypesToEmit.front();
     TypesToEmit.pop();
-    assert(!isa<BuiltinType>(T) && "Built-in types are not serialized");
     WriteType(T);
   }
 
@@ -1081,7 +1177,7 @@ void PCHWriter::WriteTypesBlock(ASTContext &Context) {
 ///
 /// \returns the offset of the DECL_CONTEXT_LEXICAL block within the
 /// bistream, or 0 if no block was written.
-uint64_t PCHWriter::WriteDeclContextLexicalBlock(ASTContext &Context, 
+uint64_t PCHWriter::WriteDeclContextLexicalBlock(ASTContext &Context,
                                                  DeclContext *DC) {
   if (DC->decls_empty())
     return 0;
@@ -1133,7 +1229,7 @@ uint64_t PCHWriter::WriteDeclContextVisibleBlock(ASTContext &Context,
     AddDeclarationName(D->first, Record);
     DeclContext::lookup_result Result = D->second.getLookupResult(Context);
     Record.push_back(Result.second - Result.first);
-    for(; Result.first != Result.second; ++Result.first)
+    for (; Result.first != Result.second; ++Result.first)
       AddDeclRef(*Result.first, Record);
   }
 
@@ -1157,12 +1253,12 @@ class VISIBILITY_HIDDEN PCHMethodPoolTrait {
 public:
   typedef Selector key_type;
   typedef key_type key_type_ref;
-  
+
   typedef std::pair<ObjCMethodList, ObjCMethodList> data_type;
   typedef const data_type& data_type_ref;
 
   explicit PCHMethodPoolTrait(PCHWriter &Writer) : Writer(Writer) { }
-  
+
   static unsigned ComputeHash(Selector Sel) {
     unsigned N = Sel.getNumArgs();
     if (N == 0)
@@ -1173,27 +1269,27 @@ public:
         R = clang::BernsteinHashPartial(II->getName(), II->getLength(), R);
     return R;
   }
-  
-  std::pair<unsigned,unsigned> 
+
+  std::pair<unsigned,unsigned>
     EmitKeyDataLength(llvm::raw_ostream& Out, Selector Sel,
                       data_type_ref Methods) {
     unsigned KeyLen = 2 + (Sel.getNumArgs()? Sel.getNumArgs() * 4 : 4);
     clang::io::Emit16(Out, KeyLen);
     unsigned DataLen = 2 + 2; // 2 bytes for each of the method counts
-    for (const ObjCMethodList *Method = &Methods.first; Method; 
+    for (const ObjCMethodList *Method = &Methods.first; Method;
          Method = Method->Next)
       if (Method->Method)
         DataLen += 4;
-    for (const ObjCMethodList *Method = &Methods.second; Method; 
+    for (const ObjCMethodList *Method = &Methods.second; Method;
          Method = Method->Next)
       if (Method->Method)
         DataLen += 4;
     clang::io::Emit16(Out, DataLen);
     return std::make_pair(KeyLen, DataLen);
   }
-  
+
   void EmitKey(llvm::raw_ostream& Out, Selector Sel, unsigned) {
-    uint64_t Start = Out.tell(); 
+    uint64_t Start = Out.tell();
     assert((Start >> 32) == 0 && "Selector key offset too large");
     Writer.SetSelectorOffset(Sel, Start);
     unsigned N = Sel.getNumArgs();
@@ -1201,32 +1297,32 @@ public:
     if (N == 0)
       N = 1;
     for (unsigned I = 0; I != N; ++I)
-      clang::io::Emit32(Out, 
+      clang::io::Emit32(Out,
                     Writer.getIdentifierRef(Sel.getIdentifierInfoForSlot(I)));
   }
-  
+
   void EmitData(llvm::raw_ostream& Out, key_type_ref,
                 data_type_ref Methods, unsigned DataLen) {
     uint64_t Start = Out.tell(); (void)Start;
     unsigned NumInstanceMethods = 0;
-    for (const ObjCMethodList *Method = &Methods.first; Method; 
+    for (const ObjCMethodList *Method = &Methods.first; Method;
          Method = Method->Next)
       if (Method->Method)
         ++NumInstanceMethods;
 
     unsigned NumFactoryMethods = 0;
-    for (const ObjCMethodList *Method = &Methods.second; Method; 
+    for (const ObjCMethodList *Method = &Methods.second; Method;
          Method = Method->Next)
       if (Method->Method)
         ++NumFactoryMethods;
 
     clang::io::Emit16(Out, NumInstanceMethods);
     clang::io::Emit16(Out, NumFactoryMethods);
-    for (const ObjCMethodList *Method = &Methods.first; Method; 
+    for (const ObjCMethodList *Method = &Methods.first; Method;
          Method = Method->Next)
       if (Method->Method)
         clang::io::Emit32(Out, Writer.getDeclID(Method->Method));
-    for (const ObjCMethodList *Method = &Methods.second; Method; 
+    for (const ObjCMethodList *Method = &Methods.second; Method;
          Method = Method->Next)
       if (Method->Method)
         clang::io::Emit32(Out, Writer.getDeclID(Method->Method));
@@ -1248,13 +1344,13 @@ void PCHWriter::WriteMethodPool(Sema &SemaRef) {
   bool Empty = true;
   {
     OnDiskChainedHashTableGenerator<PCHMethodPoolTrait> Generator;
-    
+
     // Create the on-disk hash table representation. Start by
     // iterating through the instance method pool.
     PCHMethodPoolTrait::key_type Key;
     unsigned NumSelectorsInMethodPool = 0;
     for (llvm::DenseMap<Selector, ObjCMethodList>::iterator
-           Instance = SemaRef.InstanceMethodPool.begin(), 
+           Instance = SemaRef.InstanceMethodPool.begin(),
            InstanceEnd = SemaRef.InstanceMethodPool.end();
          Instance != InstanceEnd; ++Instance) {
       // Check whether there is a factory method with the same
@@ -1264,7 +1360,7 @@ void PCHWriter::WriteMethodPool(Sema &SemaRef) {
 
       if (Factory == SemaRef.FactoryMethodPool.end())
         Generator.insert(Instance->first,
-                         std::make_pair(Instance->second, 
+                         std::make_pair(Instance->second,
                                         ObjCMethodList()));
       else
         Generator.insert(Instance->first,
@@ -1277,7 +1373,7 @@ void PCHWriter::WriteMethodPool(Sema &SemaRef) {
     // Now iterate through the factory method pool, to pick up any
     // selectors that weren't already in the instance method pool.
     for (llvm::DenseMap<Selector, ObjCMethodList>::iterator
-           Factory = SemaRef.FactoryMethodPool.begin(), 
+           Factory = SemaRef.FactoryMethodPool.begin(),
            FactoryEnd = SemaRef.FactoryMethodPool.end();
          Factory != FactoryEnd; ++Factory) {
       // Check whether there is an instance method with the same
@@ -1298,7 +1394,7 @@ void PCHWriter::WriteMethodPool(Sema &SemaRef) {
       return;
 
     // Create the on-disk hash table in a buffer.
-    llvm::SmallVector<char, 4096> MethodPool; 
+    llvm::SmallString<4096> MethodPool;
     uint32_t BucketOffset;
     SelectorOffsets.resize(SelVector.size());
     {
@@ -1329,9 +1425,7 @@ void PCHWriter::WriteMethodPool(Sema &SemaRef) {
     Record.push_back(pch::METHOD_POOL);
     Record.push_back(BucketOffset);
     Record.push_back(NumSelectorsInMethodPool);
-    Stream.EmitRecordWithBlob(MethodPoolAbbrev, Record, 
-                              &MethodPool.front(), 
-                              MethodPool.size());
+    Stream.EmitRecordWithBlob(MethodPoolAbbrev, Record, MethodPool.str());
 
     // Create a blob abbreviation for the selector table offsets.
     Abbrev = new BitCodeAbbrev();
@@ -1373,25 +1467,25 @@ class VISIBILITY_HIDDEN PCHIdentifierTableTrait {
 public:
   typedef const IdentifierInfo* key_type;
   typedef key_type  key_type_ref;
-  
+
   typedef pch::IdentID data_type;
   typedef data_type data_type_ref;
-  
-  PCHIdentifierTableTrait(PCHWriter &Writer, Preprocessor &PP) 
+
+  PCHIdentifierTableTrait(PCHWriter &Writer, Preprocessor &PP)
     : Writer(Writer), PP(PP) { }
 
   static unsigned ComputeHash(const IdentifierInfo* II) {
     return clang::BernsteinHash(II->getName());
   }
-  
-  std::pair<unsigned,unsigned> 
-    EmitKeyDataLength(llvm::raw_ostream& Out, const IdentifierInfo* II, 
+
+  std::pair<unsigned,unsigned>
+    EmitKeyDataLength(llvm::raw_ostream& Out, const IdentifierInfo* II,
                       pch::IdentID ID) {
     unsigned KeyLen = strlen(II->getName()) + 1;
     unsigned DataLen = 4; // 4 bytes for the persistent ID << 1
     if (isInterestingIdentifier(II)) {
       DataLen += 2; // 2 bytes for builtin ID, flags
-      if (II->hasMacroDefinition() && 
+      if (II->hasMacroDefinition() &&
           !PP.getMacroInfo(const_cast<IdentifierInfo *>(II))->isBuiltinMacro())
         DataLen += 4;
       for (IdentifierResolver::iterator D = IdentifierResolver::begin(II),
@@ -1406,16 +1500,16 @@ public:
     clang::io::Emit16(Out, KeyLen);
     return std::make_pair(KeyLen, DataLen);
   }
-  
-  void EmitKey(llvm::raw_ostream& Out, const IdentifierInfo* II, 
+
+  void EmitKey(llvm::raw_ostream& Out, const IdentifierInfo* II,
                unsigned KeyLen) {
     // Record the location of the key data.  This is used when generating
     // the mapping from persistent IDs to strings.
     Writer.SetIdentifierOffset(II, Out.tell());
     Out.write(II->getName(), KeyLen);
   }
-  
-  void EmitData(llvm::raw_ostream& Out, const IdentifierInfo* II, 
+
+  void EmitData(llvm::raw_ostream& Out, const IdentifierInfo* II,
                 pch::IdentID ID, unsigned) {
     if (!isInterestingIdentifier(II)) {
       clang::io::Emit32(Out, ID << 1);
@@ -1424,8 +1518,8 @@ public:
 
     clang::io::Emit32(Out, (ID << 1) | 0x01);
     uint32_t Bits = 0;
-    bool hasMacroDefinition = 
-      II->hasMacroDefinition() && 
+    bool hasMacroDefinition =
+      II->hasMacroDefinition() &&
       !PP.getMacroInfo(const_cast<IdentifierInfo *>(II))->isBuiltinMacro();
     Bits = (uint32_t)II->getObjCOrBuiltinID();
     Bits = (Bits << 1) | hasMacroDefinition;
@@ -1443,7 +1537,7 @@ public:
     // "stat"), but IdentifierResolver::AddDeclToIdentifierChain()
     // adds declarations to the end of the list (so we need to see the
     // struct "status" before the function "status").
-    llvm::SmallVector<Decl *, 16> Decls(IdentifierResolver::begin(II), 
+    llvm::SmallVector<Decl *, 16> Decls(IdentifierResolver::begin(II),
                                         IdentifierResolver::end());
     for (llvm::SmallVector<Decl *, 16>::reverse_iterator D = Decls.rbegin(),
                                                       DEnd = Decls.rend();
@@ -1465,7 +1559,7 @@ void PCHWriter::WriteIdentifierTable(Preprocessor &PP) {
   // strings.
   {
     OnDiskChainedHashTableGenerator<PCHIdentifierTableTrait> Generator;
-    
+
     // Look for any identifiers that were named while processing the
     // headers, but are otherwise not needed. We add these to the hash
     // table to enable checking of the predefines buffer in the case
@@ -1486,7 +1580,7 @@ void PCHWriter::WriteIdentifierTable(Preprocessor &PP) {
     }
 
     // Create the on-disk hash table in a buffer.
-    llvm::SmallVector<char, 4096> IdentifierTable; 
+    llvm::SmallString<4096> IdentifierTable;
     uint32_t BucketOffset;
     {
       PCHIdentifierTableTrait Trait(*this, PP);
@@ -1507,9 +1601,7 @@ void PCHWriter::WriteIdentifierTable(Preprocessor &PP) {
     RecordData Record;
     Record.push_back(pch::IDENTIFIER_TABLE);
     Record.push_back(BucketOffset);
-    Stream.EmitRecordWithBlob(IDTableAbbrev, Record, 
-                              &IdentifierTable.front(), 
-                              IdentifierTable.size());
+    Stream.EmitRecordWithBlob(IDTableAbbrev, Record, IdentifierTable.str());
   }
 
   // Write the offsets table for identifier IDs.
@@ -1548,7 +1640,7 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
 
     case Attr::AlwaysInline:
       break;
-     
+
     case Attr::AnalyzerNoReturn:
       break;
 
@@ -1607,13 +1699,14 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
       Record.push_back(Sentinel->getNullPos());
       break;
     }
-        
+
     case Attr::GNUInline:
     case Attr::IBOutletKind:
+    case Attr::Malloc:
+    case Attr::NoDebug:
     case Attr::NoReturn:
     case Attr::NoThrow:
-    case Attr::Nodebug:
-    case Attr::Noinline:
+    case Attr::NoInline:
       break;
 
     case Attr::NonNull: {
@@ -1630,8 +1723,11 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     case Attr::Overloadable:
       break;
 
+    case Attr::PragmaPack:
+      Record.push_back(cast<PragmaPackAttr>(Attr)->getAlignment());
+      break;
+
     case Attr::Packed:
-      Record.push_back(cast<PackedAttr>(Attr)->getAlignment());
       break;
 
     case Attr::Pure:
@@ -1640,7 +1736,7 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     case Attr::Regparm:
       Record.push_back(cast<RegparmAttr>(Attr)->getNumParams());
       break;
-        
+
     case Attr::ReqdWorkGroupSize:
       Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getXDim());
       Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getYDim());
@@ -1660,7 +1756,7 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
 
     case Attr::Visibility:
       // FIXME: stable encoding
-      Record.push_back(cast<VisibilityAttr>(Attr)->getVisibility()); 
+      Record.push_back(cast<VisibilityAttr>(Attr)->getVisibility());
       break;
 
     case Attr::WarnUnusedResult:
@@ -1692,12 +1788,13 @@ void PCHWriter::SetSelectorOffset(Selector Sel, uint32_t Offset) {
   SelectorOffsets[ID - 1] = Offset;
 }
 
-PCHWriter::PCHWriter(llvm::BitstreamWriter &Stream) 
-  : Stream(Stream), NextTypeID(pch::NUM_PREDEF_TYPE_IDS), 
+PCHWriter::PCHWriter(llvm::BitstreamWriter &Stream)
+  : Stream(Stream), NextTypeID(pch::NUM_PREDEF_TYPE_IDS),
     NumStatements(0), NumMacros(0), NumLexicalDeclContexts(0),
     NumVisibleDeclContexts(0) { }
 
-void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls) {
+void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
+                         const char *isysroot) {
   using namespace llvm;
 
   ASTContext &Context = SemaRef.Context;
@@ -1708,7 +1805,7 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls) {
   Stream.Emit((unsigned)'P', 8);
   Stream.Emit((unsigned)'C', 8);
   Stream.Emit((unsigned)'H', 8);
-  
+
   WriteBlockInfoBlock();
 
   // The translation unit is the first declaration we'll emit.
@@ -1726,20 +1823,23 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls) {
       getIdentifierRef(&Table.get(BuiltinNames[I]));
   }
 
-  // Build a record containing all of the tentative definitions in
-  // this header file. Generally, this record will be empty.
+  // Build a record containing all of the tentative definitions in this file, in
+  // TentativeDefinitionList order.  Generally, this record will be empty for
+  // headers.
   RecordData TentativeDefinitions;
-  for (llvm::DenseMap<DeclarationName, VarDecl *>::iterator 
-         TD = SemaRef.TentativeDefinitions.begin(),
-         TDEnd = SemaRef.TentativeDefinitions.end();
-       TD != TDEnd; ++TD)
-    AddDeclRef(TD->second, TentativeDefinitions);
+  for (unsigned i = 0, e = SemaRef.TentativeDefinitionList.size(); i != e; ++i){
+    VarDecl *VD =
+      SemaRef.TentativeDefinitions.lookup(SemaRef.TentativeDefinitionList[i]);
+    if (VD) AddDeclRef(VD, TentativeDefinitions);
+  }
 
   // Build a record containing all of the locally-scoped external
   // declarations in this header file. Generally, this record will be
   // empty.
   RecordData LocallyScopedExternalDecls;
-  for (llvm::DenseMap<DeclarationName, NamedDecl *>::iterator 
+  // FIXME: This is filling in the PCH file in densemap order which is
+  // nondeterminstic!
+  for (llvm::DenseMap<DeclarationName, NamedDecl *>::iterator
          TD = SemaRef.LocallyScopedExternalDecls.begin(),
          TDEnd = SemaRef.LocallyScopedExternalDecls.end();
        TD != TDEnd; ++TD)
@@ -1750,23 +1850,33 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls) {
   for (unsigned I = 0, N = SemaRef.ExtVectorDecls.size(); I != N; ++I)
     AddDeclRef(SemaRef.ExtVectorDecls[I], ExtVectorDecls);
 
-  // Build a record containing all of the Objective-C category
-  // implementations.
-  RecordData ObjCCategoryImpls;
-  for (unsigned I = 0, N = SemaRef.ObjCCategoryImpls.size(); I != N; ++I)
-    AddDeclRef(SemaRef.ObjCCategoryImpls[I], ObjCCategoryImpls);
-
   // Write the remaining PCH contents.
   RecordData Record;
   Stream.EnterSubblock(pch::PCH_BLOCK_ID, 4);
-  WriteMetadata(Context);
+  WriteMetadata(Context, isysroot);
   WriteLanguageOptions(Context.getLangOptions());
-  if (StatCalls)
-    WriteStatCache(*StatCalls);
-  WriteSourceManagerBlock(Context.getSourceManager(), PP);
+  if (StatCalls && !isysroot)
+    WriteStatCache(*StatCalls, isysroot);
+  WriteSourceManagerBlock(Context.getSourceManager(), PP, isysroot);
   WritePreprocessor(PP);
-  WriteComments(Context);  
-  
+  WriteComments(Context);
+  // Write the record of special types.
+  Record.clear();
+
+  AddTypeRef(Context.getBuiltinVaListType(), Record);
+  AddTypeRef(Context.getObjCIdType(), Record);
+  AddTypeRef(Context.getObjCSelType(), Record);
+  AddTypeRef(Context.getObjCProtoType(), Record);
+  AddTypeRef(Context.getObjCClassType(), Record);
+  AddTypeRef(Context.getRawCFConstantStringType(), Record);
+  AddTypeRef(Context.getRawObjCFastEnumerationStateType(), Record);
+  AddTypeRef(Context.getFILEType(), Record);
+  AddTypeRef(Context.getjmp_bufType(), Record);
+  AddTypeRef(Context.getsigjmp_bufType(), Record);
+  AddTypeRef(Context.ObjCIdRedefinitionType, Record);
+  AddTypeRef(Context.ObjCClassRedefinitionType, Record);
+  Stream.EmitRecord(pch::SPECIAL_TYPES, Record);
+
   // Keep writing types and declarations until all types and
   // declarations have been written.
   do {
@@ -1789,9 +1899,9 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls) {
   Record.push_back(pch::TYPE_OFFSET);
   Record.push_back(TypeOffsets.size());
   Stream.EmitRecordWithBlob(TypeOffsetAbbrev, Record,
-                            (const char *)&TypeOffsets.front(), 
+                            (const char *)&TypeOffsets.front(),
                             TypeOffsets.size() * sizeof(TypeOffsets[0]));
-  
+
   // Write the declaration offsets array
   Abbrev = new BitCodeAbbrev();
   Abbrev->Add(BitCodeAbbrevOp(pch::DECL_OFFSET));
@@ -1802,19 +1912,8 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls) {
   Record.push_back(pch::DECL_OFFSET);
   Record.push_back(DeclOffsets.size());
   Stream.EmitRecordWithBlob(DeclOffsetAbbrev, Record,
-                            (const char *)&DeclOffsets.front(), 
+                            (const char *)&DeclOffsets.front(),
                             DeclOffsets.size() * sizeof(DeclOffsets[0]));
-
-  // Write the record of special types.
-  Record.clear();
-  AddTypeRef(Context.getBuiltinVaListType(), Record);
-  AddTypeRef(Context.getObjCIdType(), Record);
-  AddTypeRef(Context.getObjCSelType(), Record);
-  AddTypeRef(Context.getObjCProtoType(), Record);
-  AddTypeRef(Context.getObjCClassType(), Record);
-  AddTypeRef(Context.getRawCFConstantStringType(), Record);
-  AddTypeRef(Context.getRawObjCFastEnumerationStateType(), Record);
-  Stream.EmitRecord(pch::SPECIAL_TYPES, Record);
 
   // Write the record containing external, unnamed definitions.
   if (!ExternalDefinitions.empty())
@@ -1826,17 +1925,13 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls) {
 
   // Write the record containing locally-scoped external definitions.
   if (!LocallyScopedExternalDecls.empty())
-    Stream.EmitRecord(pch::LOCALLY_SCOPED_EXTERNAL_DECLS, 
+    Stream.EmitRecord(pch::LOCALLY_SCOPED_EXTERNAL_DECLS,
                       LocallyScopedExternalDecls);
 
   // Write the record containing ext_vector type names.
   if (!ExtVectorDecls.empty())
     Stream.EmitRecord(pch::EXT_VECTOR_DECLS, ExtVectorDecls);
 
-  // Write the record containing Objective-C category implementations.
-  if (!ObjCCategoryImpls.empty())
-    Stream.EmitRecord(pch::OBJC_CATEGORY_IMPLEMENTATIONS, ObjCCategoryImpls);
-  
   // Some simple statistics
   Record.clear();
   Record.push_back(NumStatements);
@@ -1902,6 +1997,26 @@ void PCHWriter::AddTypeRef(QualType T, RecordData &Record) {
     return;
   }
 
+  unsigned FastQuals = T.getFastQualifiers();
+  T.removeFastQualifiers();
+
+  if (T.hasNonFastQualifiers()) {
+    pch::TypeID &ID = TypeIDs[T];
+    if (ID == 0) {
+      // We haven't seen these qualifiers applied to this type before.
+      // Assign it a new ID.  This is the only time we enqueue a
+      // qualified type, and it has no CV qualifiers.
+      ID = NextTypeID++;
+      TypesToEmit.push(T);
+    }
+    
+    // Encode the type qualifiers in the type reference.
+    Record.push_back((ID << Qualifiers::FastWidth) | FastQuals);
+    return;
+  }
+
+  assert(!T.hasQualifiers());
+  
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(T.getTypePtr())) {
     pch::TypeID ID = 0;
     switch (BT->getKind()) {
@@ -1926,27 +2041,31 @@ void PCHWriter::AddTypeRef(QualType T, RecordData &Record) {
     case BuiltinType::Double:     ID = pch::PREDEF_TYPE_DOUBLE_ID;     break;
     case BuiltinType::LongDouble: ID = pch::PREDEF_TYPE_LONGDOUBLE_ID; break;
     case BuiltinType::NullPtr:    ID = pch::PREDEF_TYPE_NULLPTR_ID;    break;
+    case BuiltinType::Char16:     ID = pch::PREDEF_TYPE_CHAR16_ID;     break;
+    case BuiltinType::Char32:     ID = pch::PREDEF_TYPE_CHAR32_ID;     break;
     case BuiltinType::Overload:   ID = pch::PREDEF_TYPE_OVERLOAD_ID;   break;
     case BuiltinType::Dependent:  ID = pch::PREDEF_TYPE_DEPENDENT_ID;  break;
+    case BuiltinType::ObjCId:     ID = pch::PREDEF_TYPE_OBJC_ID;       break;
+    case BuiltinType::ObjCClass:  ID = pch::PREDEF_TYPE_OBJC_CLASS;    break;
     case BuiltinType::UndeducedAuto:
       assert(0 && "Should not see undeduced auto here");
       break;
     }
 
-    Record.push_back((ID << 3) | T.getCVRQualifiers());
+    Record.push_back((ID << Qualifiers::FastWidth) | FastQuals);
     return;
   }
 
-  pch::TypeID &ID = TypeIDs[T.getTypePtr()];
+  pch::TypeID &ID = TypeIDs[T];
   if (ID == 0) {
     // We haven't seen this type before. Assign it a new ID and put it
-    // into the queu of types to emit.
+    // into the queue of types to emit.
     ID = NextTypeID++;
-    TypesToEmit.push(T.getTypePtr());
+    TypesToEmit.push(T);
   }
 
   // Encode the type qualifiers in the type reference.
-  Record.push_back((ID << 3) | T.getCVRQualifiers());
+  Record.push_back((ID << Qualifiers::FastWidth) | FastQuals);
 }
 
 void PCHWriter::AddDeclRef(const Decl *D, RecordData &Record) {
@@ -1956,7 +2075,7 @@ void PCHWriter::AddDeclRef(const Decl *D, RecordData &Record) {
   }
 
   pch::DeclID &ID = DeclIDs[D];
-  if (ID == 0) { 
+  if (ID == 0) {
     // We haven't seen this declaration before. Give it a new ID and
     // enqueue it in the list of declarations to emit.
     ID = DeclIDs.size();

@@ -34,3 +34,17 @@ void g() {
 
   Z z; // expected-error{{no matching constructor for initialization of 'z'}}
 }
+
+struct Base {
+   operator int*() const; 
+};
+
+struct Derived : Base {
+   operator int*(); 
+};
+
+void foo(const Derived cd, Derived d) {
+        int *pi = cd;	// expected-error {{incompatible type initializing 'struct Derived const', expected 'int *'}}
+        int *ppi = d; 
+
+}

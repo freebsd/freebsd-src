@@ -21,66 +21,68 @@
 #include <vector>
 
 namespace clang {
-  
+
 class GRExprEngine;
 class BugReporter;
 class ObjCMessageExpr;
 class GRStmtNodeBuilderRef;
-  
+
 class GRTransferFuncs {
 public:
   GRTransferFuncs() {}
   virtual ~GRTransferFuncs() {}
-  
+
   virtual void RegisterPrinters(std::vector<GRState::Printer*>& Printers) {}
   virtual void RegisterChecks(BugReporter& BR) {}
-  
+
 
   // Calls.
-  
-  virtual void EvalCall(ExplodedNodeSet<GRState>& Dst,
+
+  virtual void EvalCall(ExplodedNodeSet& Dst,
                         GRExprEngine& Engine,
-                        GRStmtNodeBuilder<GRState>& Builder,
+                        GRStmtNodeBuilder& Builder,
                         CallExpr* CE, SVal L,
-                        ExplodedNode<GRState>* Pred) {}
-  
-  virtual void EvalObjCMessageExpr(ExplodedNodeSet<GRState>& Dst,
+                        ExplodedNode* Pred) {}
+
+  virtual void EvalObjCMessageExpr(ExplodedNodeSet& Dst,
                                    GRExprEngine& Engine,
-                                   GRStmtNodeBuilder<GRState>& Builder,
+                                   GRStmtNodeBuilder& Builder,
                                    ObjCMessageExpr* ME,
-                                   ExplodedNode<GRState>* Pred) {}
-  
+                                   ExplodedNode* Pred) {}
+
   // Stores.
-  
+
   virtual void EvalBind(GRStmtNodeBuilderRef& B, SVal location, SVal val) {}
-  
+
   // End-of-path and dead symbol notification.
-  
+
   virtual void EvalEndPath(GRExprEngine& Engine,
-                           GREndPathNodeBuilder<GRState>& Builder) {}
-  
-  
-  virtual void EvalDeadSymbols(ExplodedNodeSet<GRState>& Dst,
+                           GREndPathNodeBuilder& Builder) {}
+
+
+  virtual void EvalDeadSymbols(ExplodedNodeSet& Dst,
                                GRExprEngine& Engine,
-                               GRStmtNodeBuilder<GRState>& Builder,
-                               ExplodedNode<GRState>* Pred,
+                               GRStmtNodeBuilder& Builder,
+                               ExplodedNode* Pred,
                                Stmt* S, const GRState* state,
                                SymbolReaper& SymReaper) {}
-  
-  // Return statements.  
-  virtual void EvalReturn(ExplodedNodeSet<GRState>& Dst,
-                          GRExprEngine& Engine,
-                          GRStmtNodeBuilder<GRState>& Builder,
-                          ReturnStmt* S,
-                          ExplodedNode<GRState>* Pred) {}
 
-  // Assumptions.  
+  // Return statements.
+  virtual void EvalReturn(ExplodedNodeSet& Dst,
+                          GRExprEngine& Engine,
+                          GRStmtNodeBuilder& Builder,
+                          ReturnStmt* S,
+                          ExplodedNode* Pred) {}
+
+  // Assumptions.
   virtual const GRState* EvalAssume(const GRState *state,
                                     SVal Cond, bool Assumption) {
     return state;
   }
 };
-  
+
+GRTransferFuncs *CreateCallInliner(ASTContext &ctx);
+
 } // end clang namespace
 
 #endif

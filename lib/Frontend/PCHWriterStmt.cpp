@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/PCHWriter.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/StmtVisitor.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
@@ -86,7 +87,7 @@ namespace {
     void VisitShuffleVectorExpr(ShuffleVectorExpr *E);
     void VisitBlockExpr(BlockExpr *E);
     void VisitBlockDeclRefExpr(BlockDeclRefExpr *E);
-      
+
     // Objective-C Expressions
     void VisitObjCStringLiteral(ObjCStringLiteral *E);
     void VisitObjCEncodeExpr(ObjCEncodeExpr *E);
@@ -94,21 +95,27 @@ namespace {
     void VisitObjCProtocolExpr(ObjCProtocolExpr *E);
     void VisitObjCIvarRefExpr(ObjCIvarRefExpr *E);
     void VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E);
-    void VisitObjCKVCRefExpr(ObjCKVCRefExpr *E);
+    void VisitObjCImplicitSetterGetterRefExpr(
+                        ObjCImplicitSetterGetterRefExpr *E);
     void VisitObjCMessageExpr(ObjCMessageExpr *E);
     void VisitObjCSuperExpr(ObjCSuperExpr *E);
-    
-    // Objective-C Statements    
+    void VisitObjCIsaExpr(ObjCIsaExpr *E);
+
+    // Objective-C Statements
     void VisitObjCForCollectionStmt(ObjCForCollectionStmt *);
     void VisitObjCAtCatchStmt(ObjCAtCatchStmt *);
     void VisitObjCAtFinallyStmt(ObjCAtFinallyStmt *);
     void VisitObjCAtTryStmt(ObjCAtTryStmt *);
     void VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *);
     void VisitObjCAtThrowStmt(ObjCAtThrowStmt *);
+
+    // C++ Statements
+    void VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E);
+    void VisitCXXConstructExpr(CXXConstructExpr *E);
   };
 }
 
-void PCHStmtWriter::VisitStmt(Stmt *S) { 
+void PCHStmtWriter::VisitStmt(Stmt *S) {
 }
 
 void PCHStmtWriter::VisitNullStmt(NullStmt *S) {
@@ -176,7 +183,7 @@ void PCHStmtWriter::VisitSwitchStmt(SwitchStmt *S) {
   Writer.WriteSubStmt(S->getCond());
   Writer.WriteSubStmt(S->getBody());
   Writer.AddSourceLocation(S->getSwitchLoc(), Record);
-  for (SwitchCase *SC = S->getSwitchCaseList(); SC; 
+  for (SwitchCase *SC = S->getSwitchCaseList(); SC;
        SC = SC->getNextSwitchCase())
     Record.push_back(Writer.getSwitchCaseID(SC));
   Code = pch::STMT_SWITCH;
@@ -340,7 +347,7 @@ void PCHStmtWriter::VisitStringLiteral(StringLiteral *E) {
   // StringLiteral. However, we can't do so now because we have no
   // provision for coping with abbreviations when we're jumping around
   // the PCH file during deserialization.
-  Record.insert(Record.end(), 
+  Record.insert(Record.end(),
                 E->getStrData(), E->getStrData() + E->getByteLength());
   for (unsigned I = 0, N = E->getNumConcatenated(); I != N; ++I)
     Writer.AddSourceLocation(E->getStrTokenLoc(I), Record);
@@ -350,7 +357,7 @@ void PCHStmtWriter::VisitStringLiteral(StringLiteral *E) {
 void PCHStmtWriter::VisitCharacterLiteral(CharacterLiteral *E) {
   VisitExpr(E);
   Record.push_back(E->getValue());
-  Writer.AddSourceLocation(E->getLoc(), Record);
+  Writer.AddSourceLocation(E->getLocation(), Record);
   Record.push_back(E->isWide());
   Code = pch::EXPR_CHARACTER_LITERAL;
 }
@@ -371,7 +378,7 @@ void PCHStmtWriter::VisitUnaryOperator(UnaryOperator *E) {
   Code = pch::EXPR_UNARY_OPERATOR;
 }
 
-void PCHStmtWriter::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) { 
+void PCHStmtWriter::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
   VisitExpr(E);
   Record.push_back(E->isSizeOf());
   if (E->isArgumentType())
@@ -410,12 +417,23 @@ void PCHStmtWriter::VisitMemberExpr(MemberExpr *E) {
   Writer.AddDeclRef(E->getMemberDecl(), Record);
   Writer.AddSourceLocation(E->getMemberLoc(), Record);
   Record.push_back(E->isArrow());
+  // FIXME: C++ nested-name-specifier
+  // FIXME: C++ template argument list
   Code = pch::EXPR_MEMBER;
+}
+
+void PCHStmtWriter::VisitObjCIsaExpr(ObjCIsaExpr *E) {
+  VisitExpr(E);
+  Writer.WriteSubStmt(E->getBase());
+  Writer.AddSourceLocation(E->getIsaMemberLoc(), Record);
+  Record.push_back(E->isArrow());
+  Code = pch::EXPR_OBJC_ISA;
 }
 
 void PCHStmtWriter::VisitCastExpr(CastExpr *E) {
   VisitExpr(E);
   Writer.WriteSubStmt(E->getSubExpr());
+  Record.push_back(E->getCastKind()); // FIXME: stable encoding
 }
 
 void PCHStmtWriter::VisitBinaryOperator(BinaryOperator *E) {
@@ -439,6 +457,8 @@ void PCHStmtWriter::VisitConditionalOperator(ConditionalOperator *E) {
   Writer.WriteSubStmt(E->getCond());
   Writer.WriteSubStmt(E->getLHS());
   Writer.WriteSubStmt(E->getRHS());
+  Writer.AddSourceLocation(E->getQuestionLoc(), Record);
+  Writer.AddSourceLocation(E->getColonLoc(), Record);
   Code = pch::EXPR_CONDITIONAL_OPERATOR;
 }
 
@@ -617,7 +637,7 @@ void PCHStmtWriter::VisitObjCStringLiteral(ObjCStringLiteral *E) {
   Code = pch::EXPR_OBJC_STRING_LITERAL;
 }
 
-void PCHStmtWriter::VisitObjCEncodeExpr(ObjCEncodeExpr *E) { 
+void PCHStmtWriter::VisitObjCEncodeExpr(ObjCEncodeExpr *E) {
   VisitExpr(E);
   Writer.AddTypeRef(E->getEncodedType(), Record);
   Writer.AddSourceLocation(E->getAtLoc(), Record);
@@ -659,13 +679,14 @@ void PCHStmtWriter::VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *E) {
   Code = pch::EXPR_OBJC_PROPERTY_REF_EXPR;
 }
 
-void PCHStmtWriter::VisitObjCKVCRefExpr(ObjCKVCRefExpr *E) {
+void PCHStmtWriter::VisitObjCImplicitSetterGetterRefExpr(
+                                  ObjCImplicitSetterGetterRefExpr *E) {
   VisitExpr(E);
   Writer.AddDeclRef(E->getGetterMethod(), Record);
   Writer.AddDeclRef(E->getSetterMethod(), Record);
-  
-  // NOTE: ClassProp and Base are mutually exclusive.
-  Writer.AddDeclRef(E->getClassProp(), Record);
+
+  // NOTE: InterfaceDecl and Base are mutually exclusive.
+  Writer.AddDeclRef(E->getInterfaceDecl(), Record);
   Writer.WriteSubStmt(E->getBase());
   Writer.AddSourceLocation(E->getLocation(), Record);
   Writer.AddSourceLocation(E->getClassLoc(), Record);
@@ -746,11 +767,31 @@ void PCHStmtWriter::VisitObjCAtThrowStmt(ObjCAtThrowStmt *S) {
 }
 
 //===----------------------------------------------------------------------===//
+// C++ Expressions and Statements.
+//===----------------------------------------------------------------------===//
+
+void PCHStmtWriter::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
+  VisitCallExpr(E);
+  Record.push_back(E->getOperator());
+  Code = pch::EXPR_CXX_OPERATOR_CALL;
+}
+
+void PCHStmtWriter::VisitCXXConstructExpr(CXXConstructExpr *E) {
+  VisitExpr(E);
+  Writer.AddDeclRef(E->getConstructor(), Record);
+  Record.push_back(E->isElidable());
+  Record.push_back(E->getNumArgs());
+  for (unsigned I = 0, N = E->getNumArgs(); I != N; ++I)
+    Writer.WriteSubStmt(E->getArg(I));
+  Code = pch::EXPR_CXX_CONSTRUCT;
+}
+
+//===----------------------------------------------------------------------===//
 // PCHWriter Implementation
 //===----------------------------------------------------------------------===//
 
 unsigned PCHWriter::RecordSwitchCaseID(SwitchCase *S) {
-  assert(SwitchCaseIDs.find(S) == SwitchCaseIDs.end() && 
+  assert(SwitchCaseIDs.find(S) == SwitchCaseIDs.end() &&
          "SwitchCase recorded twice");
   unsigned NextID = SwitchCaseIDs.size();
   SwitchCaseIDs[S] = NextID;
@@ -758,7 +799,7 @@ unsigned PCHWriter::RecordSwitchCaseID(SwitchCase *S) {
 }
 
 unsigned PCHWriter::getSwitchCaseID(SwitchCase *S) {
-  assert(SwitchCaseIDs.find(S) != SwitchCaseIDs.end() && 
+  assert(SwitchCaseIDs.find(S) != SwitchCaseIDs.end() &&
          "SwitchCase hasn't been seen yet");
   return SwitchCaseIDs[S];
 }
@@ -769,7 +810,7 @@ unsigned PCHWriter::GetLabelID(LabelStmt *S) {
   std::map<LabelStmt *, unsigned>::iterator Pos = LabelIDs.find(S);
   if (Pos != LabelIDs.end())
     return Pos->second;
-  
+
   unsigned NextID = LabelIDs.size();
   LabelIDs[S] = NextID;
   return NextID;
@@ -781,17 +822,17 @@ void PCHWriter::WriteSubStmt(Stmt *S) {
   RecordData Record;
   PCHStmtWriter Writer(*this, Record);
   ++NumStatements;
-  
+
   if (!S) {
     Stream.EmitRecord(pch::STMT_NULL_PTR, Record);
     return;
   }
-  
+
   Writer.Code = pch::STMT_NULL_PTR;
   Writer.Visit(S);
-  assert(Writer.Code != pch::STMT_NULL_PTR && 
+  assert(Writer.Code != pch::STMT_NULL_PTR &&
          "Unhandled expression writing PCH file");
-  Stream.EmitRecord(Writer.Code, Record);    
+  Stream.EmitRecord(Writer.Code, Record);
 }
 
 /// \brief Flush all of the statements that have been added to the
@@ -799,31 +840,31 @@ void PCHWriter::WriteSubStmt(Stmt *S) {
 void PCHWriter::FlushStmts() {
   RecordData Record;
   PCHStmtWriter Writer(*this, Record);
-  
+
   for (unsigned I = 0, N = StmtsToEmit.size(); I != N; ++I) {
     ++NumStatements;
     Stmt *S = StmtsToEmit[I];
-    
+
     if (!S) {
       Stream.EmitRecord(pch::STMT_NULL_PTR, Record);
       continue;
     }
-    
+
     Writer.Code = pch::STMT_NULL_PTR;
     Writer.Visit(S);
-    assert(Writer.Code != pch::STMT_NULL_PTR && 
+    assert(Writer.Code != pch::STMT_NULL_PTR &&
            "Unhandled expression writing PCH file");
-    Stream.EmitRecord(Writer.Code, Record);  
-    
-    assert(N == StmtsToEmit.size() && 
+    Stream.EmitRecord(Writer.Code, Record);
+
+    assert(N == StmtsToEmit.size() &&
            "Substatement writen via AddStmt rather than WriteSubStmt!");
-    
+
     // Note that we are at the end of a full expression. Any
     // expression records that follow this one are part of a different
     // expression.
     Record.clear();
     Stream.EmitRecord(pch::STMT_STOP, Record);
   }
-  
+
   StmtsToEmit.clear();
 }

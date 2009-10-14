@@ -1,9 +1,7 @@
 // RUN: clang-cc -triple i386-pc-linux-gnu -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
-// RUN: clang-cc -triple i386-pc-linux-gnu -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s
-
-
-// NOTWORK: clang-cc -triple i386-pc-linux-gnu -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify %s &&
-// NOTWORK: clang-cc -triple i386-pc-linux-gnu -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify %s
+// RUN: clang-cc -triple i386-pc-linux-gnu -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s &&
+// RUN: clang-cc -triple i386-pc-linux-gnu -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify %s &&
+// RUN: clang-cc -triple i386-pc-linux-gnu -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify %s
 
 //===----------------------------------------------------------------------===//
 // The following code is reduced using delta-debugging from
@@ -157,6 +155,7 @@ NSString* f11(CFDictionaryRef dict, const char* key) {
   if (s) {
     [s release];
   }
+  return 0;
 }
 
 // Test case for passing a tracked object by-reference to a function we
@@ -284,6 +283,12 @@ void testOSCompareAndSwap32Barrier() {
   else    
     [old release];
 }
+
+int testOSCompareAndSwap32Barrier_id(Class myclass, id xclass) {
+  if (OSAtomicCompareAndSwap32Barrier(0, (int32_t) myclass, (int32_t*) &xclass))
+    return 1;
+  return 0;
+}  
 
 void test_objc_atomicCompareAndSwap() {
   NSString *old = 0;

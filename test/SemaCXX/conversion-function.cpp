@@ -64,3 +64,32 @@ struct Flip {
   operator Flop() const;
 };
 Flop flop = Flip(); // expected-error {{cannot initialize 'flop' with an rvalue of type 'struct Flip'}}
+
+// This tests that we don't add the second conversion declaration to the list of user conversions
+struct C {
+  operator const char *() const;
+};
+
+C::operator const char*() const { return 0; }
+
+void f(const C& c) {
+  const char* v = c;
+}
+
+// Test. Conversion in base class is visible in derived class.
+class XB { 
+public:
+  operator int(); // expected-note {{candidate function}}
+};
+
+class Yb : public XB { 
+public:
+  operator char(); // expected-note {{candidate function}}
+};
+
+void f(Yb& a) {
+  if (a) { } // expected-error {{conversion from 'class Yb' to 'bool' is ambiguous}}
+  int i = a; // OK. calls XB::operator int();
+  char ch = a;  // OK. calls Yb::operator char();
+}
+

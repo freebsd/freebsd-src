@@ -42,12 +42,16 @@ using llvm::APFloat;
 /// certain things in certain situations.
 struct EvalInfo {
   ASTContext &Ctx;
-  
+
   /// EvalResult - Contains information about the evaluation.
   Expr::EvalResult &EvalResult;
 
-  EvalInfo(ASTContext &ctx, Expr::EvalResult& evalresult) : Ctx(ctx), 
-           EvalResult(evalresult) {}
+  /// AnyLValue - Stack based LValue results are not discarded.
+  bool AnyLValue;
+
+  EvalInfo(ASTContext &ctx, Expr::EvalResult& evalresult,
+           bool anylvalue = false)
+    : Ctx(ctx), EvalResult(evalresult), AnyLValue(anylvalue) {}
 };
 
 
@@ -104,12 +108,12 @@ static bool HandleConversionToBool(Expr* E, bool& Result, EvalInfo &Info) {
   return false;
 }
 
-static APSInt HandleFloatToIntCast(QualType DestType, QualType SrcType, 
+static APSInt HandleFloatToIntCast(QualType DestType, QualType SrcType,
                                    APFloat &Value, ASTContext &Ctx) {
   unsigned DestWidth = Ctx.getIntWidth(DestType);
   // Determine whether we are converting to unsigned or signed.
   bool DestSigned = DestType->isSignedIntegerType();
-  
+
   // FIXME: Warning for overflow.
   uint64_t Space[4];
   bool ignored;
@@ -118,16 +122,16 @@ static APSInt HandleFloatToIntCast(QualType DestType, QualType SrcType,
   return APSInt(llvm::APInt(DestWidth, 4, Space), !DestSigned);
 }
 
-static APFloat HandleFloatToFloatCast(QualType DestType, QualType SrcType, 
+static APFloat HandleFloatToFloatCast(QualType DestType, QualType SrcType,
                                       APFloat &Value, ASTContext &Ctx) {
   bool ignored;
   APFloat Result = Value;
-  Result.convert(Ctx.getFloatTypeSemantics(DestType), 
+  Result.convert(Ctx.getFloatTypeSemantics(DestType),
                  APFloat::rmNearestTiesToEven, &ignored);
   return Result;
 }
 
-static APSInt HandleIntToIntCast(QualType DestType, QualType SrcType, 
+static APSInt HandleIntToIntCast(QualType DestType, QualType SrcType,
                                  APSInt &Value, ASTContext &Ctx) {
   unsigned DestWidth = Ctx.getIntWidth(DestType);
   APSInt Result = Value;
@@ -138,7 +142,7 @@ static APSInt HandleIntToIntCast(QualType DestType, QualType SrcType,
   return Result;
 }
 
-static APFloat HandleIntToFloatCast(QualType DestType, QualType SrcType, 
+static APFloat HandleIntToFloatCast(QualType DestType, QualType SrcType,
                                     APSInt &Value, ASTContext &Ctx) {
 
   APFloat Result(Ctx.getFloatTypeSemantics(DestType), 1);
@@ -155,7 +159,7 @@ class VISIBILITY_HIDDEN LValueExprEvaluator
   : public StmtVisitor<LValueExprEvaluator, APValue> {
   EvalInfo &Info;
 public:
-    
+
   LValueExprEvaluator(EvalInfo &info) : Info(info) {}
 
   APValue VisitStmt(Stmt *S) {
@@ -176,6 +180,16 @@ public:
     { return Visit(E->getSubExpr()); }
   APValue VisitChooseExpr(const ChooseExpr *E)
     { return Visit(E->getChosenSubExpr(Info.Ctx)); }
+
+  APValue VisitCastExpr(CastExpr *E) {
+    switch (E->getCastKind()) {
+    default:
+      return APValue();
+
+    case CastExpr::CK_NoOp:
+      return Visit(E->getSubExpr());
+    }
+  }
   // FIXME: Missing: __real__, __imag__
 };
 } // end anonymous namespace
@@ -185,16 +199,15 @@ static bool EvaluateLValue(const Expr* E, APValue& Result, EvalInfo &Info) {
   return Result.isLValue();
 }
 
-APValue LValueExprEvaluator::VisitDeclRefExpr(DeclRefExpr *E)
-{
-  if (!E->hasGlobalStorage())
-    return APValue();
-
+APValue LValueExprEvaluator::VisitDeclRefExpr(DeclRefExpr *E) {
   if (isa<FunctionDecl>(E->getDecl())) {
     return APValue(E, 0);
   } else if (VarDecl* VD = dyn_cast<VarDecl>(E->getDecl())) {
+    if (!Info.AnyLValue && !VD->hasGlobalStorage())
+      return APValue();
     if (!VD->getType()->isReferenceType())
       return APValue(E, 0);
+    // FIXME: Check whether VD might be overridden!
     if (VD->getInit())
       return Visit(VD->getInit());
   }
@@ -202,18 +215,17 @@ APValue LValueExprEvaluator::VisitDeclRefExpr(DeclRefExpr *E)
   return APValue();
 }
 
-APValue LValueExprEvaluator::VisitBlockExpr(BlockExpr *E)
-{ 
+APValue LValueExprEvaluator::VisitBlockExpr(BlockExpr *E) {
   if (E->hasBlockDeclRefExprs())
     return APValue();
-    
+
   return APValue(E, 0);
 }
 
 APValue LValueExprEvaluator::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
-  if (E->isFileScope())
-    return APValue(E, 0);
-  return APValue();
+  if (!Info.AnyLValue && !E->isFileScope())
+    return APValue();
+  return APValue(E, 0);
 }
 
 APValue LValueExprEvaluator::VisitMemberExpr(MemberExpr *E) {
@@ -222,7 +234,7 @@ APValue LValueExprEvaluator::VisitMemberExpr(MemberExpr *E) {
   if (E->isArrow()) {
     if (!EvaluatePointer(E->getBase(), result, Info))
       return APValue();
-    Ty = E->getBase()->getType()->getAsPointerType()->getPointeeType();
+    Ty = E->getBase()->getType()->getAs<PointerType>()->getPointeeType();
   } else {
     result = Visit(E->getBase());
     if (result.isUninit())
@@ -230,7 +242,7 @@ APValue LValueExprEvaluator::VisitMemberExpr(MemberExpr *E) {
     Ty = E->getBase()->getType();
   }
 
-  RecordDecl *RD = Ty->getAsRecordType()->getDecl();
+  RecordDecl *RD = Ty->getAs<RecordType>()->getDecl();
   const ASTRecordLayout &RL = Info.Ctx.getASTRecordLayout(RD);
 
   FieldDecl *FD = dyn_cast<FieldDecl>(E->getMemberDecl());
@@ -255,13 +267,12 @@ APValue LValueExprEvaluator::VisitMemberExpr(MemberExpr *E) {
   return result;
 }
 
-APValue LValueExprEvaluator::VisitArraySubscriptExpr(ArraySubscriptExpr *E)
-{
+APValue LValueExprEvaluator::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
   APValue Result;
-  
+
   if (!EvaluatePointer(E->getBase(), Result, Info))
     return APValue();
-  
+
   APSInt Index;
   if (!EvaluateInteger(E->getIdx(), Index, Info))
     return APValue();
@@ -269,13 +280,12 @@ APValue LValueExprEvaluator::VisitArraySubscriptExpr(ArraySubscriptExpr *E)
   uint64_t ElementSize = Info.Ctx.getTypeSize(E->getType()) / 8;
 
   uint64_t Offset = Index.getSExtValue() * ElementSize;
-  Result.setLValue(Result.getLValueBase(), 
+  Result.setLValue(Result.getLValueBase(),
                    Result.getLValueOffset() + Offset);
   return Result;
 }
 
-APValue LValueExprEvaluator::VisitUnaryDeref(UnaryOperator *E)
-{
+APValue LValueExprEvaluator::VisitUnaryDeref(UnaryOperator *E) {
   APValue Result;
   if (!EvaluatePointer(E->getSubExpr(), Result, Info))
     return APValue();
@@ -291,7 +301,7 @@ class VISIBILITY_HIDDEN PointerExprEvaluator
   : public StmtVisitor<PointerExprEvaluator, APValue> {
   EvalInfo &Info;
 public:
-    
+
   PointerExprEvaluator(EvalInfo &info) : Info(info) {}
 
   APValue VisitStmt(Stmt *S) {
@@ -337,23 +347,23 @@ APValue PointerExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
   if (E->getOpcode() != BinaryOperator::Add &&
       E->getOpcode() != BinaryOperator::Sub)
     return APValue();
-  
+
   const Expr *PExp = E->getLHS();
   const Expr *IExp = E->getRHS();
   if (IExp->getType()->isPointerType())
     std::swap(PExp, IExp);
-  
+
   APValue ResultLValue;
   if (!EvaluatePointer(PExp, ResultLValue, Info))
     return APValue();
-  
+
   llvm::APSInt AdditionalOffset(32);
   if (!EvaluateInteger(IExp, AdditionalOffset, Info))
     return APValue();
 
-  QualType PointeeType = PExp->getType()->getAsPointerType()->getPointeeType();
+  QualType PointeeType = PExp->getType()->getAs<PointerType>()->getPointeeType();
   uint64_t SizeOfPointee;
-  
+
   // Explicitly handle GNU void* and function pointer arithmetic extensions.
   if (PointeeType->isVoidType() || PointeeType->isFunctionType())
     SizeOfPointee = 1;
@@ -376,19 +386,21 @@ APValue PointerExprEvaluator::VisitUnaryAddrOf(const UnaryOperator *E) {
     return result;
   return APValue();
 }
-  
+
 
 APValue PointerExprEvaluator::VisitCastExpr(const CastExpr* E) {
   const Expr* SubExpr = E->getSubExpr();
 
    // Check for pointer->pointer cast
-  if (SubExpr->getType()->isPointerType()) {
+  if (SubExpr->getType()->isPointerType() ||
+      SubExpr->getType()->isObjCObjectPointerType() ||
+      SubExpr->getType()->isNullPtrType()) {
     APValue Result;
     if (EvaluatePointer(SubExpr, Result, Info))
       return Result;
     return APValue();
   }
-  
+
   if (SubExpr->getType()->isIntegralType()) {
     APValue Result;
     if (!EvaluateIntegerOrLValue(SubExpr, Result, Info))
@@ -398,7 +410,7 @@ APValue PointerExprEvaluator::VisitCastExpr(const CastExpr* E) {
       Result.getInt().extOrTrunc((unsigned)Info.Ctx.getTypeSize(E->getType()));
       return APValue(0, Result.getInt().getZExtValue());
     }
-    
+
     // Cast is of an lvalue, no need to change value.
     return Result;
   }
@@ -413,10 +425,10 @@ APValue PointerExprEvaluator::VisitCastExpr(const CastExpr* E) {
   }
 
   return APValue();
-}  
+}
 
 APValue PointerExprEvaluator::VisitCallExpr(CallExpr *E) {
-  if (E->isBuiltinCall(Info.Ctx) == 
+  if (E->isBuiltinCall(Info.Ctx) ==
         Builtin::BI__builtin___CFStringMakeConstantString)
     return APValue(E, 0);
   return APValue();
@@ -445,13 +457,13 @@ namespace {
     EvalInfo &Info;
     APValue GetZeroVector(QualType VecType);
   public:
-    
+
     VectorExprEvaluator(EvalInfo &info) : Info(info) {}
-    
+
     APValue VisitStmt(Stmt *S) {
       return APValue();
     }
-    
+
     APValue VisitParenExpr(ParenExpr *E)
         { return Visit(E->getSubExpr()); }
     APValue VisitUnaryExtension(const UnaryOperator *E)
@@ -485,11 +497,11 @@ static bool EvaluateVector(const Expr* E, APValue& Result, EvalInfo &Info) {
 }
 
 APValue VectorExprEvaluator::VisitCastExpr(const CastExpr* E) {
-  const VectorType *VTy = E->getType()->getAsVectorType();
+  const VectorType *VTy = E->getType()->getAs<VectorType>();
   QualType EltTy = VTy->getElementType();
   unsigned NElts = VTy->getNumElements();
   unsigned EltWidth = Info.Ctx.getTypeSize(EltTy);
-  
+
   const Expr* SE = E->getSubExpr();
   QualType SETy = SE->getType();
   APValue Result = APValue();
@@ -539,12 +551,12 @@ APValue VectorExprEvaluator::VisitCastExpr(const CastExpr* E) {
   // element.
   APSInt Init;
   Init = Result.isInt() ? Result.getInt() : Result.getFloat().bitcastToAPInt();
-  
+
   llvm::SmallVector<APValue, 4> Elts;
   for (unsigned i = 0; i != NElts; ++i) {
     APSInt Tmp = Init;
     Tmp.extOrTrunc(EltWidth);
-    
+
     if (EltTy->isIntegerType())
       Elts.push_back(APValue(Tmp));
     else if (EltTy->isRealFloatingType())
@@ -557,17 +569,17 @@ APValue VectorExprEvaluator::VisitCastExpr(const CastExpr* E) {
   return APValue(&Elts[0], Elts.size());
 }
 
-APValue 
+APValue
 VectorExprEvaluator::VisitCompoundLiteralExpr(const CompoundLiteralExpr *E) {
   return this->Visit(const_cast<Expr*>(E->getInitializer()));
 }
 
-APValue 
+APValue
 VectorExprEvaluator::VisitInitListExpr(const InitListExpr *E) {
-  const VectorType *VT = E->getType()->getAsVectorType();
+  const VectorType *VT = E->getType()->getAs<VectorType>();
   unsigned NumInits = E->getNumInits();
   unsigned NumElements = VT->getNumElements();
-  
+
   QualType EltTy = VT->getElementType();
   llvm::SmallVector<APValue, 4> Elements;
 
@@ -595,9 +607,9 @@ VectorExprEvaluator::VisitInitListExpr(const InitListExpr *E) {
   return APValue(&Elements[0], Elements.size());
 }
 
-APValue 
+APValue
 VectorExprEvaluator::GetZeroVector(QualType T) {
-  const VectorType *VT = T->getAsVectorType();
+  const VectorType *VT = T->getAs<VectorType>();
   QualType EltTy = VT->getElementType();
   APValue ZeroElement;
   if (EltTy->isIntegerType())
@@ -676,20 +688,20 @@ public:
     }
     return false;
   }
-    
+
   //===--------------------------------------------------------------------===//
   //                            Visitor Methods
   //===--------------------------------------------------------------------===//
-  
+
   bool VisitStmt(Stmt *) {
     assert(0 && "This should be called on integers, stmts are not integers");
     return false;
   }
-    
+
   bool VisitExpr(Expr *E) {
     return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
   }
-  
+
   bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
 
   bool VisitIntegerLiteral(const IntegerLiteral *E) {
@@ -704,7 +716,7 @@ public:
     // be able to strip CRV qualifiers from the type.
     QualType T0 = Info.Ctx.getCanonicalType(E->getArgType1());
     QualType T1 = Info.Ctx.getCanonicalType(E->getArgType2());
-    return Success(Info.Ctx.typesAreCompatible(T0.getUnqualifiedType(), 
+    return Success(Info.Ctx.typesAreCompatible(T0.getUnqualifiedType(),
                                                T1.getUnqualifiedType()),
                    E);
   }
@@ -720,11 +732,11 @@ public:
   bool VisitCXXBoolLiteralExpr(const CXXBoolLiteralExpr *E) {
     return Success(E->getValue(), E);
   }
-  
+
   bool VisitGNUNullExpr(const GNUNullExpr *E) {
     return Success(0, E);
   }
-    
+
   bool VisitCXXZeroInitValueExpr(const CXXZeroInitValueExpr *E) {
     return Success(0, E);
   }
@@ -734,7 +746,7 @@ public:
   }
 
   bool VisitUnaryTypeTraitExpr(const UnaryTypeTraitExpr *E) {
-    return Success(E->EvaluateTrait(), E);
+    return Success(E->EvaluateTrait(Info.Ctx), E);
   }
 
   bool VisitChooseExpr(const ChooseExpr *E) {
@@ -754,7 +766,7 @@ private:
 static bool EvaluateIntegerOrLValue(const Expr* E, APValue &Result, EvalInfo &Info) {
   if (!E->getType()->isIntegralType())
     return false;
-  
+
   return IntExprEvaluator(Info, Result).Visit(const_cast<Expr*>(E));
 }
 
@@ -781,7 +793,7 @@ bool IntExprEvaluator::VisitDeclRefExpr(const DeclRefExpr *E) {
 
   // In C++, const, non-volatile integers initialized with ICEs are ICEs.
   // In C, they can also be folded, although they are not ICEs.
-  if (E->getType().getCVRQualifiers() == QualType::Const) {
+  if (E->getType().getCVRQualifiers() == Qualifiers::Const) {
     if (const VarDecl *D = dyn_cast<VarDecl>(E->getDecl())) {
       if (APValue *V = D->getEvaluatedValue())
         return Success(V->getInt(), E);
@@ -817,12 +829,12 @@ static int EvaluateBuiltinClassifyType(const CallExpr *E) {
     array_type_class, string_type_class,
     lang_type_class
   };
-  
-  // If no argument was supplied, default to "no_type_class". This isn't 
+
+  // If no argument was supplied, default to "no_type_class". This isn't
   // ideal, however it is what gcc does.
   if (E->getNumArgs() == 0)
     return no_type_class;
-  
+
   QualType ArgTy = E->getArg(0)->getType();
   if (ArgTy->isVoidType())
     return void_type_class;
@@ -863,11 +875,17 @@ bool IntExprEvaluator::VisitCallExpr(const CallExpr *E) {
     return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
   case Builtin::BI__builtin_classify_type:
     return Success(EvaluateBuiltinClassifyType(E), E);
-    
+
   case Builtin::BI__builtin_constant_p:
     // __builtin_constant_p always has one operand: it returns true if that
     // operand can be folded, false otherwise.
     return Success(E->getArg(0)->isEvaluatable(Info.Ctx), E);
+      
+  case Builtin::BI__builtin_eh_return_data_regno: {
+    int Operand = E->getArg(0)->EvaluateAsInt(Info.Ctx).getZExtValue();
+    Operand = Info.Ctx.Target.getEHDataRegisterNumber(Operand);
+    return Success(Operand, E);
+  }
   }
 }
 
@@ -888,7 +906,7 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
     // These need to be handled specially because the operands aren't
     // necessarily integral
     bool lhsResult, rhsResult;
-    
+
     if (HandleConversionToBool(E->getLHS(), lhsResult, Info)) {
       // We were able to evaluate the LHS, see if we can get away with not
       // evaluating the RHS: 0 && X -> 0, 1 || X -> 1
@@ -905,7 +923,7 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
       if (HandleConversionToBool(E->getRHS(), rhsResult, Info)) {
         // We can't evaluate the LHS; however, sometimes the result
         // is determined by the RHS: X && 0 -> 0, X || 1 -> 1.
-        if (rhsResult == (E->getOpcode() == BinaryOperator::LOr) || 
+        if (rhsResult == (E->getOpcode() == BinaryOperator::LOr) ||
             !rhsResult == (E->getOpcode() == BinaryOperator::LAnd)) {
           // Since we weren't able to evaluate the left hand side, it
           // must have had side effects.
@@ -933,9 +951,9 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
       return false;
 
     if (LHS.isComplexFloat()) {
-      APFloat::cmpResult CR_r = 
+      APFloat::cmpResult CR_r =
         LHS.getComplexFloatReal().compare(RHS.getComplexFloatReal());
-      APFloat::cmpResult CR_i = 
+      APFloat::cmpResult CR_i =
         LHS.getComplexFloatImag().compare(RHS.getComplexFloatImag());
 
       if (E->getOpcode() == BinaryOperator::EQ)
@@ -944,9 +962,9 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
       else {
         assert(E->getOpcode() == BinaryOperator::NE &&
                "Invalid complex comparison.");
-        return Success(((CR_r == APFloat::cmpGreaterThan || 
+        return Success(((CR_r == APFloat::cmpGreaterThan ||
                          CR_r == APFloat::cmpLessThan) &&
-                        (CR_i == APFloat::cmpGreaterThan || 
+                        (CR_i == APFloat::cmpGreaterThan ||
                          CR_i == APFloat::cmpLessThan)), E);
       }
     } else {
@@ -961,17 +979,17 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
       }
     }
   }
-  
+
   if (LHSTy->isRealFloatingType() &&
       RHSTy->isRealFloatingType()) {
     APFloat RHS(0.0), LHS(0.0);
-    
+
     if (!EvaluateFloat(E->getRHS(), RHS, Info))
       return false;
-    
+
     if (!EvaluateFloat(E->getLHS(), LHS, Info))
       return false;
-    
+
     APFloat::cmpResult CR = LHS.compare(RHS);
 
     switch (E->getOpcode()) {
@@ -984,16 +1002,16 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
     case BinaryOperator::LE:
       return Success(CR == APFloat::cmpLessThan || CR == APFloat::cmpEqual, E);
     case BinaryOperator::GE:
-      return Success(CR == APFloat::cmpGreaterThan || CR == APFloat::cmpEqual, 
+      return Success(CR == APFloat::cmpGreaterThan || CR == APFloat::cmpEqual,
                      E);
     case BinaryOperator::EQ:
       return Success(CR == APFloat::cmpEqual, E);
     case BinaryOperator::NE:
-      return Success(CR == APFloat::cmpGreaterThan 
+      return Success(CR == APFloat::cmpGreaterThan
                      || CR == APFloat::cmpLessThan, E);
     }
   }
-  
+
   if (LHSTy->isPointerType() && RHSTy->isPointerType()) {
     if (E->getOpcode() == BinaryOperator::Sub || E->isEqualityOp()) {
       APValue LHSValue;
@@ -1028,7 +1046,7 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
 
       if (E->getOpcode() == BinaryOperator::Sub) {
         const QualType Type = E->getLHS()->getType();
-        const QualType ElementType = Type->getAsPointerType()->getPointeeType();
+        const QualType ElementType = Type->getAs<PointerType>()->getPointeeType();
 
         uint64_t D = LHSValue.getLValueOffset() - RHSValue.getLValueOffset();
         if (!ElementType->isVoidType() && !ElementType->isFunctionType())
@@ -1105,16 +1123,16 @@ bool IntExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
     return Success(Result.getInt() % RHS, E);
   case BinaryOperator::Shl: {
     // FIXME: Warn about out of range shift amounts!
-    unsigned SA = 
+    unsigned SA =
       (unsigned) RHS.getLimitedValue(Result.getInt().getBitWidth()-1);
     return Success(Result.getInt() << SA, E);
   }
   case BinaryOperator::Shr: {
-    unsigned SA = 
+    unsigned SA =
       (unsigned) RHS.getLimitedValue(Result.getInt().getBitWidth()-1);
     return Success(Result.getInt() >> SA, E);
   }
-      
+
   case BinaryOperator::LT: return Success(Result.getInt() < RHS, E);
   case BinaryOperator::GT: return Success(Result.getInt() > RHS, E);
   case BinaryOperator::LE: return Success(Result.getInt() <= RHS, E);
@@ -1144,7 +1162,7 @@ unsigned IntExprEvaluator::GetAlignOfExpr(const Expr *E) {
   E = E->IgnoreParens();
 
   // alignof decl is always accepted, even if it doesn't make sense: we default
-  // to 1 in those cases. 
+  // to 1 in those cases.
   if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
     return Info.Ctx.getDeclAlignInBytes(DRE->getDecl());
 
@@ -1224,7 +1242,7 @@ bool IntExprEvaluator::VisitUnaryOperator(const UnaryOperator *E) {
     // If so, we could clear the diagnostic ID.
     return true;
   case UnaryOperator::Plus:
-    // The result is always just the subexpr. 
+    // The result is always just the subexpr.
     return true;
   case UnaryOperator::Minus:
     if (!Result.isInt()) return false;
@@ -1234,7 +1252,7 @@ bool IntExprEvaluator::VisitUnaryOperator(const UnaryOperator *E) {
     return Success(~Result.getInt(), E);
   }
 }
-  
+
 /// HandleCast - This is used to evaluate implicit or explicit casts where the
 /// result type is integer.
 bool IntExprEvaluator::VisitCastExpr(CastExpr *E) {
@@ -1262,7 +1280,7 @@ bool IntExprEvaluator::VisitCastExpr(CastExpr *E) {
     return Success(HandleIntToIntCast(DestType, SrcType,
                                       Result.getInt(), Info.Ctx), E);
   }
-  
+
   // FIXME: Clean this up!
   if (SrcType->isPointerType()) {
     APValue LV;
@@ -1316,7 +1334,7 @@ bool IntExprEvaluator::VisitCastExpr(CastExpr *E) {
   APFloat F(0.0);
   if (!EvaluateFloat(SubExpr, F, Info))
     return Error(E->getExprLoc(), diag::note_invalid_subexpr_in_ice, E);
-  
+
   return Success(HandleFloatToIntCast(DestType, SrcType, F, Info.Ctx), E);
 }
 
@@ -1399,13 +1417,13 @@ bool FloatExprEvaluator::VisitCallExpr(const CallExpr *E) {
     Result = llvm::APFloat::getInf(Sem);
     return true;
   }
-      
+
   case Builtin::BI__builtin_nan:
   case Builtin::BI__builtin_nanf:
   case Builtin::BI__builtin_nanl:
     // If this is __builtin_nan() turn this into a nan, otherwise we
     // can't constant fold it.
-    if (const StringLiteral *S = 
+    if (const StringLiteral *S =
         dyn_cast<StringLiteral>(E->getArg(0)->IgnoreParenCasts())) {
       if (!S->isWide()) {
         const llvm::fltSemantics &Sem =
@@ -1430,13 +1448,13 @@ bool FloatExprEvaluator::VisitCallExpr(const CallExpr *E) {
   case Builtin::BI__builtin_fabsl:
     if (!EvaluateFloat(E->getArg(0), Result, Info))
       return false;
-    
+
     if (Result.isNegative())
       Result.changeSign();
     return true;
 
-  case Builtin::BI__builtin_copysign: 
-  case Builtin::BI__builtin_copysignf: 
+  case Builtin::BI__builtin_copysign:
+  case Builtin::BI__builtin_copysignf:
   case Builtin::BI__builtin_copysignl: {
     APFloat RHS(0.);
     if (!EvaluateFloat(E->getArg(0), Result, Info) ||
@@ -1457,7 +1475,7 @@ bool FloatExprEvaluator::VisitUnaryOperator(const UnaryOperator *E) {
 
   switch (E->getOpcode()) {
   default: return false;
-  case UnaryOperator::Plus: 
+  case UnaryOperator::Plus:
     return true;
   case UnaryOperator::Minus:
     Result.changeSign();
@@ -1498,12 +1516,12 @@ bool FloatExprEvaluator::VisitFloatingLiteral(const FloatingLiteral *E) {
 
 bool FloatExprEvaluator::VisitCastExpr(CastExpr *E) {
   Expr* SubExpr = E->getSubExpr();
-  
+
   if (SubExpr->getType()->isIntegralType()) {
     APSInt IntResult;
     if (!EvaluateInteger(SubExpr, IntResult, Info))
       return false;
-    Result = HandleIntToFloatCast(E->getType(), SubExpr->getType(), 
+    Result = HandleIntToFloatCast(E->getType(), SubExpr->getType(),
                                   IntResult, Info.Ctx);
     return true;
   }
@@ -1532,10 +1550,10 @@ namespace {
 class VISIBILITY_HIDDEN ComplexExprEvaluator
   : public StmtVisitor<ComplexExprEvaluator, APValue> {
   EvalInfo &Info;
-  
+
 public:
   ComplexExprEvaluator(EvalInfo &info) : Info(info) {}
-  
+
   //===--------------------------------------------------------------------===//
   //                            Visitor Methods
   //===--------------------------------------------------------------------===//
@@ -1543,7 +1561,7 @@ public:
   APValue VisitStmt(Stmt *S) {
     return APValue();
   }
-    
+
   APValue VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
 
   APValue VisitImaginaryLiteral(ImaginaryLiteral *E) {
@@ -1554,17 +1572,17 @@ public:
 
       if (!EvaluateFloat(SubExpr, Result, Info))
         return APValue();
-    
-      return APValue(APFloat(Result.getSemantics(), APFloat::fcZero, false), 
+
+      return APValue(APFloat(Result.getSemantics(), APFloat::fcZero, false),
                      Result);
     } else {
-      assert(SubExpr->getType()->isIntegerType() && 
+      assert(SubExpr->getType()->isIntegerType() &&
              "Unexpected imaginary literal.");
 
       llvm::APSInt Result;
       if (!EvaluateInteger(SubExpr, Result, Info))
         return APValue();
-      
+
       llvm::APSInt Zero(Result.getBitWidth(), !Result.isSigned());
       Zero = 0;
       return APValue(Zero, Result);
@@ -1573,7 +1591,7 @@ public:
 
   APValue VisitCastExpr(CastExpr *E) {
     Expr* SubExpr = E->getSubExpr();
-    QualType EltType = E->getType()->getAsComplexType()->getElementType();
+    QualType EltType = E->getType()->getAs<ComplexType>()->getElementType();
     QualType SubType = SubExpr->getType();
 
     if (SubType->isRealFloatingType()) {
@@ -1584,7 +1602,7 @@ public:
 
       if (EltType->isRealFloatingType()) {
         Result = HandleFloatToFloatCast(EltType, SubType, Result, Info.Ctx);
-        return APValue(Result, 
+        return APValue(Result,
                        APFloat(Result.getSemantics(), APFloat::fcZero, false));
       } else {
         llvm::APSInt IResult;
@@ -1602,7 +1620,7 @@ public:
       if (EltType->isRealFloatingType()) {
         APFloat FResult =
             HandleIntToFloatCast(EltType, SubType, Result, Info.Ctx);
-        return APValue(FResult, 
+        return APValue(FResult,
                        APFloat(FResult.getSemantics(), APFloat::fcZero, false));
       } else {
         Result = HandleIntToIntCast(EltType, SubType, Result, Info.Ctx);
@@ -1610,7 +1628,7 @@ public:
         Zero = 0;
         return APValue(Result, Zero);
       }
-    } else if (const ComplexType *CT = SubType->getAsComplexType()) {
+    } else if (const ComplexType *CT = SubType->getAs<ComplexType>()) {
       APValue Src;
 
       if (!EvaluateComplex(SubExpr, Src, Info))
@@ -1620,36 +1638,36 @@ public:
 
       if (Src.isComplexFloat()) {
         if (EltType->isRealFloatingType()) {
-          return APValue(HandleFloatToFloatCast(EltType, SrcType, 
+          return APValue(HandleFloatToFloatCast(EltType, SrcType,
                                                 Src.getComplexFloatReal(),
                                                 Info.Ctx),
-                         HandleFloatToFloatCast(EltType, SrcType, 
+                         HandleFloatToFloatCast(EltType, SrcType,
                                                 Src.getComplexFloatImag(),
                                                 Info.Ctx));
         } else {
           return APValue(HandleFloatToIntCast(EltType, SrcType,
                                               Src.getComplexFloatReal(),
                                               Info.Ctx),
-                         HandleFloatToIntCast(EltType, SrcType, 
+                         HandleFloatToIntCast(EltType, SrcType,
                                               Src.getComplexFloatImag(),
-                                              Info.Ctx)); 
+                                              Info.Ctx));
         }
       } else {
         assert(Src.isComplexInt() && "Invalid evaluate result.");
         if (EltType->isRealFloatingType()) {
-          return APValue(HandleIntToFloatCast(EltType, SrcType, 
+          return APValue(HandleIntToFloatCast(EltType, SrcType,
                                               Src.getComplexIntReal(),
                                               Info.Ctx),
-                         HandleIntToFloatCast(EltType, SrcType, 
+                         HandleIntToFloatCast(EltType, SrcType,
                                               Src.getComplexIntImag(),
                                               Info.Ctx));
         } else {
           return APValue(HandleIntToIntCast(EltType, SrcType,
                                             Src.getComplexIntReal(),
                                             Info.Ctx),
-                         HandleIntToIntCast(EltType, SrcType, 
+                         HandleIntToIntCast(EltType, SrcType,
                                             Src.getComplexIntImag(),
-                                            Info.Ctx)); 
+                                            Info.Ctx));
         }
       }
     }
@@ -1657,7 +1675,7 @@ public:
     // FIXME: Handle more casts.
     return APValue();
   }
-  
+
   APValue VisitBinaryOperator(const BinaryOperator *E);
   APValue VisitChooseExpr(const ChooseExpr *E)
     { return Visit(E->getChosenSubExpr(Info.Ctx)); }
@@ -1668,23 +1686,21 @@ public:
 };
 } // end anonymous namespace
 
-static bool EvaluateComplex(const Expr *E, APValue &Result, EvalInfo &Info)
-{
+static bool EvaluateComplex(const Expr *E, APValue &Result, EvalInfo &Info) {
   Result = ComplexExprEvaluator(Info).Visit(const_cast<Expr*>(E));
   assert((!Result.isComplexFloat() ||
-          (&Result.getComplexFloatReal().getSemantics() == 
-           &Result.getComplexFloatImag().getSemantics())) && 
+          (&Result.getComplexFloatReal().getSemantics() ==
+           &Result.getComplexFloatImag().getSemantics())) &&
          "Invalid complex evaluation.");
   return Result.isComplexFloat() || Result.isComplexInt();
 }
 
-APValue ComplexExprEvaluator::VisitBinaryOperator(const BinaryOperator *E)
-{
+APValue ComplexExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
   APValue Result, RHS;
-  
+
   if (!EvaluateComplex(E->getLHS(), Result, Info))
     return APValue();
-  
+
   if (!EvaluateComplex(E->getRHS(), RHS, Info))
     return APValue();
 
@@ -1721,7 +1737,7 @@ APValue ComplexExprEvaluator::VisitBinaryOperator(const BinaryOperator *E)
       APFloat &LHS_i = LHS.getComplexFloatImag();
       APFloat &RHS_r = RHS.getComplexFloatReal();
       APFloat &RHS_i = RHS.getComplexFloatImag();
-      
+
       APFloat Tmp = LHS_r;
       Tmp.multiply(RHS_r, APFloat::rmNearestTiesToEven);
       Result.getComplexFloatReal() = Tmp;
@@ -1737,10 +1753,10 @@ APValue ComplexExprEvaluator::VisitBinaryOperator(const BinaryOperator *E)
       Result.getComplexFloatImag().add(Tmp, APFloat::rmNearestTiesToEven);
     } else {
       APValue LHS = Result;
-      Result.getComplexIntReal() = 
+      Result.getComplexIntReal() =
         (LHS.getComplexIntReal() * RHS.getComplexIntReal() -
          LHS.getComplexIntImag() * RHS.getComplexIntImag());
-      Result.getComplexIntImag() = 
+      Result.getComplexIntImag() =
         (LHS.getComplexIntReal() * RHS.getComplexIntImag() +
          LHS.getComplexIntImag() * RHS.getComplexIntReal());
     }
@@ -1774,7 +1790,7 @@ bool Expr::Evaluate(EvalResult &Result, ASTContext &Ctx) const {
     llvm::APFloat f(0.0);
     if (!EvaluateFloat(this, f, Info))
       return false;
-    
+
     Result.Val = APValue(f);
   } else if (getType()->isAnyComplexType()) {
     if (!EvaluateComplex(this, Result.Val, Info))
@@ -1787,6 +1803,12 @@ bool Expr::Evaluate(EvalResult &Result, ASTContext &Ctx) const {
 
 bool Expr::EvaluateAsLValue(EvalResult &Result, ASTContext &Ctx) const {
   EvalInfo Info(Ctx, Result);
+
+  return EvaluateLValue(this, Result.Val, Info) && !Result.HasSideEffects;
+}
+
+bool Expr::EvaluateAsAnyLValue(EvalResult &Result, ASTContext &Ctx) const {
+  EvalInfo Info(Ctx, Result, true);
 
   return EvaluateLValue(this, Result.Val, Info) && !Result.HasSideEffects;
 }

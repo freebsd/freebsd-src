@@ -25,7 +25,7 @@ namespace clang {
   class IdentifierInfo;
   class Preprocessor;
   class Declarator;
-  
+
 /// DeclSpec - This class captures information about "declaration specifiers",
 /// which encompasses storage-class-specifiers, type-specifiers,
 /// type-qualifiers, and function-specifiers.
@@ -42,7 +42,7 @@ public:
     SCS_private_extern,
     SCS_mutable
   };
-  
+
   // type-specifier
   enum TSW {
     TSW_unspecified,
@@ -50,24 +50,26 @@ public:
     TSW_long,
     TSW_longlong
   };
-  
+
   enum TSC {
     TSC_unspecified,
     TSC_imaginary,
     TSC_complex
   };
-  
+
   enum TSS {
     TSS_unspecified,
     TSS_signed,
     TSS_unsigned
   };
-  
+
   enum TST {
     TST_unspecified,
     TST_void,
     TST_char,
     TST_wchar,        // C++ wchar_t
+    TST_char16,       // C++0x char16_t
+    TST_char32,       // C++0x char32_t
     TST_int,
     TST_float,
     TST_double,
@@ -86,9 +88,9 @@ public:
     TST_auto,         // C++0x auto
     TST_error         // erroneous type
   };
-  
+
   // type-qualifiers
-  enum TQ {   // NOTE: These flags must be kept in sync with QualType::TQ.
+  enum TQ {   // NOTE: These flags must be kept in sync with Qualifiers::TQ.
     TQ_unspecified = 0,
     TQ_const       = 1,
     TQ_restrict    = 2,
@@ -104,9 +106,9 @@ public:
     PQ_TypeQualifier         = 4,
     PQ_FunctionSpecifier     = 8
   };
-  
+
 private:
-    
+
   // storage-class-specifier
   /*SCS*/unsigned StorageClassSpec : 3;
   bool SCS_thread_specified : 1;
@@ -120,50 +122,45 @@ private:
 
   // type-qualifiers
   unsigned TypeQualifiers : 3;  // Bitwise OR of TQ.
-  
+
   // function-specifier
   bool FS_inline_specified : 1;
   bool FS_virtual_specified : 1;
   bool FS_explicit_specified : 1;
-  
+
   // friend-specifier
   bool Friend_specified : 1;
-  
+
   /// TypeRep - This contains action-specific information about a specific TST.
   /// For example, for a typedef or struct, it might contain the declaration for
   /// these.
-  void *TypeRep;  
-  
+  void *TypeRep;
+
   // attributes.
   AttributeList *AttrList;
-  
-  // List of protocol qualifiers for objective-c classes.  Used for 
+
+  // List of protocol qualifiers for objective-c classes.  Used for
   // protocol-qualified interfaces "NString<foo>" and protocol-qualified id
   // "id<foo>".
   const ActionBase::DeclPtrTy *ProtocolQualifiers;
   unsigned NumProtocolQualifiers;
-  
+  SourceLocation ProtocolLAngleLoc;
+  SourceLocation *ProtocolLocs;
+
   // SourceLocation info.  These are null if the item wasn't specified or if
   // the setting was synthesized.
   SourceRange Range;
-  
+
   SourceLocation StorageClassSpecLoc, SCS_threadLoc;
   SourceLocation TSWLoc, TSCLoc, TSSLoc, TSTLoc;
   SourceLocation TQ_constLoc, TQ_restrictLoc, TQ_volatileLoc;
   SourceLocation FS_inlineLoc, FS_virtualLoc, FS_explicitLoc;
   SourceLocation FriendLoc;
-  
-  bool BadSpecifier(TST T, const char *&PrevSpec);
-  bool BadSpecifier(TQ T, const char *&PrevSpec);
-  bool BadSpecifier(TSS T, const char *&PrevSpec);
-  bool BadSpecifier(TSC T, const char *&PrevSpec);
-  bool BadSpecifier(TSW T, const char *&PrevSpec);
-  bool BadSpecifier(SCS T, const char *&PrevSpec);
-  
+
   DeclSpec(const DeclSpec&);       // DO NOT IMPLEMENT
   void operator=(const DeclSpec&); // DO NOT IMPLEMENT
-public:  
-  
+public:
+
   DeclSpec()
     : StorageClassSpec(SCS_unspecified),
       SCS_thread_specified(false),
@@ -180,26 +177,28 @@ public:
       TypeRep(0),
       AttrList(0),
       ProtocolQualifiers(0),
-      NumProtocolQualifiers(0) {
+      NumProtocolQualifiers(0),
+      ProtocolLocs(0) {
   }
   ~DeclSpec() {
     delete AttrList;
     delete [] ProtocolQualifiers;
+    delete [] ProtocolLocs;
   }
   // storage-class-specifier
   SCS getStorageClassSpec() const { return (SCS)StorageClassSpec; }
   bool isThreadSpecified() const { return SCS_thread_specified; }
-  
+
   SourceLocation getStorageClassSpecLoc() const { return StorageClassSpecLoc; }
   SourceLocation getThreadSpecLoc() const { return SCS_threadLoc; }
-  
+
   void ClearStorageClassSpecs() {
     StorageClassSpec     = DeclSpec::SCS_unspecified;
     SCS_thread_specified = false;
     StorageClassSpecLoc  = SourceLocation();
     SCS_threadLoc        = SourceLocation();
   }
-  
+
   // type-specifier
   TSW getTypeSpecWidth() const { return (TSW)TypeSpecWidth; }
   TSC getTypeSpecComplex() const { return (TSC)TypeSpecComplex; }
@@ -207,18 +206,22 @@ public:
   TST getTypeSpecType() const { return (TST)TypeSpecType; }
   bool isTypeSpecOwned() const { return TypeSpecOwned; }
   void *getTypeRep() const { return TypeRep; }
-  
+
   const SourceRange &getSourceRange() const { return Range; }
   SourceLocation getTypeSpecWidthLoc() const { return TSWLoc; }
   SourceLocation getTypeSpecComplexLoc() const { return TSCLoc; }
   SourceLocation getTypeSpecSignLoc() const { return TSSLoc; }
   SourceLocation getTypeSpecTypeLoc() const { return TSTLoc; }
-  
+
   /// getSpecifierName - Turn a type-specifier-type into a string like "_Bool"
   /// or "union".
   static const char *getSpecifierName(DeclSpec::TST T);
+  static const char *getSpecifierName(DeclSpec::TQ Q);
+  static const char *getSpecifierName(DeclSpec::TSS S);
+  static const char *getSpecifierName(DeclSpec::TSC C);
+  static const char *getSpecifierName(DeclSpec::TSW W);
   static const char *getSpecifierName(DeclSpec::SCS S);
-  
+
   // type-qualifiers
 
   /// getTypeQualifiers - Return a set of TQs.
@@ -226,7 +229,7 @@ public:
   SourceLocation getConstSpecLoc() const { return TQ_constLoc; }
   SourceLocation getRestrictSpecLoc() const { return TQ_restrictLoc; }
   SourceLocation getVolatileSpecLoc() const { return TQ_volatileLoc; }
-  
+
   // function-specifier
   bool isInlineSpecified() const { return FS_inline_specified; }
   SourceLocation getInlineSpecLoc() const { return FS_inlineLoc; }
@@ -245,7 +248,7 @@ public:
     FS_explicit_specified = false;
     FS_explicitLoc = SourceLocation();
   }
-  
+
   /// hasTypeSpecifier - Return true if any type-specifier has been found.
   bool hasTypeSpecifier() const {
     return getTypeSpecType() != DeclSpec::TST_unspecified ||
@@ -253,68 +256,81 @@ public:
            getTypeSpecComplex() != DeclSpec::TSC_unspecified ||
            getTypeSpecSign() != DeclSpec::TSS_unspecified;
   }
-  
+
   /// getParsedSpecifiers - Return a bitmask of which flavors of specifiers this
   /// DeclSpec includes.
   ///
   unsigned getParsedSpecifiers() const;
-  
+
   /// isEmpty - Return true if this declaration specifier is completely empty:
   /// no tokens were parsed in the production of it.
   bool isEmpty() const {
     return getParsedSpecifiers() == DeclSpec::PQ_None;
   }
-  
+
   void SetRangeStart(SourceLocation Loc) { Range.setBegin(Loc); }
   void SetRangeEnd(SourceLocation Loc) { Range.setEnd(Loc); }
-  
-  /// These methods set the specified attribute of the DeclSpec, but return true
-  /// and ignore the request if invalid (e.g. "extern" then "auto" is
-  /// specified).  The name of the previous specifier is returned in prevspec.
-  bool SetStorageClassSpec(SCS S, SourceLocation Loc, const char *&PrevSpec);
-  bool SetStorageClassSpecThread(SourceLocation Loc, const char *&PrevSpec);
-  bool SetTypeSpecWidth(TSW W, SourceLocation Loc, const char *&PrevSpec);
-  bool SetTypeSpecComplex(TSC C, SourceLocation Loc, const char *&PrevSpec);
-  bool SetTypeSpecSign(TSS S, SourceLocation Loc, const char *&PrevSpec);
+
+  /// These methods set the specified attribute of the DeclSpec and
+  /// return false if there was no error.  If an error occurs (for
+  /// example, if we tried to set "auto" on a spec with "extern"
+  /// already set), they return true and set PrevSpec and DiagID
+  /// such that
+  ///   Diag(Loc, DiagID) << PrevSpec;
+  /// will yield a useful result.
+  ///
+  /// TODO: use a more general approach that still allows these
+  /// diagnostics to be ignored when desired.
+  bool SetStorageClassSpec(SCS S, SourceLocation Loc, const char *&PrevSpec,
+                           unsigned &DiagID);
+  bool SetStorageClassSpecThread(SourceLocation Loc, const char *&PrevSpec,
+                                 unsigned &DiagID);
+  bool SetTypeSpecWidth(TSW W, SourceLocation Loc, const char *&PrevSpec,
+                        unsigned &DiagID);
+  bool SetTypeSpecComplex(TSC C, SourceLocation Loc, const char *&PrevSpec,
+                          unsigned &DiagID);
+  bool SetTypeSpecSign(TSS S, SourceLocation Loc, const char *&PrevSpec,
+                       unsigned &DiagID);
   bool SetTypeSpecType(TST T, SourceLocation Loc, const char *&PrevSpec,
-                       void *Rep = 0, bool Owned = false);
+                       unsigned &DiagID, void *Rep = 0, bool Owned = false);
   bool SetTypeSpecError();
+  void UpdateTypeRep(void *Rep) { TypeRep = Rep; }
 
   bool SetTypeQual(TQ T, SourceLocation Loc, const char *&PrevSpec,
-                   const LangOptions &Lang);
-  
-  bool SetFunctionSpecInline(SourceLocation Loc, const char *&PrevSpec);
-  bool SetFunctionSpecVirtual(SourceLocation Loc, const char *&PrevSpec);
-  bool SetFunctionSpecExplicit(SourceLocation Loc, const char *&PrevSpec);
-  
-  bool SetFriendSpec(SourceLocation Loc, const char *&PrevSpec);
+                   unsigned &DiagID, const LangOptions &Lang);
+
+  bool SetFunctionSpecInline(SourceLocation Loc, const char *&PrevSpec,
+                             unsigned &DiagID);
+  bool SetFunctionSpecVirtual(SourceLocation Loc, const char *&PrevSpec,
+                              unsigned &DiagID);
+  bool SetFunctionSpecExplicit(SourceLocation Loc, const char *&PrevSpec,
+                               unsigned &DiagID);
+
+  bool SetFriendSpec(SourceLocation Loc, const char *&PrevSpec,
+                     unsigned &DiagID);
+
   bool isFriendSpecified() const { return Friend_specified; }
   SourceLocation getFriendSpecLoc() const { return FriendLoc; }
 
-  /// AddAttributes - contatenates two attribute lists. 
+  /// AddAttributes - contatenates two attribute lists.
   /// The GCC attribute syntax allows for the following:
   ///
-  /// short __attribute__(( unused, deprecated )) 
+  /// short __attribute__(( unused, deprecated ))
   /// int __attribute__(( may_alias, aligned(16) )) var;
   ///
   /// This declares 4 attributes using 2 lists. The following syntax is
   /// also allowed and equivalent to the previous declaration.
   ///
-  /// short __attribute__((unused)) __attribute__((deprecated)) 
+  /// short __attribute__((unused)) __attribute__((deprecated))
   /// int __attribute__((may_alias)) __attribute__((aligned(16))) var;
-  /// 
+  ///
   void AddAttributes(AttributeList *alist) {
-    if (!alist)
-      return; // we parsed __attribute__(()) or had a syntax error
-      
-    if (AttrList) 
-      alist->addAttributeList(AttrList); 
-    AttrList = alist;
+    AttrList = addAttributeLists(AttrList, alist);
   }
   void SetAttributes(AttributeList *AL) { AttrList = AL; }
   const AttributeList *getAttributes() const { return AttrList; }
   AttributeList *getAttributes() { return AttrList; }
-  
+
   /// TakeAttributes - Return the current attribute list and remove them from
   /// the DeclSpec so that it doesn't own them.
   AttributeList *TakeAttributes() {
@@ -322,21 +338,20 @@ public:
     AttrList = 0;
     return AL;
   }
-  
+
   typedef const ActionBase::DeclPtrTy *ProtocolQualifierListTy;
   ProtocolQualifierListTy getProtocolQualifiers() const {
     return ProtocolQualifiers;
   }
+  SourceLocation *getProtocolLocs() const { return ProtocolLocs; }
   unsigned getNumProtocolQualifiers() const {
     return NumProtocolQualifiers;
   }
-  void setProtocolQualifiers(const ActionBase::DeclPtrTy *Protos, unsigned NP) {
-    if (NP == 0) return;
-    ProtocolQualifiers = new ActionBase::DeclPtrTy[NP];
-    memcpy((void*)ProtocolQualifiers, Protos, sizeof(ActionBase::DeclPtrTy)*NP);
-    NumProtocolQualifiers = NP;
-  }
-  
+  SourceLocation getProtocolLAngleLoc() const { return ProtocolLAngleLoc; }
+  void setProtocolQualifiers(const ActionBase::DeclPtrTy *Protos, unsigned NP,
+                             SourceLocation *ProtoLocs,
+                             SourceLocation LAngleLoc);
+
   /// Finish - This does final analysis of the declspec, issuing diagnostics for
   /// things like "_Imaginary" (lacking an FP type).  After calling this method,
   /// DeclSpec is guaranteed self-consistent, even if an error occurred.
@@ -347,7 +362,7 @@ public:
   bool isMissingDeclaratorOk();
 };
 
-/// ObjCDeclSpec - This class captures information about 
+/// ObjCDeclSpec - This class captures information about
 /// "declaration specifiers" specific to objective-c
 class ObjCDeclSpec {
 public:
@@ -361,47 +376,46 @@ public:
     DQ_Byref = 0x10,
     DQ_Oneway = 0x20
   };
-  
+
   /// PropertyAttributeKind - list of property attributes.
-  enum ObjCPropertyAttributeKind { DQ_PR_noattr = 0x0, 
-    DQ_PR_readonly = 0x01, 
-    DQ_PR_getter = 0x02, 
-    DQ_PR_assign = 0x04, 
-    DQ_PR_readwrite = 0x08, 
+  enum ObjCPropertyAttributeKind { DQ_PR_noattr = 0x0,
+    DQ_PR_readonly = 0x01,
+    DQ_PR_getter = 0x02,
+    DQ_PR_assign = 0x04,
+    DQ_PR_readwrite = 0x08,
     DQ_PR_retain = 0x10,
-    DQ_PR_copy = 0x20, 
+    DQ_PR_copy = 0x20,
     DQ_PR_nonatomic = 0x40,
     DQ_PR_setter = 0x80
   };
-  
-  
+
+
   ObjCDeclSpec() : objcDeclQualifier(DQ_None), PropertyAttributes(DQ_PR_noattr),
-  GetterName(0), SetterName(0)
-  {}
+  GetterName(0), SetterName(0) { }
   ObjCDeclQualifier getObjCDeclQualifier() const { return objcDeclQualifier; }
-  void setObjCDeclQualifier(ObjCDeclQualifier DQVal) 
+  void setObjCDeclQualifier(ObjCDeclQualifier DQVal)
     { objcDeclQualifier = (ObjCDeclQualifier) (objcDeclQualifier | DQVal); }
-  
-  ObjCPropertyAttributeKind getPropertyAttributes() const 
+
+  ObjCPropertyAttributeKind getPropertyAttributes() const
     { return ObjCPropertyAttributeKind(PropertyAttributes); }
-  void setPropertyAttributes(ObjCPropertyAttributeKind PRVal) { 
-    PropertyAttributes = 
+  void setPropertyAttributes(ObjCPropertyAttributeKind PRVal) {
+    PropertyAttributes =
       (ObjCPropertyAttributeKind) (PropertyAttributes | PRVal);
   }
-  
+
   const IdentifierInfo *getGetterName() const { return GetterName; }
   IdentifierInfo *getGetterName() { return GetterName; }
   void setGetterName(IdentifierInfo *name) { GetterName = name; }
-  
+
   const IdentifierInfo *getSetterName() const { return SetterName; }
   IdentifierInfo *getSetterName() { return SetterName; }
   void setSetterName(IdentifierInfo *name) { SetterName = name; }
 private:
-  // FIXME: These two are unrelated and mutially exclusive. So perhaps 
+  // FIXME: These two are unrelated and mutially exclusive. So perhaps
   // we can put them in a union to reflect their mutual exclusiveness
   // (space saving is negligible).
   ObjCDeclQualifier objcDeclQualifier : 6;
-  
+
   // NOTE: VC++ treats enums as signed, avoid using ObjCPropertyAttributeKind
   unsigned PropertyAttributes : 8;
   IdentifierInfo *GetterName;    // getter name of NULL if no getter
@@ -441,7 +455,7 @@ public:
     ScopeRep = 0;
   }
 };
-  
+
 /// CachedTokens - A set of tokens that has been cached for later
 /// parsing.
 typedef llvm::SmallVector<Token, 4> CachedTokens;
@@ -457,7 +471,9 @@ struct DeclaratorChunk {
 
   /// Loc - The place where this type was defined.
   SourceLocation Loc;
-  
+  /// EndLoc - If valid, the place where this chunck ends.
+  SourceLocation EndLoc;
+
   struct PointerTypeInfo {
     /// The type qualifiers: const/volatile/restrict.
     unsigned TypeQuals : 3;
@@ -481,20 +497,20 @@ struct DeclaratorChunk {
   struct ArrayTypeInfo {
     /// The type qualifiers for the array: const/volatile/restrict.
     unsigned TypeQuals : 3;
-    
+
     /// True if this dimension included the 'static' keyword.
     bool hasStatic : 1;
-    
+
     /// True if this dimension was [*].  In this case, NumElts is null.
     bool isStar : 1;
-    
+
     /// This is the size of the array, or null if [] or [*] was specified.
     /// Since the parser is multi-purpose, and we don't want to impose a root
     /// expression class on all clients, NumElts is untyped.
     ActionBase::ExprTy *NumElts;
     void destroy() {}
   };
-  
+
   /// ParamInfo - An array of paraminfo objects is allocated whenever a function
   /// declarator is parsed.  There are two interesting styles of arguments here:
   /// K&R-style identifier lists and parameter type lists.  K&R-style identifier
@@ -517,7 +533,7 @@ struct DeclaratorChunk {
     ParamInfo(IdentifierInfo *ident, SourceLocation iloc,
               ActionBase::DeclPtrTy param,
               CachedTokens *DefArgTokens = 0)
-      : Ident(ident), IdentLoc(iloc), Param(param), 
+      : Ident(ident), IdentLoc(iloc), Param(param),
         DefaultArgTokens(DefArgTokens) {}
   };
 
@@ -538,7 +554,7 @@ struct DeclaratorChunk {
     bool isVariadic : 1;
 
     /// The type qualifiers: const/volatile/restrict.
-    /// The qualifier bitmask values are the same as in QualType. 
+    /// The qualifier bitmask values are the same as in QualType.
     unsigned TypeQuals : 3;
 
     /// hasExceptionSpec - True if the function has an exception specification.
@@ -678,7 +694,7 @@ struct DeclaratorChunk {
     I.Ptr.AttrList  = AL;
     return I;
   }
-  
+
   /// getReference - Return a DeclaratorChunk for a reference.
   ///
   static DeclaratorChunk getReference(unsigned TypeQuals, SourceLocation Loc,
@@ -691,22 +707,23 @@ struct DeclaratorChunk {
     I.Ref.AttrList  = AL;
     return I;
   }
-  
+
   /// getArray - Return a DeclaratorChunk for an array.
   ///
   static DeclaratorChunk getArray(unsigned TypeQuals, bool isStatic,
                                   bool isStar, void *NumElts,
-                                  SourceLocation Loc) {
+                                  SourceLocation LBLoc, SourceLocation RBLoc) {
     DeclaratorChunk I;
     I.Kind          = Array;
-    I.Loc           = Loc;
+    I.Loc           = LBLoc;
+    I.EndLoc        = RBLoc;
     I.Arr.TypeQuals = TypeQuals;
     I.Arr.hasStatic = isStatic;
     I.Arr.isStar    = isStar;
     I.Arr.NumElts   = NumElts;
     return I;
   }
-  
+
   /// DeclaratorChunk::getFunction - Return a DeclaratorChunk for a function.
   /// "TheDeclarator" is the declarator that this will be added to.
   static DeclaratorChunk getFunction(bool hasProto, bool isVariadic,
@@ -717,9 +734,10 @@ struct DeclaratorChunk {
                                      bool hasAnyExceptionSpec,
                                      ActionBase::TypeTy **Exceptions,
                                      SourceRange *ExceptionRanges,
-                                     unsigned NumExceptions, SourceLocation Loc,
+                                     unsigned NumExceptions,
+                                     SourceLocation LPLoc, SourceLocation RPLoc,
                                      Declarator &TheDeclarator);
-  
+
   /// getBlockPointer - Return a DeclaratorChunk for a block.
   ///
   static DeclaratorChunk getBlockPointer(unsigned TypeQuals, SourceLocation Loc,
@@ -775,12 +793,14 @@ public:
   /// DeclaratorKind - The kind of declarator this represents.
   enum DeclaratorKind {
     DK_Abstract,         // An abstract declarator (has no identifier)
-    DK_Normal,           // A normal declarator (has an identifier). 
+    DK_Normal,           // A normal declarator (has an identifier).
     DK_Constructor,      // A C++ constructor (identifier is the class name)
     DK_Destructor,       // A C++ destructor  (identifier is ~class name)
     DK_Operator,         // A C++ overloaded operator name
-    DK_Conversion        // A C++ conversion function (identifier is 
+    DK_Conversion,       // A C++ conversion function (identifier is
                          // "operator " then the type name)
+    DK_TemplateId        // A C++ template-id naming a function template
+                         // specialization.
   };
 
 private:
@@ -794,7 +814,7 @@ private:
   ///
   TheContext Context;
 
-  /// Kind - What kind of declarator this is.  
+  /// Kind - What kind of declarator this is.
   DeclaratorKind Kind;
 
   /// DeclTypeInfo - This holds each type that the declarator includes as it is
@@ -811,7 +831,7 @@ private:
 
   /// AttrList - Attributes.
   AttributeList *AttrList;
-  
+
   /// AsmLabel - The asm label, if specified.
   ActionBase::ExprTy *AsmLabel;
 
@@ -824,6 +844,10 @@ private:
     /// When Kind is DK_Operator, this is the actual overloaded
     /// operator that this declarator names.
     OverloadedOperatorKind OperatorKind;
+    
+    /// When Kind is DK_TemplateId, this is the template-id annotation that
+    /// contains the template and its template arguments.
+    TemplateIdAnnotation *TemplateId;
   };
 
   /// InlineParams - This is a local array used for the first function decl
@@ -831,6 +855,9 @@ private:
   /// function chunk in the declarator.
   DeclaratorChunk::ParamInfo InlineParams[16];
   bool InlineParamsUsed;
+
+  /// Extension - true if the declaration is preceded by __extension__.
+  bool Extension : 1;
 
   friend struct DeclaratorChunk;
 
@@ -840,9 +867,9 @@ public:
       Kind(DK_Abstract),
       InvalidType(DS.getTypeSpecType() == DeclSpec::TST_error),
       GroupingParens(false), AttrList(0), AsmLabel(0), Type(0),
-      InlineParamsUsed(false) {
+      InlineParamsUsed(false), Extension(false) {
   }
-  
+
   ~Declarator() {
     clear();
   }
@@ -850,7 +877,7 @@ public:
   /// getDeclSpec - Return the declaration-specifier that this declarator was
   /// declared with.
   const DeclSpec &getDeclSpec() const { return DS; }
-  
+
   /// getMutableDeclSpec - Return a non-const version of the DeclSpec.  This
   /// should be used with extreme care: declspecs can often be shared between
   /// multiple declarators, so mutating the DeclSpec affects all of the
@@ -898,6 +925,10 @@ public:
     Identifier = 0;
     IdentifierLoc = SourceLocation();
     Range = DS.getSourceRange();
+    
+    if (Kind == DK_TemplateId)
+      TemplateId->Destroy();
+    
     Kind = DK_Abstract;
 
     for (unsigned i = 0, e = DeclTypeInfo.size(); i != e; ++i)
@@ -909,9 +940,9 @@ public:
     Type = 0;
     InlineParamsUsed = false;
   }
-  
+
   /// mayOmitIdentifier - Return true if the identifier is either optional or
-  /// not allowed.  This is true for typenames, prototypes, and template 
+  /// not allowed.  This is true for typenames, prototypes, and template
   /// parameter lists.
   bool mayOmitIdentifier() const {
     return Context == TypeNameContext || Context == PrototypeContext ||
@@ -934,7 +965,7 @@ public:
             Context == BlockContext ||
             Context == ForContext);
   }
-  
+
   /// isPastIdentifier - Return true if we have parsed beyond the point where
   /// the
   bool isPastIdentifier() const { return IdentifierLoc.isValid(); }
@@ -946,7 +977,7 @@ public:
 
   IdentifierInfo *getIdentifier() const { return Identifier; }
   SourceLocation getIdentifierLoc() const { return IdentifierLoc; }
-  
+
   void SetIdentifier(IdentifierInfo *ID, SourceLocation Loc) {
     Identifier = ID;
     IdentifierLoc = Loc;
@@ -956,7 +987,7 @@ public:
       Kind = DK_Abstract;
     SetRangeEnd(Loc);
   }
-  
+
   /// setConstructor - Set this declarator to be a C++ constructor
   /// declarator. Also extends the range.
   void setConstructor(ActionBase::TypeTy *Ty, SourceLocation Loc) {
@@ -1005,6 +1036,16 @@ public:
       SetRangeEnd(EndLoc);
   }
 
+  /// \brief Set this declaration to be a C++ template-id, which includes the
+  /// template (or set of function templates) along with template arguments.
+  void setTemplateId(TemplateIdAnnotation *TemplateId) {
+    assert(TemplateId && "NULL template-id provided to declarator?");
+    IdentifierLoc = TemplateId->TemplateNameLoc;
+    Kind = DK_TemplateId;
+    SetRangeEnd(TemplateId->RAngleLoc);
+    this->TemplateId = TemplateId;
+  }
+                     
   /// AddTypeInfo - Add a chunk to this declarator. Also extend the range to
   /// EndLoc, which should be the last token of the chunk.
   void AddTypeInfo(const DeclaratorChunk &TI, SourceLocation EndLoc) {
@@ -1016,7 +1057,7 @@ public:
   /// getNumTypeObjects() - Return the number of types applied to this
   /// declarator.
   unsigned getNumTypeObjects() const { return DeclTypeInfo.size(); }
-  
+
   /// Return the specified TypeInfo from this declarator.  TypeInfo #0 is
   /// closest to the identifier.
   const DeclaratorChunk &getTypeObject(unsigned i) const {
@@ -1027,14 +1068,14 @@ public:
     assert(i < DeclTypeInfo.size() && "Invalid type chunk");
     return DeclTypeInfo[i];
   }
-  
+
   /// isFunctionDeclarator - Once this declarator is fully parsed and formed,
   /// this method returns true if the identifier is a function declarator.
   bool isFunctionDeclarator() const {
     return !DeclTypeInfo.empty() &&
            DeclTypeInfo[0].Kind == DeclaratorChunk::Function;
   }
-  
+
   /// AddAttributes - simply adds the attribute list to the Declarator.
   /// These examples both add 3 attributes to "var":
   ///  short int var __attribute__((aligned(16),common,deprecated));
@@ -1042,31 +1083,50 @@ public:
   ///                                 __attribute__((common,deprecated));
   ///
   /// Also extends the range of the declarator.
-  void AddAttributes(AttributeList *alist, SourceLocation LastLoc) { 
-    if (!alist)
-      return; // we parsed __attribute__(()) or had a syntax error
-
-    if (AttrList) 
-      alist->addAttributeList(AttrList); 
-    AttrList = alist;
+  void AddAttributes(AttributeList *alist, SourceLocation LastLoc) {
+    AttrList = addAttributeLists(AttrList, alist);
 
     if (!LastLoc.isInvalid())
       SetRangeEnd(LastLoc);
   }
-  
+
   const AttributeList *getAttributes() const { return AttrList; }
   AttributeList *getAttributes() { return AttrList; }
+
+  /// hasAttributes - do we contain any attributes?
+  bool hasAttributes() const {
+    if (getAttributes() || getDeclSpec().getAttributes()) return true;
+    for (unsigned i = 0, e = getNumTypeObjects(); i != e; ++i)
+      if (getTypeObject(i).getAttrs())
+        return true;
+    return false;
+  }
 
   void setAsmLabel(ActionBase::ExprTy *E) { AsmLabel = E; }
   ActionBase::ExprTy *getAsmLabel() const { return AsmLabel; }
 
-  ActionBase::TypeTy *getDeclaratorIdType() const { return Type; }
+  void setExtension(bool Val = true) { Extension = Val; }
+  bool getExtension() const { return Extension; }
 
-  OverloadedOperatorKind getOverloadedOperator() const { return OperatorKind; }
+  ActionBase::TypeTy *getDeclaratorIdType() const { 
+    assert((Kind == DK_Constructor || Kind == DK_Destructor || 
+            Kind == DK_Conversion) && "Declarator kind does not have a type");
+    return Type; 
+  }
 
+  OverloadedOperatorKind getOverloadedOperator() const { 
+    assert(Kind == DK_Operator && "Declarator is not an overloaded operator");
+    return OperatorKind; 
+  }
+
+  TemplateIdAnnotation *getTemplateId() { 
+    assert(Kind == DK_TemplateId && "Declarator is not a template-id");
+    return TemplateId;
+  }
+  
   void setInvalidType(bool Val = true) { InvalidType = Val; }
-  bool isInvalidType() const { 
-    return InvalidType || DS.getTypeSpecType() == DeclSpec::TST_error; 
+  bool isInvalidType() const {
+    return InvalidType || DS.getTypeSpecType() == DeclSpec::TST_error;
   }
 
   void setGroupingParens(bool flag) { GroupingParens = flag; }
