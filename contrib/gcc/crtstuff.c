@@ -178,11 +178,23 @@ CTOR_LIST_BEGIN;
 static func_ptr force_to_data[1] __attribute__ ((__unused__)) = { };
 asm (CTORS_SECTION_ASM_OP);
 STATIC func_ptr __CTOR_LIST__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+  __attribute__ ((__used__, aligned(sizeof(func_ptr))))
+#else  
   __attribute__ ((__unused__, aligned(sizeof(func_ptr))))
+#endif  
+/* LLVM LOCAL end */
   = { (func_ptr) (-1) };
 #else
 STATIC func_ptr __CTOR_LIST__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+  __attribute__ ((__used__, section(".ctors"), aligned(sizeof(func_ptr))))
+#else  
   __attribute__ ((__unused__, section(".ctors"), aligned(sizeof(func_ptr))))
+#endif  
+/* LLVM LOCAL end */
   = { (func_ptr) (-1) };
 #endif /* __CTOR_LIST__ alternatives */
 
@@ -191,11 +203,23 @@ DTOR_LIST_BEGIN;
 #elif defined(DTORS_SECTION_ASM_OP)
 asm (DTORS_SECTION_ASM_OP);
 STATIC func_ptr __DTOR_LIST__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+  __attribute__ ((used, aligned(sizeof(func_ptr))))
+#else
   __attribute__ ((aligned(sizeof(func_ptr))))
+#endif
+/* LLVM LOCAL end */  
   = { (func_ptr) (-1) };
 #else
 STATIC func_ptr __DTOR_LIST__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+  __attribute__((used, section(".dtors"), aligned(sizeof(func_ptr))))
+#else  
   __attribute__((section(".dtors"), aligned(sizeof(func_ptr))))
+#endif
+/* LLVM LOCAL end */    
   = { (func_ptr) (-1) };
 #endif /* __DTOR_LIST__ alternatives */
 
@@ -203,7 +227,13 @@ STATIC func_ptr __DTOR_LIST__[1]
 /* Stick a label at the beginning of the frame unwind info so we can register
    and deregister it with the exception handling library code.  */
 STATIC EH_FRAME_SECTION_CONST char __EH_FRAME_BEGIN__[]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+     __attribute__((used, section(EH_FRAME_SECTION_NAME), aligned(4)))
+#else  
      __attribute__((section(EH_FRAME_SECTION_NAME), aligned(4)))
+#endif
+/* LLVM LOCAL end */      
      = { };
 #endif /* USE_EH_FRAME_REGISTRY */
 
@@ -459,11 +489,23 @@ CTOR_LIST_END;
 static func_ptr force_to_data[1] __attribute__ ((__unused__)) = { };
 asm (CTORS_SECTION_ASM_OP);
 STATIC func_ptr __CTOR_END__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+  __attribute__((used, aligned(sizeof(func_ptr))))
+#else
   __attribute__((aligned(sizeof(func_ptr))))
+#endif
+/* LLVM LOCAL end */  
   = { (func_ptr) 0 };
 #else
 STATIC func_ptr __CTOR_END__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+  __attribute__((used, section(".ctors"), aligned(sizeof(func_ptr))))
+#else  
   __attribute__((section(".ctors"), aligned(sizeof(func_ptr))))
+#endif
+/* LLVM LOCAL end */  
   = { (func_ptr) 0 };
 #endif
 
@@ -472,11 +514,24 @@ DTOR_LIST_END;
 #elif defined(DTORS_SECTION_ASM_OP)
 asm (DTORS_SECTION_ASM_OP);
 STATIC func_ptr __DTOR_END__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+  __attribute__ ((__used__, aligned(sizeof(func_ptr))))
+#else  
   __attribute__ ((unused, aligned(sizeof(func_ptr))))
+#endif    
+/* LLVM LOCAL end */
   = { (func_ptr) 0 };
 #else
 STATIC func_ptr __DTOR_END__[1]
+/* LLVM LOCAL begin */
+#ifdef __llvm__
+/* FIXME: Remove when external weak linkage will be alive. */
+  __attribute__((__used__, section(".dtors"), aligned(sizeof(func_ptr))))
+#else  
   __attribute__((unused, section(".dtors"), aligned(sizeof(func_ptr))))
+#endif  
+/* LLVM LOCAL end */
   = { (func_ptr) 0 };
 #endif
 
