@@ -10,7 +10,7 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 	-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS
 TARGET_ARCH?=	${MACHINE_ARCH}
 # XXX: 8.0, to keep __FreeBSD_cc_version happy
-CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd8.0\"
+CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
@@ -20,7 +20,7 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
 	${TBLGEN} -gen-intrinsic \
 		${LLVM_SRCS}/include/llvm/Intrinsics.td > ${.TARGET}
 .for arch in \
-	ARM:ARM IA64:IA64 Mips:Mips PowerPC:PPC X86:X86
+	ARM:ARM Mips:Mips PowerPC:PPC X86:X86
 . for hdr in \
 	AsmWriter1:-gen-asm-writer,-asmwriternum=1 \
 	AsmWriter:-gen-asm-writer \

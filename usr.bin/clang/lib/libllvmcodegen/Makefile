@@ -15,12 +15,12 @@ SRCS=	BranchFolding.cpp CodePlacementOpt.cpp \
 	MachineFunction.cpp MachineInstr.cpp MachineLICM.cpp \
 	MachineLoopInfo.cpp MachineModuleInfo.cpp \
 	MachinePassRegistry.cpp MachineRegisterInfo.cpp \
-	MachineSink.cpp MachineVerifier.cpp OcamlGC.cpp PBQP.cpp \
+	MachineSink.cpp MachineVerifier.cpp OcamlGC.cpp \
 	PHIElimination.cpp Passes.cpp PostRASchedulerList.cpp \
 	PreAllocSplitting.cpp PrologEpilogInserter.cpp \
-	PseudoSourceValue.cpp RegAllocBigBlock.cpp \
+	PseudoSourceValue.cpp \
 	RegAllocLinearScan.cpp RegAllocLocal.cpp RegAllocPBQP.cpp \
-	RegAllocSimple.cpp RegisterCoalescer.cpp \
+	RegisterCoalescer.cpp \
 	RegisterScavenging.cpp ScheduleDAG.cpp ScheduleDAGEmit.cpp \
 	ScheduleDAGInstrs.cpp ScheduleDAGPrinter.cpp \
 	ShrinkWrapping.cpp ShadowStackGC.cpp \

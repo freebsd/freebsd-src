@@ -3,7 +3,7 @@
 LIB=	clangfrontend
 
 SRCDIR=	tools/clang/lib/Frontend
-SRCS=	ASTConsumers.cpp AnalysisConsumer.cpp Backend.cpp \
+SRCS=	ASTConsumers.cpp ASTUnit.cpp AnalysisConsumer.cpp Backend.cpp \
 	CacheTokens.cpp DeclXML.cpp DependencyFile.cpp DiagChecker.cpp \
 	DocumentXML.cpp FixItRewriter.cpp GeneratePCH.cpp \
 	HTMLDiagnostics.cpp HTMLPrint.cpp InitHeaderSearch.cpp \

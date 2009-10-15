@@ -3,12 +3,14 @@
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM
-SRCS=	ARMCodeEmitter.cpp ARMConstantIslandPass.cpp \
+SRCS=	ARMBaseInstrInfo.cpp ARMBaseRegisterInfo.cpp \
+	ARMCodeEmitter.cpp ARMConstantIslandPass.cpp \
 	ARMConstantPoolValue.cpp ARMISelDAGToDAG.cpp \
 	ARMISelLowering.cpp ARMInstrInfo.cpp ARMJITInfo.cpp \
-	ARMLoadStoreOptimizer.cpp ARMRegisterInfo.cpp  \
-	ARMSubtarget.cpp ARMTargetAsmInfo.cpp ARMTargetMachine.cpp \
-	ThumbInstrInfo.cpp
+	ARMLoadStoreOptimizer.cpp ARMMCAsmInfo.cpp ARMRegisterInfo.cpp  \
+	ARMSubtarget.cpp NEONPreAllocPass.cpp \
+	Thumb1InstrInfo.cpp Thumb1RegisterInfo.cpp Thumb2ITBlockPass.cpp \
+	Thumb2InstrInfo.cpp Thumb2RegisterInfo.cpp Thumb2SizeReduction.cpp
 
 TGHDRS=	ARMGenCallingConv ARMGenCodeEmitter ARMGenDAGISel \
 	ARMGenInstrInfo ARMGenInstrNames ARMGenRegisterInfo.h \

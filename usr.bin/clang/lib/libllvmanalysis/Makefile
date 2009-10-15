@@ -10,7 +10,7 @@ SRCS=	AliasAnalysis.cpp AliasAnalysisCounter.cpp \
 	DbgInfoPrinter.cpp DebugInfo.cpp InstCount.cpp Interval.cpp \
 	IntervalPartition.cpp IVUsers.cpp LibCallAliasAnalysis.cpp \
 	LibCallSemantics.cpp LiveValues.cpp LoopInfo.cpp LoopPass.cpp \
-	LoopVR.cpp MemoryDependenceAnalysis.cpp PostDominators.cpp \
+	MemoryDependenceAnalysis.cpp PostDominators.cpp \
 	ProfileInfo.cpp ProfileInfoLoader.cpp \
 	ProfileInfoLoaderPass.cpp ScalarEvolution.cpp \
 	ScalarEvolutionExpander.cpp SparsePropagation.cpp Trace.cpp \

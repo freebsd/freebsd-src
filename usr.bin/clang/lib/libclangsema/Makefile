@@ -3,17 +3,16 @@
 LIB=	clangsema
 
 SRCDIR=	tools/clang/lib/Sema
-SRCS=	JumpDiagnostics.cpp IdentifierResolver.cpp ParseAST.cpp \
-	Sema.cpp SemaAccess.cpp SemaAttr.cpp SemaCXXScopeSpec.cpp \
-	SemaChecking.cpp SemaDecl.cpp SemaDeclAttr.cpp SemaDeclCXX.cpp \
-	SemaDeclObjC.cpp SemaExpr.cpp SemaExprCXX.cpp SemaExprObjC.cpp \
-	SemaInherit.cpp SemaInit.cpp SemaLookup.cpp SemaNamedCast.cpp \
-	SemaOverload.cpp SemaStmt.cpp SemaTemplate.cpp \
-	SemaTemplateDeduction.cpp SemaTemplateInstantiateDecl.cpp \
-	SemaTemplateInstantiateExpr.cpp \
-	SemaTemplateInstantiateStmt.cpp SemaTemplateInstantiate.cpp \
-	SemaType.cpp
+SRCS=	CodeCompleteConsumer.cpp IdentifierResolver.cpp \
+	JumpDiagnostics.cpp IdentifierResolver.cpp ParseAST.cpp \
+	Sema.cpp SemaAccess.cpp SemaAttr.cpp SemaCXXCast.cpp \
+	SemaCXXScopeSpec.cpp SemaChecking.cpp SemaCodeComplete.cpp \
+	SemaDecl.cpp SemaDeclAttr.cpp SemaDeclCXX.cpp SemaDeclObjC.cpp \
+	SemaExceptionSpec.cpp SemaExpr.cpp SemaExprCXX.cpp SemaExprObjC.cpp \
+	SemaInit.cpp SemaLookup.cpp SemaOverload.cpp SemaStmt.cpp \
+	SemaTemplate.cpp SemaTemplateDeduction.cpp SemaTemplateInstantiate.cpp \
+	SemaTemplateInstantiateDecl.cpp SemaTemplateInstantiate.cpp SemaType.cpp
 
-TGHDRS=	DiagnosticCommonKinds DiagnosticSemaKinds
+TGHDRS=	DiagnosticCommonKinds DiagnosticSemaKinds DiagnosticParseKinds
 
 .include "../../clang.lib.mk"

@@ -3,7 +3,7 @@
 LIB=	clangast
 
 SRCDIR=	tools/clang/lib/AST
-SRCS=	APValue.cpp ASTConsumer.cpp ASTContext.cpp CFG.cpp Decl.cpp \
+SRCS=	APValue.cpp ASTConsumer.cpp ASTContext.cpp Decl.cpp \
 	DeclBase.cpp DeclCXX.cpp DeclGroup.cpp DeclObjC.cpp \
 	DeclPrinter.cpp DeclTemplate.cpp DeclarationName.cpp Expr.cpp \
 	ExprCXX.cpp ExprConstant.cpp InheritViz.cpp \
