@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/uhci.h>
+#include <dev/usb/controller/uhcireg.h>
 
 #define	alt_next next
 #define	UHCI_BUS2SC(bus) \
