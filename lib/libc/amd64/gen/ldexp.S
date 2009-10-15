@@ -11,4 +11,4 @@ ENTRY(ldexp)
 	fstpl	-16(%rsp)
 	movsd	-16(%rsp), %xmm0
 	ret
-END(modf)
+END(ldexp)
