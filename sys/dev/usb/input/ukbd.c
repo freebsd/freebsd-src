@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/kdb.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -327,6 +328,9 @@ static void
 ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 {
 	DPRINTFN(2, "polling\n");
+
+	if (kdb_active == 0)
+		return;		/* Only poll if KDB is active */
 
 	while (sc->sc_inputs == 0) {
 
