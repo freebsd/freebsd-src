@@ -74,16 +74,28 @@ namespace {
 
     /// CPUser - One user of a constant pool, keeping the machine instruction
     /// pointer, the constant pool being referenced, and the max displacement
-    /// allowed from the instruction to the CP.
+    /// allowed from the instruction to the CP.  The HighWaterMark records the
+    /// highest basic block where a new CPEntry can be placed.  To ensure this
+    /// pass terminates, the CP entries are initially placed at the end of the
+    /// function and then move monotonically to lower addresses.  The
+    /// exception to this rule is when the current CP entry for a particular
+    /// CPUser is out of range, but there is another CP entry for the same
+    /// constant value in range.  We want to use the existing in-range CP
+    /// entry, but if it later moves out of range, the search for new water
+    /// should resume where it left off.  The HighWaterMark is used to record
+    /// that point.
     struct CPUser {
       MachineInstr *MI;
       MachineInstr *CPEMI;
+      MachineBasicBlock *HighWaterMark;
       unsigned MaxDisp;
       bool NegOk;
       bool IsSoImm;
       CPUser(MachineInstr *mi, MachineInstr *cpemi, unsigned maxdisp,
              bool neg, bool soimm)
-        : MI(mi), CPEMI(cpemi), MaxDisp(maxdisp), NegOk(neg), IsSoImm(soimm) {}
+        : MI(mi), CPEMI(cpemi), MaxDisp(maxdisp), NegOk(neg), IsSoImm(soimm) {
+        HighWaterMark = CPEMI->getParent();
+      }
     };
 
     /// CPUsers - Keep track of all of the machine instructions that use various
@@ -962,8 +974,8 @@ bool ARMConstantIslands::LookForWater(CPUser &U, unsigned UserOffset,
          B = WaterList.begin();; --IP) {
     MachineBasicBlock* WaterBB = *IP;
     // Check if water is in range and at a lower address than the current one.
-    if (WaterIsInRange(UserOffset, WaterBB, U) &&
-        WaterBB->getNumber() < U.CPEMI->getParent()->getNumber()) {
+    if (WaterBB->getNumber() < U.HighWaterMark->getNumber() &&
+        WaterIsInRange(UserOffset, WaterBB, U)) {
       unsigned WBBId = WaterBB->getNumber();
       if (isThumb &&
           (BBOffsets[WBBId] + BBSizes[WBBId])%4 != 0) {
@@ -1006,14 +1018,12 @@ void ARMConstantIslands::CreateNewWater(unsigned CPUserIndex,
                                BBSizes[UserMBB->getNumber()];
   assert(OffsetOfNextBlock== BBOffsets[UserMBB->getNumber()+1]);
 
-  // If the use is at the end of the block, or the end of the block
-  // is within range, make new water there.  (The addition below is
-  // for the unconditional branch we will be adding:  4 bytes on ARM + Thumb2,
-  // 2 on Thumb1.  Possible Thumb1 alignment padding is allowed for
+  // If the block does not end in an unconditional branch already, and if the
+  // end of the block is within range, make new water there.  (The addition
+  // below is for the unconditional branch we will be adding: 4 bytes on ARM +
+  // Thumb2, 2 on Thumb1.  Possible Thumb1 alignment padding is allowed for
   // inside OffsetIsInRange.
-  // If the block ends in an unconditional branch already, it is water,
-  // and is known to be out of range, so we'll always be adding a branch.)
-  if (&UserMBB->back() == UserMI ||
+  if (BBHasFallthrough(UserMBB) &&
       OffsetIsInRange(UserOffset, OffsetOfNextBlock + (isThumb1 ? 2: 4),
                       U.MaxDisp, U.NegOk, U.IsSoImm)) {
     DEBUG(errs() << "Split at end of block\n");
@@ -1131,6 +1141,7 @@ bool ARMConstantIslands::HandleConstantPoolUser(MachineFunction &MF,
 
   // Now that we have an island to add the CPE to, clone the original CPE and
   // add it to the island.
+  U.HighWaterMark = NewIsland;
   U.CPEMI = BuildMI(NewIsland, DebugLoc::getUnknownLoc(),
                     TII->get(ARM::CONSTPOOL_ENTRY))
                 .addImm(ID).addConstantPoolIndex(CPI).addImm(Size);
