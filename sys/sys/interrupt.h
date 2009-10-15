@@ -47,7 +47,7 @@ struct intr_handler {
 	driver_intr_t	*ih_handler;	/* Threaded handler function. */
 	void		*ih_argument;	/* Argument to pass to handlers. */
 	int		 ih_flags;
-	const char	*ih_name;	/* Name of handler. */
+	char		 ih_name[MAXCOMLEN]; /* Name of handler. */
 	struct intr_event *ih_event;	/* Event we are connected to. */
 	int		 ih_need;	/* Needs service. */
 	TAILQ_ENTRY(intr_handler) ih_next; /* Next handler for this event. */
@@ -172,6 +172,8 @@ int	intr_event_destroy(struct intr_event *ie);
 void	intr_event_execute_handlers(struct proc *p, struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
+int	intr_event_describe_handler(struct intr_event *ie, void *cookie,
+	    const char *descr);
 int	intr_getaffinity(int irq, void *mask);
 void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, void *mask);
