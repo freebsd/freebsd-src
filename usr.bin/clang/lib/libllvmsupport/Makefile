@@ -3,13 +3,15 @@
 LIB=	llvmsupport
 
 SRCDIR=	lib/Support
-SRCS=	APFloat.cpp APInt.cpp APSInt.cpp Allocator.cpp Annotation.cpp \
+SRCS=	APFloat.cpp APInt.cpp APSInt.cpp Allocator.cpp \
 	CommandLine.cpp ConstantRange.cpp Debug.cpp Dwarf.cpp \
-	FileUtilities.cpp FoldingSet.cpp GraphWriter.cpp IsInf.cpp \
-	IsNAN.cpp ManagedStatic.cpp MemoryBuffer.cpp PluginLoader.cpp \
-	PrettyStackTrace.cpp SlowOperationInformer.cpp SmallPtrSet.cpp \
-	SourceMgr.cpp Statistic.cpp Streams.cpp StringExtras.cpp \
-	StringMap.cpp StringPool.cpp SystemUtils.cpp Timer.cpp \
-	Triple.cpp raw_ostream.cpp
+	ErrorHandling.cpp FileUtilities.cpp FoldingSet.cpp \
+	GraphWriter.cpp IsInf.cpp IsNAN.cpp ManagedStatic.cpp \
+	MemoryBuffer.cpp MemoryObject.cpp PluginLoader.cpp \
+	PrettyStackTrace.cpp Regex.cpp SlowOperationInformer.cpp \
+	SmallPtrSet.cpp SourceMgr.cpp Statistic.cpp StringExtras.cpp \
+	StringMap.cpp StringPool.cpp StringRef.cpp SystemUtils.cpp \
+	TargetRegistry.cpp Timer.cpp Triple.cpp Twine.cpp raw_os_ostream.cpp \
+	raw_ostream.cpp regcomp.c regerror.c regexec.c regfree.c regstrlcpy.c
 
 .include "../../clang.lib.mk"

@@ -3,7 +3,7 @@
 PROG_CXX=tblgen
 
 SRCDIR=	utils/TableGen
-SRCS=	AsmWriterEmitter.cpp CallingConvEmitter.cpp \
+SRCS=	AsmMatcherEmitter.cpp AsmWriterEmitter.cpp CallingConvEmitter.cpp \
 	ClangDiagnosticsEmitter.cpp CodeEmitterGen.cpp \
 	CodeGenDAGPatterns.cpp CodeGenInstruction.cpp \
 	CodeGenTarget.cpp DAGISelEmitter.cpp FastISelEmitter.cpp \
