@@ -5,3 +5,4 @@ mips/alchemy/alchemy_machdep.c	standard
 mips/alchemy/obio.c		standard
 mips/alchemy/uart_bus_alchemy.c	optional uart
 mips/alchemy/uart_cpu_alchemy.c	optional uart
+mips/mips/intr_machdep.c        standard
