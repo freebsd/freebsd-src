@@ -524,7 +524,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	ih->ih_filter = filter;
 	ih->ih_handler = handler;
 	ih->ih_argument = arg;
-	ih->ih_name = name;
+	strlcpy(ih->ih_name, name, sizeof(ih->ih_name));
 	ih->ih_event = ie;
 	ih->ih_pri = pri;
 	if (flags & INTR_EXCL)
@@ -597,7 +597,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	ih->ih_filter = filter;
 	ih->ih_handler = handler;
 	ih->ih_argument = arg;
-	ih->ih_name = name;
+	strlcpy(ih->ih_name, name, sizeof(ih->ih_name));
 	ih->ih_event = ie;
 	ih->ih_pri = pri;
 	if (flags & INTR_EXCL)
@@ -663,6 +663,61 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	return (0);
 }
 #endif
+
+/*
+ * Append a description preceded by a ':' to the name of the specified
+ * interrupt handler.
+ */
+int
+intr_event_describe_handler(struct intr_event *ie, void *cookie,
+    const char *descr)
+{
+	struct intr_handler *ih;
+	size_t space;
+	char *start;
+
+	mtx_lock(&ie->ie_lock);
+#ifdef INVARIANTS
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (ih == cookie)
+			break;
+	}
+	if (ih == NULL) {
+		mtx_unlock(&ie->ie_lock);
+		panic("handler %p not find in interrupt event %p", cookie, ie);
+	}
+#endif
+	ih = cookie;
+
+	/*
+	 * Look for an existing description by checking for an
+	 * existing ":".  This assumes device names do not include
+	 * colons.  If one is found, prepare to insert the new
+	 * description at that point.  If one is not found, find the
+	 * end of the name to use as the insertion point.
+	 */
+	start = index(ih->ih_name, ':');
+	if (start == NULL)
+		start = index(ih->ih_name, 0);
+
+	/*
+	 * See if there is enough remaining room in the string for the
+	 * description + ":".  The "- 1" leaves room for the trailing
+	 * '\0'.  The "+ 1" accounts for the colon.
+	 */
+	space = sizeof(ih->ih_name) - (start - ih->ih_name) - 1;
+	if (strlen(descr) + 1 > space) {
+		mtx_unlock(&ie->ie_lock);
+		return (ENOSPC);
+	}
+
+	/* Append a colon followed by the description. */
+	*start = ':';
+	strcpy(start + 1, descr);
+	intr_event_update(ie);
+	mtx_unlock(&ie->ie_lock);
+	return (0);
+}
 
 /*
  * Return the ie_source field from the intr_event an intr_handler is
