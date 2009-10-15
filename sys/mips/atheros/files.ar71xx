@@ -12,3 +12,4 @@ mips/atheros/if_arge.c		optional arge
 mips/atheros/uart_bus_ar71xx.c	optional uart
 mips/atheros/uart_cpu_ar71xx.c	optional uart
 mips/atheros/ar71xx_bus_space_reversed.c	standard
+mips/mips/intr_machdep.c        standard
