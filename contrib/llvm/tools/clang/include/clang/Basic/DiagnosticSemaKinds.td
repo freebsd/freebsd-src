@@ -936,18 +936,15 @@ def err_template_arg_extra_parens : Error<
 
 // C++ template specialization
 def err_template_spec_unknown_kind : Error<
-  "can only provide an explicit %select{<error>|<error>|specialization|"
-  "instantiation|instantiation}0 for a class template, function template, or "
-  "a member function, static data member, or member class of a class template">;
+  "can only provide an explicit specialization for a class template, function "
+  "template, or a member function, static data member, or member class of a "
+  "class template">;
 def note_specialized_entity : Note<
-  "explicitly %select{<error>|<error>|specialized|instantiated|instantiated}0 "
-  "declaration is here">;
+  "explicitly specialized declaration is here">;
 def err_template_spec_decl_function_scope : Error<
-  "explicit %select{<error>|<error>|specialization|instantiation|"
-  "instantiation}0 of %1 in function scope">;
+  "explicit specialization of %0 in function scope">;
 def err_template_spec_decl_class_scope : Error<
-  "explicit %select{<error>|<error>|specialization|instantiation|"
-  "instantiation}0 of %1 in class scope">;
+  "explicit specialization of %0 in class scope">;
 def err_template_spec_decl_out_of_scope_global : Error<
   "%select{class template|class template partial|function template|member "
   "function|static data member|member class}0 specialization of %1 must "
@@ -1085,6 +1082,9 @@ def note_nontemplate_decl_here : Note<
     "non-templated declaration is here">;
 def err_explicit_instantiation_out_of_scope : Error<
   "explicit instantiation of %0 not in a namespace enclosing %1">;
+def err_explicit_instantiation_must_be_global : Error<
+  "explicit instantiation of %0 must occur at global scope">;
+  
 def err_explicit_instantiation_requires_name : Error<
   "explicit instantiation declaration requires a name">;
 def err_explicit_instantiation_of_typedef : Error<
@@ -1104,7 +1104,15 @@ def err_explicit_instantiation_ambiguous : Error<
   "partial ordering for explicit instantiation of %0 is ambiguous">;
 def note_explicit_instantiation_candidate : Note<
   "explicit instantiation candidate function template here %0">;
-  
+def err_explicit_instantiation_inline : Error<
+  "explicit instantiation cannot be 'inline'">;
+def err_explicit_instantiation_without_qualified_id : Error<
+  "qualifier in explicit instantiation of %q0 requires a template-id">;
+def err_explicit_instantiation_without_qualified_id_quals : Error<
+  "qualifier in explicit instantiation of '%0%1' requires a template-id">;
+def err_explicit_instantiation_unqualified_wrong_namespace : Error<
+  "explicit instantiation of %q0 must occur in %1">;
+
 // C++ typename-specifiers
 def err_typename_nested_not_found : Error<"no type named %0 in %1">;
 def err_typename_nested_not_type : Error<
