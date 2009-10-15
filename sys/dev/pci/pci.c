@@ -62,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include <dev/usb/controller/ehcireg.h>
+#include <dev/usb/controller/ohcireg.h>
+#include <dev/usb/controller/uhcireg.h>
+
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -269,6 +273,13 @@ static int pci_honor_msi_blacklist = 1;
 TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
 SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
     &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI");
+
+static int pci_usb_takeover = 1;
+TUNABLE_INT("hw.pci.usb_early_takeover", &pci_usb_takeover);
+SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RD | CTLFLAG_TUN,
+    &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
+Disable this if you depend on BIOS emulation of USB devices, that is\n\
+you use USB devices (like keyboard or mouse) but do not load USB drivers");
 
 /* Find a device_t by bus/slot/function in domain 0 */
 
@@ -2569,6 +2580,106 @@ pci_assign_interrupt(device_t bus, device_t dev, int force_route)
 	resource_list_add(&dinfo->resources, SYS_RES_IRQ, 0, irq, irq, 1);
 }
 
+/* Perform early OHCI takeover from SMM. */
+static void
+ohci_early_takeover(device_t self)
+{
+	struct resource *res;
+	uint32_t ctl;
+	int rid;
+	int i;
+
+	rid = PCIR_BAR(0);
+	res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL)
+		return;
+
+	ctl = bus_read_4(res, OHCI_CONTROL);
+	if (ctl & OHCI_IR) {
+		if (bootverbose)
+			printf("ohci early: "
+			    "SMM active, request owner change\n");
+		bus_write_4(res, OHCI_COMMAND_STATUS, OHCI_OCR);
+		for (i = 0; (i < 100) && (ctl & OHCI_IR); i++) {
+			DELAY(1000);
+			ctl = bus_read_4(res, OHCI_CONTROL);
+		}
+		if (ctl & OHCI_IR) {
+			if (bootverbose)
+				printf("ohci early: "
+				    "SMM does not respond, resetting\n");
+			bus_write_4(res, OHCI_CONTROL, OHCI_HCFS_RESET);
+		}
+	}
+
+	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
+}
+
+/* Perform early UHCI takeover from SMM. */
+static void
+uhci_early_takeover(device_t self)
+{
+	/*
+	 * Set the PIRQD enable bit and switch off all the others. We don't
+	 * want legacy support to interfere with us XXX Does this also mean
+	 * that the BIOS won't touch the keyboard anymore if it is connected
+	 * to the ports of the root hub?
+	 */
+	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
+}
+
+/* Perform early EHCI takeover from SMM. */
+static void
+ehci_early_takeover(device_t self)
+{
+	struct resource *res;
+	uint32_t cparams;
+	uint32_t eec;
+	uint8_t eecp;
+	uint8_t bios_sem;
+	int rid;
+	int i;
+
+	rid = PCIR_BAR(0);
+	res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL)
+		return;
+
+	cparams = bus_read_4(res, EHCI_HCCPARAMS);
+
+	/* Synchronise with the BIOS if it owns the controller. */
+	for (eecp = EHCI_HCC_EECP(cparams); eecp != 0;
+	    eecp = EHCI_EECP_NEXT(eec)) {
+		eec = pci_read_config(self, eecp, 4);
+		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP) {
+			continue;
+		}
+		bios_sem = pci_read_config(self, eecp +
+		    EHCI_LEGSUP_BIOS_SEM, 1);
+		if (bios_sem == 0) {
+			continue;
+		}
+		if (bootverbose)
+			printf("ehci early: "
+			    "SMM active, request owner change\n");
+
+		pci_write_config(self, eecp + EHCI_LEGSUP_OS_SEM, 1, 1);
+
+		for (i = 0; (i < 100) && (bios_sem != 0); i++) {
+			DELAY(1000);
+			bios_sem = pci_read_config(self, eecp +
+			    EHCI_LEGSUP_BIOS_SEM, 1);
+		}
+
+		if (bios_sem != 0) {
+			if (bootverbose)
+				printf("ehci early: "
+				    "SMM does not respond\n");
+		}
+	}
+	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
+}
+
 void
 pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 {
@@ -2611,6 +2722,16 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 #else
 		pci_assign_interrupt(bus, dev, 0);
 #endif
+	}
+
+	if (pci_usb_takeover && pci_get_class(dev) == PCIC_SERIALBUS &&
+	    pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
+		if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_EHCI)
+			ehci_early_takeover(dev);
+		else if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_OHCI)
+			ohci_early_takeover(dev);
+		else if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_UHCI)
+			uhci_early_takeover(dev);
 	}
 }
 
