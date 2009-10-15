@@ -684,7 +684,7 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	}
 	if (ih == NULL) {
 		mtx_unlock(&ie->ie_lock);
-		panic("handler %p not find in interrupt event %p", cookie, ie);
+		panic("handler %p not found in interrupt event %p", cookie, ie);
 	}
 #endif
 	ih = cookie;
