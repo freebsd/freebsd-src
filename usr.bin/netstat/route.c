@@ -1008,11 +1008,11 @@ rt_stats(u_long rtsaddr, u_long rttaddr)
 #define	p(f, m) if (rtstat.f || sflag <= 1) \
 	printf(m, rtstat.f, plural(rtstat.f))
 
-	p(rts_badredirect, "\t%u bad routing redirect%s\n");
-	p(rts_dynamic, "\t%u dynamically created route%s\n");
-	p(rts_newgateway, "\t%u new gateway%s due to redirects\n");
-	p(rts_unreach, "\t%u destination%s found unreachable\n");
-	p(rts_wildcard, "\t%u use%s of a wildcard route\n");
+	p(rts_badredirect, "\t%hu bad routing redirect%s\n");
+	p(rts_dynamic, "\t%hu dynamically created route%s\n");
+	p(rts_newgateway, "\t%hu new gateway%s due to redirects\n");
+	p(rts_unreach, "\t%hu destination%s found unreachable\n");
+	p(rts_wildcard, "\t%hu use%s of a wildcard route\n");
 #undef p
 
 	if (rttrash || sflag <= 1)
