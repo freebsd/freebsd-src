@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ohci.h>
+#include <dev/usb/controller/ohcireg.h>
 
 #define	OHCI_BUS2SC(bus) \
    ((ohci_softc_t *)(((uint8_t *)(bus)) - \
