@@ -479,7 +479,7 @@
 #define LLVM_ETCDIR "/usr/local/etc/llvm"
 
 /* Host triple we were built on */
-#define LLVM_HOSTTRIPLE "x86_64-unknown-freebsd7.2"
+/* #undef LLVM_HOSTTRIPLE */
 
 /* Installation directory for include files */
 #define LLVM_INCLUDEDIR "/usr/local/include"
