@@ -62,6 +62,9 @@
 /* Define to 1 if you have the `ceilf' function. */
 #define HAVE_CEILF 1
 
+/* Define if the neat program is available */
+/* #undef HAVE_CIRCO */
+
 /* Define to 1 if you have the `closedir' function. */
 #define HAVE_CLOSEDIR 1
 
@@ -110,6 +113,9 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
+
+/* Define if the neat program is available */
+/* #undef HAVE_FDP */
 
 /* Define if libffi is available on this platform. */
 /* #undef HAVE_FFI_CALL */
@@ -179,9 +185,6 @@
 
 /* Define if you have the libdl library or equivalent. */
 #define HAVE_LIBDL 1
-
-/* Define to 1 if you have the `elf' library (-lelf). */
-#define HAVE_LIBELF 1
 
 /* Define to 1 if you have the `imagehlp' library (-limagehlp). */
 /* #undef HAVE_LIBIMAGEHLP */
@@ -269,6 +272,9 @@
 /* Define to 1 if you have the `nearbyintf' function. */
 #define HAVE_NEARBYINTF 1
 
+/* Define if the neat program is available */
+/* #undef HAVE_NEATO */
+
 /* Define to 1 if you have the `opendir' function. */
 #define HAVE_OPENDIR 1
 
@@ -280,6 +286,9 @@
 
 /* Define to have the %a format string */
 #define HAVE_PRINTF_A 1
+
+/* Have pthread_getspecific */
+#define HAVE_PTHREAD_GETSPECIFIC 1
 
 /* Define to 1 if you have the <pthread.h> header file. */
 #define HAVE_PTHREAD_H 1
@@ -313,6 +322,9 @@
 
 /* Define to 1 if you have the `sbrk' function. */
 #define HAVE_SBRK 1
+
+/* Define to 1 if you have the `setenv' function. */
+#define HAVE_SETENV 1
 
 /* Define to 1 if you have the `setjmp' function. */
 #define HAVE_SETJMP 1
@@ -367,6 +379,9 @@
 
 /* Define to 1 if you have the `strerror_r' function. */
 #define HAVE_STRERROR_R 1
+
+/* Define to 1 if you have the `strerror_s' function. */
+/* #undef HAVE_STRERROR_S */
 
 /* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
@@ -427,6 +442,9 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #define HAVE_TERMIOS_H 1
 
+/* Define if the neat program is available */
+/* #undef HAVE_TWOPI */
+
 /* Define to 1 if the system has the type `uint64_t'. */
 #define HAVE_UINT64_T 1
 
@@ -445,8 +463,41 @@
 /* Define to 1 if you have the `__dso_handle' function. */
 #define HAVE___DSO_HANDLE 1
 
+/* Installation directory for binary executables */
+#define LLVM_BINDIR "/usr/local/bin"
+
+/* Time at which LLVM was configured */
+#define LLVM_CONFIGTIME "Thu Oct 15 19:21:29 CEST 2009"
+
+/* Installation directory for data files */
+#define LLVM_DATADIR "/usr/local/share/llvm"
+
+/* Installation directory for documentation */
+#define LLVM_DOCSDIR "/usr/local/docs/llvm"
+
+/* Installation directory for config files */
+#define LLVM_ETCDIR "/usr/local/etc/llvm"
+
+/* Host triple we were built on */
+#define LLVM_HOSTTRIPLE "x86_64-unknown-freebsd7.2"
+
+/* Installation directory for include files */
+#define LLVM_INCLUDEDIR "/usr/local/include"
+
+/* Installation directory for .info files */
+#define LLVM_INFODIR "/usr/local/info"
+
+/* Installation directory for libraries */
+#define LLVM_LIBDIR "/usr/local/lib"
+
+/* Installation directory for man pages */
+#define LLVM_MANDIR "/usr/local/man"
+
 /* Build multithreading support into LLVM */
-/* #undef LLVM_MULTITHREADED */
+#define LLVM_MULTITHREADED 1
+
+/* LLVM architecture name for the native architecture, if available */
+#define LLVM_NATIVE_ARCH X86Target
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
@@ -454,17 +505,32 @@
 /* Define if this is Win32ish platform */
 /* #undef LLVM_ON_WIN32 */
 
+/* Define to path to circo program if found or 'echo circo' otherwise */
+/* #undef LLVM_PATH_CIRCO */
+
 /* Define to path to dot program if found or 'echo dot' otherwise */
 /* #undef LLVM_PATH_DOT */
 
 /* Define to path to dotty program if found or 'echo dotty' otherwise */
 /* #undef LLVM_PATH_DOTTY */
 
+/* Define to path to fdp program if found or 'echo fdp' otherwise */
+/* #undef LLVM_PATH_FDP */
+
 /* Define to path to Graphviz program if found or 'echo Graphviz' otherwise */
 /* #undef LLVM_PATH_GRAPHVIZ */
 
 /* Define to path to gv program if found or 'echo gv' otherwise */
 /* #undef LLVM_PATH_GV */
+
+/* Define to path to neato program if found or 'echo neato' otherwise */
+/* #undef LLVM_PATH_NEATO */
+
+/* Define to path to twopi program if found or 'echo twopi' otherwise */
+/* #undef LLVM_PATH_TWOPI */
+
+/* Installation prefix directory */
+#define LLVM_PREFIX "/usr/local"
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
@@ -497,13 +563,13 @@
 #define PACKAGE_NAME "llvm"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "llvm 2.6svn"
+#define PACKAGE_STRING "llvm 2.7svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "-llvm-"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.6svn"
+#define PACKAGE_VERSION "2.7svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -527,6 +593,9 @@
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 /* #undef TM_IN_SYS_TIME */
+
+/* Define if we have the oprofile JIT-support library */
+#define USE_OPROFILE 0
 
 /* Define if use udis86 library */
 #define USE_UDIS86 0
