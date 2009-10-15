@@ -5,5 +5,5 @@ mips/sibyte/sb_zbbus.c				standard
 mips/sibyte/sb_zbpci.c				standard
 mips/sibyte/sb_scd.c				standard
 mips/sibyte/ata_zbbus.c				standard
-
+mips/mips/intr_machdep.c			standard
 mips/sibyte/sb_asm.S				standard
