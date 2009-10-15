@@ -3520,6 +3520,24 @@ bus_generic_config_intr(device_t dev, int irq, enum intr_trigger trig,
 }
 
 /**
+ * @brief Helper function for implementing BUS_DESCRIBE_INTR().
+ *
+ * This simple implementation of BUS_DESCRIBE_INTR() simply calls the
+ * BUS_DESCRIBE_INTR() method of the parent of @p dev.
+ */
+int
+bus_generic_describe_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie, const char *descr)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_DESCRIBE_INTR(dev->parent, child, irq, cookie,
+		    descr));
+	return (EINVAL);
+}
+
+/**
  * @brief Helper function for implementing BUS_GET_DMA_TAG().
  *
  * This simple implementation of BUS_GET_DMA_TAG() simply calls the
@@ -3821,6 +3839,28 @@ bus_bind_intr(device_t dev, struct resource *r, int cpu)
 	if (dev->parent == NULL)
 		return (EINVAL);
 	return (BUS_BIND_INTR(dev->parent, dev, r, cpu));
+}
+
+/**
+ * @brief Wrapper function for BUS_DESCRIBE_INTR().
+ *
+ * This function first formats the requested description into a
+ * temporary buffer and then calls the BUS_DESCRIBE_INTR() method of
+ * the parent of @p dev.
+ */
+int
+bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
+    const char *fmt, ...)
+{
+	char descr[MAXCOMLEN];
+	va_list ap;
+
+	if (dev->parent == NULL)
+		return (EINVAL);
+	va_start(ap, fmt);
+	vsnprintf(descr, sizeof(descr), fmt, ap);
+	va_end(ap);
+	return (BUS_DESCRIBE_INTR(dev->parent, dev, irq, cookie, descr));
 }
 
 /**
