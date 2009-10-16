@@ -142,14 +142,14 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	if (td1 == PCPU_GET(fpcurthread))
 		MipsSaveCurFPState(td1);
 
-	pcb2->pcb_context.val[PCB_REG_RA] = (register_t)fork_trampoline;
+	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
-	pcb2->pcb_context.val[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
+	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td2->td_pcb &
 	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
-	pcb2->pcb_context.val[PCB_REG_S0] = (register_t)fork_return;
-	pcb2->pcb_context.val[PCB_REG_S1] = (register_t)td2;
-	pcb2->pcb_context.val[PCB_REG_S2] = (register_t)td2->td_frame;
-	pcb2->pcb_context.val[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
+	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
+	pcb2->pcb_context[PCB_REG_S1] = (register_t)td2;
+	pcb2->pcb_context[PCB_REG_S2] = (register_t)td2->td_frame;
+	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * Setup any other CPU-Specific registers (Not MIPS Standard)
@@ -161,7 +161,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
 #ifdef TARGET_OCTEON
-	pcb2->pcb_context.val[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
 
 }
@@ -179,8 +179,8 @@ cpu_set_fork_handler(struct thread *td, void (*func) __P((void *)), void *arg)
 	 * Note that the trap frame follows the args, so the function
 	 * is really called like this:	func(arg, frame);
 	 */
-	td->td_pcb->pcb_context.val[PCB_REG_S0] = (register_t) func;
-	td->td_pcb->pcb_context.val[PCB_REG_S1] = (register_t) arg;
+	td->td_pcb->pcb_context[PCB_REG_S0] = (register_t) func;
+	td->td_pcb->pcb_context[PCB_REG_S1] = (register_t) arg;
 }
 
 void
@@ -293,18 +293,18 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * Set registers for trampoline to user mode.
 	 */
 
-	pcb2->pcb_context.val[PCB_REG_RA] = (register_t)fork_trampoline;
+	pcb2->pcb_context[PCB_REG_RA] = (register_t)fork_trampoline;
 	/* Make sp 64-bit aligned */
-	pcb2->pcb_context.val[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
+	pcb2->pcb_context[PCB_REG_SP] = (register_t)(((vm_offset_t)td->td_pcb &
 	    ~(sizeof(__int64_t) - 1)) - STAND_FRAME_SIZE);
-	pcb2->pcb_context.val[PCB_REG_S0] = (register_t)fork_return;
-	pcb2->pcb_context.val[PCB_REG_S1] = (register_t)td;
-	pcb2->pcb_context.val[PCB_REG_S2] = (register_t)td->td_frame;
+	pcb2->pcb_context[PCB_REG_S0] = (register_t)fork_return;
+	pcb2->pcb_context[PCB_REG_S1] = (register_t)td;
+	pcb2->pcb_context[PCB_REG_S2] = (register_t)td->td_frame;
 	/* Dont set IE bit in SR. sched lock release will take care of it */
-	pcb2->pcb_context.val[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
+	pcb2->pcb_context[PCB_REG_SR] = SR_INT_MASK & mips_rd_status();
 
 #ifdef TARGET_OCTEON
-	pcb2->pcb_context.val[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
 	  MIPS32_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
 

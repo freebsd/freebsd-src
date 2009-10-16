@@ -165,8 +165,4 @@ typedef	char *			__va_list;
 typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
 #endif
 
-typedef struct label_t {
-	__register_t val[13];
-} label_t;
-
 #endif /* !_MACHINE__TYPES_H_ */
