@@ -28,8 +28,6 @@ SUBDIR=	libclanganalysis \
 	\
 	libllvmarmasmprinter \
 	libllvmarmcodegen \
-	libllvmia64asmprinter \
-	libllvmia64codegen \
 	libllvmmipsasmprinter \
 	libllvmmipscodegen \
 	libllvmpowerpcasmprinter \

@@ -13,7 +13,6 @@ LIBDEPS=clangfrontend clangrewrite clanglex clangparse clanganalysis \
 	clangsema clangcodegen clangast clangbasic \
 	\
 	llvmarmasmprinter llvmarmcodegen \
-	llvmia64asmprinter llvmia64codegen \
 	llvmmipsasmprinter llvmmipscodegen \
 	llvmpowerpcasmprinter llvmpowerpccodegen \
 	llvmx86asmprinter llvmx86codegen \
