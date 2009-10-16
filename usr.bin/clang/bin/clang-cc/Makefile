@@ -12,14 +12,12 @@ TGHDRS=	DiagnosticCommonKinds DiagnosticFrontendKinds \
 LIBDEPS=clangfrontend clangrewrite clanglex clangparse clanganalysis \
 	clangsema clangcodegen clangast clangbasic \
 	\
-	llvmarmasmprinter llvmarmcodegen \
-	llvmmipsasmprinter llvmmipscodegen \
-	llvmpowerpcasmprinter llvmpowerpccodegen \
-	llvmx86asmprinter llvmx86codegen \
-	\
-	llvmmc llvmselectiondag llvmasmprinter llvmcodegen \
-	llvmscalaropts llvmbitreader llvmbitwriter llvmtarget llvmipo \
-	llvmipa llvmtransformutils llvmanalysis llvmcore llvmsupport \
-	llvmsystem
+	llvmipo llvmbitwriter llvmbitreader llvmpowerpccodegen \
+	llvmpowerpcasmprinter llvpowerpcinfo llvmx86asmparser \
+	llvmx86asmprinter llvmx86codegen llvmx86info llvmmipsasmprinter \
+	llvmmipscodegen llvmmipsinfo llvmarmasmparser llvmarmasmprinter \
+	llvmarmcodegen llvmselectiondag llvmasmprinter llvmcodegen \
+	llvmscalaropts llvmtransformutils llvmipa llvmanalysis llvmtarget \
+	llvmmc llvmcore llvmarminfo llvmsupport llvmsystem
 
 .include "../../clang.prog.mk"
