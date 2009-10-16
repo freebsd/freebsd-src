@@ -463,35 +463,8 @@
 /* Define to 1 if you have the `__dso_handle' function. */
 #define HAVE___DSO_HANDLE 1
 
-/* Installation directory for binary executables */
-#define LLVM_BINDIR "/usr/local/bin"
-
 /* Time at which LLVM was configured */
 #define LLVM_CONFIGTIME "Thu Oct 15 19:21:29 CEST 2009"
-
-/* Installation directory for data files */
-#define LLVM_DATADIR "/usr/local/share/llvm"
-
-/* Installation directory for documentation */
-#define LLVM_DOCSDIR "/usr/local/docs/llvm"
-
-/* Installation directory for config files */
-#define LLVM_ETCDIR "/usr/local/etc/llvm"
-
-/* Host triple we were built on */
-/* #undef LLVM_HOSTTRIPLE */
-
-/* Installation directory for include files */
-#define LLVM_INCLUDEDIR "/usr/local/include"
-
-/* Installation directory for .info files */
-#define LLVM_INFODIR "/usr/local/info"
-
-/* Installation directory for libraries */
-#define LLVM_LIBDIR "/usr/local/lib"
-
-/* Installation directory for man pages */
-#define LLVM_MANDIR "/usr/local/man"
 
 /* Build multithreading support into LLVM */
 #define LLVM_MULTITHREADED 1
