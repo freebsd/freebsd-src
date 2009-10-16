@@ -5,7 +5,7 @@ LIB=	llvmsupport
 SRCDIR=	lib/Support
 SRCS=	APFloat.cpp APInt.cpp APSInt.cpp Allocator.cpp \
 	CommandLine.cpp ConstantRange.cpp Debug.cpp Dwarf.cpp \
-	ErrorHandling.cpp FileUtilities.cpp FoldingSet.cpp \
+	ErrorHandling.cpp FileUtilities.cpp FoldingSet.cpp FormattedStream.cpp \
 	GraphWriter.cpp IsInf.cpp IsNAN.cpp ManagedStatic.cpp \
 	MemoryBuffer.cpp MemoryObject.cpp PluginLoader.cpp \
 	PrettyStackTrace.cpp Regex.cpp SlowOperationInformer.cpp \
