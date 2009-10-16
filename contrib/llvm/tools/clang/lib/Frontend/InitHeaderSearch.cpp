@@ -115,11 +115,6 @@ void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(const std::string &Base,
   else
     AddPath(Base + "/" + Dir32, System, true, false, false);
   AddPath(Base + "/backward", System, true, false, false);
-#if defined(LLVM_ON_FREEBSD)
-  if (Lang.CPlusPlus)
-    AddPath("/usr/include/c++/4.2", System, true, false, false);
-  AddPath("/usr/include", System, false, false, false);
-#endif
 }
 
 void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(const std::string &Base,
@@ -402,7 +397,9 @@ void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
           // DragonFly
           AddPath("/usr/include/c++/4.1", System, true, false, false);
           // FreeBSD
-          AddPath("/usr/include/c++/4.2", System, true, false, false);
+          if (Lang.CPlusPlus)
+            AddPath("/usr/include/c++/4.2", System, true, false, false);
+          AddPath("/usr/include", System, false, false, false);
           break;
         case llvm::Triple::Solaris:
           // AuroraUX
