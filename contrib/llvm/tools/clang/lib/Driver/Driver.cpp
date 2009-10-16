@@ -65,9 +65,6 @@ Driver::Driver(const char *_Name, const char *_Dir,
 
     CCCUseClangCXX = false;
   }
-
-  // XXX: Enable ARM
-  CCCClangArchs.insert("arm");
 }
 
 Driver::~Driver() {
