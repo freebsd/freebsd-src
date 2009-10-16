@@ -49,9 +49,9 @@ hostid_set()
 
 	# Set both kern.hostuuid and kern.hostid.
 	#
-	[ -z "${rc_quiet}" ] && echo "Setting hostuuid: ${uuid}."
+	check_startmsgs && echo "Setting hostuuid: ${uuid}."
 	${SYSCTL_W} kern.hostuuid="${uuid}" >/dev/null
-	[ -z "${rc_quiet}" ] && echo "Setting hostid: ${id}."
+	check_startmsgs && echo "Setting hostid: ${id}."
 	${SYSCTL_W} kern.hostid=${id} >/dev/null
 }
 

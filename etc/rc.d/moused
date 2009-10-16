@@ -51,8 +51,9 @@ moused_start()
 		mytype="$moused_type"
 	fi
 
-	[ -z "${rc_quiet}" ] && echo -n "Starting ${ms} moused."
+	check_startmsgs && echo -n "Starting ${ms} moused"
 	/usr/sbin/moused ${myflags} -p ${myport} -t ${mytype} ${pidarg}
+	check_startmsgs && echo '.'
 
 	mousechar_arg=
 	case ${mousechar_start} in
