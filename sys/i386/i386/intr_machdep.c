@@ -366,6 +366,23 @@ intr_init(void *dummy __unused)
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
+/* Add a description to an active interrupt handler. */
+int
+intr_describe(u_int vector, void *ih, const char *descr)
+{
+	struct intsrc *isrc;
+	int error;
+
+	isrc = intr_lookup_source(vector);
+	if (isrc == NULL)
+		return (EINVAL);
+	error = intr_event_describe_handler(isrc->is_event, ih, descr);
+	if (error)
+		return (error);
+	intrcnt_updatename(isrc);
+	return (0);
+}
+
 #ifdef DDB
 /*
  * Dump data about interrupt handlers
@@ -430,23 +447,6 @@ intr_bind(u_int vector, u_char cpu)
 	if (isrc == NULL)
 		return (EINVAL);
 	return (intr_event_bind(isrc->is_event, cpu));
-}
-
-/* Add a description to an active interrupt handler. */
-int
-intr_describe(u_int vector, void *ih, const char *descr)
-{
-	struct intsrc *isrc;
-	int error;
-
-	isrc = intr_lookup_source(vector);
-	if (isrc == NULL)
-		return (EINVAL);
-	error = intr_event_describe_handler(isrc->is_event, ih, descr);
-	if (error)
-		return (error);
-	intrcnt_updatename(isrc);
-	return (0);
 }
 
 /*
