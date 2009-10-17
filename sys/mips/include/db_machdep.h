@@ -94,7 +94,7 @@ db_addr_t	next_instr_address(db_addr_t, boolean_t);
 int db_inst_type(int);
 void db_dump_tlb(int, int);
 db_addr_t branch_taken(int inst, db_addr_t pc);
-void stacktrace_subr(db_regs_t *, int (*)(const char *, ...));
+void stacktrace_subr(register_t pc, register_t sp, register_t ra, int (*)(const char *, ...));
 int kdbpeek(int *);
 
 #endif	/* !_MIPS_DB_MACHDEP_H_ */
