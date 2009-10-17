@@ -105,27 +105,31 @@ fn_name(uintptr_t addr)
 }
 
 void
-stacktrace_subr(struct trapframe *regs, int (*printfn) (const char *,...))
+stacktrace_subr(register_t pc, register_t sp, register_t ra,
+	int (*printfn) (const char *,...))
 {
 	InstFmt i;
-	uintptr_t a0, a1, a2, a3, pc, sp, fp, ra, va, subr;
+	/*
+	 * Arrays for a0..a3 registers and flags if content
+	 * of these registers is valid, e.g. obtained from the stack
+	 */
+	int valid_args[4];
+	uintptr_t args[4];
+	uintptr_t va, subr;
 	unsigned instr, mask;
 	unsigned int frames = 0;
-	int more, stksize;
-
-	/* get initial values from the exception frame */
-	sp = regs->sp;
-	pc = regs->pc;
-	fp = regs->s8;
-	ra = regs->ra;		/* May be a 'leaf' function */
-	a0 = regs->a0;
-	a1 = regs->a1;
-	a2 = regs->a2;
-	a3 = regs->a3;
+	int more, stksize, j;
 
 /* Jump here when done with a frame, to start a new one */
 loop:
 
+	/*
+	 * Invalidate arguments values
+	 */
+	valid_args[0] = 0;
+	valid_args[1] = 0;
+	valid_args[2] = 0;
+	valid_args[3] = 0;
 /* Jump here after a nonstandard (interrupt handler) frame */
 	stksize = 0;
 	subr = 0;
@@ -265,23 +269,23 @@ loop:
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
 			case 4:/* a0 */
-				a0 = kdbpeek((int *)(sp + (short)i.IType.imm));
+				args[0] = kdbpeek((int *)(sp + (short)i.IType.imm));
+				valid_args[0] = 1;
 				break;
 
 			case 5:/* a1 */
-				a1 = kdbpeek((int *)(sp + (short)i.IType.imm));
+				args[1] = kdbpeek((int *)(sp + (short)i.IType.imm));
+				valid_args[1] = 1;
 				break;
 
 			case 6:/* a2 */
-				a2 = kdbpeek((int *)(sp + (short)i.IType.imm));
+				args[2] = kdbpeek((int *)(sp + (short)i.IType.imm));
+				valid_args[2] = 1;
 				break;
 
 			case 7:/* a3 */
-				a3 = kdbpeek((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 30:	/* fp */
-				fp = kdbpeek((int *)(sp + (short)i.IType.imm));
+				args[3] = kdbpeek((int *)(sp + (short)i.IType.imm));
+				valid_args[3] = 1;
 				break;
 
 			case 31:	/* ra */
@@ -299,23 +303,23 @@ loop:
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
 			case 4:/* a0 */
-				a0 = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[0] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				valid_args[0] = 1;
 				break;
 
 			case 5:/* a1 */
-				a1 = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[1] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				valid_args[1] = 1;
 				break;
 
 			case 6:/* a2 */
-				a2 = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[2] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				valid_args[2] = 1;
 				break;
 
 			case 7:/* a3 */
-				a3 = kdbpeekD((int *)(sp + (short)i.IType.imm));
-				break;
-
-			case 30:	/* fp */
-				fp = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[3] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				valid_args[3] = 1;
 				break;
 
 			case 31:	/* ra */
@@ -333,8 +337,17 @@ loop:
 	}
 
 done:
-	(*printfn) ("%s+%x (%x,%x,%x,%x) ra %x sz %d\n",
-	    fn_name(subr), pc - subr, a0, a1, a2, a3, ra, stksize);
+	(*printfn) ("%s+%x (", fn_name(subr), pc - subr);
+	for (j = 0; j < 4; j ++) {
+		if (j > 0)
+			(*printfn)(",");
+		if (valid_args[j])
+			(*printfn)("%x", args[j]);
+		else
+			(*printfn)("?");
+	}
+
+	(*printfn) (") ra %x sz %d\n", ra, stksize);
 
 	if (ra) {
 		if (pc == ra && stksize == 0)
@@ -376,14 +389,6 @@ db_md_list_watchpoints()
 {
 }
 
-static int
-db_backtrace(struct thread *td, db_addr_t frame, int count)
-{
-	stacktrace_subr((struct trapframe *)frame,
-	    (int (*) (const char *, ...))db_printf);
-	return (0);
-}
-
 void
 db_trace_self(void)
 {
@@ -394,10 +399,35 @@ db_trace_self(void)
 int
 db_trace_thread(struct thread *thr, int count)
 {
+	register_t pc, ra, sp;
 	struct pcb *ctx;
 
-	ctx = kdb_thr_ctx(thr);
-	return (db_backtrace(thr, (db_addr_t) &ctx->pcb_regs, count));
+	if (thr == curthread) {
+		sp = (register_t)__builtin_frame_address(0);
+		ra = (register_t)__builtin_return_address(0);
+
+        	__asm __volatile(
+			"jal 99f\n"
+			"nop\n"
+			"99:\n"
+                         "move %0, $31\n" /* get ra */
+                         "move $31, %1\n" /* restore ra */
+                         : "=r" (pc)
+			 : "r" (ra));
+
+	}
+
+	else {
+		ctx = thr->td_pcb;
+		sp = (register_t)ctx->pcb_context[PREG_SP];
+		pc = (register_t)ctx->pcb_context[PREG_PC];
+		ra = (register_t)ctx->pcb_context[PREG_RA];
+	}
+
+	stacktrace_subr(pc, sp, ra,
+	    (int (*) (const char *, ...))db_printf);
+
+	return (0);
 }
 
 void

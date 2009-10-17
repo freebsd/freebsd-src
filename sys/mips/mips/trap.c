@@ -1203,7 +1203,7 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 void
 stacktrace(struct trapframe *regs)
 {
-	stacktrace_subr(regs, printf);
+	stacktrace_subr(regs->pc, regs->sp, regs->ra, printf);
 }
 #endif
 
