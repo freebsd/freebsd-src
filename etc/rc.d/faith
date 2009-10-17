@@ -3,7 +3,7 @@
 #
 
 # PROVIDE: faith
-# REQUIRE: netif routing
+# REQUIRE: netif
 # KEYWORD: nojail
 
 . /etc/rc.subr
