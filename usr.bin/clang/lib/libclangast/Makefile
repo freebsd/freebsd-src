@@ -3,13 +3,13 @@
 LIB=	clangast
 
 SRCDIR=	tools/clang/lib/AST
-SRCS=	APValue.cpp ASTConsumer.cpp ASTContext.cpp Decl.cpp \
-	DeclBase.cpp DeclCXX.cpp DeclGroup.cpp DeclObjC.cpp \
+SRCS=	APValue.cpp ASTConsumer.cpp ASTContext.cpp CXXInheritance.cpp \
+	Decl.cpp DeclBase.cpp DeclCXX.cpp DeclGroup.cpp DeclObjC.cpp \
 	DeclPrinter.cpp DeclTemplate.cpp DeclarationName.cpp Expr.cpp \
 	ExprCXX.cpp ExprConstant.cpp InheritViz.cpp \
-	NestedNameSpecifier.cpp ParentMap.cpp Stmt.cpp StmtDumper.cpp \
-	StmtIterator.cpp StmtPrinter.cpp StmtViz.cpp TemplateName.cpp \
-	Type.cpp
+	NestedNameSpecifier.cpp ParentMap.cpp RecordLayoutBuilder.cpp \
+	Stmt.cpp StmtDumper.cpp StmtIterator.cpp StmtPrinter.cpp \
+	StmtProfile.cpp StmtViz.cpp TemplateName.cpp Type.cpp TypeLoc.cpp
 
 TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds
 
