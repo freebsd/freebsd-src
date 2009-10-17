@@ -22,6 +22,7 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
 .for arch in \
 	ARM:ARM Mips:Mips PowerPC:PPC X86:X86
 . for hdr in \
+	AsmMatcher:-gen-asm-matcher \
 	AsmWriter1:-gen-asm-writer,-asmwriternum=1 \
 	AsmWriter:-gen-asm-writer \
 	CallingConv:-gen-callingconv \

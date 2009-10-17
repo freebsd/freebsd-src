@@ -26,13 +26,19 @@ SUBDIR=	libclanganalysis \
 	libllvmtarget \
 	libllvmtransformutils \
 	\
+	libllvmarmasmparser \
 	libllvmarmasmprinter \
 	libllvmarmcodegen \
+	libllvmarminfo \
 	libllvmmipsasmprinter \
 	libllvmmipscodegen \
+	libllvmmipsinfo \
 	libllvmpowerpcasmprinter \
 	libllvmpowerpccodegen \
+	libllvmpowerpcinfo \
+	libllvmx86asmparser \
 	libllvmx86asmprinter \
-	libllvmx86codegen
+	libllvmx86codegen \
+	libllvmx86info
 
 .include <bsd.subdir.mk>
