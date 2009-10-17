@@ -192,7 +192,7 @@ static	ieee80211_recv_action_func hwmp_recv_action_meshpath;
 
 static struct ieee80211_mesh_proto_path mesh_proto_hwmp = {
 	.mpp_descr	= "HWMP",
-	.mpp_ie		= IEEE80211_MESHCONF_HWMP,
+	.mpp_ie		= IEEE80211_MESHCONF_PATH_HWMP,
 	.mpp_discover	= hwmp_discover,
 	.mpp_peerdown	= hwmp_peerdown,
 	.mpp_vattach	= hwmp_vattach,
