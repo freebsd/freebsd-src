@@ -52,7 +52,6 @@ struct packet_filter_hook {
 	int	(*pfil_func)(void *, struct mbuf **, struct ifnet *, int,
 		    struct inpcb *);
 	void	*pfil_arg;
-	int	pfil_flags;
 };
 
 #define PFIL_IN		0x00000001
