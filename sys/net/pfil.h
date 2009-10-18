@@ -50,7 +50,7 @@ struct inpcb;
 struct packet_filter_hook {
         TAILQ_ENTRY(packet_filter_hook) pfil_link;
 	int	(*pfil_func)(void *, struct mbuf **, struct ifnet *, int,
-	    struct inpcb *);
+		    struct inpcb *);
 	void	*pfil_arg;
 	int	pfil_flags;
 };
@@ -80,13 +80,12 @@ struct pfil_head {
 	LIST_ENTRY(pfil_head) ph_list;
 };
 
+int	pfil_add_hook(int (*func)(void *, struct mbuf **, struct ifnet *,
+	    int, struct inpcb *), void *, int, struct pfil_head *);
+int	pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *,
+	    int, struct inpcb *), void *, int, struct pfil_head *);
 int	pfil_run_hooks(struct pfil_head *, struct mbuf **, struct ifnet *,
 	    int, struct inpcb *inp);
-
-int	pfil_add_hook(int (*func)(void *, struct mbuf **,
-	    struct ifnet *, int, struct inpcb *), void *, int, struct pfil_head *);
-int	pfil_remove_hook(int (*func)(void *, struct mbuf **,
-	    struct ifnet *, int, struct inpcb *), void *, int, struct pfil_head *);
 
 int	pfil_head_register(struct pfil_head *);
 int	pfil_head_unregister(struct pfil_head *);
@@ -107,6 +106,7 @@ struct pfil_head *pfil_head_get(int, u_long);
 static __inline struct packet_filter_hook *
 pfil_hook_get(int dir, struct pfil_head *ph)
 {
+
 	if (dir == PFIL_IN)
 		return (TAILQ_FIRST(&ph->ph_in));
 	else if (dir == PFIL_OUT)
