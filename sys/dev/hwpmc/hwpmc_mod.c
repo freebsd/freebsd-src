@@ -504,7 +504,7 @@ pmc_ri_to_classdep(struct pmc_mdep *md, int ri, int *adjri)
 	pcd = pmc_rowindex_to_classdep[ri];
 
 	KASSERT(pcd != NULL,
-	    ("[amd,%d] ri %d null pcd", __LINE__, ri));
+	    ("[pmc,%d] ri %d null pcd", __LINE__, ri));
 
 	*adjri = ri - pcd->pcd_ri;
 
