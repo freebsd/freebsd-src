@@ -530,9 +530,9 @@ tooshort:
 	}
 	if ((dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL)) != 0) {
 		/*
-		 * Directly ship on the packet.  This allows to forward packets
-		 * that were destined for us to some other directly connected
-		 * host.
+		 * Directly ship on the packet.  This allows to forward
+		 * packets that were destined for us to some other directly
+		 * connected host.
 		 */
 		ip_forward(m, dchg);
 		return;
