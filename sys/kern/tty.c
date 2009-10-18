@@ -523,6 +523,34 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 	}
 
+	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
+		struct termios *old = &tp->t_termios;
+		struct termios *new = (struct termios *)data;
+		struct termios *lock = TTY_CALLOUT(tp, dev) ?
+		    &tp->t_termios_lock_out : &tp->t_termios_lock_in;
+		int cc;
+
+		/*
+		 * Lock state devices.  Just overwrite the values of the
+		 * commands that are currently in use.
+		 */
+		new->c_iflag = (old->c_iflag & lock->c_iflag) |
+		    (new->c_iflag & ~lock->c_iflag);
+		new->c_oflag = (old->c_oflag & lock->c_oflag) |
+		    (new->c_oflag & ~lock->c_oflag);
+		new->c_cflag = (old->c_cflag & lock->c_cflag) |
+		    (new->c_cflag & ~lock->c_cflag);
+		new->c_lflag = (old->c_lflag & lock->c_lflag) |
+		    (new->c_lflag & ~lock->c_lflag);
+		for (cc = 0; cc < NCCS; ++cc)
+			if (lock->c_cc[cc])
+				new->c_cc[cc] = old->c_cc[cc];
+		if (lock->c_ispeed)
+			new->c_ispeed = old->c_ispeed;
+		if (lock->c_ospeed)
+			new->c_ospeed = old->c_ospeed;
+	}
+
 	error = tty_ioctl(tp, cmd, data, td);
 done:	tty_unlock(tp);
 
