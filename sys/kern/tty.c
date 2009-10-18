@@ -870,8 +870,19 @@ static int
 ttydevsw_defparam(struct tty *tp, struct termios *t)
 {
 
-	/* Use a fake baud rate, we're not a real device. */
-	t->c_ispeed = t->c_ospeed = TTYDEF_SPEED;
+	/*
+	 * Allow the baud rate to be adjusted for pseudo-devices, but at
+	 * least restrict it to 115200 to prevent excessive buffer
+	 * usage.  Also disallow 0, to prevent foot shooting.
+	 */
+	if (t->c_ispeed < B50)
+		t->c_ispeed = B50;
+	else if (t->c_ispeed > B115200)
+		t->c_ispeed = B115200;
+	if (t->c_ospeed < B50)
+		t->c_ospeed = B50;
+	else if (t->c_ospeed > B115200)
+		t->c_ospeed = B115200;
 
 	return (0);
 }
