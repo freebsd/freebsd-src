@@ -97,6 +97,6 @@ __ElfType(Auxinfo);
 #define	ELF_TARG_MACH	ELF_ARCH
 #define	ELF_TARG_VER	1
 
-#define	ET_DYN_LOAD_ADDR 0x150000000
+#define	ET_DYN_LOAD_ADDR 0x100000
 
 #endif /* !_MACHINE_ELF_H_ */
