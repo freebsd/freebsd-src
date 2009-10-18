@@ -593,7 +593,7 @@ run_rc_command()
 		rc_fast=yes
 		rc_quiet=yes
 		;;
-	force*)				# "force prefix; always run
+	force*)				# "force" prefix; always run
 		rc_force=yes
 		_rc_prefix=force
 		rc_arg=${rc_arg#${_rc_prefix}}
