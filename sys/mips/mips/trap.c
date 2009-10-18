@@ -1057,7 +1057,7 @@ trapDump(char *msg)
 /*
  * Return the resulting PC as if the branch was executed.
  */
-u_int
+uintptr_t
 MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
     uintptr_t instptr)
 {
