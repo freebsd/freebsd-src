@@ -49,12 +49,14 @@
 
 static struct mtx pfil_global_lock;
 
-MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock", MTX_DEF);
+MTX_SYSINIT(pfil_heads_lock, &pfil_global_lock, "pfil_head_list lock",
+  MTX_DEF);
 
 static int pfil_list_add(pfil_list_t *, struct packet_filter_hook *, int);
 
 static int pfil_list_remove(pfil_list_t *,
-    int (*)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *), void *);
+    int (*)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
+    void *);
 
 LIST_HEAD(pfilheadhead, pfil_head);
 VNET_DEFINE(struct pfilheadhead, pfil_head_list);
@@ -77,7 +79,8 @@ pfil_run_hooks(struct pfil_head *ph, struct mbuf **mp, struct ifnet *ifp,
 	for (pfh = pfil_hook_get(dir, ph); pfh != NULL;
 	     pfh = TAILQ_NEXT(pfh, pfil_link)) {
 		if (pfh->pfil_func != NULL) {
-			rv = (*pfh->pfil_func)(pfh->pfil_arg, &m, ifp, dir, inp);
+			rv = (*pfh->pfil_func)(pfh->pfil_arg, &m, ifp, dir,
+			    inp);
 			if (rv != 0 || m == NULL)
 				break;
 		}
@@ -221,8 +224,8 @@ error:
  * hook list.
  */
 int
-pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
-    void *arg, int flags, struct pfil_head *ph)
+pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *, int,
+    struct inpcb *), void *arg, int flags, struct pfil_head *ph)
 {
 	int err = 0;
 
@@ -273,7 +276,8 @@ pfil_list_add(pfil_list_t *list, struct packet_filter_hook *pfh1, int flags)
  */
 static int
 pfil_list_remove(pfil_list_t *list,
-    int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *), void *arg)
+    int (*func)(void *, struct mbuf **, struct ifnet *, int, struct inpcb *),
+    void *arg)
 {
 	struct packet_filter_hook *pfh;
 
