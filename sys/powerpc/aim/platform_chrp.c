@@ -35,11 +35,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
 #include <machine/platformvar.h>
+#include <machine/pmap.h>
 #include <machine/smp.h>
 #include <machine/spr.h>
 
@@ -220,6 +223,7 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 #ifdef SMP
 	phandle_t cpu;
 	volatile uint8_t *rstvec;
+	static volatile uint8_t *rstvec_virtbase = NULL;
 	int res, reset, timeout;
 
 	cpu = pc->pc_hwref;
@@ -229,7 +233,10 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 
 	ap_pcpu = pc;
 
-	rstvec = (uint8_t *)(0x80000000 + reset);
+	if (rstvec_virtbase == NULL)
+		rstvec_virtbase = pmap_mapdev(0x80000000, PAGE_SIZE);
+
+	rstvec = rstvec_virtbase + reset;
 
 	*rstvec = 4;
 	powerpc_sync();
