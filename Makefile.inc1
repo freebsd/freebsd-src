@@ -256,7 +256,9 @@ WMAKEENV=	${CROSSENV} \
 		_SHLIBDIRPREFIX=${WORLDTMP} \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
-		PATH=${TMPPATH}
+		PATH=${TMPPATH} \
+		CC="${CC} -isystem ${WORLDTMP}/usr/include" \
+		CXX="${CXX} -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward"
 .if ${MK_CDDL} == "no" || defined(NO_CTF)
 WMAKEENV+=	NO_CTF=1
 .endif
