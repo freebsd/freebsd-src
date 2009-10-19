@@ -739,10 +739,12 @@ mesh_linkchange(struct ieee80211_node *ni, enum ieee80211_mesh_mlstate state)
 	    ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED) {
 		KASSERT(ms->ms_neighbors < 65535, ("neighbor count overflow"));
 		ms->ms_neighbors++;
+		ieee80211_beacon_notify(vap, IEEE80211_BEACON_MESHCONF);
 	} else if (ni->ni_mlstate == IEEE80211_NODE_MESH_ESTABLISHED &&
 	    state != IEEE80211_NODE_MESH_ESTABLISHED) {
 		KASSERT(ms->ms_neighbors > 0, ("neighbor count 0"));
 		ms->ms_neighbors--;
+		ieee80211_beacon_notify(vap, IEEE80211_BEACON_MESHCONF);
 	}
 	ni->ni_mlstate = state;
 	switch (state) {
@@ -2551,6 +2553,18 @@ ieee80211_mesh_init_neighbor(struct ieee80211_node *ni,
 	const struct ieee80211_scanparams *sp)
 {
 	ieee80211_parse_meshid(ni, sp->meshid);
+}
+
+void
+ieee80211_mesh_update_beacon(struct ieee80211vap *vap,
+	struct ieee80211_beacon_offsets *bo)
+{
+	KASSERT(vap->iv_opmode == IEEE80211_M_MBSS, ("not a MBSS vap"));
+
+	if (isset(bo->bo_flags, IEEE80211_BEACON_MESHCONF)) {
+		(void)ieee80211_add_meshconf(bo->bo_meshconf, vap);
+		clrbit(bo->bo_flags, IEEE80211_BEACON_MESHCONF);
+	}
 }
 
 static int

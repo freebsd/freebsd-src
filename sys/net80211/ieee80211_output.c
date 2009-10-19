@@ -2658,6 +2658,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 #ifdef IEEE80211_SUPPORT_MESH
 	if (vap->iv_opmode == IEEE80211_M_MBSS) {
 		frm = ieee80211_add_meshid(frm, vap);
+		bo->bo_meshconf = frm;
 		frm = ieee80211_add_meshconf(frm, vap);
 	}
 #endif
@@ -2874,6 +2875,11 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		ieee80211_tdma_update_beacon(vap, bo);
 	}
 #endif
+#ifdef IEEE80211_SUPPORT_MESH
+	if (vap->iv_opmode == IEEE80211_M_MBSS)
+		ieee80211_mesh_update_beacon(vap, bo);
+#endif
+
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
 	    vap->iv_opmode == IEEE80211_M_MBSS) {	/* NB: no IBSS support*/
 		struct ieee80211_tim_ie *tie =
@@ -2928,6 +2934,9 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 #ifdef IEEE80211_TDMA_SUPPORT
 				bo->bo_tdma += adjust;
 #endif
+#ifdef IEEE80211_MESH_SUPPORT
+				bo->bo_meshconf += adjust;
+#endif
 				bo->bo_appie += adjust;
 				bo->bo_wme += adjust;
 				bo->bo_csa += adjust;
@@ -2978,6 +2987,9 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 #endif
 #ifdef IEEE80211_TDMA_SUPPORT
 				bo->bo_tdma += sizeof(*csa);
+#endif
+#ifdef IEEE80211_MESH_SUPPORT
+				bo->bo_meshconf += sizeof(*csa);
 #endif
 				bo->bo_appie += sizeof(*csa);
 				bo->bo_csa_trailer_len += sizeof(*csa);
