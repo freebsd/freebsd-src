@@ -15,10 +15,9 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-# XXX: a lot of missing GCC builtins
-.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
+# XXX: a few C++ related GCC builtins are missing
+# http://llvm.org/bugs/show_bug.cgi?id=5255
 CC=		gcc
-.endif
 
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}/config ${GCCDIR}
 
