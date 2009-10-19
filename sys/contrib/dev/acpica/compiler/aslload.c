@@ -575,7 +575,9 @@ LdNamespace1Begin (
                 goto FinishNode;
             }
 
-            AslCoreSubsystemError (Op, Status, "Failure from lookup\n", FALSE);
+            AslCoreSubsystemError (Op, Status,
+                "Failure from namespace lookup", FALSE);
+
             goto Exit;
         }
 
@@ -718,7 +720,7 @@ LdNamespace1Begin (
         else
         {
             AslCoreSubsystemError (Op, Status,
-                "Failure from lookup %s\n", FALSE);
+                "Failure from namespace lookup", FALSE);
             goto Exit;
         }
     }
@@ -885,7 +887,8 @@ LdNamespace2Begin (
                 return (AE_OK);
             }
 
-            AslCoreSubsystemError (Op, Status, "Failure from lookup\n", FALSE);
+            AslCoreSubsystemError (Op, Status,
+                "Failure from namespace lookup", FALSE);
             return (AE_OK);
         }
 
