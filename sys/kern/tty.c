@@ -109,14 +109,14 @@ tty_watermarks(struct tty *tp)
 	ttyinq_setsize(&tp->t_inq, tp, bs);
 
 	/* Set low watermark at 10% (when 90% is available). */
-	tp->t_inlow = (ttyinq_getsize(&tp->t_inq) * 9) / 10;
+	tp->t_inlow = (ttyinq_getallocatedsize(&tp->t_inq) * 9) / 10;
 
 	/* Provide an ouput buffer for 0.2 seconds of data. */
 	bs = MIN(tp->t_termios.c_ospeed / 5, TTYBUF_MAX);
 	ttyoutq_setsize(&tp->t_outq, tp, bs);
 
 	/* Set low watermark at 10% (when 90% is available). */
-	tp->t_outlow = (ttyoutq_getsize(&tp->t_outq) * 9) / 10;
+	tp->t_outlow = (ttyoutq_getallocatedsize(&tp->t_outq) * 9) / 10;
 }
 
 static int
