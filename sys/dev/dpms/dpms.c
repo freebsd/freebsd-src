@@ -129,9 +129,8 @@ dpms_identify(driver_t *driver, device_t parent)
 	if (devclass_get_device(dpms_devclass, 0) != NULL)
 		return;
 
-	if ((x86bios_match_device(0xc0000, parent) &&
-	    device_get_flags(parent) != 0) ||
-	    x86bios_get_orm(0xc0000) != NULL)
+	if (x86bios_match_device(0xc0000, parent) &&
+	    device_get_flags(parent) != 0)
 		device_add_child(parent, "dpms", 0);
 }
 
