@@ -426,7 +426,7 @@ static __inline int
 x86bios_map_mem(void)
 {
 
-	x86bios_ivt = pmap_mapdev(X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
+	x86bios_ivt = pmap_mapbios(X86BIOS_IVT_BASE, X86BIOS_IVT_SIZE);
 	if (x86bios_ivt == NULL)
 		return (1);
 	x86bios_rom = pmap_mapdev(X86BIOS_ROM_BASE, X86BIOS_ROM_SIZE);
