@@ -162,7 +162,7 @@ X|Xwindow|X window system:\
 	:fd@:nd@:cd@:rw:sp#9600:
 
 P|Pc|Pc console:\
-	:ht:np:
+	:ht:np:sp#9600:
 
 #
 # Wierdo special case for fast crt's with hardcopy devices
