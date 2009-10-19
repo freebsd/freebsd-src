@@ -399,7 +399,6 @@ void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
           // FreeBSD
           if (Lang.CPlusPlus)
             AddPath("/usr/include/c++/4.2", System, true, false, false);
-          AddPath("/usr/include", System, false, false, false);
           break;
         case llvm::Triple::Solaris:
           // AuroraUX
