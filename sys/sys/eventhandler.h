@@ -171,6 +171,10 @@ EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 typedef void (*vfs_lowvnodes_handler_t)(void *, int);
 EVENTHANDLER_DECLARE(vfs_lowvnodes, vfs_lowvnodes_handler_t);
 
+/* Root mounted event */
+typedef void (*mountroot_handler_t)(void *);
+EVENTHANDLER_DECLARE(mountroot, mountroot_handler_t);
+
 /* VLAN state change events */
 struct ifnet;
 typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
