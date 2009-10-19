@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	dumpfs
+WARNS?=	2
 DPADD=	${LIBUFS}
 LDADD=	-lufs
 MAN=	dumpfs.8

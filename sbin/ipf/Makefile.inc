@@ -1,5 +1,7 @@
 #	$FreeBSD$
 
+WARNS?=		2
+
 CFLAGS+=	-I${.CURDIR}/../../../contrib/ipfilter
 CFLAGS+=	-I${.CURDIR}/../../../contrib/ipfilter/tools
 CFLAGS+=	-I${.CURDIR}/../../../sys
