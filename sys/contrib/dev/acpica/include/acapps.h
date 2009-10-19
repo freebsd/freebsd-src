@@ -124,20 +124,19 @@
 #define FILE_SUFFIX_DISASSEMBLY     "dsl"
 #define ACPI_TABLE_FILE_SUFFIX      ".dat"
 
-extern UINT8                    *DsdtPtr;
-extern UINT32                   AcpiDsdtLength;
-extern UINT8                    *AmlStart;
-extern UINT32                   AmlLength;
 
-
-extern int                      AcpiGbl_Optind;
-extern char                     *AcpiGbl_Optarg;
-
+/*
+ * getopt
+ */
 int
 AcpiGetopt(
     int                     argc,
     char                    **argv,
     char                    *opts);
+
+extern int                  AcpiGbl_Optind;
+extern char                 *AcpiGbl_Optarg;
+
 
 /*
  * adisasm
@@ -151,7 +150,8 @@ AdAmlDisassemble (
     BOOLEAN                 GetAllTables);
 
 void
-AdPrintStatistics (void);
+AdPrintStatistics (
+    void);
 
 ACPI_STATUS
 AdFindDsdt(
@@ -159,7 +159,8 @@ AdFindDsdt(
     UINT32                  *DsdtLength);
 
 void
-AdDumpTables (void);
+AdDumpTables (
+    void);
 
 ACPI_STATUS
 AdGetLocalTables (
@@ -179,7 +180,9 @@ AdDisplayTables (
     ACPI_TABLE_HEADER       *Table);
 
 ACPI_STATUS
-AdDisplayStatistics (void);
+AdDisplayStatistics (
+    void);
+
 
 /*
  * adwalk
@@ -208,6 +211,7 @@ void
 AcpiDmConvertResourceIndexes (
     ACPI_PARSE_OBJECT       *ParseTreeRoot,
     ACPI_NAMESPACE_NODE     *NamespaceRoot);
+
 
 /*
  * adfile

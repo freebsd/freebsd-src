@@ -1,7 +1,66 @@
 ----------------------------------------
-03 September 2009. Summary of changes for version 20090903:
+13 October 2009. Summary of changes for version 20091013:
 
 This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Fixed a problem where an Operation Region _REG method could be executed more 
+than once. If a custom address space handler is installed by the host before 
+the "initialize operation regions" phase of the ACPICA initialization, any 
+_REG methods for that address space could be executed twice. This change 
+fixes the problem. ACPICA BZ 427. Lin Ming.
+
+Fixed a possible memory leak for the Scope() ASL operator. When the exact 
+invocation of "Scope(\)" is executed (change scope to root), one internal 
+operand object was leaked. Lin Ming.
+
+Implemented a run-time repair for the _MAT predefined method. If the _MAT 
+return value is defined as a Field object in the AML, and the field
+size is less than or equal to the default width of an integer (32 or 64),_MAT 
+can incorrectly return an Integer instead of a Buffer. ACPICA now 
+automatically repairs this problem. ACPICA BZ 810.
+
+Implemented a run-time repair for the _BIF and _BIX predefined methods. The 
+"OEM Information" field is often incorrectly returned as an Integer with 
+value zero if the field is not supported by the platform. This is due to an 
+ambiguity in the ACPI specification. The field should always be a string. 
+ACPICA now automatically repairs this problem by returning a NULL string 
+within the returned Package. ACPICA BZ 807.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  85.6K Code, 18.0K Data, 103.6K Total
+    Debug Version:     161.7K Code, 50.9K Data, 212.6K Total
+  Current Release:
+    Non-Debug Version:  85.8K Code, 18.0K Data, 103.8K Total
+    Debug Version:     161.8K Code, 50.6K Data, 212.4K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+Disassembler: Fixed a problem where references to external symbols that 
+contained one or more parent-prefixes (carats) were not handled correctly, 
+possibly causing a fault. ACPICA BZ 806. Lin Ming.
+
+Disassembler: Restructured the code so that all functions that handle 
+external symbols are in a single module. One new file is added, 
+common/dmextern.c.
+
+AML Debugger: Added a max count argument for the Batch command (which 
+executes multiple predefined methods within the namespace.)
+
+iASL: Updated the compiler documentation (User Reference.) Available at 
+http://www.acpica.org/documentation/. ACPICA BZ 750.
+
+AcpiXtract: Updated for Lint and other formatting changes. Close all open 
+files.
+
+----------------------------------------
+03 September 2009. Summary of changes for version 20090903:
 
 1) ACPI CA Core Subsystem:
 
@@ -74,8 +133,6 @@ subtables.
 ----------------------------------------
 30 July 2009. Summary of changes for version 20090730:
 
-This release is available at www.acpica.org/downloads
-
 The ACPI 4.0 implementation for ACPICA is complete with this release.
 
 1) ACPI CA Core Subsystem:
@@ -145,8 +202,6 @@ changes to existing tables. ACPICA BZ 775.
 
 ----------------------------------------
 25 June 2009. Summary of changes for version 20090625:
-
-This release is available at www.acpica.org/downloads
 
 The ACPI 4.0 Specification was released on June 16 and is available at 
 www.acpi.info. ACPICA implementation of ACPI 4.0 is underway and will 
@@ -224,8 +279,6 @@ predefined names and control methods (31 total). ACPICA BZ 769.
 ----------------------------------------
 21 May 2009. Summary of changes for version 20090521:
 
-This release is available at www.acpica.org/downloads
-
 1) ACPI CA Core Subsystem:
 
 Disabled the preservation of the SCI enable bit in the PM1 control register. 
@@ -296,8 +349,6 @@ after an invalid sub-table ID.
 
 ----------------------------------------
 22 April 2009. Summary of changes for version 20090422:
-
-This release is available at www.acpica.org/downloads
 
 1) ACPI CA Core Subsystem:
 
