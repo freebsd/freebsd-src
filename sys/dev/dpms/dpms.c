@@ -125,13 +125,13 @@ static void
 dpms_identify(driver_t *driver, device_t parent)
 {
 
-	/*
-	 * XXX: The DPMS VBE only allows for manipulating a single
-	 * monitor, but we don't know which one.  Just attach to the
-	 * first vgapci(4) device we encounter and hope it is the
-	 * right one.
-	 */
-	if (devclass_get_device(dpms_devclass, 0) == NULL)
+	/* The DPMS VBE only allows for manipulating a single monitor. */
+	if (devclass_get_device(dpms_devclass, 0) != NULL)
+		return;
+
+	if ((x86bios_match_device(0xc0000, parent) &&
+	    device_get_flags(parent) != 0) ||
+	    x86bios_get_orm(0xc0000) != NULL)
 		device_add_child(parent, "dpms", 0);
 }
 
@@ -172,8 +172,11 @@ dpms_detach(device_t dev)
 static int
 dpms_suspend(device_t dev)
 {
+	struct dpms_softc *sc;
 
-	dpms_set_state(DPMS_OFF);
+	sc = device_get_softc(dev);
+	if ((sc->dpms_supported_states & DPMS_OFF) != 0)
+		dpms_set_state(DPMS_OFF);
 	return (0);
 }
 
@@ -192,15 +195,16 @@ dpms_call_bios(int subfunction, int *bh)
 {
 	x86regs_t regs;
 
-	bzero(&regs, sizeof(regs));
+	if (x86bios_get_intr(0x10) == 0)
+		return (ENXIO);
+
+	x86bios_init_regs(&regs);
 	regs.R_AX = VBE_DPMS_FUNCTION;
 	regs.R_BL = subfunction;
 	regs.R_BH = *bh;
-	regs.R_ES = 0;
-	regs.R_DI = 0;
 	x86bios_intr(&regs, 0x10);
 
-	if ((regs.R_EAX & 0xffff) != 0x004f)
+	if (regs.R_AX != 0x004f)
 		return (ENXIO);
 
 	*bh = regs.R_BH;
