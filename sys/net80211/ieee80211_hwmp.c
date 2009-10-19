@@ -548,7 +548,7 @@ hwmp_add_meshperr(uint8_t *frm, const struct ieee80211_meshperr_ie *perr)
 	*frm++ = perr->perr_ttl;
 	*frm++ = perr->perr_ndests;
 	for (i = 0; i < perr->perr_ndests; i++) {
-		*frm += perr->perr_dests[i].dest_flags;
+		*frm++ = perr->perr_dests[i].dest_flags;
 		IEEE80211_ADDR_COPY(frm, perr->perr_dests[i].dest_addr);
 		frm += 6;
 		ADDWORD(frm, perr->perr_dests[i].dest_seq);
@@ -1114,6 +1114,7 @@ hwmp_peerdown(struct ieee80211_node *ni)
 	    "%s", "delete route entry");
 	perr.perr_ttl = ms->ms_ttl;
 	perr.perr_ndests = 1;
+	PERR_DFLAGS(0) = 0;
 	if (hr->hr_seq == 0)
 		PERR_DFLAGS(0) |= IEEE80211_MESHPERR_DFLAGS_USN;
 	PERR_DFLAGS(0) |= IEEE80211_MESHPERR_DFLAGS_RC;
