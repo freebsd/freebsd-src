@@ -4,5 +4,6 @@
 PROG=mount_autofs
 MAN=mount_autofs.8
 BINDIR?=/sbin
+WARNS?=	2
 
 .include <bsd.prog.mk>
