@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <sys/taskqueue.h>
 
 /* count xmits ourselves, rather than via drbr */
 #define NO_SLOW_STATS
@@ -3739,12 +3740,11 @@ mxge_read_reboot(mxge_softc_t *sc)
 	return (pci_read_config(dev, vs + 0x14, 4));
 }
 
-static int
-mxge_watchdog_reset(mxge_softc_t *sc, int slice)
+static void
+mxge_watchdog_reset(mxge_softc_t *sc)
 {
 	struct pci_devinfo *dinfo;
 	struct mxge_slice_state *ss;
-	mxge_tx_ring_t *tx;
 	int err, running, s, num_tx_slices = 1;
 	uint32_t reboot;
 	uint16_t cmd;
@@ -3771,7 +3771,6 @@ mxge_watchdog_reset(mxge_softc_t *sc, int slice)
 		cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);
 		if (cmd == 0xffff) {
 			device_printf(sc->dev, "NIC disappeared!\n");
-			return (err);
 		}
 	}
 	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
@@ -3830,24 +3829,43 @@ mxge_watchdog_reset(mxge_softc_t *sc, int slice)
 		}
 		sc->watchdog_resets++;
 	} else {
-		tx = &sc->ss[slice].tx;
 		device_printf(sc->dev,
-			      "NIC did not reboot, slice %d ring state:\n",
-			      slice);
-		device_printf(sc->dev,
-			      "tx.req=%d tx.done=%d, tx.queue_active=%d\n",
-			      tx->req, tx->done, tx->queue_active);
-		device_printf(sc->dev, "tx.activate=%d tx.deactivate=%d\n",
-			      tx->activate, tx->deactivate);
-		device_printf(sc->dev, "pkt_done=%d fw=%d\n",
-			      tx->pkt_done,
-			      be32toh(sc->ss->fw_stats->send_done_count));
-		device_printf(sc->dev, "not resetting\n");
+			      "NIC did not reboot, not resetting\n");
+		err = 0;
 	}
-	if (err)
+	if (err) {
 		device_printf(sc->dev, "watchdog reset failed\n");
+	} else {
+		if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
+			callout_reset(&sc->co_hdl, mxge_ticks,
+				      mxge_tick, sc);
+	}
+}
 
-	return (err);
+static void
+mxge_watchdog_task(void *arg, int pending)
+{
+	mxge_softc_t *sc = arg;
+
+
+	mtx_lock(&sc->driver_mtx);
+	mxge_watchdog_reset(sc);
+	mtx_unlock(&sc->driver_mtx);
+}
+
+static void
+mxge_warn_stuck(mxge_softc_t *sc, mxge_tx_ring_t *tx, int slice)
+{
+	tx = &sc->ss[slice].tx;
+	device_printf(sc->dev, "slice %d struck? ring state:\n", slice);
+	device_printf(sc->dev,
+		      "tx.req=%d tx.done=%d, tx.queue_active=%d\n",
+		      tx->req, tx->done, tx->queue_active);
+	device_printf(sc->dev, "tx.activate=%d tx.deactivate=%d\n",
+			      tx->activate, tx->deactivate);
+	device_printf(sc->dev, "pkt_done=%d fw=%d\n",
+		      tx->pkt_done,
+		      be32toh(sc->ss->fw_stats->send_done_count));
 }
 
 static int
@@ -3871,8 +3889,11 @@ mxge_watchdog(mxge_softc_t *sc)
 		    tx->watchdog_req != tx->watchdog_done &&
 		    tx->done == tx->watchdog_done) {
 			/* check for pause blocking before resetting */
-			if (tx->watchdog_rx_pause == rx_pause)
-				err = mxge_watchdog_reset(sc, i);
+			if (tx->watchdog_rx_pause == rx_pause) {
+				mxge_warn_stuck(sc, tx, i);
+				taskqueue_enqueue(sc->tq, &sc->watchdog_task);
+				return (ENXIO);
+			}
 			else
 				device_printf(sc->dev, "Flow control blocking "
 					      "xmits, check link partner\n");
@@ -4558,6 +4579,17 @@ mxge_attach(device_t dev)
 	sc->dev = dev;
 	mxge_fetch_tunables(sc);
 
+	TASK_INIT(&sc->watchdog_task, 1, mxge_watchdog_task, sc);
+	sc->tq = taskqueue_create_fast("mxge_taskq", M_WAITOK,
+				       taskqueue_thread_enqueue,
+				       &sc->tq);
+	if (sc->tq == NULL) {
+		err = ENOMEM;
+		goto abort_with_nothing;
+	}
+	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s taskq",
+				device_get_nameunit(sc->dev));
+
 	err = bus_dma_tag_create(NULL,			/* parent */
 				 1,			/* alignment */
 				 0,			/* boundary */
@@ -4574,7 +4606,7 @@ mxge_attach(device_t dev)
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating parent dmat\n",
 			      err);
-		goto abort_with_nothing;
+		goto abort_with_tq;
 	}
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
@@ -4736,7 +4768,12 @@ abort_with_lock:
 	if_free(ifp);
 abort_with_parent_dmat:
 	bus_dma_tag_destroy(sc->parent_dmat);
-
+abort_with_tq:
+	if (sc->tq != NULL) {
+		taskqueue_drain(sc->tq, &sc->watchdog_task);
+		taskqueue_free(sc->tq);
+		sc->tq = NULL;
+	}
 abort_with_nothing:
 	return err;
 }
@@ -4757,6 +4794,11 @@ mxge_detach(device_t dev)
 		mxge_close(sc, 0);
 	mtx_unlock(&sc->driver_mtx);
 	ether_ifdetach(sc->ifp);
+	if (sc->tq != NULL) {
+		taskqueue_drain(sc->tq, &sc->watchdog_task);
+		taskqueue_free(sc->tq);
+		sc->tq = NULL;
+	}
 	callout_drain(&sc->co_hdl);
 	ifmedia_removeall(&sc->media);
 	mxge_dummy_rdma(sc, 0);
