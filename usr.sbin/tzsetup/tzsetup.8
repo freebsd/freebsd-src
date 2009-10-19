@@ -32,7 +32,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ns
-.Op Ar default
+.Op Ar zoneinfo file
 .Sh DESCRIPTION
 The
 .Nm
@@ -56,10 +56,11 @@ Skip the initial question about adjusting the clock if not set to
 .Tn UTC .
 .El
 .Pp
-It is possible to short-circuit the menu system by specifying a
-.Ar default
-on the command line; this is intended mainly for pre-configured
-installation scripts.
+It is possible to short-circuit the menu system by specifying the
+location of a
+.Ar zoneinfo file
+on the command line; this is intended mainly for pre-configured installation
+scripts.
 .Sh TIMEZONE DATABASE
 The contents of the timezone database are indexed by
 .Pa /usr/share/zoneinfo/zone.tab .
