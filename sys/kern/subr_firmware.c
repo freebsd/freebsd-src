@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Sam Leffler <sam@errno.com>
+ * Copyright (c) 2005-2008, Sam Leffler <sam@errno.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/module.h>
+#include <sys/eventhandler.h>
+
+#include <sys/filedesc.h>
+#include <sys/vnode.h>
 
 /*
  * Loadable firmware support. See sys/sys/firmware.h and firmware(9)
@@ -89,7 +93,7 @@ struct priv_fw {
 	/*
 	 * 'file' is private info managed by the autoload/unload code.
 	 * Set at the end of firmware_get(), cleared only in the
-	 * firmware_task, so the latter can depend on its value even
+	 * firmware_unload_task, so the latter can depend on its value even
 	 * while the lock is not held.
 	 */
 	linker_file_t   file;	/* module file, if autoloaded */
@@ -121,14 +125,16 @@ struct priv_fw {
 static struct priv_fw firmware_table[FIRMWARE_MAX];
 
 /*
- * module release are handled in a separate task as they might sleep.
+ * Firmware module operations are handled in a separate task as they
+ * might sleep and they require directory context to do i/o.
  */
-struct task firmware_task;
+static struct taskqueue *firmware_tq;
+static struct task firmware_unload_task;
 
 /*
  * This mutex protects accesses to the firmware table.
  */
-struct mtx firmware_mtx;
+static struct mtx firmware_mtx;
 MTX_SYSINIT(firmware, &firmware_mtx, "firmware table", MTX_DEF);
 
 /*
@@ -227,7 +233,7 @@ firmware_unregister(const char *imagename)
 	} else if (fp->refcnt != 0) {	/* cannot unregister */
 		err = EBUSY;
 	}  else {
-		linker_file_t   x = fp->file;	/* save value */
+		linker_file_t x = fp->file;	/* save value */
 
 		if (fp->parent != NULL)	/* release parent reference */
 			fp->parent->refcnt--;
@@ -244,6 +250,47 @@ firmware_unregister(const char *imagename)
 	return err;
 }
 
+static void
+loadimage(void *arg, int npending)
+{
+	struct thread *td = curthread;
+	char *imagename = arg;
+	struct priv_fw *fp;
+	linker_file_t result;
+	int error;
+
+	/* synchronize with the thread that dispatched us */
+	mtx_lock(&firmware_mtx);
+	mtx_unlock(&firmware_mtx);
+
+	if (td->td_proc->p_fd->fd_rdir == NULL) {
+		printf("%s: root not mounted yet, no way to load image\n",
+		    imagename);
+		goto done;
+	}
+	error = linker_reference_module(imagename, NULL, &result);
+	if (error != 0) {
+		printf("%s: could not load firmware image, error %d\n",
+		    imagename, error);
+		goto done;
+	}
+
+	mtx_lock(&firmware_mtx);
+	fp = lookup(imagename, NULL);
+	if (fp == NULL || fp->file != NULL) {
+		mtx_unlock(&firmware_mtx);
+		if (fp == NULL)
+			printf("%s: firmware image loaded, "
+			    "but did not register\n", imagename);
+		(void) linker_release_module(imagename, NULL, NULL);
+		goto done;
+	}
+	fp->file = result;	/* record the module identity */
+	mtx_unlock(&firmware_mtx);
+done:
+	wakeup_one(imagename);		/* we're done */
+}
+
 /*
  * Lookup and potentially load the specified firmware image.
  * If the firmware is not found in the registry, try to load a kernel
@@ -254,9 +301,9 @@ firmware_unregister(const char *imagename)
 const struct firmware *
 firmware_get(const char *imagename)
 {
+	struct task fwload_task;
 	struct thread *td;
 	struct priv_fw *fp;
-	linker_file_t result;
 
 	mtx_lock(&firmware_mtx);
 	fp = lookup(imagename, NULL);
@@ -265,29 +312,34 @@ firmware_get(const char *imagename)
 	/*
 	 * Image not present, try to load the module holding it.
 	 */
-	mtx_unlock(&firmware_mtx);
 	td = curthread;
 	if (priv_check(td, PRIV_FIRMWARE_LOAD) != 0 ||
 	    securelevel_gt(td->td_ucred, 0) != 0) {
+		mtx_unlock(&firmware_mtx);
 		printf("%s: insufficient privileges to "
 		    "load firmware image %s\n", __func__, imagename);
 		return NULL;
 	}
-	(void) linker_reference_module(imagename, NULL, &result);
-	/*
-	 * After loading the module, see if the image is registered now.
+	/* 
+	 * Defer load to a thread with known context.  linker_reference_module
+	 * may do filesystem i/o which requires root & current dirs, etc.
+	 * Also we must not hold any mtx's over this call which is problematic.
 	 */
-	mtx_lock(&firmware_mtx);
+	if (!cold) {
+		TASK_INIT(&fwload_task, 0, loadimage, __DECONST(void *,
+		    imagename));
+		taskqueue_enqueue(firmware_tq, &fwload_task);
+		msleep(__DECONST(void *, imagename), &firmware_mtx, 0,
+		    "fwload", 0);
+	}
+	/*
+	 * After attempting to load the module, see if the image is registered.
+	 */
 	fp = lookup(imagename, NULL);
 	if (fp == NULL) {
 		mtx_unlock(&firmware_mtx);
-		printf("%s: failed to load firmware image %s\n",
-			__func__, imagename);
-		(void) linker_release_module(imagename, NULL, NULL);
 		return NULL;
 	}
-	fp->file = result;	/* record the module identity */
-
 found:				/* common exit point on success */
 	fp->refcnt++;
 	mtx_unlock(&firmware_mtx);
@@ -300,8 +352,8 @@ found:				/* common exit point on success */
  * to release the resource, but the flag is only advisory.
  *
  * If this is the last reference to the firmware image, and this is an
- * autoloaded module, wake up the firmware_task to figure out what to do
- * with the associated module.
+ * autoloaded module, wake up the firmware_unload_task to figure out
+ * what to do with the associated module.
  */
 void
 firmware_put(const struct firmware *p, int flags)
@@ -314,10 +366,51 @@ firmware_put(const struct firmware *p, int flags)
 		if (flags & FIRMWARE_UNLOAD)
 			fp->flags |= FW_UNLOAD;
 		if (fp->file)
-			taskqueue_enqueue(taskqueue_thread, &firmware_task);
+			taskqueue_enqueue(firmware_tq, &firmware_unload_task);
 	}
 	mtx_unlock(&firmware_mtx);
 }
+
+/*
+ * Setup directory state for the firmware_tq thread so we can do i/o.
+ */
+static void
+set_rootvnode(void *arg, int npending)
+{
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+
+	FILEDESC_XLOCK(p->p_fd);
+	if (p->p_fd->fd_cdir == NULL) {
+		p->p_fd->fd_cdir = rootvnode;
+		VREF(rootvnode);
+	}
+	if (p->p_fd->fd_rdir == NULL) {
+		p->p_fd->fd_rdir = rootvnode;
+		VREF(rootvnode);
+	}
+	FILEDESC_XUNLOCK(p->p_fd);
+
+	free(arg, M_TEMP);
+}
+
+/*
+ * Event handler called on mounting of /; bounce a task
+ * into the task queue thread to setup it's directories.
+ */
+static void
+firmware_mountroot(void *arg)
+{
+	struct task *setroot_task;
+
+	setroot_task = malloc(sizeof(struct task), M_TEMP, M_NOWAIT);
+	if (setroot_task != NULL) {
+		TASK_INIT(setroot_task, 0, set_rootvnode, setroot_task);
+		taskqueue_enqueue(firmware_tq, setroot_task);
+	} else
+		printf("%s: no memory for task!\n", __func__);
+}
+EVENTHANDLER_DEFINE(mountroot, firmware_mountroot, NULL, 0);
 
 /*
  * The body of the task in charge of unloading autoloaded modules
@@ -383,11 +476,23 @@ static int
 firmware_modevent(module_t mod, int type, void *unused)
 {
 	struct priv_fw *fp;
-	int i, err = EINVAL;
+	int i, err;
 
 	switch (type) {
 	case MOD_LOAD:
-		TASK_INIT(&firmware_task, 0, unloadentry, NULL);
+		TASK_INIT(&firmware_unload_task, 0, unloadentry, NULL);
+		firmware_tq = taskqueue_create("taskqueue_firmware", M_WAITOK,
+		    taskqueue_thread_enqueue, &firmware_tq);
+		/* NB: use our own loop routine that sets up context */
+		(void) taskqueue_start_threads(&firmware_tq, 1, PWAIT,
+		    "firmware taskq");
+		if (rootvnode != NULL) {
+			/* 
+			 * Root is already mounted so we won't get an event;
+			 * simulate one here.
+			 */
+			firmware_mountroot(NULL);
+		}
 		return 0;
 
 	case MOD_UNLOAD:
@@ -398,8 +503,9 @@ firmware_modevent(module_t mod, int type, void *unused)
 			fp->flags |= FW_UNLOAD;;
 		}
 		mtx_unlock(&firmware_mtx);
-		taskqueue_enqueue(taskqueue_thread, &firmware_task);
-		taskqueue_drain(taskqueue_thread, &firmware_task);
+		taskqueue_enqueue(firmware_tq, &firmware_unload_task);
+		taskqueue_drain(firmware_tq, &firmware_unload_task);
+		err = 0;
 		for (i = 0; i < FIRMWARE_MAX; i++) {
 			fp = &firmware_table[i];
 			if (fp->fw.name != NULL) {
@@ -409,6 +515,8 @@ firmware_modevent(module_t mod, int type, void *unused)
 				err = EINVAL;
 			}
 		}
+		if (err == 0)
+			taskqueue_free(firmware_tq);
 		return err;
 	}
 	return EINVAL;

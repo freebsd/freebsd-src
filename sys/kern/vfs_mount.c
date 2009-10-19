@@ -1485,6 +1485,8 @@ set_rootvnode(struct thread *td)
 	VREF(rootvnode);
 
 	FILEDESC_XUNLOCK(p->p_fd);
+
+	EVENTHANDLER_INVOKE(mountroot);
 }
 
 /*
