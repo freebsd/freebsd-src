@@ -709,9 +709,11 @@ main(int argc, char **argv)
 				fd = open(_PATH_WALL_CMOS_CLOCK,
 				    O_WRONLY | O_CREAT | O_TRUNC,
 				    S_IRUSR | S_IRGRP | S_IROTH);
-				if (fd < 0)
+				if (fd < 0) {
+					end_dialog();
 					err(1, "create %s",
 					    _PATH_WALL_CMOS_CLOCK);
+				}
 				close(fd);
 			}
 		}
