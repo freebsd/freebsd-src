@@ -21,6 +21,7 @@ ident		MALTA
 
 #makeoptions	ARCH_FLAGS=-march=mips32
 makeoptions	MIPS_LITTLE_ENDIAN=defined
+makeoptions	KERNLOADADDR=0x80100000
 
 options 	YAMON
 
