@@ -4,9 +4,7 @@
 MK_SSP=		no
 
 # XXX: broken compiler include paths
-.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
 CC=		gcc
-.endif
 
 PROG=		loader.sym
 INTERNALPROG=

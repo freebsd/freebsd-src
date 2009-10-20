@@ -143,7 +143,7 @@ static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, daddr_t, unsigned);
 static void printf(const char *,...);
 static void putchar(int);
-static void memcpy(void *, const void *, int);
+void memcpy(void *, const void *, int);
 static uint32_t memsize(void);
 static int drvread(void *, daddr_t, unsigned);
 static int keyhit(unsigned);
@@ -151,7 +151,7 @@ static int xputc(int);
 static int xgetc(int);
 static int getc(int);
 
-static void
+void
 memcpy(void *dst, const void *src, int len)
 {
     const char *s = src;
