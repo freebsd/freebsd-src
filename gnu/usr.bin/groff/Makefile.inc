@@ -3,6 +3,8 @@
 BINDIR?=	/usr/bin
 SHELL=		/bin/sh
 
+CXX=g++
+
 # Define `page' to be letter if your PostScript printer uses 8.5x11
 # paper (USA) and define it to be A4, if it uses A4 paper (rest of the
 # world).
