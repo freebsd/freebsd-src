@@ -446,7 +446,7 @@ static devclass_t bge_devclass;
 DRIVER_MODULE(bge, pci, bge_driver, bge_devclass, 0, 0);
 DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
-static int bge_allow_asf = 1;
+static int bge_allow_asf = 0;
 
 TUNABLE_INT("hw.bge.allow_asf", &bge_allow_asf);
 
