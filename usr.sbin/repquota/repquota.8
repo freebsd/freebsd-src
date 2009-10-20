@@ -39,12 +39,14 @@
 .Nd summarize quotas for a file system
 .Sh SYNOPSIS
 .Nm
+.Op Fl h
 .Op Fl g
 .Op Fl n
 .Op Fl u
 .Op Fl v
 .Ar filesystem Ar ...
 .Nm
+.Op Fl h
 .Op Fl g
 .Op Fl n
 .Op Fl u
@@ -64,6 +66,9 @@ Print the quotas of all the file systems listed in
 .It Fl g
 Print only group quotas (the default is to print both
 group and user quotas if they exist).
+.It Fl h
+Display information in a more human readable format
+rather than in historic kilobyte format.
 .It Fl n
 Display user and group IDs numerically rather than converting to
 a user or group name.
@@ -75,7 +80,7 @@ Print a header line before printing each file system quotas.
 .El
 .Pp
 For each user or group, the current
-number files and amount of space (in kilobytes) is
+number files and amount of space is
 printed, along with any quotas created with
 .Xr edquota 8 .
 .Pp
