@@ -32,6 +32,7 @@
 .Nm quota_open
 .Nm quota_fsname
 .Nm quota_qfname
+.Nm quota_maxid
 .Nm quota_check_path
 .Nm quota_read
 .Nm quota_write_limits
@@ -44,14 +45,17 @@
 .In sys/param.h
 .In sys/mount.h
 .In ufs/ufs/quota.h
-.In libutil.h
+.In fcntl.h
 .In fstab.h
+.In libutil.h
 .Ft "struct quotafile *"
 .Fn quota_open "struct fstab *fs" "int quotatype" "int openflags"
 .Ft "const char *"
 .Fn quota_fsname "const struct quotafile *qf"
 .Ft "const char *"
 .Fn quota_qfname "const struct quotafile *qf"
+.Ft int
+.Fn quota_maxid "const struct quotafile *qf"
 .Ft int
 .Fn quota_check_path "const struct quotafile *qf" "const char *path"
 .Ft int
@@ -114,6 +118,14 @@ quota file that corresponds to its
 .Va qf
 argument.
 Note that this may be a symbolic link to the actual file.
+.Pp
+The
+.Fn quota_maxid
+function returns the maximum user (or group)
+.Va id
+contained in the quota file associated with its
+.Va qf
+argument.
 .Pp
 The
 .Fn quota_check_path
