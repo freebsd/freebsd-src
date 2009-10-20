@@ -94,9 +94,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	    ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
 
 	/* L1 instruction cache. */
-	tmp = 1 << (((cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT) + 1);
+	tmp = (cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT;
 	if (tmp != 0) {
-		cpuinfo->l1.ic_linesize = tmp;
+		cpuinfo->l1.ic_linesize = 1 << (tmp + 1);
 		cpuinfo->l1.ic_nways = (((cfg1 & MIPS_CONFIG1_IA_MASK) >> MIPS_CONFIG1_IA_SHIFT)) + 1;
 		cpuinfo->l1.ic_nsets = 
 	    		1 << (((cfg1 & MIPS_CONFIG1_IS_MASK) >> MIPS_CONFIG1_IS_SHIFT) + 6);
@@ -105,9 +105,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	}
 
 	/* L1 data cache. */
-	tmp = 1 << (((cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT) + 1);
+	tmp = (cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT;
 	if (tmp != 0) {
-		cpuinfo->l1.dc_linesize = tmp;
+		cpuinfo->l1.dc_linesize = 1 << (tmp + 1);
 		cpuinfo->l1.dc_nways = 
 		    (((cfg1 & MIPS_CONFIG1_DA_MASK) >> MIPS_CONFIG1_DA_SHIFT)) + 1;
 		cpuinfo->l1.dc_nsets = 
