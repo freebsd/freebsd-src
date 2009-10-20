@@ -208,6 +208,7 @@ repquota(struct fstab *fs, int type)
 				printf("\n");
 			fprintf(stdout, "*** No %s quotas on %s (%s)\n",
 			    qfextension[type], fs->fs_file, fs->fs_spec);
+			return(1);
 		}
 		return(0);
 	}
@@ -221,7 +222,7 @@ repquota(struct fstab *fs, int type)
 	printf("User%*s  used   soft   hard  grace     used    soft    hard  grace\n",
 		max(UT_NAMESIZE,10), " ");
 	maxid = quota_maxid(qf);
-	for (id = 0; id <= maxid; id++) {
+	for (id = 0; id < maxid; id++) {
 		if (quota_read(qf, &dqbuf, id) != 0)
 			break;
 		if (dqbuf.dqb_curinodes == 0 && dqbuf.dqb_curblocks == 0)
@@ -253,6 +254,7 @@ repquota(struct fstab *fs, int type)
 			    dqbuf.dqb_isoftlimit ?
 			    timeprt(dqbuf.dqb_itime) : "-");
 	}
+	quota_close(qf);
 	return (0);
 }
 
@@ -263,7 +265,7 @@ prthumanval(int64_t blocks)
 	int flags;
 
 	if (!hflag) {
-		printf("%7llu", dbtokb(blocks));
+		printf(" %6llu", dbtokb(blocks));
 		return;
 	}
 	flags = HN_NOSPACE | HN_DECIMAL;
