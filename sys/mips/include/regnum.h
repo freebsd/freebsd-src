@@ -63,8 +63,7 @@
 #define PREG_RA   10
 #define PREG_SR   11
 #define PREG_GP   12
-
-
+#define PREG_PC   13
 
 /*
  * Location of the saved registers relative to ZERO.
