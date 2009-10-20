@@ -103,7 +103,7 @@ TGTS+=	${BITGTS}
 .ORDER: buildkernel reinstallkernel
 .ORDER: buildkernel reinstallkernel.debug
 
-PATH=	/sbin:/bin:/usr/sbin:/usr/bin
+PATH=	/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
 _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
     ${.MAKEFLAGS:MMAKEOBJDIRPREFIX=*} __MAKE_CONF=${__MAKE_CONF} \
