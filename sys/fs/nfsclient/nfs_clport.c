@@ -1261,7 +1261,7 @@ static moduledata_t nfscl_mod = {
 	nfscl_modevent,
 	NULL,
 };
-DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_ANY);
+DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfscl, 1);
