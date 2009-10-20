@@ -930,16 +930,20 @@ flowtable_route_flush(struct flowtable *ft, struct rtentry *rt)
 		for (i = 0; i <= mp_maxid; i++) {
 			if (CPU_ABSENT(i))
 				continue;
-
-			thread_lock(curthread);
-			sched_bind(curthread, i);
-			thread_unlock(curthread);
+			
+			if (smp_started == 1) {
+				thread_lock(curthread);
+				sched_bind(curthread, i);
+				thread_unlock(curthread);
+			}
 
 			flowtable_free_stale(ft, rt);
 
-			thread_lock(curthread);
-			sched_unbind(curthread);
-			thread_unlock(curthread);
+			if (smp_started == 1) {
+				thread_lock(curthread);
+				sched_unbind(curthread);
+				thread_unlock(curthread);
+			}
 		}
 	} else {
 		flowtable_free_stale(ft, rt);
