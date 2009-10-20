@@ -420,7 +420,7 @@ db_trace_thread(struct thread *thr, int count)
 	else {
 		ctx = thr->td_pcb;
 		sp = (register_t)ctx->pcb_context[PREG_SP];
-		pc = (register_t)ctx->pcb_regs.pc;
+		pc = (register_t)ctx->pcb_context[PREG_PC];
 		ra = (register_t)ctx->pcb_context[PREG_RA];
 	}
 

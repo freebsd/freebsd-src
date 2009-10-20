@@ -313,6 +313,10 @@ NON_LEAF(cpu_switch, STAND_FRAME_SIZE, ra)
 	SAVE_U_PCB_CONTEXT(ra, PREG_RA, a0)		# save return address
 	SAVE_U_PCB_CONTEXT(t0, PREG_SR, a0)		# save status register
 	SAVE_U_PCB_CONTEXT(gp, PREG_GP, a0)
+	jal	getpc
+	nop
+getpc:
+	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)		# save return address
 	/*
 	 * FREEBSD_DEVELOPERS_FIXME:
 	 * In case there are CPU-specific registers that need
