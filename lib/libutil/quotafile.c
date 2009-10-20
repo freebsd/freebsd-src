@@ -128,13 +128,13 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 	if (stat(qf->fsname, &st) != 0)
 		goto error;
 	qf->dev = st.st_dev;
+	serrno = hasquota(fs, quotatype, qf->qfname, sizeof(qf->qfname));
 	qcmd = QCMD(Q_GETQUOTA, quotatype);
 	if (quotactl(fs->fs_file, qcmd, 0, &dqh) == 0) {
 		qf->wordsize = 64;
-		qf->fd = -1;
 		return (qf);
 	}
-	if (!hasquota(fs, quotatype, qf->qfname, sizeof(qf->qfname))) {
+	if (serrno == 0) {
 		errno = EOPNOTSUPP;
 		goto error;
 	}
@@ -231,6 +231,24 @@ quota_check_path(const struct quotafile *qf, const char *path)
 	return (st.st_dev == qf->dev);
 }
 
+int
+quota_maxid(struct quotafile *qf)
+{
+	struct stat st;
+
+	if (stat(qf->qfname, &st) < 0)
+		return (0);
+	switch (qf->wordsize) {
+	case 32:
+		return (st.st_size / sizeof(struct dqblk32));
+	case 64:
+		return (st.st_size / sizeof(struct dqblk64) - 1);
+	default:
+		return (0);
+	}
+	/* not reached */
+}
+
 static int
 quota_read32(struct quotafile *qf, struct dqblk *dqb, int id)
 {
@@ -242,7 +260,7 @@ quota_read32(struct quotafile *qf, struct dqblk *dqb, int id)
 		return (-1);
 	switch (read(qf->fd, &dqb32, sizeof(dqb32))) {
 	case 0:
-		memset(&dqb, 0, sizeof(*dqb));
+		memset(dqb, 0, sizeof(*dqb));
 		return (0);
 	case sizeof(dqb32):
 		dqb->dqb_bhardlimit = dqb32.dqb_bhardlimit;
@@ -270,7 +288,7 @@ quota_read64(struct quotafile *qf, struct dqblk *dqb, int id)
 		return (-1);
 	switch (read(qf->fd, &dqb64, sizeof(dqb64))) {
 	case 0:
-		memset(&dqb, 0, sizeof(*dqb));
+		memset(dqb, 0, sizeof(*dqb));
 		return (0);
 	case sizeof(dqb64):
 		dqb->dqb_bhardlimit = be64toh(dqb64.dqb_bhardlimit);
