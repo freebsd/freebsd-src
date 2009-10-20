@@ -151,8 +151,8 @@ static int xputc(int);
 static int xgetc(int);
 static int getc(int);
 
-static void memcpy(void *, const void *, int);
-static void
+void memcpy(void *, const void *, int);
+void
 memcpy(void *dst, const void *src, int len)
 {
     const char *s = src;
