@@ -2293,6 +2293,9 @@ setup:
 				(void) ieee80211_input_all(ic, m, rssi, nf);
 			m = NULL;
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			upgt_start(ifp);
 		UPGT_LOCK(sc);
 		break;
 	default:
