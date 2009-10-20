@@ -31,7 +31,7 @@
 .Nd set local timezone
 .Sh SYNOPSIS
 .Nm
-.Op Fl ns
+.Op Fl nrs
 .Op Ar zoneinfo file
 .Sh DESCRIPTION
 The
@@ -51,6 +51,9 @@ The following option is available:
 .Bl -tag -offset indent -width Fl
 .It Fl n
 Do not create or copy files.
+.It Fl r
+Reinstall the zoneinfo file installed last time. The name is obtained from
+.Pa /var/db/zoneinfo .
 .It Fl s 
 Skip the initial question about adjusting the clock if not set to
 .Tn UTC .
@@ -106,6 +109,8 @@ mapping of
 directory for zoneinfo files
 .It Pa /usr/share/zoneinfo/zone.tab
 mapping of timezone file to country and location
+.It Pa /var/db/zoneinfo
+saved name of the timezone file installed last.
 .El
 .Sh SEE ALSO
 .Xr date 1 ,
