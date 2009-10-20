@@ -175,18 +175,18 @@ arptimer(void *arg)
 	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(lle);
-	if (((lle->la_flags & LLE_DELETED) ||
-	    (time_second >= lle->la_expire)) &&
-	    (!callout_pending(&lle->la_timer) &&
+	if ((!callout_pending(&lle->la_timer) &&
 	    callout_active(&lle->la_timer))) {
 		(void) llentry_free(lle);
 		ARPSTAT_INC(timeouts);
-	} else {
-		/*
-		 * Still valid, just drop our reference
-		 */
-		LLE_FREE_LOCKED(lle);
+	} 
+#ifdef DIAGNOSTICS
+	else {
+		struct sockaddr *l3addr = L3_ADDR(lle);
+		log(LOG_INFO, "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
+		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
 	}
+#endif
 	IF_AFDATA_UNLOCK(ifp);
 	CURVNET_RESTORE();
 }
@@ -377,7 +377,7 @@ retry:
 
 	if (renew) {
 		LLE_ADDREF(la);
-		la->la_expire = time_second;
+		la->la_expire = time_second + V_arpt_down;
 		callout_reset(&la->la_timer, hz * V_arpt_down, arptimer, la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
