@@ -1243,6 +1243,10 @@ nfscl_modevent(module_t mod, int type, void *data)
 			break;
 		}
 
+		/*
+		 * XXX: Unloading of nfscl module is unsupported.
+		 */
+#if 0
 		ncl_call_invalcaches = NULL;
 		nfsd_call_nfscl = NULL;
 		/* and get rid of the mutexes */
@@ -1250,6 +1254,9 @@ nfscl_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&ncl_iod_mutex);
 		loaded = 0;
 		break;
+#else
+		/* FALLTHROUGH */
+#endif
 	default:
 		error = EOPNOTSUPP;
 		break;
