@@ -2762,6 +2762,9 @@ setup:
 			m = NULL;
 			desc = NULL;
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			uath_start(ifp);
 		UATH_LOCK(sc);
 		break;
 	default:
