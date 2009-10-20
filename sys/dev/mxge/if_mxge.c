@@ -3640,7 +3640,6 @@ mxge_open(mxge_softc_t *sc)
 #endif
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 
 	return 0;
 
@@ -3661,7 +3660,6 @@ mxge_close(mxge_softc_t *sc, int down)
 	int slice;
 #endif
 
-	callout_stop(&sc->co_hdl);
 #ifdef IFNET_BUF_RING
 	for (slice = 0; slice < sc->num_slices; slice++) {
 		ss = &sc->ss[slice];
@@ -3836,9 +3834,9 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 	if (err) {
 		device_printf(sc->dev, "watchdog reset failed\n");
 	} else {
-		if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
-			callout_reset(&sc->co_hdl, mxge_ticks,
-				      mxge_tick, sc);
+		if (sc->dying == 2)
+			sc->dying = 0;
+		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	}
 }
 
@@ -3909,10 +3907,11 @@ mxge_watchdog(mxge_softc_t *sc)
 	return (err);
 }
 
-static void
+static u_long
 mxge_update_stats(mxge_softc_t *sc)
 {
 	struct mxge_slice_state *ss;
+	u_long pkts = 0;
 	u_long ipackets = 0;
 	u_long opackets = 0;
 #ifdef IFNET_BUF_RING
@@ -3934,6 +3933,8 @@ mxge_update_stats(mxge_softc_t *sc)
 #endif
 		oerrors += ss->oerrors;
 	}
+	pkts = (ipackets - sc->ifp->if_ipackets);
+	pkts += (opackets - sc->ifp->if_opackets);
 	sc->ifp->if_ipackets = ipackets;
 	sc->ifp->if_opackets = opackets;
 #ifdef IFNET_BUF_RING
@@ -3942,23 +3943,45 @@ mxge_update_stats(mxge_softc_t *sc)
 	sc->ifp->if_snd.ifq_drops = odrops;
 #endif
 	sc->ifp->if_oerrors = oerrors;
+	return pkts;
 }
 
 static void
 mxge_tick(void *arg)
 {
 	mxge_softc_t *sc = arg;
+	u_long pkts = 0;
 	int err = 0;
+	int running, ticks;
+	uint16_t cmd;
 
-	/* aggregate stats from different slices */
-	mxge_update_stats(sc);
-	if (!sc->watchdog_countdown) {
-		err = mxge_watchdog(sc);
-		sc->watchdog_countdown = 4;
+	ticks = mxge_ticks;
+	mtx_lock(&sc->driver_mtx);
+	running = sc->ifp->if_drv_flags & IFF_DRV_RUNNING;
+	mtx_unlock(&sc->driver_mtx);
+	if (running) {
+		/* aggregate stats from different slices */
+		pkts = mxge_update_stats(sc);
+		if (!sc->watchdog_countdown) {
+			err = mxge_watchdog(sc);
+			sc->watchdog_countdown = 4;
+		}
+		sc->watchdog_countdown--;
 	}
-	sc->watchdog_countdown--;
+	if (pkts == 0) {
+		/* ensure NIC did not suffer h/w fault while idle */
+		cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);		
+		if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
+			sc->dying = 2;
+			taskqueue_enqueue(sc->tq, &sc->watchdog_task);
+			err = ENXIO;
+		}
+		/* look less often if NIC is idle */
+		ticks *= 4;
+	}
+
 	if (err == 0)
-		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+		callout_reset(&sc->co_hdl, ticks, mxge_tick, sc);
 
 }
 
@@ -4747,6 +4770,7 @@ mxge_attach(device_t dev)
 	ifp->if_transmit = mxge_transmit;
 	ifp->if_qflush = mxge_qflush;
 #endif
+	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	return 0;
 
 abort_with_rings:
