@@ -6,7 +6,7 @@ desc="write access to subdirectory is required to move it to another directory"
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-echo "1..15"
+echo "1..16"
 
 n0=`namegen`
 n1=`namegen`
@@ -30,8 +30,9 @@ expect "0|EACCES" -u 65534 -g 65534 rename ${n2}/${n1} ${n2}/${n0}
 # to move ${n0} from ${n2} to ${n3}.
 expect "0|EACCES" -u 65534 -g 65534 rename ${n2}/${n0} ${n3}/${n1}
 
-expect 0 rmdir ${n2}/${n0}
+expect "0|ENOENT" rmdir ${n2}/${n0}
 expect ENOENT rmdir ${n2}/${n0}
+expect "0|ENOENT" rmdir ${n3}/${n1}
 expect ENOENT rmdir ${n3}/${n1}
 
 # Check that write permission on containing directory (${n2}) is enough
