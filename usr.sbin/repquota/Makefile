@@ -3,6 +3,8 @@
 
 PROG=	repquota
 MAN=	repquota.8
+DPADD=  ${LIBUTIL}
+LDADD=  -lutil
 
 WARNS?=	4
 
