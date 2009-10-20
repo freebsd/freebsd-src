@@ -632,7 +632,8 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	}
 
 	for (i = 0, numsegs = 0; i < hdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_LOAD) {	/* Loadable segment */
+		if (phdr[i].p_type == PT_LOAD && phdr[i].p_memsz != 0) {
+			/* Loadable segment */
 			prot = 0;
 			if (phdr[i].p_flags & PF_X)
   				prot |= VM_PROT_EXECUTE;
@@ -761,6 +762,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	for (i = 0; i < hdr->e_phnum; i++) {
 		switch (phdr[i].p_type) {
 		case PT_LOAD:	/* Loadable segment */
+			if (phdr[i].p_memsz == 0)
+				break;
 			prot = 0;
 			if (phdr[i].p_flags & PF_X)
   				prot |= VM_PROT_EXECUTE;
