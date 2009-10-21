@@ -68,7 +68,7 @@ static int	sysctl_all(int *oid, int len);
 static int	name2oid(char *, int *);
 
 static void	set_T_dev_t(char *, void **, size_t *);
-static int	set_IK(char *, int *);
+static int	set_IK(const char *, int *);
 
 static void
 usage(void)
@@ -452,19 +452,19 @@ set_T_dev_t(char *path, void **val, size_t *size)
 }
 
 static int
-set_IK(char *str, int *val)
+set_IK(const char *str, int *val)
 {
 	float temp;
 	int len, kelv;
-	char *p, *endptr;
+	const char *p;
+	char *endptr;
 
 	if ((len = strlen(str)) == 0)
 		return (0);
 	p = &str[len - 1];
 	if (*p == 'C' || *p == 'F') {
-		*p = '\0';
 		temp = strtof(str, &endptr);
-		if (endptr == str || *endptr != '\0')
+		if (endptr == str || endptr != p)
 			return (0);
 		if (*p == 'F')
 			temp = (temp - 32) * 5 / 9;
