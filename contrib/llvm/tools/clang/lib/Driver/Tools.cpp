@@ -446,7 +446,7 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
       if (getToolChain().getArchName() == "x86_64")
         CmdArgs.push_back("--mcpu=x86-64");
       else if (getToolChain().getArchName() == "i386")
-        CmdArgs.push_back("--mcpu=pentium4");
+        CmdArgs.push_back("--mcpu=486");
     }
   }
 
