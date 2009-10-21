@@ -176,7 +176,7 @@ swap_reserve(vm_ooffset_t incr)
 int
 swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
 {
-	vm_ooffset_t r, s, max;
+	vm_ooffset_t r, s;
 	int res, error;
 	static int curfail;
 	static struct timeval lastfail;
@@ -185,7 +185,6 @@ swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
 		panic("swap_reserve: & PAGE_MASK");
 
 	res = 0;
-	error = priv_check(curthread, PRIV_VM_SWAP_NOQUOTA);
 	mtx_lock(&sw_dev_mtx);
 	r = swap_reserved + incr;
 	if (overcommit & SWAP_RESERVE_ALLOW_NONWIRED) {
@@ -204,10 +203,9 @@ swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
 	if (res) {
 		PROC_LOCK(curproc);
 		UIDINFO_VMSIZE_LOCK(uip);
-		error = priv_check(curthread, PRIV_VM_SWAP_NORLIMIT);
-		max = (error != 0) ? lim_cur(curproc, RLIMIT_SWAP) : 0;
-		if (max != 0 && uip->ui_vmsize + incr > max &&
-		    (overcommit & SWAP_RESERVE_RLIMIT_ON) != 0)
+		if ((overcommit & SWAP_RESERVE_RLIMIT_ON) != 0 &&
+		    uip->ui_vmsize + incr > lim_cur(curproc, RLIMIT_SWAP) &&
+		    priv_check(curthread, PRIV_VM_SWAP_NORLIMIT))
 			res = 0;
 		else
 			uip->ui_vmsize += incr;
