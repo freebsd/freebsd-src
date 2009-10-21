@@ -32,7 +32,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl nrs
-.Op Ar zoneinfo file
+.Op Fl C Ar chroot directory
+.Op Ar zoneinfo file | zoneinfo name
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,6 +50,9 @@ the hardware clock does not keep
 .Pp
 The following option is available:
 .Bl -tag -offset indent -width Fl
+.It Fl C Ar chroot directory
+Open all files and directories relative to
+.Ar chroot directory .
 .It Fl n
 Do not create or copy files.
 .It Fl r
@@ -62,8 +66,10 @@ Skip the initial question about adjusting the clock if not set to
 It is possible to short-circuit the menu system by specifying the
 location of a
 .Ar zoneinfo file
+or the name of the
+.Ar zoneinfo name
 on the command line; this is intended mainly for pre-configured installation
-scripts.
+scripts or people who know which zoneinfo they want to install.
 .Sh TIMEZONE DATABASE
 The contents of the timezone database are indexed by
 .Pa /usr/share/zoneinfo/zone.tab .
@@ -97,21 +103,36 @@ historically minded.
 .Sh FILES
 .Bl -tag -width /usr/share/zoneinfo/zone.tab -compact
 .It Pa /etc/localtime
-current time zone file
+current time zone file.
 .It Pa /etc/wall_cmos_clock
 see
 .Xr adjkerntz 8 .
 .It Pa /usr/share/misc/iso3166
 mapping of
 .Tn ISO
-3166 territory codes to names
+3166 territory codes to names.
 .It Pa /usr/share/zoneinfo
-directory for zoneinfo files
+directory for zoneinfo files.
 .It Pa /usr/share/zoneinfo/zone.tab
-mapping of timezone file to country and location
+mapping of timezone file to country and location.
 .It Pa /var/db/zoneinfo
 saved name of the timezone file installed last.
 .El
+.Sh EXAMPLES
+Normal usage, to select the right zoneinfo file via the dialog-based
+user interface:
+.Dl # tzsetup
+Install the file
+.Pa /usr/share/zoneinfo/Australia/Sydney :
+.Dl # tzsetup /usr/share/zoneinfo/Australia/Sydney
+Install the zoneinfo file for Australia/Sydney, assumed to be located
+in
+.Pa /usr/share/zoneinfo :
+.Dl # tzsetup Australia/Sydney
+After a reinstall of the zoneinfo files, you can reinstall the
+latest installed zoneinfo file: (as specified in
+.Pa /var/db/zoneinfo )
+.Dl # tzsetup -r
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr adjtime 2 ,
