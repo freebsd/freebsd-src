@@ -1967,7 +1967,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_SEQSCAN;
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
-			cpi->max_target = 14;
+			cpi->max_target = 15;
 		else
 			cpi->max_target = 0;
 		cpi->max_lun = 0;
