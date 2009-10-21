@@ -327,6 +327,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		 */
 		error = uiomove_fromphys(&m, page_offset, len, uio);
 
+		/* Make the I-cache coherent for breakpoints. */
+		if (!error && writing && (out_prot & VM_PROT_EXECUTE))
+			vm_sync_icache(map, uva, len);
+
 		/*
 		 * Release the page.
 		 */

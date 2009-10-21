@@ -330,7 +330,7 @@ void moea_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 vm_offset_t moea_kextract(mmu_t, vm_offset_t);
 void moea_kenter(mmu_t, vm_offset_t, vm_offset_t);
 boolean_t moea_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
-boolean_t moea_page_executable(mmu_t, vm_page_t);
+static void moea_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
@@ -357,6 +357,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_remove,		moea_remove),
 	MMUMETHOD(mmu_remove_all,      	moea_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea_remove_write),
+	MMUMETHOD(mmu_sync_icache,	moea_sync_icache),
 	MMUMETHOD(mmu_zero_page,       	moea_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	moea_zero_page_idle),
@@ -371,7 +372,6 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_kextract,		moea_kextract),
 	MMUMETHOD(mmu_kenter,		moea_kenter),
 	MMUMETHOD(mmu_dev_direct_mapped,moea_dev_direct_mapped),
-	MMUMETHOD(mmu_page_executable,	moea_page_executable),
 
 	{ 0, 0 }
 };
@@ -2359,12 +2359,6 @@ moea_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 	return (EFAULT);
 }
 
-boolean_t
-moea_page_executable(mmu_t mmu, vm_page_t pg)
-{
-	return ((moea_attr_fetch(pg) & PTE_EXEC) == PTE_EXEC);
-}
-
 /*
  * Map a set of physical memory pages into the kernel virtual
  * address space. Return a pointer to where it is mapped. This
@@ -2423,4 +2417,28 @@ moea_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 		size = roundup(offset + size, PAGE_SIZE);
 		kmem_free(kernel_map, base, size);
 	}
+}
+
+static void
+moea_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
+	struct pvo_entry *pvo;
+	vm_offset_t lim;
+	vm_paddr_t pa;
+	vm_size_t len;
+
+	PMAP_LOCK(pm);
+	while (sz > 0) {
+		lim = round_page(va);
+		len = MIN(lim - va, sz);
+		pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+		if (pvo != NULL) {
+			pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) |
+			    (va & ADDR_POFF);
+			moea_syncicache(pa, len);
+		}
+		va += len;
+		sz -= len;
+	}
+	PMAP_UNLOCK(pm);
 }

@@ -457,12 +457,12 @@ pmap_dev_direct_mapped(vm_offset_t pa, vm_size_t size)
 	return (MMU_DEV_DIRECT_MAPPED(mmu_obj, pa, size));
 }
 
-boolean_t
-pmap_page_executable(vm_page_t pg)
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pg);
-	return (MMU_PAGE_EXECUTABLE(mmu_obj, pg));
+ 
+	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pm, va, sz);
+	return (MMU_SYNC_ICACHE(mmu_obj, pm, va, sz));
 }
 
 vm_offset_t
