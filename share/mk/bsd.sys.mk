@@ -11,7 +11,7 @@
 # the default is gnu99 for now
 CSTD		?= gnu99
 
-.if !defined(NO_WARNS) && ${CC} != "icc"
+.if !defined(NO_WARNS) || ${CC} != "icc"
 . if ${CSTD} == "k&r"
 CFLAGS		+= -traditional
 . elif ${CSTD} == "c89" || ${CSTD} == "c90"
