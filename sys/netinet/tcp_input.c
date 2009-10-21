@@ -180,26 +180,6 @@ int	tcp_read_locking = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, read_locking, CTLFLAG_RW,
     &tcp_read_locking, 0, "Enable read locking strategy");
 
-int	tcp_rlock_atfirst;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, rlock_atfirst, CTLFLAG_RD,
-    &tcp_rlock_atfirst, 0, "");
-
-int	tcp_wlock_atfirst;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_wlock_atfirst, CTLFLAG_RD,
-    &tcp_wlock_atfirst, 0, "");
-
-int	tcp_wlock_upgraded;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_upgraded, CTLFLAG_RD,
-    &tcp_wlock_upgraded, 0, "");
-
-int	tcp_wlock_relocked;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_relocked, CTLFLAG_RD,
-    &tcp_wlock_relocked, 0, "");
-
-int	tcp_wlock_looped;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_looped, CTLFLAG_RD,
-    &tcp_wlock_looped, 0, "");
-
 VNET_DEFINE(struct inpcbhead, tcb);
 VNET_DEFINE(struct inpcbinfo, tcbinfo);
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
@@ -505,11 +485,9 @@ tcp_input(struct mbuf *m, int off0)
 	    tcp_read_locking == 0) {
 		INP_INFO_WLOCK(&V_tcbinfo);
 		ti_locked = TI_WLOCKED;
-		tcp_wlock_atfirst++;
 	} else {
 		INP_INFO_RLOCK(&V_tcbinfo);
 		ti_locked = TI_RLOCKED;
-		tcp_rlock_atfirst++;
 	}
 
 findpcb:
@@ -662,15 +640,11 @@ relocked:
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
 				if (in_pcbrele(inp)) {
-					tcp_wlock_looped++;
 					inp = NULL;
 					goto findpcb;
 				}
-				tcp_wlock_relocked++;
-			} else {
+			} else
 				ti_locked = TI_WLOCKED;
-				tcp_wlock_upgraded++;
-			}
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
@@ -717,16 +691,12 @@ relocked:
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
 				if (in_pcbrele(inp)) {
-					tcp_wlock_looped++;
 					inp = NULL;
 					goto findpcb;
 				}
-				tcp_wlock_relocked++;
 				goto relocked;
-			} else {
+			} else
 				ti_locked = TI_WLOCKED;
-				tcp_wlock_upgraded++;
-			}
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	}

@@ -97,4 +97,7 @@ __ElfType(Auxinfo);
  * value.
  */
 #define MAGIC_TRAMP_NUMBER	0x5c000003
+
+#define	ET_DYN_LOAD_ADDR 0x12000
+
 #endif /* !_MACHINE_ELF_H_ */

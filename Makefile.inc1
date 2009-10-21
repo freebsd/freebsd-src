@@ -1122,7 +1122,7 @@ lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 .if ${MK_KERBEROS} != "no"
-kerberos5/lib/libgssapi_krb5__L: kerberos5/lib/libkrb5__L \
+kerberos5/lib/libgssapi_krb5__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libhx509__L kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libmd__L kerberos5/lib/libroken__L secure/lib/libcrypto__L \
     lib/libcrypt__L

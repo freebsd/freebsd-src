@@ -22,7 +22,8 @@ nfsclient_start()
 	#
 
 	if [ -n "${nfs_access_cache}" ]; then
-		[ -z "${rc_quiet}" ] && echo "NFS access cache time=${nfs_access_cache}"
+		check_startmsgs &&
+			echo "NFS access cache time=${nfs_access_cache}"
 		if ! sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null; then
 			warn "failed to set access cache timeout"
 		fi

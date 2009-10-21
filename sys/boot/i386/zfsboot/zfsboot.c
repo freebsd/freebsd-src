@@ -609,7 +609,7 @@ main(void)
 
     if (zfs_lookup(spa, PATH_CONFIG, &dn) == 0) {
 	off = 0;
-	xfsread(&dn, &off, cmd, sizeof(cmd));
+	zfs_read(spa, &dn, &off, cmd, sizeof(cmd));
     }
 
     if (*cmd) {
