@@ -1584,7 +1584,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_misc = PIM_SEQSCAN;
 		cpi->hba_eng_cnt = 0;
-		cpi->max_target = 14;
+		cpi->max_target = 15;
 		cpi->max_lun = 0;
 		cpi->initiator_id = 0;
 		cpi->bus_id = cam_sim_bus(sim);
