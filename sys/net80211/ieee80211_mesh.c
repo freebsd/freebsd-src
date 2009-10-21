@@ -388,8 +388,6 @@ mesh_select_proto_path(struct ieee80211vap *vap, const char *name)
 	for (i = 0; i < N(mesh_proto_paths); i++) {
 		if (strcasecmp(mesh_proto_paths[i].mpp_descr, name) == 0) {
 			ms->ms_ppath = &mesh_proto_paths[i];
-			if (vap->iv_state == IEEE80211_S_RUN)
-				vap->iv_newstate(vap, IEEE80211_S_INIT, 0);
 			return 0;
 		}
 	}
@@ -405,8 +403,6 @@ mesh_select_proto_metric(struct ieee80211vap *vap, const char *name)
 	for (i = 0; i < N(mesh_proto_metrics); i++) {
 		if (strcasecmp(mesh_proto_metrics[i].mpm_descr, name) == 0) {
 			ms->ms_pmetric = &mesh_proto_metrics[i];
-			if (vap->iv_state == IEEE80211_S_RUN)
-				vap->iv_newstate(vap, IEEE80211_S_INIT, 0);
 			return 0;
 		}
 	}
