@@ -408,7 +408,7 @@ initarm(void *mdp, void *unused __unused)
 		availmem_regions_sz = i;
 	} else {
 		/* Fall back to hardcoded boothowto flags and metadata. */
-		boothowto = 0; // RB_VERBOSE | RB_SINGLE;
+		boothowto = RB_VERBOSE | RB_SINGLE;
 		lastaddr = fake_preload_metadata();
 
 		/*
