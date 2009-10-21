@@ -511,6 +511,7 @@ DRM_DEBUG		opt_drm.h
 ZERO_COPY_SOCKETS	opt_zero.h
 TI_PRIVATE_JUMBOS	opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
+BCE_JUMBO_HDRSPLIT	opt_bce.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.
