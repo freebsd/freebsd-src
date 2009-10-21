@@ -1358,6 +1358,27 @@ ata_amd_chipinit(device_t dev)
 
 
 /*
+ * Adaptec chipset support functions
+ */
+int
+ata_adaptec_ident(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    static struct ata_chip_id ids[] =
+    {{ ATA_ADAPTEC_1420, 0, 4, MV60XX, ATA_SA300, "1420SA" },
+     { 0, 0, 0, 0, 0, 0}};
+
+    if (!(ctlr->chip = ata_match_chip(dev, ids)))
+	return ENXIO;
+
+    ata_set_desc(dev);
+    ctlr->chipinit = ata_marvell_edma_chipinit;
+
+    return 0;
+}
+
+
+/*
  * ATI chipset support functions
  */
 int

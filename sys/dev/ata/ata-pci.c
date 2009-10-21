@@ -90,6 +90,10 @@ ata_pci_probe(device_t dev)
 	if (!ata_amd_ident(dev))
 	    return ATA_PROBE_OK;
 	break;
+    case ATA_ADAPTEC_ID:
+	if (!ata_adaptec_ident(dev))
+	    return ATA_PROBE_OK;
+	break;
     case ATA_ATI_ID:
 	if (!ata_ati_ident(dev))
 	    return ATA_PROBE_OK;
@@ -517,6 +521,7 @@ ata_pcivendor2str(device_t dev)
     case ATA_ACARD_ID:          return "Acard";
     case ATA_ACER_LABS_ID:      return "AcerLabs";
     case ATA_AMD_ID:            return "AMD";
+    case ATA_ADAPTEC_ID:        return "Adaptec";
     case ATA_ATI_ID:            return "ATI";
     case ATA_CYRIX_ID:          return "Cyrix";
     case ATA_CYPRESS_ID:        return "Cypress";

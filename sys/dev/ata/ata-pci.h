@@ -81,6 +81,14 @@ struct ata_connect_task {
 #define ATA_ATP865A             0x00081191
 #define ATA_ATP865R             0x00091191
 
+#define ATA_ACER_LABS_ID        0x10b9
+#define ATA_ALI_1533            0x153310b9
+#define ATA_ALI_5229            0x522910b9
+#define ATA_ALI_5281            0x528110b9
+#define ATA_ALI_5287            0x528710b9
+#define ATA_ALI_5288            0x528810b9
+#define ATA_ALI_5289            0x528910b9
+
 #define ATA_AMD_ID              0x1022
 #define ATA_AMD755              0x74011022
 #define ATA_AMD756              0x74091022
@@ -89,13 +97,8 @@ struct ata_connect_task {
 #define ATA_AMD8111             0x74691022
 #define ATA_AMD5536             0x209a1022
 
-#define ATA_ACER_LABS_ID        0x10b9
-#define ATA_ALI_1533            0x153310b9
-#define ATA_ALI_5229            0x522910b9
-#define ATA_ALI_5281            0x528110b9
-#define ATA_ALI_5287            0x528710b9
-#define ATA_ALI_5288            0x528810b9
-#define ATA_ALI_5289            0x528910b9
+#define ATA_ADAPTEC_ID          0x9005
+#define ATA_ADAPTEC_1420        0x02419005
 
 #define ATA_ATI_ID              0x1002
 #define ATA_ATI_IXP200          0x43491002
@@ -511,6 +514,7 @@ int ata_ahci_ident(device_t);
 int ata_acard_ident(device_t);
 int ata_ali_ident(device_t);
 int ata_amd_ident(device_t);
+int ata_adaptec_ident(device_t);
 int ata_ati_ident(device_t);
 int ata_cyrix_ident(device_t);
 int ata_cypress_ident(device_t);
