@@ -790,7 +790,7 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 	KASSERT(PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)),
 	    ("[pmc,%d] Attaching a non-process-virtual pmc=%p to pid=%d",
 		__LINE__, pm, pp->pp_proc->p_pid));
-	KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt < ((int) md->pmd_npmc - 1),
+	KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt <= ((int) md->pmd_npmc - 1),
 	    ("[pmc,%d] Illegal reference count %d for process record %p",
 		__LINE__, pp->pp_refcnt, (void *) pp));
 
@@ -843,7 +843,7 @@ pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 	KASSERT(pm != NULL && pp != NULL,
 	    ("[pmc,%d] Null pm %p or pp %p", __LINE__, pm, pp));
 
-	KASSERT(pp->pp_refcnt >= 1 && pp->pp_refcnt < (int) md->pmd_npmc,
+	KASSERT(pp->pp_refcnt >= 1 && pp->pp_refcnt <= (int) md->pmd_npmc,
 	    ("[pmc,%d] Illegal ref count %d on process record %p",
 		__LINE__, pp->pp_refcnt, (void *) pp));
 
@@ -1110,7 +1110,7 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 	 * descriptor from the target hash table and unset the P_HWPMC
 	 * flag in the struct proc.
 	 */
-	KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt < (int) md->pmd_npmc,
+	KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt <= (int) md->pmd_npmc,
 	    ("[pmc,%d] Illegal refcnt %d for process struct %p",
 		__LINE__, pp->pp_refcnt, pp));
 
@@ -1785,7 +1785,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 					pmc_detach_one_process(td->td_proc,
 					    pm, PMC_FLAG_NONE);
 
-		KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt < (int) md->pmd_npmc,
+		KASSERT(pp->pp_refcnt >= 0 && pp->pp_refcnt <= (int) md->pmd_npmc,
 		    ("[pmc,%d] Illegal ref count %d on pp %p", __LINE__,
 			pp->pp_refcnt, pp));
 
