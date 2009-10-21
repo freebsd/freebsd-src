@@ -4148,8 +4148,6 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 
 		sendq->qfrozen_cnt--;
 		if (sendq->qfrozen_cnt == 0) {
-			struct cam_eb *bus;
-
 			/*
 			 * If there is a timeout scheduled to release this
 			 * sim queue, remove it.  The queue frozen count is
@@ -4159,15 +4157,17 @@ xpt_release_simq(struct cam_sim *sim, int run_queue)
 				callout_stop(&sim->callout);
 				sim->flags &= ~CAM_SIM_REL_TIMEOUT_PENDING;
 			}
-			bus = xpt_find_bus(sim->path_id);
 
 			if (run_queue) {
+				struct cam_eb *bus;
+
 				/*
 				 * Now that we are unfrozen run the send queue.
 				 */
+				bus = xpt_find_bus(sim->path_id);
 				xpt_run_dev_sendq(bus);
+				xpt_release_bus(bus);
 			}
-			xpt_release_bus(bus);
 		}
 	}
 }
