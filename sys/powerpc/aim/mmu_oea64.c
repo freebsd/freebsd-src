@@ -369,7 +369,7 @@ static boolean_t	moea64_query_bit(vm_page_t, u_int64_t);
 static u_int		moea64_clear_bit(vm_page_t, u_int64_t, u_int64_t *);
 static void		moea64_kremove(mmu_t, vm_offset_t);
 static void		moea64_syncicache(pmap_t pmap, vm_offset_t va, 
-			    vm_offset_t pa);
+			    vm_offset_t pa, vm_size_t sz);
 static void		tlbia(void);
 
 /*
@@ -410,7 +410,7 @@ void moea64_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 vm_offset_t moea64_kextract(mmu_t, vm_offset_t);
 void moea64_kenter(mmu_t, vm_offset_t, vm_offset_t);
 boolean_t moea64_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
-boolean_t moea64_page_executable(mmu_t, vm_page_t);
+static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 
 static mmu_method_t moea64_bridge_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea64_change_wiring),
@@ -437,6 +437,7 @@ static mmu_method_t moea64_bridge_methods[] = {
 	MMUMETHOD(mmu_remove,		moea64_remove),
 	MMUMETHOD(mmu_remove_all,      	moea64_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea64_remove_write),
+	MMUMETHOD(mmu_sync_icache,	moea64_sync_icache),
 	MMUMETHOD(mmu_zero_page,       	moea64_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea64_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	moea64_zero_page_idle),
@@ -451,7 +452,6 @@ static mmu_method_t moea64_bridge_methods[] = {
 	MMUMETHOD(mmu_kextract,		moea64_kextract),
 	MMUMETHOD(mmu_kenter,		moea64_kenter),
 	MMUMETHOD(mmu_dev_direct_mapped,moea64_dev_direct_mapped),
-	MMUMETHOD(mmu_page_executable,	moea64_page_executable),
 
 	{ 0, 0 }
 };
@@ -1264,12 +1264,12 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * mapped executable and cacheable.
 	 */
 	if ((pte_lo & (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
-		moea64_syncicache(pmap, va, VM_PAGE_TO_PHYS(m));
+		moea64_syncicache(pmap, va, VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 	}
 }
 
 static void
-moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa)
+moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_size_t sz)
 {
 	/*
 	 * This is much trickier than on older systems because
@@ -1285,16 +1285,16 @@ moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa)
 		 * If PMAP is not bootstrapped, we are likely to be
 		 * in real mode.
 		 */
-		__syncicache((void *)pa,PAGE_SIZE);
+		__syncicache((void *)pa, sz);
 	} else if (pmap == kernel_pmap) {
-		__syncicache((void *)va,PAGE_SIZE);
+		__syncicache((void *)va, sz);
 	} else {
 		/* Use the scratch page to set up a temp mapping */
 
 		mtx_lock(&moea64_scratchpage_mtx);
 
 		moea64_set_scratchpage_pa(1,pa);
-		__syncicache((void *)moea64_scratchpage_va[1],PAGE_SIZE);
+		__syncicache((void *)moea64_scratchpage_va[1], sz);
 
 		mtx_unlock(&moea64_scratchpage_mtx);
 	}
@@ -1817,8 +1817,9 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 			    pvo->pvo_pmap, pvo->pvo_vaddr);
 			if ((pvo->pvo_pte.lpte.pte_lo & 
 			    (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
-				moea64_syncicache(pm, sva, 
-				     pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
+				moea64_syncicache(pm, sva,
+				    pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN,
+				    PAGE_SIZE);
 			}
 		}
 		UNLOCK_TABLE();
@@ -2406,12 +2407,6 @@ moea64_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 	return (EFAULT);
 }
 
-boolean_t
-moea64_page_executable(mmu_t mmu, vm_page_t pg)
-{
-	return (!moea64_query_bit(pg, LPTE_NOEXEC));
-}
-
 /*
  * Map a set of physical memory pages into the kernel virtual
  * address space. Return a pointer to where it is mapped. This
@@ -2454,3 +2449,26 @@ moea64_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 	kmem_free(kernel_map, base, size);
 }
 
+static void
+moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
+	struct pvo_entry *pvo;
+	vm_offset_t lim;
+	vm_paddr_t pa;
+	vm_size_t len;
+
+	PMAP_LOCK(pm);
+	while (sz > 0) {
+		lim = round_page(va);
+		len = MIN(lim - va, sz);
+		pvo = moea64_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+		if (pvo != NULL) {
+			pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) |
+			    (va & ADDR_POFF);
+			moea64_syncicache(pm, va, pa, len);
+		}
+		va += len;
+		sz -= len;
+	}
+	PMAP_UNLOCK(pm);
+}
