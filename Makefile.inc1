@@ -929,6 +929,10 @@ _ar=		usr.bin/ar
 _mklocale=	usr.bin/mklocale
 .endif
 
+.if ${BOOTSTRAPPING} < 900002
+_sed=		usr.bin/sed
+.endif
+
 .if ${BOOTSTRAPPING} < 700018
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
@@ -954,6 +958,7 @@ bootstrap-tools:
     usr.bin/makewhatis \
     ${_mklocale} \
     usr.bin/rpcgen \
+    ${_sed} \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
@@ -1033,7 +1038,6 @@ cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
-    usr.bin/sed \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
