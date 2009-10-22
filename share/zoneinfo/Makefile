@@ -55,11 +55,11 @@ beforeinstall:
 	    ${.CURDIR}/zone.tab ${DESTDIR}/usr/share/zoneinfo/
 
 afterinstall:
-	@#
-	@# If the file /var/db/zoneinfo exists, and it is owned by root:wheel,
-	@# and the contents of it exists in /usr/share/zoneinfo, then reinstall
-	@# it.
-	@#
+#
+# If the file /var/db/zoneinfo exists, and it is owned by root:wheel,
+# and the contents of it exists in /usr/share/zoneinfo, then reinstall
+# it.
+#
 	@if [ -f ${DESTDIR}/var/db/zoneinfo -a -O ${DESTDIR}/var/db/zoneinfo \
 	    -a -G ${DESTDIR}/var/db/zoneinfo ]; then \
 		zf=$$(cat ${DESTDIR}/var/db/zoneinfo); \
