@@ -96,8 +96,6 @@ int		cam_ccbq_init(struct cam_ccbq *ccbq, int openings);
 
 void		cam_ccbq_free(struct cam_ccbq *ccbq);
 
-void		cam_ccbq_fini(struct cam_ccbq *ccbq);
-
 /*
  * Allocate and initialize a cam_queue structure.
  */
