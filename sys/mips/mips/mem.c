@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/atomic.h>
-#include <machine/pltfm.h>
 #include <machine/memdev.h>
 
 
@@ -101,17 +100,8 @@ memrw(dev, uio, flags)
 			vm_paddr_t pa;
 			register int o;
 
-#ifdef CPU_SB1
-			if (!is_physical_memory(v) ||
-			    !is_physical_memory(roundup2(v, PAGE_SIZE) - 1)) {
-				return (EFAULT);
-			}
-#else
-			if (v + c > (SDRAM_ADDR_START + ctob(physmem)))
-				return (EFAULT);
-#endif
-
-			if (is_cacheable_mem(v) && is_cacheable_mem(v + c)) {
+			if (is_cacheable_mem(v) &&
+			    is_cacheable_mem(v + c - 1)) {
 				struct fpage *fp;
 				struct sysmaps *sysmaps;
 

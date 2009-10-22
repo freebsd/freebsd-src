@@ -96,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <machine/cache.h>
-#include <machine/pltfm.h>
 #include <machine/md_var.h>
 
 #if defined(DIAGNOSTIC)
@@ -311,6 +310,14 @@ again:
 			phys_avail[i - 1] = ptemp[1];
 			goto again;
 		}
+	}
+
+	/*
+	 * Copy the phys_avail[] array before we start stealing memory from it.
+	 */
+	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+		physmem_desc[i] = phys_avail[i];
+		physmem_desc[i + 1] = phys_avail[i + 1];
 	}
 
 	Maxmem = atop(phys_avail[i - 1]);

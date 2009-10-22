@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <machine/cache.h>
 #include <machine/cpu.h>
-#include <machine/pltfm.h>
 #include <net/netisr.h>
 #include <machine/md_var.h>
 #include <machine/clock.h>
@@ -120,7 +119,9 @@ struct pcpu pcpu;
 struct pcpu *pcpup = &pcpu;
 #endif
 
-vm_offset_t phys_avail[10];
+vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+
 #ifdef UNIMPLEMENTED
 struct platform platform;
 #endif
@@ -423,6 +424,19 @@ dumpsys(struct dumperinfo *di __unused)
 int
 cpu_idle_wakeup(int cpu)
 {
+
+	return (0);
+}
+
+int
+is_physical_memory(vm_offset_t addr)
+{
+	int i;
+
+	for (i = 0; physmem_desc[i + 1] != 0; i += 2) {
+		if (addr >= physmem_desc[i] && addr < physmem_desc[i + 1])
+			return (1);
+	}
 
 	return (0);
 }
