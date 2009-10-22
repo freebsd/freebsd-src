@@ -653,6 +653,7 @@ hwmp_rootmode_rann_cb(void *arg)
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, vap->iv_bss,
 	    "%s", "send broadcast RANN");
 
+	rann.rann_flags = 0;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_PORTAL)
 		rann.rann_flags |= IEEE80211_MESHRANN_FLAGS_PR;
 	rann.rann_hopcount = 0;
