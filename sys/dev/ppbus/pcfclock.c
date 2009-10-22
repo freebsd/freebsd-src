@@ -150,12 +150,14 @@ static int
 pcfclock_open(struct cdev *dev, int flag, int fms, struct thread *td)
 {
 	struct pcfclock_data *sc = dev->si_drv1;
-	device_t pcfclockdev = sc->dev;
-	device_t ppbus = device_get_parent(pcfclockdev);
+	device_t pcfclockdev;
+	device_t ppbus;
 	int res;
 
 	if (!sc)
 		return (ENXIO);
+	pcfclockdev = sc->dev;
+	ppbus = device_get_parent(pcfclockdev);
 
 	ppb_lock(ppbus);
 	res = ppb_request_bus(ppbus, pcfclockdev,
