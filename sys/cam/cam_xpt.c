@@ -4447,7 +4447,7 @@ xpt_release_device(struct cam_eb *bus, struct cam_et *target,
 		devq = bus->sim->devq;
 		cam_devq_resize(devq, devq->alloc_queue.array_size - 1);
 		camq_fini(&device->drvq);
-		camq_fini(&device->ccbq.queue);
+		cam_ccbq_fini(&device->ccbq);
 		free(device, M_CAMXPT);
 		xpt_release_target(bus, target);
 	}
