@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/pltfm.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -398,34 +397,6 @@ kvtop(void *addr)
 
 #define	ZIDLE_LO(v)	((v) * 2 / 3)
 #define	ZIDLE_HI(v)	((v) * 4 / 5)
-
-/*
- * Tell whether this address is in some physical memory region.
- * Currently used by the kernel coredump code in order to avoid
- * dumping non-memory physical address space.
- */
-int
-is_physical_memory(vm_offset_t addr)
-{
-	if (addr >= SDRAM_ADDR_START && addr <= SDRAM_ADDR_END)
-		return 1;
-	else
-		return 0;
-}
-
-int
-is_cacheable_mem(vm_offset_t pa)
-{
-	if ((pa >= SDRAM_ADDR_START && pa <= SDRAM_ADDR_END) ||
-#ifdef FLASH_ADDR_START
-	    (pa >= FLASH_ADDR_START && pa <= FLASH_ADDR_END))
-#else
-	    0)
-#endif
-		return 1;
-	else
-		return 0;
-}
 
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
