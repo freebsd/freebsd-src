@@ -11,7 +11,7 @@
 # the default is gnu99 for now
 CSTD		?= gnu99
 
-.if !defined(NO_WARNS) || ${CC} != "icc"
+.if ${CC} != "icc"
 . if ${CSTD} == "k&r"
 CFLAGS		+= -traditional
 . elif ${CSTD} == "c89" || ${CSTD} == "c90"
@@ -23,6 +23,8 @@ CFLAGS		+= -std=iso9899:1999
 . else
 CFLAGS		+= -std=${CSTD}
 . endif
+.endif
+.if !defined(NO_WARNS) && ${CC} != "icc"
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS		+= -pedantic
 . if defined(WARNS)
