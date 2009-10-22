@@ -231,7 +231,6 @@ LEAF(Mips_TLBFlush)
 	ITLBNOPFIX
 	mfc0	t1, COP_0_TLB_WIRED
 	_MFC0	t0, COP_0_TLB_HI		# Save the PID
-	_MTC0	v0, COP_0_TLB_HI		# Mark entry high as invalid
 	_MTC0	zero, COP_0_TLB_LO0		# Zero out low entry0.
 	_MTC0	zero, COP_0_TLB_LO1		# Zero out low entry1.
 	mtc0	zero, COP_0_TLB_PG_MASK 	# Zero out mask entry.
@@ -250,12 +249,8 @@ LEAF(Mips_TLBFlush)
 1:
 	mtc0	t1, COP_0_TLB_INDEX		# Set the index register.
 	ITLBNOPFIX
-#xxx imp
-#	_MTC0	t0, COP_0_TLB_HI		# Restore the PID
 	_MTC0	v0, COP_0_TLB_HI		# Mark entry high as invalid
 	addu	t1, t1, 1			# Increment index.
-#xxx imp
-#	addu	t0, t0, 8 * 1024
 	addu	v0, v0, 8 * 1024
 	MIPS_CPU_NOP_DELAY
 	tlbwi					# Write the TLB entry.
@@ -481,7 +476,6 @@ LEAF(mips_TBIAP)
 	_MFC0	ta0, COP_0_TLB_HI		# Get current PID
 	move	t2, a0
 	mfc0	t1, COP_0_TLB_WIRED
-	li	v0, MIPS_KSEG0_START		# invalid address
 	#
 	# Load invalid entry, each TLB entry should have it's own bogus 
 	# address calculated by following expression:
