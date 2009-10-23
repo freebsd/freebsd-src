@@ -180,7 +180,7 @@ arptimer(void *arg)
 		(void) llentry_free(lle);
 		ARPSTAT_INC(timeouts);
 	} 
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 	else {
 		struct sockaddr *l3addr = L3_ADDR(lle);
 		log(LOG_INFO, "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
