@@ -37,8 +37,7 @@ class DominatorTree;
 //                             AllocationInst Class
 //===----------------------------------------------------------------------===//
 
-/// AllocationInst - This class is the common base class of MallocInst and
-/// AllocaInst.
+/// AllocationInst - This class is the base class of AllocaInst.
 ///
 class AllocationInst : public UnaryInstruction {
 protected:
@@ -85,56 +84,7 @@ public:
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const AllocationInst *) { return true; }
   static inline bool classof(const Instruction *I) {
-    return I->getOpcode() == Instruction::Alloca ||
-           I->getOpcode() == Instruction::Malloc;
-  }
-  static inline bool classof(const Value *V) {
-    return isa<Instruction>(V) && classof(cast<Instruction>(V));
-  }
-};
-
-
-//===----------------------------------------------------------------------===//
-//                                MallocInst Class
-//===----------------------------------------------------------------------===//
-
-/// MallocInst - an instruction to allocated memory on the heap
-///
-class MallocInst : public AllocationInst {
-public:
-  explicit MallocInst(const Type *Ty, Value *ArraySize = 0,
-                      const Twine &NameStr = "",
-                      Instruction *InsertBefore = 0)
-    : AllocationInst(Ty, ArraySize, Malloc,
-                     0, NameStr, InsertBefore) {}
-  MallocInst(const Type *Ty, Value *ArraySize,
-             const Twine &NameStr, BasicBlock *InsertAtEnd)
-    : AllocationInst(Ty, ArraySize, Malloc, 0, NameStr, InsertAtEnd) {}
-
-  MallocInst(const Type *Ty, const Twine &NameStr,
-             Instruction *InsertBefore = 0)
-    : AllocationInst(Ty, 0, Malloc, 0, NameStr, InsertBefore) {}
-  MallocInst(const Type *Ty, const Twine &NameStr,
-             BasicBlock *InsertAtEnd)
-    : AllocationInst(Ty, 0, Malloc, 0, NameStr, InsertAtEnd) {}
-
-  MallocInst(const Type *Ty, Value *ArraySize,
-             unsigned Align, const Twine &NameStr,
-             BasicBlock *InsertAtEnd)
-    : AllocationInst(Ty, ArraySize, Malloc,
-                     Align, NameStr, InsertAtEnd) {}
-  MallocInst(const Type *Ty, Value *ArraySize,
-             unsigned Align, const Twine &NameStr = "", 
-             Instruction *InsertBefore = 0)
-    : AllocationInst(Ty, ArraySize,
-                     Malloc, Align, NameStr, InsertBefore) {}
-
-  virtual MallocInst *clone() const;
-
-  // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const MallocInst *) { return true; }
-  static inline bool classof(const Instruction *I) {
-    return (I->getOpcode() == Instruction::Malloc);
+    return I->getOpcode() == Instruction::Alloca;
   }
   static inline bool classof(const Value *V) {
     return isa<Instruction>(V) && classof(cast<Instruction>(V));
@@ -1042,12 +992,14 @@ public:
   ///    constant 1.
   /// 2. Call malloc with that argument.
   /// 3. Bitcast the result of the malloc call to the specified type.
-  static Value *CreateMalloc(Instruction *InsertBefore, const Type *IntPtrTy,
-                             const Type *AllocTy, Value *ArraySize = 0,
-                             const Twine &Name = "");
-  static Value *CreateMalloc(BasicBlock *InsertAtEnd, const Type *IntPtrTy,
-                             const Type *AllocTy, Value *ArraySize = 0,
-                             const Twine &Name = "");
+  static Instruction *CreateMalloc(Instruction *InsertBefore,
+                                   const Type *IntPtrTy, const Type *AllocTy,
+                                   Value *ArraySize = 0,
+                                   const Twine &Name = "");
+  static Instruction *CreateMalloc(BasicBlock *InsertAtEnd,
+                                   const Type *IntPtrTy, const Type *AllocTy,
+                                   Value *ArraySize = 0, Function* MallocF = 0,
+                                   const Twine &Name = "");
 
   ~CallInst();
 
@@ -1148,9 +1100,14 @@ public:
   }
 
   /// getCalledValue - Get a pointer to the function that is invoked by this
-  /// instruction
+  /// instruction.
   const Value *getCalledValue() const { return Op<0>(); }
         Value *getCalledValue()       { return Op<0>(); }
+
+  /// setCalledFunction - Set the function called.
+  void setCalledFunction(Value* Fn) {
+    Op<0>() = Fn;
+  }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const CallInst *) { return true; }

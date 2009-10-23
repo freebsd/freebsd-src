@@ -82,9 +82,6 @@ protected:
   /// version of the platform, e.g. 8 = 10.4 (Tiger), 9 = 10.5 (Leopard), etc.
   unsigned char DarwinVers; // Is any darwin-x86 platform.
 
-  /// isLinux - true if this is a "linux" platform.
-  bool IsLinux;
-
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
   unsigned stackAlignment;
@@ -195,11 +192,7 @@ public:
   /// getDarwinVers - Return the darwin version number, 8 = Tiger, 9 = Leopard,
   /// 10 = Snow Leopard, etc.
   unsigned getDarwinVers() const { return DarwinVers; }
-  
-  /// isLinux - Return true if the target is "Linux".
-  bool isLinux() const { return IsLinux; }
-
-  
+    
   /// ClassifyGlobalReference - Classify a global variable reference for the
   /// current subtarget according to how we should reference it in a non-pcrel
   /// context.
@@ -222,6 +215,14 @@ public:
   /// indicating the number of scheduling cycles of backscheduling that
   /// should be attempted.
   unsigned getSpecialAddressLatency() const;
+
+  /// enablePostRAScheduler - X86 target is enabling post-alloc scheduling
+  /// at 'More' optimization level.
+  bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
+                             TargetSubtarget::AntiDepBreakMode& mode) const {
+    mode = TargetSubtarget::ANTIDEP_CRITICAL;
+    return OptLevel >= CodeGenOpt::Default;
+  }
 };
 
 } // End llvm namespace

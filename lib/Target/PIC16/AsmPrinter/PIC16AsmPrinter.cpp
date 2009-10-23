@@ -12,8 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "PIC16ABINames.h"
 #include "PIC16AsmPrinter.h"
-#include "MCSectionPIC16.h"
+#include "PIC16Section.h"
 #include "PIC16MCAsmInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
@@ -39,7 +40,7 @@ PIC16AsmPrinter::PIC16AsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
 : AsmPrinter(O, TM, T, V), DbgInfo(O, T) {
   PTLI = static_cast<PIC16TargetLowering*>(TM.getTargetLowering());
   PMAI = static_cast<const PIC16MCAsmInfo*>(T);
-  PTOF = (PIC16TargetObjectFile*)&PTLI->getObjFileLowering();
+  PTOF = (PIC16TargetObjectFile *)&PTLI->getObjFileLowering();
 }
 
 bool PIC16AsmPrinter::printMachineInstruction(const MachineInstr *MI) {
@@ -51,6 +52,45 @@ bool PIC16AsmPrinter::printMachineInstruction(const MachineInstr *MI) {
   processDebugLoc(MI, false);
   return true;
 }
+
+static int getFunctionColor(const Function *F) {
+  if (F->hasSection()) {
+    std::string Sectn = F->getSection();
+    std::string StrToFind = "Overlay=";
+    std::string::size_type Pos = Sectn.find(StrToFind);
+
+    // Retreive the color number if the key is found.
+    if (Pos != std::string::npos) {
+      Pos += StrToFind.length();
+      std::string Color = "";
+      char c = Sectn.at(Pos);
+      // A Color can only consist of digits.
+      while (c >= '0' && c<= '9') {
+        Color.append(1,c);
+        Pos++;
+        if (Pos >= Sectn.length())
+          break;
+        c = Sectn.at(Pos);
+      }
+      return atoi(Color.c_str());
+    }
+  }
+
+  // Color was not set for function, so return -1.
+  return -1;
+}
+
+// Color the Auto section of the given function. 
+void PIC16AsmPrinter::ColorAutoSection(const Function *F) {
+  std::string SectionName = PAN::getAutosSectionName(CurrentFnName);
+  PIC16Section* Section = PTOF->findPIC16Section(SectionName);
+  if (Section != NULL) {
+    int Color = getFunctionColor(F);
+    if (Color >= 0)
+      Section->setColor(Color);
+  }
+}
+
 
 /// runOnMachineFunction - This emits the frame section, autos section and 
 /// assembly for each instruction. Also takes care of function begin debug
@@ -67,17 +107,18 @@ bool PIC16AsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   const Function *F = MF.getFunction();
   CurrentFnName = Mang->getMangledName(F);
 
+  // Put the color information from function to its auto section.
+  ColorAutoSection(F);
+
   // Emit the function frame (args and temps).
   EmitFunctionFrame(MF);
 
   DbgInfo.BeginFunction(MF);
 
-  // Emit the autos section of function.
-  EmitAutos(CurrentFnName);
-
   // Now emit the instructions of function in its code section.
-  const MCSection *fCodeSection = 
-    getObjFileLowering().getSectionForFunction(CurrentFnName);
+  const MCSection *fCodeSection 
+    = getObjFileLowering().SectionForCode(CurrentFnName);
+
   // Start the Code Section.
   O <<  "\n";
   OutStreamer.SwitchSection(fCodeSection);
@@ -229,12 +270,26 @@ bool PIC16AsmPrinter::doInitialization(Module &M) {
 
   // Set the section names for all globals.
   for (Module::global_iterator I = M.global_begin(), E = M.global_end();
-       I != E; ++I)
-    if (!I->isDeclaration() && !I->hasAvailableExternallyLinkage()) {
+       I != E; ++I) {
+
+    // Record External Var Decls.
+    if (I->isDeclaration()) {
+      ExternalVarDecls.push_back(I);
+      continue;
+    }
+
+    // Record Exteranl Var Defs.
+    if (I->hasExternalLinkage() || I->hasCommonLinkage()) {
+      ExternalVarDefs.push_back(I);
+    }
+
+    // Sectionify actual data.
+    if (!I->hasAvailableExternallyLinkage()) {
       const MCSection *S = getObjFileLowering().SectionForGlobal(I, Mang, TM);
       
-      I->setSection(((const MCSectionPIC16*)S)->getName());
+      I->setSection(((const PIC16Section *)S)->getName());
     }
+  }
 
   DbgInfo.BeginModule(M);
   EmitFunctionDecls(M);
@@ -243,6 +298,7 @@ bool PIC16AsmPrinter::doInitialization(Module &M) {
   EmitIData(M);
   EmitUData(M);
   EmitRomData(M);
+  EmitUserSections(M);
   return Result;
 }
 
@@ -287,7 +343,7 @@ void PIC16AsmPrinter::EmitFunctionDecls(Module &M) {
 
 // Emit variables imported from other Modules.
 void PIC16AsmPrinter::EmitUndefinedVars(Module &M) {
-  std::vector<const GlobalVariable*> Items = PTOF->ExternalVarDecls->Items;
+  std::vector<const GlobalVariable*> Items = ExternalVarDecls;
   if (!Items.size()) return;
 
   O << "\n" << MAI->getCommentString() << "Imported Variables - BEGIN" << "\n";
@@ -299,7 +355,7 @@ void PIC16AsmPrinter::EmitUndefinedVars(Module &M) {
 
 // Emit variables defined in this module and are available to other modules.
 void PIC16AsmPrinter::EmitDefinedVars(Module &M) {
-  std::vector<const GlobalVariable*> Items = PTOF->ExternalVarDefs->Items;
+  std::vector<const GlobalVariable*> Items = ExternalVarDefs;
   if (!Items.size()) return;
 
   O << "\n" << MAI->getCommentString() << "Exported Variables - BEGIN" << "\n";
@@ -311,25 +367,12 @@ void PIC16AsmPrinter::EmitDefinedVars(Module &M) {
 
 // Emit initialized data placed in ROM.
 void PIC16AsmPrinter::EmitRomData(Module &M) {
-  // Print ROM Data section.
-  const std::vector<PIC16Section*> &ROSections = PTOF->ROSections;
-  for (unsigned i = 0; i < ROSections.size(); i++) {
-    const std::vector<const GlobalVariable*> &Items = ROSections[i]->Items;
-    if (!Items.size()) continue;
-    O << "\n";
-    OutStreamer.SwitchSection(PTOF->ROSections[i]->S_);
-    for (unsigned j = 0; j < Items.size(); j++) {
-      O << Mang->getMangledName(Items[j]);
-      Constant *C = Items[j]->getInitializer();
-      int AddrSpace = Items[j]->getType()->getAddressSpace();
-      EmitGlobalConstant(C, AddrSpace);
-    }
-  }
+  EmitSingleSection(PTOF->ROMDATASection());
 }
 
 bool PIC16AsmPrinter::doFinalization(Module &M) {
+  EmitAllAutos(M);
   printLibcallDecls();
-  EmitRemainingAutos();
   DbgInfo.EndModule(M);
   O << "\n\t" << "END\n";
   return AsmPrinter::doFinalization(M);
@@ -342,8 +385,10 @@ void PIC16AsmPrinter::EmitFunctionFrame(MachineFunction &MF) {
   // Emit the data section name.
   O << "\n"; 
   
-  const MCSection *fPDataSection =
-    getObjFileLowering().getSectionForFunctionFrame(CurrentFnName);
+  PIC16Section *fPDataSection = const_cast<PIC16Section *>(getObjFileLowering().
+                                SectionForFrame(CurrentFnName));
+ 
+  fPDataSection->setColor(getFunctionColor(F)); 
   OutStreamer.SwitchSection(fPDataSection);
   
   // Emit function frame label
@@ -379,106 +424,86 @@ void PIC16AsmPrinter::EmitFunctionFrame(MachineFunction &MF) {
     O << PAN::getTempdataLabel(CurrentFnName) << " RES  " << TempSize << '\n';
 }
 
-void PIC16AsmPrinter::EmitIData(Module &M) {
 
-  // Print all IDATA sections.
-  const std::vector<PIC16Section*> &IDATASections = PTOF->IDATASections;
-  for (unsigned i = 0; i < IDATASections.size(); i++) {
-    O << "\n";
-    if (IDATASections[i]->S_->getName().find("llvm.") != std::string::npos)
-      continue;
-    OutStreamer.SwitchSection(IDATASections[i]->S_);
-    std::vector<const GlobalVariable*> Items = IDATASections[i]->Items;
+void PIC16AsmPrinter::EmitInitializedDataSection(const PIC16Section *S) {
+  /// Emit Section header.
+  OutStreamer.SwitchSection(S);
+
+    std::vector<const GlobalVariable*> Items = S->Items;
     for (unsigned j = 0; j < Items.size(); j++) {
       std::string Name = Mang->getMangledName(Items[j]);
       Constant *C = Items[j]->getInitializer();
       int AddrSpace = Items[j]->getType()->getAddressSpace();
       O << Name;
       EmitGlobalConstant(C, AddrSpace);
-    }
-  }
+   }
 }
 
-void PIC16AsmPrinter::EmitUData(Module &M) {
-  const TargetData *TD = TM.getTargetData();
+// Print all IDATA sections.
+void PIC16AsmPrinter::EmitIData(Module &M) {
+  EmitSectionList (M, PTOF->IDATASections());
+}
 
-  // Print all BSS sections.
-  const std::vector<PIC16Section*> &BSSSections = PTOF->BSSSections;
-  for (unsigned i = 0; i < BSSSections.size(); i++) {
-    O << "\n";
-    OutStreamer.SwitchSection(BSSSections[i]->S_);
-    std::vector<const GlobalVariable*> Items = BSSSections[i]->Items;
+void PIC16AsmPrinter::
+EmitUninitializedDataSection(const PIC16Section *S) {
+    const TargetData *TD = TM.getTargetData();
+    OutStreamer.SwitchSection(S);
+    std::vector<const GlobalVariable*> Items = S->Items;
     for (unsigned j = 0; j < Items.size(); j++) {
       std::string Name = Mang->getMangledName(Items[j]);
       Constant *C = Items[j]->getInitializer();
       const Type *Ty = C->getType();
       unsigned Size = TD->getTypeAllocSize(Ty);
-
       O << Name << " RES " << Size << "\n";
     }
-  }
 }
 
-void PIC16AsmPrinter::EmitAutos(std::string FunctName) {
-  // Section names for all globals are already set.
-  const TargetData *TD = TM.getTargetData();
-
-  // Now print Autos section for this function.
-  std::string SectionName = PAN::getAutosSectionName(FunctName);
-  const std::vector<PIC16Section*> &AutosSections = PTOF->AutosSections;
-  for (unsigned i = 0; i < AutosSections.size(); i++) {
-    O << "\n";
-    if (AutosSections[i]->S_->getName() == SectionName) { 
-      // Set the printing status to true
-      AutosSections[i]->setPrintedStatus(true);
-      OutStreamer.SwitchSection(AutosSections[i]->S_);
-      const std::vector<const GlobalVariable*> &Items = AutosSections[i]->Items;
-      for (unsigned j = 0; j < Items.size(); j++) {
-        std::string VarName = Mang->getMangledName(Items[j]);
-        Constant *C = Items[j]->getInitializer();
-        const Type *Ty = C->getType();
-        unsigned Size = TD->getTypeAllocSize(Ty);
-        // Emit memory reserve directive.
-        O << VarName << "  RES  " << Size << "\n";
-      }
-      break;
-    }
-  }
+// Print all UDATA sections.
+void PIC16AsmPrinter::EmitUData(Module &M) {
+  EmitSectionList (M, PTOF->UDATASections());
 }
 
-// Print autos that were not printed during the code printing of functions.
-// As the functions might themselves would have got deleted by the optimizer.
-void PIC16AsmPrinter::EmitRemainingAutos() {
-  const TargetData *TD = TM.getTargetData();
-
-  // Now print Autos section for this function.
-  std::vector <PIC16Section *>AutosSections = PTOF->AutosSections;
-  for (unsigned i = 0; i < AutosSections.size(); i++) {
-    
-    // if the section is already printed then don't print again
-    if (AutosSections[i]->isPrinted()) 
-      continue;
-
-    // Set status as printed
-    AutosSections[i]->setPrintedStatus(true);
-
-    O << "\n";
-    OutStreamer.SwitchSection(AutosSections[i]->S_);
-    const std::vector<const GlobalVariable*> &Items = AutosSections[i]->Items;
-    for (unsigned j = 0; j < Items.size(); j++) {
-      std::string VarName = Mang->getMangledName(Items[j]);
-      Constant *C = Items[j]->getInitializer();
-      const Type *Ty = C->getType();
-      unsigned Size = TD->getTypeAllocSize(Ty);
-      // Emit memory reserve directive.
-      O << VarName << "  RES  " << Size << "\n";
-    }
-  }
+// Print all USER sections.
+void PIC16AsmPrinter::EmitUserSections(Module &M) {
+  EmitSectionList (M, PTOF->USERSections());
 }
 
+// Print all AUTO sections.
+void PIC16AsmPrinter::EmitAllAutos(Module &M) {
+  EmitSectionList (M, PTOF->AUTOSections());
+}
 
 extern "C" void LLVMInitializePIC16AsmPrinter() { 
   RegisterAsmPrinter<PIC16AsmPrinter> X(ThePIC16Target);
 }
 
+// Emit one data section using correct section emitter based on section type.
+void PIC16AsmPrinter::EmitSingleSection(const PIC16Section *S) {
+  if (S == NULL) return;
+
+  switch (S->getType()) {
+    default: llvm_unreachable ("unknow user section type");
+    case UDATA:
+    case UDATA_SHR:
+    case UDATA_OVR:
+      EmitUninitializedDataSection(S);
+      break;
+    case IDATA:
+    case ROMDATA:
+      EmitInitializedDataSection(S);
+      break;
+  }
+}
+
+// Emit a list of sections.
+void PIC16AsmPrinter::
+EmitSectionList(Module &M, const std::vector<PIC16Section *> &SList) {
+  for (unsigned i = 0; i < SList.size(); i++) {
+    // Exclude llvm specific metadata sections.
+    if (SList[i]->getName().find("llvm.") != std::string::npos)
+      continue;
+    O << "\n";
+    EmitSingleSection(SList[i]);
+  }
+}
 

@@ -13,46 +13,30 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MDNODE_H
-#define LLVM_MDNODE_H
+#ifndef LLVM_METADATA_H
+#define LLVM_METADATA_H
 
-#include "llvm/User.h"
+#include "llvm/Value.h"
 #include "llvm/Type.h"
-#include "llvm/OperandTraits.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/ilist_node.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
 class Constant;
 class Instruction;
 class LLVMContext;
+class MetadataContextImpl;
 
 //===----------------------------------------------------------------------===//
 // MetadataBase  - A base class for MDNode, MDString and NamedMDNode.
-class MetadataBase : public User {
-private:
-  /// ReservedSpace - The number of operands actually allocated.  NumOperands is
-  /// the number actually in use.
-  unsigned ReservedSpace;
-
+class MetadataBase : public Value {
 protected:
   MetadataBase(const Type *Ty, unsigned scid)
-    : User(Ty, scid, NULL, 0), ReservedSpace(0) {}
+    : Value(Ty, scid) {}
 
-  void resizeOperands(unsigned NumOps);
 public:
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  This always returns false because getNullValue will never
-  /// produce metadata.
-  virtual bool isNullValue() const {
-    return false;
-  }
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const MetadataBase *) { return true; }
@@ -68,32 +52,28 @@ public:
 /// MDString is always unnamd.
 class MDString : public MetadataBase {
   MDString(const MDString &);            // DO NOT IMPLEMENT
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-  unsigned getNumOperands();             // DO NOT IMPLEMENT
 
   StringRef Str;
 protected:
-  explicit MDString(LLVMContext &C, const char *begin, unsigned l)
-    : MetadataBase(Type::getMetadataTy(C), Value::MDStringVal), Str(begin, l) {}
+  explicit MDString(LLVMContext &C, StringRef S)
+    : MetadataBase(Type::getMetadataTy(C), Value::MDStringVal), Str(S) {}
 
 public:
-  // Do not allocate any space for operands.
-  void *operator new(size_t s) {
-    return User::operator new(s, 0);
-  }
-  static MDString *get(LLVMContext &Context, const StringRef &Str);
+  static MDString *get(LLVMContext &Context, StringRef Str);
   
   StringRef getString() const { return Str; }
 
-  unsigned length() const { return Str.size(); }
+  unsigned getLength() const { return Str.size(); }
 
+  typedef StringRef::iterator iterator;
+  
   /// begin() - Pointer to the first byte of the string.
   ///
-  const char *begin() const { return Str.begin(); }
+  iterator begin() const { return Str.begin(); }
 
   /// end() - Pointer to one byte past the end of the string.
   ///
-  const char *end() const { return Str.end(); }
+  iterator end() const { return Str.end(); }
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const MDString *) { return true; }
@@ -108,14 +88,12 @@ public:
 /// MDNode is always unnamed.
 class MDNode : public MetadataBase, public FoldingSetNode {
   MDNode(const MDNode &);                // DO NOT IMPLEMENT
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-  // getNumOperands - Make this only available for private uses.
-  unsigned getNumOperands() { return User::getNumOperands();  }
 
   friend class ElementVH;
   // Use CallbackVH to hold MDNOde elements.
   struct ElementVH : public CallbackVH {
     MDNode *Parent;
+    ElementVH() {}
     ElementVH(Value *V, MDNode *P) : CallbackVH(V), Parent(P) {}
     ~ElementVH() {}
 
@@ -130,82 +108,36 @@ class MDNode : public MetadataBase, public FoldingSetNode {
   // Replace each instance of F from the element list of this node with T.
   void replaceElement(Value *F, Value *T);
 
-  SmallVector<ElementVH, 4> Node;
+  ElementVH *Node;
+  unsigned NodeSize;
 
 protected:
-  explicit MDNode(LLVMContext &C, Value*const* Vals, unsigned NumVals);
+  explicit MDNode(LLVMContext &C, Value *const *Vals, unsigned NumVals);
 public:
-  // Do not allocate any space for operands.
-  void *operator new(size_t s) {
-    return User::operator new(s, 0);
-  }
   // Constructors and destructors.
   static MDNode *get(LLVMContext &Context, 
-                     Value* const* Vals, unsigned NumVals);
-
-  /// dropAllReferences - Remove all uses and clear node vector.
-  void dropAllReferences();
+                     Value *const *Vals, unsigned NumVals);
 
   /// ~MDNode - Destroy MDNode.
   ~MDNode();
   
   /// getElement - Return specified element.
   Value *getElement(unsigned i) const {
-    assert (getNumElements() > i && "Invalid element number!");
+    assert(i < getNumElements() && "Invalid element number!");
     return Node[i];
   }
 
   /// getNumElements - Return number of MDNode elements.
-  unsigned getNumElements() const {
-    return Node.size();
-  }
-
-  // Element access
-  typedef SmallVectorImpl<ElementVH>::const_iterator const_elem_iterator;
-  typedef SmallVectorImpl<ElementVH>::iterator elem_iterator;
-  /// elem_empty - Return true if MDNode is empty.
-  bool elem_empty() const                { return Node.empty(); }
-  const_elem_iterator elem_begin() const { return Node.begin(); }
-  const_elem_iterator elem_end() const   { return Node.end();   }
-  elem_iterator elem_begin()             { return Node.begin(); }
-  elem_iterator elem_end()               { return Node.end();   }
-
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  This always returns false because getNullValue will never
-  /// produce metadata.
-  virtual bool isNullValue() const {
-    return false;
-  }
+  unsigned getNumElements() const { return NodeSize; }
 
   /// Profile - calculate a unique identifier for this MDNode to collapse
   /// duplicates
   void Profile(FoldingSetNodeID &ID) const;
 
-  virtual void replaceUsesOfWithOnConstant(Value *, Value *, Use *) {
-    llvm_unreachable("This should never be called because MDNodes have no ops");
-  }
-
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const MDNode *) { return true; }
   static bool classof(const Value *V) {
     return V->getValueID() == MDNodeVal;
-  }
-};
-
-//===----------------------------------------------------------------------===//
-/// WeakMetadataVH - a weak value handle for metadata.
-class WeakMetadataVH : public WeakVH {
-public:
-  WeakMetadataVH() : WeakVH() {}
-  WeakMetadataVH(MetadataBase *M) : WeakVH(M) {}
-  WeakMetadataVH(const WeakMetadataVH &RHS) : WeakVH(RHS) {}
-  
-  operator Value*() const {
-    llvm_unreachable("WeakMetadataVH only handles Metadata");
-  }
-
-  operator MetadataBase*() const {
-   return dyn_cast_or_null<MetadataBase>(getValPtr());
   }
 };
 
@@ -220,24 +152,17 @@ class NamedMDNode : public MetadataBase, public ilist_node<NamedMDNode> {
   friend class LLVMContextImpl;
 
   NamedMDNode(const NamedMDNode &);      // DO NOT IMPLEMENT
-  void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
-  // getNumOperands - Make this only available for private uses.
-  unsigned getNumOperands() { return User::getNumOperands();  }
 
   Module *Parent;
-  SmallVector<WeakMetadataVH, 4> Node;
-  typedef SmallVectorImpl<WeakMetadataVH>::iterator elem_iterator;
+  SmallVector<TrackingVH<MetadataBase>, 4> Node;
 
+  void setParent(Module *M) { Parent = M; }
 protected:
-  explicit NamedMDNode(LLVMContext &C, const Twine &N, MetadataBase*const* Vals, 
+  explicit NamedMDNode(LLVMContext &C, const Twine &N, MetadataBase*const *Vals, 
                        unsigned NumVals, Module *M = 0);
 public:
-  // Do not allocate any space for operands.
-  void *operator new(size_t s) {
-    return User::operator new(s, 0);
-  }
   static NamedMDNode *Create(LLVMContext &C, const Twine &N, 
-                             MetadataBase*const*MDs, 
+                             MetadataBase *const *MDs, 
                              unsigned NumMDs, Module *M = 0) {
     return new NamedMDNode(C, N, MDs, NumMDs, M);
   }
@@ -257,11 +182,10 @@ public:
   /// getParent - Get the module that holds this named metadata collection.
   inline Module *getParent() { return Parent; }
   inline const Module *getParent() const { return Parent; }
-  void setParent(Module *M) { Parent = M; }
 
   /// getElement - Return specified element.
   MetadataBase *getElement(unsigned i) const {
-    assert (getNumElements() > i && "Invalid element number!");
+    assert(i < getNumElements() && "Invalid element number!");
     return Node[i];
   }
 
@@ -272,29 +196,17 @@ public:
 
   /// addElement - Add metadata element.
   void addElement(MetadataBase *M) {
-    resizeOperands(0);
-    OperandList[NumOperands++] = M;
-    Node.push_back(WeakMetadataVH(M));
+    Node.push_back(TrackingVH<MetadataBase>(M));
   }
 
-  typedef SmallVectorImpl<WeakMetadataVH>::const_iterator const_elem_iterator;
+  typedef SmallVectorImpl<TrackingVH<MetadataBase> >::iterator elem_iterator;
+  typedef SmallVectorImpl<TrackingVH<MetadataBase> >::const_iterator 
+    const_elem_iterator;
   bool elem_empty() const                { return Node.empty(); }
   const_elem_iterator elem_begin() const { return Node.begin(); }
   const_elem_iterator elem_end() const   { return Node.end();   }
   elem_iterator elem_begin()             { return Node.begin(); }
   elem_iterator elem_end()               { return Node.end();   }
-
-  /// isNullValue - Return true if this is the value that would be returned by
-  /// getNullValue.  This always returns false because getNullValue will never
-  /// produce metadata.
-  virtual bool isNullValue() const {
-    return false;
-  }
-
-  virtual void replaceUsesOfWithOnConstant(Value *, Value *, Use *) {
-    llvm_unreachable(
-                "This should never be called because NamedMDNodes have no ops");
-  }
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const NamedMDNode *) { return true; }
@@ -310,61 +222,55 @@ public:
 /// must start with an alphabet. The regular expression used to check name
 /// is [a-zA-Z$._][a-zA-Z$._0-9]*
 class MetadataContext {
+  // DO NOT IMPLEMENT
+  MetadataContext(MetadataContext&);
+  void operator=(MetadataContext&);
+
+  MetadataContextImpl *const pImpl;
 public:
-  typedef std::pair<unsigned, WeakVH> MDPairTy;
-  typedef SmallVector<MDPairTy, 2> MDMapTy;
-  typedef DenseMap<const Instruction *, MDMapTy> MDStoreTy;
-  friend class BitcodeReader;
-private:
+  MetadataContext();
+  ~MetadataContext();
 
-  /// MetadataStore - Collection of metadata used in this context.
-  MDStoreTy MetadataStore;
-
-  /// MDHandlerNames - Map to hold metadata handler names.
-  StringMap<unsigned> MDHandlerNames;
-
-public:
-  /// RegisterMDKind - Register a new metadata kind and return its ID.
+  /// registerMDKind - Register a new metadata kind and return its ID.
   /// A metadata kind can be registered only once. 
-  unsigned RegisterMDKind(const char *Name);
+  unsigned registerMDKind(StringRef Name);
 
   /// getMDKind - Return metadata kind. If the requested metadata kind
   /// is not registered then return 0.
-  unsigned getMDKind(const char *Name);
+  unsigned getMDKind(StringRef Name) const;
 
-  /// validName - Return true if Name is a valid custom metadata handler name.
-  bool validName(const char *Name);
+  /// isValidName - Return true if Name is a valid custom metadata handler name.
+  static bool isValidName(StringRef Name);
 
-  /// getMD - Get the metadata of given kind attached with an Instruction.
+  /// getMD - Get the metadata of given kind attached to an Instruction.
   /// If the metadata is not found then return 0.
   MDNode *getMD(unsigned Kind, const Instruction *Inst);
 
-  /// getMDs - Get the metadata attached with an Instruction.
-  const MDMapTy *getMDs(const Instruction *Inst);
+  /// getMDs - Get the metadata attached to an Instruction.
+  void getMDs(const Instruction *Inst, 
+        SmallVectorImpl<std::pair<unsigned, TrackingVH<MDNode> > > &MDs) const;
 
-  /// addMD - Attach the metadata of given kind with an Instruction.
+  /// addMD - Attach the metadata of given kind to an Instruction.
   void addMD(unsigned Kind, MDNode *Node, Instruction *Inst);
   
   /// removeMD - Remove metadata of given kind attached with an instuction.
   void removeMD(unsigned Kind, Instruction *Inst);
   
-  /// removeMDs - Remove all metadata attached with an instruction.
-  void removeMDs(const Instruction *Inst);
+  /// removeAllMetadata - Remove all metadata attached with an instruction.
+  void removeAllMetadata(Instruction *Inst);
 
   /// copyMD - If metadata is attached with Instruction In1 then attach
   /// the same metadata to In2.
   void copyMD(Instruction *In1, Instruction *In2);
 
-  /// getHandlerNames - Get handler names. This is used by bitcode
-  /// writer.
-  const StringMap<unsigned> *getHandlerNames();
+  /// getHandlerNames - Populate client supplied smallvector using custome
+  /// metadata name and ID.
+  void getHandlerNames(SmallVectorImpl<std::pair<unsigned, StringRef> >&) const;
 
   /// ValueIsDeleted - This handler is used to update metadata store
   /// when a value is deleted.
   void ValueIsDeleted(const Value *) {}
-  void ValueIsDeleted(const Instruction *Inst) {
-    removeMDs(Inst);
-  }
+  void ValueIsDeleted(Instruction *Inst);
   void ValueIsRAUWd(Value *V1, Value *V2);
 
   /// ValueIsCloned - This handler is used to update metadata store

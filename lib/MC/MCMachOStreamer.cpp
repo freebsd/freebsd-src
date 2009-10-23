@@ -198,7 +198,9 @@ void MCMachOStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
   assert((Symbol->isUndefined() || Symbol->isAbsolute()) &&
          "Cannot define a symbol twice!");
 
-  llvm_unreachable("FIXME: Not yet implemented!");
+  // FIXME: Lift context changes into super class.
+  // FIXME: Set associated section.
+  Symbol->setValue(Value);
 }
 
 void MCMachOStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
@@ -321,12 +323,7 @@ void MCMachOStreamer::EmitBytes(const StringRef &Data) {
 }
 
 void MCMachOStreamer::EmitValue(const MCExpr *Value, unsigned Size) {
-  MCValue RelocValue;
-
-  if (!AddValueSymbols(Value)->EvaluateAsRelocatable(getContext(), RelocValue))
-    return llvm_report_error("expected relocatable expression");
-
-  new MCFillFragment(RelocValue, Size, 1, CurSectionData);
+  new MCFillFragment(*AddValueSymbols(Value), Size, 1, CurSectionData);
 }
 
 void MCMachOStreamer::EmitValueToAlignment(unsigned ByteAlignment,
@@ -344,13 +341,7 @@ void MCMachOStreamer::EmitValueToAlignment(unsigned ByteAlignment,
 
 void MCMachOStreamer::EmitValueToOffset(const MCExpr *Offset,
                                         unsigned char Value) {
-  MCValue RelocOffset;
-
-  if (!AddValueSymbols(Offset)->EvaluateAsRelocatable(getContext(),
-                                                      RelocOffset))
-    return llvm_report_error("expected relocatable expression");
-
-  new MCOrgFragment(RelocOffset, Value, CurSectionData);
+  new MCOrgFragment(*Offset, Value, CurSectionData);
 }
 
 void MCMachOStreamer::EmitInstruction(const MCInst &Inst) {

@@ -121,7 +121,6 @@ static bool isUnmovableInstruction(Instruction *I) {
   if (I->getOpcode() == Instruction::PHI ||
       I->getOpcode() == Instruction::Alloca ||
       I->getOpcode() == Instruction::Load ||
-      I->getOpcode() == Instruction::Malloc ||
       I->getOpcode() == Instruction::Invoke ||
       (I->getOpcode() == Instruction::Call &&
        !isa<DbgInfoIntrinsic>(I)) ||

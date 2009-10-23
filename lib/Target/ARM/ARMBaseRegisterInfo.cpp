@@ -36,7 +36,17 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/CommandLine.h"
 using namespace llvm;
+
+static cl::opt<bool>
+ScavengeFrameIndexVals("arm-virtual-frame-index-vals", cl::Hidden,
+          cl::init(false),
+          cl::desc("Resolve frame index values via scavenging in PEI"));
+
+static cl::opt<bool>
+ReuseFrameIndexVals("arm-reuse-frame-index-vals", cl::Hidden, cl::init(false),
+          cl::desc("Reuse repeated frame index values"));
 
 unsigned ARMBaseRegisterInfo::getRegisterNumbering(unsigned RegEnum,
                                                    bool *isSPVFP) {
@@ -740,8 +750,7 @@ unsigned ARMBaseRegisterInfo::getRegisterPairEven(unsigned Reg,
   case ARM::R1:
     return ARM::R0;
   case ARM::R3:
-    // FIXME!
-    return STI.isThumb1Only() ? 0 : ARM::R2;
+    return ARM::R2;
   case ARM::R5:
     return ARM::R4;
   case ARM::R7:
@@ -830,8 +839,7 @@ unsigned ARMBaseRegisterInfo::getRegisterPairOdd(unsigned Reg,
   case ARM::R0:
     return ARM::R1;
   case ARM::R2:
-    // FIXME!
-    return STI.isThumb1Only() ? 0 : ARM::R3;
+    return ARM::R3;
   case ARM::R4:
     return ARM::R5;
   case ARM::R6:
@@ -935,6 +943,11 @@ emitLoadConstPool(MachineBasicBlock &MBB,
 bool ARMBaseRegisterInfo::
 requiresRegisterScavenging(const MachineFunction &MF) const {
   return true;
+}
+
+bool ARMBaseRegisterInfo::
+requiresFrameIndexScavenging(const MachineFunction &MF) const {
+  return ScavengeFrameIndexVals;
 }
 
 // hasReservedCallFrame - Under normal circumstances, when a frame pointer is
@@ -1077,14 +1090,7 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
           (MI.getDesc().TSFlags & ARMII::AddrModeMask) == ARMII::AddrMode4) &&
          "This code isn't needed if offset already handled!");
 
-  // Insert a set of r12 with the full address: r12 = sp + offset
-  // If the offset we have is too large to fit into the instruction, we need
-  // to form it with a series of ADDri's.  Do this by taking 8-bit chunks
-  // out of 'Offset'.
-  unsigned ScratchReg = findScratchRegister(RS, ARM::GPRRegisterClass, AFI);
-  if (ScratchReg == 0)
-    // No register is "free". Scavenge a register.
-    ScratchReg = RS->scavengeRegister(ARM::GPRRegisterClass, II, SPAdj);
+  unsigned ScratchReg = 0;
   int PIdx = MI.findFirstPredOperandIdx();
   ARMCC::CondCodes Pred = (PIdx == -1)
     ? ARMCC::AL : (ARMCC::CondCodes)MI.getOperand(PIdx).getImm();
@@ -1093,6 +1099,19 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // Must be addrmode4.
     MI.getOperand(i).ChangeToRegister(FrameReg, false, false, false);
   else {
+    if (!ScavengeFrameIndexVals) {
+      // Insert a set of r12 with the full address: r12 = sp + offset
+      // If the offset we have is too large to fit into the instruction, we need
+      // to form it with a series of ADDri's.  Do this by taking 8-bit chunks
+      // out of 'Offset'.
+      ScratchReg = findScratchRegister(RS, ARM::GPRRegisterClass, AFI);
+      if (ScratchReg == 0)
+        // No register is "free". Scavenge a register.
+        ScratchReg = RS->scavengeRegister(ARM::GPRRegisterClass, II, SPAdj);
+    } else {
+      ScratchReg = MF.getRegInfo().createVirtualRegister(ARM::GPRRegisterClass);
+      *Value = Offset;
+    }
     if (!AFI->isThumbFunction())
       emitARMRegPlusImmediate(MBB, II, MI.getDebugLoc(), ScratchReg, FrameReg,
                               Offset, Pred, PredReg, TII);
@@ -1102,8 +1121,10 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                              Offset, Pred, PredReg, TII);
     }
     MI.getOperand(i).ChangeToRegister(ScratchReg, false, false, true);
+    if (!ReuseFrameIndexVals || !ScavengeFrameIndexVals)
+      ScratchReg = 0;
   }
-  return 0;
+  return ScratchReg;
 }
 
 /// Move iterator pass the next bunch of callee save load / store ops for

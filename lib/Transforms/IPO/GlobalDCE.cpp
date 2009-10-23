@@ -149,8 +149,6 @@ bool GlobalDCE::runOnModule(Module &M) {
   // Make sure that all memory is released
   AliveGlobals.clear();
 
-  // Remove dead metadata.
-  Changed |= M.getContext().RemoveDeadMetadata();
   return Changed;
 }
 
