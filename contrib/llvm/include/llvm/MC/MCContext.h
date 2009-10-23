@@ -15,10 +15,11 @@
 #include "llvm/Support/Allocator.h"
 
 namespace llvm {
-  class MCValue;
+  class MCExpr;
   class MCSection;
   class MCSymbol;
   class StringRef;
+  class Twine;
 
   /// MCContext - Context object for machine code objects.  This class owns all
   /// of the sections that it creates.
@@ -32,11 +33,6 @@ namespace llvm {
 
     /// Symbols - Bindings of names to symbols.
     StringMap<MCSymbol*> Symbols;
-
-    /// SymbolValues - Bindings of symbols to values.
-    //
-    // FIXME: Is there a good reason to not just put this in the MCSymbol?
-    DenseMap<const MCSymbol*, MCValue> SymbolValues;
 
     /// Allocator - Allocator object used for creating machine code objects.
     ///
@@ -63,7 +59,8 @@ namespace llvm {
     /// @param IsTemporary - Whether this symbol is an assembler temporary,
     /// which should not survive into the symbol table for the translation unit.
     MCSymbol *GetOrCreateSymbol(const StringRef &Name);
-    
+    MCSymbol *GetOrCreateSymbol(const Twine &Name);
+
     /// CreateTemporarySymbol - Create a new temporary symbol with the specified
     /// @param Name.
     ///
@@ -76,25 +73,11 @@ namespace llvm {
     MCSymbol *LookupSymbol(const StringRef &Name) const;
 
     /// @}
-    /// @name Symbol Value Table
-    /// @{
-
-    /// ClearSymbolValue - Erase a value binding for @arg Symbol, if one exists.
-    void ClearSymbolValue(const MCSymbol *Symbol);
-
-    /// SetSymbolValue - Set the value binding for @arg Symbol to @arg Value.
-    void SetSymbolValue(const MCSymbol *Symbol, const MCValue &Value);
-
-    /// GetSymbolValue - Return the current value for @arg Symbol, or null if
-    /// none exists.
-    const MCValue *GetSymbolValue(const MCSymbol *Symbol) const;
-
-    /// @}
 
     void *Allocate(unsigned Size, unsigned Align = 8) {
       return Allocator.Allocate(Size, Align);
     }
-    void Deallocate(void *Ptr) { 
+    void Deallocate(void *Ptr) {
     }
   };
 

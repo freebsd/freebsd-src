@@ -86,6 +86,10 @@ class MachineFrameInfo {
 
   // StackObject - Represent a single object allocated on the stack.
   struct StackObject {
+    // SPOffset - The offset of this object from the stack pointer on entry to
+    // the function.  This field has no meaning for a variable sized element.
+    int64_t SPOffset;
+    
     // The size of this object on the stack. 0 means a variable sized object,
     // ~0ULL means a dead object.
     uint64_t Size;
@@ -98,12 +102,14 @@ class MachineFrameInfo {
     // default, fixed objects are immutable unless marked otherwise.
     bool isImmutable;
 
-    // SPOffset - The offset of this object from the stack pointer on entry to
-    // the function.  This field has no meaning for a variable sized element.
-    int64_t SPOffset;
-    
-    StackObject(uint64_t Sz, unsigned Al, int64_t SP = 0, bool IM = false)
-      : Size(Sz), Alignment(Al), isImmutable(IM), SPOffset(SP) {}
+    // isSpillSlot - If true, the stack object is used as spill slot. It
+    // cannot alias any other memory objects.
+    bool isSpillSlot;
+
+    StackObject(uint64_t Sz, unsigned Al, int64_t SP = 0, bool IM = false,
+                bool isSS = false)
+      : SPOffset(SP), Size(Sz), Alignment(Al), isImmutable(IM),
+        isSpillSlot(isSS) {}
   };
 
   /// Objects - The list of stack objects allocated...
@@ -352,6 +358,14 @@ public:
     return Objects[ObjectIdx+NumFixedObjects].isImmutable;
   }
 
+  /// isSpillSlotObjectIndex - Returns true if the specified index corresponds
+  /// to a spill slot..
+  bool isSpillSlotObjectIndex(int ObjectIdx) const {
+    assert(unsigned(ObjectIdx+NumFixedObjects) < Objects.size() &&
+           "Invalid Object Idx!");
+    return Objects[ObjectIdx+NumFixedObjects].isSpillSlot;;
+  }
+
   /// isDeadObjectIndex - Returns true if the specified index corresponds to
   /// a dead object.
   bool isDeadObjectIndex(int ObjectIdx) const {
@@ -363,9 +377,9 @@ public:
   /// CreateStackObject - Create a new statically sized stack object, returning
   /// a nonnegative identifier to represent it.
   ///
-  int CreateStackObject(uint64_t Size, unsigned Alignment) {
+  int CreateStackObject(uint64_t Size, unsigned Alignment, bool isSS = false) {
     assert(Size != 0 && "Cannot allocate zero size stack objects!");
-    Objects.push_back(StackObject(Size, Alignment));
+    Objects.push_back(StackObject(Size, Alignment, 0, false, isSS));
     return (int)Objects.size()-NumFixedObjects-1;
   }
 

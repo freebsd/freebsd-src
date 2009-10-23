@@ -2286,6 +2286,8 @@ static unsigned TranslateX86CC(ISD::CondCode SetCCOpcode, bool isFP,
   case ISD::SETNE:   return X86::COND_NE;
   case ISD::SETUO:   return X86::COND_P;
   case ISD::SETO:    return X86::COND_NP;
+  case ISD::SETOEQ:
+  case ISD::SETUNE:  return X86::COND_INVALID;
   }
 }
 
@@ -2387,6 +2389,56 @@ bool X86::isPSHUFLWMask(ShuffleVectorSDNode *N) {
   SmallVector<int, 8> M;
   N->getMask(M);
   return ::isPSHUFLWMask(M, N->getValueType(0));
+}
+
+/// isPALIGNRMask - Return true if the node specifies a shuffle of elements that
+/// is suitable for input to PALIGNR.
+static bool isPALIGNRMask(const SmallVectorImpl<int> &Mask, EVT VT,
+                          bool hasSSSE3) {
+  int i, e = VT.getVectorNumElements();
+  
+  // Do not handle v2i64 / v2f64 shuffles with palignr.
+  if (e < 4 || !hasSSSE3)
+    return false;
+  
+  for (i = 0; i != e; ++i)
+    if (Mask[i] >= 0)
+      break;
+  
+  // All undef, not a palignr.
+  if (i == e)
+    return false;
+
+  // Determine if it's ok to perform a palignr with only the LHS, since we
+  // don't have access to the actual shuffle elements to see if RHS is undef.
+  bool Unary = Mask[i] < (int)e;
+  bool NeedsUnary = false;
+
+  int s = Mask[i] - i;
+  
+  // Check the rest of the elements to see if they are consecutive.
+  for (++i; i != e; ++i) {
+    int m = Mask[i];
+    if (m < 0) 
+      continue;
+    
+    Unary = Unary && (m < (int)e);
+    NeedsUnary = NeedsUnary || (m < s);
+
+    if (NeedsUnary && !Unary)
+      return false;
+    if (Unary && m != ((s+i) & (e-1)))
+      return false;
+    if (!Unary && m != (s+i))
+      return false;
+  }
+  return true;
+}
+
+bool X86::isPALIGNRMask(ShuffleVectorSDNode *N) {
+  SmallVector<int, 8> M;
+  N->getMask(M);
+  return ::isPALIGNRMask(M, N->getValueType(0), true);
 }
 
 /// isSHUFPMask - Return true if the specified VECTOR_SHUFFLE operand
@@ -2733,8 +2785,7 @@ bool X86::isMOVDDUPMask(ShuffleVectorSDNode *N) {
 }
 
 /// getShuffleSHUFImmediate - Return the appropriate immediate to shuffle
-/// the specified isShuffleMask VECTOR_SHUFFLE mask with PSHUF* and SHUFP*
-/// instructions.
+/// the specified VECTOR_SHUFFLE mask with PSHUF* and SHUFP* instructions.
 unsigned X86::getShuffleSHUFImmediate(SDNode *N) {
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
   int NumOperands = SVOp->getValueType(0).getVectorNumElements();
@@ -2753,8 +2804,7 @@ unsigned X86::getShuffleSHUFImmediate(SDNode *N) {
 }
 
 /// getShufflePSHUFHWImmediate - Return the appropriate immediate to shuffle
-/// the specified isShuffleMask VECTOR_SHUFFLE mask with PSHUFHW
-/// instructions.
+/// the specified VECTOR_SHUFFLE mask with the PSHUFHW instruction.
 unsigned X86::getShufflePSHUFHWImmediate(SDNode *N) {
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
   unsigned Mask = 0;
@@ -2770,8 +2820,7 @@ unsigned X86::getShufflePSHUFHWImmediate(SDNode *N) {
 }
 
 /// getShufflePSHUFLWImmediate - Return the appropriate immediate to shuffle
-/// the specified isShuffleMask VECTOR_SHUFFLE mask with PSHUFLW
-/// instructions.
+/// the specified VECTOR_SHUFFLE mask with the PSHUFLW instruction.
 unsigned X86::getShufflePSHUFLWImmediate(SDNode *N) {
   ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
   unsigned Mask = 0;
@@ -2784,6 +2833,23 @@ unsigned X86::getShufflePSHUFLWImmediate(SDNode *N) {
       Mask <<= 2;
   }
   return Mask;
+}
+
+/// getShufflePALIGNRImmediate - Return the appropriate immediate to shuffle
+/// the specified VECTOR_SHUFFLE mask with the PALIGNR instruction.
+unsigned X86::getShufflePALIGNRImmediate(SDNode *N) {
+  ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
+  EVT VVT = N->getValueType(0);
+  unsigned EltSize = VVT.getVectorElementType().getSizeInBits() >> 3;
+  int Val = 0;
+
+  unsigned i, e;
+  for (i = 0, e = VVT.getVectorNumElements(); i != e; ++i) {
+    Val = SVOp->getMaskElt(i);
+    if (Val >= 0)
+      break;
+  }
+  return (Val - i) * EltSize;
 }
 
 /// isZeroNode - Returns true if Elt is a constant zero or a floating point
@@ -5502,6 +5568,8 @@ SDValue X86TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) {
 
   bool isFP = Op.getOperand(1).getValueType().isFloatingPoint();
   unsigned X86CC = TranslateX86CC(CC, isFP, Op0, Op1, DAG);
+  if (X86CC == X86::COND_INVALID)
+    return SDValue();
 
   SDValue Cond = EmitCmp(Op0, Op1, X86CC, DAG);
   return DAG.getNode(X86ISD::SETCC, dl, MVT::i8,
@@ -5650,8 +5718,11 @@ SDValue X86TargetLowering::LowerSELECT(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   SDValue CC;
 
-  if (Cond.getOpcode() == ISD::SETCC)
-    Cond = LowerSETCC(Cond, DAG);
+  if (Cond.getOpcode() == ISD::SETCC) {
+    SDValue NewCond = LowerSETCC(Cond, DAG);
+    if (NewCond.getNode())
+      Cond = NewCond;
+  }
 
   // If condition flag is set by a X86ISD::CMP, then use it as the condition
   // setting operand in place of the X86ISD::SETCC.
@@ -5724,8 +5795,11 @@ SDValue X86TargetLowering::LowerBRCOND(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   SDValue CC;
 
-  if (Cond.getOpcode() == ISD::SETCC)
-    Cond = LowerSETCC(Cond, DAG);
+  if (Cond.getOpcode() == ISD::SETCC) {
+    SDValue NewCond = LowerSETCC(Cond, DAG);
+    if (NewCond.getNode())
+      Cond = NewCond;
+  }
 #if 0
   // FIXME: LowerXALUO doesn't handle these!!
   else if (Cond.getOpcode() == X86ISD::ADD  ||
@@ -6274,6 +6348,7 @@ X86TargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) {
     SDValue LHS = Op.getOperand(1);
     SDValue RHS = Op.getOperand(2);
     unsigned X86CC = TranslateX86CC(CC, true, LHS, RHS, DAG);
+    assert(X86CC != X86::COND_INVALID && "Unexpected illegal condition!");
     SDValue Cond = DAG.getNode(Opc, dl, MVT::i32, LHS, RHS);
     SDValue SetCC = DAG.getNode(X86ISD::SETCC, dl, MVT::i8,
                                 DAG.getConstant(X86CC, MVT::i8), Cond);
@@ -7274,7 +7349,7 @@ X86TargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &M,
   if (VT.getSizeInBits() == 64)
     return false;
 
-  // FIXME: pshufb, blends, palignr, shifts.
+  // FIXME: pshufb, blends, shifts.
   return (VT.getVectorNumElements() == 2 ||
           ShuffleVectorSDNode::isSplatMask(&M[0], VT) ||
           isMOVLMask(M, VT) ||
@@ -7282,6 +7357,7 @@ X86TargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &M,
           isPSHUFDMask(M, VT) ||
           isPSHUFHWMask(M, VT) ||
           isPSHUFLWMask(M, VT) ||
+          isPALIGNRMask(M, VT, Subtarget->hasSSSE3()) ||
           isUNPCKLMask(M, VT) ||
           isUNPCKHMask(M, VT) ||
           isUNPCKL_v_undef_Mask(M, VT) ||

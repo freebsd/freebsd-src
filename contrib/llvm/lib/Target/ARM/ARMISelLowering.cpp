@@ -25,9 +25,10 @@
 #include "llvm/CallingConv.h"
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
+#include "llvm/GlobalValue.h"
 #include "llvm/Instruction.h"
 #include "llvm/Intrinsics.h"
-#include "llvm/GlobalValue.h"
+#include "llvm/Type.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -2360,8 +2361,11 @@ static bool isVREVMask(const SmallVectorImpl<int> &M, EVT VT,
   assert((BlockSize==16 || BlockSize==32 || BlockSize==64) &&
          "Only possible block sizes for VREV are: 16, 32, 64");
 
-  unsigned NumElts = VT.getVectorNumElements();
   unsigned EltSz = VT.getVectorElementType().getSizeInBits();
+  if (EltSz == 64)
+    return false;
+
+  unsigned NumElts = VT.getVectorNumElements();
   unsigned BlockElts = M[0] + 1;
 
   if (BlockSize <= EltSz || BlockSize != BlockElts * EltSz)
@@ -2378,6 +2382,10 @@ static bool isVREVMask(const SmallVectorImpl<int> &M, EVT VT,
 
 static bool isVTRNMask(const SmallVectorImpl<int> &M, EVT VT,
                        unsigned &WhichResult) {
+  unsigned EltSz = VT.getVectorElementType().getSizeInBits();
+  if (EltSz == 64)
+    return false;
+
   unsigned NumElts = VT.getVectorNumElements();
   WhichResult = (M[0] == 0 ? 0 : 1);
   for (unsigned i = 0; i < NumElts; i += 2) {
@@ -2390,6 +2398,10 @@ static bool isVTRNMask(const SmallVectorImpl<int> &M, EVT VT,
 
 static bool isVUZPMask(const SmallVectorImpl<int> &M, EVT VT,
                        unsigned &WhichResult) {
+  unsigned EltSz = VT.getVectorElementType().getSizeInBits();
+  if (EltSz == 64)
+    return false;
+
   unsigned NumElts = VT.getVectorNumElements();
   WhichResult = (M[0] == 0 ? 0 : 1);
   for (unsigned i = 0; i != NumElts; ++i) {
@@ -2398,7 +2410,7 @@ static bool isVUZPMask(const SmallVectorImpl<int> &M, EVT VT,
   }
 
   // VUZP.32 for 64-bit vectors is a pseudo-instruction alias for VTRN.32.
-  if (VT.is64BitVector() && VT.getVectorElementType().getSizeInBits() == 32)
+  if (VT.is64BitVector() && EltSz == 32)
     return false;
 
   return true;
@@ -2406,6 +2418,10 @@ static bool isVUZPMask(const SmallVectorImpl<int> &M, EVT VT,
 
 static bool isVZIPMask(const SmallVectorImpl<int> &M, EVT VT,
                        unsigned &WhichResult) {
+  unsigned EltSz = VT.getVectorElementType().getSizeInBits();
+  if (EltSz == 64)
+    return false;
+
   unsigned NumElts = VT.getVectorNumElements();
   WhichResult = (M[0] == 0 ? 0 : 1);
   unsigned Idx = WhichResult * NumElts / 2;
@@ -2417,7 +2433,7 @@ static bool isVZIPMask(const SmallVectorImpl<int> &M, EVT VT,
   }
 
   // VZIP.32 for 64-bit vectors is a pseudo-instruction alias for VTRN.32.
-  if (VT.is64BitVector() && VT.getVectorElementType().getSizeInBits() == 32)
+  if (VT.is64BitVector() && EltSz == 32)
     return false;
 
   return true;
@@ -2695,18 +2711,10 @@ static SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   SDValue Vec = Op.getOperand(0);
   SDValue Lane = Op.getOperand(1);
-
-  // FIXME: This is invalid for 8 and 16-bit elements - the information about
-  // sign / zero extension is lost!
-  Op = DAG.getNode(ARMISD::VGETLANEu, dl, MVT::i32, Vec, Lane);
-  Op = DAG.getNode(ISD::AssertZext, dl, MVT::i32, Op, DAG.getValueType(VT));
-
-  if (VT.bitsLT(MVT::i32))
-    Op = DAG.getNode(ISD::TRUNCATE, dl, VT, Op);
-  else if (VT.bitsGT(MVT::i32))
-    Op = DAG.getNode(ISD::ANY_EXTEND, dl, VT, Op);
-
-  return Op;
+  assert(VT == MVT::i32 &&
+         Vec.getValueType().getVectorElementType().getSizeInBits() < 32 &&
+         "unexpected type for custom-lowering vector extract");
+  return DAG.getNode(ARMISD::VGETLANEu, dl, MVT::i32, Vec, Lane);
 }
 
 static SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) {
@@ -3028,7 +3036,6 @@ static SDValue PerformSUBCombine(SDNode *N,
 
   return SDValue();
 }
-
 
 /// PerformFMRRDCombine - Target-specific dag combine xforms for ARMISD::FMRRD.
 static SDValue PerformFMRRDCombine(SDNode *N,
