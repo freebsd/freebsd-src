@@ -53,6 +53,8 @@ static char *zfs_temp_buf, *zfs_temp_end, *zfs_temp_ptr;
 
 #define TEMP_SIZE	(1*SPA_MAXBLOCKSIZE)
 
+static int zio_read(spa_t *spa, const blkptr_t *bp, void *buf);
+
 static void
 zfs_init(void)
 {
@@ -897,6 +899,33 @@ ilog2(int n)
 }
 
 static int
+zio_read_gang(spa_t *spa, const blkptr_t *bp, const dva_t *dva, void *buf)
+{
+	zio_gbh_phys_t zio_gb;
+	vdev_t *vdev;
+	int vdevid;
+	off_t offset;
+	int i;
+
+	vdevid = DVA_GET_VDEV(dva);
+	offset = DVA_GET_OFFSET(dva);
+	STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
+		if (vdev->v_id == vdevid)
+			break;
+	if (!vdev || !vdev->v_read)
+		return (EIO);
+	if (vdev->v_read(vdev, bp, &zio_gb, offset, SPA_GANGBLOCKSIZE))
+		return (EIO);
+
+	for (i = 0; i < SPA_GBH_NBLKPTRS; i++) {
+		if (zio_read(spa, &zio_gb.zg_blkptr[i], buf))
+			return (EIO);
+	}
+ 
+	return (0);
+}
+
+static int
 zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 {
 	int cpfunc = BP_GET_COMPRESS(bp);
@@ -920,20 +949,27 @@ zio_read(spa_t *spa, const blkptr_t *bp, void *buf)
 		if (!dva->dva_word[0] && !dva->dva_word[1])
 			continue;
 
-		vdevid = DVA_GET_VDEV(dva);
-		offset = DVA_GET_OFFSET(dva);
-		STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
-			if (vdev->v_id == vdevid)
-				break;
-		if (!vdev || !vdev->v_read)
-			continue;
-		if (vdev->v_read(vdev, bp, pbuf, offset, psize))
-			continue;
+		if (DVA_GET_GANG(dva)) {
+			printf("ZFS: gang block detected!\n");
+			if (zio_read_gang(spa, bp, dva, buf))
+				return (EIO); 
+		} else {
+			vdevid = DVA_GET_VDEV(dva);
+			offset = DVA_GET_OFFSET(dva);
+			STAILQ_FOREACH(vdev, &spa->spa_vdevs, v_childlink)
+				if (vdev->v_id == vdevid)
+					break;
+			if (!vdev || !vdev->v_read) {
+				continue;
+			}
+			if (vdev->v_read(vdev, bp, pbuf, offset, psize))
+				continue;
 
-		if (cpfunc != ZIO_COMPRESS_OFF) {
-			if (zio_decompress_data(cpfunc, pbuf, psize,
-				buf, lsize))
-				return (EIO);
+			if (cpfunc != ZIO_COMPRESS_OFF) {
+				if (zio_decompress_data(cpfunc, pbuf, psize,
+				    buf, lsize))
+					return (EIO);
+			}
 		}
 
 		return (0);
@@ -1331,13 +1367,13 @@ zfs_mount_dataset(spa_t *spa, uint64_t objnum, objset_phys_t *objset)
 	dsl_dataset_phys_t *ds;
 
 	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
-		printf("ZFS: can't find dataset %lld\n", objnum);
+		printf("ZFS: can't find dataset %llu\n", objnum);
 		return (EIO);
 	}
 
 	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
 	if (zio_read(spa, &ds->ds_bp, objset)) {
-		printf("ZFS: can't read object set for dataset %lld\n", objnum);
+		printf("ZFS: can't read object set for dataset %llu\n", objnum);
 		return (EIO);
 	}
 
@@ -1367,7 +1403,8 @@ zfs_mount_root(spa_t *spa, objset_phys_t *objset)
 	 */
 	if (zap_lookup(spa, &dir, DMU_POOL_PROPS, &props) == 0
 	     && objset_get_dnode(spa, &spa->spa_mos, props, &propdir) == 0
-	     && zap_lookup(spa, &propdir, "bootfs", &bootfs) == 0)
+	     && zap_lookup(spa, &propdir, "bootfs", &bootfs) == 0
+	     && bootfs != 0)
 		return zfs_mount_dataset(spa, bootfs, objset);
 
 	/*
@@ -1425,7 +1462,7 @@ zfs_lookup(spa_t *spa, const char *upath, dnode_phys_t *dnode)
 	int symlinks_followed = 0;
 
 	if (spa->spa_root_objset.os_type != DMU_OST_ZFS) {
-		printf("ZFS: unexpected object set type %lld\n",
+		printf("ZFS: unexpected object set type %llu\n",
 		       spa->spa_root_objset.os_type);
 		return (EIO);
 	}
