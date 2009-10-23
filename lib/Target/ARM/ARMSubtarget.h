@@ -126,9 +126,13 @@ protected:
 
   const std::string & getCPUString() const { return CPUString; }
   
-  /// enablePostRAScheduler - From TargetSubtarget, return true to
-  /// enable post-RA scheduler.
-  bool enablePostRAScheduler() const { return PostRAScheduler; }
+  /// enablePostRAScheduler - True at 'More' optimization except
+  /// for Thumb1.
+  bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
+                             TargetSubtarget::AntiDepBreakMode& mode) const {
+    mode = TargetSubtarget::ANTIDEP_NONE;
+    return PostRAScheduler && OptLevel >= CodeGenOpt::Default;
+  }
 
   /// getInstrItins - Return the instruction itineraies based on subtarget
   /// selection.

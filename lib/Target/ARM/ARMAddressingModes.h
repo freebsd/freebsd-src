@@ -15,7 +15,6 @@
 #define LLVM_TARGET_ARM_ARMADDRESSINGMODES_H
 
 #include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include <cassert>
 
@@ -38,7 +37,7 @@ namespace ARM_AM {
 
   static inline const char *getShiftOpcStr(ShiftOpc Op) {
     switch (Op) {
-    default: llvm_unreachable("Unknown shift opc!");
+    default: assert(0 && "Unknown shift opc!");
     case ARM_AM::asr: return "asr";
     case ARM_AM::lsl: return "lsl";
     case ARM_AM::lsr: return "lsr";
@@ -71,7 +70,7 @@ namespace ARM_AM {
 
   static inline const char *getAMSubModeStr(AMSubMode Mode) {
     switch (Mode) {
-    default: llvm_unreachable("Unknown addressing sub-mode!");
+    default: assert(0 && "Unknown addressing sub-mode!");
     case ARM_AM::ia: return "ia";
     case ARM_AM::ib: return "ib";
     case ARM_AM::da: return "da";
@@ -81,7 +80,7 @@ namespace ARM_AM {
 
   static inline const char *getAMSubModeAltStr(AMSubMode Mode, bool isLD) {
     switch (Mode) {
-    default: llvm_unreachable("Unknown addressing sub-mode!");
+    default: assert(0 && "Unknown addressing sub-mode!");
     case ARM_AM::ia: return isLD ? "fd" : "ea";
     case ARM_AM::ib: return isLD ? "ed" : "fa";
     case ARM_AM::da: return isLD ? "fa" : "ed";
@@ -340,6 +339,66 @@ namespace ARM_AM {
       return Rot;
 
     return -1;
+  }
+
+  static inline unsigned getT2SOImmValRotate(unsigned V) {
+    if ((V & ~255U) == 0) return 0;
+    // Use CTZ to compute the rotate amount.
+    unsigned RotAmt = CountTrailingZeros_32(V);
+    return (32 - RotAmt) & 31;
+  }
+
+  static inline bool isT2SOImmTwoPartVal (unsigned Imm) {
+    unsigned V = Imm;
+    // Passing values can be any combination of splat values and shifter
+    // values. If this can be handled with a single shifter or splat, bail
+    // out. Those should be handled directly, not with a two-part val.
+    if (getT2SOImmValSplatVal(V) != -1)
+      return false;
+    V = rotr32 (~255U, getT2SOImmValRotate(V)) & V;
+    if (V == 0)
+      return false;
+
+    // If this can be handled as an immediate, accept.
+    if (getT2SOImmVal(V) != -1) return true;
+
+    // Likewise, try masking out a splat value first.
+    V = Imm;
+    if (getT2SOImmValSplatVal(V & 0xff00ff00U) != -1)
+      V &= ~0xff00ff00U;
+    else if (getT2SOImmValSplatVal(V & 0x00ff00ffU) != -1)
+      V &= ~0x00ff00ffU;
+    // If what's left can be handled as an immediate, accept.
+    if (getT2SOImmVal(V) != -1) return true;
+
+    // Otherwise, do not accept.
+    return false;
+  }
+
+  static inline unsigned getT2SOImmTwoPartFirst(unsigned Imm) {
+    assert (isT2SOImmTwoPartVal(Imm) &&
+            "Immedate cannot be encoded as two part immediate!");
+    // Try a shifter operand as one part
+    unsigned V = rotr32 (~255, getT2SOImmValRotate(Imm)) & Imm;
+    // If the rest is encodable as an immediate, then return it.
+    if (getT2SOImmVal(V) != -1) return V;
+
+    // Try masking out a splat value first.
+    if (getT2SOImmValSplatVal(Imm & 0xff00ff00U) != -1)
+      return Imm & 0xff00ff00U;
+
+    // The other splat is all that's left as an option.
+    assert (getT2SOImmValSplatVal(Imm & 0x00ff00ffU) != -1);
+    return Imm & 0x00ff00ffU;
+  }
+
+  static inline unsigned getT2SOImmTwoPartSecond(unsigned Imm) {
+    // Mask out the first hunk
+    Imm ^= getT2SOImmTwoPartFirst(Imm);
+    // Return what's left
+    assert (getT2SOImmVal(Imm) != -1 &&
+            "Unable to encode second part of T2 two part SO immediate");
+    return Imm;
   }
 
 

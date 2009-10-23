@@ -166,7 +166,7 @@ TEST_F(JITTest, FarCallToKnownFunction) {
   EXPECT_EQ(8, TestFunctionPtr());
 }
 
-#if !defined(__arm__) && !defined(__ppc__)
+#if !defined(__arm__) && !defined(__powerpc__) && !defined(__ppc__)
 // Test a function C which calls A and B which call each other.
 TEST_F(JITTest, NonLazyCompilationStillNeedsStubs) {
   TheJIT->DisableLazyCompilation();
@@ -221,7 +221,6 @@ TEST_F(JITTest, NonLazyCompilationStillNeedsStubs) {
 
   F1Ptr();
 }
-#endif
 
 // Regression test for PR5162.  This used to trigger an AssertingVH inside the
 // JIT's Function to stub mapping.
@@ -263,6 +262,7 @@ TEST_F(JITTest, NonLazyLeaksNoStubs) {
   EXPECT_EQ(Func2->getNumUses(), 0u);
   Func2->eraseFromParent();
 }
+#endif
 
 // This code is copied from JITEventListenerTest, but it only runs once for all
 // the tests in this directory.  Everything seems fine, but that's strange

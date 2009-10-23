@@ -15,61 +15,15 @@ use Socket;
 # Syntax:   NightlyTest.pl [OPTIONS] [CVSROOT BUILDDIR WEBDIR]
 #   where
 # OPTIONS may include one or more of the following:
-#  -nocheckout      Do not create, checkout, update, or configure
-#                   the source tree.
-#  -noremove        Do not remove the BUILDDIR after it has been built.
-#  -noremoveresults Do not remove the WEBDIR after it has been built.
-#  -nobuild         Do not build llvm. If tests are enabled perform them
-#                   on the llvm build specified in the build directory
-#  -notest          Do not even attempt to run the test programs.
-#  -nodejagnu       Do not run feature or regression tests
-#  -parallel        Run parallel jobs with GNU Make (see -parallel-jobs).
-#  -parallel-jobs   The number of parallel Make jobs to use (default is two).
-#  -with-clang      Checkout Clang source into tools/clang.
-#  -release         Build an LLVM Release version
-#  -release-asserts Build an LLVM ReleaseAsserts version
-#  -enable-llcbeta  Enable testing of beta features in llc.
-#  -enable-lli      Enable testing of lli (interpreter) features, default is off
-#  -disable-pic	    Disable building with Position Independent Code.
-#  -disable-llc     Disable LLC tests in the nightly tester.
-#  -disable-jit     Disable JIT tests in the nightly tester.
-#  -disable-cbe     Disable C backend tests in the nightly tester.
-#  -disable-lto     Disable link time optimization.
-#  -disable-bindings     Disable building LLVM bindings.
-#  -verbose         Turn on some debug output
-#  -debug           Print information useful only to maintainers of this script.
-#  -nice            Checkout/Configure/Build with "nice" to reduce impact
-#                   on busy servers.
-#  -f2c             Next argument specifies path to F2C utility
-#  -nickname        The next argument specifieds the nickname this script
-#                   will submit to the nightlytest results repository.
-#  -gccpath         Path to gcc/g++ used to build LLVM
-#  -cvstag          Check out a specific CVS tag to build LLVM (useful for
-#                   testing release branches)
-#  -usecvs          Check code out from the (old) CVS Repository instead of from
-#                   the standard Subversion repository.
-#  -target          Specify the target triplet
-#  -cflags          Next argument specifies that C compilation options that
-#                   override the default.
-#  -cxxflags        Next argument specifies that C++ compilation options that
-#                   override the default.
-#  -ldflags         Next argument specifies that linker options that override
-#                   the default.
-#  -test-cflags     Next argument specifies that C compilation options that
-#                   override the default when running the testsuite.
-#  -test-cxxflags   Next argument specifies that C++ compilation options that
-#                   override the default when running the testsuite.
-#  -compileflags    Next argument specifies extra options passed to make when
-#                   building LLVM.
-#  -use-gmake       Use gmake instead of the default make command to build
-#                   llvm and run tests.
 #
-#  ---------------- Options to configure llvm-test ----------------------------
-#  -extraflags      Next argument specifies extra options that are passed to
-#                   compile the tests.
-#  -noexternals     Do not run the external tests (for cases where povray
-#                   or SPEC are not installed)
-#  -with-externals  Specify a directory where the external tests are located.
+# MAIN OPTIONS:
+#  -config LLVMPATH If specified, use an existing LLVM build and only run and
+#                   report the test information. The LLVMCONFIG argument should
+#                   be the path to the llvm-config executable in the LLVM build.
+#                   This should be the first argument if given. NOT YET
+#                   IMPLEMENTED.
+#  -nickname NAME   The NAME argument specifieds the nickname this script
+#                   will submit to the nightlytest results repository.
 #  -submit-server   Specifies a server to submit the test results too. If this
 #                   option is not specified it defaults to
 #                   llvm.org. This is basically just the address of the
@@ -83,12 +37,64 @@ use Socket;
 #                   the "sentdata.txt" file as its sole argument.
 #  -nosubmit        Do not report the test results back to a submit server.
 #
-# CVSROOT is the CVS repository from which the tree will be checked out,
-#  specified either in the full :method:user@host:/dir syntax, or
-#  just /dir if using a local repo.
+#
+# BUILD OPTIONS (not used with -config):
+#  -nocheckout      Do not create, checkout, update, or configure
+#                   the source tree.
+#  -noremove        Do not remove the BUILDDIR after it has been built.
+#  -noremoveresults Do not remove the WEBDIR after it has been built.
+#  -nobuild         Do not build llvm. If tests are enabled perform them
+#                   on the llvm build specified in the build directory
+#  -release         Build an LLVM Release version
+#  -release-asserts Build an LLVM ReleaseAsserts version
+#  -disable-bindings     Disable building LLVM bindings.
+#  -with-clang      Checkout Clang source into tools/clang.
+#  -compileflags    Next argument specifies extra options passed to make when
+#                   building LLVM.
+#  -use-gmake       Use gmake instead of the default make command to build
+#                   llvm and run tests.
+#
+# TESTING OPTIONS:
+#  -notest          Do not even attempt to run the test programs.
+#  -nodejagnu       Do not run feature or regression tests
+#  -enable-llcbeta  Enable testing of beta features in llc.
+#  -enable-lli      Enable testing of lli (interpreter) features, default is off
+#  -disable-pic	    Disable building with Position Independent Code.
+#  -disable-llc     Disable LLC tests in the nightly tester.
+#  -disable-jit     Disable JIT tests in the nightly tester.
+#  -disable-cbe     Disable C backend tests in the nightly tester.
+#  -disable-lto     Disable link time optimization.
+#  -test-cflags     Next argument specifies that C compilation options that
+#                   override the default when running the testsuite.
+#  -test-cxxflags   Next argument specifies that C++ compilation options that
+#                   override the default when running the testsuite.
+#  -extraflags      Next argument specifies extra options that are passed to
+#                   compile the tests.
+#  -noexternals     Do not run the external tests (for cases where povray
+#                   or SPEC are not installed)
+#  -with-externals  Specify a directory where the external tests are located.
+#
+# OTHER OPTIONS:
+#  -parallel        Run parallel jobs with GNU Make (see -parallel-jobs).
+#  -parallel-jobs   The number of parallel Make jobs to use (default is two).
+#  -parallel-test   Allow parallel execution of llvm-test
+#  -verbose         Turn on some debug output
+#  -nice            Checkout/Configure/Build with "nice" to reduce impact
+#                   on busy servers.
+#  -f2c             Next argument specifies path to F2C utility
+#  -gccpath         Path to gcc/g++ used to build LLVM
+#  -target          Specify the target triplet
+#  -cflags          Next argument specifies that C compilation options that
+#                   override the default.
+#  -cxxflags        Next argument specifies that C++ compilation options that
+#                   override the default.
+#  -ldflags         Next argument specifies that linker options that override
+#                   the default.
+#
+# CVSROOT is ignored, it is passed for backwards compatibility.
 # BUILDDIR is the directory where sources for this test run will be checked out
 #  AND objects for this test run will be built. This directory MUST NOT
-#  exist before the script is run; it will be created by the cvs checkout
+#  exist before the script is run; it will be created by the svn checkout
 #  process and erased (unless -noremove is specified; see above.)
 # WEBDIR is the directory into which the test results web page will be written,
 #  AND in which the "index.html" is assumed to be a symlink to the most recent
@@ -106,12 +112,8 @@ my $SVNURL     = $ENV{"SVNURL"};
 $SVNURL        = 'http://llvm.org/svn/llvm-project' unless $SVNURL;
 my $TestSVNURL = $ENV{"TestSVNURL"};
 $TestSVNURL    = 'http://llvm.org/svn/llvm-project' unless $TestSVNURL;
-my $CVSRootDir = $ENV{'CVSROOT'};
-$CVSRootDir    = "/home/vadve/shared/PublicCVS" unless $CVSRootDir;
 my $BuildDir   = $ENV{'BUILDDIR'};
-$BuildDir      = "$HOME/buildtest" unless $BuildDir;
 my $WebDir     = $ENV{'WEBDIR'};
-$WebDir        = "$HOME/cvs/testresults-X86" unless $WebDir;
 
 my $LLVMSrcDir   = $ENV{'LLVMSRCDIR'};
 $LLVMSrcDir    = "$BuildDir/llvm" unless $LLVMSrcDir;
@@ -133,10 +135,10 @@ my $DATE = sprintf "%4d-%02d-%02d_%02d-%02d", $TIME[5]+1900, $TIME[4]+1, $TIME[3
 # Parse arguments...
 #
 ##############################################################
+$CONFIG_PATH="";
 $CONFIGUREARGS="";
 $nickname="";
 $NOTEST=0;
-$USESVN=1;
 $MAKECMD="make";
 $SUBMITSERVER = "llvm.org";
 $SUBMITSCRIPT = "/nightlytest/NightlyTestAccept.php";
@@ -150,22 +152,22 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   last if /^--$/;  # Stop processing arguments on --
 
   # List command line options here...
+  if (/^-config$/)         { $CONFIG_PATH = "$ARGV[0]"; shift; next; }
   if (/^-nocheckout$/)     { $NOCHECKOUT = 1; next; }
-  if (/^-nocvsstats$/)     { $NOCVSSTATS = 1; next; }
   if (/^-noremove$/)       { $NOREMOVE = 1; next; }
   if (/^-noremoveatend$/)  { $NOREMOVEATEND = 1; next; }
   if (/^-noremoveresults$/){ $NOREMOVERESULTS = 1; next; }
   if (/^-notest$/)         { $NOTEST = 1; next; }
   if (/^-norunningtests$/) { next; } # Backward compatibility, ignored.
   if (/^-parallel-jobs$/)  { $PARALLELJOBS = "$ARGV[0]"; shift; next;}
-  if (/^-parallel$/)       { $MAKEOPTS = "$MAKEOPTS -j$PARALLELJOBS -l3.0"; next; }
+  if (/^-parallel$/)       { $MAKEOPTS = "$MAKEOPTS -j$PARALLELJOBS"; next; }
+  if (/^-parallel-test$/)  { $PROGTESTOPTS .= " ENABLE_PARALLEL_REPORT=1"; next; }
   if (/^-with-clang$/)     { $WITHCLANG = 1; next; }
   if (/^-release$/)        { $MAKEOPTS = "$MAKEOPTS ENABLE_OPTIMIZED=1 ".
-                             "OPTIMIZE_OPTION=-O2"; $BUILDTYPE="release"; next;}
+                             "OPTIMIZE_OPTION=-O2"; next;}
   if (/^-release-asserts$/){ $MAKEOPTS = "$MAKEOPTS ENABLE_OPTIMIZED=1 ".
                              "DISABLE_ASSERTIONS=1 ".
-                             "OPTIMIZE_OPTION=-O2";
-                             $BUILDTYPE="release-asserts"; next;}
+                             "OPTIMIZE_OPTION=-O2"; next;}
   if (/^-enable-llcbeta$/) { $PROGTESTOPTS .= " ENABLE_LLCBETA=1"; next; }
   if (/^-disable-pic$/)    { $CONFIGUREARGS .= " --enable-pic=no"; next; }
   if (/^-enable-lli$/)     { $PROGTESTOPTS .= " ENABLE_LLI=1";
@@ -180,7 +182,6 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   if (/^-test-opts$/)      { $PROGTESTOPTS .= " $ARGV[0]"; shift; next; }
   if (/^-verbose$/)        { $VERBOSE = 1; next; }
   if (/^-teelogs$/)        { $TEELOGS = 1; next; }
-  if (/^-debug$/)          { $DEBUG = 1; next; }
   if (/^-nice$/)           { $NICE = "nice "; next; }
   if (/^-f2c$/)            { $CONFIGUREARGS .= " --with-f2c=$ARGV[0]";
                              shift; next; }
@@ -197,9 +198,6 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
                              " CC=$ARGV[0]/gcc CXX=$ARGV[0]/g++";
                              $GCCPATH=$ARGV[0]; shift;  next; }
   else                     { $GCCPATH=""; }
-  if (/^-cvstag/)          { $CVSCOOPT .= " -r $ARGV[0]"; shift; next; }
-  else                     { $CVSCOOPT="";}
-  if (/^-usecvs/)          { $USESVN = 0; }
   if (/^-target/)          { $CONFIGUREARGS .= " --target=$ARGV[0]";
                              shift; next; }
   if (/^-cflags/)          { $MAKEOPTS = "$MAKEOPTS C.Flags=\'$ARGV[0]\'";
@@ -234,75 +232,62 @@ if ($CONFIGUREARGS !~ /--disable-jit/) {
   $CONFIGUREARGS .= " --enable-jit";
 }
 
-if (@ARGV != 0 and @ARGV != 3 and $VERBOSE) {
-  foreach $x (@ARGV) {
-    print "$x\n";
-  }
-  print "Must specify 0 or 3 options!";
+if (@ARGV != 0 and @ARGV != 3) {
+  die "error: must specify 0 or 3 options!";
 }
 
 if (@ARGV == 3) {
-  $CVSRootDir = $ARGV[0];
+  if ($CONFIG_PATH ne "") {
+      die "error: arguments are unsupported in -config mode,";
+  }
+
+  # ARGV[0] used to be the CVS root, ignored for backward compatibility.
   $BuildDir   = $ARGV[1];
   $WebDir     = $ARGV[2];
 }
 
-if ($CVSRootDir eq "" or
-    $BuildDir   eq "" or
-    $WebDir     eq "") {
-  die("please specify a cvs root directory, a build directory, and a ".
-       "web directory");
- }
+if ($CONFIG_PATH ne "") {
+  $BuildDir = "";
+  $SVNURL = $TestSVNURL = "";
+  if ($WebDir     eq "") {
+    die("please specify a web directory");
+  }
+} else {
+  if ($BuildDir   eq "" or
+      $WebDir     eq "") {
+    die("please specify a build directory, and a web directory");
+  }
+}
 
 if ($nickname eq "") {
   die ("Please invoke NewNightlyTest.pl with command line option " .
        "\"-nickname <nickname>\"");
 }
 
-if ($BUILDTYPE ne "release" && $BUILDTYPE ne "release-asserts") {
-  $BUILDTYPE = "debug";
-}
+##############################################################
+#
+# Define the file names we'll use
+#
+##############################################################
 
-##############################################################
-#
-#define the file names we'll use
-#
-##############################################################
 my $Prefix = "$WebDir/$DATE";
-my $BuildLog = "$Prefix-Build-Log.txt";
-my $COLog = "$Prefix-CVS-Log.txt";
 my $SingleSourceLog = "$Prefix-SingleSource-ProgramTest.txt.gz";
 my $MultiSourceLog = "$Prefix-MultiSource-ProgramTest.txt.gz";
 my $ExternalLog = "$Prefix-External-ProgramTest.txt.gz";
-my $DejagnuLog = "$Prefix-Dejagnu-testrun.log";
-my $DejagnuSum = "$Prefix-Dejagnu-testrun.sum";
-my $DejagnuTestsLog = "$Prefix-DejagnuTests-Log.txt";
-if (! -d $WebDir) {
-  mkdir $WebDir, 0777;
-  if($VERBOSE){
-    warn "$WebDir did not exist; creating it.\n";
-  }
-}
 
-if ($VERBOSE) {
-  print "INITIALIZED\n";
-  if ($USESVN) {
-    print "SVN URL  = $SVNURL\n";
-  } else {
-    print "CVS Root = $CVSRootDir\n";
-  }
-  print "COLog    = $COLog\n";
-  print "BuildDir = $BuildDir\n";
-  print "WebDir   = $WebDir\n";
-  print "Prefix   = $Prefix\n";
-  print "BuildLog = $BuildLog\n";
-}
+# These are only valid in non-config mode.
+my $ConfigureLog = "", $BuildLog = "", $COLog = "";
+my $DejagnuLog = "", $DejagnuSum = "", $DejagnuLog = "";
+
+# Are we in config mode?
+my $ConfigMode = 0;
 
 ##############################################################
 #
 # Helper functions
 #
 ##############################################################
+
 sub GetDir {
   my $Suffix = shift;
   opendir DH, $WebDir;
@@ -349,61 +334,25 @@ sub RunAppendingLoggedCommand {
   }
 }
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
-# DiffFiles - Diff the current version of the file against the last version of
-# the file, reporting things added and removed.  This is used to report, for
-# example, added and removed warnings.  This returns a pair (added, removed)
-#
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sub DiffFiles {
-  my $Suffix = shift;
-  my @Others = GetDir $Suffix;
-  if (@Others == 0) {  # No other files?  We added all entries...
-    return (`cat $WebDir/$DATE$Suffix`, "");
-  }
-# Diff the files now...
-  my @Diffs = split "\n", `diff $WebDir/$DATE$Suffix $WebDir/$Others[0]`;
-  my $Added   = join "\n", grep /^</, @Diffs;
-  my $Removed = join "\n", grep /^>/, @Diffs;
-  $Added =~ s/^< //gm;
-  $Removed =~ s/^> //gm;
-  return ($Added, $Removed);
-}
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 sub GetRegex {   # (Regex with ()'s, value)
-  $_[1] =~ /$_[0]/m;
-  return $1
-    if (defined($1));
+  if ($_[1] =~ /$_[0]/m) {
+    return $1;
+  }
   return "0";
 }
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sub GetRegexNum {
-  my ($Regex, $Num, $Regex2, $File) = @_;
-  my @Items = split "\n", `grep '$Regex' $File`;
-  return GetRegex $Regex2, $Items[$Num];
-}
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 sub ChangeDir { # directory, logical name
   my ($dir,$name) = @_;
   chomp($dir);
   if ( $VERBOSE ) { print "Changing To: $name ($dir)\n"; }
   $result = chdir($dir);
   if (!$result) {
-    print "ERROR!!! Cannot change directory to: $name ($dir) because $!";
+    print "ERROR!!! Cannot change directory to: $name ($dir) because $!\n";
     return false;
   }
   return true;
 }
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 sub ReadFile {
   if (open (FILE, $_[0])) {
     undef $/;
@@ -417,47 +366,17 @@ sub ReadFile {
   }
 }
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 sub WriteFile {  # (filename, contents)
   open (FILE, ">$_[0]") or die "Could not open file '$_[0]' for writing!\n";
   print FILE $_[1];
   close FILE;
 }
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 sub CopyFile { #filename, newfile
   my ($file, $newfile) = @_;
   chomp($file);
   if ($VERBOSE) { print "Copying $file to $newfile\n"; }
   copy($file, $newfile);
-}
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sub AddRecord {
-  my ($Val, $Filename,$WebDir) = @_;
-  my @Records;
-  if (open FILE, "$WebDir/$Filename") {
-    @Records = grep !/$DATE/, split "\n", <FILE>;
-    close FILE;
-  }
-  push @Records, "$DATE: $Val";
-  WriteFile "$WebDir/$Filename", (join "\n", @Records) . "\n";
-}
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
-# FormatTime - Convert a time from 1m23.45 into 83.45
-#
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sub FormatTime {
-  my $Time = shift;
-  if ($Time =~ m/([0-9]+)m([0-9.]+)/) {
-    $Time = sprintf("%7.4f", $1*60.0+$2);
-  }
-  return $Time;
 }
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -499,10 +418,10 @@ sub GetDejagnuTestResults { # (filename, log)
 # to our central server via the post method
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sub SendData{
+sub SendData {
     $host = $_[0];
     $file = $_[1];
-    $variables=$_[2];
+    $variables = $_[2];
 
     # Write out the "...-sentdata.txt" file.
 
@@ -517,7 +436,7 @@ sub SendData{
         system "$SUBMITAUX \"$Prefix-sentdata.txt\"";
     }
 
-    if (!$SUBMIT) { 
+    if (!$SUBMIT) {
         return "Skipped standard submit.\n";
     }
 
@@ -531,9 +450,9 @@ sub SendData{
     }
 
     # Send the data to the server.
-    # 
+    #
     # FIXME: This code should be more robust?
-    
+
     $port=80;
     $socketaddr= sockaddr_in $port, inet_aton $host or die "Bad hostname\n";
     socket SOCK, PF_INET, SOCK_STREAM, getprotobyname('tcp') or
@@ -561,17 +480,13 @@ sub SendData{
 
 ##############################################################
 #
-# Getting Start timestamp
+# Individual Build & Test Functions
 #
 ##############################################################
-$starttime = `date "+20%y-%m-%d %H:%M:%S"`;
 
-##############################################################
-#
-# Create the CVS repository directory
-#
-##############################################################
-if (!$NOCHECKOUT) {
+# Create the source repository directory.
+sub CheckoutSource {
+  die "Invalid call!" unless $ConfigMode == 0;
   if (-d $BuildDir) {
     if (!$NOREMOVE) {
       if ( $VERBOSE ) {
@@ -587,341 +502,54 @@ if (!$NOCHECKOUT) {
   } else {
     mkdir $BuildDir or die "Could not create checkout directory $BuildDir!";
   }
-}
 
-
-##############################################################
-#
-# Check out the llvm tree, using either SVN or CVS
-#
-##############################################################
-if (!$NOCHECKOUT) {
   ChangeDir( $BuildDir, "checkout directory" );
-  if ($USESVN) {
-      my $SVNCMD = "$NICE svn co --non-interactive $SVNURL";
-      my $SVNCMD2 = "$NICE svn co --non-interactive $TestSVNURL";
-      RunLoggedCommand("( time -p $SVNCMD/llvm/trunk llvm; cd llvm/projects ; " .
-                       "$SVNCMD2/test-suite/trunk llvm-test )", $COLog,
-                       "CHECKOUT LLVM");
-      if ($WITHCLANG) {
-        my $SVNCMD = "$NICE svn co --non-interactive $SVNURL/cfe/trunk";
-        RunLoggedCommand("( time -p cd llvm/tools ; $SVNCMD clang )", $COLog,
-                         "CHECKOUT CLANG");
-      }
-  } else {
-    my $CVSOPT = "";
-    $CVSOPT = "-z3" # Use compression if going over ssh.
-      if $CVSRootDir =~ /^:ext:/;
-    my $CVSCMD = "$NICE cvs $CVSOPT -d $CVSRootDir co -P $CVSCOOPT";
-    RunLoggedCommand("( time -p $CVSCMD llvm; cd llvm/projects ; " .
-                     "$CVSCMD llvm-test )", $COLog,
-                     "CHECKOUT LLVM-TEST");
+  my $SVNCMD = "$NICE svn co --non-interactive";
+  RunLoggedCommand("( time -p $SVNCMD $SVNURL/llvm/trunk llvm; cd llvm/projects ; " .
+                   "  $SVNCMD $TestSVNURL/test-suite/trunk llvm-test )", $COLog,
+                   "CHECKOUT LLVM");
+  if ($WITHCLANG) {
+      RunLoggedCommand("( cd llvm/tools ; " .
+                       "  $SVNCMD $SVNURL/cfe/trunk clang )", $COLog,
+                       "CHECKOUT CLANG");
   }
 }
-ChangeDir( $LLVMSrcDir , "llvm source directory") ;
 
-##############################################################
-#
-# Get some static statistics about the current state of CVS
-#
-# This can probably be put on the server side
-#
-##############################################################
-my $CheckoutTime_Wall = GetRegex "([0-9.]+)", `grep '^real' $COLog`;
-my $CheckoutTime_User = GetRegex "([0-9.]+)", `grep '^user' $COLog`;
-my $CheckoutTime_Sys = GetRegex "([0-9.]+)", `grep '^sys' $COLog`;
-my $CheckoutTime_CPU = $CVSCheckoutTime_User + $CVSCheckoutTime_Sys;
-
-my $NumFilesInCVS = 0;
-my $NumDirsInCVS  = 0;
-if ($USESVN) {
-  $NumFilesInCVS = `egrep '^A' $COLog | wc -l` + 0;
-  $NumDirsInCVS  = `sed -e 's#/[^/]*\$##' $COLog | sort | uniq | wc -l` + 0;
-} else {
-  $NumFilesInCVS = `egrep '^U' $COLog | wc -l` + 0;
-  $NumDirsInCVS  = `egrep '^cvs (checkout|server|update):' $COLog | wc -l` + 0;
-}
-
-##############################################################
-#
-# Extract some information from the CVS history... use a hash so no duplicate
-# stuff is stored. This gets the history from the previous days worth
-# of cvs activity and parses it.
-#
-##############################################################
-
-# This just computes a reasonably accurate #of seconds since 2000. It doesn't
-# have to be perfect as its only used for comparing date ranges within a couple
-# of days.
-sub ConvertToSeconds {
-  my ($sec, $min, $hour, $day, $mon, $yr) = @_;
-  my $Result = ($yr - 2000) * 12;
-  $Result += $mon;
-  $Result *= 31;
-  $Result += $day;
-  $Result *= 24;
-  $Result += $hour;
-  $Result *= 60;
-  $Result += $min;
-  $Result *= 60;
-  $Result += $sec;
-  return $Result;
-}
-
-my (%AddedFiles, %ModifiedFiles, %RemovedFiles, %UsersCommitted, %UsersUpdated);
-
-if (!$NOCVSSTATS) {
-  if ($VERBOSE) { print "CHANGE HISTORY ANALYSIS STAGE\n"; }
-
-  if ($USESVN) {
-    @SVNHistory = split /<logentry/, `svn log --non-interactive --xml --verbose -r{$DATE}:HEAD`;
-    # Skip very first entry because it is the XML header cruft
-    shift @SVNHistory;
-    my $Now = time();
-    foreach $Record (@SVNHistory) {
-      my @Lines = split "\n", $Record;
-      my ($Author, $Date, $Revision);
-      # Get the date and see if its one we want to process.
-      my ($Year, $Month, $Day, $Hour, $Min, $Sec);
-      if ($Lines[3] =~ /<date>(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/){
-        $Year = $1; $Month = $2; $Day = $3; $Hour = $4; $Min = $5; $Sec = $6;
-      }
-      my $Then = ConvertToSeconds($Sec, $Min, $Hour, $Day, $Month, $Year);
-      # Get the current date and compute when "yesterday" is.
-      my ($NSec, $NMin, $NHour, $NDay, $NMon, $NYear) = gmtime();
-      my $Now = ConvertToSeconds( $NSec, $NMin, $NHour, $NDay, $NMon, $NYear);
-      if (($Now - 24*60*60) > $Then) {
-        next;
-      }
-      if ($Lines[1] =~ /   revision="([0-9]*)">/) {
-        $Revision = $1;
-      }
-      if ($Lines[2] =~ /<author>([^<]*)<\/author>/) {
-        $Author = $1;
-      }
-      $UsersCommitted{$Author} = 1;
-      $Date = $Year . "-" . $Month . "-" . $Day;
-      $Time = $Hour . ":" . $Min . ":" . $Sec;
-      print "Rev: $Revision, Author: $Author, Date: $Date, Time: $Time\n";
-      for ($i = 6; $i < $#Lines; $i += 2 ) {
-        if ($Lines[$i] =~ /^   action="(.)">([^<]*)</) {
-          if ($1 == "A") {
-            $AddedFiles{$2} = 1;
-          } elsif ($1 == 'D') {
-            $RemovedFiles{$2} = 1;
-          } elsif ($1 == 'M' || $1 == 'R' || $1 == 'C') {
-            $ModifiedFiles{$2} = 1;
-          } else {
-            print "UNMATCHABLE: $Lines[$i]\n";
-          }
-        }
-      }
-    }
-  } else {
-    @CVSHistory = split "\n", `cvs history -D '1 day ago' -a -xAMROCGUW`;
-#print join "\n", @CVSHistory; print "\n";
-
-    my $DateRE = '[-/:0-9 ]+\+[0-9]+';
-
-# Loop over every record from the CVS history, filling in the hashes.
-    foreach $File (@CVSHistory) {
-        my ($Type, $Date, $UID, $Rev, $Filename);
-        if ($File =~ /([AMRUGC]) ($DateRE) ([^ ]+) +([^ ]+) +([^ ]+) +([^ ]+)/) {
-            ($Type, $Date, $UID, $Rev, $Filename) = ($1, $2, $3, $4, "$6/$5");
-        } elsif ($File =~ /([W]) ($DateRE) ([^ ]+)/) {
-            ($Type, $Date, $UID, $Rev, $Filename) = ($1, $2, $3, "", "");
-        } elsif ($File =~ /([O]) ($DateRE) ([^ ]+) +([^ ]+)/) {
-            ($Type, $Date, $UID, $Rev, $Filename) = ($1, $2, $3, "", "$4/");
-        } else {
-            print "UNMATCHABLE: $File\n";
-            next;
-        }
-        # print "$File\nTy = $Type Date = '$Date' UID=$UID Rev=$Rev File = '$Filename'\n";
-
-        if ($Filename =~ /^llvm/) {
-            if ($Type eq 'M') {        # Modified
-                $ModifiedFiles{$Filename} = 1;
-                $UsersCommitted{$UID} = 1;
-            } elsif ($Type eq 'A') {   # Added
-                $AddedFiles{$Filename} = 1;
-                $UsersCommitted{$UID} = 1;
-            } elsif ($Type eq 'R') {   # Removed
-                $RemovedFiles{$Filename} = 1;
-                $UsersCommitted{$UID} = 1;
-            } else {
-                $UsersUpdated{$UID} = 1;
-            }
-        }
-    }
-
-    my $TestError = 1;
-  } #$USESVN
-}#!NOCVSSTATS
-
-my $CVSAddedFiles = join "\n", sort keys %AddedFiles;
-my $CVSModifiedFiles = join "\n", sort keys %ModifiedFiles;
-my $CVSRemovedFiles = join "\n", sort keys %RemovedFiles;
-my $UserCommitList = join "\n", sort keys %UsersCommitted;
-my $UserUpdateList = join "\n", sort keys %UsersUpdated;
-
-##############################################################
-#
-# Build the entire tree, saving build messages to the build log
-#
-##############################################################
-if (!$NOCHECKOUT && !$NOBUILD) {
+# Build the entire tree, saving build messages to the build log. Returns false
+# on build failure.
+sub BuildLLVM {
+  die "Invalid call!" unless $ConfigMode == 0;
   my $EXTRAFLAGS = "--enable-spec --with-objroot=.";
   RunLoggedCommand("(time -p $NICE ./configure $CONFIGUREARGS $EXTRAFLAGS) ",
-                   $BuildLog, "CONFIGURE");
+                   $ConfigureLog, "CONFIGURE");
   # Build the entire tree, capturing the output into $BuildLog
-  RunAppendingLoggedCommand("(time -p $NICE $MAKECMD clean)", $BuildLog, "BUILD CLEAN");
+  RunAppendingLoggedCommand("($NICE $MAKECMD $MAKEOPTS clean)", $BuildLog, "BUILD CLEAN");
   RunAppendingLoggedCommand("(time -p $NICE $MAKECMD $MAKEOPTS)", $BuildLog, "BUILD");
-}
 
-##############################################################
-#
-# Get some statistics about the build...
-#
-##############################################################
-#this can de done on server
-#my @Linked = split '\n', `grep Linking $BuildLog`;
-#my $NumExecutables = scalar(grep(/executable/, @Linked));
-#my $NumLibraries   = scalar(grep(!/executable/, @Linked));
-#my $NumObjects     = `grep ']\: Compiling ' $BuildLog | wc -l` + 0;
-
-# Get the number of lines of source code. Must be here after the build is done
-# because countloc.sh uses the llvm-config script which must be built.
-my $LOC = `utils/countloc.sh -topdir $LLVMSrcDir`;
-
-# Get the time taken by the configure script
-my $ConfigTimeU = GetRegexNum "^user", 0, "([0-9.]+)", "$BuildLog";
-my $ConfigTimeS = GetRegexNum "^sys", 0, "([0-9.]+)", "$BuildLog";
-my $ConfigTime  = $ConfigTimeU+$ConfigTimeS;  # ConfigTime = User+System
-my $ConfigWallTime = GetRegexNum "^real", 0,"([0-9.]+)","$BuildLog";
-
-$ConfigTime=-1 unless $ConfigTime;
-$ConfigWallTime=-1 unless $ConfigWallTime;
-
-my $BuildTimeU = GetRegexNum "^user", 1, "([0-9.]+)", "$BuildLog";
-my $BuildTimeS = GetRegexNum "^sys", 1, "([0-9.]+)", "$BuildLog";
-my $BuildTime  = $BuildTimeU+$BuildTimeS;  # BuildTime = User+System
-my $BuildWallTime = GetRegexNum "^real", 1, "([0-9.]+)","$BuildLog";
-
-$BuildTime=-1 unless $BuildTime;
-$BuildWallTime=-1 unless $BuildWallTime;
-
-my $BuildError = 0, $BuildStatus = "OK";
-if ($NOBUILD) {
-  $BuildStatus = "Skipped by user";
-}
-elsif (`grep '^$MAKECMD\[^:]*: .*Error' $BuildLog | wc -l` + 0 ||
-  `grep '^$MAKECMD: \*\*\*.*Stop.' $BuildLog | wc -l`+0) {
-  $BuildStatus = "Error: compilation aborted";
-  $BuildError = 1;
-  if( $VERBOSE) { print  "\n***ERROR BUILDING TREE\n\n"; }
-}
-if ($BuildError) { $NODEJAGNU=1; }
-
-my $a_file_sizes="";
-my $o_file_sizes="";
-if (!$BuildError) {
-  print "Organizing size of .o and .a files\n"
-    if ( $VERBOSE );
-  ChangeDir( "$LLVMObjDir", "Build Directory" );
-
-  my @dirs = ('utils', 'lib', 'tools');
-  if($BUILDTYPE eq "release"){
-    push @dirs, 'Release';
-  } elsif($BUILDTYPE eq "release-asserts") {
-    push @dirs, 'Release-Asserts';
-  } else {
-    push @dirs, 'Debug';
+  if (`grep '^$MAKECMD\[^:]*: .*Error' $BuildLog | wc -l` + 0 ||
+      `grep '^$MAKECMD: \*\*\*.*Stop.' $BuildLog | wc -l` + 0) {
+    return 0;
   }
 
-  find(sub {
-      $a_file_sizes .= (-s $_)." $File::Find::name $BUILDTYPE\n" if /\.a$/i;
-      $o_file_sizes .= (-s $_)." $File::Find::name $BUILDTYPE\n" if /\.o$/i;
-    }, @dirs);
-} else {
-  $a_file_sizes="No data due to a bad build.";
-  $o_file_sizes="No data due to a bad build.";
+  return 1;
 }
 
-##############################################################
-#
-# Running dejagnu tests
-#
-##############################################################
-my $DejangnuTestResults=""; # String containing the results of the dejagnu
-my $dejagnu_output = "$DejagnuTestsLog";
-if (!$NODEJAGNU) {
-  #Run the feature and regression tests, results are put into testrun.sum
-  #Full log in testrun.log
-  RunLoggedCommand("(time -p $MAKECMD $MAKEOPTS check)", $dejagnu_output, "DEJAGNU");
+# Running dejagnu tests and save results to log.
+sub RunDejaGNUTests {
+  die "Invalid call!" unless $ConfigMode == 0;
+  # Run the feature and regression tests, results are put into testrun.sum and
+  # the full log in testrun.log.
+  system "rm -f test/testrun.log test/testrun.sum";
+  RunLoggedCommand("(time -p $MAKECMD $MAKEOPTS check)", $DejagnuLog, "DEJAGNU");
 
-  #Copy the testrun.log and testrun.sum to our webdir
+  # Copy the testrun.log and testrun.sum to our webdir.
   CopyFile("test/testrun.log", $DejagnuLog);
   CopyFile("test/testrun.sum", $DejagnuSum);
-  #can be done on server
-  $DejagnuTestResults = GetDejagnuTestResults($DejagnuSum, $DejagnuLog);
-  $unexpfail_tests = $DejagnuTestResults;
+
+  return GetDejagnuTestResults($DejagnuSum, $DejagnuLog);
 }
 
-#Extract time of dejagnu tests
-my $DejagnuTimeU = GetRegexNum "^user", 0, "([0-9.]+)", "$dejagnu_output";
-my $DejagnuTimeS = GetRegexNum "^sys", 0, "([0-9.]+)", "$dejagnu_output";
-$DejagnuTime  = $DejagnuTimeU+$DejagnuTimeS;  # DejagnuTime = User+System
-$DejagnuWallTime = GetRegexNum "^real", 0,"([0-9.]+)","$dejagnu_output";
-$DejagnuTestResults =
-  "Dejagnu skipped by user choice." unless $DejagnuTestResults;
-$DejagnuTime     = "0.0" unless $DejagnuTime;
-$DejagnuWallTime = "0.0" unless $DejagnuWallTime;
-
-##############################################################
-#
-# Get warnings from the build
-#
-##############################################################
-if (!$NODEJAGNU) {
-  if ( $VERBOSE ) { print "BUILD INFORMATION COLLECTION STAGE\n"; }
-  my @Warn = split "\n", `egrep 'warning:|Entering dir' $BuildLog`;
-  my @Warnings;
-  my $CurDir = "";
-
-  foreach $Warning (@Warn) {
-    if ($Warning =~ m/Entering directory \`([^\`]+)\'/) {
-      $CurDir = $1;                 # Keep track of directory warning is in...
-      # Remove buildir prefix if included
-      if ($CurDir =~ m#$LLVMSrcDir/(.*)#) { $CurDir = $1; }
-    } else {
-      push @Warnings, "$CurDir/$Warning";     # Add directory to warning...
-    }
-  }
-  my $WarningsFile =  join "\n", @Warnings;
-  $WarningsFile =~ s/:[0-9]+:/::/g;
-
-  # Emit the warnings file, so we can diff...
-  WriteFile "$WebDir/$DATE-Warnings.txt", $WarningsFile . "\n";
-  my ($WarningsAdded, $WarningsRemoved) = DiffFiles "-Warnings.txt";
-
-  # Output something to stdout if something has changed
-  #print "ADDED   WARNINGS:\n$WarningsAdded\n\n" if (length $WarningsAdded);
-  #print "REMOVED WARNINGS:\n$WarningsRemoved\n\n" if (length $WarningsRemoved);
-
-  #my @TmpWarningsAdded = split "\n", $WarningsAdded; ~PJ on upgrade
-  #my @TmpWarningsRemoved = split "\n", $WarningsRemoved; ~PJ on upgrade
-
-} #endif !NODEGAGNU
-
-##############################################################
-#
-# If we built the tree successfully, run the nightly programs tests...
-#
-# A set of tests to run is passed in (i.e. "SingleSource" "MultiSource"
-# "External")
-#
-##############################################################
-
+# Run the named tests (i.e. "SingleSource" "MultiSource" "External")
 sub TestDirectory {
   my $SubDir = shift;
   ChangeDir( "$LLVMTestDir/$SubDir",
@@ -929,55 +557,47 @@ sub TestDirectory {
 
   my $ProgramTestLog = "$Prefix-$SubDir-ProgramTest.txt";
 
-  # Run the programs tests... creating a report.nightly.csv file
-  if (!$NOTEST) {
-    if( $VERBOSE) {
-      print "$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
-            "$TESTFLAGS TEST=nightly > $ProgramTestLog 2>&1\n";
-    }
-    RunLoggedCommand("$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
-                     "$TESTFLAGS TEST=nightly",
+  # Make sure to clean things if in non-config mode.
+  if ($ConfigMode == 1) {
+    RunLoggedCommand("$MAKECMD -k $MAKEOPTS $PROGTESTOPTS clean $TESTFLAGS",
                      $ProgramTestLog, "TEST DIRECTORY $SubDir");
-    $llcbeta_options=`$MAKECMD print-llcbeta-option`;
   }
+
+  # Run the programs tests... creating a report.nightly.csv file.
+  my $LLCBetaOpts = "";
+  RunLoggedCommand("$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
+                   "$TESTFLAGS TEST=nightly",
+                   $ProgramTestLog, "TEST DIRECTORY $SubDir");
+  $LLCBetaOpts = `$MAKECMD print-llcbeta-option`;
 
   my $ProgramsTable;
   if (`grep '^$MAKECMD\[^:]: .*Error' $ProgramTestLog | wc -l` + 0) {
-    $TestError = 1;
     $ProgramsTable="Error running test $SubDir\n";
     print "ERROR TESTING\n";
   } elsif (`grep '^$MAKECMD\[^:]: .*No rule to make target' $ProgramTestLog | wc -l` + 0) {
-    $TestError = 1;
     $ProgramsTable="Makefile error running tests $SubDir!\n";
     print "ERROR TESTING\n";
   } else {
-    $TestError = 0;
-  #
-  # Create a list of the tests which were run...
-  #
-  system "egrep 'TEST-(PASS|FAIL)' < $ProgramTestLog ".
-         "| sort > $Prefix-$SubDir-Tests.txt";
+    # Create a list of the tests which were run...
+    system "egrep 'TEST-(PASS|FAIL)' < $ProgramTestLog ".
+           "| sort > $Prefix-$SubDir-Tests.txt";
   }
   $ProgramsTable = ReadFile "report.nightly.csv";
 
   ChangeDir( "../../..", "Programs Test Parent Directory" );
-  return ($ProgramsTable, $llcbeta_options);
-} #end sub TestDirectory
+  return ($ProgramsTable, $LLCBetaOpts);
+}
 
-##############################################################
-#
-# Calling sub TestDirectory
-#
-##############################################################
-if (!$BuildError) {
-  ($SingleSourceProgramsTable, $llcbeta_options) =
-    TestDirectory("SingleSource");
-  WriteFile "$Prefix-SingleSource-Performance.txt", $SingleSourceProgramsTable;
-  ($MultiSourceProgramsTable, $llcbeta_options) = TestDirectory("MultiSource");
-  WriteFile "$Prefix-MultiSource-Performance.txt", $MultiSourceProgramsTable;
+# Run all the nightly tests and return the program tables and the list of tests,
+# passes, fails, and xfails.
+sub RunNightlyTest() {
+  ($SSProgs, $llcbeta_options) = TestDirectory("SingleSource");
+  WriteFile "$Prefix-SingleSource-Performance.txt", $SSProgs;
+  ($MSProgs, $llcbeta_options) = TestDirectory("MultiSource");
+  WriteFile "$Prefix-MultiSource-Performance.txt", $MSProgs;
   if ( ! $NOEXTERNALS ) {
-    ($ExternalProgramsTable, $llcbeta_options) = TestDirectory("External");
-    WriteFile "$Prefix-External-Performance.txt", $ExternalProgramsTable;
+    ($ExtProgs, $llcbeta_options) = TestDirectory("External");
+    WriteFile "$Prefix-External-Performance.txt", $ExtProgs;
     system "cat $Prefix-SingleSource-Tests.txt " .
                "$Prefix-MultiSource-Tests.txt ".
                "$Prefix-External-Tests.txt | sort > $Prefix-Tests.txt";
@@ -985,7 +605,7 @@ if (!$BuildError) {
                "$Prefix-MultiSource-Performance.txt ".
                "$Prefix-External-Performance.txt | sort > $Prefix-Performance.txt";
   } else {
-    $ExternalProgramsTable = "External TEST STAGE SKIPPED\n";
+    $ExtProgs = "External TEST STAGE SKIPPED\n";
     if ( $VERBOSE ) {
       print "External TEST STAGE SKIPPED\n";
     }
@@ -997,46 +617,126 @@ if (!$BuildError) {
                " | sort > $Prefix-Performance.txt";
   }
 
-  ##############################################################
-  #
-  #
-  # gathering tests added removed broken information here
-  #
-  #
-  ##############################################################
-  my $dejagnu_test_list = ReadFile "$Prefix-Tests.txt";
-  my @DEJAGNU = split "\n", $dejagnu_test_list;
-  my ($passes, $fails, $xfails) = "";
+  # Compile passes, fails, xfails.
+  my $All = (ReadFile "$Prefix-Tests.txt");
+  my @TestSuiteResultLines = split "\n", $All;
+  my ($Passes, $Fails, $XFails) = "";
 
-  if(!$NODEJAGNU) {
-    for ($x=0; $x<@DEJAGNU; $x++) {
-      if ($DEJAGNU[$x] =~ m/^PASS:/) {
-        $passes.="$DEJAGNU[$x]\n";
-      }
-      elsif ($DEJAGNU[$x] =~ m/^FAIL:/) {
-        $fails.="$DEJAGNU[$x]\n";
-      }
-      elsif ($DEJAGNU[$x] =~ m/^XFAIL:/) {
-        $xfails.="$DEJAGNU[$x]\n";
-      }
+  for ($x=0; $x < @TestSuiteResultLines; $x++) {
+    if (@TestSuiteResultLines[$x] =~ m/^PASS:/) {
+      $Passes .= "$TestSuiteResultLines[$x]\n";
+    }
+    elsif (@TestSuiteResultLines[$x] =~ m/^FAIL:/) {
+      $Fails .= "$TestSuiteResultLines[$x]\n";
+    }
+    elsif (@TestSuiteResultLines[$x] =~ m/^XFAIL:/) {
+      $XFails .= "$TestSuiteResultLines[$x]\n";
     }
   }
 
-} #end if !$BuildError
+  return ($SSProgs, $MSProgs, $ExtProgs, $All, $Passes, $Fails, $XFails);
+}
 
 ##############################################################
 #
-# Getting end timestamp
+# Initialize filenames
 #
 ##############################################################
+
+if (! -d $WebDir) {
+  mkdir $WebDir, 0777 or die "Unable to create web directory: '$WebDir'.";
+  if($VERBOSE){
+    warn "$WebDir did not exist; creating it.\n";
+  }
+}
+
+if ($CONFIG_PATH ne "") {
+  $ConfigMode = 1;
+  $LLVMSrcDir = GetRegex "^(.*)\\s+", `$CONFIG_PATH --src-root`;
+  $LLVMObjDir = GetRegex "^(.*)\\s+", `$CONFIG_PATH --obj-root`;
+  # FIXME: Add llvm-config hook for this?
+  $LLVMTestDir = $LLVMObjDir . "/projects/test-suite";
+} else {
+  $ConfigureLog = "$Prefix-Configure-Log.txt";
+  $BuildLog = "$Prefix-Build-Log.txt";
+  $COLog = "$Prefix-CVS-Log.txt";
+  $DejagnuLog = "$Prefix-Dejagnu-testrun.log";
+  $DejagnuSum = "$Prefix-Dejagnu-testrun.sum";
+  $DejagnuLog = "$Prefix-DejagnuTests-Log.txt";
+}
+
+if ($VERBOSE) {
+  if ($CONFIG_PATH ne "") {
+    print "INITIALIZED (config mode)\n";
+    print "WebDir    = $WebDir\n";
+    print "Prefix    = $Prefix\n";
+    print "LLVM Src  = $LLVMSrcDir\n";
+    print "LLVM Obj  = $LLVMObjDir\n";
+    print "LLVM Test = $LLVMTestDir\n";
+  } else {
+    print "INITIALIZED\n";
+    print "SVN URL  = $SVNURL\n";
+    print "COLog    = $COLog\n";
+    print "BuildDir = $BuildDir\n";
+    print "WebDir   = $WebDir\n";
+    print "Prefix   = $Prefix\n";
+    print "BuildLog = $BuildLog\n";
+  }
+}
+
+##############################################################
+#
+# The actual NewNightlyTest logic.
+#
+##############################################################
+
+$starttime = `date "+20%y-%m-%d %H:%M:%S"`;
+
+my $BuildError = 0, $BuildStatus = "OK";
+my $DejagnuTestResults = "Dejagnu skipped by user choice.";
+if ($ConfigMode == 0) {
+  if (!$NOCHECKOUT) {
+    CheckoutSource();
+  }
+
+  # Build LLVM.
+  ChangeDir( $LLVMSrcDir , "llvm source directory") ;
+  if ($NOCHECKOUT || $NOBUILD) {
+    $BuildStatus = "Skipped by user";
+  } else {
+    if (!BuildLLVM()) {
+      if( $VERBOSE) { print  "\n***ERROR BUILDING TREE\n\n"; }
+      $BuildError = 1;
+      $BuildStatus = "Error: compilation aborted";
+      $NODEJAGNU=1;
+    }
+  }
+
+  # Run DejaGNU.
+  if (!$NODEJAGNU && !$BuildError) {
+    $DejagnuTestResults = RunDejaGNUTests();
+  }
+}
+
+# Run the llvm-test tests.
+my ($SingleSourceProgramsTable, $MultiSourceProgramsTable, $ExternalProgramsTable,
+    $all_tests, $passes, $fails, $xfails) = "";
+if (!$NOTEST && !$BuildError) {
+  ($SingleSourceProgramsTable, $MultiSourceProgramsTable, $ExternalProgramsTable,
+   $all_tests, $passes, $fails, $xfails) = RunNightlyTest();
+}
+
 $endtime = `date "+20%y-%m-%d %H:%M:%S"`;
 
+# The last bit of logic is to remove the build and web dirs, after sending data
+# to the server.
 
 ##############################################################
 #
-# Place all the logs neatly into one humungous file
+# Accumulate the information to send to the server.
 #
 ##############################################################
+
 if ( $VERBOSE ) { print "PREPARING LOGS TO BE SENT TO SERVER\n"; }
 
 $machine_data = "uname: ".`uname -a`.
@@ -1046,63 +746,71 @@ $machine_data = "uname: ".`uname -a`.
                 "date: ".`date \"+20%y-%m-%d\"`.
                 "time: ".`date +\"%H:%M:%S\"`;
 
-my @CVS_DATA;
-my $cvs_data;
-@CVS_DATA = ReadFile "$COLog";
-$cvs_data = join("\n", @CVS_DATA);
-
-my @BUILD_DATA;
-my $build_data;
-@BUILD_DATA = ReadFile "$BuildLog";
-$build_data = join("\n", @BUILD_DATA);
-
-my (@DEJAGNU_LOG, @DEJAGNU_SUM, @DEJAGNULOG_FULL, @GCC_VERSION);
-my ($dejagnutests_log ,$dejagnutests_sum, $dejagnulog_full) = "";
-my ($gcc_version, $gcc_version_long) = "";
-
-$gcc_version_long="";
+# Get gcc version.
+my $gcc_version_long = "";
 if ($GCCPATH ne "") {
-	$gcc_version_long = `$GCCPATH/gcc --version`;
+  $gcc_version_long = `$GCCPATH/gcc --version`;
 } elsif ($ENV{"CC"}) {
-	$gcc_version_long = `$ENV{"CC"} --version`;
+  $gcc_version_long = `$ENV{"CC"} --version`;
 } else {
-	$gcc_version_long = `gcc --version`;
+  $gcc_version_long = `gcc --version`;
 }
-@GCC_VERSION = split '\n', $gcc_version_long;
-$gcc_version = $GCC_VERSION[0];
+my $gcc_version = (split '\n', $gcc_version_long)[0];
 
-$llvmgcc_version_long="";
+# Get llvm-gcc target triple.
+my $llvmgcc_version_long = "";
 if ($LLVMGCCPATH ne "") {
   $llvmgcc_version_long = `$LLVMGCCPATH/llvm-gcc -v 2>&1`;
 } else {
   $llvmgcc_version_long = `llvm-gcc -v 2>&1`;
 }
-@LLVMGCC_VERSION = split '\n', $llvmgcc_version_long;
-$llvmgcc_versionTarget = $LLVMGCC_VERSION[1];
-$llvmgcc_versionTarget =~ /Target: (.+)/;
-$targetTriple = $1;
+(split '\n', $llvmgcc_version_long)[1] =~ /Target: (.+)/;
+my $targetTriple = $1;
 
-if(!$BuildError){
-  @DEJAGNU_LOG = ReadFile "$DejagnuLog";
-  @DEJAGNU_SUM = ReadFile "$DejagnuSum";
-  $dejagnutests_log = join("\n", @DEJAGNU_LOG);
-  $dejagnutests_sum = join("\n", @DEJAGNU_SUM);
-
-  @DEJAGNULOG_FULL = ReadFile "$DejagnuTestsLog";
-  $dejagnulog_full = join("\n", @DEJAGNULOG_FULL);
+# Logs.
+my ($ConfigureLogData, $BuildLogData, $DejagnuLogData, $CheckoutLogData) = "";
+if ($ConfigMode == 0) {
+  $ConfigureLogData = ReadFile $ConfigureLog;
+  $BuildLogData = ReadFile $BuildLog;
+  $DejagnuLogData = ReadFile $DejagnuLog;
+  $CheckoutLogData = ReadFile $COLog;
 }
 
-##############################################################
-#
-# Send data via a post request
-#
-##############################################################
+# Checkout info.
+my $CheckoutTime_Wall = GetRegex "^real ([0-9.]+)", $CheckoutLogData;
+my $CheckoutTime_User = GetRegex "^user ([0-9.]+)", $CheckoutLogData;
+my $CheckoutTime_Sys = GetRegex "^sys ([0-9.]+)", $CheckoutLogData;
+my $CheckoutTime_CPU = $CVSCheckoutTime_User + $CVSCheckoutTime_Sys;
+
+# Configure info.
+my $ConfigTimeU = GetRegex "^user ([0-9.]+)", $ConfigureLogData;
+my $ConfigTimeS = GetRegex "^sys ([0-9.]+)", $ConfigureLogData;
+my $ConfigTime  = $ConfigTimeU+$ConfigTimeS;  # ConfigTime = User+System
+my $ConfigWallTime = GetRegex "^real ([0-9.]+)",$ConfigureLogData;
+$ConfigTime=-1 unless $ConfigTime;
+$ConfigWallTime=-1 unless $ConfigWallTime;
+
+# Build info.
+my $BuildTimeU = GetRegex "^user ([0-9.]+)", $BuildLogData;
+my $BuildTimeS = GetRegex "^sys ([0-9.]+)", $BuildLogData;
+my $BuildTime  = $BuildTimeU+$BuildTimeS;  # BuildTime = User+System
+my $BuildWallTime = GetRegex "^real ([0-9.]+)", $BuildLogData;
+$BuildTime=-1 unless $BuildTime;
+$BuildWallTime=-1 unless $BuildWallTime;
+
+# DejaGNU info.
+my $DejagnuTimeU = GetRegex "^user ([0-9.]+)", $DejagnuLogData;
+my $DejagnuTimeS = GetRegex "^sys ([0-9.]+)", $DejagnuLogData;
+$DejagnuTime  = $DejagnuTimeU+$DejagnuTimeS;  # DejagnuTime = User+System
+$DejagnuWallTime = GetRegex "^real ([0-9.]+)", $DejagnuLogData;
+$DejagnuTime     = "0.0" unless $DejagnuTime;
+$DejagnuWallTime = "0.0" unless $DejagnuWallTime;
 
 if ( $VERBOSE ) { print "SEND THE DATA VIA THE POST REQUEST\n"; }
 
 my %hash_of_data = (
   'machine_data' => $machine_data,
-  'build_data' => $build_data,
+  'build_data' => $ConfigureLogData . $BuildLogData,
   'gcc_version' => $gcc_version,
   'nickname' => $nickname,
   'dejagnutime_wall' => $DejagnuWallTime,
@@ -1113,35 +821,37 @@ my %hash_of_data = (
   'configtime_cpu'=> $ConfigTime,
   'buildtime_wall' => $BuildWallTime,
   'buildtime_cpu' => $BuildTime,
-  'warnings' => $WarningsFile,
-  'cvsusercommitlist' => $UserCommitList,
-  'cvsuserupdatelist' => $UserUpdateList,
-  'cvsaddedfiles' => $CVSAddedFiles,
-  'cvsmodifiedfiles' => $CVSModifiedFiles,
-  'cvsremovedfiles' => $CVSRemovedFiles,
-  'lines_of_code' => $LOC,
-  'cvs_file_count' => $NumFilesInCVS,
-  'cvs_dir_count' => $NumDirsInCVS,
   'buildstatus' => $BuildStatus,
   'singlesource_programstable' => $SingleSourceProgramsTable,
   'multisource_programstable' => $MultiSourceProgramsTable,
   'externalsource_programstable' => $ExternalProgramsTable,
-  'llcbeta_options' => $multisource_llcbeta_options,
-  'warnings_removed' => $WarningsRemoved,
-  'warnings_added' => $WarningsAdded,
+  'llcbeta_options' => $llcbeta_options,
   'passing_tests' => $passes,
   'expfail_tests' => $xfails,
   'unexpfail_tests' => $fails,
-  'all_tests' => $dejagnu_test_list,
-  'new_tests' => "",
-  'removed_tests' => "",
+  'all_tests' => $all_tests,
   'dejagnutests_results' => $DejagnuTestResults,
-  'dejagnutests_log' => $dejagnulog_full,
+  'dejagnutests_log' => $DejagnuLogData,
   'starttime' => $starttime,
   'endtime' => $endtime,
-  'o_file_sizes' => $o_file_sizes,
-  'a_file_sizes' => $a_file_sizes,
-  'target_triple' => $targetTriple
+  'target_triple' => $targetTriple,
+
+  # Unused, but left around for backwards compatability.
+  'warnings' => "",
+  'cvsusercommitlist' => "",
+  'cvsuserupdatelist' => "",
+  'cvsaddedfiles' => "",
+  'cvsmodifiedfiles' => "",
+  'cvsremovedfiles' => "",
+  'lines_of_code' => "",
+  'cvs_file_count' => 0,
+  'cvs_dir_count' => 0,
+  'warnings_removed' => "",
+  'warnings_added' => "",
+  'new_tests' => "",
+  'removed_tests' => "",
+  'o_file_sizes' => "",
+  'a_file_sizes' => ""
 );
 
 if ($SUBMIT || !($SUBMITAUX eq "")) {
@@ -1156,7 +866,7 @@ if ($SUBMIT || !($SUBMITAUX eq "")) {
 
 ##############################################################
 #
-# Remove the cvs tree...
+# Remove the source tree...
 #
 ##############################################################
 system ( "$NICE rm -rf $BuildDir")

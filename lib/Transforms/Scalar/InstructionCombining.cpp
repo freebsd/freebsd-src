@@ -6300,25 +6300,33 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
           return SelectInst::Create(LHSI->getOperand(0), Op1, Op2);
         break;
       }
-      case Instruction::Malloc:
-        // If we have (malloc != null), and if the malloc has a single use, we
-        // can assume it is successful and remove the malloc.
-        if (LHSI->hasOneUse() && isa<ConstantPointerNull>(RHSC)) {
-          Worklist.Add(LHSI);
-          return ReplaceInstUsesWith(I,
-                                     ConstantInt::get(Type::getInt1Ty(*Context),
-                                                      !I.isTrueWhenEqual()));
-        }
-        break;
       case Instruction::Call:
         // If we have (malloc != null), and if the malloc has a single use, we
         // can assume it is successful and remove the malloc.
         if (isMalloc(LHSI) && LHSI->hasOneUse() &&
             isa<ConstantPointerNull>(RHSC)) {
-          Worklist.Add(LHSI);
-          return ReplaceInstUsesWith(I,
+          // Need to explicitly erase malloc call here, instead of adding it to
+          // Worklist, because it won't get DCE'd from the Worklist since
+          // isInstructionTriviallyDead() returns false for function calls.
+          // It is OK to replace LHSI/MallocCall with Undef because the 
+          // instruction that uses it will be erased via Worklist.
+          if (extractMallocCall(LHSI)) {
+            LHSI->replaceAllUsesWith(UndefValue::get(LHSI->getType()));
+            EraseInstFromFunction(*LHSI);
+            return ReplaceInstUsesWith(I,
                                      ConstantInt::get(Type::getInt1Ty(*Context),
                                                       !I.isTrueWhenEqual()));
+          }
+          if (CallInst* MallocCall = extractMallocCallFromBitCast(LHSI))
+            if (MallocCall->hasOneUse()) {
+              MallocCall->replaceAllUsesWith(
+                                        UndefValue::get(MallocCall->getType()));
+              EraseInstFromFunction(*MallocCall);
+              Worklist.Add(LHSI); // The malloc's bitcast use.
+              return ReplaceInstUsesWith(I,
+                                     ConstantInt::get(Type::getInt1Ty(*Context),
+                                                      !I.isTrueWhenEqual()));
+            }
         }
         break;
       }
@@ -7809,11 +7817,7 @@ Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
     Amt = AllocaBuilder.CreateAdd(Amt, Off, "tmp");
   }
   
-  AllocationInst *New;
-  if (isa<MallocInst>(AI))
-    New = AllocaBuilder.CreateMalloc(CastElTy, Amt);
-  else
-    New = AllocaBuilder.CreateAlloca(CastElTy, Amt);
+  AllocationInst *New = AllocaBuilder.CreateAlloca(CastElTy, Amt);
   New->setAlignment(AI.getAlignment());
   New->takeName(&AI);
   
@@ -9270,13 +9274,43 @@ Instruction *InstCombiner::visitSelectInstWithICmp(SelectInst &SI,
   return Changed ? &SI : 0;
 }
 
-/// isDefinedInBB - Return true if the value is an instruction defined in the
-/// specified basicblock.
-static bool isDefinedInBB(const Value *V, const BasicBlock *BB) {
-  const Instruction *I = dyn_cast<Instruction>(V);
-  return I != 0 && I->getParent() == BB;
-}
 
+/// CanSelectOperandBeMappingIntoPredBlock - SI is a select whose condition is a
+/// PHI node (but the two may be in different blocks).  See if the true/false
+/// values (V) are live in all of the predecessor blocks of the PHI.  For
+/// example, cases like this cannot be mapped:
+///
+///   X = phi [ C1, BB1], [C2, BB2]
+///   Y = add
+///   Z = select X, Y, 0
+///
+/// because Y is not live in BB1/BB2.
+///
+static bool CanSelectOperandBeMappingIntoPredBlock(const Value *V,
+                                                   const SelectInst &SI) {
+  // If the value is a non-instruction value like a constant or argument, it
+  // can always be mapped.
+  const Instruction *I = dyn_cast<Instruction>(V);
+  if (I == 0) return true;
+  
+  // If V is a PHI node defined in the same block as the condition PHI, we can
+  // map the arguments.
+  const PHINode *CondPHI = cast<PHINode>(SI.getCondition());
+  
+  if (const PHINode *VP = dyn_cast<PHINode>(I))
+    if (VP->getParent() == CondPHI->getParent())
+      return true;
+  
+  // Otherwise, if the PHI and select are defined in the same block and if V is
+  // defined in a different block, then we can transform it.
+  if (SI.getParent() == CondPHI->getParent() &&
+      I->getParent() != CondPHI->getParent())
+    return true;
+  
+  // Otherwise we have a 'hard' case and we can't tell without doing more
+  // detailed dominator based analysis, punt.
+  return false;
+}
 
 Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
   Value *CondVal = SI.getCondition();
@@ -9489,16 +9523,13 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
       return FoldI;
   }
 
-  // See if we can fold the select into a phi node.  The true/false values have
-  // to be live in the predecessor blocks.  If they are instructions in SI's
-  // block, we can't map to the predecessor.
-  if (isa<PHINode>(SI.getCondition()) &&
-      (!isDefinedInBB(SI.getTrueValue(), SI.getParent()) ||
-       isa<PHINode>(SI.getTrueValue())) &&
-      (!isDefinedInBB(SI.getFalseValue(), SI.getParent()) ||
-       isa<PHINode>(SI.getFalseValue())))
-    if (Instruction *NV = FoldOpIntoPhi(SI))
-      return NV;
+  // See if we can fold the select into a phi node if the condition is a select.
+  if (isa<PHINode>(SI.getCondition())) 
+    // The true/false values have to be live in the PHI predecessor's blocks.
+    if (CanSelectOperandBeMappingIntoPredBlock(TrueVal, SI) &&
+        CanSelectOperandBeMappingIntoPredBlock(FalseVal, SI))
+      if (Instruction *NV = FoldOpIntoPhi(SI))
+        return NV;
 
   if (BinaryOperator::isNot(CondVal)) {
     SI.setOperand(0, BinaryOperator::getNotArgument(CondVal));
@@ -11213,15 +11244,8 @@ Instruction *InstCombiner::visitAllocationInst(AllocationInst &AI) {
     if (const ConstantInt *C = dyn_cast<ConstantInt>(AI.getArraySize())) {
       const Type *NewTy = 
         ArrayType::get(AI.getAllocatedType(), C->getZExtValue());
-      AllocationInst *New = 0;
-
-      // Create and insert the replacement instruction...
-      if (isa<MallocInst>(AI))
-        New = Builder->CreateMalloc(NewTy, 0, AI.getName());
-      else {
-        assert(isa<AllocaInst>(AI) && "Unknown type of allocation inst!");
-        New = Builder->CreateAlloca(NewTy, 0, AI.getName());
-      }
+      assert(isa<AllocaInst>(AI) && "Unknown type of allocation inst!");
+      AllocationInst *New = Builder->CreateAlloca(NewTy, 0, AI.getName());
       New->setAlignment(AI.getAlignment());
 
       // Scan to the end of the allocation instructions, to skip over a block of
@@ -11294,12 +11318,6 @@ Instruction *InstCombiner::visitFreeInst(FreeInst &FI) {
     }
   }
   
-  // Change free(malloc) into nothing, if the malloc has a single use.
-  if (MallocInst *MI = dyn_cast<MallocInst>(Op))
-    if (MI->hasOneUse()) {
-      EraseInstFromFunction(FI);
-      return EraseInstFromFunction(*MI);
-    }
   if (isMalloc(Op)) {
     if (CallInst* CI = extractMallocCallFromBitCast(Op)) {
       if (Op->hasOneUse() && CI->hasOneUse()) {
@@ -11327,40 +11345,6 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
   Value *CastOp = CI->getOperand(0);
   LLVMContext *Context = IC.getContext();
 
-  if (TD) {
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(CI)) {
-      // Instead of loading constant c string, use corresponding integer value
-      // directly if string length is small enough.
-      std::string Str;
-      if (GetConstantStringInfo(CE->getOperand(0), Str) && !Str.empty()) {
-        unsigned len = Str.length();
-        const Type *Ty = cast<PointerType>(CE->getType())->getElementType();
-        unsigned numBits = Ty->getPrimitiveSizeInBits();
-        // Replace LI with immediate integer store.
-        if ((numBits >> 3) == len + 1) {
-          APInt StrVal(numBits, 0);
-          APInt SingleChar(numBits, 0);
-          if (TD->isLittleEndian()) {
-            for (signed i = len-1; i >= 0; i--) {
-              SingleChar = (uint64_t) Str[i] & UCHAR_MAX;
-              StrVal = (StrVal << 8) | SingleChar;
-            }
-          } else {
-            for (unsigned i = 0; i < len; i++) {
-              SingleChar = (uint64_t) Str[i] & UCHAR_MAX;
-              StrVal = (StrVal << 8) | SingleChar;
-            }
-            // Append NULL at the end.
-            SingleChar = 0;
-            StrVal = (StrVal << 8) | SingleChar;
-          }
-          Value *NL = ConstantInt::get(*Context, StrVal);
-          return IC.ReplaceInstUsesWith(LI, NL);
-        }
-      }
-    }
-  }
-
   const PointerType *DestTy = cast<PointerType>(CI->getType());
   const Type *DestPTy = DestTy->getElementType();
   if (const PointerType *SrcTy = dyn_cast<PointerType>(CastOp->getType())) {
@@ -11380,7 +11364,8 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
         if (Constant *CSrc = dyn_cast<Constant>(CastOp))
           if (ASrcTy->getNumElements() != 0) {
             Value *Idxs[2];
-            Idxs[0] = Idxs[1] = Constant::getNullValue(Type::getInt32Ty(*Context));
+            Idxs[0] = Constant::getNullValue(Type::getInt32Ty(*Context));
+            Idxs[1] = Idxs[0];
             CastOp = ConstantExpr::getGetElementPtr(CSrc, Idxs, 2);
             SrcTy = cast<PointerType>(CastOp->getType());
             SrcPTy = SrcTy->getElementType();
@@ -11436,6 +11421,7 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
   if (Value *AvailableVal = FindAvailableLoadedValue(Op, LI.getParent(), BBI,6))
     return ReplaceInstUsesWith(LI, AvailableVal);
 
+  // load(gep null, ...) -> unreachable
   if (GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(Op)) {
     const Value *GEPI0 = GEPI->getOperand(0);
     // TODO: Consider a target hook for valid address spaces for this xform.
@@ -11450,60 +11436,24 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
     }
   } 
 
-  if (Constant *C = dyn_cast<Constant>(Op)) {
-    // load null/undef -> undef
-    // TODO: Consider a target hook for valid address spaces for this xform.
-    if (isa<UndefValue>(C) ||
-        (C->isNullValue() && LI.getPointerAddressSpace() == 0)) {
-      // Insert a new store to null instruction before the load to indicate that
-      // this code is not reachable.  We do this instead of inserting an
-      // unreachable instruction directly because we cannot modify the CFG.
-      new StoreInst(UndefValue::get(LI.getType()),
-                    Constant::getNullValue(Op->getType()), &LI);
-      return ReplaceInstUsesWith(LI, UndefValue::get(LI.getType()));
-    }
-
-    // Instcombine load (constant global) into the value loaded.
-    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Op))
-      if (GV->isConstant() && GV->hasDefinitiveInitializer())
-        return ReplaceInstUsesWith(LI, GV->getInitializer());
-
-    // Instcombine load (constantexpr_GEP global, 0, ...) into the value loaded.
-    if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Op)) {
-      if (CE->getOpcode() == Instruction::GetElementPtr) {
-        if (GlobalVariable *GV = dyn_cast<GlobalVariable>(CE->getOperand(0)))
-          if (GV->isConstant() && GV->hasDefinitiveInitializer())
-            if (Constant *V = 
-               ConstantFoldLoadThroughGEPConstantExpr(GV->getInitializer(), CE))
-              return ReplaceInstUsesWith(LI, V);
-        if (CE->getOperand(0)->isNullValue()) {
-          // Insert a new store to null instruction before the load to indicate
-          // that this code is not reachable.  We do this instead of inserting
-          // an unreachable instruction directly because we cannot modify the
-          // CFG.
-          new StoreInst(UndefValue::get(LI.getType()),
-                        Constant::getNullValue(Op->getType()), &LI);
-          return ReplaceInstUsesWith(LI, UndefValue::get(LI.getType()));
-        }
-
-      } else if (CE->isCast()) {
-        if (Instruction *Res = InstCombineLoadCast(*this, LI, TD))
-          return Res;
-      }
-    }
-  }
-    
-  // If this load comes from anywhere in a constant global, and if the global
-  // is all undef or zero, we know what it loads.
-  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Op->getUnderlyingObject())){
-    if (GV->isConstant() && GV->hasDefinitiveInitializer()) {
-      if (GV->getInitializer()->isNullValue())
-        return ReplaceInstUsesWith(LI, Constant::getNullValue(LI.getType()));
-      else if (isa<UndefValue>(GV->getInitializer()))
-        return ReplaceInstUsesWith(LI, UndefValue::get(LI.getType()));
-    }
+  // load null/undef -> unreachable
+  // TODO: Consider a target hook for valid address spaces for this xform.
+  if (isa<UndefValue>(Op) ||
+      (isa<ConstantPointerNull>(Op) && LI.getPointerAddressSpace() == 0)) {
+    // Insert a new store to null instruction before the load to indicate that
+    // this code is not reachable.  We do this instead of inserting an
+    // unreachable instruction directly because we cannot modify the CFG.
+    new StoreInst(UndefValue::get(LI.getType()),
+                  Constant::getNullValue(Op->getType()), &LI);
+    return ReplaceInstUsesWith(LI, UndefValue::get(LI.getType()));
   }
 
+  // Instcombine load (constantexpr_cast global) -> cast (load global)
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Op))
+    if (CE->isCast())
+      if (Instruction *Res = InstCombineLoadCast(*this, LI, TD))
+        return Res;
+  
   if (Op->hasOneUse()) {
     // Change select and PHI nodes to select values instead of addresses: this
     // helps alias analysis out a lot, allows many others simplifications, and

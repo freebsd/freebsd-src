@@ -9,7 +9,10 @@
 
 #define DEBUG_TYPE "assembler"
 #include "llvm/MC/MCAssembler.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionMachO.h"
+#include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCValue.h"
 #include "llvm/Target/TargetMachOWriterInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
@@ -48,7 +51,7 @@ class MachObjectWriter {
     Header_Magic32 = 0xFEEDFACE,
     Header_Magic64 = 0xFEEDFACF
   };
-  
+
   static const unsigned Header32Size = 28;
   static const unsigned Header64Size = 32;
   static const unsigned SegmentLoadCommand32Size = 56;
@@ -127,7 +130,7 @@ class MachObjectWriter {
   bool IsLSB;
 
 public:
-  MachObjectWriter(raw_ostream &_OS, bool _IsLSB = true) 
+  MachObjectWriter(raw_ostream &_OS, bool _IsLSB = true)
     : OS(_OS), IsLSB(_IsLSB) {
   }
 
@@ -170,10 +173,10 @@ public:
 
   void WriteZeros(unsigned N) {
     const char Zeros[16] = { 0 };
-    
+
     for (unsigned i = 0, e = N / 16; i != e; ++i)
       OS << StringRef(Zeros, 16);
-    
+
     OS << StringRef(Zeros, N % 16);
   }
 
@@ -184,7 +187,7 @@ public:
   }
 
   /// @}
-  
+
   void WriteHeader32(unsigned NumLoadCommands, unsigned LoadCommandsSize,
                      bool SubsectionsViaSymbols) {
     uint32_t Flags = 0;
@@ -384,7 +387,7 @@ public:
     Write32(MSD.StringIndex);
     Write8(Type);
     Write8(MSD.SectionIndex);
-    
+
     // The Mach-O streamer uses the lowest 16-bits of the flags for the 'desc'
     // value.
     Write16(Flags);
@@ -397,6 +400,7 @@ public:
   };
   void ComputeScatteredRelocationInfo(MCAssembler &Asm,
                                       MCSectionData::Fixup &Fixup,
+                                      const MCValue &Target,
                              DenseMap<const MCSymbol*,MCSymbolData*> &SymbolMap,
                                      std::vector<MachRelocationEntry> &Relocs) {
     uint32_t Address = Fixup.Fragment->getOffset() + Fixup.Offset;
@@ -404,13 +408,12 @@ public:
     unsigned Type = RIT_Vanilla;
 
     // See <reloc.h>.
-
-    const MCSymbol *A = Fixup.Value.getSymA();
+    const MCSymbol *A = Target.getSymA();
     MCSymbolData *SD = SymbolMap.lookup(A);
     uint32_t Value = SD->getFragment()->getAddress() + SD->getOffset();
     uint32_t Value2 = 0;
 
-    if (const MCSymbol *B = Fixup.Value.getSymB()) {
+    if (const MCSymbol *B = Target.getSymB()) {
       Type = RIT_LocalDifference;
 
       MCSymbolData *SD = SymbolMap.lookup(B);
@@ -421,7 +424,7 @@ public:
     assert((1U << Log2Size) == Fixup.Size && "Invalid fixup size!");
 
     // The value which goes in the fixup is current value of the expression.
-    Fixup.FixedValue = Value - Value2 + Fixup.Value.getConstant();
+    Fixup.FixedValue = Value - Value2 + Target.getConstant();
 
     MachRelocationEntry MRE;
     MRE.Word0 = ((Address   <<  0) |
@@ -450,14 +453,18 @@ public:
                              MCSectionData::Fixup &Fixup,
                              DenseMap<const MCSymbol*,MCSymbolData*> &SymbolMap,
                              std::vector<MachRelocationEntry> &Relocs) {
-    // If this is a local symbol plus an offset or a difference, then we need a
+    MCValue Target;
+    if (!Fixup.Value->EvaluateAsRelocatable(Target))
+      llvm_report_error("expected relocatable expression");
+
+    // If this is a difference or a local symbol plus an offset, then we need a
     // scattered relocation entry.
-    if (Fixup.Value.getSymB()) // a - b
-      return ComputeScatteredRelocationInfo(Asm, Fixup, SymbolMap, Relocs);
-    if (Fixup.Value.getSymA() && Fixup.Value.getConstant())
-      if (!Fixup.Value.getSymA()->isUndefined())
-        return ComputeScatteredRelocationInfo(Asm, Fixup, SymbolMap, Relocs);
-        
+    if (Target.getSymB() ||
+        (Target.getSymA() && !Target.getSymA()->isUndefined() &&
+         Target.getConstant()))
+      return ComputeScatteredRelocationInfo(Asm, Fixup, Target,
+                                            SymbolMap, Relocs);
+
     // See <reloc.h>.
     uint32_t Address = Fixup.Fragment->getOffset() + Fixup.Offset;
     uint32_t Value = 0;
@@ -466,15 +473,15 @@ public:
     unsigned IsExtern = 0;
     unsigned Type = 0;
 
-    if (Fixup.Value.isAbsolute()) { // constant
+    if (Target.isAbsolute()) { // constant
       // SymbolNum of 0 indicates the absolute section.
       Type = RIT_Vanilla;
       Value = 0;
       llvm_unreachable("FIXME: Not yet implemented!");
     } else {
-      const MCSymbol *Symbol = Fixup.Value.getSymA();
+      const MCSymbol *Symbol = Target.getSymA();
       MCSymbolData *SD = SymbolMap.lookup(Symbol);
-      
+
       if (Symbol->isUndefined()) {
         IsExtern = 1;
         Index = SD->getIndex();
@@ -495,7 +502,7 @@ public:
     }
 
     // The value which goes in the fixup is current value of the expression.
-    Fixup.FixedValue = Value + Fixup.Value.getConstant();
+    Fixup.FixedValue = Value + Target.getConstant();
 
     unsigned Log2Size = Log2_32(Fixup.Size);
     assert((1U << Log2Size) == Fixup.Size && "Invalid fixup size!");
@@ -510,7 +517,7 @@ public:
                  (Type      << 28));
     Relocs.push_back(MRE);
   }
-  
+
   void BindIndirectSymbols(MCAssembler &Asm,
                            DenseMap<const MCSymbol*,MCSymbolData*> &SymbolMap) {
     // This is the point where 'as' creates actual symbols for indirect symbols
@@ -703,7 +710,7 @@ public:
     if (NumSymbols)
       ComputeSymbolTable(Asm, StringTable, LocalSymbolData, ExternalSymbolData,
                          UndefinedSymbolData);
-  
+
     // The section data starts after the header, the segment load command (and
     // section headers) and the symbol table.
     unsigned NumLoadCommands = 1;
@@ -733,7 +740,7 @@ public:
 
       SectionDataSize = std::max(SectionDataSize,
                                  SD.getAddress() + SD.getSize());
-      SectionDataFileSize = std::max(SectionDataFileSize, 
+      SectionDataFileSize = std::max(SectionDataFileSize,
                                      SD.getAddress() + SD.getFileSize());
     }
 
@@ -748,9 +755,9 @@ public:
                   Asm.getSubsectionsViaSymbols());
     WriteSegmentLoadCommand32(NumSections, VMSize,
                               SectionDataStart, SectionDataSize);
-  
+
     // ... and then the section headers.
-    // 
+    //
     // We also compute the section relocations while we do this. Note that
     // compute relocation info will also update the fixup to have the correct
     // value; this will be overwrite the appropriate data in the fragment when
@@ -774,7 +781,7 @@ public:
       WriteSection32(SD, SectionStart, RelocTableEnd, NumRelocs);
       RelocTableEnd += NumRelocs * RelocationInfoSize;
     }
-    
+
     // Write the symbol table load command, if used.
     if (NumSymbols) {
       unsigned FirstLocalSymbol = 0;
@@ -923,7 +930,7 @@ MCSectionData::LookupFixup(const MCFragment *Fragment, uint64_t Offset) const {
 
   return 0;
 }
-                                                       
+
 /* *** */
 
 MCSymbolData::MCSymbolData() : Symbol(0) {}
@@ -960,7 +967,7 @@ void MCAssembler::LayoutSection(MCSectionData &SD) {
     switch (F.getKind()) {
     case MCFragment::FT_Align: {
       MCAlignFragment &AF = cast<MCAlignFragment>(F);
-      
+
       uint64_t Size = OffsetToAlignment(Address, AF.getAlignment());
       if (Size > AF.getMaxBytesToEmit())
         AF.setFileSize(0);
@@ -978,8 +985,12 @@ void MCAssembler::LayoutSection(MCSectionData &SD) {
 
       F.setFileSize(F.getMaxFileSize());
 
+      MCValue Target;
+      if (!FF.getValue().EvaluateAsRelocatable(Target))
+        llvm_report_error("expected relocatable expression");
+
       // If the fill value is constant, thats it.
-      if (FF.getValue().isAbsolute())
+      if (Target.isAbsolute())
         break;
 
       // Otherwise, add fixups for the values.
@@ -994,19 +1005,23 @@ void MCAssembler::LayoutSection(MCSectionData &SD) {
     case MCFragment::FT_Org: {
       MCOrgFragment &OF = cast<MCOrgFragment>(F);
 
-      if (!OF.getOffset().isAbsolute())
+      MCValue Target;
+      if (!OF.getOffset().EvaluateAsRelocatable(Target))
+        llvm_report_error("expected relocatable expression");
+
+      if (!Target.isAbsolute())
         llvm_unreachable("FIXME: Not yet implemented!");
-      uint64_t OrgOffset = OF.getOffset().getConstant();
+      uint64_t OrgOffset = Target.getConstant();
       uint64_t Offset = Address - SD.getAddress();
 
       // FIXME: We need a way to communicate this error.
       if (OrgOffset < Offset)
-        llvm_report_error("invalid .org offset '" + Twine(OrgOffset) + 
+        llvm_report_error("invalid .org offset '" + Twine(OrgOffset) +
                           "' (at offset '" + Twine(Offset) + "'");
-        
+
       F.setFileSize(OrgOffset - Offset);
       break;
-    }      
+    }
 
     case MCFragment::FT_ZeroFill: {
       MCZeroFillFragment &ZFF = cast<MCZeroFillFragment>(F);
@@ -1038,7 +1053,7 @@ static void WriteFileData(raw_ostream &OS, const MCFragment &F,
                           MachObjectWriter &MOW) {
   uint64_t Start = OS.tell();
   (void) Start;
-    
+
   ++EmittedFragments;
 
   // FIXME: Embed in fragments instead?
@@ -1051,8 +1066,8 @@ static void WriteFileData(raw_ostream &OS, const MCFragment &F,
     // multiple .align directives to enforce the semantics it wants), but is
     // severe enough that we want to report it. How to handle this?
     if (Count * AF.getValueSize() != AF.getFileSize())
-      llvm_report_error("undefined .align directive, value size '" + 
-                        Twine(AF.getValueSize()) + 
+      llvm_report_error("undefined .align directive, value size '" +
+                        Twine(AF.getValueSize()) +
                         "' is not a divisor of padding size '" +
                         Twine(AF.getFileSize()) + "'");
 
@@ -1077,10 +1092,15 @@ static void WriteFileData(raw_ostream &OS, const MCFragment &F,
     MCFillFragment &FF = cast<MCFillFragment>(F);
 
     int64_t Value = 0;
-    if (FF.getValue().isAbsolute())
-      Value = FF.getValue().getConstant();
+
+    MCValue Target;
+    if (!FF.getValue().EvaluateAsRelocatable(Target))
+      llvm_report_error("expected relocatable expression");
+
+    if (Target.isAbsolute())
+      Value = Target.getConstant();
     for (uint64_t i = 0, e = FF.getCount(); i != e; ++i) {
-      if (!FF.getValue().isAbsolute()) {
+      if (!Target.isAbsolute()) {
         // Find the fixup.
         //
         // FIXME: Find a better way to write in the fixes.
@@ -1101,7 +1121,7 @@ static void WriteFileData(raw_ostream &OS, const MCFragment &F,
     }
     break;
   }
-    
+
   case MCFragment::FT_Org: {
     MCOrgFragment &OF = cast<MCOrgFragment>(F);
 
@@ -1131,7 +1151,7 @@ static void WriteFileData(raw_ostream &OS, const MCSectionData &SD,
 
   uint64_t Start = OS.tell();
   (void) Start;
-      
+
   for (MCSectionData::const_iterator it = SD.begin(),
          ie = SD.end(); it != ie; ++it)
     WriteFileData(OS, *it, MOW);

@@ -21,6 +21,7 @@
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCValue.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetAsmParser.h"
@@ -220,12 +221,22 @@ bool AsmParser::ParsePrimaryExpr(const MCExpr *&Res) {
     Res = MCUnaryExpr::CreateLNot(Res, getContext());
     return false;
   case AsmToken::String:
-  case AsmToken::Identifier:
-    // This is a label, this should be parsed as part of an expression, to
-    // handle things like LFOO+4.
-    Res = MCSymbolRefExpr::Create(Lexer.getTok().getIdentifier(), getContext());
+  case AsmToken::Identifier: {
+    // This is a symbol reference.
+    MCSymbol *Sym = CreateSymbol(Lexer.getTok().getIdentifier());
     Lexer.Lex(); // Eat identifier.
+
+    // If this is an absolute variable reference, substitute it now to preserve
+    // semantics in the face of reassignment.
+    if (Sym->getValue() && isa<MCConstantExpr>(Sym->getValue())) {
+      Res = Sym->getValue();
+      return false;
+    }
+
+    // Otherwise create a symbol ref.
+    Res = MCSymbolRefExpr::Create(Sym, getContext());
     return false;
+  }
   case AsmToken::Integer:
     Res = MCConstantExpr::Create(Lexer.getTok().getIntVal(), getContext());
     Lexer.Lex(); // Eat token.
@@ -281,7 +292,7 @@ bool AsmParser::ParseAbsoluteExpression(int64_t &Res) {
   if (ParseExpression(Expr))
     return true;
 
-  if (!Expr->EvaluateAsAbsolute(Ctx, Res))
+  if (!Expr->EvaluateAsAbsolute(Res))
     return Error(StartLoc, "expected absolute expression");
 
   return false;
@@ -730,14 +741,25 @@ bool AsmParser::ParseAssignment(const StringRef &Name) {
   // Eat the end of statement marker.
   Lexer.Lex();
 
-  // Diagnose assignment to a label.
-  //
-  // FIXME: Diagnostics. Note the location of the definition as a label.
+  // Validate that the LHS is allowed to be a variable (either it has not been
+  // used as a symbol, or it is an absolute symbol).
+  MCSymbol *Sym = getContext().LookupSymbol(Name);
+  if (Sym) {
+    // Diagnose assignment to a label.
+    //
+    // FIXME: Diagnostics. Note the location of the definition as a label.
+    // FIXME: Diagnose assignment to protected identifier (e.g., register name).
+    if (!Sym->isUndefined() && !Sym->isAbsolute())
+      return Error(EqualLoc, "redefinition of '" + Name + "'");
+    else if (!Sym->isVariable())
+      return Error(EqualLoc, "invalid assignment to '" + Name + "'");
+    else if (!isa<MCConstantExpr>(Sym->getValue()))
+      return Error(EqualLoc, "invalid reassignment of non-absolute variable '" +
+                   Name + "'");
+  } else
+    Sym = CreateSymbol(Name);
+
   // FIXME: Handle '.'.
-  // FIXME: Diagnose assignment to protected identifier (e.g., register name).
-  MCSymbol *Sym = CreateSymbol(Name);
-  if (!Sym->isUndefined() && !Sym->isAbsolute())
-    return Error(EqualLoc, "symbol has already been defined");
 
   // Do the assignment.
   Out.EmitAssignment(Sym, Value);

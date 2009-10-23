@@ -40,10 +40,6 @@ using namespace llvm;
 // Useful predicates
 //===----------------------------------------------------------------------===//
 
-static const GEPOperator *isGEP(const Value *V) {
-  return dyn_cast<GEPOperator>(V);
-}
-
 static const Value *GetGEPOperands(const Value *V, 
                                    SmallVector<Value*, 16> &GEPOps) {
   assert(GEPOps.empty() && "Expect empty list to populate!");
@@ -53,7 +49,7 @@ static const Value *GetGEPOperands(const Value *V,
   // Accumulate all of the chained indexes into the operand array
   V = cast<User>(V)->getOperand(0);
 
-  while (const User *G = isGEP(V)) {
+  while (const GEPOperator *G = dyn_cast<GEPOperator>(V)) {
     if (!isa<Constant>(GEPOps[0]) || isa<GlobalValue>(GEPOps[0]) ||
         !cast<Constant>(GEPOps[0])->isNullValue())
       break;  // Don't handle folding arbitrary pointer offsets yet...
@@ -222,7 +218,7 @@ namespace {
 
   private:
     // VisitedPHIs - Track PHI nodes visited by a aliasCheck() call.
-    SmallSet<const PHINode*, 16> VisitedPHIs;
+    SmallPtrSet<const PHINode*, 16> VisitedPHIs;
 
     // aliasGEP - Provide a bunch of ad-hoc rules to disambiguate a GEP instruction
     // against another.
@@ -358,11 +354,13 @@ BasicAliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
         if (alias(II->getOperand(2), PtrSize, P, Size) == NoAlias)
           return NoModRef;
       }
+      break;
       case Intrinsic::invariant_end: {
         unsigned PtrSize = cast<ConstantInt>(II->getOperand(2))->getZExtValue();
         if (alias(II->getOperand(3), PtrSize, P, Size) == NoAlias)
           return NoModRef;
       }
+      break;
       }
     }
   }
@@ -400,7 +398,7 @@ BasicAliasAnalysis::aliasGEP(const Value *V1, unsigned V1Size,
   // Note that we also handle chains of getelementptr instructions as well as
   // constant expression getelementptrs here.
   //
-  if (isGEP(V1) && isGEP(V2)) {
+  if (isa<GEPOperator>(V1) && isa<GEPOperator>(V2)) {
     const User *GEP1 = cast<User>(V1);
     const User *GEP2 = cast<User>(V2);
     
@@ -419,13 +417,13 @@ BasicAliasAnalysis::aliasGEP(const Value *V1, unsigned V1Size,
     
     // Drill down into the first non-gep value, to test for must-aliasing of
     // the base pointers.
-    while (isGEP(GEP1->getOperand(0)) &&
+    while (isa<GEPOperator>(GEP1->getOperand(0)) &&
            GEP1->getOperand(1) ==
            Constant::getNullValue(GEP1->getOperand(1)->getType()))
       GEP1 = cast<User>(GEP1->getOperand(0));
     const Value *BasePtr1 = GEP1->getOperand(0);
 
-    while (isGEP(GEP2->getOperand(0)) &&
+    while (isa<GEPOperator>(GEP2->getOperand(0)) &&
            GEP2->getOperand(1) ==
            Constant::getNullValue(GEP2->getOperand(1)->getType()))
       GEP2 = cast<User>(GEP2->getOperand(0));
@@ -531,7 +529,7 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, unsigned PNSize,
   if (!VisitedPHIs.insert(PN))
     return MayAlias;
 
-  SmallSet<Value*, 4> UniqueSrc;
+  SmallPtrSet<Value*, 4> UniqueSrc;
   SmallVector<Value*, 4> V1Srcs;
   for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
     Value *PV1 = PN->getIncomingValue(i);
@@ -555,7 +553,7 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, unsigned PNSize,
   // NoAlias / MustAlias. Otherwise, returns MayAlias.
   for (unsigned i = 1, e = V1Srcs.size(); i != e; ++i) {
     Value *V = V1Srcs[i];
-    AliasResult ThisAlias = aliasCheck(V, PNSize, V2, V2Size);
+    AliasResult ThisAlias = aliasCheck(V2, V2Size, V, PNSize);
     if (ThisAlias != Alias || ThisAlias == MayAlias)
       return MayAlias;
   }
@@ -617,11 +615,11 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
       isNonEscapingLocalObject(O1) && O1 != O2)
     return NoAlias;
 
-  if (!isGEP(V1) && isGEP(V2)) {
+  if (!isa<GEPOperator>(V1) && isa<GEPOperator>(V2)) {
     std::swap(V1, V2);
     std::swap(V1Size, V2Size);
   }
-  if (isGEP(V1))
+  if (isa<GEPOperator>(V1))
     return aliasGEP(V1, V1Size, V2, V2Size);
 
   if (isa<PHINode>(V2) && !isa<PHINode>(V1)) {

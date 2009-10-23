@@ -980,6 +980,9 @@ def MOVTi16 : AI1<0b1010, (outs GPR:$dst), (ins GPR:$src, i32imm:$imm),
   let Inst{25} = 1;
 }
 
+def : ARMPat<(or GPR:$src, 0xffff0000), (MOVTi16 GPR:$src, 0xffff)>,
+      Requires<[IsARM, HasV6T2]>;
+
 let Uses = [CPSR] in
 def MOVrx : AsI1<0b1101, (outs GPR:$dst), (ins GPR:$src), Pseudo, IIC_iMOVsi,
                  "mov", " $dst, $src, rrx",
@@ -1580,10 +1583,17 @@ def : ARMPat<(or GPR:$LHS, so_imm2part:$RHS),
 def : ARMPat<(xor GPR:$LHS, so_imm2part:$RHS),
              (EORri (EORri GPR:$LHS, (so_imm2part_1 imm:$RHS)),
                     (so_imm2part_2 imm:$RHS))>;
+def : ARMPat<(add GPR:$LHS, so_imm2part:$RHS),
+             (ADDri (ADDri GPR:$LHS, (so_imm2part_1 imm:$RHS)),
+                    (so_imm2part_2 imm:$RHS))>;
+def : ARMPat<(sub GPR:$LHS, so_imm2part:$RHS),
+             (SUBri (SUBri GPR:$LHS, (so_imm2part_1 imm:$RHS)),
+                    (so_imm2part_2 imm:$RHS))>;
 
 // 32-bit immediate using movw + movt.
-// This is a single pseudo instruction to make it re-materializable. Remove
-// when we can do generalized remat.
+// This is a single pseudo instruction, the benefit is that it can be remat'd
+// as a single unit instead of having to handle reg inputs.
+// FIXME: Remove this when we can do generalized remat.
 let isReMaterializable = 1 in
 def MOVi32imm : AI1x2<(outs GPR:$dst), (ins i32imm:$src), Pseudo, IIC_iMOVi,
                      "movw", " $dst, ${src:lo16}\n\tmovt${p} $dst, ${src:hi16}",
