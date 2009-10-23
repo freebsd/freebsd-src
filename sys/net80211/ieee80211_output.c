@@ -2764,13 +2764,7 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 	*(uint16_t *)wh->i_dur = 0;
 	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
-#ifdef IEEE80211_SUPPORT_MESH
-	if (vap->iv_opmode == IEEE80211_M_MBSS) {
-		static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
-		IEEE80211_ADDR_COPY(wh->i_addr3, zerobssid);
-	} else
-#endif
-		IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
+	IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
 	*(uint16_t *)wh->i_seq = 0;
 
 	return m;
