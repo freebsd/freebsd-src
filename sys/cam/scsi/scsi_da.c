@@ -813,19 +813,6 @@ dastrategy(struct bio *bp)
 
 	cam_periph_lock(periph);
 
-#if 0
-	/*
-	 * check it's not too big a transfer for our adapter
-	 */
-	scsi_minphys(bp,&sd_switch);
-#endif
-
-	/*
-	 * Mask interrupts so that the pack cannot be invalidated until
-	 * after we are in the queue.  Otherwise, we might not properly
-	 * clean up one of the buffers.
-	 */
-	
 	/*
 	 * If the device has been made invalid, error out
 	 */
