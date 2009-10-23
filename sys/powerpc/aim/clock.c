@@ -111,7 +111,6 @@ decr_intr(struct trapframe *frame)
 	for (nticks = 0; tick < 0; nticks++)
 		tick += ticks_per_intr;
 	mtdec(tick);
-if (nticks > 5) printf("BIG NTICKS on CPU %d: %x\n",PCPU_GET(cpuid),nticks);
 
 	while (nticks-- > 0) {
 		if (PCPU_GET(cpuid) == 0)
