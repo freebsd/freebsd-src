@@ -890,7 +890,6 @@ vesa_bios_init(void)
 		vmode.v_lfb = le32toh(vmode.v_lfb);
 		vmode.v_offscreen = le32toh(vmode.v_offscreen);
 		vmode.v_offscreensize = le16toh(vmode.v_offscreensize);
-		vmode.v_maxpixelclock = le32toh(vmode.v_maxpixelclock);
 		vmode.v_linbpscanline = le16toh(vmode.v_linbpscanline);
 		vmode.v_maxpixelclock = le32toh(vmode.v_maxpixelclock);
 
