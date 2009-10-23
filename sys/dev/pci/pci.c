@@ -274,7 +274,11 @@ TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
 SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
     &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI");
 
+#if defined(__i386__) || defined(__amd64__)
 static int pci_usb_takeover = 1;
+#else
+static int pci_usb_takeover = 0;
+#endif
 TUNABLE_INT("hw.pci.usb_early_takeover", &pci_usb_takeover);
 SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RD | CTLFLAG_TUN,
     &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
