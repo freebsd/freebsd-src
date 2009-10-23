@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 void *ap_pcpu;
 
-static register_t bsp_state[8];
+static register_t bsp_state[8] __aligned(8);
 
 static void cpudep_save_config(void *dummy);
 SYSINIT(cpu_save_config, SI_SUB_CPU, SI_ORDER_ANY, cpudep_save_config, NULL);
@@ -184,6 +184,8 @@ cpudep_save_config(void *dummy)
 		__asm __volatile ("mfspr %0,%2; mr %1,%0; srdi %0,%0,32"
 		    : "=r" (bsp_state[6]),"=r" (bsp_state[7]) : "K" (SPR_HID5));
 
+		powerpc_sync();
+
 		break;
 	case MPC7450:
 	case MPC7455:
@@ -224,17 +226,23 @@ cpudep_ap_setup()
 		 * See Table 2-3, 970MP manual
 		 */
 
+		__asm __volatile("mtasr %0; sync" :: "r"(0));
 		__asm __volatile(" \
 			ld	%0,0(%2);				\
+			sync; isync;					\
 			mtspr	%1, %0;					\
 			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1;	\
-			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1;"
+			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1; \
+			sync; isync" 
 		    : "=r"(reg) : "K"(SPR_HID0), "r"(bsp_state));
-		__asm __volatile("ld %0, 8(%2); mtspr %1, %0; mtspr %1, %0; \
-		    isync" : "=r"(reg) : "K"(SPR_HID1), "r"(bsp_state));
-		__asm __volatile("ld %0, 16(%2); sync; mtspr %1, %0; isync;"
+		__asm __volatile("ld %0, 8(%2); sync; isync;	\
+		    mtspr %1, %0; mtspr %1, %0; sync; isync"
+		    : "=r"(reg) : "K"(SPR_HID1), "r"(bsp_state));
+		__asm __volatile("ld %0, 16(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
 		    : "=r"(reg) : "K"(SPR_HID4), "r"(bsp_state));
-		__asm __volatile("ld %0, 24(%2); sync; mtspr %1, %0; isync;"
+		__asm __volatile("ld %0, 24(%2); sync; isync;	\
+		    mtspr %1, %0; sync; isync;"
 		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
 
 		powerpc_sync();
