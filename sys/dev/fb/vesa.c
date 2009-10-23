@@ -74,8 +74,7 @@ typedef struct adp_state adp_state_t;
 
 /* VESA video adapter */
 static video_adapter_t *vesa_adp = NULL;
-static int vesa_state_buf_size = 0;
-#define VESA_BIOS_BUFSIZE	(3 * PAGE_SIZE)
+static ssize_t vesa_state_buf_size = -1;
 
 /* VESA functions */
 #if 0
@@ -188,7 +187,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_REG	(1<<3)
 #define STATE_MOST	(STATE_HW | STATE_DATA | STATE_REG)
 #define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
-static int vesa_bios_state_buf_size(void);
+static ssize_t vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
 static int vesa_bios_get_line_length(void);
 static int vesa_bios_set_line_length(int pixel, int *bytes, int *lines);
@@ -282,6 +281,10 @@ vesa_bios_post(void)
 	}
 	regs.R_DL = 0x80;
 	x86bios_call(&regs, 0xc000, 0x0003);
+
+	if (x86bios_get_intr(0x10) == 0)
+		return (1);
+
 	return (0);
 }
 
@@ -532,7 +535,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 }
 #endif
 
-static int
+static ssize_t
 vesa_bios_state_buf_size(void)
 {
 	x86regs_t regs;
@@ -556,9 +559,6 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	x86regs_t regs;
 	uint32_t offs;
 	void *buf;
-
-	if (size > VESA_BIOS_BUFSIZE)
-		return (1);
 
 	if (code != STATE_SAVE && code != STATE_LOAD)
 		return (1);
@@ -808,12 +808,11 @@ vesa_bios_init(void)
 	if (x86bios_get_intr(0x10) == 0) {
 		if (vesa_bios_post() != 0)
 			return (1);
-		offs = x86bios_get_intr(0x10);
-		if (offs == 0)
-			return (1);
-		if (bootverbose)
+		if (bootverbose) {
+			offs = x86bios_get_intr(0x10);
 			printf("VESA: interrupt vector installed (0x%x)\n",
 			    BIOS_SADDRTOLADDR(offs));
+		}
 	}
 
 	x86bios_init_regs(&regs);
@@ -878,6 +877,22 @@ vesa_bios_init(void)
 		vesa_vmodetab[i] = le16toh(vesa_vmodetab[i]);
 		if (vesa_bios_get_mode(vesa_vmodetab[i], &vmode))
 			continue;
+
+		vmode.v_modeattr = le16toh(vmode.v_modeattr);
+		vmode.v_wgran = le16toh(vmode.v_wgran);
+		vmode.v_wsize = le16toh(vmode.v_wsize);
+		vmode.v_waseg = le16toh(vmode.v_waseg);
+		vmode.v_wbseg = le16toh(vmode.v_wbseg);
+		vmode.v_posfunc = le32toh(vmode.v_posfunc);
+		vmode.v_bpscanline = le16toh(vmode.v_bpscanline);
+		vmode.v_width = le16toh(vmode.v_width);
+		vmode.v_height = le16toh(vmode.v_height);
+		vmode.v_lfb = le32toh(vmode.v_lfb);
+		vmode.v_offscreen = le32toh(vmode.v_offscreen);
+		vmode.v_offscreensize = le16toh(vmode.v_offscreensize);
+		vmode.v_maxpixelclock = le32toh(vmode.v_maxpixelclock);
+		vmode.v_linbpscanline = le16toh(vmode.v_linbpscanline);
+		vmode.v_maxpixelclock = le32toh(vmode.v_maxpixelclock);
 
 		/* reject unsupported modes */
 #if 0
@@ -1417,11 +1432,14 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 	if (adp != vesa_adp)
 		return ((*prevvidsw->save_state)(adp, p, size));
 
-	if (vesa_state_buf_size == 0)
+	if (vesa_state_buf_size == -1) {
 		vesa_state_buf_size = vesa_bios_state_buf_size();
+		if (vesa_state_buf_size == 0)
+			return (1);
+	}
 	if (size == 0)
-		return (sizeof(int) + vesa_state_buf_size);
-	else if (size < (sizeof(int) + vesa_state_buf_size))
+		return (offsetof(adp_state_t, regs) + vesa_state_buf_size);
+	else if (size < (offsetof(adp_state_t, regs) + vesa_state_buf_size))
 		return (1);
 
 	((adp_state_t *)p)->sig = V_STATE_SIG;
@@ -1438,22 +1456,36 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	if ((adp != vesa_adp) || (((adp_state_t *)p)->sig != V_STATE_SIG))
 		return ((*prevvidsw->load_state)(adp, p));
 
+	if (vesa_state_buf_size <= 0)
+		return (1);
+
+	/*
+	 * If the current mode is not the same, probably it was powered down.
+	 * Try BIOS POST to restore a sane state.
+	 */
+	mode = vesa_bios_get_current_mode();
+	if (mode >= 0 && (mode & 0x1ff) != adp->va_mode &&
+	    VESA_MODE(adp->va_mode))
+		(void)vesa_bios_post();
+
 	ret = vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs,
 	    vesa_state_buf_size);
 
 	/*
-	 * If the current mode is not restored properly, try BIOS POST and
-	 * force setting the mode.
+	 * If the desired mode is not restored, force setting the mode.
 	 */
-	flags = adp->va_info.vi_flags;
-	if (!(flags & V_INFO_GRAPHICS))
-		flags &= ~V_INFO_LINEAR;
-	mode = adp->va_mode | ((flags & V_INFO_LINEAR) ? 0x4000 : 0);
-	if (vesa_bios_get_current_mode() != mode && vesa_bios_post() == 0 &&
-	    x86bios_get_intr(0x10) != 0) {
-		int10_set_mode(adp->va_initial_bios_mode);
-		vesa_bios_set_mode(mode);
+	mode = vesa_bios_get_current_mode();
+	if (mode >= 0 && (mode & 0x1ff) != adp->va_mode &&
+	    VESA_MODE(adp->va_mode)) {
+		mode = adp->va_mode;
+		flags = adp->va_info.vi_flags;
+		if ((flags & V_INFO_GRAPHICS) != 0 &&
+		    (flags & V_INFO_LINEAR) != 0)
+			mode |= 0x4000;
+		(void)vesa_bios_set_mode(mode);
+		(void)(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
 	}
+
 	return (ret);
 }
 
