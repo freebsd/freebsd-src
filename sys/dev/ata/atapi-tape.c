@@ -373,7 +373,6 @@ static void
 ast_strategy(struct bio *bp)
 {
     device_t dev = bp->bio_dev->si_drv1;
-    struct ata_device *atadev = device_get_softc(dev);
     struct ast_softc *stp = device_get_ivars(dev);
     struct ata_request *request;
     u_int32_t blkcount;
@@ -426,9 +425,7 @@ ast_strategy(struct bio *bp)
     }
     request->dev = dev;
     request->driver = bp;
-    bcopy(ccb, request->u.atapi.ccb,
-	  (atadev->param.config & ATA_PROTO_MASK) == 
-	  ATA_PROTO_ATAPI_12 ? 16 : 12);
+    bcopy(ccb, request->u.atapi.ccb, 16);
     request->data = bp->bio_data;
     request->bytecount = blkcount * stp->blksize;
     request->transfersize = min(request->bytecount, 65534);
