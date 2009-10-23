@@ -81,12 +81,12 @@ class ASTContext {
   llvm::FoldingSet<DependentTypeOfExprType> DependentTypeOfExprTypes;
   llvm::FoldingSet<DependentDecltypeType> DependentDecltypeTypes;
   llvm::FoldingSet<TemplateTypeParmType> TemplateTypeParmTypes;
+  llvm::FoldingSet<SubstTemplateTypeParmType> SubstTemplateTypeParmTypes;
   llvm::FoldingSet<TemplateSpecializationType> TemplateSpecializationTypes;
   llvm::FoldingSet<QualifiedNameType> QualifiedNameTypes;
   llvm::FoldingSet<TypenameType> TypenameTypes;
   llvm::FoldingSet<ObjCInterfaceType> ObjCInterfaceTypes;
   llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
-  llvm::FoldingSet<ObjCProtocolListType> ObjCProtocolListTypes;
   llvm::FoldingSet<ElaboratedType> ElaboratedTypes;
 
   llvm::FoldingSet<QualifiedTemplateName> QualifiedTemplateNames;
@@ -142,6 +142,12 @@ class ASTContext {
 
   /// \brief The type for the C sigjmp_buf type.
   TypeDecl *sigjmp_bufDecl;
+
+  /// \brief Type for the Block descriptor for Blocks CodeGen.
+  RecordDecl *BlockDescriptorType;
+
+  /// \brief Type for the Block descriptor for Blocks CodeGen.
+  RecordDecl *BlockDescriptorExtendedType;
 
   /// \brief Keeps track of all declaration attributes.
   ///
@@ -390,9 +396,47 @@ public:
   /// of the specified type.
   QualType getBlockPointerType(QualType T);
 
+  /// This gets the struct used to keep track of the descriptor for pointer to
+  /// blocks.
+  QualType getBlockDescriptorType();
+
+  // Set the type for a Block descriptor type.
+  void setBlockDescriptorType(QualType T);
+  /// Get the BlockDescriptorType type, or NULL if it hasn't yet been built.
+  QualType getRawBlockdescriptorType() {
+    if (BlockDescriptorType)
+      return getTagDeclType(BlockDescriptorType);
+    return QualType();
+  }
+
+  /// This gets the struct used to keep track of the extended descriptor for
+  /// pointer to blocks.
+  QualType getBlockDescriptorExtendedType();
+
+  // Set the type for a Block descriptor extended type.
+  void setBlockDescriptorExtendedType(QualType T);
+  /// Get the BlockDescriptorExtendedType type, or NULL if it hasn't yet been
+  /// built.
+  QualType getRawBlockdescriptorExtendedType() {
+    if (BlockDescriptorExtendedType)
+      return getTagDeclType(BlockDescriptorExtendedType);
+    return QualType();
+  }
+
+  /// This gets the struct used to keep track of pointer to blocks, complete
+  /// with captured variables.
+  QualType getBlockParmType(bool BlockHasCopyDispose,
+                            llvm::SmallVector<const Expr *, 8> &BDRDs);
+
+  /// This builds the struct used for __block variables.
+  QualType BuildByRefType(const char *DeclName, QualType Ty);
+
+  /// Returns true iff we need copy/dispose helpers for the given type.
+  bool BlockRequiresCopying(QualType Ty);
+
   /// getLValueReferenceType - Return the uniqued reference to the type for an
   /// lvalue reference to the specified type.
-  QualType getLValueReferenceType(QualType T);
+  QualType getLValueReferenceType(QualType T, bool SpelledAsLValue = true);
 
   /// getRValueReferenceType - Return the uniqued reference to the type for an
   /// rvalue reference to the specified type.
@@ -430,22 +474,6 @@ public:
   QualType getConstantArrayType(QualType EltTy, const llvm::APInt &ArySize,
                                 ArrayType::ArraySizeModifier ASM,
                                 unsigned EltTypeQuals);
-
-  /// getConstantArrayWithExprType - Return a reference to the type for a
-  /// constant array of the specified element type.
-  QualType getConstantArrayWithExprType(QualType EltTy,
-                                        const llvm::APInt &ArySize,
-                                        Expr *ArySizeExpr,
-                                        ArrayType::ArraySizeModifier ASM,
-                                        unsigned EltTypeQuals,
-                                        SourceRange Brackets);
-
-  /// getConstantArrayWithoutExprType - Return a reference to the type
-  /// for a constant array of the specified element type.
-  QualType getConstantArrayWithoutExprType(QualType EltTy,
-                                           const llvm::APInt &ArySize,
-                                           ArrayType::ArraySizeModifier ASM,
-                                           unsigned EltTypeQuals);
 
   /// getVectorType - Return the unique reference to a vector type of
   /// the specified element type and size. VectorType must be a built-in type.
@@ -485,6 +513,9 @@ public:
   /// specified typename decl.
   QualType getTypedefType(TypedefDecl *Decl);
 
+  QualType getSubstTemplateTypeParmType(const TemplateTypeParmType *Replaced,
+                                        QualType Replacement);
+
   QualType getTemplateTypeParmType(unsigned Depth, unsigned Index,
                                    bool ParameterPack,
                                    IdentifierInfo *Name = 0);
@@ -514,10 +545,6 @@ public:
   QualType getObjCObjectPointerType(QualType OIT,
                                     ObjCProtocolDecl **ProtocolList = 0,
                                     unsigned NumProtocols = 0);
-
-  QualType getObjCProtocolListType(QualType T,
-                                   ObjCProtocolDecl **Protocols,
-                                   unsigned NumProtocols);
 
   /// getTypeOfType - GCC extension.
   QualType getTypeOfExprType(Expr *e);
@@ -815,6 +842,12 @@ public:
     return T->getCanonicalTypeInternal().getTypePtr();
   }
 
+  /// getCanonicalParamType - Return the canonical parameter type
+  /// corresponding to the specific potentially non-canonical one.
+  /// Qualifiers are stripped off, functions are turned into function
+  /// pointers, and arrays decay one level into pointers.
+  CanQualType getCanonicalParamType(QualType T);
+
   /// \brief Determine whether the given types are equivalent.
   bool hasSameType(QualType T1, QualType T2) {
     return getCanonicalType(T1) == getCanonicalType(T2);
@@ -1047,7 +1080,10 @@ public:
   /// \param T the type that will be the basis for type source info. This type
   /// should refer to how the declarator was written in source code, not to
   /// what type semantic analysis resolved the declarator to.
-  DeclaratorInfo *CreateDeclaratorInfo(QualType T);
+  ///
+  /// \param Size the size of the type info to create, or 0 if the size
+  /// should be calculated based on the type.
+  DeclaratorInfo *CreateDeclaratorInfo(QualType T, unsigned Size = 0);
 
 private:
   ASTContext(const ASTContext&); // DO NOT IMPLEMENT

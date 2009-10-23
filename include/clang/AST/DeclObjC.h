@@ -944,16 +944,29 @@ public:
 
   ObjCCategoryDecl *getCategoryClass() const;
 
+  /// getName - Get the name of identifier for the class interface associated
+  /// with this implementation as a StringRef.
+  //
+  // FIXME: This is a bad API, we are overriding the NamedDecl::getName, to mean
+  // something different.
+  llvm::StringRef getName() const {
+    return Id ? Id->getNameStart() : "";
+  }
+
   /// getNameAsCString - Get the name of identifier for the class
   /// interface associated with this implementation as a C string
   /// (const char*).
+  //
+  // FIXME: Deprecated, move clients to getName().
   const char *getNameAsCString() const {
-    return Id ? Id->getName() : "";
+    return Id ? Id->getNameStart() : "";
   }
 
   /// @brief Get the name of the class associated with this interface.
+  //
+  // FIXME: Deprecated, move clients to getName().
   std::string getNameAsString() const {
-    return Id ? Id->getName() : "";
+    return getName();
   }
 
   static bool classof(const Decl *D) { return D->getKind() == ObjCCategoryImpl;}
@@ -995,17 +1008,30 @@ public:
     return getClassInterface()->getIdentifier();
   }
 
-  /// getNameAsCString - Get the name of identifier for the class
-  /// interface associated with this implementation as a C string
-  /// (const char*).
-  const char *getNameAsCString() const {
+  /// getName - Get the name of identifier for the class interface associated
+  /// with this implementation as a StringRef.
+  //
+  // FIXME: This is a bad API, we are overriding the NamedDecl::getName, to mean
+  // something different.
+  llvm::StringRef getName() const {
     assert(getIdentifier() && "Name is not a simple identifier");
     return getIdentifier()->getName();
   }
 
+  /// getNameAsCString - Get the name of identifier for the class
+  /// interface associated with this implementation as a C string
+  /// (const char*).
+  //
+  // FIXME: Move to StringRef API.
+  const char *getNameAsCString() const {
+    return getName().data();
+  }
+
   /// @brief Get the name of the class associated with this interface.
+  //
+  // FIXME: Move to StringRef API.
   std::string getNameAsString() const {
-    return getClassInterface()->getNameAsString();
+    return getName();
   }
 
   const ObjCInterfaceDecl *getSuperClass() const { return SuperClass; }

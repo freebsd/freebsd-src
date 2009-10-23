@@ -590,12 +590,15 @@ void
 CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
                                       const CXXConstructExpr *E) {
   assert(Dest && "Must have a destination!");
-
-  const CXXRecordDecl *RD =
-  cast<CXXRecordDecl>(E->getType()->getAs<RecordType>()->getDecl());
-  if (RD->hasTrivialConstructor())
+  const CXXConstructorDecl *CD = E->getConstructor();
+  // For a copy constructor, even if it is trivial, must fall thru so
+  // its argument is code-gen'ed.
+  if (!CD->isCopyConstructor(getContext())) {
+    const CXXRecordDecl *RD =
+      cast<CXXRecordDecl>(E->getType()->getAs<RecordType>()->getDecl());
+    if (RD->hasTrivialConstructor())
     return;
-
+  }
   // Code gen optimization to eliminate copy constructor and return
   // its first argument instead.
   if (getContext().getLangOptions().ElideConstructors && E->isElidable()) {
@@ -604,7 +607,7 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
     return;
   }
   // Call the constructor.
-  EmitCXXConstructorCall(E->getConstructor(), Ctor_Complete, Dest,
+  EmitCXXConstructorCall(CD, Ctor_Complete, Dest,
                          E->arg_begin(), E->arg_end());
 }
 

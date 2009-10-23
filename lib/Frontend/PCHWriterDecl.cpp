@@ -14,7 +14,6 @@
 #include "clang/Frontend/PCHWriter.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/Expr.h"
-#include "clang/AST/TypeLocVisitor.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include <cstdio>
 
@@ -88,6 +87,7 @@ void PCHDeclWriter::VisitDecl(Decl *D) {
   Record.push_back(D->isImplicit());
   Record.push_back(D->isUsed());
   Record.push_back(D->getAccess());
+  Record.push_back(D->getPCHLevel());
 }
 
 void PCHDeclWriter::VisitTranslationUnitDecl(TranslationUnitDecl *D) {
@@ -149,84 +149,10 @@ void PCHDeclWriter::VisitEnumConstantDecl(EnumConstantDecl *D) {
   Writer.AddAPSInt(D->getInitVal(), Record);
   Code = pch::DECL_ENUM_CONSTANT;
 }
-namespace {
-
-class TypeLocWriter : public TypeLocVisitor<TypeLocWriter> {
-  PCHWriter &Writer;
-  PCHWriter::RecordData &Record;
-
-public:
-  TypeLocWriter(PCHWriter &Writer, PCHWriter::RecordData &Record)
-    : Writer(Writer), Record(Record) { }
-
-#define ABSTRACT_TYPELOC(CLASS)
-#define TYPELOC(CLASS, PARENT) \
-    void Visit##CLASS(CLASS TyLoc);
-#include "clang/AST/TypeLocNodes.def"
-
-  void VisitTypeLoc(TypeLoc TyLoc) {
-    assert(0 && "A type loc wrapper was not handled!");
-  }
-};
-
-}
-
-void TypeLocWriter::VisitQualifiedLoc(QualifiedLoc TyLoc) {
-  // nothing to do here
-}
-void TypeLocWriter::VisitDefaultTypeSpecLoc(DefaultTypeSpecLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getStartLoc(), Record);
-}
-void TypeLocWriter::VisitTypedefLoc(TypedefLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getNameLoc(), Record);
-}
-void TypeLocWriter::VisitObjCInterfaceLoc(ObjCInterfaceLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getNameLoc(), Record);
-}
-void TypeLocWriter::VisitObjCProtocolListLoc(ObjCProtocolListLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getLAngleLoc(), Record);
-  Writer.AddSourceLocation(TyLoc.getRAngleLoc(), Record);
-  for (unsigned i = 0, e = TyLoc.getNumProtocols(); i != e; ++i)
-    Writer.AddSourceLocation(TyLoc.getProtocolLoc(i), Record);
-}
-void TypeLocWriter::VisitPointerLoc(PointerLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getStarLoc(), Record);
-}
-void TypeLocWriter::VisitBlockPointerLoc(BlockPointerLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getCaretLoc(), Record);
-}
-void TypeLocWriter::VisitMemberPointerLoc(MemberPointerLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getStarLoc(), Record);
-}
-void TypeLocWriter::VisitReferenceLoc(ReferenceLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getAmpLoc(), Record);
-}
-void TypeLocWriter::VisitFunctionLoc(FunctionLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getLParenLoc(), Record);
-  Writer.AddSourceLocation(TyLoc.getRParenLoc(), Record);
-  for (unsigned i = 0, e = TyLoc.getNumArgs(); i != e; ++i)
-    Writer.AddDeclRef(TyLoc.getArg(i), Record);
-}
-void TypeLocWriter::VisitArrayLoc(ArrayLoc TyLoc) {
-  Writer.AddSourceLocation(TyLoc.getLBracketLoc(), Record);
-  Writer.AddSourceLocation(TyLoc.getRBracketLoc(), Record);
-  Record.push_back(TyLoc.getSizeExpr() ? 1 : 0);
-  if (TyLoc.getSizeExpr())
-    Writer.AddStmt(TyLoc.getSizeExpr());
-}
 
 void PCHDeclWriter::VisitDeclaratorDecl(DeclaratorDecl *D) {
   VisitValueDecl(D);
-  DeclaratorInfo *DInfo = D->getDeclaratorInfo();
-  if (DInfo == 0) {
-    Writer.AddTypeRef(QualType(), Record);
-    return;
-  }
-
-  Writer.AddTypeRef(DInfo->getTypeLoc().getSourceType(), Record);
-  TypeLocWriter TLW(Writer, Record);
-  for (TypeLoc TL = DInfo->getTypeLoc(); !TL.isNull(); TL = TL.getNextTypeLoc())
-    TLW.Visit(TL);
+  Writer.AddDeclaratorInfo(D->getDeclaratorInfo(), Record);
 }
 
 void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
@@ -448,6 +374,7 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
       !D->isImplicit() &&
       !D->isUsed() &&
       D->getAccess() == AS_none &&
+      D->getPCHLevel() == 0 &&
       D->getStorageClass() == 0 &&
       !D->hasCXXDirectInitializer() && // Can params have this ever?
       D->getObjCDeclQualifier() == 0)
@@ -523,6 +450,7 @@ void PCHWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // isImplicit
   Abv->Add(BitCodeAbbrevOp(0));                       // isUsed
   Abv->Add(BitCodeAbbrevOp(AS_none));                 // C++ AccessSpecifier
+  Abv->Add(BitCodeAbbrevOp(0));                       // PCH level
 
   // NamedDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // NameKind = Identifier
@@ -607,80 +535,64 @@ static bool isRequiredDecl(const Decl *D, ASTContext &Context) {
   }
 }
 
-/// \brief Write a block containing all of the declarations.
-void PCHWriter::WriteDeclsBlock(ASTContext &Context) {
-  // Enter the declarations block.
-  Stream.EnterSubblock(pch::DECLS_BLOCK_ID, 3);
-
-  // Output the abbreviations that we will use in this block.
-  WriteDeclsBlockAbbrevs();
-
-  // Emit all of the declarations.
+void PCHWriter::WriteDecl(ASTContext &Context, Decl *D) {
   RecordData Record;
   PCHDeclWriter W(*this, Context, Record);
-  while (!DeclsToEmit.empty()) {
-    // Pull the next declaration off the queue
-    Decl *D = DeclsToEmit.front();
-    DeclsToEmit.pop();
 
-    // If this declaration is also a DeclContext, write blocks for the
-    // declarations that lexically stored inside its context and those
-    // declarations that are visible from its context. These blocks
-    // are written before the declaration itself so that we can put
-    // their offsets into the record for the declaration.
-    uint64_t LexicalOffset = 0;
-    uint64_t VisibleOffset = 0;
-    DeclContext *DC = dyn_cast<DeclContext>(D);
-    if (DC) {
-      LexicalOffset = WriteDeclContextLexicalBlock(Context, DC);
-      VisibleOffset = WriteDeclContextVisibleBlock(Context, DC);
-    }
-
-    // Determine the ID for this declaration
-    pch::DeclID &ID = DeclIDs[D];
-    if (ID == 0)
-      ID = DeclIDs.size();
-
-    unsigned Index = ID - 1;
-
-    // Record the offset for this declaration
-    if (DeclOffsets.size() == Index)
-      DeclOffsets.push_back(Stream.GetCurrentBitNo());
-    else if (DeclOffsets.size() < Index) {
-      DeclOffsets.resize(Index+1);
-      DeclOffsets[Index] = Stream.GetCurrentBitNo();
-    }
-
-    // Build and emit a record for this declaration
-    Record.clear();
-    W.Code = (pch::DeclCode)0;
-    W.AbbrevToUse = 0;
-    W.Visit(D);
-    if (DC) W.VisitDeclContext(DC, LexicalOffset, VisibleOffset);
-
-    if (!W.Code) {
-      fprintf(stderr, "Cannot serialize declaration of kind %s\n",
-              D->getDeclKindName());
-      assert(false && "Unhandled declaration kind while generating PCH");
-      exit(-1);
-    }
-    Stream.EmitRecord(W.Code, Record, W.AbbrevToUse);
-
-    // If the declaration had any attributes, write them now.
-    if (D->hasAttrs())
-      WriteAttributeRecord(D->getAttrs());
-
-    // Flush any expressions that were written as part of this declaration.
-    FlushStmts();
-
-    // Note "external" declarations so that we can add them to a record in the
-    // PCH file later.
-    //
-    // FIXME: This should be renamed, the predicate is much more complicated.
-    if (isRequiredDecl(D, Context))
-      ExternalDefinitions.push_back(ID);
+  // If this declaration is also a DeclContext, write blocks for the
+  // declarations that lexically stored inside its context and those
+  // declarations that are visible from its context. These blocks
+  // are written before the declaration itself so that we can put
+  // their offsets into the record for the declaration.
+  uint64_t LexicalOffset = 0;
+  uint64_t VisibleOffset = 0;
+  DeclContext *DC = dyn_cast<DeclContext>(D);
+  if (DC) {
+    LexicalOffset = WriteDeclContextLexicalBlock(Context, DC);
+    VisibleOffset = WriteDeclContextVisibleBlock(Context, DC);
   }
 
-  // Exit the declarations block
-  Stream.ExitBlock();
+  // Determine the ID for this declaration
+  pch::DeclID &ID = DeclIDs[D];
+  if (ID == 0)
+    ID = DeclIDs.size();
+
+  unsigned Index = ID - 1;
+
+  // Record the offset for this declaration
+  if (DeclOffsets.size() == Index)
+    DeclOffsets.push_back(Stream.GetCurrentBitNo());
+  else if (DeclOffsets.size() < Index) {
+    DeclOffsets.resize(Index+1);
+    DeclOffsets[Index] = Stream.GetCurrentBitNo();
+  }
+
+  // Build and emit a record for this declaration
+  Record.clear();
+  W.Code = (pch::DeclCode)0;
+  W.AbbrevToUse = 0;
+  W.Visit(D);
+  if (DC) W.VisitDeclContext(DC, LexicalOffset, VisibleOffset);
+
+  if (!W.Code) {
+    fprintf(stderr, "Cannot serialize declaration of kind %s\n",
+            D->getDeclKindName());
+    assert(false && "Unhandled declaration kind while generating PCH");
+    exit(-1);
+  }
+  Stream.EmitRecord(W.Code, Record, W.AbbrevToUse);
+
+  // If the declaration had any attributes, write them now.
+  if (D->hasAttrs())
+    WriteAttributeRecord(D->getAttrs());
+
+  // Flush any expressions that were written as part of this declaration.
+  FlushStmts();
+
+  // Note "external" declarations so that we can add them to a record in the
+  // PCH file later.
+  //
+  // FIXME: This should be renamed, the predicate is much more complicated.
+  if (isRequiredDecl(D, Context))
+    ExternalDefinitions.push_back(Index + 1);
 }

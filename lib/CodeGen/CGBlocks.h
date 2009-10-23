@@ -115,15 +115,8 @@ public:
     PtrToInt8Ty = llvm::Type::getInt8PtrTy(M.getContext());
   }
 
-  bool BlockRequiresCopying(QualType Ty) {
-    if (Ty->isBlockPointerType())
-      return true;
-    if (getContext().isObjCNSObjectType(Ty))
-      return true;
-    if (Ty->isObjCObjectPointerType())
-      return true;
-    return false;
-  }
+  bool BlockRequiresCopying(QualType Ty)
+    { return getContext().BlockRequiresCopying(Ty); }
 };
 
 class BlockFunction : public BlockBase {
@@ -165,11 +158,7 @@ public:
 
     /// ByCopyDeclRefs - Variables from parent scopes that have been imported
     /// into this block.
-    llvm::SmallVector<const BlockDeclRefExpr *, 8> ByCopyDeclRefs;
-
-    // ByRefDeclRefs - __block variables from parent scopes that have been
-    // imported into this block.
-    llvm::SmallVector<const BlockDeclRefExpr *, 8> ByRefDeclRefs;
+    llvm::SmallVector<const BlockDeclRefExpr *, 8> DeclRefs;
 
     BlockInfo(const llvm::Type *blt, const char *n)
       : BlockLiteralTy(blt), Name(n) {
@@ -228,7 +217,8 @@ public:
   llvm::Value *getBlockObjectDispose();
   void BuildBlockRelease(llvm::Value *DeclPtr, int flag = BLOCK_FIELD_IS_BYREF);
 
-  bool BlockRequiresCopying(QualType Ty);
+  bool BlockRequiresCopying(QualType Ty)
+    { return getContext().BlockRequiresCopying(Ty); }
 };
 
 }  // end namespace CodeGen

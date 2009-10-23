@@ -428,7 +428,7 @@ void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS) {
         return;
       }
 
-      if (II->getName()[0] == 's') {
+      if (II->getNameStart()[0] == 's') {
         DS.setPropertyAttributes(ObjCDeclSpec::DQ_PR_setter);
         DS.setSetterName(Tok.getIdentifierInfo());
         ConsumeToken();  // consume method name
@@ -1371,8 +1371,11 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDefinition() {
                                         "parsing Objective-C method");
 
   // parse optional ';'
-  if (Tok.is(tok::semi))
+  if (Tok.is(tok::semi)) {
+    if (ObjCImpDecl)
+      Diag(Tok, diag::warn_semicolon_before_method_nody);
     ConsumeToken();
+  }
 
   // We should have an opening brace now.
   if (Tok.isNot(tok::l_brace)) {

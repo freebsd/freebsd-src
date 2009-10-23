@@ -400,6 +400,10 @@ namespace {
     /// instantiating it.
     Decl *TransformDefinition(Decl *D);
 
+    /// \bried Transform the first qualifier within a scope by instantiating the
+    /// declaration.
+    NamedDecl *TransformFirstQualifierInScope(NamedDecl *D, SourceLocation Loc);
+      
     /// \brief Rebuild the exception declaration and register the declaration
     /// as an instantiated local.
     VarDecl *RebuildExceptionDecl(VarDecl *ExceptionDecl, QualType T,
@@ -416,7 +420,8 @@ namespace {
 
     /// \brief Transforms a template type parameter type by performing
     /// substitution of the corresponding template type argument.
-    QualType TransformTemplateTypeParmType(const TemplateTypeParmType *T);
+    QualType TransformTemplateTypeParmType(TypeLocBuilder &TLB,
+                                           TemplateTypeParmTypeLoc TL);
   };
 }
 
@@ -455,6 +460,31 @@ Decl *TemplateInstantiator::TransformDefinition(Decl *D) {
 
   getSema().CurrentInstantiationScope->InstantiatedLocal(D, Inst);
   return Inst;
+}
+
+NamedDecl *
+TemplateInstantiator::TransformFirstQualifierInScope(NamedDecl *D, 
+                                                     SourceLocation Loc) {
+  // If the first part of the nested-name-specifier was a template type 
+  // parameter, instantiate that type parameter down to a tag type.
+  if (TemplateTypeParmDecl *TTPD = dyn_cast_or_null<TemplateTypeParmDecl>(D)) {
+    const TemplateTypeParmType *TTP 
+      = cast<TemplateTypeParmType>(getSema().Context.getTypeDeclType(TTPD));
+    if (TTP->getDepth() < TemplateArgs.getNumLevels()) {
+      QualType T = TemplateArgs(TTP->getDepth(), TTP->getIndex()).getAsType();
+      if (T.isNull())
+        return cast_or_null<NamedDecl>(TransformDecl(D));
+      
+      if (const TagType *Tag = T->getAs<TagType>())
+        return Tag->getDecl();
+      
+      // The resulting type is not a tag; complain.
+      getSema().Diag(Loc, diag::err_nested_name_spec_non_tag) << T;
+      return 0;
+    }
+  }
+  
+  return cast_or_null<NamedDecl>(TransformDecl(D));
 }
 
 VarDecl *
@@ -596,8 +626,9 @@ TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E) {
 }
 
 QualType
-TemplateInstantiator::TransformTemplateTypeParmType(
-                                              const TemplateTypeParmType *T) {
+TemplateInstantiator::TransformTemplateTypeParmType(TypeLocBuilder &TLB,
+                                                TemplateTypeParmTypeLoc TL) {
+  TemplateTypeParmType *T = TL.getTypePtr();
   if (T->getDepth() < TemplateArgs.getNumLevels()) {
     // Replace the template type parameter with its corresponding
     // template argument.
@@ -606,25 +637,42 @@ TemplateInstantiator::TransformTemplateTypeParmType(
     // because we are performing instantiation from explicitly-specified
     // template arguments in a function template class, but there were some
     // arguments left unspecified.
-    if (!TemplateArgs.hasTemplateArgument(T->getDepth(), T->getIndex()))
-      return QualType(T, 0);
+    if (!TemplateArgs.hasTemplateArgument(T->getDepth(), T->getIndex())) {
+      TemplateTypeParmTypeLoc NewTL
+        = TLB.push<TemplateTypeParmTypeLoc>(TL.getType());
+      NewTL.setNameLoc(TL.getNameLoc());
+      return TL.getType();
+    }
 
     assert(TemplateArgs(T->getDepth(), T->getIndex()).getKind()
              == TemplateArgument::Type &&
            "Template argument kind mismatch");
 
-    return TemplateArgs(T->getDepth(), T->getIndex()).getAsType();
+    QualType Replacement
+      = TemplateArgs(T->getDepth(), T->getIndex()).getAsType();
+
+    // TODO: only do this uniquing once, at the start of instantiation.
+    QualType Result
+      = getSema().Context.getSubstTemplateTypeParmType(T, Replacement);
+    SubstTemplateTypeParmTypeLoc NewTL
+      = TLB.push<SubstTemplateTypeParmTypeLoc>(Result);
+    NewTL.setNameLoc(TL.getNameLoc());
+    return Result;
   }
 
   // The template type parameter comes from an inner template (e.g.,
   // the template parameter list of a member template inside the
   // template we are instantiating). Create a new template type
   // parameter with the template "level" reduced by one.
-  return getSema().Context.getTemplateTypeParmType(
-                                  T->getDepth() - TemplateArgs.getNumLevels(),
-                                                   T->getIndex(),
-                                                   T->isParameterPack(),
-                                                   T->getName());
+  QualType Result
+    = getSema().Context.getTemplateTypeParmType(T->getDepth()
+                                                 - TemplateArgs.getNumLevels(),
+                                                T->getIndex(),
+                                                T->isParameterPack(),
+                                                T->getName());
+  TemplateTypeParmTypeLoc NewTL = TLB.push<TemplateTypeParmTypeLoc>(Result);
+  NewTL.setNameLoc(TL.getNameLoc());
+  return Result;
 }
 
 /// \brief Perform substitution on the type T with a given set of template
@@ -654,6 +702,22 @@ TemplateInstantiator::TransformTemplateTypeParmType(
 ///
 /// \returns If the instantiation succeeds, the instantiated
 /// type. Otherwise, produces diagnostics and returns a NULL type.
+DeclaratorInfo *Sema::SubstType(DeclaratorInfo *T,
+                                const MultiLevelTemplateArgumentList &Args,
+                                SourceLocation Loc,
+                                DeclarationName Entity) {
+  assert(!ActiveTemplateInstantiations.empty() &&
+         "Cannot perform an instantiation without some context on the "
+         "instantiation stack");
+  
+  if (!T->getType()->isDependentType())
+    return T;
+
+  TemplateInstantiator Instantiator(*this, Args, Loc, Entity);
+  return Instantiator.TransformType(T);
+}
+
+/// Deprecated form of the above.
 QualType Sema::SubstType(QualType T,
                          const MultiLevelTemplateArgumentList &TemplateArgs,
                          SourceLocation Loc, DeclarationName Entity) {
@@ -769,6 +833,13 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   }
   Pattern = PatternDef;
 
+  // \brief Record the point of instantiation.
+  if (MemberSpecializationInfo *MSInfo 
+        = Instantiation->getMemberSpecializationInfo()) {
+    MSInfo->setTemplateSpecializationKind(TSK);
+    MSInfo->setPointOfInstantiation(PointOfInstantiation);
+  }
+  
   InstantiatingTemplate Inst(*this, PointOfInstantiation, Instantiation);
   if (Inst)
     return true;
@@ -1007,7 +1078,7 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
               TSK_ExplicitSpecialization)
           continue;
         
-        Function->setTemplateSpecializationKind(TSK);
+        Function->setTemplateSpecializationKind(TSK, PointOfInstantiation);
       }
       
       if (!Function->getBody() && TSK == TSK_ExplicitInstantiationDefinition)
@@ -1018,7 +1089,7 @@ Sema::InstantiateClassMembers(SourceLocation PointOfInstantiation,
         if (Var->getTemplateSpecializationKind() == TSK_ExplicitSpecialization)
           continue;
         
-        Var->setTemplateSpecializationKind(TSK);
+        Var->setTemplateSpecializationKind(TSK, PointOfInstantiation);
         
         if (TSK == TSK_ExplicitInstantiationDefinition)
           InstantiateStaticDataMemberDefinition(PointOfInstantiation, Var);

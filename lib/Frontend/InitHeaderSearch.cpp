@@ -369,6 +369,12 @@ void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
                                       "x86_64-unknown-linux-gnu",
                                       "x86_64-unknown-linux-gnu",
                                       triple);
+          // Gentoo x86 2009.1 stable
+          AddGnuCPlusPlusIncludePaths(
+             "/usr/lib/gcc/i686-pc-linux-gnu/4.3.4/include/g++-v4",
+             "i686-pc-linux-gnu",
+             "i686-pc-linux-gnu",
+             triple);
           // Gentoo x86 2009.0 stable
           AddGnuCPlusPlusIncludePaths(
              "/usr/lib/gcc/i686-pc-linux-gnu/4.3.2/include/g++-v4",
@@ -386,6 +392,11 @@ void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
                                       "i486-pc-linux-gnu",
                                       "i486-pc-linux-gnu",
                                       triple);
+          // Ubuntu 9.04
+          AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3",
+                                      "i486-linux-gnu",
+                                      "i486-linux-gnu",
+                                      triple);
           // Gentoo amd64 stable
           AddGnuCPlusPlusIncludePaths(
              "/usr/lib/gcc/x86_64-pc-linux-gnu/4.1.2/include/g++-v4",
@@ -400,6 +411,8 @@ void InitHeaderSearch::AddDefaultSystemIncludePaths(const LangOptions &Lang,
           AddPath("/usr/include/c++/4.2", System, true, false, false);
           break;
         case llvm::Triple::Solaris:
+          // Solaris - Fall though..
+        case llvm::Triple::AuroraUX:
           // AuroraUX
           AddGnuCPlusPlusIncludePaths("/opt/gcc4/include/c++/4.2.4",
                                       "i386-pc-solaris2.11",

@@ -1399,7 +1399,27 @@ public:
     CK_IntegralToPointer,
     
     /// CK_PointerToIntegral - Pointer to integral
-    CK_PointerToIntegral
+    CK_PointerToIntegral,
+    
+    /// CK_ToVoid - Cast to void.
+    CK_ToVoid,
+    
+    /// CK_VectorSplat - Casting from an integer/floating type to an extended
+    /// vector type with the same element type as the src type. Splats the 
+    /// src expression into the destination expression.
+    CK_VectorSplat,
+    
+    /// CK_IntegralCast - Casting between integral types of different size.
+    CK_IntegralCast,
+
+    /// CK_IntegralToFloating - Integral to floating point.
+    CK_IntegralToFloating,
+    
+    /// CK_FloatingToIntegral - Floating point to integral.
+    CK_FloatingToIntegral,
+    
+    /// CK_FloatingCast - Casting between floating types of different size.
+    CK_FloatingCast
   };
 
 private:
@@ -1665,7 +1685,8 @@ public:
   /// predicates to categorize the respective opcodes.
   bool isMultiplicativeOp() const { return Opc >= Mul && Opc <= Rem; }
   bool isAdditiveOp() const { return Opc == Add || Opc == Sub; }
-  bool isShiftOp() const { return Opc == Shl || Opc == Shr; }
+  static bool isShiftOp(Opcode Opc) { return Opc == Shl || Opc == Shr; }
+  bool isShiftOp() const { return isShiftOp(Opc); }
   bool isBitwiseOp() const { return Opc >= And && Opc <= Or; }
 
   static bool isRelationalOp(Opcode Opc) { return Opc >= LT && Opc <= GE; }

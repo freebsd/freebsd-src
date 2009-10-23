@@ -20,8 +20,9 @@
 #include "clang/Lex/PTHManager.h"
 #include "clang/Lex/Token.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <sys/stat.h>
 using namespace clang;
@@ -95,14 +96,6 @@ LexNextToken:
   //===--------------------------------------==//
   // Process the token.
   //===--------------------------------------==//
-#if 0
-  SourceManager& SM = PP->getSourceManager();
-  llvm::errs() << SM.getFileEntryForID(FileID)->getName()
-    << ':' << SM.getLogicalLineNumber(Tok.getLocation())
-    << ':' << SM.getLogicalColumnNumber(Tok.getLocation())
-    << '\n';
-#endif
-
   if (TKind == tok::eof) {
     // Save the end-of-file token.
     EofToken = Tok;
@@ -308,7 +301,7 @@ public:
   typedef std::pair<unsigned char, const char*> internal_key_type;
 
   static unsigned ComputeHash(internal_key_type x) {
-    return BernsteinHash(x.second);
+    return llvm::HashString(x.second);
   }
 
   static std::pair<unsigned, unsigned>
@@ -363,7 +356,7 @@ public:
   }
 
   static unsigned ComputeHash(const internal_key_type& a) {
-    return BernsteinHash(a.first, a.second);
+    return llvm::HashString(llvm::StringRef(a.first, a.second));
   }
 
   // This hopefully will just get inlined and removed by the optimizer.
@@ -562,7 +555,7 @@ IdentifierInfo* PTHManager::LazilyCreateIdentifierInfo(unsigned PersistentID) {
 
   // Store the new IdentifierInfo in the cache.
   PerIDCache[PersistentID] = II;
-  assert(II->getName() && II->getName()[0] != '\0');
+  assert(II->getNameStart() && II->getNameStart()[0] != '\0');
   return II;
 }
 
@@ -679,7 +672,8 @@ public:
     CacheTy::iterator I = Cache.find(path);
 
     // If we don't get a hit in the PTH file just forward to 'stat'.
-    if (I == Cache.end()) return ::stat(path, buf);
+    if (I == Cache.end()) 
+      return StatSysCallCache::stat(path, buf);
 
     const PTHStatData& Data = *I;
 

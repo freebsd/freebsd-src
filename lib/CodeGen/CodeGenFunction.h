@@ -34,6 +34,7 @@ namespace llvm {
   class LLVMContext;
   class Module;
   class SwitchInst;
+  class Twine;
   class Value;
 }
 
@@ -355,6 +356,7 @@ public:
   void BlockForwardSelf();
   llvm::Value *LoadBlockStruct();
 
+  uint64_t AllocateBlockDecl(const BlockDeclRefExpr *E);
   llvm::Value *GetAddrOfBlockDecl(const BlockDeclRefExpr *E);
   const llvm::Type *BuildByRefType(const ValueDecl *D);
 
@@ -508,7 +510,7 @@ public:
   /// CreateTempAlloca - This creates a alloca and inserts it into the entry
   /// block.
   llvm::AllocaInst *CreateTempAlloca(const llvm::Type *Ty,
-                                     const char *Name = "tmp");
+                                     const llvm::Twine &Name = "tmp");
 
   /// EvaluateExprAsBool - Perform the usual unary conversions on the specified
   /// expression and compare the result against zero, returning an Int1Ty value.
@@ -816,7 +818,9 @@ public:
   LValue EmitCompoundLiteralLValue(const CompoundLiteralExpr *E);
   LValue EmitConditionalOperatorLValue(const ConditionalOperator *E);
   LValue EmitCastLValue(const CastExpr *E);
-
+  LValue EmitNullInitializationLValue(const CXXZeroInitValueExpr *E);
+  LValue EmitPointerToDataMemberLValue(const QualifiedDeclRefExpr *E);
+  
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
                               const ObjCIvarDecl *Ivar);
   LValue EmitLValueForField(llvm::Value* Base, FieldDecl* Field,
@@ -841,7 +845,8 @@ public:
   LValue EmitObjCKVCRefLValue(const ObjCImplicitSetterGetterRefExpr *E);
   LValue EmitObjCSuperExprLValue(const ObjCSuperExpr *E);
   LValue EmitStmtExprLValue(const StmtExpr *E);
-
+  LValue EmitPointerToDataMemberBinaryExpr(const BinaryOperator *E);
+  
   //===--------------------------------------------------------------------===//
   //                         Scalar Expression Emission
   //===--------------------------------------------------------------------===//

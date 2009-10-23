@@ -448,7 +448,7 @@ public:
   //
   QualType adjustParameterType(QualType T);
   QualType ConvertDeclSpecToType(const DeclSpec &DS, SourceLocation DeclLoc,
-                                 bool &IsInvalid, QualType &SourceTy);
+                                 bool &IsInvalid);
   void ProcessTypeAttributeList(QualType &Result, const AttributeList *AL);
   QualType BuildPointerType(QualType T, unsigned Quals,
                             SourceLocation Loc, DeclarationName Entity);
@@ -908,6 +908,7 @@ public:
                            bool IsAssignmentOperator = false,
                            unsigned NumContextualBoolArguments = 0);
   void AddBuiltinOperatorCandidates(OverloadedOperatorKind Op,
+                                    SourceLocation OpLoc,
                                     Expr **Args, unsigned NumArgs,
                                     OverloadCandidateSet& CandidateSet);
   void AddArgumentDependentLookupCandidates(DeclarationName Name,
@@ -929,7 +930,7 @@ public:
 
   FunctionDecl *ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
                                                    bool Complain);
-  void FixOverloadedFunctionReference(Expr *E, FunctionDecl *Fn);
+  Expr *FixOverloadedFunctionReference(Expr *E, FunctionDecl *Fn);
 
   void AddOverloadedCallCandidates(NamedDecl *Callee,
                                    DeclarationName &UnqualifiedName,
@@ -2108,6 +2109,15 @@ public:
                                bool HasTrailingLParen);
 
   virtual OwningExprResult
+  ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
+                               SourceLocation OpLoc,
+                               tok::TokenKind OpKind,
+                               SourceRange TypeRange,
+                               TypeTy *Type,
+                               const CXXScopeSpec &SS,
+                               bool HasTrailingLParen);
+    
+  virtual OwningExprResult
   ActOnOverloadedOperatorReferenceExpr(Scope *S, ExprArg Base,
                                        SourceLocation OpLoc,
                                        tok::TokenKind OpKind,
@@ -2343,6 +2353,10 @@ public:
                                  FunctionDecl::StorageClass& SC);
   DeclPtrTy ActOnConversionDeclarator(CXXConversionDecl *Conversion);
 
+  bool isImplicitMemberReference(const CXXScopeSpec *SS, NamedDecl *D,
+                                 SourceLocation NameLoc, QualType &ThisType,
+                                 QualType &MemberType);
+  
   //===--------------------------------------------------------------------===//
   // C++ Derived Classes
   //
@@ -2515,14 +2529,17 @@ public:
                                             DeclSpec::TST TagSpec,
                                             SourceLocation TagLoc);
 
-  OwningExprResult BuildTemplateIdExpr(TemplateName Template,
+  OwningExprResult BuildTemplateIdExpr(NestedNameSpecifier *Qualifier,
+                                       SourceRange QualifierRange,
+                                       TemplateName Template,
                                        SourceLocation TemplateNameLoc,
                                        SourceLocation LAngleLoc,
                                        const TemplateArgument *TemplateArgs,
                                        unsigned NumTemplateArgs,
                                        SourceLocation RAngleLoc);
 
-  virtual OwningExprResult ActOnTemplateIdExpr(TemplateTy Template,
+  virtual OwningExprResult ActOnTemplateIdExpr(const CXXScopeSpec &SS,
+                                               TemplateTy Template,
                                                SourceLocation TemplateNameLoc,
                                                SourceLocation LAngleLoc,
                                                ASTTemplateArgsPtr TemplateArgs,
@@ -3143,6 +3160,10 @@ public:
 
   void PerformPendingImplicitInstantiations();
 
+  DeclaratorInfo *SubstType(DeclaratorInfo *T,
+                            const MultiLevelTemplateArgumentList &TemplateArgs,
+                            SourceLocation Loc, DeclarationName Entity);
+
   QualType SubstType(QualType T,
                      const MultiLevelTemplateArgumentList &TemplateArgs,
                      SourceLocation Loc, DeclarationName Entity);
@@ -3197,11 +3218,13 @@ public:
 
   void InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
                                      FunctionDecl *Function,
-                                     bool Recursive = false);
+                                     bool Recursive = false,
+                                     bool DefinitionRequired = false);
   void InstantiateStaticDataMemberDefinition(
                                      SourceLocation PointOfInstantiation,
                                      VarDecl *Var,
-                                     bool Recursive = false);
+                                     bool Recursive = false,
+                                     bool DefinitionRequired = false);
 
   void InstantiateMemInitializers(CXXConstructorDecl *New,
                                   const CXXConstructorDecl *Tmpl,
@@ -3404,8 +3427,7 @@ public:
   /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit
   /// cast.  If there is already an implicit cast, merge into the existing one.
   /// If isLvalue, the result of the cast is an lvalue.
-  void ImpCastExprToType(Expr *&Expr, QualType Type, 
-                         CastExpr::CastKind Kind = CastExpr::CK_Unknown,
+  void ImpCastExprToType(Expr *&Expr, QualType Type, CastExpr::CastKind Kind,
                          bool isLvalue = false);
 
   // UsualUnaryConversions - promotes integers (C99 6.3.1.1p2) and converts
@@ -3550,6 +3572,10 @@ public:
   bool PerformImplicitConversion(Expr *&From, QualType ToType,
                                  const StandardConversionSequence& SCS,
                                  const char *Flavor);
+  
+  bool BuildCXXDerivedToBaseExpr(Expr *&From, CastExpr::CastKind CastKind,
+                                 const ImplicitConversionSequence& ICS,
+                                 const char *Flavor);
 
   /// the following "Check" methods will return a valid/converted QualType
   /// or a null QualType (indicating an error diagnostic was issued).
@@ -3659,14 +3685,16 @@ public:
   // Since vectors are an extension, there are no C standard reference for this.
   // We allow casting between vectors and integer datatypes of the same size.
   // returns true if the cast is invalid
-  bool CheckVectorCast(SourceRange R, QualType VectorTy, QualType Ty);
+  bool CheckVectorCast(SourceRange R, QualType VectorTy, QualType Ty,
+                       CastExpr::CastKind &Kind);
 
   // CheckExtVectorCast - check type constraints for extended vectors.
   // Since vectors are an extension, there are no C standard reference for this.
   // We allow casting between vectors and integer datatypes of the same size,
   // or vectors and the element type of that vector.
   // returns true if the cast is invalid
-  bool CheckExtVectorCast(SourceRange R, QualType VectorTy, QualType Ty);
+  bool CheckExtVectorCast(SourceRange R, QualType VectorTy, Expr *&CastExpr,
+                          CastExpr::CastKind &Kind);
 
   /// CXXCheckCStyleCast - Check constraints of a C-style or function-style
   /// cast under C++ semantics.
@@ -3726,22 +3754,6 @@ public:
   bool VerifyBitField(SourceLocation FieldLoc, IdentifierInfo *FieldName,
                       QualType FieldTy, const Expr *BitWidth,
                       bool *ZeroWidth = 0);
-
-  /// adjustFunctionParamType - Converts the type of a function parameter to a
-  // type that can be passed as an argument type to
-  /// ASTContext::getFunctionType.
-  ///
-  /// C++ [dcl.fct]p3: "...Any cv-qualifier modifying a parameter type is
-  /// deleted. Such cv-qualifiers affect only the definition of the parameter 
-  /// within the body of the function; they do not affect the function type. 
-  QualType adjustFunctionParamType(QualType T) const {
-    if (!Context.getLangOptions().CPlusPlus)
-      return T;
-    return 
-      T->isDependentType() ? T.getUnqualifiedType()
-                            : T.getDesugaredType().getUnqualifiedType();
-    
-  }
 
   /// \name Code completion
   //@{

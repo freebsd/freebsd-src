@@ -22,12 +22,27 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/ASTUnit.h"
+#include "llvm/Config/config.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/System/Path.h"
+#include "llvm/System/Program.h"
+#include "llvm/Support/raw_ostream.h"
+
 #include <cstdio>
+#include <vector>
+
+#ifdef LLVM_ON_WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
 using namespace clang;
 using namespace idx;
 
 namespace {
-
 static enum CXCursorKind TranslateDeclRefExpr(DeclRefExpr *DRE) 
 {
   NamedDecl *D = DRE->getDecl();
@@ -76,6 +91,14 @@ public:
   }
 };
 #endif
+  
+/// IgnoreDiagnosticsClient - A DiagnosticsClient that just ignores emitted
+/// warnings and errors.
+class VISIBILITY_HIDDEN IgnoreDiagnosticsClient : public DiagnosticClient {
+public:
+  virtual ~IgnoreDiagnosticsClient() {}
+  virtual void HandleDiagnostic(Diagnostic::Level, const DiagnosticInfo &) {}  
+};
 
 // Translation Unit Visitor.
 class TUVisitor : public DeclVisitor<TUVisitor> {
@@ -83,14 +106,24 @@ class TUVisitor : public DeclVisitor<TUVisitor> {
   CXTranslationUnitIterator Callback;
   CXClientData CData;
   
+  // MaxPCHLevel - the maximum PCH level of declarations that we will pass on
+  // to the visitor. Declarations with a PCH level greater than this value will
+  // be suppressed.
+  unsigned MaxPCHLevel;
+  
   void Call(enum CXCursorKind CK, NamedDecl *ND) {
+    // Filter any declarations that have a PCH level greater than what we allow.
+    if (ND->getPCHLevel() > MaxPCHLevel)
+      return;
+    
     CXCursor C = { CK, ND, 0 };
     Callback(TUnit, C, CData);
   }
 public:
   TUVisitor(CXTranslationUnit CTU, 
-            CXTranslationUnitIterator cback, CXClientData D) : 
-    TUnit(CTU), Callback(cback), CData(D) {}
+            CXTranslationUnitIterator cback, CXClientData D,
+            unsigned MaxPCHLevel) : 
+    TUnit(CTU), Callback(cback), CData(D), MaxPCHLevel(MaxPCHLevel) {}
   
   void VisitTranslationUnitDecl(TranslationUnitDecl *D) {
     VisitDeclContext(dyn_cast<DeclContext>(D));
@@ -149,16 +182,27 @@ class CDeclVisitor : public DeclVisitor<CDeclVisitor> {
   CXDeclIterator Callback;
   CXClientData CData;
   
+  // MaxPCHLevel - the maximum PCH level of declarations that we will pass on
+  // to the visitor. Declarations with a PCH level greater than this value will
+  // be suppressed.
+  unsigned MaxPCHLevel;
+  
   void Call(enum CXCursorKind CK, NamedDecl *ND) {
     // Disable the callback when the context is equal to the visiting decl.
     if (CDecl == ND && !clang_isReference(CK))
       return;
+    
+    // Filter any declarations that have a PCH level greater than what we allow.
+    if (ND->getPCHLevel() > MaxPCHLevel)
+      return;
+    
     CXCursor C = { CK, ND, 0 };
     Callback(CDecl, C, CData);
   }
 public:
-  CDeclVisitor(CXDecl C, CXDeclIterator cback, CXClientData D) : 
-    CDecl(C), Callback(cback), CData(D) {}
+  CDeclVisitor(CXDecl C, CXDeclIterator cback, CXClientData D, 
+               unsigned MaxPCHLevel) : 
+    CDecl(C), Callback(cback), CData(D), MaxPCHLevel(MaxPCHLevel) {}
     
   void VisitObjCCategoryDecl(ObjCCategoryDecl *ND) {
     // Issue callbacks for the containing class.
@@ -237,20 +281,87 @@ public:
   }
 };
 
+class CIndexer : public Indexer {
+public:  
+  explicit CIndexer(Program *prog) : Indexer(*prog), 
+                                     OnlyLocalDecls(false), 
+                                     DisplayDiagnostics(false) {}
+
+  virtual ~CIndexer() { delete &getProgram(); }
+
+  /// \brief Whether we only want to see "local" declarations (that did not
+  /// come from a previous precompiled header). If false, we want to see all
+  /// declarations.
+  bool getOnlyLocalDecls() const { return OnlyLocalDecls; }
+  void setOnlyLocalDecls(bool Local = true) { OnlyLocalDecls = Local; }
+
+  void setDisplayDiagnostics(bool Display = true) { 
+    DisplayDiagnostics = Display;
+  }
+  bool getDisplayDiagnostics() const { return DisplayDiagnostics; }
+  
+  /// \brief Get the path of the clang binary.
+  const llvm::sys::Path& getClangPath();
+private:
+  bool OnlyLocalDecls;
+  bool DisplayDiagnostics;
+  
+  llvm::sys::Path ClangPath;
+};
+
+const llvm::sys::Path& CIndexer::getClangPath() {
+  // Did we already compute the path?
+  if (!ClangPath.empty())
+    return ClangPath;
+
+  // Find the location where this library lives (libCIndex.dylib).
+#ifdef LLVM_ON_WIN32
+  MEMORY_BASIC_INFORMATION mbi;
+  char path[MAX_PATH];
+  VirtualQuery((void *)(uintptr_t)clang_createTranslationUnit, &mbi,
+               sizeof(mbi));
+  GetModuleFileNameA((HINSTANCE)mbi.AllocationBase, path, MAX_PATH);
+
+  llvm::sys::Path CIndexPath(path);
+#else
+  // This silly cast below avoids a C++ warning.
+  Dl_info info;
+  if (dladdr((void *)(uintptr_t)clang_createTranslationUnit, &info) == 0)
+    assert(0 && "Call to dladdr() failed");
+
+  llvm::sys::Path CIndexPath(info.dli_fname);
+#endif
+
+  // We now have the CIndex directory, locate clang relative to it.
+  CIndexPath.eraseComponent();
+  CIndexPath.eraseComponent();
+  CIndexPath.appendComponent("bin");
+  CIndexPath.appendComponent("clang");
+
+  // Cache our result.
+  ClangPath = CIndexPath;
+  return ClangPath;
+}
+
 }
 
 extern "C" {
 
-CXIndex clang_createIndex() 
-{
-  // FIXME: Program is leaked.
-  return new Indexer(*new Program());
+CXIndex clang_createIndex(int excludeDeclarationsFromPCH,
+                          int displayDiagnostics) 
+{  
+  CIndexer *CIdxr = new CIndexer(new Program());
+  if (excludeDeclarationsFromPCH)
+    CIdxr->setOnlyLocalDecls();
+  if (displayDiagnostics)
+    CIdxr->setDisplayDiagnostics();
+  return CIdxr;
 }
 
 void clang_disposeIndex(CXIndex CIdx)
 {
   assert(CIdx && "Passed null CXIndex");
-  delete static_cast<Indexer *>(CIdx);
+  delete static_cast<CIndexer *>(CIdx);
 }
 
 // FIXME: need to pass back error info.
@@ -258,12 +369,102 @@ CXTranslationUnit clang_createTranslationUnit(
   CXIndex CIdx, const char *ast_filename) 
 {
   assert(CIdx && "Passed null CXIndex");
-  Indexer *CXXIdx = static_cast<Indexer *>(CIdx);
+  CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
   std::string astName(ast_filename);
   std::string ErrMsg;
   
-  return ASTUnit::LoadFromPCHFile(astName, CXXIdx->getDiagnostics(),
-                                  CXXIdx->getFileManager(), &ErrMsg);
+  CXTranslationUnit TU =
+    ASTUnit::LoadFromPCHFile(astName, &ErrMsg, 
+                           CXXIdx->getDisplayDiagnostics() ? 
+                           NULL : new IgnoreDiagnosticsClient(),
+                           CXXIdx->getOnlyLocalDecls(),
+                           /* UseBumpAllocator = */ true);
+  
+  if (!ErrMsg.empty()) {
+    (llvm::errs() << "clang_createTranslationUnit: " << ErrMsg 
+                  << '\n').flush();
+  }
+  
+  return TU;
+}
+
+CXTranslationUnit clang_createTranslationUnitFromSourceFile(
+  CXIndex CIdx, 
+  const char *source_filename,
+  int num_command_line_args, const char **command_line_args)  {
+  assert(CIdx && "Passed null CXIndex");
+  CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
+
+  // Build up the arguments for invoking 'clang'.
+  std::vector<const char *> argv;
+  
+  // First add the complete path to the 'clang' executable.
+  llvm::sys::Path ClangPath = static_cast<CIndexer *>(CIdx)->getClangPath();
+  argv.push_back(ClangPath.c_str());
+  
+  // Add the '-emit-ast' option as our execution mode for 'clang'.
+  argv.push_back("-emit-ast");
+  
+  // The 'source_filename' argument is optional.  If the caller does not
+  // specify it then it is assumed that the source file is specified
+  // in the actual argument list.
+  if (source_filename)  
+    argv.push_back(source_filename);  
+
+  // Generate a temporary name for the AST file.
+  argv.push_back("-o");
+  char astTmpFile[L_tmpnam];
+  argv.push_back(tmpnam(astTmpFile));
+
+  // Process the compiler options, stripping off '-o', '-c', '-fsyntax-only'.
+  for (int i = 0; i < num_command_line_args; ++i)
+    if (const char *arg = command_line_args[i]) {
+      if (strcmp(arg, "-o") == 0) {
+        ++i; // Also skip the matching argument.
+        continue;
+      }
+      if (strcmp(arg, "-emit-ast") == 0 ||
+          strcmp(arg, "-c") == 0 ||
+          strcmp(arg, "-fsyntax-only") == 0) {
+        continue;
+      }
+
+      // Keep the argument.
+      argv.push_back(arg);
+    }
+    
+  // Add the null terminator.
+  argv.push_back(NULL);
+
+#ifndef LLVM_ON_WIN32
+  llvm::sys::Path DevNull("/dev/null");
+  std::string ErrMsg;
+  const llvm::sys::Path *Redirects[] = { &DevNull, &DevNull, &DevNull, NULL };
+  llvm::sys::Program::ExecuteAndWait(ClangPath, &argv[0], /* env */ NULL,
+      /* redirects */ !CXXIdx->getDisplayDiagnostics() ? &Redirects[0] : NULL,
+      /* secondsToWait */ 0, /* memoryLimits */ 0, &ErrMsg);
+  
+  if (!ErrMsg.empty()) {
+    llvm::errs() << "clang_createTranslationUnitFromSourceFile: " << ErrMsg 
+      << '\n' << "Arguments: \n";
+    for (std::vector<const char*>::iterator I = argv.begin(), E = argv.end();
+         I!=E; ++I)
+      if (*I) llvm::errs() << ' ' << *I << '\n';
+     
+    (llvm::errs() << '\n').flush();
+  }
+#else
+  // FIXME: I don't know what is the equivalent '/dev/null' redirect for
+  // Windows for this API.
+  llvm::sys::Program::ExecuteAndWait(ClangPath, &argv[0]);
+#endif
+
+  // Finally, we create the translation unit from the ast file.
+  ASTUnit *ATU = static_cast<ASTUnit *>(
+                   clang_createTranslationUnit(CIdx, astTmpFile));
+  if (ATU)
+    ATU->unlinkTemporaryFile();
+  return ATU;
 }
 
 void clang_disposeTranslationUnit(
@@ -272,7 +473,7 @@ void clang_disposeTranslationUnit(
   assert(CTUnit && "Passed null CXTranslationUnit");
   delete static_cast<ASTUnit *>(CTUnit);
 }
-
+  
 const char *clang_getTranslationUnitSpelling(CXTranslationUnit CTUnit)
 {
   assert(CTUnit && "Passed null CXTranslationUnit");
@@ -288,7 +489,8 @@ void clang_loadTranslationUnit(CXTranslationUnit CTUnit,
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(CTUnit);
   ASTContext &Ctx = CXXUnit->getASTContext();
   
-  TUVisitor DVisit(CTUnit, callback, CData);
+  TUVisitor DVisit(CTUnit, callback, CData, 
+                   CXXUnit->getOnlyLocalDecls()? 1 : Decl::MaxPCHLevel);
   DVisit.Visit(Ctx.getTranslationUnitDecl());
 }
 
@@ -298,7 +500,8 @@ void clang_loadDeclaration(CXDecl Dcl,
 {
   assert(Dcl && "Passed null CXDecl");
   
-  CDeclVisitor DVisit(Dcl, callback, CData);
+  CDeclVisitor DVisit(Dcl, callback, CData,
+                      static_cast<Decl *>(Dcl)->getPCHLevel());
   DVisit.Visit(static_cast<Decl *>(Dcl));
 }
 
@@ -349,7 +552,7 @@ const char *clang_getDeclSpelling(CXDecl AnonDecl)
     return OMD->getSelector().getAsString().c_str();
   }    
   if (ND->getIdentifier())
-    return ND->getIdentifier()->getName();
+    return ND->getIdentifier()->getNameStart();
   else 
     return "";
 }
@@ -385,43 +588,38 @@ const char *clang_getCursorSpelling(CXCursor C)
   
   if (clang_isReference(C.kind)) {
     switch (C.kind) {
-      case CXCursor_ObjCSuperClassRef: 
-        {
+      case CXCursor_ObjCSuperClassRef: {
         ObjCInterfaceDecl *OID = dyn_cast<ObjCInterfaceDecl>(ND);
         assert(OID && "clang_getCursorLine(): Missing interface decl");
-        return OID->getSuperClass()->getIdentifier()->getName();
-        }
-      case CXCursor_ObjCClassRef: 
-        {
+        return OID->getSuperClass()->getIdentifier()->getNameStart();
+      }
+      case CXCursor_ObjCClassRef: {
         if (ObjCInterfaceDecl *OID = dyn_cast<ObjCInterfaceDecl>(ND)) {
-          return OID->getIdentifier()->getName();
+          return OID->getIdentifier()->getNameStart();
         }
         ObjCCategoryDecl *OID = dyn_cast<ObjCCategoryDecl>(ND);
         assert(OID && "clang_getCursorLine(): Missing category decl");
-        return OID->getClassInterface()->getIdentifier()->getName();
-        }
-      case CXCursor_ObjCProtocolRef: 
-        {
+        return OID->getClassInterface()->getIdentifier()->getNameStart();
+      }
+      case CXCursor_ObjCProtocolRef: {
         ObjCProtocolDecl *OID = dyn_cast<ObjCProtocolDecl>(ND);
         assert(OID && "clang_getCursorLine(): Missing protocol decl");
-        return OID->getIdentifier()->getName();
-        }
-      case CXCursor_ObjCSelectorRef:
-        {
+        return OID->getIdentifier()->getNameStart();
+      }
+      case CXCursor_ObjCSelectorRef: {
         ObjCMessageExpr *OME = dyn_cast<ObjCMessageExpr>(
                                  static_cast<Stmt *>(C.stmt));
         assert(OME && "clang_getCursorLine(): Missing message expr");
         return OME->getSelector().getAsString().c_str();
-        }
+      }
       case CXCursor_VarRef:
       case CXCursor_FunctionRef:
-      case CXCursor_EnumConstantRef:
-        {
+      case CXCursor_EnumConstantRef: {
         DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
                                  static_cast<Stmt *>(C.stmt));
         assert(DRE && "clang_getCursorLine(): Missing decl ref expr");
-        return DRE->getDecl()->getIdentifier()->getName();
-        }
+        return DRE->getDecl()->getIdentifier()->getNameStart();
+      }
       default:
         return "<not implemented>";
     }
@@ -497,11 +695,25 @@ static enum CXCursorKind TranslateKind(Decl *D) {
 //
 // CXCursor Operations.
 //
+void clang_initCXLookupHint(CXLookupHint *hint) {
+  memset(hint, 0, sizeof(*hint));
+}
+
 CXCursor clang_getCursor(CXTranslationUnit CTUnit, const char *source_name, 
-                         unsigned line, unsigned column)
+                         unsigned line, unsigned column) {
+  return clang_getCursorWithHint(CTUnit, source_name, line, column, NULL);
+}
+  
+CXCursor clang_getCursorWithHint(CXTranslationUnit CTUnit,
+                                 const char *source_name, 
+                                 unsigned line, unsigned column, 
+                                 CXLookupHint *hint)
 {
   assert(CTUnit && "Passed null CXTranslationUnit");
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(CTUnit);
+  
+  // FIXME: Make this better.
+  CXDecl RelativeToDecl = hint ? hint->decl : NULL;
   
   FileManager &FMgr = CXXUnit->getFileManager();
   const FileEntry *File = FMgr.getFile(source_name, 
@@ -513,7 +725,8 @@ CXCursor clang_getCursor(CXTranslationUnit CTUnit, const char *source_name,
   SourceLocation SLoc = 
     CXXUnit->getSourceManager().getLocation(File, line, column);
                                                                 
-  ASTLocation ALoc = ResolveLocationInAST(CXXUnit->getASTContext(), SLoc);
+  ASTLocation ALoc = ResolveLocationInAST(CXXUnit->getASTContext(), SLoc,
+                                      static_cast<NamedDecl *>(RelativeToDecl));
   
   Decl *Dcl = ALoc.getParentDecl();
   if (ALoc.isNamedRef())
@@ -623,8 +836,7 @@ static SourceLocation getLocationFromCursor(CXCursor C,
                                             NamedDecl *ND) {
   if (clang_isReference(C.kind)) {
     switch (C.kind) {
-      case CXCursor_ObjCClassRef: 
-        {
+      case CXCursor_ObjCClassRef: {
         if (isa<ObjCInterfaceDecl>(ND)) {
           // FIXME: This is a hack (storing the parent decl in the stmt slot).
           NamedDecl *parentDecl = static_cast<NamedDecl *>(C.stmt);
@@ -633,56 +845,49 @@ static SourceLocation getLocationFromCursor(CXCursor C,
         ObjCCategoryDecl *OID = dyn_cast<ObjCCategoryDecl>(ND);
         assert(OID && "clang_getCursorLine(): Missing category decl");
         return OID->getClassInterface()->getLocation();
-        }
-      case CXCursor_ObjCSuperClassRef: 
-        {
+      }
+      case CXCursor_ObjCSuperClassRef: {
         ObjCInterfaceDecl *OID = dyn_cast<ObjCInterfaceDecl>(ND);
         assert(OID && "clang_getCursorLine(): Missing interface decl");
         return OID->getSuperClassLoc();
-        }
-      case CXCursor_ObjCProtocolRef: 
-        {
+      }
+      case CXCursor_ObjCProtocolRef: {
         ObjCProtocolDecl *OID = dyn_cast<ObjCProtocolDecl>(ND);
         assert(OID && "clang_getCursorLine(): Missing protocol decl");
         return OID->getLocation();
-        }
-      case CXCursor_ObjCSelectorRef:
-        {
+      }
+      case CXCursor_ObjCSelectorRef: {
         ObjCMessageExpr *OME = dyn_cast<ObjCMessageExpr>(
                                  static_cast<Stmt *>(C.stmt));
         assert(OME && "clang_getCursorLine(): Missing message expr");
         return OME->getLeftLoc(); /* FIXME: should be a range */
-        }
+      }
       case CXCursor_VarRef:
       case CXCursor_FunctionRef:
-      case CXCursor_EnumConstantRef:
-        {
+      case CXCursor_EnumConstantRef: {
         DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(
                                  static_cast<Stmt *>(C.stmt));
         assert(DRE && "clang_getCursorLine(): Missing decl ref expr");
         return DRE->getLocation();
-        }
+      }
       default:
         return SourceLocation();
     }
   } else { // We have a declaration or a definition.
     SourceLocation SLoc;
     switch (ND->getKind()) {
-      case Decl::ObjCInterface: 
-        {
+      case Decl::ObjCInterface: {
         SLoc = dyn_cast<ObjCInterfaceDecl>(ND)->getClassLoc();
         break;
-        }
-      case Decl::ObjCProtocol: 
-        {
+      }
+      case Decl::ObjCProtocol: {
         SLoc = ND->getLocation(); /* FIXME: need to get the name location. */
         break;
-        }
-      default: 
-        {
+      }
+      default: {
         SLoc = ND->getLocation();
         break;
-        }
+      }
     }
     if (SLoc.isInvalid())
       return SourceLocation();
@@ -716,7 +921,18 @@ const char *clang_getCursorSource(CXCursor C)
   SourceManager &SourceMgr = ND->getASTContext().getSourceManager();
   
   SourceLocation SLoc = getLocationFromCursor(C, SourceMgr, ND);
-  return SourceMgr.getBufferName(SLoc);
+  if (SLoc.isFileID())
+    return SourceMgr.getBufferName(SLoc);
+
+  // Retrieve the file in which the macro was instantiated, then provide that
+  // buffer name.
+  // FIXME: Do we want to give specific macro-instantiation information?
+  const llvm::MemoryBuffer *Buffer 
+    = SourceMgr.getBuffer(SourceMgr.getDecomposedSpellingLoc(SLoc).first);
+  if (!Buffer)
+    return 0;
+
+  return Buffer->getBufferIdentifier();
 }
 
 void clang_getDefinitionSpellingAndExtent(CXCursor C, 
