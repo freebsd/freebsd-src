@@ -240,9 +240,7 @@ afd_strategy(struct bio *bp)
     }
     request->dev = dev;
     request->bio = bp;
-    bcopy(ccb, request->u.atapi.ccb,
-	  (atadev->param.config & ATA_PROTO_MASK) == 
-	  ATA_PROTO_ATAPI_12 ? 16 : 12);
+    bcopy(ccb, request->u.atapi.ccb, 16);
     request->data = bp->bio_data;
     request->bytecount = count * fdp->sectorsize;
     request->transfersize = min(request->bytecount, 65534);
