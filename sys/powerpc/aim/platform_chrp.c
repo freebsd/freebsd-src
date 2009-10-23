@@ -239,12 +239,14 @@ chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	rstvec = rstvec_virtbase + reset;
 
 	*rstvec = 4;
+	(void)(*rstvec);
 	powerpc_sync();
 	DELAY(1);
 	*rstvec = 0;
+	(void)(*rstvec);
 	powerpc_sync();
 
-	timeout = 1000;
+	timeout = 10000;
 	while (!pc->pc_awake && timeout--)
 		DELAY(100);
 
