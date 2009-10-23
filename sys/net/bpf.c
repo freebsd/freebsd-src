@@ -2038,7 +2038,6 @@ bpf_drvinit(void *unused)
 	dev = make_dev(&bpf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "bpf");
 	/* For compatibility */
 	make_dev_alias(dev, "bpf0");
-
 }
 
 /*
