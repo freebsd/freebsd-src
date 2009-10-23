@@ -15,9 +15,7 @@
 .include <bsd.own.mk>
 
 # XXX: LLVM PR879 in e_rem_pio2.c
-.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc" && ${MACHINE_ARCH} == "i386"
-CC=	gcc
-.endif
+CC:=${CC:C/cc|clang/gcc/}
 
 .if ${MACHINE_ARCH} == "i386"
 ARCH_SUBDIR= i387

@@ -4,7 +4,7 @@
 MK_SSP=		no
 
 # XXX: broken compiler include paths
-CC=		gcc
+CC:=${CC:C/cc|clang/gcc/}
 
 PROG=		loader.sym
 INTERNALPROG=

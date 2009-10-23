@@ -34,7 +34,7 @@ AFLAGS		?=
 CC		?=	c89
 CFLAGS		?=	-O
 .else
-CC		?=	clang
+CC		?=	cc
 .if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "mips"
 CFLAGS		?=	-O -pipe
 .else

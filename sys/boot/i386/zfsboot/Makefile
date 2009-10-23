@@ -2,9 +2,7 @@
 
 .include <bsd.own.mk>
 
-.if ${MK_CLANG_IS_CC} != "no" && ${CC} == "cc"
-CC=		gcc
-.endif
+CC:=${CC:C/cc|clang/gcc/}
 
 .PATH:		${.CURDIR}/../boot2
 

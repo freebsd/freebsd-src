@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-CC=		gcc
+CC:=${CC:C/cc|clang/gcc/}
 
 FILES=		boot boot1 boot2
 
