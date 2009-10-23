@@ -1767,38 +1767,33 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		break;
 	}
 
-	/* Attempt a retry */
-	if (error == ERESTART || error == 0) {	
-		if (frozen != 0)
-			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
-
-		if (error == ERESTART) {
-			action_string = "Retrying Command";
-			xpt_action(ccb);
-		}
-		
-		if (frozen != 0)
-			cam_release_devq(ccb->ccb_h.path,
-					 relsim_flags,
-					 openings,
-					 timeout,
-					 /*getcount_only*/0);
-	}
-
 	/*
 	 * If we have and error and are booting verbosely, whine
 	 * *unless* this was a non-retryable selection timeout.
 	 */
 	if (error != 0 && bootverbose &&
 	    !(status == CAM_SEL_TIMEOUT && (camflags & CAM_RETRY_SELTO) == 0)) {
-
-
-		if (action_string == NULL)
-			action_string = "Unretryable Error";
 		if (error != ERESTART) {
+			if (action_string == NULL)
+				action_string = "Unretryable Error";
 			xpt_print(ccb->ccb_h.path, "error %d\n", error);
-		}
-		xpt_print(ccb->ccb_h.path, "%s\n", action_string);
+			xpt_print(ccb->ccb_h.path, "%s\n", action_string);
+		} else
+			xpt_print(ccb->ccb_h.path, "Retrying Command\n");
+	}
+
+	/* Attempt a retry */
+	if (error == ERESTART || error == 0) {
+		if (frozen != 0)
+			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
+		if (error == ERESTART)
+			xpt_action(ccb);
+		if (frozen != 0)
+			cam_release_devq(ccb->ccb_h.path,
+					 relsim_flags,
+					 openings,
+					 timeout,
+					 /*getcount_only*/0);
 	}
 
 	return (error);
