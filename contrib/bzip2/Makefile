@@ -15,7 +15,6 @@
 SHELL=/bin/sh
 
 # To assist in cross-compiling
-CC=gcc
 AR=ar
 RANLIB=ranlib
 LDFLAGS=
