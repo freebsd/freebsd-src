@@ -800,7 +800,11 @@ ugen20_tr_submit(struct libusb20_transfer *xfer)
 	if (xfer->flags & LIBUSB20_TRANSFER_DO_CLEAR_STALL) {
 		fsep->flags |= USB_FS_FLAG_CLEAR_STALL;
 	}
-	fsep->timeout = xfer->timeout;
+	/* NOTE: The "fsep->timeout" variable is 16-bit. */
+	if (xfer->timeout > 65535)
+		fsep->timeout = 65535;
+	else
+		fsep->timeout = xfer->timeout;
 
 	temp.ep_index = xfer->trIndex;
 
