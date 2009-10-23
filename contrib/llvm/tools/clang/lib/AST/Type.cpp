@@ -37,18 +37,6 @@ void Type::Destroy(ASTContext& C) {
   C.Deallocate(this);
 }
 
-void ConstantArrayWithExprType::Destroy(ASTContext& C) {
-  // FIXME: destruction of SizeExpr commented out due to resource contention.
-  // SizeExpr->Destroy(C);
-  // See FIXME in SemaDecl.cpp:1536: if we were able to either steal
-  // or clone the SizeExpr there, then here we could freely delete it.
-  // Since we do not know how to steal or clone, we keep a pointer to
-  // a shared resource, but we cannot free it.
-  // (There probably is a trivial solution ... for people knowing clang!).
-  this->~ConstantArrayWithExprType();
-  C.Deallocate(this);
-}
-
 void VariableArrayType::Destroy(ASTContext& C) {
   if (SizeExpr)
     SizeExpr->Destroy(C);
@@ -177,8 +165,6 @@ bool Type::isDerivedType() const {
   case Pointer:
   case VariableArray:
   case ConstantArray:
-  case ConstantArrayWithExpr:
-  case ConstantArrayWithoutExpr:
   case IncompleteArray:
   case FunctionProto:
   case FunctionNoProto:
@@ -642,6 +628,7 @@ bool Type::isSpecifierType() const {
   case TypeOfExpr:
   case TypeOf:
   case TemplateTypeParm:
+  case SubstTemplateTypeParm:
   case TemplateSpecialization:
   case QualifiedName:
   case Typename:
@@ -735,18 +722,6 @@ void ObjCObjectPointerType::Profile(llvm::FoldingSetNodeID &ID) {
     Profile(ID, getPointeeType(), &Protocols[0], getNumProtocols());
   else
     Profile(ID, getPointeeType(), 0, 0);
-}
-
-void ObjCProtocolListType::Profile(llvm::FoldingSetNodeID &ID,
-                                   QualType OIT, ObjCProtocolDecl **protocols,
-                                   unsigned NumProtocols) {
-  ID.AddPointer(OIT.getAsOpaquePtr());
-  for (unsigned i = 0; i != NumProtocols; i++)
-    ID.AddPointer(protocols[i]);
-}
-
-void ObjCProtocolListType::Profile(llvm::FoldingSetNodeID &ID) {
-    Profile(ID, getBaseType(), &Protocols[0], getNumProtocols());
 }
 
 /// LookThroughTypedefs - Return the ultimate type this typedef corresponds to
@@ -1072,10 +1047,10 @@ void LValueReferenceType::getAsStringInternal(std::string &S, const PrintingPoli
 
   // Handle things like 'int (&A)[4];' correctly.
   // FIXME: this should include vectors, but vectors use attributes I guess.
-  if (isa<ArrayType>(getPointeeType()))
+  if (isa<ArrayType>(getPointeeTypeAsWritten()))
     S = '(' + S + ')';
 
-  getPointeeType().getAsStringInternal(S, Policy);
+  getPointeeTypeAsWritten().getAsStringInternal(S, Policy);
 }
 
 void RValueReferenceType::getAsStringInternal(std::string &S, const PrintingPolicy &Policy) const {
@@ -1083,10 +1058,10 @@ void RValueReferenceType::getAsStringInternal(std::string &S, const PrintingPoli
 
   // Handle things like 'int (&&A)[4];' correctly.
   // FIXME: this should include vectors, but vectors use attributes I guess.
-  if (isa<ArrayType>(getPointeeType()))
+  if (isa<ArrayType>(getPointeeTypeAsWritten()))
     S = '(' + S + ')';
 
-  getPointeeType().getAsStringInternal(S, Policy);
+  getPointeeTypeAsWritten().getAsStringInternal(S, Policy);
 }
 
 void MemberPointerType::getAsStringInternal(std::string &S, const PrintingPolicy &Policy) const {
@@ -1109,29 +1084,6 @@ void ConstantArrayType::getAsStringInternal(std::string &S, const PrintingPolicy
   S += ']';
 
   getElementType().getAsStringInternal(S, Policy);
-}
-
-void ConstantArrayWithExprType::getAsStringInternal(std::string &S, const PrintingPolicy &Policy) const {
-  if (Policy.ConstantArraySizeAsWritten) {
-    std::string SStr;
-    llvm::raw_string_ostream s(SStr);
-    getSizeExpr()->printPretty(s, 0, Policy);
-    S += '[';
-    S += s.str();
-    S += ']';
-    getElementType().getAsStringInternal(S, Policy);
-  }
-  else
-    ConstantArrayType::getAsStringInternal(S, Policy);
-}
-
-void ConstantArrayWithoutExprType::getAsStringInternal(std::string &S, const PrintingPolicy &Policy) const {
-  if (Policy.ConstantArraySizeAsWritten) {
-    S += "[]";
-    getElementType().getAsStringInternal(S, Policy);
-  }
-  else
-    ConstantArrayType::getAsStringInternal(S, Policy);
 }
 
 void IncompleteArrayType::getAsStringInternal(std::string &S, const PrintingPolicy &Policy) const {
@@ -1290,7 +1242,7 @@ void FunctionProtoType::getAsStringInternal(std::string &S, const PrintingPolicy
 void TypedefType::getAsStringInternal(std::string &InnerString, const PrintingPolicy &Policy) const {
   if (!InnerString.empty())    // Prefix the basic type, e.g. 'typedefname X'.
     InnerString = ' ' + InnerString;
-  InnerString = getDecl()->getIdentifier()->getName() + InnerString;
+  InnerString = getDecl()->getIdentifier()->getName().str() + InnerString;
 }
 
 void TemplateTypeParmType::getAsStringInternal(std::string &InnerString, const PrintingPolicy &Policy) const {
@@ -1301,7 +1253,11 @@ void TemplateTypeParmType::getAsStringInternal(std::string &InnerString, const P
     InnerString = "type-parameter-" + llvm::utostr_32(Depth) + '-' +
       llvm::utostr_32(Index) + InnerString;
   else
-    InnerString = Name->getName() + InnerString;
+    InnerString = Name->getName().str() + InnerString;
+}
+
+void SubstTemplateTypeParmType::getAsStringInternal(std::string &InnerString, const PrintingPolicy &Policy) const {
+  getReplacementType().getAsStringInternal(InnerString, Policy);
 }
 
 std::string
@@ -1495,25 +1451,6 @@ void ObjCObjectPointerType::getAsStringInternal(std::string &InnerString,
   InnerString = ObjCQIString + InnerString;
 }
 
-void ObjCProtocolListType::getAsStringInternal(std::string &InnerString,
-                                           const PrintingPolicy &Policy) const {
-  if (!InnerString.empty())    // Prefix the basic type, e.g. 'typedefname X'.
-    InnerString = ' ' + InnerString;
-
-  std::string ObjCQIString = getBaseType().getAsString(Policy);
-  ObjCQIString += '<';
-  bool isFirst = true;
-  for (qual_iterator I = qual_begin(), E = qual_end(); I != E; ++I) {
-    if (isFirst)
-      isFirst = false;
-    else
-      ObjCQIString += ',';
-    ObjCQIString += (*I)->getNameAsString();
-  }
-  ObjCQIString += '>';
-  InnerString = ObjCQIString + InnerString;
-}
-
 void ElaboratedType::getAsStringInternal(std::string &InnerString,
                                          const PrintingPolicy &Policy) const {
   std::string TypeStr;
@@ -1534,11 +1471,11 @@ void TagType::getAsStringInternal(std::string &InnerString, const PrintingPolicy
   const char *Kind = Policy.SuppressTagKind? 0 : getDecl()->getKindName();
   const char *ID;
   if (const IdentifierInfo *II = getDecl()->getIdentifier())
-    ID = II->getName();
+    ID = II->getNameStart();
   else if (TypedefDecl *Typedef = getDecl()->getTypedefForAnonDecl()) {
     Kind = 0;
     assert(Typedef->getIdentifier() && "Typedef without identifier?");
-    ID = Typedef->getIdentifier()->getName();
+    ID = Typedef->getIdentifier()->getNameStart();
   } else
     ID = "<anonymous>";
 
@@ -1573,7 +1510,7 @@ void TagType::getAsStringInternal(std::string &InnerString, const PrintingPolicy
                                            TemplateArgs.getFlatArgumentList(),
                                            TemplateArgs.flat_size(),
                                            Policy);
-        MyPart = Spec->getIdentifier()->getName() + TemplateArgsStr;
+        MyPart = Spec->getIdentifier()->getName().str() + TemplateArgsStr;
       } else if (TagDecl *Tag = dyn_cast<TagDecl>(DC)) {
         if (TypedefDecl *Typedef = Tag->getTypedefForAnonDecl())
           MyPart = Typedef->getIdentifier()->getName();

@@ -123,16 +123,17 @@ Decl *TemplateDeclInstantiator::VisitTypedefDecl(TypedefDecl *D) {
 
 Decl *TemplateDeclInstantiator::VisitVarDecl(VarDecl *D) {
   // Do substitution on the type of the declaration
-  QualType T = SemaRef.SubstType(D->getType(), TemplateArgs,
-                                 D->getTypeSpecStartLoc(),
-                                 D->getDeclName());
-  if (T.isNull())
+  DeclaratorInfo *DI = SemaRef.SubstType(D->getDeclaratorInfo(),
+                                         TemplateArgs,
+                                         D->getTypeSpecStartLoc(),
+                                         D->getDeclName());
+  if (!DI)
     return 0;
 
   // Build the instantiated declaration
   VarDecl *Var = VarDecl::Create(SemaRef.Context, Owner,
                                  D->getLocation(), D->getIdentifier(),
-                                 T, D->getDeclaratorInfo(),
+                                 DI->getType(), DI,
                                  D->getStorageClass());
   Var->setThreadSpecified(D->isThreadSpecified());
   Var->setCXXDirectInitializer(D->hasCXXDirectInitializer());
@@ -203,11 +204,14 @@ Decl *TemplateDeclInstantiator::VisitVarDecl(VarDecl *D) {
 
 Decl *TemplateDeclInstantiator::VisitFieldDecl(FieldDecl *D) {
   bool Invalid = false;
-  QualType T = D->getType();
-  if (T->isDependentType())  {
-    T = SemaRef.SubstType(T, TemplateArgs,
-                          D->getLocation(), D->getDeclName());
-    if (!T.isNull() && T->isFunctionType()) {
+  DeclaratorInfo *DI = D->getDeclaratorInfo();
+  if (DI->getType()->isDependentType())  {
+    DI = SemaRef.SubstType(DI, TemplateArgs,
+                           D->getLocation(), D->getDeclName());
+    if (!DI) {
+      DI = D->getDeclaratorInfo();
+      Invalid = true;
+    } else if (DI->getType()->isFunctionType()) {
       // C++ [temp.arg.type]p3:
       //   If a declaration acquires a function type through a type
       //   dependent on a template-parameter and this causes a
@@ -215,8 +219,7 @@ Decl *TemplateDeclInstantiator::VisitFieldDecl(FieldDecl *D) {
       //   function declarator to have function type, the program is
       //   ill-formed.
       SemaRef.Diag(D->getLocation(), diag::err_field_instantiates_to_function)
-        << T;
-      T = QualType();
+        << DI->getType();
       Invalid = true;
     }
   }
@@ -237,8 +240,8 @@ Decl *TemplateDeclInstantiator::VisitFieldDecl(FieldDecl *D) {
       BitWidth = InstantiatedBitWidth.takeAs<Expr>();
   }
 
-  FieldDecl *Field = SemaRef.CheckFieldDecl(D->getDeclName(), T,
-                                            D->getDeclaratorInfo(),
+  FieldDecl *Field = SemaRef.CheckFieldDecl(D->getDeclName(),
+                                            DI->getType(), DI,
                                             cast<RecordDecl>(Owner),
                                             D->getLocation(),
                                             D->isMutable(),
@@ -1044,9 +1047,14 @@ TemplateDeclInstantiator::InitMethodInstantiation(CXXMethodDecl *New,
 ///
 /// \param Recursive if true, recursively instantiates any functions that
 /// are required by this instantiation.
+///
+/// \param DefinitionRequired if true, then we are performing an explicit
+/// instantiation where the body of the function is required. Complain if
+/// there is no such body.
 void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
                                          FunctionDecl *Function,
-                                         bool Recursive) {
+                                         bool Recursive,
+                                         bool DefinitionRequired) {
   if (Function->isInvalidDecl())
     return;
 
@@ -1075,8 +1083,24 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
   if (PatternDecl)
     Pattern = PatternDecl->getBody(PatternDecl);
 
-  if (!Pattern)
+  if (!Pattern) {
+    if (DefinitionRequired) {
+      if (Function->getPrimaryTemplate())
+        Diag(PointOfInstantiation, 
+             diag::err_explicit_instantiation_undefined_func_template)
+          << Function->getPrimaryTemplate();
+      else
+        Diag(PointOfInstantiation, 
+             diag::err_explicit_instantiation_undefined_member)
+          << 1 << Function->getDeclName() << Function->getDeclContext();
+      
+      if (PatternDecl)
+        Diag(PatternDecl->getLocation(), 
+             diag::note_explicit_instantiation_here);
+    }
+      
     return;
+  }
 
   // C++0x [temp.explicit]p9:
   //   Except for inline functions, other explicit instantiation declarations
@@ -1161,10 +1185,15 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
 ///
 /// \param Recursive if true, recursively instantiates any functions that
 /// are required by this instantiation.
+///
+/// \param DefinitionRequired if true, then we are performing an explicit
+/// instantiation where an out-of-line definition of the member variable
+/// is required. Complain if there is no such definition.
 void Sema::InstantiateStaticDataMemberDefinition(
                                           SourceLocation PointOfInstantiation,
                                                  VarDecl *Var,
-                                                 bool Recursive) {
+                                                 bool Recursive,
+                                                 bool DefinitionRequired) {
   if (Var->isInvalidDecl())
     return;
 
@@ -1187,6 +1216,13 @@ void Sema::InstantiateStaticDataMemberDefinition(
     // so we won't perform any instantiation. Rather, we rely on the user to
     // instantiate this definition (or provide a specialization for it) in
     // another translation unit.
+    if (DefinitionRequired) {
+      Diag(PointOfInstantiation, 
+           diag::err_explicit_instantiation_undefined_member)
+        << 2 << Var->getDeclName() << Var->getDeclContext();
+      Diag(Def->getLocation(), diag::note_explicit_instantiation_here);
+    }    
+    
     return;
   }
 
@@ -1225,7 +1261,10 @@ void Sema::InstantiateStaticDataMemberDefinition(
 
   if (Var) {
     Var->setPreviousDeclaration(OldVar);
-    Var->setTemplateSpecializationKind(OldVar->getTemplateSpecializationKind());
+    MemberSpecializationInfo *MSInfo = OldVar->getMemberSpecializationInfo();
+    assert(MSInfo && "Missing member specialization information?");
+    Var->setTemplateSpecializationKind(MSInfo->getTemplateSpecializationKind(),
+                                       MSInfo->getPointOfInstantiation());
     DeclGroupRef DG(Var);
     Consumer.HandleTopLevelDecl(DG);
   }

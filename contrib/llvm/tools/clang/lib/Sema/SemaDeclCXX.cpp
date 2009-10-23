@@ -1658,12 +1658,10 @@ namespace {
       // Traverse the record, looking for methods.
       if (CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(*i)) {
         // If the method is pure virtual, add it to the methods vector.
-        if (MD->isPure()) {
+        if (MD->isPure())
           Methods.push_back(MD);
-          continue;
-        }
 
-        // Otherwise, record all the overridden methods in our set.
+        // Record all the overridden methods in our set.
         for (CXXMethodDecl::method_iterator I = MD->begin_overridden_methods(),
              E = MD->end_overridden_methods(); I != E; ++I) {
           // Keep track of the overridden methods.
@@ -3571,7 +3569,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
         if (DiagnoseUseOfDecl(Fn, DeclLoc))
           return true;
 
-        FixOverloadedFunctionReference(Init, Fn);
+        Init = FixOverloadedFunctionReference(Init, Fn);
       }
 
       T2 = Fn->getType();
@@ -3660,7 +3658,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
   //          applicable conversion functions (13.3.1.6) and choosing
   //          the best one through overload resolution (13.3)),
   if (!isRValRef && !SuppressUserConversions && T2->isRecordType() &&
-      !RequireCompleteType(SourceLocation(), T2, 0)) {
+      !RequireCompleteType(DeclLoc, T2, 0)) {
     CXXRecordDecl *T2RecordDecl
       = dyn_cast<CXXRecordDecl>(T2->getAs<RecordType>()->getDecl());
 
@@ -4283,8 +4281,7 @@ Sema::DeclPtrTy Sema::ActOnFriendTypeDecl(Scope *S,
   // friend templates because ActOnTag never produces a ClassTemplateDecl
   // for a TUK_Friend.
   bool invalid = false;
-  QualType SourceTy;
-  QualType T = ConvertDeclSpecToType(DS, Loc, invalid, SourceTy);
+  QualType T = ConvertDeclSpecToType(DS, Loc, invalid);
   if (invalid) return DeclPtrTy();
 
   // This is definitely an error in C++98.  It's probably meant to

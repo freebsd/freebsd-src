@@ -28,9 +28,9 @@ using namespace CodeGen;
 /// CreateTempAlloca - This creates a alloca and inserts it into the entry
 /// block.
 llvm::AllocaInst *CodeGenFunction::CreateTempAlloca(const llvm::Type *Ty,
-                                                    const char *Name) {
+                                                    const llvm::Twine &Name) {
   if (!Builder.isNamePreserving())
-    Name = "";
+    return new llvm::AllocaInst(Ty, 0, "", AllocaInsertPt);
   return new llvm::AllocaInst(Ty, 0, Name, AllocaInsertPt);
 }
 
@@ -78,24 +78,18 @@ RValue CodeGenFunction::EmitAnyExprToTemp(const Expr *E,
 RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
                                                    QualType DestType,
                                                    bool IsInitializer) {
+  bool ShouldDestroyTemporaries = false;
+  unsigned OldNumLiveTemporaries = 0;
+  
   if (const CXXExprWithTemporaries *TE = dyn_cast<CXXExprWithTemporaries>(E)) {
-    // If we shouldn't destroy the temporaries, just emit the
-    // child expression.
-    if (!TE->shouldDestroyTemporaries())
-      return EmitReferenceBindingToExpr(TE->getSubExpr(), DestType,
-                                        IsInitializer);
+    ShouldDestroyTemporaries = TE->shouldDestroyTemporaries();
+
+    if (ShouldDestroyTemporaries) {
+      // Keep track of the current cleanup stack depth.
+      OldNumLiveTemporaries = LiveTemporaries.size();
+    }
     
-    // Keep track of the current cleanup stack depth.
-    unsigned OldNumLiveTemporaries = LiveTemporaries.size();
-    
-    RValue RV = EmitReferenceBindingToExpr(TE->getSubExpr(), DestType,
-                                           IsInitializer);
-    
-    // Pop temporaries.
-    while (LiveTemporaries.size() > OldNumLiveTemporaries)
-      PopCXXTemporary();
-    
-    return RV;
+    E = TE->getSubExpr();
   }
   
   RValue Val;
@@ -105,6 +99,12 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
     if (LV.isSimple())
       return RValue::get(LV.getAddress());
     Val = EmitLoadOfLValue(LV, E->getType());
+    
+    if (ShouldDestroyTemporaries) {
+      // Pop temporaries.
+      while (LiveTemporaries.size() > OldNumLiveTemporaries)
+        PopCXXTemporary();
+    }      
   } else {
     const CXXRecordDecl *BaseClassDecl = 0;
     const CXXRecordDecl *DerivedClassDecl = 0;
@@ -124,6 +124,12 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
     Val = EmitAnyExprToTemp(E, /*IsAggLocVolatile=*/false,
                             IsInitializer);
 
+    if (ShouldDestroyTemporaries) {
+      // Pop temporaries.
+      while (LiveTemporaries.size() > OldNumLiveTemporaries)
+        PopCXXTemporary();
+    }      
+    
     if (IsInitializer) {
       // We might have to destroy the temporary variable.
       if (const RecordType *RT = E->getType()->getAs<RecordType>()) {
@@ -297,6 +303,8 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXConstCastExprClass:
     return EmitCastLValue(cast<CastExpr>(E));
+  case Expr::CXXZeroInitValueExprClass:
+    return EmitNullInitializationLValue(cast<CXXZeroInitValueExpr>(E));
   }
 }
 
@@ -858,6 +866,9 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
     llvm::Value *V = LocalDeclMap[IPD];
     assert(V && "BlockVarDecl not entered in LocalDeclMap?");
     return LValue::MakeAddr(V, MakeQualifiers(E->getType()));
+  } else if (const QualifiedDeclRefExpr *QDRExpr = 
+             dyn_cast<QualifiedDeclRefExpr>(E)) {
+    return EmitPointerToDataMemberLValue(QDRExpr);
   }
   assert(0 && "Unimp declref");
   //an invalid LValue, but the assert will
@@ -1307,6 +1318,18 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
   }
 }
 
+LValue CodeGenFunction::EmitNullInitializationLValue(
+                                              const CXXZeroInitValueExpr *E) {
+  QualType Ty = E->getType();
+  const llvm::Type *LTy = ConvertTypeForMem(Ty);
+  llvm::AllocaInst *Alloc = CreateTempAlloca(LTy);
+  unsigned Align = getContext().getTypeAlign(Ty)/8;
+  Alloc->setAlignment(Align);
+  LValue lvalue = LValue::MakeAddr(Alloc, Qualifiers());
+  EmitMemSetToZero(lvalue.getAddress(), Ty);
+  return lvalue;
+}
+
 //===--------------------------------------------------------------------===//
 //                             Expression Emission
 //===--------------------------------------------------------------------===//
@@ -1356,11 +1379,24 @@ LValue CodeGenFunction::EmitBinaryOperatorLValue(const BinaryOperator *E) {
     return EmitLValue(E->getRHS());
   }
 
+  if (E->getOpcode() == BinaryOperator::PtrMemD)
+    return EmitPointerToDataMemberBinaryExpr(E);
+  
   // Can only get l-value for binary operator expressions which are a
   // simple assignment of aggregate type.
   if (E->getOpcode() != BinaryOperator::Assign)
     return EmitUnsupportedLValue(E, "binary l-value expression");
 
+  if (!hasAggregateLLVMType(E->getType())) {
+    // Emit the LHS as an l-value.
+    LValue LV = EmitLValue(E->getLHS());
+    
+    llvm::Value *RHS = EmitScalarExpr(E->getRHS());
+    EmitStoreOfScalar(RHS, LV.getAddress(), LV.isVolatileQualified(), 
+                      E->getType());
+    return LV;
+  }
+  
   llvm::Value *Temp = CreateTempAlloca(ConvertType(E->getType()));
   EmitAggExpr(E, Temp, false);
   // FIXME: Are these qualifiers correct?
@@ -1483,6 +1519,25 @@ LValue CodeGenFunction::EmitStmtExprLValue(const StmtExpr *E) {
 }
 
 
+LValue CodeGenFunction::EmitPointerToDataMemberLValue(
+                                              const QualifiedDeclRefExpr *E) {
+  const FieldDecl *Field = cast<FieldDecl>(E->getDecl());
+  const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(Field->getDeclContext());
+  QualType NNSpecTy = 
+    getContext().getCanonicalType(
+      getContext().getTypeDeclType(const_cast<CXXRecordDecl*>(ClassDecl)));
+  NNSpecTy = getContext().getPointerType(NNSpecTy);
+  llvm::Value *V = llvm::Constant::getNullValue(ConvertType(NNSpecTy));
+  LValue MemExpLV = EmitLValueForField(V, const_cast<FieldDecl*>(Field), 
+                                       /*isUnion*/false, /*Qualifiers*/0);
+  const llvm::Type* ResultType = ConvertType(
+                                             getContext().getPointerDiffType());
+  V = Builder.CreatePtrToInt(MemExpLV.getAddress(), ResultType, 
+                             "datamember");
+  LValue LV = LValue::MakeAddr(V, MakeQualifiers(E->getType()));
+  return LV;
+}
+
 RValue CodeGenFunction::EmitCall(llvm::Value *Callee, QualType CalleeType,
                                  CallExpr::const_arg_iterator ArgBeg,
                                  CallExpr::const_arg_iterator ArgEnd,
@@ -1492,11 +1547,13 @@ RValue CodeGenFunction::EmitCall(llvm::Value *Callee, QualType CalleeType,
   assert(CalleeType->isFunctionPointerType() &&
          "Call must have function pointer type!");
 
-  QualType FnType = CalleeType->getAs<PointerType>()->getPointeeType();
-  QualType ResultType = FnType->getAs<FunctionType>()->getResultType();
+  CalleeType = getContext().getCanonicalType(CalleeType);
+
+  QualType FnType = cast<PointerType>(CalleeType)->getPointeeType();
+  QualType ResultType = cast<FunctionType>(FnType)->getResultType();
 
   CallArgList Args;
-  EmitCallArgs(Args, FnType->getAs<FunctionProtoType>(), ArgBeg, ArgEnd);
+  EmitCallArgs(Args, dyn_cast<FunctionProtoType>(FnType), ArgBeg, ArgEnd);
 
   // FIXME: We should not need to do this, it should be part of the function
   // type.
@@ -1508,3 +1565,25 @@ RValue CodeGenFunction::EmitCall(llvm::Value *Callee, QualType CalleeType,
                                                  CallingConvention),
                   Callee, Args, TargetDecl);
 }
+
+LValue CodeGenFunction::EmitPointerToDataMemberBinaryExpr(
+                                                    const BinaryOperator *E) {
+  llvm::Value *BaseV = EmitLValue(E->getLHS()).getAddress();
+  const llvm::Type *i8Ty = llvm::Type::getInt8PtrTy(getLLVMContext());
+  BaseV = Builder.CreateBitCast(BaseV, i8Ty);
+  LValue RHSLV = EmitLValue(E->getRHS());
+  llvm::Value *OffsetV = 
+    EmitLoadOfLValue(RHSLV, E->getRHS()->getType()).getScalarVal();
+  const llvm::Type* ResultType = ConvertType(getContext().getPointerDiffType());
+  OffsetV = Builder.CreateBitCast(OffsetV, ResultType);
+  llvm::Value *AddV = Builder.CreateInBoundsGEP(BaseV, OffsetV, "add.ptr");
+  QualType Ty = E->getRHS()->getType();
+  const MemberPointerType *MemPtrType = Ty->getAs<MemberPointerType>();
+  Ty = MemPtrType->getPointeeType();
+  const llvm::Type* PType = 
+  ConvertType(getContext().getPointerType(Ty));
+  AddV = Builder.CreateBitCast(AddV, PType);
+  LValue LV = LValue::MakeAddr(AddV, MakeQualifiers(Ty));
+  return LV;
+}
+

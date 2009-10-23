@@ -51,7 +51,7 @@ public:
 bool operator<(DeclarationName LHS, DeclarationName RHS) {
   if (IdentifierInfo *LhsId = LHS.getAsIdentifierInfo())
     if (IdentifierInfo *RhsId = RHS.getAsIdentifierInfo())
-      return strcmp(LhsId->getName(), RhsId->getName()) < 0;
+      return LhsId->getName() < RhsId->getName();
 
   return LHS.getAsOpaqueInteger() < RHS.getAsOpaqueInteger();
 }
@@ -60,7 +60,7 @@ bool operator<(DeclarationName LHS, DeclarationName RHS) {
 
 DeclarationName::DeclarationName(Selector Sel) {
   if (!Sel.getAsOpaquePtr()) {
-    Ptr = StoredObjCZeroArgSelector;
+    Ptr = 0;
     return;
   }
 

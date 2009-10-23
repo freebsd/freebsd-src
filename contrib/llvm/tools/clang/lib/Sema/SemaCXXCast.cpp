@@ -175,7 +175,7 @@ Sema::ActOnCXXNamedCast(SourceLocation OpLoc, tok::TokenKind Kind,
 /// DestType casts away constness as defined in C++ 5.2.11p8ff. This is used by
 /// the cast checkers.  Both arguments must denote pointer (possibly to member)
 /// types.
-bool
+static bool
 CastsAwayConstness(Sema &Self, QualType SrcType, QualType DestType) {
   // Casting away constness is defined in C++ 5.2.11p8 with reference to
   // C++ 4.4. We piggyback on Sema::IsQualificationConversion for this, since
@@ -605,6 +605,11 @@ TryCastResult
 TryStaticDowncast(Sema &Self, QualType SrcType, QualType DestType,
                   bool CStyle, const SourceRange &OpRange, QualType OrigSrcType,
                   QualType OrigDestType, unsigned &msg) {
+  // We can only work with complete types. But don't complain if it doesn't work
+  if (Self.RequireCompleteType(OpRange.getBegin(), SrcType, PDiag(0)) ||
+      Self.RequireCompleteType(OpRange.getBegin(), DestType, PDiag(0)))
+    return TC_NotApplicable;
+
   // Downcast can only happen in class hierarchies, so we need classes.
   if (!DestType->isRecordType() || !SrcType->isRecordType()) {
     return TC_NotApplicable;
@@ -943,6 +948,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     }
 
     // A valid member pointer cast.
+    Kind = CastExpr::CK_BitCast;
     return TC_Success;
   }
 
@@ -1044,6 +1050,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
 
   // Not casting away constness, so the only remaining check is for compatible
   // pointer categories.
+  Kind = CastExpr::CK_BitCast;
 
   if (SrcType->isFunctionPointerType()) {
     if (DestType->isFunctionPointerType()) {
@@ -1085,8 +1092,10 @@ bool Sema::CXXCheckCStyleCast(SourceRange R, QualType CastTy, Expr *&CastExpr,
   // This test is outside everything else because it's the only case where
   // a non-lvalue-reference target type does not lead to decay.
   // C++ 5.2.9p4: Any expression can be explicitly converted to type "cv void".
-  if (CastTy->isVoidType())
+  if (CastTy->isVoidType()) {
+    Kind = CastExpr::CK_ToVoid;
     return false;
+  }
 
   // If the type is dependent, we won't do any other semantic analysis now.
   if (CastTy->isDependentType() || CastExpr->isTypeDependent())
@@ -1109,6 +1118,9 @@ bool Sema::CXXCheckCStyleCast(SourceRange R, QualType CastTy, Expr *&CastExpr,
   unsigned msg = diag::err_bad_cxx_cast_generic;
   TryCastResult tcr = TryConstCast(*this, CastExpr, CastTy, /*CStyle*/true,
                                    msg);
+  if (tcr == TC_Success)
+    Kind = CastExpr::CK_NoOp;
+
   if (tcr == TC_NotApplicable) {
     // ... or if that is not possible, a static_cast, ignoring const, ...
     tcr = TryStaticCast(*this, CastExpr, CastTy, /*CStyle*/true, R, msg,

@@ -38,7 +38,8 @@ Darwin::Darwin(const HostInfo &Host, const llvm::Triple& Triple,
   DarwinVersion[2] = _DarwinVersion[2];
 
   llvm::raw_string_ostream(MacosxVersionMin)
-    << "10." << DarwinVersion[0] - 4 << '.' << DarwinVersion[1];
+    << "10." << std::max(0, (int)DarwinVersion[0] - 4) << '.'
+    << DarwinVersion[1];
 
   // FIXME: Lift default up.
   IPhoneOSVersionMin = "3.0";
@@ -54,7 +55,6 @@ DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
   GCCVersion[2] = _GCCVersion[2];
 
   // Set up the tool chain paths to match gcc.
-
   ToolChainDir = "i686-apple-darwin";
   ToolChainDir += llvm::utostr(DarwinVersion[0]);
   ToolChainDir += "/";
@@ -63,6 +63,26 @@ DarwinGCC::DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple,
   ToolChainDir += llvm::utostr(GCCVersion[1]);
   ToolChainDir += '.';
   ToolChainDir += llvm::utostr(GCCVersion[2]);
+
+  // Try the next major version if that tool chain dir is invalid.
+  std::string Tmp = "/usr/lib/gcc/" + ToolChainDir;
+  if (!llvm::sys::Path(Tmp).exists()) {
+    std::string Next = "i686-apple-darwin";
+    Next += llvm::utostr(DarwinVersion[0] + 1);
+    Next += "/";
+    Next += llvm::utostr(GCCVersion[0]);
+    Next += '.';
+    Next += llvm::utostr(GCCVersion[1]);
+    Next += '.';
+    Next += llvm::utostr(GCCVersion[2]);
+
+    // Use that if it exists, otherwise hope the user isn't linking.
+    //
+    // FIXME: Drop dependency on gcc's tool chain.
+    Tmp = "/usr/lib/gcc/" + Next;
+    if (llvm::sys::Path(Tmp).exists())
+      ToolChainDir = Next;
+  }
 
   std::string Path;
   if (getArchName() == "x86_64") {
@@ -676,6 +696,7 @@ AuroraUX::AuroraUX(const HostInfo &Host, const llvm::Triple& Triple)
   getFilePaths().push_back("/usr/lib");
   getFilePaths().push_back("/usr/sfw/lib");
   getFilePaths().push_back("/opt/gcc4/lib");
+  getFilePaths().push_back("/opt/gcc4/lib/gcc/i386-pc-solaris2.11/4.2.4");
 
 }
 

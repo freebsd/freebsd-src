@@ -15,6 +15,7 @@
 #define LLVM_CLANG_DIAGNOSTIC_H
 
 #include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/type_traits.h"
 #include <string>
 #include <vector>
@@ -43,7 +44,7 @@ namespace clang {
       DIAG_START_PARSE    = DIAG_START_LEX      +  300,
       DIAG_START_AST      = DIAG_START_PARSE    +  300,
       DIAG_START_SEMA     = DIAG_START_AST      +  100,
-      DIAG_START_ANALYSIS = DIAG_START_SEMA     + 1000,
+      DIAG_START_ANALYSIS = DIAG_START_SEMA     + 1100,
       DIAG_UPPER_LIMIT    = DIAG_START_ANALYSIS +  100
     };
 
@@ -107,7 +108,7 @@ public:
   /// \brief Create a code modification hint that inserts the given
   /// code string at a specific location.
   static CodeModificationHint CreateInsertion(SourceLocation InsertionLoc,
-                                              const std::string &Code) {
+                                              llvm::StringRef Code) {
     CodeModificationHint Hint;
     Hint.InsertionLoc = InsertionLoc;
     Hint.CodeToInsert = Code;
@@ -125,7 +126,7 @@ public:
   /// \brief Create a code modification hint that replaces the given
   /// source range with the given code string.
   static CodeModificationHint CreateReplacement(SourceRange RemoveRange,
-                                                const std::string &Code) {
+                                                llvm::StringRef Code) {
     CodeModificationHint Hint;
     Hint.RemoveRange = RemoveRange;
     Hint.InsertionLoc = RemoveRange.getBegin();
@@ -163,6 +164,10 @@ public:
     ak_nestednamespec,  // NestedNameSpecifier *
     ak_declcontext      // DeclContext *
   };
+  
+  /// ArgumentValue - This typedef represents on argument value, which is a
+  /// union discriminated by ArgumentKind, with a value.
+  typedef std::pair<ArgumentKind, intptr_t> ArgumentValue;
 
 private:
   unsigned char AllExtensionsSilenced; // Used by __extension__
@@ -202,10 +207,17 @@ private:
   /// ArgToStringFn - A function pointer that converts an opaque diagnostic
   /// argument to a strings.  This takes the modifiers and argument that was
   /// present in the diagnostic.
+  ///
+  /// The PrevArgs array (whose length is NumPrevArgs) indicates the previous
+  /// arguments formatted for this diagnostic.  Implementations of this function
+  /// can use this information to avoid redundancy across arguments.
+  ///
   /// This is a hack to avoid a layering violation between libbasic and libsema.
   typedef void (*ArgToStringFnTy)(ArgumentKind Kind, intptr_t Val,
                                   const char *Modifier, unsigned ModifierLen,
                                   const char *Argument, unsigned ArgumentLen,
+                                  const ArgumentValue *PrevArgs,
+                                  unsigned NumPrevArgs,
                                   llvm::SmallVectorImpl<char> &Output,
                                   void *Cookie);
   void *ArgToStringCookie;
@@ -310,9 +322,10 @@ public:
   void ConvertArgToString(ArgumentKind Kind, intptr_t Val,
                           const char *Modifier, unsigned ModLen,
                           const char *Argument, unsigned ArgLen,
+                          const ArgumentValue *PrevArgs, unsigned NumPrevArgs,
                           llvm::SmallVectorImpl<char> &Output) const {
-    ArgToStringFn(Kind, Val, Modifier, ModLen, Argument, ArgLen, Output,
-                  ArgToStringCookie);
+    ArgToStringFn(Kind, Val, Modifier, ModLen, Argument, ArgLen,
+                  PrevArgs, NumPrevArgs, Output, ArgToStringCookie);
   }
 
   void SetArgToStringFn(ArgToStringFnTy Fn, void *Cookie) {
@@ -546,7 +559,7 @@ public:
   /// return Diag(...);
   operator bool() const { return true; }
 
-  void AddString(const std::string &S) const {
+  void AddString(llvm::StringRef S) const {
     assert(NumArgs < Diagnostic::MaxArguments &&
            "Too many arguments to diagnostic!");
     if (DiagObj) {
@@ -581,7 +594,7 @@ public:
 };
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
-                                           const std::string &S) {
+                                           llvm::StringRef S) {
   DB.AddString(S);
   return DB;
 }

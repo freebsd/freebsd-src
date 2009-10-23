@@ -20,11 +20,12 @@
 #include "clang/Basic/OnDiskHashTable.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
-#include "llvm/ADT/StringMap.h"
 
 // FIXME: put this somewhere else?
 #ifndef S_ISDIR
@@ -69,7 +70,7 @@ public:
 
   bool isFile() const { return Kind == IsFE; }
 
-  const char* getCString() const {
+  llvm::StringRef getString() const {
     return Kind == IsFE ? FE->getName() : Path;
   }
 
@@ -113,14 +114,14 @@ public:
   typedef const PTHEntry& data_type_ref;
 
   static unsigned ComputeHash(PTHEntryKeyVariant V) {
-    return BernsteinHash(V.getCString());
+    return llvm::HashString(V.getString());
   }
 
   static std::pair<unsigned,unsigned>
   EmitKeyDataLength(llvm::raw_ostream& Out, PTHEntryKeyVariant V,
                     const PTHEntry& E) {
 
-    unsigned n = strlen(V.getCString()) + 1 + 1;
+    unsigned n = V.getString().size() + 1 + 1;
     ::Emit16(Out, n);
 
     unsigned m = V.getRepresentationLength() + (V.isFile() ? 4 + 4 : 0);
@@ -133,7 +134,7 @@ public:
     // Emit the entry kind.
     ::Emit8(Out, (unsigned) V.getKind());
     // Emit the string.
-    Out.write(V.getCString(), n - 1);
+    Out.write(V.getString().data(), n - 1);
   }
 
   static void EmitData(llvm::raw_ostream& Out, PTHEntryKeyVariant V,
@@ -516,7 +517,7 @@ public:
   ~StatListener() {}
 
   int stat(const char *path, struct stat *buf) {
-    int result = ::stat(path, buf);
+    int result = StatSysCallCache::stat(path, buf);
 
     if (result != 0) // Failed 'stat'.
       PM.insert(path, PTHEntry());
@@ -553,7 +554,8 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
   PTHWriter PW(*OS, PP);
 
   // Install the 'stat' system call listener in the FileManager.
-  PP.getFileManager().setStatCache(new StatListener(PW.getPM()));
+  StatListener *StatCache = new StatListener(PW.getPM());
+  PP.getFileManager().addStatCache(StatCache, /*AtBeginning=*/true);
 
   // Lex through the entire file.  This will populate SourceManager with
   // all of the header information.
@@ -562,7 +564,7 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
   do { PP.Lex(Tok); } while (Tok.isNot(tok::eof));
 
   // Generate the PTH file.
-  PP.getFileManager().setStatCache(0);
+  PP.getFileManager().removeStatCache(StatCache);
   PW.GeneratePTH(&MainFileName);
 }
 
@@ -584,12 +586,12 @@ public:
   typedef data_type data_type_ref;
 
   static unsigned ComputeHash(PTHIdKey* key) {
-    return BernsteinHash(key->II->getName());
+    return llvm::HashString(key->II->getName());
   }
 
   static std::pair<unsigned,unsigned>
   EmitKeyDataLength(llvm::raw_ostream& Out, const PTHIdKey* key, uint32_t) {
-    unsigned n = strlen(key->II->getName()) + 1;
+    unsigned n = key->II->getLength() + 1;
     ::Emit16(Out, n);
     return std::make_pair(n, sizeof(uint32_t));
   }
@@ -598,7 +600,7 @@ public:
     // Record the location of the key data.  This is used when generating
     // the mapping from persistent IDs to strings.
     key->FileOffset = Out.tell();
-    Out.write(key->II->getName(), n);
+    Out.write(key->II->getNameStart(), n);
   }
 
   static void EmitData(llvm::raw_ostream& Out, PTHIdKey*, uint32_t pID,

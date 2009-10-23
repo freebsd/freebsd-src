@@ -99,17 +99,83 @@ typedef struct {
 } CXCursor;  
 
 /* A unique token for looking up "visible" CXDecls from a CXTranslationUnit. */
-typedef void *CXEntity;     
+typedef void *CXEntity;
 
-CXIndex clang_createIndex();
+/**  
+ * \brief clang_createIndex() provides a shared context for creating
+ * translation units. It provides two options:
+ *
+ * - excludeDeclarationsFromPCH: When non-zero, allows enumeration of "local"
+ * declarations (when loading any new translation units). A "local" declaration
+ * is one that belongs in the translation unit itself and not in a precompiled 
+ * header that was used by the translation unit. If zero, all declarations
+ * will be enumerated.
+ *
+ * - displayDiagnostics: when non-zero, diagnostics will be output. If zero,
+ * diagnostics will be ignored.
+ *
+ * Here is an example:
+ *
+ *   // excludeDeclsFromPCH = 1, displayDiagnostics = 1
+ *   Idx = clang_createIndex(1, 1);
+ *
+ *   // IndexTest.pch was produced with the following command:
+ *   // "clang -x c IndexTest.h -emit-ast -o IndexTest.pch"
+ *   TU = clang_createTranslationUnit(Idx, "IndexTest.pch");
+ *
+ *   // This will load all the symbols from 'IndexTest.pch'
+ *   clang_loadTranslationUnit(TU, TranslationUnitVisitor, 0);
+ *   clang_disposeTranslationUnit(TU);
+ *
+ *   // This will load all the symbols from 'IndexTest.c', excluding symbols
+ *   // from 'IndexTest.pch'.
+ *   char *args[] = { "-Xclang", "-include-pch=IndexTest.pch", 0 };
+ *   TU = clang_createTranslationUnitFromSourceFile(Idx, "IndexTest.c", 2, args);
+ *   clang_loadTranslationUnit(TU, TranslationUnitVisitor, 0);
+ *   clang_disposeTranslationUnit(TU);
+ *
+ * This process of creating the 'pch', loading it separately, and using it (via
+ * -include-pch) allows 'excludeDeclsFromPCH' to remove redundant callbacks
+ * (which gives the indexer the same performance benefit as the compiler).
+ */
+CXIndex clang_createIndex(int excludeDeclarationsFromPCH,
+                          int displayDiagnostics);
 void clang_disposeIndex(CXIndex);
 
 const char *clang_getTranslationUnitSpelling(CXTranslationUnit CTUnit);
 
+/* 
+ * \brief Create a translation unit from an AST file (-emit-ast).
+ */
 CXTranslationUnit clang_createTranslationUnit(
   CXIndex, const char *ast_filename
 );
+/**
+ * \brief Destroy the specified CXTranslationUnit object.
+ */ 
 void clang_disposeTranslationUnit(CXTranslationUnit);
+
+/**
+ * \brief Return the CXTranslationUnit for a given source file and the provided
+ * command line arguments one would pass to the compiler.
+ *
+ * Note: The 'source_filename' argument is optional.  If the caller provides a NULL pointer,
+ *  the name of the source file is expected to reside in the specified command line arguments.
+ *
+ * Note: When encountered in 'clang_command_line_args', the following options are ignored:
+ *
+ *   '-c'
+ *   '-emit-ast'
+ *   '-fsyntax-only'
+ *   '-o <output file>'  (both '-o' and '<output file>' are ignored)
+ *
+ */
+CXTranslationUnit clang_createTranslationUnitFromSourceFile(
+  CXIndex CIdx, 
+  const char *source_filename /* specify NULL if the source file is in clang_command_line_args */,
+  int num_clang_command_line_args, 
+  const char **clang_command_line_args
+);
 
 /*
    Usage: clang_loadTranslationUnit(). Will load the toplevel declarations
@@ -182,8 +248,27 @@ const char *clang_getDeclSource(CXDecl);
 /*
  * CXCursor Operations.
  */
+/**
+   Usage: clang_getCursor() will translate a source/line/column position
+   into an AST cursor (to derive semantic information from the source code).
+ */
 CXCursor clang_getCursor(CXTranslationUnit, const char *source_name, 
                          unsigned line, unsigned column);
+
+/**
+   Usage: clang_getCursorWithHint() provides the same functionality as
+   clang_getCursor() except that it takes an option 'hint' argument.
+   The 'hint' is a temporary CXLookupHint object (whose lifetime is managed by 
+   the caller) that should be initialized with clang_initCXLookupHint().
+
+   FIXME: Add a better comment once getCursorWithHint() has more functionality.
+ */                         
+typedef CXCursor CXLookupHint;
+CXCursor clang_getCursorWithHint(CXTranslationUnit, const char *source_name, 
+                                 unsigned line, unsigned column, 
+                                 CXLookupHint *hint);
+
+void clang_initCXLookupHint(CXLookupHint *hint);
 
 enum CXCursorKind clang_getCursorKind(CXCursor);
 unsigned clang_isDeclaration(enum CXCursorKind);

@@ -37,6 +37,7 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::Enum:      // enum X;
   case Decl::EnumConstant: // enum ? { X = ? }
   case Decl::CXXRecord: // struct/union/class X; [C++]
+  case Decl::UsingDirective: // using X; [C++]
     // None of these decls require codegen support.
     return;
 
@@ -275,8 +276,8 @@ const llvm::Type *CodeGenFunction::BuildByRefType(const ValueDecl *D) {
     unsigned NumPaddingBytes = AlignedOffsetInBytes - CurrentOffsetInBytes;
     if (NumPaddingBytes > 0) {
       const llvm::Type *Ty = llvm::Type::getInt8Ty(VMContext);
-      // FIXME: We need a sema error for alignment larger than the minimum of the
-      // maximal stack alignmint and the alignment of malloc on the system.
+      // FIXME: We need a sema error for alignment larger than the minimum of
+      // the maximal stack alignmint and the alignment of malloc on the system.
       if (NumPaddingBytes > 1)
         Ty = llvm::ArrayType::get(Ty, NumPaddingBytes);
     

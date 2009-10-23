@@ -426,6 +426,18 @@ const char *CastExpr::getCastKindName() const {
     return "IntegralToPointer";
   case CastExpr::CK_PointerToIntegral:
     return "PointerToIntegral";
+  case CastExpr::CK_ToVoid:
+    return "ToVoid";
+  case CastExpr::CK_VectorSplat:
+    return "VectorSplat";
+  case CastExpr::CK_IntegralCast:
+    return "IntegralCast";
+  case CastExpr::CK_IntegralToFloating:
+    return "IntegralToFloating";
+  case CastExpr::CK_FloatingToIntegral:
+    return "FloatingToIntegral";
+  case CastExpr::CK_FloatingCast:
+    return "FloatingCast";
   }
 
   assert(0 && "Unhandled cast kind!");
@@ -1740,40 +1752,36 @@ unsigned ExtVectorElementExpr::getNumElements() const {
 
 /// containsDuplicateElements - Return true if any element access is repeated.
 bool ExtVectorElementExpr::containsDuplicateElements() const {
-  const char *compStr = Accessor->getName();
-  unsigned length = Accessor->getLength();
+  // FIXME: Refactor this code to an accessor on the AST node which returns the
+  // "type" of component access, and share with code below and in Sema.
+  llvm::StringRef Comp = Accessor->getName();
 
   // Halving swizzles do not contain duplicate elements.
-  if (!strcmp(compStr, "hi") || !strcmp(compStr, "lo") ||
-      !strcmp(compStr, "even") || !strcmp(compStr, "odd"))
+  if (Comp == "hi" || Comp == "lo" || Comp == "even" || Comp == "odd")
     return false;
 
   // Advance past s-char prefix on hex swizzles.
-  if (*compStr == 's' || *compStr == 'S') {
-    compStr++;
-    length--;
-  }
+  if (Comp[0] == 's' || Comp[0] == 'S')
+    Comp = Comp.substr(1);
 
-  for (unsigned i = 0; i != length-1; i++) {
-    const char *s = compStr+i;
-    for (const char c = *s++; *s; s++)
-      if (c == *s)
+  for (unsigned i = 0, e = Comp.size(); i != e; ++i)
+    if (Comp.substr(i + 1).find(Comp[i]) != llvm::StringRef::npos)
         return true;
-  }
+
   return false;
 }
 
 /// getEncodedElementAccess - We encode the fields as a llvm ConstantArray.
 void ExtVectorElementExpr::getEncodedElementAccess(
                                   llvm::SmallVectorImpl<unsigned> &Elts) const {
-  const char *compStr = Accessor->getName();
-  if (*compStr == 's' || *compStr == 'S')
-    compStr++;
+  llvm::StringRef Comp = Accessor->getName();
+  if (Comp[0] == 's' || Comp[0] == 'S')
+    Comp = Comp.substr(1);
 
-  bool isHi =   !strcmp(compStr, "hi");
-  bool isLo =   !strcmp(compStr, "lo");
-  bool isEven = !strcmp(compStr, "even");
-  bool isOdd  = !strcmp(compStr, "odd");
+  bool isHi =   Comp == "hi";
+  bool isLo =   Comp == "lo";
+  bool isEven = Comp == "even";
+  bool isOdd  = Comp == "odd";
 
   for (unsigned i = 0, e = getNumElements(); i != e; ++i) {
     uint64_t Index;
@@ -1787,7 +1795,7 @@ void ExtVectorElementExpr::getEncodedElementAccess(
     else if (isOdd)
       Index = 2 * i + 1;
     else
-      Index = ExtVectorType::getAccessorIdx(compStr[i]);
+      Index = ExtVectorType::getAccessorIdx(Comp[i]);
 
     Elts.push_back(Index);
   }

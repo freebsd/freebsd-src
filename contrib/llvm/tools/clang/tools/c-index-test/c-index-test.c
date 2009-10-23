@@ -53,17 +53,23 @@ static void TranslationUnitVisitor(CXTranslationUnit Unit, CXCursor Cursor,
         unsigned curLine = startLine, curColumn = startColumn;
         CXCursor Ref;
 
-        while (startBuf <= endBuf) {
+        while (startBuf < endBuf) {
+          CXLookupHint hint;
           if (*startBuf == '\n') {
             startBuf++;
             curLine++;
             curColumn = 1;
           } else if (*startBuf != '\t')
             curColumn++;
+          
+          clang_initCXLookupHint(&hint);
+          hint.decl = Cursor.decl;
 
-          Ref = clang_getCursor(Unit, clang_getCursorSource(Cursor),
-                                curLine, curColumn);
-          if (Ref.kind != CXCursor_FunctionDecl) {
+          Ref = clang_getCursorWithHint(Unit, clang_getCursorSource(Cursor),
+                                        curLine, curColumn, &hint);
+          if (Ref.kind == CXCursor_NoDeclFound) {
+            /* Nothing found here; that's fine. */
+          } else if (Ref.kind != CXCursor_FunctionDecl) {
             printf("// CHECK: %s:%d:%d: ", basename(clang_getCursorSource(Ref)),
                                              curLine, curColumn);
             PrintCursor(Ref);
@@ -85,12 +91,23 @@ int main(int argc, char **argv) {
     return 0;
   }
   {
-  CXIndex Idx = clang_createIndex();
-  CXTranslationUnit TU = clang_createTranslationUnit(Idx, argv[1]);
+  CXIndex Idx;
+  CXTranslationUnit TU;
   enum CXCursorKind K = CXCursor_NotImplemented;
+  
+  Idx = clang_createIndex(/* excludeDeclsFromPCH */ !strcmp(argv[2], "local") ? 1 : 0, 
+                          /* displayDiagnostics */ 1);
+  
+  TU = clang_createTranslationUnit(Idx, argv[1]);
 
-  if (!strcmp(argv[2], "all")) {
+  if (!TU) {
+    fprintf(stderr, "Unable to load translation unit!\n");
+    return 1;
+  }
+
+  if (!strcmp(argv[2], "all") || !strcmp(argv[2], "local")) {
     clang_loadTranslationUnit(TU, TranslationUnitVisitor, 0);
+    clang_disposeTranslationUnit(TU);
     return 1;
   }
   /* Perform some simple filtering. */
@@ -101,6 +118,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(argv[2], "typedef")) K = CXCursor_TypedefDecl;
 
   clang_loadTranslationUnit(TU, TranslationUnitVisitor, &K);
+  clang_disposeTranslationUnit(TU);
   return 1;
   }
 }

@@ -142,10 +142,15 @@ void Clang::AddPreprocessingOptions(const Driver &D,
       continue;
 
     if (A->getOption().matches(options::OPT_include)) {
+      // Use PCH if the user requested it, except for C++ (for now).
+      bool UsePCH = D.CCCUsePCH;
+      if (types::isCXX(Inputs[0].getType()))
+        UsePCH = false;
+
       bool FoundPTH = false;
       bool FoundPCH = false;
       llvm::sys::Path P(A->getValue(Args));
-      if (D.CCCUsePCH) {
+      if (UsePCH) {
         P.appendSuffix("pch");
         if (P.exists())
           FoundPCH = true;
@@ -164,8 +169,8 @@ void Clang::AddPreprocessingOptions(const Driver &D,
       if (!FoundPCH && !FoundPTH) {
         P.appendSuffix("gch");
         if (P.exists()) {
-          FoundPCH = D.CCCUsePCH;
-          FoundPTH = !D.CCCUsePCH;
+          FoundPCH = UsePCH;
+          FoundPTH = !UsePCH;
         }
         else
           P.eraseSuffix();
@@ -173,7 +178,7 @@ void Clang::AddPreprocessingOptions(const Driver &D,
 
       if (FoundPCH || FoundPTH) {
         A->claim();
-        if (D.CCCUsePCH)
+        if (UsePCH)
           CmdArgs.push_back("-include-pch");
         else
           CmdArgs.push_back("-include-pth");
@@ -528,7 +533,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     else
       CmdArgs.push_back("-E");
   } else if (isa<PrecompileJobAction>(JA)) {
-    if (D.CCCUsePCH)
+    // Use PCH if the user requested it, except for C++ (for now).
+    bool UsePCH = D.CCCUsePCH;
+    if (types::isCXX(Inputs[0].getType()))
+      UsePCH = false;
+
+    if (UsePCH)
       CmdArgs.push_back("-emit-pch");
     else
       CmdArgs.push_back("-emit-pth");
@@ -759,7 +769,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // option.
   if (Arg *Std = Args.getLastArg(options::OPT_std_EQ, options::OPT_ansi)) {
     if (Std->getOption().matches(options::OPT_ansi))
-      CmdArgs.push_back("-std=c89");
+      if (types::isCXX(InputType))
+          CmdArgs.push_back("-std=c++98");
+      else
+          CmdArgs.push_back("-std=c89");
     else
       Std->render(Args, CmdArgs);
 
@@ -2149,7 +2162,7 @@ void auroraux::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
+    Args.MakeArgString(getToolChain().GetProgramPath(C, "gas"));
   Dest.addCommand(new Command(JA, Exec, CmdArgs));
 }
 
@@ -2164,18 +2177,19 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if ((!Args.hasArg(options::OPT_nostdlib)) &&
      (!Args.hasArg(options::OPT_shared))) {
     CmdArgs.push_back("-e");
-    CmdArgs.push_back("__start");
+    CmdArgs.push_back("_start");
   }
 
   if (Args.hasArg(options::OPT_static)) {
     CmdArgs.push_back("-Bstatic");
+    CmdArgs.push_back("-dn");
   } else {
-    CmdArgs.push_back("--eh-frame-hdr");
+//    CmdArgs.push_back("--eh-frame-hdr");
     CmdArgs.push_back("-Bdynamic");
     if (Args.hasArg(options::OPT_shared)) {
       CmdArgs.push_back("-shared");
     } else {
-      CmdArgs.push_back("-dynamic-linker");
+      CmdArgs.push_back("--dynamic-linker");
       CmdArgs.push_back("/lib/ld.so.1"); // 64Bit Path /lib/amd64/ld.so.1
     }
   }
@@ -2193,11 +2207,14 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasArg(options::OPT_nostdlib) &&
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared)) {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crt0.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crt1.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
       CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbegin.o")));
     } else {
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbeginS.o")));
+      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crti.o")));
+//      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtbeginS.o")));
     }
+    CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtn.o")));
   }
 
   CmdArgs.push_back(MakeFormattedString(Args,
@@ -2242,8 +2259,8 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
       !Args.hasArg(options::OPT_nostartfiles)) {
     if (!Args.hasArg(options::OPT_shared))
       CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtend.o")));
-    else
-      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
+//    else
+//      CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
   }
 
   const char *Exec =

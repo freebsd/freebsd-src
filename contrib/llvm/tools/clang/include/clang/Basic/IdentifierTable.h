@@ -75,13 +75,13 @@ public:
   /// This is intended to be used for string literals only: II->isStr("foo").
   template <std::size_t StrLen>
   bool isStr(const char (&Str)[StrLen]) const {
-    return getLength() == StrLen-1 && !memcmp(getName(), Str, StrLen-1);
+    return getLength() == StrLen-1 && !memcmp(getNameStart(), Str, StrLen-1);
   }
 
-  /// getName - Return the actual string for this identifier.  The returned
-  /// string is properly null terminated.
+  /// getNameStart - Return the beginning of the actual string for this
+  /// identifier.  The returned string is properly null terminated.
   ///
-  const char *getName() const {
+  const char *getNameStart() const {
     if (Entry) return Entry->getKeyData();
     // FIXME: This is gross. It would be best not to embed specific details
     // of the PTH file format here.
@@ -101,8 +101,12 @@ public:
     // std::pair<IdentifierInfo, const char*>, where internal pointer
     // points to the external string data.
     const char* p = ((std::pair<IdentifierInfo, const char*>*) this)->second-2;
-    return (((unsigned) p[0])
-        | (((unsigned) p[1]) << 8)) - 1;
+    return (((unsigned) p[0]) | (((unsigned) p[1]) << 8)) - 1;
+  }
+
+  /// getName - Return the actual identifier string.
+  llvm::StringRef getName() const {
+    return llvm::StringRef(getNameStart(), getLength());
   }
 
   /// hasMacroDefinition - Return true if this identifier is #defined to some
@@ -232,6 +236,8 @@ public:
   ///  Unlike the version in IdentifierTable, this returns a pointer instead
   ///  of a reference.  If the pointer is NULL then the IdentifierInfo cannot
   ///  be found.
+  //
+  // FIXME: Move to StringRef API.
   virtual IdentifierInfo* get(const char *NameStart, const char *NameEnd) = 0;
 };
 
@@ -333,8 +339,11 @@ public:
 
     return *II;
   }
+  IdentifierInfo &CreateIdentifierInfo(llvm::StringRef Name) {
+    return CreateIdentifierInfo(Name.begin(), Name.end());
+  }
 
-  IdentifierInfo &get(const llvm::StringRef& Name) {
+  IdentifierInfo &get(llvm::StringRef Name) {
     return get(Name.begin(), Name.end());
   }
 
@@ -463,7 +472,7 @@ public:
                                       const IdentifierInfo *Name) {
     llvm::SmallString<100> SelectorName;
     SelectorName = "set";
-    SelectorName.append(Name->getName(), Name->getName()+Name->getLength());
+    SelectorName += Name->getName();
     SelectorName[3] = toupper(SelectorName[3]);
     IdentifierInfo *SetterName =
       &Idents.get(SelectorName.data(),

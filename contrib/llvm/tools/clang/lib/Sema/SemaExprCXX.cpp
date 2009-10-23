@@ -411,13 +411,15 @@ Sema::BuildCXXNew(SourceLocation StartLoc, bool UseGlobal,
       }
     }
     
-    ImpCastExprToType(ArraySize, Context.getSizeType());
+    ImpCastExprToType(ArraySize, Context.getSizeType(),
+                      CastExpr::CK_IntegralCast);
   }
 
   FunctionDecl *OperatorNew = 0;
   FunctionDecl *OperatorDelete = 0;
   Expr **PlaceArgs = (Expr**)PlacementArgs.get();
   unsigned NumPlaceArgs = PlacementArgs.size();
+    
   if (!AllocType->isDependentType() &&
       !Expr::hasAnyTypeDependentArguments(PlaceArgs, NumPlaceArgs) &&
       FindAllocationFunctions(StartLoc,
@@ -448,7 +450,9 @@ Sema::BuildCXXNew(SourceLocation StartLoc, bool UseGlobal,
   Expr **ConsArgs = (Expr**)ConstructorArgs.get();
   const RecordType *RT;
   unsigned NumConsArgs = ConstructorArgs.size();
-  if (AllocType->isDependentType()) {
+  
+  if (AllocType->isDependentType() || 
+      Expr::hasAnyTypeDependentArguments(ConsArgs, NumConsArgs)) {
     // Skip all the checks.
   } else if ((RT = AllocType->getAs<RecordType>()) &&
              !AllocType->isAggregateType()) {
@@ -491,7 +495,7 @@ Sema::BuildCXXNew(SourceLocation StartLoc, bool UseGlobal,
   }
 
   // FIXME: Also check that the destructor is accessible. (C++ 5.3.4p16)
-
+  
   PlacementArgs.release();
   ConstructorArgs.release();
   ArraySizeE.release();
@@ -1043,6 +1047,40 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
   return PerformImplicitConversion(From, ToType, ICS, Flavor);
 }
 
+/// BuildCXXDerivedToBaseExpr - This routine generates the suitable AST
+/// for the derived to base conversion of the expression 'From'. All
+/// necessary information is passed in ICS.
+bool 
+Sema::BuildCXXDerivedToBaseExpr(Expr *&From, CastExpr::CastKind CastKind,
+                                     const ImplicitConversionSequence& ICS,
+                                     const char *Flavor) {
+  QualType  BaseType = 
+    QualType::getFromOpaquePtr(ICS.UserDefined.After.ToTypePtr);
+  // Must do additional defined to base conversion.
+  QualType  DerivedType = 
+    QualType::getFromOpaquePtr(ICS.UserDefined.After.FromTypePtr);
+
+  From = new (Context) ImplicitCastExpr(
+                                        DerivedType.getNonReferenceType(),
+                                        CastKind, 
+                                        From, 
+                                        DerivedType->isLValueReferenceType());
+  From = new (Context) ImplicitCastExpr(BaseType.getNonReferenceType(),
+                                        CastExpr::CK_DerivedToBase, From, 
+                                        BaseType->isLValueReferenceType());
+  ASTOwningVector<&ActionBase::DeleteExpr> ConstructorArgs(*this);
+  OwningExprResult FromResult =
+  BuildCXXConstructExpr(
+                        ICS.UserDefined.After.CopyConstructor->getLocation(),
+                        BaseType,
+                        ICS.UserDefined.After.CopyConstructor,
+                        MultiExprArg(*this, (void **)&From, 1));
+  if (FromResult.isInvalid())
+    return true;
+  From = FromResult.takeAs<Expr>();
+  return false;
+}
+
 /// PerformImplicitConversion - Perform an implicit conversion of the
 /// expression From to the type ToType using the pre-computed implicit
 /// conversion sequence ICS. Returns true if there was an error, false
@@ -1095,13 +1133,19 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
 
       if (CastArg.isInvalid())
         return true;
+    
+      if (ICS.UserDefined.After.Second == ICK_Derived_To_Base &&
+          ICS.UserDefined.After.CopyConstructor) {
+        From = CastArg.takeAs<Expr>();
+        return BuildCXXDerivedToBaseExpr(From, CastKind, ICS, Flavor);
+      }
       
       From = new (Context) ImplicitCastExpr(ToType.getNonReferenceType(),
-                                            CastKind, CastArg.takeAs<Expr>(), 
+                                            CastKind, CastArg.takeAs<Expr>(),
                                             ToType->isLValueReferenceType());
       return false;
-    }
-
+  }
+      
   case ImplicitConversionSequence::EllipsisConversion:
     assert(false && "Cannot perform an ellipsis conversion");
     return false;
@@ -1182,8 +1226,14 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
       if (DiagnoseUseOfDecl(Fn, From->getSourceRange().getBegin()))
         return true;
 
-      FixOverloadedFunctionReference(From, Fn);
+      From = FixOverloadedFunctionReference(From, Fn);
       FromType = From->getType();
+        
+      // If there's already an address-of operator in the expression, we have
+      // the right type already, and the code below would just introduce an
+      // invalid additional pointer level.
+      if (FromType->isPointerType() || FromType->isMemberFunctionPointerType())
+        break;
     }
     FromType = Context.getPointerType(FromType);
     ImpCastExprToType(From, FromType, CastExpr::CK_FunctionToPointerDecay);
@@ -1205,17 +1255,33 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
     break;
 
   case ICK_Integral_Promotion:
-  case ICK_Floating_Promotion:
-  case ICK_Complex_Promotion:
   case ICK_Integral_Conversion:
+    ImpCastExprToType(From, ToType, CastExpr::CK_IntegralCast);
+    break;
+
+  case ICK_Floating_Promotion:
   case ICK_Floating_Conversion:
+    ImpCastExprToType(From, ToType, CastExpr::CK_FloatingCast);
+    break;
+
+  case ICK_Complex_Promotion:
   case ICK_Complex_Conversion:
+    ImpCastExprToType(From, ToType, CastExpr::CK_Unknown);
+    break;
+
   case ICK_Floating_Integral:
+    if (ToType->isFloatingType())
+      ImpCastExprToType(From, ToType, CastExpr::CK_IntegralToFloating);
+    else
+      ImpCastExprToType(From, ToType, CastExpr::CK_FloatingToIntegral);
+    break;
+
   case ICK_Complex_Real:
+    ImpCastExprToType(From, ToType, CastExpr::CK_Unknown);
+    break;
+
   case ICK_Compatible_Conversion:
-      // FIXME: Go deeper to get the unqualified type!
-    FromType = ToType.getUnqualifiedType();
-    ImpCastExprToType(From, FromType);
+    ImpCastExprToType(From, ToType, CastExpr::CK_NoOp);
     break;
 
   case ICK_Pointer_Conversion: {
@@ -1245,8 +1311,7 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
     break;
   }
   case ICK_Boolean_Conversion:
-    FromType = Context.BoolTy;
-    ImpCastExprToType(From, FromType);
+    ImpCastExprToType(From, Context.BoolTy, CastExpr::CK_Unknown);
     break;
 
   default:
@@ -1263,7 +1328,7 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
     // FIXME: Not sure about lvalue vs rvalue here in the presence of rvalue
     // references.
     ImpCastExprToType(From, ToType.getNonReferenceType(),
-                      CastExpr::CK_Unknown,
+                      CastExpr::CK_NoOp,
                       ToType->isLValueReferenceType());
     break;
 
@@ -1465,7 +1530,7 @@ static bool FindConditionalOverload(Sema &Self, Expr *&LHS, Expr *&RHS,
                                     SourceLocation Loc) {
   Expr *Args[2] = { LHS, RHS };
   OverloadCandidateSet CandidateSet;
-  Self.AddBuiltinOperatorCandidates(OO_Conditional, Args, 2, CandidateSet);
+  Self.AddBuiltinOperatorCandidates(OO_Conditional, Loc, Args, 2, CandidateSet);
 
   OverloadCandidateSet::iterator Best;
   switch (Self.BestViableFunction(CandidateSet, Loc, Best)) {
@@ -1691,12 +1756,12 @@ QualType Sema::CXXCheckConditionalOperands(Expr *&Cond, Expr *&LHS, Expr *&RHS,
   const MemberPointerType *RMemPtr = RTy->getAs<MemberPointerType>();
   if (LMemPtr && 
       RHS->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNull)) {
-    ImpCastExprToType(RHS, LTy);
+    ImpCastExprToType(RHS, LTy, CastExpr::CK_NullToMemberPointer);
     return LTy;
   }
   if (RMemPtr && 
       LHS->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNull)) {
-    ImpCastExprToType(LHS, RTy);
+    ImpCastExprToType(LHS, RTy, CastExpr::CK_NullToMemberPointer);
     return RTy;
   }
   if (LMemPtr && RMemPtr) {
@@ -1787,11 +1852,17 @@ QualType Sema::FindCompositePointerType(Expr *&E1, Expr *&E2) {
   //   one operand is a null pointer constant, the composite pointer type is
   //   the type of the other operand.
   if (E1->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNull)) {
-    ImpCastExprToType(E1, T2);
+    if (T2->isMemberPointerType())
+      ImpCastExprToType(E1, T2, CastExpr::CK_NullToMemberPointer);
+    else
+      ImpCastExprToType(E1, T2, CastExpr::CK_IntegralToPointer);
     return T2;
   }
   if (E2->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNull)) {
-    ImpCastExprToType(E2, T1);
+    if (T1->isMemberPointerType())
+      ImpCastExprToType(E2, T1, CastExpr::CK_NullToMemberPointer);
+    else
+      ImpCastExprToType(E2, T1, CastExpr::CK_IntegralToPointer);
     return T1;
   }
 
@@ -2051,6 +2122,8 @@ Sema::ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
                                        ClassName);
   else {
     TypeTy *BaseTy = getTypeName(*ClassName, ClassNameLoc, S, &SS);
+    
+    // FIXME: If Base is dependent, we might not be able to resolve it here.
     if (!BaseTy) {
       Diag(ClassNameLoc, diag::err_ident_in_pseudo_dtor_not_a_type)
         << ClassName;
@@ -2060,25 +2133,41 @@ Sema::ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
     BaseType = GetTypeFromParser(BaseTy);
   }
 
-  CanQualType CanBaseType = Context.getCanonicalType(BaseType);
-  DeclarationName DtorName =
-    Context.DeclarationNames.getCXXDestructorName(CanBaseType);
+  return ActOnDestructorReferenceExpr(S, move(Base), OpLoc, OpKind,
+                                      SourceRange(ClassNameLoc),
+                                      BaseType.getAsOpaquePtr(),
+                                      SS, HasTrailingLParen);
+}
 
+Sema::OwningExprResult
+Sema::ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
+                             SourceLocation OpLoc,
+                             tok::TokenKind OpKind,
+                             SourceRange TypeRange,
+                             TypeTy *T,
+                             const CXXScopeSpec &SS,
+                             bool HasTrailingLParen) {
+  QualType Type = QualType::getFromOpaquePtr(T);
+  CanQualType CanType = Context.getCanonicalType(Type);
+  DeclarationName DtorName =
+    Context.DeclarationNames.getCXXDestructorName(CanType);
+  
   OwningExprResult Result
-    = BuildMemberReferenceExpr(S, move(Base), OpLoc, OpKind, ClassNameLoc,
-                               DtorName, DeclPtrTy(), &SS);
+    = BuildMemberReferenceExpr(S, move(Base), OpLoc, OpKind, 
+                               TypeRange.getBegin(), DtorName, DeclPtrTy(), 
+                               &SS);
   if (Result.isInvalid() || HasTrailingLParen)
     return move(Result);
-
+  
   // The only way a reference to a destructor can be used is to
   // immediately call them. Since the next token is not a '(', produce a
   // diagnostic and build the call now.
   Expr *E = (Expr *)Result.get();
-  SourceLocation ExpectedLParenLoc = PP.getLocForEndOfToken(E->getLocEnd());
+  SourceLocation ExpectedLParenLoc = PP.getLocForEndOfToken(TypeRange.getEnd());
   Diag(E->getLocStart(), diag::err_dtor_expr_without_call)
     << isa<CXXPseudoDestructorExpr>(E)
     << CodeModificationHint::CreateInsertion(ExpectedLParenLoc, "()");
-
+  
   return ActOnCallExpr(0, move(Result), ExpectedLParenLoc,
                        MultiExprArg(*this, 0, 0), 0, ExpectedLParenLoc);
 }
@@ -2154,9 +2243,14 @@ Sema::OwningExprResult Sema::BuildCXXCastArgument(SourceLocation CastLoc,
                                 MultiExprArg(*this, (void **)&From, 1),
                                 CastLoc, ConstructorArgs))
       return ExprError();
-                                
-    return BuildCXXConstructExpr(CastLoc, Ty, cast<CXXConstructorDecl>(Method), 
-                                 move_arg(ConstructorArgs));
+    
+    OwningExprResult Result = 
+      BuildCXXConstructExpr(CastLoc, Ty, cast<CXXConstructorDecl>(Method), 
+                            move_arg(ConstructorArgs));
+    if (Result.isInvalid())
+      return ExprError();
+    
+    return MaybeBindToTemporary(Result.takeAs<Expr>());
   }
 
   case CastExpr::CK_UserDefinedConversion: {
@@ -2168,7 +2262,7 @@ Sema::OwningExprResult Sema::BuildCXXCastArgument(SourceLocation CastLoc,
     
     // Create an implicit call expr that calls it.
     CXXMemberCallExpr *CE = BuildCXXMemberCallExpr(From, Method);
-    return Owned(CE);
+    return MaybeBindToTemporary(CE);
   }
   }
 }    
@@ -2182,3 +2276,84 @@ Sema::OwningExprResult Sema::ActOnFinishFullExpr(ExprArg Arg) {
 
   return Owned(FullExpr);
 }
+
+/// \brief Determine whether a reference to the given declaration in the 
+/// current context is an implicit member access 
+/// (C++ [class.mfct.non-static]p2).
+///
+/// FIXME: Should Objective-C also use this approach?
+///
+/// \param SS if non-NULL, the C++ nested-name-specifier that precedes the 
+/// name of the declaration referenced.
+///
+/// \param D the declaration being referenced from the current scope.
+///
+/// \param NameLoc the location of the name in the source.
+///
+/// \param ThisType if the reference to this declaration is an implicit member
+/// access, will be set to the type of the "this" pointer to be used when
+/// building that implicit member access.
+///
+/// \param MemberType if the reference to this declaration is an implicit
+/// member access, will be set to the type of the member being referenced
+/// (for use at the type of the resulting member access expression).
+///
+/// \returns true if this is an implicit member reference (in which case 
+/// \p ThisType and \p MemberType will be set), or false if it is not an
+/// implicit member reference.
+bool Sema::isImplicitMemberReference(const CXXScopeSpec *SS, NamedDecl *D,
+                                     SourceLocation NameLoc, QualType &ThisType,
+                                     QualType &MemberType) {
+  // If this isn't a C++ method, then it isn't an implicit member reference.
+  CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(CurContext);
+  if (!MD || MD->isStatic())
+    return false;
+  
+  // C++ [class.mfct.nonstatic]p2:
+  //   [...] if name lookup (3.4.1) resolves the name in the
+  //   id-expression to a nonstatic nontype member of class X or of
+  //   a base class of X, the id-expression is transformed into a
+  //   class member access expression (5.2.5) using (*this) (9.3.2)
+  //   as the postfix-expression to the left of the '.' operator.
+  DeclContext *Ctx = 0;
+  if (FieldDecl *FD = dyn_cast<FieldDecl>(D)) {
+    Ctx = FD->getDeclContext();
+    MemberType = FD->getType();
+    
+    if (const ReferenceType *RefType = MemberType->getAs<ReferenceType>())
+      MemberType = RefType->getPointeeType();
+    else if (!FD->isMutable())
+      MemberType
+        = Context.getQualifiedType(MemberType,
+                           Qualifiers::fromCVRMask(MD->getTypeQualifiers()));
+  } else {
+    for (OverloadIterator Ovl(D), OvlEnd; Ovl != OvlEnd; ++Ovl) {
+      CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(*Ovl);
+      FunctionTemplateDecl *FunTmpl = 0;
+      if (!Method && (FunTmpl = dyn_cast<FunctionTemplateDecl>(*Ovl)))
+        Method = dyn_cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl());
+      
+      if (Method && !Method->isStatic()) {
+        Ctx = Method->getParent();
+        if (isa<CXXMethodDecl>(D) && !FunTmpl)
+          MemberType = Method->getType();
+        else
+          MemberType = Context.OverloadTy;
+        break;
+      }
+    }
+  } 
+  
+  if (!Ctx || !Ctx->isRecord())
+    return false;
+  
+  // Determine whether the declaration(s) we found are actually in a base 
+  // class. If not, this isn't an implicit member reference.
+  ThisType = MD->getThisType(Context);
+  QualType CtxType = Context.getTypeDeclType(cast<CXXRecordDecl>(Ctx));
+  QualType ClassType
+    = Context.getTypeDeclType(cast<CXXRecordDecl>(MD->getParent()));
+  return Context.hasSameType(CtxType, ClassType) || 
+         IsDerivedFrom(ClassType, CtxType);
+}
+
