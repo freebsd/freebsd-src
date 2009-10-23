@@ -96,11 +96,6 @@ typedef enum {
 	PROBE_FULL_INQUIRY,
 	PROBE_PM_PID,
 	PROBE_PM_PRV,
-	PROBE_PM_PORTS,
-	PROBE_PM_RESET,
-	PROBE_PM_CONNECT,
-	PROBE_PM_CHECK,
-	PROBE_PM_CLEAR,
 	PROBE_INVALID
 } probe_action;
 
@@ -112,11 +107,6 @@ static char *probe_action_text[] = {
 	"PROBE_FULL_INQUIRY",
 	"PROBE_PM_PID",
 	"PROBE_PM_PRV",
-	"PROBE_PM_PORTS",
-	"PROBE_PM_RESET",
-	"PROBE_PM_CONNECT",
-	"PROBE_PM_CHECK",
-	"PROBE_PM_CLEAR",
 	"PROBE_INVALID"
 };
 
@@ -142,9 +132,6 @@ typedef struct {
 	u_int8_t	digest[16];
 	uint32_t	pm_pid;
 	uint32_t	pm_prv;
-	int		pm_ports;
-	int		pm_step;
-	int		pm_try;
 	struct cam_periph *periph;
 } probe_softc;
 
@@ -274,10 +261,9 @@ probeschedule(struct cam_periph *periph)
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
-	if (periph->path->device->flags & CAM_DEV_UNCONFIGURED)
+	if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) ||
+	    periph->path->device->protocol == PROTO_SATAPM)
 		PROBE_SET_ACTION(softc, PROBE_RESET);
-	else if (periph->path->device->protocol == PROTO_SATAPM)
-		PROBE_SET_ACTION(softc, PROBE_PM_PID);
 	else
 		PROBE_SET_ACTION(softc, PROBE_IDENTIFY);
 
@@ -295,7 +281,6 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	/* Probe the device that our peripheral driver points to */
 	struct ccb_ataio *ataio;
 	struct ccb_scsiio *csio;
-	struct ccb_trans_settings cts;
 	probe_softc *softc;
 
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probestart\n"));
@@ -306,21 +291,11 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 
 	switch (softc->action) {
 	case PROBE_RESET:
-		if (start_ccb->ccb_h.target_id == 15) {
-			/* Report SIM that we have no knowledge about PM presence. */
-			bzero(&cts, sizeof(cts));
-			xpt_setup_ccb(&cts.ccb_h, start_ccb->ccb_h.path, 1);
-			cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
-			cts.type = CTS_TYPE_CURRENT_SETTINGS;
-			cts.xport_specific.sata.pm_present = 0;
-			cts.xport_specific.sata.valid = CTS_SATA_VALID_PM;
-			xpt_action((union ccb *)&cts);
-		}
 		cam_fill_ataio(ataio,
 		      0,
 		      probedone,
 		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
+		      0,
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      (start_ccb->ccb_h.target_id == 15 ? 3 : 15) * 1000);
@@ -351,7 +326,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      1,
 		      probedone,
 		      /*flags*/CAM_DIR_IN,
-		      MSG_SIMPLE_Q_TAG,
+		      0,
 		      /*data_ptr*/(u_int8_t *)ident_buf,
 		      /*dxfer_len*/sizeof(struct ata_params),
 		      30 * 1000);
@@ -413,7 +388,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      1,
 		      probedone,
 		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
+		      0,
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      10 * 1000);
@@ -424,73 +399,11 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      1,
 		      probedone,
 		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
+		      0,
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      10 * 1000);
 		ata_pm_read_cmd(ataio, 1, 15);
-		break;
-	case PROBE_PM_PORTS:
-		cam_fill_ataio(ataio,
-		      1,
-		      probedone,
-		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      10 * 1000);
-		ata_pm_read_cmd(ataio, 2, 15);
-		break;
-	case PROBE_PM_RESET:
-	{
-		struct ata_params *ident_buf =
-		    &periph->path->device->ident_data;
-		cam_fill_ataio(ataio,
-		      1,
-		      probedone,
-		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      10 * 1000);
-		ata_pm_write_cmd(ataio, 2, softc->pm_step,
-		    (ident_buf->cylinders & (1 << softc->pm_step)) ? 0 : 1);
-printf("PM RESET %d %04x %d\n", softc->pm_step, ident_buf->cylinders,
-    (ident_buf->cylinders & (1 << softc->pm_step)) ? 0 : 1);
-		break;
-	}
-	case PROBE_PM_CONNECT:
-		cam_fill_ataio(ataio,
-		      1,
-		      probedone,
-		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      10 * 1000);
-		ata_pm_write_cmd(ataio, 2, softc->pm_step, 0);
-		break;
-	case PROBE_PM_CHECK:
-		cam_fill_ataio(ataio,
-		      1,
-		      probedone,
-		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      10 * 1000);
-		ata_pm_read_cmd(ataio, 0, softc->pm_step);
-		break;
-	case PROBE_PM_CLEAR:
-		cam_fill_ataio(ataio,
-		      1,
-		      probedone,
-		      /*flags*/CAM_DIR_NONE,
-		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/NULL,
-		      /*dxfer_len*/0,
-		      10 * 1000);
-		ata_pm_write_cmd(ataio, 1, softc->pm_step, 0xFFFFFFFF);
 		break;
 	case PROBE_INVALID:
 		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_INFO,
@@ -630,7 +543,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	probe_softc *softc;
 	struct cam_path *path;
 	u_int32_t  priority;
-	int found = 0;
+	int found = 1;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probedone\n"));
 
@@ -672,8 +585,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 					xpt_print(path,
 					    "Unexpected signature 0x%04x\n", sign);
 				}
-				xpt_release_ccb(done_ccb);
-				break;
+				goto device_fail;
 			}
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -780,9 +692,8 @@ device_fail:
 		 * drivers that this device is no more.
 		 */
 		if ((path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
-			/* Send the async notification. */
 			xpt_async(AC_LOST_DEVICE, path, NULL);
-
+		found = 0;
 		xpt_release_ccb(done_ccb);
 		break;
 	}
@@ -881,6 +792,7 @@ modedone:		if (path->device->protocol == PROTO_ATA) {
 			    (done_ccb->ataio.res.lba_mid << 16) +
 			    (done_ccb->ataio.res.lba_low << 8) +
 			    done_ccb->ataio.res.sector_count;
+			((uint32_t *)ident_buf)[0] = softc->pm_pid;
 			printf("PM Product ID: %08x\n", softc->pm_pid);
 			snprintf(ident_buf->model, sizeof(ident_buf->model),
 			    "Port Multiplier %08x", softc->pm_pid);
@@ -903,164 +815,24 @@ modedone:		if (path->device->protocol == PROTO_ATA) {
 			    (done_ccb->ataio.res.lba_mid << 16) +
 			    (done_ccb->ataio.res.lba_low << 8) +
 			    done_ccb->ataio.res.sector_count;
+			((uint32_t *)ident_buf)[1] = softc->pm_prv;
 			printf("PM Revision: %08x\n", softc->pm_prv);
 			snprintf(ident_buf->revision, sizeof(ident_buf->revision),
 			    "%04x", softc->pm_prv);
-			PROBE_SET_ACTION(softc, PROBE_PM_PORTS);
-			xpt_release_ccb(done_ccb);
-			xpt_schedule(periph, priority);
-			return;
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
-		}
-		goto device_fail;
-	case PROBE_PM_PORTS:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_ports = (done_ccb->ataio.res.lba_high << 24) +
-			    (done_ccb->ataio.res.lba_mid << 16) +
-			    (done_ccb->ataio.res.lba_low << 8) +
-			    done_ccb->ataio.res.sector_count;
-			/* This PM declares 6 ports, while only 5 of them are real.
-			 * Port 5 is enclosure management bridge port, which has implementation
-			 * problems, causing probe faults. Hide it for now. */
-			if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
-				softc->pm_ports = 5;
-			/* This PM declares 7 ports, while only 5 of them are real.
-			 * Port 5 is some fake "Config  Disk" with 640 sectors size,
-			 * port 6 is enclosure management bridge port.
-			 * Both fake ports has implementation problems, causing
-			 * probe faults. Hide them for now. */
-			if (softc->pm_pid == 0x47261095 && softc->pm_ports == 7)
-				softc->pm_ports = 5;
-			printf("PM ports: %d\n", softc->pm_ports);
-			ident_buf->config = softc->pm_ports;
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
-			softc->pm_step = 0;
-			PROBE_SET_ACTION(softc, PROBE_PM_RESET);
-			xpt_release_ccb(done_ccb);
-			xpt_schedule(periph, priority);
-			return;
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
-		}
-		goto device_fail;
-	case PROBE_PM_RESET:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_step++;
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			} else {
-				softc->pm_step = 0;
-				DELAY(5000);
-				printf("PM reset done\n");
-				PROBE_SET_ACTION(softc, PROBE_PM_CONNECT);
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
-		}
-		goto device_fail;
-	case PROBE_PM_CONNECT:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_step++;
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			} else {
-				softc->pm_step = 0;
-				softc->pm_try = 0;
-				printf("PM connect done\n");
-				PROBE_SET_ACTION(softc, PROBE_PM_CHECK);
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
-		}
-		goto device_fail;
-	case PROBE_PM_CHECK:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			int res = (done_ccb->ataio.res.lba_high << 24) +
-			    (done_ccb->ataio.res.lba_mid << 16) +
-			    (done_ccb->ataio.res.lba_low << 8) +
-			    done_ccb->ataio.res.sector_count;
-			if ((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) {
-				printf("PM status: %d - %08x\n", softc->pm_step, res);
-				ident_buf->cylinders |= (1 << softc->pm_step);
-				softc->pm_step++;
-			} else {
-				if (softc->pm_try < 100) {
-					DELAY(10000);
-					softc->pm_try++;
-				} else {
-					printf("PM status: %d - %08x\n", softc->pm_step, res);
-					ident_buf->cylinders &= ~(1 << softc->pm_step);
-					softc->pm_step++;
-				}
-			}
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			} else {
-				softc->pm_step = 0;
-				PROBE_SET_ACTION(softc, PROBE_PM_CLEAR);
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-			/* Don't wedge the queue */
-			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
-					 /*run_queue*/TRUE);
-		}
-		goto device_fail;
-	case PROBE_PM_CLEAR:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_step++;
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-			found = ident_buf->cylinders | 0x8000;
-			if (path->device->flags & CAM_DEV_UNCONFIGURED) {
+			if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 				done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 				xpt_action(done_ccb);
 				xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 				    done_ccb);
-				xpt_release_ccb(done_ccb);
+			} else {
+				done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+				xpt_action(done_ccb);
+				xpt_async(AC_SCSI_AEN, done_ccb->ccb_h.path,
+				    done_ccb);
 			}
+			xpt_release_ccb(done_ccb);
 			break;
 		} else if (cam_periph_error(done_ccb, 0, 0,
 					    &softc->saved_ccb) == ERESTART) {
@@ -1192,11 +964,11 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		scan_info = (ata_scan_bus_info *)work_ccb->ccb_h.ppriv_ptr0;
 		/* Free the current request path- we're done with it. */
 		xpt_free_path(work_ccb->ccb_h.path);
-		/* If there is PM... */
+		/* If there is PMP... */
 		if (scan_info->counter == 15) {
 			if (work_ccb->ccb_h.ppriv_field1 != 0) {
-				/* Save PM probe result. */
-				scan_info->found = work_ccb->ccb_h.ppriv_field1;
+				/* everything else willbe probed by it */
+				scan_info->found = 0x8000;
 			} else {
 				struct ccb_trans_settings cts;
 
@@ -1225,6 +997,8 @@ take_next:
 			break;
 		}
 scan_next:
+		if ((scan_info->found & (1 << scan_info->counter)) == 0)
+			goto take_next;
 		status = xpt_create_path(&path, xpt_periph,
 		    scan_info->request_ccb->ccb_h.path_id,
 		    scan_info->counter, 0);
@@ -1239,11 +1013,6 @@ scan_next:
 			request_ccb->ccb_h.status = status;
 			xpt_done(request_ccb);
 			break;
-		}
-		if ((scan_info->found & (1 << scan_info->counter)) == 0) {
-			xpt_async(AC_LOST_DEVICE, path, NULL);
-			xpt_free_path(path);
-			goto take_next;
 		}
 		xpt_setup_ccb(&work_ccb->ccb_h, path,
 		    scan_info->request_ccb->ccb_h.pinfo.priority);
