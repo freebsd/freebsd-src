@@ -534,13 +534,13 @@ camperiphfree(struct cam_periph *periph)
 		switch (periph->deferred_ac) {
 		case AC_FOUND_DEVICE:
 			ccb.ccb_h.func_code = XPT_GDEV_TYPE;
-			xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/ 1);
+			xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 			xpt_action(&ccb);
 			arg = &ccb;
 			break;
 		case AC_PATH_REGISTERED:
 			ccb.ccb_h.func_code = XPT_PATH_INQ;
-			xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/ 1);
+			xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 			xpt_action(&ccb);
 			arg = &ccb;
 			break;
@@ -831,10 +831,10 @@ cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 
 	switch(cmd){
 	case CAMGETPASSTHRU:
-		ccb = cam_periph_getccb(periph, /* priority */ 1);
+		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		xpt_setup_ccb(&ccb->ccb_h,
 			      ccb->ccb_h.path,
-			      /*priority*/1);
+			      CAM_PRIORITY_NORMAL);
 		ccb->ccb_h.func_code = XPT_GDEVLIST;
 
 		/*
@@ -939,7 +939,7 @@ cam_freeze_devq(struct cam_path *path)
 {
 	struct ccb_hdr ccb_h;
 
-	xpt_setup_ccb(&ccb_h, path, /*priority*/1);
+	xpt_setup_ccb(&ccb_h, path, CAM_PRIORITY_NORMAL);
 	ccb_h.func_code = XPT_NOOP;
 	ccb_h.flags = CAM_DEV_QFREEZE;
 	xpt_action((union ccb *)&ccb_h);
@@ -952,8 +952,7 @@ cam_release_devq(struct cam_path *path, u_int32_t relsim_flags,
 {
 	struct ccb_relsim crs;
 
-	xpt_setup_ccb(&crs.ccb_h, path,
-		      /*priority*/1);
+	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.ccb_h.flags = getcount_only ? CAM_DEV_QFREEZE : 0;
 	crs.release_flags = relsim_flags;
@@ -1070,7 +1069,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 			 * Grab the inquiry data for this device.
 			 */
 			xpt_setup_ccb(&cgd.ccb_h, done_ccb->ccb_h.path,
-				      /*priority*/ 1);
+			    CAM_PRIORITY_NORMAL);
 			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action((union ccb *)&cgd);
 			err_action = scsi_error_action(&done_ccb->csio,
@@ -1212,7 +1211,7 @@ cam_periph_bus_settle(struct cam_periph *periph, u_int bus_settle)
 {
 	struct ccb_getdevstats cgds;
 
-	xpt_setup_ccb(&cgds.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&cgds.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cgds.ccb_h.func_code = XPT_GDEV_STATS;
 	xpt_action((union ccb *)&cgds);
 	cam_periph_freeze_after_event(periph, &cgds.last_reset, bus_settle);
@@ -1280,7 +1279,7 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		 */
 		xpt_setup_ccb(&cgds.ccb_h,
 			      ccb->ccb_h.path,
-			      /*priority*/1);
+			      CAM_PRIORITY_NORMAL);
 		cgds.ccb_h.func_code = XPT_GDEV_STATS;
 		xpt_action((union ccb *)&cgds);
 
@@ -1403,7 +1402,7 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		/*
 		 * Grab the inquiry data for this device.
 		 */
-		xpt_setup_ccb(&cgd.ccb_h, ccb->ccb_h.path, /*priority*/ 1);
+		xpt_setup_ccb(&cgd.ccb_h, ccb->ccb_h.path, CAM_PRIORITY_NORMAL);
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 
@@ -1543,14 +1542,14 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		
 		if ((err_action & SS_MASK) >= SS_START) {
 			/*
-			 * Drop the priority to 0 so that the recovery
+			 * Drop the priority, so that the recovery
 			 * CCB is the first to execute.  Freeze the queue
 			 * after this command is sent so that we can
 			 * restore the old csio and have it queued in
 			 * the proper order before we release normal 
 			 * transactions to the device.
 			 */
-			ccb->ccb_h.pinfo.priority = 0;
+			ccb->ccb_h.pinfo.priority = CAM_PRIORITY_DEV;
 			ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 			ccb->ccb_h.saved_ccb_ptr = save_ccb;
 			error = ERESTART;
