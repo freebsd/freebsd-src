@@ -1251,7 +1251,9 @@ Sema::TypeResult Sema::ActOnTagTemplateIdType(TypeResult TypeResult,
   return ElabType.getAsOpaquePtr();
 }
 
-Sema::OwningExprResult Sema::BuildTemplateIdExpr(TemplateName Template,
+Sema::OwningExprResult Sema::BuildTemplateIdExpr(NestedNameSpecifier *Qualifier,
+                                                 SourceRange QualifierRange,
+                                                 TemplateName Template,
                                                  SourceLocation TemplateNameLoc,
                                                  SourceLocation LAngleLoc,
                                            const TemplateArgument *TemplateArgs,
@@ -1261,16 +1263,36 @@ Sema::OwningExprResult Sema::BuildTemplateIdExpr(TemplateName Template,
   // template arguments that we have against the template name, if the template
   // name refers to a single template. That's not a terribly common case,
   // though.
-  return Owned(TemplateIdRefExpr::Create(Context,
-                                         /*FIXME: New type?*/Context.OverloadTy,
-                                         /*FIXME: Necessary?*/0,
-                                         /*FIXME: Necessary?*/SourceRange(),
+  
+  // Cope with an implicit member access in a C++ non-static member function.
+  NamedDecl *D = Template.getAsTemplateDecl();
+  if (!D)
+    D = Template.getAsOverloadedFunctionDecl();
+  
+  CXXScopeSpec SS;
+  SS.setRange(QualifierRange);
+  SS.setScopeRep(Qualifier);
+  QualType ThisType, MemberType;
+  if (D && isImplicitMemberReference(&SS, D, TemplateNameLoc, 
+                                     ThisType, MemberType)) {
+    Expr *This = new (Context) CXXThisExpr(SourceLocation(), ThisType);
+    return Owned(MemberExpr::Create(Context, This, true,
+                                    Qualifier, QualifierRange,
+                                    D, TemplateNameLoc, true,
+                                    LAngleLoc, TemplateArgs,
+                                    NumTemplateArgs, RAngleLoc,
+                                    Context.OverloadTy));
+  }
+  
+  return Owned(TemplateIdRefExpr::Create(Context, Context.OverloadTy,
+                                         Qualifier, QualifierRange,
                                          Template, TemplateNameLoc, LAngleLoc,
                                          TemplateArgs,
                                          NumTemplateArgs, RAngleLoc));
 }
 
-Sema::OwningExprResult Sema::ActOnTemplateIdExpr(TemplateTy TemplateD,
+Sema::OwningExprResult Sema::ActOnTemplateIdExpr(const CXXScopeSpec &SS,
+                                                 TemplateTy TemplateD,
                                                  SourceLocation TemplateNameLoc,
                                                  SourceLocation LAngleLoc,
                                               ASTTemplateArgsPtr TemplateArgsIn,
@@ -1283,7 +1305,9 @@ Sema::OwningExprResult Sema::ActOnTemplateIdExpr(TemplateTy TemplateD,
   translateTemplateArguments(TemplateArgsIn, TemplateArgLocs, TemplateArgs);
   TemplateArgsIn.release();
 
-  return BuildTemplateIdExpr(Template, TemplateNameLoc, LAngleLoc,
+  return BuildTemplateIdExpr((NestedNameSpecifier *)SS.getScopeRep(),
+                             SS.getRange(),
+                             Template, TemplateNameLoc, LAngleLoc,
                              TemplateArgs.data(), TemplateArgs.size(),
                              RAngleLoc);
 }
@@ -1706,7 +1730,7 @@ bool Sema::CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg,
   bool Invalid = false;
 
   // See through any implicit casts we added to fix the type.
-  if (ImplicitCastExpr *Cast = dyn_cast<ImplicitCastExpr>(Arg))
+  while (ImplicitCastExpr *Cast = dyn_cast<ImplicitCastExpr>(Arg))
     Arg = Cast->getSubExpr();
 
   // C++0x allows nullptr, and there's no further checking to be done for that.
@@ -1808,7 +1832,7 @@ Sema::CheckTemplateArgumentPointerToMember(Expr *Arg, NamedDecl *&Member) {
   bool Invalid = false;
 
   // See through any implicit casts we added to fix the type.
-  if (ImplicitCastExpr *Cast = dyn_cast<ImplicitCastExpr>(Arg))
+  while (ImplicitCastExpr *Cast = dyn_cast<ImplicitCastExpr>(Arg))
     Arg = Cast->getSubExpr();
 
   // C++0x allows nullptr, and there's no further checking to be done for that.
@@ -1936,7 +1960,7 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     } else if (IsIntegralPromotion(Arg, ArgType, ParamType) ||
                !ParamType->isEnumeralType()) {
       // This is an integral promotion or conversion.
-      ImpCastExprToType(Arg, ParamType);
+      ImpCastExprToType(Arg, ParamType, CastExpr::CK_IntegralCast);
     } else {
       // We can't perform this conversion.
       Diag(Arg->getSourceRange().getBegin(),
@@ -2025,20 +2049,23 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
     } else if (ArgType->isNullPtrType() && (ParamType->isPointerType() ||
                  ParamType->isMemberPointerType())) {
       ArgType = ParamType;
-      ImpCastExprToType(Arg, ParamType);
+      if (ParamType->isMemberPointerType())
+        ImpCastExprToType(Arg, ParamType, CastExpr::CK_NullToMemberPointer);
+      else
+        ImpCastExprToType(Arg, ParamType, CastExpr::CK_BitCast);
     } else if (ArgType->isFunctionType() && ParamType->isPointerType()) {
       ArgType = Context.getPointerType(ArgType);
-      ImpCastExprToType(Arg, ArgType);
+      ImpCastExprToType(Arg, ArgType, CastExpr::CK_FunctionToPointerDecay);
     } else if (FunctionDecl *Fn
                  = ResolveAddressOfOverloadedFunction(Arg, ParamType, true)) {
       if (DiagnoseUseOfDecl(Fn, Arg->getSourceRange().getBegin()))
         return true;
 
-      FixOverloadedFunctionReference(Arg, Fn);
+      Arg = FixOverloadedFunctionReference(Arg, Fn);
       ArgType = Arg->getType();
       if (ArgType->isFunctionType() && ParamType->isPointerType()) {
         ArgType = Context.getPointerType(Arg->getType());
-        ImpCastExprToType(Arg, ArgType);
+        ImpCastExprToType(Arg, ArgType, CastExpr::CK_FunctionToPointerDecay);
       }
     }
 
@@ -2083,15 +2110,15 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
 
     if (ArgType->isNullPtrType()) {
       ArgType = ParamType;
-      ImpCastExprToType(Arg, ParamType);
+      ImpCastExprToType(Arg, ParamType, CastExpr::CK_BitCast);
     } else if (ArgType->isArrayType()) {
       ArgType = Context.getArrayDecayedType(ArgType);
-      ImpCastExprToType(Arg, ArgType);
+      ImpCastExprToType(Arg, ArgType, CastExpr::CK_ArrayToPointerDecay);
     }
 
     if (IsQualificationConversion(ArgType, ParamType)) {
       ArgType = ParamType;
-      ImpCastExprToType(Arg, ParamType);
+      ImpCastExprToType(Arg, ParamType, CastExpr::CK_NoOp);
     }
 
     if (!Context.hasSameUnqualifiedType(ArgType, ParamType)) {
@@ -2162,9 +2189,9 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
   if (Context.hasSameUnqualifiedType(ParamType, ArgType)) {
     // Types match exactly: nothing more to do here.
   } else if (ArgType->isNullPtrType()) {
-    ImpCastExprToType(Arg, ParamType);
+    ImpCastExprToType(Arg, ParamType, CastExpr::CK_NullToMemberPointer);
   } else if (IsQualificationConversion(ArgType, ParamType)) {
-    ImpCastExprToType(Arg, ParamType);
+    ImpCastExprToType(Arg, ParamType, CastExpr::CK_NoOp);
   } else {
     // We can't perform this conversion.
     Diag(Arg->getSourceRange().getBegin(),
@@ -3038,6 +3065,173 @@ Sema::ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope,
   return DeclPtrTy();
 }
 
+/// \brief Diagnose cases where we have an explicit template specialization 
+/// before/after an explicit template instantiation, producing diagnostics
+/// for those cases where they are required and determining whether the 
+/// new specialization/instantiation will have any effect.
+///
+/// \param S the semantic analysis object.
+///
+/// \param NewLoc the location of the new explicit specialization or 
+/// instantiation.
+///
+/// \param NewTSK the kind of the new explicit specialization or instantiation.
+///
+/// \param PrevDecl the previous declaration of the entity.
+///
+/// \param PrevTSK the kind of the old explicit specialization or instantiatin.
+///
+/// \param PrevPointOfInstantiation if valid, indicates where the previus 
+/// declaration was instantiated (either implicitly or explicitly).
+///
+/// \param SuppressNew will be set to true to indicate that the new 
+/// specialization or instantiation has no effect and should be ignored.
+///
+/// \returns true if there was an error that should prevent the introduction of
+/// the new declaration into the AST, false otherwise.
+static bool 
+CheckSpecializationInstantiationRedecl(Sema &S,
+                                       SourceLocation NewLoc,
+                                       TemplateSpecializationKind NewTSK,
+                                       NamedDecl *PrevDecl,
+                                       TemplateSpecializationKind PrevTSK,
+                                       SourceLocation PrevPointOfInstantiation,
+                                       bool &SuppressNew) {
+  SuppressNew = false;
+  
+  switch (NewTSK) {
+  case TSK_Undeclared:
+  case TSK_ImplicitInstantiation:
+    assert(false && "Don't check implicit instantiations here");
+    return false;
+    
+  case TSK_ExplicitSpecialization:
+    switch (PrevTSK) {
+    case TSK_Undeclared:
+    case TSK_ExplicitSpecialization:
+      // Okay, we're just specializing something that is either already 
+      // explicitly specialized or has merely been mentioned without any
+      // instantiation.
+      return false;
+
+    case TSK_ImplicitInstantiation:
+      if (PrevPointOfInstantiation.isInvalid()) {
+        // The declaration itself has not actually been instantiated, so it is
+        // still okay to specialize it.
+        return false;
+      }
+      // Fall through
+        
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      assert((PrevTSK == TSK_ImplicitInstantiation || 
+              PrevPointOfInstantiation.isValid()) && 
+             "Explicit instantiation without point of instantiation?");
+        
+      // C++ [temp.expl.spec]p6:
+      //   If a template, a member template or the member of a class template 
+      //   is explicitly specialized then that specialization shall be declared
+      //   before the first use of that specialization that would cause an 
+      //   implicit instantiation to take place, in every translation unit in
+      //   which such a use occurs; no diagnostic is required.
+      S.Diag(NewLoc, diag::err_specialization_after_instantiation)
+        << PrevDecl;
+      S.Diag(PrevPointOfInstantiation, diag::note_instantiation_required_here)
+        << (PrevTSK != TSK_ImplicitInstantiation);
+      
+      return true;
+    }
+    break;
+      
+  case TSK_ExplicitInstantiationDeclaration:
+    switch (PrevTSK) {
+    case TSK_ExplicitInstantiationDeclaration:
+      // This explicit instantiation declaration is redundant (that's okay).
+      SuppressNew = true;
+      return false;
+        
+    case TSK_Undeclared:
+    case TSK_ImplicitInstantiation:
+      // We're explicitly instantiating something that may have already been
+      // implicitly instantiated; that's fine.
+      return false;
+        
+    case TSK_ExplicitSpecialization:
+      // C++0x [temp.explicit]p4:
+      //   For a given set of template parameters, if an explicit instantiation
+      //   of a template appears after a declaration of an explicit 
+      //   specialization for that template, the explicit instantiation has no
+      //   effect.
+      return false;
+        
+    case TSK_ExplicitInstantiationDefinition:
+      // C++0x [temp.explicit]p10:
+      //   If an entity is the subject of both an explicit instantiation 
+      //   declaration and an explicit instantiation definition in the same 
+      //   translation unit, the definition shall follow the declaration.
+      S.Diag(NewLoc, 
+             diag::err_explicit_instantiation_declaration_after_definition);
+      S.Diag(PrevPointOfInstantiation, 
+             diag::note_explicit_instantiation_definition_here);
+      assert(PrevPointOfInstantiation.isValid() &&
+             "Explicit instantiation without point of instantiation?");
+      SuppressNew = true;
+      return false;
+    }
+    break;
+      
+  case TSK_ExplicitInstantiationDefinition:
+    switch (PrevTSK) {
+    case TSK_Undeclared:
+    case TSK_ImplicitInstantiation:
+      // We're explicitly instantiating something that may have already been
+      // implicitly instantiated; that's fine.
+      return false;
+        
+    case TSK_ExplicitSpecialization:
+      // C++ DR 259, C++0x [temp.explicit]p4:
+      //   For a given set of template parameters, if an explicit
+      //   instantiation of a template appears after a declaration of
+      //   an explicit specialization for that template, the explicit
+      //   instantiation has no effect.
+      //
+      // In C++98/03 mode, we only give an extension warning here, because it 
+      // is not not harmful to try to explicitly instantiate something that
+      // has been explicitly specialized.
+      if (!S.getLangOptions().CPlusPlus0x) {
+        S.Diag(NewLoc, diag::ext_explicit_instantiation_after_specialization)
+          << PrevDecl;
+        S.Diag(PrevDecl->getLocation(),
+             diag::note_previous_template_specialization);
+      }
+      SuppressNew = true;
+      return false;
+        
+    case TSK_ExplicitInstantiationDeclaration:
+      // We're explicity instantiating a definition for something for which we
+      // were previously asked to suppress instantiations. That's fine. 
+      return false;
+        
+    case TSK_ExplicitInstantiationDefinition:
+      // C++0x [temp.spec]p5:
+      //   For a given template and a given set of template-arguments,
+      //     - an explicit instantiation definition shall appear at most once
+      //       in a program,
+      S.Diag(NewLoc, diag::err_explicit_instantiation_duplicate)
+        << PrevDecl;
+      S.Diag(PrevPointOfInstantiation, 
+             diag::note_previous_explicit_instantiation);
+      SuppressNew = true;
+      return false;        
+    }
+    break;
+  }
+  
+  assert(false && "Missing specialization/instantiation case?");
+         
+  return false;
+}
+
 /// \brief Perform semantic analysis for the given function template 
 /// specialization.
 ///
@@ -3463,54 +3657,18 @@ Sema::ActOnExplicitInstantiation(Scope *S,
   
   ClassTemplateSpecializationDecl *Specialization = 0;
 
-  bool SpecializationRequiresInstantiation = true;
   if (PrevDecl) {
-    if (PrevDecl->getSpecializationKind()
-          == TSK_ExplicitInstantiationDefinition) {
-      // This particular specialization has already been declared or
-      // instantiated. We cannot explicitly instantiate it.
-      Diag(TemplateNameLoc, diag::err_explicit_instantiation_duplicate)
-        << Context.getTypeDeclType(PrevDecl);
-      Diag(PrevDecl->getLocation(),
-           diag::note_previous_explicit_instantiation);
+    bool SuppressNew = false;
+    if (CheckSpecializationInstantiationRedecl(*this, TemplateNameLoc, TSK,
+                                               PrevDecl, 
+                                              PrevDecl->getSpecializationKind(), 
+                                            PrevDecl->getPointOfInstantiation(),
+                                               SuppressNew))
       return DeclPtrTy::make(PrevDecl);
-    }
 
-    if (PrevDecl->getSpecializationKind() == TSK_ExplicitSpecialization) {
-      // C++ DR 259, C++0x [temp.explicit]p4:
-      //   For a given set of template parameters, if an explicit
-      //   instantiation of a template appears after a declaration of
-      //   an explicit specialization for that template, the explicit
-      //   instantiation has no effect.
-      if (!getLangOptions().CPlusPlus0x) {
-        Diag(TemplateNameLoc,
-             diag::ext_explicit_instantiation_after_specialization)
-          << Context.getTypeDeclType(PrevDecl);
-        Diag(PrevDecl->getLocation(),
-             diag::note_previous_template_specialization);
-      }
-
-      // Create a new class template specialization declaration node
-      // for this explicit specialization. This node is only used to
-      // record the existence of this explicit instantiation for
-      // accurate reproduction of the source code; we don't actually
-      // use it for anything, since it is semantically irrelevant.
-      Specialization
-        = ClassTemplateSpecializationDecl::Create(Context,
-                                             ClassTemplate->getDeclContext(),
-                                                  TemplateNameLoc,
-                                                  ClassTemplate,
-                                                  Converted, 0);
-      Specialization->setLexicalDeclContext(CurContext);
-      CurContext->addDecl(Specialization);
+    if (SuppressNew)
       return DeclPtrTy::make(PrevDecl);
-    }
-
-    // If we have already (implicitly) instantiated this
-    // specialization, there is less work to do.
-    if (PrevDecl->getSpecializationKind() == TSK_ImplicitInstantiation)
-      SpecializationRequiresInstantiation = false;
-
+    
     if (PrevDecl->getSpecializationKind() == TSK_ImplicitInstantiation ||
         PrevDecl->getSpecializationKind() == TSK_Undeclared) {
       // Since the only prior class template specialization with these
@@ -3521,7 +3679,7 @@ Sema::ActOnExplicitInstantiation(Scope *S,
       Specialization->setLocation(TemplateNameLoc);
       PrevDecl = 0;
     }
-  } 
+  }
   
   if (!Specialization) {
     // Create a new class template specialization declaration node for
@@ -3574,11 +3732,13 @@ Sema::ActOnExplicitInstantiation(Scope *S,
   //
   // This check comes when we actually try to perform the
   // instantiation.
-  if (SpecializationRequiresInstantiation)
+  ClassTemplateSpecializationDecl *Def
+    = cast_or_null<ClassTemplateSpecializationDecl>(
+                                        Specialization->getDefinition(Context));
+  if (!Def)
     InstantiateClassTemplateSpecialization(Specialization, TSK);
   else // Instantiate the members of this class template specialization.
-    InstantiateClassTemplateSpecializationMembers(TemplateLoc, Specialization,
-                                                  TSK);
+    InstantiateClassTemplateSpecializationMembers(TemplateNameLoc, Def, TSK);
 
   return DeclPtrTy::make(Specialization);
 }
@@ -3649,17 +3809,46 @@ Sema::ActOnExplicitInstantiation(Scope *S,
   //
   // This is C++ DR 275.
   CheckExplicitInstantiationScope(*this, Record, NameLoc, true);
-
-  if (!Record->getDefinition(Context)) {
-    // If the class has a definition, instantiate it (and all of its
-    // members, recursively).
-    Pattern = cast_or_null<CXXRecordDecl>(Pattern->getDefinition(Context));
-    if (Pattern && InstantiateClass(TemplateLoc, Record, Pattern,
-                                    getTemplateInstantiationArgs(Record),
-                                    TSK))
+  
+  // Verify that it is okay to explicitly instantiate here.
+  CXXRecordDecl *PrevDecl 
+    = cast_or_null<CXXRecordDecl>(Record->getPreviousDeclaration());
+  if (!PrevDecl && Record->getDefinition(Context))
+    PrevDecl = Record;
+  if (PrevDecl) {
+    MemberSpecializationInfo *MSInfo = PrevDecl->getMemberSpecializationInfo();
+    bool SuppressNew = false;
+    assert(MSInfo && "No member specialization information?");
+    if (CheckSpecializationInstantiationRedecl(*this, TemplateLoc, TSK, 
+                                               PrevDecl,
+                                        MSInfo->getTemplateSpecializationKind(),
+                                             MSInfo->getPointOfInstantiation(), 
+                                               SuppressNew))
+      return true;
+    if (SuppressNew)
+      return TagD;
+  }
+  
+  CXXRecordDecl *RecordDef
+    = cast_or_null<CXXRecordDecl>(Record->getDefinition(Context));
+  if (!RecordDef) {
+    // C++ [temp.explicit]p3:
+    //   A definition of a member class of a class template shall be in scope 
+    //   at the point of an explicit instantiation of the member class.
+    CXXRecordDecl *Def 
+      = cast_or_null<CXXRecordDecl>(Pattern->getDefinition(Context));
+    if (!Def) {
+      Diag(TemplateLoc, diag::err_explicit_instantiation_undefined_member)
+        << 0 << Record->getDeclName() << Record->getDeclContext();
+      Diag(Pattern->getLocation(), diag::note_forward_declaration)
+        << Pattern;
+      return true;
+    } else if (InstantiateClass(NameLoc, Record, Def,
+                                getTemplateInstantiationArgs(Record),
+                                TSK))
       return true;
   } else // Instantiate all of the members of the class.
-    InstantiateClassMembers(TemplateLoc, Record,
+    InstantiateClassMembers(NameLoc, RecordDef,
                             getTemplateInstantiationArgs(Record), TSK);
 
   // FIXME: We don't have any representation for explicit instantiations of
@@ -3775,11 +3964,24 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
     // Check the scope of this explicit instantiation.
     CheckExplicitInstantiationScope(*this, Prev, D.getIdentifierLoc(), true);
     
+    // Verify that it is okay to explicitly instantiate here.
+    MemberSpecializationInfo *MSInfo = Prev->getMemberSpecializationInfo();
+    assert(MSInfo && "Missing static data member specialization info?");
+    bool SuppressNew = false;
+    if (CheckSpecializationInstantiationRedecl(*this, D.getIdentifierLoc(), TSK, 
+                                               Prev,
+                                        MSInfo->getTemplateSpecializationKind(),
+                                              MSInfo->getPointOfInstantiation(), 
+                                               SuppressNew))
+      return true;
+    if (SuppressNew)
+      return DeclPtrTy();
+    
     // Instantiate static data member.
-    // FIXME: Check for prior specializations and such.
-    Prev->setTemplateSpecializationKind(TSK);
+    Prev->setTemplateSpecializationKind(TSK, D.getIdentifierLoc());
     if (TSK == TSK_ExplicitInstantiationDefinition)
-      InstantiateStaticDataMemberDefinition(D.getIdentifierLoc(), Prev, false);
+      InstantiateStaticDataMemberDefinition(D.getIdentifierLoc(), Prev, false,
+                                            /*DefinitionRequired=*/true);
     
     // FIXME: Create an ExplicitInstantiation node?
     return DeclPtrTy();
@@ -3850,8 +4052,7 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
   if (!Specialization)
     return true;
   
-  switch (Specialization->getTemplateSpecializationKind()) {
-  case TSK_Undeclared:
+  if (Specialization->getTemplateSpecializationKind() == TSK_Undeclared) {
     Diag(D.getIdentifierLoc(), 
          diag::err_explicit_instantiation_member_function_not_instantiated)
       << Specialization
@@ -3859,35 +4060,33 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
           TSK_ExplicitSpecialization);
     Diag(Specialization->getLocation(), diag::note_explicit_instantiation_here);
     return true;
-
-  case TSK_ExplicitSpecialization:
-    // C++ [temp.explicit]p4:
-    //   For a given set of template parameters, if an explicit instantiation
-    //   of a template appears after a declaration of an explicit 
-    //   specialization for that template, the explicit instantiation has no 
-    //   effect.
-    break;      
-
-  case TSK_ExplicitInstantiationDefinition:
-    // FIXME: Check that we aren't trying to perform an explicit instantiation
-    // declaration now.
-    // Fall through
-      
-  case TSK_ImplicitInstantiation:
-  case TSK_ExplicitInstantiationDeclaration:
-    // Instantiate the function, if this is an explicit instantiation 
-    // definition.
-    if (TSK == TSK_ExplicitInstantiationDefinition)
-      InstantiateFunctionDefinition(D.getIdentifierLoc(), Specialization, 
-                                    false);
-      
-    Specialization->setTemplateSpecializationKind(TSK);
-    break;
-  }
-
-  // Check the scope of this explicit instantiation.
-  FunctionTemplateDecl *FunTmpl = Specialization->getPrimaryTemplate();
+  } 
   
+  FunctionDecl *PrevDecl = Specialization->getPreviousDeclaration();
+  if (!PrevDecl && Specialization->isThisDeclarationADefinition())
+    PrevDecl = Specialization;
+
+  if (PrevDecl) {
+    bool SuppressNew = false;
+    if (CheckSpecializationInstantiationRedecl(*this, D.getIdentifierLoc(), TSK,
+                                               PrevDecl, 
+                                     PrevDecl->getTemplateSpecializationKind(), 
+                                          PrevDecl->getPointOfInstantiation(),
+                                               SuppressNew))
+      return true;
+    
+    // FIXME: We may still want to build some representation of this
+    // explicit specialization.
+    if (SuppressNew)
+      return DeclPtrTy();
+  }
+  
+  if (TSK == TSK_ExplicitInstantiationDefinition)
+    InstantiateFunctionDefinition(D.getIdentifierLoc(), Specialization, 
+                                  false, /*DefinitionRequired=*/true);
+      
+  Specialization->setTemplateSpecializationKind(TSK, D.getIdentifierLoc());
+ 
   // C++0x [temp.explicit]p2:
   //   If the explicit instantiation is for a member function, a member class 
   //   or a static data member of a class template specialization, the name of
@@ -3895,6 +4094,7 @@ Sema::DeclResult Sema::ActOnExplicitInstantiation(Scope *S,
   //   name shall be a simple-template-id.
   //
   // C++98 has the same restriction, just worded differently.
+  FunctionTemplateDecl *FunTmpl = Specialization->getPrimaryTemplate();
   if (D.getKind() != Declarator::DK_TemplateId && !FunTmpl &&
       D.getCXXScopeSpec().isSet() && 
       !ScopeSpecifierHasTemplateId(D.getCXXScopeSpec()))
@@ -4089,12 +4289,27 @@ namespace {
     /// \brief Transforms a typename type by determining whether the type now
     /// refers to a member of the current instantiation, and then
     /// type-checking and building a QualifiedNameType (when possible).
-    QualType TransformTypenameType(const TypenameType *T);
+    QualType TransformTypenameType(TypeLocBuilder &TLB, TypenameTypeLoc TL);
+    QualType TransformTypenameType(TypenameType *T);
   };
 }
 
 QualType
-CurrentInstantiationRebuilder::TransformTypenameType(const TypenameType *T) {
+CurrentInstantiationRebuilder::TransformTypenameType(TypeLocBuilder &TLB,
+                                                     TypenameTypeLoc TL) {
+  QualType Result = TransformTypenameType(TL.getTypePtr());
+  if (Result.isNull())
+    return QualType();
+
+  TypenameTypeLoc NewTL = TLB.push<TypenameTypeLoc>(Result);
+  NewTL.setNameLoc(TL.getNameLoc());
+
+  return Result;
+}
+
+QualType
+CurrentInstantiationRebuilder::TransformTypenameType(TypenameType *T) {
+
   NestedNameSpecifier *NNS
     = TransformNestedNameSpecifier(T->getQualifier(),
                               /*FIXME:*/SourceRange(getBaseLocation()));

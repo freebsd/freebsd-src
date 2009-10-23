@@ -383,6 +383,8 @@ def note_ambig_member_ref_object_type : Note<
   "lookup in the object type %0 refers here">;
 def note_ambig_member_ref_scope : Note<
   "lookup from the current scope refers here">;
+def err_qualified_member_nonclass : Error<
+  "qualified member access refers to a member in %0">;
 
 // C++ class members
 def err_storageclass_invalid_for_member : Error<
@@ -785,9 +787,9 @@ def err_ovl_template_candidate : Note<
 def err_ovl_candidate_deleted : Note<
   "candidate function has been explicitly %select{made unavailable|deleted}0">;
 def err_ovl_builtin_binary_candidate : Note<
-    "built-in candidate operator %0 (%1, %2)">;
+    "built-in candidate %0">;
 def err_ovl_builtin_unary_candidate : Note<
-    "built-in candidate operator %0 (%1)">;
+    "built-in candidate %0">;
 def err_ovl_no_viable_function_in_init : Error<
   "no matching constructor for initialization of %0">;
 def err_ovl_ambiguous_init : Error<"call to constructor of %0 is ambiguous">;
@@ -1112,7 +1114,17 @@ def err_explicit_instantiation_without_qualified_id_quals : Error<
   "qualifier in explicit instantiation of '%0%1' requires a template-id">;
 def err_explicit_instantiation_unqualified_wrong_namespace : Error<
   "explicit instantiation of %q0 must occur in %1">;
-
+def err_explicit_instantiation_undefined_member : Error<
+  "explicit instantiation of undefined %select{member class|member function|"
+  "static data member}0 %1 of class template %2">;
+def err_explicit_instantiation_undefined_func_template : Error<
+  "explicit instantiation of undefined function template %0">;
+def err_explicit_instantiation_declaration_after_definition : Error<
+  "explicit instantiation declaration (with 'extern') follows explicit "
+  "instantiation definition (without 'extern')">;
+def note_explicit_instantiation_definition_here : Note<
+  "explicit instantiation definition is here">;
+  
 // C++ typename-specifiers
 def err_typename_nested_not_found : Error<"no type named %0 in %1">;
 def err_typename_nested_not_type : Error<
@@ -1734,7 +1746,9 @@ def err_not_tag_in_scope : Error<
 
 def err_cannot_form_pointer_to_member_of_reference_type : Error<
   "cannot form a pointer-to-member to member %0 of reference type %1">;
-
+def err_incomplete_object_call : Error<
+  "incomplete type in call to object of type %0">;
+  
 def warn_condition_is_assignment : Warning<"using the result of an "
   "assignment as a condition without parentheses">,
   InGroup<Parentheses>;
@@ -2156,6 +2170,8 @@ def err_break_not_in_loop_or_switch : Error<
 def err_default_not_in_switch : Error<
   "'default' statement not in switch statement">;
 def err_case_not_in_switch : Error<"'case' statement not in switch statement">;
+def warn_bool_switch_condition : Warning<
+  "switch condition is a bool">;
 def warn_case_value_overflow : Warning<
   "overflow converting case value to switch condition type (%0 to %1)">;
 def err_duplicate_case : Error<"duplicate case value '%0'">;
@@ -2187,7 +2203,7 @@ def ext_return_has_expr : ExtWarn<
 def ext_return_has_void_expr : Extension<
   "void %select{function|method}1 %0 should not return void expression">;
 def warn_noreturn_function_has_return_expr : Warning<
-  "function %0 declared 'noreturn' should not return">, DefaultError,
+  "function %0 declared 'noreturn' should not return">,
   InGroup<DiagGroup<"invalid-noreturn">>;
 def warn_falloff_noreturn_function : Warning<
   "function declared 'noreturn' should not return">,

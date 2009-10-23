@@ -346,16 +346,29 @@ SVal SimpleSValuator::EvalBinOpNN(const GRState *state,
       nonloc::SymbolVal *slhs = cast<nonloc::SymbolVal>(&lhs);
       SymbolRef Sym = slhs->getSymbol();
       
-      // Does the symbol simplify to a constant?
+      // Does the symbol simplify to a constant?  If so, "fold" the constant
+      // by setting 'lhs' to a ConcreteInt and try again.
       if (Sym->getType(ValMgr.getContext())->isIntegerType())
         if (const llvm::APSInt *Constant = state->getSymVal(Sym)) {
-          // What should we convert it to?
-          if (nonloc::ConcreteInt *rhs_I = dyn_cast<nonloc::ConcreteInt>(&rhs)){
-            BasicValueFactory &BVF = ValMgr.getBasicValueFactory();
-            lhs = nonloc::ConcreteInt(BVF.Convert(rhs_I->getValue(),
-                                                  *Constant));
+          // The symbol evaluates to a constant. If necessary, promote the
+          // folded constant (LHS) to the result type.
+          BasicValueFactory &BVF = ValMgr.getBasicValueFactory();
+          const llvm::APSInt &lhs_I = BVF.Convert(resultTy, *Constant);
+          lhs = nonloc::ConcreteInt(lhs_I);
+          
+          // Also promote the RHS (if necessary).
+
+          // For shifts, it necessary promote the RHS to the result type.
+          if (BinaryOperator::isShiftOp(op))
             continue;
+          
+          // Other operators: do an implicit conversion.  This shouldn't be
+          // necessary once we support truncation/extension of symbolic values.
+          if (nonloc::ConcreteInt *rhs_I = dyn_cast<nonloc::ConcreteInt>(&rhs)){
+            rhs = nonloc::ConcreteInt(BVF.Convert(resultTy, rhs_I->getValue()));
           }
+          
+          continue;
         }
       
       if (isa<nonloc::ConcreteInt>(rhs)) {

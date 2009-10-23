@@ -353,11 +353,17 @@ ABIArgInfo X86_32ABIInfo::classifyReturnType(QualType RetTy,
 
     return ABIArgInfo::getDirect();
   } else if (CodeGenFunction::hasAggregateLLVMType(RetTy)) {
-    // Structures with flexible arrays are always indirect.
-    if (const RecordType *RT = RetTy->getAsStructureType())
+    if (const RecordType *RT = RetTy->getAsStructureType()) {
+      // Structures with either a non-trivial destructor or a non-trivial
+      // copy constructor are always indirect.
+      if (hasNonTrivialDestructorOrCopyConstructor(RT))
+        return ABIArgInfo::getIndirect(0, /*ByVal=*/false);
+      
+      // Structures with flexible arrays are always indirect.
       if (RT->getDecl()->hasFlexibleArrayMember())
         return ABIArgInfo::getIndirect(0);
-
+    }
+    
     // If specified, structs and unions are always indirect.
     if (!IsSmallStructInRegABI && !RetTy->isAnyComplexType())
       return ABIArgInfo::getIndirect(0);
@@ -1744,14 +1750,14 @@ const ABIInfo &CodeGenTypes::getABIInfo() const {
     return *(TheABIInfo = new SystemZABIInfo());
 
   case llvm::Triple::x86:
-    if (Triple.getOS() == llvm::Triple::Darwin)
-      return *(TheABIInfo = new X86_32ABIInfo(Context, true, true));
-
     switch (Triple.getOS()) {
+    case llvm::Triple::Darwin:
+      return *(TheABIInfo = new X86_32ABIInfo(Context, true, true));
     case llvm::Triple::Cygwin:
-    case llvm::Triple::DragonFly:
     case llvm::Triple::MinGW32:
     case llvm::Triple::MinGW64:
+    case llvm::Triple::AuroraUX:
+    case llvm::Triple::DragonFly:
     case llvm::Triple::FreeBSD:
     case llvm::Triple::OpenBSD:
       return *(TheABIInfo = new X86_32ABIInfo(Context, false, true));

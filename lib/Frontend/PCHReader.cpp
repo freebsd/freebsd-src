@@ -18,6 +18,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
+#include "clang/AST/TypeLocVisitor.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/HeaderSearch.h"
@@ -27,6 +28,7 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Bitcode/BitstreamReader.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -335,8 +337,6 @@ void PCHValidator::ReadCounter(unsigned Value) {
   PP.setCounterValue(Value);
 }
 
-
-
 //===----------------------------------------------------------------------===//
 // PCH reader implementation
 //===----------------------------------------------------------------------===//
@@ -345,7 +345,7 @@ PCHReader::PCHReader(Preprocessor &PP, ASTContext *Context,
                      const char *isysroot)
   : Listener(new PCHValidator(PP, *this)), SourceMgr(PP.getSourceManager()),
     FileMgr(PP.getFileManager()), Diags(PP.getDiagnostics()),
-    SemaObj(0), PP(&PP), Context(Context), Consumer(0),
+    SemaObj(0), PP(&PP), Context(Context), StatCache(0), Consumer(0),
     IdentifierTableData(0), IdentifierLookupTable(0),
     IdentifierOffsets(0),
     MethodPoolLookupTable(0), MethodPoolLookupTableData(0),
@@ -362,7 +362,7 @@ PCHReader::PCHReader(Preprocessor &PP, ASTContext *Context,
 PCHReader::PCHReader(SourceManager &SourceMgr, FileManager &FileMgr,
                      Diagnostic &Diags, const char *isysroot)
   : SourceMgr(SourceMgr), FileMgr(FileMgr), Diags(Diags),
-    SemaObj(0), PP(0), Context(0), Consumer(0),
+    SemaObj(0), PP(0), Context(0), StatCache(0), Consumer(0),
     IdentifierTableData(0), IdentifierLookupTable(0),
     IdentifierOffsets(0),
     MethodPoolLookupTable(0), MethodPoolLookupTableData(0),
@@ -383,7 +383,7 @@ Expr *PCHReader::ReadDeclExpr() {
 }
 
 Expr *PCHReader::ReadTypeExpr() {
-  return dyn_cast_or_null<Expr>(ReadStmt(Stream));
+  return dyn_cast_or_null<Expr>(ReadStmt(DeclsCursor));
 }
 
 
@@ -411,7 +411,7 @@ public:
     unsigned R = 5381;
     for (unsigned I = 0; I != N; ++I)
       if (IdentifierInfo *II = Sel.getIdentifierInfoForSlot(I))
-        R = clang::BernsteinHashPartial(II->getName(), II->getLength(), R);
+        R = llvm::HashString(II->getName(), R);
     return R;
   }
 
@@ -521,7 +521,7 @@ public:
   }
 
   static unsigned ComputeHash(const internal_key_type& a) {
-    return BernsteinHash(a.first, a.second);
+    return llvm::HashString(llvm::StringRef(a.first, a.second));
   }
 
   // This hopefully will just get inlined and removed by the optimizer.
@@ -731,7 +731,7 @@ class VISIBILITY_HIDDEN PCHStatLookupTrait {
   typedef PCHStatData data_type;
 
   static unsigned ComputeHash(const char *path) {
-    return BernsteinHash(path);
+    return llvm::HashString(path);
   }
 
   static internal_key_type GetInternalKey(const char *path) { return path; }
@@ -794,7 +794,7 @@ public:
     // If we don't get a hit in the PCH file just forward to 'stat'.
     if (I == Cache->end()) {
       ++NumStatMisses;
-      return ::stat(path, buf);
+      return StatSysCallCache::stat(path, buf);
     }
 
     ++NumStatHits;
@@ -1158,15 +1158,7 @@ PCHReader::ReadPCHBlock() {
 
     if (Code == llvm::bitc::ENTER_SUBBLOCK) {
       switch (Stream.ReadSubBlockID()) {
-      case pch::TYPES_BLOCK_ID: // Skip types block (lazily loaded)
-      default:  // Skip unknown content.
-        if (Stream.SkipBlock()) {
-          Error("malformed block record in PCH file");
-          return Failure;
-        }
-        break;
-
-      case pch::DECLS_BLOCK_ID:
+      case pch::DECLTYPES_BLOCK_ID:
         // We lazily load the decls block, but we want to set up the
         // DeclsCursor cursor to point into it.  Clone our current bitcode
         // cursor to it, enter the block and read the abbrevs in that block.
@@ -1174,7 +1166,7 @@ PCHReader::ReadPCHBlock() {
         DeclsCursor = Stream;
         if (Stream.SkipBlock() ||  // Skip with the main cursor.
             // Read the abbrevs.
-            ReadBlockAbbrevs(DeclsCursor, pch::DECLS_BLOCK_ID)) {
+            ReadBlockAbbrevs(DeclsCursor, pch::DECLTYPES_BLOCK_ID)) {
           Error("malformed block record in PCH file");
           return Failure;
         }
@@ -1352,13 +1344,16 @@ PCHReader::ReadPCHBlock() {
       }
       break;
 
-    case pch::STAT_CACHE:
-      FileMgr.setStatCache(
-                  new PCHStatCache((const unsigned char *)BlobStart + Record[0],
-                                   (const unsigned char *)BlobStart,
-                                   NumStatHits, NumStatMisses));
+    case pch::STAT_CACHE: {
+      PCHStatCache *MyStatCache = 
+        new PCHStatCache((const unsigned char *)BlobStart + Record[0],
+                         (const unsigned char *)BlobStart,
+                         NumStatHits, NumStatMisses);
+      FileMgr.addStatCache(MyStatCache);
+      StatCache = MyStatCache;
       break;
-
+    }
+        
     case pch::EXT_VECTOR_DECLS:
       if (!ExtVectorDecls.empty()) {
         Error("duplicate EXT_VECTOR_DECLS record in PCH file");
@@ -1466,7 +1461,8 @@ PCHReader::PCHReadResult PCHReader::ReadPCH(const std::string &FileName) {
         SourceMgr.ClearPreallocatedSLocEntries();
 
         // Remove the stat cache.
-        FileMgr.setStatCache(0);
+        if (StatCache)
+          FileMgr.removeStatCache((PCHStatCache*)StatCache);
 
         return IgnorePCH;
       }
@@ -1509,7 +1505,7 @@ PCHReader::PCHReadResult PCHReader::ReadPCH(const std::string &FileName) {
       IdentifierInfo *II = Identifiers[I];
       // Look in the on-disk hash table for an entry for
       PCHIdentifierLookupTrait Info(*this, II);
-      std::pair<const char*, unsigned> Key(II->getName(), II->getLength());
+      std::pair<const char*, unsigned> Key(II->getNameStart(), II->getLength());
       PCHIdentifierLookupTable::iterator Pos = IdTable->find(Key, &Info);
       if (Pos == IdTable->end())
         continue;
@@ -1593,6 +1589,11 @@ void PCHReader::InitializeContext(ASTContext &Ctx) {
   if (unsigned ObjCClassRedef
       = SpecialTypes[pch::SPECIAL_TYPE_OBJC_CLASS_REDEFINITION])
     Context->ObjCClassRedefinitionType = GetType(ObjCClassRedef);
+  if (unsigned String = SpecialTypes[pch::SPECIAL_TYPE_BLOCK_DESCRIPTOR])
+    Context->setBlockDescriptorType(GetType(String));
+  if (unsigned String
+      = SpecialTypes[pch::SPECIAL_TYPE_BLOCK_EXTENDED_DESCRIPTOR])
+    Context->setBlockDescriptorExtendedType(GetType(String));
 }
 
 /// \brief Retrieve the name of the original source file name
@@ -1770,15 +1771,15 @@ void PCHReader::ReadComments(std::vector<SourceRange> &Comments) {
 QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   // Keep track of where we are in the stream, then jump back there
   // after reading this type.
-  SavedStreamPosition SavedPosition(Stream);
+  SavedStreamPosition SavedPosition(DeclsCursor);
 
   // Note that we are loading a type record.
   LoadingTypeOrDecl Loading(*this);
 
-  Stream.JumpToBit(Offset);
+  DeclsCursor.JumpToBit(Offset);
   RecordData Record;
-  unsigned Code = Stream.ReadCode();
-  switch ((pch::TypeCode)Stream.ReadRecord(Code, Record)) {
+  unsigned Code = DeclsCursor.ReadCode();
+  switch ((pch::TypeCode)DeclsCursor.ReadRecord(Code, Record)) {
   case pch::TYPE_EXT_QUAL: {
     assert(Record.size() == 2 &&
            "Incorrect encoding of extended qualifier type");
@@ -1837,30 +1838,6 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     llvm::APInt Size = ReadAPInt(Record, Idx);
     return Context->getConstantArrayType(ElementType, Size,
                                          ASM, IndexTypeQuals);
-  }
-
-  case pch::TYPE_CONSTANT_ARRAY_WITH_EXPR: {
-    QualType ElementType = GetType(Record[0]);
-    ArrayType::ArraySizeModifier ASM = (ArrayType::ArraySizeModifier)Record[1];
-    unsigned IndexTypeQuals = Record[2];
-    SourceLocation LBLoc = SourceLocation::getFromRawEncoding(Record[3]);
-    SourceLocation RBLoc = SourceLocation::getFromRawEncoding(Record[4]);
-    unsigned Idx = 5;
-    llvm::APInt Size = ReadAPInt(Record, Idx);
-    return Context->getConstantArrayWithExprType(ElementType,
-                                                 Size, ReadTypeExpr(),
-                                                 ASM, IndexTypeQuals,
-                                                 SourceRange(LBLoc, RBLoc));
-  }
-
-  case pch::TYPE_CONSTANT_ARRAY_WITHOUT_EXPR: {
-    QualType ElementType = GetType(Record[0]);
-    ArrayType::ArraySizeModifier ASM = (ArrayType::ArraySizeModifier)Record[1];
-    unsigned IndexTypeQuals = Record[2];
-    unsigned Idx = 3;
-    llvm::APInt Size = ReadAPInt(Record, Idx);
-    return Context->getConstantArrayWithoutExprType(ElementType, Size,
-                                                    ASM, IndexTypeQuals);
   }
 
   case pch::TYPE_INCOMPLETE_ARRAY: {
@@ -1987,20 +1964,184 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     return Context->getObjCObjectPointerType(OIT, Protos.data(), NumProtos);
   }
 
-  case pch::TYPE_OBJC_PROTOCOL_LIST: {
+  case pch::TYPE_SUBST_TEMPLATE_TYPE_PARM: {
     unsigned Idx = 0;
-    QualType OIT = GetType(Record[Idx++]);
-    unsigned NumProtos = Record[Idx++];
-    llvm::SmallVector<ObjCProtocolDecl*, 4> Protos;
-    for (unsigned I = 0; I != NumProtos; ++I)
-      Protos.push_back(cast<ObjCProtocolDecl>(GetDecl(Record[Idx++])));
-    return Context->getObjCProtocolListType(OIT, Protos.data(), NumProtos);
+    QualType Parm = GetType(Record[Idx++]);
+    QualType Replacement = GetType(Record[Idx++]);
+    return
+      Context->getSubstTemplateTypeParmType(cast<TemplateTypeParmType>(Parm),
+                                            Replacement);
   }
   }
   // Suppress a GCC warning
   return QualType();
 }
 
+namespace {
+
+class TypeLocReader : public TypeLocVisitor<TypeLocReader> {
+  PCHReader &Reader;
+  const PCHReader::RecordData &Record;
+  unsigned &Idx;
+
+public:
+  TypeLocReader(PCHReader &Reader, const PCHReader::RecordData &Record,
+                unsigned &Idx)
+    : Reader(Reader), Record(Record), Idx(Idx) { }
+
+  // We want compile-time assurance that we've enumerated all of
+  // these, so unfortunately we have to declare them first, then
+  // define them out-of-line.
+#define ABSTRACT_TYPELOC(CLASS, PARENT)
+#define TYPELOC(CLASS, PARENT) \
+  void Visit##CLASS##TypeLoc(CLASS##TypeLoc TyLoc);
+#include "clang/AST/TypeLocNodes.def"
+
+  void VisitFunctionTypeLoc(FunctionTypeLoc);
+  void VisitArrayTypeLoc(ArrayTypeLoc);
+};
+
+}
+
+void TypeLocReader::VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
+  // nothing to do
+}
+void TypeLocReader::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitFixedWidthIntTypeLoc(FixedWidthIntTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitComplexTypeLoc(ComplexTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitPointerTypeLoc(PointerTypeLoc TL) {
+  TL.setStarLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitBlockPointerTypeLoc(BlockPointerTypeLoc TL) {
+  TL.setCaretLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitLValueReferenceTypeLoc(LValueReferenceTypeLoc TL) {
+  TL.setAmpLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitRValueReferenceTypeLoc(RValueReferenceTypeLoc TL) {
+  TL.setAmpAmpLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitMemberPointerTypeLoc(MemberPointerTypeLoc TL) {
+  TL.setStarLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitArrayTypeLoc(ArrayTypeLoc TL) {
+  TL.setLBracketLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setRBracketLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  if (Record[Idx++])
+    TL.setSizeExpr(Reader.ReadDeclExpr());
+  else
+    TL.setSizeExpr(0);
+}
+void TypeLocReader::VisitConstantArrayTypeLoc(ConstantArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocReader::VisitIncompleteArrayTypeLoc(IncompleteArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocReader::VisitVariableArrayTypeLoc(VariableArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocReader::VisitDependentSizedArrayTypeLoc(
+                                            DependentSizedArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocReader::VisitDependentSizedExtVectorTypeLoc(
+                                        DependentSizedExtVectorTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitVectorTypeLoc(VectorTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitExtVectorTypeLoc(ExtVectorTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
+  TL.setLParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setRParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  for (unsigned i = 0, e = TL.getNumArgs(); i != e; ++i) {
+    TL.setArg(i, cast_or_null<ParmVarDecl>(Reader.GetDecl(Record[Idx++])));
+  }
+}
+void TypeLocReader::VisitFunctionProtoTypeLoc(FunctionProtoTypeLoc TL) {
+  VisitFunctionTypeLoc(TL);
+}
+void TypeLocReader::VisitFunctionNoProtoTypeLoc(FunctionNoProtoTypeLoc TL) {
+  VisitFunctionTypeLoc(TL);
+}
+void TypeLocReader::VisitTypedefTypeLoc(TypedefTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitTypeOfExprTypeLoc(TypeOfExprTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitDecltypeTypeLoc(DecltypeTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitRecordTypeLoc(RecordTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitEnumTypeLoc(EnumTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitTemplateTypeParmTypeLoc(TemplateTypeParmTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitSubstTemplateTypeParmTypeLoc(
+                                            SubstTemplateTypeParmTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitTemplateSpecializationTypeLoc(
+                                           TemplateSpecializationTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitQualifiedNameTypeLoc(QualifiedNameTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitTypenameTypeLoc(TypenameTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setLAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setRAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
+    TL.setProtocolLoc(i, SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+void TypeLocReader::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
+  TL.setStarLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setLAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setRAngleLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  TL.setHasBaseTypeAsWritten(Record[Idx++]);
+  TL.setHasProtocolsAsWritten(Record[Idx++]);
+  if (TL.hasProtocolsAsWritten())
+    for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
+      TL.setProtocolLoc(i, SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
+
+DeclaratorInfo *PCHReader::GetDeclaratorInfo(const RecordData &Record,
+                                             unsigned &Idx) {
+  QualType InfoTy = GetType(Record[Idx++]);
+  if (InfoTy.isNull())
+    return 0;
+
+  DeclaratorInfo *DInfo = getContext()->CreateDeclaratorInfo(InfoTy);
+  TypeLocReader TLR(*this, Record, Idx);
+  for (TypeLoc TL = DInfo->getTypeLoc(); !TL.isNull(); TL = TL.getNextTypeLoc())
+    TLR.Visit(TL);
+  return DInfo;
+}
 
 QualType PCHReader::GetType(pch::TypeID ID) {
   unsigned FastQuals = ID & Qualifiers::FastMask;
@@ -2374,7 +2515,10 @@ IdentifierInfo *PCHReader::DecodeIdentifierInfo(unsigned ID) {
     // All of the strings in the PCH file are preceded by a 16-bit
     // length. Extract that 16-bit length to avoid having to execute
     // strlen().
-    const char *StrLenPtr = Str - 2;
+    // NOTE: 'StrLenPtr' is an 'unsigned char*' so that we load bytes as
+    //  unsigned integers.  This is important to avoid integer overflow when
+    //  we cast them to 'unsigned'.
+    const unsigned char *StrLenPtr = (const unsigned char*) Str - 2;
     unsigned StrLen = (((unsigned) StrLenPtr[0])
                        | (((unsigned) StrLenPtr[1]) << 8)) - 1;
     IdentifiersLoaded[ID - 1]

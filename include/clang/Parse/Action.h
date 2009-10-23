@@ -1390,6 +1390,34 @@ public:
     return ExprEmpty();
   }
 
+  /// \brief Parsed a C++ destructor reference that refers to a type.
+  ///
+  /// This action is used when parsing a destructor reference that uses a 
+  /// template-id, e.g.,
+  ///
+  /// \code
+  /// t->~Tmpl<T1, T2>
+  /// \endcode
+  ///
+  /// \param S the scope in which the destructor reference occurs.
+  /// \param Base the base object of the destructor reference expression.
+  /// \param OpLoc the location of the operator ('.' or '->').
+  /// \param OpKind the kind of the destructor reference operator ('.' or '->').
+  /// \param TypeRange the source range that covers the destructor type.
+  /// \param Type the type that is being destroyed.
+  /// \param SS the scope specifier that precedes the destructor name.
+  /// \param HasTrailingLParen whether the destructor name is followed by a '('.
+  virtual OwningExprResult
+  ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
+                               SourceLocation OpLoc,
+                               tok::TokenKind OpKind,
+                               SourceRange TypeRange,
+                               TypeTy *Type,
+                               const CXXScopeSpec &SS,
+                               bool HasTrailingLParen) {
+    return ExprEmpty();
+  }
+  
   /// ActOnOverloadedOperatorReferenceExpr - Parsed an overloaded operator
   /// reference, for example:
   ///
@@ -1691,9 +1719,25 @@ public:
   /// possibly checking well-formedness of the template arguments. It does not
   /// imply the declaration of any entity.
   ///
+  /// \param SS  The scope specifier that may precede the template name.
+  ///
   /// \param Template  A template whose specialization results in a
   /// function or a dependent template.
-  virtual OwningExprResult ActOnTemplateIdExpr(TemplateTy Template,
+  ///
+  /// \param TemplateNameLoc The location of the template name.
+  /// 
+  /// \param LAngleLoc The location of the left angle bracket ('<') that starts 
+  /// the template argument list.
+  ///
+  /// \param TemplateArgs The template arguments in the template argument list,
+  /// which may be empty.
+  ///
+  /// \param TemplateArgLocs The locations of the template arguments.
+  ///
+  /// \param RAngleLoc The location of the right angle bracket ('>') that 
+  /// closes the template argument list.
+  virtual OwningExprResult ActOnTemplateIdExpr(const CXXScopeSpec &SS,
+                                               TemplateTy Template,
                                                SourceLocation TemplateNameLoc,
                                                SourceLocation LAngleLoc,
                                                ASTTemplateArgsPtr TemplateArgs,

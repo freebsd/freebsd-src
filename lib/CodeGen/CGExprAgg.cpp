@@ -92,6 +92,7 @@ public:
   void VisitCallExpr(const CallExpr *E);
   void VisitStmtExpr(const StmtExpr *E);
   void VisitBinaryOperator(const BinaryOperator *BO);
+  void VisitPointerToDataMemberBinaryOperator(const BinaryOperator *BO);
   void VisitBinAssign(const BinaryOperator *E);
   void VisitBinComma(const BinaryOperator *E);
   void VisitUnaryAddrOf(const UnaryOperator *E);
@@ -112,6 +113,7 @@ public:
   void VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E);
   void VisitCXXConstructExpr(const CXXConstructExpr *E);
   void VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E);
+  void VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E);
 
   void VisitVAArgExpr(VAArgExpr *E);
 
@@ -214,6 +216,12 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
     break;
   }
       
+  case CastExpr::CK_BitCast: {
+    // This must be a member function pointer cast.
+    Visit(E->getSubExpr());
+    break;
+  }
+
   case CastExpr::CK_BaseToDerivedMemberPointer: {
     QualType SrcType = E->getSubExpr()->getType();
     
@@ -285,6 +293,7 @@ void AggExprEmitter::VisitBinComma(const BinaryOperator *E) {
 void AggExprEmitter::VisitUnaryAddrOf(const UnaryOperator *E) {
   // We have a member function pointer.
   const MemberPointerType *MPT = E->getType()->getAs<MemberPointerType>();
+  (void) MPT;
   assert(MPT->getPointeeType()->isFunctionProtoType() &&
          "Unexpected member pointer type!");
   
@@ -320,7 +329,16 @@ void AggExprEmitter::VisitStmtExpr(const StmtExpr *E) {
 }
 
 void AggExprEmitter::VisitBinaryOperator(const BinaryOperator *E) {
-  CGF.ErrorUnsupported(E, "aggregate binary expression");
+  if (E->getOpcode() == BinaryOperator::PtrMemD)
+    VisitPointerToDataMemberBinaryOperator(E);
+  else
+    CGF.ErrorUnsupported(E, "aggregate binary expression");
+}
+
+void AggExprEmitter::VisitPointerToDataMemberBinaryOperator(
+                                                    const BinaryOperator *E) {
+  LValue LV = CGF.EmitPointerToDataMemberBinaryExpr(E);
+  EmitFinalDestCopy(E, LV);
 }
 
 void AggExprEmitter::VisitBinAssign(const BinaryOperator *E) {
@@ -436,6 +454,11 @@ AggExprEmitter::VisitCXXConstructExpr(const CXXConstructExpr *E) {
 
 void AggExprEmitter::VisitCXXExprWithTemporaries(CXXExprWithTemporaries *E) {
   CGF.EmitCXXExprWithTemporaries(E, DestPtr, VolatileDest, IsInitializer);
+}
+
+void AggExprEmitter::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
+  LValue lvalue = LValue::MakeAddr(DestPtr, Qualifiers());
+  EmitNullInitializationToLValue(lvalue, E->getType());
 }
 
 void AggExprEmitter::EmitInitializationToLValue(Expr* E, LValue LV) {

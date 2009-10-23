@@ -91,7 +91,7 @@ public:
   ASTLocation(const Decl *parentDecl, TypeLoc tyLoc)
     : ParentDecl(const_cast<Decl*>(parentDecl), N_Type) {
     if (tyLoc) {
-      Ty.TyPtr = tyLoc.getSourceType().getAsOpaquePtr();
+      Ty.TyPtr = tyLoc.getType().getAsOpaquePtr();
       Ty.Data = tyLoc.getOpaqueData();
     } else
       ParentDecl.setPointer(0);
@@ -124,8 +124,8 @@ public:
     return TypeLoc(QualType::getFromOpaquePtr(Ty.TyPtr), Ty.Data);
   }
 
-  Decl *dyn_AsDecl() const { return getKind() == N_Decl ? D : 0; }
-  Stmt *dyn_AsStmt() const { return getKind() == N_Stmt ? Stm : 0; }
+  Decl *dyn_AsDecl() const { return isValid() && getKind() == N_Decl ? D : 0; }
+  Stmt *dyn_AsStmt() const { return isValid() && getKind() == N_Stmt ? Stm : 0; }
   NamedRef dyn_AsNamedRef() const {
     return getKind() == N_Type ? AsNamedRef() : NamedRef();
   }

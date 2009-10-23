@@ -248,7 +248,12 @@ void CXXNameMangler::mangleFunctionEncoding(const FunctionDecl *FD) {
     FD = PrimaryTemplate->getTemplatedDecl();
   }
 
-  mangleBareFunctionType(FD->getType()->getAs<FunctionType>(), MangleReturnType);
+  // Do the canonicalization out here because parameter types can
+  // undergo additional canonicalization (e.g. array decay).
+  FunctionType *FT = cast<FunctionType>(Context.getASTContext()
+                                          .getCanonicalType(FD->getType()));
+
+  mangleBareFunctionType(FT, MangleReturnType);
 }
 
 static bool isStdNamespace(const DeclContext *DC) {
@@ -705,7 +710,7 @@ void CXXNameMangler::mangleType(QualType T) {
   // Only operate on the canonical type!
   T = Context.getASTContext().getCanonicalType(T);
 
-  bool IsSubstitutable = !isa<BuiltinType>(T);
+  bool IsSubstitutable = T.hasQualifiers() || !isa<BuiltinType>(T);
   if (IsSubstitutable && mangleSubstitution(T))
     return;
 
@@ -1236,10 +1241,7 @@ static bool isCharSpecialization(QualType T, const char *Name) {
   if (!isCharType(TemplateArgs[0].getAsType()))
     return false;
   
-  if (strcmp(SD->getIdentifier()->getName(), Name) != 0)
-    return false;
-
-  return true;
+  return SD->getIdentifier()->getName() == Name;
 }
 
 bool CXXNameMangler::mangleStandardSubstitution(const NamedDecl *ND) {

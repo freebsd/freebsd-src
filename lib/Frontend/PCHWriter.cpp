@@ -19,6 +19,7 @@
 #include "clang/AST/DeclContextInternals.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
+#include "clang/AST/TypeLocVisitor.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Lex/HeaderSearch.h"
@@ -30,6 +31,7 @@
 #include "clang/Basic/Version.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -115,23 +117,6 @@ void PCHTypeWriter::VisitConstantArrayType(const ConstantArrayType *T) {
   VisitArrayType(T);
   Writer.AddAPInt(T->getSize(), Record);
   Code = pch::TYPE_CONSTANT_ARRAY;
-}
-
-void PCHTypeWriter
-::VisitConstantArrayWithExprType(const ConstantArrayWithExprType *T) {
-  VisitArrayType(T);
-  Writer.AddSourceLocation(T->getLBracketLoc(), Record);
-  Writer.AddSourceLocation(T->getRBracketLoc(), Record);
-  Writer.AddAPInt(T->getSize(), Record);
-  Writer.AddStmt(T->getSizeExpr());
-  Code = pch::TYPE_CONSTANT_ARRAY_WITH_EXPR;
-}
-
-void PCHTypeWriter
-::VisitConstantArrayWithoutExprType(const ConstantArrayWithoutExprType *T) {
-  VisitArrayType(T);
-  Writer.AddAPInt(T->getSize(), Record);
-  Code = pch::TYPE_CONSTANT_ARRAY_WITHOUT_EXPR;
 }
 
 void PCHTypeWriter::VisitIncompleteArrayType(const IncompleteArrayType *T) {
@@ -225,6 +210,14 @@ void PCHTypeWriter::VisitElaboratedType(const ElaboratedType *T) {
 }
 
 void
+PCHTypeWriter::VisitSubstTemplateTypeParmType(
+                                        const SubstTemplateTypeParmType *T) {
+  Writer.AddTypeRef(QualType(T->getReplacedParameter(), 0), Record);
+  Writer.AddTypeRef(T->getReplacementType(), Record);
+  Code = pch::TYPE_SUBST_TEMPLATE_TYPE_PARM;
+}
+
+void
 PCHTypeWriter::VisitTemplateSpecializationType(
                                        const TemplateSpecializationType *T) {
   // FIXME: Serialize this type (C++ only)
@@ -255,13 +248,150 @@ PCHTypeWriter::VisitObjCObjectPointerType(const ObjCObjectPointerType *T) {
   Code = pch::TYPE_OBJC_OBJECT_POINTER;
 }
 
-void PCHTypeWriter::VisitObjCProtocolListType(const ObjCProtocolListType *T) {
-  Writer.AddTypeRef(T->getBaseType(), Record);
-  Record.push_back(T->getNumProtocols());
-  for (ObjCProtocolListType::qual_iterator I = T->qual_begin(),
-       E = T->qual_end(); I != E; ++I)
-    Writer.AddDeclRef(*I, Record);
-  Code = pch::TYPE_OBJC_PROTOCOL_LIST;
+namespace {
+
+class TypeLocWriter : public TypeLocVisitor<TypeLocWriter> {
+  PCHWriter &Writer;
+  PCHWriter::RecordData &Record;
+
+public:
+  TypeLocWriter(PCHWriter &Writer, PCHWriter::RecordData &Record)
+    : Writer(Writer), Record(Record) { }
+
+#define ABSTRACT_TYPELOC(CLASS, PARENT)
+#define TYPELOC(CLASS, PARENT) \
+    void Visit##CLASS##TypeLoc(CLASS##TypeLoc TyLoc);
+#include "clang/AST/TypeLocNodes.def"
+
+  void VisitArrayTypeLoc(ArrayTypeLoc TyLoc);
+  void VisitFunctionTypeLoc(FunctionTypeLoc TyLoc);
+};
+
+}
+
+void TypeLocWriter::VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
+  // nothing to do
+}
+void TypeLocWriter::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitFixedWidthIntTypeLoc(FixedWidthIntTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitComplexTypeLoc(ComplexTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitPointerTypeLoc(PointerTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getStarLoc(), Record);
+}
+void TypeLocWriter::VisitBlockPointerTypeLoc(BlockPointerTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getCaretLoc(), Record);
+}
+void TypeLocWriter::VisitLValueReferenceTypeLoc(LValueReferenceTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getAmpLoc(), Record);
+}
+void TypeLocWriter::VisitRValueReferenceTypeLoc(RValueReferenceTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getAmpAmpLoc(), Record);
+}
+void TypeLocWriter::VisitMemberPointerTypeLoc(MemberPointerTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getStarLoc(), Record);
+}
+void TypeLocWriter::VisitArrayTypeLoc(ArrayTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getLBracketLoc(), Record);
+  Writer.AddSourceLocation(TL.getRBracketLoc(), Record);
+  Record.push_back(TL.getSizeExpr() ? 1 : 0);
+  if (TL.getSizeExpr())
+    Writer.AddStmt(TL.getSizeExpr());
+}
+void TypeLocWriter::VisitConstantArrayTypeLoc(ConstantArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocWriter::VisitIncompleteArrayTypeLoc(IncompleteArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocWriter::VisitVariableArrayTypeLoc(VariableArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocWriter::VisitDependentSizedArrayTypeLoc(
+                                            DependentSizedArrayTypeLoc TL) {
+  VisitArrayTypeLoc(TL);
+}
+void TypeLocWriter::VisitDependentSizedExtVectorTypeLoc(
+                                        DependentSizedExtVectorTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitVectorTypeLoc(VectorTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitExtVectorTypeLoc(ExtVectorTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getLParenLoc(), Record);
+  Writer.AddSourceLocation(TL.getRParenLoc(), Record);
+  for (unsigned i = 0, e = TL.getNumArgs(); i != e; ++i)
+    Writer.AddDeclRef(TL.getArg(i), Record);
+}
+void TypeLocWriter::VisitFunctionProtoTypeLoc(FunctionProtoTypeLoc TL) {
+  VisitFunctionTypeLoc(TL);
+}
+void TypeLocWriter::VisitFunctionNoProtoTypeLoc(FunctionNoProtoTypeLoc TL) {
+  VisitFunctionTypeLoc(TL);
+}
+void TypeLocWriter::VisitTypedefTypeLoc(TypedefTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitTypeOfExprTypeLoc(TypeOfExprTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitTypeOfTypeLoc(TypeOfTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitDecltypeTypeLoc(DecltypeTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitRecordTypeLoc(RecordTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitEnumTypeLoc(EnumTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitElaboratedTypeLoc(ElaboratedTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitTemplateTypeParmTypeLoc(TemplateTypeParmTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitSubstTemplateTypeParmTypeLoc(
+                                            SubstTemplateTypeParmTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitTemplateSpecializationTypeLoc(
+                                           TemplateSpecializationTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitQualifiedNameTypeLoc(QualifiedNameTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitTypenameTypeLoc(TypenameTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+}
+void TypeLocWriter::VisitObjCInterfaceTypeLoc(ObjCInterfaceTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
+  Writer.AddSourceLocation(TL.getLAngleLoc(), Record);
+  Writer.AddSourceLocation(TL.getRAngleLoc(), Record);
+  for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
+    Writer.AddSourceLocation(TL.getProtocolLoc(i), Record);
+}
+void TypeLocWriter::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getStarLoc(), Record);
+  Writer.AddSourceLocation(TL.getLAngleLoc(), Record);
+  Writer.AddSourceLocation(TL.getRAngleLoc(), Record);
+  Record.push_back(TL.hasBaseTypeAsWritten());
+  Record.push_back(TL.hasProtocolsAsWritten());
+  if (TL.hasProtocolsAsWritten())
+    for (unsigned i = 0, e = TL.getNumProtocols(); i != e; ++i)
+      Writer.AddSourceLocation(TL.getProtocolLoc(i), Record);
 }
 
 //===----------------------------------------------------------------------===//
@@ -411,8 +541,8 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(PP_MACRO_FUNCTION_LIKE);
   RECORD(PP_TOKEN);
 
-  // Types block.
-  BLOCK(TYPES_BLOCK);
+  // Decls and Types block.
+  BLOCK(DECLTYPES_BLOCK);
   RECORD(TYPE_EXT_QUAL);
   RECORD(TYPE_FIXED_WIDTH_INT);
   RECORD(TYPE_COMPLEX);
@@ -435,12 +565,6 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(TYPE_ENUM);
   RECORD(TYPE_OBJC_INTERFACE);
   RECORD(TYPE_OBJC_OBJECT_POINTER);
-  RECORD(TYPE_OBJC_PROTOCOL_LIST);
-  // Statements and Exprs can occur in the Types block.
-  AddStmtsExprs(Stream, Record);
-
-  // Decls block.
-  BLOCK(DECLS_BLOCK);
   RECORD(DECL_ATTR);
   RECORD(DECL_TRANSLATION_UNIT);
   RECORD(DECL_TYPEDEF);
@@ -470,7 +594,7 @@ void PCHWriter::WriteBlockInfoBlock() {
   RECORD(DECL_BLOCK);
   RECORD(DECL_CONTEXT_LEXICAL);
   RECORD(DECL_CONTEXT_VISIBLE);
-  // Statements and Exprs can occur in the Decls block.
+  // Statements and Exprs can occur in the Decls and Types block.
   AddStmtsExprs(Stream, Record);
 #undef RECORD
 #undef BLOCK
@@ -662,7 +786,7 @@ public:
   typedef const data_type& data_type_ref;
 
   static unsigned ComputeHash(const char *path) {
-    return BernsteinHash(path);
+    return llvm::HashString(path);
   }
 
   std::pair<unsigned,unsigned>
@@ -878,10 +1002,10 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
   std::vector<uint32_t> SLocEntryOffsets;
   RecordData PreloadSLocs;
   SLocEntryOffsets.reserve(SourceMgr.sloc_entry_size() - 1);
-  for (SourceManager::sloc_entry_iterator
-         SLoc = SourceMgr.sloc_entry_begin() + 1,
-         SLocEnd = SourceMgr.sloc_entry_end();
-       SLoc != SLocEnd; ++SLoc) {
+  for (unsigned I = 1, N = SourceMgr.sloc_entry_size(); I != N; ++I) {
+    // Get this source location entry.
+    const SrcMgr::SLocEntry *SLoc = &SourceMgr.getSLocEntry(I);
+    
     // Record the offset of this source-location entry.
     SLocEntryOffsets.push_back(Stream.GetCurrentBitNo());
 
@@ -956,9 +1080,8 @@ void PCHWriter::WriteSourceManagerBlock(SourceManager &SourceMgr,
 
       // Compute the token length for this macro expansion.
       unsigned NextOffset = SourceMgr.getNextOffset();
-      SourceManager::sloc_entry_iterator NextSLoc = SLoc;
-      if (++NextSLoc != SLocEnd)
-        NextOffset = NextSLoc->getOffset();
+      if (I + 1 != N)
+        NextOffset = SourceMgr.getSLocEntry(I + 1).getOffset();
       Record.push_back(NextOffset - SLoc->getOffset() - 1);
       Stream.EmitRecordWithAbbrev(SLocInstantiationAbbrv, Record);
     }
@@ -1019,6 +1142,7 @@ void PCHWriter::WritePreprocessor(const Preprocessor &PP) {
 
   // Loop over all the macro definitions that are live at the end of the file,
   // emitting each to the PP section.
+  // FIXME: Make sure that this sees macros defined in included PCH files.
   for (Preprocessor::macro_iterator I = PP.macro_begin(), E = PP.macro_end();
        I != E; ++I) {
     // FIXME: This emits macros in hash table order, we should do it in a stable
@@ -1152,22 +1276,6 @@ void PCHWriter::WriteType(QualType T) {
   FlushStmts();
 }
 
-/// \brief Write a block containing all of the types.
-void PCHWriter::WriteTypesBlock(ASTContext &Context) {
-  // Enter the types block.
-  Stream.EnterSubblock(pch::TYPES_BLOCK_ID, 2);
-
-  // Emit all of the types that need to be emitted (so far).
-  while (!TypesToEmit.empty()) {
-    QualType T = TypesToEmit.front();
-    TypesToEmit.pop();
-    WriteType(T);
-  }
-
-  // Exit the types block
-  Stream.ExitBlock();
-}
-
 //===----------------------------------------------------------------------===//
 // Declaration Serialization
 //===----------------------------------------------------------------------===//
@@ -1266,7 +1374,7 @@ public:
     unsigned R = 5381;
     for (unsigned I = 0; I != N; ++I)
       if (IdentifierInfo *II = Sel.getIdentifierInfoForSlot(I))
-        R = clang::BernsteinHashPartial(II->getName(), II->getLength(), R);
+        R = llvm::HashString(II->getName(), R);
     return R;
   }
 
@@ -1475,13 +1583,13 @@ public:
     : Writer(Writer), PP(PP) { }
 
   static unsigned ComputeHash(const IdentifierInfo* II) {
-    return clang::BernsteinHash(II->getName());
+    return llvm::HashString(II->getName());
   }
 
   std::pair<unsigned,unsigned>
     EmitKeyDataLength(llvm::raw_ostream& Out, const IdentifierInfo* II,
                       pch::IdentID ID) {
-    unsigned KeyLen = strlen(II->getName()) + 1;
+    unsigned KeyLen = II->getLength() + 1;
     unsigned DataLen = 4; // 4 bytes for the persistent ID << 1
     if (isInterestingIdentifier(II)) {
       DataLen += 2; // 2 bytes for builtin ID, flags
@@ -1506,7 +1614,7 @@ public:
     // Record the location of the key data.  This is used when generating
     // the mapping from persistent IDs to strings.
     Writer.SetIdentifierOffset(II, Out.tell());
-    Out.write(II->getName(), KeyLen);
+    Out.write(II->getNameStart(), KeyLen);
   }
 
   void EmitData(llvm::raw_ostream& Out, const IdentifierInfo* II,
@@ -1810,7 +1918,7 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
 
   // The translation unit is the first declaration we'll emit.
   DeclIDs[Context.getTranslationUnitDecl()] = 1;
-  DeclsToEmit.push(Context.getTranslationUnitDecl());
+  DeclTypesToEmit.push(Context.getTranslationUnitDecl());
 
   // Make sure that we emit IdentifierInfos (and any attached
   // declarations) for builtins.
@@ -1858,7 +1966,6 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   if (StatCalls && !isysroot)
     WriteStatCache(*StatCalls, isysroot);
   WriteSourceManagerBlock(Context.getSourceManager(), PP, isysroot);
-  WritePreprocessor(PP);
   WriteComments(Context);
   // Write the record of special types.
   Record.clear();
@@ -1875,17 +1982,25 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   AddTypeRef(Context.getsigjmp_bufType(), Record);
   AddTypeRef(Context.ObjCIdRedefinitionType, Record);
   AddTypeRef(Context.ObjCClassRedefinitionType, Record);
+  AddTypeRef(Context.getRawBlockdescriptorType(), Record);
+  AddTypeRef(Context.getRawBlockdescriptorExtendedType(), Record);
   Stream.EmitRecord(pch::SPECIAL_TYPES, Record);
 
   // Keep writing types and declarations until all types and
   // declarations have been written.
-  do {
-    if (!DeclsToEmit.empty())
-      WriteDeclsBlock(Context);
-    if (!TypesToEmit.empty())
-      WriteTypesBlock(Context);
-  } while (!(DeclsToEmit.empty() && TypesToEmit.empty()));
-
+  Stream.EnterSubblock(pch::DECLTYPES_BLOCK_ID, 3);
+  WriteDeclsBlockAbbrevs();
+  while (!DeclTypesToEmit.empty()) {
+    DeclOrType DOT = DeclTypesToEmit.front();
+    DeclTypesToEmit.pop();
+    if (DOT.isType())
+      WriteType(DOT.getType());
+    else
+      WriteDecl(Context, DOT.getDecl());
+  }
+  Stream.ExitBlock();
+  
+  WritePreprocessor(PP);
   WriteMethodPool(SemaRef);
   WriteIdentifierTable(PP);
 
@@ -1991,6 +2106,18 @@ void PCHWriter::AddSelectorRef(const Selector SelRef, RecordData &Record) {
   Record.push_back(SID);
 }
 
+void PCHWriter::AddDeclaratorInfo(DeclaratorInfo *DInfo, RecordData &Record) {
+  if (DInfo == 0) {
+    AddTypeRef(QualType(), Record);
+    return;
+  }
+
+  AddTypeRef(DInfo->getType(), Record);
+  TypeLocWriter TLW(*this, Record);
+  for (TypeLoc TL = DInfo->getTypeLoc(); !TL.isNull(); TL = TL.getNextTypeLoc())
+    TLW.Visit(TL);  
+}
+
 void PCHWriter::AddTypeRef(QualType T, RecordData &Record) {
   if (T.isNull()) {
     Record.push_back(pch::PREDEF_TYPE_NULL_ID);
@@ -2007,7 +2134,7 @@ void PCHWriter::AddTypeRef(QualType T, RecordData &Record) {
       // Assign it a new ID.  This is the only time we enqueue a
       // qualified type, and it has no CV qualifiers.
       ID = NextTypeID++;
-      TypesToEmit.push(T);
+      DeclTypesToEmit.push(T);
     }
     
     // Encode the type qualifiers in the type reference.
@@ -2061,7 +2188,7 @@ void PCHWriter::AddTypeRef(QualType T, RecordData &Record) {
     // We haven't seen this type before. Assign it a new ID and put it
     // into the queue of types to emit.
     ID = NextTypeID++;
-    TypesToEmit.push(T);
+    DeclTypesToEmit.push(T);
   }
 
   // Encode the type qualifiers in the type reference.
@@ -2079,7 +2206,7 @@ void PCHWriter::AddDeclRef(const Decl *D, RecordData &Record) {
     // We haven't seen this declaration before. Give it a new ID and
     // enqueue it in the list of declarations to emit.
     ID = DeclIDs.size();
-    DeclsToEmit.push(const_cast<Decl *>(D));
+    DeclTypesToEmit.push(const_cast<Decl *>(D));
   }
 
   Record.push_back(ID);

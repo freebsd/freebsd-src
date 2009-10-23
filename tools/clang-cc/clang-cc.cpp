@@ -1139,9 +1139,6 @@ isysroot("isysroot", llvm::cl::value_desc("dir"), llvm::cl::init("/"),
 
 // Add the clang headers, which are relative to the clang binary.
 void AddClangIncludePaths(const char *Argv0, InitHeaderSearch *Init) {
-  if (nostdclanginc)
-    return;
-
   llvm::sys::Path MainExecutablePath =
      llvm::sys::Path::GetMainExecutable(Argv0,
                                     (void*)(intptr_t)AddClangIncludePaths);
@@ -1243,7 +1240,8 @@ void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
 
   Init.AddDefaultEnvVarPaths(Lang);
 
-  AddClangIncludePaths(Argv0, &Init);
+  if (!nostdclanginc)
+    AddClangIncludePaths(Argv0, &Init);
 
   if (!nostdinc)
     Init.AddDefaultSystemIncludePaths(Lang, triple);
@@ -2190,8 +2188,7 @@ static void ProcessASTInputFile(const std::string &InFile, ProgActions PA,
                                 Diagnostic &Diags, FileManager &FileMgr,
                                 llvm::LLVMContext& Context) {
   std::string Error;
-  llvm::OwningPtr<ASTUnit> AST(ASTUnit::LoadFromPCHFile(InFile, Diags, FileMgr,
-                                                        &Error));
+  llvm::OwningPtr<ASTUnit> AST(ASTUnit::LoadFromPCHFile(InFile, &Error));
   if (!AST) {
     Diags.Report(FullSourceLoc(), diag::err_fe_invalid_ast_file) << Error;
     return;
