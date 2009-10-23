@@ -69,6 +69,7 @@
 #include <machine/bus.h>
 #include <machine/hid.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 #include <machine/spr.h>
 
 int powerpc_pow_enabled;
@@ -111,9 +112,6 @@ static const struct cputab models[] = {
 
 static char model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
-
-register_t	l2cr_config = 0;
-register_t	l3cr_config = 0;
 
 static void	cpu_print_speed(void);
 static void	cpu_print_cacheinfo(u_int, uint16_t);
@@ -258,11 +256,6 @@ cpu_setup(u_int cpuid)
 		case MPC7450:
 		case MPC7455:
 		case MPC7457:
-			/* Only MPC745x CPUs have an L3 cache. */
-
-			l3cr_config = mfspr(SPR_L3CR);
-
-			/* Fallthrough */
 		case MPC750:
 		case IBM750FX:
 		case MPC7400:
@@ -271,8 +264,6 @@ cpu_setup(u_int cpuid)
 		case MPC7448:
 			cpu_print_speed();
 			printf("\n");
-
-			l2cr_config = mfspr(SPR_L2CR);
 
 			if (bootverbose)
 				cpu_print_cacheinfo(cpuid, vers);
@@ -366,15 +357,15 @@ cpu_print_cacheinfo(u_int cpuid, uint16_t vers)
 	printf("L1 D-cache %sabled\n", (hid & HID0_DCE) ? "en" : "dis");
 
 	printf("cpu%u: ", cpuid);
-  	if (l2cr_config & L2CR_L2E) {
+  	if (mfspr(SPR_L2CR) & L2CR_L2E) {
 		switch (vers) {
 		case MPC7450:
 		case MPC7455:
 		case MPC7457:
 			printf("256KB L2 cache, ");
-			if (l3cr_config & L3CR_L3E)
+			if (mfspr(SPR_L3CR) & L3CR_L3E)
 				printf("%cMB L3 backside cache",
-				    l3cr_config & L3CR_L3SIZ ? '2' : '1');
+				    mfspr(SPR_L3CR) & L3CR_L3SIZ ? '2' : '1');
 			else
 				printf("L3 cache disabled");
 			printf("\n");
@@ -383,7 +374,7 @@ cpu_print_cacheinfo(u_int cpuid, uint16_t vers)
 			printf("512KB L2 cache\n");
 			break; 
 		default:
-			switch (l2cr_config & L2CR_L2SIZ) {
+			switch (mfspr(SPR_L2CR) & L2CR_L2SIZ) {
 			case L2SIZ_256K:
 				printf("256KB ");
 				break;
@@ -394,9 +385,9 @@ cpu_print_cacheinfo(u_int cpuid, uint16_t vers)
 				printf("1MB ");
 				break;
 			}
-			printf("write-%s", (l2cr_config & L2CR_L2WT)
+			printf("write-%s", (mfspr(SPR_L2CR) & L2CR_L2WT)
 			    ? "through" : "back");
-			if (l2cr_config & L2CR_L2PE)
+			if (mfspr(SPR_L2CR) & L2CR_L2PE)
 				printf(", with parity");
 			printf(" backside cache\n");
 			break;
