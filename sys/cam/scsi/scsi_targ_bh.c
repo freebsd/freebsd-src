@@ -240,7 +240,7 @@ targbhenlun(struct cam_periph *periph)
 	if ((softc->flags & TARGBH_FLAG_LUN_ENABLED) != 0)
 		return (CAM_REQ_CMP);
 
-	xpt_setup_ccb(&immed_ccb.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&immed_ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	immed_ccb.ccb_h.func_code = XPT_EN_LUN;
 
 	/* Don't need support for any vendor specific commands */
@@ -280,7 +280,7 @@ targbhenlun(struct cam_periph *periph)
 			break;
 		}
 
-		xpt_setup_ccb(&atio->ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&atio->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		atio->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		atio->ccb_h.cbfcnp = targbhdone;
 		xpt_action((union ccb *)atio);
@@ -318,7 +318,7 @@ targbhenlun(struct cam_periph *periph)
 			break;
 		}
 
-		xpt_setup_ccb(&inot->ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&inot->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
 		inot->ccb_h.cbfcnp = targbhdone;
 		xpt_action((union ccb *)inot);
@@ -361,7 +361,7 @@ targbhdislun(struct cam_periph *periph)
 		
 		softc->accept_tio_list =
 		    ((struct targbh_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link;
-		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		ccb.cab.ccb_h.func_code = XPT_ABORT;
 		ccb.cab.abort_ccb = (union ccb *)atio;
 		xpt_action(&ccb);
@@ -369,7 +369,7 @@ targbhdislun(struct cam_periph *periph)
 
 	while ((ccb_h = SLIST_FIRST(&softc->immed_notify_slist)) != NULL) {
 		SLIST_REMOVE_HEAD(&softc->immed_notify_slist, periph_links.sle);
-		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&ccb.cab.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		ccb.cab.ccb_h.func_code = XPT_ABORT;
 		ccb.cab.abort_ccb = (union ccb *)ccb_h;
 		xpt_action(&ccb);
@@ -378,7 +378,7 @@ targbhdislun(struct cam_periph *periph)
 	/*
 	 * Dissable this lun.
 	 */
-	xpt_setup_ccb(&ccb.cel.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&ccb.cel.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	ccb.cel.ccb_h.func_code = XPT_EN_LUN;
 	ccb.cel.enable = 0;
 	xpt_action(&ccb);
@@ -528,7 +528,7 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 		ccbh = TAILQ_FIRST(&softc->work_queue);
 	}
 	if (ccbh != NULL)
-		xpt_schedule(periph, /*priority*/1);
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 }
 
 static void
@@ -647,7 +647,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
 					  periph_links.tqe);
-			priority = 1;
+			priority = CAM_PRIORITY_NORMAL;
 		}
 		xpt_schedule(periph, priority);
 		break;
