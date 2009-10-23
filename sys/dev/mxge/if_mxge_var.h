@@ -270,6 +270,8 @@ struct mxge_softc {
 	int dying;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
+	struct taskqueue *tq;
+	struct task watchdog_task;
 	struct sysctl_oid *slice_sysctl_tree;
 	struct sysctl_ctx_list slice_sysctl_ctx;
 	char *mac_addr_string;

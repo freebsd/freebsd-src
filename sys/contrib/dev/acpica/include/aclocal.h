@@ -1218,6 +1218,29 @@ typedef struct acpi_port_info
 
 /*****************************************************************************
  *
+ * Disassembler
+ *
+ ****************************************************************************/
+
+typedef struct acpi_external_list
+{
+    char                        *Path;
+    char                        *InternalPath;
+    struct acpi_external_list   *Next;
+    UINT32                      Value;
+    UINT16                      Length;
+    UINT8                       Type;
+    UINT8                       Flags;
+
+} ACPI_EXTERNAL_LIST;
+
+/* Values for Flags field above */
+
+#define ACPI_IPATH_ALLOCATED    0x01
+
+
+/*****************************************************************************
+ *
  * Debugger
  *
  ****************************************************************************/

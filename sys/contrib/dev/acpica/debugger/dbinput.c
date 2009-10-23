@@ -644,7 +644,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_BATCH:
-        AcpiDbBatchExecute ();
+        AcpiDbBatchExecute (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_BREAKPOINT:

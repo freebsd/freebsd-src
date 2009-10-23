@@ -837,6 +837,9 @@ tr_setup:
 
 			usbd_transfer_submit(xfer);
 		}
+		RAL_UNLOCK(sc);
+		ural_start(ifp);
+		RAL_LOCK(sc);
 		break;
 
 	default:			/* Error */
@@ -945,8 +948,8 @@ tr_setup:
 		 * the private mutex of a device! That is why we do the
 		 * "ieee80211_input" here, and not some lines up!
 		 */
+		RAL_UNLOCK(sc);
 		if (m) {
-			RAL_UNLOCK(sc);
 			ni = ieee80211_find_rxnode(ic,
 			    mtod(m, struct ieee80211_frame_min *));
 			if (ni != NULL) {
@@ -954,8 +957,11 @@ tr_setup:
 				ieee80211_free_node(ni);
 			} else
 				(void) ieee80211_input_all(ic, m, rssi, nf);
-			RAL_LOCK(sc);
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			ural_start(ifp);
+		RAL_LOCK(sc);
 		return;
 
 	default:			/* Error */

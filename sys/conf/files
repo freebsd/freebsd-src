@@ -117,6 +117,7 @@ cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
 cam/ata/ata_da.c		optional da
+cam/ata/ata_pmp.c		optional da
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -1645,7 +1646,6 @@ dev/usb/serial/u3g.c		optional u3g
 dev/usb/serial/uark.c		optional uark
 dev/usb/serial/ubsa.c		optional ubsa
 dev/usb/serial/ubser.c		optional ubser
-dev/usb/serial/uch341.c		optional uch341
 dev/usb/serial/uchcom.c		optional uchcom
 dev/usb/serial/ucycom.c		optional ucycom
 dev/usb/serial/ufoma.c		optional ufoma
@@ -1661,7 +1661,7 @@ dev/usb/serial/uslcom.c		optional uslcom
 dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | \
-	(u3g | uark | ubsa | ubser | uch341 | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
+	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
 #
 # USB misc drivers
 #

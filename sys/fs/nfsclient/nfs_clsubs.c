@@ -87,6 +87,10 @@ extern struct nfsstats newnfsstats;
 int
 ncl_uninit(struct vfsconf *vfsp)
 {
+	/*
+	 * XXX: Unloading of nfscl module is unsupported.
+	 */
+#if 0
 	int i;
 
 	/*
@@ -104,6 +108,9 @@ ncl_uninit(struct vfsconf *vfsp)
 	mtx_unlock(&ncl_iod_mutex);
 	ncl_nhuninit();
 	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 void 

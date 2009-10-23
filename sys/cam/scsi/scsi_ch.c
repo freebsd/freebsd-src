@@ -809,7 +809,7 @@ chmove(struct cam_periph *periph, struct changer_move *cm)
 	fromelem = softc->sc_firsts[cm->cm_fromtype] + cm->cm_fromunit;
 	toelem = softc->sc_firsts[cm->cm_totype] + cm->cm_tounit;
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_move_medium(&ccb->csio,
 			 /* retries */ 1,
@@ -868,7 +868,7 @@ chexchange(struct cam_periph *periph, struct changer_exchange *ce)
 	dst1 = softc->sc_firsts[ce->ce_fdsttype] + ce->ce_fdstunit;
 	dst2 = softc->sc_firsts[ce->ce_sdsttype] + ce->ce_sdstunit;
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_exchange_medium(&ccb->csio,
 			     /* retries */ 1,
@@ -918,7 +918,7 @@ chposition(struct cam_periph *periph, struct changer_position *cp)
 	 */
 	dst = softc->sc_firsts[cp->cp_type] + cp->cp_unit;
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_position_to_element(&ccb->csio,
 				 /* retries */ 1,
@@ -1075,7 +1075,7 @@ chgetelemstatus(struct cam_periph *periph,
 	data = (caddr_t)malloc(1024, M_DEVBUF, M_WAITOK);
 
 	cam_periph_lock(periph);
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_read_element_status(&ccb->csio,
 				 /* retries */ 1,
@@ -1201,7 +1201,7 @@ chielem(struct cam_periph *periph,
 	error = 0;
 	softc = (struct ch_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_initialize_element_status(&ccb->csio,
 				      /* retries */ 1,
@@ -1285,7 +1285,7 @@ chsetvoltag(struct cam_periph *periph,
 	       min(strlen(csvr->csvr_voltag.cv_volid), sizeof(ssvtp.vitf)));
 	scsi_ulto2b(csvr->csvr_voltag.cv_serial, ssvtp.minvsn);
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	scsi_send_volume_tag(&ccb->csio,
 			     /* retries */ 1,
@@ -1323,7 +1323,7 @@ chgetparams(struct cam_periph *periph)
 
 	softc = (struct ch_softc *)periph->softc;
 
-	ccb = cam_periph_getccb(periph, /*priority*/ 1);
+	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 
 	/*
 	 * The scsi_mode_sense_data structure is just a convenience

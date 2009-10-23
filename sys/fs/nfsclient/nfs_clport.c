@@ -1243,6 +1243,10 @@ nfscl_modevent(module_t mod, int type, void *data)
 			break;
 		}
 
+		/*
+		 * XXX: Unloading of nfscl module is unsupported.
+		 */
+#if 0
 		ncl_call_invalcaches = NULL;
 		nfsd_call_nfscl = NULL;
 		/* and get rid of the mutexes */
@@ -1250,6 +1254,9 @@ nfscl_modevent(module_t mod, int type, void *data)
 		mtx_destroy(&ncl_iod_mutex);
 		loaded = 0;
 		break;
+#else
+		/* FALLTHROUGH */
+#endif
 	default:
 		error = EOPNOTSUPP;
 		break;
@@ -1261,7 +1268,7 @@ static moduledata_t nfscl_mod = {
 	nfscl_modevent,
 	NULL,
 };
-DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_ANY);
+DECLARE_MODULE(nfscl, nfscl_mod, SI_SUB_VFS, SI_ORDER_FIRST);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfscl, 1);

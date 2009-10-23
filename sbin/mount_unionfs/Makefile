@@ -7,7 +7,6 @@ MAN=	mount_unionfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-I${MOUNT}
-WARNS?=	6
 
 .PATH:	${MOUNT}
 

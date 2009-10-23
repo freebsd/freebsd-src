@@ -10,8 +10,6 @@ PROG=   growfs
 SRCS=   growfs.c
 MAN=	growfs.8
 
-WARNS?=	6
-
 .if defined(GFSDBG)
 SRCS+=  debug.c
 .endif  

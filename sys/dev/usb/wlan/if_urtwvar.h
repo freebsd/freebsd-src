@@ -18,12 +18,13 @@
 
 enum {
 	URTW_8187B_BULK_RX,
+	URTW_8187B_BULK_TX_STATUS,
 	URTW_8187B_BULK_TX_BE,
 	URTW_8187B_BULK_TX_BK,
 	URTW_8187B_BULK_TX_VI,
 	URTW_8187B_BULK_TX_VO,
 	URTW_8187B_BULK_TX_EP12,
-	URTW_8187B_N_XFERS = 6
+	URTW_8187B_N_XFERS = 7
 };
 
 enum {
@@ -54,6 +55,7 @@ typedef STAILQ_HEAD(, urtw_data) urtw_datahead;
 #define URTW_TX_DATA_LIST_COUNT		16
 #define URTW_RX_MAXSIZE			0x9c4
 #define URTW_TX_MAXSIZE			0x9c4
+#define	URTW_TX_MAXRETRY		11
 
 struct urtw_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -162,6 +164,10 @@ struct urtw_softc {
 	uint8_t				sc_txpwr_cck_base;
 	uint8_t				sc_txpwr_ofdm[URTW_MAX_CHANNELS];
 	uint8_t				sc_txpwr_ofdm_base;
+
+	uint8_t				sc_acmctl;
+	uint64_t			sc_txstatus;	/* only for 8187B */
+	struct task			sc_updateslot_task;
 
 	struct	urtw_rx_radiotap_header	sc_rxtap;
 	int				sc_rxtap_len;
