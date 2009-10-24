@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 .PATH: ${.CURDIR}/../common
 
 SRCS=		crt1.c crti.S crtn.S
