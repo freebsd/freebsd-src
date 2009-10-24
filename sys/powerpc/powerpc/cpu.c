@@ -114,16 +114,19 @@ static char model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 
 static void	cpu_print_speed(void);
-static void	cpu_print_cacheinfo(u_int, uint16_t);
+
+static void	cpu_6xx_setup(int cpuid, uint16_t vers);
+static void	cpu_6xx_print_cacheinfo(u_int, uint16_t);
+static void	cpu_e500_setup(int cpuid, uint16_t vers);
+static void	cpu_970_setup(int cpuid, uint16_t vers);
 
 void
 cpu_setup(u_int cpuid)
 {
-	u_int		pvr, maj, min, hid0;
+	u_int		pvr, maj, min;
 	uint16_t	vers, rev, revfmt;
 	const struct	cputab *cp;
 	const char	*name;
-	char		*bitmask;
 
 	pvr = mfpvr();
 	vers = pvr >> 16;
@@ -170,10 +173,8 @@ cpu_setup(u_int cpuid)
 			break;
 	}
 
-	hid0 = mfspr(SPR_HID0);
-
 	/*
-	 * Configure power-saving mode.
+	 * Configure CPU
 	 */
 	switch (vers) {
 		case MPC603:
@@ -184,102 +185,34 @@ cpu_setup(u_int cpuid)
 		case IBM750FX:
 		case MPC7400:
 		case MPC7410:
+		case MPC7447A:
+		case MPC7448:
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
 		case MPC8240:
 		case MPC8245:
-			/* Select DOZE mode. */
-			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-			hid0 |= HID0_DOZE | HID0_DPM;
-			powerpc_pow_enabled = 1;
+			cpu_6xx_setup(cpuid, vers);
 			break;
 
-		case MPC7448:
-		case MPC7447A:
-		case MPC7457:
-		case MPC7455:
-		case MPC7450:
-			/* Enable the 7450 branch caches */
-			hid0 |= HID0_SGE | HID0_BTIC;
-			hid0 |= HID0_LRSTK | HID0_FOLD | HID0_BHT;
-			/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
-			if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
-					|| (pvr >> 16) == MPC7457)
-				hid0 &= ~HID0_BTIC;
-			/* Select NAP mode. */
-			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-			hid0 |= HID0_NAP | HID0_DPM;
-			powerpc_pow_enabled = 1;
-			break;
-
-		default:
-			/* No power-saving mode is available. */ ;
-	}
-
-	switch (vers) {
-		case IBM750FX:
-		case MPC750:
-			hid0 &= ~HID0_DBP;		/* XXX correct? */
-			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
-			break;
-
-		case MPC7400:
-		case MPC7410:
-			hid0 &= ~HID0_SPD;
-			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
-			hid0 |= HID0_EIEC;
-			break;
-
-		case FSL_E500v1:
-		case FSL_E500v2:
-			break;
-	}
-
-	mtspr(SPR_HID0, hid0);
-
-	switch (vers) {
-		case MPC7447A:
-		case MPC7448:
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-			bitmask = HID0_7450_BITMASK;
-			break;
-		case FSL_E500v1:
-		case FSL_E500v2:
-			bitmask = HID0_E500_BITMASK;
-			break;
-		default:
-			bitmask = HID0_BITMASK;
-			break;
-	}
-
-	switch (vers) {
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-		case MPC750:
-		case IBM750FX:
-		case MPC7400:
-		case MPC7410:
-		case MPC7447A:
-		case MPC7448:
-			cpu_print_speed();
-			printf("\n");
-
-			if (bootverbose)
-				cpu_print_cacheinfo(cpuid, vers);
-			break;
 		case IBM970:
 		case IBM970FX:
+		case IBM970GX:
 		case IBM970MP:
-			cpu_print_speed();
-			printf("\n");
+			cpu_970_setup(cpuid, vers);
 			break;
+
+		case FSL_E500v1:
+		case FSL_E500v2:
+			cpu_e500_setup(cpuid, vers);
+			break;
+
 		default:
-			printf("\n");
+			/* HID setup is unknown */
 			break;
 	}
 
-	printf("cpu%d: HID0 %b\n", cpuid, hid0, bitmask);
+	printf("\n");
 }
 
 void
@@ -346,10 +279,101 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 }
 
 void
-cpu_print_cacheinfo(u_int cpuid, uint16_t vers)
+cpu_6xx_setup(int cpuid, uint16_t vers)
 {
-	uint32_t hid;
+	register_t hid0, pvr;
+	const char *bitmask;
 
+	hid0 = mfspr(SPR_HID0);
+	pvr = mfpvr();
+
+	/*
+	 * Configure power-saving mode.
+	 */
+	switch (vers) {
+		case MPC603:
+		case MPC603e:
+		case MPC603ev:
+		case MPC604ev:
+		case MPC750:
+		case IBM750FX:
+		case MPC7400:
+		case MPC7410:
+		case MPC8240:
+		case MPC8245:
+			/* Select DOZE mode. */
+			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+			hid0 |= HID0_DOZE | HID0_DPM;
+			powerpc_pow_enabled = 1;
+			break;
+
+		case MPC7448:
+		case MPC7447A:
+		case MPC7457:
+		case MPC7455:
+		case MPC7450:
+			/* Enable the 7450 branch caches */
+			hid0 |= HID0_SGE | HID0_BTIC;
+			hid0 |= HID0_LRSTK | HID0_FOLD | HID0_BHT;
+			/* Disable BTIC on 7450 Rev 2.0 or earlier and on 7457 */
+			if (((pvr >> 16) == MPC7450 && (pvr & 0xFFFF) <= 0x0200)
+					|| (pvr >> 16) == MPC7457)
+				hid0 &= ~HID0_BTIC;
+			/* Select NAP mode. */
+			hid0 &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
+			hid0 |= HID0_NAP | HID0_DPM;
+			powerpc_pow_enabled = 1;
+			break;
+
+		default:
+			/* No power-saving mode is available. */ ;
+	}
+
+	switch (vers) {
+		case IBM750FX:
+		case MPC750:
+			hid0 &= ~HID0_DBP;		/* XXX correct? */
+			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
+			break;
+
+		case MPC7400:
+		case MPC7410:
+			hid0 &= ~HID0_SPD;
+			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
+			hid0 |= HID0_EIEC;
+			break;
+
+	}
+
+	mtspr(SPR_HID0, hid0);
+
+	cpu_print_speed();
+	printf("\n");
+
+	if (bootverbose)
+		cpu_6xx_print_cacheinfo(cpuid, vers);
+
+	switch (vers) {
+		case MPC7447A:
+		case MPC7448:
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+			bitmask = HID0_7450_BITMASK;
+			break;
+		default:
+			bitmask = HID0_BITMASK;
+			break;
+	}
+
+	printf("cpu%d: HID0 %b", cpuid, (int)hid0, bitmask);
+}
+
+
+static void
+cpu_6xx_print_cacheinfo(u_int cpuid, uint16_t vers)
+{
+	register_t hid;
 
 	hid = mfspr(SPR_HID0);
 	printf("cpu%u: ", cpuid);
@@ -395,3 +419,43 @@ cpu_print_cacheinfo(u_int cpuid, uint16_t vers)
 	} else
 		printf("L2 cache disabled\n");
 }
+
+static void
+cpu_e500_setup(int cpuid, uint16_t vers)
+{
+	register_t hid0;
+
+	hid0 = mfspr(SPR_HID0);
+	printf("cpu%d: HID0 %b", cpuid, (int)hid0, HID0_E500_BITMASK);
+}
+
+static void
+cpu_970_setup(int cpuid, uint16_t vers)
+{
+	uint32_t hid0_hi, hid0_lo;
+
+	__asm __volatile ("mfspr %0,%2; clrldi %1,%0,32; srdi %0,%0,32;"
+	    : "=r" (hid0_hi), "=r" (hid0_lo) : "K" (SPR_HID0));
+
+	/* Configure power-saving mode */
+	hid0_hi |= (HID0_NAP | HID0_DPM);
+	hid0_hi &= ~(HID0_DOZE | HID0_DEEPNAP);
+	powerpc_pow_enabled = 1;
+
+	__asm __volatile (" \
+		sync; isync;					\
+		sldi	%0,%0,32; or %0,%0,%1;			\
+		mtspr	%2, %0;					\
+		mfspr   %0, %2; mfspr   %0, %2; mfspr   %0, %2; \
+		mfspr   %0, %2; mfspr   %0, %2; mfspr   %0, %2; \
+		sync; isync"
+	    :: "r" (hid0_hi), "r"(hid0_lo), "K" (SPR_HID0));
+
+	cpu_print_speed();
+	printf("\n");
+
+	__asm __volatile ("mfspr %0,%1; srdi %0,%0,32;"
+	    : "=r" (hid0_hi) : "K" (SPR_HID0));
+	printf("cpu%d: HID0 %b", cpuid, (int)(hid0_hi), HID0_970_BITMASK);
+}
+
