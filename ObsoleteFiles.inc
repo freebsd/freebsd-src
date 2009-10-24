@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20091005: fusword.9 and susword.9 removed
+OLD_FILES+=usr/share/man/man9/fusword.9.gz
+OLD_FILES+=usr/share/man/man9/susword.9.gz
 # 20090909: vesa and dpms promoted to be i386/amd64 common
 OLD_FILES+=usr/include/machine/pc/vesa.h
 OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
@@ -26,6 +29,49 @@ OLD_FILES+=usr/share/man/man8/lukemftpd.8.gz
 OLD_FILES+=etc/mtree/BSD.local.dist
 OLD_FILES+=etc/mtree/BSD.x11.dist
 OLD_FILES+=etc/mtree/BSD.x11-4.dist
+# 20090812: net80211 documentation overhaul
+OLD_FILES+=usr/share/man/man9/ieee80211_add_rates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_add_xrates.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_alloc_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_begin_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgget.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_cfgset.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_chan2mode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_create_ibss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_crypto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_decap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dump_pkt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_dup_bss.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_encap.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_end_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_find_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_fix_rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_free_allnodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ieee2mhz.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_ioctl.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_lookup_node.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media2rate.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_change.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_init.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_media_status.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_mhz2ieee.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_next_scan.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_node_lateattach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_print_essid.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_attach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_proto_detach.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_rate2media.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_recv_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_send_mgmt.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_setmode.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_timeout_nodes.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_watchdog.9.gz
+OLD_FILES+=usr/share/man/man9/ieee80211_wep_crypt.9.gz
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
 # 20090719: library version bump for 8.0
