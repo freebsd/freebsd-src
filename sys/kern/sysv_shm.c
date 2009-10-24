@@ -821,12 +821,19 @@ shminit()
 {
 	int i;
 
-	TUNABLE_ULONG_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall);
+#ifndef BURN_BRIDGES
+	if (TUNABLE_ULONG_FETCH("kern.ipc.shmmaxpgs", &shminfo.shmall) != 0)
+		printf("kern.ipc.shmmaxpgs is now called kern.ipc.shmall!\n");
+#endif
+	TUNABLE_ULONG_FETCH("kern.ipc.shmall", &shminfo.shmall);
+
+	/* Initialize shmmax dealing with possible overflow. */
 	for (i = PAGE_SIZE; i > 0; i--) {
 		shminfo.shmmax = shminfo.shmall * i;
 		if (shminfo.shmmax >= shminfo.shmall)
 			break;
 	}
+
 	TUNABLE_ULONG_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
 	TUNABLE_ULONG_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
 	TUNABLE_ULONG_FETCH("kern.ipc.shmseg", &shminfo.shmseg);
