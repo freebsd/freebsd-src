@@ -601,7 +601,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 	switch (sc->hw_type) {
 	case IWN_HW_REV_TYPE_4965:
 		sc->sc_hal = &iwn4965_hal;
-		sc->fwname = "iwnfw-4965";
+		sc->fwname = "iwn4965fw";
 		sc->critical_temp = IWN_CTOK(110);
 		sc->txantmsk = IWN_ANT_A | IWN_ANT_B;
 		sc->rxantmsk = IWN_ANT_ABC;
@@ -610,7 +610,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 		break;
 	case IWN_HW_REV_TYPE_5100:
 		sc->sc_hal = &iwn5000_hal;
-		sc->fwname = "iwnfw-5000";
+		sc->fwname = "iwn5000fw";
 		sc->critical_temp = 110;
 		sc->txantmsk = IWN_ANT_B;
 		sc->rxantmsk = IWN_ANT_A | IWN_ANT_B;
@@ -619,7 +619,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 		break;
 	case IWN_HW_REV_TYPE_5150:
 		sc->sc_hal = &iwn5000_hal;
-		sc->fwname = "iwnfw-5150";
+		sc->fwname = "iwn5150fw";
 		/* NB: critical temperature will be read from EEPROM. */
 		sc->txantmsk = IWN_ANT_A;
 		sc->rxantmsk = IWN_ANT_A | IWN_ANT_B;
@@ -629,14 +629,14 @@ iwn_hal_attach(struct iwn_softc *sc)
 	case IWN_HW_REV_TYPE_5300:
 	case IWN_HW_REV_TYPE_5350:
 		sc->sc_hal = &iwn5000_hal;
-		sc->fwname = "iwnfw-5000";
+		sc->fwname = "iwn5000fw";
 		sc->critical_temp = 110;
 		sc->txantmsk = sc->rxantmsk = IWN_ANT_ABC;
 		sc->ntxchains = sc->nrxchains = 3;
 		break;
 	case IWN_HW_REV_TYPE_1000:
 		sc->sc_hal = &iwn5000_hal;
-		sc->fwname = "iwnfw-1000";
+		sc->fwname = "iwn1000fw";
 		sc->critical_temp = 110;
 		sc->txantmsk = IWN_ANT_A;
 		sc->rxantmsk = IWN_ANT_A | IWN_ANT_B;
@@ -645,7 +645,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 		break;
 	case IWN_HW_REV_TYPE_6000:
 		sc->sc_hal = &iwn5000_hal;
-		sc->fwname = "iwnfw-6000";
+		sc->fwname = "iwn6000fw";
 		sc->critical_temp = 110;
 		sc->txantmsk = IWN_ANT_ABC;
 		sc->rxantmsk = IWN_ANT_ABC;
@@ -654,7 +654,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 		break;
 	case IWN_HW_REV_TYPE_6050:
 		sc->sc_hal = &iwn5000_hal;
-		sc->fwname = "iwnfw-6050";
+		sc->fwname = "iwn6050fw";
 		sc->critical_temp = 110;
 		sc->txantmsk = IWN_ANT_ABC;
 		sc->rxantmsk = IWN_ANT_ABC;
@@ -1150,7 +1150,6 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	 */
 	for (i = 0; i < IWN_RX_RING_COUNT; i++) {
 		struct iwn_rx_data *data = &ring->data[i];
-		struct mbuf *m;
 		bus_addr_t paddr;
 
 		error = bus_dmamap_create(ring->desc_dma.tag, 0, &data->map);
@@ -1161,8 +1160,8 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			goto fail;
 		}
 
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
-		if (m == NULL) {
+		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
 			   "%s: could not allocate rx mbuf\n", __func__);
 			error = ENOMEM;
@@ -1171,20 +1170,16 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 
 		/* Map page. */
 		error = bus_dmamap_load(ring->desc_dma.tag, data->map,
-		    mtod(m, caddr_t), MJUMPAGESIZE,
+		    mtod(data->m, caddr_t), MJUMPAGESIZE,
 		    iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
 		if (error != 0 && error != EFBIG) {
 			device_printf(sc->sc_dev,
 			    "%s: bus_dmamap_load failed, error %d\n",
 			    __func__, error);
-			m_freem(m);
+			m_freem(data->m);
 			error = ENOMEM;	/* XXX unique code */
 			goto fail;
 		}
-		bus_dmamap_sync(ring->desc_dma.tag, data->map,
-		    BUS_DMASYNC_PREWRITE);
-
-		data->m = m;
 
 		/* Set physical address of RX buffer (256-byte aligned). */
 		ring->desc[i] = htole32(paddr >> 8);
@@ -1233,6 +1228,8 @@ iwn_free_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		struct iwn_rx_data *data = &ring->data[i];
 
 		if (data->m != NULL) {
+			bus_dmamap_sync(ring->desc_dma.tag, data->map,
+			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(ring->desc_dma.tag, data->map);
 			m_freem(data->m);
 		}
@@ -1304,8 +1301,6 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 			    __func__, error);
 			goto fail;
 		}
-		bus_dmamap_sync(ring->desc_dma.tag, data->map,
-		    BUS_DMASYNC_PREWRITE);
 	}
 	return 0;
 fail:
@@ -1322,6 +1317,8 @@ iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 		struct iwn_tx_data *data = &ring->data[i];
 
 		if (data->m != NULL) {
+			bus_dmamap_sync(ring->desc_dma.tag, data->map,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(ring->desc_dma.tag, data->map);
 			m_freem(data->m);
 			data->m = NULL;
@@ -1329,6 +1326,8 @@ iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 	}
 	/* Clear TX descriptors. */
 	memset(ring->desc, 0, ring->desc_dma.size);
+	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
+	    BUS_DMASYNC_PREWRITE);
 	sc->qfullmsk &= ~(1 << ring->qid);
 	ring->queued = 0;
 	ring->cur = 0;
@@ -1347,7 +1346,10 @@ iwn_free_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 			struct iwn_tx_data *data = &ring->data[i];
 
 			if (data->m != NULL) {
-				bus_dmamap_unload(ring->desc_dma.tag, data->map);
+				bus_dmamap_sync(ring->desc_dma.tag, data->map,
+				     BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(ring->desc_dma.tag,
+				    data->map);
 				m_freem(data->m);
 			}
 		}
@@ -1709,10 +1711,11 @@ iwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	if (nstate == IEEE80211_S_AUTH && vap->iv_state != IEEE80211_S_AUTH) {
 		/* !AUTH -> AUTH requires adapter config */
-		error = 1;
-		while (error) {
-			error = iwn_auth(sc, vap);
-		}
+		/* Reset state to handle reassociations correctly. */
+		sc->rxon.associd = 0;
+		sc->rxon.filter &= ~htole32(IWN_FILTER_BSS);
+		iwn_calib_reset(sc);
+		error = iwn_auth(sc, vap);
 	}
 	if (nstate == IEEE80211_S_RUN && vap->iv_state != IEEE80211_S_RUN) {
 		/*
@@ -1831,6 +1834,8 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		stat = &sc->last_rx_stat;
 	} else
 		stat = (struct iwn_rx_stat *)(desc + 1);
+
+	bus_dmamap_sync(ring->desc_dma.tag, data->map, BUS_DMASYNC_POSTREAD);
 
 	if (stat->cfg_phy_len > IWN_STAT_MAXLEN) {
 		device_printf(sc->sc_dev,
@@ -2054,7 +2059,6 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    __func__, desc->qid, desc->idx, stat->retrycnt,
 	    stat->killcnt, stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
-
 	iwn_tx_done(sc, desc, stat->retrycnt, le32toh(stat->status) & 0xff);
 }
 
@@ -2072,7 +2076,6 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	/* Reset TX scheduler slot. */
 	iwn5000_reset_sched(sc, desc->qid & 0xf, desc->idx);
-
 	iwn_tx_done(sc, desc, stat->retrycnt, le16toh(stat->status) & 0xff);
 }
 
@@ -2151,11 +2154,13 @@ iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 
 	/* If the command was mapped in an mbuf, free it. */
 	if (data->m != NULL) {
+		bus_dmamap_sync(ring->desc_dma.tag, data->map,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ring->desc_dma.tag, data->map);
 		m_freem(data->m);
 		data->m = NULL;
 	}
-	wakeup(&ring->cmd[desc->idx]);
+	wakeup(&ring->desc[desc->idx]);
 }
 
 /*
@@ -2183,7 +2188,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 
 		DPRINTF(sc, IWN_DEBUG_RECV,
 		    "%s: qid %x idx %d flags %x type %d(%s) len %d\n",
-		    __func__, desc->qid /*& 0xf*/, desc->idx, desc->flags,
+		    __func__, desc->qid & 0xf, desc->idx, desc->flags,
 		    desc->type, iwn_intr_str(desc->type),
 		    le16toh(desc->len));
 
@@ -2217,10 +2222,8 @@ iwn_notif_intr(struct iwn_softc *sc)
 			    (struct iwn_beacon_missed *)(desc + 1);
 			int misses = le32toh(miss->consecutive);
 
-			/* XXX not sure why we're notified w/ zero */
-			if (misses == 0)
-				break;
-
+			bus_dmamap_sync(sc->rxq.stat_dma.tag, data->map,
+			    BUS_DMASYNC_PREWRITE);
 			DPRINTF(sc, IWN_DEBUG_STATE,
 			    "%s: beacons missed %d/%d\n", __func__,
 			    misses, le32toh(miss->total));
@@ -2241,7 +2244,8 @@ iwn_notif_intr(struct iwn_softc *sc)
 			    (struct iwn_ucode_info *)(desc + 1);
 
 			/* The microcontroller is ready. */
-
+			bus_dmamap_sync(sc->rxq.stat_dma.tag, data->map,
+			    BUS_DMASYNC_PREWRITE);
 			DPRINTF(sc, IWN_DEBUG_RESET,
 			    "microcode alive notification version=%d.%d "
 			    "subtype=%x alive=%x\n", uc->major, uc->minor,
@@ -2269,7 +2273,8 @@ iwn_notif_intr(struct iwn_softc *sc)
 			 * noted. However, we handle this in iwn_intr as we
 			 * get both the enable/disble intr.
 			 */
-
+			bus_dmamap_sync(sc->rxq.stat_dma.tag, data->map,
+			    BUS_DMASYNC_PREWRITE);
 			DPRINTF(sc, IWN_DEBUG_INTR, "state changed to %x\n",
 			    le32toh(*status));
 			break;
@@ -2279,6 +2284,8 @@ iwn_notif_intr(struct iwn_softc *sc)
 			struct iwn_start_scan *scan =
 			    (struct iwn_start_scan *)(desc + 1);
 
+			bus_dmamap_sync(sc->rxq.stat_dma.tag, data->map,
+			    BUS_DMASYNC_PREWRITE);
 			DPRINTF(sc, IWN_DEBUG_ANY,
 			    "%s: scanning channel %d status %x\n",
 			    __func__, scan->chan, le32toh(scan->status));
@@ -2289,6 +2296,8 @@ iwn_notif_intr(struct iwn_softc *sc)
 			struct iwn_stop_scan *scan =
 			    (struct iwn_stop_scan *)(desc + 1);
 
+			bus_dmamap_sync(sc->rxq.stat_dma.tag, data->map,
+			    BUS_DMASYNC_PREWRITE);
 			DPRINTF(sc, IWN_DEBUG_STATE,
 			    "scan finished nchan=%d status=%d chan=%d\n",
 			    scan->nchan, scan->status, scan->chan);
@@ -2494,8 +2503,13 @@ iwn4965_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
 	uint16_t *w = &sc->sched[qid * IWN4965_SCHED_COUNT + idx];
 
 	*w = htole16(len + 8);
-	if (idx < IWN4965_SCHEDSZ)
+	bus_dmamap_sync(sc->sched_dma.tag, sc->sched_dma.map,
+	    BUS_DMASYNC_PREWRITE);
+	if (idx < IWN4965_SCHEDSZ) {
 		*(w + IWN_TX_RING_COUNT) = *w;
+		bus_dmamap_sync(sc->sched_dma.tag, sc->sched_dma.map,
+		    BUS_DMASYNC_PREWRITE);
+	}
 }
 
 void
@@ -2505,8 +2519,14 @@ iwn5000_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
 	uint16_t *w = &sc->sched[qid * IWN5000_SCHED_COUNT + idx];
 
 	*w = htole16(id << 12 | (len + 8));
-	if (idx < IWN_SCHED_WINSZ)
+
+	bus_dmamap_sync(sc->sched_dma.tag, sc->sched_dma.map,
+	    BUS_DMASYNC_PREWRITE);
+	if (idx < IWN_SCHED_WINSZ) {
 		*(w + IWN_TX_RING_COUNT) = *w;
+		bus_dmamap_sync(sc->sched_dma.tag, sc->sched_dma.map,
+		    BUS_DMASYNC_PREWRITE);
+	}
 }
 
 void
@@ -2515,8 +2535,13 @@ iwn5000_reset_sched(struct iwn_softc *sc, int qid, int idx)
 	uint16_t *w = &sc->sched[qid * IWN5000_SCHED_COUNT + idx];
 
 	*w = (*w & htole16(0xf000)) | htole16(1);
-	if (idx < IWN_SCHED_WINSZ)
+	bus_dmamap_sync(sc->sched_dma.tag, sc->sched_dma.map,
+	    BUS_DMASYNC_PREWRITE);
+	if (idx < IWN_SCHED_WINSZ) {
 		*(w + IWN_TX_RING_COUNT) = *w;
+		bus_dmamap_sync(sc->sched_dma.tag, sc->sched_dma.map,
+		     BUS_DMASYNC_PREWRITE);
+	}
 }
 
 /* Determine if a given rate is CCK or OFDM. */
@@ -3104,25 +3129,48 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 	struct iwn_tx_desc *desc;
 	struct iwn_tx_data *data;
 	struct iwn_tx_cmd *cmd;
+	struct mbuf *m;
 	bus_addr_t paddr;
-	int totlen;
+	int totlen, error;
 
 	IWN_LOCK_ASSERT(sc);
 
-	KASSERT(size <= sizeof cmd->data, ("Command too big"));
-
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
-	cmd = &ring->cmd[ring->cur];
 	totlen = 4 + size;
+
+	if (size > sizeof cmd->data) {
+		/* Command is too large to fit in a descriptor. */
+		if (totlen > MCLBYTES)
+			return EINVAL;
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		if (m == NULL)
+			return ENOMEM;
+		if (totlen > MHLEN) {
+			MCLGET(m, M_DONTWAIT);
+			if (!(m->m_flags & M_EXT)) {
+				m_freem(m);
+				return ENOMEM;
+			}
+		}
+		cmd = mtod(m, struct iwn_tx_cmd *);
+		error = bus_dmamap_load(ring->cmd_dma.tag, data->map, cmd,
+		    totlen, iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
+		if (error != 0) {
+			m_freem(m);
+			return error;
+		}
+		data->m = m;
+	} else {
+		cmd = &ring->cmd[ring->cur];
+		paddr = data->cmd_paddr;
+	}
 
 	cmd->code = code;
 	cmd->flags = 0;
 	cmd->qid = ring->qid;
 	cmd->idx = ring->cur;
 	memcpy(cmd->data, buf, size);
-
-	paddr = data->cmd_paddr;
 
 	desc->nsegs = 1;
 	desc->segs[0].addr = htole32(IWN_LOADDR(paddr));
@@ -3132,6 +3180,16 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 	    __func__, iwn_intr_str(cmd->code), cmd->code,
 	    cmd->flags, cmd->qid, cmd->idx);
 
+	if (size > sizeof cmd->data) {
+		bus_dmamap_sync(ring->cmd_dma.tag, data->map,
+		    BUS_DMASYNC_PREWRITE);
+	} else {
+		bus_dmamap_sync(ring->cmd_dma.tag, ring->cmd_dma.map,
+		    BUS_DMASYNC_PREWRITE);
+	}
+	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
+	    BUS_DMASYNC_PREWRITE);
+
 	/* Update TX scheduler. */
 	hal->update_sched(sc, ring->qid, ring->cur, 0, 0);
 
@@ -3139,7 +3197,7 @@ iwn_cmd(struct iwn_softc *sc, int code, const void *buf, int size, int async)
 	ring->cur = (ring->cur + 1) % IWN_TX_RING_COUNT;
 	IWN_WRITE(sc, IWN_HBUS_TARG_WRPTR, ring->qid << 8 | ring->cur);
 
-	return async ? 0 : msleep(cmd, &sc->sc_mtx, PCATCH, "iwncmd", hz);
+	return async ? 0 : msleep(desc, &sc->sc_mtx, PCATCH, "iwncmd", hz);
 }
 
 int
@@ -3876,11 +3934,12 @@ iwn_tune_sensitivity(struct iwn_softc *sc, const struct iwn_rx_stats *stats)
 	struct iwn_calib_state *calib = &sc->calib;
 	uint32_t val, rxena, fa;
 	uint32_t energy[3], energy_min;
-	int i, needs_update = 0;
 	uint8_t noise[3], noise_ref;
+	int i, needs_update = 0;
 
 	/* Check that we've been enabled long enough. */
-	if ((rxena = le32toh(stats->general.load)) == 0)
+	rxena = le32toh(stats->general.load);
+	if (rxena == 0)
 		return;
 
 	/* Compute number of false alarms since last call for OFDM. */
@@ -4810,8 +4869,10 @@ iwn4965_load_firmware(struct iwn_softc *sc)
 
 	/* Copy initialization sections into pre-allocated DMA-safe memory. */
 	memcpy(dma->vaddr, fw->init.data, fw->init.datasz);
+	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
 	memcpy(dma->vaddr + IWN4965_FW_DATA_MAXSZ,
 	    fw->init.text, fw->init.textsz);
+	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
 
 	/* Tell adapter where to find initialization sections. */
 	error = iwn_nic_lock(sc);
@@ -4849,8 +4910,10 @@ iwn4965_load_firmware(struct iwn_softc *sc)
 
 	/* Copy runtime sections into pre-allocated DMA-safe memory. */
 	memcpy(dma->vaddr, fw->main.data, fw->main.datasz);
+	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
 	memcpy(dma->vaddr + IWN4965_FW_DATA_MAXSZ,
 	    fw->main.text, fw->main.textsz);
+	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
 
 	/* Tell adapter where to find runtime sections. */
 	error = iwn_nic_lock(sc);
@@ -4877,6 +4940,7 @@ iwn5000_load_firmware_section(struct iwn_softc *sc, uint32_t dst,
 
 	/* Copy firmware section into pre-allocated DMA-safe memory. */
 	memcpy(dma->vaddr, section, size);
+	bus_dmamap_sync(sc->fw_dma.tag, dma->map, BUS_DMASYNC_PREWRITE);
 
 	error = iwn_nic_lock(sc);
 	if (error != 0)
