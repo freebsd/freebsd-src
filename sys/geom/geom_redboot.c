@@ -71,6 +71,7 @@ struct fis_image_desc {
 struct g_redboot_softc {
 	uint32_t	entry[REDBOOT_MAXSLICE];
 	uint32_t	dsize[REDBOOT_MAXSLICE];
+	uint32_t	sectoff[REDBOOT_MAXSLICE];
 	uint8_t		readonly[REDBOOT_MAXSLICE];
 	g_access_t	*parent_access;
 };
@@ -104,29 +105,125 @@ g_redboot_access(struct g_provider *pp, int dread, int dwrite, int dexcl)
 	return (sc->parent_access(pp, dread, dwrite, dexcl));
 }
 
-static int
-g_redboot_start(struct bio *bp)
+static void
+g_redboot_done(struct bio *bp)
 {
+	struct bio *bp2;
 	struct g_provider *pp;
+	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_redboot_softc *sc;
 	struct g_slicer *gsp;
+	int idx;
+
+	bp2 = bp->bio_parent;
+	pp = bp2->bio_to;
+	idx = pp->index;
+	gp = pp->geom;
+	gsp = gp->softc;
+	sc = gsp->softc;
+
+	bp2->bio_error = bp->bio_error;
+	if (bp2->bio_error != 0)
+		goto done;
+
+	KASSERT(sc->sectoff[idx] + bp2->bio_length <= bp->bio_length,
+	    ("overflowed bio data"));
+	if (bp2->bio_cmd == BIO_READ) {
+		/* Copy out read data */
+		memcpy(bp2->bio_data, bp->bio_data + sc->sectoff[idx],
+		    bp2->bio_length);
+		bp2->bio_completed = bp2->bio_length;
+	} else {
+		if (bp->bio_cmd == BIO_READ) {
+			/* Copy in and reissue as write */
+			cp = LIST_FIRST(&gp->consumer);
+			memcpy(bp->bio_data + sc->sectoff[idx], bp2->bio_data,
+			    bp2->bio_length);
+			bp->bio_cmd = BIO_WRITE;
+			g_io_request(bp, cp);
+			return;
+		} else {
+			/* Write done */
+			bp2->bio_completed = bp2->bio_length;
+		}
+	}
+done:
+	/*
+	 * Finish processing the request.
+	 */
+	free(bp->bio_data, M_GEOM);
+	g_destroy_bio(bp);
+	g_io_deliver(bp2, bp2->bio_error);
+}
+
+static int
+g_redboot_start(struct bio *bp)
+{
+	struct g_provider *pp, *pp2;
+	struct g_geom *gp;
+	struct g_redboot_softc *sc;
+	struct g_slicer *gsp;
+	struct g_slice *gsl;
+	struct g_consumer *cp;
+	struct bio *bp2;
+	size_t bsize;
 	int idx;
 
 	pp = bp->bio_to;
 	idx = pp->index;
 	gp = pp->geom;
 	gsp = gp->softc;
+	gsl = &gsp->slices[idx];
 	sc = gsp->softc;
-	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, REDBOOT_CLASS_NAME "::entry",
-		    sc->entry[idx]))
-			return (1);
-		if (g_handleattr_int(bp, REDBOOT_CLASS_NAME "::dsize",
-		    sc->dsize[idx]))
-			return (1);
+	switch (bp->bio_cmd) {
+		/*
+		 * Read/Write are handled in g_redboot_done() after reading
+		 * the sector
+		 */
+		case BIO_READ:
+		case BIO_WRITE:
+			break;
+		case BIO_GETATTR:
+			if (g_handleattr_int(bp, REDBOOT_CLASS_NAME "::entry",
+				    sc->entry[idx]))
+				return (1);
+			if (g_handleattr_int(bp, REDBOOT_CLASS_NAME "::dsize",
+				    sc->dsize[idx]))
+				return (1);
+			if (g_handleattr_int(bp, REDBOOT_CLASS_NAME "::sectoff",
+				    sc->sectoff[idx]))
+				return (1);
+			return (0);
+		default:
+			return (EINVAL);
 	}
 
+	cp = LIST_FIRST(&gp->consumer);
+	pp2 = cp->provider;
+	bsize = pp2->sectorsize;
+
+	/*
+	 * At this point we have a request which is less than the flash sector
+	 * size, to do this we read the entire sector and then copy the data
+	 * in/out.
+	 */
+	KASSERT(bp->bio_length < bsize, ("length greater than one sector"));
+	KASSERT(bp->bio_offset == 0, ("not at start of sector"));
+
+	bp2 = g_clone_bio(bp);
+	if (bp2 == NULL)
+		return (ENOMEM);
+	bp2->bio_cmd = BIO_READ;
+	bp2->bio_done = g_redboot_done;
+	bp2->bio_offset = gsl->offset - sc->sectoff[idx];
+	bp2->bio_length = bsize;
+	bp2->bio_data = malloc(bsize, M_GEOM, M_NOWAIT);
+	if (bp2->bio_data == NULL) {
+		g_destroy_bio(bp2);
+		return (ENOMEM);
+	}
+	g_io_request(bp2, cp);
 	return (0);
 }
 
@@ -144,11 +241,14 @@ g_redboot_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		if (indent == NULL) {
 			sbuf_printf(sb, " entry %d", sc->entry[pp->index]);
 			sbuf_printf(sb, " dsize %d", sc->dsize[pp->index]);
+			sbuf_printf(sb, " sectoff %d", sc->sectoff[pp->index]);
 		} else {
 			sbuf_printf(sb, "%s<entry>%d</entry>\n", indent,
 			    sc->entry[pp->index]);
 			sbuf_printf(sb, "%s<dsize>%d</dsize>\n", indent,
 			    sc->dsize[pp->index]);
+			sbuf_printf(sb, "%s<sectoff>%d</sectoff>\n", indent,
+			    sc->sectoff[pp->index]);
 		}
 	}
 }
@@ -172,7 +272,7 @@ parse_fis_directory(u_char *buf, size_t bufsize, off_t offset, uint32_t offmask)
 {
 #define	match(a,b)	(bcmp(a, b, sizeof(b)-1) == 0)
 	struct fis_image_desc *fd, *efd;
-	struct fis_image_desc *fisdir, *redbcfg;
+	struct fis_image_desc *fisdir;
 	struct fis_image_desc *head, **tail;
 	int i;
 
@@ -193,15 +293,13 @@ parse_fis_directory(u_char *buf, size_t bufsize, off_t offset, uint32_t offmask)
 	/*
 	 * Scan forward collecting entries in a list.
 	 */
-	fisdir = redbcfg = NULL;
+	fisdir = NULL;
 	*(tail = &head) = NULL;
 	for (i = 0; fd < efd; i++, fd++) {
 		if (fd->name[0] == 0xff)
 			continue;
 		if (match(fd->name, FISDIR_NAME))
 			fisdir = fd;
-		else if (match(fd->name, REDBCFG_NAME))
-			redbcfg = fd;
 		if (nameok(fd->name)) {
 			/*
 			 * NB: flash address includes platform mapping;
@@ -219,16 +317,6 @@ parse_fis_directory(u_char *buf, size_t bufsize, off_t offset, uint32_t offmask)
 			printf("No RedBoot FIS table located at %lu\n",
 			    (long) offset);
 		return (NULL);
-	}
-	if (redbcfg != NULL &&
-	    fisdir->offset + fisdir->size == redbcfg->offset) {
-		/*
-		 * Merged FIS/RedBoot config directory.
-		 */
-		if (bootverbose)
-			printf("FIS/RedBoot merged at 0x%jx (not yet)\n",
-			    offset + fisdir->offset);
-		/* XXX */
 	}
 	return head;
 #undef match
@@ -252,7 +340,8 @@ g_redboot_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	if (!strcmp(pp->geom->class->name, REDBOOT_CLASS_NAME))
 		return (NULL);
 	/* XXX only taste flash providers */
-	if (strncmp(pp->name, "cfi", 3))
+	if (strncmp(pp->name, "cfi", 3) &&
+	    strncmp(pp->name, "flash/spi", 9))
 		return (NULL);
 	gp = g_slice_new(mp, REDBOOT_MAXSLICE, pp, &cp, &sc, sizeof(*sc),
 	    g_redboot_start);
@@ -300,8 +389,25 @@ again:
 	for (fd = head, i = 0; fd != NULL; fd = fd->next) {
 		if (fd->name[0] == '\0')
 			continue;
-		error = g_slice_config(gp, i, G_SLICE_CONFIG_SET,
-		    fd->offset, fd->size, sectorsize, "redboot/%s", fd->name);
+		if (fd->size < sectorsize) {
+			/*
+			 * If the FIS entry is smaller than the sector size
+			 * then set it as hot so g_slice calls us to fix it.
+			 * This will happen if Redboot is compiled with
+			 * CYGSEM_REDBOOT_FLASH_COMBINED_FIS_AND_CONFIG.
+			 */
+			sc->sectoff[i] = fd->offset & (sectorsize - 1);
+			error = g_slice_config(gp, i, G_SLICE_CONFIG_SET,
+			    fd->offset, fd->size, fd->size,
+			    "redboot/%s", fd->name);
+			g_slice_conf_hot(gp, i, fd->offset, fd->size,
+			    G_SLICE_HOT_START, G_SLICE_HOT_DENY,
+			    G_SLICE_HOT_START);
+		} else {
+			error = g_slice_config(gp, i, G_SLICE_CONFIG_SET,
+			    fd->offset, fd->size, sectorsize, "redboot/%s",
+			    fd->name);
+		}
 		if (error)
 			printf("%s: g_slice_config returns %d for \"%s\"\n",
 			    __func__, error, fd->name);
