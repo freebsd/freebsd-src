@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20091025:
+	The iwn(4) driver has been updated to support the 5000 and 5150 series.
+	There's one kernel module for each firmware. Adding "device iwnfw"
+	to the kernel configuration file means including all three firmware
+	images inside the kernel. If you want to include just the one for
+	your wireless card, use the the devices iwn4965fw, iwn5000fw or
+	iwn5150fw.
+
 20090926:
 	The rc.d/network_ipv6, IPv6 configuration script has been integrated
 	into rc.d/netif.  The changes are the following:
