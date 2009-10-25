@@ -52,5 +52,7 @@
 #define	STATUS_WEL	(1 << 1)
 #define	STATUS_WIP	(1 << 0)
 
+#define	FLASH_PAGE_SIZE	256
+
 #endif /* __MX25LREG_H__ */
 
