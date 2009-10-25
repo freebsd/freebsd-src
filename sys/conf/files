@@ -1082,20 +1082,48 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	no-obj no-implicit-rule						\
 	clean		"iwi_monitor.fw"
 dev/iwn/if_iwn.c		optional iwn
-iwnfw.c			optional iwnfw					\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn.fw:iwnfw:44417 -lintel_iwn -miwn -c${.TARGET}" \
+iwn4965fw.c			optional iwn4965fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn4965.fw:iwn4965fw -miwn4965fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
-	clean		"iwnfw.c"
-iwnfw.fwo			optional iwnfw				\
-	dependency	"iwn.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn.fw" \
+	clean		"iwn4965fw.c"
+iwn4965fw.fwo			optional iwn4965fw | iwnfw		\
+	dependency	"iwn4965.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn4965.fw" \
 	no-implicit-rule						\
-	clean		"iwnfw.fwo"
-iwn.fw			optional iwnfw					\
+	clean		"iwn4965fw.fwo"
+iwn4965.fw			optional iwn4965fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu"	\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-228.57.2.23.fw.uu" \
 	no-obj no-implicit-rule						\
-	clean		"iwn.fw"
+	clean		"iwn4965.fw"
+iwn5000fw.c			optional iwn5000fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5000.fw:iwn5000fw -miwn5000fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn5000fw.c"
+iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
+	dependency	"iwn5000.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn5000.fw" \
+	no-implicit-rule						\
+	clean		"iwn5000fw.fwo"
+iwn5000.fw			optional iwn5000fw | iwnfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-5.4.A.11.fw.uu"	\
+	no-obj no-implicit-rule						\
+	clean		"iwn5000.fw"
+iwn5150fw.c			optional iwn5150fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5150.fw:iwn5150fw -miwn5150fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn5150fw.c"
+iwn5150fw.fwo			optional iwn5150fw | iwnfw		\
+	dependency	"iwn5150.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn5150.fw" \
+	no-implicit-rule						\
+	clean		"iwn5150fw.fwo"
+iwn5150.fw			optional iwn5150fw | iwnfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5150-8.24.2.2.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn5150.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
