@@ -279,7 +279,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		}
 
 		/*
-		 * Now we need to get the page.  out_entry, out_prot, wired,
+		 * Now we need to get the page.  out_entry, wired,
 		 * and single_use aren't used.  One would think the vm code
 		 * would be a *bit* nicer...  We use tmap because
 		 * vm_map_lookup() can change the map argument.
