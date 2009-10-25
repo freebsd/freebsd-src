@@ -156,6 +156,50 @@ mx25l_get_device_ident(struct mx25l_softc *sc)
 	return (NULL);
 }
 
+static void
+mx25l_set_writable(device_t dev, int writable)
+{
+	uint8_t txBuf[1], rxBuf[1];
+	struct spi_command cmd;
+	int err;
+
+	memset(&cmd, 0, sizeof(cmd));
+	memset(txBuf, 0, sizeof(txBuf));
+	memset(rxBuf, 0, sizeof(rxBuf));
+
+	txBuf[0] = writable ? CMD_WRITE_ENABLE : CMD_WRITE_DISABLE;
+	cmd.tx_cmd = txBuf;
+	cmd.rx_cmd = rxBuf;
+	cmd.rx_cmd_sz = 1;
+	cmd.tx_cmd_sz = 1;
+	err = SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
+}
+
+static void
+mx25l_erase_sector(device_t dev, off_t sector)
+{
+	uint8_t txBuf[4], rxBuf[4];
+	struct spi_command cmd;
+	int err;
+
+	mx25l_wait_for_device_ready(dev);
+	mx25l_set_writable(dev, 1);
+
+	memset(&cmd, 0, sizeof(cmd));
+	memset(txBuf, 0, sizeof(txBuf));
+	memset(rxBuf, 0, sizeof(rxBuf));
+
+	txBuf[0] = CMD_SECTOR_ERASE;
+	cmd.tx_cmd = txBuf;
+	cmd.rx_cmd = rxBuf;
+	cmd.rx_cmd_sz = 4;
+	cmd.tx_cmd_sz = 4;
+	txBuf[1] = ((sector >> 16) & 0xff);
+	txBuf[2] = ((sector >> 8) & 0xff);
+	txBuf[3] = (sector & 0xff);
+	err = SPIBUS_TRANSFER(device_get_parent(dev), dev, &cmd);
+}
+
 static int
 mx25l_probe(device_t dev)
 {
@@ -233,7 +277,6 @@ mx25l_ioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 	return (EINVAL);
 }
 
-
 static void
 mx25l_strategy(struct bio *bp)
 {
@@ -254,6 +297,8 @@ mx25l_task(void *arg)
 	uint8_t txBuf[8], rxBuf[8];
 	struct spi_command cmd;
 	device_t dev, pdev;
+	off_t write_offset;
+	long bytes_to_write, bytes_writen;
 
 	for (;;) {
 		dev = sc->sc_dev;
@@ -284,10 +329,66 @@ mx25l_task(void *arg)
 			cmd.tx_data_sz = bp->bio_bcount;
 			cmd.rx_data = bp->bio_data;
 			cmd.rx_data_sz = bp->bio_bcount;
+
 			bp->bio_error = SPIBUS_TRANSFER(pdev, dev, &cmd);
+		}
+		else if (bp->bio_cmd == BIO_WRITE) {
+			mx25l_erase_sector(dev, bp->bio_offset);
+
+			cmd.tx_cmd_sz = 4;
+			cmd.rx_cmd_sz = 4;
+
+			bytes_writen = 0;
+			write_offset = bp->bio_offset;
+
+			/*
+			 * I assume here that we write per-sector only 
+			 * and sector size should be 256 bytes aligned
+			 */
+			KASSERT(write_offset % FLASH_PAGE_SIZE == 0,
+			    ("offset for BIO_WRITE is not %d bytes aliIgned",
+				FLASH_PAGE_SIZE));
+
+			/*
+			 * Maximum write size for CMD_PAGE_PROGRAM is 
+			 * FLASH_PAGE_SIZE, so split data to chunks 
+			 * FLASH_PAGE_SIZE bytes eash and write them
+			 * one by one
+			 */
+			while (bytes_writen < bp->bio_bcount) {
+				txBuf[0] = CMD_PAGE_PROGRAM;
+				txBuf[1] = ((write_offset >> 16) & 0xff);
+				txBuf[2] = ((write_offset >> 8) & 0xff);
+				txBuf[3] = (write_offset & 0xff);
+
+				bytes_to_write = MIN(FLASH_PAGE_SIZE,
+				    bp->bio_bcount - bytes_writen);
+				cmd.tx_cmd = txBuf;
+				cmd.rx_cmd = rxBuf;
+				cmd.tx_data = bp->bio_data + bytes_writen;
+				cmd.tx_data_sz = bytes_to_write;
+				cmd.rx_data = bp->bio_data + bytes_writen;
+				cmd.rx_data_sz = bytes_to_write;
+
+				/*
+				 * Eash completed write operation resets WEL 
+				 * (write enable latch) to disabled state,
+				 * so we re-enable it here 
+				 */
+				mx25l_wait_for_device_ready(dev);
+				mx25l_set_writable(dev, 1);
+
+				bp->bio_error = SPIBUS_TRANSFER(pdev, dev, &cmd);
+				if (bp->bio_error)
+					break;
+
+				bytes_writen += bytes_to_write;
+				write_offset += bytes_to_write;
+			}
 		}
 		else
 			bp->bio_error = EINVAL;
+
 
 		biodone(bp);
 	}
