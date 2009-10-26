@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
  * Modifying a pid or tid's mask applies only to that tid but must still
  * exist within the assigned parent set.
  *
- * A thread may not be assigned to a a group separate from other threads in
+ * A thread may not be assigned to a group separate from other threads in
  * the process.  This is to remove ambiguity when the setid is queried with
  * a pid argument.  There is no other technical limitation.
  *
