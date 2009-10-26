@@ -165,7 +165,8 @@ ata_nvidia_chipinit(device_t dev)
 
 	    /* enable control access */
 	    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) | 0x04,1);
-
+	    /* MCP55 seems to need some time to allow r_res2 read. */
+	    DELAY(10);
 	    if (ctlr->chip->cfg1 & NVQ) {
 		/* clear interrupt status */
 		ATA_OUTL(ctlr->r_res2, offset, 0x00ff00ff);
