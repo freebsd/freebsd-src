@@ -175,30 +175,6 @@ ohci_controller_init(ohci_softc_t *sc)
 	uint32_t per;
 	uint32_t desca;
 
-	/* Determine in what context we are running. */
-	ctl = OREAD4(sc, OHCI_CONTROL);
-	if (ctl & OHCI_IR) {
-		/* SMM active, request change */
-		DPRINTF("SMM active, request owner change\n");
-		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_OCR);
-		for (i = 0; (i < 100) && (ctl & OHCI_IR); i++) {
-			usb_pause_mtx(NULL, hz / 1000);
-			ctl = OREAD4(sc, OHCI_CONTROL);
-		}
-		if (ctl & OHCI_IR) {
-			device_printf(sc->sc_bus.bdev,
-			    "SMM does not respond, resetting\n");
-			OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
-			goto reset;
-		}
-	} else {
-		DPRINTF("cold started\n");
-reset:
-		/* controller was cold started */
-		usb_pause_mtx(NULL,
-		    USB_MS_TO_TICKS(USB_BUS_RESET_DELAY));
-	}
-
 	/*
 	 * This reset should not be necessary according to the OHCI spec, but
 	 * without it some controllers do not start.
