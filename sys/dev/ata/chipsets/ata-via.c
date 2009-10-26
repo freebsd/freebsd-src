@@ -95,6 +95,8 @@ ata_via_probe(device_t dev)
      { ATA_VIA8237,   0x00, VIA133, 0x00,    ATA_UDMA6, "8237" },
      { ATA_VIA8237A,  0x00, VIA133, 0x00,    ATA_UDMA6, "8237A" },
      { ATA_VIA8237S,  0x00, VIA133, 0x00,    ATA_UDMA6, "8237S" },
+     { ATA_VIA8237_5372, 0x00, VIA133, 0x00, ATA_UDMA6, "8237" },
+     { ATA_VIA8237_7372, 0x00, VIA133, 0x00, ATA_UDMA6, "8237" },
      { ATA_VIA8251,   0x00, VIA133, 0x00,    ATA_UDMA6, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
