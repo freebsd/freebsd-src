@@ -74,41 +74,49 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
-static VNET_DEFINE(int, tcp_reass_maxseg);
-VNET_DEFINE(int, tcp_reass_qsize);
-static VNET_DEFINE(int, tcp_reass_maxqlen);
+#include <machine/atomic.h>
+
+static VNET_DEFINE(int, tcp_reass_maxmbufs);
+static VNET_DEFINE(int, tcp_reass_maxbytes);
+VNET_DEFINE(int, tcp_reass_curmbufs);
+VNET_DEFINE(int, tcp_reass_curbytes);
 static VNET_DEFINE(int, tcp_reass_overflows);
 
-#define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
-#define	V_tcp_reass_maxqlen		VNET(tcp_reass_maxqlen)
+#define	V_tcp_reass_maxmbufs		VNET(tcp_reass_maxmbufs)
+#define	V_tcp_reass_maxbytes		VNET(tcp_reass_maxbytes)
 #define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
-    &VNET_NAME(tcp_reass_maxseg), 0,
-    "Global maximum number of TCP Segments in Reassembly Queue");
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxmbufs, CTLFLAG_RD,
+    &VNET_NAME(tcp_reass_maxmbufs), 0,
+    "Global maximum number of mbufs permitted across TCP reassembly queues");
 
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
-    &VNET_NAME(tcp_reass_qsize), 0,
-    "Global number of TCP Segments currently in Reassembly Queue");
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxbytes, CTLFLAG_RD,
+    &VNET_NAME(tcp_reass_maxbytes), 0,
+    "Global maximum number of bytes permitted across TCP reassembly queues");
 
-SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxqlen, CTLFLAG_RW,
-    &VNET_NAME(tcp_reass_maxqlen), 0,
-    "Maximum number of TCP Segments per individual Reassembly Queue");
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, curmbufs, CTLFLAG_RD,
+    &VNET_NAME(tcp_reass_curmbufs), 0,
+    "Global number of mbufs currently held in TCP reassembly queues");
+
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, curbytes, CTLFLAG_RD,
+    &VNET_NAME(tcp_reass_curbytes), 0,
+    "Global number of bytes currently held in TCP reassembly queues");
 
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
     &VNET_NAME(tcp_reass_overflows), 0,
-    "Global number of TCP Segment Reassembly Queue Overflows");
+    "Global number of overflows across TCP reassembly queues");
 
 /* Initialize TCP reassembly queue */
 static void
 tcp_reass_zone_change(void *tag)
 {
 
-	V_tcp_reass_maxseg = nmbclusters / 16;
-	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
+	V_tcp_reass_maxmbufs = nmbclusters / 16;
+	V_tcp_reass_maxbytes = V_tcp_reass_maxmbufs * 1448;
+	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxmbufs);
 }
 
 VNET_DEFINE(uma_zone_t, tcp_reass_zone);
@@ -117,19 +125,24 @@ void
 tcp_reass_init(void)
 {
 
-	V_tcp_reass_maxseg = 0;
-	V_tcp_reass_qsize = 0;
-	V_tcp_reass_maxqlen = 48;
+	V_tcp_reass_maxmbufs = 0;
+	V_tcp_reass_maxbytes = 0;
+	V_tcp_reass_curmbufs = 0;
+	V_tcp_reass_curbytes = 0;
 	V_tcp_reass_overflows = 0;
 
-	V_tcp_reass_maxseg = nmbclusters / 16;
-	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
-	    &V_tcp_reass_maxseg);
+	/**/
+	V_tcp_reass_maxmbufs = nmbclusters / 16;
+	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxmbufs",
+	    &V_tcp_reass_maxmbufs);
+	/* 1448 bytes is the most common segment size for bulk transfer */
+	V_tcp_reass_maxbytes = V_tcp_reass_maxmbufs * 1448;
 	V_tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
+	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxmbufs);
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
+	/**/
 }
 
 int
@@ -141,6 +154,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	struct tseg_qent *te = NULL;
 	struct socket *so = tp->t_inpcb->inp_socket;
 	int flags;
+	struct tsegq *t_segq = &tp->t_segq;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -164,9 +178,11 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * process the missing segment.
 	 */
 	if (th->th_seq != tp->rcv_nxt &&
-	    (V_tcp_reass_qsize + 1 >= V_tcp_reass_maxseg ||
-	     tp->t_segqlen >= V_tcp_reass_maxqlen)) {
-		V_tcp_reass_overflows++;
+	    (V_tcp_reass_curmbufs + 1 > V_tcp_reass_maxmbufs ||
+	    V_tcp_reass_curbytes + *tlenp > V_tcp_reass_maxbytes ||
+	    t_segq->tsegq_bytes + *tlenp >= t_segq->tsegq_maxbytes ||
+	    t_segq->tsegq_mbufs + 1 > t_segq->tsegq_maxmbufs)) {
+		atomic_add_int(&V_tcp_reass_overflows, 1);
 		TCPSTAT_INC(tcps_rcvmemdrop);
 		m_freem(m);
 		*tlenp = 0;
@@ -184,8 +200,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		*tlenp = 0;
 		return (0);
 	}
-	tp->t_segqlen++;
-	V_tcp_reass_qsize++;
+	t_segq->tsegq_bytes += *tlenp;
+	t_segq->tsegq_mbufs++;
+	atomic_add_int(&V_tcp_reass_curmbufs, 1);
+	atomic_add_int(&V_tcp_reass_curbytes, *tlenp);
 
 	/*
 	 * Find a segment which begins after this one does.
@@ -211,8 +229,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 				TCPSTAT_ADD(tcps_rcvdupbyte, *tlenp);
 				m_freem(m);
 				uma_zfree(V_tcp_reass_zone, te);
-				tp->t_segqlen--;
-				V_tcp_reass_qsize--;
+				t_segq->tsegq_bytes -= *tlenp;
+				t_segq->tsegq_mbufs--;
+				atomic_subtract_int(&V_tcp_reass_curmbufs, 1);
+				atomic_subtract_int(&V_tcp_reass_curbytes, *tlenp);
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -248,8 +268,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
 		uma_zfree(V_tcp_reass_zone, q);
-		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
+		t_segq->tsegq_bytes -= *tlenp;
+		t_segq->tsegq_mbufs--;
+		atomic_subtract_int(&V_tcp_reass_curmbufs, 1);
+		atomic_subtract_int(&V_tcp_reass_curbytes, *tlenp);
 		q = nq;
 	}
 
@@ -285,8 +307,10 @@ present:
 		else
 			sbappendstream_locked(&so->so_rcv, q->tqe_m);
 		uma_zfree(V_tcp_reass_zone, q);
-		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
+		t_segq->tsegq_bytes -= *tlenp;
+		t_segq->tsegq_mbufs--;
+		atomic_subtract_int(&V_tcp_reass_curmbufs, 1);
+		atomic_subtract_int(&V_tcp_reass_curbytes, *tlenp);
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);

@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #endif /*IPSEC*/
 
+#include <machine/atomic.h>
 #include <machine/in_cksum.h>
 #include <sys/md5.h>
 
@@ -825,7 +826,6 @@ tcp_drop(struct tcpcb *tp, int errno)
 void
 tcp_discardcb(struct tcpcb *tp)
 {
-	struct tseg_qent *q;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
 #ifdef INET6
@@ -903,13 +903,8 @@ tcp_discardcb(struct tcpcb *tp)
 	}
 
 	/* free the reassembly queue, if any */
-	while ((q = LIST_FIRST(&tp->t_segq)) != NULL) {
-		LIST_REMOVE(q, tqe_q);
-		m_freem(q->tqe_m);
-		uma_zfree(V_tcp_reass_zone, q);
-		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
-	}
+	TCP_REASS_FLUSH(&tp->t_segq);
+
 	/* Disconnect offload device, if any. */
 	tcp_offload_detach(tp);
 		
@@ -967,7 +962,6 @@ tcp_drain(void)
 		CURVNET_SET(vnet_iter);
 		struct inpcb *inpb;
 		struct tcpcb *tcpb;
-		struct tseg_qent *te;
 
 	/*
 	 * Walk the tcpbs, if existing, and flush the reassembly queue,
@@ -983,14 +977,7 @@ tcp_drain(void)
 				continue;
 			INP_WLOCK(inpb);
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
-				while ((te = LIST_FIRST(&tcpb->t_segq))
-			            != NULL) {
-					LIST_REMOVE(te, tqe_q);
-					m_freem(te->tqe_m);
-					uma_zfree(V_tcp_reass_zone, te);
-					tcpb->t_segqlen--;
-					V_tcp_reass_qsize--;
-				}
+				TCP_REASS_FLUSH(&tcpb->t_segq);
 				tcp_clean_sackreport(tcpb);
 			}
 			INP_WUNLOCK(inpb);

@@ -42,10 +42,12 @@
  * Kernel variables for tcp.
  */
 VNET_DECLARE(int, tcp_do_rfc1323);
-VNET_DECLARE(int, tcp_reass_qsize);
 VNET_DECLARE(struct uma_zone *, tcp_reass_zone);
+VNET_DECLARE(int, tcp_reass_curmbufs);
+VNET_DECLARE(int, tcp_reass_curbytes);
 #define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
-#define	V_tcp_reass_qsize	VNET(tcp_reass_qsize)
+#define	V_tcp_reass_curmbufs	VNET(tcp_reass_curmbufs)
+#define	V_tcp_reass_curbytes	VNET(tcp_reass_curbytes)
 #define	V_tcp_reass_zone	VNET(tcp_reass_zone)
 
 #endif /* _KERNEL */
@@ -57,7 +59,14 @@ struct tseg_qent {
 	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
-LIST_HEAD(tsegqe_head, tseg_qent);
+
+struct tsegq {
+	int tsegq_mbufs;
+	int tsegq_bytes;
+	int tsegq_maxbytes;
+	int tsegq_maxmbufs;
+	struct tseg_qent *lh_first;
+};
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
@@ -95,9 +104,8 @@ do {								\
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	struct	tsegq t_segq;		/* segment reassembly queue */
 	void	*t_pspare[2];		/* new reassembly queue */
-	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
 
 	struct tcp_timer *t_timers;	/* All the TCP timers in one struct */
@@ -355,6 +363,19 @@ struct tcptw {
 #define	TCP_REXMTVAL(tp) \
 	max((tp)->t_rttmin, (((tp)->t_srtt >> (TCP_RTT_SHIFT - TCP_DELTA_SHIFT))  \
 	  + (tp)->t_rttvar) >> TCP_DELTA_SHIFT)
+
+#define	TCP_REASS_FLUSH(segq) do { \
+	struct tseg_qent *qe; \
+	while ((qe = LIST_FIRST((segq))) != NULL) { \
+		LIST_REMOVE(qe, tqe_q); \
+		(segq)->tsegq_mbufs--; \
+		(segq)->tsegq_bytes -= qe->tqe_len; \
+		atomic_subtract_int(&V_tcp_reass_curmbufs, 1); \
+		atomic_subtract_int(&V_tcp_reass_curbytes, qe->tqe_len); \
+		m_freem(qe->tqe_m); \
+		uma_zfree(V_tcp_reass_zone, qe); \
+	} \
+} while (0)
 
 /*
  * TCP statistics.

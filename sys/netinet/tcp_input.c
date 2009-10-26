@@ -1461,10 +1461,23 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * Set new socket buffer size.
 				 * Give up when limit is reached.
 				 */
-				if (newsize)
+				if (newsize) {
 					if (!sbreserve_locked(&so->so_rcv,
 					    newsize, so, NULL))
 						so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
+					else {
+						/*
+						 * Scale reassembly queue to 8/7
+						 * the socket buffer size to
+						 * allow a little wiggle room.
+						 */
+						tp->t_segq.tsegq_maxbytes =
+						    (newsize << 3) / 7;
+						tp->t_segq.tsegq_maxmbufs =
+						    tp->t_segq.tsegq_maxbytes /
+						    tp->t_maxseg;
+					}
+				}
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
 				sbappendstream_locked(&so->so_rcv, m);
 			}
