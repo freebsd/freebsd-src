@@ -102,6 +102,8 @@ __FBSDID("$FreeBSD$");
 
 #define	PCI_EHCI_BASE_REG	0x10
 
+static void ehci_pci_takecontroller(device_t self);
+
 static device_probe_t ehci_pci_probe;
 static device_attach_t ehci_pci_attach;
 static device_detach_t ehci_pci_detach;
@@ -127,6 +129,7 @@ ehci_pci_resume(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 
+	ehci_pci_takecontroller(self);
 	ehci_resume(sc);
 
 	bus_generic_resume(self);
@@ -411,6 +414,7 @@ ehci_pci_attach(device_t self)
 		sc->sc_intr_hdl = NULL;
 		goto error;
 	}
+	ehci_pci_takecontroller(self);
 
 	/* Undocumented quirks taken from Linux */
 
@@ -500,6 +504,51 @@ ehci_pci_detach(device_t self)
 	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
 	return (0);
+}
+
+static void
+ehci_pci_takecontroller(device_t self)
+{
+	ehci_softc_t *sc = device_get_softc(self);
+	uint32_t cparams;
+	uint32_t eec;
+	uint16_t to;
+	uint8_t eecp;
+	uint8_t bios_sem;
+
+	cparams = EREAD4(sc, EHCI_HCCPARAMS);
+
+	/* Synchronise with the BIOS if it owns the controller. */
+	for (eecp = EHCI_HCC_EECP(cparams); eecp != 0;
+	    eecp = EHCI_EECP_NEXT(eec)) {
+		eec = pci_read_config(self, eecp, 4);
+		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP) {
+			continue;
+		}
+		bios_sem = pci_read_config(self, eecp +
+		    EHCI_LEGSUP_BIOS_SEM, 1);
+		if (bios_sem == 0) {
+			continue;
+		}
+		device_printf(sc->sc_bus.bdev, "waiting for BIOS "
+		    "to give up control\n");
+		pci_write_config(self, eecp +
+		    EHCI_LEGSUP_OS_SEM, 1, 1);
+		to = 500;
+		while (1) {
+			bios_sem = pci_read_config(self, eecp +
+			    EHCI_LEGSUP_BIOS_SEM, 1);
+			if (bios_sem == 0)
+				break;
+
+			if (--to == 0) {
+				device_printf(sc->sc_bus.bdev,
+				    "timed out waiting for BIOS\n");
+				break;
+			}
+			usb_pause_mtx(NULL, hz / 100);	/* wait 10ms */
+		}
+	}
 }
 
 static driver_t ehci_driver =
