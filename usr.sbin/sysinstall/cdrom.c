@@ -239,5 +239,6 @@ mediaEjectCDROM(Device *dev)
 	else {
 		ioctl(fd, CDIOCALLOW);
 		ioctl(fd, CDIOCEJECT);
+		close(fd);
 	}
 }
