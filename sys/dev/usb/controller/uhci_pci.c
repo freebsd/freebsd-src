@@ -115,6 +115,8 @@ uhci_pci_resume(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 
+	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
+
 	uhci_resume(sc);
 
 	bus_generic_resume(self);
@@ -361,6 +363,19 @@ uhci_pci_attach(device_t self)
 		sc->sc_intr_hdl = NULL;
 		goto error;
 	}
+	/*
+	 * Set the PIRQD enable bit and switch off all the others. We don't
+	 * want legacy support to interfere with us XXX Does this also mean
+	 * that the BIOS won't touch the keyboard anymore if it is connected
+	 * to the ports of the root hub?
+	 */
+#ifdef USB_DEBUG
+	if (pci_read_config(self, PCI_LEGSUP, 2) != PCI_LEGSUP_USBPIRQDEN) {
+		device_printf(self, "LegSup = 0x%04x\n",
+		    pci_read_config(self, PCI_LEGSUP, 2));
+	}
+#endif
+	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
 	err = uhci_init(sc);
 	if (!err) {
