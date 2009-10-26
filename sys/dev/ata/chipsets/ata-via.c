@@ -103,6 +103,8 @@ ata_via_probe(device_t dev)
      { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "6421" },
      { ATA_VIA8237A,  0x00, 7,      0x00,    ATA_SA150, "8237A" },
      { ATA_VIA8237S,  0x00, 7,      0x00,    ATA_SA150, "8237S" },
+     { ATA_VIA8237_5372, 0x00, 7,   0x00,    ATA_SA300, "8237" },
+     { ATA_VIA8237_7372, 0x00, 7,   0x00,    ATA_SA300, "8237" },
      { ATA_VIA8251,   0x00, 0,      VIAAHCI, ATA_SA300, "8251" },
      { 0, 0, 0, 0, 0, 0 }};
 
