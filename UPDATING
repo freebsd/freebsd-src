@@ -632,6 +632,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	userland (libpmc(3)) and the kernel module (hwpmc(4)) in
 	sync.
 
+20081009:
+	atapci kernel module now includes only generic PCI ATA
+	driver. AHCI driver moved to ataahci kernel module.
+	All vendor-specific code moved into separate kernel modules:
+	ataacard, ataacerlabs, ataadaptec, ataamd, ataati, atacenatek,
+	atacypress, atacyrix, atahighpoint, ataintel, ataite, atajmicron,
+	atamarvell, atamicron, atanational, atanetcell, atanvidia,
+	atapromise, ataserverworks, atasiliconimage, atasis, atavia
+
 20080820:
 	The TTY subsystem of the kernel has been replaced by a new
 	implementation, which provides better scalability and an
