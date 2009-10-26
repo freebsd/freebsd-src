@@ -273,7 +273,7 @@ ata_raid_flush(struct bio *bp)
 	request->u.ata.lba = 0;
 	request->u.ata.count = 0;
 	request->u.ata.feature = 0;
-	request->timeout = 1;
+	request->timeout = 10;
 	request->retries = 0;
 	request->flags |= ATA_R_ORDERED | ATA_R_DIRECT;
 	ata_queue_request(request);
@@ -4371,7 +4371,7 @@ ata_raid_init_request(device_t dev, struct ar_softc *rdp, struct bio *bio)
 	return NULL;
     }
     request->dev = dev;
-    request->timeout = 5;
+    request->timeout = 10;
     request->retries = 2;
     request->callback = ata_raid_done;
     request->driver = rdp;
