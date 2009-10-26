@@ -43,6 +43,7 @@
 #include <sys/errno.h>
 #include <sys/param.h>
 #include <sys/wait.h>
+#include <sys/cdio.h>
 #include <unistd.h>
 #include <grp.h>
 #include <fcntl.h>
@@ -57,6 +58,8 @@ static Boolean cdromMounted;
 static Boolean previouslyMounted; /* Was the disc already mounted? */
 static char mountpoint[MAXPATHLEN] = "/dist";
 int CDROMInitQuiet;
+
+static void mediaEjectCDROM(Device *dev);
 
 static properties
 read_props(char *name)
@@ -218,4 +221,23 @@ mediaShutdownCDROM(Device *dev)
 	msgConfirm("Could not unmount the CDROM/DVD from %s: %s", mountpoint, strerror(errno));
     else
 	cdromMounted = FALSE;
+
+    mediaEjectCDROM(dev);
+}
+
+static void
+mediaEjectCDROM(Device *dev)
+{
+	int fd = -1;
+
+	msgDebug("Ejecting CDROM/DVD at %s", dev->devname);
+
+	fd = open(dev->devname, O_RDONLY);
+	
+	if (fd < 0)
+		msgDebug("Could not eject the CDROM/DVD from %s: %s", dev->devname, strerror(errno));
+	else {
+		ioctl(fd, CDIOCALLOW);
+		ioctl(fd, CDIOCEJECT);
+	}
 }
