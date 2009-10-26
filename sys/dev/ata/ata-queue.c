@@ -135,7 +135,7 @@ ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	    atadev->spindown_state = 0;
 	    request->timeout = 31;
 	} else {
-	    request->timeout = 5;
+	    request->timeout = 10;
 	}
 	request->retries = 0;
 	ata_queue_request(request);
@@ -389,7 +389,7 @@ ata_completed(void *context, int dummy)
 	    request->bytecount = sizeof(struct atapi_sense);
 	    request->donecount = 0;
 	    request->transfersize = sizeof(struct atapi_sense);
-	    request->timeout = 5;
+	    request->timeout = 10;
 	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET | ATA_R_DEBUG);
 	    request->flags |= (ATA_R_READ | ATA_R_AT_HEAD | ATA_R_REQUEUE);
 	    ATA_DEBUG_RQ(request, "autoissue request sense");
