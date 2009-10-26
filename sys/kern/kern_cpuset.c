@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
  * not.  This means that anonymous sets are immutable because they may be
  * shared.  To modify an anonymous set a new set is created with the desired
  * mask and the same parent as the existing anonymous set.  This gives the
- * illusion of each thread having a private mask.A
+ * illusion of each thread having a private mask.
  *
  * Via the syscall apis a user may ask to retrieve or modify the root, base,
  * or mask that is discovered via a pid, tid, or setid.  Modifying a set
@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
  * Modifying a pid or tid's mask applies only to that tid but must still
  * exist within the assigned parent set.
  *
- * A thread may not be assigned to a a group seperate from other threads in
+ * A thread may not be assigned to a a group separate from other threads in
  * the process.  This is to remove ambiguity when the setid is queried with
  * a pid argument.  There is no other technical limitation.
  *
@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
  *
  * A simple application should not concern itself with sets at all and
  * rather apply masks to its own threads via CPU_WHICH_TID and a -1 id
- * meaning 'curthread'.  It may query availble cpus for that tid with a
+ * meaning 'curthread'.  It may query available cpus for that tid with a
  * getaffinity call using (CPU_LEVEL_CPUSET, CPU_WHICH_PID, -1, ...).
  */
 static uma_zone_t cpuset_zone;
@@ -153,7 +153,7 @@ cpuset_refbase(struct cpuset *set)
 }
 
 /*
- * Release a reference in a context where it is safe to allocte.
+ * Release a reference in a context where it is safe to allocate.
  */
 void
 cpuset_rel(struct cpuset *set)
@@ -752,7 +752,7 @@ cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
 
 /*
  * This is called once the final set of system cpus is known.  Modifies
- * the root set and all children and mark the root readonly.  
+ * the root set and all children and mark the root read-only.  
  */
 static void
 cpuset_init(void *arg)
