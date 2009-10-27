@@ -665,7 +665,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct proc *p;
 	ucontext_t uc;
 	int error;
 
@@ -680,12 +679,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	p = td->td_proc;
-	PROC_LOCK(p);
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
 	    td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
