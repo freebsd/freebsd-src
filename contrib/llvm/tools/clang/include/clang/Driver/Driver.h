@@ -111,6 +111,9 @@ private:
   std::list<std::string> TempFiles;
   std::list<std::string> ResultFiles;
 
+  /// -B prefix
+  std::string Prefix;
+
 public:
   Driver(const char *_Name, const char *_Dir,
          const char *_DefaultHostTriple,
@@ -190,6 +193,8 @@ public:
 
   /// PrintVersion - Print the driver version.
   void PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const;
+
+  std::string GetPrefix() const;
 
   /// GetFilePath - Lookup \arg Name in the list of file search paths.
   ///

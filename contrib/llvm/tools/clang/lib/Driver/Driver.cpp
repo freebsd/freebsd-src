@@ -219,6 +219,14 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
   if (!HandleImmediateArgs(*C))
     return C;
 
+  // HACK
+  if (C->getArgs().hasArg(options::OPT_B)) {
+     Arg *B_dir = C->getArgs().getLastArg(options::OPT_B);
+     Prefix = B_dir->getValue(C->getArgs());
+  } else {
+     Prefix = "";
+  }
+
   // Construct the list of abstract actions to perform for this compilation. We
   // avoid passing a Compilation here simply to enforce the abstraction that
   // pipelining is not host or toolchain dependent (other than the driver driver
@@ -1130,6 +1138,10 @@ void Driver::BuildJobsForAction(Compilation &C,
   }
 }
 
+std::string Driver::GetPrefix() const {
+   return Prefix;
+}
+
 const char *Driver::GetNamedOutputPath(Compilation &C,
                                        const JobAction &JA,
                                        const char *BaseInput,
@@ -1183,6 +1195,12 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
 
 std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
   const ToolChain::path_list &List = TC.getFilePaths();
+  if (!Prefix.empty()) {
+    llvm::sys::Path P(Prefix);
+    P.appendComponent(Name);
+    if (P.exists())
+      return P.str();
+  }
   for (ToolChain::path_list::const_iterator
          it = List.begin(), ie = List.end(); it != ie; ++it) {
     llvm::sys::Path P(*it);
@@ -1197,6 +1215,12 @@ std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
 std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
                                    bool WantFile) const {
   const ToolChain::path_list &List = TC.getProgramPaths();
+  if (!Prefix.empty()) {
+    llvm::sys::Path P(Prefix);
+    P.appendComponent(Name);
+    if (WantFile ? P.exists() : P.canExecute())
+      return P.str();
+  }
   for (ToolChain::path_list::const_iterator
          it = List.begin(), ie = List.end(); it != ie; ++it) {
     llvm::sys::Path P(*it);

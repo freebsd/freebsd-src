@@ -254,7 +254,7 @@ OPTION("--write-dependencies", _write_dependencies, Flag, INVALID, MD, "", 0, 0,
 OPTION("--write-user-dependencies", _write_user_dependencies, Flag, INVALID, MMD, "", 0, 0, 0)
 OPTION("--", _, Joined, INVALID, f, "u", 0, 0, 0)
 OPTION("-A", A, JoinedOrSeparate, INVALID, INVALID, "", 0, 0, 0)
-OPTION("-B", B, JoinedOrSeparate, INVALID, INVALID, "u", 0, 0, 0)
+OPTION("-B", B, JoinedOrSeparate, INVALID, INVALID, "", 0, 0, 0)
 OPTION("-CC", CC, Flag, INVALID, INVALID, "", 0, 0, 0)
 OPTION("-C", C, Flag, INVALID, INVALID, "", 0, 0, 0)
 OPTION("-D", D, JoinedOrSeparate, INVALID, INVALID, "", 0, 0, 0)
