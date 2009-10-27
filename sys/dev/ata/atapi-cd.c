@@ -1905,8 +1905,7 @@ static devclass_t acd_devclass;
 static int
 acd_modevent(module_t mod, int what, void *arg)  
 {
-    g_modevent(0, what, &acd_class);
-    return 0;
+    return g_modevent(0, what, &acd_class);
 }
  
 DRIVER_MODULE(acd, ata, acd_driver, acd_devclass, acd_modevent, NULL);
