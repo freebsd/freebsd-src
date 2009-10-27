@@ -1495,6 +1495,8 @@ enum {
  * and other related adapters.
  */
 
+#define AAC_RX_OMR0		0x18	/* outbound message register 0 */
+#define AAC_RX_OMR1		0x1c	/* outbound message register 1 */
 #define AAC_RX_IDBR		0x20	/* inbound doorbell register */
 #define AAC_RX_IISR		0x24	/* inbound interrupt status register */
 #define AAC_RX_IIMR		0x28	/* inbound interrupt mask register */
@@ -1512,6 +1514,8 @@ enum {
  * Unsurprisingly, it's quite similar to the i960!
  */
 
+#define AAC_RKT_OMR0		0x18	/* outbound message register 0 */
+#define AAC_RKT_OMR1		0x1c	/* outbound message register 1 */
 #define AAC_RKT_IDBR		0x20	/* inbound doorbell register */
 #define AAC_RKT_IISR		0x24	/* inbound interrupt status register */
 #define AAC_RKT_IIMR		0x28	/* inbound interrupt mask register */

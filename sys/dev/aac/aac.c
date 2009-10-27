@@ -2375,7 +2375,8 @@ aac_rx_get_fwstatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RX_FWSTATUS));
+	return(AAC_GETREG4(sc, sc->flags & AAC_FLAGS_NEW_COMM ?
+	    AAC_RX_OMR0 : AAC_RX_FWSTATUS));
 }
 
 static int
@@ -2394,7 +2395,8 @@ aac_rkt_get_fwstatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RKT_FWSTATUS));
+	return(AAC_GETREG4(sc, sc->flags & AAC_FLAGS_NEW_COMM ?
+	    AAC_RKT_OMR0 : AAC_RKT_FWSTATUS));
 }
 
 /*
