@@ -593,6 +593,41 @@ freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 	    sizeof(int32_t) * 8));
 }
 
+int
+freebsd32_pselect(struct thread *td, struct freebsd32_pselect_args *uap)
+{
+	struct timespec32 ts32;
+	struct timespec ts;
+	struct timeval tv, *tvp;
+	sigset_t set, *uset;
+	int error;
+
+	if (uap->ts != NULL) {
+		error = copyin(uap->ts, &ts32, sizeof(ts32));
+		if (error != 0)
+			return (error);
+		CP(ts32, ts, tv_sec);
+		CP(ts32, ts, tv_nsec);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts);
+		tvp = &tv;
+	} else
+		tvp = NULL;
+	if (uap->sm != NULL) {
+		error = copyin(uap->sm, &set, sizeof(set));
+		if (error != 0)
+			return (error);
+		uset = &set;
+	} else
+		uset = NULL;
+	/*
+	 * XXX big-endian needs to convert the fd_sets too.
+	 * XXX Do pointers need PTRIN()?
+	 */
+	error = kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
+	    uset, sizeof(int32_t) * 8);
+	return (error);
+}
+
 /*
  * Copy 'count' items into the destination list pointed to by uap->eventlist.
  */

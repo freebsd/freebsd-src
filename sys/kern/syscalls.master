@@ -919,5 +919,9 @@
 519	AUE_PDKILL	UNIMPL	pdkill
 520	AUE_PDGETPID	UNIMPL	pdgetpid
 521	AUE_PDWAIT	UNIMPL	pdwait
+522	AUE_SELECT	STD	{ int pselect(int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    const struct timespec *ts, \
+				    const sigset_t *sm); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
