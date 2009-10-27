@@ -259,6 +259,7 @@ WMAKEENV=	${CROSSENV} \
 		PATH=${TMPPATH} \
 		CC="${CC} -isystem ${WORLDTMP}/usr/include" \
 		CXX="${CXX} -isystem ${WORLDTMP}/include/c++/4.2 -isystem ${WORLDTMP}/include/c++/4.2/backward"
+
 .if ${MK_CDDL} == "no" || defined(NO_CTF)
 WMAKEENV+=	NO_CTF=1
 .endif
@@ -274,8 +275,10 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
+		-iprefix ${LIB32TMP}/usr/ \
 		-L${LIB32TMP}/usr/lib32 \
-		-isystem ${LIB32TMP}/usr/include/
+		-isystem ${LIB32TMP}/usr/include/ \
+		-B${LIB32TMP}/usr/lib32
 
 # Yes, the flags are redundant.
 LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
