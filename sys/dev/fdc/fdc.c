@@ -2068,8 +2068,7 @@ static int
 fdc_modevent(module_t mod, int type, void *data)
 {
 
-	g_modevent(NULL, type, &g_fd_class);
-	return (0);
+	return (g_modevent(NULL, type, &g_fd_class));
 }
 
 DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fdc_modevent, 0);
