@@ -89,10 +89,8 @@ setcontext(struct thread *td, struct setcontext_args *uap)
 		if (ret == 0) {
 			ret = set_mcontext(td, &uc.uc_mcontext);
 			if (ret == 0) {
-				SIG_CANTMASK(uc.uc_sigmask);
-				PROC_LOCK(td->td_proc);
-				td->td_sigmask = uc.uc_sigmask;
-				PROC_UNLOCK(td->td_proc);
+				kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask,
+				    NULL, 0);
 			}
 		}
 	}
@@ -118,10 +116,8 @@ swapcontext(struct thread *td, struct swapcontext_args *uap)
 			if (ret == 0) {
 				ret = set_mcontext(td, &uc.uc_mcontext);
 				if (ret == 0) {
-					SIG_CANTMASK(uc.uc_sigmask);
-					PROC_LOCK(td->td_proc);
-					td->td_sigmask = uc.uc_sigmask;
-					PROC_UNLOCK(td->td_proc);
+					kern_sigprocmask(td, SIG_SETMASK,
+					    &uc.uc_sigmask, NULL, 0);
 				}
 			}
 		}
