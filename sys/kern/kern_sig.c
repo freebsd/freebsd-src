@@ -1396,15 +1396,11 @@ osigblock(td, uap)
 	register struct thread *td;
 	struct osigblock_args *uap;
 {
-	struct proc *p = td->td_proc;
-	sigset_t set;
+	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
-	SIG_CANTMASK(set);
-	PROC_LOCK(p);
-	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
-	SIGSETOR(td->td_sigmask, set);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_BLOCK, &set, &oset, 0);
+	SIG2OSIG(oset, td->td_retval[0]);
 	return (0);
 }
 
@@ -1418,16 +1414,11 @@ osigsetmask(td, uap)
 	struct thread *td;
 	struct osigsetmask_args *uap;
 {
-	struct proc *p = td->td_proc;
-	sigset_t set;
+	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
-	SIG_CANTMASK(set);
-	PROC_LOCK(p);
-	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
-	SIGSETLO(td->td_sigmask, set);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &set, &oset, 0);
+	SIG2OSIG(oset, td->td_retval[0]);
 	return (0);
 }
 #endif /* COMPAT_43 */
@@ -1845,6 +1836,7 @@ void
 trapsignal(struct thread *td, ksiginfo_t *ksi)
 {
 	struct sigacts *ps;
+	sigset_t mask;
 	struct proc *p;
 	int sig;
 	int code;
@@ -1868,8 +1860,11 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], 
 				ksi, &td->td_sigmask);
 		SIGSETOR(td->td_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(td->td_sigmask, sig);
+		if (!SIGISMEMBER(ps->ps_signodefer, sig)) {
+			SIGEMPTYSET(mask);
+			SIGADDSET(mask, sig);
+			kern_sigprocmask(td, SIG_BLOCK, &mask, NULL, 0);
+		}
 		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
 			/*
 			 * See kern_sigaction() for origin of this code.
@@ -2683,7 +2678,7 @@ postsig(sig)
 	struct sigacts *ps;
 	sig_t action;
 	ksiginfo_t ksi;
-	sigset_t returnmask;
+	sigset_t returnmask, mask;
 
 	KASSERT(sig != 0, ("postsig"));
 
@@ -2738,9 +2733,15 @@ postsig(sig)
 		} else
 			returnmask = td->td_sigmask;
 
-		SIGSETOR(td->td_sigmask, ps->ps_catchmask[_SIG_IDX(sig)]);
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(td->td_sigmask, sig);
+		kern_sigprocmask(td, SIG_BLOCK,
+		    &ps->ps_catchmask[_SIG_IDX(sig)], NULL,
+		    SIGPROCMASK_PROC_LOCKED);
+		if (!SIGISMEMBER(ps->ps_signodefer, sig)) {
+			SIGEMPTYSET(mask);
+			SIGADDSET(mask, sig);
+			kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
+			    SIGPROCMASK_PROC_LOCKED);
+		}
 
 		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
 			/*
