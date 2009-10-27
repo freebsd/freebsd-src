@@ -42,7 +42,8 @@ kernel configuration file:
 .Cd "device firmware"
 .Ed
 .Pp
-You also need to select a firmware for your device. Chose one from:
+You also need to select a firmware for your device.
+Choose one from:
 .Bd -ragged -offset indent
 .Cd "device iwn4965fw"
 .Cd "device iwn5000fw"
@@ -57,7 +58,7 @@ Or you can use
 to include them all.
 .Pp
 Alternatively, to load the driver as a
-module at boot time, place the following line in
+module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_iwn_load="YES"
