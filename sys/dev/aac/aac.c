@@ -229,7 +229,7 @@ static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 static int		aac_get_pci_info(struct aac_softc *sc, caddr_t uptr);
 static int		aac_supported_features(struct aac_softc *sc, caddr_t uptr);
 static void		aac_ioctl_event(struct aac_softc *sc,
-				        struct aac_event *event, void *arg);
+					struct aac_event *event, void *arg);
 static struct aac_mntinforesp *
 	aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid);
 
@@ -3618,7 +3618,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 		query_disk.Lun = 0;
 		query_disk.UnMapped = 0;
 		sprintf(&query_disk.diskDeviceName[0], "%s%d",
-		        disk->ad_disk->d_name, disk->ad_disk->d_unit);
+			disk->ad_disk->d_name, disk->ad_disk->d_unit);
 	}
 	mtx_unlock(&sc->aac_container_lock);
 
