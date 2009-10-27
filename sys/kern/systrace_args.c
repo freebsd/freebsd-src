@@ -3072,6 +3072,18 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* pselect */
+	case 522: {
+		struct pselect_args *p = params;
+		iarg[0] = p->nd; /* int */
+		uarg[1] = (intptr_t) p->in; /* fd_set * */
+		uarg[2] = (intptr_t) p->ou; /* fd_set * */
+		uarg[3] = (intptr_t) p->ex; /* fd_set * */
+		uarg[4] = (intptr_t) p->ts; /* const struct timespec * */
+		uarg[5] = (intptr_t) p->sm; /* const sigset_t * */
+		*n_args = 6;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8149,6 +8161,31 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pselect */
+	case 522:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "fd_set *";
+			break;
+		case 2:
+			p = "fd_set *";
+			break;
+		case 3:
+			p = "fd_set *";
+			break;
+		case 4:
+			p = "const struct timespec *";
+			break;
+		case 5:
+			p = "const sigset_t *";
 			break;
 		default:
 			break;
