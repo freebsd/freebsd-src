@@ -970,14 +970,15 @@ execsigs(struct proc *p)
  */
 int
 kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
-    int old)
+    int flags)
 {
 	sigset_t new_block, oset1;
 	struct proc *p;
 	int error;
 
 	p = td->td_proc;
-	PROC_LOCK(p);
+	if (!(flags & SIGPROCMASK_PROC_LOCKED))
+		PROC_LOCK(p);
 	if (oset != NULL)
 		*oset = td->td_sigmask;
 
@@ -999,7 +1000,7 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 		case SIG_SETMASK:
 			SIG_CANTMASK(*set);
 			oset1 = td->td_sigmask;
-			if (old)
+			if (flags & SIGPROCMASK_OLD)
 				SIGSETLO(td->td_sigmask, *set);
 			else
 				td->td_sigmask = *set;
@@ -1025,7 +1026,8 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 	if (p->p_numthreads != 1)
 		reschedule_signals(p, new_block);
 
-	PROC_UNLOCK(p);
+	if (!(flags & SIGPROCMASK_PROC_LOCKED))
+		PROC_UNLOCK(p);
 	return (error);
 }
 
@@ -1458,6 +1460,7 @@ int
 kern_sigsuspend(struct thread *td, sigset_t mask)
 {
 	struct proc *p = td->td_proc;
+	int has_sig, sig;
 
 	/*
 	 * When returning from sigsuspend, we want
@@ -1467,13 +1470,28 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	 * to indicate this.
 	 */
 	PROC_LOCK(p);
-	td->td_oldsigmask = td->td_sigmask;
+	kern_sigprocmask(td, SIG_SETMASK, &mask, &td->td_oldsigmask,
+	    SIGPROCMASK_PROC_LOCKED);
 	td->td_pflags |= TDP_OLDMASK;
-	SIG_CANTMASK(mask);
-	td->td_sigmask = mask;
-	signotify(td);
-	while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
-		/* void */;
+
+	/*
+	 * Process signals now. Otherwise, we can get spurious wakeup
+	 * due to signal entered process queue, but delivered to other
+	 * thread. But sigsuspend should return only on signal
+	 * delivery.
+	 */
+	for (has_sig = 0; !has_sig;) {
+		while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause",
+			0) == 0)
+			/* void */;
+		thread_suspend_check(0);
+		mtx_lock(&p->p_sigacts->ps_mtx);
+		while ((sig = cursig(td, SIG_STOP_ALLOWED)) != 0) {
+			postsig(sig);
+			has_sig = 1;
+		}
+		mtx_unlock(&p->p_sigacts->ps_mtx);
+	}
 	PROC_UNLOCK(p);
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
@@ -1495,21 +1513,10 @@ osigsuspend(td, uap)
 	struct thread *td;
 	struct osigsuspend_args *uap;
 {
-	struct proc *p = td->td_proc;
 	sigset_t mask;
 
-	PROC_LOCK(p);
-	td->td_oldsigmask = td->td_sigmask;
-	td->td_pflags |= TDP_OLDMASK;
 	OSIG2SIG(uap->mask, mask);
-	SIG_CANTMASK(mask);
-	SIGSETLO(td->td_sigmask, mask);
-	signotify(td);
-	while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
-		/* void */;
-	PROC_UNLOCK(p);
-	/* always return EINTR rather than ERESTART... */
-	return (EINTR);
+	return (kern_sigsuspend(td, mask));
 }
 #endif /* COMPAT_43 */
 
