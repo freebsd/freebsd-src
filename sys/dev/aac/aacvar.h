@@ -30,6 +30,7 @@
  */
 
 #include <sys/bio.h>
+#include <sys/callout.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
@@ -259,18 +260,31 @@ extern struct aac_interface	aac_rkt_interface;
 #define AAC_GET_OUTB_QUEUE(sc)		((sc)->aac_if.aif_get_outb_queue((sc)))
 #define AAC_SET_OUTB_QUEUE(sc, idx)	((sc)->aac_if.aif_set_outb_queue((sc), (idx)))
 
-#define AAC_SETREG4(sc, reg, val)	bus_space_write_4(sc->aac_btag, \
-					sc->aac_bhandle, reg, val)
-#define AAC_GETREG4(sc, reg)		bus_space_read_4 (sc->aac_btag, \
-					sc->aac_bhandle, reg)
-#define AAC_SETREG2(sc, reg, val)	bus_space_write_2(sc->aac_btag, \
-					sc->aac_bhandle, reg, val)
-#define AAC_GETREG2(sc, reg)		bus_space_read_2 (sc->aac_btag, \
-					sc->aac_bhandle, reg)
-#define AAC_SETREG1(sc, reg, val)	bus_space_write_1(sc->aac_btag, \
-					sc->aac_bhandle, reg, val)
-#define AAC_GETREG1(sc, reg)		bus_space_read_1 (sc->aac_btag, \
-					sc->aac_bhandle, reg)
+#define AAC_MEM0_SETREG4(sc, reg, val)	bus_space_write_4(sc->aac_btag0, \
+					sc->aac_bhandle0, reg, val)
+#define AAC_MEM0_GETREG4(sc, reg)	bus_space_read_4(sc->aac_btag0, \
+					sc->aac_bhandle0, reg)
+#define AAC_MEM0_SETREG2(sc, reg, val)	bus_space_write_2(sc->aac_btag0, \
+					sc->aac_bhandle0, reg, val)
+#define AAC_MEM0_GETREG2(sc, reg)	bus_space_read_2(sc->aac_btag0, \
+					sc->aac_bhandle0, reg)
+#define AAC_MEM0_SETREG1(sc, reg, val)	bus_space_write_1(sc->aac_btag0, \
+					sc->aac_bhandle0, reg, val)
+#define AAC_MEM0_GETREG1(sc, reg)	bus_space_read_1(sc->aac_btag0, \
+					sc->aac_bhandle0, reg)
+
+#define AAC_MEM1_SETREG4(sc, reg, val)	bus_space_write_4(sc->aac_btag1, \
+					sc->aac_bhandle1, reg, val)
+#define AAC_MEM1_GETREG4(sc, reg)	bus_space_read_4(sc->aac_btag1, \
+					sc->aac_bhandle1, reg)
+#define AAC_MEM1_SETREG2(sc, reg, val)	bus_space_write_2(sc->aac_btag1, \
+					sc->aac_bhandle1, reg, val)
+#define AAC_MEM1_GETREG2(sc, reg)	bus_space_read_2(sc->aac_btag1, \
+					sc->aac_bhandle1, reg)
+#define AAC_MEM1_SETREG1(sc, reg, val)	bus_space_write_1(sc->aac_btag1, \
+					sc->aac_bhandle1, reg, val)
+#define AAC_MEM1_GETREG1(sc, reg)	bus_space_read_1(sc->aac_btag1, \
+					sc->aac_bhandle1, reg)
 
 /* fib context (IOCTL) */
 struct aac_fib_context {
@@ -287,11 +301,10 @@ struct aac_softc
 {
 	/* bus connections */
 	device_t		aac_dev;
-	struct resource		*aac_regs_resource;	/* register interface
-							 * window */
-	int			aac_regs_rid;		/* resource ID */
-	bus_space_handle_t	aac_bhandle;		/* bus space handle */
-	bus_space_tag_t		aac_btag;		/* bus space tag */
+	struct resource		*aac_regs_res0, *aac_regs_res1; /* reg. if. window */
+	int			aac_regs_rid0, aac_regs_rid1;		/* resource ID */
+	bus_space_handle_t	aac_bhandle0, aac_bhandle1;		/* bus space handle */
+	bus_space_tag_t		aac_btag0, aac_btag1;		/* bus space tag */
 	bus_dma_tag_t		aac_parent_dmat;	/* parent DMA tag */
 	bus_dma_tag_t		aac_buffer_dmat;	/* data buffer/command
 							 * DMA tag */
@@ -315,6 +328,7 @@ struct aac_softc
 #define AAC_HWIF_STRONGARM	1
 #define AAC_HWIF_FALCON		2
 #define AAC_HWIF_RKT		3
+#define	AAC_HWIF_NARK		4
 #define AAC_HWIF_UNKNOWN	-1
 	bus_dma_tag_t		aac_common_dmat;	/* common structure
 							 * DMA tag */
@@ -397,6 +411,8 @@ struct aac_softc
 	u_int32_t		supported_options;
 	u_int32_t		scsi_method_id;
 	TAILQ_HEAD(,aac_sim)	aac_sim_tqh;
+
+	struct callout	aac_daemontime;		/* clock daemon callout */
 
 	u_int32_t	aac_max_fibs;           /* max. FIB count */
 	u_int32_t	aac_max_fibs_alloc;		/* max. alloc. per alloc_commands() */
