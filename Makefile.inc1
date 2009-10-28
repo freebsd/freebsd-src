@@ -599,11 +599,14 @@ installcheck_UGID:
 .if ${MK_INFO} != "no"
 _install-info=	install-info
 .endif
+.if ${MK_ZONEINFO} != "no"
+_zoneinfo=	zic tzsetup
+.endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
-	test true uname wc zic
+	test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
