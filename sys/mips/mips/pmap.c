@@ -291,9 +291,8 @@ pmap_bootstrap(void)
 	/* Sort. */
 again:
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-		if (phys_avail[i + 1] >= MIPS_KSEG0_LARGEST_PHYS) {
+		if (phys_avail[i + 1] >= MIPS_KSEG0_LARGEST_PHYS)
 			memory_larger_than_512meg++;
-		}
 		if (i < 2)
 			continue;
 		if (phys_avail[i - 2] > phys_avail[i]) {
@@ -413,9 +412,6 @@ again:
 	 */
 	for (i = 0, j = (virtual_avail >> SEGSHIFT); i < nkpt; i++, j++)
 		kernel_segmap[j] = (pd_entry_t)(pgtab + (i * NPTEPG));
-
-	for (i = 0; phys_avail[i + 2]; i += 2)
-		continue;
 
 	/*
 	 * The kernel's pmap is statically allocated so we don't have to use
