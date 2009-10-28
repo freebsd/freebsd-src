@@ -71,6 +71,7 @@ static void	aac_startup(void *arg);
 static void	aac_add_container(struct aac_softc *sc,
 				  struct aac_mntinforesp *mir, int f);
 static void	aac_get_bus_info(struct aac_softc *sc);
+static void	aac_daemon(void *arg);
 
 /* Command Processing */
 static void	aac_timeout(struct aac_softc *sc);
@@ -292,6 +293,9 @@ aac_attach(struct aac_softc *sc)
 	TAILQ_INIT(&sc->aac_container_tqh);
 	TAILQ_INIT(&sc->aac_ev_cmfree);
 
+	/* Initialize the clock daemon callout. */
+	callout_init_mtx(&sc->aac_daemontime, &sc->aac_io_lock, 0);
+
 	/*
 	 * Initialize the adapter.
 	 */
@@ -349,7 +353,32 @@ aac_attach(struct aac_softc *sc)
 		aac_get_bus_info(sc);
 	}
 
+	mtx_lock(&sc->aac_io_lock);
+	callout_reset(&sc->aac_daemontime, 30 * 60 * hz, aac_daemon, sc);
+	mtx_unlock(&sc->aac_io_lock);
+
 	return(0);
+}
+
+static void
+aac_daemon(void *arg)
+{
+	struct timeval tv;
+	struct aac_softc *sc;
+	struct aac_fib *fib;
+
+	sc = arg;
+	mtx_assert(&sc->aac_io_lock, MA_OWNED);
+
+	if (callout_pending(&sc->aac_daemontime) ||
+	    callout_active(&sc->aac_daemontime) == 0)
+		return;
+	getmicrotime(&tv);
+	aac_alloc_sync_fib(sc, &fib);
+	*(uint32_t *)fib->data = tv.tv_sec;
+	aac_sync_fib(sc, SendHostTime, 0, fib, sizeof(uint32_t));
+	aac_release_sync_fib(sc);
+	callout_reset(&sc->aac_daemontime, 30 * 60 * hz, aac_daemon, sc);
 }
 
 void
@@ -632,9 +661,12 @@ aac_free(struct aac_softc *sc)
 		bus_dma_tag_destroy(sc->aac_parent_dmat);
 
 	/* release the register window mapping */
-	if (sc->aac_regs_resource != NULL)
+	if (sc->aac_regs_res0 != NULL)
 		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY,
-				     sc->aac_regs_rid, sc->aac_regs_resource);
+				     sc->aac_regs_rid0, sc->aac_regs_res0);
+	if (sc->aac_hwif == AAC_HWIF_NARK && sc->aac_regs_res1 != NULL)
+		bus_release_resource(sc->aac_dev, SYS_RES_MEMORY,
+				     sc->aac_regs_rid1, sc->aac_regs_res1);
 }
 
 /*
@@ -653,6 +685,8 @@ aac_detach(device_t dev)
 
 	if (sc->aac_state & AAC_STATE_OPEN)
 		return(EBUSY);
+
+	callout_drain(&sc->aac_daemontime);
 
 	/* Remove the child containers */
 	while ((co = TAILQ_FIRST(&sc->aac_container_tqh)) != NULL) {
@@ -834,7 +868,7 @@ aac_new_intr(void *arg)
 			}
 			index &= ~2;
 			for (i = 0; i < sizeof(struct aac_fib)/4; ++i)
-				((u_int32_t *)fib)[i] = AAC_GETREG4(sc, index + i*4);
+				((u_int32_t *)fib)[i] = AAC_MEM1_GETREG4(sc, index + i*4);
 			aac_handle_aif(sc, fib);
 			free(fib, M_AACBUF);
 
@@ -1754,26 +1788,33 @@ aac_check_firmware(struct aac_softc *sc)
 
 	/* Remap mem. resource, if required */
 	if ((sc->flags & AAC_FLAGS_NEW_COMM) &&
-		atu_size > rman_get_size(sc->aac_regs_resource)) {
+		atu_size > rman_get_size(sc->aac_regs_res1)) {
 		bus_release_resource(
 			sc->aac_dev, SYS_RES_MEMORY,
-			sc->aac_regs_rid, sc->aac_regs_resource);
-		sc->aac_regs_resource = bus_alloc_resource(
-			sc->aac_dev, SYS_RES_MEMORY, &sc->aac_regs_rid,
+			sc->aac_regs_rid1, sc->aac_regs_res1);
+		sc->aac_regs_res1 = bus_alloc_resource(
+			sc->aac_dev, SYS_RES_MEMORY, &sc->aac_regs_rid1,
 			0ul, ~0ul, atu_size, RF_ACTIVE);
-		if (sc->aac_regs_resource == NULL) {
-			sc->aac_regs_resource = bus_alloc_resource_any(
+		if (sc->aac_regs_res1 == NULL) {
+			sc->aac_regs_res1 = bus_alloc_resource_any(
 				sc->aac_dev, SYS_RES_MEMORY,
-				&sc->aac_regs_rid, RF_ACTIVE);
-			if (sc->aac_regs_resource == NULL) {
+				&sc->aac_regs_rid1, RF_ACTIVE);
+			if (sc->aac_regs_res1 == NULL) {
 				device_printf(sc->aac_dev,
 				    "couldn't allocate register window\n");
 				return (ENXIO);
 			}
 			sc->flags &= ~AAC_FLAGS_NEW_COMM;
 		}
-		sc->aac_btag = rman_get_bustag(sc->aac_regs_resource);
-		sc->aac_bhandle = rman_get_bushandle(sc->aac_regs_resource);
+		sc->aac_btag1 = rman_get_bustag(sc->aac_regs_res1);
+		sc->aac_bhandle1 = rman_get_bushandle(sc->aac_regs_res1);
+
+		if (sc->aac_hwif == AAC_HWIF_NARK) {
+			sc->aac_regs_res0 = sc->aac_regs_res1;
+			sc->aac_regs_rid0 = sc->aac_regs_rid1;
+			sc->aac_btag0 = sc->aac_btag1;
+			sc->aac_bhandle0 = sc->aac_bhandle1;
+		}
 	}
 
 	/* Read preferred settings */
@@ -1944,10 +1985,10 @@ aac_init(struct aac_softc *sc)
 	 */
 	switch (sc->aac_hwif) {
 	case AAC_HWIF_I960RX:
-		AAC_SETREG4(sc, AAC_RX_ODBR, ~0);
+		AAC_MEM0_SETREG4(sc, AAC_RX_ODBR, ~0);
 		break;
 	case AAC_HWIF_RKT:
-		AAC_SETREG4(sc, AAC_RKT_ODBR, ~0);
+		AAC_MEM0_SETREG4(sc, AAC_RKT_ODBR, ~0);
 		break;
 	default:
 		break;
@@ -2367,7 +2408,7 @@ aac_sa_get_fwstatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_SA_FWSTATUS));
+	return(AAC_MEM0_GETREG4(sc, AAC_SA_FWSTATUS));
 }
 
 static int
@@ -2375,7 +2416,7 @@ aac_rx_get_fwstatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, sc->flags & AAC_FLAGS_NEW_COMM ?
+	return(AAC_MEM0_GETREG4(sc, sc->flags & AAC_FLAGS_NEW_COMM ?
 	    AAC_RX_OMR0 : AAC_RX_FWSTATUS));
 }
 
@@ -2386,7 +2427,7 @@ aac_fa_get_fwstatus(struct aac_softc *sc)
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	val = AAC_GETREG4(sc, AAC_FA_FWSTATUS);
+	val = AAC_MEM0_GETREG4(sc, AAC_FA_FWSTATUS);
 	return (val);
 }
 
@@ -2395,7 +2436,7 @@ aac_rkt_get_fwstatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, sc->flags & AAC_FLAGS_NEW_COMM ?
+	return(AAC_MEM0_GETREG4(sc, sc->flags & AAC_FLAGS_NEW_COMM ?
 	    AAC_RKT_OMR0 : AAC_RKT_FWSTATUS));
 }
 
@@ -2408,7 +2449,7 @@ aac_sa_qnotify(struct aac_softc *sc, int qbit)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG2(sc, AAC_SA_DOORBELL1_SET, qbit);
+	AAC_MEM0_SETREG2(sc, AAC_SA_DOORBELL1_SET, qbit);
 }
 
 static void
@@ -2416,7 +2457,7 @@ aac_rx_qnotify(struct aac_softc *sc, int qbit)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RX_IDBR, qbit);
+	AAC_MEM0_SETREG4(sc, AAC_RX_IDBR, qbit);
 }
 
 static void
@@ -2424,7 +2465,7 @@ aac_fa_qnotify(struct aac_softc *sc, int qbit)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG2(sc, AAC_FA_DOORBELL1, qbit);
+	AAC_MEM0_SETREG2(sc, AAC_FA_DOORBELL1, qbit);
 	AAC_FA_HACK(sc);
 }
 
@@ -2433,7 +2474,7 @@ aac_rkt_qnotify(struct aac_softc *sc, int qbit)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RKT_IDBR, qbit);
+	AAC_MEM0_SETREG4(sc, AAC_RKT_IDBR, qbit);
 }
 
 /*
@@ -2444,7 +2485,7 @@ aac_sa_get_istatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG2(sc, AAC_SA_DOORBELL0));
+	return(AAC_MEM0_GETREG2(sc, AAC_SA_DOORBELL0));
 }
 
 static int
@@ -2452,7 +2493,7 @@ aac_rx_get_istatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RX_ODBR));
+	return(AAC_MEM0_GETREG4(sc, AAC_RX_ODBR));
 }
 
 static int
@@ -2462,7 +2503,7 @@ aac_fa_get_istatus(struct aac_softc *sc)
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	val = AAC_GETREG2(sc, AAC_FA_DOORBELL0);
+	val = AAC_MEM0_GETREG2(sc, AAC_FA_DOORBELL0);
 	return (val);
 }
 
@@ -2471,7 +2512,7 @@ aac_rkt_get_istatus(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RKT_ODBR));
+	return(AAC_MEM0_GETREG4(sc, AAC_RKT_ODBR));
 }
 
 /*
@@ -2482,7 +2523,7 @@ aac_sa_clear_istatus(struct aac_softc *sc, int mask)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG2(sc, AAC_SA_DOORBELL0_CLEAR, mask);
+	AAC_MEM0_SETREG2(sc, AAC_SA_DOORBELL0_CLEAR, mask);
 }
 
 static void
@@ -2490,7 +2531,7 @@ aac_rx_clear_istatus(struct aac_softc *sc, int mask)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RX_ODBR, mask);
+	AAC_MEM0_SETREG4(sc, AAC_RX_ODBR, mask);
 }
 
 static void
@@ -2498,7 +2539,7 @@ aac_fa_clear_istatus(struct aac_softc *sc, int mask)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG2(sc, AAC_FA_DOORBELL0_CLEAR, mask);
+	AAC_MEM0_SETREG2(sc, AAC_FA_DOORBELL0_CLEAR, mask);
 	AAC_FA_HACK(sc);
 }
 
@@ -2507,7 +2548,7 @@ aac_rkt_clear_istatus(struct aac_softc *sc, int mask)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RKT_ODBR, mask);
+	AAC_MEM0_SETREG4(sc, AAC_RKT_ODBR, mask);
 }
 
 /*
@@ -2519,11 +2560,11 @@ aac_sa_set_mailbox(struct aac_softc *sc, u_int32_t command,
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_SA_MAILBOX, command);
-	AAC_SETREG4(sc, AAC_SA_MAILBOX + 4, arg0);
-	AAC_SETREG4(sc, AAC_SA_MAILBOX + 8, arg1);
-	AAC_SETREG4(sc, AAC_SA_MAILBOX + 12, arg2);
-	AAC_SETREG4(sc, AAC_SA_MAILBOX + 16, arg3);
+	AAC_MEM1_SETREG4(sc, AAC_SA_MAILBOX, command);
+	AAC_MEM1_SETREG4(sc, AAC_SA_MAILBOX + 4, arg0);
+	AAC_MEM1_SETREG4(sc, AAC_SA_MAILBOX + 8, arg1);
+	AAC_MEM1_SETREG4(sc, AAC_SA_MAILBOX + 12, arg2);
+	AAC_MEM1_SETREG4(sc, AAC_SA_MAILBOX + 16, arg3);
 }
 
 static void
@@ -2532,11 +2573,11 @@ aac_rx_set_mailbox(struct aac_softc *sc, u_int32_t command,
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RX_MAILBOX, command);
-	AAC_SETREG4(sc, AAC_RX_MAILBOX + 4, arg0);
-	AAC_SETREG4(sc, AAC_RX_MAILBOX + 8, arg1);
-	AAC_SETREG4(sc, AAC_RX_MAILBOX + 12, arg2);
-	AAC_SETREG4(sc, AAC_RX_MAILBOX + 16, arg3);
+	AAC_MEM1_SETREG4(sc, AAC_RX_MAILBOX, command);
+	AAC_MEM1_SETREG4(sc, AAC_RX_MAILBOX + 4, arg0);
+	AAC_MEM1_SETREG4(sc, AAC_RX_MAILBOX + 8, arg1);
+	AAC_MEM1_SETREG4(sc, AAC_RX_MAILBOX + 12, arg2);
+	AAC_MEM1_SETREG4(sc, AAC_RX_MAILBOX + 16, arg3);
 }
 
 static void
@@ -2545,15 +2586,15 @@ aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_FA_MAILBOX, command);
+	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX, command);
 	AAC_FA_HACK(sc);
-	AAC_SETREG4(sc, AAC_FA_MAILBOX + 4, arg0);
+	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 4, arg0);
 	AAC_FA_HACK(sc);
-	AAC_SETREG4(sc, AAC_FA_MAILBOX + 8, arg1);
+	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 8, arg1);
 	AAC_FA_HACK(sc);
-	AAC_SETREG4(sc, AAC_FA_MAILBOX + 12, arg2);
+	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 12, arg2);
 	AAC_FA_HACK(sc);
-	AAC_SETREG4(sc, AAC_FA_MAILBOX + 16, arg3);
+	AAC_MEM1_SETREG4(sc, AAC_FA_MAILBOX + 16, arg3);
 	AAC_FA_HACK(sc);
 }
 
@@ -2563,11 +2604,11 @@ aac_rkt_set_mailbox(struct aac_softc *sc, u_int32_t command, u_int32_t arg0,
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RKT_MAILBOX, command);
-	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 4, arg0);
-	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 8, arg1);
-	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 12, arg2);
-	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 16, arg3);
+	AAC_MEM1_SETREG4(sc, AAC_RKT_MAILBOX, command);
+	AAC_MEM1_SETREG4(sc, AAC_RKT_MAILBOX + 4, arg0);
+	AAC_MEM1_SETREG4(sc, AAC_RKT_MAILBOX + 8, arg1);
+	AAC_MEM1_SETREG4(sc, AAC_RKT_MAILBOX + 12, arg2);
+	AAC_MEM1_SETREG4(sc, AAC_RKT_MAILBOX + 16, arg3);
 }
 
 /*
@@ -2578,7 +2619,7 @@ aac_sa_get_mailbox(struct aac_softc *sc, int mb)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_SA_MAILBOX + (mb * 4)));
+	return(AAC_MEM1_GETREG4(sc, AAC_SA_MAILBOX + (mb * 4)));
 }
 
 static int
@@ -2586,7 +2627,7 @@ aac_rx_get_mailbox(struct aac_softc *sc, int mb)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RX_MAILBOX + (mb * 4)));
+	return(AAC_MEM1_GETREG4(sc, AAC_RX_MAILBOX + (mb * 4)));
 }
 
 static int
@@ -2596,7 +2637,7 @@ aac_fa_get_mailbox(struct aac_softc *sc, int mb)
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	val = AAC_GETREG4(sc, AAC_FA_MAILBOX + (mb * 4));
+	val = AAC_MEM1_GETREG4(sc, AAC_FA_MAILBOX + (mb * 4));
 	return (val);
 }
 
@@ -2605,7 +2646,7 @@ aac_rkt_get_mailbox(struct aac_softc *sc, int mb)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RKT_MAILBOX + (mb * 4)));
+	return(AAC_MEM1_GETREG4(sc, AAC_RKT_MAILBOX + (mb * 4)));
 }
 
 /*
@@ -2617,9 +2658,9 @@ aac_sa_set_interrupts(struct aac_softc *sc, int enable)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "%sable interrupts", enable ? "en" : "dis");
 
 	if (enable) {
-		AAC_SETREG2((sc), AAC_SA_MASK0_CLEAR, AAC_DB_INTERRUPTS);
+		AAC_MEM0_SETREG2((sc), AAC_SA_MASK0_CLEAR, AAC_DB_INTERRUPTS);
 	} else {
-		AAC_SETREG2((sc), AAC_SA_MASK0_SET, ~0);
+		AAC_MEM0_SETREG2((sc), AAC_SA_MASK0_SET, ~0);
 	}
 }
 
@@ -2630,11 +2671,11 @@ aac_rx_set_interrupts(struct aac_softc *sc, int enable)
 
 	if (enable) {
 		if (sc->flags & AAC_FLAGS_NEW_COMM)
-			AAC_SETREG4(sc, AAC_RX_OIMR, ~AAC_DB_INT_NEW_COMM);
+			AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, ~AAC_DB_INT_NEW_COMM);
 		else
-			AAC_SETREG4(sc, AAC_RX_OIMR, ~AAC_DB_INTERRUPTS);
+			AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, ~AAC_DB_INTERRUPTS);
 	} else {
-		AAC_SETREG4(sc, AAC_RX_OIMR, ~0);
+		AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, ~0);
 	}
 }
 
@@ -2644,10 +2685,10 @@ aac_fa_set_interrupts(struct aac_softc *sc, int enable)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "%sable interrupts", enable ? "en" : "dis");
 
 	if (enable) {
-		AAC_SETREG2((sc), AAC_FA_MASK0_CLEAR, AAC_DB_INTERRUPTS);
+		AAC_MEM0_SETREG2((sc), AAC_FA_MASK0_CLEAR, AAC_DB_INTERRUPTS);
 		AAC_FA_HACK(sc);
 	} else {
-		AAC_SETREG2((sc), AAC_FA_MASK0, ~0);
+		AAC_MEM0_SETREG2((sc), AAC_FA_MASK0, ~0);
 		AAC_FA_HACK(sc);
 	}
 }
@@ -2659,11 +2700,11 @@ aac_rkt_set_interrupts(struct aac_softc *sc, int enable)
 
 	if (enable) {
 		if (sc->flags & AAC_FLAGS_NEW_COMM)
-			AAC_SETREG4(sc, AAC_RKT_OIMR, ~AAC_DB_INT_NEW_COMM);
+			AAC_MEM0_SETREG4(sc, AAC_RKT_OIMR, ~AAC_DB_INT_NEW_COMM);
 		else
-			AAC_SETREG4(sc, AAC_RKT_OIMR, ~AAC_DB_INTERRUPTS);
+			AAC_MEM0_SETREG4(sc, AAC_RKT_OIMR, ~AAC_DB_INTERRUPTS);
 	} else {
-		AAC_SETREG4(sc, AAC_RKT_OIMR, ~0);
+		AAC_MEM0_SETREG4(sc, AAC_RKT_OIMR, ~0);
 	}
 }
 
@@ -2677,19 +2718,19 @@ aac_rx_send_command(struct aac_softc *sc, struct aac_command *cm)
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "send command (new comm.)");
 
-	index = AAC_GETREG4(sc, AAC_RX_IQUE);
+	index = AAC_MEM0_GETREG4(sc, AAC_RX_IQUE);
 	if (index == 0xffffffffL)
-		index = AAC_GETREG4(sc, AAC_RX_IQUE);
+		index = AAC_MEM0_GETREG4(sc, AAC_RX_IQUE);
 	if (index == 0xffffffffL)
 		return index;
 	aac_enqueue_busy(cm);
 	device = index;
-	AAC_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys & 0xffffffffUL));
+	AAC_MEM1_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys & 0xffffffffUL));
 	device += 4;
-	AAC_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys >> 32));
+	AAC_MEM1_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys >> 32));
 	device += 4;
-	AAC_SETREG4(sc, device, cm->cm_fib->Header.Size);
-	AAC_SETREG4(sc, AAC_RX_IQUE, index);
+	AAC_MEM1_SETREG4(sc, device, cm->cm_fib->Header.Size);
+	AAC_MEM0_SETREG4(sc, AAC_RX_IQUE, index);
 	return 0;
 }
 
@@ -2700,19 +2741,19 @@ aac_rkt_send_command(struct aac_softc *sc, struct aac_command *cm)
 
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "send command (new comm.)");
 
-	index = AAC_GETREG4(sc, AAC_RKT_IQUE);
+	index = AAC_MEM0_GETREG4(sc, AAC_RKT_IQUE);
 	if (index == 0xffffffffL)
-		index = AAC_GETREG4(sc, AAC_RKT_IQUE);
+		index = AAC_MEM0_GETREG4(sc, AAC_RKT_IQUE);
 	if (index == 0xffffffffL)
 		return index;
 	aac_enqueue_busy(cm);
 	device = index;
-	AAC_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys & 0xffffffffUL));
+	AAC_MEM1_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys & 0xffffffffUL));
 	device += 4;
-	AAC_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys >> 32));
+	AAC_MEM1_SETREG4(sc, device, (u_int32_t)(cm->cm_fibphys >> 32));
 	device += 4;
-	AAC_SETREG4(sc, device, cm->cm_fib->Header.Size);
-	AAC_SETREG4(sc, AAC_RKT_IQUE, index);
+	AAC_MEM1_SETREG4(sc, device, cm->cm_fib->Header.Size);
+	AAC_MEM0_SETREG4(sc, AAC_RKT_IQUE, index);
 	return 0;
 }
 
@@ -2724,7 +2765,7 @@ aac_rx_get_outb_queue(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RX_OQUE));
+	return(AAC_MEM0_GETREG4(sc, AAC_RX_OQUE));
 }
 
 static int
@@ -2732,7 +2773,7 @@ aac_rkt_get_outb_queue(struct aac_softc *sc)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	return(AAC_GETREG4(sc, AAC_RKT_OQUE));
+	return(AAC_MEM0_GETREG4(sc, AAC_RKT_OQUE));
 }
 
 static void
@@ -2740,7 +2781,7 @@ aac_rx_set_outb_queue(struct aac_softc *sc, int index)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RX_OQUE, index);
+	AAC_MEM0_SETREG4(sc, AAC_RX_OQUE, index);
 }
 
 static void
@@ -2748,7 +2789,7 @@ aac_rkt_set_outb_queue(struct aac_softc *sc, int index)
 {
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
-	AAC_SETREG4(sc, AAC_RKT_OQUE, index);
+	AAC_MEM0_SETREG4(sc, AAC_RKT_OQUE, index);
 }
 
 /*
