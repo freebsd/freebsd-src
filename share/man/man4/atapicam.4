@@ -27,14 +27,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2002
+.Dd October 22, 2009
 .Dt ATAPICAM 4
 .Os
 .Sh NAME
 .Nm atapicam
 .Nd CAM XPT (transport) module for ATAPI devices
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device cam"
+.Cd "device ata"
 .Cd "device atapicam"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+atapicam_load="YES"
+.Ed
 .Sh DESCRIPTION
 The ATAPI/CAM module allows ATAPI devices (CD-ROM, CD-RW, DVD drives,
 floppy drives such as Iomega Zip, tape drives) to be accessed through
