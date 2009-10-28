@@ -1327,7 +1327,7 @@ in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
 	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
 #endif
@@ -1366,7 +1366,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			break;
 	}
 	if (lle == NULL) {
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 		if (flags & LLE_DELETE)
 			log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);	
 #endif
@@ -1400,7 +1400,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			LLE_WLOCK(lle);
 			lle->la_flags = LLE_DELETED;
 			LLE_WUNLOCK(lle);
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
 #endif
 		}
