@@ -331,7 +331,7 @@ void
 platform_start()
 {
 	vm_size_t physsz = 0;
-	int i, j;
+	int i;
 	struct xlr_boot1_mem_map *boot_map;
 #ifdef SMP
 	uint32_t tmp;
@@ -358,23 +358,21 @@ platform_start()
 	/* clockrate used by delay, so initialize it here */
         hw_clockrate = xlr_boot1_info.cpu_frequency/1000000 ;
 	cninit();
+	init_static_kenv(boot1_env, sizeof(boot1_env));
 
 	printf("Environment (from %d args):\n", xlr_argc-1);
 	if (xlr_argc == 1)
 		printf("\tNone\n");
-	for(i=1,j=0; i<xlr_argc; i++) {
-		int len = strlen(xlr_argv[i]);
-		if (j + len + 2 > sizeof(boot1_env)) {
-			printf("*** Environment could not be copied in full\n");
-			break;
-		}
-		
+	for(i=1; i<xlr_argc; i++) {
+		char *n;
+
 		printf("\t%s\n", xlr_argv[i]);
-		memcpy(&boot1_env[j], xlr_argv[i], len+1);  /* copy the '\0' too */
-		j += len+1;
+		n = strsep(&xlr_argv[i], "=");
+		if (v == NULL)
+			setenv(n, "1");
+		else
+			setenv(n, xlr_argv[i]);
 	}
-	boot1_env[j] = '\0';
-	kern_envp = boot1_env;
 
 	xlr_set_boot_flags();
 
