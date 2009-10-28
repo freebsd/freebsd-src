@@ -331,7 +331,7 @@ void
 platform_start()
 {
 	vm_size_t physsz = 0;
-	int i;
+	int i, j;
 	struct xlr_boot1_mem_map *boot_map;
 #ifdef SMP
 	uint32_t tmp;
