@@ -368,7 +368,7 @@ platform_start()
 
 		printf("\t%s\n", xlr_argv[i]);
 		n = strsep(&xlr_argv[i], "=");
-		if (v == NULL)
+		if (xlr_argv[i] == NULL)
 			setenv(n, "1");
 		else
 			setenv(n, xlr_argv[i]);
