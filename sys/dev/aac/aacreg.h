@@ -1468,7 +1468,7 @@ enum {
 #define	AAC_FA_FWSTATUS			0x2c	/* Mailbox 7 */
 #define	AAC_FA_INTSRC			0x900
 
-#define AAC_FA_HACK(sc)	(void)AAC_GETREG4(sc, AAC_FA_INTSRC)
+#define AAC_FA_HACK(sc)	(void)AAC_MEM0_GETREG4(sc, AAC_FA_INTSRC)
 
 /*
  * Register definitions for the Adaptec AAC-364 'Jalapeno I/II' adapters, based
