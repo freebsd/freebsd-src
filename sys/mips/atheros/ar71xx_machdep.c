@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/kdb.h>
+#include <sys/reboot.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -59,6 +60,42 @@ __FBSDID("$FreeBSD$");
 extern int *edata;
 extern int *end;
 uint32_t ar711_base_mac[ETHER_ADDR_LEN];
+/* 4KB static data aread to keep a copy of the bootload env until
+   the dynamic kenv is setup */
+char boot1_env[4096];
+
+/*
+ * We get a string in from Redboot with the all the arguments together,
+ * "foo=bar bar=baz". Split them up and save in kenv.
+ */
+static void
+parse_argv(char *str)
+{
+	char *n, *v;
+
+	while ((v = strsep(&str, " ")) != NULL) {
+		if (*v == '\0')
+			continue;
+		if (*v == '-') {
+			while (*v != '\0') {
+				v++;
+				switch (*v) {
+				case 'a': boothowto |= RB_ASKNAME; break;
+				case 'd': boothowto |= RB_KDB; break;
+				case 'g': boothowto |= RB_GDB; break;
+				case 's': boothowto |= RB_SINGLE; break;
+				case 'v': boothowto |= RB_VERBOSE; break;
+				}
+			}
+		} else {
+			n = strsep(&v, "=");
+			if (v == NULL)
+				setenv(n, "1");
+			else
+				setenv(n, v);
+		}
+	}
+}
 
 void
 platform_halt(void)
@@ -154,6 +191,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	platform_counter_freq = ar71xx_cpu_freq();
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
+	init_static_kenv(boot1_env, sizeof(boot1_env));
 
 	printf("platform frequency: %lld\n", platform_counter_freq);
 	printf("arguments: \n");
@@ -164,8 +202,10 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	printf("Cmd line:");
 	if (MIPS_IS_VALID_PTR(argv)) {
-		for (i = 0; i < argc; i++)
+		for (i = 0; i < argc; i++) {
 			printf(" %s", argv[i]);
+			parse_argv(argv[i]);
+		}
 	}
 	else
 		printf ("argv is invalid");
@@ -173,8 +213,10 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	printf("Environment:\n");
 	if (MIPS_IS_VALID_PTR(envp)) {
-		for (i = 0; envp[i]; i+=2)
+		for (i = 0; envp[i]; i+=2) {
 			printf("  %s = %s\n", envp[i], envp[i+1]);
+			setenv(envp[i], envp[i+1]);
+		}
 	}
 	else 
 		printf ("envp is invalid\n");
