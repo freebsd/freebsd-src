@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd March 26, 2009
+.Dd October 21, 2009
 .Dt MALO 4
 .Os
 .Sh NAME
@@ -69,25 +69,21 @@ The
 driver provides support for Marvell Libertas 88W8335 based PCI
 network adapters.
 .Pp
-This driver requires firmware to be loaded before it will work.
-These firmware files are from the
-.Ox
-.Nm
-driver.
-.Pp
-A package for the firmware which can be installed via
-.Xr pkg_add 1
-can be found at:
+This driver requires the
+.Nm malofw
+firmware kernel module be installed before it will work.
+The firmware files are not publicly available.
+A port of the firmware can be found at:
 .Bd -literal -offset indent
 http://weongyo.org/project/malo/malo-firmware-1.4.tar.gz
 .Ed
 .Pp
-This package must be installed before
-.Xr ifconfig 8
-will work.
-.Pp 
-For more information on configuring this device, see
-.Xr ifconfig 8 .
+The firmware kernel module can be installed by extracting
+the archive and running
+.Ql make install clean
+in the
+.Pa malo-firmware-1.4
+directory.
 .Sh HARDWARE
 The following cards are among those supported by the
 .Nm
