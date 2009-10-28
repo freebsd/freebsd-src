@@ -1029,10 +1029,43 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 static void
 bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 {
+	char tmp_cl[mips_pdcache_linesize], tmp_clend[mips_pdcache_linesize];
+	vm_offset_t buf_cl, buf_clend;
+	vm_size_t size_cl, size_clend;
+	int cache_linesize_mask = mips_pdcache_linesize - 1;
+
+	/*
+	 * dcache invalidation operates on cache line aligned addresses
+	 * and could modify areas of memory that share the same cache line
+	 * at the beginning and the ending of the buffer. In order to 
+	 * prevent a data loss we save these chunks in temporary buffer
+	 * before invalidation and restore them afer it
+	 */
+	buf_cl = (vm_offset_t)buf  & ~cache_linesize_mask;
+	size_cl = (vm_offset_t)buf  & cache_linesize_mask;
+	buf_clend = (vm_offset_t)buf + len;
+	size_clend = (mips_pdcache_linesize - 
+	    (buf_clend & cache_linesize_mask)) & cache_linesize_mask;
+
 	switch (op) {
 	case BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE:
 	case BUS_DMASYNC_POSTREAD:
+
+		/* 
+		 * Save buffers that might be modified by invalidation
+		 */
+		if (size_cl)
+			memcpy (tmp_cl, (void*)buf_cl, size_cl);
+		if (size_clend)
+			memcpy (tmp_clend, (void*)buf_clend, size_clend);
 		mips_dcache_inv_range((vm_offset_t)buf, len);
+		/* 
+		 * Restore them
+		 */
+		if (size_cl)
+			memcpy ((void*)buf_cl, tmp_cl, size_cl);
+		if (size_clend)
+			memcpy ((void*)buf_clend, tmp_clend, size_clend);
 		break;
 
 	case BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE:
@@ -1040,11 +1073,21 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 		break;
 
 	case BUS_DMASYNC_PREREAD:
-#if 0
-		mips_dcache_wbinv_range((vm_offset_t)buf, len);
-#else
+		/* 
+		 * Save buffers that might be modified by invalidation
+		 */
+		if (size_cl)
+			memcpy (tmp_cl, (void *)buf_cl, size_cl);
+		if (size_clend)
+			memcpy (tmp_clend, (void *)buf_clend, size_clend);
 		mips_dcache_inv_range((vm_offset_t)buf, len);
-#endif
+		/*
+		 * Restore them
+		 */
+		if (size_cl)
+			memcpy ((void *)buf_cl, tmp_cl, size_cl);
+		if (size_clend)
+			memcpy ((void *)buf_clend, tmp_clend, size_clend);
 		break;
 
 	case BUS_DMASYNC_PREWRITE:
