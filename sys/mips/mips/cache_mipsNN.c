@@ -65,6 +65,11 @@ __FBSDID("$FreeBSD$");
 #define SYNCI
 #endif
 
+/*
+ * Exported variables for consumers like bus_dma code
+ */
+int mips_picache_linesize;
+int mips_pdcache_linesize;
 
 static int picache_size;
 static int picache_stride;
@@ -107,10 +112,15 @@ mipsNN_cache_init(struct mips_cpuinfo * cpuinfo)
 		pdcache_loopcount = (cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_linesize / PAGE_SIZE) *
 		    cpuinfo->l1.dc_nways;
 	}
+
+	mips_picache_linesize = cpuinfo->l1.ic_linesize;
+	mips_pdcache_linesize = cpuinfo->l1.dc_linesize;
+
 	picache_size = cpuinfo->l1.ic_size;
 	picache_way_mask = cpuinfo->l1.ic_nways - 1;
 	pdcache_size = cpuinfo->l1.dc_size;
 	pdcache_way_mask = cpuinfo->l1.dc_nways - 1;
+
 #define CACHE_DEBUG
 #ifdef CACHE_DEBUG
 	printf("Cache info:\n");
