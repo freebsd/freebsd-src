@@ -378,7 +378,7 @@ aac_daemon(void *arg)
 	*(uint32_t *)fib->data = tv.tv_sec;
 	aac_sync_fib(sc, SendHostTime, 0, fib, sizeof(uint32_t));
 	aac_release_sync_fib(sc);
-	callout_schedule(&sc->aac_daemontime, 30 * 60 * hz);
+	callout_reset(&sc->aac_daemontime, 30 * 60 * hz, aac_daemon, sc);
 }
 
 void
