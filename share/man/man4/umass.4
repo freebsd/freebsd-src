@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd October 22, 2009
 .Dt UMASS 4
 .Os
 .Sh NAME
@@ -38,6 +38,9 @@ To compile this driver into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device cam"
+.Cd "device usb"
 .Cd "device umass"
 .Ed
 .Pp
