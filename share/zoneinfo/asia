@@ -1,5 +1,5 @@
 # <pre>
-# @(#)asia	8.40
+# @(#)asia	8.42
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -172,11 +172,30 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al Manamah
 #
 # No DST end date has been announced yet.
 
-# From Arthur David Olson (2009-07-11):
-# Arbitrarily end DST at the end of 2009 so that a POSIX-sytle time zone string
-# can appear in the Dhaka binary file and for the benefit of old glibc
-# reimplementations of the time zone software that mishandle permanent DST.
-# A change will be required once the end date is known.
+# From Alexander Krivenyshev (2009-09-25):
+# Bangladesh won't go back to Standard Time from October 1, 2009, 
+# instead it will continue DST measure till the cabinet makes a fresh decision. 
+#
+# Following report by same newspaper-"The Daily Star Friday":
+# "DST change awaits cabinet decision-Clock won't go back by 1-hr from Oct 1"
+# <a href="http://www.thedailystar.net/newDesign/news-details.php?nid=107021">
+# http://www.thedailystar.net/newDesign/news-details.php?nid=107021
+# </a>
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_bangladesh04.html">
+# http://www.worldtimezone.com/dst_news/dst_news_bangladesh04.html
+# </a>
+
+# From Steffen Thorsen (2009-10-13):
+# IANS (Indo-Asian News Service) now reports:
+# Bangladesh has decided that the clock advanced by an hour to make 
+# maximum use of daylight hours as an energy saving measure would 
+# "continue for an indefinite period."
+#
+# One of many places where it is published:
+# <a href="http://www.thaindian.com/newsportal/business/bangladesh-to-continue-indefinitely-with-advanced-time_100259987.html">
+# http://www.thaindian.com/newsportal/business/bangladesh-to-continue-indefinitely-with-advanced-time_100259987.html
+# </a>
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dhaka	6:01:40 -	LMT	1890
@@ -186,8 +205,7 @@ Zone	Asia/Dhaka	6:01:40 -	LMT	1890
 			6:30	-	BURT	1951 Sep 30
 			6:00	-	DACT	1971 Mar 26 # Dacca Time
 			6:00	-	BDT	2009 Jun 19 23:00 # Bangladesh Time
-			6:00	1:00	BDST	2010
-			6:00	-	BDT
+			6:00	1:00	BDST
 
 # Bhutan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1674,16 +1692,66 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 # advance clocks in the country by one hour from April 15 to
 # conserve energy"
 
-# From Arthur David Olson (2009-04-10):
-# Assume for now that Pakistan will end DST in 2009 as it did in 2008.
+# From Steffen Thorsen (2009-09-17):
+# "The News International," Pakistan reports that: "The Federal
+# Government has decided to restore the previous time by moving the
+# clocks backward by one hour from October 1. A formal announcement to
+# this effect will be made after the Prime Minister grants approval in
+# this regard." 
+# <a href="http://www.thenews.com.pk/updates.asp?id=87168">
+# http://www.thenews.com.pk/updates.asp?id=87168
+# </a>
+
+# From Alexander Krivenyshev (2009-09-28):
+# According to Associated Press Of Pakistan, it is confirmed that
+# Pakistan clocks across the country would be turned back by an hour from October
+# 1, 2009.
+#
+# "Clocks to go back one hour from 1 Oct"
+# <a href="http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=86715&Itemid=2">
+# http://www.app.com.pk/en_/index.php?option=com_content&task=view&id=86715&Itemid=2
+# </a>
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_pakistan07.htm">
+# http://www.worldtimezone.com/dst_news/dst_news_pakistan07.htm
+# </a>
+
+# From Steffen Thorsen (2009-09-29):
+# Alexander Krivenyshev wrote:
+# > According to Associated Press Of Pakistan, it is confirmed that
+# > Pakistan clocks across the country would be turned back by an hour from October
+# > 1, 2009.
+#
+# Now they seem to have changed their mind, November 1 is the new date:
+# <a href="http://www.thenews.com.pk/top_story_detail.asp?Id=24742">
+# http://www.thenews.com.pk/top_story_detail.asp?Id=24742
+# </a>
+# "The country's clocks will be reversed by one hour on November 1.
+# Officials of Federal Ministry for Interior told this to Geo News on
+# Monday."
+#
+# And more importantly, it seems that these dates will be kept every year:
+# "It has now been decided that clocks will be wound forward by one hour
+# on April 15 and reversed by an hour on November 1 every year without
+# obtaining prior approval, the officials added."
+#
+# We have confirmed this year's end date with both with the Ministry of
+# Water and Power and the Pakistan Electric Power Company:
+# <a href="http://www.timeanddate.com/news/time/pakistan-ends-dst09.html">
+# http://www.timeanddate.com/news/time/pakistan-ends-dst09.html
+# </a>
+
+# From Christoph Goehre (2009-10-01):
+# [T]he German Consulate General in Karachi reported me today that Pakistan
+# will go back to standard time on 1st of November.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
 Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
 Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
 Rule Pakistan	2008	only	-	Nov	1	0:00	0	-
-Rule Pakistan	2009	only	-	Apr	15	0:00	1:00	S
-Rule Pakistan	2009	only	-	Nov	1	0:00	0	-
+Rule Pakistan	2009	max	-	Apr	15	0:00	1:00	S
+Rule Pakistan	2009	max	-	Nov	1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
