@@ -93,6 +93,10 @@ struct l_old_select_argv {
 	struct l_timeval	*timeout;
 };
 
+static int	linux_mmap_common(struct thread *td, l_uintptr_t addr,
+		    l_size_t len, l_int prot, l_int flags, l_int fd,
+		    l_loff_t pos);
+
 int
 linux_to_bsd_sigaltstack(int lsa)
 {
@@ -591,12 +595,9 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
 
-static int linux_mmap_common(struct thread *, struct l_mmap_argv *);
-
 int
 linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 {
-	struct l_mmap_argv linux_args;
 
 #ifdef DEBUG
 	if (ldebug(mmap2))
@@ -605,14 +606,9 @@ linux_mmap2(struct thread *td, struct linux_mmap2_args *args)
 		    args->flags, args->fd, args->pgoff);
 #endif
 
-	linux_args.addr = args->addr;
-	linux_args.len = args->len;
-	linux_args.prot = args->prot;
-	linux_args.flags = args->flags;
-	linux_args.fd = args->fd;
-	linux_args.pgoff = args->pgoff * PAGE_SIZE;
-
-	return (linux_mmap_common(td, &linux_args));
+	return (linux_mmap_common(td, args->addr, args->len, args->prot,
+		args->flags, args->fd, (uint64_t)(uint32_t)args->pgoff *
+		PAGE_SIZE));
 }
 
 int
@@ -632,11 +628,14 @@ linux_mmap(struct thread *td, struct linux_mmap_args *args)
 		    linux_args.flags, linux_args.fd, linux_args.pgoff);
 #endif
 
-	return (linux_mmap_common(td, &linux_args));
+	return (linux_mmap_common(td, linux_args.addr, linux_args.len,
+	    linux_args.prot, linux_args.flags, linux_args.fd,
+	    (uint32_t)linux_args.pgoff));
 }
 
 static int
-linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
+linux_mmap_common(struct thread *td, l_uintptr_t addr, l_size_t len, l_int prot,
+    l_int flags, l_int fd, l_loff_t pos)
 {
 	struct proc *p = td->td_proc;
 	struct mmap_args /* {
@@ -659,21 +658,20 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	 * Linux mmap(2):
 	 * You must specify exactly one of MAP_SHARED and MAP_PRIVATE
 	 */
-	if (! ((linux_args->flags & LINUX_MAP_SHARED) ^
-	    (linux_args->flags & LINUX_MAP_PRIVATE)))
+	if (!((flags & LINUX_MAP_SHARED) ^ (flags & LINUX_MAP_PRIVATE)))
 		return (EINVAL);
 
-	if (linux_args->flags & LINUX_MAP_SHARED)
+	if (flags & LINUX_MAP_SHARED)
 		bsd_args.flags |= MAP_SHARED;
-	if (linux_args->flags & LINUX_MAP_PRIVATE)
+	if (flags & LINUX_MAP_PRIVATE)
 		bsd_args.flags |= MAP_PRIVATE;
-	if (linux_args->flags & LINUX_MAP_FIXED)
+	if (flags & LINUX_MAP_FIXED)
 		bsd_args.flags |= MAP_FIXED;
-	if (linux_args->flags & LINUX_MAP_ANON)
+	if (flags & LINUX_MAP_ANON)
 		bsd_args.flags |= MAP_ANON;
 	else
 		bsd_args.flags |= MAP_NOSYNC;
-	if (linux_args->flags & LINUX_MAP_GROWSDOWN)
+	if (flags & LINUX_MAP_GROWSDOWN)
 		bsd_args.flags |= MAP_STACK;
 
 	/*
@@ -681,12 +679,12 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	 * on Linux/i386. We do this to ensure maximum compatibility.
 	 * Linux/ia64 does the same in i386 emulation mode.
 	 */
-	bsd_args.prot = linux_args->prot;
+	bsd_args.prot = prot;
 	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
 		bsd_args.prot |= PROT_READ | PROT_EXEC;
 
 	/* Linux does not check file descriptor when MAP_ANONYMOUS is set. */
-	bsd_args.fd = (bsd_args.flags & MAP_ANON) ? -1 : linux_args->fd;
+	bsd_args.fd = (bsd_args.flags & MAP_ANON) ? -1 : fd;
 	if (bsd_args.fd != -1) {
 		/*
 		 * Linux follows Solaris mmap(2) description:
@@ -711,9 +709,9 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		fdrop(fp, td);
 	}
 
-	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
+	if (flags & LINUX_MAP_GROWSDOWN) {
 		/* 
-		 * The linux MAP_GROWSDOWN option does not limit auto
+		 * The Linux MAP_GROWSDOWN option does not limit auto
 		 * growth of the region.  Linux mmap with this option
 		 * takes as addr the inital BOS, and as len, the initial
 		 * region size.  It can then grow down from addr without
@@ -734,8 +732,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * fixed size of (STACK_SIZE - GUARD_SIZE).
 		 */
 
-		if ((caddr_t)PTRIN(linux_args->addr) + linux_args->len >
-		    p->p_vmspace->vm_maxsaddr) {
+		if ((caddr_t)PTRIN(addr) + len > p->p_vmspace->vm_maxsaddr) {
 			/* 
 			 * Some linux apps will attempt to mmap
 			 * thread stacks near the top of their
@@ -766,19 +763,19 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * we map the full stack, since we don't have a way
 		 * to autogrow it.
 		 */
-		if (linux_args->len > STACK_SIZE - GUARD_SIZE) {
-			bsd_args.addr = (caddr_t)PTRIN(linux_args->addr);
-			bsd_args.len = linux_args->len;
+		if (len > STACK_SIZE - GUARD_SIZE) {
+			bsd_args.addr = (caddr_t)PTRIN(addr);
+			bsd_args.len = len;
 		} else {
-			bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) -
-			    (STACK_SIZE - GUARD_SIZE - linux_args->len);
+			bsd_args.addr = (caddr_t)PTRIN(addr) -
+			    (STACK_SIZE - GUARD_SIZE - len);
 			bsd_args.len = STACK_SIZE - GUARD_SIZE;
 		}
 	} else {
-		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr);
-		bsd_args.len  = linux_args->len;
+		bsd_args.addr = (caddr_t)PTRIN(addr);
+		bsd_args.len  = len;
 	}
-	bsd_args.pos = linux_args->pgoff;
+	bsd_args.pos = pos;
 
 #ifdef DEBUG
 	if (ldebug(mmap))
