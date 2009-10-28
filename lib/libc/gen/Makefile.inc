@@ -62,7 +62,7 @@ MAN+=	alarm.3 arc4random.3 \
 	posix_spawnattr_getpgroup.3 posix_spawnattr_getschedparam.3 \
 	posix_spawnattr_getschedpolicy.3 posix_spawnattr_init.3 \
 	posix_spawnattr_getsigdefault.3 posix_spawnattr_getsigmask.3 \
-	pselect.3 psignal.3 pwcache.3 \
+	psignal.3 pwcache.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 sem_destroy.3 sem_getvalue.3 sem_init.3 \
 	sem_open.3 sem_post.3 sem_timedwait.3 sem_wait.3 \

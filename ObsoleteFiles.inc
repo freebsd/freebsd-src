@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20091027: pselect.3 implemented as syscall
+OLD_FILES+=usr/share/man/man3/pselect.3.gz
 # 20091005: fusword.9 and susword.9 removed
 OLD_FILES+=usr/share/man/man9/fusword.9.gz
 OLD_FILES+=usr/share/man/man9/susword.9.gz
