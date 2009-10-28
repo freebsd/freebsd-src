@@ -1,5 +1,5 @@
 # <pre>
-# @(#)australasia	8.13
+# @(#)australasia	8.14
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -456,6 +456,36 @@ Zone Pacific/Pago_Pago	 12:37:12 -	LMT	1879 Jul  5
 # <a href="http://www.timeanddate.com/news/time/samoa-dst-plan-2009.html">
 # http://www.timeanddate.com/news/time/samoa-dst-plan-2009.html
 # </a>
+
+# From Alexander Krivenyshev (2009-10-03):
+# First, my deepest condolences to people of Samoa islands and all families and
+# loved ones around the world who lost their lives in the earthquake and tsunami.
+#
+# Considering the recent devastation on Samoa by earthquake and tsunami and that
+# many government offices/ ministers are closed- not sure if "Daylight Saving
+# Bill 2009" will be implemented in next few days- on October 4, 2009.
+#
+# Here is reply from Consulate-General of Samoa in New Zealand
+# ---------------------------
+# Consul General
+# consulgeneral@samoaconsulate.org.nz
+#
+# Talofa Alexander,
+#
+# Thank you for your sympathy for our country but at this time we have not
+# been informed about the Daylight Savings Time Change.  Most Ministries in
+# Apia are closed or relocating due to weather concerns.
+#
+# When we do find out if they are still proceeding with the time change we
+# will advise you soonest.
+#
+# Kind Regards,
+# Lana
+# for: Consul General
+
+# From Steffen Thorsen (2009-10-05):
+# We have called a hotel in Samoa and asked about local time there - they 
+# are still on standard time.
 
 Zone Pacific/Apia	 12:33:04 -	LMT	1879 Jul  5
 			-11:26:56 -	LMT	1911
