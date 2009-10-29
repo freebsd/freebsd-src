@@ -187,83 +187,94 @@
 #define MSGRNG_CODE_BOOT_WAKEUP 200
 #define MSGRNG_CODE_SPI4 3
 
-static inline int msgrng_xgmac_stid_rfr(int id)
+static inline int 
+msgrng_xgmac_stid_rfr(int id)
 {
-  return !id ? MSGRNG_STNID_XMAC0RFR : MSGRNG_STNID_XMAC1RFR;
+	return !id ? MSGRNG_STNID_XMAC0RFR : MSGRNG_STNID_XMAC1RFR;
 }
 
-static inline int msgrng_xgmac_stid_jfr(int id)
+static inline int 
+msgrng_xgmac_stid_jfr(int id)
 {
-  return !id ? MSGRNG_STNID_XMAC0JFR : MSGRNG_STNID_XMAC1JFR;
+	return !id ? MSGRNG_STNID_XMAC0JFR : MSGRNG_STNID_XMAC1JFR;
 }
 
-static inline int msgrng_xgmac_stid_tx(int id)
+static inline int 
+msgrng_xgmac_stid_tx(int id)
 {
-  return !id ? MSGRNG_STNID_XMAC0_00_TX : MSGRNG_STNID_XMAC1_00_TX;
+	return !id ? MSGRNG_STNID_XMAC0_00_TX : MSGRNG_STNID_XMAC1_00_TX;
 }
 
-static inline int msgrng_gmac_stid_rfr(int id)
+static inline int 
+msgrng_gmac_stid_rfr(int id)
 {
-  return (MSGRNG_STNID_GMACRFR_0);
+	return (MSGRNG_STNID_GMACRFR_0);
 }
 
-static inline int msgrng_gmac_stid_rfr_split_mode(int id)
+static inline int 
+msgrng_gmac_stid_rfr_split_mode(int id)
 {
-  return ((id>>1)?MSGRNG_STNID_GMACRFR_1:MSGRNG_STNID_GMACRFR_0);
+	return ((id >> 1) ? MSGRNG_STNID_GMACRFR_1 : MSGRNG_STNID_GMACRFR_0);
 }
 
-static inline int msgrng_gmac_stid_jfr(int id)
+static inline int 
+msgrng_gmac_stid_jfr(int id)
 {
-  return MSGRNG_STNID_GMACJFR_0;
+	return MSGRNG_STNID_GMACJFR_0;
 }
 
-static inline int msgrng_gmac_stid_jfr_split_mode(int id)
+static inline int 
+msgrng_gmac_stid_jfr_split_mode(int id)
 {
-  return ((id>>1)?MSGRNG_STNID_GMACJFR_1:MSGRNG_STNID_GMACJFR_0);
+	return ((id >> 1) ? MSGRNG_STNID_GMACJFR_1 : MSGRNG_STNID_GMACJFR_0);
 }
 
-static inline int msgrng_gmac_stid_tx(int id)
+static inline int 
+msgrng_gmac_stid_tx(int id)
 {
-  return (MSGRNG_STNID_GMACTX0 + id);
+	return (MSGRNG_STNID_GMACTX0 + id);
 }
 
-static inline void msgrng_send(unsigned int stid)
+static inline void 
+msgrng_send(unsigned int stid)
 {
-  __asm__ volatile (
-		    ".set push\n"
-		    ".set noreorder\n"
-		    "sync\n"
-		    //		    "msgsnd %0\n"
-		    "move  $8, %0\n"
-		    "c2    0x80001\n"
-		    ".set pop\n"
-		    : : "r" (stid) : "$8"
-		    );
+	__asm__ volatile (
+	             ".set push\n"
+	             ".set noreorder\n"
+	             "sync\n"
+	    //       "msgsnd %0\n"
+	             "move  $8, %0\n"
+	             "c2    0x80001\n"
+	             ".set pop\n"
+	    ::       "r" (stid):"$8"
+	);
 }
 
-static inline void msgrng_receive(unsigned int pri)
+static inline void 
+msgrng_receive(unsigned int pri)
 {
-  __asm__ volatile (
-		    ".set push\n"
-		    ".set noreorder\n"
-		    //		    "msgld %0\n"
-		    "move $8, %0\n"
-		    "c2   0x80002\n"
-		    ".set pop\n"
-		    : : "r" (pri) : "$8"
-		    );
+	__asm__ volatile (
+	             ".set push\n"
+	             ".set noreorder\n"
+	    //       "msgld %0\n"
+	             "move $8, %0\n"
+	             "c2   0x80002\n"
+	             ".set pop\n"
+	    ::       "r" (pri):"$8"
+	);
 }
-static inline void msgrng_wait(unsigned int mask)
+static inline void 
+msgrng_wait(unsigned int mask)
 {
-  __asm__ volatile (
-		    ".set push\n"
-		    ".set noreorder\n"
-		    //		    "msgwait %0\n"
-		    "move $8, %0\n"
-		    "c2   0x80003\n"
-		    ".set pop\n"
-		    : :"r" (mask) : "$8"
-		    );
+	__asm__ volatile (
+	             ".set push\n"
+	             ".set noreorder\n"
+	    //       "msgwait %0\n"
+	             "move $8, %0\n"
+	             "c2   0x80003\n"
+	             ".set pop\n"
+	    ::       "r" (mask):"$8"
+	);
 }
 
 #define msgrng_enable(flags)                        \
@@ -292,34 +303,35 @@ do {                                                \
 #define msgrng_flags_restore(flags) msgrng_disable(flags)
 
 struct msgrng_msg {
-  __uint64_t msg0;
-  __uint64_t msg1;
-  __uint64_t msg2;
-  __uint64_t msg3;
+	__uint64_t msg0;
+	__uint64_t msg1;
+	__uint64_t msg2;
+	__uint64_t msg3;
 };
 
-static inline void message_send_block_fast(int size, unsigned int code, unsigned int stid, 
-                                         unsigned long long msg0, unsigned long long msg1, 
-					 unsigned long long msg2, unsigned long long msg3)
+static inline void 
+message_send_block_fast(int size, unsigned int code, unsigned int stid,
+    unsigned long long msg0, unsigned long long msg1,
+    unsigned long long msg2, unsigned long long msg3)
 {
-  __asm__ __volatile__ (".set push\n"
-                        ".set noreorder\n"
-                        ".set mips64\n"
-                        "dmtc2 %1, $0, 0\n"
-                        "dmtc2 %2, $0, 1\n"
-                        "dmtc2 %3, $0, 2\n"
-                        "dmtc2 %4, $0, 3\n"
-                        "move $8, %0\n"
-                        "1: c2 0x80001\n"
-                        "mfc2 $8, $2\n"
-                        "andi $8, $8, 0x6\n"
-                        "bnez $8, 1b\n"
-                        "move $8, %0\n"
-                        ".set pop\n"
-                        :
-                        : "r"(((size-1)<<16)|(code<<8)|stid), "r" (msg0), "r" (msg1), "r"(msg2), "r"(msg3)
-                        : "$8"
-                        );
+	__asm__ __volatile__(".set push\n"
+	            ".set noreorder\n"
+	            ".set mips64\n"
+	            "dmtc2 %1, $0, 0\n"
+	            "dmtc2 %2, $0, 1\n"
+	            "dmtc2 %3, $0, 2\n"
+	            "dmtc2 %4, $0, 3\n"
+	            "move $8, %0\n"
+	            "1: c2 0x80001\n"
+	            "mfc2 $8, $2\n"
+	            "andi $8, $8, 0x6\n"
+	            "bnez $8, 1b\n"
+	            "move $8, %0\n"
+	            ".set pop\n"
+	    :
+	    :       "r"(((size - 1) << 16) | (code << 8) | stid), "r"(msg0), "r"(msg1), "r"(msg2), "r"(msg3)
+	    :       "$8"
+	);
 }
 
 #define message_receive_fast(bucket, size, code, stid, msg0, msg1, msg2, msg3)      \
@@ -338,86 +350,94 @@ static inline void message_send_block_fast(int size, unsigned int code, unsigned
                  _tmp=0;                                        \
                 }                                               \
            _tmp;                                                \
-        } )                                                     
+        } )
 
-static __inline__ int message_send(unsigned int size, unsigned int code,
-				   unsigned int stid, struct msgrng_msg *msg)
+static __inline__ int 
+message_send(unsigned int size, unsigned int code,
+    unsigned int stid, struct msgrng_msg *msg)
 {
-  unsigned int dest = 0;
-  unsigned long long status=0;
-  int i=0;
+	unsigned int dest = 0;
+	unsigned long long status = 0;
+	int i = 0;
 
-  msgrng_load_tx_msg0(msg->msg0);
-  msgrng_load_tx_msg1(msg->msg1);
-  msgrng_load_tx_msg2(msg->msg2);
-  msgrng_load_tx_msg3(msg->msg3);
+	msgrng_load_tx_msg0(msg->msg0);
+	msgrng_load_tx_msg1(msg->msg1);
+	msgrng_load_tx_msg2(msg->msg2);
+	msgrng_load_tx_msg3(msg->msg3);
 
-  dest = ((size-1)<<16)|(code<<8)|(stid);
+	dest = ((size - 1) << 16) | (code << 8) | (stid);
 
-  //dbg_msg("Sending msg<%Lx,%Lx,%Lx,%Lx> to dest = %x\n", 
-    //msg->msg0, msg->msg1, msg->msg2, msg->msg3, dest);
+	//dbg_msg("Sending msg<%Lx,%Lx,%Lx,%Lx> to dest = %x\n",
+	    //msg->msg0, msg->msg1, msg->msg2, msg->msg3, dest);
 
-  msgrng_send(dest);
+	msgrng_send(dest);
 
-  for(i=0;i<16;i++) {
-	status = msgrng_read_status();
-//	dbg_msg("status = %Lx\n", status);
+	for (i = 0; i < 16; i++) {
+		status = msgrng_read_status();
+		//dbg_msg("status = %Lx\n", status);
 
-	if (status & 0x6) {
-	  continue;
+		if (status & 0x6) {
+			continue;
+		} else
+			break;
 	}
-	else break;
+	if (i == 16) {
+		if (dest == 0x61)
+			//dbg_msg("Processor %x: Unable to send msg to %llx\n", processor_id(), dest);
+		return status & 0x6;
 	}
-    if (i==16) {
-	  if (dest == 0x61)
-		  //dbg_msg("Processor %x: Unable to send msg to %llx\n", processor_id(), dest);
-	  return status & 0x6;
-	}
-  return msgrng_read_status() & 0x06;
+	return msgrng_read_status() & 0x06;
 }
 
-static __inline__ int message_send_retry(unsigned int size, unsigned int code, 
-					 unsigned int stid, struct msgrng_msg *msg)
+static __inline__ int 
+message_send_retry(unsigned int size, unsigned int code,
+    unsigned int stid, struct msgrng_msg *msg)
 {
-  int res = 0;
-  int retry = 0;
+	int res = 0;
+	int retry = 0;
 
-  for(;;) {
-    res = message_send(size, code, stid, msg);
-    /* retry a pending fail */
-    if (res & 0x02) continue;
-    /* credit fail */
-    if (res & 0x04) retry++;
-    else break;
-    if (retry == 4) return res & 0x06;
-  }
+	for (;;) {
+		res = message_send(size, code, stid, msg);
+		/* retry a pending fail */
+		if (res & 0x02)
+			continue;
+		/* credit fail */
+		if (res & 0x04)
+			retry++;
+		else
+			break;
+		if (retry == 4)
+			return res & 0x06;
+	}
 
-  return 0;
+	return 0;
 }
 
-static __inline__ int message_receive(int pri, int *size, int *code, int *src_id, 
-				      struct msgrng_msg *msg)
+static __inline__ int 
+message_receive(int pri, int *size, int *code, int *src_id,
+    struct msgrng_msg *msg)
 {
-  int res = message_receive_fast(pri, *size, *code, *src_id, msg->msg0, msg->msg1, msg->msg2, msg->msg3);
-  
+	int res = message_receive_fast(pri, *size, *code, *src_id, msg->msg0, msg->msg1, msg->msg2, msg->msg3);
+
 #ifdef MSGRING_DUMP_MESSAGES
-  if (!res) {
-    dbg_msg("Received msg <%llx, %llx, %llx, %llx> <%d,%d,%d>\n", 
-	    msg->msg0, msg->msg1, msg->msg2, msg->msg3,
-	    *size, *code, *src_id);
-  }
+	if (!res) {
+		dbg_msg("Received msg <%llx, %llx, %llx, %llx> <%d,%d,%d>\n",
+		    msg->msg0, msg->msg1, msg->msg2, msg->msg3,
+		    *size, *code, *src_id);
+	}
 #endif
-  
-  return res;
+
+	return res;
 }
+
 #define MSGRNG_STN_RX_QSIZE 256
 
 struct stn_cc {
-  unsigned short counters[16][8];
+	unsigned short counters[16][8];
 };
 
 struct bucket_size {
-  unsigned short bucket[128];
+	unsigned short bucket[128];
 };
 
 extern struct bucket_size bucket_sizes;
@@ -495,12 +515,13 @@ enum {
 	MAX_TX_STNS
 };
 
-extern int register_msgring_handler(int major, 
-				    void (*action)(int, int,int,int,struct msgrng_msg *, void *),
-				    void *dev_id);
-extern void xlr_msgring_cpu_init(void);
+extern int 
+register_msgring_handler(int major,
+    void (*action) (int, int, int, int, struct msgrng_msg *, void *),
+    void *dev_id);
+	extern void xlr_msgring_cpu_init(void);
 
-extern void xlr_msgring_config(void);
+	extern void xlr_msgring_config(void);
 
 #define cpu_to_msgring_bucket(cpu) ((((cpu) >> 2)<<3)|((cpu) & 0x03))
 

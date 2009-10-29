@@ -72,12 +72,13 @@ __FBSDID("$FreeBSD: src/sys/dev/usb/ehci_pci.c,v 1.18.2.4 2008/04/23 18:54:51 jh
 /*#include <dev/usb/usb_mem.h>   */
 
 #include <mips/rmi/ehcireg.h>
-#include <mips/rmi/ehcivar.h> 
+#include <mips/rmi/ehcivar.h>
 
 #ifdef USB_DEBUG
 #define EHCI_DEBUG USB_DEBUG
 #define DPRINTF(x)	do { if (ehcidebug) logprintf x; } while (0)
 extern int ehcidebug;
+
 #else
 #define DPRINTF(x)
 #endif
@@ -158,8 +159,8 @@ ehci_xls_attach(device_t self)
 	sc->sc_bus.usbrev = USBREV_2_0;
 
 	rid = 0;
-	sc->io_res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid, 
-		      0ul, ~0ul, 0x400, RF_ACTIVE);
+	sc->io_res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
+	    0ul, ~0ul, 0x400, RF_ACTIVE);
 	if (!sc->io_res) {
 		device_printf(self, "Could not map memory\n");
 		return ENXIO;
@@ -169,7 +170,7 @@ ehci_xls_attach(device_t self)
 
 	rid = 0;
 	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid,
-				   39, 39, 1, RF_SHAREABLE | RF_ACTIVE);
+	    39, 39, 1, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(self, "Could not allocate irq\n");
 		ehci_xls_detach(self);
@@ -195,7 +196,6 @@ ehci_xls_attach(device_t self)
 		ehci_xls_detach(self);
 		return ENXIO;
 	}
-
 	/*
 	 * Find companion controllers.  According to the spec they always
 	 * have lower function numbers so they should be enumerated already.
@@ -207,7 +207,6 @@ ehci_xls_attach(device_t self)
 		ehci_xls_detach(self);
 		return ENXIO;
 	}
-
 	sc->sc_ncomp = 0;
 
 	ehci_xls_takecontroller(self);
@@ -216,7 +215,6 @@ ehci_xls_attach(device_t self)
 		sc->sc_flags |= EHCI_SCFLG_DONEINIT;
 		err = device_probe_and_attach(sc->sc_bus.bdev);
 	}
-
 	if (err) {
 		device_printf(self, "USB init failed err=%d\n", err);
 		ehci_xls_detach(self);
@@ -234,7 +232,6 @@ ehci_xls_detach(device_t self)
 		ehci_detach(sc, 0);
 		sc->sc_flags &= ~EHCI_SCFLG_DONEINIT;
 	}
-
 	/*
 	 * disable interrupts that might have been switched on in ehci_init
 	 */
@@ -270,13 +267,13 @@ ehci_xls_detach(device_t self)
 static void
 ehci_xls_takecontroller(device_t self)
 {
-  //device_printf(self, "In func %s\n", __func__);
+	//device_printf(self, "In func %s\n", __func__);
 }
 
 static void
 ehci_xls_givecontroller(device_t self)
 {
-  //device_printf(self, "In func %s\n", __func__);
+	//device_printf(self, "In func %s\n", __func__);
 }
 
 static device_method_t ehci_methods[] = {

@@ -200,58 +200,69 @@
 extern struct mtx xlr_pic_lock;
 
 
-static __inline__ __uint32_t pic_read_control(void)
+static __inline__ __uint32_t 
+pic_read_control(void)
 {
-  xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-  __uint32_t reg;
-  mtx_lock_spin(&xlr_pic_lock);
-  xlr_read_reg(mmio, PIC_CTRL);
-  mtx_unlock_spin(&xlr_pic_lock);
-  return reg;
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+	__uint32_t reg;
+
+	mtx_lock_spin(&xlr_pic_lock);
+	xlr_read_reg(mmio, PIC_CTRL);
+	mtx_unlock_spin(&xlr_pic_lock);
+	return reg;
 }
 
-static __inline__ void pic_write_control(__uint32_t control)
+static __inline__ void 
+pic_write_control(__uint32_t control)
 {
-  xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-  mtx_lock_spin(&xlr_pic_lock);
-  xlr_write_reg(mmio, PIC_CTRL, control);
-  mtx_unlock_spin(&xlr_pic_lock);
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+
+	mtx_lock_spin(&xlr_pic_lock);
+	xlr_write_reg(mmio, PIC_CTRL, control);
+	mtx_unlock_spin(&xlr_pic_lock);
 }
-static __inline__ void pic_update_control(__uint32_t control)
+static __inline__ void 
+pic_update_control(__uint32_t control)
 {
-  xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-  mtx_lock_spin(&xlr_pic_lock);
-  xlr_write_reg(mmio, PIC_CTRL, (control | xlr_read_reg(mmio, PIC_CTRL)));
-  mtx_unlock_spin(&xlr_pic_lock);
-}
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-static __inline__ void pic_ack(int irq)
-{
-  xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-
-  /* ack the pic, if needed */
-  if (!PIC_IRQ_IS_IRT(irq)) return; 
-
-  if(PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
-  	mtx_lock_spin(&xlr_pic_lock);
-    xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE) ));
-  	mtx_unlock_spin(&xlr_pic_lock);
-    return;
-  }
-  return;
+	mtx_lock_spin(&xlr_pic_lock);
+	xlr_write_reg(mmio, PIC_CTRL, (control | xlr_read_reg(mmio, PIC_CTRL)));
+	mtx_unlock_spin(&xlr_pic_lock);
 }
 
-static inline void pic_delayed_ack(int irq) 
+static __inline__ void 
+pic_ack(int irq)
 {
-  xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-  if (!PIC_IRQ_IS_IRT(irq)) return;
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-  if(!PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
-  	mtx_lock_spin(&xlr_pic_lock);
-    xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE) ));
-  	mtx_unlock_spin(&xlr_pic_lock);
-    return;
-  }
+	/* ack the pic, if needed */
+	if (!PIC_IRQ_IS_IRT(irq))
+		return;
+
+	if (PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
+		mtx_lock_spin(&xlr_pic_lock);
+		xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
+		mtx_unlock_spin(&xlr_pic_lock);
+		return;
+	}
+	return;
 }
 
-#endif /* _RMI_PIC_H_ */
+static inline void 
+pic_delayed_ack(int irq)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+
+	if (!PIC_IRQ_IS_IRT(irq))
+		return;
+
+	if (!PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
+		mtx_lock_spin(&xlr_pic_lock);
+		xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
+		mtx_unlock_spin(&xlr_pic_lock);
+		return;
+	}
+}
+
+#endif				/* _RMI_PIC_H_ */

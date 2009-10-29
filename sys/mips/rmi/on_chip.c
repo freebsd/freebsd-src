@@ -49,11 +49,14 @@
 #include <mips/rmi/pic.h>
 #include <mips/rmi/board.h>
 
-void disable_msgring_int(void *arg) ;
-void enable_msgring_int(void *arg) ;
+void 
+disable_msgring_int(void *arg);
+void 
+enable_msgring_int(void *arg);
+
 /* definitions */
 struct tx_stn_handler {
-	void (*action)(int, int, int, int, struct msgrng_msg *, void *);
+	void (*action) (int, int, int, int, struct msgrng_msg *, void *);
 	void *dev_id;
 };
 
@@ -78,11 +81,11 @@ static struct mtx msgrng_lock;
 static int msgring_int_enabled;
 struct mtx xlr_pic_lock;
 
-static int    msgring_pop_num_buckets;
-static uint32_t  msgring_pop_bucket_mask;
-static int    msgring_int_type;
-static int    msgring_watermark_count;
-static uint32_t  msgring_thread_mask;
+static int msgring_pop_num_buckets;
+static uint32_t msgring_pop_bucket_mask;
+static int msgring_int_type;
+static int msgring_watermark_count;
+static uint32_t msgring_thread_mask;
 
 uint32_t msgrng_msg_cycles = 0;
 
@@ -90,7 +93,8 @@ int xlr_counters[MAXCPU][XLR_MAX_COUNTERS] __aligned(XLR_CACHELINE_SIZE);
 
 void xlr_msgring_handler(struct trapframe *);
 
-void xlr_msgring_cpu_init(void)
+void 
+xlr_msgring_cpu_init(void)
 {
 	struct stn_cc *cc_config;
 	struct bucket_size *bucket_sizes;
@@ -106,19 +110,20 @@ void xlr_msgring_cpu_init(void)
 	cc_config = xlr_board_info.credit_configs[id];
 
 	msgrng_flags_save(flags);
-            
-	/* Message Stations are shared among all threads in a cpu core
-	 * Assume, thread 0 on all cores are always active when more than
-	 * 1 thread is active in a core
+
+	/*
+	 * Message Stations are shared among all threads in a cpu core
+	 * Assume, thread 0 on all cores are always active when more than 1
+	 * thread is active in a core
 	 */
-	msgrng_write_bucksize(0, bucket_sizes->bucket[id*8 + 0]);	
-	msgrng_write_bucksize(1, bucket_sizes->bucket[id*8 + 1]);	
-	msgrng_write_bucksize(2, bucket_sizes->bucket[id*8 + 2]);	
-	msgrng_write_bucksize(3, bucket_sizes->bucket[id*8 + 3]);	
-	msgrng_write_bucksize(4, bucket_sizes->bucket[id*8 + 4]);	
-	msgrng_write_bucksize(5, bucket_sizes->bucket[id*8 + 5]);	
-	msgrng_write_bucksize(6, bucket_sizes->bucket[id*8 + 6]);	
-	msgrng_write_bucksize(7, bucket_sizes->bucket[id*8 + 7]);	
+	msgrng_write_bucksize(0, bucket_sizes->bucket[id * 8 + 0]);
+	msgrng_write_bucksize(1, bucket_sizes->bucket[id * 8 + 1]);
+	msgrng_write_bucksize(2, bucket_sizes->bucket[id * 8 + 2]);
+	msgrng_write_bucksize(3, bucket_sizes->bucket[id * 8 + 3]);
+	msgrng_write_bucksize(4, bucket_sizes->bucket[id * 8 + 4]);
+	msgrng_write_bucksize(5, bucket_sizes->bucket[id * 8 + 5]);
+	msgrng_write_bucksize(6, bucket_sizes->bucket[id * 8 + 6]);
+	msgrng_write_bucksize(7, bucket_sizes->bucket[id * 8 + 7]);
 
 	MSGRNG_CC_INIT_CPU_DEST(0, cc_config->counters);
 	MSGRNG_CC_INIT_CPU_DEST(1, cc_config->counters);
@@ -140,7 +145,8 @@ void xlr_msgring_cpu_init(void)
 	msgrng_flags_restore(flags);
 }
 
-void xlr_msgring_config(void)
+void 
+xlr_msgring_config(void)
 {
 	msgring_int_type = 0x02;
 	msgring_pop_num_buckets = 8;
@@ -154,34 +160,38 @@ void xlr_msgring_config(void)
 /*          msgring_watermark_count, msgring_thread_mask); */
 }
 
-void xlr_msgring_handler(struct trapframe *tf)
+void 
+xlr_msgring_handler(struct trapframe *tf)
 {
 	unsigned long mflags;
-	int bucket=0;
-	int size=0, code=0, rx_stid=0, tx_stid=0;
+	int bucket = 0;
+	int size = 0, code = 0, rx_stid = 0, tx_stid = 0;
 	struct msgrng_msg msg;
 	unsigned int bucket_empty_bm = 0;
-	unsigned int status=0;
+	unsigned int status = 0;
 
 	xlr_inc_counter(MSGRNG_INT);
 	/* TODO: not necessary to disable preemption */
 	msgrng_flags_save(mflags);
 
 	/* First Drain all the high priority messages */
-	for(;;) {
+	for (;;) {
 		bucket_empty_bm = (msgrng_read_status() >> 24) & msgring_pop_bucket_mask;
 
-		/* all buckets empty, break*/
-		if ( bucket_empty_bm == msgring_pop_bucket_mask) break;
+		/* all buckets empty, break */
+		if (bucket_empty_bm == msgring_pop_bucket_mask)
+			break;
 
-		for(bucket=0; bucket < msgring_pop_num_buckets; bucket++) {      
+		for (bucket = 0; bucket < msgring_pop_num_buckets; bucket++) {
 			uint32_t cycles = 0;
 
-			if ((bucket_empty_bm & (1 << bucket))/*empty*/) continue;
-      
+			if ((bucket_empty_bm & (1 << bucket)) /* empty */ )
+				continue;
+
 			status = message_receive(bucket, &size, &code, &rx_stid, &msg);
-			if (status) continue;
-      
+			if (status)
+				continue;
+
 			xlr_inc_counter(MSGRNG_MSG);
 			msgrng_msg_cycles = mips_rd_count();
 			cycles = msgrng_msg_cycles;
@@ -190,20 +200,19 @@ void xlr_msgring_handler(struct trapframe *tf)
 
 			if (!tx_stn_handlers[tx_stid].action) {
 				printf("[%s]: No Handler for message from stn_id=%d, bucket=%d, "
-				       "size=%d, msg0=%llx, dropping message\n", 
-				       __FUNCTION__, tx_stid, bucket, size, msg.msg0);
-			}
-			else {
+				    "size=%d, msg0=%llx, dropping message\n",
+				    __FUNCTION__, tx_stid, bucket, size, msg.msg0);
+			} else {
 				//printf("[%s]: rx_stid = %d\n", __FUNCTION__, rx_stid);
 				msgrng_flags_restore(mflags);
-				(*tx_stn_handlers[tx_stid].action)(bucket, size, code, rx_stid,
-								   &msg, tx_stn_handlers[tx_stid].dev_id);
+				(*tx_stn_handlers[tx_stid].action) (bucket, size, code, rx_stid,
+				    &msg, tx_stn_handlers[tx_stid].dev_id);
 				msgrng_flags_save(mflags);
-			}      
-			xlr_set_counter(MSGRNG_MSG_CYCLES, (read_c0_count()-cycles));
+			}
+			xlr_set_counter(MSGRNG_MSG_CYCLES, (read_c0_count() - cycles));
 		}
 	}
-  
+
 	xlr_set_counter(MSGRNG_EXIT_STATUS, msgrng_read_status());
 
 	msgrng_flags_restore(mflags);
@@ -213,39 +222,42 @@ void xlr_msgring_handler(struct trapframe *tf)
 	/* Call the msg callback */
 }
 
-void enable_msgring_int(void *arg) 
+void 
+enable_msgring_int(void *arg)
 {
-	unsigned long mflags=0;
+	unsigned long mflags = 0;
 
 	msgrng_access_save(&msgrng_lock, mflags);
 	/* enable the message ring interrupts */
-	msgrng_write_config((msgring_watermark_count<<24)|(IRQ_MSGRING<<16)
-			    |(msgring_thread_mask<<8)|msgring_int_type);
-	msgrng_access_restore(&msgrng_lock, mflags);  
+	msgrng_write_config((msgring_watermark_count << 24) | (IRQ_MSGRING << 16)
+	    | (msgring_thread_mask << 8) | msgring_int_type);
+	msgrng_access_restore(&msgrng_lock, mflags);
 }
 
-void disable_msgring_int(void *arg) 
+void 
+disable_msgring_int(void *arg)
 {
-	unsigned long mflags=0;
+	unsigned long mflags = 0;
 	uint32_t config;
 
 	msgrng_access_save(&msgrng_lock, mflags);
 	config = msgrng_read_config();
 	config &= ~0x3;
 	msgrng_write_config(config);
-	msgrng_access_restore(&msgrng_lock, mflags);  
+	msgrng_access_restore(&msgrng_lock, mflags);
 }
 
 extern void platform_prep_smp_launch(void);
 extern void msgring_process_fast_intr(void *arg);
 
-int register_msgring_handler(int major, 
-			     void (*action)(int, int,int,int,struct msgrng_msg *, void *),
-			     void *dev_id)
+int 
+register_msgring_handler(int major,
+    void (*action) (int, int, int, int, struct msgrng_msg *, void *),
+    void *dev_id)
 {
-	void *cookie;  /* FIXME - use? */
+	void *cookie;		/* FIXME - use? */
 
-	if (major >= MAX_TX_STNS) 
+	if (major >= MAX_TX_STNS)
 		return 1;
 
 	//dbg_msg("major=%d, action=%p, dev_id=%p\n", major, action, dev_id);
@@ -254,47 +266,49 @@ int register_msgring_handler(int major,
 	tx_stn_handlers[major].action = action;
 	tx_stn_handlers[major].dev_id = dev_id;
 	mtx_unlock_spin(&msgrng_lock);
-  
+
 	if (xlr_test_and_set(&msgring_int_enabled)) {
 		platform_prep_smp_launch();
 
-		cpu_establish_hardintr("msgring", (driver_filter_t *)NULL,
-						   (driver_intr_t *)msgring_process_fast_intr,
-						   NULL, IRQ_MSGRING, INTR_TYPE_NET|INTR_FAST, &cookie);
+		cpu_establish_hardintr("msgring", (driver_filter_t *) NULL,
+		    (driver_intr_t *) msgring_process_fast_intr,
+		    NULL, IRQ_MSGRING, INTR_TYPE_NET | INTR_FAST, &cookie);
 
 		/* configure the msgring interrupt on cpu 0 */
 		enable_msgring_int(NULL);
 	}
-  
 	return 0;
 }
 
-static void pic_init(void)
+static void 
+pic_init(void)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-	int i=0;
+	int i = 0;
 	int level;
 
 	dbg_msg("Initializing PIC...\n");
-	for(i=0; i<PIC_NUM_IRTS; i++) {
+	for (i = 0; i < PIC_NUM_IRTS; i++) {
 
 		level = PIC_IRQ_IS_EDGE_TRIGGERED(i);
 
 		/* Bind all PIC irqs to cpu 0 */
 		xlr_write_reg(mmio, PIC_IRT_0_BASE + i, 0x01);
 
-		/* Use local scheduling and high polarity for all IRTs 
+		/*
+		 * Use local scheduling and high polarity for all IRTs
 		 * Invalidate all IRTs, by default
 		 */
-		xlr_write_reg(mmio, PIC_IRT_1_BASE + i, (level<<30)|(1<<6)|(PIC_IRQ_BASE + i));
-	}  
+		xlr_write_reg(mmio, PIC_IRT_1_BASE + i, (level << 30) | (1 << 6) | (PIC_IRQ_BASE + i));
+	}
 }
 
-void on_chip_init(void)
+void 
+on_chip_init(void)
 {
-	int i=0, j=0;
+	int i = 0, j = 0;
 
-	/* Set xlr_io_base to the run time value */  
+	/* Set xlr_io_base to the run time value */
 	mtx_init(&msgrng_lock, "msgring", NULL, MTX_SPIN | MTX_RECURSE);
 	mtx_init(&xlr_pic_lock, "pic", NULL, MTX_SPIN);
 
@@ -303,11 +317,11 @@ void on_chip_init(void)
 	msgring_int_enabled = 0;
 
 	xlr_msgring_config();
-	pic_init(); 
+	pic_init();
 
 	xlr_msgring_cpu_init();
 
-	for(i=0;i<MAXCPU;i++)
-		for(j=0;j<XLR_MAX_COUNTERS;j++) 
+	for (i = 0; i < MAXCPU; i++)
+		for (j = 0; j < XLR_MAX_COUNTERS; j++)
 			atomic_set_int(&xlr_counters[i][j], 0);
 }
