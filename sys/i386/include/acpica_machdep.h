@@ -97,5 +97,8 @@ extern int	acpi_release_global_lock(uint32_t *lock);
 
 void	acpi_SetDefaultIntrModel(int model);
 void	acpi_cpu_c1(void);
+void	*acpi_map_table(vm_paddr_t pa, const char *sig);
+void	acpi_unmap_table(void *table);
+vm_paddr_t acpi_find_table(const char *sig);
 
 #endif /* __ACPICA_MACHDEP_H__ */
