@@ -42,12 +42,12 @@
 
 #include <machine/param.h>
 #include <machine/intr_machdep.h>
-#include <mips/xlr/interrupt.h>
-#include <mips/xlr/msgring.h>
-#include <mips/xlr/iomap.h>
-#include <mips/xlr/debug.h>
-#include <mips/xlr/pic.h>
-#include <mips/xlr/board.h>
+#include <mips/rmi/interrupt.h>
+#include <mips/rmi/msgring.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/debug.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/board.h>
 
 void disable_msgring_int(void *arg) ;
 void enable_msgring_int(void *arg) ;
@@ -258,9 +258,9 @@ int register_msgring_handler(int major,
 	if (xlr_test_and_set(&msgring_int_enabled)) {
 		platform_prep_smp_launch();
 
-		cpu_establish_intr("msgring", IRQ_MSGRING, 
-				   (driver_intr_t *)msgring_process_fast_intr,
-				   NULL, INTR_TYPE_NET|INTR_FAST, &cookie, NULL, NULL);
+		cpu_establish_hardintr("msgring", (driver_filter_t *)NULL,
+						   (driver_intr_t *)msgring_process_fast_intr,
+						   NULL, IRQ_MSGRING, INTR_TYPE_NET|INTR_FAST, &cookie);
 
 		/* configure the msgring interrupt on cpu 0 */
 		enable_msgring_int(NULL);

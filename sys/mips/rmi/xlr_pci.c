@@ -49,11 +49,11 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
 
-#include <mips/xlr/iomap.h>
-#include <mips/xlr/pic.h>
-#include <mips/xlr/shared_structs.h>
-#include <mips/xlr/board.h>
-#include <mips/pci/pcibus.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/shared_structs.h>
+#include <mips/rmi/board.h>
+#include <mips/rmi/pcibus.h>
 #include "pcib_if.h"
 
 #define LSU_CFG0_REGID       0
@@ -127,7 +127,7 @@ xlr_pcib_probe(device_t dev)
 }
 
 static int
-xlr_pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
+xlr_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 #if 0
 	device_printf(dev, "xlr_pcib_read_ivar : read ivar %d for child %s\n", which, device_get_nameunit(child));
@@ -392,7 +392,9 @@ static device_method_t xlr_pcib_methods[] = {
 	DEVMETHOD(pcib_maxslots,	xlr_pcib_maxslots),
 	DEVMETHOD(pcib_read_config,	xlr_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	xlr_pcib_write_config),
+
 	DEVMETHOD(pcib_route_interrupt,	mips_pci_route_interrupt),
+	
         DEVMETHOD(pcib_alloc_msi,       xlr_alloc_msi),
         DEVMETHOD(pcib_release_msi,     xlr_release_msi),
         DEVMETHOD(pcib_map_msi,         xlr_map_msi),

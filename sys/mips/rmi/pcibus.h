@@ -47,3 +47,12 @@ int pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 int pci_release_resource(device_t bus, device_t child, int type, int rid,
 			 struct resource *r);
 struct rman *pci_get_rman(device_t dev, int type);
+
+int
+mips_platform_pci_setup_intr(device_t dev, device_t child,
+							 struct resource *irq,  int flags,
+							 driver_filter_t *filt,
+							 driver_intr_t *intr, void *arg,
+							 void **cookiep);
+int
+mips_pci_route_interrupt(device_t bus, device_t dev, int pin);

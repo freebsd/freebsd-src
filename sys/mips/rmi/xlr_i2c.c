@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD: src/sys/mips/xlr/xlr_i2c.c,v 1.20.8.1 2008/08/25 23:17:51 co
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 
-#include <mips/xlr/iomap.h>
+#include <mips/rmi/iomap.h>
 #include <mips/include/resource.h>
 
 #include "iicbus_if.h"

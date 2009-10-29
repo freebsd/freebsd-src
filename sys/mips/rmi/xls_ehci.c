@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD: src/sys/dev/usb/ehci_pci.c,v 1.18.2.4 2008/04/23 18:54:51 jh
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/queue.h>
+#include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -67,11 +68,11 @@ __FBSDID("$FreeBSD: src/sys/dev/usb/ehci_pci.c,v 1.18.2.4 2008/04/23 18:54:51 jh
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
-#include <dev/usb/usbdivar.h>
-#include <dev/usb/usb_mem.h>
+/*#include <dev/usb/usbdivar.h>  */
+/*#include <dev/usb/usb_mem.h>   */
 
-#include <dev/usb/ehcireg.h>
-#include <dev/usb/ehcivar.h>
+#include <mips/rmi/ehcireg.h>
+#include <mips/rmi/ehcivar.h> 
 
 #ifdef USB_DEBUG
 #define EHCI_DEBUG USB_DEBUG

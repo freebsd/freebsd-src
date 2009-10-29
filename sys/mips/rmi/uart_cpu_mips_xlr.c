@@ -55,16 +55,18 @@ static int xlr_uart_probe(struct uart_bas *bas);
 static void xlr_uart_init(struct uart_bas *bas, int, int, int, int);
 static void xlr_uart_term(struct uart_bas *bas);
 static void xlr_uart_putc(struct uart_bas *bas, int);
-static int xlr_uart_poll(struct uart_bas *bas);
-static int xlr_uart_getc(struct uart_bas *bas);
+/*static int xlr_uart_poll(struct uart_bas *bas);*/
+static int xlr_uart_getc(struct uart_bas *bas, struct mtx *hwmtx);
 struct mtx xlr_uart_mtx;    /*UartLock*/
+
+extern struct uart_ops uart_ns8250_ops;
 
 struct uart_ops xlr_uart_ns8250_ops = {
 	.probe = xlr_uart_probe,
 	.init = xlr_uart_init,
 	.term = xlr_uart_term,
 	.putc = xlr_uart_putc,
-	.poll = xlr_uart_poll,
+	/*	.poll = xlr_uart_poll, ?? */
 	.getc = xlr_uart_getc,
 };
 
@@ -119,7 +121,7 @@ static void xlr_uart_putc(struct uart_bas *bas, int c)
 	uart_ns8250_ops.putc(bas,c);
 	xlr_uart_unlock(&xlr_uart_mtx);
 }
-
+/*
 static int xlr_uart_poll(struct uart_bas *bas)
 {
 	int res;
@@ -128,10 +130,11 @@ static int xlr_uart_poll(struct uart_bas *bas)
 	xlr_uart_unlock(&xlr_uart_mtx);
 	return res;
 }
+*/
 
-static int xlr_uart_getc(struct uart_bas *bas)
+static int xlr_uart_getc(struct uart_bas *bas, struct mtx *hwmtx)
 {
-	return uart_ns8250_ops.getc(bas);
+	return uart_ns8250_ops.getc(bas, hwmtx);
 }
 
 int
@@ -144,7 +147,7 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	di->ops = xlr_uart_ns8250_ops;
+	di->ops = &xlr_uart_ns8250_ops;
 	di->bas.chan = 0;
 	di->bas.bst = uart_bus_space_mem;
 	/* TODO Need to call bus_space_map() here */

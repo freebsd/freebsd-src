@@ -45,9 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/consio.h>
 #include <sys/tty.h>
 
-#include <mips/xlr/xlrconfig.h>
-#include <mips/xlr/shared_structs.h>
-#include <mips/xlr/shared_structs_func.h>
+#include <mips/rmi/xlrconfig.h>
+#include <mips/rmi/shared_structs.h>
+#include <mips/rmi/shared_structs_func.h>
 
 #include <ddb/ddb.h>
 
