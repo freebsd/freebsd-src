@@ -360,6 +360,7 @@ vendor SMC		0x0707	Standard Microsystems
 vendor PUTERCOM		0x0708	Putercom
 vendor MCT		0x0711	MCT
 vendor IMATION		0x0718	Imation
+vendor TECLAST		0x071b	Teclast
 vendor SONYERICSSON	0x0731	Sony Ericsson
 vendor EICON		0x0734	Eicon Networks
 vendor SYNTECH		0x0745	Syntech Information
@@ -585,6 +586,7 @@ vendor NETGEAR3		0x1385	Netgear
 vendor BALTECH		0x13ad	Baltech
 vendor CISCOLINKSYS	0x13b1	Cisco-Linksys
 vendor SHARK		0x13d2	Shark
+vendor EMTEC		0x13fe	Emtec
 vendor NOVATEL		0x1410	Novatel Wireless
 vendor MERLIN		0x1416	Merlin
 vendor WISTRONNEWEB	0x1435	Wistron NeWeb
@@ -820,6 +822,7 @@ product AKS USBHASP		0x0001	USB-HASP 0.06
 /* Alcor Micro, Inc. products */
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
+product ALCOR SDCR_6335		0x6335	SD/MMC Card Reader
 product ALCOR TRANSCEND		0x6387	Transcend JetFlash Drive
 product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
 product ALCOR AU9814		0x9215	AU9814 Hub
@@ -861,6 +864,12 @@ product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
+product APPLE KBD_TP_ANSI	0x0223	Apple Internal Keyboard/Trackpad (Wellspring/ANSI)
+product APPLE KBD_TP_ISO	0x0224	Apple Internal Keyboard/Trackpad (Wellspring/ISO)
+product APPLE KBD_TP_JIS	0x0225	Apple Internal Keyboard/Trackpad (Wellspring/JIS)
+product APPLE KBD_TP_ANSI2	0x0230	Apple Internal Keyboard/Trackpad (Wellspring2/ANSI)
+product APPLE KBD_TP_ISO2	0x0231	Apple Internal Keyboard/Trackpad (Wellspring2/ISO)
+product APPLE KBD_TP_JIS2	0x0232	Apple Internal Keyboard/Trackpad (Wellspring2/JIS)
 product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE MIGHTYMOUSE	0x0304	Mighty Mouse
 product APPLE EXT_KBD_HUB	0x1003	Hub in Apple Extended USB Keyboard
@@ -902,6 +911,7 @@ product ASUS RT2573_1		0x1723	RT2573
 product ASUS RT2573_2		0x1724	RT2573
 product ASUS LCM		0x1726	LCM display
 product ASUS P535		0x420f	ASUS P535 PDA
+product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
@@ -1971,6 +1981,7 @@ product PHILIPS HUB		0x0201	hub
 product PHILIPS PCA646VC	0x0303	PCA646VC PC Camera
 product PHILIPS PCVC680K	0x0308	PCVC680K Vesta Pro PC Camera
 product PHILIPS DSS150		0x0471	DSS 150 Digital Speaker System
+product PHILIPS SPE3030CC	0x083a	USB 2.0 External Disk
 product PHILIPS SNU5600		0x1236	SNU5600
 product PHILIPS UM10016		0x1552	ISP 1581 Hi-Speed USB MPEG2 Encoder Reference Kit
 product PHILIPS DIVAUSB		0x1801	DIVA USB mp3 player
@@ -2344,6 +2355,9 @@ product SUN KBD_HUB		0x100e	Kbd Hub
 
 /* Super Top products */
 product	SUPERTOP IDE		0x6600	USB-IDE
+
+/* Teclast products */
+product TECLAST TLC300		0x3203	USB Media Player
 
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
