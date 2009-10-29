@@ -142,6 +142,7 @@ static void	umct_start_read(struct ucom_softc *);
 static void	umct_stop_read(struct ucom_softc *);
 static void	umct_start_write(struct ucom_softc *);
 static void	umct_stop_write(struct ucom_softc *);
+static void	umct_poll(struct ucom_softc *ucom);
 
 static const struct usb_config umct_config[UMCT_N_TRANSFER] = {
 
@@ -186,6 +187,7 @@ static const struct ucom_callback umct_callback = {
 	.ucom_stop_read = &umct_stop_read,
 	.ucom_start_write = &umct_start_write,
 	.ucom_stop_write = &umct_stop_write,
+	.ucom_poll = &umct_poll,
 };
 
 static const struct usb_device_id umct_devs[] = {
@@ -602,4 +604,11 @@ tr_setup:
 		}
 		return;
 	}
+}
+
+static void
+umct_poll(struct ucom_softc *ucom)
+{
+	struct umct_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UMCT_N_TRANSFER);
 }
