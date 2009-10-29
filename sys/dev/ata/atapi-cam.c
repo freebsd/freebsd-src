@@ -414,6 +414,12 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    case ATA_UDMA6:
 		cpi->base_transfer_speed = 133000;
 		break;
+	    case ATA_SA150:
+		cpi->base_transfer_speed = 150000;
+		break;
+	    case ATA_SA300:
+		cpi->base_transfer_speed = 300000;
+		break;
 	    default:
 		break;
 	    }
