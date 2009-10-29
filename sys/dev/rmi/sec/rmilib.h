@@ -64,48 +64,48 @@
 /*
  * Cryptographic parameter definitions
  */
-#define XLR_SEC_DES_KEY_LENGTH        8  /* Bytes */
-#define XLR_SEC_3DES_KEY_LENGTH       24 /* Bytes */
-#define XLR_SEC_AES128_KEY_LENGTH     16 /* Bytes */
-#define XLR_SEC_AES192_KEY_LENGTH     24 /* Bytes */
-#define XLR_SEC_AES256_KEY_LENGTH     32 /* Bytes */
-#define XLR_SEC_AES128F8_KEY_LENGTH   32 /* Bytes */
-#define XLR_SEC_AES192F8_KEY_LENGTH   48 /* Bytes */
-#define XLR_SEC_AES256F8_KEY_LENGTH   64 /* Bytes */
-#define XLR_SEC_KASUMI_F8_KEY_LENGTH  16 /* Bytes */
+#define XLR_SEC_DES_KEY_LENGTH        8	/* Bytes */
+#define XLR_SEC_3DES_KEY_LENGTH       24	/* Bytes */
+#define XLR_SEC_AES128_KEY_LENGTH     16	/* Bytes */
+#define XLR_SEC_AES192_KEY_LENGTH     24	/* Bytes */
+#define XLR_SEC_AES256_KEY_LENGTH     32	/* Bytes */
+#define XLR_SEC_AES128F8_KEY_LENGTH   32	/* Bytes */
+#define XLR_SEC_AES192F8_KEY_LENGTH   48	/* Bytes */
+#define XLR_SEC_AES256F8_KEY_LENGTH   64	/* Bytes */
+#define XLR_SEC_KASUMI_F8_KEY_LENGTH  16	/* Bytes */
 #define XLR_SEC_MAX_CRYPT_KEY_LENGTH  XLR_SEC_AES256F8_KEY_LENGTH
 
 
-#define XLR_SEC_DES_IV_LENGTH         8  /* Bytes */
-#define XLR_SEC_AES_IV_LENGTH         16 /* Bytes */
-#define XLR_SEC_ARC4_IV_LENGTH        0  /* Bytes */
-#define XLR_SEC_KASUMI_F8_IV_LENGTH   16 /* Bytes */
-#define XLR_SEC_MAX_IV_LENGTH         16 /* Bytes */
-#define XLR_SEC_IV_LENGTH_BYTES       8  /* Bytes */
+#define XLR_SEC_DES_IV_LENGTH         8	/* Bytes */
+#define XLR_SEC_AES_IV_LENGTH         16	/* Bytes */
+#define XLR_SEC_ARC4_IV_LENGTH        0	/* Bytes */
+#define XLR_SEC_KASUMI_F8_IV_LENGTH   16	/* Bytes */
+#define XLR_SEC_MAX_IV_LENGTH         16	/* Bytes */
+#define XLR_SEC_IV_LENGTH_BYTES       8	/* Bytes */
 
-#define XLR_SEC_AES_BLOCK_SIZE        16 /* Bytes */
-#define XLR_SEC_DES_BLOCK_SIZE        8  /* Bytes */
-#define XLR_SEC_3DES_BLOCK_SIZE       8  /* Bytes */
+#define XLR_SEC_AES_BLOCK_SIZE        16	/* Bytes */
+#define XLR_SEC_DES_BLOCK_SIZE        8	/* Bytes */
+#define XLR_SEC_3DES_BLOCK_SIZE       8	/* Bytes */
 
-#define XLR_SEC_MD5_BLOCK_SIZE        64 /* Bytes */
-#define XLR_SEC_SHA1_BLOCK_SIZE       64 /* Bytes */
-#define XLR_SEC_SHA256_BLOCK_SIZE     64 /* Bytes */
-#define XLR_SEC_SHA384_BLOCK_SIZE     128/* Bytes */
-#define XLR_SEC_SHA512_BLOCK_SIZE     128/* Bytes */
-#define XLR_SEC_GCM_BLOCK_SIZE        16 /* XXX: Bytes */
-#define XLR_SEC_KASUMI_F9_BLOCK_SIZE  16 /* XXX: Bytes */
-#define XLR_SEC_MAX_BLOCK_SIZE        64 /* Max of MD5/SHA */
-#define XLR_SEC_MD5_LENGTH            16 /* Bytes */
-#define XLR_SEC_SHA1_LENGTH           20 /* Bytes */
-#define XLR_SEC_SHA256_LENGTH         32 /* Bytes */
-#define XLR_SEC_SHA384_LENGTH         64 /* Bytes */
-#define XLR_SEC_SHA512_LENGTH         64 /* Bytes */
-#define XLR_SEC_GCM_LENGTH            16 /* Bytes */
-#define XLR_SEC_KASUMI_F9_LENGTH      16 /* Bytes */
-#define XLR_SEC_KASUMI_F9_RESULT_LENGTH 4 /* Bytes */
-#define XLR_SEC_HMAC_LENGTH           64 /* Max of MD5/SHA/SHA256 */
+#define XLR_SEC_MD5_BLOCK_SIZE        64	/* Bytes */
+#define XLR_SEC_SHA1_BLOCK_SIZE       64	/* Bytes */
+#define XLR_SEC_SHA256_BLOCK_SIZE     64	/* Bytes */
+#define XLR_SEC_SHA384_BLOCK_SIZE     128	/* Bytes */
+#define XLR_SEC_SHA512_BLOCK_SIZE     128	/* Bytes */
+#define XLR_SEC_GCM_BLOCK_SIZE        16	/* XXX: Bytes */
+#define XLR_SEC_KASUMI_F9_BLOCK_SIZE  16	/* XXX: Bytes */
+#define XLR_SEC_MAX_BLOCK_SIZE        64	/* Max of MD5/SHA */
+#define XLR_SEC_MD5_LENGTH            16	/* Bytes */
+#define XLR_SEC_SHA1_LENGTH           20	/* Bytes */
+#define XLR_SEC_SHA256_LENGTH         32	/* Bytes */
+#define XLR_SEC_SHA384_LENGTH         64	/* Bytes */
+#define XLR_SEC_SHA512_LENGTH         64	/* Bytes */
+#define XLR_SEC_GCM_LENGTH            16	/* Bytes */
+#define XLR_SEC_KASUMI_F9_LENGTH      16	/* Bytes */
+#define XLR_SEC_KASUMI_F9_RESULT_LENGTH 4	/* Bytes */
+#define XLR_SEC_HMAC_LENGTH           64	/* Max of MD5/SHA/SHA256 */
 #define XLR_SEC_MAX_AUTH_KEY_LENGTH   XLR_SEC_SHA512_BLOCK_SIZE
-#define XLR_SEC_MAX_RC4_STATE_SIZE    264 /* char s[256], int i, int j */
+#define XLR_SEC_MAX_RC4_STATE_SIZE    264	/* char s[256], int i, int j */
 
 /* Status code is used by the SRL to indicate status */
 typedef unsigned int xlr_sec_status_t;
@@ -394,200 +394,204 @@ typedef int xlr_sec_error_t;
  * Cipher Modes
  */
 typedef enum {
-  XLR_SEC_CIPHER_MODE_NONE = 0,
-    XLR_SEC_CIPHER_MODE_PASS = 1,
-    XLR_SEC_CIPHER_MODE_ECB,
-    XLR_SEC_CIPHER_MODE_CBC,
-    XLR_SEC_CIPHER_MODE_OFB,
-    XLR_SEC_CIPHER_MODE_CTR,
-    XLR_SEC_CIPHER_MODE_CFB,
-    XLR_SEC_CIPHER_MODE_F8
-} XLR_SEC_CIPHER_MODE;
+	XLR_SEC_CIPHER_MODE_NONE = 0,
+	XLR_SEC_CIPHER_MODE_PASS = 1,
+	XLR_SEC_CIPHER_MODE_ECB,
+	XLR_SEC_CIPHER_MODE_CBC,
+	XLR_SEC_CIPHER_MODE_OFB,
+	XLR_SEC_CIPHER_MODE_CTR,
+	XLR_SEC_CIPHER_MODE_CFB,
+	XLR_SEC_CIPHER_MODE_F8
+}    XLR_SEC_CIPHER_MODE;
 
 typedef enum {
-  XLR_SEC_CIPHER_OP_NONE = 0,
-    XLR_SEC_CIPHER_OP_ENCRYPT = 1,
-    XLR_SEC_CIPHER_OP_DECRYPT
-} XLR_SEC_CIPHER_OP;
+	XLR_SEC_CIPHER_OP_NONE = 0,
+	XLR_SEC_CIPHER_OP_ENCRYPT = 1,
+	XLR_SEC_CIPHER_OP_DECRYPT
+}    XLR_SEC_CIPHER_OP;
 
 typedef enum {
-    XLR_SEC_CIPHER_TYPE_UNSUPPORTED = -1,
-    XLR_SEC_CIPHER_TYPE_NONE = 0,
-    XLR_SEC_CIPHER_TYPE_DES,
-    XLR_SEC_CIPHER_TYPE_3DES,
-    XLR_SEC_CIPHER_TYPE_AES128,
-    XLR_SEC_CIPHER_TYPE_AES192,
-    XLR_SEC_CIPHER_TYPE_AES256,
-    XLR_SEC_CIPHER_TYPE_ARC4,
-    XLR_SEC_CIPHER_TYPE_KASUMI_F8
-} XLR_SEC_CIPHER_TYPE;
+	XLR_SEC_CIPHER_TYPE_UNSUPPORTED = -1,
+	XLR_SEC_CIPHER_TYPE_NONE = 0,
+	XLR_SEC_CIPHER_TYPE_DES,
+	XLR_SEC_CIPHER_TYPE_3DES,
+	XLR_SEC_CIPHER_TYPE_AES128,
+	XLR_SEC_CIPHER_TYPE_AES192,
+	XLR_SEC_CIPHER_TYPE_AES256,
+	XLR_SEC_CIPHER_TYPE_ARC4,
+	XLR_SEC_CIPHER_TYPE_KASUMI_F8
+}    XLR_SEC_CIPHER_TYPE;
 
 typedef enum {
-    XLR_SEC_CIPHER_INIT_OK = 1,   /* Preserve old Keys */
-    XLR_SEC_CIPHER_INIT_NK        /*Load new Keys */
-} XLR_SEC_CIPHER_INIT;
+	XLR_SEC_CIPHER_INIT_OK = 1,	/* Preserve old Keys */
+	XLR_SEC_CIPHER_INIT_NK	/* Load new Keys */
+}    XLR_SEC_CIPHER_INIT;
 
 
 /*
  *  Hash Modes
  */
 typedef enum {
-    XLR_SEC_DIGEST_TYPE_UNSUPPORTED = -1,
-    XLR_SEC_DIGEST_TYPE_NONE = 0,
-    XLR_SEC_DIGEST_TYPE_MD5,
-    XLR_SEC_DIGEST_TYPE_SHA1,
-    XLR_SEC_DIGEST_TYPE_SHA256,
-    XLR_SEC_DIGEST_TYPE_SHA384,
-    XLR_SEC_DIGEST_TYPE_SHA512,
-    XLR_SEC_DIGEST_TYPE_GCM,
-    XLR_SEC_DIGEST_TYPE_KASUMI_F9,
-    XLR_SEC_DIGEST_TYPE_HMAC_MD5,
-    XLR_SEC_DIGEST_TYPE_HMAC_SHA1,
-    XLR_SEC_DIGEST_TYPE_HMAC_SHA256,
-    XLR_SEC_DIGEST_TYPE_HMAC_SHA384,
-    XLR_SEC_DIGEST_TYPE_HMAC_SHA512,
-    XLR_SEC_DIGEST_TYPE_HMAC_AES_CBC,
-    XLR_SEC_DIGEST_TYPE_HMAC_AES_XCBC
-} XLR_SEC_DIGEST_TYPE;
+	XLR_SEC_DIGEST_TYPE_UNSUPPORTED = -1,
+	XLR_SEC_DIGEST_TYPE_NONE = 0,
+	XLR_SEC_DIGEST_TYPE_MD5,
+	XLR_SEC_DIGEST_TYPE_SHA1,
+	XLR_SEC_DIGEST_TYPE_SHA256,
+	XLR_SEC_DIGEST_TYPE_SHA384,
+	XLR_SEC_DIGEST_TYPE_SHA512,
+	XLR_SEC_DIGEST_TYPE_GCM,
+	XLR_SEC_DIGEST_TYPE_KASUMI_F9,
+	XLR_SEC_DIGEST_TYPE_HMAC_MD5,
+	XLR_SEC_DIGEST_TYPE_HMAC_SHA1,
+	XLR_SEC_DIGEST_TYPE_HMAC_SHA256,
+	XLR_SEC_DIGEST_TYPE_HMAC_SHA384,
+	XLR_SEC_DIGEST_TYPE_HMAC_SHA512,
+	XLR_SEC_DIGEST_TYPE_HMAC_AES_CBC,
+	XLR_SEC_DIGEST_TYPE_HMAC_AES_XCBC
+}    XLR_SEC_DIGEST_TYPE;
 
 typedef enum {
-    XLR_SEC_DIGEST_INIT_OLDKEY = 1, /* Preserve old key HMAC key stored in ID registers (moot if HASH.HMAC == 0) */
-    XLR_SEC_DIGEST_INIT_NEWKEY      /*Load new HMAC key from memory ctrl section to ID registers */
-} XLR_SEC_DIGEST_INIT;
+	XLR_SEC_DIGEST_INIT_OLDKEY = 1,	/* Preserve old key HMAC key stored in
+					 * ID registers (moot if HASH.HMAC ==
+					 * 0) */
+	XLR_SEC_DIGEST_INIT_NEWKEY	/* Load new HMAC key from memory ctrl
+					 * section to ID registers */
+}    XLR_SEC_DIGEST_INIT;
 
 typedef enum {
-    XLR_SEC_DIGEST_SRC_DMA = 1, /* DMA channel */
-    XLR_SEC_DIGEST_SRC_CPHR     /*Cipher if word count exceeded Cipher_Offset; else DMA */
-} XLR_SEC_DIGEST_SRC;
+	XLR_SEC_DIGEST_SRC_DMA = 1,	/* DMA channel */
+	XLR_SEC_DIGEST_SRC_CPHR	/* Cipher if word count exceeded
+				 * Cipher_Offset; else DMA */
+}    XLR_SEC_DIGEST_SRC;
 
 /*
  *  Checksum Modes
  */
 typedef enum {
-    XLR_SEC_CKSUM_TYPE_NOP = 1,
-    XLR_SEC_CKSUM_TYPE_IP
-} XLR_SEC_CKSUM_TYPE;
+	XLR_SEC_CKSUM_TYPE_NOP = 1,
+	XLR_SEC_CKSUM_TYPE_IP
+}    XLR_SEC_CKSUM_TYPE;
 
 typedef enum {
-    XLR_SEC_CKSUM_SRC_DMA    = 1,
-    XLR_SEC_CKSUM_SRC_CIPHER
-} XLR_SEC_CKSUM_SRC;
+	XLR_SEC_CKSUM_SRC_DMA = 1,
+	XLR_SEC_CKSUM_SRC_CIPHER
+}    XLR_SEC_CKSUM_SRC;
 
 /*
  *  Packet Modes
  */
 typedef enum {
-    XLR_SEC_LOADHMACKEY_MODE_OLD = 1,
-    XLR_SEC_LOADHMACKEY_MODE_LOAD
-} XLR_SEC_LOADHMACKEY_MODE;
+	XLR_SEC_LOADHMACKEY_MODE_OLD = 1,
+	XLR_SEC_LOADHMACKEY_MODE_LOAD
+}    XLR_SEC_LOADHMACKEY_MODE;
 
 typedef enum {
-    XLR_SEC_PADHASH_PADDED = 1,
-    XLR_SEC_PADHASH_PAD
-} XLR_SEC_PADHASH_MODE;
+	XLR_SEC_PADHASH_PADDED = 1,
+	XLR_SEC_PADHASH_PAD
+}    XLR_SEC_PADHASH_MODE;
 
 typedef enum {
-    XLR_SEC_HASHBYTES_ALL8 = 1,
-    XLR_SEC_HASHBYTES_MSB,
-    XLR_SEC_HASHBYTES_MSW
-} XLR_SEC_HASHBYTES_MODE;
+	XLR_SEC_HASHBYTES_ALL8 = 1,
+	XLR_SEC_HASHBYTES_MSB,
+	XLR_SEC_HASHBYTES_MSW
+}    XLR_SEC_HASHBYTES_MODE;
 
 typedef enum {
-    XLR_SEC_NEXT_FINISH = 1,
-    XLR_SEC_NEXT_DO
-} XLR_SEC_NEXT_MODE;
+	XLR_SEC_NEXT_FINISH = 1,
+	XLR_SEC_NEXT_DO
+}    XLR_SEC_NEXT_MODE;
 
 typedef enum {
-    XLR_SEC_PKT_IV_OLD = 1,
-    XLR_SEC_PKT_IV_NEW
-} XLR_SEC_PKT_IV_MODE;
+	XLR_SEC_PKT_IV_OLD = 1,
+	XLR_SEC_PKT_IV_NEW
+}    XLR_SEC_PKT_IV_MODE;
 
 typedef enum {
-    XLR_SEC_LASTWORD_128 = 1,
-    XLR_SEC_LASTWORD_96MASK,
-    XLR_SEC_LASTWORD_64MASK,
-    XLR_SEC_LASTWORD_32MASK
-} XLR_SEC_LASTWORD_MODE;
+	XLR_SEC_LASTWORD_128 = 1,
+	XLR_SEC_LASTWORD_96MASK,
+	XLR_SEC_LASTWORD_64MASK,
+	XLR_SEC_LASTWORD_32MASK
+}    XLR_SEC_LASTWORD_MODE;
 
 typedef enum {
-    XLR_SEC_CFB_MASK_REGULAR_CTR = 0,
-    XLR_SEC_CFB_MASK_CCMP,
-    XLR_SEC_CFB_MASK_GCM_WITH_SCI,
-    XLR_SEC_CFB_MASK_GCM_WITHOUT_SCI
-} XLR_SEC_CFB_MASK_MODE;
+	XLR_SEC_CFB_MASK_REGULAR_CTR = 0,
+	XLR_SEC_CFB_MASK_CCMP,
+	XLR_SEC_CFB_MASK_GCM_WITH_SCI,
+	XLR_SEC_CFB_MASK_GCM_WITHOUT_SCI
+}    XLR_SEC_CFB_MASK_MODE;
 
 /*
  *  Public Key
  */
 typedef enum {
-    RMIPK_BLKWIDTH_512 = 1,
-    RMIPK_BLKWIDTH_1024
-} RMIPK_BLKWIDTH_MODE;
+	RMIPK_BLKWIDTH_512 = 1,
+	RMIPK_BLKWIDTH_1024
+}    RMIPK_BLKWIDTH_MODE;
 
 typedef enum {
-    RMIPK_LDCONST_OLD = 1,
-    RMIPK_LDCONST_NEW
-} RMIPK_LDCONST_MODE;
+	RMIPK_LDCONST_OLD = 1,
+	RMIPK_LDCONST_NEW
+}    RMIPK_LDCONST_MODE;
 
 
 typedef struct xlr_sec_io_s {
-    unsigned int          command;
-    unsigned int          result_status;
-    unsigned int          flags;
-    unsigned int          session_num;
-    unsigned int          use_callback;
-    unsigned int         time_us;
-    unsigned int         user_context[2];/*usable for anything by caller*/
-    unsigned int         command_context; /* Context (ID) of this command). */
-    unsigned char         initial_vector[XLR_SEC_MAX_IV_LENGTH];
-    unsigned char         crypt_key[XLR_SEC_MAX_CRYPT_KEY_LENGTH];
-    unsigned char         mac_key[XLR_SEC_MAX_AUTH_KEY_LENGTH];
+	unsigned int command;
+	unsigned int result_status;
+	unsigned int flags;
+	unsigned int session_num;
+	unsigned int use_callback;
+	unsigned int time_us;
+	unsigned int user_context[2];	/* usable for anything by caller */
+	unsigned int command_context;	/* Context (ID) of this command). */
+	unsigned char initial_vector[XLR_SEC_MAX_IV_LENGTH];
+	unsigned char crypt_key[XLR_SEC_MAX_CRYPT_KEY_LENGTH];
+	unsigned char mac_key[XLR_SEC_MAX_AUTH_KEY_LENGTH];
 
-    XLR_SEC_CIPHER_OP         cipher_op;
-    XLR_SEC_CIPHER_MODE       cipher_mode;
-    XLR_SEC_CIPHER_TYPE       cipher_type;
-    XLR_SEC_CIPHER_INIT       cipher_init;
-    unsigned int          cipher_offset;
+	XLR_SEC_CIPHER_OP cipher_op;
+	XLR_SEC_CIPHER_MODE cipher_mode;
+	XLR_SEC_CIPHER_TYPE cipher_type;
+	XLR_SEC_CIPHER_INIT cipher_init;
+	unsigned int cipher_offset;
 
-    XLR_SEC_DIGEST_TYPE       digest_type;
-    XLR_SEC_DIGEST_INIT       digest_init;
-    XLR_SEC_DIGEST_SRC        digest_src;
-    unsigned int          digest_offset;
+	XLR_SEC_DIGEST_TYPE digest_type;
+	XLR_SEC_DIGEST_INIT digest_init;
+	XLR_SEC_DIGEST_SRC digest_src;
+	unsigned int digest_offset;
 
-    XLR_SEC_CKSUM_TYPE        cksum_type;
-    XLR_SEC_CKSUM_SRC         cksum_src;
-    unsigned int          cksum_offset;
+	XLR_SEC_CKSUM_TYPE cksum_type;
+	XLR_SEC_CKSUM_SRC cksum_src;
+	unsigned int cksum_offset;
 
-    XLR_SEC_LOADHMACKEY_MODE  pkt_hmac;
-    XLR_SEC_PADHASH_MODE      pkt_hash;
-    XLR_SEC_HASHBYTES_MODE    pkt_hashbytes;
-    XLR_SEC_NEXT_MODE         pkt_next;
-    XLR_SEC_PKT_IV_MODE       pkt_iv;
-    XLR_SEC_LASTWORD_MODE     pkt_lastword;
+	XLR_SEC_LOADHMACKEY_MODE pkt_hmac;
+	XLR_SEC_PADHASH_MODE pkt_hash;
+	XLR_SEC_HASHBYTES_MODE pkt_hashbytes;
+	XLR_SEC_NEXT_MODE pkt_next;
+	XLR_SEC_PKT_IV_MODE pkt_iv;
+	XLR_SEC_LASTWORD_MODE pkt_lastword;
 
-    unsigned int         nonce;
-    unsigned int          cfb_mask;
+	unsigned int nonce;
+	unsigned int cfb_mask;
 
-    unsigned int          iv_offset;
-    unsigned short        pad_type;
-    unsigned short        rc4_key_len;
+	unsigned int iv_offset;
+	unsigned short pad_type;
+	unsigned short rc4_key_len;
 
-    unsigned int          num_packets;
-    unsigned int          num_fragments;
+	unsigned int num_packets;
+	unsigned int num_fragments;
 
-    uint64_t        source_buf;
-    unsigned int        source_buf_size;
-    uint64_t        dest_buf;
-    unsigned int          dest_buf_size;
+	uint64_t source_buf;
+	unsigned int source_buf_size;
+	uint64_t dest_buf;
+	unsigned int dest_buf_size;
 
-    uint64_t        auth_dest;
-    uint64_t        cksum_dest;
+	uint64_t auth_dest;
+	uint64_t cksum_dest;
 
-    unsigned short        rc4_loadstate;
-    unsigned short        rc4_savestate;
-    uint64_t              rc4_state;
+	unsigned short rc4_loadstate;
+	unsigned short rc4_savestate;
+	uint64_t rc4_state;
 
-} xlr_sec_io_t, *xlr_sec_io_pt;
+}            xlr_sec_io_t, *xlr_sec_io_pt;
 
 
 #define XLR_SEC_SESSION(sid)   ((sid) & 0x000007ff)
@@ -608,32 +612,32 @@ typedef struct xlr_sec_io_s {
 #define SEC_MAX_FRAG_LEN 16000
 
 struct xlr_sec_command {
-    uint16_t session_num;
-    struct cryptop *crp;
-    struct cryptodesc *enccrd, *maccrd;
+	uint16_t session_num;
+	struct cryptop *crp;
+	struct cryptodesc *enccrd, *maccrd;
 
-    xlr_sec_io_t op;
+	xlr_sec_io_t op;
 };
-struct xlr_sec_session{
-    uint32_t    sessionid;
-    int hs_used;
-    int hs_mlen;
-    struct xlr_sec_command  cmd;
-    void*    desc_ptr;
-    uint8_t     multi_frag_flag;
+struct xlr_sec_session {
+	uint32_t sessionid;
+	int hs_used;
+	int hs_mlen;
+	struct xlr_sec_command cmd;
+	void *desc_ptr;
+	uint8_t multi_frag_flag;
 };
 
 /*
  * Holds data specific to rmi security accelerators
  */
 struct xlr_sec_softc {
-    device_t        sc_dev;     /* device backpointer */
-    struct mtx      sc_mtx;     /* per-instance lock */
+	device_t sc_dev;	/* device backpointer */
+	struct mtx sc_mtx;	/* per-instance lock */
 
-    int32_t         sc_cid;
-    struct xlr_sec_session *sc_sessions;
-    int             sc_nsessions;
-    xlr_reg_t*      mmio;
+	int32_t sc_cid;
+	struct xlr_sec_session *sc_sessions;
+	int sc_nsessions;
+	xlr_reg_t *mmio;
 };
 
 
@@ -772,103 +776,103 @@ union xlr_sec_operand_t {
 
 enum sec_pipe_config {
 
-  SEC_PIPE_CIPHER_KEY0_L0            = 0x00,
-  SEC_PIPE_CIPHER_KEY0_HI,
-  SEC_PIPE_CIPHER_KEY1_LO,
-  SEC_PIPE_CIPHER_KEY1_HI,
-  SEC_PIPE_CIPHER_KEY2_LO,
-  SEC_PIPE_CIPHER_KEY2_HI,
-  SEC_PIPE_CIPHER_KEY3_LO,
-  SEC_PIPE_CIPHER_KEY3_HI,
-  SEC_PIPE_HMAC_KEY0_LO,
-  SEC_PIPE_HMAC_KEY0_HI,
-  SEC_PIPE_HMAC_KEY1_LO,
-  SEC_PIPE_HMAC_KEY1_HI,
-  SEC_PIPE_HMAC_KEY2_LO,
-  SEC_PIPE_HMAC_KEY2_HI,
-  SEC_PIPE_HMAC_KEY3_LO,
-  SEC_PIPE_HMAC_KEY3_HI,
-  SEC_PIPE_HMAC_KEY4_LO,
-  SEC_PIPE_HMAC_KEY4_HI,
-  SEC_PIPE_HMAC_KEY5_LO,
-  SEC_PIPE_HMAC_KEY5_HI,
-  SEC_PIPE_HMAC_KEY6_LO,
-  SEC_PIPE_HMAC_KEY6_HI,
-  SEC_PIPE_HMAC_KEY7_LO,
-  SEC_PIPE_HMAC_KEY7_HI,
-  SEC_PIPE_NCFBM_LO,
-  SEC_PIPE_NCFBM_HI,
-  SEC_PIPE_INSTR_LO,
-  SEC_PIPE_INSTR_HI,
-  SEC_PIPE_RSVD0,
-  SEC_PIPE_RSVD1,
-  SEC_PIPE_RSVD2,
-  SEC_PIPE_RSVD3,
+	SEC_PIPE_CIPHER_KEY0_L0 = 0x00,
+	SEC_PIPE_CIPHER_KEY0_HI,
+	SEC_PIPE_CIPHER_KEY1_LO,
+	SEC_PIPE_CIPHER_KEY1_HI,
+	SEC_PIPE_CIPHER_KEY2_LO,
+	SEC_PIPE_CIPHER_KEY2_HI,
+	SEC_PIPE_CIPHER_KEY3_LO,
+	SEC_PIPE_CIPHER_KEY3_HI,
+	SEC_PIPE_HMAC_KEY0_LO,
+	SEC_PIPE_HMAC_KEY0_HI,
+	SEC_PIPE_HMAC_KEY1_LO,
+	SEC_PIPE_HMAC_KEY1_HI,
+	SEC_PIPE_HMAC_KEY2_LO,
+	SEC_PIPE_HMAC_KEY2_HI,
+	SEC_PIPE_HMAC_KEY3_LO,
+	SEC_PIPE_HMAC_KEY3_HI,
+	SEC_PIPE_HMAC_KEY4_LO,
+	SEC_PIPE_HMAC_KEY4_HI,
+	SEC_PIPE_HMAC_KEY5_LO,
+	SEC_PIPE_HMAC_KEY5_HI,
+	SEC_PIPE_HMAC_KEY6_LO,
+	SEC_PIPE_HMAC_KEY6_HI,
+	SEC_PIPE_HMAC_KEY7_LO,
+	SEC_PIPE_HMAC_KEY7_HI,
+	SEC_PIPE_NCFBM_LO,
+	SEC_PIPE_NCFBM_HI,
+	SEC_PIPE_INSTR_LO,
+	SEC_PIPE_INSTR_HI,
+	SEC_PIPE_RSVD0,
+	SEC_PIPE_RSVD1,
+	SEC_PIPE_RSVD2,
+	SEC_PIPE_RSVD3,
 
-  SEC_PIPE_DF_PTRS0,
-  SEC_PIPE_DF_PTRS1,
-  SEC_PIPE_DF_PTRS2,
-  SEC_PIPE_DF_PTRS3,
-  SEC_PIPE_DF_PTRS4,
-  SEC_PIPE_DF_PTRS5,
-  SEC_PIPE_DF_PTRS6,
-  SEC_PIPE_DF_PTRS7,
+	SEC_PIPE_DF_PTRS0,
+	SEC_PIPE_DF_PTRS1,
+	SEC_PIPE_DF_PTRS2,
+	SEC_PIPE_DF_PTRS3,
+	SEC_PIPE_DF_PTRS4,
+	SEC_PIPE_DF_PTRS5,
+	SEC_PIPE_DF_PTRS6,
+	SEC_PIPE_DF_PTRS7,
 
-  SEC_PIPE_DU_DATA_IN_LO,
-  SEC_PIPE_DU_DATA_IN_HI,
-  SEC_PIPE_DU_DATA_IN_CTRL,
-  SEC_PIPE_DU_DATA_OUT_LO,
-  SEC_PIPE_DU_DATA_OUT_HI,
-  SEC_PIPE_DU_DATA_OUT_CTRL,
+	SEC_PIPE_DU_DATA_IN_LO,
+	SEC_PIPE_DU_DATA_IN_HI,
+	SEC_PIPE_DU_DATA_IN_CTRL,
+	SEC_PIPE_DU_DATA_OUT_LO,
+	SEC_PIPE_DU_DATA_OUT_HI,
+	SEC_PIPE_DU_DATA_OUT_CTRL,
 
-  SEC_PIPE_STATE0,
-  SEC_PIPE_STATE1,
-  SEC_PIPE_STATE2,
-  SEC_PIPE_STATE3,
-  SEC_PIPE_STATE4,
-  SEC_PIPE_INCLUDE_MASK0,
-  SEC_PIPE_INCLUDE_MASK1,
-  SEC_PIPE_INCLUDE_MASK2,
-  SEC_PIPE_INCLUDE_MASK3,
-  SEC_PIPE_INCLUDE_MASK4,
-  SEC_PIPE_EXCLUDE_MASK0,
-  SEC_PIPE_EXCLUDE_MASK1,
-  SEC_PIPE_EXCLUDE_MASK2,
-  SEC_PIPE_EXCLUDE_MASK3,
-  SEC_PIPE_EXCLUDE_MASK4,
+	SEC_PIPE_STATE0,
+	SEC_PIPE_STATE1,
+	SEC_PIPE_STATE2,
+	SEC_PIPE_STATE3,
+	SEC_PIPE_STATE4,
+	SEC_PIPE_INCLUDE_MASK0,
+	SEC_PIPE_INCLUDE_MASK1,
+	SEC_PIPE_INCLUDE_MASK2,
+	SEC_PIPE_INCLUDE_MASK3,
+	SEC_PIPE_INCLUDE_MASK4,
+	SEC_PIPE_EXCLUDE_MASK0,
+	SEC_PIPE_EXCLUDE_MASK1,
+	SEC_PIPE_EXCLUDE_MASK2,
+	SEC_PIPE_EXCLUDE_MASK3,
+	SEC_PIPE_EXCLUDE_MASK4,
 };
 
 
 enum sec_pipe_base_config {
 
-  SEC_PIPE0_BASE = 0x00,
-  SEC_PIPE1_BASE = 0x40,
-  SEC_PIPE2_BASE = 0x80,
-  SEC_PIPE3_BASE = 0xc0
+	SEC_PIPE0_BASE = 0x00,
+	SEC_PIPE1_BASE = 0x40,
+	SEC_PIPE2_BASE = 0x80,
+	SEC_PIPE3_BASE = 0xc0
 
 };
 
 enum sec_rsa_config {
 
-  SEC_RSA_PIPE0_DU_DATA_IN_LO = 0x100,
-  SEC_RSA_PIPE0_DU_DATA_IN_HI,
-  SEC_RSA_PIPE0_DU_DATA_IN_CTRL,
-  SEC_RSA_PIPE0_DU_DATA_OUT_LO,
-  SEC_RSA_PIPE0_DU_DATA_OUT_HI,
-  SEC_RSA_PIPE0_DU_DATA_OUT_CTRL,
-  SEC_RSA_RSVD0,
-  SEC_RSA_RSVD1,
+	SEC_RSA_PIPE0_DU_DATA_IN_LO = 0x100,
+	SEC_RSA_PIPE0_DU_DATA_IN_HI,
+	SEC_RSA_PIPE0_DU_DATA_IN_CTRL,
+	SEC_RSA_PIPE0_DU_DATA_OUT_LO,
+	SEC_RSA_PIPE0_DU_DATA_OUT_HI,
+	SEC_RSA_PIPE0_DU_DATA_OUT_CTRL,
+	SEC_RSA_RSVD0,
+	SEC_RSA_RSVD1,
 
-  SEC_RSA_PIPE0_STATE0,
-  SEC_RSA_PIPE0_STATE1,
-  SEC_RSA_PIPE0_STATE2,
-  SEC_RSA_PIPE0_INCLUDE_MASK0,
-  SEC_RSA_PIPE0_INCLUDE_MASK1,
-  SEC_RSA_PIPE0_INCLUDE_MASK2,
-  SEC_RSA_PIPE0_EXCLUDE_MASK0,
-  SEC_RSA_PIPE0_EXCLUDE_MASK1,
-  SEC_RSA_PIPE0_EXCLUDE_MASK2,
-  SEC_RSA_PIPE0_EVENT_CTR
+	SEC_RSA_PIPE0_STATE0,
+	SEC_RSA_PIPE0_STATE1,
+	SEC_RSA_PIPE0_STATE2,
+	SEC_RSA_PIPE0_INCLUDE_MASK0,
+	SEC_RSA_PIPE0_INCLUDE_MASK1,
+	SEC_RSA_PIPE0_INCLUDE_MASK2,
+	SEC_RSA_PIPE0_EXCLUDE_MASK0,
+	SEC_RSA_PIPE0_EXCLUDE_MASK1,
+	SEC_RSA_PIPE0_EXCLUDE_MASK2,
+	SEC_RSA_PIPE0_EVENT_CTR
 
 };
 
@@ -877,10 +881,10 @@ enum sec_rsa_config {
 
 enum sec_config {
 
-  SEC_DMA_CREDIT = 0x140,
-  SEC_CONFIG1,
-  SEC_CONFIG2,
-  SEC_CONFIG3,
+	SEC_DMA_CREDIT = 0x140,
+	SEC_CONFIG1,
+	SEC_CONFIG2,
+	SEC_CONFIG3,
 
 };
 
@@ -888,104 +892,106 @@ enum sec_config {
 
 enum sec_debug_config {
 
-  SEC_DW0_DESCRIPTOR0_LO  = 0x180,
-  SEC_DW0_DESCRIPTOR0_HI,
-  SEC_DW0_DESCRIPTOR1_LO,
-  SEC_DW0_DESCRIPTOR1_HI,
-  SEC_DW1_DESCRIPTOR0_LO,
-  SEC_DW1_DESCRIPTOR0_HI,
-  SEC_DW1_DESCRIPTOR1_LO,
-  SEC_DW1_DESCRIPTOR1_HI,
-  SEC_DW2_DESCRIPTOR0_LO,
-  SEC_DW2_DESCRIPTOR0_HI,
-  SEC_DW2_DESCRIPTOR1_LO,
-  SEC_DW2_DESCRIPTOR1_HI,
-  SEC_DW3_DESCRIPTOR0_LO,
-  SEC_DW3_DESCRIPTOR0_HI,
-  SEC_DW3_DESCRIPTOR1_LO,
-  SEC_DW3_DESCRIPTOR1_HI,
+	SEC_DW0_DESCRIPTOR0_LO = 0x180,
+	SEC_DW0_DESCRIPTOR0_HI,
+	SEC_DW0_DESCRIPTOR1_LO,
+	SEC_DW0_DESCRIPTOR1_HI,
+	SEC_DW1_DESCRIPTOR0_LO,
+	SEC_DW1_DESCRIPTOR0_HI,
+	SEC_DW1_DESCRIPTOR1_LO,
+	SEC_DW1_DESCRIPTOR1_HI,
+	SEC_DW2_DESCRIPTOR0_LO,
+	SEC_DW2_DESCRIPTOR0_HI,
+	SEC_DW2_DESCRIPTOR1_LO,
+	SEC_DW2_DESCRIPTOR1_HI,
+	SEC_DW3_DESCRIPTOR0_LO,
+	SEC_DW3_DESCRIPTOR0_HI,
+	SEC_DW3_DESCRIPTOR1_LO,
+	SEC_DW3_DESCRIPTOR1_HI,
 
-  SEC_STATE0,
-  SEC_STATE1,
-  SEC_STATE2,
-  SEC_INCLUDE_MASK0,
-  SEC_INCLUDE_MASK1,
-  SEC_INCLUDE_MASK2,
-  SEC_EXCLUDE_MASK0,
-  SEC_EXCLUDE_MASK1,
-  SEC_EXCLUDE_MASK2,
-  SEC_EVENT_CTR
+	SEC_STATE0,
+	SEC_STATE1,
+	SEC_STATE2,
+	SEC_INCLUDE_MASK0,
+	SEC_INCLUDE_MASK1,
+	SEC_INCLUDE_MASK2,
+	SEC_EXCLUDE_MASK0,
+	SEC_EXCLUDE_MASK1,
+	SEC_EXCLUDE_MASK2,
+	SEC_EVENT_CTR
 
 };
 
 
 enum sec_msgring_bucket_config {
 
-  SEC_BIU_CREDITS = 0x308,
+	SEC_BIU_CREDITS = 0x308,
 
-  SEC_MSG_BUCKET0_SIZE = 0x320,
-  SEC_MSG_BUCKET1_SIZE,
-  SEC_MSG_BUCKET2_SIZE,
-  SEC_MSG_BUCKET3_SIZE,
-  SEC_MSG_BUCKET4_SIZE,
-  SEC_MSG_BUCKET5_SIZE,
-  SEC_MSG_BUCKET6_SIZE,
-  SEC_MSG_BUCKET7_SIZE,
+	SEC_MSG_BUCKET0_SIZE = 0x320,
+	SEC_MSG_BUCKET1_SIZE,
+	SEC_MSG_BUCKET2_SIZE,
+	SEC_MSG_BUCKET3_SIZE,
+	SEC_MSG_BUCKET4_SIZE,
+	SEC_MSG_BUCKET5_SIZE,
+	SEC_MSG_BUCKET6_SIZE,
+	SEC_MSG_BUCKET7_SIZE,
 };
 
 enum sec_msgring_credit_config {
 
-  SEC_CC_CPU0_0                        = 0x380,
-  SEC_CC_CPU1_0                        = 0x388,
-  SEC_CC_CPU2_0                        = 0x390,
-  SEC_CC_CPU3_0                        = 0x398,
-  SEC_CC_CPU4_0                        = 0x3a0,
-  SEC_CC_CPU5_0                        = 0x3a8,
-  SEC_CC_CPU6_0                        = 0x3b0,
-  SEC_CC_CPU7_0                        = 0x3b8
+	SEC_CC_CPU0_0 = 0x380,
+	SEC_CC_CPU1_0 = 0x388,
+	SEC_CC_CPU2_0 = 0x390,
+	SEC_CC_CPU3_0 = 0x398,
+	SEC_CC_CPU4_0 = 0x3a0,
+	SEC_CC_CPU5_0 = 0x3a8,
+	SEC_CC_CPU6_0 = 0x3b0,
+	SEC_CC_CPU7_0 = 0x3b8
 
 };
 
 enum sec_engine_id {
-  SEC_PIPE0,
-  SEC_PIPE1,
-  SEC_PIPE2,
-  SEC_PIPE3,
-  SEC_RSA
+	SEC_PIPE0,
+	SEC_PIPE1,
+	SEC_PIPE2,
+	SEC_PIPE3,
+	SEC_RSA
 };
 
 enum sec_cipher {
-  SEC_AES256_MODE_HMAC,
-  SEC_AES256_MODE,
-  SEC_AES256_HMAC,
-  SEC_AES256,
-  SEC_AES192_MODE_HMAC,
-  SEC_AES192_MODE,
-  SEC_AES192_HMAC,
-  SEC_AES192,
-  SEC_AES128_MODE_HMAC,
-  SEC_AES128_MODE,
-  SEC_AES128_HMAC,
-  SEC_AES128,
-  SEC_DES_HMAC,
-  SEC_DES,
-  SEC_3DES,
-  SEC_3DES_HMAC,
-  SEC_HMAC
+	SEC_AES256_MODE_HMAC,
+	SEC_AES256_MODE,
+	SEC_AES256_HMAC,
+	SEC_AES256,
+	SEC_AES192_MODE_HMAC,
+	SEC_AES192_MODE,
+	SEC_AES192_HMAC,
+	SEC_AES192,
+	SEC_AES128_MODE_HMAC,
+	SEC_AES128_MODE,
+	SEC_AES128_HMAC,
+	SEC_AES128,
+	SEC_DES_HMAC,
+	SEC_DES,
+	SEC_3DES,
+	SEC_3DES_HMAC,
+	SEC_HMAC
 };
 
 enum sec_msgrng_msg_ctrl_config {
-  SEC_EOP=5,
-  SEC_SOP=6,
+	SEC_EOP = 5,
+	SEC_SOP = 6,
 };
 
 
 
-void xlr_sec_init( struct xlr_sec_softc *sc) ;
+void 
+xlr_sec_init(struct xlr_sec_softc *sc);
 
-int xlr_sec_setup(struct xlr_sec_session* ses,
-    struct xlr_sec_command  *cmd, symkey_desc_pt desc);
+int 
+xlr_sec_setup(struct xlr_sec_session *ses,
+    struct xlr_sec_command *cmd, symkey_desc_pt desc);
 
-symkey_desc_pt xlr_sec_allocate_desc(void*);
+symkey_desc_pt xlr_sec_allocate_desc(void *);
 
 #endif
