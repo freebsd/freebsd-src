@@ -223,9 +223,9 @@ DELAY(int n)
 
 		/* Check to see if the timer has wrapped around. */
 		if (cur < last)
-			delta += (cur + (cycles_per_hz - last));
+			delta += cur + (0xffffffff - last) + 1;
 		else
-			delta += (cur - last);
+			delta += cur - last;
 
 		last = cur;
 
