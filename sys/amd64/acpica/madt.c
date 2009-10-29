@@ -36,24 +36,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
-
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <machine/apicreg.h>
-#include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
-#include <machine/md_var.h>
-#include <machine/specialreg.h>
 
 #include <contrib/dev/acpica/acpi.h>
 #include <contrib/dev/acpica/actables.h>
+
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcivar.h>
-
-typedef	void madt_entry_handler(ACPI_SUBTABLE_HEADER *entry, void *arg);
 
 /* These two arrays are indexed by APIC IDs. */
 struct ioapic_info {
@@ -77,8 +71,6 @@ static enum intr_polarity interrupt_polarity(UINT16 IntiFlags, UINT8 Source);
 static enum intr_trigger interrupt_trigger(UINT16 IntiFlags, UINT8 Source);
 static int	madt_find_cpu(u_int acpi_id, u_int *apic_id);
 static int	madt_find_interrupt(int intr, void **apic, u_int *pin);
-static void	*madt_map(vm_paddr_t pa, int offset, vm_offset_t length);
-static void	*madt_map_table(vm_paddr_t pa, int offset, const char *sig);
 static void	madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg);
 static void	madt_parse_interrupt_override(
 		    ACPI_MADT_INTERRUPT_OVERRIDE *intr);
@@ -90,13 +82,10 @@ static int	madt_probe(void);
 static int	madt_probe_cpus(void);
 static void	madt_probe_cpus_handler(ACPI_SUBTABLE_HEADER *entry,
 		    void *arg __unused);
-static int	madt_probe_table(vm_paddr_t address);
 static void	madt_register(void *dummy);
 static int	madt_setup_local(void);
 static int	madt_setup_io(void);
-static void	madt_unmap(void *data, vm_offset_t length);
-static void	madt_unmap_table(void *table);
-static void	madt_walk_table(madt_entry_handler *handler, void *arg);
+static void	madt_walk_table(acpi_subtable_handler *handler, void *arg);
 
 static struct apic_enumerator madt_enumerator = {
 	"MADT",
@@ -107,211 +96,16 @@ static struct apic_enumerator madt_enumerator = {
 };
 
 /*
- * Code to abuse the crashdump map to map in the tables for the early
- * probe.  We cheat and make the following assumptions about how we
- * use this KVA: pages 0 and 1 are used to map in the header of each
- * table found via the RSDT or XSDT and pages 2 to n are used to map
- * in the RSDT or XSDT.  We have to use 2 pages for the table headers
- * in case a header spans a page boundary.  The offset is in pages;
- * the length is in bytes.
- */
-static void *
-madt_map(vm_paddr_t pa, int offset, vm_offset_t length)
-{
-	vm_offset_t va, off;
-	void *data;
-
-	off = pa & PAGE_MASK;
-	length = roundup(length + off, PAGE_SIZE);
-	pa = pa & PG_FRAME;
-	va = (vm_offset_t)pmap_kenter_temporary(pa, offset) +
-	    (offset * PAGE_SIZE);
-	data = (void *)(va + off);
-	length -= PAGE_SIZE;
-	while (length > 0) {
-		va += PAGE_SIZE;
-		pa += PAGE_SIZE;
-		length -= PAGE_SIZE;
-		pmap_kenter(va, pa);
-		invlpg(va);
-	}
-	return (data);
-}
-
-static void
-madt_unmap(void *data, vm_offset_t length)
-{
-	vm_offset_t va, off;
-
-	va = (vm_offset_t)data;
-	off = va & PAGE_MASK;
-	length = roundup(length + off, PAGE_SIZE);
-	va &= ~PAGE_MASK;
-	while (length > 0) {
-		pmap_kremove(va);
-		invlpg(va);
-		va += PAGE_SIZE;
-		length -= PAGE_SIZE;
-	}
-}
-
-static void *
-madt_map_table(vm_paddr_t pa, int offset, const char *sig)
-{
-	ACPI_TABLE_HEADER *header;
-	vm_offset_t length;
-	void *table;
-
-	header = madt_map(pa, offset, sizeof(ACPI_TABLE_HEADER));
-	if (strncmp(header->Signature, sig, ACPI_NAME_SIZE) != 0) {
-		madt_unmap(header, sizeof(ACPI_TABLE_HEADER));
-		return (NULL);
-	}
-	length = header->Length;
-	madt_unmap(header, sizeof(ACPI_TABLE_HEADER));
-	table = madt_map(pa, offset, length);
-	if (ACPI_FAILURE(AcpiTbChecksum(table, length))) {
-		if (bootverbose)
-			printf("MADT: Failed checksum for table %s\n", sig);
-		madt_unmap(table, length);
-		return (NULL);
-	}
-	return (table);
-}
-
-static void
-madt_unmap_table(void *table)
-{
-	ACPI_TABLE_HEADER *header;
-
-	header = (ACPI_TABLE_HEADER *)table;
-	madt_unmap(table, header->Length);
-}
-
-/*
  * Look for an ACPI Multiple APIC Description Table ("APIC")
  */
 static int
 madt_probe(void)
 {
-	ACPI_PHYSICAL_ADDRESS rsdp_ptr;
-	ACPI_TABLE_RSDP *rsdp;
-	ACPI_TABLE_RSDT *rsdt;
-	ACPI_TABLE_XSDT *xsdt;
-	int i, count;
 
-	if (resource_disabled("acpi", 0))
+	madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
+	if (madt_physaddr == 0)
 		return (ENXIO);
-
-	/*
-	 * Map in the RSDP.  Since ACPI uses AcpiOsMapMemory() which in turn
-	 * calls pmap_mapbios() to find the RSDP, we assume that we can use
-	 * pmap_mapbios() to map the RSDP.
-	 */
-	if ((rsdp_ptr = AcpiOsGetRootPointer()) == 0)
-		return (ENXIO);
-	rsdp = pmap_mapbios(rsdp_ptr, sizeof(ACPI_TABLE_RSDP));
-	if (rsdp == NULL) {
-		if (bootverbose)
-			printf("MADT: Failed to map RSDP\n");
-		return (ENXIO);
-	}
-
-	/*
-	 * For ACPI >= 2.0, use the XSDT if it is available.
-	 * Otherwise, use the RSDT.  We map the XSDT or RSDT at page 1
-	 * in the crashdump area.  Page 0 is used to map in the
-	 * headers of candidate ACPI tables.
-	 */
-	if (rsdp->Revision >= 2 && rsdp->XsdtPhysicalAddress != 0) {
-		/*
-		 * AcpiOsGetRootPointer only verifies the checksum for
-		 * the version 1.0 portion of the RSDP.  Version 2.0 has
-		 * an additional checksum that we verify first.
-		 */
-		if (AcpiTbChecksum((UINT8 *)rsdp, ACPI_RSDP_XCHECKSUM_LENGTH)) {
-			if (bootverbose)
-				printf("MADT: RSDP failed extended checksum\n");
-			return (ENXIO);
-		}
-		xsdt = madt_map_table(rsdp->XsdtPhysicalAddress, 2,
-		    ACPI_SIG_XSDT);
-		if (xsdt == NULL) {
-			if (bootverbose)
-				printf("MADT: Failed to map XSDT\n");
-			return (ENXIO);
-		}
-		count = (xsdt->Header.Length - sizeof(ACPI_TABLE_HEADER)) /
-		    sizeof(UINT64);
-		for (i = 0; i < count; i++)
-			if (madt_probe_table(xsdt->TableOffsetEntry[i]))
-				break;
-		madt_unmap_table(xsdt);
-	} else {
-		rsdt = madt_map_table(rsdp->RsdtPhysicalAddress, 2,
-		    ACPI_SIG_RSDT);
-		if (rsdt == NULL) {
-			if (bootverbose)
-				printf("MADT: Failed to map RSDT\n");
-			return (ENXIO);
-		}
-		count = (rsdt->Header.Length - sizeof(ACPI_TABLE_HEADER)) /
-		    sizeof(UINT32);
-		for (i = 0; i < count; i++)
-			if (madt_probe_table(rsdt->TableOffsetEntry[i]))
-				break;
-		madt_unmap_table(rsdt);
-	}
-	pmap_unmapbios((vm_offset_t)rsdp, sizeof(ACPI_TABLE_RSDP));
-	if (madt_physaddr == 0) {
-		if (bootverbose)
-			printf("MADT: No MADT table found\n");
-		return (ENXIO);
-	}
-	if (bootverbose)
-		printf("MADT: Found table at 0x%jx\n",
-		    (uintmax_t)madt_physaddr);
-
-	/*
-	 * Verify that we can map the full table and that its checksum is
-	 * correct, etc.
-	 */
-	madt = madt_map_table(madt_physaddr, 0, ACPI_SIG_MADT);
-	if (madt == NULL)
-		return (ENXIO);
-	madt_unmap_table(madt);
-	madt = NULL;
-
 	return (0);
-}
-
-/*
- * See if a given ACPI table is the MADT.
- */
-static int
-madt_probe_table(vm_paddr_t address)
-{
-	ACPI_TABLE_HEADER *table;
-
-	table = madt_map(address, 0, sizeof(ACPI_TABLE_HEADER));
-	if (table == NULL) {
-		if (bootverbose)
-			printf("MADT: Failed to map table at 0x%jx\n",
-			    (uintmax_t)address);
-		return (0);
-	}
-	if (bootverbose)
-		printf("Table '%.4s' at 0x%jx\n", table->Signature,
-		    (uintmax_t)address);
-
-	if (strncmp(table->Signature, ACPI_SIG_MADT, ACPI_NAME_SIZE) != 0) {
-		madt_unmap(table, sizeof(ACPI_TABLE_HEADER));
-		return (0);
-	}
-	madt_physaddr = address;
-	madt_length = table->Length;
-	madt_unmap(table, sizeof(ACPI_TABLE_HEADER));
-	return (1);
 }
 
 /*
@@ -321,10 +115,11 @@ static int
 madt_probe_cpus(void)
 {
 
-	madt = madt_map_table(madt_physaddr, 0, ACPI_SIG_MADT);
+	madt = acpi_map_table(madt_physaddr, ACPI_SIG_MADT);
+	madt_length = madt->Header.Length;
 	KASSERT(madt != NULL, ("Unable to re-map MADT"));
 	madt_walk_table(madt_probe_cpus_handler, NULL);
-	madt_unmap_table(madt);
+	acpi_unmap_table(madt);
 	madt = NULL;
 	return (0);
 }
@@ -415,17 +210,11 @@ SYSINIT(madt_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST,
  * Call the handler routine for each entry in the MADT table.
  */
 static void
-madt_walk_table(madt_entry_handler *handler, void *arg)
+madt_walk_table(acpi_subtable_handler *handler, void *arg)
 {
-	ACPI_SUBTABLE_HEADER *entry;
-	u_char *p, *end;
 
-	end = (u_char *)(madt) + madt->Header.Length;
-	for (p = (u_char *)(madt + 1); p < end; ) {
-		entry = (ACPI_SUBTABLE_HEADER *)p;
-		handler(entry, arg);
-		p += entry->Length;
-	}
+	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
+	    handler, arg);
 }
 
 static void
