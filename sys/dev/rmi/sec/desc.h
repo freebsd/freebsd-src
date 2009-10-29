@@ -70,7 +70,7 @@
    (word) |=  (((value) & (field ## _BITS)) << (field ## _LSB)); }
 
 /*
- * NOTE: May be used to build value specific mask 
+ * NOTE: May be used to build value specific mask
  *        (e.g.  GEN_MASK(CTL_DSC_CPHR_3DES,CTL_DSC_CPHR_LSB)
  */
 #define GEN_MASK(bits,lsb) ((bits) << (lsb))
@@ -122,7 +122,7 @@
  * | Ctrl | Destination Id | 2'b00 | Desc Ctrl | 1'b0 |     Data Error    |    Address of packet descriptor data structure      |
  *  ----------------------------------------------------------------------------------------------------------------------------
  *
- * The Instruction and Data Error codes are enumerated in the 
+ * The Instruction and Data Error codes are enumerated in the
  * ControlDescriptor and PacketDescriptor sections below
  *
  */
@@ -132,12 +132,12 @@
  * Operating assumptions
  * =====================
  *
- * 
+ *
  *	        -> For all IpSec ops, I assume that all the IP/IPSec/TCP headers
  *		   and the data are present at the specified source addresses.
  *		   I also assume that all necessary header data already exists
  *		   at the destination. Additionally, in AH I assume that all
- *		   mutable fields (IP.{TOS, Flags, Offset, TTL, Header_Checksum}) 
+ *		   mutable fields (IP.{TOS, Flags, Offset, TTL, Header_Checksum})
  *		   and the AH.Authentication_Data have been zeroed by the client.
  *
  *
@@ -183,9 +183,9 @@
  *
  *      A) Rebuilding packets from fragments on dword boundaries. The discussion
  *         below is exemplified by tests memcpy_all_off_frags and memcpy_same_off_frags
- * 
+ *
  *	        1) The Offset before data/iv on first fragment is ALWAYS written back
- *                 Non-zero dst dword or global offsets may cause more data to be 
+ *                 Non-zero dst dword or global offsets may cause more data to be
  *                 written than the user-specified length.
  *
  *
@@ -217,7 +217,7 @@
  *                      Cipher_Offset       = 3
  *                      IV_Offset           = 3
  *                      Use_IV              = ANY
- *                      
+ *
  *
  *
  *                         3     2     1     0                                  3     2     1     0
@@ -228,7 +228,7 @@
  *                       -----------------------                              -----------------------
  *                      |     |     |     | D05 |                            |     |     | D05 | D04 |
  *                       -----------------------                              -----------------------
- * 
+ *
  *	        2) On fragments following the first, IV_Offset is overloaded to mean data offset
  *                 (number of dwords to skip from beginning of cacheline before starting processing)
  *                 and Use_IV is overloaded to mean do writeback the offset (in the clear).
@@ -253,7 +253,7 @@
  *                      Packet_Legth        = 104                               Dst_dword_offset   = 1
  *                      IV_Offset           = 1
  *                      Use_IV              = 0
- *                      
+ *
  *
  *
  *                         3     2     1     0                                  3     2     1     0
@@ -275,7 +275,7 @@
  *                 engine always writes full lines, therefore ADD1 + 0x20 will be re-written. Setting Use_IV to 0
  *                 will allow the sec pipe write back buffer to preserve D04, D05 from previous frag and only
  *                 receive D10, D11 thereby preserving the integrity of the previous data.
- * 
+ *
  *	        3) On fragments following the first, !UseIV in combination w/ Dst_dword_offset >= (4 - IV_Offset)
  *                 will cause a wraparound of the write thus achieving all 16 possible (Initial_Location, Final_Location)
  *                 combinations for the data.
@@ -284,7 +284,7 @@
  *                 Example:
  *                 --------
  *
- *                 Contiguously merging 2 data sets above with a third located at ADD3. If this is the last fragment, 
+ *                 Contiguously merging 2 data sets above with a third located at ADD3. If this is the last fragment,
  *                 reset its Next bit.
  *
  *
@@ -295,7 +295,7 @@
  *                      Packet_Legth        = 152                               Dst_dword_offset   = 3
  *                      IV_Offset           = 3
  *                      Use_IV              = 0
- *                      
+ *
  *
  *
  *                         3     2     1     0                                  3     2     1     0
@@ -312,13 +312,13 @@
  *                       -----------------------                              -----------------------
  *                                                                           | D21 | D20 | D1b | D1a | <- ADD1 + 0x80
  *                                                                            -----------------------
- *                                                                           | D25 | D24 | D23 | D22 | 
+ *                                                                           | D25 | D24 | D23 | D22 |
  *                                                                            -----------------------
- *                                                                           | D29 | D28 | D27 | D26 | 
+ *                                                                           | D29 | D28 | D27 | D26 |
  *                                                                            -----------------------
- *                                                                           | D2d | D2c | D2b | D2a | 
+ *                                                                           | D2d | D2c | D2b | D2a |
  *                                                                            -----------------------
- *                                                                           |(D2d)|(D2c)| D2f | D2e | 
+ *                                                                           |(D2d)|(D2c)| D2f | D2e |
  *                                                                            -----------------------
  *
  *                 It is worth noticing that always writing full-lines causes the last 2 dwords in the reconstituted
@@ -327,7 +327,7 @@
  *
  *
  *      B) Implications of fragmentation on AES
- * 
+ *
  *	        1) AES is a 128 bit block cipher; therefore it requires an even dword total data length
  *                 Data fragments (provided there are more than 1) are allowed to have odd dword
  *                 data lengths provided the total length (cumulated over fragments) is an even dword
@@ -354,9 +354,9 @@
  *                      Use_IV              = 1
  *                      Cipher              = Any AES
  *                      Next                = 1
- *                      
  *
- * 
+ *
+ *
  *
  *                         3     2     1     0                                  3     2     1     0
  *                       -----------------------                              -----------------------
@@ -396,7 +396,7 @@
 
 
 /* #define MSG_CMD_CTL_ADDR */
-#define MSG_CMD_CTL_ADDR_LSB  0 
+#define MSG_CMD_CTL_ADDR_LSB  0
 #define MSG_CMD_CTL_ADDR_BITS FOURTY_BITS
 #define MSG_CMD_CTL_ADDR_MASK (MSG_CMD_CTL_ADDR_BITS << MSG_CMD_CTL_ADDR_LSB)
 
@@ -419,8 +419,8 @@
 #define MSG_CMD_DATA_LEN_MASK  (MSG_CMD_DATA_LEN_BITS << MSG_CMD_DATA_LEN_LSB)
 
 /* #define MSG_CMD_DATA_ADDR */
-#define MSG_CMD_DATA_ADDR_LSB  0 
-#define MSG_CMD_DATA_ADDR_BITS FOURTY_BITS 
+#define MSG_CMD_DATA_ADDR_LSB  0
+#define MSG_CMD_DATA_ADDR_BITS FOURTY_BITS
 #define MSG_CMD_DATA_ADDR_MASK (MSG_CMD_DATA_ADDR_BITS << MSG_CMD_DATA_ADDR_LSB)
 
 #define MSG_CMD_DATA_MASK      (MSG_CMD_DATA_CTL_MASK | \
@@ -620,7 +620,7 @@
  *                                                 For ARC4, IFetch/IDecode will always read exactly 4
  *                                                 consecutive dwords into its CipherKey{0,3} regardless
  *                                                 of this quantity; it will however only use the specified
- *                                                 number of bytes.        
+ *                                                 number of bytes.
  *             Cipher          =        3'b000     Bypass
  *                                      3'b001     DES
  *                                      3'b010     3DES
@@ -642,7 +642,7 @@
  *                                                 and recalculate the Arc4 Sbox if Arc4 Cipher chosen;
  *                                                 This overrides LoadArc4State setting.
  *        HASH.HMAC            =        1'b0       Hash without HMAC
- *                                      1'b1       Hash with HMAC 
+ *                                      1'b1       Hash with HMAC
  *                                                 Needs to be set to 0 for GCM and Kasumi F9 authenticators
  *                                                 otherwise unpredictable results will be generated
  *             Hash            =        2'b00      Hash NOP
@@ -712,7 +712,7 @@
 #define CTL_DSC_ARC4_KEYLEN_MASK         (CTL_DSC_ARC4_KEYLEN_BITS << CTL_DSC_ARC4_KEYLEN_LSB)
 
 /* #define CTL_DSC_CPHR  (cipher) */
-#define CTL_DSC_CPHR_BYPASS       0 /* undefined */
+#define CTL_DSC_CPHR_BYPASS       0	/* undefined */
 #define CTL_DSC_CPHR_DES          1
 #define CTL_DSC_CPHR_3DES         2
 #define CTL_DSC_CPHR_AES128       3
@@ -736,8 +736,8 @@
 #define CTL_DSC_MODE_MASK         (CTL_DSC_MODE_BITS << CTL_DSC_MODE_LSB)
 
 /* #define CTL_DSC_ICPHR */
-#define CTL_DSC_ICPHR_OKY          0 /* Old Keys */
-#define CTL_DSC_ICPHR_NKY          1 /* New Keys */
+#define CTL_DSC_ICPHR_OKY          0	/* Old Keys */
+#define CTL_DSC_ICPHR_NKY          1	/* New Keys */
 #define CTL_DSC_ICPHR_LSB          28
 #define CTL_DSC_ICPHR_BITS         ONE_BIT
 #define CTL_DSC_ICPHR_MASK         (CTL_DSC_ICPHR_BITS << CTL_DSC_ICPHR_LSB)
@@ -788,1075 +788,1075 @@
 
 /* AES256, (ECB, CBC, OFB, CTR, CFB), HMAC (MD5, SHA-1, SHA-256)      - 96  bytes */
 typedef struct AES256HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} AES256HMAC_t, *AES256HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}            AES256HMAC_t, *AES256HMAC_pt;
 
 /* AES256, (ECB, CBC, OFB, CTR, CFB), HMAC (SHA-384, SHA-512)      - 160  bytes */
 typedef struct AES256HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} AES256HMAC2_t, *AES256HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}             AES256HMAC2_t, *AES256HMAC2_pt;
 
 /* AES256, (ECB, CBC, OFB, CTR, CFB), GCM      - 56  bytes */
 typedef struct AES256GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} AES256GCM_t, *AES256GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}           AES256GCM_t, *AES256GCM_pt;
 
 /* AES256, (ECB, CBC, OFB, CTR, CFB), F9      - 56  bytes */
 typedef struct AES256F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} AES256F9_t, *AES256F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}          AES256F9_t, *AES256F9_pt;
 
 /* AES256, (ECB, CBC, OFB, CTR, CFB), Non-HMAC (MD5, SHA-1, SHA-256)  - 32  bytes */
 typedef struct AES256_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-} AES256_t, *AES256_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+}        AES256_t, *AES256_pt;
 
 
 /* All AES192 possibilities */
 
 /* AES192, (ECB, CBC, OFB, CTR, CFB), HMAC (MD5, SHA-1, SHA-192)      - 88  bytes */
 typedef struct AES192HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} AES192HMAC_t, *AES192HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}            AES192HMAC_t, *AES192HMAC_pt;
 
 /* AES192, (ECB, CBC, OFB, CTR, CFB), HMAC (SHA-384, SHA-512)      - 152  bytes */
 typedef struct AES192HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} AES192HMAC2_t, *AES192HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}             AES192HMAC2_t, *AES192HMAC2_pt;
 
 /* AES192, (ECB, CBC, OFB, CTR, CFB), GCM      - 48  bytes */
 typedef struct AES192GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} AES192GCM_t, *AES192GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}           AES192GCM_t, *AES192GCM_pt;
 
 /* AES192, (ECB, CBC, OFB, CTR, CFB), F9      - 48  bytes */
 typedef struct AES192F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} AES192F9_t, *AES192F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}          AES192F9_t, *AES192F9_pt;
 
 /* AES192, (ECB, CBC, OFB, CTR, CFB), Non-HMAC (MD5, SHA-1, SHA-192)  - 24  bytes */
 typedef struct AES192_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-} AES192_t, *AES192_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+}        AES192_t, *AES192_pt;
 
 
 /* All AES128 possibilities */
 
 /* AES128, (ECB, CBC, OFB, CTR, CFB), HMAC (MD5, SHA-1, SHA-128)      - 80  bytes */
 typedef struct AES128HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} AES128HMAC_t, *AES128HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}            AES128HMAC_t, *AES128HMAC_pt;
 
 /* AES128, (ECB, CBC, OFB, CTR, CFB), HMAC (SHA-384, SHA-612)      - 144  bytes */
 typedef struct AES128HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} AES128HMAC2_t, *AES128HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}             AES128HMAC2_t, *AES128HMAC2_pt;
 
 /* AES128, (ECB, CBC, OFB, CTR, CFB), GCM      - 40  bytes */
 typedef struct AES128GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} AES128GCM_t, *AES128GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}           AES128GCM_t, *AES128GCM_pt;
 
 /* AES128, (ECB, CBC, OFB, CTR, CFB), F9      - 48  bytes */
 typedef struct AES128F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} AES128F9_t, *AES128F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}          AES128F9_t, *AES128F9_pt;
 
 /* AES128, (ECB, CBC, OFB, CTR, CFB), Non-HMAC (MD5, SHA-1, SHA-128)  - 16  bytes */
 typedef struct AES128_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-} AES128_t, *AES128_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+}        AES128_t, *AES128_pt;
 
 /* AES128, (OFB F8), Non-HMAC (MD5, SHA-1, SHA-256)  - 32  bytes */
 typedef struct AES128F8_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-} AES128F8_t, *AES128F8_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+}          AES128F8_t, *AES128F8_pt;
 
 /* AES128, (OFB F8), HMAC (MD5, SHA-1, SHA-256)  - 96  bytes */
 typedef struct AES128F8HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} AES128F8HMAC_t, *AES128F8HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}              AES128F8HMAC_t, *AES128F8HMAC_pt;
 
 /* AES128, (OFB F8), HMAC (SHA-384, SHA-512)  - 160  bytes */
 typedef struct AES128F8HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} AES128F8HMAC2_t, *AES128F8HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}               AES128F8HMAC2_t, *AES128F8HMAC2_pt;
 
 /* AES192, (OFB F8), Non-HMAC (MD5, SHA-1, SHA-256)  - 48  bytes */
 typedef struct AES192F8_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             cipherKeyMask2;
-} AES192F8_t, *AES192F8_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t cipherKeyMask2;
+}          AES192F8_t, *AES192F8_pt;
 
 /* AES192, (OFB F8), HMAC (MD5, SHA-1, SHA-256)  - 112 bytes */
 typedef struct AES192F8HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             cipherKeyMask2;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} AES192F8HMAC_t, *AES192F8HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t cipherKeyMask2;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}              AES192F8HMAC_t, *AES192F8HMAC_pt;
 
 /* AES192, (OFB F8), HMAC (SHA-384, SHA-512)  - 176 bytes */
 typedef struct AES192F8HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             cipherKeyMask2;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} AES192F8HMAC2_t, *AES192F8HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t cipherKeyMask2;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}               AES192F8HMAC2_t, *AES192F8HMAC2_pt;
 
 /* AES256, (OFB F8), Non-HMAC (MD5, SHA-1, SHA-256)  - 64  bytes */
 typedef struct AES256F8_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             cipherKeyMask2;
-  uint64_t             cipherKeyMask3;
-} AES256F8_t, *AES256F8_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t cipherKeyMask2;
+	uint64_t cipherKeyMask3;
+}          AES256F8_t, *AES256F8_pt;
 
 /* AES256, (OFB F8), HMAC (MD5, SHA-1, SHA-256)  - 128  bytes */
 typedef struct AES256F8HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             cipherKeyMask2;
-  uint64_t             cipherKeyMask3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} AES256F8HMAC_t, *AES256F8HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t cipherKeyMask2;
+	uint64_t cipherKeyMask3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}              AES256F8HMAC_t, *AES256F8HMAC_pt;
 
 /* AES256, (OFB F8), HMAC (SHA-384, SHA-512)  - 192  bytes */
 typedef struct AES256F8HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             cipherKeyMask0;
-  uint64_t             cipherKeyMask1;
-  uint64_t             cipherKeyMask2;
-  uint64_t             cipherKeyMask3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} AES256F8HMAC2_t, *AES256F8HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t cipherKeyMask0;
+	uint64_t cipherKeyMask1;
+	uint64_t cipherKeyMask2;
+	uint64_t cipherKeyMask3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}               AES256F8HMAC2_t, *AES256F8HMAC2_pt;
 
 /* AES256, (F8), GCM      - 40  bytes */
 typedef struct AES128F8GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey2;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} AES128F8GCM_t, *AES128F8GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey2;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}             AES128F8GCM_t, *AES128F8GCM_pt;
 
 /* AES256, (F8), GCM      - 48  bytes */
 typedef struct AES192F8GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} AES192F8GCM_t, *AES192F8GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}             AES192F8GCM_t, *AES192F8GCM_pt;
 
 /* AES256, (F8), GCM      - 56  bytes */
 typedef struct AES256F8GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} AES256F8GCM_t, *AES256F8GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}             AES256F8GCM_t, *AES256F8GCM_pt;
 
 /* AES256, (F8), F9      - 40  bytes */
 typedef struct AES128F8F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey2;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} AES128F8F9_t, *AES128F8F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey2;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}            AES128F8F9_t, *AES128F8F9_pt;
 
 /* AES256, (F8), F9      - 48  bytes */
 typedef struct AES192F8F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} AES192F8F9_t, *AES192F8F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}            AES192F8F9_t, *AES192F8F9_pt;
 
 /* AES256F8, (F8), F9      - 56  bytes */
 typedef struct AES256F8F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} AES256F8F9_t, *AES256F8F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}            AES256F8F9_t, *AES256F8F9_pt;
 
 /* All DES possibilities */
 
 /* DES, (ECB, CBC), HMAC (MD5, SHA-1, SHA-128)              - 72  bytes */
 typedef struct DESHMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} DESHMAC_t, *DESHMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}         DESHMAC_t, *DESHMAC_pt;
 
 /* DES, (ECB, CBC), HMAC (SHA-384, SHA-512)              - 136  bytes */
 typedef struct DESHMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} DESHMAC2_t, *DESHMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}          DESHMAC2_t, *DESHMAC2_pt;
 
 /* DES, (ECB, CBC), GCM              - 32  bytes */
 typedef struct DESGCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} DESGCM_t, *DESGCM_pt;
+	uint64_t cipherKey0;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}        DESGCM_t, *DESGCM_pt;
 
 /* DES, (ECB, CBC), F9              - 32  bytes */
 typedef struct DESF9_s {
-  uint64_t             cipherKey0;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} DESF9_t, *DESF9_pt;
+	uint64_t cipherKey0;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}       DESF9_t, *DESF9_pt;
 
 /* DES, (ECB, CBC), Non-HMAC (MD5, SHA-1, SHA-128)          - 9   bytes */
 typedef struct DES_s {
-  uint64_t             cipherKey0;
-} DES_t, *DES_pt;
+	uint64_t cipherKey0;
+}     DES_t, *DES_pt;
 
 
 /* All 3DES possibilities */
 
 /* 3DES, (ECB, CBC), HMAC (MD5, SHA-1, SHA-128)             - 88  bytes */
 typedef struct DES3HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} DES3HMAC_t, *DES3HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}          DES3HMAC_t, *DES3HMAC_pt;
 
 /* 3DES, (ECB, CBC), HMAC (SHA-384, SHA-512)             - 152  bytes */
 typedef struct DES3HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} DES3HMAC2_t, *DES3HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}           DES3HMAC2_t, *DES3HMAC2_pt;
 
 /* 3DES, (ECB, CBC), GCM             - 48  bytes */
 typedef struct DES3GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} DES3GCM_t, *DES3GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}         DES3GCM_t, *DES3GCM_pt;
 
 /* 3DES, (ECB, CBC), GCM             - 48  bytes */
 typedef struct DES3F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} DES3F9_t, *DES3F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}        DES3F9_t, *DES3F9_pt;
 
 /* 3DES, (ECB, CBC), Non-HMAC (MD5, SHA-1, SHA-128)         - 24  bytes */
 typedef struct DES3_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-} DES3_t, *DES3_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+}      DES3_t, *DES3_pt;
 
 
 /* HMAC only - no cipher */
 
 /* HMAC (MD5, SHA-1, SHA-128)                               - 64  bytes */
 typedef struct HMAC_s {
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} HMAC_t, *HMAC_pt;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}      HMAC_t, *HMAC_pt;
 
 /* HMAC (SHA-384, SHA-512)                               - 128  bytes */
 typedef struct HMAC2_s {
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} HMAC2_t, *HMAC2_pt;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}       HMAC2_t, *HMAC2_pt;
 
 /* GCM                               - 24  bytes */
 typedef struct GCM_s {
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} GCM_t, *GCM_pt;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}     GCM_t, *GCM_pt;
 
 /* F9                               - 24  bytes */
 typedef struct F9_s {
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} F9_t, *F9_pt;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}    F9_t, *F9_pt;
 
 /* All ARC4 possibilities */
 /* ARC4, HMAC (MD5, SHA-1, SHA-256)      - 96 bytes */
 typedef struct ARC4HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} ARC4HMAC_t, *ARC4HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}          ARC4HMAC_t, *ARC4HMAC_pt;
 
 /* ARC4, HMAC (SHA-384, SHA-512)      - 160 bytes */
 typedef struct ARC4HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} ARC4HMAC2_t, *ARC4HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}           ARC4HMAC2_t, *ARC4HMAC2_pt;
 
 /* ARC4, GCM      - 56 bytes */
 typedef struct ARC4GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} ARC4GCM_t, *ARC4GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}         ARC4GCM_t, *ARC4GCM_pt;
 
 /* ARC4, F9      - 56 bytes */
 typedef struct ARC4F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} ARC4F9_t, *ARC4F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}        ARC4F9_t, *ARC4F9_pt;
 
 /* ARC4, HMAC (MD5, SHA-1, SHA-256)      - 408 bytes (not including 8 bytes from instruction) */
 typedef struct ARC4StateHMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             PAD0;
-  uint64_t             PAD1;
-  uint64_t             PAD2;
-  uint64_t             Arc4SboxData0;
-  uint64_t             Arc4SboxData1;
-  uint64_t             Arc4SboxData2;
-  uint64_t             Arc4SboxData3;
-  uint64_t             Arc4SboxData4;
-  uint64_t             Arc4SboxData5;
-  uint64_t             Arc4SboxData6;
-  uint64_t             Arc4SboxData7;
-  uint64_t             Arc4SboxData8;
-  uint64_t             Arc4SboxData9;
-  uint64_t             Arc4SboxData10;
-  uint64_t             Arc4SboxData11;
-  uint64_t             Arc4SboxData12;
-  uint64_t             Arc4SboxData13;
-  uint64_t             Arc4SboxData14;
-  uint64_t             Arc4SboxData15;
-  uint64_t             Arc4SboxData16;
-  uint64_t             Arc4SboxData17;
-  uint64_t             Arc4SboxData18;
-  uint64_t             Arc4SboxData19;
-  uint64_t             Arc4SboxData20;
-  uint64_t             Arc4SboxData21;
-  uint64_t             Arc4SboxData22;
-  uint64_t             Arc4SboxData23;
-  uint64_t             Arc4SboxData24;
-  uint64_t             Arc4SboxData25;
-  uint64_t             Arc4SboxData26;
-  uint64_t             Arc4SboxData27;
-  uint64_t             Arc4SboxData28;
-  uint64_t             Arc4SboxData29;
-  uint64_t             Arc4SboxData30;
-  uint64_t             Arc4SboxData31;
-  uint64_t             Arc4IJData;
-  uint64_t             PAD3;
-  uint64_t             PAD4;
-  uint64_t             PAD5;
-} ARC4StateHMAC_t, *ARC4StateHMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t PAD0;
+	uint64_t PAD1;
+	uint64_t PAD2;
+	uint64_t Arc4SboxData0;
+	uint64_t Arc4SboxData1;
+	uint64_t Arc4SboxData2;
+	uint64_t Arc4SboxData3;
+	uint64_t Arc4SboxData4;
+	uint64_t Arc4SboxData5;
+	uint64_t Arc4SboxData6;
+	uint64_t Arc4SboxData7;
+	uint64_t Arc4SboxData8;
+	uint64_t Arc4SboxData9;
+	uint64_t Arc4SboxData10;
+	uint64_t Arc4SboxData11;
+	uint64_t Arc4SboxData12;
+	uint64_t Arc4SboxData13;
+	uint64_t Arc4SboxData14;
+	uint64_t Arc4SboxData15;
+	uint64_t Arc4SboxData16;
+	uint64_t Arc4SboxData17;
+	uint64_t Arc4SboxData18;
+	uint64_t Arc4SboxData19;
+	uint64_t Arc4SboxData20;
+	uint64_t Arc4SboxData21;
+	uint64_t Arc4SboxData22;
+	uint64_t Arc4SboxData23;
+	uint64_t Arc4SboxData24;
+	uint64_t Arc4SboxData25;
+	uint64_t Arc4SboxData26;
+	uint64_t Arc4SboxData27;
+	uint64_t Arc4SboxData28;
+	uint64_t Arc4SboxData29;
+	uint64_t Arc4SboxData30;
+	uint64_t Arc4SboxData31;
+	uint64_t Arc4IJData;
+	uint64_t PAD3;
+	uint64_t PAD4;
+	uint64_t PAD5;
+}               ARC4StateHMAC_t, *ARC4StateHMAC_pt;
 
 /* ARC4, HMAC (SHA-384, SHA-512)      - 480 bytes (not including 8 bytes from instruction) */
 typedef struct ARC4StateHMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-  uint64_t             PAD0;
-  uint64_t             PAD1;
-  uint64_t             PAD2;
-  uint64_t             Arc4SboxData0;
-  uint64_t             Arc4SboxData1;
-  uint64_t             Arc4SboxData2;
-  uint64_t             Arc4SboxData3;
-  uint64_t             Arc4SboxData4;
-  uint64_t             Arc4SboxData5;
-  uint64_t             Arc4SboxData6;
-  uint64_t             Arc4SboxData7;
-  uint64_t             Arc4SboxData8;
-  uint64_t             Arc4SboxData9;
-  uint64_t             Arc4SboxData10;
-  uint64_t             Arc4SboxData11;
-  uint64_t             Arc4SboxData12;
-  uint64_t             Arc4SboxData13;
-  uint64_t             Arc4SboxData14;
-  uint64_t             Arc4SboxData15;
-  uint64_t             Arc4SboxData16;
-  uint64_t             Arc4SboxData17;
-  uint64_t             Arc4SboxData18;
-  uint64_t             Arc4SboxData19;
-  uint64_t             Arc4SboxData20;
-  uint64_t             Arc4SboxData21;
-  uint64_t             Arc4SboxData22;
-  uint64_t             Arc4SboxData23;
-  uint64_t             Arc4SboxData24;
-  uint64_t             Arc4SboxData25;
-  uint64_t             Arc4SboxData26;
-  uint64_t             Arc4SboxData27;
-  uint64_t             Arc4SboxData28;
-  uint64_t             Arc4SboxData29;
-  uint64_t             Arc4SboxData30;
-  uint64_t             Arc4SboxData31;
-  uint64_t             Arc4IJData;
-  uint64_t             PAD3;
-  uint64_t             PAD4;
-  uint64_t             PAD5;
-} ARC4StateHMAC2_t, *ARC4StateHMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+	uint64_t PAD0;
+	uint64_t PAD1;
+	uint64_t PAD2;
+	uint64_t Arc4SboxData0;
+	uint64_t Arc4SboxData1;
+	uint64_t Arc4SboxData2;
+	uint64_t Arc4SboxData3;
+	uint64_t Arc4SboxData4;
+	uint64_t Arc4SboxData5;
+	uint64_t Arc4SboxData6;
+	uint64_t Arc4SboxData7;
+	uint64_t Arc4SboxData8;
+	uint64_t Arc4SboxData9;
+	uint64_t Arc4SboxData10;
+	uint64_t Arc4SboxData11;
+	uint64_t Arc4SboxData12;
+	uint64_t Arc4SboxData13;
+	uint64_t Arc4SboxData14;
+	uint64_t Arc4SboxData15;
+	uint64_t Arc4SboxData16;
+	uint64_t Arc4SboxData17;
+	uint64_t Arc4SboxData18;
+	uint64_t Arc4SboxData19;
+	uint64_t Arc4SboxData20;
+	uint64_t Arc4SboxData21;
+	uint64_t Arc4SboxData22;
+	uint64_t Arc4SboxData23;
+	uint64_t Arc4SboxData24;
+	uint64_t Arc4SboxData25;
+	uint64_t Arc4SboxData26;
+	uint64_t Arc4SboxData27;
+	uint64_t Arc4SboxData28;
+	uint64_t Arc4SboxData29;
+	uint64_t Arc4SboxData30;
+	uint64_t Arc4SboxData31;
+	uint64_t Arc4IJData;
+	uint64_t PAD3;
+	uint64_t PAD4;
+	uint64_t PAD5;
+}                ARC4StateHMAC2_t, *ARC4StateHMAC2_pt;
 
 /* ARC4, GCM      - 408 bytes (not including 8 bytes from instruction) */
 typedef struct ARC4StateGCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-  uint64_t             PAD0;
-  uint64_t             PAD1;
-  uint64_t             PAD2;
-  uint64_t             PAD3;
-  uint64_t             PAD4;
-  uint64_t             PAD5;
-  uint64_t             PAD6;
-  uint64_t             PAD7;
-  uint64_t             Arc4SboxData0;
-  uint64_t             Arc4SboxData1;
-  uint64_t             Arc4SboxData2;
-  uint64_t             Arc4SboxData3;
-  uint64_t             Arc4SboxData4;
-  uint64_t             Arc4SboxData5;
-  uint64_t             Arc4SboxData6;
-  uint64_t             Arc4SboxData7;
-  uint64_t             Arc4SboxData8;
-  uint64_t             Arc4SboxData9;
-  uint64_t             Arc4SboxData10;
-  uint64_t             Arc4SboxData11;
-  uint64_t             Arc4SboxData12;
-  uint64_t             Arc4SboxData13;
-  uint64_t             Arc4SboxData14;
-  uint64_t             Arc4SboxData15;
-  uint64_t             Arc4SboxData16;
-  uint64_t             Arc4SboxData17;
-  uint64_t             Arc4SboxData18;
-  uint64_t             Arc4SboxData19;
-  uint64_t             Arc4SboxData20;
-  uint64_t             Arc4SboxData21;
-  uint64_t             Arc4SboxData22;
-  uint64_t             Arc4SboxData23;
-  uint64_t             Arc4SboxData24;
-  uint64_t             Arc4SboxData25;
-  uint64_t             Arc4SboxData26;
-  uint64_t             Arc4SboxData27;
-  uint64_t             Arc4SboxData28;
-  uint64_t             Arc4SboxData29;
-  uint64_t             Arc4SboxData30;
-  uint64_t             Arc4SboxData31;
-  uint64_t             Arc4IJData;
-  uint64_t             PAD8;
-  uint64_t             PAD9;
-  uint64_t             PAD10;
-} ARC4StateGCM_t, *ARC4StateGCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+	uint64_t PAD0;
+	uint64_t PAD1;
+	uint64_t PAD2;
+	uint64_t PAD3;
+	uint64_t PAD4;
+	uint64_t PAD5;
+	uint64_t PAD6;
+	uint64_t PAD7;
+	uint64_t Arc4SboxData0;
+	uint64_t Arc4SboxData1;
+	uint64_t Arc4SboxData2;
+	uint64_t Arc4SboxData3;
+	uint64_t Arc4SboxData4;
+	uint64_t Arc4SboxData5;
+	uint64_t Arc4SboxData6;
+	uint64_t Arc4SboxData7;
+	uint64_t Arc4SboxData8;
+	uint64_t Arc4SboxData9;
+	uint64_t Arc4SboxData10;
+	uint64_t Arc4SboxData11;
+	uint64_t Arc4SboxData12;
+	uint64_t Arc4SboxData13;
+	uint64_t Arc4SboxData14;
+	uint64_t Arc4SboxData15;
+	uint64_t Arc4SboxData16;
+	uint64_t Arc4SboxData17;
+	uint64_t Arc4SboxData18;
+	uint64_t Arc4SboxData19;
+	uint64_t Arc4SboxData20;
+	uint64_t Arc4SboxData21;
+	uint64_t Arc4SboxData22;
+	uint64_t Arc4SboxData23;
+	uint64_t Arc4SboxData24;
+	uint64_t Arc4SboxData25;
+	uint64_t Arc4SboxData26;
+	uint64_t Arc4SboxData27;
+	uint64_t Arc4SboxData28;
+	uint64_t Arc4SboxData29;
+	uint64_t Arc4SboxData30;
+	uint64_t Arc4SboxData31;
+	uint64_t Arc4IJData;
+	uint64_t PAD8;
+	uint64_t PAD9;
+	uint64_t PAD10;
+}              ARC4StateGCM_t, *ARC4StateGCM_pt;
 
 /* ARC4, F9      - 408 bytes (not including 8 bytes from instruction) */
 typedef struct ARC4StateF9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-  uint64_t             PAD0;
-  uint64_t             PAD1;
-  uint64_t             PAD2;
-  uint64_t             PAD3;
-  uint64_t             PAD4;
-  uint64_t             PAD5;
-  uint64_t             PAD6;
-  uint64_t             PAD7;
-  uint64_t             PAD8;
-  uint64_t             Arc4SboxData0;
-  uint64_t             Arc4SboxData1;
-  uint64_t             Arc4SboxData2;
-  uint64_t             Arc4SboxData3;
-  uint64_t             Arc4SboxData4;
-  uint64_t             Arc4SboxData5;
-  uint64_t             Arc4SboxData6;
-  uint64_t             Arc4SboxData7;
-  uint64_t             Arc4SboxData8;
-  uint64_t             Arc4SboxData9;
-  uint64_t             Arc4SboxData10;
-  uint64_t             Arc4SboxData11;
-  uint64_t             Arc4SboxData12;
-  uint64_t             Arc4SboxData13;
-  uint64_t             Arc4SboxData14;
-  uint64_t             Arc4SboxData15;
-  uint64_t             Arc4SboxData16;
-  uint64_t             Arc4SboxData17;
-  uint64_t             Arc4SboxData18;
-  uint64_t             Arc4SboxData19;
-  uint64_t             Arc4SboxData20;
-  uint64_t             Arc4SboxData21;
-  uint64_t             Arc4SboxData22;
-  uint64_t             Arc4SboxData23;
-  uint64_t             Arc4SboxData24;
-  uint64_t             Arc4SboxData25;
-  uint64_t             Arc4SboxData26;
-  uint64_t             Arc4SboxData27;
-  uint64_t             Arc4SboxData28;
-  uint64_t             Arc4SboxData29;
-  uint64_t             Arc4SboxData30;
-  uint64_t             Arc4SboxData31;
-  uint64_t             Arc4IJData;
-  uint64_t             PAD9;
-  uint64_t             PAD10;
-  uint64_t             PAD11;
-} ARC4StateF9_t, *ARC4StateF9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t authKey0;
+	uint64_t authKey1;
+	uint64_t PAD0;
+	uint64_t PAD1;
+	uint64_t PAD2;
+	uint64_t PAD3;
+	uint64_t PAD4;
+	uint64_t PAD5;
+	uint64_t PAD6;
+	uint64_t PAD7;
+	uint64_t PAD8;
+	uint64_t Arc4SboxData0;
+	uint64_t Arc4SboxData1;
+	uint64_t Arc4SboxData2;
+	uint64_t Arc4SboxData3;
+	uint64_t Arc4SboxData4;
+	uint64_t Arc4SboxData5;
+	uint64_t Arc4SboxData6;
+	uint64_t Arc4SboxData7;
+	uint64_t Arc4SboxData8;
+	uint64_t Arc4SboxData9;
+	uint64_t Arc4SboxData10;
+	uint64_t Arc4SboxData11;
+	uint64_t Arc4SboxData12;
+	uint64_t Arc4SboxData13;
+	uint64_t Arc4SboxData14;
+	uint64_t Arc4SboxData15;
+	uint64_t Arc4SboxData16;
+	uint64_t Arc4SboxData17;
+	uint64_t Arc4SboxData18;
+	uint64_t Arc4SboxData19;
+	uint64_t Arc4SboxData20;
+	uint64_t Arc4SboxData21;
+	uint64_t Arc4SboxData22;
+	uint64_t Arc4SboxData23;
+	uint64_t Arc4SboxData24;
+	uint64_t Arc4SboxData25;
+	uint64_t Arc4SboxData26;
+	uint64_t Arc4SboxData27;
+	uint64_t Arc4SboxData28;
+	uint64_t Arc4SboxData29;
+	uint64_t Arc4SboxData30;
+	uint64_t Arc4SboxData31;
+	uint64_t Arc4IJData;
+	uint64_t PAD9;
+	uint64_t PAD10;
+	uint64_t PAD11;
+}             ARC4StateF9_t, *ARC4StateF9_pt;
 
 /* ARC4, Non-HMAC (MD5, SHA-1, SHA-256)  - 32  bytes */
 typedef struct ARC4_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-} ARC4_t, *ARC4_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+}      ARC4_t, *ARC4_pt;
 
 /* ARC4, Non-HMAC (MD5, SHA-1, SHA-256)  - 344  bytes (not including 8 bytes from instruction) */
 typedef struct ARC4State_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             cipherKey2;
-  uint64_t             cipherKey3;
-  uint64_t             PAD0;
-  uint64_t             PAD1;
-  uint64_t             PAD2;
-  uint64_t             Arc4SboxData0;
-  uint64_t             Arc4SboxData1;
-  uint64_t             Arc4SboxData2;
-  uint64_t             Arc4SboxData3;
-  uint64_t             Arc4SboxData4;
-  uint64_t             Arc4SboxData5;
-  uint64_t             Arc4SboxData6;
-  uint64_t             Arc4SboxData7;
-  uint64_t             Arc4SboxData8;
-  uint64_t             Arc4SboxData9;
-  uint64_t             Arc4SboxData10;
-  uint64_t             Arc4SboxData11;
-  uint64_t             Arc4SboxData12;
-  uint64_t             Arc4SboxData13;
-  uint64_t             Arc4SboxData14;
-  uint64_t             Arc4SboxData15;
-  uint64_t             Arc4SboxData16;
-  uint64_t             Arc4SboxData17;
-  uint64_t             Arc4SboxData18;
-  uint64_t             Arc4SboxData19;
-  uint64_t             Arc4SboxData20;
-  uint64_t             Arc4SboxData21;
-  uint64_t             Arc4SboxData22;
-  uint64_t             Arc4SboxData23;
-  uint64_t             Arc4SboxData24;
-  uint64_t             Arc4SboxData25;
-  uint64_t             Arc4SboxData26;
-  uint64_t             Arc4SboxData27;
-  uint64_t             Arc4SboxData28;
-  uint64_t             Arc4SboxData29;
-  uint64_t             Arc4SboxData30;
-  uint64_t             Arc4SboxData31;
-  uint64_t             Arc4IJData;
-  uint64_t             PAD3;
-  uint64_t             PAD4;
-  uint64_t             PAD5;
-} ARC4State_t, *ARC4State_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t cipherKey2;
+	uint64_t cipherKey3;
+	uint64_t PAD0;
+	uint64_t PAD1;
+	uint64_t PAD2;
+	uint64_t Arc4SboxData0;
+	uint64_t Arc4SboxData1;
+	uint64_t Arc4SboxData2;
+	uint64_t Arc4SboxData3;
+	uint64_t Arc4SboxData4;
+	uint64_t Arc4SboxData5;
+	uint64_t Arc4SboxData6;
+	uint64_t Arc4SboxData7;
+	uint64_t Arc4SboxData8;
+	uint64_t Arc4SboxData9;
+	uint64_t Arc4SboxData10;
+	uint64_t Arc4SboxData11;
+	uint64_t Arc4SboxData12;
+	uint64_t Arc4SboxData13;
+	uint64_t Arc4SboxData14;
+	uint64_t Arc4SboxData15;
+	uint64_t Arc4SboxData16;
+	uint64_t Arc4SboxData17;
+	uint64_t Arc4SboxData18;
+	uint64_t Arc4SboxData19;
+	uint64_t Arc4SboxData20;
+	uint64_t Arc4SboxData21;
+	uint64_t Arc4SboxData22;
+	uint64_t Arc4SboxData23;
+	uint64_t Arc4SboxData24;
+	uint64_t Arc4SboxData25;
+	uint64_t Arc4SboxData26;
+	uint64_t Arc4SboxData27;
+	uint64_t Arc4SboxData28;
+	uint64_t Arc4SboxData29;
+	uint64_t Arc4SboxData30;
+	uint64_t Arc4SboxData31;
+	uint64_t Arc4IJData;
+	uint64_t PAD3;
+	uint64_t PAD4;
+	uint64_t PAD5;
+}           ARC4State_t, *ARC4State_pt;
 
 /* Kasumi f8  - 32  bytes */
 typedef struct KASUMIF8_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-} KASUMIF8_t, *KASUMIF8_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+}          KASUMIF8_t, *KASUMIF8_pt;
 
 /* Kasumi f8 + HMAC (MD5, SHA-1, SHA-256)  - 80  bytes */
 typedef struct KASUMIF8HMAC_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-} KASUMIF8HMAC_t, *KASUMIF8HMAC_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+}              KASUMIF8HMAC_t, *KASUMIF8HMAC_pt;
 
 /* Kasumi f8 + HMAC (SHA-384, SHA-512)  - 144 bytes */
 typedef struct KASUMIF8HMAC2_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             hmacKey0;
-  uint64_t             hmacKey1;
-  uint64_t             hmacKey2;
-  uint64_t             hmacKey3;
-  uint64_t             hmacKey4;
-  uint64_t             hmacKey5;
-  uint64_t             hmacKey6;
-  uint64_t             hmacKey7;
-  uint64_t             hmacKey8;
-  uint64_t             hmacKey9;
-  uint64_t             hmacKey10;
-  uint64_t             hmacKey11;
-  uint64_t             hmacKey12;
-  uint64_t             hmacKey13;
-  uint64_t             hmacKey14;
-  uint64_t             hmacKey15;
-} KASUMIF8HMAC2_t, *KASUMIF8HMAC2_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t hmacKey0;
+	uint64_t hmacKey1;
+	uint64_t hmacKey2;
+	uint64_t hmacKey3;
+	uint64_t hmacKey4;
+	uint64_t hmacKey5;
+	uint64_t hmacKey6;
+	uint64_t hmacKey7;
+	uint64_t hmacKey8;
+	uint64_t hmacKey9;
+	uint64_t hmacKey10;
+	uint64_t hmacKey11;
+	uint64_t hmacKey12;
+	uint64_t hmacKey13;
+	uint64_t hmacKey14;
+	uint64_t hmacKey15;
+}               KASUMIF8HMAC2_t, *KASUMIF8HMAC2_pt;
 
 /* Kasumi f8 + GCM  - 144 bytes */
 typedef struct KASUMIF8GCM_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             GCMH0;
-  uint64_t             GCMH1;
-  uint64_t             GCMSCI;
-} KASUMIF8GCM_t, *KASUMIF8GCM_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t GCMH0;
+	uint64_t GCMH1;
+	uint64_t GCMSCI;
+}             KASUMIF8GCM_t, *KASUMIF8GCM_pt;
 
 /* Kasumi f8 + f9  - 32  bytes */
 typedef struct KASUMIF8F9_s {
-  uint64_t             cipherKey0;
-  uint64_t             cipherKey1;
-  uint64_t             authKey0;
-  uint64_t             authKey1;
-} KASUMIF8F9_t, *KASUMIF8F9_pt;
+	uint64_t cipherKey0;
+	uint64_t cipherKey1;
+	uint64_t authKey0;
+	uint64_t authKey1;
+}            KASUMIF8F9_t, *KASUMIF8F9_pt;
 
 typedef union CipherHashInfo_u {
-  AES256HMAC_t         infoAES256HMAC;
-  AES256_t             infoAES256;
-  AES192HMAC_t         infoAES192HMAC;
-  AES192_t             infoAES192;
-  AES128HMAC_t         infoAES128HMAC;
-  AES128_t             infoAES128;
-  DESHMAC_t            infoDESHMAC;
-  DES_t                infoDES;
-  DES3HMAC_t           info3DESHMAC;
-  DES3_t               info3DES;
-  HMAC_t               infoHMAC;
-  /* ARC4 */
-  ARC4HMAC_t           infoARC4HMAC;
-  ARC4StateHMAC_t      infoARC4StateHMAC;
-  ARC4_t               infoARC4;
-  ARC4State_t          infoARC4State;
-  /* AES mode F8 */
-  AES256F8HMAC_t       infoAES256F8HMAC;
-  AES256F8_t           infoAES256F8;
-  AES192F8HMAC_t       infoAES192F8HMAC;
-  AES192F8_t           infoAES192F8;
-  AES128F8HMAC_t       infoAES128F8HMAC;
-  AES128F8_t           infoAES128F8;
-  /* KASUMI F8 */
-  KASUMIF8HMAC_t       infoKASUMIF8HMAC;
-  KASUMIF8_t           infoKASUMIF8;
-  /* GCM */
-  GCM_t                infoGCM;
-  AES256F8GCM_t        infoAES256F8GCM;
-  AES192F8GCM_t        infoAES192F8GCM;
-  AES128F8GCM_t        infoAES128F8GCM;
-  AES256GCM_t          infoAES256GCM;
-  AES192GCM_t          infoAES192GCM;
-  AES128GCM_t          infoAES128GCM;
-  DESGCM_t             infoDESGCM;
-  DES3GCM_t            info3DESGCM;
-  ARC4GCM_t            infoARC4GCM;
-  ARC4StateGCM_t       infoARC4StateGCM;
-  KASUMIF8GCM_t        infoKASUMIF8GCM;
-  /* HMAC2 */
-  HMAC2_t              infoHMAC2;
-  AES256F8HMAC2_t      infoAES256F8HMAC2;
-  AES192F8HMAC2_t      infoAES192F8HMAC2;
-  AES128F8HMAC2_t      infoAES128F8HMAC2;
-  AES256HMAC2_t        infoAES256HMAC2;
-  AES192HMAC2_t        infoAES192HMAC2;
-  AES128HMAC2_t        infoAES128HMAC2;
-  DESHMAC2_t           infoDESHMAC2;
-  DES3HMAC2_t          info3DESHMAC2;
-  ARC4HMAC2_t          infoARC4HMAC2;
-  ARC4StateHMAC2_t     infoARC4StateHMAC2;
-  KASUMIF8HMAC2_t      infoKASUMIF8HMAC2;
-  /* F9 */
-  F9_t                 infoF9;
-  AES256F8F9_t         infoAES256F8F9;
-  AES192F8F9_t         infoAES192F8F9;
-  AES128F8F9_t         infoAES128F8F9;
-  AES256F9_t           infoAES256F9;
-  AES192F9_t           infoAES192F9;
-  AES128F9_t           infoAES128F9;
-  DESF9_t              infoDESF9;
-  DES3F9_t             info3DESF9;
-  ARC4F9_t             infoARC4F9;
-  ARC4StateF9_t        infoARC4StateF9;
-  KASUMIF8F9_t         infoKASUMIF8F9;
-} CipherHashInfo_t, *CipherHashInfo_pt;
+	AES256HMAC_t infoAES256HMAC;
+	AES256_t infoAES256;
+	AES192HMAC_t infoAES192HMAC;
+	AES192_t infoAES192;
+	AES128HMAC_t infoAES128HMAC;
+	AES128_t infoAES128;
+	DESHMAC_t infoDESHMAC;
+	DES_t infoDES;
+	DES3HMAC_t info3DESHMAC;
+	DES3_t info3DES;
+	HMAC_t infoHMAC;
+	/* ARC4 */
+	ARC4HMAC_t infoARC4HMAC;
+	ARC4StateHMAC_t infoARC4StateHMAC;
+	ARC4_t infoARC4;
+	ARC4State_t infoARC4State;
+	/* AES mode F8 */
+	AES256F8HMAC_t infoAES256F8HMAC;
+	AES256F8_t infoAES256F8;
+	AES192F8HMAC_t infoAES192F8HMAC;
+	AES192F8_t infoAES192F8;
+	AES128F8HMAC_t infoAES128F8HMAC;
+	AES128F8_t infoAES128F8;
+	/* KASUMI F8 */
+	KASUMIF8HMAC_t infoKASUMIF8HMAC;
+	KASUMIF8_t infoKASUMIF8;
+	/* GCM */
+	GCM_t infoGCM;
+	AES256F8GCM_t infoAES256F8GCM;
+	AES192F8GCM_t infoAES192F8GCM;
+	AES128F8GCM_t infoAES128F8GCM;
+	AES256GCM_t infoAES256GCM;
+	AES192GCM_t infoAES192GCM;
+	AES128GCM_t infoAES128GCM;
+	DESGCM_t infoDESGCM;
+	DES3GCM_t info3DESGCM;
+	ARC4GCM_t infoARC4GCM;
+	ARC4StateGCM_t infoARC4StateGCM;
+	KASUMIF8GCM_t infoKASUMIF8GCM;
+	/* HMAC2 */
+	HMAC2_t infoHMAC2;
+	AES256F8HMAC2_t infoAES256F8HMAC2;
+	AES192F8HMAC2_t infoAES192F8HMAC2;
+	AES128F8HMAC2_t infoAES128F8HMAC2;
+	AES256HMAC2_t infoAES256HMAC2;
+	AES192HMAC2_t infoAES192HMAC2;
+	AES128HMAC2_t infoAES128HMAC2;
+	DESHMAC2_t infoDESHMAC2;
+	DES3HMAC2_t info3DESHMAC2;
+	ARC4HMAC2_t infoARC4HMAC2;
+	ARC4StateHMAC2_t infoARC4StateHMAC2;
+	KASUMIF8HMAC2_t infoKASUMIF8HMAC2;
+	/* F9 */
+	F9_t infoF9;
+	AES256F8F9_t infoAES256F8F9;
+	AES192F8F9_t infoAES192F8F9;
+	AES128F8F9_t infoAES128F8F9;
+	AES256F9_t infoAES256F9;
+	AES192F9_t infoAES192F9;
+	AES128F9_t infoAES128F9;
+	DESF9_t infoDESF9;
+	DES3F9_t info3DESF9;
+	ARC4F9_t infoARC4F9;
+	ARC4StateF9_t infoARC4StateF9;
+	KASUMIF8F9_t infoKASUMIF8F9;
+}                CipherHashInfo_t, *CipherHashInfo_pt;
 
 
-/* 
- * 
- *    ControlDescriptor_s datastructure 
- * 
+/*
+ *
+ *    ControlDescriptor_s datastructure
+ *
  */
 
 typedef struct ControlDescriptor_s {
-  uint64_t            instruction;
-  CipherHashInfo_t    cipherHashInfo;
-} ControlDescriptor_t, *ControlDescriptor_pt;
+	uint64_t instruction;
+	CipherHashInfo_t cipherHashInfo;
+}                   ControlDescriptor_t, *ControlDescriptor_pt;
 
 
 
@@ -1877,7 +1877,7 @@ typedef struct ControlDescriptor_s {
  *       PacketDescriptor_t.srcLengthIVOffUseIVNext
  *       ------------------------------------------
  *
- *           63           62      61             59    58        57    56       54  53           43 
+ *           63           62      61             59    58        57    56       54  53           43
  *  ------------------------------------------------------------------------------------------------
  * || Load HMAC key || Pad Hash || Hash Byte Count || Next || Use IV || IV Offset || Packet length ||   ... CONT ...
  *  ------------------------------------------------------------------------------------------------
@@ -1920,7 +1920,7 @@ typedef struct ControlDescriptor_s {
  *                                                         On subsequent frags:     Do write out to DST the (dword) offset data
  *             IV Offset               =                   On first frag:           Offset IN NB OF 8 BYTE WORDS (dwords) from beginning of packet
  *                                                                                  (i.e. (Potentially byte-shifted) Segment address) to cipher IV
- *                                                         On subsequent frags:     Offset to beginning of data to process; data to offset won't 
+ *                                                         On subsequent frags:     Offset to beginning of data to process; data to offset won't
  *                                                                                  be given to engines and will be written out to dst in the clear.
  *                                                                                  ON SUBSEQUENT FRAGS, IV_Offset MAY NOT EXCEED 3; LARGER VALUES WILL CAUSE AN ERROR
  *                                                                                  SEE ERROR CONDITIONS BELOW
@@ -1977,17 +1977,17 @@ typedef struct ControlDescriptor_s {
  *             E/D                     =        1'b0       Decrypt
  *                                              1'b1       Encrypt
  *                                                         Overloaded to also mean IV byte offset for first frag
- *             Cipher_Offset           =                   Nb of words between the first data segment 
+ *             Cipher_Offset           =                   Nb of words between the first data segment
  *                                                         and word on which to start cipher operation
  *                                                         (64 BIT WORDS !!!)
  *             Hash_Offset             =                   Nb of words between the first data segment
- *                                                         and word on which to start hashing 
+ *                                                         and word on which to start hashing
  *                                                         (64 bit words)
  *             Hash_Src                =        1'b0       DMA channel
- *                                              1'b1       Cipher if word count exceeded Cipher_Offset; 
+ *                                              1'b1       Cipher if word count exceeded Cipher_Offset;
  *                                                         DMA channel otherwise
- *             CkSum_Offset            =                   Nb of words between the first data segment 
- *                                                         and word on which to start 
+ *             CkSum_Offset            =                   Nb of words between the first data segment
+ *                                                         and word on which to start
  *                                                         checksum calculation (32 BIT WORDS !!!)
  *             CkSum_Src               =        1'b0       DMA channel
  *                                              1'b1       Cipher if word count exceeded Cipher_Offset
@@ -2000,7 +2000,7 @@ typedef struct ControlDescriptor_s {
  *       PacketDescriptor_t.authDstNonceLow
  *       ----------------------------------
  *
- *   63       40  39               5  4                0   
+ *   63       40  39               5  4                0
  *  -----------------------------------------------------
  * || Nonce_Low || Auth_dst_address || Cipher_Offset_Hi ||
  *  -----------------------------------------------------
@@ -2070,7 +2070,7 @@ ected) regular CTR
 
 /* #define PKT_DSC_PADHASH */
 #define PKT_DSC_PADHASH_PADDED    0
-#define PKT_DSC_PADHASH_PAD       1    /* requires padding */
+#define PKT_DSC_PADHASH_PAD       1	/* requires padding */
 #define PKT_DSC_PADHASH_LSB       62
 #define PKT_DSC_PADHASH_BITS      ONE_BIT
 #define PKT_DSC_PADHASH_MASK      (PKT_DSC_PADHASH_BITS << PKT_DSC_PADHASH_LSB)
@@ -2128,7 +2128,7 @@ ected) regular CTR
 #define PKT_DSC_WAIT_MASK          (PKT_DSC_WAIT_BITS << PKT_DSC_WAIT_LSB)
 
 /* #define PKT_DSC_SEGADDR */
-#define PKT_DSC_SEGADDR_LSB        5 
+#define PKT_DSC_SEGADDR_LSB        5
 #define PKT_DSC_SEGADDR_BITS       FOURTY_BITS
 #define PKT_DSC_SEGADDR_MASK       \
  (PKT_DSC_SEGADDR_BITS << PKT_DSC_SEGADDR_LSB)
@@ -2156,24 +2156,24 @@ ected) regular CTR
 #define PKT_DSC_ARC4BYTECOUNT_LSB     60
 #define PKT_DSC_ARC4BYTECOUNT_BITS    THREE_BITS
 #define PKT_DSC_ARC4BYTECOUNT_MASK    (PKT_DSC_ARC4BYTECOUNT_BITS << PKT_DSC_ARC4BYTECOUNT_LSB)
- 
+
 /* #define PKT_DSC_SYM_OP (symmetric key operation) */
 #define PKT_DSC_SYM_OP_DECRYPT    0
 #define PKT_DSC_SYM_OP_ENCRYPT    1
 #define PKT_DSC_SYM_OP_LSB        59
 #define PKT_DSC_SYM_OP_BITS       ONE_BIT
 #define PKT_DSC_SYM_OP_MASK       (PKT_DSC_SYM_OP_BITS << PKT_DSC_SYM_OP_LSB)
- 
+
 /* #define PKT_DSC_CPHROFF */
 #define PKT_DSC_CPHROFF_LSB        56
 #define PKT_DSC_CPHROFF_BITS       THREE_BITS
 #define PKT_DSC_CPHROFF_MASK       (PKT_DSC_CPHROFF_BITS << PKT_DSC_CPHROFF_LSB)
- 
+
 /* #define PKT_DSC_HASHOFF */
 #define PKT_DSC_HASHOFF_LSB       54
 #define PKT_DSC_HASHOFF_BITS      TWO_BITS
 #define PKT_DSC_HASHOFF_MASK      (PKT_DSC_HASHOFF_BITS << PKT_DSC_HASHOFF_LSB)
- 
+
 /* #define PKT_DSC_HASHSRC */
 #define PKT_DSC_HASHSRC_DMA       0
 #define PKT_DSC_HASHSRC_CIPHER    1
@@ -2185,7 +2185,7 @@ ected) regular CTR
 #define PKT_DSC_CKSUMOFF_LSB      41
 #define PKT_DSC_CKSUMOFF_BITS     TWELVE_BITS
 #define PKT_DSC_CKSUMOFF_MASK   (PKT_DSC_CKSUMOFF_BITS << PKT_DSC_CKSUMOFF_LSB)
- 
+
 /* #define PKT_DSC_CKSUMSRC */
 #define PKT_DSC_CKSUMSRC_DMA      0
 #define PKT_DSC_CKSUMSRC_CIPHER   1
@@ -2254,12 +2254,12 @@ ected) regular CTR
 #define PKT_DSC_LASTWORD_LSB       56
 #define PKT_DSC_LASTWORD_BITS      TWO_BITS
 #define PKT_DSC_LASTWORD_MASK      (PKT_DSC_LASTWORD_BITS << PKT_DSC_LASTWORD_LSB)
- 
+
 /* #define PKT_DSC_CFB_MASK */
 #define PKT_DSC_CFB_MASK_LSB      48
 #define PKT_DSC_CFB_MASK_BITS     EIGHT_BITS
 #define PKT_DSC_CFB_MASK_MASK     (PKT_DSC_CFB_MASK_BITS << PKT_DSC_CFB_MASK_LSB)
- 
+
 /* #define PKT_DSC_NONCE_HI */
 #define PKT_DSC_NONCE_HI_LSB      40
 #define PKT_DSC_NONCE_HI_BITS     EIGHT_BITS
@@ -2280,100 +2280,100 @@ ected) regular CTR
  *             Control Error Code and Conditions
  * ******************************************************************
  */
-#define CTL_ERR_NONE         0x0000   /* No Error */
-#define CTL_ERR_CIPHER_OP    0x0001   /* Unknown Cipher Op */
-#define CTL_ERR_MODE         0x0002   /* Unknown or Not Allowed Mode */
-#define CTL_ERR_CHKSUM_SRC   0x0004   /* Unknown CkSum Src - UNUSED */
-#define CTL_ERR_CFB_MASK     0x0008   /* Forbidden CFB Mask - UNUSED */
-#define CTL_ERR_OP           0x0010   /* Unknown Ctrl Op - UNUSED */
-#define CTL_ERR_UNDEF1       0x0020   /* UNUSED */
-#define CTL_ERR_UNDEF2       0x0040   /* UNUSED */
-#define CTL_ERR_DATA_READ    0x0080   /* Data Read Error */
-#define CTL_ERR_DESC_CTRL    0x0100   /* Descriptor Ctrl Field Error */
+#define CTL_ERR_NONE         0x0000	/* No Error */
+#define CTL_ERR_CIPHER_OP    0x0001	/* Unknown Cipher Op */
+#define CTL_ERR_MODE         0x0002	/* Unknown or Not Allowed Mode */
+#define CTL_ERR_CHKSUM_SRC   0x0004	/* Unknown CkSum Src - UNUSED */
+#define CTL_ERR_CFB_MASK     0x0008	/* Forbidden CFB Mask - UNUSED */
+#define CTL_ERR_OP           0x0010	/* Unknown Ctrl Op - UNUSED */
+#define CTL_ERR_UNDEF1       0x0020	/* UNUSED */
+#define CTL_ERR_UNDEF2       0x0040	/* UNUSED */
+#define CTL_ERR_DATA_READ    0x0080	/* Data Read Error */
+#define CTL_ERR_DESC_CTRL    0x0100	/* Descriptor Ctrl Field Error */
 
-#define CTL_ERR_TIMEOUT      0x1000   /* Message Response Timeout */ 
+#define CTL_ERR_TIMEOUT      0x1000	/* Message Response Timeout */
 
 /* ******************************************************************
  *             Data Error Code and Conditions
  * ******************************************************************
  */
-#define DATA_ERR_NONE        0x0000   /* No Error */
-#define DATA_ERR_LEN_CIPHER  0x0001   /* Not Enough Data To Cipher */
-#define DATA_ERR_IV_ADDR     0x0002   /* Illegal IV Loacation */
-#define DATA_ERR_WD_LEN_AES  0x0004   /* Illegal Nb Words To AES */
-#define DATA_ERR_BYTE_COUNT  0x0008   /* Illegal Pad And ByteCount Spec */
-#define DATA_ERR_LEN_CKSUM   0x0010   /* Not Enough Data To CkSum */
-#define DATA_ERR_OP          0x0020   /* Unknown Data Op */
-#define DATA_ERR_UNDEF1      0x0040   /* UNUSED */
-#define DATA_ERR_READ        0x0080   /* Data Read Error */
-#define DATA_ERR_WRITE       0x0100   /* Data Write Error */
+#define DATA_ERR_NONE        0x0000	/* No Error */
+#define DATA_ERR_LEN_CIPHER  0x0001	/* Not Enough Data To Cipher */
+#define DATA_ERR_IV_ADDR     0x0002	/* Illegal IV Loacation */
+#define DATA_ERR_WD_LEN_AES  0x0004	/* Illegal Nb Words To AES */
+#define DATA_ERR_BYTE_COUNT  0x0008	/* Illegal Pad And ByteCount Spec */
+#define DATA_ERR_LEN_CKSUM   0x0010	/* Not Enough Data To CkSum */
+#define DATA_ERR_OP          0x0020	/* Unknown Data Op */
+#define DATA_ERR_UNDEF1      0x0040	/* UNUSED */
+#define DATA_ERR_READ        0x0080	/* Data Read Error */
+#define DATA_ERR_WRITE       0x0100	/* Data Write Error */
 
 
 /*
- * Common Descriptor 
+ * Common Descriptor
  * NOTE:  Size of struct is size of cacheline.
  */
 
 typedef struct OperationDescriptor_s {
-  uint64_t             phys_self;
-  uint32_t             stn_id;
-  uint32_t             flags;
-  uint32_t             cpu;
-  uint32_t             seq_num;
-  uint64_t             reserved;
-} OperationDescriptor_t, *OperationDescriptor_pt;
+	uint64_t phys_self;
+	uint32_t stn_id;
+	uint32_t flags;
+	uint32_t cpu;
+	uint32_t seq_num;
+	uint64_t reserved;
+}                     OperationDescriptor_t, *OperationDescriptor_pt;
 
 
 /*
  * This defines the security data descriptor format
  */
 typedef struct PacketDescriptor_s {
-  uint64_t             srcLengthIVOffUseIVNext;
-  uint64_t             dstDataSettings;
-  uint64_t             authDstNonceLow;
-  uint64_t             ckSumDstNonceHiCFBMaskLLWMask;
-} PacketDescriptor_t, *PacketDescriptor_pt;
+	uint64_t srcLengthIVOffUseIVNext;
+	uint64_t dstDataSettings;
+	uint64_t authDstNonceLow;
+	uint64_t ckSumDstNonceHiCFBMaskLLWMask;
+}                  PacketDescriptor_t, *PacketDescriptor_pt;
 
 typedef struct {
-    uint8_t *user_auth;
-    uint8_t *user_src;
-    uint8_t *user_dest;
-    uint8_t *user_state;
-    uint8_t *kern_auth; 
-    uint8_t *kern_src; 
-    uint8_t *kern_dest;
-    uint8_t *kern_state;
-    uint8_t *aligned_auth;
-    uint8_t *aligned_src;
-    uint8_t *aligned_dest;
-    uint8_t *aligned_state;
-}  xlr_sec_drv_user_t, *xlr_sec_drv_user_pt;
+	uint8_t *user_auth;
+	uint8_t *user_src;
+	uint8_t *user_dest;
+	uint8_t *user_state;
+	uint8_t *kern_auth;
+	uint8_t *kern_src;
+	uint8_t *kern_dest;
+	uint8_t *kern_state;
+	uint8_t *aligned_auth;
+	uint8_t *aligned_src;
+	uint8_t *aligned_dest;
+	uint8_t *aligned_state;
+}      xlr_sec_drv_user_t, *xlr_sec_drv_user_pt;
 
 typedef struct symkey_desc {
-    OperationDescriptor_t   op_ctl;    /* size is cacheline */
-    PacketDescriptor_t      pkt_desc[2];  /* size is cacheline  */
-    ControlDescriptor_t     ctl_desc;  /*  makes this aligned */
-    uint64_t                   control;   /* message word0 */
-    uint64_t                   data;		/* message word1 */
-    uint64_t                   ctl_result;
-    uint64_t                   data_result; 
-    struct symkey_desc      *alloc;    /* real allocated addr */
-    xlr_sec_drv_user_t           user;
-//    volatile atomic_t       flag_complete;
-//    struct semaphore        sem_complete;
-//    wait_queue_t            submit_wait;
-    
-    uint8_t     *next_src_buf;
-    uint32_t    next_src_len;
+	OperationDescriptor_t op_ctl;	/* size is cacheline */
+	PacketDescriptor_t pkt_desc[2];	/* size is cacheline  */
+	ControlDescriptor_t ctl_desc;	/* makes this aligned */
+	uint64_t control;	/* message word0 */
+	uint64_t data;		/* message word1 */
+	uint64_t ctl_result;
+	uint64_t data_result;
+	struct symkey_desc *alloc;	/* real allocated addr */
+	xlr_sec_drv_user_t user;
+	                 //volatile atomic_t flag_complete;
+	       //struct semaphore sem_complete;
+	        //wait_queue_t submit_wait;
 
-    uint8_t     *next_dest_buf;
-    uint32_t    next_dest_len;
-        
-    uint8_t*    next_auth_dest;
-    uint8_t*    next_cksum_dest;
+	uint8_t *next_src_buf;
+	uint32_t next_src_len;
 
-    void*    ses;
-} symkey_desc_t, *symkey_desc_pt;
+	uint8_t *next_dest_buf;
+	uint32_t next_dest_len;
+
+	uint8_t *next_auth_dest;
+	uint8_t *next_cksum_dest;
+
+	void *ses;
+}           symkey_desc_t, *symkey_desc_pt;
 
 
 /*
@@ -2406,7 +2406,7 @@ typedef struct symkey_desc {
  *             Op Class                =        7'h0_0     Modular exponentiation
  *                                              7'h0_1     ECC (including prime modular ops and binary GF ops)
  *                                              REMAINDER  UNDEF
- *                                               
+ *
  *             Valid Op                =        1'b1       Will cause operation to start; descriptors sent back at end of operation
  *                                              1'b0       No operation performed; descriptors sent back right away
  *
@@ -2420,7 +2420,7 @@ typedef struct symkey_desc {
  *                                               Block Width             =        1'b1       1024 bit op
  *                                                                       =        1'b0       512  bit op
  *                                               Load Constant           =        1'b1       Load constant from data structure
- *                                                                                1'b0       Preserve old constant (this assumes 
+ *                                                                                1'b0       Preserve old constant (this assumes
  *                                                                                           Source Addr points to RSAData_pt->Exponent
  *                                                                                           or that the length of Constant is 0)
  *                                               Exponent Width          =                   11-bit expression of exponent width EXPRESSED IN NUMBER OF BITS
@@ -2483,11 +2483,11 @@ typedef struct symkey_desc {
  *             Software Scratch1       =                   Two bit field ignored by engine and returned as is in free descriptor
  *
  *             Global dst data offset  =                   Nb BYTES to left-shift (double-word boundary aligned) data by before writing it to memory
- *                                                 
+ *
  *
  */
 
-/* 
+/*
  * ECC data formats
  */
 
@@ -2510,8 +2510,8 @@ typedef struct symkey_desc {
  *  224, 256) or 8 dwords (384, 512)
  *
  *  The total lengths in dwords that are read and in
- *  bytes that are written, for each operation and 
- *  length group, are specified at the bottom of each 
+ *  bytes that are written, for each operation and
+ *  length group, are specified at the bottom of each
  *  datastructure.
  *
  *  In all that follows, m is the modulus and cst is the constant,
@@ -2538,7 +2538,7 @@ typedef struct symkey_desc {
  *                 y_p			   2x(3/4/6/8)=
  *                 y_p			   6/8/12/16 dw
  *                 a
- *                 k			   
+ *                 k
  *                 m
  *                 cst
  *                 7x(3/4/6/8)+(4/4/8/8)=
@@ -2705,7 +2705,7 @@ typedef struct symkey_desc {
  */
 
 /*
- * IMPORTANT NOTE: 
+ * IMPORTANT NOTE:
  *
  * As specified in the datastructures below,
  * the engine assumes all data (including
@@ -2847,13 +2847,13 @@ typedef struct symkey_desc {
  (PUBKEY_CTL_EXPWIDTH_BITS << PUBKEY_CTL_EXPWIDTH_LSB)
 
 /* #define PUBKEY_CTL_SRCADDR */
-#define PUBKEY_CTL_SRCADDR_LSB     0  
+#define PUBKEY_CTL_SRCADDR_LSB     0
 #define PUBKEY_CTL_SRCADDR_BITS    FOURTY_BITS
 #define PUBKEY_CTL_SRCADDR_MASK    \
  (PUBKEY_CTL_SRCADDR_BITS << PUBKEY_CTL_SRCADDR_LSB)
 
 /* #define PUBKEY_CTL_SRC_OFFSET */
-#define PUBKEY_CTL_SRC_OFFSET_LSB  0  
+#define PUBKEY_CTL_SRC_OFFSET_LSB  0
 #define PUBKEY_CTL_SRC_OFFSET_BITS THREE_BITS
 #define PUBKEY_CTL_SRC_OFFSET_MASK \
  (PUBKEY_CTL_SRC_OFFSET_BITS << PUBKEY_CTL_SRC_OFFSET_LSB)
@@ -2865,7 +2865,7 @@ typedef struct symkey_desc {
 #define PUBKEY_CTL1_CTL_MASK       (PUBKEY_CTL_CTL_BITS << PUBKEY_CTL_CTL_LSB)
 
 /* #define PUBKEY_CTL1_MODWIDTH */
-#define PUBKEY_CTL1_MODWIDTH_LSB   40     
+#define PUBKEY_CTL1_MODWIDTH_LSB   40
 #define PUBKEY_CTL1_MODWIDTH_BITS  ELEVEN_BITS
 #define PUBKEY_CTL1_MODWIDTH_MASK  \
  (PUBKEY_CTL1_MODWIDTH_BITS << PUBKEY_CTL1_MODWIDTH_LSB)
@@ -2953,13 +2953,13 @@ typedef struct symkey_desc {
 #define PUBKEY_RSLT_CTL_ERROR_BITS     NINE_BITS
 #define PUBKEY_RSLT_CTL_ERROR_MASK     \
  (PUBKEY_RSLT_CTL_ERROR_BITS << PUBKEY_RSLT_CTL_ERROR_LSB)
- 
+
 /* #define PUBKEY_RSLT_CTL_SRCADDR */
 #define PUBKEY_RSLT_CTL_SRCADDR_LSB    0
 #define PUBKEY_RSLT_CTL_SRCADDR_BITS   FOURTY_BITS
 #define PUBKEY_RSLT_CTL_SRCADDR_MASK   \
  (PUBKEY_RSLT_CTL_SRCADDR_BITS << PUBKEY_RSLT_CTL_SRCADDR_LSB)
- 
+
 
 /* #define PUBKEY_RSLT_DATA_CTL */
 #define PUBKEY_RSLT_DATA_CTL_LSB       61
@@ -2984,32 +2984,33 @@ typedef struct symkey_desc {
 #define PUBKEY_RSLT_DATA_ERROR_BITS    NINE_BITS
 #define PUBKEY_RSLT_DATA_ERROR_MASK    \
  (PUBKEY_RSLT_DATA_ERROR_BITS << PUBKEY_RSLT_DATA_ERROR_LSB)
- 
+
 /* #define PUBKEY_RSLT_DATA_DSTADDR */
 #define PUBKEY_RSLT_DATA_DSTADDR_LSB   40
 #define PUBKEY_RSLT_DATA_DSTADDR_BITS  FOURTY_BITS
 #define PUBKEY_RSLT_DATA_DSTADDR_MASK  \
  (PUBKEY_RSLT_DATA_DSTADDR_BITS << PUBKEY_RSLT_DATA_DSTADDR_LSB)
 
-/* 
+/*
  * ******************************************************************
  *             RSA Block - Data Error Code and Conditions
  * ******************************************************************
  */
 
-#define PK_CTL_ERR_NONE        0x0000   /* No Error */
-#define PK_CTL_ERR_OP_CLASS    0x0001   /* Undefined Op Class */
-#define PK_CTL_ERR_ECC_TYPE    0x0002   /* Undefined ECC TYPE (ECC only) */
-#define PK_CTL_ERR_ECC_FUNCT   0x0004   /* Undefined ECC FUNCTION   (ECC only) */
-#define PK_CTL_ERR_ECC_TIMEOUT 0x0008   /* ECC timeout              (ECC only) */
-#define PK_CTL_ERR_READ        0x0080   /* Data Read Error */
-#define PK_CTL_ERR_DESC        0x0100   /* Descriptor Ctrl Field Error  (D0.Ctrl != SOP || D1.Ctrl != EOP) */
-#define PK_CTL_ERR_TIMEOUT     0x1000   /* Message Responce Timeout */ 
+#define PK_CTL_ERR_NONE        0x0000	/* No Error */
+#define PK_CTL_ERR_OP_CLASS    0x0001	/* Undefined Op Class */
+#define PK_CTL_ERR_ECC_TYPE    0x0002	/* Undefined ECC TYPE (ECC only) */
+#define PK_CTL_ERR_ECC_FUNCT   0x0004	/* Undefined ECC FUNCTION   (ECC only) */
+#define PK_CTL_ERR_ECC_TIMEOUT 0x0008	/* ECC timeout              (ECC only) */
+#define PK_CTL_ERR_READ        0x0080	/* Data Read Error */
+#define PK_CTL_ERR_DESC        0x0100	/* Descriptor Ctrl Field Error
+					 * (D0.Ctrl != SOP || D1.Ctrl != EOP) */
+#define PK_CTL_ERR_TIMEOUT     0x1000	/* Message Responce Timeout */
 
-#define PK_DATA_ERR_NONE       0x0000   /* No Error */
-#define PK_DATA_ERR_EXP_WIDTH  0x0001   /* Exponent Width > Block Width */
-#define PK_DATA_ERR_MOD_WIDTH  0x0002   /* Modulus Width  > Block Width */
-#define PK_DATA_ERR_READ       0x0080   /* Data Read Error */
+#define PK_DATA_ERR_NONE       0x0000	/* No Error */
+#define PK_DATA_ERR_EXP_WIDTH  0x0001	/* Exponent Width > Block Width */
+#define PK_DATA_ERR_MOD_WIDTH  0x0002	/* Modulus Width  > Block Width */
+#define PK_DATA_ERR_READ       0x0080	/* Data Read Error */
 
 
 /*
@@ -3028,25 +3029,25 @@ typedef struct symkey_desc {
  */
 
 typedef struct UserPubData_s {
-  uint8_t            *source;
-  uint8_t            *user_result;
-  uint32_t           result_length;
-} UserPubData_t, *UserPubData_pt;
+	uint8_t *source;
+	uint8_t *user_result;
+	uint32_t result_length;
+}             UserPubData_t, *UserPubData_pt;
 
 typedef struct pubkey_desc {
-    OperationDescriptor_t   op_ctl;    /* size is cacheline */
-    uint8_t                 source[1024];
-    uint8_t                 dest[256];    /* 1024 makes cacheline-aligned */
-    uint64_t                   control0;
-    uint64_t                   control1;
-    uint64_t                   ctl_result;
-    uint64_t                   data_result; 
-    struct pubkey_desc      *alloc;
-    UserPubData_t           kern;       /* ptrs for temp buffers */
-//    volatile atomic_t       flag_complete;
-//    struct semaphore        sem_complete;
-//    wait_queue_t            submit_wait;
-} pubkey_desc_t, *pubkey_desc_pt;
+	OperationDescriptor_t op_ctl;	/* size is cacheline */
+	uint8_t source[1024];
+	uint8_t dest[256];	/* 1024 makes cacheline-aligned */
+	uint64_t control0;
+	uint64_t control1;
+	uint64_t ctl_result;
+	uint64_t data_result;
+	struct pubkey_desc *alloc;
+	UserPubData_t kern;	/* ptrs for temp buffers */
+	            //volatile atomic_t flag_complete;
+	       //struct semaphore sem_complete;
+	        //wait_queue_t submit_wait;
+}           pubkey_desc_t, *pubkey_desc_pt;
 
 /*
  * KASUMI F8 and F9 use the IV0/IV1 fields :
@@ -3054,7 +3055,7 @@ typedef struct pubkey_desc {
  *  63 41      40      39   37 36        32 31                                 0
  *  ----------------------------------------------------------------------------
  * |     |FX/DIRECTION|       | F8/BEARER  |              F8/COUNT              | IV0
- *  ---------------------------------------------------------------------------- 
+ *  ----------------------------------------------------------------------------
  *              1                   5                         32
  *
  *  63                                   32 31                                 0
@@ -3063,4 +3064,4 @@ typedef struct pubkey_desc {
  *  ----------------------------------------------------------------------------
  *                     32                                     32
  */
-#endif /* _XLR_SEC_DESC_H_ */
+#endif				/* _XLR_SEC_DESC_H_ */
