@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
+#include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #ifdef SMP
@@ -241,6 +242,12 @@ trap(struct trapframe *frame)
 	    (*pmc_intr)(PCPU_GET(cpuid), frame))
 	    goto out;
 #endif
+
+	if (type == T_MCHK) {
+		if (!mca_intr())
+			trap_fatal(frame, 0);
+		goto out;
+	}
 
 #ifdef KDTRACE_HOOKS
 	/*
