@@ -1954,18 +1954,15 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	    EHCI_QH_SET_MPL(xfer->max_packet_size));
 
 	if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_HIGH) {
-		qh_endp |= (EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH) |
-		    EHCI_QH_DTC);
+		qh_endp |= EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH);
 		if (methods != &ehci_device_intr_methods)
 			qh_endp |= EHCI_QH_SET_NRL(8);
 	} else {
 
 		if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_FULL) {
-			qh_endp |= (EHCI_QH_SET_EPS(EHCI_QH_SPEED_FULL) |
-			    EHCI_QH_DTC);
+			qh_endp |= EHCI_QH_SET_EPS(EHCI_QH_SPEED_FULL);
 		} else {
-			qh_endp |= (EHCI_QH_SET_EPS(EHCI_QH_SPEED_LOW) |
-			    EHCI_QH_DTC);
+			qh_endp |= EHCI_QH_SET_EPS(EHCI_QH_SPEED_LOW);
 		}
 
 		if (methods == &ehci_device_ctrl_methods) {
@@ -1975,6 +1972,11 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 			/* Only try one time per microframe! */
 			qh_endp |= EHCI_QH_SET_NRL(1);
 		}
+	}
+
+	if (temp.auto_data_toggle == 0) {
+		/* software computes the data toggle */
+		qh_endp |= EHCI_QH_DTC;
 	}
 
 	qh->qh_endp = htohc32(temp.sc, qh_endp);
@@ -1987,23 +1989,17 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	    EHCI_QH_SET_PORT(xfer->xroot->udev->hs_port_no));
 
 	qh->qh_endphub = htohc32(temp.sc, qh_endphub);
-	qh->qh_curqtd = htohc32(temp.sc, 0);
+	qh->qh_curqtd = 0;
 
 	/* fill the overlay qTD */
-	qh->qh_qtd.qtd_status = htohc32(temp.sc, 0);
 
-	if (temp.auto_data_toggle) {
-
-		/* let the hardware compute the data toggle */
-
-		qh->qh_endp &= htohc32(temp.sc, ~EHCI_QH_DTC);
-
-		if (xfer->endpoint->toggle_next) {
-			/* DATA1 is next */
-			qh->qh_qtd.qtd_status |=
-			    htohc32(temp.sc, EHCI_QTD_SET_TOGGLE(1));
-		}
+	if (temp.auto_data_toggle && xfer->endpoint->toggle_next) {
+		/* DATA1 is next */
+		qh->qh_qtd.qtd_status = htohc32(temp.sc, EHCI_QTD_SET_TOGGLE(1));
+	} else {
+		qh->qh_qtd.qtd_status = 0;
 	}
+
 	td = xfer->td_transfer_first;
 
 	qh->qh_qtd.qtd_next = td->qtd_self;
