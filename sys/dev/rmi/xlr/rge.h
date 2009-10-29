@@ -943,22 +943,22 @@
 typedef enum {
 	xlr_mac_speed_10, xlr_mac_speed_100,
 	xlr_mac_speed_1000, xlr_mac_speed_rsvd
-}		xlr_mac_speed_t;
+}    xlr_mac_speed_t;
 
 typedef enum {
 	xlr_mac_duplex_auto, xlr_mac_duplex_half,
 	xlr_mac_duplex_full
-}		xlr_mac_duplex_t;
+}    xlr_mac_duplex_t;
 
 typedef enum {
 	xlr_mac_link_down,
 	xlr_mac_link_up,
-}		xlr_mac_link_t;
+}    xlr_mac_link_t;
 
 typedef enum {
 	xlr_mac_fc_auto, xlr_mac_fc_disabled, xlr_mac_fc_frame,
 	xlr_mac_fc_collision, xlr_mac_fc_carrier
-}		xlr_mac_fc_t;
+}    xlr_mac_fc_t;
 
 /* static int mac_frin_to_be_sent_thr[8]; */
 
@@ -972,12 +972,12 @@ enum {
 };
 
 struct rge_softc_stats {
-	unsigned long	rx_frames;
-	unsigned long	tx_frames;
-	unsigned long	rx_packets;
-	unsigned long	rx_bytes;
-	unsigned long	tx_packets;
-	unsigned long	tx_bytes;
+	unsigned long rx_frames;
+	unsigned long tx_frames;
+	unsigned long rx_packets;
+	unsigned long rx_bytes;
+	unsigned long tx_packets;
+	unsigned long tx_bytes;
 };
 
 struct driver_data {
@@ -992,93 +992,93 @@ struct driver_data {
 	union rx_tx_desc *class_1_spill;
 	union rx_tx_desc *class_2_spill;
 	union rx_tx_desc *class_3_spill;
-	int		spill_configured;
+	int spill_configured;
 
 	struct rge_softc *sc;	/* pointer to freebsd device soft-pointer */
 	struct rge_softc_stats stats;
-	struct mtx	lock;
+	struct mtx lock;
 
-	xlr_reg_t      *mmio;
-	xlr_reg_t      *mii_mmio;
-	xlr_reg_t      *pcs_mmio;
-	xlr_reg_t      *serdes_mmio;
+	xlr_reg_t *mmio;
+	xlr_reg_t *mii_mmio;
+	xlr_reg_t *pcs_mmio;
+	xlr_reg_t *serdes_mmio;
 
-	int             txbucket;
-	int             rfrbucket;
+	int txbucket;
+	int rfrbucket;
 
-	int		phy_oldbmsr;
-	int		phy_oldanlpar;
-	int		phy_oldk1stsr;
-	int		phy_oldlinkstat;
-	unsigned char	phys_addr[2];
+	int phy_oldbmsr;
+	int phy_oldanlpar;
+	int phy_oldk1stsr;
+	int phy_oldlinkstat;
+	unsigned char phys_addr[2];
 
-	xlr_mac_speed_t	speed;	/* current speed */
+	xlr_mac_speed_t speed;	/* current speed */
 	xlr_mac_duplex_t duplex;/* current duplex */
-	xlr_mac_link_t	link;	/* current link */
-	xlr_mac_fc_t	flow_ctrl;	/* current flow control setting */
-	int		advertising;
+	xlr_mac_link_t link;	/* current link */
+	xlr_mac_fc_t flow_ctrl;	/* current flow control setting */
+	int advertising;
 
-	int		id;
-	int		type;
-	int		mode;
-	int		instance;
-	int		phy_addr;
-	int		frin_to_be_sent[8];
-	int		init_frin_desc;
+	int id;
+	int type;
+	int mode;
+	int instance;
+	int phy_addr;
+	int frin_to_be_sent[8];
+	int init_frin_desc;
 };
 
 struct rge_softc {
-	int		unit;
-	int		irq;
-	unsigned char	dev_addr[6];
-	unsigned long	base_addr;
-	unsigned long	mem_end;
-	struct ifnet   *rge_ifp;/* interface info */
-	device_t	rge_dev;
-	int		mtu;
-	int		flags;
+	int unit;
+	int irq;
+	unsigned char dev_addr[6];
+	unsigned long base_addr;
+	unsigned long mem_end;
+	struct ifnet *rge_ifp;	/* interface info */
+	device_t rge_dev;
+	int mtu;
+	int flags;
 	struct driver_data priv;
-	struct mtx	rge_mtx;
-	device_t	rge_miibus;
-	struct mii_data	rge_mii;/* MII/media information */
+	struct mtx rge_mtx;
+	device_t rge_miibus;
+	struct mii_data rge_mii;/* MII/media information */
 	bus_space_handle_t rge_bhandle;
-	bus_space_tag_t	rge_btag;
-	void           *rge_intrhand;
-	struct resource	rge_irq;
+	bus_space_tag_t rge_btag;
+	void *rge_intrhand;
+	struct resource rge_irq;
 	struct resource *rge_res;
-	struct ifmedia	rge_ifmedia;	/* TBI media info */
-	int		rge_if_flags;
-	int		rge_link;	/* link state */
-	int		rge_link_evt;	/* pending link event */
-	struct callout	rge_stat_ch;
-	void            (*xmit) (struct ifnet *);
-	void            (*stop) (struct rge_softc *);
-	int             (*ioctl) (struct ifnet *, u_long, caddr_t);
+	struct ifmedia rge_ifmedia;	/* TBI media info */
+	int rge_if_flags;
+	int rge_link;		/* link state */
+	int rge_link_evt;	/* pending link event */
+	struct callout rge_stat_ch;
+	void (*xmit) (struct ifnet *);
+	void (*stop) (struct rge_softc *);
+	int (*ioctl) (struct ifnet *, u_long, caddr_t);
 	struct rge_softc_stats *(*get_stats) (struct rge_softc *);
 	int active;
 	int link_up;
 };
 
 struct size_1_desc {
-	uint64_t	entry0;
+	uint64_t entry0;
 };
 
 struct size_2_desc {
-	uint64_t	entry0;
-	uint64_t	entry1;
+	uint64_t entry0;
+	uint64_t entry1;
 };
 
 struct size_3_desc {
-	uint64_t	entry0;
-	uint64_t	entry1;
-	uint64_t	entry2;
+	uint64_t entry0;
+	uint64_t entry1;
+	uint64_t entry2;
 };
 
 struct size_4_desc {
-	uint64_t	entry0;
-	uint64_t	entry1;
-	uint64_t	entry2;
-	uint64_t	entry3;
+	uint64_t entry0;
+	uint64_t entry1;
+	uint64_t entry2;
+	uint64_t entry3;
 };
 
 struct fr_desc {

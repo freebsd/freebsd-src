@@ -35,28 +35,28 @@
 
 static inline int
 xmdio_read(volatile unsigned int *_mmio,
-	   uint32_t phy_addr, uint32_t address);
+    uint32_t phy_addr, uint32_t address);
 static inline void
 xmdio_write(volatile unsigned int *_mmio,
-	    uint32_t phy_addr, uint32_t address, uint32_t data);
+    uint32_t phy_addr, uint32_t address, uint32_t data);
 static inline void
 xmdio_address(volatile unsigned int *_mmio,
-	      uint32_t phy_addr, uint32_t dev_ad, uint32_t address);
+    uint32_t phy_addr, uint32_t dev_ad, uint32_t address);
 
 static inline void
 xmdio_address(volatile unsigned int *_mmio,
-	      uint32_t phy_addr, uint32_t dev_ad, uint32_t address)
+    uint32_t phy_addr, uint32_t dev_ad, uint32_t address)
 {
-	uint32_t	st_field = 0x0;
-	uint32_t	op_type = 0x0;	/* address operation */
-	uint32_t	ta_field = 0x2;	/* ta field */
+	uint32_t st_field = 0x0;
+	uint32_t op_type = 0x0;	/* address operation */
+	uint32_t ta_field = 0x2;/* ta field */
 
 	_mmio[0x11] = ((st_field & 0x3) << 30) |
-		((op_type & 0x3) << 28) |
-		((phy_addr & 0x1F) << 23) |
-		((dev_ad & 0x1F) << 18) |
-		((ta_field & 0x3) << 16) |
-		((address & 0xffff) << 0);
+	    ((op_type & 0x3) << 28) |
+	    ((phy_addr & 0x1F) << 23) |
+	    ((dev_ad & 0x1F) << 18) |
+	    ((ta_field & 0x3) << 16) |
+	    ((address & 0xffff) << 0);
 
 	_mmio[0x10] = (0x0 << 3) | 0x5;
 	_mmio[0x10] = (0x1 << 3) | 0x5;
@@ -71,20 +71,20 @@ xmdio_address(volatile unsigned int *_mmio,
 /* function prototypes */
 static inline int
 xmdio_read(volatile unsigned int *_mmio,
-	   uint32_t phy_addr, uint32_t address)
+    uint32_t phy_addr, uint32_t address)
 {
-	uint32_t	st_field = 0x0;
-	uint32_t	op_type = 0x3;	/* read operation */
-	uint32_t	ta_field = 0x2;	/* ta field */
-	uint32_t	data = 0;
+	uint32_t st_field = 0x0;
+	uint32_t op_type = 0x3;	/* read operation */
+	uint32_t ta_field = 0x2;/* ta field */
+	uint32_t data = 0;
 
 	xmdio_address(_mmio, phy_addr, 5, address);
 	_mmio[0x11] = ((st_field & 0x3) << 30) |
-		((op_type & 0x3) << 28) |
-		((phy_addr & 0x1F) << 23) |
-		((5 & 0x1F) << 18) |
-		((ta_field & 0x3) << 16) |
-		((data & 0xffff) << 0);
+	    ((op_type & 0x3) << 28) |
+	    ((phy_addr & 0x1F) << 23) |
+	    ((5 & 0x1F) << 18) |
+	    ((ta_field & 0x3) << 16) |
+	    ((data & 0xffff) << 0);
 
 	_mmio[0x10] = (0x0 << 3) | 0x5;
 	_mmio[0x10] = (0x1 << 3) | 0x5;
@@ -100,19 +100,19 @@ xmdio_read(volatile unsigned int *_mmio,
 
 static inline void
 xmdio_write(volatile unsigned int *_mmio,
-	    uint32_t phy_addr, uint32_t address, uint32_t data)
+    uint32_t phy_addr, uint32_t address, uint32_t data)
 {
-	uint32_t	st_field = 0x0;
-	uint32_t	op_type = 0x1;	/* write operation */
-	uint32_t	ta_field = 0x2;	/* ta field */
+	uint32_t st_field = 0x0;
+	uint32_t op_type = 0x1;	/* write operation */
+	uint32_t ta_field = 0x2;/* ta field */
 
 	xmdio_address(_mmio, phy_addr, 5, address);
 	_mmio[0x11] = ((st_field & 0x3) << 30) |
-		((op_type & 0x3) << 28) |
-		((phy_addr & 0x1F) << 23) |
-		((5 & 0x1F) << 18) |
-		((ta_field & 0x3) << 16) |
-		((data & 0xffff) << 0);
+	    ((op_type & 0x3) << 28) |
+	    ((phy_addr & 0x1F) << 23) |
+	    ((5 & 0x1F) << 18) |
+	    ((ta_field & 0x3) << 16) |
+	    ((data & 0xffff) << 0);
 
 	_mmio[0x10] = (0x0 << 3) | 0x5;
 	_mmio[0x10] = (0x1 << 3) | 0x5;
