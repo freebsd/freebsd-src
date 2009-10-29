@@ -26,6 +26,11 @@
  * $FreeBSD$
  */
 
+#if 0
+#define	ATA_LEGACY_SUPPORT		/* Enable obsolete features that break
+					 * some modern devices */
+#endif
+
 /* ATA register defines */
 #define ATA_DATA                        0       /* (RW) data */
 
@@ -81,7 +86,11 @@
 #define ATA_PC98_CTLOFFSET              0x10c   /* do for PC98 devices */
 #define         ATA_A_IDS               0x02    /* disable interrupts */
 #define         ATA_A_RESET             0x04    /* RESET controller */
-#define         ATA_A_4BIT              0x08    /* 4 head bits */
+#ifdef	ATA_LEGACY_SUPPORT			
+#define         ATA_A_4BIT              0x08    /* 4 head bits: obsolete 1996 */
+#else
+#define         ATA_A_4BIT              0x00 
+#endif
 #define         ATA_A_HOB               0x80    /* High Order Byte enable */
 
 /* SATA register defines */
