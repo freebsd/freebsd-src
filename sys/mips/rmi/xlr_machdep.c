@@ -69,7 +69,7 @@
 #include <machine/fls64.h>
 #include <machine/intr_machdep.h>
 #include <machine/smp.h>
-#include <machine/mips-exts.h>
+#include <mips/rmi/rmi_mips_exts.h>
 
 #include <mips/rmi/iomap.h>
 #include <mips/rmi/clock.h>

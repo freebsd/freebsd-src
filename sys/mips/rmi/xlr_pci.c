@@ -38,7 +38,7 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#include <machine/mips-exts.h>
+#include <mips/rmi/rmi_mips_exts.h>
 #include <machine/cpuregs.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
