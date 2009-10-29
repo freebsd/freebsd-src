@@ -402,8 +402,7 @@ options 	KTRACE			#kernel tracing
 options 	KTRACE_REQUEST_POOL=101
 
 #
-# KTR is a kernel tracing mechanism imported from BSD/OS.  Currently
-# it has no userland interface aside from a few sysctl's.  It is
+# KTR is a kernel tracing facility imported from BSD/OS.  It is
 # enabled with the KTR option.  KTR_ENTRIES defines the number of
 # entries in the circular trace buffer; it must be a power of two.
 # KTR_COMPILE defines the mask of events to compile into the kernel as
@@ -413,7 +412,7 @@ options 	KTRACE_REQUEST_POOL=101
 # events, with bit X corresponding to CPU X.  KTR_VERBOSE enables
 # dumping of KTR events to the console by default.  This functionality
 # can be toggled via the debug.ktr_verbose sysctl and defaults to off
-# if KTR_VERBOSE is not defined.
+# if KTR_VERBOSE is not defined.  See ktr(4) and ktrdump(8) for details.
 #
 options 	KTR
 options 	KTR_ENTRIES=1024
@@ -424,7 +423,7 @@ options 	KTR_VERBOSE
 
 #
 # ALQ(9) is a facility for the asynchronous queuing of records from the kernel
-# to a vnode, and is employed by services such as KTR(4) to produce trace
+# to a vnode, and is employed by services such as ktr(4) to produce trace
 # files based on a kernel event stream.  Records are written asynchronously
 # in a worker thread.
 #
@@ -618,9 +617,9 @@ options 	SCTP_WITH_NO_CSUM
 # I have not yet commited the tools to get and print
 # the logs, I will do that eventually .. before then
 # if you want them send me an email rrs@freebsd.org
-# You basically must have KTR enabled for these
+# You basically must have ktr(4) enabled for these
 # and you then set the sysctl to turn on/off various
-# logging bits. Use ktrdump to pull the log and run
+# logging bits. Use ktrdump(8) to pull the log and run
 # it through a dispaly program.. and graphs and other
 # things too.
 #
