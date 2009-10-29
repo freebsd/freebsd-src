@@ -415,6 +415,8 @@ struct ata_pci_controller {
 #define ATA_VIA8237             0x32271106
 #define ATA_VIA8237A            0x05911106
 #define ATA_VIA8237S		0x53371106
+#define ATA_VIA8237_5372	0x53721106
+#define ATA_VIA8237_7372	0x73721106
 #define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106
