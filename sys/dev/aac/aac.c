@@ -909,8 +909,11 @@ aac_new_intr(void *arg)
 	mtx_unlock(&sc->aac_io_lock);
 }
 
+/*
+ * Interrupt filter for !NEW_COMM interface.
+ */
 int
-aac_fast_intr(void *arg)
+aac_filter(void *arg)
 {
 	struct aac_softc *sc;
 	u_int16_t reason;
@@ -2032,18 +2035,11 @@ aac_setup_intr(struct aac_softc *sc)
 		}
 	} else {
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_TYPE_BIO, aac_fast_intr, NULL,
+				   INTR_TYPE_BIO, aac_filter, NULL,
 				   sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev,
-				      "can't set up FAST interrupt\n");
-			if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-					   INTR_MPSAFE|INTR_TYPE_BIO,
-					   NULL, (driver_intr_t *)aac_fast_intr,
-					   sc, &sc->aac_intr)) {
-				device_printf(sc->aac_dev,
-					     "can't set up MPSAFE interrupt\n");
-				return (EINVAL);
-			}
+				      "can't set up interrupt filter\n");
+			return (EINVAL);
 		}
 	}
 	return (0);
