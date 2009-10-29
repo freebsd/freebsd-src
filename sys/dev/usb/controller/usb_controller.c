@@ -270,11 +270,9 @@ usb_bus_detach(struct usb_proc_msg *pm)
 	mtx_unlock(&Giant);
 
 	/*
-	 * Free USB Root device, but not any sub-devices, hence they
-	 * are freed by the caller of this function:
+	 * Free USB device and all subdevices, if any.
 	 */
-	usb_free_device(udev,
-	    USB_UNCFG_FLAG_FREE_EP0);
+	usb_free_device(udev, 0);
 
 	USB_BUS_LOCK(bus);
 	/* clear bdev variable last */

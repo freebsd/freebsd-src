@@ -2121,6 +2121,9 @@ usb_dma_delay_done_cb(void *arg)
 
 	DPRINTFN(3, "Completed %p\n", xfer);
 
+	/* only delay once */
+	xfer->flags_int.did_dma_delay = 1;
+
 	/* queue callback for execution, again */
 	usbd_transfer_done(xfer, 0);
 }
@@ -2487,9 +2490,6 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 	    (!xfer->flags_int.did_dma_delay)) {
 
 		usb_timeout_t temp;
-
-		/* only delay once */
-		xfer->flags_int.did_dma_delay = 1;
 
 		/* we can not cancel this delay */
 		xfer->flags_int.can_cancel_immed = 0;
