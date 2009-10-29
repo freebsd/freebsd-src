@@ -39,5 +39,4 @@
 #define IRQ_MSGRING              6
 #define IRQ_TIMER                7
 
-#endif /* _RMI_INTERRUPT_H_ */
-
+#endif				/* _RMI_INTERRUPT_H_ */

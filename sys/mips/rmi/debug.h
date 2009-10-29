@@ -33,51 +33,51 @@
 #include <machine/atomic.h>
 
 enum {
-  //cacheline 0
-  MSGRNG_INT,
-  MSGRNG_PIC_INT,
-  MSGRNG_MSG,
-  MSGRNG_EXIT_STATUS,
-  MSGRNG_MSG_CYCLES,
-  //cacheline 1
-  NETIF_TX = 8,
-  NETIF_RX,
-  NETIF_TX_COMPLETE,
-  NETIF_TX_COMPLETE_TX,
-  NETIF_RX_CYCLES,
-  NETIF_TX_COMPLETE_CYCLES,
-  NETIF_TX_CYCLES,
-  NETIF_TIMER_START_Q,
-  //NETIF_REG_FRIN,
-  //NETIF_INT_REG,
-  //cacheline 2
-  REPLENISH_ENTER = 16,
-  REPLENISH_ENTER_COUNT,
-  REPLENISH_CPU,
-  REPLENISH_FRIN,
-  REPLENISH_CYCLES,
-  NETIF_STACK_TX,
-  NETIF_START_Q,
-  NETIF_STOP_Q,
-  //cacheline 3
-  USER_MAC_START = 24,
-  USER_MAC_INT   = 24,
-  USER_MAC_TX_COMPLETE,
-  USER_MAC_RX,
-  USER_MAC_POLL,
-  USER_MAC_TX,
-  USER_MAC_TX_FAIL,
-  USER_MAC_TX_COUNT,
-  USER_MAC_FRIN,
-  //cacheline 4
-  USER_MAC_TX_FAIL_GMAC_CREDITS = 32,
-  USER_MAC_DO_PAGE_FAULT,
-  USER_MAC_UPDATE_TLB,
-  USER_MAC_UPDATE_BIGTLB,
-  USER_MAC_UPDATE_TLB_PFN0,
-  USER_MAC_UPDATE_TLB_PFN1,
-  
-  XLR_MAX_COUNTERS = 40
+	//cacheline 0
+	MSGRNG_INT,
+	MSGRNG_PIC_INT,
+	MSGRNG_MSG,
+	MSGRNG_EXIT_STATUS,
+	MSGRNG_MSG_CYCLES,
+	//cacheline 1
+	NETIF_TX = 8,
+	NETIF_RX,
+	NETIF_TX_COMPLETE,
+	NETIF_TX_COMPLETE_TX,
+	NETIF_RX_CYCLES,
+	NETIF_TX_COMPLETE_CYCLES,
+	NETIF_TX_CYCLES,
+	NETIF_TIMER_START_Q,
+	//NETIF_REG_FRIN,
+	//NETIF_INT_REG,
+	//cacheline 2
+	REPLENISH_ENTER = 16,
+	REPLENISH_ENTER_COUNT,
+	REPLENISH_CPU,
+	REPLENISH_FRIN,
+	REPLENISH_CYCLES,
+	NETIF_STACK_TX,
+	NETIF_START_Q,
+	NETIF_STOP_Q,
+	//cacheline 3
+	USER_MAC_START = 24,
+	USER_MAC_INT = 24,
+	USER_MAC_TX_COMPLETE,
+	USER_MAC_RX,
+	USER_MAC_POLL,
+	USER_MAC_TX,
+	USER_MAC_TX_FAIL,
+	USER_MAC_TX_COUNT,
+	USER_MAC_FRIN,
+	//cacheline 4
+	USER_MAC_TX_FAIL_GMAC_CREDITS = 32,
+	USER_MAC_DO_PAGE_FAULT,
+	USER_MAC_UPDATE_TLB,
+	USER_MAC_UPDATE_BIGTLB,
+	USER_MAC_UPDATE_TLB_PFN0,
+	USER_MAC_UPDATE_TLB_PFN1,
+
+	XLR_MAX_COUNTERS = 40
 };
 extern int xlr_counters[MAXCPU][XLR_MAX_COUNTERS];
 extern __uint32_t msgrng_msg_cycles;
@@ -88,7 +88,7 @@ extern __uint32_t msgrng_msg_cycles;
 #define xlr_set_counter(x, value) atomic_set_int(&xlr_counters[PCPU_GET(cpuid)][(x)], (value))
 #define xlr_get_counter(x) (&xlr_counters[0][(x)])
 
-#else /* default mode */
+#else				/* default mode */
 
 #define xlr_inc_counter(x)
 #define xlr_dec_counter(x)

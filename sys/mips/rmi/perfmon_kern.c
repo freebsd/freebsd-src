@@ -46,53 +46,56 @@
 int xlr_perfmon_started = 0;
 struct perf_area *xlr_shared_config_area = NULL;
 uint32_t *xlr_perfmon_timer_loc;
-uint32_t *xlr_cpu_sampling_interval; 
-uint32_t xlr_perfmon_kernel_version = 1; /* Future use */
+uint32_t *xlr_cpu_sampling_interval;
+uint32_t xlr_perfmon_kernel_version = 1;	/* Future use */
 uint32_t xlr_perfmon_ticks;
 extern int mips_cpu_online_mask;
 extern uint32_t cpu_ltop_map[MAXCPU];
 
 #ifdef SMP
-static __inline__ void pic_send_perfmon_ipi(int cpu)
+static __inline__ void 
+pic_send_perfmon_ipi(int cpu)
 {
-        xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
-        int tid, pid;
-        uint32_t ipi;
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+	int tid, pid;
+	uint32_t ipi;
 
-        tid = cpu & 0x3;
-        pid = (cpu >> 2) & 0x7;
-        ipi = (pid << 20) | (tid << 16) | IPI_PERFMON;
+	tid = cpu & 0x3;
+	pid = (cpu >> 2) & 0x7;
+	ipi = (pid << 20) | (tid << 16) | IPI_PERFMON;
 
-        mtx_lock_spin(&xlr_pic_lock);
-        xlr_write_reg(mmio, PIC_IPI, ipi);
-        mtx_unlock_spin(&xlr_pic_lock);
+	mtx_lock_spin(&xlr_pic_lock);
+	xlr_write_reg(mmio, PIC_IPI, ipi);
+	mtx_unlock_spin(&xlr_pic_lock);
 }
-#endif 
+
+#endif
 
 
-void 
+void
 xlr_perfmon_clockhandler(void)
 {
 #ifdef SMP
 	int cpu;
 	int i;
+
 #endif
 
-	if (xlr_perfmon_ticks++ >= (*xlr_cpu_sampling_interval)/(XLR_PIC_HZ/(hz * 1024))) {
+	if (xlr_perfmon_ticks++ >= (*xlr_cpu_sampling_interval) / (XLR_PIC_HZ / (hz * 1024))) {
 
 		/* update timer */
 		*xlr_perfmon_timer_loc += *xlr_cpu_sampling_interval;
 		xlr_perfmon_ticks = 0;
 		xlr_perfmon_sampler(NULL);
 #ifdef SMP
-		for (i=0; i<NCPUS; i = i+NTHREADS) {                  /* oly thread 0 */
+		for (i = 0; i < NCPUS; i = i + NTHREADS) {	/* oly thread 0 */
 			cpu = cpu_ltop_map[i];
 			if ((mips_cpu_online_mask & (1 << i)) &&
-			    xlr_shared_config_area[cpu/NTHREADS].perf_config.magic ==
+			    xlr_shared_config_area[cpu / NTHREADS].perf_config.magic ==
 			    PERFMON_ACTIVE_MAGIC)
 				pic_send_perfmon_ipi(cpu);
 		}
-			
+
 #endif
 
 	}
@@ -103,27 +106,26 @@ xlr_perfmon_start(void)
 {
 	size_t size;
 
-	size = (NCORES * sizeof(*xlr_shared_config_area)) + 
-	       sizeof(*xlr_perfmon_timer_loc) +
-	       sizeof(*xlr_cpu_sampling_interval);
+	size = (NCORES * sizeof(*xlr_shared_config_area)) +
+	    sizeof(*xlr_perfmon_timer_loc) +
+	    sizeof(*xlr_cpu_sampling_interval);
 
 	xlr_shared_config_area = malloc(size, M_TEMP, M_WAITOK);
 	if (!xlr_shared_config_area) {
 		/* ERROR */
 		return;
 	}
-
-	xlr_perfmon_timer_loc = (uint32_t *)(xlr_shared_config_area + NCORES);
-	xlr_cpu_sampling_interval = (uint32_t *)(xlr_perfmon_timer_loc +1);
+	xlr_perfmon_timer_loc = (uint32_t *) (xlr_shared_config_area + NCORES);
+	xlr_cpu_sampling_interval = (uint32_t *) (xlr_perfmon_timer_loc + 1);
 
 	*xlr_cpu_sampling_interval = DEFAULT_CPU_SAMPLING_INTERVAL;
 	*xlr_perfmon_timer_loc = 0;
 	xlr_perfmon_ticks = 0;
 
-	xlr_perfmon_init_cpu(NULL); 
+	xlr_perfmon_init_cpu(NULL);
 #ifdef SMP
-	smp_call_function(xlr_perfmon_init_cpu, NULL, 
-			PCPU_GET(other_cpus) & 0x11111111);
+	smp_call_function(xlr_perfmon_init_cpu, NULL,
+	    PCPU_GET(other_cpus) & 0x11111111);
 #endif
 	xlr_perfmon_started = 1;
 
@@ -143,7 +145,7 @@ sysctl_xlr_perfmon_start_stop(SYSCTL_HANDLER_ARGS)
 	int error, val = xlr_perfmon_started;
 
 	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error != 0 || req->newptr == NULL) 
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 
 	if (!xlr_perfmon_started && val != 0)
@@ -157,6 +159,5 @@ sysctl_xlr_perfmon_start_stop(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_NODE(_debug, OID_AUTO, xlrperf, CTLFLAG_RW, NULL, "XLR PERF Nodes");
 SYSCTL_PROC(_debug_xlrperf, OID_AUTO, start, CTLTYPE_INT | CTLFLAG_RW,
-        &xlr_perfmon_started, 0, sysctl_xlr_perfmon_start_stop, "I", "set/unset to start/stop "
-	"performance monitoring");
-
+    &xlr_perfmon_started, 0, sysctl_xlr_perfmon_start_stop, "I", "set/unset to start/stop "
+    "performance monitoring");

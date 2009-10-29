@@ -66,7 +66,7 @@ static void pic_pcie_ack(void *);
 */
 
 extern vm_map_t kernel_map;
-vm_offset_t kmem_alloc_nofault( vm_map_t map, vm_size_t size);
+vm_offset_t kmem_alloc_nofault(vm_map_t map, vm_size_t size);
 
 
 int
@@ -76,22 +76,26 @@ mips_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	 * Validate requested pin number.
 	 */
 	if ((pin < 1) || (pin > 4))
-		return(255);
+		return (255);
 
 	if (xlr_board_info.is_xls) {
 		switch (pin) {
-		case 1:	return PIC_PCIE_LINK0_IRQ;
-		case 2:	return PIC_PCIE_LINK1_IRQ;
-		case 3:	return PIC_PCIE_LINK2_IRQ;
-		case 4:	return PIC_PCIE_LINK3_IRQ;
+		case 1:
+			return PIC_PCIE_LINK0_IRQ;
+		case 2:
+			return PIC_PCIE_LINK1_IRQ;
+		case 3:
+			return PIC_PCIE_LINK2_IRQ;
+		case 4:
+			return PIC_PCIE_LINK3_IRQ;
 		}
-	} else  {
+	} else {
 		if (pin == 1) {
 			return (16);
 		}
 	}
-	
-	return(255);
+
+	return (255);
 }
 
 static struct rman irq_rman, port_rman, mem_rman;
@@ -101,7 +105,7 @@ static void bridge_pcix_ack(void *arg)
 {
 	xlr_read_reg(xlr_io_mmio(XLR_IO_PCIX_OFFSET), 0x140 >> 2);
 	}
-*/	
+*/
 /*
 static void bridge_pcie_ack(void *arg)
 {
@@ -147,10 +151,10 @@ static void pic_pcie_ack(void *arg)
 
 int
 mips_platform_pci_setup_intr(device_t dev, device_t child,
-							 struct resource *irq,  int flags,
-							 driver_filter_t *filt,
-							 driver_intr_t *intr, void *arg,
-							 void **cookiep)
+    struct resource *irq, int flags,
+    driver_filter_t * filt,
+    driver_intr_t * intr, void *arg,
+    void **cookiep)
 {
 	int level;
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
@@ -162,59 +166,58 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		return error;
 	if (rman_get_start(irq) != rman_get_end(irq)) {
 		device_printf(dev, "Interrupt allocation %lu != %lu\n",
-					  rman_get_start(irq), rman_get_end(irq));
+		    rman_get_start(irq), rman_get_end(irq));
 		return EINVAL;
 	}
-
 	xlrirq = rman_get_start(irq);
-	if (strcmp(device_get_name(dev),"pcib") != 0)
+	if (strcmp(device_get_name(dev), "pcib") != 0)
 		return 0;
 
 	if (xlr_board_info.is_xls == 0) {
 		mtx_lock_spin(&xlr_pic_lock);
 		level = PIC_IRQ_IS_EDGE_TRIGGERED(PIC_IRT_PCIX_INDEX);
 		xlr_write_reg(mmio, PIC_IRT_0_PCIX, 0x01);
-		xlr_write_reg(mmio, PIC_IRT_1_PCIX, ((1 << 31) | (level<<30)|
-					(1<<6)|(PIC_PCIX_IRQ)));
+		xlr_write_reg(mmio, PIC_IRT_1_PCIX, ((1 << 31) | (level << 30) |
+		    (1 << 6) | (PIC_PCIX_IRQ)));
 		mtx_unlock_spin(&xlr_pic_lock);
 		cpu_establish_hardintr(device_get_name(child), filt,
-							   (driver_intr_t *)intr, (void *)arg, PIC_PCIX_IRQ, flags, cookiep);
+		    (driver_intr_t *) intr, (void *)arg, PIC_PCIX_IRQ, flags, cookiep);
 
 	} else {
 		mtx_lock_spin(&xlr_pic_lock);
 		xlr_write_reg(mmio, PIC_IRT_0_BASE + xlrirq - PIC_IRQ_BASE, 0x01);
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + xlrirq - PIC_IRQ_BASE,
-			      ((1 << 31) | (1<<30) | (1<<6) | xlrirq));
+		    ((1 << 31) | (1 << 30) | (1 << 6) | xlrirq));
 		mtx_unlock_spin(&xlr_pic_lock);
 
-		if (flags & INTR_FAST) 
-		  cpu_establish_hardintr(device_get_name(child), filt,
-								   (driver_intr_t *)intr, (void *)arg, xlrirq, flags, cookiep);
+		if (flags & INTR_FAST)
+			cpu_establish_hardintr(device_get_name(child), filt,
+			    (driver_intr_t *) intr, (void *)arg, xlrirq, flags, cookiep);
 		else
-		  cpu_establish_hardintr(device_get_name(child), filt,
-								 (driver_intr_t *)intr, (void *)arg, xlrirq, flags, cookiep);
+			cpu_establish_hardintr(device_get_name(child), filt,
+			    (driver_intr_t *) intr, (void *)arg, xlrirq, flags, cookiep);
 
-			
+
 	}
 	return bus_generic_setup_intr(dev, child, irq, flags, filt, intr,
-				      arg, cookiep);
+	    arg, cookiep);
 }
 
 
 int
 mips_platform_pci_teardown_intr(device_t dev, device_t child,
-								struct resource *irq, void *cookie);
+    struct resource *irq, void *cookie);
 int
 mips_platform_pci_teardown_intr(device_t dev, device_t child,
-				 struct resource *irq, void *cookie)
+    struct resource *irq, void *cookie)
 {
-	if (strcmp(device_get_name(child),"pci") == 0) {
+	if (strcmp(device_get_name(child), "pci") == 0) {
 		/* if needed reprogram the pic to clear pcix related entry */
 	}
 	return bus_generic_teardown_intr(dev, child, irq, cookie);
 }
 
-void 
+void
 pci_init_resources(void)
 {
 	irq_rman.rm_start = 0;
@@ -249,29 +252,29 @@ pci_init_resources(void)
 
 struct resource *
 xlr_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		   u_long start, u_long end, u_long count, u_int flags)
+    u_long start, u_long end, u_long count, u_int flags)
 {
-	struct	rman *rm;
-	struct	resource *rv;
+	struct rman *rm;
+	struct resource *rv;
 	vm_offset_t va;
-       int needactivate = flags & RF_ACTIVE;
+	int needactivate = flags & RF_ACTIVE;
 
 #if 0
 	device_printf(bus, "xlr_pci_alloc_resource : child %s, type %d, start %lx end %lx, count %lx, flags %x\n",
-		       device_get_nameunit(child), type, start, end, count, flags);
+	    device_get_nameunit(child), type, start, end, count, flags);
 #endif
 
 	switch (type) {
 	case SYS_RES_IRQ:
-			rm = &irq_rman;
+		rm = &irq_rman;
 		break;
 
 	case SYS_RES_IOPORT:
-			rm = &port_rman;
+		rm = &port_rman;
 		break;
 
 	case SYS_RES_MEMORY:
-			rm = &mem_rman;
+		rm = &mem_rman;
 		break;
 
 	default:
@@ -282,43 +285,44 @@ xlr_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == 0)
 		return 0;
 
-	rman_set_bustag(rv,  (bus_space_tag_t)MIPS_BUS_SPACE_PCI);
+	rman_set_bustag(rv, (bus_space_tag_t) MIPS_BUS_SPACE_PCI);
 	rman_set_rid(rv, *rid);
 
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-	  /*		if ((start + count) > (2 << 28)) {
-			va_start = kmem_alloc_nofault(kernel_map, count);
-			}*/
-		/* This called for pmap_map_uncached, but the pmap_map
-		 * calls pmap_kenter which does a is_cacheable_mem() check and
+		/*
+		 * if ((start + count) > (2 << 28)) { va_start =
+		 * kmem_alloc_nofault(kernel_map, count); }
+		 */
+		/*
+		 * This called for pmap_map_uncached, but the pmap_map calls
+		 * pmap_kenter which does a is_cacheable_mem() check and
 		 * thus sets the PTE_UNCACHED bit. Hopefully this will work
 		 * for this guy... RRS
 		 */
-	  /*		va = pmap_map(&va_start, start, start + count, 0);*/
-	    va = (vm_offset_t)pmap_mapdev(start, start + count);
+		/* va = pmap_map(&va_start, start, start + count, 0); */
+		va = (vm_offset_t)pmap_mapdev(start, start + count);
 		rman_set_bushandle(rv, va);
 		/* bushandle is same as virtual addr */
 		rman_set_virtual(rv, (void *)va);
-		rman_set_bustag(rv, (bus_space_tag_t)MIPS_BUS_SPACE_PCI);
+		rman_set_bustag(rv, (bus_space_tag_t) MIPS_BUS_SPACE_PCI);
 	}
-
-       if (needactivate) {
-                if (bus_activate_resource(child, type, *rid, rv)) {
-                        rman_release_resource(rv);
-                        return (NULL);
-                }
-        }
-
+	if (needactivate) {
+		if (bus_activate_resource(child, type, *rid, rv)) {
+			rman_release_resource(rv);
+			return (NULL);
+		}
+	}
 	return rv;
 }
 
 
 int
 pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
-			  struct resource *r)
+    struct resource *r)
 {
 	return (rman_deactivate_resource(r));
 }
+
 /* now in pci.c
 int
 pci_activate_resource(device_t bus, device_t child, int type, int rid,
@@ -339,7 +343,7 @@ struct rman *
 pci_get_rman(device_t dev, int type)
 {
 	switch (type) {
-	case SYS_RES_IOPORT:
+		case SYS_RES_IOPORT:
 		return &port_rman;
 
 	case SYS_RES_MEMORY:
