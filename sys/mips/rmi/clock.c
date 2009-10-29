@@ -53,19 +53,24 @@
 #include <machine/hwfunc.h>
 #include <machine/intr_machdep.h>
 
-#include <mips/xlr/iomap.h>
-#include <mips/xlr/clock.h>
-#include <mips/xlr/interrupt.h>
-#include <mips/xlr/pic.h>
-#include <mips/xlr/shared_structs.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/clock.h>
+#include <mips/rmi/interrupt.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/shared_structs.h>
 
 #ifdef XLR_PERFMON
-#include <mips/xlr/perfmon.h>
+#include <mips/rmi/perfmon.h>
 #endif
 
-int hw_clockrate;
-SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, &hw_clockrate,
-		 0, "CPU instruction clock rate");
+uint64_t counter_freq;
+uint64_t cycles_per_tick;
+uint64_t cycles_per_usec;
+uint64_t cycles_per_sec;
+uint64_t cycles_per_hz;
+
+u_int32_t counter_upper = 0;
+u_int32_t counter_lower_last = 0;
 
 #define STAT_PROF_CLOCK_SCALE_FACTOR 8
 
@@ -75,6 +80,15 @@ static int count_scale_factor[32];
 uint64_t platform_get_frequency()
 {
 	return XLR_PIC_HZ;
+}
+
+void 
+mips_timer_early_init(uint64_t clock_hz)
+{
+	/* Initialize clock early so that we can use DELAY sooner */
+	counter_freq = clock_hz;
+	cycles_per_usec = (clock_hz / (1000 * 1000));
+
 }
 
 /*
@@ -100,11 +114,11 @@ count_compare_clockhandler(struct trapframe *tf)
 		cycles += XLR_CPU_HZ/hz;
 		mips_wr_compare(cycles);
 
-		hardclock_process((struct clockframe *)tf);
+		hardclock_cpu(USERMODE(tf->sr));
 		if (count_scale_factor[cpu] == STAT_PROF_CLOCK_SCALE_FACTOR) {
-			statclock((struct clockframe *)tf);
+			statclock(USERMODE(tf->sr));
 			if(profprocs != 0) {
-				profclock((struct clockframe *)tf);
+				profclock(USERMODE(tf->sr), tf->pc);
 			}
 			count_scale_factor[cpu] = 0;
 		}
@@ -124,11 +138,11 @@ pic_hardclockhandler(struct trapframe *tf)
 
 	if (cpu == 0) {
 		scale_factor++;
-		hardclock((struct clockframe *)tf);
+		hardclock(USERMODE(tf->sr), tf->pc);
 		if (scale_factor == STAT_PROF_CLOCK_SCALE_FACTOR) {
-			statclock((struct clockframe *)tf);
+			statclock(USERMODE(tf->sr));
 			if(profprocs != 0) {
-				profclock((struct clockframe *)tf);
+				profclock(USERMODE(tf->sr), tf->pc);
 			}
 			scale_factor = 0;
 		}
@@ -141,73 +155,164 @@ pic_hardclockhandler(struct trapframe *tf)
 	else {
 		/* If needed , handle count compare tick skew here */
 	}
-
 	critical_exit();
 }
 
-void
+int
 pic_timecounthandler(struct trapframe *tf)
 {
+  return (FILTER_HANDLED);
 }
 
 void
 platform_initclocks(void)
 {
-	int cpu = PCPU_GET(cpuid);
-	void *cookie;
+  int cpu = PCPU_GET(cpuid);
+  void *cookie;
 
-	/* Note: Passing #3 as NULL ensures that clockhandler 
-	* gets called with trapframe 
-	*/
-	/* profiling/process accounting timer interrupt for non-zero cpus */
-	cpu_establish_intr("compare", IRQ_TIMER, 
-		(driver_intr_t *)count_compare_clockhandler,
-		NULL, INTR_TYPE_CLK|INTR_FAST, &cookie, NULL, NULL);
+  /* Note: Passing #3 as NULL ensures that clockhandler 
+   * gets called with trapframe 
+   */
+  /* profiling/process accounting timer interrupt for non-zero cpus */
+  cpu_establish_hardintr("compare", 
+						 NULL,
+						 (driver_intr_t *)count_compare_clockhandler,
+						 NULL,
+						 IRQ_TIMER, 
+						 INTR_TYPE_CLK|INTR_FAST, &cookie);
 
-	/* timekeeping timer interrupt for cpu 0 */
-	cpu_establish_intr("hardclk", PIC_TIMER_7_IRQ,
-		(driver_intr_t *)pic_hardclockhandler,
-		NULL,  INTR_TYPE_CLK|INTR_FAST, &cookie, NULL, NULL);
+  /* timekeeping timer interrupt for cpu 0 */
+  cpu_establish_hardintr("hardclk", 
+						 NULL,
+						 (driver_intr_t *)pic_hardclockhandler,
+						 NULL,
+						 PIC_TIMER_7_IRQ,
+						 INTR_TYPE_CLK|INTR_FAST,
+						 &cookie);
 
-	/* this is used by timecounter */
-	cpu_establish_intr("timecount", PIC_TIMER_6_IRQ,
-		(driver_intr_t *)pic_timecounthandler,
-		NULL, INTR_TYPE_CLK|INTR_FAST, &cookie, NULL, NULL);
+  /* this is used by timecounter */
+   cpu_establish_hardintr("timecount", 
+						  (driver_filter_t *)pic_timecounthandler, NULL,
+						  NULL, PIC_TIMER_6_IRQ, INTR_TYPE_CLK|INTR_FAST,
+						  &cookie);
+   	
+  if (cpu == 0) {
+	__uint64_t maxval = XLR_PIC_HZ/hz;
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	if (cpu == 0) {
-		__uint64_t maxval = XLR_PIC_HZ/hz;
-		xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+	stathz = hz / STAT_PROF_CLOCK_SCALE_FACTOR;
+	profhz = stathz;
 
-		stathz = hz / STAT_PROF_CLOCK_SCALE_FACTOR;
-		profhz = stathz;
+	/* Setup PIC Interrupt */
 
-		/* Setup PIC Interrupt */
+	mtx_lock_spin(&xlr_pic_lock);
+	xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_0, (maxval & 0xffffffff)); /* 0x100 + 7*/
+	xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_1, (maxval >> 32) & 0xffffffff);/* 0x110 + 7 */
+	/* 0x40 + 8 */
+	/* reg 40 is lower bits 31-0  and holds CPU mask */
+	xlr_write_reg(mmio, PIC_IRT_0_TIMER_7, (1 << cpu));
+	/* 0x80 + 8 */
+	/* Reg 80 is upper bits 63-32 and holds                              */
+	/*                                      Valid   Edge    Local    IRQ */
+	xlr_write_reg(mmio, PIC_IRT_1_TIMER_7, (1<<31)|(0<<30)|(1<<6)|(PIC_TIMER_7_IRQ)); 
+	pic_update_control(1<<(8+7));
 
-		mtx_lock_spin(&xlr_pic_lock);
-		xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_0, (maxval & 0xffffffff));
-		xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_1, (maxval >> 32) & 0xffffffff);
-		xlr_write_reg(mmio, PIC_IRT_0_TIMER_7, (1 << cpu));
-		xlr_write_reg(mmio, PIC_IRT_1_TIMER_7, (1<<31)|(0<<30)|(1<<6)|(PIC_TIMER_7_IRQ));
-		pic_update_control(1<<(8+7));
-
-		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_0, (0xffffffff & 0xffffffff));
-		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0x0) & 0xffffffff);
-		xlr_write_reg(mmio, PIC_IRT_0_TIMER_6, (1 << cpu));
-		xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1<<31)|(0<<30)|(1<<6)|(PIC_TIMER_6_IRQ));
-		pic_update_control(1<<(8+6));
-		mtx_unlock_spin(&xlr_pic_lock);
-	} else {
-		/* Setup count-compare interrupt for vcpu[1-31] */
-		mips_wr_compare((xlr_boot1_info.cpu_frequency)/hz);
-	}
+	xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_0, (0xffffffff & 0xffffffff));
+	xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0xffffffff & 0xffffffff));
+	xlr_write_reg(mmio, PIC_IRT_0_TIMER_6, (1 << cpu));
+	xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1<<31)|(0<<30)|(1<<6)|(PIC_TIMER_6_IRQ));
+	pic_update_control(1<<(8+6));
+	mtx_unlock_spin(&xlr_pic_lock);
+  } else {
+	/* Setup count-compare interrupt for vcpu[1-31] */
+	mips_wr_compare((xlr_boot1_info.cpu_frequency)/hz);
+  }
 }
 
-
-
 unsigned __attribute__((no_instrument_function))
-platform_get_timecount(struct timecounter *tc)
+platform_get_timecount(struct timecounter *tc __unused)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
 	return 0xffffffffU - xlr_read_reg(mmio, PIC_TIMER_6_COUNTER_0);
+}
+
+void
+DELAY(int n)
+{
+	uint32_t cur, last, delta, usecs;
+
+	/*
+	 * This works by polling the timer and counting the number of
+	 * microseconds that go by.
+	 */
+	last = platform_get_timecount(NULL);
+	delta = usecs = 0;
+
+	while (n > usecs) {
+		cur = platform_get_timecount(NULL);
+
+		/* Check to see if the timer has wrapped around. */
+		if (cur < last)
+			delta += (cur + (cycles_per_hz - last));
+		else
+			delta += (cur - last);
+
+		last = cur;
+
+		if (delta >= cycles_per_usec) {
+			usecs += delta / cycles_per_usec;
+			delta %= cycles_per_usec;
+		}
+	}
+}
+
+static
+uint64_t read_pic_counter(void)
+{
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+	uint32_t lower, upper;
+	uint64_t tc;
+	/* Pull the value of the 64 bit counter which is stored in
+	 * PIC register 120+N and 130+N
+	 */
+	upper = 0xffffffffU - xlr_read_reg(mmio, PIC_TIMER_6_COUNTER_1);  
+	lower = 0xffffffffU - xlr_read_reg(mmio, PIC_TIMER_6_COUNTER_0);
+	tc = (((uint64_t)upper << 32) | (uint64_t)lower);
+	return(tc);
+}
+
+extern struct timecounter counter_timecounter;
+
+void
+mips_timer_init_params(uint64_t platform_counter_freq, int double_count)
+{
+
+	/*
+	 * XXX: Do not use printf here: uart code 8250 may use DELAY so this
+	 * function should  be called before cninit.
+	 */
+	counter_freq = platform_counter_freq;
+	/*
+	 * XXX: Some MIPS32 cores update the Count register only every two
+	 * pipeline cycles.
+	 */
+	if (double_count != 0)
+		counter_freq /= 2;
+
+	cycles_per_tick = counter_freq / 1000;
+	cycles_per_hz = counter_freq / hz;
+	cycles_per_usec = counter_freq / (1 * 1000 * 1000);
+	cycles_per_sec =  counter_freq ;
+	
+	counter_timecounter.tc_frequency = counter_freq;
+	printf("hz=%d cyl_per_hz:%jd cyl_per_usec:%jd freq:%jd cyl_per_hz:%jd cyl_per_sec:%jd\n",
+	       hz,
+	       cycles_per_tick,
+	       cycles_per_usec,
+	       counter_freq,
+	       cycles_per_hz,
+	       cycles_per_sec
+	       );
+	set_cputicker(read_pic_counter, counter_freq, 1);
 }

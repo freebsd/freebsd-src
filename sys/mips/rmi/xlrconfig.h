@@ -31,8 +31,8 @@
 #define XLRCONFIG_H
 
 #include <sys/types.h>
-#include <mips/xlr/shared_structs.h>
-#include <mips/xlr/shared_structs_func.h>
+#include <mips/rmi/shared_structs.h>
+#include <mips/rmi/shared_structs_func.h>
 
 #define read_c0_register32(reg, sel)                            \
 ({ unsigned int __rv;                                           \

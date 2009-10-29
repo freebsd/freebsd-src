@@ -37,10 +37,10 @@
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <machine/smp.h>
-#include <mips/xlr/perfmon.h>
-#include <mips/xlr/pic.h>
+#include <mips/rmi/perfmon.h>
+#include <mips/rmi/pic.h>
 #include <sys/mutex.h>
-#include <mips/xlr/clock.h>
+#include <mips/rmi/clock.h>
 
 
 int xlr_perfmon_started = 0;

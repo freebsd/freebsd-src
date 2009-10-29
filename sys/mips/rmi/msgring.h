@@ -30,7 +30,7 @@
 #ifndef _RMI_MSGRING_H_
 #define _RMI_MSGRING_H_
 
-#include <mips/xlr/xlrconfig.h>
+#include <mips/rmi/xlrconfig.h>
 
 #define MSGRNG_TX_BUF_REG 0
 #define MSGRNG_RX_BUF_REG 1

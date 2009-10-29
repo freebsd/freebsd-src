@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2006-2009 RMI Corporation
  * Copyright (c) 2002-2004 Juli Mallett <jmallett@FreeBSD.org>
  * All rights reserved.
  *
@@ -70,15 +71,15 @@
 #include <machine/smp.h>
 #include <machine/mips-exts.h>
 
-#include <mips/xlr/iomap.h>
-#include <mips/xlr/clock.h>
-#include <mips/xlr/msgring.h>
-#include <mips/xlr/xlrconfig.h>
-#include <mips/xlr/interrupt.h>
-#include <mips/xlr/pic.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/clock.h>
+#include <mips/rmi/msgring.h>
+#include <mips/rmi/xlrconfig.h>
+#include <mips/rmi/interrupt.h>
+#include <mips/rmi/pic.h>
 
 #ifdef XLR_PERFMON
-#include <mips/xlr/perfmon.h>
+#include <mips/rmi/perfmon.h>
 #endif
 
 
@@ -108,8 +109,8 @@ static unsigned long xlr_secondary_sp[MAXCPU];
 #endif
 extern int mips_cpu_online_mask;
 extern int mips_cpu_logical_mask;
-extern uint32_t cpu_ltop_map[MAXCPU];
-extern uint32_t cpu_ptol_map[MAXCPU];
+uint32_t cpu_ltop_map[MAXCPU];
+uint32_t cpu_ptol_map[MAXCPU];
 uint32_t xlr_core_cpu_mask=0x1; /* Core 0 thread 0 is always there */
 
 void
@@ -128,13 +129,13 @@ void platform_secondary_init(void)
 	xlr_msgring_cpu_init();
 
 	/* Setup interrupts for secondary CPUs here */
-	platform_update_intrmask(IPI_SMP_CALL_FUNCTION);
-	platform_update_intrmask(IPI_STOP);
-	platform_update_intrmask(IPI_RENDEZVOUS);
-	platform_update_intrmask(IPI_AST);
-	platform_update_intrmask(IRQ_TIMER);
+	mips_mask_hard_irq(IPI_SMP_CALL_FUNCTION);
+	mips_mask_hard_irq(IPI_STOP);
+	mips_mask_hard_irq(IPI_RENDEZVOUS);
+	mips_mask_hard_irq(IPI_AST);
+	mips_mask_hard_irq(IRQ_TIMER);
 #ifdef XLR_PERFMON
-	platform_update_intrmask(IPI_PERFMON);
+	mips_mask_hard_irq(IPI_PERFMON);
 #endif
 
 	return;
@@ -325,10 +326,45 @@ static void xlr_set_boot_flags(void)
 
 	return;
 }
-	
 extern uint32_t _end; 
+
+
+static void
+mips_init(void)
+{
+	init_param1();
+	init_param2(physmem);
+
+	/* XXX: Catch 22. Something touches the tlb. */
+	
+	mips_cpu_init();
+	pmap_bootstrap();
+	
+	mips_proc0_init();
+	write_c0_register32(MIPS_COP_0_OSSCRATCH,7, pcpup->pc_curthread);
+
+	mutex_init();
+
+	PMAP_LOCK_INIT(kernel_pmap);
+
+#ifdef DDB
+#ifdef SMP
+	setup_nmi(); 
+#endif /* SMP */
+	kdb_init();
+	if (boothowto & RB_KDB) {
+		kdb_enter("Boot flags requested debugger");
+	}
+#endif
+}
+
+void tick_init(void);
+
 void
-platform_start()
+platform_start(__register_t a0 __unused,
+			   __register_t a1 __unused,
+			   __register_t a2 __unused,
+			   __register_t a3 __unused)
 {
 	vm_size_t physsz = 0;
 	int i, j;
@@ -356,7 +392,15 @@ platform_start()
 	boothowto |= (RB_SERIAL | RB_MULTIPLE); /* Use multiple consoles */
 	
 	/* clockrate used by delay, so initialize it here */
-        hw_clockrate = xlr_boot1_info.cpu_frequency/1000000 ;
+	cpu_clock = xlr_boot1_info.cpu_frequency/1000000 ;
+
+	/* Note the time counter on CPU0 runs not at system
+	 * clock speed, but at PIC time counter speed (which is
+	 * returned by platform_get_frequency(). Thus we do not
+	 * use xlr_boot1_info.cpu_frequency here.
+	 */
+	mips_timer_early_init(platform_get_frequency());
+	mips_timer_init_params(platform_get_frequency(), 0);
 	cninit();
 	init_static_kenv(boot1_env, sizeof(boot1_env));
 
@@ -448,7 +492,7 @@ platform_start()
 		/* Allocate stack for all other cpus from fbsd kseg0 memory. */
 		if((1U<<i) & xlr_boot1_info.cpu_online_map){
 			xlr_secondary_gp[i] = 
-				pmap_steal_unmapped_memory(PAGE_SIZE) ;
+				pmap_steal_memory(PAGE_SIZE) ;
 			if(!xlr_secondary_gp[i])
 				panic("Allocation failed for secondary cpu stacks");
 			xlr_secondary_sp[i] = 
@@ -479,7 +523,7 @@ platform_start()
    * XXX NOTE: We may need to move this to SMP based init code
    * for each CPU, later.
    */
-  on_chip_init();
+	on_chip_init();
 	tick_init();
 }
 
@@ -507,13 +551,13 @@ platform_trap_exit(void)
 }
 
 
-
-void
-platform_update_intrmask(int intr)
-{
-  write_c0_eimr64(read_c0_eimr64() | (1ULL<<intr));
-}
-
+/*
+ void
+ platform_update_intrmask(int intr)
+ {
+   write_c0_eimr64(read_c0_eimr64() | (1ULL<<intr));
+ }
+*/
 
 void disable_msgring_int(void *arg) ;
 void enable_msgring_int(void *arg) ;
@@ -540,23 +584,23 @@ msgring_process_fast_intr(void *arg)
 	it = (volatile struct msgring_ithread *)&msgring_ithreads[cpu];
 	td = it->i_thread;
 	p = td->td_proc;
-	
+
 	/* Interrupt thread will enable the interrupts after processing 
 	   all messages
 	   */
-	mtx_lock_spin(&sched_lock);
 	disable_msgring_int(NULL);
 	it->i_pending = 1;
 	if (TD_AWAITING_INTR(td)) {
+	    thread_lock(td);
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
 				p->p_comm);
 		TD_CLR_IWAIT(td);
-		setrunqueue(td, SRQ_INTR);
+		sched_add(td, SRQ_INTR);
+	    thread_unlock(td);
 	} else {
 		CTR4(KTR_INTR, "%s: pid %d (%s): state %d",
 				__func__, p->p_pid, p->p_comm, td->td_state);
 	}
-	mtx_unlock_spin(&sched_lock);
 
 }
 #define MIT_DEAD 4
@@ -574,9 +618,9 @@ msgring_process(void * arg)
 		("%s:msg_ithread and proc linkage out of sync", __func__));
 
 	/* First bind this thread to the right CPU */
-	mtx_lock_spin(&sched_lock);
+	thread_lock(td);
 	sched_bind(td, ithd->i_cpu);
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(td);
 
 //	printf("Started %s on CPU %d\n", __FUNCTION__, ithd->i_cpu);
 
@@ -584,7 +628,7 @@ msgring_process(void * arg)
 		if (ithd->i_flags & MIT_DEAD) {
 			CTR3(KTR_INTR, "%s: pid %d (%s) exiting", __func__,
 					p->p_pid, p->p_comm);
-			kthread_exit(0);
+			kthread_exit();
 		}
 		while (ithd->i_pending) {
 			/*
@@ -596,13 +640,14 @@ msgring_process(void * arg)
 			atomic_store_rel_int(&ithd->i_pending, 0);
 			xlr_msgring_handler(NULL);
 		}
-		mtx_lock_spin(&sched_lock);
 		if (!ithd->i_pending && !(ithd->i_flags & MIT_DEAD)) {
+		    thread_lock(td);
+			sched_class(td, PRI_ITHD);
 			TD_SET_IWAIT(td);
+		    thread_unlock(td);
 			enable_msgring_int(NULL);
 			mi_switch(SW_VOL, NULL);
 		}
-		mtx_unlock_spin(&sched_lock);
 	}
 
 }
@@ -629,16 +674,21 @@ void platform_prep_smp_launch(void)
 
 		ithd = &msgring_ithreads[cpu];
 		sprintf(ithd_name[cpu], "msg_intr%d", cpu);
-		error = kthread_create(msgring_process, (void *)ithd, &p, 
-				RFSTOPPED | RFHIGHPID, 0, "%s", ithd_name[cpu]);
+		error = kproc_create(msgring_process,
+							 (void *)ithd,
+							 &p, 
+							 (RFSTOPPED | RFHIGHPID),
+							 2,
+							 ithd_name[cpu]);
+
 		if (error)
-			panic("kthread_create() failed with %d", error);
+			panic("kproc_create() failed with %d", error);
 		td = FIRST_THREAD_IN_PROC(p);   /* XXXKSE */
-		mtx_lock_spin(&sched_lock);
-		td->td_ksegrp->kg_pri_class = PRI_ITHD;
+
+		thread_lock(td);
+		sched_class(td, PRI_ITHD);
 		TD_SET_IWAIT(td);
-		mtx_unlock_spin(&sched_lock);
-		td->td_pflags |= TDP_ITHREAD;
+		thread_unlock(td);
 		ithd->i_thread = td;
 		ithd->i_pending = 0;
 		ithd->i_cpu = cpu;

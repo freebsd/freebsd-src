@@ -31,7 +31,7 @@
 #ifndef PERFMON_H
 #define PERFMON_H
 
-#include <mips/xlr/perfmon_xlrconfig.h>
+#include <mips/rmi/perfmon_xlrconfig.h>
 
 /* 
  * category events reported by the perfmon library
