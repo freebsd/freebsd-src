@@ -226,7 +226,11 @@ struct ata_params {
 /*128*/ u_int16_t       security_status;
 	u_int16_t       reserved129[31];
 /*160*/ u_int16_t       cfa_powermode1;
-	u_int16_t       reserved161[15];
+	u_int16_t       reserved161;
+/*162*/ u_int16_t       cfa_kms_support;
+/*163*/ u_int16_t       cfa_trueide_modes;
+/*164*/ u_int16_t       cfa_memory_modes;
+	u_int16_t       reserved165[11];
 /*176*/ u_int8_t        media_serial[60];
 /*206*/ u_int16_t       sct;
 	u_int16_t       reserved206[2];
