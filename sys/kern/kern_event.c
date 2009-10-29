@@ -909,13 +909,13 @@ findkn:
 
 	/* knote is in the process of changing, wait for it to stablize. */
 	if (kn != NULL && (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
+		kq->kq_state |= KQ_FLUXWAIT;
+		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqflxwt", 0);
 		if (fp != NULL) {
 			fdrop(fp, td);
 			fp = NULL;
 		}
-		KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-		kq->kq_state |= KQ_FLUXWAIT;
-		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqflxwt", 0);
 		goto findkn;
 	}
 
