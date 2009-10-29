@@ -1239,15 +1239,18 @@ hwmp_recv_rann(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		return;
 	}
 	hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
-	if (HWMP_SEQ_GT(rann->rann_seq, hr->hr_seq) && rann->rann_ttl > 1 &&
-	    rann->rann_hopcount < hs->hs_maxhops &&
-	    (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)) {
-		memcpy(&prann, rann, sizeof(prann));
-		prann.rann_hopcount += 1;
-		prann.rann_ttl -= 1;
-		prann.rann_metric += ms->ms_pmetric->mpm_metric(ni);
-		hwmp_send_rann(vap->iv_bss, vap->iv_myaddr, broadcastaddr,
-		    &prann);
+	if (HWMP_SEQ_GT(rann->rann_seq, hr->hr_seq)) {
+		hr->hr_seq = rann->rann_seq;
+		if (rann->rann_ttl > 1 &&
+		    rann->rann_hopcount < hs->hs_maxhops &&
+		    (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)) {
+			memcpy(&prann, rann, sizeof(prann));
+			prann.rann_hopcount += 1;
+			prann.rann_ttl -= 1;
+			prann.rann_metric += ms->ms_pmetric->mpm_metric(ni);
+			hwmp_send_rann(vap->iv_bss, vap->iv_myaddr,
+			    broadcastaddr, &prann);
+		}
 	}
 }
 
