@@ -33,7 +33,7 @@
 #ifndef XLRCONFIG_PERFMON_H
 #define XLRCONFIG_PERFMON_H
 
-#include <mips/xlr/perfmon_utils.h>    /* for DPRINT */
+#include <mips/rmi/perfmon_utils.h>    /* for DPRINT */
 
 #define NCPUS    32
 #define NCORES   8

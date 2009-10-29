@@ -33,7 +33,7 @@
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <mips/xlr/iomap.h>
+#include <mips/rmi/iomap.h>
 
 #define PIC_IRT_WD_INDEX     0
 #define PIC_IRT_TIMER_0_INDEX      1

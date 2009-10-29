@@ -44,7 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/hwfunc.h>
-#include <machine/intrcnt.h>
+#include <mips/rmi/xlrconfig.h>
+#include <mips/rmi/interrupt.h>
+#include <mips/rmi/clock.h>
+
+/*#include <machine/intrcnt.h>*/
 
 struct mips_intrhand mips_intr_handlers[XLR_MAX_INTR];
 
@@ -72,16 +76,16 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 	struct intr_event *ie;          /* descriptor for the IRQ */
 	int errcode;
 	
-	if (intr < 0 || intr > XLR_MAX_INTR)
-		panic("%s called for unknown hard intr %d", __func__, intr);
+	if (irq < 0 || irq > XLR_MAX_INTR)
+		panic("%s called for unknown hard intr %d", __func__, irq);
 
 	/* FIXME locking - not needed now, because we do this only on startup from
 	   CPU0 */
 	mih = &mips_intr_handlers[irq];
-	mih->cntp = &intrcnt[irq];
+	/*mih->cntp = &intrcnt[irq]; */
 	ie = mih->mih_event;
 	if (ie == NULL) {
-		errcode = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
+		errcode = intr_event_create(&ie, (void *)(uintptr_t)irq, 0,
 		    irq, mips_mask_hard_irq, mips_unmask_hard_irq,
 		    NULL, NULL, "hard intr%d:", irq);
 					
@@ -90,7 +94,7 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 			return;
 		}
 	}
-	intr_event_add_handler(event, name, filt, handler, arg,
+	intr_event_add_handler(ie, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	mih->mih_event = ie;
 	mips_unmask_hard_irq((void*)(uintptr_t)irq);
@@ -103,17 +107,18 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
     void **cookiep)
 {
   /* we don't separate them into soft/hard like other mips */
-  cpu_establish_hardintr(name, filt, handler, arg, intr, flags, cookiep);
+  cpu_establish_hardintr(name, filt, handler, arg, irq, flags, cookiep);
 }
+
+
 
 void
 cpu_intr(struct trapframe *tf)
 {
 	struct mips_intrhand *mih;
-	struct intr_handler *ih;
 	struct intr_event *ie;
 	register_t eirr;
-	int i, thread, error;
+	int i;
 
 	critical_enter();
 	eirr = read_c0_eirr64();
@@ -156,7 +161,7 @@ cpu_intr(struct trapframe *tf)
 #endif
 #endif
 		mih = &mips_intr_handlers[i];
-		atomic_add_long(mih->cntp, 1);
+		/*atomic_add_long(mih->cntp, 1);*/
 		ie  = mih->mih_event;
 
 		write_c0_eirr64(1ULL << i);
@@ -166,8 +171,7 @@ cpu_intr(struct trapframe *tf)
 		}
 
 		if (intr_event_handle(ie, tf) != 0) {
-			printf("stray %s interrupt %d\n", 
-			    hard ? "hard" : "soft", i);
+			printf("stray interrupt %d\n",i);
 		}
 
 	}

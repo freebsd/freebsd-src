@@ -46,10 +46,29 @@
 #include <machine/bus.h>
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
-#include <mips/xlr/iomap.h>
-#include <mips/xlr/pic.h>
-#include <mips/xlr/board.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/shared_structs.h>
+#include <mips/rmi/board.h>
 #include <sys/rman.h>
+
+
+#include <machine/param.h>
+#include <machine/intr_machdep.h>
+#include <machine/clock.h>	/* for DELAY */
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <mips/rmi/interrupt.h>
+#include <mips/rmi/msgring.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/debug.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/xlrconfig.h>
+#include <mips/rmi/shared_structs.h>
+#include <mips/rmi/board.h>
+
+#include <dev/rmi/xlr/atx_cpld.h>
+#include <dev/rmi/xlr/xgmac_mdio.h>
 
 extern void iodi_activateirqs(void);
 
@@ -61,10 +80,11 @@ static struct resource *iodi_alloc_resource(device_t, device_t, int, int *,
 static int iodi_activate_resource(device_t, device_t, int, int,
         struct resource *);
 static int iodi_setup_intr(device_t, device_t, struct resource *, int,
-        driver_intr_t *, void *, void **);
+        driver_filter_t *, driver_intr_t *, void *, void **);
 
 struct iodi_softc *iodi_softc; /* There can be only one. */
 
+/*
 static void pic_usb_ack(void *arg)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
@@ -74,10 +94,11 @@ static void pic_usb_ack(void *arg)
 	xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
 	mtx_unlock_spin(&xlr_pic_lock);
 }
+*/
 
 static int
 iodi_setup_intr(device_t dev, device_t child,
-        struct resource *ires,  int flags, driver_intr_t *intr, void *arg,
+        struct resource *ires,  int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
 	    void **cookiep)
 {
   int level;
@@ -92,33 +113,37 @@ iodi_setup_intr(device_t dev, device_t child,
     xlr_write_reg(mmio, PIC_IRT_0_UART_0, 0x01);
     xlr_write_reg(mmio, PIC_IRT_1_UART_0, ((1 << 31) | (level<<30)|(1<<6)|(PIC_UART_0_IRQ)));
     mtx_unlock_spin(&xlr_pic_lock);
-
-    cpu_establish_intr("uart", PIC_UART_0_IRQ, 
-			(driver_intr_t *)intr, (void *)arg, flags, cookiep,
-		 	NULL, NULL);
+	cpu_establish_hardintr("uart", NULL,
+						   (driver_intr_t *)intr, (void *)arg, PIC_UART_0_IRQ, flags, cookiep);
 
   } else if (strcmp(device_get_name(child),"rge") == 0) {
+	int irq;
+	irq = rman_get_rid(ires);
     mtx_lock_spin(&xlr_pic_lock);
-    reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + ires->r_flags - PIC_IRQ_BASE);
-    xlr_write_reg(mmio, PIC_IRT_1_BASE + ires->r_flags - PIC_IRQ_BASE, reg | (1<<6)|(1<<30)| (1<<31));
+    reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE);
+    xlr_write_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE, reg | (1<<6)|(1<<30)| (1<<31));
     mtx_unlock_spin(&xlr_pic_lock);
-    cpu_establish_intr("rge", ires->r_flags, 
-		(driver_intr_t *)intr, (void *)arg, 
-		flags, cookiep, NULL, NULL);
+	cpu_establish_hardintr("rge", NULL, (driver_intr_t *)intr, (void *)arg, irq, flags, cookiep);
+
   } else if (strcmp(device_get_name(child),"ehci") == 0) {
     mtx_lock_spin(&xlr_pic_lock);
     reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + PIC_USB_IRQ - PIC_IRQ_BASE);
     xlr_write_reg(mmio, PIC_IRT_1_BASE + PIC_USB_IRQ - PIC_IRQ_BASE, reg | (1<<6)|(1<<30)| (1<<31));
     mtx_unlock_spin(&xlr_pic_lock);
-    cpu_establish_intr("ehci", PIC_USB_IRQ, 
-		       (driver_intr_t *)intr, (void *)arg, 
-		       flags, cookiep, (flags & INTR_FAST)? NULL: pic_usb_ack , NULL);
+	cpu_establish_hardintr("ehci", NULL, (driver_intr_t *)intr, (void *)arg, PIC_USB_IRQ, flags, cookiep);
   }
 
-  BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
-		 cookiep);
+  BUS_SETUP_INTR(device_get_parent(dev),
+				 child, ires, flags, filt, intr, arg, cookiep);
+
+
   return (0);
 }
+
+/* Strange hook found in mips/include/bus.h */
+#ifndef MIPS_BUS_SPACE_PCI
+#define MIPS_BUS_SPACE_PCI	10 
+#endif
 
 static struct resource *
 iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -159,12 +184,12 @@ iodi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		res->r_bustag = uart_bus_space_mem;
 	} else if  (strcmp(device_get_name(child),"ehci") == 0) {
 		res->r_bushandle = 0xbef24000;
-		res->r_bustag = MIPS_BUS_SPACE_PCI;
+		res->r_bustag = (bus_space_tag_t)MIPS_BUS_SPACE_PCI;
 	} else if (strcmp(device_get_name(child),"cfi") == 0) {
 		res->r_bushandle = 0xbc000000;
 		res->r_bustag = 0;
 	}
-	res->r_start = *rid;
+	/*res->r_start = *rid;*/
 	return (res);
 }
 

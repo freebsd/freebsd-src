@@ -33,7 +33,7 @@
  * from "msgring.cfg" 
  **********************************************************/
 
-#include <mips/xlr/msgring.h> 
+#include <mips/rmi/msgring.h> 
 
 struct bucket_size bucket_sizes = {
 	{

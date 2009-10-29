@@ -33,12 +33,12 @@
 #include <sys/kernel.h>
 #include <sys/smp.h>
 #include <sys/pcpu.h>
-#include <mips/xlr/xlrconfig.h>
-#include <mips/xlr/perfmon_xlrconfig.h>
-#include <mips/xlr/perfmon.h>
-#include <mips/xlr/perfmon_utils.h>
-#include <mips/xlr/pic.h>
-#include <mips/xlr/msgring.h>
+#include <mips/rmi/xlrconfig.h>
+#include <mips/rmi/perfmon_xlrconfig.h>
+#include <mips/rmi/perfmon.h>
+#include <mips/rmi/perfmon_utils.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/msgring.h>
 
 #define CC_SAMPLE   (PERF_CP2_CREDITS <<24)
 
