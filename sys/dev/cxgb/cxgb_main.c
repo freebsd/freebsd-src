@@ -1456,7 +1456,10 @@ setup_rss(adapter_t *adap)
 		rspq_map[i] = nq[0] ? i % nq[0] : 0;
 		rspq_map[i + RSS_TABLE_SIZE / 2] = nq[1] ? i % nq[1] + nq[0] : 0;
 	}
+
 	/* Calculate the reverse RSS map table */
+	for (i = 0; i < SGE_QSETS; ++i)
+		adap->rrss_map[i] = 0xff;
 	for (i = 0; i < RSS_TABLE_SIZE; ++i)
 		if (adap->rrss_map[rspq_map[i]] == 0xff)
 			adap->rrss_map[rspq_map[i]] = i;
