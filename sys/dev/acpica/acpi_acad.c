@@ -108,13 +108,14 @@ acpi_acad_get_status(void *context)
     ACPI_SERIAL_BEGIN(acad);
     if (newstatus != -1 && sc->status != newstatus) {
 	sc->status = newstatus;
+	ACPI_SERIAL_END(acad);
 	power_profile_set_state(newstatus ? POWER_PROFILE_PERFORMANCE :
 	    POWER_PROFILE_ECONOMY);
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 	    "%s Line\n", newstatus ? "On" : "Off");
 	acpi_UserNotify("ACAD", h, newstatus);
-    }
-    ACPI_SERIAL_END(acad);
+    } else
+	ACPI_SERIAL_END(acad);
 }
 
 static void
