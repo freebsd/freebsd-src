@@ -465,7 +465,6 @@ upgt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-		mtx_lock(&Giant);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ sc->sc_if_flags) &
@@ -482,7 +481,6 @@ upgt_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_if_flags = ifp->if_flags;
 		if (startall)
 			ieee80211_start_all(ic);
-		mtx_unlock(&Giant);
 		break;
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &ic->ic_media, cmd);
