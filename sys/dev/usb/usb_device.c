@@ -105,8 +105,22 @@ static void	usb_cdev_cleanup(void *);
 
 int	usb_template = 0;
 
+TUNABLE_INT("hw.usb.usb_template", &usb_template);
 SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW,
     &usb_template, 0, "Selected USB device side template");
+
+/* English is default language */
+
+static int usb_lang_id = 0x0009;
+static int usb_lang_mask = 0x00FF;
+
+TUNABLE_INT("hw.usb.usb_lang_id", &usb_lang_id);
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RW,
+    &usb_lang_id, 0, "Preferred USB language ID");
+
+TUNABLE_INT("hw.usb.usb_lang_mask", &usb_lang_mask);
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RW,
+    &usb_lang_mask, 0, "Preferred USB language mask");
 
 static const char* statestr[USB_STATE_MAX] = {
 	[USB_STATE_DETACHED]	= "DETACHED",
@@ -1436,7 +1450,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	struct usb_device *adev;
 	struct usb_device *hub;
 	uint8_t *scratch_ptr;
-	uint32_t scratch_size;
+	size_t scratch_size;
 	usb_error_t err;
 	uint8_t device_index;
 
@@ -1682,8 +1696,35 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	if (err || (scratch_ptr[0] < 4)) {
 		udev->flags.no_strings = 1;
 	} else {
-		/* pick the first language as the default */
-		udev->langid = UGETW(scratch_ptr + 2);
+		uint16_t langid;
+		uint16_t pref;
+		uint16_t mask;
+		uint8_t x;
+
+		/* load preferred value and mask */
+		pref = usb_lang_id;
+		mask = usb_lang_mask;
+
+		/* align length correctly */
+		scratch_ptr[0] &= ~1;
+
+		/* fix compiler warning */
+		langid = 0;
+
+		/* search for preferred language */
+		for (x = 2; (x < scratch_ptr[0]); x += 2) {
+			langid = UGETW(scratch_ptr + x);
+			if ((langid & mask) == pref)
+				break;
+		}
+		if (x >= scratch_ptr[0]) {
+			/* pick the first language as the default */
+			DPRINTFN(1, "Using first language\n");
+			langid = UGETW(scratch_ptr + 2);
+		}
+
+		DPRINTFN(1, "Language selected: 0x%04x\n", langid);
+		udev->langid = langid;
 	}
 
 	/* assume 100mA bus powered for now. Changed when configured. */
@@ -2149,34 +2190,35 @@ usbd_set_device_strings(struct usb_device *udev)
 #ifdef USB_VERBOSE
 	const struct usb_knowndev *kdp;
 #endif
-	char temp[64];
+	uint8_t *temp_ptr;
+	size_t temp_size;
 	uint16_t vendor_id;
 	uint16_t product_id;
+
+	temp_ptr = udev->bus->scratch[0].data;
+	temp_size = sizeof(udev->bus->scratch[0].data);
 
 	vendor_id = UGETW(udd->idVendor);
 	product_id = UGETW(udd->idProduct);
 
 	/* get serial number string */
-	bzero(temp, sizeof(temp));
-	usbd_req_get_string_any(udev, NULL, temp, sizeof(temp),
+	usbd_req_get_string_any(udev, NULL, temp_ptr, temp_size,
 	    udev->ddesc.iSerialNumber);
-	udev->serial = strdup(temp, M_USB);
+	udev->serial = strdup(temp_ptr, M_USB);
 
 	/* get manufacturer string */
-	bzero(temp, sizeof(temp));
-	usbd_req_get_string_any(udev, NULL, temp, sizeof(temp),
+	usbd_req_get_string_any(udev, NULL, temp_ptr, temp_size,
 	    udev->ddesc.iManufacturer);
-	usb_trim_spaces(temp);
-	if (temp[0] != '\0')
-		udev->manufacturer = strdup(temp, M_USB);
+	usb_trim_spaces(temp_ptr);
+	if (temp_ptr[0] != '\0')
+		udev->manufacturer = strdup(temp_ptr, M_USB);
 
 	/* get product string */
-	bzero(temp, sizeof(temp));
-	usbd_req_get_string_any(udev, NULL, temp, sizeof(temp),
+	usbd_req_get_string_any(udev, NULL, temp_ptr, temp_size,
 	    udev->ddesc.iProduct);
-	usb_trim_spaces(temp);
-	if (temp[0] != '\0')
-		udev->product = strdup(temp, M_USB);
+	usb_trim_spaces(temp_ptr);
+	if (temp_ptr[0] != '\0')
+		udev->product = strdup(temp_ptr, M_USB);
 
 #ifdef USB_VERBOSE
 	if (udev->manufacturer == NULL || udev->product == NULL) {
@@ -2202,12 +2244,12 @@ usbd_set_device_strings(struct usb_device *udev)
 #endif
 	/* Provide default strings if none were found */
 	if (udev->manufacturer == NULL) {
-		snprintf(temp, sizeof(temp), "vendor 0x%04x", vendor_id);
-		udev->manufacturer = strdup(temp, M_USB);
+		snprintf(temp_ptr, temp_size, "vendor 0x%04x", vendor_id);
+		udev->manufacturer = strdup(temp_ptr, M_USB);
 	}
 	if (udev->product == NULL) {
-		snprintf(temp, sizeof(temp), "product 0x%04x", product_id);
-		udev->product = strdup(temp, M_USB);
+		snprintf(temp_ptr, temp_size, "product 0x%04x", product_id);
+		udev->product = strdup(temp_ptr, M_USB);
 	}
 }
 
