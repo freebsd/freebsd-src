@@ -982,10 +982,11 @@ axe_init(struct usb_ether *ue)
 	/* Cancel pending I/O */
 	axe_stop(ue);
 
-#ifdef notdef
-	/* Set MAC address */
-	axe_mac(sc, IF_LLADDR(ifp), 1);
-#endif
+	/* Set MAC address. */
+	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772))
+		axe_cmd(sc, AXE_178_CMD_WRITE_NODEID, 0, 0, IF_LLADDR(ifp));
+	else
+		axe_cmd(sc, AXE_172_CMD_WRITE_NODEID, 0, 0, IF_LLADDR(ifp));
 
 	/* Set transmitter IPG values */
 	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772)) {
