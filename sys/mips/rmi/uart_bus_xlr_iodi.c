@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Raza Microelectronics 
+ * Copyright (c) 2006 Raza Microelectronics
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,10 @@ static int uart_iodi_probe(device_t dev);
 
 static device_method_t uart_iodi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		uart_iodi_probe),
-	DEVMETHOD(device_attach,	uart_bus_attach),
-	DEVMETHOD(device_detach,	uart_bus_detach),
-	{ 0, 0 }
+	DEVMETHOD(device_probe, uart_iodi_probe),
+	DEVMETHOD(device_attach, uart_bus_attach),
+	DEVMETHOD(device_detach, uart_bus_detach),
+	{0, 0}
 };
 
 static driver_t uart_iodi_driver = {
@@ -64,9 +64,9 @@ uart_iodi_probe(device_t dev)
 	struct uart_softc *sc;
 
 	sc = device_get_softc(dev);
-  sc->sc_class = &uart_ns8250_class;
+	sc->sc_class = &uart_ns8250_class;
 
-  /* regshft = 2, rclk = 66000000, rid = 0, chan = 0 */
+	/* regshft = 2, rclk = 66000000, rid = 0, chan = 0 */
 	return (uart_bus_probe(dev, 2, 66000000, 0, 0));
 }
 

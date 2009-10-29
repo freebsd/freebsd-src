@@ -31,74 +31,87 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <machine/stdarg.h> /* variable args */
- 
+#include <machine/stdarg.h>	/* variable args */
+
 /* TODO optimize of mips, even i & (i-1) is better */
 
-static int __inline__ get_set_bit_count64(uint64_t value)
+static int __inline__ 
+get_set_bit_count64(uint64_t value)
 {
-	int i, result=0;
+	int i, result = 0;
 
-	for(i=0; i<sizeof(value) *8; i++) 
-		if(value & (1ULL<<i)) result++;
+	for (i = 0; i < sizeof(value) * 8; i++)
+		if (value & (1ULL << i))
+			result++;
 
 	return result;
 }
 
-static int __inline__ find_first_set_bit64(uint64_t value)
+static int __inline__ 
+find_first_set_bit64(uint64_t value)
 {
 	int i;
 
-	for(i=0; i<sizeof(value) *8; i++) 
-		if(value & (1ULL<<i)) return i;
+	for (i = 0; i < sizeof(value) * 8; i++)
+		if (value & (1ULL << i))
+			return i;
 
 	return -1;
 }
 
-static int __inline__ find_next_set_bit64(uint64_t value, int pos)
+static int __inline__ 
+find_next_set_bit64(uint64_t value, int pos)
 {
 	int i;
 
-	for(i=pos+1; i<sizeof(value) *8; i++) 
-		if(value & (1ULL<<i)) return i;
+	for (i = pos + 1; i < sizeof(value) * 8; i++)
+		if (value & (1ULL << i))
+			return i;
 
 	return -1;
 }
 
 /** ---  **/
 
-static int __inline__ get_set_bit_count(uint32_t value)
+static int __inline__ 
+get_set_bit_count(uint32_t value)
 {
-	int i, result=0;
+	int i, result = 0;
 
-	for(i=0; i<sizeof(value) *8; i++) 
-		if(value & (1U<<i)) result++;
+	for (i = 0; i < sizeof(value) * 8; i++)
+		if (value & (1U << i))
+			result++;
 
 	return result;
 }
 
-static int __inline__ find_first_set_bit(uint32_t value)
+static int __inline__ 
+find_first_set_bit(uint32_t value)
 {
 	int i;
 
-	for(i=0; i<sizeof(value) *8; i++) 
-		if(value & (1U<<i)) return i;
+	for (i = 0; i < sizeof(value) * 8; i++)
+		if (value & (1U << i))
+			return i;
 
 	return -1;
 }
 
-static int __inline__ find_next_set_bit(uint32_t value, int pos)
+static int __inline__ 
+find_next_set_bit(uint32_t value, int pos)
 {
 	int i;
 
-	for(i=pos+1; i<sizeof(value) *8; i++) 
-		if(value & (1U<<i)) return i;
+	for (i = pos + 1; i < sizeof(value) * 8; i++)
+		if (value & (1U << i))
+			return i;
 
 	return -1;
 }
 
 #ifdef DEBUG
 void abort();
+
 #define DPUTC(c)         (putchar(c) && fflush(stdout))
 #define DPRINT(fmt, ...) printf(fmt "\n", __VA_ARGS__)
 #define ASSERT(x)   ((x) || ({ printf("%s failed at (%s:%d)", #x, __FILE__, __LINE__) ; abort(); 0; }) )

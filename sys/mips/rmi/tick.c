@@ -91,13 +91,13 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	uint64_t freq;
+
 	/*
-	 * RRS wonders if this will really work. You don't
-	 * change the req of the system here, it would require
-	 * changes to the RMI PIC in order to get the TC to
-	 * run at a differrent frequency.
+	 * RRS wonders if this will really work. You don't change the req of
+	 * the system here, it would require changes to the RMI PIC in order
+	 * to get the TC to run at a differrent frequency.
 	 */
-	
+
 	if (counter_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
 	freq = counter_freq;

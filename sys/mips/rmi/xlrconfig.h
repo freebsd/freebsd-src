@@ -182,146 +182,155 @@
  *        bits 0...7 are same as status register 8...15
  */
 
-static inline uint64_t read_c0_eirr64(void)
+static inline uint64_t 
+read_c0_eirr64(void)
 {
-  __uint32_t high, low;
+	__uint32_t high, low;
 
-  __asm__ __volatile__ (
-      ".set push\n"
-      ".set noreorder\n"
-      ".set noat\n"
-      ".set mips4\n"
+	__asm__ __volatile__(
+	            ".set push\n"
+	            ".set noreorder\n"
+	            ".set noat\n"
+	            ".set mips4\n"
 
-      ".word 0x40214806  \n\t"
-      "nop               \n\t"
-      "dsra32 %0, $1, 0  \n\t"
-      "sll    %1, $1, 0  \n\t"
+	            ".word 0x40214806  \n\t"
+	            "nop               \n\t"
+	            "dsra32 %0, $1, 0  \n\t"
+	            "sll    %1, $1, 0  \n\t"
 
-      ".set pop\n"
+	            ".set pop\n"
 
-      : "=r" (high), "=r" (low)
-      );
+	    :       "=r"(high), "=r"(low)
+	);
 
-  return ( ((__uint64_t)high) << 32) | low;
+	return (((__uint64_t) high) << 32) | low;
 }
 
-static inline __uint64_t read_c0_eimr64(void)
+static inline __uint64_t 
+read_c0_eimr64(void)
 {
-  __uint32_t high, low;
+	__uint32_t high, low;
 
-  __asm__ __volatile__ (
-      ".set push\n"
-      ".set noreorder\n"
-      ".set noat\n"
-      ".set mips4\n"
+	__asm__ __volatile__(
+	            ".set push\n"
+	            ".set noreorder\n"
+	            ".set noat\n"
+	            ".set mips4\n"
 
-      ".word 0x40214807  \n\t"
-      "nop               \n\t"
-      "dsra32 %0, $1, 0  \n\t"
-      "sll    %1, $1, 0  \n\t"
+	            ".word 0x40214807  \n\t"
+	            "nop               \n\t"
+	            "dsra32 %0, $1, 0  \n\t"
+	            "sll    %1, $1, 0  \n\t"
 
-      ".set pop\n"
+	            ".set pop\n"
 
-      : "=r" (high), "=r" (low)
-      );
+	    :       "=r"(high), "=r"(low)
+	);
 
-  return ( ((__uint64_t)high) << 32) | low;
+	return (((__uint64_t) high) << 32) | low;
 }
 
-static inline void write_c0_eirr64(__uint64_t value)
-{ 
-  __uint32_t low, high;
-
-  high = value >> 32;
-  low  = value & 0xffffffff;
-
-  __asm__ __volatile__ (
-      ".set push\n"
-      ".set noreorder\n"
-      ".set noat\n"
-      ".set mips4\n\t"
-
-      "dsll32 $2, %1, 0  \n\t"
-      "dsll32 $1, %0, 0  \n\t"
-      "dsrl32 $2, $2, 0  \n\t"
-      "or     $1, $1, $2 \n\t"
-      ".word  0x40a14806 \n\t"
-      "nop               \n\t"
-
-      ".set pop\n"
-
-      :
-      : "r" (high), "r" (low)
-      : "$1", "$2");
-} 
-
-static inline void write_c0_eimr64(__uint64_t value)
+static inline void 
+write_c0_eirr64(__uint64_t value)
 {
-  __uint32_t low, high;
+	__uint32_t low, high;
 
-  high = value >> 32;
-  low  = value & 0xffffffff;
+	high = value >> 32;
+	low = value & 0xffffffff;
 
-  __asm__ __volatile__ (
-      ".set push\n"
-      ".set noreorder\n"
-      ".set noat\n"
-      ".set mips4\n\t"
+	__asm__ __volatile__(
+	            ".set push\n"
+	            ".set noreorder\n"
+	            ".set noat\n"
+	            ".set mips4\n\t"
 
-      "dsll32 $2, %1, 0  \n\t"
-      "dsll32 $1, %0, 0  \n\t"
-      "dsrl32 $2, $2, 0  \n\t"
-      "or     $1, $1, $2 \n\t"
-      ".word  0x40a14807 \n\t"
-      "nop               \n\t"
+	            "dsll32 $2, %1, 0  \n\t"
+	            "dsll32 $1, %0, 0  \n\t"
+	            "dsrl32 $2, $2, 0  \n\t"
+	            "or     $1, $1, $2 \n\t"
+	            ".word  0x40a14806 \n\t"
+	            "nop               \n\t"
 
-      ".set pop\n"
+	            ".set pop\n"
 
-      :
-      : "r" (high), "r" (low)
-      : "$1", "$2");
+	    :
+	    :       "r"(high), "r"(low)
+	    :       "$1", "$2");
 }
 
-static __inline__ int xlr_test_and_set(int *lock)
+static inline void 
+write_c0_eimr64(__uint64_t value)
 {
-  int oldval = 0;
+	__uint32_t low, high;
 
-  __asm__ __volatile__ (".set push\n"
-      ".set noreorder\n"
-      "move $9, %2\n"
-      "li $8, 1\n"
-      //"swapw $8, $9\n"
-      ".word 0x71280014\n"
-      "move %1, $8\n"
-      ".set pop\n"
-      : "+m" (*lock), "=r" (oldval)
-      : "r" ((unsigned long)lock)
-      : "$8", "$9"
-      );
-  return (oldval == 0 ? 1/*success*/ : 0/*failure*/);
+	high = value >> 32;
+	low = value & 0xffffffff;
+
+	__asm__ __volatile__(
+	            ".set push\n"
+	            ".set noreorder\n"
+	            ".set noat\n"
+	            ".set mips4\n\t"
+
+	            "dsll32 $2, %1, 0  \n\t"
+	            "dsll32 $1, %0, 0  \n\t"
+	            "dsrl32 $2, $2, 0  \n\t"
+	            "or     $1, $1, $2 \n\t"
+	            ".word  0x40a14807 \n\t"
+	            "nop               \n\t"
+
+	            ".set pop\n"
+
+	    :
+	    :       "r"(high), "r"(low)
+	    :       "$1", "$2");
 }
 
-static __inline__  uint32_t xlr_mfcr(uint32_t reg)
+static __inline__ int 
+xlr_test_and_set(int *lock)
+{
+	int oldval = 0;
+
+	__asm__ __volatile__(".set push\n"
+	            ".set noreorder\n"
+	            "move $9, %2\n"
+	            "li $8, 1\n"
+	    //      "swapw $8, $9\n"
+	            ".word 0x71280014\n"
+	            "move %1, $8\n"
+	            ".set pop\n"
+	    :       "+m"(*lock), "=r"(oldval)
+	    :       "r"((unsigned long)lock)
+	    :       "$8", "$9"
+	);
+
+	return (oldval == 0 ? 1 /* success */ : 0 /* failure */ );
+}
+
+static __inline__ uint32_t 
+xlr_mfcr(uint32_t reg)
 {
 	uint32_t val;
 
-	__asm__ __volatile__ (
-		"move   $8, %1\n"
-		".word  0x71090018\n"
-		"move   %0, $9\n"
-		: "=r"(val)
-		: "r"(reg) : "$8", "$9");
+	__asm__ __volatile__(
+	            "move   $8, %1\n"
+	            ".word  0x71090018\n"
+	            "move   %0, $9\n"
+	    :       "=r"(val)
+	    :       "r"(reg):"$8", "$9");
 
 	return val;
 }
 
-static __inline__  void xlr_mtcr(uint32_t reg, uint32_t val)
+static __inline__ void 
+xlr_mtcr(uint32_t reg, uint32_t val)
 {
-	__asm__ __volatile__ (
-		"move   $8, %1\n"
-		"move   $9, %0\n"
-		".word  0x71090019\n"
-		::"r"(val), "r"(reg)
-		: "$8", "$9");
+	__asm__ __volatile__(
+	            "move   $8, %1\n"
+	            "move   $9, %0\n"
+	            ".word  0x71090019\n"
+	    ::      "r"(val), "r"(reg)
+	    :       "$8", "$9");
 }
+
 #endif

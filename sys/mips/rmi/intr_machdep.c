@@ -55,40 +55,42 @@ struct mips_intrhand mips_intr_handlers[XLR_MAX_INTR];
 static void
 mips_mask_hard_irq(void *source)
 {
-	uintptr_t irq = (uintptr_t)source;
+	uintptr_t irq = (uintptr_t) source;
 
-	write_c0_eimr64(read_c0_eimr64() & ~(1ULL<<irq));
+	write_c0_eimr64(read_c0_eimr64() & ~(1ULL << irq));
 }
 
 static void
 mips_unmask_hard_irq(void *source)
 {
-	uintptr_t irq = (uintptr_t)source;
+	uintptr_t irq = (uintptr_t) source;
 
-	write_c0_eimr64(read_c0_eimr64() | (1ULL<<irq));
+	write_c0_eimr64(read_c0_eimr64() | (1ULL << irq));
 }
 
 void
-cpu_establish_hardintr(const char *name, driver_filter_t *filt,
-		   void (*handler)(void*), void *arg, int irq, int flags, void **cookiep)
+cpu_establish_hardintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags, void **cookiep)
 {
-	struct mips_intrhand *mih;      /* descriptor for the IRQ */
-	struct intr_event *ie;          /* descriptor for the IRQ */
+	struct mips_intrhand *mih;	/* descriptor for the IRQ */
+	struct intr_event *ie;	/* descriptor for the IRQ */
 	int errcode;
-	
+
 	if (irq < 0 || irq > XLR_MAX_INTR)
 		panic("%s called for unknown hard intr %d", __func__, irq);
 
-	/* FIXME locking - not needed now, because we do this only on startup from
-	   CPU0 */
+	/*
+	 * FIXME locking - not needed now, because we do this only on
+	 * startup from CPU0
+	 */
 	mih = &mips_intr_handlers[irq];
-	/*mih->cntp = &intrcnt[irq]; */
+	/* mih->cntp = &intrcnt[irq]; */
 	ie = mih->mih_event;
 	if (ie == NULL) {
-		errcode = intr_event_create(&ie, (void *)(uintptr_t)irq, 0,
+		errcode = intr_event_create(&ie, (void *)(uintptr_t) irq, 0,
 		    irq, mips_mask_hard_irq, mips_unmask_hard_irq,
 		    NULL, NULL, "hard intr%d:", irq);
-					
+
 		if (errcode) {
 			printf("Could not create event for intr %d\n", irq);
 			return;
@@ -97,17 +99,17 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 	intr_event_add_handler(ie, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	mih->mih_event = ie;
-	mips_unmask_hard_irq((void*)(uintptr_t)irq);
+	mips_unmask_hard_irq((void *)(uintptr_t) irq);
 }
 
 
 void
-cpu_establish_softintr(const char *name, driver_filter_t *filt,
-    void (*handler)(void*), void *arg, int irq, int flags,
+cpu_establish_softintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags,
     void **cookiep)
 {
-  /* we don't separate them into soft/hard like other mips */
-  cpu_establish_hardintr(name, filt, handler, arg, irq, flags, cookiep);
+	/* we don't separate them into soft/hard like other mips */
+	cpu_establish_hardintr(name, filt, handler, arg, irq, flags, cookiep);
 }
 
 
@@ -126,24 +128,23 @@ cpu_intr(struct trapframe *tf)
 		critical_exit();
 		return;
 	}
-
-	/* No need to clear the EIRR here. the handler is gonna
-	 * write to compare which clears eirr also
+	/*
+	 * No need to clear the EIRR here. the handler is gonna write to
+	 * compare which clears eirr also
 	 */
 	if (eirr & (1 << IRQ_TIMER)) {
 		count_compare_clockhandler(tf);
 		critical_exit();
 		return;
 	}
-
 	/* FIXME sched pin >? LOCK>? */
-	for(i = sizeof(eirr)*8 - 1; i>=0; i--) {
-		if ((eirr & 1ULL<<i) == 0)
+	for (i = sizeof(eirr) * 8 - 1; i >= 0; i--) {
+		if ((eirr & 1ULL << i) == 0)
 			continue;
 #ifdef SMP
 		/* These are reserved interrupts */
-		if((i == IPI_AST) || (i == IPI_RENDEZVOUS) || (i == IPI_STOP)
-		   || (i == IPI_SMP_CALL_FUNCTION)) {
+		if ((i == IPI_AST) || (i == IPI_RENDEZVOUS) || (i == IPI_STOP)
+		    || (i == IPI_SMP_CALL_FUNCTION)) {
 			write_c0_eirr64(1ULL << i);
 			pic_ack(i);
 			smp_handle_ipi(tf, i);
@@ -161,19 +162,17 @@ cpu_intr(struct trapframe *tf)
 #endif
 #endif
 		mih = &mips_intr_handlers[i];
-		/*atomic_add_long(mih->cntp, 1);*/
-		ie  = mih->mih_event;
+		/* atomic_add_long(mih->cntp, 1); */
+		ie = mih->mih_event;
 
 		write_c0_eirr64(1ULL << i);
 		if (!ie || TAILQ_EMPTY(&ie->ie_handlers)) {
 			printf("stray interrupt %d\n", i);
 			continue;
 		}
-
 		if (intr_event_handle(ie, tf) != 0) {
-			printf("stray interrupt %d\n",i);
+			printf("stray interrupt %d\n", i);
 		}
-
 	}
 	critical_exit();
 }

@@ -36,42 +36,42 @@
 #define BOOT1_INFO_VERSION 0x0001
 
 struct boot1_info {
-  uint64_t boot_level;
-  uint64_t io_base;
-  uint64_t output_device;
-  uint64_t uart_print;
-  uint64_t led_output;
-  uint64_t init;
-  uint64_t exit;
-  uint64_t warm_reset;
-  uint64_t wakeup;
-  uint64_t cpu_online_map;
-  uint64_t master_reentry_sp;
-  uint64_t master_reentry_gp;
-  uint64_t master_reentry_fn;
-  uint64_t slave_reentry_fn;
-  uint64_t magic_dword;
-  uint64_t uart_putchar;  
-  uint64_t size;
-  uint64_t uart_getchar;
-  uint64_t nmi_handler;
-  uint64_t psb_version;
-  uint64_t mac_addr;
-  uint64_t cpu_frequency;
-  uint64_t board_version;
-  uint64_t malloc;
-  uint64_t free;
-  uint64_t alloc_pbuf;
-  uint64_t free_pbuf;
-  uint64_t psb_os_cpu_map;
-  uint64_t userapp_cpu_map;
-  uint64_t wakeup_os;
-  uint64_t psb_mem_map;
-  uint64_t board_major_version;
-  uint64_t board_minor_version;
-  uint64_t board_manf_revision;
-  uint64_t board_serial_number;
-  uint64_t psb_physaddr_map;
+	uint64_t boot_level;
+	uint64_t io_base;
+	uint64_t output_device;
+	uint64_t uart_print;
+	uint64_t led_output;
+	uint64_t init;
+	uint64_t exit;
+	uint64_t warm_reset;
+	uint64_t wakeup;
+	uint64_t cpu_online_map;
+	uint64_t master_reentry_sp;
+	uint64_t master_reentry_gp;
+	uint64_t master_reentry_fn;
+	uint64_t slave_reentry_fn;
+	uint64_t magic_dword;
+	uint64_t uart_putchar;
+	uint64_t size;
+	uint64_t uart_getchar;
+	uint64_t nmi_handler;
+	uint64_t psb_version;
+	uint64_t mac_addr;
+	uint64_t cpu_frequency;
+	uint64_t board_version;
+	uint64_t malloc;
+	uint64_t free;
+	uint64_t alloc_pbuf;
+	uint64_t free_pbuf;
+	uint64_t psb_os_cpu_map;
+	uint64_t userapp_cpu_map;
+	uint64_t wakeup_os;
+	uint64_t psb_mem_map;
+	uint64_t board_major_version;
+	uint64_t board_minor_version;
+	uint64_t board_manf_revision;
+	uint64_t board_serial_number;
+	uint64_t psb_physaddr_map;
 };
 
 extern struct boot1_info xlr_boot1_info;
@@ -92,16 +92,18 @@ struct xlr_loader_info {
 /* Boot loader uses the linux mips convention */
 #define BOOT1_MEMMAP_MAX	32
 
-enum xlr_phys_memmap_t { BOOT1_MEM_RAM=1, BOOT1_MEM_ROM_DATA, BOOT1_MEM_RESERVED};
+enum xlr_phys_memmap_t {
+	BOOT1_MEM_RAM = 1, BOOT1_MEM_ROM_DATA, BOOT1_MEM_RESERVED
+};
 
 struct xlr_boot1_mem_map {
-        uint32_t num_entries;
-        struct {
-                uint64_t addr;
-                uint64_t size;
-                uint32_t type;
-                uint32_t pad;
-        } physmem_map[BOOT1_MEMMAP_MAX];
+	uint32_t num_entries;
+	struct {
+		uint64_t addr;
+		uint64_t size;
+		uint32_t type;
+		uint32_t pad;
+	}      physmem_map[BOOT1_MEMMAP_MAX];
 };
 
 

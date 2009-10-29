@@ -37,4 +37,4 @@ void count_compare_clockhandler(struct trapframe *);
 void pic_hardclockhandler(struct trapframe *);
 int pic_timecounthandler(struct trapframe *);
 
-#endif /* _RMI_CLOCK_H_ */
+#endif				/* _RMI_CLOCK_H_ */

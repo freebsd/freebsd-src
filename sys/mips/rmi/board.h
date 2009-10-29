@@ -150,7 +150,7 @@ xlr_revision_b0(void)
 static __inline__ int
 xlr_revision_b1(void)
 {
-	return xlr_revision() ==  0x0c0003;
+	return xlr_revision() == 0x0c0003;
 }
 
 static __inline__ int
@@ -182,7 +182,8 @@ static __inline__ int
 xlr_board_atx_iv(void)
 {
 	return (xlr_boot1_info.board_major_version == RMI_XLR_BOARD_ARIZONA_IV)
-	&& (xlr_boot1_info.board_minor_version == 0); }
+	&& (xlr_boot1_info.board_minor_version == 0);
+}
 static __inline__ int
 xlr_board_atx_iv_b(void)
 {
@@ -225,48 +226,54 @@ static __inline__ int
 xlr_board_pci(void)
 {
 	return (xlr_board_atx_iii_256() || xlr_board_atx_iii_512()
-		|| xlr_board_atx_v_512());
+	    || xlr_board_atx_v_512());
 }
 static __inline__ int
 xlr_is_xls2xx(void)
 {
-       uint32_t chipid = mips_rd_prid() & 0xffffff00U;
+	uint32_t chipid = mips_rd_prid() & 0xffffff00U;
 
-       return chipid == 0x0c8e00 ||  chipid == 0x0c8f00;
+	return chipid == 0x0c8e00 || chipid == 0x0c8f00;
 }
 
 static __inline__ int
 xlr_is_xls4xx(void)
 {
-       uint32_t chipid = mips_rd_prid() & 0xffffff00U;
+	uint32_t chipid = mips_rd_prid() & 0xffffff00U;
 
-       return chipid == 0x0c8800 ||  chipid == 0x0c8c00;
+	return chipid == 0x0c8800 || chipid == 0x0c8c00;
 }
 
 /* all our knowledge of chip and board that cannot be detected run-time goes here */
-enum gmac_block_types { XLR_GMAC, XLR_XGMAC, XLR_SPI4};
-enum gmac_block_modes { XLR_RGMII, XLR_SGMII, XLR_PORT0_RGMII };
+enum gmac_block_types {
+	XLR_GMAC, XLR_XGMAC, XLR_SPI4
+};
+enum gmac_block_modes {
+	XLR_RGMII, XLR_SGMII, XLR_PORT0_RGMII
+};
 struct xlr_board_info {
 	int is_xls;
 	int nr_cpus;
-	int usb;                               /* usb enabled ? */
-	int cfi;                               /* compact flash driver for NOR? */
+	int usb;		/* usb enabled ? */
+	int cfi;		/* compact flash driver for NOR? */
 	int pci_irq;
-	struct stn_cc **credit_configs;        /* pointer to Core station credits */
-	struct bucket_size *bucket_sizes;      /* pointer to Core station bucket */
-	int *msgmap;                           /* mapping of message station to devices */
-	int gmacports;                         /* number of gmac ports on the board */
+	struct stn_cc **credit_configs;	/* pointer to Core station credits */
+	struct bucket_size *bucket_sizes;	/* pointer to Core station
+						 * bucket */
+	int *msgmap;		/* mapping of message station to devices */
+	int gmacports;		/* number of gmac ports on the board */
 	struct xlr_gmac_block_t {
-		int  type;                     /* see  enum gmac_block_types */
-		unsigned int enabled;          /* mask of ports enabled */   
-		struct stn_cc *credit_config;  /* credit configuration */
-		int station_txbase;            /* station id for tx */
-		int station_rfr;               /* free desc bucket */
-		int  mode;                     /* see gmac_block_modes */
-		uint32_t baseaddr;             /* IO base */
-		int baseirq;        /* first irq for this block, the rest are in sequence */
-		int baseinst;       /* the first rge unit for this block */
-	} gmac_block [3];
+		int type;	/* see  enum gmac_block_types */
+		unsigned int enabled;	/* mask of ports enabled */
+		struct stn_cc *credit_config;	/* credit configuration */
+		int station_txbase;	/* station id for tx */
+		int station_rfr;/* free desc bucket */
+		int mode;	/* see gmac_block_modes */
+		uint32_t baseaddr;	/* IO base */
+		int baseirq;	/* first irq for this block, the rest are in
+				 * sequence */
+		int baseinst;	/* the first rge unit for this block */
+	}                gmac_block[3];
 };
 
 extern struct xlr_board_info xlr_board_info;

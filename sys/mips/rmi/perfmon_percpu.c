@@ -62,27 +62,32 @@
 extern uint32_t cpu_ltop_map[MAXCPU];
 extern struct perf_area *xlr_shared_config_area;
 
-static __inline__ uint32_t make_cpu_tag(uint32_t val)
+static __inline__ uint32_t 
+make_cpu_tag(uint32_t val)
 {
-	return PERF_CP0_COUNTER<<24 | (val & 0xffff);
+	return PERF_CP0_COUNTER << 24 | (val & 0xffff);
 }
 
-static __inline__ uint32_t make_cp0_perf_control(uint32_t flags, uint32_t thread, uint32_t event)
+static __inline__ uint32_t 
+make_cp0_perf_control(uint32_t flags, uint32_t thread, uint32_t event)
 {
-	return (flags & 0x1f) | (thread & 0x03)<<11 | (event & 0x3f)<<5 | 0x01;
+	return (flags & 0x1f) | (thread & 0x03) << 11 | (event & 0x3f) << 5 | 0x01;
 }
 
-static __inline__ uint32_t cp0_perf_control_get_thread(uint32_t control_word)
+static __inline__ uint32_t 
+cp0_perf_control_get_thread(uint32_t control_word)
 {
-	return (control_word & 0x1800)>>11;
+	return (control_word & 0x1800) >> 11;
 }
 
-static __inline__ uint32_t cp0_perf_control_get_event(uint32_t control_word)
+static __inline__ uint32_t 
+cp0_perf_control_get_event(uint32_t control_word)
 {
-	return (control_word & 0x7e0)>>5;
+	return (control_word & 0x7e0) >> 5;
 }
 
-static __inline__ uint32_t read_pic_6_timer_count(void)
+static __inline__ uint32_t 
+read_pic_6_timer_count(void)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
@@ -91,12 +96,13 @@ static __inline__ uint32_t read_pic_6_timer_count(void)
 }
 
 
-static uint32_t get_num_events(const uint64_t *events)
+static uint32_t 
+get_num_events(const uint64_t * events)
 {
 	int total = 0;
 	int thread;
 
-	for(thread = 0; thread<NTHREADS; thread++) {
+	for (thread = 0; thread < NTHREADS; thread++) {
 		if (events[thread] == 0)
 			continue;
 		total += get_set_bit_count64(events[thread]);
@@ -104,28 +110,31 @@ static uint32_t get_num_events(const uint64_t *events)
 	return total;
 }
 
-static uint32_t get_first_control_word(uint32_t flags, const uint64_t *events)
+static uint32_t 
+get_first_control_word(uint32_t flags, const uint64_t * events)
 {
 	int thread, event;
 
-	for(thread = 0; thread<NTHREADS; thread++) {
-		if (events[thread] != 0) break;
+	for (thread = 0; thread < NTHREADS; thread++) {
+		if (events[thread] != 0)
+			break;
 	}
-	if(thread == NTHREADS)
+	if (thread == NTHREADS)
 		return -1;
 
 	event = find_first_set_bit64(events[thread]);
 	return make_cp0_perf_control(flags, thread, event);
 }
 
-static uint32_t get_next_control_word(uint32_t current_control_word, const uint64_t *events)
+static uint32_t 
+get_next_control_word(uint32_t current_control_word, const uint64_t * events)
 {
 	int thread = cp0_perf_control_get_thread(current_control_word);
 	int event = cp0_perf_control_get_event(current_control_word);
 	int i;
 
 	event = find_next_set_bit64(events[thread], event);
-	for(i = 0; event == -1 && i<NTHREADS; i++) {
+	for (i = 0; event == -1 && i < NTHREADS; i++) {
 		thread = (thread + 1) % NTHREADS;
 		if (events[thread] == 0)
 			continue;
@@ -140,58 +149,92 @@ static uint32_t get_next_control_word(uint32_t current_control_word, const uint6
 #define MY_CORE_NUM (cpu_ltop_map[PCPU_GET(cpuid)]/NTHREADS)
 #define my_perf_area (&(xlr_shared_config_area[MY_CORE_NUM]))
 
-static int      		num_events_array[NCORES];
-static uint32_t 		saved_timestamp_array[NCORES];
-static struct perf_config_data 	saved_config_array[NCORES];
-static int			cc_sample_array[NCORES];
+static int num_events_array[NCORES];
+static uint32_t saved_timestamp_array[NCORES];
+static struct perf_config_data saved_config_array[NCORES];
+static int cc_sample_array[NCORES];
 
 #define num_events (num_events_array[MY_CORE_NUM])
 #define	saved_timestamp (saved_timestamp_array[MY_CORE_NUM])
 #define saved_config (saved_config_array[MY_CORE_NUM])
 #define cc_sample (cc_sample_array[MY_CORE_NUM])
 
-static void do_sample_cc_registers(struct sample_q *q, uint32_t mask)
+static void 
+do_sample_cc_registers(struct sample_q *q, uint32_t mask)
 {
 	unsigned long flags;
 
 	DPRINT("Sample CC registers %x", mask);
 	msgrng_flags_save(flags);
-	if (mask & 0x00000001) put_sample(q, CC_SAMPLE +  0, read_cc_registers_0123(CC_REG0), 0);
-	if (mask & 0x00000002) put_sample(q, CC_SAMPLE +  1, read_cc_registers_4567(CC_REG0), 0);
-	if (mask & 0x00000004) put_sample(q, CC_SAMPLE +  2, read_cc_registers_0123(CC_REG1), 0);
-	if (mask & 0x00000008) put_sample(q, CC_SAMPLE +  3, read_cc_registers_4567(CC_REG1), 0);
-	if (mask & 0x00000010) put_sample(q, CC_SAMPLE +  4, read_cc_registers_0123(CC_REG2), 0);
-	if (mask & 0x00000020) put_sample(q, CC_SAMPLE +  5, read_cc_registers_4567(CC_REG2), 0);
-	if (mask & 0x00000040) put_sample(q, CC_SAMPLE +  6, read_cc_registers_0123(CC_REG3), 0);
-	if (mask & 0x00000080) put_sample(q, CC_SAMPLE +  7, read_cc_registers_4567(CC_REG3), 0);
-	if (mask & 0x00000100) put_sample(q, CC_SAMPLE +  8, read_cc_registers_0123(CC_REG4), 0);
-	if (mask & 0x00000200) put_sample(q, CC_SAMPLE +  9, read_cc_registers_4567(CC_REG4), 0);
-	if (mask & 0x00000400) put_sample(q, CC_SAMPLE + 10, read_cc_registers_0123(CC_REG5), 0);
-	if (mask & 0x00000800) put_sample(q, CC_SAMPLE + 11, read_cc_registers_4567(CC_REG5), 0);
-	if (mask & 0x00001000) put_sample(q, CC_SAMPLE + 12, read_cc_registers_0123(CC_REG6), 0);
-	if (mask & 0x00002000) put_sample(q, CC_SAMPLE + 13, read_cc_registers_4567(CC_REG6), 0);
-	if (mask & 0x00004000) put_sample(q, CC_SAMPLE + 14, read_cc_registers_0123(CC_REG7), 0);
-	if (mask & 0x00008000) put_sample(q, CC_SAMPLE + 15, read_cc_registers_4567(CC_REG7), 0);
-	if (mask & 0x00010000) put_sample(q, CC_SAMPLE + 16, read_cc_registers_0123(CC_REG8), 0);
-	if (mask & 0x00020000) put_sample(q, CC_SAMPLE + 17, read_cc_registers_4567(CC_REG8), 0);
-	if (mask & 0x00040000) put_sample(q, CC_SAMPLE + 18, read_cc_registers_0123(CC_REG9), 0);
-	if (mask & 0x00080000) put_sample(q, CC_SAMPLE + 19, read_cc_registers_4567(CC_REG9), 0);
-	if (mask & 0x00100000) put_sample(q, CC_SAMPLE + 20, read_cc_registers_0123(CC_REG10), 0);
-	if (mask & 0x00200000) put_sample(q, CC_SAMPLE + 21, read_cc_registers_4567(CC_REG10), 0);
-	if (mask & 0x00400000) put_sample(q, CC_SAMPLE + 22, read_cc_registers_0123(CC_REG11), 0);
-	if (mask & 0x00800000) put_sample(q, CC_SAMPLE + 23, read_cc_registers_4567(CC_REG11), 0);
-	if (mask & 0x01000000) put_sample(q, CC_SAMPLE + 24, read_cc_registers_0123(CC_REG12), 0);
-	if (mask & 0x02000000) put_sample(q, CC_SAMPLE + 24, read_cc_registers_4567(CC_REG12), 0);
-	if (mask & 0x04000000) put_sample(q, CC_SAMPLE + 26, read_cc_registers_0123(CC_REG13), 0);
-	if (mask & 0x08000000) put_sample(q, CC_SAMPLE + 27, read_cc_registers_4567(CC_REG13), 0);
-	if (mask & 0x10000000) put_sample(q, CC_SAMPLE + 28, read_cc_registers_0123(CC_REG14), 0);
-	if (mask & 0x20000000) put_sample(q, CC_SAMPLE + 29, read_cc_registers_4567(CC_REG14), 0);
-	if (mask & 0x40000000) put_sample(q, CC_SAMPLE + 30, read_cc_registers_0123(CC_REG15), 0);
-	if (mask & 0x80000000) put_sample(q, CC_SAMPLE + 31, read_cc_registers_4567(CC_REG15), 0);
+	if (mask & 0x00000001)
+		put_sample(q, CC_SAMPLE + 0, read_cc_registers_0123(CC_REG0), 0);
+	if (mask & 0x00000002)
+		put_sample(q, CC_SAMPLE + 1, read_cc_registers_4567(CC_REG0), 0);
+	if (mask & 0x00000004)
+		put_sample(q, CC_SAMPLE + 2, read_cc_registers_0123(CC_REG1), 0);
+	if (mask & 0x00000008)
+		put_sample(q, CC_SAMPLE + 3, read_cc_registers_4567(CC_REG1), 0);
+	if (mask & 0x00000010)
+		put_sample(q, CC_SAMPLE + 4, read_cc_registers_0123(CC_REG2), 0);
+	if (mask & 0x00000020)
+		put_sample(q, CC_SAMPLE + 5, read_cc_registers_4567(CC_REG2), 0);
+	if (mask & 0x00000040)
+		put_sample(q, CC_SAMPLE + 6, read_cc_registers_0123(CC_REG3), 0);
+	if (mask & 0x00000080)
+		put_sample(q, CC_SAMPLE + 7, read_cc_registers_4567(CC_REG3), 0);
+	if (mask & 0x00000100)
+		put_sample(q, CC_SAMPLE + 8, read_cc_registers_0123(CC_REG4), 0);
+	if (mask & 0x00000200)
+		put_sample(q, CC_SAMPLE + 9, read_cc_registers_4567(CC_REG4), 0);
+	if (mask & 0x00000400)
+		put_sample(q, CC_SAMPLE + 10, read_cc_registers_0123(CC_REG5), 0);
+	if (mask & 0x00000800)
+		put_sample(q, CC_SAMPLE + 11, read_cc_registers_4567(CC_REG5), 0);
+	if (mask & 0x00001000)
+		put_sample(q, CC_SAMPLE + 12, read_cc_registers_0123(CC_REG6), 0);
+	if (mask & 0x00002000)
+		put_sample(q, CC_SAMPLE + 13, read_cc_registers_4567(CC_REG6), 0);
+	if (mask & 0x00004000)
+		put_sample(q, CC_SAMPLE + 14, read_cc_registers_0123(CC_REG7), 0);
+	if (mask & 0x00008000)
+		put_sample(q, CC_SAMPLE + 15, read_cc_registers_4567(CC_REG7), 0);
+	if (mask & 0x00010000)
+		put_sample(q, CC_SAMPLE + 16, read_cc_registers_0123(CC_REG8), 0);
+	if (mask & 0x00020000)
+		put_sample(q, CC_SAMPLE + 17, read_cc_registers_4567(CC_REG8), 0);
+	if (mask & 0x00040000)
+		put_sample(q, CC_SAMPLE + 18, read_cc_registers_0123(CC_REG9), 0);
+	if (mask & 0x00080000)
+		put_sample(q, CC_SAMPLE + 19, read_cc_registers_4567(CC_REG9), 0);
+	if (mask & 0x00100000)
+		put_sample(q, CC_SAMPLE + 20, read_cc_registers_0123(CC_REG10), 0);
+	if (mask & 0x00200000)
+		put_sample(q, CC_SAMPLE + 21, read_cc_registers_4567(CC_REG10), 0);
+	if (mask & 0x00400000)
+		put_sample(q, CC_SAMPLE + 22, read_cc_registers_0123(CC_REG11), 0);
+	if (mask & 0x00800000)
+		put_sample(q, CC_SAMPLE + 23, read_cc_registers_4567(CC_REG11), 0);
+	if (mask & 0x01000000)
+		put_sample(q, CC_SAMPLE + 24, read_cc_registers_0123(CC_REG12), 0);
+	if (mask & 0x02000000)
+		put_sample(q, CC_SAMPLE + 24, read_cc_registers_4567(CC_REG12), 0);
+	if (mask & 0x04000000)
+		put_sample(q, CC_SAMPLE + 26, read_cc_registers_0123(CC_REG13), 0);
+	if (mask & 0x08000000)
+		put_sample(q, CC_SAMPLE + 27, read_cc_registers_4567(CC_REG13), 0);
+	if (mask & 0x10000000)
+		put_sample(q, CC_SAMPLE + 28, read_cc_registers_0123(CC_REG14), 0);
+	if (mask & 0x20000000)
+		put_sample(q, CC_SAMPLE + 29, read_cc_registers_4567(CC_REG14), 0);
+	if (mask & 0x40000000)
+		put_sample(q, CC_SAMPLE + 30, read_cc_registers_0123(CC_REG15), 0);
+	if (mask & 0x80000000)
+		put_sample(q, CC_SAMPLE + 31, read_cc_registers_4567(CC_REG15), 0);
 	msgrng_flags_restore(flags);
 }
 
-static void reconfigure(void)
+static void 
+reconfigure(void)
 {
 	uint32_t cntr_cntrl;
 
@@ -200,19 +243,19 @@ static void reconfigure(void)
 	cc_sample = saved_config.cc_sample_rate;
 
 	DPRINT("%d - reconfigure num_events = %d, events = %llx,%llx,%llx,%llx\n",
-	                processor_id(), num_events, saved_config.events[0],
-	                saved_config.events[1],saved_config.events[2],saved_config.events[3] );
+	    processor_id(), num_events, saved_config.events[0],
+	    saved_config.events[1], saved_config.events[2], saved_config.events[3]);
 
 	if (num_events == 0)
 		return;
 
 	cntr_cntrl = get_first_control_word(saved_config.flags, saved_config.events);
 	write_c0_register(CP0_PERF_COUNTER, PERFCNTRCTL0, cntr_cntrl);
-	write_c0_register(CP0_PERF_COUNTER, PERFCNTR0, 0);		   /* reset count */
+	write_c0_register(CP0_PERF_COUNTER, PERFCNTR0, 0);	/* reset count */
 	if (num_events > 1) {
 		cntr_cntrl = get_next_control_word(cntr_cntrl, saved_config.events);
 		write_c0_register(CP0_PERF_COUNTER, PERFCNTRCTL1, cntr_cntrl);
-		write_c0_register(CP0_PERF_COUNTER, PERFCNTR1, 0);		   /* reset count */
+		write_c0_register(CP0_PERF_COUNTER, PERFCNTR1, 0);	/* reset count */
 	}
 	saved_timestamp = read_pic_6_timer_count();
 }
@@ -221,51 +264,50 @@ int xlr_perfmon_no_event_count = 0;
 int xlr_perfmon_sample_count;
 
 /* timer callback routine */
-void xlr_perfmon_sampler(void *dummy)
+void 
+xlr_perfmon_sampler(void *dummy)
 {
 	uint32_t current_ts;
-	uint32_t cntr_cntrl=0;
+	uint32_t cntr_cntrl = 0;
 
 	/* xlr_ack_interrupt(XLR_PERFMON_IPI_VECTOR); */
 
 	if (my_perf_area->perf_config.magic != PERFMON_ACTIVE_MAGIC)
 		return;
 	/*
-	 * If there has been a change in configuation, update the configuration 
-         */
+	 * If there has been a change in configuation, update the
+	 * configuration
+	 */
 	if (saved_config.generation != my_perf_area->perf_config.generation) {
 		reconfigure();
 		return;
 	}
-
 	/* credit counter samples if reqd */
-	if(saved_config.cc_register_mask && --cc_sample == 0) {
+	if (saved_config.cc_register_mask && --cc_sample == 0) {
 		cc_sample = saved_config.cc_sample_rate;
-		do_sample_cc_registers(&my_perf_area->sample_fifo, 
-				  my_perf_area->perf_config.cc_register_mask);
+		do_sample_cc_registers(&my_perf_area->sample_fifo,
+		    my_perf_area->perf_config.cc_register_mask);
 	}
-
 	if (num_events == 0) {
 		xlr_perfmon_no_event_count++;
 		return;
 	}
-
 	/* put samples in the queue */
 	current_ts = read_pic_6_timer_count();
 	cntr_cntrl = read_c0_register(CP0_PERF_COUNTER, PERFCNTRCTL0);
 	put_sample(&my_perf_area->sample_fifo, make_cpu_tag(cntr_cntrl),
-			read_c0_register(CP0_PERF_COUNTER, PERFCNTR0), current_ts - saved_timestamp);
+	    read_c0_register(CP0_PERF_COUNTER, PERFCNTR0), current_ts - saved_timestamp);
 	xlr_perfmon_sample_count++;
-	write_c0_register(CP0_PERF_COUNTER, PERFCNTR0, 0);		   /* reset count */
+	write_c0_register(CP0_PERF_COUNTER, PERFCNTR0, 0);	/* reset count */
 
-	if(num_events > 1) {
+	if (num_events > 1) {
 		cntr_cntrl = read_c0_register(CP0_PERF_COUNTER, PERFCNTRCTL1);
 		put_sample(&my_perf_area->sample_fifo, make_cpu_tag(cntr_cntrl),
-			  	read_c0_register(CP0_PERF_COUNTER, PERFCNTR1), current_ts - saved_timestamp);
+		    read_c0_register(CP0_PERF_COUNTER, PERFCNTR1), current_ts - saved_timestamp);
 		xlr_perfmon_sample_count++;
-		write_c0_register(CP0_PERF_COUNTER, PERFCNTR1, 0);	  /* reset count */
+		write_c0_register(CP0_PERF_COUNTER, PERFCNTR1, 0);	/* reset count */
 
-		if(num_events > 2) {
+		if (num_events > 2) {
 			/* multiplex events */
 			cntr_cntrl = get_next_control_word(cntr_cntrl, saved_config.events);
 			write_c0_register(CP0_PERF_COUNTER, PERFCNTRCTL0, cntr_cntrl);
@@ -280,12 +322,13 @@ void xlr_perfmon_sampler(void *dummy)
 /*
  * Initializes time to gather CPU performance counters and credit counters
  */
-void xlr_perfmon_init_cpu(void *dummy)
+void 
+xlr_perfmon_init_cpu(void *dummy)
 {
 	int processor = cpu_ltop_map[PCPU_GET(cpuid)];
 
 	/* run on just one thread per core */
-	if(processor % 4)
+	if (processor % 4)
 		return;
 
 	DPRINT("%d : configure with %p", processor, my_perf_area);
@@ -295,5 +338,5 @@ void xlr_perfmon_init_cpu(void *dummy)
 	my_perf_area->perf_config.generation = PERFMON_INITIAL_GENERATION;
 	DPRINT("%d : Initialize", processor);
 
-	return ;
+	return;
 }
