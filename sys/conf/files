@@ -1787,6 +1787,7 @@ fs/procfs/procfs_ioctl.c	optional procfs
 fs/procfs/procfs_map.c		optional procfs
 fs/procfs/procfs_mem.c		optional procfs
 fs/procfs/procfs_note.c		optional procfs
+fs/procfs/procfs_osrel.c	optional procfs
 fs/procfs/procfs_regs.c		optional procfs
 fs/procfs/procfs_rlimit.c	optional procfs
 fs/procfs/procfs_status.c	optional procfs
