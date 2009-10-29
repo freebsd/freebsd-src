@@ -1863,7 +1863,8 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 		if (!SIGISMEMBER(ps->ps_signodefer, sig)) {
 			SIGEMPTYSET(mask);
 			SIGADDSET(mask, sig);
-			kern_sigprocmask(td, SIG_BLOCK, &mask, NULL, 0);
+			kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
+			    SIGPROCMASK_PROC_LOCKED);
 		}
 		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
 			/*
