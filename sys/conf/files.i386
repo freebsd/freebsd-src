@@ -282,6 +282,7 @@ i386/i386/local_apic.c		optional apic
 i386/i386/locore.s		standard	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
 i386/i386/machdep.c		standard
+i386/i386/mca.c			standard
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
