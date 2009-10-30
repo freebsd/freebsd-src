@@ -97,6 +97,12 @@ static int malta_lcd_offs[] = {
 	MALTA_ASCIIPOS7
 };
 
+void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
+
 /*
  * Put character to Malta LCD at given position.
  */

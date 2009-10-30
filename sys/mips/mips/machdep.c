@@ -112,8 +112,8 @@ int clocks_running = 0;
 vm_offset_t kstack0;
 
 #ifdef SMP
-struct pcpu __pcpu[32];
-char pcpu_boot_stack[KSTACK_PAGES * PAGE_SIZE * (MAXCPU-1)]; 
+struct pcpu __pcpu[MAXCPU];
+char pcpu_boot_stack[KSTACK_PAGES * PAGE_SIZE * MAXCPU]; 
 #else
 struct pcpu pcpu;
 struct pcpu *pcpup = &pcpu;
@@ -286,6 +286,12 @@ mips_proc0_init(void)
 
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
+}
+
+void
+cpu_initclocks(void)
+{
+  platform_initclocks();
 }
 
 struct msgbuf *msgbufp=0;

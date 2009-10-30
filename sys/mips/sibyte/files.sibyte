@@ -7,3 +7,4 @@ mips/sibyte/sb_scd.c				standard
 mips/sibyte/ata_zbbus.c				standard
 mips/mips/intr_machdep.c			standard
 mips/sibyte/sb_asm.S				standard
+mips/mips/tick.c				standard

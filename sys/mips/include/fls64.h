@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2003-2004 Juli Mallett.  All rights reserved.
+ * Copyright (c) 2003-2009 RMI Corporation
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,6 +10,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of RMI Corporation, nor the names of its contributors,
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -22,29 +26,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- */
+ * RMI_BSD */
+#ifndef _MIPS_FLS64_H_
+#define _MIPS_FLS64_H_
 
-#ifndef _MACHINE_HWFUNC_H_
-#define	_MACHINE_HWFUNC_H_
-
-struct trapframe;
-struct timecounter;
 /*
- * Hooks downward into hardware functionality.
+ * Find Last Set bit (64 bit)
  */
+static inline int
+fls64(__uint64_t mask)
+{
+	int bit;
 
-void platform_halt(void);
-void platform_intr(struct trapframe *);
-void platform_reset(void);
-void platform_start(__register_t, __register_t,  __register_t, __register_t);
-
-/* For clocks and ticks and such */
-void platform_initclocks(void);
-uint64_t platform_get_frequency(void);
-unsigned platform_get_timecount(struct timecounter *);
-
-/* For hardware specific CPU initialization */
-void platform_cpu_init(void);
-void platform_secondary_init(void);
-#endif /* !_MACHINE_HWFUNC_H_ */
+	if (mask == 0)
+		return (0);
+	for (bit = 1; ((mask & 0x1ULL) == 0); bit++)
+		mask = mask >> 1;
+	return (bit);
+}
+#endif

@@ -98,6 +98,12 @@ extern void cfe_env_init(void);
 extern int *edata;
 extern int *end;
 
+void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
+
 static void
 mips_init(void)
 {

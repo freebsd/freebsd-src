@@ -80,6 +80,11 @@ __FBSDID("$FreeBSD$");
 extern int	*edata;
 extern int	*end;
 
+void
+platform_cpu_init()
+{
+	/* Nothing special yet */
+}
 
 /*
  * Perform a board-level soft-reset.

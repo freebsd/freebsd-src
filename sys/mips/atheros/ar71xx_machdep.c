@@ -98,6 +98,12 @@ parse_argv(char *str)
 }
 
 void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
+
+void
 platform_halt(void)
 {
 

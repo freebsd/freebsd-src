@@ -59,6 +59,8 @@ u_int32_t counter_upper = 0;
 u_int32_t counter_lower_last = 0;
 int	tick_started = 0;
 
+void platform_initclocks(void);
+
 struct clk_ticks
 {
 	u_long hard_ticks;
@@ -97,9 +99,8 @@ mips_timer_early_init(uint64_t clock_hz)
 }
 
 void
-cpu_initclocks(void)
+platform_initclocks(void)
 {
-
 	if (!tick_started) {
 	        tc_init(&counter_timecounter);
 		tick_started++;

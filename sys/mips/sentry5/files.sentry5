@@ -6,3 +6,4 @@
 # which just need to be tweaked for attachment to an SSB system bus.
 mips/sentry5/s5_machdep.c		standard
 mips/mips/intr_machdep.c		standard
+mips/mips/tick.c			standard

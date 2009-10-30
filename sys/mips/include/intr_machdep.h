@@ -52,9 +52,9 @@ extern struct mips_intrhand mips_intr_handlers[];
 
 struct trapframe;
 
-void cpu_establish_hardintr(const char *, int (*)(void*), void (*)(void*), 
+void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *, 
     void *, int, int, void **);
-void cpu_establish_softintr(const char *, int (*)(void*), void (*)(void*), 
+void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*), 
     void *, int, int, void **);
 void cpu_intr(struct trapframe *);
 

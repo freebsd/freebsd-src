@@ -51,9 +51,11 @@ CFE_ENV_SIZE	opt_global.h
 KERNPHYSADDR	opt_global.h
 KERNVIRTADDR	opt_global.h
 PHYSADDR	opt_global.h
-
+PHYS_ADDR_64BIT	opt_global.h
+NOFPU		opt_global.h
 TARGET_OCTEON	opt_global.h
 TARGET_EMULATOR	opt_ddb.h
+TARGET_XLR_XLS  opt_global.h
 
 TICK_USE_YAMON_FREQ	opt_global.h
 TICK_USE_MALTA_RTC	opt_global.h

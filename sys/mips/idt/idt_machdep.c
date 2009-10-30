@@ -76,6 +76,12 @@ extern int	*edata;
 extern int	*end;
 
 void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
+
+void
 platform_halt(void)
 {
 
