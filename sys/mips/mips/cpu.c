@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/locore.h>
 #include <machine/pte.h>
+#include <machine/hwfunc.h>
 
 static struct mips_cpuinfo cpuinfo;
 
@@ -129,6 +130,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 void
 mips_cpu_init(void)
 {
+	platform_cpu_init();
 	mips_get_identity(&cpuinfo);
 	num_tlbentries = cpuinfo.tlb_nentries;
 	Mips_SetWIRED(0);
