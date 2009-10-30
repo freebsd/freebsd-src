@@ -53,9 +53,6 @@ static void drm_unload(struct drm_device *dev);
 static drm_pci_id_list_t *drm_find_description(int vendor, int device,
     drm_pci_id_list_t *idlist);
 
-#define DRIVER_SOFTC(unit) \
-	((struct drm_device *)devclass_get_softc(drm_devclass, unit))
-
 MODULE_VERSION(drm, 1);
 MODULE_DEPEND(drm, agp, 1, 1, 1);
 MODULE_DEPEND(drm, pci, 1, 1, 1);
@@ -210,11 +207,12 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 	dev->device = kdev;
 #endif
 	dev->devnode = make_dev(&drm_cdevsw,
-			unit,
+			0,
 			DRM_DEV_UID,
 			DRM_DEV_GID,
 			DRM_DEV_MODE,
 			"dri/card%d", unit);
+	dev->devnode->si_drv1 = dev;
 
 #if __FreeBSD_version >= 700053
 	dev->pci_domain = pci_get_domain(dev->device);
@@ -606,7 +604,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	struct drm_device *dev = NULL;
 	int retcode = 0;
 
-	dev = DRIVER_SOFTC(dev2unit(kdev));
+	dev = kdev->si_drv1;
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 

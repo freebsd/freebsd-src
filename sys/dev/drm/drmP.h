@@ -416,7 +416,6 @@ struct drm_file {
 	struct drm_device *dev;
 	int		  authenticated;
 	int		  master;
-	int		  minor;
 	pid_t		  pid;
 	uid_t		  uid;
 	drm_magic_t	  magic;
