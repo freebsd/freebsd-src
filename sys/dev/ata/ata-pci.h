@@ -97,6 +97,7 @@ struct ata_pci_controller {
 
 #define ATA_ADAPTEC_ID          0x9005
 #define ATA_ADAPTEC_1420        0x02419005
+#define ATA_ADAPTEC_1430        0x02439005
 
 #define ATA_ATI_ID              0x1002
 #define ATA_ATI_IXP200          0x43491002
@@ -216,7 +217,9 @@ struct ata_pci_controller {
 #define ATA_M88SX5080           0x508011ab
 #define ATA_M88SX5081           0x508111ab
 #define ATA_M88SX6041           0x604111ab
+#define ATA_M88SX6042           0x604211ab
 #define ATA_M88SX6081           0x608111ab
+#define ATA_M88SX7042           0x704211ab
 #define ATA_M88SX6101           0x610111ab
 #define ATA_M88SX6121           0x612111ab
 #define ATA_M88SX6145           0x614511ab
@@ -415,6 +418,8 @@ struct ata_pci_controller {
 #define ATA_VIA8237             0x32271106
 #define ATA_VIA8237A            0x05911106
 #define ATA_VIA8237S		0x53371106
+#define ATA_VIA8237_5372	0x53721106
+#define ATA_VIA8237_7372	0x73721106
 #define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106

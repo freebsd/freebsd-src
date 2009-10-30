@@ -61,6 +61,7 @@
 #undef		listen
 #undef		nanosleep
 #undef		open
+#undef		openat
 #undef		poll
 #undef		pthread_atfork
 #undef		pthread_attr_destroy

@@ -18,10 +18,10 @@ SUBDIR=	${_3dfx} \
 	${_aic} \
 	aic7xxx \
 	aio \
-	${_amd} \
-	${_amdtemp} \
 	alc \
 	ale \
+	${_amd} \
+	${_amdtemp} \
 	alq \
 	amr \
 	${_an} \

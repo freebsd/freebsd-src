@@ -304,3 +304,10 @@ echo "------------------------------------------------------------------------"
 echo "kernel config"
 echo
 config -x $KERNEL
+
+echo
+echo "------------------------------------------------------------------------"
+echo "ddb capture buffer"
+echo
+
+ddb capture -M $VMCORE -N $KERNEL print

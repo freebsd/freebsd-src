@@ -692,7 +692,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct proc *p;
 	ucontext_t uc;
 	int error;
 
@@ -707,12 +706,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	p = td->td_proc;
-	PROC_LOCK(p);
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
 	     td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
@@ -885,6 +879,8 @@ cpu_initclocks(void)
 {
 
 	decr_tc_init();
+	stathz = hz;
+	profhz = hz;
 }
 
 /*
@@ -901,8 +897,10 @@ void
 cpu_idle(int busy)
 {
 	uint32_t msr;
+	uint16_t vers;
 
 	msr = mfmsr();
+	vers = mfpvr() >> 16;
 
 #ifdef INVARIANTS
 	if ((msr & PSL_EE) != PSL_EE) {
@@ -912,9 +910,25 @@ cpu_idle(int busy)
 	}
 #endif
 	if (powerpc_pow_enabled) {
-		powerpc_sync();
-		mtmsr(msr | PSL_POW);
-		isync();
+		switch (vers) {
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+		case MPC7447A:
+		case MPC7448:
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+			__asm __volatile("\
+			    dssall; sync; mtmsr %0; isync"
+			    :: "r"(msr | PSL_POW));
+			break;
+		default:
+			powerpc_sync();
+			mtmsr(msr | PSL_POW);
+			isync();
+			break;
+		}
 	}
 }
 

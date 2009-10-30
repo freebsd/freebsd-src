@@ -192,6 +192,7 @@ find_provider(struct ggeom *gp, unsigned long long minsector)
 	unsigned long long sector, bestsector;
 
 	bestpp = NULL;
+	bestsector = 0;
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "start");
 		if (s == NULL) {

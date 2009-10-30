@@ -1088,7 +1088,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	sc->sc_ncm.hdr.dwSignature[2] = 'M';
 	sc->sc_ncm.hdr.dwSignature[3] = 'H';
 	USETW(sc->sc_ncm.hdr.wHeaderLength, sizeof(sc->sc_ncm.hdr));
-	USETW(sc->sc_ncm.hdr.wBlockLength, offset);
+	USETW(sc->sc_ncm.hdr.wBlockLength, last_offset);
 	USETW(sc->sc_ncm.hdr.wSequence, sc->sc_ncm.tx_seq);
 	USETW(sc->sc_ncm.hdr.wDptIndex, sizeof(sc->sc_ncm.hdr));
 
@@ -1243,25 +1243,24 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			offset = UGETW(sc->sc_ncm.dp[x].wFrameIndex);
 			temp = UGETW(sc->sc_ncm.dp[x].wFrameLength);
-			if ((offset + temp) > actlen) {
-				DPRINTFN(1, "invalid frame detected (ignored)\n");
-				m = NULL;
 
-			} else if (temp >= sizeof(struct ether_header)) {
-				/*
-				 * allocate a suitable memory buffer, if
-				 * possible
-				 */
-				if (temp > (MCLBYTES - ETHER_ALIGN)) {
-					m = NULL;
-					continue;
-				} if (temp > (MHLEN - ETHER_ALIGN)) {
-					m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-				} else {
-					m = m_gethdr(M_DONTWAIT, MT_DATA);
-				}
+			if ((offset == 0) ||
+			    (temp < sizeof(struct ether_header)) ||
+			    (temp > (MCLBYTES - ETHER_ALIGN))) {
+				DPRINTFN(1, "NULL frame detected at %d\n", x);
+				m = NULL;
+				/* silently ignore this frame */
+				continue;
+			} else if ((offset + temp) > actlen) {
+				DPRINTFN(1, "invalid frame "
+				    "detected at %d\n", x);
+				m = NULL;
+				/* silently ignore this frame */
+				continue;
+			} else if (temp > (MHLEN - ETHER_ALIGN)) {
+				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 			} else {
-				m = NULL;	/* dump it */
+				m = m_gethdr(M_DONTWAIT, MT_DATA);
 			}
 
 			DPRINTFN(16, "frame %u, offset = %u, length = %u \n",

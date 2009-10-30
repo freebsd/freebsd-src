@@ -4,8 +4,6 @@
 PROG=	shutdown
 MAN=	shutdown.8
 
-WARNS?=	6
-
 BINOWN=	root
 BINGRP=	operator
 BINMODE=4550

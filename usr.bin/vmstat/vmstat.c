@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
+#include <sys/pcpu.h>
 
 #include <vm/vm_param.h>
 
@@ -418,10 +419,90 @@ getuptime(void)
 }
 
 static void
+fill_pcpu(struct pcpu ***pcpup, int* maxcpup)
+{
+	struct pcpu **pcpu;
+	
+	int maxcpu, size, i;
+
+	*pcpup = NULL;
+	
+	if (kd == NULL)
+		return;
+
+	maxcpu = kvm_getmaxcpu(kd);
+	if (maxcpu < 0)
+		errx(1, "kvm_getmaxcpu: %s", kvm_geterr(kd));
+
+	pcpu = calloc(maxcpu, sizeof(struct pcpu *));
+	if (pcpu == NULL)
+		err(1, "calloc");
+
+	for (i = 0; i < maxcpu; i++) {
+		pcpu[i] = kvm_getpcpu(kd, i);
+		if (pcpu[i] == (struct pcpu *)-1)
+			errx(1, "kvm_getpcpu: %s", kvm_geterr(kd));
+	}
+
+	*maxcpup = maxcpu;
+	*pcpup = pcpu;
+}
+
+static void
+free_pcpu(struct pcpu **pcpu, int maxcpu)
+{
+	int i;
+
+	for (i = 0; i < maxcpu; i++)
+		free(pcpu[i]);
+	free(pcpu);
+}
+
+static void
 fill_vmmeter(struct vmmeter *vmmp)
 {
+	struct pcpu **pcpu;
+	int maxcpu, i;
+
 	if (kd != NULL) {
 		kread(X_SUM, vmmp, sizeof(*vmmp));
+		fill_pcpu(&pcpu, &maxcpu);
+		for (i = 0; i < maxcpu; i++) {
+			if (pcpu[i] == NULL)
+				continue;
+#define ADD_FROM_PCPU(i, name) \
+			vmmp->name += pcpu[i]->pc_cnt.name
+			ADD_FROM_PCPU(i, v_swtch);
+			ADD_FROM_PCPU(i, v_trap);
+			ADD_FROM_PCPU(i, v_syscall);
+			ADD_FROM_PCPU(i, v_intr);
+			ADD_FROM_PCPU(i, v_soft);
+			ADD_FROM_PCPU(i, v_vm_faults);
+			ADD_FROM_PCPU(i, v_cow_faults);
+			ADD_FROM_PCPU(i, v_cow_optim);
+			ADD_FROM_PCPU(i, v_zfod);
+			ADD_FROM_PCPU(i, v_ozfod);
+			ADD_FROM_PCPU(i, v_swapin);
+			ADD_FROM_PCPU(i, v_swapout);
+			ADD_FROM_PCPU(i, v_swappgsin);
+			ADD_FROM_PCPU(i, v_swappgsout);
+			ADD_FROM_PCPU(i, v_vnodein);
+			ADD_FROM_PCPU(i, v_vnodeout);
+			ADD_FROM_PCPU(i, v_vnodepgsin);
+			ADD_FROM_PCPU(i, v_vnodepgsout);
+			ADD_FROM_PCPU(i, v_intrans);
+			ADD_FROM_PCPU(i, v_tfree);
+			ADD_FROM_PCPU(i, v_forks);
+			ADD_FROM_PCPU(i, v_vforks);
+			ADD_FROM_PCPU(i, v_rforks);
+			ADD_FROM_PCPU(i, v_kthreads);
+			ADD_FROM_PCPU(i, v_forkpages);
+			ADD_FROM_PCPU(i, v_vforkpages);
+			ADD_FROM_PCPU(i, v_rforkpages);
+			ADD_FROM_PCPU(i, v_kthreadpages);
+#undef ADD_FROM_PCPU
+		}
+		free_pcpu(pcpu, maxcpu);
 	} else {
 		size_t size = sizeof(unsigned int);
 #define GET_VM_STATS(cat, name) \

@@ -80,7 +80,6 @@ static void siis_portinit(device_t dev);
 static int siis_wait_ready(device_t dev, int t);
 
 static int siis_sata_connect(struct siis_channel *ch);
-static int siis_sata_phy_reset(device_t dev);
 
 static void siis_issue_read_log(device_t dev);
 static void siis_process_read_log(device_t dev, union ccb *ccb);
@@ -752,7 +751,12 @@ siis_ch_intr(void *data)
 		if (ch->frozen) {
 			union ccb *fccb = ch->frozen;
 			ch->frozen = NULL;
-			fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+			fccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			fccb->ccb_h.status |= CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+			if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+				xpt_freeze_devq(fccb->ccb_h.path, 1);
+				fccb->ccb_h.status |= CAM_DEV_QFRZN;
+			}
 			xpt_done(fccb);
 		}
 		if (estatus == SIIS_P_CMDERR_DEV ||
@@ -986,7 +990,12 @@ device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
-		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		fccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		fccb->ccb_h.status |= CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+			xpt_freeze_devq(fccb->ccb_h.path, 1);
+			fccb->ccb_h.status |= CAM_DEV_QFRZN;
+		}
 		xpt_done(fccb);
 	}
 	/* Handle command with timeout. */
@@ -1044,11 +1053,17 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		bus_dmamap_unload(ch->dma.data_tag, slot->dma.data_map);
 	}
 	/* Set proper result status. */
-	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (et != SIIS_ERR_NONE || ch->recovery) {
 		ch->eslots |= (1 << slot->slot);
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
+	/* In case of error, freeze device for proper recovery. */
+	if (et != SIIS_ERR_NONE &&
+	    !(ccb->ccb_h.status & CAM_DEV_QFRZN)) {
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+	}
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	switch (et) {
 	case SIIS_ERR_NONE:
 		ccb->ccb_h.status |= CAM_REQ_CMP;
@@ -1062,6 +1077,7 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 		break;
 	case SIIS_ERR_TFE:
+	case SIIS_ERR_NCQ:
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
@@ -1074,9 +1090,6 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		break;
 	case SIIS_ERR_TIMEOUT:
 		ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
-		break;
-	case SIIS_ERR_NCQ:
-		ccb->ccb_h.status |= CAM_ATA_STATUS_ERROR;
 		break;
 	default:
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
@@ -1236,16 +1249,27 @@ siis_portinit(device_t dev)
 	siis_wait_ready(dev, 1000);
 }
 
-#if 0
-static void
+static int
 siis_devreset(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
+	int timeout = 0;
+	uint32_t val;
 
 	ATA_OUTL(ch->r_mem, SIIS_P_CTLSET, SIIS_P_CTL_DEV_RESET);
-	siis_wait_ready(dev, 1000);
+	while (((val = ATA_INL(ch->r_mem, SIIS_P_STS)) &
+	    SIIS_P_CTL_DEV_RESET) != 0) {
+		DELAY(1000);
+		if (timeout++ > 100) {
+			device_printf(dev, "device reset stuck (timeout %dms) "
+			    "status = %08x\n", timeout, val);
+			return (EBUSY);
+		}
+	}
+	if (bootverbose)
+		device_printf(dev, "device reset time=%dms\n", timeout);
+	return (0);
 }
-#endif
 
 static int
 siis_wait_ready(device_t dev, int t)
@@ -1273,6 +1297,7 @@ siis_reset(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 	int i;
+	uint32_t val;
 
 	if (bootverbose)
 		device_printf(dev, "SIIS reset...\n");
@@ -1281,13 +1306,15 @@ siis_reset(device_t dev)
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
-		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		fccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		fccb->ccb_h.status |= CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+			xpt_freeze_devq(fccb->ccb_h.path, 1);
+			fccb->ccb_h.status |= CAM_DEV_QFRZN;
+		}
 		xpt_done(fccb);
 	}
-	/* Disable port interrupts */
-	ATA_OUTL(ch->r_mem, SIIS_P_IECLR, 0x0000FFFF);
-	/* Kill the engine and requeue all running commands. */
-	siis_portinit(dev);
+	/* Requeue all running commands. */
 	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
 		/* Do we have a running request on slot? */
 		if (ch->slot[i].state < SIIS_SLOT_RUNNING)
@@ -1295,8 +1322,23 @@ siis_reset(device_t dev)
 		/* XXX; Commands in loading state. */
 		siis_end_transaction(&ch->slot[i], SIIS_ERR_INNOCENT);
 	}
+	/* Disable port interrupts */
+	ATA_OUTL(ch->r_mem, SIIS_P_IECLR, 0x0000FFFF);
+	/* Set speed limit. */
+	if (ch->sata_rev == 1)
+		val = ATA_SC_SPD_SPEED_GEN1;
+	else if (ch->sata_rev == 2)
+		val = ATA_SC_SPD_SPEED_GEN2;
+	else if (ch->sata_rev == 3)
+		val = ATA_SC_SPD_SPEED_GEN3;
+	else
+		val = 0;
+	ATA_OUTL(ch->r_mem, SIIS_P_SCTL,
+	    ATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
+	    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)));
+	siis_devreset(dev);
 	/* Reset and reconnect PHY, */
-	if (!siis_sata_phy_reset(dev)) {
+	if (!siis_sata_connect(ch)) {
 		ch->devices = 0;
 		/* Enable port interrupts */
 		ATA_OUTL(ch->r_mem, SIIS_P_IESET, SIIS_P_IX_ENABLED);
@@ -1308,9 +1350,8 @@ siis_reset(device_t dev)
 		return;
 	}
 	/* Wait for clearing busy status. */
-	if (siis_wait_ready(dev, 10000)) {
+	if (siis_wait_ready(dev, 10000))
 		device_printf(dev, "device ready timeout\n");
-	}
 	ch->devices = 1;
 	/* Enable port interrupts */
 	ATA_OUTL(ch->r_mem, SIIS_P_IS, 0xFFFFFFFF);
@@ -1399,32 +1440,6 @@ siis_sata_connect(struct siis_channel *ch)
 	/* Clear SATA error register */
 	ATA_OUTL(ch->r_mem, SIIS_P_SERR, 0xffffffff);
 	return (1);
-}
-
-static int
-siis_sata_phy_reset(device_t dev)
-{
-	struct siis_channel *ch = device_get_softc(dev);
-	uint32_t val;
-
-	if (bootverbose)
-		device_printf(dev, "hardware reset ...\n");
-	ATA_OUTL(ch->r_mem, SIIS_P_SCTL, ATA_SC_IPM_DIS_PARTIAL |
-	    ATA_SC_IPM_DIS_SLUMBER | ATA_SC_DET_RESET);
-	DELAY(50000);
-	if (ch->sata_rev == 1)
-		val = ATA_SC_SPD_SPEED_GEN1;
-	else if (ch->sata_rev == 2)
-		val = ATA_SC_SPD_SPEED_GEN2;
-	else if (ch->sata_rev == 3)
-		val = ATA_SC_SPD_SPEED_GEN3;
-	else
-		val = 0;
-	ATA_OUTL(ch->r_mem, SIIS_P_SCTL,
-	    ATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
-	    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)));
-	DELAY(50000);
-	return (siis_sata_connect(ch));
 }
 
 static void
@@ -1565,7 +1580,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_misc = PIM_SEQSCAN;
 		cpi->hba_eng_cnt = 0;
-		cpi->max_target = 14;
+		cpi->max_target = 15;
 		cpi->max_lun = 0;
 		cpi->initiator_id = 0;
 		cpi->bus_id = cam_sim_bus(sim);

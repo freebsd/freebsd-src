@@ -1327,7 +1327,7 @@ in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
 	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
 #endif
@@ -1366,7 +1366,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			break;
 	}
 	if (lle == NULL) {
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 		if (flags & LLE_DELETE)
 			log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);	
 #endif
@@ -1401,7 +1401,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			lle->la_flags = LLE_DELETED;
 			EVENTHANDLER_INVOKE(arp_update_event, lle);
 			LLE_WUNLOCK(lle);
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
 #endif
 		}
@@ -1440,7 +1440,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			struct sockaddr_dl *sdl;
 			
 			/* skip deleted entries */
-			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
+			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
 				continue;
 			/* Skip if jailed and not a valid IP of the prison. */
 			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
@@ -1472,10 +1472,15 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			sdl = &arpc.sdl;
 			sdl->sdl_family = AF_LINK;
 			sdl->sdl_len = sizeof(*sdl);
-			sdl->sdl_alen = ifp->if_addrlen;
 			sdl->sdl_index = ifp->if_index;
 			sdl->sdl_type = ifp->if_type;
-			bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+			if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
+				sdl->sdl_alen = ifp->if_addrlen;
+				bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+			} else {
+				sdl->sdl_alen = 0;
+				bzero(LLADDR(sdl), ifp->if_addrlen);
+			}
 
 			arpc.rtm.rtm_rmx.rmx_expire =
 			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;

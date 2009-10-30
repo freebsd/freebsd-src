@@ -259,7 +259,7 @@ smbfs_mount(struct mount *mp)
 	VOP_UNLOCK(vp, 0);
 	SMBVDEBUG("root.v_usecount = %d\n", vrefcnt(vp));
 
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 	SMBERROR("mp=%p\n", mp);
 #endif
 	return error;

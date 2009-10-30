@@ -279,7 +279,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		}
 
 		/*
-		 * Now we need to get the page.  out_entry, out_prot, wired,
+		 * Now we need to get the page.  out_entry, wired,
 		 * and single_use aren't used.  One would think the vm code
 		 * would be a *bit* nicer...  We use tmap because
 		 * vm_map_lookup() can change the map argument.
@@ -326,6 +326,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		 * Now do the i/o move.
 		 */
 		error = uiomove_fromphys(&m, page_offset, len, uio);
+
+		/* Make the I-cache coherent for breakpoints. */
+		if (!error && writing && (out_prot & VM_PROT_EXECUTE))
+			vm_sync_icache(map, uva, len);
 
 		/*
 		 * Release the page.

@@ -362,6 +362,7 @@ i386/svr4/svr4_locore.s		optional compat_svr4	\
 i386/svr4/svr4_machdep.c	optional compat_svr4
 #
 isa/atrtc.c			optional atpic
+isa/orm.c			optional isa
 isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
 kern/imgact_aout.c		optional compat_aout
@@ -384,6 +385,4 @@ i386/xbox/pic16l.s		optional xbox
 # x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
-compat/x86bios/x86bios_alloc.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
-contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa

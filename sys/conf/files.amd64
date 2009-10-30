@@ -228,6 +228,7 @@ dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_amd64.c	optional	uart
 dev/wpi/if_wpi.c		optional	wpi
 isa/atrtc.c			standard
+isa/orm.c			optional	isa
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/link_elf_obj.c		standard
@@ -300,6 +301,4 @@ libkern/memset.c		standard
 # x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
-compat/x86bios/x86bios_alloc.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
-contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa

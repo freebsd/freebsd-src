@@ -116,6 +116,7 @@ struct cam_ed {
 #define CAM_DEV_INQUIRY_DATA_VALID	0x40
 #define	CAM_DEV_IN_DV			0x80
 #define	CAM_DEV_DV_HIT_BOTTOM		0x100
+#define CAM_DEV_IDENTIFY_DATA_VALID	0x200
 	u_int32_t	 tag_delay_count;
 #define	CAM_TAG_DELAY_COUNT		5
 	u_int32_t	 tag_saved_openings;

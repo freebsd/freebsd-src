@@ -343,17 +343,46 @@ sc_alloc_tty(int index, int devnum)
 	return (tp);
 }
 
+#ifdef SC_PIXEL_MODE
+static int
+sc_initial_mode(video_adapter_t *adp, int unit)
+{
+	video_info_t info;
+	int depth, vmode;
+	int i;
+
+	vmode = 0;
+	(void)resource_int_value("sc", unit, "vesa_mode", &vmode);
+	if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX)
+	    vmode = 0;
+
+	/*
+	 * If the default mode is not supported, search for an available
+	 * 800x600 graphics mode with the highest color depth.
+	 */
+	if (vmode == 0 || vidd_get_info(adp, vmode, &info) != 0) {
+	    depth = vmode = 0;
+	    for (i = M_VESA_BASE; i <= M_VESA_MODE_MAX; i++)
+		if (vidd_get_info(adp, i, &info) == 0 &&
+		    (info.vi_flags & V_INFO_GRAPHICS) != 0 &&
+		    info.vi_width == 800 && info.vi_height == 600 &&
+		    info.vi_depth > depth) {
+			vmode = i;
+			depth = info.vi_depth;
+		}
+	}
+
+	return (vmode);
+}
+#endif
+
 int
 sc_attach_unit(int unit, int flags)
 {
     sc_softc_t *sc;
     scr_stat *scp;
-#ifdef SC_PIXEL_MODE
-    video_info_t info;
-#endif
     int vc;
     struct cdev *dev;
-    unsigned int vmode = 0;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -374,25 +403,24 @@ sc_attach_unit(int unit, int flags)
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
-    (void)resource_int_value("sc", unit, "vesa_mode", &vmode);
-    if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX)
-	vmode = M_VESA_FULL_800;
-
 #ifdef SC_PIXEL_MODE
-    if ((sc->config & SC_VESAMODE)
-	&& (vidd_get_info(sc->adp, vmode, &info) == 0)) {
+    if ((sc->config & SC_VESAMODE) != 0) {
+	int vmode;
+	vmode = sc_initial_mode(sc->adp, unit);
+	if (vmode >= M_VESA_BASE) {
 #ifdef DEV_SPLASH
-	if (sc->flags & SC_SPLASH_SCRN)
-	    splash_term(sc->adp);
+	    if (sc->flags & SC_SPLASH_SCRN)
+		splash_term(sc->adp);
 #endif
-	sc_set_graphics_mode(scp, NULL, vmode);
-	sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
-	sc->initial_mode = vmode;
+	    sc_set_graphics_mode(scp, NULL, vmode);
+	    sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
+	    sc->initial_mode = vmode;
 #ifdef DEV_SPLASH
-	/* put up the splash again! */
-	if (sc->flags & SC_SPLASH_SCRN)
-    	    splash_init(sc->adp, scsplash_callback, sc);
+	    /* put up the splash again! */
+	    if (sc->flags & SC_SPLASH_SCRN)
+		splash_init(sc->adp, scsplash_callback, sc);
 #endif
+	}
     }
 #endif /* SC_PIXEL_MODE */
 

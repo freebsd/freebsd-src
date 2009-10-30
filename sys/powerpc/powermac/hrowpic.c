@@ -182,7 +182,13 @@ hrowpic_toggle_irq(struct hrowpic_softc *sc, int irq, int enable)
 	u_int roffset;
 	u_int rbit;
 
-	KASSERT((irq > 0) && (irq < HROWPIC_IRQMAX), ("en irq out of range"));
+	KASSERT((irq > 0) && (irq <= HROWPIC_IRQMAX), ("en irq out of range"));
+
+	/*
+	 * Humor the SMP layer if it wants to set up an IPI handler.
+	 */
+	if (irq == HROWPIC_IRQMAX)
+		return;
 
 	/*
 	 * Calculate prim/sec register bank for the IRQ, update soft copy,

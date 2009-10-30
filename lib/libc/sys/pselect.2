@@ -28,8 +28,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2002
-.Dt PSELECT 3
+.Dd October 27, 2009
+.Dt PSELECT 2
 .Os
 .Sh NAME
 .Nm pselect
@@ -88,11 +88,6 @@ for a more detailed discussion of the semantics of this interface, and
 for macros used to manipulate the
 .Vt "fd_set"
 data type.
-.Sh IMPLEMENTATION NOTES
-The
-.Fn pselect
-function is implemented in the C library as a wrapper around
-.Fn select .
 .Sh RETURN VALUES
 The
 .Fn pselect
@@ -121,7 +116,7 @@ The
 function first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
-The
+The first implementation of
 .Fn pselect
 function and this manual page were written by
 .An Garrett Wollman Aq wollman@FreeBSD.org .

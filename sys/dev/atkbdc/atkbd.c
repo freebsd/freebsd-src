@@ -1091,32 +1091,35 @@ get_typematic(keyboard_t *kbd)
 {
 #if defined(__i386__) || defined(__amd64__)
 	/*
-	 * Only some systems allow us to retrieve the keyboard repeat 
+	 * Only some systems allow us to retrieve the keyboard repeat
 	 * rate previously set via the BIOS...
 	 */
 	x86regs_t regs;
 	uint8_t *p;
 
+	if (x86bios_get_intr(0x15) == 0 || x86bios_get_intr(0x16) == 0)
+		return (ENODEV);
+
 	/* Is BIOS system configuration table supported? */
-	bzero(&regs, sizeof(regs));
+	x86bios_init_regs(&regs);
 	regs.R_AH = 0xc0;
 	x86bios_intr(&regs, 0x15);
 	if ((regs.R_FLG & PSL_C) != 0 || regs.R_AH != 0)
 		return (ENODEV);
 
-	/* Is int 16, function 0x09 supported? */
+	/* Is int 0x16, function 0x09 supported? */
 	p = x86bios_offset((regs.R_ES << 4) + regs.R_BX);
 	if (readw(p) < 5 || (readb(p + 6) & 0x40) == 0)
 		return (ENODEV);
 
-	/* Is int 16, function 0x0306 supported? */
-	bzero(&regs, sizeof(regs));
+	/* Is int 0x16, function 0x0306 supported? */
+	x86bios_init_regs(&regs);
 	regs.R_AH = 0x09;
 	x86bios_intr(&regs, 0x16);
 	if ((regs.R_AL & 0x08) == 0)
 		return (ENODEV);
 
-	bzero(&regs, sizeof(regs));
+	x86bios_init_regs(&regs);
 	regs.R_AX = 0x0306;
 	x86bios_intr(&regs, 0x16);
 	kbd->kb_delay1 = typematic_delay(regs.R_BH << 5);

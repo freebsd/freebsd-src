@@ -826,6 +826,9 @@ tr_setup:
 
 			usbd_transfer_submit(xfer);
 		}
+		RUM_UNLOCK(sc);
+		rum_start(ifp);
+		RUM_LOCK(sc);
 		break;
 
 	default:			/* Error */
@@ -930,8 +933,8 @@ tr_setup:
 		 * the private mutex of a device! That is why we do the
 		 * "ieee80211_input" here, and not some lines up!
 		 */
+		RUM_UNLOCK(sc);
 		if (m) {
-			RUM_UNLOCK(sc);
 			ni = ieee80211_find_rxnode(ic,
 			    mtod(m, struct ieee80211_frame_min *));
 			if (ni != NULL) {
@@ -941,8 +944,11 @@ tr_setup:
 			} else
 				(void) ieee80211_input_all(ic, m, rssi,
 				    RT2573_NOISE_FLOOR);
-			RUM_LOCK(sc);
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			rum_start(ifp);
+		RUM_LOCK(sc);
 		return;
 
 	default:			/* Error */

@@ -2860,8 +2860,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct umass_softc *sc = (struct umass_softc *)sim->softc;
 
-	if (sc == UMASS_GONE) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
+	if (sc == UMASS_GONE ||
+	    (sc != NULL && !usbd_device_attached(sc->sc_udev))) {
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
 	}

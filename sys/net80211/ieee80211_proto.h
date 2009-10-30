@@ -317,7 +317,8 @@ struct ieee80211_beacon_offsets {
 	uint16_t	bo_appie_len;	/* AppIE length in bytes */
 	uint16_t	bo_csa_trailer_len;;
 	uint8_t		*bo_csa;	/* start of CSA element */
-	uint8_t		*bo_spare[4];
+	uint8_t		*bo_meshconf;	/* start of MESHCONF element */
+	uint8_t		*bo_spare[3];
 };
 struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *);
@@ -345,6 +346,7 @@ enum {
 	IEEE80211_BEACON_CSA	= 7,	/* Channel Switch Announcement */
 	IEEE80211_BEACON_TDMA	= 9,	/* TDMA Info */
 	IEEE80211_BEACON_ATH	= 10,	/* ATH parameters */
+	IEEE80211_BEACON_MESHCONF = 11,	/* Mesh Configuration */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);

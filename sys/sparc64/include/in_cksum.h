@@ -164,6 +164,8 @@ in_cksum_hdr(struct ip *ip)
 	return (__ret);
 }
 
+#ifdef _KERNEL
 u_short	in_cksum_skip(struct mbuf *m, int len, int skip);
+#endif
 
 #endif /* _MACHINE_IN_CKSUM_H_ */
