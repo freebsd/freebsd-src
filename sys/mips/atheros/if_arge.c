@@ -104,7 +104,7 @@ static int arge_resume(device_t);
 static int arge_rx_ring_init(struct arge_softc *);
 static int arge_tx_ring_init(struct arge_softc *);
 #ifdef DEVICE_POLLING
-static void arge_poll(struct ifnet *, enum poll_cmd, int);
+static int arge_poll(struct ifnet *, enum poll_cmd, int);
 #endif
 static int arge_shutdown(device_t);
 static void arge_start(struct ifnet *);
@@ -112,7 +112,7 @@ static void arge_start_locked(struct ifnet *);
 static void arge_stop(struct arge_softc *);
 static int arge_suspend(device_t);
 
-static void arge_rx_locked(struct arge_softc *);
+static int arge_rx_locked(struct arge_softc *);
 static void arge_tx_locked(struct arge_softc *);
 static void arge_intr(void *);
 static int arge_intr_filter(void *);
@@ -1394,17 +1394,20 @@ arge_fixup_rx(struct mbuf *m)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 arge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct arge_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
         if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ARGE_LOCK(sc);
 		arge_tx_locked(sc);
-		arge_rx_locked(sc);
+		rx_npkts = arge_rx_locked(sc);
 		ARGE_UNLOCK(sc);
         }
+
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1470,7 +1473,7 @@ arge_tx_locked(struct arge_softc *sc)
 }
 
 
-static void
+static int
 arge_rx_locked(struct arge_softc *sc)
 {
 	struct arge_rxdesc	*rxd;
@@ -1478,6 +1481,7 @@ arge_rx_locked(struct arge_softc *sc)
 	int			cons, prog, packet_len, i;
 	struct arge_desc	*cur_rx;
 	struct mbuf		*m;
+	int			rx_npkts = 0;
 
 	ARGE_LOCK_ASSERT(sc);
 
@@ -1510,6 +1514,7 @@ arge_rx_locked(struct arge_softc *sc)
 		/* Skip 4 bytes of CRC */
 		m->m_pkthdr.len = m->m_len = packet_len - ETHER_CRC_LEN;
 		ifp->if_ipackets++;
+		rx_npkts++;
 
 		ARGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
@@ -1535,6 +1540,8 @@ arge_rx_locked(struct arge_softc *sc)
 
 		sc->arge_cdata.arge_rx_cons = cons;
 	}
+
+	return (rx_npkts);
 }
 
 static int
