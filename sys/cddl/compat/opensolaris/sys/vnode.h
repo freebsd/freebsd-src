@@ -57,6 +57,8 @@ typedef	struct vop_vector	vnodeops_t;
 
 #define	v_count	v_usecount
 
+#define	V_APPEND	VAPPEND
+
 static __inline int
 vn_is_readonly(vnode_t *vp)
 {
