@@ -376,6 +376,9 @@ g_part_gpt_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	codesz = MIN(codesz, gpp->gpp_codesize);
 	if (codesz > 0)
 		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
+
+	/* Mark the PMBR active since some BIOS require it */
+	table->mbr[DOSPARTOFF] = 0x80;		/* status */
 	return (0);
 }
 
