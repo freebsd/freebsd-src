@@ -65,7 +65,7 @@ drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather *request)
 	ret = bus_dma_tag_create(NULL, PAGE_SIZE, 0, /* tag, align, boundary */
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
 	    NULL, NULL, /* filtfunc, filtfuncargs */
-	    request->size, pages, /* maxsize, nsegs */
+	    request->size, entry->pages, /* maxsize, nsegs */
 	    PAGE_SIZE, 0, /* maxsegsize, flags */
 	    NULL, NULL, /* lockfunc, lockfuncargs */
 	    &dmah->tag);
