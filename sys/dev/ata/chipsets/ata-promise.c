@@ -387,11 +387,10 @@ ata_promise_status(device_t dev)
 static int
 ata_promise_dmastart(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev  = device_get_softc(request->dev);
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	ATA_OUTB(ctlr->r_res1, 0x11,
 		 ATA_INB(ctlr->r_res1, 0x11) | (ch->unit ? 0x08 : 0x02));
 	ATA_OUTL(ctlr->r_res1, ch->unit ? 0x24 : 0x20,
@@ -411,12 +410,11 @@ ata_promise_dmastart(struct ata_request *request)
 static int
 ata_promise_dmastop(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev  = device_get_softc(request->dev);
     int error;
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	ATA_OUTB(ctlr->r_res1, 0x11,
 		 ATA_INB(ctlr->r_res1, 0x11) & ~(ch->unit ? 0x08 : 0x02));
 	ATA_OUTL(ctlr->r_res1, ch->unit ? 0x24 : 0x20, 0);
@@ -682,9 +680,8 @@ ata_promise_mio_status(device_t dev)
 static int
 ata_promise_mio_command(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev = device_get_softc(request->dev);
 
     u_int32_t *wordp = (u_int32_t *)ch->dma.work;
 
@@ -693,7 +690,7 @@ ata_promise_mio_command(struct ata_request *request)
     if ((ctlr->chip->cfg2 == PR_SATA2) ||
         ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2))) {
 	/* set portmultiplier port */
-	ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), atadev->unit & 0x0f);
+	ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), request->unit & 0x0f);
     }
 
     /* XXX SOS add ATAPI commands support later */
@@ -1051,7 +1048,7 @@ ata_promise_sx4_intr(void *data)
 static int
 ata_promise_sx4_command(struct ata_request *request)
 {
-    device_t gparent = GRANDPARENT(request->dev);
+    device_t gparent = device_get_parent(request->parent);
     struct ata_pci_controller *ctlr = device_get_softc(gparent);
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_dma_prdentry *prd;
@@ -1158,15 +1155,14 @@ ata_promise_sx4_command(struct ata_request *request)
 static int
 ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 { 
-    struct ata_device *atadev = device_get_softc(request->dev);
     int i = 12;
 
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_PDC_WAIT_NBUSY|ATA_DRIVE;
-    bytep[i++] = ATA_D_IBM | ATA_D_LBA | ATA_DEV(atadev->unit);
+    bytep[i++] = ATA_D_IBM | ATA_D_LBA | ATA_DEV(request->unit);
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_CTL;
     bytep[i++] = ATA_A_4BIT;
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	bytep[i++] = ATA_PDC_2B | ATA_PDC_WRITE_REG | ATA_FEATURE;
 	bytep[i++] = request->u.ata.feature >> 8;
 	bytep[i++] = request->u.ata.feature;
@@ -1183,7 +1179,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 	bytep[i++] = request->u.ata.lba >> 40;
 	bytep[i++] = request->u.ata.lba >> 16;
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_DRIVE;
-	bytep[i++] = ATA_D_LBA | ATA_DEV(atadev->unit);
+	bytep[i++] = ATA_D_LBA | ATA_DEV(request->unit);
     }
     else {
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_FEATURE;
@@ -1197,8 +1193,7 @@ ata_promise_apkt(u_int8_t *bytep, struct ata_request *request)
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_CYL_MSB;
 	bytep[i++] = request->u.ata.lba >> 16;
 	bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_REG | ATA_DRIVE;
-	bytep[i++] = (atadev->flags & ATA_D_USE_CHS ? 0 : ATA_D_LBA) |
-		     ATA_D_IBM | ATA_DEV(atadev->unit) |
+	bytep[i++] = ATA_D_LBA | ATA_D_IBM | ATA_DEV(request->unit) |
 		     ((request->u.ata.lba >> 24)&0xf);
     }
     bytep[i++] = ATA_PDC_1B | ATA_PDC_WRITE_END | ATA_COMMAND;
