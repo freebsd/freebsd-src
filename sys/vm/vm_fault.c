@@ -1179,7 +1179,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		dst_object->uip = dst_entry->uip;
 		dst_entry->uip = NULL;
 	}
-	access = prot = dst_entry->max_protection;
+	access = prot = dst_entry->protection;
 	/*
 	 * If not an upgrade, then enter the mappings in the pmap as
 	 * read and/or execute accesses.  Otherwise, enter them as
