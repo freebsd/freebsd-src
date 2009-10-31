@@ -816,12 +816,22 @@ struct ccb_trans_settings_sas {
 	u_int32_t 	bitrate;	/* Mbps */
 };
 
+struct ccb_trans_settings_ata {
+	u_int     	valid;		/* Which fields to honor */
+#define	CTS_ATA_VALID_MODE		0x01
+#define	CTS_ATA_VALID_BYTECOUNT		0x04
+	u_int32_t 	mode;
+	u_int 		bytecount;	/* Length of PIO transaction */
+};
+
 struct ccb_trans_settings_sata {
 	u_int     	valid;		/* Which fields to honor */
 #define	CTS_SATA_VALID_SPEED		0x01
 #define	CTS_SATA_VALID_PM		0x02
+#define	CTS_SATA_VALID_BYTECOUNT	0x04
 	u_int32_t 	bitrate;	/* Mbps */
 	u_int 		pm_present;	/* PM is present (XPT->SIM) */
+	u_int 		bytecount;	/* Length of PIO transaction */
 };
 
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
@@ -841,6 +851,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_spi spi;
 		struct ccb_trans_settings_fc fc;
 		struct ccb_trans_settings_sas sas;
+		struct ccb_trans_settings_ata ata;
 		struct ccb_trans_settings_sata sata;
 	} xport_specific;
 };

@@ -63,8 +63,7 @@ __FBSDID("$FreeBSD$");
 #define ATA_MAX_28BIT_LBA               268435455UL
 
 typedef enum {
-	ADA_STATE_NORMAL,
-	ADA_STATE_SET_MULTI
+	ADA_STATE_NORMAL
 } ada_state;
 
 typedef enum {
@@ -84,7 +83,6 @@ typedef enum {
 } ada_quirks;
 
 typedef enum {
-	ADA_CCB_SET_MULTI	= 0x01,
 	ADA_CCB_BUFFER_IO	= 0x03,
 	ADA_CCB_WAITING		= 0x04,
 	ADA_CCB_DUMP		= 0x05,
@@ -112,7 +110,6 @@ struct ada_softc {
 	ada_quirks quirks;
 	int	 ordered_tag_count;
 	int	 outstanding_cmds;
-	int	 secsperint;
 	struct	 disk_params params;
 	struct	 disk *disk;
 	union	 ccb saved_ccb;
@@ -550,22 +547,6 @@ adaasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 		break;
 	}
-	case AC_SENT_BDR:
-	case AC_BUS_RESET:
-	{
-		struct ada_softc *softc = (struct ada_softc *)periph->softc;
-
-		cam_periph_async(periph, code, path, arg);
-		if (softc->state != ADA_STATE_NORMAL)
-			break;
-		/*
-		 * Restore device configuration.
-		 */
-		softc->state = ADA_STATE_SET_MULTI;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
-		break;
-	}
 	default:
 		cam_periph_async(periph, code, path, arg);
 		break;
@@ -644,8 +625,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	if (cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ &&
 	    cgd->ident_data.queue >= 31)
 		softc->flags |= ADA_FLAG_CAN_NCQ;
-	softc->secsperint = max(1, min(cgd->ident_data.sectors_intr, 16));
-	softc->state = ADA_STATE_SET_MULTI;
+	softc->state = ADA_STATE_NORMAL;
 
 	periph->softc = softc;
 
@@ -734,16 +714,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * them and the only alternative would be to
 	 * not attach the device on failure.
 	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
+	xpt_register_async(AC_LOST_DEVICE,
 			   adaasync, periph, periph->path);
-
-	/*
-	 * Take an exclusive refcount on the periph while adastart is called
-	 * to finish the probe.  The reference will be dropped in adadone at
-	 * the end of probe.
-	 */
-	cam_periph_acquire(periph);
-	xpt_schedule(periph, /*priority*/5);
 
 	/*
 	 * Schedule a periodic event to occasionally send an
@@ -901,21 +873,6 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		break;
 	}
-	case ADA_STATE_SET_MULTI:
-	{
-		cam_fill_ataio(ataio,
-		    ada_retry_count,
-		    adadone,
-		    CAM_DIR_NONE,
-		    0,
-		    NULL,
-		    0,
-		    ada_default_timeout*1000);
-
-		ata_28bit_cmd(ataio, ATA_SET_MULTI, 0, 0, softc->secsperint);
-		start_ccb->ccb_h.ccb_state = ADA_CCB_SET_MULTI;
-		xpt_action(start_ccb);
-	}
 	}
 }
 
@@ -1001,35 +958,6 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		/* Caller will release the CCB */
 		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
-	case ADA_CCB_SET_MULTI:
-	{
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-		} else {
-			int	error;
-
-			error = adaerror(done_ccb, 0, 0);
-			if (error == ERESTART) {
-				/* A retry was scheduled, so just return. */
-				return;
-			}
-		}
-		softc->state = ADA_STATE_NORMAL;
-		/*
-		 * Since our peripheral may be invalidated by an error
-		 * above or an external event, we must release our CCB
-		 * before releasing the probe lock on the peripheral.
-		 * The peripheral will only go away once the last lock
-		 * is removed, and we need it around for the CCB release
-		 * operation.
-		 */
-		xpt_release_ccb(done_ccb);
-		if (bioq_first(&softc->bio_queue) != NULL) {
-			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
-		}
-		cam_periph_release_locked(periph);
 		return;
 	}
 	case ADA_CCB_DUMP:
