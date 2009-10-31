@@ -85,8 +85,6 @@ static int	fix_unaligned(struct thread *td, struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
-static __inline void	setusr(u_int);
-
 int	setfault(faultbuf);		/* defined in locore.S */
 
 /* Why are these not defined in a header? */
@@ -556,13 +554,6 @@ trap_pfault(struct trapframe *frame, int user)
 		return (0);
 
 	return (SIGSEGV);
-}
-
-static __inline void
-setusr(u_int content)
-{
-	__asm __volatile ("isync; mtsr %0,%1; isync"
-		      :: "n"(USER_SR), "r"(content));
 }
 
 int
