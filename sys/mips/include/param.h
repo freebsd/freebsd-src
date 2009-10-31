@@ -115,6 +115,8 @@
 #define	SEGOFSET	(NBSEG-1)	/* byte offset into segment */
 #define	SEGSHIFT	22		/* LOG2(NBSEG) */
 
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+
 /* XXXimp: This has moved to vmparam.h */
 /* Also, this differs from the mips2 definition, but likely is better */
 /* since this means the kernel won't chew up TLBs when it is executing */
