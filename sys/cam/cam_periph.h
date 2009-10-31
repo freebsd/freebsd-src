@@ -79,6 +79,8 @@ struct periph_driver {
 	char			 *driver_name;
 	TAILQ_HEAD(,cam_periph)	 units;
 	u_int			 generation;
+	u_int			 flags;
+#define CAM_PERIPH_DRV_EARLY		0x01
 };
 
 typedef enum {
