@@ -122,7 +122,6 @@ ENTRY(cpu_switch)
 cpu_switchin:
 #if defined(SMP) && defined(SCHED_ULE)
 	/* Wait for the new thread to become unblocked */
-	sync
 	lis	%r6,blocked_lock@ha
 	addi	%r6,%r6,blocked_lock@l
 blocked_loop:
