@@ -57,6 +57,7 @@
  */
 
 #include "assym.s"
+#include "opt_sched.h"
 
 #include <sys/syscall.h>
 
@@ -81,25 +82,23 @@ ENTRY(cpu_throw)
  * Switch to a new thread saving the current state in the old thread.
  */
 ENTRY(cpu_switch)
-	stw	%r5,TD_LOCK(%r3)	/* ULE:	update old thread's lock */
-					/* XXX needs to change for MP */
-
-	lwz	%r5,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
+	lwz	%r6,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
 	mr	%r12,%r2	
-	stmw	%r12,PCB_CONTEXT(%r5)	/* Save the non-volatile GP regs.
+	stmw	%r12,PCB_CONTEXT(%r6)	/* Save the non-volatile GP regs.
 					   These can now be used for scratch */
 
 	mfcr	%r16			/* Save the condition register */
-	stw	%r16,PCB_CR(%r5)
+	stw	%r16,PCB_CR(%r6)
 	mflr	%r16			/* Save the link register */
-	stw	%r16,PCB_LR(%r5)
+	stw	%r16,PCB_LR(%r6)
 	mfsr	%r16,USER_SR		/* Save USER_SR for copyin/out */
 	isync
-	stw	%r16,PCB_AIM_USR(%r5)
-	stw	%r1,PCB_SP(%r5)		/* Save the stack pointer */
+	stw	%r16,PCB_AIM_USR(%r6)
+	stw	%r1,PCB_SP(%r6)		/* Save the stack pointer */
 
 	mr	%r14,%r3		/* Copy the old thread ptr... */
 	mr	%r15,%r4		/* and the new thread ptr in scratch */
+	mr	%r16,%r5		/* and the new lock */
 	
 	lwz	%r6,PCB_FLAGS(%r5)
 	/* Save FPU context if needed */
@@ -118,7 +117,20 @@ ENTRY(cpu_switch)
 	mr	%r3,%r14		/* restore old thread ptr */
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
+	stw	%r16,TD_LOCK(%r14)	/* ULE:	update old thread's lock */
+
 cpu_switchin:
+#if defined(SMP) && defined(SCHED_ULE)
+	/* Wait for the new thread to become unblocked */
+	sync
+	lis	%r6,blocked_lock@ha
+	addi	%r6,%r6,blocked_lock@l
+blocked_loop:
+	lwz	%r7,TD_LOCK(%r15)
+	cmpw	%r6,%r7 
+	beq	blocked_loop
+#endif
+
 	mfsprg	%r7,0			/* Get the pcpu pointer */
 	stw	%r15,PC_CURTHREAD(%r7)	/* Store new current thread */
 	lwz	%r17,TD_PCB(%r15)	/* Store new current PCB */
