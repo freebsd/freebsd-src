@@ -210,15 +210,13 @@ struct cdevsw {
 	d_kqfilter_t		*d_kqfilter;
 	d_purge_t		*d_purge;
 	d_mmap_single_t		*d_mmap_single;
-	uid_t			d_uid;
-	gid_t			d_gid;
-	mode_t			d_mode;
-	const char		*d_kind;
+
+	int32_t			d_spare0[3];
+	void			*d_spare1[3];
 
 	/* These fields should not be messed with by drivers */
-	LIST_ENTRY(cdevsw)	d_list;
 	LIST_HEAD(, cdev)	d_devs;
-	int			d_spare3;
+	int			d_spare2;
 	union {
 		struct cdevsw		*gianttrick;
 		SLIST_ENTRY(cdevsw)	postfree_list;
