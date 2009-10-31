@@ -652,66 +652,10 @@ trap(int vector, struct trapframe *tf)
 		break;
 
 	case IA64_VEC_DISABLED_FP: {
-		struct pcpu *pcpu;
-		struct pcb *pcb;
-		struct thread *thr;
-
-		/* Always fatal in kernel. Should never happen. */
-		if (!user)
+		if (user)
+			ia64_highfp_enable(td, tf);
+		else
 			trap_panic(vector, tf);
-
-		sched_pin();
-		thr = PCPU_GET(fpcurthread);
-		if (thr == td) {
-			/*
-			 * Short-circuit handling the trap when this CPU
-			 * already holds the high FP registers for this
-			 * thread.  We really shouldn't get the trap in the
-			 * first place, but since it's only a performance
-			 * issue and not a correctness issue, we emit a
-			 * message for now, enable the high FP registers and
-			 * return.
-			 */
-			printf("XXX: bogusly disabled high FP regs\n");
-			tf->tf_special.psr &= ~IA64_PSR_DFH;
-			sched_unpin();
-			goto out;
-		} else if (thr != NULL) {
-			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
-			pcb = thr->td_pcb;
-			save_high_fp(&pcb->pcb_high_fp);
-			pcb->pcb_fpcpu = NULL;
-			PCPU_SET(fpcurthread, NULL);
-			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
-			thr = NULL;
-		}
-
-		mtx_lock_spin(&td->td_md.md_highfp_mtx);
-		pcb = td->td_pcb;
-		pcpu = pcb->pcb_fpcpu;
-
-#ifdef SMP
-		if (pcpu != NULL) {
-			mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-			ipi_send(pcpu, IPI_HIGH_FP);
-			while (pcb->pcb_fpcpu == pcpu)
-				DELAY(100);
-			mtx_lock_spin(&td->td_md.md_highfp_mtx);
-			pcpu = pcb->pcb_fpcpu;
-			thr = PCPU_GET(fpcurthread);
-		}
-#endif
-
-		if (thr == NULL && pcpu == NULL) {
-			restore_high_fp(&pcb->pcb_high_fp);
-			PCPU_SET(fpcurthread, td);
-			pcb->pcb_fpcpu = pcpup;
-			tf->tf_special.psr &= ~IA64_PSR_MFH;
-			tf->tf_special.psr &= ~IA64_PSR_DFH;
-		}
-
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		sched_unpin();
 		goto out;
 	}
 
