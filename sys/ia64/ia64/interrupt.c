@@ -216,14 +216,7 @@ interrupt(struct trapframe *tf)
 		asts[PCPU_GET(cpuid)]++;
 		CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
 	} else if (vector == ipi_vector[IPI_HIGH_FP]) {
-		struct thread *thr = PCPU_GET(fpcurthread);
-		if (thr != NULL) {
-			mtx_lock_spin(&thr->td_md.md_highfp_mtx);
-			save_high_fp(&thr->td_pcb->pcb_high_fp);
-			thr->td_pcb->pcb_fpcpu = NULL;
-			PCPU_SET(fpcurthread, NULL);
-			mtx_unlock_spin(&thr->td_md.md_highfp_mtx);
-		}
+		ia64_highfp_save_ipi();
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
 		rdvs[PCPU_GET(cpuid)]++;
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
