@@ -233,9 +233,9 @@ ata_dmaload(device_t dev, caddr_t data, int32_t count, int dir,
 	device_printf(dev, "FAILURE - zero length DMA transfer attempted\n");
 	return EIO;
     }
-    if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
-	(count & (ch->dma->alignment - 1))) {
-	device_printf(dev, "FAILURE - non aligned DMA transfer attempted\n");
+    if (count & (ch->dma->alignment - 1)) {
+	device_printf(dev, "FAILURE - odd-sized DMA transfer attempt %d %% %d\n",
+	    count, ch->dma->alignment);
 	return EIO;
     }
     if (count > ch->dma->max_iosize) {
