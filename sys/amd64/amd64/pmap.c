@@ -663,6 +663,11 @@ pmap_init(void)
 	 * Are large page mappings enabled?
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
+	if (pg_ps_enabled) {
+		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
+		    ("pmap_init: can't assign to pagesizes[1]"));
+		pagesizes[1] = NBPDR;
+	}
 
 	/*
 	 * Calculate the size of the pv head table for superpages.
