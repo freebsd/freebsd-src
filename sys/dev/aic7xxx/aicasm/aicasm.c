@@ -641,6 +641,8 @@ output_listing(char *ifilename)
 		}
 		instrptr++;
 	}
+	free(func_values);
+
 	/* Dump the remainder of the file */
 	while(fgets(buf, sizeof(buf), ifile) != NULL)
 		fprintf(listfile, "             %s", buf);
