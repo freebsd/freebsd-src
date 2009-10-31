@@ -591,7 +591,9 @@ ata_marvell_edma_dmainit(device_t dev)
 
     /* chip does not reliably do 64K DMA transfers */
     if (ctlr->chip->cfg2 == MV_50XX || ctlr->chip->cfg2 == MV_60XX)
-	ch->dma.max_iosize = 64 * DEV_BSIZE; 
+	ch->dma.max_iosize = 64 * DEV_BSIZE;
+    else
+	ch->dma.max_iosize = (ATA_DMA_ENTRIES - 1) * PAGE_SIZE;
 }
 
 ATA_DECLARE_DRIVER(ata_marvell);
