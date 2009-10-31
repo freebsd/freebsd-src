@@ -99,17 +99,19 @@ ENTRY(cpu_switch)
 	mr	%r14,%r3		/* Copy the old thread ptr... */
 	mr	%r15,%r4		/* and the new thread ptr in scratch */
 	mr	%r16,%r5		/* and the new lock */
+	mr	%r17,%r6		/* and the PCB */
 	
-	lwz	%r6,PCB_FLAGS(%r5)
+	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save FPU context if needed */
-	andi.	%r6, %r6, PCB_FPU
+	andi.	%r7, %r7, PCB_FPU
 	beq	.L1
 	bl	save_fpu
 
 .L1:
-	lwz	%r6,PCB_FLAGS(%r5)
+	mr	%r3,%r14		/* restore old thread ptr */
+	lwz	%r7,PCB_FLAGS(%r17)
 	/* Save Altivec context if needed */
-	andi.	%r6, %r6, PCB_VEC
+	andi.	%r7, %r7, PCB_VEC
 	beq	.L2
 	bl	save_vec
 	
