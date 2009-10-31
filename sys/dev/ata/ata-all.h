@@ -255,7 +255,7 @@
 #define ATA_AHCI_CL_OFFSET              0
 #define ATA_AHCI_FB_OFFSET              (ATA_AHCI_CL_SIZE * 32)
 #define ATA_AHCI_CT_OFFSET              (ATA_AHCI_FB_OFFSET + 4096)
-#define ATA_AHCI_CT_SIZE                (1024 + 128)
+#define ATA_AHCI_CT_SIZE                (2176 + 128)
 
 struct ata_ahci_dma_prd {
     u_int64_t                   dba;
@@ -269,7 +269,7 @@ struct ata_ahci_cmd_tab {
     u_int8_t                    cfis[64];
     u_int8_t                    acmd[32];
     u_int8_t                    reserved[32];
-#define ATA_AHCI_DMA_ENTRIES            64
+#define ATA_AHCI_DMA_ENTRIES            129
     struct ata_ahci_dma_prd     prd_tab[ATA_AHCI_DMA_ENTRIES];
 } __packed;
 
@@ -364,6 +364,7 @@ struct ata_composite {
 struct ata_request {
     device_t                    dev;            /* device handle */
     device_t                    parent;         /* channel handle */
+    int				unit;		/* physical unit */
     union {
 	struct {
 	    u_int8_t            command;        /* command reg */
@@ -389,12 +390,16 @@ struct ata_request {
 #define         ATA_R_DMA               0x00000010
 #define         ATA_R_QUIET             0x00000020
 #define         ATA_R_TIMEOUT           0x00000040
+#define         ATA_R_48BIT             0x00000080
 
 #define         ATA_R_ORDERED           0x00000100
 #define         ATA_R_AT_HEAD           0x00000200
 #define         ATA_R_REQUEUE           0x00000400
 #define         ATA_R_THREAD            0x00000800
 #define         ATA_R_DIRECT            0x00001000
+
+#define         ATA_R_ATAPI16           0x00010000
+#define         ATA_R_ATAPI_INTR        0x00020000
 
 #define         ATA_R_DEBUG             0x10000000
 #define         ATA_R_DANGER1           0x20000000
@@ -423,7 +428,7 @@ struct ata_request {
 #define ATA_DEBUG_RQ(request, string) \
     { \
     if (request->flags & ATA_R_DEBUG) \
-	device_printf(request->dev, "req=%p %s " string "\n", \
+	device_printf(request->parent, "req=%p %s " string "\n", \
 		      request, ata_cmd2str(request)); \
     }
 #else
@@ -449,7 +454,6 @@ struct ata_device {
 #define         ATA_D_USE_CHS           0x0001
 #define         ATA_D_MEDIA_CHANGED     0x0002
 #define         ATA_D_ENC_PRESENT       0x0004
-#define         ATA_D_48BIT_ACTIVE      0x0008
 };
 
 /* structure for holding DMA Physical Region Descriptors (PRD) entries */
@@ -483,7 +487,7 @@ struct ata_dma {
     u_int8_t                    *work;          /* workspace */
     bus_addr_t                  work_bus;       /* bus address of dmatab */
 
-#define ATA_DMA_SLOTS			32
+#define ATA_DMA_SLOTS			1
     int				dma_slots;	/* DMA slots allocated */
     struct ata_dmaslot		slot[ATA_DMA_SLOTS];
     u_int32_t                   alignment;      /* DMA SG list alignment */

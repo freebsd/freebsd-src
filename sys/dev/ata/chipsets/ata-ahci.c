@@ -385,23 +385,22 @@ ata_ahci_status(device_t dev)
 static int
 ata_ahci_begin_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev = device_get_softc(request->dev);
     struct ata_ahci_cmd_tab *ctp;
     struct ata_ahci_cmd_list *clp;
     int offset = ch->unit << 7;
-    int port = atadev->unit & 0x0f;
+    int port = request->unit & 0x0f;
     int entries = 0;
     int fis_size;
 	
     /* get a piece of the workspace for this request */
     ctp = (struct ata_ahci_cmd_tab *)
-	  (ch->dma.work + ATA_AHCI_CT_OFFSET + (ATA_AHCI_CT_SIZE*request->tag));
+	  (ch->dma.work + ATA_AHCI_CT_OFFSET);
 
     /* setup the FIS for this request */
     if (!(fis_size = ata_ahci_setup_fis(ctp, request))) {
-	device_printf(request->dev, "setting up SATA FIS failed\n");
+	device_printf(request->parent, "setting up SATA FIS failed\n");
 	request->result = EIO;
 	return ATA_OP_FINISHED;
     }
@@ -409,7 +408,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
     /* if request moves data setup and load SG list */
     if (request->flags & (ATA_R_READ | ATA_R_WRITE)) {
 	if (ch->dma.load(request, ctp->prd_tab, &entries)) {
-	    device_printf(request->dev, "setting up DMA failed\n");
+	    device_printf(request->parent, "setting up DMA failed\n");
 	    request->result = EIO;
 	    return ATA_OP_FINISHED;
 	}
@@ -417,7 +416,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 
     /* setup the command list entry */
     clp = (struct ata_ahci_cmd_list *)
-	  (ch->dma.work + ATA_AHCI_CL_OFFSET + (ATA_AHCI_CL_SIZE*request->tag));
+	  (ch->dma.work + ATA_AHCI_CL_OFFSET);
 
     clp->prd_length = entries;
     clp->cmd_flags = (request->flags & ATA_R_WRITE ? ATA_AHCI_CMD_WRITE : 0) |
@@ -426,12 +425,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		     (fis_size / sizeof(u_int32_t)) |
     		     (port << 12);
     clp->bytecount = 0;
-    clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET +
-				  (ATA_AHCI_CT_SIZE * request->tag));
-
-    /* clear eventual ACTIVE bit */
-    ATA_IDX_OUTL(ch, ATA_SACTIVE,
-		 ATA_IDX_INL(ch, ATA_SACTIVE) & (1 << request->tag));
+    clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET);
 
     /* set command type bit */
     if (request->flags & ATA_R_ATAPI)
@@ -444,7 +438,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		 ~ATA_AHCI_P_CMD_ATAPI);
 
     /* issue command to controller */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, (1 << request->tag));
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
     
     if (!(request->flags & ATA_R_ATAPI)) {
 	/* device reset doesn't interrupt */
@@ -476,7 +470,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
 static int
 ata_ahci_end_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_ahci_cmd_list *clp;
     u_int32_t tf_data;
@@ -495,13 +489,12 @@ ata_ahci_end_transaction(struct ata_request *request)
 
     /* on control commands read back registers to the request struct */
     if (request->flags & ATA_R_CONTROL) {
-	struct ata_device *atadev = device_get_softc(request->dev);
 	u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
 	request->u.ata.count = fis[12] | ((u_int16_t)fis[13] << 8);
 	request->u.ata.lba = fis[4] | ((u_int64_t)fis[5] << 8) |
 			     ((u_int64_t)fis[6] << 16);
-	if (atadev->flags & ATA_D_48BIT_ACTIVE)
+	if (request->flags & ATA_R_48BIT)
 	    request->u.ata.lba |= ((u_int64_t)fis[8] << 24) |
 				  ((u_int64_t)fis[9] << 32) |
 				  ((u_int64_t)fis[10] << 40);
@@ -511,7 +504,7 @@ ata_ahci_end_transaction(struct ata_request *request)
 
     /* record how much data we actually moved */
     clp = (struct ata_ahci_cmd_list *)
-	  (ch->dma.work + ATA_AHCI_CL_OFFSET + (ATA_AHCI_CL_SIZE*request->tag));
+	  (ch->dma.work + ATA_AHCI_CL_OFFSET);
     request->donecount = clp->bytecount;
 
     /* release SG list etc */
