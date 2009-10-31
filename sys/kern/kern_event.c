@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999,2000,2001 Jonathan Lemon <jlemon@FreeBSD.org>
  * Copyright 2004 John-Mark Gurney <jmg@FreeBSD.org>
+ * Copyright (c) 2009 Apple, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,6 +142,11 @@ static void	filt_timerexpire(void *knx);
 static int	filt_timerattach(struct knote *kn);
 static void	filt_timerdetach(struct knote *kn);
 static int	filt_timer(struct knote *kn, long hint);
+static int	filt_userattach(struct knote *kn);
+static void	filt_userdetach(struct knote *kn);
+static int	filt_user(struct knote *kn, long hint);
+static void	filt_usertouch(struct knote *kn, struct kevent *kev,
+		    u_long type);
 
 static struct filterops file_filtops =
 	{ 1, filt_fileattach, NULL, NULL };
@@ -151,6 +157,12 @@ static struct filterops proc_filtops =
 	{ 0, filt_procattach, filt_procdetach, filt_proc };
 static struct filterops timer_filtops =
 	{ 0, filt_timerattach, filt_timerdetach, filt_timer };
+static struct filterops user_filtops = {
+	.f_attach = filt_userattach,
+	.f_detach = filt_userdetach,
+	.f_event = filt_user,
+	.f_touch = filt_usertouch,
+};
 
 static uma_zone_t	knote_zone;
 static int 		kq_ncallouts = 0;
@@ -255,6 +267,7 @@ static struct {
 	{ &file_filtops },			/* EVFILT_NETDEV */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
+	{ &user_filtops },			/* EVFILT_USER */
 };
 
 /*
@@ -557,6 +570,94 @@ filt_timer(struct knote *kn, long hint)
 	return (kn->kn_data != 0);
 }
 
+static int
+filt_userattach(struct knote *kn)
+{
+
+	/* 
+	 * EVFILT_USER knotes are not attached to anything in the kernel.
+	 */ 
+	kn->kn_hook = NULL;
+	if (kn->kn_fflags & NOTE_TRIGGER)
+		kn->kn_hookid = 1;
+	else
+		kn->kn_hookid = 0;
+	return (0);
+}
+
+static void
+filt_userdetach(__unused struct knote *kn)
+{
+
+	/*
+	 * EVFILT_USER knotes are not attached to anything in the kernel.
+	 */
+}
+
+static int
+filt_user(struct knote *kn, __unused long hint)
+{
+
+	return (kn->kn_hookid);
+}
+
+static void
+filt_usertouch(struct knote *kn, struct kevent *kev, u_long type)
+{
+	u_int ffctrl;
+
+	switch (type) {
+	case EVENT_REGISTER:
+		if (kev->fflags & NOTE_TRIGGER)
+			kn->kn_hookid = 1;
+
+		ffctrl = kev->fflags & NOTE_FFCTRLMASK;
+		kev->fflags &= NOTE_FFLAGSMASK;
+		switch (ffctrl) {
+		case NOTE_FFNOP:
+			break;
+
+		case NOTE_FFAND:
+			kn->kn_sfflags &= kev->fflags;
+			break;
+
+		case NOTE_FFOR:
+			kn->kn_sfflags |= kev->fflags;
+			break;
+
+		case NOTE_FFCOPY:
+			kn->kn_sfflags = kev->fflags;
+			break;
+
+		default:
+			/* XXX Return error? */
+			break;
+		}
+		kn->kn_sdata = kev->data;
+		if (kev->flags & EV_CLEAR) {
+			kn->kn_hookid = 0;
+			kn->kn_data = 0;
+			kn->kn_fflags = 0;
+		}
+		break;
+
+        case EVENT_PROCESS:
+		*kev = kn->kn_kevent;
+		kev->fflags = kn->kn_sfflags;
+		kev->data = kn->kn_sdata;
+		if (kn->kn_flags & EV_CLEAR) {
+			kn->kn_hookid = 0;
+			kn->kn_data = 0;
+			kn->kn_fflags = 0;
+		}
+		break;
+
+	default:
+		panic("filt_usertouch() - invalid type (%ld)", type);
+		break;
+	}
+}
+
 int
 kqueue(struct thread *td, struct kqueue_args *uap)
 {
@@ -717,7 +818,7 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 				continue;
 			kevp->flags &= ~EV_SYSFLAGS;
 			error = kqueue_register(kq, kevp, td, 1);
-			if (error) {
+			if (error || (kevp->flags & EV_RECEIPT)) {
 				if (nevents != 0) {
 					kevp->flags = EV_ERROR;
 					kevp->data = error;
@@ -919,17 +1020,11 @@ findkn:
 		goto findkn;
 	}
 
-	if (kn == NULL && ((kev->flags & EV_ADD) == 0)) {
-		KQ_UNLOCK(kq);
-		error = ENOENT;
-		goto done;
-	}
-
 	/*
 	 * kn now contains the matching knote, or NULL if no match
 	 */
-	if (kev->flags & EV_ADD) {
-		if (kn == NULL) {
+	if (kn == NULL) {
+		if (kev->flags & EV_ADD) {
 			kn = tkn;
 			tkn = NULL;
 			if (kn == NULL) {
@@ -968,34 +1063,16 @@ findkn:
 				goto done;
 			}
 			KN_LIST_LOCK(kn);
+			goto done_ev_add;
 		} else {
-			/*
-			 * The user may change some filter values after the
-			 * initial EV_ADD, but doing so will not reset any
-			 * filter which has already been triggered.
-			 */
-			kn->kn_status |= KN_INFLUX;
+			/* No matching knote and the EV_ADD flag is not set. */
 			KQ_UNLOCK(kq);
-			KN_LIST_LOCK(kn);
-			kn->kn_sfflags = kev->fflags;
-			kn->kn_sdata = kev->data;
-			kn->kn_kevent.udata = kev->udata;
+			error = ENOENT;
+			goto done;
 		}
-
-		/*
-		 * We can get here with kn->kn_knlist == NULL.
-		 * This can happen when the initial attach event decides that
-		 * the event is "completed" already.  i.e. filt_procattach
-		 * is called on a zombie process.  It will call filt_proc
-		 * which will remove it from the list, and NULL kn_knlist.
-		 */
-		event = kn->kn_fop->f_event(kn, 0);
-		KQ_LOCK(kq);
-		if (event)
-			KNOTE_ACTIVATE(kn, 1);
-		kn->kn_status &= ~KN_INFLUX;
-		KN_LIST_UNLOCK(kn);
-	} else if (kev->flags & EV_DELETE) {
+	}
+	
+	if (kev->flags & EV_DELETE) {
 		kn->kn_status |= KN_INFLUX;
 		KQ_UNLOCK(kq);
 		if (!(kn->kn_status & KN_DETACHED))
@@ -1003,6 +1080,37 @@ findkn:
 		knote_drop(kn, td);
 		goto done;
 	}
+
+	/*
+	 * The user may change some filter values after the initial EV_ADD,
+	 * but doing so will not reset any filter which has already been
+	 * triggered.
+	 */
+	kn->kn_status |= KN_INFLUX;
+	KQ_UNLOCK(kq);
+	KN_LIST_LOCK(kn);
+	kn->kn_kevent.udata = kev->udata;
+	if (!fops->f_isfd && fops->f_touch != NULL) {
+		fops->f_touch(kn, kev, EVENT_REGISTER);
+	} else {
+		kn->kn_sfflags = kev->fflags;
+		kn->kn_sdata = kev->data;
+	}
+
+	/*
+	 * We can get here with kn->kn_knlist == NULL.  This can happen when
+	 * the initial attach event decides that the event is "completed" 
+	 * already.  i.e. filt_procattach is called on a zombie process.  It
+	 * will call filt_proc which will remove it from the list, and NULL
+	 * kn_knlist.
+	 */
+done_ev_add:
+	event = kn->kn_fop->f_event(kn, 0);
+	KQ_LOCK(kq);
+	if (event)
+		KNOTE_ACTIVATE(kn, 1);
+	kn->kn_status &= ~KN_INFLUX;
+	KN_LIST_UNLOCK(kn);
 
 	if ((kev->flags & EV_DISABLE) &&
 	    ((kn->kn_status & KN_DISABLED) == 0)) {
@@ -1183,7 +1291,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	struct timeval atv, rtv, ttv;
 	struct knote *kn, *marker;
 	int count, timeout, nkev, error, influx;
-	int haskqglobal;
+	int haskqglobal, touch;
 
 	count = maxevents;
 	nkev = 0;
@@ -1315,12 +1423,25 @@ start:
 				influx = 1;
 				continue;
 			}
-			*kevp = kn->kn_kevent;
+			touch = (!kn->kn_fop->f_isfd &&
+			    kn->kn_fop->f_touch != NULL);
+			if (touch)
+				kn->kn_fop->f_touch(kn, kevp, EVENT_PROCESS);
+			else
+				*kevp = kn->kn_kevent;
 			KQ_LOCK(kq);
 			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-			if (kn->kn_flags & EV_CLEAR) {
-				kn->kn_data = 0;
-				kn->kn_fflags = 0;
+			if (kn->kn_flags & (EV_CLEAR |  EV_DISPATCH)) {
+				/* 
+				 * Manually clear knotes who weren't 
+				 * 'touch'ed.
+				 */
+				if (touch == 0 && kn->kn_flags & EV_CLEAR) {
+					kn->kn_data = 0;
+					kn->kn_fflags = 0;
+				}
+				if (kn->kn_flags & EV_DISPATCH)
+					kn->kn_status |= KN_DISABLED;
 				kn->kn_status &= ~(KN_QUEUED | KN_ACTIVE);
 				kq->kq_count--;
 			} else
