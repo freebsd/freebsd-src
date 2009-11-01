@@ -517,14 +517,14 @@ dev/ata/chipsets/ata-highpoint.c	optional ata pci | atahighpoint
 dev/ata/chipsets/ata-intel.c	optional ata pci | ataintel
 dev/ata/chipsets/ata-ite.c	optional ata pci | ataite
 dev/ata/chipsets/ata-jmicron.c	optional ata pci | atajmicron
-dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell
+dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell | ataadaptec
 dev/ata/chipsets/ata-micron.c	optional ata pci | atamicron
 dev/ata/chipsets/ata-national.c	optional ata pci | atanational
 dev/ata/chipsets/ata-netcell.c	optional ata pci | atanetcell
 dev/ata/chipsets/ata-nvidia.c	optional ata pci | atanvidia
 dev/ata/chipsets/ata-promise.c	optional ata pci | atapromise
 dev/ata/chipsets/ata-serverworks.c	optional ata pci | ataserverworks
-dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage
+dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage | ataati
 dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
