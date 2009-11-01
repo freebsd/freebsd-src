@@ -649,7 +649,7 @@ devfs_filestat(struct vnode *vp, struct filestat *fsp)
 		    (void *)devfs_dirent.de_vnode, Pid);
 		return 0;
 	}
-	fsp->fsid = (long)mount.mnt_stat.f_fsid.val[0];
+	fsp->fsid = (long)(uint32_t)mount.mnt_stat.f_fsid.val[0];
 	fsp->fileid = devfs_dirent.de_inode;
 	fsp->mode = (devfs_dirent.de_mode & ~S_IFMT) | S_IFCHR;
 	fsp->size = 0;
