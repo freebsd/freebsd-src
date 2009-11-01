@@ -203,6 +203,33 @@ SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
 
 SYSCTL_ULONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
+u_long pagesizes[MAXPAGESIZES] = { PAGE_SIZE };
+
+static int
+sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+#ifdef SCTL_MASK32
+	int i;
+	uint32_t pagesizes32[MAXPAGESIZES];
+
+	if (req->flags & SCTL_MASK32) {
+		/*
+		 * Recreate the "pagesizes" array with 32-bit elements.  Truncate
+		 * any page size greater than UINT32_MAX to zero.
+		 */
+		for (i = 0; i < MAXPAGESIZES; i++)
+			pagesizes32[i] = (uint32_t)pagesizes[i];
+
+		error = SYSCTL_OUT(req, pagesizes32, sizeof(pagesizes32));
+	} else
+#endif
+		error = SYSCTL_OUT(req, pagesizes, sizeof(pagesizes));
+	return (error);
+}
+SYSCTL_PROC(_hw, OID_AUTO, pagesizes, CTLTYPE_ULONG | CTLFLAG_RD,
+    NULL, 0, sysctl_hw_pagesizes, "LU", "Supported page sizes");
+
 static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");

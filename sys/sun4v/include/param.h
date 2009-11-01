@@ -102,6 +102,8 @@
 #define PAGE_SIZE_MAX	PAGE_SIZE_4M
 #define PAGE_MASK_MAX	PAGE_MASK_4M
 
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+
 #ifndef KSTACK_PAGES
 #define KSTACK_PAGES		4	/* pages of kernel stack (with pcb) */
 #endif

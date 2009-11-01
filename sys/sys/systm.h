@@ -60,6 +60,7 @@ extern u_int nselcoll;		/* select collisions since boot */
 extern struct mtx sellock;	/* select lock variable */
 extern struct cv selwait;	/* select conditional variable */
 
+extern u_long pagesizes[];	/* supported page sizes */
 extern long physmem;		/* physical memory */
 extern long realmem;		/* 'real' memory */
 
