@@ -107,6 +107,8 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+
 #ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	4		/* pages of kernel stack */
 #endif
