@@ -340,6 +340,7 @@ ata_sii_ch_attach(device_t dev)
 	ATA_OUTL(ctlr->r_res2, 0x148 + (unit01 << 7) + (unit10 << 8),(1 << 16));
     }
 
+    ch->dma.max_iosize = (ATA_DMA_ENTRIES - 1) * PAGE_SIZE;
     if (ctlr->chip->cfg2 & SII_BUG) {
 	/* work around errata in early chips */
 	ch->dma.boundary = 8192;
