@@ -284,7 +284,7 @@ restart:
  ***************************************************************************
  */
 static void
-print_caddr_t(void *data __unused)
+print_caddr_t(void *data)
 {
 	printf("%s", (char *)data);
 }
