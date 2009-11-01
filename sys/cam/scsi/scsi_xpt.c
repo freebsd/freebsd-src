@@ -1076,8 +1076,10 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				else
 					PROBE_SET_ACTION(softc, PROBE_SERIAL_NUM_0);
 
-				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
-
+				if (path->device->flags & CAM_DEV_UNCONFIGURED) {
+					path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+					xpt_acquire_device(path->device);
+				}
 				xpt_release_ccb(done_ccb);
 				xpt_schedule(periph, priority);
 				return;
@@ -1336,8 +1338,12 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 			    ("Leave Domain Validation\n"));
 		}
+		if (path->device->flags & CAM_DEV_UNCONFIGURED) {
+			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+			xpt_acquire_device(path->device);
+		}
 		path->device->flags &=
-		    ~(CAM_DEV_UNCONFIGURED|CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
+		    ~(CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
 		if ((softc->flags & PROBE_NO_ANNOUNCE) == 0) {
 			/* Inform the XPT that a new device has been found */
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
@@ -1387,8 +1393,12 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 			    ("Leave Domain Validation Successfully\n"));
 		}
+		if (path->device->flags & CAM_DEV_UNCONFIGURED) {
+			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
+			xpt_acquire_device(path->device);
+		}
 		path->device->flags &=
-		    ~(CAM_DEV_UNCONFIGURED|CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
+		    ~(CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
 		if ((softc->flags & PROBE_NO_ANNOUNCE) == 0) {
 			/* Inform the XPT that a new device has been found */
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
@@ -2375,8 +2385,10 @@ scsi_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 				     CAM_EXPECT_INQ_CHANGE, NULL);
 		}
 		xpt_release_path(&newpath);
-	} else if (async_code == AC_LOST_DEVICE) {
+	} else if (async_code == AC_LOST_DEVICE &&
+	    (device->flags & CAM_DEV_UNCONFIGURED) == 0) {
 		device->flags |= CAM_DEV_UNCONFIGURED;
+		xpt_release_device(device);
 	} else if (async_code == AC_TRANSFER_NEG) {
 		struct ccb_trans_settings *settings;
 
