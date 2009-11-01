@@ -130,9 +130,12 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		tp.tp_col = scp->xsize;
 		teken_set_winsize(&ts->ts_teken, &tp);
 
-		tp.tp_row = scp->cursor_pos / scp->xsize;
-		tp.tp_col = scp->cursor_pos % scp->xsize;
-		teken_set_cursor(&ts->ts_teken, &tp);
+		if (scp->cursor_pos < scp->ysize * scp->xsize) {
+			/* Valid old cursor position. */
+			tp.tp_row = scp->cursor_pos / scp->xsize;
+			tp.tp_col = scp->cursor_pos % scp->xsize;
+			teken_set_cursor(&ts->ts_teken, &tp);
+		}
 		break;
 	}
 
