@@ -30,8 +30,8 @@ MAN=	aac.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
-	${_amdtemp.4} \
 	${_amdsmb.4} \
+	${_amdtemp.4} \
 	amr.4 \
 	an.4 \
 	arcmsr.4 \
