@@ -37,9 +37,7 @@ struct cam_ed;
 typedef struct cam_ed * (*xpt_alloc_device_func)(struct cam_eb *bus,
 					         struct cam_et *target,
 					         lun_id_t lun_id);
-typedef void (*xpt_release_device_func)(struct cam_eb *bus,
-				        struct cam_et *target,
-				        struct cam_ed *device);
+typedef void (*xpt_release_device_func)(struct cam_ed *device);
 typedef void (*xpt_action_func)(union ccb *start_ccb);
 typedef void (*xpt_dev_async_func)(u_int32_t async_code,
 				   struct cam_eb *bus,
@@ -172,6 +170,8 @@ struct xpt_xport *	ata_get_xport(void);
 struct cam_ed *		xpt_alloc_device(struct cam_eb *bus,
 					 struct cam_et *target,
 					 lun_id_t lun_id);
+void			xpt_acquire_device(struct cam_ed *device);
+void			xpt_release_device(struct cam_ed *device);
 void			xpt_run_dev_sendq(struct cam_eb *bus);
 int			xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
 					 u_int32_t new_priority);

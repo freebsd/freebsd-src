@@ -217,9 +217,7 @@ static void	 xpt_release_devq_device(struct cam_ed *dev, u_int count,
 					 int run_queue);
 static struct cam_et*
 		 xpt_alloc_target(struct cam_eb *bus, target_id_t target_id);
-static void	 xpt_release_target(struct cam_eb *bus, struct cam_et *target);
-static void	 xpt_release_device(struct cam_eb *bus, struct cam_et *target,
-				    struct cam_ed *device);
+static void	 xpt_release_target(struct cam_et *target);
 static struct cam_eb*
 		 xpt_find_bus(path_id_t path_id);
 static struct cam_et*
@@ -3521,9 +3519,9 @@ xpt_compile_path(struct cam_path *new_path, struct cam_periph *perph,
 		CAM_DEBUG(new_path, CAM_DEBUG_TRACE, ("xpt_compile_path\n"));
 	} else {
 		if (device != NULL)
-			xpt_release_device(bus, target, device);
+			xpt_release_device(device);
 		if (target != NULL)
-			xpt_release_target(bus, target);
+			xpt_release_target(target);
 		if (bus != NULL)
 			xpt_release_bus(bus);
 	}
@@ -3535,11 +3533,11 @@ xpt_release_path(struct cam_path *path)
 {
 	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_release_path\n"));
 	if (path->device != NULL) {
-		xpt_release_device(path->bus, path->target, path->device);
+		xpt_release_device(path->device);
 		path->device = NULL;
 	}
 	if (path->target != NULL) {
-		xpt_release_target(path->bus, path->target);
+		xpt_release_target(path->target);
 		path->target = NULL;
 	}
 	if (path->bus != NULL) {
@@ -4375,15 +4373,15 @@ xpt_alloc_target(struct cam_eb *bus, target_id_t target_id)
 }
 
 static void
-xpt_release_target(struct cam_eb *bus, struct cam_et *target)
+xpt_release_target(struct cam_et *target)
 {
 
 	if ((--target->refcount == 0)
 	 && (TAILQ_FIRST(&target->ed_entries) == NULL)) {
-		TAILQ_REMOVE(&bus->et_entries, target, links);
-		bus->generation++;
+		TAILQ_REMOVE(&target->bus->et_entries, target, links);
+		target->bus->generation++;
+		xpt_release_bus(target->bus);
 		free(target, M_CAMXPT);
-		xpt_release_bus(bus);
 	}
 }
 
@@ -4470,13 +4468,18 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	return (device);
 }
 
-static void
-xpt_release_device(struct cam_eb *bus, struct cam_et *target,
-		   struct cam_ed *device)
+void
+xpt_acquire_device(struct cam_ed *device)
 {
 
-	if ((--device->refcount == 0)
-	 && ((device->flags & CAM_DEV_UNCONFIGURED) != 0)) {
+	device->refcount++;
+}
+
+void
+xpt_release_device(struct cam_ed *device)
+{
+
+	if (--device->refcount == 0) {
 		struct cam_devq *devq;
 
 		if (device->alloc_ccb_entry.pinfo.index != CAM_UNQUEUED_INDEX
@@ -4486,16 +4489,16 @@ xpt_release_device(struct cam_eb *bus, struct cam_et *target,
 		if ((device->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0)
 				callout_stop(&device->callout);
 
-		TAILQ_REMOVE(&target->ed_entries, device,links);
-		target->generation++;
-		bus->sim->max_ccbs -= device->ccbq.devq_openings;
+		TAILQ_REMOVE(&device->target->ed_entries, device,links);
+		device->target->generation++;
+		device->target->bus->sim->max_ccbs -= device->ccbq.devq_openings;
 		/* Release our slot in the devq */
-		devq = bus->sim->devq;
+		devq = device->target->bus->sim->devq;
 		cam_devq_resize(devq, devq->alloc_queue.array_size - 1);
 		camq_fini(&device->drvq);
 		cam_ccbq_fini(&device->ccbq);
+		xpt_release_target(device->target);
 		free(device, M_CAMXPT);
-		xpt_release_target(bus, target);
 	}
 }
 
