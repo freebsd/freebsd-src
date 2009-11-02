@@ -184,7 +184,7 @@ ndis_modevent(module_t mod, int cmd, void *arg)
 		break;
 	}
 
-	return(error);
+	return (error);
 }
 DEV_MODULE(ndisapi, ndis_modevent, NULL);
 MODULE_VERSION(ndisapi, 1);
@@ -193,7 +193,6 @@ static void
 ndis_sendrsrcavail_func(adapter)
 	ndis_handle		adapter;
 {
-	return;
 }
 
 static void
@@ -211,8 +210,7 @@ ndis_status_func(adapter, status, sbuf, slen)
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	ifp = sc->ifp;
 	if (ifp->if_flags & IFF_DEBUG)
-		device_printf (sc->ndis_dev, "status: %x\n", status);
-	return;
+		device_printf(sc->ndis_dev, "status: %x\n", status);
 }
 
 static void
@@ -227,8 +225,7 @@ ndis_statusdone_func(adapter)
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	ifp = sc->ifp;
 	if (ifp->if_flags & IFF_DEBUG)
-		device_printf (sc->ndis_dev, "status complete\n");
-	return;
+		device_printf(sc->ndis_dev, "status complete\n");
 }
 
 static void
@@ -241,7 +238,6 @@ ndis_setdone_func(adapter, status)
 
 	block->nmb_setstat = status;
 	KeSetEvent(&block->nmb_setevent, IO_NO_INCREMENT, FALSE);
-	return;
 }
 
 static void
@@ -254,7 +250,6 @@ ndis_getdone_func(adapter, status)
 
 	block->nmb_getstat = status;
 	KeSetEvent(&block->nmb_getevent, IO_NO_INCREMENT, FALSE);
-	return;
 }
 
 static void
@@ -270,10 +265,8 @@ ndis_resetdone_func(ndis_handle adapter, ndis_status status,
 	ifp = sc->ifp;
 
 	if (ifp->if_flags & IFF_DEBUG)
-		device_printf (sc->ndis_dev, "reset done...\n");
+		device_printf(sc->ndis_dev, "reset done...\n");
 	KeSetEvent(&block->nmb_resetevent, IO_NO_INCREMENT, FALSE);
-
-	return;
 }
 
 int
@@ -287,7 +280,7 @@ ndis_create_sysctls(arg)
 	struct sysctl_ctx_entry	*e;
 
 	if (arg == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	sc = arg;
 	vals = sc->ndis_regvals;
@@ -367,7 +360,7 @@ ndis_create_sysctls(arg)
 		    "Interrupt Number", buf, CTLFLAG_RD);
 	}
 
-	return(0);
+	return (0);
 }
 
 int
@@ -388,7 +381,7 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 
 	if (cfg == NULL) {
 		printf("failed for %s\n", key);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	cfg->ndis_cfg.nc_cfgkey = strdup(key, M_DEVBUF);
@@ -415,7 +408,7 @@ ndis_add_sysctl(arg, key, desc, val, flag)
 	    cfg->ndis_cfg.nc_cfgdesc);
 #endif
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -451,7 +444,7 @@ ndis_flush_sysctls(arg)
 		free(cfg, M_DEVBUF);
 	}
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -488,8 +481,6 @@ ndis_return(dobj, arg)
 		KeAcquireSpinLock(&block->nmb_returnlock, &irql);
 	}
 	KeReleaseSpinLock(&block->nmb_returnlock, irql);
-
-	return;
 }
 
 void
@@ -522,8 +513,6 @@ ndis_return_packet(buf, arg)
 	IoQueueWorkItem(block->nmb_returnitem,
 	    (io_workitem_func)kernndis_functbl[7].ipt_wrap,
 	    WORKQUEUE_CRITICAL, block);
-
-	return;
 }
 
 void
@@ -540,8 +529,6 @@ ndis_free_bufs(b0)
 		IoFreeMdl(b0);
 		b0 = next;
 	}
-
-	return;
 }
 
 void
@@ -553,7 +540,6 @@ ndis_free_packet(p)
 
 	ndis_free_bufs(p->np_private.npp_head);
 	NdisFreePacket(p);
-	return;
 }
 
 int
@@ -567,26 +553,18 @@ ndis_convert_res(arg)
 	device_t		dev;
 	struct resource_list	*brl;
 	struct resource_list_entry	*brle;
-#if __FreeBSD_version < 600022
-	struct resource_list	brl_rev;
-	struct resource_list_entry	*n;
-#endif
 	int			error = 0;
 
 	sc = arg;
 	block = sc->ndis_block;
 	dev = sc->ndis_dev;
 
-#if __FreeBSD_version < 600022
-	SLIST_INIT(&brl_rev);
-#endif
-
 	rl = malloc(sizeof(ndis_resource_list) +
 	    (sizeof(cm_partial_resource_desc) * (sc->ndis_rescnt - 1)),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	if (rl == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	rl->cprl_version = 5;
 	rl->cprl_version = 1;
@@ -597,37 +575,7 @@ ndis_convert_res(arg)
 
 	if (brl != NULL) {
 
-#if __FreeBSD_version < 600022
-		/*
-		 * We have a small problem. Some PCI devices have
-		 * multiple I/O ranges. Windows orders them starting
-		 * from lowest numbered BAR to highest. We discover
-		 * them in that order too, but insert them into a singly
-		 * linked list head first, which means when time comes
-		 * to traverse the list, we enumerate them in reverse
-		 * order. This screws up some drivers which expect the
-		 * BARs to be in ascending order so that they can choose
-		 * the "first" one as their register space. Unfortunately,
-		 * in order to fix this, we have to create our own
-		 * temporary list with the entries in reverse order.
-		 */
-
-		SLIST_FOREACH(brle, brl, link) {
-			n = malloc(sizeof(struct resource_list_entry),
-			    M_TEMP, M_NOWAIT);
-			if (n == NULL) {
-				error = ENOMEM;
-				goto bad;
-			}
-			bcopy((char *)brle, (char *)n,
-			    sizeof(struct resource_list_entry));
-			SLIST_INSERT_HEAD(&brl_rev, n, link);
-		}
-
-		SLIST_FOREACH(brle, &brl_rev, link) {
-#else
 		STAILQ_FOREACH(brle, brl, link) {
-#endif
 			switch (brle->type) {
 			case SYS_RES_IOPORT:
 				prd->cprd_type = CmResourceTypePort;
@@ -671,17 +619,7 @@ ndis_convert_res(arg)
 
 	block->nmb_rlist = rl;
 
-#if __FreeBSD_version < 600022
-bad:
-
-	while (!SLIST_EMPTY(&brl_rev)) {
-		n = SLIST_FIRST(&brl_rev);
-		SLIST_REMOVE_HEAD(&brl_rev, link);
-		free (n, M_TEMP);
-	}
-#endif
-
-	return(error);
+	return (error);
 }
 
 /*
@@ -711,7 +649,7 @@ ndis_ptom(m0, p)
 	int			diff;
 
 	if (p == NULL || m0 == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	priv = &p->np_private;
 	buf = priv->npp_head;
@@ -729,7 +667,7 @@ ndis_ptom(m0, p)
 		if (m == NULL) {
 			m_freem(*m0);
 			*m0 = NULL;
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 		m->m_len = MmGetMdlByteCount(buf);
 		m->m_data = MmGetMdlVirtualAddress(buf);
@@ -765,7 +703,7 @@ ndis_ptom(m0, p)
 	}
 	(*m0)->m_pkthdr.len = totlen;
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -793,7 +731,7 @@ ndis_mtop(m0, p)
 	ndis_packet_private	*priv;
 
 	if (p == NULL || *p == NULL || m0 == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	priv = &(*p)->np_private;
 	priv->npp_totlen = m0->m_pkthdr.len;
@@ -805,7 +743,7 @@ ndis_mtop(m0, p)
 		if (buf == NULL) {
 			ndis_free_packet(*p);
 			*p = NULL;
-			return(ENOMEM);
+			return (ENOMEM);
 		}
 		MmBuildMdlForNonPagedPool(buf);
 
@@ -818,7 +756,7 @@ ndis_mtop(m0, p)
 
 	priv->npp_tail = buf;
 
-	return(0);
+	return (0);
 }
 
 int
@@ -831,25 +769,25 @@ ndis_get_supported_oids(arg, oids, oidcnt)
 	ndis_oid		*o;
 
 	if (arg == NULL || oids == NULL || oidcnt == NULL)
-		return(EINVAL);
+		return (EINVAL);
 	len = 0;
 	ndis_get_info(arg, OID_GEN_SUPPORTED_LIST, NULL, &len);
 
 	o = malloc(len, M_DEVBUF, M_NOWAIT);
 	if (o == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	rval = ndis_get_info(arg, OID_GEN_SUPPORTED_LIST, o, &len);
 
 	if (rval) {
 		free(o, M_DEVBUF);
-		return(rval);
+		return (rval);
 	}
 
 	*oids = o;
 	*oidcnt = len / 4;
 
-	return(0);
+	return (0);
 }
 
 int
@@ -893,7 +831,7 @@ ndis_set_info(arg, oid, buf, buflen)
 	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	rval = MSCALL6(setfunc, adapter, oid, buf, *buflen,
@@ -917,19 +855,19 @@ ndis_set_info(arg, oid, buf, buflen)
 		*buflen = bytesneeded;
 
 	if (rval == NDIS_STATUS_INVALID_LENGTH)
-		return(ENOSPC);
+		return (ENOSPC);
 
 	if (rval == NDIS_STATUS_INVALID_OID)
-		return(EINVAL);
+		return (EINVAL);
 
 	if (rval == NDIS_STATUS_NOT_SUPPORTED ||
 	    rval == NDIS_STATUS_NOT_ACCEPTED)
-		return(ENOTSUP);
+		return (ENOTSUP);
 
 	if (rval != NDIS_STATUS_SUCCESS)
-		return(ENODEV);
+		return (ENODEV);
 
-	return(0);
+	return (0);
 }
 
 typedef void (*ndis_senddone_func)(ndis_handle, ndis_packet *, ndis_status);
@@ -951,7 +889,7 @@ ndis_send_packets(arg, packets, cnt)
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 	if (adapter == NULL)
-		return(ENXIO);
+		return (ENXIO);
 	sendfunc = sc->ndis_chars->nmc_sendmulti_func;
 	senddonefunc = sc->ndis_block->nmb_senddone_func;
 
@@ -976,7 +914,7 @@ ndis_send_packets(arg, packets, cnt)
 	if (NDIS_SERIALIZED(sc->ndis_block))
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -994,7 +932,7 @@ ndis_send_packet(arg, packet)
 	sc = arg;
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 	if (adapter == NULL)
-		return(ENXIO);
+		return (ENXIO);
 	sendfunc = sc->ndis_chars->nmc_sendsingle_func;
 	senddonefunc = sc->ndis_block->nmb_senddone_func;
 
@@ -1006,7 +944,7 @@ ndis_send_packet(arg, packet)
 	if (status == NDIS_STATUS_PENDING) {
 		if (NDIS_SERIALIZED(sc->ndis_block))
 			KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
-		return(0);
+		return (0);
 	}
 
 	MSCALL3(senddonefunc, sc->ndis_block, packet, status);
@@ -1014,7 +952,7 @@ ndis_send_packet(arg, packet)
 	if (NDIS_SERIALIZED(sc->ndis_block))
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -1030,18 +968,18 @@ ndis_init_dma(arg)
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
 	if (sc->ndis_tmaps == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	for (i = 0; i < sc->ndis_maxpkts; i++) {
 		error = bus_dmamap_create(sc->ndis_ttag, 0,
 		    &sc->ndis_tmaps[i]);
 		if (error) {
 			free(sc->ndis_tmaps, M_DEVBUF);
-			return(ENODEV);
+			return (ENODEV);
 		}
 	}
 
-	return(0);
+	return (0);
 }
 
 int
@@ -1070,7 +1008,7 @@ ndis_destroy_dma(arg)
 
 	bus_dma_tag_destroy(sc->ndis_ttag);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -1093,7 +1031,7 @@ ndis_reset_nic(arg)
 	if (adapter == NULL || resetfunc == NULL ||
 	    sc->ndis_block->nmb_devicectx == NULL) {
 		NDIS_UNLOCK(sc);
-		return(EIO);
+		return (EIO);
 	}
 
 	NDIS_UNLOCK(sc);
@@ -1112,7 +1050,7 @@ ndis_reset_nic(arg)
 		KeWaitForSingleObject(&sc->ndis_block->nmb_resetevent,
 		    0, 0, FALSE, NULL);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -1149,7 +1087,7 @@ ndis_halt_nic(arg)
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 	if (adapter == NULL) {
 		NDIS_UNLOCK(sc);
-		return(EIO);
+		return (EIO);
 	}
 
 	sc->ndis_block->nmb_devicectx = NULL;
@@ -1169,7 +1107,7 @@ ndis_halt_nic(arg)
 	sc->ndis_block->nmb_miniportadapterctx = NULL;
 	NDIS_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -1186,7 +1124,7 @@ ndis_shutdown_nic(arg)
 	shutdownfunc = sc->ndis_chars->nmc_shutdown_handler;
 	NDIS_UNLOCK(sc);
 	if (adapter == NULL || shutdownfunc == NULL)
-		return(EIO);
+		return (EIO);
 
 	if (sc->ndis_chars->nmc_rsvd0 == NULL)
 		MSCALL1(shutdownfunc, adapter);
@@ -1195,7 +1133,7 @@ ndis_shutdown_nic(arg)
 
 	TAILQ_REMOVE(&ndis_devhead, sc->ndis_block, link);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -1215,7 +1153,7 @@ ndis_pnpevent_nic(arg, type)
 	pnpeventfunc = sc->ndis_chars->nmc_pnpevent_handler;
 	NDIS_UNLOCK(sc);
 	if (adapter == NULL || pnpeventfunc == NULL)
-		return(EIO);
+		return (EIO);
 
 	if (sc->ndis_chars->nmc_rsvd0 == NULL)
 		MSCALL4(pnpeventfunc, adapter, type, NULL, 0);
@@ -1237,7 +1175,7 @@ ndis_init_nic(arg)
 	uint32_t		chosenmedium, i;
 
 	if (arg == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	sc = arg;
 	NDIS_LOCK(sc);
@@ -1262,7 +1200,7 @@ ndis_init_nic(arg)
 		NDIS_LOCK(sc);
 		sc->ndis_block->nmb_miniportadapterctx = NULL;
 		NDIS_UNLOCK(sc);
-		return(ENXIO);
+		return (status);
 	}
 
 	/*
@@ -1281,7 +1219,7 @@ ndis_init_nic(arg)
 	sc->ndis_block->nmb_devicectx = sc;
 	NDIS_UNLOCK(sc);
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -1305,8 +1243,6 @@ ndis_intrsetup(dpc, dobj, ip, sc)
 	if (KeInsertQueueDpc(&intr->ni_dpc, NULL, NULL) == TRUE)
 		intr->ni_dpccnt++;
 	KeReleaseSpinLockFromDpcLevel(&intr->ni_dpccountlock);
-
-	return;
 }
 
 int
@@ -1343,7 +1279,7 @@ ndis_get_info(arg, oid, buf, buflen)
 	    sc->ndis_block->nmb_devicectx == NULL) {
 		sc->ndis_block->nmb_pendingreq = NULL;
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	rval = MSCALL6(queryfunc, adapter, oid, buf, *buflen,
@@ -1370,19 +1306,19 @@ ndis_get_info(arg, oid, buf, buflen)
 
 	if (rval == NDIS_STATUS_INVALID_LENGTH ||
 	    rval == NDIS_STATUS_BUFFER_TOO_SHORT)
-		return(ENOSPC);
+		return (ENOSPC);
 
 	if (rval == NDIS_STATUS_INVALID_OID)
-		return(EINVAL);
+		return (EINVAL);
 
 	if (rval == NDIS_STATUS_NOT_SUPPORTED ||
 	    rval == NDIS_STATUS_NOT_ACCEPTED)
-		return(ENOTSUP);
+		return (ENOTSUP);
 
 	if (rval != NDIS_STATUS_SUCCESS)
-		return(ENODEV);
+		return (ENODEV);
 
-	return(0);
+	return (0);
 }
 
 uint32_t
@@ -1403,14 +1339,14 @@ NdisAddDevice(drv, pdo)
 		    INTR_TYPE_NET | INTR_MPSAFE,
 		    NULL, ntoskrnl_intr, NULL, &sc->ndis_intrhand);
 		if (error)
-			return(NDIS_STATUS_FAILURE);
+			return (NDIS_STATUS_FAILURE);
 	}
 
 	status = IoCreateDevice(drv, sizeof(ndis_miniport_block), NULL,
 	    FILE_DEVICE_UNKNOWN, 0, FALSE, &fdo);
 
 	if (status != STATUS_SUCCESS)
-		return(status);
+		return (status);
 
 	block = fdo->do_devext;
 
@@ -1446,7 +1382,7 @@ NdisAddDevice(drv, pdo)
 		if (status != NDIS_STATUS_SUCCESS) {
 			IoDetachDevice(block->nmb_nextdeviceobj);
 			IoDeleteDevice(fdo);
-			return(status);
+			return (status);
 		}
 		InitializeListHead((&block->nmb_packetlist));
 	}
@@ -1498,5 +1434,5 @@ ndis_unload_driver(arg)
 	IoDetachDevice(sc->ndis_block->nmb_nextdeviceobj);
 	IoDeleteDevice(fdo);
 
-	return(0);
+	return (0);
 }

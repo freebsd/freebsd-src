@@ -123,7 +123,7 @@ windrv_libinit(void)
 		panic("failed to allocate thread info blocks");
 	smp_rendezvous(NULL, x86_newldt, NULL, NULL);
 #endif
-	return(0);
+	return (0);
 }
 
 int
@@ -148,7 +148,7 @@ windrv_libfini(void)
 	smp_rendezvous(NULL, x86_oldldt, NULL, NULL);
 	ExFreePool(my_tids);
 #endif
-	return(0);
+	return (0);
 }
 
 /*
@@ -172,7 +172,7 @@ windrv_lookup(img, name)
 	if (name != NULL) {
 		RtlInitAnsiString(&as, name);
 		if (RtlAnsiStringToUnicodeString(&us, &as, TRUE))
-			return(NULL);
+			return (NULL);
 	}
 
 	mtx_lock(&drvdb_mtx); 
@@ -183,7 +183,7 @@ windrv_lookup(img, name)
 			mtx_unlock(&drvdb_mtx);
 			if (name != NULL)
 				ExFreePool(us.us_buf);
-			return(d->windrv_object);
+			return (d->windrv_object);
 		}
 	}
 	mtx_unlock(&drvdb_mtx);
@@ -191,7 +191,7 @@ windrv_lookup(img, name)
 	if (name != NULL)
 		RtlFreeUnicodeString(&us);
 
-	return(NULL);
+	return (NULL);
 }
 
 struct drvdb_ent *
@@ -209,12 +209,12 @@ windrv_match(matchfunc, ctx)
 		match = matchfunc(d->windrv_bustype, d->windrv_devlist, ctx);
 		if (match == TRUE) {
 			mtx_unlock(&drvdb_mtx);
-			return(d);
+			return (d);
 		}
 	}
 	mtx_unlock(&drvdb_mtx);
 
-	return(NULL);
+	return (NULL);
 }
 
 /*
@@ -283,7 +283,7 @@ windrv_unload(mod, img, len)
 		return (ENOENT);
 
 	if (drv == NULL)
-		return(ENOENT);
+		return (ENOENT);
 
 	/*
 	 * Destroy any custom extensions that may have been added.
@@ -306,7 +306,7 @@ windrv_unload(mod, img, len)
 	/* Free our DB handle */
 	free(r, M_DEVBUF);
 
-	return(0);
+	return (0);
 }
 
 #define WINDRV_LOADED		htonl(0x42534F44)
@@ -345,28 +345,28 @@ windrv_load(mod, img, len, bustype, devlist, regvals)
 
 	/* Perform text relocation */
 	if (pe_relocate(img))
-		return(ENOEXEC);
+		return (ENOEXEC);
 
 	/* Dynamically link the NDIS.SYS routines -- required. */
 	if (pe_patch_imports(img, "NDIS", ndis_functbl))
-		return(ENOEXEC);
+		return (ENOEXEC);
 
 	/* Dynamically link the HAL.dll routines -- optional. */
 	if (pe_get_import_descriptor(img, &imp_desc, "HAL") == 0) {
 		if (pe_patch_imports(img, "HAL", hal_functbl))
-			return(ENOEXEC);
+			return (ENOEXEC);
 	}
 
 	/* Dynamically link ntoskrnl.exe -- optional. */
 	if (pe_get_import_descriptor(img, &imp_desc, "ntoskrnl") == 0) {
 		if (pe_patch_imports(img, "ntoskrnl", ntoskrnl_functbl))
-			return(ENOEXEC);
+			return (ENOEXEC);
 	}
 
 	/* Dynamically link USBD.SYS -- optional */
 	if (pe_get_import_descriptor(img, &imp_desc, "USBD") == 0) {
 		if (pe_patch_imports(img, "USBD", usbd_functbl))
-			return(ENOEXEC);
+			return (ENOEXEC);
 	}
 
 	*ptr = WINDRV_LOADED;
@@ -398,7 +398,7 @@ skipreloc:
 	if (drv->dro_driverext == NULL) {
 		free(new, M_DEVBUF);
 		free(drv, M_DEVBUF);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	InitializeListHead((&drv->dro_driverext->dre_usrext));
@@ -410,7 +410,7 @@ skipreloc:
 	if (RtlAnsiStringToUnicodeString(&drv->dro_drivername, &as, TRUE)) {
 		free(new, M_DEVBUF);
 		free(drv, M_DEVBUF);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	new->windrv_object = drv;
@@ -426,7 +426,7 @@ skipreloc:
 		RtlFreeUnicodeString(&drv->dro_drivername);
 		free(drv, M_DEVBUF);
 		free(new, M_DEVBUF);
-		return(ENODEV);
+		return (ENODEV);
 	}
 
 	mtx_lock(&drvdb_mtx); 
@@ -463,7 +463,7 @@ windrv_create_pdo(drv, bsddev)
 
 	dev->do_devext = bsddev;
 
-	return(STATUS_SUCCESS);
+	return (STATUS_SUCCESS);
 }
 
 void
@@ -482,8 +482,6 @@ windrv_destroy_pdo(drv, bsddev)
 	mtx_lock(&drvdb_mtx);
 	IoDeleteDevice(pdo);
 	mtx_unlock(&drvdb_mtx);
-
-	return;
 }
 
 /*
@@ -503,13 +501,13 @@ windrv_find_pdo(drv, bsddev)
 	while (pdo != NULL) {
 		if (pdo->do_devext == bsddev) {
 			mtx_unlock(&drvdb_mtx);
-			return(pdo);
+			return (pdo);
 		}
 		pdo = pdo->do_nextdev;
 	}
 	mtx_unlock(&drvdb_mtx);
 
-	return(NULL);
+	return (NULL);
 }
 
 /*
@@ -533,7 +531,7 @@ windrv_bus_attach(drv, name)
 	if (RtlAnsiStringToUnicodeString(&drv->dro_drivername, &as, TRUE))
 	{
 		free(new, M_DEVBUF);
-		return(ENOMEM);
+		return (ENOMEM);
 	}
 
 	/*
@@ -550,7 +548,7 @@ windrv_bus_attach(drv, name)
 	STAILQ_INSERT_HEAD(&drvdb_head, new, link);
 	mtx_unlock(&drvdb_mtx);
 
-	return(0);
+	return (0);
 }
 
 #ifdef __amd64__
@@ -578,7 +576,7 @@ windrv_wrap(func, wrap, argcnt, ftype)
 
 	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
 	if (p == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	/* Copy over the code. */
 
@@ -591,7 +589,7 @@ windrv_wrap(func, wrap, argcnt, ftype)
 
 	*wrap = p;
 
-	return(0);
+	return (0);
 }
 #endif /* __amd64__ */
 
@@ -695,8 +693,6 @@ ctxsw_utow(void)
 	x86_critical_exit();
 
 	/* Now entering Windows land, population: you. */
-
-	return;
 }
 
 /*
@@ -722,7 +718,6 @@ ctxsw_wtou(void)
 	if (t->tid_cpu != curthread->td_oncpu)
 		panic("ctxsw GOT MOVED TO OTHER CPU!");
 #endif
-	return;
 }
 
 static int	windrv_wrap_stdcall(funcptr, funcptr *, int);
@@ -754,7 +749,7 @@ windrv_wrap_fastcall(func, wrap, argcnt)
 
 	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
 	if (p == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	/* Copy over the code. */
 
@@ -774,7 +769,7 @@ windrv_wrap_fastcall(func, wrap, argcnt)
 
 	*wrap = p;
 
-	return(0);
+	return (0);
 }
 
 extern void	x86_stdcall_wrap(void);
@@ -802,7 +797,7 @@ windrv_wrap_stdcall(func, wrap, argcnt)
 
 	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
 	if (p == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	/* Copy over the code. */
 
@@ -818,7 +813,7 @@ windrv_wrap_stdcall(func, wrap, argcnt)
 
 	*wrap = p;
 
-	return(0);
+	return (0);
 }
 
 extern void	x86_regparm_wrap(void);
@@ -842,7 +837,7 @@ windrv_wrap_regparm(func, wrap)
 
 	p = malloc((wrapend - wrapstart), M_DEVBUF, M_NOWAIT);
 	if (p == NULL)
-		return(ENOMEM);
+		return (ENOMEM);
 
 	/* Copy over the code. */
 
@@ -855,7 +850,7 @@ windrv_wrap_regparm(func, wrap)
 
 	*wrap = p;
 
-	return(0);
+	return (0);
 }
 
 int
@@ -867,18 +862,18 @@ windrv_wrap(func, wrap, argcnt, ftype)
 {
 	switch(ftype) {
 	case WINDRV_WRAP_FASTCALL:
-		return(windrv_wrap_fastcall(func, wrap, argcnt));
+		return (windrv_wrap_fastcall(func, wrap, argcnt));
 	case WINDRV_WRAP_STDCALL:
-		return(windrv_wrap_stdcall(func, wrap, argcnt));
+		return (windrv_wrap_stdcall(func, wrap, argcnt));
 	case WINDRV_WRAP_REGPARM:
-		return(windrv_wrap_regparm(func, wrap));
+		return (windrv_wrap_regparm(func, wrap));
 	case WINDRV_WRAP_CDECL:
-		return(windrv_wrap_stdcall(func, wrap, 0));
+		return (windrv_wrap_stdcall(func, wrap, 0));
 	default:
 		break;
 	}
 
-	return(EINVAL);
+	return (EINVAL);
 }
 
 static void
@@ -909,8 +904,6 @@ x86_oldldt(dummy)
 	x86_setldt(&gtable, ltable);
 
 	mtx_unlock_spin(&dt_lock);
-
-	return;
 }
 
 static void
@@ -959,8 +952,6 @@ x86_newldt(dummy)
 	mtx_unlock_spin(&dt_lock);
 
 	/* Whew. */
-
-	return;
 }
 
 #endif /* __i386__ */
@@ -971,5 +962,5 @@ windrv_unwrap(func)
 {
 	free(func, M_DEVBUF);
 
-	return(0);
+	return (0);
 }
