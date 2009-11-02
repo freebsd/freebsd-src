@@ -4795,6 +4795,21 @@ malloc_init_hard(void)
 		}
 	}
 
+	/*
+	 * Increase the chunk size to the largest page size that is greater
+	 * than the default chunk size and less than or equal to 4MB.
+	 */
+	{
+		size_t pagesizes[MAXPAGESIZES];
+		int k, nsizes;
+
+		nsizes = getpagesizes(pagesizes, MAXPAGESIZES);
+		for (k = 0; k < nsizes; k++)
+			if (pagesizes[k] <= (1LU << 22))
+				while ((1LU << opt_chunk_2pow) < pagesizes[k])
+					opt_chunk_2pow++;
+	}
+
 	for (i = 0; i < 3; i++) {
 		unsigned j;
 
