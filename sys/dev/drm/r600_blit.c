@@ -1367,7 +1367,7 @@ set_vtx_resource(drm_radeon_private_t *dev_priv, u64 gpu_addr)
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
-	    /*((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||*/
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV710))
 		cp_set_surface_sync(dev_priv,
 				    R600_TC_ACTION_ENA, 48, gpu_addr);
@@ -1509,7 +1509,7 @@ set_default_state(drm_radeon_private_t *dev_priv)
 	case CHIP_RV610:
 	case CHIP_RV620:
 	case CHIP_RS780:
-	/*case CHIP_RS880:*/
+	case CHIP_RS880:
 	default:
 		num_ps_gprs = 84;
 		num_vs_gprs = 36;
@@ -1591,7 +1591,7 @@ set_default_state(drm_radeon_private_t *dev_priv)
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
-	    /*((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||*/
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV710))
 		sq_config = 0;
 	else
