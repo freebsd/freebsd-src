@@ -1246,7 +1246,7 @@ NdisMQueryAdapterResources(status, adapter, list, buflen)
 {
 	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
-	uint32_t		rsclen;
+	int			rsclen;
 
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
