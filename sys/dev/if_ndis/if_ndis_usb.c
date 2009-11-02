@@ -194,9 +194,9 @@ ndisusb_attach(device_t self)
 	}
 
 	if (ndis_attach(self) != 0)
-		return ENXIO;
+		return (ENXIO);
 
-	return 0;
+	return (0);
 }
 
 static int
