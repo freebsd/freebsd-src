@@ -88,7 +88,7 @@
 /*
  * Timeout for normal commands
  */
-#define AAC_CMD_TIMEOUT		30		/* seconds */
+#define AAC_CMD_TIMEOUT		120		/* seconds */
 
 /*
  * Rate at which we periodically check for timed out commands and kick the
