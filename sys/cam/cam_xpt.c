@@ -4022,13 +4022,19 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 			 && path->device->lun_id != CAM_LUN_WILDCARD
 			 && device->lun_id != CAM_LUN_WILDCARD)
 				continue;
-
+			/*
+			 * The async callback could free the device.
+			 * If it is a broadcast async, it doesn't hold
+			 * device reference, so take our own reference.
+			 */
+			xpt_acquire_device(device);
 			(*(bus->xport->async))(async_code, bus,
 					       target, device,
 					       async_arg);
 
 			xpt_async_bcast(&device->asyncs, async_code,
 					path, async_arg);
+			xpt_release_device(device);
 		}
 	}
 
