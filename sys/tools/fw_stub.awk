@@ -118,6 +118,8 @@ if (!num_files || !opt_m)
 
 cfilename = opt_c;
 ctmpfilename = cfilename ".tmp";
+modname = opt_m;
+gsub(/[-\.]/, "_", modname);
 
 printc("#include <sys/param.h>\
 #include <sys/errno.h>\
@@ -139,7 +141,7 @@ for (file_i = 0; file_i < num_files; file_i++) {
 }
 
 printc("\nstatic int\n"\
-opt_m "_fw_modevent(module_t mod, int type, void *unused)\
+modname "_fw_modevent(module_t mod, int type, void *unused)\
 {\
 	const struct firmware *fp, *parent;\
 	int error;\
@@ -206,14 +208,14 @@ printc("\t\treturn (error);\
 	return (EINVAL);\
 }\
 \
-static moduledata_t " opt_m "_fw_mod = {\
-        \"" opt_m "_fw\",\
-        " opt_m "_fw_modevent,\
+static moduledata_t " modname "_fw_mod = {\
+        \"" modname "_fw\",\
+        " modname "_fw_modevent,\
         0\
 };\
-DECLARE_MODULE(" opt_m "_fw, " opt_m "_fw_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);\
-MODULE_VERSION(" opt_m "_fw, 1);\
-MODULE_DEPEND(" opt_m "_fw, firmware, 1, 1, 1);\
+DECLARE_MODULE(" modname "_fw, " modname "_fw_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);\
+MODULE_VERSION(" modname "_fw, 1);\
+MODULE_DEPEND(" modname "_fw, firmware, 1, 1, 1);\
 ");
 
 if (opt_c)
