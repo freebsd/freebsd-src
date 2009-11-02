@@ -1200,7 +1200,7 @@ ndis_init_nic(arg)
 		NDIS_LOCK(sc);
 		sc->ndis_block->nmb_miniportadapterctx = NULL;
 		NDIS_UNLOCK(sc);
-		return (status);
+		return (ENXIO);
 	}
 
 	/*
