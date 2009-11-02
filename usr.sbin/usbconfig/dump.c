@@ -100,21 +100,66 @@ dump_field(struct libusb20_device *pdev, const char *plevel,
 
 	printf("%s%s = 0x%04x ", plevel, field, value);
 
-	if ((field[0] != 'i') || (field[1] == 'd')) {
-		printf("\n");
+	if (strlen(plevel) == 8) {
+		/* Endpoint Descriptor */
+
+		if (strcmp(field, "bEndpointAddress") == 0) {
+			if (value & 0x80)
+				printf(" <IN>\n");
+			else
+				printf(" <OUT>\n");
+			return;
+		}
+
+		if (strcmp(field, "bmAttributes") == 0) {
+			switch (value & 0x03) {
+			case 0:
+				printf(" <CONTROL>\n");
+				break;
+			case 1:
+				switch (value & 0x0C) {
+				case 0x00:
+					printf(" <ISOCHRONOUS>\n");
+					break;
+				case 0x04:
+					printf(" <ASYNC-ISOCHRONOUS>\n");
+					break;
+				case 0x08:
+					printf(" <ADAPT-ISOCHRONOUS>\n");
+					break;
+				default:
+					printf(" <SYNC-ISOCHRONOUS>\n");
+					break;
+				}
+				break;
+			case 2:
+				printf(" <BULK>\n");
+				break;
+			default:
+				printf(" <INTERRUPT>\n");
+				break;
+			}
+			return;
+		}
+	}
+
+	if ((field[0] == 'i') && (field[1] != 'd')) {
+		/* Indirect String Descriptor */
+		if (value == 0) {
+			printf(" <no string>\n");
+			return;
+		}
+		if (libusb20_dev_req_string_simple_sync(pdev, value,
+		    temp_string, sizeof(temp_string))) {
+			printf(" <retrieving string failed>\n");
+			return;
+		}
+		printf(" <%s>\n", temp_string);
 		return;
 	}
-	if (value == 0) {
-		printf(" <no string>\n");
-		return;
-	}
-	if (libusb20_dev_req_string_simple_sync(pdev, value,
-	    temp_string, sizeof(temp_string))) {
-		printf(" <retrieving string failed>\n");
-		return;
-	}
-	printf(" <%s>\n", temp_string);
-	return;
+
+	/* No additional information */
+	printf("\n");
 }
 
 static void
