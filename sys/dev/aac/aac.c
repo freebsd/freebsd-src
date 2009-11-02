@@ -354,7 +354,7 @@ aac_attach(struct aac_softc *sc)
 	}
 
 	mtx_lock(&sc->aac_io_lock);
-	callout_reset(&sc->aac_daemontime, 30 * 60 * hz, aac_daemon, sc);
+	callout_reset(&sc->aac_daemontime, 60 * hz, aac_daemon, sc);
 	mtx_unlock(&sc->aac_io_lock);
 
 	return(0);
