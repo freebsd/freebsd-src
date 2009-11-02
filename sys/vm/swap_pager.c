@@ -155,11 +155,15 @@ int swap_pager_avail;
 static int swdev_syscall_active = 0; /* serialize swap(on|off) */
 
 static vm_ooffset_t swap_total;
-SYSCTL_QUAD(_vm, OID_AUTO, swap_total, CTLFLAG_RD, &swap_total, 0, "");
+SYSCTL_QUAD(_vm, OID_AUTO, swap_total, CTLFLAG_RD, &swap_total, 0, 
+    "Total amount of available swap storage.");
 static vm_ooffset_t swap_reserved;
-SYSCTL_QUAD(_vm, OID_AUTO, swap_reserved, CTLFLAG_RD, &swap_reserved, 0, "");
+SYSCTL_QUAD(_vm, OID_AUTO, swap_reserved, CTLFLAG_RD, &swap_reserved, 0, 
+    "Amount of swap storage needed to back all allocated anonymous memory.");
 static int overcommit = 0;
-SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0, 
+    "Configure virtual memory overcommit behavior. See tuning(7) "
+    "for details.");
 
 /* bits from overcommit */
 #define	SWAP_RESERVE_FORCE_ON		(1 << 0)
