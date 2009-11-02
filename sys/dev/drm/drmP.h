@@ -223,23 +223,9 @@ typedef u_int8_t u8;
  * DRM_WRITEMEMORYBARRIER() prevents reordering of writes.
  * DRM_MEMORYBARRIER() prevents reordering of reads and writes.
  */
-#if defined(__i386__)
-#define DRM_READMEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%esp)" : : : "memory");
-#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
-#define DRM_MEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%esp)" : : : "memory");
-#elif defined(__alpha__)
-#define DRM_READMEMORYBARRIER()		alpha_mb();
-#define DRM_WRITEMEMORYBARRIER()	alpha_wmb();
-#define DRM_MEMORYBARRIER()		alpha_mb();
-#elif defined(__amd64__)
-#define DRM_READMEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
-#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
-#define DRM_MEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
-#endif
+#define DRM_READMEMORYBARRIER()		rmb()
+#define DRM_WRITEMEMORYBARRIER()	wmb()
+#define DRM_MEMORYBARRIER()		mb()
 
 #define DRM_READ8(map, offset)						\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
