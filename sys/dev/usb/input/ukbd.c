@@ -247,8 +247,8 @@ static const uint8_t ukbd_trtab[256] = {
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 68 - 6F */
 	NN, NN, NN, NN, 115, 108, 111, 113,	/* 70 - 77 */
 	109, 110, 112, 118, 114, 116, 117, 119,	/* 78 - 7F */
-	121, 120, NN, NN, NN, NN, NN, 115,	/* 80 - 87 */
-	112, 125, 121, 123, NN, NN, NN, NN,	/* 88 - 8F */
+	121, 120, NN, NN, NN, NN, NN, 123,	/* 80 - 87 */
+	124, 125, 126, 127, 128, NN, NN, NN,	/* 88 - 8F */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 90 - 97 */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* 98 - 9F */
 	NN, NN, NN, NN, NN, NN, NN, NN,	/* A0 - A7 */
@@ -1636,20 +1636,59 @@ static int
 ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 {
 	static const int scan[] = {
-		0x1c, 0x1d, 0x35,
-		0x37 | SCAN_PREFIX_SHIFT,	/* PrintScreen */
-		0x38, 0x47, 0x48, 0x49, 0x4b, 0x4d, 0x4f,
-		0x50, 0x51, 0x52, 0x53,
-		0x46,			/* XXX Pause/Break */
-		0x5b, 0x5c, 0x5d,
+		/* 89 */
+		0x11c,	/* Enter */
+		/* 90-99 */
+		0x11d,	/* Ctrl-R */
+		0x135,	/* Divide */
+		0x137 | SCAN_PREFIX_SHIFT,	/* PrintScreen */
+		0x138,	/* Alt-R */
+		0x147,	/* Home */
+		0x148,	/* Up */
+		0x149,	/* PageUp */
+		0x14b,	/* Left */
+		0x14d,	/* Right */
+		0x14f,	/* End */
+		/* 100-109 */
+		0x150,	/* Down */
+		0x151,	/* PageDown */
+		0x152,	/* Insert */
+		0x153,	/* Delete */
+		0x146,	/* XXX Pause/Break */
+		0x15b,	/* Win_L(Super_L) */
+		0x15c,	/* Win_R(Super_R) */
+		0x15d,	/* Application(Menu) */
+
 		/* SUN TYPE 6 USB KEYBOARD */
-		0x68, 0x5e, 0x5f, 0x60, 0x61, 0x62, 0x63,
-		0x64, 0x65, 0x66, 0x67, 0x25, 0x1f, 0x1e,
-		0x20,
+		0x168,	/* Sun Type 6 Help */
+		0x15e,	/* Sun Type 6 Stop */
+		/* 110 - 119 */
+		0x15f,	/* Sun Type 6 Again */
+		0x160,	/* Sun Type 6 Props */
+		0x161,	/* Sun Type 6 Undo */
+		0x162,	/* Sun Type 6 Front */
+		0x163,	/* Sun Type 6 Copy */
+		0x164,	/* Sun Type 6 Open */
+		0x165,	/* Sun Type 6 Paste */
+		0x166,	/* Sun Type 6 Find */
+		0x167,	/* Sun Type 6 Cut */
+		0x125,	/* Sun Type 6 Mute */
+		/* 120 - 128 */
+		0x11f,	/* Sun Type 6 VolumeDown */
+		0x11e,	/* Sun Type 6 VolumeUp */
+		0x120,	/* Sun Type 6 PowerDown */
+
+		/* Japanese 106/109 keyboard */
+		0x73,	/* Keyboard Intl' 1 (backslash / underscore) */
+		0x70,	/* Keyboard Intl' 2 (Katakana / Hiragana) */
+		0x7d,	/* Keyboard Intl' 3 (Yen sign) (Not using in jp106/109) */
+		0x79,	/* Keyboard Intl' 4 (Henkan) */
+		0x7b,	/* Keyboard Intl' 5 (Muhenkan) */
+		0x5c,	/* Keyboard Intl' 6 (Keypad ,) (For PC-9821 layout) */
 	};
 
 	if ((code >= 89) && (code < (89 + (sizeof(scan) / sizeof(scan[0]))))) {
-		code = scan[code - 89] | SCAN_PREFIX_E0;
+		code = scan[code - 89];
 	}
 	/* Pause/Break */
 	if ((code == 104) && (!(shift & (MOD_CONTROL_L | MOD_CONTROL_R)))) {
