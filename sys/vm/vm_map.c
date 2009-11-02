@@ -1914,10 +1914,10 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		}
 
 		/*
-		 * Update physical map if necessary. Worry about copy-on-write
-		 * here.
+		 * When restricting access, update the physical map.  Worry
+		 * about copy-on-write here.
 		 */
-		if (current->protection != old_prot) {
+		if ((old_prot & ~current->protection) != 0) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
 			pmap_protect(map->pmap, current->start,
