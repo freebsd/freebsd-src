@@ -414,6 +414,9 @@ sc_attach_unit(int unit, int flags)
 #endif
 	    sc_set_graphics_mode(scp, NULL, vmode);
 	    sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
+#ifndef SC_NO_PALETTE_LOADING
+	    vidd_save_palette(sc->adp, sc->palette);
+#endif
 	    sc->initial_mode = vmode;
 #ifdef DEV_SPLASH
 	    /* put up the splash again! */
