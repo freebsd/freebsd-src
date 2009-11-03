@@ -1612,6 +1612,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		if (bootverbose && printed == 0) {
 			xpt_print(ccb->ccb_h.path,
 			    "Request completed with CAM_ATA_STATUS_ERROR\n");
+			cam_error_print(ccb, CAM_ESF_ALL, CAM_EPF_ALL);
 			printed++;
 		}
 		/* FALLTHROUGH */

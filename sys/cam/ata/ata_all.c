@@ -68,6 +68,185 @@ ata_version(int ver)
 	return 0;
 }
 
+char *
+ata_op_string(struct ata_cmd *cmd)
+{
+
+	switch (cmd->command) {
+	case 0x00: return ("NOP");
+	case 0x03: return ("CFA_REQUEST_EXTENDED_ERROR");
+	case 0x08: return ("DEVICE_RESET");
+	case 0x20: return ("READ");
+	case 0x24: return ("READ48");
+	case 0x25: return ("READ_DMA48");
+	case 0x26: return ("READ_DMA_QUEUED48");
+	case 0x27: return ("READ_NATIVE_MAX_ADDRESS48");
+	case 0x29: return ("READ_MUL48");
+	case 0x2a: return ("READ_STREAM_DMA48");
+	case 0x2b: return ("READ_STREAM48");
+	case 0x2f: return ("READ_LOG_EXT");
+	case 0x30: return ("WRITE");
+	case 0x34: return ("WRITE48");
+	case 0x35: return ("WRITE_DMA48");
+	case 0x36: return ("WRITE_DMA_QUEUED48");
+	case 0x37: return ("SET_MAX_ADDRESS48");
+	case 0x39: return ("WRITE_MUL48");
+	case 0x3a: return ("WRITE_STREAM_DMA48");
+	case 0x3b: return ("WRITE_STREAM48");
+	case 0x3d: return ("WRITE_DMA_FUA");
+	case 0x3e: return ("WRITE_DMA_FUA48");
+	case 0x3f: return ("WRITE_LOG_EXT");
+	case 0x40: return ("READ_VERIFY");
+	case 0x42: return ("READ_VERIFY48");
+	case 0x51: return ("CONFIGURE_STREAM");
+	case 0x60: return ("READ_FPDMA_QUEUED");
+	case 0x61: return ("WRITE_FPDMA_QUEUED");
+	case 0x70: return ("SEEK");
+	case 0x87: return ("CFA_TRANSLATE_SECTOR");
+	case 0x90: return ("EXECUTE_DEVICE_DIAGNOSTIC");
+	case 0x92: return ("DOWNLOAD_MICROCODE");
+	case 0xa0: return ("PACKET");
+	case 0xa1: return ("ATAPI_IDENTIFY");
+	case 0xa2: return ("SERVICE");
+	case 0xb0: return ("SMART");
+	case 0xb1: return ("DEVICE CONFIGURATION");
+	case 0xc0: return ("CFA_ERASE");
+	case 0xc4: return ("READ_MUL");
+	case 0xc5: return ("WRITE_MUL");
+	case 0xc6: return ("SET_MULTI");
+	case 0xc7: return ("READ_DMA_QUEUED");
+	case 0xc8: return ("READ_DMA");
+	case 0xca: return ("WRITE_DMA");
+	case 0xcc: return ("WRITE_DMA_QUEUED");
+	case 0xcd: return ("CFA_WRITE_MULTIPLE_WITHOUT_ERASE");
+	case 0xce: return ("WRITE_MULTIPLE_FUA48");
+	case 0xd1: return ("CHECK_MEDIA_CARD_TYPE");
+	case 0xda: return ("GET_MEDIA_STATUS");
+	case 0xde: return ("MEDIA_LOCK");
+	case 0xdf: return ("MEDIA_UNLOCK");
+	case 0xe0: return ("STANDBY_IMMEDIATE");
+	case 0xe1: return ("IDLE_IMMEDIATE");
+	case 0xe2: return ("STANDBY");
+	case 0xe3: return ("IDLE");
+	case 0xe4: return ("READ_BUFFER/PM");
+	case 0xe5: return ("CHECK_POWER_MODE");
+	case 0xe6: return ("SLEEP");
+	case 0xe7: return ("FLUSHCACHE");
+	case 0xe8: return ("WRITE_PM");
+	case 0xea: return ("FLUSHCACHE48");
+	case 0xec: return ("ATA_IDENTIFY");
+	case 0xed: return ("MEDIA_EJECT");
+	case 0xef:
+		switch (cmd->features) {
+	        case 0x03: return ("SETFEATURES SET TRANSFER MODE");
+	        case 0x02: return ("SETFEATURES ENABLE WCACHE");
+	        case 0x82: return ("SETFEATURES DISABLE WCACHE");
+	        case 0xaa: return ("SETFEATURES ENABLE RCACHE");
+	        case 0x55: return ("SETFEATURES DISABLE RCACHE");
+	        }
+	        return "SETFEATURES";
+	case 0xf1: return ("SECURITY_SET_PASSWORD");
+	case 0xf2: return ("SECURITY_UNLOCK");
+	case 0xf3: return ("SECURITY_ERASE_PREPARE");
+	case 0xf4: return ("SECURITY_ERASE_UNIT");
+	case 0xf5: return ("SECURITY_FREE_LOCK");
+	case 0xf6: return ("SECURITY DISABLE PASSWORD");
+	case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
+	case 0xf9: return ("SET_MAX_ADDRESS");
+	}
+	return "UNKNOWN";
+}
+
+char *
+ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len)
+{
+
+	snprintf(cmd_string, len, "%02x %02x %02x %02x "
+	    "%02x %02x %02x %02x %02x %02x %02x %02x",
+	    cmd->command, cmd->features,
+	    cmd->lba_low, cmd->lba_mid, cmd->lba_high, cmd->device,
+	    cmd->lba_low_exp, cmd->lba_mid_exp, cmd->lba_high_exp,
+	    cmd->features_exp, cmd->sector_count, cmd->sector_count_exp);
+
+	return(cmd_string);
+}
+
+char *
+ata_res_string(struct ata_res *res, char *res_string, size_t len)
+{
+
+	snprintf(res_string, len, "%02x %02x %02x %02x "
+	    "%02x %02x %02x %02x %02x %02x %02x",
+	    res->status, res->error,
+	    res->lba_low, res->lba_mid, res->lba_high, res->device,
+	    res->lba_low_exp, res->lba_mid_exp, res->lba_high_exp,
+	    res->sector_count, res->sector_count_exp);
+
+	return(res_string);
+}
+
+/*
+ * ata_command_sbuf() returns 0 for success and -1 for failure.
+ */
+int
+ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
+{
+	char cmd_str[(12 * 3) + 1];
+
+	sbuf_printf(sb, "CMD: %s: %s",
+	    ata_op_string(&ataio->cmd),
+	    ata_cmd_string(&ataio->cmd, cmd_str, sizeof(cmd_str)));
+
+	return(0);
+}
+
+/*
+ * ata_status_abuf() returns 0 for success and -1 for failure.
+ */
+int
+ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
+{
+
+	sbuf_printf(sb, "ATA Status: %02x (%s%s%s%s%s%s%s%s)",
+	    ataio->res.status,
+	    (ataio->res.status & 0x80) ? "BSY " : "",
+	    (ataio->res.status & 0x40) ? "DRDY " : "",
+	    (ataio->res.status & 0x20) ? "DF " : "",
+	    (ataio->res.status & 0x10) ? "SERV " : "",
+	    (ataio->res.status & 0x08) ? "DRQ " : "",
+	    (ataio->res.status & 0x04) ? "CORR " : "",
+	    (ataio->res.status & 0x02) ? "IDX " : "",
+	    (ataio->res.status & 0x01) ? "ERR" : "");
+	if (ataio->res.status & 1) {
+	    sbuf_printf(sb, ", Error: %02x (%s%s%s%s%s%s%s%s)",
+		ataio->res.error,
+		(ataio->res.error & 0x80) ? "ICRC " : "",
+		(ataio->res.error & 0x40) ? "UNC " : "",
+		(ataio->res.error & 0x20) ? "MC " : "",
+		(ataio->res.error & 0x10) ? "IDNF " : "",
+		(ataio->res.error & 0x08) ? "MCR " : "",
+		(ataio->res.error & 0x04) ? "ABRT " : "",
+		(ataio->res.error & 0x02) ? "NM " : "",
+		(ataio->res.error & 0x01) ? "ILI" : "");
+	}
+
+	return(0);
+}
+
+/*
+ * ata_res_sbuf() returns 0 for success and -1 for failure.
+ */
+int
+ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
+{
+	char res_str[(11 * 3) + 1];
+
+	sbuf_printf(sb, "RES: %s",
+	    ata_res_string(&ataio->res, res_str, sizeof(res_str)));
+
+	return(0);
+}
+
 void
 ata_print_ident(struct ata_params *ident_data)
 {
