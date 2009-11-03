@@ -1061,6 +1061,7 @@ int
 swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
+	struct thread *td;
 	struct intr_event *ie;
 	int error;
 
@@ -1085,11 +1086,10 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	if (error)
 		return (error);
 	if (pri == SWI_CLOCK) {
-		struct proc *p;
-		p = ie->ie_thread->it_thread->td_proc;
-		PROC_LOCK(p);
-		p->p_flag |= P_NOLOAD;
-		PROC_UNLOCK(p);
+		td = ie->ie_thread->it_thread;
+		thread_lock(td);
+		td->td_flags |= TDF_NOLOAD;
+		thread_unlock(td);
 	}
 	return (0);
 }
