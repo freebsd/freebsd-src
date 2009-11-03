@@ -1734,6 +1734,10 @@ fdc_detach(device_t dev)
 	if ((error = bus_generic_detach(dev)))
 		return (error);
 
+	if (fdc->fdc_intr)
+		bus_teardown_intr(dev, fdc->res_irq, fdc->fdc_intr);
+	fdc->fdc_intr = NULL;
+
 	/* kill worker thread */
 	mtx_lock(&fdc->fdc_mtx);
 	fdc->flags |= FDC_KTHREAD_EXIT;
@@ -2031,15 +2035,22 @@ fd_attach(device_t dev)
 	return (0);
 }
 
+static void
+fd_detach_geom(void *arg, int flag)
+{
+	struct	fd_data *fd = arg;
+
+	g_topology_assert();
+	g_wither_geom(fd->fd_geom, ENXIO);
+}
+
 static int
 fd_detach(device_t dev)
 {
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
-	g_topology_lock();
-	g_wither_geom(fd->fd_geom, ENXIO);
-	g_topology_unlock();
+	g_waitfor_event(fd_detach_geom, fd, M_WAITOK, NULL);
 	while (device_get_state(dev) == DS_BUSY)
 		tsleep(fd, PZERO, "fdd", hz/10);
 	callout_drain(&fd->toffhandle);
