@@ -728,10 +728,10 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	thread_lock(td);
 	td->td_estcpu = ESTCPULIM(td->td_estcpu + child->td_estcpu);
 	thread_unlock(td);
-	mtx_lock_spin(&sched_lock);
-	if ((child->td_proc->p_flag & P_NOLOAD) == 0)
+	thread_lock(child);
+	if ((child->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
-	mtx_unlock_spin(&sched_lock);
+	thread_unlock(child);
 }
 
 void
@@ -937,7 +937,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		thread_unlock(td);
 	}
 
-	if ((p->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 
 	if (newtd)
@@ -980,7 +980,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			("trying to run inhibited thread"));
 		newtd->td_flags |= TDF_DIDRUN;
         	TD_SET_RUNNING(newtd);
-		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
+		if ((newtd->td_flags & TDF_NOLOAD) == 0)
 			sched_load_add();
 	} else {
 		newtd = choosethread();
@@ -1289,7 +1289,7 @@ sched_add(struct thread *td, int flags)
 		}
 	}
 
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, td, flags);
 	if (cpu != NOCPU)
@@ -1338,7 +1338,7 @@ sched_add(struct thread *td, int flags)
 		if (maybe_preempt(td))
 			return;
 	}
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, td, flags);
 	maybe_resched(td);
@@ -1360,7 +1360,7 @@ sched_rem(struct thread *td)
 	    "prio:%d", td->td_priority, KTR_ATTR_LINKED,
 	    sched_tdname(curthread));
 
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 #ifdef SMP
 	if (ts->ts_runq != &runq)

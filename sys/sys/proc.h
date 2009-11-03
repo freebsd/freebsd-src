@@ -322,7 +322,7 @@ do {									\
 #define	TDF_NEEDSUSPCHK	0x00008000 /* Thread may need to suspend. */
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x00020000 /* Thread may need signal delivery. */
-#define	TDF_UNUSED18	0x00040000 /* --available-- */
+#define	TDF_NOLOAD	0x00040000 /* Ignore during load avg calculations. */
 #define	TDF_UNUSED19	0x00080000 /* Thread is sleeping on a umtx. */
 #define	TDF_THRWAKEUP	0x00100000 /* Libthr thread must not suspend itself. */
 #define	TDF_UNUSED21	0x00200000 /* --available-- */
@@ -558,7 +558,7 @@ struct proc {
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
 #define	P_KTHREAD	0x00004	/* Kernel thread (*). */
-#define	P_NOLOAD	0x00008	/* Ignore during load avg calculations. */
+#define	P_UNUSED0	0x00008	/* available. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
 #define	P_PROFIL	0x00020	/* Has started profiling. */
 #define	P_STOPPROF	0x00040	/* Has thread requesting to stop profiling. */
