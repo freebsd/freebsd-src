@@ -207,8 +207,8 @@ struct ata_params {
 	u_int16_t       reserved104[2];
 /*106*/	u_int16_t       pss;
 #define ATA_PSS_LSPPS			0x000F
-#define ATA_PSS_LSSABOVE512		0x2000
-#define ATA_PSS_MULTLS			0x4000
+#define ATA_PSS_LSSABOVE512		0x1000
+#define ATA_PSS_MULTLS			0x2000
 /*107*/ u_int16_t       isd;
 /*108*/ u_int16_t       wwn[4];
 	u_int16_t       reserved112[5];
