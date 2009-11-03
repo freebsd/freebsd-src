@@ -74,10 +74,9 @@ idle_setup(void *dummy)
 		if (error)
 			panic("idle_setup: kproc_create error %d\n", error);
 
-		p->p_flag |= P_NOLOAD;
 		thread_lock(td);
 		TD_SET_CAN_RUN(td);
-		td->td_flags |= TDF_IDLETD;
+		td->td_flags |= TDF_IDLETD | TDF_NOLOAD;
 		sched_class(td, PRI_IDLE);
 		sched_prio(td, PRI_MAX_IDLE);
 		thread_unlock(td);
