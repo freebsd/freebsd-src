@@ -1688,7 +1688,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		ieee80211_radiotap_tx(vap, m0);
 	}
 
-	if ((wh->i_fc[10] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
+	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_MGT ||
 	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_CTL) {
 		tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 		rate = tp->mgmtrate;
