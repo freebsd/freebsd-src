@@ -81,6 +81,14 @@ struct ata_res {
 };
 
 int	ata_version(int ver);
+
+char *	ata_op_string(struct ata_cmd *cmd);
+char *	ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len);
+char *	ata_res_string(struct ata_res *res, char *res_string, size_t len);
+int	ata_command_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+int	ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+int	ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
+
 void	ata_print_ident(struct ata_params *ident_data);
 
 void	ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
