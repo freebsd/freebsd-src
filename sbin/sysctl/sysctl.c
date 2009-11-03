@@ -419,14 +419,7 @@ T_dev_t(int l2, void *p)
 		warnx("T_dev_T %d != %d", l2, sizeof(*d));
 		return (1);
 	}
-	if ((int)(*d) != -1) {
-		if (minor(*d) > 255 || minor(*d) < 0)
-			printf("{ major = %d, minor = 0x%x }",
-				major(*d), minor(*d));
-		else
-			printf("{ major = %d, minor = %d }",
-				major(*d), minor(*d));
-	}
+	printf("%s", devname(*d, S_IFCHR));
 	return (0);
 }
 
