@@ -257,6 +257,8 @@ nexus_hinted_child(device_t bus, const char *dname, int dunit)
 	int	mem_hints_count;
 
 	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
+	if (child == NULL)
+		return;
 
 	/*
 	 * Set hard-wired resources for hinted child using
@@ -306,6 +308,10 @@ nexus_add_child(device_t bus, int order, const char *name, int unit)
 	resource_list_init(&ndev->nx_resources);
 
 	child = device_add_child_ordered(bus, order, name, unit);
+	if (child == NULL) {
+		device_printf(bus, "failed to add child: %s%d\n", name, unit);
+		return (0);
+	}
 
 	/* should we free this in nexus_child_detached? */
 	device_set_ivars(child, ndev);
