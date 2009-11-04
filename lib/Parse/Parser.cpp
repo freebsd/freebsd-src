@@ -526,7 +526,7 @@ bool Parser::isStartOfFunctionDefinition() {
 Parser::DeclGroupPtrTy
 Parser::ParseDeclarationOrFunctionDefinition(AccessSpecifier AS) {
   // Parse the common declaration-specifiers piece.
-  DeclSpec DS;
+  ParsingDeclSpec DS(*this);
   ParseDeclarationSpecifiers(DS, ParsedTemplateInfo(), AS);
 
   // C99 6.7.2.3p6: Handle "struct-or-union identifier;", "enum { X };"
@@ -534,6 +534,7 @@ Parser::ParseDeclarationOrFunctionDefinition(AccessSpecifier AS) {
   if (Tok.is(tok::semi)) {
     ConsumeToken();
     DeclPtrTy TheDecl = Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    DS.complete(TheDecl);
     return Actions.ConvertDeclToDeclGroup(TheDecl);
   }
 
@@ -548,6 +549,9 @@ Parser::ParseDeclarationOrFunctionDefinition(AccessSpecifier AS) {
       SkipUntil(tok::semi); // FIXME: better skip?
       return DeclGroupPtrTy();
     }
+
+    DS.abort();
+
     const char *PrevSpec = 0;
     unsigned DiagID;
     if (DS.SetTypeSpecType(DeclSpec::TST_unspecified, AtLoc, PrevSpec, DiagID))
@@ -567,58 +571,12 @@ Parser::ParseDeclarationOrFunctionDefinition(AccessSpecifier AS) {
   if (Tok.is(tok::string_literal) && getLang().CPlusPlus &&
       DS.getStorageClassSpec() == DeclSpec::SCS_extern &&
       DS.getParsedSpecifiers() == DeclSpec::PQ_StorageClassSpecifier) {
+    DS.abort();
     DeclPtrTy TheDecl = ParseLinkage(Declarator::FileContext);
     return Actions.ConvertDeclToDeclGroup(TheDecl);
   }
 
-  // Parse the first declarator.
-  Declarator DeclaratorInfo(DS, Declarator::FileContext);
-  ParseDeclarator(DeclaratorInfo);
-  // Error parsing the declarator?
-  if (!DeclaratorInfo.hasName()) {
-    // If so, skip until the semi-colon or a }.
-    SkipUntil(tok::r_brace, true, true);
-    if (Tok.is(tok::semi))
-      ConsumeToken();
-    return DeclGroupPtrTy();
-  }
-
-  // If we have a declaration or declarator list, handle it.
-  if (isDeclarationAfterDeclarator()) {
-    // Parse the init-declarator-list for a normal declaration.
-    DeclGroupPtrTy DG =
-      ParseInitDeclaratorListAfterFirstDeclarator(DeclaratorInfo);
-    // Eat the semi colon after the declaration.
-    ExpectAndConsume(tok::semi, diag::err_expected_semi_declaration);
-    return DG;
-  }
-
-  if (DeclaratorInfo.isFunctionDeclarator() &&
-      isStartOfFunctionDefinition()) {
-    if (DS.getStorageClassSpec() == DeclSpec::SCS_typedef) {
-      Diag(Tok, diag::err_function_declared_typedef);
-
-      if (Tok.is(tok::l_brace)) {
-        // This recovery skips the entire function body. It would be nice
-        // to simply call ParseFunctionDefinition() below, however Sema
-        // assumes the declarator represents a function, not a typedef.
-        ConsumeBrace();
-        SkipUntil(tok::r_brace, true);
-      } else {
-        SkipUntil(tok::semi);
-      }
-      return DeclGroupPtrTy();
-    }
-    DeclPtrTy TheDecl = ParseFunctionDefinition(DeclaratorInfo);
-    return Actions.ConvertDeclToDeclGroup(TheDecl);
-  }
-
-  if (DeclaratorInfo.isFunctionDeclarator())
-    Diag(Tok, diag::err_expected_fn_body);
-  else
-    Diag(Tok, diag::err_invalid_token_after_toplevel_declarator);
-  SkipUntil(tok::semi);
-  return DeclGroupPtrTy();
+  return ParseDeclGroup(DS, Declarator::FileContext, true);
 }
 
 /// ParseFunctionDefinition - We parsed and verified that the specified
@@ -635,7 +593,7 @@ Parser::ParseDeclarationOrFunctionDefinition(AccessSpecifier AS) {
 /// [C++] function-definition: [C++ 8.4]
 ///         decl-specifier-seq[opt] declarator function-try-block
 ///
-Parser::DeclPtrTy Parser::ParseFunctionDefinition(Declarator &D,
+Parser::DeclPtrTy Parser::ParseFunctionDefinition(ParsingDeclarator &D,
                                      const ParsedTemplateInfo &TemplateInfo) {
   const DeclaratorChunk &FnTypeInfo = D.getTypeObject(0);
   assert(FnTypeInfo.Kind == DeclaratorChunk::Function &&
@@ -686,6 +644,13 @@ Parser::DeclPtrTy Parser::ParseFunctionDefinition(Declarator &D,
                                          TemplateInfo.TemplateParams->size()),
                                               D)
     : Actions.ActOnStartOfFunctionDef(CurScope, D);
+
+  // Break out of the ParsingDeclarator context before we parse the body.
+  D.complete(Res);
+  
+  // Break out of the ParsingDeclSpec context, too.  This const_cast is
+  // safe because we're always the sole owner.
+  D.getMutableDeclSpec().abort();
 
   if (Tok.is(tok::kw_try))
     return ParseFunctionTryBlock(Res);
@@ -981,17 +946,21 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
     // If this is a template-id, annotate with a template-id or type token.
     if (NextToken().is(tok::less)) {
       TemplateTy Template;
+      UnqualifiedId TemplateName;
+      TemplateName.setIdentifier(Tok.getIdentifierInfo(), Tok.getLocation());
       if (TemplateNameKind TNK
-            = Actions.isTemplateName(CurScope, *Tok.getIdentifierInfo(),
-                                     Tok.getLocation(), &SS,
+            = Actions.isTemplateName(CurScope, SS, TemplateName, 
                                      /*ObjectType=*/0, EnteringContext,
-                                     Template))
-        if (AnnotateTemplateIdToken(Template, TNK, &SS)) {
+                                     Template)) {
+        // Consume the identifier.
+        ConsumeToken();
+        if (AnnotateTemplateIdToken(Template, TNK, &SS, TemplateName)) {
           // If an unrecoverable error occurred, we need to return true here,
           // because the token stream is in a damaged state.  We may not return
           // a valid identifier.
           return Tok.isNot(tok::identifier);
         }
+      }
     }
 
     // The current token, which is either an identifier or a
@@ -1064,4 +1033,11 @@ bool Parser::TryAnnotateCXXScopeToken(bool EnteringContext) {
   // annotation token.
   PP.AnnotateCachedTokens(Tok);
   return true;
+}
+
+// Anchor the Parser::FieldCallback vtable to this translation unit.
+// We use a spurious method instead of the destructor because
+// destroying FieldCallbacks can actually be slightly
+// performance-sensitive.
+void Parser::FieldCallback::_anchor() {
 }

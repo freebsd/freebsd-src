@@ -571,6 +571,99 @@ private:
     return *ClassStack.top();
   }
 
+  /// \brief RAII object used to inform the actions that we're
+  /// currently parsing a declaration.  This is active when parsing a
+  /// variable's initializer, but not when parsing the body of a
+  /// class or function definition.
+  class ParsingDeclRAIIObject {
+    Action &Actions;
+    Action::ParsingDeclStackState State;
+    bool Popped;
+    
+  public:
+    ParsingDeclRAIIObject(Parser &P) : Actions(P.Actions) {
+      push();
+    }
+
+    ~ParsingDeclRAIIObject() {
+      abort();
+    }
+
+    /// Resets the RAII object for a new declaration.
+    void reset() {
+      abort();
+      push();
+    }
+
+    /// Signals that the context was completed without an appropriate
+    /// declaration being parsed.
+    void abort() {
+      pop(DeclPtrTy());
+    }
+
+    void complete(DeclPtrTy D) {
+      assert(!Popped && "ParsingDeclaration has already been popped!");
+      pop(D);
+    }
+
+  private:
+    void push() {
+      State = Actions.PushParsingDeclaration();
+      Popped = false;
+    }
+
+    void pop(DeclPtrTy D) {
+      if (!Popped) {
+        Actions.PopParsingDeclaration(State, D);
+        Popped = true;
+      }
+    }
+  };
+
+  /// A class for parsing a DeclSpec.
+  class ParsingDeclSpec : public DeclSpec {
+    ParsingDeclRAIIObject ParsingRAII;
+
+  public:
+    ParsingDeclSpec(Parser &P) : ParsingRAII(P) {
+    }
+
+    void complete(DeclPtrTy D) {
+      ParsingRAII.complete(D);
+    }
+
+    void abort() {
+      ParsingRAII.abort();
+    }
+  };
+
+  /// A class for parsing a declarator.
+  class ParsingDeclarator : public Declarator {
+    ParsingDeclRAIIObject ParsingRAII;
+
+  public:
+    ParsingDeclarator(Parser &P, const ParsingDeclSpec &DS, TheContext C)
+      : Declarator(DS, C), ParsingRAII(P) {
+    }
+
+    const ParsingDeclSpec &getDeclSpec() const {
+      return static_cast<const ParsingDeclSpec&>(Declarator::getDeclSpec());
+    }
+
+    ParsingDeclSpec &getMutableDeclSpec() const {
+      return const_cast<ParsingDeclSpec&>(getDeclSpec());
+    }
+
+    void clear() {
+      Declarator::clear();
+      ParsingRAII.reset();
+    }
+
+    void complete(DeclPtrTy D) {
+      ParsingRAII.complete(D);
+    }
+  };
+
   /// \brief RAII object used to
   class ParsingClassDefinition {
     Parser &P;
@@ -603,14 +696,17 @@ private:
       : Kind(NonTemplate), TemplateParams(0), TemplateLoc() { }
 
     ParsedTemplateInfo(TemplateParameterLists *TemplateParams,
-                       bool isSpecialization)
+                       bool isSpecialization,
+                       bool lastParameterListWasEmpty = false)
       : Kind(isSpecialization? ExplicitSpecialization : Template),
-        TemplateParams(TemplateParams) { }
+        TemplateParams(TemplateParams), 
+        LastParameterListWasEmpty(lastParameterListWasEmpty) { }
 
     explicit ParsedTemplateInfo(SourceLocation ExternLoc,
                                 SourceLocation TemplateLoc)
       : Kind(ExplicitInstantiation), TemplateParams(0),
-        ExternLoc(ExternLoc), TemplateLoc(TemplateLoc) { }
+        ExternLoc(ExternLoc), TemplateLoc(TemplateLoc),
+        LastParameterListWasEmpty(false){ }
 
     /// \brief The kind of template we are parsing.
     enum {
@@ -635,6 +731,9 @@ private:
     /// \brief The location of the 'template' keyword, for an explicit
     /// instantiation.
     SourceLocation TemplateLoc;
+    
+    /// \brief Whether the last template parameter list was empty.
+    bool LastParameterListWasEmpty;
   };
 
   void PushParsingClass(DeclPtrTy TagOrTemplate, bool TopLevelClass);
@@ -658,7 +757,7 @@ private:
   DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(
             AccessSpecifier AS = AS_none);
 
-  DeclPtrTy ParseFunctionDefinition(Declarator &D,
+  DeclPtrTy ParseFunctionDefinition(ParsingDeclarator &D,
                  const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo());
   void ParseKNRParamDeclarations(Declarator &D);
   // EndLoc, if non-NULL, is filled with the location of the last token of
@@ -944,11 +1043,12 @@ private:
 
   DeclGroupPtrTy ParseDeclaration(unsigned Context, SourceLocation &DeclEnd);
   DeclGroupPtrTy ParseSimpleDeclaration(unsigned Context,
-                                        SourceLocation &DeclEnd,
-                                        bool RequireSemi = true);
+                                        SourceLocation &DeclEnd);
+  DeclGroupPtrTy ParseDeclGroup(ParsingDeclSpec &DS, unsigned Context,
+                                bool AllowFunctionDefinitions,
+                                SourceLocation *DeclEnd = 0);
   DeclPtrTy ParseDeclarationAfterDeclarator(Declarator &D,
                const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo());
-  DeclGroupPtrTy ParseInitDeclaratorListAfterFirstDeclarator(Declarator &D);
   DeclPtrTy ParseFunctionStatementBody(DeclPtrTy Decl);
   DeclPtrTy ParseFunctionTryBlock(DeclPtrTy Decl);
 
@@ -973,8 +1073,16 @@ private:
   void ParseEnumBody(SourceLocation StartLoc, DeclPtrTy TagDecl);
   void ParseStructUnionBody(SourceLocation StartLoc, unsigned TagType,
                             DeclPtrTy TagDecl);
-  void ParseStructDeclaration(DeclSpec &DS,
-                              llvm::SmallVectorImpl<FieldDeclarator> &Fields);
+
+  struct FieldCallback {
+    virtual DeclPtrTy invoke(FieldDeclarator &Field) = 0;
+    virtual ~FieldCallback() {}
+
+  private:
+    virtual void _anchor();
+  };
+
+  void ParseStructDeclaration(DeclSpec &DS, FieldCallback &Callback);
 
   bool isDeclarationSpecifier();
   bool isTypeSpecifierQualifier();
@@ -1197,6 +1305,21 @@ private:
   BaseResult ParseBaseSpecifier(DeclPtrTy ClassDecl);
   AccessSpecifier getAccessSpecifierIfPresent() const;
 
+  bool ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS, 
+                                    IdentifierInfo *Name,
+                                    SourceLocation NameLoc,
+                                    bool EnteringContext,
+                                    TypeTy *ObjectType,
+                                    UnqualifiedId &Id);
+  bool ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
+                                  TypeTy *ObjectType,
+                                  UnqualifiedId &Result);
+  bool ParseUnqualifiedId(CXXScopeSpec &SS, bool EnteringContext,
+                          bool AllowDestructorName,
+                          bool AllowConstructorName,
+                          TypeTy *ObjectType,
+                          UnqualifiedId &Result);
+    
   //===--------------------------------------------------------------------===//
   // C++ 13.5: Overloaded operators [over.oper]
   // EndLoc, if non-NULL, is filled with the location of the last token of
@@ -1247,6 +1370,7 @@ private:
 
   bool AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
                                const CXXScopeSpec *SS,
+                               UnqualifiedId &TemplateName,
                                SourceLocation TemplateKWLoc = SourceLocation(),
                                bool AllowTypeAnnotation = true);
   void AnnotateTemplateIdTokenAsType(const CXXScopeSpec *SS = 0);

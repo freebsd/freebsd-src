@@ -1272,10 +1272,15 @@ Sema::CheckReturnStackAddr(Expr *RetValExp, QualType lhsType,
     // Skip over implicit cast expressions when checking for block expressions.
     RetValExp = RetValExp->IgnoreParenCasts();
 
-    if (BlockExpr *C = dyn_cast_or_null<BlockExpr>(RetValExp))
+    if (BlockExpr *C = dyn_cast<BlockExpr>(RetValExp))
       if (C->hasBlockDeclRefExprs())
         Diag(C->getLocStart(), diag::err_ret_local_block)
           << C->getSourceRange();
+    
+    if (AddrLabelExpr *ALE = dyn_cast<AddrLabelExpr>(RetValExp))
+      Diag(ALE->getLocStart(), diag::warn_ret_addr_label)
+        << ALE->getSourceRange();
+    
   } else if (lhsType->isReferenceType()) {
     // Perform checking for stack values returned by reference.
     // Check for a reference to the stack
@@ -1420,8 +1425,7 @@ static DeclRefExpr* EvalVal(Expr *E) {
   // viewed AST node.  We then recursively traverse the AST by calling
   // EvalAddr and EvalVal appropriately.
   switch (E->getStmtClass()) {
-  case Stmt::DeclRefExprClass:
-  case Stmt::QualifiedDeclRefExprClass: {
+  case Stmt::DeclRefExprClass: {
     // DeclRefExpr: the base case.  When we hit a DeclRefExpr we are looking
     //  at code that refers to a variable's name.  We check if it has local
     //  storage within the function, and if so, return the expression.

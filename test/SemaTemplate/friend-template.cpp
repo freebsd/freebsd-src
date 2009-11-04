@@ -54,6 +54,7 @@ struct X1 {
 template<typename U> void f2(U);
 
 X1<int> x1i;
+X0<int*> x0ip;
 
 template<> void f2(int);
 
@@ -62,3 +63,31 @@ template<> void f2(int);
 template<typename U> void f3(U);
 
 template<> void f3(int);
+
+// PR5332
+template <typename T>
+class Foo {
+  template <typename U>
+  friend class Foo;
+};
+
+Foo<int> foo;
+
+template<typename T, T Value>
+struct X2a;
+
+template<typename T, int Size>
+struct X2b;
+
+template<typename T>
+class X3 {
+  template<typename U, U Value>
+  friend struct X2a;
+
+  template<typename U, T Value>
+  friend struct X2b;
+};
+
+X3<int> x3i; // okay
+
+X3<long> x3l; // FIXME: should cause an instantiation-time failure

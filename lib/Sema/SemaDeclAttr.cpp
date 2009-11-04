@@ -193,7 +193,8 @@ static void HandleExtVectorTypeAttr(Scope *scope, Decl *d,
   // This will run the reguired checks.
   QualType T = S.BuildExtVectorType(curType, S.Owned(sizeExpr), Attr.getLoc());
   if (!T.isNull()) {
-    tDecl->setUnderlyingType(T);
+    // FIXME: preserve the old source info.
+    tDecl->setTypeDeclaratorInfo(S.Context.getTrivialDeclaratorInfo(T));
 
     // Remember this typedef decl, we will need it later for diagnostics.
     S.ExtVectorDecls.push_back(tDecl);
@@ -278,8 +279,11 @@ static void HandleVectorSizeAttr(Decl *D, const AttributeList &Attr, Sema &S) {
 
   if (ValueDecl *VD = dyn_cast<ValueDecl>(D))
     VD->setType(CurType);
-  else
-    cast<TypedefDecl>(D)->setUnderlyingType(CurType);
+  else {
+    // FIXME: preserve existing source info.
+    DeclaratorInfo *DInfo = S.Context.getTrivialDeclaratorInfo(CurType);
+    cast<TypedefDecl>(D)->setTypeDeclaratorInfo(DInfo);
+  }
 }
 
 static void HandlePackedAttr(Decl *d, const AttributeList &Attr, Sema &S) {
@@ -897,7 +901,7 @@ static void HandleDLLImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
 
   // Currently, the dllimport attribute is ignored for inlined functions.
   // Warning is emitted.
-  if (FD->isInline()) {
+  if (FD->isInlineSpecified()) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << "dllimport";
     return;
   }
@@ -942,7 +946,7 @@ static void HandleDLLExportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
 
   // Currently, the dllexport attribute is ignored for inlined functions, unless
   // the -fkeep-inline-functions flag has been used. Warning is emitted;
-  if (FD->isInline()) {
+  if (FD->isInlineSpecified()) {
     // FIXME: ... unless the -fkeep-inline-functions flag has been used.
     S.Diag(Attr.getLoc(), diag::warn_attribute_ignored) << "dllexport";
     return;
@@ -1028,6 +1032,22 @@ static void HandleStdCallAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   d->addAttr(::new (S.Context) StdCallAttr());
 }
 
+/// Diagnose the use of a non-standard calling convention on the given
+/// function.
+static void DiagnoseCConv(FunctionDecl *D, const char *CConv,
+                          SourceLocation Loc, Sema &S) {
+  if (!D->hasPrototype()) {
+    S.Diag(Loc, diag::err_cconv_knr) << CConv;
+    return;
+  }
+
+  const FunctionProtoType *T = D->getType()->getAs<FunctionProtoType>();
+  if (T->isVariadic()) {
+    S.Diag(Loc, diag::err_cconv_varargs) << CConv;
+    return;
+  }
+}
+
 static void HandleFastCallAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   // Attribute has no arguments.
   if (Attr.getNumArgs() != 0) {
@@ -1040,6 +1060,8 @@ static void HandleFastCallAttr(Decl *d, const AttributeList &Attr, Sema &S) {
       << Attr.getName() << 0 /*function*/;
     return;
   }
+
+  DiagnoseCConv(cast<FunctionDecl>(d), "fastcall", Attr.getLoc(), S);
 
   // stdcall and fastcall attributes are mutually incompatible.
   if (d->getAttr<StdCallAttr>()) {
@@ -1636,9 +1658,10 @@ static void HandleModeAttr(Decl *D, const AttributeList &Attr, Sema &S) {
   }
 
   // Install the new type.
-  if (TypedefDecl *TD = dyn_cast<TypedefDecl>(D))
-    TD->setUnderlyingType(NewTy);
-  else
+  if (TypedefDecl *TD = dyn_cast<TypedefDecl>(D)) {
+    // FIXME: preserve existing source info.
+    TD->setTypeDeclaratorInfo(S.Context.getTrivialDeclaratorInfo(NewTy));
+  } else
     cast<ValueDecl>(D)->setType(NewTy);
 }
 
@@ -1688,7 +1711,7 @@ static void HandleGNUInlineAttr(Decl *d, const AttributeList &Attr, Sema &S) {
     return;
   }
 
-  if (!Fn->isInline()) {
+  if (!Fn->isInlineSpecified()) {
     S.Diag(Attr.getLoc(), diag::warn_gnu_inline_attribute_requires_inline);
     return;
   }
@@ -1943,4 +1966,63 @@ void Sema::ProcessDeclAttributes(Scope *S, Decl *D, const Declarator &PD) {
   // Finally, apply any attributes on the decl itself.
   if (const AttributeList *Attrs = PD.getAttributes())
     ProcessDeclAttributeList(S, D, Attrs);
+}
+
+/// PushParsingDeclaration - Enter a new "scope" of deprecation
+/// warnings.
+///
+/// The state token we use is the start index of this scope
+/// on the warning stack.
+Action::ParsingDeclStackState Sema::PushParsingDeclaration() {
+  ParsingDeclDepth++;
+  return (ParsingDeclStackState) DelayedDeprecationWarnings.size();
+}
+
+static bool isDeclDeprecated(Decl *D) {
+  do {
+    if (D->hasAttr<DeprecatedAttr>())
+      return true;
+  } while ((D = cast_or_null<Decl>(D->getDeclContext())));
+  return false;
+}
+
+void Sema::PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy Ctx) {
+  assert(ParsingDeclDepth > 0 && "empty ParsingDeclaration stack");
+  ParsingDeclDepth--;
+
+  if (DelayedDeprecationWarnings.empty())
+    return;
+
+  unsigned SavedIndex = (unsigned) S;
+  assert(SavedIndex <= DelayedDeprecationWarnings.size() &&
+         "saved index is out of bounds");
+
+  if (Ctx && !isDeclDeprecated(Ctx.getAs<Decl>())) {
+    for (unsigned I = 0, E = DelayedDeprecationWarnings.size(); I != E; ++I) {
+      SourceLocation Loc = DelayedDeprecationWarnings[I].first;
+      NamedDecl *&ND = DelayedDeprecationWarnings[I].second;
+      if (ND) {
+        Diag(Loc, diag::warn_deprecated) << ND->getDeclName();
+
+        // Prevent this from triggering multiple times.
+        ND = 0;
+      }
+    }
+  }
+
+  DelayedDeprecationWarnings.set_size(SavedIndex);
+}
+
+void Sema::EmitDeprecationWarning(NamedDecl *D, SourceLocation Loc) {
+  // Delay if we're currently parsing a declaration.
+  if (ParsingDeclDepth) {
+    DelayedDeprecationWarnings.push_back(std::make_pair(Loc, D));
+    return;
+  }
+
+  // Otherwise, don't warn if our current context is deprecated.
+  if (isDeclDeprecated(cast<Decl>(CurContext)))
+    return;
+
+  Diag(Loc, diag::warn_deprecated) << D->getDeclName();
 }

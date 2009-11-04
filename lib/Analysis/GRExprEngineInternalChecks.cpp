@@ -15,6 +15,13 @@
 #include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/Analysis/PathSensitive/GRExprEngine.h"
 #include "clang/Analysis/PathSensitive/CheckerVisitor.h"
+#include "clang/Analysis/PathSensitive/Checkers/DereferenceChecker.h"
+#include "clang/Analysis/PathSensitive/Checkers/DivZeroChecker.h"
+#include "clang/Analysis/PathSensitive/Checkers/BadCallChecker.h"
+#include "clang/Analysis/PathSensitive/Checkers/UndefinedArgChecker.h"
+#include "clang/Analysis/PathSensitive/Checkers/UndefinedAssignmentChecker.h"
+#include "clang/Analysis/PathSensitive/Checkers/AttrNonNullChecker.h"
+#include "clang/Analysis/PathSensitive/Checkers/VLASizeChecker.h"
 #include "clang/Analysis/PathDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/Support/Compiler.h"
@@ -40,10 +47,8 @@ ExplodedNode* GetNode(GRExprEngine::undef_arg_iterator I) {
 //===----------------------------------------------------------------------===//
 // Bug Descriptions.
 //===----------------------------------------------------------------------===//
-
-namespace {
-
-class VISIBILITY_HIDDEN BuiltinBugReport : public RangedBugReport {
+namespace clang {
+class BuiltinBugReport : public RangedBugReport {
 public:
   BuiltinBugReport(BugType& bt, const char* desc,
                    ExplodedNode *n)
@@ -57,57 +62,16 @@ public:
                                const ExplodedNode* N);
 };
 
-class VISIBILITY_HIDDEN BuiltinBug : public BugType {
-  GRExprEngine &Eng;
-protected:
-  const std::string desc;
-public:
-  BuiltinBug(GRExprEngine *eng, const char* n, const char* d)
-    : BugType(n, "Logic errors"), Eng(*eng), desc(d) {}
-
-  BuiltinBug(GRExprEngine *eng, const char* n)
-    : BugType(n, "Logic errors"), Eng(*eng), desc(n) {}
-
-  const std::string &getDescription() const { return desc; }
-
-  virtual void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {}
-
-  void FlushReports(BugReporter& BR) { FlushReportsImpl(BR, Eng); }
-
-  virtual void registerInitialVisitors(BugReporterContext& BRC,
-                                       const ExplodedNode* N,
-                                       BuiltinBugReport *R) {}
-
-  template <typename ITER> void Emit(BugReporter& BR, ITER I, ITER E);
-};
-
+void BuiltinBugReport::registerInitialVisitors(BugReporterContext& BRC,
+                                               const ExplodedNode* N) {
+  static_cast<BuiltinBug&>(getBugType()).registerInitialVisitors(BRC, N, this);
+}
 
 template <typename ITER>
 void BuiltinBug::Emit(BugReporter& BR, ITER I, ITER E) {
   for (; I != E; ++I) BR.EmitReport(new BuiltinBugReport(*this, desc.c_str(),
                                                          GetNode(I)));
 }
-
-void BuiltinBugReport::registerInitialVisitors(BugReporterContext& BRC,
-                                               const ExplodedNode* N) {
-  static_cast<BuiltinBug&>(getBugType()).registerInitialVisitors(BRC, N, this);
-}
-
-class VISIBILITY_HIDDEN NullDeref : public BuiltinBug {
-public:
-  NullDeref(GRExprEngine* eng)
-    : BuiltinBug(eng,"Null dereference", "Dereference of null pointer") {}
-
-  void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {
-    Emit(BR, Eng.null_derefs_begin(), Eng.null_derefs_end());
-  }
-
-  void registerInitialVisitors(BugReporterContext& BRC,
-                               const ExplodedNode* N,
-                               BuiltinBugReport *R) {
-    registerTrackNullOrUndefValue(BRC, GetDerefExpr(N), N);
-  }
-};
 
 class VISIBILITY_HIDDEN NilReceiverStructRet : public BuiltinBug {
 public:
@@ -172,34 +136,6 @@ public:
                                const ExplodedNode* N,
                                BuiltinBugReport *R) {
     registerTrackNullOrUndefValue(BRC, GetReceiverExpr(N), N);
-  }
-};
-
-class VISIBILITY_HIDDEN UndefinedDeref : public BuiltinBug {
-public:
-  UndefinedDeref(GRExprEngine* eng)
-    : BuiltinBug(eng,"Dereference of undefined pointer value") {}
-
-  void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {
-    Emit(BR, Eng.undef_derefs_begin(), Eng.undef_derefs_end());
-  }
-
-  void registerInitialVisitors(BugReporterContext& BRC,
-                               const ExplodedNode* N,
-                               BuiltinBugReport *R) {
-    registerTrackNullOrUndefValue(BRC, GetDerefExpr(N), N);
-  }
-};
-
-class VISIBILITY_HIDDEN DivZero : public BuiltinBug {
-public:
-  DivZero(GRExprEngine* eng = 0)
-    : BuiltinBug(eng,"Division by zero") {}
-
-  void registerInitialVisitors(BugReporterContext& BRC,
-                               const ExplodedNode* N,
-                               BuiltinBugReport *R) {
-    registerTrackNullOrUndefValue(BRC, GetDenomExpr(N), N);
   }
 };
 
@@ -278,20 +214,6 @@ public:
     registerTrackNullOrUndefValue(BRC, X, N);
   }
 };
-
-class VISIBILITY_HIDDEN BadCall : public BuiltinBug {
-public:
-  BadCall(GRExprEngine *eng = 0)
-  : BuiltinBug(eng, "Invalid function call",
-        "Called function pointer is a null or undefined pointer value") {}
-
-  void registerInitialVisitors(BugReporterContext& BRC,
-                               const ExplodedNode* N,
-                               BuiltinBugReport *R) {
-    registerTrackNullOrUndefValue(BRC, GetCalleeExpr(N), N);
-  }
-};
-
 
 class VISIBILITY_HIDDEN ArgReport : public BuiltinBugReport {
   const Stmt *Arg;
@@ -528,276 +450,8 @@ public:
   }
 };
 
-class VISIBILITY_HIDDEN BadSizeVLA : public BuiltinBug {
-public:
-  BadSizeVLA(GRExprEngine* eng) :
-    BuiltinBug(eng, "Bad variable-length array (VLA) size") {}
+} // end clang namespace
 
-  void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {
-    for (GRExprEngine::ErrorNodes::iterator
-          I = Eng.ExplicitBadSizedVLA.begin(),
-          E = Eng.ExplicitBadSizedVLA.end(); I!=E; ++I) {
-
-      // Determine whether this was a 'zero-sized' VLA or a VLA with an
-      // undefined size.
-      ExplodedNode* N = *I;
-      PostStmt PS = cast<PostStmt>(N->getLocation());
-      const DeclStmt *DS = cast<DeclStmt>(PS.getStmt());
-      VarDecl* VD = cast<VarDecl>(*DS->decl_begin());
-      QualType T = Eng.getContext().getCanonicalType(VD->getType());
-      VariableArrayType* VT = cast<VariableArrayType>(T);
-      Expr* SizeExpr = VT->getSizeExpr();
-
-      std::string buf;
-      llvm::raw_string_ostream os(buf);
-      os << "The expression used to specify the number of elements in the "
-            "variable-length array (VLA) '"
-         << VD->getNameAsString() << "' evaluates to ";
-
-      bool isUndefined = N->getState()->getSVal(SizeExpr).isUndef();
-
-      if (isUndefined)
-        os << "an undefined or garbage value.";
-      else
-        os << "0. VLAs with no elements have undefined behavior.";
-
-      std::string shortBuf;
-      llvm::raw_string_ostream os_short(shortBuf);
-      os_short << "Variable-length array '" << VD->getNameAsString() << "' "
-               << (isUndefined ? "garbage value for array size"
-                   : "has zero elements (undefined behavior)");
-
-      ArgReport *report = new ArgReport(*this, os_short.str().c_str(),
-                                        os.str().c_str(), N, SizeExpr);
-
-      report->addRange(SizeExpr->getSourceRange());
-      BR.EmitReport(report);
-    }
-  }
-
-  void registerInitialVisitors(BugReporterContext& BRC,
-                               const ExplodedNode* N,
-                               BuiltinBugReport *R) {
-    registerTrackNullOrUndefValue(BRC, static_cast<ArgReport*>(R)->getArg(),
-                                  N);
-  }
-};
-
-//===----------------------------------------------------------------------===//
-// __attribute__(nonnull) checking
-
-class VISIBILITY_HIDDEN CheckAttrNonNull :
-    public CheckerVisitor<CheckAttrNonNull> {
-
-  BugType *BT;
-
-public:
-  CheckAttrNonNull() : BT(0) {}
-  ~CheckAttrNonNull() {}
-
-  const void *getTag() {
-    static int x = 0;
-    return &x;
-  }
-
-  void PreVisitCallExpr(CheckerContext &C, const CallExpr *CE) {
-    const GRState *state = C.getState();
-    const GRState *originalState = state;
-
-    // Check if the callee has a 'nonnull' attribute.
-    SVal X = state->getSVal(CE->getCallee());
-
-    const FunctionDecl* FD = X.getAsFunctionDecl();
-    if (!FD)
-      return;
-
-    const NonNullAttr* Att = FD->getAttr<NonNullAttr>();
-    if (!Att)
-      return;
-
-    // Iterate through the arguments of CE and check them for null.
-    unsigned idx = 0;
-
-    for (CallExpr::const_arg_iterator I=CE->arg_begin(), E=CE->arg_end(); I!=E;
-         ++I, ++idx) {
-
-      if (!Att->isNonNull(idx))
-        continue;
-
-      const SVal &V = state->getSVal(*I);
-      const DefinedSVal *DV = dyn_cast<DefinedSVal>(&V);
-
-      if (!DV)
-        continue;
-
-      ConstraintManager &CM = C.getConstraintManager();
-      const GRState *stateNotNull, *stateNull;
-      llvm::tie(stateNotNull, stateNull) = CM.AssumeDual(state, *DV);
-
-      if (stateNull && !stateNotNull) {
-        // Generate an error node.  Check for a null node in case
-        // we cache out.
-        if (ExplodedNode *errorNode = C.GenerateNode(CE, stateNull, true)) {
-
-          // Lazily allocate the BugType object if it hasn't already been
-          // created. Ownership is transferred to the BugReporter object once
-          // the BugReport is passed to 'EmitWarning'.
-          if (!BT)
-            BT = new BugType("Argument with 'nonnull' attribute passed null",
-                             "API");
-
-          EnhancedBugReport *R =
-            new EnhancedBugReport(*BT,
-                                  "Null pointer passed as an argument to a "
-                                  "'nonnull' parameter", errorNode);
-
-          // Highlight the range of the argument that was null.
-          const Expr *arg = *I;
-          R->addRange(arg->getSourceRange());
-          R->addVisitorCreator(registerTrackNullOrUndefValue, arg);
-
-          // Emit the bug report.
-          C.EmitReport(R);
-        }
-
-        // Always return.  Either we cached out or we just emitted an error.
-        return;
-      }
-
-      // If a pointer value passed the check we should assume that it is
-      // indeed not null from this point forward.
-      assert(stateNotNull);
-      state = stateNotNull;
-    }
-
-    // If we reach here all of the arguments passed the nonnull check.
-    // If 'state' has been updated generated a new node.
-    if (state != originalState)
-      C.addTransition(C.GenerateNode(CE, state));
-  }
-};
-} // end anonymous namespace
-
-// Undefined arguments checking.
-namespace {
-class VISIBILITY_HIDDEN CheckUndefinedArg
-  : public CheckerVisitor<CheckUndefinedArg> {
-
-  BadArg *BT;
-
-public:
-  CheckUndefinedArg() : BT(0) {}
-  ~CheckUndefinedArg() {}
-
-  const void *getTag() {
-    static int x = 0;
-    return &x;
-  }
-
-  void PreVisitCallExpr(CheckerContext &C, const CallExpr *CE);
-};
-
-void CheckUndefinedArg::PreVisitCallExpr(CheckerContext &C, const CallExpr *CE){
-  for (CallExpr::const_arg_iterator I = CE->arg_begin(), E = CE->arg_end();
-       I != E; ++I) {
-    if (C.getState()->getSVal(*I).isUndef()) {
-      if (ExplodedNode *ErrorNode = C.GenerateNode(CE, true)) {
-        if (!BT)
-          BT = new BadArg();
-        // Generate a report for this bug.
-        ArgReport *Report = new ArgReport(*BT, BT->getDescription().c_str(),
-                                          ErrorNode, *I);
-        Report->addRange((*I)->getSourceRange());
-        C.EmitReport(Report);
-      }
-    }
-  }
-}
-
-class VISIBILITY_HIDDEN CheckBadCall : public CheckerVisitor<CheckBadCall> {
-  BadCall *BT;
-
-public:
-  CheckBadCall() : BT(0) {}
-  ~CheckBadCall() {}
-
-  const void *getTag() {
-    static int x = 0;
-    return &x;
-  }
-
-  void PreVisitCallExpr(CheckerContext &C, const CallExpr *CE);
-};
-
-void CheckBadCall::PreVisitCallExpr(CheckerContext &C, const CallExpr *CE) {
-  const Expr *Callee = CE->getCallee()->IgnoreParens();
-  SVal L = C.getState()->getSVal(Callee);
-
-  if (L.isUndef() || isa<loc::ConcreteInt>(L)) {
-    if (ExplodedNode *N = C.GenerateNode(CE, true)) {
-      if (!BT)
-        BT = new BadCall();
-      C.EmitReport(new BuiltinBugReport(*BT, BT->getDescription().c_str(), N));
-    }
-  }
-}
-
-class VISIBILITY_HIDDEN CheckDivZero : public CheckerVisitor<CheckDivZero> {
-  DivZero *BT;
-public:
-  CheckDivZero() : BT(0) {}
-  ~CheckDivZero() {}
-
-  const void *getTag() {
-    static int x;
-    return &x;
-  }
-
-  void PreVisitBinaryOperator(CheckerContext &C, const BinaryOperator *B);
-};
-
-void CheckDivZero::PreVisitBinaryOperator(CheckerContext &C,
-                                          const BinaryOperator *B) {
-  BinaryOperator::Opcode Op = B->getOpcode();
-  if (Op != BinaryOperator::Div &&
-      Op != BinaryOperator::Rem &&
-      Op != BinaryOperator::DivAssign &&
-      Op != BinaryOperator::RemAssign)
-    return;
-
-  if (!B->getRHS()->getType()->isIntegerType() ||
-      !B->getRHS()->getType()->isScalarType())
-    return;
-
-  SVal Denom = C.getState()->getSVal(B->getRHS());
-  const DefinedSVal *DV = dyn_cast<DefinedSVal>(&Denom);
-
-  // Divide-by-undefined handled in the generic checking for uses of
-  // undefined values.
-  if (!DV)
-    return;
-
-  // Check for divide by zero.
-  ConstraintManager &CM = C.getConstraintManager();
-  const GRState *stateNotZero, *stateZero;
-  llvm::tie(stateNotZero, stateZero) = CM.AssumeDual(C.getState(), *DV);
-
-  if (stateZero && !stateNotZero) {
-    if (ExplodedNode *N = C.GenerateNode(B, stateZero, true)) {
-      if (!BT)
-        BT = new DivZero();
-
-      C.EmitReport(new BuiltinBugReport(*BT, BT->getDescription().c_str(), N));
-    }
-    return;
-  }
-
-  // If we get here, then the denom should not be zero. We abandon the implicit
-  // zero denom case for now.
-  if (stateNotZero != C.getState())
-    C.addTransition(C.GenerateNode(B, stateNotZero));
-}
-}
 //===----------------------------------------------------------------------===//
 // Check registration.
 //===----------------------------------------------------------------------===//
@@ -808,8 +462,6 @@ void GRExprEngine::RegisterInternalChecks() {
   // create BugReports on-the-fly but instead wait until GRExprEngine finishes
   // analyzing a function.  Generation of BugReport objects is done via a call
   // to 'FlushReports' from BugReporter.
-  BR.Register(new NullDeref(this));
-  BR.Register(new UndefinedDeref(this));
   BR.Register(new UndefBranch(this));
   BR.Register(new UndefResult(this));
   BR.Register(new RetStack(this));
@@ -817,7 +469,6 @@ void GRExprEngine::RegisterInternalChecks() {
   BR.Register(new BadMsgExprArg(this));
   BR.Register(new BadReceiver(this));
   BR.Register(new OutOfBoundMemoryAccess(this));
-  BR.Register(new BadSizeVLA(this));
   BR.Register(new NilReceiverStructRet(this));
   BR.Register(new NilReceiverLargerThanVoidPtrRet(this));
 
@@ -826,8 +477,13 @@ void GRExprEngine::RegisterInternalChecks() {
   // their associated BugType will get registered with the BugReporter
   // automatically.  Note that the check itself is owned by the GRExprEngine
   // object.
-  registerCheck(new CheckAttrNonNull());
-  registerCheck(new CheckUndefinedArg());
-  registerCheck(new CheckBadCall());
-  registerCheck(new CheckDivZero());
+  registerCheck(new AttrNonNullChecker());
+  registerCheck(new UndefinedArgChecker());
+  registerCheck(new UndefinedAssignmentChecker());
+  registerCheck(new BadCallChecker());
+  registerCheck(new DivZeroChecker());
+  registerCheck(new UndefDerefChecker());
+  registerCheck(new NullDerefChecker());
+  registerCheck(new UndefSizedVLAChecker());
+  registerCheck(new ZeroSizedVLAChecker());
 }

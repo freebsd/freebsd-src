@@ -605,6 +605,9 @@ public:
   /// \brief Determine whether this is or was instantiated from an out-of-line 
   /// definition of a static data member.
   bool isOutOfLine() const;
+
+  /// \brief If this is a static data member, find its out-of-line definition.
+  VarDecl *getOutOfLineDefinition();
   
   /// \brief If this variable is an instantiated static data member of a
   /// class template specialization, returns the templated static data member
@@ -768,7 +771,11 @@ public:
     Init = (UnparsedDefaultArgument *)0;
   }
 
-  QualType getOriginalType() const;
+  QualType getOriginalType() const {
+    if (getDeclaratorInfo())
+      return getDeclaratorInfo()->getType();
+    return getType();
+  }
 
   /// setOwningFunction - Sets the function declaration that owns this
   /// ParmVarDecl. Since ParmVarDecls are often created before the
@@ -778,39 +785,9 @@ public:
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {
-    return (D->getKind() == ParmVar ||
-            D->getKind() == OriginalParmVar);
+    return (D->getKind() == ParmVar);
   }
   static bool classof(const ParmVarDecl *D) { return true; }
-};
-
-/// OriginalParmVarDecl - Represent a parameter to a function, when
-/// the type of the parameter has been promoted. This node represents the
-/// parameter to the function with its original type.
-///
-class OriginalParmVarDecl : public ParmVarDecl {
-  friend class ParmVarDecl;
-protected:
-  QualType OriginalType;
-private:
-  OriginalParmVarDecl(DeclContext *DC, SourceLocation L,
-                              IdentifierInfo *Id, QualType T,
-                              DeclaratorInfo *DInfo,
-                              QualType OT, StorageClass S,
-                              Expr *DefArg)
-  : ParmVarDecl(OriginalParmVar, DC, L, Id, T, DInfo, S, DefArg),
-    OriginalType(OT) {}
-public:
-  static OriginalParmVarDecl *Create(ASTContext &C, DeclContext *DC,
-                                     SourceLocation L,IdentifierInfo *Id,
-                                     QualType T, DeclaratorInfo *DInfo,
-                                     QualType OT, StorageClass S, Expr *DefArg);
-
-  void setOriginalType(QualType T) { OriginalType = T; }
-
-  // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) { return D->getKind() == OriginalParmVar; }
-  static bool classof(const OriginalParmVarDecl *D) { return true; }
 };
 
 /// FunctionDecl - An instance of this class is created to represent a
@@ -1067,9 +1044,18 @@ public:
   StorageClass getStorageClass() const { return StorageClass(SClass); }
   void setStorageClass(StorageClass SC) { SClass = SC; }
 
-  bool isInline() const { return IsInline; }
-  void setInline(bool I) { IsInline = I; }
+  /// \brief Determine whether the "inline" keyword was specified for this
+  /// function.
+  bool isInlineSpecified() const { return IsInline; }
+                       
+  /// Set whether the "inline" keyword was specified for this function.
+  void setInlineSpecified(bool I) { IsInline = I; }
 
+  /// \brief Determine whether this function should be inlined, because it is
+  /// either marked "inline" or is a member function of a C++ class that
+  /// was defined in the class body.
+  bool isInlined() const;
+                       
   bool isInlineDefinitionExternallyVisible() const;
                        
   /// isOverloadedOperator - Whether this function declaration
@@ -1146,7 +1132,17 @@ public:
     return TemplateOrSpecialization.
              dyn_cast<FunctionTemplateSpecializationInfo*>();
   }
-                       
+
+  /// \brief Determines whether this function is a function template
+  /// specialization or a member of a class template specialization that can
+  /// be implicitly instantiated.
+  bool isImplicitlyInstantiable() const;
+              
+  /// \brief Retrieve the function declaration from which this function could
+  /// be instantiated, if it is an instantiation (rather than a non-template
+  /// or a specialization, for example).
+  FunctionDecl *getTemplateInstantiationPattern() const;
+
   /// \brief Retrieve the primary template that this function template
   /// specialization either specializes or was instantiated from.
   ///
@@ -1199,7 +1195,7 @@ public:
   /// instantiated from a template; otherwie, returns an invalid source 
   /// location.
   SourceLocation getPointOfInstantiation() const;
-
+                       
   /// \brief Determine whether this is or was instantiated from an out-of-line 
   /// definition of a member function.
   bool isOutOfLine() const;
@@ -1337,20 +1333,29 @@ public:
 
 class TypedefDecl : public TypeDecl {
   /// UnderlyingType - This is the type the typedef is set to.
-  QualType UnderlyingType;
+  DeclaratorInfo *DInfo;
+
   TypedefDecl(DeclContext *DC, SourceLocation L,
-              IdentifierInfo *Id, QualType T)
-    : TypeDecl(Typedef, DC, L, Id), UnderlyingType(T) {}
+              IdentifierInfo *Id, DeclaratorInfo *DInfo)
+    : TypeDecl(Typedef, DC, L, Id), DInfo(DInfo) {}
 
   virtual ~TypedefDecl() {}
 public:
 
   static TypedefDecl *Create(ASTContext &C, DeclContext *DC,
-                             SourceLocation L,IdentifierInfo *Id,
-                             QualType T);
+                             SourceLocation L, IdentifierInfo *Id,
+                             DeclaratorInfo *DInfo);
 
-  QualType getUnderlyingType() const { return UnderlyingType; }
-  void setUnderlyingType(QualType newType) { UnderlyingType = newType; }
+  DeclaratorInfo *getTypeDeclaratorInfo() const {
+    return DInfo;
+  }
+
+  QualType getUnderlyingType() const {
+    return DInfo->getType();
+  }
+  void setTypeDeclaratorInfo(DeclaratorInfo *newType) {
+    DInfo = newType;
+  }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return D->getKind() == Typedef; }

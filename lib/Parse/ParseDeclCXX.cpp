@@ -323,6 +323,7 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
       SkipUntil(tok::semi);
       return DeclPtrTy();
     }
+    // FIXME: what about conversion functions?
   } else if (Tok.is(tok::identifier)) {
     // Parse identifier.
     TargetName = Tok.getIdentifierInfo();
@@ -589,6 +590,8 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     if (Tok.isNot(tok::identifier) && Tok.isNot(tok::annot_template_id))
       Diag(Tok, diag::err_expected_ident);
 
+  TemplateParameterLists *TemplateParams = TemplateInfo.TemplateParams;
+
   // Parse the (optional) class name or simple-template-id.
   IdentifierInfo *Name = 0;
   SourceLocation NameLoc;
@@ -596,6 +599,56 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   if (Tok.is(tok::identifier)) {
     Name = Tok.getIdentifierInfo();
     NameLoc = ConsumeToken();
+    
+    if (Tok.is(tok::less)) {
+      // The name was supposed to refer to a template, but didn't. 
+      // Eat the template argument list and try to continue parsing this as
+      // a class (or template thereof).
+      TemplateArgList TemplateArgs;
+      TemplateArgIsTypeList TemplateArgIsType;
+      TemplateArgLocationList TemplateArgLocations;
+      SourceLocation LAngleLoc, RAngleLoc;
+      if (ParseTemplateIdAfterTemplateName(TemplateTy(), NameLoc, &SS, 
+                                           true, LAngleLoc,
+                                           TemplateArgs, TemplateArgIsType,
+                                           TemplateArgLocations, RAngleLoc)) {
+        // We couldn't parse the template argument list at all, so don't
+        // try to give any location information for the list.
+        LAngleLoc = RAngleLoc = SourceLocation();
+      }
+      
+      Diag(NameLoc, diag::err_explicit_spec_non_template)
+        << (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation)
+        << (TagType == DeclSpec::TST_class? 0
+            : TagType == DeclSpec::TST_struct? 1
+            : 2)
+        << Name
+        << SourceRange(LAngleLoc, RAngleLoc);
+      
+      // Strip off the last template parameter list if it was empty, since 
+      // we've removed its template argument list.
+      if (TemplateParams && TemplateInfo.LastParameterListWasEmpty) {
+        if (TemplateParams && TemplateParams->size() > 1) {
+          TemplateParams->pop_back();
+        } else {
+          TemplateParams = 0;
+          const_cast<ParsedTemplateInfo&>(TemplateInfo).Kind 
+            = ParsedTemplateInfo::NonTemplate;
+        }
+      } else if (TemplateInfo.Kind
+                                == ParsedTemplateInfo::ExplicitInstantiation) {
+        // Pretend this is just a forward declaration.
+        TemplateParams = 0;
+        const_cast<ParsedTemplateInfo&>(TemplateInfo).Kind 
+          = ParsedTemplateInfo::NonTemplate;
+        const_cast<ParsedTemplateInfo&>(TemplateInfo).TemplateLoc 
+          = SourceLocation();
+        const_cast<ParsedTemplateInfo&>(TemplateInfo).ExternLoc
+          = SourceLocation();
+      }
+        
+      
+    }
   } else if (Tok.is(tok::annot_template_id)) {
     TemplateId = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
     NameLoc = ConsumeToken();
@@ -660,7 +713,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   // Create the tag portion of the class or class template.
   Action::DeclResult TagOrTempResult = true; // invalid
   Action::TypeResult TypeResult = true; // invalid
-  TemplateParameterLists *TemplateParams = TemplateInfo.TemplateParams;
 
   // FIXME: When TUK == TUK_Reference and we have a template-id, we need
   // to turn that template-id into a type.
@@ -1047,7 +1099,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
   SourceLocation DSStart = Tok.getLocation();
   // decl-specifier-seq:
   // Parse the common declaration-specifiers piece.
-  DeclSpec DS;
+  ParsingDeclSpec DS(*this);
   ParseDeclarationSpecifiers(DS, TemplateInfo, AS, DSC_class);
 
   Action::MultiTemplateParamsArg TemplateParams(Actions,
@@ -1060,7 +1112,7 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
     return;
   }
 
-  Declarator DeclaratorInfo(DS, Declarator::MemberContext);
+  ParsingDeclarator DeclaratorInfo(*this, DS, Declarator::MemberContext);
 
   if (Tok.isNot(tok::colon)) {
     // Parse the first declarator.
@@ -1178,6 +1230,8 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
           != DeclSpec::SCS_typedef) {
       HandleMemberFunctionDefaultArgs(DeclaratorInfo, ThisDecl);
     }
+
+    DeclaratorInfo.complete(ThisDecl);
 
     // If we don't have a comma, it is either the end of the list (a ';')
     // or an error, bail out.

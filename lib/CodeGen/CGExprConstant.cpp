@@ -228,7 +228,7 @@ class VISIBILITY_HIDDEN ConstStructBuilder {
     if (NumBytes > 1)
       Ty = llvm::ArrayType::get(Ty, NumBytes);
 
-    llvm::Constant *C = llvm::Constant::getNullValue(Ty);
+    llvm::Constant *C = llvm::UndefValue::get(Ty);
     Elements.push_back(C);
     assert(getAlignment(C) == 1 && "Padding must have 1 byte alignment!");
 
@@ -266,7 +266,7 @@ class VISIBILITY_HIDDEN ConstStructBuilder {
         if (NumBytes > 1)
           Ty = llvm::ArrayType::get(Ty, NumBytes);
 
-        llvm::Constant *Padding = llvm::Constant::getNullValue(Ty);
+        llvm::Constant *Padding = llvm::UndefValue::get(Ty);
         PackedElements.push_back(Padding);
         ElementOffsetInBytes += getSizeInBytes(Padding);
       }
@@ -434,7 +434,7 @@ public:
         E->getType()->getAs<MemberPointerType>()) {
       QualType T = MPT->getPointeeType();
       if (T->isFunctionProtoType()) {
-        QualifiedDeclRefExpr *DRE = cast<QualifiedDeclRefExpr>(E->getSubExpr());
+        DeclRefExpr *DRE = cast<DeclRefExpr>(E->getSubExpr());
         
         return EmitMemberFunctionPointer(cast<CXXMethodDecl>(DRE->getDecl()));
       }
@@ -496,7 +496,7 @@ public:
         if (NumPadBytes > 1)
           Ty = llvm::ArrayType::get(Ty, NumPadBytes);
 
-        Elts.push_back(llvm::Constant::getNullValue(Ty));
+        Elts.push_back(llvm::UndefValue::get(Ty));
         Types.push_back(Ty);
       }
 
@@ -739,8 +739,7 @@ public:
                                      E->getType().getAddressSpace());
       return C;
     }
-    case Expr::DeclRefExprClass:
-    case Expr::QualifiedDeclRefExprClass: {
+    case Expr::DeclRefExprClass: {
       NamedDecl *Decl = cast<DeclRefExpr>(E)->getDecl();
       if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(Decl))
         return CGM.GetAddrOfFunction(FD);
@@ -777,11 +776,17 @@ public:
     }
     case Expr::AddrLabelExprClass: {
       assert(CGF && "Invalid address of label expression outside function.");
+#ifndef USEINDIRECTBRANCH
       unsigned id =
           CGF->GetIDForAddrOfLabel(cast<AddrLabelExpr>(E)->getLabel());
       llvm::Constant *C =
             llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), id);
       return llvm::ConstantExpr::getIntToPtr(C, ConvertType(E->getType()));
+#else
+      llvm::Constant *Ptr =
+        CGF->GetAddrOfLabel(cast<AddrLabelExpr>(E)->getLabel());
+      return llvm::ConstantExpr::getBitCast(Ptr, ConvertType(E->getType()));
+#endif
     }
     case Expr::CallExprClass: {
       CallExpr* CE = cast<CallExpr>(E);

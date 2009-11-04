@@ -58,7 +58,8 @@ struct EvalInfo {
 static bool EvaluateLValue(const Expr *E, APValue &Result, EvalInfo &Info);
 static bool EvaluatePointer(const Expr *E, APValue &Result, EvalInfo &Info);
 static bool EvaluateInteger(const Expr *E, APSInt  &Result, EvalInfo &Info);
-static bool EvaluateIntegerOrLValue(const Expr *E, APValue  &Result, EvalInfo &Info);
+static bool EvaluateIntegerOrLValue(const Expr *E, APValue  &Result,
+                                    EvalInfo &Info);
 static bool EvaluateFloat(const Expr *E, APFloat &Result, EvalInfo &Info);
 static bool EvaluateComplex(const Expr *E, APValue &Result, EvalInfo &Info);
 
@@ -151,6 +152,67 @@ static APFloat HandleIntToFloatCast(QualType DestType, QualType SrcType,
   return Result;
 }
 
+namespace {
+class VISIBILITY_HIDDEN HasSideEffect
+  : public StmtVisitor<HasSideEffect, bool> {
+  EvalInfo &Info;
+public:
+
+  HasSideEffect(EvalInfo &info) : Info(info) {}
+
+  // Unhandled nodes conservatively default to having side effects.
+  bool VisitStmt(Stmt *S) {
+    return true;
+  }
+
+  bool VisitParenExpr(ParenExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitDeclRefExpr(DeclRefExpr *E) {
+    if (Info.Ctx.getCanonicalType(E->getType()).isVolatileQualified())
+      return true;
+    return false;
+  }
+  // We don't want to evaluate BlockExprs multiple times, as they generate
+  // a ton of code.
+  bool VisitBlockExpr(BlockExpr *E) { return true; }
+  bool VisitPredefinedExpr(PredefinedExpr *E) { return false; }
+  bool VisitCompoundLiteralExpr(CompoundLiteralExpr *E)
+    { return Visit(E->getInitializer()); }
+  bool VisitMemberExpr(MemberExpr *E) { return Visit(E->getBase()); }
+  bool VisitIntegerLiteral(IntegerLiteral *E) { return false; }
+  bool VisitFloatingLiteral(FloatingLiteral *E) { return false; }
+  bool VisitStringLiteral(StringLiteral *E) { return false; }
+  bool VisitCharacterLiteral(CharacterLiteral *E) { return false; }
+  bool VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) { return false; }
+  bool VisitArraySubscriptExpr(ArraySubscriptExpr *E)
+    { return Visit(E->getLHS()) || Visit(E->getRHS()); }
+  bool VisitChooseExpr(ChooseExpr *E)
+    { return Visit(E->getChosenSubExpr(Info.Ctx)); }
+  bool VisitCastExpr(CastExpr *E) { return Visit(E->getSubExpr()); }
+  bool VisitBinAssign(BinaryOperator *E) { return true; }
+  bool VisitCompoundAssignOperator(BinaryOperator *E) { return true; }
+  bool VisitBinaryOperator(BinaryOperator *E)
+  { return Visit(E->getLHS()) || Visit(E->getRHS()); }
+  bool VisitUnaryPreInc(UnaryOperator *E) { return true; }
+  bool VisitUnaryPostInc(UnaryOperator *E) { return true; }
+  bool VisitUnaryPreDec(UnaryOperator *E) { return true; }
+  bool VisitUnaryPostDec(UnaryOperator *E) { return true; }
+  bool VisitUnaryDeref(UnaryOperator *E) {
+    if (Info.Ctx.getCanonicalType(E->getType()).isVolatileQualified())
+      return true;
+    return Visit(E->getSubExpr());
+  }
+  bool VisitUnaryOperator(UnaryOperator *E) { return Visit(E->getSubExpr()); }
+};
+
+bool HasSideEffects(const Expr* E, ASTContext &Ctx) {
+  Expr::EvalResult Result;
+  EvalInfo Info(Ctx, Result);
+
+  return HasSideEffect(Info).Visit(const_cast<Expr*>(E));
+}
+
+} // end anonymous namespace
+
 //===----------------------------------------------------------------------===//
 // LValue Evaluation
 //===----------------------------------------------------------------------===//
@@ -208,8 +270,9 @@ APValue LValueExprEvaluator::VisitDeclRefExpr(DeclRefExpr *E) {
     if (!VD->getType()->isReferenceType())
       return APValue(E, 0);
     // FIXME: Check whether VD might be overridden!
-    if (VD->getInit())
-      return Visit(VD->getInit());
+    const VarDecl *Def = 0;
+    if (const Expr *Init = VD->getDefinition(Def))
+      return Visit(const_cast<Expr *>(Init));
   }
 
   return APValue();
@@ -793,11 +856,14 @@ bool IntExprEvaluator::VisitDeclRefExpr(const DeclRefExpr *E) {
 
   // In C++, const, non-volatile integers initialized with ICEs are ICEs.
   // In C, they can also be folded, although they are not ICEs.
-  if (E->getType().getCVRQualifiers() == Qualifiers::Const) {
+  if (Info.Ctx.getCanonicalType(E->getType()).getCVRQualifiers() 
+                                                        == Qualifiers::Const) {
     if (const VarDecl *D = dyn_cast<VarDecl>(E->getDecl())) {
-      if (APValue *V = D->getEvaluatedValue())
-        return Success(V->getInt(), E);
-      if (const Expr *Init = D->getInit()) {
+      const VarDecl *Def = 0;
+      if (const Expr *Init = D->getDefinition(Def)) {
+        if (APValue *V = D->getEvaluatedValue())
+          return Success(V->getInt(), E);
+          
         if (Visit(const_cast<Expr*>(Init))) {
           // Cache the evaluated value in the variable declaration.
           D->setEvaluatedValue(Info.Ctx, Result);
@@ -873,6 +939,40 @@ bool IntExprEvaluator::VisitCallExpr(const CallExpr *E) {
   switch (E->isBuiltinCall(Info.Ctx)) {
   default:
     return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
+
+  case Builtin::BI__builtin_object_size: {
+    const Expr *Arg = E->getArg(0)->IgnoreParens();
+    Expr::EvalResult Base;
+    if (Arg->EvaluateAsAny(Base, Info.Ctx)
+        && Base.Val.getKind() == APValue::LValue
+        && !Base.HasSideEffects)
+      if (const Expr *LVBase = Base.Val.getLValueBase())
+        if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(LVBase)) {
+          if (const VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+            if (!VD->getType()->isIncompleteType()
+                && VD->getType()->isObjectType()
+                && !VD->getType()->isVariablyModifiedType()
+                && !VD->getType()->isDependentType()) {
+              uint64_t Size = Info.Ctx.getTypeSize(VD->getType()) / 8;
+              uint64_t Offset = Base.Val.getLValueOffset();
+              if (Offset <= Size)
+                Size -= Base.Val.getLValueOffset();
+              else
+                Size = 0;
+              return Success(Size, E);
+            }
+          }
+        }
+
+    if (HasSideEffects(E->getArg(0), Info.Ctx)) {
+      if (E->getArg(1)->EvaluateAsInt(Info.Ctx).getZExtValue() < 2)
+        return Success(-1ULL, E);
+      return Success(0, E);
+    }
+
+    return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
+  }
+
   case Builtin::BI__builtin_classify_type:
     return Success(EvaluateBuiltinClassifyType(E), E);
 
@@ -1776,6 +1876,33 @@ APValue ComplexExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
 /// in Result.
 bool Expr::Evaluate(EvalResult &Result, ASTContext &Ctx) const {
   EvalInfo Info(Ctx, Result);
+
+  if (getType()->isVectorType()) {
+    if (!EvaluateVector(this, Result.Val, Info))
+      return false;
+  } else if (getType()->isIntegerType()) {
+    if (!IntExprEvaluator(Info, Result.Val).Visit(const_cast<Expr*>(this)))
+      return false;
+  } else if (getType()->hasPointerRepresentation()) {
+    if (!EvaluatePointer(this, Result.Val, Info))
+      return false;
+  } else if (getType()->isRealFloatingType()) {
+    llvm::APFloat f(0.0);
+    if (!EvaluateFloat(this, f, Info))
+      return false;
+
+    Result.Val = APValue(f);
+  } else if (getType()->isAnyComplexType()) {
+    if (!EvaluateComplex(this, Result.Val, Info))
+      return false;
+  } else
+    return false;
+
+  return true;
+}
+
+bool Expr::EvaluateAsAny(EvalResult &Result, ASTContext &Ctx) const {
+  EvalInfo Info(Ctx, Result, true);
 
   if (getType()->isVectorType()) {
     if (!EvaluateVector(this, Result.Val, Info))

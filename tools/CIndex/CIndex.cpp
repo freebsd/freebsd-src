@@ -116,6 +116,10 @@ class TUVisitor : public DeclVisitor<TUVisitor> {
     if (ND->getPCHLevel() > MaxPCHLevel)
       return;
     
+    // Filter any implicit declarations (since the source info will be bogus).
+    if (ND->isImplicit())
+      return;
+      
     CXCursor C = { CK, ND, 0 };
     Callback(TUnit, C, CData);
   }
@@ -380,10 +384,8 @@ CXTranslationUnit clang_createTranslationUnit(
                            CXXIdx->getOnlyLocalDecls(),
                            /* UseBumpAllocator = */ true);
   
-  if (!ErrMsg.empty()) {
-    (llvm::errs() << "clang_createTranslationUnit: " << ErrMsg 
-                  << '\n').flush();
-  }
+  if (!ErrMsg.empty())
+    llvm::errs() << "clang_createTranslationUnit: " << ErrMsg  << '\n';
   
   return TU;
 }
@@ -436,8 +438,9 @@ CXTranslationUnit clang_createTranslationUnitFromSourceFile(
   // Add the null terminator.
   argv.push_back(NULL);
 
-#ifndef LLVM_ON_WIN32
-  llvm::sys::Path DevNull("/dev/null");
+  // Invoke 'clang'.
+  llvm::sys::Path DevNull; // leave empty, causes redirection to /dev/null
+                           // on Unix or NUL (Windows).
   std::string ErrMsg;
   const llvm::sys::Path *Redirects[] = { &DevNull, &DevNull, &DevNull, NULL };
   llvm::sys::Program::ExecuteAndWait(ClangPath, &argv[0], /* env */ NULL,
@@ -448,16 +451,12 @@ CXTranslationUnit clang_createTranslationUnitFromSourceFile(
     llvm::errs() << "clang_createTranslationUnitFromSourceFile: " << ErrMsg 
       << '\n' << "Arguments: \n";
     for (std::vector<const char*>::iterator I = argv.begin(), E = argv.end();
-         I!=E; ++I)
-      if (*I) llvm::errs() << ' ' << *I << '\n';
-     
-    (llvm::errs() << '\n').flush();
+         I!=E; ++I) {
+      if (*I)
+        llvm::errs() << ' ' << *I << '\n';
+    }
+    llvm::errs() << '\n';
   }
-#else
-  // FIXME: I don't know what is the equivalent '/dev/null' redirect for
-  // Windows for this API.
-  llvm::sys::Program::ExecuteAndWait(ClangPath, &argv[0]);
-#endif
 
   // Finally, we create the translation unit from the ast file.
   ASTUnit *ATU = static_cast<ASTUnit *>(
@@ -550,7 +549,13 @@ const char *clang_getDeclSpelling(CXDecl AnonDecl)
   
   if (ObjCMethodDecl *OMD = dyn_cast<ObjCMethodDecl>(ND)) {
     return OMD->getSelector().getAsString().c_str();
-  }    
+  }
+  if (ObjCCategoryImplDecl *CIMP = dyn_cast<ObjCCategoryImplDecl>(ND))
+    // No, this isn't the same as the code below. getIdentifier() is non-virtual
+    // and returns different names. NamedDecl returns the class name and
+    // ObjCCategoryImplDecl returns the category name.
+    return CIMP->getIdentifier()->getNameStart();
+    
   if (ND->getIdentifier())
     return ND->getIdentifier()->getNameStart();
   else 
@@ -576,9 +581,40 @@ unsigned clang_getDeclColumn(CXDecl AnonDecl)
 const char *clang_getDeclSource(CXDecl AnonDecl) 
 {
   assert(AnonDecl && "Passed null CXDecl");
+  FileEntry *FEnt = static_cast<FileEntry *>(clang_getDeclSourceFile(AnonDecl));
+  assert (FEnt && "Cannot find FileEntry for Decl");
+  return clang_getFileName(FEnt);
+}
+
+static const FileEntry *getFileEntryFromSourceLocation(SourceManager &SMgr,
+                                                       SourceLocation SLoc) 
+{
+  FileID FID;
+  if (SLoc.isFileID())
+    FID = SMgr.getFileID(SLoc);
+  else
+    FID = SMgr.getDecomposedSpellingLoc(SLoc).first;
+  return SMgr.getFileEntryForID(FID);
+}
+
+CXFile clang_getDeclSourceFile(CXDecl AnonDecl) 
+{
+  assert(AnonDecl && "Passed null CXDecl");
   NamedDecl *ND = static_cast<NamedDecl *>(AnonDecl);
   SourceManager &SourceMgr = ND->getASTContext().getSourceManager();
-  return SourceMgr.getBufferName(ND->getLocation());
+  return (void *)getFileEntryFromSourceLocation(SourceMgr, ND->getLocation());
+}
+
+const char *clang_getFileName(CXFile SFile) {
+  assert(SFile && "Passed null CXFile");
+  FileEntry *FEnt = static_cast<FileEntry *>(SFile);
+  return FEnt->getName();
+}
+
+time_t clang_getFileTime(CXFile SFile) {
+  assert(SFile && "Passed null CXFile");
+  FileEntry *FEnt = static_cast<FileEntry *>(SFile);
+  return FEnt->getModificationTime();
 }
 
 const char *clang_getCursorSpelling(CXCursor C)
@@ -695,25 +731,11 @@ static enum CXCursorKind TranslateKind(Decl *D) {
 //
 // CXCursor Operations.
 //
-void clang_initCXLookupHint(CXLookupHint *hint) {
-  memset(hint, 0, sizeof(*hint));
-}
-
 CXCursor clang_getCursor(CXTranslationUnit CTUnit, const char *source_name, 
-                         unsigned line, unsigned column) {
-  return clang_getCursorWithHint(CTUnit, source_name, line, column, NULL);
-}
-  
-CXCursor clang_getCursorWithHint(CXTranslationUnit CTUnit,
-                                 const char *source_name, 
-                                 unsigned line, unsigned column, 
-                                 CXLookupHint *hint)
+                         unsigned line, unsigned column)
 {
   assert(CTUnit && "Passed null CXTranslationUnit");
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(CTUnit);
-  
-  // FIXME: Make this better.
-  CXDecl RelativeToDecl = hint ? hint->decl : NULL;
   
   FileManager &FMgr = CXXUnit->getFileManager();
   const FileEntry *File = FMgr.getFile(source_name, 
@@ -725,9 +747,13 @@ CXCursor clang_getCursorWithHint(CXTranslationUnit CTUnit,
   SourceLocation SLoc = 
     CXXUnit->getSourceManager().getLocation(File, line, column);
                                                                 
-  ASTLocation ALoc = ResolveLocationInAST(CXXUnit->getASTContext(), SLoc,
-                                      static_cast<NamedDecl *>(RelativeToDecl));
-  
+  ASTLocation LastLoc = CXXUnit->getLastASTLocation();
+
+  ASTLocation ALoc = ResolveLocationInAST(CXXUnit->getASTContext(), SLoc, 
+                                          &LastLoc);
+  if (ALoc.isValid())
+    CXXUnit->setLastASTLocation(ALoc);
+    
   Decl *Dcl = ALoc.getParentDecl();
   if (ALoc.isNamedRef())
     Dcl = ALoc.AsNamedRef().ND;
@@ -933,6 +959,16 @@ const char *clang_getCursorSource(CXCursor C)
     return 0;
 
   return Buffer->getBufferIdentifier();
+}
+
+CXFile clang_getCursorSourceFile(CXCursor C)
+{
+  assert(C.decl && "CXCursor has null decl");
+  NamedDecl *ND = static_cast<NamedDecl *>(C.decl);
+  SourceManager &SourceMgr = ND->getASTContext().getSourceManager();
+  
+  return (void *)getFileEntryFromSourceLocation(SourceMgr,
+                                        getLocationFromCursor(C,SourceMgr, ND));
 }
 
 void clang_getDefinitionSpellingAndExtent(CXCursor C, 

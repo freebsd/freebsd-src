@@ -16,6 +16,7 @@
 
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/OperatorKinds.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/NestedNameSpecifier.h"
@@ -301,22 +302,22 @@ public:
   const char *getCommentForDecl(const Decl *D);
 
   // Builtin Types.
-  QualType VoidTy;
-  QualType BoolTy;
-  QualType CharTy;
-  QualType WCharTy;  // [C++ 3.9.1p5], integer type in C99.
-  QualType Char16Ty; // [C++0x 3.9.1p5], integer type in C99.
-  QualType Char32Ty; // [C++0x 3.9.1p5], integer type in C99.
-  QualType SignedCharTy, ShortTy, IntTy, LongTy, LongLongTy, Int128Ty;
-  QualType UnsignedCharTy, UnsignedShortTy, UnsignedIntTy, UnsignedLongTy;
-  QualType UnsignedLongLongTy, UnsignedInt128Ty;
-  QualType FloatTy, DoubleTy, LongDoubleTy;
-  QualType FloatComplexTy, DoubleComplexTy, LongDoubleComplexTy;
-  QualType VoidPtrTy, NullPtrTy;
-  QualType OverloadTy;
-  QualType DependentTy;
-  QualType UndeducedAutoTy;
-  QualType ObjCBuiltinIdTy, ObjCBuiltinClassTy;
+  CanQualType VoidTy;
+  CanQualType BoolTy;
+  CanQualType CharTy;
+  CanQualType WCharTy;  // [C++ 3.9.1p5], integer type in C99.
+  CanQualType Char16Ty; // [C++0x 3.9.1p5], integer type in C99.
+  CanQualType Char32Ty; // [C++0x 3.9.1p5], integer type in C99.
+  CanQualType SignedCharTy, ShortTy, IntTy, LongTy, LongLongTy, Int128Ty;
+  CanQualType UnsignedCharTy, UnsignedShortTy, UnsignedIntTy, UnsignedLongTy;
+  CanQualType UnsignedLongLongTy, UnsignedInt128Ty;
+  CanQualType FloatTy, DoubleTy, LongDoubleTy;
+  CanQualType FloatComplexTy, DoubleComplexTy, LongDoubleComplexTy;
+  CanQualType VoidPtrTy, NullPtrTy;
+  CanQualType OverloadTy;
+  CanQualType DependentTy;
+  CanQualType UndeducedAutoTy;
+  CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy;
 
   ASTContext(const LangOptions& LOpts, SourceManager &SM, TargetInfo &t,
              IdentifierTable &idents, SelectorTable &sels,
@@ -387,10 +388,16 @@ public:
   /// getComplexType - Return the uniqued reference to the type for a complex
   /// number with the specified element type.
   QualType getComplexType(QualType T);
+  CanQualType getComplexType(CanQualType T) {
+    return CanQualType::CreateUnsafe(getComplexType((QualType) T));
+  }
 
   /// getPointerType - Return the uniqued reference to the type for a pointer to
   /// the specified type.
   QualType getPointerType(QualType T);
+  CanQualType getPointerType(CanQualType T) {
+    return CanQualType::CreateUnsafe(getPointerType((QualType) T));
+  }
 
   /// getBlockPointerType - Return the uniqued reference to the type for a block
   /// of the specified type.
@@ -522,6 +529,11 @@ public:
 
   QualType getTemplateSpecializationType(TemplateName T,
                                          const TemplateArgument *Args,
+                                         unsigned NumArgs,
+                                         QualType Canon = QualType());
+
+  QualType getTemplateSpecializationType(TemplateName T,
+                                         const TemplateArgumentLoc *Args,
                                          unsigned NumArgs,
                                          QualType Canon = QualType());
 
@@ -728,6 +740,8 @@ public:
 
   TemplateName getDependentTemplateName(NestedNameSpecifier *NNS,
                                         const IdentifierInfo *Name);
+  TemplateName getDependentTemplateName(NestedNameSpecifier *NNS,
+                                        OverloadedOperatorKind Operator);
 
   enum GetBuiltinTypeError {
     GE_None,              //< No error
@@ -739,7 +753,7 @@ public:
   QualType GetBuiltinType(unsigned ID, GetBuiltinTypeError &Error);
 
 private:
-  QualType getFromTargetType(unsigned Type) const;
+  CanQualType getFromTargetType(unsigned Type) const;
 
   //===--------------------------------------------------------------------===//
   //                         Type Predicates.
@@ -826,6 +840,8 @@ public:
                                llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars);
   unsigned CountSynthesizedIvars(const ObjCInterfaceDecl *OI);
   unsigned CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD);
+  void CollectInheritedProtocols(const Decl *CDecl,
+                          llvm::SmallVectorImpl<ObjCProtocolDecl*> &Protocols);
 
   //===--------------------------------------------------------------------===//
   //                            Type Operators
@@ -1013,7 +1029,9 @@ public:
   bool canAssignObjCInterfaces(const ObjCInterfaceType *LHS,
                                const ObjCInterfaceType *RHS);
   bool areComparableObjCPointerTypes(QualType LHS, QualType RHS);
-
+  QualType areCommonBaseCompatible(const ObjCObjectPointerType *LHSOPT,
+                                   const ObjCObjectPointerType *RHSOPT);
+  
   // Functions for calculating composite types
   QualType mergeTypes(QualType, QualType);
   QualType mergeFunctionTypes(QualType, QualType);
@@ -1085,12 +1103,18 @@ public:
   /// should be calculated based on the type.
   DeclaratorInfo *CreateDeclaratorInfo(QualType T, unsigned Size = 0);
 
+  /// \brief Allocate a DeclaratorInfo where all locations have been
+  /// initialized to a given location, which defaults to the empty
+  /// location.
+  DeclaratorInfo *
+  getTrivialDeclaratorInfo(QualType T, SourceLocation Loc = SourceLocation());
+
 private:
   ASTContext(const ASTContext&); // DO NOT IMPLEMENT
   void operator=(const ASTContext&); // DO NOT IMPLEMENT
 
   void InitBuiltinTypes();
-  void InitBuiltinType(QualType &R, BuiltinType::Kind K);
+  void InitBuiltinType(CanQualType &R, BuiltinType::Kind K);
 
   // Return the ObjC type encoding for a given type.
   void getObjCEncodingForTypeImpl(QualType t, std::string &S,
@@ -1103,6 +1127,18 @@ private:
   const ASTRecordLayout &getObjCLayout(const ObjCInterfaceDecl *D,
                                        const ObjCImplementationDecl *Impl);
 };
+  
+/// @brief Utility function for constructing a nullary selector.
+static inline Selector GetNullarySelector(const char* name, ASTContext& Ctx) {
+  IdentifierInfo* II = &Ctx.Idents.get(name);
+  return Ctx.Selectors.getSelector(0, &II);
+}
+
+/// @brief Utility function for constructing an unary selector.
+static inline Selector GetUnarySelector(const char* name, ASTContext& Ctx) {
+  IdentifierInfo* II = &Ctx.Idents.get(name);
+  return Ctx.Selectors.getSelector(1, &II);
+}
 
 }  // end namespace clang
 

@@ -135,11 +135,16 @@ public:
   }
   Value *VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr *E);
   Value *VisitAddrLabelExpr(const AddrLabelExpr *E) {
+#ifndef USEINDIRECTBRANCH
     llvm::Value *V =
       llvm::ConstantInt::get(llvm::Type::getInt32Ty(CGF.getLLVMContext()),
                              CGF.GetIDForAddrOfLabel(E->getLabel()));
 
     return Builder.CreateIntToPtr(V, ConvertType(E->getType()));
+#else
+    llvm::Value *V = CGF.GetAddrOfLabel(E->getLabel());
+    return Builder.CreateBitCast(V, ConvertType(E->getType()));
+#endif
   }
 
   // l-values.
@@ -272,7 +277,12 @@ public:
   Value *VisitCXXNullPtrLiteralExpr(const CXXNullPtrLiteralExpr *E) {
     return llvm::Constant::getNullValue(ConvertType(E->getType()));
   }
-    
+
+  Value *VisitCXXThrowExpr(const CXXThrowExpr *E) {
+    CGF.EmitCXXThrowExpr(E);
+    return 0;
+  }
+
   // Binary Operators.
   Value *EmitMul(const BinOpInfo &Ops) {
     if (CGF.getContext().getLangOptions().OverflowChecking
@@ -678,14 +688,13 @@ Value *ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
     // If the initializer is an ExtVecEltExpr (a swizzle), and the swizzle's 
     // input is the same width as the vector being constructed, generate an
     // optimized shuffle of the swizzle input into the result.
+    unsigned Offset = (CurIdx == 0) ? 0 : ResElts;
     if (isa<ExtVectorElementExpr>(IE)) {
       llvm::ShuffleVectorInst *SVI = cast<llvm::ShuffleVectorInst>(Init);
       Value *SVOp = SVI->getOperand(0);
       const llvm::VectorType *OpTy = cast<llvm::VectorType>(SVOp->getType());
       
       if (OpTy->getNumElements() == ResElts) {
-        unsigned Offset = (CurIdx == 0) ? 0 : ResElts;
-        
         for (unsigned j = 0; j != CurIdx; ++j) {
           // If the current vector initializer is a shuffle with undef, merge
           // this shuffle directly into it.
@@ -717,13 +726,13 @@ Value *ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
         Args.push_back(llvm::UndefValue::get(I32Ty));
       llvm::Constant *Mask = llvm::ConstantVector::get(&Args[0], ResElts);
       Init = Builder.CreateShuffleVector(Init, llvm::UndefValue::get(VVT),
-                                         Mask, "vecext");
+                                         Mask, "vext");
 
       Args.clear();
       for (unsigned j = 0; j != CurIdx; ++j)
         Args.push_back(llvm::ConstantInt::get(I32Ty, j));
       for (unsigned j = 0; j != InitElts; ++j)
-        Args.push_back(llvm::ConstantInt::get(I32Ty, j+ResElts));
+        Args.push_back(llvm::ConstantInt::get(I32Ty, j+Offset));
       for (unsigned j = CurIdx + InitElts; j != ResElts; ++j)
         Args.push_back(llvm::UndefValue::get(I32Ty));
     }
@@ -1639,9 +1648,10 @@ Value *ScalarExprEmitter::VisitBinComma(const BinaryOperator *E) {
 /// expression is cheap enough and side-effect-free enough to evaluate
 /// unconditionally instead of conditionally.  This is used to convert control
 /// flow into selects in some cases.
-static bool isCheapEnoughToEvaluateUnconditionally(const Expr *E) {
+static bool isCheapEnoughToEvaluateUnconditionally(const Expr *E,
+                                                   CodeGenFunction &CGF) {
   if (const ParenExpr *PE = dyn_cast<ParenExpr>(E))
-    return isCheapEnoughToEvaluateUnconditionally(PE->getSubExpr());
+    return isCheapEnoughToEvaluateUnconditionally(PE->getSubExpr(), CGF);
 
   // TODO: Allow anything we can constant fold to an integer or fp constant.
   if (isa<IntegerLiteral>(E) || isa<CharacterLiteral>(E) ||
@@ -1652,7 +1662,9 @@ static bool isCheapEnoughToEvaluateUnconditionally(const Expr *E) {
   // X and Y are local variables.
   if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
     if (const VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl()))
-      if (VD->hasLocalStorage() && !VD->getType().isVolatileQualified())
+      if (VD->hasLocalStorage() && !(CGF.getContext()
+                                     .getCanonicalType(VD->getType())
+                                     .isVolatileQualified()))
         return true;
 
   return false;
@@ -1681,8 +1693,9 @@ VisitConditionalOperator(const ConditionalOperator *E) {
   // If this is a really simple expression (like x ? 4 : 5), emit this as a
   // select instead of as control flow.  We can only do this if it is cheap and
   // safe to evaluate the LHS and RHS unconditionally.
-  if (E->getLHS() && isCheapEnoughToEvaluateUnconditionally(E->getLHS()) &&
-      isCheapEnoughToEvaluateUnconditionally(E->getRHS())) {
+  if (E->getLHS() && isCheapEnoughToEvaluateUnconditionally(E->getLHS(),
+                                                            CGF) &&
+      isCheapEnoughToEvaluateUnconditionally(E->getRHS(), CGF)) {
     llvm::Value *CondV = CGF.EvaluateExprAsBool(E->getCond());
     llvm::Value *LHS = Visit(E->getLHS());
     llvm::Value *RHS = Visit(E->getRHS());

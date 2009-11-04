@@ -400,11 +400,6 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "<parameter> " << PVD->getNameAsString() << "\n";
       break;
     }
-    case Decl::OriginalParmVar: {
-      OriginalParmVarDecl* OPVD = cast<OriginalParmVarDecl>(*I);
-      Out << "<original parameter> " << OPVD->getNameAsString() << "\n";
-      break;
-    }
     case Decl::ObjCProperty: {
       ObjCPropertyDecl* OPD = cast<ObjCPropertyDecl>(*I);
       Out << "<objc property> " << OPD->getNameAsString() << "\n";
@@ -457,6 +452,8 @@ class RecordLayoutDumper : public ASTConsumer {
     // Dump (non-virtual) bases
     for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
          E = RD->bases_end(); I != E; ++I) {
+      assert(!I->getType()->isDependentType() &&
+             "Cannot layout class with dependent bases.");
       if (I->isVirtual())
         continue;
       

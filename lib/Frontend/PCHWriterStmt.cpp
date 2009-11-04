@@ -314,6 +314,8 @@ void PCHStmtWriter::VisitDeclRefExpr(DeclRefExpr *E) {
   VisitExpr(E);
   Writer.AddDeclRef(E->getDecl(), Record);
   Writer.AddSourceLocation(E->getLocation(), Record);
+  // FIXME: write qualifier
+  // FIXME: write explicit template arguments
   Code = pch::EXPR_DECL_REF;
 }
 
@@ -382,7 +384,7 @@ void PCHStmtWriter::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
   VisitExpr(E);
   Record.push_back(E->isSizeOf());
   if (E->isArgumentType())
-    Writer.AddTypeRef(E->getArgumentType(), Record);
+    Writer.AddDeclaratorInfo(E->getArgumentTypeInfo(), Record);
   else {
     Record.push_back(0);
     Writer.WriteSubStmt(E->getArgumentExpr());

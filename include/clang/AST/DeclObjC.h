@@ -347,6 +347,8 @@ public:
   ObjCIvarDecl *getIvarDecl(IdentifierInfo *Id) const;
 
   ObjCPropertyDecl *FindPropertyDeclaration(IdentifierInfo *PropertyId) const;
+  ObjCPropertyDecl *FindPropertyVisibleInPrimaryClass(
+                                            IdentifierInfo *PropertyId) const;
 
   // Marks the end of the container.
   SourceLocation getAtEndLoc() const { return AtEndLoc; }
@@ -862,7 +864,7 @@ public:
 };
 
 class ObjCImplDecl : public ObjCContainerDecl {
-  /// Class interface for this category implementation
+  /// Class interface for this class/category implementation
   ObjCInterfaceDecl *ClassInterface;
 
 protected:
@@ -935,14 +937,20 @@ public:
                                       SourceLocation L, IdentifierInfo *Id,
                                       ObjCInterfaceDecl *classInterface);
 
-  /// getIdentifier - Get the identifier that names the class
+  /// getIdentifier - Get the identifier that names the category
   /// interface associated with this implementation.
+  /// FIXME: This is a bad API, we are overriding the NamedDecl::getIdentifier()
+  /// to mean something different. For example:
+  /// ((NamedDecl *)SomeCategoryImplDecl)->getIdentifier() 
+  /// returns the class interface name, whereas 
+  /// ((ObjCCategoryImplDecl *)SomeCategoryImplDecl)->getIdentifier() 
+  /// returns the category name.
   IdentifierInfo *getIdentifier() const {
     return Id;
   }
   void setIdentifier(IdentifierInfo *II) { Id = II; }
 
-  ObjCCategoryDecl *getCategoryClass() const;
+  ObjCCategoryDecl *getCategoryDecl() const;
 
   /// getName - Get the name of identifier for the class interface associated
   /// with this implementation as a StringRef.
