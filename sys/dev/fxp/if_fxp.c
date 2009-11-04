@@ -467,10 +467,14 @@ fxp_attach(device_t dev)
 	}
 
 	/*
-	 * Reset to a stable state.
+	 * Put CU/RU idle state and prepare full reset.
 	 */
 	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
 	DELAY(10);
+	/* Full reset and disable interrupts. */
+	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
+	DELAY(10);
+	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 
 	/*
 	 * Find out how large of an SEEPROM we have.
