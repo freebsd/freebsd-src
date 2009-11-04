@@ -643,9 +643,18 @@ fxp_attach(device_t dev)
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sc->maxsegsize * sc->maxtxseg + sizeof(struct ether_vlan_header),
 	    sc->maxtxseg, sc->maxsegsize, 0,
-	    busdma_lock_mutex, &Giant, &sc->fxp_mtag);
+	    busdma_lock_mutex, &Giant, &sc->fxp_txmtag);
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(dev, "could not create TX DMA tag\n");
+		goto fail;
+	}
+
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES, 1, MCLBYTES, 0,
+	    busdma_lock_mutex, &Giant, &sc->fxp_rxmtag);
+	if (error) {
+		device_printf(dev, "could not create RX DMA tag\n");
 		goto fail;
 	}
 
@@ -654,18 +663,20 @@ fxp_attach(device_t dev)
 	    sizeof(struct fxp_stats), 1, sizeof(struct fxp_stats), 0,
 	    busdma_lock_mutex, &Giant, &sc->fxp_stag);
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(dev, "could not create stats DMA tag\n");
 		goto fail;
 	}
 
 	error = bus_dmamem_alloc(sc->fxp_stag, (void **)&sc->fxp_stats,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->fxp_smap);
-	if (error)
+	if (error) {
+		device_printf(dev, "could not allocate stats DMA memory\n");
 		goto fail;
+	}
 	error = bus_dmamap_load(sc->fxp_stag, sc->fxp_smap, sc->fxp_stats,
 	    sizeof(struct fxp_stats), fxp_dma_map_addr, &sc->stats_addr, 0);
 	if (error) {
-		device_printf(dev, "could not map the stats buffer\n");
+		device_printf(dev, "could not load the stats DMA buffer\n");
 		goto fail;
 	}
 
@@ -674,20 +685,22 @@ fxp_attach(device_t dev)
 	    FXP_TXCB_SZ, 1, FXP_TXCB_SZ, 0,
 	    busdma_lock_mutex, &Giant, &sc->cbl_tag);
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(dev, "could not create TxCB DMA tag\n");
 		goto fail;
 	}
 
 	error = bus_dmamem_alloc(sc->cbl_tag, (void **)&sc->fxp_desc.cbl_list,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->cbl_map);
-	if (error)
+	if (error) {
+		device_printf(dev, "could not allocate TxCB DMA memory\n");
 		goto fail;
+	}
 
 	error = bus_dmamap_load(sc->cbl_tag, sc->cbl_map,
 	    sc->fxp_desc.cbl_list, FXP_TXCB_SZ, fxp_dma_map_addr,
 	    &sc->fxp_desc.cbl_addr, 0);
 	if (error) {
-		device_printf(dev, "could not map DMA memory\n");
+		device_printf(dev, "could not load TxCB DMA buffer\n");
 		goto fail;
 	}
 
@@ -696,18 +709,23 @@ fxp_attach(device_t dev)
 	    sizeof(struct fxp_cb_mcs), 1, sizeof(struct fxp_cb_mcs), 0,
 	    busdma_lock_mutex, &Giant, &sc->mcs_tag);
 	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
+		device_printf(dev,
+		    "could not create multicast setup DMA tag\n");
 		goto fail;
 	}
 
 	error = bus_dmamem_alloc(sc->mcs_tag, (void **)&sc->mcsp,
-	    BUS_DMA_NOWAIT, &sc->mcs_map);
-	if (error)
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->mcs_map);
+	if (error) {
+		device_printf(dev,
+		    "could not allocate multicast setup DMA memory\n");
 		goto fail;
+	}
 	error = bus_dmamap_load(sc->mcs_tag, sc->mcs_map, sc->mcsp,
 	    sizeof(struct fxp_cb_mcs), fxp_dma_map_addr, &sc->mcs_addr, 0);
 	if (error) {
-		device_printf(dev, "can't map the multicast setup command\n");
+		device_printf(dev,
+		    "can't load the multicast setup DMA buffer\n");
 		goto fail;
 	}
 
@@ -719,13 +737,13 @@ fxp_attach(device_t dev)
 	tcbp = sc->fxp_desc.cbl_list;
 	for (i = 0; i < FXP_NTXCB; i++) {
 		txp[i].tx_cb = tcbp + i;
-		error = bus_dmamap_create(sc->fxp_mtag, 0, &txp[i].tx_map);
+		error = bus_dmamap_create(sc->fxp_txmtag, 0, &txp[i].tx_map);
 		if (error) {
 			device_printf(dev, "can't create DMA map for TX\n");
 			goto fail;
 		}
 	}
-	error = bus_dmamap_create(sc->fxp_mtag, 0, &sc->spare_map);
+	error = bus_dmamap_create(sc->fxp_rxmtag, 0, &sc->spare_map);
 	if (error) {
 		device_printf(dev, "can't create spare DMA map\n");
 		goto fail;
@@ -737,7 +755,7 @@ fxp_attach(device_t dev)
 	sc->fxp_desc.rx_head = sc->fxp_desc.rx_tail = NULL;
 	for (i = 0; i < FXP_NRFABUFS; i++) {
 		rxp = &sc->fxp_desc.rx_list[i];
-		error = bus_dmamap_create(sc->fxp_mtag, 0, &rxp->rx_map);
+		error = bus_dmamap_create(sc->fxp_rxmtag, 0, &rxp->rx_map);
 		if (error) {
 			device_printf(dev, "can't create DMA map for RX\n");
 			goto fail;
@@ -911,29 +929,32 @@ fxp_release(struct fxp_softc *sc)
 		bus_dmamem_free(sc->mcs_tag, sc->mcsp, sc->mcs_map);
 	}
 	bus_release_resources(sc->dev, sc->fxp_spec, sc->fxp_res);
-	if (sc->fxp_mtag) {
+	if (sc->fxp_rxmtag) {
 		for (i = 0; i < FXP_NRFABUFS; i++) {
 			rxp = &sc->fxp_desc.rx_list[i];
 			if (rxp->rx_mbuf != NULL) {
-				bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
+				bus_dmamap_sync(sc->fxp_rxmtag, rxp->rx_map,
 				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
+				bus_dmamap_unload(sc->fxp_rxmtag, rxp->rx_map);
 				m_freem(rxp->rx_mbuf);
 			}
-			bus_dmamap_destroy(sc->fxp_mtag, rxp->rx_map);
+			bus_dmamap_destroy(sc->fxp_rxmtag, rxp->rx_map);
 		}
-		bus_dmamap_destroy(sc->fxp_mtag, sc->spare_map);
+		bus_dmamap_destroy(sc->fxp_rxmtag, sc->spare_map);
+		bus_dma_tag_destroy(sc->fxp_rxmtag);
+	}
+	if (sc->fxp_txmtag) {
 		for (i = 0; i < FXP_NTXCB; i++) {
 			txp = &sc->fxp_desc.tx_list[i];
 			if (txp->tx_mbuf != NULL) {
-				bus_dmamap_sync(sc->fxp_mtag, txp->tx_map,
+				bus_dmamap_sync(sc->fxp_txmtag, txp->tx_map,
 				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->fxp_mtag, txp->tx_map);
+				bus_dmamap_unload(sc->fxp_txmtag, txp->tx_map);
 				m_freem(txp->tx_mbuf);
 			}
-			bus_dmamap_destroy(sc->fxp_mtag, txp->tx_map);
+			bus_dmamap_destroy(sc->fxp_txmtag, txp->tx_map);
 		}
-		bus_dma_tag_destroy(sc->fxp_mtag);
+		bus_dma_tag_destroy(sc->fxp_txmtag);
 	}
 	if (sc->fxp_stag)
 		bus_dma_tag_destroy(sc->fxp_stag);
@@ -1325,7 +1346,8 @@ fxp_start_body(struct ifnet *ifp)
 	 * going again if suspended.
 	 */
 	if (txqueued > 0) {
-		bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+		bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		fxp_scb_wait(sc);
 		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_RESUME);
 		/*
@@ -1499,7 +1521,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		*m_head = m;
 	}
 
-	error = bus_dmamap_load_mbuf_sg(sc->fxp_mtag, txp->tx_map, *m_head,
+	error = bus_dmamap_load_mbuf_sg(sc->fxp_txmtag, txp->tx_map, *m_head,
 	    segs, &nseg, 0);
 	if (error == EFBIG) {
 		m = m_collapse(*m_head, M_DONTWAIT, sc->maxtxseg);
@@ -1509,7 +1531,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 			return (ENOMEM);
 		}
 		*m_head = m;
-		error = bus_dmamap_load_mbuf_sg(sc->fxp_mtag, txp->tx_map,
+		error = bus_dmamap_load_mbuf_sg(sc->fxp_txmtag, txp->tx_map,
 	    	    *m_head, segs, &nseg, 0);
 		if (error != 0) {
 			m_freem(*m_head);
@@ -1525,7 +1547,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	}
 
 	KASSERT(nseg <= sc->maxtxseg, ("too many DMA segments"));
-	bus_dmamap_sync(sc->fxp_mtag, txp->tx_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->fxp_txmtag, txp->tx_map, BUS_DMASYNC_PREWRITE);
 
 	cbp = txp->tx_cb;
 	for (i = 0; i < nseg; i++) {
@@ -1705,14 +1727,15 @@ fxp_txeof(struct fxp_softc *sc)
 	struct fxp_tx *txp;
 
 	ifp = sc->ifp;
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	for (txp = sc->fxp_desc.tx_first; sc->tx_queued &&
 	    (le16toh(txp->tx_cb->cb_status) & FXP_CB_STATUS_C) != 0;
 	    txp = txp->tx_next) {
 		if (txp->tx_mbuf != NULL) {
-			bus_dmamap_sync(sc->fxp_mtag, txp->tx_map,
+			bus_dmamap_sync(sc->fxp_txmtag, txp->tx_map,
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->fxp_mtag, txp->tx_map);
+			bus_dmamap_unload(sc->fxp_txmtag, txp->tx_map);
 			m_freem(txp->tx_mbuf);
 			txp->tx_mbuf = NULL;
 			/* clear this to reset csum offload bits */
@@ -1722,7 +1745,8 @@ fxp_txeof(struct fxp_softc *sc)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 	sc->fxp_desc.tx_first = txp;
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	if (sc->tx_queued == 0) {
 		sc->watchdog_timer = 0;
 		if (sc->need_mcsetup)
@@ -1874,7 +1898,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 		m = rxp->rx_mbuf;
 		rfa = (struct fxp_rfa *)(m->m_ext.ext_buf +
 		    RFA_ALIGNMENT_FUDGE);
-		bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
+		bus_dmamap_sync(sc->fxp_rxmtag, rxp->rx_map,
 		    BUS_DMASYNC_POSTREAD);
 
 #ifdef DEVICE_POLLING /* loop at most count times if count >=0 */
@@ -2107,9 +2131,10 @@ fxp_stop(struct fxp_softc *sc)
 	if (txp != NULL) {
 		for (i = 0; i < FXP_NTXCB; i++) {
  			if (txp[i].tx_mbuf != NULL) {
-				bus_dmamap_sync(sc->fxp_mtag, txp[i].tx_map,
+				bus_dmamap_sync(sc->fxp_txmtag, txp[i].tx_map,
 				    BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(sc->fxp_mtag, txp[i].tx_map);
+				bus_dmamap_unload(sc->fxp_txmtag,
+				    txp[i].tx_map);
 				m_freem(txp[i].tx_mbuf);
 				txp[i].tx_mbuf = NULL;
 				/* clear this to reset csum offload bits */
@@ -2117,7 +2142,8 @@ fxp_stop(struct fxp_softc *sc)
 			}
 		}
 	}
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	sc->tx_queued = 0;
 }
 
@@ -2389,7 +2415,8 @@ fxp_init_body(struct fxp_softc *sc)
 	 * unit. It will execute the NOP and then suspend.
 	 */
 	tcbp->cb_command = htole16(FXP_CB_COMMAND_NOP | FXP_CB_COMMAND_S);
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	sc->fxp_desc.tx_first = sc->fxp_desc.tx_last = txp;
 	sc->tx_queued = 1;
 
@@ -2539,7 +2566,7 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	le32enc(&rfa->rbd_addr, 0xffffffff);
 
 	/* Map the RFA into DMA memory. */
-	error = bus_dmamap_load(sc->fxp_mtag, sc->spare_map, rfa,
+	error = bus_dmamap_load(sc->fxp_rxmtag, sc->spare_map, rfa,
 	    MCLBYTES - RFA_ALIGNMENT_FUDGE, fxp_dma_map_addr,
 	    &rxp->rx_addr, 0);
 	if (error) {
@@ -2548,13 +2575,13 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	}
 
 	if (rxp->rx_mbuf != NULL)
-		bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
+		bus_dmamap_unload(sc->fxp_rxmtag, rxp->rx_map);
 	tmp_map = sc->spare_map;
 	sc->spare_map = rxp->rx_map;
 	rxp->rx_map = tmp_map;
 	rxp->rx_mbuf = m;
 
-	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
+	bus_dmamap_sync(sc->fxp_rxmtag, rxp->rx_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	return (0);
 }
@@ -2576,7 +2603,7 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 		p_rx->rx_next = rxp;
 		le32enc(&p_rfa->link_addr, rxp->rx_addr);
 		p_rfa->rfa_control = 0;
-		bus_dmamap_sync(sc->fxp_mtag, p_rx->rx_map,
+		bus_dmamap_sync(sc->fxp_rxmtag, p_rx->rx_map,
 		    BUS_DMASYNC_PREWRITE);
 	} else {
 		rxp->rx_next = NULL;
@@ -2620,7 +2647,7 @@ fxp_discard_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	le32enc(&rfa->link_addr, 0xffffffff);
 	le32enc(&rfa->rbd_addr, 0xffffffff);
 
-	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
+	bus_dmamap_sync(sc->fxp_rxmtag, rxp->rx_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
@@ -2939,7 +2966,8 @@ fxp_mc_setup(struct fxp_softc *sc)
 	 * Start the multicast setup command.
 	 */
 	fxp_scb_wait(sc);
-	bus_dmamap_sync(sc->mcs_tag, sc->mcs_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->mcs_tag, sc->mcs_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->mcs_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 
