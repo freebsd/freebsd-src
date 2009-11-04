@@ -1450,10 +1450,11 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	 * If the current mode is not the same, probably it was powered down.
 	 * Try BIOS POST to restore a sane state.
 	 */
-	mode = vesa_bios_get_current_mode();
-	if (mode >= 0 && (mode & 0x1ff) != adp->va_mode &&
-	    VESA_MODE(adp->va_mode))
-		(void)vesa_bios_post();
+	if (VESA_MODE(adp->va_mode)) {
+		mode = vesa_bios_get_current_mode();
+		if (mode >= 0 && (mode & 0x1ff) != adp->va_mode)
+			(void)vesa_bios_post();
+	}
 
 	ret = vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs,
 	    vesa_state_buf_size);
@@ -1461,9 +1462,10 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	/*
 	 * If the desired mode is not restored, force setting the mode.
 	 */
-	mode = vesa_bios_get_current_mode();
-	if (mode >= 0 && (mode & 0x1ff) != adp->va_mode &&
-	    VESA_MODE(adp->va_mode)) {
+	if (VESA_MODE(adp->va_mode)) {
+		mode = vesa_bios_get_current_mode();
+		if (mode < 0 || (mode & 0x1ff) == adp->va_mode)
+			return (ret);
 		mode = adp->va_mode;
 		flags = adp->va_info.vi_flags;
 		if ((flags & V_INFO_GRAPHICS) != 0 &&
