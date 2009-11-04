@@ -9,7 +9,7 @@ SRCS=	ArgumentPromotion.cpp ConstantMerge.cpp \
 	IPConstantPropagation.cpp IPO.cpp \
 	InlineAlways.cpp InlineSimple.cpp Inliner.cpp Internalize.cpp \
 	LoopExtractor.cpp LowerSetJmp.cpp MergeFunctions.cpp \
-	PartialSpecialization.cpp PruneEH.cpp RaiseAllocations.cpp \
+	PartialSpecialization.cpp PruneEH.cpp \
 	StripDeadPrototypes.cpp StripSymbols.cpp \
 	StructRetPromotion.cpp
 

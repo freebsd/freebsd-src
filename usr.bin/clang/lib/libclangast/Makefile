@@ -9,7 +9,8 @@ SRCS=	APValue.cpp ASTConsumer.cpp ASTContext.cpp CXXInheritance.cpp \
 	ExprCXX.cpp ExprConstant.cpp InheritViz.cpp \
 	NestedNameSpecifier.cpp ParentMap.cpp RecordLayoutBuilder.cpp \
 	Stmt.cpp StmtDumper.cpp StmtIterator.cpp StmtPrinter.cpp \
-	StmtProfile.cpp StmtViz.cpp TemplateName.cpp Type.cpp TypeLoc.cpp
+	StmtProfile.cpp StmtViz.cpp TemplateBase.cpp TemplateName.cpp Type.cpp \
+	TypeLoc.cpp
 
 TGHDRS=	DiagnosticASTKinds DiagnosticCommonKinds
 

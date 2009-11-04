@@ -3,7 +3,8 @@
 LIB=	clangcodegen
 
 SRCDIR=	tools/clang/lib/CodeGen
-SRCS=	CGBlocks.cpp CGBuiltin.cpp CGCXX.cpp CGCXXClass.cpp CGCXXExpr.cpp \
+SRCS=	CGBlocks.cpp CGBuiltin.cpp CGException.cpp CGCXX.cpp CGCXXClass.cpp \
+	CGCXXExpr.cpp \
 	CGCXXTemp.cpp CGCall.cpp CGDebugInfo.cpp CGDecl.cpp CGExpr.cpp \
 	CGExprAgg.cpp CGExprComplex.cpp CGExprConstant.cpp CGExprScalar.cpp \
 	CGObjC.cpp CGObjCGNU.cpp CGObjCMac.cpp CGRecordLayoutBuilder.cpp \

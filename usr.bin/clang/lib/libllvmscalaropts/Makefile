@@ -3,7 +3,7 @@
 LIB=	llvmscalaropts
 
 SRCDIR=	lib/Transforms/Scalar
-SRCS=	ADCE.cpp BasicBlockPlacement.cpp CodeGenLICM.cpp CodeGenPrepare.cpp \
+SRCS=	ADCE.cpp BasicBlockPlacement.cpp CodeGenPrepare.cpp \
 	CondPropagate.cpp ConstantProp.cpp DCE.cpp \
 	DeadStoreElimination.cpp GVN.cpp IndVarSimplify.cpp \
 	InstructionCombining.cpp JumpThreading.cpp LICM.cpp \
