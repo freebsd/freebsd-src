@@ -103,7 +103,7 @@ void	ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
     uint64_t lba, uint16_t sector_count);
 void	ata_reset_cmd(struct ccb_ataio *ataio);
 void	ata_pm_read_cmd(struct ccb_ataio *ataio, int reg, int port);
-void	ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint64_t val);
+void	ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint32_t val);
 
 void	ata_bswap(int8_t *buf, int len);
 void	ata_btrim(int8_t *buf, int len);
