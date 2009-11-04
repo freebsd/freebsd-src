@@ -43,14 +43,10 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/VectorExtras.h"
-#include "llvm/ADT/SmallVector.h"
 #include <map>
 using namespace llvm;
 
@@ -62,8 +58,7 @@ STATISTIC(InvokesTransformed , "Number of invokes modified");
 namespace {
   //===--------------------------------------------------------------------===//
   // LowerSetJmp pass implementation.
-  class VISIBILITY_HIDDEN LowerSetJmp : public ModulePass,
-                      public InstVisitor<LowerSetJmp> {
+  class LowerSetJmp : public ModulePass, public InstVisitor<LowerSetJmp> {
     // LLVM library functions...
     Constant *InitSJMap;        // __llvm_sjljeh_init_setjmpmap
     Constant *DestroySJMap;     // __llvm_sjljeh_destroy_setjmpmap
@@ -110,7 +105,7 @@ namespace {
     void TransformLongJmpCall(CallInst* Inst);
     void TransformSetJmpCall(CallInst* Inst);
 
-    bool IsTransformableFunction(const std::string& Name);
+    bool IsTransformableFunction(StringRef Name);
   public:
     static char ID; // Pass identification, replacement for typeid
     LowerSetJmp() : ModulePass(&ID) {}
@@ -251,13 +246,8 @@ bool LowerSetJmp::doInitialization(Module& M)
 // "llvm.{setjmp,longjmp}" functions and none of the setjmp/longjmp error
 // handling functions (beginning with __llvm_sjljeh_...they don't throw
 // exceptions).
-bool LowerSetJmp::IsTransformableFunction(const std::string& Name) {
-  std::string SJLJEh("__llvm_sjljeh");
-
-  if (Name.size() > SJLJEh.size())
-    return std::string(Name.begin(), Name.begin() + SJLJEh.size()) != SJLJEh;
-
-  return true;
+bool LowerSetJmp::IsTransformableFunction(StringRef Name) {
+  return !Name.startswith("__llvm_sjljeh_");
 }
 
 // TransformLongJmpCall - Transform a longjmp call into a call to the
@@ -265,8 +255,7 @@ bool LowerSetJmp::IsTransformableFunction(const std::string& Name) {
 // throwing the exception for us.
 void LowerSetJmp::TransformLongJmpCall(CallInst* Inst)
 {
-  const Type* SBPTy =
-        Type::getInt8PtrTy(Inst->getContext());
+  const Type* SBPTy = Type::getInt8PtrTy(Inst->getContext());
 
   // Create the call to "__llvm_sjljeh_throw_longjmp". This takes the
   // same parameters as "longjmp", except that the buffer is cast to a
@@ -274,10 +263,8 @@ void LowerSetJmp::TransformLongJmpCall(CallInst* Inst)
   // Inst's uses and doesn't get a name.
   CastInst* CI = 
     new BitCastInst(Inst->getOperand(1), SBPTy, "LJBuf", Inst);
-  SmallVector<Value *, 2> Args;
-  Args.push_back(CI);
-  Args.push_back(Inst->getOperand(2));
-  CallInst::Create(ThrowLongJmp, Args.begin(), Args.end(), "", Inst);
+  Value *Args[] = { CI, Inst->getOperand(2) };
+  CallInst::Create(ThrowLongJmp, Args, Args + 2, "", Inst);
 
   SwitchValuePair& SVP = SwitchValMap[Inst->getParent()->getParent()];
 
@@ -392,11 +379,11 @@ void LowerSetJmp::TransformSetJmpCall(CallInst* Inst)
           Type::getInt8PtrTy(Inst->getContext());
   CastInst* BufPtr = 
     new BitCastInst(Inst->getOperand(1), SBPTy, "SBJmpBuf", Inst);
-  std::vector<Value*> Args = 
-    make_vector<Value*>(GetSetJmpMap(Func), BufPtr,
-                        ConstantInt::get(Type::getInt32Ty(Inst->getContext()),
-                                         SetJmpIDMap[Func]++), 0);
-  CallInst::Create(AddSJToMap, Args.begin(), Args.end(), "", Inst);
+  Value *Args[] = {
+    GetSetJmpMap(Func), BufPtr,
+    ConstantInt::get(Type::getInt32Ty(Inst->getContext()), SetJmpIDMap[Func]++)
+  };
+  CallInst::Create(AddSJToMap, Args, Args + 3, "", Inst);
 
   // We are guaranteed that there are no values live across basic blocks
   // (because we are "not in SSA form" yet), but there can still be values live

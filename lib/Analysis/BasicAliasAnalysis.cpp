@@ -15,7 +15,7 @@
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CaptureTracking.h"
-#include "llvm/Analysis/MallocHelper.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
@@ -30,7 +30,6 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include <algorithm>
@@ -80,7 +79,7 @@ static bool isKnownNonNull(const Value *V) {
 /// object that never escapes from the function.
 static bool isNonEscapingLocalObject(const Value *V) {
   // If this is a local allocation, check to see if it escapes.
-  if (isa<AllocationInst>(V) || isNoAliasCall(V))
+  if (isa<AllocaInst>(V) || isNoAliasCall(V))
     return !PointerMayBeCaptured(V, false);
 
   // If this is an argument that corresponds to a byval or noalias argument,
@@ -104,7 +103,7 @@ static bool isObjectSmallerThan(const Value *V, unsigned Size,
   const Type *AccessTy;
   if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(V)) {
     AccessTy = GV->getType()->getElementType();
-  } else if (const AllocationInst *AI = dyn_cast<AllocationInst>(V)) {
+  } else if (const AllocaInst *AI = dyn_cast<AllocaInst>(V)) {
     if (!AI->isArrayAllocation())
       AccessTy = AI->getType()->getElementType();
     else
@@ -139,7 +138,7 @@ namespace {
   /// implementations, in that it does not chain to a previous analysis.  As
   /// such it doesn't follow many of the rules that other alias analyses must.
   ///
-  struct VISIBILITY_HIDDEN NoAA : public ImmutablePass, public AliasAnalysis {
+  struct NoAA : public ImmutablePass, public AliasAnalysis {
     static char ID; // Class identification, replacement for typeinfo
     NoAA() : ImmutablePass(&ID) {}
     explicit NoAA(void *PID) : ImmutablePass(PID) { }
@@ -194,7 +193,7 @@ namespace {
   /// BasicAliasAnalysis - This is the default alias analysis implementation.
   /// Because it doesn't chain to a previous alias analysis (like -no-aa), it
   /// derives from the NoAA class.
-  struct VISIBILITY_HIDDEN BasicAliasAnalysis : public NoAA {
+  struct BasicAliasAnalysis : public NoAA {
     static char ID; // Class identification, replacement for typeinfo
     BasicAliasAnalysis() : NoAA(&ID) {}
     AliasResult alias(const Value *V1, unsigned V1Size,
@@ -218,7 +217,7 @@ namespace {
 
   private:
     // VisitedPHIs - Track PHI nodes visited by a aliasCheck() call.
-    SmallPtrSet<const PHINode*, 16> VisitedPHIs;
+    SmallPtrSet<const Value*, 16> VisitedPHIs;
 
     // aliasGEP - Provide a bunch of ad-hoc rules to disambiguate a GEP instruction
     // against another.
@@ -229,6 +228,10 @@ namespace {
     // against another.
     AliasResult aliasPHI(const PHINode *PN, unsigned PNSize,
                          const Value *V2, unsigned V2Size);
+
+    /// aliasSelect - Disambiguate a Select instruction against another value.
+    AliasResult aliasSelect(const SelectInst *SI, unsigned SISize,
+                            const Value *V2, unsigned V2Size);
 
     AliasResult aliasCheck(const Value *V1, unsigned V1Size,
                            const Value *V2, unsigned V2Size);
@@ -520,6 +523,41 @@ BasicAliasAnalysis::aliasGEP(const Value *V1, unsigned V1Size,
   return MayAlias;
 }
 
+// aliasSelect - Provide a bunch of ad-hoc rules to disambiguate a Select instruction
+// against another.
+AliasAnalysis::AliasResult
+BasicAliasAnalysis::aliasSelect(const SelectInst *SI, unsigned SISize,
+                                const Value *V2, unsigned V2Size) {
+  // If the values are Selects with the same condition, we can do a more precise
+  // check: just check for aliases between the values on corresponding arms.
+  if (const SelectInst *SI2 = dyn_cast<SelectInst>(V2))
+    if (SI->getCondition() == SI2->getCondition()) {
+      AliasResult Alias =
+        aliasCheck(SI->getTrueValue(), SISize,
+                   SI2->getTrueValue(), V2Size);
+      if (Alias == MayAlias)
+        return MayAlias;
+      AliasResult ThisAlias =
+        aliasCheck(SI->getFalseValue(), SISize,
+                   SI2->getFalseValue(), V2Size);
+      if (ThisAlias != Alias)
+        return MayAlias;
+      return Alias;
+    }
+
+  // If both arms of the Select node NoAlias or MustAlias V2, then returns
+  // NoAlias / MustAlias. Otherwise, returns MayAlias.
+  AliasResult Alias =
+    aliasCheck(SI->getTrueValue(), SISize, V2, V2Size);
+  if (Alias == MayAlias)
+    return MayAlias;
+  AliasResult ThisAlias =
+    aliasCheck(SI->getFalseValue(), SISize, V2, V2Size);
+  if (ThisAlias != Alias)
+    return MayAlias;
+  return Alias;
+}
+
 // aliasPHI - Provide a bunch of ad-hoc rules to disambiguate a PHI instruction
 // against another.
 AliasAnalysis::AliasResult
@@ -528,6 +566,28 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, unsigned PNSize,
   // The PHI node has already been visited, avoid recursion any further.
   if (!VisitedPHIs.insert(PN))
     return MayAlias;
+
+  // If the values are PHIs in the same block, we can do a more precise
+  // as well as efficient check: just check for aliases between the values
+  // on corresponding edges.
+  if (const PHINode *PN2 = dyn_cast<PHINode>(V2))
+    if (PN2->getParent() == PN->getParent()) {
+      AliasResult Alias =
+        aliasCheck(PN->getIncomingValue(0), PNSize,
+                   PN2->getIncomingValueForBlock(PN->getIncomingBlock(0)),
+                   V2Size);
+      if (Alias == MayAlias)
+        return MayAlias;
+      for (unsigned i = 1, e = PN->getNumIncomingValues(); i != e; ++i) {
+        AliasResult ThisAlias =
+          aliasCheck(PN->getIncomingValue(i), PNSize,
+                     PN2->getIncomingValueForBlock(PN->getIncomingBlock(i)),
+                     V2Size);
+        if (ThisAlias != Alias)
+          return MayAlias;
+      }
+      return Alias;
+    }
 
   SmallPtrSet<Value*, 4> UniqueSrc;
   SmallVector<Value*, 4> V1Srcs;
@@ -543,7 +603,7 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, unsigned PNSize,
       V1Srcs.push_back(PV1);
   }
 
-  AliasResult Alias = aliasCheck(V1Srcs[0], PNSize, V2, V2Size);
+  AliasResult Alias = aliasCheck(V2, V2Size, V1Srcs[0], PNSize);
   // Early exit if the check of the first PHI source against V2 is MayAlias.
   // Other results are not possible.
   if (Alias == MayAlias)
@@ -553,6 +613,12 @@ BasicAliasAnalysis::aliasPHI(const PHINode *PN, unsigned PNSize,
   // NoAlias / MustAlias. Otherwise, returns MayAlias.
   for (unsigned i = 1, e = V1Srcs.size(); i != e; ++i) {
     Value *V = V1Srcs[i];
+
+    // If V2 is a PHI, the recursive case will have been caught in the
+    // above aliasCheck call, so these subsequent calls to aliasCheck
+    // don't need to assume that V2 is being visited recursively.
+    VisitedPHIs.erase(V2);
+
     AliasResult ThisAlias = aliasCheck(V2, V2Size, V, PNSize);
     if (ThisAlias != Alias || ThisAlias == MayAlias)
       return MayAlias;
@@ -587,8 +653,8 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
       return NoAlias;
   
     // Arguments can't alias with local allocations or noalias calls.
-    if ((isa<Argument>(O1) && (isa<AllocationInst>(O2) || isNoAliasCall(O2))) ||
-        (isa<Argument>(O2) && (isa<AllocationInst>(O1) || isNoAliasCall(O1))))
+    if ((isa<Argument>(O1) && (isa<AllocaInst>(O2) || isNoAliasCall(O2))) ||
+        (isa<Argument>(O2) && (isa<AllocaInst>(O1) || isNoAliasCall(O1))))
       return NoAlias;
 
     // Most objects can't alias null.
@@ -628,6 +694,13 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
   }
   if (const PHINode *PN = dyn_cast<PHINode>(V1))
     return aliasPHI(PN, V1Size, V2, V2Size);
+
+  if (isa<SelectInst>(V2) && !isa<SelectInst>(V1)) {
+    std::swap(V1, V2);
+    std::swap(V1Size, V2Size);
+  }
+  if (const SelectInst *S1 = dyn_cast<SelectInst>(V1))
+    return aliasSelect(S1, V1Size, V2, V2Size);
 
   return MayAlias;
 }

@@ -349,6 +349,8 @@ void InstrEmitter::AddOperand(MachineInstr *MI, SDValue Op,
   } else if (ExternalSymbolSDNode *ES = dyn_cast<ExternalSymbolSDNode>(Op)) {
     MI->addOperand(MachineOperand::CreateES(ES->getSymbol(),
                                             ES->getTargetFlags()));
+  } else if (BlockAddressSDNode *BA = dyn_cast<BlockAddressSDNode>(Op)) {
+    MI->addOperand(MachineOperand::CreateBA(BA->getBlockAddress()));
   } else {
     assert(Op.getValueType() != MVT::Other &&
            Op.getValueType() != MVT::Flag &&
@@ -556,7 +558,7 @@ void InstrEmitter::EmitNode(SDNode *Node, bool IsClone, bool IsCloned,
     MI->setMemRefs(cast<MachineSDNode>(Node)->memoperands_begin(),
                    cast<MachineSDNode>(Node)->memoperands_end());
 
-    if (II.usesCustomDAGSchedInsertionHook()) {
+    if (II.usesCustomInsertionHook()) {
       // Insert this instruction into the basic block using a target
       // specific inserter which may returns a new basic block.
       MBB = TLI->EmitInstrWithCustomInserter(MI, MBB, EM);
@@ -571,6 +573,12 @@ void InstrEmitter::EmitNode(SDNode *Node, bool IsClone, bool IsCloned,
         unsigned Reg = II.getImplicitDefs()[i - II.getNumDefs()];
         if (Node->hasAnyUseOfValue(i))
           EmitCopyFromReg(Node, i, IsClone, IsCloned, Reg, VRBaseMap);
+        // If there are no uses, mark the register as dead now, so that
+        // MachineLICM/Sink can see that it's dead. Don't do this if the
+        // node has a Flag value, for the benefit of targets still using
+        // Flag for values in physregs.
+        else if (Node->getValueType(Node->getNumValues()-1) != MVT::Flag)
+          MI->addRegisterDead(Reg, TRI);
       }
     }
     return;

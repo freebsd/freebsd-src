@@ -22,8 +22,6 @@
 #include "llvm/Metadata.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/System/Mutex.h"
-#include "llvm/System/RWMutex.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
@@ -108,41 +106,32 @@ public:
   
   FoldingSet<MDNode> MDNodeSet;
   
-  ValueMap<char, Type, ConstantAggregateZero> AggZeroConstants;
+  ConstantUniqueMap<char, Type, ConstantAggregateZero> AggZeroConstants;
 
-  typedef ValueMap<std::vector<Constant*>, ArrayType, 
+  typedef ConstantUniqueMap<std::vector<Constant*>, ArrayType,
     ConstantArray, true /*largekey*/> ArrayConstantsTy;
   ArrayConstantsTy ArrayConstants;
   
-  typedef ValueMap<std::vector<Constant*>, StructType,
-                   ConstantStruct, true /*largekey*/> StructConstantsTy;
+  typedef ConstantUniqueMap<std::vector<Constant*>, StructType,
+    ConstantStruct, true /*largekey*/> StructConstantsTy;
   StructConstantsTy StructConstants;
   
-  typedef ValueMap<std::vector<Constant*>, VectorType,
-                   ConstantVector> VectorConstantsTy;
+  typedef ConstantUniqueMap<std::vector<Constant*>, VectorType,
+                            ConstantVector> VectorConstantsTy;
   VectorConstantsTy VectorConstants;
   
-  ValueMap<char, PointerType, ConstantPointerNull> NullPtrConstants;
+  ConstantUniqueMap<char, PointerType, ConstantPointerNull> NullPtrConstants;
   
-  ValueMap<char, Type, UndefValue> UndefValueConstants;
+  ConstantUniqueMap<char, Type, UndefValue> UndefValueConstants;
   
-  ValueMap<ExprMapKeyType, Type, ConstantExpr> ExprConstants;
+  DenseMap<std::pair<Function*, BasicBlock*> , BlockAddress*> BlockAddresses;
+  ConstantUniqueMap<ExprMapKeyType, Type, ConstantExpr> ExprConstants;
   
   ConstantInt *TheTrueVal;
   ConstantInt *TheFalseVal;
   
-  // Lock used for guarding access to the leak detector
-  sys::SmartMutex<true> LLVMObjectsLock;
   LeakDetectorImpl<Value> LLVMObjects;
   
-  // Lock used for guarding access to the type maps.
-  sys::SmartMutex<true> TypeMapLock;
-  
-  // Recursive lock used for guarding access to AbstractTypeUsers.
-  // NOTE: The true template parameter means this will no-op when we're not in
-  // multithreaded mode.
-  sys::SmartMutex<true> AbstractTypeUsersLock;
-
   // Basic type instances.
   const Type VoidTy;
   const Type LabelTy;

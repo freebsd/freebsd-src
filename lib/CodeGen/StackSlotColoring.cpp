@@ -22,7 +22,6 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
@@ -53,7 +52,7 @@ STATISTIC(NumStoreElim,  "Number of stores eliminated");
 STATISTIC(NumDead,       "Number of trivially dead stack accesses eliminated");
 
 namespace {
-  class VISIBILITY_HIDDEN StackSlotColoring : public MachineFunctionPass {
+  class StackSlotColoring : public MachineFunctionPass {
     bool ColorWithRegs;
     LiveStacks* LS;
     VirtRegMap* VRM;
@@ -99,6 +98,8 @@ namespace {
     
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
+      AU.addRequired<SlotIndexes>();
+      AU.addPreserved<SlotIndexes>();
       AU.addRequired<LiveStacks>();
       AU.addRequired<VirtRegMap>();
       AU.addPreserved<VirtRegMap>();      

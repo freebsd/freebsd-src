@@ -499,6 +499,11 @@ namespace llvm {
     /// from i32 to i8 but not from i32 to i16.
     virtual bool isNarrowingProfitable(EVT VT1, EVT VT2) const;
 
+    /// isFPImmLegal - Returns true if the target can instruction select the
+    /// specified FP immediate natively. If false, the legalizer will
+    /// materialize the FP immediate as a load from a constant pool.
+    virtual bool isFPImmLegal(const APFloat &Imm, EVT VT) const;
+
     /// isShuffleMaskLegal - Targets can use this to indicate that they only
     /// support *some* VECTOR_SHUFFLE operations, those with specific masks.
     /// By default, if a target supports the VECTOR_SHUFFLE node, all mask
@@ -584,6 +589,15 @@ namespace llvm {
     bool X86ScalarSSEf32;
     bool X86ScalarSSEf64;
 
+    /// LegalFPImmediates - A list of legal fp immediates.
+    std::vector<APFloat> LegalFPImmediates;
+
+    /// addLegalFPImmediate - Indicate that this x86 target can instruction
+    /// select the specified FP immediate natively.
+    void addLegalFPImmediate(const APFloat& Imm) {
+      LegalFPImmediates.push_back(Imm);
+    }
+
     SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
                             CallingConv::ID CallConv, bool isVarArg,
                             const SmallVectorImpl<ISD::InputArg> &Ins,
@@ -621,6 +635,7 @@ namespace llvm {
     SDValue LowerINSERT_VECTOR_ELT_SSE4(SDValue Op, SelectionDAG &DAG);
     SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG);
     SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG);
     SDValue LowerGlobalAddress(const GlobalValue *GV, DebugLoc dl,
                                int64_t Offset, SelectionDAG &DAG) const;
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG);

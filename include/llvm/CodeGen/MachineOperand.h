@@ -14,15 +14,15 @@
 #ifndef LLVM_CODEGEN_MACHINEOPERAND_H
 #define LLVM_CODEGEN_MACHINEOPERAND_H
 
-#include "llvm/Support/DataTypes.h"
+#include "llvm/System/DataTypes.h"
 #include <cassert>
 
 namespace llvm {
   
 class ConstantFP;
+class BlockAddress;
 class MachineBasicBlock;
 class GlobalValue;
-class MDNode;
 class MachineInstr;
 class TargetMachine;
 class MachineRegisterInfo;
@@ -42,7 +42,7 @@ public:
     MO_JumpTableIndex,         ///< Address of indexed Jump Table for switch
     MO_ExternalSymbol,         ///< Name of external global symbol
     MO_GlobalAddress,          ///< Address of a global value
-    MO_Metadata                ///< Metadata info
+    MO_BlockAddress            ///< Address of a basic block
   };
 
 private:
@@ -108,7 +108,7 @@ private:
         int Index;                // For MO_*Index - The index itself.
         const char *SymbolName;   // For MO_ExternalSymbol.
         GlobalValue *GV;          // For MO_GlobalAddress.
-        MDNode *Node;             // For MO_Metadata.
+        BlockAddress *BA;         // For MO_BlockAddress.
       } Val;
       int64_t Offset;             // An offset from the object.
     } OffsetedInfo;
@@ -156,8 +156,8 @@ public:
   bool isGlobal() const { return OpKind == MO_GlobalAddress; }
   /// isSymbol - Tests if this is a MO_ExternalSymbol operand.
   bool isSymbol() const { return OpKind == MO_ExternalSymbol; }
-  /// isMetadata - Tests if this is a MO_Metadata operand.
-  bool isMetadata() const { return OpKind == MO_Metadata; }
+  /// isBlockAddress - Tests if this is a MO_BlockAddress operand.
+  bool isBlockAddress() const { return OpKind == MO_BlockAddress; }
 
   //===--------------------------------------------------------------------===//
   // Accessors for Register Operands
@@ -293,15 +293,16 @@ public:
     assert(isGlobal() && "Wrong MachineOperand accessor");
     return Contents.OffsetedInfo.Val.GV;
   }
-  
-  MDNode *getMDNode() const {
-    return Contents.OffsetedInfo.Val.Node;
+
+  BlockAddress *getBlockAddress() const {
+    assert(isBlockAddress() && "Wrong MachineOperand accessor");
+    return Contents.OffsetedInfo.Val.BA;
   }
   
   /// getOffset - Return the offset from the symbol in this operand. This always
   /// returns 0 for ExternalSymbol operands.
   int64_t getOffset() const {
-    assert((isGlobal() || isSymbol() || isCPI()) &&
+    assert((isGlobal() || isSymbol() || isCPI() || isBlockAddress()) &&
            "Wrong MachineOperand accessor");
     return Contents.OffsetedInfo.Offset;
   }
@@ -321,7 +322,7 @@ public:
   }
 
   void setOffset(int64_t Offset) {
-    assert((isGlobal() || isSymbol() || isCPI() || isMetadata()) &&
+    assert((isGlobal() || isSymbol() || isCPI() || isBlockAddress()) &&
         "Wrong MachineOperand accessor");
     Contents.OffsetedInfo.Offset = Offset;
   }
@@ -426,20 +427,18 @@ public:
     Op.setTargetFlags(TargetFlags);
     return Op;
   }
-  static MachineOperand CreateMDNode(MDNode *N, int64_t Offset,
-                                     unsigned char TargetFlags = 0) {
-    MachineOperand Op(MachineOperand::MO_Metadata);
-    Op.Contents.OffsetedInfo.Val.Node = N;
-    Op.setOffset(Offset);
-    Op.setTargetFlags(TargetFlags);
-    return Op;
-  }
   static MachineOperand CreateES(const char *SymName,
                                  unsigned char TargetFlags = 0) {
     MachineOperand Op(MachineOperand::MO_ExternalSymbol);
     Op.Contents.OffsetedInfo.Val.SymbolName = SymName;
     Op.setOffset(0); // Offset is always 0.
     Op.setTargetFlags(TargetFlags);
+    return Op;
+  }
+  static MachineOperand CreateBA(BlockAddress *BA) {
+    MachineOperand Op(MachineOperand::MO_BlockAddress);
+    Op.Contents.OffsetedInfo.Val.BA = BA;
+    Op.setOffset(0); // Offset is always 0.
     return Op;
   }
 

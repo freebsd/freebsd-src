@@ -36,7 +36,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
@@ -50,7 +49,7 @@ namespace {
 
   const std::string bss_section(".bss");
 
-  class VISIBILITY_HIDDEN SPUAsmPrinter : public AsmPrinter {
+  class SPUAsmPrinter : public AsmPrinter {
     std::set<std::string> FnStubs, GVStubs;
   public:
     explicit SPUAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
@@ -285,7 +284,7 @@ namespace {
   };
 
   /// LinuxAsmPrinter - SPU assembly printer, customized for Linux
-  class VISIBILITY_HIDDEN LinuxAsmPrinter : public SPUAsmPrinter {
+  class LinuxAsmPrinter : public SPUAsmPrinter {
   public:
     explicit LinuxAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
                              const MCAsmInfo *T, bool V)

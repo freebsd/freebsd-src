@@ -45,7 +45,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
@@ -55,7 +54,7 @@ using namespace llvm;
 STATISTIC(EmittedInsts, "Number of machine instrs printed");
 
 namespace {
-  class VISIBILITY_HIDDEN PPCAsmPrinter : public AsmPrinter {
+  class PPCAsmPrinter : public AsmPrinter {
   protected:
     struct FnStubInfo {
       std::string Stub, LazyPtr, AnonSymbol;
@@ -344,7 +343,7 @@ namespace {
   };
 
   /// PPCLinuxAsmPrinter - PowerPC assembly printer, customized for Linux
-  class VISIBILITY_HIDDEN PPCLinuxAsmPrinter : public PPCAsmPrinter {
+  class PPCLinuxAsmPrinter : public PPCAsmPrinter {
   public:
     explicit PPCLinuxAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
                                 const MCAsmInfo *T, bool V)
@@ -369,7 +368,7 @@ namespace {
 
   /// PPCDarwinAsmPrinter - PowerPC assembly printer, customized for Darwin/Mac
   /// OS X
-  class VISIBILITY_HIDDEN PPCDarwinAsmPrinter : public PPCAsmPrinter {
+  class PPCDarwinAsmPrinter : public PPCAsmPrinter {
     formatted_raw_ostream &OS;
   public:
     explicit PPCDarwinAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,

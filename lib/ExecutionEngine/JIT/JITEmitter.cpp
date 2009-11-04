@@ -46,6 +46,7 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/ValueMap.h"
 #include <algorithm>
 #ifndef NDEBUG
 #include <iomanip>
@@ -62,12 +63,29 @@ static JIT *TheJIT = 0;
 // JIT lazy compilation code.
 //
 namespace {
+  class JITResolverState;
+
+  template<typename ValueTy>
+  struct NoRAUWValueMapConfig : public ValueMapConfig<ValueTy> {
+    typedef JITResolverState *ExtraData;
+    static void onRAUW(JITResolverState *, Value *Old, Value *New) {
+      assert(false && "The JIT doesn't know how to handle a"
+             " RAUW on a value it has emitted.");
+    }
+  };
+
+  struct CallSiteValueMapConfig : public NoRAUWValueMapConfig<Function*> {
+    typedef JITResolverState *ExtraData;
+    static void onDelete(JITResolverState *JRS, Function *F);
+  };
+
   class JITResolverState {
   public:
-    typedef DenseMap<AssertingVH<Function>, void*> FunctionToStubMapTy;
+    typedef ValueMap<Function*, void*, NoRAUWValueMapConfig<Function*> >
+      FunctionToStubMapTy;
     typedef std::map<void*, AssertingVH<Function> > CallSiteToFunctionMapTy;
-    typedef DenseMap<AssertingVH<Function>, SmallPtrSet<void*, 1> >
-            FunctionToCallSitesMapTy;
+    typedef ValueMap<Function *, SmallPtrSet<void*, 1>,
+                     CallSiteValueMapConfig> FunctionToCallSitesMapTy;
     typedef std::map<AssertingVH<GlobalValue>, void*> GlobalToIndirectSymMapTy;
   private:
     /// FunctionToStubMap - Keep track of the stub created for a particular
@@ -84,6 +102,9 @@ namespace {
     GlobalToIndirectSymMapTy GlobalToIndirectSymMap;
 
   public:
+    JITResolverState() : FunctionToStubMap(this),
+                         FunctionToCallSitesMap(this) {}
+
     FunctionToStubMapTy& getFunctionToStubMap(const MutexGuard& locked) {
       assert(locked.holds(TheJIT->lock));
       return FunctionToStubMap;
@@ -111,8 +132,10 @@ namespace {
     void AddCallSite(const MutexGuard &locked, void *CallSite, Function *F) {
       assert(locked.holds(TheJIT->lock));
 
-      assert(CallSiteToFunctionMap.insert(std::make_pair(CallSite, F)).second &&
-             "Pair was already in CallSiteToFunctionMap");
+      bool Inserted = CallSiteToFunctionMap.insert(
+          std::make_pair(CallSite, F)).second;
+      (void)Inserted;
+      assert(Inserted && "Pair was already in CallSiteToFunctionMap");
       FunctionToCallSitesMap[F].insert(CallSite);
     }
 
@@ -142,8 +165,9 @@ namespace {
       FunctionToCallSitesMapTy::iterator F2C_I = FunctionToCallSitesMap.find(F);
       assert(F2C_I != FunctionToCallSitesMap.end() &&
              "FunctionToCallSitesMap broken");
-      assert(F2C_I->second.erase(Stub) &&
-             "FunctionToCallSitesMap broken");
+      bool Erased = F2C_I->second.erase(Stub);
+      (void)Erased;
+      assert(Erased && "FunctionToCallSitesMap broken");
       if (F2C_I->second.empty())
         FunctionToCallSitesMap.erase(F2C_I);
 
@@ -152,13 +176,17 @@ namespace {
 
     void EraseAllCallSites(const MutexGuard &locked, Function *F) {
       assert(locked.holds(TheJIT->lock));
+      EraseAllCallSitesPrelocked(F);
+    }
+    void EraseAllCallSitesPrelocked(Function *F) {
       FunctionToCallSitesMapTy::iterator F2C = FunctionToCallSitesMap.find(F);
       if (F2C == FunctionToCallSitesMap.end())
         return;
       for (SmallPtrSet<void*, 1>::const_iterator I = F2C->second.begin(),
              E = F2C->second.end(); I != E; ++I) {
-        assert(CallSiteToFunctionMap.erase(*I) == 1 &&
-               "Missing call site->function mapping");
+        bool Erased = CallSiteToFunctionMap.erase(*I);
+        (void)Erased;
+        assert(Erased && "Missing call site->function mapping");
       }
       FunctionToCallSitesMap.erase(F2C);
     }
@@ -245,6 +273,10 @@ namespace {
 
 JITResolver *JITResolver::TheJITResolver = 0;
 
+void CallSiteValueMapConfig::onDelete(JITResolverState *JRS, Function *F) {
+  JRS->EraseAllCallSitesPrelocked(F);
+}
+
 /// getFunctionStubIfAvailable - This returns a pointer to a function stub
 /// if it has already been created.
 void *JITResolver::getFunctionStubIfAvailable(Function *F) {
@@ -263,11 +295,11 @@ void *JITResolver::getFunctionStub(Function *F) {
   void *&Stub = state.getFunctionToStubMap(locked)[F];
   if (Stub) return Stub;
 
-  // Call the lazy resolver function unless we are JIT'ing non-lazily, in which
-  // case we must resolve the symbol now.
-  void *Actual = TheJIT->isLazyCompilationDisabled()
-    ? (void *)0 : (void *)(intptr_t)LazyResolverFn;
-  
+  // Call the lazy resolver function if we are JIT'ing lazily.  Otherwise we
+  // must resolve the symbol now.
+  void *Actual = TheJIT->isCompilingLazily()
+    ? (void *)(intptr_t)LazyResolverFn : (void *)0;
+
   // If this is an external declaration, attempt to resolve the address now
   // to place in the stub.
   if (F->isDeclaration() && !F->hasNotBeenReadFromBitcode()) {
@@ -302,7 +334,7 @@ void *JITResolver::getFunctionStub(Function *F) {
   // If we are JIT'ing non-lazily but need to call a function that does not
   // exist yet, add it to the JIT's work list so that we can fill in the stub
   // address later.
-  if (!Actual && TheJIT->isLazyCompilationDisabled())
+  if (!Actual && !TheJIT->isCompilingLazily())
     if (!F->isDeclaration() || F->hasNotBeenReadFromBitcode())
       TheJIT->addPendingFunction(F);
 
@@ -439,7 +471,7 @@ void *JITResolver::JITCompilerFn(void *Stub) {
     // Otherwise we don't have it, do lazy compilation now.
     
     // If lazy compilation is disabled, emit a useful error message and abort.
-    if (TheJIT->isLazyCompilationDisabled()) {
+    if (!TheJIT->isCompilingLazily()) {
       llvm_report_error("LLVM JIT requested to do lazy compilation of function '"
                         + F->getName() + "' when lazy compiles are disabled!");
     }
@@ -550,17 +582,24 @@ namespace {
     JITEvent_EmittedFunctionDetails EmissionDetails;
 
     struct EmittedCode {
-      void *FunctionBody;
+      void *FunctionBody;  // Beginning of the function's allocation.
+      void *Code;  // The address the function's code actually starts at.
       void *ExceptionTable;
-      EmittedCode() : FunctionBody(0), ExceptionTable(0) {}
+      EmittedCode() : FunctionBody(0), Code(0), ExceptionTable(0) {}
     };
-    DenseMap<const Function *, EmittedCode> EmittedFunctions;
+    struct EmittedFunctionConfig : public ValueMapConfig<const Function*> {
+      typedef JITEmitter *ExtraData;
+      static void onDelete(JITEmitter *, const Function*);
+      static void onRAUW(JITEmitter *, const Function*, const Function*);
+    };
+    ValueMap<const Function *, EmittedCode,
+             EmittedFunctionConfig> EmittedFunctions;
 
     // CurFnStubUses - For a given Function, a vector of stubs that it
     // references.  This facilitates the JIT detecting that a stub is no
     // longer used, so that it may be deallocated.
-    DenseMap<const Function *, SmallVector<void*, 1> > CurFnStubUses;
-    
+    DenseMap<AssertingVH<const Function>, SmallVector<void*, 1> > CurFnStubUses;
+
     // StubFnRefs - For a given pointer to a stub, a set of Functions which
     // reference the stub.  When the count of a stub's references drops to zero,
     // the stub is unused.
@@ -574,7 +613,8 @@ namespace {
 
   public:
     JITEmitter(JIT &jit, JITMemoryManager *JMM, TargetMachine &TM)
-        : SizeEstimate(0), Resolver(jit), MMI(0), CurFn(0) {
+        : SizeEstimate(0), Resolver(jit), MMI(0), CurFn(0),
+          EmittedFunctions(this) {
       MemMgr = JMM ? JMM : JITMemoryManager::CreateDefaultMemManager();
       if (jit.getJITInfo().needsGOT()) {
         MemMgr->AllocateGOT();
@@ -729,7 +769,7 @@ void *JITEmitter::getPointerToGlobal(GlobalValue *V, void *Reference,
   // mechanism is capable of rewriting the instruction directly, prefer to do
   // that instead of emitting a stub.  This uses the lazy resolver, so is not
   // legal if lazy compilation is disabled.
-  if (DoesntNeedStub && !TheJIT->isLazyCompilationDisabled())
+  if (DoesntNeedStub && TheJIT->isCompilingLazily())
     return Resolver.AddCallbackAtLocation(F, Reference);
 
   // Otherwise, we have to emit a stub.
@@ -1030,6 +1070,7 @@ void JITEmitter::startFunction(MachineFunction &F) {
   // About to start emitting the machine code for the function.
   emitAlignment(std::max(F.getFunction()->getAlignment(), 8U));
   TheJIT->updateGlobalMapping(F.getFunction(), CurBufferPtr);
+  EmittedFunctions[F.getFunction()].Code = CurBufferPtr;
 
   MBBLocations.clear();
 
@@ -1253,12 +1294,15 @@ void JITEmitter::retryWithMoreMemory(MachineFunction &F) {
 
 /// deallocateMemForFunction - Deallocate all memory for the specified
 /// function body.  Also drop any references the function has to stubs.
+/// May be called while the Function is being destroyed inside ~Value().
 void JITEmitter::deallocateMemForFunction(const Function *F) {
-  DenseMap<const Function *, EmittedCode>::iterator Emitted =
-    EmittedFunctions.find(F);
+  ValueMap<const Function *, EmittedCode, EmittedFunctionConfig>::iterator
+    Emitted = EmittedFunctions.find(F);
   if (Emitted != EmittedFunctions.end()) {
     MemMgr->deallocateFunctionBody(Emitted->second.FunctionBody);
     MemMgr->deallocateExceptionTable(Emitted->second.ExceptionTable);
+    TheJIT->NotifyFreeingMachineCode(Emitted->second.Code);
+
     EmittedFunctions.erase(Emitted);
   }
 
@@ -1487,6 +1531,17 @@ uintptr_t JITEmitter::getJumpTableEntryAddress(unsigned Index) const {
   return (uintptr_t)((char *)JumpTableBase + Offset);
 }
 
+void JITEmitter::EmittedFunctionConfig::onDelete(
+  JITEmitter *Emitter, const Function *F) {
+  Emitter->deallocateMemForFunction(F);
+}
+void JITEmitter::EmittedFunctionConfig::onRAUW(
+  JITEmitter *, const Function*, const Function*) {
+  llvm_unreachable("The JIT doesn't know how to handle a"
+                   " RAUW on a value it has emitted.");
+}
+
+
 //===----------------------------------------------------------------------===//
 //  Public interface to this file
 //===----------------------------------------------------------------------===//
@@ -1625,13 +1680,9 @@ void JIT::updateDlsymStubTable() {
 /// freeMachineCodeForFunction - release machine code memory for given Function.
 ///
 void JIT::freeMachineCodeForFunction(Function *F) {
-
   // Delete translation for this from the ExecutionEngine, so it will get
   // retranslated next time it is used.
-  void *OldPtr = updateGlobalMapping(F, 0);
-
-  if (OldPtr)
-    TheJIT->NotifyFreeingMachineCode(*F, OldPtr);
+  updateGlobalMapping(F, 0);
 
   // Free the actual memory for the function body and related stuff.
   assert(isa<JITEmitter>(JCE) && "Unexpected MCE?");

@@ -33,7 +33,7 @@
 #ifndef LLVM_C_CORE_H
 #define LLVM_C_CORE_H
 
-#include "llvm/Support/DataTypes.h"
+#include "llvm/System/DataTypes.h"
 
 #ifdef __cplusplus
 
@@ -455,8 +455,7 @@ void LLVMDisposeTypeHandle(LLVMTypeHandleRef TypeHandle);
         macro(UnreachableInst)              \
         macro(UnwindInst)                   \
     macro(UnaryInstruction)                 \
-      macro(AllocationInst)                 \
-        macro(AllocaInst)                   \
+      macro(AllocaInst)                     \
       macro(CastInst)                       \
         macro(BitCastInst)                  \
         macro(FPExtInst)                    \
@@ -471,7 +470,6 @@ void LLVMDisposeTypeHandle(LLVMTypeHandleRef TypeHandle);
         macro(UIToFPInst)                   \
         macro(ZExtInst)                     \
       macro(ExtractValueInst)               \
-      macro(FreeInst)                       \
       macro(LoadInst)                       \
       macro(VAArgInst)
 

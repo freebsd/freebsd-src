@@ -1118,16 +1118,27 @@ namespace {
       break;
     }
     case Instruction::Switch: {
-      const SwitchInst* sw = cast<SwitchInst>(I);
+      const SwitchInst *SI = cast<SwitchInst>(I);
       Out << "SwitchInst* " << iName << " = SwitchInst::Create("
           << opNames[0] << ", "
           << opNames[1] << ", "
-          << sw->getNumCases() << ", " << bbname << ");";
+          << SI->getNumCases() << ", " << bbname << ");";
       nl(Out);
-      for (unsigned i = 2; i < sw->getNumOperands(); i += 2 ) {
+      for (unsigned i = 2; i != SI->getNumOperands(); i += 2) {
         Out << iName << "->addCase("
             << opNames[i] << ", "
             << opNames[i+1] << ");";
+        nl(Out);
+      }
+      break;
+    }
+    case Instruction::IndirectBr: {
+      const IndirectBrInst *IBI = cast<IndirectBrInst>(I);
+      Out << "IndirectBrInst *" << iName << " = IndirectBrInst::Create("
+          << opNames[0] << ", " << IBI->getNumDestinations() << ");";
+      nl(Out);
+      for (unsigned i = 1; i != IBI->getNumOperands(); ++i) {
+        Out << iName << "->addDestination(" << opNames[i] << ");";
         nl(Out);
       }
       break;
@@ -1256,11 +1267,6 @@ namespace {
       Out << ", " << opNames[0] << ", " << opNames[1] << ", \"";
       printEscapedString(I->getName());
       Out << "\");";
-      break;
-    }
-    case Instruction::Free: {
-      Out << "FreeInst* " << iName << " = new FreeInst("
-          << getCppName(I->getOperand(0)) << ", " << bbname << ");";
       break;
     }
     case Instruction::Alloca: {

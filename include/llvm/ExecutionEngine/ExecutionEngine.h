@@ -19,6 +19,7 @@
 #include <map>
 #include <string>
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/ValueMap.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/System/Mutex.h"
 #include "llvm/Target/TargetMachine.h"
@@ -42,26 +43,23 @@ class Type;
 
 class ExecutionEngineState {
 public:
-  class MapUpdatingCVH : public CallbackVH {
-    ExecutionEngineState &EES;
-
-  public:
-    MapUpdatingCVH(ExecutionEngineState &EES, const GlobalValue *GV);
-
-    operator const GlobalValue*() const {
-      return cast<GlobalValue>(getValPtr());
-    }
-
-    virtual void deleted();
-    virtual void allUsesReplacedWith(Value *new_value);
+  struct AddressMapConfig : public ValueMapConfig<const GlobalValue*> {
+    typedef ExecutionEngineState *ExtraData;
+    static sys::Mutex *getMutex(ExecutionEngineState *EES);
+    static void onDelete(ExecutionEngineState *EES, const GlobalValue *Old);
+    static void onRAUW(ExecutionEngineState *, const GlobalValue *,
+                       const GlobalValue *);
   };
+
+  typedef ValueMap<const GlobalValue *, void *, AddressMapConfig>
+      GlobalAddressMapTy;
 
 private:
   ExecutionEngine &EE;
 
   /// GlobalAddressMap - A mapping between LLVM global values and their
   /// actualized version...
-  std::map<MapUpdatingCVH, void *> GlobalAddressMap;
+  GlobalAddressMapTy GlobalAddressMap;
 
   /// GlobalAddressReverseMap - This is the reverse mapping of GlobalAddressMap,
   /// used to convert raw addresses into the LLVM global value that is emitted
@@ -70,13 +68,9 @@ private:
   std::map<void *, AssertingVH<const GlobalValue> > GlobalAddressReverseMap;
 
 public:
-  ExecutionEngineState(ExecutionEngine &EE) : EE(EE) {}
+  ExecutionEngineState(ExecutionEngine &EE);
 
-  MapUpdatingCVH getVH(const GlobalValue *GV) {
-    return MapUpdatingCVH(*this, GV);
-  }
-
-  std::map<MapUpdatingCVH, void *> &
+  GlobalAddressMapTy &
   getGlobalAddressMap(const MutexGuard &) {
     return GlobalAddressMap;
   }
@@ -94,7 +88,7 @@ public:
 class ExecutionEngine {
   const TargetData *TD;
   ExecutionEngineState EEState;
-  bool LazyCompilationDisabled;
+  bool CompilingLazily;
   bool GVCompilationDisabled;
   bool SymbolSearchingDisabled;
   bool DlsymStubsEnabled;
@@ -269,12 +263,17 @@ public:
   /// getPointerToFunction - The different EE's represent function bodies in
   /// different ways.  They should each implement this to say what a function
   /// pointer should look like.  When F is destroyed, the ExecutionEngine will
-  /// remove its global mapping but will not yet free its machine code.  Call
-  /// freeMachineCodeForFunction(F) explicitly to do that.  Note that global
-  /// optimizations can destroy Functions without notifying the ExecutionEngine.
+  /// remove its global mapping and free any machine code.  Be sure no threads
+  /// are running inside F when that happens.
   ///
   virtual void *getPointerToFunction(Function *F) = 0;
 
+  /// getPointerToBasicBlock - The different EE's represent basic blocks in
+  /// different ways.  Return the representation for a blockaddress of the
+  /// specified block.
+  ///
+  virtual void *getPointerToBasicBlock(BasicBlock *BB) = 0;
+  
   /// getPointerToFunctionOrStub - If the specified function has been
   /// code-gen'd, return a pointer to the function.  If not, compile it, or use
   /// a stub to implement lazy compilation if available.  See
@@ -326,13 +325,29 @@ public:
   virtual void RegisterJITEventListener(JITEventListener *) {}
   virtual void UnregisterJITEventListener(JITEventListener *) {}
 
-  /// DisableLazyCompilation - If called, the JIT will abort if lazy compilation
-  /// is ever attempted.
+  /// DisableLazyCompilation - When lazy compilation is off (the default), the
+  /// JIT will eagerly compile every function reachable from the argument to
+  /// getPointerToFunction.  If lazy compilation is turned on, the JIT will only
+  /// compile the one function and emit stubs to compile the rest when they're
+  /// first called.  If lazy compilation is turned off again while some lazy
+  /// stubs are still around, and one of those stubs is called, the program will
+  /// abort.
+  ///
+  /// In order to safely compile lazily in a threaded program, the user must
+  /// ensure that 1) only one thread at a time can call any particular lazy
+  /// stub, and 2) any thread modifying LLVM IR must hold the JIT's lock
+  /// (ExecutionEngine::lock) or otherwise ensure that no other thread calls a
+  /// lazy stub.  See http://llvm.org/PR5184 for details.
   void DisableLazyCompilation(bool Disabled = true) {
-    LazyCompilationDisabled = Disabled;
+    CompilingLazily = !Disabled;
   }
+  bool isCompilingLazily() const {
+    return CompilingLazily;
+  }
+  // Deprecated in favor of isCompilingLazily (to reduce double-negatives).
+  // Remove this in LLVM 2.8.
   bool isLazyCompilationDisabled() const {
-    return LazyCompilationDisabled;
+    return !CompilingLazily;
   }
 
   /// DisableGVCompilation - If called, the JIT will abort if it's asked to
@@ -485,14 +500,7 @@ class EngineBuilder {
   }
 
   ExecutionEngine *create();
-
 };
-
-inline bool operator<(const ExecutionEngineState::MapUpdatingCVH& lhs,
-                      const ExecutionEngineState::MapUpdatingCVH& rhs) {
-    return static_cast<const GlobalValue*>(lhs) <
-        static_cast<const GlobalValue*>(rhs);
-}
 
 } // End llvm namespace
 

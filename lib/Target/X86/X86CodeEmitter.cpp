@@ -19,6 +19,7 @@
 #include "X86TargetMachine.h"
 #include "X86Relocations.h"
 #include "X86.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
@@ -32,7 +33,6 @@
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -43,7 +43,7 @@ STATISTIC(NumEmitted, "Number of machine instructions emitted");
 
 namespace {
   template<class CodeEmitter>
-  class VISIBILITY_HIDDEN Emitter : public MachineFunctionPass {
+  class Emitter : public MachineFunctionPass {
     const X86InstrInfo  *II;
     const TargetData    *TD;
     X86TargetMachine    &TM;

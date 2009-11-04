@@ -108,6 +108,15 @@ def IndexModeNone : IndexMode<0>;
 def IndexModePre  : IndexMode<1>;
 def IndexModePost : IndexMode<2>;
 
+// Instruction execution domain.
+class Domain<bits<2> val> {
+  bits<2> Value = val;
+}
+def GenericDomain : Domain<0>;
+def VFPDomain     : Domain<1>; // Instructions in VFP domain only
+def NeonDomain    : Domain<2>; // Instructions in Neon domain only
+def VFPNeonDomain : Domain<3>; // Instructions in both VFP & Neon domains
+
 //===----------------------------------------------------------------------===//
 
 // ARM special operands.
@@ -136,7 +145,7 @@ def s_cc_out : OptionalDefOperand<OtherVT, (ops CCR), (ops (i32 CPSR))> {
 //
 
 class InstARM<AddrMode am, SizeFlagVal sz, IndexMode im,
-              Format f, string cstr, InstrItinClass itin>
+              Format f, Domain d, string cstr, InstrItinClass itin>
   : Instruction {
   field bits<32> Inst;
 
@@ -155,6 +164,9 @@ class InstARM<AddrMode am, SizeFlagVal sz, IndexMode im,
   Format F = f;
   bits<5> Form = F.Value;
 
+  Domain D = d;
+  bits<2> Dom = D.Value;
+
   //
   // Attributes specific to ARM instructions...
   //
@@ -167,7 +179,8 @@ class InstARM<AddrMode am, SizeFlagVal sz, IndexMode im,
 
 class PseudoInst<dag oops, dag iops, InstrItinClass itin, 
                  string asm, list<dag> pattern>
-  : InstARM<AddrModeNone, SizeSpecial, IndexModeNone, Pseudo, "", itin> {
+  : InstARM<AddrModeNone, SizeSpecial, IndexModeNone, Pseudo, GenericDomain, 
+            "", itin> {
   let OutOperandList = oops;
   let InOperandList = iops;
   let AsmString   = asm;
@@ -179,7 +192,7 @@ class I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
         IndexMode im, Format f, InstrItinClass itin, 
         string opc, string asm, string cstr,
         list<dag> pattern>
-  : InstARM<am, sz, im, f, cstr, itin> {
+  : InstARM<am, sz, im, f, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ops pred:$p));
   let AsmString   = !strconcat(opc, !strconcat("${p}", asm));
@@ -194,7 +207,7 @@ class sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
          IndexMode im, Format f, InstrItinClass itin,
          string opc, string asm, string cstr,
          list<dag> pattern>
-  : InstARM<am, sz, im, f, cstr, itin> {
+  : InstARM<am, sz, im, f, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ops pred:$p, cc_out:$s));
   let AsmString   = !strconcat(opc, !strconcat("${p}${s}", asm));
@@ -206,7 +219,7 @@ class sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
 class XI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
          IndexMode im, Format f, InstrItinClass itin,
          string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, im, f, cstr, itin> {
+  : InstARM<am, sz, im, f, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = iops;
   let AsmString   = asm;
@@ -807,7 +820,7 @@ class ARMV6Pat<dag pattern, dag result> : Pat<pattern, result> {
 
 class ThumbI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
              InstrItinClass itin, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr, itin> {
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = iops;
   let AsmString   = asm;
@@ -833,7 +846,7 @@ class TJTI<dag oops, dag iops, InstrItinClass itin, string asm, list<dag> patter
 // Thumb1 only
 class Thumb1I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
               InstrItinClass itin, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr, itin> {
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = iops;
   let AsmString   = asm;
@@ -861,7 +874,7 @@ class T1It<dag oops, dag iops, InstrItinClass itin,
 class Thumb1sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                InstrItinClass itin,
                string opc, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr, itin> {
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = !con(oops, (ops s_cc_out:$s));
   let InOperandList = !con(iops, (ops pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${s}${p}", asm));
@@ -883,7 +896,7 @@ class T1sIt<dag oops, dag iops, InstrItinClass itin,
 class Thumb1pI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                InstrItinClass itin,
                string opc, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr, itin> {
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ops pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${p}", asm));
@@ -918,7 +931,7 @@ class T1pIs<dag oops, dag iops,
 class Thumb2I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
               InstrItinClass itin,
               string opc, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr, itin> {
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ops pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${p}", asm));
@@ -934,7 +947,7 @@ class Thumb2I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
 class Thumb2sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                InstrItinClass itin,
                string opc, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr, itin> {
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ops pred:$p, cc_out:$s));
   let AsmString   = !strconcat(opc, !strconcat("${s}${p}", asm));
@@ -946,7 +959,7 @@ class Thumb2sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
 class Thumb2XI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
                InstrItinClass itin,
                string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr, itin> {
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = iops;
   let AsmString   = asm;
@@ -993,7 +1006,7 @@ class T2Ix2<dag oops, dag iops, InstrItinClass itin,
 class T2Iidxldst<dag oops, dag iops, AddrMode am, IndexMode im,
                  InstrItinClass itin,
                  string opc, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, Size4Bytes, im, ThumbFrm, cstr, itin> {
+  : InstARM<am, Size4Bytes, im, ThumbFrm, GenericDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ops pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${p}", asm));
@@ -1026,7 +1039,7 @@ class T2Pat<dag pattern, dag result> : Pat<pattern, result> {
 class VFPI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
            IndexMode im, Format f, InstrItinClass itin,
            string opc, string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, im, f, cstr, itin> {
+  : InstARM<am, sz, im, f, VFPDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ops pred:$p));
   let AsmString   = !strconcat(opc, !strconcat("${p}", asm));
@@ -1038,7 +1051,7 @@ class VFPI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
 class VFPXI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
             IndexMode im, Format f, InstrItinClass itin,
             string asm, string cstr, list<dag> pattern>
-  : InstARM<am, sz, im, f, cstr, itin> {
+  : InstARM<am, sz, im, f, VFPDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = iops;
   let AsmString   = asm;
@@ -1061,6 +1074,9 @@ class ADI5<bits<4> opcod1, bits<2> opcod2, dag oops, dag iops,
   let Inst{27-24} = opcod1;
   let Inst{21-20} = opcod2;
   let Inst{11-8}  = 0b1011;
+
+  // 64-bit loads & stores operate on both NEON and VFP pipelines.
+  let Dom = VFPNeonDomain.Value;
 }
 
 class ASI5<bits<4> opcod1, bits<2> opcod2, dag oops, dag iops,
@@ -1082,6 +1098,9 @@ class AXDI5<dag oops, dag iops, InstrItinClass itin,
   // TODO: Mark the instructions with the appropriate subtarget info.
   let Inst{27-25} = 0b110;
   let Inst{11-8}  = 0b1011;
+
+  // 64-bit loads & stores operate on both NEON and VFP pipelines.
+  let Dom = VFPNeonDomain.Value;
 }
 
 class AXSI5<dag oops, dag iops, InstrItinClass itin,
@@ -1125,8 +1144,8 @@ class ASuI<bits<8> opcod1, bits<4> opcod2, bits<4> opcod3, dag oops, dag iops,
 // Single precision unary, if no NEON
 // Same as ASuI except not available if NEON is enabled
 class ASuIn<bits<8> opcod1, bits<4> opcod2, bits<4> opcod3, dag oops, dag iops,
-            InstrItinClass itin,    string opc, string asm, list<dag> pattern>
-  : ASuI<opcod1, opcod2, opcod2, oops, iops, itin, opc, asm, pattern> {
+            InstrItinClass itin, string opc, string asm, list<dag> pattern>
+  : ASuI<opcod1, opcod2, opcod3, oops, iops, itin, opc, asm, pattern> {
   list<Predicate> Predicates = [HasVFP2,DontUseNEONForFP];
 }
 
@@ -1199,7 +1218,7 @@ class AVConv5I<bits<8> opcod1, bits<4> opcod2, dag oops, dag iops,
 
 class NeonI<dag oops, dag iops, AddrMode am, IndexMode im, InstrItinClass itin,
             string asm, string cstr, list<dag> pattern>
-  : InstARM<am, Size4Bytes, im, NEONFrm, cstr, itin> {
+  : InstARM<am, Size4Bytes, im, NEONFrm, NeonDomain, cstr, itin> {
   let OutOperandList = oops;
   let InOperandList = iops;
   let AsmString = asm;

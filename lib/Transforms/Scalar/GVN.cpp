@@ -33,7 +33,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/MallocHelper.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
@@ -669,9 +669,10 @@ namespace {
     bool runOnFunction(Function &F);
   public:
     static char ID; // Pass identification, replacement for typeid
-    GVN() : FunctionPass(&ID) { }
+    GVN(bool nopre = false) : FunctionPass(&ID), NoPRE(nopre) { }
 
   private:
+    bool NoPRE;
     MemoryDependenceAnalysis *MD;
     DominatorTree *DT;
 
@@ -710,7 +711,7 @@ namespace {
 }
 
 // createGVNPass - The public interface to this file...
-FunctionPass *llvm::createGVNPass() { return new GVN(); }
+FunctionPass *llvm::createGVNPass(bool NoPRE) { return new GVN(NoPRE); }
 
 static RegisterPass<GVN> X("gvn",
                            "Global Value Numbering");
@@ -1243,10 +1244,19 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
     Instruction *DepInst = DepInfo.getInst();
 
     // Loading the allocation -> undef.
-    if (isa<AllocationInst>(DepInst) || isMalloc(DepInst)) {
+    if (isa<AllocaInst>(DepInst) || isMalloc(DepInst)) {
       ValuesPerBlock.push_back(AvailableValueInBlock::get(DepBB,
                                              UndefValue::get(LI->getType())));
       continue;
+    }
+    
+    // Loading immediately after lifetime begin or end -> undef.
+    if (IntrinsicInst* II = dyn_cast<IntrinsicInst>(DepInst)) {
+      if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
+          II->getIntrinsicID() == Intrinsic::lifetime_end) {
+        ValuesPerBlock.push_back(AvailableValueInBlock::get(DepBB,
+                                             UndefValue::get(LI->getType())));
+      }
     }
 
     if (StoreInst *S = dyn_cast<StoreInst>(DepInst)) {
@@ -1585,11 +1595,23 @@ bool GVN::processLoad(LoadInst *L, SmallVectorImpl<Instruction*> &toErase) {
   // If this load really doesn't depend on anything, then we must be loading an
   // undef value.  This can happen when loading for a fresh allocation with no
   // intervening stores, for example.
-  if (isa<AllocationInst>(DepInst) || isMalloc(DepInst)) {
+  if (isa<AllocaInst>(DepInst) || isMalloc(DepInst)) {
     L->replaceAllUsesWith(UndefValue::get(L->getType()));
     toErase.push_back(L);
     NumGVNLoad++;
     return true;
+  }
+  
+  // If this load occurs either right after a lifetime begin or a lifetime end,
+  // then the loaded value is undefined.
+  if (IntrinsicInst* II = dyn_cast<IntrinsicInst>(DepInst)) {
+    if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
+        II->getIntrinsicID() == Intrinsic::lifetime_end) {
+      L->replaceAllUsesWith(UndefValue::get(L->getType()));
+      toErase.push_back(L);
+      NumGVNLoad++;
+      return true;
+    }
   }
 
   return false;
@@ -1653,7 +1675,7 @@ bool GVN::processInstruction(Instruction *I,
 
   // Allocations are always uniquely numbered, so we can save time and memory
   // by fast failing them.
-  } else if (isa<AllocationInst>(I) || isa<TerminatorInst>(I)) {
+  } else if (isa<AllocaInst>(I) || isa<TerminatorInst>(I)) {
     localAvail[I->getParent()]->table.insert(std::make_pair(Num, I));
     return false;
   }
@@ -1788,7 +1810,7 @@ bool GVN::processBlock(BasicBlock *BB) {
 
 /// performPRE - Perform a purely local form of PRE that looks for diamond
 /// control flow patterns and attempts to perform simple PRE at the join point.
-bool GVN::performPRE(Function& F) {
+bool GVN::performPRE(Function &F) {
   bool Changed = false;
   SmallVector<std::pair<TerminatorInst*, unsigned>, 4> toSplit;
   DenseMap<BasicBlock*, Value*> predMap;
@@ -1803,7 +1825,7 @@ bool GVN::performPRE(Function& F) {
          BE = CurrentBlock->end(); BI != BE; ) {
       Instruction *CurInst = BI++;
 
-      if (isa<AllocationInst>(CurInst) ||
+      if (isa<AllocaInst>(CurInst) ||
           isa<TerminatorInst>(CurInst) || isa<PHINode>(CurInst) ||
           CurInst->getType()->isVoidTy() ||
           CurInst->mayReadFromMemory() || CurInst->mayHaveSideEffects() ||
@@ -1852,6 +1874,10 @@ bool GVN::performPRE(Function& F) {
       // Don't do PRE when it might increase code size, i.e. when
       // we would need to insert instructions in more than one pred.
       if (NumWithout != 1 || NumWith == 0)
+        continue;
+      
+      // Don't do PRE across indirect branch.
+      if (isa<IndirectBrInst>(PREPred->getTerminator()))
         continue;
 
       // We can't do PRE safely on a critical edge, so instead we schedule

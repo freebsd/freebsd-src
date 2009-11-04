@@ -15,7 +15,6 @@
 #include "llvm/Pass.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -23,8 +22,7 @@
 using namespace llvm;
 
 namespace {
-  class VISIBILITY_HIDDEN DeadMachineInstructionElim : 
-        public MachineFunctionPass {
+  class DeadMachineInstructionElim : public MachineFunctionPass {
     virtual bool runOnMachineFunction(MachineFunction &MF);
     
     const TargetRegisterInfo *TRI;

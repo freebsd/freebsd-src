@@ -111,12 +111,13 @@ namespace lltok {
     kw_fptoui, kw_fptosi, kw_inttoptr, kw_ptrtoint, kw_bitcast,
     kw_select, kw_va_arg,
 
-    kw_ret, kw_br, kw_switch, kw_invoke, kw_unwind, kw_unreachable,
+    kw_ret, kw_br, kw_switch, kw_indirectbr, kw_invoke, kw_unwind,
+    kw_unreachable,
 
     kw_malloc, kw_alloca, kw_free, kw_load, kw_store, kw_getelementptr,
 
     kw_extractelement, kw_insertelement, kw_shufflevector, kw_getresult,
-    kw_extractvalue, kw_insertvalue,
+    kw_extractvalue, kw_insertvalue, kw_blockaddress,
 
     // Unsigned Valued tokens (UIntVal).
     GlobalID,          // @42

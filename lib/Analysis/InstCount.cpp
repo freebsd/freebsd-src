@@ -15,7 +15,6 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Pass.h"
 #include "llvm/Function.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Support/raw_ostream.h"
@@ -34,8 +33,7 @@ STATISTIC(TotalMemInst, "Number of memory instructions");
 
 
 namespace {
-  class VISIBILITY_HIDDEN InstCount 
-      : public FunctionPass, public InstVisitor<InstCount> {
+  class InstCount : public FunctionPass, public InstVisitor<InstCount> {
     friend class InstVisitor<InstCount>;
 
     void visitFunction  (Function &F) { ++TotalFuncs; }
@@ -76,11 +74,11 @@ FunctionPass *llvm::createInstCountPass() { return new InstCount(); }
 bool InstCount::runOnFunction(Function &F) {
   unsigned StartMemInsts =
     NumGetElementPtrInst + NumLoadInst + NumStoreInst + NumCallInst +
-    NumInvokeInst + NumAllocaInst + NumFreeInst;
+    NumInvokeInst + NumAllocaInst;
   visit(F);
   unsigned EndMemInsts =
     NumGetElementPtrInst + NumLoadInst + NumStoreInst + NumCallInst +
-    NumInvokeInst + NumAllocaInst + NumFreeInst;
+    NumInvokeInst + NumAllocaInst;
   TotalMemInst += EndMemInsts-StartMemInsts;
   return false;
 }

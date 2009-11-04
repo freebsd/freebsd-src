@@ -14,14 +14,13 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
 STATISTIC(NumITs,     "Number of IT blocks inserted");
 
 namespace {
-  struct VISIBILITY_HIDDEN Thumb2ITBlockPass : public MachineFunctionPass {
+  struct Thumb2ITBlockPass : public MachineFunctionPass {
     static char ID;
     Thumb2ITBlockPass() : MachineFunctionPass(&ID) {}
 

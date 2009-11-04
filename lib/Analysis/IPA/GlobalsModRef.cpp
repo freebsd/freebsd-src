@@ -23,8 +23,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
-#include "llvm/Analysis/MallocHelper.h"
-#include "llvm/Support/Compiler.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/ADT/Statistic.h"
@@ -44,7 +43,7 @@ namespace {
   /// function in the program.  Later, the entries for these functions are
   /// removed if the function is found to call an external function (in which
   /// case we know nothing about it.
-  struct VISIBILITY_HIDDEN FunctionRecord {
+  struct FunctionRecord {
     /// GlobalInfo - Maintain mod/ref info for all of the globals without
     /// addresses taken that are read or written (transitively) by this
     /// function.
@@ -69,8 +68,7 @@ namespace {
   };
 
   /// GlobalsModRef - The actual analysis pass.
-  class VISIBILITY_HIDDEN GlobalsModRef
-      : public ModulePass, public AliasAnalysis {
+  class GlobalsModRef : public ModulePass, public AliasAnalysis {
     /// NonAddressTakenGlobals - The globals that do not have their addresses
     /// taken.
     std::set<GlobalValue*> NonAddressTakenGlobals;
@@ -240,6 +238,8 @@ bool GlobalsModRef::AnalyzeUsesOfPointer(Value *V,
     } else if (BitCastInst *BCI = dyn_cast<BitCastInst>(*UI)) {
       if (AnalyzeUsesOfPointer(BCI, Readers, Writers, OkayStoreDest))
         return true;
+    } else if (isFreeCall(*UI)) {
+      Writers.push_back(cast<Instruction>(*UI)->getParent()->getParent());
     } else if (CallInst *CI = dyn_cast<CallInst>(*UI)) {
       // Make sure that this is just the function being called, not that it is
       // passing into the function.
@@ -261,8 +261,6 @@ bool GlobalsModRef::AnalyzeUsesOfPointer(Value *V,
     } else if (ICmpInst *ICI = dyn_cast<ICmpInst>(*UI)) {
       if (!isa<ConstantPointerNull>(ICI->getOperand(1)))
         return true;  // Allow comparison against null.
-    } else if (FreeInst *F = dyn_cast<FreeInst>(*UI)) {
-      Writers.push_back(F->getParent()->getParent());
     } else {
       return true;
     }
@@ -439,7 +437,8 @@ void GlobalsModRef::AnalyzeCallGraph(CallGraph &CG, Module &M) {
           if (cast<StoreInst>(*II).isVolatile())
             // Treat volatile stores as reading memory somewhere.
             FunctionEffect |= Ref;
-        } else if (isMalloc(&cast<Instruction>(*II)) || isa<FreeInst>(*II)) {
+        } else if (isMalloc(&cast<Instruction>(*II)) ||
+                   isFreeCall(&cast<Instruction>(*II))) {
           FunctionEffect |= ModRef;
         }
 

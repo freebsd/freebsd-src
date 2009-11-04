@@ -74,7 +74,6 @@
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
@@ -401,7 +400,7 @@ namespace {
   /// SCEVComplexityCompare - Return true if the complexity of the LHS is less
   /// than the complexity of the RHS.  This comparator is used to canonicalize
   /// expressions.
-  class VISIBILITY_HIDDEN SCEVComplexityCompare {
+  class SCEVComplexityCompare {
     LoopInfo *LI;
   public:
     explicit SCEVComplexityCompare(LoopInfo *li) : LI(li) {}
@@ -3266,9 +3265,8 @@ ScalarEvolution::getBackedgeTakenInfo(const Loop *L) {
     // Now that we know more about the trip count for this loop, forget any
     // existing SCEV values for PHI nodes in this loop since they are only
     // conservative estimates made without the benefit of trip count
-    // information. This is similar to the code in
-    // forgetLoopBackedgeTakenCount, except that it handles SCEVUnknown PHI
-    // nodes specially.
+    // information. This is similar to the code in forgetLoop, except that
+    // it handles SCEVUnknown PHI nodes specially.
     if (ItCount.hasAnyInfo()) {
       SmallVector<Instruction *, 16> Worklist;
       PushLoopPHIs(L, Worklist);
@@ -3302,13 +3300,14 @@ ScalarEvolution::getBackedgeTakenInfo(const Loop *L) {
   return Pair.first->second;
 }
 
-/// forgetLoopBackedgeTakenCount - This method should be called by the
-/// client when it has changed a loop in a way that may effect
-/// ScalarEvolution's ability to compute a trip count, or if the loop
-/// is deleted.
-void ScalarEvolution::forgetLoopBackedgeTakenCount(const Loop *L) {
+/// forgetLoop - This method should be called by the client when it has
+/// changed a loop in a way that may effect ScalarEvolution's ability to
+/// compute a trip count, or if the loop is deleted.
+void ScalarEvolution::forgetLoop(const Loop *L) {
+  // Drop any stored trip count value.
   BackedgeTakenCounts.erase(L);
 
+  // Drop information about expressions based on loop-header PHIs.
   SmallVector<Instruction *, 16> Worklist;
   PushLoopPHIs(L, Worklist);
 

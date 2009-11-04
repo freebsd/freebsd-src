@@ -21,7 +21,6 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
@@ -33,7 +32,7 @@ STATISTIC(NumExceptionValuesMoved, "Number of eh.exception calls moved");
 STATISTIC(NumStackTempsIntroduced, "Number of stack temporaries introduced");
 
 namespace {
-  class VISIBILITY_HIDDEN DwarfEHPrepare : public FunctionPass {
+  class DwarfEHPrepare : public FunctionPass {
     const TargetLowering *TLI;
     bool CompileFast;
 

@@ -24,7 +24,8 @@ LEVEL := .
 # "llvmCore", then this is an "Apple-style" build; search for
 # "Apple-style" in the comments for more info.  Anything else is a
 # normal build.
-ifneq ($(RC_ProjectName),llvmCore)  # Normal build (not "Apple-style").
+ifneq ($(findstring llvmCore, $(RC_ProjectName)),llvmCore)  # Normal build (not "Apple-style").
+
 ifeq ($(BUILD_DIRS_ONLY),1)
   DIRS := lib/System lib/Support utils
   OPTIONAL_DIRS :=
@@ -94,6 +95,8 @@ cross-compile-build-tools:
 	$(Verb) if [ ! -f BuildTools/Makefile ]; then \
           $(MKDIR) BuildTools; \
 	  cd BuildTools ; \
+	  unset CFLAGS ; \
+	  unset CXXFLAGS ; \
 	  $(PROJ_SRC_DIR)/configure --build=$(BUILD_TRIPLE) \
 		--host=$(BUILD_TRIPLE) --target=$(BUILD_TRIPLE); \
 	  cd .. ; \
@@ -133,8 +136,7 @@ dist-hook::
 	$(Echo) Eliminating files constructed by configure
 	$(Verb) $(RM) -f \
 	  $(TopDistDir)/include/llvm/Config/config.h  \
-	  $(TopDistDir)/include/llvm/Support/DataTypes.h  \
-	  $(TopDistDir)/include/llvm/Support/ThreadSupport.h
+	  $(TopDistDir)/include/llvm/System/DataTypes.h
 
 clang-only: all
 tools-only: all
@@ -150,7 +152,7 @@ FilesToConfig := \
   include/llvm/Config/config.h \
   include/llvm/Config/Targets.def \
 	include/llvm/Config/AsmPrinters.def \
-  include/llvm/Support/DataTypes.h \
+  include/llvm/System/DataTypes.h \
 	tools/llvmc/plugins/Base/Base.td
 FilesToConfigPATH  := $(addprefix $(LLVM_OBJ_ROOT)/,$(FilesToConfig))
 

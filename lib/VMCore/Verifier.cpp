@@ -62,7 +62,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -70,7 +69,7 @@
 using namespace llvm;
 
 namespace {  // Anonymous namespace for class
-  struct VISIBILITY_HIDDEN PreVerifier : public FunctionPass {
+  struct PreVerifier : public FunctionPass {
     static char ID; // Pass ID, replacement for typeid
 
     PreVerifier() : FunctionPass(&ID) { }
@@ -321,7 +320,7 @@ namespace {
     void visitUserOp1(Instruction &I);
     void visitUserOp2(Instruction &I) { visitUserOp1(I); }
     void visitIntrinsicFunctionCall(Intrinsic::ID ID, CallInst &CI);
-    void visitAllocationInst(AllocationInst &AI);
+    void visitAllocaInst(AllocaInst &AI);
     void visitExtractValueInst(ExtractValueInst &EVI);
     void visitInsertValueInst(InsertValueInst &IVI);
 
@@ -659,6 +658,12 @@ void Verifier::visitFunction(Function &F) {
     BasicBlock *Entry = &F.getEntryBlock();
     Assert1(pred_begin(Entry) == pred_end(Entry),
             "Entry block to function must not have predecessors!", Entry);
+    
+    // The address of the entry block cannot be taken, unless it is dead.
+    if (Entry->hasAddressTaken()) {
+      Assert1(!BlockAddress::get(Entry)->isConstantUsed(),
+              "blockaddress may not be used with the entry block!", Entry);
+    }
   }
   
   // If this function is actually an intrinsic, verify that it is only used in
@@ -1282,7 +1287,7 @@ void Verifier::visitStoreInst(StoreInst &SI) {
   visitInstruction(SI);
 }
 
-void Verifier::visitAllocationInst(AllocationInst &AI) {
+void Verifier::visitAllocaInst(AllocaInst &AI) {
   const PointerType *PTy = AI.getType();
   Assert1(PTy->getAddressSpace() == 0, 
           "Allocation instruction pointer not in the generic address space!",

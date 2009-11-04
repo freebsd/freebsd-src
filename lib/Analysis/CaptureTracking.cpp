@@ -73,9 +73,6 @@ bool llvm::PointerMayBeCaptured(const Value *V, bool ReturnCaptures) {
       // captured.
       break;
     }
-    case Instruction::Free:
-      // Freeing a pointer does not cause it to be captured.
-      break;
     case Instruction::Load:
       // Loading from a pointer does not cause it to be captured.
       break;

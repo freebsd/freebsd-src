@@ -837,12 +837,14 @@ bool BitcodeReader::ParseMetadata() {
       SmallString<8> Name;
       Name.resize(RecordLength-1);
       unsigned Kind = Record[0];
+      (void) Kind;
       for (unsigned i = 1; i != RecordLength; ++i)
         Name[i-1] = Record[i];
       MetadataContext &TheMetadata = Context.getMetadata();
       unsigned ExistingKind = TheMetadata.getMDKind(Name.str());
       if (ExistingKind == 0) {
         unsigned NewKind = TheMetadata.registerMDKind(Name.str());
+        (void) NewKind;
         assert (Kind == NewKind 
                 && "Unable to handle custom metadata mismatch!");
       } else {
@@ -1190,6 +1192,22 @@ bool BitcodeReader::ParseConstants() {
                          AsmStr, ConstrStr, HasSideEffects, IsAlignStack);
       break;
     }
+    case bitc::CST_CODE_BLOCKADDRESS:{
+      if (Record.size() < 3) return Error("Invalid CE_BLOCKADDRESS record");
+      const Type *FnTy = getTypeByID(Record[0]);
+      if (FnTy == 0) return Error("Invalid CE_BLOCKADDRESS record");
+      Function *Fn =
+        dyn_cast_or_null<Function>(ValueList.getConstantFwdRef(Record[1],FnTy));
+      if (Fn == 0) return Error("Invalid CE_BLOCKADDRESS record");
+      
+      GlobalVariable *FwdRef = new GlobalVariable(*Fn->getParent(),
+                                                  Type::getInt8Ty(Context),
+                                            false, GlobalValue::InternalLinkage,
+                                                  0, "");
+      BlockAddrFwdRefs[Fn].push_back(std::make_pair(Record[2], FwdRef));
+      V = FwdRef;
+      break;
+    }  
     }
 
     ValueList.AssignValue(V, NextCstNo);
@@ -1949,7 +1967,7 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       }
       break;
     }
-    case bitc::FUNC_CODE_INST_SWITCH: { // SWITCH: [opty, opval, n, n x ops]
+    case bitc::FUNC_CODE_INST_SWITCH: { // SWITCH: [opty, op0, op1, ...]
       if (Record.size() < 3 || (Record.size() & 1) == 0)
         return Error("Invalid SWITCH record");
       const Type *OpTy = getTypeByID(Record[0]);
@@ -1973,7 +1991,28 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       I = SI;
       break;
     }
-
+    case bitc::FUNC_CODE_INST_INDIRECTBR: { // INDIRECTBR: [opty, op0, op1, ...]
+      if (Record.size() < 2)
+        return Error("Invalid INDIRECTBR record");
+      const Type *OpTy = getTypeByID(Record[0]);
+      Value *Address = getFnValueByID(Record[1], OpTy);
+      if (OpTy == 0 || Address == 0)
+        return Error("Invalid INDIRECTBR record");
+      unsigned NumDests = Record.size()-2;
+      IndirectBrInst *IBI = IndirectBrInst::Create(Address, NumDests);
+      InstructionList.push_back(IBI);
+      for (unsigned i = 0, e = NumDests; i != e; ++i) {
+        if (BasicBlock *DestBB = getBasicBlock(Record[2+i])) {
+          IBI->addDestination(DestBB);
+        } else {
+          delete IBI;
+          return Error("Invalid INDIRECTBR record!");
+        }
+      }
+      I = IBI;
+      break;
+    }
+        
     case bitc::FUNC_CODE_INST_INVOKE: {
       // INVOKE: [attrs, cc, normBB, unwindBB, fnty, op0,op1,op2, ...]
       if (Record.size() < 4) return Error("Invalid INVOKE record");
@@ -2073,7 +2112,8 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       if (getValueTypePair(Record, OpNum, NextValueNo, Op) ||
           OpNum != Record.size())
         return Error("Invalid FREE record");
-      I = new FreeInst(Op);
+      if (!CurBB) return Error("Invalid free instruction with no BB");
+      I = CallInst::CreateFree(Op, CurBB);
       InstructionList.push_back(I);
       break;
     }
@@ -2224,6 +2264,27 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
     }
   }
 
+  // See if anything took the address of blocks in this function.  If so,
+  // resolve them now.
+  /// BlockAddrFwdRefs - These are blockaddr references to basic blocks.  These
+  /// are resolved lazily when functions are loaded.
+  DenseMap<Function*, std::vector<BlockAddrRefTy> >::iterator BAFRI =
+    BlockAddrFwdRefs.find(F);
+  if (BAFRI != BlockAddrFwdRefs.end()) {
+    std::vector<BlockAddrRefTy> &RefList = BAFRI->second;
+    for (unsigned i = 0, e = RefList.size(); i != e; ++i) {
+      unsigned BlockIdx = RefList[i].first;
+      if (BlockIdx >= FunctionBBs.size())
+        return Error("Invalid blockaddress block #");
+    
+      GlobalVariable *FwdRef = RefList[i].second;
+      FwdRef->replaceAllUsesWith(BlockAddress::get(F, FunctionBBs[BlockIdx]));
+      FwdRef->eraseFromParent();
+    }
+    
+    BlockAddrFwdRefs.erase(BAFRI);
+  }
+  
   // Trim the value list down to the size it was before we parsed this function.
   ValueList.shrinkTo(ModuleValueListSize);
   std::vector<BasicBlock*>().swap(FunctionBBs);

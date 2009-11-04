@@ -103,6 +103,7 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
   case Ret:    return "ret";
   case Br:     return "br";
   case Switch: return "switch";
+  case IndirectBr: return "indirectbr";
   case Invoke: return "invoke";
   case Unwind: return "unwind";
   case Unreachable: return "unreachable";
@@ -127,7 +128,6 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
   case Xor: return "xor";
 
   // Memory instructions...
-  case Free:          return "free";
   case Alloca:        return "alloca";
   case Load:          return "load";
   case Store:         return "store";
@@ -308,7 +308,6 @@ bool Instruction::isUsedOutsideOfBlock(const BasicBlock *BB) const {
 bool Instruction::mayReadFromMemory() const {
   switch (getOpcode()) {
   default: return false;
-  case Instruction::Free:
   case Instruction::VAArg:
   case Instruction::Load:
     return true;
@@ -326,7 +325,6 @@ bool Instruction::mayReadFromMemory() const {
 bool Instruction::mayWriteToMemory() const {
   switch (getOpcode()) {
   default: return false;
-  case Instruction::Free:
   case Instruction::Store:
   case Instruction::VAArg:
     return true;
@@ -380,7 +378,7 @@ bool Instruction::isCommutative(unsigned op) {
   }
 }
 
-// Code here matches isMalloc from MallocHelper, which is not in VMCore.
+// Code here matches isMalloc from MemoryBuiltins, which is not in VMCore.
 static bool isMalloc(const Value* I) {
   const CallInst *CI = dyn_cast<CallInst>(I);
   if (!CI) {
@@ -390,15 +388,25 @@ static bool isMalloc(const Value* I) {
     CI = dyn_cast<CallInst>(BCI->getOperand(0));
   }
 
-  if (!CI) return false;
-
-  const Module* M = CI->getParent()->getParent()->getParent();
-  Constant *MallocFunc = M->getFunction("malloc");
-
-  if (CI->getOperand(0) != MallocFunc)
+  if (!CI)
+    return false;
+  Function *Callee = CI->getCalledFunction();
+  if (Callee == 0 || !Callee->isDeclaration() || Callee->getName() != "malloc")
     return false;
 
-  return true;
+  // Check malloc prototype.
+  // FIXME: workaround for PR5130, this will be obsolete when a nobuiltin 
+  // attribute will exist.
+  const FunctionType *FTy = Callee->getFunctionType();
+  if (FTy->getNumParams() != 1)
+    return false;
+  if (IntegerType *ITy = dyn_cast<IntegerType>(FTy->param_begin()->get())) {
+    if (ITy->getBitWidth() != 32 && ITy->getBitWidth() != 64)
+      return false;
+    return true;
+  }
+
+  return false;
 }
 
 bool Instruction::isSafeToSpeculativelyExecute() const {
@@ -426,7 +434,7 @@ bool Instruction::isSafeToSpeculativelyExecute() const {
   case Load: {
     if (cast<LoadInst>(this)->isVolatile())
       return false;
-    if (isa<AllocationInst>(getOperand(0)) || isMalloc(getOperand(0)))
+    if (isa<AllocaInst>(getOperand(0)) || isMalloc(getOperand(0)))
       return true;
     if (GlobalVariable *GV = dyn_cast<GlobalVariable>(getOperand(0)))
       return !GV->hasExternalWeakLinkage();
@@ -444,7 +452,6 @@ bool Instruction::isSafeToSpeculativelyExecute() const {
   case Invoke:
   case PHI:
   case Store:
-  case Free:
   case Ret:
   case Br:
   case Switch:
@@ -452,4 +459,12 @@ bool Instruction::isSafeToSpeculativelyExecute() const {
   case Unreachable:
     return false; // Misc instructions which have effects
   }
+}
+
+Instruction *Instruction::clone() const {
+  Instruction *New = clone_impl();
+  New->SubclassOptionalData = SubclassOptionalData;
+  if (hasMetadata())
+    getContext().pImpl->TheMetadata.ValueIsCloned(this, New);
+  return New;
 }

@@ -27,7 +27,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include <set>
 #include <algorithm>
 using namespace llvm;
@@ -36,7 +35,7 @@ STATISTIC(NumRemoved, "Number of invokes removed");
 STATISTIC(NumUnreach, "Number of noreturn calls optimized");
 
 namespace {
-  struct VISIBILITY_HIDDEN PruneEH : public CallGraphSCCPass {
+  struct PruneEH : public CallGraphSCCPass {
     static char ID; // Pass identification, replacement for typeid
     PruneEH() : CallGraphSCCPass(&ID) {}
 

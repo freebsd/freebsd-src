@@ -31,7 +31,6 @@
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -57,7 +56,7 @@ namespace {
 
 //------------------------------ DAGCombiner ---------------------------------//
 
-  class VISIBILITY_HIDDEN DAGCombiner {
+  class DAGCombiner {
     SelectionDAG &DAG;
     const TargetLowering &TLI;
     CombineLevel Level;
@@ -280,8 +279,7 @@ public:
 namespace {
 /// WorkListRemover - This class is a DAGUpdateListener that removes any deleted
 /// nodes from the worklist.
-class VISIBILITY_HIDDEN WorkListRemover :
-  public SelectionDAG::DAGUpdateListener {
+class WorkListRemover : public SelectionDAG::DAGUpdateListener {
   DAGCombiner &DC;
 public:
   explicit WorkListRemover(DAGCombiner &dc) : DC(dc) {}
@@ -5732,15 +5730,17 @@ bool DAGCombiner::SimplifySelectOps(SDNode *TheSelect, SDValue LHS,
 
       // If this is an EXTLOAD, the VT's must match.
       if (LLD->getMemoryVT() == RLD->getMemoryVT()) {
-        // FIXME: this conflates two src values, discarding one.  This is not
-        // the right thing to do, but nothing uses srcvalues now.  When they do,
-        // turn SrcValue into a list of locations.
+        // FIXME: this discards src value information.  This is
+        // over-conservative. It would be beneficial to be able to remember
+        // both potential memory locations.
         SDValue Addr;
         if (TheSelect->getOpcode() == ISD::SELECT) {
           // Check that the condition doesn't reach either load.  If so, folding
           // this will induce a cycle into the DAG.
-          if (!LLD->isPredecessorOf(TheSelect->getOperand(0).getNode()) &&
-              !RLD->isPredecessorOf(TheSelect->getOperand(0).getNode())) {
+          if ((!LLD->hasAnyUseOfValue(1) ||
+               !LLD->isPredecessorOf(TheSelect->getOperand(0).getNode())) &&
+              (!RLD->hasAnyUseOfValue(1) ||
+               !RLD->isPredecessorOf(TheSelect->getOperand(0).getNode()))) {
             Addr = DAG.getNode(ISD::SELECT, TheSelect->getDebugLoc(),
                                LLD->getBasePtr().getValueType(),
                                TheSelect->getOperand(0), LLD->getBasePtr(),
@@ -5749,10 +5749,12 @@ bool DAGCombiner::SimplifySelectOps(SDNode *TheSelect, SDValue LHS,
         } else {
           // Check that the condition doesn't reach either load.  If so, folding
           // this will induce a cycle into the DAG.
-          if (!LLD->isPredecessorOf(TheSelect->getOperand(0).getNode()) &&
-              !RLD->isPredecessorOf(TheSelect->getOperand(0).getNode()) &&
-              !LLD->isPredecessorOf(TheSelect->getOperand(1).getNode()) &&
-              !RLD->isPredecessorOf(TheSelect->getOperand(1).getNode())) {
+          if ((!LLD->hasAnyUseOfValue(1) ||
+               (!LLD->isPredecessorOf(TheSelect->getOperand(0).getNode()) &&
+                !LLD->isPredecessorOf(TheSelect->getOperand(1).getNode()))) &&
+              (!RLD->hasAnyUseOfValue(1) ||
+               (!RLD->isPredecessorOf(TheSelect->getOperand(0).getNode()) &&
+                !RLD->isPredecessorOf(TheSelect->getOperand(1).getNode())))) {
             Addr = DAG.getNode(ISD::SELECT_CC, TheSelect->getDebugLoc(),
                                LLD->getBasePtr().getValueType(),
                                TheSelect->getOperand(0),
@@ -5768,16 +5770,14 @@ bool DAGCombiner::SimplifySelectOps(SDNode *TheSelect, SDValue LHS,
             Load = DAG.getLoad(TheSelect->getValueType(0),
                                TheSelect->getDebugLoc(),
                                LLD->getChain(),
-                               Addr,LLD->getSrcValue(),
-                               LLD->getSrcValueOffset(),
+                               Addr, 0, 0,
                                LLD->isVolatile(),
                                LLD->getAlignment());
           } else {
             Load = DAG.getExtLoad(LLD->getExtensionType(),
                                   TheSelect->getDebugLoc(),
                                   TheSelect->getValueType(0),
-                                  LLD->getChain(), Addr, LLD->getSrcValue(),
-                                  LLD->getSrcValueOffset(),
+                                  LLD->getChain(), Addr, 0, 0,
                                   LLD->getMemoryVT(),
                                   LLD->isVolatile(),
                                   LLD->getAlignment());

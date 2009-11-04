@@ -59,12 +59,11 @@
 #include "llvm/Instructions.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/InstVisitor.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/MallocHelper.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/System/Atomic.h"
@@ -126,8 +125,8 @@ namespace {
     static bool isPod() { return true; }
   };
 
-  class VISIBILITY_HIDDEN Andersens : public ModulePass, public AliasAnalysis,
-                                      private InstVisitor<Andersens> {
+  class Andersens : public ModulePass, public AliasAnalysis,
+                    private InstVisitor<Andersens> {
     struct Node;
 
     /// Constraint - Objects of this structure are used to represent the various
@@ -594,11 +593,12 @@ namespace {
     void visitReturnInst(ReturnInst &RI);
     void visitInvokeInst(InvokeInst &II) { visitCallSite(CallSite(&II)); }
     void visitCallInst(CallInst &CI) { 
-      if (isMalloc(&CI)) visitAllocationInst(CI);
+      if (isMalloc(&CI)) visitAlloc(CI);
       else visitCallSite(CallSite(&CI)); 
     }
     void visitCallSite(CallSite CS);
-    void visitAllocationInst(Instruction &I);
+    void visitAllocaInst(AllocaInst &I);
+    void visitAlloc(Instruction &I);
     void visitLoadInst(LoadInst &LI);
     void visitStoreInst(StoreInst &SI);
     void visitGetElementPtrInst(GetElementPtrInst &GEP);
@@ -792,7 +792,7 @@ void Andersens::IdentifyObjects(Module &M) {
       // object.
       if (isa<PointerType>(II->getType())) {
         ValueNodes[&*II] = NumObjects++;
-        if (AllocationInst *AI = dyn_cast<AllocationInst>(&*II))
+        if (AllocaInst *AI = dyn_cast<AllocaInst>(&*II))
           ObjectNodes[AI] = NumObjects++;
         else if (isMalloc(&*II))
           ObjectNodes[&*II] = NumObjects++;
@@ -1016,6 +1016,8 @@ bool Andersens::AnalyzeUsesOfFunction(Value *V) {
       }
     } else if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(*UI)) {
       if (AnalyzeUsesOfFunction(GEP)) return true;
+    } else if (isFreeCall(*UI)) {
+      return false;
     } else if (CallInst *CI = dyn_cast<CallInst>(*UI)) {
       // Make sure that this is just the function being called, not that it is
       // passing into the function.
@@ -1037,8 +1039,6 @@ bool Andersens::AnalyzeUsesOfFunction(Value *V) {
     } else if (ICmpInst *ICI = dyn_cast<ICmpInst>(*UI)) {
       if (!isa<ConstantPointerNull>(ICI->getOperand(1)))
         return true;  // Allow comparison against null.
-    } else if (isa<FreeInst>(*UI)) {
-      return false;
     } else {
       return true;
     }
@@ -1156,7 +1156,6 @@ void Andersens::visitInstruction(Instruction &I) {
   case Instruction::Switch:
   case Instruction::Unwind:
   case Instruction::Unreachable:
-  case Instruction::Free:
   case Instruction::ICmp:
   case Instruction::FCmp:
     return;
@@ -1167,7 +1166,11 @@ void Andersens::visitInstruction(Instruction &I) {
   }
 }
 
-void Andersens::visitAllocationInst(Instruction &I) {
+void Andersens::visitAllocaInst(AllocaInst &I) {
+  visitAlloc(I);
+}
+
+void Andersens::visitAlloc(Instruction &I) {
   unsigned ObjectIndex = getObject(&I);
   GraphNodes[ObjectIndex].setValue(&I);
   Constraints.push_back(Constraint(Constraint::AddressOf, getNodeValue(I),
@@ -2819,7 +2822,7 @@ void Andersens::PrintNode(const Node *N) const {
   else
     errs() << "(unnamed)";
 
-  if (isa<GlobalValue>(V) || isa<AllocationInst>(V) || isMalloc(V))
+  if (isa<GlobalValue>(V) || isa<AllocaInst>(V) || isMalloc(V))
     if (N == &GraphNodes[getObject(V)])
       errs() << "<mem>";
 }

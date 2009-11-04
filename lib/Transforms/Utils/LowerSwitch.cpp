@@ -21,8 +21,8 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Pass.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 using namespace llvm;
@@ -31,7 +31,7 @@ namespace {
   /// LowerSwitch Pass - Replace all SwitchInst instructions with chained branch
   /// instructions.  Note that this cannot be a BasicBlock pass because it
   /// modifies the CFG!
-  class VISIBILITY_HIDDEN LowerSwitch : public FunctionPass {
+  class LowerSwitch : public FunctionPass {
   public:
     static char ID; // Pass identification, replacement for typeid
     LowerSwitch() : FunctionPass(&ID) {} 
@@ -43,7 +43,6 @@ namespace {
       AU.addPreserved<UnifyFunctionExitNodes>();
       AU.addPreservedID(PromoteMemoryToRegisterID);
       AU.addPreservedID(LowerInvokePassID);
-      AU.addPreservedID(LowerAllocationsID);
     }
 
     struct CaseRange {

@@ -98,7 +98,9 @@ static const Value *getUnderlyingObject(const Value *V) {
 /// information and it can be tracked to a normal reference to a known
 /// object, return the Value for that object. Otherwise return null.
 static const Value *getUnderlyingObjectForInstr(const MachineInstr *MI,
-                                                const MachineFrameInfo *MFI) {
+                                                const MachineFrameInfo *MFI,
+                                                bool &MayAlias) {
+  MayAlias = true;
   if (!MI->hasOneMemOperand() ||
       !(*MI->memoperands_begin())->getValue() ||
       (*MI->memoperands_begin())->isVolatile())
@@ -110,6 +112,7 @@ static const Value *getUnderlyingObjectForInstr(const MachineInstr *MI,
 
   V = getUnderlyingObject(V);
   if (const PseudoSourceValue *PSV = dyn_cast<PseudoSourceValue>(V)) {
+    MayAlias = PSV->mayAlias(MFI);
     // For now, ignore PseudoSourceValues which may alias LLVM IR values
     // because the code that uses this function has no way to cope with
     // such aliases.
@@ -122,6 +125,23 @@ static const Value *getUnderlyingObjectForInstr(const MachineInstr *MI,
     return V;
 
   return 0;
+}
+
+static bool mayUnderlyingObjectForInstrAlias(const MachineInstr *MI,
+                                             const MachineFrameInfo *MFI) {
+  if (!MI->hasOneMemOperand() ||
+      !(*MI->memoperands_begin())->getValue() ||
+      (*MI->memoperands_begin())->isVolatile())
+    return true;
+
+  const Value *V = (*MI->memoperands_begin())->getValue();
+  if (!V)
+    return true;
+
+  V = getUnderlyingObject(V);
+  if (const PseudoSourceValue *PSV = dyn_cast<PseudoSourceValue>(V))
+    return PSV->mayAlias(MFI);
+  return true;
 }
 
 void ScheduleDAGInstrs::StartBlock(MachineBasicBlock *BB) {
@@ -208,7 +228,7 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
           SUnit *DefSU = DefList[i];
           if (DefSU != SU &&
               (Kind != SDep::Output || !MO.isDead() ||
-               !DefSU->getInstr()->registerDefIsDead(Reg)))
+               !DefSU->getInstr()->registerDefIsDead(*Alias)))
             DefSU->addPred(SDep(SU, Kind, AOLatency, /*Reg=*/ *Alias));
         }
       }
@@ -317,29 +337,35 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
     }
 
     // Add chain dependencies.
+    // Chain dependencies used to enforce memory order should have
+    // latency of 0 (except for true dependency of Store followed by
+    // aliased Load... we estimate that with a single cycle of latency
+    // assuming the hardware will bypass)
     // Note that isStoreToStackSlot and isLoadFromStackSLot are not usable
     // after stack slots are lowered to actual addresses.
     // TODO: Use an AliasAnalysis and do real alias-analysis queries, and
     // produce more precise dependence information.
+#define STORE_LOAD_LATENCY 1
+    unsigned TrueMemOrderLatency = 0;
     if (TID.isCall() || TID.hasUnmodeledSideEffects()) {
     new_chain:
       // This is the conservative case. Add dependencies on all memory
       // references.
       if (Chain)
-        Chain->addPred(SDep(SU, SDep::Order, SU->Latency));
+        Chain->addPred(SDep(SU, SDep::Order, /*Latency=*/0));
       Chain = SU;
       for (unsigned k = 0, m = PendingLoads.size(); k != m; ++k)
-        PendingLoads[k]->addPred(SDep(SU, SDep::Order, SU->Latency));
+        PendingLoads[k]->addPred(SDep(SU, SDep::Order, TrueMemOrderLatency));
       PendingLoads.clear();
       for (std::map<const Value *, SUnit *>::iterator I = MemDefs.begin(),
            E = MemDefs.end(); I != E; ++I) {
-        I->second->addPred(SDep(SU, SDep::Order, SU->Latency));
+        I->second->addPred(SDep(SU, SDep::Order, /*Latency=*/0));
         I->second = SU;
       }
       for (std::map<const Value *, std::vector<SUnit *> >::iterator I =
            MemUses.begin(), E = MemUses.end(); I != E; ++I) {
         for (unsigned i = 0, e = I->second.size(); i != e; ++i)
-          I->second[i]->addPred(SDep(SU, SDep::Order, SU->Latency));
+          I->second[i]->addPred(SDep(SU, SDep::Order, TrueMemOrderLatency));
         I->second.clear();
       }
       // See if it is known to just have a single memory reference.
@@ -356,12 +382,14 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
         // Unknown memory accesses. Assume the worst.
         ChainMMO = 0;
     } else if (TID.mayStore()) {
-      if (const Value *V = getUnderlyingObjectForInstr(MI, MFI)) {
+      bool MayAlias = true;
+      TrueMemOrderLatency = STORE_LOAD_LATENCY;
+      if (const Value *V = getUnderlyingObjectForInstr(MI, MFI, MayAlias)) {
         // A store to a specific PseudoSourceValue. Add precise dependencies.
         // Handle the def in MemDefs, if there is one.
         std::map<const Value *, SUnit *>::iterator I = MemDefs.find(V);
         if (I != MemDefs.end()) {
-          I->second->addPred(SDep(SU, SDep::Order, SU->Latency, /*Reg=*/0,
+          I->second->addPred(SDep(SU, SDep::Order, /*Latency=*/0, /*Reg=*/0,
                                   /*isNormalMemory=*/true));
           I->second = SU;
         } else {
@@ -372,49 +400,58 @@ void ScheduleDAGInstrs::BuildSchedGraph(AliasAnalysis *AA) {
           MemUses.find(V);
         if (J != MemUses.end()) {
           for (unsigned i = 0, e = J->second.size(); i != e; ++i)
-            J->second[i]->addPred(SDep(SU, SDep::Order, SU->Latency, /*Reg=*/0,
-                                       /*isNormalMemory=*/true));
+            J->second[i]->addPred(SDep(SU, SDep::Order, TrueMemOrderLatency,
+                                       /*Reg=*/0, /*isNormalMemory=*/true));
           J->second.clear();
         }
-        // Add dependencies from all the PendingLoads, since without
-        // memoperands we must assume they alias anything.
-        for (unsigned k = 0, m = PendingLoads.size(); k != m; ++k)
-          PendingLoads[k]->addPred(SDep(SU, SDep::Order, SU->Latency));
-        // Add a general dependence too, if needed.
-        if (Chain)
-          Chain->addPred(SDep(SU, SDep::Order, SU->Latency));
-      } else
+        if (MayAlias) {
+          // Add dependencies from all the PendingLoads, since without
+          // memoperands we must assume they alias anything.
+          for (unsigned k = 0, m = PendingLoads.size(); k != m; ++k)
+            PendingLoads[k]->addPred(SDep(SU, SDep::Order, TrueMemOrderLatency));
+          // Add a general dependence too, if needed.
+          if (Chain)
+            Chain->addPred(SDep(SU, SDep::Order, /*Latency=*/0));
+        }
+      } else if (MayAlias) {
         // Treat all other stores conservatively.
         goto new_chain;
+      }
     } else if (TID.mayLoad()) {
+      bool MayAlias = true;
+      TrueMemOrderLatency = 0;
       if (MI->isInvariantLoad(AA)) {
         // Invariant load, no chain dependencies needed!
-      } else if (const Value *V = getUnderlyingObjectForInstr(MI, MFI)) {
+      } else if (const Value *V = 
+                     getUnderlyingObjectForInstr(MI, MFI, MayAlias)) {
         // A load from a specific PseudoSourceValue. Add precise dependencies.
         std::map<const Value *, SUnit *>::iterator I = MemDefs.find(V);
         if (I != MemDefs.end())
-          I->second->addPred(SDep(SU, SDep::Order, SU->Latency, /*Reg=*/0,
+          I->second->addPred(SDep(SU, SDep::Order, /*Latency=*/0, /*Reg=*/0,
                                   /*isNormalMemory=*/true));
         MemUses[V].push_back(SU);
 
         // Add a general dependence too, if needed.
         if (Chain && (!ChainMMO ||
                       (ChainMMO->isStore() || ChainMMO->isVolatile())))
-          Chain->addPred(SDep(SU, SDep::Order, SU->Latency));
+          Chain->addPred(SDep(SU, SDep::Order, /*Latency=*/0));
       } else if (MI->hasVolatileMemoryRef()) {
         // Treat volatile loads conservatively. Note that this includes
         // cases where memoperand information is unavailable.
         goto new_chain;
-      } else {
-        // A normal load. Depend on the general chain, as well as on
+      } else if (MayAlias) {
+        // A "MayAlias" load. Depend on the general chain, as well as on
         // all stores. In the absense of MachineMemOperand information,
         // we can't even assume that the load doesn't alias well-behaved
         // memory locations.
         if (Chain)
-          Chain->addPred(SDep(SU, SDep::Order, SU->Latency));
+          Chain->addPred(SDep(SU, SDep::Order, /*Latency=*/0));
         for (std::map<const Value *, SUnit *>::iterator I = MemDefs.begin(),
-             E = MemDefs.end(); I != E; ++I)
-          I->second->addPred(SDep(SU, SDep::Order, SU->Latency));
+               E = MemDefs.end(); I != E; ++I) {
+          SUnit *DefSU = I->second;
+          if (mayUnderlyingObjectForInstrAlias(DefSU->getInstr(), MFI))
+            DefSU->addPred(SDep(SU, SDep::Order, /*Latency=*/0));
+        }
         PendingLoads.push_back(SU);
       }
     }

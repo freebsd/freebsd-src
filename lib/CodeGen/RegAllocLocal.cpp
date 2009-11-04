@@ -24,7 +24,6 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
@@ -44,7 +43,7 @@ static RegisterRegAlloc
                 createLocalRegisterAllocator);
 
 namespace {
-  class VISIBILITY_HIDDEN RALocal : public MachineFunctionPass {
+  class RALocal : public MachineFunctionPass {
   public:
     static char ID;
     RALocal() : MachineFunctionPass(&ID), StackSlotForVirtReg(-1) {}

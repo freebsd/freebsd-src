@@ -41,7 +41,6 @@
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -59,7 +58,7 @@ STATISTIC(NumArgumentsDead     , "Number of dead pointer args eliminated");
 namespace {
   /// ArgPromotion - The 'by reference' to 'by value' argument promotion pass.
   ///
-  struct VISIBILITY_HIDDEN ArgPromotion : public CallGraphSCCPass {
+  struct ArgPromotion : public CallGraphSCCPass {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<AliasAnalysis>();
       CallGraphSCCPass::getAnalysisUsage(AU);

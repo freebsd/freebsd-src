@@ -22,14 +22,13 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include <map>
 using namespace llvm;
 
 STATISTIC(NumMerged, "Number of global constants merged");
 
 namespace {
-  struct VISIBILITY_HIDDEN ConstantMerge : public ModulePass {
+  struct ConstantMerge : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
     ConstantMerge() : ModulePass(&ID) {}
 

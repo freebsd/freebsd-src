@@ -1594,44 +1594,77 @@ int int_char(char m) {if(m>7) return 0; return m;}
 
 //===---------------------------------------------------------------------===//
 
-libanalysis is not aggressively folding vector bitcasts.  For example, the
-constant expressions generated when compiling this code:
-
-union vec2d {
-    double e[2];
-    double v __attribute__((vector_size(16)));
-};
-typedef union vec2d vec2d;
-
-static vec2d a={{1,2}}, b={{3,4}};
-    
-vec2d foo () {
-    return (vec2d){ .v = a.v + b.v * (vec2d){{5,5}}.v };
-}
-
-in X86-32 end up being:
-
-define void @foo(%union.vec2d* noalias nocapture sret %agg.result) nounwind ssp {
-entry:
-  %agg.result.0 = getelementptr %union.vec2d* %agg.result, i32 0, i32 0 ; <<2 x double>*> [#uses=1]
-  store <2 x double> fadd (<2 x double> bitcast (<1 x i128> <i128 85070591730234615870450834276742070272> to <2 x double>), <2 x double> fmul (<2 x double> bitcast (<1 x i128> <i128 85153668479971173112514077617450647552> to <2 x double>), <2 x double> <double 5.000000e+00, double 5.000000e+00>)), <2 x double>* %agg.result.0, align 16
-  ret void
-}
-
-and in X86-64 mode:
-
-define %0 @foo() nounwind readnone ssp {
-entry:
-  %mrv5 = insertvalue %0 undef, double extractelement (<2 x double> fadd (<2 x double> bitcast (<1 x i128> <i128 85070591730234615870450834276742070272> to <2 x double>), <2 x double> fmul (<2 x double> bitcast (<1 x i128> <i128 85153668479971173112514077617450647552> to <2 x double>), <2 x double> bitcast (<1 x i128> <i128 85174437667405312423031577302488055808> to <2 x double>))), i32 0), 0 ; <%0> [#uses=1]
-  %mrv6 = insertvalue %0 %mrv5, double extractelement (<2 x double> fadd (<2 x double> bitcast (<1 x i128> <i128 85070591730234615870450834276742070272> to <2 x double>), <2 x double> fmul (<2 x double> bitcast (<1 x i128> <i128 85153668479971173112514077617450647552> to <2 x double>), <2 x double> bitcast (<1 x i128> <i128 85174437667405312423031577302488055808> to <2 x double>))), i32 1), 1 ; <%0> [#uses=1]
-  ret %0 %mrv6
-}
-
-//===---------------------------------------------------------------------===//
-
 IPSCCP is propagating elements of first class aggregates, but is not propagating
 the entire aggregate itself.  This leads it to miss opportunities, for example
 in test/Transforms/SCCP/ipsccp-basic.ll:test5b.
 
 //===---------------------------------------------------------------------===//
 
+int func(int a, int b) { if (a & 0x80) b |= 0x80; else b &= ~0x80; return b; }
+
+Generates this:
+
+define i32 @func(i32 %a, i32 %b) nounwind readnone ssp {
+entry:
+  %0 = and i32 %a, 128                            ; <i32> [#uses=1]
+  %1 = icmp eq i32 %0, 0                          ; <i1> [#uses=1]
+  %2 = or i32 %b, 128                             ; <i32> [#uses=1]
+  %3 = and i32 %b, -129                           ; <i32> [#uses=1]
+  %b_addr.0 = select i1 %1, i32 %3, i32 %2        ; <i32> [#uses=1]
+  ret i32 %b_addr.0
+}
+
+However, it's functionally equivalent to:
+
+         b = (b & ~0x80) | (a & 0x80);
+
+Which generates this:
+
+define i32 @func(i32 %a, i32 %b) nounwind readnone ssp {
+entry:
+  %0 = and i32 %b, -129                           ; <i32> [#uses=1]
+  %1 = and i32 %a, 128                            ; <i32> [#uses=1]
+  %2 = or i32 %0, %1                              ; <i32> [#uses=1]
+  ret i32 %2
+}
+
+This can be generalized for other forms:
+
+     b = (b & ~0x80) | (a & 0x40) << 1;
+
+//===---------------------------------------------------------------------===//
+
+These two functions produce different code. They shouldn't:
+
+#include <stdint.h>
+ 
+uint8_t p1(uint8_t b, uint8_t a) {
+  b = (b & ~0xc0) | (a & 0xc0);
+  return (b);
+}
+ 
+uint8_t p2(uint8_t b, uint8_t a) {
+  b = (b & ~0x40) | (a & 0x40);
+  b = (b & ~0x80) | (a & 0x80);
+  return (b);
+}
+
+define zeroext i8 @p1(i8 zeroext %b, i8 zeroext %a) nounwind readnone ssp {
+entry:
+  %0 = and i8 %b, 63                              ; <i8> [#uses=1]
+  %1 = and i8 %a, -64                             ; <i8> [#uses=1]
+  %2 = or i8 %1, %0                               ; <i8> [#uses=1]
+  ret i8 %2
+}
+
+define zeroext i8 @p2(i8 zeroext %b, i8 zeroext %a) nounwind readnone ssp {
+entry:
+  %0 = and i8 %b, 63                              ; <i8> [#uses=1]
+  %.masked = and i8 %a, 64                        ; <i8> [#uses=1]
+  %1 = and i8 %a, -128                            ; <i8> [#uses=1]
+  %2 = or i8 %1, %0                               ; <i8> [#uses=1]
+  %3 = or i8 %2, %.masked                         ; <i8> [#uses=1]
+  ret i8 %3
+}
+
+//===---------------------------------------------------------------------===//
