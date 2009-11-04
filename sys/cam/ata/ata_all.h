@@ -91,6 +91,10 @@ int	ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
 
 void	ata_print_ident(struct ata_params *ident_data);
 
+uint32_t	ata_logical_sector_size(struct ata_params *ident_data);
+uint64_t	ata_physical_sector_size(struct ata_params *ident_data);
+uint64_t	ata_logical_sector_offset(struct ata_params *ident_data);
+
 void	ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
     uint32_t lba, uint8_t sector_count);
 void	ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
