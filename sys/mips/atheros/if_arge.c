@@ -295,7 +295,7 @@ arge_attach(device_t dev)
 		/*
 		 * No MAC address configured. Generate the random one.
 		 */
-                if  (bootverbose)
+		if  (bootverbose)
 			device_printf(dev, 
 			    "Generating random ethernet address.\n");
 
@@ -929,29 +929,29 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mii = device_get_softc(sc->arge_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
-        case SIOCSIFCAP:
+	case SIOCSIFCAP:
 		/* XXX: Check other capabilities */
 #ifdef DEVICE_POLLING
-                mask = ifp->if_capenable ^ ifr->ifr_reqcap;
-                if (mask & IFCAP_POLLING) {
-                        if (ifr->ifr_reqcap & IFCAP_POLLING) {
+		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		if (mask & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING) {
 				ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
-                                error = ether_poll_register(arge_poll, ifp);
-                                if (error)
-                                        return error;
-                                ARGE_LOCK(sc);
-                                ifp->if_capenable |= IFCAP_POLLING;
-                                ARGE_UNLOCK(sc);
-                        } else {
+				error = ether_poll_register(arge_poll, ifp);
+				if (error)
+					return error;
+				ARGE_LOCK(sc);
+				ifp->if_capenable |= IFCAP_POLLING;
+				ARGE_UNLOCK(sc);
+			} else {
 				ARGE_WRITE(sc, AR71XX_DMA_INTR, DMA_INTR_ALL);
-                                error = ether_poll_deregister(ifp);
-                                ARGE_LOCK(sc);
-                                ifp->if_capenable &= ~IFCAP_POLLING;
-                                ARGE_UNLOCK(sc);
-                        }
-                }
+				error = ether_poll_deregister(ifp);
+				ARGE_LOCK(sc);
+				ifp->if_capenable &= ~IFCAP_POLLING;
+				ARGE_UNLOCK(sc);
+			}
+		}
 		error = 0;
-                break;
+		break;
 #endif
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -1392,8 +1392,8 @@ arge_newbuf(struct arge_softc *sc, int idx)
 static __inline void
 arge_fixup_rx(struct mbuf *m)
 {
-        int		i;
-        uint16_t	*src, *dst;
+	int		i;
+	uint16_t	*src, *dst;
 
 	src = mtod(m, uint16_t *);
 	dst = src - 1;
@@ -1415,12 +1415,12 @@ arge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	struct arge_softc *sc = ifp->if_softc;
 	int rx_npkts = 0;
 
-        if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ARGE_LOCK(sc);
 		arge_tx_locked(sc);
 		rx_npkts = arge_rx_locked(sc);
 		ARGE_UNLOCK(sc);
-        }
+	}
 
 	return (rx_npkts);
 }
