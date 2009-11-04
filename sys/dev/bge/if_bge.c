@@ -916,8 +916,8 @@ bge_newbuf_std(struct bge_softc *sc, int i, struct mbuf *m)
 {
 	struct mbuf *m_new = NULL;
 	struct bge_rx_bd *r;
-	struct bge_dmamap_arg ctx;
-	int error;
+	bus_dma_segment_t segs[1];
+	int error, nsegs;
 
 	if (m == NULL) {
 		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
@@ -932,24 +932,21 @@ bge_newbuf_std(struct bge_softc *sc, int i, struct mbuf *m)
 
 	if ((sc->bge_flags & BGE_FLAG_RX_ALIGNBUG) == 0)
 		m_adj(m_new, ETHER_ALIGN);
-	sc->bge_cdata.bge_rx_std_chain[i] = m_new;
-	r = &sc->bge_ldata.bge_rx_std_ring[i];
-	ctx.bge_maxsegs = 1;
-	ctx.sc = sc;
-	error = bus_dmamap_load(sc->bge_cdata.bge_mtag,
-	    sc->bge_cdata.bge_rx_std_dmamap[i], mtod(m_new, void *),
-	    m_new->m_len, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
-	if (error || ctx.bge_maxsegs == 0) {
+	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag,
+	    sc->bge_cdata.bge_rx_std_dmamap[i], m_new, segs, &nsegs, 0);
+	if (error != 0) {
 		if (m == NULL) {
 			sc->bge_cdata.bge_rx_std_chain[i] = NULL;
 			m_freem(m_new);
 		}
-		return (ENOMEM);
+		return (error);
 	}
-	r->bge_addr.bge_addr_lo = BGE_ADDR_LO(ctx.bge_busaddr);
-	r->bge_addr.bge_addr_hi = BGE_ADDR_HI(ctx.bge_busaddr);
+	sc->bge_cdata.bge_rx_std_chain[i] = m_new;
+	r = &sc->bge_ldata.bge_rx_std_ring[i];
+	r->bge_addr.bge_addr_lo = BGE_ADDR_LO(segs[0].ds_addr);
+	r->bge_addr.bge_addr_hi = BGE_ADDR_HI(segs[0].ds_addr);
 	r->bge_flags = BGE_RXBDFLAG_END;
-	r->bge_len = m_new->m_len;
+	r->bge_len = segs[0].ds_len;
 	r->bge_idx = i;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_mtag,
