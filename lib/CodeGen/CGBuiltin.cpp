@@ -199,6 +199,18 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     return RValue::get(Builder.CreateCall(F, ArgValue, "tmp"));
   }
   case Builtin::BI__builtin_object_size: {
+    // FIXME: We're awaiting the llvm intrincis.
+#if 0
+    // We pass this builtin onto the optimizer so that it can
+    // figure out the object size in more complex cases.
+    const llvm::Type *ResType[] = {
+      ConvertType(E->getType())
+    };
+    Value *F = CGM.getIntrinsic(Intrinsic::objectsize, ResType, 1);
+    return RValue::get(Builder.CreateCall2(F,
+                                           EmitScalarExpr(E->getArg(0)),
+                                           EmitScalarExpr(E->getArg(1))));
+#else
     // FIXME: Implement. For now we just always fail and pretend we
     // don't know the object size.
     llvm::APSInt TypeArg = E->getArg(1)->EvaluateAsInt(CGM.getContext());
@@ -207,6 +219,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     bool UseMinimum = TypeArg.getZExtValue() & 2;
     return RValue::get(
       llvm::ConstantInt::get(ResType, UseMinimum ? 0 : -1LL));
+#endif
   }
   case Builtin::BI__builtin_prefetch: {
     Value *Locality, *RW, *Address = EmitScalarExpr(E->getArg(0));

@@ -55,7 +55,6 @@ namespace {
     void VisitVarDecl(VarDecl *D);
     void VisitImplicitParamDecl(ImplicitParamDecl *D);
     void VisitParmVarDecl(ParmVarDecl *D);
-    void VisitOriginalParmVarDecl(OriginalParmVarDecl *D);
     void VisitFileScopeAsmDecl(FileScopeAsmDecl *D);
     void VisitBlockDecl(BlockDecl *D);
     void VisitDeclContext(DeclContext *DC, uint64_t LexicalOffset,
@@ -107,7 +106,7 @@ void PCHDeclWriter::VisitTypeDecl(TypeDecl *D) {
 
 void PCHDeclWriter::VisitTypedefDecl(TypedefDecl *D) {
   VisitTypeDecl(D);
-  Writer.AddTypeRef(D->getUnderlyingType(), Record);
+  Writer.AddDeclaratorInfo(D->getTypeDeclaratorInfo(), Record);
   Code = pch::DECL_TYPEDEF;
 }
 
@@ -162,7 +161,7 @@ void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
     Writer.AddStmt(D->getBody());
   Writer.AddDeclRef(D->getPreviousDeclaration(), Record);
   Record.push_back(D->getStorageClass()); // FIXME: stable encoding
-  Record.push_back(D->isInline());
+  Record.push_back(D->isInlineSpecified());
   Record.push_back(D->isVirtualAsWritten());
   Record.push_back(D->isPure());
   Record.push_back(D->hasInheritedPrototype());
@@ -388,13 +387,6 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   assert(!D->isDeclaredInCondition() && "PARM_VAR_DECL can't be in condition");
   assert(D->getPreviousDeclaration() == 0 && "PARM_VAR_DECL can't be redecl");
   assert(D->getInit() == 0 && "PARM_VAR_DECL never has init");
-}
-
-void PCHDeclWriter::VisitOriginalParmVarDecl(OriginalParmVarDecl *D) {
-  VisitParmVarDecl(D);
-  Writer.AddTypeRef(D->getOriginalType(), Record);
-  Code = pch::DECL_ORIGINAL_PARM_VAR;
-  AbbrevToUse = 0;
 }
 
 void PCHDeclWriter::VisitFileScopeAsmDecl(FileScopeAsmDecl *D) {

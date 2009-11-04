@@ -73,6 +73,7 @@ namespace clang {
   class TypedefDecl;
   class TemplateDecl;
   class TemplateArgument;
+  class TemplateArgumentLoc;
   class TemplateArgumentList;
   class TemplateParameterList;
   class TemplateTemplateParmDecl;
@@ -271,6 +272,15 @@ public:
   llvm::DenseMap<DeclarationName, VarDecl *> TentativeDefinitions;
   std::vector<DeclarationName> TentativeDefinitionList;
 
+  /// \brief The collection of delayed deprecation warnings.
+  llvm::SmallVector<std::pair<SourceLocation,NamedDecl*>, 8>
+    DelayedDeprecationWarnings;
+
+  /// \brief The depth of the current ParsingDeclaration stack.
+  /// If nonzero, we are currently parsing a declaration (and
+  /// hence should delay deprecation warnings).
+  unsigned ParsingDeclDepth;
+
   /// WeakUndeclaredIdentifiers - Identifiers contained in
   /// #pragma weak before declared. rare. may alias another
   /// identifier, declared or undeclared
@@ -447,8 +457,6 @@ public:
   // Type Analysis / Processing: SemaType.cpp.
   //
   QualType adjustParameterType(QualType T);
-  QualType ConvertDeclSpecToType(const DeclSpec &DS, SourceLocation DeclLoc,
-                                 bool &IsInvalid);
   void ProcessTypeAttributeList(QualType &Result, const AttributeList *AL);
   QualType BuildPointerType(QualType T, unsigned Quals,
                             SourceLocation Loc, DeclarationName Entity);
@@ -470,12 +478,12 @@ public:
                                  SourceLocation Loc, DeclarationName Entity);
   QualType GetTypeForDeclarator(Declarator &D, Scope *S,
                                 DeclaratorInfo **DInfo = 0,
-                                unsigned Skip = 0, TagDecl **OwnedDecl = 0);
-  DeclaratorInfo *GetDeclaratorInfoForDeclarator(Declarator &D, QualType T,
-                                                 unsigned Skip);
+                                TagDecl **OwnedDecl = 0);
+  DeclaratorInfo *GetDeclaratorInfoForDeclarator(Declarator &D, QualType T);
   /// \brief Create a LocInfoType to hold the given QualType and DeclaratorInfo.
   QualType CreateLocInfoType(QualType T, DeclaratorInfo *DInfo);
   DeclarationName GetNameForDeclarator(Declarator &D);
+  DeclarationName GetNameFromUnqualifiedId(UnqualifiedId &Name);
   static QualType GetTypeFromParser(TypeTy *Ty, DeclaratorInfo **DInfo = 0);
   bool CheckSpecifiedExceptionType(QualType T, const SourceRange &Range);
   bool CheckDistantExceptionSpec(QualType T);
@@ -767,7 +775,8 @@ public:
 
 
   /// Subroutines of ActOnDeclarator().
-  TypedefDecl *ParseTypedefDecl(Scope *S, Declarator &D, QualType T);
+  TypedefDecl *ParseTypedefDecl(Scope *S, Declarator &D, QualType T,
+                                DeclaratorInfo *DInfo);
   void MergeTypeDefDecl(TypedefDecl *New, Decl *Old);
   bool MergeFunctionDecl(FunctionDecl *New, Decl *Old);
   bool MergeCompatibleFunctionDecls(FunctionDecl *New, FunctionDecl *Old);
@@ -868,7 +877,7 @@ public:
                           bool ForceRValue = false);
   void AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
                                   bool HasExplicitTemplateArgs,
-                                  const TemplateArgument *ExplicitTemplateArgs,
+                              const TemplateArgumentLoc *ExplicitTemplateArgs,
                                   unsigned NumExplicitTemplateArgs,
                                   Expr *Object, Expr **Args, unsigned NumArgs,
                                   OverloadCandidateSet& CandidateSet,
@@ -876,7 +885,7 @@ public:
                                   bool ForceRValue = false);
   void AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
                                     bool HasExplicitTemplateArgs,
-                                  const TemplateArgument *ExplicitTemplateArgs,
+                           const TemplateArgumentLoc *ExplicitTemplateArgs,
                                     unsigned NumExplicitTemplateArgs,
                                     Expr **Args, unsigned NumArgs,
                                     OverloadCandidateSet& CandidateSet,
@@ -914,7 +923,7 @@ public:
   void AddArgumentDependentLookupCandidates(DeclarationName Name,
                                             Expr **Args, unsigned NumArgs,
                                             bool HasExplicitTemplateArgs,
-                                  const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                             unsigned NumExplicitTemplateArgs,                                            
                                             OverloadCandidateSet& CandidateSet,
                                             bool PartialOverloading = false);
@@ -936,7 +945,7 @@ public:
                                    DeclarationName &UnqualifiedName,
                                    bool &ArgumentDependentLookup,
                                    bool HasExplicitTemplateArgs,
-                                   const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                    unsigned NumExplicitTemplateArgs,
                                    Expr **Args, unsigned NumArgs,
                                    OverloadCandidateSet &CandidateSet,
@@ -945,7 +954,7 @@ public:
   FunctionDecl *ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
                                         DeclarationName UnqualifiedName,
                                         bool HasExplicitTemplateArgs,
-                                const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                         unsigned NumExplicitTemplateArgs,
                                         SourceLocation LParenLoc,
                                         Expr **Args, unsigned NumArgs,
@@ -962,6 +971,10 @@ public:
                                          unsigned Opc,
                                          FunctionSet &Functions,
                                          Expr *LHS, Expr *RHS);
+
+  OwningExprResult CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
+                                                      SourceLocation RLoc,
+                                                      ExprArg Base,ExprArg Idx);
 
   ExprResult
   BuildCallToMemberFunction(Scope *S, Expr *MemExpr,
@@ -990,7 +1003,7 @@ public:
   void CheckCXXDefaultArguments(FunctionDecl *FD);
   void CheckExtraCXXDefaultArguments(Declarator &D);
   enum ControlFlowKind { NeverFallThrough = 0, MaybeFallThrough = 1,
-                         AlwaysFallThrough = 2 };
+                         AlwaysFallThrough = 2, NeverFallThroughOrReturn = 3 };
   ControlFlowKind CheckFallThrough(Stmt *);
 
   Scope *getNonFieldDeclScope(Scope *S);
@@ -1377,7 +1390,7 @@ public:
                                     QualType T1, QualType T2,
                                     FunctionSet &Functions);
 
-  void ArgumentDependentLookup(DeclarationName Name,
+  void ArgumentDependentLookup(DeclarationName Name, bool Operator,
                                Expr **Args, unsigned NumArgs,
                                FunctionSet &Functions);
 
@@ -1582,6 +1595,10 @@ public:
   /// whose result is unused, warn.
   void DiagnoseUnusedExprResult(const Stmt *S);
 
+  ParsingDeclStackState PushParsingDeclaration();
+  void PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy D);
+  void EmitDeprecationWarning(NamedDecl *D, SourceLocation Loc);
+
   //===--------------------------------------------------------------------===//
   // Expression Parsing Callbacks: SemaExpr.cpp.
 
@@ -1604,23 +1621,12 @@ public:
   // Primary Expressions.
   virtual SourceRange getExprRange(ExprTy *E) const;
 
-  virtual OwningExprResult ActOnIdentifierExpr(Scope *S, SourceLocation Loc,
-                                               IdentifierInfo &II,
-                                               bool HasTrailingLParen,
-                                               const CXXScopeSpec *SS = 0,
-                                               bool isAddressOfOperand = false);
-  virtual OwningExprResult ActOnCXXOperatorFunctionIdExpr(Scope *S,
-                                                    SourceLocation OperatorLoc,
-                                                    OverloadedOperatorKind Op,
-                                                    bool HasTrailingLParen,
-                                                    const CXXScopeSpec &SS,
-                                                    bool isAddressOfOperand);
-  virtual OwningExprResult ActOnCXXConversionFunctionExpr(Scope *S,
-                                                    SourceLocation OperatorLoc,
-                                                    TypeTy *Ty,
-                                                    bool HasTrailingLParen,
-                                                    const CXXScopeSpec &SS,
-                                                    bool isAddressOfOperand);
+  virtual OwningExprResult ActOnIdExpression(Scope *S,
+                                             const CXXScopeSpec &SS,
+                                             UnqualifiedId &Name,
+                                             bool HasTrailingLParen,
+                                             bool IsAddressOfOperand);
+  
   OwningExprResult BuildDeclRefExpr(NamedDecl *D, QualType Ty,
                                     SourceLocation Loc, bool TypeDependent,
                                     bool ValueDependent,
@@ -1664,7 +1670,8 @@ public:
   virtual OwningExprResult ActOnUnaryOp(Scope *S, SourceLocation OpLoc,
                                         tok::TokenKind Op, ExprArg Input);
 
-  OwningExprResult CreateSizeOfAlignOfExpr(QualType T, SourceLocation OpLoc,
+  OwningExprResult CreateSizeOfAlignOfExpr(DeclaratorInfo *T,
+                                           SourceLocation OpLoc,
                                            bool isSizeOf, SourceRange R);
   OwningExprResult CreateSizeOfAlignOfExpr(Expr *E, SourceLocation OpLoc,
                                            bool isSizeOf, SourceRange R);
@@ -1681,6 +1688,10 @@ public:
                                                ExprArg Input);
 
   virtual OwningExprResult ActOnArraySubscriptExpr(Scope *S, ExprArg Base,
+                                                   SourceLocation LLoc,
+                                                   ExprArg Idx,
+                                                   SourceLocation RLoc);
+  OwningExprResult CreateBuiltinArraySubscriptExpr(ExprArg Base,
                                                    SourceLocation LLoc,
                                                    ExprArg Idx,
                                                    SourceLocation RLoc);
@@ -1709,20 +1720,21 @@ public:
                                             DeclarationName MemberName,
                                             bool HasExplicitTemplateArgs,
                                             SourceLocation LAngleLoc,
-                                const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                             unsigned NumExplicitTemplateArgs,
                                             SourceLocation RAngleLoc,
                                             DeclPtrTy ImplDecl,
                                             const CXXScopeSpec *SS,
                                           NamedDecl *FirstQualifierInScope = 0);
 
-  virtual OwningExprResult ActOnMemberReferenceExpr(Scope *S, ExprArg Base,
-                                                    SourceLocation OpLoc,
-                                                    tok::TokenKind OpKind,
-                                                    SourceLocation MemberLoc,
-                                                    IdentifierInfo &Member,
-                                                    DeclPtrTy ImplDecl,
-                                                    const CXXScopeSpec *SS = 0);
+  virtual OwningExprResult ActOnMemberAccessExpr(Scope *S, ExprArg Base,
+                                                 SourceLocation OpLoc,
+                                                 tok::TokenKind OpKind,
+                                                 const CXXScopeSpec &SS,
+                                                 UnqualifiedId &Member,
+                                                 DeclPtrTy ObjCImpDecl,
+                                                 bool HasTrailingLParen);
+    
   virtual void ActOnDefaultCtorInitializers(DeclPtrTy CDtorDecl);
   bool ConvertArgumentsForCall(CallExpr *Call, Expr *Fn,
                                FunctionDecl *FDecl,
@@ -1742,7 +1754,7 @@ public:
                                SourceRange &QualifierRange,
                                bool &ArgumentDependentLookup,
                                bool &HasExplicitTemplateArguments,
-                               const TemplateArgument *&ExplicitTemplateArgs,
+                            const TemplateArgumentLoc *&ExplicitTemplateArgs,
                                unsigned &NumExplicitTemplateArgs);
     
   /// ActOnCallExpr - Handle a call to Fn with the specified array of arguments.
@@ -1900,7 +1912,6 @@ public:
   /// and sets it as the initializer for the the passed in VarDecl.
   bool InitializeVarWithConstructor(VarDecl *VD,
                                     CXXConstructorDecl *Constructor,
-                                    QualType DeclInitType,
                                     MultiExprArg Exprs);
 
   /// BuildCXXConstructExpr - Creates a complete call to a constructor,
@@ -2099,52 +2110,6 @@ public:
                                                         tok::TokenKind OpKind,
                                                         TypeTy *&ObjectType);
 
-  virtual OwningExprResult
-  ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
-                               SourceLocation OpLoc,
-                               tok::TokenKind OpKind,
-                               SourceLocation ClassNameLoc,
-                               IdentifierInfo *ClassName,
-                               const CXXScopeSpec &SS,
-                               bool HasTrailingLParen);
-
-  virtual OwningExprResult
-  ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
-                               SourceLocation OpLoc,
-                               tok::TokenKind OpKind,
-                               SourceRange TypeRange,
-                               TypeTy *Type,
-                               const CXXScopeSpec &SS,
-                               bool HasTrailingLParen);
-    
-  virtual OwningExprResult
-  ActOnOverloadedOperatorReferenceExpr(Scope *S, ExprArg Base,
-                                       SourceLocation OpLoc,
-                                       tok::TokenKind OpKind,
-                                       SourceLocation ClassNameLoc,
-                                       OverloadedOperatorKind OverOpKind,
-                                       const CXXScopeSpec *SS = 0);
-  virtual OwningExprResult
-  ActOnConversionOperatorReferenceExpr(Scope *S, ExprArg Base,
-                                       SourceLocation OpLoc,
-                                       tok::TokenKind OpKind,
-                                       SourceLocation ClassNameLoc,
-                                       TypeTy *Ty,
-                                       const CXXScopeSpec *SS = 0);
-
-  virtual OwningExprResult
-  ActOnMemberTemplateIdReferenceExpr(Scope *S, ExprArg Base,
-                                     SourceLocation OpLoc,
-                                     tok::TokenKind OpKind,
-                                     const CXXScopeSpec &SS,
-                                     // FIXME: "template" keyword?
-                                     TemplateTy Template,
-                                     SourceLocation TemplateNameLoc,
-                                     SourceLocation LAngleLoc,
-                                     ASTTemplateArgsPtr TemplateArgs,
-                                     SourceLocation *TemplateArgLocs,
-                                     SourceLocation RAngleLoc);
-
   /// MaybeCreateCXXExprWithTemporaries - If the list of temporaries is
   /// non-empty, will create a new CXXExprWithTemporaries expression.
   /// Otherwise, just returs the passed in expression.
@@ -2305,7 +2270,7 @@ public:
                                      SourceLocation RParenLoc,
                                      CXXRecordDecl *ClassDecl);
 
-  void setBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
+  void SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
                               CXXBaseOrMemberInitializer **Initializers,
                               unsigned NumInitializers,
                               llvm::SmallVectorImpl<CXXBaseSpecifier *>& Bases,
@@ -2445,9 +2410,8 @@ public:
   // C++ Templates [C++ 14]
   //
   virtual TemplateNameKind isTemplateName(Scope *S,
-                                          const IdentifierInfo &II,
-                                          SourceLocation IdLoc,
-                                          const CXXScopeSpec *SS,
+                                          const CXXScopeSpec &SS,
+                                          UnqualifiedId &Name,
                                           TypeTy *ObjectType,
                                           bool EnteringContext,
                                           TemplateTy &Template);
@@ -2507,13 +2471,13 @@ public:
                                 AccessSpecifier AS);
 
   void translateTemplateArguments(ASTTemplateArgsPtr &TemplateArgsIn,
-                                  SourceLocation *TemplateArgLocs,
-                        llvm::SmallVector<TemplateArgument, 16> &TemplateArgs);
+                                  SourceLocation *TemplateArgLocsIn,
+                        llvm::SmallVector<TemplateArgumentLoc, 16> &TempArgs);
     
   QualType CheckTemplateIdType(TemplateName Template,
                                SourceLocation TemplateLoc,
                                SourceLocation LAngleLoc,
-                               const TemplateArgument *TemplateArgs,
+                               const TemplateArgumentLoc *TemplateArgs,
                                unsigned NumTemplateArgs,
                                SourceLocation RAngleLoc);
 
@@ -2534,22 +2498,21 @@ public:
                                        TemplateName Template,
                                        SourceLocation TemplateNameLoc,
                                        SourceLocation LAngleLoc,
-                                       const TemplateArgument *TemplateArgs,
+                                       const TemplateArgumentLoc *TemplateArgs,
                                        unsigned NumTemplateArgs,
                                        SourceLocation RAngleLoc);
 
-  virtual OwningExprResult ActOnTemplateIdExpr(const CXXScopeSpec &SS,
-                                               TemplateTy Template,
-                                               SourceLocation TemplateNameLoc,
-                                               SourceLocation LAngleLoc,
-                                               ASTTemplateArgsPtr TemplateArgs,
-                                               SourceLocation *TemplateArgLocs,
-                                               SourceLocation RAngleLoc);
+  OwningExprResult ActOnTemplateIdExpr(const CXXScopeSpec &SS,
+                                       TemplateTy Template,
+                                       SourceLocation TemplateNameLoc,
+                                       SourceLocation LAngleLoc,
+                                       ASTTemplateArgsPtr TemplateArgs,
+                                       SourceLocation *TemplateArgLocs,
+                                       SourceLocation RAngleLoc);
 
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
-                                                const IdentifierInfo &Name,
-                                                SourceLocation NameLoc,
                                                 const CXXScopeSpec &SS,
+                                                UnqualifiedId &Name,
                                                 TypeTy *ObjectType);
 
   bool CheckClassTemplatePartialSpecializationArgs(
@@ -2578,10 +2541,18 @@ public:
                                                     MultiTemplateParamsArg TemplateParameterLists,
                                                     Declarator &D);
 
+  bool
+  CheckSpecializationInstantiationRedecl(SourceLocation NewLoc,
+                                         TemplateSpecializationKind NewTSK,
+                                         NamedDecl *PrevDecl,
+                                         TemplateSpecializationKind PrevTSK,
+                                         SourceLocation PrevPointOfInstantiation,
+                                         bool &SuppressNew);
+    
   bool CheckFunctionTemplateSpecialization(FunctionDecl *FD,
                                            bool HasExplicitTemplateArgs,
                                            SourceLocation LAngleLoc,
-                                  const TemplateArgument *ExplicitTemplateArgs,
+                            const TemplateArgumentLoc *ExplicitTemplateArgs,
                                            unsigned NumExplicitTemplateArgs,
                                            SourceLocation RAngleLoc,
                                            NamedDecl *&PrevDecl);
@@ -2621,18 +2592,18 @@ public:
   bool CheckTemplateArgumentList(TemplateDecl *Template,
                                  SourceLocation TemplateLoc,
                                  SourceLocation LAngleLoc,
-                                 const TemplateArgument *TemplateArgs,
+                                 const TemplateArgumentLoc *TemplateArgs,
                                  unsigned NumTemplateArgs,
                                  SourceLocation RAngleLoc,
                                  bool PartialTemplateArgs,
                                  TemplateArgumentListBuilder &Converted);
 
   bool CheckTemplateTypeArgument(TemplateTypeParmDecl *Param,
-                                 const TemplateArgument &Arg,
+                                 const TemplateArgumentLoc &Arg,
                                  TemplateArgumentListBuilder &Converted);
 
-  bool CheckTemplateArgument(TemplateTypeParmDecl *Param, QualType Arg,
-                             SourceLocation ArgLoc);
+  bool CheckTemplateArgument(TemplateTypeParmDecl *Param,
+                             DeclaratorInfo *Arg);
   bool CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg,
                                                       NamedDecl *&Entity);
   bool CheckTemplateArgumentPointerToMember(Expr *Arg, NamedDecl *&Member);
@@ -2807,7 +2778,7 @@ public:
 
   TemplateDeductionResult
   SubstituteExplicitTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                                const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                       unsigned NumExplicitTemplateArgs,
                             llvm::SmallVectorImpl<TemplateArgument> &Deduced,
                                  llvm::SmallVectorImpl<QualType> &ParamTypes,
@@ -2823,7 +2794,7 @@ public:
   TemplateDeductionResult
   DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
                           bool HasExplicitTemplateArgs,
-                          const TemplateArgument *ExplicitTemplateArgs,
+                          const TemplateArgumentLoc *ExplicitTemplateArgs,
                           unsigned NumExplicitTemplateArgs,
                           Expr **Args, unsigned NumArgs,
                           FunctionDecl *&Specialization,
@@ -2832,7 +2803,7 @@ public:
   TemplateDeductionResult
   DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
                           bool HasExplicitTemplateArgs,
-                          const TemplateArgument *ExplicitTemplateArgs,
+                          const TemplateArgumentLoc *ExplicitTemplateArgs,
                           unsigned NumExplicitTemplateArgs,
                           QualType ArgFunctionType,
                           FunctionDecl *&Specialization,
@@ -2863,6 +2834,7 @@ public:
   
   void MarkUsedTemplateParameters(const TemplateArgumentList &TemplateArgs,
                                   bool OnlyDeduced,
+                                  unsigned Depth,
                                   llvm::SmallVectorImpl<bool> &Used);
   void MarkDeducedTemplateParameters(FunctionTemplateDecl *FunctionTemplate,
                                      llvm::SmallVectorImpl<bool> &Deduced);
@@ -3101,7 +3073,7 @@ public:
     llvm::DenseMap<const Decl *, Decl *> LocalDecls;
 
     /// \brief The outer scope, in which contains local variable
-    /// definitions from some other instantiation (that is not
+    /// definitions from some other instantiation (that may not be
     /// relevant to this particular scope).
     LocalInstantiationScope *Outer;
 
@@ -3110,9 +3082,13 @@ public:
     LocalInstantiationScope &operator=(const LocalInstantiationScope &);
 
   public:
-    LocalInstantiationScope(Sema &SemaRef)
+    LocalInstantiationScope(Sema &SemaRef, bool CombineWithOuterScope = false)
       : SemaRef(SemaRef), Outer(SemaRef.CurrentInstantiationScope) {
-      SemaRef.CurrentInstantiationScope = this;
+      if (!CombineWithOuterScope)
+        SemaRef.CurrentInstantiationScope = this;
+      else
+        assert(SemaRef.CurrentInstantiationScope && 
+               "No outer instantiation scope?");
     }
 
     ~LocalInstantiationScope() {
@@ -3133,6 +3109,11 @@ public:
       return cast<ParmVarDecl>(getInstantiationOf(cast<Decl>(Var)));
     }
 
+    NonTypeTemplateParmDecl *getInstantiationOf(
+                                          const NonTypeTemplateParmDecl *Var) {
+      return cast<NonTypeTemplateParmDecl>(getInstantiationOf(cast<Decl>(Var)));
+    }
+    
     void InstantiatedLocal(const Decl *D, Decl *Inst) {
       Decl *&Stored = LocalDecls[D];
       assert(!Stored && "Already instantiated this local");
@@ -3190,7 +3171,7 @@ public:
                    bool Complain = true);
 
   bool
-  InstantiateClassTemplateSpecialization(
+  InstantiateClassTemplateSpecialization(SourceLocation PointOfInstantiation,
                            ClassTemplateSpecializationDecl *ClassTemplateSpec,
                            TemplateSpecializationKind TSK,
                            bool Complain = true);
@@ -3213,8 +3194,8 @@ public:
   TemplateName
   SubstTemplateName(TemplateName Name, SourceLocation Loc,
                     const MultiLevelTemplateArgumentList &TemplateArgs);
-  TemplateArgument Subst(TemplateArgument Arg,
-                         const MultiLevelTemplateArgumentList &TemplateArgs);
+  bool Subst(const TemplateArgumentLoc &Arg, TemplateArgumentLoc &Result,
+             const MultiLevelTemplateArgumentList &TemplateArgs);
 
   void InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
                                      FunctionDecl *Function,

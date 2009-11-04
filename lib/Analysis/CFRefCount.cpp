@@ -193,20 +193,6 @@ public:
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
-// Selector creation functions.
-//===----------------------------------------------------------------------===//
-
-static inline Selector GetNullarySelector(const char* name, ASTContext& Ctx) {
-  IdentifierInfo* II = &Ctx.Idents.get(name);
-  return Ctx.Selectors.getSelector(0, &II);
-}
-
-static inline Selector GetUnarySelector(const char* name, ASTContext& Ctx) {
-  IdentifierInfo* II = &Ctx.Idents.get(name);
-  return Ctx.Selectors.getSelector(1, &II);
-}
-
-//===----------------------------------------------------------------------===//
 // Type querying functions.
 //===----------------------------------------------------------------------===//
 
@@ -1031,9 +1017,23 @@ RetainSummary* RetainSummaryManager::getSummary(FunctionDecl* FD) {
           // Eventually this can be improved by recognizing that the pixel
           // buffer passed to CVPixelBufferCreateWithBytes is released via
           // a callback and doing full IPA to make sure this is done correctly.
+          // FIXME: This function has an out parameter that returns an
+          // allocated object.
           ScratchArgs = AF.Add(ScratchArgs, 7, StopTracking);
           S = getPersistentSummary(RetEffect::MakeNoRet(), DoNothing,
                                    DoNothing);
+        }
+        break;
+        
+      case 29:
+        if (!memcmp(FName, "CGBitmapContextCreateWithData", 29)) {
+          // FIXES: <rdar://problem/7358899>
+          // Eventually this can be improved by recognizing that 'releaseInfo'
+          // passed to CGBitmapContextCreateWithData is released via
+          // a callback and doing full IPA to make sure this is done correctly.
+          ScratchArgs = AF.Add(ScratchArgs, 8, StopTracking);
+          S = getPersistentSummary(RetEffect::MakeOwned(RetEffect::CF, true),
+                                   DoNothing,DoNothing);          
         }
         break;
 
@@ -1899,7 +1899,7 @@ public:
 
   virtual ~CFRefCount() {}
 
-  void RegisterChecks(BugReporter &BR);
+  void RegisterChecks(GRExprEngine &Eng);
 
   virtual void RegisterPrinters(std::vector<GRState::Printer*>& Printers) {
     Printers.push_back(new BindingsPrinter());
@@ -2193,7 +2193,9 @@ namespace {
   };
 } // end anonymous namespace
 
-void CFRefCount::RegisterChecks(BugReporter& BR) {
+void CFRefCount::RegisterChecks(GRExprEngine& Eng) {
+  BugReporter &BR = Eng.getBugReporter();
+  
   useAfterRelease = new UseAfterRelease(this);
   BR.Register(useAfterRelease);
 

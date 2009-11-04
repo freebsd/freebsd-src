@@ -52,7 +52,6 @@ namespace {
     void VisitVarDecl(VarDecl *VD);
     void VisitImplicitParamDecl(ImplicitParamDecl *PD);
     void VisitParmVarDecl(ParmVarDecl *PD);
-    void VisitOriginalParmVarDecl(OriginalParmVarDecl *PD);
     void VisitFileScopeAsmDecl(FileScopeAsmDecl *AD);
     void VisitBlockDecl(BlockDecl *BD);
     std::pair<uint64_t, uint64_t> VisitDeclContext(DeclContext *DC);
@@ -107,9 +106,9 @@ void PCHDeclReader::VisitTypedefDecl(TypedefDecl *TD) {
   // set the underlying type of the typedef *before* we try to read
   // the type associated with the TypedefDecl.
   VisitNamedDecl(TD);
-  TD->setUnderlyingType(Reader.GetType(Record[Idx + 1]));
-  TD->setTypeForDecl(Reader.GetType(Record[Idx]).getTypePtr());
-  Idx += 2;
+  uint64_t TypeData = Record[Idx++];
+  TD->setTypeDeclaratorInfo(Reader.GetDeclaratorInfo(Record, Idx));
+  TD->setTypeForDecl(Reader.GetType(TypeData).getTypePtr());
 }
 
 void PCHDeclReader::VisitTagDecl(TagDecl *TD) {
@@ -163,7 +162,7 @@ void PCHDeclReader::VisitFunctionDecl(FunctionDecl *FD) {
   FD->setPreviousDeclaration(
                    cast_or_null<FunctionDecl>(Reader.GetDecl(Record[Idx++])));
   FD->setStorageClass((FunctionDecl::StorageClass)Record[Idx++]);
-  FD->setInline(Record[Idx++]);
+  FD->setInlineSpecified(Record[Idx++]);
   FD->setVirtualAsWritten(Record[Idx++]);
   FD->setPure(Record[Idx++]);
   FD->setHasInheritedPrototype(Record[Idx++]);
@@ -368,11 +367,6 @@ void PCHDeclReader::VisitImplicitParamDecl(ImplicitParamDecl *PD) {
 void PCHDeclReader::VisitParmVarDecl(ParmVarDecl *PD) {
   VisitVarDecl(PD);
   PD->setObjCDeclQualifier((Decl::ObjCDeclQualifier)Record[Idx++]);
-}
-
-void PCHDeclReader::VisitOriginalParmVarDecl(OriginalParmVarDecl *PD) {
-  VisitParmVarDecl(PD);
-  PD->setOriginalType(Reader.GetType(Record[Idx++]));
 }
 
 void PCHDeclReader::VisitFileScopeAsmDecl(FileScopeAsmDecl *AD) {
@@ -618,7 +612,7 @@ Decl *PCHReader::ReadDeclRecord(uint64_t Offset, unsigned Index) {
     D = Context->getTranslationUnitDecl();
     break;
   case pch::DECL_TYPEDEF:
-    D = TypedefDecl::Create(*Context, 0, SourceLocation(), 0, QualType());
+    D = TypedefDecl::Create(*Context, 0, SourceLocation(), 0, 0);
     break;
   case pch::DECL_ENUM:
     D = EnumDecl::Create(*Context, 0, SourceLocation(), 0, SourceLocation(), 0);
@@ -695,10 +689,6 @@ Decl *PCHReader::ReadDeclRecord(uint64_t Offset, unsigned Index) {
   case pch::DECL_PARM_VAR:
     D = ParmVarDecl::Create(*Context, 0, SourceLocation(), 0, QualType(), 0,
                             VarDecl::None, 0);
-    break;
-  case pch::DECL_ORIGINAL_PARM_VAR:
-    D = OriginalParmVarDecl::Create(*Context, 0, SourceLocation(), 0,
-                                    QualType(),0, QualType(), VarDecl::None, 0);
     break;
   case pch::DECL_FILE_SCOPE_ASM:
     D = FileScopeAsmDecl::Create(*Context, 0, SourceLocation(), 0);

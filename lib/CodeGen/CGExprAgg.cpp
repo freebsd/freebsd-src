@@ -297,7 +297,7 @@ void AggExprEmitter::VisitUnaryAddrOf(const UnaryOperator *E) {
   assert(MPT->getPointeeType()->isFunctionProtoType() &&
          "Unexpected member pointer type!");
   
-  const QualifiedDeclRefExpr *DRE = cast<QualifiedDeclRefExpr>(E->getSubExpr());
+  const DeclRefExpr *DRE = cast<DeclRefExpr>(E->getSubExpr());
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(DRE->getDecl());
 
   const llvm::Type *PtrDiffTy = 
@@ -329,7 +329,8 @@ void AggExprEmitter::VisitStmtExpr(const StmtExpr *E) {
 }
 
 void AggExprEmitter::VisitBinaryOperator(const BinaryOperator *E) {
-  if (E->getOpcode() == BinaryOperator::PtrMemD)
+  if (E->getOpcode() == BinaryOperator::PtrMemD ||
+      E->getOpcode() == BinaryOperator::PtrMemI)
     VisitPointerToDataMemberBinaryOperator(E);
   else
     CGF.ErrorUnsupported(E, "aggregate binary expression");

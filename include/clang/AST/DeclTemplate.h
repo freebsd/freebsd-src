@@ -15,8 +15,7 @@
 #define LLVM_CLANG_AST_DECLTEMPLATE_H
 
 #include "clang/AST/DeclCXX.h"
-#include "llvm/ADT/APSInt.h"
-#include "llvm/ADT/FoldingSet.h"
+#include "clang/AST/TemplateBase.h"
 #include "llvm/ADT/PointerUnion.h"
 #include <limits>
 
@@ -91,257 +90,19 @@ public:
   /// arguments or if there is a parameter pack.
   unsigned getMinRequiredArguments() const;
 
+  /// \brief Get the depth of this template parameter list in the set of
+  /// template parameter lists.
+  ///
+  /// The first template parameter list in a declaration will have depth 0,
+  /// the second template parameter list will have depth 1, etc.
+  unsigned getDepth() const;
+  
   SourceLocation getTemplateLoc() const { return TemplateLoc; }
   SourceLocation getLAngleLoc() const { return LAngleLoc; }
   SourceLocation getRAngleLoc() const { return RAngleLoc; }
 
   SourceRange getSourceRange() const {
     return SourceRange(TemplateLoc, RAngleLoc);
-  }
-};
-
-/// \brief Represents a template argument within a class template
-/// specialization.
-class TemplateArgument {
-  union {
-    uintptr_t TypeOrValue;
-    struct {
-      char Value[sizeof(llvm::APSInt)];
-      void *Type;
-    } Integer;
-    struct {
-      TemplateArgument *Args;
-      unsigned NumArgs;
-      bool CopyArgs;
-    } Args;
-  };
-
-  /// \brief Location of the beginning of this template argument.
-  SourceLocation StartLoc;
-
-public:
-  /// \brief The type of template argument we're storing.
-  enum ArgKind {
-    Null = 0,
-    /// The template argument is a type. Its value is stored in the
-    /// TypeOrValue field.
-    Type = 1,
-    /// The template argument is a declaration
-    Declaration = 2,
-    /// The template argument is an integral value stored in an llvm::APSInt.
-    Integral = 3,
-    /// The template argument is a value- or type-dependent expression
-    /// stored in an Expr*.
-    Expression = 4,
-
-    /// The template argument is actually a parameter pack. Arguments are stored
-    /// in the Args struct.
-    Pack = 5
-  } Kind;
-
-  /// \brief Construct an empty, invalid template argument.
-  TemplateArgument() : TypeOrValue(0), StartLoc(), Kind(Null) { }
-
-  /// \brief Construct a template type argument.
-  TemplateArgument(SourceLocation Loc, QualType T) : Kind(Type) {
-    TypeOrValue = reinterpret_cast<uintptr_t>(T.getAsOpaquePtr());
-    StartLoc = Loc;
-  }
-
-  /// \brief Construct a template argument that refers to a
-  /// declaration, which is either an external declaration or a
-  /// template declaration.
-  TemplateArgument(SourceLocation Loc, Decl *D) : Kind(Declaration) {
-    // FIXME: Need to be sure we have the "canonical" declaration!
-    TypeOrValue = reinterpret_cast<uintptr_t>(D);
-    StartLoc = Loc;
-  }
-
-  /// \brief Construct an integral constant template argument.
-  TemplateArgument(SourceLocation Loc, const llvm::APSInt &Value,
-                   QualType Type)
-  : Kind(Integral) {
-    new (Integer.Value) llvm::APSInt(Value);
-    Integer.Type = Type.getAsOpaquePtr();
-    StartLoc = Loc;
-  }
-
-  /// \brief Construct a template argument that is an expression.
-  ///
-  /// This form of template argument only occurs in template argument
-  /// lists used for dependent types and for expression; it will not
-  /// occur in a non-dependent, canonical template argument list.
-  TemplateArgument(Expr *E);
-
-  /// \brief Copy constructor for a template argument.
-  TemplateArgument(const TemplateArgument &Other) : Kind(Other.Kind) {
-    if (Kind == Integral) {
-      new (Integer.Value) llvm::APSInt(*Other.getAsIntegral());
-      Integer.Type = Other.Integer.Type;
-    } else if (Kind == Pack) {
-      Args.NumArgs = Other.Args.NumArgs;
-      Args.Args = new TemplateArgument[Args.NumArgs];
-      for (unsigned I = 0; I != Args.NumArgs; ++I)
-        Args.Args[I] = Other.Args.Args[I];
-    }
-    else
-      TypeOrValue = Other.TypeOrValue;
-    StartLoc = Other.StartLoc;
-  }
-
-  TemplateArgument& operator=(const TemplateArgument& Other) {
-    // FIXME: Does not provide the strong guarantee for exception
-    // safety.
-    using llvm::APSInt;
-
-    // FIXME: Handle Packs
-    assert(Kind != Pack && "FIXME: Handle packs");
-    assert(Other.Kind != Pack && "FIXME: Handle packs");
-
-    if (Kind == Other.Kind && Kind == Integral) {
-      // Copy integral values.
-      *this->getAsIntegral() = *Other.getAsIntegral();
-      Integer.Type = Other.Integer.Type;
-    } else {
-      // Destroy the current integral value, if that's what we're holding.
-      if (Kind == Integral)
-        getAsIntegral()->~APSInt();
-
-      Kind = Other.Kind;
-
-      if (Other.Kind == Integral) {
-        new (Integer.Value) llvm::APSInt(*Other.getAsIntegral());
-        Integer.Type = Other.Integer.Type;
-      } else
-        TypeOrValue = Other.TypeOrValue;
-    }
-    StartLoc = Other.StartLoc;
-
-    return *this;
-  }
-
-  ~TemplateArgument() {
-    using llvm::APSInt;
-
-    if (Kind == Integral)
-      getAsIntegral()->~APSInt();
-    else if (Kind == Pack && Args.CopyArgs)
-      delete[] Args.Args;
-  }
-
-  /// \brief Return the kind of stored template argument.
-  ArgKind getKind() const { return Kind; }
-
-  /// \brief Determine whether this template argument has no value.
-  bool isNull() const { return Kind == Null; }
-
-  /// \brief Retrieve the template argument as a type.
-  QualType getAsType() const {
-    if (Kind != Type)
-      return QualType();
-
-    return QualType::getFromOpaquePtr(reinterpret_cast<void*>(TypeOrValue));
-  }
-
-  /// \brief Retrieve the template argument as a declaration.
-  Decl *getAsDecl() const {
-    if (Kind != Declaration)
-      return 0;
-    return reinterpret_cast<Decl *>(TypeOrValue);
-  }
-
-  /// \brief Retrieve the template argument as an integral value.
-  llvm::APSInt *getAsIntegral() {
-    if (Kind != Integral)
-      return 0;
-    return reinterpret_cast<llvm::APSInt*>(&Integer.Value[0]);
-  }
-
-  const llvm::APSInt *getAsIntegral() const {
-    return const_cast<TemplateArgument*>(this)->getAsIntegral();
-  }
-
-  /// \brief Retrieve the type of the integral value.
-  QualType getIntegralType() const {
-    if (Kind != Integral)
-      return QualType();
-
-    return QualType::getFromOpaquePtr(Integer.Type);
-  }
-
-  void setIntegralType(QualType T) {
-    assert(Kind == Integral &&
-           "Cannot set the integral type of a non-integral template argument");
-    Integer.Type = T.getAsOpaquePtr();
-  };
-
-  /// \brief Retrieve the template argument as an expression.
-  Expr *getAsExpr() const {
-    if (Kind != Expression)
-      return 0;
-
-    return reinterpret_cast<Expr *>(TypeOrValue);
-  }
-
-  /// \brief Iterator that traverses the elements of a template argument pack.
-  typedef const TemplateArgument * pack_iterator;
-
-  /// \brief Iterator referencing the first argument of a template argument
-  /// pack.
-  pack_iterator pack_begin() const {
-    assert(Kind == Pack);
-    return Args.Args;
-  }
-
-  /// \brief Iterator referencing one past the last argument of a template
-  /// argument pack.
-  pack_iterator pack_end() const {
-    assert(Kind == Pack);
-    return Args.Args + Args.NumArgs;
-  }
-
-  /// \brief The number of template arguments in the given template argument
-  /// pack.
-  unsigned pack_size() const {
-    assert(Kind == Pack);
-    return Args.NumArgs;
-  }
-
-  /// \brief Retrieve the location where the template argument starts.
-  SourceLocation getLocation() const { return StartLoc; }
-
-  /// \brief Construct a template argument pack.
-  void setArgumentPack(TemplateArgument *Args, unsigned NumArgs, bool CopyArgs);
-
-  /// \brief Used to insert TemplateArguments into FoldingSets.
-  void Profile(llvm::FoldingSetNodeID &ID, ASTContext &Context) const {
-    ID.AddInteger(Kind);
-    switch (Kind) {
-      case Null:
-        break;
-
-      case Type:
-        getAsType().Profile(ID);
-        break;
-
-      case Declaration:
-        ID.AddPointer(getAsDecl()? getAsDecl()->getCanonicalDecl() : 0);
-        break;
-
-      case Integral:
-        getAsIntegral()->Profile(ID);
-        getIntegralType().Profile(ID);
-        break;
-
-      case Expression:
-        getAsExpr()->Profile(ID, Context, true);
-        break;
-
-      case Pack:
-        ID.AddInteger(Args.NumArgs);
-        for (unsigned I = 0; I != Args.NumArgs; ++I)
-          Args.Args[I].Profile(ID, Context);
-    }
   }
 };
 
@@ -811,11 +572,8 @@ class TemplateTypeParmDecl : public TypeDecl {
   /// \brief Whether this is a parameter pack.
   bool ParameterPack : 1;
 
-  /// \brief The location of the default argument, if any.
-  SourceLocation DefaultArgumentLoc;
-
   /// \brief The default template argument, if any.
-  QualType DefaultArgument;
+  DeclaratorInfo *DefaultArgument;
 
   TemplateTypeParmDecl(DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
                        bool Typename, QualType Type, bool ParameterPack)
@@ -837,13 +595,16 @@ public:
 
   /// \brief Determine whether this template parameter has a default
   /// argument.
-  bool hasDefaultArgument() const { return !DefaultArgument.isNull(); }
+  bool hasDefaultArgument() const { return DefaultArgument != 0; }
 
   /// \brief Retrieve the default argument, if any.
-  QualType getDefaultArgument() const { return DefaultArgument; }
+  QualType getDefaultArgument() const { return DefaultArgument->getType(); }
 
-  /// \brief Retrieve the location of the default argument, if any.
-  SourceLocation getDefaultArgumentLoc() const { return DefaultArgumentLoc; }
+  /// \brief Retrieves the default argument's source information, if any.
+  DeclaratorInfo *getDefaultArgumentInfo() const { return DefaultArgument; }
+
+  /// \brief Retrieves the location of the default argument declaration.
+  SourceLocation getDefaultArgumentLoc() const;
 
   /// \brief Determines whether the default argument was inherited
   /// from a previous declaration of this template.
@@ -852,12 +613,22 @@ public:
   /// \brief Set the default argument for this template parameter, and
   /// whether that default argument was inherited from another
   /// declaration.
-  void setDefaultArgument(QualType DefArg, SourceLocation DefArgLoc,
-                          bool Inherited) {
+  void setDefaultArgument(DeclaratorInfo *DefArg, bool Inherited) {
     DefaultArgument = DefArg;
-    DefaultArgumentLoc = DefArgLoc;
     InheritedDefault = Inherited;
   }
+
+  /// \brief Removes the default argument of this template parameter.
+  void removeDefaultArgument() {
+    DefaultArgument = 0;
+    InheritedDefault = false;
+  }
+
+  /// \brief Retrieve the depth of the template parameter.
+  unsigned getDepth() const;
+  
+  /// \brief Retrieve the index of the template parameter.
+  unsigned getIndex() const;
 
   /// \brief Returns whether this is a parameter pack.
   bool isParameterPack() const { return ParameterPack; }
@@ -1150,17 +921,32 @@ class ClassTemplatePartialSpecializationDecl
   /// \brief The list of template parameters
   TemplateParameterList* TemplateParams;
 
+  /// \brief The source info for the template arguments as written.
+  TemplateArgumentLoc *ArgsAsWritten;
+  unsigned NumArgsAsWritten;
+
+  /// \brief The class template partial specialization from which this 
+  /// class template partial specialization was instantiated.
+  ///
+  /// The boolean value will be true to indicate that this class template
+  /// partial specialization was specialized at this level.
+  llvm::PointerIntPair<ClassTemplatePartialSpecializationDecl *, 1, bool>
+      InstantiatedFromMember;
+    
   ClassTemplatePartialSpecializationDecl(ASTContext &Context,
                                          DeclContext *DC, SourceLocation L,
                                          TemplateParameterList *Params,
                                          ClassTemplateDecl *SpecializedTemplate,
                                          TemplateArgumentListBuilder &Builder,
+                                         TemplateArgumentLoc *ArgInfos,
+                                         unsigned NumArgInfos,
                                ClassTemplatePartialSpecializationDecl *PrevDecl)
     : ClassTemplateSpecializationDecl(Context,
                                       ClassTemplatePartialSpecialization,
                                       DC, L, SpecializedTemplate, Builder,
                                       PrevDecl),
-      TemplateParams(Params) { }
+      TemplateParams(Params), ArgsAsWritten(ArgInfos),
+      NumArgsAsWritten(NumArgInfos), InstantiatedFromMember(0, false) { }
 
 public:
   static ClassTemplatePartialSpecializationDecl *
@@ -1168,6 +954,8 @@ public:
          TemplateParameterList *Params,
          ClassTemplateDecl *SpecializedTemplate,
          TemplateArgumentListBuilder &Builder,
+         TemplateArgumentLoc *ArgInfos,
+         unsigned NumArgInfos,
          ClassTemplatePartialSpecializationDecl *PrevDecl);
 
   /// Get the list of template parameters
@@ -1175,6 +963,80 @@ public:
     return TemplateParams;
   }
 
+  /// Get the template arguments as written.
+  TemplateArgumentLoc *getTemplateArgsAsWritten() const {
+    return ArgsAsWritten;
+  }
+
+  /// Get the number of template arguments as written.
+  unsigned getNumTemplateArgsAsWritten() const {
+    return NumArgsAsWritten;
+  }
+
+  /// \brief Retrieve the member class template partial specialization from
+  /// which this particular class template partial specialization was
+  /// instantiated.
+  ///
+  /// \code
+  /// template<typename T>
+  /// struct Outer {
+  ///   template<typename U> struct Inner;
+  ///   template<typename U> struct Inner<U*> { }; // #1
+  /// };
+  ///
+  /// Outer<float>::Inner<int*> ii;
+  /// \endcode
+  ///
+  /// In this example, the instantiation of \c Outer<float>::Inner<int*> will
+  /// end up instantiating the partial specialization 
+  /// \c Outer<float>::Inner<U*>, which itself was instantiated from the class 
+  /// template partial specialization \c Outer<T>::Inner<U*>. Given 
+  /// \c Outer<float>::Inner<U*>, this function would return
+  /// \c Outer<T>::Inner<U*>.
+  ClassTemplatePartialSpecializationDecl *getInstantiatedFromMember() {
+    ClassTemplatePartialSpecializationDecl *First
+      = cast<ClassTemplatePartialSpecializationDecl>(getFirstDeclaration());
+    return First->InstantiatedFromMember.getPointer();
+  }
+  
+  void setInstantiatedFromMember(
+                          ClassTemplatePartialSpecializationDecl *PartialSpec) {
+    ClassTemplatePartialSpecializationDecl *First
+      = cast<ClassTemplatePartialSpecializationDecl>(getFirstDeclaration());
+    First->InstantiatedFromMember.setPointer(PartialSpec);
+  }
+    
+  /// \brief Determines whether this class template partial specialization 
+  /// template was a specialization of a member partial specialization.
+  ///
+  /// In the following example, the member template partial specialization
+  /// \c X<int>::Inner<T*> is a member specialization.
+  ///
+  /// \code
+  /// template<typename T>
+  /// struct X {
+  ///   template<typename U> struct Inner;
+  ///   template<typename U> struct Inner<U*>;
+  /// };
+  ///
+  /// template<> template<typename T>
+  /// struct X<int>::Inner<T*> { /* ... */ };
+  /// \endcode
+  bool isMemberSpecialization() {
+    ClassTemplatePartialSpecializationDecl *First
+      = cast<ClassTemplatePartialSpecializationDecl>(getFirstDeclaration());
+    return First->InstantiatedFromMember.getInt();
+  }
+  
+  /// \brief Note that this member template is a specialization.
+  void setMemberSpecialization() {
+    ClassTemplatePartialSpecializationDecl *First
+      = cast<ClassTemplatePartialSpecializationDecl>(getFirstDeclaration());
+    assert(First->InstantiatedFromMember.getPointer() &&
+           "Only member templates can be member template specializations");
+    return First->InstantiatedFromMember.setInt(true);
+  }
+    
   // FIXME: Add Profile support!
 
   static bool classof(const Decl *D) {

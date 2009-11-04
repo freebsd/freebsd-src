@@ -183,13 +183,22 @@ public:
   void PopConditionalTempDestruction();
 
 private:
-  CGDebugInfo* DebugInfo;
+  CGDebugInfo *DebugInfo;
 
+#ifndef USEINDIRECTBRANCH
   /// LabelIDs - Track arbitrary ids assigned to labels for use in implementing
   /// the GCC address-of-label extension and indirect goto. IDs are assigned to
   /// labels inside getIDForAddrOfLabel().
   std::map<const LabelStmt*, unsigned> LabelIDs;
+#else
+  /// IndirectBranch - The first time an indirect goto is seen we create a
+  /// block with an indirect branch.  Every time we see the address of a label
+  /// taken, we add the label to the indirect goto.  Every subsequent indirect
+  /// goto is codegen'd as a jump to the IndirectBranch's basic block.
+  llvm::IndirectBrInst *IndirectBranch;
+#endif
 
+#ifndef USEINDIRECTBRANCH
   /// IndirectGotoSwitch - The first time an indirect goto is seen we create a
   /// block with the switch for the indirect gotos.  Every time we see the
   /// address of a label taken, we add the label to the indirect goto.  Every
@@ -197,6 +206,7 @@ private:
   /// IndirectGotoSwitch's basic block.
   llvm::SwitchInst *IndirectGotoSwitch;
 
+#endif
   /// LocalDeclMap - This keeps track of the LLVM allocas or globals for local C
   /// decls.
   llvm::DenseMap<const Decl*, llvm::Value*> LocalDeclMap;
@@ -377,6 +387,11 @@ public:
   /// GenerateVtable - Generate the vtable for the given type.
   llvm::Value *GenerateVtable(const CXXRecordDecl *RD);
 
+  /// DynamicTypeAdjust - Do the non-virtual and virtual adjustments on an
+  /// object pointer to alter the dynamic type of the pointer.  Used by
+  /// GenerateCovariantThunk for building thunks.
+  llvm::Value *DynamicTypeAdjust(llvm::Value *V, int64_t nv, int64_t v);
+
   /// GenerateThunk - Generate a thunk for the given method
   llvm::Constant *GenerateThunk(llvm::Function *Fn, const CXXMethodDecl *MD,
                                 bool Extern, int64_t nv, int64_t v);
@@ -502,7 +517,7 @@ public:
   //===--------------------------------------------------------------------===//
 
   Qualifiers MakeQualifiers(QualType T) {
-    Qualifiers Quals = T.getQualifiers();
+    Qualifiers Quals = getContext().getCanonicalType(T).getQualifiers();
     Quals.setObjCGCAttr(getContext().getObjCGCAttrKind(T));
     return Quals;
   }
@@ -558,7 +573,11 @@ public:
   /// the input field number being accessed.
   static unsigned getAccessedFieldNo(unsigned Idx, const llvm::Constant *Elts);
 
+#ifndef USEINDIRECTBRANCH
   unsigned GetIDForAddrOfLabel(const LabelStmt *L);
+#else
+  llvm::BlockAddress *GetAddrOfLabel(const LabelStmt *L);
+#endif
   llvm::BasicBlock *GetIndirectGotoBlock();
 
   /// EmitMemSetToZero - Generate code to memset a value of the given type to 0.
@@ -819,7 +838,7 @@ public:
   LValue EmitConditionalOperatorLValue(const ConditionalOperator *E);
   LValue EmitCastLValue(const CastExpr *E);
   LValue EmitNullInitializationLValue(const CXXZeroInitValueExpr *E);
-  LValue EmitPointerToDataMemberLValue(const QualifiedDeclRefExpr *E);
+  LValue EmitPointerToDataMemberLValue(const DeclRefExpr *E);
   
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
                               const ObjCIvarDecl *Ivar);
@@ -1000,6 +1019,8 @@ public:
                                     bool IsAggLocVolatile = false,
                                     bool IsInitializer = false);
 
+  void EmitCXXThrowExpr(const CXXThrowExpr *E);
+  
   //===--------------------------------------------------------------------===//
   //                             Internal Helpers
   //===--------------------------------------------------------------------===//

@@ -91,13 +91,6 @@ ParmVarDecl *ParmVarDecl::Create(ASTContext &C, DeclContext *DC,
   return new (C) ParmVarDecl(ParmVar, DC, L, Id, T, DInfo, S, DefArg);
 }
 
-QualType ParmVarDecl::getOriginalType() const {
-  if (const OriginalParmVarDecl *PVD =
-      dyn_cast<OriginalParmVarDecl>(this))
-    return PVD->OriginalType;
-  return getType();
-}
-
 SourceRange ParmVarDecl::getDefaultArgRange() const {
   if (const Expr *E = getInit())
     return E->getSourceRange();
@@ -138,14 +131,6 @@ bool VarDecl::isExternC() const {
   }
 
   return false;
-}
-
-OriginalParmVarDecl *OriginalParmVarDecl::Create(
-                                 ASTContext &C, DeclContext *DC,
-                                 SourceLocation L, IdentifierInfo *Id,
-                                 QualType T, DeclaratorInfo *DInfo,
-                                 QualType OT, StorageClass S, Expr *DefArg) {
-  return new (C) OriginalParmVarDecl(DC, L, Id, T, DInfo, OT, S, DefArg);
 }
 
 FunctionDecl *FunctionDecl::Create(ASTContext &C, DeclContext *DC,
@@ -193,9 +178,9 @@ void EnumConstantDecl::Destroy(ASTContext& C) {
 }
 
 TypedefDecl *TypedefDecl::Create(ASTContext &C, DeclContext *DC,
-                                 SourceLocation L,
-                                 IdentifierInfo *Id, QualType T) {
-  return new (C) TypedefDecl(DC, L, Id, T);
+                                 SourceLocation L, IdentifierInfo *Id,
+                                 DeclaratorInfo *DInfo) {
+  return new (C) TypedefDecl(DC, L, Id, DInfo);
 }
 
 EnumDecl *EnumDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation L,
@@ -396,6 +381,19 @@ bool VarDecl::isOutOfLine() const {
     return VD->isOutOfLine();
   
   return false;
+}
+
+VarDecl *VarDecl::getOutOfLineDefinition() {
+  if (!isStaticDataMember())
+    return 0;
+  
+  for (VarDecl::redecl_iterator RD = redecls_begin(), RDEnd = redecls_end();
+       RD != RDEnd; ++RD) {
+    if (RD->getLexicalDeclContext()->isFileContext())
+      return *RD;
+  }
+  
+  return 0;
 }
 
 VarDecl *VarDecl::getInstantiatedFromStaticDataMember() const {
@@ -644,7 +642,34 @@ unsigned FunctionDecl::getMinRequiredArguments() const {
   return NumRequiredArgs;
 }
 
-/// \brief For an inline function definition in C, determine whether the 
+bool FunctionDecl::isInlined() const {
+  if (isInlineSpecified() || (isa<CXXMethodDecl>(this) && !isOutOfLine()))
+    return true;
+
+  switch (getTemplateSpecializationKind()) {
+  case TSK_Undeclared:
+  case TSK_ExplicitSpecialization:
+    return false;
+
+  case TSK_ImplicitInstantiation:
+  case TSK_ExplicitInstantiationDeclaration:
+  case TSK_ExplicitInstantiationDefinition:
+    // Handle below.
+    break;
+  }
+
+  const FunctionDecl *PatternDecl = getTemplateInstantiationPattern();
+  Stmt *Pattern = 0;
+  if (PatternDecl)
+    Pattern = PatternDecl->getBody(PatternDecl);
+  
+  if (Pattern && PatternDecl)
+    return PatternDecl->isInlined();
+  
+  return false;
+}
+
+/// \brief For an inline function definition in C or C++, determine whether the 
 /// definition will be externally visible.
 ///
 /// Inline function definitions are always available for inlining optimizations.
@@ -663,9 +688,10 @@ unsigned FunctionDecl::getMinRequiredArguments() const {
 /// externally visible symbol.
 bool FunctionDecl::isInlineDefinitionExternallyVisible() const {
   assert(isThisDeclarationADefinition() && "Must have the function definition");
-  assert(isInline() && "Function must be inline");
+  assert(isInlined() && "Function must be inline");
+  ASTContext &Context = getASTContext();
   
-  if (!getASTContext().getLangOptions().C99 || hasAttr<GNUInlineAttr>()) {
+  if (!Context.getLangOptions().C99 || hasAttr<GNUInlineAttr>()) {
     // GNU inline semantics. Based on a number of examples, we came up with the
     // following heuristic: if the "inline" keyword is present on a
     // declaration of the function but "extern" is not present on that
@@ -675,7 +701,7 @@ bool FunctionDecl::isInlineDefinitionExternallyVisible() const {
     for (redecl_iterator Redecl = redecls_begin(), RedeclEnd = redecls_end();
          Redecl != RedeclEnd;
          ++Redecl) {
-      if (Redecl->isInline() && Redecl->getStorageClass() != Extern)
+      if (Redecl->isInlineSpecified() && Redecl->getStorageClass() != Extern)
         return true;
     }
     
@@ -694,7 +720,7 @@ bool FunctionDecl::isInlineDefinitionExternallyVisible() const {
     if (!Redecl->getLexicalDeclContext()->isTranslationUnit())
       continue;
     
-    if (!Redecl->isInline() || Redecl->getStorageClass() == Extern) 
+    if (!Redecl->isInlineSpecified() || Redecl->getStorageClass() == Extern) 
       return true; // Not an inline definition
   }
   
@@ -753,6 +779,59 @@ FunctionDecl::setInstantiationOfMemberFunction(FunctionDecl *FD,
   MemberSpecializationInfo *Info 
     = new (getASTContext()) MemberSpecializationInfo(FD, TSK);
   TemplateOrSpecialization = Info;
+}
+
+bool FunctionDecl::isImplicitlyInstantiable() const {
+  // If this function already has a definition or is invalid, it can't be
+  // implicitly instantiated.
+  if (isInvalidDecl() || getBody())
+    return false;
+  
+  switch (getTemplateSpecializationKind()) {
+  case TSK_Undeclared:
+  case TSK_ExplicitSpecialization:
+  case TSK_ExplicitInstantiationDefinition:
+    return false;
+      
+  case TSK_ImplicitInstantiation:
+    return true;
+
+  case TSK_ExplicitInstantiationDeclaration:
+    // Handled below.
+    break;
+  }
+
+  // Find the actual template from which we will instantiate.
+  const FunctionDecl *PatternDecl = getTemplateInstantiationPattern();
+  Stmt *Pattern = 0;
+  if (PatternDecl)
+    Pattern = PatternDecl->getBody(PatternDecl);
+  
+  // C++0x [temp.explicit]p9:
+  //   Except for inline functions, other explicit instantiation declarations
+  //   have the effect of suppressing the implicit instantiation of the entity
+  //   to which they refer. 
+  if (!Pattern || !PatternDecl)
+    return true;
+
+  return PatternDecl->isInlined();
+}                      
+   
+FunctionDecl *FunctionDecl::getTemplateInstantiationPattern() const {
+  if (FunctionTemplateDecl *Primary = getPrimaryTemplate()) {
+    while (Primary->getInstantiatedFromMemberTemplate()) {
+      // If we have hit a point where the user provided a specialization of
+      // this template, we're done looking.
+      if (Primary->isMemberSpecialization())
+        break;
+      
+      Primary = Primary->getInstantiatedFromMemberTemplate();
+    }
+    
+    return Primary->getTemplatedDecl();
+  } 
+    
+  return getInstantiatedFromMemberFunction();
 }
 
 FunctionTemplateDecl *FunctionDecl::getPrimaryTemplate() const {

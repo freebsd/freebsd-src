@@ -999,6 +999,7 @@ bool Sema::IsPointerConversion(Expr *From, QualType FromType, QualType ToType,
   // here. That is handled by CheckPointerConversion.
   if (getLangOptions().CPlusPlus &&
       FromPointeeType->isRecordType() && ToPointeeType->isRecordType() &&
+      !RequireCompleteType(From->getLocStart(), FromPointeeType, PDiag()) &&
       IsDerivedFrom(FromPointeeType, ToPointeeType)) {
     ConvertedType = BuildSimilarlyQualifiedPointerType(FromTypePtr,
                                                        ToPointeeType,
@@ -2444,7 +2445,7 @@ Sema::AddMethodCandidate(CXXMethodDecl *Method, Expr *Object,
 void
 Sema::AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
                                  bool HasExplicitTemplateArgs,
-                                 const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                  unsigned NumExplicitTemplateArgs,
                                  Expr *Object, Expr **Args, unsigned NumArgs,
                                  OverloadCandidateSet& CandidateSet,
@@ -2489,7 +2490,7 @@ Sema::AddMethodTemplateCandidate(FunctionTemplateDecl *MethodTmpl,
 void
 Sema::AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
                                    bool HasExplicitTemplateArgs,
-                                 const TemplateArgument *ExplicitTemplateArgs,
+                          const TemplateArgumentLoc *ExplicitTemplateArgs,
                                    unsigned NumExplicitTemplateArgs,
                                    Expr **Args, unsigned NumArgs,
                                    OverloadCandidateSet& CandidateSet,
@@ -2761,7 +2762,7 @@ void Sema::AddOperatorCandidates(OverloadedOperatorKind Op, Scope *S,
   DeclarationName OpName = Context.DeclarationNames.getCXXOperatorName(Op);
   if (S)
     LookupOverloadedOperatorName(Op, S, T1, T2, Functions);
-  ArgumentDependentLookup(OpName, Args, NumArgs, Functions);
+  ArgumentDependentLookup(OpName, /*Operator*/true, Args, NumArgs, Functions);
   AddFunctionCandidates(Functions, Args, NumArgs, CandidateSet);
   AddMemberOperatorCandidates(Op, OpLoc, Args, NumArgs, CandidateSet, OpRange);
   AddBuiltinOperatorCandidates(Op, OpLoc, Args, NumArgs, CandidateSet);
@@ -3119,9 +3120,8 @@ static void AddBuiltinAssignmentOperatorCandidates(Sema &S,
   }
 }
 
-/// CollectVRQualifiers - This routine returns Volatile/Restrict qualifiers
-/// , if any, found in visible type conversion functions found in ArgExpr's
-/// type.
+/// CollectVRQualifiers - This routine returns Volatile/Restrict qualifiers,
+/// if any, found in visible type conversion functions found in ArgExpr's type.
 static  Qualifiers CollectVRQualifiers(ASTContext &Context, Expr* ArgExpr) {
     Qualifiers VRQuals;
     const RecordType *TyRec;
@@ -3139,7 +3139,7 @@ static  Qualifiers CollectVRQualifiers(ASTContext &Context, Expr* ArgExpr) {
     
     CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(TyRec->getDecl());
     OverloadedFunctionDecl *Conversions =
-    ClassDecl->getVisibleConversionFunctions();
+      ClassDecl->getVisibleConversionFunctions();
     
     for (OverloadedFunctionDecl::function_iterator Func
          = Conversions->function_begin();
@@ -3887,7 +3887,7 @@ void
 Sema::AddArgumentDependentLookupCandidates(DeclarationName Name,
                                            Expr **Args, unsigned NumArgs,
                                            bool HasExplicitTemplateArgs,
-                                const TemplateArgument *ExplicitTemplateArgs,
+                            const TemplateArgumentLoc *ExplicitTemplateArgs,
                                            unsigned NumExplicitTemplateArgs,                                            
                                            OverloadCandidateSet& CandidateSet,
                                            bool PartialOverloading) {
@@ -3908,7 +3908,7 @@ Sema::AddArgumentDependentLookupCandidates(DeclarationName Name,
     }
 
   // FIXME: Pass in the explicit template arguments?
-  ArgumentDependentLookup(Name, Args, NumArgs, Functions);
+  ArgumentDependentLookup(Name, /*Operator*/false, Args, NumArgs, Functions);
 
   // Erase all of the candidates we already knew about.
   // FIXME: This is suboptimal. Is there a better way?
@@ -4279,7 +4279,7 @@ Sema::ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
   }
 
   bool HasExplicitTemplateArgs = false;
-  const TemplateArgument *ExplicitTemplateArgs = 0;
+  const TemplateArgumentLoc *ExplicitTemplateArgs = 0;
   unsigned NumExplicitTemplateArgs = 0;
   
   // Try to dig out the overloaded function.
@@ -4287,10 +4287,15 @@ Sema::ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
   if (DeclRefExpr *DR = dyn_cast<DeclRefExpr>(OvlExpr)) {
     Ovl = dyn_cast<OverloadedFunctionDecl>(DR->getDecl());
     FunctionTemplate = dyn_cast<FunctionTemplateDecl>(DR->getDecl());
+    HasExplicitTemplateArgs = DR->hasExplicitTemplateArgumentList();
+    ExplicitTemplateArgs = DR->getTemplateArgs();
+    NumExplicitTemplateArgs = DR->getNumTemplateArgs();
   } else if (MemberExpr *ME = dyn_cast<MemberExpr>(OvlExpr)) {
     Ovl = dyn_cast<OverloadedFunctionDecl>(ME->getMemberDecl());
     FunctionTemplate = dyn_cast<FunctionTemplateDecl>(ME->getMemberDecl());
-    // FIXME: Explicit template arguments
+    HasExplicitTemplateArgs = ME->hasExplicitTemplateArgumentList();
+    ExplicitTemplateArgs = ME->getTemplateArgs();
+    NumExplicitTemplateArgs = ME->getNumTemplateArgs();
   } else if (TemplateIdRefExpr *TIRE = dyn_cast<TemplateIdRefExpr>(OvlExpr)) {
     TemplateName Name = TIRE->getTemplateName();
     Ovl = Name.getAsOverloadedFunctionDecl();
@@ -4366,6 +4371,10 @@ Sema::ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
       // Skip non-static functions when converting to pointer, and static
       // when converting to member pointer.
       if (Method->isStatic() == IsMember)
+        continue;
+      
+      // If we have explicit template arguments, skip non-templates.
+      if (HasExplicitTemplateArgs)
         continue;
     } else if (IsMember)
       continue;
@@ -4443,7 +4452,7 @@ static void AddOverloadedCallCandidate(Sema &S,
                                        AnyFunctionDecl Callee,
                                        bool &ArgumentDependentLookup,
                                        bool HasExplicitTemplateArgs,
-                                 const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                        unsigned NumExplicitTemplateArgs,
                                        Expr **Args, unsigned NumArgs,
                                        OverloadCandidateSet &CandidateSet,
@@ -4475,7 +4484,7 @@ void Sema::AddOverloadedCallCandidates(NamedDecl *Callee,
                                        DeclarationName &UnqualifiedName,
                                        bool &ArgumentDependentLookup,
                                        bool HasExplicitTemplateArgs,
-                                  const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                        unsigned NumExplicitTemplateArgs,
                                        Expr **Args, unsigned NumArgs,
                                        OverloadCandidateSet &CandidateSet,
@@ -4543,7 +4552,7 @@ void Sema::AddOverloadedCallCandidates(NamedDecl *Callee,
 FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
                                             DeclarationName UnqualifiedName,
                                             bool HasExplicitTemplateArgs,
-                                 const TemplateArgument *ExplicitTemplateArgs,
+                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                             unsigned NumExplicitTemplateArgs,
                                             SourceLocation LParenLoc,
                                             Expr **Args, unsigned NumArgs,
@@ -4934,6 +4943,134 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
   return CreateBuiltinBinOp(OpLoc, Opc, Args[0], Args[1]);
 }
 
+Action::OwningExprResult
+Sema::CreateOverloadedArraySubscriptExpr(SourceLocation LLoc,
+                                         SourceLocation RLoc,
+                                         ExprArg Base, ExprArg Idx) {
+  Expr *Args[2] = { static_cast<Expr*>(Base.get()),
+                    static_cast<Expr*>(Idx.get()) };
+  DeclarationName OpName =
+      Context.DeclarationNames.getCXXOperatorName(OO_Subscript);
+
+  // If either side is type-dependent, create an appropriate dependent
+  // expression.
+  if (Args[0]->isTypeDependent() || Args[1]->isTypeDependent()) {
+
+    OverloadedFunctionDecl *Overloads
+      = OverloadedFunctionDecl::Create(Context, CurContext, OpName);
+
+    DeclRefExpr *Fn = new (Context) DeclRefExpr(Overloads, Context.OverloadTy,
+                                                LLoc, false, false);
+
+    Base.release();
+    Idx.release();
+    return Owned(new (Context) CXXOperatorCallExpr(Context, OO_Subscript, Fn,
+                                                   Args, 2,
+                                                   Context.DependentTy,
+                                                   RLoc));
+  }
+
+  // Build an empty overload set.
+  OverloadCandidateSet CandidateSet;
+
+  // Subscript can only be overloaded as a member function.
+
+  // Add operator candidates that are member functions.
+  AddMemberOperatorCandidates(OO_Subscript, LLoc, Args, 2, CandidateSet);
+
+  // Add builtin operator candidates.
+  AddBuiltinOperatorCandidates(OO_Subscript, LLoc, Args, 2, CandidateSet);
+
+  // Perform overload resolution.
+  OverloadCandidateSet::iterator Best;
+  switch (BestViableFunction(CandidateSet, LLoc, Best)) {
+    case OR_Success: {
+      // We found a built-in operator or an overloaded operator.
+      FunctionDecl *FnDecl = Best->Function;
+
+      if (FnDecl) {
+        // We matched an overloaded operator. Build a call to that
+        // operator.
+
+        // Convert the arguments.
+        CXXMethodDecl *Method = cast<CXXMethodDecl>(FnDecl);
+        if (PerformObjectArgumentInitialization(Args[0], Method) ||
+            PerformCopyInitialization(Args[1],
+                                      FnDecl->getParamDecl(0)->getType(),
+                                      "passing"))
+          return ExprError();
+
+        // Determine the result type
+        QualType ResultTy
+          = FnDecl->getType()->getAs<FunctionType>()->getResultType();
+        ResultTy = ResultTy.getNonReferenceType();
+
+        // Build the actual expression node.
+        Expr *FnExpr = new (Context) DeclRefExpr(FnDecl, FnDecl->getType(),
+                                                 LLoc);
+        UsualUnaryConversions(FnExpr);
+
+        Base.release();
+        Idx.release();
+        ExprOwningPtr<CXXOperatorCallExpr>
+          TheCall(this, new (Context) CXXOperatorCallExpr(Context, OO_Subscript,
+                                                          FnExpr, Args, 2,
+                                                          ResultTy, RLoc));
+
+        if (CheckCallReturnType(FnDecl->getResultType(), LLoc, TheCall.get(),
+                                FnDecl))
+          return ExprError();
+
+        return MaybeBindToTemporary(TheCall.release());
+      } else {
+        // We matched a built-in operator. Convert the arguments, then
+        // break out so that we will build the appropriate built-in
+        // operator node.
+        if (PerformImplicitConversion(Args[0], Best->BuiltinTypes.ParamTypes[0],
+                                      Best->Conversions[0], "passing") ||
+            PerformImplicitConversion(Args[1], Best->BuiltinTypes.ParamTypes[1],
+                                      Best->Conversions[1], "passing"))
+          return ExprError();
+
+        break;
+      }
+    }
+
+    case OR_No_Viable_Function: {
+      // No viable function; try to create a built-in operation, which will
+      // produce an error. Then, show the non-viable candidates.
+      OwningExprResult Result =
+          CreateBuiltinArraySubscriptExpr(move(Base), LLoc, move(Idx), RLoc);
+      assert(Result.isInvalid() && 
+             "C++ subscript operator overloading is missing candidates!");
+      if (Result.isInvalid())
+        PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/false,
+                                "[]", LLoc);
+      return move(Result);
+    }
+
+    case OR_Ambiguous:
+      Diag(LLoc,  diag::err_ovl_ambiguous_oper)
+          << "[]" << Args[0]->getSourceRange() << Args[1]->getSourceRange();
+      PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/true,
+                              "[]", LLoc);
+      return ExprError();
+
+    case OR_Deleted:
+      Diag(LLoc, diag::err_ovl_deleted_oper)
+        << Best->Function->isDeleted() << "[]"
+        << Args[0]->getSourceRange() << Args[1]->getSourceRange();
+      PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/true);
+      return ExprError();
+    }
+
+  // We matched a built-in operator; build it.
+  Base.release();
+  Idx.release();
+  return CreateBuiltinArraySubscriptExpr(Owned(Args[0]), LLoc,
+                                         Owned(Args[1]), RLoc);
+}
+
 /// BuildCallToMemberFunction - Build a call to a member
 /// function. MemExpr is the expression that refers to the member
 /// function (and includes the object parameter), Args/NumArgs are the
@@ -4967,10 +5104,15 @@ Sema::BuildCallToMemberFunction(Scope *S, Expr *MemExprE,
 
     for (OverloadIterator Func(MemExpr->getMemberDecl()), FuncEnd;
          Func != FuncEnd; ++Func) {
-      if ((Method = dyn_cast<CXXMethodDecl>(*Func)))
+      if ((Method = dyn_cast<CXXMethodDecl>(*Func))) {
+        // If explicit template arguments were provided, we can't call a
+        // non-template member function.
+        if (MemExpr->hasExplicitTemplateArgumentList())
+          continue;
+        
         AddMethodCandidate(Method, ObjectArg, Args, NumArgs, CandidateSet,
                            /*SuppressUserConversions=*/false);
-      else
+      } else
         AddMethodTemplateCandidate(cast<FunctionTemplateDecl>(*Func),
                                    MemExpr->hasExplicitTemplateArgumentList(),
                                    MemExpr->getTemplateArgs(),
@@ -5361,8 +5503,14 @@ Sema::BuildOverloadedArrowExpr(Scope *S, ExprArg BaseIn, SourceLocation OpLoc) {
 Expr *Sema::FixOverloadedFunctionReference(Expr *E, FunctionDecl *Fn) {
   if (ParenExpr *PE = dyn_cast<ParenExpr>(E)) {
     Expr *NewExpr = FixOverloadedFunctionReference(PE->getSubExpr(), Fn);
-    NewExpr->setType(PE->getSubExpr()->getType());
-    return NewExpr;
+    PE->setSubExpr(NewExpr);
+    PE->setType(NewExpr->getType());
+  } else if (ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
+    Expr *NewExpr = FixOverloadedFunctionReference(ICE->getSubExpr(), Fn);
+    assert(Context.hasSameType(ICE->getSubExpr()->getType(), 
+                               NewExpr->getType()) &&
+           "Implicit cast type cannot be determined from overload");
+    ICE->setSubExpr(NewExpr);
   } else if (UnaryOperator *UnOp = dyn_cast<UnaryOperator>(E)) {
     assert(UnOp->getOpcode() == UnaryOperator::AddrOf &&
            "Can only take the address of an overloaded function");
@@ -5370,18 +5518,19 @@ Expr *Sema::FixOverloadedFunctionReference(Expr *E, FunctionDecl *Fn) {
       if (Method->isStatic()) {
         // Do nothing: static member functions aren't any different
         // from non-member functions.
-      } else if (QualifiedDeclRefExpr *DRE
-                 = dyn_cast<QualifiedDeclRefExpr>(UnOp->getSubExpr())) {
-        // We have taken the address of a pointer to member
-        // function. Perform the computation here so that we get the
-        // appropriate pointer to member type.
-        DRE->setDecl(Fn);
-        DRE->setType(Fn->getType());
-        QualType ClassType
-          = Context.getTypeDeclType(cast<RecordDecl>(Method->getDeclContext()));
-        E->setType(Context.getMemberPointerType(Fn->getType(),
-                                                ClassType.getTypePtr()));
-        return E;
+      } else if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(UnOp->getSubExpr())) {
+        if (DRE->getQualifier()) {
+          // We have taken the address of a pointer to member
+          // function. Perform the computation here so that we get the
+          // appropriate pointer to member type.
+          DRE->setDecl(Fn);
+          DRE->setType(Fn->getType());
+          QualType ClassType
+            = Context.getTypeDeclType(cast<RecordDecl>(Method->getDeclContext()));
+          E->setType(Context.getMemberPointerType(Fn->getType(),
+                                                  ClassType.getTypePtr()));
+          return E;
+        }
       }
       // FIXME: TemplateIdRefExpr referring to a member function template
       // specialization!
@@ -5393,26 +5542,35 @@ Expr *Sema::FixOverloadedFunctionReference(Expr *E, FunctionDecl *Fn) {
     return UnOp;
   } else if (DeclRefExpr *DR = dyn_cast<DeclRefExpr>(E)) {
     assert((isa<OverloadedFunctionDecl>(DR->getDecl()) ||
-            isa<FunctionTemplateDecl>(DR->getDecl())) &&
-           "Expected overloaded function or function template");
+            isa<FunctionTemplateDecl>(DR->getDecl()) ||
+            isa<FunctionDecl>(DR->getDecl())) &&
+           "Expected function or function template");
     DR->setDecl(Fn);
     E->setType(Fn->getType());
   } else if (MemberExpr *MemExpr = dyn_cast<MemberExpr>(E)) {
     MemExpr->setMemberDecl(Fn);
     E->setType(Fn->getType());
   } else if (TemplateIdRefExpr *TID = dyn_cast<TemplateIdRefExpr>(E)) {
-    // FIXME: We should capture the template arguments here.
-    if (NestedNameSpecifier *Qualifier = TID->getQualifier())
-      E = new (Context) QualifiedDeclRefExpr(Fn, Fn->getType(),
-                                             TID->getTemplateNameLoc(),
-                                             /*FIXME?*/false, /*FIXME?*/false,
-                                             TID->getQualifierRange(),
-                                             Qualifier);
-    else
-      E = new (Context) DeclRefExpr(Fn, Fn->getType(), 
-                                    TID->getTemplateNameLoc());
+    E = DeclRefExpr::Create(Context, 
+                            TID->getQualifier(), TID->getQualifierRange(),
+                            Fn, TID->getTemplateNameLoc(), 
+                            true,
+                            TID->getLAngleLoc(),
+                            TID->getTemplateArgs(),
+                            TID->getNumTemplateArgs(),
+                            TID->getRAngleLoc(),
+                            Fn->getType(), 
+                            /*FIXME?*/false, /*FIXME?*/false);
     
-    TID->Destroy(Context);
+    // FIXME: Don't destroy TID here, since we need its template arguments
+    // to survive.
+    // TID->Destroy(Context);
+  } else if (isa<UnresolvedFunctionNameExpr>(E)) {
+    return DeclRefExpr::Create(Context, 
+                               /*Qualifier=*/0,
+                               /*QualifierRange=*/SourceRange(),
+                               Fn, E->getLocStart(),
+                               Fn->getType(), false, false);
   } else {
     assert(false && "Invalid reference to overloaded function");
   }

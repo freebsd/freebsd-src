@@ -15,6 +15,7 @@
 #define LLVM_CLANG_AST_TYPELOC_H
 
 #include "clang/AST/Type.h"
+#include "clang/AST/TemplateBase.h"
 
 namespace clang {
   class ParmVarDecl;
@@ -82,6 +83,19 @@ public:
     return Data;
   }
 
+  /// \brief Get the full source range.
+  SourceRange getFullSourceRange() const {
+    SourceLocation End = getSourceRange().getEnd();
+    TypeLoc Cur = *this;
+    while (true) {
+      TypeLoc Next = Cur.getNextTypeLoc();
+      if (Next.isNull()) break;
+      Cur = Next;
+    }
+    return SourceRange(Cur.getSourceRange().getBegin(), End);
+  }
+
+  /// \brief Get the local source range.
   SourceRange getSourceRange() const {
     return getSourceRangeImpl(*this);
   }
@@ -761,6 +775,10 @@ public:
     getLocalData()->RBracketLoc = Loc;
   }
 
+  SourceRange getBracketsRange() const {
+    return SourceRange(getLBracketLoc(), getRBracketLoc());
+  }
+
   Expr *getSizeExpr() const {
     return getLocalData()->Size;
   }
@@ -808,6 +826,118 @@ class VariableArrayTypeLoc :
     public InheritingConcreteTypeLoc<ArrayTypeLoc,
                                      VariableArrayTypeLoc,
                                      VariableArrayType> {
+};
+
+
+// Location information for a TemplateName.  Rudimentary for now.
+struct TemplateNameLocInfo {
+  SourceLocation NameLoc;
+};
+
+struct TemplateSpecializationLocInfo : TemplateNameLocInfo {
+  SourceLocation LAngleLoc;
+  SourceLocation RAngleLoc;
+};
+
+class TemplateSpecializationTypeLoc :
+    public ConcreteTypeLoc<UnqualTypeLoc,
+                           TemplateSpecializationTypeLoc,
+                           TemplateSpecializationType,
+                           TemplateSpecializationLocInfo> {
+public:
+  SourceLocation getLAngleLoc() const {
+    return getLocalData()->LAngleLoc;
+  }
+  void setLAngleLoc(SourceLocation Loc) {
+    getLocalData()->LAngleLoc = Loc;
+  }
+
+  SourceLocation getRAngleLoc() const {
+    return getLocalData()->RAngleLoc;
+  }
+  void setRAngleLoc(SourceLocation Loc) {
+    getLocalData()->RAngleLoc = Loc;
+  }
+
+  unsigned getNumArgs() const {
+    return getTypePtr()->getNumArgs();
+  }
+  void setArgLocInfo(unsigned i, TemplateArgumentLocInfo AI) {
+#ifndef NDEBUG
+    AI.validateForArgument(getTypePtr()->getArg(i));
+#endif
+    getArgInfos()[i] = AI;
+  }
+  TemplateArgumentLocInfo getArgLocInfo(unsigned i) const {
+    return getArgInfos()[i];
+  }
+
+  TemplateArgumentLoc getArgLoc(unsigned i) const {
+    return TemplateArgumentLoc(getTypePtr()->getArg(i), getArgLocInfo(i));
+  }
+
+  SourceLocation getTemplateNameLoc() const {
+    return getLocalData()->NameLoc;
+  }
+  void setTemplateNameLoc(SourceLocation Loc) {
+    getLocalData()->NameLoc = Loc;
+  }
+
+  /// \brief - Copy the location information from the given info.
+  void copy(TemplateSpecializationTypeLoc Loc) {
+    unsigned size = getFullDataSize();
+    assert(size == Loc.getFullDataSize());
+
+    // We're potentially copying Expr references here.  We don't
+    // bother retaining them because DeclaratorInfos live forever, so
+    // as long as the Expr was retained when originally written into
+    // the TypeLoc, we're okay.
+    memcpy(Data, Loc.Data, size);
+  }
+
+  SourceRange getSourceRange() const {
+    return SourceRange(getTemplateNameLoc(), getRAngleLoc());
+  }
+
+  void initializeLocal(SourceLocation Loc) {
+    setLAngleLoc(Loc);
+    setRAngleLoc(Loc);
+    setTemplateNameLoc(Loc);
+
+    for (unsigned i = 0, e = getNumArgs(); i != e; ++i) {
+      TemplateArgumentLocInfo Info;
+#ifndef NDEBUG
+      // If asserts are enabled, be sure to initialize the argument
+      // loc with the right kind of pointer.
+      switch (getTypePtr()->getArg(i).getKind()) {
+      case TemplateArgument::Expression:
+      case TemplateArgument::Declaration:
+        Info = TemplateArgumentLocInfo((Expr*) 0);
+        break;
+
+      case TemplateArgument::Type:
+        Info = TemplateArgumentLocInfo((DeclaratorInfo*) 0);
+        break;
+
+      case TemplateArgument::Integral:
+      case TemplateArgument::Pack:
+      case TemplateArgument::Null:
+        // K_None is fine.
+        break;
+      }
+#endif
+      getArgInfos()[i] = Info;
+    }
+  }
+
+  unsigned getExtraLocalDataSize() const {
+    return getNumArgs() * sizeof(TemplateArgumentLocInfo);
+  }
+
+private:
+  TemplateArgumentLocInfo *getArgInfos() const {
+    return static_cast<TemplateArgumentLocInfo*>(getExtraLocalData());
+  }
 };
 
 // None of these types have proper implementations yet.
@@ -859,11 +989,6 @@ class EnumTypeLoc : public InheritingConcreteTypeLoc<TagTypeLoc,
 
 class ElaboratedTypeLoc : public TypeSpecTypeLoc<ElaboratedTypeLoc,
                                                  ElaboratedType> {
-};
-
-class TemplateSpecializationTypeLoc
-  : public TypeSpecTypeLoc<TemplateSpecializationTypeLoc,
-                           TemplateSpecializationType> {
 };
 
 class QualifiedNameTypeLoc : public TypeSpecTypeLoc<QualifiedNameTypeLoc,

@@ -3,6 +3,8 @@ set(LLVM_NO_RTTI 1)
 add_clang_library(clangAnalysis
   AnalysisContext.cpp
   AnalysisManager.cpp
+  AttrNonNullChecker.cpp
+  BadCallChecker.cpp
   BasicConstraintManager.cpp
   BasicObjCFoundationChecks.cpp
   BasicStore.cpp
@@ -14,11 +16,12 @@ add_clang_library(clangAnalysis
   CallGraph.cpp
   CallInliner.cpp
   CheckDeadStores.cpp
-  CheckNSError.cpp
   CheckObjCDealloc.cpp
   CheckObjCInstMethSignature.cpp
   CheckObjCUnusedIVars.cpp
   CheckSecuritySyntaxOnly.cpp
+  DereferenceChecker.cpp
+  DivZeroChecker.cpp
   Environment.cpp
   ExplodedGraph.cpp
   GRBlockCounter.cpp
@@ -28,6 +31,8 @@ add_clang_library(clangAnalysis
   GRState.cpp
   LiveVariables.cpp
   MemRegion.cpp
+  NSAutoreleasePoolChecker.cpp
+  NSErrorChecker.cpp
   PathDiagnostic.cpp
   RangeConstraintManager.cpp
   RegionStore.cpp
@@ -37,8 +42,11 @@ add_clang_library(clangAnalysis
   SimpleSValuator.cpp
   Store.cpp
   SymbolManager.cpp
+  UndefinedArgChecker.cpp
+  UndefinedAssignmentChecker.cpp
   UninitializedValues.cpp
   ValueManager.cpp
+  VLASizeChecker.cpp
   )
 
 add_dependencies(clangAnalysis ClangDiagnosticAnalysis)

@@ -117,6 +117,8 @@ def err_expected_semi_after_static_assert : Error<
   "expected ';' after static_assert">;
 def err_expected_semi_for : Error<"expected ';' in 'for' statement specifier">;
 def err_expected_colon_after : Error<"expected ':' after %0">;
+def err_pointer_to_member_type : Error<
+  "invalid use of pointer to member type after %0">;
 def err_label_end_of_compound_statement : Error<
   "label at end of compound statement: expected statement">;
 def err_expected_string_literal : Error<"expected string literal">;
@@ -124,6 +126,7 @@ def err_expected_asm_operand : Error<
   "expected string literal or '[' for asm operand">;
 def err_expected_selector_for_method : Error<
   "expected selector for Objective-C method">;
+def err_expected_property_name : Error<"expected property name">;
 
 def err_unexpected_at : Error<"unexpected '@' in program">;
 
@@ -213,7 +216,8 @@ def err_declaration_does_not_declare_param : Error<
 def err_no_matching_param : Error<"parameter named %0 is missing">;
 
 /// C++ parser diagnostics
-def err_expected_unqualified_id : Error<"expected unqualified-id">;
+def err_expected_unqualified_id : Error<
+  "expected %select{identifier|unqualified-id}0">;
 def err_func_def_no_params : Error<
   "function definition does not declare parameters">;
 def err_expected_lparen_after_type : Error<
@@ -230,6 +234,8 @@ def err_expected_catch : Error<"expected catch">;
 def err_expected_lbrace_or_comma : Error<"expected '{' or ','">;
 def err_using_namespace_in_class : Error<
   "'using namespace' in class not allowed">;
+def err_ident_in_pseudo_dtor_not_a_type : Error<
+  "identifier %0 in pseudo-destructor expression does not name a type">;
 
 // C++ derived classes
 def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
@@ -279,6 +285,9 @@ def err_typename_refers_to_non_type_template : Error<
   "typename specifier refers to a non-template">;
 def err_expected_type_name_after_typename : Error<
   "expected an identifier or template-id after '::'">;
+def err_explicit_spec_non_template : Error<
+  "explicit %select{specialization|instantiation}0 of non-template "
+  "%select{class|struct|union}1 %2">;
 
 def err_variadic_templates : Error<
   "variadic templates are only allowed in C++0x">;
@@ -286,7 +295,7 @@ def err_variadic_templates : Error<
 // C++ declarations
 def err_friend_decl_defines_class : Error<
   "cannot define a type in a friend declaration">;
-
+  
 // Language specific pragmas
 // - Generic warnings
 def warn_pragma_expected_lparen : Warning<

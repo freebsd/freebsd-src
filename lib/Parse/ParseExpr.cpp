@@ -340,7 +340,18 @@ Parser::ParseRHSOfBinaryExpression(OwningExprResult LHS, unsigned MinPrec) {
       // Eat the colon.
       ColonLoc = ConsumeToken();
     }
-
+    
+    if ((OpToken.is(tok::periodstar) || OpToken.is(tok::arrowstar))
+         && Tok.is(tok::identifier)) {
+      CXXScopeSpec SS;
+      if (Actions.getTypeName(*Tok.getIdentifierInfo(),
+                              Tok.getLocation(), CurScope, &SS)) {
+        const char *Opc = OpToken.is(tok::periodstar) ? "'.*'" : "'->*'";
+        Diag(OpToken, diag::err_pointer_to_member_type) << Opc;
+        return ExprError();
+      }
+        
+    }
     // Parse another leaf here for the RHS of the operator.
     // ParseCastExpression works here because all RHS expressions in C have it
     // as a prefix, at least. However, in C++, an assignment-expression could
@@ -612,36 +623,39 @@ Parser::OwningExprResult Parser::ParseCastExpression(bool isUnaryExpression,
         return ParseCastExpression(isUnaryExpression, isAddressOfOperand);
     }
 
-    // Support 'Class.property' notation.
-    // We don't use isTokObjCMessageIdentifierReceiver(), since it allows
-    // 'super' (which is inappropriate here).
-    if (getLang().ObjC1 &&
-        Actions.getTypeName(*Tok.getIdentifierInfo(),
-                            Tok.getLocation(), CurScope) &&
-        NextToken().is(tok::period)) {
-      IdentifierInfo &ReceiverName = *Tok.getIdentifierInfo();
-      SourceLocation IdentLoc = ConsumeToken();
+    // Consume the identifier so that we can see if it is followed by a '(' or
+    // '.'.
+    IdentifierInfo &II = *Tok.getIdentifierInfo();
+    SourceLocation ILoc = ConsumeToken();
+    
+    // Support 'Class.property' notation.  We don't use
+    // isTokObjCMessageIdentifierReceiver(), since it allows 'super' (which is
+    // inappropriate here).
+    if (getLang().ObjC1 && Tok.is(tok::period) &&
+        Actions.getTypeName(II, ILoc, CurScope)) {
       SourceLocation DotLoc = ConsumeToken();
-
+      
       if (Tok.isNot(tok::identifier)) {
-        Diag(Tok, diag::err_expected_ident);
+        Diag(Tok, diag::err_expected_property_name);
         return ExprError();
       }
       IdentifierInfo &PropertyName = *Tok.getIdentifierInfo();
       SourceLocation PropertyLoc = ConsumeToken();
-
-      Res = Actions.ActOnClassPropertyRefExpr(ReceiverName, PropertyName,
-                                              IdentLoc, PropertyLoc);
+      
+      Res = Actions.ActOnClassPropertyRefExpr(II, PropertyName,
+                                              ILoc, PropertyLoc);
       // These can be followed by postfix-expr pieces.
       return ParsePostfixExpressionSuffix(move(Res));
     }
-    // Consume the identifier so that we can see if it is followed by a '('.
+   
     // Function designators are allowed to be undeclared (C99 6.5.1p2), so we
     // need to know whether or not this identifier is a function designator or
     // not.
-    IdentifierInfo &II = *Tok.getIdentifierInfo();
-    SourceLocation L = ConsumeToken();
-    Res = Actions.ActOnIdentifierExpr(CurScope, L, II, Tok.is(tok::l_paren));
+    UnqualifiedId Name;
+    CXXScopeSpec ScopeSpec;
+    Name.setIdentifier(&II, ILoc);
+    Res = Actions.ActOnIdExpression(CurScope, ScopeSpec, Name, 
+                                    Tok.is(tok::l_paren), false);
     // These can be followed by postfix-expr pieces.
     return ParsePostfixExpressionSuffix(move(Res));
   }
@@ -954,110 +968,20 @@ Parser::ParsePostfixExpressionSuffix(OwningExprResult LHS) {
         ConsumeToken();
       }
       
-      if (Tok.is(tok::identifier)) {
-        if (!LHS.isInvalid())
-          LHS = Actions.ActOnMemberReferenceExpr(CurScope, move(LHS), OpLoc,
-                                                 OpKind, Tok.getLocation(),
-                                                 *Tok.getIdentifierInfo(),
-                                                 ObjCImpDecl, &SS);
-        ConsumeToken();
-      } else if (getLang().CPlusPlus && Tok.is(tok::tilde)) {
-        // We have a C++ pseudo-destructor or a destructor call, e.g., t.~T()
-
-        // Consume the tilde.
-        ConsumeToken();
-
-        if (!Tok.is(tok::identifier)) {
-          Diag(Tok, diag::err_expected_ident);
-          return ExprError();
-        }
-
-        if (NextToken().is(tok::less)) {
-          // class-name: 
-          //     ~ simple-template-id
-          TemplateTy Template 
-            = Actions.ActOnDependentTemplateName(SourceLocation(),
-                                                 *Tok.getIdentifierInfo(),   
-                                                 Tok.getLocation(),
-                                                 SS,
-                                                 ObjectType);
-          if (AnnotateTemplateIdToken(Template, TNK_Type_template, &SS, 
-                                      SourceLocation(), true))
-            return ExprError();
-          
-          assert(Tok.is(tok::annot_typename) && 
-                 "AnnotateTemplateIdToken didn't work?");
-          if (!LHS.isInvalid())
-            LHS = Actions.ActOnDestructorReferenceExpr(CurScope, move(LHS),
-                                                       OpLoc, OpKind,
-                                                       Tok.getAnnotationRange(),
-                                                       Tok.getAnnotationValue(),
-                                                       SS,
-                                                 NextToken().is(tok::l_paren));                                                                   
-        } else {
-          // class-name: 
-          //     ~ identifier
-          if (!LHS.isInvalid())
-            LHS = Actions.ActOnDestructorReferenceExpr(CurScope, move(LHS),
-                                                       OpLoc, OpKind,
-                                                       Tok.getLocation(),
-                                                       Tok.getIdentifierInfo(),
-                                                       SS,
-                                                 NextToken().is(tok::l_paren));
-        }
-        
-        // Consume the identifier or template-id token.
-        ConsumeToken();
-      } else if (getLang().CPlusPlus && Tok.is(tok::kw_operator)) {
-        // We have a reference to a member operator, e.g., t.operator int or
-        // t.operator+.
-        SourceLocation OperatorLoc = Tok.getLocation();
-        
-        if (OverloadedOperatorKind Op = TryParseOperatorFunctionId()) {
-          if (!LHS.isInvalid())
-            LHS = Actions.ActOnOverloadedOperatorReferenceExpr(CurScope,
-                                                               move(LHS), OpLoc,
-                                                               OpKind,
-                                                               OperatorLoc,
-                                                               Op, &SS);
-          // TryParseOperatorFunctionId already consumed our token, so
-          // don't bother
-        } else if (TypeTy *ConvType = ParseConversionFunctionId()) {
-          if (!LHS.isInvalid())
-            LHS = Actions.ActOnConversionOperatorReferenceExpr(CurScope,
-                                                               move(LHS), OpLoc,
-                                                               OpKind,
-                                                               OperatorLoc,
-                                                               ConvType, &SS);
-        } else {
-          // Don't emit a diagnostic; ParseConversionFunctionId does it for us
-          return ExprError();
-        }
-      } else if (getLang().CPlusPlus && Tok.is(tok::annot_template_id)) {
-        // We have a reference to a member template along with explicitly-
-        // specified template arguments, e.g., t.f<int>.
-        TemplateIdAnnotation *TemplateId
-          = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
-        if (!LHS.isInvalid()) {
-          ASTTemplateArgsPtr TemplateArgsPtr(Actions,
-                                             TemplateId->getTemplateArgs(),
-                                             TemplateId->getTemplateArgIsType(),
-                                             TemplateId->NumArgs);
-
-          LHS = Actions.ActOnMemberTemplateIdReferenceExpr(CurScope, move(LHS),
-                                                           OpLoc, OpKind, SS,
-                                        TemplateTy::make(TemplateId->Template),
-                                                   TemplateId->TemplateNameLoc,
-                                                         TemplateId->LAngleLoc,
-                                                           TemplateArgsPtr,
-                                         TemplateId->getTemplateArgLocations(),
-                                                         TemplateId->RAngleLoc);
-        }
-        ConsumeToken();
-      } else {
-        Diag(Tok, diag::err_expected_ident);
+      UnqualifiedId Name;
+      if (ParseUnqualifiedId(SS, 
+                             /*EnteringContext=*/false, 
+                             /*AllowDestructorName=*/true,
+                             /*AllowConstructorName=*/false, 
+                             ObjectType,
+                             Name))
         return ExprError();
-      }
+      
+      if (!LHS.isInvalid())
+        LHS = Actions.ActOnMemberAccessExpr(CurScope, move(LHS), OpLoc, OpKind,
+                                            SS, Name, ObjCImpDecl,
+                                            Tok.is(tok::l_paren));
+      
       break;
     }
     case tok::plusplus:    // postfix-expression: postfix-expression '++'

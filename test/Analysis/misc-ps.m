@@ -121,12 +121,12 @@ void check_zero_sized_VLA(int x) {
   if (x)
     return;
 
-  int vla[x]; // expected-warning{{Variable-length array 'vla' has zero elements (undefined behavior)}}
+  int vla[x]; // expected-warning{{Declare variable-length array (VLA) of zero size}}
 }
 
 void check_uninit_sized_VLA() {
   int x;
-  int vla[x]; // expected-warning{{Variable-length array 'vla' garbage value for array size}}
+  int vla[x]; // expected-warning{{Declare variable-length array (VLA) of undefined size}}
 }
 
 // sizeof(void)
@@ -152,6 +152,12 @@ void handle_sizeof_void(unsigned flag) {
     
   // Infeasible.
   *p = 1; // no-warning
+}
+
+// check deference of undefined values
+void check_deref_undef(void) {
+  int *p;
+  *p = 0xDEADBEEF; // expected-warning{{Dereference of undefined pointer value}}
 }
 
 // PR 3422

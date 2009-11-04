@@ -1707,29 +1707,22 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
   llvm::SmallVector<ParmVarDecl*, 16> Params;
 
   for (unsigned i = 0, e = Sel.getNumArgs(); i != e; ++i) {
-    QualType ArgType, UnpromotedArgType;
+    QualType ArgType;
+    DeclaratorInfo *DI;
 
     if (ArgInfo[i].Type == 0) {
-      UnpromotedArgType = ArgType = Context.getObjCIdType();
+      ArgType = Context.getObjCIdType();
+      DI = 0;
     } else {
-      UnpromotedArgType = ArgType = GetTypeFromParser(ArgInfo[i].Type);
+      ArgType = GetTypeFromParser(ArgInfo[i].Type, &DI);
       // Perform the default array/function conversions (C99 6.7.5.3p[7,8]).
       ArgType = adjustParameterType(ArgType);
     }
 
-    ParmVarDecl* Param;
-    if (ArgType == UnpromotedArgType)
-      Param = ParmVarDecl::Create(Context, ObjCMethod, ArgInfo[i].NameLoc,
-                                  ArgInfo[i].Name, ArgType,
-                                  /*DInfo=*/0, //FIXME: Pass info here.
-                                  VarDecl::None, 0);
-    else
-      Param = OriginalParmVarDecl::Create(Context, ObjCMethod,
-                                          ArgInfo[i].NameLoc,
-                                          ArgInfo[i].Name, ArgType,
-                                          /*DInfo=*/0, //FIXME: Pass info here.
-                                          UnpromotedArgType,
-                                          VarDecl::None, 0);
+    ParmVarDecl* Param
+      = ParmVarDecl::Create(Context, ObjCMethod, ArgInfo[i].NameLoc,
+                            ArgInfo[i].Name, ArgType, DI,
+                            VarDecl::None, 0);
 
     if (ArgType->isObjCInterfaceType()) {
       Diag(ArgInfo[i].NameLoc,
@@ -1755,6 +1748,8 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
   if (AttrList)
     ProcessDeclAttributeList(TUScope, ObjCMethod, AttrList);
 
+  const ObjCMethodDecl *InterfaceMD = 0;
+
   // For implementations (which can be very "coarse grain"), we add the
   // method now. This allows the AST to implement lookup methods that work
   // incrementally (without waiting until we parse the @end). It also allows
@@ -1768,6 +1763,8 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
       PrevMethod = ImpDecl->getClassMethod(Sel);
       ImpDecl->addClassMethod(ObjCMethod);
     }
+    InterfaceMD = ImpDecl->getClassInterface()->getMethod(Sel,
+                                                   MethodType == tok::minus);
     if (AttrList)
       Diag(EndLoc, diag::warn_attribute_method_def);
   } else if (ObjCCategoryImplDecl *CatImpDecl =
@@ -1788,6 +1785,12 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
       << ObjCMethod->getDeclName();
     Diag(PrevMethod->getLocation(), diag::note_previous_declaration);
   }
+
+  // If the interface declared this method, and it was deprecated there,
+  // mark it deprecated here.
+  if (InterfaceMD && InterfaceMD->hasAttr<DeprecatedAttr>())
+    ObjCMethod->addAttr(::new (Context) DeprecatedAttr());
+
   return DeclPtrTy::make(ObjCMethod);
 }
 
@@ -1900,33 +1903,34 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
       // handling.
       if ((CCPrimary = CDecl->getClassInterface())) {
         // Find the property in continuation class's primary class only.
-        ObjCPropertyDecl *PIDecl = 0;
         IdentifierInfo *PropertyId = FD.D.getIdentifier();
-        for (ObjCInterfaceDecl::prop_iterator
-               I = CCPrimary->prop_begin(), E = CCPrimary->prop_end();
-             I != E; ++I)
-          if ((*I)->getIdentifier() == PropertyId) {
-            PIDecl = *I;
-            break;
-          }
-
-        if (PIDecl) {
+        if (ObjCPropertyDecl *PIDecl = 
+              CCPrimary->FindPropertyVisibleInPrimaryClass(PropertyId)) {
           // property 'PIDecl's readonly attribute will be over-ridden
           // with continuation class's readwrite property attribute!
           unsigned PIkind = PIDecl->getPropertyAttributes();
           if (isReadWrite && (PIkind & ObjCPropertyDecl::OBJC_PR_readonly)) {
-            if ((Attributes & ObjCPropertyDecl::OBJC_PR_nonatomic) !=
-                (PIkind & ObjCPropertyDecl::OBJC_PR_nonatomic))
+            unsigned assignRetainCopyNonatomic = 
+              (ObjCPropertyDecl::OBJC_PR_assign |
+               ObjCPropertyDecl::OBJC_PR_retain |
+               ObjCPropertyDecl::OBJC_PR_copy |
+               ObjCPropertyDecl::OBJC_PR_nonatomic);
+            if ((Attributes & assignRetainCopyNonatomic) !=
+                (PIkind & assignRetainCopyNonatomic)) {
               Diag(AtLoc, diag::warn_property_attr_mismatch);
+              Diag(PIDecl->getLocation(), diag::note_property_declare);
+            }
             PIDecl->makeitReadWriteAttribute();
             if (Attributes & ObjCDeclSpec::DQ_PR_retain)
               PIDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_retain);
             if (Attributes & ObjCDeclSpec::DQ_PR_copy)
               PIDecl->setPropertyAttributes(ObjCPropertyDecl::OBJC_PR_copy);
             PIDecl->setSetterName(SetterSel);
-          } else
+          } else {
             Diag(AtLoc, diag::err_use_continuation_class)
               << CCPrimary->getDeclName();
+            Diag(PIDecl->getLocation(), diag::note_property_declare);
+          }
           *isOverridingProperty = true;
           // Make sure setter decl is synthesized, and added to primary
           // class's list.
@@ -2053,6 +2057,14 @@ Sema::DeclPtrTy Sema::ActOnPropertyImplDecl(SourceLocation AtLoc,
     if (!property) {
       Diag(PropertyLoc, diag::error_bad_property_decl) << IDecl->getDeclName();
       return DeclPtrTy();
+    }
+    if (const ObjCCategoryDecl *CD = 
+        dyn_cast<ObjCCategoryDecl>(property->getDeclContext())) {
+      if (CD->getIdentifier()) {
+        Diag(PropertyLoc, diag::error_category_property) << CD->getDeclName();
+        Diag(property->getLocation(), diag::note_property_declare);
+        return DeclPtrTy();
+      }
     }
   } else if ((CatImplClass = dyn_cast<ObjCCategoryImplDecl>(ClassImpDecl))) {
     if (Synthesize) {

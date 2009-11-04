@@ -118,6 +118,27 @@ ObjCContainerDecl::FindPropertyDeclaration(IdentifierInfo *PropertyId) const {
   return 0;
 }
 
+/// FindPropertyVisibleInPrimaryClass - Finds declaration of the property
+/// with name 'PropertyId' in the primary class; including those in protocols
+/// (direct or indirect) used by the promary class.
+/// FIXME: Convert to DeclContext lookup...
+///
+ObjCPropertyDecl *
+ObjCContainerDecl::FindPropertyVisibleInPrimaryClass(
+                                            IdentifierInfo *PropertyId) const {
+  assert(isa<ObjCInterfaceDecl>(this) && "FindPropertyVisibleInPrimaryClass");
+  for (prop_iterator I = prop_begin(), E = prop_end(); I != E; ++I)
+    if ((*I)->getIdentifier() == PropertyId)
+      return *I;
+  const ObjCInterfaceDecl *OID = dyn_cast<ObjCInterfaceDecl>(this);
+  // Look through protocols.
+  for (ObjCInterfaceDecl::protocol_iterator I = OID->protocol_begin(),
+       E = OID->protocol_end(); I != E; ++I)
+    if (ObjCPropertyDecl *P = (*I)->FindPropertyDeclaration(PropertyId))
+      return P;
+  return 0;
+}
+
 void ObjCInterfaceDecl::mergeClassExtensionProtocolList(
                               ObjCProtocolDecl *const* ExtList, unsigned ExtNum,
                               ASTContext &C)
@@ -288,7 +309,7 @@ ObjCMethodDecl *ObjCMethodDecl::getNextRedeclaration() {
 
   } else if (ObjCCategoryImplDecl *CImplD =
                dyn_cast<ObjCCategoryImplDecl>(CtxD)) {
-    if (ObjCCategoryDecl *CatD = CImplD->getCategoryClass())
+    if (ObjCCategoryDecl *CatD = CImplD->getCategoryDecl())
       Redecl = CatD->getMethod(getSelector(), isInstanceMethod());
   }
 
@@ -306,7 +327,7 @@ ObjCMethodDecl *ObjCMethodDecl::getCanonicalDecl() {
 
   } else if (ObjCCategoryImplDecl *CImplD =
                dyn_cast<ObjCCategoryImplDecl>(CtxD)) {
-    if (ObjCCategoryDecl *CatD = CImplD->getCategoryClass())
+    if (ObjCCategoryDecl *CatD = CImplD->getCategoryDecl())
       if (ObjCMethodDecl *MD = CatD->getMethod(getSelector(),
                                                isInstanceMethod()))
         return MD;
@@ -635,7 +656,7 @@ ObjCCategoryImplDecl::Create(ASTContext &C, DeclContext *DC,
   return new (C) ObjCCategoryImplDecl(DC, L, Id, ClassInterface);
 }
 
-ObjCCategoryDecl *ObjCCategoryImplDecl::getCategoryClass() const {
+ObjCCategoryDecl *ObjCCategoryImplDecl::getCategoryDecl() const {
   return getClassInterface()->FindCategoryDeclaration(getIdentifier());
 }
 
