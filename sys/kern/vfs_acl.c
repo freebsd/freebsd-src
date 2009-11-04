@@ -521,7 +521,7 @@ __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 int
 __acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
 {
-	struct nameidat nd;
+	struct nameidata nd;
 	int vfslocked, error;
 
 	NDINIT(&nd, LOOKUP, MPSAFE|NOFOLLOW, UIO_USERSPACE, uap->path, td);
