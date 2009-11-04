@@ -1031,7 +1031,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i, struct mbuf *m)
 		panic("%s: %d segments\n", __func__, nsegs);
 	}
 
-	bus_dmamap_sync(sc->bge_cdata.bge_mtag,
+	bus_dmamap_sync(sc->bge_cdata.bge_mtag_jumbo,
 	    sc->bge_cdata.bge_rx_jumbo_dmamap[i],
 	    BUS_DMASYNC_PREREAD);
 
