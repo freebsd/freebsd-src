@@ -133,6 +133,7 @@ struct arge_softc {
 	int			arge_phy_num;
 	uint32_t		arge_ddr_flush_reg;
 	uint32_t		arge_pll_reg;
+	int			arge_if_flags;
 };
 
 #endif /* __IF_ARGEVAR_H__ */
