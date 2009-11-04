@@ -932,7 +932,7 @@ bge_newbuf_std(struct bge_softc *sc, int i, struct mbuf *m)
 
 	if ((sc->bge_flags & BGE_FLAG_RX_ALIGNBUG) == 0)
 		m_adj(m_new, ETHER_ALIGN);
-	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag,
+	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_rx_mtag,
 	    sc->bge_cdata.bge_rx_std_dmamap[i], m_new, segs, &nsegs, 0);
 	if (error != 0) {
 		if (m == NULL) {
@@ -949,7 +949,7 @@ bge_newbuf_std(struct bge_softc *sc, int i, struct mbuf *m)
 	r->bge_len = segs[0].ds_len;
 	r->bge_idx = i;
 
-	bus_dmamap_sync(sc->bge_cdata.bge_mtag,
+	bus_dmamap_sync(sc->bge_cdata.bge_rx_mtag,
 	    sc->bge_cdata.bge_rx_std_dmamap[i],
 	    BUS_DMASYNC_PREREAD);
 
@@ -1068,10 +1068,10 @@ bge_free_rx_ring_std(struct bge_softc *sc)
 
 	for (i = 0; i < BGE_STD_RX_RING_CNT; i++) {
 		if (sc->bge_cdata.bge_rx_std_chain[i] != NULL) {
-			bus_dmamap_sync(sc->bge_cdata.bge_mtag,
+			bus_dmamap_sync(sc->bge_cdata.bge_rx_mtag,
 			    sc->bge_cdata.bge_rx_std_dmamap[i],
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->bge_cdata.bge_mtag,
+			bus_dmamap_unload(sc->bge_cdata.bge_rx_mtag,
 			    sc->bge_cdata.bge_rx_std_dmamap[i]);
 			m_freem(sc->bge_cdata.bge_rx_std_chain[i]);
 			sc->bge_cdata.bge_rx_std_chain[i] = NULL;
@@ -1138,10 +1138,10 @@ bge_free_tx_ring(struct bge_softc *sc)
 
 	for (i = 0; i < BGE_TX_RING_CNT; i++) {
 		if (sc->bge_cdata.bge_tx_chain[i] != NULL) {
-			bus_dmamap_sync(sc->bge_cdata.bge_mtag,
+			bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[i],
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->bge_cdata.bge_mtag,
+			bus_dmamap_unload(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[i]);
 			m_freem(sc->bge_cdata.bge_tx_chain[i]);
 			sc->bge_cdata.bge_tx_chain[i] = NULL;
@@ -1976,7 +1976,7 @@ bge_dma_free(struct bge_softc *sc)
 	/* Destroy DMA maps for RX buffers. */
 	for (i = 0; i < BGE_STD_RX_RING_CNT; i++) {
 		if (sc->bge_cdata.bge_rx_std_dmamap[i])
-			bus_dmamap_destroy(sc->bge_cdata.bge_mtag,
+			bus_dmamap_destroy(sc->bge_cdata.bge_rx_mtag,
 			    sc->bge_cdata.bge_rx_std_dmamap[i]);
 	}
 
@@ -1990,12 +1990,14 @@ bge_dma_free(struct bge_softc *sc)
 	/* Destroy DMA maps for TX buffers. */
 	for (i = 0; i < BGE_TX_RING_CNT; i++) {
 		if (sc->bge_cdata.bge_tx_dmamap[i])
-			bus_dmamap_destroy(sc->bge_cdata.bge_mtag,
+			bus_dmamap_destroy(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[i]);
 	}
 
-	if (sc->bge_cdata.bge_mtag)
-		bus_dma_tag_destroy(sc->bge_cdata.bge_mtag);
+	if (sc->bge_cdata.bge_rx_mtag)
+		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_mtag);
+	if (sc->bge_cdata.bge_tx_mtag)
+		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_mtag);
 
 
 	/* Destroy standard RX ring. */
@@ -2106,21 +2108,33 @@ bge_dma_alloc(device_t dev)
 	}
 
 	/*
-	 * Create tag for mbufs.
+	 * Create tag for Tx mbufs.
 	 */
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, MCLBYTES * BGE_NSEG_NEW, BGE_NSEG_NEW, MCLBYTES,
-	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->bge_cdata.bge_mtag);
+	    BUS_DMA_ALLOCNOW, NULL, NULL, &sc->bge_cdata.bge_tx_mtag);
 
 	if (error) {
-		device_printf(sc->bge_dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev, "could not allocate TX dma tag\n");
+		return (ENOMEM);
+	}
+
+	/*
+	 * Create tag for Rx mbufs.
+	 */
+	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1,
+	    MCLBYTES, BUS_DMA_ALLOCNOW, NULL, NULL, &sc->bge_cdata.bge_rx_mtag);
+
+	if (error) {
+		device_printf(sc->bge_dev, "could not allocate RX dma tag\n");
 		return (ENOMEM);
 	}
 
 	/* Create DMA maps for RX buffers. */
 	for (i = 0; i < BGE_STD_RX_RING_CNT; i++) {
-		error = bus_dmamap_create(sc->bge_cdata.bge_mtag, 0,
+		error = bus_dmamap_create(sc->bge_cdata.bge_rx_mtag, 0,
 			    &sc->bge_cdata.bge_rx_std_dmamap[i]);
 		if (error) {
 			device_printf(sc->bge_dev,
@@ -2131,11 +2145,11 @@ bge_dma_alloc(device_t dev)
 
 	/* Create DMA maps for TX buffers. */
 	for (i = 0; i < BGE_TX_RING_CNT; i++) {
-		error = bus_dmamap_create(sc->bge_cdata.bge_mtag, 0,
+		error = bus_dmamap_create(sc->bge_cdata.bge_tx_mtag, 0,
 			    &sc->bge_cdata.bge_tx_dmamap[i]);
 		if (error) {
 			device_printf(sc->bge_dev,
-			    "can't create DMA map for RX\n");
+			    "can't create DMA map for TX\n");
 			return (ENOMEM);
 		}
 	}
@@ -3173,10 +3187,10 @@ bge_rxeof(struct bge_softc *sc)
 			}
 		} else {
 			BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
-			bus_dmamap_sync(sc->bge_cdata.bge_mtag,
+			bus_dmamap_sync(sc->bge_cdata.bge_rx_mtag,
 			    sc->bge_cdata.bge_rx_std_dmamap[rxidx],
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(sc->bge_cdata.bge_mtag,
+			bus_dmamap_unload(sc->bge_cdata.bge_rx_mtag,
 			    sc->bge_cdata.bge_rx_std_dmamap[rxidx]);
 			m = sc->bge_cdata.bge_rx_std_chain[rxidx];
 			sc->bge_cdata.bge_rx_std_chain[rxidx] = NULL;
@@ -3306,10 +3320,10 @@ bge_txeof(struct bge_softc *sc)
 		if (cur_tx->bge_flags & BGE_TXBDFLAG_END)
 			ifp->if_opackets++;
 		if (sc->bge_cdata.bge_tx_chain[idx] != NULL) {
-			bus_dmamap_sync(sc->bge_cdata.bge_mtag,
+			bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[idx],
 			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->bge_cdata.bge_mtag,
+			bus_dmamap_unload(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[idx]);
 			m_freem(sc->bge_cdata.bge_tx_chain[idx]);
 			sc->bge_cdata.bge_tx_chain[idx] = NULL;
@@ -3642,7 +3656,7 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	}
 
 	map = sc->bge_cdata.bge_tx_dmamap[idx];
-	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map, m, segs,
+	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_tx_mtag, map, m, segs,
 	    &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		m = m_collapse(m, M_DONTWAIT, BGE_NSEG_NEW);
@@ -3652,8 +3666,8 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 			return (ENOBUFS);
 		}
 		*m_head = m;
-		error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_mtag, map, m,
-		    segs, &nsegs, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_tx_mtag, map,
+		    m, segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error) {
 			m_freem(m);
 			*m_head = NULL;
@@ -3667,11 +3681,11 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	 * of the end of the ring.
 	 */
 	if (nsegs > (BGE_TX_RING_CNT - sc->bge_txcnt - 16)) {
-		bus_dmamap_unload(sc->bge_cdata.bge_mtag, map);
+		bus_dmamap_unload(sc->bge_cdata.bge_tx_mtag, map);
 		return (ENOBUFS);
 	}
 
-	bus_dmamap_sync(sc->bge_cdata.bge_mtag, map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag, map, BUS_DMASYNC_PREWRITE);
 
 	for (i = 0; ; i++) {
 		d = &sc->bge_ldata.bge_tx_ring[idx];
