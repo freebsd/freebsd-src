@@ -501,6 +501,13 @@ fxp_attach(device_t dev)
 			sc->flags |= FXP_FLAG_WOLCAP;
 	}
 
+	/* Receiver lock-up workaround detection. */
+	fxp_read_eeprom(sc, &data, 3, 1);
+	if ((data & 0x03) != 0x03) {
+		sc->flags |= FXP_FLAG_RXBUG;
+		device_printf(dev, "Enabling Rx lock-up workaround\n");
+	}
+
 	/*
 	 * Determine whether we must use the 503 serial interface.
 	 */
@@ -2015,7 +2022,7 @@ fxp_tick(void *xsc)
 	if (sp->rx_good) {
 		ifp->if_ipackets += le32toh(sp->rx_good);
 		sc->rx_idle_secs = 0;
-	} else {
+	} else if (sc->flags & FXP_FLAG_RXBUG) {
 		/*
 		 * Receiver's been idle for another second.
 		 */
