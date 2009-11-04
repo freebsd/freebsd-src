@@ -348,12 +348,14 @@ static void
 fxp_dma_wait(struct fxp_softc *sc, volatile uint16_t *status,
     bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	int i = 10000;
+	int i;
 
-	bus_dmamap_sync(dmat, map, BUS_DMASYNC_POSTREAD);
-	while (!(le16toh(*status) & FXP_CB_STATUS_C) && --i) {
+	for (i = 10000; i > 0; i--) {
 		DELAY(2);
-		bus_dmamap_sync(dmat, map, BUS_DMASYNC_POSTREAD);
+		bus_dmamap_sync(dmat, map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		if ((le16toh(*status) & FXP_CB_STATUS_C) != 0)
+			break;
 	}
 	if (i == 0)
 		device_printf(sc->dev, "DMA timeout\n");
@@ -2222,13 +2224,12 @@ fxp_init_body(struct fxp_softc *sc)
 	 	 * Start the multicast setup command.
 		 */
 		fxp_scb_wait(sc);
-		bus_dmamap_sync(sc->mcs_tag, sc->mcs_map, BUS_DMASYNC_PREWRITE);
+		bus_dmamap_sync(sc->mcs_tag, sc->mcs_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->mcs_addr);
 		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 		/* ...and wait for it to complete. */
 		fxp_dma_wait(sc, &mcsp->cb_status, sc->mcs_tag, sc->mcs_map);
-		bus_dmamap_sync(sc->mcs_tag, sc->mcs_map,
-		    BUS_DMASYNC_POSTWRITE);
 	}
 
 	/*
@@ -2336,12 +2337,12 @@ fxp_init_body(struct fxp_softc *sc)
 	 * Start the config command/DMA.
 	 */
 	fxp_scb_wait(sc);
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.cbl_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
 	fxp_dma_wait(sc, &cbp->cb_status, sc->cbl_tag, sc->cbl_map);
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_POSTWRITE);
 
 	/*
 	 * Now initialize the station address. Temporarily use the TxCB
@@ -2357,11 +2358,11 @@ fxp_init_body(struct fxp_softc *sc)
 	 * Start the IAS (Individual Address Setup) command/DMA.
 	 */
 	fxp_scb_wait(sc);
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
 	fxp_dma_wait(sc, &cb_ias->cb_status, sc->cbl_tag, sc->cbl_map);
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_POSTWRITE);
 
 	/*
 	 * Initialize transmit control block (TxCB) list.
@@ -3006,12 +3007,12 @@ fxp_load_ucode(struct fxp_softc *sc)
 	 * Download the ucode to the chip.
 	 */
 	fxp_scb_wait(sc);
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.cbl_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
 	fxp_dma_wait(sc, &cbp->cb_status, sc->cbl_tag, sc->cbl_map);
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_POSTWRITE);
 	device_printf(sc->dev,
 	    "Microcode loaded, int_delay: %d usec  bundle_max: %d\n",
 	    sc->tunable_int_delay,
