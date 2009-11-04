@@ -1470,6 +1470,8 @@ vesa_load_state(video_adapter_t *adp, void *p)
 		    (flags & V_INFO_LINEAR) != 0)
 			mode |= 0x4000;
 		(void)vesa_bios_set_mode(mode);
+		if ((vesa_adp_info->v_flags & V_DAC8) != 0)
+			(void)vesa_bios_set_dac(8);
 		(void)(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
 	}
 
