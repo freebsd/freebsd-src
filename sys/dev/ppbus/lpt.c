@@ -437,7 +437,7 @@ lptout(void *arg)
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
-			sc->sc_backoff = sc->sc_backoff > hz/LPTOUTMAX;
+			sc->sc_backoff = hz/LPTOUTMAX;
 		timeout(lptout, (caddr_t)dev, sc->sc_backoff);
 	} else
 		sc->sc_state &= ~TOUT;
