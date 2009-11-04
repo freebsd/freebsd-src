@@ -179,17 +179,33 @@ isavga_suspend(device_t dev)
 	nbytes = vidd_save_state(sc->adp, NULL, 0);
 	if (nbytes <= 0)
 		return (0);
-	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT | M_ZERO);
-	if (sc->state_buf == NULL)
-		return (0);
-	if (bootverbose)
-		device_printf(dev, "saving %d bytes of video state\n", nbytes);
-	if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
-		device_printf(dev, "failed to save state (nbytes=%d)\n",
-		    nbytes);
-		free(sc->state_buf, M_TEMP);
-		sc->state_buf = NULL;
+	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT);
+	if (sc->state_buf != NULL) {
+		if (bootverbose)
+			device_printf(dev, "saving %d bytes of video state\n",
+			    nbytes);
+		if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
+			device_printf(dev, "failed to save state (nbytes=%d)\n",
+			    nbytes);
+			free(sc->state_buf, M_TEMP);
+			sc->state_buf = NULL;
+		}
 	}
+
+	/* Save the color palette across the suspend. */
+	if (sc->pal_buf != NULL)
+		free(sc->pal_buf, M_TEMP);
+	sc->pal_buf = malloc(256 * 3, M_TEMP, M_NOWAIT);
+	if (sc->pal_buf != NULL) {
+		if (bootverbose)
+			device_printf(dev, "saving color palette\n");
+		if (vidd_save_palette(sc->adp, sc->pal_buf) != 0) {
+			device_printf(dev, "failed to save palette\n");
+			free(sc->pal_buf, M_TEMP);
+			sc->pal_buf = NULL;
+		}
+	}
+
 	return (0);
 }
 
@@ -204,6 +220,12 @@ isavga_resume(device_t dev)
 			device_printf(dev, "failed to reload state\n");
 		free(sc->state_buf, M_TEMP);
 		sc->state_buf = NULL;
+	}
+	if (sc->pal_buf != NULL) {
+		if (vidd_load_palette(sc->adp, sc->pal_buf) != 0)
+			device_printf(dev, "failed to reload palette\n");
+		free(sc->pal_buf, M_TEMP);
+		sc->pal_buf = NULL;
 	}
 
 	bus_generic_resume(dev);
