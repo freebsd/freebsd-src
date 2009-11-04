@@ -231,7 +231,7 @@ amr_attach(struct amr_softc *sc)
     }
 
 #ifdef AMR_BOARD_INIT
-    if ((AMR_IS_QUARTZ(sc) ? amr_quartz_init(sc) : amr_std_init(sc))))
+    if ((AMR_IS_QUARTZ(sc) ? amr_quartz_init(sc) : amr_std_init(sc)))
 	return(ENXIO);
 #endif
 
