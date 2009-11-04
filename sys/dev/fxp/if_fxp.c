@@ -1311,14 +1311,6 @@ fxp_start_body(struct ifnet *ifp)
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 
-	/*
-	 * See if we need to suspend xmit until the multicast filter
-	 * has been reprogrammed (which can only be done at the head
-	 * of the command chain).
-	 */
-	if (sc->need_mcsetup)
-		return;
-
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
@@ -1762,11 +1754,8 @@ fxp_txeof(struct fxp_softc *sc)
 	sc->fxp_desc.tx_first = txp;
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	if (sc->tx_queued == 0) {
+	if (sc->tx_queued == 0)
 		sc->watchdog_timer = 0;
-		if (sc->need_mcsetup)
-			fxp_mc_setup(sc);
-	}
 }
 
 static void
@@ -2071,7 +2060,8 @@ fxp_tick(void *xsc)
 	if (sc->rx_idle_secs > FXP_MAX_RX_IDLE) {
 		sc->rx_idle_secs = 0;
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-			fxp_mc_setup(sc);
+			fxp_init_body(sc);
+		return;
 	}
 	/*
 	 * If there is no pending command, start another stats
@@ -2213,7 +2203,6 @@ fxp_init_body(struct fxp_softc *sc)
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *tcbp;
 	struct fxp_tx *txp;
-	struct fxp_cb_mcs *mcsp;
 	int i, prm;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
@@ -2256,25 +2245,10 @@ fxp_init_body(struct fxp_softc *sc)
 		fxp_load_ucode(sc);
 
 	/*
-	 * Initialize the multicast address list.
+	 * Set IFF_ALLMULTI status. It's needed in configure action
+	 * command.
 	 */
-	if (fxp_mc_addrs(sc)) {
-		mcsp = sc->mcsp;
-		mcsp->cb_status = 0;
-		mcsp->cb_command =
-		    htole16(FXP_CB_COMMAND_MCAS | FXP_CB_COMMAND_EL);
-		mcsp->link_addr = 0xffffffff;
-		/*
-	 	 * Start the multicast setup command.
-		 */
-		fxp_scb_wait(sc);
-		bus_dmamap_sync(sc->mcs_tag, sc->mcs_map,
-		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-		CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->mcs_addr);
-		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
-		/* ...and wait for it to complete. */
-		fxp_dma_wait(sc, &mcsp->cb_status, sc->mcs_tag, sc->mcs_map);
-	}
+	fxp_mc_addrs(sc);
 
 	/*
 	 * We temporarily use memory that contains the TxCB list to
@@ -2348,7 +2322,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->force_fdx =	0;	/* (don't) force full duplex */
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
-	cbp->mc_all =		sc->flags & FXP_FLAG_ALL_MCAST ? 1 : 0;
+	cbp->mc_all =		ifp->if_flags & IFF_ALLMULTI ? 1 : 0;
 	cbp->gamla_rx =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 	cbp->vlan_strip_en =	((sc->flags & FXP_FLAG_EXT_RFA) != 0 &&
 	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) ? 1 : 0;
@@ -2404,9 +2378,15 @@ fxp_init_body(struct fxp_softc *sc)
 	fxp_scb_wait(sc);
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.cbl_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 	/* ...and wait for it to complete. */
 	fxp_dma_wait(sc, &cb_ias->cb_status, sc->cbl_tag, sc->cbl_map);
+
+	/*
+	 * Initialize the multicast address list.
+	 */
+	fxp_mc_setup(sc);
 
 	/*
 	 * Initialize transmit control block (TxCB) list.
@@ -2439,6 +2419,7 @@ fxp_init_body(struct fxp_softc *sc)
 	sc->tx_queued = 1;
 
 	fxp_scb_wait(sc);
+	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->fxp_desc.cbl_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 
 	/*
@@ -2718,11 +2699,6 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		FXP_LOCK(sc);
-		if (ifp->if_flags & IFF_ALLMULTI)
-			sc->flags |= FXP_FLAG_ALL_MCAST;
-		else
-			sc->flags &= ~FXP_FLAG_ALL_MCAST;
-
 		/*
 		 * If interface is marked up and not running, then start it.
 		 * If it is marked down and running, stop it.
@@ -2730,35 +2706,24 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		 * such as IFF_PROMISC are handled.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			fxp_init_body(sc);
+			if (((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) &&
+			    ((ifp->if_flags ^ sc->if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI | IFF_LINK0)) != 0)
+				fxp_init_body(sc);
+			else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+				fxp_init_body(sc);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 				fxp_stop(sc);
 		}
+		sc->if_flags = ifp->if_flags;
 		FXP_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		FXP_LOCK(sc);
-		if (ifp->if_flags & IFF_ALLMULTI)
-			sc->flags |= FXP_FLAG_ALL_MCAST;
-		else
-			sc->flags &= ~FXP_FLAG_ALL_MCAST;
-		/*
-		 * Multicast list has changed; set the hardware filter
-		 * accordingly.
-		 */
-		if ((sc->flags & FXP_FLAG_ALL_MCAST) == 0)
-			fxp_mc_setup(sc);
-		/*
-		 * fxp_mc_setup() can set FXP_FLAG_ALL_MCAST, so check it
-		 * again rather than else {}.
-		 */
-		if (sc->flags & FXP_FLAG_ALL_MCAST)
-			fxp_init_body(sc);
-		FXP_UNLOCK(sc);
-		error = 0;
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			fxp_init(sc);
 		break;
 
 	case SIOCSIFMEDIA:
@@ -2862,13 +2827,13 @@ fxp_mc_addrs(struct fxp_softc *sc)
 	int nmcasts;
 
 	nmcasts = 0;
-	if ((sc->flags & FXP_FLAG_ALL_MCAST) == 0) {
+	if ((ifp->if_flags & IFF_ALLMULTI) == 0) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			if (nmcasts >= MAXMCADDR) {
-				sc->flags |= FXP_FLAG_ALL_MCAST;
+				ifp->if_flags |= IFF_ALLMULTI;
 				nmcasts = 0;
 				break;
 			}
@@ -2893,87 +2858,28 @@ fxp_mc_addrs(struct fxp_softc *sc)
  * points to the TxCB ring, but the mcsetup descriptor itself is not part
  * of it. We then can do 'CU_START' on the mcsetup descriptor and have it
  * lead into the regular TxCB ring when it completes.
- *
- * This function must be called at splimp.
  */
 static void
 fxp_mc_setup(struct fxp_softc *sc)
 {
-	struct fxp_cb_mcs *mcsp = sc->mcsp;
-	struct fxp_tx *txp;
+	struct fxp_cb_mcs *mcsp;
 	int count;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
-	/*
-	 * If there are queued commands, we must wait until they are all
-	 * completed. If we are already waiting, then add a NOP command
-	 * with interrupt option so that we're notified when all commands
-	 * have been completed - fxp_start() ensures that no additional
-	 * TX commands will be added when need_mcsetup is true.
-	 */
-	if (sc->tx_queued) {
-		/*
-		 * need_mcsetup will be true if we are already waiting for the
-		 * NOP command to be completed (see below). In this case, bail.
-		 */
-		if (sc->need_mcsetup)
-			return;
-		sc->need_mcsetup = 1;
 
-		/*
-		 * Add a NOP command with interrupt so that we are notified
-		 * when all TX commands have been processed.
-		 */
-		txp = sc->fxp_desc.tx_last->tx_next;
-		txp->tx_mbuf = NULL;
-		txp->tx_cb->cb_status = 0;
-		txp->tx_cb->cb_command = htole16(FXP_CB_COMMAND_NOP |
-		    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I);
-		/*
-		 * Advance the end of list forward.
-		 */
-		sc->fxp_desc.tx_last->tx_cb->cb_command &=
-		    htole16(~FXP_CB_COMMAND_S);
-		bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
-		sc->fxp_desc.tx_last = txp;
-		sc->tx_queued++;
-		/*
-		 * Issue a resume in case the CU has just suspended.
-		 */
-		fxp_scb_wait(sc);
-		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_RESUME);
-		/*
-		 * Set a 5 second timer just in case we don't hear from the
-		 * card again.
-		 */
-		sc->watchdog_timer = 5;
-
-		return;
-	}
-	sc->need_mcsetup = 0;
-
-	/*
-	 * Initialize multicast setup descriptor.
-	 */
+	mcsp = sc->mcsp;
 	mcsp->cb_status = 0;
-	mcsp->cb_command = htole16(FXP_CB_COMMAND_MCAS |
-	    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I);
-	mcsp->link_addr = htole32(sc->fxp_desc.cbl_addr);
-	txp = &sc->fxp_desc.mcs_tx;
-	txp->tx_mbuf = NULL;
-	txp->tx_cb = (struct fxp_cb_tx *)sc->mcsp;
-	txp->tx_next = sc->fxp_desc.tx_list;
-	(void) fxp_mc_addrs(sc);
-	sc->fxp_desc.tx_first = sc->fxp_desc.tx_last = txp;
-	sc->tx_queued = 1;
+	mcsp->cb_command = htole16(FXP_CB_COMMAND_MCAS | FXP_CB_COMMAND_EL);
+	mcsp->link_addr = 0xffffffff;
+	fxp_mc_addrs(sc);
 
 	/*
-	 * Wait until command unit is not active. This should never
-	 * be the case when nothing is queued, but make sure anyway.
+	 * Wait until command unit is idle. This should never be the
+	 * case when nothing is queued, but make sure anyway.
 	 */
 	count = 100;
-	while ((CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS) >> 6) ==
-	    FXP_SCB_CUS_ACTIVE && --count)
+	while ((CSR_READ_1(sc, FXP_CSR_SCB_RUSCUS) >> 6) !=
+	    FXP_SCB_CUS_IDLE && --count)
 		DELAY(10);
 	if (count == 0) {
 		device_printf(sc->dev, "command queue timeout\n");
@@ -2988,9 +2894,8 @@ fxp_mc_setup(struct fxp_softc *sc)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->mcs_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
-
-	sc->watchdog_timer = 2;
-	return;
+	/* ...and wait for it to complete. */
+	fxp_dma_wait(sc, &mcsp->cb_status, sc->mcs_tag, sc->mcs_map);
 }
 
 static uint32_t fxp_ucode_d101a[] = D101_A_RCVBUNDLE_UCODE;

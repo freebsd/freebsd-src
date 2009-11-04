@@ -165,7 +165,6 @@ struct fxp_softc {
 	int maxtxseg;			/* maximum # of TX segments */
 	int maxsegsize;			/* maximum size of a TX segment */
 	int tx_queued;			/* # of active TxCB's */
-	int need_mcsetup;		/* multicast filter needs programming */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
 	uint32_t stats_addr;		/* DMA address of the stats structure */
 	int rx_idle_secs;		/* # of seconds RX has been idle */
@@ -185,6 +184,7 @@ struct fxp_softc {
 	int cu_resume_bug;
 	int revision;
 	int flags;
+	int if_flags;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
 };
@@ -195,7 +195,6 @@ struct fxp_softc {
 #define FXP_FLAG_EXT_TXCB	0x0008	/* enable use of extended TXCB */
 #define FXP_FLAG_SERIAL_MEDIA	0x0010	/* 10Mbps serial interface */
 #define FXP_FLAG_LONG_PKT_EN	0x0020	/* enable long packet reception */
-#define FXP_FLAG_ALL_MCAST	0x0040	/* accept all multicast frames */
 #define FXP_FLAG_CU_RESUME_BUG	0x0080	/* requires workaround for CU_RESUME */
 #define FXP_FLAG_UCODE		0x0100	/* ucode is loaded */
 #define FXP_FLAG_DEFERRED_RNR	0x0200	/* DEVICE_POLLING deferred RNR */
