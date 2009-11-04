@@ -2543,8 +2543,9 @@ struct bge_chain_data {
 	bus_dma_tag_t		bge_tx_ring_tag;
 	bus_dma_tag_t		bge_status_tag;
 	bus_dma_tag_t		bge_stats_tag;
-	bus_dma_tag_t		bge_mtag;	/* mbuf mapping tag */
-	bus_dma_tag_t		bge_mtag_jumbo;	/* mbuf mapping tag */
+	bus_dma_tag_t		bge_rx_mtag;	/* Rx mbuf mapping tag */
+	bus_dma_tag_t		bge_tx_mtag;	/* Tx mbuf mapping tag */
+	bus_dma_tag_t		bge_mtag_jumbo;	/* Jumbo mbuf mapping tag */
 	bus_dmamap_t		bge_tx_dmamap[BGE_TX_RING_CNT];
 	bus_dmamap_t		bge_rx_std_dmamap[BGE_STD_RX_RING_CNT];
 	bus_dmamap_t		bge_rx_jumbo_dmamap[BGE_JUMBO_RX_RING_CNT];
