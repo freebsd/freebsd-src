@@ -272,6 +272,7 @@ arge_attach(device_t dev)
 	ifp->if_ioctl = arge_ioctl;
 	ifp->if_start = arge_start;
 	ifp->if_init = arge_init;
+	sc->arge_if_flags = ifp->if_flags;
 
 	/* XXX: add real size */
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -900,25 +901,38 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFFLAGS:
-		printf("Implement me: SIOCSIFFLAGS\n");
+		ARGE_LOCK(sc);
+		if ((ifp->if_flags & IFF_UP) != 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				if (((ifp->if_flags ^ sc->arge_if_flags)
+				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+					arge_rx_locked(sc);
+			} else {
+				if (!sc->arge_detach)
+					arge_init_locked(sc);
+			}
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			arge_stop(sc);
+		}
+		sc->arge_if_flags = ifp->if_flags;
+		ARGE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		printf("Implement me: SIOCDELMULTI\n");
+		/* XXX: implement SIOCDELMULTI */
 		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		printf("Implement me: SIOCSIFMEDIA\n");
 		mii = device_get_softc(sc->arge_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
         case SIOCSIFCAP:
-		printf("Implement me: SIOCSIFCAP\n");
+		/* XXX: Check other capabilities */
 #ifdef DEVICE_POLLING
                 mask = ifp->if_capenable ^ ifr->ifr_reqcap;
-		error  = 0;
                 if (mask & IFCAP_POLLING) {
                         if (ifr->ifr_reqcap & IFCAP_POLLING) {
 				ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
@@ -936,6 +950,7 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
                                 ARGE_UNLOCK(sc);
                         }
                 }
+		error = 0;
                 break;
 #endif
 	default:
