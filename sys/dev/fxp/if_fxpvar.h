@@ -152,7 +152,8 @@ struct fxp_softc {
 	struct resource_spec *fxp_spec;	/* the resource spec we used */
 	void *ih;			/* interrupt handler cookie */
 	struct mtx sc_mtx;
-	bus_dma_tag_t fxp_mtag;		/* bus DMA tag for mbufs */
+	bus_dma_tag_t fxp_txmtag;	/* bus DMA tag for Tx mbufs */
+	bus_dma_tag_t fxp_rxmtag;	/* bus DMA tag for Rx mbufs */
 	bus_dma_tag_t fxp_stag;		/* bus DMA tag for stats */
 	bus_dmamap_t fxp_smap;		/* bus DMA map for stats */
 	bus_dma_tag_t cbl_tag;		/* DMA tag for the TxCB list */
