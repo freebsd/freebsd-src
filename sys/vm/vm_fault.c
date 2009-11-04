@@ -96,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
 #include <sys/mount.h>	/* XXX Temporary for VFS_LOCK_GIANT() */
