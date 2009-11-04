@@ -363,10 +363,12 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		if (path->device->transport == XPORT_ATA) {
-			cts.xport_specific.ata.bytecount = sectors * 512;
+			cts.xport_specific.ata.bytecount = sectors *
+			    ata_logical_sector_size(ident_buf);
 			cts.xport_specific.ata.valid = CTS_ATA_VALID_BYTECOUNT;
 		} else {
-			cts.xport_specific.sata.bytecount = sectors * 512;
+			cts.xport_specific.sata.bytecount = sectors *
+			    ata_logical_sector_size(ident_buf);
 			cts.xport_specific.sata.valid = CTS_SATA_VALID_BYTECOUNT;
 		}
 		xpt_action((union ccb *)&cts);

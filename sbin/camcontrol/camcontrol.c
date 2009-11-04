@@ -1061,6 +1061,10 @@ atacapprint(struct ata_params *parm)
 	printf("cylinders             %d\n", parm->cylinders);
 	printf("heads                 %d\n", parm->heads);
 	printf("sectors/track         %d\n", parm->sectors);
+	printf("sector size           logical %u, physical %lu, offset %lu\n",
+	    ata_logical_sector_size(parm),
+	    (unsigned long)ata_physical_sector_size(parm),
+	    (unsigned long)ata_logical_sector_offset(parm));
 
 	if (parm->config == ATA_PROTO_CFA ||
 	    (parm->support.command2 & ATA_SUPPORT_CFA))
