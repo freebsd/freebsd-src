@@ -140,12 +140,6 @@ static u_char fxp_cb_config_template[] = {
 	0x5	/* 21 */
 };
 
-struct fxp_ident {
-	uint16_t	devid;
-	int16_t		revid;		/* -1 matches anything */
-	char 		*name;
-};
-
 /*
  * Claim various Intel PCI device identifiers for this driver.  The
  * sub-vendor and sub-device field are extensively used to identify
@@ -153,52 +147,52 @@ struct fxp_ident {
  * them.
  */
 static struct fxp_ident fxp_ident_table[] = {
-    { 0x1029,	-1,	"Intel 82559 PCI/CardBus Pro/100" },
-    { 0x1030,	-1,	"Intel 82559 Pro/100 Ethernet" },
-    { 0x1031,	-1,	"Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1032,	-1,	"Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1033,	-1,	"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1034,	-1,	"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1035,	-1,	"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1036,	-1,	"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1037,	-1,	"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1038,	-1,	"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1039,	-1,	"Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103A,	-1,	"Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103B,	-1,	"Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x103C,	-1,	"Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103D,	-1,	"Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103E,	-1,	"Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x1050,	-1,	"Intel 82801BA (D865) Pro/100 VE Ethernet" },
-    { 0x1051,	-1,	"Intel 82562ET (ICH5/ICH5R) Pro/100 VE Ethernet" },
-    { 0x1059,	-1,	"Intel 82551QM Pro/100 M Mobile Connection" },
-    { 0x1064,	-1,	"Intel 82562EZ (ICH6)" },
-    { 0x1065,	-1,	"Intel 82562ET/EZ/GT/GZ PRO/100 VE Ethernet" },
-    { 0x1068,	-1,	"Intel 82801FBM (ICH6-M) Pro/100 VE Ethernet" },
-    { 0x1069,	-1,	"Intel 82562EM/EX/GX Pro/100 Ethernet" },
-    { 0x1091,	-1,	"Intel 82562GX Pro/100 Ethernet" },
-    { 0x1092,	-1,	"Intel Pro/100 VE Network Connection" },
-    { 0x1093,	-1,	"Intel Pro/100 VM Network Connection" },
-    { 0x1094,	-1,	"Intel Pro/100 946GZ (ICH7) Network Connection" },
-    { 0x1209,	-1,	"Intel 82559ER Embedded 10/100 Ethernet" },
-    { 0x1229,	0x01,	"Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x02,	"Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x03,	"Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x04,	"Intel 82558 Pro/100 Ethernet" },
-    { 0x1229,	0x05,	"Intel 82558 Pro/100 Ethernet" },
-    { 0x1229,	0x06,	"Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x07,	"Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x08,	"Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x09,	"Intel 82559ER Pro/100 Ethernet" },
-    { 0x1229,	0x0c,	"Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0d,	"Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0e,	"Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0f,	"Intel 82551 Pro/100 Ethernet" },
-    { 0x1229,	0x10,	"Intel 82551 Pro/100 Ethernet" },
-    { 0x1229,	-1,	"Intel 82557/8/9 Pro/100 Ethernet" },
-    { 0x2449,	-1,	"Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
-    { 0x27dc,	-1,	"Intel 82801GB (ICH7) 10/100 Ethernet" },
-    { 0,	-1,	NULL },
+    { 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
+    { 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x1032,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x1033,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x1034,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x1035,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x1036,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x1037,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x1038,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x1039,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x103A,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x103B,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x103C,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x103D,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x103E,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x1050,	-1,	5, "Intel 82801BA (D865) Pro/100 VE Ethernet" },
+    { 0x1051,	-1,	5, "Intel 82562ET (ICH5/ICH5R) Pro/100 VE Ethernet" },
+    { 0x1059,	-1,	0, "Intel 82551QM Pro/100 M Mobile Connection" },
+    { 0x1064,	-1,	6, "Intel 82562EZ (ICH6)" },
+    { 0x1065,	-1,	6, "Intel 82562ET/EZ/GT/GZ PRO/100 VE Ethernet" },
+    { 0x1068,	-1,	6, "Intel 82801FBM (ICH6-M) Pro/100 VE Ethernet" },
+    { 0x1069,	-1,	6, "Intel 82562EM/EX/GX Pro/100 Ethernet" },
+    { 0x1091,	-1,	7, "Intel 82562GX Pro/100 Ethernet" },
+    { 0x1092,	-1,	7, "Intel Pro/100 VE Network Connection" },
+    { 0x1093,	-1,	7, "Intel Pro/100 VM Network Connection" },
+    { 0x1094,	-1,	7, "Intel Pro/100 946GZ (ICH7) Network Connection" },
+    { 0x1209,	-1,	0, "Intel 82559ER Embedded 10/100 Ethernet" },
+    { 0x1229,	0x01,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x1229,	0x02,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x1229,	0x03,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x1229,	0x04,	0, "Intel 82558 Pro/100 Ethernet" },
+    { 0x1229,	0x05,	0, "Intel 82558 Pro/100 Ethernet" },
+    { 0x1229,	0x06,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x1229,	0x07,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x1229,	0x08,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x1229,	0x09,	0, "Intel 82559ER Pro/100 Ethernet" },
+    { 0x1229,	0x0c,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0d,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0e,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0f,	0, "Intel 82551 Pro/100 Ethernet" },
+    { 0x1229,	0x10,	0, "Intel 82551 Pro/100 Ethernet" },
+    { 0x1229,	-1,	0, "Intel 82557/8/9 Pro/100 Ethernet" },
+    { 0x2449,	-1,	2, "Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
+    { 0x27dc,	-1,	7, "Intel 82801GB (ICH7) 10/100 Ethernet" },
+    { 0,	-1,	0, NULL },
 };
 
 #ifdef FXP_IP_CSUM_WAR
@@ -214,6 +208,7 @@ static int		fxp_shutdown(device_t dev);
 static int		fxp_suspend(device_t dev);
 static int		fxp_resume(device_t dev);
 
+static struct fxp_ident	*fxp_find_ident(device_t dev);
 static void		fxp_intr(void *xsc);
 static void		fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp,
 			    struct mbuf *m, uint16_t status, int pos);
@@ -361,11 +356,8 @@ fxp_dma_wait(struct fxp_softc *sc, volatile uint16_t *status,
 		device_printf(sc->dev, "DMA timeout\n");
 }
 
-/*
- * Return identification string if this device is ours.
- */
-static int
-fxp_probe(device_t dev)
+static struct fxp_ident *
+fxp_find_ident(device_t dev)
 {
 	uint16_t devid;
 	uint8_t revid;
@@ -377,10 +369,25 @@ fxp_probe(device_t dev)
 		for (ident = fxp_ident_table; ident->name != NULL; ident++) {
 			if (ident->devid == devid &&
 			    (ident->revid == revid || ident->revid == -1)) {
-				device_set_desc(dev, ident->name);
-				return (BUS_PROBE_DEFAULT);
+				return (ident);
 			}
 		}
+	}
+	return (NULL);
+}
+
+/*
+ * Return identification string if this device is ours.
+ */
+static int
+fxp_probe(device_t dev)
+{
+	struct fxp_ident *ident;
+
+	ident = fxp_find_ident(dev);
+	if (ident != NULL) {
+		device_set_desc(dev, ident->name);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }
@@ -484,11 +491,17 @@ fxp_attach(device_t dev)
 	/*
 	 * Find out the chip revision; lump all 82557 revs together.
 	 */
-	fxp_read_eeprom(sc, &data, 5, 1);
-	if ((data >> 8) == 1)
-		sc->revision = FXP_REV_82557;
-	else
-		sc->revision = pci_get_revid(dev);
+	sc->ident = fxp_find_ident(dev);
+	if (sc->ident->ich > 0) {
+		/* Assume ICH controllers are 82559. */
+		sc->revision = FXP_REV_82559_A0;
+	} else {
+		fxp_read_eeprom(sc, &data, 5, 1);
+		if ((data >> 8) == 1)
+			sc->revision = FXP_REV_82557;
+		else
+			sc->revision = pci_get_revid(dev);
+	}
 
 	/*
 	 * Check availability of WOL. 82559ER does not support WOL.
@@ -561,9 +574,8 @@ fxp_attach(device_t dev)
 	 *
 	 * See Intel 82801BA/82801BAM Specification Update, Errata #30.
 	 */
-	i = pci_get_device(dev);
-	if (i == 0x2449 || (i > 0x1030 && i < 0x1039) ||
-	    sc->revision >= FXP_REV_82559_A0) {
+	if ((sc->ident->ich >= 2 && sc->ident->ich <= 3) ||
+	    (sc->ident->ich == 0 && sc->revision >= FXP_REV_82559_A0)) {
 		fxp_read_eeprom(sc, &data, 10, 1);
 		if (data & 0x02) {			/* STB enable */
 			uint16_t cksum;
@@ -2240,9 +2252,13 @@ fxp_init_body(struct fxp_softc *sc)
 
 	/*
 	 * Attempt to load microcode if requested.
+	 * For ICH based controllers do not load microcode.
 	 */
-	if (ifp->if_flags & IFF_LINK0 && (sc->flags & FXP_FLAG_UCODE) == 0)
-		fxp_load_ucode(sc);
+	if (sc->ident->ich == 0) {
+		if (ifp->if_flags & IFF_LINK0 &&
+		    (sc->flags & FXP_FLAG_UCODE) == 0)
+			fxp_load_ucode(sc);
+	}
 
 	/*
 	 * Set IFF_ALLMULTI status. It's needed in configure action
