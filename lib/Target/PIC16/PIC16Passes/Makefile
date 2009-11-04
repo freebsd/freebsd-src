@@ -11,7 +11,5 @@ TARGET = PIC16
 LIBRARYNAME = LLVMpic16passes
 BUILD_ARCHIVE = 1
 
-
-
 include $(LEVEL)/Makefile.common
 

@@ -30,13 +30,12 @@
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetFrameInfo.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
-  struct VISIBILITY_HIDDEN Printer : public MachineFunctionPass {
+  struct Printer : public MachineFunctionPass {
     static char ID;
 
     raw_ostream &OS;
@@ -53,7 +52,7 @@ namespace {
     }
 
     bool runOnMachineFunction(MachineFunction &MF) {
-      OS << Banner;
+      OS << "# " << Banner << ":\n";
       MF.print(OS);
       return false;
     }
@@ -304,7 +303,7 @@ void MachineFunction::dump() const {
 }
 
 void MachineFunction::print(raw_ostream &OS) const {
-  OS << "# Machine code for " << Fn->getName() << "():\n";
+  OS << "# Machine code for function " << Fn->getName() << ":\n";
 
   // Print Frame Information
   FrameInfo->print(*this, OS);
@@ -318,34 +317,43 @@ void MachineFunction::print(raw_ostream &OS) const {
   const TargetRegisterInfo *TRI = getTarget().getRegisterInfo();
   
   if (RegInfo && !RegInfo->livein_empty()) {
-    OS << "Live Ins:";
+    OS << "Function Live Ins: ";
     for (MachineRegisterInfo::livein_iterator
          I = RegInfo->livein_begin(), E = RegInfo->livein_end(); I != E; ++I) {
       if (TRI)
-        OS << " " << TRI->getName(I->first);
+        OS << "%" << TRI->getName(I->first);
       else
-        OS << " Reg #" << I->first;
+        OS << " %physreg" << I->first;
       
       if (I->second)
-        OS << " in VR#" << I->second << ' ';
+        OS << " in reg%" << I->second;
+
+      if (next(I) != E)
+        OS << ", ";
     }
     OS << '\n';
   }
   if (RegInfo && !RegInfo->liveout_empty()) {
-    OS << "Live Outs:";
+    OS << "Function Live Outs: ";
     for (MachineRegisterInfo::liveout_iterator
-         I = RegInfo->liveout_begin(), E = RegInfo->liveout_end(); I != E; ++I)
+         I = RegInfo->liveout_begin(), E = RegInfo->liveout_end(); I != E; ++I){
       if (TRI)
-        OS << ' ' << TRI->getName(*I);
+        OS << '%' << TRI->getName(*I);
       else
-        OS << " Reg #" << *I;
+        OS << "%physreg" << *I;
+
+      if (next(I) != E)
+        OS << " ";
+    }
     OS << '\n';
   }
   
-  for (const_iterator BB = begin(), E = end(); BB != E; ++BB)
+  for (const_iterator BB = begin(), E = end(); BB != E; ++BB) {
+    OS << '\n';
     BB->print(OS);
+  }
 
-  OS << "\n# End machine code for " << Fn->getName() << "().\n\n";
+  OS << "\n# End machine code for function " << Fn->getName() << ".\n\n";
 }
 
 namespace llvm {
@@ -472,12 +480,16 @@ MachineFrameInfo::getPristineRegs(const MachineBasicBlock *MBB) const {
 
 
 void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
+  if (Objects.empty()) return;
+
   const TargetFrameInfo *FI = MF.getTarget().getFrameInfo();
   int ValOffset = (FI ? FI->getOffsetOfLocalArea() : 0);
 
+  OS << "Frame Objects:\n";
+
   for (unsigned i = 0, e = Objects.size(); i != e; ++i) {
     const StackObject &SO = Objects[i];
-    OS << "  <fi#" << (int)(i-NumFixedObjects) << ">: ";
+    OS << "  fi#" << (int)(i-NumFixedObjects) << ": ";
     if (SO.Size == ~0ULL) {
       OS << "dead\n";
       continue;
@@ -485,15 +497,14 @@ void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
     if (SO.Size == 0)
       OS << "variable sized";
     else
-      OS << "size is " << SO.Size << " byte" << (SO.Size != 1 ? "s," : ",");
-    OS << " alignment is " << SO.Alignment << " byte"
-       << (SO.Alignment != 1 ? "s," : ",");
+      OS << "size=" << SO.Size;
+    OS << ", align=" << SO.Alignment;
 
     if (i < NumFixedObjects)
-      OS << " fixed";
+      OS << ", fixed";
     if (i < NumFixedObjects || SO.SPOffset != -1) {
       int64_t Off = SO.SPOffset - ValOffset;
-      OS << " at location [SP";
+      OS << ", at location [SP";
       if (Off > 0)
         OS << "+" << Off;
       else if (Off < 0)
@@ -502,9 +513,6 @@ void MachineFrameInfo::print(const MachineFunction &MF, raw_ostream &OS) const{
     }
     OS << "\n";
   }
-
-  if (HasVarSizedObjects)
-    OS << "  Stack frame contains variable sized objects\n";
 }
 
 void MachineFrameInfo::dump(const MachineFunction &MF) const {
@@ -548,12 +556,17 @@ MachineJumpTableInfo::ReplaceMBBInJumpTables(MachineBasicBlock *Old,
 }
 
 void MachineJumpTableInfo::print(raw_ostream &OS) const {
-  // FIXME: this is lame, maybe we could print out the MBB numbers or something
-  // like {1, 2, 4, 5, 3, 0}
+  if (JumpTables.empty()) return;
+
+  OS << "Jump Tables:\n";
+
   for (unsigned i = 0, e = JumpTables.size(); i != e; ++i) {
-    OS << "  <jt#" << i << "> has " << JumpTables[i].MBBs.size() 
-       << " entries\n";
+    OS << "  jt#" << i << ": ";
+    for (unsigned j = 0, f = JumpTables[i].MBBs.size(); j != f; ++j)
+      OS << " BB#" << JumpTables[i].MBBs[j]->getNumber();
   }
+
+  OS << '\n';
 }
 
 void MachineJumpTableInfo::dump() const { print(errs()); }
@@ -582,6 +595,48 @@ MachineConstantPool::~MachineConstantPool() {
       delete Constants[i].Val.MachineCPVal;
 }
 
+/// CanShareConstantPoolEntry - Test whether the given two constants
+/// can be allocated the same constant pool entry.
+static bool CanShareConstantPoolEntry(Constant *A, Constant *B,
+                                      const TargetData *TD) {
+  // Handle the trivial case quickly.
+  if (A == B) return true;
+
+  // If they have the same type but weren't the same constant, quickly
+  // reject them.
+  if (A->getType() == B->getType()) return false;
+
+  // For now, only support constants with the same size.
+  if (TD->getTypeStoreSize(A->getType()) != TD->getTypeStoreSize(B->getType()))
+    return false;
+
+  // If a floating-point value and an integer value have the same encoding,
+  // they can share a constant-pool entry.
+  if (ConstantFP *AFP = dyn_cast<ConstantFP>(A))
+    if (ConstantInt *BI = dyn_cast<ConstantInt>(B))
+      return AFP->getValueAPF().bitcastToAPInt() == BI->getValue();
+  if (ConstantFP *BFP = dyn_cast<ConstantFP>(B))
+    if (ConstantInt *AI = dyn_cast<ConstantInt>(A))
+      return BFP->getValueAPF().bitcastToAPInt() == AI->getValue();
+
+  // Two vectors can share an entry if each pair of corresponding
+  // elements could.
+  if (ConstantVector *AV = dyn_cast<ConstantVector>(A))
+    if (ConstantVector *BV = dyn_cast<ConstantVector>(B)) {
+      if (AV->getType()->getNumElements() != BV->getType()->getNumElements())
+        return false;
+      for (unsigned i = 0, e = AV->getType()->getNumElements(); i != e; ++i)
+        if (!CanShareConstantPoolEntry(AV->getOperand(i),
+                                       BV->getOperand(i), TD))
+          return false;
+      return true;
+    }
+
+  // TODO: Handle other cases.
+
+  return false;
+}
+
 /// getConstantPoolIndex - Create a new entry in the constant pool or return
 /// an existing one.  User must specify the log2 of the minimum required
 /// alignment for the object.
@@ -590,14 +645,17 @@ unsigned MachineConstantPool::getConstantPoolIndex(Constant *C,
                                                    unsigned Alignment) {
   assert(Alignment && "Alignment must be specified!");
   if (Alignment > PoolAlignment) PoolAlignment = Alignment;
-  
+
   // Check to see if we already have this constant.
   //
   // FIXME, this could be made much more efficient for large constant pools.
   for (unsigned i = 0, e = Constants.size(); i != e; ++i)
-    if (Constants[i].Val.ConstVal == C &&
-        (Constants[i].getAlignment() & (Alignment - 1)) == 0)
+    if (!Constants[i].isMachineConstantPoolEntry() &&
+        CanShareConstantPoolEntry(Constants[i].Val.ConstVal, C, TD)) {
+      if ((unsigned)Constants[i].getAlignment() < Alignment)
+        Constants[i].Alignment = Alignment;
       return i;
+    }
   
   Constants.push_back(MachineConstantPoolEntry(C, Alignment));
   return Constants.size()-1;
@@ -620,13 +678,16 @@ unsigned MachineConstantPool::getConstantPoolIndex(MachineConstantPoolValue *V,
 }
 
 void MachineConstantPool::print(raw_ostream &OS) const {
+  if (Constants.empty()) return;
+
+  OS << "Constant Pool:\n";
   for (unsigned i = 0, e = Constants.size(); i != e; ++i) {
-    OS << "  <cp#" << i << "> is";
+    OS << "  cp#" << i << ": ";
     if (Constants[i].isMachineConstantPoolEntry())
       Constants[i].Val.MachineCPVal->print(OS);
     else
       OS << *(Value*)Constants[i].Val.ConstVal;
-    OS << " , alignment=" << Constants[i].getAlignment();
+    OS << ", align=" << Constants[i].getAlignment();
     OS << "\n";
   }
 }

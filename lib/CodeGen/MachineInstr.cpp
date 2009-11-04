@@ -13,6 +13,7 @@
 
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/Constants.h"
+#include "llvm/Function.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Value.h"
 #include "llvm/Assembly/Writer.h"
@@ -180,6 +181,8 @@ bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
   case MachineOperand::MO_ExternalSymbol:
     return !strcmp(getSymbolName(), Other.getSymbolName()) &&
            getOffset() == Other.getOffset();
+  case MachineOperand::MO_BlockAddress:
+    return getBlockAddress() == Other.getBlockAddress();
   }
 }
 
@@ -202,7 +205,7 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
       if (TM)
         OS << "%" << TM->getRegisterInfo()->get(getReg()).Name;
       else
-        OS << "%mreg" << getReg();
+        OS << "%physreg" << getReg();
     }
 
     if (getSubReg() != 0)
@@ -248,9 +251,7 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
       OS << getFPImm()->getValueAPF().convertToDouble();
     break;
   case MachineOperand::MO_MachineBasicBlock:
-    OS << "mbb<"
-       << ((Value*)getMBB()->getBasicBlock())->getName()
-       << "," << (void*)getMBB() << '>';
+    OS << "<BB#" << getMBB()->getNumber() << ">";
     break;
   case MachineOperand::MO_FrameIndex:
     OS << "<fi#" << getIndex() << '>';
@@ -271,6 +272,11 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
   case MachineOperand::MO_ExternalSymbol:
     OS << "<es:" << getSymbolName();
     if (getOffset()) OS << "+" << getOffset();
+    OS << '>';
+    break;
+  case MachineOperand::MO_BlockAddress:
+    OS << "<";
+    WriteAsOperand(OS, getBlockAddress(), /*PrintType=*/false);
     OS << '>';
     break;
   default:
@@ -1054,16 +1060,24 @@ void MachineInstr::dump() const {
 }
 
 void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
-  // Specialize printing if op#0 is definition
-  unsigned StartOp = 0;
-  if (getNumOperands() && getOperand(0).isReg() && getOperand(0).isDef()) {
-    getOperand(0).print(OS, TM);
-    OS << " = ";
-    ++StartOp;   // Don't print this operand again!
+  unsigned StartOp = 0, e = getNumOperands();
+
+  // Print explicitly defined operands on the left of an assignment syntax.
+  for (; StartOp < e && getOperand(StartOp).isReg() &&
+         getOperand(StartOp).isDef() &&
+         !getOperand(StartOp).isImplicit();
+       ++StartOp) {
+    if (StartOp != 0) OS << ", ";
+    getOperand(StartOp).print(OS, TM);
   }
 
+  if (StartOp != 0)
+    OS << " = ";
+
+  // Print the opcode name.
   OS << getDesc().getName();
 
+  // Print the rest of the operands.
   for (unsigned i = StartOp, e = getNumOperands(); i != e; ++i) {
     if (i != StartOp)
       OS << ",";
@@ -1071,8 +1085,11 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
     getOperand(i).print(OS, TM);
   }
 
+  bool HaveSemi = false;
   if (!memoperands_empty()) {
-    OS << ", Mem:";
+    if (!HaveSemi) OS << ";"; HaveSemi = true;
+
+    OS << " mem:";
     for (mmo_iterator i = memoperands_begin(), e = memoperands_end();
          i != e; ++i) {
       OS << **i;
@@ -1082,14 +1099,16 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
   }
 
   if (!debugLoc.isUnknown()) {
+    if (!HaveSemi) OS << ";"; HaveSemi = true;
+
+    // TODO: print InlinedAtLoc information
+
     const MachineFunction *MF = getParent()->getParent();
     DebugLocTuple DLT = MF->getDebugLocTuple(debugLoc);
     DICompileUnit CU(DLT.Scope);
     if (!CU.isNull())
-      OS << " [dbg: "
-         << CU.getDirectory() << '/' << CU.getFilename() << ","
-         << DLT.Line << ","
-         << DLT.Col  << "]";
+      OS << " dbg:" << CU.getDirectory() << '/' << CU.getFilename() << ":"
+         << DLT.Line << ":" << DLT.Col;
   }
 
   OS << "\n";

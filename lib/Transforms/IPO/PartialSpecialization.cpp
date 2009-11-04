@@ -27,7 +27,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/DenseSet.h"
 #include <map>
 using namespace llvm;
@@ -41,7 +40,7 @@ static const int CallsMin = 5;
 static const double ConstValPercent = .1;
 
 namespace {
-  class VISIBILITY_HIDDEN PartSpec : public ModulePass {
+  class PartSpec : public ModulePass {
     void scanForInterest(Function&, SmallVector<int, 6>&);
     int scanDistribution(Function&, int, std::map<Constant*, int>&);
   public :

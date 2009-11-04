@@ -28,7 +28,6 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SetVector.h"
 using namespace llvm;
@@ -45,7 +44,7 @@ static cl::opt<bool> PrintRef("print-ref", cl::ReallyHidden);
 static cl::opt<bool> PrintModRef("print-modref", cl::ReallyHidden);
 
 namespace {
-  class VISIBILITY_HIDDEN AAEval : public FunctionPass {
+  class AAEval : public FunctionPass {
     unsigned NoAlias, MayAlias, MustAlias;
     unsigned NoModRef, Mod, Ref, ModRef;
 

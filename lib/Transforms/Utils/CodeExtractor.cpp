@@ -26,7 +26,6 @@
 #include "llvm/Analysis/Verifier.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -44,7 +43,7 @@ AggregateArgsOpt("aggregate-extracted-args", cl::Hidden,
                  cl::desc("Aggregate arguments to code-extracted functions"));
 
 namespace {
-  class VISIBILITY_HIDDEN CodeExtractor {
+  class CodeExtractor {
     typedef std::vector<Value*> Values;
     std::set<BasicBlock*> BlocksToExtract;
     DominatorTree* DT;

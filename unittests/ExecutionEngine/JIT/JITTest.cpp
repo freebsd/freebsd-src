@@ -9,6 +9,8 @@
 
 #include "gtest/gtest.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Assembly/Parser.h"
 #include "llvm/BasicBlock.h"
 #include "llvm/Constant.h"
 #include "llvm/Constants.h"
@@ -22,9 +24,12 @@
 #include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
 #include "llvm/Support/IRBuilder.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TypeBuilder.h"
 #include "llvm/Target/TargetSelect.h"
 #include "llvm/Type.h"
+
+#include <vector>
 
 using namespace llvm;
 
@@ -45,18 +50,158 @@ Function *makeReturnGlobal(std::string Name, GlobalVariable *G, Module *M) {
   return F;
 }
 
+std::string DumpFunction(const Function *F) {
+  std::string Result;
+  raw_string_ostream(Result) << "" << *F;
+  return Result;
+}
+
+class RecordingJITMemoryManager : public JITMemoryManager {
+  const OwningPtr<JITMemoryManager> Base;
+public:
+  RecordingJITMemoryManager()
+    : Base(JITMemoryManager::CreateDefaultMemManager()) {
+  }
+
+  virtual void setMemoryWritable() { Base->setMemoryWritable(); }
+  virtual void setMemoryExecutable() { Base->setMemoryExecutable(); }
+  virtual void setPoisonMemory(bool poison) { Base->setPoisonMemory(poison); }
+  virtual void AllocateGOT() { Base->AllocateGOT(); }
+  virtual uint8_t *getGOTBase() const { return Base->getGOTBase(); }
+  virtual void SetDlsymTable(void *ptr) { Base->SetDlsymTable(ptr); }
+  virtual void *getDlsymTable() const { return Base->getDlsymTable(); }
+  struct StartFunctionBodyCall {
+    StartFunctionBodyCall(uint8_t *Result, const Function *F,
+                          uintptr_t ActualSize, uintptr_t ActualSizeResult)
+      : Result(Result), F(F), F_dump(DumpFunction(F)),
+        ActualSize(ActualSize), ActualSizeResult(ActualSizeResult) {}
+    uint8_t *Result;
+    const Function *F;
+    std::string F_dump;
+    uintptr_t ActualSize;
+    uintptr_t ActualSizeResult;
+  };
+  std::vector<StartFunctionBodyCall> startFunctionBodyCalls;
+  virtual uint8_t *startFunctionBody(const Function *F,
+                                     uintptr_t &ActualSize) {
+    uintptr_t InitialActualSize = ActualSize;
+    uint8_t *Result = Base->startFunctionBody(F, ActualSize);
+    startFunctionBodyCalls.push_back(
+      StartFunctionBodyCall(Result, F, InitialActualSize, ActualSize));
+    return Result;
+  }
+  virtual uint8_t *allocateStub(const GlobalValue* F, unsigned StubSize,
+                                unsigned Alignment) {
+    return Base->allocateStub(F, StubSize, Alignment);
+  }
+  struct EndFunctionBodyCall {
+    EndFunctionBodyCall(const Function *F, uint8_t *FunctionStart,
+                        uint8_t *FunctionEnd)
+      : F(F), F_dump(DumpFunction(F)),
+        FunctionStart(FunctionStart), FunctionEnd(FunctionEnd) {}
+    const Function *F;
+    std::string F_dump;
+    uint8_t *FunctionStart;
+    uint8_t *FunctionEnd;
+  };
+  std::vector<EndFunctionBodyCall> endFunctionBodyCalls;
+  virtual void endFunctionBody(const Function *F, uint8_t *FunctionStart,
+                               uint8_t *FunctionEnd) {
+    endFunctionBodyCalls.push_back(
+      EndFunctionBodyCall(F, FunctionStart, FunctionEnd));
+    Base->endFunctionBody(F, FunctionStart, FunctionEnd);
+  }
+  virtual uint8_t *allocateSpace(intptr_t Size, unsigned Alignment) {
+    return Base->allocateSpace(Size, Alignment);
+  }
+  virtual uint8_t *allocateGlobal(uintptr_t Size, unsigned Alignment) {
+    return Base->allocateGlobal(Size, Alignment);
+  }
+  struct DeallocateFunctionBodyCall {
+    DeallocateFunctionBodyCall(const void *Body) : Body(Body) {}
+    const void *Body;
+  };
+  std::vector<DeallocateFunctionBodyCall> deallocateFunctionBodyCalls;
+  virtual void deallocateFunctionBody(void *Body) {
+    deallocateFunctionBodyCalls.push_back(DeallocateFunctionBodyCall(Body));
+    Base->deallocateFunctionBody(Body);
+  }
+  struct DeallocateExceptionTableCall {
+    DeallocateExceptionTableCall(const void *ET) : ET(ET) {}
+    const void *ET;
+  };
+  std::vector<DeallocateExceptionTableCall> deallocateExceptionTableCalls;
+  virtual void deallocateExceptionTable(void *ET) {
+    deallocateExceptionTableCalls.push_back(DeallocateExceptionTableCall(ET));
+    Base->deallocateExceptionTable(ET);
+  }
+  struct StartExceptionTableCall {
+    StartExceptionTableCall(uint8_t *Result, const Function *F,
+                            uintptr_t ActualSize, uintptr_t ActualSizeResult)
+      : Result(Result), F(F), F_dump(DumpFunction(F)),
+        ActualSize(ActualSize), ActualSizeResult(ActualSizeResult) {}
+    uint8_t *Result;
+    const Function *F;
+    std::string F_dump;
+    uintptr_t ActualSize;
+    uintptr_t ActualSizeResult;
+  };
+  std::vector<StartExceptionTableCall> startExceptionTableCalls;
+  virtual uint8_t* startExceptionTable(const Function* F,
+                                       uintptr_t &ActualSize) {
+    uintptr_t InitialActualSize = ActualSize;
+    uint8_t *Result = Base->startExceptionTable(F, ActualSize);
+    startExceptionTableCalls.push_back(
+      StartExceptionTableCall(Result, F, InitialActualSize, ActualSize));
+    return Result;
+  }
+  struct EndExceptionTableCall {
+    EndExceptionTableCall(const Function *F, uint8_t *TableStart,
+                          uint8_t *TableEnd, uint8_t* FrameRegister)
+      : F(F), F_dump(DumpFunction(F)),
+        TableStart(TableStart), TableEnd(TableEnd),
+        FrameRegister(FrameRegister) {}
+    const Function *F;
+    std::string F_dump;
+    uint8_t *TableStart;
+    uint8_t *TableEnd;
+    uint8_t *FrameRegister;
+  };
+  std::vector<EndExceptionTableCall> endExceptionTableCalls;
+  virtual void endExceptionTable(const Function *F, uint8_t *TableStart,
+                                 uint8_t *TableEnd, uint8_t* FrameRegister) {
+      endExceptionTableCalls.push_back(
+          EndExceptionTableCall(F, TableStart, TableEnd, FrameRegister));
+    return Base->endExceptionTable(F, TableStart, TableEnd, FrameRegister);
+  }
+};
+
 class JITTest : public testing::Test {
  protected:
   virtual void SetUp() {
     M = new Module("<main>", Context);
+    MP = new ExistingModuleProvider(M);
+    RJMM = new RecordingJITMemoryManager;
     std::string Error;
-    TheJIT.reset(EngineBuilder(M).setEngineKind(EngineKind::JIT)
+    TheJIT.reset(EngineBuilder(MP).setEngineKind(EngineKind::JIT)
+                 .setJITMemoryManager(RJMM)
                  .setErrorStr(&Error).create());
     ASSERT_TRUE(TheJIT.get() != NULL) << Error;
   }
 
+  void LoadAssembly(const char *assembly) {
+    SMDiagnostic Error;
+    bool success = NULL != ParseAssemblyString(assembly, M, Error, Context);
+    std::string errMsg;
+    raw_string_ostream os(errMsg);
+    Error.Print("", os);
+    ASSERT_TRUE(success) << os.str();
+  }
+
   LLVMContext Context;
-  Module *M;  // Owned by ExecutionEngine.
+  Module *M;  // Owned by MP.
+  ModuleProvider *MP;  // Owned by ExecutionEngine.
+  RecordingJITMemoryManager *RJMM;
   OwningPtr<ExecutionEngine> TheJIT;
 };
 
@@ -159,7 +304,7 @@ TEST_F(JITTest, FarCallToKnownFunction) {
   Builder.CreateRet(result);
 
   TheJIT->EnableDlsymStubs(false);
-  TheJIT->DisableLazyCompilation();
+  TheJIT->DisableLazyCompilation(true);
   int (*TestFunctionPtr)() = reinterpret_cast<int(*)()>(
       (intptr_t)TheJIT->getPointerToFunction(TestFunction));
   // This used to crash in trying to call PlusOne().
@@ -169,7 +314,7 @@ TEST_F(JITTest, FarCallToKnownFunction) {
 #if !defined(__arm__) && !defined(__powerpc__) && !defined(__ppc__)
 // Test a function C which calls A and B which call each other.
 TEST_F(JITTest, NonLazyCompilationStillNeedsStubs) {
-  TheJIT->DisableLazyCompilation();
+  TheJIT->DisableLazyCompilation(true);
 
   const FunctionType *Func1Ty =
       cast<FunctionType>(TypeBuilder<void(void), false>::get(Context));
@@ -225,7 +370,7 @@ TEST_F(JITTest, NonLazyCompilationStillNeedsStubs) {
 // Regression test for PR5162.  This used to trigger an AssertingVH inside the
 // JIT's Function to stub mapping.
 TEST_F(JITTest, NonLazyLeaksNoStubs) {
-  TheJIT->DisableLazyCompilation();
+  TheJIT->DisableLazyCompilation(true);
 
   // Create two functions with a single basic block each.
   const FunctionType *FuncTy =
@@ -263,6 +408,49 @@ TEST_F(JITTest, NonLazyLeaksNoStubs) {
   Func2->eraseFromParent();
 }
 #endif
+
+TEST_F(JITTest, ModuleDeletion) {
+  TheJIT->DisableLazyCompilation(false);
+  LoadAssembly("define void @main() { "
+               "  call i32 @computeVal() "
+               "  ret void "
+               "} "
+               " "
+               "define internal i32 @computeVal()  { "
+               "  ret i32 0 "
+               "} ");
+  Function *func = M->getFunction("main");
+  TheJIT->getPointerToFunction(func);
+  TheJIT->deleteModuleProvider(MP);
+
+  SmallPtrSet<const void*, 2> FunctionsDeallocated;
+  for (unsigned i = 0, e = RJMM->deallocateFunctionBodyCalls.size();
+       i != e; ++i) {
+    FunctionsDeallocated.insert(RJMM->deallocateFunctionBodyCalls[i].Body);
+  }
+  for (unsigned i = 0, e = RJMM->startFunctionBodyCalls.size(); i != e; ++i) {
+    EXPECT_TRUE(FunctionsDeallocated.count(
+                  RJMM->startFunctionBodyCalls[i].Result))
+      << "Function leaked: \n" << RJMM->startFunctionBodyCalls[i].F_dump;
+  }
+  EXPECT_EQ(RJMM->startFunctionBodyCalls.size(),
+            RJMM->deallocateFunctionBodyCalls.size());
+
+  SmallPtrSet<const void*, 2> ExceptionTablesDeallocated;
+  for (unsigned i = 0, e = RJMM->deallocateExceptionTableCalls.size();
+       i != e; ++i) {
+    ExceptionTablesDeallocated.insert(
+        RJMM->deallocateExceptionTableCalls[i].ET);
+  }
+  for (unsigned i = 0, e = RJMM->startExceptionTableCalls.size(); i != e; ++i) {
+    EXPECT_TRUE(ExceptionTablesDeallocated.count(
+                  RJMM->startExceptionTableCalls[i].Result))
+      << "Function's exception table leaked: \n"
+      << RJMM->startExceptionTableCalls[i].F_dump;
+  }
+  EXPECT_EQ(RJMM->startExceptionTableCalls.size(),
+            RJMM->deallocateExceptionTableCalls.size());
+}
 
 // This code is copied from JITEventListenerTest, but it only runs once for all
 // the tests in this directory.  Everything seems fine, but that's strange

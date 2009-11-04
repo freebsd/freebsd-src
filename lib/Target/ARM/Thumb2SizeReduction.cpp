@@ -17,7 +17,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseMap.h"
@@ -126,7 +125,7 @@ namespace {
     { ARM::t2STM,   ARM::tSTM,    ARM::tPUSH,    0,   0,    1,   1,  1,1, 1 },
   };
 
-  class VISIBILITY_HIDDEN Thumb2SizeReduce : public MachineFunctionPass {
+  class Thumb2SizeReduce : public MachineFunctionPass {
   public:
     static char ID;
     Thumb2SizeReduce();

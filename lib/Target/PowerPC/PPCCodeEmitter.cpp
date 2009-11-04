@@ -25,7 +25,6 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
@@ -57,8 +56,7 @@ namespace {
   };
 
   template <class CodeEmitter>
-  class VISIBILITY_HIDDEN Emitter : public MachineFunctionPass,
-      public PPCCodeEmitter {
+  class Emitter : public MachineFunctionPass, public PPCCodeEmitter {
     TargetMachine &TM;
     CodeEmitter &MCE;
 

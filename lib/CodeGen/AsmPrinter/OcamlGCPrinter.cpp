@@ -20,14 +20,13 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
 
-  class VISIBILITY_HIDDEN OcamlGCMetadataPrinter : public GCMetadataPrinter {
+  class OcamlGCMetadataPrinter : public GCMetadataPrinter {
   public:
     void beginAssembly(raw_ostream &OS, AsmPrinter &AP,
                        const MCAsmInfo &MAI);

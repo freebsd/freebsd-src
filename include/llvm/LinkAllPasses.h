@@ -91,7 +91,6 @@ namespace {
       (void) llvm::createLoopUnswitchPass();
       (void) llvm::createLoopRotatePass();
       (void) llvm::createLoopIndexSplitPass();
-      (void) llvm::createLowerAllocationsPass();
       (void) llvm::createLowerInvokePass();
       (void) llvm::createLowerSetJmpPass();
       (void) llvm::createLowerSwitchPass();
@@ -107,7 +106,6 @@ namespace {
       (void) llvm::createPostDomPrinterPass();
       (void) llvm::createPostDomOnlyViewerPass();
       (void) llvm::createPostDomViewerPass();
-      (void) llvm::createRaiseAllocationsPass();
       (void) llvm::createReassociatePass();
       (void) llvm::createSCCPPass();
       (void) llvm::createScalarReplAggregatesPass();
@@ -125,7 +123,6 @@ namespace {
       (void) llvm::createNullProfilerRSPass();
       (void) llvm::createRSProfilingPass();
       (void) llvm::createInstCountPass();
-      (void) llvm::createCodeGenLICMPass();
       (void) llvm::createCodeGenPreparePass();
       (void) llvm::createGVNPass();
       (void) llvm::createMemCpyOptPass();
@@ -142,6 +139,9 @@ namespace {
       (void) llvm::createPartialInliningPass();
       (void) llvm::createSSIPass();
       (void) llvm::createSSIEverythingPass();
+      (void) llvm::createGEPSplitterPass();
+      (void) llvm::createSCCVNPass();
+      (void) llvm::createABCDPass();
 
       (void)new llvm::IntervalPartition();
       (void)new llvm::FindUsedTypes();

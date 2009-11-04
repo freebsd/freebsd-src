@@ -32,7 +32,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -100,7 +99,7 @@ namespace {
   struct AllocaInfo;
 
   // Data package used by RenamePass()
-  class VISIBILITY_HIDDEN RenamePassData {
+  class RenamePassData {
   public:
     typedef std::vector<Value *> ValVector;
     
@@ -123,7 +122,7 @@ namespace {
   ///
   /// This functionality is important because it avoids scanning large basic
   /// blocks multiple times when promoting many allocas in the same block.
-  class VISIBILITY_HIDDEN LargeBlockInfo {
+  class LargeBlockInfo {
     /// InstNumbers - For each instruction that we track, keep the index of the
     /// instruction.  The index starts out as the number of the instruction from
     /// the start of the block.
@@ -170,7 +169,7 @@ namespace {
     }
   };
 
-  struct VISIBILITY_HIDDEN PromoteMem2Reg {
+  struct PromoteMem2Reg {
     /// Allocas - The alloca instructions being promoted.
     ///
     std::vector<AllocaInst*> Allocas;
@@ -750,7 +749,12 @@ void PromoteMem2Reg::RewriteSingleStoreAlloca(AllocaInst *AI,
     }
     
     // Otherwise, we *can* safely rewrite this load.
-    LI->replaceAllUsesWith(OnlyStore->getOperand(0));
+    Value *ReplVal = OnlyStore->getOperand(0);
+    // If the replacement value is the load, this must occur in unreachable
+    // code.
+    if (ReplVal == LI)
+      ReplVal = UndefValue::get(LI->getType());
+    LI->replaceAllUsesWith(ReplVal);
     if (AST && isa<PointerType>(LI->getType()))
       AST->deleteValue(LI);
     LI->eraseFromParent();

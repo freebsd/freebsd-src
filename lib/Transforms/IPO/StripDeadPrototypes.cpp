@@ -19,7 +19,6 @@
 #include "llvm/Pass.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 using namespace llvm;
 
 STATISTIC(NumDeadPrototypes, "Number of dead prototypes removed");
@@ -27,7 +26,7 @@ STATISTIC(NumDeadPrototypes, "Number of dead prototypes removed");
 namespace {
 
 /// @brief Pass to remove unused function declarations.
-class VISIBILITY_HIDDEN StripDeadPrototypesPass : public ModulePass {
+class StripDeadPrototypesPass : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
   StripDeadPrototypesPass() : ModulePass(&ID) { }

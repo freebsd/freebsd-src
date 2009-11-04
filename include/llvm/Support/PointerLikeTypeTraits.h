@@ -15,7 +15,7 @@
 #ifndef LLVM_SUPPORT_POINTERLIKETYPETRAITS_H
 #define LLVM_SUPPORT_POINTERLIKETYPETRAITS_H
 
-#include "llvm/Support/DataTypes.h"
+#include "llvm/System/DataTypes.h"
 
 namespace llvm {
   
@@ -38,7 +38,7 @@ public:
     return static_cast<T*>(P);
   }
   
-  /// Note, we assume here that malloc returns objects at least 8-byte aligned.
+  /// Note, we assume here that malloc returns objects at least 4-byte aligned.
   /// However, this may be wrong, or pointers may be from something other than
   /// malloc.  In this case, you should specialize this template to reduce this.
   ///

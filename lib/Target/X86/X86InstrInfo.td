@@ -524,7 +524,7 @@ def ADJCALLSTACKUP32   : I<0, Pseudo, (outs), (ins i32imm:$amt1, i32imm:$amt2),
 }
 
 // x86-64 va_start lowering magic.
-let usesCustomDAGSchedInserter = 1 in
+let usesCustomInserter = 1 in
 def VASTART_SAVE_XMM_REGS : I<0, Pseudo,
                               (outs),
                               (ins GR8:$al,
@@ -1129,13 +1129,13 @@ let isTwoAddress = 1 in {
 // Conditional moves
 let Uses = [EFLAGS] in {
 
-// X86 doesn't have 8-bit conditional moves. Use a customDAGSchedInserter to
+// X86 doesn't have 8-bit conditional moves. Use a customInserter to
 // emit control flow. An alternative to this is to mark i8 SELECT as Promote,
 // however that requires promoting the operands, and can induce additional
 // i8 register pressure. Note that CMOV_GR8 is conservatively considered to
 // clobber EFLAGS, because if one of the operands is zero, the expansion
 // could involve an xor.
-let usesCustomDAGSchedInserter = 1, isTwoAddress = 0, Defs = [EFLAGS] in
+let usesCustomInserter = 1, isTwoAddress = 0, Defs = [EFLAGS] in
 def CMOV_GR8 : I<0, Pseudo,
                  (outs GR8:$dst), (ins GR8:$src1, GR8:$src2, i8imm:$cond),
                  "#CMOV_GR8 PSEUDO!",
@@ -3667,7 +3667,7 @@ def LOCK_DEC32m : I<0xFF, MRM1m, (outs), (ins i32mem:$dst),
 
 // Atomic exchange, and, or, xor
 let Constraints = "$val = $dst", Defs = [EFLAGS],
-                  usesCustomDAGSchedInserter = 1 in {
+                  usesCustomInserter = 1 in {
 def ATOMAND32 : I<0, Pseudo, (outs GR32:$dst),(ins i32mem:$ptr, GR32:$val),
                "#ATOMAND32 PSEUDO!", 
                [(set GR32:$dst, (atomic_load_and_32 addr:$ptr, GR32:$val))]>;
@@ -3736,7 +3736,7 @@ let Constraints = "$val1 = $dst1, $val2 = $dst2",
                   Defs = [EFLAGS, EAX, EBX, ECX, EDX],
                   Uses = [EAX, EBX, ECX, EDX],
                   mayLoad = 1, mayStore = 1,
-                  usesCustomDAGSchedInserter = 1 in {
+                  usesCustomInserter = 1 in {
 def ATOMAND6432 : I<0, Pseudo, (outs GR32:$dst1, GR32:$dst2),
                                (ins i64mem:$ptr, GR32:$val1, GR32:$val2),
                "#ATOMAND6432 PSEUDO!", []>;
@@ -3789,6 +3789,7 @@ def : Pat<(i32 (X86Wrapper tjumptable  :$dst)), (MOV32ri tjumptable  :$dst)>;
 def : Pat<(i32 (X86Wrapper tglobaltlsaddr:$dst)),(MOV32ri tglobaltlsaddr:$dst)>;
 def : Pat<(i32 (X86Wrapper tglobaladdr :$dst)), (MOV32ri tglobaladdr :$dst)>;
 def : Pat<(i32 (X86Wrapper texternalsym:$dst)), (MOV32ri texternalsym:$dst)>;
+def : Pat<(i32 (X86Wrapper tblockaddress:$dst)), (MOV32ri tblockaddress:$dst)>;
 
 def : Pat<(add GR32:$src1, (X86Wrapper tconstpool:$src2)),
           (ADD32ri GR32:$src1, tconstpool:$src2)>;
@@ -3798,11 +3799,15 @@ def : Pat<(add GR32:$src1, (X86Wrapper tglobaladdr :$src2)),
           (ADD32ri GR32:$src1, tglobaladdr:$src2)>;
 def : Pat<(add GR32:$src1, (X86Wrapper texternalsym:$src2)),
           (ADD32ri GR32:$src1, texternalsym:$src2)>;
+def : Pat<(add GR32:$src1, (X86Wrapper tblockaddress:$src2)),
+          (ADD32ri GR32:$src1, tblockaddress:$src2)>;
 
 def : Pat<(store (i32 (X86Wrapper tglobaladdr:$src)), addr:$dst),
           (MOV32mi addr:$dst, tglobaladdr:$src)>;
 def : Pat<(store (i32 (X86Wrapper texternalsym:$src)), addr:$dst),
           (MOV32mi addr:$dst, texternalsym:$src)>;
+def : Pat<(store (i32 (X86Wrapper tblockaddress:$src)), addr:$dst),
+          (MOV32mi addr:$dst, tblockaddress:$src)>;
 
 // Calls
 // tailcall stuff
@@ -3964,12 +3969,14 @@ def : Pat<(and GR32:$src1, 0xffff),
           (MOVZX32rr16 (EXTRACT_SUBREG GR32:$src1, x86_subreg_16bit))>;
 // r & (2^8-1) ==> movz
 def : Pat<(and GR32:$src1, 0xff),
-          (MOVZX32rr8 (EXTRACT_SUBREG (COPY_TO_REGCLASS GR32:$src1, GR32_ABCD),
+          (MOVZX32rr8 (EXTRACT_SUBREG (i32 (COPY_TO_REGCLASS GR32:$src1, 
+                                                             GR32_ABCD)),
                                       x86_subreg_8bit))>,
       Requires<[In32BitMode]>;
 // r & (2^8-1) ==> movz
 def : Pat<(and GR16:$src1, 0xff),
-          (MOVZX16rr8 (EXTRACT_SUBREG (COPY_TO_REGCLASS GR16:$src1, GR16_ABCD),
+          (MOVZX16rr8 (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR16:$src1, 
+                                                             GR16_ABCD)),
                                       x86_subreg_8bit))>,
       Requires<[In32BitMode]>;
 
@@ -3977,11 +3984,13 @@ def : Pat<(and GR16:$src1, 0xff),
 def : Pat<(sext_inreg GR32:$src, i16),
           (MOVSX32rr16 (EXTRACT_SUBREG GR32:$src, x86_subreg_16bit))>;
 def : Pat<(sext_inreg GR32:$src, i8),
-          (MOVSX32rr8 (EXTRACT_SUBREG (COPY_TO_REGCLASS GR32:$src, GR32_ABCD),
+          (MOVSX32rr8 (EXTRACT_SUBREG (i32 (COPY_TO_REGCLASS GR32:$src, 
+                                                             GR32_ABCD)),
                                       x86_subreg_8bit))>,
       Requires<[In32BitMode]>;
 def : Pat<(sext_inreg GR16:$src, i8),
-          (MOVSX16rr8 (EXTRACT_SUBREG (COPY_TO_REGCLASS GR16:$src, GR16_ABCD),
+          (MOVSX16rr8 (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR16:$src, 
+                                                             GR16_ABCD)),
                                       x86_subreg_8bit))>,
       Requires<[In32BitMode]>;
 
@@ -3989,40 +3998,40 @@ def : Pat<(sext_inreg GR16:$src, i8),
 def : Pat<(i16 (trunc GR32:$src)),
           (EXTRACT_SUBREG GR32:$src, x86_subreg_16bit)>;
 def : Pat<(i8 (trunc GR32:$src)),
-          (EXTRACT_SUBREG (COPY_TO_REGCLASS GR32:$src, GR32_ABCD),
+          (EXTRACT_SUBREG (i32 (COPY_TO_REGCLASS GR32:$src, GR32_ABCD)),
                           x86_subreg_8bit)>,
       Requires<[In32BitMode]>;
 def : Pat<(i8 (trunc GR16:$src)),
-          (EXTRACT_SUBREG (COPY_TO_REGCLASS GR16:$src, GR16_ABCD),
+          (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR16:$src, GR16_ABCD)),
                           x86_subreg_8bit)>,
       Requires<[In32BitMode]>;
 
 // h-register tricks
 def : Pat<(i8 (trunc (srl_su GR16:$src, (i8 8)))),
-          (EXTRACT_SUBREG (COPY_TO_REGCLASS GR16:$src, GR16_ABCD),
+          (EXTRACT_SUBREG (i32 (COPY_TO_REGCLASS GR16:$src, GR16_ABCD)),
                           x86_subreg_8bit_hi)>,
       Requires<[In32BitMode]>;
 def : Pat<(i8 (trunc (srl_su GR32:$src, (i8 8)))),
-          (EXTRACT_SUBREG (COPY_TO_REGCLASS GR32:$src, GR32_ABCD),
+          (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR32:$src, GR32_ABCD)),
                           x86_subreg_8bit_hi)>,
       Requires<[In32BitMode]>;
 def : Pat<(srl_su GR16:$src, (i8 8)),
           (EXTRACT_SUBREG
             (MOVZX32rr8
-              (EXTRACT_SUBREG (COPY_TO_REGCLASS GR16:$src, GR16_ABCD),
+              (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR16:$src, GR16_ABCD)),
                               x86_subreg_8bit_hi)),
             x86_subreg_16bit)>,
       Requires<[In32BitMode]>;
 def : Pat<(i32 (zext (srl_su GR16:$src, (i8 8)))),
-          (MOVZX32rr8 (EXTRACT_SUBREG (COPY_TO_REGCLASS GR16:$src, GR16_ABCD),
+          (MOVZX32rr8 (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR16:$src, GR16_ABCD)),
                                       x86_subreg_8bit_hi))>,
       Requires<[In32BitMode]>;
 def : Pat<(i32 (anyext (srl_su GR16:$src, (i8 8)))),
-          (MOVZX32rr8 (EXTRACT_SUBREG (COPY_TO_REGCLASS GR16:$src, GR16_ABCD),
+          (MOVZX32rr8 (EXTRACT_SUBREG (i16 (COPY_TO_REGCLASS GR16:$src, GR16_ABCD)),
                                       x86_subreg_8bit_hi))>,
       Requires<[In32BitMode]>;
 def : Pat<(and (srl_su GR32:$src, (i8 8)), (i32 255)),
-          (MOVZX32rr8 (EXTRACT_SUBREG (COPY_TO_REGCLASS GR32:$src, GR32_ABCD),
+          (MOVZX32rr8 (EXTRACT_SUBREG (i32 (COPY_TO_REGCLASS GR32:$src, GR32_ABCD)),
                                       x86_subreg_8bit_hi))>,
       Requires<[In32BitMode]>;
 

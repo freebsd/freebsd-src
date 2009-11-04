@@ -42,7 +42,6 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -72,7 +71,7 @@ namespace {
   /// NullProfilerRS - The basic profiler that does nothing.  It is the default
   /// profiler and thus terminates RSProfiler chains.  It is useful for 
   /// measuring framework overhead
-  class VISIBILITY_HIDDEN NullProfilerRS : public RSProfilers {
+  class NullProfilerRS : public RSProfilers {
   public:
     static char ID; // Pass identification, replacement for typeid
     bool isProfiling(Value* v) {
@@ -94,7 +93,7 @@ static RegisterAnalysisGroup<RSProfilers, true> NPT(NP);
 
 namespace {
   /// Chooser - Something that chooses when to make a sample of the profiled code
-  class VISIBILITY_HIDDEN Chooser {
+  class Chooser {
   public:
     /// ProcessChoicePoint - is called for each basic block inserted to choose 
     /// between normal and sample code
@@ -108,7 +107,7 @@ namespace {
   //Things that implement sampling policies
   //A global value that is read-mod-stored to choose when to sample.
   //A sample is taken when the global counter hits 0
-  class VISIBILITY_HIDDEN GlobalRandomCounter : public Chooser {
+  class GlobalRandomCounter : public Chooser {
     GlobalVariable* Counter;
     Value* ResetValue;
     const IntegerType* T;
@@ -120,7 +119,7 @@ namespace {
   };
 
   //Same is GRC, but allow register allocation of the global counter
-  class VISIBILITY_HIDDEN GlobalRandomCounterOpt : public Chooser {
+  class GlobalRandomCounterOpt : public Chooser {
     GlobalVariable* Counter;
     Value* ResetValue;
     AllocaInst* AI;
@@ -134,7 +133,7 @@ namespace {
 
   //Use the cycle counter intrinsic as a source of pseudo randomness when
   //deciding when to sample.
-  class VISIBILITY_HIDDEN CycleCounter : public Chooser {
+  class CycleCounter : public Chooser {
     uint64_t rm;
     Constant *F;
   public:
@@ -145,7 +144,7 @@ namespace {
   };
 
   /// ProfilerRS - Insert the random sampling framework
-  struct VISIBILITY_HIDDEN ProfilerRS : public FunctionPass {
+  struct ProfilerRS : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     ProfilerRS() : FunctionPass(&ID) {}
 

@@ -31,6 +31,9 @@ unsigned InlineCostAnalyzer::FunctionInfo::
       // Eliminating a switch is a big win, proportional to the number of edges
       // deleted.
       Reduction += (SI->getNumSuccessors()-1) * 40;
+    else if (isa<IndirectBrInst>(*UI))
+      // Eliminating an indirect branch is a big win.
+      Reduction += 200;
     else if (CallInst *CI = dyn_cast<CallInst>(*UI)) {
       // Turning an indirect call into a direct call is a BIG win
       Reduction += CI->getCalledValue() == V ? 500 : 0;
@@ -50,7 +53,7 @@ unsigned InlineCostAnalyzer::FunctionInfo::
       // Unfortunately, we don't know the pointer that may get propagated here,
       // so we can't make this decision.
       if (Inst.mayReadFromMemory() || Inst.mayHaveSideEffects() ||
-          isa<AllocationInst>(Inst)) 
+          isa<AllocaInst>(Inst)) 
         continue;
 
       bool AllOperandsConstant = true;
@@ -130,10 +133,6 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
         NumInsts += InlineConstants::CallPenalty;
     }
     
-    // These, too, are calls.
-    if (isa<FreeInst>(II))
-      NumInsts += InlineConstants::CallPenalty;
-
     if (const AllocaInst *AI = dyn_cast<AllocaInst>(II)) {
       if (!AI->isStaticAlloca())
         this->usesDynamicAlloca = true;
@@ -147,19 +146,26 @@ void CodeMetrics::analyzeBasicBlock(const BasicBlock *BB) {
       if (CI->isLosslessCast() || isa<IntToPtrInst>(CI) || 
           isa<PtrToIntInst>(CI))
         continue;
-    } else if (const GetElementPtrInst *GEPI =
-               dyn_cast<GetElementPtrInst>(II)) {
+    } else if (const GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(II)){
       // If a GEP has all constant indices, it will probably be folded with
       // a load/store.
       if (GEPI->hasAllConstantIndices())
         continue;
     }
 
-    if (isa<ReturnInst>(II))
-      ++NumRets;
-    
     ++NumInsts;
   }
+  
+  if (isa<ReturnInst>(BB->getTerminator()))
+    ++NumRets;
+  
+  // We never want to inline functions that contain an indirectbr.  This is
+  // incorrect because all the blockaddress's (in static global initializers
+  // for example) would be referring to the original function, and this indirect
+  // jump would jump from the inlined copy of the function into the original
+  // function which is extremely undefined behavior.
+  if (isa<IndirectBrInst>(BB->getTerminator()))
+    NeverInline = true;
 }
 
 /// analyzeFunction - Fill in the current structure with information gleaned

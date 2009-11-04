@@ -127,10 +127,80 @@ B:
 ; CHECK: define i64 @test5b()
 ; CHECK:     A:
 ; CHECK-NEXT:  %c = call i64 @test5c(%0 %a)
-; CHECK-NEXT:  ret i64 %c
+; CHECK-NEXT:  ret i64 5
 
 define internal i64 @test5c({i64,i64} %a) {
   %b = extractvalue {i64,i64} %a, 0
   ret i64 %b
+}
+
+
+;;======================== test6
+
+define i64 @test6a() {
+  ret i64 0
+}
+
+define i64 @test6b() {
+  %a = call i64 @test6a()
+  ret i64 %a
+}
+; CHECK: define i64 @test6b
+; CHECK: ret i64 0
+
+;;======================== test7
+
+
+%T = type {i32,i32}
+
+define internal {i32, i32} @test7a(i32 %A) {
+  %X = add i32 1, %A
+  %mrv0 = insertvalue %T undef, i32 %X, 0
+  %mrv1 = insertvalue %T %mrv0, i32 %A, 1
+  ret %T %mrv1
+; CHECK: @test7a
+; CHECK-NEXT: %mrv0 = insertvalue %T undef, i32 18, 0
+; CHECK-NEXT: %mrv1 = insertvalue %T %mrv0, i32 17, 1
+}
+
+define i32 @test7b() {
+	%X = call {i32, i32} @test7a(i32 17)
+        %Y = extractvalue {i32, i32} %X, 0
+	%Z = add i32 %Y, %Y
+	ret i32 %Z
+; CHECK: define i32 @test7b
+; CHECK-NEXT: call %T @test7a(i32 17)
+; CHECK-NEXT: ret i32 36
+}
+
+;;======================== test8
+
+
+define internal {} @test8a(i32 %A, i32* %P) {
+  store i32 %A, i32* %P
+  ret {} {}
+; CHECK: @test8a
+; CHECK-NEXT: store i32 5, 
+; CHECK-NEXT: ret 
+}
+
+define void @test8b(i32* %P) {
+    %X = call {} @test8a(i32 5, i32* %P)
+    ret void
+; CHECK: define void @test8b
+; CHECK-NEXT: call { } @test8a
+; CHECK-NEXT: ret void
+}
+
+;;======================== test9
+
+@test9g = internal global {  } zeroinitializer
+
+define void @test9() {
+entry:
+        %local_foo = alloca {  }
+        load {  }* @test9g
+        store {  } %0, {  }* %local_foo
+        ret void
 }
 

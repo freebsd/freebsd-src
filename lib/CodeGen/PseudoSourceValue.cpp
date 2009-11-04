@@ -14,7 +14,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/Support/Compiler.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
@@ -55,8 +55,7 @@ namespace {
   /// FixedStackPseudoSourceValue - A specialized PseudoSourceValue
   /// for holding FixedStack values, which must include a frame
   /// index.
-  class VISIBILITY_HIDDEN FixedStackPseudoSourceValue
-    : public PseudoSourceValue {
+  class FixedStackPseudoSourceValue : public PseudoSourceValue {
     const int FI;
   public:
     explicit FixedStackPseudoSourceValue(int fi) : FI(fi) {}
@@ -64,6 +63,8 @@ namespace {
     virtual bool isConstant(const MachineFrameInfo *MFI) const;
 
     virtual bool isAliased(const MachineFrameInfo *MFI) const;
+
+    virtual bool mayAlias(const MachineFrameInfo *) const;
 
     virtual void printCustom(raw_ostream &OS) const {
       OS << "FixedStack" << FI;
@@ -101,6 +102,14 @@ bool PseudoSourceValue::isAliased(const MachineFrameInfo *MFI) const {
   return true;
 }
 
+bool PseudoSourceValue::mayAlias(const MachineFrameInfo *MFI) const {
+  if (this == getGOT() ||
+      this == getConstantPool() ||
+      this == getJumpTable())
+    return false;
+  return true;
+}
+
 bool FixedStackPseudoSourceValue::isConstant(const MachineFrameInfo *MFI) const{
   return MFI && MFI->isImmutableObjectIndex(FI);
 }
@@ -113,4 +122,11 @@ bool FixedStackPseudoSourceValue::isAliased(const MachineFrameInfo *MFI) const {
     return FI >= 0;
   // Spill slots should not alias others.
   return !MFI->isFixedObjectIndex(FI) && !MFI->isSpillSlotObjectIndex(FI);
+}
+
+bool FixedStackPseudoSourceValue::mayAlias(const MachineFrameInfo *MFI) const {
+  if (!MFI)
+    return true;
+  // Spill slots will not alias any LLVM IR value.
+  return !MFI->isSpillSlotObjectIndex(FI);
 }

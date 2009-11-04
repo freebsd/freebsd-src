@@ -75,6 +75,7 @@ void GlobalValue::removeDeadConstantUsers() const {
   }
 }
 
+
 /// Override destroyConstant to make sure it doesn't get called on
 /// GlobalValue's because they shouldn't be treated like other constants.
 void GlobalValue::destroyConstant() {

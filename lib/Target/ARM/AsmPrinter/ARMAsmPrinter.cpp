@@ -135,6 +135,8 @@ namespace {
     void printJT2BlockOperand(const MachineInstr *MI, int OpNum);
     void printTBAddrMode(const MachineInstr *MI, int OpNum);
     void printNoHashImmediate(const MachineInstr *MI, int OpNum);
+    void printVFPf32ImmOperand(const MachineInstr *MI, int OpNum);
+    void printVFPf64ImmOperand(const MachineInstr *MI, int OpNum);
 
     virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
                                  unsigned AsmVariant, const char *ExtraCode);
@@ -157,7 +159,6 @@ namespace {
       printDataDirective(MCPV->getType());
 
       ARMConstantPoolValue *ACPV = static_cast<ARMConstantPoolValue*>(MCPV);
-      GlobalValue *GV = ACPV->getGV();
       std::string Name;
 
       if (ACPV->isLSDA()) {
@@ -165,7 +166,10 @@ namespace {
         raw_svector_ostream(LSDAName) << MAI->getPrivateGlobalPrefix() <<
           "_LSDA_" << getFunctionNumber();
         Name = LSDAName.str();
-      } else if (GV) {
+      } else if (ACPV->isBlockAddress()) {
+        Name = GetBlockAddressSymbol(ACPV->getBlockAddress())->getName();
+      } else if (ACPV->isGlobalValue()) {
+        GlobalValue *GV = ACPV->getGV();
         bool isIndirect = Subtarget->isTargetDarwin() &&
           Subtarget->GVIsIndirectSymbol(GV, TM.getRelocationModel());
         if (!isIndirect)
@@ -186,8 +190,10 @@ namespace {
             StubSym = OutContext.GetOrCreateSymbol(NameStr.str());
           }
         }
-      } else
+      } else {
+        assert(ACPV->isExtSymbol() && "unrecognized constant pool value");
         Name = Mang->makeNameProper(ACPV->getSymbol());
+      }
       O << Name;
 
       if (ACPV->hasModifier()) O << "(" << ACPV->getModifier() << ")";
@@ -393,9 +399,11 @@ static void printSOImm(formatted_raw_ostream &O, int64_t V, bool VerboseAsm,
   if (Rot) {
     O << "#" << Imm << ", " << Rot;
     // Pretty printed version.
-    if (VerboseAsm)
-      O << ' ' << MAI->getCommentString()
-        << ' ' << (int)ARM_AM::rotr32(Imm, Rot);
+    if (VerboseAsm) {
+      O.PadToColumn(MAI->getCommentColumn());
+      O << MAI->getCommentString() << ' ';
+      O << (int)ARM_AM::rotr32(Imm, Rot);
+    }
   } else {
     O << "#" << Imm;
   }
@@ -419,7 +427,7 @@ void ARMAsmPrinter::printSOImm2PartOperand(const MachineInstr *MI, int OpNum) {
   printSOImm(O, V1, VerboseAsm, MAI);
   O << "\n\torr";
   printPredicateOperand(MI, 2);
-  O << " ";
+  O << "\t";
   printOperand(MI, 0);
   O << ", ";
   printOperand(MI, 0);
@@ -970,6 +978,26 @@ void ARMAsmPrinter::printNoHashImmediate(const MachineInstr *MI, int OpNum) {
   O << MI->getOperand(OpNum).getImm();
 }
 
+void ARMAsmPrinter::printVFPf32ImmOperand(const MachineInstr *MI, int OpNum) {
+  const ConstantFP *FP = MI->getOperand(OpNum).getFPImm();
+  O << '#' << ARM::getVFPf32Imm(FP->getValueAPF());
+  if (VerboseAsm) {
+    O.PadToColumn(MAI->getCommentColumn());
+    O << MAI->getCommentString() << ' ';
+    WriteAsOperand(O, FP, /*PrintType=*/false);
+  }
+}
+
+void ARMAsmPrinter::printVFPf64ImmOperand(const MachineInstr *MI, int OpNum) {
+  const ConstantFP *FP = MI->getOperand(OpNum).getFPImm();
+  O << '#' << ARM::getVFPf64Imm(FP->getValueAPF());
+  if (VerboseAsm) {
+    O.PadToColumn(MAI->getCommentColumn());
+    O << MAI->getCommentString() << ' ';
+    WriteAsOperand(O, FP, /*PrintType=*/false);
+  }
+}
+
 bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
                                     unsigned AsmVariant, const char *ExtraCode){
   // Does this asm operand have a single letter operand modifier?
@@ -1182,7 +1210,8 @@ void ARMAsmPrinter::PrintGlobalVariable(const GlobalVariable* GVar) {
           EmitAlignment(Align, GVar);
           O << name << ":";
           if (VerboseAsm) {
-            O << "\t\t\t\t" << MAI->getCommentString() << ' ';
+            O.PadToColumn(MAI->getCommentColumn());
+            O << MAI->getCommentString() << ' ';
             WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
           }
           O << '\n';
@@ -1205,7 +1234,8 @@ void ARMAsmPrinter::PrintGlobalVariable(const GlobalVariable* GVar) {
           O << "," << (MAI->getAlignmentIsInBytes() ? (1 << Align) : Align);
       }
       if (VerboseAsm) {
-        O << "\t\t" << MAI->getCommentString() << " ";
+        O.PadToColumn(MAI->getCommentColumn());
+        O << MAI->getCommentString() << ' ';
         WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
       }
       O << "\n";
@@ -1243,7 +1273,8 @@ void ARMAsmPrinter::PrintGlobalVariable(const GlobalVariable* GVar) {
   EmitAlignment(Align, GVar);
   O << name << ":";
   if (VerboseAsm) {
-    O << "\t\t\t\t" << MAI->getCommentString() << " ";
+    O.PadToColumn(MAI->getCommentColumn());
+    O << MAI->getCommentString() << ' ';
     WriteAsOperand(O, GVar, /*PrintType=*/false, GVar->getParent());
   }
   O << "\n";

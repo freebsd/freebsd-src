@@ -17,14 +17,13 @@
 #include "llvm/Pass.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Function.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
   
-  class VISIBILITY_HIDDEN Printer : public FunctionPass {
+  class Printer : public FunctionPass {
     static char ID;
     raw_ostream &OS;
     
@@ -39,7 +38,7 @@ namespace {
     bool runOnFunction(Function &F);
   };
   
-  class VISIBILITY_HIDDEN Deleter : public FunctionPass {
+  class Deleter : public FunctionPass {
     static char ID;
     
   public:

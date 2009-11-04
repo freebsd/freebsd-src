@@ -84,8 +84,11 @@ DIDescriptor::getStringField(unsigned Elt) const {
     return NULL;
 
   if (Elt < DbgNode->getNumElements())
-    if (MDString *MDS = dyn_cast_or_null<MDString>(DbgNode->getElement(Elt)))
+    if (MDString *MDS = dyn_cast_or_null<MDString>(DbgNode->getElement(Elt))) {
+      if (MDS->getLength() == 0)
+        return NULL;
       return MDS->getString().data();
+    }
 
   return NULL;
 }
@@ -398,10 +401,10 @@ bool DIVariable::Verify() const {
 /// getOriginalTypeSize - If this type is derived from a base type then
 /// return base type size.
 uint64_t DIDerivedType::getOriginalTypeSize() const {
-  if (getTag() != dwarf::DW_TAG_member)
-    return getSizeInBits();
   DIType BT = getTypeDerivedFrom();
-  if (BT.getTag() != dwarf::DW_TAG_base_type)
+  if (!BT.isNull() && BT.isDerivedType())
+    return DIDerivedType(BT.getNode()).getOriginalTypeSize();
+  if (BT.isNull())
     return getSizeInBits();
   return BT.getSizeInBits();
 }
@@ -695,6 +698,32 @@ DIBasicType DIFactory::CreateBasicType(DIDescriptor Context,
   return DIBasicType(MDNode::get(VMContext, &Elts[0], 10));
 }
 
+
+/// CreateBasicType - Create a basic type like int, float, etc.
+DIBasicType DIFactory::CreateBasicTypeEx(DIDescriptor Context,
+                                         StringRef Name,
+                                         DICompileUnit CompileUnit,
+                                         unsigned LineNumber,
+                                         Constant *SizeInBits,
+                                         Constant *AlignInBits,
+                                         Constant *OffsetInBits, unsigned Flags,
+                                         unsigned Encoding) {
+  Value *Elts[] = {
+    GetTagConstant(dwarf::DW_TAG_base_type),
+    Context.getNode(),
+    MDString::get(VMContext, Name),
+    CompileUnit.getNode(),
+    ConstantInt::get(Type::getInt32Ty(VMContext), LineNumber),
+    SizeInBits,
+    AlignInBits,
+    OffsetInBits,
+    ConstantInt::get(Type::getInt32Ty(VMContext), Flags),
+    ConstantInt::get(Type::getInt32Ty(VMContext), Encoding)
+  };
+  return DIBasicType(MDNode::get(VMContext, &Elts[0], 10));
+}
+
+
 /// CreateDerivedType - Create a derived type like const qualified type,
 /// pointer, typedef, etc.
 DIDerivedType DIFactory::CreateDerivedType(unsigned Tag,
@@ -722,6 +751,35 @@ DIDerivedType DIFactory::CreateDerivedType(unsigned Tag,
   return DIDerivedType(MDNode::get(VMContext, &Elts[0], 10));
 }
 
+
+/// CreateDerivedType - Create a derived type like const qualified type,
+/// pointer, typedef, etc.
+DIDerivedType DIFactory::CreateDerivedTypeEx(unsigned Tag,
+                                             DIDescriptor Context,
+                                             StringRef Name,
+                                             DICompileUnit CompileUnit,
+                                             unsigned LineNumber,
+                                             Constant *SizeInBits,
+                                             Constant *AlignInBits,
+                                             Constant *OffsetInBits,
+                                             unsigned Flags,
+                                             DIType DerivedFrom) {
+  Value *Elts[] = {
+    GetTagConstant(Tag),
+    Context.getNode(),
+    MDString::get(VMContext, Name),
+    CompileUnit.getNode(),
+    ConstantInt::get(Type::getInt32Ty(VMContext), LineNumber),
+    SizeInBits,
+    AlignInBits,
+    OffsetInBits,
+    ConstantInt::get(Type::getInt32Ty(VMContext), Flags),
+    DerivedFrom.getNode(),
+  };
+  return DIDerivedType(MDNode::get(VMContext, &Elts[0], 10));
+}
+
+
 /// CreateCompositeType - Create a composite type like array, struct, etc.
 DICompositeType DIFactory::CreateCompositeType(unsigned Tag,
                                                DIDescriptor Context,
@@ -745,6 +803,38 @@ DICompositeType DIFactory::CreateCompositeType(unsigned Tag,
     ConstantInt::get(Type::getInt64Ty(VMContext), SizeInBits),
     ConstantInt::get(Type::getInt64Ty(VMContext), AlignInBits),
     ConstantInt::get(Type::getInt64Ty(VMContext), OffsetInBits),
+    ConstantInt::get(Type::getInt32Ty(VMContext), Flags),
+    DerivedFrom.getNode(),
+    Elements.getNode(),
+    ConstantInt::get(Type::getInt32Ty(VMContext), RuntimeLang)
+  };
+  return DICompositeType(MDNode::get(VMContext, &Elts[0], 12));
+}
+
+
+/// CreateCompositeType - Create a composite type like array, struct, etc.
+DICompositeType DIFactory::CreateCompositeTypeEx(unsigned Tag,
+                                                 DIDescriptor Context,
+                                                 StringRef Name,
+                                                 DICompileUnit CompileUnit,
+                                                 unsigned LineNumber,
+                                                 Constant *SizeInBits,
+                                                 Constant *AlignInBits,
+                                                 Constant *OffsetInBits,
+                                                 unsigned Flags,
+                                                 DIType DerivedFrom,
+                                                 DIArray Elements,
+                                                 unsigned RuntimeLang) {
+
+  Value *Elts[] = {
+    GetTagConstant(Tag),
+    Context.getNode(),
+    MDString::get(VMContext, Name),
+    CompileUnit.getNode(),
+    ConstantInt::get(Type::getInt32Ty(VMContext), LineNumber),
+    SizeInBits,
+    AlignInBits,
+    OffsetInBits,
     ConstantInt::get(Type::getInt32Ty(VMContext), Flags),
     DerivedFrom.getNode(),
     Elements.getNode(),
@@ -1217,9 +1307,10 @@ namespace llvm {
       // Look for the bitcast.
       for (Value::use_const_iterator I = V->use_begin(), E =V->use_end();
             I != E; ++I)
-        if (isa<BitCastInst>(I))
-          return findDbgDeclare(*I, false);
-
+        if (isa<BitCastInst>(I)) {
+          const DbgDeclareInst *DDI = findDbgDeclare(*I, false);
+          if (DDI) return DDI;
+        }
       return 0;
     }
 

@@ -129,9 +129,6 @@ def GPR : RegisterClass<"ARM", [i32], 32, [R0, R1, R2, R3, R4, R5, R6,
     iterator allocation_order_begin(const MachineFunction &MF) const;
     iterator allocation_order_end(const MachineFunction &MF) const;
   }];
-  // FIXME: We are reserving r12 in case the PEI needs to use it to
-  // generate large stack offset. Make it available once we have register
-  // scavenging. Similarly r3 is reserved in Thumb mode for now.
   let MethodBodies = [{
     // FP is R11, R9 is available.
     static const unsigned ARM_GPR_AO_1[] = {
@@ -169,10 +166,20 @@ def GPR : RegisterClass<"ARM", [i32], 32, [R0, R1, R2, R3, R4, R5, R6,
       ARM::R4, ARM::R5, ARM::R6,
       ARM::R8, ARM::R9, ARM::R10,ARM::R11,ARM::R7 };
 
+    // For Thumb1 mode, we don't want to allocate hi regs at all, as we
+    // don't know how to spill them. If we make our prologue/epilogue code
+    // smarter at some point, we can go back to using the above allocation
+    // orders for the Thumb1 instructions that know how to use hi regs.
+    static const unsigned THUMB_GPR_AO[] = {
+      ARM::R0, ARM::R1, ARM::R2, ARM::R3,
+      ARM::R4, ARM::R5, ARM::R6, ARM::R7 };
+
     GPRClass::iterator
     GPRClass::allocation_order_begin(const MachineFunction &MF) const {
       const TargetMachine &TM = MF.getTarget();
       const ARMSubtarget &Subtarget = TM.getSubtarget<ARMSubtarget>();
+      if (Subtarget.isThumb1Only())
+        return THUMB_GPR_AO;
       if (Subtarget.isTargetDarwin()) {
         if (Subtarget.isR9Reserved())
           return ARM_GPR_AO_4;
@@ -194,6 +201,12 @@ def GPR : RegisterClass<"ARM", [i32], 32, [R0, R1, R2, R3, R4, R5, R6,
       const TargetRegisterInfo *RI = TM.getRegisterInfo();
       const ARMSubtarget &Subtarget = TM.getSubtarget<ARMSubtarget>();
       GPRClass::iterator I;
+
+      if (Subtarget.isThumb1Only()) {
+        I = THUMB_GPR_AO + (sizeof(THUMB_GPR_AO)/sizeof(unsigned));
+        // Mac OS X requires FP not to be clobbered for backtracing purpose.
+        return (Subtarget.isTargetDarwin() || RI->hasFP(MF)) ? I-1 : I;
+      }
 
       if (Subtarget.isTargetDarwin()) {
         if (Subtarget.isR9Reserved())
@@ -316,7 +329,7 @@ def DPR : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
 
 // Subset of DPR that are accessible with VFP2 (and so that also have
 // 32-bit SPR subregs).
-def DPR_VFP2 : RegisterClass<"ARM", [f64, v2i32, v2f32], 64,
+def DPR_VFP2 : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
                              [D0,  D1,  D2,  D3,  D4,  D5,  D6,  D7,
                               D8,  D9,  D10, D11, D12, D13, D14, D15]> {
   let SubRegClassList = [SPR, SPR];
@@ -324,7 +337,7 @@ def DPR_VFP2 : RegisterClass<"ARM", [f64, v2i32, v2f32], 64,
 
 // Subset of DPR which can be used as a source of NEON scalars for 16-bit
 // operations
-def DPR_8 : RegisterClass<"ARM", [f64, v4i16, v2f32], 64,
+def DPR_8 : RegisterClass<"ARM", [f64, v8i8, v4i16, v2i32, v1i64, v2f32], 64,
                           [D0,  D1,  D2,  D3,  D4,  D5,  D6,  D7]> {
   let SubRegClassList = [SPR_8, SPR_8];
 }
@@ -342,6 +355,13 @@ def QPR_VFP2 : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
                              128,
                              [Q0,  Q1,  Q2,  Q3,  Q4,  Q5,  Q6,  Q7]> {
   let SubRegClassList = [SPR, SPR, SPR, SPR, DPR_VFP2, DPR_VFP2];
+}
+
+// Subset of QPR that have DPR_8 and SPR_8 subregs.
+def QPR_8 : RegisterClass<"ARM", [v16i8, v8i16, v4i32, v2i64, v4f32, v2f64],
+                           128,
+                           [Q0,  Q1,  Q2,  Q3]> {
+  let SubRegClassList = [SPR_8, SPR_8, SPR_8, SPR_8, DPR_8, DPR_8];
 }
 
 // Condition code registers.

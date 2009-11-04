@@ -919,6 +919,8 @@ void AsmPrinter::EmitConstantValueOnly(const Constant *CV) {
     default:
       llvm_unreachable("Unsupported operator!");
     }
+  } else if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV)) {
+    GetBlockAddressSymbol(BA)->print(O, MAI);
   } else {
     llvm_unreachable("Unknown constant value!");
   }
@@ -1366,6 +1368,7 @@ void AsmPrinter::processDebugLoc(const MachineInstr *MI,
 	  unsigned L = DW->RecordSourceLine(CurDLT.Line, CurDLT.Col,
 	  				    CurDLT.Scope);
           printLabel(L);
+          O << '\n';
 #ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
           DW->SetDbgScopeBeginLabels(MI, L);
 #endif
@@ -1613,6 +1616,24 @@ bool AsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
   return true;
 }
 
+MCSymbol *AsmPrinter::GetBlockAddressSymbol(const BlockAddress *BA) const {
+  return GetBlockAddressSymbol(BA->getFunction(), BA->getBasicBlock());
+}
+
+MCSymbol *AsmPrinter::GetBlockAddressSymbol(const Function *F,
+                                            const BasicBlock *BB) const {
+  assert(BB->hasName() &&
+         "Address of anonymous basic block not supported yet!");
+
+  // FIXME: This isn't guaranteed to produce a unique name even if the
+  // block and function have a name.
+  std::string Mangled =
+    Mang->getMangledName(F, Mang->makeNameProper(BB->getName()).c_str(),
+                         /*ForcePrivate=*/true);
+
+  return OutContext.GetOrCreateSymbol(StringRef(Mangled));
+}
+
 MCSymbol *AsmPrinter::GetMBBSymbol(unsigned MBBID) const {
   SmallString<60> Name;
   raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix() << "BB"
@@ -1626,9 +1647,27 @@ MCSymbol *AsmPrinter::GetMBBSymbol(unsigned MBBID) const {
 /// MachineBasicBlock, an alignment (if present) and a comment describing
 /// it if appropriate.
 void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
+  // Emit an alignment directive for this block, if needed.
   if (unsigned Align = MBB->getAlignment())
     EmitAlignment(Log2_32(Align));
 
+  // If the block has its address taken, emit a special label to satisfy
+  // references to the block. This is done so that we don't need to
+  // remember the number of this label, and so that we can make
+  // forward references to labels without knowing what their numbers
+  // will be.
+  if (MBB->hasAddressTaken()) {
+    GetBlockAddressSymbol(MBB->getBasicBlock()->getParent(),
+                          MBB->getBasicBlock())->print(O, MAI);
+    O << ':';
+    if (VerboseAsm) {
+      O.PadToColumn(MAI->getCommentColumn());
+      O << MAI->getCommentString() << " Address Taken";
+    }
+    O << '\n';
+  }
+
+  // Print the main label for the block.
   if (MBB->pred_empty() || MBB->isOnlyReachableByFallthrough()) {
     if (VerboseAsm)
       O << MAI->getCommentString() << " BB#" << MBB->getNumber() << ':';
@@ -1639,6 +1678,7 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
       O << '\n';
   }
   
+  // Print some comments to accompany the label.
   if (VerboseAsm) {
     if (const BasicBlock *BB = MBB->getBasicBlock())
       if (BB->hasName()) {

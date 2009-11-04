@@ -27,7 +27,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetLowering.h"
@@ -38,7 +37,7 @@ STATISTIC(NumUnwinds, "Number of unwinds replaced");
 STATISTIC(NumSpilled, "Number of registers live across unwind edges");
 
 namespace {
-  class VISIBILITY_HIDDEN SjLjEHPass : public FunctionPass {
+  class SjLjEHPass : public FunctionPass {
 
     const TargetLowering *TLI;
 

@@ -33,7 +33,6 @@
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Mangler.h"
 
@@ -42,7 +41,7 @@ using namespace llvm;
 STATISTIC(EmittedInsts, "Number of machine instrs printed");
 
 namespace {
-  class VISIBILITY_HIDDEN SystemZAsmPrinter : public AsmPrinter {
+  class SystemZAsmPrinter : public AsmPrinter {
   public:
     SystemZAsmPrinter(formatted_raw_ostream &O, TargetMachine &TM,
                       const MCAsmInfo *MAI, bool V)

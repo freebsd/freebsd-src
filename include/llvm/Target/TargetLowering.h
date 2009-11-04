@@ -325,12 +325,11 @@ public:
   /// scalarizing vs using the wider vector type.
   virtual EVT getWidenVectorType(EVT VT) const;
 
-  typedef std::vector<APFloat>::const_iterator legal_fpimm_iterator;
-  legal_fpimm_iterator legal_fpimm_begin() const {
-    return LegalFPImmediates.begin();
-  }
-  legal_fpimm_iterator legal_fpimm_end() const {
-    return LegalFPImmediates.end();
+  /// isFPImmLegal - Returns true if the target can instruction select the
+  /// specified FP immediate natively. If false, the legalizer will materialize
+  /// the FP immediate as a load from a constant pool.
+  virtual bool isFPImmLegal(const APFloat &Imm, EVT VT) const {
+    return false;
   }
   
   /// isShuffleMaskLegal - Targets can use this to indicate that they only
@@ -1051,12 +1050,6 @@ protected:
     PromoteToType[std::make_pair(Opc, OrigVT.SimpleTy)] = DestVT.SimpleTy;
   }
 
-  /// addLegalFPImmediate - Indicate that this target can instruction select
-  /// the specified FP immediate natively.
-  void addLegalFPImmediate(const APFloat& Imm) {
-    LegalFPImmediates.push_back(Imm);
-  }
-
   /// setTargetDAGCombine - Targets should invoke this method for each target
   /// independent node that they want to provide a custom DAG combiner for by
   /// implementing the PerformDAGCombine virtual method.
@@ -1432,14 +1425,15 @@ public:
                                             SelectionDAG &DAG) const;
   
   //===--------------------------------------------------------------------===//
-  // Scheduler hooks
+  // Instruction Emitting Hooks
   //
   
   // EmitInstrWithCustomInserter - This method should be implemented by targets
-  // that mark instructions with the 'usesCustomDAGSchedInserter' flag.  These
+  // that mark instructions with the 'usesCustomInserter' flag.  These
   // instructions are special in various ways, which require special support to
   // insert.  The specified MachineInstr is created but not inserted into any
-  // basic blocks, and the scheduler passes ownership of it to this method.
+  // basic blocks, and this method is called to expand it into a sequence of
+  // instructions, potentially also creating new basic blocks and control flow.
   // When new basic blocks are inserted and the edges from MBB to its successors
   // are modified, the method should insert pairs of <OldSucc, NewSucc> into the
   // DenseMap.
@@ -1695,8 +1689,6 @@ private:
   uint64_t CondCodeActions[ISD::SETCC_INVALID];
 
   ValueTypeActionImpl ValueTypeActions;
-
-  std::vector<APFloat> LegalFPImmediates;
 
   std::vector<std::pair<EVT, TargetRegisterClass*> > AvailableRegClasses;
 

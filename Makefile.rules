@@ -312,16 +312,6 @@ endif
 #--------------------------------------------------------------------
 
 CPP.Defines :=
-# OPTIMIZE_OPTION - The optimization level option we want to build LLVM with
-# this can be overridden on the make command line.
-ifndef OPTIMIZE_OPTION
-  ifneq ($(HOST_OS),MingW)
-    OPTIMIZE_OPTION := -O3
-  else
-    OPTIMIZE_OPTION := -O2
-  endif
-endif
-
 ifeq ($(ENABLE_OPTIMIZED),1)
   BuildMode := Release
   # Don't use -fomit-frame-pointer on Darwin or FreeBSD.
@@ -566,6 +556,8 @@ endif
 ifeq ($(TARGET_OS),Darwin)
   ifneq ($(ARCH),ARM)
     TargetCommonOpts += -mmacosx-version-min=$(DARWIN_VERSION)
+  else
+    TargetCommonOpts += -marm
   endif
 endif
 
@@ -1238,7 +1230,7 @@ endif
 endif
 
 ifeq ($(HOST_OS), $(filter $(HOST_OS), Linux NetBSD FreeBSD))
-LD.Flags += -Wl,--version-script=$(LLVM_SRC_ROOT)/autoconf/ExportMap.map
+  LD.Flags += -Wl,--version-script=$(LLVM_SRC_ROOT)/autoconf/ExportMap.map
 endif
 endif
 

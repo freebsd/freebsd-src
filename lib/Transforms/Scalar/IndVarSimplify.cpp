@@ -292,7 +292,7 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L,
       if (NumPreds != 1) {
         // Clone the PHI and delete the original one. This lets IVUsers and
         // any other maps purge the original user from their records.
-        PHINode *NewPN = PN->clone();
+        PHINode *NewPN = cast<PHINode>(PN->clone());
         NewPN->takeName(PN);
         NewPN->insertBefore(PN);
         PN->replaceAllUsesWith(NewPN);
@@ -322,7 +322,7 @@ void IndVarSimplify::RewriteNonIntegerIVs(Loop *L) {
   // may not have been able to compute a trip count. Now that we've done some
   // re-writing, the trip count may be computable.
   if (Changed)
-    SE->forgetLoopBackedgeTakenCount(L);
+    SE->forgetLoop(L);
 }
 
 bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {

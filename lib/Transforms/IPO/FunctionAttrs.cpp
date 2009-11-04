@@ -26,11 +26,10 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CaptureTracking.h"
-#include "llvm/Analysis/MallocHelper.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/UniqueVector.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/InstIterator.h"
 using namespace llvm;
 
@@ -40,7 +39,7 @@ STATISTIC(NumNoCapture, "Number of arguments marked nocapture");
 STATISTIC(NumNoAlias, "Number of function returns marked noalias");
 
 namespace {
-  struct VISIBILITY_HIDDEN FunctionAttrs : public CallGraphSCCPass {
+  struct FunctionAttrs : public CallGraphSCCPass {
     static char ID; // Pass identification, replacement for typeid
     FunctionAttrs() : CallGraphSCCPass(&ID) {}
 

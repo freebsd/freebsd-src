@@ -38,7 +38,6 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
@@ -1473,7 +1472,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
 #include "X86GenRegisterInfo.inc"
 
 namespace {
-  struct VISIBILITY_HIDDEN MSAC : public MachineFunctionPass {
+  struct MSAC : public MachineFunctionPass {
     static char ID;
     MSAC() : MachineFunctionPass(&ID) {}
 

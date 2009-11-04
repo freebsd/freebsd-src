@@ -607,6 +607,23 @@ if test -n "$LLVMGXX" && test -z "$LLVMGCC"; then
    AC_MSG_ERROR([Invalid llvm-gcc. Use --with-llvmgcc when --with-llvmgxx is used]);
 fi
 
+dnl Override the option to use for optimized builds.
+AC_ARG_WITH(optimize-option,
+  AS_HELP_STRING([--with-optimize-option],
+                 [Select the compiler options to use for optimized builds]),,
+                 withval=default)
+AC_MSG_CHECKING([optimization flags])
+case "$withval" in
+  default)
+    case "$llvm_cv_os_type" in
+    MingW) optimize_option=-O3 ;;
+    *)     optimize_option=-O2 ;;
+    esac ;;
+  *) optimize_option="$withval" ;;
+esac
+AC_SUBST(OPTIMIZE_OPTION,$optimize_option)
+AC_MSG_RESULT([$optimize_option])
+
 dnl Specify extra build options
 AC_ARG_WITH(extra-options,
   AS_HELP_STRING([--with-extra-options],
@@ -942,6 +959,12 @@ fi
 
 dnl Tool compatibility is okay if we make it here.
 AC_MSG_RESULT([ok])
+
+dnl Check optional compiler flags. 
+AC_MSG_CHECKING([optional compiler flags])
+CXX_FLAG_CHECK(NO_VARIADIC_MACROS, [-Wno-variadic-macros])
+CXX_FLAG_CHECK(NO_MISSING_FIELD_INITIALIZERS, [-Wno-missing-field-initializers])
+AC_MSG_RESULT([$NO_VARIADIC_MACROS $NO_MISSING_FIELD_INITIALIZERS])
 
 dnl===-----------------------------------------------------------------------===
 dnl===
@@ -1349,7 +1372,7 @@ AC_CONFIG_HEADERS([include/llvm/Config/config.h])
 AC_CONFIG_FILES([include/llvm/Config/Targets.def])
 AC_CONFIG_FILES([include/llvm/Config/AsmPrinters.def])
 AC_CONFIG_FILES([include/llvm/Config/AsmParsers.def])
-AC_CONFIG_HEADERS([include/llvm/Support/DataTypes.h])
+AC_CONFIG_HEADERS([include/llvm/System/DataTypes.h])
 
 dnl Configure the makefile's configuration data
 AC_CONFIG_FILES([Makefile.config])

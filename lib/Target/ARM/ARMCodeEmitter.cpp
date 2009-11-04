@@ -34,7 +34,6 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -56,8 +55,7 @@ namespace {
   };
 
   template<class CodeEmitter>
-  class VISIBILITY_HIDDEN Emitter : public MachineFunctionPass,
-                                    public ARMCodeEmitter {
+  class Emitter : public MachineFunctionPass, public ARMCodeEmitter {
     ARMJITInfo                *JTI;
     const ARMInstrInfo        *II;
     const TargetData          *TD;
@@ -430,6 +428,7 @@ void Emitter<CodeEmitter>::emitConstPoolInstruction(const MachineInstr &MI) {
     DEBUG(errs() << "  ** ARM constant pool #" << CPI << " @ "
           << (void*)MCE.getCurrentPCValue() << " " << *ACPV << '\n');
 
+    assert(ACPV->isGlobalValue() && "unsupported constant pool value");
     GlobalValue *GV = ACPV->getGV();
     if (GV) {
       Reloc::Model RelocM = TM.getRelocationModel();

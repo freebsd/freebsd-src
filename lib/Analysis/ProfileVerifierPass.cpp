@@ -30,7 +30,7 @@ ProfileVerifierDisableAssertions("profile-verifier-noassert",
      cl::desc("Disable assertions"));
 
 namespace {
-  class VISIBILITY_HIDDEN ProfileVerifierPass : public FunctionPass {
+  class ProfileVerifierPass : public FunctionPass {
 
     struct DetailedBlockInfo {
       const BasicBlock *BB;
@@ -229,7 +229,8 @@ void ProfileVerifierPass::recurseBasicBlock(const BasicBlock *BB) {
   // to debug printers.
   DetailedBlockInfo DI;
   DI.BB = BB;
-  DI.outCount = DI.inCount = DI.inWeight = DI.outWeight = 0;
+  DI.outCount = DI.inCount = 0;
+  DI.inWeight = DI.outWeight = 0.0;
 
   // Read predecessors.
   std::set<const BasicBlock*> ProcessedPreds;

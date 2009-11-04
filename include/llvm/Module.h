@@ -19,7 +19,7 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/GlobalAlias.h"
 #include "llvm/Metadata.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/System/DataTypes.h"
 #include <vector>
 
 namespace llvm {
@@ -252,6 +252,7 @@ public:
                                 AttrListPtr AttributeList,
                                 const Type *RetTy, ...)  END_WITH_NULL;
 
+  /// getOrInsertFunction - Same as above, but without the attributes.
   Constant *getOrInsertFunction(const StringRef &Name, const Type *RetTy, ...)
     END_WITH_NULL;
 

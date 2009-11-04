@@ -15,6 +15,10 @@ class InternalShellError(Exception):
 
 # Don't use close_fds on Windows.
 kUseCloseFDs = platform.system() != 'Windows'
+
+# Use temporary files to replace /dev/null on Windows.
+kAvoidDevNull = platform.system() == 'Windows'
+
 def executeCommand(command, cwd=None, env=None):
     p = subprocess.Popen(command, cwd=cwd,
                          stdin=subprocess.PIPE,
@@ -63,21 +67,30 @@ def executeShCmd(cmd, cfg, cwd, results):
     # output. This is null until we have seen some output using
     # stderr.
     for i,j in enumerate(cmd.commands):
+        # Apply the redirections, we use (N,) as a sentinal to indicate stdin,
+        # stdout, stderr for N equal to 0, 1, or 2 respectively. Redirects to or
+        # from a file are represented with a list [file, mode, file-object]
+        # where file-object is initially None.
         redirects = [(0,), (1,), (2,)]
         for r in j.redirects:
             if r[0] == ('>',2):
                 redirects[2] = [r[1], 'w', None]
+            elif r[0] == ('>>',2):
+                redirects[2] = [r[1], 'a', None]
             elif r[0] == ('>&',2) and r[1] in '012':
                 redirects[2] = redirects[int(r[1])]
             elif r[0] == ('>&',) or r[0] == ('&>',):
                 redirects[1] = redirects[2] = [r[1], 'w', None]
             elif r[0] == ('>',):
                 redirects[1] = [r[1], 'w', None]
+            elif r[0] == ('>>',):
+                redirects[1] = [r[1], 'a', None]
             elif r[0] == ('<',):
                 redirects[0] = [r[1], 'r', None]
             else:
                 raise NotImplementedError,"Unsupported redirect: %r" % (r,)
 
+        # Map from the final redirections to something subprocess can handle.
         final_redirects = []
         for index,r in enumerate(redirects):
             if r == (0,):
@@ -95,7 +108,10 @@ def executeShCmd(cmd, cfg, cwd, results):
                 result = subprocess.PIPE
             else:
                 if r[2] is None:
-                    r[2] = open(r[0], r[1])
+                    if kAvoidDevNull and r[0] == '/dev/null':
+                        r[2] = tempfile.TemporaryFile(mode=r[1])
+                    else:
+                        r[2] = open(r[0], r[1])
                 result = r[2]
             final_redirects.append(result)
 
@@ -317,7 +333,24 @@ def executeScript(test, litConfig, tmpBase, commands, cwd):
 
     return executeCommand(command, cwd=cwd, env=test.config.environment)
 
-def parseIntegratedTestScript(test, xfailHasColon, requireAndAnd):
+def isExpectedFail(xfails, xtargets, target_triple):
+    # Check if any xfail matches this target.
+    for item in xfails:
+        if item == '*' or item in target_triple:
+            break
+    else:
+        return False
+
+    # If so, see if it is expected to pass on this target.
+    #
+    # FIXME: Rename XTARGET to something that makes sense, like XPASS.
+    for item in xtargets:
+        if item == '*' or item in target_triple:
+            return False
+
+    return True
+
+def parseIntegratedTestScript(test, requireAndAnd):
     """parseIntegratedTestScript - Scan an LLVM/Clang style integrated test
     script and extract the lines to 'RUN' as well as 'XFAIL' and 'XTARGET'
     information. The RUN lines also will have variable substitution performed.
@@ -361,11 +394,8 @@ def parseIntegratedTestScript(test, xfailHasColon, requireAndAnd):
                 script[-1] = script[-1][:-1] + ln
             else:
                 script.append(ln)
-        elif xfailHasColon and 'XFAIL:' in ln:
+        elif 'XFAIL:' in ln:
             items = ln[ln.index('XFAIL:') + 6:].split(',')
-            xfails.extend([s.strip() for s in items])
-        elif not xfailHasColon and 'XFAIL' in ln:
-            items = ln[ln.index('XFAIL') + 5:].split(',')
             xfails.extend([s.strip() for s in items])
         elif 'XTARGET:' in ln:
             items = ln[ln.index('XTARGET:') + 8:].split(',')
@@ -405,7 +435,8 @@ def parseIntegratedTestScript(test, xfailHasColon, requireAndAnd):
             # Strip off '&&'
             script[i] = ln[:-2]
 
-    return script,xfails,xtargets,tmpBase,execdir
+    isXFail = isExpectedFail(xfails, xtargets, test.suite.config.target_triple)
+    return script,isXFail,tmpBase,execdir
 
 def formatTestOutput(status, out, err, exitCode, script):
     output = StringIO.StringIO()
@@ -428,11 +459,11 @@ def executeTclTest(test, litConfig):
     if test.config.unsupported:
         return (Test.UNSUPPORTED, 'Test is unsupported')
 
-    res = parseIntegratedTestScript(test, True, False)
+    res = parseIntegratedTestScript(test, False)
     if len(res) == 2:
         return res
 
-    script, xfails, xtargets, tmpBase, execdir = res
+    script, isXFail, tmpBase, execdir = res
 
     if litConfig.noExecute:
         return (Test.PASS, '')
@@ -443,19 +474,6 @@ def executeTclTest(test, litConfig):
     res = executeTclScriptInternal(test, litConfig, tmpBase, script, execdir)
     if len(res) == 2:
         return res
-
-    isXFail = False
-    for item in xfails:
-        if item == '*' or item in test.suite.config.target_triple:
-            isXFail = True
-            break
-
-    # If this is XFAIL, see if it is expected to pass on this target.
-    if isXFail:
-        for item in xtargets:
-            if item == '*' or item in test.suite.config.target_triple:
-                isXFail = False
-                break
 
     out,err,exitCode = res
     if isXFail:
@@ -474,11 +492,11 @@ def executeShTest(test, litConfig, useExternalSh, requireAndAnd):
     if test.config.unsupported:
         return (Test.UNSUPPORTED, 'Test is unsupported')
 
-    res = parseIntegratedTestScript(test, False, requireAndAnd)
+    res = parseIntegratedTestScript(test, requireAndAnd)
     if len(res) == 2:
         return res
 
-    script, xfails, xtargets, tmpBase, execdir = res
+    script, isXFail, tmpBase, execdir = res
 
     if litConfig.noExecute:
         return (Test.PASS, '')
@@ -494,7 +512,7 @@ def executeShTest(test, litConfig, useExternalSh, requireAndAnd):
         return res
 
     out,err,exitCode = res
-    if xfails:
+    if isXFail:
         ok = exitCode != 0
         status = (Test.XPASS, Test.XFAIL)[ok]
     else:

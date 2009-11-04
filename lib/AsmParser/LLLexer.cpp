@@ -576,6 +576,7 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(oge); KEYWORD(ord); KEYWORD(uno); KEYWORD(ueq); KEYWORD(une);
 
   KEYWORD(x);
+  KEYWORD(blockaddress);
 #undef KEYWORD
 
   // Keywords for types.
@@ -606,6 +607,10 @@ lltok::Kind LLLexer::LexIdentifier() {
     // FIXME: Remove in LLVM 3.0.
     // Autoupgrade malloc instruction.
     return lltok::kw_malloc;
+  } else if (Len == 4 && !memcmp(StartChar, "free", 4)) {
+    // FIXME: Remove in LLVM 3.0.
+    // Autoupgrade malloc instruction.
+    return lltok::kw_free;
   }
 
   // Keywords for instructions.
@@ -641,12 +646,12 @@ lltok::Kind LLLexer::LexIdentifier() {
   INSTKEYWORD(ret,         Ret);
   INSTKEYWORD(br,          Br);
   INSTKEYWORD(switch,      Switch);
+  INSTKEYWORD(indirectbr,  IndirectBr);
   INSTKEYWORD(invoke,      Invoke);
   INSTKEYWORD(unwind,      Unwind);
   INSTKEYWORD(unreachable, Unreachable);
 
   INSTKEYWORD(alloca,      Alloca);
-  INSTKEYWORD(free,        Free);
   INSTKEYWORD(load,        Load);
   INSTKEYWORD(store,       Store);
   INSTKEYWORD(getelementptr, GetElementPtr);

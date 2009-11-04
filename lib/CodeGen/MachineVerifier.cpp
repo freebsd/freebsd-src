@@ -36,14 +36,13 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
-  struct VISIBILITY_HIDDEN MachineVerifier : public MachineFunctionPass {
+  struct MachineVerifier : public MachineFunctionPass {
     static char ID; // Pass ID, replacement for typeid
 
     MachineVerifier(bool allowDoubleDefs = false) :
@@ -244,7 +243,7 @@ void MachineVerifier::report(const char *msg, const MachineBasicBlock *MBB) {
   report(msg, MBB->getParent());
   *OS << "- basic block: " << MBB->getBasicBlock()->getNameStr()
       << " " << (void*)MBB
-      << " (#" << MBB->getNumber() << ")\n";
+      << " (BB#" << MBB->getNumber() << ")\n";
 }
 
 void MachineVerifier::report(const char *msg, const MachineInstr *MI) {
@@ -746,7 +745,7 @@ void MachineVerifier::checkPHIOps(const MachineBasicBlock *MBB) {
            PrE = MBB->pred_end(); PrI != PrE; ++PrI) {
       if (!seen.count(*PrI)) {
         report("Missing PHI operand", BBI);
-        *OS << "MBB #" << (*PrI)->getNumber()
+        *OS << "BB#" << (*PrI)->getNumber()
             << " is a predecessor according to the CFG.\n";
       }
     }
@@ -781,7 +780,7 @@ void MachineVerifier::visitMachineFunctionAfter() {
             report("Live-in physical register is not live-out from predecessor",
                    MFI);
             *OS << "Register " << TRI->getName(*I)
-                << " is not live-out from MBB #" << (*PrI)->getNumber()
+                << " is not live-out from BB#" << (*PrI)->getNumber()
                 << ".\n";
           }
         }

@@ -42,7 +42,7 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Operator.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/MallocHelper.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -217,6 +217,7 @@ namespace {
     //
     Instruction *visitAdd(BinaryOperator &I);
     Instruction *visitFAdd(BinaryOperator &I);
+    Value *OptimizePointerDifference(Value *LHS, Value *RHS, const Type *Ty);
     Instruction *visitSub(BinaryOperator &I);
     Instruction *visitFSub(BinaryOperator &I);
     Instruction *visitMul(BinaryOperator &I);
@@ -284,8 +285,8 @@ namespace {
     Instruction *visitInvokeInst(InvokeInst &II);
     Instruction *visitPHINode(PHINode &PN);
     Instruction *visitGetElementPtrInst(GetElementPtrInst &GEP);
-    Instruction *visitAllocationInst(AllocationInst &AI);
-    Instruction *visitFreeInst(FreeInst &FI);
+    Instruction *visitAllocaInst(AllocaInst &AI);
+    Instruction *visitFree(Instruction &FI);
     Instruction *visitLoadInst(LoadInst &LI);
     Instruction *visitStoreInst(StoreInst &SI);
     Instruction *visitBranchInst(BranchInst &BI);
@@ -416,6 +417,7 @@ namespace {
     Instruction *FoldPHIArgOpIntoPHI(PHINode &PN);
     Instruction *FoldPHIArgBinOpIntoPHI(PHINode &PN);
     Instruction *FoldPHIArgGEPIntoPHI(PHINode &PN);
+    Instruction *FoldPHIArgLoadIntoPHI(PHINode &PN);
 
     
     Instruction *OptAndOp(Instruction *Op, ConstantInt *OpRHS,
@@ -425,7 +427,7 @@ namespace {
                               bool isSub, Instruction &I);
     Instruction *InsertRangeTest(Value *V, Constant *Lo, Constant *Hi,
                                  bool isSigned, bool Inside, Instruction &IB);
-    Instruction *PromoteCastOfAllocation(BitCastInst &CI, AllocationInst &AI);
+    Instruction *PromoteCastOfAllocation(BitCastInst &CI, AllocaInst &AI);
     Instruction *MatchBSwap(BinaryOperator &I);
     bool SimplifyStoreAtEndOfBlock(StoreInst &SI);
     Instruction *SimplifyMemTransfer(MemIntrinsic *MI);
@@ -630,15 +632,40 @@ static inline Value *dyn_castFNegVal(Value *V) {
   return 0;
 }
 
-static inline Value *dyn_castNotVal(Value *V) {
+/// isFreeToInvert - Return true if the specified value is free to invert (apply
+/// ~ to).  This happens in cases where the ~ can be eliminated.
+static inline bool isFreeToInvert(Value *V) {
+  // ~(~(X)) -> X.
   if (BinaryOperator::isNot(V))
-    return BinaryOperator::getNotArgument(V);
+    return true;
+  
+  // Constants can be considered to be not'ed values.
+  if (isa<ConstantInt>(V))
+    return true;
+  
+  // Compares can be inverted if they have a single use.
+  if (CmpInst *CI = dyn_cast<CmpInst>(V))
+    return CI->hasOneUse();
+  
+  return false;
+}
+
+static inline Value *dyn_castNotVal(Value *V) {
+  // If this is not(not(x)) don't return that this is a not: we want the two
+  // not's to be folded first.
+  if (BinaryOperator::isNot(V)) {
+    Value *Operand = BinaryOperator::getNotArgument(V);
+    if (!isFreeToInvert(Operand))
+      return Operand;
+  }
 
   // Constants can be considered to be not'ed values...
   if (ConstantInt *C = dyn_cast<ConstantInt>(V))
     return ConstantInt::get(C->getType(), ~C->getValue());
   return 0;
 }
+
+
 
 // dyn_castFoldableMul - If this value is a multiply that can be folded into
 // other computations (because it has a constant operand), return the
@@ -2394,8 +2421,8 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
           ConstantExpr::getSExt(CI, I.getType()) == RHSC &&
           WillNotOverflowSignedAdd(LHSConv->getOperand(0), CI)) {
         // Insert the new, smaller add.
-        Value *NewAdd = Builder->CreateAdd(LHSConv->getOperand(0), 
-                                           CI, "addconv");
+        Value *NewAdd = Builder->CreateNSWAdd(LHSConv->getOperand(0), 
+                                              CI, "addconv");
         return new SExtInst(NewAdd, I.getType());
       }
     }
@@ -2410,8 +2437,8 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
           WillNotOverflowSignedAdd(LHSConv->getOperand(0),
                                    RHSConv->getOperand(0))) {
         // Insert the new integer add.
-        Value *NewAdd = Builder->CreateAdd(LHSConv->getOperand(0), 
-                                           RHSConv->getOperand(0), "addconv");
+        Value *NewAdd = Builder->CreateNSWAdd(LHSConv->getOperand(0), 
+                                              RHSConv->getOperand(0), "addconv");
         return new SExtInst(NewAdd, I.getType());
       }
     }
@@ -2467,8 +2494,8 @@ Instruction *InstCombiner::visitFAdd(BinaryOperator &I) {
           ConstantExpr::getSIToFP(CI, I.getType()) == CFP &&
           WillNotOverflowSignedAdd(LHSConv->getOperand(0), CI)) {
         // Insert the new integer add.
-        Value *NewAdd = Builder->CreateAdd(LHSConv->getOperand(0),
-                                           CI, "addconv");
+        Value *NewAdd = Builder->CreateNSWAdd(LHSConv->getOperand(0),
+                                              CI, "addconv");
         return new SIToFPInst(NewAdd, I.getType());
       }
     }
@@ -2483,8 +2510,8 @@ Instruction *InstCombiner::visitFAdd(BinaryOperator &I) {
           WillNotOverflowSignedAdd(LHSConv->getOperand(0),
                                    RHSConv->getOperand(0))) {
         // Insert the new integer add.
-        Value *NewAdd = Builder->CreateAdd(LHSConv->getOperand(0), 
-                                           RHSConv->getOperand(0), "addconv");
+        Value *NewAdd = Builder->CreateNSWAdd(LHSConv->getOperand(0), 
+                                              RHSConv->getOperand(0),"addconv");
         return new SIToFPInst(NewAdd, I.getType());
       }
     }
@@ -2493,13 +2520,210 @@ Instruction *InstCombiner::visitFAdd(BinaryOperator &I) {
   return Changed ? &I : 0;
 }
 
+
+/// EmitGEPOffset - Given a getelementptr instruction/constantexpr, emit the
+/// code necessary to compute the offset from the base pointer (without adding
+/// in the base pointer).  Return the result as a signed integer of intptr size.
+static Value *EmitGEPOffset(User *GEP, InstCombiner &IC) {
+  TargetData &TD = *IC.getTargetData();
+  gep_type_iterator GTI = gep_type_begin(GEP);
+  const Type *IntPtrTy = TD.getIntPtrType(GEP->getContext());
+  Value *Result = Constant::getNullValue(IntPtrTy);
+
+  // Build a mask for high order bits.
+  unsigned IntPtrWidth = TD.getPointerSizeInBits();
+  uint64_t PtrSizeMask = ~0ULL >> (64-IntPtrWidth);
+
+  for (User::op_iterator i = GEP->op_begin() + 1, e = GEP->op_end(); i != e;
+       ++i, ++GTI) {
+    Value *Op = *i;
+    uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType()) & PtrSizeMask;
+    if (ConstantInt *OpC = dyn_cast<ConstantInt>(Op)) {
+      if (OpC->isZero()) continue;
+      
+      // Handle a struct index, which adds its field offset to the pointer.
+      if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
+        Size = TD.getStructLayout(STy)->getElementOffset(OpC->getZExtValue());
+        
+        Result = IC.Builder->CreateAdd(Result,
+                                       ConstantInt::get(IntPtrTy, Size),
+                                       GEP->getName()+".offs");
+        continue;
+      }
+      
+      Constant *Scale = ConstantInt::get(IntPtrTy, Size);
+      Constant *OC =
+              ConstantExpr::getIntegerCast(OpC, IntPtrTy, true /*SExt*/);
+      Scale = ConstantExpr::getMul(OC, Scale);
+      // Emit an add instruction.
+      Result = IC.Builder->CreateAdd(Result, Scale, GEP->getName()+".offs");
+      continue;
+    }
+    // Convert to correct type.
+    if (Op->getType() != IntPtrTy)
+      Op = IC.Builder->CreateIntCast(Op, IntPtrTy, true, Op->getName()+".c");
+    if (Size != 1) {
+      Constant *Scale = ConstantInt::get(IntPtrTy, Size);
+      // We'll let instcombine(mul) convert this to a shl if possible.
+      Op = IC.Builder->CreateMul(Op, Scale, GEP->getName()+".idx");
+    }
+
+    // Emit an add instruction.
+    Result = IC.Builder->CreateAdd(Op, Result, GEP->getName()+".offs");
+  }
+  return Result;
+}
+
+
+/// EvaluateGEPOffsetExpression - Return a value that can be used to compare
+/// the *offset* implied by a GEP to zero.  For example, if we have &A[i], we
+/// want to return 'i' for "icmp ne i, 0".  Note that, in general, indices can
+/// be complex, and scales are involved.  The above expression would also be
+/// legal to codegen as "icmp ne (i*4), 0" (assuming A is a pointer to i32).
+/// This later form is less amenable to optimization though, and we are allowed
+/// to generate the first by knowing that pointer arithmetic doesn't overflow.
+///
+/// If we can't emit an optimized form for this expression, this returns null.
+/// 
+static Value *EvaluateGEPOffsetExpression(User *GEP, Instruction &I,
+                                          InstCombiner &IC) {
+  TargetData &TD = *IC.getTargetData();
+  gep_type_iterator GTI = gep_type_begin(GEP);
+
+  // Check to see if this gep only has a single variable index.  If so, and if
+  // any constant indices are a multiple of its scale, then we can compute this
+  // in terms of the scale of the variable index.  For example, if the GEP
+  // implies an offset of "12 + i*4", then we can codegen this as "3 + i",
+  // because the expression will cross zero at the same point.
+  unsigned i, e = GEP->getNumOperands();
+  int64_t Offset = 0;
+  for (i = 1; i != e; ++i, ++GTI) {
+    if (ConstantInt *CI = dyn_cast<ConstantInt>(GEP->getOperand(i))) {
+      // Compute the aggregate offset of constant indices.
+      if (CI->isZero()) continue;
+
+      // Handle a struct index, which adds its field offset to the pointer.
+      if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
+        Offset += TD.getStructLayout(STy)->getElementOffset(CI->getZExtValue());
+      } else {
+        uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType());
+        Offset += Size*CI->getSExtValue();
+      }
+    } else {
+      // Found our variable index.
+      break;
+    }
+  }
+  
+  // If there are no variable indices, we must have a constant offset, just
+  // evaluate it the general way.
+  if (i == e) return 0;
+  
+  Value *VariableIdx = GEP->getOperand(i);
+  // Determine the scale factor of the variable element.  For example, this is
+  // 4 if the variable index is into an array of i32.
+  uint64_t VariableScale = TD.getTypeAllocSize(GTI.getIndexedType());
+  
+  // Verify that there are no other variable indices.  If so, emit the hard way.
+  for (++i, ++GTI; i != e; ++i, ++GTI) {
+    ConstantInt *CI = dyn_cast<ConstantInt>(GEP->getOperand(i));
+    if (!CI) return 0;
+   
+    // Compute the aggregate offset of constant indices.
+    if (CI->isZero()) continue;
+    
+    // Handle a struct index, which adds its field offset to the pointer.
+    if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
+      Offset += TD.getStructLayout(STy)->getElementOffset(CI->getZExtValue());
+    } else {
+      uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType());
+      Offset += Size*CI->getSExtValue();
+    }
+  }
+  
+  // Okay, we know we have a single variable index, which must be a
+  // pointer/array/vector index.  If there is no offset, life is simple, return
+  // the index.
+  unsigned IntPtrWidth = TD.getPointerSizeInBits();
+  if (Offset == 0) {
+    // Cast to intptrty in case a truncation occurs.  If an extension is needed,
+    // we don't need to bother extending: the extension won't affect where the
+    // computation crosses zero.
+    if (VariableIdx->getType()->getPrimitiveSizeInBits() > IntPtrWidth)
+      VariableIdx = new TruncInst(VariableIdx, 
+                                  TD.getIntPtrType(VariableIdx->getContext()),
+                                  VariableIdx->getName(), &I);
+    return VariableIdx;
+  }
+  
+  // Otherwise, there is an index.  The computation we will do will be modulo
+  // the pointer size, so get it.
+  uint64_t PtrSizeMask = ~0ULL >> (64-IntPtrWidth);
+  
+  Offset &= PtrSizeMask;
+  VariableScale &= PtrSizeMask;
+
+  // To do this transformation, any constant index must be a multiple of the
+  // variable scale factor.  For example, we can evaluate "12 + 4*i" as "3 + i",
+  // but we can't evaluate "10 + 3*i" in terms of i.  Check that the offset is a
+  // multiple of the variable scale.
+  int64_t NewOffs = Offset / (int64_t)VariableScale;
+  if (Offset != NewOffs*(int64_t)VariableScale)
+    return 0;
+
+  // Okay, we can do this evaluation.  Start by converting the index to intptr.
+  const Type *IntPtrTy = TD.getIntPtrType(VariableIdx->getContext());
+  if (VariableIdx->getType() != IntPtrTy)
+    VariableIdx = CastInst::CreateIntegerCast(VariableIdx, IntPtrTy,
+                                              true /*SExt*/, 
+                                              VariableIdx->getName(), &I);
+  Constant *OffsetVal = ConstantInt::get(IntPtrTy, NewOffs);
+  return BinaryOperator::CreateAdd(VariableIdx, OffsetVal, "offset", &I);
+}
+
+
+/// Optimize pointer differences into the same array into a size.  Consider:
+///  &A[10] - &A[0]: we should compile this to "10".  LHS/RHS are the pointer
+/// operands to the ptrtoint instructions for the LHS/RHS of the subtract.
+///
+Value *InstCombiner::OptimizePointerDifference(Value *LHS, Value *RHS,
+                                               const Type *Ty) {
+  assert(TD && "Must have target data info for this");
+  
+  // If LHS is a gep based on RHS or RHS is a gep based on LHS, we can optimize
+  // this.
+  bool Swapped;
+  GetElementPtrInst *GEP;
+  
+  if ((GEP = dyn_cast<GetElementPtrInst>(LHS)) &&
+      GEP->getOperand(0) == RHS)
+    Swapped = false;
+  else if ((GEP = dyn_cast<GetElementPtrInst>(RHS)) &&
+           GEP->getOperand(0) == LHS)
+    Swapped = true;
+  else
+    return 0;
+  
+  // TODO: Could also optimize &A[i] - &A[j] -> "i-j".
+  
+  // Emit the offset of the GEP and an intptr_t.
+  Value *Result = EmitGEPOffset(GEP, *this);
+
+  // If we have p - gep(p, ...)  then we have to negate the result.
+  if (Swapped)
+    Result = Builder->CreateNeg(Result, "diff.neg");
+
+  return Builder->CreateIntCast(Result, Ty, true);
+}
+
+
 Instruction *InstCombiner::visitSub(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
   if (Op0 == Op1)                        // sub X, X  -> 0
     return ReplaceInstUsesWith(I, Constant::getNullValue(I.getType()));
 
-  // If this is a 'B = x-(-A)', change to B = x+A...
+  // If this is a 'B = x-(-A)', change to B = x+A.
   if (Value *V = dyn_castNegVal(Op1))
     return BinaryOperator::CreateAdd(Op0, V);
 
@@ -2507,9 +2731,11 @@ Instruction *InstCombiner::visitSub(BinaryOperator &I) {
     return ReplaceInstUsesWith(I, Op0);    // undef - X -> undef
   if (isa<UndefValue>(Op1))
     return ReplaceInstUsesWith(I, Op1);    // X - undef -> undef
-
+  if (I.getType() == Type::getInt1Ty(*Context))
+    return BinaryOperator::CreateXor(Op0, Op1);
+  
   if (ConstantInt *C = dyn_cast<ConstantInt>(Op0)) {
-    // Replace (-1 - A) with (~A)...
+    // Replace (-1 - A) with (~A).
     if (C->isAllOnesValue())
       return BinaryOperator::CreateNot(Op1);
 
@@ -2532,8 +2758,7 @@ Instruction *InstCombiner::visitSub(BinaryOperator &I) {
                                           SI->getOperand(0), CU, SI->getName());
             }
           }
-        }
-        else if (SI->getOpcode() == Instruction::AShr) {
+        } else if (SI->getOpcode() == Instruction::AShr) {
           if (ConstantInt *CU = dyn_cast<ConstantInt>(SI->getOperand(1))) {
             // Check to see if we are shifting out everything but the sign bit.
             if (CU->getLimitedValue(SI->getType()->getPrimitiveSizeInBits()) ==
@@ -2557,9 +2782,6 @@ Instruction *InstCombiner::visitSub(BinaryOperator &I) {
       if (ZI->getSrcTy() == Type::getInt1Ty(*Context))
         return SelectInst::Create(ZI->getOperand(0), SubOne(C), C);
   }
-
-  if (I.getType() == Type::getInt1Ty(*Context))
-    return BinaryOperator::CreateXor(Op0, Op1);
 
   if (BinaryOperator *Op1I = dyn_cast<BinaryOperator>(Op1)) {
     if (Op1I->getOpcode() == Instruction::Add) {
@@ -2642,6 +2864,28 @@ Instruction *InstCombiner::visitSub(BinaryOperator &I) {
     if (X == dyn_castFoldableMul(Op1, C2))
       return BinaryOperator::CreateMul(X, ConstantExpr::getSub(C1, C2));
   }
+  
+  // Optimize pointer differences into the same array into a size.  Consider:
+  //  &A[10] - &A[0]: we should compile this to "10".
+  if (TD) {
+    if (PtrToIntInst *LHS = dyn_cast<PtrToIntInst>(Op0))
+      if (PtrToIntInst *RHS = dyn_cast<PtrToIntInst>(Op1))
+        if (Value *Res = OptimizePointerDifference(LHS->getOperand(0),
+                                                   RHS->getOperand(0),
+                                                   I.getType()))
+          return ReplaceInstUsesWith(I, Res);
+    
+    // trunc(p)-trunc(q) -> trunc(p-q)
+    if (TruncInst *LHST = dyn_cast<TruncInst>(Op0))
+      if (TruncInst *RHST = dyn_cast<TruncInst>(Op1))
+        if (PtrToIntInst *LHS = dyn_cast<PtrToIntInst>(LHST->getOperand(0)))
+          if (PtrToIntInst *RHS = dyn_cast<PtrToIntInst>(RHST->getOperand(0)))
+            if (Value *Res = OptimizePointerDifference(LHS->getOperand(0),
+                                                       RHS->getOperand(0),
+                                                       I.getType()))
+              return ReplaceInstUsesWith(I, Res);
+  }
+  
   return 0;
 }
 
@@ -3510,9 +3754,9 @@ static Value *getFCmpValue(bool isordered, unsigned code,
 /// PredicatesFoldable - Return true if both predicates match sign or if at
 /// least one of them is an equality comparison (which is signless).
 static bool PredicatesFoldable(ICmpInst::Predicate p1, ICmpInst::Predicate p2) {
-  return (ICmpInst::isSignedPredicate(p1) == ICmpInst::isSignedPredicate(p2)) ||
-         (ICmpInst::isSignedPredicate(p1) && ICmpInst::isEquality(p2)) ||
-         (ICmpInst::isSignedPredicate(p2) && ICmpInst::isEquality(p1));
+  return (CmpInst::isSigned(p1) == CmpInst::isSigned(p2)) ||
+         (CmpInst::isSigned(p1) && ICmpInst::isEquality(p2)) ||
+         (CmpInst::isSigned(p2) && ICmpInst::isEquality(p1));
 }
 
 namespace { 
@@ -3549,9 +3793,7 @@ struct FoldICmpLogical {
     default: llvm_unreachable("Illegal logical opcode!"); return 0;
     }
 
-    bool isSigned = ICmpInst::isSignedPredicate(RHSICI->getPredicate()) || 
-                    ICmpInst::isSignedPredicate(ICI->getPredicate());
-      
+    bool isSigned = RHSICI->isSigned() || ICI->isSigned();
     Value *RV = getICmpValue(isSigned, Code, LHS, RHS, IC.getContext());
     if (Instruction *I = dyn_cast<Instruction>(RV))
       return I;
@@ -3848,9 +4090,9 @@ Instruction *InstCombiner::FoldAndOfICmps(Instruction &I,
     
   // Ensure that the larger constant is on the RHS.
   bool ShouldSwap;
-  if (ICmpInst::isSignedPredicate(LHSCC) ||
+  if (CmpInst::isSigned(LHSCC) ||
       (ICmpInst::isEquality(LHSCC) && 
-       ICmpInst::isSignedPredicate(RHSCC)))
+       CmpInst::isSigned(RHSCC)))
     ShouldSwap = LHSCst->getValue().sgt(RHSCst->getValue());
   else
     ShouldSwap = LHSCst->getValue().ugt(RHSCst->getValue());
@@ -4167,7 +4409,7 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
       if (Instruction *CastOp = dyn_cast<Instruction>(CI->getOperand(0))) {
         if ((isa<TruncInst>(CI) || isa<BitCastInst>(CI)) &&
             CastOp->getNumOperands() == 2)
-          if (ConstantInt *AndCI = dyn_cast<ConstantInt>(CastOp->getOperand(1))) {
+          if (ConstantInt *AndCI =dyn_cast<ConstantInt>(CastOp->getOperand(1))){
             if (CastOp->getOpcode() == Instruction::And) {
               // Change: and (cast (and X, C1) to T), C2
               // into  : and (cast X to T), trunc_or_bitcast(C1)&C2
@@ -4536,9 +4778,9 @@ Instruction *InstCombiner::FoldOrOfICmps(Instruction &I,
   
   // Ensure that the larger constant is on the RHS.
   bool ShouldSwap;
-  if (ICmpInst::isSignedPredicate(LHSCC) ||
+  if (CmpInst::isSigned(LHSCC) ||
       (ICmpInst::isEquality(LHSCC) && 
-       ICmpInst::isSignedPredicate(RHSCC)))
+       CmpInst::isSigned(RHSCC)))
     ShouldSwap = LHSCst->getValue().sgt(RHSCst->getValue());
   else
     ShouldSwap = LHSCst->getValue().ugt(RHSCst->getValue());
@@ -4961,14 +5203,14 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     if (Ret) return Ret;
   }
 
-  if (match(Op0, m_Not(m_Value(A)))) {   // ~A | Op1
+  if ((A = dyn_castNotVal(Op0))) {   // ~A | Op1
     if (A == Op1)   // ~A | A == -1
       return ReplaceInstUsesWith(I, Constant::getAllOnesValue(I.getType()));
   } else {
     A = 0;
   }
   // Note, A is still live here!
-  if (match(Op1, m_Not(m_Value(B)))) {   // Op0 | ~B
+  if ((B = dyn_castNotVal(Op1))) {   // Op0 | ~B
     if (Op0 == B)
       return ReplaceInstUsesWith(I, Constant::getAllOnesValue(I.getType()));
 
@@ -5065,12 +5307,13 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
 
   // Is this a ~ operation?
   if (Value *NotOp = dyn_castNotVal(&I)) {
-    // ~(~X & Y) --> (X | ~Y) - De Morgan's Law
-    // ~(~X | Y) === (X & ~Y) - De Morgan's Law
     if (BinaryOperator *Op0I = dyn_cast<BinaryOperator>(NotOp)) {
       if (Op0I->getOpcode() == Instruction::And || 
           Op0I->getOpcode() == Instruction::Or) {
-        if (dyn_castNotVal(Op0I->getOperand(1))) Op0I->swapOperands();
+        // ~(~X & Y) --> (X | ~Y) - De Morgan's Law
+        // ~(~X | Y) === (X & ~Y) - De Morgan's Law
+        if (dyn_castNotVal(Op0I->getOperand(1)))
+          Op0I->swapOperands();
         if (Value *Op0NotVal = dyn_castNotVal(Op0I->getOperand(0))) {
           Value *NotY =
             Builder->CreateNot(Op0I->getOperand(1),
@@ -5078,6 +5321,19 @@ Instruction *InstCombiner::visitXor(BinaryOperator &I) {
           if (Op0I->getOpcode() == Instruction::And)
             return BinaryOperator::CreateOr(Op0NotVal, NotY);
           return BinaryOperator::CreateAnd(Op0NotVal, NotY);
+        }
+        
+        // ~(X & Y) --> (~X | ~Y) - De Morgan's Law
+        // ~(X | Y) === (~X & ~Y) - De Morgan's Law
+        if (isFreeToInvert(Op0I->getOperand(0)) && 
+            isFreeToInvert(Op0I->getOperand(1))) {
+          Value *NotX =
+            Builder->CreateNot(Op0I->getOperand(0), "notlhs");
+          Value *NotY =
+            Builder->CreateNot(Op0I->getOperand(1), "notrhs");
+          if (Op0I->getOpcode() == Instruction::And)
+            return BinaryOperator::CreateOr(NotX, NotY);
+          return BinaryOperator::CreateAnd(NotX, NotY);
         }
       }
     }
@@ -5379,166 +5635,6 @@ static bool SubWithOverflow(Constant *&Result, Constant *In1,
                         IsSigned);
 }
 
-/// EmitGEPOffset - Given a getelementptr instruction/constantexpr, emit the
-/// code necessary to compute the offset from the base pointer (without adding
-/// in the base pointer).  Return the result as a signed integer of intptr size.
-static Value *EmitGEPOffset(User *GEP, Instruction &I, InstCombiner &IC) {
-  TargetData &TD = *IC.getTargetData();
-  gep_type_iterator GTI = gep_type_begin(GEP);
-  const Type *IntPtrTy = TD.getIntPtrType(I.getContext());
-  Value *Result = Constant::getNullValue(IntPtrTy);
-
-  // Build a mask for high order bits.
-  unsigned IntPtrWidth = TD.getPointerSizeInBits();
-  uint64_t PtrSizeMask = ~0ULL >> (64-IntPtrWidth);
-
-  for (User::op_iterator i = GEP->op_begin() + 1, e = GEP->op_end(); i != e;
-       ++i, ++GTI) {
-    Value *Op = *i;
-    uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType()) & PtrSizeMask;
-    if (ConstantInt *OpC = dyn_cast<ConstantInt>(Op)) {
-      if (OpC->isZero()) continue;
-      
-      // Handle a struct index, which adds its field offset to the pointer.
-      if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
-        Size = TD.getStructLayout(STy)->getElementOffset(OpC->getZExtValue());
-        
-        Result = IC.Builder->CreateAdd(Result,
-                                       ConstantInt::get(IntPtrTy, Size),
-                                       GEP->getName()+".offs");
-        continue;
-      }
-      
-      Constant *Scale = ConstantInt::get(IntPtrTy, Size);
-      Constant *OC =
-              ConstantExpr::getIntegerCast(OpC, IntPtrTy, true /*SExt*/);
-      Scale = ConstantExpr::getMul(OC, Scale);
-      // Emit an add instruction.
-      Result = IC.Builder->CreateAdd(Result, Scale, GEP->getName()+".offs");
-      continue;
-    }
-    // Convert to correct type.
-    if (Op->getType() != IntPtrTy)
-      Op = IC.Builder->CreateIntCast(Op, IntPtrTy, true, Op->getName()+".c");
-    if (Size != 1) {
-      Constant *Scale = ConstantInt::get(IntPtrTy, Size);
-      // We'll let instcombine(mul) convert this to a shl if possible.
-      Op = IC.Builder->CreateMul(Op, Scale, GEP->getName()+".idx");
-    }
-
-    // Emit an add instruction.
-    Result = IC.Builder->CreateAdd(Op, Result, GEP->getName()+".offs");
-  }
-  return Result;
-}
-
-
-/// EvaluateGEPOffsetExpression - Return a value that can be used to compare
-/// the *offset* implied by a GEP to zero.  For example, if we have &A[i], we
-/// want to return 'i' for "icmp ne i, 0".  Note that, in general, indices can
-/// be complex, and scales are involved.  The above expression would also be
-/// legal to codegen as "icmp ne (i*4), 0" (assuming A is a pointer to i32).
-/// This later form is less amenable to optimization though, and we are allowed
-/// to generate the first by knowing that pointer arithmetic doesn't overflow.
-///
-/// If we can't emit an optimized form for this expression, this returns null.
-/// 
-static Value *EvaluateGEPOffsetExpression(User *GEP, Instruction &I,
-                                          InstCombiner &IC) {
-  TargetData &TD = *IC.getTargetData();
-  gep_type_iterator GTI = gep_type_begin(GEP);
-
-  // Check to see if this gep only has a single variable index.  If so, and if
-  // any constant indices are a multiple of its scale, then we can compute this
-  // in terms of the scale of the variable index.  For example, if the GEP
-  // implies an offset of "12 + i*4", then we can codegen this as "3 + i",
-  // because the expression will cross zero at the same point.
-  unsigned i, e = GEP->getNumOperands();
-  int64_t Offset = 0;
-  for (i = 1; i != e; ++i, ++GTI) {
-    if (ConstantInt *CI = dyn_cast<ConstantInt>(GEP->getOperand(i))) {
-      // Compute the aggregate offset of constant indices.
-      if (CI->isZero()) continue;
-
-      // Handle a struct index, which adds its field offset to the pointer.
-      if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
-        Offset += TD.getStructLayout(STy)->getElementOffset(CI->getZExtValue());
-      } else {
-        uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType());
-        Offset += Size*CI->getSExtValue();
-      }
-    } else {
-      // Found our variable index.
-      break;
-    }
-  }
-  
-  // If there are no variable indices, we must have a constant offset, just
-  // evaluate it the general way.
-  if (i == e) return 0;
-  
-  Value *VariableIdx = GEP->getOperand(i);
-  // Determine the scale factor of the variable element.  For example, this is
-  // 4 if the variable index is into an array of i32.
-  uint64_t VariableScale = TD.getTypeAllocSize(GTI.getIndexedType());
-  
-  // Verify that there are no other variable indices.  If so, emit the hard way.
-  for (++i, ++GTI; i != e; ++i, ++GTI) {
-    ConstantInt *CI = dyn_cast<ConstantInt>(GEP->getOperand(i));
-    if (!CI) return 0;
-   
-    // Compute the aggregate offset of constant indices.
-    if (CI->isZero()) continue;
-    
-    // Handle a struct index, which adds its field offset to the pointer.
-    if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
-      Offset += TD.getStructLayout(STy)->getElementOffset(CI->getZExtValue());
-    } else {
-      uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType());
-      Offset += Size*CI->getSExtValue();
-    }
-  }
-  
-  // Okay, we know we have a single variable index, which must be a
-  // pointer/array/vector index.  If there is no offset, life is simple, return
-  // the index.
-  unsigned IntPtrWidth = TD.getPointerSizeInBits();
-  if (Offset == 0) {
-    // Cast to intptrty in case a truncation occurs.  If an extension is needed,
-    // we don't need to bother extending: the extension won't affect where the
-    // computation crosses zero.
-    if (VariableIdx->getType()->getPrimitiveSizeInBits() > IntPtrWidth)
-      VariableIdx = new TruncInst(VariableIdx, 
-                                  TD.getIntPtrType(VariableIdx->getContext()),
-                                  VariableIdx->getName(), &I);
-    return VariableIdx;
-  }
-  
-  // Otherwise, there is an index.  The computation we will do will be modulo
-  // the pointer size, so get it.
-  uint64_t PtrSizeMask = ~0ULL >> (64-IntPtrWidth);
-  
-  Offset &= PtrSizeMask;
-  VariableScale &= PtrSizeMask;
-
-  // To do this transformation, any constant index must be a multiple of the
-  // variable scale factor.  For example, we can evaluate "12 + 4*i" as "3 + i",
-  // but we can't evaluate "10 + 3*i" in terms of i.  Check that the offset is a
-  // multiple of the variable scale.
-  int64_t NewOffs = Offset / (int64_t)VariableScale;
-  if (Offset != NewOffs*(int64_t)VariableScale)
-    return 0;
-
-  // Okay, we can do this evaluation.  Start by converting the index to intptr.
-  const Type *IntPtrTy = TD.getIntPtrType(VariableIdx->getContext());
-  if (VariableIdx->getType() != IntPtrTy)
-    VariableIdx = CastInst::CreateIntegerCast(VariableIdx, IntPtrTy,
-                                              true /*SExt*/, 
-                                              VariableIdx->getName(), &I);
-  Constant *OffsetVal = ConstantInt::get(IntPtrTy, NewOffs);
-  return BinaryOperator::CreateAdd(VariableIdx, OffsetVal, "offset", &I);
-}
-
 
 /// FoldGEPICmp - Fold comparisons between a GEP instruction and something
 /// else.  At this point we know that the GEP is on the LHS of the comparison.
@@ -5559,7 +5655,7 @@ Instruction *InstCombiner::FoldGEPICmp(GEPOperator *GEPLHS, Value *RHS,
     
     // If not, synthesize the offset the hard way.
     if (Offset == 0)
-      Offset = EmitGEPOffset(GEPLHS, I, *this);
+      Offset = EmitGEPOffset(GEPLHS, *this);
     return new ICmpInst(ICmpInst::getSignedPredicate(Cond), Offset,
                         Constant::getNullValue(Offset->getType()));
   } else if (GEPOperator *GEPRHS = dyn_cast<GEPOperator>(RHS)) {
@@ -5645,8 +5741,8 @@ Instruction *InstCombiner::FoldGEPICmp(GEPOperator *GEPLHS, Value *RHS,
         (isa<ConstantExpr>(GEPLHS) || GEPLHS->hasOneUse()) &&
         (isa<ConstantExpr>(GEPRHS) || GEPRHS->hasOneUse())) {
       // ((gep Ptr, OFFSET1) cmp (gep Ptr, OFFSET2)  --->  (OFFSET1 cmp OFFSET2)
-      Value *L = EmitGEPOffset(GEPLHS, I, *this);
-      Value *R = EmitGEPOffset(GEPRHS, I, *this);
+      Value *L = EmitGEPOffset(GEPLHS, *this);
+      Value *R = EmitGEPOffset(GEPRHS, *this);
       return new ICmpInst(ICmpInst::getSignedPredicate(Cond), L, R);
     }
   }
@@ -6087,7 +6183,7 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
     // EQ and NE we use unsigned values.
     APInt Op0Min(BitWidth, 0), Op0Max(BitWidth, 0);
     APInt Op1Min(BitWidth, 0), Op1Max(BitWidth, 0);
-    if (ICmpInst::isSignedPredicate(I.getPredicate())) {
+    if (I.isSigned()) {
       ComputeSignedMinMaxValuesFromKnownBits(Op0KnownZero, Op0KnownOne,
                                              Op0Min, Op0Max);
       ComputeSignedMinMaxValuesFromKnownBits(Op1KnownZero, Op1KnownOne,
@@ -6217,7 +6313,7 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
 
     // Turn a signed comparison into an unsigned one if both operands
     // are known to have the same sign.
-    if (I.isSignedPredicate() &&
+    if (I.isSigned() &&
         ((Op0KnownZero.isNegative() && Op1KnownZero.isNegative()) ||
          (Op0KnownOne.isNegative() && Op1KnownOne.isNegative())))
       return new ICmpInst(I.getUnsignedPredicate(), Op0, Op1);
@@ -6397,7 +6493,7 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
           // icmp u/s (a ^ signbit), (b ^ signbit) --> icmp s/u a, b
           if (ConstantInt *CI = dyn_cast<ConstantInt>(Op0I->getOperand(1))) {
             if (CI->getValue().isSignBit()) {
-              ICmpInst::Predicate Pred = I.isSignedPredicate()
+              ICmpInst::Predicate Pred = I.isSigned()
                                              ? I.getUnsignedPredicate()
                                              : I.getSignedPredicate();
               return new ICmpInst(Pred, Op0I->getOperand(0),
@@ -6405,7 +6501,7 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
             }
             
             if (CI->getValue().isMaxSignedValue()) {
-              ICmpInst::Predicate Pred = I.isSignedPredicate()
+              ICmpInst::Predicate Pred = I.isSigned()
                                              ? I.getUnsignedPredicate()
                                              : I.getSignedPredicate();
               Pred = I.getSwappedPredicate(Pred);
@@ -6542,7 +6638,7 @@ Instruction *InstCombiner::FoldICmpDivCst(ICmpInst &ICI, BinaryOperator *DivI,
   // work. :(  The if statement below tests that condition and bails 
   // if it finds it. 
   bool DivIsSigned = DivI->getOpcode() == Instruction::SDiv;
-  if (!ICI.isEquality() && DivIsSigned != ICI.isSignedPredicate())
+  if (!ICI.isEquality() && DivIsSigned != ICI.isSigned())
     return 0;
   if (DivRHS->isZero())
     return 0; // The ProdOV computation fails on divide by zero.
@@ -6741,7 +6837,7 @@ Instruction *InstCombiner::visitICmpInstWithInstAndIntCst(ICmpInst &ICI,
         // (icmp u/s (xor A SignBit), C) -> (icmp s/u A, (xor C SignBit))
         if (!ICI.isEquality() && XorCST->getValue().isSignBit()) {
           const APInt &SignBit = XorCST->getValue();
-          ICmpInst::Predicate Pred = ICI.isSignedPredicate()
+          ICmpInst::Predicate Pred = ICI.isSigned()
                                          ? ICI.getUnsignedPredicate()
                                          : ICI.getSignedPredicate();
           return new ICmpInst(Pred, LHSI->getOperand(0),
@@ -6751,7 +6847,7 @@ Instruction *InstCombiner::visitICmpInstWithInstAndIntCst(ICmpInst &ICI,
         // (icmp u/s (xor A ~SignBit), C) -> (icmp s/u (xor C ~SignBit), A)
         if (!ICI.isEquality() && XorCST->getValue().isMaxSignedValue()) {
           const APInt &NotSignBit = XorCST->getValue();
-          ICmpInst::Predicate Pred = ICI.isSignedPredicate()
+          ICmpInst::Predicate Pred = ICI.isSigned()
                                          ? ICI.getUnsignedPredicate()
                                          : ICI.getSignedPredicate();
           Pred = ICI.getSwappedPredicate(Pred);
@@ -7009,7 +7105,7 @@ Instruction *InstCombiner::visitICmpInstWithInstAndIntCst(ICmpInst &ICI,
       ConstantRange CR = ICI.makeConstantRange(ICI.getPredicate(), RHSV)
                             .subtract(LHSV);
 
-      if (ICI.isSignedPredicate()) {
+      if (ICI.isSigned()) {
         if (CR.getLower().isSignBit()) {
           return new ICmpInst(ICmpInst::ICMP_SLT, LHSI->getOperand(0),
                               ConstantInt::get(*Context, CR.getUpper()));
@@ -7184,7 +7280,7 @@ Instruction *InstCombiner::visitICmpInstWithCastAndCast(ICmpInst &ICI) {
     return 0;
 
   bool isSignedExt = LHSCI->getOpcode() == Instruction::SExt;
-  bool isSignedCmp = ICI.isSignedPredicate();
+  bool isSignedCmp = ICI.isSigned();
 
   if (CastInst *CI = dyn_cast<CastInst>(ICI.getOperand(1))) {
     // Not an extension from the same type?
@@ -7745,7 +7841,7 @@ static Value *DecomposeSimpleLinearExpr(Value *Val, unsigned &Scale,
 /// PromoteCastOfAllocation - If we find a cast of an allocation instruction,
 /// try to eliminate the cast by moving the type information into the alloc.
 Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
-                                                   AllocationInst &AI) {
+                                                   AllocaInst &AI) {
   const PointerType *PTy = cast<PointerType>(CI.getType());
   
   BuilderTy AllocaBuilder(*Builder);
@@ -7817,7 +7913,7 @@ Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
     Amt = AllocaBuilder.CreateAdd(Amt, Off, "tmp");
   }
   
-  AllocationInst *New = AllocaBuilder.CreateAlloca(CastElTy, Amt);
+  AllocaInst *New = AllocaBuilder.CreateAlloca(CastElTy, Amt);
   New->setAlignment(AI.getAlignment());
   New->takeName(&AI);
   
@@ -8163,8 +8259,7 @@ Instruction *InstCombiner::commonPointerCastTransforms(CastInst &CI) {
     if (TD && GEP->hasOneUse() && isa<BitCastInst>(GEP->getOperand(0))) {
       if (GEP->hasAllConstantIndices()) {
         // We are guaranteed to get a constant from EmitGEPOffset.
-        ConstantInt *OffsetV =
-                      cast<ConstantInt>(EmitGEPOffset(GEP, CI, *this));
+        ConstantInt *OffsetV = cast<ConstantInt>(EmitGEPOffset(GEP, *this));
         int64_t Offset = OffsetV->getSExtValue();
         
         // Get the base pointer input of the bitcast, and the type it points to.
@@ -8878,7 +8973,7 @@ Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
     // size, rewrite the allocation instruction to allocate the "right" type.
     // There is no need to modify malloc calls because it is their bitcast that
     // needs to be cleaned up.
-    if (AllocationInst *AI = dyn_cast<AllocationInst>(Src))
+    if (AllocaInst *AI = dyn_cast<AllocaInst>(Src))
       if (Instruction *V = PromoteCastOfAllocation(CI, *AI))
         return V;
     
@@ -9747,6 +9842,9 @@ Instruction *InstCombiner::SimplifyMemSet(MemSetInst *MI) {
 /// the heavy lifting.
 ///
 Instruction *InstCombiner::visitCallInst(CallInst &CI) {
+  if (isFreeCall(&CI))
+    return visitFree(CI);
+
   // If the caller function is nounwind, mark the call as nounwind, even if the
   // callee isn't.
   if (CI.getParent()->getParent()->doesNotThrow() &&
@@ -10691,6 +10789,96 @@ static bool isSafeAndProfitableToSinkLoad(LoadInst *L) {
   return true;
 }
 
+Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
+  LoadInst *FirstLI = cast<LoadInst>(PN.getIncomingValue(0));
+  
+  // When processing loads, we need to propagate two bits of information to the
+  // sunk load: whether it is volatile, and what its alignment is.  We currently
+  // don't sink loads when some have their alignment specified and some don't.
+  // visitLoadInst will propagate an alignment onto the load when TD is around,
+  // and if TD isn't around, we can't handle the mixed case.
+  bool isVolatile = FirstLI->isVolatile();
+  unsigned LoadAlignment = FirstLI->getAlignment();
+  
+  // We can't sink the load if the loaded value could be modified between the
+  // load and the PHI.
+  if (FirstLI->getParent() != PN.getIncomingBlock(0) ||
+      !isSafeAndProfitableToSinkLoad(FirstLI))
+    return 0;
+  
+  // If the PHI is of volatile loads and the load block has multiple
+  // successors, sinking it would remove a load of the volatile value from
+  // the path through the other successor.
+  if (isVolatile && 
+      FirstLI->getParent()->getTerminator()->getNumSuccessors() != 1)
+    return 0;
+  
+  // Check to see if all arguments are the same operation.
+  for (unsigned i = 1, e = PN.getNumIncomingValues(); i != e; ++i) {
+    LoadInst *LI = dyn_cast<LoadInst>(PN.getIncomingValue(i));
+    if (!LI || !LI->hasOneUse())
+      return 0;
+    
+    // We can't sink the load if the loaded value could be modified between 
+    // the load and the PHI.
+    if (LI->isVolatile() != isVolatile ||
+        LI->getParent() != PN.getIncomingBlock(i) ||
+        !isSafeAndProfitableToSinkLoad(LI))
+      return 0;
+      
+    // If some of the loads have an alignment specified but not all of them,
+    // we can't do the transformation.
+    if ((LoadAlignment != 0) != (LI->getAlignment() != 0))
+      return 0;
+    
+    LoadAlignment = std::min(LoadAlignment, LI->getAlignment());
+    
+    // If the PHI is of volatile loads and the load block has multiple
+    // successors, sinking it would remove a load of the volatile value from
+    // the path through the other successor.
+    if (isVolatile &&
+        LI->getParent()->getTerminator()->getNumSuccessors() != 1)
+      return 0;
+  }
+  
+  // Okay, they are all the same operation.  Create a new PHI node of the
+  // correct type, and PHI together all of the LHS's of the instructions.
+  PHINode *NewPN = PHINode::Create(FirstLI->getOperand(0)->getType(),
+                                   PN.getName()+".in");
+  NewPN->reserveOperandSpace(PN.getNumOperands()/2);
+  
+  Value *InVal = FirstLI->getOperand(0);
+  NewPN->addIncoming(InVal, PN.getIncomingBlock(0));
+  
+  // Add all operands to the new PHI.
+  for (unsigned i = 1, e = PN.getNumIncomingValues(); i != e; ++i) {
+    Value *NewInVal = cast<LoadInst>(PN.getIncomingValue(i))->getOperand(0);
+    if (NewInVal != InVal)
+      InVal = 0;
+    NewPN->addIncoming(NewInVal, PN.getIncomingBlock(i));
+  }
+  
+  Value *PhiVal;
+  if (InVal) {
+    // The new PHI unions all of the same values together.  This is really
+    // common, so we handle it intelligently here for compile-time speed.
+    PhiVal = InVal;
+    delete NewPN;
+  } else {
+    InsertNewInstBefore(NewPN, PN);
+    PhiVal = NewPN;
+  }
+  
+  // If this was a volatile load that we are merging, make sure to loop through
+  // and mark all the input loads as non-volatile.  If we don't do this, we will
+  // insert a new volatile load and the old ones will not be deletable.
+  if (isVolatile)
+    for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i)
+      cast<LoadInst>(PN.getIncomingValue(i))->setVolatile(false);
+  
+  return new LoadInst(PhiVal, "", isVolatile, LoadAlignment);
+}
+
 
 // FoldPHIArgOpIntoPHI - If all operands to a PHI node are the same "unary"
 // operator and they all are only used by the PHI, PHI together their
@@ -10698,13 +10886,18 @@ static bool isSafeAndProfitableToSinkLoad(LoadInst *L) {
 Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   Instruction *FirstInst = cast<Instruction>(PN.getIncomingValue(0));
 
+  if (isa<GetElementPtrInst>(FirstInst))
+    return FoldPHIArgGEPIntoPHI(PN);
+  if (isa<LoadInst>(FirstInst))
+    return FoldPHIArgLoadIntoPHI(PN);
+  
   // Scan the instruction, looking for input operations that can be folded away.
   // If all input operands to the phi are the same instruction (e.g. a cast from
   // the same type or "+42") we can pull the operation through the PHI, reducing
   // code size and simplifying code.
   Constant *ConstantOp = 0;
   const Type *CastSrcTy = 0;
-  bool isVolatile = false;
+  
   if (isa<CastInst>(FirstInst)) {
     CastSrcTy = FirstInst->getOperand(0)->getType();
   } else if (isa<BinaryOperator>(FirstInst) || isa<CmpInst>(FirstInst)) {
@@ -10713,51 +10906,18 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
     ConstantOp = dyn_cast<Constant>(FirstInst->getOperand(1));
     if (ConstantOp == 0)
       return FoldPHIArgBinOpIntoPHI(PN);
-  } else if (LoadInst *LI = dyn_cast<LoadInst>(FirstInst)) {
-    isVolatile = LI->isVolatile();
-    // We can't sink the load if the loaded value could be modified between the
-    // load and the PHI.
-    if (LI->getParent() != PN.getIncomingBlock(0) ||
-        !isSafeAndProfitableToSinkLoad(LI))
-      return 0;
-    
-    // If the PHI is of volatile loads and the load block has multiple
-    // successors, sinking it would remove a load of the volatile value from
-    // the path through the other successor.
-    if (isVolatile &&
-        LI->getParent()->getTerminator()->getNumSuccessors() != 1)
-      return 0;
-    
-  } else if (isa<GetElementPtrInst>(FirstInst)) {
-    return FoldPHIArgGEPIntoPHI(PN);
   } else {
     return 0;  // Cannot fold this operation.
   }
 
   // Check to see if all arguments are the same operation.
   for (unsigned i = 1, e = PN.getNumIncomingValues(); i != e; ++i) {
-    if (!isa<Instruction>(PN.getIncomingValue(i))) return 0;
-    Instruction *I = cast<Instruction>(PN.getIncomingValue(i));
-    if (!I->hasOneUse() || !I->isSameOperationAs(FirstInst))
+    Instruction *I = dyn_cast<Instruction>(PN.getIncomingValue(i));
+    if (I == 0 || !I->hasOneUse() || !I->isSameOperationAs(FirstInst))
       return 0;
     if (CastSrcTy) {
       if (I->getOperand(0)->getType() != CastSrcTy)
         return 0;  // Cast operation must match.
-    } else if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
-      // We can't sink the load if the loaded value could be modified between 
-      // the load and the PHI.
-      if (LI->isVolatile() != isVolatile ||
-          LI->getParent() != PN.getIncomingBlock(i) ||
-          !isSafeAndProfitableToSinkLoad(LI))
-        return 0;
-      
-      // If the PHI is of volatile loads and the load block has multiple
-      // successors, sinking it would remove a load of the volatile value from
-      // the path through the other successor.
-      if (isVolatile &&
-          LI->getParent()->getTerminator()->getNumSuccessors() != 1)
-        return 0;
-      
     } else if (I->getOperand(1) != ConstantOp) {
       return 0;
     }
@@ -10792,23 +10952,15 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   }
 
   // Insert and return the new operation.
-  if (CastInst* FirstCI = dyn_cast<CastInst>(FirstInst))
+  if (CastInst *FirstCI = dyn_cast<CastInst>(FirstInst))
     return CastInst::Create(FirstCI->getOpcode(), PhiVal, PN.getType());
+  
   if (BinaryOperator *BinOp = dyn_cast<BinaryOperator>(FirstInst))
     return BinaryOperator::Create(BinOp->getOpcode(), PhiVal, ConstantOp);
-  if (CmpInst *CIOp = dyn_cast<CmpInst>(FirstInst))
-    return CmpInst::Create(CIOp->getOpcode(), CIOp->getPredicate(),
-                           PhiVal, ConstantOp);
-  assert(isa<LoadInst>(FirstInst) && "Unknown operation");
   
-  // If this was a volatile load that we are merging, make sure to loop through
-  // and mark all the input loads as non-volatile.  If we don't do this, we will
-  // insert a new volatile load and the old ones will not be deletable.
-  if (isVolatile)
-    for (unsigned i = 0, e = PN.getNumIncomingValues(); i != e; ++i)
-      cast<LoadInst>(PN.getIncomingValue(i))->setVolatile(false);
-  
-  return new LoadInst(PhiVal, "", isVolatile);
+  CmpInst *CIOp = cast<CmpInst>(FirstInst);
+  return CmpInst::Create(CIOp->getOpcode(), CIOp->getPredicate(),
+                         PhiVal, ConstantOp);
 }
 
 /// DeadPHICycle - Return true if this PHI node is only used by a PHI node cycle
@@ -10940,6 +11092,31 @@ Instruction *InstCombiner::visitPHINode(PHINode &PN) {
       }
     }
   }
+
+  // If there are multiple PHIs, sort their operands so that they all list
+  // the blocks in the same order. This will help identical PHIs be eliminated
+  // by other passes. Other passes shouldn't depend on this for correctness
+  // however.
+  PHINode *FirstPN = cast<PHINode>(PN.getParent()->begin());
+  if (&PN != FirstPN)
+    for (unsigned i = 0, e = FirstPN->getNumIncomingValues(); i != e; ++i) {
+      BasicBlock *BBA = PN.getIncomingBlock(i);
+      BasicBlock *BBB = FirstPN->getIncomingBlock(i);
+      if (BBA != BBB) {
+        Value *VA = PN.getIncomingValue(i);
+        unsigned j = PN.getBasicBlockIndex(BBB);
+        Value *VB = PN.getIncomingValue(j);
+        PN.setIncomingBlock(i, BBB);
+        PN.setIncomingValue(i, VB);
+        PN.setIncomingBlock(j, BBA);
+        PN.setIncomingValue(j, VA);
+        // NOTE: Instcombine normally would want us to "return &PN" if we
+        // modified any of the operands of an instruction.  However, since we
+        // aren't adding or removing uses (just rearranging them) we don't do
+        // this in this case.
+      }
+    }
+
   return 0;
 }
 
@@ -11190,8 +11367,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
         !isa<BitCastInst>(BCI->getOperand(0)) && GEP.hasAllConstantIndices()) {
       // Determine how much the GEP moves the pointer.  We are guaranteed to get
       // a constant back from EmitGEPOffset.
-      ConstantInt *OffsetV =
-                    cast<ConstantInt>(EmitGEPOffset(&GEP, GEP, *this));
+      ConstantInt *OffsetV = cast<ConstantInt>(EmitGEPOffset(&GEP, *this));
       int64_t Offset = OffsetV->getSExtValue();
       
       // If this GEP instruction doesn't move the pointer, just replace the GEP
@@ -11199,7 +11375,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       if (Offset == 0) {
         // If the bitcast is of an allocation, and the allocation will be
         // converted to match the type of the cast, don't touch this.
-        if (isa<AllocationInst>(BCI->getOperand(0)) ||
+        if (isa<AllocaInst>(BCI->getOperand(0)) ||
             isMalloc(BCI->getOperand(0))) {
           // See if the bitcast simplifies, if so, don't nuke this GEP yet.
           if (Instruction *I = visitBitCast(*BCI)) {
@@ -11238,21 +11414,21 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   return 0;
 }
 
-Instruction *InstCombiner::visitAllocationInst(AllocationInst &AI) {
-  // Convert: malloc Ty, C - where C is a constant != 1 into: malloc [C x Ty], 1
+Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
+  // Convert: alloca Ty, C - where C is a constant != 1 into: alloca [C x Ty], 1
   if (AI.isArrayAllocation()) {  // Check C != 1
     if (const ConstantInt *C = dyn_cast<ConstantInt>(AI.getArraySize())) {
       const Type *NewTy = 
         ArrayType::get(AI.getAllocatedType(), C->getZExtValue());
       assert(isa<AllocaInst>(AI) && "Unknown type of allocation inst!");
-      AllocationInst *New = Builder->CreateAlloca(NewTy, 0, AI.getName());
+      AllocaInst *New = Builder->CreateAlloca(NewTy, 0, AI.getName());
       New->setAlignment(AI.getAlignment());
 
       // Scan to the end of the allocation instructions, to skip over a block of
       // allocas if possible...also skip interleaved debug info
       //
       BasicBlock::iterator It = New;
-      while (isa<AllocationInst>(*It) || isa<DbgInfoIntrinsic>(*It)) ++It;
+      while (isa<AllocaInst>(*It) || isa<DbgInfoIntrinsic>(*It)) ++It;
 
       // Now that I is pointing to the first non-allocation-inst in the block,
       // insert our getelementptr instruction...
@@ -11287,8 +11463,8 @@ Instruction *InstCombiner::visitAllocationInst(AllocationInst &AI) {
   return 0;
 }
 
-Instruction *InstCombiner::visitFreeInst(FreeInst &FI) {
-  Value *Op = FI.getOperand(0);
+Instruction *InstCombiner::visitFree(Instruction &FI) {
+  Value *Op = FI.getOperand(1);
 
   // free undef -> unreachable.
   if (isa<UndefValue>(Op)) {
@@ -11302,22 +11478,8 @@ Instruction *InstCombiner::visitFreeInst(FreeInst &FI) {
   // when lots of inlining happens.
   if (isa<ConstantPointerNull>(Op))
     return EraseInstFromFunction(FI);
-  
-  // Change free <ty>* (cast <ty2>* X to <ty>*) into free <ty2>* X
-  if (BitCastInst *CI = dyn_cast<BitCastInst>(Op)) {
-    FI.setOperand(0, CI->getOperand(0));
-    return &FI;
-  }
-  
-  // Change free (gep X, 0,0,0,0) into free(X)
-  if (GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(Op)) {
-    if (GEPI->hasAllZeroIndices()) {
-      Worklist.Add(GEPI);
-      FI.setOperand(0, GEPI->getOperand(0));
-      return &FI;
-    }
-  }
-  
+
+  // If we have a malloc call whose only use is a free call, delete both.
   if (isMalloc(Op)) {
     if (CallInst* CI = extractMallocCallFromBitCast(Op)) {
       if (Op->hasOneUse() && CI->hasOneUse()) {
@@ -11336,7 +11498,6 @@ Instruction *InstCombiner::visitFreeInst(FreeInst &FI) {
 
   return 0;
 }
-
 
 /// InstCombineLoadCast - Fold 'load (cast P)' -> cast (load P)' when possible.
 static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
@@ -11838,9 +11999,11 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
         return false;
       --BBI;
     }
-    // If this isn't a store, or isn't a store to the same location, bail out.
+    // If this isn't a store, isn't a store to the same location, or if the
+    // alignments differ, bail out.
     OtherStore = dyn_cast<StoreInst>(BBI);
-    if (!OtherStore || OtherStore->getOperand(1) != SI.getOperand(1))
+    if (!OtherStore || OtherStore->getOperand(1) != SI.getOperand(1) ||
+        OtherStore->getAlignment() != SI.getAlignment())
       return false;
   } else {
     // Otherwise, the other block ended with a conditional branch. If one of the
@@ -11855,7 +12018,8 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
     for (;; --BBI) {
       // Check to see if we find the matching store.
       if ((OtherStore = dyn_cast<StoreInst>(BBI))) {
-        if (OtherStore->getOperand(1) != SI.getOperand(1))
+        if (OtherStore->getOperand(1) != SI.getOperand(1) ||
+            OtherStore->getAlignment() != SI.getAlignment())
           return false;
         break;
       }
@@ -11890,7 +12054,8 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
   // insert it.
   BBI = DestBB->getFirstNonPHI();
   InsertNewInstBefore(new StoreInst(MergedVal, SI.getOperand(1),
-                                    OtherStore->isVolatile()), *BBI);
+                                    OtherStore->isVolatile(),
+                                    SI.getAlignment()), *BBI);
   
   // Nuke the old stores.
   EraseInstFromFunction(SI);

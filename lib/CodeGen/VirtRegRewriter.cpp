@@ -13,7 +13,6 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -66,7 +65,7 @@ namespace {
 /// This class is intended for use with the new spilling framework only. It
 /// rewrites vreg def/uses to use the assigned preg, but does not insert any
 /// spill code.
-struct VISIBILITY_HIDDEN TrivialRewriter : public VirtRegRewriter {
+struct TrivialRewriter : public VirtRegRewriter {
 
   bool runOnMachineFunction(MachineFunction &MF, VirtRegMap &VRM,
                             LiveIntervals* LIs) {
@@ -125,7 +124,7 @@ namespace {
 /// on a per-stack-slot / remat id basis as the low bit in the value of the
 /// SpillSlotsAvailable entries.  The predicate 'canClobberPhysReg()' checks
 /// this bit and addAvailable sets it if.
-class VISIBILITY_HIDDEN AvailableSpills {
+class AvailableSpills {
   const TargetRegisterInfo *TRI;
   const TargetInstrInfo *TII;
 
@@ -340,7 +339,7 @@ struct ReusedOp {
 
 /// ReuseInfo - This maintains a collection of ReuseOp's for each operand that
 /// is reused instead of reloaded.
-class VISIBILITY_HIDDEN ReuseInfo {
+class ReuseInfo {
   MachineInstr &MI;
   std::vector<ReusedOp> Reuses;
   BitVector PhysRegsClobbered;
@@ -614,7 +613,7 @@ static void ReMaterialize(MachineBasicBlock &MBB,
     assert(MO.isUse());
     unsigned SubIdx = MO.getSubReg();
     unsigned Phys = VRM.getPhys(VirtReg);
-    assert(Phys);
+    assert(Phys && "Virtual register is not assigned a register?");
     unsigned RReg = SubIdx ? TRI->getSubReg(Phys, SubIdx) : Phys;
     MO.setReg(RReg);
     MO.setSubReg(0);
@@ -857,7 +856,7 @@ unsigned ReuseInfo::GetRegForReload(const TargetRegisterClass *RC,
         Spills.ClobberPhysReg(NewPhysReg);
         Spills.ClobberPhysReg(NewOp.PhysRegReused);
 
-        unsigned RReg = SubIdx ? TRI->getSubReg(NewPhysReg, SubIdx) : NewPhysReg;
+        unsigned RReg = SubIdx ? TRI->getSubReg(NewPhysReg, SubIdx) :NewPhysReg;
         MI->getOperand(NewOp.Operand).setReg(RReg);
         MI->getOperand(NewOp.Operand).setSubReg(0);
 
@@ -995,7 +994,7 @@ namespace {
 
 namespace {
 
-class VISIBILITY_HIDDEN LocalRewriter : public VirtRegRewriter {
+class LocalRewriter : public VirtRegRewriter {
   MachineRegisterInfo *RegInfo;
   const TargetRegisterInfo *TRI;
   const TargetInstrInfo *TII;
@@ -1431,8 +1430,9 @@ private:
                            std::vector<MachineOperand*> &KillOps,
                            VirtRegMap &VRM) {
 
+    MachineBasicBlock::iterator oldNextMII = next(MII);
     TII->storeRegToStackSlot(MBB, next(MII), PhysReg, true, StackSlot, RC);
-    MachineInstr *StoreMI = next(MII);
+    MachineInstr *StoreMI = prior(oldNextMII);
     VRM.addSpillSlotUse(StackSlot, StoreMI);
     DEBUG(errs() << "Store:\t" << *StoreMI);
 
@@ -1467,7 +1467,9 @@ private:
       }
     }
 
-    LastStore = next(MII);
+    // Allow for multi-instruction spill sequences, as on PPC Altivec.  Presume
+    // the last of multiple instructions is the actual store.
+    LastStore = prior(oldNextMII);
 
     // If the stack slot value was previously available in some other
     // register, change it now.  Otherwise, make the register available,
@@ -1749,8 +1751,9 @@ private:
           const TargetRegisterClass *RC = RegInfo->getRegClass(VirtReg);
           unsigned Phys = VRM.getPhys(VirtReg);
           int StackSlot = VRM.getStackSlot(VirtReg);
+          MachineBasicBlock::iterator oldNextMII = next(MII);
           TII->storeRegToStackSlot(MBB, next(MII), Phys, isKill, StackSlot, RC);
-          MachineInstr *StoreMI = next(MII);
+          MachineInstr *StoreMI = prior(oldNextMII);
           VRM.addSpillSlotUse(StackSlot, StoreMI);
           DEBUG(errs() << "Store:\t" << *StoreMI);
           VRM.virtFolded(VirtReg, StoreMI, VirtRegMap::isMod);
