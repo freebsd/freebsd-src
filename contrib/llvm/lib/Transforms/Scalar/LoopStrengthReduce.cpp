@@ -1914,7 +1914,7 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
         continue;
 
       // Watch out for overflow.
-      if (ICmpInst::isSignedPredicate(Predicate) &&
+      if (ICmpInst::isSigned(Predicate) &&
           (CmpVal & SignBit) != (NewCmpVal & SignBit))
         continue;
 
@@ -1956,7 +1956,7 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
         // Check if it is possible to rewrite it using
         // an iv / stride of a smaller integer type.
         unsigned Bits = NewTyBits;
-        if (ICmpInst::isSignedPredicate(Predicate))
+        if (ICmpInst::isSigned(Predicate))
           --Bits;
         uint64_t Mask = (1ULL << Bits) - 1;
         if (((uint64_t)NewCmpVal & Mask) != (uint64_t)NewCmpVal)
@@ -2261,6 +2261,10 @@ void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
         continue;
 
       if (!C) continue;
+
+      // Ignore negative constants, as the code below doesn't handle them
+      // correctly. TODO: Remove this restriction.
+      if (!C->getValue().isStrictlyPositive()) continue;
 
       /* Add new PHINode. */
       PHINode *NewPH = PHINode::Create(DestTy, "IV.S.", PH);

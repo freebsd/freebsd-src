@@ -40,7 +40,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -53,7 +52,7 @@ STATISTIC(NumFXCH, "Number of fxch instructions inserted");
 STATISTIC(NumFP  , "Number of floating point instructions");
 
 namespace {
-  struct VISIBILITY_HIDDEN FPS : public MachineFunctionPass {
+  struct FPS : public MachineFunctionPass {
     static char ID;
     FPS() : MachineFunctionPass(&ID) {}
 

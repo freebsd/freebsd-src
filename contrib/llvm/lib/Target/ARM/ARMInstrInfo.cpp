@@ -25,7 +25,7 @@
 using namespace llvm;
 
 ARMInstrInfo::ARMInstrInfo(const ARMSubtarget &STI)
-  : RI(*this, STI), Subtarget(STI) {
+  : ARMBaseInstrInfo(STI), RI(*this, STI) {
 }
 
 unsigned ARMInstrInfo::getUnindexedOpcode(unsigned Opc) const {
@@ -67,6 +67,7 @@ bool ARMInstrInfo::BlockHasNoFallThrough(const MachineBasicBlock &MBB) const {
   case ARM::BX_RET:   // Return.
   case ARM::LDM_RET:
   case ARM::B:
+  case ARM::BRIND:
   case ARM::BR_JTr:   // Jumptable branch.
   case ARM::BR_JTm:   // Jumptable branch through mem.
   case ARM::BR_JTadd: // Jumptable branch add to pc.

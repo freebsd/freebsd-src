@@ -559,6 +559,51 @@ Instruction *CallInst::CreateMalloc(BasicBlock *InsertAtEnd,
                       ArraySize, MallocF, Name);
 }
 
+static Instruction* createFree(Value* Source, Instruction *InsertBefore,
+                               BasicBlock *InsertAtEnd) {
+  assert(((!InsertBefore && InsertAtEnd) || (InsertBefore && !InsertAtEnd)) &&
+         "createFree needs either InsertBefore or InsertAtEnd");
+  assert(isa<PointerType>(Source->getType()) &&
+         "Can not free something of nonpointer type!");
+
+  BasicBlock* BB = InsertBefore ? InsertBefore->getParent() : InsertAtEnd;
+  Module* M = BB->getParent()->getParent();
+
+  const Type *VoidTy = Type::getVoidTy(M->getContext());
+  const Type *IntPtrTy = Type::getInt8PtrTy(M->getContext());
+  // prototype free as "void free(void*)"
+  Constant *FreeFunc = M->getOrInsertFunction("free", VoidTy, IntPtrTy, NULL);
+
+  CallInst* Result = NULL;
+  Value *PtrCast = Source;
+  if (InsertBefore) {
+    if (Source->getType() != IntPtrTy)
+      PtrCast = new BitCastInst(Source, IntPtrTy, "", InsertBefore);
+    Result = CallInst::Create(FreeFunc, PtrCast, "", InsertBefore);
+  } else {
+    if (Source->getType() != IntPtrTy)
+      PtrCast = new BitCastInst(Source, IntPtrTy, "", InsertAtEnd);
+    Result = CallInst::Create(FreeFunc, PtrCast, "");
+  }
+  Result->setTailCall();
+
+  return Result;
+}
+
+/// CreateFree - Generate the IR for a call to the builtin free function.
+void CallInst::CreateFree(Value* Source, Instruction *InsertBefore) {
+  createFree(Source, InsertBefore, NULL);
+}
+
+/// CreateFree - Generate the IR for a call to the builtin free function.
+/// Note: This function does not add the call to the basic block, that is the
+/// responsibility of the caller.
+Instruction* CallInst::CreateFree(Value* Source, BasicBlock *InsertAtEnd) {
+  Instruction* FreeCall = createFree(Source, NULL, InsertAtEnd);
+  assert(FreeCall && "CreateFree did not create a CallInst");
+  return FreeCall;
+}
+
 //===----------------------------------------------------------------------===//
 //                        InvokeInst Implementation
 //===----------------------------------------------------------------------===//
@@ -838,7 +883,7 @@ void BranchInst::setSuccessorV(unsigned idx, BasicBlock *B) {
 
 
 //===----------------------------------------------------------------------===//
-//                        AllocationInst Implementation
+//                        AllocaInst Implementation
 //===----------------------------------------------------------------------===//
 
 static Value *getAISize(LLVMContext &Context, Value *Amt) {
@@ -853,20 +898,54 @@ static Value *getAISize(LLVMContext &Context, Value *Amt) {
   return Amt;
 }
 
-AllocationInst::AllocationInst(const Type *Ty, Value *ArraySize, unsigned iTy,
-                               unsigned Align, const Twine &Name,
-                               Instruction *InsertBefore)
-  : UnaryInstruction(PointerType::getUnqual(Ty), iTy,
+AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize,
+                       const Twine &Name, Instruction *InsertBefore)
+  : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
+                     getAISize(Ty->getContext(), ArraySize), InsertBefore) {
+  setAlignment(0);
+  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  setName(Name);
+}
+
+AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize,
+                       const Twine &Name, BasicBlock *InsertAtEnd)
+  : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
+                     getAISize(Ty->getContext(), ArraySize), InsertAtEnd) {
+  setAlignment(0);
+  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  setName(Name);
+}
+
+AllocaInst::AllocaInst(const Type *Ty, const Twine &Name,
+                       Instruction *InsertBefore)
+  : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
+                     getAISize(Ty->getContext(), 0), InsertBefore) {
+  setAlignment(0);
+  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  setName(Name);
+}
+
+AllocaInst::AllocaInst(const Type *Ty, const Twine &Name,
+                       BasicBlock *InsertAtEnd)
+  : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
+                     getAISize(Ty->getContext(), 0), InsertAtEnd) {
+  setAlignment(0);
+  assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
+  setName(Name);
+}
+
+AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
+                       const Twine &Name, Instruction *InsertBefore)
+  : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), ArraySize), InsertBefore) {
   setAlignment(Align);
   assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
   setName(Name);
 }
 
-AllocationInst::AllocationInst(const Type *Ty, Value *ArraySize, unsigned iTy,
-                               unsigned Align, const Twine &Name,
-                               BasicBlock *InsertAtEnd)
-  : UnaryInstruction(PointerType::getUnqual(Ty), iTy,
+AllocaInst::AllocaInst(const Type *Ty, Value *ArraySize, unsigned Align,
+                       const Twine &Name, BasicBlock *InsertAtEnd)
+  : UnaryInstruction(PointerType::getUnqual(Ty), Alloca,
                      getAISize(Ty->getContext(), ArraySize), InsertAtEnd) {
   setAlignment(Align);
   assert(Ty != Type::getVoidTy(Ty->getContext()) && "Cannot allocate void!");
@@ -874,22 +953,22 @@ AllocationInst::AllocationInst(const Type *Ty, Value *ArraySize, unsigned iTy,
 }
 
 // Out of line virtual method, so the vtable, etc has a home.
-AllocationInst::~AllocationInst() {
+AllocaInst::~AllocaInst() {
 }
 
-void AllocationInst::setAlignment(unsigned Align) {
+void AllocaInst::setAlignment(unsigned Align) {
   assert((Align & (Align-1)) == 0 && "Alignment is not a power of 2!");
   SubclassData = Log2_32(Align) + 1;
   assert(getAlignment() == Align && "Alignment representation error!");
 }
 
-bool AllocationInst::isArrayAllocation() const {
+bool AllocaInst::isArrayAllocation() const {
   if (ConstantInt *CI = dyn_cast<ConstantInt>(getOperand(0)))
     return CI->getZExtValue() != 1;
   return true;
 }
 
-const Type *AllocationInst::getAllocatedType() const {
+const Type *AllocaInst::getAllocatedType() const {
   return getType()->getElementType();
 }
 
@@ -904,28 +983,6 @@ bool AllocaInst::isStaticAlloca() const {
   const BasicBlock *Parent = getParent();
   return Parent == &Parent->getParent()->front();
 }
-
-//===----------------------------------------------------------------------===//
-//                             FreeInst Implementation
-//===----------------------------------------------------------------------===//
-
-void FreeInst::AssertOK() {
-  assert(isa<PointerType>(getOperand(0)->getType()) &&
-         "Can not free something of nonpointer type!");
-}
-
-FreeInst::FreeInst(Value *Ptr, Instruction *InsertBefore)
-  : UnaryInstruction(Type::getVoidTy(Ptr->getContext()),
-                     Free, Ptr, InsertBefore) {
-  AssertOK();
-}
-
-FreeInst::FreeInst(Value *Ptr, BasicBlock *InsertAtEnd)
-  : UnaryInstruction(Type::getVoidTy(Ptr->getContext()),
-                     Free, Ptr, InsertAtEnd) {
-  AssertOK();
-}
-
 
 //===----------------------------------------------------------------------===//
 //                           LoadInst Implementation
@@ -2780,17 +2837,6 @@ ICmpInst::Predicate ICmpInst::getUnsignedPredicate(Predicate pred) {
   }
 }
 
-bool ICmpInst::isSignedPredicate(Predicate pred) {
-  switch (pred) {
-    default: assert(! "Unknown icmp predicate!");
-    case ICMP_SGT: case ICMP_SLT: case ICMP_SGE: case ICMP_SLE: 
-      return true;
-    case ICMP_EQ:  case ICMP_NE: case ICMP_UGT: case ICMP_ULT: 
-    case ICMP_UGE: case ICMP_ULE:
-      return false;
-  }
-}
-
 /// Initialize a set of values that all satisfy the condition with C.
 ///
 ConstantRange 
@@ -2864,7 +2910,7 @@ bool CmpInst::isUnsigned(unsigned short predicate) {
   }
 }
 
-bool CmpInst::isSigned(unsigned short predicate){
+bool CmpInst::isSigned(unsigned short predicate) {
   switch (predicate) {
     default: return false;
     case ICmpInst::ICMP_SLT: case ICmpInst::ICMP_SLE: case ICmpInst::ICMP_SGT: 
@@ -2889,6 +2935,23 @@ bool CmpInst::isUnordered(unsigned short predicate) {
     case FCmpInst::FCMP_UNO: return true;
   }
 }
+
+bool CmpInst::isTrueWhenEqual(unsigned short predicate) {
+  switch(predicate) {
+    default: return false;
+    case ICMP_EQ:   case ICMP_UGE: case ICMP_ULE: case ICMP_SGE: case ICMP_SLE:
+    case FCMP_TRUE: case FCMP_UEQ: case FCMP_UGE: case FCMP_ULE: return true;
+  }
+}
+
+bool CmpInst::isFalseWhenEqual(unsigned short predicate) {
+  switch(predicate) {
+  case ICMP_NE:    case ICMP_UGT: case ICMP_ULT: case ICMP_SGT: case ICMP_SLT:
+  case FCMP_FALSE: case FCMP_ONE: case FCMP_OGT: case FCMP_OLT: return true;
+  default: return false;
+  }
+}
+
 
 //===----------------------------------------------------------------------===//
 //                        SwitchInst Implementation
@@ -3023,364 +3086,272 @@ void SwitchInst::setSuccessorV(unsigned idx, BasicBlock *B) {
   setSuccessor(idx, B);
 }
 
+//===----------------------------------------------------------------------===//
+//                        SwitchInst Implementation
+//===----------------------------------------------------------------------===//
+
+void IndirectBrInst::init(Value *Address, unsigned NumDests) {
+  assert(Address && isa<PointerType>(Address->getType()) &&
+         "Address of indirectbr must be a pointer");
+  ReservedSpace = 1+NumDests;
+  NumOperands = 1;
+  OperandList = allocHungoffUses(ReservedSpace);
+  
+  OperandList[0] = Address;
+}
+
+
+/// resizeOperands - resize operands - This adjusts the length of the operands
+/// list according to the following behavior:
+///   1. If NumOps == 0, grow the operand list in response to a push_back style
+///      of operation.  This grows the number of ops by 2 times.
+///   2. If NumOps > NumOperands, reserve space for NumOps operands.
+///   3. If NumOps == NumOperands, trim the reserved space.
+///
+void IndirectBrInst::resizeOperands(unsigned NumOps) {
+  unsigned e = getNumOperands();
+  if (NumOps == 0) {
+    NumOps = e*2;
+  } else if (NumOps*2 > NumOperands) {
+    // No resize needed.
+    if (ReservedSpace >= NumOps) return;
+  } else if (NumOps == NumOperands) {
+    if (ReservedSpace == NumOps) return;
+  } else {
+    return;
+  }
+  
+  ReservedSpace = NumOps;
+  Use *NewOps = allocHungoffUses(NumOps);
+  Use *OldOps = OperandList;
+  for (unsigned i = 0; i != e; ++i)
+    NewOps[i] = OldOps[i];
+  OperandList = NewOps;
+  if (OldOps) Use::zap(OldOps, OldOps + e, true);
+}
+
+IndirectBrInst::IndirectBrInst(Value *Address, unsigned NumCases,
+                               Instruction *InsertBefore)
+: TerminatorInst(Type::getVoidTy(Address->getContext()),Instruction::IndirectBr,
+                 0, 0, InsertBefore) {
+  init(Address, NumCases);
+}
+
+IndirectBrInst::IndirectBrInst(Value *Address, unsigned NumCases,
+                               BasicBlock *InsertAtEnd)
+: TerminatorInst(Type::getVoidTy(Address->getContext()),Instruction::IndirectBr,
+                 0, 0, InsertAtEnd) {
+  init(Address, NumCases);
+}
+
+IndirectBrInst::IndirectBrInst(const IndirectBrInst &IBI)
+  : TerminatorInst(Type::getVoidTy(IBI.getContext()), Instruction::IndirectBr,
+                   allocHungoffUses(IBI.getNumOperands()),
+                   IBI.getNumOperands()) {
+  Use *OL = OperandList, *InOL = IBI.OperandList;
+  for (unsigned i = 0, E = IBI.getNumOperands(); i != E; ++i)
+    OL[i] = InOL[i];
+  SubclassOptionalData = IBI.SubclassOptionalData;
+}
+
+IndirectBrInst::~IndirectBrInst() {
+  dropHungoffUses(OperandList);
+}
+
+/// addDestination - Add a destination.
+///
+void IndirectBrInst::addDestination(BasicBlock *DestBB) {
+  unsigned OpNo = NumOperands;
+  if (OpNo+1 > ReservedSpace)
+    resizeOperands(0);  // Get more space!
+  // Initialize some new operands.
+  assert(OpNo < ReservedSpace && "Growing didn't work!");
+  NumOperands = OpNo+1;
+  OperandList[OpNo] = DestBB;
+}
+
+/// removeDestination - This method removes the specified successor from the
+/// indirectbr instruction.
+void IndirectBrInst::removeDestination(unsigned idx) {
+  assert(idx < getNumOperands()-1 && "Successor index out of range!");
+  
+  unsigned NumOps = getNumOperands();
+  Use *OL = OperandList;
+
+  // Replace this value with the last one.
+  OL[idx+1] = OL[NumOps-1];
+  
+  // Nuke the last value.
+  OL[NumOps-1].set(0);
+  NumOperands = NumOps-1;
+}
+
+BasicBlock *IndirectBrInst::getSuccessorV(unsigned idx) const {
+  return getSuccessor(idx);
+}
+unsigned IndirectBrInst::getNumSuccessorsV() const {
+  return getNumSuccessors();
+}
+void IndirectBrInst::setSuccessorV(unsigned idx, BasicBlock *B) {
+  setSuccessor(idx, B);
+}
+
+//===----------------------------------------------------------------------===//
+//                           clone_impl() implementations
+//===----------------------------------------------------------------------===//
+
 // Define these methods here so vtables don't get emitted into every translation
 // unit that uses these classes.
 
-GetElementPtrInst *GetElementPtrInst::clone() const {
-  GetElementPtrInst *New = new(getNumOperands()) GetElementPtrInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+GetElementPtrInst *GetElementPtrInst::clone_impl() const {
+  return new (getNumOperands()) GetElementPtrInst(*this);
 }
 
-BinaryOperator *BinaryOperator::clone() const {
-  BinaryOperator *New = Create(getOpcode(), Op<0>(), Op<1>());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+BinaryOperator *BinaryOperator::clone_impl() const {
+  return Create(getOpcode(), Op<0>(), Op<1>());
 }
 
-FCmpInst* FCmpInst::clone() const {
-  FCmpInst *New = new FCmpInst(getPredicate(), Op<0>(), Op<1>());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
-}
-ICmpInst* ICmpInst::clone() const {
-  ICmpInst *New = new ICmpInst(getPredicate(), Op<0>(), Op<1>());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+FCmpInst* FCmpInst::clone_impl() const {
+  return new FCmpInst(getPredicate(), Op<0>(), Op<1>());
 }
 
-ExtractValueInst *ExtractValueInst::clone() const {
-  ExtractValueInst *New = new ExtractValueInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
-}
-InsertValueInst *InsertValueInst::clone() const {
-  InsertValueInst *New = new InsertValueInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+ICmpInst* ICmpInst::clone_impl() const {
+  return new ICmpInst(getPredicate(), Op<0>(), Op<1>());
 }
 
-AllocaInst *AllocaInst::clone() const {
-  AllocaInst *New = new AllocaInst(getAllocatedType(),
-                                   (Value*)getOperand(0),
-                                   getAlignment());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+ExtractValueInst *ExtractValueInst::clone_impl() const {
+  return new ExtractValueInst(*this);
 }
 
-FreeInst *FreeInst::clone() const {
-  FreeInst *New = new FreeInst(getOperand(0));
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+InsertValueInst *InsertValueInst::clone_impl() const {
+  return new InsertValueInst(*this);
 }
 
-LoadInst *LoadInst::clone() const {
-  LoadInst *New = new LoadInst(getOperand(0),
-                               Twine(), isVolatile(),
-                               getAlignment());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+AllocaInst *AllocaInst::clone_impl() const {
+  return new AllocaInst(getAllocatedType(),
+                        (Value*)getOperand(0),
+                        getAlignment());
 }
 
-StoreInst *StoreInst::clone() const {
-  StoreInst *New = new StoreInst(getOperand(0), getOperand(1),
-                                 isVolatile(), getAlignment());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+LoadInst *LoadInst::clone_impl() const {
+  return new LoadInst(getOperand(0),
+                      Twine(), isVolatile(),
+                      getAlignment());
 }
 
-TruncInst *TruncInst::clone() const {
-  TruncInst *New = new TruncInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+StoreInst *StoreInst::clone_impl() const {
+  return new StoreInst(getOperand(0), getOperand(1),
+                       isVolatile(), getAlignment());
 }
 
-ZExtInst *ZExtInst::clone() const {
-  ZExtInst *New = new ZExtInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+TruncInst *TruncInst::clone_impl() const {
+  return new TruncInst(getOperand(0), getType());
 }
 
-SExtInst *SExtInst::clone() const {
-  SExtInst *New = new SExtInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+ZExtInst *ZExtInst::clone_impl() const {
+  return new ZExtInst(getOperand(0), getType());
 }
 
-FPTruncInst *FPTruncInst::clone() const {
-  FPTruncInst *New = new FPTruncInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+SExtInst *SExtInst::clone_impl() const {
+  return new SExtInst(getOperand(0), getType());
 }
 
-FPExtInst *FPExtInst::clone() const {
-  FPExtInst *New = new FPExtInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+FPTruncInst *FPTruncInst::clone_impl() const {
+  return new FPTruncInst(getOperand(0), getType());
 }
 
-UIToFPInst *UIToFPInst::clone() const {
-  UIToFPInst *New = new UIToFPInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+FPExtInst *FPExtInst::clone_impl() const {
+  return new FPExtInst(getOperand(0), getType());
 }
 
-SIToFPInst *SIToFPInst::clone() const {
-  SIToFPInst *New = new SIToFPInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+UIToFPInst *UIToFPInst::clone_impl() const {
+  return new UIToFPInst(getOperand(0), getType());
 }
 
-FPToUIInst *FPToUIInst::clone() const {
-  FPToUIInst *New = new FPToUIInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+SIToFPInst *SIToFPInst::clone_impl() const {
+  return new SIToFPInst(getOperand(0), getType());
 }
 
-FPToSIInst *FPToSIInst::clone() const {
-  FPToSIInst *New = new FPToSIInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+FPToUIInst *FPToUIInst::clone_impl() const {
+  return new FPToUIInst(getOperand(0), getType());
 }
 
-PtrToIntInst *PtrToIntInst::clone() const {
-  PtrToIntInst *New = new PtrToIntInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+FPToSIInst *FPToSIInst::clone_impl() const {
+  return new FPToSIInst(getOperand(0), getType());
 }
 
-IntToPtrInst *IntToPtrInst::clone() const {
-  IntToPtrInst *New = new IntToPtrInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+PtrToIntInst *PtrToIntInst::clone_impl() const {
+  return new PtrToIntInst(getOperand(0), getType());
 }
 
-BitCastInst *BitCastInst::clone() const {
-  BitCastInst *New = new BitCastInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+IntToPtrInst *IntToPtrInst::clone_impl() const {
+  return new IntToPtrInst(getOperand(0), getType());
 }
 
-CallInst *CallInst::clone() const {
-  CallInst *New = new(getNumOperands()) CallInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+BitCastInst *BitCastInst::clone_impl() const {
+  return new BitCastInst(getOperand(0), getType());
 }
 
-SelectInst *SelectInst::clone() const {
-  SelectInst *New = SelectInst::Create(getOperand(0),
-                                       getOperand(1),
-                                       getOperand(2));
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+CallInst *CallInst::clone_impl() const {
+  return  new(getNumOperands()) CallInst(*this);
 }
 
-VAArgInst *VAArgInst::clone() const {
-  VAArgInst *New = new VAArgInst(getOperand(0), getType());
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+SelectInst *SelectInst::clone_impl() const {
+  return SelectInst::Create(getOperand(0), getOperand(1), getOperand(2));
 }
 
-ExtractElementInst *ExtractElementInst::clone() const {
-  ExtractElementInst *New = ExtractElementInst::Create(getOperand(0),
-                                                       getOperand(1));
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+VAArgInst *VAArgInst::clone_impl() const {
+  return new VAArgInst(getOperand(0), getType());
 }
 
-InsertElementInst *InsertElementInst::clone() const {
-  InsertElementInst *New = InsertElementInst::Create(getOperand(0),
-                                                     getOperand(1),
-                                                     getOperand(2));
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+ExtractElementInst *ExtractElementInst::clone_impl() const {
+  return ExtractElementInst::Create(getOperand(0), getOperand(1));
 }
 
-ShuffleVectorInst *ShuffleVectorInst::clone() const {
-  ShuffleVectorInst *New = new ShuffleVectorInst(getOperand(0),
-                                                 getOperand(1),
-                                                 getOperand(2));
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+InsertElementInst *InsertElementInst::clone_impl() const {
+  return InsertElementInst::Create(getOperand(0),
+                                   getOperand(1),
+                                   getOperand(2));
 }
 
-PHINode *PHINode::clone() const {
-  PHINode *New = new PHINode(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+ShuffleVectorInst *ShuffleVectorInst::clone_impl() const {
+  return new ShuffleVectorInst(getOperand(0),
+                           getOperand(1),
+                           getOperand(2));
 }
 
-ReturnInst *ReturnInst::clone() const {
-  ReturnInst *New = new(getNumOperands()) ReturnInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+PHINode *PHINode::clone_impl() const {
+  return new PHINode(*this);
 }
 
-BranchInst *BranchInst::clone() const {
+ReturnInst *ReturnInst::clone_impl() const {
+  return new(getNumOperands()) ReturnInst(*this);
+}
+
+BranchInst *BranchInst::clone_impl() const {
   unsigned Ops(getNumOperands());
-  BranchInst *New = new(Ops, Ops == 1) BranchInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+  return new(Ops, Ops == 1) BranchInst(*this);
 }
 
-SwitchInst *SwitchInst::clone() const {
-  SwitchInst *New = new SwitchInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+SwitchInst *SwitchInst::clone_impl() const {
+  return new SwitchInst(*this);
 }
 
-InvokeInst *InvokeInst::clone() const {
-  InvokeInst *New = new(getNumOperands()) InvokeInst(*this);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata()) {
-    LLVMContext &Context = getContext();
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  }
-  return New;
+IndirectBrInst *IndirectBrInst::clone_impl() const {
+  return new IndirectBrInst(*this);
 }
 
-UnwindInst *UnwindInst::clone() const {
+
+InvokeInst *InvokeInst::clone_impl() const {
+  return new(getNumOperands()) InvokeInst(*this);
+}
+
+UnwindInst *UnwindInst::clone_impl() const {
   LLVMContext &Context = getContext();
-  UnwindInst *New = new UnwindInst(Context);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata())
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  return New;
+  return new UnwindInst(Context);
 }
 
-UnreachableInst *UnreachableInst::clone() const {
+UnreachableInst *UnreachableInst::clone_impl() const {
   LLVMContext &Context = getContext();
-  UnreachableInst *New = new UnreachableInst(Context);
-  New->SubclassOptionalData = SubclassOptionalData;
-  if (hasMetadata())
-    Context.pImpl->TheMetadata.ValueIsCloned(this, New);
-  return New;
+  return new UnreachableInst(Context);
 }

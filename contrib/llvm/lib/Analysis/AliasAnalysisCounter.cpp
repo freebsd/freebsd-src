@@ -17,7 +17,6 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -28,8 +27,7 @@ static cl::opt<bool>
 PrintAllFailures("count-aa-print-all-failed-queries", cl::ReallyHidden);
 
 namespace {
-  class VISIBILITY_HIDDEN AliasAnalysisCounter 
-      : public ModulePass, public AliasAnalysis {
+  class AliasAnalysisCounter : public ModulePass, public AliasAnalysis {
     unsigned No, May, Must;
     unsigned NoMR, JustRef, JustMod, MR;
     const char *Name;

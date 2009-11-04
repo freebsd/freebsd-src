@@ -24,10 +24,9 @@
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Analysis/MallocHelper.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
@@ -57,7 +56,7 @@ STATISTIC(NumAliasesResolved, "Number of global aliases resolved");
 STATISTIC(NumAliasesRemoved, "Number of global aliases eliminated");
 
 namespace {
-  struct VISIBILITY_HIDDEN GlobalOpt : public ModulePass {
+  struct GlobalOpt : public ModulePass {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     }
     static char ID; // Pass identification, replacement for typeid
@@ -85,7 +84,7 @@ namespace {
 /// GlobalStatus - As we analyze each global, keep track of some information
 /// about it.  If we find out that the address of the global is taken, none of
 /// this info will be accurate.
-struct VISIBILITY_HIDDEN GlobalStatus {
+struct GlobalStatus {
   /// isLoaded - True if the global is ever loaded.  If the global isn't ever
   /// loaded it can be deleted.
   bool isLoaded;
@@ -824,6 +823,7 @@ static void ConstantPropUsersOf(Value *V, LLVMContext &Context) {
 static GlobalVariable *OptimizeGlobalAddressOfMalloc(GlobalVariable *GV,
                                                      CallInst *CI,
                                                      BitCastInst *BCI,
+                                                     Value* NElems,
                                                      LLVMContext &Context,
                                                      TargetData* TD) {
   DEBUG(errs() << "PROMOTING MALLOC GLOBAL: " << *GV
@@ -831,9 +831,7 @@ static GlobalVariable *OptimizeGlobalAddressOfMalloc(GlobalVariable *GV,
 
   const Type *IntPtrTy = TD->getIntPtrType(Context);
   
-  Value* ArraySize = getMallocArraySize(CI, Context, TD);
-  assert(ArraySize && "not a malloc whose array size can be determined");
-  ConstantInt *NElements = cast<ConstantInt>(ArraySize);
+  ConstantInt *NElements = cast<ConstantInt>(NElems);
   if (NElements->getZExtValue() != 1) {
     // If we have an array allocation, transform it to a single element
     // allocation to make the code below simpler.
@@ -1276,15 +1274,14 @@ static void RewriteUsesOfLoadForHeapSRoA(LoadInst *Load,
 /// PerformHeapAllocSRoA - CI is an allocation of an array of structures.  Break
 /// it up into multiple allocations of arrays of the fields.
 static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV,
-                                            CallInst *CI, BitCastInst* BCI, 
+                                            CallInst *CI, BitCastInst* BCI,
+                                            Value* NElems,
                                             LLVMContext &Context,
-                                            TargetData *TD){
+                                            TargetData *TD) {
   DEBUG(errs() << "SROA HEAP ALLOC: " << *GV << "  MALLOC CALL = " << *CI 
                << " BITCAST = " << *BCI << '\n');
   const Type* MAT = getMallocAllocatedType(CI);
   const StructType *STy = cast<StructType>(MAT);
-  Value* ArraySize = getMallocArraySize(CI, Context, TD);
-  assert(ArraySize && "not a malloc whose array size can be determined");
 
   // There is guaranteed to be at least one use of the malloc (storing
   // it into GV).  If there are other uses, change them to be uses of
@@ -1310,7 +1307,7 @@ static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV,
     FieldGlobals.push_back(NGV);
     
     Value *NMI = CallInst::CreateMalloc(CI, TD->getIntPtrType(Context),
-                                        FieldTy, ArraySize,
+                                        FieldTy, NElems,
                                         BCI->getName() + ".f" + Twine(FieldNo));
     FieldMallocs.push_back(NMI);
     new StoreInst(NMI, NGV, BCI);
@@ -1364,10 +1361,11 @@ static GlobalVariable *PerformHeapAllocSRoA(GlobalVariable *GV,
                                                OrigBB->getParent());
     BasicBlock *NextBlock = BasicBlock::Create(Context, "next",
                                                OrigBB->getParent());
-    BranchInst::Create(FreeBlock, NextBlock, Cmp, NullPtrBlock);
+    Instruction *BI = BranchInst::Create(FreeBlock, NextBlock,
+                                         Cmp, NullPtrBlock);
 
     // Fill in FreeBlock.
-    new FreeInst(GVVal, FreeBlock);
+    CallInst::CreateFree(GVVal, BI);
     new StoreInst(Constant::getNullValue(GVVal->getType()), FieldGlobals[i],
                   FreeBlock);
     BranchInst::Create(NextBlock, FreeBlock);
@@ -1510,7 +1508,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
       // something.
       if (TD && 
           NElements->getZExtValue() * TD->getTypeAllocSize(AllocTy) < 2048) {
-        GVI = OptimizeGlobalAddressOfMalloc(GV, CI, BCI, Context, TD);
+        GVI = OptimizeGlobalAddressOfMalloc(GV, CI, BCI, NElems, Context, TD);
         return true;
       }
   
@@ -1520,7 +1518,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
 
     // If this is an allocation of a fixed size array of structs, analyze as a
     // variable size array.  malloc [100 x struct],1 -> malloc struct, 100
-    if (!isArrayMalloc(CI, Context, TD))
+    if (NElems == ConstantInt::get(CI->getOperand(1)->getType(), 1))
       if (const ArrayType *AT = dyn_cast<ArrayType>(AllocTy))
         AllocTy = AT->getElementType();
   
@@ -1547,7 +1545,7 @@ static bool TryToOptimizeStoreOfMallocToGlobal(GlobalVariable *GV,
           CI = extractMallocCallFromBitCast(NewMI);
         }
       
-        GVI = PerformHeapAllocSRoA(GV, CI, BCI, Context, TD);
+        GVI = PerformHeapAllocSRoA(GV, CI, BCI, NElems, Context, TD);
         return true;
       }
     }
@@ -1878,9 +1876,8 @@ bool GlobalOpt::OptimizeFunctions(Module &M) {
     if (!F->hasName() && !F->isDeclaration())
       F->setLinkage(GlobalValue::InternalLinkage);
     F->removeDeadConstantUsers();
-    if (F->use_empty() && (F->hasLocalLinkage() ||
-                           F->hasLinkOnceLinkage())) {
-      M.getFunctionList().erase(F);
+    if (F->use_empty() && (F->hasLocalLinkage() || F->hasLinkOnceLinkage())) {
+      F->eraseFromParent();
       Changed = true;
       ++NumFnDeleted;
     } else if (F->hasLocalLinkage()) {
@@ -2343,6 +2340,12 @@ static bool EvaluateFunction(Function *F, Constant *&RetVal,
           dyn_cast<ConstantInt>(getVal(Values, SI->getCondition()));
         if (!Val) return false;  // Cannot determine.
         NewBB = SI->getSuccessor(SI->findCaseValue(Val));
+      } else if (IndirectBrInst *IBI = dyn_cast<IndirectBrInst>(CurInst)) {
+        Value *Val = getVal(Values, IBI->getAddress())->stripPointerCasts();
+        if (BlockAddress *BA = dyn_cast<BlockAddress>(Val))
+          NewBB = BA->getBasicBlock();
+        else
+          return false;  // Cannot determine.
       } else if (ReturnInst *RI = dyn_cast<ReturnInst>(CurInst)) {
         if (RI->getNumOperands())
           RetVal = getVal(Values, RI->getOperand(0));

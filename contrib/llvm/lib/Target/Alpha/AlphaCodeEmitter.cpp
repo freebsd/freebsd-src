@@ -24,7 +24,6 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Function.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -50,8 +49,7 @@ namespace {
   };
 
   template <class CodeEmitter>
-  class VISIBILITY_HIDDEN Emitter : public MachineFunctionPass,
-      public AlphaCodeEmitter
+  class Emitter : public MachineFunctionPass, public AlphaCodeEmitter
   {
     const AlphaInstrInfo  *II;
     TargetMachine         &TM;

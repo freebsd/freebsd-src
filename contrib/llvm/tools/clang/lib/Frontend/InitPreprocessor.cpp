@@ -17,8 +17,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/System/Path.h"
-
-namespace clang {
+using namespace clang;
 
 // Append a #define line to Buf for Macro.  Macro should be of the form XXX,
 // in which case we emit "#define XXX 1" or "XXX=Y z W" in which case we emit
@@ -346,27 +345,15 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   assert(TI.getCharWidth() == 8 && "Only support 8-bit char so far");
   DefineBuiltinMacro(Buf, "__CHAR_BIT__=8");
 
-  unsigned IntMaxWidth;
-  const char *IntMaxSuffix;
-  if (TI.getIntMaxType() == TargetInfo::SignedLongLong) {
-    IntMaxWidth = TI.getLongLongWidth();
-    IntMaxSuffix = "LL";
-  } else if (TI.getIntMaxType() == TargetInfo::SignedLong) {
-    IntMaxWidth = TI.getLongWidth();
-    IntMaxSuffix = "L";
-  } else {
-    assert(TI.getIntMaxType() == TargetInfo::SignedInt);
-    IntMaxWidth = TI.getIntWidth();
-    IntMaxSuffix = "";
-  }
-
   DefineTypeSize("__SCHAR_MAX__", TI.getCharWidth(), "", true, Buf);
   DefineTypeSize("__SHRT_MAX__", TI.getShortWidth(), "", true, Buf);
   DefineTypeSize("__INT_MAX__", TI.getIntWidth(), "", true, Buf);
   DefineTypeSize("__LONG_MAX__", TI.getLongWidth(), "L", true, Buf);
   DefineTypeSize("__LONG_LONG_MAX__", TI.getLongLongWidth(), "LL", true, Buf);
   DefineTypeSize("__WCHAR_MAX__", TI.getWCharWidth(), "", true, Buf);
-  DefineTypeSize("__INTMAX_MAX__", IntMaxWidth, IntMaxSuffix, true, Buf);
+  TargetInfo::IntType IntMaxType = TI.getIntMaxType();
+  DefineTypeSize("__INTMAX_MAX__", TI.getTypeWidth(IntMaxType), 
+                 TI.getTypeConstantSuffix(IntMaxType), true, Buf);
 
   DefineType("__INTMAX_TYPE__", TI.getIntMaxType(), Buf);
   DefineType("__UINTMAX_TYPE__", TI.getUIntMaxType(), Buf);
@@ -455,8 +442,9 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 /// InitializePreprocessor - Initialize the preprocessor getting it and the
 /// environment ready to process a single file. This returns true on error.
 ///
-bool InitializePreprocessor(Preprocessor &PP,
-                            const PreprocessorInitOptions& InitOpts) {
+bool clang::InitializePreprocessor(Preprocessor &PP,
+                                   const PreprocessorInitOptions &InitOpts,
+                                   bool undef_macros) {
   std::vector<char> PredefineBuffer;
 
   const char *LineDirective = "# 1 \"<built-in>\" 3\n";
@@ -464,8 +452,9 @@ bool InitializePreprocessor(Preprocessor &PP,
                          LineDirective, LineDirective+strlen(LineDirective));
 
   // Install things like __POWERPC__, __GNUC__, etc into the macro table.
-  InitializePredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
-                             PredefineBuffer);
+  if (!undef_macros)
+    InitializePredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
+                               PredefineBuffer);
 
   // Add on the predefines from the driver.  Wrap in a #line directive to report
   // that they come from the command line.
@@ -504,5 +493,3 @@ bool InitializePreprocessor(Preprocessor &PP,
   // Once we've read this, we're done.
   return false;
 }
-
-} // namespace clang

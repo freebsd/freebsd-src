@@ -53,11 +53,6 @@ SystemZTargetLowering::SystemZTargetLowering(SystemZTargetMachine &tm) :
   if (!UseSoftFloat) {
     addRegisterClass(MVT::f32, SystemZ::FP32RegisterClass);
     addRegisterClass(MVT::f64, SystemZ::FP64RegisterClass);
-
-    addLegalFPImmediate(APFloat(+0.0));  // lzer
-    addLegalFPImmediate(APFloat(+0.0f)); // lzdr
-    addLegalFPImmediate(APFloat(-0.0));  // lzer + lner
-    addLegalFPImmediate(APFloat(-0.0f)); // lzdr + lndr
   }
 
   // Compute derived properties from the register classes
@@ -80,7 +75,13 @@ SystemZTargetLowering::SystemZTargetLowering(SystemZTargetMachine &tm) :
   setLoadExtAction(ISD::EXTLOAD,  MVT::f64, Expand);
 
   setStackPointerRegisterToSaveRestore(SystemZ::R15D);
-  setSchedulingPreference(SchedulingForLatency);
+
+  // TODO: It may be better to default to latency-oriented scheduling, however
+  // LLVM's current latency-oriented scheduler can't handle physreg definitions
+  // such as SystemZ has with PSW, so set this to the register-pressure
+  // scheduler, because it can.
+  setSchedulingPreference(SchedulingForRegPressure);
+
   setBooleanContents(ZeroOrOneBooleanContent);
 
   setOperationAction(ISD::BR_JT,            MVT::Other, Expand);
@@ -167,6 +168,17 @@ SDValue SystemZTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
     llvm_unreachable("Should not custom lower this!");
     return SDValue();
   }
+}
+
+bool SystemZTargetLowering::isFPImmLegal(const APFloat &Imm, EVT VT) const {
+  if (UseSoftFloat || (VT != MVT::f32 && VT != MVT::f64))
+    return false;
+
+  // +0.0  lzer
+  // +0.0f lzdr
+  // -0.0  lzer + lner
+  // -0.0f lzdr + lndr
+  return Imm.isZero() || Imm.isNegZero();
 }
 
 //===----------------------------------------------------------------------===//
@@ -657,7 +669,7 @@ SDValue SystemZTargetLowering::EmitCmp(SDValue LHS, SDValue RHS,
 
   DebugLoc dl = LHS.getDebugLoc();
   return DAG.getNode((isUnsigned ? SystemZISD::UCMP : SystemZISD::CMP),
-                     dl, MVT::Flag, LHS, RHS);
+                     dl, MVT::i64, LHS, RHS);
 }
 
 

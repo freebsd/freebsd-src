@@ -20,11 +20,10 @@
 #include "llvm/Analysis/CFGPrinter.h"
 
 #include "llvm/Pass.h"
-#include "llvm/Support/Compiler.h"
 using namespace llvm;
 
 namespace {
-  struct VISIBILITY_HIDDEN CFGViewer : public FunctionPass {
+  struct CFGViewer : public FunctionPass {
     static char ID; // Pass identifcation, replacement for typeid
     CFGViewer() : FunctionPass(&ID) {}
 
@@ -46,7 +45,7 @@ static RegisterPass<CFGViewer>
 V0("view-cfg", "View CFG of function", false, true);
 
 namespace {
-  struct VISIBILITY_HIDDEN CFGOnlyViewer : public FunctionPass {
+  struct CFGOnlyViewer : public FunctionPass {
     static char ID; // Pass identifcation, replacement for typeid
     CFGOnlyViewer() : FunctionPass(&ID) {}
 
@@ -69,7 +68,7 @@ V1("view-cfg-only",
    "View CFG of function (with no function bodies)", false, true);
 
 namespace {
-  struct VISIBILITY_HIDDEN CFGPrinter : public FunctionPass {
+  struct CFGPrinter : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     CFGPrinter() : FunctionPass(&ID) {}
     explicit CFGPrinter(void *pid) : FunctionPass(pid) {}
@@ -102,7 +101,7 @@ static RegisterPass<CFGPrinter>
 P1("dot-cfg", "Print CFG of function to 'dot' file", false, true);
 
 namespace {
-  struct VISIBILITY_HIDDEN CFGOnlyPrinter : public FunctionPass {
+  struct CFGOnlyPrinter : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     CFGOnlyPrinter() : FunctionPass(&ID) {}
     explicit CFGOnlyPrinter(void *pid) : FunctionPass(pid) {}

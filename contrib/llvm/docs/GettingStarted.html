@@ -1154,7 +1154,7 @@ first command may not be required if you are already using the module):</p>
 <div class="doc_code">
 <pre>
 $ mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
-$ echo ':llvm:M::llvm::/path/to/lli:' &gt; /proc/sys/fs/binfmt_misc/register
+$ echo ':llvm:M::BC::/path/to/lli:' &gt; /proc/sys/fs/binfmt_misc/register
 $ chmod u+x hello.bc   (if needed)
 $ ./hello.bc
 </pre>
@@ -1636,7 +1636,7 @@ out:</p>
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.x10sys.com/rspencer/">Reid Spencer</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-10-23 08:20:06 +0200 (Fri, 23 Oct 2009) $
+  Last modified: $Date: 2009-11-04 07:15:28 +0100 (Wed, 04 Nov 2009) $
 </address>
 </body>
 </html>

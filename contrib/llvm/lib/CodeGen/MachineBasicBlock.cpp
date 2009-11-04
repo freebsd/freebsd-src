@@ -20,11 +20,13 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Assembly/Writer.h"
 #include <algorithm>
 using namespace llvm;
 
 MachineBasicBlock::MachineBasicBlock(MachineFunction &mf, const BasicBlock *bb)
-  : BB(bb), Number(-1), xParent(&mf), Alignment(0), IsLandingPad(false) {
+  : BB(bb), Number(-1), xParent(&mf), Alignment(0), IsLandingPad(false),
+    AddressTaken(false) {
   Insts.Parent = this;
 }
 
@@ -160,11 +162,11 @@ void MachineBasicBlock::dump() const {
 
 static inline void OutputReg(raw_ostream &os, unsigned RegNo,
                              const TargetRegisterInfo *TRI = 0) {
-  if (!RegNo || TargetRegisterInfo::isPhysicalRegister(RegNo)) {
+  if (RegNo != 0 && TargetRegisterInfo::isPhysicalRegister(RegNo)) {
     if (TRI)
       os << " %" << TRI->get(RegNo).Name;
     else
-      os << " %mreg(" << RegNo << ")";
+      os << " %physreg" << RegNo;
   } else
     os << " %reg" << RegNo;
 }
@@ -177,18 +179,23 @@ void MachineBasicBlock::print(raw_ostream &OS) const {
     return;
   }
 
-  const BasicBlock *LBB = getBasicBlock();
+  if (Alignment) { OS << "Alignment " << Alignment << "\n"; }
+
+  OS << "BB#" << getNumber() << ": ";
+
+  const char *Comma = "";
+  if (const BasicBlock *LBB = getBasicBlock()) {
+    OS << Comma << "derived from LLVM BB ";
+    WriteAsOperand(OS, LBB, /*PrintType=*/false);
+    Comma = ", ";
+  }
+  if (isLandingPad()) { OS << Comma << "EH LANDING PAD"; Comma = ", "; }
+  if (hasAddressTaken()) { OS << Comma << "ADDRESS TAKEN"; Comma = ", "; }
   OS << '\n';
-  if (LBB) OS << LBB->getName() << ": ";
-  OS << (const void*)this
-     << ", LLVM BB @" << (const void*) LBB << ", ID#" << getNumber();
-  if (Alignment) OS << ", Alignment " << Alignment;
-  if (isLandingPad()) OS << ", EH LANDING PAD";
-  OS << ":\n";
 
   const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();  
   if (!livein_empty()) {
-    OS << "Live Ins:";
+    OS << "    Live Ins:";
     for (const_livein_iterator I = livein_begin(),E = livein_end(); I != E; ++I)
       OutputReg(OS, *I, TRI);
     OS << '\n';
@@ -197,7 +204,7 @@ void MachineBasicBlock::print(raw_ostream &OS) const {
   if (!pred_empty()) {
     OS << "    Predecessors according to CFG:";
     for (const_pred_iterator PI = pred_begin(), E = pred_end(); PI != E; ++PI)
-      OS << ' ' << *PI << " (#" << (*PI)->getNumber() << ')';
+      OS << " BB#" << (*PI)->getNumber();
     OS << '\n';
   }
   
@@ -210,7 +217,7 @@ void MachineBasicBlock::print(raw_ostream &OS) const {
   if (!succ_empty()) {
     OS << "    Successors according to CFG:";
     for (const_succ_iterator SI = succ_begin(), E = succ_end(); SI != E; ++SI)
-      OS << ' ' << *SI << " (#" << (*SI)->getNumber() << ')';
+      OS << " BB#" << (*SI)->getNumber();
     OS << '\n';
   }
 }

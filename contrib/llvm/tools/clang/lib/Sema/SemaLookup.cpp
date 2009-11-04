@@ -1239,6 +1239,14 @@ addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
                                          BaseEnd = Class->bases_end();
          Base != BaseEnd; ++Base) {
       const RecordType *BaseType = Base->getType()->getAs<RecordType>();
+      // In dependent contexts, we do ADL twice, and the first time around,
+      // the base type might be a dependent TemplateSpecializationType, or a
+      // TemplateTypeParmType. If that happens, simply ignore it.
+      // FIXME: If we want to support export, we probably need to add the
+      // namespace of the template in a TemplateSpecializationType, or even
+      // the classes and namespaces of known non-dependent arguments.
+      if (!BaseType)
+        continue;
       CXXRecordDecl *BaseDecl = cast<CXXRecordDecl>(BaseType->getDecl());
       if (AssociatedClasses.insert(BaseDecl)) {
         // Find the associated namespace for this base class.
@@ -1561,7 +1569,7 @@ static void CollectFunctionDecl(Sema::FunctionSet &Functions,
     Functions.insert(FunTmpl);
 }
 
-void Sema::ArgumentDependentLookup(DeclarationName Name,
+void Sema::ArgumentDependentLookup(DeclarationName Name, bool Operator,
                                    Expr **Args, unsigned NumArgs,
                                    FunctionSet &Functions) {
   // Find all of the associated namespaces and classes based on the
@@ -1571,6 +1579,13 @@ void Sema::ArgumentDependentLookup(DeclarationName Name,
   FindAssociatedClassesAndNamespaces(Args, NumArgs,
                                      AssociatedNamespaces,
                                      AssociatedClasses);
+
+  QualType T1, T2;
+  if (Operator) {
+    T1 = Args[0]->getType();
+    if (NumArgs >= 2)
+      T2 = Args[1]->getType();
+  }
 
   // C++ [basic.lookup.argdep]p3:
   //   Let X be the lookup set produced by unqualified lookup (3.4.1)
@@ -1608,7 +1623,10 @@ void Sema::ArgumentDependentLookup(DeclarationName Name,
           continue;
       }
 
-      CollectFunctionDecl(Functions, D);
+      FunctionDecl *Fn;
+      if (!Operator || !(Fn = dyn_cast<FunctionDecl>(D)) ||
+          IsAcceptableNonMemberOperatorCandidate(Fn, T1, T2, Context))
+        CollectFunctionDecl(Functions, D);
     }
   }
 }

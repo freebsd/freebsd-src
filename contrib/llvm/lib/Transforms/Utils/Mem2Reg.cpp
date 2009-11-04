@@ -20,13 +20,12 @@
 #include "llvm/Instructions.h"
 #include "llvm/Function.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 using namespace llvm;
 
 STATISTIC(NumPromoted, "Number of alloca's promoted");
 
 namespace {
-  struct VISIBILITY_HIDDEN PromotePass : public FunctionPass {
+  struct PromotePass : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     PromotePass() : FunctionPass(&ID) {}
 
@@ -45,7 +44,6 @@ namespace {
       AU.addPreserved<UnifyFunctionExitNodes>();
       AU.addPreservedID(LowerSwitchID);
       AU.addPreservedID(LowerInvokePassID);
-      AU.addPreservedID(LowerAllocationsID);
     }
   };
 }  // end of anonymous namespace

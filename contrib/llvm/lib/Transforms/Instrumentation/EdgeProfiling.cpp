@@ -20,7 +20,6 @@
 #include "ProfilingUtils.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Instrumentation.h"
@@ -31,7 +30,7 @@ using namespace llvm;
 STATISTIC(NumEdgesInserted, "The # of edges inserted.");
 
 namespace {
-  class VISIBILITY_HIDDEN EdgeProfiler : public ModulePass {
+  class EdgeProfiler : public ModulePass {
     bool runOnModule(Module &M);
   public:
     static char ID; // Pass identification, replacement for typeid

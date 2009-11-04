@@ -460,6 +460,11 @@ static void AddNodeIDCustom(FoldingSetNodeID &ID, const SDNode *N) {
       ID.AddInteger(SVN->getMaskElt(i));
     break;
   }
+  case ISD::TargetBlockAddress:
+  case ISD::BlockAddress: {
+    ID.AddPointer(cast<BlockAddressSDNode>(N));
+    break;
+  }
   } // end switch (N->getOpcode())
 }
 
@@ -1312,6 +1317,23 @@ SDValue SelectionDAG::getLabel(unsigned Opcode, DebugLoc dl,
     return SDValue(E, 0);
   SDNode *N = NodeAllocator.Allocate<LabelSDNode>();
   new (N) LabelSDNode(Opcode, dl, Root, LabelID);
+  CSEMap.InsertNode(N, IP);
+  AllNodes.push_back(N);
+  return SDValue(N, 0);
+}
+
+SDValue SelectionDAG::getBlockAddress(BlockAddress *BA, DebugLoc DL,
+                                      bool isTarget) {
+  unsigned Opc = isTarget ? ISD::TargetBlockAddress : ISD::BlockAddress;
+
+  FoldingSetNodeID ID;
+  AddNodeIDNode(ID, Opc, getVTList(TLI.getPointerTy()), 0, 0);
+  ID.AddPointer(BA);
+  void *IP = 0;
+  if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
+    return SDValue(E, 0);
+  SDNode *N = NodeAllocator.Allocate<BlockAddressSDNode>();
+  new (N) BlockAddressSDNode(Opc, DL, TLI.getPointerTy(), BA);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
   return SDValue(N, 0);
@@ -5307,31 +5329,26 @@ bool SDValue::reachesChainWithoutSideEffects(SDValue Dest,
   return false;
 }
 
-
-static void findPredecessor(SDNode *N, const SDNode *P, bool &found,
-                            SmallPtrSet<SDNode *, 32> &Visited) {
-  if (found || !Visited.insert(N))
-    return;
-
-  for (unsigned i = 0, e = N->getNumOperands(); !found && i != e; ++i) {
-    SDNode *Op = N->getOperand(i).getNode();
-    if (Op == P) {
-      found = true;
-      return;
-    }
-    findPredecessor(Op, P, found, Visited);
-  }
-}
-
 /// isPredecessorOf - Return true if this node is a predecessor of N. This node
-/// is either an operand of N or it can be reached by recursively traversing
-/// up the operands.
+/// is either an operand of N or it can be reached by traversing up the operands.
 /// NOTE: this is an expensive method. Use it carefully.
 bool SDNode::isPredecessorOf(SDNode *N) const {
   SmallPtrSet<SDNode *, 32> Visited;
-  bool found = false;
-  findPredecessor(N, this, found, Visited);
-  return found;
+  SmallVector<SDNode *, 16> Worklist;
+  Worklist.push_back(N);
+
+  do {
+    N = Worklist.pop_back_val();
+    for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
+      SDNode *Op = N->getOperand(i).getNode();
+      if (Op == this)
+        return true;
+      if (Visited.insert(Op))
+        Worklist.push_back(Op);
+    }
+  } while (!Worklist.empty());
+
+  return false;
 }
 
 uint64_t SDNode::getConstantOperandVal(unsigned Num) const {
@@ -5405,6 +5422,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::EH_RETURN: return "EH_RETURN";
   case ISD::ConstantPool:  return "ConstantPool";
   case ISD::ExternalSymbol: return "ExternalSymbol";
+  case ISD::BlockAddress:  return "BlockAddress";
   case ISD::INTRINSIC_WO_CHAIN:
   case ISD::INTRINSIC_VOID:
   case ISD::INTRINSIC_W_CHAIN: {
@@ -5426,6 +5444,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::TargetJumpTable:  return "TargetJumpTable";
   case ISD::TargetConstantPool:  return "TargetConstantPool";
   case ISD::TargetExternalSymbol: return "TargetExternalSymbol";
+  case ISD::TargetBlockAddress: return "TargetBlockAddress";
 
   case ISD::CopyToReg:     return "CopyToReg";
   case ISD::CopyFromReg:   return "CopyFromReg";
@@ -5735,9 +5754,9 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
   } else if (const RegisterSDNode *R = dyn_cast<RegisterSDNode>(this)) {
     if (G && R->getReg() &&
         TargetRegisterInfo::isPhysicalRegister(R->getReg())) {
-      OS << " " << G->getTarget().getRegisterInfo()->getName(R->getReg());
+      OS << " %" << G->getTarget().getRegisterInfo()->getName(R->getReg());
     } else {
-      OS << " #" << R->getReg();
+      OS << " %reg" << R->getReg();
     }
   } else if (const ExternalSymbolSDNode *ES =
              dyn_cast<ExternalSymbolSDNode>(this)) {
@@ -5753,7 +5772,7 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
     OS << ":" << N->getVT().getEVTString();
   }
   else if (const LoadSDNode *LD = dyn_cast<LoadSDNode>(this)) {
-    OS << " <" << *LD->getMemOperand();
+    OS << "<" << *LD->getMemOperand();
 
     bool doExt = true;
     switch (LD->getExtensionType()) {
@@ -5771,7 +5790,7 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
 
     OS << ">";
   } else if (const StoreSDNode *ST = dyn_cast<StoreSDNode>(this)) {
-    OS << " <" << *ST->getMemOperand();
+    OS << "<" << *ST->getMemOperand();
 
     if (ST->isTruncatingStore())
       OS << ", trunc to " << ST->getMemoryVT().getEVTString();
@@ -5782,7 +5801,14 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
     
     OS << ">";
   } else if (const MemSDNode* M = dyn_cast<MemSDNode>(this)) {
-    OS << " <" << *M->getMemOperand() << ">";
+    OS << "<" << *M->getMemOperand() << ">";
+  } else if (const BlockAddressSDNode *BA =
+               dyn_cast<BlockAddressSDNode>(this)) {
+    OS << "<";
+    WriteAsOperand(OS, BA->getBlockAddress()->getFunction(), false);
+    OS << ", ";
+    WriteAsOperand(OS, BA->getBlockAddress()->getBasicBlock(), false);
+    OS << ">";
   }
 }
 

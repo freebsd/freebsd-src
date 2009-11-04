@@ -25,7 +25,6 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -33,7 +32,7 @@ using namespace llvm;
 STATISTIC(NumSunk, "Number of machine instructions sunk");
 
 namespace {
-  class VISIBILITY_HIDDEN MachineSinking : public MachineFunctionPass {
+  class MachineSinking : public MachineFunctionPass {
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
     MachineRegisterInfo  *RegInfo; // Machine register information

@@ -22,41 +22,6 @@
 #include "llvm/ADT/STLExtras.h"
 using namespace clang;
 
-/// ActOnCXXConversionFunctionExpr - Parse a C++ conversion function
-/// name (e.g., operator void const *) as an expression. This is
-/// very similar to ActOnIdentifierExpr, except that instead of
-/// providing an identifier the parser provides the type of the
-/// conversion function.
-Sema::OwningExprResult
-Sema::ActOnCXXConversionFunctionExpr(Scope *S, SourceLocation OperatorLoc,
-                                     TypeTy *Ty, bool HasTrailingLParen,
-                                     const CXXScopeSpec &SS,
-                                     bool isAddressOfOperand) {
-  //FIXME: Preserve type source info.
-  QualType ConvType = GetTypeFromParser(Ty);
-  CanQualType ConvTypeCanon = Context.getCanonicalType(ConvType);
-  DeclarationName ConvName
-    = Context.DeclarationNames.getCXXConversionFunctionName(ConvTypeCanon);
-  return ActOnDeclarationNameExpr(S, OperatorLoc, ConvName, HasTrailingLParen,
-                                  &SS, isAddressOfOperand);
-}
-
-/// ActOnCXXOperatorFunctionIdExpr - Parse a C++ overloaded operator
-/// name (e.g., @c operator+ ) as an expression. This is very
-/// similar to ActOnIdentifierExpr, except that instead of providing
-/// an identifier the parser provides the kind of overloaded
-/// operator that was parsed.
-Sema::OwningExprResult
-Sema::ActOnCXXOperatorFunctionIdExpr(Scope *S, SourceLocation OperatorLoc,
-                                     OverloadedOperatorKind Op,
-                                     bool HasTrailingLParen,
-                                     const CXXScopeSpec &SS,
-                                     bool isAddressOfOperand) {
-  DeclarationName Name = Context.DeclarationNames.getCXXOperatorName(Op);
-  return ActOnDeclarationNameExpr(S, OperatorLoc, Name, HasTrailingLParen, &SS,
-                                  isAddressOfOperand);
-}
-
 /// ActOnCXXTypeidOfType - Parse typeid( type-id ).
 Action::OwningExprResult
 Sema::ActOnCXXTypeid(SourceLocation OpLoc, SourceLocation LParenLoc,
@@ -212,7 +177,7 @@ Sema::ActOnCXXTypeConstructExpr(SourceRange TypeRange, TypeTy *TypeRep,
                           PDiag(diag::err_invalid_incomplete_type_use)
                             << FullRange))
     return ExprError();
-
+  
   if (RequireNonAbstractType(TyBeginLoc, Ty,
                              diag::err_allocation_of_abstract_type))
     return ExprError();
@@ -288,7 +253,6 @@ Sema::ActOnCXXTypeConstructExpr(SourceRange TypeRange, TypeTy *TypeRep,
       << FullRange);
 
   assert(NumExprs == 0 && "Expected 0 expressions");
-
   // C++ [expr.type.conv]p2:
   // The expression T(), where T is a simple-type-specifier for a non-array
   // complete object type or the (possibly cv-qualified) void type, creates an
@@ -312,7 +276,6 @@ Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
                   MultiExprArg ConstructorArgs,
                   SourceLocation ConstructorRParen) {
   Expr *ArraySize = 0;
-  unsigned Skip = 0;
   // If the specified type is an array, unwrap it and save the expression.
   if (D.getNumTypeObjects() > 0 &&
       D.getTypeObject(0).Kind == DeclaratorChunk::Array) {
@@ -323,14 +286,25 @@ Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
     if (!Chunk.Arr.NumElts)
       return ExprError(Diag(Chunk.Loc, diag::err_array_new_needs_size)
         << D.getSourceRange());
+
+    if (ParenTypeId) {
+      // Can't have dynamic array size when the type-id is in parentheses.
+      Expr *NumElts = (Expr *)Chunk.Arr.NumElts;
+      if (!NumElts->isTypeDependent() && !NumElts->isValueDependent() &&
+          !NumElts->isIntegerConstantExpr(Context)) {
+        Diag(D.getTypeObject(0).Loc, diag::err_new_paren_array_nonconst)
+          << NumElts->getSourceRange();
+        return ExprError();
+      }
+    }
+
     ArraySize = static_cast<Expr*>(Chunk.Arr.NumElts);
-    Skip = 1;
+    D.DropFirstTypeObject();
   }
 
   // Every dimension shall be of constant size.
-  if (D.getNumTypeObjects() > 0 && 
-      D.getTypeObject(0).Kind == DeclaratorChunk::Array) {
-    for (unsigned I = 1, N = D.getNumTypeObjects(); I < N; ++I) {
+  if (ArraySize) {
+    for (unsigned I = 0, N = D.getNumTypeObjects(); I < N; ++I) {
       if (D.getTypeObject(I).Kind != DeclaratorChunk::Array)
         break;
 
@@ -345,10 +319,10 @@ Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
       }
     }
   }
-  
+
   //FIXME: Store DeclaratorInfo in CXXNew expression.
   DeclaratorInfo *DInfo = 0;
-  QualType AllocType = GetTypeForDeclarator(D, /*Scope=*/0, &DInfo, Skip);
+  QualType AllocType = GetTypeForDeclarator(D, /*Scope=*/0, &DInfo);
   if (D.isInvalidType())
     return ExprError();
 
@@ -935,7 +909,7 @@ Sema::ActOnCXXConditionDeclarationExpr(Scope *S, SourceLocation StartLoc,
   // FIXME: Store DeclaratorInfo in the expression.
   DeclaratorInfo *DInfo = 0;
   TagDecl *OwnedTag = 0;
-  QualType Ty = GetTypeForDeclarator(D, S, &DInfo, /*Skip=*/0, &OwnedTag);
+  QualType Ty = GetTypeForDeclarator(D, S, &DInfo, &OwnedTag);
 
   if (Ty->isFunctionType()) { // The declarator shall not specify a function...
     // We exit without creating a CXXConditionDeclExpr because a FunctionDecl
@@ -1139,6 +1113,10 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
         From = CastArg.takeAs<Expr>();
         return BuildCXXDerivedToBaseExpr(From, CastKind, ICS, Flavor);
       }
+    
+      if (ICS.UserDefined.After.Second == ICK_Pointer_Member &&
+          ToType.getNonReferenceType()->isMemberFunctionPointerType())
+        CastKind = CastExpr::CK_BaseToDerivedMemberPointer;
       
       From = new (Context) ImplicitCastExpr(ToType.getNonReferenceType(),
                                             CastKind, CastArg.takeAs<Expr>(),
@@ -1390,7 +1368,8 @@ QualType Sema::CheckPointerToMemberOperands(
       LType = Ptr->getPointeeType().getNonReferenceType();
     else {
       Diag(Loc, diag::err_bad_memptr_lhs)
-        << OpSpelling << 1 << LType << lex->getSourceRange();
+        << OpSpelling << 1 << LType
+        << CodeModificationHint::CreateReplacement(SourceRange(Loc), ".*");
       return QualType();
     }
   }
@@ -1403,8 +1382,10 @@ QualType Sema::CheckPointerToMemberOperands(
     // overkill?
     if (!IsDerivedFrom(LType, Class, Paths) ||
         Paths.isAmbiguous(Context.getCanonicalType(Class))) {
+      const char *ReplaceStr = isIndirect ? ".*" : "->*";
       Diag(Loc, diag::err_bad_memptr_lhs) << OpSpelling
-        << (int)isIndirect << lex->getType() << lex->getSourceRange();
+        << (int)isIndirect << lex->getType() <<
+          CodeModificationHint::CreateReplacement(SourceRange(Loc), ReplaceStr);
       return QualType();
     }
   }
@@ -2105,110 +2086,6 @@ Sema::ActOnStartCXXMemberReference(Scope *S, ExprArg Base, SourceLocation OpLoc,
   return move(Base);
 }
 
-Sema::OwningExprResult
-Sema::ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
-                                   SourceLocation OpLoc,
-                                   tok::TokenKind OpKind,
-                                   SourceLocation ClassNameLoc,
-                                   IdentifierInfo *ClassName,
-                                   const CXXScopeSpec &SS,
-                                   bool HasTrailingLParen) {
-  if (SS.isInvalid())
-    return ExprError();
-
-  QualType BaseType;
-  if (isUnknownSpecialization(SS))
-    BaseType = Context.getTypenameType((NestedNameSpecifier *)SS.getScopeRep(),
-                                       ClassName);
-  else {
-    TypeTy *BaseTy = getTypeName(*ClassName, ClassNameLoc, S, &SS);
-    
-    // FIXME: If Base is dependent, we might not be able to resolve it here.
-    if (!BaseTy) {
-      Diag(ClassNameLoc, diag::err_ident_in_pseudo_dtor_not_a_type)
-        << ClassName;
-      return ExprError();
-    }
-
-    BaseType = GetTypeFromParser(BaseTy);
-  }
-
-  return ActOnDestructorReferenceExpr(S, move(Base), OpLoc, OpKind,
-                                      SourceRange(ClassNameLoc),
-                                      BaseType.getAsOpaquePtr(),
-                                      SS, HasTrailingLParen);
-}
-
-Sema::OwningExprResult
-Sema::ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
-                             SourceLocation OpLoc,
-                             tok::TokenKind OpKind,
-                             SourceRange TypeRange,
-                             TypeTy *T,
-                             const CXXScopeSpec &SS,
-                             bool HasTrailingLParen) {
-  QualType Type = QualType::getFromOpaquePtr(T);
-  CanQualType CanType = Context.getCanonicalType(Type);
-  DeclarationName DtorName =
-    Context.DeclarationNames.getCXXDestructorName(CanType);
-  
-  OwningExprResult Result
-    = BuildMemberReferenceExpr(S, move(Base), OpLoc, OpKind, 
-                               TypeRange.getBegin(), DtorName, DeclPtrTy(), 
-                               &SS);
-  if (Result.isInvalid() || HasTrailingLParen)
-    return move(Result);
-  
-  // The only way a reference to a destructor can be used is to
-  // immediately call them. Since the next token is not a '(', produce a
-  // diagnostic and build the call now.
-  Expr *E = (Expr *)Result.get();
-  SourceLocation ExpectedLParenLoc = PP.getLocForEndOfToken(TypeRange.getEnd());
-  Diag(E->getLocStart(), diag::err_dtor_expr_without_call)
-    << isa<CXXPseudoDestructorExpr>(E)
-    << CodeModificationHint::CreateInsertion(ExpectedLParenLoc, "()");
-  
-  return ActOnCallExpr(0, move(Result), ExpectedLParenLoc,
-                       MultiExprArg(*this, 0, 0), 0, ExpectedLParenLoc);
-}
-
-Sema::OwningExprResult
-Sema::ActOnOverloadedOperatorReferenceExpr(Scope *S, ExprArg Base,
-                                           SourceLocation OpLoc,
-                                           tok::TokenKind OpKind,
-                                           SourceLocation ClassNameLoc,
-                                           OverloadedOperatorKind OverOpKind,
-                                           const CXXScopeSpec *SS) {
-  if (SS && SS->isInvalid())
-    return ExprError();
-
-  DeclarationName Name =
-    Context.DeclarationNames.getCXXOperatorName(OverOpKind);
-
-  return BuildMemberReferenceExpr(S, move(Base), OpLoc, OpKind, ClassNameLoc,
-                                  Name, DeclPtrTy(), SS);
-}
-
-Sema::OwningExprResult
-Sema::ActOnConversionOperatorReferenceExpr(Scope *S, ExprArg Base,
-                                           SourceLocation OpLoc,
-                                           tok::TokenKind OpKind,
-                                           SourceLocation ClassNameLoc,
-                                           TypeTy *Ty,
-                                           const CXXScopeSpec *SS) {
-  if (SS && SS->isInvalid())
-    return ExprError();
-
-  //FIXME: Preserve type source info.
-  QualType ConvType = GetTypeFromParser(Ty);
-  CanQualType ConvTypeCanon = Context.getCanonicalType(ConvType);
-  DeclarationName ConvName =
-    Context.DeclarationNames.getCXXConversionFunctionName(ConvTypeCanon);
-
-  return BuildMemberReferenceExpr(S, move(Base), OpLoc, OpKind, ClassNameLoc,
-                                  ConvName, DeclPtrTy(), SS);
-}
-
 CXXMemberCallExpr *Sema::BuildCXXMemberCallExpr(Expr *Exp, 
                                                 CXXMethodDecl *Method) {
   MemberExpr *ME = 
@@ -2333,6 +2210,7 @@ bool Sema::isImplicitMemberReference(const CXXScopeSpec *SS, NamedDecl *D,
       if (!Method && (FunTmpl = dyn_cast<FunctionTemplateDecl>(*Ovl)))
         Method = dyn_cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl());
       
+      // FIXME: Do we have to know if there are explicit template arguments?
       if (Method && !Method->isStatic()) {
         Ctx = Method->getParent();
         if (isa<CXXMethodDecl>(D) && !FunTmpl)
@@ -2350,6 +2228,12 @@ bool Sema::isImplicitMemberReference(const CXXScopeSpec *SS, NamedDecl *D,
   // Determine whether the declaration(s) we found are actually in a base 
   // class. If not, this isn't an implicit member reference.
   ThisType = MD->getThisType(Context);
+  
+  // If the type of "this" is dependent, we can't tell if the member is in a 
+  // base class or not, so treat this as a dependent implicit member reference.
+  if (ThisType->isDependentType())
+    return true;
+  
   QualType CtxType = Context.getTypeDeclType(cast<CXXRecordDecl>(Ctx));
   QualType ClassType
     = Context.getTypeDeclType(cast<CXXRecordDecl>(MD->getParent()));

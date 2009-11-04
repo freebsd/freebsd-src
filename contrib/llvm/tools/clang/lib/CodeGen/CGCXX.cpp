@@ -71,16 +71,17 @@ void CodeGenFunction::EmitCXXGlobalVarDeclInit(const VarDecl &D,
 
   const Expr *Init = D.getInit();
   QualType T = D.getType();
+  bool isVolatile = getContext().getCanonicalType(T).isVolatileQualified();
 
   if (T->isReferenceType()) {
     ErrorUnsupported(Init, "global variable that binds to a reference");
   } else if (!hasAggregateLLVMType(T)) {
     llvm::Value *V = EmitScalarExpr(Init);
-    EmitStoreOfScalar(V, DeclPtr, T.isVolatileQualified(), T);
+    EmitStoreOfScalar(V, DeclPtr, isVolatile, T);
   } else if (T->isAnyComplexType()) {
-    EmitComplexExprIntoAddr(Init, DeclPtr, T.isVolatileQualified());
+    EmitComplexExprIntoAddr(Init, DeclPtr, isVolatile);
   } else {
-    EmitAggExpr(Init, DeclPtr, T.isVolatileQualified());
+    EmitAggExpr(Init, DeclPtr, isVolatile);
 
     if (const RecordType *RT = T->getAs<RecordType>()) {
       CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
@@ -95,8 +96,9 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
   if (CXXGlobalInits.empty())
     return;
 
-  const llvm::FunctionType *FTy = llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext),
-                                                          false);
+  const llvm::FunctionType *FTy
+    = llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext),
+                              false);
 
   // Create our global initialization function.
   // FIXME: Should this be tweakable by targets?
@@ -139,18 +141,20 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
 
   // Create the guard variable.
   llvm::GlobalValue *GuardV =
-    new llvm::GlobalVariable(CGM.getModule(), llvm::Type::getInt64Ty(VMContext), false,
-                             GV->getLinkage(),
-                             llvm::Constant::getNullValue(llvm::Type::getInt64Ty(VMContext)),
+    new llvm::GlobalVariable(CGM.getModule(), llvm::Type::getInt64Ty(VMContext),
+                             false, GV->getLinkage(),
+                llvm::Constant::getNullValue(llvm::Type::getInt64Ty(VMContext)),
                              GuardVName.str());
 
   // Load the first byte of the guard variable.
-  const llvm::Type *PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext), 0);
+  const llvm::Type *PtrTy
+    = llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext), 0);
   llvm::Value *V = Builder.CreateLoad(Builder.CreateBitCast(GuardV, PtrTy),
                                       "tmp");
 
   // Compare it against 0.
-  llvm::Value *nullValue = llvm::Constant::getNullValue(llvm::Type::getInt8Ty(VMContext));
+  llvm::Value *nullValue
+    = llvm::Constant::getNullValue(llvm::Type::getInt8Ty(VMContext));
   llvm::Value *ICmp = Builder.CreateICmpEQ(V, nullValue , "tobool");
 
   llvm::BasicBlock *InitBlock = createBasicBlock("init");
@@ -163,7 +167,8 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
 
   EmitCXXGlobalVarDeclInit(D, GV);
 
-  Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt8Ty(VMContext), 1),
+  Builder.CreateStore(llvm::ConstantInt::get(llvm::Type::getInt8Ty(VMContext),
+                                             1),
                       Builder.CreateBitCast(GuardV, PtrTy));
 
   EmitBlock(EndBlock);
@@ -591,11 +596,16 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
                                       const CXXConstructExpr *E) {
   assert(Dest && "Must have a destination!");
   const CXXConstructorDecl *CD = E->getConstructor();
+  const ConstantArrayType *Array =
+    getContext().getAsConstantArrayType(E->getType());
   // For a copy constructor, even if it is trivial, must fall thru so
   // its argument is code-gen'ed.
   if (!CD->isCopyConstructor(getContext())) {
+    QualType InitType = E->getType();
+    if (Array)
+      InitType = getContext().getBaseElementType(Array);
     const CXXRecordDecl *RD =
-      cast<CXXRecordDecl>(E->getType()->getAs<RecordType>()->getDecl());
+      cast<CXXRecordDecl>(InitType->getAs<RecordType>()->getDecl());
     if (RD->hasTrivialConstructor())
     return;
   }
@@ -606,9 +616,18 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
     EmitAggExpr((*i), Dest, false);
     return;
   }
-  // Call the constructor.
-  EmitCXXConstructorCall(CD, Ctor_Complete, Dest,
-                         E->arg_begin(), E->arg_end());
+  if (Array) {
+    QualType BaseElementTy = getContext().getBaseElementType(Array);
+    const llvm::Type *BasePtr = ConvertType(BaseElementTy);
+    BasePtr = llvm::PointerType::getUnqual(BasePtr);
+    llvm::Value *BaseAddrPtr =
+      Builder.CreateBitCast(Dest, BasePtr);
+    EmitCXXAggrConstructorCall(CD, Array, BaseAddrPtr);
+  }
+  else
+    // Call the constructor.
+    EmitCXXConstructorCall(CD, Ctor_Complete, Dest,
+                           E->arg_begin(), E->arg_end());
 }
 
 void CodeGenModule::EmitCXXConstructors(const CXXConstructorDecl *D) {
@@ -688,32 +707,39 @@ llvm::Constant *CodeGenFunction::GenerateThunk(llvm::Function *Fn,
                                                const CXXMethodDecl *MD,
                                                bool Extern, int64_t nv,
                                                int64_t v) {
-  QualType R = MD->getType()->getAs<FunctionType>()->getResultType();
+  return GenerateCovariantThunk(Fn, MD, Extern, nv, v, 0, 0);
+}
 
-  FunctionArgList Args;
-  ImplicitParamDecl *ThisDecl =
-    ImplicitParamDecl::Create(getContext(), 0, SourceLocation(), 0,
-                              MD->getThisType(getContext()));
-  Args.push_back(std::make_pair(ThisDecl, ThisDecl->getType()));
-  for (FunctionDecl::param_const_iterator i = MD->param_begin(),
-         e = MD->param_end();
-       i != e; ++i) {
-    ParmVarDecl *D = *i;
-    Args.push_back(std::make_pair(D, D->getType()));
+llvm::Value *CodeGenFunction::DynamicTypeAdjust(llvm::Value *V, int64_t nv,
+                                                int64_t v) {
+  llvm::Type *Ptr8Ty = llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext),
+                                              0);
+  const llvm::Type *OrigTy = V->getType();
+  if (nv) {
+    // Do the non-virtual adjustment
+    V = Builder.CreateBitCast(V, Ptr8Ty);
+    V = Builder.CreateConstInBoundsGEP1_64(V, nv);
+    V = Builder.CreateBitCast(V, OrigTy);
   }
-  IdentifierInfo *II
-    = &CGM.getContext().Idents.get("__thunk_named_foo_");
-  FunctionDecl *FD = FunctionDecl::Create(getContext(),
-                                          getContext().getTranslationUnitDecl(),
-                                          SourceLocation(), II, R, 0,
-                                          Extern
-                                            ? FunctionDecl::Extern
-                                            : FunctionDecl::Static,
-                                          false, true);
-  StartFunction(FD, R, Fn, Args, SourceLocation());
-  // FIXME: generate body
-  FinishFunction();
-  return Fn;
+  if (v) {
+    // Do the virtual this adjustment
+    const llvm::Type *PtrDiffTy = 
+      ConvertType(getContext().getPointerDiffType());
+    llvm::Type *PtrPtr8Ty, *PtrPtrDiffTy;
+    PtrPtr8Ty = llvm::PointerType::get(Ptr8Ty, 0);
+    PtrPtrDiffTy = llvm::PointerType::get(PtrDiffTy, 0);
+    llvm::Value *ThisVal = Builder.CreateBitCast(V, Ptr8Ty);
+    V = Builder.CreateBitCast(V, PtrPtrDiffTy->getPointerTo());
+    V = Builder.CreateLoad(V, "vtable");
+    llvm::Value *VTablePtr = V;
+    assert(v % (LLVMPointerWidth/8) == 0 && "vtable entry unaligned");
+    v /= LLVMPointerWidth/8;
+    V = Builder.CreateConstInBoundsGEP1_64(VTablePtr, v);
+    V = Builder.CreateLoad(V);
+    V = Builder.CreateGEP(ThisVal, V);
+    V = Builder.CreateBitCast(V, OrigTy);
+  }
+  return V;
 }
 
 llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
@@ -723,7 +749,7 @@ llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
                                                         int64_t v_t,
                                                         int64_t nv_r,
                                                         int64_t v_r) {
-  QualType R = MD->getType()->getAs<FunctionType>()->getResultType();
+  QualType ResultType = MD->getType()->getAs<FunctionType>()->getResultType();
 
   FunctionArgList Args;
   ImplicitParamDecl *ThisDecl =
@@ -740,13 +766,57 @@ llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
     = &CGM.getContext().Idents.get("__thunk_named_foo_");
   FunctionDecl *FD = FunctionDecl::Create(getContext(),
                                           getContext().getTranslationUnitDecl(),
-                                          SourceLocation(), II, R, 0,
+                                          SourceLocation(), II, ResultType, 0,
                                           Extern
                                             ? FunctionDecl::Extern
                                             : FunctionDecl::Static,
                                           false, true);
-  StartFunction(FD, R, Fn, Args, SourceLocation());
-  // FIXME: generate body
+  StartFunction(FD, ResultType, Fn, Args, SourceLocation());
+
+  // generate body
+  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+  const llvm::Type *Ty =
+    CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(MD),
+                                   FPT->isVariadic());
+  llvm::Value *Callee = CGM.GetAddrOfFunction(MD, Ty);
+  CallArgList CallArgs;
+
+  QualType ArgType = MD->getThisType(getContext());
+  llvm::Value *Arg = Builder.CreateLoad(LocalDeclMap[ThisDecl], "this");
+  if (nv_t || v_t) {
+    // Do the this adjustment.
+    const llvm::Type *OrigTy = Callee->getType();
+    Arg = DynamicTypeAdjust(Arg, nv_t, v_t);
+    if (nv_r || v_r) {
+      Callee = CGM.BuildCovariantThunk(MD, Extern, 0, 0, nv_r, v_r);
+      Callee = Builder.CreateBitCast(Callee, OrigTy);
+      nv_r = v_r = 0;
+    }
+  }    
+
+  CallArgs.push_back(std::make_pair(RValue::get(Arg), ArgType));
+
+  for (FunctionDecl::param_const_iterator i = MD->param_begin(),
+         e = MD->param_end();
+       i != e; ++i) {
+    ParmVarDecl *D = *i;
+    QualType ArgType = D->getType();
+
+    // llvm::Value *Arg = CGF.GetAddrOfLocalVar(Dst);
+    Expr *Arg = new (getContext()) DeclRefExpr(D, ArgType, SourceLocation());
+    CallArgs.push_back(std::make_pair(EmitCallArg(Arg, ArgType), ArgType));
+  }
+
+  RValue RV = EmitCall(CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
+                       Callee, CallArgs, MD);
+  if (nv_r || v_r) {
+    // Do the return result adjustment.
+    RV = RValue::get(DynamicTypeAdjust(RV.getScalarVal(), nv_r, v_r));
+  }
+
+  if (!ResultType->isVoidType())
+    EmitReturnOfRValue(RV, ResultType);
+
   FinishFunction();
   return Fn;
 }
@@ -769,7 +839,6 @@ llvm::Constant *CodeGenModule::BuildThunk(const CXXMethodDecl *MD, bool Extern,
   llvm::Function *Fn = llvm::Function::Create(FTy, linktype, Out.str(),
                                               &getModule());
   CodeGenFunction(*this).GenerateThunk(Fn, MD, Extern, nv, v);
-  // Fn = Builder.CreateBitCast(Fn, Ptr8Ty);
   llvm::Constant *m = llvm::ConstantExpr::getBitCast(Fn, Ptr8Ty);
   return m;
 }
@@ -795,7 +864,6 @@ llvm::Constant *CodeGenModule::BuildCovariantThunk(const CXXMethodDecl *MD,
                                               &getModule());
   CodeGenFunction(*this).GenerateCovariantThunk(Fn, MD, Extern, nv_t, v_t, nv_r,
                                                v_r);
-  // Fn = Builder.CreateBitCast(Fn, Ptr8Ty);
   llvm::Constant *m = llvm::ConstantExpr::getBitCast(Fn, Ptr8Ty);
   return m;
 }
@@ -815,7 +883,7 @@ CodeGenFunction::GetVirtualCXXBaseClassOffset(llvm::Value *This,
     CGM.getVtableInfo().getVirtualBaseOffsetIndex(ClassDecl, BaseClassDecl);
   
   llvm::Value *VBaseOffsetPtr = 
-    Builder.CreateConstGEP1_64(VTablePtr, VBaseOffsetIndex, "vbase.offset.ptr");  
+    Builder.CreateConstGEP1_64(VTablePtr, VBaseOffsetIndex, "vbase.offset.ptr");
   const llvm::Type *PtrDiffTy = 
     ConvertType(getContext().getPointerDiffType());
   
@@ -899,7 +967,7 @@ void CodeGenFunction::EmitClassAggrMemberwiseCopy(llvm::Value *Dest,
 
     // Push the Src ptr.
     CallArgs.push_back(std::make_pair(RValue::get(Src),
-                                      BaseCopyCtor->getParamDecl(0)->getType()));
+                                     BaseCopyCtor->getParamDecl(0)->getType()));
     QualType ResultType =
       BaseCopyCtor->getType()->getAs<FunctionType>()->getResultType();
     EmitCall(CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
@@ -1099,11 +1167,11 @@ CodeGenFunction::SynthesizeDefaultConstructor(const CXXConstructorDecl *Ctor,
   FinishFunction();
 }
 
-/// SynthesizeCXXCopyConstructor - This routine implicitly defines body of a copy
-/// constructor, in accordance with section 12.8 (p7 and p8) of C++03
+/// SynthesizeCXXCopyConstructor - This routine implicitly defines body of a
+/// copy constructor, in accordance with section 12.8 (p7 and p8) of C++03
 /// The implicitly-defined copy constructor for class X performs a memberwise
-/// copy of its subobjects. The order of copying is the same as the order
-/// of initialization of bases and members in a user-defined constructor
+/// copy of its subobjects. The order of copying is the same as the order of
+/// initialization of bases and members in a user-defined constructor
 /// Each subobject is copied in the manner appropriate to its type:
 ///  if the subobject is of class type, the copy constructor for the class is
 ///  used;
@@ -1121,7 +1189,7 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
                                               const FunctionArgList &Args) {
   const CXXRecordDecl *ClassDecl = Ctor->getParent();
   assert(!ClassDecl->hasUserDeclaredCopyConstructor() &&
-         "SynthesizeCXXCopyConstructor - copy constructor has definition already");
+      "SynthesizeCXXCopyConstructor - copy constructor has definition already");
   StartFunction(GlobalDecl(Ctor, Type), Ctor->getResultType(), Fn, Args, 
                 SourceLocation());
 

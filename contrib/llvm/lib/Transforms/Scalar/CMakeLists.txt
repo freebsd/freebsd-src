@@ -1,12 +1,13 @@
 add_llvm_library(LLVMScalarOpts
+  ABCD.cpp
   ADCE.cpp
   BasicBlockPlacement.cpp
-  CodeGenLICM.cpp
   CodeGenPrepare.cpp
   CondPropagate.cpp
   ConstantProp.cpp
   DCE.cpp
   DeadStoreElimination.cpp
+  GEPSplitter.cpp
   GVN.cpp
   IndVarSimplify.cpp
   InstructionCombining.cpp
@@ -16,12 +17,13 @@ add_llvm_library(LLVMScalarOpts
   LoopIndexSplit.cpp
   LoopRotation.cpp
   LoopStrengthReduce.cpp
-  LoopUnroll.cpp
+  LoopUnrollPass.cpp
   LoopUnswitch.cpp
   MemCpyOptimizer.cpp
   Reassociate.cpp
   Reg2Mem.cpp
   SCCP.cpp
+  SCCVN.cpp
   Scalar.cpp
   ScalarReplAggregates.cpp
   SimplifyCFGPass.cpp

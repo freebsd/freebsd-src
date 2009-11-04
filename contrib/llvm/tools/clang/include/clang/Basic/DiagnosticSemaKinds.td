@@ -264,13 +264,19 @@ def warn_objc_property_copy_missing_on_block : Warning<
     "'copy' attribute must be specified for the block property "
     "when -fobjc-gc-only is specified">;
 def err_use_continuation_class : Error<
-  "attribute of property in continuation class of %0 can only  be 'readwrite'">;
+  "property declaration in continuation class of %0 is to change a 'readonly' "
+  "property to 'readwrite'">;
 def err_continuation_class : Error<"continuation class has no primary class">;
 def err_property_type : Error<"property cannot have array or function type %0">;
 def error_missing_property_context : Error<
   "missing context for property implementation declaration">;
 def error_bad_property_decl : Error<
   "property implementation must have its declaration in interface %0">;
+def error_category_property : Error<
+  "property declared in category %0 cannot be implemented in "
+  "class implementation">;
+def note_property_declare : Note<
+  "property declared here">;
 def error_synthesize_category_decl : Error<
   "@synthesize not allowed in a category's implementation">;
 def error_missing_property_interface : Error<
@@ -613,6 +619,10 @@ def warn_attribute_wrong_decl_type : Warning<
 def warn_gnu_inline_attribute_requires_inline : Warning<
   "'gnu_inline' attribute requires function to be marked 'inline',"
   " attribute ignored">;
+def err_cconv_knr : Error<
+  "function with no prototype cannot use '%0' calling convention">;
+def err_cconv_varargs : Error<
+  "variadic function cannot use '%0' calling convention">;
 
 def warn_attribute_ignored_for_field_of_type : Warning<
   "%0 attribute ignored for field of type %1">;
@@ -1014,7 +1024,11 @@ def note_partial_spec_unused_parameter : Note<
 def err_partial_spec_ordering_ambiguous : Error<
     "ambiguous partial specializations of %0">;
 def note_partial_spec_match : Note<"partial specialization matches %0">;
-
+def err_partial_spec_redeclared : Error<
+  "class template partial specialization %0 cannot be redeclared">;
+def note_prev_partial_spec_here : Note<
+  "previous declaration of class template partial specialization %0 is here">;
+  
 // C++ Function template specializations
 def err_function_template_spec_no_match : Error<
     "no function template matches function template specialization %0">;
@@ -1326,17 +1340,17 @@ def err_flexible_array_init_nonempty : Error<
 def err_flexible_array_init_needs_braces : Error<
   "flexible array requires brace-enclosed initializer">;
 def err_illegal_decl_array_of_functions : Error<
-  "'%0' declared as array of functions">;
+  "'%0' declared as array of functions of type %1">;
 def err_illegal_decl_array_incomplete_type : Error<
   "array has incomplete element type %0">;
 def err_illegal_decl_array_of_references : Error<
-  "'%0' declared as array of references">;
+  "'%0' declared as array of references of type %1">;
 def err_array_star_outside_prototype : Error<
   "star modifier used outside of function prototype">;
 def err_illegal_decl_pointer_to_reference : Error<
-  "'%0' declared as a pointer to a reference">;
+  "'%0' declared as a pointer to a reference of type %1">;
 def err_illegal_decl_mempointer_to_reference : Error<
-  "'%0' declared as a member pointer to a reference">;
+  "'%0' declared as a member pointer to a reference of type %1">;
 def err_illegal_decl_mempointer_to_void : Error<
   "'%0' declared as a member pointer to void">;
 def err_illegal_decl_mempointer_in_nonclass : Error<
@@ -1368,6 +1382,8 @@ def err_alignof_incomplete_type : Error<
   "invalid application of '__alignof' to an incomplete type %0">;
 def err_sizeof_alignof_bitfield : Error<
   "invalid application of '%select{sizeof|__alignof}0' to bit-field">;
+def err_offsetof_incomplete_type : Error<
+  "offsetof of incomplete type %0">;
 def err_offsetof_record_type : Error<
   "offsetof requires struct, union, or class type, %0 invalid">;
 def err_offsetof_array_type : Error<"offsetof requires array type, %0 invalid">;
@@ -1384,6 +1400,10 @@ def warn_shift_negative : Warning<
   "shift count is negative">;
 def warn_shift_gt_typewidth : Warning<
   "shift count >= width of type">;
+
+def warn_precedence_bitwise_rel : Warning<
+  "%0 has lower precedence than %1; %1 will be evaluated first">,
+  InGroup<Parentheses>;
 
 def err_sizeof_nonfragile_interface : Error<
   "invalid application of '%select{alignof|sizeof}1' to interface %0 in "
@@ -1661,7 +1681,9 @@ def err_bad_new_type : Error<
 def err_new_incomplete_type : Error<
   "allocation of incomplete type %0">;
 def err_new_array_nonconst : Error<
-  "only the first dimension of an allocated array may be non-const">;
+  "only the first dimension of an allocated array may have dynamic size">;
+def err_new_paren_array_nonconst : Error<
+  "when type is in parentheses, array cannot have dynamic size">;
 def err_array_size_not_integral : Error<
   "array size expression must have integral or enumerated type, not %0">;
 def err_new_uninitialized_const : Error<
@@ -1709,8 +1731,6 @@ def err_throw_incomplete_ptr : Error<
 def err_return_in_constructor_handler : Error<
   "return in the catch of a function try block of a constructor is illegal">;
 
-def err_ident_in_pseudo_dtor_not_a_type : Error<
-  "identifier %0 in pseudo-destructor expression does not name a type">;
 def err_operator_arrow_circular : Error<
   "circular pointer delegation detected">;
 def err_pseudo_dtor_base_not_scalar : Error<
@@ -2130,6 +2150,10 @@ def warn_ret_stack_addr : Warning<
   "address of stack memory associated with local variable %0 returned">;
 def warn_ret_stack_ref : Warning<
   "reference to stack memory associated with local variable %0 returned">;
+def warn_ret_addr_label : Warning<
+  "returning address of label, which is local">;
+def err_ret_local_block : Error<
+  "returning block that lives on the local stack">;
 
 
 // For non-floating point, expressions of the form x == x or x != x
@@ -2153,8 +2177,6 @@ def err_return_in_block_expression : Error<
 def err_block_returns_array : Error<
   "block declared as returning an array">;
 
-def err_ret_local_block : Error<
-  "returning block that lives on the local stack">;
 
 // CFString checking
 def err_cfstring_literal_not_string_constant : Error<

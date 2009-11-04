@@ -282,6 +282,7 @@ namespace {
     void visitReturnInst(ReturnInst &I);
     void visitBranchInst(BranchInst &I);
     void visitSwitchInst(SwitchInst &I);
+    void visitIndirectBrInst(IndirectBrInst &I);
     void visitInvokeInst(InvokeInst &I) {
       llvm_unreachable("Lowerinvoke pass didn't work!");
     }
@@ -303,7 +304,6 @@ namespace {
     bool visitBuiltinCall(CallInst &I, Intrinsic::ID ID, bool &WroteCallee);
 
     void visitAllocaInst(AllocaInst &I);
-    void visitFreeInst  (FreeInst   &I);
     void visitLoadInst  (LoadInst   &I);
     void visitStoreInst (StoreInst  &I);
     void visitGetElementPtrInst(GetElementPtrInst &I);
@@ -1627,7 +1627,7 @@ void CWriter::writeOperandWithCast(Value* Operand, const ICmpInst &Cmp) {
   }
   
   // Should this be a signed comparison?  If so, convert to signed.
-  bool castIsSigned = Cmp.isSignedPredicate();
+  bool castIsSigned = Cmp.isSigned();
 
   // If the operand was a pointer, convert to a large integer type.
   const Type* OpTy = Operand->getType();
@@ -2579,6 +2579,12 @@ void CWriter::visitSwitchInst(SwitchInst &SI) {
   Out << "  }\n";
 }
 
+void CWriter::visitIndirectBrInst(IndirectBrInst &IBI) {
+  Out << "  goto *(void*)(";
+  writeOperand(IBI.getOperand(0));
+  Out << ");\n";
+}
+
 void CWriter::visitUnreachableInst(UnreachableInst &I) {
   Out << "  /*UNREACHABLE*/;\n";
 }
@@ -3417,10 +3423,6 @@ void CWriter::visitAllocaInst(AllocaInst &I) {
   Out << ')';
 }
 
-void CWriter::visitFreeInst(FreeInst &I) {
-  llvm_unreachable("lowerallocations pass didn't work!");
-}
-
 void CWriter::printGEPExpression(Value *Ptr, gep_type_iterator I,
                                  gep_type_iterator E, bool Static) {
   
@@ -3685,7 +3687,6 @@ bool CTargetMachine::addPassesToEmitWholeFile(PassManager &PM,
   if (FileType != TargetMachine::AssemblyFile) return true;
 
   PM.add(createGCLoweringPass());
-  PM.add(createLowerAllocationsPass());
   PM.add(createLowerInvokePass());
   PM.add(createCFGSimplificationPass());   // clean up after lower invoke.
   PM.add(new CBackendNameAllUsedStructsAndMergeFunctions());

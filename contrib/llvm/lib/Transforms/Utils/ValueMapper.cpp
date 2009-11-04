@@ -13,18 +13,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/BasicBlock.h"
 #include "llvm/DerivedTypes.h"  // For getNullValue(Type::Int32Ty)
 #include "llvm/Constants.h"
-#include "llvm/GlobalValue.h"
-#include "llvm/Instruction.h"
-#include "llvm/LLVMContext.h"
+#include "llvm/Function.h"
 #include "llvm/Metadata.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
-Value *llvm::MapValue(const Value *V, ValueMapTy &VM, LLVMContext &Context) {
+Value *llvm::MapValue(const Value *V, ValueMapTy &VM) {
   Value *&VMSlot = VM[V];
   if (VMSlot) return VMSlot;      // Does it exist in the map yet?
   
@@ -36,80 +33,91 @@ Value *llvm::MapValue(const Value *V, ValueMapTy &VM, LLVMContext &Context) {
   if (isa<GlobalValue>(V) || isa<InlineAsm>(V) || isa<MetadataBase>(V))
     return VMSlot = const_cast<Value*>(V);
 
-  if (Constant *C = const_cast<Constant*>(dyn_cast<Constant>(V))) {
-    if (isa<ConstantInt>(C) || isa<ConstantFP>(C) ||
-        isa<ConstantPointerNull>(C) || isa<ConstantAggregateZero>(C) ||
-        isa<UndefValue>(C) || isa<MDString>(C))
-      return VMSlot = C;           // Primitive constants map directly
-    else if (ConstantArray *CA = dyn_cast<ConstantArray>(C)) {
-      for (User::op_iterator b = CA->op_begin(), i = b, e = CA->op_end();
-           i != e; ++i) {
-        Value *MV = MapValue(*i, VM, Context);
-        if (MV != *i) {
-          // This array must contain a reference to a global, make a new array
-          // and return it.
-          //
-          std::vector<Constant*> Values;
-          Values.reserve(CA->getNumOperands());
-          for (User::op_iterator j = b; j != i; ++j)
-            Values.push_back(cast<Constant>(*j));
-          Values.push_back(cast<Constant>(MV));
-          for (++i; i != e; ++i)
-            Values.push_back(cast<Constant>(MapValue(*i, VM, Context)));
-          return VM[V] = ConstantArray::get(CA->getType(), Values);
-        }
+  Constant *C = const_cast<Constant*>(dyn_cast<Constant>(V));
+  if (C == 0) return 0;
+  
+  if (isa<ConstantInt>(C) || isa<ConstantFP>(C) ||
+      isa<ConstantPointerNull>(C) || isa<ConstantAggregateZero>(C) ||
+      isa<UndefValue>(C) || isa<MDString>(C))
+    return VMSlot = C;           // Primitive constants map directly
+  
+  if (ConstantArray *CA = dyn_cast<ConstantArray>(C)) {
+    for (User::op_iterator b = CA->op_begin(), i = b, e = CA->op_end();
+         i != e; ++i) {
+      Value *MV = MapValue(*i, VM);
+      if (MV != *i) {
+        // This array must contain a reference to a global, make a new array
+        // and return it.
+        //
+        std::vector<Constant*> Values;
+        Values.reserve(CA->getNumOperands());
+        for (User::op_iterator j = b; j != i; ++j)
+          Values.push_back(cast<Constant>(*j));
+        Values.push_back(cast<Constant>(MV));
+        for (++i; i != e; ++i)
+          Values.push_back(cast<Constant>(MapValue(*i, VM)));
+        return VM[V] = ConstantArray::get(CA->getType(), Values);
       }
-      return VM[V] = C;
-
-    } else if (ConstantStruct *CS = dyn_cast<ConstantStruct>(C)) {
-      for (User::op_iterator b = CS->op_begin(), i = b, e = CS->op_end();
-           i != e; ++i) {
-        Value *MV = MapValue(*i, VM, Context);
-        if (MV != *i) {
-          // This struct must contain a reference to a global, make a new struct
-          // and return it.
-          //
-          std::vector<Constant*> Values;
-          Values.reserve(CS->getNumOperands());
-          for (User::op_iterator j = b; j != i; ++j)
-            Values.push_back(cast<Constant>(*j));
-          Values.push_back(cast<Constant>(MV));
-          for (++i; i != e; ++i)
-            Values.push_back(cast<Constant>(MapValue(*i, VM, Context)));
-          return VM[V] = ConstantStruct::get(CS->getType(), Values);
-        }
-      }
-      return VM[V] = C;
-
-    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
-      std::vector<Constant*> Ops;
-      for (User::op_iterator i = CE->op_begin(), e = CE->op_end(); i != e; ++i)
-        Ops.push_back(cast<Constant>(MapValue(*i, VM, Context)));
-      return VM[V] = CE->getWithOperands(Ops);
-    } else if (ConstantVector *CP = dyn_cast<ConstantVector>(C)) {
-      for (User::op_iterator b = CP->op_begin(), i = b, e = CP->op_end();
-           i != e; ++i) {
-        Value *MV = MapValue(*i, VM, Context);
-        if (MV != *i) {
-          // This vector value must contain a reference to a global, make a new
-          // vector constant and return it.
-          //
-          std::vector<Constant*> Values;
-          Values.reserve(CP->getNumOperands());
-          for (User::op_iterator j = b; j != i; ++j)
-            Values.push_back(cast<Constant>(*j));
-          Values.push_back(cast<Constant>(MV));
-          for (++i; i != e; ++i)
-            Values.push_back(cast<Constant>(MapValue(*i, VM, Context)));
-          return VM[V] = ConstantVector::get(Values);
-        }
-      }
-      return VM[V] = C;
-      
-    } else {
-      llvm_unreachable("Unknown type of constant!");
     }
+    return VM[V] = C;
   }
+  
+  if (ConstantStruct *CS = dyn_cast<ConstantStruct>(C)) {
+    for (User::op_iterator b = CS->op_begin(), i = b, e = CS->op_end();
+         i != e; ++i) {
+      Value *MV = MapValue(*i, VM);
+      if (MV != *i) {
+        // This struct must contain a reference to a global, make a new struct
+        // and return it.
+        //
+        std::vector<Constant*> Values;
+        Values.reserve(CS->getNumOperands());
+        for (User::op_iterator j = b; j != i; ++j)
+          Values.push_back(cast<Constant>(*j));
+        Values.push_back(cast<Constant>(MV));
+        for (++i; i != e; ++i)
+          Values.push_back(cast<Constant>(MapValue(*i, VM)));
+        return VM[V] = ConstantStruct::get(CS->getType(), Values);
+      }
+    }
+    return VM[V] = C;
+  }
+  
+  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C)) {
+    std::vector<Constant*> Ops;
+    for (User::op_iterator i = CE->op_begin(), e = CE->op_end(); i != e; ++i)
+      Ops.push_back(cast<Constant>(MapValue(*i, VM)));
+    return VM[V] = CE->getWithOperands(Ops);
+  }
+  
+  if (ConstantVector *CV = dyn_cast<ConstantVector>(C)) {
+    for (User::op_iterator b = CV->op_begin(), i = b, e = CV->op_end();
+         i != e; ++i) {
+      Value *MV = MapValue(*i, VM);
+      if (MV != *i) {
+        // This vector value must contain a reference to a global, make a new
+        // vector constant and return it.
+        //
+        std::vector<Constant*> Values;
+        Values.reserve(CV->getNumOperands());
+        for (User::op_iterator j = b; j != i; ++j)
+          Values.push_back(cast<Constant>(*j));
+        Values.push_back(cast<Constant>(MV));
+        for (++i; i != e; ++i)
+          Values.push_back(cast<Constant>(MapValue(*i, VM)));
+        return VM[V] = ConstantVector::get(Values);
+      }
+    }
+    return VM[V] = C;
+  }
+  
+  if (BlockAddress *BA = dyn_cast<BlockAddress>(C)) {
+    Function *F = cast<Function>(MapValue(BA->getFunction(), VM));
+    BasicBlock *BB = cast_or_null<BasicBlock>(MapValue(BA->getBasicBlock(),VM));
+    return VM[V] = BlockAddress::get(F, BB ? BB : BA->getBasicBlock());
+  }
+  
+  llvm_unreachable("Unknown type of constant!");
   return 0;
 }
 
@@ -118,7 +126,7 @@ Value *llvm::MapValue(const Value *V, ValueMapTy &VM, LLVMContext &Context) {
 ///
 void llvm::RemapInstruction(Instruction *I, ValueMapTy &ValueMap) {
   for (User::op_iterator op = I->op_begin(), E = I->op_end(); op != E; ++op) {
-    Value *V = MapValue(*op, ValueMap, I->getParent()->getContext());
+    Value *V = MapValue(*op, ValueMap);
     assert(V && "Referenced value not in value map!");
     *op = V;
   }

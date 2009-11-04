@@ -24,7 +24,7 @@
 <!--*************************************************************************-->
 <h1>C++ Support in Clang</h1>
 <!--*************************************************************************-->
-<p>Last updated: $Date: 2009-10-20 23:10:15 +0200 (Tue, 20 Oct 2009) $</p>
+<p>Last updated: $Date: 2009-10-30 15:54:38 +0100 (Fri, 30 Oct 2009) $</p>
 
 <p>
 This page tracks the status of C++ support in Clang.<br>
@@ -327,6 +327,7 @@ welcome!</p>
   <td class="na">N/A</td>
   <td class="complete"></td>
   <td class="na">N/A</td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;3.3.6 [basic.scope.class]</td>
@@ -407,6 +408,7 @@ welcome!</p>
   <td class="na">N/A</td>
   <td class="medium"></td>
   <td class="na">N/A</td>
+  <td></td>
 </tr>
 <tr><td>&nbsp;&nbsp;3.5 [basic.link]</td><td></td><td></td><td></td><td></td><td></td></tr>
 <tr><td>&nbsp;&nbsp;3.6 [basic.start]</td><td></td><td></td><td></td><td></td><td></td></tr>
@@ -732,7 +734,7 @@ welcome!</p>
   <td class="advanced"></td>
   <td class="advanced"></td>
   <td></td>
-  <td>Dereferenced member function pointers have the wrong type.</td>
+  <td>Dereferenced member function pointers have the wrong type(see FIXME in CheckPointerToMemberOperands).</td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;5.6 [expr.mul]</td>
@@ -1521,6 +1523,7 @@ welcome!</p>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;12.4 [class.dtor]</td>
@@ -1606,6 +1609,7 @@ welcome!</p>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>  
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.1.2 [over.match.oper]</td>
@@ -1661,6 +1665,7 @@ welcome!</p>
   <td class="advanced" align="center"></td>
   <td class="advanced" align="center"></td>
   <td class="na" align="center">N/A</td>  
+  <td></td>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;13.3.3.1 [over.best.ics]</td>
@@ -1792,7 +1797,7 @@ welcome!</p>
 </tr>
 <tr>
   <td>14 [temp]</td>
-  <td class="basic" align="center">N/A</td>  
+  <td class="medium" align="center"></td>  
   <td class="basic" align="center"></td>
   <td class="basic" align="center"></td>
   <td class="broken" align="center"></td>
@@ -2075,11 +2080,12 @@ welcome!</p>
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.7.2 [temp.explicit]</td>
+  <td class="complete" align="center"></td>
   <td class="advanced" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="medium" align="center"></td>
-  <td class="broken" align="center"></td>
-  <td></td>  
+  <td class="advanced" align="center"></td>
+  <td class="complete" align="center"></td>
+  <td>Cannot test paragraph 11 until access control is implemented.<br/>
+    ASTs do not carry enough information to reproduce source code accurately.</td>  
 </tr>
 <tr>
   <td>&nbsp;&nbsp;&nbsp;&nbsp;14.7.3 [temp.expl.spec]</td>

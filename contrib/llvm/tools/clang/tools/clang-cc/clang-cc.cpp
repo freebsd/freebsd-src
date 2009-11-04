@@ -26,6 +26,7 @@
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompileOptions.h"
+#include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/FixItRewriter.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/InitHeaderSearch.h"
@@ -69,7 +70,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Host.h"
 #include "llvm/System/Path.h"
-#include "llvm/System/Process.h"
 #include "llvm/System/Program.h"
 #include "llvm/System/Signals.h"
 #include "llvm/Target/TargetSelect.h"
@@ -105,8 +105,6 @@ static bool ResolveParsedLocation(ParsedSourceLocation &ParsedLoc,
 /// TimeRegion.  The -ftime-report option controls whether this will do
 /// anything.
 llvm::Timer *ClangFrontendTimer = 0;
-
-static bool HadErrors = false;
 
 static llvm::cl::opt<bool>
 Verbose("v", llvm::cl::desc("Enable verbose output"));
@@ -240,6 +238,8 @@ TokenCache("token-cache", llvm::cl::value_desc("path"),
 // Diagnostic Options
 //===----------------------------------------------------------------------===//
 
+static DiagnosticOptions DiagOpts;
+
 static llvm::cl::opt<bool>
 VerifyDiagnostics("verify",
                   llvm::cl::desc("Verify emitted diagnostics and warnings"));
@@ -283,10 +283,9 @@ MessageLength("fmessage-length",
               llvm::cl::value_desc("N"));
 
 static llvm::cl::opt<bool>
-NoColorDiagnostic("fno-color-diagnostics",
-                  llvm::cl::desc("Don't use colors when showing diagnostics "
-                             "(automatically turned off if output is not a "
-                             "terminal)."));
+PrintColorDiagnostic("fcolor-diagnostics",
+                     llvm::cl::desc("Use colors in diagnostics"));
+
 //===----------------------------------------------------------------------===//
 // C++ Visualization.
 //===----------------------------------------------------------------------===//
@@ -655,9 +654,17 @@ static llvm::cl::opt<bool>
 NoElideConstructors("fno-elide-constructors",
                     llvm::cl::desc("Disable C++ copy constructor elision"));
 
+static llvm::cl::opt<bool>
+NoMergeConstants("fno-merge-all-constants",
+                       llvm::cl::desc("Disallow merging of constants."));
+
 static llvm::cl::opt<std::string>
 TargetABI("target-abi",
           llvm::cl::desc("Target a particular ABI type"));
+
+static llvm::cl::opt<std::string>
+TargetTriple("triple",
+  llvm::cl::desc("Specify target triple (e.g. i686-apple-darwin9)"));
 
 
 // It might be nice to add bounds to the CommandLine library directly.
@@ -878,132 +885,6 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
 }
 
 //===----------------------------------------------------------------------===//
-// Target Triple Processing.
-//===----------------------------------------------------------------------===//
-
-static llvm::cl::opt<std::string>
-TargetTriple("triple",
-  llvm::cl::desc("Specify target triple (e.g. i686-apple-darwin9)"));
-
-static llvm::cl::opt<std::string>
-MacOSVersionMin("mmacosx-version-min",
-                llvm::cl::desc("Specify target Mac OS X version (e.g. 10.5)"));
-
-// If -mmacosx-version-min=10.3.9 is specified, change the triple from being
-// something like powerpc-apple-darwin9 to powerpc-apple-darwin7
-
-// FIXME: We should have the driver do this instead.
-static void HandleMacOSVersionMin(llvm::Triple &Triple) {
-  if (Triple.getOS() != llvm::Triple::Darwin) {
-    fprintf(stderr,
-            "-mmacosx-version-min only valid for darwin (Mac OS X) targets\n");
-    exit(1);
-  }
-  
-  // Validate that MacOSVersionMin is a 'version number', starting with 10.[3-9]
-  if (MacOSVersionMin.size() < 4 ||
-      MacOSVersionMin.substr(0, 3) != "10." ||
-      !isdigit(MacOSVersionMin[3])) {
-    fprintf(stderr,
-        "-mmacosx-version-min=%s is invalid, expected something like '10.4'.\n",
-            MacOSVersionMin.c_str());
-    exit(1);
-  }
-  
-  unsigned VersionNum = MacOSVersionMin[3]-'0';
-
-  if (VersionNum <= 4 && Triple.getArch() == llvm::Triple::x86_64) {
-    fprintf(stderr,
-            "-mmacosx-version-min=%s is invalid with -arch x86_64.\n",
-            MacOSVersionMin.c_str());
-    exit(1);
-  }
-
-  
-  llvm::SmallString<16> NewDarwinString;
-  NewDarwinString += "darwin";
-  
-  // Turn MacOSVersionMin into a darwin number: e.g. 10.3.9 is 3 -> darwin7.
-  VersionNum += 4;
-  if (VersionNum > 9) {
-    NewDarwinString += '1';
-    VersionNum -= 10;
-  }
-  NewDarwinString += (VersionNum+'0');
-
-  if (MacOSVersionMin.size() == 4) {
-    // "10.4" is ok.
-  } else if (MacOSVersionMin.size() == 6 &&
-             MacOSVersionMin[4] == '.' &&
-             isdigit(MacOSVersionMin[5])) {   // 10.4.7 is ok.
-    // Add the period piece (.7) to the end of the triple.  This gives us
-    // something like ...-darwin8.7
-    NewDarwinString += '.';
-    NewDarwinString += MacOSVersionMin[5];
-  } else { // "10.4" is ok.  10.4x is not.
-    fprintf(stderr,
-        "-mmacosx-version-min=%s is invalid, expected something like '10.4'.\n",
-            MacOSVersionMin.c_str());
-    exit(1);
-  }
-
-  Triple.setOSName(NewDarwinString.str());
-}
-
-static llvm::cl::opt<std::string>
-IPhoneOSVersionMin("miphoneos-version-min",
-                llvm::cl::desc("Specify target iPhone OS version (e.g. 2.0)"));
-
-// If -miphoneos-version-min=2.2 is specified, change the triple from being
-// something like armv6-apple-darwin10 to armv6-apple-darwin9.2.2. We use
-// 9 as the default major Darwin number, and encode the iPhone OS version
-// number in the minor version and revision.
-
-// FIXME: We should have the driver do this instead.
-static void HandleIPhoneOSVersionMin(llvm::Triple &Triple) {
-  if (Triple.getOS() != llvm::Triple::Darwin) {
-    fprintf(stderr,
-           "-miphoneos-version-min only valid for darwin (Mac OS X) targets\n");
-    exit(1);
-  }
-
-  // Validate that IPhoneOSVersionMin is a 'version number', starting with
-  // [2-9].[0-9]
-  if (IPhoneOSVersionMin.size() != 3 || !isdigit(IPhoneOSVersionMin[0]) ||
-      IPhoneOSVersionMin[1] != '.' || !isdigit(IPhoneOSVersionMin[2])) {
-    fprintf(stderr,
-       "-miphoneos-version-min=%s is invalid, expected something like '2.0'.\n",
-            IPhoneOSVersionMin.c_str());
-    exit(1);
-  }
-  
-  // Turn IPhoneOSVersionMin into a darwin number: e.g. 2.0 is 2 -> 9.2.0
-  llvm::SmallString<16> NewDarwinString;
-  NewDarwinString += "darwin9.";
-  NewDarwinString += IPhoneOSVersionMin;
-  Triple.setOSName(NewDarwinString.str());
-}
-
-/// CreateTargetTriple - Process the various options that affect the target
-/// triple and build a final aggregate triple that we are compiling for.
-static llvm::Triple CreateTargetTriple() {
-  // Initialize base triple.  If a -triple option has been specified, use
-  // that triple.  Otherwise, default to the host triple.
-  llvm::Triple Triple(TargetTriple);
-  if (Triple.getTriple().empty())
-    Triple = llvm::Triple(llvm::sys::getHostTriple());
-
-  // If -mmacosx-version-min=10.3.9 is specified, change the triple from being
-  // something like powerpc-apple-darwin9 to powerpc-apple-darwin7
-  if (!MacOSVersionMin.empty())
-    HandleMacOSVersionMin(Triple);
-  else if (!IPhoneOSVersionMin.empty())
-    HandleIPhoneOSVersionMin(Triple);
-
-  return Triple;
-}
-
-//===----------------------------------------------------------------------===//
 // SourceManager initialization.
 //===----------------------------------------------------------------------===//
 
@@ -1056,6 +937,9 @@ static bool InitializeSourceManager(Preprocessor &PP,
 //   -A...    - Play with #assertions
 //   -undef   - Undefine all predefined macros
 
+static llvm::cl::opt<bool>
+undef_macros("undef", llvm::cl::value_desc("macro"), llvm::cl::desc("undef all system defines"));
+
 static llvm::cl::list<std::string>
 D_macros("D", llvm::cl::value_desc("macro"), llvm::cl::Prefix,
        llvm::cl::desc("Predefine the specified macro"));
@@ -1099,8 +983,8 @@ static llvm::cl::opt<bool>
 nostdinc("nostdinc", llvm::cl::desc("Disable standard #include directories"));
 
 static llvm::cl::opt<bool>
-nostdclanginc("nostdclanginc",
-	      llvm::cl::desc("Disable standard clang #include directories"));
+nobuiltininc("nobuiltininc",
+             llvm::cl::desc("Disable builtin #include directories"));
 
 // Various command line options.  These four add directories to each chain.
 static llvm::cl::list<std::string>
@@ -1240,7 +1124,7 @@ void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
 
   Init.AddDefaultEnvVarPaths(Lang);
 
-  if (!nostdclanginc)
+  if (!nobuiltininc)
     AddClangIncludePaths(Argv0, &Init);
 
   if (!nostdinc)
@@ -1367,7 +1251,7 @@ public:
 
     PreprocessorInitOptions InitOpts;
     InitializePreprocessorInitOptions(InitOpts);
-    if (InitializePreprocessor(*PP, InitOpts))
+    if (InitializePreprocessor(*PP, InitOpts, undef_macros))
       return 0;
 
     return PP.take();
@@ -1493,6 +1377,8 @@ static void InitializeCompileOptions(CompileOptions &Opts,
 
   Opts.DisableRedZone = DisableRedZone;
   Opts.NoImplicitFloat = NoImplicitFloat;
+  
+  Opts.MergeAllConstants = !NoMergeConstants;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1681,14 +1567,7 @@ public:
     // Output diags both where requested...
     Chain1.reset(Normal);
     // .. and to our log file.
-    Chain2.reset(new TextDiagnosticPrinter(*BuildLogFile,
-                                           !NoShowColumn,
-                                           !NoCaretDiagnostics,
-                                           !NoShowLocation,
-                                           PrintSourceRangeInfo,
-                                           PrintDiagnosticOption,
-                                           !NoDiagnosticsFixIt,
-                                           MessageLength));
+    Chain2.reset(new TextDiagnosticPrinter(*BuildLogFile, DiagOpts));
   }
 
   virtual void setLangOptions(const LangOptions *LO) {
@@ -1862,8 +1741,8 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
                                         Features, Context));
 
     if (!Consumer.get()) {
-      fprintf(stderr, "Unexpected program action!\n");
-      HadErrors = true;
+      PP.getDiagnostics().Report(FullSourceLoc(),
+                                 diag::err_fe_invalid_ast_action);
       return;
     }
 
@@ -2082,25 +1961,25 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
     if (InitializeSourceManager(PP, InFile))
       return;
   }
-  
+
   // If we have an ASTConsumer, run the parser with it.
   if (Consumer) {
     CodeCompleteConsumer *(*CreateCodeCompleter)(Sema &, void *) = 0;
     void *CreateCodeCompleterData = 0;
-    
+
     if (!CodeCompletionAt.FileName.empty()) {
       // Tell the source manager to chop off the given file at a specific
       // line and column.
-      if (const FileEntry *Entry 
+      if (const FileEntry *Entry
             = PP.getFileManager().getFile(CodeCompletionAt.FileName)) {
         // Truncate the named file at the given line/column.
         PP.getSourceManager().truncateFileAt(Entry, CodeCompletionAt.Line,
                                              CodeCompletionAt.Column);
-        
+
         // Set up the creation routine for code-completion.
         CreateCodeCompleter = BuildPrintingCodeCompleter;
       } else {
-        PP.getDiagnostics().Report(FullSourceLoc(), 
+        PP.getDiagnostics().Report(FullSourceLoc(),
                                    diag::err_fe_invalid_code_complete_file)
           << CodeCompletionAt.FileName;
       }
@@ -2174,11 +2053,9 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
   // handles.  Also, we don't want to try to erase an open file.
   OS.reset();
 
-  if ((HadErrors || (PP.getDiagnostics().getNumErrors() != 0)) &&
-      !OutPath.isEmpty()) {
-    // If we had errors, try to erase the output file.
+  // If we had errors, try to erase the output file.
+  if (PP.getDiagnostics().getNumErrors() && !OutPath.isEmpty())
     OutPath.eraseFromDisk();
-  }
 }
 
 /// ProcessInputFile - Process a single AST input file with the specified state.
@@ -2233,11 +2110,9 @@ static void ProcessASTInputFile(const std::string &InFile, ProgActions PA,
   // handles.  Also, we don't want to try to erase an open file.
   OS.reset();
 
-  if ((HadErrors || (PP.getDiagnostics().getNumErrors() != 0)) &&
-      !OutPath.isEmpty()) {
-    // If we had errors, try to erase the output file.
+  // If we had errors, try to erase the output file.
+  if (PP.getDiagnostics().getNumErrors() && !OutPath.isEmpty())
     OutPath.eraseFromDisk();
-  }
 }
 
 static llvm::cl::list<std::string>
@@ -2276,6 +2151,16 @@ int main(int argc, char **argv) {
   if (InputFilenames.empty())
     InputFilenames.push_back("-");
 
+  // Initialize the diagnostic options.
+  DiagOpts.ShowColumn = !NoShowColumn;
+  DiagOpts.ShowLocation = !NoShowLocation;
+  DiagOpts.ShowCarets = !NoCaretDiagnostics;
+  DiagOpts.ShowFixits = !NoDiagnosticsFixIt;
+  DiagOpts.ShowSourceRanges = PrintSourceRangeInfo;
+  DiagOpts.ShowOptionNames = PrintDiagnosticOption;
+  DiagOpts.ShowColors = PrintColorDiagnostic;
+  DiagOpts.MessageLength = MessageLength;
+
   // Create the diagnostic client for reporting errors or for
   // implementing -verify.
   llvm::OwningPtr<DiagnosticClient> DiagClient;
@@ -2292,26 +2177,7 @@ int main(int argc, char **argv) {
     }
   } else if (HTMLDiag.empty()) {
     // Print diagnostics to stderr by default.
-
-    // If -fmessage-length=N was not specified, determine whether this
-    // is a terminal and, if so, implicitly define -fmessage-length
-    // appropriately.
-    if (MessageLength.getNumOccurrences() == 0)
-      MessageLength.setValue(llvm::sys::Process::StandardErrColumns());
-
-    if (!NoColorDiagnostic) {
-      NoColorDiagnostic.setValue(!llvm::sys::Process::StandardErrHasColors());
-    }
-
-    DiagClient.reset(new TextDiagnosticPrinter(llvm::errs(),
-                                               !NoShowColumn,
-                                               !NoCaretDiagnostics,
-                                               !NoShowLocation,
-                                               PrintSourceRangeInfo,
-                                               PrintDiagnosticOption,
-                                               !NoDiagnosticsFixIt,
-                                               MessageLength,
-                                               !NoColorDiagnostic));
+    DiagClient.reset(new TextDiagnosticPrinter(llvm::errs(), DiagOpts));
   } else {
     DiagClient.reset(CreateHTMLDiagnosticClient(HTMLDiag));
   }
@@ -2338,18 +2204,14 @@ int main(int argc, char **argv) {
   llvm::llvm_install_error_handler(LLVMErrorHandler,
                                    static_cast<void*>(&Diags));
 
-  // -I- is a deprecated GCC feature, scan for it and reject it.
-  for (unsigned i = 0, e = I_dirs.size(); i != e; ++i) {
-    if (I_dirs[i] == "-") {
-      Diags.Report(FullSourceLoc(), diag::err_pp_I_dash_not_supported);
-      I_dirs.erase(I_dirs.begin()+i);
-      --i;
-    }
-  }
+  // Initialize base triple.  If a -triple option has been specified, use
+  // that triple.  Otherwise, default to the host triple.
+  llvm::Triple Triple(TargetTriple);
+  if (Triple.getTriple().empty())
+    Triple = llvm::Triple(llvm::sys::getHostTriple());
 
   // Get information about the target being compiled for.
-  llvm::Triple Triple = CreateTargetTriple();
-  llvm::OwningPtr<TargetInfo> 
+  llvm::OwningPtr<TargetInfo>
   Target(TargetInfo::CreateTargetInfo(Triple.getTriple()));
 
   if (Target == 0) {
@@ -2390,8 +2252,8 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    /// Create a SourceManager object.  This tracks and owns all the file
-    /// buffers allocated to a translation unit.
+    // Create a SourceManager object.  This tracks and owns all the file
+    // buffers allocated to a translation unit.
     if (!SourceMgr)
       SourceMgr.reset(new SourceManager());
     else
@@ -2415,26 +2277,21 @@ int main(int argc, char **argv) {
                                         *SourceMgr.get(), HeaderInfo);
 
     llvm::OwningPtr<Preprocessor> PP(PPFactory.CreatePreprocessor());
-
     if (!PP)
       continue;
 
-    // Handle generating dependencies, if requested
+    // Handle generating dependencies, if requested.
     if (!DependencyFile.empty()) {
-      llvm::raw_ostream *DependencyOS;
       if (DependencyTargets.empty()) {
-        // FIXME: Use a proper diagnostic
-        llvm::errs() << "-dependency-file requires at least one -MT option\n";
-        HadErrors = true;
+        Diags.Report(FullSourceLoc(), diag::err_fe_dependency_file_requires_MT);
         continue;
       }
       std::string ErrStr;
-      DependencyOS =
+      llvm::raw_ostream *DependencyOS =
           new llvm::raw_fd_ostream(DependencyFile.c_str(), ErrStr);
       if (!ErrStr.empty()) {
-        // FIXME: Use a proper diagnostic
-        llvm::errs() << "unable to open dependency file: " + ErrStr;
-        HadErrors = true;
+        Diags.Report(FullSourceLoc(), diag::err_fe_error_opening)
+          << DependencyFile << ErrStr;
         continue;
       }
 
@@ -2483,5 +2340,5 @@ int main(int argc, char **argv) {
   // -time-passes usable.
   llvm::llvm_shutdown();
 
-  return HadErrors || (Diags.getNumErrors() != 0);
+  return (Diags.getNumErrors() != 0);
 }

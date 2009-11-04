@@ -101,6 +101,7 @@ Parser::ParseTemplateDeclarationOrSpecialization(unsigned Context,
   // (and retrieves the outer template parameter list from its
   // context).
   bool isSpecialization = true;
+  bool LastParamListWasEmpty = false;
   TemplateParameterLists ParamLists;
   TemplateParameterDepthCounter Depth(TemplateParameterDepth);
   do {
@@ -140,13 +141,16 @@ Parser::ParseTemplateDeclarationOrSpecialization(unsigned Context,
     if (!TemplateParams.empty()) {
       isSpecialization = false;
       ++Depth;
+    } else {
+      LastParamListWasEmpty = true;
     }
   } while (Tok.is(tok::kw_export) || Tok.is(tok::kw_template));
 
   // Parse the actual template declaration.
   return ParseSingleDeclarationAfterTemplate(Context,
                                              ParsedTemplateInfo(&ParamLists,
-                                                             isSpecialization),
+                                                             isSpecialization,
+                                                         LastParamListWasEmpty),
                                              DeclEnd, AS);
 }
 
@@ -186,16 +190,18 @@ Parser::ParseSingleDeclarationAfterTemplate(
   }
 
   // Parse the declaration specifiers.
-  DeclSpec DS;
+  ParsingDeclSpec DS(*this);
   ParseDeclarationSpecifiers(DS, TemplateInfo, AS);
 
   if (Tok.is(tok::semi)) {
     DeclEnd = ConsumeToken();
-    return Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    DeclPtrTy Decl = Actions.ParsedFreeStandingDeclSpec(CurScope, DS);
+    DS.complete(Decl);
+    return Decl;
   }
 
   // Parse the declarator.
-  Declarator DeclaratorInfo(DS, (Declarator::TheContext)Context);
+  ParsingDeclarator DeclaratorInfo(*this, DS, (Declarator::TheContext)Context);
   ParseDeclarator(DeclaratorInfo);
   // Error parsing the declarator?
   if (!DeclaratorInfo.hasName()) {
@@ -221,6 +227,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
 
     // Eat the semi colon after the declaration.
     ExpectAndConsume(tok::semi, diag::err_expected_semi_declaration);
+    DS.complete(ThisDecl);
     return ThisDecl;
   }
 
@@ -668,22 +675,23 @@ Parser::ParseTemplateIdAfterTemplateName(TemplateTy Template,
 ///
 bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
                                      const CXXScopeSpec *SS,
+                                     UnqualifiedId &TemplateName,
                                      SourceLocation TemplateKWLoc,
                                      bool AllowTypeAnnotation) {
   assert(getLang().CPlusPlus && "Can only annotate template-ids in C++");
-  assert(Template && Tok.is(tok::identifier) && NextToken().is(tok::less) &&
+  assert(Template && Tok.is(tok::less) &&
          "Parser isn't at the beginning of a template-id");
 
   // Consume the template-name.
-  IdentifierInfo *Name = Tok.getIdentifierInfo();
-  SourceLocation TemplateNameLoc = ConsumeToken();
+  SourceLocation TemplateNameLoc = TemplateName.getSourceRange().getBegin();
 
   // Parse the enclosed template argument list.
   SourceLocation LAngleLoc, RAngleLoc;
   TemplateArgList TemplateArgs;
   TemplateArgIsTypeList TemplateArgIsType;
   TemplateArgLocationList TemplateArgLocations;
-  bool Invalid = ParseTemplateIdAfterTemplateName(Template, TemplateNameLoc,
+  bool Invalid = ParseTemplateIdAfterTemplateName(Template, 
+                                                  TemplateNameLoc,
                                                   SS, false, LAngleLoc,
                                                   TemplateArgs,
                                                   TemplateArgIsType,
@@ -732,7 +740,13 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
     TemplateIdAnnotation *TemplateId
       = TemplateIdAnnotation::Allocate(TemplateArgs.size());
     TemplateId->TemplateNameLoc = TemplateNameLoc;
-    TemplateId->Name = Name;
+    if (TemplateName.getKind() == UnqualifiedId::IK_Identifier) {
+      TemplateId->Name = TemplateName.Identifier;
+      TemplateId->Operator = OO_None;
+    } else {
+      TemplateId->Name = 0;
+      TemplateId->Operator = TemplateName.OperatorFunctionId.Operator;
+    }
     TemplateId->Template = Template.getAs<void*>();
     TemplateId->Kind = TNK;
     TemplateId->LAngleLoc = LAngleLoc;

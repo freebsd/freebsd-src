@@ -21,14 +21,13 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/FunctionUtils.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/CFG.h"
 using namespace llvm;
 
 STATISTIC(NumPartialInlined, "Number of functions partially inlined");
 
 namespace {
-  struct VISIBILITY_HIDDEN PartialInliner : public ModulePass {
+  struct PartialInliner : public ModulePass {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const { }
     static char ID; // Pass identification, replacement for typeid
     PartialInliner() : ModulePass(&ID) {}

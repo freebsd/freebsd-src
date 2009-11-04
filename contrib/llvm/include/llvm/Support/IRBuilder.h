@@ -253,6 +253,13 @@ public:
     return Insert(SwitchInst::Create(V, Dest, NumCases));
   }
 
+  /// CreateIndirectBr - Create an indirect branch instruction with the
+  /// specified address operand, with an optional hint for the number of
+  /// destinations that will be added (for efficient allocation).
+  IndirectBrInst *CreateIndirectBr(Value *Addr, unsigned NumDests = 10) {
+    return Insert(IndirectBrInst::Create(Addr, NumDests));
+  }
+
   /// CreateInvoke - Create an invoke instruction.
   template<typename InputIterator>
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
@@ -383,15 +390,21 @@ public:
     return Insert(BinaryOperator::CreateAShr(LHS, RHS), Name);
   }
   Value *CreateAnd(Value *LHS, Value *RHS, const Twine &Name = "") {
-    if (Constant *LC = dyn_cast<Constant>(LHS))
-      if (Constant *RC = dyn_cast<Constant>(RHS))
+    if (Constant *RC = dyn_cast<Constant>(RHS)) {
+      if (isa<ConstantInt>(RC) && cast<ConstantInt>(RC)->isAllOnesValue())
+        return LHS;  // LHS & -1 -> LHS
+      if (Constant *LC = dyn_cast<Constant>(LHS))
         return Folder.CreateAnd(LC, RC);
+    }
     return Insert(BinaryOperator::CreateAnd(LHS, RHS), Name);
   }
   Value *CreateOr(Value *LHS, Value *RHS, const Twine &Name = "") {
-    if (Constant *LC = dyn_cast<Constant>(LHS))
-      if (Constant *RC = dyn_cast<Constant>(RHS))
+    if (Constant *RC = dyn_cast<Constant>(RHS)) {
+      if (RC->isNullValue())
+        return LHS;  // LHS | 0 -> LHS
+      if (Constant *LC = dyn_cast<Constant>(LHS))
         return Folder.CreateOr(LC, RC);
+    }
     return Insert(BinaryOperator::CreateOr(LHS, RHS), Name);
   }
   Value *CreateXor(Value *LHS, Value *RHS, const Twine &Name = "") {
@@ -432,9 +445,6 @@ public:
   AllocaInst *CreateAlloca(const Type *Ty, Value *ArraySize = 0,
                            const Twine &Name = "") {
     return Insert(new AllocaInst(Ty, ArraySize), Name);
-  }
-  FreeInst *CreateFree(Value *Ptr) {
-    return Insert(new FreeInst(Ptr));
   }
   // Provided to resolve 'CreateLoad(Ptr, "...")' correctly, instead of
   // converting the string to 'bool' for the isVolatile parameter.

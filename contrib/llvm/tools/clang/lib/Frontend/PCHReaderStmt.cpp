@@ -347,6 +347,8 @@ unsigned PCHStmtReader::VisitDeclRefExpr(DeclRefExpr *E) {
   VisitExpr(E);
   E->setDecl(cast<NamedDecl>(Reader.GetDecl(Record[Idx++])));
   E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
+  // FIXME: read qualifier
+  // FIXME: read explicit template arguments
   return 0;
 }
 
@@ -422,7 +424,7 @@ unsigned PCHStmtReader::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
     E->setArgument(cast<Expr>(StmtStack.back()));
     ++Idx;
   } else {
-    E->setArgument(Reader.GetType(Record[Idx++]));
+    E->setArgument(Reader.GetDeclaratorInfo(Record, Idx));
   }
   E->setOperatorLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   E->setRParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));

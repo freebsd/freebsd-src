@@ -1,6 +1,8 @@
 add_llvm_library(LLVMCodeGen
+  AggressiveAntiDepBreaker.cpp
   BranchFolding.cpp
   CodePlacementOpt.cpp
+  CriticalAntiDepBreaker.cpp
   DeadMachineInstructionElim.cpp
   DwarfEHPrepare.cpp
   ELFCodeEmitter.cpp
@@ -40,6 +42,7 @@ add_llvm_library(LLVMCodeGen
   Passes.cpp
   PostRASchedulerList.cpp
   PreAllocSplitting.cpp
+  ProcessImplicitDefs.cpp
   PrologEpilogInserter.cpp
   PseudoSourceValue.cpp
   RegAllocLinearScan.cpp
@@ -55,6 +58,7 @@ add_llvm_library(LLVMCodeGen
   ShrinkWrapping.cpp
   SimpleRegisterCoalescing.cpp
   SjLjEHPrepare.cpp
+  SlotIndexes.cpp
   Spiller.cpp
   StackProtector.cpp
   StackSlotColoring.cpp

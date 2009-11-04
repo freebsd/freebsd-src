@@ -16,13 +16,12 @@
 #include "llvm/Function.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 namespace {
 
-  class VISIBILITY_HIDDEN PrintModulePass : public ModulePass {
+  class PrintModulePass : public ModulePass {
     raw_ostream *Out;       // raw_ostream to print on
     bool DeleteStream;      // Delete the ostream in our dtor?
   public:

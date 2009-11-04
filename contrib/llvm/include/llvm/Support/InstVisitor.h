@@ -160,13 +160,13 @@ public:
   RetTy visitReturnInst(ReturnInst &I)              { DELEGATE(TerminatorInst);}
   RetTy visitBranchInst(BranchInst &I)              { DELEGATE(TerminatorInst);}
   RetTy visitSwitchInst(SwitchInst &I)              { DELEGATE(TerminatorInst);}
+  RetTy visitIndirectBrInst(IndirectBrInst &I)      { DELEGATE(TerminatorInst);}
   RetTy visitInvokeInst(InvokeInst &I)              { DELEGATE(TerminatorInst);}
   RetTy visitUnwindInst(UnwindInst &I)              { DELEGATE(TerminatorInst);}
   RetTy visitUnreachableInst(UnreachableInst &I)    { DELEGATE(TerminatorInst);}
   RetTy visitICmpInst(ICmpInst &I)                  { DELEGATE(CmpInst);}
   RetTy visitFCmpInst(FCmpInst &I)                  { DELEGATE(CmpInst);}
-  RetTy visitAllocaInst(AllocaInst &I)              { DELEGATE(AllocationInst);}
-  RetTy visitFreeInst(FreeInst     &I)              { DELEGATE(Instruction); }
+  RetTy visitAllocaInst(AllocaInst &I)              { DELEGATE(Instruction); }
   RetTy visitLoadInst(LoadInst     &I)              { DELEGATE(Instruction); }
   RetTy visitStoreInst(StoreInst   &I)              { DELEGATE(Instruction); }
   RetTy visitGetElementPtrInst(GetElementPtrInst &I){ DELEGATE(Instruction); }
@@ -198,7 +198,6 @@ public:
   //
   RetTy visitTerminatorInst(TerminatorInst &I) { DELEGATE(Instruction); }
   RetTy visitBinaryOperator(BinaryOperator &I) { DELEGATE(Instruction); }
-  RetTy visitAllocationInst(AllocationInst &I) { DELEGATE(Instruction); }
   RetTy visitCmpInst(CmpInst &I)               { DELEGATE(Instruction); }
   RetTy visitCastInst(CastInst &I)             { DELEGATE(Instruction); }
 

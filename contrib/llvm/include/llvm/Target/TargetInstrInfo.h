@@ -133,11 +133,32 @@ private:
                                                 AliasAnalysis *AA) const;
 
 public:
-  /// Return true if the instruction is a register to register move and return
-  /// the source and dest operands and their sub-register indices by reference.
+  /// isMoveInstr - Return true if the instruction is a register to register
+  /// move and return the source and dest operands and their sub-register
+  /// indices by reference.
   virtual bool isMoveInstr(const MachineInstr& MI,
                            unsigned& SrcReg, unsigned& DstReg,
                            unsigned& SrcSubIdx, unsigned& DstSubIdx) const {
+    return false;
+  }
+
+  /// isIdentityCopy - Return true if the instruction is a copy (or
+  /// extract_subreg, insert_subreg, subreg_to_reg) where the source and
+  /// destination registers are the same.
+  bool isIdentityCopy(const MachineInstr &MI) const {
+    unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
+    if (isMoveInstr(MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx) &&
+        SrcReg == DstReg)
+      return true;
+
+    if (MI.getOpcode() == TargetInstrInfo::EXTRACT_SUBREG &&
+        MI.getOperand(0).getReg() == MI.getOperand(1).getReg())
+    return true;
+
+    if ((MI.getOpcode() == TargetInstrInfo::INSERT_SUBREG ||
+         MI.getOpcode() == TargetInstrInfo::SUBREG_TO_REG) &&
+        MI.getOperand(0).getReg() == MI.getOperand(2).getReg())
+      return true;
     return false;
   }
   
@@ -384,9 +405,12 @@ public:
   /// getOpcodeAfterMemoryUnfold - Returns the opcode of the would be new
   /// instruction after load / store are unfolded from an instruction of the
   /// specified opcode. It returns zero if the specified unfolding is not
-  /// possible.
+  /// possible. If LoadRegIndex is non-null, it is filled in with the operand
+  /// index of the operand which will hold the register holding the loaded
+  /// value.
   virtual unsigned getOpcodeAfterMemoryUnfold(unsigned Opc,
-                                      bool UnfoldLoad, bool UnfoldStore) const {
+                                      bool UnfoldLoad, bool UnfoldStore,
+                                      unsigned *LoadRegIndex = 0) const {
     return 0;
   }
   

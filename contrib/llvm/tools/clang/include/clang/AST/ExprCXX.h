@@ -1061,46 +1061,11 @@ public:
   virtual child_iterator child_end();
 };
 
-/// QualifiedDeclRefExpr - A reference to a declared variable,
-/// function, enum, etc., that includes a qualification, e.g.,
-/// "N::foo".
-class QualifiedDeclRefExpr : public DeclRefExpr {
-  /// QualifierRange - The source range that covers the
-  /// nested-name-specifier.
-  SourceRange QualifierRange;
-
-  /// \brief The nested-name-specifier that qualifies this declaration
-  /// name.
-  NestedNameSpecifier *NNS;
-
-public:
-  QualifiedDeclRefExpr(NamedDecl *d, QualType t, SourceLocation l, bool TD,
-                       bool VD, SourceRange R, NestedNameSpecifier *NNS)
-    : DeclRefExpr(QualifiedDeclRefExprClass, d, t, l, TD, VD),
-      QualifierRange(R), NNS(NNS) { }
-
-  /// \brief Retrieve the source range of the nested-name-specifier.
-  SourceRange getQualifierRange() const { return QualifierRange; }
-
-  /// \brief Retrieve the nested-name-specifier that qualifies this
-  /// declaration.
-  NestedNameSpecifier *getQualifier() const { return NNS; }
-
-  virtual SourceRange getSourceRange() const {
-    return SourceRange(QualifierRange.getBegin(), getLocation());
-  }
-
-  static bool classof(const Stmt *T) {
-    return T->getStmtClass() == QualifiedDeclRefExprClass;
-  }
-  static bool classof(const QualifiedDeclRefExpr *) { return true; }
-};
-
 /// \brief A qualified reference to a name whose declaration cannot
 /// yet be resolved.
 ///
-/// UnresolvedDeclRefExpr is similar to QualifiedDeclRefExpr in that
-/// it expresses a qualified reference to a declaration such as
+/// UnresolvedDeclRefExpr is similar to eclRefExpr in that
+/// it expresses a reference to a declaration such as
 /// X<T>::value. The difference, however, is that an
 /// UnresolvedDeclRefExpr node is used only within C++ templates when
 /// the qualification (e.g., X<T>::) refers to a dependent type. In
@@ -1108,8 +1073,8 @@ public:
 /// declaration will differ from on instantiation of X<T> to the
 /// next. Therefore, UnresolvedDeclRefExpr keeps track of the
 /// qualifier (X<T>::) and the name of the entity being referenced
-/// ("value"). Such expressions will instantiate to
-/// QualifiedDeclRefExprs.
+/// ("value"). Such expressions will instantiate to a DeclRefExpr once the
+/// declaration can be found.
 class UnresolvedDeclRefExpr : public Expr {
   /// The name of the entity we will be referencing.
   DeclarationName Name;
@@ -1126,6 +1091,7 @@ class UnresolvedDeclRefExpr : public Expr {
   NestedNameSpecifier *NNS;
 
   /// \brief Whether this expr is an address of (&) operand.
+  /// FIXME: Stash this bit into NNS!
   bool IsAddressOfOperand;
 
 public:
@@ -1195,7 +1161,7 @@ class TemplateIdRefExpr : public Expr {
                     NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
                     TemplateName Template, SourceLocation TemplateNameLoc,
                     SourceLocation LAngleLoc,
-                    const TemplateArgument *TemplateArgs,
+                    const TemplateArgumentLoc *TemplateArgs,
                     unsigned NumTemplateArgs,
                     SourceLocation RAngleLoc);
 
@@ -1206,7 +1172,7 @@ public:
   Create(ASTContext &Context, QualType T,
          NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
          TemplateName Template, SourceLocation TemplateNameLoc,
-         SourceLocation LAngleLoc, const TemplateArgument *TemplateArgs,
+         SourceLocation LAngleLoc, const TemplateArgumentLoc *TemplateArgs,
          unsigned NumTemplateArgs, SourceLocation RAngleLoc);
 
   /// \brief Retrieve the nested name specifier used to qualify the name of
@@ -1232,8 +1198,8 @@ public:
 
   /// \brief Retrieve the template arguments provided as part of this
   /// template-id.
-  const TemplateArgument *getTemplateArgs() const {
-    return reinterpret_cast<const TemplateArgument *>(this + 1);
+  const TemplateArgumentLoc *getTemplateArgs() const {
+    return reinterpret_cast<const TemplateArgumentLoc *>(this + 1);
   }
 
   /// \brief Retrieve the number of template arguments provided as part of this
@@ -1477,7 +1443,7 @@ class CXXUnresolvedMemberExpr : public Expr {
                           SourceLocation MemberLoc,
                           bool HasExplicitTemplateArgs,
                           SourceLocation LAngleLoc,
-                          const TemplateArgument *TemplateArgs,
+                          const TemplateArgumentLoc *TemplateArgs,
                           unsigned NumTemplateArgs,
                           SourceLocation RAngleLoc);
 
@@ -1508,7 +1474,7 @@ public:
          SourceLocation MemberLoc,
          bool HasExplicitTemplateArgs,
          SourceLocation LAngleLoc,
-         const TemplateArgument *TemplateArgs,
+         const TemplateArgumentLoc *TemplateArgs,
          unsigned NumTemplateArgs,
          SourceLocation RAngleLoc);
 
@@ -1576,7 +1542,7 @@ public:
 
   /// \brief Retrieve the template arguments provided as part of this
   /// template-id.
-  const TemplateArgument *getTemplateArgs() const {
+  const TemplateArgumentLoc *getTemplateArgs() const {
     if (!HasExplicitTemplateArgumentList)
       return 0;
 

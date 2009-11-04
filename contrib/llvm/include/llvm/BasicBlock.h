@@ -17,12 +17,13 @@
 #include "llvm/Instruction.h"
 #include "llvm/SymbolTableListTraits.h"
 #include "llvm/ADT/ilist.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/System/DataTypes.h"
 
 namespace llvm {
 
 class TerminatorInst;
 class LLVMContext;
+class BlockAddress;
 
 template<> struct ilist_traits<Instruction>
   : public SymbolTableListTraits<Instruction, BasicBlock> {
@@ -66,7 +67,7 @@ private:
 /// @brief LLVM Basic Block Representation
 class BasicBlock : public Value, // Basic blocks are data objects also
                    public ilist_node<BasicBlock> {
-
+  friend class BlockAddress;
 public:
   typedef iplist<Instruction> InstListType;
 private:
@@ -108,10 +109,10 @@ public:
         Function *getParent()       { return Parent; }
 
   /// use_back - Specialize the methods defined in Value, as we know that an
-  /// BasicBlock can only be used by Instructions (specifically PHI nodes and
-  /// terminators).
-  Instruction       *use_back()       { return cast<Instruction>(*use_begin());}
-  const Instruction *use_back() const { return cast<Instruction>(*use_begin());}
+  /// BasicBlock can only be used by Users (specifically PHI nodes, terminators,
+  /// and BlockAddress's).
+  User       *use_back()       { return cast<User>(*use_begin());}
+  const User *use_back() const { return cast<User>(*use_begin());}
   
   /// getTerminator() - If this is a well formed basic block, then this returns
   /// a pointer to the terminator instruction.  If it is not, then you get a
@@ -235,6 +236,19 @@ public:
   /// keeping loop information consistent, use the SplitBlock utility function.
   ///
   BasicBlock *splitBasicBlock(iterator I, const Twine &BBName = "");
+
+  /// hasAddressTaken - returns true if there are any uses of this basic block
+  /// other than direct branches, switches, etc. to it.
+  bool hasAddressTaken() const { return SubclassData != 0; }
+                     
+private:
+  /// AdjustBlockAddressRefCount - BasicBlock stores the number of BlockAddress
+  /// objects using it.  This is almost always 0, sometimes one, possibly but
+  /// almost never 2, and inconceivably 3 or more.
+  void AdjustBlockAddressRefCount(int Amt) {
+    SubclassData += Amt;
+    assert((int)(char)SubclassData >= 0 && "Refcount wrap-around");
+  }
 };
 
 } // End llvm namespace

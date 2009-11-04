@@ -52,7 +52,8 @@ namespace {
     void mangleGuardVariable(const VarDecl *D);
 
     void mangleCXXVtable(const CXXRecordDecl *RD);
-    void mangleCXXRtti(const CXXRecordDecl *RD);
+    void mangleCXXVTT(const CXXRecordDecl *RD);
+    void mangleCXXRtti(QualType Ty);
     void mangleCXXCtor(const CXXConstructorDecl *D, CXXCtorType Type);
     void mangleCXXDtor(const CXXDestructorDecl *D, CXXDtorType Type);
 
@@ -114,6 +115,7 @@ namespace {
 }
 
 static bool isInCLinkageSpecification(const Decl *D) {
+  D = D->getCanonicalDecl();
   for (const DeclContext *DC = D->getDeclContext();
        !DC->isTranslationUnit(); DC = DC->getParent()) {
     if (const LinkageSpecDecl *Linkage = dyn_cast<LinkageSpecDecl>(DC))
@@ -204,10 +206,17 @@ void CXXNameMangler::mangleCXXVtable(const CXXRecordDecl *RD) {
   mangleName(RD);
 }
 
-void CXXNameMangler::mangleCXXRtti(const CXXRecordDecl *RD) {
+void CXXNameMangler::mangleCXXVTT(const CXXRecordDecl *RD) {
+  // <special-name> ::= TT <type>  # VTT structure
+  Out << "_ZTT";
+  mangleName(RD);
+}
+
+void CXXNameMangler::mangleCXXRtti(QualType Ty) {
   // <special-name> ::= TI <type>  # typeinfo structure
   Out << "_ZTI";
-  mangleName(RD);
+
+  mangleType(Ty);
 }
 
 void CXXNameMangler::mangleGuardVariable(const VarDecl *D) {
@@ -1355,7 +1364,7 @@ namespace clang {
                                    "Mangling declaration");
     
     CXXNameMangler Mangler(Context, os);
-    if (!Mangler.mangle(cast<NamedDecl>(D->getCanonicalDecl())))
+    if (!Mangler.mangle(D))
       return false;
 
     os.flush();
@@ -1424,10 +1433,10 @@ namespace clang {
     os.flush();
   }
 
-  void mangleCXXRtti(MangleContext &Context, const CXXRecordDecl *RD,
+  void mangleCXXRtti(MangleContext &Context, QualType Ty,
                      llvm::raw_ostream &os) {
     CXXNameMangler Mangler(Context, os);
-    Mangler.mangleCXXRtti(RD);
+    Mangler.mangleCXXRtti(Ty);
 
     os.flush();
   }

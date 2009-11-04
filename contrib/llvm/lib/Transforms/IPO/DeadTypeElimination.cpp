@@ -19,13 +19,12 @@
 #include "llvm/TypeSymbolTable.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 using namespace llvm;
 
 STATISTIC(NumKilled, "Number of unused typenames removed from symtab");
 
 namespace {
-  struct VISIBILITY_HIDDEN DTE : public ModulePass {
+  struct DTE : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
     DTE() : ModulePass(&ID) {}
 

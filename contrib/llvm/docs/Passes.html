@@ -158,7 +158,6 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 <tr><td><a href="#memcpyopt">-memcpyopt</a></td><td>Optimize use of memcpy and friends</td></tr>
 <tr><td><a href="#mergereturn">-mergereturn</a></td><td>Unify function exit nodes</td></tr>
 <tr><td><a href="#prune-eh">-prune-eh</a></td><td>Remove unused exception handling info</td></tr>
-<tr><td><a href="#raiseallocs">-raiseallocs</a></td><td>Raise allocations from calls to instructions</td></tr>
 <tr><td><a href="#reassociate">-reassociate</a></td><td>Reassociate expressions</td></tr>
 <tr><td><a href="#reg2mem">-reg2mem</a></td><td>Demote all values to stack slots</td></tr>
 <tr><td><a href="#scalarrepl">-scalarrepl</a></td><td>Scalar Replacement of Aggregates</td></tr>
@@ -1504,17 +1503,6 @@ if (X &lt; 3) {</pre>
 
 <!-------------------------------------------------------------------------- -->
 <div class="doc_subsection">
-  <a name="raiseallocs">Raise allocations from calls to instructions</a>
-</div>
-<div class="doc_text">
-  <p>
-  Converts <tt>@malloc</tt> and <tt>@free</tt> calls to <tt>malloc</tt> and
-  <tt>free</tt> instructions.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
   <a name="reassociate">Reassociate expressions</a>
 </div>
 <div class="doc_text">
@@ -1799,8 +1787,8 @@ if (X &lt; 3) {</pre>
         integrals f.e.</li>
     <li>All of the constants in a switch statement are of the correct type.</li>
     <li>The code is in valid SSA form.</li>
-    <li>It should be illegal to put a label into any other type (like a
-        structure) or to return one. [except constant arrays!]</li>
+    <li>It is illegal to put a label into any other type (like a structure) or 
+        to return one.</li>
     <li>Only phi nodes can be self referential: <tt>%x = add i32 %x, %x</tt> is
         invalid.</li>
     <li>PHI nodes must have an entry for each predecessor, with no extras.</li>
@@ -1860,7 +1848,7 @@ if (X &lt; 3) {</pre>
 
   <a href="mailto:rspencer@x10sys.com">Reid Spencer</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-10-12 16:46:08 +0200 (Mon, 12 Oct 2009) $
+  Last modified: $Date: 2009-10-28 05:47:06 +0100 (Wed, 28 Oct 2009) $
 </address>
 
 </body>

@@ -44,12 +44,12 @@ class FPExtInst;
 class FPToSIInst;
 class FPToUIInst;
 class FPTruncInst;
-class FreeInst;
 class Function;
 class GetElementPtrInst;
 class GCFunctionInfo;
 class ICmpInst;
 class IntToPtrInst;
+class IndirectBrInst;
 class InvokeInst;
 class InsertElementInst;
 class InsertValueInst;
@@ -449,6 +449,7 @@ private:
   void visitRet(ReturnInst &I);
   void visitBr(BranchInst &I);
   void visitSwitch(SwitchInst &I);
+  void visitIndirectBr(IndirectBrInst &I);
   void visitUnreachable(UnreachableInst &I) { /* noop */ }
 
   // Helpers for visitSwitch
@@ -528,7 +529,6 @@ private:
   void visitGetElementPtr(User &I);
   void visitSelect(User &I);
 
-  void visitFree(FreeInst &I);
   void visitAlloca(AllocaInst &I);
   void visitLoad(LoadInst &I);
   void visitStore(StoreInst &I);

@@ -26,6 +26,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -49,7 +50,7 @@ namespace {
     }
     
     bool runOnBasicBlock(BasicBlock &BB);
-    bool handleFreeWithNonTrivialDependency(FreeInst *F, MemDepResult Dep);
+    bool handleFreeWithNonTrivialDependency(Instruction *F, MemDepResult Dep);
     bool handleEndBlock(BasicBlock &BB);
     bool RemoveUndeadPointers(Value* Ptr, uint64_t killPointerSize,
                               BasicBlock::iterator& BBI,
@@ -88,7 +89,7 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
     Instruction *Inst = BBI++;
     
     // If we find a store or a free, get its memory dependence.
-    if (!isa<StoreInst>(Inst) && !isa<FreeInst>(Inst))
+    if (!isa<StoreInst>(Inst) && !isFreeCall(Inst))
       continue;
     
     // Don't molest volatile stores or do queries that will return "clobber".
@@ -103,8 +104,8 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
     if (InstDep.isNonLocal()) continue;
   
     // Handle frees whose dependencies are non-trivial.
-    if (FreeInst *FI = dyn_cast<FreeInst>(Inst)) {
-      MadeChange |= handleFreeWithNonTrivialDependency(FI, InstDep);
+    if (isFreeCall(Inst)) {
+      MadeChange |= handleFreeWithNonTrivialDependency(Inst, InstDep);
       continue;
     }
     
@@ -153,6 +154,26 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
         continue;
       }
     }
+    
+    // If this is a lifetime end marker, we can throw away the store.
+    if (IntrinsicInst* II = dyn_cast<IntrinsicInst>(InstDep.getInst())) {
+      if (II->getIntrinsicID() == Intrinsic::lifetime_end) {
+        // Delete the store and now-dead instructions that feed it.
+        // DeleteDeadInstruction can delete the current instruction.  Save BBI
+        // in case we need it.
+        WeakVH NextInst(BBI);
+        
+        DeleteDeadInstruction(SI);
+        
+        if (NextInst == 0)  // Next instruction deleted.
+          BBI = BB.begin();
+        else if (BBI != BB.begin())  // Revisit this instruction if possible.
+          --BBI;
+        NumFastStores++;
+        MadeChange = true;
+        continue;
+      }
+    }
   }
   
   // If this block ends in a return, unwind, or unreachable, all allocas are
@@ -165,7 +186,7 @@ bool DSE::runOnBasicBlock(BasicBlock &BB) {
 
 /// handleFreeWithNonTrivialDependency - Handle frees of entire structures whose
 /// dependency is a store to a field of that structure.
-bool DSE::handleFreeWithNonTrivialDependency(FreeInst *F, MemDepResult Dep) {
+bool DSE::handleFreeWithNonTrivialDependency(Instruction *F, MemDepResult Dep) {
   AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
   
   StoreInst *Dependency = dyn_cast_or_null<StoreInst>(Dep.getInst());
@@ -175,7 +196,7 @@ bool DSE::handleFreeWithNonTrivialDependency(FreeInst *F, MemDepResult Dep) {
   Value *DepPointer = Dependency->getPointerOperand()->getUnderlyingObject();
 
   // Check for aliasing.
-  if (AA.alias(F->getPointerOperand(), 1, DepPointer, 1) !=
+  if (AA.alias(F->getOperand(1), 1, DepPointer, 1) !=
          AliasAnalysis::MustAlias)
     return false;
   

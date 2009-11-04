@@ -72,6 +72,10 @@ public:
   ASTContext &getASTContext() {
     return Eng.getContext();
   }
+  
+  BugReporter &getBugReporter() {
+    return Eng.getBugReporter();
+  }
 
   ExplodedNode *GenerateNode(const Stmt *S, bool markAsSink = false) {
     return GenerateNode(S, getState(), markAsSink);
@@ -104,16 +108,42 @@ private:
                 GRStmtNodeBuilder &Builder,
                 GRExprEngine &Eng,
                 const Stmt *stmt,
-                ExplodedNode *Pred, bool isPrevisit) {
-    CheckerContext C(Dst, Builder, Eng, Pred, getTag(), isPrevisit);
+                ExplodedNode *Pred, void *tag, bool isPrevisit) {
+    CheckerContext C(Dst, Builder, Eng, Pred, tag, isPrevisit);
     assert(isPrevisit && "Only previsit supported for now.");
     _PreVisit(C, stmt);
   }
 
+  void GR_VisitBind(ExplodedNodeSet &Dst,
+                    GRStmtNodeBuilder &Builder, GRExprEngine &Eng,
+                    const Stmt *stmt, ExplodedNode *Pred, void *tag, 
+                    SVal location, SVal val,
+                    bool isPrevisit) {
+    CheckerContext C(Dst, Builder, Eng, Pred, tag, isPrevisit);
+    assert(isPrevisit && "Only previsit supported for now.");
+    PreVisitBind(C, stmt, location, val);
+  }
+
 public:
   virtual ~Checker() {}
-  virtual void _PreVisit(CheckerContext &C, const Stmt *stmt) = 0;
-  virtual const void *getTag() = 0;
+  virtual void _PreVisit(CheckerContext &C, const Stmt *ST) {}
+  
+  // This is a previsit which takes a node returns a node.
+  virtual ExplodedNode *CheckLocation(const Stmt *S, ExplodedNode *Pred,
+                                      const GRState *state, SVal V,
+                                      GRExprEngine &Eng) {
+    return Pred;
+  }
+  
+  virtual void PreVisitBind(CheckerContext &C, const Stmt *ST, 
+                            SVal location, SVal val) {}
+
+  virtual ExplodedNode *CheckType(QualType T, ExplodedNode *Pred, 
+                                  const GRState *state, Stmt *S, 
+                                  GRExprEngine &Eng) {
+    return Pred;
+  }
+
 };
 
 } // end clang namespace

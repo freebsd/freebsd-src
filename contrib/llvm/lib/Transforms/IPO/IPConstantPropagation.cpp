@@ -24,7 +24,6 @@
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/SmallVector.h"
 using namespace llvm;
@@ -35,7 +34,7 @@ STATISTIC(NumReturnValProped, "Number of return values turned into constants");
 namespace {
   /// IPCP - The interprocedural constant propagation pass
   ///
-  struct VISIBILITY_HIDDEN IPCP : public ModulePass {
+  struct IPCP : public ModulePass {
     static char ID; // Pass identification, replacement for typeid
     IPCP() : ModulePass(&ID) {}
 
@@ -87,6 +86,9 @@ bool IPCP::PropagateConstantsIntoArguments(Function &F) {
 
   unsigned NumNonconstant = 0;
   for (Value::use_iterator UI = F.use_begin(), E = F.use_end(); UI != E; ++UI) {
+    // Ignore blockaddress uses.
+    if (isa<BlockAddress>(*UI)) continue;
+    
     // Used by a non-instruction, or not the callee of a function, do not
     // transform.
     if (!isa<CallInst>(*UI) && !isa<InvokeInst>(*UI))

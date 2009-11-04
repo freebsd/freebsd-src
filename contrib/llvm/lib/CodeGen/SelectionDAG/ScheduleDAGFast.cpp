@@ -19,7 +19,6 @@
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/STLExtras.h"
@@ -40,7 +39,7 @@ namespace {
   /// FastPriorityQueue - A degenerate priority queue that considers
   /// all nodes to have the same priority.
   ///
-  struct VISIBILITY_HIDDEN FastPriorityQueue {
+  struct FastPriorityQueue {
     SmallVector<SUnit *, 16> Queue;
 
     bool empty() const { return Queue.empty(); }
@@ -60,7 +59,7 @@ namespace {
 //===----------------------------------------------------------------------===//
 /// ScheduleDAGFast - The actual "fast" list scheduler implementation.
 ///
-class VISIBILITY_HIDDEN ScheduleDAGFast : public ScheduleDAGSDNodes {
+class ScheduleDAGFast : public ScheduleDAGSDNodes {
 private:
   /// AvailableQueue - The priority queue to use for the available SUnits.
   FastPriorityQueue AvailableQueue;

@@ -31,14 +31,13 @@
 #include "llvm/CodeGen/GCStrategy.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Module.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/IRBuilder.h"
 
 using namespace llvm;
 
 namespace {
 
-  class VISIBILITY_HIDDEN ShadowStackGC : public GCStrategy {
+  class ShadowStackGC : public GCStrategy {
     /// RootChain - This is the global linked-list that contains the chain of GC
     /// roots.
     GlobalVariable *Head;
@@ -84,7 +83,7 @@ namespace {
   ///
   /// It's wrapped up in a state machine using the same transform C# uses for
   /// 'yield return' enumerators, This transform allows it to be non-allocating.
-  class VISIBILITY_HIDDEN EscapeEnumerator {
+  class EscapeEnumerator {
     Function &F;
     const char *CleanupBBName;
 

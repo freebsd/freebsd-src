@@ -17,12 +17,15 @@
 #include "ARMMachineFunctionInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/ADT/SmallVector.h"
 #include "Thumb1InstrInfo.h"
 
 using namespace llvm;
 
-Thumb1InstrInfo::Thumb1InstrInfo(const ARMSubtarget &STI) : RI(*this, STI) {
+Thumb1InstrInfo::Thumb1InstrInfo(const ARMSubtarget &STI)
+  : ARMBaseInstrInfo(STI), RI(*this, STI) {
 }
 
 unsigned Thumb1InstrInfo::getUnindexedOpcode(unsigned Opc) const {
@@ -38,6 +41,7 @@ Thumb1InstrInfo::BlockHasNoFallThrough(const MachineBasicBlock &MBB) const {
   case ARM::tBX_RET_vararg:
   case ARM::tPOP_RET:
   case ARM::tB:
+  case ARM::tBRIND:
   case ARM::tBR_JTr:
     return true;
   default:
@@ -121,9 +125,16 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
            isARMLowRegister(SrcReg))) && "Unknown regclass!");
 
   if (RC == ARM::tGPRRegisterClass) {
+    MachineFunction &MF = *MBB.getParent();
+    MachineFrameInfo &MFI = *MF.getFrameInfo();
+    MachineMemOperand *MMO =
+      MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FI),
+                              MachineMemOperand::MOStore, 0,
+                              MFI.getObjectSize(FI),
+                              MFI.getObjectAlignment(FI));
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tSpill))
                    .addReg(SrcReg, getKillRegState(isKill))
-                   .addFrameIndex(FI).addImm(0));
+                   .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
   }
 }
 
@@ -139,8 +150,15 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
            isARMLowRegister(DestReg))) && "Unknown regclass!");
 
   if (RC == ARM::tGPRRegisterClass) {
+    MachineFunction &MF = *MBB.getParent();
+    MachineFrameInfo &MFI = *MF.getFrameInfo();
+    MachineMemOperand *MMO =
+      MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FI),
+                              MachineMemOperand::MOLoad, 0,
+                              MFI.getObjectSize(FI),
+                              MFI.getObjectAlignment(FI));
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::tRestore), DestReg)
-                   .addFrameIndex(FI).addImm(0));
+                   .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
   }
 }
 

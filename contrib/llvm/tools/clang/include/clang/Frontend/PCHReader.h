@@ -19,6 +19,7 @@
 #include "clang/Sema/ExternalSemaSource.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Type.h"
+#include "clang/AST/TemplateBase.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceManager.h"
@@ -29,7 +30,7 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Bitcode/BitstreamReader.h"
-#include "llvm/Support/DataTypes.h"
+#include "llvm/System/DataTypes.h"
 #include <deque>
 #include <map>
 #include <string>
@@ -541,6 +542,12 @@ public:
   /// replaced with the sorted set of source ranges corresponding to
   /// comments in the source code.
   virtual void ReadComments(std::vector<SourceRange> &Comments);
+
+  /// \brief Reads a TemplateArgumentLocInfo appropriate for the
+  /// given TemplateArgument kind.
+  TemplateArgumentLocInfo
+  GetTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
+                             const RecordData &Record, unsigned &Idx);
 
   /// \brief Reads a declarator info from the given record.
   virtual DeclaratorInfo *GetDeclaratorInfo(const RecordData &Record,

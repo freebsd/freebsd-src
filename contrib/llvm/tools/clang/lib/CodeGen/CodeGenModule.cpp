@@ -253,6 +253,10 @@ GetLinkageForFunction(ASTContext &Context, const FunctionDecl *FD,
   if (FD->isInAnonymousNamespace())
     return CodeGenModule::GVA_Internal;
 
+  // "static" functions get internal linkage.
+  if (FD->getStorageClass() == FunctionDecl::Static && !isa<CXXMethodDecl>(FD))
+    return CodeGenModule::GVA_Internal;
+  
   // The kind of external linkage this function will have, if it is not
   // inline or static.
   CodeGenModule::GVALinkage External = CodeGenModule::GVA_StrongExternal;
@@ -260,19 +264,7 @@ GetLinkageForFunction(ASTContext &Context, const FunctionDecl *FD,
       FD->getTemplateSpecializationKind() == TSK_ImplicitInstantiation)
     External = CodeGenModule::GVA_TemplateInstantiation;
 
-  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
-    // C++ member functions defined inside the class are always inline.
-    if (MD->isInline() || !MD->isOutOfLine())
-      return CodeGenModule::GVA_CXXInline;
-
-    return External;
-  }
-
-  // "static" functions get internal linkage.
-  if (FD->getStorageClass() == FunctionDecl::Static)
-    return CodeGenModule::GVA_Internal;
-
-  if (!FD->isInline())
+  if (!FD->isInlined())
     return External;
 
   if (!Features.CPlusPlus || FD->hasAttr<GNUInlineAttr>()) {
@@ -285,8 +277,16 @@ GetLinkageForFunction(ASTContext &Context, const FunctionDecl *FD,
     return CodeGenModule::GVA_C99Inline;
   }
 
-  // C++ inline semantics
-  assert(Features.CPlusPlus && "Must be in C++ mode");
+  // C++0x [temp.explicit]p9:
+  //   [ Note: The intent is that an inline function that is the subject of 
+  //   an explicit instantiation declaration will still be implicitly 
+  //   instantiated when used so that the body can be considered for 
+  //   inlining, but that no out-of-line copy of the inline function would be
+  //   generated in the translation unit. -- end note ]
+  if (FD->getTemplateSpecializationKind() 
+                                       == TSK_ExplicitInstantiationDeclaration)
+    return CodeGenModule::GVA_C99Inline;
+  
   return CodeGenModule::GVA_CXXInline;
 }
 
@@ -601,6 +601,10 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
 void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
   const ValueDecl *D = cast<ValueDecl>(GD.getDecl());
 
+  PrettyStackTraceDecl CrashInfo((ValueDecl *)D, D->getLocation(), 
+                                 Context.getSourceManager(),
+                                 "Generating code for declaration");
+  
   if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(D))
     EmitCXXConstructor(CD, GD.getCtorType());
   else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(D))
@@ -949,7 +953,7 @@ GetLinkageForVariable(ASTContext &Context, const VarDecl *VD) {
       return CodeGenModule::GVA_StrongExternal;
       
     case TSK_ExplicitInstantiationDeclaration:
-      assert(false && "Variable should not be instantiated");
+      llvm::llvm_unreachable("Variable should not be instantiated");
       // Fall through to treat this like any other instantiation.
         
     case TSK_ImplicitInstantiation:

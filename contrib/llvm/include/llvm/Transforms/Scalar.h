@@ -225,15 +225,6 @@ extern const PassInfo *const LoopSimplifyID;
 
 //===----------------------------------------------------------------------===//
 //
-// LowerAllocations - Turn free instructions into @free calls.
-//
-//   AU.addRequiredID(LowerAllocationsID);
-//
-Pass *createLowerAllocationsPass();
-extern const PassInfo *const LowerAllocationsID;
-
-//===----------------------------------------------------------------------===//
-//
 // TailCallElimination - This pass eliminates call instructions to the current
 // function which occur immediately before return instructions.
 //
@@ -280,7 +271,7 @@ extern const PassInfo *const LCSSAID;
 // GVN - This pass performs global value numbering and redundant load 
 // elimination cotemporaneously.
 //
-FunctionPass *createGVNPass();
+FunctionPass *createGVNPass(bool NoPRE = false);
 
 //===----------------------------------------------------------------------===//
 //
@@ -316,12 +307,6 @@ FunctionPass *createCodeGenPreparePass(const TargetLowering *TLI = 0);
 
 //===----------------------------------------------------------------------===//
 //
-// CodeGenLICM - This pass performs late LICM; hoisting constants out of loops.
-//
-Pass *createCodeGenLICMPass();
-  
-//===----------------------------------------------------------------------===//
-//
 // InstructionNamer - Give any unnamed non-void instructions "tmp" names.
 //
 FunctionPass *createInstructionNamerPass();
@@ -340,6 +325,24 @@ FunctionPass *createSSIPass();
 // Information form.
 //
 FunctionPass *createSSIEverythingPass();
+
+//===----------------------------------------------------------------------===//
+//
+// GEPSplitter - Split complex GEPs into simple ones
+//
+FunctionPass *createGEPSplitterPass();
+
+//===----------------------------------------------------------------------===//
+//
+// SCCVN - Aggressively eliminate redundant scalar values
+//
+FunctionPass *createSCCVNPass();
+
+//===----------------------------------------------------------------------===//
+//
+// ABCD - Elimination of Array Bounds Checks on Demand
+//
+FunctionPass *createABCDPass();
 
 } // End llvm namespace
 

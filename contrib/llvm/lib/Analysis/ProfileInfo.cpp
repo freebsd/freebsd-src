@@ -16,7 +16,6 @@
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Format.h"
@@ -178,8 +177,7 @@ raw_ostream& llvm::operator<<(raw_ostream &O, ProfileInfo::Edge E) {
 //
 
 namespace {
-  struct VISIBILITY_HIDDEN NoProfileInfo 
-    : public ImmutablePass, public ProfileInfo {
+  struct NoProfileInfo : public ImmutablePass, public ProfileInfo {
     static char ID; // Class identification, replacement for typeinfo
     NoProfileInfo() : ImmutablePass(&ID) {}
   };

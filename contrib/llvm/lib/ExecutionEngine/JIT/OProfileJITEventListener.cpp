@@ -43,7 +43,7 @@ public:
   virtual void NotifyFunctionEmitted(const Function &F,
                                      void *FnStart, size_t FnSize,
                                      const EmittedFunctionDetails &Details);
-  virtual void NotifyFreeingMachineCode(const Function &F, void *OldPtr);
+  virtual void NotifyFreeingMachineCode(void *OldPtr);
 };
 
 OProfileJITEventListener::OProfileJITEventListener()
@@ -147,13 +147,13 @@ void OProfileJITEventListener::NotifyFunctionEmitted(
   }
 }
 
-// Removes the to-be-deleted function from the symbol table.
-void OProfileJITEventListener::NotifyFreeingMachineCode(
-    const Function &F, void *FnStart) {
+// Removes the being-deleted function from the symbol table.
+void OProfileJITEventListener::NotifyFreeingMachineCode(void *FnStart) {
   assert(FnStart && "Invalid function pointer");
   if (op_unload_native_code(Agent, reinterpret_cast<uint64_t>(FnStart)) == -1) {
-    DEBUG(errs() << "Failed to tell OProfile about unload of native function "
-                 << F.getName() << " at " << FnStart << "\n");
+    DEBUG(errs()
+          << "Failed to tell OProfile about unload of native function at "
+          << FnStart << "\n");
   }
 }
 

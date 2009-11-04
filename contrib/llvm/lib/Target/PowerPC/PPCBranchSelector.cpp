@@ -23,14 +23,13 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MathExtras.h"
 using namespace llvm;
 
 STATISTIC(NumExpanded, "Number of branches expanded to long format");
 
 namespace {
-  struct VISIBILITY_HIDDEN PPCBSel : public MachineFunctionPass {
+  struct PPCBSel : public MachineFunctionPass {
     static char ID;
     PPCBSel() : MachineFunctionPass(&ID) {}
 

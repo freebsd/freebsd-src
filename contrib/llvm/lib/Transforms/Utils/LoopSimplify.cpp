@@ -46,7 +46,6 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -57,7 +56,7 @@ STATISTIC(NumInserted, "Number of pre-header or exit blocks inserted");
 STATISTIC(NumNested  , "Number of nested loops split out");
 
 namespace {
-  struct VISIBILITY_HIDDEN LoopSimplify : public LoopPass {
+  struct LoopSimplify : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
     LoopSimplify() : LoopPass(&ID) {}
 

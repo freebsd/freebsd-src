@@ -33,14 +33,13 @@
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/ADT/DepthFirstIterator.h"
 #include "llvm/ADT/SmallPtrSet.h"
 using namespace llvm;
 
 namespace {
-  class VISIBILITY_HIDDEN UnreachableBlockElim : public FunctionPass {
+  class UnreachableBlockElim : public FunctionPass {
     virtual bool runOnFunction(Function &F);
   public:
     static char ID; // Pass identification, replacement for typeid
@@ -95,8 +94,7 @@ bool UnreachableBlockElim::runOnFunction(Function &F) {
 
 
 namespace {
-  class VISIBILITY_HIDDEN UnreachableMachineBlockElim :
-        public MachineFunctionPass {
+  class UnreachableMachineBlockElim : public MachineFunctionPass {
     virtual bool runOnMachineFunction(MachineFunction &F);
     virtual void getAnalysisUsage(AnalysisUsage &AU) const;
     MachineModuleInfo *MMI;

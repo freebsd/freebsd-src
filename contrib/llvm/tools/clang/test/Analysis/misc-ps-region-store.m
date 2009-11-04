@@ -372,3 +372,62 @@ void doSomething_7312221_with_struct(struct rdar_7312221_container *Self) {
   }
 }
 
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7332673> - Just more tests cases for regions
+//===----------------------------------------------------------------------===//
+
+void rdar_7332673_test1() {
+    char value[1];
+    if ( *(value) != 1 ) {} // expected-warning{{The left operand of '!=' is a garbage value}}
+}
+void rdar_rdar_7332673_test2_aux(char *x);
+void rdar_7332673_test2() {
+    char *value;
+    if ( rdar_7332673_test2_aux(value) != 1 ) {} // expected-warning{{Pass-by-value argument in function call is undefined}}
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7347252>: Because of a bug in
+//   RegionStoreManager::RemoveDeadBindings(), the symbol for s->session->p
+//   would incorrectly be pruned from the state after the call to
+//   rdar7347252_malloc1(), and would incorrectly result in a warning about
+//   passing a null pointer to rdar7347252_memcpy().
+//===----------------------------------------------------------------------===//
+
+struct rdar7347252_AA { char *p;};
+typedef struct {
+ struct rdar7347252_AA *session;
+ int t;
+ char *q;
+} rdar7347252_SSL1;
+
+int rdar7347252_f(rdar7347252_SSL1 *s);
+char *rdar7347252_malloc1(int);
+char *rdar7347252_memcpy1(char *d, char *s, int n) __attribute__((nonnull (1,2)));
+
+int rdar7347252(rdar7347252_SSL1 *s) {
+ rdar7347252_f(s);  // the SymbolicRegion of 's' is set a default binding of conjured symbol
+ if (s->session->p == ((void*)0)) {
+   if ((s->session->p = rdar7347252_malloc1(10)) == ((void*)0)) {
+     return 0;
+   }
+   rdar7347252_memcpy1(s->session->p, "aa", 2); // no-warning
+ }
+ return 0;
+}
+
+//===----------------------------------------------------------------------===//
+// PR 5316 - "crash when accessing field of lazy compound value"
+//  Previously this caused a crash at the MemberExpr '.chr' when loading
+//  a field value from a LazyCompoundVal
+//===----------------------------------------------------------------------===//
+
+typedef unsigned int pr5316_wint_t;
+typedef pr5316_wint_t pr5316_REFRESH_CHAR;
+typedef struct {
+  pr5316_REFRESH_CHAR chr;
+}
+pr5316_REFRESH_ELEMENT;
+static void pr5316(pr5316_REFRESH_ELEMENT *dst, const pr5316_REFRESH_ELEMENT *src) {
+  while ((*dst++ = *src++).chr != L'\0')  ;
+}

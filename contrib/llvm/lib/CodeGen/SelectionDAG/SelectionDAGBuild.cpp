@@ -322,6 +322,12 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
     MBBMap[BB] = MBB;
     MF->push_back(MBB);
 
+    // Transfer the address-taken flag. This is necessary because there could
+    // be multiple MachineBasicBlocks corresponding to one BasicBlock, and only
+    // the first one should be marked.
+    if (BB->hasAddressTaken())
+      MBB->setHasAddressTaken();
+
     // Create Machine PHI nodes for LLVM PHI nodes, lowering them as
     // appropriate.
     PHINode *PN;
@@ -894,6 +900,9 @@ SDValue SelectionDAGLowering::getValue(const Value *V) {
       }
       return DAG.getMergeValues(&Constants[0], NumElts, getCurDebugLoc());
     }
+
+    if (BlockAddress *BA = dyn_cast<BlockAddress>(C))
+      return DAG.getBlockAddress(BA, getCurDebugLoc());
 
     const VectorType *VecTy = cast<VectorType>(V->getType());
     unsigned NumElements = VecTy->getNumElements();
@@ -2131,6 +2140,16 @@ void SelectionDAGLowering::visitSwitch(SwitchInst &SI) {
   }
 }
 
+void SelectionDAGLowering::visitIndirectBr(IndirectBrInst &I) {
+  // Update machine-CFG edges.
+  for (unsigned i = 0, e = I.getNumSuccessors(); i != e; ++i)
+    CurMBB->addSuccessor(FuncInfo.MBBMap[I.getSuccessor(i)]);
+
+  DAG.setRoot(DAG.getNode(ISD::BRIND, getCurDebugLoc(),
+                          MVT::Other, getControlRoot(),
+                          getValue(I.getAddress())));
+}
+
 
 void SelectionDAGLowering::visitFSub(User &I) {
   // -0.0 - X --> fneg
@@ -2666,7 +2685,8 @@ void SelectionDAGLowering::visitGetElementPtr(User &I) {
       }
 
       // N = N + Idx * ElementSize;
-      uint64_t ElementSize = TD->getTypeAllocSize(Ty);
+      APInt ElementSize = APInt(TLI.getPointerTy().getSizeInBits(),
+                                TD->getTypeAllocSize(Ty));
       SDValue IdxN = getValue(Idx);
 
       // If the index is smaller or larger than intptr_t, truncate or extend
@@ -2676,13 +2696,13 @@ void SelectionDAGLowering::visitGetElementPtr(User &I) {
       // If this is a multiply by a power of two, turn it into a shl
       // immediately.  This is a very common case.
       if (ElementSize != 1) {
-        if (isPowerOf2_64(ElementSize)) {
-          unsigned Amt = Log2_64(ElementSize);
+        if (ElementSize.isPowerOf2()) {
+          unsigned Amt = ElementSize.logBase2();
           IdxN = DAG.getNode(ISD::SHL, getCurDebugLoc(),
                              N.getValueType(), IdxN,
                              DAG.getConstant(Amt, TLI.getPointerTy()));
         } else {
-          SDValue Scale = DAG.getIntPtrConstant(ElementSize);
+          SDValue Scale = DAG.getConstant(ElementSize, TLI.getPointerTy());
           IdxN = DAG.getNode(ISD::MUL, getCurDebugLoc(),
                              N.getValueType(), IdxN, Scale);
         }
@@ -4203,6 +4223,21 @@ SelectionDAGLowering::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     DAG.setRoot(Result);
     return 0;
   }
+  case Intrinsic::objectsize: {
+    // If we don't know by now, we're never going to know.
+    ConstantInt *CI = dyn_cast<ConstantInt>(I.getOperand(2));
+
+    assert(CI && "Non-constant type in __builtin_object_size?");
+
+    SDValue Arg = getValue(I.getOperand(0));
+    EVT Ty = Arg.getValueType();
+
+    if (CI->getZExtValue() < 2)
+      setValue(&I, DAG.getConstant(-1U, Ty));
+    else
+      setValue(&I, DAG.getConstant(0, Ty));
+    return 0;
+  }
   case Intrinsic::var_annotation:
     // Discard annotate attributes
     return 0;
@@ -5485,26 +5520,6 @@ void SelectionDAGLowering::visitInlineAsm(CallSite CS) {
   DAG.setRoot(Chain);
 }
 
-void SelectionDAGLowering::visitFree(FreeInst &I) {
-  TargetLowering::ArgListTy Args;
-  TargetLowering::ArgListEntry Entry;
-  Entry.Node = getValue(I.getOperand(0));
-  Entry.Ty = TLI.getTargetData()->getIntPtrType(*DAG.getContext());
-  Args.push_back(Entry);
-  EVT IntPtr = TLI.getPointerTy();
-  bool isTailCall = PerformTailCallOpt &&
-                    isInTailCallPosition(&I, Attribute::None, TLI);
-  std::pair<SDValue,SDValue> Result =
-    TLI.LowerCallTo(getRoot(), Type::getVoidTy(*DAG.getContext()),
-                    false, false, false, false,
-                    0, CallingConv::C, isTailCall,
-                    /*isReturnValueUsed=*/true,
-                    DAG.getExternalSymbol("free", IntPtr), Args, DAG,
-                    getCurDebugLoc());
-  if (Result.second.getNode())
-    DAG.setRoot(Result.second);
-}
-
 void SelectionDAGLowering::visitVAStart(CallInst &I) {
   DAG.setRoot(DAG.getNode(ISD::VASTART, getCurDebugLoc(),
                           MVT::Other, getRoot(),
@@ -5735,8 +5750,7 @@ void SelectionDAGLowering::CopyValueToVirtualRegister(Value *V, unsigned Reg) {
 
 #include "llvm/CodeGen/SelectionDAGISel.h"
 
-void SelectionDAGISel::
-LowerArguments(BasicBlock *LLVMBB) {
+void SelectionDAGISel::LowerArguments(BasicBlock *LLVMBB) {
   // If this is the entry block, emit arguments.
   Function &F = *LLVMBB->getParent();
   SelectionDAG &DAG = SDL->DAG;

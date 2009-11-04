@@ -128,6 +128,11 @@ public:
   ///
   void *getPointerToFunction(Function *F);
 
+  void *getPointerToBasicBlock(BasicBlock *BB) {
+    assert(0 && "JIT does not support address-of-label yet!");
+    return 0;
+  }
+  
   /// getOrEmitGlobalVariable - Return the address of the specified global
   /// variable, possibly emitting it to memory if needed.  This is used by the
   /// Emitter.
@@ -183,7 +188,7 @@ public:
   void NotifyFunctionEmitted(
       const Function &F, void *Code, size_t Size,
       const JITEvent_EmittedFunctionDetails &Details);
-  void NotifyFreeingMachineCode(const Function &F, void *OldPtr);
+  void NotifyFreeingMachineCode(void *OldPtr);
 
 private:
   static JITCodeEmitter *createEmitter(JIT &J, JITMemoryManager *JMM,

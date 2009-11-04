@@ -34,7 +34,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -44,7 +43,7 @@ namespace {
   /// SRETPromotion - This pass removes sret parameter and updates
   /// function to use multiple return value.
   ///
-  struct VISIBILITY_HIDDEN SRETPromotion : public CallGraphSCCPass {
+  struct SRETPromotion : public CallGraphSCCPass {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       CallGraphSCCPass::getAnalysisUsage(AU);
     }

@@ -51,9 +51,8 @@ protected:
   virtual BasicBlock *getSuccessorV(unsigned idx) const = 0;
   virtual unsigned getNumSuccessorsV() const = 0;
   virtual void setSuccessorV(unsigned idx, BasicBlock *B) = 0;
+  virtual TerminatorInst *clone_impl() const = 0;
 public:
-
-  virtual TerminatorInst *clone() const = 0;
 
   /// getNumSuccessors - Return the number of successors that this terminator
   /// has.
@@ -117,7 +116,6 @@ public:
   static inline bool classof(const UnaryInstruction *) { return true; }
   static inline bool classof(const Instruction *I) {
     return I->getOpcode() == Instruction::Alloca ||
-           I->getOpcode() == Instruction::Free ||
            I->getOpcode() == Instruction::Load ||
            I->getOpcode() == Instruction::VAArg ||
            I->getOpcode() == Instruction::ExtractValue ||
@@ -146,6 +144,7 @@ protected:
                  const Twine &Name, Instruction *InsertBefore);
   BinaryOperator(BinaryOps iType, Value *S1, Value *S2, const Type *Ty,
                  const Twine &Name, BasicBlock *InsertAtEnd);
+  virtual BinaryOperator *clone_impl() const;
 public:
   // allocate space for exactly two operands
   void *operator new(size_t s) {
@@ -297,8 +296,6 @@ public:
   BinaryOps getOpcode() const {
     return static_cast<BinaryOps>(Instruction::getOpcode());
   }
-
-  virtual BinaryOperator *clone() const;
 
   /// swapOperands - Exchange the two operands to this instruction.
   /// This instruction is safe to use on any binary instruction and
@@ -718,6 +715,30 @@ public:
   /// @brief Determine if this is an equals/not equals predicate.
   bool isEquality();
 
+  /// @returns true if the comparison is signed, false otherwise.
+  /// @brief Determine if this instruction is using a signed comparison.
+  bool isSigned() const {
+    return isSigned(getPredicate());
+  }
+
+  /// @returns true if the comparison is unsigned, false otherwise.
+  /// @brief Determine if this instruction is using an unsigned comparison.
+  bool isUnsigned() const {
+    return isUnsigned(getPredicate());
+  }
+
+  /// This is just a convenience.
+  /// @brief Determine if this is true when both operands are the same.
+  bool isTrueWhenEqual() const {
+    return isTrueWhenEqual(getPredicate());
+  }
+
+  /// This is just a convenience.
+  /// @brief Determine if this is false when both operands are the same.
+  bool isFalseWhenEqual() const {
+    return isFalseWhenEqual(getPredicate());
+  }
+
   /// @returns true if the predicate is unsigned, false otherwise.
   /// @brief Determine if the predicate is an unsigned operation.
   static bool isUnsigned(unsigned short predicate);
@@ -731,6 +752,12 @@ public:
 
   /// @brief Determine if the predicate is an unordered operation.
   static bool isUnordered(unsigned short predicate);
+
+  /// Determine if the predicate is true when comparing a value with itself.
+  static bool isTrueWhenEqual(unsigned short predicate);
+
+  /// Determine if the predicate is false when comparing a value with itself.
+  static bool isFalseWhenEqual(unsigned short predicate);
 
   /// @brief Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const CmpInst *) { return true; }

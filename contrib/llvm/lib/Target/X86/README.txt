@@ -1952,3 +1952,5 @@ fact these instructions are identical to the non-lock versions. We need a way to
 add target specific information to target nodes and have this information
 carried over to machine instructions. Asm printer (or JIT) can use this
 information to add the "lock" prefix.
+
+//===---------------------------------------------------------------------===//

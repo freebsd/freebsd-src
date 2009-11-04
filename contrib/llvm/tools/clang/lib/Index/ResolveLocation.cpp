@@ -45,6 +45,9 @@ protected:
     if (DeclaratorDecl *DD = dyn_cast<DeclaratorDecl>(D))
       if (ContainsLocation(DD->getDeclaratorInfo()))
         return ContainsLoc;
+    if (TypedefDecl *TD = dyn_cast<TypedefDecl>(D))
+      if (ContainsLocation(TD->getTypeDeclaratorInfo()))
+        return ContainsLoc;
 
     return CheckRange(D->getSourceRange());
   }
@@ -57,11 +60,6 @@ protected:
   }
 
   template <typename T>
-  bool ContainsLocation(T Node) {
-    return CheckRange(Node) == ContainsLoc;
-  }
-
-  template <typename T>
   bool isAfterLocation(T Node) {
     return CheckRange(Node) == AfterLoc;
   }
@@ -69,6 +67,11 @@ protected:
 public:
   LocResolverBase(ASTContext &ctx, SourceLocation loc)
     : Ctx(ctx), Loc(loc) {}
+    
+  template <typename T>
+  bool ContainsLocation(T Node) {
+    return CheckRange(Node) == ContainsLoc;
+  }
 
 #ifndef NDEBUG
   /// \brief Debugging output.
@@ -89,6 +92,7 @@ public:
   StmtLocResolver(ASTContext &ctx, SourceLocation loc, Decl *parent)
     : LocResolverBase(ctx, loc), Parent(parent) {}
 
+  ASTLocation VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *Node);
   ASTLocation VisitCXXOperatorCallExpr(CXXOperatorCallExpr *Node);
   ASTLocation VisitDeclStmt(DeclStmt *Node);
   ASTLocation VisitStmt(Stmt *Node);
@@ -109,6 +113,7 @@ public:
   ASTLocation VisitVarDecl(VarDecl *D);
   ASTLocation VisitFunctionDecl(FunctionDecl *D);
   ASTLocation VisitObjCMethodDecl(ObjCMethodDecl *D);
+  ASTLocation VisitTypedefDecl(TypedefDecl *D);
   ASTLocation VisitDecl(Decl *D);
 };
 
@@ -130,6 +135,25 @@ public:
 };
 
 } // anonymous namespace
+
+ASTLocation
+StmtLocResolver::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *Node) {
+  assert(ContainsLocation(Node) &&
+         "Should visit only after verifying that loc is in range");
+
+  if (Node->isArgumentType()) {
+    DeclaratorInfo *DInfo = Node->getArgumentTypeInfo();
+    if (ContainsLocation(DInfo))
+      return ResolveInDeclarator(Parent, Node, DInfo);
+  } else {
+    Expr *SubNode = Node->getArgumentExpr();
+    if (ContainsLocation(SubNode))
+      return Visit(SubNode);
+  }
+
+  return ASTLocation(Parent, Node);
+}
+
 
 ASTLocation
 StmtLocResolver::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *Node) {
@@ -274,6 +298,16 @@ ASTLocation DeclLocResolver::VisitDeclaratorDecl(DeclaratorDecl *D) {
          "Should visit only after verifying that loc is in range");
   if (ContainsLocation(D->getDeclaratorInfo()))
     return ResolveInDeclarator(D, /*Stmt=*/0, D->getDeclaratorInfo());
+
+  return ASTLocation(D);
+}
+
+ASTLocation DeclLocResolver::VisitTypedefDecl(TypedefDecl *D) {
+  assert(ContainsLocation(D) &&
+         "Should visit only after verifying that loc is in range");
+
+  if (ContainsLocation(D->getTypeDeclaratorInfo()))
+    return ResolveInDeclarator(D, /*Stmt=*/0, D->getTypeDeclaratorInfo());
 
   return ASTLocation(D);
 }
@@ -529,11 +563,40 @@ void LocResolverBase::print(Stmt *Node) {
 /// \brief Returns the AST node that a source location points to.
 ///
 ASTLocation idx::ResolveLocationInAST(ASTContext &Ctx, SourceLocation Loc,
-                                      Decl *RelativeToDecl) {
+                                      ASTLocation *LastLoc) {
   if (Loc.isInvalid())
     return ASTLocation();
 
-  if (RelativeToDecl)
-    return DeclLocResolver(Ctx, Loc).Visit(RelativeToDecl);    
+  if (LastLoc && LastLoc->isValid()) {
+    DeclContext *DC = 0;
+  
+    if (Decl *Dcl = LastLoc->dyn_AsDecl()) {
+      DC = Dcl->getDeclContext();
+    } else if (LastLoc->isStmt()) {
+      Decl *Parent = LastLoc->getParentDecl();
+      if (FunctionDecl *FD = dyn_cast<FunctionDecl>(Parent))
+        DC = FD;
+      else { 
+        // This is needed to handle statements within an initializer.
+        // Example:
+        //   void func() { long double fabsf = __builtin_fabsl(__x); }
+        // In this case, the 'parent' of __builtin_fabsl is fabsf.
+        DC = Parent->getDeclContext();
+      }
+    } else { // We have 'N_NamedRef' or 'N_Type'
+      DC = LastLoc->getParentDecl()->getDeclContext();
+    } 
+    assert(DC && "Missing DeclContext");
+    
+    FunctionDecl *FD = dyn_cast<FunctionDecl>(DC);
+    DeclLocResolver DLocResolver(Ctx, Loc);
+    
+    if (FD && FD->isThisDeclarationADefinition() &&
+        DLocResolver.ContainsLocation(FD)) {
+      return DLocResolver.VisitFunctionDecl(FD);
+    }
+    // Fall through and try the slow path...
+    // FIXME: Optimize more cases.
+  }
   return DeclLocResolver(Ctx, Loc).Visit(Ctx.getTranslationUnitDecl());
 }

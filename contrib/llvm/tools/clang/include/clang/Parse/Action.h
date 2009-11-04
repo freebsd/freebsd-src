@@ -161,6 +161,23 @@ public:
   // Declaration Tracking Callbacks.
   //===--------------------------------------------------------------------===//
 
+  typedef uintptr_t ParsingDeclStackState;
+
+  /// PushParsingDeclaration - Notes that the parser has begun
+  /// processing a declaration of some sort.  Guaranteed to be matched
+  /// by a call to PopParsingDeclaration with the value returned by
+  /// this method.
+  virtual ParsingDeclStackState PushParsingDeclaration() {
+    return ParsingDeclStackState();
+  }
+
+  /// PopParsingDeclaration - Notes that the parser has completed
+  /// processing a declaration of some sort.  The decl will be empty
+  /// if the declaration didn't correspond to a full declaration (or
+  /// if the actions module returned an empty decl for it).
+  virtual void PopParsingDeclaration(ParsingDeclStackState S, DeclPtrTy D) {
+  }
+
   /// ConvertDeclToDeclGroup - If the parser has one decl in a context where it
   /// needs a decl group, it calls this to convert between the two
   /// representations.
@@ -236,30 +253,36 @@ public:
   virtual bool isCurrentClassName(const IdentifierInfo &II, Scope *S,
                                   const CXXScopeSpec *SS = 0) = 0;
 
-  /// \brief Determine whether the given identifier refers to the name of a
+  /// \brief Determine whether the given name refers to a template.
+  ///
+  /// This callback is used by the parser after it has seen a '<' to determine
+  /// whether the given name refers to a template and, if so, what kind of 
   /// template.
   ///
-  /// \param S the scope in which name lookup occurs
+  /// \param S the scope in which the name occurs.
   ///
-  /// \param II the identifier that we are querying to determine whether it
-  /// is a template.
+  /// \param SS the C++ nested-name-specifier that precedes the template name,
+  /// if any.
   ///
-  /// \param IdLoc the source location of the identifier
+  /// \param Name the name that we are querying to determine whether it is
+  /// a template.
   ///
-  /// \param SS the C++ scope specifier that precedes the template name, if
-  /// any.
+  /// \param ObjectType if we are determining whether the given name is a 
+  /// template name in the context of a member access expression (e.g., 
+  /// \c p->X<int>), this is the type of the object referred to by the
+  /// member access (e.g., \c p).
   ///
   /// \param EnteringContext whether we are potentially entering the context
-  /// referred to by the scope specifier \p SS
+  /// referred to by the nested-name-specifier \p SS, which allows semantic
+  /// analysis to look into uninstantiated templates.
   ///
   /// \param Template if the name does refer to a template, the declaration
   /// of the template that the name refers to.
   ///
   /// \returns the kind of template that this name refers to.
   virtual TemplateNameKind isTemplateName(Scope *S,
-                                          const IdentifierInfo &II,
-                                          SourceLocation IdLoc,
-                                          const CXXScopeSpec *SS,
+                                          const CXXScopeSpec &SS,
+                                          UnqualifiedId &Name,
                                           TypeTy *ObjectType,
                                           bool EnteringContext,
                                           TemplateTy &Template) = 0;
@@ -854,47 +877,33 @@ public:
   virtual SourceRange getExprRange(ExprTy *E) const {
     return SourceRange();
   }
-
-  /// ActOnIdentifierExpr - Parse an identifier in expression context.
-  /// 'HasTrailingLParen' indicates whether or not the identifier has a '('
-  /// token immediately after it.
-  /// An optional CXXScopeSpec can be passed to indicate the C++ scope (class or
-  /// namespace) that the identifier must be a member of.
-  /// i.e. for "foo::bar", 'II' will be "bar" and 'SS' will be "foo::".
-  virtual OwningExprResult ActOnIdentifierExpr(Scope *S, SourceLocation Loc,
-                                               IdentifierInfo &II,
-                                               bool HasTrailingLParen,
-                                               const CXXScopeSpec *SS = 0,
-                                               bool isAddressOfOperand = false){
+  
+  /// \brief Parsed an id-expression (C++) or identifier (C) in expression
+  /// context, e.g., the expression "x" that refers to a variable named "x".
+  ///
+  /// \param S the scope in which this id-expression or identifier occurs.
+  ///
+  /// \param SS the C++ nested-name-specifier that qualifies the name of the
+  /// value, e.g., "std::" in "std::sort".
+  ///
+  /// \param Name the name to which the id-expression refers. In C, this will
+  /// always be an identifier. In C++, it may also be an overloaded operator,
+  /// destructor name (if there is a nested-name-specifier), or template-id.
+  ///
+  /// \param HasTrailingLParen whether the next token following the 
+  /// id-expression or identifier is a left parentheses ('(').
+  ///
+  /// \param IsAddressOfOperand whether the token that precedes this 
+  /// id-expression or identifier was an ampersand ('&'), indicating that 
+  /// we will be taking the address of this expression.
+  virtual OwningExprResult ActOnIdExpression(Scope *S,
+                                             const CXXScopeSpec &SS,
+                                             UnqualifiedId &Name,
+                                             bool HasTrailingLParen,
+                                             bool IsAddressOfOperand) {
     return ExprEmpty();
   }
-
-  /// ActOnOperatorFunctionIdExpr - Parse a C++ overloaded operator
-  /// name (e.g., @c operator+ ) as an expression. This is very
-  /// similar to ActOnIdentifierExpr, except that instead of providing
-  /// an identifier the parser provides the kind of overloaded
-  /// operator that was parsed.
-  virtual OwningExprResult ActOnCXXOperatorFunctionIdExpr(
-                             Scope *S, SourceLocation OperatorLoc,
-                             OverloadedOperatorKind Op,
-                             bool HasTrailingLParen, const CXXScopeSpec &SS,
-                             bool isAddressOfOperand = false) {
-    return ExprEmpty();
-  }
-
-  /// ActOnCXXConversionFunctionExpr - Parse a C++ conversion function
-  /// name (e.g., @c operator void const *) as an expression. This is
-  /// very similar to ActOnIdentifierExpr, except that instead of
-  /// providing an identifier the parser provides the type of the
-  /// conversion function.
-  virtual OwningExprResult ActOnCXXConversionFunctionExpr(
-                             Scope *S, SourceLocation OperatorLoc,
-                             TypeTy *Type, bool HasTrailingLParen,
-                             const CXXScopeSpec &SS,
-                             bool isAddressOfOperand = false) {
-    return ExprEmpty();
-  }
-
+  
   virtual OwningExprResult ActOnPredefinedExpr(SourceLocation Loc,
                                                tok::TokenKind Kind) {
     return ExprEmpty();
@@ -936,16 +945,42 @@ public:
                                                    SourceLocation RLoc) {
     return ExprEmpty();
   }
-  virtual OwningExprResult ActOnMemberReferenceExpr(Scope *S, ExprArg Base,
-                                                    SourceLocation OpLoc,
-                                                    tok::TokenKind OpKind,
-                                                    SourceLocation MemberLoc,
-                                                    IdentifierInfo &Member,
-                                                    DeclPtrTy ObjCImpDecl,
-                                                const CXXScopeSpec *SS = 0) {
+  
+  /// \brief Parsed a member access expresion (C99 6.5.2.3, C++ [expr.ref])
+  /// of the form \c x.m or \c p->m.
+  ///
+  /// \param S the scope in which the member access expression occurs.
+  ///
+  /// \param Base the class or pointer to class into which this member
+  /// access expression refers, e.g., \c x in \c x.m.
+  ///
+  /// \param OpLoc the location of the "." or "->" operator.
+  ///
+  /// \param OpKind the kind of member access operator, which will be either
+  /// tok::arrow ("->") or tok::period (".").
+  ///
+  /// \param SS in C++, the nested-name-specifier that precedes the member
+  /// name, if any.
+  ///
+  /// \param Member the name of the member that we are referring to. In C,
+  /// this will always store an identifier; in C++, we may also have operator
+  /// names, conversion function names, destructors, and template names.
+  ///
+  /// \param ObjCImpDecl the Objective-C implementation declaration.
+  /// FIXME: Do we really need this?
+  ///
+  /// \param HasTrailingLParen whether this member name is immediately followed
+  /// by a left parentheses ('(').
+  virtual OwningExprResult ActOnMemberAccessExpr(Scope *S, ExprArg Base,
+                                                 SourceLocation OpLoc,
+                                                 tok::TokenKind OpKind,
+                                                 const CXXScopeSpec &SS,
+                                                 UnqualifiedId &Member,
+                                                 DeclPtrTy ObjCImpDecl,
+                                                 bool HasTrailingLParen) {
     return ExprEmpty();
   }
-
+                                                 
   /// ActOnCallExpr - Handle a call to Fn with the specified array of arguments.
   /// This provides the location of the left/right parens and a list of comma
   /// locations.  There are guaranteed to be one fewer commas than arguments,
@@ -1245,8 +1280,7 @@ public:
   }
 
   /// ActOnFriendTypeDecl - Parsed a friend type declaration.
-  virtual DeclPtrTy ActOnFriendTypeDecl(Scope *S,
-                                        const DeclSpec &DS,
+  virtual DeclPtrTy ActOnFriendTypeDecl(Scope *S, const DeclSpec &DS,
                                         MultiTemplateParamsArg TParams) {
     return DeclPtrTy();
   }
@@ -1373,123 +1407,6 @@ public:
                                                         SourceLocation OpLoc,
                                                         tok::TokenKind OpKind,
                                                         TypeTy *&ObjectType) {
-    return ExprEmpty();
-  }
-
-  /// ActOnDestructorReferenceExpr - Parsed a destructor reference, for example:
-  ///
-  /// t->~T();
-  virtual OwningExprResult
-  ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
-                               SourceLocation OpLoc,
-                               tok::TokenKind OpKind,
-                               SourceLocation ClassNameLoc,
-                               IdentifierInfo *ClassName,
-                               const CXXScopeSpec &SS,
-                               bool HasTrailingLParen) {
-    return ExprEmpty();
-  }
-
-  /// \brief Parsed a C++ destructor reference that refers to a type.
-  ///
-  /// This action is used when parsing a destructor reference that uses a 
-  /// template-id, e.g.,
-  ///
-  /// \code
-  /// t->~Tmpl<T1, T2>
-  /// \endcode
-  ///
-  /// \param S the scope in which the destructor reference occurs.
-  /// \param Base the base object of the destructor reference expression.
-  /// \param OpLoc the location of the operator ('.' or '->').
-  /// \param OpKind the kind of the destructor reference operator ('.' or '->').
-  /// \param TypeRange the source range that covers the destructor type.
-  /// \param Type the type that is being destroyed.
-  /// \param SS the scope specifier that precedes the destructor name.
-  /// \param HasTrailingLParen whether the destructor name is followed by a '('.
-  virtual OwningExprResult
-  ActOnDestructorReferenceExpr(Scope *S, ExprArg Base,
-                               SourceLocation OpLoc,
-                               tok::TokenKind OpKind,
-                               SourceRange TypeRange,
-                               TypeTy *Type,
-                               const CXXScopeSpec &SS,
-                               bool HasTrailingLParen) {
-    return ExprEmpty();
-  }
-  
-  /// ActOnOverloadedOperatorReferenceExpr - Parsed an overloaded operator
-  /// reference, for example:
-  ///
-  /// t.operator++();
-  virtual OwningExprResult
-  ActOnOverloadedOperatorReferenceExpr(Scope *S, ExprArg Base,
-                                       SourceLocation OpLoc,
-                                       tok::TokenKind OpKind,
-                                       SourceLocation ClassNameLoc,
-                                       OverloadedOperatorKind OverOpKind,
-                                       const CXXScopeSpec *SS = 0) {
-    return ExprEmpty();
-  }
-
-  /// ActOnConversionOperatorReferenceExpr - Parsed an overloaded conversion
-  /// function reference, for example:
-  ///
-  /// t.operator int();
-  virtual OwningExprResult
-  ActOnConversionOperatorReferenceExpr(Scope *S, ExprArg Base,
-                                       SourceLocation OpLoc,
-                                       tok::TokenKind OpKind,
-                                       SourceLocation ClassNameLoc,
-                                       TypeTy *Ty,
-                                       const CXXScopeSpec *SS = 0) {
-    return ExprEmpty();
-  }
-
-  /// \brief Parsed a reference to a member template-id.
-  ///
-  /// This callback will occur instead of ActOnMemberReferenceExpr() when the
-  /// member in question is a template for which the code provides an
-  /// explicitly-specified template argument list, e.g.,
-  ///
-  /// \code
-  /// x.f<int>()
-  /// \endcode
-  ///
-  /// \param S the scope in which the member reference expression occurs
-  ///
-  /// \param Base the expression to the left of the "." or "->".
-  ///
-  /// \param OpLoc the location of the "." or "->".
-  ///
-  /// \param OpKind the kind of operator, which will be "." or "->".
-  ///
-  /// \param SS the scope specifier that precedes the template-id in, e.g.,
-  /// \c x.Base::f<int>().
-  ///
-  /// \param Template the declaration of the template that is being referenced.
-  ///
-  /// \param TemplateNameLoc the location of the template name referred to by
-  /// \p Template.
-  ///
-  /// \param LAngleLoc the location of the left angle bracket ('<')
-  ///
-  /// \param TemplateArgs the (possibly-empty) template argument list provided
-  /// as part of the member reference.
-  ///
-  /// \param RAngleLoc the location of the right angle bracket ('>')
-  virtual OwningExprResult
-  ActOnMemberTemplateIdReferenceExpr(Scope *S, ExprArg Base,
-                                     SourceLocation OpLoc,
-                                     tok::TokenKind OpKind,
-                                     const CXXScopeSpec &SS,
-                                     // FIXME: "template" keyword?
-                                     TemplateTy Template,
-                                     SourceLocation TemplateNameLoc,
-                                     SourceLocation LAngleLoc,
-                                     ASTTemplateArgsPtr TemplateArgs,
-                                     SourceLocation *TemplateArgLocs,
-                                     SourceLocation RAngleLoc) {
     return ExprEmpty();
   }
 
@@ -1712,40 +1629,6 @@ public:
     return TypeResult();
   }
 
-  /// \brief Form a reference to a template-id (that will refer to a function)
-  /// from a template and a list of template arguments.
-  ///
-  /// This action forms an expression that references the given template-id,
-  /// possibly checking well-formedness of the template arguments. It does not
-  /// imply the declaration of any entity.
-  ///
-  /// \param SS  The scope specifier that may precede the template name.
-  ///
-  /// \param Template  A template whose specialization results in a
-  /// function or a dependent template.
-  ///
-  /// \param TemplateNameLoc The location of the template name.
-  /// 
-  /// \param LAngleLoc The location of the left angle bracket ('<') that starts 
-  /// the template argument list.
-  ///
-  /// \param TemplateArgs The template arguments in the template argument list,
-  /// which may be empty.
-  ///
-  /// \param TemplateArgLocs The locations of the template arguments.
-  ///
-  /// \param RAngleLoc The location of the right angle bracket ('>') that 
-  /// closes the template argument list.
-  virtual OwningExprResult ActOnTemplateIdExpr(const CXXScopeSpec &SS,
-                                               TemplateTy Template,
-                                               SourceLocation TemplateNameLoc,
-                                               SourceLocation LAngleLoc,
-                                               ASTTemplateArgsPtr TemplateArgs,
-                                               SourceLocation *TemplateArgLocs,
-                                               SourceLocation RAngleLoc) {
-    return ExprError();
-  }
-
   /// \brief Form a dependent template name.
   ///
   /// This action forms a dependent template name given the template
@@ -1756,22 +1639,19 @@ public:
   ///
   /// \param TemplateKWLoc the location of the "template" keyword (if any).
   ///
-  /// \param Name the name of the template (an identifier)
-  ///
-  /// \param NameLoc the location of the identifier
-  ///
   /// \param SS the nested-name-specifier that precedes the "template" keyword
-  /// or the template name. FIXME: If the dependent template name occurs in
+  /// or the template name. If the dependent template name occurs in
   /// a member access expression, e.g., "x.template f<T>", this
   /// nested-name-specifier will be empty.
+  ///
+  /// \param Name the name of the template.
   ///
   /// \param ObjectType if this dependent template name occurs in the
   /// context of a member access expression, the type of the object being
   /// accessed.
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
-                                                const IdentifierInfo &Name,
-                                                SourceLocation NameLoc,
                                                 const CXXScopeSpec &SS,
+                                                UnqualifiedId &Name,
                                                 TypeTy *ObjectType) {
     return TemplateTy();
   }
@@ -2473,13 +2353,12 @@ public:
                                   const CXXScopeSpec *SS);
 
   virtual TemplateNameKind isTemplateName(Scope *S,
-                                          const IdentifierInfo &II,
-                                          SourceLocation IdLoc,
-                                          const CXXScopeSpec *SS,
+                                          const CXXScopeSpec &SS,
+                                          UnqualifiedId &Name,
                                           TypeTy *ObjectType,
                                           bool EnteringContext,
                                           TemplateTy &Template);
-
+  
   /// ActOnDeclarator - If this is a typedef declarator, we modify the
   /// IdentifierInfo::FETokenInfo field to keep track of this fact, until S is
   /// popped.

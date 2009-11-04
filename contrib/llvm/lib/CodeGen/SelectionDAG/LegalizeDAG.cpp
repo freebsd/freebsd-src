@@ -32,7 +32,6 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -55,7 +54,7 @@ using namespace llvm;
 /// will attempt merge setcc and brc instructions into brcc's.
 ///
 namespace {
-class VISIBILITY_HIDDEN SelectionDAGLegalize {
+class SelectionDAGLegalize {
   TargetLowering &TLI;
   SelectionDAG &DAG;
   CodeGenOpt::Level OptLevel;
@@ -2574,16 +2573,8 @@ void SelectionDAGLegalize::ExpandNode(SDNode *Node,
   case ISD::ConstantFP: {
     ConstantFPSDNode *CFP = cast<ConstantFPSDNode>(Node);
     // Check to see if this FP immediate is already legal.
-    bool isLegal = false;
-    for (TargetLowering::legal_fpimm_iterator I = TLI.legal_fpimm_begin(),
-            E = TLI.legal_fpimm_end(); I != E; ++I) {
-      if (CFP->isExactlyValue(*I)) {
-        isLegal = true;
-        break;
-      }
-    }
     // If this is a legal constant, turn it into a TargetConstantFP node.
-    if (isLegal)
+    if (TLI.isFPImmLegal(CFP->getValueAPF(), Node->getValueType(0)))
       Results.push_back(SDValue(Node, 0));
     else
       Results.push_back(ExpandConstantFP(CFP, true, DAG, TLI));
