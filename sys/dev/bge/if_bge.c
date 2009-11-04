@@ -1044,11 +1044,11 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i, struct mbuf *m)
 static int
 bge_init_rx_ring_std(struct bge_softc *sc)
 {
-	int i;
+	int error, i;
 
 	for (i = 0; i < BGE_SSLOTS; i++) {
-		if (bge_newbuf_std(sc, i, NULL) == ENOBUFS)
-			return (ENOBUFS);
+		if ((error = bge_newbuf_std(sc, i, NULL)) != 0)
+			return (error);
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
@@ -1085,11 +1085,11 @@ static int
 bge_init_rx_ring_jumbo(struct bge_softc *sc)
 {
 	struct bge_rcb *rcb;
-	int i;
+	int error, i;
 
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
-		if (bge_newbuf_jumbo(sc, i, NULL) == ENOBUFS)
-			return (ENOBUFS);
+		if ((error = bge_newbuf_jumbo(sc, i, NULL)) != 0)
+			return (error);
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
@@ -3179,8 +3179,7 @@ bge_rxeof(struct bge_softc *sc)
 				bge_newbuf_jumbo(sc, sc->bge_jumbo, m);
 				continue;
 			}
-			if (bge_newbuf_jumbo(sc,
-			    sc->bge_jumbo, NULL) == ENOBUFS) {
+			if (bge_newbuf_jumbo(sc, sc->bge_jumbo, NULL) != 0) {
 				ifp->if_ierrors++;
 				bge_newbuf_jumbo(sc, sc->bge_jumbo, m);
 				continue;
@@ -3200,8 +3199,7 @@ bge_rxeof(struct bge_softc *sc)
 				bge_newbuf_std(sc, sc->bge_std, m);
 				continue;
 			}
-			if (bge_newbuf_std(sc, sc->bge_std,
-			    NULL) == ENOBUFS) {
+			if (bge_newbuf_std(sc, sc->bge_std, NULL) != 0) {
 				ifp->if_ierrors++;
 				bge_newbuf_std(sc, sc->bge_std, m);
 				continue;
@@ -3897,7 +3895,11 @@ bge_init_locked(struct bge_softc *sc)
 	bge_setvlan(sc);
 
 	/* Init RX ring. */
-	bge_init_rx_ring_std(sc);
+	if (bge_init_rx_ring_std(sc) != 0) {
+		device_printf(sc->bge_dev, "no memory for std Rx buffers.\n");
+		bge_stop(sc);
+		return;
+	}
 
 	/*
 	 * Workaround for a bug in 5705 ASIC rev A0. Poll the NIC's
@@ -3918,8 +3920,13 @@ bge_init_locked(struct bge_softc *sc)
 	}
 
 	/* Init jumbo RX ring. */
-	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN))
-		bge_init_rx_ring_jumbo(sc);
+	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN)) {
+		if (bge_init_rx_ring_jumbo(sc) != 0) {
+			device_printf(sc->bge_dev, "no memory for std Rx buffers.\n");
+			bge_stop(sc);
+			return;
+		}
+	}
 
 	/* Init our RX return ring index. */
 	sc->bge_rx_saved_considx = 0;
