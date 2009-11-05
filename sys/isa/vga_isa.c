@@ -166,35 +166,34 @@ isavga_suspend(device_t dev)
 	vga_softc_t *sc;
 	int err, nbytes;
 
-	sc = device_get_softc(dev);
 	err = bus_generic_suspend(dev);
 	if (err)
 		return (err);
 
+	sc = device_get_softc(dev);
+
 	/* Save the video state across the suspend. */
-	if (sc->state_buf != NULL) {
+	if (sc->state_buf != NULL)
+		goto save_palette;
+	nbytes = vidd_save_state(sc->adp, NULL, 0);
+	if (nbytes <= 0)
+		goto save_palette;
+	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT);
+	if (sc->state_buf == NULL)
+		goto save_palette;
+	if (bootverbose)
+		device_printf(dev, "saving %d bytes of video state\n", nbytes);
+	if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
+		device_printf(dev, "failed to save state (nbytes=%d)\n",
+		    nbytes);
 		free(sc->state_buf, M_TEMP);
 		sc->state_buf = NULL;
 	}
-	nbytes = vidd_save_state(sc->adp, NULL, 0);
-	if (nbytes <= 0)
-		return (0);
-	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT);
-	if (sc->state_buf != NULL) {
-		if (bootverbose)
-			device_printf(dev, "saving %d bytes of video state\n",
-			    nbytes);
-		if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
-			device_printf(dev, "failed to save state (nbytes=%d)\n",
-			    nbytes);
-			free(sc->state_buf, M_TEMP);
-			sc->state_buf = NULL;
-		}
-	}
 
+save_palette:
 	/* Save the color palette across the suspend. */
 	if (sc->pal_buf != NULL)
-		free(sc->pal_buf, M_TEMP);
+		return (0);
 	sc->pal_buf = malloc(256 * 3, M_TEMP, M_NOWAIT);
 	if (sc->pal_buf != NULL) {
 		if (bootverbose)
@@ -215,6 +214,7 @@ isavga_resume(device_t dev)
 	vga_softc_t *sc;
 
 	sc = device_get_softc(dev);
+
 	if (sc->state_buf != NULL) {
 		if (vidd_load_state(sc->adp, sc->state_buf) != 0)
 			device_printf(dev, "failed to reload state\n");
@@ -228,8 +228,7 @@ isavga_resume(device_t dev)
 		sc->pal_buf = NULL;
 	}
 
-	bus_generic_resume(dev);
-	return 0;
+	return (bus_generic_resume(dev));
 }
 
 #ifdef FB_INSTALL_CDEV
