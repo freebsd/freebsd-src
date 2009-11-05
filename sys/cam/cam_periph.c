@@ -898,7 +898,8 @@ cam_periph_runccb(union ccb *ccb,
 	 * If the user has supplied a stats structure, and if we understand
 	 * this particular type of ccb, record the transaction start.
 	 */
-	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO))
+	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO ||
+	    ccb->ccb_h.func_code == XPT_ATA_IO))
 		devstat_start_transaction(ds, NULL);
 
 	xpt_action(ccb);
@@ -921,15 +922,27 @@ cam_periph_runccb(union ccb *ccb,
 				 /* timeout */0,
 				 /* getcount_only */ FALSE);
 
-	if ((ds != NULL) && (ccb->ccb_h.func_code == XPT_SCSI_IO))
-		devstat_end_transaction(ds,
+	if (ds != NULL) {
+		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
+			devstat_end_transaction(ds,
 					ccb->csio.dxfer_len,
-					ccb->csio.tag_action & 0xf,
+					ccb->csio.tag_action & 0x3,
 					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
 					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
 					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
 					DEVSTAT_WRITE : 
 					DEVSTAT_READ, NULL, NULL);
+		} else if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+			devstat_end_transaction(ds,
+					ccb->ataio.dxfer_len,
+					ccb->ataio.tag_action & 0x3,
+					((ccb->ccb_h.flags & CAM_DIR_MASK) ==
+					CAM_DIR_NONE) ?  DEVSTAT_NO_DATA : 
+					(ccb->ccb_h.flags & CAM_DIR_OUT) ?
+					DEVSTAT_WRITE : 
+					DEVSTAT_READ, NULL, NULL);
+		}
+	}
 
 	return(error);
 }
