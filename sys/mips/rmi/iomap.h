@@ -31,7 +31,7 @@
 #define _RMI_IOMAP_H_
 
 #include <machine/endian.h>
-
+#define XLR_DEVICE_REGISTER_BASE	0x1EF00000
 #define DEFAULT_XLR_IO_BASE 0xffffffffbef00000ULL
 #define XLR_IO_SIZE                   0x1000
 
@@ -65,6 +65,9 @@
 
 #define XLR_IO_UART_0_OFFSET          0x14000
 #define XLR_IO_UART_1_OFFSET          0x15000
+#define XLR_UART0ADDR                 (XLR_IO_UART_0_OFFSET+XLR_DEVICE_REGISTER_BASE)
+
+
 
 #define XLR_IO_I2C_0_OFFSET           0x16000
 #define XLR_IO_I2C_1_OFFSET           0x17000
