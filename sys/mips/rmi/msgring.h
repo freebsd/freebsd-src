@@ -469,14 +469,15 @@ extern struct stn_cc xls_cc_table_pcie;
 extern struct stn_cc xls_cc_table_dma;
 extern struct stn_cc xls_cc_table_sec;
 
+
 #define msgrng_access_save(lock, mflags) do {                \
-  mtx_lock_spin(lock);                                       \
+  if (rmi_spin_mutex_safe) mtx_lock_spin(lock);              \
   msgrng_flags_save(mflags);                                 \
  }while(0)
 
 #define msgrng_access_restore(lock, mflags) do {             \
   msgrng_flags_restore(mflags);                              \
-  mtx_unlock_spin(lock);                                     \
+  if (rmi_spin_mutex_safe) mtx_unlock_spin(lock);            \
  }while(0)
 
 #define msgrng_access_enable(mflags) do {   \

@@ -38,9 +38,10 @@ __FBSDID("$FreeBSD: src/sys/dev/uart/uart_bus_iodi.c,v 1.6.2.5 2006/02/15 09:16:
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
+#include <mips/rmi/iomap.h>
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_bus.h>
+#include <dev/uart/uart_cpu.h>
 
 static int uart_iodi_probe(device_t dev);
 
@@ -58,14 +59,20 @@ static driver_t uart_iodi_driver = {
 	sizeof(struct uart_softc),
 };
 
+
+extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 static int
 uart_iodi_probe(device_t dev)
 {
 	struct uart_softc *sc;
-
 	sc = device_get_softc(dev);
+	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	sc->sc_class = &uart_ns8250_class;
-
+	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
+	sc->sc_sysdev->bas.bst = rmi_bus_space;
+	sc->sc_sysdev->bas.bsh = MIPS_PHYS_TO_KSEG1(XLR_UART0ADDR);
+	sc->sc_bas.bst = rmi_bus_space;
+	sc->sc_bas.bsh = MIPS_PHYS_TO_KSEG1(XLR_UART0ADDR);
 	/* regshft = 2, rclk = 66000000, rid = 0, chan = 0 */
 	return (uart_bus_probe(dev, 2, 66000000, 0, 0));
 }

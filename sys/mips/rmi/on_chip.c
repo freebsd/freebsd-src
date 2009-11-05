@@ -262,10 +262,12 @@ register_msgring_handler(int major,
 
 	//dbg_msg("major=%d, action=%p, dev_id=%p\n", major, action, dev_id);
 
-	mtx_lock_spin(&msgrng_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_lock_spin(&msgrng_lock);
 	tx_stn_handlers[major].action = action;
 	tx_stn_handlers[major].dev_id = dev_id;
-	mtx_unlock_spin(&msgrng_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_unlock_spin(&msgrng_lock);
 
 	if (xlr_test_and_set(&msgring_int_enabled)) {
 		platform_prep_smp_launch();
@@ -301,6 +303,7 @@ pic_init(void)
 		 */
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + i, (level << 30) | (1 << 6) | (PIC_IRQ_BASE + i));
 	}
+	dbg_msg("PIC init now done\n");
 }
 
 void 

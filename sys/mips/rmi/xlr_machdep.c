@@ -24,8 +24,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -92,7 +94,7 @@ unsigned long xlr_io_base = (unsigned long)(DEFAULT_XLR_IO_BASE);
    the dynamic kenv is setup */
 char boot1_env[4096];
 extern unsigned long _gp;
-
+int rmi_spin_mutex_safe=0;
 /*
  * Parameters from boot loader
  */
@@ -366,8 +368,48 @@ mips_init(void)
 #endif
 }
 
-void tick_init(void);
+void (*xlr_putchar)(char)=NULL;
 
+static void
+xlr_putc_init(void)
+{
+	uint32_t addr;
+	addr = (uint32_t)(xlr_boot1_info.uart_putchar & 0x00000000ffffffff);
+	xlr_putchar = (void (*)(char))(addr);
+}
+
+void xlr_putc(char);
+void xlr_print_int(uint32_t val);
+
+void
+xlr_putc(char c)
+{
+	(*xlr_putchar)(c);
+	DELAY(1000);
+}
+
+void
+xlr_print_int(uint32_t val)
+{
+  int i;
+  int idx;
+  char ary[16] = {
+	'0', '1', '2', '3',
+	'4', '5', '6', '7',
+	'8', '9', 'a', 'b',
+	'c', 'd', 'e', 'f'
+  };
+  xlr_putc('0');
+  xlr_putc('x');
+  for(i=7;i>=0;i--) {
+	idx = (val >> (i*4)) & 0x0000000f;
+	xlr_putc(ary[idx]);
+  }
+  xlr_putc(' ');
+  xlr_putc(015);
+  xlr_putc(012);
+}
+void tick_init(void);
 void
 platform_start(__register_t a0 __unused,
     __register_t a1 __unused,
@@ -377,7 +419,6 @@ platform_start(__register_t a0 __unused,
 	vm_size_t physsz = 0;
 	int i, j;
 	struct xlr_boot1_mem_map *boot_map;
-
 #ifdef SMP
 	uint32_t tmp;
 	void (*wakeup) (void *, void *, unsigned int);
@@ -411,10 +452,14 @@ platform_start(__register_t a0 __unused,
 	 * xlr_boot1_info.cpu_frequency here.
 	 */
 	mips_timer_early_init(platform_get_frequency());
-	mips_timer_init_params(platform_get_frequency(), 0);
+
+	/* Init the time counter in the PIC and local putc routine*/
+	xlr_putc_init();
+	rmi_early_counter_init();
+	
+	/* Init console please */
 	cninit();
 	init_static_kenv(boot1_env, sizeof(boot1_env));
-
 	printf("Environment (from %d args):\n", xlr_argc - 1);
 	if (xlr_argc == 1)
 		printf("\tNone\n");
@@ -538,7 +583,12 @@ platform_start(__register_t a0 __unused,
 	 * mips_init() XXX NOTE: We may need to move this to SMP based init
 	 * code for each CPU, later.
 	 */
+	printf("Here\n");
+	rmi_spin_mutex_safe = 1;
 	on_chip_init();
+	printf("there\n");
+	mips_timer_init_params(platform_get_frequency(), 0);
+	printf("ok\n");
 	tick_init();
 }
 

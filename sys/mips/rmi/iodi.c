@@ -99,6 +99,7 @@ static void pic_usb_ack(void *arg)
 }
 */
 
+
 static int
 iodi_setup_intr(device_t dev, device_t child,
     struct resource *ires, int flags, driver_filter_t * filt, driver_intr_t * intr, void *arg,
@@ -111,11 +112,13 @@ iodi_setup_intr(device_t dev, device_t child,
 	/* FIXME is this the right place to fiddle with PIC? */
 	if (strcmp(device_get_name(child), "uart") == 0) {
 		/* FIXME uart 1? */
-		mtx_lock_spin(&xlr_pic_lock);
+   	    if (rmi_spin_mutex_safe)
+		  mtx_lock_spin(&xlr_pic_lock);
 		level = PIC_IRQ_IS_EDGE_TRIGGERED(PIC_IRT_UART_0_INDEX);
 		xlr_write_reg(mmio, PIC_IRT_0_UART_0, 0x01);
 		xlr_write_reg(mmio, PIC_IRT_1_UART_0, ((1 << 31) | (level << 30) | (1 << 6) | (PIC_UART_0_IRQ)));
-		mtx_unlock_spin(&xlr_pic_lock);
+   	    if (rmi_spin_mutex_safe)
+		  mtx_unlock_spin(&xlr_pic_lock);
 		cpu_establish_hardintr("uart", NULL,
 		    (driver_intr_t *) intr, (void *)arg, PIC_UART_0_IRQ, flags, cookiep);
 
@@ -123,16 +126,20 @@ iodi_setup_intr(device_t dev, device_t child,
 		int irq;
 
 		irq = rman_get_rid(ires);
-		mtx_lock_spin(&xlr_pic_lock);
+   	    if (rmi_spin_mutex_safe)
+		  mtx_lock_spin(&xlr_pic_lock);
 		reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE);
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE, reg | (1 << 6) | (1 << 30) | (1 << 31));
-		mtx_unlock_spin(&xlr_pic_lock);
+   	    if (rmi_spin_mutex_safe)
+		  mtx_unlock_spin(&xlr_pic_lock);
 		cpu_establish_hardintr("rge", NULL, (driver_intr_t *) intr, (void *)arg, irq, flags, cookiep);
 
 	} else if (strcmp(device_get_name(child), "ehci") == 0) {
+   	    if (rmi_spin_mutex_safe)
 		mtx_lock_spin(&xlr_pic_lock);
 		reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + PIC_USB_IRQ - PIC_IRQ_BASE);
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + PIC_USB_IRQ - PIC_IRQ_BASE, reg | (1 << 6) | (1 << 30) | (1 << 31));
+   	    if (rmi_spin_mutex_safe)
 		mtx_unlock_spin(&xlr_pic_lock);
 		cpu_establish_hardintr("ehci", NULL, (driver_intr_t *) intr, (void *)arg, PIC_USB_IRQ, flags, cookiep);
 	}

@@ -163,6 +163,24 @@ pic_timecounthandler(struct trapframe *tf)
 }
 
 void
+rmi_early_counter_init()
+{
+	int cpu = PCPU_GET(cpuid);
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+
+	/* We do this to get the PIC time counter running right
+	 * after system start. Otherwise the DELAY() function will
+	 * not be able to work since it won't have a TC to read.
+	 */
+	xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_0, (0xffffffff & 0xffffffff));
+	xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0xffffffff & 0xffffffff));
+	xlr_write_reg(mmio, PIC_IRT_0_TIMER_6, (1 << cpu));
+	xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1 << 31) | (0 << 30) | (1 << 6) | (PIC_TIMER_6_IRQ));
+	pic_update_control(1 << (8 + 6));
+}
+
+
+void
 platform_initclocks(void)
 {
 	int cpu = PCPU_GET(cpuid);
@@ -204,7 +222,8 @@ platform_initclocks(void)
 
 		/* Setup PIC Interrupt */
 
-		mtx_lock_spin(&xlr_pic_lock);
+		if (rmi_spin_mutex_safe)
+		  mtx_lock_spin(&xlr_pic_lock);
 		xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_0, (maxval & 0xffffffff));	/* 0x100 + 7 */
 		xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_1, (maxval >> 32) & 0xffffffff);	/* 0x110 + 7 */
 		/* 0x40 + 8 */
@@ -221,7 +240,8 @@ platform_initclocks(void)
 		xlr_write_reg(mmio, PIC_IRT_0_TIMER_6, (1 << cpu));
 		xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1 << 31) | (0 << 30) | (1 << 6) | (PIC_TIMER_6_IRQ));
 		pic_update_control(1 << (8 + 6));
-		mtx_unlock_spin(&xlr_pic_lock);
+		if (rmi_spin_mutex_safe)
+		  mtx_unlock_spin(&xlr_pic_lock);
 	} else {
 		/* Setup count-compare interrupt for vcpu[1-31] */
 		mips_wr_compare((xlr_boot1_info.cpu_frequency) / hz);
