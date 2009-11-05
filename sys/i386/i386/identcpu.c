@@ -1315,12 +1315,9 @@ print_AMD_info(void)
 	 * model and family are identified.
 	 */
 	if (CPUID_TO_FAMILY(cpu_id) == 0xf && CPUID_TO_MODEL(cpu_id) >= 0x20 &&
-	    CPUID_TO_MODEL(cpu_id) <= 0x3f) {
+	    CPUID_TO_MODEL(cpu_id) <= 0x3f)
 		printf("WARNING: This architecture revision has known SMP "
 		    "hardware bugs which may cause random instability\n");
-		printf("WARNING: For details see: "
-		    "http://bugzilla.kernel.org/show_bug.cgi?id=11305\n");
-	}
 }
 
 static void
