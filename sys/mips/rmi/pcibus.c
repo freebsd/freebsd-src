@@ -148,7 +148,6 @@ static void pic_pcie_ack(void *arg)
 
 */
 
-
 int
 mips_platform_pci_setup_intr(device_t dev, device_t child,
     struct resource *irq, int flags,
@@ -174,21 +173,22 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		return 0;
 
 	if (xlr_board_info.is_xls == 0) {
-		mtx_lock_spin(&xlr_pic_lock);
+	
+		if (rmi_spin_mutex_safe) mtx_lock_spin(&xlr_pic_lock);
 		level = PIC_IRQ_IS_EDGE_TRIGGERED(PIC_IRT_PCIX_INDEX);
 		xlr_write_reg(mmio, PIC_IRT_0_PCIX, 0x01);
 		xlr_write_reg(mmio, PIC_IRT_1_PCIX, ((1 << 31) | (level << 30) |
 		    (1 << 6) | (PIC_PCIX_IRQ)));
-		mtx_unlock_spin(&xlr_pic_lock);
+		if (rmi_spin_mutex_safe) mtx_unlock_spin(&xlr_pic_lock);
 		cpu_establish_hardintr(device_get_name(child), filt,
 		    (driver_intr_t *) intr, (void *)arg, PIC_PCIX_IRQ, flags, cookiep);
 
 	} else {
-		mtx_lock_spin(&xlr_pic_lock);
+		if (rmi_spin_mutex_safe) mtx_lock_spin(&xlr_pic_lock);
 		xlr_write_reg(mmio, PIC_IRT_0_BASE + xlrirq - PIC_IRQ_BASE, 0x01);
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + xlrirq - PIC_IRQ_BASE,
 		    ((1 << 31) | (1 << 30) | (1 << 6) | xlrirq));
-		mtx_unlock_spin(&xlr_pic_lock);
+		if (rmi_spin_mutex_safe) mtx_unlock_spin(&xlr_pic_lock);
 
 		if (flags & INTR_FAST)
 			cpu_establish_hardintr(device_get_name(child), filt,

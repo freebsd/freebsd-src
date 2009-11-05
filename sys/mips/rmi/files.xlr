@@ -18,6 +18,7 @@ mips/rmi/pcibus.c				optional pci
 mips/rmi/xlr_pci.c				optional pci
 #mips/rmi/xls_ehci.c				optional usb ehci
 dev/rmi/xlr/rge.c				optional rge
+mips/rmi/bus_space_rmi.c			standard
 dev/iicbus/xlr_rtc.c				optional xlr_rtc
 dev/iicbus/xlr_temperature.c			optional xlr_temperature
 dev/iicbus/xlr_eeprom.c				optional xlr_eeprom

@@ -30,6 +30,7 @@
 #ifndef _RMI_PIC_H_
 #define _RMI_PIC_H_
 
+extern int rmi_spin_mutex_safe;
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -206,9 +207,11 @@ pic_read_control(void)
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 	__uint32_t reg;
 
-	mtx_lock_spin(&xlr_pic_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_lock_spin(&xlr_pic_lock);
 	xlr_read_reg(mmio, PIC_CTRL);
-	mtx_unlock_spin(&xlr_pic_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_unlock_spin(&xlr_pic_lock);
 	return reg;
 }
 
@@ -217,18 +220,22 @@ pic_write_control(__uint32_t control)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	mtx_lock_spin(&xlr_pic_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_lock_spin(&xlr_pic_lock);
 	xlr_write_reg(mmio, PIC_CTRL, control);
-	mtx_unlock_spin(&xlr_pic_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_unlock_spin(&xlr_pic_lock);
 }
 static __inline__ void 
 pic_update_control(__uint32_t control)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	mtx_lock_spin(&xlr_pic_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_lock_spin(&xlr_pic_lock);
 	xlr_write_reg(mmio, PIC_CTRL, (control | xlr_read_reg(mmio, PIC_CTRL)));
-	mtx_unlock_spin(&xlr_pic_lock);
+	if (rmi_spin_mutex_safe)
+	  mtx_unlock_spin(&xlr_pic_lock);
 }
 
 static __inline__ void 
@@ -241,8 +248,10 @@ pic_ack(int irq)
 		return;
 
 	if (PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
+	  if (rmi_spin_mutex_safe)
 		mtx_lock_spin(&xlr_pic_lock);
-		xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
+	  xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
+	  if (rmi_spin_mutex_safe)
 		mtx_unlock_spin(&xlr_pic_lock);
 		return;
 	}
@@ -258,9 +267,11 @@ pic_delayed_ack(int irq)
 		return;
 
 	if (!PIC_IRQ_IS_EDGE_TRIGGERED(irq)) {
-		mtx_lock_spin(&xlr_pic_lock);
+	    if (rmi_spin_mutex_safe)
+		  mtx_lock_spin(&xlr_pic_lock);
 		xlr_write_reg(mmio, PIC_INT_ACK, (1 << (irq - PIC_IRQ_BASE)));
-		mtx_unlock_spin(&xlr_pic_lock);
+		if (rmi_spin_mutex_safe)
+		  mtx_unlock_spin(&xlr_pic_lock);
 		return;
 	}
 }

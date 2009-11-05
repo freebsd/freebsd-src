@@ -50,101 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-
-static int xlr_uart_probe(struct uart_bas *bas);
-static void xlr_uart_init(struct uart_bas *bas, int, int, int, int);
-static void xlr_uart_term(struct uart_bas *bas);
-static void xlr_uart_putc(struct uart_bas *bas, int);
-
-/*static int xlr_uart_poll(struct uart_bas *bas);*/
-static int xlr_uart_getc(struct uart_bas *bas, struct mtx *hwmtx);
-struct mtx xlr_uart_mtx;	/* UartLock */
-
-extern struct uart_ops uart_ns8250_ops;
-
-struct uart_ops xlr_uart_ns8250_ops = {
-	.probe = xlr_uart_probe,
-	.init = xlr_uart_init,
-	.term = xlr_uart_term,
-	.putc = xlr_uart_putc,
-	/* .poll = xlr_uart_poll, ?? */
-	.getc = xlr_uart_getc,
-};
+#include <mips/rmi/iomap.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
-
-static __inline void 
-xlr_uart_lock(struct mtx *hwmtx)
-{
-	if (!mtx_initialized(hwmtx))
-		return;
-	if (!kdb_active && hwmtx != NULL)
-		mtx_lock_spin(hwmtx);
-}
-
-static __inline void 
-xlr_uart_unlock(struct mtx *hwmtx)
-{
-	if (!mtx_initialized(hwmtx))
-		return;
-	if (!kdb_active && hwmtx != NULL)
-		mtx_unlock_spin(hwmtx);
-}
-
-
-static int 
-xlr_uart_probe(struct uart_bas *bas)
-{
-	int res;
-
-	xlr_uart_lock(&xlr_uart_mtx);
-	res = uart_ns8250_ops.probe(bas);
-	xlr_uart_unlock(&xlr_uart_mtx);
-	return res;
-}
-
-static void 
-xlr_uart_init(struct uart_bas *bas, int baudrate, int databits,
-    int stopbits, int parity)
-{
-	xlr_uart_lock(&xlr_uart_mtx);
-	uart_ns8250_ops.init(bas, baudrate, databits, stopbits, parity);
-	xlr_uart_unlock(&xlr_uart_mtx);
-}
-
-static void 
-xlr_uart_term(struct uart_bas *bas)
-{
-	xlr_uart_lock(&xlr_uart_mtx);
-	uart_ns8250_ops.term(bas);
-	xlr_uart_unlock(&xlr_uart_mtx);
-}
-
-static void 
-xlr_uart_putc(struct uart_bas *bas, int c)
-{
-	xlr_uart_lock(&xlr_uart_mtx);
-	uart_ns8250_ops.putc(bas, c);
-	xlr_uart_unlock(&xlr_uart_mtx);
-}
-
-/*
-static int xlr_uart_poll(struct uart_bas *bas)
-{
-	int res;
-	xlr_uart_lock(&xlr_uart_mtx);
-	res = uart_ns8250_ops.poll(bas);
-	xlr_uart_unlock(&xlr_uart_mtx);
-	return res;
-}
-*/
-
-static int 
-xlr_uart_getc(struct uart_bas *bas, struct mtx *hwmtx)
-{
-	return uart_ns8250_ops.getc(bas, hwmtx);
-}
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
@@ -156,29 +65,20 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	di->ops = &xlr_uart_ns8250_ops;
+	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;
-	di->bas.bst = uart_bus_space_mem;
-	/* TODO Need to call bus_space_map() here */
-	di->bas.bsh = 0xbef14000;	/* Try with UART0 */
+	di->bas.bst = rmi_bus_space;
+	di->bas.bsh = MIPS_PHYS_TO_KSEG1(XLR_UART0ADDR);
+	
 	di->bas.regshft = 2;
 	/* divisor = rclk / (baudrate * 16); */
 	di->bas.rclk = 66000000;
-
-	di->baudrate = 38400;
+	di->baudrate = 0;
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 
-	/* TODO: Read env variables for all console parameters */
-
+	uart_bus_space_io = NULL;
+	uart_bus_space_mem = rmi_bus_space;
 	return (0);
 }
-
-static void 
-xlr_uart_mtx_init(void *dummy __unused)
-{
-	mtx_init(&xlr_uart_mtx, "uart lock", NULL, MTX_SPIN);
-}
-
-SYSINIT(xlr_init_uart_mtx, SI_SUB_LOCK, SI_ORDER_ANY, xlr_uart_mtx_init, NULL);
