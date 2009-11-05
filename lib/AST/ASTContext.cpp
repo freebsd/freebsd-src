@@ -1374,7 +1374,7 @@ QualType ASTContext::getMemberPointerType(QualType T, const Type *Cls) {
   // If the pointee or class type isn't canonical, this won't be a canonical
   // type either, so fill in the canonical type field.
   QualType Canonical;
-  if (!T.isCanonical()) {
+  if (!T.isCanonical() || !Cls->isCanonicalUnqualified()) {
     Canonical = getMemberPointerType(getCanonicalType(T),getCanonicalType(Cls));
 
     // Get the new insert position for the node we care about.
@@ -1395,7 +1395,8 @@ QualType ASTContext::getConstantArrayType(QualType EltTy,
                                           const llvm::APInt &ArySizeIn,
                                           ArrayType::ArraySizeModifier ASM,
                                           unsigned EltTypeQuals) {
-  assert((EltTy->isDependentType() || EltTy->isConstantSizeType()) &&
+  assert((EltTy->isDependentType() ||
+          EltTy->isIncompleteType() || EltTy->isConstantSizeType()) &&
          "Constant array of VLAs is illegal!");
 
   // Convert the array size into a canonical width matching the pointer size for

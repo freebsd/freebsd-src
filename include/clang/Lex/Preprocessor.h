@@ -96,7 +96,7 @@ class Preprocessor {
 
   /// Identifiers - This is mapping/lookup information for all identifiers in
   /// the program, including program keywords.
-  IdentifierTable Identifiers;
+  mutable IdentifierTable Identifiers;
 
   /// Selectors - This table contains all the selectors in the program. Unlike
   /// IdentifierTable above, this table *isn't* populated by the preprocessor.
@@ -296,12 +296,8 @@ public:
   /// pointers is preferred unless the identifier is already available as a
   /// string (this avoids allocation and copying of memory to construct an
   /// std::string).
-  IdentifierInfo *getIdentifierInfo(const char *NameStart,
-                                    const char *NameEnd) {
-    return &Identifiers.get(NameStart, NameEnd);
-  }
-  IdentifierInfo *getIdentifierInfo(const char *NameStr) {
-    return getIdentifierInfo(NameStr, NameStr+strlen(NameStr));
+  IdentifierInfo *getIdentifierInfo(llvm::StringRef Name) const {
+    return &Identifiers.get(Name);
   }
 
   /// AddPragmaHandler - Add the specified pragma handler to the preprocessor.
@@ -583,7 +579,7 @@ public:
   /// LookUpIdentifierInfo - Given a tok::identifier token, look up the
   /// identifier information for the token and install it into the token.
   IdentifierInfo *LookUpIdentifierInfo(Token &Identifier,
-                                       const char *BufPtr = 0);
+                                       const char *BufPtr = 0) const;
 
   /// HandleIdentifier - This callback is invoked when the lexer reads an
   /// identifier and has filled in the tokens IdentifierInfo member.  This
@@ -829,14 +825,6 @@ public:
   void HandlePragmaDependency(Token &DependencyTok);
   void HandlePragmaComment(Token &CommentTok);
   void HandleComment(SourceRange Comment);
-};
-
-/// PreprocessorFactory - A generic factory interface for lazily creating
-///  Preprocessor objects on-demand when they are needed.
-class PreprocessorFactory {
-public:
-  virtual ~PreprocessorFactory();
-  virtual Preprocessor* CreatePreprocessor() = 0;
 };
 
 /// \brief Abstract base class that describes a handler that will receive
