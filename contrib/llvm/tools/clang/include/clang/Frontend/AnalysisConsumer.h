@@ -19,7 +19,6 @@ namespace clang {
 class ASTConsumer;
 class Diagnostic;
 class Preprocessor;
-class PreprocessorFactory;
 class LangOptions;
 
 /// Analysis - Set of available source code analyses.
@@ -69,9 +68,7 @@ struct AnalyzerOptions {
 /// CreateAnalysisConsumer - Creates an ASTConsumer to run various code
 /// analysis passes.  (The set of analyses run is controlled by command-line
 /// options.)
-ASTConsumer* CreateAnalysisConsumer(Diagnostic &diags, Preprocessor *pp,
-                                    PreprocessorFactory *ppf,
-                                    const LangOptions &lopts,
+ASTConsumer* CreateAnalysisConsumer(const Preprocessor &pp,
                                     const std::string &output,
                                     const AnalyzerOptions& Opts);
 

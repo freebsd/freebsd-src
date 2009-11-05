@@ -11,6 +11,9 @@ endif
 # 'lit' wants objdir paths, so it will pick up the lit.site.cfg.
 TESTDIRS := $(TESTDIRS:$(PROJ_SRC_DIR)%=$(PROJ_OBJ_DIR)%)
 
+# Allow EXTRA_TESTDIRS to provide additional test directories.
+TESTDIRS += $(EXTRA_TESTDIRS)
+
 ifndef TESTARGS
 ifdef VERBOSE
 TESTARGS = -v
@@ -19,16 +22,17 @@ TESTARGS = -s
 endif
 endif
 
+# Make sure any extra test suites can find the main site config.
+LIT_ARGS := --param clang_site_config=$(PROJ_OBJ_DIR)/lit.site.cfg
+
 ifdef VG
-  VGARG="--vg"
-else
-  VGARG=
+  LIT_ARGS += "--vg"
 endif
 
 all:: lit.site.cfg
 	@ echo '--- Running clang tests for $(TARGET_TRIPLE) ---'
 	@ $(PYTHON) $(LLVM_SRC_ROOT)/utils/lit/lit.py \
-	  $(TESTARGS) $(TESTDIRS) $(VGARG)
+	  $(LIT_ARGS) $(TESTARGS) $(TESTDIRS)
 
 FORCE:
 

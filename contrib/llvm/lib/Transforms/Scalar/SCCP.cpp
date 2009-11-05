@@ -370,13 +370,13 @@ private:
   /// by properly seeding constants etc.
   LatticeVal &getValueState(Value *V) {
     assert(!isa<StructType>(V->getType()) && "Should use getStructValueState");
-    
-    // TODO: Change to do insert+find in one operation.
-    DenseMap<Value*, LatticeVal>::iterator I = ValueState.find(V);
-    if (I != ValueState.end())
-      return I->second;  // Common case, already in the map.
 
-    LatticeVal &LV = ValueState[V];
+    std::pair<DenseMap<Value*, LatticeVal>::iterator, bool> I =
+      ValueState.insert(std::make_pair(V, LatticeVal()));
+    LatticeVal &LV = I.first->second;
+
+    if (!I.second)
+      return LV;  // Common case, already in the map.
 
     if (Constant *C = dyn_cast<Constant>(V)) {
       // Undef values remain undefined.
@@ -395,15 +395,15 @@ private:
     assert(isa<StructType>(V->getType()) && "Should use getValueState");
     assert(i < cast<StructType>(V->getType())->getNumElements() &&
            "Invalid element #");
-    
-    // TODO: Change to do insert+find in one operation.
-    DenseMap<std::pair<Value*, unsigned>, LatticeVal>::iterator
-      I = StructValueState.find(std::make_pair(V, i));
-    if (I != StructValueState.end())
-      return I->second;  // Common case, already in the map.
-    
-    LatticeVal &LV = StructValueState[std::make_pair(V, i)];
-    
+
+    std::pair<DenseMap<std::pair<Value*, unsigned>, LatticeVal>::iterator,
+              bool> I = StructValueState.insert(
+                        std::make_pair(std::make_pair(V, i), LatticeVal()));
+    LatticeVal &LV = I.first->second;
+
+    if (!I.second)
+      return LV;  // Common case, already in the map.
+
     if (Constant *C = dyn_cast<Constant>(V)) {
       if (isa<UndefValue>(C))
         ; // Undef values remain undefined.
@@ -1280,9 +1280,10 @@ CallOverdefined:
       }
       
       if (const StructType *STy = dyn_cast<StructType>(AI->getType())) {
-        for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i)
-          mergeInValue(getStructValueState(AI, i), AI,
-                       getStructValueState(*CAI, i));
+        for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
+          LatticeVal CallArg = getStructValueState(*CAI, i);
+          mergeInValue(getStructValueState(AI, i), AI, CallArg);
+        }
       } else {
         mergeInValue(AI, getValueState(*CAI));
       }

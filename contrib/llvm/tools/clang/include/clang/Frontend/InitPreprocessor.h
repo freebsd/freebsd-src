@@ -29,7 +29,16 @@ class PreprocessorInitOptions {
   std::vector<std::pair<std::string, bool/*isPTH*/> > Includes;
   std::vector<std::string> MacroIncludes;
 
+  unsigned UsePredefines : 1; /// Initialize the preprocessor with the compiler
+                              /// and target specific predefines.
+
 public:
+  PreprocessorInitOptions() : UsePredefines(true) {}
+
+  bool getUsePredefines() const { return UsePredefines; }
+  void setUsePredefines(bool Value) {
+    UsePredefines = Value;
+  }
 
   void addMacroDef(const std::string &Name) {
     Macros.push_back(std::make_pair(Name, false));
@@ -60,11 +69,10 @@ public:
 };
 
 /// InitializePreprocessor - Initialize the preprocessor getting it and the
-/// environment ready to process a single file. This returns true on error.
+/// environment ready to process a single file.
 ///
-bool InitializePreprocessor(Preprocessor &PP,
-                            const PreprocessorInitOptions& InitOptions,
-                            bool undef_macros);
+void InitializePreprocessor(Preprocessor &PP,
+                            const PreprocessorInitOptions& InitOptions);
 
 } // end namespace clang
 
