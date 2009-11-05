@@ -53,12 +53,15 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 
 	*regsz = gdb_cpu_regsz(regnum);
 
-	if (kdb_thread  == curthread) {
-		if (regnum < 16)
-			return (&kdb_frame->tf_r0 + 4 * regnum);
+	if (kdb_thread == curthread) {
+		if (regnum < 15)
+			return (&kdb_frame->tf_r0 + regnum);
+		if (regnum == 15)
+			return (&kdb_frame->tf_pc);
 		if (regnum == 25)
 			return (&kdb_frame->tf_spsr);
 	}
+
 	switch (regnum) {
 	case 8:  return (&kdb_thrctx->un_32.pcb32_r8);
 	case 9:  return (&kdb_thrctx->un_32.pcb32_r9);
@@ -78,6 +81,7 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 			  return (&kdb_thrctx->un_32.pcb32_pc);
 		  }
 	}
+
 	return (NULL);
 }
 
