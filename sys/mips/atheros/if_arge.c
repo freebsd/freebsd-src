@@ -905,8 +905,10 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((ifp->if_flags & IFF_UP) != 0) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 				if (((ifp->if_flags ^ sc->arge_if_flags)
-				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
-					arge_rx_locked(sc);
+				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+					/* XXX: handle promisc & multi flags */
+				}
+					
 			} else {
 				if (!sc->arge_detach)
 					arge_init_locked(sc);
