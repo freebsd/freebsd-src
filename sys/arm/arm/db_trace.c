@@ -194,13 +194,10 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 int
 db_trace_thread(struct thread *thr, int count)
 {
-	uint32_t addr;
+	struct pcb *ctx;
 
-	if (thr == curthread)
-		addr = (uint32_t)__builtin_frame_address(0);
-	else
-		addr = thr->td_pcb->un_32.pcb32_r11;
-	db_stack_trace_cmd(addr, -1);
+	ctx = kdb_thr_ctx(thr);
+	db_stack_trace_cmd(ctx->un_32.pcb32_r11, -1);
 	return (0);
 }
 
