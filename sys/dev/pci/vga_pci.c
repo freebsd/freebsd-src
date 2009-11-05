@@ -40,11 +40,16 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/fbio.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+
+#include <dev/fb/fbreg.h>
+#include <dev/fb/vgareg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -63,7 +68,7 @@ SYSCTL_DECL(_hw_pci);
 
 int vga_pci_default_unit = -1;
 TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
-SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RD,
+SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
     &vga_pci_default_unit, -1, "Default VGA-compatible display");
 
 static int
@@ -112,13 +117,86 @@ vga_pci_attach(device_t dev)
 static int
 vga_pci_suspend(device_t dev)
 {
+	vga_softc_t *sc;
+	devclass_t dc;
+	int err, nbytes;
 
-	return (bus_generic_suspend(dev));
+	err = bus_generic_suspend(dev);
+	if (err)
+		return (err);
+
+	sc = NULL;
+	if (device_get_unit(dev) == vga_pci_default_unit) {
+		dc = devclass_find(VGA_DRIVER_NAME);
+		if (dc != NULL)
+			sc = devclass_get_softc(dc, 0);
+	}
+	if (sc == NULL)
+		return (0);
+
+	/* Save the video state across the suspend. */
+	if (sc->state_buf != NULL)
+		goto save_palette;
+	nbytes = vidd_save_state(sc->adp, NULL, 0);
+	if (nbytes <= 0)
+		goto save_palette;
+	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT);
+	if (sc->state_buf == NULL)
+		goto save_palette;
+	if (bootverbose)
+		device_printf(dev, "saving %d bytes of video state\n", nbytes);
+	if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
+		device_printf(dev, "failed to save state (nbytes=%d)\n",
+		    nbytes);
+		free(sc->state_buf, M_TEMP);
+		sc->state_buf = NULL;
+	}
+
+save_palette:
+	/* Save the color palette across the suspend. */
+	if (sc->pal_buf != NULL)
+		return (0);
+	sc->pal_buf = malloc(256 * 3, M_TEMP, M_NOWAIT);
+	if (sc->pal_buf != NULL) {
+		if (bootverbose)
+			device_printf(dev, "saving color palette\n");
+		if (vidd_save_palette(sc->adp, sc->pal_buf) != 0) {
+			device_printf(dev, "failed to save palette\n");
+			free(sc->pal_buf, M_TEMP);
+			sc->pal_buf = NULL;
+		}
+	}
+
+	return (0);
 }
 
 static int
 vga_pci_resume(device_t dev)
 {
+	vga_softc_t *sc;
+	devclass_t dc;
+
+	sc = NULL;
+	if (device_get_unit(dev) == vga_pci_default_unit) {
+		dc = devclass_find(VGA_DRIVER_NAME);
+		if (dc != NULL)
+			sc = devclass_get_softc(dc, 0);
+	}
+	if (sc == NULL)
+		return (bus_generic_resume(dev));
+
+	if (sc->state_buf != NULL) {
+		if (vidd_load_state(sc->adp, sc->state_buf) != 0)
+			device_printf(dev, "failed to reload state\n");
+		free(sc->state_buf, M_TEMP);
+		sc->state_buf = NULL;
+	}
+	if (sc->pal_buf != NULL) {
+		if (vidd_load_palette(sc->adp, sc->pal_buf) != 0)
+			device_printf(dev, "failed to reload palette\n");
+		free(sc->pal_buf, M_TEMP);
+		sc->pal_buf = NULL;
+	}
 
 	return (bus_generic_resume(dev));
 }

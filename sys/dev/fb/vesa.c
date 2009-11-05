@@ -164,7 +164,6 @@ static char *vesa_revstr = NULL;
 static int int10_set_mode(int mode);
 static int vesa_bios_post(void);
 static int vesa_bios_get_mode(int mode, struct vesa_mode *vmode);
-static int vesa_bios_get_current_mode(void);
 static int vesa_bios_set_mode(int mode);
 static int vesa_bios_get_dac(void);
 static int vesa_bios_set_dac(int bits);
@@ -316,22 +315,6 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	x86bios_free(buf, sizeof(*vmode));
 
 	return (0);
-}
-
-static int
-vesa_bios_get_current_mode(void)
-{
-	x86regs_t regs;
-
-	x86bios_init_regs(&regs);
-	regs.R_AX = 0x4f03;
-
-	x86bios_intr(&regs, 0x10);
-
-	if (regs.R_AX != 0x004f)
-		return (-1);
-
-	return (regs.R_BX);
 }
 
 static int
@@ -1438,7 +1421,6 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 static int
 vesa_load_state(video_adapter_t *adp, void *p)
 {
-	int flags, mode, ret;
 
 	if ((adp != vesa_adp) || (((adp_state_t *)p)->sig != V_STATE_SIG))
 		return ((*prevvidsw->load_state)(adp, p));
@@ -1446,38 +1428,12 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	if (vesa_state_buf_size <= 0)
 		return (1);
 
-	/*
-	 * If the current mode is not the same, probably it was powered down.
-	 * Try BIOS POST to restore a sane state.
-	 */
-	if (VESA_MODE(adp->va_mode)) {
-		mode = vesa_bios_get_current_mode();
-		if (mode >= 0 && (mode & 0x1ff) != adp->va_mode)
-			(void)vesa_bios_post();
-	}
+	/* Try BIOS POST to restore a sane state. */
+	(void)vesa_bios_post();
+	(void)int10_set_mode(adp->va_initial_bios_mode);
 
-	ret = vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs,
-	    vesa_state_buf_size);
-
-	/*
-	 * If the desired mode is not restored, force setting the mode.
-	 */
-	if (VESA_MODE(adp->va_mode)) {
-		mode = vesa_bios_get_current_mode();
-		if (mode < 0 || (mode & 0x1ff) == adp->va_mode)
-			return (ret);
-		mode = adp->va_mode;
-		flags = adp->va_info.vi_flags;
-		if ((flags & V_INFO_GRAPHICS) != 0 &&
-		    (flags & V_INFO_LINEAR) != 0)
-			mode |= 0x4000;
-		(void)vesa_bios_set_mode(mode);
-		if ((vesa_adp_info->v_flags & V_DAC8) != 0)
-			(void)vesa_bios_set_dac(8);
-		(void)(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
-	}
-
-	return (ret);
+	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs,
+	    vesa_state_buf_size));
 }
 
 #if 0
