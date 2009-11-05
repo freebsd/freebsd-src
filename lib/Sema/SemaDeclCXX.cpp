@@ -971,10 +971,70 @@ Sema::ActOnMemInitializer(DeclPtrTy ConstructorD,
                               RParenLoc, ClassDecl);
 }
 
+/// Checks an initializer expression for use of uninitialized fields, such as
+/// containing the field that is being initialized. Returns true if there is an
+/// uninitialized field was used an updates the SourceLocation parameter; false
+/// otherwise.
+static bool InitExprContainsUninitializedFields(const Stmt* S,
+                                                const FieldDecl* LhsField,
+                                                SourceLocation* L) {
+  const MemberExpr* ME = dyn_cast<MemberExpr>(S);
+  if (ME) {
+    const NamedDecl* RhsField = ME->getMemberDecl();
+    if (RhsField == LhsField) {
+      // Initializing a field with itself. Throw a warning.
+      // But wait; there are exceptions!
+      // Exception #1:  The field may not belong to this record.
+      // e.g. Foo(const Foo& rhs) : A(rhs.A) {}
+      const Expr* base = ME->getBase();
+      if (base != NULL && !isa<CXXThisExpr>(base->IgnoreParenCasts())) {
+        // Even though the field matches, it does not belong to this record.
+        return false;
+      }
+      // None of the exceptions triggered; return true to indicate an
+      // uninitialized field was used.
+      *L = ME->getMemberLoc();
+      return true;
+    }
+  }
+  bool found = false;
+  for (Stmt::const_child_iterator it = S->child_begin();
+       it != S->child_end() && found == false;
+       ++it) {
+    if (isa<CallExpr>(S)) {
+      // Do not descend into function calls or constructors, as the use
+      // of an uninitialized field may be valid. One would have to inspect
+      // the contents of the function/ctor to determine if it is safe or not.
+      // i.e. Pass-by-value is never safe, but pass-by-reference and pointers
+      // may be safe, depending on what the function/ctor does.
+      continue;
+    }
+    found = InitExprContainsUninitializedFields(*it, LhsField, L);
+  }
+  return found;
+}
+
 Sema::MemInitResult
 Sema::BuildMemberInitializer(FieldDecl *Member, Expr **Args,
                              unsigned NumArgs, SourceLocation IdLoc,
                              SourceLocation RParenLoc) {
+  // Diagnose value-uses of fields to initialize themselves, e.g.
+  //   foo(foo)
+  // where foo is not also a parameter to the constructor.
+  // TODO: implement -Wuninitialized and fold this into that framework.
+  for (unsigned i = 0; i < NumArgs; ++i) {
+    SourceLocation L;
+    if (InitExprContainsUninitializedFields(Args[i], Member, &L)) {
+      // FIXME: Return true in the case when other fields are used before being
+      // uninitialized. For example, let this field be the i'th field. When
+      // initializing the i'th field, throw a warning if any of the >= i'th
+      // fields are used, as they are not yet initialized.
+      // Right now we are only handling the case where the i'th field uses
+      // itself in its initializer.
+      Diag(L, diag::warn_field_is_uninit);
+    }
+  }
+
   bool HasDependentArg = false;
   for (unsigned i = 0; i < NumArgs; i++)
     HasDependentArg |= Args[i]->isTypeDependent();
@@ -985,7 +1045,9 @@ Sema::BuildMemberInitializer(FieldDecl *Member, Expr **Args,
     FieldType = Array->getElementType();
   if (FieldType->isDependentType()) {
     // Can't check init for dependent type.
-  } else if (FieldType->getAs<RecordType>()) {
+  } else if (FieldType->isRecordType()) {
+    // Member is a record (struct/union/class), so pass the initializer
+    // arguments down to the record's constructor.
     if (!HasDependentArg) {
       ASTOwningVector<&ActionBase::DeleteExpr> ConstructorArgs(*this);
 
@@ -1005,6 +1067,8 @@ Sema::BuildMemberInitializer(FieldDecl *Member, Expr **Args,
       }
     }
   } else if (NumArgs != 1 && NumArgs != 0) {
+    // The member type is not a record type (or an array of record
+    // types), so it can be only be default- or copy-initialized.
     return Diag(IdLoc, diag::err_mem_initializer_mismatch)
                 << Member->getDeclName() << SourceRange(IdLoc, RParenLoc);
   } else if (!HasDependentArg) {
@@ -1158,7 +1222,7 @@ Sema::SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
     // On seeing one dependent type, we should essentially exit this routine
     // while preserving user-declared initializer list. When this routine is
     // called during instantiatiation process, this routine will rebuild the
-    // oderdered initializer list correctly.
+    // ordered initializer list correctly.
 
     // If we have a dependent base initialization, we can't determine the
     // association between initializers and bases; just dump the known
@@ -1293,11 +1357,16 @@ Sema::SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
       continue;
     }
 
+    if ((*Field)->getType()->isDependentType()) {
+      Fields.push_back(*Field);
+      continue;
+    }
+    
     QualType FT = Context.getBaseElementType((*Field)->getType());
     if (const RecordType* RT = FT->getAs<RecordType>()) {
       CXXConstructorDecl *Ctor =
         cast<CXXRecordDecl>(RT->getDecl())->getDefaultConstructor(Context);
-      if (!Ctor && !FT->isDependentType()) {
+      if (!Ctor) {
         Fields.push_back(*Field);
         continue;
       }
@@ -1357,12 +1426,16 @@ Sema::BuildBaseOrMemberInitializers(ASTContext &C,
 
   SetBaseOrMemberInitializers(Constructor,
                               Initializers, NumInitializers, Bases, Members);
-  for (unsigned int i = 0; i < Bases.size(); i++)
-    Diag(Bases[i]->getSourceRange().getBegin(),
-         diag::err_missing_default_constructor) << 0 << Bases[i]->getType();
-  for (unsigned int i = 0; i < Members.size(); i++)
-    Diag(Members[i]->getLocation(), diag::err_missing_default_constructor)
-          << 1 << Members[i]->getType();
+  for (unsigned int i = 0; i < Bases.size(); i++) {
+    if (!Bases[i]->getType()->isDependentType())
+      Diag(Bases[i]->getSourceRange().getBegin(),
+           diag::err_missing_default_constructor) << 0 << Bases[i]->getType();
+  }
+  for (unsigned int i = 0; i < Members.size(); i++) {
+    if (!Members[i]->getType()->isDependentType())
+      Diag(Members[i]->getLocation(), diag::err_missing_default_constructor)
+        << 1 << Members[i]->getType();
+  }
 }
 
 static void *GetKeyForTopLevelField(FieldDecl *Field) {
@@ -1405,6 +1478,7 @@ static void *GetKeyForMember(CXXBaseOrMemberInitializer *Member,
   return GetKeyForBase(QualType(Member->getBaseClass(), 0));
 }
 
+/// ActOnMemInitializers - Handle the member initializers for a constructor.
 void Sema::ActOnMemInitializers(DeclPtrTy ConstructorDecl,
                                 SourceLocation ColonLoc,
                                 MemInitTy **MemInits, unsigned NumMemInits) {
@@ -2700,22 +2774,37 @@ Sema::DeclPtrTy Sema::ActOnUsingDeclaration(Scope *S,
                                             AccessSpecifier AS,
                                             SourceLocation UsingLoc,
                                             const CXXScopeSpec &SS,
-                                            SourceLocation IdentLoc,
-                                            IdentifierInfo *TargetName,
-                                            OverloadedOperatorKind Op,
+                                            UnqualifiedId &Name,
                                             AttributeList *AttrList,
                                             bool IsTypeName) {
-  assert((TargetName || Op) && "Invalid TargetName.");
   assert(S->getFlags() & Scope::DeclScope && "Invalid Scope.");
 
-  DeclarationName Name;
-  if (TargetName)
-    Name = TargetName;
-  else
-    Name = Context.DeclarationNames.getCXXOperatorName(Op);
-
-  NamedDecl *UD = BuildUsingDeclaration(UsingLoc, SS, IdentLoc,
-                                        Name, AttrList, IsTypeName);
+  switch (Name.getKind()) {
+  case UnqualifiedId::IK_Identifier:
+  case UnqualifiedId::IK_OperatorFunctionId:
+  case UnqualifiedId::IK_ConversionFunctionId:
+    break;
+      
+  case UnqualifiedId::IK_ConstructorName:
+    Diag(Name.getSourceRange().getBegin(), diag::err_using_decl_constructor)
+      << SS.getRange();
+    return DeclPtrTy();
+      
+  case UnqualifiedId::IK_DestructorName:
+    Diag(Name.getSourceRange().getBegin(), diag::err_using_decl_destructor)
+      << SS.getRange();
+    return DeclPtrTy();
+      
+  case UnqualifiedId::IK_TemplateId:
+    Diag(Name.getSourceRange().getBegin(), diag::err_using_decl_template_id)
+      << SourceRange(Name.TemplateId->LAngleLoc, Name.TemplateId->RAngleLoc);
+    return DeclPtrTy();
+  }
+  
+  DeclarationName TargetName = GetNameFromUnqualifiedId(Name);
+  NamedDecl *UD = BuildUsingDeclaration(UsingLoc, SS, 
+                                        Name.getSourceRange().getBegin(),
+                                        TargetName, AttrList, IsTypeName);
   if (UD) {
     PushOnScopeChains(UD, S);
     UD->setAccess(AS);
@@ -3515,14 +3604,15 @@ Sema::CompleteConstructorCall(CXXConstructorDecl *Constructor,
 /// type, and the first type (T1) is the pointee type of the reference
 /// type being initialized.
 Sema::ReferenceCompareResult
-Sema::CompareReferenceRelationship(QualType T1, QualType T2,
+Sema::CompareReferenceRelationship(SourceLocation Loc, 
+                                   QualType OrigT1, QualType OrigT2,
                                    bool& DerivedToBase) {
-  assert(!T1->isReferenceType() &&
+  assert(!OrigT1->isReferenceType() &&
     "T1 must be the pointee type of the reference type");
-  assert(!T2->isReferenceType() && "T2 cannot be a reference type");
+  assert(!OrigT2->isReferenceType() && "T2 cannot be a reference type");
 
-  T1 = Context.getCanonicalType(T1);
-  T2 = Context.getCanonicalType(T2);
+  QualType T1 = Context.getCanonicalType(OrigT1);
+  QualType T2 = Context.getCanonicalType(OrigT2);
   QualType UnqualT1 = T1.getUnqualifiedType();
   QualType UnqualT2 = T2.getUnqualifiedType();
 
@@ -3532,7 +3622,9 @@ Sema::CompareReferenceRelationship(QualType T1, QualType T2,
   //   T1 is a base class of T2.
   if (UnqualT1 == UnqualT2)
     DerivedToBase = false;
-  else if (IsDerivedFrom(UnqualT2, UnqualT1))
+  else if (!RequireCompleteType(Loc, OrigT1, PDiag()) &&
+           !RequireCompleteType(Loc, OrigT2, PDiag()) &&
+           IsDerivedFrom(UnqualT2, UnqualT1))
     DerivedToBase = true;
   else
     return Ref_Incompatible;
@@ -3608,7 +3700,7 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
   Expr::isLvalueResult InitLvalue = ForceRValue ? Expr::LV_InvalidExpression :
                                                   Init->isLvalue(Context);
   ReferenceCompareResult RefRelationship
-    = CompareReferenceRelationship(T1, T2, DerivedToBase);
+    = CompareReferenceRelationship(DeclLoc, T1, T2, DerivedToBase);
 
   // Most paths end in a failed conversion.
   if (ICS)

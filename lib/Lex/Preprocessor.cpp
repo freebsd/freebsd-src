@@ -43,8 +43,6 @@ using namespace clang;
 
 //===----------------------------------------------------------------------===//
 
-PreprocessorFactory::~PreprocessorFactory() {}
-
 Preprocessor::Preprocessor(Diagnostic &diags, const LangOptions &opts,
                            TargetInfo &target, SourceManager &SM,
                            HeaderSearch &Headers,
@@ -403,7 +401,7 @@ void Preprocessor::EnterMainSourceFile() {
 /// LookUpIdentifierInfo - Given a tok::identifier token, look up the
 /// identifier information for the token and install it into the token.
 IdentifierInfo *Preprocessor::LookUpIdentifierInfo(Token &Identifier,
-                                                   const char *BufPtr) {
+                                                   const char *BufPtr) const {
   assert(Identifier.is(tok::identifier) && "Not an identifier!");
   assert(Identifier.getIdentifierInfo() == 0 && "Identinfo already exists!");
 
@@ -411,14 +409,14 @@ IdentifierInfo *Preprocessor::LookUpIdentifierInfo(Token &Identifier,
   IdentifierInfo *II;
   if (BufPtr && !Identifier.needsCleaning()) {
     // No cleaning needed, just use the characters from the lexed buffer.
-    II = getIdentifierInfo(BufPtr, BufPtr+Identifier.getLength());
+    II = getIdentifierInfo(llvm::StringRef(BufPtr, Identifier.getLength()));
   } else {
     // Cleaning needed, alloca a buffer, clean into it, then use the buffer.
     llvm::SmallVector<char, 64> IdentifierBuffer;
     IdentifierBuffer.resize(Identifier.getLength());
     const char *TmpBuf = &IdentifierBuffer[0];
     unsigned Size = getSpelling(Identifier, TmpBuf);
-    II = getIdentifierInfo(TmpBuf, TmpBuf+Size);
+    II = getIdentifierInfo(llvm::StringRef(TmpBuf, Size));
   }
   Identifier.setIdentifierInfo(II);
   return II;

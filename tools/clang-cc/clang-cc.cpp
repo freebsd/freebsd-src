@@ -244,11 +244,6 @@ static llvm::cl::opt<bool>
 VerifyDiagnostics("verify",
                   llvm::cl::desc("Verify emitted diagnostics and warnings"));
 
-static llvm::cl::opt<std::string>
-HTMLDiag("html-diags",
-         llvm::cl::desc("Generate HTML to report diagnostics"),
-         llvm::cl::value_desc("HTML directory"));
-
 static llvm::cl::opt<bool>
 NoShowColumn("fno-show-column",
              llvm::cl::desc("Do not include column number on diagnostics"));
@@ -933,12 +928,9 @@ static bool InitializeSourceManager(Preprocessor &PP,
 // Preprocessor Initialization
 //===----------------------------------------------------------------------===//
 
-// FIXME: Preprocessor builtins to support.
-//   -A...    - Play with #assertions
-//   -undef   - Undefine all predefined macros
-
 static llvm::cl::opt<bool>
-undef_macros("undef", llvm::cl::value_desc("macro"), llvm::cl::desc("undef all system defines"));
+UndefMacros("undef", llvm::cl::value_desc("macro"),
+            llvm::cl::desc("undef all system defines"));
 
 static llvm::cl::list<std::string>
 D_macros("D", llvm::cl::value_desc("macro"), llvm::cl::Prefix,
@@ -1137,6 +1129,9 @@ void InitializeIncludePaths(const char *Argv0, HeaderSearch &Headers,
 }
 
 void InitializePreprocessorInitOptions(PreprocessorInitOptions &InitOpts) {
+  // Use predefines?
+  InitOpts.setUsePredefines(!UndefMacros);
+
   // Add macros from the command line.
   unsigned d = 0, D = D_macros.size();
   unsigned u = 0, U = U_macros.size();
@@ -1195,68 +1190,48 @@ void InitializePreprocessorInitOptions(PreprocessorInitOptions &InitOpts) {
 }
 
 //===----------------------------------------------------------------------===//
-// Driver PreprocessorFactory - For lazily generating preprocessors ...
+// Preprocessor construction
 //===----------------------------------------------------------------------===//
 
-namespace {
-class VISIBILITY_HIDDEN DriverPreprocessorFactory : public PreprocessorFactory {
-  Diagnostic        &Diags;
-  const LangOptions &LangInfo;
-  TargetInfo        &Target;
-  SourceManager     &SourceMgr;
-  HeaderSearch      &HeaderInfo;
-
-public:
-  DriverPreprocessorFactory(Diagnostic &diags, const LangOptions &opts,
-                            TargetInfo &target, SourceManager &SM,
-                            HeaderSearch &Headers)
-  : Diags(diags), LangInfo(opts), Target(target),
-    SourceMgr(SM), HeaderInfo(Headers) {}
-
-
-  virtual ~DriverPreprocessorFactory() {}
-
-  virtual Preprocessor* CreatePreprocessor() {
-    llvm::OwningPtr<PTHManager> PTHMgr;
-
-    if (!TokenCache.empty() && !ImplicitIncludePTH.empty()) {
-      fprintf(stderr, "error: cannot use both -token-cache and -include-pth "
-                      "options\n");
-      exit(1);
-    }
-
-    // Use PTH?
-    if (!TokenCache.empty() || !ImplicitIncludePTH.empty()) {
-      const std::string& x = TokenCache.empty() ? ImplicitIncludePTH:TokenCache;
-      PTHMgr.reset(PTHManager::Create(x, &Diags,
-                                      TokenCache.empty() ? Diagnostic::Error
-                                                        : Diagnostic::Warning));
-    }
-
-    if (Diags.hasErrorOccurred())
-      exit(1);
-
-    // Create the Preprocessor.
-    llvm::OwningPtr<Preprocessor> PP(new Preprocessor(Diags, LangInfo, Target,
-                                                      SourceMgr, HeaderInfo,
-                                                      PTHMgr.get()));
-
-    // Note that this is different then passing PTHMgr to Preprocessor's ctor.
-    // That argument is used as the IdentifierInfoLookup argument to
-    // IdentifierTable's ctor.
-    if (PTHMgr) {
-      PTHMgr->setPreprocessor(PP.get());
-      PP->setPTHManager(PTHMgr.take());
-    }
-
-    PreprocessorInitOptions InitOpts;
-    InitializePreprocessorInitOptions(InitOpts);
-    if (InitializePreprocessor(*PP, InitOpts, undef_macros))
-      return 0;
-
-    return PP.take();
+static Preprocessor *
+CreatePreprocessor(Diagnostic &Diags,const LangOptions &LangInfo,
+                   TargetInfo &Target, SourceManager &SourceMgr,
+                   HeaderSearch &HeaderInfo) {
+  PTHManager *PTHMgr = 0;
+  if (!TokenCache.empty() && !ImplicitIncludePTH.empty()) {
+    fprintf(stderr, "error: cannot use both -token-cache and -include-pth "
+            "options\n");
+    exit(1);
   }
-};
+
+  // Use PTH?
+  if (!TokenCache.empty() || !ImplicitIncludePTH.empty()) {
+    const std::string& x = TokenCache.empty() ? ImplicitIncludePTH:TokenCache;
+    PTHMgr = PTHManager::Create(x, &Diags,
+                                TokenCache.empty() ? Diagnostic::Error
+                                : Diagnostic::Warning);
+  }
+
+  if (Diags.hasErrorOccurred())
+    exit(1);
+
+  // Create the Preprocessor.
+  Preprocessor *PP = new Preprocessor(Diags, LangInfo, Target,
+                                      SourceMgr, HeaderInfo, PTHMgr);
+
+  // Note that this is different then passing PTHMgr to Preprocessor's ctor.
+  // That argument is used as the IdentifierInfoLookup argument to
+  // IdentifierTable's ctor.
+  if (PTHMgr) {
+    PTHMgr->setPreprocessor(PP);
+    PP->setPTHManager(PTHMgr);
+  }
+
+  PreprocessorInitOptions InitOpts;
+  InitializePreprocessorInitOptions(InitOpts);
+  InitializePreprocessor(*PP, InitOpts);
+
+  return PP;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1570,9 +1545,14 @@ public:
     Chain2.reset(new TextDiagnosticPrinter(*BuildLogFile, DiagOpts));
   }
 
-  virtual void setLangOptions(const LangOptions *LO) {
-    Chain1->setLangOptions(LO);
-    Chain2->setLangOptions(LO);
+  virtual void BeginSourceFile(const LangOptions &LO) {
+    Chain1->BeginSourceFile(LO);
+    Chain2->BeginSourceFile(LO);
+  }
+
+  virtual void EndSourceFile() {
+    Chain1->EndSourceFile();
+    Chain2->EndSourceFile();
   }
 
   virtual bool IncludeInDiagnosticCounts() const {
@@ -1724,8 +1704,8 @@ static ASTConsumer *CreateConsumerAction(Preprocessor &PP,
 
 /// ProcessInputFile - Process a single input file with the specified state.
 ///
-static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
-                             const std::string &InFile, ProgActions PA,
+static void ProcessInputFile(Preprocessor &PP, const std::string &InFile,
+                             ProgActions PA,
                              const llvm::StringMap<bool> &Features,
                              llvm::LLVMContext& Context) {
   llvm::OwningPtr<llvm::raw_ostream> OS;
@@ -1750,12 +1730,11 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
 
   case EmitHTML:
     OS.reset(ComputeOutFile(InFile, 0, true, OutPath));
-    Consumer.reset(CreateHTMLPrinter(OS.get(), PP.getDiagnostics(), &PP, &PPF));
+    Consumer.reset(CreateHTMLPrinter(OS.get(), PP));
     break;
 
   case RunAnalysis:
-    Consumer.reset(CreateAnalysisConsumer(PP.getDiagnostics(), &PP, &PPF,
-                                          PP.getLangOptions(), OutputFile,
+    Consumer.reset(CreateAnalysisConsumer(PP, OutputFile,
                                           ReadAnalyzerOptions()));
     break;
 
@@ -1990,7 +1969,11 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
              CreateCodeCompleter, CreateCodeCompleterData);
   }
 
-  if (PA == RunPreprocessorOnly) {    // Just lex as fast as we can, no output.
+  // Perform post processing actions and actions which don't use a consumer.
+  switch (PA) {
+  default: break;
+
+  case RunPreprocessorOnly: {    // Just lex as fast as we can, no output.
     llvm::TimeRegion Timer(ClangFrontendTimer);
     Token Tok;
     // Start parsing the specified input file.
@@ -1999,11 +1982,17 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
       PP.Lex(Tok);
     } while (Tok.isNot(tok::eof));
     ClearSourceMgr = true;
-  } else if (PA == ParseNoop) {                  // -parse-noop
+    break;
+  }
+
+  case ParseNoop: {
     llvm::TimeRegion Timer(ClangFrontendTimer);
     ParseFile(PP, new MinimalAction(PP));
     ClearSourceMgr = true;
-  } else if (PA == PrintPreprocessedInput){  // -E mode.
+    break;
+  }
+
+  case PrintPreprocessedInput: {
     llvm::TimeRegion Timer(ClangFrontendTimer);
     if (DumpMacros)
       DoPrintMacros(PP, OS.get());
@@ -2012,6 +2001,8 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
                                EnableMacroCommentOutput,
                                DisableLineMarkers, DumpDefines);
     ClearSourceMgr = true;
+  }
+
   }
 
   if (FixItRewrite)
@@ -2094,7 +2085,9 @@ static void ProcessASTInputFile(const std::string &InFile, ProgActions PA,
   AST->getSourceManager().createMainFileIDForMemBuffer(SB);
 
   // Stream the input AST to the consumer.
+  Diags.getClient()->BeginSourceFile(PP.getLangOptions());
   ParseAST(PP, Consumer.get(), AST->getASTContext(), Stats);
+  Diags.getClient()->EndSourceFile();
 
   // Release the consumer and the AST, in that order since the consumer may
   // perform actions in its destructor which require the context.
@@ -2171,27 +2164,12 @@ int main(int argc, char **argv) {
       fprintf(stderr, "-verify only works on single input files for now.\n");
       return 1;
     }
-    if (!HTMLDiag.empty()) {
-      fprintf(stderr, "-verify and -html-diags don't work together\n");
-      return 1;
-    }
-  } else if (HTMLDiag.empty()) {
-    // Print diagnostics to stderr by default.
-    DiagClient.reset(new TextDiagnosticPrinter(llvm::errs(), DiagOpts));
   } else {
-    DiagClient.reset(CreateHTMLDiagnosticClient(HTMLDiag));
+    DiagClient.reset(new TextDiagnosticPrinter(llvm::errs(), DiagOpts));
   }
 
-  if (!DumpBuildInformation.empty()) {
-    if (!HTMLDiag.empty()) {
-      fprintf(stderr,
-              "-dump-build-information and -html-diags don't work together\n");
-      return 1;
-    }
-
+  if (!DumpBuildInformation.empty())
     SetUpBuildDumpLog(argc, argv, DiagClient);
-  }
-
 
   // Configure our handling of diagnostics.
   Diagnostic Diags(DiagClient.get());
@@ -2232,7 +2210,8 @@ int main(int argc, char **argv) {
   if (!InheritanceViewCls.empty())  // C++ visualization?
     ProgAction = InheritanceView;
 
-  llvm::OwningPtr<SourceManager> SourceMgr;
+  // Create the source manager.
+  SourceManager SourceMgr;
 
   // Create a file manager object to provide access to and cache the filesystem.
   FileManager FileMgr;
@@ -2252,16 +2231,12 @@ int main(int argc, char **argv) {
       continue;
     }
 
-    // Create a SourceManager object.  This tracks and owns all the file
-    // buffers allocated to a translation unit.
-    if (!SourceMgr)
-      SourceMgr.reset(new SourceManager());
-    else
-      SourceMgr->clearIDTables();
+    // Reset the ID tables if we are reusing the SourceManager.
+    if (i)
+      SourceMgr.clearIDTables();
 
     // Initialize language options, inferring file types from input filenames.
     LangOptions LangInfo;
-    DiagClient->setLangOptions(&LangInfo);
 
     InitializeLangOptions(LangInfo, LK);
     InitializeLanguageStandard(LangInfo, LK, Target.get(), Features);
@@ -2273,12 +2248,9 @@ int main(int argc, char **argv) {
     InitializeIncludePaths(argv[0], HeaderInfo, FileMgr, LangInfo, Triple);
 
     // Set up the preprocessor with these options.
-    DriverPreprocessorFactory PPFactory(Diags, LangInfo, *Target,
-                                        *SourceMgr.get(), HeaderInfo);
-
-    llvm::OwningPtr<Preprocessor> PP(PPFactory.CreatePreprocessor());
-    if (!PP)
-      continue;
+    llvm::OwningPtr<Preprocessor> PP(CreatePreprocessor(Diags, LangInfo,
+                                                        *Target, SourceMgr,
+                                                        HeaderInfo));
 
     // Handle generating dependencies, if requested.
     if (!DependencyFile.empty()) {
@@ -2309,14 +2281,12 @@ int main(int argc, char **argv) {
                                               PP->getLangOptions().NoBuiltin);
     }
 
-    if (!HTMLDiag.empty())
-      ((PathDiagnosticClient*)DiagClient.get())->SetPreprocessor(PP.get());
-
     // Process the source file.
-    ProcessInputFile(*PP, PPFactory, InFile, ProgAction, Features, Context);
+    DiagClient->BeginSourceFile(LangInfo);
+    ProcessInputFile(*PP, InFile, ProgAction, Features, Context);
+    DiagClient->EndSourceFile();
 
     HeaderInfo.ClearFileInfo();
-    DiagClient->setLangOptions(0);
   }
 
   if (!NoCaretDiagnostics)

@@ -43,8 +43,18 @@ class Preprocessor;
 class PathDiagnosticClient : public DiagnosticClient  {
 public:
   PathDiagnosticClient() {}
-  virtual ~PathDiagnosticClient() {}
-  virtual void SetPreprocessor(Preprocessor *PP) {}
+
+  virtual ~PathDiagnosticClient() {};
+  
+  virtual void
+  FlushDiagnostics(llvm::SmallVectorImpl<std::string> *FilesMade = 0) = 0;
+  
+  void FlushDiagnostics(llvm::SmallVectorImpl<std::string> &FilesMade) {
+    FlushDiagnostics(&FilesMade);
+  }
+  
+  virtual llvm::StringRef getName() const = 0;
+  
   virtual void HandleDiagnostic(Diagnostic::Level DiagLevel,
                                 const DiagnosticInfo &Info);
   virtual void HandlePathDiagnostic(const PathDiagnostic* D) = 0;

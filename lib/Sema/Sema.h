@@ -1609,6 +1609,9 @@ public:
   void DiagnoseSentinelCalls(NamedDecl *D, SourceLocation Loc,
                              Expr **Args, unsigned NumArgs);
 
+  void CheckSignCompare(Expr *LHS, Expr *RHS, SourceLocation Loc,
+                        const PartialDiagnostic &PD);
+
   virtual ExpressionEvaluationContext
   PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext);
 
@@ -1667,6 +1670,8 @@ public:
   OwningExprResult CreateBuiltinUnaryOp(SourceLocation OpLoc,
                                         unsigned OpcIn,
                                         ExprArg InputArg);
+  OwningExprResult BuildUnaryOp(Scope *S, SourceLocation OpLoc,
+                                UnaryOperator::Opcode Opc, ExprArg input);
   virtual OwningExprResult ActOnUnaryOp(Scope *S, SourceLocation OpLoc,
                                         tok::TokenKind Op, ExprArg Input);
 
@@ -1792,6 +1797,9 @@ public:
   virtual OwningExprResult ActOnBinOp(Scope *S, SourceLocation TokLoc,
                                       tok::TokenKind Kind,
                                       ExprArg LHS, ExprArg RHS);
+  OwningExprResult BuildBinOp(Scope *S, SourceLocation OpLoc,
+                              BinaryOperator::Opcode Opc,
+                              Expr *lhs, Expr *rhs);
   OwningExprResult CreateBuiltinBinOp(SourceLocation TokLoc,
                                       unsigned Opc, Expr *lhs, Expr *rhs);
 
@@ -1893,9 +1901,7 @@ public:
                                           AccessSpecifier AS,
                                           SourceLocation UsingLoc,
                                           const CXXScopeSpec &SS,
-                                          SourceLocation IdentLoc,
-                                          IdentifierInfo *TargetName,
-                                          OverloadedOperatorKind Op,
+                                          UnqualifiedId &Name,
                                           AttributeList *AttrList,
                                           bool IsTypeName);
 
@@ -3645,7 +3651,8 @@ public:
     Ref_Compatible
   };
 
-  ReferenceCompareResult CompareReferenceRelationship(QualType T1, QualType T2,
+  ReferenceCompareResult CompareReferenceRelationship(SourceLocation Loc,
+                                                      QualType T1, QualType T2,
                                                       bool& DerivedToBase);
 
   bool CheckReferenceInit(Expr *&simpleInit_or_initList, QualType declType,

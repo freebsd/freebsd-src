@@ -23,7 +23,6 @@ namespace clang {
 class Rewriter;
 class RewriteBuffer;
 class Preprocessor;
-class PreprocessorFactory;
 
 namespace html {
 
@@ -68,14 +67,14 @@ namespace html {
 
   /// SyntaxHighlight - Relex the specified FileID and annotate the HTML with
   /// information about keywords, comments, etc.
-  void SyntaxHighlight(Rewriter &R, FileID FID, Preprocessor &PP);
+  void SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP);
 
   /// HighlightMacros - This uses the macro table state from the end of the
   /// file, to reexpand macros and insert (into the HTML) information about the
   /// macro expansions.  This won't be perfectly perfect, but it will be
   /// reasonably close.
-  void HighlightMacros(Rewriter &R, FileID FID, Preprocessor &PP);
-  void HighlightMacros(Rewriter &R, FileID FID, PreprocessorFactory &PPF);
+  void HighlightMacros(Rewriter &R, FileID FID, const Preprocessor &PP);
+
 } // end html namespace
 } // end clang namespace
 

@@ -107,8 +107,14 @@ def err_using_decl_nested_name_specifier_is_not_a_base_class : Error<
   "using declaration refers into '%0', which is not a base class of %1">;
 def err_using_decl_can_not_refer_to_class_member : Error<
   "using declaration can not refer to class member">;
- def err_using_decl_can_not_refer_to_namespace : Error<
+def err_using_decl_can_not_refer_to_namespace : Error<
   "using declaration can not refer to namespace">;
+def err_using_decl_constructor : Error<
+  "using declaration can not refer to a constructor">;
+def err_using_decl_destructor : Error<
+  "using declaration can not refer to a destructor">;
+def err_using_decl_template_id : Error<
+  "using declaration can not refer to a template specialization">;
 
 def err_invalid_thread : Error<
   "'__thread' is only allowed on variable declarations">;
@@ -512,6 +518,8 @@ def err_init_reference_member_uninitialized : Error<
   "reference member of type %0 uninitialized">;
 def note_uninit_reference_member : Note<
   "uninitialized reference member is here">;
+def warn_field_is_uninit : Warning<"field is uninitialized when used here">,
+  InGroup<DiagGroup<"uninitialized">>;
 
 // C++0x decltype
 def err_cannot_determine_declared_type_of_overloaded_function : Error<
@@ -1529,6 +1537,12 @@ def err_typecheck_vector_comparison : Error<
 def err_typecheck_assign_const : Error<"read-only variable is not assignable">;
 def err_stmtexpr_file_scope : Error<
   "statement expression not allowed at file scope">;
+def warn_mixed_sign_comparison : Warning<
+  "comparison of integers of different signs: %0 and %1">,
+  InGroup<DiagGroup<"sign-compare">>;
+def warn_mixed_sign_conditional : Warning<
+  "operands of ? are integers of different signs: %0 and %1">,
+  InGroup<DiagGroup<"sign-compare">>;
 
 def err_invalid_this_use : Error<
   "invalid use of 'this' outside of a nonstatic member function">;

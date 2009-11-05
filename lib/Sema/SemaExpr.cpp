@@ -3340,6 +3340,8 @@ QualType Sema::CheckConditionalOperands(Expr *&Cond, Expr *&LHS, Expr *&RHS,
   if (getLangOptions().CPlusPlus)
     return CXXCheckConditionalOperands(Cond, LHS, RHS, QuestionLoc);
 
+  CheckSignCompare(LHS, RHS, QuestionLoc, diag::warn_mixed_sign_conditional);
+
   UsualUnaryConversions(Cond);
   UsualUnaryConversions(LHS);
   UsualUnaryConversions(RHS);
@@ -4427,6 +4429,41 @@ QualType Sema::CheckShiftOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
   return LHSTy;
 }
 
+/// Implements -Wsign-compare.
+void Sema::CheckSignCompare(Expr *lex, Expr *rex, SourceLocation OpLoc,
+                            const PartialDiagnostic &PD) {
+  QualType lt = lex->getType(), rt = rex->getType();
+
+  // Only warn if both operands are integral.
+  if (!lt->isIntegerType() || !rt->isIntegerType())
+    return;
+
+  // The rule is that the signed operand becomes unsigned, so isolate the
+  // signed operand.
+  Expr *signedOperand;
+  if (lt->isSignedIntegerType()) {
+    if (rt->isSignedIntegerType()) return;
+    signedOperand = lex;
+  } else {
+    if (!rt->isSignedIntegerType()) return;
+    signedOperand = rex;
+  }
+
+  // If the value is a non-negative integer constant, then the
+  // signed->unsigned conversion won't change it.
+  llvm::APSInt value;
+  if (signedOperand->isIntegerConstantExpr(value, Context)) {
+    assert(value.isSigned() && "result of signed expression not signed");
+
+    if (value.isNonNegative())
+      return;
+  }
+
+  Diag(OpLoc, PD)
+    << lex->getType() << rex->getType()
+    << lex->getSourceRange() << rex->getSourceRange();
+}
+
 // C99 6.5.8, C++ [expr.rel]
 QualType Sema::CheckCompareOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
                                     unsigned OpaqueOpc, bool isRelational) {
@@ -4434,6 +4471,8 @@ QualType Sema::CheckCompareOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
 
   if (lex->getType()->isVectorType() || rex->getType()->isVectorType())
     return CheckVectorCompareOperands(lex, rex, Loc, isRelational);
+
+  CheckSignCompare(lex, rex, Loc, diag::warn_mixed_sign_comparison);
 
   // C99 6.5.8p3 / C99 6.5.9p4
   if (lex->getType()->isArithmeticType() && rex->getType()->isArithmeticType())
@@ -5472,6 +5511,12 @@ Action::OwningExprResult Sema::ActOnBinOp(Scope *S, SourceLocation TokLoc,
   // Emit warnings for tricky precedence issues, e.g. "bitfield & 0x4 == 0"
   DiagnoseBinOpPrecedence(*this, Opc, TokLoc, lhs, rhs);
 
+  return BuildBinOp(S, TokLoc, Opc, lhs, rhs);
+}
+
+Action::OwningExprResult Sema::BuildBinOp(Scope *S, SourceLocation OpLoc,
+                                          BinaryOperator::Opcode Opc,
+                                          Expr *lhs, Expr *rhs) {
   if (getLangOptions().CPlusPlus &&
       (lhs->getType()->isOverloadableType() ||
        rhs->getType()->isOverloadableType())) {
@@ -5482,21 +5527,22 @@ Action::OwningExprResult Sema::ActOnBinOp(Scope *S, SourceLocation TokLoc,
     FunctionSet Functions;
     OverloadedOperatorKind OverOp = BinaryOperator::getOverloadedOperator(Opc);
     if (OverOp != OO_None) {
-      LookupOverloadedOperatorName(OverOp, S, lhs->getType(), rhs->getType(),
-                                   Functions);
+      if (S)
+        LookupOverloadedOperatorName(OverOp, S, lhs->getType(), rhs->getType(),
+                                     Functions);
       Expr *Args[2] = { lhs, rhs };
       DeclarationName OpName
         = Context.DeclarationNames.getCXXOperatorName(OverOp);
       ArgumentDependentLookup(OpName, /*Operator*/true, Args, 2, Functions);
     }
-
+    
     // Build the (potentially-overloaded, potentially-dependent)
     // binary operation.
-    return CreateOverloadedBinOp(TokLoc, Opc, Functions, lhs, rhs);
+    return CreateOverloadedBinOp(OpLoc, Opc, Functions, lhs, rhs);
   }
-
+  
   // Build a built-in binary operation.
-  return CreateBuiltinBinOp(TokLoc, Opc, lhs, rhs);
+  return CreateBuiltinBinOp(OpLoc, Opc, lhs, rhs);
 }
 
 Action::OwningExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
@@ -5587,12 +5633,10 @@ Action::OwningExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
   return Owned(new (Context) UnaryOperator(Input, Opc, resultType, OpLoc));
 }
 
-// Unary Operators.  'Tok' is the token for the operator.
-Action::OwningExprResult Sema::ActOnUnaryOp(Scope *S, SourceLocation OpLoc,
-                                            tok::TokenKind Op, ExprArg input) {
+Action::OwningExprResult Sema::BuildUnaryOp(Scope *S, SourceLocation OpLoc,
+                                            UnaryOperator::Opcode Opc,
+                                            ExprArg input) {
   Expr *Input = (Expr*)input.get();
-  UnaryOperator::Opcode Opc = ConvertTokenKindToUnaryOpcode(Op);
-
   if (getLangOptions().CPlusPlus && Input->getType()->isOverloadableType()) {
     // Find all of the overloaded operators visible from this
     // point. We perform both an operator-name lookup from the local
@@ -5601,17 +5645,24 @@ Action::OwningExprResult Sema::ActOnUnaryOp(Scope *S, SourceLocation OpLoc,
     FunctionSet Functions;
     OverloadedOperatorKind OverOp = UnaryOperator::getOverloadedOperator(Opc);
     if (OverOp != OO_None) {
-      LookupOverloadedOperatorName(OverOp, S, Input->getType(), QualType(),
-                                   Functions);
+      if (S)
+        LookupOverloadedOperatorName(OverOp, S, Input->getType(), QualType(),
+                                     Functions);
       DeclarationName OpName
         = Context.DeclarationNames.getCXXOperatorName(OverOp);
       ArgumentDependentLookup(OpName, /*Operator*/true, &Input, 1, Functions);
     }
-
+    
     return CreateOverloadedUnaryOp(OpLoc, Opc, Functions, move(input));
   }
-
+  
   return CreateBuiltinUnaryOp(OpLoc, Opc, move(input));
+}
+
+// Unary Operators.  'Tok' is the token for the operator.
+Action::OwningExprResult Sema::ActOnUnaryOp(Scope *S, SourceLocation OpLoc,
+                                            tok::TokenKind Op, ExprArg input) {
+  return BuildUnaryOp(S, OpLoc, ConvertTokenKindToUnaryOpcode(Op), move(input));
 }
 
 /// ActOnAddrLabel - Parse the GNU address of label extension: "&&foo".
