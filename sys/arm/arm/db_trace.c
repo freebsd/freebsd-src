@@ -207,5 +207,8 @@ db_trace_thread(struct thread *thr, int count)
 void
 db_trace_self(void)
 {
-	db_trace_thread(curthread, -1);
+	db_addr_t addr;
+
+	addr = (db_addr_t)__builtin_frame_address(1);
+	db_stack_trace_cmd(addr, -1);
 }
