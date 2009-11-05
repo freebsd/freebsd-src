@@ -480,17 +480,17 @@ bool LLParser::ParseMDNode(MetadataBase *&Node) {
   if (ParseUInt32(MID))  return true;
 
   // Check existing MDNode.
-  std::map<unsigned, MetadataBase *>::iterator I = MetadataCache.find(MID);
+  std::map<unsigned, WeakVH>::iterator I = MetadataCache.find(MID);
   if (I != MetadataCache.end()) {
-    Node = I->second;
+    Node = cast<MetadataBase>(I->second);
     return false;
   }
 
   // Check known forward references.
-  std::map<unsigned, std::pair<MetadataBase *, LocTy> >::iterator
+  std::map<unsigned, std::pair<WeakVH, LocTy> >::iterator
     FI = ForwardRefMDNodes.find(MID);
   if (FI != ForwardRefMDNodes.end()) {
-    Node = FI->second.first;
+    Node = cast<MetadataBase>(FI->second.first);
     return false;
   }
 
@@ -570,7 +570,7 @@ bool LLParser::ParseStandaloneMetadata() {
 
   MDNode *Init = MDNode::get(Context, Elts.data(), Elts.size());
   MetadataCache[MetadataID] = Init;
-  std::map<unsigned, std::pair<MetadataBase *, LocTy> >::iterator
+  std::map<unsigned, std::pair<WeakVH, LocTy> >::iterator
     FI = ForwardRefMDNodes.find(MetadataID);
   if (FI != ForwardRefMDNodes.end()) {
     MDNode *FwdNode = cast<MDNode>(FI->second.first);
@@ -3619,12 +3619,14 @@ bool LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
   // Autoupgrade old malloc instruction to malloc call.
   // FIXME: Remove in LLVM 3.0.
   const Type *IntPtrTy = Type::getInt32Ty(Context);
+  Constant *AllocSize = ConstantExpr::getSizeOf(Ty);
+  AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, IntPtrTy);
   if (!MallocF)
     // Prototype malloc as "void *(int32)".
     // This function is renamed as "malloc" in ValidateEndOfModule().
     MallocF = cast<Function>(
        M->getOrInsertFunction("", Type::getInt8PtrTy(Context), IntPtrTy, NULL));
-  Inst = CallInst::CreateMalloc(BB, IntPtrTy, Ty, Size, MallocF);
+  Inst = CallInst::CreateMalloc(BB, IntPtrTy, Ty, AllocSize, Size, MallocF);
   return false;
 }
 
