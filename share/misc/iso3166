@@ -1,5 +1,8 @@
 # $FreeBSD$
 #
+# Please consult with http://www.FreeBSD.org/internal/i18n.html before
+# making changes to this file.
+#
 # ISO 3166 country codes
 # This includes many places that are not legally independent countries,
 # but which is it convenient to refer to separately from their
@@ -230,7 +233,7 @@ SZ	SWZ	748	Swaziland
 SE	SWE	752	Sweden
 CH	CHE	756	Switzerland
 SY	SYR	760	Syrian Arab Republic
-TW	TWN	158	Taiwan, Province of China
+TW	TWN	158	Taiwan
 TJ	TJK	762	Tajikistan
 TZ	TZA	834	Tanzania, United Republic of
 TH	THA	764	Thailand
