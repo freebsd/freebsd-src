@@ -133,6 +133,7 @@ struct cpu_info {
 	int	cpu_present:1;
 	int	cpu_bsp:1;
 	int	cpu_disabled:1;
+	int	cpu_hyperthread:1;
 } static cpu_info[MAX_APIC_ID + 1];
 static int cpu_apic_ids[MAXCPU];
 
@@ -342,11 +343,6 @@ cpu_mp_start(void)
 		KASSERT(boot_cpu_id == PCPU_GET(apic_id),
 		    ("BSP's APIC ID doesn't match boot_cpu_id"));
 
-	assign_cpu_ids();
-
-	/* Start each Application Processor */
-	start_all_aps();
-
 	/* Setup the initial logical CPUs info. */
 	logical_cpus = logical_cpus_mask = 0;
 	if (cpu_feature & CPUID_HTT)
@@ -394,6 +390,12 @@ cpu_mp_start(void)
 			hyperthreading_cpus = logical_cpus;
 	}
 
+	assign_cpu_ids();
+
+	/* Start each Application Processor */
+	start_all_aps();
+
+
 	set_interrupt_apic_ids();
 }
 
@@ -404,9 +406,10 @@ cpu_mp_start(void)
 void
 cpu_mp_announce(void)
 {
+	const char *hyperthread;
 	int i;
 
-	/* List active CPUs first. */
+	/* List Active CPUs first. */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
 	for (i = 1; i < mp_ncpus; i++) {
 		if (cpu_info[cpu_apic_ids[i]].cpu_hyperthread)
@@ -414,7 +417,7 @@ cpu_mp_announce(void)
 		else
 			hyperthread = "";
 		printf(" cpu%d (AP%s): APIC ID: %2d\n", i, hyperthread,
-		    cpu_apic_ids[i]);
+			cpu_apic_ids[i]);
 	}
 
 	/* List disabled CPUs last. */
@@ -426,7 +429,7 @@ cpu_mp_announce(void)
 		else
 			hyperthread = "";
 		printf("  cpu (AP%s): APIC ID: %2d (disabled)\n", hyperthread,
-		    i);
+			i);
 	}
 }
 
@@ -645,6 +648,9 @@ assign_cpu_ids(void)
 		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp)
 			continue;
 
+		if (hyperthreading_cpus > 1 && i % hyperthreading_cpus != 0)
+			cpu_info[i].cpu_hyperthread = 1;
+
 		/* Don't use this CPU if it has been disabled by a tunable. */
 		if (resource_disabled("lapic", i)) {
 			cpu_info[i].cpu_disabled = 1;
@@ -655,18 +661,17 @@ assign_cpu_ids(void)
 	/*
 	 * Assign CPU IDs to local APIC IDs and disable any CPUs
 	 * beyond MAXCPU.  CPU 0 is always assigned to the BSP.
-	 *
+	 * 
 	 * To minimize confusion for userland, we attempt to number
-	 * CPUs such that all threads and cores in a package are
-	 * grouped together.  For now we assume that the BSP is always
+	 * CPUs such that all the threads and cores in a package are
+	 * grouped together. For now we assume that the BSP is always
 	 * the first thread in a package and just start adding APs
 	 * starting with the BSP's APIC ID.
 	 */
 	mp_ncpus = 1;
 	cpu_apic_ids[0] = boot_cpu_id;
-	apic_cpuids[boot_cpu_id] = 0;
-	for (i = boot_cpu_id + 1; i != boot_cpu_id;
-	     i == MAX_APIC_ID ? i = 0 : i++) {
+	for (i = boot_cpu_id + 1; i != boot_cpu_id; 
+		 i == MAX_APIC_ID ? i = 0 : i++) {
 		if (!cpu_info[i].cpu_present || cpu_info[i].cpu_bsp ||
 		    cpu_info[i].cpu_disabled)
 			continue;
