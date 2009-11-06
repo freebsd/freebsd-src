@@ -131,6 +131,8 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5755),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5787),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5708S),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709CAX),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709C),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5722),
 	MII_PHY_DESC(BROADCOM2, BCM5906),
 	MII_PHY_END
@@ -279,7 +281,7 @@ brgphy_attach(device_t dev)
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, sc->mii_inst),
 			BRGPHY_S1000 | BRGPHY_BMCR_FDX);
 		printf("1000baseSX-FDX, ");
-		/* 2.5G support is a software enabled feature on the 5708S */
+		/* 2.5G support is a software enabled feature on the 5708S and 5709S. */
 		if (bce_sc && (bce_sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)) {
 			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_2500_SX, IFM_FDX, sc->mii_inst), 0);
 			printf("2500baseSX-FDX, ");
@@ -455,18 +457,27 @@ brgphy_setmedia(struct mii_softc *sc, int media, int master)
 		gig = BRGPHY_1000CTL_AHD;
 	}
 
+	/* Force loopback to disconnect PHY for Ethernet medium. */
 	brgphy_enable_loopback(sc);
-	PHY_WRITE(sc, BRGPHY_MII_1000CTL, 0);
-	PHY_WRITE(sc, BRGPHY_MII_BMCR, bmcr);
-	PHY_WRITE(sc, BRGPHY_MII_ANAR, BRGPHY_SEL_TYPE);
 
+	/* Disable 1000BaseT advertisements. */
+	PHY_WRITE(sc, BRGPHY_MII_1000CTL, 0);
+	/* Disable 10/100 advertisements. */
+	PHY_WRITE(sc, BRGPHY_MII_ANAR, BRGPHY_SEL_TYPE);
+	/* Write forced link speed. */
+	PHY_WRITE(sc, BRGPHY_MII_BMCR, bmcr);
+
+	/* If 10/100 only then configuration is complete. */
 	if ((IFM_SUBTYPE(media) != IFM_1000_T) && (IFM_SUBTYPE(media) != IFM_1000_SX))
 		goto brgphy_setmedia_exit;
 
+	/* Set duplex speed advertisement for 1000BaseT/1000BaseX. */
 	PHY_WRITE(sc, BRGPHY_MII_1000CTL, gig);
+	/* Restart auto-negotiation for 1000BaseT/1000BaseX. */
 	PHY_WRITE(sc, BRGPHY_MII_BMCR,
 	    bmcr | BRGPHY_BMCR_AUTOEN | BRGPHY_BMCR_STARTNEG);
 
+	/* If not 5701 PHY then configuration is complete. */
 	if (bsc->mii_model != MII_MODEL_xxBROADCOM_BCM5701)
 		goto brgphy_setmedia_exit;
 
@@ -645,6 +656,7 @@ brgphy_mii_phy_auto(struct mii_softc *sc)
 
 }
 
+
 /* Enable loopback to force the link down. */
 static void
 brgphy_enable_loopback(struct mii_softc *sc)
@@ -821,6 +833,20 @@ brgphy_fixup_jitter_bug(struct mii_softc *sc)
 		PHY_WRITE(sc, dspcode[i].reg, dspcode[i].val);
 }
 
+
+static void
+brgphy_fixup_disable_early_dac(struct mii_softc *sc)
+{
+	uint32_t val;
+
+	PHY_WRITE(sc, BRGPHY_MII_DSP_ADDR_REG, 0x0f08);
+	val = PHY_READ(sc, BRGPHY_MII_DSP_RW_PORT);
+	val &= ~(1 << 8);
+	PHY_WRITE(sc, BRGPHY_MII_DSP_RW_PORT, val);
+
+}
+
+
 static void
 brgphy_ethernet_wirespeed(struct mii_softc *sc)
 {
@@ -942,7 +968,7 @@ brgphy_reset(struct mii_softc *sc)
 	} else if (bce_sc) {
 
 		if (BCE_CHIP_NUM(bce_sc) == BCE_CHIP_NUM_5708 &&
-			BCE_CHIP_BOND_ID(bce_sc) & BCE_CHIP_BOND_ID_SERDES_BIT) {
+			(bce_sc->bce_phy_flags & BCE_PHY_SERDES_FLAG)) {
 
 			/* Store autoneg capabilities/results in digital block (Page 0) */
 			PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, BRGPHY_5708S_DIG3_PG2);
@@ -990,6 +1016,13 @@ brgphy_reset(struct mii_softc *sc)
 					PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR,
 						BRGPHY_5708S_DIG_PG0);
 			}
+		} else if (BCE_CHIP_NUM(bce_sc) == BCE_CHIP_NUM_5709) {
+			if ((BCE_CHIP_REV(bce_sc) == BCE_CHIP_REV_Ax) ||
+				(BCE_CHIP_REV(bce_sc) == BCE_CHIP_REV_Bx))
+				brgphy_fixup_disable_early_dac(sc);
+	
+			brgphy_jumbo_settings(sc, ifp->if_mtu);
+			brgphy_ethernet_wirespeed(sc);
 		} else {
 			brgphy_fixup_ber_bug(sc);
 			brgphy_jumbo_settings(sc, ifp->if_mtu);
