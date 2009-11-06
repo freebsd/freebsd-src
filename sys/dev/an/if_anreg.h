@@ -442,8 +442,6 @@ struct an_tx_ring_data {
 struct an_softc	{
 	struct ifnet		*an_ifp;
 
-        int                     an_unit;
-
 	int	port_rid;	/* resource id for port range */
 	struct resource* port_res; /* resource for port range */
 	int     mem_rid;	/* resource id for memory range */
