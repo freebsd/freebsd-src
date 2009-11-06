@@ -161,7 +161,7 @@ acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
 		break;
 
 	default:
-		if (fuword((char *)user_acl +
+		if (fuword32((char *)user_acl +
 		    offsetof(struct acl, acl_maxcnt)) != ACL_MAX_ENTRIES)
 			return (EINVAL);
 
