@@ -560,7 +560,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = ath_start;
-	ifp->if_watchdog = NULL;
 	ifp->if_ioctl = ath_ioctl;
 	ifp->if_init = ath_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
