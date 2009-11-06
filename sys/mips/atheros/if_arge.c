@@ -620,7 +620,7 @@ arge_link_task(void *arg, int pending)
 			    rx_filtmask);
 
 			/* set PLL registers */
-			sec_cfg = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
+			sec_cfg = ATH_READ_REG(AR71XX_PLL_SEC_CONFIG);
 			sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
 			sec_cfg |= (2 << sc->arge_pll_reg_shift);
 
