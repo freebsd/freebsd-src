@@ -722,8 +722,6 @@ stge_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = stge_ioctl;
 	ifp->if_start = stge_start;
-	ifp->if_timer = 0;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = stge_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_drv_maxlen = STGE_TX_RING_CNT - 1;
