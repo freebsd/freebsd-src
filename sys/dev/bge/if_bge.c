@@ -3134,7 +3134,8 @@ bge_rxeof(struct bge_softc *sc)
 	    sc->bge_cdata.bge_rx_return_ring_map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTWRITE);
-	if (BGE_IS_JUMBO_CAPABLE(sc))
+	if (ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
+	    (MCLBYTES - ETHER_ALIGN))
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTWRITE);
 
@@ -3266,7 +3267,7 @@ bge_rxeof(struct bge_softc *sc)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 		    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
 
-	if (BGE_IS_JUMBO_CAPABLE(sc) && jumbocnt > 0)
+	if (jumbocnt > 0)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
@@ -3920,7 +3921,8 @@ bge_init_locked(struct bge_softc *sc)
 	}
 
 	/* Init jumbo RX ring. */
-	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN)) {
+	if (ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN >
+	    (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
 			device_printf(sc->bge_dev, "no memory for std Rx buffers.\n");
 			bge_stop(sc);
