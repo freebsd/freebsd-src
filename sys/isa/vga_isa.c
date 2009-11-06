@@ -117,13 +117,17 @@ isavga_probe(device_t dev)
 		isa_set_msize(dev, adp.va_mem_size);
 #endif
 	}
-	return error;
+	return (error);
 }
 
 static int
 isavga_attach(device_t dev)
 {
 	vga_softc_t *sc;
+	devclass_t dc;
+	device_t *devs;
+	void *vgapci_sc;
+	int count, i;
 	int unit;
 	int rid;
 	int error;
@@ -140,13 +144,13 @@ isavga_attach(device_t dev)
 
 	error = vga_attach_unit(unit, sc, device_get_flags(dev));
 	if (error)
-		return error;
+		return (error);
 
 #ifdef FB_INSTALL_CDEV
 	/* attach a virtual frame buffer device */
 	error = fb_attach(VGA_MKMINOR(unit), sc->adp, &isavga_cdevsw);
 	if (error)
-		return error;
+		return (error);
 #endif /* FB_INSTALL_CDEV */
 
 	if (0 && bootverbose)
@@ -157,20 +161,43 @@ isavga_attach(device_t dev)
 	bus_generic_attach(dev);
 #endif
 
-	return 0;
+	/* Find the matching PCI video controller. */
+	if (unit == 0) {
+		dc = devclass_find("vgapci");
+		if (dc != NULL &&
+		    devclass_get_devices(dc, &devs, &count) == 0) {
+			for (i = 0; i < count; i++)
+				if (device_get_flags(devs[i]) != 0) {
+					sc->pci_dev = devs[i];
+					break;
+				}
+			free(devs, M_TEMP);
+		}
+		if (sc->pci_dev != NULL) {
+			vgapci_sc = device_get_softc(sc->pci_dev);
+			*(device_t *)vgapci_sc = dev;
+			device_printf(dev, "associated with %s\n",
+			    device_get_nameunit(sc->pci_dev));
+		}
+	}
+
+	return (0);
 }
 
 static int
 isavga_suspend(device_t dev)
 {
 	vga_softc_t *sc;
+	device_t isa_dev;
 	int err, nbytes;
 
-	err = bus_generic_suspend(dev);
-	if (err)
-		return (err);
-
-	sc = device_get_softc(dev);
+	err = 0;
+	isa_dev = dev;
+	sc = device_get_softc(isa_dev);
+	if (sc->pci_dev != NULL)
+		dev = sc->pci_dev;
+	else
+		err = bus_generic_suspend(isa_dev);
 
 	/* Save the video state across the suspend. */
 	if (sc->state_buf != NULL)
@@ -193,7 +220,7 @@ isavga_suspend(device_t dev)
 save_palette:
 	/* Save the color palette across the suspend. */
 	if (sc->pal_buf != NULL)
-		return (0);
+		return (err);
 	sc->pal_buf = malloc(256 * 3, M_TEMP, M_NOWAIT);
 	if (sc->pal_buf != NULL) {
 		if (bootverbose)
@@ -205,15 +232,19 @@ save_palette:
 		}
 	}
 
-	return (0);
+	return (err);
 }
 
 static int
 isavga_resume(device_t dev)
 {
 	vga_softc_t *sc;
+	device_t isa_dev;
 
-	sc = device_get_softc(dev);
+	isa_dev = dev;
+	sc = device_get_softc(isa_dev);
+	if (sc->pci_dev != NULL)
+		dev = sc->pci_dev;
 
 	if (sc->state_buf != NULL) {
 		if (vidd_load_state(sc->adp, sc->state_buf) != 0)
@@ -228,7 +259,10 @@ isavga_resume(device_t dev)
 		sc->pal_buf = NULL;
 	}
 
-	return (bus_generic_resume(dev));
+	if (isa_dev != dev)
+		return (0);
+
+	return (bus_generic_resume(isa_dev));
 }
 
 #ifdef FB_INSTALL_CDEV
@@ -236,37 +270,37 @@ isavga_resume(device_t dev)
 static int
 isavga_open(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	return vga_open(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td);
+	return (vga_open(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td));
 }
 
 static int
 isavga_close(struct cdev *dev, int flag, int mode, struct thread *td)
 {
-	return vga_close(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td);
+	return (vga_close(dev, VGA_SOFTC(VGA_UNIT(dev)), flag, mode, td));
 }
 
 static int
 isavga_read(struct cdev *dev, struct uio *uio, int flag)
 {
-	return vga_read(dev, VGA_SOFTC(VGA_UNIT(dev)), uio, flag);
+	return (vga_read(dev, VGA_SOFTC(VGA_UNIT(dev)), uio, flag));
 }
 
 static int
 isavga_write(struct cdev *dev, struct uio *uio, int flag)
 {
-	return vga_write(dev, VGA_SOFTC(VGA_UNIT(dev)), uio, flag);
+	return (vga_write(dev, VGA_SOFTC(VGA_UNIT(dev)), uio, flag));
 }
 
 static int
 isavga_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
-	return vga_ioctl(dev, VGA_SOFTC(VGA_UNIT(dev)), cmd, arg, flag, td);
+	return (vga_ioctl(dev, VGA_SOFTC(VGA_UNIT(dev)), cmd, arg, flag, td));
 }
 
 static int
 isavga_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
-	return vga_mmap(dev, VGA_SOFTC(VGA_UNIT(dev)), offset, paddr, prot);
+	return (vga_mmap(dev, VGA_SOFTC(VGA_UNIT(dev)), offset, paddr, prot));
 }
 
 #endif /* FB_INSTALL_CDEV */
