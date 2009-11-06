@@ -69,6 +69,7 @@
 struct video_adapter;
 typedef struct vga_softc {
 	struct video_adapter	*adp;
+	device_t		pci_dev;
 	void			*state_buf;
 	void			*pal_buf;
 #ifdef FB_INSTALL_CDEV
