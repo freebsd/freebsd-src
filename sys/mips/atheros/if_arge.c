@@ -205,9 +205,11 @@ arge_attach(device_t dev)
 	if (sc->arge_mac_unit == 0) {
 		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE0;
 		sc->arge_pll_reg = AR71XX_PLL_ETH_INT0_CLK;
+		sc->arge_pll_reg_shift = 17;
 	} else {
 		sc->arge_ddr_flush_reg = AR71XX_WB_FLUSH_GE1;
 		sc->arge_pll_reg = AR71XX_PLL_ETH_INT1_CLK;
+		sc->arge_pll_reg_shift = 19;
 	}
 
 	/*
@@ -228,7 +230,6 @@ arge_attach(device_t dev)
 	}
 
 	sc->arge_phy_num = phynum;
-
 
 	mtx_init(&sc->arge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -307,6 +308,9 @@ arge_attach(device_t dev)
 		eaddr[4] = (rnd >> 16) & 0xff;
 		eaddr[5] = (rnd >> 8) & 0xff;
 	}
+
+	if (sc->arge_mac_unit != 0)
+		eaddr[5] +=  sc->arge_mac_unit;
 
 	if (arge_dma_alloc(sc) != 0) {
 		error = ENXIO;
@@ -617,20 +621,20 @@ arge_link_task(void *arg, int pending)
 
 			/* set PLL registers */
 			sec_cfg = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-			sec_cfg &= ~(3 << 17);
-			sec_cfg |= (2 << 17);
+			sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
+			sec_cfg |= (2 << sc->arge_pll_reg_shift);
 
-			ATH_WRITE_REG(AR71XX_PLL_CPU_CONFIG, sec_cfg);
+			ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
 			DELAY(100);
 
 			ATH_WRITE_REG(sc->arge_pll_reg, pll);
 
-			sec_cfg |= (3 << 17);
-			ATH_WRITE_REG(AR71XX_PLL_CPU_CONFIG, sec_cfg);
+			sec_cfg |= (3 << sc->arge_pll_reg_shift);
+			ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
 			DELAY(100);
 
-			sec_cfg &= ~(3 << 17);
-			ATH_WRITE_REG(AR71XX_PLL_CPU_CONFIG, sec_cfg);
+			sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
+			ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
 			DELAY(100);
 		}
 	} else
