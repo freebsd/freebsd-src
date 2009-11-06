@@ -2481,13 +2481,6 @@ struct bge_gib {
 #define	BGE_MSLOTS	256
 #define	BGE_JSLOTS	384
 
-#define	BGE_JRAWLEN (BGE_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define	BGE_JLEN (BGE_JRAWLEN + (sizeof(uint64_t) - \
-	(BGE_JRAWLEN % sizeof(uint64_t))))
-#define	BGE_JPAGESZ PAGE_SIZE
-#define	BGE_RESID (BGE_JPAGESZ - (BGE_JLEN * BGE_JSLOTS) % BGE_JPAGESZ)
-#define	BGE_JMEM ((BGE_JLEN * BGE_JSLOTS) + BGE_RESID)
-
 #define	BGE_NSEG_JUMBO	4
 #define	BGE_NSEG_NEW 32
 
