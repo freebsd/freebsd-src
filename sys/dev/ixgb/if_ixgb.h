@@ -284,7 +284,6 @@ struct adapter {
 	struct ifmedia  media;
 	struct callout 	timer;
 	int             io_rid;
-	u_int8_t        unit;
 	struct mtx	mtx;
 
 	/* Info about the board itself */
