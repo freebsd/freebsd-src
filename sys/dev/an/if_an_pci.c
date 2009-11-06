@@ -103,6 +103,7 @@ struct an_type {
 
 static struct an_type an_devs[] = {
 	{ AIRONET_VENDORID, AIRONET_DEVICEID_35x, "Cisco Aironet 350 Series" },
+	{ AIRONET_VENDORID, AIRONET_DEVICEID_MPI350, "Cisco Aironet MPI350" },
 	{ AIRONET_VENDORID, AIRONET_DEVICEID_4500, "Aironet PCI4500" },
 	{ AIRONET_VENDORID, AIRONET_DEVICEID_4800, "Aironet PCI4800" },
 	{ AIRONET_VENDORID, AIRONET_DEVICEID_4xxx, "Aironet PCI4500/PCI4800" },
@@ -133,13 +134,6 @@ an_probe_pci(device_t dev)
 		t++;
 	}
 
-	if (pci_get_vendor(dev) == AIRONET_VENDORID &&
-	    pci_get_device(dev) == AIRONET_DEVICEID_MPI350) {
-		device_set_desc(dev, "Cisco Aironet MPI350");
-		an_pci_probe(dev);
-		return(BUS_PROBE_DEFAULT);
-	}
-
 	return(ENXIO);
 }
 
@@ -149,10 +143,9 @@ an_attach_pci(dev)
 {
 	u_int32_t		command;
 	struct an_softc		*sc;
-	int 			unit, flags, error = 0;
+	int 			flags, error = 0;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 	flags = device_get_flags(dev);
 
 	if (pci_get_vendor(dev) == AIRONET_VENDORID &&
@@ -169,7 +162,7 @@ an_attach_pci(dev)
 		command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 		if (!(command & PCIM_CMD_PORTEN)) {
-			printf("an%d: failed to enable I/O ports!\n", unit);
+			device_printf(dev, "failed to enable I/O ports!\n");
 			error = ENXIO;
 			goto fail;
 		}
@@ -178,7 +171,7 @@ an_attach_pci(dev)
 	error = an_alloc_port(dev, sc->port_rid, 1);
 
 	if (error) {
-		printf("an%d: couldn't map ports\n", unit);
+		device_printf(dev, "couldn't map ports\n");
 		goto fail;
 	}
 
@@ -191,7 +184,7 @@ an_attach_pci(dev)
 		sc->mem_rid = PCIR_BAR(1);
 		error = an_alloc_memory(dev, sc->mem_rid, 1);
 		if (error) {
-			printf("an%d: couldn't map memory\n", unit);
+			device_printf(dev, "couldn't map memory\n");
 			goto fail;
 		}
 		sc->an_mem_btag = rman_get_bustag(sc->mem_res);
@@ -202,7 +195,7 @@ an_attach_pci(dev)
 		error = an_alloc_aux_memory(dev, sc->mem_aux_rid, 
 		    AN_AUX_MEM_SIZE);
 		if (error) {
-			printf("an%d: couldn't map aux memory\n", unit);
+			device_printf(dev, "couldn't map aux memory\n");
 			goto fail;
 		}
 		sc->an_mem_aux_btag = rman_get_bustag(sc->mem_aux_res);
@@ -222,7 +215,7 @@ an_attach_pci(dev)
 			       NULL,			/* lockarg */
 			       &sc->an_dtag);
 		if (error) {
-			printf("an%d: couldn't get DMA region\n", unit);
+			device_printf(dev, "couldn't get DMA region\n");
 			goto fail;
 		}
 	}
@@ -230,12 +223,14 @@ an_attach_pci(dev)
 	/* Allocate interrupt */
 	error = an_alloc_irq(dev, 0, RF_SHAREABLE);
 	if (error) {
+		device_printf(dev, "couldn't get interrupt\n");
 		goto fail;
 	}
 
 	sc->an_dev = dev;
-	error = an_attach(sc, device_get_unit(dev), flags);
+	error = an_attach(sc, flags);
 	if (error) {
+		device_printf(dev, "couldn't attach\n");
 		goto fail;
 	}
 
@@ -244,6 +239,8 @@ an_attach_pci(dev)
 	 */
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 	    NULL, an_intr, sc, &sc->irq_handle);
+	if (error)
+		device_printf(dev, "couldn't setup interrupt\n");
 
 fail:
 	if (error)

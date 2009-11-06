@@ -674,7 +674,7 @@ an_init_mpi350_desc(struct an_softc *sc)
 }
 
 int
-an_attach(struct an_softc *sc, int unit, int flags)
+an_attach(struct an_softc *sc, int flags)
 {
 	struct ifnet		*ifp;
 	int			error = EIO;
