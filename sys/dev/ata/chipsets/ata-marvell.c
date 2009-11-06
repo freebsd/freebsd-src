@@ -67,6 +67,8 @@ static void ata_marvell_edma_dmainit(device_t dev);
 /* misc defines */
 #define MV_50XX		50
 #define MV_60XX		60
+#define MV_6042		62
+#define MV_7042		72
 #define MV_61XX		61
 
 
@@ -102,7 +104,9 @@ ata_marvell_probe(device_t dev)
      { ATA_M88SX5080, 0, 8, MV_50XX, ATA_SA150, "88SX5080" },
      { ATA_M88SX5081, 0, 8, MV_50XX, ATA_SA150, "88SX5081" },
      { ATA_M88SX6041, 0, 4, MV_60XX, ATA_SA300, "88SX6041" },
+     { ATA_M88SX6042, 0, 4, MV_6042, ATA_SA300, "88SX6042" },
      { ATA_M88SX6081, 0, 8, MV_60XX, ATA_SA300, "88SX6081" },
+     { ATA_M88SX7042, 0, 4, MV_7042, ATA_SA300, "88SX7042" },
      { ATA_M88SX6101, 0, 1, MV_61XX, ATA_UDMA6, "88SX6101" },
      { ATA_M88SX6121, 0, 1, MV_61XX, ATA_UDMA6, "88SX6121" },
      { ATA_M88SX6145, 0, 2, MV_61XX, ATA_UDMA6, "88SX6145" },
@@ -119,6 +123,8 @@ ata_marvell_probe(device_t dev)
     switch (ctlr->chip->cfg2) {
     case MV_50XX:
     case MV_60XX:
+    case MV_6042:
+    case MV_7042:
 	ctlr->chipinit = ata_marvell_edma_chipinit;
 	break;
     case MV_61XX:
@@ -251,6 +257,8 @@ ata_marvell_edma_ch_attach(device_t dev)
 	ch->r_io[ATA_SCONTROL].offset = 0x00108 + ATA_MV_HOST_BASE(ch);
 	break;
     case MV_60XX:
+    case MV_6042:
+    case MV_7042:
 	ch->r_io[ATA_SSTATUS].res = ctlr->r_res1;
 	ch->r_io[ATA_SSTATUS].offset =  0x02300 + ATA_MV_EDMA_BASE(ch);
 	ch->r_io[ATA_SERROR].res = ctlr->r_res1;
@@ -384,35 +392,61 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
 	request->dma->sg_bus & 0xffffffff);
     le32enc(bytep + 1 * sizeof(u_int32_t),
 	(u_int64_t)request->dma->sg_bus >> 32);
-    le16enc(bytep + 4 * sizeof(u_int16_t),
-	(request->flags & ATA_R_READ ? 0x01 : 0x00) | (request->tag << 1));
+    if (ctlr->chip->cfg2 != MV_6042 && ctlr->chip->cfg2 != MV_7042) {
+	    le16enc(bytep + 4 * sizeof(u_int16_t),
+		(request->flags & ATA_R_READ ? 0x01 : 0x00) | (request->tag << 1));
 
-    i = 10;
-    bytep[i++] = (request->u.ata.count >> 8) & 0xff;
-    bytep[i++] = 0x10 | ATA_COUNT;
-    bytep[i++] = request->u.ata.count & 0xff;
-    bytep[i++] = 0x10 | ATA_COUNT;
+	    i = 10;
+	    bytep[i++] = (request->u.ata.count >> 8) & 0xff;
+	    bytep[i++] = 0x10 | ATA_COUNT;
+	    bytep[i++] = request->u.ata.count & 0xff;
+	    bytep[i++] = 0x10 | ATA_COUNT;
 
-    bytep[i++] = (request->u.ata.lba >> 24) & 0xff;
-    bytep[i++] = 0x10 | ATA_SECTOR;
-    bytep[i++] = request->u.ata.lba & 0xff;
-    bytep[i++] = 0x10 | ATA_SECTOR;
+	    bytep[i++] = (request->u.ata.lba >> 24) & 0xff;
+	    bytep[i++] = 0x10 | ATA_SECTOR;
+	    bytep[i++] = request->u.ata.lba & 0xff;
+	    bytep[i++] = 0x10 | ATA_SECTOR;
 
-    bytep[i++] = (request->u.ata.lba >> 32) & 0xff;
-    bytep[i++] = 0x10 | ATA_CYL_LSB;
-    bytep[i++] = (request->u.ata.lba >> 8) & 0xff;
-    bytep[i++] = 0x10 | ATA_CYL_LSB;
+	    bytep[i++] = (request->u.ata.lba >> 32) & 0xff;
+	    bytep[i++] = 0x10 | ATA_CYL_LSB;
+	    bytep[i++] = (request->u.ata.lba >> 8) & 0xff;
+	    bytep[i++] = 0x10 | ATA_CYL_LSB;
 
-    bytep[i++] = (request->u.ata.lba >> 40) & 0xff;
-    bytep[i++] = 0x10 | ATA_CYL_MSB;
-    bytep[i++] = (request->u.ata.lba >> 16) & 0xff;
-    bytep[i++] = 0x10 | ATA_CYL_MSB;
+	    bytep[i++] = (request->u.ata.lba >> 40) & 0xff;
+	    bytep[i++] = 0x10 | ATA_CYL_MSB;
+	    bytep[i++] = (request->u.ata.lba >> 16) & 0xff;
+	    bytep[i++] = 0x10 | ATA_CYL_MSB;
 
-    bytep[i++] = ATA_D_LBA | ATA_D_IBM | ((request->u.ata.lba >> 24) & 0xf);
-    bytep[i++] = 0x10 | ATA_DRIVE;
+	    bytep[i++] = ATA_D_LBA | ATA_D_IBM | ((request->u.ata.lba >> 24) & 0xf);
+	    bytep[i++] = 0x10 | ATA_DRIVE;
 
-    bytep[i++] = request->u.ata.command;
-    bytep[i++] = 0x90 | ATA_COMMAND;
+	    bytep[i++] = request->u.ata.command;
+	    bytep[i++] = 0x90 | ATA_COMMAND;
+    } else {
+	    le32enc(bytep + 2 * sizeof(u_int32_t),
+		(request->flags & ATA_R_READ ? 0x01 : 0x00) | (request->tag << 1));
+
+	    i = 16;
+	    bytep[i++] = 0;
+	    bytep[i++] = 0;
+	    bytep[i++] = request->u.ata.command;
+	    bytep[i++] = request->u.ata.feature & 0xff;
+
+	    bytep[i++] = request->u.ata.lba & 0xff;
+	    bytep[i++] = (request->u.ata.lba >> 8) & 0xff;
+	    bytep[i++] = (request->u.ata.lba >> 16) & 0xff;
+	    bytep[i++] = ATA_D_LBA | ATA_D_IBM | ((request->u.ata.lba >> 24) & 0x0f);
+
+	    bytep[i++] = (request->u.ata.lba >> 24) & 0xff;
+	    bytep[i++] = (request->u.ata.lba >> 32) & 0xff;
+	    bytep[i++] = (request->u.ata.lba >> 40) & 0xff;
+	    bytep[i++] = (request->u.ata.feature >> 8) & 0xff;
+
+	    bytep[i++] = request->u.ata.count & 0xff;
+	    bytep[i++] = (request->u.ata.count >> 8) & 0xff;
+	    bytep[i++] = 0;
+	    bytep[i++] = 0;
+    }
 
     bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
 	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -557,7 +591,10 @@ ata_marvell_edma_dmainit(device_t dev)
 	ch->dma.max_address = BUS_SPACE_MAXADDR;
 
     /* chip does not reliably do 64K DMA transfers */
-    ch->dma.max_iosize = 64 * DEV_BSIZE; 
+    if (ctlr->chip->cfg2 == MV_50XX || ctlr->chip->cfg2 == MV_60XX)
+	ch->dma.max_iosize = 64 * DEV_BSIZE;
+    else
+	ch->dma.max_iosize = (ATA_DMA_ENTRIES - 1) * PAGE_SIZE;
 }
 
 ATA_DECLARE_DRIVER(ata_marvell);
