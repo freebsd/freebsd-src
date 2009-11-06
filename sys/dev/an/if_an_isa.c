@@ -115,7 +115,7 @@ an_attach_isa(device_t dev)
 	sc->an_btag = rman_get_bustag(sc->port_res);
 	sc->an_dev = dev;
 
-	error = an_attach(sc, device_get_unit(dev), flags);
+	error = an_attach(sc, flags);
 	if (error) {
 		an_release_resources(dev);
 		return (error);
