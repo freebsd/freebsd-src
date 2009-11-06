@@ -118,7 +118,9 @@ static void	cpu_print_speed(void);
 static void	cpu_6xx_setup(int cpuid, uint16_t vers);
 static void	cpu_6xx_print_cacheinfo(u_int, uint16_t);
 static void	cpu_e500_setup(int cpuid, uint16_t vers);
+#ifndef E500
 static void	cpu_970_setup(int cpuid, uint16_t vers);
+#endif
 
 void
 cpu_setup(u_int cpuid)
@@ -195,12 +197,14 @@ cpu_setup(u_int cpuid)
 			cpu_6xx_setup(cpuid, vers);
 			break;
 
+#ifndef E500
 		case IBM970:
 		case IBM970FX:
 		case IBM970GX:
 		case IBM970MP:
 			cpu_970_setup(cpuid, vers);
 			break;
+#endif
 
 		case FSL_E500v1:
 		case FSL_E500v2:
@@ -429,6 +433,7 @@ cpu_e500_setup(int cpuid, uint16_t vers)
 	printf("cpu%d: HID0 %b", cpuid, (int)hid0, HID0_E500_BITMASK);
 }
 
+#ifndef E500
 static void
 cpu_970_setup(int cpuid, uint16_t vers)
 {
@@ -458,4 +463,4 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	    : "=r" (hid0_hi) : "K" (SPR_HID0));
 	printf("cpu%d: HID0 %b", cpuid, (int)(hid0_hi), HID0_970_BITMASK);
 }
-
+#endif
