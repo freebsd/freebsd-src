@@ -858,9 +858,10 @@ devclass_find(const char *classname)
  * @param driver	the driver to register
  */
 int
-devclass_add_driver(devclass_t dc, driver_t *driver)
+devclass_add_driver(devclass_t dc, driver_t *driver, devclass_t *dcp)
 {
 	driverlink_t dl;
+	const char *parentname;
 	int i;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
@@ -878,9 +879,17 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 	kobj_class_compile((kobj_class_t) driver);
 
 	/*
-	 * Make sure the devclass which the driver is implementing exists.
+	 * If the driver has any base classes, make the
+	 * devclass inherit from the devclass of the driver's
+	 * first base class. This will allow the system to
+	 * search for drivers in both devclasses for children
+	 * of a device using this driver.
 	 */
-	devclass_find_internal(driver->name, NULL, TRUE);
+	if (driver->baseclasses)
+		parentname = driver->baseclasses[0]->name;
+	else
+		parentname = NULL;
+	*dcp = devclass_find_internal(driver->name, parentname, TRUE);
 
 	dl->driver = driver;
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
@@ -3853,27 +3862,8 @@ driver_module_handler(module_t mod, int what, void *arg)
 		driver = dmd->dmd_driver;
 		PDEBUG(("Loading module: driver %s on bus %s",
 		    DRIVERNAME(driver), dmd->dmd_busname));
-		error = devclass_add_driver(bus_devclass, driver);
-		if (error)
-			break;
-
-		/*
-		 * If the driver has any base classes, make the
-		 * devclass inherit from the devclass of the driver's
-		 * first base class. This will allow the system to
-		 * search for drivers in both devclasses for children
-		 * of a device using this driver.
-		 */
-		if (driver->baseclasses) {
-			const char *parentname;
-			parentname = driver->baseclasses[0]->name;
-			*dmd->dmd_devclass =
-				devclass_find_internal(driver->name,
-				    parentname, TRUE);
-		} else {
-			*dmd->dmd_devclass =
-				devclass_find_internal(driver->name, NULL, TRUE);
-		}
+		error = devclass_add_driver(bus_devclass, driver,
+		    dmd->dmd_devclass);
 		break;
 
 	case MOD_UNLOAD:

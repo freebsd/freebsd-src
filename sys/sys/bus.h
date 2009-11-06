@@ -432,7 +432,8 @@ void	device_verbose(device_t dev);
 /*
  * Access functions for devclass.
  */
-int	devclass_add_driver(devclass_t dc, kobj_class_t driver);
+int	devclass_add_driver(devclass_t dc, kobj_class_t driver,
+			    devclass_t *dcp);
 int	devclass_delete_driver(devclass_t dc, kobj_class_t driver);
 devclass_t	devclass_create(const char *classname);
 devclass_t	devclass_find(const char *classname);
