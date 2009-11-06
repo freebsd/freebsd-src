@@ -108,7 +108,6 @@ struct vge_softc {
 	device_t		vge_miibus;
 	bus_dma_tag_t		vge_parent_tag;
 	bus_dma_tag_t		vge_tag;
-	u_int8_t		vge_unit;	/* interface number */
 	u_int8_t		vge_type;
 	int			vge_if_flags;
 	int			vge_rx_consumed;
