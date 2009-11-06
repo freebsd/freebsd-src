@@ -1518,8 +1518,6 @@ msk_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = msk_ioctl;
 	ifp->if_start = msk_start;
-	ifp->if_timer = 0;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = msk_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, MSK_TX_RING_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = MSK_TX_RING_CNT - 1;
