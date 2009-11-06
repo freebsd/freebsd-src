@@ -513,6 +513,7 @@ nd6_llinfo_timer(void *arg)
 
 	if (ln->la_flags & LLE_DELETED) {
 		(void)nd6_free(ln, 0);
+		ln = NULL;
 		goto done;
 	}
 
