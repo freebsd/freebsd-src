@@ -179,6 +179,7 @@ rmi_early_counter_init()
 	pic_update_control(1 << (8 + 6));
 }
 
+void tick_init(void);
 
 void
 platform_initclocks(void)
@@ -246,6 +247,7 @@ platform_initclocks(void)
 		/* Setup count-compare interrupt for vcpu[1-31] */
 		mips_wr_compare((xlr_boot1_info.cpu_frequency) / hz);
 	}
+	tick_init();
 }
 
 unsigned 

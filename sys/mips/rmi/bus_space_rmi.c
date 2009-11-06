@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cache.h>
-void xlr_putc(char);
 void xlr_print_int(uint32_t);
 
 static int 
