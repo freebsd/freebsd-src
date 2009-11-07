@@ -103,8 +103,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/wpi/if_wpireg.h>
 #include <dev/wpi/if_wpivar.h>
 
-#define WPI_DEBUG
-
 #ifdef WPI_DEBUG
 #define DPRINTF(x)	do { if (wpi_debug != 0) printf x; } while (0)
 #define DPRINTFN(n, x)	do { if (wpi_debug & n) printf x; } while (0)
