@@ -2723,7 +2723,6 @@ bge_attach(device_t dev)
 	ifp->if_ioctl = bge_ioctl;
 	ifp->if_start = bge_start;
 	ifp->if_init = bge_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_drv_maxlen = BGE_TX_RING_CNT - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -2837,6 +2836,9 @@ again:
 	 */
 	ether_ifattach(ifp, eaddr);
 	callout_init_mtx(&sc->bge_stat_ch, &sc->bge_mtx, 0);
+
+	/* Tell upper layer we support long frames. */
+	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/*
 	 * Hookup IRQ last.
