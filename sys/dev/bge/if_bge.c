@@ -1046,9 +1046,11 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 {
 	int error, i;
 
+	sc->bge_std = 0;
 	for (i = 0; i < BGE_SSLOTS; i++) {
 		if ((error = bge_newbuf_std(sc, i)) != 0)
 			return (error);
+		BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
@@ -1087,9 +1089,11 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 	struct bge_rcb *rcb;
 	int error, i;
 
+	sc->bge_jumbo = 0;
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 		if ((error = bge_newbuf_jumbo(sc, i)) != 0)
 			return (error);
+		BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
@@ -3198,6 +3202,7 @@ bge_rxeof(struct bge_softc *sc)
 				ifp->if_iqdrops++;
 				continue;
 			}
+			BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
 		} else {
 			stdcnt++;
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_ERROR) {
@@ -3211,6 +3216,7 @@ bge_rxeof(struct bge_softc *sc)
 				ifp->if_iqdrops++;
 				continue;
 			}
+			BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
 		}
 
 		ifp->if_ipackets++;
