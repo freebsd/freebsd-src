@@ -3196,7 +3196,6 @@ bge_rxeof(struct bge_softc *sc)
 			m = sc->bge_cdata.bge_rx_jumbo_chain[rxidx];
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_ERROR) {
 				BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
-				ifp->if_ierrors++;
 				continue;
 			}
 			if (bge_newbuf_jumbo(sc, rxidx) != 0) {
@@ -3209,7 +3208,6 @@ bge_rxeof(struct bge_softc *sc)
 			stdcnt++;
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_ERROR) {
 				BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
-				ifp->if_ierrors++;
 				continue;
 			}
 			m = sc->bge_cdata.bge_rx_std_chain[rxidx];
@@ -3291,14 +3289,6 @@ bge_rxeof(struct bge_softc *sc)
 		bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
 	if (jumbocnt)
 		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
-#ifdef notyet
-	/*
-	 * This register wraps very quickly under heavy packet drops.
-	 * If you need correct statistics, you can enable this check.
-	 */
-	if (BGE_IS_5705_PLUS(sc))
-		ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
-#endif
 	return (rx_npkts);
 }
 
