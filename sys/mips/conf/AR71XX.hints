@@ -32,10 +32,13 @@ hint.arge.0.irq=2
 # Uncomment this hint for RS (not PRO)
 # hint.arge.0.phy=20
 
-# hint.arge.1.at="nexus0"
-# hint.arge.1.maddr=0x1A000000
-# hint.arge.1.msize=0x1000
-# hint.arge.1.irq=3
+hint.arge.1.at="nexus0"
+hint.arge.1.maddr=0x1a000000
+hint.arge.1.msize=0x1000
+hint.arge.1.irq=3
+hint.arge.1.phy=3
+# Uncomment this hint for RS (not PRO)
+# hint.arge.1.phy=19
 
 # SPI flash
 hint.spi.0.at="nexus0"
