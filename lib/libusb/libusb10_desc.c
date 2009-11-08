@@ -35,6 +35,8 @@
 #include "libusb.h"
 #include "libusb10.h"
 
+#define	N_ALIGN(n) (-((-(n)) & (-8UL)))
+
 /* USB descriptors */
 
 int
@@ -114,17 +116,17 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 
 	nalt = nif = pconf->num_interface;
 	nep = 0;
-	nextra = pconf->extra.len;
+	nextra = N_ALIGN(pconf->extra.len);
 
 	for (i = 0; i < nif; i++) {
 
 		pinf = pconf->interface + i;
-		nextra += pinf->extra.len;
+		nextra += N_ALIGN(pinf->extra.len);
 		nep += pinf->num_endpoints;
 		k = pinf->num_endpoints;
 		pend = pinf->endpoints;
 		while (k--) {
-			nextra += pend->extra.len;
+			nextra += N_ALIGN(pend->extra.len);
 			pend++;
 		}
 
@@ -132,12 +134,12 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 		nalt += pinf->num_altsetting;
 		pinf = pinf->altsetting;
 		while (j--) {
-			nextra += pinf->extra.len;
+			nextra += N_ALIGN(pinf->extra.len);
 			nep += pinf->num_endpoints;
 			k = pinf->num_endpoints;
 			pend = pinf->endpoints;
 			while (k--) {
-				nextra += pend->extra.len;
+				nextra += N_ALIGN(pend->extra.len);
 				pend++;
 			}
 			pinf++;
@@ -150,17 +152,18 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 	    (nalt * sizeof(libusb_interface_descriptor)) +
 	    (nep * sizeof(libusb_endpoint_descriptor));
 
+	nextra = N_ALIGN(nextra);
+
 	pconfd = malloc(nextra);
 
 	if (pconfd == NULL) {
 		free(pconf);
 		return (LIBUSB_ERROR_NO_MEM);
 	}
-	/* make sure memory is clean */
+	/* make sure memory is initialised */
 	memset(pconfd, 0, nextra);
 
-	pconfd->interface = (libusb_interface *) (pconfd +
-	    sizeof(libusb_config_descriptor));
+	pconfd->interface = (libusb_interface *) (pconfd + 1);
 
 	ifd = (libusb_interface_descriptor *) (pconfd->interface + nif);
 	endd = (libusb_endpoint_descriptor *) (ifd + nalt);
@@ -181,7 +184,7 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 		pconfd->extra_length = pconf->extra.len;
 		pconfd->extra = pextra;
 		memcpy(pextra, pconf->extra.ptr, pconfd->extra_length);
-		pextra += pconfd->extra_length;
+		pextra += N_ALIGN(pconfd->extra_length);
 	}
 	/* setup all interface and endpoint pointers */
 
@@ -221,7 +224,7 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 				ifd->extra_length = pinf->extra.len;
 				ifd->extra = pextra;
 				memcpy(pextra, pinf->extra.ptr, pinf->extra.len);
-				pextra += pinf->extra.len;
+				pextra += N_ALIGN(pinf->extra.len);
 			}
 			for (k = 0; k < pinf->num_endpoints; k++) {
 				pend = &pinf->endpoints[k];
@@ -238,7 +241,7 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 					endd->extra_length = pend->extra.len;
 					endd->extra = pextra;
 					memcpy(pextra, pend->extra.ptr, pend->extra.len);
-					pextra += pend->extra.len;
+					pextra += N_ALIGN(pend->extra.len);
 				}
 			}
 		}
@@ -303,4 +306,13 @@ libusb_get_string_descriptor_ascii(libusb_device_handle *pdev,
 		return (strlen(data));
 
 	return (LIBUSB_ERROR_OTHER);
+}
+
+int
+libusb_get_descriptor(libusb_device_handle * devh, uint8_t desc_type, 
+    uint8_t desc_index, uint8_t *data, int length)
+{
+	return (libusb_control_transfer(devh, LIBUSB_ENDPOINT_IN,
+	    LIBUSB_REQUEST_GET_DESCRIPTOR, (desc_type << 8) | desc_index, 0, data,
+	    length, 1000));
 }
