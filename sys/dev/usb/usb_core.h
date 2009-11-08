@@ -165,6 +165,7 @@ struct usb_xfer {
 	uint8_t	usb_cmask;
 	uint8_t	usb_uframe;
 	uint8_t	usb_state;
+	uint8_t fps_shift;		/* down shift of FPS, 0..3 */
 
 	usb_error_t error;
 
