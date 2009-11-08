@@ -64,6 +64,16 @@
 #define ARGE_CLEAR_BITS(sc, reg, bits)	\
 	ARGE_WRITE(sc, reg, ARGE_READ(sc, (reg)) & ~(bits))
 
+/*
+ * MII registers access macros
+ */
+#define ARGE_MII_READ(reg) \
+        *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((AR71XX_MII_BASE + reg)))
+
+#define ARGE_MII_WRITE(reg, val) \
+        *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((AR71XX_MII_BASE + reg))) = (val)
+
+
 #define ARGE_DESC_EMPTY		(1 << 31)
 #define ARGE_DESC_MORE		(1 << 24)
 #define ARGE_DESC_SIZE_MASK	((1 << 12) - 1)

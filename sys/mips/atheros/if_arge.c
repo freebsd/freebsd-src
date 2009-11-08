@@ -162,6 +162,11 @@ DRIVER_MODULE(miibus, arge, miibus_driver, miibus_devclass, 0, 0);
  */
 extern uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 
+static struct mtx miibus_mtx;
+
+MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_SPIN);
+
+
 /*
  * Flushes all 
  */
@@ -488,23 +493,27 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 	if (phy != sc->arge_phy_num)
 		return (0);
 
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
-	ARGE_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_READ);
+	mtx_lock(&miibus_mtx);
+	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	ARGE_MII_WRITE(AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_READ);
 
 	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
+	while ((ARGE_MII_READ(AR71XX_MAC_MII_INDICATOR) & 
 	    MAC_MII_INDICATOR_BUSY) && (i--))
 		DELAY(5);
 
 	if (i < 0) {
+		mtx_unlock(&miibus_mtx);
 		dprintf("%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
 
-	result = ARGE_READ(sc, AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	result = ARGE_MII_READ(AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
+	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	mtx_unlock(&miibus_mtx);
+
 	dprintf("%s: phy=%d, reg=%02x, value[%08x]=%04x\n", __func__, 
 		 phy, reg, addr, result);
 
@@ -519,16 +528,23 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	uint32_t addr = 
 	    (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
 
+
+	if (phy != sc->arge_phy_num)
+		return (-1);
+
 	dprintf("%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
 	    phy, reg, data);
 
-	ARGE_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CONTROL, data);
+	mtx_lock(&miibus_mtx);
+	ARGE_MII_WRITE(AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MII_WRITE(AR71XX_MAC_MII_CONTROL, data);
 
 	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
+	while ((ARGE_MII_READ(AR71XX_MAC_MII_INDICATOR) & 
 	    MAC_MII_INDICATOR_BUSY) && (i--))
 		DELAY(5);
+
+	mtx_unlock(&miibus_mtx);
 
 	if (i < 0) {
 		dprintf("%s timedout\n", __func__);
