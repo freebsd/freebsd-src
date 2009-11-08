@@ -230,7 +230,7 @@ ad_spindown(void *priv)
     }
     request->dev = dev;
     request->flags = ATA_R_CONTROL;
-    request->timeout = 10;
+    request->timeout = ATA_REQUEST_TIMEOUT;
     request->retries = 1;
     request->callback = ad_power_callback;
     request->u.ata.command = ATA_STANDBY_IMMEDIATE;
@@ -262,10 +262,10 @@ ad_strategy(struct bio *bp)
     if (atadev->spindown_state) {
 	device_printf(dev, "request while spun down, starting.\n");
 	atadev->spindown_state = 0;
-	request->timeout = 31;
+	request->timeout = MAX(ATA_REQUEST_TIMEOUT, 31);
     }
     else {
-	request->timeout = 10;
+	request->timeout = ATA_REQUEST_TIMEOUT;
     }
     request->retries = 2;
     request->data = bp->bio_data;
@@ -468,7 +468,7 @@ ad_set_geometry(device_t dev)
     request->u.ata.count = 0;
     request->u.ata.feature = 0;
     request->flags = ATA_R_CONTROL | ATA_R_QUIET;
-    request->timeout = 10;
+    request->timeout = ATA_REQUEST_TIMEOUT;
     request->retries = 0;
     ata_queue_request(request);
     if (request->status & ATA_S_ERROR)
@@ -487,7 +487,7 @@ ad_set_geometry(device_t dev)
     request->u.ata.count = 1;
     request->u.ata.feature = 0;
     request->flags = ATA_R_CONTROL;
-    request->timeout = 10;
+    request->timeout = ATA_REQUEST_TIMEOUT;
     request->retries = 0;
     ata_queue_request(request);
     if (request->status & ATA_S_ERROR)

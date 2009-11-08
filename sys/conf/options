@@ -350,6 +350,7 @@ ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
 # Options used in the 'ata' ATA/ATAPI driver
 ATA_STATIC_ID		opt_ata.h
 ATA_NOPCI		opt_ata.h
+ATA_REQUEST_TIMEOUT	opt_ata.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA
