@@ -416,9 +416,15 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		case USB_SPEED_LOW:
 		case USB_SPEED_FULL:
 			frame_limit = USB_MAX_FS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = 0;
 			break;
 		default:
 			frame_limit = USB_MAX_HS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = edesc->bInterval;
+			if (xfer->fps_shift > 0)
+				xfer->fps_shift--;
+			if (xfer->fps_shift > 3)
+				xfer->fps_shift = 3;
 			break;
 		}
 
@@ -1824,6 +1830,23 @@ usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
 	return (&xfer->frbuffers[frindex]);
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_xfer_get_fps_shift
+ *
+ * The following function is only useful for isochronous transfers. It
+ * returns how many times the frame execution rate has been shifted
+ * down.
+ *
+ * Return value:
+ * Success: 0..3
+ * Failure: 0
+ *------------------------------------------------------------------------*/
+uint8_t
+usbd_xfer_get_fps_shift(struct usb_xfer *xfer)
+{
+	return (xfer->fps_shift);
 }
 
 usb_frlength_t
