@@ -439,6 +439,19 @@ ehci_pci_attach(device_t self)
 		break;
 	}
 
+	/* Dropped interrupts workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_ATI:
+	case PCI_EHCI_VENDORID_VIA:
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Dropped interrupts workaround enabled\n");
+		break;
+	default:
+		break;
+	}
+
 	err = ehci_init(sc);
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_bus.bdev);
