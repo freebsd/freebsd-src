@@ -3289,6 +3289,14 @@ bge_rxeof(struct bge_softc *sc)
 		bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
 	if (jumbocnt)
 		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, sc->bge_jumbo);
+#ifdef notyet
+	/*
+	 * This register wraps very quickly under heavy packet drops.
+	 * If you need correct statistics, you can enable this check.
+	 */
+	if (BGE_IS_5705_PLUS(sc))
+		ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
+#endif
 	return (rx_npkts);
 }
 
