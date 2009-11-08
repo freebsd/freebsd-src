@@ -166,8 +166,6 @@ ehci_mbus_attach(device_t self)
 		return (ENOMEM);
 	}
 
-	sc->sc_bus.usbrev = USB_REV_2_0;
-
 	rid = 0;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (!sc->sc_io_res) {
