@@ -321,6 +321,7 @@ typedef struct ehci_softc {
 	struct ehci_hw_softc sc_hw;
 	struct usb_bus sc_bus;		/* base device */
 	struct usb_callout sc_tmo_pcd;
+	struct usb_callout sc_tmo_poll;
 	union ehci_hub_desc sc_hub_desc;
 
 	struct usb_device *sc_devices[EHCI_MAX_DEVICES];
@@ -348,6 +349,7 @@ typedef struct ehci_softc {
 #define	EHCI_SCFLG_BIGEDESC	0x0008	/* big-endian byte order descriptors */
 #define	EHCI_SCFLG_BIGEMMIO	0x0010	/* big-endian byte order MMIO */
 #define	EHCI_SCFLG_TT		0x0020	/* transaction translator present */
+#define	EHCI_SCFLG_LOSTINTRBUG	0x0040	/* workaround for VIA / ATI chipsets */
 
 	uint8_t	sc_offs;		/* offset to operational registers */
 	uint8_t	sc_doorbell_disable;	/* set on doorbell failure */
