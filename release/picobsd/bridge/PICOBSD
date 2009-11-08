@@ -11,10 +11,13 @@ hints	"PICOBSD.hints"
 # values accessible through getenv()
 # env		"PICOBSD.env"
 
-cpu		I486_CPU
+#cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
 ident		PICOBSD
+
+options		SMP
+device	apic
 
 options		SCHED_4BSD		# mandatory to have one scheduler
 #options	MATH_EMULATE		#Support for x87 emulation
