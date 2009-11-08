@@ -113,10 +113,12 @@ extern struct usb_pipe_methods ehci_device_intr_methods;
 extern struct usb_pipe_methods ehci_device_isoc_fs_methods;
 extern struct usb_pipe_methods ehci_device_isoc_hs_methods;
 
-static void ehci_do_poll(struct usb_bus *bus);
-static void ehci_device_done(struct usb_xfer *xfer, usb_error_t error);
-static uint8_t ehci_check_transfer(struct usb_xfer *xfer);
-static void ehci_timeout(void *arg);
+static void ehci_do_poll(struct usb_bus *);
+static void ehci_device_done(struct usb_xfer *, usb_error_t);
+static uint8_t ehci_check_transfer(struct usb_xfer *);
+static void ehci_timeout(void *);
+static void ehci_poll_timeout(void *);
+
 static void ehci_root_intr(ehci_softc_t *sc);
 
 struct ehci_std_temp {
@@ -243,6 +245,7 @@ ehci_init(ehci_softc_t *sc)
 	DPRINTF("start\n");
 
 	usb_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx, 0);
+	usb_callout_init_mtx(&sc->sc_tmo_poll, &sc->sc_bus.bus_mtx, 0);
 
 #if USB_DEBUG
 	if (ehcidebug > 2) {
@@ -520,6 +523,7 @@ ehci_detach(ehci_softc_t *sc)
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	usb_callout_stop(&sc->sc_tmo_pcd);
+	usb_callout_stop(&sc->sc_tmo_poll);
 
 	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
 	USB_BUS_UNLOCK(&sc->sc_bus);
@@ -532,6 +536,7 @@ ehci_detach(ehci_softc_t *sc)
 	usb_pause_mtx(NULL, hz / 20);
 
 	usb_callout_drain(&sc->sc_tmo_pcd);
+	usb_callout_drain(&sc->sc_tmo_poll);
 }
 
 void
@@ -1472,6 +1477,28 @@ repeat:
 	}
 }
 
+/*
+ * Some EHCI chips from VIA / ATI seem to trigger interrupts before
+ * writing back the qTD status, or miss signalling occasionally under
+ * heavy load.  If the host machine is too fast, we can miss
+ * transaction completion - when we scan the active list the
+ * transaction still seems to be active. This generally exhibits
+ * itself as a umass stall that never recovers.
+ *
+ * We work around this behaviour by setting up this callback after any
+ * softintr that completes with transactions still pending, giving us
+ * another chance to check for completion after the writeback has
+ * taken place.
+ */
+static void
+ehci_poll_timeout(void *arg)
+{
+	ehci_softc_t *sc = arg;
+
+	DPRINTFN(3, "\n");
+	ehci_interrupt_poll(sc);
+}
+
 /*------------------------------------------------------------------------*
  *	ehci_interrupt - EHCI interrupt handler
  *
@@ -1538,6 +1565,11 @@ ehci_interrupt(ehci_softc_t *sc)
 	}
 	/* poll all the USB transfers */
 	ehci_interrupt_poll(sc);
+
+	if (sc->sc_flags & EHCI_SCFLG_LOSTINTRBUG) {
+		usb_callout_reset(&sc->sc_tmo_poll, hz / 128,
+		    (void *)&ehci_poll_timeout, sc);
+	}
 
 done:
 	USB_BUS_UNLOCK(&sc->sc_bus);
