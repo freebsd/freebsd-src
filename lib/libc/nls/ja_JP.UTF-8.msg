@@ -1,6 +1,6 @@
 $ $FreeBSD$
 $
-$ Message catalog for C locale (template)
+$ Message catalog for ja_JP.UTF-8 locale
 $
 $ strerror() support catalog
 $
