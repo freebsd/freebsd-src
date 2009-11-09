@@ -1046,6 +1046,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 {
 	int error, i;
 
+	bzero(sc->bge_ldata.bge_rx_std_ring, BGE_STD_RX_RING_SZ);
 	sc->bge_std = 0;
 	for (i = 0; i < BGE_SSLOTS; i++) {
 		if ((error = bge_newbuf_std(sc, i)) != 0)
@@ -1089,6 +1090,7 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 	struct bge_rcb *rcb;
 	int error, i;
 
+	bzero(sc->bge_ldata.bge_rx_jumbo_ring, BGE_JUMBO_RX_RING_SZ);
 	sc->bge_jumbo = 0;
 	for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
 		if ((error = bge_newbuf_jumbo(sc, i)) != 0)
@@ -1160,6 +1162,11 @@ bge_init_tx_ring(struct bge_softc *sc)
 {
 	sc->bge_txcnt = 0;
 	sc->bge_tx_saved_considx = 0;
+
+	bzero(sc->bge_ldata.bge_tx_ring, BGE_TX_RING_SZ);
+	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
+	    sc->bge_cdata.bge_tx_ring_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Initialize transmit producer index for host-memory send ring. */
 	sc->bge_tx_prodidx = 0;
