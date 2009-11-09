@@ -6,7 +6,7 @@
 #ifndef lint
 static const char rcsid[] =
   "$FreeBSD$";
-static char	elsieid[] = "@(#)zdump.c	8.9";
+static char	elsieid[] = "@(#)zdump.c	8.10";
 #endif /* not lint */
 
 /*
@@ -152,7 +152,7 @@ static size_t	longest;
 static char *	progname;
 static int	warned;
 
-static void	usage(const char *progname, FILE *stream, int status);
+static void	usage(FILE *stream, int status);
 static char *	abbr(struct tm * tmp);
 static void	abbrok(const char * abbrp, const char * zone);
 static long	delta(struct tm * newp, struct tm * oldp);
@@ -273,7 +273,7 @@ char *	argv[];
 		if (strcmp(argv[i], "--version") == 0) {
 			errx(EXIT_SUCCESS, "%s", elsieid);
 		} else if (strcmp(argv[i], "--help") == 0) {
-			usage(progname, stdout, EXIT_SUCCESS);
+			usage(stdout, EXIT_SUCCESS);
 		}
 	vflag = 0;
 	cutarg = NULL;
@@ -283,7 +283,7 @@ char *	argv[];
 		else	cutarg = optarg;
 	if ((c != EOF && c != -1) ||
 		(optind == argc - 1 && strcmp(argv[optind], "=") == 0)) {
-			usage(progname, stderr, EXIT_FAILURE);
+			usage(stderr, EXIT_FAILURE);
 	}
 	if (vflag) {
 		if (cutarg != NULL) {
@@ -468,7 +468,7 @@ const long	y;
 }
 
 static void
-usage(const char *progname, FILE *stream, int status)
+usage(FILE *stream, int status)
 {
 	fprintf(stream,
 _("usage: %s [--version] [-v] [--help] [-c [loyear,]hiyear] zonename ...\n\
