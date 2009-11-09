@@ -897,7 +897,7 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 		panic("moea64_bootstrap: can't get mmu package");
 	    if ((sz = OF_getproplen(mmu, "translations")) == -1)
 		panic("moea64_bootstrap: can't get ofw translation count");
-	    if (size > sizeof(translations))
+	    if (sz > sizeof(translations))
 		panic("moea64_bootstrap: too many ofw translations (%d)",
 		      sz/sizeof(*translations));
 
