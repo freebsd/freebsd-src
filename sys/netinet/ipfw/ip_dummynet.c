@@ -252,7 +252,7 @@ static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
 #define QUEUE_IS_IDLE(q) ((q)->head == NULL && (q)->S == (q)->F + 1 && \
 	curr_time > (q)->idle_time + 1 && \
 	((q)->numbytes + (curr_time - (q)->idle_time - 1) * \
-	(q)->fs->pipe->bandwidth >= q->fs->pipe->burst))
+	(q)->fs->pipe->bandwidth >= (q)->fs->pipe->burst))
 
 /*
  * Heap management functions.
