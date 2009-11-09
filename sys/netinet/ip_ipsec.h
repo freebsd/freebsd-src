@@ -36,6 +36,5 @@ int	ip_ipsec_filtertunnel(struct mbuf *);
 int	ip_ipsec_fwd(struct mbuf *);
 int	ip_ipsec_input(struct mbuf *);
 int	ip_ipsec_mtu(struct mbuf *, int);
-int	ip_ipsec_output(struct mbuf **, struct inpcb *, int *, int *,
-	    struct ifnet **);
+int	ip_ipsec_output(struct mbuf **, struct inpcb *, int *, int *);
 #endif
