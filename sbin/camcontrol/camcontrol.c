@@ -4143,7 +4143,7 @@ atapm(struct cam_device *device, int argc, char **argv,
 	union ccb *ccb;
 	int retval = 0;
 	int t = -1;
-	char c;
+	int c;
 	u_char cmd, sc;
 
 	ccb = cam_getccb(device);
