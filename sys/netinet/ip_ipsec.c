@@ -260,8 +260,7 @@ ip_ipsec_mtu(struct mbuf *m, int mtu)
  * -1 = packet was reinjected and stop processing packet
  */
 int
-ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-    struct ifnet **ifp)
+ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 {
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
@@ -390,20 +389,6 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		} else {
 			/* No IPsec processing for this packet. */
 		}
-#ifdef notyet
-		/*
-		 * If deferred crypto processing is needed, check that
-		 * the interface supports it.
-		 */ 
-		mtag = m_tag_find(*m, PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED, NULL);
-		if (mtag != NULL && ifp != NULL &&
-		    ((*ifp)->if_capenable & IFCAP_IPSEC) == 0) {
-			/* notify IPsec to do its own crypto */
-			ipsp_skipcrypto_unmark((struct tdb_ident *)(mtag + 1));
-			*error = EHOSTUNREACH;
-			goto bad;
-		}
-#endif
 	}
 done:
 	if (sp != NULL)
