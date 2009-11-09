@@ -3826,6 +3826,9 @@ bge_start_locked(struct ifnet *ifp)
 		/* No packets were dequeued. */
 		return;
 
+	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
+	    sc->bge_cdata.bge_tx_ring_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	/* Transmit. */
 	bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 	/* 5700 b2 errata */
