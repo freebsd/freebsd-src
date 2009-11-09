@@ -781,11 +781,9 @@ fdc_worker(struct fdc_data *fdc)
 
 	/* Disable ISADMA if we bailed while it was active */
 	if (fd != NULL && (fd->flags & FD_ISADMA)) {
-		mtx_lock(&Giant);
 		isa_dmadone(
 		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
-		mtx_unlock(&Giant);
 		mtx_lock(&fdc->fdc_mtx);
 		fd->flags &= ~FD_ISADMA;
 		mtx_unlock(&fdc->fdc_mtx);
@@ -958,11 +956,9 @@ fdc_worker(struct fdc_data *fdc)
 	/* Setup ISADMA if we need it and have it */
 	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_FMT))
 	     && !(fdc->flags & FDC_NODMA)) {
-		mtx_lock(&Giant);
 		isa_dmastart(
 		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
-		mtx_unlock(&Giant);
 		mtx_lock(&fdc->fdc_mtx);
 		fd->flags |= FD_ISADMA;
 		mtx_unlock(&fdc->fdc_mtx);
@@ -1040,11 +1036,9 @@ fdc_worker(struct fdc_data *fdc)
 
 	/* Finish DMA */
 	if (fd->flags & FD_ISADMA) {
-		mtx_lock(&Giant);
 		isa_dmadone(
 		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
-		mtx_unlock(&Giant);
 		mtx_lock(&fdc->fdc_mtx);
 		fd->flags &= ~FD_ISADMA;
 		mtx_unlock(&fdc->fdc_mtx);
