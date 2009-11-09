@@ -74,7 +74,10 @@ typedef enum {
 	CAM_CMD_DETACH		= 0x00000010,
 	CAM_CMD_REPORTLUNS	= 0x00000011,
 	CAM_CMD_READCAP		= 0x00000012,
-	CAM_CMD_IDENTIFY	= 0x00000013
+	CAM_CMD_IDENTIFY	= 0x00000013,
+	CAM_CMD_IDLE		= 0x00000014,
+	CAM_CMD_STANDBY		= 0x00000015,
+	CAM_CMD_SLEEP		= 0x00000016
 } cam_cmdmask;
 
 typedef enum {
@@ -154,6 +157,9 @@ struct camcontrol_opts option_table[] = {
 	{"rate", CAM_CMD_RATE, CAM_ARG_NONE, negotiate_opts},
 	{"debug", CAM_CMD_DEBUG, CAM_ARG_NONE, "IPTSXc"},
 	{"format", CAM_CMD_FORMAT, CAM_ARG_NONE, "qrwy"},
+	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
+	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
+	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -216,6 +222,8 @@ static int scsiformat(struct cam_device *device, int argc, char **argv,
 static int scsireportluns(struct cam_device *device, int argc, char **argv,
 			  char *combinedopt, int retry_count, int timeout);
 static int scsireadcapacity(struct cam_device *device, int argc, char **argv,
+			    char *combinedopt, int retry_count, int timeout);
+static int atapm(struct cam_device *device, int argc, char **argv,
 			    char *combinedopt, int retry_count, int timeout);
 #endif /* MINIMALISTIC */
 
@@ -4128,6 +4136,91 @@ bailout:
 	return (retval);
 }
 
+static int
+atapm(struct cam_device *device, int argc, char **argv,
+		 char *combinedopt, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	int retval = 0;
+	int t = -1;
+	char c;
+	u_char cmd, sc;
+
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("%s: error allocating ccb", __func__);
+		return (1);
+	}
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 't':
+			t = atoi(optarg);
+			break;
+		default:
+			break;
+		}
+	}
+	if (strcmp(argv[1], "idle") == 0) {
+		if (t == -1)
+			cmd = ATA_IDLE_IMMEDIATE;
+		else
+			cmd = ATA_IDLE_CMD;
+	} else if (strcmp(argv[1], "standby") == 0) {
+		if (t == -1)
+			cmd = ATA_STANDBY_IMMEDIATE;
+		else
+			cmd = ATA_STANDBY_CMD;
+	} else {
+		cmd = ATA_SLEEP;
+		t = -1;
+	}
+	if (t < 0)
+		sc = 0;
+	else if (t <= (240 * 5))
+		sc = t / 5;
+	else if (t <= (11 * 30 * 60))
+		sc = t / (30 * 60) + 241;
+	else
+		sc = 253;
+	cam_fill_ataio(&ccb->ataio,
+		      retry_count,
+		      NULL,
+		      /*flags*/CAM_DIR_NONE,
+		      MSG_SIMPLE_Q_TAG,
+		      /*data_ptr*/NULL,
+		      /*dxfer_len*/0,
+		      timeout ? timeout : 30 * 1000);
+	ata_28bit_cmd(&ccb->ataio, cmd, 0, 0, sc);
+
+	/* Disable freezing the device queue */
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (arglist & CAM_ARG_ERR_RECOVER)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("error sending command");
+
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+
+		retval = 1;
+		goto bailout;
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		cam_error_print(device, ccb, CAM_ESF_ALL, CAM_EPF_ALL, stderr);
+		retval = 1;
+		goto bailout;
+	}
+bailout:
+	cam_freeccb(ccb);
+	return (retval);
+}
+
 #endif /* MINIMALISTIC */
 
 void 
@@ -4166,6 +4259,9 @@ usage(int verbose)
 "                              [-R syncrate][-v][-T <enable|disable>]\n"
 "                              [-U][-W bus_width]\n"
 "        camcontrol format     [dev_id][generic args][-q][-r][-w][-y]\n"
+"        camcontrol idle       [dev_id][generic args][-t time]\n"
+"        camcontrol standby    [dev_id][generic args][-t time]\n"
+"        camcontrol sleep      [dev_id][generic args]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!verbose)
@@ -4193,6 +4289,9 @@ usage(int verbose)
 "tags        report or set the number of transaction slots for a device\n"
 "negotiate   report or set device negotiation parameters\n"
 "format      send the SCSI FORMAT UNIT command to the named device\n"
+"idle        send the ATA IDLE command to the named device\n"
+"standby     send the ATA STANDBY command to the named device\n"
+"sleep       send the ATA SLEEP command to the named device\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -4259,7 +4358,9 @@ usage(int verbose)
 "-q                be quiet, don't print status messages\n"
 "-r                run in report only mode\n"
 "-w                don't send immediate format command\n"
-"-y                don't ask any questions\n");
+"-y                don't ask any questions\n"
+"idle/standby arguments:\n"
+"-t <arg>          number of seconds before respective state.\n");
 #endif /* MINIMALISTIC */
 }
 
@@ -4552,6 +4653,13 @@ main(int argc, char **argv)
 			break;
 		case CAM_CMD_READCAP:
 			error = scsireadcapacity(cam_dev, argc, argv,
+						 combinedopt, retry_count,
+						 timeout);
+			break;
+		case CAM_CMD_IDLE:
+		case CAM_CMD_STANDBY:
+		case CAM_CMD_SLEEP:
+			error = atapm(cam_dev, argc, argv,
 						 combinedopt, retry_count,
 						 timeout);
 			break;
