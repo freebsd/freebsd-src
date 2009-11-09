@@ -135,6 +135,10 @@ ata_intel_probe(device_t dev)
      { ATA_I82801JD_AH,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JD_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JD_S2,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_S1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_AH,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_S2,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I31244,       0,          0, 2, ATA_SA150, "31244" },
      { 0, 0, 0, 0, 0, 0}};
 
