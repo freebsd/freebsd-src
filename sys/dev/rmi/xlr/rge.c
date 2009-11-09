@@ -1925,7 +1925,8 @@ rge_attach(device_t dev)
 	sc->irq = gmac_conf->baseirq + priv->instance % 4;
 
 	/* Set the IRQ into the rid field */
-	rman_set_rid(&sc->rge_irq, sc->irq);
+	/* note this is a hack to pass the irq to the iodi interrupt setup routines */
+	sc->rge_irq.__r_i = (struct resource_i *)sc->irq;
 
 	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_FAST | INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, rge_intr, sc, &sc->rge_intrhand);
