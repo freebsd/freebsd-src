@@ -77,7 +77,7 @@ u_int32_t counter_lower_last = 0;
 static int scale_factor;
 static int count_scale_factor[32];
 
-uint64_t 
+uint64_t
 platform_get_frequency()
 {
 	return XLR_PIC_HZ;
@@ -98,7 +98,7 @@ mips_timer_early_init(uint64_t clock_hz)
 * Handle the clock interrupt when count becomes equal to
 * compare.
 */
-void
+int
 count_compare_clockhandler(struct trapframe *tf)
 {
 	int cpu = PCPU_GET(cpuid);
@@ -126,9 +126,10 @@ count_compare_clockhandler(struct trapframe *tf)
 	}
 
 	critical_exit();
+	return (FILTER_HANDLED);
 }
 
-void
+int
 pic_hardclockhandler(struct trapframe *tf)
 {
 	int cpu = PCPU_GET(cpuid);
@@ -154,6 +155,7 @@ pic_hardclockhandler(struct trapframe *tf)
 		/* If needed , handle count compare tick skew here */
 	}
 	critical_exit();
+	return (FILTER_HANDLED);
 }
 
 int
@@ -168,9 +170,10 @@ rmi_early_counter_init()
 	int cpu = PCPU_GET(cpuid);
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
 
-	/* We do this to get the PIC time counter running right
-	 * after system start. Otherwise the DELAY() function will
-	 * not be able to work since it won't have a TC to read.
+	/*
+	 * We do this to get the PIC time counter running right after system
+	 * start. Otherwise the DELAY() function will not be able to work
+	 * since it won't have a TC to read.
 	 */
 	xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_0, (0xffffffff & 0xffffffff));
 	xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0xffffffff & 0xffffffff));
@@ -193,16 +196,16 @@ platform_initclocks(void)
 	 */
 	/* profiling/process accounting timer interrupt for non-zero cpus */
 	cpu_establish_hardintr("compare",
+	    (driver_filter_t *) count_compare_clockhandler,
 	    NULL,
-	    (driver_intr_t *) count_compare_clockhandler,
 	    NULL,
 	    IRQ_TIMER,
 	    INTR_TYPE_CLK | INTR_FAST, &cookie);
 
 	/* timekeeping timer interrupt for cpu 0 */
 	cpu_establish_hardintr("hardclk",
+	    (driver_filter_t *) pic_hardclockhandler,
 	    NULL,
-	    (driver_intr_t *) pic_hardclockhandler,
 	    NULL,
 	    PIC_TIMER_7_IRQ,
 	    INTR_TYPE_CLK | INTR_FAST,
@@ -224,7 +227,7 @@ platform_initclocks(void)
 		/* Setup PIC Interrupt */
 
 		if (rmi_spin_mutex_safe)
-		  mtx_lock_spin(&xlr_pic_lock);
+			mtx_lock_spin(&xlr_pic_lock);
 		xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_0, (maxval & 0xffffffff));	/* 0x100 + 7 */
 		xlr_write_reg(mmio, PIC_TIMER_7_MAXVAL_1, (maxval >> 32) & 0xffffffff);	/* 0x110 + 7 */
 		/* 0x40 + 8 */
@@ -242,7 +245,7 @@ platform_initclocks(void)
 		xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1 << 31) | (0 << 30) | (1 << 6) | (PIC_TIMER_6_IRQ));
 		pic_update_control(1 << (8 + 6));
 		if (rmi_spin_mutex_safe)
-		  mtx_unlock_spin(&xlr_pic_lock);
+			mtx_unlock_spin(&xlr_pic_lock);
 	} else {
 		/* Setup count-compare interrupt for vcpu[1-31] */
 		mips_wr_compare((xlr_boot1_info.cpu_frequency) / hz);
@@ -250,7 +253,7 @@ platform_initclocks(void)
 	tick_init();
 }
 
-unsigned 
+unsigned
 __attribute__((no_instrument_function))
 platform_get_timecount(struct timecounter *tc __unused)
 {
@@ -290,7 +293,7 @@ DELAY(int n)
 }
 
 static
-uint64_t 
+uint64_t
 read_pic_counter(void)
 {
 	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);

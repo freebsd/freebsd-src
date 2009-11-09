@@ -33,8 +33,9 @@
 #define XLR_PIC_HZ 66000000U
 #define XLR_CPU_HZ (xlr_boot1_info.cpu_frequency)
 
-void count_compare_clockhandler(struct trapframe *);
-void pic_hardclockhandler(struct trapframe *);
+int count_compare_clockhandler(struct trapframe *);
+int pic_hardclockhandler(struct trapframe *);
 int pic_timecounthandler(struct trapframe *);
 void rmi_early_counter_init(void);
+
 #endif				/* _RMI_CLOCK_H_ */
