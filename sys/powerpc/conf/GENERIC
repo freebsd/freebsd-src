@@ -157,7 +157,7 @@ device		kue		# Kawasaki LSI USB Ethernet
 
 # FireWire support
 device		firewire	# FireWire bus code
-device		sbp		# SCSI over FireWire (Requires scbus and da)
+#device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 
 # Misc

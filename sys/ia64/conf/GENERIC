@@ -139,7 +139,7 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
 # FireWire support
-device		sbp		# SCSI over FireWire (need scbus & da)
+#device		sbp		# SCSI over FireWire (need scbus & da)
 
 # Various (pseudo) devices
 device		ether		# Ethernet support
