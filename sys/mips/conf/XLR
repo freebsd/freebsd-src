@@ -61,7 +61,7 @@ makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 #profile		2
 
 #options 	SCHED_ULE		# ULE scheduler
-options		VERBOSE_SYSINIT
+#options		VERBOSE_SYSINIT
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
 #options 	FULL_PREEMPTION		# Enable kernel thread preemption
@@ -71,8 +71,11 @@ options 	FFS			# Berkeley Fast Filesystem
 #options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
-options 	MD_ROOT			# MD is a potential root device
-options		MD_ROOT_SIZE=14288
+options		NFSCLIENT
+options		NFS_ROOT
+options		ROOTDEVNAME=\"nfs:10.1.1.15:/extra/nfsroot\"
+#options 	MD_ROOT			# MD is a potential root device
+#options		MD_ROOT_SIZE=21264
 #options		MD_ROOT_SIZE=5120
 options		ROOTDEVNAME=\"ufs:md0\"
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
