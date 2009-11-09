@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20091109:
+	The layout of the structure ieee80211req_scan_result has changed.
+	Applications that require wireless scan results (e.g. ifconfig(8))
+	from net80211 need to be recompiled.
+
 20091025:
 	The iwn(4) driver has been updated to support the 5000 and 5150 series.
 	There's one kernel module for each firmware. Adding "device iwnfw"
