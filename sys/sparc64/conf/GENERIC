@@ -255,7 +255,7 @@ device		udav		# Davicom DM9601E USB
 
 # FireWire support
 device		firewire	# FireWire bus code
-device		sbp		# SCSI over FireWire (Requires scbus and da)
+#device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver
