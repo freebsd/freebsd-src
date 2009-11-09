@@ -74,10 +74,16 @@ options 	UFS_DIRHASH		# Improve performance on big directories
 options		NFSCLIENT
 options		NFS_ROOT
 options		ROOTDEVNAME=\"nfs:10.1.1.15:/extra/nfsroot\"
+options         BOOTP
+options         BOOTP_NFSROOT
+options         BOOTP_NFSV3
+options         BOOTP_WIRED_TO=rge0
+options         BOOTP_COMPAT
+#
 #options 	MD_ROOT			# MD is a potential root device
 #options		MD_ROOT_SIZE=21264
 #options		MD_ROOT_SIZE=5120
-options		ROOTDEVNAME=\"ufs:md0\"
+#options		ROOTDEVNAME=\"ufs:md0\"
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	HZ=1000	
 options 	PHYS_ADDR_64BIT
