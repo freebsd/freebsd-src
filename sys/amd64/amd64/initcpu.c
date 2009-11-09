@@ -47,6 +47,13 @@ __FBSDID("$FreeBSD$");
 static int	hw_instruction_sse;
 SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
     &hw_instruction_sse, 0, "SIMD/MMX2 instructions available in CPU");
+/*
+ * -1: automatic (default)
+ *  0: keep enable CLFLUSH
+ *  1: force disable CLFLUSH
+ */
+static int	hw_clflush_disable = -1;
+TUNABLE_INT("hw.clflush_disable", &hw_clflush_disable);
 
 int	cpu;			/* Are we 386, 386sx, 486, etc? */
 u_int	cpu_feature;		/* Feature flags */
@@ -169,6 +176,16 @@ initializecpu(void)
 	 * XXXKIB: (temporary) hack to work around traps generated when
 	 * CLFLUSHing APIC registers window.
 	 */
-	if (cpu_vendor_id == CPU_VENDOR_INTEL && !(cpu_feature & CPUID_SS))
+	TUNABLE_INT_FETCH("hw.clflush_disable", &hw_clflush_disable);
+	if (cpu_vendor_id == CPU_VENDOR_INTEL && !(cpu_feature & CPUID_SS) &&
+	    hw_clflush_disable == -1)
 		cpu_feature &= ~CPUID_CLFSH;
+	/*
+	 * Allow to disable CLFLUSH feature manually by
+	 * hw.clflush_disable tunable.  This may help Xen guest on some AMD
+	 * CPUs.
+	 */
+	if (hw_clflush_disable == 1) {
+		cpu_feature &= ~CPUID_CLFSH;
+	}
 }
