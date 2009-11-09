@@ -264,7 +264,7 @@ static struct	mem_region *pregions;
 extern u_int	phys_avail_count;
 extern int	regions_sz, pregions_sz;
 extern int	ofw_real_mode;
-static struct	ofw_map translations[64];
+static struct	ofw_map translations[96];
 
 extern struct pmap ofw_pmap;
 
@@ -897,6 +897,9 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 		panic("moea64_bootstrap: can't get mmu package");
 	    if ((sz = OF_getproplen(mmu, "translations")) == -1)
 		panic("moea64_bootstrap: can't get ofw translation count");
+	    if (size > sizeof(translations))
+		panic("moea64_bootstrap: too many ofw translations (%d)",
+		      sz/sizeof(*translations));
 
 	    bzero(translations, sz);
 	    if (OF_getprop(mmu, "translations", translations, sz) == -1)
