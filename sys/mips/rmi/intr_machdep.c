@@ -137,9 +137,10 @@ cpu_intr(struct trapframe *tf)
 		critical_exit();
 		return;
 	}
+	
 	/* FIXME sched pin >? LOCK>? */
 	for (i = sizeof(eirr) * 8 - 1; i >= 0; i--) {
-		if ((eirr & 1ULL << i) == 0)
+		if ((eirr & (1ULL << i)) == 0)
 			continue;
 #ifdef SMP
 		/* These are reserved interrupts */
