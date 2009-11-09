@@ -2743,7 +2743,7 @@ bge_attach(device_t dev)
 	 */
 	if (sc->bge_chipid == BGE_CHIPID_BCM5700_B0) {
 		ifp->if_capabilities &= ~IFCAP_HWCSUM;
-		ifp->if_capenable &= IFCAP_HWCSUM;
+		ifp->if_capenable &= ~IFCAP_HWCSUM;
 		ifp->if_hwassist = 0;
 	}
 
