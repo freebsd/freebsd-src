@@ -24,6 +24,7 @@ NLS+=	gl_ES.ISO8859-1
 NLS+=	hu_HU.ISO8859-2
 NLS+=	it_IT.ISO8859-15
 NLS+=	ja_JP.UTF-8
+NLS+=	ja_JP.eucJP
 NLS+=	ko_KR.UTF-8
 NLS+=	ko_KR.eucKR
 NLS+=	mn_MN.UTF-8
