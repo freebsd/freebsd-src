@@ -331,9 +331,6 @@ again:
 	msgbufp = (struct msgbuf *)pmap_steal_memory(MSGBUF_SIZE);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
-	/* Steal memory for the dynamic per-cpu area. */
-	dpcpu_init((void *)pmap_steal_memory(DPCPU_SIZE), 0);
-
 	/*
 	 * Steal thread0 kstack.
 	 */
