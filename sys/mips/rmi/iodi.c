@@ -124,9 +124,9 @@ iodi_setup_intr(device_t dev, device_t child,
 
 	} else if (strcmp(device_get_name(child), "rge") == 0) {
 		int irq;
-
-		irq = rman_get_rid(ires);
-   	    if (rmi_spin_mutex_safe)
+		/* This is a hack to pass in the irq */
+		irq = (int)ires->__r_i;
+		if (rmi_spin_mutex_safe)
 		  mtx_lock_spin(&xlr_pic_lock);
 		reg = xlr_read_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE);
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE, reg | (1 << 6) | (1 << 30) | (1 << 31));
@@ -143,9 +143,10 @@ iodi_setup_intr(device_t dev, device_t child,
 		mtx_unlock_spin(&xlr_pic_lock);
 		cpu_establish_hardintr("ehci", NULL, (driver_intr_t *) intr, (void *)arg, PIC_USB_IRQ, flags, cookiep);
 	}
+	/* This causes a panic and looks recursive to me (RRS).
 	BUS_SETUP_INTR(device_get_parent(dev),
 	    child, ires, flags, filt, intr, arg, cookiep);
-
+	*/
 
 	return (0);
 }
