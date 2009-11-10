@@ -216,10 +216,12 @@ restart:
 }
 
 static void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr, "usage: %s [-%slnpq] [-k kernel]\n",
-	    getprogname(), dohalt ? "" : "d");
+
+	(void)fprintf(stderr, dohalt ?
+	    "usage: halt [-lnpq] [-k kernel]\n" :
+	    "usage: reboot [-dlnpq] [-k kernel]\n");
 	exit(1);
 }
 
