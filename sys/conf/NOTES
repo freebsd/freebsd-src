@@ -2003,6 +2003,7 @@ device		bwi		# Broadcom BCM430* BCM431*
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
+device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
 device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
