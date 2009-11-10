@@ -938,20 +938,12 @@ installFixupKernel(dialogMenuItem *self, int dists)
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
 	/*
-	 * Install something as /boot/kernel.  Prefer SMP
-	 * over GENERIC--this should handle the case where
-	 * both SMP and GENERIC are installed (otherwise we
-	 * select the one kernel that was installed).
+	 * Install something as /boot/kernel.
 	 *
 	 * NB: we assume any existing kernel has been saved
 	 *     already and the /boot/kernel we remove is empty.
 	 */
 	vsystem("rm -rf /boot/kernel");
-#if WITH_SMP
-	if (dists & DIST_KERNEL_SMP)
-		vsystem("mv /boot/SMP /boot/kernel");
-	else
-#endif
 		vsystem("mv /boot/GENERIC /boot/kernel");
     }
     return DITEM_SUCCESS | DITEM_RESTORE;
@@ -1255,11 +1247,6 @@ installVarDefaults(dialogMenuItem *self)
 	variable_set2(SYSTEM_STATE,		"init", 0);
     variable_set2(VAR_NEWFS_ARGS,		"-b 16384 -f 2048", 0);
     variable_set2(VAR_CONSTERM,                 "NO", 0);
-#if (defined(__i386__) && !defined(PC98)) || defined(__amd64__)
-    NCpus = acpi_detect();
-    if (NCpus == -1)
-	NCpus = biosmptable_detect();
-#endif
     if (NCpus <= 0)
 	NCpus = 1;
     snprintf(ncpus, sizeof(ncpus), "%u", NCpus);
