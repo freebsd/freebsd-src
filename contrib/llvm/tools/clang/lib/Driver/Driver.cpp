@@ -126,6 +126,10 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
   // FIXME: This stuff needs to go into the Compilation, not the driver.
   bool CCCPrintOptions = false, CCCPrintActions = false;
 
+  if (!strcmp(argv[0], "c++") || !strcmp(argv[0], "clang++")) {
+    CCCIsCXX = true;
+  }
+
   const char **Start = argv + 1, **End = argv + argc;
   const char *HostTriple = DefaultHostTriple.c_str();
 
