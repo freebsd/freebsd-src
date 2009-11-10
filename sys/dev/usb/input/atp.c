@@ -193,21 +193,50 @@ SYSCTL_UINT(_hw_usb_atp, OID_AUTO, pspan_max_width, CTLFLAG_RW,
     &atp_pspan_max_width, 4,
     "maximum allowed width (in sensors) for pressure-spans");
 
+/* We support three payload protocols */
+typedef enum {
+	ATP_PROT_GEYSER1,
+	ATP_PROT_GEYSER2,
+	ATP_PROT_GEYSER3,
+} atp_protocol;
 
 /* Define the various flavours of devices supported by this driver. */
 enum {
 	ATP_DEV_PARAMS_0,
+	ATP_DEV_PARAMS_PBOOK,
+	ATP_DEV_PARAMS_PBOOK_15A,
+	ATP_DEV_PARAMS_PBOOK_17,
 	ATP_N_DEV_PARAMS
 };
 struct atp_dev_params {
 	u_int            data_len;   /* for sensor data */
 	u_int            n_xsensors;
 	u_int            n_ysensors;
+	atp_protocol     prot;
 } atp_dev_params[ATP_N_DEV_PARAMS] = {
 	[ATP_DEV_PARAMS_0] = {
 		.data_len   = 64,
 		.n_xsensors = 20,
-		.n_ysensors = 10
+		.n_ysensors = 10,
+		.prot       = ATP_PROT_GEYSER3
+	},
+	[ATP_DEV_PARAMS_PBOOK] = {
+		.data_len   = 81,
+		.n_xsensors = 16,
+		.n_ysensors = 16,
+		.prot       = ATP_PROT_GEYSER1
+	},
+	[ATP_DEV_PARAMS_PBOOK_15A] = {
+		.data_len   = 64,
+		.n_xsensors = 15,
+		.n_ysensors = 9,
+		.prot       = ATP_PROT_GEYSER2
+	},
+	[ATP_DEV_PARAMS_PBOOK_17] = {
+		.data_len   = 81,
+		.n_xsensors = 26,
+		.n_ysensors = 16,
+		.prot       = ATP_PROT_GEYSER1
 	},
 };
 
@@ -226,6 +255,19 @@ static const struct usb_device_id atp_devs[] = {
 	{ USB_VPI(USB_VENDOR_APPLE, 0x0229, ATP_DEV_PARAMS_0) },
 	{ USB_VPI(USB_VENDOR_APPLE, 0x022a, ATP_DEV_PARAMS_0) },
 	{ USB_VPI(USB_VENDOR_APPLE, 0x022b, ATP_DEV_PARAMS_0) },
+
+	/* 12 inch PowerBook and iBook */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x030a, ATP_DEV_PARAMS_PBOOK) },
+	{ USB_VPI(USB_VENDOR_APPLE, 0x030b, ATP_DEV_PARAMS_PBOOK) },
+
+	/* 15 inch PowerBook */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x020e, ATP_DEV_PARAMS_PBOOK) },
+	{ USB_VPI(USB_VENDOR_APPLE, 0x020f, ATP_DEV_PARAMS_PBOOK) },
+	{ USB_VPI(USB_VENDOR_APPLE, 0x0215, ATP_DEV_PARAMS_PBOOK_15A) },
+
+	/* 17 inch PowerBook */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x020d, ATP_DEV_PARAMS_PBOOK_17) },
+
 };
 
 /*
@@ -321,6 +363,7 @@ struct atp_softc {
 #define ATP_ENABLED            0x01
 #define ATP_ZOMBIES_EXIST      0x02
 #define ATP_DOUBLE_TAP_DRAG    0x04
+#define ATP_VALID              0x08
 
 	u_int                  sc_left_margin;
 	u_int                  sc_right_margin;
@@ -384,8 +427,8 @@ static int           atp_softc_populate(struct atp_softc *);
 static void          atp_softc_unpopulate(struct atp_softc *);
 
 /* sensor interpretation */
-static __inline void atp_interpret_sensor_data(const int8_t *, u_int, u_int,
-			 int *);
+static __inline void atp_interpret_sensor_data(const int8_t *, u_int, atp_axis,
+			 int *, atp_protocol);
 static __inline void atp_get_pressures(int *, const int *, const int *, int);
 static void          atp_detect_pspans(int *, u_int, u_int, atp_pspan *,
 			 u_int *);
@@ -483,7 +526,7 @@ atp_disable(struct atp_softc *sc)
 {
 	atp_softc_unpopulate(sc);
 
-	sc->sc_state &= ~ATP_ENABLED;
+	sc->sc_state &= ~(ATP_ENABLED | ATP_VALID);
 	DPRINTFN(ATP_LLEVEL_INFO, "disabled atp\n");
 }
 
@@ -623,25 +666,42 @@ atp_softc_unpopulate(struct atp_softc *sc)
  *       raw sensor data from the USB packet.
  *   num
  *       The number of elements in the array 'arr'.
- *   di_start
- *       The index of the first data element to be interpreted for
- *       this sensor array--i.e. when called to interpret the Y
- *       sensors, di_start passed in as 2, which is the index of Y1 in
- *       the raw data.
+ *   axis
+ *       Axis of data to fetch
  *   arr
  *       The array to be initialized with the readings.
+ *   prot
+ *       The protocol to use to interpret the data
  */
 static __inline void
-atp_interpret_sensor_data(const int8_t *sensor_data, u_int num, u_int di_start,
-    int	*arr)
+atp_interpret_sensor_data(const int8_t *sensor_data, u_int num, atp_axis axis,
+    int	*arr, atp_protocol prot)
 {
 	u_int i;
 	u_int di;   /* index into sensor data */
 
-	for (i = 0, di = di_start; i < num; /* empty */ ) {
-		arr[i++] = sensor_data[di++];
-		arr[i++] = sensor_data[di++];
-		di++;
+	switch (prot) {
+	case ATP_PROT_GEYSER1:
+		/*
+		 * For Geyser 1, the sensors are laid out in pairs
+		 * every 5 bytes.
+		 */
+		for (i = 0, di = (axis == Y) ? 1 : 2; i < 8; di += 5, i++) {
+			arr[i] = sensor_data[di];
+			arr[i+8] = sensor_data[di+2];
+			if (axis == X && num > 16) 
+				arr[i+16] = sensor_data[di+40];
+		}
+
+		break;
+	case ATP_PROT_GEYSER2:
+	case ATP_PROT_GEYSER3:
+		for (i = 0, di = (axis == Y) ? 2 : 20; i < num; /* empty */ ) {
+			arr[i++] = sensor_data[di++];
+			arr[i++] = sensor_data[di++];
+			di++;
+		}
+		break;
 	}
 }
 
@@ -1613,7 +1673,7 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 			    len, sc->sc_params->data_len);
 			len = sc->sc_params->data_len;
 		}
-		if (len == 0)
+		if (len < sc->sc_params->data_len)
 			goto tr_setup;
 
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -1621,9 +1681,11 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 
 		/* Interpret sensor data */
 		atp_interpret_sensor_data(sc->sensor_data,
-		    sc->sc_params->n_xsensors, 20, sc->cur_x);
+		    sc->sc_params->n_xsensors, X, sc->cur_x,
+		    sc->sc_params->prot);
 		atp_interpret_sensor_data(sc->sensor_data,
-		    sc->sc_params->n_ysensors, 2,  sc->cur_y);
+		    sc->sc_params->n_ysensors, Y,  sc->cur_y,
+		    sc->sc_params->prot);
 
 		/*
 		 * If this is the initial update (from an untouched
@@ -1632,11 +1694,14 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 		 * be used as pressure readings subsequently.
 		 */
 		status_bits = sc->sensor_data[sc->sc_params->data_len - 1];
-		if (status_bits & ATP_STATUS_BASE_UPDATE) {
+		if ((sc->sc_params->prot == ATP_PROT_GEYSER3 &&
+		    (status_bits & ATP_STATUS_BASE_UPDATE)) || 
+		    !(sc->sc_state & ATP_VALID)) {
 			memcpy(sc->base_x, sc->cur_x,
 			    sc->sc_params->n_xsensors * sizeof(*(sc->base_x)));
 			memcpy(sc->base_y, sc->cur_y,
 			    sc->sc_params->n_ysensors * sizeof(*(sc->base_y)));
+			sc->sc_state |= ATP_VALID;
 			goto tr_setup;
 		}
 
@@ -1757,8 +1822,11 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 			sc->sc_idlecount++;
 			if (sc->sc_idlecount >= ATP_IDLENESS_THRESHOLD) {
 				DPRINTFN(ATP_LLEVEL_INFO, "idle\n");
-				atp_set_device_mode(sc->sc_dev,RAW_SENSOR_MODE);
 				sc->sc_idlecount = 0;
+
+				mtx_unlock(&sc->sc_mutex);
+				atp_set_device_mode(sc->sc_dev,RAW_SENSOR_MODE);
+				mtx_lock(&sc->sc_mutex);
 			}
 		} else {
 			sc->sc_idlecount = 0;
@@ -1770,7 +1838,7 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 		if (usb_fifo_put_bytes_max(
 			    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
 			usbd_xfer_set_frame_len(xfer, 0,
-			    usbd_xfer_max_len(xfer));
+			    sc->sc_params->data_len);
 			usbd_transfer_submit(xfer);
 		}
 		break;
