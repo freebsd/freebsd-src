@@ -489,6 +489,7 @@ struct an_softc	{
 	struct ifmedia		an_ifmedia;
 	int		        an_monitor;
 	int		        an_was_monitor;
+	int			an_timer;
 	u_char			buf_802_11[MCLBYTES];
 	struct an_req		areq;
 	unsigned short*		an_flash_buffer;

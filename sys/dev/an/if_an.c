@@ -140,9 +140,11 @@ static void an_reset(struct an_softc *);
 static int an_init_mpi350_desc(struct an_softc *);
 static int an_ioctl(struct ifnet *, u_long, caddr_t);
 static void an_init(void *);
+static void an_init_locked(struct an_softc *);
 static int an_init_tx_ring(struct an_softc *);
 static void an_start(struct ifnet *);
-static void an_watchdog(struct ifnet *);
+static void an_start_locked(struct ifnet *);
+static void an_watchdog(struct an_softc *);
 static void an_rxeof(struct an_softc *);
 static void an_txeof(struct an_softc *, int);
 
@@ -314,7 +316,7 @@ an_pci_probe(device_t dev)
 	struct an_softc *sc = device_get_softc(dev);
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 
 	return(0);
 }
@@ -359,7 +361,7 @@ an_probe(device_t dev)
 	CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), 0xFFFF);
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
 	AN_LOCK(sc);
 	an_reset(sc);
 
@@ -766,7 +768,6 @@ an_attach(struct an_softc *sc, int flags)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = an_ioctl;
 	ifp->if_start = an_start;
-	ifp->if_watchdog = an_watchdog;
 	ifp->if_init = an_init;
 	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -1130,7 +1131,7 @@ an_txeof(struct an_softc *sc, int status)
 	AN_LOCK_ASSERT(sc);
 	ifp = sc->an_ifp;
 
-	ifp->if_timer = 0;
+	sc->an_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (!sc->mpi350) {
@@ -1183,6 +1184,8 @@ an_stats_update(void *xsc)
 	sc = xsc;
 	AN_LOCK_ASSERT(sc);
 	ifp = sc->an_ifp;
+	if (sc->an_timer > 0 && --sc->an_timer == 0)
+		an_watchdog(sc);
 
 	sc->an_status.an_type = AN_RID_STATUS;
 	sc->an_status.an_len = sizeof(struct an_ltv_status);
@@ -1274,7 +1277,7 @@ an_intr(void *xsc)
 	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), AN_INTRS(sc->mpi350));
 
 	if ((ifp->if_flags & IFF_UP) && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		an_start(ifp);
+		an_start_locked(ifp);
 
 	AN_UNLOCK(sc);
 
@@ -1825,9 +1828,7 @@ an_setdef(struct an_softc *sc, struct an_req *areq)
 	case AN_RID_WEP_PERM:
 	case AN_RID_LEAPUSERNAME:
 	case AN_RID_LEAPPASSWORD:
-		AN_UNLOCK(sc);
-		an_init(sc);
-		AN_LOCK(sc);
+		an_init_locked(sc);
 
 		/* Disable the MAC. */
 		an_cmd(sc, AN_CMD_DISABLE, 0);
@@ -1868,11 +1869,8 @@ an_setdef(struct an_softc *sc, struct an_req *areq)
 
 
 	/* Reinitialize the card. */
-	if (ifp->if_flags) {
-		AN_UNLOCK(sc);
-		an_init(sc);
-		AN_LOCK(sc);
-	}
+	if (ifp->if_flags)
+		an_init_locked(sc);
 
 	return;
 }
@@ -1890,11 +1888,8 @@ an_promisc(struct an_softc *sc, int promisc)
 		if (sc->mpi350)
 			an_init_mpi350_desc(sc);
 	}
-	if (sc->an_monitor || sc->an_was_monitor) {
-		AN_UNLOCK(sc);
-		an_init(sc);
-		AN_LOCK(sc);
-	}
+	if (sc->an_monitor || sc->an_was_monitor)
+		an_init_locked(sc);
 
 	sc->an_was_monitor = sc->an_monitor;
 	an_cmd(sc, AN_CMD_SET_MODE, promisc ? 0xffff : 0);
@@ -1948,20 +1943,14 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    !(ifp->if_flags & IFF_PROMISC) &&
 			    sc->an_if_flags & IFF_PROMISC) {
 				an_promisc(sc, 0);
-			} else {
-				AN_UNLOCK(sc);
-				an_init(sc);
-				AN_LOCK(sc);
-			}
+			} else
+				an_init_locked(sc);
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				AN_UNLOCK(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				an_stop(sc);
-				AN_LOCK(sc);
-			}
 		}
-		AN_UNLOCK(sc);
 		sc->an_if_flags = ifp->if_flags;
+		AN_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCSIFMEDIA:
@@ -2485,7 +2474,6 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				AN_UNLOCK(sc);
 				break;
 			}
-			AN_UNLOCK(sc);
 			if (ireq->i_val ==  4) {
 				config->an_home_product |= AN_HOME_NETWORK;
 				ireq->i_val = 0;
@@ -2497,10 +2485,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				= config->an_home_product;
 
 			/* update configuration */
-			an_init(sc);
+			an_init_locked(sc);
 
 			bzero(&sc->areq, sizeof(struct an_ltv_key));
-			AN_LOCK(sc);
 			sc->areq.an_len = sizeof(struct an_ltv_key);
 			sc->areq.an_type = AN_RID_WEP_PERM;
 			key->kindex = 0xffff;
@@ -2583,6 +2570,9 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			an_setdef(sc, &sc->areq);
 			AN_UNLOCK(sc);
 			break;
+		default:
+			AN_UNLOCK(sc);
+			break;
 		}
 
 		/*
@@ -2632,14 +2622,21 @@ static void
 an_init(void *xsc)
 {
 	struct an_softc		*sc = xsc;
-	struct ifnet		*ifp = sc->an_ifp;
 
 	AN_LOCK(sc);
+	an_init_locked(sc);
+	AN_UNLOCK(sc);
+}
 
-	if (sc->an_gone) {
-		AN_UNLOCK(sc);
+static void
+an_init_locked(struct an_softc *sc)
+{
+	struct ifnet *ifp;
+
+	AN_LOCK_ASSERT(sc);
+	ifp = sc->an_ifp;
+	if (sc->an_gone)
 		return;
-	}
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		an_stop(sc);
@@ -2653,7 +2650,6 @@ an_init(void *xsc)
 			an_init_mpi350_desc(sc);
 		if (an_init_tx_ring(sc)) {
 			if_printf(ifp, "tx buffer allocation failed\n");
-			AN_UNLOCK(sc);
 			return;
 		}
 	}
@@ -2694,7 +2690,6 @@ an_init(void *xsc)
 	sc->an_ssidlist.an_len = sizeof(struct an_ltv_ssidlist_new);
 	if (an_write_record(sc, (struct an_ltv_gen *)&sc->an_ssidlist)) {
 		if_printf(ifp, "failed to set ssid list\n");
-		AN_UNLOCK(sc);
 		return;
 	}
 
@@ -2703,7 +2698,6 @@ an_init(void *xsc)
 	sc->an_aplist.an_len = sizeof(struct an_ltv_aplist);
 	if (an_write_record(sc, (struct an_ltv_gen *)&sc->an_aplist)) {
 		if_printf(ifp, "failed to set AP list\n");
-		AN_UNLOCK(sc);
 		return;
 	}
 
@@ -2712,14 +2706,12 @@ an_init(void *xsc)
 	sc->an_config.an_type = AN_RID_GENCONFIG;
 	if (an_write_record(sc, (struct an_ltv_gen *)&sc->an_config)) {
 		if_printf(ifp, "failed to set configuration\n");
-		AN_UNLOCK(sc);
 		return;
 	}
 
 	/* Enable the MAC */
 	if (an_cmd(sc, AN_CMD_ENABLE, 0)) {
 		if_printf(ifp, "failed to enable MAC\n");
-		AN_UNLOCK(sc);
 		return;
 	}
 
@@ -2733,13 +2725,23 @@ an_init(void *xsc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	callout_reset(&sc->an_stat_ch, hz, an_stats_update, sc);
-	AN_UNLOCK(sc);
 
 	return;
 }
 
 static void
 an_start(struct ifnet *ifp)
+{
+	struct an_softc		*sc;
+
+	sc = ifp->if_softc;
+	AN_LOCK(sc);
+	an_start_locked(ifp);
+	AN_UNLOCK(sc);
+}
+
+static void
+an_start_locked(struct ifnet *ifp)
 {
 	struct an_softc		*sc;
 	struct mbuf		*m0 = NULL;
@@ -2752,6 +2754,7 @@ an_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
+	AN_LOCK_ASSERT(sc);
 	if (sc->an_gone)
 		return;
 
@@ -2774,7 +2777,6 @@ an_start(struct ifnet *ifp)
 
 	idx = sc->an_rdata.an_tx_prod;
 
-	AN_LOCK(sc);
 	if (!sc->mpi350) {
 		bzero((char *)&tx_frame_802_3, sizeof(tx_frame_802_3));
 
@@ -2832,7 +2834,7 @@ an_start(struct ifnet *ifp)
 			/*
 			 * Set a timeout in case the chip goes out to lunch.
 			 */
-			ifp->if_timer = 5;
+			sc->an_timer = 5;
 		}
 	} else { /* MPI-350 */
 		/* Disable interrupts. */
@@ -2909,13 +2911,12 @@ an_start(struct ifnet *ifp)
 			/*
 			 * Set a timeout in case the chip goes out to lunch.
 			 */
-			ifp->if_timer = 5;
+			sc->an_timer = 5;
 		}
 
 		/* Re-enable interrupts. */
 		CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), AN_INTRS(sc->mpi350));
 	}
-	AN_UNLOCK(sc);
 
 	if (m0 != NULL)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2931,12 +2932,10 @@ an_stop(struct an_softc *sc)
 	struct ifnet		*ifp;
 	int			i;
 
-	AN_LOCK(sc);
+	AN_LOCK_ASSERT(sc);
 
-	if (sc->an_gone) {
-		AN_UNLOCK(sc);
+	if (sc->an_gone)
 		return;
-	}
 
 	ifp = sc->an_ifp;
 
@@ -2955,36 +2954,27 @@ an_stop(struct an_softc *sc)
 		free(sc->an_flash_buffer, M_DEVBUF);
 		sc->an_flash_buffer = NULL;
 	}
-
-	AN_UNLOCK(sc);
-
-	return;
 }
 
 static void
-an_watchdog(struct ifnet *ifp)
+an_watchdog(struct an_softc *sc)
 {
-	struct an_softc		*sc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
-	AN_LOCK(sc);
+	AN_LOCK_ASSERT(sc);
 
-	if (sc->an_gone) {
-		AN_UNLOCK(sc);
+	if (sc->an_gone)
 		return;
-	}
 
+	ifp = sc->an_ifp;
 	if_printf(ifp, "device timeout\n");
 
 	an_reset(sc);
 	if (sc->mpi350)
 		an_init_mpi350_desc(sc);
-	AN_UNLOCK(sc);
-	an_init(sc);
+	an_init_locked(sc);
 
 	ifp->if_oerrors++;
-
-	return;
 }
 
 int
@@ -2993,10 +2983,12 @@ an_shutdown(device_t dev)
 	struct an_softc		*sc;
 
 	sc = device_get_softc(dev);
+	AN_LOCK(sc);
 	an_stop(sc);
 	sc->an_gone = 1;
+	AN_UNLOCK(sc);
 
-	return 0;
+	return (0);
 }
 
 void
@@ -3014,7 +3006,7 @@ an_resume(device_t dev)
 	an_reset(sc);
 	if (sc->mpi350)
 		an_init_mpi350_desc(sc);
-	an_init(sc);
+	an_init_locked(sc);
 
 	/* Recovery temporary keys */
 	for (i = 0; i < 4; i++) {
@@ -3026,7 +3018,7 @@ an_resume(device_t dev)
 	}
 
 	if (ifp->if_flags & IFF_UP)
-		an_start(ifp);
+		an_start_locked(ifp);
 	AN_UNLOCK(sc);
 
 	return;
@@ -3251,12 +3243,12 @@ an_media_change(struct ifnet *ifp)
 	int otype = sc->an_config.an_opmode;
 	int orate = sc->an_tx_rate;
 
+	AN_LOCK(sc);
 	sc->an_tx_rate = ieee80211_media2rate(
 		IFM_SUBTYPE(sc->an_ifmedia.ifm_cur->ifm_media));
 	if (sc->an_tx_rate < 0)
 		sc->an_tx_rate = 0;
 
-	AN_LOCK(sc);
 	if (orate != sc->an_tx_rate) {
 		/* Read the current configuration */
 		sc->an_config.an_type = AN_RID_GENCONFIG;
@@ -3277,11 +3269,11 @@ an_media_change(struct ifnet *ifp)
 		sc->an_config.an_opmode &= ~AN_OPMODE_INFRASTRUCTURE_STATION;
 	else
 		sc->an_config.an_opmode |= AN_OPMODE_INFRASTRUCTURE_STATION;
-	AN_UNLOCK(sc);
 
 	if (otype != sc->an_config.an_opmode ||
 	    orate != sc->an_tx_rate)
-		an_init(sc);
+		an_init_locked(sc);
+	AN_UNLOCK(sc);
 
 	return(0);
 }
@@ -3302,7 +3294,6 @@ an_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		imr->ifm_active = sc->an_ifmedia.ifm_cur->ifm_media;
 		imr->ifm_status = IFM_AVALID|IFM_ACTIVE;
 	}
-	AN_UNLOCK(sc);
 
 	if (sc->an_tx_rate == 0) {
 		imr->ifm_active = IFM_IEEE80211|IFM_AUTO;
@@ -3315,6 +3306,7 @@ an_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	imr->ifm_status = IFM_AVALID;
 	if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
 		imr->ifm_status |= IFM_ACTIVE;
+	AN_UNLOCK(sc);
 }
 
 /********************** Cisco utility support routines *************/
@@ -3559,9 +3551,9 @@ cmdreset(struct ifnet *ifp)
 	int		status;
 	struct an_softc	*sc = ifp->if_softc;
 
+	AN_LOCK(sc);
 	an_stop(sc);
 
-	AN_LOCK(sc);
 	an_cmd(sc, AN_CMD_DISABLE, 0);
 
 	if (!(status = WaitBusy(ifp, AN_TIMEOUT))) {
@@ -3749,9 +3741,7 @@ flashrestart(struct ifnet *ifp)
 
 	FLASH_DELAY(sc, 1024);		/* Added 12/7/00 */
 
-	AN_UNLOCK(sc);
-	an_init(sc);
-	AN_LOCK(sc);
+	an_init_locked(sc);
 
 	FLASH_DELAY(sc, 1024);		/* Added 12/7/00 */
 	return status;
