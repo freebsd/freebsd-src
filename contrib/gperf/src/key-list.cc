@@ -24,6 +24,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
 #include <ctype.h>  /* declares isprint() */
 #include <assert.h> /* defines assert() */
 #include <limits.h> /* defines SCHAR_MAX etc. */
+#include "config.h"
 #include "options.h"
 #include "read-line.h"
 #include "hash-table.h"

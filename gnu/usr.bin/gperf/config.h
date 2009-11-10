@@ -19,3 +19,7 @@
 
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
+
+#define LARGE_STACK_ARRAYS 0
+
+#define LARGE_STACK_ARRAYS 0

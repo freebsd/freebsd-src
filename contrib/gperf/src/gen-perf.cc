@@ -22,6 +22,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
 #include <stdio.h>
 #include <stdlib.h> /* declares rand(), srand() */
 #include <time.h> /* declares time() */
+#include "config.h"
 #include "options.h"
 #include "gen-perf.h"
 #include "trace.h"
