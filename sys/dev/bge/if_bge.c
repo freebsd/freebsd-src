@@ -1165,8 +1165,7 @@ bge_init_tx_ring(struct bge_softc *sc)
 
 	bzero(sc->bge_ldata.bge_tx_ring, BGE_TX_RING_SZ);
 	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
-	    sc->bge_cdata.bge_tx_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
 
 	/* Initialize transmit producer index for host-memory send ring. */
 	sc->bge_tx_prodidx = 0;
@@ -3323,8 +3322,7 @@ bge_txeof(struct bge_softc *sc)
 	ifp = sc->bge_ifp;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
-	    sc->bge_cdata.bge_tx_ring_map,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_POSTWRITE);
 	/*
 	 * Go through our tx ring and free mbufs for those
 	 * frames that have been sent.
@@ -3834,8 +3832,7 @@ bge_start_locked(struct ifnet *ifp)
 		return;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
-	    sc->bge_cdata.bge_tx_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
 	/* Transmit. */
 	bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 	/* 5700 b2 errata */
