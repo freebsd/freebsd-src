@@ -976,26 +976,7 @@ syscall(struct trapframe *tf)
 	error = (*callp->sy_call)(td, args);
 	AUDIT_SYSCALL_EXIT(error, td);
 
-	if (error != EJUSTRETURN) {
-		/*
-		 * Save the "raw" error code in r10. We use this to handle
-		 * syscall restarts (see do_ast()).
-		 */
-		tf->tf_scratch.gr10 = error;
-		if (error == 0) {
-			tf->tf_scratch.gr8 = td->td_retval[0];
-			tf->tf_scratch.gr9 = td->td_retval[1];
-		} else if (error != ERESTART) {
-			if (error < p->p_sysent->sv_errsize)
-				error = p->p_sysent->sv_errtbl[error];
-			/*
-			 * Translated error codes are returned in r8. User
-			 * processes use the translated error code.
-			 */
-			tf->tf_scratch.gr8 = error;
-		}
-	}
-
+	cpu_set_syscall_retval(td, error);
 	td->td_syscalls++;
 
 	/*

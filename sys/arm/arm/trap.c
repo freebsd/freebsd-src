@@ -932,43 +932,8 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		KASSERT(td->td_ar == NULL, 
 		    ("returning from syscall with td_ar set!"));
 	}
-	switch (error) {
-	case 0: 
-#ifdef __ARMEB__
-		if ((insn & 0x000fffff) == SYS___syscall &&
-		    code != SYS_freebsd6_lseek && code != SYS_lseek) {
-			/*
-			 * 64-bit return, 32-bit syscall. Fixup byte order
-			 */ 
-			frame->tf_r0 = 0;
-			frame->tf_r1 = td->td_retval[0];
-		} else {
-			frame->tf_r0 = td->td_retval[0];
-			frame->tf_r1 = td->td_retval[1];
-		}
-#else
-		frame->tf_r0 = td->td_retval[0];
-	  	frame->tf_r1 = td->td_retval[1];
-#endif
-					      
-		frame->tf_spsr &= ~PSR_C_bit;   /* carry bit */
-		break;
-		
-	case ERESTART:
-		/*
-		 * Reconstruct the pc to point at the swi.
-		 */
-		frame->tf_pc -= INSN_SIZE;
-		break;
-	case EJUSTRETURN:                                       
-		/* nothing to do */  
-		break;
-	default:
 bad:
-		frame->tf_r0 = error;
-		frame->tf_spsr |= PSR_C_bit;    /* carry bit */
-		break;
-	}
+	cpu_set_syscall_retval(td, error);
 
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
