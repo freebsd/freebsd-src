@@ -259,7 +259,7 @@ ad_spindown(void *priv)
     }
     request->flags = ATA_R_CONTROL;
     request->dev = dev;
-    request->timeout = 5;
+    request->timeout = ATA_REQUEST_TIMEOUT;
     request->retries = 1;
     request->callback = ad_power_callback;
     request->u.ata.command = ATA_STANDBY_IMMEDIATE;
@@ -291,9 +291,9 @@ ad_strategy(struct bio *bp)
     if (atadev->spindown_state) {
 	device_printf(dev, "request while spun down, starting.\n");
 	atadev->spindown_state = 0;
-	request->timeout = 31;
+	request->timeout = MAX(ATA_REQUEST_TIMEOUT, 31);
     } else {
-	request->timeout = 5;
+	request->timeout = ATA_REQUEST_TIMEOUT;
     }
     request->retries = 2;
     request->data = bp->bio_data;
