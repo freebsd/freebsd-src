@@ -37,7 +37,7 @@
 **************************************************************************
 * $FreeBSD$
 */
-#define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.15 2007-10-07"
+#define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.16 2009-10-10"
 #define ARCMSR_SCSI_INITIATOR_ID                                              255
 #define ARCMSR_DEV_SECTOR_SIZE                                                512
 #define ARCMSR_MAX_XFER_SECTORS                                              4096
