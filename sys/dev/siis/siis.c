@@ -89,24 +89,37 @@ static void siispoll(struct cam_sim *sim);
 
 MALLOC_DEFINE(M_SIIS, "SIIS driver", "SIIS driver data buffers");
 
+static struct {
+	uint32_t	id;
+	const char	*name;
+	int		ports;
+} siis_ids[] = {
+	{0x31241095,	"SiI3124",	4},
+	{0x31248086,	"SiI3124",	4},
+	{0x31321095,	"SiI3132",	2},
+	{0x02421095,	"SiI3132",	2},
+	{0x02441095,	"SiI3132",	2},
+	{0x31311095,	"SiI3131",	1},
+	{0x35311095,	"SiI3531",	1},
+	{0,		NULL,		0}
+};
+
 static int
 siis_probe(device_t dev)
 {
+	char buf[64];
+	int i;
 	uint32_t devid = pci_get_devid(dev);
 
-	if (devid == SIIS_SII3124) {
-		device_set_desc_copy(dev, "SiI3124 SATA2 controller");
-	} else if (devid == SIIS_SII3132 ||
-		   devid == SIIS_SII3132_1 ||
-		   devid == SIIS_SII3132_2) {
-		device_set_desc_copy(dev, "SiI3132 SATA2 controller");
-	} else if (devid == SIIS_SII3531) {
-		device_set_desc_copy(dev, "SiI3531 SATA2 controller");
-	} else {
-		return (ENXIO);
+	for (i = 0; siis_ids[i].id != 0; i++) {
+		if (siis_ids[i].id == devid) {
+			snprintf(buf, sizeof(buf), "%s SATA2 controller",
+			    siis_ids[i].name);
+			device_set_desc_copy(dev, buf);
+			return (BUS_PROBE_VENDOR);
+		}
 	}
-
-	return (BUS_PROBE_VENDOR);
+	return (ENXIO);
 }
 
 static int
@@ -115,8 +128,12 @@ siis_attach(device_t dev)
 	struct siis_controller *ctlr = device_get_softc(dev);
 	uint32_t devid = pci_get_devid(dev);
 	device_t child;
-	int	error, unit;
+	int	error, i, unit;
 
+	for (i = 0; siis_ids[i].id != 0; i++) {
+		if (siis_ids[i].id == devid)
+			break;
+	}
 	ctlr->dev = dev;
 	/* Global memory */
 	ctlr->r_grid = PCIR_BAR(0);
@@ -146,8 +163,7 @@ siis_attach(device_t dev)
 	/* Reset controller */
 	siis_resume(dev);
 	/* Number of HW channels */
-	ctlr->channels = (devid == SIIS_SII3124) ? 4 :
-	    (devid == SIIS_SII3531 ? 1 : 2);
+	ctlr->channels = siis_ids[i].ports;
 	/* Setup interrupts. */
 	if (siis_setup_interrupt(dev)) {
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
