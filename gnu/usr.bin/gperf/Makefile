@@ -12,8 +12,6 @@ SRCS=	bool-array.cc gen-perf.cc hash-table.cc iterator.cc key-list.cc \
 	vectors.cc version.cc
 SRCS+=  hash.cc
 
-CXX:=${CXX:C/^c\+\+|^clang/g++/}
-
 CXXFLAGS+=	-I${GPROFDIR}/lib -I${.CURDIR}
 
 .include <bsd.prog.mk>
