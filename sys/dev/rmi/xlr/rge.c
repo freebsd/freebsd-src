@@ -332,7 +332,7 @@ DRIVER_MODULE(miibus, rge, miibus_driver, miibus_devclass, 0, 0);
 #endif
 
 #define XKPHYS        0x8000000000000000
-
+/* -- No longer needed RRS
 static __inline__ uint32_t
 lw_40bit_phys(uint64_t phys, int cca)
 {
@@ -355,8 +355,8 @@ lw_40bit_phys(uint64_t phys, int cca)
 	disable_KX(flags);
 	return value;
 }
-
-
+*/
+/* -- No longer used RRS
 static __inline__ uint64_t
 ld_40bit_phys(uint64_t phys, int cca)
 {
@@ -379,7 +379,7 @@ ld_40bit_phys(uint64_t phys, int cca)
 	disable_KX(flags);
 	return value;
 }
-
+*/
 
 void *xlr_tx_ring_mem;
 
@@ -411,7 +411,7 @@ TAILQ_HEAD(, tx_desc_node) tx_frag_desc[XLR_MAX_CORE] =
 };
 
 /* This contains a list of free tx frag node descriptors */
-static 
+static
 TAILQ_HEAD(, tx_desc_node) free_tx_frag_desc[XLR_MAX_CORE] =
 {
 	TAILQ_HEAD_INITIALIZER(free_tx_frag_desc[0]),
@@ -617,23 +617,33 @@ build_frag_list(struct mbuf *m_head, struct msgrng_msg *p2p_msg, struct p2d_tx_d
 static void
 release_tx_desc(struct msgrng_msg *msg, int rel_buf)
 {
-	vm_paddr_t paddr = msg->msg0 & 0xffffffffffULL;
-	uint64_t temp;
-	struct p2d_tx_desc *tx_desc;
+	/*
+	 * OLD code: vm_paddr_t paddr = msg->msg0 & 0xffffffffffULL;
+	 * uint64_t temp; struct p2d_tx_desc *tx_desc; struct mbuf *m;
+	 * 
+	 * paddr += (XLR_MAX_TX_FRAGS * sizeof(uint64_t)); *** In o32 we will
+	 * crash here ****** temp = ld_40bit_phys(paddr, 3); tx_desc =
+	 * (struct p2d_tx_desc *)((vm_offset_t)temp);
+	 * 
+	 * if (rel_buf) { paddr += sizeof(uint64_t);
+	 * 
+	 * temp = ld_40bit_phys(paddr, 3);
+	 * 
+	 * m = (struct mbuf *)((vm_offset_t)temp); m_freem(m); } printf("Call
+	 * fre_p2d_desc\n"); free_p2d_desc(tx_desc);
+	 */
+	struct p2d_tx_desc *tx_desc, *chk_addr;
 	struct mbuf *m;
 
-	paddr += (XLR_MAX_TX_FRAGS * sizeof(uint64_t));
-
-	temp = ld_40bit_phys(paddr, 3);
-
-	tx_desc = (struct p2d_tx_desc *)((vm_offset_t)temp);
-
+	tx_desc = (struct p2d_tx_desc *)MIPS_PHYS_TO_KSEG0(msg->msg0);
+	chk_addr = (struct p2d_tx_desc *)(uint32_t) (tx_desc->frag[XLR_MAX_TX_FRAGS] & 0x00000000ffffffff);
+	if (tx_desc != chk_addr) {
+		printf("Address %p does not match with stored addr %p - we leaked a descriptor\n",
+		    tx_desc, chk_addr);
+		return;
+	}
 	if (rel_buf) {
-		paddr += sizeof(uint64_t);
-
-		temp = ld_40bit_phys(paddr, 3);
-
-		m = (struct mbuf *)((vm_offset_t)temp);
+		m = (struct mbuf *)(uint32_t) (tx_desc->frag[XLR_MAX_TX_FRAGS + 1] & 0x00000000ffffffff);
 		m_freem(m);
 	}
 	free_p2d_desc(tx_desc);
@@ -703,10 +713,26 @@ static void
 free_buf(vm_paddr_t paddr)
 {
 	struct mbuf *m;
-	vm_offset_t temp;
+	uint32_t *temp;
+	uint32_t mag, um;
 
-	temp = lw_40bit_phys((paddr - XLR_CACHELINE_SIZE), 3);
-	m = (struct mbuf *)temp;
+	/*
+	 * This will crash I think. RRS temp = lw_40bit_phys((paddr -
+	 * XLR_CACHELINE_SIZE), 3); m = (struct mbuf *)temp;
+	 */
+	/*
+	 * This gets us a kseg0 address for the mbuf/magic on the ring but
+	 * we need to get the va to free the mbuf. This is stored at *temp;
+	 */
+	temp = (uint32_t *) MIPS_PHYS_TO_KSEG0(paddr - XLR_CACHELINE_SIZE);
+	um = temp[0];
+	mag = temp[1];
+	if (mag != 0xf00bad) {
+		printf("Something is wrong kseg:%p found mag:%x not 0xf00bad\n",
+		    temp, mag);
+		return;
+	}
+	m = (struct mbuf *)um;
 	if (m != NULL)
 		m_freem(m);
 }
@@ -1015,7 +1041,7 @@ serdes_regs_init(struct driver_data *priv)
 	return;
 }
 
-static void 
+static void
 serdes_autoconfig(struct driver_data *priv)
 {
 	int delay = 100000;
@@ -1742,7 +1768,6 @@ rmi_xlr_mac_msgring_handler(int bucket, int size, int code,
 		/* int logical_cpu = 0; */
 
 		dbg_msg("Received packet, port = %d\n", port);
-
 		/*
 		 * if num frins to be sent exceeds threshold, wake up the
 		 * helper thread
@@ -1753,7 +1778,6 @@ rmi_xlr_mac_msgring_handler(int bucket, int size, int code,
 		}
 		dbg_msg("gmac_%d: rx packet: phys_addr = %llx, length = %x\n",
 		    priv->instance, phys_addr, length);
-
 		mac_stats_add(priv->stats.rx_packets, 1);
 		mac_stats_add(priv->stats.rx_bytes, length);
 		xlr_inc_counter(NETIF_RX);
@@ -1779,7 +1803,7 @@ rge_probe(dev)
 
 volatile unsigned long xlr_debug_enabled;
 struct callout rge_dbg_count;
-static void 
+static void
 xlr_debug_count(void *addr)
 {
 	struct driver_data *priv = &dev_mac[0]->priv;
@@ -1792,7 +1816,7 @@ xlr_debug_count(void *addr)
 }
 
 
-static void 
+static void
 xlr_tx_q_wakeup(void *addr)
 {
 	int i = 0;
@@ -1925,7 +1949,10 @@ rge_attach(device_t dev)
 	sc->irq = gmac_conf->baseirq + priv->instance % 4;
 
 	/* Set the IRQ into the rid field */
-	/* note this is a hack to pass the irq to the iodi interrupt setup routines */
+	/*
+	 * note this is a hack to pass the irq to the iodi interrupt setup
+	 * routines
+	 */
 	sc->rge_irq.__r_i = (struct resource_i *)sc->irq;
 
 	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_FAST | INTR_TYPE_NET | INTR_MPSAFE,
@@ -2077,13 +2104,14 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 	 */
 	struct mbuf *m;
 	void *ptr;
-	vm_offset_t temp;
+	uint32_t *temp;
 	struct ifnet *ifp = sc->rge_ifp;
 	unsigned long msgrng_flags;
 	int cpu = PCPU_GET(cpuid);
 
 
-	temp = lw_40bit_phys((paddr - XLR_CACHELINE_SIZE), 3);
+	temp = (uint32_t *) MIPS_PHYS_TO_KSEG0(paddr - XLR_CACHELINE_SIZE);
+
 	ptr = (void *)(temp + XLR_CACHELINE_SIZE);
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 	if (m != NULL) {
@@ -2132,15 +2160,15 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 	 * XLR_CACHELINE_SIZE);
 	 */
 	struct mbuf *m;
-	vm_offset_t temp;
-	unsigned int mag;
+	uint32_t *temp, tm, mag;
+
 	struct ifnet *ifp = sc->rge_ifp;
 
-	temp = lw_40bit_phys((paddr - XLR_CACHELINE_SIZE), 3);
-	mag = lw_40bit_phys((paddr - XLR_CACHELINE_SIZE + 4), 3);
 
-	m = (struct mbuf *)temp;
-
+	temp = (uint32_t *) MIPS_PHYS_TO_KSEG0(paddr - XLR_CACHELINE_SIZE);
+	tm = temp[0];
+	mag = temp[1];
+	m = (struct mbuf *)tm;
 	if (mag != 0xf00bad) {
 		/* somebody else packet Error - FIXME in intialization */
 		printf("cpu %d: *ERROR* Not my packet paddr %p\n", xlr_cpu_id(), (void *)paddr);
