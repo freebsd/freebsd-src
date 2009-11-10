@@ -81,6 +81,7 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
+#include <machine/pcb.h>
 #include <machine/smp.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>
@@ -582,7 +583,6 @@ syscall(struct trapframe *tf)
 	register_t *argp;
 	struct proc *p;
 	u_long code;
-	u_long tpc;
 	int reg;
 	int regcnt;
 	int narg;
@@ -606,7 +606,7 @@ syscall(struct trapframe *tf)
 	 * For syscalls, we don't want to retry the faulting instruction
 	 * (usually), instead we need to advance one instruction.
 	 */
-	tpc = tf->tf_tpc;
+	td->td_pcb->pcb_tpc = tf->tf_tpc;
 	TF_DONE(tf);
 
 	reg = 0;
@@ -673,40 +673,8 @@ syscall(struct trapframe *tf)
 		    error, syscallnames[code], td->td_retval[0],
 		    td->td_retval[1]);
 	}
-	
-	/*
-	 * MP SAFE (we may or may not have the MP lock at this point)
-	 */
-	switch (error) {
-	case 0:
-		tf->tf_out[0] = td->td_retval[0];
-		tf->tf_out[1] = td->td_retval[1];
-		tf->tf_tstate &= ~TSTATE_XCC_C;
-		break;
 
-	case ERESTART:
-		/*
-		 * Undo the tpc advancement we have done above, we want to
-		 * reexecute the system call.
-		 */
-		tf->tf_tpc = tpc;
-		tf->tf_tnpc -= 4;
-		break;
-
-	case EJUSTRETURN:
-		break;
-
-	default:
- 		if (p->p_sysent->sv_errsize) {
- 			if (error >= p->p_sysent->sv_errsize)
-  				error = -1;	/* XXX */
-   			else
-  				error = p->p_sysent->sv_errtbl[error];
-		}
-		tf->tf_out[0] = error;
-		tf->tf_tstate |= TSTATE_XCC_C;
-		break;
-	}
+	cpu_set_syscall_retval(td, error);
 
 	/*
 	 * Handle reschedule and other end-of-syscall issues

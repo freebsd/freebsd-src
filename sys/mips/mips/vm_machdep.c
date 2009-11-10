@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/syscall.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -253,6 +254,62 @@ cpu_thread_alloc(struct thread *td)
 	for (i = 0; i < KSTACK_PAGES - 1; i++) {
 		td->td_md.md_upte[i] = *pte & ~(PTE_RO|PTE_WIRED);
 		pte++;
+	}
+}
+
+void
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+	struct trapframe *locr0 = td->td_frame;
+	unsigned int code;
+	int quad_syscall;
+
+	code = locr0->v0;
+	quad_syscall = 0;
+	if (code == SYS_syscall)
+		code = locr0->a0;
+	else if (code == SYS___syscall) {
+		code = _QUAD_LOWWORD ? locr0->a1 : locr0->a0;
+		quad_syscall = 1;
+	}
+
+	switch (error) {
+	case 0:
+		if (quad_syscall && code != SYS_lseek) {
+			/*
+			 * System call invoked through the
+			 * SYS___syscall interface but the
+			 * return value is really just 32
+			 * bits.
+			 */
+			locr0->v0 = td->td_retval[0];
+			if (_QUAD_LOWWORD)
+				locr0->v1 = td->td_retval[0];
+			locr0->a3 = 0;
+		} else {
+			locr0->v0 = td->td_retval[0];
+			locr0->v1 = td->td_retval[1];
+			locr0->a3 = 0;
+		}
+		break;
+
+	case ERESTART:
+		locr0->pc = td->td_pcb->pcb_tpc;
+		break;
+
+	case EJUSTRETURN:
+		break;	/* nothing to do */
+
+	default:
+		if (quad_syscall && code != SYS_lseek) {
+			locr0->v0 = error;
+			if (_QUAD_LOWWORD)
+				locr0->v1 = error;
+			locr0->a3 = 1;
+		} else {
+			locr0->v0 = error;
+			locr0->a3 = 1;
+		}
 	}
 }
 
