@@ -181,6 +181,16 @@ $ ENOATTR
 87 そのような属性はありません
 $ EDOOFUS
 88 プログラミングエラーです
+$ EBADMSG
+89 無効なメッセージです
+$ EMULTIHOP
+90 マルチホップが試みられました
+$ ENOLINK
+91 リンクが切断されています
+$ EPROTO
+92 プロトコルエラーです
+$ ENOTCAPABLE
+93 ケーパビリティが不足です
 $
 $ strsignal() support catalog
 $
