@@ -330,7 +330,7 @@ void	gsignal(int pgid, int sig);
 void	killproc(struct proc *p, char *why);
 void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
-void	postsig(int sig);
+int	postsig(int sig);
 void	psignal(struct proc *p, int sig);
 int	psignal_event(struct proc *p, struct sigevent *, ksiginfo_t *);
 struct sigacts *sigacts_alloc(void);
