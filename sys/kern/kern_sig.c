@@ -1471,21 +1471,19 @@ kern_sigsuspend(struct thread *td, sigset_t mask)
 	 * thread. But sigsuspend should return only on signal
 	 * delivery.
 	 */
+	cpu_set_syscall_retval(td, EINTR);
 	for (has_sig = 0; !has_sig;) {
 		while (msleep(&p->p_sigacts, &p->p_mtx, PPAUSE|PCATCH, "pause",
 			0) == 0)
 			/* void */;
 		thread_suspend_check(0);
 		mtx_lock(&p->p_sigacts->ps_mtx);
-		while ((sig = cursig(td, SIG_STOP_ALLOWED)) != 0) {
-			postsig(sig);
-			has_sig = 1;
-		}
+		while ((sig = cursig(td, SIG_STOP_ALLOWED)) != 0)
+			has_sig += postsig(sig);
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 	}
 	PROC_UNLOCK(p);
-	/* always return EINTR rather than ERESTART... */
-	return (EINTR);
+	return (EJUSTRETURN);
 }
 
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
@@ -2670,7 +2668,7 @@ thread_stopped(struct proc *p)
  * Take the action for the specified signal
  * from the current set of pending signals.
  */
-void
+int
 postsig(sig)
 	register int sig;
 {
@@ -2689,7 +2687,7 @@ postsig(sig)
 	ksiginfo_init(&ksi);
 	if (sigqueue_get(&td->td_sigqueue, sig, &ksi) == 0 &&
 	    sigqueue_get(&p->p_sigqueue, sig, &ksi) == 0)
-		return;
+		return (0);
 	ksi.ksi_signo = sig;
 	if (ksi.ksi_code == SI_TIMER)
 		itimer_accept(p, ksi.ksi_timerid, &ksi);
@@ -2757,6 +2755,7 @@ postsig(sig)
 		}
 		(*p->p_sysent->sv_sendsig)(action, &ksi, &returnmask);
 	}
+	return (1);
 }
 
 /*
