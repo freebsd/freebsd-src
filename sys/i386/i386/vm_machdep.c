@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/sysent.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sched.h>
@@ -378,6 +379,41 @@ cpu_thread_free(struct thread *td)
 {
 
 	cpu_thread_clean(td);
+}
+
+void
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+
+	switch (error) {
+	case 0:
+		td->td_frame->tf_eax = td->td_retval[0];
+		td->td_frame->tf_edx = td->td_retval[1];
+		td->td_frame->tf_eflags &= ~PSL_C;
+		break;
+
+	case ERESTART:
+		/*
+		 * Reconstruct pc, assuming lcall $X,y is 7 bytes, int
+		 * 0x80 is 2 bytes. We saved this in tf_err.
+		 */
+		td->td_frame->tf_eip -= td->td_frame->tf_err;
+		break;
+
+	case EJUSTRETURN:
+		break;
+
+	default:
+		if (td->td_proc->p_sysent->sv_errsize) {
+			if (error >= td->td_proc->p_sysent->sv_errsize)
+				error = -1;	/* XXX */
+			else
+				error = td->td_proc->p_sysent->sv_errtbl[error];
+		}
+		td->td_frame->tf_eax = error;
+		td->td_frame->tf_eflags |= PSL_C;
+		break;
+	}
 }
 
 /*
