@@ -484,8 +484,8 @@ static const char * const special_strings_cons25[] = {
 	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
 	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
 
-	[TKEY_INSERT] = "\x1B[L",	[TKEY_DELETE] = "\x7F",
 	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[L",	[TKEY_DELETE] = "\x7F",
 	[TKEY_PAGE_UP] = "\x1B[I",	[TKEY_PAGE_DOWN] = "\x1B[G",
 
 	[TKEY_F1] = "\x1B[M",		[TKEY_F2] = "\x1B[N",
@@ -507,8 +507,8 @@ static const char * const special_strings_normal[] = {
 	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
 	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
 
-	[TKEY_INSERT] = "\x1B[2~",	[TKEY_DELETE] = "\x1B[3~",
 	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[2~",	[TKEY_DELETE] = "\x1B[3~",
 	[TKEY_PAGE_UP] = "\x1B[5~",	[TKEY_PAGE_DOWN] = "\x1B[6~",
 
 	[TKEY_F1] = "\x1BOP",		[TKEY_F2] = "\x1BOQ",

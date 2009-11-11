@@ -173,10 +173,10 @@ void	teken_set_winsize(teken_t *, const teken_pos_t *);
 #define	TKEY_LEFT	0x02
 #define	TKEY_RIGHT	0x03
 
-#define	TKEY_INSERT	0x04
-#define	TKEY_DELETE	0x05
-#define	TKEY_HOME	0x06
-#define	TKEY_END	0x07
+#define	TKEY_HOME	0x04
+#define	TKEY_END	0x05
+#define	TKEY_INSERT	0x06
+#define	TKEY_DELETE	0x07
 #define	TKEY_PAGE_UP	0x08
 #define	TKEY_PAGE_DOWN	0x09
 
