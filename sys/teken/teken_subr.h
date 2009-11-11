@@ -1237,16 +1237,17 @@ teken_subr_set_top_and_bottom_margins(teken_t *t, unsigned int top,
 		bottom = t->t_winsize.tp_row;
 	}
 
+	/* Apply scrolling region. */
 	t->t_scrollreg.ts_begin = top;
 	t->t_scrollreg.ts_end = bottom;
-	if (t->t_stateflags & TS_ORIGIN) {
-		/* XXX: home cursor? */
+	if (t->t_stateflags & TS_ORIGIN)
 		t->t_originreg = t->t_scrollreg;
-		t->t_cursor.tp_row = t->t_originreg.ts_begin;
-		t->t_cursor.tp_col = 0;
-		t->t_stateflags &= ~TS_WRAPPED;
-		teken_funcs_cursor(t);
-	}
+
+	/* Home cursor to the top left of the scrolling region. */
+	t->t_cursor.tp_row = t->t_originreg.ts_begin;
+	t->t_cursor.tp_col = 0;
+	t->t_stateflags &= ~TS_WRAPPED;
+	teken_funcs_cursor(t);
 }
 
 static void
