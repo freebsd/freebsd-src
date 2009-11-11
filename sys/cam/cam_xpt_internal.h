@@ -176,29 +176,8 @@ void			xpt_run_dev_sendq(struct cam_eb *bus);
 int			xpt_schedule_dev(struct camq *queue, cam_pinfo *dev_pinfo,
 					 u_int32_t new_priority);
 u_int32_t		xpt_dev_ccbq_resize(struct cam_path *path, int newopenings);
-
-
-
-static __inline int
-xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
-{
-	int	retval;
-
-	if (dev->ccbq.dev_openings > 0) {
-		/*
-		 * The priority of a device waiting for controller
-		 * resources is that of the the highest priority CCB
-		 * enqueued.
-		 */
-		retval =
-		    xpt_schedule_dev(&bus->sim->devq->send_queue,
-				     &dev->send_ccb_entry.pinfo,
-				     CAMQ_GET_HEAD(&dev->ccbq.queue)->priority);
-	} else {
-		retval = 0;
-	}
-	return (retval);
-}
+void			xpt_start_tags(struct cam_path *path);
+void			xpt_stop_tags(struct cam_path *path);
 
 MALLOC_DECLARE(M_CAMXPT);
 

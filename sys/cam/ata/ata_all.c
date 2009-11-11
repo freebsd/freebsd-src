@@ -509,3 +509,38 @@ ata_max_mode(struct ata_params *ap, int mode, int maxmode)
     return (mode);
 }
 
+int
+ata_identify_match(caddr_t identbuffer, caddr_t table_entry)
+{
+	struct scsi_inquiry_pattern *entry;
+	struct ata_params *ident;
+ 
+	entry = (struct scsi_inquiry_pattern *)table_entry;
+	ident = (struct ata_params *)identbuffer;
+
+	if ((cam_strmatch(ident->model, entry->product,
+			  sizeof(ident->model)) == 0)
+	 && (cam_strmatch(ident->revision, entry->revision,
+			  sizeof(ident->revision)) == 0)) {
+		return (0);
+	}
+        return (-1);
+}
+
+int
+ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry)
+{
+	struct scsi_static_inquiry_pattern *entry;
+	struct ata_params *ident;
+ 
+	entry = (struct scsi_static_inquiry_pattern *)table_entry;
+	ident = (struct ata_params *)identbuffer;
+
+	if ((cam_strmatch(ident->model, entry->product,
+			  sizeof(ident->model)) == 0)
+	 && (cam_strmatch(ident->revision, entry->revision,
+			  sizeof(ident->revision)) == 0)) {
+		return (0);
+	}
+        return (-1);
+}

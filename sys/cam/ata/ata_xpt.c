@@ -66,17 +66,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>	/* for xpt_print below */
 #include "opt_cam.h"
 
-struct scsi_quirk_entry {
+struct ata_quirk_entry {
 	struct scsi_inquiry_pattern inq_pat;
 	u_int8_t quirks;
-#define	CAM_QUIRK_NOLUNS	0x01
-#define	CAM_QUIRK_NOSERIAL	0x02
-#define	CAM_QUIRK_HILUNS	0x04
-#define	CAM_QUIRK_NOHILUNS	0x08
-	u_int mintags;
+#define	CAM_QUIRK_MAXTAGS	0x01
 	u_int maxtags;
 };
-#define SCSI_QUIRK(dev)	((struct scsi_quirk_entry *)((dev)->quirk))
 
 static periph_init_t probe_periph_init;
 
@@ -138,7 +133,7 @@ typedef struct {
 	struct cam_periph *periph;
 } probe_softc;
 
-static struct scsi_quirk_entry scsi_quirk_table[] =
+static struct ata_quirk_entry ata_quirk_table[] =
 {
 	{
 		/* Default tagged queuing parameters for all devices */
@@ -146,12 +141,12 @@ static struct scsi_quirk_entry scsi_quirk_table[] =
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
 		  /*vendor*/"*", /*product*/"*", /*revision*/"*"
 		},
-		/*quirks*/0, /*mintags*/2, /*maxtags*/32
+		/*quirks*/0, /*maxtags*/0
 	},
 };
 
-static const int scsi_quirk_table_size =
-	sizeof(scsi_quirk_table) / sizeof(*scsi_quirk_table);
+static const int ata_quirk_table_size =
+	sizeof(ata_quirk_table) / sizeof(*ata_quirk_table);
 
 static cam_status	proberegister(struct cam_periph *periph,
 				      void *arg);
@@ -162,7 +157,7 @@ static void	 probestart(struct cam_periph *periph, union ccb *start_ccb);
 //				     struct cam_ed *device);
 static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
 static void	 probecleanup(struct cam_periph *periph);
-static void	 scsi_find_quirk(struct cam_ed *device);
+static void	 ata_find_quirk(struct cam_ed *device);
 static void	 ata_scan_bus(struct cam_periph *periph, union ccb *ccb);
 static void	 ata_scan_lun(struct cam_periph *periph,
 			       struct cam_path *path, cam_flags flags,
@@ -172,10 +167,9 @@ static struct cam_ed *
 		 ata_alloc_device(struct cam_eb *bus, struct cam_et *target,
 				   lun_id_t lun_id);
 static void	 ata_device_transport(struct cam_path *path);
-static void	 scsi_set_transfer_settings(struct ccb_trans_settings *cts,
+static void	 ata_set_transfer_settings(struct ccb_trans_settings *cts,
 					    struct cam_ed *device,
 					    int async_update);
-static void	 scsi_toggle_tags(struct cam_path *path);
 static void	 ata_dev_async(u_int32_t async_code,
 				struct cam_eb *bus,
 				struct cam_et *target,
@@ -717,6 +711,17 @@ noerror:
 
 			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
 		}
+		if (ident_buf->satacapabilities & ATA_SUPPORT_NCQ) {
+			path->device->mintags = path->device->maxtags =
+			    ATA_QUEUE_LEN(ident_buf->queue) + 1;
+		}
+		ata_find_quirk(path->device);
+		/* XXX: If not all tags allowed, we must to tell SIM which are. */
+		if (path->device->mintags < path->bus->sim->max_tagged_dev_openings)
+			path->device->mintags = path->device->maxtags = 0;
+		if (path->device->mintags != 0) {
+			xpt_start_tags(path);
+		}
 		ata_device_transport(path);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
@@ -776,7 +781,6 @@ noerror:
 			return;
 		}
 
-		scsi_find_quirk(path->device);
 		ata_device_transport(path);
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
@@ -853,24 +857,23 @@ probecleanup(struct cam_periph *periph)
 }
 
 static void
-scsi_find_quirk(struct cam_ed *device)
+ata_find_quirk(struct cam_ed *device)
 {
-	struct scsi_quirk_entry *quirk;
+	struct ata_quirk_entry *quirk;
 	caddr_t	match;
 
-	match = cam_quirkmatch((caddr_t)&device->inq_data,
-			       (caddr_t)scsi_quirk_table,
-			       sizeof(scsi_quirk_table) /
-			       sizeof(*scsi_quirk_table),
-			       sizeof(*scsi_quirk_table), scsi_inquiry_match);
+	match = cam_quirkmatch((caddr_t)&device->ident_data,
+			       (caddr_t)ata_quirk_table,
+			       ata_quirk_table_size,
+			       sizeof(*ata_quirk_table), ata_identify_match);
 
 	if (match == NULL)
 		panic("xpt_find_quirk: device didn't match wildcard entry!!");
 
-	quirk = (struct scsi_quirk_entry *)match;
+	quirk = (struct ata_quirk_entry *)match;
 	device->quirk = quirk;
-	device->mintags = quirk->mintags;
-	device->maxtags = quirk->maxtags;
+	if (quirk->quirks & CAM_QUIRK_MAXTAGS)
+		device->mintags = device->maxtags = quirk->maxtags;
 }
 
 typedef struct {
@@ -1101,7 +1104,7 @@ static struct cam_ed *
 ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
 	struct cam_path path;
-	struct scsi_quirk_entry *quirk;
+	struct ata_quirk_entry *quirk;
 	struct cam_ed *device;
 	struct cam_ed *cur_device;
 
@@ -1113,10 +1116,10 @@ ata_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 	 * Take the default quirk entry until we have inquiry
 	 * data and can determine a better quirk to use.
 	 */
-	quirk = &scsi_quirk_table[scsi_quirk_table_size - 1];
+	quirk = &ata_quirk_table[ata_quirk_table_size - 1];
 	device->quirk = (void *)quirk;
-	device->mintags = quirk->mintags;
-	device->maxtags = quirk->maxtags;
+	device->mintags = 0;
+	device->maxtags = 0;
 	bzero(&device->inq_data, sizeof(device->inq_data));
 	device->inq_flags = 0;
 	device->queue_flags = 0;
@@ -1199,7 +1202,7 @@ ata_action(union ccb *start_ccb)
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SET_TRAN_SETTINGS:
 	{
-		scsi_set_transfer_settings(&start_ccb->cts,
+		ata_set_transfer_settings(&start_ccb->cts,
 					   start_ccb->ccb_h.path->device,
 					   /*async_update*/FALSE);
 		break;
@@ -1227,7 +1230,7 @@ ata_action(union ccb *start_ccb)
 }
 
 static void
-scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
+ata_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			   int async_update)
 {
 	struct	ccb_pathinq cpi;
@@ -1379,62 +1382,12 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
 				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 			} else {
-				struct ccb_relsim crs;
-
-				xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
-		  		device->inq_flags &= ~SID_CmdQue;
-				xpt_dev_ccbq_resize(cts->ccb_h.path,
-						    sim->max_dev_openings);
-				device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
-				device->tag_delay_count = 0;
-
-				xpt_setup_ccb(&crs.ccb_h, cts->ccb_h.path,
-				    CAM_PRIORITY_NORMAL);
-				crs.ccb_h.func_code = XPT_REL_SIMQ;
-				crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
-				crs.openings
-				    = crs.release_timeout
-				    = crs.qfrozen_cnt
-				    = 0;
-				xpt_action((union ccb *)&crs);
+				xpt_stop_tags(cts->ccb_h.path);
 			}
 		}
 	}
 	if (async_update == FALSE)
 		(*(sim->sim_action))(sim, (union ccb *)cts);
-}
-
-static void
-scsi_toggle_tags(struct cam_path *path)
-{
-	struct cam_ed *dev;
-
-	/*
-	 * Give controllers a chance to renegotiate
-	 * before starting tag operations.  We
-	 * "toggle" tagged queuing off then on
-	 * which causes the tag enable command delay
-	 * counter to come into effect.
-	 */
-	dev = path->device;
-	if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0
-	 || ((dev->inq_flags & SID_CmdQue) != 0
- 	  && (dev->inq_flags & (SID_Sync|SID_WBus16|SID_WBus32)) != 0)) {
-		struct ccb_trans_settings cts;
-
-		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
-		cts.protocol = PROTO_SCSI;
-		cts.protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cts.transport = XPORT_UNSPECIFIED;
-		cts.transport_version = XPORT_VERSION_UNSPECIFIED;
-		cts.proto_specific.scsi.flags = 0;
-		cts.proto_specific.scsi.valid = CTS_SCSI_VALID_TQ;
-		scsi_set_transfer_settings(&cts, path->device,
-					  /*async_update*/TRUE);
-		cts.proto_specific.scsi.flags = CTS_SCSI_FLAGS_TAG_ENB;
-		scsi_set_transfer_settings(&cts, path->device,
-					  /*async_update*/TRUE);
-	}
 }
 
 /*
@@ -1469,15 +1422,6 @@ ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		status = CAM_REQ_CMP_ERR;
 
 	if (status == CAM_REQ_CMP) {
-
-		/*
-		 * Allow transfer negotiation to occur in a
-		 * tag free environment.
-		 */
-		if (async_code == AC_SENT_BDR
-		 || async_code == AC_BUS_RESET)
-			scsi_toggle_tags(&newpath);
-
 		if (async_code == AC_INQ_CHANGED) {
 			/*
 			 * We've sent a start unit command, or
@@ -1498,7 +1442,7 @@ ata_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
 		struct ccb_trans_settings *settings;
 
 		settings = (struct ccb_trans_settings *)async_arg;
-		scsi_set_transfer_settings(settings, device,
+		ata_set_transfer_settings(settings, device,
 					  /*async_update*/TRUE);
 	}
 }

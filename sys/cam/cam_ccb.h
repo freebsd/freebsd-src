@@ -307,7 +307,7 @@ struct ccb_getdev {
 	struct scsi_inquiry_data inq_data;
 	struct ata_params ident_data;
 	u_int8_t  serial_num[252];
-	u_int8_t  reserved;
+	u_int8_t  inq_flags;
 	u_int8_t  serial_num_len;
 };
 
