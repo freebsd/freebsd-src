@@ -454,7 +454,7 @@ siis_ch_attach(device_t dev)
 	}
 	/* Construct SIM entry */
 	ch->sim = cam_sim_alloc(siisaction, siispoll, "siisch", ch,
-	    device_get_unit(dev), &ch->mtx, SIIS_MAX_SLOTS, 0, devq);
+	    device_get_unit(dev), &ch->mtx, 2, SIIS_MAX_SLOTS, devq);
 	if (ch->sim == NULL) {
 		device_printf(dev, "unable to allocate sim\n");
 		error = ENOMEM;
