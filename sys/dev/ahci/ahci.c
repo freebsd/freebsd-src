@@ -733,7 +733,8 @@ ahci_ch_attach(device_t dev)
 	}
 	/* Construct SIM entry */
 	ch->sim = cam_sim_alloc(ahciaction, ahcipoll, "ahcich", ch,
-	    device_get_unit(dev), &ch->mtx, ch->numslots, 0, devq);
+	    device_get_unit(dev), &ch->mtx,
+	    min(2, ch->numslots), ch->numslots, devq);
 	if (ch->sim == NULL) {
 		device_printf(dev, "unable to allocate sim\n");
 		error = ENOMEM;

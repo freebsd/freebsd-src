@@ -2274,24 +2274,7 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 				device->tag_delay_count = CAM_TAG_DELAY_COUNT;
 				device->flags |= CAM_DEV_TAG_AFTER_COUNT;
 			} else {
-				struct ccb_relsim crs;
-
-				xpt_freeze_devq(cts->ccb_h.path, /*count*/1);
-		  		device->inq_flags &= ~SID_CmdQue;
-				xpt_dev_ccbq_resize(cts->ccb_h.path,
-						    sim->max_dev_openings);
-				device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
-				device->tag_delay_count = 0;
-
-				xpt_setup_ccb(&crs.ccb_h, cts->ccb_h.path,
-				    CAM_PRIORITY_NORMAL);
-				crs.ccb_h.func_code = XPT_REL_SIMQ;
-				crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
-				crs.openings
-				    = crs.release_timeout
-				    = crs.qfrozen_cnt
-				    = 0;
-				xpt_action((union ccb *)&crs);
+				xpt_stop_tags(cts->ccb_h.path);
 			}
 		}
 	}

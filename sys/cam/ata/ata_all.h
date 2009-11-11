@@ -114,4 +114,7 @@ int	ata_max_wmode(struct ata_params *ap);
 int	ata_max_umode(struct ata_params *ap);
 int	ata_max_mode(struct ata_params *ap, int mode, int maxmode);
 
+int	ata_identify_match(caddr_t identbuffer, caddr_t table_entry);
+int	ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry);
+
 #endif
