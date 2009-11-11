@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 23, 2009
+.Dd November 11, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -258,6 +258,12 @@ Disable permanently promiscuous mode.
 Another name for the
 .Fl alias
 parameter.
+.It Cm description Ar value
+Specify a description of the interface.
+This can be used to label interfaces in situations where they may
+otherwise be difficult to distinguish.
+.It Cm -description
+Clear the interface description.
 .It Cm down
 Mark an interface
 .Dq down .
@@ -2511,6 +2517,10 @@ Configure the interface
 .Li xl0 ,
 to use 100baseTX, full duplex Ethernet media options:
 .Dl # ifconfig xl0 media 100baseTX mediaopt full-duplex
+.Pp
+Label the em0 interface as an uplink:
+.Pp
+.Dl # ifconfig em0 description \&"Uplink to Gigabit Switch 2\&"
 .Pp
 Create the software network interface
 .Li gif1 :
