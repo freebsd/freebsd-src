@@ -903,7 +903,7 @@ teken_subr_reset_dec_mode(teken_t *t, unsigned int cmd)
 
 	switch (cmd) {
 	case 1: /* Cursor keys mode. */
-		teken_funcs_param(t, TP_CURSORKEYS, 0);
+		t->t_stateflags &= ~TS_CURSORKEYS;
 		break;
 	case 2: /* DECANM: ANSI/VT52 mode. */
 		teken_printf("DECRST VT52\n");
@@ -1052,7 +1052,7 @@ teken_subr_set_dec_mode(teken_t *t, unsigned int cmd)
 
 	switch (cmd) {
 	case 1: /* Cursor keys mode. */
-		teken_funcs_param(t, TP_CURSORKEYS, 1);
+		t->t_stateflags |= TS_CURSORKEYS;
 		break;
 	case 2: /* DECANM: ANSI/VT52 mode. */
 		teken_printf("DECSET VT52\n");
