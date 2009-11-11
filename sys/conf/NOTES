@@ -706,6 +706,7 @@ options 	NETGRAPH_TCPMSS
 options 	NETGRAPH_TEE
 options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
+options 	NETGRAPH_VLAN
 
 # NgATM - Netgraph ATM
 options 	NGATM_ATM

@@ -497,6 +497,7 @@ NETGRAPH_TEE		opt_netgraph.h
 NETGRAPH_TTY		opt_netgraph.h
 NETGRAPH_UI		opt_netgraph.h
 NETGRAPH_VJC		opt_netgraph.h
+NETGRAPH_VLAN		opt_netgraph.h
 
 # NgATM options
 NGATM_ATM		opt_netgraph.h
