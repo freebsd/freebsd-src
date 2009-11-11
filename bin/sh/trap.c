@@ -244,7 +244,8 @@ void
 setsignal(int signo)
 {
 	int action;
-	sig_t sig, sigact = SIG_DFL;
+	sig_t sigact = SIG_DFL;
+	struct sigaction sa;
 	char *t;
 
 	if ((t = trap[signo]) == NULL)
@@ -320,9 +321,10 @@ setsignal(int signo)
 		case S_IGN:	sigact = SIG_IGN;	break;
 	}
 	*t = action;
-	sig = signal(signo, sigact);
-	if (sig != SIG_ERR && action == S_CATCH)
-		siginterrupt(signo, 1);
+	sa.sa_handler = sigact;
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sigaction(signo, &sa, NULL);
 }
 
 
