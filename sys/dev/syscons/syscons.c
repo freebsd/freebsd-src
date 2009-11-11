@@ -625,7 +625,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
     struct tty *cur_tty;
     int c, error = 0; 
     size_t len;
-    u_char *cp;
+    const u_char *cp;
 
     sc = (sc_softc_t *)arg;
     /* assert(thiskbd == sc->kbd) */
@@ -664,6 +664,11 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    ttydisc_rint(cur_tty, KEYCHAR(c), 0);
 	    break;
 	case FKEY:  /* function key, return string */
+	    cp = (*sc->cur_scp->tsw->te_fkeystr)(sc->cur_scp, c);
+	    if (cp != NULL) {
+	    	ttydisc_rint_simple(cur_tty, cp, strlen(cp));
+		break;
+	    }
 	    cp = kbdd_get_fkeystr(thiskbd, KEYCHAR(c), &len);
 	    if (cp != NULL)
 	    	ttydisc_rint_simple(cur_tty, cp, len);
@@ -673,9 +678,7 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    ttydisc_rint(cur_tty, KEYCHAR(c), 0);
 	    break;
 	case BKEY:  /* backtab fixed sequence (esc [ Z) */
-	    ttydisc_rint(cur_tty, 0x1b, 0);
-	    ttydisc_rint(cur_tty, '[', 0);
-	    ttydisc_rint(cur_tty, 'Z', 0);
+	    ttydisc_rint_simple(cur_tty, "\x1B[Z", 3);
 	    break;
 	}
 
@@ -1572,7 +1575,7 @@ sc_cngetc(struct consdev *cd)
     static struct fkeytab fkey;
     static int fkeycp;
     scr_stat *scp;
-    u_char *p;
+    const u_char *p;
     int cur_mode;
     int s = spltty();	/* block sckbdevent and scrn_timer while we poll */
     int c;
@@ -1621,6 +1624,13 @@ sc_cngetc(struct consdev *cd)
     case 0:	/* normal char */
 	return KEYCHAR(c);
     case FKEY:	/* function key */
+	p = (*scp->tsw->te_fkeystr)(scp, c);
+	if (p != NULL) {
+	    fkey.len = strlen(p);
+	    bcopy(p, fkey.str, fkey.len);
+	    fkeycp = 1;
+	    return fkey.str[0];
+	}
 	p = kbdd_get_fkeystr(scp->sc->kbd, KEYCHAR(c), (size_t *)&fkeycp);
 	fkey.len = fkeycp;
 	if ((p != NULL) && (fkey.len > 0)) {

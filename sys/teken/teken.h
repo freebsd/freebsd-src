@@ -89,15 +89,14 @@ typedef void tf_fill_t(void *, const teken_rect_t *, teken_char_t,
 typedef void tf_copy_t(void *, const teken_rect_t *, const teken_pos_t *);
 typedef void tf_param_t(void *, int, unsigned int);
 #define	TP_SHOWCURSOR	0
-#define	TP_CURSORKEYS	1
-#define	TP_KEYPADAPP	2
-#define	TP_AUTOREPEAT	3
-#define	TP_SWITCHVT	4
-#define	TP_132COLS	5
-#define	TP_SETBELLPD	6
+#define	TP_KEYPADAPP	1
+#define	TP_AUTOREPEAT	2
+#define	TP_SWITCHVT	3
+#define	TP_132COLS	4
+#define	TP_SETBELLPD	5
 #define	TP_SETBELLPD_PITCH(pd)		((pd) >> 16)
 #define	TP_SETBELLPD_DURATION(pd)	((pd) & 0xffff)
-#define	TP_MOUSE	7
+#define	TP_MOUSE	6
 typedef void tf_respond_t(void *, const void *, size_t);
 
 typedef struct {
@@ -167,6 +166,33 @@ void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_curattr(teken_t *, const teken_attr_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
 void	teken_set_winsize(teken_t *, const teken_pos_t *);
+
+/* Key input escape sequences. */
+#define	TKEY_UP		0x00
+#define	TKEY_DOWN	0x01
+#define	TKEY_LEFT	0x02
+#define	TKEY_RIGHT	0x03
+
+#define	TKEY_INSERT	0x04
+#define	TKEY_DELETE	0x05
+#define	TKEY_HOME	0x06
+#define	TKEY_END	0x07
+#define	TKEY_PAGE_UP	0x08
+#define	TKEY_PAGE_DOWN	0x09
+
+#define	TKEY_F1		0x0a
+#define	TKEY_F2		0x0b
+#define	TKEY_F3		0x0c
+#define	TKEY_F4		0x0d
+#define	TKEY_F5		0x0e
+#define	TKEY_F6		0x0f
+#define	TKEY_F7		0x10
+#define	TKEY_F8		0x11
+#define	TKEY_F9		0x12
+#define	TKEY_F10	0x13
+#define	TKEY_F11	0x14
+#define	TKEY_F12	0x15
+const char *teken_get_sequence(teken_t *, unsigned int);
 
 /* Legacy features. */
 void	teken_set_8bit(teken_t *);
