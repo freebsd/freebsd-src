@@ -240,7 +240,7 @@ platform_initclocks(void)
 		pic_update_control(1 << (8 + 7));
 
 		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_0, (0xffffffff & 0xffffffff));
-		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0xffffffff & 0xffffffff));
+		xlr_write_reg(mmio, PIC_TIMER_6_MAXVAL_1, (0x0 & 0xffffffff));
 		xlr_write_reg(mmio, PIC_IRT_0_TIMER_6, (1 << cpu));
 		xlr_write_reg(mmio, PIC_IRT_1_TIMER_6, (1 << 31) | (0 << 30) | (1 << 6) | (PIC_TIMER_6_IRQ));
 		pic_update_control(1 << (8 + 6));
