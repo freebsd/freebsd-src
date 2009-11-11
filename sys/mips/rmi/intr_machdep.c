@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/xlrconfig.h>
 #include <mips/rmi/interrupt.h>
 #include <mips/rmi/clock.h>
+#include <mips/rmi/pic.h>
 
 /*#include <machine/intrcnt.h>*/
 
@@ -167,6 +168,7 @@ cpu_intr(struct trapframe *tf)
 		ie = mih->mih_event;
 
 		write_c0_eirr64(1ULL << i);
+		pic_ack(i);
 		if (!ie || TAILQ_EMPTY(&ie->ie_handlers)) {
 			printf("stray interrupt %d\n", i);
 			continue;
@@ -174,6 +176,7 @@ cpu_intr(struct trapframe *tf)
 		if (intr_event_handle(ie, tf) != 0) {
 			printf("stray interrupt %d\n", i);
 		}
+		pic_delayed_ack(i);
 	}
 	critical_exit();
 }
