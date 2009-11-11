@@ -1942,7 +1942,6 @@ again:	reclaim_completed_tx_imm(q);
 	if (__predict_false(ret)) {
 		if (ret == 1) {
 			TXQ_UNLOCK(qs);
-			log(LOG_ERR, "no desc available\n");
 			return (ENOSPC);
 		}
 		goto again;
@@ -1955,6 +1954,7 @@ again:	reclaim_completed_tx_imm(q);
 		q->gen ^= 1;
 	}
 	TXQ_UNLOCK(qs);
+	wmb();
 	t3_write_reg(adap, A_SG_KDOORBELL,
 		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
 	return (0);
@@ -1975,8 +1975,6 @@ restart_ctrlq(void *data, int npending)
 	struct sge_txq *q = &qs->txq[TXQ_CTRL];
 	adapter_t *adap = qs->port->adapter;
 
-	log(LOG_WARNING, "Restart_ctrlq in_use=%d\n", q->in_use);
-	
 	TXQ_LOCK(qs);
 again:	reclaim_completed_tx_imm(q);
 
@@ -2928,9 +2926,9 @@ handle_rsp_cntrl_info(struct sge_qset *qs, uint32_t flags)
 	credits = G_RSPD_TXQ0_CR(flags);
 	if (credits) 
 		qs->txq[TXQ_ETH].processed += credits;
-	
+
 	credits = G_RSPD_TXQ2_CR(flags);
-	if (credits) 
+	if (credits)
 		qs->txq[TXQ_CTRL].processed += credits;
 
 # if USE_GTS
@@ -3133,12 +3131,9 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 		check_ring_db(adap, qs, sleeping);
 
 	mb();  /* commit Tx queue processed updates */
-	if (__predict_false(qs->txq_stopped > 1)) {
-		printf("restarting tx on %p\n", qs);
-		
+	if (__predict_false(qs->txq_stopped > 1))
 		restart_tx(qs);
-	}
-	
+
 	__refill_fl_lt(adap, &qs->fl[0], 512);
 	__refill_fl_lt(adap, &qs->fl[1], 512);
 	budget -= budget_left;
