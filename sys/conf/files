@@ -2399,6 +2399,7 @@ netgraph/ng_tcpmss.c		optional netgraph_tcpmss
 netgraph/ng_tee.c		optional netgraph_tee
 netgraph/ng_tty.c		optional netgraph_tty
 netgraph/ng_vjc.c		optional netgraph_vjc
+netgraph/ng_vlan.c		optional netgraph_vlan
 netinet/accf_data.c		optional accept_filter_data inet
 netinet/accf_dns.c		optional accept_filter_dns inet
 netinet/accf_http.c		optional accept_filter_http inet
