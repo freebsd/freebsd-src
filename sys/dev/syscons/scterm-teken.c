@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/consio.h>
+#include <sys/kbio.h>
 
 #if defined(__sparc64__) || defined(__powerpc__)
 #include <machine/sc_machdep.h>
@@ -52,14 +53,15 @@ __FBSDID("$FreeBSD$");
 static void scteken_revattr(unsigned char, teken_attr_t *);
 static unsigned int scteken_attr(const teken_attr_t *);
 
-static sc_term_init_t	scteken_init;
-static sc_term_term_t	scteken_term;
-static sc_term_puts_t	scteken_puts;
-static sc_term_ioctl_t	scteken_ioctl;
-static sc_term_default_attr_t scteken_default_attr;
-static sc_term_clear_t	scteken_clear;
-static sc_term_input_t	scteken_input;
-static void		scteken_nop(void);
+static sc_term_init_t		scteken_init;
+static sc_term_term_t		scteken_term;
+static sc_term_puts_t		scteken_puts;
+static sc_term_ioctl_t		scteken_ioctl;
+static sc_term_default_attr_t	scteken_default_attr;
+static sc_term_clear_t		scteken_clear;
+static sc_term_input_t		scteken_input;
+static sc_term_fkeystr_t	scteken_fkeystr;
+static void			scteken_nop(void);
 
 typedef struct {
 	teken_t		ts_teken;
@@ -84,6 +86,7 @@ static sc_term_sw_t sc_term_scteken = {
 	scteken_clear,
 	(sc_term_notify_t *)scteken_nop,
 	scteken_input,
+	scteken_fkeystr,
 };
 
 SCTERM_MODULE(scteken, sc_term_scteken);
@@ -239,6 +242,56 @@ scteken_input(scr_stat *scp, int c, struct tty *tp)
 {
 
 	return FALSE;
+}
+
+static const char *
+scteken_fkeystr(scr_stat *scp, int c)
+{
+	teken_stat *ts = scp->ts;
+	unsigned int k;
+
+	switch (c) {
+	case FKEY | F(1):  case FKEY | F(2):  case FKEY | F(3):
+	case FKEY | F(4):  case FKEY | F(5):  case FKEY | F(6):
+	case FKEY | F(7):  case FKEY | F(8):  case FKEY | F(9):
+	case FKEY | F(10): case FKEY | F(11): case FKEY | F(12):
+		k = TKEY_F1 + c - (FKEY | F(1));
+		break;
+	case FKEY | F(49):
+		k = TKEY_HOME;
+		break;
+	case FKEY | F(50):
+		k = TKEY_UP;
+		break;
+	case FKEY | F(51):
+		k = TKEY_PAGE_UP;
+		break;
+	case FKEY | F(53):
+		k = TKEY_LEFT;
+		break;
+	case FKEY | F(55):
+		k = TKEY_RIGHT;
+		break;
+	case FKEY | F(57):
+		k = TKEY_END;
+		break;
+	case FKEY | F(58):
+		k = TKEY_DOWN;
+		break;
+	case FKEY | F(59):
+		k = TKEY_PAGE_DOWN;
+		break;
+	case FKEY | F(60):
+		k = TKEY_INSERT;
+		break;
+	case FKEY | F(61):
+		k = TKEY_DELETE;
+		break;
+	default:
+		return (NULL);
+	}
+
+	return (teken_get_sequence(&ts->ts_teken, k));
 }
 
 static void
