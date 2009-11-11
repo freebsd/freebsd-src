@@ -578,7 +578,7 @@ struct bwi_softc {
 	bus_space_handle_t	sc_mem_bh;
 
 	struct callout		sc_calib_ch;
-	struct callout	sc_watchdog_timer;
+	struct callout		sc_watchdog_timer;
 
 	struct bwi_regwin	*sc_cur_regwin;
 	struct bwi_regwin	sc_com_regwin;
