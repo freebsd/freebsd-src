@@ -353,14 +353,6 @@ vop_stdaccessx(struct vop_accessx_args *ap)
 	if (accmode == 0)
 		return (0);
 
-	/*
-	 * Many VOP_APPEND implementations don't expect VAPPEND without VWRITE
-	 * being set, e.g. they check whether the filesystem is read-only only
-	 * when VWRITE is set.  Make sure we don't confuse them.
-	 */
-	if (accmode & VAPPEND)
-		accmode |= VWRITE;
-
 	return (VOP_ACCESS(ap->a_vp, accmode, ap->a_cred, ap->a_td));
 }
 
