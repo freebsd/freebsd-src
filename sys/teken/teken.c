@@ -49,14 +49,15 @@ static FILE *df;
 #endif /* __FreeBSD__ && _KERNEL */
 
 /* Private flags for t_stateflags. */
-#define	TS_FIRSTDIGIT	0x01	/* First numeric digit in escape sequence. */
-#define	TS_INSERT	0x02	/* Insert mode. */
-#define	TS_AUTOWRAP	0x04	/* Autowrap. */
-#define	TS_ORIGIN	0x08	/* Origin mode. */
-#define	TS_WRAPPED	0x10	/* Next character should be printed on col 0. */
-#define	TS_8BIT		0x20	/* UTF-8 disabled. */
-#define	TS_CONS25	0x40	/* cons25 emulation. */
-#define	TS_INSTRING	0x80	/* Inside string. */
+#define	TS_FIRSTDIGIT	0x0001	/* First numeric digit in escape sequence. */
+#define	TS_INSERT	0x0002	/* Insert mode. */
+#define	TS_AUTOWRAP	0x0004	/* Autowrap. */
+#define	TS_ORIGIN	0x0008	/* Origin mode. */
+#define	TS_WRAPPED	0x0010	/* Next character should be printed on col 0. */
+#define	TS_8BIT		0x0020	/* UTF-8 disabled. */
+#define	TS_CONS25	0x0040	/* cons25 emulation. */
+#define	TS_INSTRING	0x0080	/* Inside string. */
+#define	TS_CURSORKEYS	0x0100	/* Cursor keys mode. */
 
 /* Character that blanks a cell. */
 #define	BLANK	' '
@@ -477,6 +478,66 @@ teken_256to8(teken_color_t c)
 		else
 			return (TC_WHITE);
 	}
+}
+
+static const char * const special_strings_cons25[] = {
+	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+
+	[TKEY_INSERT] = "\x1B[L",	[TKEY_DELETE] = "\x7F",
+	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
+	[TKEY_PAGE_UP] = "\x1B[I",	[TKEY_PAGE_DOWN] = "\x1B[G",
+
+	[TKEY_F1] = "\x1B[M",		[TKEY_F2] = "\x1B[N",
+	[TKEY_F3] = "\x1B[O",		[TKEY_F4] = "\x1B[P",
+	[TKEY_F5] = "\x1B[Q",		[TKEY_F6] = "\x1B[R",
+	[TKEY_F7] = "\x1B[S",		[TKEY_F8] = "\x1B[T",
+	[TKEY_F9] = "\x1B[U",		[TKEY_F10] = "\x1B[V",
+	[TKEY_F11] = "\x1B[W",		[TKEY_F12] = "\x1B[X",
+};
+
+static const char * const special_strings_ckeys[] = {
+	[TKEY_UP] = "\x1BOA",		[TKEY_DOWN] = "\x1BOB",
+	[TKEY_LEFT] = "\x1BOD",		[TKEY_RIGHT] = "\x1BOC",
+
+	[TKEY_HOME] = "\x1BOH",		[TKEY_END] = "\x1BOF",
+};
+
+static const char * const special_strings_normal[] = {
+	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+
+	[TKEY_INSERT] = "\x1B[2~",	[TKEY_DELETE] = "\x1B[3~",
+	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
+	[TKEY_PAGE_UP] = "\x1B[5~",	[TKEY_PAGE_DOWN] = "\x1B[6~",
+
+	[TKEY_F1] = "\x1BOP",		[TKEY_F2] = "\x1BOQ",
+	[TKEY_F3] = "\x1BOR",		[TKEY_F4] = "\x1BOS",
+	[TKEY_F5] = "\x1B[15~",		[TKEY_F6] = "\x1B[17~",
+	[TKEY_F7] = "\x1B[18~",		[TKEY_F8] = "\x1B[19~",
+	[TKEY_F9] = "\x1B[20~",		[TKEY_F10] = "\x1B[21~",
+	[TKEY_F11] = "\x1B[23~",	[TKEY_F12] = "\x1B[24~",
+};
+
+const char *
+teken_get_sequence(teken_t *t, unsigned int k)
+{
+
+	/* Cons25 mode. */
+	if (t->t_stateflags & TS_CONS25 &&
+	    k < sizeof special_strings_cons25 / sizeof(char *))
+		return (special_strings_cons25[k]);
+
+	/* Cursor keys mode. */
+	if (t->t_stateflags & TS_CURSORKEYS &&
+	    k < sizeof special_strings_ckeys / sizeof(char *))
+		return (special_strings_ckeys[k]);
+
+	/* Default xterm sequences. */
+	if (k < sizeof special_strings_normal / sizeof(char *))
+		return (special_strings_normal[k]);
+	
+	return (NULL);
 }
 
 #include "teken_state.h"
