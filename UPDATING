@@ -471,6 +471,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 		# Map old usb library to new one for usb2 stack
 		libusb-0.1.so.8	libusb20.so.1
 
+20090209:
+	All USB ethernet devices now attach as interfaces under the name ueN
+	(eg. ue0). This is to provide a predictable name as vendors often
+	change usb chipsets in a product without notice.
+
 20090203:
 	The ichsmb(4) driver has been changed to require SMBus slave
 	addresses be left-justified (xxxxxxx0b) rather than right-justified.
