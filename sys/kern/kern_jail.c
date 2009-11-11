@@ -3467,6 +3467,7 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_NET_SETIFMTU:
 	case PRIV_NET_SETIFFLAGS:
 	case PRIV_NET_SETIFCAP:
+	case PRIV_NET_SETIFDESCR:
 	case PRIV_NET_SETIFNAME	:
 	case PRIV_NET_SETIFMETRIC:
 	case PRIV_NET_SETIFPHYS:

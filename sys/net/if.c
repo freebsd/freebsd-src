@@ -463,6 +463,8 @@ if_free_internal(struct ifnet *ifp)
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
 #endif /* MAC */
+	if (ifp->if_description != NULL)
+		sbuf_delete(ifp->if_description);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
@@ -2088,6 +2090,45 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCGIFPHYS:
 		ifr->ifr_phys = ifp->if_physical;
+		break;
+
+	case SIOCGIFDESCR:
+		IF_AFDATA_RLOCK(ifp);
+		if (ifp->if_description == NULL)
+			error = ENOMSG;
+		else
+			error = copystr(sbuf_data(ifp->if_description),
+					ifr->ifr_buffer.buffer,
+					ifr->ifr_buffer.length, NULL);
+		IF_AFDATA_RUNLOCK(ifp);
+		break;
+
+	case SIOCSIFDESCR:
+		error = priv_check(td, PRIV_NET_SETIFDESCR);
+		if (error)
+			return (error);
+
+		IF_AFDATA_WLOCK(ifp);
+		if (ifp->if_description == NULL) {
+			ifp->if_description = sbuf_new_auto();
+			if (ifp->if_description == NULL) {
+				error = ENOMEM;
+				IF_AFDATA_WUNLOCK(ifp);
+				break;
+			}
+		} else
+			sbuf_clear(ifp->if_description);
+
+		if (sbuf_copyin(ifp->if_description, ifr->ifr_buffer.buffer,
+				ifr->ifr_buffer.length) == -1)
+			error = EFAULT;
+
+		if (error == 0) {
+			sbuf_finish(ifp->if_description);
+			getmicrotime(&ifp->if_lastchange);
+		}
+		IF_AFDATA_WUNLOCK(ifp);
+
 		break;
 
 	case SIOCSIFFLAGS:
