@@ -35,6 +35,7 @@
 #include <sys/ioctl.h>
 #include <sys/filio.h>
 #include <sys/queue.h>
+#include <sys/endian.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -185,8 +186,6 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 	/* create libusb v1.0 compliant devices */
 	i = 0;
 	while ((pdev = libusb20_be_device_foreach(usb_backend, NULL))) {
-		/* get device into libUSB v1.0 list */
-		libusb20_be_dequeue_device(usb_backend, pdev);
 
 		dev = malloc(sizeof(*dev));
 		if (dev == NULL) {
@@ -199,6 +198,10 @@ libusb_get_device_list(libusb_context *ctx, libusb_device ***list)
 			libusb20_be_free(usb_backend);
 			return (LIBUSB_ERROR_NO_MEM);
 		}
+
+		/* get device into libUSB v1.0 list */
+		libusb20_be_dequeue_device(usb_backend, pdev);
+
 		memset(dev, 0, sizeof(*dev));
 
 		/* init transfer queues */
@@ -416,6 +419,8 @@ libusb_close(struct libusb20_device *pdev)
 	libusb10_remove_pollfd(ctx, &dev->dev_poll);
 
 	libusb20_dev_close(pdev);
+
+	/* unref will free the "pdev" when the refcount reaches zero */
 	libusb_unref_device(dev);
 
 	/* make sure our event loop detects the closed device */
@@ -1195,7 +1200,7 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	unsigned int endpoint;
+	uint32_t endpoint;
 	int err;
 
 	if (uxfer == NULL)
@@ -1252,7 +1257,7 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 	struct libusb20_transfer *pxfer1;
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
-	unsigned int endpoint;
+	uint32_t endpoint;
 
 	if (uxfer == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -1312,3 +1317,16 @@ libusb10_cancel_all_transfer(libusb_device *dev)
 {
 	/* TODO */
 }
+
+uint16_t
+libusb_cpu_to_le16(uint16_t x)
+{
+	return (htole16(x));
+}
+
+uint16_t
+libusb_le16_to_cpu(uint16_t x)
+{
+	return (le16toh(x));
+}
+
