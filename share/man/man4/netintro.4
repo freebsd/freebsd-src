@@ -32,7 +32,7 @@
 .\"     @(#)netintro.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2004
+.Dd November 11, 2009
 .Dt NETINTRO 4
 .Os
 .Sh NAME
@@ -277,6 +277,25 @@ and
 fields of the
 .Vt ifreq
 structure, respectively.
+.It Dv SIOCGIFDESCR
+Get the interface description, returned in the
+.Va buffer
+field of
+.Va ifru_buffer
+struct.
+The user supplied buffer length should defined in the
+.Va length
+field of
+.Va ifru_buffer
+struct passed in as parameter.
+.It Dv SIOCSIFDESCR
+Set the interface description to the value of the
+.Va buffer
+field of
+.Va ifru_buffer
+struct, with
+.Va length
+field specifying its length.
 .It Dv SIOCSIFFLAGS
 Set interface flags field.
 If the interface is marked down,

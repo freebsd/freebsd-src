@@ -403,22 +403,30 @@ add_addr_to_iflist(pcap_if_t **alldevs, const char *name, u_int flags,
 	pcap_addr_t *curaddr, *prevaddr, *nextaddr;
 #ifdef SIOCGIFDESCR
 	struct ifreq ifrdesc;
+#ifdef __FreeBSD__
+#define _IFDESCRSIZE 64
+	char ifdescr[_IFDESCRSIZE];
+#else
 	char ifdescr[IFDESCRSIZE];
-	int s;
 #endif
+	int s;
 
-#ifdef SIOCGIFDESCR
 	/*
 	 * Get the description for the interface.
 	 */
 	memset(&ifrdesc, 0, sizeof ifrdesc);
 	strlcpy(ifrdesc.ifr_name, name, sizeof ifrdesc.ifr_name);
+#ifdef __FreeBSD__
+	ifrdesc.ifr_buffer.buffer = ifdescr;
+	ifrdesc.ifr_buffer.length = _IFDESCRSIZE;
+#else
 	ifrdesc.ifr_data = (caddr_t)&ifdescr;
+#endif
 	s = socket(AF_INET, SOCK_DGRAM, 0);
 	if (s >= 0) {
 		if (ioctl(s, SIOCGIFDESCR, &ifrdesc) == 0 &&
-		    strlen(ifrdesc.ifr_data) != 0)
-			description = ifrdesc.ifr_data;
+		    strlen(ifdescr) != 0)
+			description = ifdescr;
 		close(s);
 	}
 #endif
