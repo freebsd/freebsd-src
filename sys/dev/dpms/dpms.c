@@ -125,12 +125,8 @@ static void
 dpms_identify(driver_t *driver, device_t parent)
 {
 
-	/* The DPMS VBE only allows for manipulating a single monitor. */
-	if (devclass_get_device(dpms_devclass, 0) != NULL)
-		return;
-
-	if (x86bios_match_device(0xc0000, parent) &&
-	    device_get_flags(parent) != 0)
+	if (device_get_flags(parent) != 0 &&
+	    x86bios_match_device(0xc0000, parent))
 		device_add_child(parent, "dpms", 0);
 }
 
