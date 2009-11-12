@@ -64,7 +64,7 @@ build_grp(struct group *grp)
 
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	char *strGrp;
 	int testNdx;
