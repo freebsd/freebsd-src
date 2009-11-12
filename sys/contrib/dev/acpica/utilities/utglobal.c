@@ -949,6 +949,10 @@ AcpiUtInitGlobals (
     AcpiGbl_RootNodeStruct.Flags        = ANOBJ_END_OF_PEER_LIST;
 
 
+#ifdef ACPI_DISASSEMBLER
+    AcpiGbl_ExternalList                = NULL;
+#endif
+
 #ifdef ACPI_DEBUG_OUTPUT
     AcpiGbl_LowestStackPointer          = ACPI_CAST_PTR (ACPI_SIZE, ACPI_SIZE_MAX);
 #endif

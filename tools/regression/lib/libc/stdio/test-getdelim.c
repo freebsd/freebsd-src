@@ -80,7 +80,7 @@ main(int argc, char *argv[])
 
 	srandom(0);
 
-	printf("1..5\n");
+	printf("1..6\n");
 
 	/*
 	 * Test multiple times with different buffer sizes
@@ -103,6 +103,7 @@ main(int argc, char *argv[])
 		assert(getline(&line, &linecap, fp) == -1);
 		assert(line[0] == '\0');
 		free(line);
+		line = NULL;
 		assert(feof(fp));
 		assert(!ferror(fp));
 		fclose(fp);
@@ -163,6 +164,24 @@ main(int argc, char *argv[])
 	assert(!ferror(fp));
 	fclose(fp);
 	printf("ok 5 - nul\n");
+
+	/* Make sure NULL *linep and zero *linecapp are handled. */
+	fp = mkfilebuf();
+	free(line);
+	line = NULL;
+	linecap = 42;
+	assert(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
+	assert(memcmp(line, apothegm, sizeof(apothegm)) == 0);
+	fp = mkfilebuf();
+	free(line);
+	line = malloc(100);
+	linecap = 0;
+	assert(getline(&line, &linecap, fp) == sizeof(apothegm) - 1);
+	assert(memcmp(line, apothegm, sizeof(apothegm)) == 0);
+	free(line);
+	assert(!ferror(fp));
+	fclose(fp);
+	printf("ok 6 - empty/NULL initial buffer\n");
 
 	exit(0);
 }

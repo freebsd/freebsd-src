@@ -1007,39 +1007,7 @@ syscall(struct trapframe *frame)
 #endif
 	}
 
-	switch (error) {
-	case 0:
-		frame->tf_rax = td->td_retval[0];
-		frame->tf_rdx = td->td_retval[1];
-		frame->tf_rflags &= ~PSL_C;
-		break;
-
-	case ERESTART:
-		/*
-		 * Reconstruct pc, we know that 'syscall' is 2 bytes.
-		 * We have to do a full context restore so that %r10
-		 * (which was holding the value of %rcx) is restored for
-		 * the next iteration.
-		 */
-		frame->tf_rip -= frame->tf_err;
-		frame->tf_r10 = frame->tf_rcx;
-		td->td_pcb->pcb_flags |= PCB_FULLCTX;
-		break;
-
-	case EJUSTRETURN:
-		break;
-
-	default:
- 		if (p->p_sysent->sv_errsize) {
- 			if (error >= p->p_sysent->sv_errsize)
-  				error = -1;	/* XXX */
-   			else
-  				error = p->p_sysent->sv_errtbl[error];
-		}
-		frame->tf_rax = error;
-		frame->tf_rflags |= PSL_C;
-		break;
-	}
+	cpu_set_syscall_retval(td, error);
 
 	/*
 	 * Traced syscall.

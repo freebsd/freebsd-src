@@ -96,23 +96,154 @@ static void ahcipoll(struct cam_sim *sim);
 
 MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 
-/*
- * AHCI v1.x compliant SATA chipset support functions
- */
+static struct {
+	uint32_t	id;
+	const char	*name;
+	int		flags;
+} ahci_ids[] = {
+	{0x43801002, "ATI IXP600",	0},
+	{0x43901002, "ATI IXP700",	0},
+	{0x43911002, "ATI IXP700",	0},
+	{0x43921002, "ATI IXP700",	0},
+	{0x43931002, "ATI IXP700",	0},
+	{0x43941002, "ATI IXP800",	0},
+	{0x43951002, "ATI IXP800",	0},
+	{0x26528086, "Intel ICH6",	0},
+	{0x26538086, "Intel ICH6M",	0},
+	{0x26818086, "Intel ESB2",	0},
+	{0x26828086, "Intel ESB2",	0},
+	{0x26838086, "Intel ESB2",	0},
+	{0x27c18086, "Intel ICH7",	0},
+	{0x27c38086, "Intel ICH7",	0},
+	{0x27c58086, "Intel ICH7M",	0},
+	{0x27c68086, "Intel ICH7M",	0},
+	{0x28218086, "Intel ICH8",	0},
+	{0x28228086, "Intel ICH8",	0},
+	{0x28248086, "Intel ICH8",	0},
+	{0x28298086, "Intel ICH8M",	0},
+	{0x282a8086, "Intel ICH8M",	0},
+	{0x29228086, "Intel ICH9",	0},
+	{0x29238086, "Intel ICH9",	0},
+	{0x29248086, "Intel ICH9",	0},
+	{0x29258086, "Intel ICH9",	0},
+	{0x29278086, "Intel ICH9",	0},
+	{0x29298086, "Intel ICH9M",	0},
+	{0x292a8086, "Intel ICH9M",	0},
+	{0x292b8086, "Intel ICH9M",	0},
+	{0x292c8086, "Intel ICH9M",	0},
+	{0x292f8086, "Intel ICH9M",	0},
+	{0x294d8086, "Intel ICH9",	0},
+	{0x294e8086, "Intel ICH9M",	0},
+	{0x3a058086, "Intel ICH10",	0},
+	{0x3a228086, "Intel ICH10",	0},
+	{0x3a258086, "Intel ICH10",	0},
+	{0x3b228086, "Intel PCH",	0},
+	{0x3b238086, "Intel PCH",	0},
+	{0x3b248086, "Intel PCH",	0},
+	{0x3b258086, "Intel PCH",	0},
+	{0x3b298086, "Intel PCH",	0},
+	{0x3b2b8086, "Intel PCH",	0},
+	{0x3b2c8086, "Intel PCH",	0},
+	{0x3b2f8086, "Intel PCH",	0},
+	{0x044c10de, "NVIDIA MCP65",	0},
+	{0x044d10de, "NVIDIA MCP65",	0},
+	{0x044e10de, "NVIDIA MCP65",	0},
+	{0x044f10de, "NVIDIA MCP65",	0},
+	{0x045c10de, "NVIDIA MCP65",	0},
+	{0x045d10de, "NVIDIA MCP65",	0},
+	{0x045e10de, "NVIDIA MCP65",	0},
+	{0x045f10de, "NVIDIA MCP65",	0},
+	{0x055010de, "NVIDIA MCP67",	0},
+	{0x055110de, "NVIDIA MCP67",	0},
+	{0x055210de, "NVIDIA MCP67",	0},
+	{0x055310de, "NVIDIA MCP67",	0},
+	{0x055410de, "NVIDIA MCP67",	0},
+	{0x055510de, "NVIDIA MCP67",	0},
+	{0x055610de, "NVIDIA MCP67",	0},
+	{0x055710de, "NVIDIA MCP67",	0},
+	{0x055810de, "NVIDIA MCP67",	0},
+	{0x055910de, "NVIDIA MCP67",	0},
+	{0x055A10de, "NVIDIA MCP67",	0},
+	{0x055B10de, "NVIDIA MCP67",	0},
+	{0x058410de, "NVIDIA MCP67",	0},
+	{0x07f010de, "NVIDIA MCP73",	0},
+	{0x07f110de, "NVIDIA MCP73",	0},
+	{0x07f210de, "NVIDIA MCP73",	0},
+	{0x07f310de, "NVIDIA MCP73",	0},
+	{0x07f410de, "NVIDIA MCP73",	0},
+	{0x07f510de, "NVIDIA MCP73",	0},
+	{0x07f610de, "NVIDIA MCP73",	0},
+	{0x07f710de, "NVIDIA MCP73",	0},
+	{0x07f810de, "NVIDIA MCP73",	0},
+	{0x07f910de, "NVIDIA MCP73",	0},
+	{0x07fa10de, "NVIDIA MCP73",	0},
+	{0x07fb10de, "NVIDIA MCP73",	0},
+	{0x0ad010de, "NVIDIA MCP77",	0},
+	{0x0ad110de, "NVIDIA MCP77",	0},
+	{0x0ad210de, "NVIDIA MCP77",	0},
+	{0x0ad310de, "NVIDIA MCP77",	0},
+	{0x0ad410de, "NVIDIA MCP77",	0},
+	{0x0ad510de, "NVIDIA MCP77",	0},
+	{0x0ad610de, "NVIDIA MCP77",	0},
+	{0x0ad710de, "NVIDIA MCP77",	0},
+	{0x0ad810de, "NVIDIA MCP77",	0},
+	{0x0ad910de, "NVIDIA MCP77",	0},
+	{0x0ada10de, "NVIDIA MCP77",	0},
+	{0x0adb10de, "NVIDIA MCP77",	0},
+	{0x0ab410de, "NVIDIA MCP79",	0},
+	{0x0ab510de, "NVIDIA MCP79",	0},
+	{0x0ab610de, "NVIDIA MCP79",	0},
+	{0x0ab710de, "NVIDIA MCP79",	0},
+	{0x0ab810de, "NVIDIA MCP79",	0},
+	{0x0ab910de, "NVIDIA MCP79",	0},
+	{0x0aba10de, "NVIDIA MCP79",	0},
+	{0x0abb10de, "NVIDIA MCP79",	0},
+	{0x0abc10de, "NVIDIA MCP79",	0},
+	{0x0abd10de, "NVIDIA MCP79",	0},
+	{0x0abe10de, "NVIDIA MCP79",	0},
+	{0x0abf10de, "NVIDIA MCP79",	0},
+	{0x0d8410de, "NVIDIA MCP89",	0},
+	{0x0d8510de, "NVIDIA MCP89",	0},
+	{0x0d8610de, "NVIDIA MCP89",	0},
+	{0x0d8710de, "NVIDIA MCP89",	0},
+	{0x0d8810de, "NVIDIA MCP89",	0},
+	{0x0d8910de, "NVIDIA MCP89",	0},
+	{0x0d8a10de, "NVIDIA MCP89",	0},
+	{0x0d8b10de, "NVIDIA MCP89",	0},
+	{0x0d8c10de, "NVIDIA MCP89",	0},
+	{0x0d8d10de, "NVIDIA MCP89",	0},
+	{0x0d8e10de, "NVIDIA MCP89",	0},
+	{0x0d8f10de, "NVIDIA MCP89",	0},
+	{0x33491106, "VIA VT8251",	0},
+	{0x62871106, "VIA VT8251",	0},
+	{0x11841039, "SiS 966",		0},
+	{0x11851039, "SiS 968",		0},
+	{0x01861039, "SiS 968",		0},
+	{0,	     NULL,		0}
+};
+
 static int
 ahci_probe(device_t dev)
 {
+	char buf[64];
+	int i;
+	uint32_t devid = pci_get_devid(dev);
 
-	/* is this a possible AHCI candidate ? */
+	/* Is this a known AHCI chip? */
+	for (i = 0; ahci_ids[i].id != 0; i++) {
+		if (ahci_ids[i].id == devid) {
+			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
+			    ahci_ids[i].name);
+			device_set_desc_copy(dev, buf);
+			return (BUS_PROBE_VENDOR);
+		}
+	}
+	/* Is this a possible AHCI candidate? */
 	if (pci_get_class(dev) != PCIC_STORAGE ||
-	    pci_get_subclass(dev) != PCIS_STORAGE_SATA)
+	    pci_get_subclass(dev) != PCIS_STORAGE_SATA ||
+	    pci_get_progif(dev) != PCIP_STORAGE_SATA_AHCI_1_0)
 		return (ENXIO);
-
-	/* is this PCI device flagged as an AHCI compliant chip ? */
-	if (pci_get_progif(dev) != PCIP_STORAGE_SATA_AHCI_1_0)
-		return (ENXIO);
-
-	device_set_desc_copy(dev, "AHCI controller");
+	device_set_desc_copy(dev, "AHCI SATA controller");
 	return (BUS_PROBE_VENDOR);
 }
 
@@ -602,7 +733,8 @@ ahci_ch_attach(device_t dev)
 	}
 	/* Construct SIM entry */
 	ch->sim = cam_sim_alloc(ahciaction, ahcipoll, "ahcich", ch,
-	    device_get_unit(dev), &ch->mtx, ch->numslots, 0, devq);
+	    device_get_unit(dev), &ch->mtx,
+	    min(2, ch->numslots), ch->numslots, devq);
 	if (ch->sim == NULL) {
 		device_printf(dev, "unable to allocate sim\n");
 		error = ENOMEM;
@@ -866,15 +998,11 @@ ahci_slotsfree(device_t dev)
 }
 
 static void
-ahci_phy_check_events(device_t dev)
+ahci_phy_check_events(device_t dev, u_int32_t serr)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
-	u_int32_t error = ATA_INL(ch->r_mem, AHCI_P_SERR);
 
-	/* Clear error bits/interrupt */
-	ATA_OUTL(ch->r_mem, AHCI_P_SERR, error);
-	/* If we have a connection event, deal with it */
-	if ((error & ATA_SE_PHY_CHANGED) && (ch->pm_level == 0)) {
+	if ((serr & ATA_SE_PHY_CHANGED) && (ch->pm_level == 0)) {
 		u_int32_t status = ATA_INL(ch->r_mem, AHCI_P_SSTS);
 		if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
 		    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
@@ -944,7 +1072,7 @@ ahci_ch_intr(void *data)
 {
 	device_t dev = (device_t)data;
 	struct ahci_channel *ch = device_get_softc(dev);
-	uint32_t istatus, sstatus, cstatus, sntf = 0, ok, err;
+	uint32_t istatus, sstatus, cstatus, serr = 0, sntf = 0, ok, err;
 	enum ahci_err_type et;
 	int i, ccs, ncq_err = 0;
 
@@ -959,14 +1087,20 @@ ahci_ch_intr(void *data)
 	if ((istatus & AHCI_P_IX_SDB) && (ch->caps & AHCI_CAP_SSNTF))
 		sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
 	/* Process PHY events */
-	if (istatus & (AHCI_P_IX_PRC | AHCI_P_IX_PC))
-		ahci_phy_check_events(dev);
+	if (istatus & (AHCI_P_IX_PC | AHCI_P_IX_PRC | AHCI_P_IX_OF |
+	    AHCI_P_IX_IF | AHCI_P_IX_HBD | AHCI_P_IX_HBF | AHCI_P_IX_TFE)) {
+		serr = ATA_INL(ch->r_mem, AHCI_P_SERR);
+		if (serr) {
+			ATA_OUTL(ch->r_mem, AHCI_P_SERR, serr);
+			ahci_phy_check_events(dev, serr);
+		}
+	}
 	/* Process command errors */
-	if (istatus & (AHCI_P_IX_IF | AHCI_P_IX_HBD | AHCI_P_IX_HBF |
-		       AHCI_P_IX_TFE | AHCI_P_IX_OF)) {
+	if (istatus & (AHCI_P_IX_OF | AHCI_P_IX_IF |
+	    AHCI_P_IX_HBD | AHCI_P_IX_HBF | AHCI_P_IX_TFE)) {
 //device_printf(dev, "%s ERROR is %08x cs %08x ss %08x rs %08x tfd %02x serr %08x\n",
 //    __func__, istatus, cstatus, sstatus, ch->rslots, ATA_INL(ch->r_mem, AHCI_P_TFD),
-//    ATA_INL(ch->r_mem, AHCI_P_SERR));
+//    serr);
 		ccs = (ATA_INL(ch->r_mem, AHCI_P_CMD) & AHCI_P_CMD_CCS_MASK)
 		    >> AHCI_P_CMD_CCS_SHIFT;
 		err = ch->rslots & (cstatus | sstatus);
@@ -985,12 +1119,14 @@ ahci_ch_intr(void *data)
 	}
 	/* On error, complete the rest of commands with error statuses. */
 	if (err) {
-		if (!ch->readlog)
-			xpt_freeze_simq(ch->sim, ch->numrslots);
 		if (ch->frozen) {
 			union ccb *fccb = ch->frozen;
 			ch->frozen = NULL;
 			fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+			if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+				xpt_freeze_devq(fccb->ccb_h.path, 1);
+				fccb->ccb_h.status |= CAM_DEV_QFRZN;
+			}
 			xpt_done(fccb);
 		}
 		for (i = 0; i < ch->numslots; i++) {
@@ -1011,8 +1147,10 @@ ahci_ch_intr(void *data)
 					ncq_err = 1;
 				}
 			} else if (istatus & AHCI_P_IX_IF) {
-				/* SATA error */
-				et = AHCI_ERR_SATA;
+				if (ch->numtslots == 0 && i != ccs)
+					et = AHCI_ERR_INNOCENT;
+				else
+					et = AHCI_ERR_SATA;
 			} else
 				et = AHCI_ERR_INVALID;
 			ahci_end_transaction(&ch->slot[i], et);
@@ -1121,8 +1259,6 @@ ahci_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	if (error) {
 		device_printf(slot->dev, "DMA load error\n");
-		if (!ch->readlog)
-			xpt_freeze_simq(ch->sim, 1);
 		ahci_end_transaction(slot, AHCI_ERR_INVALID);
 		return;
 	}
@@ -1161,8 +1297,6 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	/* Setup the FIS for this request */
 	if (!(fis_size = ahci_setup_fis(ctp, ccb, slot->slot))) {
 		device_printf(ch->dev, "Setting up SATA FIS failed\n");
-		if (!ch->readlog)
-			xpt_freeze_simq(ch->sim, 1);
 		ahci_end_transaction(slot, AHCI_ERR_INVALID);
 		return;
 	}
@@ -1219,6 +1353,13 @@ ahci_execute_transaction(struct ahci_slot *slot)
 				et = AHCI_ERR_TFE;
 				break;
 			}
+			/* Workaround for ATI SB600/SB700 chipsets. */
+			if (ccb->ccb_h.target_id == 15 &&
+			    pci_get_vendor(device_get_parent(dev)) == 0x1002 &&
+			    (ATA_INL(ch->r_mem, AHCI_P_IS) & AHCI_P_IX_IPM)) {
+				et = AHCI_ERR_TIMEOUT;
+				break;
+			}
 		}
 		if (timeout && (count >= timeout)) {
 			device_printf(ch->dev,
@@ -1229,13 +1370,12 @@ ahci_execute_transaction(struct ahci_slot *slot)
 			/* Kick controller into sane state */
 			ahci_stop(ch->dev);
 			ahci_start(ch->dev);
-			xpt_freeze_simq(ch->sim, 1);
 		}
 		ahci_end_transaction(slot, et);
 		return;
 	}
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
+	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 2000,
 	    (timeout_t*)ahci_timeout, slot);
 	return;
 }
@@ -1246,28 +1386,50 @@ ahci_timeout(struct ahci_slot *slot)
 {
 	device_t dev = slot->dev;
 	struct ahci_channel *ch = device_get_softc(dev);
+	uint32_t sstatus;
+	int ccs;
 	int i;
 
 	/* Check for stale timeout. */
-	if (slot->state != AHCI_SLOT_RUNNING)
+	if (slot->state < AHCI_SLOT_RUNNING)
 		return;
 
-	device_printf(dev, "Timeout on slot %d\n", slot->slot);
-	/* Kick controller into sane state. */
-	ahci_stop(ch->dev);
-	ahci_start(ch->dev);
+	/* Check if slot was not being executed last time we checked. */
+	if (slot->state < AHCI_SLOT_EXECUTING) {
+		/* Check if slot started executing. */
+		sstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
+		ccs = (ATA_INL(ch->r_mem, AHCI_P_CMD) & AHCI_P_CMD_CCS_MASK)
+		    >> AHCI_P_CMD_CCS_SHIFT;
+		if ((sstatus & (1 << slot->slot)) != 0 || ccs == slot->slot)
+			slot->state = AHCI_SLOT_EXECUTING;
 
-	if (!ch->readlog)
-		xpt_freeze_simq(ch->sim, ch->numrslots);
-	/* Handle command with timeout. */
-	ahci_end_transaction(&ch->slot[slot->slot], AHCI_ERR_TIMEOUT);
-	/* Handle the rest of commands. */
+		callout_reset(&slot->timeout,
+		    (int)slot->ccb->ccb_h.timeout * hz / 2000,
+		    (timeout_t*)ahci_timeout, slot);
+		return;
+	}
+
+	device_printf(dev, "Timeout on slot %d\n", slot->slot);
+	device_printf(dev, "is %08x cs %08x ss %08x rs %08x tfd %02x serr %08x\n",
+	    ATA_INL(ch->r_mem, AHCI_P_IS), ATA_INL(ch->r_mem, AHCI_P_CI),
+	    ATA_INL(ch->r_mem, AHCI_P_SACT), ch->rslots,
+	    ATA_INL(ch->r_mem, AHCI_P_TFD), ATA_INL(ch->r_mem, AHCI_P_SERR));
+
+	ch->fatalerr = 1;
+	/* Handle frozen command. */
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
 		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+			xpt_freeze_devq(fccb->ccb_h.path, 1);
+			fccb->ccb_h.status |= CAM_DEV_QFRZN;
+		}
 		xpt_done(fccb);
 	}
+	/* Handle command with timeout. */
+	ahci_end_transaction(&ch->slot[slot->slot], AHCI_ERR_TIMEOUT);
+	/* Handle the rest of commands. */
 	for (i = 0; i < ch->numslots; i++) {
 		/* Do we have a running request on slot? */
 		if (ch->slot[i].state < AHCI_SLOT_RUNNING)
@@ -1320,10 +1482,14 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ch->dma.data_tag, slot->dma.data_map);
 	}
+	/* In case of error, freeze device for proper recovery. */
+	if ((et != AHCI_ERR_NONE) && (!ch->readlog) &&
+	    !(ccb->ccb_h.status & CAM_DEV_QFRZN)) {
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+	}
 	/* Set proper result status. */
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-	if (et != AHCI_ERR_NONE)
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 	switch (et) {
 	case AHCI_ERR_NONE:
 		ccb->ccb_h.status |= CAM_REQ_CMP;
@@ -1331,12 +1497,14 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			ccb->csio.scsi_status = SCSI_STATUS_OK;
 		break;
 	case AHCI_ERR_INVALID:
+		ch->fatalerr = 1;
 		ccb->ccb_h.status |= CAM_REQ_INVALID;
 		break;
 	case AHCI_ERR_INNOCENT:
 		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 		break;
 	case AHCI_ERR_TFE:
+	case AHCI_ERR_NCQ:
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
@@ -1345,14 +1513,28 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		}
 		break;
 	case AHCI_ERR_SATA:
-			ccb->ccb_h.status |= CAM_UNCOR_PARITY;
+		ch->fatalerr = 1;
+		if (!ch->readlog) {
+			xpt_freeze_simq(ch->sim, 1);
+			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		}
+		ccb->ccb_h.status |= CAM_UNCOR_PARITY;
 		break;
 	case AHCI_ERR_TIMEOUT:
+		/* Do no treat soft-reset timeout as fatal here. */
+		if (ccb->ccb_h.func_code != XPT_ATA_IO ||
+	            !(ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL))
+			ch->fatalerr = 1;
+		if (!ch->readlog) {
+			xpt_freeze_simq(ch->sim, 1);
+			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		}
 		ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
 		break;
-	case AHCI_ERR_NCQ:
-		ccb->ccb_h.status |= CAM_ATA_STATUS_ERROR;
 	default:
+		ch->fatalerr = 1;
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 	}
 	/* Free slot. */
@@ -1376,12 +1558,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ahci_begin_transaction(dev, ccb);
 		return;
 	}
-	/* If it was NCQ command error, put result on hold. */
-	if (et == AHCI_ERR_NCQ) {
-		ch->hold[slot->slot] = ccb;
-	} else if (ch->readlog)	/* If it was our READ LOG command - process it. */
+	/* If it was our READ LOG command - process it. */
+	if (ch->readlog) {
 		ahci_process_read_log(dev, ccb);
-	else
+	/* If it was NCQ command error, put result on hold. */
+	} else if (et == AHCI_ERR_NCQ) {
+		ch->hold[slot->slot] = ccb;
+	} else
 		xpt_done(ccb);
 	/* Unfreeze frozen command. */
 	if (ch->frozen && ch->numrslots == 0) {
@@ -1389,6 +1572,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ch->frozen = NULL;
 		ahci_begin_transaction(dev, fccb);
 		xpt_release_simq(ch->sim, TRUE);
+	}
+	/* If we have no other active commands, ... */
+	if (ch->rslots == 0) {
+		/* if there was fatal error - reset port. */
+		if (ch->fatalerr) {
+			ahci_reset(dev);
+		}
 	}
 	/* Start PM timer. */
 	if (ch->numrslots == 0 && ch->pm_level > 3) {
@@ -1435,7 +1625,8 @@ ahci_issue_read_log(device_t dev)
 	ataio->cmd.lba_low = 0x10;
 	ataio->cmd.lba_mid = 0;
 	ataio->cmd.lba_mid_exp = 0;
-	
+	/* Freeze SIM while doing READ LOG EXT. */
+	xpt_freeze_simq(ch->sim, 1);
 	ahci_begin_transaction(dev, ccb);
 }
 
@@ -1490,6 +1681,7 @@ ahci_process_read_log(device_t dev, union ccb *ccb)
 	}
 	free(ccb->ataio.data_ptr, M_AHCI);
 	xpt_free_ccb(ccb);
+	xpt_release_simq(ch->sim, TRUE);
 }
 
 static void
@@ -1614,12 +1806,15 @@ ahci_reset(device_t dev)
 
 	if (bootverbose)
 		device_printf(dev, "AHCI reset...\n");
-	xpt_freeze_simq(ch->sim, ch->numrslots);
 	/* Requeue freezed command. */
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
 		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+			xpt_freeze_devq(fccb->ccb_h.path, 1);
+			fccb->ccb_h.status |= CAM_DEV_QFRZN;
+		}
 		xpt_done(fccb);
 	}
 	/* Kill the engine and requeue all running commands. */
@@ -1631,6 +1826,15 @@ ahci_reset(device_t dev)
 		/* XXX; Commands in loading state. */
 		ahci_end_transaction(&ch->slot[i], AHCI_ERR_INNOCENT);
 	}
+	for (i = 0; i < ch->numslots; i++) {
+		if (!ch->hold[i])
+			continue;
+		xpt_done(ch->hold[i]);
+		ch->hold[i] = NULL;
+	}
+	ch->fatalerr = 0;
+	/* Tell the XPT about the event */
+	xpt_async(AC_BUS_RESET, ch->path, NULL);
 	/* Disable port interrupts */
 	ATA_OUTL(ch->r_mem, AHCI_P_IE, 0);
 	/* Reset and reconnect PHY, */
@@ -1660,8 +1864,6 @@ ahci_reset(device_t dev)
 	      AHCI_P_IX_DS | AHCI_P_IX_PS | (ctlr->ccc ? 0 : AHCI_P_IX_DHR)));
 	if (bootverbose)
 		device_printf(dev, "AHCI reset done: device found\n");
-	/* Tell the XPT about the event */
-	xpt_async(AC_BUS_RESET, ch->path, NULL);
 }
 
 static int
@@ -1924,7 +2126,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_SEQSCAN;
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
-			cpi->max_target = 14;
+			cpi->max_target = 15;
 		else
 			cpi->max_target = 0;
 		cpi->max_lun = 0;

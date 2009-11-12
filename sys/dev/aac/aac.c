@@ -229,7 +229,7 @@ static int		aac_query_disk(struct aac_softc *sc, caddr_t uptr);
 static int		aac_get_pci_info(struct aac_softc *sc, caddr_t uptr);
 static int		aac_supported_features(struct aac_softc *sc, caddr_t uptr);
 static void		aac_ioctl_event(struct aac_softc *sc,
-				        struct aac_event *event, void *arg);
+					struct aac_event *event, void *arg);
 static struct aac_mntinforesp *
 	aac_get_container_info(struct aac_softc *sc, struct aac_fib *fib, int cid);
 
@@ -354,7 +354,7 @@ aac_attach(struct aac_softc *sc)
 	}
 
 	mtx_lock(&sc->aac_io_lock);
-	callout_reset(&sc->aac_daemontime, 30 * 60 * hz, aac_daemon, sc);
+	callout_reset(&sc->aac_daemontime, 60 * hz, aac_daemon, sc);
 	mtx_unlock(&sc->aac_io_lock);
 
 	return(0);
@@ -909,8 +909,11 @@ aac_new_intr(void *arg)
 	mtx_unlock(&sc->aac_io_lock);
 }
 
+/*
+ * Interrupt filter for !NEW_COMM interface.
+ */
 int
-aac_fast_intr(void *arg)
+aac_filter(void *arg)
 {
 	struct aac_softc *sc;
 	u_int16_t reason;
@@ -2032,18 +2035,11 @@ aac_setup_intr(struct aac_softc *sc)
 		}
 	} else {
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_TYPE_BIO, aac_fast_intr, NULL,
+				   INTR_TYPE_BIO, aac_filter, NULL,
 				   sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev,
-				      "can't set up FAST interrupt\n");
-			if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-					   INTR_MPSAFE|INTR_TYPE_BIO,
-					   NULL, (driver_intr_t *)aac_fast_intr,
-					   sc, &sc->aac_intr)) {
-				device_printf(sc->aac_dev,
-					     "can't set up MPSAFE interrupt\n");
-				return (EINVAL);
-			}
+				      "can't set up interrupt filter\n");
+			return (EINVAL);
 		}
 	}
 	return (0);
@@ -3618,7 +3614,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 		query_disk.Lun = 0;
 		query_disk.UnMapped = 0;
 		sprintf(&query_disk.diskDeviceName[0], "%s%d",
-		        disk->ad_disk->d_name, disk->ad_disk->d_unit);
+			disk->ad_disk->d_name, disk->ad_disk->d_unit);
 	}
 	mtx_unlock(&sc->aac_container_lock);
 

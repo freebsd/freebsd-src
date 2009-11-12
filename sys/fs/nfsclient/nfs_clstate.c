@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
  * - The correct granularity of an OpenOwner is not nearly so
  *   obvious. An OpenOwner does the following:
  *   - provides a serial sequencing of Open/Close/Lock-with-new-lockowner
- *   - is used to check for Open/SHare contention (not applicable to
+ *   - is used to check for Open/Share contention (not applicable to
  *     this client, since all Opens are Deny_None)
- *   As such, I considered both extrema.
+ *   As such, I considered both extreme.
  *   1 OpenOwner per ClientID - Simple to manage, but fully serializes
  *   all Open, Close and Lock (with a new lockowner) Ops.
  *   1 OpenOwner for each Open - This one results in an OpenConfirm for
@@ -50,8 +50,8 @@ __FBSDID("$FreeBSD$");
  *   which of these the vnodeop close applies to. This is handled by
  *   delaying the Close Op(s) until all of the Opens have been closed.
  *   (It is not yet obvious if this is the correct granularity.)
- * - How the code handles serailization:
- *   - For the ClientId, is uses an exclusive lock while getting its
+ * - How the code handles serialization:
+ *   - For the ClientId, it uses an exclusive lock while getting its
  *     SetClientId and during recovery. Otherwise, it uses a shared
  *     lock via a reference count.
  *   - For the rest of the data structures, it uses an SMP mutex

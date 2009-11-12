@@ -36,7 +36,7 @@
 
 const struct tests {
 	void	*addr;
-	int	ok[2];	/* Depending on security.bsd.mmap_zero {0, !=0}. */
+	int	ok[2];	/* Depending on security.bsd.map_at_zero {0, !=0}. */
 } tests[] = {
 	{ (void *)0,			{ 0, 1 } }, /* Test sysctl. */
 	{ (void *)1,			{ 0, 0 } },
@@ -54,37 +54,37 @@ main(void)
 {
 	void *p;
 	size_t len;
-	int i, error, mib[3], mmap_zero;
+	int i, error, mib[3], map_at_zero;
 
 	error = 0;
 
-	/* Get the current sysctl value of security.bsd.mmap_zero. */
+	/* Get the current sysctl value of security.bsd.map_at_zero. */
 	len = sizeof(mib) / sizeof(*mib);
-	if (sysctlnametomib("security.bsd.mmap_zero", mib, &len) == -1)
-		err(1, "sysctlnametomib(security.bsd.mmap_zero)");
+	if (sysctlnametomib("security.bsd.map_at_zero", mib, &len) == -1)
+		err(1, "sysctlnametomib(security.bsd.map_at_zero)");
 
-	len = sizeof(mmap_zero);
-	if (sysctl(mib, 3, &mmap_zero, &len, NULL, 0) == -1)
-		err(1, "sysctl(security.bsd.mmap_zero)");
+	len = sizeof(map_at_zero);
+	if (sysctl(mib, 3, &map_at_zero, &len, NULL, 0) == -1)
+		err(1, "sysctl(security.bsd.map_at_zero)");
 
 	/* Normalize to 0 or 1 for array access. */
-	mmap_zero = !!mmap_zero;
+	map_at_zero = !!map_at_zero;
 
 	for (i=0; i < (sizeof(tests) / sizeof(*tests)); i++) {
 		p = mmap((void *)tests[i].addr, PAGE_SIZE,
 		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANON | MAP_FIXED,
 		    -1, 0);
 		if (p == MAP_FAILED) {
-			if (tests[i].ok[mmap_zero] != 0)
+			if (tests[i].ok[map_at_zero] != 0)
 				error++;
 			warnx("%s: mmap(%p, ...) failed.",
-			    (tests[i].ok[mmap_zero] == 0) ? "OK " : "ERR",
+			    (tests[i].ok[map_at_zero] == 0) ? "OK " : "ERR",
 			     tests[i].addr);
 		} else {
-			if (tests[i].ok[mmap_zero] != 1)
+			if (tests[i].ok[map_at_zero] != 1)
 				error++;
 			warnx("%s: mmap(%p, ...) succeeded: p=%p",
-			    (tests[i].ok[mmap_zero] == 1) ? "OK " : "ERR",
+			    (tests[i].ok[map_at_zero] == 1) ? "OK " : "ERR",
 			    tests[i].addr, p);
 		}
 	}

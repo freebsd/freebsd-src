@@ -43,7 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
+
+#include <dev/fb/vgareg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -54,13 +57,24 @@ struct vga_resource {
 };
 
 struct vga_pci_softc {
+	device_t	vga_isa_dev;	/* Sister isavga driver. */
 	device_t	vga_msi_child;	/* Child driver using MSI. */
 	struct vga_resource vga_res[PCIR_MAX_BAR_0 + 1];
 };
 
+SYSCTL_DECL(_hw_pci);
+
+int vga_pci_default_unit = -1;
+TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
+SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
+    &vga_pci_default_unit, -1, "Default VGA-compatible display");
+
 static int
 vga_pci_probe(device_t dev)
 {
+	device_t bdev;
+	int unit;
+	uint16_t bctl;
 
 	switch (pci_get_class(dev)) {
 	case PCIC_DISPLAY:
@@ -72,6 +86,16 @@ vga_pci_probe(device_t dev)
 	default:
 		return (ENXIO);
 	}
+
+	/* Probe default display. */
+	unit = device_get_unit(dev);
+	bdev = device_get_parent(device_get_parent(dev));
+	bctl = pci_read_config(bdev, PCIR_BRIDGECTL_1, 2);
+	if (vga_pci_default_unit < 0 && (bctl & PCIB_BCR_VGA_ENABLE) != 0)
+		vga_pci_default_unit = unit;
+	if (vga_pci_default_unit == unit)
+		device_set_flags(dev, 1);
+
 	device_set_desc(dev, "VGA-compatible display");
 	return (BUS_PROBE_GENERIC);
 }
@@ -91,6 +115,11 @@ vga_pci_attach(device_t dev)
 static int
 vga_pci_suspend(device_t dev)
 {
+	struct vga_pci_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->vga_isa_dev != NULL)
+		(void)DEVICE_SUSPEND(sc->vga_isa_dev);
 
 	return (bus_generic_suspend(dev));
 }
@@ -98,6 +127,11 @@ vga_pci_suspend(device_t dev)
 static int
 vga_pci_resume(device_t dev)
 {
+	struct vga_pci_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->vga_isa_dev != NULL)
+		(void)DEVICE_RESUME(sc->vga_isa_dev);
 
 	return (bus_generic_resume(dev));
 }

@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
@@ -85,6 +87,11 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	    dnode->tn_dir.tn_parent == dnode,
 	    !(cnp->cn_flags & ISDOTDOT)));
 
+	TMPFS_ASSERT_LOCKED(dnode);
+	if (dnode->tn_dir.tn_parent == NULL) {
+		error = ENOENT;
+		goto out;
+	}
 	if (cnp->cn_flags & ISDOTDOT) {
 		int ltype = 0;
 
@@ -428,41 +435,13 @@ tmpfs_setattr(struct vop_setattr_args *v)
 }
 
 /* --------------------------------------------------------------------- */
-
 static int
-tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio)
+tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
+    vm_offset_t offset, size_t tlen, struct uio *uio)
 {
-	vm_pindex_t	idx;
 	vm_page_t	m;
-	vm_offset_t	offset;
-	off_t		addr;
-	size_t		tlen;
 	int		error;
 
-	addr = uio->uio_offset;
-	idx = OFF_TO_IDX(addr);
-	offset = addr & PAGE_MASK;
-	tlen = MIN(PAGE_SIZE - offset, len);
-
-	if ((vobj == NULL) || (vobj->resident_page_count == 0))
-		goto nocache;
-
-	VM_OBJECT_LOCK(vobj);
-lookupvpg:
-	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
-	    vm_page_is_valid(m, offset, tlen)) {
-		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
-			goto lookupvpg;
-		vm_page_busy(m);
-		VM_OBJECT_UNLOCK(vobj);
-		error = uiomove_fromphys(&m, offset, tlen, uio);
-		VM_OBJECT_LOCK(vobj);
-		vm_page_wakeup(m);
-		VM_OBJECT_UNLOCK(vobj);
-		return	(error);
-	}
-	VM_OBJECT_UNLOCK(vobj);
-nocache:
 	VM_OBJECT_LOCK(tobj);
 	vm_object_pip_add(tobj, 1);
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
@@ -487,6 +466,89 @@ out:
 	vm_page_wakeup(m);
 	vm_object_pip_subtract(tobj, 1);
 	VM_OBJECT_UNLOCK(tobj);
+
+	return (error);
+}
+
+static __inline int
+tmpfs_nocacheread_buf(vm_object_t tobj, vm_pindex_t idx,
+    vm_offset_t offset, size_t tlen, void *buf)
+{
+	struct uio uio;
+	struct iovec iov;
+
+	uio.uio_iovcnt = 1;
+	uio.uio_iov = &iov;
+	iov.iov_base = buf;
+	iov.iov_len = tlen;
+
+	uio.uio_offset = 0;
+	uio.uio_resid = tlen;
+	uio.uio_rw = UIO_READ;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_td = curthread;
+
+	return (tmpfs_nocacheread(tobj, idx, offset, tlen, &uio));
+}
+
+static int
+tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio)
+{
+	struct sf_buf	*sf;
+	vm_pindex_t	idx;
+	vm_page_t	m;
+	vm_offset_t	offset;
+	off_t		addr;
+	size_t		tlen;
+	char		*ma;
+	int		error;
+
+	addr = uio->uio_offset;
+	idx = OFF_TO_IDX(addr);
+	offset = addr & PAGE_MASK;
+	tlen = MIN(PAGE_SIZE - offset, len);
+
+	if ((vobj == NULL) ||
+	    (vobj->resident_page_count == 0 && vobj->cache == NULL))
+		goto nocache;
+
+	VM_OBJECT_LOCK(vobj);
+lookupvpg:
+	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
+	    vm_page_is_valid(m, offset, tlen)) {
+		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+			goto lookupvpg;
+		vm_page_busy(m);
+		VM_OBJECT_UNLOCK(vobj);
+		error = uiomove_fromphys(&m, offset, tlen, uio);
+		VM_OBJECT_LOCK(vobj);
+		vm_page_wakeup(m);
+		VM_OBJECT_UNLOCK(vobj);
+		return	(error);
+	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+			goto lookupvpg;
+		vm_page_busy(m);
+		VM_OBJECT_UNLOCK(vobj);
+		sched_pin();
+		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
+		ma = (char *)sf_buf_kva(sf);
+		error = tmpfs_nocacheread_buf(tobj, idx, offset, tlen,
+		    ma + offset);
+		if (error == 0) {
+			uio->uio_offset += tlen;
+			uio->uio_resid -= tlen;
+		}
+		sf_buf_free(sf);
+		sched_unpin();
+		VM_OBJECT_LOCK(vobj);
+		vm_page_wakeup(m);
+		VM_OBJECT_UNLOCK(vobj);
+		return	(error);
+	}
+	VM_OBJECT_UNLOCK(vobj);
+nocache:
+	error = tmpfs_nocacheread(tobj, idx, offset, tlen, uio);
 
 	return	(error);
 }
@@ -555,7 +617,8 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) || (vobj->resident_page_count == 0)) {
+	if ((vobj == NULL) ||
+	    (vobj->resident_page_count == 0 && vobj->cache == NULL)) {
 		vpg = NULL;
 		goto nocache;
 	}
@@ -573,6 +636,8 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
+		if (__predict_false(vobj->cache != NULL))
+			vm_page_cache_free(vobj, idx, idx + 1);
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
 	}
@@ -854,6 +919,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	char *newname;
 	int error;
 	struct tmpfs_dirent *de;
+	struct tmpfs_mount *tmp;
 	struct tmpfs_node *fdnode;
 	struct tmpfs_node *fnode;
 	struct tmpfs_node *tnode;
@@ -874,6 +940,7 @@ tmpfs_rename(struct vop_rename_args *v)
 		goto out;
 	}
 
+	tmp = VFS_TO_TMPFS(tdvp->v_mount);
 	tdnode = VP_TO_TMPFS_DIR(tdvp);
 
 	/* If source and target are the same file, there is nothing to do. */
@@ -958,25 +1025,63 @@ tmpfs_rename(struct vop_rename_args *v)
 			 * directory being moved.  Otherwise, we'd end up
 			 * with stale nodes. */
 			n = tdnode;
+			/* TMPFS_LOCK garanties that no nodes are freed while
+			 * traversing the list. Nodes can only be marked as
+			 * removed: tn_parent == NULL. */
+			TMPFS_LOCK(tmp);
+			TMPFS_NODE_LOCK(n);
 			while (n != n->tn_dir.tn_parent) {
+				struct tmpfs_node *parent;
+
 				if (n == fnode) {
+					TMPFS_NODE_UNLOCK(n);
+					TMPFS_UNLOCK(tmp);
 					error = EINVAL;
 					if (newname != NULL)
 						    free(newname, M_TMPFSNAME);
 					goto out_locked;
 				}
-				n = n->tn_dir.tn_parent;
+				parent = n->tn_dir.tn_parent;
+				TMPFS_NODE_UNLOCK(n);
+				if (parent == NULL) {
+					n = NULL;
+					break;
+				}
+				TMPFS_NODE_LOCK(parent);
+				if (parent->tn_dir.tn_parent == NULL) {
+					TMPFS_NODE_UNLOCK(parent);
+					n = NULL;
+					break;
+				}
+				n = parent;
 			}
+			TMPFS_UNLOCK(tmp);
+			if (n == NULL) {
+				error = EINVAL;
+				if (newname != NULL)
+					    free(newname, M_TMPFSNAME);
+				goto out_locked;
+			}
+			TMPFS_NODE_UNLOCK(n);
 
 			/* Adjust the parent pointer. */
 			TMPFS_VALIDATE_DIR(fnode);
+			TMPFS_NODE_LOCK(de->td_node);
 			de->td_node->tn_dir.tn_parent = tdnode;
+			TMPFS_NODE_UNLOCK(de->td_node);
 
 			/* As a result of changing the target of the '..'
 			 * entry, the link count of the source and target
 			 * directories has to be adjusted. */
-			fdnode->tn_links--;
+			TMPFS_NODE_LOCK(tdnode);
+			TMPFS_ASSERT_LOCKED(tdnode);
 			tdnode->tn_links++;
+			TMPFS_NODE_UNLOCK(tdnode);
+
+			TMPFS_NODE_LOCK(fdnode);
+			TMPFS_ASSERT_LOCKED(fdnode);
+			fdnode->tn_links--;
+			TMPFS_NODE_UNLOCK(fdnode);
 		}
 
 		/* Do the move: just remove the entry from the source directory
@@ -1103,15 +1208,26 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 		goto out;
 	}
 
+
 	/* Detach the directory entry from the directory (dnode). */
 	tmpfs_dir_detach(dvp, de);
 
+	/* No vnode should be allocated for this entry from this point */
+	TMPFS_NODE_LOCK(node);
+	TMPFS_ASSERT_ELOCKED(node);
 	node->tn_links--;
+	node->tn_dir.tn_parent = NULL;
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
-	node->tn_dir.tn_parent->tn_links--;
-	node->tn_dir.tn_parent->tn_status |= TMPFS_NODE_ACCESSED | \
+
+	TMPFS_NODE_UNLOCK(node);
+
+	TMPFS_NODE_LOCK(dnode);
+	TMPFS_ASSERT_ELOCKED(dnode);
+	dnode->tn_links--;
+	dnode->tn_status |= TMPFS_NODE_ACCESSED | \
 	    TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
+	TMPFS_NODE_UNLOCK(dnode);
 
 	cache_purge(dvp);
 	cache_purge(vp);
@@ -1299,13 +1415,21 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 
 	vnode_destroy_vobject(vp);
 	cache_purge(vp);
+
+	TMPFS_NODE_LOCK(node);
+	TMPFS_ASSERT_ELOCKED(node);
 	tmpfs_free_vp(vp);
 
 	/* If the node referenced by this vnode was deleted by the user,
 	 * we must free its associated data structures (now that the vnode
 	 * is being reclaimed). */
-	if (node->tn_links == 0)
+	if (node->tn_links == 0 &&
+	    (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0) {
+		node->tn_vpstate = TMPFS_VNODE_DOOMED;
+		TMPFS_NODE_UNLOCK(node);
 		tmpfs_free_node(tmp, node);
+	} else
+		TMPFS_NODE_UNLOCK(node);
 
 	MPASS(vp->v_data == NULL);
 	return 0;

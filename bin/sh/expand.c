@@ -657,7 +657,7 @@ again: /* jump here after setting a variable with ${var=text} */
 	}
 	varlen = 0;
 	startloc = expdest - stackblock();
-	if (!set && uflag) {
+	if (!set && uflag && *var != '@' && *var != '*') {
 		switch (subtype) {
 		case VSNORMAL:
 		case VSTRIMLEFT:

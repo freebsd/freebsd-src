@@ -1809,15 +1809,20 @@ hfsc_class_modify(cl, rsc, fsc, usc)
 	    cl->cl_fsc == NULL) {
 		fsc_tmp = malloc(sizeof(struct internal_sc),
 		    M_DEVBUF, M_WAITOK);
-		if (fsc_tmp == NULL)
+		if (fsc_tmp == NULL) {
+			free(rsc_tmp);
 			return (ENOMEM);
+		}
 	}
 	if (usc != NULL && (usc->m1 != 0 || usc->m2 != 0) &&
 	    cl->cl_usc == NULL) {
 		usc_tmp = malloc(sizeof(struct internal_sc),
 		    M_DEVBUF, M_WAITOK);
-		if (usc_tmp == NULL)
+		if (usc_tmp == NULL) {
+			free(rsc_tmp);
+			free(fsc_tmp);
 			return (ENOMEM);
+		}
 	}
 
 	cur_time = read_machclk();

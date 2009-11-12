@@ -70,7 +70,7 @@ static int  vcmp(const void *, const void *);
 
 /* PLEASE KEEP THE TABLE BELOW SORTED ALPHABETICALLY!!! */
 static VAR var[] = {
-	{"%cpu", "%CPU", NULL, 0, pcpu, NULL, 4, 0, CHAR, NULL, 0},
+	{"%cpu", "%CPU", NULL, 0, pcpu, NULL, 5, 0, CHAR, NULL, 0},
 	{"%mem", "%MEM", NULL, 0, pmem, NULL, 4, 0, CHAR, NULL, 0},
 	{"acflag", "ACFLG", NULL, 0, kvar, NULL, 3, KOFF(ki_acflag), USHORT,
 		"x", 0},
@@ -159,7 +159,7 @@ static VAR var[] = {
 		UINT, UIDFMT, 0},
 	{"rgroup", "RGROUP", NULL, LJUST|DSIZ, rgroupname, s_rgroupname,
 		USERLEN, 0, CHAR, NULL, 0},
-	{"rss", "RSS", NULL, 0, kvar, NULL, 5, KOFF(ki_rssize), PGTOK, "ld", 0},
+	{"rss", "RSS", NULL, 0, kvar, NULL, 6, KOFF(ki_rssize), PGTOK, "ld", 0},
 	{"rtprio", "RTPRIO", NULL, 0, priorityr, NULL, 7, KOFF(ki_pri), CHAR,
 		NULL, 0},
 	{"ruid", "RUID", NULL, 0, kvar, NULL, UIDLEN, KOFF(ki_ruid),
@@ -207,7 +207,7 @@ static VAR var[] = {
 		NULL, 0},
 	{"usrpri", "", "upr", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"vsize", "", "vsz", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
-	{"vsz", "VSZ", NULL, 0, vsize, NULL, 5, 0, CHAR, NULL, 0},
+	{"vsz", "VSZ", NULL, 0, vsize, NULL, 6, 0, CHAR, NULL, 0},
 	{"wchan", "WCHAN", NULL, LJUST, wchan, NULL, 6, 0, CHAR, NULL, 0},
 	{"xstat", "XSTAT", NULL, 0, kvar, NULL, 4, KOFF(ki_xstat), USHORT,
 		"x", 0},

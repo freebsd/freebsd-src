@@ -328,7 +328,7 @@ enum ahci_slot_states {
 	AHCI_SLOT_EMPTY,
 	AHCI_SLOT_LOADING,
 	AHCI_SLOT_RUNNING,
-	AHCI_SLOT_WAITING
+	AHCI_SLOT_EXECUTING
 };
 
 struct ahci_slot {
@@ -366,6 +366,7 @@ struct ahci_channel {
 	int			numrslots;	/* Number of running slots */
 	int			numtslots;	/* Number of tagged slots */
 	int			readlog;	/* Our READ LOG active */
+	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
 	union ccb		*frozen;	/* Frozen command */

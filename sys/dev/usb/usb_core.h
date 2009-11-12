@@ -112,6 +112,7 @@ struct usb_xfer_flags_int {
 	uint8_t	curr_dma_set:1;		/* used by USB HC/DC driver */
 	uint8_t	can_cancel_immed:1;	/* set if USB transfer can be
 					 * cancelled immediately */
+	uint8_t	doing_callback:1;	/* set if executing the callback */
 };
 
 /*
@@ -164,6 +165,7 @@ struct usb_xfer {
 	uint8_t	usb_cmask;
 	uint8_t	usb_uframe;
 	uint8_t	usb_state;
+	uint8_t fps_shift;		/* down shift of FPS, 0..3 */
 
 	usb_error_t error;
 

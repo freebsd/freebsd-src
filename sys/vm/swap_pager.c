@@ -155,11 +155,15 @@ int swap_pager_avail;
 static int swdev_syscall_active = 0; /* serialize swap(on|off) */
 
 static vm_ooffset_t swap_total;
-SYSCTL_QUAD(_vm, OID_AUTO, swap_total, CTLFLAG_RD, &swap_total, 0, "");
+SYSCTL_QUAD(_vm, OID_AUTO, swap_total, CTLFLAG_RD, &swap_total, 0, 
+    "Total amount of available swap storage.");
 static vm_ooffset_t swap_reserved;
-SYSCTL_QUAD(_vm, OID_AUTO, swap_reserved, CTLFLAG_RD, &swap_reserved, 0, "");
+SYSCTL_QUAD(_vm, OID_AUTO, swap_reserved, CTLFLAG_RD, &swap_reserved, 0, 
+    "Amount of swap storage needed to back all allocated anonymous memory.");
 static int overcommit = 0;
-SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0, 
+    "Configure virtual memory overcommit behavior. See tuning(7) "
+    "for details.");
 
 /* bits from overcommit */
 #define	SWAP_RESERVE_FORCE_ON		(1 << 0)
@@ -176,7 +180,7 @@ swap_reserve(vm_ooffset_t incr)
 int
 swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
 {
-	vm_ooffset_t r, s, max;
+	vm_ooffset_t r, s;
 	int res, error;
 	static int curfail;
 	static struct timeval lastfail;
@@ -185,7 +189,6 @@ swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
 		panic("swap_reserve: & PAGE_MASK");
 
 	res = 0;
-	error = priv_check(curthread, PRIV_VM_SWAP_NOQUOTA);
 	mtx_lock(&sw_dev_mtx);
 	r = swap_reserved + incr;
 	if (overcommit & SWAP_RESERVE_ALLOW_NONWIRED) {
@@ -204,10 +207,9 @@ swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
 	if (res) {
 		PROC_LOCK(curproc);
 		UIDINFO_VMSIZE_LOCK(uip);
-		error = priv_check(curthread, PRIV_VM_SWAP_NORLIMIT);
-		max = (error != 0) ? lim_cur(curproc, RLIMIT_SWAP) : 0;
-		if (max != 0 && uip->ui_vmsize + incr > max &&
-		    (overcommit & SWAP_RESERVE_RLIMIT_ON) != 0)
+		if ((overcommit & SWAP_RESERVE_RLIMIT_ON) != 0 &&
+		    uip->ui_vmsize + incr > lim_cur(curproc, RLIMIT_SWAP) &&
+		    priv_check(curthread, PRIV_VM_SWAP_NORLIMIT))
 			res = 0;
 		else
 			uip->ui_vmsize += incr;

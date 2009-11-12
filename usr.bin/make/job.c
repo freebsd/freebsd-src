@@ -3380,6 +3380,8 @@ Compat_Run(Lst *targs)
 			printf("`%s' not remade because of errors.\n",
 			    gn->name);
 			makeErrors++;
+		} else if (gn->made == ERROR) {
+			makeErrors++;
 		}
 	}
 

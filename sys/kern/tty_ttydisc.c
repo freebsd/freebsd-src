@@ -624,15 +624,21 @@ ttydisc_echo_force(struct tty *tp, char c, int quote)
 		/*
 		 * Only use ^X notation when ECHOCTL is turned on and
 		 * we've got an quoted control character.
+		 *
+		 * Print backspaces when echoing an end-of-file.
 		 */
-		char ob[2] = { '^', '?' };
+		char ob[4] = "^?\b\b";
 
 		/* Print ^X notation. */
 		if (c != 0x7f)
 			ob[1] = c + 'A' - 1;
 
-		tp->t_column += 2;
-		return ttyoutq_write_nofrag(&tp->t_outq, ob, 2);
+		if (!quote && CMP_CC(VEOF, c)) {
+			return ttyoutq_write_nofrag(&tp->t_outq, ob, 4);
+		} else {
+			tp->t_column += 2;
+			return ttyoutq_write_nofrag(&tp->t_outq, ob, 2);
+		}
 	} else {
 		/* Can just be printed. */
 		tp->t_column++;

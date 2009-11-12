@@ -97,6 +97,7 @@ struct ata_pci_controller {
 
 #define ATA_ADAPTEC_ID          0x9005
 #define ATA_ADAPTEC_1420        0x02419005
+#define ATA_ADAPTEC_1430        0x02439005
 
 #define ATA_ATI_ID              0x1002
 #define ATA_ATI_IXP200          0x43491002
@@ -195,6 +196,10 @@ struct ata_pci_controller {
 #define ATA_I82801JD_AH         0x3a028086
 #define ATA_I82801JD_R1         0x3a058086
 #define ATA_I82801JD_S2         0x3a068086
+#define ATA_I82801JI_S1         0x3a208086
+#define ATA_I82801JI_AH         0x3a228086
+#define ATA_I82801JI_R1         0x3a258086
+#define ATA_I82801JI_S2         0x3a268086
 #define ATA_I31244              0x32008086
 
 #define ATA_ITE_ID              0x1283
@@ -216,7 +221,9 @@ struct ata_pci_controller {
 #define ATA_M88SX5080           0x508011ab
 #define ATA_M88SX5081           0x508111ab
 #define ATA_M88SX6041           0x604111ab
+#define ATA_M88SX6042           0x604211ab
 #define ATA_M88SX6081           0x608111ab
+#define ATA_M88SX7042           0x704211ab
 #define ATA_M88SX6101           0x610111ab
 #define ATA_M88SX6121           0x612111ab
 #define ATA_M88SX6145           0x614511ab
@@ -257,6 +264,15 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP61_S2     0x03f610de
 #define ATA_NFORCE_MCP61_S3     0x03f710de
 #define ATA_NFORCE_MCP65        0x044810de
+#define ATA_NFORCE_MCP65_A0     0x044c10de
+#define ATA_NFORCE_MCP65_A1     0x044d10de
+#define ATA_NFORCE_MCP65_A2     0x044e10de
+#define ATA_NFORCE_MCP65_A3     0x044f10de
+#define ATA_NFORCE_MCP65_A4     0x045c10de
+#define ATA_NFORCE_MCP65_A5     0x045d10de
+#define ATA_NFORCE_MCP65_A6     0x045e10de
+#define ATA_NFORCE_MCP65_A7     0x045f10de
+#define ATA_NFORCE_MCP67        0x056010de
 #define ATA_NFORCE_MCP67_A0     0x055010de
 #define ATA_NFORCE_MCP67_A1     0x055110de
 #define ATA_NFORCE_MCP67_A2     0x055210de
@@ -270,7 +286,6 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP67_AA     0x055A10de
 #define ATA_NFORCE_MCP67_AB     0x055B10de
 #define ATA_NFORCE_MCP67_AC     0x058410de
-#define ATA_NFORCE_MCP67        0x056010de
 #define ATA_NFORCE_MCP73        0x056c10de
 #define ATA_NFORCE_MCP73_A0     0x07f010de
 #define ATA_NFORCE_MCP73_A1     0x07f110de
@@ -285,6 +300,42 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP73_AA     0x07fa10de
 #define ATA_NFORCE_MCP73_AB     0x07fb10de
 #define ATA_NFORCE_MCP77        0x075910de
+#define ATA_NFORCE_MCP77_A0     0x0ad010de
+#define ATA_NFORCE_MCP77_A1     0x0ad110de
+#define ATA_NFORCE_MCP77_A2     0x0ad210de
+#define ATA_NFORCE_MCP77_A3     0x0ad310de
+#define ATA_NFORCE_MCP77_A4     0x0ad410de
+#define ATA_NFORCE_MCP77_A5     0x0ad510de
+#define ATA_NFORCE_MCP77_A6     0x0ad610de
+#define ATA_NFORCE_MCP77_A7     0x0ad710de
+#define ATA_NFORCE_MCP77_A8     0x0ad810de
+#define ATA_NFORCE_MCP77_A9     0x0ad910de
+#define ATA_NFORCE_MCP77_AA     0x0ada10de
+#define ATA_NFORCE_MCP77_AB     0x0adb10de
+#define ATA_NFORCE_MCP79_A0     0x0ab410de
+#define ATA_NFORCE_MCP79_A1     0x0ab510de
+#define ATA_NFORCE_MCP79_A2     0x0ab610de
+#define ATA_NFORCE_MCP79_A3     0x0ab710de
+#define ATA_NFORCE_MCP79_A4     0x0ab810de
+#define ATA_NFORCE_MCP79_A5     0x0ab910de
+#define ATA_NFORCE_MCP79_A6     0x0aba10de
+#define ATA_NFORCE_MCP79_A7     0x0abb10de
+#define ATA_NFORCE_MCP79_A8     0x0abc10de
+#define ATA_NFORCE_MCP79_A9     0x0abd10de
+#define ATA_NFORCE_MCP79_AA     0x0abe10de
+#define ATA_NFORCE_MCP79_AB     0x0abf10de
+#define ATA_NFORCE_MCP89_A0     0x0d8410de
+#define ATA_NFORCE_MCP89_A1     0x0d8510de
+#define ATA_NFORCE_MCP89_A2     0x0d8610de
+#define ATA_NFORCE_MCP89_A3     0x0d8710de
+#define ATA_NFORCE_MCP89_A4     0x0d8810de
+#define ATA_NFORCE_MCP89_A5     0x0d8910de
+#define ATA_NFORCE_MCP89_A6     0x0d8a10de
+#define ATA_NFORCE_MCP89_A7     0x0d8b10de
+#define ATA_NFORCE_MCP89_A8     0x0d8c10de
+#define ATA_NFORCE_MCP89_A9     0x0d8d10de
+#define ATA_NFORCE_MCP89_AA     0x0d8e10de
+#define ATA_NFORCE_MCP89_AB     0x0d8f10de
 
 #define ATA_PROMISE_ID          0x105a
 #define ATA_PDC20246            0x4d33105a
@@ -415,6 +466,8 @@ struct ata_pci_controller {
 #define ATA_VIA8237             0x32271106
 #define ATA_VIA8237A            0x05911106
 #define ATA_VIA8237S		0x53371106
+#define ATA_VIA8237_5372	0x53721106
+#define ATA_VIA8237_7372	0x73721106
 #define ATA_VIA8251             0x33491106
 #define ATA_VIA8361             0x31121106
 #define ATA_VIA8363             0x03051106

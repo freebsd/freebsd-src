@@ -356,6 +356,16 @@ afexists()
 	inet6)
 		${SYSCTL_N} net.inet6 > /dev/null 2>&1
 		;;
+	ipx)
+		${SYSCTL_N} net.ipx > /dev/null 2>&1
+		;;
+	atm)
+		if [ -x /sbin/atmconfig ]; then
+			/sbin/atmconfig diag list > /dev/null 2>&1
+		else
+			return 1
+		fi
+		;;
 	*)
 		err 1 "afexists(): Unsupported address family: $_af"
 		;;

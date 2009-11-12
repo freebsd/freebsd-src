@@ -12,6 +12,7 @@ SRCS+= pfctl_osfp.c pfctl_radix.c pfctl_table.c pfctl_qstats.c
 SRCS+= pfctl_optimize.c
 SRCS+= pf_ruleset.c
 
+WARNS?=	2
 CFLAGS+= -Wall -Wmissing-prototypes -Wno-uninitialized
 CFLAGS+= -Wstrict-prototypes -I${.CURDIR}/../../contrib/pf/pfctl
 

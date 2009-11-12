@@ -391,6 +391,10 @@ ext2_setattr(ap)
 		return (EINVAL);
 	}
 	if (vap->va_flags != VNOVAL) {
+		/* Disallow flags not supported by ext2fs. */
+		if (vap->va_flags & ~(SF_APPEND | SF_IMMUTABLE | UF_NODUMP))
+			return (EOPNOTSUPP);
+
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		/*

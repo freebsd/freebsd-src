@@ -416,9 +416,15 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		case USB_SPEED_LOW:
 		case USB_SPEED_FULL:
 			frame_limit = USB_MAX_FS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = 0;
 			break;
 		default:
 			frame_limit = USB_MAX_HS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = edesc->bInterval;
+			if (xfer->fps_shift > 0)
+				xfer->fps_shift--;
+			if (xfer->fps_shift > 3)
+				xfer->fps_shift = 3;
 			break;
 		}
 
@@ -1797,8 +1803,18 @@ usbd_transfer_drain(struct usb_xfer *xfer)
 
 	usbd_transfer_stop(xfer);
 
-	while (usbd_transfer_pending(xfer)) {
+	while (usbd_transfer_pending(xfer) || 
+	    xfer->flags_int.doing_callback) {
+
+		/* 
+		 * It is allowed that the callback can drop its
+		 * transfer mutex. In that case checking only
+		 * "usbd_transfer_pending()" is not enough to tell if
+		 * the USB transfer is fully drained. We also need to
+		 * check the internal "doing_callback" flag.
+		 */
 		xfer->flags_int.draining = 1;
+
 		/*
 		 * Wait until the current outstanding USB
 		 * transfer is complete !
@@ -1814,6 +1830,23 @@ usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
 	return (&xfer->frbuffers[frindex]);
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_xfer_get_fps_shift
+ *
+ * The following function is only useful for isochronous transfers. It
+ * returns how many times the frame execution rate has been shifted
+ * down.
+ *
+ * Return value:
+ * Success: 0..3
+ * Failure: 0
+ *------------------------------------------------------------------------*/
+uint8_t
+usbd_xfer_get_fps_shift(struct usb_xfer *xfer)
+{
+	return (xfer->fps_shift);
 }
 
 usb_frlength_t
@@ -2043,6 +2076,9 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	/* get next USB transfer in the queue */
 	info->done_q.curr = NULL;
 
+	/* set flag in case of drain */
+	xfer->flags_int.doing_callback = 1;
+
 	USB_BUS_UNLOCK(info->bus);
 	USB_BUS_LOCK_ASSERT(info->bus, MA_NOTOWNED);
 
@@ -2095,12 +2131,17 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	if ((!xfer->flags_int.open) &&
 	    (xfer->flags_int.started) &&
 	    (xfer->usb_state == USB_ST_ERROR)) {
+		/* clear flag in case of drain */
+		xfer->flags_int.doing_callback = 0;
 		/* try to loop, but not recursivly */
 		usb_command_wrapper(&info->done_q, xfer);
 		return;
 	}
 
 done:
+	/* clear flag in case of drain */
+	xfer->flags_int.doing_callback = 0;
+
 	/*
 	 * Check if we are draining.
 	 */

@@ -88,9 +88,7 @@ void	usage(void);
 int lflag;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch, first;
 	char line[256];
@@ -275,7 +273,7 @@ void
 pfract(len)
 	int len;
 {
-	static char *pref[] = { "", "ten-", "hundred-" };
+	static char const * const pref[] = { "", "ten-", "hundred-" };
 
 	switch(len) {
 	case 1:

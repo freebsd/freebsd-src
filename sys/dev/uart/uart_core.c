@@ -91,7 +91,7 @@ uart_getrange(struct uart_class *uc)
  * Schedule a soft interrupt. We do this on the 0 to !0 transition
  * of the TTY pending interrupt status.
  */
-static void
+void
 uart_sched_softih(struct uart_softc *sc, uint32_t ipend)
 {
 	uint32_t new, old;

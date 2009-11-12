@@ -31,7 +31,12 @@
 .Nm targ
 .Nd SCSI target emulator driver
 .Sh SYNOPSIS
-.Cd device targ
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device targ"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

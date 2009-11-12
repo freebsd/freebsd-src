@@ -420,10 +420,11 @@ teken_subr_delete_line(teken_t *t, unsigned int nrows)
 }
 
 static void
-teken_subr_device_control_string(teken_t *t __unused)
+teken_subr_device_control_string(teken_t *t)
 {
 
-	teken_printf("device control string???\n");
+	teken_printf("Unsupported device control string\n");
+	t->t_stateflags |= TS_INSTRING;
 }
 
 static void
@@ -734,6 +735,14 @@ teken_subr_next_line(teken_t *t)
 }
 
 static void
+teken_subr_operating_system_command(teken_t *t)
+{
+
+	teken_printf("Unsupported operating system command\n");
+	t->t_stateflags |= TS_INSTRING;
+}
+
+static void
 teken_subr_pan_down(teken_t *t, unsigned int nrows)
 {
 
@@ -865,7 +874,7 @@ teken_subr_reset_dec_mode(teken_t *t, unsigned int cmd)
 
 	switch (cmd) {
 	case 1: /* Cursor keys mode. */
-		teken_funcs_param(t, TP_CURSORKEYS, 0);
+		t->t_stateflags &= ~TS_CURSORKEYS;
 		break;
 	case 2: /* DECANM: ANSI/VT52 mode. */
 		teken_printf("DECRST VT52\n");
@@ -998,7 +1007,7 @@ teken_subr_set_dec_mode(teken_t *t, unsigned int cmd)
 
 	switch (cmd) {
 	case 1: /* Cursor keys mode. */
-		teken_funcs_param(t, TP_CURSORKEYS, 1);
+		t->t_stateflags |= TS_CURSORKEYS;
 		break;
 	case 2: /* DECANM: ANSI/VT52 mode. */
 		teken_printf("DECSET VT52\n");
@@ -1148,16 +1157,17 @@ teken_subr_set_top_and_bottom_margins(teken_t *t, unsigned int top,
 		bottom = t->t_winsize.tp_row;
 	}
 
+	/* Apply scrolling region. */
 	t->t_scrollreg.ts_begin = top;
 	t->t_scrollreg.ts_end = bottom;
-	if (t->t_stateflags & TS_ORIGIN) {
-		/* XXX: home cursor? */
+	if (t->t_stateflags & TS_ORIGIN)
 		t->t_originreg = t->t_scrollreg;
-		t->t_cursor.tp_row = t->t_originreg.ts_begin;
-		t->t_cursor.tp_col = 0;
-		t->t_stateflags &= ~TS_WRAPPED;
-		teken_funcs_cursor(t);
-	}
+
+	/* Home cursor to the top left of the scrolling region. */
+	t->t_cursor.tp_row = t->t_originreg.ts_begin;
+	t->t_cursor.tp_col = 0;
+	t->t_stateflags &= ~TS_WRAPPED;
+	teken_funcs_cursor(t);
 }
 
 static void
@@ -1178,7 +1188,10 @@ static void
 teken_subr_string_terminator(teken_t *t __unused)
 {
 
-	teken_printf("string terminator???\n");
+	/*
+	 * Strings are already terminated in teken_input_char() when ^[
+	 * is inserted.
+	 */
 }
 
 static void

@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/uhci.h>
+#include <dev/usb/controller/uhcireg.h>
 
 #define	PCI_UHCI_VENDORID_INTEL		0x8086
 #define	PCI_UHCI_VENDORID_VIA		0x1106

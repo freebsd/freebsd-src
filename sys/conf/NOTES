@@ -402,8 +402,7 @@ options 	KTRACE			#kernel tracing
 options 	KTRACE_REQUEST_POOL=101
 
 #
-# KTR is a kernel tracing mechanism imported from BSD/OS.  Currently
-# it has no userland interface aside from a few sysctl's.  It is
+# KTR is a kernel tracing facility imported from BSD/OS.  It is
 # enabled with the KTR option.  KTR_ENTRIES defines the number of
 # entries in the circular trace buffer; it must be a power of two.
 # KTR_COMPILE defines the mask of events to compile into the kernel as
@@ -413,7 +412,7 @@ options 	KTRACE_REQUEST_POOL=101
 # events, with bit X corresponding to CPU X.  KTR_VERBOSE enables
 # dumping of KTR events to the console by default.  This functionality
 # can be toggled via the debug.ktr_verbose sysctl and defaults to off
-# if KTR_VERBOSE is not defined.
+# if KTR_VERBOSE is not defined.  See ktr(4) and ktrdump(8) for details.
 #
 options 	KTR
 options 	KTR_ENTRIES=1024
@@ -424,7 +423,7 @@ options 	KTR_VERBOSE
 
 #
 # ALQ(9) is a facility for the asynchronous queuing of records from the kernel
-# to a vnode, and is employed by services such as KTR(4) to produce trace
+# to a vnode, and is employed by services such as ktr(4) to produce trace
 # files based on a kernel event stream.  Records are written asynchronously
 # in a worker thread.
 #
@@ -618,9 +617,9 @@ options 	SCTP_WITH_NO_CSUM
 # I have not yet commited the tools to get and print
 # the logs, I will do that eventually .. before then
 # if you want them send me an email rrs@freebsd.org
-# You basically must have KTR enabled for these
+# You basically must have ktr(4) enabled for these
 # and you then set the sysctl to turn on/off various
-# logging bits. Use ktrdump to pull the log and run
+# logging bits. Use ktrdump(8) to pull the log and run
 # it through a dispaly program.. and graphs and other
 # things too.
 #
@@ -707,6 +706,7 @@ options 	NETGRAPH_TCPMSS
 options 	NETGRAPH_TEE
 options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
+options 	NETGRAPH_VLAN
 
 # NgATM - Netgraph ATM
 options 	NGATM_ATM
@@ -1657,6 +1657,10 @@ device		siis
 # The 'ATA' driver supports all ATA and ATAPI devices, including PC Card
 # devices. You only need one "device ata" for it to find all
 # PCI and PC Card ATA/ATAPI devices on modern machines.
+# Alternatively, individual bus and chipset drivers may be chosen by using
+# the 'atacore' driver then selecting the drivers on a per vendor basis.
+# For example to build a system which only supports a VIA chipset,
+# omit 'ata' and include the 'atacore', 'atapci' and 'atavia' drivers.
 device		ata
 device		atadisk		# ATA disk drives
 device		ataraid		# ATA RAID drives
@@ -1665,6 +1669,39 @@ device		atapifd		# ATAPI floppy drives
 device		atapist		# ATAPI tape drives
 device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
 				# needs CAM to be present (scbus & pass)
+
+# Modular ATA
+#device		atacore		# Core ATA functionality
+#device		atacard		# CARDBUS support
+#device		atabus		# PC98 cbus support
+#device		ataisa		# ISA bus support
+#device		atapci		# PCI bus support; only generic chipset support
+
+# PCI ATA chipsets
+#device		ataahci		# AHCI SATA
+#device		ataacard	# ACARD
+#device		ataacerlabs	# Acer Labs Inc. (ALI)
+#device		ataadaptec	# Adaptec
+#device		ataamd		# American Micro Devices (AMD)
+#device		ataati		# ATI
+#device		atacenatek	# Cenatek
+#device		atacypress	# Cypress
+#device		atacyrix	# Cyrix
+#device		atahighpoint	# HighPoint
+#device		ataintel	# Intel
+#device		ataite		# Integrated Technology Inc. (ITE)
+#device		atajmicron	# JMicron
+#device		atamarvell	# Marvell
+#device		atamicron	# Micron
+#device		atanational	# National
+#device		atanetcell	# NetCell
+#device		atanvidia	# nVidia
+#device		atapromise	# Promise
+#device		ataserverworks	# ServerWorks
+#device		atasiliconimage	# Silicon Image Inc. (SiI) (formerly CMD)
+#device		atasis		# Silicon Integrated Systems Corp.(SiS)
+#device		atavia		# VIA Technologies Inc.
+
 #
 # For older non-PCI, non-PnPBIOS systems, these are the hints lines to add:
 hint.ata.0.at="isa"
@@ -1679,8 +1716,11 @@ hint.ata.1.irq="15"
 #
 # ATA_STATIC_ID:	controller numbering is static ie depends on location
 #			else the device numbers are dynamically allocated.
+# ATA_REQUEST_TIMEOUT:	the number of seconds to wait for an ATA request
+#			before timing out.
 
 options 	ATA_STATIC_ID
+#options 	ATA_REQUEST_TIMEOUT=10
 
 #
 # Standard floppy disk controllers and floppy tapes, supports
@@ -1964,6 +2004,7 @@ device		bwi		# Broadcom BCM430* BCM431*
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
+device		ixgb		# Intel Pro/10Gbe PCI-X Ethernet
 device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
@@ -1984,6 +2025,12 @@ device		lmc
 # Turn on the header splitting option for the ti(4) driver firmware.  This
 # only works for Tigon II chips, and has no effect for Tigon I chips.
 options 	TI_JUMBO_HDRSPLIT
+
+#
+# Use header splitting feature on bce(4) adapters.
+# This may help to reduce the amount of jumbo-sized memory buffers used.
+#
+options		BCE_JUMBO_HDRSPLIT
 
 # These two options allow manipulating the mbuf cluster size and mbuf size,
 # respectively.  Be very careful with NIC driver modules when changing

@@ -6216,7 +6216,7 @@ struct l2_fhdr {
 #define RX_PAGE(x) (((x) & ~USABLE_RX_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & USABLE_RX_BD_PER_PAGE)
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /*
  * To accomodate jumbo frames, the page chain should
  * be 4 times larger than the receive chain.
@@ -6238,7 +6238,7 @@ struct l2_fhdr {
 #define PG_PAGE(x) (((x) & ~USABLE_PG_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define PG_IDX(x) ((x) & USABLE_PG_BD_PER_PAGE)
 
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* BCE_JUMBO_HDRSPLIT */
 
 #define CTX_INIT_RETRY_COUNT        10
 
@@ -6517,7 +6517,7 @@ struct bce_softc
 	u16					tx_cons;
 	u32					tx_prod_bseq;	/* Counts the bytes used.  */
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	u16					pg_prod;
 	u16					pg_cons;
 #endif
@@ -6534,7 +6534,7 @@ struct bce_softc
 	int					rx_bd_mbuf_data_len;
 	int					rx_bd_mbuf_align_pad;
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	int					pg_bd_mbuf_alloc_size;
 #endif
 
@@ -6556,7 +6556,7 @@ struct bce_softc
 	struct rx_bd		*rx_bd_chain[RX_PAGES];
 	bus_addr_t			rx_bd_chain_paddr[RX_PAGES];
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* H/W maintained page buffer descriptor chain structure. */
 	bus_dma_tag_t		pg_bd_chain_tag;
 	bus_dmamap_t		pg_bd_chain_map[PG_PAGES];
@@ -6593,7 +6593,7 @@ struct bce_softc
 	bus_dma_tag_t		rx_mbuf_tag;
 	bus_dma_tag_t		tx_mbuf_tag;
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	bus_dma_tag_t		pg_mbuf_tag;
 #endif
 
@@ -6605,7 +6605,7 @@ struct bce_softc
 	bus_dmamap_t		rx_mbuf_map[TOTAL_RX_BD];
 	struct mbuf			*rx_mbuf_ptr[TOTAL_RX_BD];
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* S/W maintained mbuf page chain structure. */
 	bus_dmamap_t		pg_mbuf_map[TOTAL_PG_BD];
 	struct mbuf			*pg_mbuf_ptr[TOTAL_PG_BD];
@@ -6617,7 +6617,7 @@ struct bce_softc
 	u16 used_tx_bd;
 	u16 max_tx_bd;
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	u16 free_pg_bd;
 	u16 max_pg_bd;
 #endif
@@ -6705,7 +6705,7 @@ struct bce_softc
 	int	debug_tx_mbuf_alloc;
 	int debug_rx_mbuf_alloc;
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	int debug_pg_mbuf_alloc;
 #endif
 
@@ -6722,7 +6722,7 @@ struct bce_softc
 	u32	rx_low_watermark;			/* Lowest number of rx_bd's free. */
 	u32 rx_empty_count;				/* Number of times the RX chain was empty. */
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	u32	pg_low_watermark;			/* Lowest number of pages free. */
 	u32 pg_empty_count; 			/* Number of times the page chain was empty. */
 #endif

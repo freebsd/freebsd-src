@@ -61,5 +61,26 @@ but can tolerate a very small working set without a dramatic loss
 of performance.
 .Sh SEE ALSO
 .Xr bsdiff 1
+.Sh BUGS
+The
+.Nm
+utility does not verify that
+.Ar oldfile
+is the correct source file for
+.Ar patchfile .
+Attempting to apply a patch to the wrong file will usually produce
+garbage; consequently it is strongly recommended that users of
+.Nm
+verify that
+.Ar oldfile
+matches the source file from which
+.Ar patchfile
+was built, by comparing cryptographic hashes, for example.
+Users may also wish to verify after running
+.Nm
+that
+.Ar newfile
+matches the target file from which
+.Ar was built.
 .Sh AUTHORS
 .An Colin Percival Aq cperciva@FreeBSD.org

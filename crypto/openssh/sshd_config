@@ -17,7 +17,6 @@
 #VersionAddendum FreeBSD-20091001
 
 #Port 22
-#Protocol 2
 #AddressFamily any
 #ListenAddress 0.0.0.0
 #ListenAddress ::

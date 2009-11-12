@@ -1238,7 +1238,6 @@ retry:
 		req->state = REQ_STATE_ALLOCATED;
 		req->chain = NULL;
 		mpt_assign_serno(mpt, req);
-		mpt_callout_init(&req->callout);
 	} else if (sleep_ok != 0) {
 		mpt->getreqwaiter = 1;
 		mpt_sleep(mpt, &mpt->request_free_list, PUSER, "mptgreq", 0);
@@ -2251,6 +2250,7 @@ mpt_core_attach(struct mpt_softc *mpt)
 	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
 		request_t *req = &mpt->request_pool[val];
 		req->state = REQ_STATE_ALLOCATED;
+		mpt_callout_init(mpt, &req->callout);
 		mpt_free_request(mpt, req);
 	}
 	MPT_UNLOCK(mpt);
@@ -2334,10 +2334,18 @@ mpt_core_shutdown(struct mpt_softc *mpt)
 void
 mpt_core_detach(struct mpt_softc *mpt)
 {
+	int val;
+
 	/*
 	 * XXX: FREE MEMORY 
 	 */
 	mpt_disable_ints(mpt);
+
+	/* Make sure no request has pending timeouts. */
+	for (val = 0; val < MPT_MAX_REQUESTS(mpt); val++) {
+		request_t *req = &mpt->request_pool[val];
+		mpt_callout_drain(mpt, &req->callout);
+	}
 }
 
 int

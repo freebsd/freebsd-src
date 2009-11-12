@@ -73,6 +73,7 @@
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/sysent.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
@@ -120,14 +121,11 @@ cpu_thread_alloc(struct thread *td)
 	sp -= sizeof(struct trapframe);
 	td->td_frame = (struct trapframe *)sp;
 	td->td_frame->tf_length = sizeof(struct trapframe);
-	mtx_init(&td->td_md.md_highfp_mtx, "High FP lock", NULL, MTX_SPIN);
 }
 
 void
 cpu_thread_free(struct thread *td)
 {
-
-	mtx_destroy(&td->td_md.md_highfp_mtx);
 }
 
 void
@@ -143,10 +141,42 @@ cpu_thread_swapout(struct thread *td)
 }
 
 void
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+	struct proc *p;
+	struct trapframe *tf;
+
+	if (error == EJUSTRETURN)
+		return;
+
+	tf = td->td_frame;
+
+	/*
+	 * Save the "raw" error code in r10. We use this to handle
+	 * syscall restarts (see do_ast()).
+	 */
+	tf->tf_scratch.gr10 = error;
+	if (error == 0) {
+		tf->tf_scratch.gr8 = td->td_retval[0];
+		tf->tf_scratch.gr9 = td->td_retval[1];
+	} else if (error != ERESTART) {
+		p = td->td_proc;
+		if (error < p->p_sysent->sv_errsize)
+			error = p->p_sysent->sv_errtbl[error];
+		/*
+		 * Translated error codes are returned in r8. User
+		 */
+		tf->tf_scratch.gr8 = error;
+	}
+}
+
+void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb;
 	struct trapframe *tf;
+
+	ia64_highfp_save(td0);
 
 	tf = td->td_frame;
 	KASSERT(tf != NULL, ("foo"));

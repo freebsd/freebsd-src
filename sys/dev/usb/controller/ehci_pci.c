@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
 
 #define	PCI_EHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_EHCI_VENDORID_AMD		0x1022
@@ -317,13 +318,11 @@ ehci_pci_attach(device_t self)
 		device_printf(self, "pre-2.0 USB revision (ignored)\n");
 		/* fallthrough */
 	case PCI_USB_REV_2_0:
-		sc->sc_bus.usbrev = USB_REV_2_0;
 		break;
 	default:
 		/* Quirk for Parallels Desktop 4.0 */
 		device_printf(self, "USB revision is unknown. Assuming v2.0.\n");
-		sc->sc_bus.usbrev = USB_REV_2_0;
-                break;
+		break;
 	}
 
 	rid = PCI_CBMEM;
@@ -436,6 +435,19 @@ ehci_pci_attach(device_t self)
 		ehci_pci_via_quirk(self);
 		break;
 
+	default:
+		break;
+	}
+
+	/* Dropped interrupts workaround */
+	switch (pci_get_vendor(self)) {
+	case PCI_EHCI_VENDORID_ATI:
+	case PCI_EHCI_VENDORID_VIA:
+		sc->sc_flags |= EHCI_SCFLG_LOSTINTRBUG;
+		if (bootverbose)
+			device_printf(self,
+			    "Dropped interrupts workaround enabled\n");
+		break;
 	default:
 		break;
 	}

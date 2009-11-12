@@ -125,18 +125,6 @@
 #define BLOCK_COMMA_LIST        4
 #define ACPI_DEFAULT_RESNAME    *(UINT32 *) "__RD"
 
-typedef struct acpi_external_list
-{
-    char                        *Path;
-    char                        *InternalPath;
-    struct acpi_external_list   *Next;
-    UINT32                      Value;
-    UINT16                      Length;
-    UINT8                       Type;
-
-} ACPI_EXTERNAL_LIST;
-
-extern ACPI_EXTERNAL_LIST       *AcpiGbl_ExternalList;
 
 typedef const struct acpi_dmtable_info
 {
@@ -475,14 +463,6 @@ void
 AcpiDmMatchOp (
     ACPI_PARSE_OBJECT       *Op);
 
-BOOLEAN
-AcpiDmCommaIfListMember (
-    ACPI_PARSE_OBJECT       *Op);
-
-void
-AcpiDmCommaIfFieldMember (
-    ACPI_PARSE_OBJECT       *Op);
-
 
 /*
  * dmnames
@@ -556,6 +536,33 @@ AcpiDmIsStringBuffer (
 
 
 /*
+ * dmextern
+ */
+void
+AcpiDmAddToExternalList (
+    ACPI_PARSE_OBJECT       *Op,
+    char                    *Path,
+    UINT8                   Type,
+    UINT32                  Value);
+
+void
+AcpiDmAddExternalsToNamespace (
+    void);
+
+UINT32
+AcpiDmGetExternalMethodCount (
+    void);
+
+void
+AcpiDmClearExternalList (
+    void);
+
+void
+AcpiDmEmitExternals (
+    void);
+
+
+/*
  * dmresrc
  */
 void
@@ -590,16 +597,8 @@ AcpiDmIsResourceTemplate (
     ACPI_PARSE_OBJECT       *Op);
 
 void
-AcpiDmIndent (
-    UINT32                  Level);
-
-void
 AcpiDmBitList (
     UINT16                  Mask);
-
-void
-AcpiDmDecodeAttribute (
-    UINT8                   Attribute);
 
 void
 AcpiDmDescriptorName (
@@ -727,10 +726,21 @@ AcpiDmVendorSmallDescriptor (
  * dmutils
  */
 void
-AcpiDmAddToExternalList (
-    char                    *Path,
-    UINT8                   Type,
-    UINT32                  Value);
+AcpiDmDecodeAttribute (
+    UINT8                   Attribute);
+
+void
+AcpiDmIndent (
+    UINT32                  Level);
+
+BOOLEAN
+AcpiDmCommaIfListMember (
+    ACPI_PARSE_OBJECT       *Op);
+
+void
+AcpiDmCommaIfFieldMember (
+    ACPI_PARSE_OBJECT       *Op);
+
 
 /*
  * dmrestag
