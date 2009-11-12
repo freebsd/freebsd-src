@@ -2437,7 +2437,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 			LLE_WLOCK(lle);
 			lle->la_flags = LLE_DELETED;
 			LLE_WUNLOCK(lle);
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
 #endif	
 		}

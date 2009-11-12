@@ -363,6 +363,11 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 	g_trace(G_T_TOPOLOGY, "g_uzip_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
+
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
+
 	buf = NULL;
 
 	/*

@@ -217,7 +217,7 @@ static int pat_works = 0;		/* Is page attribute table sane? */
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int pg_ps_enabled;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
 /*
@@ -4857,6 +4857,11 @@ pmap_activate(struct thread *td)
 	load_cr3(cr3);
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
+}
+
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
 }
 
 /*

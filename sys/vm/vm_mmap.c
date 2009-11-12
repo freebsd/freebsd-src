@@ -97,14 +97,6 @@ SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0,
     "Maximum number of memory-mapped files per process");
 
 /*
- * 'mmap_zero' determines whether or not MAP_FIXED mmap() requests for
- * virtual address zero are permitted.
- */
-static int mmap_zero;
-SYSCTL_INT(_security_bsd, OID_AUTO, mmap_zero, CTLFLAG_RW, &mmap_zero, 0,
-    "Processes may map an object at virtual address zero");
-
-/*
  * Set the maximum number of vm_map_entry structures per process.  Roughly
  * speaking vm_map_entry structures are tiny, so allowing them to eat 1/100
  * of our KVM malloc space still results in generous limits.  We want a
@@ -275,13 +267,6 @@ mmap(td, uap)
 		 */
 		addr -= pageoff;
 		if (addr & PAGE_MASK)
-			return (EINVAL);
-
-		/*
-		 * Mapping to address zero is only permitted if
-		 * mmap_zero is enabled.
-		 */
-		if (addr == 0 && !mmap_zero)
 			return (EINVAL);
 
 		/* Address range must be all in user VM space. */

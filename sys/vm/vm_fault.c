@@ -96,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
-#include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
 #include <sys/mount.h>	/* XXX Temporary for VFS_LOCK_GIANT() */
@@ -264,17 +263,6 @@ RetryFault:;
 			&fs.entry, &fs.first_object, &fs.first_pindex, &prot, &wired);
 		if (result != KERN_SUCCESS)
 			return (result);
-
-		/*
-		 * If we don't COW now, on a user wire, the user will never
-		 * be able to write to the mapping.  If we don't make this
-		 * restriction, the bookkeeping would be nearly impossible.
-		 *
-		 * XXX The following assignment modifies the map without
-		 * holding a write lock on it.
-		 */
-		if ((fs.entry->protection & VM_PROT_WRITE) == 0)
-			fs.entry->max_protection &= ~VM_PROT_WRITE;
 	}
 
 	map_generation = fs.map->timestamp;
@@ -1011,8 +999,8 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 		while ((m = vm_page_lookup(lobject, pindex)) == NULL &&
 		    lobject->type == OBJT_DEFAULT &&
 		    (backing_object = lobject->backing_object) != NULL) {
-			if (lobject->backing_object_offset & PAGE_MASK)
-				break;
+			KASSERT((lobject->backing_object_offset & PAGE_MASK) ==
+			    0, ("vm_fault_prefault: unaligned object offset"));
 			pindex += lobject->backing_object_offset >> PAGE_SHIFT;
 			VM_OBJECT_LOCK(backing_object);
 			VM_OBJECT_UNLOCK(lobject);
@@ -1119,7 +1107,10 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *	Routine:
  *		vm_fault_copy_entry
  *	Function:
- *		Copy all of the pages from a wired-down map entry to another.
+ *		Create new shadow object backing dst_entry with private copy of
+ *		all underlying pages. When src_entry is equal to dst_entry,
+ *		function implements COW for wired-down map entry. Otherwise,
+ *		it forks wired entry into dst_map.
  *
  *	In/out conditions:
  *		The source and destination maps must be locked for write.
@@ -1131,22 +1122,23 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
     vm_map_entry_t dst_entry, vm_map_entry_t src_entry,
     vm_ooffset_t *fork_charge)
 {
-	vm_object_t backing_object, dst_object, object;
-	vm_object_t src_object;
-	vm_ooffset_t dst_offset;
-	vm_ooffset_t src_offset;
-	vm_pindex_t pindex;
-	vm_prot_t prot;
+	vm_object_t backing_object, dst_object, object, src_object;
+	vm_pindex_t dst_pindex, pindex, src_pindex;
+	vm_prot_t access, prot;
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
 	vm_page_t src_m;
+	boolean_t src_readonly, upgrade;
 
 #ifdef	lint
 	src_map++;
 #endif	/* lint */
 
+	upgrade = src_entry == dst_entry;
+
 	src_object = src_entry->object.vm_object;
-	src_offset = src_entry->offset;
+	src_pindex = OFF_TO_IDX(src_entry->offset);
+	src_readonly = (src_entry->protection & VM_PROT_WRITE) == 0;
 
 	/*
 	 * Create the top-level object for the destination entry. (Doesn't
@@ -1160,33 +1152,50 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 #endif
 
 	VM_OBJECT_LOCK(dst_object);
-	KASSERT(dst_entry->object.vm_object == NULL,
+	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
-	dst_object->uip = curthread->td_ucred->cr_ruidinfo;
-	uihold(dst_object->uip);
 	dst_object->charge = dst_entry->end - dst_entry->start;
-	KASSERT(dst_entry->uip == NULL,
-	    ("vm_fault_copy_entry: leaked swp charge"));
-	*fork_charge += dst_object->charge;
-	prot = dst_entry->max_protection;
+	if (fork_charge != NULL) {
+		KASSERT(dst_entry->uip == NULL,
+		    ("vm_fault_copy_entry: leaked swp charge"));
+		dst_object->uip = curthread->td_ucred->cr_ruidinfo;
+		uihold(dst_object->uip);
+		*fork_charge += dst_object->charge;
+	} else {
+		dst_object->uip = dst_entry->uip;
+		dst_entry->uip = NULL;
+	}
+	access = prot = dst_entry->protection;
+	/*
+	 * If not an upgrade, then enter the mappings in the pmap as
+	 * read and/or execute accesses.  Otherwise, enter them as
+	 * write accesses.
+	 *
+	 * A writeable large page mapping is only created if all of
+	 * the constituent small page mappings are modified. Marking
+	 * PTEs as modified on inception allows promotion to happen
+	 * without taking potentially large number of soft faults.
+	 */
+	if (!upgrade)
+		access &= ~VM_PROT_WRITE;
 
 	/*
 	 * Loop through all of the pages in the entry's range, copying each
 	 * one from the source object (it should be there) to the destination
 	 * object.
 	 */
-	for (vaddr = dst_entry->start, dst_offset = 0;
+	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
-	    vaddr += PAGE_SIZE, dst_offset += PAGE_SIZE) {
+	    vaddr += PAGE_SIZE, dst_pindex++) {
 
 		/*
-		 * Allocate a page in the destination object
+		 * Allocate a page in the destination object.
 		 */
 		do {
-			dst_m = vm_page_alloc(dst_object,
-				OFF_TO_IDX(dst_offset), VM_ALLOC_NORMAL);
+			dst_m = vm_page_alloc(dst_object, dst_pindex,
+			    VM_ALLOC_NORMAL);
 			if (dst_m == NULL) {
 				VM_OBJECT_UNLOCK(dst_object);
 				VM_WAIT;
@@ -1201,10 +1210,9 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 */
 		VM_OBJECT_LOCK(src_object);
 		object = src_object;
-		pindex = 0;
-		while ((src_m = vm_page_lookup(object, pindex +
-		    OFF_TO_IDX(dst_offset + src_offset))) == NULL &&
-		    (src_entry->protection & VM_PROT_WRITE) == 0 &&
+		pindex = src_pindex + dst_pindex;
+		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
+		    src_readonly &&
 		    (backing_object = object->backing_object) != NULL) {
 			/*
 			 * Allow fallback to backing objects if we are reading.
@@ -1222,21 +1230,30 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		VM_OBJECT_UNLOCK(dst_object);
 
 		/*
-		 * Enter it in the pmap as a read and/or execute access.
+		 * Enter it in the pmap. If a wired, copy-on-write
+		 * mapping is being replaced by a write-enabled
+		 * mapping, then wire that new mapping.
 		 */
-		pmap_enter(dst_map->pmap, vaddr, prot & ~VM_PROT_WRITE, dst_m,
-		    prot, FALSE);
+		pmap_enter(dst_map->pmap, vaddr, access, dst_m, prot, upgrade);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
 		 */
 		VM_OBJECT_LOCK(dst_object);
 		vm_page_lock_queues();
-		vm_page_activate(dst_m);
+		if (upgrade) {
+			vm_page_unwire(src_m, 0);
+			vm_page_wire(dst_m);
+		} else
+			vm_page_activate(dst_m);
 		vm_page_unlock_queues();
 		vm_page_wakeup(dst_m);
 	}
 	VM_OBJECT_UNLOCK(dst_object);
+	if (upgrade) {
+		dst_entry->eflags &= ~(MAP_ENTRY_COW | MAP_ENTRY_NEEDS_COPY);
+		vm_object_deallocate(src_object);
+	}
 }
 
 

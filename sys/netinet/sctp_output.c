@@ -3570,7 +3570,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				ip->ip_src = over_addr->sin.sin_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 		}
 		if (port) {
@@ -3924,7 +3924,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				lsa6->sin6_addr = over_addr->sin6.sin6_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 			(void)sa6_recoverscope(sin6);
 		}
@@ -5602,37 +5602,13 @@ sctp_insert_on_wheel(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_stream_out *strq, int holds_lock)
 {
-	struct sctp_stream_out *stre, *strn;
-
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	if ((strq->next_spoke.tqe_next) ||
-	    (strq->next_spoke.tqe_prev)) {
-		/* already on wheel */
-		goto outof_here;
+	if ((strq->next_spoke.tqe_next == NULL) &&
+	    (strq->next_spoke.tqe_prev == NULL)) {
+		TAILQ_INSERT_TAIL(&asoc->out_wheel, strq, next_spoke);
 	}
-	stre = TAILQ_FIRST(&asoc->out_wheel);
-	if (stre == NULL) {
-		/* only one on wheel */
-		TAILQ_INSERT_HEAD(&asoc->out_wheel, strq, next_spoke);
-		goto outof_here;
-	}
-	for (; stre; stre = strn) {
-		strn = TAILQ_NEXT(stre, next_spoke);
-		if (stre->stream_no > strq->stream_no) {
-			TAILQ_INSERT_BEFORE(stre, strq, next_spoke);
-			goto outof_here;
-		} else if (stre->stream_no == strq->stream_no) {
-			/* huh, should not happen */
-			goto outof_here;
-		} else if (strn == NULL) {
-			/* next one is null */
-			TAILQ_INSERT_AFTER(&asoc->out_wheel, stre, strq,
-			    next_spoke);
-		}
-	}
-outof_here:
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
@@ -5645,19 +5621,26 @@ sctp_remove_from_wheel(struct sctp_tcb *stcb,
     int holds_lock)
 {
 	/* take off and then setup so we know it is not on the wheel */
-	if (holds_lock == 0)
+	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
-	if (TAILQ_FIRST(&strq->outqueue)) {
-		/* more was added */
-		if (holds_lock == 0)
-			SCTP_TCB_SEND_UNLOCK(stcb);
-		return;
 	}
-	TAILQ_REMOVE(&asoc->out_wheel, strq, next_spoke);
-	strq->next_spoke.tqe_next = NULL;
-	strq->next_spoke.tqe_prev = NULL;
-	if (holds_lock == 0)
+	if (TAILQ_EMPTY(&strq->outqueue)) {
+		if (asoc->last_out_stream == strq) {
+			asoc->last_out_stream = TAILQ_PREV(asoc->last_out_stream, sctpwheel_listhead, next_spoke);
+			if (asoc->last_out_stream == NULL) {
+				asoc->last_out_stream = TAILQ_LAST(&asoc->out_wheel, sctpwheel_listhead);
+			}
+			if (asoc->last_out_stream == strq) {
+				asoc->last_out_stream = NULL;
+			}
+		}
+		TAILQ_REMOVE(&asoc->out_wheel, strq, next_spoke);
+		strq->next_spoke.tqe_next = NULL;
+		strq->next_spoke.tqe_prev = NULL;
+	}
+	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
+	}
 }
 
 static void
@@ -7190,22 +7173,14 @@ sctp_select_a_stream(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 	/* Find the next stream to use */
 	if (asoc->last_out_stream == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
-		if (asoc->last_out_stream == NULL) {
-			/* huh nothing on the wheel, TSNH */
-			return (NULL);
+		strq = TAILQ_FIRST(&asoc->out_wheel);
+	} else {
+		strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+		if (strq == NULL) {
+			strq = TAILQ_FIRST(&asoc->out_wheel);
 		}
-		goto done_it;
 	}
-	strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
-done_it:
-	if (strq == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
-	}
-	/* Save off the last stream */
-	asoc->last_out_stream = strq;
 	return (strq);
-
 }
 
 
@@ -7214,7 +7189,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
     struct sctp_nets *net, int frag_point, int eeor_mode, int *quit_now)
 {
 	struct sctp_association *asoc;
-	struct sctp_stream_out *strq, *strqn, *strqt;
+	struct sctp_stream_out *strq, *strqn;
 	int goal_mtu, moved_how_much, total_moved = 0, bail = 0;
 	int locked, giveup;
 	struct sctp_stream_queue_pending *sp;
@@ -7280,7 +7255,9 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		bail = 0;
 		moved_how_much = sctp_move_to_outqueue(stcb, net, strq, goal_mtu, frag_point, &locked,
 		    &giveup, eeor_mode, &bail);
-		asoc->last_out_stream = strq;
+		if (moved_how_much)
+			asoc->last_out_stream = strq;
+
 		if (locked) {
 			asoc->locked_on_sending = strq;
 			if ((moved_how_much == 0) || (giveup) || bail)
@@ -7288,11 +7265,10 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 				break;
 		} else {
 			asoc->locked_on_sending = NULL;
-			strqt = sctp_select_a_stream(stcb, asoc);
-			if (TAILQ_FIRST(&strq->outqueue) == NULL) {
+			if (TAILQ_EMPTY(&strq->outqueue)) {
 				if (strq == strqn) {
 					/* Must move start to next one */
-					strqn = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+					strqn = TAILQ_NEXT(strq, next_spoke);
 					if (strqn == NULL) {
 						strqn = TAILQ_FIRST(&asoc->out_wheel);
 						if (strqn == NULL) {
@@ -7305,7 +7281,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 			if ((giveup) || bail) {
 				break;
 			}
-			strq = strqt;
+			strq = sctp_select_a_stream(stcb, asoc);
 			if (strq == NULL) {
 				break;
 			}

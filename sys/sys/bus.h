@@ -292,6 +292,9 @@ int	bus_generic_bind_intr(device_t dev, device_t child,
 int	bus_generic_child_present(device_t dev, device_t child);
 int	bus_generic_config_intr(device_t, int, enum intr_trigger,
 				enum intr_polarity);
+int	bus_generic_describe_intr(device_t dev, device_t child,
+				  struct resource *irq, void *cookie,
+				  const char *descr);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
 int	bus_generic_detach(device_t dev);
@@ -344,8 +347,10 @@ struct resource_spec {
 	int	flags;
 };
 
-int bus_alloc_resources(device_t dev, struct resource_spec *rs, struct resource **res);
-void bus_release_resources(device_t dev, const struct resource_spec *rs, struct resource **res);
+int	bus_alloc_resources(device_t dev, struct resource_spec *rs,
+			    struct resource **res);
+void	bus_release_resources(device_t dev, const struct resource_spec *rs,
+			      struct resource **res);
 
 struct	resource *bus_alloc_resource(device_t dev, int type, int *rid,
 				     u_long start, u_long end, u_long count,
@@ -363,6 +368,8 @@ int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
+int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
+			  const char *fmt, ...);
 int	bus_set_resource(device_t dev, int type, int rid,
 			 u_long start, u_long count);
 int	bus_get_resource(device_t dev, int type, int rid,

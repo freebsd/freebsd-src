@@ -2322,6 +2322,9 @@ tr_setup:
 			} else
 				(void)ieee80211_input_all(ic, m, rssi, nf);
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			zyd_start(ifp);
 		ZYD_LOCK(sc);
 		break;
 
@@ -2431,6 +2434,9 @@ tr_setup:
 			usbd_xfer_set_priv(xfer, data);
 			usbd_transfer_submit(xfer);
 		}
+		ZYD_UNLOCK(sc);
+		zyd_start(ifp);
+		ZYD_LOCK(sc);
 		break;
 
 	default:			/* Error */

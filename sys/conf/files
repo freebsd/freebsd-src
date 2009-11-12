@@ -117,6 +117,7 @@ cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
 cam/ata/ata_da.c		optional da
+cam/ata/ata_pmp.c		optional da
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -519,14 +520,14 @@ dev/ata/chipsets/ata-highpoint.c	optional ata pci | atahighpoint
 dev/ata/chipsets/ata-intel.c	optional ata pci | ataintel
 dev/ata/chipsets/ata-ite.c	optional ata pci | ataite
 dev/ata/chipsets/ata-jmicron.c	optional ata pci | atajmicron
-dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell
+dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell | ataadaptec
 dev/ata/chipsets/ata-micron.c	optional ata pci | atamicron
 dev/ata/chipsets/ata-national.c	optional ata pci | atanational
 dev/ata/chipsets/ata-netcell.c	optional ata pci | atanetcell
 dev/ata/chipsets/ata-nvidia.c	optional ata pci | atanvidia
 dev/ata/chipsets/ata-promise.c	optional ata pci | atapromise
 dev/ata/chipsets/ata-serverworks.c	optional ata pci | ataserverworks
-dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage
+dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage | ataati
 dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
 dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
@@ -773,6 +774,8 @@ dev/cxgb/common/cxgb_vsc7323.c	optional cxgb pci \
 dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_aq100x.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
@@ -1080,20 +1083,48 @@ iwi_monitor.fw			optional iwimonitorfw | iwifw		\
 	no-obj no-implicit-rule						\
 	clean		"iwi_monitor.fw"
 dev/iwn/if_iwn.c		optional iwn
-iwnfw.c			optional iwnfw					\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn.fw:iwnfw:44417 -lintel_iwn -miwn -c${.TARGET}" \
+iwn4965fw.c			optional iwn4965fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn4965.fw:iwn4965fw -miwn4965fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
-	clean		"iwnfw.c"
-iwnfw.fwo			optional iwnfw				\
-	dependency	"iwn.fw"					\
-	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn.fw" \
+	clean		"iwn4965fw.c"
+iwn4965fw.fwo			optional iwn4965fw | iwnfw		\
+	dependency	"iwn4965.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn4965.fw" \
 	no-implicit-rule						\
-	clean		"iwnfw.fwo"
-iwn.fw			optional iwnfw					\
+	clean		"iwn4965fw.fwo"
+iwn4965.fw			optional iwn4965fw | iwnfw		\
 	dependency	".PHONY"					\
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu"	\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-228.57.2.23.fw.uu" \
 	no-obj no-implicit-rule						\
-	clean		"iwn.fw"
+	clean		"iwn4965.fw"
+iwn5000fw.c			optional iwn5000fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5000.fw:iwn5000fw -miwn5000fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn5000fw.c"
+iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
+	dependency	"iwn5000.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn5000.fw" \
+	no-implicit-rule						\
+	clean		"iwn5000fw.fwo"
+iwn5000.fw			optional iwn5000fw | iwnfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-5.4.A.11.fw.uu"	\
+	no-obj no-implicit-rule						\
+	clean		"iwn5000.fw"
+iwn5150fw.c			optional iwn5150fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5150.fw:iwn5150fw -miwn5150fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn5150fw.c"
+iwn5150fw.fwo			optional iwn5150fw | iwnfw		\
+	dependency	"iwn5150.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn5150.fw" \
+	no-implicit-rule						\
+	clean		"iwn5150fw.fwo"
+iwn5150.fw			optional iwn5150fw | iwnfw		\
+	dependency	".PHONY"					\
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5150-8.24.2.2.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn5150.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
@@ -1644,7 +1675,6 @@ dev/usb/serial/u3g.c		optional u3g
 dev/usb/serial/uark.c		optional uark
 dev/usb/serial/ubsa.c		optional ubsa
 dev/usb/serial/ubser.c		optional ubser
-dev/usb/serial/uch341.c		optional uch341
 dev/usb/serial/uchcom.c		optional uchcom
 dev/usb/serial/ucycom.c		optional ucycom
 dev/usb/serial/ufoma.c		optional ufoma
@@ -1660,7 +1690,7 @@ dev/usb/serial/uslcom.c		optional uslcom
 dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | \
-	(u3g | uark | ubsa | ubser | uch341 | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
+	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
 #
 # USB misc drivers
 #
@@ -1669,6 +1699,7 @@ dev/usb/misc/udbp.c		optional udbp
 #
 # USB input drivers
 #
+dev/usb/input/atp.c		optional atp
 dev/usb/input/uhid.c		optional uhid
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
@@ -1918,7 +1949,6 @@ gnu/fs/reiserfs/reiserfs_vnops.c	optional reiserfs
 isa/isa_if.m			standard
 isa/isa_common.c		optional isa
 isa/isahint.c			optional isa
-isa/orm.c			optional isa
 isa/pnp.c			optional isa isapnp
 isa/pnpparse.c			optional isa isapnp
 fs/cd9660/cd9660_bmap.c	optional cd9660
@@ -2370,6 +2400,7 @@ netgraph/ng_tcpmss.c		optional netgraph_tcpmss
 netgraph/ng_tee.c		optional netgraph_tee
 netgraph/ng_tty.c		optional netgraph_tty
 netgraph/ng_vjc.c		optional netgraph_vjc
+netgraph/ng_vlan.c		optional netgraph_vlan
 netinet/accf_data.c		optional accept_filter_data inet
 netinet/accf_dns.c		optional accept_filter_dns inet
 netinet/accf_http.c		optional accept_filter_http inet
@@ -2669,12 +2700,12 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 #
 gnu/fs/xfs/xfs_alloc.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \

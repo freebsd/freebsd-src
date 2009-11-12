@@ -413,7 +413,7 @@ marshal(const char *name)
 		break;
 	}
 	/* -p..r unimplemented */
-	printf("-s %jd ", (intmax_t)fs->fs_size);
+	printf("-s %jd ", (intmax_t)fsbtodb(fs, fs->fs_size));
 	printf("%s ", disk.d_name);
 	printf("\n");
 

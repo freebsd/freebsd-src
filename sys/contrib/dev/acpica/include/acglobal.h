@@ -446,6 +446,7 @@ ACPI_EXTERN UINT8                       AcpiGbl_DbOutputFlags;
 
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_disasm;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_DbOpt_verbose;
+ACPI_EXTERN ACPI_EXTERNAL_LIST         *AcpiGbl_ExternalList;
 #endif
 
 

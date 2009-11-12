@@ -1521,6 +1521,8 @@ nfa		1155/tcp   #Network File Access
 nfa		1155/udp   #Network File Access
 phone		1167/udp   #conference calling
 skkserv		1178/tcp   #SKK (kanji input)
+openvpn		1194/tcp   #OpenVPN
+openvpn		1194/udp   #OpenVPN
 lupa		1212/tcp
 lupa		1212/udp
 nerv		1222/tcp   #SNI R&D network

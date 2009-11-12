@@ -2016,7 +2016,7 @@ retry_space:
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
-		while(space > loopbytes) {
+		while (space > loopbytes) {
 			vm_pindex_t pindex;
 			vm_offset_t pgoff;
 			struct mbuf *m0;
@@ -2037,18 +2037,10 @@ retry_space:
 				rem = obj->un_pager.vnp.vnp_size -
 				    uap->offset - fsbytes - loopbytes;
 			xfsize = omin(rem, xfsize);
+			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
 				VM_OBJECT_UNLOCK(obj);
 				done = 1;		/* all data sent */
-				break;
-			}
-			/*
-			 * Don't overflow the send buffer.
-			 * Stop here and send out what we've
-			 * already got.
-			 */
-			if (space < loopbytes + xfsize) {
-				VM_OBJECT_UNLOCK(obj);
 				break;
 			}
 

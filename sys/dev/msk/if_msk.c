@@ -137,7 +137,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/mii/brgphyreg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -201,6 +200,8 @@ static struct msk_product {
 	    "Marvell Yukon 88E8040 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8040T,
 	    "Marvell Yukon 88E8040T Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8042,
+	    "Marvell Yukon 88E8042 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8048,
 	    "Marvell Yukon 88E8048 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4361,
@@ -221,6 +222,8 @@ static struct msk_product {
 	    "Marvell Yukon 88E8071 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_436C,
 	    "Marvell Yukon 88E8072 Gigabit Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_4380,
+	    "Marvell Yukon 88E8057 Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE550SX,
 	    "D-Link 550SX Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560SX,
@@ -235,7 +238,9 @@ static const char *model_name[] = {
         "Yukon EX",
         "Yukon EC",
         "Yukon FE",
-        "Yukon FE+"
+        "Yukon FE+",
+        "Yukon Supreme",
+        "Yukon Ultra 2"
 };
 
 static int mskc_probe(device_t);
@@ -1142,6 +1147,7 @@ msk_phy_power(struct msk_softc *sc, int mode)
 		case CHIP_ID_YUKON_EC_U:
 		case CHIP_ID_YUKON_EX:
 		case CHIP_ID_YUKON_FE_P:
+		case CHIP_ID_YUKON_UL_2:
 			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
@@ -1517,8 +1523,6 @@ msk_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = msk_ioctl;
 	ifp->if_start = msk_start;
-	ifp->if_timer = 0;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = msk_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, MSK_TX_RING_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = MSK_TX_RING_CNT - 1;
@@ -1645,7 +1649,8 @@ mskc_attach(device_t dev)
 	sc->msk_hw_rev = (CSR_READ_1(sc, B2_MAC_CFG) >> 4) & 0x0f;
 	/* Bail out if chip is not recognized. */
 	if (sc->msk_hw_id < CHIP_ID_YUKON_XL ||
-	    sc->msk_hw_id > CHIP_ID_YUKON_FE_P) {
+	    sc->msk_hw_id > CHIP_ID_YUKON_UL_2 ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_SUPR) {
 		device_printf(dev, "unknown device: id=0x%02x, rev=0x%02x\n",
 		    sc->msk_hw_id, sc->msk_hw_rev);
 		mtx_destroy(&sc->msk_mtx);
@@ -1741,6 +1746,10 @@ mskc_attach(device_t dev)
 		}
 		break;
 	case CHIP_ID_YUKON_XL:
+		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO;
+		break;
+	case CHIP_ID_YUKON_UL_2:
 		sc->msk_clock = 156;	/* 156 Mhz */
 		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
@@ -3216,11 +3225,9 @@ msk_intr_gmac(struct msk_if_softc *sc_if)
 	status = CSR_READ_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_SRC));
 
 	/* GMAC Rx FIFO overrun. */
-	if ((status & GM_IS_RX_FF_OR) != 0) {
+	if ((status & GM_IS_RX_FF_OR) != 0)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
 		    GMF_CLI_RX_FO);
-		device_printf(sc_if->msk_if_dev, "Rx FIFO overrun!\n");
-	}
 	/* GMAC Tx FIFO underrun. */
 	if ((status & GM_IS_TX_FF_UR) != 0) {
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),

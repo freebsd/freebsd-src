@@ -1365,7 +1365,30 @@ nfs_mknod(struct vop_mknod_args *ap)
 	return (nfs_mknodrpc(ap->a_dvp, ap->a_vpp, ap->a_cnp, ap->a_vap));
 }
 
-static u_long create_verf;
+static struct mtx nfs_cverf_mtx;
+MTX_SYSINIT(nfs_cverf_mtx, &nfs_cverf_mtx, "NFS create verifier mutex",
+    MTX_DEF);
+
+static nfsquad_t
+nfs_get_cverf(void)
+{
+	static nfsquad_t cverf;
+	nfsquad_t ret;
+	static int cverf_initialized = 0;
+
+	mtx_lock(&nfs_cverf_mtx);
+	if (cverf_initialized == 0) {
+		cverf.lval[0] = arc4random();
+		cverf.lval[1] = arc4random();
+		cverf_initialized = 1;
+	} else
+		cverf.qval++;
+	ret = cverf;
+	mtx_unlock(&nfs_cverf_mtx);
+
+	return (ret);
+}
+
 /*
  * nfs file create call
  */
@@ -1405,19 +1428,7 @@ again:
 	}
 	mtx_unlock(&dnp->n_mtx);
 
-#ifdef INET
-	CURVNET_SET(CRED_TO_VNET(cnp->cn_cred));
-	IN_IFADDR_RLOCK();
-	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
-		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
-	else
-#endif
-		cverf.lval[0] = create_verf;
-#ifdef INET
-	IN_IFADDR_RUNLOCK();
-	CURVNET_RESTORE();
-#endif
-	cverf.lval[1] = ++create_verf;
+	cverf = nfs_get_cverf();
 	error = nfsrpc_create(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    vap, cverf, fmode, cnp->cn_cred, cnp->cn_thread, &dnfsva, &nfsva,
 	    &nfhp, &attrflag, &dattrflag, NULL);

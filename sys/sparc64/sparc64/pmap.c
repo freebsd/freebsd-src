@@ -2001,6 +2001,11 @@ pmap_activate(struct thread *td)
 	mtx_unlock_spin(&sched_lock);
 }
 
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
+}
+
 /*
  * Increase the starting virtual address of the given mapping if a
  * different alignment might result in more superpage mappings.

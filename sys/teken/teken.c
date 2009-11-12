@@ -48,41 +48,23 @@
 static FILE *df;
 #endif /* __FreeBSD__ && _KERNEL */
 
-#include "teken.h"
-
-#ifdef TEKEN_UTF8
-#include "teken_wcwidth.h"
-#else /* !TEKEN_UTF8 */
-#ifdef TEKEN_XTERM
-#define	teken_wcwidth(c)	((c <= 0x1B) ? -1 : 1)
-#else /* !TEKEN_XTERM */
-#define	teken_wcwidth(c)	(1)
-#endif /* TEKEN_XTERM */
-#endif /* TEKEN_UTF8 */
-
-#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
-#include "teken_scs.h"
-#else /* !(TEKEN_XTERM && TEKEN_UTF8) */
-#define	teken_scs_process(t, c)	(c)
-#define	teken_scs_restore(t)
-#define	teken_scs_save(t)
-#define	teken_scs_set(t, g, ts)
-#define	teken_scs_switch(t, g)
-#endif /* TEKEN_XTERM && TEKEN_UTF8 */
-
 /* Private flags for t_stateflags. */
-#define	TS_FIRSTDIGIT	0x01	/* First numeric digit in escape sequence. */
-#define	TS_INSERT	0x02	/* Insert mode. */
-#define	TS_AUTOWRAP	0x04	/* Autowrap. */
-#define	TS_ORIGIN	0x08	/* Origin mode. */
-#ifdef TEKEN_XTERM
-#define	TS_WRAPPED	0x10	/* Next character should be printed on col 0. */
-#else /* !TEKEN_XTERM */
-#define	TS_WRAPPED	0x00	/* Simple line wrapping. */
-#endif /* TEKEN_XTERM */
+#define	TS_FIRSTDIGIT	0x0001	/* First numeric digit in escape sequence. */
+#define	TS_INSERT	0x0002	/* Insert mode. */
+#define	TS_AUTOWRAP	0x0004	/* Autowrap. */
+#define	TS_ORIGIN	0x0008	/* Origin mode. */
+#define	TS_WRAPPED	0x0010	/* Next character should be printed on col 0. */
+#define	TS_8BIT		0x0020	/* UTF-8 disabled. */
+#define	TS_CONS25	0x0040	/* cons25 emulation. */
+#define	TS_INSTRING	0x0080	/* Inside string. */
+#define	TS_CURSORKEYS	0x0100	/* Cursor keys mode. */
 
 /* Character that blanks a cell. */
 #define	BLANK	' '
+
+#include "teken.h"
+#include "teken_wcwidth.h"
+#include "teken_scs.h"
 
 static teken_state_t	teken_state_init;
 
@@ -181,15 +163,13 @@ teken_init(teken_t *t, const teken_funcs_t *tf, void *softc)
 	t->t_softc = softc;
 
 	t->t_nextstate = teken_state_init;
+	t->t_stateflags = 0;
+	t->t_utf8_left = 0;
 
 	t->t_defattr.ta_format = 0;
 	t->t_defattr.ta_fgcolor = TC_WHITE;
 	t->t_defattr.ta_bgcolor = TC_BLACK;
 	teken_subr_do_reset(t);
-
-#ifdef TEKEN_UTF8
-	t->t_utf8_left = 0;
-#endif /* TEKEN_UTF8 */
 
 	teken_set_winsize(t, &tp);
 }
@@ -197,6 +177,24 @@ teken_init(teken_t *t, const teken_funcs_t *tf, void *softc)
 static void
 teken_input_char(teken_t *t, teken_char_t c)
 {
+
+	/*
+	 * There is no support for DCS and OSC.  Just discard strings
+	 * until we receive characters that may indicate string
+	 * termination.
+	 */
+	if (t->t_stateflags & TS_INSTRING) {
+		switch (c) {
+		case '\x1B':
+			t->t_stateflags &= ~TS_INSTRING;
+			break;
+		case '\a':
+			t->t_stateflags &= ~TS_INSTRING;
+			return;
+		default:
+			return;
+		}
+	}
 
 	switch (c) {
 	case '\0':
@@ -214,14 +212,18 @@ teken_input_char(teken_t *t, teken_char_t c)
 	case '\x0C':
 		teken_subr_newpage(t);
 		break;
-#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
 	case '\x0E':
-		teken_scs_switch(t, 1);
+		if (t->t_stateflags & TS_CONS25)
+			t->t_nextstate(t, c);
+		else
+			t->t_curscs = 1;
 		break;
 	case '\x0F':
-		teken_scs_switch(t, 0);
+		if (t->t_stateflags & TS_CONS25)
+			t->t_nextstate(t, c);
+		else
+			t->t_curscs = 0;
 		break;
-#endif /* TEKEN_XTERM && TEKEN_UTF8 */
 	case '\r':
 		teken_subr_carriage_return(t);
 		break;
@@ -253,11 +255,10 @@ static void
 teken_input_byte(teken_t *t, unsigned char c)
 {
 
-#ifdef TEKEN_UTF8
 	/*
 	 * UTF-8 handling.
 	 */
-	if ((c & 0x80) == 0x00) {
+	if ((c & 0x80) == 0x00 || t->t_stateflags & TS_8BIT) {
 		/* One-byte sequence. */
 		t->t_utf8_left = 0;
 		teken_input_char(t, c);
@@ -283,9 +284,6 @@ teken_input_byte(teken_t *t, unsigned char c)
 			teken_input_char(t, t->t_utf8_partial);
 		}
 	}
-#else /* !TEKEN_UTF8 */
-	teken_input_char(t, c);
-#endif /* TEKEN_UTF8 */
 }
 
 void
@@ -295,6 +293,13 @@ teken_input(teken_t *t, const void *buf, size_t len)
 
 	while (len-- > 0)
 		teken_input_byte(t, *c++);
+}
+
+const teken_pos_t *
+teken_get_cursor(teken_t *t)
+{
+
+	return (&t->t_cursor);
 }
 
 void
@@ -336,15 +341,33 @@ teken_set_defattr(teken_t *t, const teken_attr_t *a)
 	t->t_curattr = t->t_saved_curattr = t->t_defattr = *a;
 }
 
+const teken_pos_t *
+teken_get_winsize(teken_t *t)
+{
+
+	return (&t->t_winsize);
+}
+
 void
 teken_set_winsize(teken_t *t, const teken_pos_t *p)
 {
 
 	t->t_winsize = *p;
-	/* XXX: bounds checking with cursor/etc! */
-	t->t_scrollreg.ts_begin = 0;
-	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
-	t->t_originreg = t->t_scrollreg;
+	teken_subr_do_reset(t);
+}
+
+void
+teken_set_8bit(teken_t *t)
+{
+
+	t->t_stateflags |= TS_8BIT;
+}
+
+void
+teken_set_cons25(teken_t *t)
+{
+
+	t->t_stateflags |= TS_CONS25;
 }
 
 /*
@@ -404,6 +427,117 @@ teken_state_numbers(teken_t *t, teken_char_t c)
 	}
 
 	return (0);
+}
+
+teken_color_t
+teken_256to8(teken_color_t c)
+{
+	unsigned int r, g, b;
+
+	if (c < 16) {
+		/* Traditional color indices. */
+		return (c % 8);
+	} else if (c >= 244) {
+		/* Upper grayscale colors. */
+		return (TC_WHITE);
+	} else if (c >= 232) {
+		/* Lower grayscale colors. */
+		return (TC_BLACK);
+	}
+
+	/* Convert to RGB. */
+	c -= 16;
+	b = c % 6;
+	g = (c / 6) % 6;
+	r = c / 36;
+
+	if (r < g) {
+		/* Possibly green. */
+		if (g < b)
+			return (TC_BLUE);
+		else if (g > b)
+			return (TC_GREEN);
+		else
+			return (TC_CYAN);
+	} else if (r > g) {
+		/* Possibly red. */
+		if (r < b)
+			return (TC_BLUE);
+		else if (r > b)
+			return (TC_RED);
+		else
+			return (TC_MAGENTA);
+	} else {
+		/* Possibly brown. */
+		if (g < b)
+			return (TC_BLUE);
+		else if (g > b)
+			return (TC_BROWN);
+		else if (r < 3)
+			return (TC_BLACK);
+		else
+			return (TC_WHITE);
+	}
+}
+
+static const char * const special_strings_cons25[] = {
+	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+
+	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[L",	[TKEY_DELETE] = "\x7F",
+	[TKEY_PAGE_UP] = "\x1B[I",	[TKEY_PAGE_DOWN] = "\x1B[G",
+
+	[TKEY_F1] = "\x1B[M",		[TKEY_F2] = "\x1B[N",
+	[TKEY_F3] = "\x1B[O",		[TKEY_F4] = "\x1B[P",
+	[TKEY_F5] = "\x1B[Q",		[TKEY_F6] = "\x1B[R",
+	[TKEY_F7] = "\x1B[S",		[TKEY_F8] = "\x1B[T",
+	[TKEY_F9] = "\x1B[U",		[TKEY_F10] = "\x1B[V",
+	[TKEY_F11] = "\x1B[W",		[TKEY_F12] = "\x1B[X",
+};
+
+static const char * const special_strings_ckeys[] = {
+	[TKEY_UP] = "\x1BOA",		[TKEY_DOWN] = "\x1BOB",
+	[TKEY_LEFT] = "\x1BOD",		[TKEY_RIGHT] = "\x1BOC",
+
+	[TKEY_HOME] = "\x1BOH",		[TKEY_END] = "\x1BOF",
+};
+
+static const char * const special_strings_normal[] = {
+	[TKEY_UP] = "\x1B[A",		[TKEY_DOWN] = "\x1B[B",
+	[TKEY_LEFT] = "\x1B[D",		[TKEY_RIGHT] = "\x1B[C",
+
+	[TKEY_HOME] = "\x1B[H",		[TKEY_END] = "\x1B[F",
+	[TKEY_INSERT] = "\x1B[2~",	[TKEY_DELETE] = "\x1B[3~",
+	[TKEY_PAGE_UP] = "\x1B[5~",	[TKEY_PAGE_DOWN] = "\x1B[6~",
+
+	[TKEY_F1] = "\x1BOP",		[TKEY_F2] = "\x1BOQ",
+	[TKEY_F3] = "\x1BOR",		[TKEY_F4] = "\x1BOS",
+	[TKEY_F5] = "\x1B[15~",		[TKEY_F6] = "\x1B[17~",
+	[TKEY_F7] = "\x1B[18~",		[TKEY_F8] = "\x1B[19~",
+	[TKEY_F9] = "\x1B[20~",		[TKEY_F10] = "\x1B[21~",
+	[TKEY_F11] = "\x1B[23~",	[TKEY_F12] = "\x1B[24~",
+};
+
+const char *
+teken_get_sequence(teken_t *t, unsigned int k)
+{
+
+	/* Cons25 mode. */
+	if (t->t_stateflags & TS_CONS25 &&
+	    k < sizeof special_strings_cons25 / sizeof(char *))
+		return (special_strings_cons25[k]);
+
+	/* Cursor keys mode. */
+	if (t->t_stateflags & TS_CURSORKEYS &&
+	    k < sizeof special_strings_ckeys / sizeof(char *))
+		return (special_strings_ckeys[k]);
+
+	/* Default xterm sequences. */
+	if (k < sizeof special_strings_normal / sizeof(char *))
+		return (special_strings_normal[k]);
+	
+	return (NULL);
 }
 
 #include "teken_state.h"

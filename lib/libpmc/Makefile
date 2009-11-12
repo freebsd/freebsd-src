@@ -24,6 +24,7 @@ MAN+=	pmc_start.3
 MAN+=	pmclog.3
 
 # PMC-dependent manual pages
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 MAN+=	pmc.atom.3
 MAN+=	pmc.core.3
 MAN+=	pmc.core2.3
@@ -34,6 +35,7 @@ MAN+=	pmc.p4.3
 MAN+=	pmc.p5.3
 MAN+=	pmc.p6.3
 MAN+=	pmc.tsc.3
+.endif
 
 MLINKS+= \
 	pmc_allocate.3 pmc_release.3 \

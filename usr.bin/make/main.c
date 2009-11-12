@@ -706,6 +706,7 @@ Main_AddSourceMakefile(const char *name)
 static void
 Remake_Makefiles(void)
 {
+	Lst cleanup;
 	LstNode *ln;
 	int error_cnt = 0;
 	int remade_cnt = 0;
@@ -716,6 +717,7 @@ Remake_Makefiles(void)
 			Fatal("Failed to change directory to %s.", curdir);
 	}
 
+	Lst_Init(&cleanup);
 	LST_FOREACH(ln, &source_makefiles) {
 		LstNode *ln2;
 		struct GNode *gn;
@@ -791,21 +793,7 @@ Remake_Makefiles(void)
 			    gn->name);
 			error_cnt++;
 		} else if (gn->made == UPTODATE) {
-			Lst examine;
-
-			Lst_Init(&examine);
-			Lst_EnQueue(&examine, gn);
-			while (!Lst_IsEmpty(&examine)) {
-				LstNode	*eln;
-				GNode *egn = Lst_DeQueue(&examine);
-
-				egn->make = FALSE;
-				LST_FOREACH(eln, &egn->children) {
-					GNode *cgn = Lst_Datum(eln);
-
-					Lst_EnQueue(&examine, cgn);
-				}
-			}
+			Lst_EnQueue(&cleanup, gn);
 		}
 	}
 
@@ -824,6 +812,24 @@ Remake_Makefiles(void)
 		if (execvp(save_argv[0], save_argv) < 0) {
 			Fatal("Can't restart `%s': %s.",
 			    save_argv[0], strerror(errno));
+		}
+	}
+
+	while (!Lst_IsEmpty(&cleanup)) {
+		GNode *gn = Lst_DeQueue(&cleanup);
+
+		gn->unmade = 0;
+		gn->make = FALSE;
+		gn->made = UNMADE;
+		gn->childMade = FALSE;
+		gn->mtime = gn->cmtime = 0;
+		gn->cmtime_gn = NULL;
+
+		LST_FOREACH(ln, &gn->children) {
+			GNode *cgn = Lst_Datum(ln);
+
+			gn->unmade++;
+			Lst_EnQueue(&cleanup, cgn);
 		}
 	}
 

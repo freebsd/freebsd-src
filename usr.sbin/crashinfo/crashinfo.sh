@@ -147,6 +147,8 @@ fi
 
 echo "Writing crash summary to $FILE."
 
+umask 077
+
 # Simulate uname
 ostype=$(echo -e printf '"%s", ostype' | gdb -x /dev/stdin -batch $KERNEL)
 osrelease=$(echo -e printf '"%s", osrelease' | gdb -x /dev/stdin -batch $KERNEL)
@@ -304,3 +306,10 @@ echo "------------------------------------------------------------------------"
 echo "kernel config"
 echo
 config -x $KERNEL
+
+echo
+echo "------------------------------------------------------------------------"
+echo "ddb capture buffer"
+echo
+
+ddb capture -M $VMCORE -N $KERNEL print

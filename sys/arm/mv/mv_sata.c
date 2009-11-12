@@ -548,14 +548,16 @@ sata_channel_begin_transaction(struct ata_request *request)
 	uint32_t req_in;
 	int error, slot;
 
-	sc = device_get_softc(GRANDPARENT(request->dev));
+	sc = device_get_softc(device_get_parent(request->parent));
 	ch = device_get_softc(request->parent);
 
 	mtx_assert(&ch->state_mtx, MA_OWNED);
 
 	/* Only DMA R/W goes through the EDMA machine. */
 	if (request->u.ata.command != ATA_READ_DMA &&
-	    request->u.ata.command != ATA_WRITE_DMA) {
+	    request->u.ata.command != ATA_WRITE_DMA &&
+	    request->u.ata.command != ATA_READ_DMA48 &&
+	    request->u.ata.command != ATA_WRITE_DMA48) {
 
 		/* Disable EDMA before accessing legacy registers */
 		if (sata_edma_is_running(request->parent)) {
@@ -569,12 +571,9 @@ sata_channel_begin_transaction(struct ata_request *request)
 		return (ata_begin_transaction(request));
 	}
 
-	/* Check for 48 bit access and convert if needed */
-	ata_modify_if_48bit(request);
-
 	/* Prepare data for DMA */
 	if ((error = ch->dma.load(request, NULL, NULL))) {
-		device_printf(request->dev, "setting up DMA failed!\n");
+		device_printf(request->parent, "setting up DMA failed!\n");
 		request->result = error;
 		return ATA_OP_FINISHED;
 	}
@@ -633,7 +632,7 @@ sata_channel_end_transaction(struct ata_request *request)
 	uint32_t res_in, res_out, icr;
 	int slot;
 
-	sc = device_get_softc(GRANDPARENT(request->dev));
+	sc = device_get_softc(device_get_parent(request->parent));
 	ch = device_get_softc(request->parent);
 
 	mtx_assert(&ch->state_mtx, MA_OWNED);

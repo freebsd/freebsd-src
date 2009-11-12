@@ -442,8 +442,6 @@ struct an_tx_ring_data {
 struct an_softc	{
 	struct ifnet		*an_ifp;
 
-        int                     an_unit;
-
 	int	port_rid;	/* resource id for port range */
 	struct resource* port_res; /* resource for port range */
 	int     mem_rid;	/* resource id for memory range */
@@ -491,6 +489,7 @@ struct an_softc	{
 	struct ifmedia		an_ifmedia;
 	int		        an_monitor;
 	int		        an_was_monitor;
+	int			an_timer;
 	u_char			buf_802_11[MCLBYTES];
 	struct an_req		areq;
 	unsigned short*		an_flash_buffer;
@@ -513,7 +512,7 @@ int	an_pci_probe	(device_t);
 int	an_probe	(device_t);
 int	an_shutdown	(device_t);
 void	an_resume	(device_t);
-int	an_attach		(struct an_softc *, int, int);
+int	an_attach		(struct an_softc *, int);
 int	an_detach	(device_t);
 void    an_stop		(struct an_softc *);
 

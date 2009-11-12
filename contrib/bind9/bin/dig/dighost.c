@@ -2604,10 +2604,12 @@ connect_done(isc_task_t *task, isc_event_t *event) {
 
 	if (sevent->result == ISC_R_CANCELED) {
 		debug("in cancel handler");
-		isc_socket_detach(&query->sock);
-		sockcount--;
-		INSIST(sockcount >= 0);
-		debug("sockcount=%d", sockcount);
+		if (query->sock != NULL) {
+			isc_socket_detach(&query->sock);
+			sockcount--;
+			INSIST(sockcount >= 0);
+			debug("sockcount=%d", sockcount);
+		}
 		query->waiting_connect = ISC_FALSE;
 		isc_event_free(&event);
 		l = query->lookup;

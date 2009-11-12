@@ -630,6 +630,9 @@ libusb20_dev_req_string_sync(struct libusb20_device *pdev,
 	struct LIBUSB20_CONTROL_SETUP_DECODED req;
 	int error;
 
+	/* make sure memory is initialised */
+	memset(ptr, 0, len);
+
 	if (len < 4) {
 		/* invalid length */
 		return (LIBUSB20_ERROR_INVALID_PARAM);
@@ -1093,7 +1096,8 @@ libusb20_be_free(struct libusb20_backend *pbe)
 	if (pbe->methods->exit_backend) {
 		pbe->methods->exit_backend(pbe);
 	}
-	return;
+	/* free backend */
+	free(pbe);
 }
 
 void
@@ -1101,7 +1105,6 @@ libusb20_be_enqueue_device(struct libusb20_backend *pbe, struct libusb20_device 
 {
 	pdev->beMethods = pbe->methods;	/* copy backend methods */
 	TAILQ_INSERT_TAIL(&(pbe->usb_devs), pdev, dev_entry);
-	return;
 }
 
 void
@@ -1109,5 +1112,4 @@ libusb20_be_dequeue_device(struct libusb20_backend *pbe,
     struct libusb20_device *pdev)
 {
 	TAILQ_REMOVE(&(pbe->usb_devs), pdev, dev_entry);
-	return;
 }

@@ -847,8 +847,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
 	else
 		bzero(kp->ki_wmesg, sizeof(kp->ki_wmesg));
-	if (td->td_name[0] != '\0')
-		strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
+	strlcpy(kp->ki_ocomm, td->td_name, sizeof(kp->ki_ocomm));
 	if (TD_ON_LOCK(td)) {
 		kp->ki_kiflag |= KI_LOCKBLOCK;
 		strlcpy(kp->ki_lockname, td->td_lockname,

@@ -476,6 +476,12 @@ _nc_wgetch(WINDOW *win,
 	    /* resizeterm can push KEY_RESIZE */
 	    if (cooked_key_in_fifo()) {
 		*result = fifo_pull(sp);
+		/*
+		 * Get the ERR from queue -- it is from WINCH,
+		 * so we should take it out, the "error" is handled.
+		 */
+		if (fifo_peek(sp) == -1)
+		    fifo_pull(sp);
 		returnCode(*result >= KEY_MIN ? KEY_CODE_YES : OK);
 	    }
 	}

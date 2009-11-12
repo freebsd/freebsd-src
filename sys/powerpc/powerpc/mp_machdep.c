@@ -64,7 +64,10 @@ static u_int ipi_msg_cnt[32];
 void
 machdep_ap_bootstrap(void)
 {
+	/* Set up important bits on the CPU (HID registers, etc.) */
+	cpudep_ap_setup();
 
+	/* Set PIR */
 	PCPU_SET(pir, mfspr(SPR_PIR));
 	PCPU_SET(awake, 1);
 	__asm __volatile("msync; isync");
@@ -78,7 +81,7 @@ machdep_ap_bootstrap(void)
 	__asm __volatile("mtdec %0" :: "r"(ap_decr));
 
 	atomic_add_int(&ap_awake, 1);
-	CTR1(KTR_SMP, "SMP: AP CPU%d launched", PCPU_GET(cpuid));
+	printf("SMP: AP CPU #%d launched\n", PCPU_GET(cpuid));
 
 	/* Initialize curthread */
 	PCPU_SET(curthread, PCPU_GET(idlethread));
@@ -86,6 +89,8 @@ machdep_ap_bootstrap(void)
 
 	/* Let the DEC and external interrupts go */
 	mtmsr(mfmsr() | PSL_EE);
+
+	/* Announce ourselves awake, and enter the scheduler */
 	sched_throw(NULL);
 }
 
@@ -246,6 +251,9 @@ cpu_mp_unleash(void *dummy)
 		printf("SMP: %d CPUs found; %d CPUs usable; %d CPUs woken\n",
 		    mp_ncpus, cpus, smp_cpus);
 	}
+
+	/* Let the APs get into the scheduler */
+	DELAY(10000);
 
 	smp_active = 1;
 	smp_started = 1;

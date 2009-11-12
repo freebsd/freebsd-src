@@ -2624,25 +2624,31 @@ do {									\
 	if (verbose) {
 		const struct ieee80211_meshconf_ie *mconf =
 			(const struct ieee80211_meshconf_ie *)ie;
-		const uint8_t null[4] = IEEE80211_MESHCONF_NULL;
-		const uint8_t hwmp[4] = IEEE80211_MESHCONF_HWMP;
-		const uint8_t airtime[4] = IEEE80211_MESHCONF_AIRTIME;
-		const uint8_t ccsig[4] = IEEE80211_MESHCONF_CCSIG;
-		const uint8_t sae[4] = IEEE80211_MESHCONF_SAE;
-		const uint8_t neighoff[4] = IEEE80211_MESHCONF_SAE;
-		printf("<v%d PATH:", mconf->conf_ver);
-		MATCHOUI(mconf->conf_pselid, hwmp, "HWMP");
+		printf("<PATH:");
+		if (mconf->conf_pselid == IEEE80211_MESHCONF_PATH_HWMP)
+			printf("HWMP");
+		else
+			printf("UNKNOWN");
 		printf(" LINK:");
-		MATCHOUI(mconf->conf_pmetid, airtime, "AIRTIME");
+		if (mconf->conf_pmetid == IEEE80211_MESHCONF_METRIC_AIRTIME)
+			printf("AIRTIME");
+		else
+			printf("UNKNOWN");
 		printf(" CONGESTION:");
-		MATCHOUI(mconf->conf_ccid, ccsig, "SIG");
-		MATCHOUI(mconf->conf_ccid, null, "NULL");
+		if (mconf->conf_ccid == IEEE80211_MESHCONF_CC_DISABLED)
+			printf("DISABLED");
+		else
+			printf("UNKNOWN");
 		printf(" SYNC:");
-		MATCHOUI(mconf->conf_syncid, neighoff, "NEIGHOFF");
-		MATCHOUI(mconf->conf_syncid, null, "NULL");
+		if (mconf->conf_syncid == IEEE80211_MESHCONF_SYNC_NEIGHOFF)
+			printf("NEIGHOFF");
+		else
+			printf("UNKNOWN");
 		printf(" AUTH:");
-		MATCHOUI(mconf->conf_authid, sae, "SAE");
-		MATCHOUI(mconf->conf_authid, null, "NULL");
+		if (mconf->conf_authid == IEEE80211_MESHCONF_AUTH_DISABLED)
+			printf("DISABLED");
+		else
+			printf("UNKNOWN");
 		printf(" FORM:0x%x CAPS:0x%x>", mconf->conf_form,
 		    mconf->conf_cap);
 	}

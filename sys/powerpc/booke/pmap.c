@@ -319,7 +319,8 @@ static vm_offset_t	mmu_booke_kextract(mmu_t, vm_offset_t);
 static void		mmu_booke_kenter(mmu_t, vm_offset_t, vm_offset_t);
 static void		mmu_booke_kremove(mmu_t, vm_offset_t);
 static boolean_t	mmu_booke_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
-static boolean_t	mmu_booke_page_executable(mmu_t, vm_page_t);
+static void		mmu_booke_sync_icache(mmu_t, pmap_t, vm_offset_t,
+    vm_size_t);
 static vm_offset_t	mmu_booke_dumpsys_map(mmu_t, struct pmap_md *,
     vm_size_t, vm_size_t *);
 static void		mmu_booke_dumpsys_unmap(mmu_t, struct pmap_md *,
@@ -357,6 +358,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_remove,		mmu_booke_remove),
 	MMUMETHOD(mmu_remove_all,	mmu_booke_remove_all),
 	MMUMETHOD(mmu_remove_write,	mmu_booke_remove_write),
+	MMUMETHOD(mmu_sync_icache,	mmu_booke_sync_icache),
 	MMUMETHOD(mmu_zero_page,	mmu_booke_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	mmu_booke_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	mmu_booke_zero_page_idle),
@@ -370,7 +372,6 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_kenter,		mmu_booke_kenter),
 	MMUMETHOD(mmu_kextract,		mmu_booke_kextract),
 /*	MMUMETHOD(mmu_kremove,		mmu_booke_kremove),	*/
-	MMUMETHOD(mmu_page_executable,	mmu_booke_page_executable),
 	MMUMETHOD(mmu_unmapdev,		mmu_booke_unmapdev),
 
 	/* dumpsys() support */
@@ -1682,21 +1683,6 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		__syncicache((void *)va, PAGE_SIZE);
 		sync = 0;
 	}
-
-	if (sync) {
-		/* Create a temporary mapping. */
-		pmap = PCPU_GET(curpmap);
-
-		va = 0;
-		pte = pte_find(mmu, pmap, va);
-		KASSERT(pte == NULL, ("%s:%d", __func__, __LINE__));
-
-		flags = PTE_SR | PTE_VALID | PTE_UR | PTE_M;
-		
-		pte_enter(mmu, pmap, m, va, flags);
-		__syncicache((void *)va, PAGE_SIZE);
-		pte_remove(mmu, pmap, va, PTBL_UNHOLD);
-	}
 }
 
 /*
@@ -1991,25 +1977,47 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
-static boolean_t
-mmu_booke_page_executable(mmu_t mmu, vm_page_t m)
+static void
+mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
-	pv_entry_t pv;
 	pte_t *pte;
-	boolean_t executable;
+	pmap_t pmap;
+	vm_page_t m;
+	vm_offset_t addr;
+	vm_paddr_t pa;
+	int active, valid;
+ 
+	va = trunc_page(va);
+	sz = round_page(sz);
 
-	executable = FALSE;
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_link) {
-		PMAP_LOCK(pv->pv_pmap);
-		pte = pte_find(mmu, pv->pv_pmap, pv->pv_va);
-		if (pte != NULL && PTE_ISVALID(pte) && (pte->flags & PTE_UX))
-			executable = TRUE;
-		PMAP_UNLOCK(pv->pv_pmap);
-		if (executable)
-			break;
+	vm_page_lock_queues();
+	pmap = PCPU_GET(curpmap);
+	active = (pm == kernel_pmap || pm == pmap) ? 1 : 0;
+	while (sz > 0) {
+		PMAP_LOCK(pm);
+		pte = pte_find(mmu, pm, va);
+		valid = (pte != NULL && PTE_ISVALID(pte)) ? 1 : 0;
+		if (valid)
+			pa = PTE_PA(pte);
+		PMAP_UNLOCK(pm);
+		if (valid) {
+			if (!active) {
+				/* Create a mapping in the active pmap. */
+				addr = 0;
+				m = PHYS_TO_VM_PAGE(pa);
+				PMAP_LOCK(pmap);
+				pte_enter(mmu, pmap, m, addr,
+				    PTE_SR | PTE_VALID | PTE_UR);
+				__syncicache((void *)addr, PAGE_SIZE);
+				pte_remove(mmu, pmap, addr, PTBL_UNHOLD);
+				PMAP_UNLOCK(pmap);
+			} else
+				__syncicache((void *)va, PAGE_SIZE);
+		}
+		va += PAGE_SIZE;
+		sz -= PAGE_SIZE;
 	}
-
-	return (executable);
+	vm_page_unlock_queues();
 }
 
 /*

@@ -128,6 +128,11 @@
 
 /* Local prototypes */
 
+static BOOLEAN
+AcpiEvHasDefaultHandler (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_ADR_SPACE_TYPE     SpaceId);
+
 static ACPI_STATUS
 AcpiEvRegRun (
     ACPI_HANDLE             ObjHandle,
@@ -233,6 +238,57 @@ UnlockAndExit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiEvHasDefaultHandler
+ *
+ * PARAMETERS:  Node                - Namespace node for the device
+ *              SpaceId             - The address space ID
+ *
+ * RETURN:      TRUE if default handler is installed, FALSE otherwise
+ *
+ * DESCRIPTION: Check if the default handler is installed for the requested
+ *              space ID.
+ *
+ ******************************************************************************/
+
+static BOOLEAN
+AcpiEvHasDefaultHandler (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_ADR_SPACE_TYPE     SpaceId)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *HandlerObj;
+
+
+    /* Must have an existing internal object */
+
+    ObjDesc = AcpiNsGetAttachedObject (Node);
+    if (ObjDesc)
+    {
+        HandlerObj = ObjDesc->Device.Handler;
+
+        /* Walk the linked list of handlers for this object */
+
+        while (HandlerObj)
+        {
+            if (HandlerObj->AddressSpace.SpaceId == SpaceId)
+            {
+                if (HandlerObj->AddressSpace.HandlerFlags &
+                        ACPI_ADDR_HANDLER_DEFAULT_INSTALLED)
+                {
+                    return (TRUE);
+                }
+            }
+
+            HandlerObj = HandlerObj->AddressSpace.Next;
+        }
+    }
+
+    return (FALSE);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiEvInitializeOpRegions
  *
  * PARAMETERS:  None
@@ -266,11 +322,16 @@ AcpiEvInitializeOpRegions (
     for (i = 0; i < ACPI_NUM_DEFAULT_SPACES; i++)
     {
         /*
-         * TBD: Make sure handler is the DEFAULT handler, otherwise
-         * _REG will have already been run.
+         * Make sure the installed handler is the DEFAULT handler. If not the
+         * default, the _REG methods will have already been run (when the
+         * handler was installed)
          */
-        Status = AcpiEvExecuteRegMethods (AcpiGbl_RootNode,
-                    AcpiGbl_DefaultAddressSpaces[i]);
+        if (AcpiEvHasDefaultHandler (AcpiGbl_RootNode,
+               AcpiGbl_DefaultAddressSpaces[i]))
+        {
+            Status = AcpiEvExecuteRegMethods (AcpiGbl_RootNode,
+                        AcpiGbl_DefaultAddressSpaces[i]);
+        }
     }
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);

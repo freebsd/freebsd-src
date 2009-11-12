@@ -47,7 +47,9 @@
 The
 .Fn nanosleep
 system call
-causes the process to sleep for the specified time.
+causes the calling thread to sleep until the time interval specified by
+.Fa rqtp
+has elapsed.
 An unmasked signal will
 cause it to terminate the sleep early, regardless of the
 .Dv SA_RESTART

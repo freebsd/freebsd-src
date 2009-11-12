@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2007-2009 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,8 +23,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -163,7 +161,10 @@ test_flopen_lock_child(void)
 	if (fd1 < 0) {
 		result = strerror(errno);
 	} else {
-		if ((pid = fork()) == 0) {
+		pid = fork();
+		if (pid == -1) {
+			result = strerror(errno);
+		} else if (pid == 0) {
 			select(0, 0, 0, 0, 0);
 			_exit(0);
 		}

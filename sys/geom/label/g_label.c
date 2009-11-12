@@ -271,6 +271,10 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_LABEL_DEBUG(2, "Tasting %s.", pp->name);
 
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
+
 	if (strcmp(pp->geom->class->name, mp->name) == 0)
 		return (NULL);
 

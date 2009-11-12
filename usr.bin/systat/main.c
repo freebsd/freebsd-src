@@ -133,6 +133,7 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	}
+	signal(SIGHUP, die);
 	signal(SIGINT, die);
 	signal(SIGQUIT, die);
 	signal(SIGTERM, die);

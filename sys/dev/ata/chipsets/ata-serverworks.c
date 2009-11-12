@@ -41,6 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
 #include <vm/uma.h>
+#ifdef __powerpc__
+#include <machine/intr_machdep.h>
+#endif
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -106,6 +109,13 @@ static int
 ata_serverworks_status(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+
+    /*
+     * Check if this interrupt belongs to our channel.
+     */
+    if (!(ATA_INL(ctlr->r_res2, 0x1f80) & (1 << ch->unit)))
+	return (0);
 
     /*
      * We need to do a 4-byte read on the status reg before the values
@@ -208,7 +218,28 @@ ata_serverworks_ch_attach(device_t dev)
     ch->hw.tf_write = ata_serverworks_tf_write;
 #ifdef __powerpc__
     ch->hw.status = ata_serverworks_status;
+
+    /* Make sure that our interrupt is edge triggered */
+    powerpc_config_intr(bus_get_resource_start(device_get_parent(dev),
+	SYS_RES_IRQ, 0), INTR_TRIGGER_EDGE, INTR_POLARITY_HIGH);
 #endif
+
+    if (ctlr->chip->chipid == ATA_K2) {
+	/*
+	 * The revision 1 K2 SATA controller has interesting bugs. Patch them.
+	 * These magic numbers regulate interrupt delivery in the first few
+	 * cases and are pure magic in the last case.
+	 *
+	 * Values obtained from the Darwin driver.
+	 */
+
+	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, 0x04);
+	ATA_IDX_OUTL(ch, ATA_SERROR, 0xffffffff);
+	ATA_IDX_OUTL(ch, ATA_SCONTROL, 0x00000300);
+	ATA_OUTL(ctlr->r_res2, ch_offset + 0x88, 0);
+	ATA_OUTL(ctlr->r_res2, ch_offset + 0x80,
+	    ATA_INL(ctlr->r_res2, ch_offset + 0x80) & ~0x00040000);
+    }
 
     /* chip does not reliably do 64K DMA transfers */
     ch->dma.max_iosize = 64 * DEV_BSIZE;
@@ -228,9 +259,8 @@ static void
 ata_serverworks_tf_read(struct ata_request *request)
 {
     struct ata_channel *ch = device_get_softc(request->parent);
-    struct ata_device *atadev = device_get_softc(request->dev);
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	u_int16_t temp;
 
 	request->u.ata.count = ATA_IDX_INW(ch, ATA_COUNT);
@@ -259,7 +289,7 @@ ata_serverworks_tf_write(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_device *atadev = device_get_softc(request->dev);
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	ATA_IDX_OUTW(ch, ATA_FEATURE, request->u.ata.feature);
 	ATA_IDX_OUTW(ch, ATA_COUNT, request->u.ata.count);
 	ATA_IDX_OUTW(ch, ATA_SECTOR, ((request->u.ata.lba >> 16) & 0xff00) |
@@ -268,7 +298,7 @@ ata_serverworks_tf_write(struct ata_request *request)
 				       ((request->u.ata.lba >> 8) & 0x00ff));
 	ATA_IDX_OUTW(ch, ATA_CYL_MSB, ((request->u.ata.lba >> 32) & 0xff00) | 
 				       ((request->u.ata.lba >> 16) & 0x00ff));
-	ATA_IDX_OUTW(ch, ATA_DRIVE, ATA_D_LBA | ATA_DEV(atadev->unit));
+	ATA_IDX_OUTW(ch, ATA_DRIVE, ATA_D_LBA | ATA_DEV(request->unit));
     }
     else {
 	ATA_IDX_OUTW(ch, ATA_FEATURE, request->u.ata.feature);
@@ -289,7 +319,7 @@ ata_serverworks_tf_write(struct ata_request *request)
 			 (request->u.ata.lba / (sectors * heads)));
 	    ATA_IDX_OUTW(ch, ATA_CYL_MSB,
 			 (request->u.ata.lba / (sectors * heads)) >> 8);
-	    ATA_IDX_OUTW(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(atadev->unit) | 
+	    ATA_IDX_OUTW(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(request->unit) | 
 			 (((request->u.ata.lba% (sectors * heads)) /
 			   sectors) & 0xf));
 	}
@@ -298,7 +328,7 @@ ata_serverworks_tf_write(struct ata_request *request)
 	    ATA_IDX_OUTW(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
 	    ATA_IDX_OUTW(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
 	    ATA_IDX_OUTW(ch, ATA_DRIVE,
-			 ATA_D_IBM | ATA_D_LBA | ATA_DEV(atadev->unit) |
+			 ATA_D_IBM | ATA_D_LBA | ATA_DEV(request->unit) |
 			 ((request->u.ata.lba >> 24) & 0x0f));
 	}
     }

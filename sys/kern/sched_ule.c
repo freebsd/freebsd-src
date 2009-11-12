@@ -495,7 +495,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	tdq->tdq_load++;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -514,7 +514,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
 
 	tdq->tdq_load--;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -1406,7 +1406,7 @@ sched_priority(struct thread *td)
 	 * score.  Negative nice values make it easier for a thread to be
 	 * considered interactive.
 	 */
-	score = imax(0, sched_interact_score(td) - td->td_proc->p_nice);
+	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_REALTIME;
 		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)

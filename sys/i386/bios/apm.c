@@ -79,9 +79,8 @@ int	apm_evindex;
 #define	SCFLAG_OCTL	0x0000002
 #define	SCFLAG_OPEN	(SCFLAG_ONORMAL|SCFLAG_OCTL)
 
-#define APMDEV(dev)	(dev2unit(dev)&0x0f)
 #define APMDEV_NORMAL	0
-#define APMDEV_CTL	8
+#define APMDEV_CTL	1
 
 #ifdef PC98
 extern int bios32_apm98(struct bios_regs *, u_int, u_short);
@@ -1249,8 +1248,10 @@ apm_attach(device_t dev)
 	sc->suspending = 0;
 	sc->running = 0;
 
-	make_dev(&apm_cdevsw, 0, 0, 5, 0664, "apm");
-	make_dev(&apm_cdevsw, 8, 0, 5, 0660, "apmctl");
+	make_dev(&apm_cdevsw, APMDEV_NORMAL,
+	    UID_ROOT, GID_OPERATOR, 0664, "apm");
+	make_dev(&apm_cdevsw, APMDEV_CTL,
+	    UID_ROOT, GID_OPERATOR, 0660, "apmctl");
 	return 0;
 }
 
@@ -1258,12 +1259,11 @@ static int
 apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
-	int ctl = APMDEV(dev);
 
 	if (sc == NULL || sc->initialized == 0)
 		return (ENXIO);
 
-	switch (ctl) {
+	switch (dev2unit(dev)) {
 	case APMDEV_CTL:
 		if (!(flag & FWRITE))
 			return EINVAL;
@@ -1275,9 +1275,6 @@ apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 	case APMDEV_NORMAL:
 		sc->sc_flags |= SCFLAG_ONORMAL;
 		break;
-	default:
-		return ENXIO;
-		break;
 	}
 	return 0;
 }
@@ -1286,9 +1283,8 @@ static int
 apmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct apm_softc *sc = &apm_softc;
-	int ctl = APMDEV(dev);
 
-	switch (ctl) {
+	switch (dev2unit(dev)) {
 	case APMDEV_CTL:
 		apm_lastreq_rejected();
 		sc->sc_flags &= ~SCFLAG_OCTL;
@@ -1429,7 +1425,7 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 	}
 
 	/* for /dev/apmctl */
-	if (APMDEV(dev) == APMDEV_CTL) {
+	if (dev2unit(dev) == APMDEV_CTL) {
 		struct apm_event_info *evp;
 		int i;
 
@@ -1468,7 +1464,7 @@ apmwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	int error;
 	u_char enabled;
 
-	if (APMDEV(dev) != APMDEV_CTL)
+	if (dev2unit(dev) != APMDEV_CTL)
 		return(ENODEV);
 	if (uio->uio_resid != sizeof(u_int))
 		return(E2BIG);

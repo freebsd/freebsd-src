@@ -135,6 +135,10 @@ ata_intel_probe(device_t dev)
      { ATA_I82801JD_AH,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JD_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I82801JD_S2,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_S1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_AH,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
+     { ATA_I82801JI_S2,  0, INTEL_AHCI, 0, ATA_SA300, "ICH10" },
      { ATA_I31244,       0,          0, 2, ATA_SA150, "31244" },
      { 0, 0, 0, 0, 0, 0}};
 
@@ -466,10 +470,10 @@ ata_intel_31244_status(device_t dev)
 static void
 ata_intel_31244_tf_write(struct ata_request *request)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
+    struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_device *atadev = device_get_softc(request->dev);
 
-    if (atadev->flags & ATA_D_48BIT_ACTIVE) {
+    if (request->flags & ATA_R_48BIT) {
 	ATA_IDX_OUTW(ch, ATA_FEATURE, request->u.ata.feature);
 	ATA_IDX_OUTW(ch, ATA_COUNT, request->u.ata.count);
 	ATA_IDX_OUTW(ch, ATA_SECTOR, ((request->u.ata.lba >> 16) & 0xff00) |
@@ -478,7 +482,7 @@ ata_intel_31244_tf_write(struct ata_request *request)
 				       ((request->u.ata.lba >> 8) & 0x00ff));
 	ATA_IDX_OUTW(ch, ATA_CYL_MSB, ((request->u.ata.lba >> 32) & 0xff00) | 
 				       ((request->u.ata.lba >> 16) & 0x00ff));
-	ATA_IDX_OUTW(ch, ATA_DRIVE, ATA_D_LBA | ATA_DEV(atadev->unit));
+	ATA_IDX_OUTW(ch, ATA_DRIVE, ATA_D_LBA | ATA_DEV(request->unit));
     }
     else {
 	ATA_IDX_OUTB(ch, ATA_FEATURE, request->u.ata.feature);
@@ -499,7 +503,7 @@ ata_intel_31244_tf_write(struct ata_request *request)
 			 (request->u.ata.lba / (sectors * heads)));
 	    ATA_IDX_OUTB(ch, ATA_CYL_MSB,
 			 (request->u.ata.lba / (sectors * heads)) >> 8);
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(atadev->unit) | 
+	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_DEV(request->unit) | 
 			 (((request->u.ata.lba% (sectors * heads)) /
 			   sectors) & 0xf));
 	}
@@ -508,7 +512,7 @@ ata_intel_31244_tf_write(struct ata_request *request)
 	    ATA_IDX_OUTB(ch, ATA_CYL_LSB, request->u.ata.lba >> 8);
 	    ATA_IDX_OUTB(ch, ATA_CYL_MSB, request->u.ata.lba >> 16);
 	    ATA_IDX_OUTB(ch, ATA_DRIVE,
-			 ATA_D_IBM | ATA_D_LBA | ATA_DEV(atadev->unit) |
+			 ATA_D_IBM | ATA_D_LBA | ATA_DEV(request->unit) |
 			 ((request->u.ata.lba >> 24) & 0x0f));
 	}
     }

@@ -207,8 +207,8 @@ struct ata_params {
 	u_int16_t       reserved104[2];
 /*106*/	u_int16_t       pss;
 #define ATA_PSS_LSPPS			0x000F
-#define ATA_PSS_LSSABOVE512		0x2000
-#define ATA_PSS_MULTLS			0x4000
+#define ATA_PSS_LSSABOVE512		0x1000
+#define ATA_PSS_MULTLS			0x2000
 /*107*/ u_int16_t       isd;
 /*108*/ u_int16_t       wwn[4];
 	u_int16_t       reserved112[5];
@@ -226,11 +226,15 @@ struct ata_params {
 /*128*/ u_int16_t       security_status;
 	u_int16_t       reserved129[31];
 /*160*/ u_int16_t       cfa_powermode1;
-	u_int16_t       reserved161[15];
+	u_int16_t       reserved161;
+/*162*/ u_int16_t       cfa_kms_support;
+/*163*/ u_int16_t       cfa_trueide_modes;
+/*164*/ u_int16_t       cfa_memory_modes;
+	u_int16_t       reserved165[11];
 /*176*/ u_int8_t        media_serial[60];
 /*206*/ u_int16_t       sct;
 	u_int16_t       reserved206[2];
-/*209*/ u_int16_t       lbalign;
+/*209*/ u_int16_t       lsalign;
 /*210*/ u_int16_t       wrv_sectors_m3_1;
 	u_int16_t       wrv_sectors_m3_2;
 /*212*/ u_int16_t       wrv_sectors_m2_1;

@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20090903
+#define ACPI_CA_VERSION                 0x20091013
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>

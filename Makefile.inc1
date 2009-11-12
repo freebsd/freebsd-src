@@ -272,7 +272,7 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
-		-iprefix ${LIB32TMP}/usr/ \
+		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
 
@@ -599,11 +599,14 @@ installcheck_UGID:
 .if ${MK_INFO} != "no"
 _install-info=	install-info
 .endif
+.if ${MK_ZONEINFO} != "no"
+_zoneinfo=	zic tzsetup
+.endif
 
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb rm sed sh sysctl \
-	test true uname wc zic
+	test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
@@ -929,6 +932,10 @@ _ar=		usr.bin/ar
 _mklocale=	usr.bin/mklocale
 .endif
 
+.if ${BOOTSTRAPPING} < 900002
+_sed=		usr.bin/sed
+.endif
+
 .if ${BOOTSTRAPPING} < 700018
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
@@ -954,6 +961,7 @@ bootstrap-tools:
     usr.bin/makewhatis \
     ${_mklocale} \
     usr.bin/rpcgen \
+    ${_sed} \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
@@ -1033,7 +1041,6 @@ cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
     gnu/usr.bin/cc \
-    usr.bin/sed \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
@@ -1122,7 +1129,7 @@ lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 .if ${MK_KERBEROS} != "no"
-kerberos5/lib/libgssapi_krb5__L: kerberos5/lib/libkrb5__L \
+kerberos5/lib/libgssapi_krb5__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
     kerberos5/lib/libhx509__L kerberos5/lib/libasn1__L lib/libcom_err__L \
     lib/libmd__L kerberos5/lib/libroken__L secure/lib/libcrypto__L \
     lib/libcrypt__L

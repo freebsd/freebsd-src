@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd March 26, 2009
+.Dd October 21, 2009
 .Dt MALO 4
 .Os
 .Sh NAME
@@ -71,14 +71,19 @@ For more information on configuring this device, see
 .Pp
 This driver requires the
 .Nm malofw
-be installed before it will work.
+firmware kernel module be installed before it will work.
 The firmware files are not publicly available.
-A package of the firmware which can be installed via
-.Xr pkg_add 1
-with:
+A port of the firmware can be found at:
 .Bd -literal -offset indent
 http://weongyo.org/project/malo/malo-firmware-1.4.tar.gz
 .Ed
+.Pp
+The firmware kernel module can be installed by extracting
+the archive and running
+.Ql make install clean
+in the
+.Pa malo-firmware-1.4
+directory.
 .Sh HARDWARE
 The following cards are among those supported by the
 .Nm

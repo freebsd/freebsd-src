@@ -40,17 +40,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 char *
-basename(path)
+basename_r(path, bname)
 	const char *path;
+	char *bname;
 {
-	static char *bname = NULL;
 	const char *endp, *startp;
-
- 	if (bname == NULL) {
-		bname = (char *)malloc(MAXPATHLEN);
-		if (bname == NULL)
-			return(NULL);
-	}
 
 	/* Empty or NULL string gets treated as "." */
 	if (path == NULL || *path == '\0') {
@@ -81,4 +75,18 @@ basename(path)
 	(void)strncpy(bname, startp, endp - startp + 1);
 	bname[endp - startp + 1] = '\0';
 	return(bname);
+}
+
+char *
+basename(path)
+	const char *path;
+{
+	static char *bname = NULL;
+
+	if (bname == NULL) {
+		bname = (char *)malloc(MAXPATHLEN);
+		if (bname == NULL)
+			return (NULL);
+	}
+	return (basename_r(path, bname));
 }
