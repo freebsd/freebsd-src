@@ -66,8 +66,6 @@ __FBSDID("$FreeBSD$");
 			       definitions overrides the ones from i80321reg.h
 			       */
 #endif
-#include <arm/xscale/xscalevar.h>
-
 #include "opt_timer.h"
 
 void (*i80321_hardclock_hook)(void) = NULL;

@@ -23,8 +23,10 @@ MAN=	accept_filter.9 \
 	bus_activate_resource.9 \
 	BUS_ADD_CHILD.9 \
 	bus_alloc_resource.9 \
+	BUS_BIND_INTR.9 \
 	bus_child_present.9 \
 	BUS_CONFIG_INTR.9 \
+	BUS_DESCRIBE_INTR.9 \
 	bus_dma.9 \
 	bus_generic_attach.9 \
 	bus_generic_detach.9 \
@@ -403,6 +405,8 @@ MLINKS+=bpf.9 bpf_filter.9 \
 MLINKS+=buf.9 bp.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
 MLINKS+=bus_alloc_resource.9 bus_alloc_resource_any.9
+MLINKS+=BUS_BIND_INTR.9 bus_bind_intr.9
+MLINKS+=BUS_DESCRIBE_INTR.9 bus_describe_intr.9
 MLINKS+=bus_dma.9 busdma.9 \
 	bus_dma.9 bus_dmamap_create.9 \
 	bus_dma.9 bus_dmamap_destroy.9 \
@@ -606,8 +610,10 @@ MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 eventhandler_register.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
-	fetch.9 fusword.9 \
-	fetch.9 fuword.9
+	fetch.9 fuword.9 \
+	fetch.9 fuword16.9 \
+	fetch.9 fuword32.9 \
+	fetch.9 fuword64.9
 MLINKS+=g_attach.9 g_detach.9
 MLINKS+=g_bio.9 g_clone_bio.9 \
 	g_bio.9 g_destroy_bio.9 \
@@ -1142,8 +1148,10 @@ MLINKS+=stack.9 stack_copy.9 \
 	stack.9 stack_zero.9
 MLINKS+=store.9 subyte.9 \
 	store.9 suswintr.9 \
-	store.9 susword.9 \
-	store.9 suword.9
+	store.9 suword.9 \
+	store.9 suword16.9 \
+	store.9 suword32.9 \
+	store.9 suword64.9
 MLINKS+=swi.9 swi_add.9 \
 	swi.9 swi_sched.9
 MLINKS+=sx.9 sx_assert.9 \
@@ -1214,6 +1222,7 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_init_rw.9 \
 	timeout.9 callout_pending.9 \
 	timeout.9 callout_reset.9 \
+	timeout.9 callout_schedule.9 \
 	timeout.9 callout_stop.9 \
 	timeout.9 untimeout.9
 MLINKS+=ucred.9 crcopy.9 \

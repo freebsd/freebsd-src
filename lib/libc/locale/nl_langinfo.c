@@ -93,6 +93,12 @@ nl_langinfo(nl_item item)
 	case ABMON_9: case ABMON_10: case ABMON_11: case ABMON_12:
 		ret = (char*) __get_current_time_locale()->mon[_REL(ABMON_1)];
 		break;
+	case ALTMON_1: case ALTMON_2: case ALTMON_3: case ALTMON_4:
+	case ALTMON_5: case ALTMON_6: case ALTMON_7: case ALTMON_8:
+	case ALTMON_9: case ALTMON_10: case ALTMON_11: case ALTMON_12:
+		ret = (char*)
+		    __get_current_time_locale()->alt_month[_REL(ALTMON_1)];
+		break;
 	case ERA:
 		/* XXX: need to be implemented  */
 		ret = "";

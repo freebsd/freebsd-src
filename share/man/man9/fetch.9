@@ -34,29 +34,35 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 1996
+.Dd October 5, 2009
 .Dt FETCH 9
 .Os
 .Sh NAME
 .Nm fetch ,
 .Nm fubyte ,
-.Nm fusword ,
 .Nm fuswintr ,
-.Nm fuword
+.Nm fuword ,
+.Nm fuword16 ,
+.Nm fuword32 ,
+.Nm fuword64
 .Nd fetch data from user-space
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/time.h
 .In sys/systm.h
-.In sys/resourcevar.h
 .Ft int
 .Fn fubyte "const void *base"
-.Ft int
-.Fn fusword "void *base"
-.Ft int
-.Fn fuswintr "void *base"
 .Ft long
 .Fn fuword "const void *base"
+.Ft int
+.Fn fuword16 "void *base"
+.Ft int32_t
+.Fn fuword32 "const void *base"
+.Ft int64_t
+.Fn fuword64 "const void *base"
+.In sys/resourcevar.h
+.Ft int
+.Fn fuswintr "void *base"
 .Sh DESCRIPTION
 The
 .Nm
@@ -69,16 +75,22 @@ routines provide the following functionality:
 .It Fn fubyte
 Fetches a byte of data from the user-space address
 .Pa base .
-.It Fn fusword
-Fetches a short word of data from the user-space address
+.It Fn fuword
+Fetches a word of data from the user-space address
+.Pa base .
+.It Fn fuword16
+Fetches 16 bits of data from the user-space address
+.Pa base .
+.It Fn fuword32
+Fetches 32 bits of data from the user-space address
+.Pa base .
+.It Fn fuword64
+Fetches 64 bits of data from the user-space address
 .Pa base .
 .It Fn fuswintr
 Fetches a short word of data from the user-space address
 .Pa base .
 This function is safe to call during an interrupt context.
-.It Fn fuword
-Fetches a word of data from the user-space address
-.Pa base .
 .El
 .Sh RETURN VALUES
 The

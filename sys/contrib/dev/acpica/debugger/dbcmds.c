@@ -130,6 +130,7 @@
 #define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbcmds")
 
+
 /* Local prototypes */
 
 static ACPI_STATUS
@@ -501,7 +502,7 @@ AcpiDbWalkForExecute (
     void                    **ReturnValue)
 {
     ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
-    UINT32                  *Count = (UINT32 *) Context;
+    ACPI_EXECUTE_WALK       *Info = (ACPI_EXECUTE_WALK *) Context;
     ACPI_BUFFER             ReturnObj;
     ACPI_STATUS             Status;
     char                    *Pathname;
@@ -542,7 +543,6 @@ AcpiDbWalkForExecute (
 
     if (ObjInfo->Type == ACPI_TYPE_METHOD)
     {
-
         /* Setup default parameters */
 
         for (i = 0; i < ObjInfo->ParamCount; i++)
@@ -556,10 +556,8 @@ AcpiDbWalkForExecute (
     }
 
     ACPI_FREE (ObjInfo);
-
     ReturnObj.Pointer = NULL;
     ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
-
 
     /* Do the actual method execution */
 
@@ -569,11 +567,21 @@ AcpiDbWalkForExecute (
 
     AcpiOsPrintf ("%-32s returned %s\n", Pathname, AcpiFormatException (Status));
     AcpiGbl_MethodExecuting = FALSE;
-
     ACPI_FREE (Pathname);
-    (*Count)++;
 
-    return (AE_OK);
+    /* Ignore status from method execution */
+
+    Status = AE_OK;
+
+    /* Update count, check if we have executed enough methods */
+
+    Info->Count++;
+    if (Info->Count >= Info->MaxCount)
+    {
+        Status = AE_CTRL_TERMINATE;
+    }
+
+    return (Status);
 }
 
 
@@ -581,27 +589,37 @@ AcpiDbWalkForExecute (
  *
  * FUNCTION:    AcpiDbBatchExecute
  *
- * PARAMETERS:  None
+ * PARAMETERS:  CountArg            - Max number of methods to execute
  *
  * RETURN:      None
  *
- * DESCRIPTION: Namespace batch execution.
+ * DESCRIPTION: Namespace batch execution. Execute predefined names in the
+ *              namespace, up to the max count, if specified.
  *
  ******************************************************************************/
 
 void
 AcpiDbBatchExecute (
-    void)
+    char                    *CountArg)
 {
-    UINT32                  Count = 0;
+    ACPI_EXECUTE_WALK       Info;
+
+
+    Info.Count = 0;
+    Info.MaxCount = ACPI_UINT32_MAX;
+
+    if (CountArg)
+    {
+        Info.MaxCount = ACPI_STRTOUL (CountArg, NULL, 0);
+    }
 
 
     /* Search all nodes in namespace */
 
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                AcpiDbWalkForExecute, (void *) &Count, NULL);
+                AcpiDbWalkForExecute, (void *) &Info, NULL);
 
-    AcpiOsPrintf ("Executed %d predefined names in the namespace\n", Count);
+    AcpiOsPrintf ("Executed %d predefined names in the namespace\n", Info.Count);
 }
 
 

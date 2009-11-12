@@ -182,35 +182,28 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
  * Just to add to the fun, exceptions must be off as well
  * so that we can't trap in 64-bit mode. What a pain.
  */
+struct mtx	tlbie_mutex;
 
 static __inline void
 TLBIE(pmap_t pmap, vm_offset_t va) {
-	register_t msr;
-	register_t scratch;
-
 	uint64_t vpn;
 	register_t vpn_hi, vpn_lo;
-
-#if 1
-	/*
-	 * CPU documentation says that tlbie takes the VPN, not the
-	 * VA. I think the code below does this correctly. We will see.
-	 */
+	register_t msr;
+	register_t scratch;
 
 	vpn = (uint64_t)(va & ADDR_PIDX);
 	if (pmap != NULL)
 		vpn |= (va_to_vsid(pmap,va) << 28);
-#else
-	vpn = va;
-#endif
 
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
 
+	mtx_lock_spin(&tlbie_mutex);
 	__asm __volatile("\
 	    mfmsr %0; \
 	    clrldi %1,%0,49; \
-	    insrdi %1,1,1,0; \
+	    mtmsr %1; \
+	    insrdi %1,%5,1,0; \
 	    mtmsrd %1; \
 	    ptesync; \
 	    \
@@ -222,7 +215,8 @@ TLBIE(pmap_t pmap, vm_offset_t va) {
 	    eieio; \
 	    tlbsync; \
 	    ptesync;" 
-	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32));
+	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32), "r"(1));
+	mtx_unlock_spin(&tlbie_mutex);
 }
 
 #define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR); isync()
@@ -270,7 +264,7 @@ static struct	mem_region *pregions;
 extern u_int	phys_avail_count;
 extern int	regions_sz, pregions_sz;
 extern int	ofw_real_mode;
-static struct	ofw_map translations[64];
+static struct	ofw_map translations[96];
 
 extern struct pmap ofw_pmap;
 
@@ -352,7 +346,7 @@ static int		moea64_pte_insert(u_int, struct lpte *);
  * PVO calls.
  */
 static int	moea64_pvo_enter(pmap_t, uma_zone_t, struct pvo_head *,
-		    vm_offset_t, vm_offset_t, uint64_t, int, int);
+		    vm_offset_t, vm_offset_t, uint64_t, int);
 static void	moea64_pvo_remove(struct pvo_entry *, int);
 static struct	pvo_entry *moea64_pvo_find_va(pmap_t, vm_offset_t, int *);
 static struct	lpte *moea64_pvo_to_pte(const struct pvo_entry *, int);
@@ -369,7 +363,7 @@ static boolean_t	moea64_query_bit(vm_page_t, u_int64_t);
 static u_int		moea64_clear_bit(vm_page_t, u_int64_t, u_int64_t *);
 static void		moea64_kremove(mmu_t, vm_offset_t);
 static void		moea64_syncicache(pmap_t pmap, vm_offset_t va, 
-			    vm_offset_t pa);
+			    vm_offset_t pa, vm_size_t sz);
 static void		tlbia(void);
 
 /*
@@ -410,7 +404,7 @@ void moea64_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 vm_offset_t moea64_kextract(mmu_t, vm_offset_t);
 void moea64_kenter(mmu_t, vm_offset_t, vm_offset_t);
 boolean_t moea64_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
-boolean_t moea64_page_executable(mmu_t, vm_page_t);
+static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
 
 static mmu_method_t moea64_bridge_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea64_change_wiring),
@@ -437,6 +431,7 @@ static mmu_method_t moea64_bridge_methods[] = {
 	MMUMETHOD(mmu_remove,		moea64_remove),
 	MMUMETHOD(mmu_remove_all,      	moea64_remove_all),
 	MMUMETHOD(mmu_remove_write,	moea64_remove_write),
+	MMUMETHOD(mmu_sync_icache,	moea64_sync_icache),
 	MMUMETHOD(mmu_zero_page,       	moea64_zero_page),
 	MMUMETHOD(mmu_zero_page_area,	moea64_zero_page_area),
 	MMUMETHOD(mmu_zero_page_idle,	moea64_zero_page_idle),
@@ -451,7 +446,6 @@ static mmu_method_t moea64_bridge_methods[] = {
 	MMUMETHOD(mmu_kextract,		moea64_kextract),
 	MMUMETHOD(mmu_kenter,		moea64_kenter),
 	MMUMETHOD(mmu_dev_direct_mapped,moea64_dev_direct_mapped),
-	MMUMETHOD(mmu_page_executable,	moea64_page_executable),
 
 	{ 0, 0 }
 };
@@ -825,6 +819,11 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	    MTX_RECURSE);
 
 	/*
+	 * Initialize the TLBIE lock. TLBIE can only be executed by one CPU.
+	 */
+	mtx_init(&tlbie_mutex, "tlbie mutex", NULL, MTX_SPIN);
+
+	/*
 	 * Initialise the unmanaged pvo pool.
 	 */
 	moea64_bpvo_pool = (struct pvo_entry *)moea64_bootstrap_alloc(
@@ -869,14 +868,16 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	ENABLE_TRANS(msr);
 
 	/*
-	 * Map certain important things, like ourselves and the exception
-	 * vectors
+	 * Map certain important things, like ourselves.
+	 *
+	 * NOTE: We do not map the exception vector space. That code is
+	 * used only in real mode, and leaving it unmapped allows us to
+	 * catch NULL pointer deferences, instead of making NULL a valid
+	 * address.
 	 */
 
 	DISABLE_TRANS(msr);
 	for (pa = kernelstart & ~PAGE_MASK; pa < kernelend; pa += PAGE_SIZE) 
-		moea64_kenter(mmup, pa, pa);
-	for (pa = EXC_RSVD; pa < EXC_LAST; pa += PAGE_SIZE) 
 		moea64_kenter(mmup, pa, pa);
 	ENABLE_TRANS(msr);
 
@@ -896,6 +897,9 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 		panic("moea64_bootstrap: can't get mmu package");
 	    if ((sz = OF_getproplen(mmu, "translations")) == -1)
 		panic("moea64_bootstrap: can't get ofw translation count");
+	    if (sz > sizeof(translations))
+		panic("moea64_bootstrap: too many ofw translations (%d)",
+		      sz/sizeof(*translations));
 
 	    bzero(translations, sz);
 	    if (OF_getprop(mmu, "translations", translations, sz) == -1)
@@ -1254,7 +1258,7 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_flags |= PVO_FAKE;
 
 	error = moea64_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
-	    pte_lo, pvo_flags, 0);
+	    pte_lo, pvo_flags);
 
 	if (pmap == kernel_pmap)
 		TLBIE(pmap, va);
@@ -1264,12 +1268,12 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * mapped executable and cacheable.
 	 */
 	if ((pte_lo & (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
-		moea64_syncicache(pmap, va, VM_PAGE_TO_PHYS(m));
+		moea64_syncicache(pmap, va, VM_PAGE_TO_PHYS(m), PAGE_SIZE);
 	}
 }
 
 static void
-moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa)
+moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_size_t sz)
 {
 	/*
 	 * This is much trickier than on older systems because
@@ -1285,16 +1289,16 @@ moea64_syncicache(pmap_t pmap, vm_offset_t va, vm_offset_t pa)
 		 * If PMAP is not bootstrapped, we are likely to be
 		 * in real mode.
 		 */
-		__syncicache((void *)pa,PAGE_SIZE);
+		__syncicache((void *)pa, sz);
 	} else if (pmap == kernel_pmap) {
-		__syncicache((void *)va,PAGE_SIZE);
+		__syncicache((void *)va, sz);
 	} else {
 		/* Use the scratch page to set up a temp mapping */
 
 		mtx_lock(&moea64_scratchpage_mtx);
 
 		moea64_set_scratchpage_pa(1,pa);
-		__syncicache((void *)moea64_scratchpage_va[1],PAGE_SIZE);
+		__syncicache((void *)moea64_scratchpage_va[1], sz);
 
 		mtx_unlock(&moea64_scratchpage_mtx);
 	}
@@ -1427,16 +1431,15 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	if (pvo_allocator_start >= pvo_allocator_end)
 		panic("Ran out of PVO allocator buffer space!");
 
-	/* Now call pvo_enter in recursive mode */
 	moea64_pvo_enter(kernel_pmap, moea64_upvo_zone,
 	    &moea64_pvo_kunmanaged, va,  VM_PAGE_TO_PHYS(m), LPTE_M, 
-	    PVO_WIRED | PVO_BOOTSTRAP, 1);
+	    PVO_WIRED | PVO_BOOTSTRAP);
 
 	TLBIE(kernel_pmap, va);
-	
+
 	if (needed_lock)
 		PMAP_UNLOCK(kernel_pmap);
-
+	
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
                 bzero((void *)va, PAGE_SIZE);
 
@@ -1579,7 +1582,7 @@ moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	PMAP_LOCK(kernel_pmap);
 	error = moea64_pvo_enter(kernel_pmap, moea64_upvo_zone,
 	    &moea64_pvo_kunmanaged, va, pa, pte_lo, 
-	    PVO_WIRED | VM_PROT_EXECUTE, 0);
+	    PVO_WIRED | VM_PROT_EXECUTE);
 
 	TLBIE(kernel_pmap, va);
 
@@ -1817,8 +1820,9 @@ moea64_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 			    pvo->pvo_pmap, pvo->pvo_vaddr);
 			if ((pvo->pvo_pte.lpte.pte_lo & 
 			    (LPTE_I | LPTE_G | LPTE_NOEXEC)) == 0) {
-				moea64_syncicache(pm, sva, 
-				     pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN);
+				moea64_syncicache(pm, sva,
+				    pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN,
+				    PAGE_SIZE);
 			}
 		}
 		UNLOCK_TABLE();
@@ -1967,14 +1971,29 @@ static void
 tlbia(void)
 {
 	vm_offset_t i;
+	register_t msr, scratch;
 
-	for (i = 0; i < 0xFF000; i += 0x00001000) 
-		TLBIE(NULL,i);
+	for (i = 0; i < 0xFF000; i += 0x00001000) {
+		__asm __volatile("\
+		    mfmsr %0; \
+		    mr %1, %0; \
+		    insrdi %1,%3,1,0; \
+		    mtmsrd %1; \
+		    ptesync; \
+		    \
+		    tlbiel %2; \
+		    \
+		    mtmsrd %0; \
+		    eieio; \
+		    tlbsync; \
+		    ptesync;" 
+		: "=r"(msr), "=r"(scratch) : "r"(i), "r"(1));
+	}
 }
 
 static int
 moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
-    vm_offset_t va, vm_offset_t pa, uint64_t pte_lo, int flags, int recurse)
+    vm_offset_t va, vm_offset_t pa, uint64_t pte_lo, int flags)
 {
 	struct	 pvo_entry *pvo;
 	uint64_t vsid;
@@ -2010,16 +2029,14 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 * Remove any existing mapping for this page.  Reuse the pvo entry if
 	 * there is a mapping.
 	 */
-	if (!recurse)
-		LOCK_TABLE();
+	LOCK_TABLE();
 
 	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if ((pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) == pa &&
 			    (pvo->pvo_pte.lpte.pte_lo & LPTE_PP) ==
 			    (pte_lo & LPTE_PP)) {
-				if (!recurse)
-					UNLOCK_TABLE();
+				UNLOCK_TABLE();
 				return (0);
 			}
 			moea64_pvo_remove(pvo, -1);
@@ -2040,12 +2057,19 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		moea64_bpvo_pool_index++;
 		bootstrap = 1;
 	} else {
+		/*
+		 * Note: drop the table around the UMA allocation in
+		 * case the UMA allocator needs to manipulate the page
+		 * table. The mapping we are working with is already
+		 * protected by the PMAP lock.
+		 */
+		UNLOCK_TABLE();
 		pvo = uma_zalloc(zone, M_NOWAIT);
+		LOCK_TABLE();
 	}
 
 	if (pvo == NULL) {
-		if (!recurse)
-			UNLOCK_TABLE();
+		UNLOCK_TABLE();
 		return (ENOMEM);
 	}
 
@@ -2092,8 +2116,7 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		moea64_pte_overflow++;
 	}
 
-	if (!recurse)
-		UNLOCK_TABLE();
+	UNLOCK_TABLE();
 
 	return (first ? ENOENT : 0);
 }
@@ -2406,12 +2429,6 @@ moea64_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 	return (EFAULT);
 }
 
-boolean_t
-moea64_page_executable(mmu_t mmu, vm_page_t pg)
-{
-	return (!moea64_query_bit(pg, LPTE_NOEXEC));
-}
-
 /*
  * Map a set of physical memory pages into the kernel virtual
  * address space. Return a pointer to where it is mapped. This
@@ -2454,3 +2471,26 @@ moea64_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 	kmem_free(kernel_map, base, size);
 }
 
+static void
+moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
+	struct pvo_entry *pvo;
+	vm_offset_t lim;
+	vm_paddr_t pa;
+	vm_size_t len;
+
+	PMAP_LOCK(pm);
+	while (sz > 0) {
+		lim = round_page(va);
+		len = MIN(lim - va, sz);
+		pvo = moea64_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+		if (pvo != NULL) {
+			pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) |
+			    (va & ADDR_POFF);
+			moea64_syncicache(pm, va, pa, len);
+		}
+		va += len;
+		sz -= len;
+	}
+	PMAP_UNLOCK(pm);
+}

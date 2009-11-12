@@ -1805,10 +1805,10 @@ int
 vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	       vm_prot_t new_prot, boolean_t set_max)
 {
-	vm_map_entry_t current;
-	vm_map_entry_t entry;
+	vm_map_entry_t current, entry;
 	vm_object_t obj;
 	struct uidinfo *uip;
+	vm_prot_t old_prot;
 
 	vm_map_lock(map);
 
@@ -1897,9 +1897,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	 */
 	current = entry;
 	while ((current != &map->header) && (current->start < end)) {
-		vm_prot_t old_prot;
-
 		old_prot = current->protection;
+
 		if (set_max)
 			current->protection =
 			    (current->max_protection = new_prot) &
@@ -1907,11 +1906,18 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		else
 			current->protection = new_prot;
 
+		if ((current->eflags & (MAP_ENTRY_COW | MAP_ENTRY_USER_WIRED))
+		     == (MAP_ENTRY_COW | MAP_ENTRY_USER_WIRED) &&
+		    (current->protection & VM_PROT_WRITE) != 0 &&
+		    (old_prot & VM_PROT_WRITE) == 0) {
+			vm_fault_copy_entry(map, map, current, current, NULL);
+		}
+
 		/*
-		 * Update physical map if necessary. Worry about copy-on-write
-		 * here.
+		 * When restricting access, update the physical map.  Worry
+		 * about copy-on-write here.
 		 */
-		if (current->protection != old_prot) {
+		if ((old_prot & ~current->protection) != 0) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
 			pmap_protect(map->pmap, current->start,

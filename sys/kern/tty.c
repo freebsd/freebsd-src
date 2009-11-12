@@ -109,14 +109,14 @@ tty_watermarks(struct tty *tp)
 	ttyinq_setsize(&tp->t_inq, tp, bs);
 
 	/* Set low watermark at 10% (when 90% is available). */
-	tp->t_inlow = (ttyinq_getsize(&tp->t_inq) * 9) / 10;
+	tp->t_inlow = (ttyinq_getallocatedsize(&tp->t_inq) * 9) / 10;
 
 	/* Provide an ouput buffer for 0.2 seconds of data. */
 	bs = MIN(tp->t_termios.c_ospeed / 5, TTYBUF_MAX);
 	ttyoutq_setsize(&tp->t_outq, tp, bs);
 
 	/* Set low watermark at 10% (when 90% is available). */
-	tp->t_outlow = (ttyoutq_getsize(&tp->t_outq) * 9) / 10;
+	tp->t_outlow = (ttyoutq_getallocatedsize(&tp->t_outq) * 9) / 10;
 }
 
 static int
@@ -523,6 +523,34 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 	}
 
+	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
+		struct termios *old = &tp->t_termios;
+		struct termios *new = (struct termios *)data;
+		struct termios *lock = TTY_CALLOUT(tp, dev) ?
+		    &tp->t_termios_lock_out : &tp->t_termios_lock_in;
+		int cc;
+
+		/*
+		 * Lock state devices.  Just overwrite the values of the
+		 * commands that are currently in use.
+		 */
+		new->c_iflag = (old->c_iflag & lock->c_iflag) |
+		    (new->c_iflag & ~lock->c_iflag);
+		new->c_oflag = (old->c_oflag & lock->c_oflag) |
+		    (new->c_oflag & ~lock->c_oflag);
+		new->c_cflag = (old->c_cflag & lock->c_cflag) |
+		    (new->c_cflag & ~lock->c_cflag);
+		new->c_lflag = (old->c_lflag & lock->c_lflag) |
+		    (new->c_lflag & ~lock->c_lflag);
+		for (cc = 0; cc < NCCS; ++cc)
+			if (lock->c_cc[cc])
+				new->c_cc[cc] = old->c_cc[cc];
+		if (lock->c_ispeed)
+			new->c_ispeed = old->c_ispeed;
+		if (lock->c_ospeed)
+			new->c_ospeed = old->c_ospeed;
+	}
+
 	error = tty_ioctl(tp, cmd, data, td);
 done:	tty_unlock(tp);
 
@@ -842,8 +870,19 @@ static int
 ttydevsw_defparam(struct tty *tp, struct termios *t)
 {
 
-	/* Use a fake baud rate, we're not a real device. */
-	t->c_ispeed = t->c_ospeed = TTYDEF_SPEED;
+	/*
+	 * Allow the baud rate to be adjusted for pseudo-devices, but at
+	 * least restrict it to 115200 to prevent excessive buffer
+	 * usage.  Also disallow 0, to prevent foot shooting.
+	 */
+	if (t->c_ispeed < B50)
+		t->c_ispeed = B50;
+	else if (t->c_ispeed > B115200)
+		t->c_ispeed = B115200;
+	if (t->c_ospeed < B50)
+		t->c_ospeed = B50;
+	else if (t->c_ospeed > B115200)
+		t->c_ospeed = B115200;
 
 	return (0);
 }

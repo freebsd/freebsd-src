@@ -478,6 +478,7 @@ void	usbd_xfer_set_frame_offset(struct usb_xfer *xfer, usb_frlength_t offset,
 usb_frlength_t usbd_xfer_max_len(struct usb_xfer *xfer);
 usb_frlength_t usbd_xfer_max_framelen(struct usb_xfer *xfer);
 usb_frcount_t usbd_xfer_max_frames(struct usb_xfer *xfer);
+uint8_t	usbd_xfer_get_fps_shift(struct usb_xfer *xfer);
 usb_frlength_t usbd_xfer_frame_len(struct usb_xfer *xfer,
 	    usb_frcount_t frindex);
 void	usbd_xfer_set_frame_len(struct usb_xfer *xfer, usb_frcount_t frindex,

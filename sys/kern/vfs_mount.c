@@ -1892,6 +1892,7 @@ vfs_mountroot_ask(void)
 		freeenv(options);
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
+		printf("                       eg. zfs:tank\n");
 		printf("                       eg. ufs:/dev/da0s1a\n");
 		printf("                       eg. cd9660:/dev/acd0\n");
 		printf("                       This is equivalent to: ");

@@ -28,5 +28,4 @@ __stack_chk_init(void *dummy __unused)
 	for (i = 0; i < __arraycount(guard); i++)
 		__stack_chk_guard[i] = guard[i];
 }
-/* SI_SUB_EVENTHANDLER is right after SI_SUB_LOCK used by arc4rand() init. */
-SYSINIT(stack_chk, SI_SUB_EVENTHANDLER, SI_ORDER_ANY, __stack_chk_init, NULL);
+SYSINIT(stack_chk, SI_SUB_RANDOM, SI_ORDER_ANY, __stack_chk_init, NULL);

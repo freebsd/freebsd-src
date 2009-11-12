@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2009
+.Dd November 9, 2009
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -164,6 +164,20 @@
 .Op Fl r
 .Op Fl w
 .Op Fl y
+.Nm
+.Ic idle
+.Op device id
+.Op generic args
+.Op Fl t Ar time
+.Nm
+.Ic standby
+.Op device id
+.Op generic args
+.Op Fl t Ar time
+.Nm
+.Ic sleep
+.Op device id
+.Op generic args
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -821,6 +835,15 @@ The user
 will not be asked about the timeout if a timeout is specified on the
 command line.
 .El
+.It Ic idle
+Put ATA device into IDLE state. Optional parameter specifies automatic
+idle timer value in seconds.
+.It Ic standby
+Put ATA device into STANDBY state. Optional parameter specifies automatic
+standby timer value in seconds.
+.It Ic sleep
+Put ATA device into SLEEP state. Note that the only way get device out of
+this state may be reset.
 .It Ic help
 Print out verbose usage information.
 .El

@@ -195,9 +195,9 @@ AcpiGetopt(
 
     if (*++OptsPtr == ':')
     {
-        if (argv[AcpiGbl_Optind][CurrentCharPtr+1] != '\0')
+        if (argv[AcpiGbl_Optind][(int) (CurrentCharPtr+1)] != '\0')
         {
-            AcpiGbl_Optarg = &argv[AcpiGbl_Optind++][CurrentCharPtr+1];
+            AcpiGbl_Optarg = &argv[AcpiGbl_Optind++][(int) (CurrentCharPtr+1)];
         }
         else if (++AcpiGbl_Optind >= argc)
         {
@@ -218,9 +218,9 @@ AcpiGetopt(
 
     else if (*OptsPtr == '^')
     {
-        if (argv[AcpiGbl_Optind][CurrentCharPtr+1] != '\0')
+        if (argv[AcpiGbl_Optind][(int) (CurrentCharPtr+1)] != '\0')
         {
-            AcpiGbl_Optarg = &argv[AcpiGbl_Optind][CurrentCharPtr+1];
+            AcpiGbl_Optarg = &argv[AcpiGbl_Optind][(int) (CurrentCharPtr+1)];
         }
         else
         {

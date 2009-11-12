@@ -1,12 +1,14 @@
 /* $FreeBSD$ */
-#include <signal.h>
-#include <stdio.h>
 #include <err.h>
 #include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
 
 int received;
 
-void handler(int sig, siginfo_t *si, void *ctx)
+void
+handler(int sig, siginfo_t *si, void *ctx)
 {
 	if (si->si_code != SI_QUEUE)
 		errx(1, "si_code != SI_QUEUE");
@@ -15,7 +17,8 @@ void handler(int sig, siginfo_t *si, void *ctx)
 	received++;
 }
 
-int main()
+int
+main()
 {
 	struct sigaction sa;
 	union sigval val;

@@ -152,7 +152,7 @@ static Elf32_Brandinfo ia32_brand_info = {
 	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
-SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_ANY,
+SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_MIDDLE,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&ia32_brand_info);
 

@@ -218,7 +218,6 @@ static const char           *AcpiDmIvrsSubnames[] =
 };
 
 
-
 #define ACPI_FADT_PM_RESERVED       8
 
 static const char           *AcpiDmFadtProfiles[] =
@@ -954,7 +953,7 @@ AcpiDmCheckAscii (
 
     for (i = 0; i < Count; i++)
     {
-        RepairedName[i] = Name[i];
+        RepairedName[i] = (char) Name[i];
 
         if (!Name[i])
         {

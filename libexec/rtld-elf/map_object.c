@@ -273,7 +273,7 @@ get_elf_header (int fd, const char *path)
     } u;
     ssize_t nbytes;
 
-    if ((nbytes = read(fd, u.buf, PAGE_SIZE)) == -1) {
+    if ((nbytes = pread(fd, u.buf, PAGE_SIZE, 0)) == -1) {
 	_rtld_error("%s: read error: %s", path, strerror(errno));
 	return NULL;
     }

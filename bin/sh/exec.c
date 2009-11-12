@@ -429,6 +429,7 @@ loop:
 			outfmt(out2, "%s: %s\n", name, strerror(e));
 	}
 	entry->cmdtype = CMDUNKNOWN;
+	entry->u.index = 0;
 	return;
 
 success:

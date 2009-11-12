@@ -870,7 +870,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			break;
 		}
 	deliver:
-		if (icmp6_notify_error(&m, off, icmp6len, code)) {
+		if (icmp6_notify_error(&m, off, icmp6len, code) != 0) {
 			/* In this case, m should've been freed. */
 			return (IPPROTO_DONE);
 		}

@@ -118,6 +118,7 @@
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acpredef.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
@@ -153,8 +154,14 @@ AcpiNsRepairObject (
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
     ACPI_OPERAND_OBJECT     *NewObject;
     ACPI_SIZE               Length;
+    ACPI_STATUS             Status;
 
 
+    /*
+     * At this point, we know that the type of the returned object was not
+     * one of the expected types for this predefined name. Attempt to
+     * repair the object. Only a limited number of repairs are possible.
+     */
     switch (ReturnObject->Common.Type)
     {
     case ACPI_TYPE_BUFFER:
@@ -193,45 +200,101 @@ AcpiNsRepairObject (
          */
         ACPI_MEMCPY (NewObject->String.Pointer,
             ReturnObject->Buffer.Pointer, Length);
+        break;
 
-        /*
-         * If the original object is a package element, we need to:
-         * 1. Set the reference count of the new object to match the
-         *    reference count of the old object.
-         * 2. Decrement the reference count of the original object.
-         */
-        if (PackageIndex != ACPI_NOT_PACKAGE_ELEMENT)
+
+    case ACPI_TYPE_INTEGER:
+
+        /* 1) Does the method/object legally return a buffer? */
+
+        if (ExpectedBtypes & ACPI_RTYPE_BUFFER)
         {
-            NewObject->Common.ReferenceCount =
-                ReturnObject->Common.ReferenceCount;
-
-            if (ReturnObject->Common.ReferenceCount > 1)
+            /*
+             * Convert the Integer to a packed-byte buffer. _MAT needs
+             * this sometimes, if a read has been performed on a Field
+             * object that is less than or equal to the global integer
+             * size (32 or 64 bits).
+             */
+            Status = AcpiExConvertToBuffer (ReturnObject, &NewObject);
+            if (ACPI_FAILURE (Status))
             {
-                ReturnObject->Common.ReferenceCount--;
+                return (Status);
+            }
+        }
+
+        /* 2) Does the method/object legally return a string? */
+
+        else if (ExpectedBtypes & ACPI_RTYPE_STRING)
+        {
+            /*
+             * The only supported Integer-to-String conversion is to convert
+             * an integer of value 0 to a NULL string. The last element of
+             * _BIF and _BIX packages occasionally need this fix.
+             */
+            if (ReturnObject->Integer.Value != 0)
+            {
+                return (AE_AML_OPERAND_TYPE);
             }
 
-            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
-                "Converted Buffer to expected String at index %u",
-                PackageIndex));
+            /* Allocate a new NULL string object */
+
+            NewObject = AcpiUtCreateStringObject (0);
+            if (!NewObject)
+            {
+                return (AE_NO_MEMORY);
+            }
         }
         else
         {
-            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
-                "Converted Buffer to expected String"));
+            return (AE_AML_OPERAND_TYPE);
         }
+        break;
 
-        /* Delete old object, install the new return object */
-
-        AcpiUtRemoveReference (ReturnObject);
-        *ReturnObjectPtr = NewObject;
-        Data->Flags |= ACPI_OBJECT_REPAIRED;
-        return (AE_OK);
 
     default:
-        break;
+
+        /* We cannot repair this object */
+
+        return (AE_AML_OPERAND_TYPE);
     }
 
-    return (AE_AML_OPERAND_TYPE);
+    /* Object was successfully repaired */
+
+    /*
+     * If the original object is a package element, we need to:
+     * 1. Set the reference count of the new object to match the
+     *    reference count of the old object.
+     * 2. Decrement the reference count of the original object.
+     */
+    if (PackageIndex != ACPI_NOT_PACKAGE_ELEMENT)
+    {
+        NewObject->Common.ReferenceCount =
+            ReturnObject->Common.ReferenceCount;
+
+        if (ReturnObject->Common.ReferenceCount > 1)
+        {
+            ReturnObject->Common.ReferenceCount--;
+        }
+
+        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+            "Converted %s to expected %s at index %u",
+            AcpiUtGetObjectTypeName (ReturnObject),
+            AcpiUtGetObjectTypeName (NewObject), PackageIndex));
+    }
+    else
+    {
+        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+            "Converted %s to expected %s",
+            AcpiUtGetObjectTypeName (ReturnObject),
+            AcpiUtGetObjectTypeName (NewObject)));
+    }
+
+    /* Delete old object, install the new return object */
+
+    AcpiUtRemoveReference (ReturnObject);
+    *ReturnObjectPtr = NewObject;
+    Data->Flags |= ACPI_OBJECT_REPAIRED;
+    return (AE_OK);
 }
 
 

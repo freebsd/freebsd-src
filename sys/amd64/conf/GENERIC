@@ -297,10 +297,6 @@ device		ukbd		# Keyboard
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
-device		rum		# Ralink Technology RT2501USB wireless NICs
-device		uath		# Atheros AR5523 wireless NICs
-device		ural		# Ralink Technology RT2500USB wireless NICs
-device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
 # USB Serial devices
 device		uark		# Technologies ARK3116 based serial adapters
@@ -319,6 +315,11 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 device		rue		# RealTek RTL8150 USB Ethernet
 device		udav		# Davicom DM9601E USB
+# USB Wireless
+device		rum		# Ralink Technology RT2501USB wireless NICs
+device		uath		# Atheros AR5523 wireless NICs
+device		ural		# Ralink Technology RT2500USB wireless NICs
+device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 
 # FireWire support
 device		firewire	# FireWire bus code

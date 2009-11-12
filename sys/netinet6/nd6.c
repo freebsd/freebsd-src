@@ -507,12 +507,13 @@ nd6_llinfo_timer(void *arg)
 
 	ndi = ND_IFINFO(ifp);
 	dst = &L3_ADDR_SIN6(ln)->sin6_addr;
-	if ((ln->la_flags & LLE_STATIC) || (ln->la_expire > time_second)) {
+	if (ln->la_flags & LLE_STATIC) {
 		goto done;
 	}
 
 	if (ln->la_flags & LLE_DELETED) {
 		(void)nd6_free(ln, 0);
+		ln = NULL;
 		goto done;
 	}
 
@@ -581,10 +582,10 @@ nd6_llinfo_timer(void *arg)
 		}
 		break;
 	}
-	CURVNET_RESTORE();
 done:
 	if (ln != NULL)
 		LLE_FREE(ln);
+	CURVNET_RESTORE();
 }
 
 
