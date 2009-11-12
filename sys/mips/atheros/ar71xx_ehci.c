@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
+#include <dev/usb/controller/ehcireg.h>
 
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
