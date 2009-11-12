@@ -856,7 +856,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
     case LINUX_SHM_LOCK:
     case LINUX_SHM_UNLOCK:
     default:
-	linux_msg(td, "ipc typ=%d not implemented", args->cmd & ~LINUX_IPC_64);
+	linux_msg(td, "ipc type %d not implemented", args->cmd & ~LINUX_IPC_64);
 	return EINVAL;
     }
 }
