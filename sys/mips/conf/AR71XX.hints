@@ -29,16 +29,23 @@ hint.arge.0.at="nexus0"
 hint.arge.0.maddr=0x19000000
 hint.arge.0.msize=0x1000
 hint.arge.0.irq=2
+# PHY4 = 1 << 4
+hint.arge.0.phymask=0x10
 # Uncomment this hint for RS (not PRO)
-# hint.arge.0.phy=20
+# PHY20 = 1 << 20
+# hint.arge.0.phymask=0x100000
 
 hint.arge.1.at="nexus0"
 hint.arge.1.maddr=0x1a000000
 hint.arge.1.msize=0x1000
 hint.arge.1.irq=3
-hint.arge.1.phy=3
+# PHY1, PHY2, PHY3 
+hint.arge.1.phymask=0x0e
+# should be 100 for RS 
+hint.arge.1.media=1000
+hint.arge.1.fduplex=1
 # Uncomment this hint for RS (not PRO)
-# hint.arge.1.phy=19
+# hint.arge.0.phymask=70000
 
 # SPI flash
 hint.spi.0.at="nexus0"
