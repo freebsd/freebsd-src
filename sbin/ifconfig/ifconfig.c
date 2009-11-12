@@ -83,8 +83,6 @@ static const char rcsid[] =
 struct	ifreq ifr;
 
 char	name[IFNAMSIZ];
-char	*descr = NULL;
-size_t	descrlen = 64;
 int	setaddr;
 int	setmask;
 int	doalias;
@@ -824,36 +822,6 @@ setifname(const char *val, int dummy __unused, int s,
 	free(newname);
 }
 
-/* ARGSUSED */
-static void
-setifdescr(const char *val, int dummy __unused, int s, 
-    const struct afswtch *afp)
-{
-	char *newdescr;
-
-	newdescr = strdup(val);
-	if (newdescr == NULL) {
-		warn("no memory to set ifdescr");
-		return;
-	}
-	ifr.ifr_buffer.buffer = newdescr;
-	ifr.ifr_buffer.length = strlen(newdescr);
-	if (ioctl(s, SIOCSIFDESCR, (caddr_t)&ifr) < 0) {
-		warn("ioctl (set descr)");
-		free(newdescr);
-		return;
-	}
-	free(newdescr);
-}
-
-/* ARGSUSED */
-static void
-unsetifdescr(const char *val, int value, int s, const struct afswtch *afp)
-{
-
-	setifdescr("", 0, s, 0);
-}
-
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
@@ -897,23 +865,6 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 	if (ioctl(s, SIOCGIFMTU, &ifr) != -1)
 		printf(" mtu %d", ifr.ifr_mtu);
 	putchar('\n');
-
-	descr = reallocf(descr, descrlen);
-	if (descr != NULL) {
-		do {
-			ifr.ifr_buffer.buffer = descr;
-			ifr.ifr_buffer.length = descrlen;
-			if (ioctl(s, SIOCGIFDESCR, &ifr) == 0) {
-			    if (strlen(descr) > 0)
-				printf("\tdescription: %s\n", descr);
-			    break;
-			}
-			if (errno == ENAMETOOLONG) {
-				descrlen *= 2;
-				descr = reallocf(descr, descrlen);
-			}
-		} while (errno == ENAMETOOLONG);
-	}
 
 	if (ioctl(s, SIOCGIFCAP, (caddr_t)&ifr) == 0) {
 		if (ifr.ifr_curcap != 0) {
@@ -1084,10 +1035,6 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD("-arp",		IFF_NOARP,	setifflags),
 	DEF_CMD("debug",	IFF_DEBUG,	setifflags),
 	DEF_CMD("-debug",	-IFF_DEBUG,	setifflags),
-	DEF_CMD_ARG("description",		setifdescr),
-	DEF_CMD_ARG("descr",			setifdescr),
-	DEF_CMD("-description",	0,		unsetifdescr),
-	DEF_CMD("-descr",	0,		unsetifdescr),
 	DEF_CMD("promisc",	IFF_PPROMISC,	setifflags),
 	DEF_CMD("-promisc",	-IFF_PPROMISC,	setifflags),
 	DEF_CMD("add",		IFF_UP,		notealias),
