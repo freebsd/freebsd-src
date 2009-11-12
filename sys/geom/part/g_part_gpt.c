@@ -444,6 +444,9 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table->lba[GPT_ELT_SECHDR] = last;
 	table->lba[GPT_ELT_SECTBL] = last - tblsz;
 
+	/* Allocate space for the header */
+	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
+
 	bcopy(GPT_HDR_SIG, table->hdr->hdr_sig, sizeof(table->hdr->hdr_sig));
 	table->hdr->hdr_revision = GPT_HDR_REVISION;
 	table->hdr->hdr_size = offsetof(struct gpt_hdr, padding);
