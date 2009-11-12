@@ -2193,6 +2193,7 @@ libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
 libkern/index.c			standard
+libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcmp.c		standard
