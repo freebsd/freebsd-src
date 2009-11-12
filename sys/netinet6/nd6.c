@@ -439,31 +439,27 @@ skip1:
 void
 nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 {
+	int canceled;
+
 	if (tick < 0) {
 		ln->la_expire = 0;
 		ln->ln_ntick = 0;
-		callout_stop(&ln->ln_timer_ch);
-		/*
-		 * XXX - do we know that there is
-		 * callout installed? i.e. are we 
-		 * guaranteed that we're not dropping
-		 * a reference that we did not add?
-		 * KMM 
-		 */
-		LLE_REMREF(ln);
+		canceled = callout_stop(&ln->ln_timer_ch);
 	} else {
 		ln->la_expire = time_second + tick / hz;
 		LLE_ADDREF(ln);
 		if (tick > INT_MAX) {
 			ln->ln_ntick = tick - INT_MAX;
-			callout_reset(&ln->ln_timer_ch, INT_MAX,
+			canceled = callout_reset(&ln->ln_timer_ch, INT_MAX,
 			    nd6_llinfo_timer, ln);
 		} else {
 			ln->ln_ntick = 0;
-			callout_reset(&ln->ln_timer_ch, tick,
+			canceled = callout_reset(&ln->ln_timer_ch, tick,
 			    nd6_llinfo_timer, ln);
 		}
 	}
+	if (canceled)
+		LLE_REMREF(ln);
 }
 
 void
@@ -1048,6 +1044,9 @@ nd6_free(struct llentry *ln, int gc)
 			else
 				nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
 			splx(s);
+			LLE_WLOCK(ln);
+			LLE_REMREF(ln);
+			LLE_WUNLOCK(ln);
 			return (LIST_NEXT(ln, lle_next));
 		}
 
