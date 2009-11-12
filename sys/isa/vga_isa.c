@@ -59,6 +59,69 @@ __FBSDID("$FreeBSD$");
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
+static void
+vga_suspend(device_t dev)
+{
+	vga_softc_t *sc;
+	int nbytes;
+
+	sc = device_get_softc(dev);
+
+	/* Save the video state across the suspend. */
+	if (sc->state_buf != NULL)
+		goto save_palette;
+	nbytes = vidd_save_state(sc->adp, NULL, 0);
+	if (nbytes <= 0)
+		goto save_palette;
+	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT);
+	if (sc->state_buf == NULL)
+		goto save_palette;
+	if (bootverbose)
+		device_printf(dev, "saving %d bytes of video state\n", nbytes);
+	if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
+		device_printf(dev, "failed to save state (nbytes=%d)\n",
+		    nbytes);
+		free(sc->state_buf, M_TEMP);
+		sc->state_buf = NULL;
+	}
+
+save_palette:
+	/* Save the color palette across the suspend. */
+	if (sc->pal_buf != NULL)
+		return;
+	sc->pal_buf = malloc(256 * 3, M_TEMP, M_NOWAIT);
+	if (sc->pal_buf == NULL)
+		return;
+	if (bootverbose)
+		device_printf(dev, "saving color palette\n");
+	if (vidd_save_palette(sc->adp, sc->pal_buf) != 0) {
+		device_printf(dev, "failed to save palette\n");
+		free(sc->pal_buf, M_TEMP);
+		sc->pal_buf = NULL;
+	}
+}
+
+static void
+vga_resume(device_t dev)
+{
+	vga_softc_t *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->state_buf != NULL) {
+		if (vidd_load_state(sc->adp, sc->state_buf) != 0)
+			device_printf(dev, "failed to reload state\n");
+		free(sc->state_buf, M_TEMP);
+		sc->state_buf = NULL;
+	}
+	if (sc->pal_buf != NULL) {
+		if (vidd_load_palette(sc->adp, sc->pal_buf) != 0)
+			device_printf(dev, "failed to reload palette\n");
+		free(sc->pal_buf, M_TEMP);
+		sc->pal_buf = NULL;
+	}
+}
+
 #define VGA_SOFTC(unit)		\
 	((vga_softc_t *)devclass_get_softc(isavga_devclass, unit))
 
@@ -103,9 +166,9 @@ isavga_probe(device_t dev)
 	if (isa_get_vendorid(dev))
 		return (ENXIO);
 
-	device_set_desc(dev, "Generic ISA VGA");
 	error = vga_probe_unit(device_get_unit(dev), &adp, device_get_flags(dev));
 	if (error == 0) {
+		device_set_desc(dev, "Generic ISA VGA");
 		bus_set_resource(dev, SYS_RES_IOPORT, 0,
 				 adp.va_io_base, adp.va_io_size);
 		bus_set_resource(dev, SYS_RES_MEMORY, 0,
@@ -124,10 +187,6 @@ static int
 isavga_attach(device_t dev)
 {
 	vga_softc_t *sc;
-	devclass_t dc;
-	device_t *devs;
-	void *vgapci_sc;
-	int count, i;
 	int unit;
 	int rid;
 	int error;
@@ -161,108 +220,29 @@ isavga_attach(device_t dev)
 	bus_generic_attach(dev);
 #endif
 
-	/* Find the matching PCI video controller. */
-	if (unit == 0) {
-		dc = devclass_find("vgapci");
-		if (dc != NULL &&
-		    devclass_get_devices(dc, &devs, &count) == 0) {
-			for (i = 0; i < count; i++)
-				if (device_get_flags(devs[i]) != 0) {
-					sc->pci_dev = devs[i];
-					break;
-				}
-			free(devs, M_TEMP);
-		}
-		if (sc->pci_dev != NULL) {
-			vgapci_sc = device_get_softc(sc->pci_dev);
-			*(device_t *)vgapci_sc = dev;
-			device_printf(dev, "associated with %s\n",
-			    device_get_nameunit(sc->pci_dev));
-		}
-	}
-
 	return (0);
 }
 
 static int
 isavga_suspend(device_t dev)
 {
-	vga_softc_t *sc;
-	device_t isa_dev;
-	int err, nbytes;
+	int error;
 
-	err = 0;
-	isa_dev = dev;
-	sc = device_get_softc(isa_dev);
-	if (sc->pci_dev != NULL)
-		dev = sc->pci_dev;
-	else
-		err = bus_generic_suspend(isa_dev);
+	error = bus_generic_suspend(dev);
+	if (error != 0)
+		return (error);
+	vga_suspend(dev);
 
-	/* Save the video state across the suspend. */
-	if (sc->state_buf != NULL)
-		goto save_palette;
-	nbytes = vidd_save_state(sc->adp, NULL, 0);
-	if (nbytes <= 0)
-		goto save_palette;
-	sc->state_buf = malloc(nbytes, M_TEMP, M_NOWAIT);
-	if (sc->state_buf == NULL)
-		goto save_palette;
-	if (bootverbose)
-		device_printf(dev, "saving %d bytes of video state\n", nbytes);
-	if (vidd_save_state(sc->adp, sc->state_buf, nbytes) != 0) {
-		device_printf(dev, "failed to save state (nbytes=%d)\n",
-		    nbytes);
-		free(sc->state_buf, M_TEMP);
-		sc->state_buf = NULL;
-	}
-
-save_palette:
-	/* Save the color palette across the suspend. */
-	if (sc->pal_buf != NULL)
-		return (err);
-	sc->pal_buf = malloc(256 * 3, M_TEMP, M_NOWAIT);
-	if (sc->pal_buf != NULL) {
-		if (bootverbose)
-			device_printf(dev, "saving color palette\n");
-		if (vidd_save_palette(sc->adp, sc->pal_buf) != 0) {
-			device_printf(dev, "failed to save palette\n");
-			free(sc->pal_buf, M_TEMP);
-			sc->pal_buf = NULL;
-		}
-	}
-
-	return (err);
+	return (error);
 }
 
 static int
 isavga_resume(device_t dev)
 {
-	vga_softc_t *sc;
-	device_t isa_dev;
 
-	isa_dev = dev;
-	sc = device_get_softc(isa_dev);
-	if (sc->pci_dev != NULL)
-		dev = sc->pci_dev;
+	vga_resume(dev);
 
-	if (sc->state_buf != NULL) {
-		if (vidd_load_state(sc->adp, sc->state_buf) != 0)
-			device_printf(dev, "failed to reload state\n");
-		free(sc->state_buf, M_TEMP);
-		sc->state_buf = NULL;
-	}
-	if (sc->pal_buf != NULL) {
-		if (vidd_load_palette(sc->adp, sc->pal_buf) != 0)
-			device_printf(dev, "failed to reload palette\n");
-		free(sc->pal_buf, M_TEMP);
-		sc->pal_buf = NULL;
-	}
-
-	if (isa_dev != dev)
-		return (0);
-
-	return (bus_generic_resume(isa_dev));
+	return (bus_generic_resume(dev));
 }
 
 #ifdef FB_INSTALL_CDEV
@@ -323,3 +303,76 @@ static driver_t isavga_driver = {
 };
 
 DRIVER_MODULE(vga, isa, isavga_driver, isavga_devclass, 0, 0);
+
+static devclass_t	vgapm_devclass;
+
+static void
+vgapm_identify(driver_t *driver, device_t parent)
+{
+
+	if (device_get_flags(parent) != 0)
+		device_add_child(parent, "vgapm", 0);
+}
+
+static int
+vgapm_probe(device_t dev)
+{
+
+	device_set_desc(dev, "VGA suspend/resume");
+	device_quiet(dev);
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+vgapm_attach(device_t dev)
+{
+
+	return (0);
+}
+
+static int
+vgapm_suspend(device_t dev)
+{
+	device_t vga_dev;
+	int error;
+
+	error = bus_generic_suspend(dev);
+	if (error != 0)
+		return (error);
+	vga_dev = devclass_get_device(isavga_devclass, 0);
+	if (vga_dev == NULL)
+		return (0);
+	vga_suspend(vga_dev);
+
+	return (0);
+}
+
+static int
+vgapm_resume(device_t dev)
+{
+	device_t vga_dev;
+
+	vga_dev = devclass_get_device(isavga_devclass, 0);
+	if (vga_dev != NULL)
+		vga_resume(vga_dev);
+
+	return (bus_generic_resume(dev));
+}
+
+static device_method_t vgapm_methods[] = {
+	DEVMETHOD(device_identify,	vgapm_identify),
+	DEVMETHOD(device_probe,		vgapm_probe),
+	DEVMETHOD(device_attach,	vgapm_attach),
+	DEVMETHOD(device_suspend,	vgapm_suspend),
+	DEVMETHOD(device_resume,	vgapm_resume),
+	{ 0, 0 }
+};
+
+static driver_t vgapm_driver = {
+	"vgapm",
+	vgapm_methods,
+	0
+};
+
+DRIVER_MODULE(vgapm, vgapci, vgapm_driver, vgapm_devclass, 0, 0);
