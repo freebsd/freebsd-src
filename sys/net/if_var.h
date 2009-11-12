@@ -198,7 +198,6 @@ struct ifnet {
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
 	u_char	 if_alloctype;		/* if_type at time of allocation */
-	struct sbuf *if_description;	/* interface description */
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
@@ -206,7 +205,7 @@ struct ifnet {
 	 * be used with care where binary compatibility is required.
 	 */
 	char	 if_cspare[3];
-	void	*if_pspare[7];
+	void	*if_pspare[8];
 	int	if_ispare[4];
 };
 
