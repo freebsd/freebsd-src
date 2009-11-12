@@ -95,6 +95,7 @@ static int arge_ioctl(struct ifnet *, u_long, caddr_t);
 static void arge_init(void *);
 static void arge_init_locked(struct arge_softc *);
 static void arge_link_task(void *, int);
+static void arge_set_pll(struct arge_softc *, int, int);
 static int arge_miibus_readreg(device_t, int, int);
 static void arge_miibus_statchg(device_t);
 static int arge_miibus_writereg(device_t, int, int, int);
@@ -117,6 +118,12 @@ static void arge_tx_locked(struct arge_softc *);
 static void arge_intr(void *);
 static int arge_intr_filter(void *);
 static void arge_tick(void *);
+
+/*
+ * ifmedia callbacks for multiPHY MAC
+ */
+void arge_multiphy_mediastatus(struct ifnet *, struct ifmediareq *);
+int arge_multiphy_mediachange(struct ifnet *);
 
 static void arge_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 static int arge_dma_alloc(struct arge_softc *);
@@ -197,9 +204,10 @@ arge_attach(device_t dev)
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	struct arge_softc	*sc;
-	int			error = 0, rid, phynum;
+	int			error = 0, rid, phymask;
 	uint32_t		reg, rnd;
-	int			is_base_mac_empty, i;
+	int			is_base_mac_empty, i, phys_total;
+	uint32_t		hint;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
@@ -221,20 +229,43 @@ arge_attach(device_t dev)
 	 *  Get which PHY of 5 available we should use for this unit
 	 */
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
-	    "phy", &phynum) != 0) {
+	    "phymask", &phymask) != 0) {
 		/*
 		 * Use port 4 (WAN) for GE0. For any other port use 
 		 * its PHY the same as its unit number 
 		 */
 		if (sc->arge_mac_unit == 0)
-			phynum = 4;
+			phymask = (1 << 4);
 		else
-			phynum = sc->arge_mac_unit;
+			/* Use all phys up to 4 */
+			phymask = (1 << 4) - 1;
 
-		device_printf(dev, "No PHY specified, using %d\n", phynum);
+		device_printf(dev, "No PHY specified, using mask %d\n", phymask);
 	}
 
-	sc->arge_phy_num = phynum;
+	/*
+	 *  Get default media & duplex mode, by default its Base100T 
+	 *  and full duplex
+	 */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
+	    "media", &hint) != 0)
+		hint = 0;
+
+	if (hint == 1000)
+		sc->arge_media_type = IFM_1000_T;
+	else
+		sc->arge_media_type = IFM_100_TX;
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
+	    "fduplex", &hint) != 0)
+		hint = 1;
+
+	if (hint)
+		sc->arge_duplex_mode = IFM_FDX;
+	else
+		sc->arge_duplex_mode = 0;
+
+	sc->arge_phymask = phymask;
 
 	mtx_init(&sc->arge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -379,12 +410,38 @@ arge_attach(device_t dev)
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
 	    FIFO_RX_FILTMASK_DEFAULT);
 
-	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->arge_miibus,
-	    arge_ifmedia_upd, arge_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	/* 
+	 * Check if we have single-PHY MAC or multi-PHY
+	 */
+	phys_total = 0;
+	for (i = 0; i < ARGE_NPHY; i++)
+		if (phymask & (1 << i))
+			phys_total ++;
+
+	if (phys_total == 0) {
+		error = EINVAL;
 		goto fail;
+	}
+
+	if (phys_total == 1) {
+		/* Do MII setup. */
+		if (mii_phy_probe(dev, &sc->arge_miibus,
+		    arge_ifmedia_upd, arge_ifmedia_sts)) {
+			device_printf(dev, "MII without any phy!\n");
+			error = ENXIO;
+			goto fail;
+		}
+	}
+	else {
+		ifmedia_init(&sc->arge_ifmedia, 0, 
+		    arge_multiphy_mediachange,
+		    arge_multiphy_mediastatus);
+		ifmedia_add(&sc->arge_ifmedia,
+		    IFM_ETHER | sc->arge_media_type  | sc->arge_duplex_mode, 
+		    0, NULL);
+		ifmedia_set(&sc->arge_ifmedia,
+		    IFM_ETHER | sc->arge_media_type  | sc->arge_duplex_mode);
+		arge_set_pll(sc, sc->arge_media_type, sc->arge_duplex_mode);
 	}
 
 	/* Call MI attach routine. */
@@ -432,6 +489,7 @@ arge_detach(device_t dev)
 
 	if (sc->arge_miibus)
 		device_delete_child(dev, sc->arge_miibus);
+
 	bus_generic_detach(dev);
 
 	if (sc->arge_intrhand)
@@ -490,7 +548,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 	uint32_t addr = (phy << MAC_MII_PHY_ADDR_SHIFT) 
 	    | (reg & MAC_MII_REG_MASK);
 
-	if (phy != sc->arge_phy_num)
+	if ((sc->arge_phymask  & (1 << phy)) == 0)
 		return (0);
 
 	mtx_lock(&miibus_mtx);
@@ -529,7 +587,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	    (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
 
 
-	if (phy != sc->arge_phy_num)
+	if ((sc->arge_phymask  & (1 << phy)) == 0)
 		return (-1);
 
 	dprintf("%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
@@ -570,8 +628,7 @@ arge_link_task(void *arg, int pending)
 	struct arge_softc	*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
-	uint32_t		media;
-	uint32_t		cfg, ifcontrol, rx_filtmask, pll, sec_cfg;
+	uint32_t		media, duplex;
 
 	sc = (struct arge_softc *)arg;
 
@@ -590,74 +647,83 @@ arge_link_task(void *arg, int pending)
 
 		if (media != IFM_NONE) {
 			sc->arge_link_status = 1;
-
-			cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
-			cfg &= ~(MAC_CFG2_IFACE_MODE_1000 
-			    | MAC_CFG2_IFACE_MODE_10_100 
-			    | MAC_CFG2_FULL_DUPLEX);
-
-			if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
-				cfg |= MAC_CFG2_FULL_DUPLEX;
-
-			ifcontrol = ARGE_READ(sc, AR71XX_MAC_IFCONTROL);
-			ifcontrol &= ~MAC_IFCONTROL_SPEED;
-			rx_filtmask = 
-			    ARGE_READ(sc, AR71XX_MAC_FIFO_RX_FILTMASK);
-			rx_filtmask &= ~FIFO_RX_MASK_BYTE_MODE;
-
-			switch(media) {
-			case IFM_10_T:
-				cfg |= MAC_CFG2_IFACE_MODE_10_100;
-				pll = PLL_ETH_INT_CLK_10;
-				break;
-			case IFM_100_TX:
-				cfg |= MAC_CFG2_IFACE_MODE_10_100;
-				ifcontrol |= MAC_IFCONTROL_SPEED;
-				pll = PLL_ETH_INT_CLK_100;
-				break;
-			case IFM_1000_T:
-			case IFM_1000_SX:
-				cfg |= MAC_CFG2_IFACE_MODE_1000;
-				rx_filtmask |= FIFO_RX_MASK_BYTE_MODE;
-				pll = PLL_ETH_INT_CLK_1000;
-				break;
-			default:
-				pll = PLL_ETH_INT_CLK_100;
-				device_printf(sc->arge_dev, 
-				    "Unknown media %d\n", media);
-			}
-
-			ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD,
-			    0x008001ff);
-
-			ARGE_WRITE(sc, AR71XX_MAC_CFG2, cfg);
-			ARGE_WRITE(sc, AR71XX_MAC_IFCONTROL, ifcontrol);
-			ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
-			    rx_filtmask);
-
-			/* set PLL registers */
-			sec_cfg = ATH_READ_REG(AR71XX_PLL_SEC_CONFIG);
-			sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-			sec_cfg |= (2 << sc->arge_pll_reg_shift);
-
-			ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-			DELAY(100);
-
-			ATH_WRITE_REG(sc->arge_pll_reg, pll);
-
-			sec_cfg |= (3 << sc->arge_pll_reg_shift);
-			ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-			DELAY(100);
-
-			sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
-			ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
-			DELAY(100);
+			duplex = mii->mii_media_active & IFM_GMASK;
+			arge_set_pll(sc, media, duplex);
 		}
 	} else
 		sc->arge_link_status = 0;
 
 	ARGE_UNLOCK(sc);
 }
+
+static void
+arge_set_pll(struct arge_softc *sc, int media, int duplex)
+{
+	uint32_t		cfg, ifcontrol, rx_filtmask, pll, sec_cfg;
+
+	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
+	cfg &= ~(MAC_CFG2_IFACE_MODE_1000 
+	    | MAC_CFG2_IFACE_MODE_10_100 
+	    | MAC_CFG2_FULL_DUPLEX);
+
+	if (duplex == IFM_FDX)
+		cfg |= MAC_CFG2_FULL_DUPLEX;
+
+	ifcontrol = ARGE_READ(sc, AR71XX_MAC_IFCONTROL);
+	ifcontrol &= ~MAC_IFCONTROL_SPEED;
+	rx_filtmask = 
+	    ARGE_READ(sc, AR71XX_MAC_FIFO_RX_FILTMASK);
+	rx_filtmask &= ~FIFO_RX_MASK_BYTE_MODE;
+
+	switch(media) {
+	case IFM_10_T:
+		cfg |= MAC_CFG2_IFACE_MODE_10_100;
+		pll = PLL_ETH_INT_CLK_10;
+		break;
+	case IFM_100_TX:
+		cfg |= MAC_CFG2_IFACE_MODE_10_100;
+		ifcontrol |= MAC_IFCONTROL_SPEED;
+		pll = PLL_ETH_INT_CLK_100;
+		break;
+	case IFM_1000_T:
+	case IFM_1000_SX:
+		cfg |= MAC_CFG2_IFACE_MODE_1000;
+		rx_filtmask |= FIFO_RX_MASK_BYTE_MODE;
+		pll = PLL_ETH_INT_CLK_1000;
+		break;
+	default:
+		pll = PLL_ETH_INT_CLK_100;
+		device_printf(sc->arge_dev, 
+		    "Unknown media %d\n", media);
+	}
+
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD,
+	    0x008001ff);
+
+	ARGE_WRITE(sc, AR71XX_MAC_CFG2, cfg);
+	ARGE_WRITE(sc, AR71XX_MAC_IFCONTROL, ifcontrol);
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
+	    rx_filtmask);
+
+	/* set PLL registers */
+	sec_cfg = ATH_READ_REG(AR71XX_PLL_SEC_CONFIG);
+	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
+	sec_cfg |= (2 << sc->arge_pll_reg_shift);
+
+	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
+	DELAY(100);
+
+	ATH_WRITE_REG(sc->arge_pll_reg, pll);
+
+	sec_cfg |= (3 << sc->arge_pll_reg_shift);
+	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
+	DELAY(100);
+
+	sec_cfg &= ~(3 << sc->arge_pll_reg_shift);
+	ATH_WRITE_REG(AR71XX_PLL_SEC_CONFIG, sec_cfg);
+	DELAY(100);
+}
+
 
 static void
 arge_reset_dma(struct arge_softc *sc)
@@ -707,8 +773,6 @@ arge_init_locked(struct arge_softc *sc)
 
 	ARGE_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->arge_miibus);
-
 	arge_stop(sc);
 
 	/* Init circular RX list. */
@@ -724,13 +788,24 @@ arge_init_locked(struct arge_softc *sc)
 
 	arge_reset_dma(sc);
 
-	sc->arge_link_status = 0;
-	mii_mediachg(mii);
+
+	if (sc->arge_miibus) {
+		sc->arge_link_status = 0;
+		mii = device_get_softc(sc->arge_miibus);
+		mii_mediachg(mii);
+	}
+	else {
+		/*
+		 * Sun always shines over multiPHY interface
+		 */
+		sc->arge_link_status = 1;
+	}
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
+	if (sc->arge_miibus)
+		callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
 
 	ARGE_WRITE(sc, AR71XX_DMA_TX_DESC, ARGE_TX_RING_ADDR(sc, 0));
 	ARGE_WRITE(sc, AR71XX_DMA_RX_DESC, ARGE_RX_RING_ADDR(sc, 0));
@@ -899,7 +974,8 @@ arge_stop(struct arge_softc *sc)
 
 	ifp = sc->arge_ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	callout_stop(&sc->arge_stat_callout);
+	if (sc->arge_miibus)
+		callout_stop(&sc->arge_stat_callout);
 
 	/* mask out interrupts */
 	ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
@@ -948,8 +1024,12 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc->arge_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		if (sc->arge_miibus) {
+			mii = device_get_softc(sc->arge_miibus);
+			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		}
+		else 
+			error = ifmedia_ioctl(ifp, ifr, &sc->arge_ifmedia, command);
 		break;
 	case SIOCSIFCAP:
 		/* XXX: Check other capabilities */
@@ -1690,7 +1770,42 @@ arge_tick(void *xsc)
 
 	ARGE_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->arge_miibus);
-	mii_tick(mii);
-	callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
+	if (sc->arge_miibus) {
+		mii = device_get_softc(sc->arge_miibus);
+		mii_tick(mii);
+		callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
+	}
 }
+
+int
+arge_multiphy_mediachange(struct ifnet *ifp)
+{
+	struct arge_softc *sc = ifp->if_softc;
+	struct ifmedia *ifm = &sc->arge_ifmedia;
+	struct ifmedia_entry *ife = ifm->ifm_cur;
+
+	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+		return (EINVAL);
+
+	if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
+		device_printf(sc->arge_dev, 
+		    "AUTO is not supported for multiphy MAC");
+		return (EINVAL);
+	}
+
+	/*
+	 * Ignore everything
+	 */
+	return (0);
+}
+
+void
+arge_multiphy_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	struct arge_softc *sc = ifp->if_softc;
+
+	ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
+	ifmr->ifm_active = IFM_ETHER | sc->arge_media_type | 
+	    sc->arge_duplex_mode;
+}
+
