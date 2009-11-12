@@ -250,8 +250,8 @@ vesa_bios_post(void)
 	dc = devclass_find("vgapci");
 	if (dc != NULL && devclass_get_devices(dc, &devs, &count) == 0) {
 		for (dev = NULL, i = 0; dev == NULL && i < count; devs++, i++)
-			if (x86bios_match_device(0xc0000, *devs) &&
-			    device_get_flags(*devs) != 0) {
+			if (device_get_flags(*devs) != 0 &&
+			    x86bios_match_device(0xc0000, *devs)) {
 				dev = *devs;
 				is_pci = 1;
 				break;
