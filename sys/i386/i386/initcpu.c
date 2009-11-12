@@ -81,7 +81,6 @@ SYSCTL_INT(_hw, OID_AUTO, instruction_sse, CTLFLAG_RD,
  *  1: force disable CLFLUSH
  */
 static int	hw_clflush_disable = -1;
-TUNABLE_INT("hw.clflush_disable", &hw_clflush_disable);
 
 /* Must *NOT* be BSS or locore will bzero these after setting them */
 int	cpu = 0;		/* Are we 386, 386sx, 486, etc? */
@@ -737,9 +736,8 @@ initializecpu(void)
 	 * hw.clflush_disable tunable.  This may help Xen guest on some AMD
 	 * CPUs.
 	 */
-	if (hw_clflush_disable == 1) {
+	if (hw_clflush_disable == 1)
 		cpu_feature &= ~CPUID_CLFSH;
-	}
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*
