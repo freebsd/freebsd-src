@@ -772,6 +772,8 @@ dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_aq100x.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci \
