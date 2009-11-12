@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 enum {
 	VSC8211_SIGDET_CTRL   = 19,
 	VSC8211_EXT_CTRL      = 23,
+	VSC8211_PHY_CTRL      = 24,
 	VSC8211_INTR_ENABLE   = 25,
 	VSC8211_INTR_STATUS   = 26,
 	VSC8211_LED_CTRL      = 27,
@@ -375,13 +376,62 @@ static struct cphy_ops vsc8211_fiber_ops = {
 };
 #endif
 
-int t3_vsc8211_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+#define VSC8211_PHY_CTRL 24
+
+#define S_VSC8211_TXFIFODEPTH    7
+#define M_VSC8211_TXFIFODEPTH    0x7
+#define V_VSC8211_TXFIFODEPTH(x) ((x) << S_VSC8211_TXFIFODEPTH)
+#define G_VSC8211_TXFIFODEPTH(x) (((x) >> S_VSC8211_TXFIFODEPTH) & M_VSC8211_TXFIFODEPTH)
+
+#define S_VSC8211_RXFIFODEPTH    4
+#define M_VSC8211_RXFIFODEPTH    0x7
+#define V_VSC8211_RXFIFODEPTH(x) ((x) << S_VSC8211_RXFIFODEPTH)
+#define G_VSC8211_RXFIFODEPTH(x) (((x) >> S_VSC8211_RXFIFODEPTH) & M_VSC8211_RXFIFODEPTH)
+
+int t3_vsc8211_fifo_depth(adapter_t *adap, unsigned int mtu, int port)
+{
+	/* TX FIFO Depth set bits 9:7 to 100 (IEEE mode) */
+	unsigned int val = 4;
+	unsigned int currentregval;
+	unsigned int regval;
+	int err;
+
+	/* Retrieve the port info structure from adater_t */
+	struct port_info *portinfo = adap2pinfo(adap, port);
+
+	/* What phy is this */
+	struct cphy *phy = &portinfo->phy;
+
+	/* Read the current value of the PHY control Register */
+	err = mdio_read(phy, 0, VSC8211_PHY_CTRL, &currentregval);
+
+	if (err)
+		return err;
+
+	/* IEEE mode supports up to 1518 bytes */
+	/* mtu does not contain the header + FCS (18 bytes) */
+	if (mtu > 1500)
+		/* 
+		 * If using a packet size > 1500  set TX FIFO Depth bits 
+		 * 9:7 to 011 (Jumbo packet mode) 
+		 */
+		val = 3;
+
+	regval = V_VSC8211_TXFIFODEPTH(val) | V_VSC8211_RXFIFODEPTH(val) | 
+		(currentregval & ~V_VSC8211_TXFIFODEPTH(M_VSC8211_TXFIFODEPTH) &
+		~V_VSC8211_RXFIFODEPTH(M_VSC8211_RXFIFODEPTH));
+
+	return  mdio_write(phy, 0, VSC8211_PHY_CTRL, regval);
+}
+
+int t3_vsc8211_phy_prep(pinfo_t *pinfo, int phy_addr,
 			const struct mdio_ops *mdio_ops)
 {
+	struct cphy *phy = &pinfo->phy;
 	int err;
 	unsigned int val;
 
-	cphy_init(phy, adapter, phy_addr, &vsc8211_ops, mdio_ops,
+	cphy_init(&pinfo->phy, pinfo->adapter, pinfo, phy_addr, &vsc8211_ops, mdio_ops,
 		  SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full |
 		  SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_MII |
 		  SUPPORTED_TP | SUPPORTED_IRQ, "10/100/1000BASE-T");
