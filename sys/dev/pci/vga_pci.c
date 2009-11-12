@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#include <dev/fb/vgareg.h>
-
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -57,7 +55,6 @@ struct vga_resource {
 };
 
 struct vga_pci_softc {
-	device_t	vga_isa_dev;	/* Sister isavga driver. */
 	device_t	vga_msi_child;	/* Child driver using MSI. */
 	struct vga_resource vga_res[PCIR_MAX_BAR_0 + 1];
 };
@@ -115,11 +112,6 @@ vga_pci_attach(device_t dev)
 static int
 vga_pci_suspend(device_t dev)
 {
-	struct vga_pci_softc *sc;
-
-	sc = device_get_softc(dev);
-	if (sc->vga_isa_dev != NULL)
-		(void)DEVICE_SUSPEND(sc->vga_isa_dev);
 
 	return (bus_generic_suspend(dev));
 }
@@ -127,11 +119,6 @@ vga_pci_suspend(device_t dev)
 static int
 vga_pci_resume(device_t dev)
 {
-	struct vga_pci_softc *sc;
-
-	sc = device_get_softc(dev);
-	if (sc->vga_isa_dev != NULL)
-		(void)DEVICE_RESUME(sc->vga_isa_dev);
 
 	return (bus_generic_resume(dev));
 }
