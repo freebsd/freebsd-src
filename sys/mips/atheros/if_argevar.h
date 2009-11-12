@@ -28,6 +28,7 @@
 #ifndef __IF_ARGEVAR_H__
 #define __IF_ARGEVAR_H__
 
+#define	ARGE_NPHY		32
 #define	ARGE_TX_RING_COUNT	128
 #define	ARGE_RX_RING_COUNT	128
 #define	ARGE_RX_DMA_SIZE	ARGE_RX_RING_COUNT * sizeof(struct arge_desc)
@@ -124,6 +125,12 @@ struct arge_ring_data {
 struct arge_softc {
 	struct ifnet		*arge_ifp;	/* interface info */
 	device_t		arge_dev;
+	struct ifmedia		arge_ifmedia;
+	/*
+	 * Media & duples settings for multiPHY MAC
+	 */
+	uint32_t		arge_media_type;
+	uint32_t		arge_duplex_mode;
 	struct resource		*arge_res;
 	int			arge_rid;
 	struct resource		*arge_irq;
@@ -140,7 +147,7 @@ struct arge_softc {
 	int			arge_detach;
 	uint32_t		arge_intr_status;
 	int			arge_mac_unit;
-	int			arge_phy_num;
+	int			arge_phymask;
 	uint32_t		arge_ddr_flush_reg;
 	uint32_t		arge_pll_reg;
 	uint32_t		arge_pll_reg_shift;
