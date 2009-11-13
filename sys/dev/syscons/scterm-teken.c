@@ -50,15 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <teken/teken.h>
 
-#if defined(TEKEN_XTERM) && defined(TEKEN_CONS25)
-#error "xterm and cons25 are mutually exclusive."
-#endif
-
-/* XXX: Use cons25 on i386, for compatibility with pc98. */
-#if defined(__i386__) && !defined(TEKEN_XTERM) && !defined(TEKEN_CONS25)
-#define	TEKEN_CONS25
-#endif
-
 static void scteken_revattr(unsigned char, teken_attr_t *);
 static unsigned int scteken_attr(const teken_attr_t *);
 

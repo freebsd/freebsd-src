@@ -1412,7 +1412,6 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 # Enable experimental features of the syscons terminal emulator (teken).
 options 	TEKEN_CONS25		# cons25-style terminal emulation
 options 	TEKEN_UTF8		# UTF-8 output handling
-#options 	TEKEN_XTERM		# xterm-style terminal emulation
 
 #
 # Optional devices:
