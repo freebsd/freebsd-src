@@ -113,14 +113,6 @@ The
 system call appeared in
 .Bx 2.9 .
 .Sh BUGS
-This system call will be eliminated when proper system sharing
-mechanisms are implemented.
-Users should not depend on the memory
-sharing semantics of
-.Fn vfork
-as it will, in that case, be made synonymous to
-.Xr fork 2 .
-.Pp
 To avoid a possible deadlock situation,
 processes that are children in the middle
 of a
