@@ -125,24 +125,17 @@ set_termcap(void)
 #else
 	if (ColorDisplay) {
 	    if (!term) {
-#ifdef __i386__
-		if (setenv("TERM", "cons25", 1) < 0)
-		    return -1;
-		if (setenv("TERMCAP", termcap_cons25, 1) < 0)
-		    return -1;
-#else
 		if (setenv("TERM", "xterm", 1) < 0)
 		    return -1;
 		if (setenv("TERMCAP", termcap_xterm, 1) < 0)
 		    return -1;
-#endif
 	    }
 	}
 	else {
 	    if (!term) {
-		if (setenv("TERM", "cons25-m", 1) < 0)
+		if (setenv("TERM", "vt100", 1) < 0)
 		    return -1;
-		if (setenv("TERMCAP", termcap_cons25_m, 1) < 0)
+		if (setenv("TERMCAP", termcap_vt100, 1) < 0)
 		    return -1;
 	    }
 	}
