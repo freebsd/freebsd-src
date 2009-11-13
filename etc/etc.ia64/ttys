@@ -15,7 +15,7 @@
 #
 # type The initial terminal type for this port.  For hardwired
 #      terminal lines, this will contain the type of terminal used.
-#      For virtual consoles, the correct type is typically cons25.
+#      For virtual consoles, the correct type is typically xterm.
 #      Other common values include network for network connections on
 #      pseudo-terminals, dialup for incoming modem ports, and unknown
 #      when the terminal type cannot be predetermined.
@@ -30,15 +30,15 @@
 # when going to single-user mode.
 console	none				unknown	off secure
 #
-ttyv0	"/usr/libexec/getty Pc"		cons25	off secure
-# Virtual terminals.
-ttyv1	"/usr/libexec/getty Pc"		cons25	off secure
-ttyv2	"/usr/libexec/getty Pc"		cons25	off secure
-ttyv3	"/usr/libexec/getty Pc"		cons25	off secure
-ttyv4	"/usr/libexec/getty Pc"		cons25	off secure
-ttyv5	"/usr/libexec/getty Pc"		cons25	off secure
-ttyv6	"/usr/libexec/getty Pc"		cons25	off secure
-ttyv7	"/usr/libexec/getty Pc"		cons25	off secure
+ttyv0	"/usr/libexec/getty Pc"		xterm	off secure
+# Virtual terminals
+ttyv1	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv2	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv3	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv4	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv5	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv6	"/usr/libexec/getty Pc"		xterm	off secure
+ttyv7	"/usr/libexec/getty Pc"		xterm	off secure
 ttyv8	"/usr/local/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals. The 'dialup' keyword identifies dialin lines to login,
 # fingerd etc.
