@@ -734,7 +734,6 @@ SC_TWOBUTTON_MOUSE	opt_syscons.h
 # teken terminal emulator options
 TEKEN_CONS25		opt_teken.h
 TEKEN_UTF8		opt_teken.h
-TEKEN_XTERM		opt_teken.h
 
 # options for printf
 PRINTF_BUFR_SIZE	opt_printf.h
