@@ -2415,7 +2415,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 #endif
 	{
 		if ((phy_src < MIPS_KSEG0_LARGEST_PHYS) && (phy_dst < MIPS_KSEG0_LARGEST_PHYS)) {
-			/* easy case, all can be accessed via KSEG1 */
+			/* easy case, all can be accessed via KSEG0 */
 			/*
 			 * Flush all caches for VA that are mapped to this page
 			 * to make sure that data in SDRAM is up to date
@@ -2423,9 +2423,10 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 			pmap_flush_pvcache(src);
 			mips_dcache_wbinv_range_index(
 			    MIPS_PHYS_TO_CACHED(phy_dst), NBPG);
-			va_src = MIPS_PHYS_TO_UNCACHED(phy_src);
-			va_dst = MIPS_PHYS_TO_UNCACHED(phy_dst);
+			va_src = MIPS_PHYS_TO_CACHED(phy_src);
+			va_dst = MIPS_PHYS_TO_CACHED(phy_dst);
 			bcopy((caddr_t)va_src, (caddr_t)va_dst, PAGE_SIZE);
+			mips_dcache_wbinv_range(va_dst, PAGE_SIZE);
 		} else {
 			int cpu;
 			struct local_sysmaps *sysm;
