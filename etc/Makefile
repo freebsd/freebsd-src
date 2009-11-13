@@ -18,8 +18,13 @@ BIN1=	auth.conf \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
-	sysctl.conf syslog.conf \
-	etc.${MACHINE_ARCH}/ttys
+	sysctl.conf syslog.conf
+
+.if exists(${.CURDIR}/etc.${MACHINE}/ttys)
+BIN1+=	etc.${MACHINE}/ttys
+.else
+BIN1+=	etc.${MACHINE_ARCH}/ttys
+.endif
 
 OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
 BSM_ETC_OPEN_FILES=		${OPENBSMDIR}/etc/audit_class \
