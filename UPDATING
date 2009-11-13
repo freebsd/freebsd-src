@@ -22,6 +22,21 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20091113:
+	The default terminal emulation for syscons(4) has been changed
+	from cons25 to xterm on all platforms except i386 and pc98.
+	This means that the /etc/ttys file needs to be updated to ensure
+	correct operation of applications on the console.
+
+	The terminal emulation style can be toggled per window by using
+	vidcontrol(1)'s -T flag.  The TEKEN_XTERM and TEKEN_CONS25
+	kernel configuration options can be used to change the
+	compile-time default.
+
+	To prevent graphical artifacts, make sure the TERM environment
+	variable is set to match the terminal emulation that is being
+	performed by syscons(4).
+
 20091109:
 	The layout of the structure ieee80211req_scan_result has changed.
 	Applications that require wireless scan results (e.g. ifconfig(8))
