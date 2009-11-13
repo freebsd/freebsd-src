@@ -1982,14 +1982,14 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	t3_set_reg_field(sc, A_XGM_RXFIFO_CFG +  pi->mac.offset,
 			 V_RXFIFOPAUSEHWM(M_RXFIFOPAUSEHWM), 0);
 
-	DELAY(100);
+	DELAY(100 * 1000);
 
 	/* Wait for TXFIFO empty */
 	t3_wait_op_done(sc, A_XGM_TXFIFO_CFG + pi->mac.offset,
 			F_TXFIFO_EMPTY, 1, 20, 5);
 
-	DELAY(100);
-	t3_mac_disable(&pi->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
+	DELAY(100 * 1000);
+	t3_mac_disable(&pi->mac, MAC_DIRECTION_RX);
 
 
 	pi->phy.ops->power_down(&pi->phy, 1);
