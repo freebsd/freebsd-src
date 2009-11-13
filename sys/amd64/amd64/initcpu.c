@@ -163,6 +163,11 @@ initializecpu(void)
 	    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 	    CPUID_TO_MODEL(cpu_id) >= 0xf)
 		init_via();
+}
+
+void
+initializecpucache()
+{
 
 	/*
 	 * CPUID with %eax = 1, %ebx returns
