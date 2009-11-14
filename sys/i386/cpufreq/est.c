@@ -1088,7 +1088,7 @@ est_acpi_info(device_t dev, freq_info **freqs)
 	struct cf_setting *sets;
 	freq_info *table;
 	device_t perf_dev;
-	int count, error, i, j;
+	int count, error, i, j, check = 1;
 	uint16_t saved_id16;
 
 	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
@@ -1113,13 +1113,14 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		goto out;
 	}
 	est_get_id16(&saved_id16);
+restart:
 	for (i = 0, j = 0; i < count; i++) {
 		/*
 		 * Confirm id16 value is correct.
 		 */
 		if (sets[i].freq > 0) {
-			error = est_set_id16(dev, sets[i].spec[0], 1);
-			if (error != 0) {
+			if (check &&
+			    est_set_id16(dev, sets[i].spec[0], 1) != 0) {
 				if (bootverbose) 
 					device_printf(dev, "Invalid freq %u, "
 					    "ignored.\n", sets[i].freq);
@@ -1131,6 +1132,14 @@ est_acpi_info(device_t dev, freq_info **freqs)
 				++j;
 			}
 		}
+	}
+	if (count >= 2 && j < 2) {
+		if (bootverbose) {
+			device_printf(dev, "Too much freqs ignored. "
+			    "May be a check problem. Restore all.\n");
+		}
+		check = 0;
+		goto restart;
 	}
 	/* restore saved setting */
 	est_set_id16(dev, saved_id16, 0);
