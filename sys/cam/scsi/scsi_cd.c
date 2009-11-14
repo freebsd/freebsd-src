@@ -1570,7 +1570,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->bio_resid = bp->bio_bcount;
 			bp->bio_error = error;
 			bp->bio_flags |= BIO_ERROR;
-			cam_release_devq(done_ccb->ccb_h.path,
+			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+				cam_release_devq(done_ccb->ccb_h.path,
 					 /*relsim_flags*/0,
 					 /*reduction*/0,
 					 /*timeout*/0,
@@ -1658,7 +1659,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				struct ccb_getdev cgd;
 
 				/* Don't wedge this device's queue */
-				cam_release_devq(done_ccb->ccb_h.path,
+				if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+					cam_release_devq(done_ccb->ccb_h.path,
 						 /*relsim_flags*/0,
 						 /*reduction*/0,
 						 /*timeout*/0,
