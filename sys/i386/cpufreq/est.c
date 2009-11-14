@@ -1133,7 +1133,7 @@ restart:
 			}
 		}
 	}
-	if (count >= 2 && j < 2) {
+	if (check && count >= 2 && j < 2) {
 		if (bootverbose) {
 			device_printf(dev, "Too much freqs ignored. "
 			    "May be a check problem. Restore all.\n");
