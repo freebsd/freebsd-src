@@ -1465,6 +1465,11 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 				action_string = "No recovery CCB supplied";
 				goto sense_error_done;
 			}
+			/*
+			 * Clear freeze flag for original request here, as
+			 * this freeze will be dropped as part of ERESTART.
+			 */
+			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
 			bcopy(ccb, save_ccb, sizeof(*save_ccb));
 			print_ccb = save_ccb;
 			periph->flags |= CAM_PERIPH_RECOVERY_INPROG;
