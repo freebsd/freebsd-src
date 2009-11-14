@@ -845,9 +845,12 @@ ata_ahci_reset(device_t dev)
 	      ((ch->pm_level == 0) ? ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC : 0) |
 	      ATA_AHCI_P_IX_DP | ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB |
 	      ATA_AHCI_P_IX_DS | ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
-
-    /* only probe for PortMultiplier if HW has support */
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) {
+    /*
+     * Only probe for PortMultiplier if HW has support.
+     * Ignore Marvell, which is not working,
+     */
+    if ((ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) &&
+	    pci_get_vendor(ctlr->dev) != 0x11ab) {
 	signature = ata_ahci_softreset(dev, ATA_PM);
 	/* Workaround for some ATI chips, failing to soft-reset
 	 * when port multiplicator supported, but absent.
