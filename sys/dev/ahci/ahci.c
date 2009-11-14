@@ -734,7 +734,9 @@ ahci_ch_attach(device_t dev)
 	/* Construct SIM entry */
 	ch->sim = cam_sim_alloc(ahciaction, ahcipoll, "ahcich", ch,
 	    device_get_unit(dev), &ch->mtx,
-	    min(2, ch->numslots), ch->numslots, devq);
+	    min(2, ch->numslots),
+	    (ch->caps & AHCI_CAP_SNCQ) ? ch->numslots : 0,
+	    devq);
 	if (ch->sim == NULL) {
 		device_printf(dev, "unable to allocate sim\n");
 		error = ENOMEM;
@@ -2119,7 +2121,9 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1; /* XXX??? */
-		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
+		cpi->hba_inquiry = PI_SDTR_ABLE;
+		if (ch->caps & AHCI_CAP_SNCQ)
+			cpi->hba_inquiry |= PI_TAG_ABLE;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
