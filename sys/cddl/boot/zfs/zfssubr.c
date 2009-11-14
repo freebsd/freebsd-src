@@ -550,7 +550,8 @@ vdev_raidz_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	uint64_t s = psize >> unit_shift;
 	uint64_t f = b % dcols;
 	uint64_t o = (b / dcols) << unit_shift;
-	int q, r, c, c1, bc, col, acols, coff, devidx, asize, n;
+	uint64_t q, r, coff;
+	int c, c1, bc, col, acols, devidx, asize, n;
 	static raidz_col_t cols[16];
 	raidz_col_t *rc, *rc1;
 
