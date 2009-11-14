@@ -96,6 +96,8 @@ struct est_softc {
 
 static int msr_info_enabled = 0;
 TUNABLE_INT("hw.est.msr_info", &msr_info_enabled);
+static int strict = -1;
+TUNABLE_INT("hw.est.strict", &strict);
 
 /* Default bus clock value for Centrino processors. */
 #define INTEL_BUS_CLK		100
@@ -1025,6 +1027,9 @@ est_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	/* On SMP system we can't guarantie independent freq setting. */
+	if (strict == -1 && mp_ncpus > 1)
+		strict = 0;
 	/* Check CPU for supported settings. */
 	if (est_get_info(dev))
 		return (ENXIO);
@@ -1088,7 +1093,7 @@ est_acpi_info(device_t dev, freq_info **freqs)
 	struct cf_setting *sets;
 	freq_info *table;
 	device_t perf_dev;
-	int count, error, i, j, check = 1;
+	int count, error, i, j;
 	uint16_t saved_id16;
 
 	perf_dev = device_find_child(device_get_parent(dev), "acpi_perf", -1);
@@ -1113,33 +1118,28 @@ est_acpi_info(device_t dev, freq_info **freqs)
 		goto out;
 	}
 	est_get_id16(&saved_id16);
-restart:
 	for (i = 0, j = 0; i < count; i++) {
 		/*
 		 * Confirm id16 value is correct.
 		 */
 		if (sets[i].freq > 0) {
-			if (check &&
-			    est_set_id16(dev, sets[i].spec[0], 1) != 0) {
+			error = est_set_id16(dev, sets[i].spec[0], 1);
+			if (error != 0 && strict) {
 				if (bootverbose) 
 					device_printf(dev, "Invalid freq %u, "
 					    "ignored.\n", sets[i].freq);
-			} else {
-				table[j].freq = sets[i].freq;
-				table[j].volts = sets[i].volts;
-				table[j].id16 = sets[i].spec[0];
-				table[j].power = sets[i].power;
-				++j;
+				continue;
+			} else if (error != 0 && bootverbose) {
+				device_printf(dev, "Can't check freq %u, "
+				    "it may be invalid\n",
+				    sets[i].freq);
 			}
+			table[j].freq = sets[i].freq;
+			table[j].volts = sets[i].volts;
+			table[j].id16 = sets[i].spec[0];
+			table[j].power = sets[i].power;
+			++j;
 		}
-	}
-	if (check && count >= 2 && j < 2) {
-		if (bootverbose) {
-			device_printf(dev, "Too much freqs ignored. "
-			    "May be a check problem. Restore all.\n");
-		}
-		check = 0;
-		goto restart;
 	}
 	/* restore saved setting */
 	est_set_id16(dev, saved_id16, 0);
