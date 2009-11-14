@@ -719,7 +719,8 @@ noerror:
 		/* XXX: If not all tags allowed, we must to tell SIM which are. */
 		if (path->device->mintags < path->bus->sim->max_tagged_dev_openings)
 			path->device->mintags = path->device->maxtags = 0;
-		if (path->device->mintags != 0) {
+		if (path->device->mintags != 0 &&
+		    path->bus->sim->max_tagged_dev_openings != 0) {
 			xpt_start_tags(path);
 		}
 		ata_device_transport(path);
