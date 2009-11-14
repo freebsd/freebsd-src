@@ -364,7 +364,9 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1 = (union node *)stalloc(sizeof (struct nfor));
 		n1->type = NFOR;
 		n1->nfor.var = wordtext;
-		if (readtoken() == TWORD && ! quoteflag && equal(wordtext, "in")) {
+		while (readtoken() == TNL)
+			;
+		if (lasttoken == TWORD && ! quoteflag && equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
 				n2 = (union node *)stalloc(sizeof (struct narg));
