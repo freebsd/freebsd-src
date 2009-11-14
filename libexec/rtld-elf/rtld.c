@@ -3425,7 +3425,7 @@ locate_dependency(const Obj_Entry *obj, const char *name)
 	if (object_match_name(needed->obj, name))
 	    return needed->obj;
     }
-    _rtld_error("%s: Unexpected  inconsistency: dependency %s not found",
+    _rtld_error("%s: Unexpected inconsistency: dependency %s not found",
 	obj->path, name);
     die();
 }
