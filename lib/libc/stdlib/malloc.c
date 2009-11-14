@@ -5116,7 +5116,7 @@ MALLOC_OUT:
 	arena_maxclass = chunksize - (arena_chunk_header_npages <<
 	    PAGE_SHIFT);
 
-	UTRACE(0, 0, 0);
+	UTRACE((void *)(intptr_t)(-1), 0, 0);
 
 #ifdef MALLOC_STATS
 	memset(&stats_chunks, 0, sizeof(chunk_stats_t));
