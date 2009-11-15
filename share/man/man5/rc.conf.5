@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2009
+.Dd November 11, 2009
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -351,6 +351,9 @@ If
 .Xr dhclient 8
 is used to set the hostname via DHCP,
 this variable should be set to an empty string.
+If this value remains unset when the system is done booting
+your console login will display the default hostname of
+.Dq Amnesiac.
 .It Va ipv6_enable
 .Pq Vt bool
 Enable support for IPv6 networking.
