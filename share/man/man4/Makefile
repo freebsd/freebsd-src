@@ -44,6 +44,7 @@ MAN=	aac.4 \
 	ath_hal.4 \
 	atkbd.4 \
 	atkbdc.4 \
+	${_atp.4} \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
@@ -611,6 +612,7 @@ _acpi_wmi.4=	acpi_wmi.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
+_atp.4=		atp.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
@@ -640,6 +642,10 @@ _urtw.4=	urtw.4
 _wpi.4=		wpi.4
 
 MLINKS+=lindev.4 full.4
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc"
+_atp.4=		atp.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
