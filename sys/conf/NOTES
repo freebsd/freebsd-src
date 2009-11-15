@@ -2023,6 +2023,12 @@ device		lmc
 # only works for Tigon II chips, and has no effect for Tigon I chips.
 options 	TI_JUMBO_HDRSPLIT
 
+#
+# Use header splitting feature on bce(4) adapters.
+# This may help to reduce the amount of jumbo-sized memory buffers used.
+#
+options		BCE_JUMBO_HDRSPLIT
+
 # These two options allow manipulating the mbuf cluster size and mbuf size,
 # respectively.  Be very careful with NIC driver modules when changing
 # these from their default values, because that can potentially cause a
