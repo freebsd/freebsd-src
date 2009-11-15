@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/endian.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
@@ -207,11 +206,7 @@ fha_extract_info(struct svc_req *req, struct fha_info *i)
 	if (error)
 		goto out;
 
-#if _BYTE_ORDER == _LITTLE_ENDIAN
-	i->fh = le64dec(fh.fh_generic.fh_fid.fid_data);
-#else
-	i->fh = be64dec(fh.fh_generic.fh_fid.fid_data);
-#endif
+	bcopy(fh.fh_generic.fh_fid.fid_data, &i->fh, sizeof(i->fh));
 
 	/* Content ourselves with zero offset for all but reads. */
 	if (procnum != NFSPROC_READ)
