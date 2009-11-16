@@ -173,6 +173,7 @@ AcpiPsCompleteFinalOp (
 
 static void
 AcpiPsLinkModuleCode (
+    ACPI_PARSE_OBJECT       *ParentOp,
     UINT8                   *AmlStart,
     UINT32                  AmlLength,
     ACPI_OWNER_ID           OwnerId);
@@ -593,7 +594,7 @@ AcpiPsGetArguments (
                  */
                 if (WalkState->PassNumber == ACPI_IMODE_LOAD_PASS1)
                 {
-                    AcpiPsLinkModuleCode (AmlOpStart,
+                    AcpiPsLinkModuleCode (Op->Common.Parent, AmlOpStart,
                         (UINT32) (WalkState->ParserState.PkgEnd - AmlOpStart),
                         WalkState->OwnerId);
                 }
@@ -704,7 +705,8 @@ AcpiPsGetArguments (
  *
  * FUNCTION:    AcpiPsLinkModuleCode
  *
- * PARAMETERS:  AmlStart            - Pointer to the AML
+ * PARAMETERS:  ParentOp            - Parent parser op
+ *              AmlStart            - Pointer to the AML
  *              AmlLength           - Length of executable AML
  *              OwnerId             - OwnerId of module level code
  *
@@ -718,6 +720,7 @@ AcpiPsGetArguments (
 
 static void
 AcpiPsLinkModuleCode (
+    ACPI_PARSE_OBJECT       *ParentOp,
     UINT8                   *AmlStart,
     UINT32                  AmlLength,
     ACPI_OWNER_ID           OwnerId)
@@ -725,6 +728,7 @@ AcpiPsLinkModuleCode (
     ACPI_OPERAND_OBJECT     *Prev;
     ACPI_OPERAND_OBJECT     *Next;
     ACPI_OPERAND_OBJECT     *MethodObj;
+    ACPI_NAMESPACE_NODE     *ParentNode;
 
 
     /* Get the tail of the list */
@@ -751,10 +755,26 @@ AcpiPsLinkModuleCode (
             return;
         }
 
+        if (ParentOp->Common.Node)
+        {
+            ParentNode = ParentOp->Common.Node;
+        }
+        else
+        {
+            ParentNode = AcpiGbl_RootNode;
+        }
+
         MethodObj->Method.AmlStart = AmlStart;
         MethodObj->Method.AmlLength = AmlLength;
         MethodObj->Method.OwnerId = OwnerId;
         MethodObj->Method.Flags |= AOPOBJ_MODULE_LEVEL;
+
+        /*
+         * Save the parent node in NextObject. This is cheating, but we
+         * don't want to expand the method object.
+         */
+        MethodObj->Method.NextObject =
+            ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, ParentNode);
 
         if (!Prev)
         {

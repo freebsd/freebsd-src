@@ -120,7 +120,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20091013
+#define ACPI_CA_VERSION                 0x20091112
 
 #include "actypes.h"
 #include "actbl.h"
@@ -267,7 +267,8 @@ AcpiWalkNamespace (
     ACPI_OBJECT_TYPE        Type,
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
-    ACPI_WALK_CALLBACK      UserFunction,
+    ACPI_WALK_CALLBACK      PreOrderVisit,
+    ACPI_WALK_CALLBACK      PostOrderVisit,
     void                    *Context,
     void                    **ReturnValue);
 

@@ -391,6 +391,8 @@ ACPI_TYPED_IDENTIFIER_TABLE           AcpiIdentifiers[] = {
     {"ACPI_PREDEFINED_INFO",                SRC_TYPE_UNION},
     {"ACPI_PREDEFINED_NAMES",               SRC_TYPE_STRUCT},
     {"ACPI_PSCOPE_STATE",                   SRC_TYPE_STRUCT},
+    {"ACPI_REPAIR_FUNCTION",                SRC_TYPE_SIMPLE},
+    {"ACPI_REPAIR_INFO",                    SRC_TYPE_STRUCT},
     {"ACPI_RESOURCE",                       SRC_TYPE_STRUCT},
     {"ACPI_RESOURCE_ADDRESS",               SRC_TYPE_STRUCT},
     {"ACPI_RESOURCE_ADDRESS16",             SRC_TYPE_STRUCT},

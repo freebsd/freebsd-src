@@ -422,15 +422,13 @@ AcpiPsExecuteMethod (
     if (AcpiGbl_EnableInterpreterSlack)
     {
         WalkState->ImplicitReturnObj =
-            AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            AcpiUtCreateIntegerObject ((UINT64) 0);
         if (!WalkState->ImplicitReturnObj)
         {
             Status = AE_NO_MEMORY;
             AcpiDsDeleteWalkState (WalkState);
             goto Cleanup;
         }
-
-        WalkState->ImplicitReturnObj->Integer.Value = 0;
     }
 
     /* Parse the AML */

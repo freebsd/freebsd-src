@@ -446,7 +446,7 @@ AcpiDbCountNamespaceObjects (
     }
 
     (void) AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, AcpiDbClassifyOneObject, NULL, NULL);
+                ACPI_UINT32_MAX, FALSE, AcpiDbClassifyOneObject, NULL, NULL, NULL);
 }
 
 

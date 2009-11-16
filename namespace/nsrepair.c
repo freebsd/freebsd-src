@@ -276,14 +276,14 @@ AcpiNsRepairObject (
             ReturnObject->Common.ReferenceCount--;
         }
 
-        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        ACPI_INFO_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
             "Converted %s to expected %s at index %u",
             AcpiUtGetObjectTypeName (ReturnObject),
             AcpiUtGetObjectTypeName (NewObject), PackageIndex));
     }
     else
     {
-        ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        ACPI_INFO_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
             "Converted %s to expected %s",
             AcpiUtGetObjectTypeName (ReturnObject),
             AcpiUtGetObjectTypeName (NewObject)));
@@ -347,8 +347,8 @@ AcpiNsRepairPackageList (
     *ObjDescPtr = PkgObjDesc;
     Data->Flags |= ACPI_OBJECT_REPAIRED;
 
-    ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
-        "Incorrectly formed Package, attempting repair"));
+    ACPI_INFO_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        "Repaired Incorrectly formed Package"));
 
     return (AE_OK);
 }
