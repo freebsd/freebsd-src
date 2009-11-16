@@ -788,20 +788,30 @@ OpnDoPackage (
     if ((PackageLengthOp->Asl.ParseOpcode == PARSEOP_INTEGER)      ||
         (PackageLengthOp->Asl.ParseOpcode == PARSEOP_QWORDCONST))
     {
-        if (PackageLengthOp->Asl.Value.Integer >= PackageLength)
+        if (PackageLengthOp->Asl.Value.Integer > PackageLength)
         {
-            /* Allow package to be longer than the initializer list */
+            /*
+             * Allow package length to be longer than the initializer
+             * list -- but if the length of initializer list is nonzero,
+             * issue a message since this is probably a coding error,
+             * even though technically legal.
+             */
+            if (PackageLength > 0)
+            {
+                AslError (ASL_REMARK, ASL_MSG_LIST_LENGTH_SHORT,
+                    PackageLengthOp, NULL);
+            }
 
             PackageLength = (UINT32) PackageLengthOp->Asl.Value.Integer;
         }
-        else
+        else if (PackageLengthOp->Asl.Value.Integer < PackageLength)
         {
             /*
-             * Initializer list is longer than the package length. This
-             * is an error as per the ACPI spec.
+             * The package length is smaller than the length of the
+             * initializer list. This is an error as per the ACPI spec.
              */
-            AslError (ASL_ERROR, ASL_MSG_LIST_LENGTH,
-                PackageLengthOp->Asl.Next, NULL);
+            AslError (ASL_ERROR, ASL_MSG_LIST_LENGTH_LONG,
+                PackageLengthOp, NULL);
         }
     }
 
