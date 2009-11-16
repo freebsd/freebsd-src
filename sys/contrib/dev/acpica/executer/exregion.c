@@ -157,7 +157,8 @@ AcpiExSystemMemorySpaceHandler (
     void                    *LogicalAddrPtr = NULL;
     ACPI_MEM_SPACE_CONTEXT  *MemInfo = RegionContext;
     UINT32                  Length;
-    ACPI_SIZE               WindowSize;
+    ACPI_SIZE               MapLength;
+    ACPI_SIZE               PageBoundaryMapLength;
 #ifdef ACPI_MISALIGNMENT_NOT_SUPPORTED
     UINT32                  Remainder;
 #endif
@@ -227,26 +228,45 @@ AcpiExSystemMemorySpaceHandler (
         }
 
         /*
-         * Don't attempt to map memory beyond the end of the region, and
-         * constrain the maximum mapping size to something reasonable.
+         * October 2009: Attempt to map from the requested address to the
+         * end of the region. However, we will never map more than one
+         * page, nor will we cross a page boundary.
          */
-        WindowSize = (ACPI_SIZE)
+        MapLength = (ACPI_SIZE)
             ((MemInfo->Address + MemInfo->Length) - Address);
 
-        if (WindowSize > ACPI_SYSMEM_REGION_WINDOW_SIZE)
+        /*
+         * If mapping the entire remaining portion of the region will cross
+         * a page boundary, just map up to the page boundary, do not cross.
+         * On some systems, crossing a page boundary while mapping regions
+         * can cause warnings if the pages have different attributes
+         * due to resource management.
+         *
+         * This has the added benefit of constraining a single mapping to
+         * one page, which is similar to the original code that used a 4k
+         * maximum window.
+         */
+        PageBoundaryMapLength =
+            ACPI_ROUND_UP (Address, ACPI_DEFAULT_PAGE_SIZE) - Address;
+        if (PageBoundaryMapLength == 0)
         {
-            WindowSize = ACPI_SYSMEM_REGION_WINDOW_SIZE;
+            PageBoundaryMapLength = ACPI_DEFAULT_PAGE_SIZE;
+        }
+
+        if (MapLength > PageBoundaryMapLength)
+        {
+            MapLength = PageBoundaryMapLength;
         }
 
         /* Create a new mapping starting at the address given */
 
         MemInfo->MappedLogicalAddress = AcpiOsMapMemory (
-            (ACPI_PHYSICAL_ADDRESS) Address, WindowSize);
+            (ACPI_PHYSICAL_ADDRESS) Address, MapLength);
         if (!MemInfo->MappedLogicalAddress)
         {
             ACPI_ERROR ((AE_INFO,
                 "Could not map memory at %8.8X%8.8X, size %X",
-                ACPI_FORMAT_NATIVE_UINT (Address), (UINT32) WindowSize));
+                ACPI_FORMAT_NATIVE_UINT (Address), (UINT32) MapLength));
             MemInfo->MappedLength = 0;
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
@@ -254,7 +274,7 @@ AcpiExSystemMemorySpaceHandler (
         /* Save the physical address and mapping size */
 
         MemInfo->MappedPhysicalAddress = Address;
-        MemInfo->MappedLength = WindowSize;
+        MemInfo->MappedLength = MapLength;
     }
 
     /*

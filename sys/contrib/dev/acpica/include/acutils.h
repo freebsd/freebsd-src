@@ -644,6 +644,10 @@ AcpiUtCreatePackageObject (
     UINT32                  Count);
 
 ACPI_OPERAND_OBJECT *
+AcpiUtCreateIntegerObject (
+    UINT64                  Value);
+
+ACPI_OPERAND_OBJECT *
 AcpiUtCreateBufferObject (
     ACPI_SIZE               BufferSize);
 
@@ -788,6 +792,15 @@ AcpiUtStrtoul64 (
 
 void ACPI_INTERNAL_VAR_XFACE
 AcpiUtPredefinedWarning (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...);
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedInfo (
     const char              *ModuleName,
     UINT32                  LineNumber,
     char                    *Pathname,
