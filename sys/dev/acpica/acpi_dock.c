@@ -224,7 +224,7 @@ acpi_dock_insert_child(ACPI_HANDLE handle, UINT32 level, void *context,
 	ACPI_INIT_WALK_INFO	Info;
 
 	AcpiNsWalkNamespace(ACPI_TYPE_ANY, handle,
-	    100, TRUE, AcpiNsInitOneDevice, &Info, NULL);
+	    100, TRUE, AcpiNsInitOneDevice, NULL, &Info, NULL);
 #endif
 
 	dev = acpi_get_device(handle);
@@ -249,7 +249,7 @@ acpi_dock_insert_children(device_t dev)
 	status = AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle);
 	if (ACPI_SUCCESS(status)) {
 		AcpiWalkNamespace(ACPI_TYPE_DEVICE, sb_handle,
-		    100, acpi_dock_insert_child, dev, NULL);
+		    100, acpi_dock_insert_child, NULL, dev, NULL);
 	}
 }
 
@@ -319,7 +319,7 @@ acpi_dock_eject_children(device_t dev)
 	status = AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle);
 	if (ACPI_SUCCESS(status)) {
 		AcpiWalkNamespace(ACPI_TYPE_DEVICE, sb_handle,
-		    100, acpi_dock_eject_child, &dev, NULL);
+		    100, acpi_dock_eject_child, NULL, &dev, NULL);
 	}
 }
 
