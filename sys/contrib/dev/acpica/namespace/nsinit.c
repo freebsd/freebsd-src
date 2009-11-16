@@ -185,7 +185,7 @@ AcpiNsInitializeObjects (
     /* Walk entire namespace from the supplied root */
 
     Status = AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                                ACPI_UINT32_MAX, AcpiNsInitOneObject,
+                                ACPI_UINT32_MAX, AcpiNsInitOneObject, NULL,
                                 &Info, NULL);
     if (ACPI_FAILURE (Status))
     {
@@ -249,7 +249,7 @@ AcpiNsInitializeDevices (
     /* Tree analysis: find all subtrees that contain _INI methods */
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, AcpiNsFindIniMethods, &Info, NULL);
+                ACPI_UINT32_MAX, FALSE, AcpiNsFindIniMethods, NULL, &Info, NULL);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
@@ -283,7 +283,7 @@ AcpiNsInitializeDevices (
     /* Walk namespace to execute all _INIs on present devices */
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
-                ACPI_UINT32_MAX, FALSE, AcpiNsInitOneDevice, &Info, NULL);
+                ACPI_UINT32_MAX, FALSE, AcpiNsInitOneDevice, NULL, &Info, NULL);
 
     ACPI_FREE (Info.EvaluateInfo);
     if (ACPI_FAILURE (Status))

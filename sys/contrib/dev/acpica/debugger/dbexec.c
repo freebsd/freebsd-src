@@ -453,7 +453,7 @@ AcpiDbExecute (
     if (*Name == '*')
     {
         (void) AcpiWalkNamespace (ACPI_TYPE_METHOD, ACPI_ROOT_OBJECT,
-                    ACPI_UINT32_MAX, AcpiDbExecutionWalk, NULL, NULL);
+                    ACPI_UINT32_MAX, AcpiDbExecutionWalk, NULL, NULL, NULL);
         return;
     }
     else
