@@ -579,7 +579,7 @@ siis_dmainit(device_t dev)
 	}
 	ch->dma.work_bus = dcba.maddr;
 	/* Data area. */
-	if (bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
 	    SIIS_SG_ENTRIES * PAGE_SIZE * SIIS_MAX_SLOTS,
