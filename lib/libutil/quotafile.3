@@ -30,14 +30,16 @@
 .Os
 .Sh NAME
 .Nm quota_open
+.Nm quota_close
+.Nm quota_on
+.Nm quota_off
+.Nm quota_read
+.Nm quota_write_limits
+.Nm quota_write_usage
 .Nm quota_fsname
 .Nm quota_qfname
 .Nm quota_maxid
 .Nm quota_check_path
-.Nm quota_read
-.Nm quota_write_limits
-.Nm quota_write_usage
-.Nm quota_close
 .Nd "Manipulate quotas"
 .Sh LIBRARY
 .Lb libutil
@@ -50,6 +52,18 @@
 .In libutil.h
 .Ft "struct quotafile *"
 .Fn quota_open "struct fstab *fs" "int quotatype" "int openflags"
+.Ft int
+.Fn quota_close "struct quotafile *qf"
+.Ft int
+.Fn quota_on "const struct quotafile *qf"
+.Ft int
+.Fn quota_off "const struct quotafile *qf"
+.Ft int
+.Fn quota_read "struct quotafile *qf" "struct dqblk *dqb" "int id"
+.Ft int
+.Fn quota_write_limits "struct quotafile *qf" "struct dqblk *dqb" "int id"
+.Ft int
+.Fn quota_write_usage "struct quotafile *qf" "struct dqblk *dqb" "int id"
 .Ft "const char *"
 .Fn quota_fsname "const struct quotafile *qf"
 .Ft "const char *"
@@ -58,14 +72,6 @@
 .Fn quota_maxid "const struct quotafile *qf"
 .Ft int
 .Fn quota_check_path "const struct quotafile *qf" "const char *path"
-.Ft int
-.Fn quota_read "struct quotafile *qf" "struct dqblk *dqb" "int id"
-.Ft int
-.Fn quota_write_limits "struct quotafile *qf" "struct dqblk *dqb" "int id"
-.Ft int
-.Fn quota_write_usage "struct quotafile *qf" "struct dqblk *dqb" "int id"
-.Ft int
-.Fn quota_close "struct quotafile *qf"
 .Sh DESCRIPTION
 These functions are designed to simplify access to filesystem quotas.
 If quotas are active on a filesystem,
@@ -103,6 +109,81 @@ flag should be specified if a new quota file of the requested type
 should be created if it does not already exist.
 .Pp
 The
+.Fn quota_close
+function closes any open file descriptors and frees any storage
+associated with the filesystem and quota type referenced by
+.Va qf .
+.Pp
+The
+.Fn quota_on
+function enables quotas for the filesystem associated with its
+.Va qf
+argument which may have been opened
+.Dv O_RDONLY
+or
+.Dv O_RDWR .
+The
+.Fn quota_on
+function returns 0 if successful;
+otherwise the value\~-1 is returned and the global variable
+.Va errno
+is set to indicate the error, see
+.Xr quotactl 2
+for the possible errors.
+.Pp
+The
+.Fn quota_off
+function disables quotas for the filesystem associated with its
+.Va qf
+argument which may have been opened
+.Dv O_RDONLY
+or
+.Dv O_RDWR .
+The
+.Fn quota_off
+function returns 0 if successful;
+otherwise the value\~-1 is returned and the global variable
+.Va errno
+is set to indicate the error, see
+.Xr quotactl 2
+for the possible errors.
+.Pp
+The
+.Fn quota_read
+function reads the quota from the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+into the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_write_limits
+function updates the limit fields (but not the usage fields)
+for the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+from the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
+.Fn quota_write_usage
+function updates the usage fields (but not the limit fields)
+for the filesystem and quota type referenced by
+.Va qf
+for the user (or group) specified by
+.Va id
+from the
+.Vt dqblk
+quota structure pointed to by
+.Va dqb .
+.Pp
+The
 .Fn quota_fsname
 function returns a pointer to a buffer containing the path to the root
 of the file system that corresponds to its
@@ -138,48 +219,6 @@ If the
 argument refers to a symbolic link,
 .Fn quota_check_path
 will follow it.
-.Pp
-The
-.Fn quota_read
-function reads the quota from the filesystem and quota type referenced
-by
-.Va qf
-for the user (or group) specified by
-.Va id
-into the
-.Vt dqblk
-quota structure pointed to by
-.Va dqb .
-.Pp
-The
-.Fn quota_write_limits
-function updates the limit fields (but not the usage fields)
-for the filesystem and quota type referenced by
-.Va qf
-for the user (or group) specified by
-.Va id
-from the
-.Vt dqblk
-quota structure pointed to by
-.Va dqb .
-.Pp
-The
-.Fn quota_write_usage
-function updates the usage fields (but not the limit fields)
-for the filesystem and quota type referenced by
-.Va qf
-for the user (or group) specified by
-.Va id
-from the
-.Vt dqblk
-quota structure pointed to by
-.Va dqb .
-.Pp
-The
-.Fn quota_close
-function closes any open file descriptors and frees any storage
-associated with the filesystem and quota type referenced by
-.Va qf .
 .Sh IMPLEMENTATION NOTES
 If the underlying quota file is in the old 32-bit format, limit and
 usage values written to the quota file will be clipped to 32 bits.
@@ -230,4 +269,4 @@ The
 functions and this manual page were written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org 
 and
-.An Marshall Kirk McKusick .
+.An Marshall Kirk McKusick Aq mckusick@mckusick.com .
