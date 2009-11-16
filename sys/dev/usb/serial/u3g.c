@@ -173,6 +173,7 @@ MODULE_DEPEND(u3g, usb, 1, 1, 1);
 
 static const struct usb_device_id u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
+	U3G_DEV(CURITEL, UM175, 0),
 	/* OEM: Option */
 	U3G_DEV(OPTION, GT3G, 0),
 	U3G_DEV(OPTION, GT3GQUAD, 0),
