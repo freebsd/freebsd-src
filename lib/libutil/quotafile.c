@@ -61,7 +61,6 @@ static const char *qfextension[] = INITQFNAMES;
 
 /*
  * Check to see if a particular quota is to be enabled.
- * XXX merge into quota_open
  */
 static int
 hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
@@ -73,7 +72,6 @@ hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
 	static char initname, usrname[100], grpname[100];
 
 	/*
-	 * XXX
 	 * 1) we only need one of these
 	 * 2) fstab may specify a different filename
 	 */
@@ -205,6 +203,22 @@ quota_close(struct quotafile *qf)
 	if (qf->fd != -1)
 		close(qf->fd);
 	free(qf);
+}
+
+int
+quota_on(struct quotafile *qf)
+{
+	int qcmd;
+
+	qcmd = QCMD(Q_QUOTAON, qf->quotatype);
+	return (quotactl(qf->fsname, qcmd, 0, qf->qfname));
+}
+
+int
+quota_off(struct quotafile *qf)
+{
+
+	return (quotactl(qf->fsname, QCMD(Q_QUOTAOFF, qf->quotatype), 0, 0));
 }
 
 const char *
