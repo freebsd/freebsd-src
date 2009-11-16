@@ -544,8 +544,11 @@ AcpiNsResolveReferences (
  * PARAMETERS:  Type                - ACPI_OBJECT_TYPE to search for
  *              StartObject         - Handle in namespace where search begins
  *              MaxDepth            - Depth to which search is to reach
- *              UserFunction        - Called when an object of "Type" is found
- *              Context             - Passed to user function
+ *              PreOrderVisit       - Called during tree pre-order visit
+ *                                    when an object of "Type" is found
+ *              PostOrderVisit      - Called during tree post-order visit
+ *                                    when an object of "Type" is found
+ *              Context             - Passed to user function(s) above
  *              ReturnValue         - Location where return value of
  *                                    UserFunction is put if terminated early
  *
@@ -554,16 +557,16 @@ AcpiNsResolveReferences (
  *
  * DESCRIPTION: Performs a modified depth-first walk of the namespace tree,
  *              starting (and ending) at the object specified by StartHandle.
- *              The UserFunction is called whenever an object that matches
- *              the type parameter is found.  If the user function returns
+ *              The callback function is called whenever an object that matches
+ *              the type parameter is found. If the callback function returns
  *              a non-zero value, the search is terminated immediately and this
  *              value is returned to the caller.
  *
  *              The point of this procedure is to provide a generic namespace
  *              walk routine that can be called from multiple places to
- *              provide multiple services;  the User Function can be tailored
- *              to each task, whether it is a print function, a compare
- *              function, etc.
+ *              provide multiple services; the callback function(s) can be
+ *              tailored to each task, whether it is a print function,
+ *              a compare function, etc.
  *
  ******************************************************************************/
 
@@ -572,7 +575,8 @@ AcpiWalkNamespace (
     ACPI_OBJECT_TYPE        Type,
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
-    ACPI_WALK_CALLBACK      UserFunction,
+    ACPI_WALK_CALLBACK      PreOrderVisit,
+    ACPI_WALK_CALLBACK      PostOrderVisit,
     void                    *Context,
     void                    **ReturnValue)
 {
@@ -586,7 +590,7 @@ AcpiWalkNamespace (
 
     if ((Type > ACPI_TYPE_LOCAL_MAX) ||
         (!MaxDepth)                  ||
-        (!UserFunction))
+        (!PreOrderVisit && !PostOrderVisit))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
@@ -621,7 +625,8 @@ AcpiWalkNamespace (
     }
 
     Status = AcpiNsWalkNamespace (Type, StartObject, MaxDepth,
-                ACPI_NS_WALK_UNLOCK, UserFunction, Context, ReturnValue);
+                ACPI_NS_WALK_UNLOCK, PreOrderVisit,
+                PostOrderVisit, Context, ReturnValue);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
@@ -833,7 +838,7 @@ AcpiGetDevices (
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
                 ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
-                AcpiNsGetDeviceCallback, &Info, ReturnValue);
+                AcpiNsGetDeviceCallback, NULL, &Info, ReturnValue);
 
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);

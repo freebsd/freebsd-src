@@ -736,7 +736,7 @@ AcpiNsDumpObjects (
 
     (void) AcpiNsWalkNamespace (Type, StartHandle, MaxDepth,
                 ACPI_NS_WALK_NO_UNLOCK | ACPI_NS_WALK_TEMP_NODES,
-                AcpiNsDumpOneObject, (void *) &Info, NULL);
+                AcpiNsDumpOneObject, NULL, (void *) &Info, NULL);
 }
 
 

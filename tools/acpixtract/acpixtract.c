@@ -716,7 +716,7 @@ ListTables (
     size_t                  HeaderSize;
     unsigned char           Header[48];
     int                     TableCount = 0;
-    ACPI_TABLE_HEADER       *TableHeader = (ACPI_TABLE_HEADER *) Header;
+    ACPI_TABLE_HEADER       *TableHeader = (ACPI_TABLE_HEADER *) (void *) Header;
 
 
     /* Open input in text mode, output is in binary mode */

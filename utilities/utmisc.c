@@ -1435,3 +1435,51 @@ AcpiUtPredefinedWarning (
     ACPI_COMMON_MSG_SUFFIX;
     va_end (args);
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtPredefinedInfo
+ *
+ * PARAMETERS:  ModuleName      - Caller's module name (for error output)
+ *              LineNumber      - Caller's line number (for error output)
+ *              Pathname        - Full pathname to the node
+ *              NodeFlags       - From Namespace node for the method/object
+ *              Format          - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Info messages for the predefined validation module. Messages
+ *              are only emitted the first time a problem with a particular
+ *              method/object is detected. This prevents a flood of
+ *              messages for methods that are repeatedly evaluated.
+ *
+ ******************************************************************************/
+
+void  ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedInfo (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...)
+{
+    va_list                 args;
+
+
+    /*
+     * Warning messages for this method/object will be disabled after the
+     * first time a validation fails or an object is successfully repaired.
+     */
+    if (NodeFlags & ANOBJ_EVALUATED)
+    {
+        return;
+    }
+
+    AcpiOsPrintf ("ACPI Info for %s: ", Pathname);
+
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+    ACPI_COMMON_MSG_SUFFIX;
+    va_end (args);
+}

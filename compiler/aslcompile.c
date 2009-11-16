@@ -895,13 +895,6 @@ CmCleanupAndExit (
                         10) / Gbl_NsLookupCount);
     }
 
-    /* Close all open files */
-
-    for (i = 2; i < ASL_MAX_FILE_TYPE; i++)
-    {
-        FlCloseFile (i);
-    }
-
     /*
      * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
      */
@@ -923,6 +916,13 @@ CmCleanupAndExit (
     }
 
     UtDisplaySummary (ASL_FILE_STDOUT);
+
+    /* Close all open files */
+
+    for (i = 2; i < ASL_MAX_FILE_TYPE; i++)
+    {
+        FlCloseFile (i);
+    }
 }
 
 

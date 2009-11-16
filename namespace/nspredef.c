@@ -330,6 +330,12 @@ AcpiNsCheckPredefinedNames (
         Status = AcpiNsCheckPackage (Data, ReturnObjectPtr);
     }
 
+    /*
+     * Perform additional, more complicated repairs on a per-name
+     * basis.
+     */
+    Status = AcpiNsComplexRepairs (Data, Node, Status, ReturnObjectPtr);
+
 
 CheckValidationStatus:
     /*
@@ -719,7 +725,7 @@ AcpiNsCheckPackage (
          * there is only one entry). We may be able to repair this by
          * wrapping the returned Package with a new outer Package.
          */
-        if ((*Elements)->Common.Type != ACPI_TYPE_PACKAGE)
+        if (*Elements && ((*Elements)->Common.Type != ACPI_TYPE_PACKAGE))
         {
             /* Create the new outer package and populate it */
 
@@ -794,6 +800,7 @@ AcpiNsCheckPackageList (
     ACPI_OPERAND_OBJECT         *SubPackage;
     ACPI_OPERAND_OBJECT         **SubElements;
     ACPI_STATUS                 Status;
+    BOOLEAN                     NonTrailingNull = FALSE;
     UINT32                      ExpectedCount;
     UINT32                      i;
     UINT32                      j;
@@ -803,6 +810,46 @@ AcpiNsCheckPackageList (
 
     for (i = 0; i < Count; i++)
     {
+        /*
+         * Handling for NULL package elements. For now, we will simply allow
+         * a parent package with trailing NULL elements. This can happen if
+         * the package was defined to be longer than the initializer list.
+         * This is legal as per the ACPI specification. It is often used
+         * to allow for dynamic initialization of a Package.
+         *
+         * A future enhancement may be to simply truncate the package to
+         * remove the trailing NULL elements.
+         */
+        if (!(*Elements))
+        {
+            if (!NonTrailingNull)
+            {
+                /* Ensure the remaining elements are all NULL */
+
+                for (j = 1; j < (Count - i + 1); j++)
+                {
+                    if (Elements[j])
+                    {
+                        NonTrailingNull = TRUE;
+                    }
+                }
+
+                if (!NonTrailingNull)
+                {
+                    /* Ignore the trailing NULL elements */
+
+                    return (AE_OK);
+                }
+            }
+
+            /* There are trailing non-null elements, issue warning */
+
+            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+                "Found NULL element at package index %u", i));
+            Elements++;
+            continue;
+        }
+
         SubPackage = *Elements;
         SubElements = SubPackage->Package.Elements;
 
