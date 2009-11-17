@@ -1119,7 +1119,10 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *	Routine:
  *		vm_fault_copy_entry
  *	Function:
- *		Copy all of the pages from a wired-down map entry to another.
+ *		Create new shadow object backing dst_entry with private copy of
+ *		all underlying pages. When src_entry is equal to dst_entry,
+ *		function implements COW for wired-down map entry. Otherwise,
+ *		it forks wired entry into dst_map.
  *
  *	In/out conditions:
  *		The source and destination maps must be locked for write.
@@ -1131,18 +1134,19 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
     vm_map_entry_t dst_entry, vm_map_entry_t src_entry,
     vm_ooffset_t *fork_charge)
 {
-	vm_object_t backing_object, dst_object, object;
-	vm_object_t src_object;
+	vm_object_t backing_object, dst_object, object, src_object;
 	vm_pindex_t dst_pindex, pindex, src_pindex;
-	vm_prot_t prot;
+	vm_prot_t access, prot;
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
 	vm_page_t src_m;
-	boolean_t src_readonly;
+	boolean_t src_readonly, upgrade;
 
 #ifdef	lint
 	src_map++;
 #endif	/* lint */
+
+	upgrade = src_entry == dst_entry;
 
 	src_object = src_entry->object.vm_object;
 	src_pindex = OFF_TO_IDX(src_entry->offset);
@@ -1160,17 +1164,34 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 #endif
 
 	VM_OBJECT_LOCK(dst_object);
-	KASSERT(dst_entry->object.vm_object == NULL,
+	KASSERT(upgrade || dst_entry->object.vm_object == NULL,
 	    ("vm_fault_copy_entry: vm_object not NULL"));
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
-	dst_object->uip = curthread->td_ucred->cr_ruidinfo;
-	uihold(dst_object->uip);
 	dst_object->charge = dst_entry->end - dst_entry->start;
-	KASSERT(dst_entry->uip == NULL,
-	    ("vm_fault_copy_entry: leaked swp charge"));
-	*fork_charge += dst_object->charge;
-	prot = dst_entry->max_protection;
+	if (fork_charge != NULL) {
+		KASSERT(dst_entry->uip == NULL,
+		    ("vm_fault_copy_entry: leaked swp charge"));
+		dst_object->uip = curthread->td_ucred->cr_ruidinfo;
+		uihold(dst_object->uip);
+		*fork_charge += dst_object->charge;
+	} else {
+		dst_object->uip = dst_entry->uip;
+		dst_entry->uip = NULL;
+	}
+	access = prot = dst_entry->max_protection;
+	/*
+	 * If not an upgrade, then enter the mappings in the pmap as
+	 * read and/or execute accesses.  Otherwise, enter them as
+	 * write accesses.
+	 *
+	 * A writeable large page mapping is only created if all of
+	 * the constituent small page mappings are modified. Marking
+	 * PTEs as modified on inception allows promotion to happen
+	 * without taking potentially large number of soft faults.
+	 */
+	if (!upgrade)
+		access &= ~VM_PROT_WRITE;
 
 	/*
 	 * Loop through all of the pages in the entry's range, copying each
@@ -1221,21 +1242,30 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		VM_OBJECT_UNLOCK(dst_object);
 
 		/*
-		 * Enter it in the pmap as a read and/or execute access.
+		 * Enter it in the pmap. If a wired, copy-on-write
+		 * mapping is being replaced by a write-enabled
+		 * mapping, then wire that new mapping.
 		 */
-		pmap_enter(dst_map->pmap, vaddr, prot & ~VM_PROT_WRITE, dst_m,
-		    prot, FALSE);
+		pmap_enter(dst_map->pmap, vaddr, access, dst_m, prot, upgrade);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
 		 */
 		VM_OBJECT_LOCK(dst_object);
 		vm_page_lock_queues();
-		vm_page_activate(dst_m);
+		if (upgrade) {
+			vm_page_unwire(src_m, 0);
+			vm_page_wire(dst_m);
+		} else
+			vm_page_activate(dst_m);
 		vm_page_unlock_queues();
 		vm_page_wakeup(dst_m);
 	}
 	VM_OBJECT_UNLOCK(dst_object);
+	if (upgrade) {
+		dst_entry->eflags &= ~(MAP_ENTRY_COW | MAP_ENTRY_NEEDS_COPY);
+		vm_object_deallocate(src_object);
+	}
 }
 
 
