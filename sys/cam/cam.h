@@ -66,6 +66,8 @@ struct cam_periph;
  */
 typedef struct {
 	u_int32_t priority;
+#define CAM_PRIORITY_DEV	0
+#define CAM_PRIORITY_NORMAL	1
 #define CAM_PRIORITY_NONE	(u_int32_t)-1
 	u_int32_t generation;
 	int       index;
