@@ -371,7 +371,6 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	}
 
 	if (length > 0) {
-		periph->flags |= CAM_PERIPH_POLLED;
 		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
@@ -431,7 +430,6 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 					 /*timeout*/0,
 					 /*getcount_only*/0);
 	}
-	periph->flags &= ~CAM_PERIPH_POLLED;
 	cam_periph_unlock(periph);
 	return (0);
 }

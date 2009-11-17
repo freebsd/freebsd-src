@@ -4238,6 +4238,7 @@ void
 xpt_done(union ccb *done_ccb)
 {
 	struct cam_sim *sim;
+	int	first;
 
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_done\n"));
 	if ((done_ccb->ccb_h.func_code & XPT_FC_QUEUED) != 0) {
@@ -4246,25 +4247,17 @@ xpt_done(union ccb *done_ccb)
 		 * any of the "non-immediate" type of ccbs.
 		 */
 		sim = done_ccb->ccb_h.path->bus->sim;
-		switch (done_ccb->ccb_h.path->periph->type) {
-		case CAM_PERIPH_BIO:
-			TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
-					  sim_links.tqe);
-			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			if ((sim->flags & CAM_SIM_ON_DONEQ) == 0) {
-				mtx_lock(&cam_simq_lock);
-				TAILQ_INSERT_TAIL(&cam_simq, sim,
-						  links);
-				mtx_unlock(&cam_simq_lock);
-				sim->flags |= CAM_SIM_ON_DONEQ;
-				if ((done_ccb->ccb_h.path->periph->flags &
-				    CAM_PERIPH_POLLED) == 0)
-					swi_sched(cambio_ih, 0);
-			}
-			break;
-		default:
-			panic("unknown periph type %d",
-			    done_ccb->ccb_h.path->periph->type);
+		TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
+		    sim_links.tqe);
+		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
+		if ((sim->flags & CAM_SIM_ON_DONEQ) == 0) {
+			mtx_lock(&cam_simq_lock);
+			first = TAILQ_EMPTY(&cam_simq);
+			TAILQ_INSERT_TAIL(&cam_simq, sim, links);
+			mtx_unlock(&cam_simq_lock);
+			sim->flags |= CAM_SIM_ON_DONEQ;
+			if (first)
+				swi_sched(cambio_ih, 0);
 		}
 	}
 }
