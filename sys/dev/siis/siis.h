@@ -373,13 +373,14 @@ struct siis_channel {
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands */
 	uint32_t		eslots;		/* Slots in error */
+	uint32_t		toslots;	/* Slots in timeout */
 	int			numrslots;	/* Number of running slots */
 	int			numtslots[SIIS_MAX_SLOTS]; /* Number of tagged slots */
 	int			numhslots;	/* Number of holden slots */
 	int			readlog;	/* Our READ LOG active */
+	int			fatalerr;	/* Fatal error happend */
 	int			recovery;	/* Some slots are in error */
 	int			lastslot;	/* Last used slot */
-	int			taggedtarget;	/* Last tagged target */
 	union ccb		*frozen;	/* Frozen command */
 };
 
