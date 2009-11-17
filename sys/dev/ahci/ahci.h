@@ -366,6 +366,7 @@ struct ahci_channel {
 	int			numrslots;	/* Number of running slots */
 	int			numtslots;	/* Number of tagged slots */
 	int			readlog;	/* Our READ LOG active */
+	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
 	union ccb		*frozen;	/* Frozen command */
