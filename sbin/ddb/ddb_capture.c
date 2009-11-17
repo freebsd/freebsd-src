@@ -204,6 +204,7 @@ ddb_capture(int argc, char *argv[])
 
 	mflag = NULL;
 	nflag = NULL;
+	kvm = NULL;
 	while ((ch = getopt(argc, argv, "M:N:")) != -1) {
 		switch (ch) {
 		case 'M':
