@@ -93,7 +93,9 @@ struct pmp_softc {
 	int			pm_step;
 	int			pm_try;
 	int			found;
+	int			reset;
 	int			frozen;
+	int			restart;
 	union			ccb saved_ccb;
 	struct task		sysctl_task;
 	struct sysctl_ctx_list	sysctl_ctx;
@@ -134,7 +136,8 @@ TUNABLE_INT("kern.cam.pmp.default_timeout", &pmp_default_timeout);
 static struct periph_driver pmpdriver =
 {
 	pmpinit, "pmp",
-	TAILQ_HEAD_INITIALIZER(pmpdriver.units), /* generation */ 0
+	TAILQ_HEAD_INITIALIZER(pmpdriver.units), /* generation */ 0,
+	CAM_PERIPH_DRV_EARLY
 };
 
 PERIPHDRIVER_DECLARE(pmp, pmpdriver);
@@ -292,14 +295,21 @@ pmpasync(void *callback_arg, u_int32_t code,
 	case AC_BUS_RESET:
 		softc = (struct pmp_softc *)periph->softc;
 		cam_periph_async(periph, code, path, arg);
-		if (softc->state != PMP_STATE_NORMAL)
+		if (code == AC_SCSI_AEN && softc->state != PMP_STATE_NORMAL &&
+		    softc->state != PMP_STATE_SCAN)
 			break;
-		pmpfreeze(periph, softc->found);
+		if (softc->state != PMP_STATE_SCAN)
+			pmpfreeze(periph, softc->found);
+		else
+			pmpfreeze(periph, softc->found & ~(1 << softc->pm_step));
 		if (code == AC_SENT_BDR || code == AC_BUS_RESET)
 			softc->found = 0; /* We have to reset everything. */
-		softc->state = PMP_STATE_PORTS;
-		cam_periph_acquire(periph);
-		xpt_schedule(periph, CAM_PRIORITY_DEV);
+		if (softc->state == PMP_STATE_NORMAL) {
+			softc->state = PMP_STATE_PORTS;
+			cam_periph_acquire(periph);
+			xpt_schedule(periph, CAM_PRIORITY_BUS);
+		} else
+			softc->restart = 1;
 		break;
 	default:
 		cam_periph_async(periph, code, path, arg);
@@ -395,7 +405,7 @@ pmpregister(struct cam_periph *periph, void *arg)
 	 * the end of probe.
 	 */
 	(void)cam_periph_acquire(periph);
-	xpt_schedule(periph, CAM_PRIORITY_DEV);
+	xpt_schedule(periph, CAM_PRIORITY_BUS);
 
 	return(CAM_REQ_CMP);
 }
@@ -408,6 +418,11 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct pmp_softc *)periph->softc;
 	ataio = &start_ccb->ataio;
+	
+	if (softc->restart) {
+		softc->restart = 0;
+		softc->state = PMP_STATE_PORTS;
+	}
 
 	switch (softc->state) {
 	case PMP_STATE_PORTS:
@@ -469,6 +484,7 @@ printf("PM RESET %d%s\n", softc->pm_step,
 		ata_pm_read_cmd(ataio, 0, softc->pm_step);
 		break;
 	case PMP_STATE_CLEAR:
+		softc->reset = 0;
 		cam_fill_ataio(ataio,
 		      pmp_retry_count,
 		      pmpdone,
@@ -492,7 +508,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_ataio *ataio;
 	union ccb *work_ccb;
 	struct cam_path *path, *dpath;
-	u_int32_t  priority;
+	u_int32_t  priority, res;
 
 	softc = (struct pmp_softc *)periph->softc;
 	ataio = &done_ccb->ataio;
@@ -502,193 +518,158 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	path = done_ccb->ccb_h.path;
 	priority = done_ccb->ccb_h.pinfo.priority;
 
+	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (cam_periph_error(done_ccb, 0, 0,
+		    &softc->saved_ccb) == ERESTART) {
+			return;
+		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+			cam_release_devq(done_ccb->ccb_h.path,
+			    /*relsim_flags*/0,
+			    /*reduction*/0,
+			    /*timeout*/0,
+			    /*getcount_only*/0);
+		}
+		goto done;
+	}
+
+	if (softc->restart) {
+		softc->restart = 0;
+		if (softc->state == PMP_STATE_SCAN) {
+			pmpfreeze(periph, 1 << softc->pm_step);
+			work_ccb = done_ccb;
+			done_ccb = (union ccb*)work_ccb->ccb_h.ppriv_ptr0;
+			/* Free the current request path- we're done with it. */
+		    	xpt_free_path(work_ccb->ccb_h.path);
+			xpt_free_ccb(work_ccb);
+		}
+		xpt_release_ccb(done_ccb);
+		softc->state = PMP_STATE_PORTS;
+		xpt_schedule(periph, priority);
+		return;
+	}
+
 	switch (softc->state) {
 	case PMP_STATE_PORTS:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_ports = (done_ccb->ataio.res.lba_high << 24) +
-			    (done_ccb->ataio.res.lba_mid << 16) +
-			    (done_ccb->ataio.res.lba_low << 8) +
-			    done_ccb->ataio.res.sector_count;
-			/* This PM declares 6 ports, while only 5 of them are real.
-			 * Port 5 is enclosure management bridge port, which has implementation
-			 * problems, causing probe faults. Hide it for now. */
-			if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
-				softc->pm_ports = 5;
-			/* This PM declares 7 ports, while only 5 of them are real.
-			 * Port 5 is some fake "Config  Disk" with 640 sectors size,
-			 * port 6 is enclosure management bridge port.
-			 * Both fake ports has implementation problems, causing
-			 * probe faults. Hide them for now. */
-			if (softc->pm_pid == 0x47261095 && softc->pm_ports == 7)
-				softc->pm_ports = 5;
-			printf("PM ports: %d\n", softc->pm_ports);
-			softc->state = PMP_STATE_CONFIG;
-			xpt_release_ccb(done_ccb);
-			xpt_schedule(periph, priority);
-			return;
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
-		}
+		softc->pm_ports = (done_ccb->ataio.res.lba_high << 24) +
+		    (done_ccb->ataio.res.lba_mid << 16) +
+		    (done_ccb->ataio.res.lba_low << 8) +
+		    done_ccb->ataio.res.sector_count;
+		/* This PM declares 6 ports, while only 5 of them are real.
+		 * Port 5 is enclosure management bridge port, which has implementation
+		 * problems, causing probe faults. Hide it for now. */
+		if (softc->pm_pid == 0x37261095 && softc->pm_ports == 6)
+			softc->pm_ports = 5;
+		/* This PM declares 7 ports, while only 5 of them are real.
+		 * Port 5 is some fake "Config  Disk" with 640 sectors size,
+		 * port 6 is enclosure management bridge port.
+		 * Both fake ports has implementation problems, causing
+		 * probe faults. Hide them for now. */
+		if (softc->pm_pid == 0x47261095 && softc->pm_ports == 7)
+			softc->pm_ports = 5;
+		printf("PM ports: %d\n", softc->pm_ports);
+		softc->state = PMP_STATE_CONFIG;
 		xpt_release_ccb(done_ccb);
-		break;
+		xpt_schedule(periph, priority);
+		return;
 	case PMP_STATE_CONFIG:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		softc->pm_step = 0;
+		softc->state = PMP_STATE_RESET;
+		softc->reset |= ~softc->found;
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+	case PMP_STATE_RESET:
+		softc->pm_step++;
+		if (softc->pm_step >= softc->pm_ports) {
 			softc->pm_step = 0;
-			softc->state = PMP_STATE_RESET;
+			cam_freeze_devq(periph->path);
+			cam_release_devq(periph->path,
+			    RELSIM_RELEASE_AFTER_TIMEOUT,
+			    /*reduction*/0,
+			    /*timeout*/5,
+			    /*getcount_only*/0);
+			printf("PM reset done\n");
+			softc->state = PMP_STATE_CONNECT;
+		}
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+	case PMP_STATE_CONNECT:
+		softc->pm_step++;
+		if (softc->pm_step >= softc->pm_ports) {
+			softc->pm_step = 0;
+			softc->pm_try = 0;
+			cam_freeze_devq(periph->path);
+			cam_release_devq(periph->path,
+			    RELSIM_RELEASE_AFTER_TIMEOUT,
+			    /*reduction*/0,
+			    /*timeout*/10,
+			    /*getcount_only*/0);
+			printf("PM connect done\n");
+			softc->state = PMP_STATE_CHECK;
+		}
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+	case PMP_STATE_CHECK:
+		res = (done_ccb->ataio.res.lba_high << 24) +
+		    (done_ccb->ataio.res.lba_mid << 16) +
+		    (done_ccb->ataio.res.lba_low << 8) +
+		    done_ccb->ataio.res.sector_count;
+		if ((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) {
+			printf("PM status: %d - %08x\n", softc->pm_step, res);
+			softc->found |= (1 << softc->pm_step);
+			softc->pm_step++;
+		} else {
+			if (softc->pm_try < 10) {
+				cam_freeze_devq(periph->path);
+				cam_release_devq(periph->path,
+				    RELSIM_RELEASE_AFTER_TIMEOUT,
+				    /*reduction*/0,
+				    /*timeout*/10,
+				    /*getcount_only*/0);
+				softc->pm_try++;
+			} else {
+				printf("PM status: %d - %08x\n", softc->pm_step, res);
+				softc->found &= ~(1 << softc->pm_step);
+				if (xpt_create_path(&dpath, periph,
+				    done_ccb->ccb_h.path_id,
+				    softc->pm_step, 0) == CAM_REQ_CMP) {
+					xpt_async(AC_LOST_DEVICE, dpath, NULL);
+					xpt_free_path(dpath);
+				}
+				softc->pm_step++;
+			}
+		}
+		if (softc->pm_step >= softc->pm_ports) {
+			if (softc->reset & softc->found) {
+				cam_freeze_devq(periph->path);
+				cam_release_devq(periph->path,
+				    RELSIM_RELEASE_AFTER_TIMEOUT,
+				    /*reduction*/0,
+				    /*timeout*/1000,
+				    /*getcount_only*/0);
+			}
+			softc->state = PMP_STATE_CLEAR;
+			softc->pm_step = 0;
+		}
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+	case PMP_STATE_CLEAR:
+		softc->pm_step++;
+		if (softc->pm_step < softc->pm_ports) {
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
 			return;
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
+		} else if (softc->found) {
+			softc->pm_step = 0;
+			softc->state = PMP_STATE_SCAN;
+			work_ccb = xpt_alloc_ccb_nowait();
+			if (work_ccb != NULL)
+				goto do_scan;
+			xpt_release_ccb(done_ccb);
 		}
-		xpt_release_ccb(done_ccb);
-		break;
-	case PMP_STATE_RESET:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_step++;
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			} else {
-				softc->pm_step = 0;
-				DELAY(5000);
-				printf("PM reset done\n");
-				softc->state = PMP_STATE_CONNECT;
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
-		}
-		xpt_release_ccb(done_ccb);
-		break;
-	case PMP_STATE_CONNECT:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_step++;
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			} else {
-				softc->pm_step = 0;
-				softc->pm_try = 0;
-				printf("PM connect done\n");
-				softc->state = PMP_STATE_CHECK;
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
-		}
-		xpt_release_ccb(done_ccb);
-		break;
-	case PMP_STATE_CHECK:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			int res = (done_ccb->ataio.res.lba_high << 24) +
-			    (done_ccb->ataio.res.lba_mid << 16) +
-			    (done_ccb->ataio.res.lba_low << 8) +
-			    done_ccb->ataio.res.sector_count;
-			if ((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) {
-				printf("PM status: %d - %08x\n", softc->pm_step, res);
-				softc->found |= (1 << softc->pm_step);
-				softc->pm_step++;
-			} else {
-				if (softc->pm_try < 100) {
-					DELAY(10000);
-					softc->pm_try++;
-				} else {
-					printf("PM status: %d - %08x\n", softc->pm_step, res);
-					softc->found &= ~(1 << softc->pm_step);
-					if (xpt_create_path(&dpath, periph,
-					    done_ccb->ccb_h.path_id,
-					    softc->pm_step, 0) == CAM_REQ_CMP) {
-						xpt_async(AC_LOST_DEVICE, dpath, NULL);
-						xpt_free_path(dpath);
-					}
-					softc->pm_step++;
-				}
-			}
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			} else {
-				softc->pm_step = 0;
-				softc->state = PMP_STATE_CLEAR;
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			}
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
-		}
-		xpt_release_ccb(done_ccb);
-		break;
-	case PMP_STATE_CLEAR:
-		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			softc->pm_step++;
-			if (softc->pm_step < softc->pm_ports) {
-				xpt_release_ccb(done_ccb);
-				xpt_schedule(periph, priority);
-				return;
-			} else if (softc->found) {
-				softc->pm_step = 0;
-				softc->state = PMP_STATE_SCAN;
-				work_ccb = xpt_alloc_ccb_nowait();
-				if (work_ccb != NULL)
-					goto do_scan;
-				xpt_release_ccb(done_ccb);
-			}
-			break;
-		} else if (cam_periph_error(done_ccb, 0, 0,
-					    &softc->saved_ccb) == ERESTART) {
-			return;
-		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-				cam_release_devq(done_ccb->ccb_h.path,
-						 /*relsim_flags*/0,
-						 /*reduction*/0,
-						 /*timeout*/0,
-						 /*getcount_only*/0);
-		}
-		xpt_release_ccb(done_ccb);
 		break;
 	case PMP_STATE_SCAN:
 		work_ccb = done_ccb;
@@ -703,7 +684,6 @@ do_scan:
 		}
 		if (softc->pm_step >= softc->pm_ports) {
 			xpt_free_ccb(work_ccb);
-			xpt_release_ccb(done_ccb);
 			break;
 		}
 		if (xpt_create_path(&dpath, periph,
@@ -712,7 +692,6 @@ do_scan:
 			printf("pmpdone: xpt_create_path failed"
 			    ", bus scan halted\n");
 			xpt_free_ccb(work_ccb);
-			xpt_release_ccb(done_ccb);
 			break;
 		}
 		xpt_setup_ccb(&work_ccb->ccb_h, dpath,
@@ -727,6 +706,8 @@ do_scan:
 	default:
 		break;
 	}
+done:
+	xpt_release_ccb(done_ccb);
 	softc->state = PMP_STATE_NORMAL;
 	pmprelease(periph, -1);
 	cam_periph_release_locked(periph);

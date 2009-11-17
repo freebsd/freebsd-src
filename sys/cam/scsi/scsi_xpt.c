@@ -110,7 +110,8 @@ static periph_init_t probe_periph_init;
 static struct periph_driver probe_driver =
 {
 	probe_periph_init, "probe",
-	TAILQ_HEAD_INITIALIZER(probe_driver.units)
+	TAILQ_HEAD_INITIALIZER(probe_driver.units), /* generation */ 0,
+	CAM_PERIPH_DRV_EARLY
 };
 
 PERIPHDRIVER_DECLARE(probe, probe_driver);
