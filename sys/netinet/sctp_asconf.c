@@ -3180,24 +3180,6 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 		ifa = NULL;
 	}
 	if (ifa != NULL) {
-		/* add this address */
-		struct sctp_asconf_iterator *asc;
-		struct sctp_laddr *wi;
-
-		SCTP_MALLOC(asc, struct sctp_asconf_iterator *,
-		    sizeof(struct sctp_asconf_iterator),
-		    SCTP_M_ASC_IT);
-		if (asc == NULL) {
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, ENOMEM);
-			return (ENOMEM);
-		}
-		wi = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_laddr),
-		    struct sctp_laddr);
-		if (wi == NULL) {
-			SCTP_FREE(asc, SCTP_M_ASC_IT);
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, ENOMEM);
-			return (ENOMEM);
-		}
 		if (type == SCTP_ADD_IP_ADDRESS) {
 			sctp_add_local_addr_ep(inp, ifa, type);
 		} else if (type == SCTP_DEL_IP_ADDRESS) {
@@ -3205,8 +3187,6 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 
 			if (inp->laddr_count < 2) {
 				/* can't delete the last local address */
-				SCTP_FREE(asc, SCTP_M_ASC_IT);
-				SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), wi);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EINVAL);
 				return (EINVAL);
 			}
@@ -3218,27 +3198,49 @@ sctp_addr_mgmt_ep_sa(struct sctp_inpcb *inp, struct sockaddr *sa,
 				}
 			}
 		}
-		LIST_INIT(&asc->list_of_work);
-		asc->cnt = 1;
-		SCTP_INCR_LADDR_COUNT();
-		wi->ifa = ifa;
-		wi->action = type;
-		atomic_add_int(&ifa->refcount, 1);
-		LIST_INSERT_HEAD(&asc->list_of_work, wi, sctp_nxt_addr);
-		(void)sctp_initiate_iterator(sctp_asconf_iterator_ep,
-		    sctp_asconf_iterator_stcb,
-		    sctp_asconf_iterator_ep_end,
-		    SCTP_PCB_ANY_FLAGS,
-		    SCTP_PCB_ANY_FEATURES,
-		    SCTP_ASOC_ANY_STATE,
-		    (void *)asc, 0,
-		    sctp_asconf_iterator_end, inp, 0);
+		if (!LIST_EMPTY(&inp->sctp_asoc_list)) {
+			/*
+			 * There is no need to start the iterator if the inp
+			 * has no associations.
+			 */
+			struct sctp_asconf_iterator *asc;
+			struct sctp_laddr *wi;
+
+			SCTP_MALLOC(asc, struct sctp_asconf_iterator *,
+			    sizeof(struct sctp_asconf_iterator),
+			    SCTP_M_ASC_IT);
+			if (asc == NULL) {
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, ENOMEM);
+				return (ENOMEM);
+			}
+			wi = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_laddr), struct sctp_laddr);
+			if (wi == NULL) {
+				SCTP_FREE(asc, SCTP_M_ASC_IT);
+				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_ASCONF, ENOMEM);
+				return (ENOMEM);
+			}
+			LIST_INIT(&asc->list_of_work);
+			asc->cnt = 1;
+			SCTP_INCR_LADDR_COUNT();
+			wi->ifa = ifa;
+			wi->action = type;
+			atomic_add_int(&ifa->refcount, 1);
+			LIST_INSERT_HEAD(&asc->list_of_work, wi, sctp_nxt_addr);
+			(void)sctp_initiate_iterator(sctp_asconf_iterator_ep,
+			    sctp_asconf_iterator_stcb,
+			    sctp_asconf_iterator_ep_end,
+			    SCTP_PCB_ANY_FLAGS,
+			    SCTP_PCB_ANY_FEATURES,
+			    SCTP_ASOC_ANY_STATE,
+			    (void *)asc, 0,
+			    sctp_asconf_iterator_end, inp, 0);
+		}
+		return (0);
 	} else {
 		/* invalid address! */
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_ASCONF, EADDRNOTAVAIL);
 		return (EADDRNOTAVAIL);
 	}
-	return (0);
 }
 
 void
