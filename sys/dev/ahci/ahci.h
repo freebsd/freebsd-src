@@ -328,7 +328,7 @@ enum ahci_slot_states {
 	AHCI_SLOT_EMPTY,
 	AHCI_SLOT_LOADING,
 	AHCI_SLOT_RUNNING,
-	AHCI_SLOT_WAITING
+	AHCI_SLOT_EXECUTING
 };
 
 struct ahci_slot {
