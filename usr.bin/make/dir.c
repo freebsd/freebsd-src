@@ -832,21 +832,6 @@ Path_FindFile(char *name, struct Path *path)
 	 * When searching for $(FILE), we will find it in $(INSTALLDIR)
 	 * b/c we added it here. This is not good...
 	 */
-#ifdef notdef
-	cp[-1] = '\0';
-	Path_AddDir(path, name);
-	cp[-1] = '/';
-
-	bigmisses += 1;
-	pe = TAILQ_LAST(path, Path);
-	if (pe == NULL)
-		return (NULL);
-
-	if (Hash_FindEntry(&pe->dir->files, cp) != NULL) {
-		return (estrdup(name));
-
-	return (NULL);
-#else /* !notdef */
 	DEBUGF(DIR, ("Looking for \"%s\"...", name));
 
 	bigmisses += 1;
@@ -864,7 +849,6 @@ Path_FindFile(char *name, struct Path *path)
 		DEBUGF(DIR, ("failed. Returning NULL\n"));
 		return (NULL);
 	}
-#endif /* notdef */
 }
 
 /*-
