@@ -1948,8 +1948,15 @@ dagetcapacity(struct cam_periph *periph)
 
 done:
 
-	if (error == 0)
-		dasetgeom(periph, block_len, maxsector);
+	if (error == 0) {
+		if (block_len >= MAXPHYS || block_len == 0) {
+			xpt_print(periph->path,
+			    "unsupportable block size %ju\n",
+			    (uintmax_t) block_len);
+			error = EINVAL;
+		} else
+			dasetgeom(periph, block_len, maxsector);
+	}
 
 	xpt_release_ccb(ccb);
 
