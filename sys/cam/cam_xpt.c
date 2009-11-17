@@ -2477,7 +2477,7 @@ xpt_action_default(union ccb *start_ccb)
 		path = start_ccb->ccb_h.path;
 
 		cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
-		if (path->device->qfrozen_cnt == 0)
+		if (path->device->ccbq.queue.qfrozen_cnt == 0)
 			runq = xpt_schedule_dev_sendq(path->bus, path->device);
 		else
 			runq = 0;
@@ -2936,7 +2936,7 @@ xpt_action_default(union ccb *start_ccb)
 			xpt_release_devq(crs->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
-		start_ccb->crs.qfrozen_cnt = dev->qfrozen_cnt;
+		start_ccb->crs.qfrozen_cnt = dev->ccbq.queue.qfrozen_cnt;
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -3232,7 +3232,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		 * If the device has been "frozen", don't attempt
 		 * to run it.
 		 */
-		if (device->qfrozen_cnt > 0) {
+		if (device->ccbq.queue.qfrozen_cnt > 0) {
 			continue;
 		}
 
@@ -3255,7 +3255,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 				 * the device queue until we have a slot
 				 * available.
 				 */
-				device->qfrozen_cnt++;
+				device->ccbq.queue.qfrozen_cnt++;
 				STAILQ_INSERT_TAIL(&xsoftc.highpowerq,
 						   &work_ccb->ccb_h,
 						   xpt_links.stqe);
@@ -3287,7 +3287,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 			 * The client wants to freeze the queue
 			 * after this CCB is sent.
 			 */
-			device->qfrozen_cnt++;
+			device->ccbq.queue.qfrozen_cnt++;
 		}
 
 		/* In Target mode, the peripheral driver knows best... */
@@ -4036,7 +4036,7 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
 
-	path->device->qfrozen_cnt += count;
+	path->device->ccbq.queue.qfrozen_cnt += count;
 
 	/*
 	 * Mark the last CCB in the queue as needing
@@ -4054,7 +4054,7 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 	ccbh = TAILQ_LAST(&path->device->ccbq.active_ccbs, ccb_hdr_tailq);
 	if (ccbh && ccbh->status == CAM_REQ_INPROG)
 		ccbh->status = CAM_REQUEUE_REQ;
-	return (path->device->qfrozen_cnt);
+	return (path->device->ccbq.queue.qfrozen_cnt);
 }
 
 u_int32_t
@@ -4098,11 +4098,12 @@ xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 	int	rundevq;
 
 	rundevq = 0;
-	if (dev->qfrozen_cnt > 0) {
+	if (dev->ccbq.queue.qfrozen_cnt > 0) {
 
-		count = (count > dev->qfrozen_cnt) ? dev->qfrozen_cnt : count;
-		dev->qfrozen_cnt -= count;
-		if (dev->qfrozen_cnt == 0) {
+		count = (count > dev->ccbq.queue.qfrozen_cnt) ?
+		    dev->ccbq.queue.qfrozen_cnt : count;
+		dev->ccbq.queue.qfrozen_cnt -= count;
+		if (dev->ccbq.queue.qfrozen_cnt == 0) {
 
 			/*
 			 * No longer need to wait for a successful
@@ -4407,7 +4408,6 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		SLIST_INIT(&device->periphs);
 		device->generation = 0;
 		device->owner = NULL;
-		device->qfrozen_cnt = 0;
 		device->flags = CAM_DEV_UNCONFIGURED;
 		device->tag_delay_count = 0;
 		device->tag_saved_openings = 0;
@@ -4976,7 +4976,7 @@ camisr_runqueue(void *V_queue)
 				xpt_start_tags(ccb_h->path);
 
 			if ((dev->ccbq.queue.entries > 0)
-			 && (dev->qfrozen_cnt == 0)
+			 && (dev->ccbq.queue.qfrozen_cnt == 0)
 			 && (device_is_send_queued(dev) == 0)) {
 				runq = xpt_schedule_dev_sendq(ccb_h->path->bus,
 							      dev);
