@@ -343,17 +343,35 @@ rip_input(struct mbuf *m, int off)
 		 */
 		if (inp->inp_moptions != NULL &&
 		    IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
-			struct sockaddr_in group;
+			/*
+			 * If the incoming datagram is for IGMP, allow it
+			 * through unconditionally to the raw socket.
+			 *
+			 * In the case of IGMPv2, we may not have explicitly
+			 * joined the group, and may have set IFF_ALLMULTI
+			 * on the interface. imo_multi_filter() may discard
+			 * control traffic we actually need to see.
+			 *
+			 * Userland multicast routing daemons should continue
+			 * filter the control traffic appropriately.
+			 */
 			int blocked;
 
-			bzero(&group, sizeof(struct sockaddr_in));
-			group.sin_len = sizeof(struct sockaddr_in);
-			group.sin_family = AF_INET;
-			group.sin_addr = ip->ip_dst;
+			blocked = MCAST_PASS;
+			if (proto != IPPROTO_IGMP) {
+				struct sockaddr_in group;
 
-			blocked = imo_multi_filter(inp->inp_moptions, ifp,
-			    (struct sockaddr *)&group,
-			    (struct sockaddr *)&ripsrc);
+				bzero(&group, sizeof(struct sockaddr_in));
+				group.sin_len = sizeof(struct sockaddr_in);
+				group.sin_family = AF_INET;
+				group.sin_addr = ip->ip_dst;
+
+				blocked = imo_multi_filter(inp->inp_moptions,
+				    ifp,
+				    (struct sockaddr *)&group,
+				    (struct sockaddr *)&ripsrc);
+			}
+
 			if (blocked != MCAST_PASS) {
 				IPSTAT_INC(ips_notmember);
 				continue;
