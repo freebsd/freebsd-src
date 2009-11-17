@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
-#include <cam/scsi/scsi_pass.h>
 #include <cam/ata/ata_all.h>
 #include <machine/stdarg.h>	/* for xpt_print below */
 #include "opt_cam.h"
@@ -755,11 +754,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				    strlen(path->device->serial_num);
 			}
 
-			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
-
-			scsi_find_quirk(path->device);
+			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
 			ata_device_transport(path);
-
 			PROBE_SET_ACTION(softc, PROBE_SETMODE);
 			xpt_release_ccb(done_ccb);
 			xpt_schedule(periph, priority);
@@ -793,7 +789,7 @@ device_fail:
 	case PROBE_SETMODE:
 	{
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			if (path->device->protocol == PROTO_ATA) {
+modedone:		if (path->device->protocol == PROTO_ATA) {
 				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 				done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 				xpt_action(done_ccb);
@@ -815,6 +811,10 @@ device_fail:
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
+		/* Old PIO2 devices may not support mode setting. */
+		if (ata_max_pmode(ident_buf) <= ATA_PIO2 &&
+		    (ident_buf->capabilities1 & ATA_SUPPORT_IORDY) == 0)
+			goto modedone;
 		goto device_fail;
 	}
 	case PROBE_INQUIRY:
@@ -854,8 +854,7 @@ device_fail:
 				}
 
 				scsi_find_quirk(path->device);
-
-//				scsi_devise_transport(path);
+				ata_device_transport(path);
 				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 				done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 				xpt_action(done_ccb);
@@ -876,7 +875,7 @@ device_fail:
 	}
 	case PROBE_PM_PID:
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
-			if ((path->device->flags & CAM_DEV_INQUIRY_DATA_VALID) == 0)
+			if ((path->device->flags & CAM_DEV_IDENTIFY_DATA_VALID) == 0)
 				bzero(ident_buf, sizeof(*ident_buf));
 			softc->pm_pid = (done_ccb->ataio.res.lba_high << 24) +
 			    (done_ccb->ataio.res.lba_mid << 16) +
@@ -940,7 +939,7 @@ device_fail:
 				softc->pm_ports = 5;
 			printf("PM ports: %d\n", softc->pm_ports);
 			ident_buf->config = softc->pm_ports;
-			path->device->flags |= CAM_DEV_INQUIRY_DATA_VALID;
+			path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
 			softc->pm_step = 0;
 			PROBE_SET_ACTION(softc, PROBE_PM_RESET);
 			xpt_release_ccb(done_ccb);
@@ -1170,7 +1169,10 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 		}
 		scan_info->request_ccb = request_ccb;
 		scan_info->cpi = &work_ccb->cpi;
-		scan_info->found = 0x8001;
+		if (scan_info->cpi->transport == XPORT_ATA)
+			scan_info->found = 0x0003;
+		else
+			scan_info->found = 0x8001;
 		scan_info->counter = 0;
 		/* If PM supported, probe it first. */
 		if (scan_info->cpi->hba_inquiry & PI_SATAPM)
@@ -1400,68 +1402,29 @@ static void
 ata_device_transport(struct cam_path *path)
 {
 	struct ccb_pathinq cpi;
-//	struct ccb_trans_settings cts;
-	struct scsi_inquiry_data *inq_buf;
+	struct ccb_trans_settings cts;
+	struct scsi_inquiry_data *inq_buf = NULL;
+	struct ata_params *ident_buf = NULL;
 
 	/* Get transport information from the SIM */
 	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
-	inq_buf = NULL;
-//	if ((path->device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0)
-//		inq_buf = &path->device->inq_data;
-//	path->device->protocol = cpi.protocol;
-//	path->device->protocol_version =
-//	    inq_buf != NULL ? SID_ANSI_REV(inq_buf) : cpi.protocol_version;
 	path->device->transport = cpi.transport;
-	path->device->transport_version = cpi.transport_version;
-#if 0
-	/*
-	 * Any device not using SPI3 features should
-	 * be considered SPI2 or lower.
-	 */
-	if (inq_buf != NULL) {
-		if (path->device->transport == XPORT_SPI
-		 && (inq_buf->spi3data & SID_SPI_MASK) == 0
-		 && path->device->transport_version > 2)
-			path->device->transport_version = 2;
-	} else {
-		struct cam_ed* otherdev;
-
-		for (otherdev = TAILQ_FIRST(&path->target->ed_entries);
-		     otherdev != NULL;
-		     otherdev = TAILQ_NEXT(otherdev, links)) {
-			if (otherdev != path->device)
-				break;
-		}
-
-		if (otherdev != NULL) {
-			/*
-			 * Initially assume the same versioning as
-			 * prior luns for this target.
-			 */
-			path->device->protocol_version =
-			    otherdev->protocol_version;
-			path->device->transport_version =
-			    otherdev->transport_version;
-		} else {
-			/* Until we know better, opt for safty */
-			path->device->protocol_version = 2;
-			if (path->device->transport == XPORT_SPI)
-				path->device->transport_version = 2;
-			else
-				path->device->transport_version = 0;
-		}
+	if ((path->device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0)
+		inq_buf = &path->device->inq_data;
+	if ((path->device->flags & CAM_DEV_IDENTIFY_DATA_VALID) != 0)
+		ident_buf = &path->device->ident_data;
+	if (path->device->protocol == PROTO_ATA) {
+		path->device->protocol_version = ident_buf ?
+		    ata_version(ident_buf->version_major) : cpi.protocol_version;
+	} else if (path->device->protocol == PROTO_SCSI) {
+		path->device->protocol_version = inq_buf ?
+		    SID_ANSI_REV(inq_buf) : cpi.protocol_version;
 	}
-
-	/*
-	 * XXX
-	 * For a device compliant with SPC-2 we should be able
-	 * to determine the transport version supported by
-	 * scrutinizing the version descriptors in the
-	 * inquiry buffer.
-	 */
+	path->device->transport_version = ident_buf ?
+	    ata_version(ident_buf->version_major) : cpi.transport_version;
 
 	/* Tell the controller what we think */
 	xpt_setup_ccb(&cts.ccb_h, path, /*priority*/1);
@@ -1474,7 +1437,6 @@ ata_device_transport(struct cam_path *path)
 	cts.proto_specific.valid = 0;
 	cts.xport_specific.valid = 0;
 	xpt_action((union ccb *)&cts);
-#endif
 }
 
 static void
@@ -1628,114 +1590,6 @@ scsi_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device
 		}
 		if ((cur_scsi->valid & CTS_SCSI_VALID_TQ) == 0)
 			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-	}
-
-	/* SPI specific sanity checking */
-	if (cts->transport == XPORT_SPI && async_update == FALSE) {
-		u_int spi3caps;
-		struct ccb_trans_settings_spi *spi;
-		struct ccb_trans_settings_spi *cur_spi;
-
-		spi = &cts->xport_specific.spi;
-
-		cur_spi = &cur_cts.xport_specific.spi;
-
-		/* Fill in any gaps in what the user gave us */
-		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0)
-			spi->sync_period = cur_spi->sync_period;
-		if ((cur_spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0)
-			spi->sync_period = 0;
-		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0)
-			spi->sync_offset = cur_spi->sync_offset;
-		if ((cur_spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0)
-			spi->sync_offset = 0;
-		if ((spi->valid & CTS_SPI_VALID_PPR_OPTIONS) == 0)
-			spi->ppr_options = cur_spi->ppr_options;
-		if ((cur_spi->valid & CTS_SPI_VALID_PPR_OPTIONS) == 0)
-			spi->ppr_options = 0;
-		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) == 0)
-			spi->bus_width = cur_spi->bus_width;
-		if ((cur_spi->valid & CTS_SPI_VALID_BUS_WIDTH) == 0)
-			spi->bus_width = 0;
-		if ((spi->valid & CTS_SPI_VALID_DISC) == 0) {
-			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
-			spi->flags |= cur_spi->flags & CTS_SPI_FLAGS_DISC_ENB;
-		}
-		if ((cur_spi->valid & CTS_SPI_VALID_DISC) == 0)
-			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
-		if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
-		  && (inq_data->flags & SID_Sync) == 0
-		  && cts->type == CTS_TYPE_CURRENT_SETTINGS)
-		 || ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0)) {
-			/* Force async */
-			spi->sync_period = 0;
-			spi->sync_offset = 0;
-		}
-
-		switch (spi->bus_width) {
-		case MSG_EXT_WDTR_BUS_32_BIT:
-			if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) == 0
-			  || (inq_data->flags & SID_WBus32) != 0
-			  || cts->type == CTS_TYPE_USER_SETTINGS)
-			 && (cpi.hba_inquiry & PI_WIDE_32) != 0)
-				break;
-			/* Fall Through to 16-bit */
-		case MSG_EXT_WDTR_BUS_16_BIT:
-			if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) == 0
-			  || (inq_data->flags & SID_WBus16) != 0
-			  || cts->type == CTS_TYPE_USER_SETTINGS)
-			 && (cpi.hba_inquiry & PI_WIDE_16) != 0) {
-				spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-				break;
-			}
-			/* Fall Through to 8-bit */
-		default: /* New bus width?? */
-		case MSG_EXT_WDTR_BUS_8_BIT:
-			/* All targets can do this */
-			spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-			break;
-		}
-
-		spi3caps = cpi.xport_specific.spi.ppr_options;
-		if ((device->flags & CAM_DEV_INQUIRY_DATA_VALID) != 0
-		 && cts->type == CTS_TYPE_CURRENT_SETTINGS)
-			spi3caps &= inq_data->spi3data;
-
-		if ((spi3caps & SID_SPI_CLOCK_DT) == 0)
-			spi->ppr_options &= ~MSG_EXT_PPR_DT_REQ;
-
-		if ((spi3caps & SID_SPI_IUS) == 0)
-			spi->ppr_options &= ~MSG_EXT_PPR_IU_REQ;
-
-		if ((spi3caps & SID_SPI_QAS) == 0)
-			spi->ppr_options &= ~MSG_EXT_PPR_QAS_REQ;
-
-		/* No SPI Transfer settings are allowed unless we are wide */
-		if (spi->bus_width == 0)
-			spi->ppr_options = 0;
-
-		if ((spi->valid & CTS_SPI_VALID_DISC)
-		 && ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) == 0)) {
-			/*
-			 * Can't tag queue without disconnection.
-			 */
-			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-			scsi->valid |= CTS_SCSI_VALID_TQ;
-		}
-
-		/*
-		 * If we are currently performing tagged transactions to
-		 * this device and want to change its negotiation parameters,
-		 * go non-tagged for a bit to give the controller a chance to
-		 * negotiate unhampered by tag messages.
-		 */
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS
-		 && (device->inq_flags & SID_CmdQue) != 0
-		 && (scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0
-		 && (spi->flags & (CTS_SPI_VALID_SYNC_RATE|
-				   CTS_SPI_VALID_SYNC_OFFSET|
-				   CTS_SPI_VALID_BUS_WIDTH)) != 0)
-			scsi_toggle_tags(cts->ccb_h.path);
 	}
 
 	if (cts->type == CTS_TYPE_CURRENT_SETTINGS
