@@ -32,8 +32,6 @@
 
 struct sn_softc {
 	struct ifnet    *ifp;
-	bus_space_tag_t	bst;
-	bus_space_handle_t bsh;
 	struct mtx sc_mtx;
 	int             pages_wanted;	/* Size of outstanding MMU ALLOC */
 	int             intr_mask;	/* Most recently set interrupt mask */
@@ -55,20 +53,20 @@ void	sn_intr(void *);
 int	sn_activate(device_t);
 void	sn_deactivate(device_t);
 
-#define CSR_READ_1(sc, off) (bus_space_read_1((sc)->bst, (sc)->bsh, off))
-#define CSR_READ_2(sc, off) (bus_space_read_2((sc)->bst, (sc)->bsh, off))
+#define CSR_READ_1(sc, off) (bus_read_1((sc)->port_res, off))
+#define CSR_READ_2(sc, off) (bus_read_2((sc)->port_res, off))
 #define CSR_WRITE_1(sc, off, val) \
-	bus_space_write_1(sc->bst, sc->bsh, off, val)
+	bus_write_1((sc)->port_res, off, val)
 #define CSR_WRITE_2(sc, off, val) \
-	bus_space_write_2(sc->bst, sc->bsh, off, val)
+	bus_write_2((sc)->port_res, off, val)
 #define CSR_WRITE_MULTI_1(sc, off, addr, count) \
-	bus_space_write_multi_1(sc->bst, sc->bsh, off, addr, count)
+	bus_write_multi_1((sc)->port_res, off, addr, count)
 #define CSR_WRITE_MULTI_2(sc, off, addr, count) \
-	bus_space_write_multi_2(sc->bst, sc->bsh, off, addr, count)
+	bus_write_multi_2((sc)->port_res, off, addr, count)
 #define CSR_READ_MULTI_1(sc, off, addr, count) \
-	bus_space_read_multi_1(sc->bst, sc->bsh, off, addr, count)
+	bus_read_multi_1((sc)->port_res, off, addr, count)
 #define CSR_READ_MULTI_2(sc, off, addr, count) \
-	bus_space_read_multi_2(sc->bst, sc->bsh, off, addr, count)
+	bus_read_multi_2((sc)->port_res, off, addr, count)
 
 #define SN_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	SN_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)

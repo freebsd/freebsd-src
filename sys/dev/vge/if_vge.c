@@ -945,9 +945,6 @@ vge_attach(dev)
 		goto fail;
 	}
 
-	sc->vge_btag = rman_get_bustag(sc->vge_res);
-	sc->vge_bhandle = rman_get_bushandle(sc->vge_res);
-
 	/* Allocate interrupt */
 	rid = 0;
 	sc->vge_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
