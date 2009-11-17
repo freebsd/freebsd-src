@@ -385,7 +385,6 @@ hint.mse.0.irq="13"
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # snc:	National Semiconductor DP8393X SONIC Ethernet adapter driver
-# ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 
 # Order for ISA/EISA devices is important here
@@ -419,7 +418,6 @@ hint.snc.0.at="isa"
 hint.snc.0.port="0x888"
 hint.snc.0.irq="6"
 hint.snc.0.maddr="0xc0000"
-device		ural
 
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# pci/cardbus chip support
