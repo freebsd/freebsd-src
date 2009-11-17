@@ -1212,7 +1212,8 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 take_next:
 		/* Take next device. Wrap from 15 (PM) to 0. */
 		scan_info->counter = (scan_info->counter + 1 ) & 0x0f;
-		if (scan_info->counter >= scan_info->cpi->max_target+1) {
+		if (scan_info->counter > scan_info->cpi->max_target -
+		    ((scan_info->cpi->hba_inquiry & PI_SATAPM) ? 1 : 0)) {
 			xpt_free_ccb(work_ccb);
 			xpt_free_ccb((union ccb *)scan_info->cpi);
 			request_ccb = scan_info->request_ccb;
