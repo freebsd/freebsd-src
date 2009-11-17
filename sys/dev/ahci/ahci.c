@@ -891,16 +891,12 @@ ahci_phy_check_events(device_t dev)
 }
 
 static void
-ahci_notify_events(device_t dev)
+ahci_notify_events(device_t dev, u_int32_t status)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	struct cam_path *dpath;
-	u_int32_t status;
 	int i;
 
-	status = ATA_INL(ch->r_mem, AHCI_P_SNTF);
-	if (status == 0)
-		return;
 	ATA_OUTL(ch->r_mem, AHCI_P_SNTF, status);
 	if (bootverbose)
 		device_printf(dev, "SNTF 0x%04x\n", status);
@@ -948,7 +944,7 @@ ahci_ch_intr(void *data)
 {
 	device_t dev = (device_t)data;
 	struct ahci_channel *ch = device_get_softc(dev);
-	uint32_t istatus, cstatus, sstatus, ok, err;
+	uint32_t istatus, sstatus, cstatus, sntf = 0, ok, err;
 	enum ahci_err_type et;
 	int i, ccs, ncq_err = 0;
 
@@ -958,8 +954,10 @@ ahci_ch_intr(void *data)
 		return;
 	ATA_OUTL(ch->r_mem, AHCI_P_IS, istatus);
 	/* Read command statuses. */
-	cstatus = ATA_INL(ch->r_mem, AHCI_P_CI);
 	sstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
+	cstatus = ATA_INL(ch->r_mem, AHCI_P_CI);
+	if ((istatus & AHCI_P_IX_SDB) && (ch->caps & AHCI_CAP_SSNTF))
+		sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
 	/* Process PHY events */
 	if (istatus & (AHCI_P_IX_PRC | AHCI_P_IX_PC))
 		ahci_phy_check_events(dev);
@@ -1023,8 +1021,8 @@ ahci_ch_intr(void *data)
 			ahci_issue_read_log(dev);
 	}
 	/* Process NOTIFY events */
-	if ((istatus & AHCI_P_IX_SDB) && (ch->caps & AHCI_CAP_SSNTF))
-		ahci_notify_events(dev);
+	if (sntf)
+		ahci_notify_events(dev, sntf);
 }
 
 /* Must be called with channel locked. */
