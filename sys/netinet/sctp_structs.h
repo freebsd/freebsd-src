@@ -364,9 +364,6 @@ struct sctp_tmit_chunk {
 	uint8_t pad_inplace;
 	uint8_t do_rtt;
 	uint8_t book_size_scale;
-	uint8_t addr_over;	/* flag which is set if the dest address for
-				 * this chunk is overridden by user. Used for
-				 * CMT (iyengar@cis.udel.edu, 2005/06/21) */
 	uint8_t no_fr_allowed;
 	uint8_t pr_sctp_on;
 	uint8_t copy_by_ref;
@@ -444,7 +441,6 @@ struct sctp_stream_queue_pending {
 	uint8_t holds_key_ref;
 	uint8_t msg_is_complete;
 	uint8_t some_taken;
-	uint8_t addr_over;
 	uint8_t pr_sctp_on;
 	uint8_t sender_all_done;
 	uint8_t put_last_out;
