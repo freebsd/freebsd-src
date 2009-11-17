@@ -1220,8 +1220,6 @@ sn_activate(device_t dev)
 		sn_deactivate(dev);
 		return ENOMEM;
 	}
-	sc->bst = rman_get_bustag(sc->port_res);
-	sc->bsh = rman_get_bushandle(sc->port_res);
 	return (0);
 }
 

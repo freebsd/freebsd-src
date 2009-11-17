@@ -804,9 +804,6 @@ wb_attach(dev)
 		goto fail;
 	}
 
-	sc->wb_btag = rman_get_bustag(sc->wb_res);
-	sc->wb_bhandle = rman_get_bushandle(sc->wb_res);
-
 	/* Allocate interrupt */
 	rid = 0;
 	sc->wb_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
