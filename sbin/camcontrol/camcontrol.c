@@ -1019,18 +1019,28 @@ atacapprint(struct ata_params *parm)
 	printf("protocol              ");
 	printf("ATA/ATAPI-%d", ata_version(parm->version_major));
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		if (parm->satacapabilities & ATA_SATA_GEN2)
+		if (parm->satacapabilities & ATA_SATA_GEN3)
+			printf(" SATA 3.x\n");
+		else if (parm->satacapabilities & ATA_SATA_GEN2)
 			printf(" SATA 2.x\n");
 		else if (parm->satacapabilities & ATA_SATA_GEN1)
 			printf(" SATA 1.x\n");
 		else
-			printf(" SATA x.x\n");
+			printf(" SATA\n");
 	}
 	else
 		printf("\n");
 	printf("device model          %.40s\n", parm->model);
-	printf("serial number         %.20s\n", parm->serial);
 	printf("firmware revision     %.8s\n", parm->revision);
+	printf("serial number         %.20s\n", parm->serial);
+	if (parm->enabled.extension & ATA_SUPPORT_64BITWWN) {
+		printf("WWN                   %02x%02x%02x%02x\n",
+		    parm->wwn[0], parm->wwn[1], parm->wwn[2], parm->wwn[3]);
+	}
+	if (parm->enabled.extension & ATA_SUPPORT_MEDIASN) {
+		printf("media serial number   %.30s\n",
+		    parm->media_serial);
+	}
 
 	printf("cylinders             %d\n", parm->cylinders);
 	printf("heads                 %d\n", parm->heads);
@@ -1071,6 +1081,8 @@ atacapprint(struct ata_params *parm)
 	default:
 		printf("0");
 	}
+	if ((parm->capabilities1 & ATA_SUPPORT_IORDY) == 0)
+		printf(" w/o IORDY");
 	printf("\n");
 
 	printf("DMA%ssupported         ",
@@ -1110,18 +1122,25 @@ atacapprint(struct ata_params *parm)
 
 	printf("overlap%ssupported\n",
 		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
+	if (parm->media_rotation_rate == 1) {
+		printf("media RPM             non-rotating\n");
+	} else if (parm->media_rotation_rate >= 0x0401 &&
+	    parm->media_rotation_rate <= 0xFFFE) {
+		printf("media RPM             %d\n",
+			parm->media_rotation_rate);
+	}
 
 	printf("\nFeature                      "
 		"Support  Enable    Value           Vendor\n");
-
-	printf("write cache                    %s	%s\n",
-		parm->support.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no",
-		parm->enabled.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no");
-
 	printf("read ahead                     %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
-
+	printf("write cache                    %s	%s\n",
+		parm->support.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no");
+	printf("flush cache                    %s	%s\n",
+		parm->support.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_FLUSHCACHE ? "yes" : "no");
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		printf("Native Command Queuing (NCQ)   %s	"
 			"	%d/0x%02X\n",
@@ -1136,28 +1155,22 @@ atacapprint(struct ata_params *parm)
 		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
 		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
-
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
-
 	printf("microcode download             %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no");
-
 	printf("security                       %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no");
-
 	printf("power management               %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");
-
 	printf("advanced power management      %s	%s	%d/0x%02X\n",
 		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no",
 		parm->apm_value, parm->apm_value);
-
 	printf("automatic acoustic management  %s	%s	"
 		"%d/0x%02X	%d/0x%02X\n",
 		parm->support.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
@@ -1166,6 +1179,22 @@ atacapprint(struct ata_params *parm)
 		ATA_ACOUSTIC_CURRENT(parm->acoustic),
 		ATA_ACOUSTIC_VENDOR(parm->acoustic),
 		ATA_ACOUSTIC_VENDOR(parm->acoustic));
+	printf("media status notification      %s	%s\n",
+		parm->support.command2 & ATA_SUPPORT_NOTIFY ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_NOTIFY ? "yes" : "no");
+	printf("power-up in Standby            %s	%s\n",
+		parm->support.command2 & ATA_SUPPORT_STANDBY ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_STANDBY ? "yes" : "no");
+	printf("write-read-verify              %s	%s	%d/0x%x\n",
+		parm->support2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no",
+		parm->enabled2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no",
+		parm->wrv_mode, parm->wrv_mode);
+	printf("unload                         %s	%s\n",
+		parm->support.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no",
+		parm->enabled.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no");
+	printf("free-fall                      %s	%s\n",
+		parm->support2 & ATA_SUPPORT_FREEFALL ? "yes" : "no",
+		parm->enabled2 & ATA_SUPPORT_FREEFALL ? "yes" : "no");
 }
 
 
@@ -1261,6 +1290,7 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 		ata_bswap(ident_buf->model, sizeof(ident_buf->model));
 		ata_bswap(ident_buf->revision, sizeof(ident_buf->revision));
 		ata_bswap(ident_buf->serial, sizeof(ident_buf->serial));
+		ata_bswap(ident_buf->media_serial, sizeof(ident_buf->media_serial));
 	}
 	ata_btrim(ident_buf->model, sizeof(ident_buf->model));
 	ata_bpack(ident_buf->model, ident_buf->model, sizeof(ident_buf->model));
@@ -1268,6 +1298,9 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	ata_bpack(ident_buf->revision, ident_buf->revision, sizeof(ident_buf->revision));
 	ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
 	ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
+	ata_btrim(ident_buf->media_serial, sizeof(ident_buf->media_serial));
+	ata_bpack(ident_buf->media_serial, ident_buf->media_serial,
+	    sizeof(ident_buf->media_serial));
 
 	fprintf(stdout, "%s%d: ", device->device_name,
 		device->dev_unit_num);
