@@ -652,7 +652,7 @@ db_kill(dummy1, dummy2, dummy3, dummy4)
 	if (PROC_TRYLOCK(p) == 0)
 		DB_ERROR(("Can't lock process with pid %ld\n", (long) pid));
 	else {
-		psignal(p, sig);
+		pksignal(p, sig, NULL);
 		PROC_UNLOCK(p);
 	}
 
