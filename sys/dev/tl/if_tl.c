@@ -1170,9 +1170,6 @@ tl_attach(dev)
 		goto fail;
 	}
 
-	sc->tl_btag = rman_get_bustag(sc->tl_res);
-	sc->tl_bhandle = rman_get_bushandle(sc->tl_res);
-
 #ifdef notdef
 	/*
 	 * The ThunderLAN manual suggests jacking the PCI latency
