@@ -271,6 +271,38 @@ ata_print_ident(struct ata_params *ident_data)
 	printf(" device\n");
 }
 
+uint32_t
+ata_logical_sector_size(struct ata_params *ident_data)
+{
+	if ((ident_data->pss & 0xc000) == 0x4000 &&
+	    (ident_data->pss & ATA_PSS_LSSABOVE512)) {
+		return ((u_int32_t)ident_data->lss_1 |
+		    ((u_int32_t)ident_data->lss_2 << 16));
+	}
+	return (512);
+}
+
+uint64_t
+ata_physical_sector_size(struct ata_params *ident_data)
+{
+	if ((ident_data->pss & 0xc000) == 0x4000 &&
+	    (ident_data->pss & ATA_PSS_MULTLS)) {
+		return ((uint64_t)ata_logical_sector_size(ident_data) *
+		    (1 << (ident_data->pss & ATA_PSS_LSPPS)));
+	}
+	return (512);
+}
+
+uint64_t
+ata_logical_sector_offset(struct ata_params *ident_data)
+{
+	if ((ident_data->lsalign & 0xc000) == 0x4000) {
+		return ((uint64_t)ata_logical_sector_size(ident_data) *
+		    (ident_data->lsalign & 0x3fff));
+	}
+	return (0);
+}
+
 void
 ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
     uint32_t lba, uint8_t sector_count)
