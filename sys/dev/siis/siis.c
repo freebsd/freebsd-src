@@ -982,15 +982,16 @@ device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
 
 	if (!ch->readlog)
 		xpt_freeze_simq(ch->sim, ch->numrslots);
-	/* Handle command with timeout. */
-	siis_end_transaction(&ch->slot[slot->slot], SIIS_ERR_TIMEOUT);
-	/* Handle the rest of commands. */
+	/* Handle frozen command. */
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
 		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
 		xpt_done(fccb);
 	}
+	/* Handle command with timeout. */
+	siis_end_transaction(&ch->slot[slot->slot], SIIS_ERR_TIMEOUT);
+	/* Handle the rest of commands. */
 	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
 		/* Do we have a running request on slot? */
 		if (ch->slot[i].state < SIIS_SLOT_RUNNING)
