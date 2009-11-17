@@ -812,7 +812,7 @@ xpt_scanner_thread(void *dummy)
 			else
 				ccb->ccb_h.func_code = XPT_SCAN_LUN;
 			ccb->ccb_h.cbfcnp = xptdone;
-			xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, 1);
+			xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, CAM_PRIORITY_NORMAL);
 			cam_periph_runccb(ccb, NULL, 0, 0, NULL);
 			xpt_free_path(ccb->ccb_h.path);
 			xpt_free_ccb(ccb);
@@ -1059,7 +1059,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		printf("%s%d: Serial Number %.60s\n", periph->periph_name,
 		       periph->unit_number, path->device->serial_num);
 	}
-	xpt_setup_ccb(&cts.ccb_h, path, /*priority*/1);
+	xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb*)&cts);
@@ -1068,7 +1068,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	}
 
 	/* Ask the SIM for its base transfer speed */
-	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
+	xpt_setup_ccb(&cpi.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -2335,7 +2335,7 @@ xptsetasyncfunc(struct cam_ed *device, void *arg)
 			 device->target->bus->path_id,
 			 device->target->target_id,
 			 device->lun_id);
-	xpt_setup_ccb(&cgd.ccb_h, &path, /*priority*/1);
+	xpt_setup_ccb(&cgd.ccb_h, &path, CAM_PRIORITY_NORMAL);
 	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 	xpt_action((union ccb *)&cgd);
 	cur_entry->callback(cur_entry->callback_arg,
@@ -2359,7 +2359,7 @@ xptsetasyncbusfunc(struct cam_eb *bus, void *arg)
 			 bus->sim->path_id,
 			 CAM_TARGET_WILDCARD,
 			 CAM_LUN_WILDCARD);
-	xpt_setup_ccb(&cpi.ccb_h, &path, /*priority*/1);
+	xpt_setup_ccb(&cpi.ccb_h, &path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 	cur_entry->callback(cur_entry->callback_arg,
@@ -3799,7 +3799,7 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 	if (status != CAM_REQ_CMP)
 		printf("xpt_compile_path returned %d\n", status);
 
-	xpt_setup_ccb(&cpi.ccb_h, &path, /*priority*/1);
+	xpt_setup_ccb(&cpi.ccb_h, &path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 
@@ -4544,7 +4544,7 @@ xpt_start_tags(struct cam_path *path)
 		newopenings = min(device->maxtags,
 				  sim->max_tagged_dev_openings);
 	xpt_dev_ccbq_resize(path, newopenings);
-	xpt_setup_ccb(&crs.ccb_h, path, /*priority*/1);
+	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
 	crs.openings
@@ -4571,7 +4571,7 @@ xptconfigbuscountfunc(struct cam_eb *bus, void *arg)
 		busses_to_config++;
 		xpt_compile_path(&path, NULL, bus->path_id,
 				 CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
-		xpt_setup_ccb(&cpi.ccb_h, &path, /*priority*/1);
+		xpt_setup_ccb(&cpi.ccb_h, &path, CAM_PRIORITY_NORMAL);
 		cpi.ccb_h.func_code = XPT_PATH_INQ;
 		xpt_action((union ccb *)&cpi);
 		can_negotiate = cpi.hba_inquiry;
@@ -4614,7 +4614,7 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 			xpt_finishconfig(xpt_periph, NULL);
 			return(0);
 		}
-		xpt_setup_ccb(&work_ccb->ccb_h, path, /*priority*/1);
+		xpt_setup_ccb(&work_ccb->ccb_h, path, CAM_PRIORITY_NORMAL);
 		work_ccb->ccb_h.func_code = XPT_PATH_INQ;
 		xpt_action(work_ccb);
 		if (work_ccb->ccb_h.status != CAM_REQ_CMP) {
@@ -4629,7 +4629,7 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 		can_negotiate &= (PI_WIDE_32|PI_WIDE_16|PI_SDTR_ABLE);
 		if ((work_ccb->cpi.hba_misc & PIM_NOBUSRESET) == 0
 		 && (can_negotiate != 0)) {
-			xpt_setup_ccb(&work_ccb->ccb_h, path, /*priority*/1);
+			xpt_setup_ccb(&work_ccb->ccb_h, path, CAM_PRIORITY_NORMAL);
 			work_ccb->ccb_h.func_code = XPT_RESET_BUS;
 			work_ccb->ccb_h.cbfcnp = NULL;
 			CAM_DEBUG(path, CAM_DEBUG_SUBTRACE,

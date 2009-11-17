@@ -270,7 +270,7 @@ adaclose(struct disk *dp)
 	/* We only sync the cache if the drive is capable of it. */
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) {
 
-		ccb = cam_periph_getccb(periph, /*priority*/1);
+		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		cam_fill_ataio(&ccb->ataio,
 				    1,
 				    adadone,
@@ -343,7 +343,7 @@ adastrategy(struct bio *bp)
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
-	xpt_schedule(periph, /* XXX priority */1);
+	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	cam_periph_unlock(periph);
 
 	return;
@@ -377,7 +377,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 
 	if (length > 0) {
 		periph->flags |= CAM_PERIPH_POLLED;
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
 		    0,
@@ -408,7 +408,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	}
 
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) {
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
@@ -563,7 +563,7 @@ adaasync(void *callback_arg, u_int32_t code,
 		 */
 		softc->state = ADA_STATE_SET_MULTI;
 		cam_periph_acquire(periph);
-		xpt_schedule(periph, 0);
+		xpt_schedule(periph, CAM_PRIORITY_DEV);
 		break;
 	}
 	default:
@@ -665,7 +665,7 @@ adaregister(struct cam_periph *periph, void *arg)
 
 	/* Check if the SIM does not want queued commands */
 	bzero(&cpi, sizeof(cpi));
-	xpt_setup_ccb(&cpi.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
 	if (cpi.ccb_h.status != CAM_REQ_CMP ||
@@ -897,7 +897,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		
 		if (bp != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, /* XXX priority */1);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 		break;
 	}
@@ -1027,7 +1027,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_release_ccb(done_ccb);
 		if (bioq_first(&softc->bio_queue) != NULL) {
 			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, 1);
+			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 		}
 		cam_periph_release_locked(periph);
 		return;
@@ -1139,7 +1139,7 @@ adashutdown(void * arg, int howto)
 			continue;
 		}
 
-		xpt_setup_ccb(&ccb.ccb_h, periph->path, /*priority*/1);
+		xpt_setup_ccb(&ccb.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
 		ccb.ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb.ataio,
