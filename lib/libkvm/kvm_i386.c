@@ -289,9 +289,9 @@ _kvm_vatop(kvm_t *kd, u_long va, off_t *pa)
 #define	PG_FRAME4M	(~PAGE4M_MASK)
 		pde_pa = ((u_long)pde & PG_FRAME4M) + (va & PAGE4M_MASK);
 		s = _kvm_pa2off(kd, pde_pa, &ofs);
-		if (s < sizeof pde) {
-			_kvm_syserr(kd, kd->program,
-			    "_kvm_vatop: pde_pa not found");
+		if (s == 0) {
+			_kvm_err(kd, kd->program,
+			    "_kvm_vatop: 4MB page address not in dump");
 			goto invalid;
 		}
 		*pa = ofs;
@@ -385,9 +385,9 @@ _kvm_vatop_pae(kvm_t *kd, u_long va, off_t *pa)
 #define	PG_FRAME2M	(~PAGE2M_MASK)
 		pde_pa = ((u_long)pde & PG_FRAME2M) + (va & PAGE2M_MASK);
 		s = _kvm_pa2off(kd, pde_pa, &ofs);
-		if (s < sizeof pde) {
-			_kvm_syserr(kd, kd->program,
-			    "_kvm_vatop_pae: pde_pa not found");
+		if (s == 0) {
+			_kvm_err(kd, kd->program,
+			    "_kvm_vatop: 2MB page address not in dump");
 			goto invalid;
 		}
 		*pa = ofs;
