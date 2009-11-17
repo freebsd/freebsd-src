@@ -1001,12 +1001,7 @@ ahci_ch_intr(void *data)
 			/* XXX: reqests in loading state. */
 			if (((err >> i) & 1) == 0)
 				continue;
-			if (istatus & AHCI_P_IX_IF) {
-				if (ch->numtslots == 0 && i != ccs)
-					et = AHCI_ERR_INNOCENT;
-				else
-					et = AHCI_ERR_SATA;
-			} else if (istatus & AHCI_P_IX_TFE) {
+			if (istatus & AHCI_P_IX_TFE) {
 				/* Task File Error */
 				if (ch->numtslots == 0) {
 					/* Untagged operation. */
@@ -1019,6 +1014,11 @@ ahci_ch_intr(void *data)
 					et = AHCI_ERR_NCQ;
 					ncq_err = 1;
 				}
+			} else if (istatus & AHCI_P_IX_IF) {
+				if (ch->numtslots == 0 && i != ccs)
+					et = AHCI_ERR_INNOCENT;
+				else
+					et = AHCI_ERR_SATA;
 			} else
 				et = AHCI_ERR_INVALID;
 			ahci_end_transaction(&ch->slot[i], et);
