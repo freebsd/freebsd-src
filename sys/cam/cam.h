@@ -184,6 +184,12 @@ typedef enum {
 	CAM_ESF_PRINT_SENSE	= 0x20
 } cam_error_scsi_flags;
 
+typedef enum {
+	CAM_EAF_PRINT_NONE	= 0x00,
+	CAM_EAF_PRINT_STATUS	= 0x10,
+	CAM_EAF_PRINT_RESULT	= 0x20
+} cam_error_ata_flags;
+
 struct cam_status_entry
 {
 	cam_status  status_code;
