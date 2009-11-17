@@ -1221,6 +1221,13 @@ ahci_execute_transaction(struct ahci_slot *slot)
 				et = AHCI_ERR_TFE;
 				break;
 			}
+			/* Workaround for ATI SB600/SB700 chipsets. */
+			if (ccb->ccb_h.target_id == 15 &&
+			    pci_get_vendor(device_get_parent(dev)) == 0x1002 &&
+			    (ATA_INL(ch->r_mem, AHCI_P_IS) & AHCI_P_IX_IPM)) {
+				et = AHCI_ERR_TIMEOUT;
+				break;
+			}
 		}
 		if (timeout && (count >= timeout)) {
 			device_printf(ch->dev,
@@ -1275,10 +1282,8 @@ ahci_timeout(struct ahci_slot *slot)
 	    ATA_INL(ch->r_mem, AHCI_P_IS), ATA_INL(ch->r_mem, AHCI_P_CI),
 	    ATA_INL(ch->r_mem, AHCI_P_SACT), ch->rslots,
 	    ATA_INL(ch->r_mem, AHCI_P_TFD), ATA_INL(ch->r_mem, AHCI_P_SERR));
-	/* Kick controller into sane state. */
-	ahci_stop(ch->dev);
-	ahci_start(ch->dev);
 
+	ch->fatalerr = 1;
 	/* Handle frozen command. */
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
@@ -1360,6 +1365,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			ccb->csio.scsi_status = SCSI_STATUS_OK;
 		break;
 	case AHCI_ERR_INVALID:
+		ch->fatalerr = 1;
 		ccb->ccb_h.status |= CAM_REQ_INVALID;
 		break;
 	case AHCI_ERR_INNOCENT:
@@ -1375,6 +1381,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		}
 		break;
 	case AHCI_ERR_SATA:
+		ch->fatalerr = 1;
 		if (!ch->readlog) {
 			xpt_freeze_simq(ch->sim, 1);
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
@@ -1383,6 +1390,10 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ccb->ccb_h.status |= CAM_UNCOR_PARITY;
 		break;
 	case AHCI_ERR_TIMEOUT:
+		/* Do no treat soft-reset timeout as fatal here. */
+		if (ccb->ccb_h.func_code != XPT_ATA_IO ||
+	            !(ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL))
+			ch->fatalerr = 1;
 		if (!ch->readlog) {
 			xpt_freeze_simq(ch->sim, 1);
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
@@ -1391,6 +1402,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
 		break;
 	default:
+		ch->fatalerr = 1;
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 	}
 	/* Free slot. */
@@ -1414,12 +1426,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ahci_begin_transaction(dev, ccb);
 		return;
 	}
-	/* If it was NCQ command error, put result on hold. */
-	if (et == AHCI_ERR_NCQ) {
-		ch->hold[slot->slot] = ccb;
-	} else if (ch->readlog)	/* If it was our READ LOG command - process it. */
+	/* If it was our READ LOG command - process it. */
+	if (ch->readlog) {
 		ahci_process_read_log(dev, ccb);
-	else
+	/* If it was NCQ command error, put result on hold. */
+	} else if (et == AHCI_ERR_NCQ) {
+		ch->hold[slot->slot] = ccb;
+	} else
 		xpt_done(ccb);
 	/* Unfreeze frozen command. */
 	if (ch->frozen && ch->numrslots == 0) {
@@ -1427,6 +1440,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ch->frozen = NULL;
 		ahci_begin_transaction(dev, fccb);
 		xpt_release_simq(ch->sim, TRUE);
+	}
+	/* If we have no other active commands, ... */
+	if (ch->rslots == 0) {
+		/* if there was fatal error - reset port. */
+		if (ch->fatalerr) {
+			ahci_reset(dev);
+		}
 	}
 	/* Start PM timer. */
 	if (ch->numrslots == 0 && ch->pm_level > 3) {
@@ -1674,6 +1694,13 @@ ahci_reset(device_t dev)
 		/* XXX; Commands in loading state. */
 		ahci_end_transaction(&ch->slot[i], AHCI_ERR_INNOCENT);
 	}
+	for (i = 0; i < ch->numslots; i++) {
+		if (!ch->hold[i])
+			continue;
+		xpt_done(ch->hold[i]);
+		ch->hold[i] = NULL;
+	}
+	ch->fatalerr = 0;
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
 	/* Disable port interrupts */
