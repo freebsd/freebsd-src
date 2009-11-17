@@ -151,6 +151,7 @@ static void	tulip_start_locked(tulip_softc_t * const sc);
 static struct mbuf *
 		tulip_txput(tulip_softc_t * const sc, struct mbuf *m);
 static void	tulip_txput_setup(tulip_softc_t * const sc);
+static void	tulip_watchdog(void *arg);
 struct mbuf *	tulip_dequeue_mbuf(tulip_ringinfo_t *ri, tulip_descinfo_t *di,
 		    int sync);
 static void	tulip_dma_map_addr(void *, bus_dma_segment_t *, int, int);
@@ -3302,11 +3303,13 @@ tulip_init_locked(tulip_softc_t * const sc)
 	    TULIP_CSR_READ(sc, csr_status));
 	if ((sc->tulip_flags & (TULIP_WANTSETUP|TULIP_TXPROBE_ACTIVE)) == TULIP_WANTSETUP)
 	    tulip_txput_setup(sc);
+	callout_reset(&sc->tulip_stat_timer, hz, tulip_watchdog, sc);
     } else {
 	CTR0(KTR_TULIP, "tulip_init_locked: not up, reset chip");
 	sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	tulip_reset(sc);
 	tulip_addr_filter(sc);
+	callout_stop(&sc->tulip_stat_timer);
     }
 }
 
@@ -4319,23 +4322,17 @@ tulip_start_locked(tulip_softc_t * const sc)
     }
 }
 
-/*
- * Even though this routine runs at device spl, it does not break
- * our use of splnet (splsoftnet under NetBSD) for the majority
- * of this driver since 
- * if_watcbog is called from if_watchdog which is called from
- * splsoftclock which is below spl[soft]net.
- */
 static void
-tulip_ifwatchdog(struct ifnet *ifp)
+tulip_watchdog(void *arg)
 {
-    TULIP_PERFSTART(ifwatchdog)
-    tulip_softc_t * const sc = (tulip_softc_t *)ifp->if_softc;
+    TULIP_PERFSTART(stat)
+    tulip_softc_t *sc = arg;
 #if defined(TULIP_DEBUG)
     u_int32_t rxintrs;
 #endif
 
-    TULIP_LOCK(sc);
+    TULIP_LOCK_ASSERT(sc);
+    callout_reset(&sc->tulip_stat_timer, hz, tulip_watchdog, sc);    
 #if defined(TULIP_DEBUG)
     rxintrs = sc->tulip_dbg.dbg_rxintrs - sc->tulip_dbg.dbg_last_rxintrs;
     if (rxintrs > sc->tulip_dbg.dbg_high_rxintrs_hz)
@@ -4343,7 +4340,6 @@ tulip_ifwatchdog(struct ifnet *ifp)
     sc->tulip_dbg.dbg_last_rxintrs = sc->tulip_dbg.dbg_rxintrs;
 #endif /* TULIP_DEBUG */
 
-    sc->tulip_ifp->if_timer = 1;
     /*
      * These should be rare so do a bulk test up front so we can just skip
      * them if needed.
@@ -4381,11 +4377,11 @@ tulip_ifwatchdog(struct ifnet *ifp)
 	tulip_init_locked(sc);
     }
 
-    TULIP_PERFEND(ifwatchdog);
+    TULIP_PERFEND(stat);
     TULIP_PERFMERGE(sc, perf_intr_cycles);
     TULIP_PERFMERGE(sc, perf_ifstart_cycles);
     TULIP_PERFMERGE(sc, perf_ifioctl_cycles);
-    TULIP_PERFMERGE(sc, perf_ifwatchdog_cycles);
+    TULIP_PERFMERGE(sc, perf_stat_cycles);
     TULIP_PERFMERGE(sc, perf_timeout_cycles);
     TULIP_PERFMERGE(sc, perf_ifstart_one_cycles);
     TULIP_PERFMERGE(sc, perf_txput_cycles);
@@ -4395,14 +4391,13 @@ tulip_ifwatchdog(struct ifnet *ifp)
     TULIP_PERFMERGE(sc, perf_intr);
     TULIP_PERFMERGE(sc, perf_ifstart);
     TULIP_PERFMERGE(sc, perf_ifioctl);
-    TULIP_PERFMERGE(sc, perf_ifwatchdog);
+    TULIP_PERFMERGE(sc, perf_stat);
     TULIP_PERFMERGE(sc, perf_timeout);
     TULIP_PERFMERGE(sc, perf_ifstart_one);
     TULIP_PERFMERGE(sc, perf_txput);
     TULIP_PERFMERGE(sc, perf_txintr);
     TULIP_PERFMERGE(sc, perf_rxintr);
     TULIP_PERFMERGE(sc, perf_rxget);
-    TULIP_UNLOCK(sc);
 }
 
 static void
@@ -4418,8 +4413,6 @@ tulip_attach(tulip_softc_t * const sc)
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
     ifp->if_ioctl = tulip_ifioctl;
     ifp->if_start = tulip_start;
-    ifp->if_watchdog = tulip_ifwatchdog;
-    ifp->if_timer = 1;
     ifp->if_init = tulip_init;
     IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
     ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
@@ -4839,6 +4832,7 @@ tulip_pci_attach(device_t dev)
     mtx_init(TULIP_MUTEX(sc), MTX_NETWORK_LOCK, device_get_nameunit(dev),
 	MTX_DEF);
     callout_init_mtx(&sc->tulip_callout, TULIP_MUTEX(sc), 0);
+    callout_init_mtx(&sc->tulip_stat_timer, TULIP_MUTEX(sc), 0);
     tulips[unit] = sc;
 
     tulip_initcsrs(sc, csr_base + csroffset, csrsize);
