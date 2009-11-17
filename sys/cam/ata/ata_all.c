@@ -368,30 +368,24 @@ void
 ata_pm_read_cmd(struct ccb_ataio *ataio, int reg, int port)
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));
-	ataio->cmd.flags = CAM_ATAIO_48BIT | CAM_ATAIO_NEEDRESULT;
+	ataio->cmd.flags = CAM_ATAIO_NEEDRESULT;
 	ataio->cmd.command = ATA_READ_PM;
 	ataio->cmd.features = reg;
-	ataio->cmd.features_exp = reg >> 8;
 	ataio->cmd.device = port & 0x0f;
 }
 
 void
-ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint64_t val)
+ata_pm_write_cmd(struct ccb_ataio *ataio, int reg, int port, uint32_t val)
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));
-	ataio->cmd.flags = CAM_ATAIO_48BIT | CAM_ATAIO_NEEDRESULT;
+	ataio->cmd.flags = 0;
 	ataio->cmd.command = ATA_WRITE_PM;
 	ataio->cmd.features = reg;
+	ataio->cmd.sector_count = val;
 	ataio->cmd.lba_low = val >> 8;
 	ataio->cmd.lba_mid = val >> 16;
 	ataio->cmd.lba_high = val >> 24;
 	ataio->cmd.device = port & 0x0f;
-	ataio->cmd.lba_low_exp = val >> 40;
-	ataio->cmd.lba_mid_exp = val >> 48;
-	ataio->cmd.lba_high_exp = val >> 56;
-	ataio->cmd.features_exp = reg >> 8;
-	ataio->cmd.sector_count = val;
-	ataio->cmd.sector_count_exp = val >> 32;
 }
 
 void
