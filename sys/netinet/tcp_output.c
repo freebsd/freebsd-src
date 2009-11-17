@@ -939,7 +939,7 @@ send:
 	 * to read more data then can be buffered prior to transmitting on
 	 * the connection.
 	 */
-	if (recwin == 0)
+	if (th->th_win == 0)
 		tp->t_flags |= TF_RXWIN0SENT;
 	else
 		tp->t_flags &= ~TF_RXWIN0SENT;
