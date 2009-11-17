@@ -641,6 +641,7 @@ siis_slotsfree(device_t dev)
 	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
 		struct siis_slot *slot = &ch->slot[i];
 
+		callout_drain(&slot->timeout);
 		if (slot->dma.data_map) {
 			bus_dmamap_destroy(ch->dma.data_tag, slot->dma.data_map);
 			slot->dma.data_map = NULL;
@@ -838,15 +839,11 @@ siis_begin_transaction(device_t dev, union ccb *ccb)
 	mtx_assert(&ch->mtx, MA_OWNED);
 	/* Choose empty slot. */
 	tag = ch->lastslot;
-	do {
-		tag++;
-		if (tag >= SIIS_MAX_SLOTS)
+	while (ch->slot[tag].state != SIIS_SLOT_EMPTY) {
+		if (++tag >= SIIS_MAX_SLOTS)
 			tag = 0;
-		if (ch->slot[tag].state == SIIS_SLOT_EMPTY)
-			break;
-	} while (tag != ch->lastslot);
-	if (ch->slot[tag].state != SIIS_SLOT_EMPTY)
-		device_printf(ch->dev, "ALL SLOTS BUSY!\n");
+		KASSERT(tag != ch->lastslot, ("siis: ALL SLOTS BUSY!"));
+	}
 	ch->lastslot = tag;
 	/* Occupy chosen slot. */
 	slot = &ch->slot[tag];
@@ -999,6 +996,9 @@ siis_timeout(struct siis_slot *slot)
 	struct siis_channel *ch = device_get_softc(dev);
 
 	mtx_assert(&ch->mtx, MA_OWNED);
+	/* Check for stale timeout. */
+	if (slot->state < SIIS_SLOT_RUNNING)
+		return;
 	device_printf(dev, "Timeout on slot %d\n", slot->slot);
 device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
     __func__, ATA_INL(ch->r_mem, SIIS_P_IS), ATA_INL(ch->r_mem, SIIS_P_SS), ch->rslots,
@@ -1024,8 +1024,6 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 	union ccb *ccb = slot->ccb;
 
 	mtx_assert(&ch->mtx, MA_OWNED);
-	/* Cancel command execution timeout */
-	callout_stop(&slot->timeout);
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
 	    BUS_DMASYNC_POSTWRITE);
 	/* Read result registers to the result struct
