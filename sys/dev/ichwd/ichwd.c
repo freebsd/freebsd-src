@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/watchdog.h>
 
+#include <isa/isavar.h>
 #include <dev/pci/pcivar.h>
 
 #include <dev/ichwd/ichwd.h>
@@ -393,7 +394,9 @@ static int
 ichwd_probe(device_t dev)
 {
 
-	(void)dev;
+	/* Do not claim some ISA PnP device by accident. */
+	if (isa_get_logicalid(dev) != 0)
+		return (ENXIO);
 	return (0);
 }
 
