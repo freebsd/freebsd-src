@@ -165,8 +165,12 @@ cam_strmatch(const u_int8_t *str, const u_int8_t *pattern, int str_len)
 		str++;
 		str_len--;
 	}
-	while (str_len > 0 && *str++ == ' ')
+	while (str_len > 0 && *str == ' ') {
+		str++;
 		str_len--;
+	}
+	if (str_len > 0 && *str == 0)
+		str_len = 0;
 
 	return (str_len);
 }

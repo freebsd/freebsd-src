@@ -122,9 +122,17 @@ struct ada_quirk_entry {
 	ada_quirks quirks;
 };
 
-//static struct ada_quirk_entry ada_quirk_table[] =
-//{
-//};
+static struct ada_quirk_entry ada_quirk_table[] =
+{
+	{
+		/* Default */
+		{
+		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
+		  /*vendor*/"*", /*product*/"*", /*revision*/"*"
+		},
+		/*quirks*/0
+	},
+};
 
 static	disk_strategy_t	adastrategy;
 static	dumper_t	adadump;
@@ -618,7 +626,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 		softc->flags |= ADA_FLAG_CAN_FLUSHCACHE;
 	if (cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ &&
-	    cgd->ident_data.queue >= 31)
+	    cgd->inq_flags & SID_CmdQue)
 		softc->flags |= ADA_FLAG_CAN_NCQ;
 	softc->state = ADA_STATE_NORMAL;
 
@@ -627,12 +635,10 @@ adaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * See if this device has any quirks.
 	 */
-//	match = cam_quirkmatch((caddr_t)&cgd->inq_data,
-//			       (caddr_t)ada_quirk_table,
-//			       sizeof(ada_quirk_table)/sizeof(*ada_quirk_table),
-//			       sizeof(*ada_quirk_table), scsi_inquiry_match);
-	match = NULL;
-
+	match = cam_quirkmatch((caddr_t)&cgd->ident_data,
+			       (caddr_t)ada_quirk_table,
+			       sizeof(ada_quirk_table)/sizeof(*ada_quirk_table),
+			       sizeof(*ada_quirk_table), ata_identify_match);
 	if (match != NULL)
 		softc->quirks = ((struct ada_quirk_entry *)match)->quirks;
 	else
@@ -700,11 +706,6 @@ adaregister(struct cam_periph *periph, void *arg)
 		dp->secsize, dp->heads,
 		dp->secs_per_track, dp->cylinders);
 	xpt_announce_periph(periph, announce_buf);
-	if (softc->flags & ADA_FLAG_CAN_NCQ) {
-		printf("%s%d: Native Command Queueing enabled\n",
-		       periph->periph_name, periph->unit_number);
-	}
-
 	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
