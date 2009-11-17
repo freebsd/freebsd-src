@@ -161,7 +161,8 @@ static periph_init_t xpt_periph_init;
 static struct periph_driver xpt_driver =
 {
 	xpt_periph_init, "xpt",
-	TAILQ_HEAD_INITIALIZER(xpt_driver.units)
+	TAILQ_HEAD_INITIALIZER(xpt_driver.units), /* generation */ 0,
+	CAM_PERIPH_DRV_EARLY
 };
 
 PERIPHDRIVER_DECLARE(xpt, xpt_driver);
@@ -1102,30 +1103,35 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	speed = cpi.base_transfer_speed;
 	freq = 0;
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SPI) {
-		struct	ccb_trans_settings_spi *spi;
+		struct	ccb_trans_settings_spi *spi =
+		    &cts.xport_specific.spi;
 
-		spi = &cts.xport_specific.spi;
 		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0
 		  && spi->sync_offset != 0) {
 			freq = scsi_calc_syncsrate(spi->sync_period);
 			speed = freq;
 		}
-
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
 			speed *= (0x01 << spi->bus_width);
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_FC) {
-		struct	ccb_trans_settings_fc *fc = &cts.xport_specific.fc;
+		struct	ccb_trans_settings_fc *fc =
+		    &cts.xport_specific.fc;
+
 		if (fc->valid & CTS_FC_VALID_SPEED)
 			speed = fc->bitrate;
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SAS) {
-		struct	ccb_trans_settings_sas *sas = &cts.xport_specific.sas;
+		struct	ccb_trans_settings_sas *sas =
+		    &cts.xport_specific.sas;
+
 		if (sas->valid & CTS_SAS_VALID_SPEED)
 			speed = sas->bitrate;
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
-		struct	ccb_trans_settings_sata *sata = &cts.xport_specific.sata;
+		struct	ccb_trans_settings_sata *sata =
+		    &cts.xport_specific.sata;
+
 		if (sata->valid & CTS_SATA_VALID_SPEED)
 			speed = sata->bitrate;
 	}
@@ -1173,7 +1179,20 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		if (fc->valid & CTS_FC_VALID_PORT)
 			printf(" PortID 0x%x", fc->port);
 	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &cts.xport_specific.ata;
 
+		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf(" (PIO size %dbytes)", ata->bytecount);
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &cts.xport_specific.sata;
+
+		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
+			printf(" (PIO size %dbytes)", sata->bytecount);
+	}
 	if (path->device->inq_flags & SID_CmdQue
 	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
 		printf("\n%s%d: Command Queueing enabled",
@@ -4676,6 +4695,9 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 static void
 xpt_config(void *arg)
 {
+	struct	periph_driver **p_drv;
+	int	i;
+
 	/*
 	 * Now that interrupts are enabled, go find our devices
 	 */
@@ -4709,6 +4731,13 @@ xpt_config(void *arg)
 #endif /* CAM_DEBUG_BUS */
 #endif /* CAMDEBUG */
 
+	/* Register early peripheral drivers */
+	/* XXX This will have to change when we have loadable modules */
+	p_drv = periph_drivers;
+	for (i = 0; p_drv[i] != NULL; i++) {
+		if ((p_drv[i]->flags & CAM_PERIPH_DRV_EARLY) != 0)
+			(*p_drv[i]->init)();
+	}
 	/*
 	 * Scan all installed busses.
 	 */
@@ -4759,7 +4788,8 @@ xpt_finishconfig_task(void *context, int pending)
 		/* XXX This will have to change when we have loadable modules */
 		p_drv = periph_drivers;
 		for (i = 0; p_drv[i] != NULL; i++) {
-			(*p_drv[i]->init)();
+			if ((p_drv[i]->flags & CAM_PERIPH_DRV_EARLY) == 0)
+				(*p_drv[i]->init)();
 		}
 
 		/*

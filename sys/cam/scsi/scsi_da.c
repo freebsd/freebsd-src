@@ -1491,8 +1491,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct da_softc *softc;
 	struct ccb_scsiio *csio;
+	u_int32_t  priority;
 
 	softc = (struct da_softc *)periph->softc;
+	priority = done_ccb->ccb_h.pinfo.priority;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK) {
 	case DA_CCB_BUFFER_IO:
@@ -1610,7 +1612,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					softc->state = DA_STATE_PROBE2;
 					free(rdcap, M_SCSIDA);
 					xpt_release_ccb(done_ccb);
-					xpt_schedule(periph, /*priority*/5);
+					xpt_schedule(periph, priority);
 					return;
 				}
 			} else {
