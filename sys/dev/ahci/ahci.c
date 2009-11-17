@@ -1259,15 +1259,16 @@ ahci_timeout(struct ahci_slot *slot)
 
 	if (!ch->readlog)
 		xpt_freeze_simq(ch->sim, ch->numrslots);
-	/* Handle command with timeout. */
-	ahci_end_transaction(&ch->slot[slot->slot], AHCI_ERR_TIMEOUT);
-	/* Handle the rest of commands. */
+	/* Handle frozen command. */
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
 		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
 		xpt_done(fccb);
 	}
+	/* Handle command with timeout. */
+	ahci_end_transaction(&ch->slot[slot->slot], AHCI_ERR_TIMEOUT);
+	/* Handle the rest of commands. */
 	for (i = 0; i < ch->numslots; i++) {
 		/* Do we have a running request on slot? */
 		if (ch->slot[i].state < AHCI_SLOT_RUNNING)
