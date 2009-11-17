@@ -80,7 +80,6 @@ static void siis_portinit(device_t dev);
 static int siis_wait_ready(device_t dev, int t);
 
 static int siis_sata_connect(struct siis_channel *ch);
-static int siis_sata_phy_reset(device_t dev);
 
 static void siis_issue_read_log(device_t dev);
 static void siis_process_read_log(device_t dev, union ccb *ccb);
@@ -1250,16 +1249,27 @@ siis_portinit(device_t dev)
 	siis_wait_ready(dev, 1000);
 }
 
-#if 0
-static void
+static int
 siis_devreset(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
+	int timeout = 0;
+	uint32_t val;
 
 	ATA_OUTL(ch->r_mem, SIIS_P_CTLSET, SIIS_P_CTL_DEV_RESET);
-	siis_wait_ready(dev, 1000);
+	while (((val = ATA_INL(ch->r_mem, SIIS_P_STS)) &
+	    SIIS_P_CTL_DEV_RESET) != 0) {
+		DELAY(1000);
+		if (timeout++ > 100) {
+			device_printf(dev, "device reset stuck (timeout %dms) "
+			    "status = %08x\n", timeout, val);
+			return (EBUSY);
+		}
+	}
+	if (bootverbose)
+		device_printf(dev, "device reset time=%dms\n", timeout);
+	return (0);
 }
-#endif
 
 static int
 siis_wait_ready(device_t dev, int t)
@@ -1287,6 +1297,7 @@ siis_reset(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 	int i;
+	uint32_t val;
 
 	if (bootverbose)
 		device_printf(dev, "SIIS reset...\n");
@@ -1303,10 +1314,7 @@ siis_reset(device_t dev)
 		}
 		xpt_done(fccb);
 	}
-	/* Disable port interrupts */
-	ATA_OUTL(ch->r_mem, SIIS_P_IECLR, 0x0000FFFF);
-	/* Kill the engine and requeue all running commands. */
-	siis_portinit(dev);
+	/* Requeue all running commands. */
 	for (i = 0; i < SIIS_MAX_SLOTS; i++) {
 		/* Do we have a running request on slot? */
 		if (ch->slot[i].state < SIIS_SLOT_RUNNING)
@@ -1314,8 +1322,23 @@ siis_reset(device_t dev)
 		/* XXX; Commands in loading state. */
 		siis_end_transaction(&ch->slot[i], SIIS_ERR_INNOCENT);
 	}
+	/* Disable port interrupts */
+	ATA_OUTL(ch->r_mem, SIIS_P_IECLR, 0x0000FFFF);
+	/* Set speed limit. */
+	if (ch->sata_rev == 1)
+		val = ATA_SC_SPD_SPEED_GEN1;
+	else if (ch->sata_rev == 2)
+		val = ATA_SC_SPD_SPEED_GEN2;
+	else if (ch->sata_rev == 3)
+		val = ATA_SC_SPD_SPEED_GEN3;
+	else
+		val = 0;
+	ATA_OUTL(ch->r_mem, SIIS_P_SCTL,
+	    ATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
+	    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)));
+	siis_devreset(dev);
 	/* Reset and reconnect PHY, */
-	if (!siis_sata_phy_reset(dev)) {
+	if (!siis_sata_connect(ch)) {
 		ch->devices = 0;
 		/* Enable port interrupts */
 		ATA_OUTL(ch->r_mem, SIIS_P_IESET, SIIS_P_IX_ENABLED);
@@ -1327,9 +1350,8 @@ siis_reset(device_t dev)
 		return;
 	}
 	/* Wait for clearing busy status. */
-	if (siis_wait_ready(dev, 10000)) {
+	if (siis_wait_ready(dev, 10000))
 		device_printf(dev, "device ready timeout\n");
-	}
 	ch->devices = 1;
 	/* Enable port interrupts */
 	ATA_OUTL(ch->r_mem, SIIS_P_IS, 0xFFFFFFFF);
@@ -1418,32 +1440,6 @@ siis_sata_connect(struct siis_channel *ch)
 	/* Clear SATA error register */
 	ATA_OUTL(ch->r_mem, SIIS_P_SERR, 0xffffffff);
 	return (1);
-}
-
-static int
-siis_sata_phy_reset(device_t dev)
-{
-	struct siis_channel *ch = device_get_softc(dev);
-	uint32_t val;
-
-	if (bootverbose)
-		device_printf(dev, "hardware reset ...\n");
-	ATA_OUTL(ch->r_mem, SIIS_P_SCTL, ATA_SC_IPM_DIS_PARTIAL |
-	    ATA_SC_IPM_DIS_SLUMBER | ATA_SC_DET_RESET);
-	DELAY(50000);
-	if (ch->sata_rev == 1)
-		val = ATA_SC_SPD_SPEED_GEN1;
-	else if (ch->sata_rev == 2)
-		val = ATA_SC_SPD_SPEED_GEN2;
-	else if (ch->sata_rev == 3)
-		val = ATA_SC_SPD_SPEED_GEN3;
-	else
-		val = 0;
-	ATA_OUTL(ch->r_mem, SIIS_P_SCTL,
-	    ATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
-	    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)));
-	DELAY(50000);
-	return (siis_sata_connect(ch));
 }
 
 static void
