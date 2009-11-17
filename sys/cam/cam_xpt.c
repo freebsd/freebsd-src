@@ -4412,10 +4412,7 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		device->tag_delay_count = 0;
 		device->tag_saved_openings = 0;
 		device->refcount = 1;
-		if (bus->sim->flags & CAM_SIM_MPSAFE)
-			callout_init_mtx(&device->callout, bus->sim->mtx, 0);
-		else
-			callout_init_mtx(&device->callout, &Giant, 0);
+		callout_init_mtx(&device->callout, bus->sim->mtx, 0);
 
 		/*
 		 * Hold a reference to our parent target so it
