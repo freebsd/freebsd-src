@@ -1133,20 +1133,20 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 {
 	vm_object_t backing_object, dst_object, object;
 	vm_object_t src_object;
-	vm_ooffset_t dst_offset;
-	vm_ooffset_t src_offset;
-	vm_pindex_t pindex;
+	vm_pindex_t dst_pindex, pindex, src_pindex;
 	vm_prot_t prot;
 	vm_offset_t vaddr;
 	vm_page_t dst_m;
 	vm_page_t src_m;
+	boolean_t src_readonly;
 
 #ifdef	lint
 	src_map++;
 #endif	/* lint */
 
 	src_object = src_entry->object.vm_object;
-	src_offset = src_entry->offset;
+	src_pindex = OFF_TO_IDX(src_entry->offset);
+	src_readonly = (src_entry->protection & VM_PROT_WRITE) == 0;
 
 	/*
 	 * Create the top-level object for the destination entry. (Doesn't
@@ -1177,16 +1177,16 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	 * one from the source object (it should be there) to the destination
 	 * object.
 	 */
-	for (vaddr = dst_entry->start, dst_offset = 0;
+	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
-	    vaddr += PAGE_SIZE, dst_offset += PAGE_SIZE) {
+	    vaddr += PAGE_SIZE, dst_pindex++) {
 
 		/*
-		 * Allocate a page in the destination object
+		 * Allocate a page in the destination object.
 		 */
 		do {
-			dst_m = vm_page_alloc(dst_object,
-				OFF_TO_IDX(dst_offset), VM_ALLOC_NORMAL);
+			dst_m = vm_page_alloc(dst_object, dst_pindex,
+			    VM_ALLOC_NORMAL);
 			if (dst_m == NULL) {
 				VM_OBJECT_UNLOCK(dst_object);
 				VM_WAIT;
@@ -1201,10 +1201,9 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		 */
 		VM_OBJECT_LOCK(src_object);
 		object = src_object;
-		pindex = 0;
-		while ((src_m = vm_page_lookup(object, pindex +
-		    OFF_TO_IDX(dst_offset + src_offset))) == NULL &&
-		    (src_entry->protection & VM_PROT_WRITE) == 0 &&
+		pindex = src_pindex + dst_pindex;
+		while ((src_m = vm_page_lookup(object, pindex)) == NULL &&
+		    src_readonly &&
 		    (backing_object = object->backing_object) != NULL) {
 			/*
 			 * Allow fallback to backing objects if we are reading.
