@@ -862,7 +862,7 @@ Path_FindFile(char *name, struct Path *path)
  *
  * Side Effects:
  *	The modification time is placed in the node's mtime slot.
- *	If the node didn't have a path entry before, and Dir_FindFile
+ *	If the node didn't have a path entry before, and Path_FindFile
  *	found one for it, the full name is placed in the path slot.
  *-----------------------------------------------------------------------
  */
