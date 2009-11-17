@@ -752,7 +752,12 @@ siis_ch_intr(void *data)
 		if (ch->frozen) {
 			union ccb *fccb = ch->frozen;
 			ch->frozen = NULL;
-			fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+			fccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			fccb->ccb_h.status |= CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+			if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+				xpt_freeze_devq(fccb->ccb_h.path, 1);
+				fccb->ccb_h.status |= CAM_DEV_QFRZN;
+			}
 			xpt_done(fccb);
 		}
 		if (estatus == SIIS_P_CMDERR_DEV ||
@@ -986,7 +991,12 @@ device_printf(dev, "%s is %08x ss %08x rs %08x es %08x sts %08x serr %08x\n",
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
-		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		fccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		fccb->ccb_h.status |= CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+			xpt_freeze_devq(fccb->ccb_h.path, 1);
+			fccb->ccb_h.status |= CAM_DEV_QFRZN;
+		}
 		xpt_done(fccb);
 	}
 	/* Handle command with timeout. */
@@ -1044,11 +1054,17 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		bus_dmamap_unload(ch->dma.data_tag, slot->dma.data_map);
 	}
 	/* Set proper result status. */
-	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (et != SIIS_ERR_NONE || ch->recovery) {
 		ch->eslots |= (1 << slot->slot);
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
+	/* In case of error, freeze device for proper recovery. */
+	if (et != SIIS_ERR_NONE &&
+	    !(ccb->ccb_h.status & CAM_DEV_QFRZN)) {
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+	}
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	switch (et) {
 	case SIIS_ERR_NONE:
 		ccb->ccb_h.status |= CAM_REQ_CMP;
@@ -1062,6 +1078,7 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 		break;
 	case SIIS_ERR_TFE:
+	case SIIS_ERR_NCQ:
 		if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 			ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
@@ -1074,9 +1091,6 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		break;
 	case SIIS_ERR_TIMEOUT:
 		ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
-		break;
-	case SIIS_ERR_NCQ:
-		ccb->ccb_h.status |= CAM_ATA_STATUS_ERROR;
 		break;
 	default:
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
@@ -1281,7 +1295,12 @@ siis_reset(device_t dev)
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
-		fccb->ccb_h.status = CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		fccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		fccb->ccb_h.status |= CAM_REQUEUE_REQ | CAM_RELEASE_SIMQ;
+		if (!(fccb->ccb_h.status & CAM_DEV_QFRZN)) {
+			xpt_freeze_devq(fccb->ccb_h.path, 1);
+			fccb->ccb_h.status |= CAM_DEV_QFRZN;
+		}
 		xpt_done(fccb);
 	}
 	/* Disable port interrupts */
