@@ -294,8 +294,6 @@ device		ukbd		# Keyboard
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
-device		ural		# Ralink Technology RT2500USB wireless NICs
-device		rum		# Ralink Technology RT2501USB wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
 device		uscanner	# Scanners
 # USB Serial devices
@@ -316,6 +314,9 @@ device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 device		rue		# RealTek RTL8150 USB Ethernet
+# USB Wireless
+device		rum		# Ralink Technology RT2501USB wireless NICs
+device		ural		# Ralink Technology RT2500USB wireless NICs
 
 # FireWire support
 device		firewire	# FireWire bus code
