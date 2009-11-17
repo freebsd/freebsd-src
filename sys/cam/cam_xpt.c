@@ -285,7 +285,6 @@ static xpt_devicefunc_t	xptsetasyncfunc;
 static xpt_busfunc_t	xptsetasyncbusfunc;
 static cam_status	xptregister(struct cam_periph *periph,
 				    void *arg);
-static void	 xpt_start_tags(struct cam_path *path);
 static __inline int xpt_schedule_dev_allocq(struct cam_eb *bus,
 					    struct cam_ed *dev);
 static __inline int periph_is_queued(struct cam_periph *periph);
@@ -299,12 +298,6 @@ xpt_schedule_dev_allocq(struct cam_eb *bus, struct cam_ed *dev)
 	int retval;
 
 	if (dev->ccbq.devq_openings > 0) {
-		if ((dev->flags & CAM_DEV_RESIZE_QUEUE_NEEDED) != 0) {
-			cam_ccbq_resize(&dev->ccbq,
-					dev->ccbq.dev_openings
-					+ dev->ccbq.dev_active);
-			dev->flags &= ~CAM_DEV_RESIZE_QUEUE_NEEDED;
-		}
 		/*
 		 * The priority of a device waiting for CCB resources
 		 * is that of the the highest priority peripheral driver
@@ -317,6 +310,27 @@ xpt_schedule_dev_allocq(struct cam_eb *bus, struct cam_ed *dev)
 		retval = 0;
 	}
 
+	return (retval);
+}
+
+static __inline int
+xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
+{
+	int	retval;
+
+	if (dev->ccbq.dev_openings > 0) {
+		/*
+		 * The priority of a device waiting for controller
+		 * resources is that of the the highest priority CCB
+		 * enqueued.
+		 */
+		retval =
+		    xpt_schedule_dev(&bus->sim->devq->send_queue,
+				     &dev->send_ccb_entry.pinfo,
+				     CAMQ_GET_HEAD(&dev->ccbq.queue)->priority);
+	} else {
+		retval = 0;
+	}
 	return (retval);
 }
 
@@ -2657,6 +2671,7 @@ xpt_action_default(union ccb *start_ccb)
 			cgd->protocol = dev->protocol;
 			cgd->inq_data = dev->inq_data;
 			cgd->ident_data = dev->ident_data;
+			cgd->inq_flags = dev->inq_flags;
 			cgd->ccb_h.status = CAM_REQ_CMP;
 			cgd->serial_num_len = dev->serial_num_len;
 			if ((dev->serial_num_len > 0)
@@ -3747,6 +3762,11 @@ xpt_release_ccb(union ccb *free_ccb)
 	mtx_assert(sim->mtx, MA_OWNED);
 
 	cam_ccbq_release_opening(&device->ccbq);
+	if (device->flags & CAM_DEV_RESIZE_QUEUE_NEEDED) {
+		device->flags &= ~CAM_DEV_RESIZE_QUEUE_NEEDED;
+		cam_ccbq_resize(&device->ccbq,
+		    device->ccbq.dev_openings + device->ccbq.dev_active);
+	}
 	if (sim->ccb_count > sim->max_ccbs) {
 		xpt_free_ccb(free_ccb);
 		sim->ccb_count--;
@@ -4573,7 +4593,7 @@ xpt_find_device(struct cam_et *target, lun_id_t lun_id)
 	return (device);
 }
 
-static void
+void
 xpt_start_tags(struct cam_path *path)
 {
 	struct ccb_relsim crs;
@@ -4592,6 +4612,30 @@ xpt_start_tags(struct cam_path *path)
 		newopenings = min(device->maxtags,
 				  sim->max_tagged_dev_openings);
 	xpt_dev_ccbq_resize(path, newopenings);
+	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
+	crs.ccb_h.func_code = XPT_REL_SIMQ;
+	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
+	crs.openings
+	    = crs.release_timeout
+	    = crs.qfrozen_cnt
+	    = 0;
+	xpt_action((union ccb *)&crs);
+}
+
+void
+xpt_stop_tags(struct cam_path *path)
+{
+	struct ccb_relsim crs;
+	struct cam_ed *device;
+	struct cam_sim *sim;
+
+	device = path->device;
+	sim = path->bus->sim;
+	device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
+	device->tag_delay_count = 0;
+	xpt_freeze_devq(path, /*count*/1);
+	device->inq_flags &= ~SID_CmdQue;
+	xpt_dev_ccbq_resize(path, sim->max_dev_openings);
 	xpt_setup_ccb(&crs.ccb_h, path, CAM_PRIORITY_NORMAL);
 	crs.ccb_h.func_code = XPT_REL_SIMQ;
 	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
