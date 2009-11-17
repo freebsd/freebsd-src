@@ -186,7 +186,7 @@ static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
 			 char *combinedopt, int retry_count, int timeout);
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
-static int scsixferrate(struct cam_device *device);
+static int camxferrate(struct cam_device *device);
 #endif /* MINIMALISTIC */
 static int parse_btl(char *tstr, int *bus, int *target, int *lun,
 		     cam_argmask *arglst);
@@ -663,7 +663,7 @@ scsidoinquiry(struct cam_device *device, int argc, char **argv,
 		return(error);
 
 	if (arglist & CAM_ARG_GET_XFERRATE)
-		error = scsixferrate(device);
+		error = camxferrate(device);
 
 	return(error);
 }
@@ -873,13 +873,17 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 }
 
 static int
-scsixferrate(struct cam_device *device)
+camxferrate(struct cam_device *device)
 {
+	struct ccb_pathinq cpi;
 	u_int32_t freq = 0;
 	u_int32_t speed = 0;
 	union ccb *ccb;
 	u_int mb;
 	int retval = 0;
+
+	if ((retval = get_cpi(device, &cpi)) != 0)
+		return (1);
 
 	ccb = cam_getccb(device);
 
@@ -913,6 +917,8 @@ scsixferrate(struct cam_device *device)
 
 	}
 
+	speed = cpi.base_transfer_speed;
+	freq = 0;
 	if (ccb->cts.transport == XPORT_SPI) {
 		struct ccb_trans_settings_spi *spi =
 		    &ccb->cts.xport_specific.spi;
@@ -920,31 +926,44 @@ scsixferrate(struct cam_device *device)
 		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) != 0) {
 			freq = scsi_calc_syncsrate(spi->sync_period);
 			speed = freq;
-		} else {
-			struct ccb_pathinq cpi;
-
-			retval = get_cpi(device, &cpi);
-			if (retval == 0) {
-				speed = cpi.base_transfer_speed;
-				freq = 0;
-			}
 		}
-
-		fprintf(stdout, "%s%d: ", device->device_name,
-			device->dev_unit_num);
-
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
 			speed *= (0x01 << spi->bus_width);
 		}
+	} else if (ccb->cts.transport == XPORT_FC) {
+		struct ccb_trans_settings_fc *fc =
+		    &ccb->cts.xport_specific.fc;
 
-		mb = speed / 1000;
+		if (fc->valid & CTS_FC_VALID_SPEED)
+			speed = fc->bitrate;
+	} else if (ccb->cts.transport == XPORT_SAS) {
+		struct ccb_trans_settings_sas *sas =
+		    &ccb->cts.xport_specific.sas;
 
-		if (mb > 0) 
-			fprintf(stdout, "%d.%03dMB/s transfers ",
-				mb, speed % 1000);
-		else
-			fprintf(stdout, "%dKB/s transfers ",
-				speed);
+		if (sas->valid & CTS_SAS_VALID_SPEED)
+			speed = sas->bitrate;
+	} else if (ccb->cts.transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &ccb->cts.xport_specific.sata;
+
+		if (sata->valid & CTS_SATA_VALID_SPEED)
+			speed = sata->bitrate;
+	}
+
+	mb = speed / 1000;
+	if (mb > 0) {
+		fprintf(stdout, "%s%d: %d.%03dMB/s transfers ",
+			device->device_name, device->dev_unit_num,
+			mb, speed % 1000);
+	} else {
+		fprintf(stdout, "%s%d: %dKB/s transfers ",
+			device->device_name, device->dev_unit_num,
+			speed);
+	}
+
+	if (ccb->cts.transport == XPORT_SPI) {
+		struct ccb_trans_settings_spi *spi =
+		    &ccb->cts.xport_specific.spi;
 
 		if (((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0)
 		 && (spi->sync_offset != 0))
@@ -964,25 +983,22 @@ scsixferrate(struct cam_device *device)
 		 && (spi->sync_offset != 0)) {
 			fprintf(stdout, ")");
 		}
-	} else {
-		struct ccb_pathinq cpi;
+	} else if (ccb->cts.transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &ccb->cts.xport_specific.ata;
 
-		retval = get_cpi(device, &cpi);
+		if (ata->valid & CTS_ATA_VALID_BYTECOUNT) {
+			fprintf(stdout, "(PIO size %dbytes)",
+			    ata->bytecount);
+		}
+	} else if (ccb->cts.transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &ccb->cts.xport_specific.sata;
 
-		if (retval != 0)
-			goto xferrate_bailout;
-
-		speed = cpi.base_transfer_speed;
-		freq = 0;
-
-		mb = speed / 1000;
-
-		if (mb > 0) 
-			fprintf(stdout, "%d.%03dMB/s transfers ",
-				mb, speed % 1000);
-		else
-			fprintf(stdout, "%dKB/s transfers ",
-				speed);
+		if (sata->valid & CTS_SATA_VALID_BYTECOUNT) {
+			fprintf(stdout, "(PIO size %dbytes)",
+			    sata->bytecount);
+		}
 	}
 
 	if (ccb->cts.protocol == PROTO_SCSI) {
@@ -1305,6 +1321,7 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	fprintf(stdout, "%s%d: ", device->device_name,
 		device->dev_unit_num);
 	ata_print_ident(ident_buf);
+	camxferrate(device);
 	atacapprint(ident_buf);
 
 	free(ident_buf);
