@@ -4218,6 +4218,16 @@ bge_stop(struct bge_softc *sc)
 
 	callout_stop(&sc->bge_stat_ch);
 
+	/* Disable host interrupts. */
+	BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
+	bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
+
+	/*
+	 * Tell firmware we're shutting down.
+	 */
+	bge_stop_fw(sc);
+	bge_sig_pre_reset(sc, BGE_RESET_STOP);
+
 	/*
 	 * Disable all of the receiver blocks.
 	 */
@@ -4257,16 +4267,6 @@ bge_stop(struct bge_softc *sc)
 		BGE_CLRBIT(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 	}
 
-	/* Disable host interrupts. */
-	BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
-	bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
-
-	/*
-	 * Tell firmware we're shutting down.
-	 */
-
-	bge_stop_fw(sc);
-	bge_sig_pre_reset(sc, BGE_RESET_STOP);
 	bge_reset(sc);
 	bge_sig_legacy(sc, BGE_RESET_STOP);
 	bge_sig_post_reset(sc, BGE_RESET_STOP);
