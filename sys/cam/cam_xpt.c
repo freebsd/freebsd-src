@@ -4203,12 +4203,12 @@ xpt_done(union ccb *done_ccb)
 				mtx_lock(&cam_simq_lock);
 				TAILQ_INSERT_TAIL(&cam_simq, sim,
 						  links);
-				sim->flags |= CAM_SIM_ON_DONEQ;
 				mtx_unlock(&cam_simq_lock);
+				sim->flags |= CAM_SIM_ON_DONEQ;
+				if ((done_ccb->ccb_h.path->periph->flags &
+				    CAM_PERIPH_POLLED) == 0)
+					swi_sched(cambio_ih, 0);
 			}
-			if ((done_ccb->ccb_h.path->periph->flags &
-			    CAM_PERIPH_POLLED) == 0)
-				swi_sched(cambio_ih, 0);
 			break;
 		default:
 			panic("unknown periph type %d",
@@ -4894,16 +4894,20 @@ camisr(void *dummy)
 
 	mtx_lock(&cam_simq_lock);
 	TAILQ_INIT(&queue);
-	TAILQ_CONCAT(&queue, &cam_simq, links);
-	mtx_unlock(&cam_simq_lock);
+	while (!TAILQ_EMPTY(&cam_simq)) {
+		TAILQ_CONCAT(&queue, &cam_simq, links);
+		mtx_unlock(&cam_simq_lock);
 
-	while ((sim = TAILQ_FIRST(&queue)) != NULL) {
-		TAILQ_REMOVE(&queue, sim, links);
-		CAM_SIM_LOCK(sim);
-		sim->flags &= ~CAM_SIM_ON_DONEQ;
-		camisr_runqueue(&sim->sim_doneq);
-		CAM_SIM_UNLOCK(sim);
+		while ((sim = TAILQ_FIRST(&queue)) != NULL) {
+			TAILQ_REMOVE(&queue, sim, links);
+			CAM_SIM_LOCK(sim);
+			sim->flags &= ~CAM_SIM_ON_DONEQ;
+			camisr_runqueue(&sim->sim_doneq);
+			CAM_SIM_UNLOCK(sim);
+		}
+		mtx_lock(&cam_simq_lock);
 	}
+	mtx_unlock(&cam_simq_lock);
 }
 
 static void
