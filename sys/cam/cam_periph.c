@@ -1034,8 +1034,13 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 					cam_error_print(saved_ccb, CAM_ESF_ALL,
 							CAM_EPF_ALL);
 #endif
-					xpt_done_ccb = TRUE;
+				} else {
+					saved_ccb->ccb_h.status &=
+					    ~CAM_STATUS_MASK;
+					saved_ccb->ccb_h.status |=
+					    CAM_AUTOSENSE_FAIL;
 				}
+				xpt_done_ccb = TRUE;
 			}
 		}
 		bcopy(done_ccb->ccb_h.saved_ccb_ptr, done_ccb,
