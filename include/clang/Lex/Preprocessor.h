@@ -51,7 +51,7 @@ class DirectoryLookup;
 class Preprocessor {
   Diagnostic        *Diags;
   LangOptions        Features;
-  TargetInfo        &Target;
+  const TargetInfo  &Target;
   FileManager       &FileMgr;
   SourceManager     &SourceMgr;
   ScratchBuffer     *ScratchBuf;
@@ -93,6 +93,9 @@ class Preprocessor {
   // State that changes while the preprocessor runs:
   bool DisableMacroExpansion : 1;  // True if macro expansion is disabled.
   bool InMacroArgs : 1;            // True if parsing fn macro invocation args.
+
+  /// Whether the preprocessor owns the header search object.
+  bool OwnsHeaderSearch : 1;
 
   /// Identifiers - This is mapping/lookup information for all identifiers in
   /// the program, including program keywords.
@@ -207,9 +210,11 @@ private:  // Cached tokens state.
   std::vector<CachedTokensTy::size_type> BacktrackPositions;
 
 public:
-  Preprocessor(Diagnostic &diags, const LangOptions &opts, TargetInfo &target,
+  Preprocessor(Diagnostic &diags, const LangOptions &opts,
+               const TargetInfo &target,
                SourceManager &SM, HeaderSearch &Headers,
-               IdentifierInfoLookup *IILookup = 0);
+               IdentifierInfoLookup *IILookup = 0,
+               bool OwnsHeaderSearch = false);
 
   ~Preprocessor();
 
@@ -217,7 +222,7 @@ public:
   void setDiagnostics(Diagnostic &D) { Diags = &D; }
 
   const LangOptions &getLangOptions() const { return Features; }
-  TargetInfo &getTargetInfo() const { return Target; }
+  const TargetInfo &getTargetInfo() const { return Target; }
   FileManager &getFileManager() const { return FileMgr; }
   SourceManager &getSourceManager() const { return SourceMgr; }
   HeaderSearch &getHeaderSearchInfo() const { return HeaderInfo; }
@@ -497,6 +502,15 @@ public:
   /// wants to get the true, uncanonicalized, spelling of things like digraphs
   /// UCNs, etc.
   std::string getSpelling(const Token &Tok) const;
+
+  /// getSpelling() - Return the 'spelling' of the Tok token.  The spelling of a
+  /// token is the characters used to represent the token in the source file
+  /// after trigraph expansion and escaped-newline folding.  In particular, this
+  /// wants to get the true, uncanonicalized, spelling of things like digraphs
+  /// UCNs, etc.
+  static std::string getSpelling(const Token &Tok,
+                                 const SourceManager &SourceMgr,
+                                 const LangOptions &Features);
 
   /// getSpelling - This method is used to get the spelling of a token into a
   /// preallocated buffer, instead of as an std::string.  The caller is required

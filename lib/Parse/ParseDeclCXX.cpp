@@ -16,6 +16,7 @@
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/Scope.h"
+#include "clang/Parse/Template.h"
 #include "ExtensionRAIIObject.h"
 using namespace clang;
 
@@ -282,11 +283,13 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
                                                 SourceLocation &DeclEnd,
                                                 AccessSpecifier AS) {
   CXXScopeSpec SS;
+  SourceLocation TypenameLoc;
   bool IsTypeName;
 
   // Ignore optional 'typename'.
   // FIXME: This is wrong; we should parse this as a typename-specifier.
   if (Tok.is(tok::kw_typename)) {
+    TypenameLoc = Tok.getLocation();
     ConsumeToken();
     IsTypeName = true;
   }
@@ -329,7 +332,7 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
                    tok::semi);
 
   return Actions.ActOnUsingDeclaration(CurScope, AS, UsingLoc, SS, Name,
-                                       AttrList, IsTypeName);
+                                       AttrList, IsTypeName, TypenameLoc);
 }
 
 /// ParseStaticAssertDeclaration - Parse C++0x static_assert-declaratoion.
@@ -586,13 +589,10 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
       // Eat the template argument list and try to continue parsing this as
       // a class (or template thereof).
       TemplateArgList TemplateArgs;
-      TemplateArgIsTypeList TemplateArgIsType;
-      TemplateArgLocationList TemplateArgLocations;
       SourceLocation LAngleLoc, RAngleLoc;
       if (ParseTemplateIdAfterTemplateName(TemplateTy(), NameLoc, &SS, 
                                            true, LAngleLoc,
-                                           TemplateArgs, TemplateArgIsType,
-                                           TemplateArgLocations, RAngleLoc)) {
+                                           TemplateArgs, RAngleLoc)) {
         // We couldn't parse the template argument list at all, so don't
         // try to give any location information for the list.
         LAngleLoc = RAngleLoc = SourceLocation();
@@ -704,7 +704,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     // or explicit instantiation.
     ASTTemplateArgsPtr TemplateArgsPtr(Actions,
                                        TemplateId->getTemplateArgs(),
-                                       TemplateId->getTemplateArgIsType(),
                                        TemplateId->NumArgs);
     if (TemplateInfo.Kind == ParsedTemplateInfo::ExplicitInstantiation &&
         TUK == Action::TUK_Declaration) {
@@ -720,7 +719,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
                                              TemplateId->TemplateNameLoc,
                                              TemplateId->LAngleLoc,
                                              TemplateArgsPtr,
-                                      TemplateId->getTemplateArgLocations(),
                                              TemplateId->RAngleLoc,
                                              Attr);
     } else if (TUK == Action::TUK_Reference) {
@@ -729,7 +727,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
                                       TemplateId->TemplateNameLoc,
                                       TemplateId->LAngleLoc,
                                       TemplateArgsPtr,
-                                      TemplateId->getTemplateArgLocations(),
                                       TemplateId->RAngleLoc);
 
       TypeResult = Actions.ActOnTagTemplateIdType(TypeResult, TUK,
@@ -777,7 +774,6 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
                        TemplateId->TemplateNameLoc,
                        TemplateId->LAngleLoc,
                        TemplateArgsPtr,
-                       TemplateId->getTemplateArgLocations(),
                        TemplateId->RAngleLoc,
                        Attr,
                        Action::MultiTemplateParamsArg(Actions,
@@ -1304,7 +1300,8 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
 
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
-      Diag(Tok, diag::ext_extra_struct_semi);
+      Diag(Tok, diag::ext_extra_struct_semi)
+        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
       ConsumeToken();
       continue;
     }

@@ -229,7 +229,8 @@ static QualType ConvertDeclSpecToType(Declarator &TheDeclarator, Sema &TheSema){
   case DeclSpec::TST_enum:
   case DeclSpec::TST_union:
   case DeclSpec::TST_struct: {
-    TypeDecl *D = cast_or_null<TypeDecl>(static_cast<Decl *>(DS.getTypeRep()));
+    TypeDecl *D 
+      = dyn_cast_or_null<TypeDecl>(static_cast<Decl *>(DS.getTypeRep()));
     if (!D) {
       // This can happen in C++ with ambiguous lookups.
       Result = Context.IntTy;
@@ -1703,7 +1704,7 @@ bool Sema::RequireCompleteType(SourceLocation Loc, QualType T,
   // class template specialization, or an array with known size of such,
   // try to instantiate it.
   QualType MaybeTemplate = T;
-  if (const ConstantArrayType *Array = T->getAs<ConstantArrayType>())
+  if (const ConstantArrayType *Array = Context.getAsConstantArrayType(T))
     MaybeTemplate = Array->getElementType();
   if (const RecordType *Record = MaybeTemplate->getAs<RecordType>()) {
     if (ClassTemplateSpecializationDecl *ClassTemplateSpec

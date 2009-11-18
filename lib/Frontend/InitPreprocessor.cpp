@@ -11,8 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Frontend/InitPreprocessor.h"
+#include "clang/Frontend/Utils.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Frontend/PreprocessorOptions.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
@@ -60,9 +61,7 @@ static void UndefineBuiltinMacro(std::vector<char> &Buf, const char *Macro) {
   Buf.push_back('\n');
 }
 
-/// Add the quoted name of an implicit include file.
-static void AddQuotedIncludePath(std::vector<char> &Buf,
-                                 const std::string &File) {
+std::string clang::NormalizeDashIncludePath(llvm::StringRef File) {
   // Implicit include paths should be resolved relative to the current
   // working directory first, and then use the regular header search
   // mechanism. The proper way to handle this is to have the
@@ -75,9 +74,16 @@ static void AddQuotedIncludePath(std::vector<char> &Buf,
   if (!Path.exists())
     Path = File;
 
+  return Lexer::Stringify(Path.str());
+}
+
+/// Add the quoted name of an implicit include file.
+static void AddQuotedIncludePath(std::vector<char> &Buf,
+                                 const std::string &File) {
+
   // Escape double quotes etc.
   Buf.push_back('"');
-  std::string EscapedFile = Lexer::Stringify(Path.str());
+  std::string EscapedFile = NormalizeDashIncludePath(File);
   Buf.insert(Buf.end(), EscapedFile.begin(), EscapedFile.end());
   Buf.push_back('"');
 }
@@ -216,6 +222,14 @@ static void DefineTypeSize(const char *MacroName, unsigned TypeWidth,
   DefineBuiltinMacro(Buf, MacroBuf);
 }
 
+/// DefineTypeSize - An overloaded helper that uses TargetInfo to determine
+/// the width, suffix, and signedness of the given type
+static void DefineTypeSize(const char *MacroName, TargetInfo::IntType Ty,
+                           const TargetInfo &TI, std::vector<char> &Buf) {
+  DefineTypeSize(MacroName, TI.getTypeWidth(Ty), TI.getTypeConstantSuffix(Ty), 
+                 TI.isTypeSigned(Ty), Buf);
+}
+
 static void DefineType(const char *MacroName, TargetInfo::IntType Ty,
                        std::vector<char> &Buf) {
   char MacroBuf[60];
@@ -223,6 +237,20 @@ static void DefineType(const char *MacroName, TargetInfo::IntType Ty,
   DefineBuiltinMacro(Buf, MacroBuf);
 }
 
+static void DefineExactWidthIntType(TargetInfo::IntType Ty, 
+                               const TargetInfo &TI, std::vector<char> &Buf) {
+  char MacroBuf[60];
+  int TypeWidth = TI.getTypeWidth(Ty);
+  sprintf(MacroBuf, "__INT%d_TYPE__", TypeWidth);
+  DefineType(MacroBuf, Ty, Buf);
+
+
+  const char *ConstSuffix = TargetInfo::getTypeConstantSuffix(Ty);
+  if (strlen(ConstSuffix) > 0) {
+    sprintf(MacroBuf, "__INT%d_C_SUFFIX__=%s", TypeWidth, ConstSuffix);
+    DefineBuiltinMacro(Buf, MacroBuf);
+  }
+}
 
 static void InitializePredefinedMacros(const TargetInfo &TI,
                                        const LangOptions &LangOpts,
@@ -346,14 +374,12 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   DefineBuiltinMacro(Buf, "__CHAR_BIT__=8");
 
   DefineTypeSize("__SCHAR_MAX__", TI.getCharWidth(), "", true, Buf);
-  DefineTypeSize("__SHRT_MAX__", TI.getShortWidth(), "", true, Buf);
-  DefineTypeSize("__INT_MAX__", TI.getIntWidth(), "", true, Buf);
-  DefineTypeSize("__LONG_MAX__", TI.getLongWidth(), "L", true, Buf);
-  DefineTypeSize("__LONG_LONG_MAX__", TI.getLongLongWidth(), "LL", true, Buf);
-  DefineTypeSize("__WCHAR_MAX__", TI.getWCharWidth(), "", true, Buf);
-  TargetInfo::IntType IntMaxType = TI.getIntMaxType();
-  DefineTypeSize("__INTMAX_MAX__", TI.getTypeWidth(IntMaxType), 
-                 TI.getTypeConstantSuffix(IntMaxType), true, Buf);
+  DefineTypeSize("__SHRT_MAX__", TargetInfo::SignedShort, TI, Buf);
+  DefineTypeSize("__INT_MAX__", TargetInfo::SignedInt, TI, Buf);
+  DefineTypeSize("__LONG_MAX__", TargetInfo::SignedLong, TI, Buf);
+  DefineTypeSize("__LONG_LONG_MAX__", TargetInfo::SignedLongLong, TI, Buf);
+  DefineTypeSize("__WCHAR_MAX__", TI.getWCharType(), TI, Buf);
+  DefineTypeSize("__INTMAX_MAX__", TI.getIntMaxType(), TI, Buf);
 
   DefineType("__INTMAX_TYPE__", TI.getIntMaxType(), Buf);
   DefineType("__UINTMAX_TYPE__", TI.getUIntMaxType(), Buf);
@@ -374,23 +400,22 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (!LangOpts.CharIsSigned)
     DefineBuiltinMacro(Buf, "__CHAR_UNSIGNED__");
 
-  // Define fixed-sized integer types for stdint.h
-  assert(TI.getCharWidth() == 8 && "unsupported target types");
-  assert(TI.getShortWidth() == 16 && "unsupported target types");
-  DefineBuiltinMacro(Buf, "__INT8_TYPE__=char");
-  DefineBuiltinMacro(Buf, "__INT16_TYPE__=short");
+  // Define exact-width integer types for stdint.h
+  sprintf(MacroBuf, "__INT%d_TYPE__=char", TI.getCharWidth());
+  DefineBuiltinMacro(Buf, MacroBuf);
 
-  if (TI.getIntWidth() == 32)
-    DefineBuiltinMacro(Buf, "__INT32_TYPE__=int");
-  else {
-    assert(TI.getLongLongWidth() == 32 && "unsupported target types");
-    DefineBuiltinMacro(Buf, "__INT32_TYPE__=long long");
-  }
-
-  // 16-bit targets doesn't necessarily have a 64-bit type.
-  if (TI.getLongLongWidth() == 64)
-    DefineType("__INT64_TYPE__", TI.getInt64Type(), Buf);
-
+  if (TI.getShortWidth() > TI.getCharWidth())
+    DefineExactWidthIntType(TargetInfo::SignedShort, TI, Buf);
+                      
+  if (TI.getIntWidth() > TI.getShortWidth())
+    DefineExactWidthIntType(TargetInfo::SignedInt, TI, Buf);
+                              
+  if (TI.getLongWidth() > TI.getIntWidth())
+    DefineExactWidthIntType(TargetInfo::SignedLong, TI, Buf);
+                                      
+  if (TI.getLongLongWidth() > TI.getLongWidth())
+    DefineExactWidthIntType(TargetInfo::SignedLongLong, TI, Buf);
+  
   // Add __builtin_va_list typedef.
   {
     const char *VAList = TI.getVAListDeclaration();
@@ -443,7 +468,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 /// environment ready to process a single file. This returns true on error.
 ///
 void clang::InitializePreprocessor(Preprocessor &PP,
-                                   const PreprocessorInitOptions &InitOpts) {
+                                   const PreprocessorOptions &InitOpts,
+                                   const HeaderSearchOptions &HSOpts) {
   std::vector<char> PredefineBuffer;
 
   const char *LineDirective = "# 1 \"<built-in>\" 3\n";
@@ -451,7 +477,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                          LineDirective, LineDirective+strlen(LineDirective));
 
   // Install things like __POWERPC__, __GNUC__, etc into the macro table.
-  if (InitOpts.getUsePredefines())
+  if (InitOpts.UsePredefines)
     InitializePredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
                                PredefineBuffer);
 
@@ -462,30 +488,33 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                          LineDirective, LineDirective+strlen(LineDirective));
 
   // Process #define's and #undef's in the order they are given.
-  for (PreprocessorInitOptions::macro_iterator I = InitOpts.macro_begin(),
-       E = InitOpts.macro_end(); I != E; ++I) {
-    if (I->second)  // isUndef
-      UndefineBuiltinMacro(PredefineBuffer, I->first.c_str());
+  for (unsigned i = 0, e = InitOpts.Macros.size(); i != e; ++i) {
+    if (InitOpts.Macros[i].second)  // isUndef
+      UndefineBuiltinMacro(PredefineBuffer, InitOpts.Macros[i].first.c_str());
     else
-      DefineBuiltinMacro(PredefineBuffer, I->first.c_str());
+      DefineBuiltinMacro(PredefineBuffer, InitOpts.Macros[i].first.c_str());
   }
 
   // If -imacros are specified, include them now.  These are processed before
   // any -include directives.
-  for (PreprocessorInitOptions::imacro_iterator I = InitOpts.imacro_begin(),
-       E = InitOpts.imacro_end(); I != E; ++I)
-    AddImplicitIncludeMacros(PredefineBuffer, *I);
+  for (unsigned i = 0, e = InitOpts.MacroIncludes.size(); i != e; ++i)
+    AddImplicitIncludeMacros(PredefineBuffer, InitOpts.MacroIncludes[i]);
 
   // Process -include directives.
-  for (PreprocessorInitOptions::include_iterator I = InitOpts.include_begin(),
-       E = InitOpts.include_end(); I != E; ++I) {
-    if (I->second) // isPTH
-      AddImplicitIncludePTH(PredefineBuffer, PP, I->first);
+  for (unsigned i = 0, e = InitOpts.Includes.size(); i != e; ++i) {
+    const std::string &Path = InitOpts.Includes[i];
+    if (Path == InitOpts.ImplicitPTHInclude)
+      AddImplicitIncludePTH(PredefineBuffer, PP, Path);
     else
-      AddImplicitInclude(PredefineBuffer, I->first);
+      AddImplicitInclude(PredefineBuffer, Path);
   }
 
   // Null terminate PredefinedBuffer and add it.
   PredefineBuffer.push_back(0);
   PP.setPredefines(&PredefineBuffer[0]);
+
+  // Initialize the header search object.
+  ApplyHeaderSearchOptions(PP.getHeaderSearchInfo(), HSOpts,
+                           PP.getLangOptions(),
+                           PP.getTargetInfo().getTriple());
 }

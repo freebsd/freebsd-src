@@ -112,6 +112,7 @@ public:
   ASTLocation VisitDeclaratorDecl(DeclaratorDecl *D);
   ASTLocation VisitVarDecl(VarDecl *D);
   ASTLocation VisitFunctionDecl(FunctionDecl *D);
+  ASTLocation VisitObjCClassDecl(ObjCClassDecl *D);                                                             
   ASTLocation VisitObjCMethodDecl(ObjCMethodDecl *D);
   ASTLocation VisitTypedefDecl(TypedefDecl *D);
   ASTLocation VisitDecl(Decl *D);
@@ -327,6 +328,17 @@ ASTLocation DeclLocResolver::VisitVarDecl(VarDecl *D) {
   return ASTLocation(D);
 }
 
+ASTLocation DeclLocResolver::VisitObjCClassDecl(ObjCClassDecl *D) {
+  assert(ContainsLocation(D) &&
+         "Should visit only after verifying that loc is in range");
+         
+  for (ObjCClassDecl::iterator I = D->begin(), E = D->end() ; I != E; ++I) {
+    if (CheckRange(I->getLocation()) == ContainsLoc)
+      return ASTLocation(D, I->getInterface(), I->getLocation());
+  }
+  return ASTLocation(D);
+}
+
 ASTLocation DeclLocResolver::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   assert(ContainsLocation(D) &&
          "Should visit only after verifying that loc is in range");
@@ -484,7 +496,7 @@ ASTLocation LocResolverBase::ResolveInDeclarator(Decl *D, Stmt *Stm,
   assert(ContainsLocation(DInfo) &&
          "Should visit only after verifying that loc is in range");
   
-  TypeLocResolver(Ctx, Loc, D);
+  (void)TypeLocResolver(Ctx, Loc, D);
   for (TypeLoc TL = DInfo->getTypeLoc(); TL; TL = TL.getNextTypeLoc())
     if (ContainsLocation(TL))
       return TypeLocResolver(Ctx, Loc, D).Visit(TL);

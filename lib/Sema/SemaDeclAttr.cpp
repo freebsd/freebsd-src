@@ -862,7 +862,7 @@ static void HandleWeakImportAttr(Decl *D, const AttributeList &Attr, Sema &S) {
   } else if (isa<ObjCPropertyDecl>(D) || isa<ObjCMethodDecl>(D)) {
     // We ignore weak import on properties and methods
     return;
-  } else {
+  } else if (!(S.LangOpts.ObjCNonFragileABI && isa<ObjCInterfaceDecl>(D))) {
     S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
     << Attr.getName() << 2 /*variable and function*/;
     return;
@@ -1007,6 +1007,38 @@ static void HandleSectionAttr(Decl *D, const AttributeList &Attr, Sema &S) {
     << Error;
 
 }
+
+static void HandleCDeclAttr(Decl *d, const AttributeList &Attr, Sema &S) {
+  // Attribute has no arguments.
+  if (Attr.getNumArgs() != 0) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 0;
+    return;
+  }
+
+  // Attribute can be applied only to functions.
+  if (!isa<FunctionDecl>(d)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << Attr.getName() << 0 /*function*/;
+    return;
+  }
+
+  // cdecl and fastcall attributes are mutually incompatible.
+  if (d->getAttr<FastCallAttr>()) {
+    S.Diag(Attr.getLoc(), diag::err_attributes_are_not_compatible)
+      << "cdecl" << "fastcall";
+    return;
+  }
+
+  // cdecl and stdcall attributes are mutually incompatible.
+  if (d->getAttr<StdCallAttr>()) {
+    S.Diag(Attr.getLoc(), diag::err_attributes_are_not_compatible)
+      << "cdecl" << "stdcall";
+    return;
+  }
+
+  d->addAttr(::new (S.Context) CDeclAttr());
+}
+
 
 static void HandleStdCallAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   // Attribute has no arguments.
@@ -1319,7 +1351,14 @@ static void HandleFormatAttr(Decl *d, const AttributeList &Attr, Sema &S) {
   // FIXME: Do we need to bounds check?
   unsigned ArgIdx = Idx.getZExtValue() - 1;
 
-  if (HasImplicitThisParam) ArgIdx--;
+  if (HasImplicitThisParam) {
+    if (ArgIdx == 0) {
+      S.Diag(Attr.getLoc(), diag::err_format_attribute_not)
+        << "a string type" << IdxExpr->getSourceRange();
+      return;
+    }
+    ArgIdx--;
+  }
 
   // make sure the format string is really a string
   QualType Ty = getFunctionOrMethodArgType(d, ArgIdx);
@@ -1822,6 +1861,7 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_analyzer_noreturn:
     HandleAnalyzerNoReturnAttr  (D, Attr, S); break;
   case AttributeList::AT_annotate:    HandleAnnotateAttr  (D, Attr, S); break;
+  case AttributeList::AT_cdecl:       HandleCDeclAttr     (D, Attr, S); break;
   case AttributeList::AT_constructor: HandleConstructorAttr(D, Attr, S); break;
   case AttributeList::AT_deprecated:  HandleDeprecatedAttr(D, Attr, S); break;
   case AttributeList::AT_destructor:  HandleDestructorAttr(D, Attr, S); break;

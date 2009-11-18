@@ -204,13 +204,6 @@ public:
   bool VisitUnaryOperator(UnaryOperator *E) { return Visit(E->getSubExpr()); }
 };
 
-bool HasSideEffects(const Expr* E, ASTContext &Ctx) {
-  Expr::EvalResult Result;
-  EvalInfo Info(Ctx, Result);
-
-  return HasSideEffect(Info).Visit(const_cast<Expr*>(E));
-}
-
 } // end anonymous namespace
 
 //===----------------------------------------------------------------------===//
@@ -964,7 +957,7 @@ bool IntExprEvaluator::VisitCallExpr(const CallExpr *E) {
           }
         }
 
-    if (HasSideEffects(E->getArg(0), Info.Ctx)) {
+    if (E->getArg(0)->HasSideEffects(Info.Ctx)) {
       if (E->getArg(1)->EvaluateAsInt(Info.Ctx).getZExtValue() < 2)
         return Success(-1ULL, E);
       return Success(0, E);
@@ -1495,7 +1488,7 @@ public:
 
   // FIXME: Missing: __real__/__imag__, array subscript of vector,
   //                 member of vector, ImplicitValueInitExpr,
-  //                 conditional ?:, comma
+  //                 conditional ?:
 };
 } // end anonymous namespace
 
@@ -1584,6 +1577,18 @@ bool FloatExprEvaluator::VisitUnaryOperator(const UnaryOperator *E) {
 }
 
 bool FloatExprEvaluator::VisitBinaryOperator(const BinaryOperator *E) {
+  if (E->getOpcode() == BinaryOperator::Comma) {
+    if (!EvaluateFloat(E->getRHS(), Result, Info))
+      return false;
+
+    // If we can't evaluate the LHS, it might have side effects;
+    // conservatively mark it.
+    if (!E->getLHS()->isEvaluatable(Info.Ctx))
+      Info.EvalResult.HasSideEffects = true;
+
+    return true;
+  }
+
   // FIXME: Diagnostics?  I really don't understand how the warnings
   // and errors are supposed to work.
   APFloat RHS(0.0);
@@ -1945,6 +1950,12 @@ bool Expr::EvaluateAsAnyLValue(EvalResult &Result, ASTContext &Ctx) const {
 bool Expr::isEvaluatable(ASTContext &Ctx) const {
   EvalResult Result;
   return Evaluate(Result, Ctx) && !Result.HasSideEffects;
+}
+
+bool Expr::HasSideEffects(ASTContext &Ctx) const {
+  Expr::EvalResult Result;
+  EvalInfo Info(Ctx, Result);
+  return HasSideEffect(Info).Visit(const_cast<Expr*>(this));
 }
 
 APSInt Expr::EvaluateAsInt(ASTContext &Ctx) const {

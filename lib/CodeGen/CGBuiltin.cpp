@@ -121,7 +121,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     const llvm::Type *ResultType = ConvertType(E->getType());
     Value *Result = Builder.CreateCall(F, ArgValue, "tmp");
     if (Result->getType() != ResultType)
-      Result = Builder.CreateIntCast(Result, ResultType, "cast");
+      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+                                     "cast");
     return RValue::get(Result);
   }
   case Builtin::BI__builtin_clz:
@@ -135,7 +136,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     const llvm::Type *ResultType = ConvertType(E->getType());
     Value *Result = Builder.CreateCall(F, ArgValue, "tmp");
     if (Result->getType() != ResultType)
-      Result = Builder.CreateIntCast(Result, ResultType, "cast");
+      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+                                     "cast");
     return RValue::get(Result);
   }
   case Builtin::BI__builtin_ffs:
@@ -154,7 +156,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     Value *IsZero = Builder.CreateICmpEQ(ArgValue, Zero, "iszero");
     Value *Result = Builder.CreateSelect(IsZero, Zero, Tmp, "ffs");
     if (Result->getType() != ResultType)
-      Result = Builder.CreateIntCast(Result, ResultType, "cast");
+      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+                                     "cast");
     return RValue::get(Result);
   }
   case Builtin::BI__builtin_parity:
@@ -171,7 +174,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     Value *Result = Builder.CreateAnd(Tmp, llvm::ConstantInt::get(ArgType, 1),
                                       "tmp");
     if (Result->getType() != ResultType)
-      Result = Builder.CreateIntCast(Result, ResultType, "cast");
+      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+                                     "cast");
     return RValue::get(Result);
   }
   case Builtin::BI__builtin_popcount:
@@ -185,7 +189,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     const llvm::Type *ResultType = ConvertType(E->getType());
     Value *Result = Builder.CreateCall(F, ArgValue, "tmp");
     if (Result->getType() != ResultType)
-      Result = Builder.CreateIntCast(Result, ResultType, "cast");
+      Result = Builder.CreateIntCast(Result, ResultType, /*isSigned*/true,
+                                     "cast");
     return RValue::get(Result);
   }
   case Builtin::BI__builtin_expect:
@@ -199,8 +204,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
     return RValue::get(Builder.CreateCall(F, ArgValue, "tmp"));
   }
   case Builtin::BI__builtin_object_size: {
-    // FIXME: We're awaiting the llvm intrincis.
-#if 0
+#if 1
     // We pass this builtin onto the optimizer so that it can
     // figure out the object size in more complex cases.
     const llvm::Type *ResType[] = {
@@ -211,8 +215,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
                                            EmitScalarExpr(E->getArg(0)),
                                            EmitScalarExpr(E->getArg(1))));
 #else
-    // FIXME: Implement. For now we just always fail and pretend we
-    // don't know the object size.
+    // FIXME: Remove after testing.
     llvm::APSInt TypeArg = E->getArg(1)->EvaluateAsInt(CGM.getContext());
     const llvm::Type *ResType = ConvertType(E->getType());
     //    bool UseSubObject = TypeArg.getZExtValue() & 1;

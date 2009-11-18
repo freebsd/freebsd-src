@@ -97,7 +97,7 @@ bool Decl::isTemplateParameterPack() const {
 }
 
 bool Decl::isFunctionOrFunctionTemplate() const {
-  if (const UsingDecl *UD = dyn_cast<UsingDecl>(this))
+  if (const UsingShadowDecl *UD = dyn_cast<UsingShadowDecl>(this))
     return UD->getTargetDecl()->isFunctionOrFunctionTemplate();
 
   return isa<FunctionDecl>(this) || isa<FunctionTemplateDecl>(this);
@@ -189,10 +189,11 @@ ASTContext &Decl::getASTContext() const {
 
 unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
   switch (DeclKind) {
-    default:
-      if (DeclKind >= FunctionFirst && DeclKind <= FunctionLast)
-        return IDNS_Ordinary;
-      assert(0 && "Unknown decl kind!");
+    case Function:
+    case CXXMethod:
+    case CXXConstructor:
+    case CXXDestructor:
+    case CXXConversion:
     case OverloadedFunction:
     case Typedef:
     case EnumConstant:
@@ -200,8 +201,6 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ImplicitParam:
     case ParmVar:
     case NonTypeTemplateParm:
-    case Using:
-    case UnresolvedUsing:
     case ObjCMethod:
     case ObjCContainer:
     case ObjCCategory:
@@ -209,6 +208,16 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ObjCProperty:
     case ObjCCompatibleAlias:
       return IDNS_Ordinary;
+
+    case UsingShadow:
+      return 0; // we'll actually overwrite this later
+
+    case UnresolvedUsingValue:
+    case UnresolvedUsingTypename:
+      return IDNS_Ordinary | IDNS_Using;
+
+    case Using:
+      return IDNS_Using;
 
     case ObjCProtocol:
       return IDNS_ObjCProtocol;
@@ -256,6 +265,8 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
     case ClassTemplatePartialSpecialization:
       return 0;
   }
+
+  return 0;
 }
 
 void Decl::addAttr(Attr *NewAttr) {
@@ -663,6 +674,13 @@ void DeclContext::buildLookup(DeclContext *DCtx) {
         if (D->getDeclContext() == DCtx)
           makeDeclVisibleInContextImpl(ND);
 
+      // Insert any forward-declared Objective-C interfaces into the lookup
+      // data structure.
+      if (ObjCClassDecl *Class = dyn_cast<ObjCClassDecl>(*D))
+        for (ObjCClassDecl::iterator I = Class->begin(), IEnd = Class->end();
+             I != IEnd; ++I)
+          makeDeclVisibleInContextImpl(I->getInterface());
+      
       // If this declaration is itself a transparent declaration context,
       // add its members (recursively).
       if (DeclContext *InnerCtx = dyn_cast<DeclContext>(*D))

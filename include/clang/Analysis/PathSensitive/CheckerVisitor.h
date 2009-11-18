@@ -27,8 +27,12 @@ namespace clang {
 template<typename ImplClass>
 class CheckerVisitor : public Checker {
 public:
-  virtual void _PreVisit(CheckerContext &C, const Stmt *stmt) {
-    PreVisit(C, stmt);
+  virtual void _PreVisit(CheckerContext &C, const Stmt *S) {
+    PreVisit(C, S);
+  }
+  
+  virtual void _PostVisit(CheckerContext &C, const Stmt *S) {
+    PostVisit(C, S);
   }
 
   void PreVisit(CheckerContext &C, const Stmt *S) {
@@ -36,13 +40,36 @@ public:
       default:
         assert(false && "Unsupport statement.");
         return;
+
+      case Stmt::ImplicitCastExprClass:
+      case Stmt::ExplicitCastExprClass:
+      case Stmt::CStyleCastExprClass:
+        static_cast<ImplClass*>(this)->PreVisitCastExpr(C,
+                                               static_cast<const CastExpr*>(S));
+        break;
+
       case Stmt::CompoundAssignOperatorClass:
         static_cast<ImplClass*>(this)->PreVisitBinaryOperator(C,
                                          static_cast<const BinaryOperator*>(S));
         break;
+
 #define PREVISIT(NAME) \
 case Stmt::NAME ## Class:\
 static_cast<ImplClass*>(this)->PreVisit ## NAME(C,static_cast<const NAME*>(S));\
+break;
+#include "clang/Analysis/PathSensitive/CheckerVisitor.def"
+    }
+  }
+    
+  void PostVisit(CheckerContext &C, const Stmt *S) {
+    switch (S->getStmtClass()) {
+      default:
+        assert(false && "Unsupport statement.");
+        return;
+#define POSTVISIT(NAME) \
+case Stmt::NAME ## Class:\
+static_cast<ImplClass*>(this)->\
+PostVisit ## NAME(C,static_cast<const NAME*>(S));\
 break;
 #include "clang/Analysis/PathSensitive/CheckerVisitor.def"
     }
@@ -51,9 +78,12 @@ break;
 #define PREVISIT(NAME) \
 void PreVisit ## NAME(CheckerContext &C, const NAME* S) {}
 #include "clang/Analysis/PathSensitive/CheckerVisitor.def"
+      
+#define POSTVISIT(NAME) \
+void PostVisit ## NAME(CheckerContext &C, const NAME* S) {}
+#include "clang/Analysis/PathSensitive/CheckerVisitor.def"
 };
 
 } // end clang namespace
 
 #endif
-

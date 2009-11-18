@@ -71,8 +71,10 @@ namespace {
     void VisitObjCCompatibleAliasDecl(ObjCCompatibleAliasDecl *D);
     void VisitObjCPropertyDecl(ObjCPropertyDecl *D);
     void VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D);
-    void VisitUnresolvedUsingDecl(UnresolvedUsingDecl *D);
+    void VisitUnresolvedUsingTypenameDecl(UnresolvedUsingTypenameDecl *D);
+    void VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D);
     void VisitUsingDecl(UsingDecl *D);
+    void VisitUsingShadowDecl(UsingShadowDecl *D);
   };
 }
 
@@ -401,37 +403,6 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
         }
       }
     }
-    else if (CXXDestructorDecl *DDecl = dyn_cast<CXXDestructorDecl>(D)) {
-      if (DDecl->getNumBaseOrMemberDestructions() > 0) {
-        // List order of base/member destruction for visualization purposes.
-        assert (D->isThisDeclarationADefinition() && "Destructor with dtor-list");
-        Proto += "/* : ";
-        for (CXXDestructorDecl::destr_const_iterator *B = DDecl->destr_begin(),
-             *E = DDecl->destr_end();
-             B != E; ++B) {
-          uintptr_t BaseOrMember = (*B);
-          if (B != DDecl->destr_begin())
-            Proto += ", ";
-
-          if (DDecl->isMemberToDestroy(BaseOrMember)) {
-            FieldDecl *FD = DDecl->getMemberToDestroy(BaseOrMember);
-            Proto += "~";
-            Proto += FD->getNameAsString();
-          }
-          else // FIXME. skip dependent types for now.
-            if (const RecordType *RT =
-                  DDecl->getAnyBaseClassToDestroy(BaseOrMember)
-                    ->getAs<RecordType>()) {
-              const CXXRecordDecl *BaseDecl =
-                cast<CXXRecordDecl>(RT->getDecl());
-              Proto += "~";
-              Proto += BaseDecl->getNameAsString();
-            }
-          Proto += "()";
-        }
-        Proto += " */";
-      }
-    }
     else
       AFT->getResultType().getAsStringInternal(Proto, Policy);
   } else {
@@ -654,7 +625,7 @@ void DeclPrinter::VisitObjCClassDecl(ObjCClassDecl *D) {
   for (ObjCClassDecl::iterator I = D->begin(), E = D->end();
        I != E; ++I) {
     if (I != D->begin()) Out << ", ";
-    Out << (*I)->getNameAsString();
+    Out << I->getInterface()->getNameAsString();
   }
 }
 
@@ -856,11 +827,22 @@ void DeclPrinter::VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *PID) {
 void DeclPrinter::VisitUsingDecl(UsingDecl *D) {
   Out << "using ";
   D->getTargetNestedNameDecl()->print(Out, Policy);
-  Out << D->getTargetDecl()->getNameAsString();
+  Out << D->getNameAsString();
 }
 
-void DeclPrinter::VisitUnresolvedUsingDecl(UnresolvedUsingDecl *D) {
+void
+DeclPrinter::VisitUnresolvedUsingTypenameDecl(UnresolvedUsingTypenameDecl *D) {
+  Out << "using typename ";
+  D->getTargetNestedNameSpecifier()->print(Out, Policy);
+  Out << D->getDeclName().getAsString();
+}
+
+void DeclPrinter::VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D) {
   Out << "using ";
   D->getTargetNestedNameSpecifier()->print(Out, Policy);
-  Out << D->getTargetName().getAsString();
+  Out << D->getDeclName().getAsString();
+}
+
+void DeclPrinter::VisitUsingShadowDecl(UsingShadowDecl *D) {
+  // ignore
 }

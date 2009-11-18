@@ -15,39 +15,39 @@ int gi, gj;
 
 void test1() {
   // CHECK:       movabsq $59, %rdx
-  // CHECK-NEXT:  movq    %rax, %rdi
-  // CHECK-NEXT:  movq    %rcx, %rsi
+  // CHECK-NEXT:  movq
+  // CHECK-NEXT:  movq
   // CHECK-NEXT:  call    ___strcpy_chk
   strcpy(&gbuf[4], "Hi there");
 }
 
 void test2() {
   // CHECK:       movabsq $63, %rdx
-  // CHECK-NEXT:  movq    %rax, %rdi
-  // CHECK-NEXT:  movq    %rcx, %rsi
+  // CHECK-NEXT:  movq
+  // CHECK-NEXT:  movq
   // CHECK-NEXT:  call    ___strcpy_chk
   strcpy(gbuf, "Hi there");
 }
 
 void test3() {
   // CHECK:       movabsq $0, %rdx
-  // CHECK-NEXT:  movq    %rax, %rdi
-  // CHECK-NEXT:  movq    %rcx, %rsi
+  // CHECK-NEXT:  movq
+  // CHECK-NEXT:  movq
   // CHECK-NEXT:  call    ___strcpy_chk
   strcpy(&gbuf[100], "Hi there");
 }
 
 void test4() {
   // CHECK:       movabsq $0, %rdx
-  // CHECK-NEXT:  movq    %rax, %rdi
-  // CHECK-NEXT:  movq    %rcx, %rsi
+  // CHECK-NEXT:  movq
+  // CHECK-NEXT:  movq
   // CHECK-NEXT:  call    ___strcpy_chk
   strcpy((char*)(void*)&gbuf[-1], "Hi there");
 }
 
 void test5() {
-  // CHECK:       movb    $0, %al
-  // CHECK-NEXT:  testb   %al, %al
+  // CHECK:       movq    $-1, %rax
+  // CHECK-NEXT:  cmpq    $-1, %rax
   // CHECK:       call    ___inline_strcpy_chk
   strcpy(gp, "Hi there");
 }
@@ -56,8 +56,8 @@ void test6() {
   char buf[57];
 
   // CHECK:       movabsq $53, %rdx
-  // CHECK-NEXT:  movq    %rax, %rdi
-  // CHECK-NEXT:  movq    %rcx, %rsi
+  // CHECK-NEXT:  movq
+  // CHECK-NEXT:  movq
   // CHECK-NEXT:  call    ___strcpy_chk
   strcpy(&buf[4], "Hi there");
 }

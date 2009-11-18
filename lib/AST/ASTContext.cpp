@@ -35,7 +35,7 @@ enum FloatingRank {
 };
 
 ASTContext::ASTContext(const LangOptions& LOpts, SourceManager &SM,
-                       TargetInfo &t,
+                       const TargetInfo &t,
                        IdentifierTable &idents, SelectorTable &sels,
                        Builtin::Context &builtins,
                        bool FreeMem, unsigned size_reserve) :
@@ -256,9 +256,9 @@ ASTContext::setInstantiatedFromStaticDataMember(VarDecl *Inst, VarDecl *Tmpl,
     = new (*this) MemberSpecializationInfo(Tmpl, TSK);
 }
 
-UnresolvedUsingDecl *
+NamedDecl *
 ASTContext::getInstantiatedFromUnresolvedUsingDecl(UsingDecl *UUD) {
-  llvm::DenseMap<UsingDecl *, UnresolvedUsingDecl *>::iterator Pos
+  llvm::DenseMap<UsingDecl *, NamedDecl *>::const_iterator Pos
     = InstantiatedFromUnresolvedUsingDecl.find(UUD);
   if (Pos == InstantiatedFromUnresolvedUsingDecl.end())
     return 0;
@@ -268,7 +268,10 @@ ASTContext::getInstantiatedFromUnresolvedUsingDecl(UsingDecl *UUD) {
 
 void
 ASTContext::setInstantiatedFromUnresolvedUsingDecl(UsingDecl *UD,
-                                                   UnresolvedUsingDecl *UUD) {
+                                                   NamedDecl *UUD) {
+  assert((isa<UnresolvedUsingValueDecl>(UUD) ||
+          isa<UnresolvedUsingTypenameDecl>(UUD)) && 
+         "original declaration is not an unresolved using decl");
   assert(!InstantiatedFromUnresolvedUsingDecl[UD] &&
          "Already noted what using decl what instantiated from");
   InstantiatedFromUnresolvedUsingDecl[UD] = UUD;
@@ -1186,7 +1189,7 @@ QualType ASTContext::getNoReturnType(QualType T) {
     }
   }
 
-  return getQualifiedType(ResultType, T.getQualifiers());
+  return getQualifiedType(ResultType, T.getLocalQualifiers());
 }
 
 /// getComplexType - Return the uniqued reference to the type for a complex
@@ -2350,6 +2353,12 @@ TemplateName ASTContext::getCanonicalTemplateName(TemplateName Name) {
   return DTN->CanonicalTemplateName;
 }
 
+bool ASTContext::hasSameTemplateName(TemplateName X, TemplateName Y) {
+  X = getCanonicalTemplateName(X);
+  Y = getCanonicalTemplateName(Y);
+  return X.getAsVoidPointer() == Y.getAsVoidPointer();
+}
+
 TemplateArgument
 ASTContext::getCanonicalTemplateArgument(const TemplateArgument &Arg) {
   switch (Arg.getKind()) {
@@ -2357,12 +2366,14 @@ ASTContext::getCanonicalTemplateArgument(const TemplateArgument &Arg) {
       return Arg;
 
     case TemplateArgument::Expression:
-      // FIXME: Build canonical expression?
       return Arg;
 
     case TemplateArgument::Declaration:
       return TemplateArgument(Arg.getAsDecl()->getCanonicalDecl());
 
+    case TemplateArgument::Template:
+      return TemplateArgument(getCanonicalTemplateName(Arg.getAsTemplate()));
+      
     case TemplateArgument::Integral:
       return TemplateArgument(*Arg.getAsIntegral(),
                               getCanonicalType(Arg.getIntegralType()));
@@ -2427,7 +2438,7 @@ ASTContext::getCanonicalNestedNameSpecifier(NestedNameSpecifier *NNS) {
 
 const ArrayType *ASTContext::getAsArrayType(QualType T) {
   // Handle the non-qualified case efficiently.
-  if (!T.hasQualifiers()) {
+  if (!T.hasLocalQualifiers()) {
     // Handle the common positive case fast.
     if (const ArrayType *AT = dyn_cast<ArrayType>(T))
       return AT;
@@ -2732,12 +2743,22 @@ int ASTContext::getIntegerTypeOrder(QualType LHS, QualType RHS) {
   return 1;
 }
 
+static RecordDecl *
+CreateRecordDecl(ASTContext &Ctx, RecordDecl::TagKind TK, DeclContext *DC,
+                 SourceLocation L, IdentifierInfo *Id) {
+  if (Ctx.getLangOptions().CPlusPlus)
+    return CXXRecordDecl::Create(Ctx, TK, DC, L, Id);
+  else
+    return RecordDecl::Create(Ctx, TK, DC, L, Id);
+}
+                                    
 // getCFConstantStringType - Return the type used for constant CFStrings.
 QualType ASTContext::getCFConstantStringType() {
   if (!CFConstantStringTypeDecl) {
     CFConstantStringTypeDecl =
-      RecordDecl::Create(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
-                         &Idents.get("NSConstantString"));
+      CreateRecordDecl(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
+                       &Idents.get("NSConstantString"));
+
     QualType FieldTypes[4];
 
     // const int *isa;
@@ -2774,8 +2795,8 @@ void ASTContext::setCFConstantStringType(QualType T) {
 QualType ASTContext::getObjCFastEnumerationStateType() {
   if (!ObjCFastEnumerationStateTypeDecl) {
     ObjCFastEnumerationStateTypeDecl =
-      RecordDecl::Create(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
-                         &Idents.get("__objcFastEnumerationState"));
+      CreateRecordDecl(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
+                       &Idents.get("__objcFastEnumerationState"));
 
     QualType FieldTypes[] = {
       UnsignedLongTy,
@@ -2807,8 +2828,8 @@ QualType ASTContext::getBlockDescriptorType() {
 
   RecordDecl *T;
   // FIXME: Needs the FlagAppleBlock bit.
-  T = RecordDecl::Create(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
-                         &Idents.get("__block_descriptor"));
+  T = CreateRecordDecl(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
+                       &Idents.get("__block_descriptor"));
   
   QualType FieldTypes[] = {
     UnsignedLongTy,
@@ -2850,8 +2871,8 @@ QualType ASTContext::getBlockDescriptorExtendedType() {
 
   RecordDecl *T;
   // FIXME: Needs the FlagAppleBlock bit.
-  T = RecordDecl::Create(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
-                         &Idents.get("__block_descriptor_withcopydispose"));
+  T = CreateRecordDecl(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
+                       &Idents.get("__block_descriptor_withcopydispose"));
   
   QualType FieldTypes[] = {
     UnsignedLongTy,
@@ -2920,8 +2941,8 @@ QualType ASTContext::BuildByRefType(const char *DeclName, QualType Ty) {
   llvm::raw_svector_ostream(Name) << "__Block_byref_" <<
                                   ++UniqueBlockByRefTypeID << '_' << DeclName;
   RecordDecl *T;
-  T = RecordDecl::Create(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
-                         &Idents.get(Name.str()));
+  T = CreateRecordDecl(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
+                       &Idents.get(Name.str()));
   T->startDefinition();
   QualType Int32Ty = IntTy;
   assert(getIntWidth(IntTy) == 32 && "non-32bit int not supported");
@@ -2970,8 +2991,8 @@ QualType ASTContext::getBlockParmType(
   llvm::raw_svector_ostream(Name) << "__block_literal_"
                                   << ++UniqueBlockParmTypeID;
   RecordDecl *T;
-  T = RecordDecl::Create(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
-                         &Idents.get(Name.str()));
+  T = CreateRecordDecl(*this, TagDecl::TK_struct, TUDecl, SourceLocation(),
+                       &Idents.get(Name.str()));
   QualType FieldTypes[] = {
     getPointerType(VoidPtrTy),
     IntTy,
@@ -3051,6 +3072,54 @@ int ASTContext::getObjCEncodingTypeSize(QualType type) {
   else if (type->isArrayType())
     sz = getTypeSize(VoidPtrTy);
   return sz / getTypeSize(CharTy);
+}
+
+/// getObjCEncodingForBlockDecl - Return the encoded type for this method
+/// declaration.
+void ASTContext::getObjCEncodingForBlock(const BlockExpr *Expr, 
+                                             std::string& S) {
+  const BlockDecl *Decl = Expr->getBlockDecl();
+  QualType BlockTy =
+      Expr->getType()->getAs<BlockPointerType>()->getPointeeType();
+  // Encode result type.
+  getObjCEncodingForType(cast<FunctionType>(BlockTy)->getResultType(), S);
+  // Compute size of all parameters.
+  // Start with computing size of a pointer in number of bytes.
+  // FIXME: There might(should) be a better way of doing this computation!
+  SourceLocation Loc;
+  int PtrSize = getTypeSize(VoidPtrTy) / getTypeSize(CharTy);
+  int ParmOffset = PtrSize;
+  for (ObjCMethodDecl::param_iterator PI = Decl->param_begin(),
+       E = Decl->param_end(); PI != E; ++PI) {
+    QualType PType = (*PI)->getType();
+    int sz = getObjCEncodingTypeSize(PType);
+    assert (sz > 0 && "BlockExpr - Incomplete param type");
+    ParmOffset += sz;
+  }
+  // Size of the argument frame
+  S += llvm::utostr(ParmOffset);
+  // Block pointer and offset.
+  S += "@?0";
+  ParmOffset = PtrSize;
+  
+  // Argument types.
+  ParmOffset = PtrSize;
+  for (BlockDecl::param_const_iterator PI = Decl->param_begin(), E =
+       Decl->param_end(); PI != E; ++PI) {
+    ParmVarDecl *PVDecl = *PI;
+    QualType PType = PVDecl->getOriginalType(); 
+    if (const ArrayType *AT =
+          dyn_cast<ArrayType>(PType->getCanonicalTypeInternal())) {
+      // Use array's original type only if it has known number of
+      // elements.
+      if (!isa<ConstantArrayType>(AT))
+        PType = PVDecl->getType();
+    } else if (PType->isFunctionType())
+      PType = PVDecl->getType();
+    getObjCEncodingForType(PType, S);
+    S += llvm::utostr(ParmOffset);
+    ParmOffset += getObjCEncodingTypeSize(PType);
+  }
 }
 
 /// getObjCEncodingForMethodDecl - Return the encoded type for this method
@@ -4186,8 +4255,8 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
     return LHS;
 
   // If the qualifiers are different, the types aren't compatible... mostly.
-  Qualifiers LQuals = LHSCan.getQualifiers();
-  Qualifiers RQuals = RHSCan.getQualifiers();
+  Qualifiers LQuals = LHSCan.getLocalQualifiers();
+  Qualifiers RQuals = RHSCan.getLocalQualifiers();
   if (LQuals != RQuals) {
     // If any of these qualifiers are different, we have a type
     // mismatch.
@@ -4394,7 +4463,7 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
 //===----------------------------------------------------------------------===//
 
 unsigned ASTContext::getIntWidth(QualType T) {
-  if (T == BoolTy)
+  if (T->isBooleanType())
     return 1;
   if (FixedWidthIntType *FWIT = dyn_cast<FixedWidthIntType>(T)) {
     return FWIT->getWidth();

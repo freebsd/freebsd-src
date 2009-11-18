@@ -28,7 +28,7 @@ def : DiagGroup<"cast-align">;
 def : DiagGroup<"cast-qual">;
 def : DiagGroup<"char-align">;
 def Comment : DiagGroup<"comment">;
-def : DiagGroup<"conversion">;
+def : DiagGroup<"ctor-dtor-privacy">;
 def : DiagGroup<"declaration-after-statement">;
 def : DiagGroup<"disabled-optimization">;
 def : DiagGroup<"discard-qual">;
@@ -40,6 +40,7 @@ def FormatExtraArgs : DiagGroup<"format-extra-args">;
 def FormatZeroLength : DiagGroup<"format-zero-length">;
 
 def FourByteMultiChar : DiagGroup<"four-char-constants">;
+def : DiagGroup<"idiomatic-parentheses">;
 def : DiagGroup<"import">;
 def : DiagGroup<"init-self">;
 def : DiagGroup<"inline">;
@@ -58,19 +59,21 @@ def MismatchedTags : DiagGroup<"mismatched-tags">;
 def : DiagGroup<"missing-field-initializers">;
 def NonNull : DiagGroup<"nonnull">;
 def : DiagGroup<"nonportable-cfstrings">;
+def : DiagGroup<"non-virtual-dtor">;
 def : DiagGroup<"old-style-definition">;
 def : DiagGroup<"overflow">;
 def : DiagGroup<"overloaded-virtual">;
 def : DiagGroup<"packed">;
-def Parentheses : DiagGroup<"parentheses">;
 def PointerArith : DiagGroup<"pointer-arith">;
 def : DiagGroup<"pointer-to-int-cast">;
 def : DiagGroup<"redundant-decls">;
 def ReturnType : DiagGroup<"return-type">;
+def SemiBeforeMethodBody : DiagGroup<"semicolon-before-method-body">;
 def : DiagGroup<"sequence-point">;
 def : DiagGroup<"shadow">;
 def : DiagGroup<"shorten-64-to-32">;
-def : DiagGroup<"sign-compare">;
+def SignCompare : DiagGroup<"sign-compare">;
+def : DiagGroup<"synth">;
 
 // Preprocessor warnings.
 def : DiagGroup<"builtin-macro-redefined">;
@@ -114,6 +117,14 @@ def CharSubscript : DiagGroup<"char-subscripts">;
 
 // Aggregation warning settings.
 
+// -Widiomatic-parentheses contains warnings about 'idiomatic'
+// missing parentheses;  it is off by default.
+def Parentheses : DiagGroup<"parentheses", [DiagGroup<"idiomatic-parentheses">]>;
+
+// -Wconversion has its own warnings, but we split this one out for
+// legacy reasons.
+def Conversion : DiagGroup<"conversion",
+                           [DiagGroup<"shorten-64-to-32">]>;
 
 def Unused : DiagGroup<"unused",
                        [UnusedArgument, UnusedFunction, UnusedLabel,
@@ -127,8 +138,9 @@ def FormatY2K : DiagGroup<"format-y2k", [Format]>;
 def Format2 : DiagGroup<"format=2",
                         [FormatNonLiteral, FormatSecurity, FormatY2K]>;
 
-
 def Extra : DiagGroup<"extra", [
+    SemiBeforeMethodBody,
+    SignCompare,
     UnusedParameter
   ]>;
 
@@ -158,3 +170,7 @@ def : DiagGroup<"all", [Most, Parentheses]>;
 def : DiagGroup<"", [Extra]>;  // -W = -Wextra
 def : DiagGroup<"endif-labels", [ExtraTokens]>; // endif-labels = endif-tokens
 
+// A warning group for warnings that we want to have on by default in clang,
+// but which aren't on by default in GCC.
+def NonGCC : DiagGroup<"non-gcc",
+    [SignCompare, Conversion]>;

@@ -164,7 +164,7 @@ public:
   ~RegionStoreSubRegionMap() {}
 
   bool iterSubRegions(const MemRegion* Parent, Visitor& V) const {
-    Map::iterator I = M.find(Parent);
+    Map::const_iterator I = M.find(Parent);
 
     if (I == M.end())
       return true;
@@ -360,7 +360,8 @@ public:
   //===------------------------------------------------------------------===//
 
   const GRState *setExtent(const GRState *state, const MemRegion* R, SVal Extent);
-  SVal getSizeInElements(const GRState *state, const MemRegion* R);
+  DefinedOrUnknownSVal getSizeInElements(const GRState *state, 
+                                         const MemRegion* R);
 
   //===------------------------------------------------------------------===//
   // Utility methods.
@@ -461,7 +462,7 @@ const GRState *RegionStoreManager::InvalidateRegion(const GRState *state,
   ASTContext& Ctx = StateMgr.getContext();
 
   // Strip away casts.
-  R = R->getBaseRegion();
+  R = R->StripCasts();
 
   // Get the mapping of regions -> subregions.
   llvm::OwningPtr<RegionStoreSubRegionMap>
@@ -696,8 +697,8 @@ SVal RegionStoreManager::getLValueElement(QualType elementType, SVal Offset,
 // Extents for regions.
 //===----------------------------------------------------------------------===//
 
-SVal RegionStoreManager::getSizeInElements(const GRState *state,
-                                           const MemRegion *R) {
+DefinedOrUnknownSVal RegionStoreManager::getSizeInElements(const GRState *state,
+                                                           const MemRegion *R) {
 
   switch (R->getKind()) {
     case MemRegion::MemSpaceRegionKind:
@@ -1028,16 +1029,20 @@ RegionStoreManager::Retrieve(const GRState *state, Loc L, QualType T) {
     return SValuator::CastResult(state, UnknownVal());
 
   if (const FieldRegion* FR = dyn_cast<FieldRegion>(R))
-    return CastRetrievedVal(RetrieveField(state, FR), state, FR, T);
+    return SValuator::CastResult(state, 
+                            CastRetrievedVal(RetrieveField(state, FR), FR, T));
 
   if (const ElementRegion* ER = dyn_cast<ElementRegion>(R))
-    return CastRetrievedVal(RetrieveElement(state, ER), state, ER, T);
+    return SValuator::CastResult(state,
+                          CastRetrievedVal(RetrieveElement(state, ER), ER, T));
 
   if (const ObjCIvarRegion *IVR = dyn_cast<ObjCIvarRegion>(R))
-    return CastRetrievedVal(RetrieveObjCIvar(state, IVR), state, IVR, T);
+    return SValuator::CastResult(state,
+                       CastRetrievedVal(RetrieveObjCIvar(state, IVR), IVR, T));
 
   if (const VarRegion *VR = dyn_cast<VarRegion>(R))
-    return CastRetrievedVal(RetrieveVar(state, VR), state, VR, T);
+    return SValuator::CastResult(state,
+                              CastRetrievedVal(RetrieveVar(state, VR), VR, T));
 
   RegionBindings B = GetRegionBindings(state->getStore());
   RegionBindings::data_type* V = B.lookup(R);
@@ -1109,7 +1114,7 @@ SVal RegionStoreManager::RetrieveElement(const GRState* state,
     // FIXME: Handle loads from strings where the literal is treated as 
     // an integer, e.g., *((unsigned int*)"hello")
     ASTContext &Ctx = getContext();
-    QualType T = StrR->getValueType(Ctx)->getAs<ArrayType>()->getElementType();
+    QualType T = Ctx.getAsArrayType(StrR->getValueType(Ctx))->getElementType();
     if (T != Ctx.getCanonicalType(R->getElementType()))
       return UnknownVal();
     

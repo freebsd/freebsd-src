@@ -12,14 +12,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Basic/Builtins.h"
-#include "clang/Basic/TargetBuiltins.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/Builtins.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/TargetBuiltins.h"
+#include "clang/Basic/TargetOptions.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCSectionMachO.h"
 using namespace clang;
@@ -151,29 +155,6 @@ static void getDarwinIPhoneOSDefines(std::vector<char> &Defs,
          iPhoneOSStr);
 }
 
-/// GetDarwinLanguageOptions - Set the default language options for darwin.
-static void GetDarwinLanguageOptions(LangOptions &Opts,
-                                     const llvm::Triple &Triple) {
-  Opts.NeXTRuntime = true;
-
-  if (Triple.getOS() != llvm::Triple::Darwin)
-    return;
-
-  unsigned MajorVersion = Triple.getDarwinMajorNumber();
-
-  // Blocks and stack protectors default to on for 10.6 (darwin10) and beyond.
-  if (MajorVersion > 9) {
-    Opts.Blocks = 1;
-    Opts.setStackProtectorMode(LangOptions::SSPOn);
-  }
-
-  // Non-fragile ABI (in 64-bit mode) default to on for 10.5 (darwin9) and
-  // beyond.
-  if (MajorVersion >= 9 && Opts.ObjC1 &&
-      Triple.getArch() == llvm::Triple::x86_64)
-    Opts.ObjCNonFragileABI = 1;
-}
-
 namespace {
 template<typename Target>
 class DarwinTargetInfo : public OSTargetInfo<Target> {
@@ -184,13 +165,6 @@ protected:
     getDarwinOSXDefines(Defines, Triple);
   }
 
-  /// getDefaultLangOptions - Allow the target to specify default settings for
-  /// various language options.  These may be overridden by command line
-  /// options.
-  virtual void getDefaultLangOptions(LangOptions &Opts) {
-    TargetInfo::getDefaultLangOptions(Opts);
-    GetDarwinLanguageOptions(Opts, TargetInfo::getTriple());
-  }
 public:
   DarwinTargetInfo(const std::string& triple) :
     OSTargetInfo<Target>(triple) {
@@ -320,6 +294,25 @@ public:
     : OSTargetInfo<Target>(triple) {}
 };
 
+// PSP Target
+template<typename Target>
+class PSPTargetInfo : public OSTargetInfo<Target> {
+protected:
+  virtual void getOSDefines(const LangOptions &Opts, const llvm::Triple &Triple,
+                           std::vector<char> &Defs) const {
+    // PSP defines; list based on the output of the pspdev gcc toolchain.
+    Define(Defs, "PSP", "1");
+    Define(Defs, "_PSP", "1");
+    Define(Defs, "__psp__", "1");
+    Define(Defs, "__ELF__", "1");
+  }
+public:
+  PSPTargetInfo(const std::string& triple)
+    : OSTargetInfo<Target>(triple) {
+    this->UserLabelPrefix = "";
+  }
+};
+
 // AuroraUX target
 template<typename Target>
 class AuroraUXTargetInfo : public OSTargetInfo<Target> {
@@ -412,10 +405,6 @@ public:
       Info.setAllowsRegister();
       return true;
     }
-  }
-  virtual void getDefaultLangOptions(LangOptions &Opts) {
-    TargetInfo::getDefaultLangOptions(Opts);
-    Opts.CharIsSigned = false;
   }
   virtual const char *getClobbers() const {
     return "";
@@ -568,7 +557,7 @@ class PPC32TargetInfo : public PPCTargetInfo {
 public:
   PPC32TargetInfo(const std::string& triple) : PPCTargetInfo(triple) {
     DescriptionString = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
-                        "i64:64:64-f32:32:32-f64:64:64-v128:128:128";
+                        "i64:64:64-f32:32:32-f64:64:64-v128:128:128-n32";
   }
 };
 } // end anonymous namespace.
@@ -582,7 +571,7 @@ public:
     UIntMaxType = UnsignedLong;
     Int64Type = SignedLong;
     DescriptionString = "E-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
-                        "i64:64:64-f32:32:32-f64:64:64-v128:128:128";
+                        "i64:64:64-f32:32:32-f64:64:64-v128:128:128-n32:64";
   }
 };
 } // end anonymous namespace.
@@ -655,7 +644,7 @@ public:
                                  bool Enabled) const;
   virtual void getDefaultFeatures(const std::string &CPU,
                                   llvm::StringMap<bool> &Features) const;
-  virtual void HandleTargetFeatures(const llvm::StringMap<bool> &Features);
+  virtual void HandleTargetFeatures(const std::vector<std::string> &Features);
 };
 
 void X86TargetInfo::getDefaultFeatures(const std::string &CPU,
@@ -772,21 +761,25 @@ bool X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
 
 /// HandleTargetOptions - Perform initialization based on the user
 /// configured set of features.
-void X86TargetInfo::HandleTargetFeatures(const llvm::StringMap<bool>&Features) {
-  if (Features.lookup("sse42"))
-    SSELevel = SSE42;
-  else if (Features.lookup("sse41"))
-    SSELevel = SSE41;
-  else if (Features.lookup("ssse3"))
-    SSELevel = SSSE3;
-  else if (Features.lookup("sse3"))
-    SSELevel = SSE3;
-  else if (Features.lookup("sse2"))
-    SSELevel = SSE2;
-  else if (Features.lookup("sse"))
-    SSELevel = SSE1;
-  else if (Features.lookup("mmx"))
-    SSELevel = MMX;
+void
+X86TargetInfo::HandleTargetFeatures(const std::vector<std::string> &Features) {
+  // Remember the maximum enabled sselevel.
+  for (unsigned i = 0, e = Features.size(); i !=e; ++i) {
+    // Ignore disabled features.
+    if (Features[i][0] == '-')
+      continue;
+
+    assert(Features[i][0] == '+' && "Invalid target feature!");
+    X86SSEEnum Level = llvm::StringSwitch<X86SSEEnum>(Features[i].substr(1))
+      .Case("sse42", SSE42)
+      .Case("sse41", SSE41)
+      .Case("ssse3", SSSE3)
+      .Case("sse2", SSE2)
+      .Case("sse", SSE1)
+      .Case("mmx", MMX)
+      .Default(NoMMXSSE);
+    SSELevel = std::max(SSELevel, Level);
+  }
 }
 
 /// X86TargetInfo::getTargetDefines - Return a set of the X86-specific #defines
@@ -902,7 +895,7 @@ public:
     LongDoubleAlign = 32;
     DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                         "i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-"
-                        "a0:0:64-f80:32:32";
+                        "a0:0:64-f80:32:32-n8:16:32";
     SizeType = UnsignedInt;
     PtrDiffType = SignedInt;
     IntPtrType = SignedInt;
@@ -943,7 +936,7 @@ public:
     IntPtrType = SignedLong;
     DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                         "i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-"
-                        "a0:0:64-f80:128:128";
+                        "a0:0:64-f80:128:128-n8:16:32";
   }
 
 };
@@ -957,11 +950,10 @@ public:
     : X86_32TargetInfo(triple) {
     TLSSupported = false;
     WCharType = UnsignedShort;
-    WCharWidth = WCharAlign = 16;
     DoubleAlign = LongLongAlign = 64;
     DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                         "i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-"
-                        "a0:0:64-f80:32:32";
+                        "a0:0:64-f80:32:32-n8:16:32";
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 std::vector<char> &Defines) const {
@@ -977,11 +969,6 @@ public:
 
 namespace {
 
-/// GetWindowsVisualStudioLanguageOptions - Set the default language options for Windows.
-static void GetWindowsVisualStudioLanguageOptions(LangOptions &Opts) {
-  Opts.Microsoft = true;
-}
-
 // x86-32 Windows Visual Studio target
 class VisualStudioWindowsX86_32TargetInfo : public WindowsX86_32TargetInfo {
 public:
@@ -995,10 +982,6 @@ public:
     // 300=386, 400=486, 500=Pentium, 600=Blend (default)
     // We lost the original triple, so we use the default.
     Define(Defines, "_M_IX86", "600");
-  }
-  virtual void getDefaultLangOptions(LangOptions &Opts) {
-    WindowsX86_32TargetInfo::getDefaultLangOptions(Opts);
-    GetWindowsVisualStudioLanguageOptions(Opts);
   }
 };
 } // end anonymous namespace
@@ -1028,11 +1011,10 @@ public:
     : X86_32TargetInfo(triple) {
     TLSSupported = false;
     WCharType = UnsignedShort;
-    WCharWidth = WCharAlign = 16;
     DoubleAlign = LongLongAlign = 64;
     DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                         "i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-"
-                        "a0:0:64-f80:32:32";
+                        "a0:0:64-f80:32:32-n8:16:32";
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 std::vector<char> &Defines) const {
@@ -1059,7 +1041,7 @@ public:
 
     DescriptionString = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                         "i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-"
-                        "a0:0:64-s0:64:64-f80:128:128";
+                        "a0:0:64-s0:64:64-f80:128:128-n8:16:32:64";
   }
   virtual const char *getVAListDeclaration() const {
     return "typedef struct __va_list_tag {"
@@ -1087,7 +1069,6 @@ public:
     : X86_64TargetInfo(triple) {
     TLSSupported = false;
     WCharType = UnsignedShort;
-    WCharWidth = WCharAlign = 16;
     LongWidth = LongAlign = 32;
     DoubleAlign = LongLongAlign = 64;
   }
@@ -1208,11 +1189,11 @@ public:
     if (IsThumb) {
       DescriptionString = ("e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-"
                            "i64:64:64-f32:32:32-f64:64:64-"
-                           "v64:64:64-v128:128:128-a0:0:32");
+                           "v64:64:64-v128:128:128-a0:0:32-n32");
     } else {
       DescriptionString = ("e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                            "i64:64:64-f32:32:32-f64:64:64-"
-                           "v64:64:64-v128:128:128-a0:0:64");
+                           "v64:64:64-v128:128:128-a0:0:64-n32");
     }
   }
   virtual const char *getABI() const { return ABI.c_str(); }
@@ -1230,11 +1211,11 @@ public:
       if (IsThumb) {
         DescriptionString = ("e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-"
                              "i64:32:32-f32:32:32-f64:32:32-"
-                             "v64:64:64-v128:128:128-a0:0:32");
+                             "v64:64:64-v128:128:128-a0:0:32-n32");
       } else {
         DescriptionString = ("e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                              "i64:32:32-f32:32:32-f64:32:32-"
-                             "v64:64:64-v128:128:128-a0:0:64");
+                             "v64:64:64-v128:128:128-a0:0:64-n32");
       }
 
       // FIXME: Override "preferred align" for double and long long.
@@ -1391,7 +1372,7 @@ public:
   SparcV8TargetInfo(const std::string& triple) : TargetInfo(triple) {
     // FIXME: Support Sparc quad-precision long double?
     DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
-                        "i64:64:64-f32:32:32-f64:64:64-v64:64:64";
+                        "i64:64:64-f32:32:32-f64:64:64-v64:64:64-n32";
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 std::vector<char> &Defines) const {
@@ -1502,7 +1483,6 @@ namespace {
       TLSSupported = false;
       IntWidth = 16;
       LongWidth = LongLongWidth = 32;
-      IntMaxTWidth = 32;
       PointerWidth = 16;
       IntAlign = 8;
       LongAlign = LongLongAlign = 8;
@@ -1521,7 +1501,7 @@ namespace {
       FloatFormat = &llvm::APFloat::IEEEsingle;
       DoubleFormat = &llvm::APFloat::IEEEsingle;
       LongDoubleFormat = &llvm::APFloat::IEEEsingle;
-      DescriptionString = "e-p:16:8:8-i8:8:8-i16:8:8-i32:8:8-f32:32:32";
+      DescriptionString = "e-p:16:8:8-i8:8:8-i16:8:8-i32:8:8-f32:32:32-n8";
 
     }
     virtual uint64_t getPointerWidthV(unsigned AddrSpace) const { return 16; }
@@ -1570,7 +1550,6 @@ namespace {
       TLSSupported = false;
       IntWidth = 16;
       LongWidth = LongLongWidth = 32;
-      IntMaxTWidth = 32;
       PointerWidth = 16;
       IntAlign = 8;
       LongAlign = LongLongAlign = 8;
@@ -1580,7 +1559,7 @@ namespace {
       UIntMaxType = UnsignedLong;
       IntPtrType = SignedShort;
       PtrDiffType = SignedInt;
-      DescriptionString = "e-p:16:8:8-i8:8:8-i16:8:8-i32:8:8";
+      DescriptionString = "e-p:16:8:8-i8:8:8-i16:8:8-i32:8:8-n8:16";
    }
     virtual void getTargetDefines(const LangOptions &Opts,
                                  std::vector<char> &Defines) const {
@@ -1639,7 +1618,8 @@ namespace {
       IntWidth = IntAlign = 32;
       LongWidth = LongLongWidth = LongAlign = LongLongAlign = 64;
       PointerWidth = PointerAlign = 64;
-      DescriptionString = "E-p:64:64:64-i8:8:16-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-f128:128:128-a0:16:16";
+      DescriptionString = "E-p:64:64:64-i8:8:16-i16:16:16-i32:32:32-"
+      "i64:64:64-f32:32:32-f64:64:64-f128:128:128-a0:16:16-n32:64";
    }
     virtual void getTargetDefines(const LangOptions &Opts,
                                  std::vector<char> &Defines) const {
@@ -1651,11 +1631,6 @@ namespace {
       // FIXME: Implement.
       Records = 0;
       NumRecords = 0;
-    }
-
-    virtual void getDefaultLangOptions(LangOptions &Opts) {
-      TargetInfo::getDefaultLangOptions(Opts);
-      Opts.CharIsSigned = false;
     }
 
     virtual void getGCCRegNames(const char * const *&Names,
@@ -1702,7 +1677,7 @@ namespace {
       DoubleAlign = 32;
       LongLongAlign = 32;
       LongDoubleAlign = 32;
-      DescriptionString = "e-p:32:32-i64:32-f64:32";
+      DescriptionString = "e-p:32:32-i64:32-f64:32-n32";
     }
 
     virtual void getTargetDefines(const LangOptions &Opts,
@@ -1783,7 +1758,6 @@ namespace {
       TLSSupported = false;
       IntWidth = 32;
       LongWidth = LongLongWidth = 32;
-      IntMaxTWidth = 32;
       PointerWidth = 32;
       IntAlign = 32;
       LongAlign = LongLongAlign = 32;
@@ -1804,7 +1778,7 @@ namespace {
       LongDoubleFormat = &llvm::APFloat::IEEEsingle;
       DescriptionString = "E-p:32:32:32-a0:32:32"
                           "-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64"
-                          "-f32:32:32-f64:32:64";
+                          "-f32:32:32-f64:32:64-n32";
     }
 
     virtual void getTargetDefines(const LangOptions &Opts,
@@ -1832,13 +1806,141 @@ namespace {
   };
 }
 
+namespace {
+class MipsTargetInfo : public TargetInfo {
+  static const TargetInfo::GCCRegAlias GCCRegAliases[];
+  static const char * const GCCRegNames[];
+public:
+  MipsTargetInfo(const std::string& triple) : TargetInfo(triple) {
+    DescriptionString = "E-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-"
+                        "i64:32:64-f32:32:32-f64:64:64-v64:64:64-n32";
+  }
+  virtual void getTargetDefines(const LangOptions &Opts,
+                                std::vector<char> &Defines) const {
+    DefineStd(Defines, "mips", Opts);
+    Define(Defines, "_mips");
+    DefineStd(Defines, "MIPSEB", Opts);
+    Define(Defines, "_MIPSEB");
+    Define(Defines, "__REGISTER_PREFIX__", "");
+  }
+  virtual void getTargetBuiltins(const Builtin::Info *&Records,
+                                 unsigned &NumRecords) const {
+    // FIXME: Implement!
+  }
+  virtual const char *getVAListDeclaration() const {
+    return "typedef void* __builtin_va_list;";
+  }
+  virtual void getGCCRegNames(const char * const *&Names,
+                              unsigned &NumNames) const;
+  virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
+                                unsigned &NumAliases) const;
+  virtual bool validateAsmConstraint(const char *&Name,
+                                     TargetInfo::ConstraintInfo &Info) const {
+    switch (*Name) {
+    default:
+    case 'r': // CPU registers.
+    case 'd': // Equivalent to "r" unless generating MIPS16 code.
+    case 'y': // Equivalent to "r", backwards compatibility only.
+    case 'f': // floating-point registers.
+      Info.setAllowsRegister();
+      return true;
+    }
+    return false;
+  }
+
+  virtual const char *getClobbers() const {
+    // FIXME: Implement!
+    return "";
+  }
+};
+
+const char * const MipsTargetInfo::GCCRegNames[] = {
+  "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7", 
+  "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
+  "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
+  "$24",  "$25",  "$26",  "$27",  "$28",  "$sp",  "$fp",  "$31",
+  "$f0",  "$f1",  "$f2",  "$f3",  "$f4",  "$f5",  "$f6",  "$f7",
+  "$f8",  "$f9",  "$f10", "$f11", "$f12", "$f13", "$f14", "$f15",
+  "$f16", "$f17", "$f18", "$f19", "$f20", "$f21", "$f22", "$f23",
+  "$f24", "$f25", "$f26", "$f27", "$f28", "$f29", "$f30", "$f31",
+  "hi",   "lo",   "",     "$fcc0","$fcc1","$fcc2","$fcc3","$fcc4",
+  "$fcc5","$fcc6","$fcc7"
+};
+
+void MipsTargetInfo::getGCCRegNames(const char * const *&Names,
+                                       unsigned &NumNames) const {
+  Names = GCCRegNames;
+  NumNames = llvm::array_lengthof(GCCRegNames);
+}
+
+const TargetInfo::GCCRegAlias MipsTargetInfo::GCCRegAliases[] = {
+  { { "at" },  "$1" },
+  { { "v0" },  "$2" },
+  { { "v1" },  "$3" },
+  { { "a0" },  "$4" },
+  { { "a1" },  "$5" },
+  { { "a2" },  "$6" },
+  { { "a3" },  "$7" },
+  { { "t0" },  "$8" },
+  { { "t1" },  "$9" },
+  { { "t2" }, "$10" },
+  { { "t3" }, "$11" },
+  { { "t4" }, "$12" },
+  { { "t5" }, "$13" },
+  { { "t6" }, "$14" },
+  { { "t7" }, "$15" },
+  { { "s0" }, "$16" },
+  { { "s1" }, "$17" },
+  { { "s2" }, "$18" },
+  { { "s3" }, "$19" },
+  { { "s4" }, "$20" },
+  { { "s5" }, "$21" },
+  { { "s6" }, "$22" },
+  { { "s7" }, "$23" },
+  { { "t8" }, "$24" },
+  { { "t9" }, "$25" },
+  { { "k0" }, "$26" },
+  { { "k1" }, "$27" },
+  { { "gp" }, "$28" },
+  { { "sp" }, "$29" },
+  { { "fp" }, "$30" },
+  { { "ra" }, "$31" }
+};
+
+void MipsTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
+                                         unsigned &NumAliases) const {
+  Aliases = GCCRegAliases;
+  NumAliases = llvm::array_lengthof(GCCRegAliases);
+}
+} // end anonymous namespace.
+
+namespace {
+class MipselTargetInfo : public MipsTargetInfo {
+public:
+  MipselTargetInfo(const std::string& triple) : MipsTargetInfo(triple) {
+    DescriptionString = "e-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-"
+                        "i64:32:64-f32:32:32-f64:64:64-v64:64:64-n32";
+  }
+
+  virtual void getTargetDefines(const LangOptions &Opts,
+                                std::vector<char> &Defines) const;
+};
+
+void MipselTargetInfo::getTargetDefines(const LangOptions &Opts,
+                                        std::vector<char> &Defines) const {
+  DefineStd(Defines, "mips", Opts);
+  Define(Defines, "_mips");
+  DefineStd(Defines, "MIPSEL", Opts);
+  Define(Defines, "_MIPSEL");
+  Define(Defines, "__REGISTER_PREFIX__", "");
+}
+} // end anonymous namespace.
+
 //===----------------------------------------------------------------------===//
 // Driver code
 //===----------------------------------------------------------------------===//
 
-/// CreateTargetInfo - Return the target info object for the specified target
-/// triple.
-TargetInfo* TargetInfo::CreateTargetInfo(const std::string &T) {
+static TargetInfo *AllocateTarget(const std::string &T) {
   llvm::Triple Triple(T);
   llvm::Triple::OSType os = Triple.getOS();
 
@@ -1862,6 +1964,20 @@ TargetInfo* TargetInfo::CreateTargetInfo(const std::string &T) {
 
   case llvm::Triple::msp430:
     return new MSP430TargetInfo(T);
+
+  case llvm::Triple::mips:
+    if (os == llvm::Triple::Psp)
+      return new PSPTargetInfo<MipsTargetInfo>(T);
+    if (os == llvm::Triple::Linux)
+      return new LinuxTargetInfo<MipsTargetInfo>(T);
+    return new MipsTargetInfo(T);
+
+  case llvm::Triple::mipsel:
+    if (os == llvm::Triple::Psp)
+      return new PSPTargetInfo<MipselTargetInfo>(T);
+    if (os == llvm::Triple::Linux)
+      return new LinuxTargetInfo<MipselTargetInfo>(T);
+    return new MipselTargetInfo(T);
 
   case llvm::Triple::pic16:
     return new PIC16TargetInfo(T);
@@ -1941,4 +2057,54 @@ TargetInfo* TargetInfo::CreateTargetInfo(const std::string &T) {
       return new X86_64TargetInfo(T);
     }
   }
+}
+
+/// CreateTargetInfo - Return the target info object for the specified target
+/// triple.
+TargetInfo *TargetInfo::CreateTargetInfo(Diagnostic &Diags,
+                                         const TargetOptions &Opts) {
+  llvm::Triple Triple(Opts.Triple);
+
+  // Construct the target
+  llvm::OwningPtr<TargetInfo> Target(AllocateTarget(Triple.str()));
+  if (!Target) {
+    Diags.Report(diag::err_target_unknown_triple) << Triple.str();
+    return 0;
+  }
+
+  // Set the target ABI if specified.
+  if (!Opts.ABI.empty() && !Target->setABI(Opts.ABI)) {
+    Diags.Report(diag::err_target_unknown_abi) << Opts.ABI;
+    return 0;
+  }
+
+  // Compute the default target features, we need the target to handle this
+  // because features may have dependencies on one another.
+  llvm::StringMap<bool> Features;
+  Target->getDefaultFeatures(Opts.CPU, Features);
+
+  // Apply the user specified deltas.
+  for (std::vector<std::string>::const_iterator it = Opts.Features.begin(),
+         ie = Opts.Features.end(); it != ie; ++it) {
+    const char *Name = it->c_str();
+
+    // Apply the feature via the target.
+    if ((Name[0] != '-' && Name[0] != '+') ||
+        !Target->setFeatureEnabled(Features, Name + 1, (Name[0] == '+'))) {
+      Diags.Report(diag::err_target_invalid_feature) << Name;
+      return 0;
+    }
+  }
+
+  // Add the features to the compile options.
+  //
+  // FIXME: If we are completely confident that we have the right set, we only
+  // need to pass the minuses.
+  std::vector<std::string> StrFeatures;
+  for (llvm::StringMap<bool>::const_iterator it = Features.begin(),
+         ie = Features.end(); it != ie; ++it)
+    StrFeatures.push_back(std::string(it->second ? "+" : "-") + it->first());
+  Target->HandleTargetFeatures(StrFeatures);
+
+  return Target.take();
 }

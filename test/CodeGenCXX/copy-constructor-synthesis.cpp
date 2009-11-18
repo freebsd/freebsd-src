@@ -1,8 +1,7 @@
-// RUN: clang-cc -triple x86_64-apple-darwin -S %s -o %t-64.s &&
-// RUN: FileCheck -check-prefix LP64 --input-file=%t-64.s %s &&
-// RUN: clang-cc -triple i386-apple-darwin -S %s -o %t-32.s &&
-// RUN: FileCheck -check-prefix LP32 --input-file=%t-32.s %s &&
-// RUN: true
+// RUN: clang-cc -triple x86_64-apple-darwin -S %s -o %t-64.s
+// RUN: FileCheck -check-prefix LP64 --input-file=%t-64.s %s
+// RUN: clang-cc -triple i386-apple-darwin -S %s -o %t-32.s
+// RUN: FileCheck -check-prefix LP32 --input-file=%t-32.s %s
 
 extern "C" int printf(...);
 
@@ -45,6 +44,8 @@ struct X  : M, N, P { // ...
   const char *name;
   unsigned bf1 : 8;
   unsigned bf2 : 16;
+  int arr[2];
+  _Complex float complex;
 
   union {
     int au_i1;

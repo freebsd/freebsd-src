@@ -1063,8 +1063,18 @@ public:
   /// Subclasses may override this routine to provide different behavior.
   OwningExprResult RebuildInitList(SourceLocation LBraceLoc,
                                    MultiExprArg Inits,
-                                   SourceLocation RBraceLoc) {
-    return SemaRef.ActOnInitList(LBraceLoc, move(Inits), RBraceLoc);
+                                   SourceLocation RBraceLoc,
+                                   QualType ResultTy) {
+    OwningExprResult Result
+      = SemaRef.ActOnInitList(LBraceLoc, move(Inits), RBraceLoc);
+    if (Result.isInvalid() || ResultTy->isDependentType())
+      return move(Result);
+    
+    // Patch in the result type we were given, which may have been computed
+    // when the initial InitListExpr was built.
+    InitListExpr *ILE = cast<InitListExpr>((Expr *)Result.get());
+    ILE->setType(ResultTy);
+    return move(Result);
   }
 
   /// \brief Build a new designated initializer expression.
@@ -1699,7 +1709,7 @@ Sema::OwningStmtResult TreeTransform<Derived>::TransformStmt(Stmt *S) {
       if (E.isInvalid())
         return getSema().StmtError();
 
-      return getSema().Owned(E.takeAs<Stmt>());
+      return getSema().ActOnExprStmt(getSema().FullExpr(E));
     }
   }
 
@@ -1947,6 +1957,10 @@ void TreeTransform<Derived>::InventTemplateArgumentLoc(
                                             
     break;
 
+  case TemplateArgument::Template:
+    Output = TemplateArgumentLoc(Arg, SourceRange(), Loc);
+    break;
+      
   case TemplateArgument::Expression:
     Output = TemplateArgumentLoc(Arg, Arg.getAsExpr());
     break;
@@ -1987,7 +2001,7 @@ bool TreeTransform<Derived>::TransformTemplateArgument(
     DeclarationName Name;
     if (NamedDecl *ND = dyn_cast<NamedDecl>(Arg.getAsDecl()))
       Name = ND->getDeclName();
-    TemporaryBase Rebase(*this, SourceLocation(), Name);
+    TemporaryBase Rebase(*this, Input.getLocation(), Name);
     Decl *D = getDerived().TransformDecl(Arg.getAsDecl());
     if (!D) return true;
 
@@ -2008,6 +2022,19 @@ bool TreeTransform<Derived>::TransformTemplateArgument(
     return false;
   }
 
+  case TemplateArgument::Template: {
+    TemporaryBase Rebase(*this, Input.getLocation(), DeclarationName());    
+    TemplateName Template
+      = getDerived().TransformTemplateName(Arg.getAsTemplate());
+    if (Template.isNull())
+      return true;
+    
+    Output = TemplateArgumentLoc(TemplateArgument(Template),
+                                 Input.getTemplateQualifierRange(),
+                                 Input.getTemplateNameLoc());
+    return false;
+  }
+      
   case TemplateArgument::Expression: {
     // Template argument expressions are not potentially evaluated.
     EnterExpressionEvaluationContext Unevaluated(getSema(),
@@ -2119,7 +2146,7 @@ template<typename Derived>
 QualType
 TreeTransform<Derived>::TransformQualifiedType(TypeLocBuilder &TLB,
                                                QualifiedTypeLoc T) {
-  Qualifiers Quals = T.getType().getQualifiers();
+  Qualifiers Quals = T.getType().getLocalQualifiers();
 
   QualType Result = getDerived().TransformType(TLB, T.getUnqualifiedLoc());
   if (Result.isNull())
@@ -3893,7 +3920,7 @@ TreeTransform<Derived>::TransformInitListExpr(InitListExpr *E,
     return SemaRef.Owned(E->Retain());
 
   return getDerived().RebuildInitList(E->getLBraceLoc(), move_arg(Inits),
-                                      E->getRBraceLoc());
+                                      E->getRBraceLoc(), E->getType());
 }
 
 template<typename Derived>
@@ -5279,7 +5306,7 @@ TreeTransform<Derived>::RebuildNestedNameSpecifier(NestedNameSpecifier *Prefix,
                                                    QualType T) {
   if (T->isDependentType() || T->isRecordType() ||
       (SemaRef.getLangOptions().CPlusPlus0x && T->isEnumeralType())) {
-    assert(!T.hasQualifiers() && "Can't get cv-qualifiers here");
+    assert(!T.hasLocalQualifiers() && "Can't get cv-qualifiers here");
     return NestedNameSpecifier::Create(SemaRef.Context, Prefix, TemplateKW,
                                        T.getTypePtr());
   }
@@ -5363,6 +5390,9 @@ TreeTransform<Derived>::RebuildCXXOperatorCallExpr(OverloadedOperatorKind Op,
       return getSema().CreateBuiltinArraySubscriptExpr(move(First),
                                                        DRE->getLocStart(),
                                                        move(Second), OpLoc);
+  } else if (Op == OO_Arrow) {
+    // -> is never a builtin operation.
+    return SemaRef.BuildOverloadedArrowExpr(0, move(First), OpLoc);
   } else if (SecondExpr == 0 || isPostIncDec) {
     if (!FirstExpr->getType()->isOverloadableType()) {
       // The argument is not of overloadable type, so try to create a

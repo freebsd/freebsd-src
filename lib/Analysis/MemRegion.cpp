@@ -378,11 +378,29 @@ bool MemRegion::hasGlobalsOrParametersStorage() const {
   return false;
 }
 
+// getBaseRegion strips away all elements and fields, and get the base region
+// of them.
+const MemRegion *MemRegion::getBaseRegion() const {
+  const MemRegion *R = this;
+  while (true) {
+    if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
+      R = ER->getSuperRegion();
+      continue;
+    }
+    if (const FieldRegion *FR = dyn_cast<FieldRegion>(R)) {
+      R = FR->getSuperRegion();
+      continue;
+    }
+    break;
+  }
+  return R;
+}
+
 //===----------------------------------------------------------------------===//
 // View handling.
 //===----------------------------------------------------------------------===//
 
-const MemRegion *MemRegion::getBaseRegion() const {
+const MemRegion *MemRegion::StripCasts() const {
   const MemRegion *R = this;
   while (true) {
     if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {

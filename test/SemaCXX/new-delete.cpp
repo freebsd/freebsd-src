@@ -119,13 +119,13 @@ void test_delete_conv(X0 x0, X1 x1, X2 x2) {
 // PR4782
 class X3 {
 public:
-  static void operator delete(void * mem, unsigned long size);
+  static void operator delete(void * mem, size_t size);
 };
 
 class X4 {
 public:
   static void release(X3 *x);
-  static void operator delete(void * mem, unsigned long size);
+  static void operator delete(void * mem, size_t size);
 };
 
 
@@ -137,3 +137,56 @@ class X5 {
 public:
   void Destroy() const { delete this; }
 };
+
+class Base {
+public:
+  static int operator new(signed char) throw(); // expected-error {{'operator new' takes type size_t}} \
+						  // expected-error {{operator new' must return type 'void *'}}
+  static int operator new[] (signed char) throw(); // expected-error {{'operator new[]' takes type size_t}} \
+						     // expected-error {{operator new[]' must return type 'void *'}}
+};
+
+class Tier {};
+class Comp : public Tier {};
+
+class Thai : public Base {
+public:
+  Thai(const Tier *adoptDictionary);
+};
+
+void loadEngineFor() {
+  const Comp *dict;
+  new Thai(dict);
+}
+
+template <class T> struct TBase {
+  void* operator new(T size, int); // expected-error {{'operator new' takes type size_t}}
+};
+
+TBase<int> t1; // expected-note {{in instantiation of template class 'struct TBase<int>' requested here}}
+
+class X6 {
+public:
+  static void operator delete(void*, int); // expected-note {{member found by ambiguous name lookup}}
+};
+
+class X7 {
+public:
+  static void operator delete(void*, int); // expected-note {{member found by ambiguous name lookup}}
+};
+
+class X8 : public X6, public X7 {
+};
+
+void f(X8 *x8) {
+  delete x8; // expected-error {{member 'operator delete' found in multiple base classes of different types}}
+}
+
+class X9 {
+  static void operator delete(void*, int); // expected-note {{'operator delete' declared here}}
+  static void operator delete(void*, float); // expected-note {{'operator delete' declared here}}
+};
+
+void f(X9 *x9) {
+  delete x9; // expected-error {{no suitable member 'operator delete' in 'X9'}}
+}

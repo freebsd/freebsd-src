@@ -18,6 +18,7 @@
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "llvm/Support/Compiler.h"
@@ -61,14 +62,14 @@ public:
     return false;
   }
 
-  virtual bool ReadTargetTriple(const std::string &Triple) {
+  virtual bool ReadTargetTriple(llvm::StringRef Triple) {
     TargetTriple = Triple;
     return false;
   }
 
-  virtual bool ReadPredefinesBuffer(const char *PCHPredef,
-                                    unsigned PCHPredefLen,
+  virtual bool ReadPredefinesBuffer(llvm::StringRef PCHPredef,
                                     FileID PCHBufferID,
+                                    llvm::StringRef OriginalFileName,
                                     std::string &SuggestedPredefines) {
     Predefines = PCHPredef;
     return false;
@@ -132,7 +133,14 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
   // PCH loaded successfully. Now create the preprocessor.
 
   // Get information about the target being compiled for.
-  AST->Target.reset(TargetInfo::CreateTargetInfo(TargetTriple));
+  //
+  // FIXME: This is broken, we should store the TargetOptions in the PCH.
+  TargetOptions TargetOpts;
+  TargetOpts.ABI = "";
+  TargetOpts.CPU = "";
+  TargetOpts.Features.clear();
+  TargetOpts.Triple = TargetTriple;
+  AST->Target.reset(TargetInfo::CreateTargetInfo(AST->Diags, TargetOpts));
   AST->PP.reset(new Preprocessor(AST->Diags, LangInfo, *AST->Target.get(),
                                  AST->getSourceManager(), HeaderInfo));
   Preprocessor &PP = *AST->PP.get();

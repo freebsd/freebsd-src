@@ -115,3 +115,90 @@ void f7() {
   // CHECK: call void @_ZN1GD1Ev
   a(G());
 }
+
+namespace PR5077 {
+
+struct A {
+  A();
+  ~A();
+  int f();
+};
+
+void f();
+int g(const A&);
+
+struct B {
+  int a1;
+  int a2;
+  B();
+  ~B();
+};
+
+B::B()
+  // CHECK: call void @_ZN6PR50771AC1Ev
+  // CHECK: call i32 @_ZN6PR50771A1fEv
+  // CHECK: call void @_ZN6PR50771AD1Ev
+  : a1(A().f())
+  // CHECK: call void @_ZN6PR50771AC1Ev
+  // CHECK: call i32 @_ZN6PR50771gERKNS_1AE
+  // CHECK: call void @_ZN6PR50771AD1Ev
+  , a2(g(A()))
+{
+  // CHECK: call void @_ZN6PR50771fEv
+  f();
+}
+  
+struct C {
+  C();
+  
+  const B& b;
+};
+
+C::C() 
+  // CHECK: call void @_ZN6PR50771BC1Ev
+  : b(B()) {
+  // CHECK: call void @_ZN6PR50771fEv
+  f();
+  
+  // CHECK: call void @_ZN6PR50771BD1Ev
+}
+}
+
+A f8() {
+  // CHECK: call void @_ZN1AC1Ev
+  // CHECK-NOT: call void @_ZN1AD1Ev
+  return A();
+  // CHECK: ret void
+}
+
+struct H {
+  H();
+  ~H();
+  H(const H&);
+};
+
+void f9(H h) {
+  // CHECK: call void @_ZN1HC1Ev
+  // CHECK: call void @_Z2f91H
+  // CHECK: call void @_ZN1HD1Ev
+  f9(H());
+  
+  // CHECK: call void @_ZN1HC1ERKS_
+  // CHECK: call void @_Z2f91H
+  // CHECK: call void @_ZN1HD1Ev
+  f9(h);
+}
+
+void f10(const H&);
+
+void f11(H h) {
+  // CHECK: call void @_ZN1HC1Ev
+  // CHECK: call void @_Z3f10RK1H
+  // CHECK: call void @_ZN1HD1Ev
+  f10(H());
+  
+  // CHECK: call void @_Z3f10RK1H
+  // CHECK-NOT: call void @_ZN1HD1Ev
+  // CHECK: ret void
+  f10(h);
+}

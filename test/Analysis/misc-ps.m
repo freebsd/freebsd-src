@@ -1,8 +1,8 @@
 // NOTE: Use '-fobjc-gc' to test the analysis being run twice, and multiple reports are not issued.
-// RUN: clang-cc -analyze -checker-cfref --analyzer-store=basic -fobjc-gc -analyzer-constraints=basic --verify -fblocks %s &&
-// RUN: clang-cc -analyze -checker-cfref --analyzer-store=basic -analyzer-constraints=range --verify -fblocks %s &&
-// RUN: clang-cc -analyze -checker-cfref --analyzer-store=region -analyzer-constraints=basic --verify -fblocks %s &&
-// RUN: clang-cc -analyze -checker-cfref --analyzer-store=region -analyzer-constraints=range --verify -fblocks %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=basic -fobjc-gc -analyzer-constraints=basic --verify -fblocks %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=basic -analyzer-constraints=range --verify -fblocks %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region -analyzer-constraints=basic --verify -fblocks %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region -analyzer-constraints=range --verify -fblocks %s
 
 typedef struct objc_ivar *Ivar;
 typedef struct objc_selector *SEL;
@@ -692,7 +692,6 @@ void *rdar7152418_bar();
 // conversions of the symbol as necessary.
 //===----------------------------------------------------------------------===//
 
-
 // Previously this would crash once we started eagerly evaluating symbols whose 
 // values were constrained to a single value.
 void test_symbol_fold_1(signed char x) {
@@ -722,5 +721,32 @@ unsigned test_symbol_fold_3(void) {
   if (x == 54)
     return (x << 8) | 0x5;
   return 0;
-}  
+} 
 
+//===----------------------------------------------------------------------===//
+// Tests for the warning of casting a non-struct type to a struct type
+//===----------------------------------------------------------------------===//
+
+typedef struct {unsigned int v;} NSSwappedFloat;
+
+NSSwappedFloat test_cast_nonstruct_to_struct(float x) {
+  struct hodor {
+    float number;
+    NSSwappedFloat sf;
+  };
+  return ((struct hodor *)&x)->sf; // expected-warning{{Casting a non-structure type to a structure type and accessing a field can lead to memory access errors or data corruption}}
+}
+
+NSSwappedFloat test_cast_nonstruct_to_union(float x) {
+  union bran {
+    float number;
+    NSSwappedFloat sf;
+  };
+  return ((union bran *)&x)->sf; // no-warning
+}
+
+void test_undefined_array_subscript() {
+  int i, a[10];
+  int *p = &a[i]; // expected-warning{{Array subscript is undefined}}
+}
+@end

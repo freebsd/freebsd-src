@@ -1,8 +1,7 @@
-// RUN: clang-cc -triple x86_64-apple-darwin10 -fnext-runtime -fobjc-gc -emit-llvm -o %t %s &&
-// RUN: grep -F '@objc_assign_global' %t  | count 7 &&
-// RUN: grep -F '@objc_assign_ivar' %t  | count 5 &&
-// RUN: grep -F '@objc_assign_strongCast' %t  | count 8 &&
-// RUN: true
+// RUN: clang-cc -triple x86_64-apple-darwin10 -fobjc-gc -emit-llvm -o %t %s
+// RUN: grep -F '@objc_assign_global' %t  | count 7
+// RUN: grep -F '@objc_assign_ivar' %t  | count 5
+// RUN: grep -F '@objc_assign_strongCast' %t  | count 8
 
 extern id **somefunc(void);
 extern id *somefunc2(void);

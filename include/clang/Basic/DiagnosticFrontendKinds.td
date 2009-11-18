@@ -9,19 +9,33 @@
 
 let Component = "Frontend" in {
 
-def err_fe_unknown_triple : Error<
-  "unknown target triple '%0', please use -triple or -arch">;
-def err_fe_unknown_target_abi : Error<"unknown target ABI '%0'">;
 def err_fe_error_opening : Error<"error opening '%0': %1">;
 def err_fe_error_reading : Error<"error reading '%0'">;
 def err_fe_error_reading_stdin : Error<"error reading stdin">;
 def err_fe_error_backend : Error<"error in backend: %0">, DefaultFatal;
 def err_fe_invalid_ast_file : Error<"invalid AST file: '%0'">, DefaultFatal;
 def err_fe_invalid_ast_action : Error<"invalid action for AST input">, DefaultFatal;
-def err_fe_invalid_code_complete_file 
+def err_fe_invalid_code_complete_file
   : Error<"cannot locate code-completion file %0">, DefaultFatal;
 def err_fe_dependency_file_requires_MT : Error<
     "-dependency-file requires at least one -MT option">;
+def err_fe_incompatible_options : Error<
+    "'%0' cannot be used with '%1'">, DefaultFatal;
+def err_fe_no_fixit_and_codegen : Error<
+    "FIX-ITs cannot be applied when generating code">;
+def err_fe_unable_to_find_fixit_file : Error<
+    "FIX-IT could not find file '%0'">;
+def err_fe_invalid_plugin_name : Error<
+    "unable to find plugin '%0'">;
+
+def err_verify_bogus_characters : Error<
+    "bogus characters before '{{' in expected string">;
+def err_verify_missing_start : Error<
+    "cannot find start ('{{') of expected string">;
+def err_verify_missing_end : Error<
+    "cannot find end ('}}') of expected string">;
+def err_verify_inconsistent_diags : Error<
+    "'%0' diagnostics %select{expected|seen}1 but not %select{seen|expected}1: %2">;
 
 def note_fixit_applied : Note<"FIX-IT applied suggested code changes">;
 def note_fixit_in_macro : Note<
@@ -162,6 +176,9 @@ def warn_pch_access_control : Error<
 def warn_pch_char_signed : Error<
     "char was %select{unsigned|signed}0 in the PCH file but "
     "is currently %select{unsigned|signed}1">;
+def warn_pch_short_wchar : Error<
+    "-fshort-wchar was %select{disabled|enabled}0 in the PCH file but "
+    "is currently %select{disabled|enabled}1">;
 
 def err_not_a_pch_file : Error<
     "'%0' does not appear to be a precompiled header file">, DefaultFatal;

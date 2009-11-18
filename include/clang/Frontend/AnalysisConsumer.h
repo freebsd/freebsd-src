@@ -1,4 +1,4 @@
-//===--- AnalysisConsumer.h - Front-end hooks for the analysis engine------===//
+//===--- AnalysisConsumer.h - Front-end Analysis Engine Hooks ---*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,6 +11,9 @@
 // analyses.
 //
 //===----------------------------------------------------------------------===//
+
+#ifndef LLVM_CLANG_FRONTEND_ANALYSISCONSUMER_H
+#define LLVM_CLANG_FRONTEND_ANALYSISCONSUMER_H
 
 #include <string>
 #include <vector>
@@ -50,19 +53,37 @@ enum AnalysisDiagClients {
 NUM_ANALYSIS_DIAG_CLIENTS
 };
 
-struct AnalyzerOptions {
+class AnalyzerOptions {
+public:
   std::vector<Analyses> AnalysisList;
   AnalysisStores AnalysisStoreOpt;
   AnalysisConstraints AnalysisConstraintsOpt;
   AnalysisDiagClients AnalysisDiagOpt;
-  bool VisualizeEGDot;
-  bool VisualizeEGUbi;
-  bool AnalyzeAll;
-  bool AnalyzerDisplayProgress;
-  bool PurgeDead;
-  bool EagerlyAssume;
   std::string AnalyzeSpecificFunction;
-  bool TrimGraph;
+  unsigned AnalyzeAll : 1;
+  unsigned AnalyzerDisplayProgress : 1;
+  unsigned EagerlyAssume : 1;
+  unsigned PurgeDead : 1;
+  unsigned TrimGraph : 1;
+  unsigned VisualizeEGDot : 1;
+  unsigned VisualizeEGUbi : 1;
+  unsigned EnableExperimentalChecks : 1;
+  unsigned EnableExperimentalInternalChecks : 1;
+public:
+  AnalyzerOptions() {
+    AnalysisStoreOpt = BasicStoreModel;
+    AnalysisConstraintsOpt = RangeConstraintsModel;
+    AnalysisDiagOpt = PD_HTML;
+    AnalyzeAll = 0;
+    AnalyzerDisplayProgress = 0;
+    EagerlyAssume = 0;
+    PurgeDead = 0;
+    TrimGraph = 0;
+    VisualizeEGDot = 0;
+    VisualizeEGUbi = 0;
+    EnableExperimentalChecks = 0;
+    EnableExperimentalInternalChecks = 0;
+  }
 };
 
 /// CreateAnalysisConsumer - Creates an ASTConsumer to run various code
@@ -73,3 +94,5 @@ ASTConsumer* CreateAnalysisConsumer(const Preprocessor &pp,
                                     const AnalyzerOptions& Opts);
 
 }
+
+#endif
