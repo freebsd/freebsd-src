@@ -97,6 +97,11 @@
 #endif
 
 /*
+ * Reasonable limit
+ */
+#define	INTRCNT_COUNT	128
+
+/*
  * Assume that w alaways need nops to escape CP0 hazard
  * TODO: Make hazard delays configurable. Stuck with 5 cycles on the moment
  * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
@@ -1273,15 +1278,11 @@ END(MipsFPTrap)
 	.globl intrnames
 	.globl eintrnames
 intrnames:
-	.asciiz "clock"
-	.asciiz "rtc"
-	.asciiz "sio"
-	.asciiz "pe"
-	.asciiz "pic-nic"
+	.space  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 eintrnames:
-	.align	2
+	.align	4
 intrcnt:
-	.word	0,0,0,0,0
+	.space  INTRCNT_COUNT * 4 * 2
 eintrcnt:
 
 
