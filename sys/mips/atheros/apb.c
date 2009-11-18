@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
+#include <machine/intr_machdep.h>
 
 #include <mips/atheros/apbvar.h>
 #include <mips/atheros/ar71xxreg.h>
@@ -285,11 +286,18 @@ apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 		    NULL, NULL,
 		    "apb intr%d:", irq);
 
-		sc->sc_eventstab[irq] = event;
+		if (error == 0) {
+			sc->sc_eventstab[irq] = event;
+			sc->sc_intr_counter[irq] =
+			    mips_intrcnt_create(event->ie_name);
+		}
+		else
+			return (error);
 	}
 
 	intr_event_add_handler(event, device_get_nameunit(child), filt,
 	    handler, arg, intr_priority(flags), flags, cookiep);
+	mips_intrcnt_setname(sc->sc_intr_counter[irq], event->ie_fullname);
 
 	apb_unmask_irq((void*)irq);
 
@@ -333,12 +341,13 @@ apb_intr(void *arg)
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
 				/* Ignore timer interrupts */
 				if (irq != 0)
-					printf("Stray IRQ %d\n", irq);
+					printf("Stray APB IRQ %d\n", irq);
 				continue;
 			}
 
 			/* TODO: frame instead of NULL? */
 			intr_event_handle(event, NULL);
+			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
 		}
 	}
 
