@@ -28,11 +28,12 @@ class StringRef;
 }
 
 namespace clang {
-
 class Diagnostic;
+class LangOptions;
 class SourceLocation;
 class SourceManager;
-class LangOptions;
+class TargetOptions;
+
 namespace Builtin { struct Info; }
 
 /// TargetInfo - This class exposes information about the current target.
@@ -44,16 +45,12 @@ protected:
   // values are specified by the TargetInfo constructor.
   bool TLSSupported;
   unsigned char PointerWidth, PointerAlign;
-  unsigned char WCharWidth, WCharAlign;
-  unsigned char Char16Width, Char16Align;
-  unsigned char Char32Width, Char32Align;
   unsigned char IntWidth, IntAlign;
   unsigned char FloatWidth, FloatAlign;
   unsigned char DoubleWidth, DoubleAlign;
   unsigned char LongDoubleWidth, LongDoubleAlign;
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
-  unsigned char IntMaxTWidth;
   const char *DescriptionString;
   const char *UserLabelPrefix;
   const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
@@ -63,9 +60,9 @@ protected:
   TargetInfo(const std::string &T);
 
 public:
-  /// CreateTargetInfo - Return the target info object for the specified target
-  /// triple.
-  static TargetInfo* CreateTargetInfo(const std::string &Triple);
+  /// CreateTargetInfo - Construct a target for the given options.
+  static TargetInfo* CreateTargetInfo(Diagnostic &Diags,
+                                      const TargetOptions &Opts);
 
   virtual ~TargetInfo();
 
@@ -102,6 +99,10 @@ public:
   /// getTypeWidth - Return the width (in bits) of the specified integer type 
   /// enum. For example, SignedInt -> getIntWidth().
   unsigned getTypeWidth(IntType T) const;
+
+  /// getTypeAlign - Return the alignment (in bits) of the specified integer
+  /// type enum. For example, SignedInt -> getIntAlign().
+  unsigned getTypeAlign(IntType T) const;
 
   /// isTypeSigned - Return whether an integer types is signed. Returns true if
   /// the type is signed; false otherwise.
@@ -146,18 +147,18 @@ public:
 
   /// getWCharWidth/Align - Return the size of 'wchar_t' for this target, in
   /// bits.
-  unsigned getWCharWidth() const { return WCharWidth; }
-  unsigned getWCharAlign() const { return WCharAlign; }
+  unsigned getWCharWidth() const { return getTypeWidth(WCharType); }
+  unsigned getWCharAlign() const { return getTypeAlign(WCharType); }
 
   /// getChar16Width/Align - Return the size of 'char16_t' for this target, in
   /// bits.
-  unsigned getChar16Width() const { return Char16Width; }
-  unsigned getChar16Align() const { return Char16Align; }
+  unsigned getChar16Width() const { return getTypeWidth(Char16Type); }
+  unsigned getChar16Align() const { return getTypeAlign(Char16Type); }
 
   /// getChar32Width/Align - Return the size of 'char32_t' for this target, in
   /// bits.
-  unsigned getChar32Width() const { return Char32Width; }
-  unsigned getChar32Align() const { return Char32Align; }
+  unsigned getChar32Width() const { return getTypeWidth(Char32Type); }
+  unsigned getChar32Align() const { return getTypeAlign(Char32Type); }
 
   /// getFloatWidth/Align/Format - Return the size/align/format of 'float'.
   unsigned getFloatWidth() const { return FloatWidth; }
@@ -180,7 +181,7 @@ public:
   /// getIntMaxTWidth - Return the size of intmax_t and uintmax_t for this
   /// target, in bits.
   unsigned getIntMaxTWidth() const {
-    return IntMaxTWidth;
+    return getTypeWidth(IntMaxType);
   }
 
   /// getUserLabelPrefix - This returns the default value of the
@@ -341,10 +342,10 @@ public:
     return "";
   }
 
-  /// getDefaultLangOptions - Allow the target to specify default settings for
-  /// various language options.  These may be overridden by command line
-  /// options.
-  virtual void getDefaultLangOptions(LangOptions &Opts) {}
+  /// setForcedLangOptions - Set forced language options.
+  /// Apply changes to the target information with respect to certain
+  /// language options which change the target configuration.
+  virtual void setForcedLangOptions(LangOptions &Opts);
 
   /// getDefaultFeatures - Get the default set of target features for
   /// the \args CPU; this should include all legal feature strings on
@@ -375,9 +376,10 @@ public:
     return false;
   }
 
-  /// HandleTargetOptions - Perform initialization based on the user
-  /// configured set of features.
-  virtual void HandleTargetFeatures(const llvm::StringMap<bool> &Features) {
+  /// HandleTargetOptions - Perform initialization based on the user configured
+  /// set of features (e.g., +sse4). The list is guaranteed to have at most one
+  /// entry per feature.
+  virtual void HandleTargetFeatures(const std::vector<std::string> &Features) {
   }
 
   // getRegParmMax - Returns maximal number of args passed in registers.

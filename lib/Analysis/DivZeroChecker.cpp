@@ -12,9 +12,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Analysis/PathSensitive/Checkers/DivZeroChecker.h"
+#include "clang/Analysis/PathSensitive/CheckerVisitor.h"
+#include "GRExprEngineInternalChecks.h"
 
 using namespace clang;
+
+namespace {
+class VISIBILITY_HIDDEN DivZeroChecker : public CheckerVisitor<DivZeroChecker> {
+  BuiltinBug *BT;
+public:
+  DivZeroChecker() : BT(0) {}  
+  static void *getTag();
+  void PreVisitBinaryOperator(CheckerContext &C, const BinaryOperator *B);
+};  
+} // end anonymous namespace
+
+void clang::RegisterDivZeroChecker(GRExprEngine &Eng) {
+  Eng.registerCheck(new DivZeroChecker());
+}
 
 void *DivZeroChecker::getTag() {
   static int x;
@@ -50,10 +65,10 @@ void DivZeroChecker::PreVisitBinaryOperator(CheckerContext &C,
   if (stateZero && !stateNotZero) {
     if (ExplodedNode *N = C.GenerateNode(B, stateZero, true)) {
       if (!BT)
-        BT = new BuiltinBug(0, "Division by zero");
+        BT = new BuiltinBug("Division by zero");
 
       EnhancedBugReport *R = 
-        new EnhancedBugReport(*BT, BT->getDescription().c_str(), N);
+        new EnhancedBugReport(*BT, BT->getDescription(), N);
 
       R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
                            bugreporter::GetDenomExpr(N));

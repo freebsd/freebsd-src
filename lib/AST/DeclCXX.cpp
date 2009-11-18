@@ -211,7 +211,7 @@ bool CXXRecordDecl::hasConstCopyAssignment(ASTContext &Context,
       if (!ArgType.isConstQualified())
         AcceptsConst = false;
     }
-    if (Context.getCanonicalType(ArgType).getUnqualifiedType() != ClassType)
+    if (!Context.hasSameUnqualifiedType(ArgType, ClassType))
       continue;
     MD = Method;
     // We have a single argument of type cv X or cv X&, i.e. we've found the
@@ -276,10 +276,13 @@ void CXXRecordDecl::addedAssignmentOperator(ASTContext &Context,
   QualType ClassType = Context.getCanonicalType(Context.getTypeDeclType(
     const_cast<CXXRecordDecl*>(this)));
 
-  if (ClassType != Context.getCanonicalType(ArgType))
+  if (!Context.hasSameUnqualifiedType(ClassType, ArgType))
     return;
 
   // This is a copy assignment operator.
+  // Note on the decl that it is a copy assignment operator.
+  OpDecl->setCopyAssignment(true);
+
   // Suppress the implicit declaration of a copy constructor.
   UserDeclaredCopyAssignment = true;
 
@@ -749,6 +752,33 @@ bool CXXConstructorDecl::isConvertingConstructor(bool AllowExplicit) const {
          (getNumParams() > 1 && getParamDecl(1)->hasDefaultArg());
 }
 
+bool CXXConstructorDecl::isCopyConstructorLikeSpecialization() const {
+  if ((getNumParams() < 1) ||
+      (getNumParams() > 1 && !getParamDecl(1)->hasDefaultArg()) ||
+      (getPrimaryTemplate() == 0) ||
+      (getDescribedFunctionTemplate() != 0))
+    return false;
+
+  const ParmVarDecl *Param = getParamDecl(0);
+
+  ASTContext &Context = getASTContext();
+  CanQualType ParamType = Context.getCanonicalType(Param->getType());
+  
+  // Strip off the lvalue reference, if any.
+  if (CanQual<LValueReferenceType> ParamRefType
+                                    = ParamType->getAs<LValueReferenceType>())
+    ParamType = ParamRefType->getPointeeType();
+
+  
+  // Is it the same as our our class type?
+  CanQualType ClassTy 
+    = Context.getCanonicalType(Context.getTagDeclType(getParent()));
+  if (ParamType.getUnqualifiedType() != ClassTy)
+    return false;
+  
+  return true;  
+}
+
 CXXDestructorDecl *
 CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                           SourceLocation L, DeclarationName N,
@@ -758,12 +788,6 @@ CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
          "Name must refer to a destructor");
   return new (C) CXXDestructorDecl(RD, L, N, T, isInline,
                                    isImplicitlyDeclared);
-}
-
-void
-CXXDestructorDecl::Destroy(ASTContext& C) {
-  C.Deallocate(BaseOrMemberDestructions);
-  CXXMethodDecl::Destroy(C);
 }
 
 void
@@ -890,22 +914,36 @@ NamespaceAliasDecl *NamespaceAliasDecl::Create(ASTContext &C, DeclContext *DC,
 }
 
 UsingDecl *UsingDecl::Create(ASTContext &C, DeclContext *DC,
-      SourceLocation L, SourceRange NNR, SourceLocation TargetNL,
-      SourceLocation UL, NamedDecl* Target,
-      NestedNameSpecifier* TargetNNS, bool IsTypeNameArg) {
-  return new (C) UsingDecl(DC, L, NNR, TargetNL, UL, Target,
-      TargetNNS, IsTypeNameArg);
+      SourceLocation L, SourceRange NNR, SourceLocation UL,
+      NestedNameSpecifier* TargetNNS, DeclarationName Name,
+      bool IsTypeNameArg) {
+  return new (C) UsingDecl(DC, L, NNR, UL, TargetNNS, Name, IsTypeNameArg);
 }
 
-UnresolvedUsingDecl *UnresolvedUsingDecl::Create(ASTContext &C, DeclContext *DC,
-                                                 SourceLocation UsingLoc,
-                                                 SourceRange TargetNNR,
-                                                 NestedNameSpecifier *TargetNNS,
-                                                 SourceLocation TargetNameLoc,
-                                                 DeclarationName TargetName,
-                                                 bool IsTypeNameArg) {
-  return new (C) UnresolvedUsingDecl(DC, UsingLoc, TargetNNR, TargetNNS,
-                                     TargetNameLoc, TargetName, IsTypeNameArg);
+UnresolvedUsingValueDecl *
+UnresolvedUsingValueDecl::Create(ASTContext &C, DeclContext *DC,
+                                 SourceLocation UsingLoc,
+                                 SourceRange TargetNNR,
+                                 NestedNameSpecifier *TargetNNS,
+                                 SourceLocation TargetNameLoc,
+                                 DeclarationName TargetName) {
+  return new (C) UnresolvedUsingValueDecl(DC, C.DependentTy, UsingLoc,
+                                          TargetNNR, TargetNNS,
+                                          TargetNameLoc, TargetName);
+}
+
+UnresolvedUsingTypenameDecl *
+UnresolvedUsingTypenameDecl::Create(ASTContext &C, DeclContext *DC,
+                                    SourceLocation UsingLoc,
+                                    SourceLocation TypenameLoc,
+                                    SourceRange TargetNNR,
+                                    NestedNameSpecifier *TargetNNS,
+                                    SourceLocation TargetNameLoc,
+                                    DeclarationName TargetName) {
+  return new (C) UnresolvedUsingTypenameDecl(DC, UsingLoc, TypenameLoc,
+                                             TargetNNR, TargetNNS,
+                                             TargetNameLoc,
+                                             TargetName.getAsIdentifierInfo());
 }
 
 StaticAssertDecl *StaticAssertDecl::Create(ASTContext &C, DeclContext *DC,

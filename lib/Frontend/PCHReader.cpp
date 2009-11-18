@@ -13,6 +13,7 @@
 
 #include "clang/Frontend/PCHReader.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Frontend/Utils.h"
 #include "../Sema/Sema.h" // FIXME: move Sema headers elsewhere
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -104,6 +105,7 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   PARSE_LANGOPT_IMPORTANT(NoInline, diag::warn_pch_no_inline);
   PARSE_LANGOPT_IMPORTANT(AccessControl, diag::warn_pch_access_control);
   PARSE_LANGOPT_IMPORTANT(CharIsSigned, diag::warn_pch_char_signed);
+  PARSE_LANGOPT_IMPORTANT(ShortWChar, diag::warn_pch_short_wchar);
   if ((PPLangOpts.getGCMode() != 0) != (LangOpts.getGCMode() != 0)) {
     Reader.Diag(diag::warn_pch_gc_mode)
       << LangOpts.getGCMode() << PPLangOpts.getGCMode();
@@ -121,83 +123,56 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
   return false;
 }
 
-bool PCHValidator::ReadTargetTriple(const std::string &Triple) {
-  if (Triple != PP.getTargetInfo().getTriple().getTriple()) {
-    Reader.Diag(diag::warn_pch_target_triple)
-      << Triple << PP.getTargetInfo().getTriple().getTriple();
-    return true;
-  }
-  return false;
-}
+bool PCHValidator::ReadTargetTriple(llvm::StringRef Triple) {
+  if (Triple == PP.getTargetInfo().getTriple().str())
+    return false;
 
-/// \brief Split the given string into a vector of lines, eliminating
-/// any empty lines in the process.
-///
-/// \param Str the string to split.
-/// \param Len the length of Str.
-/// \param KeepEmptyLines true if empty lines should be included
-/// \returns a vector of lines, with the line endings removed
-static std::vector<std::string> splitLines(const char *Str, unsigned Len,
-                                           bool KeepEmptyLines = false) {
-  std::vector<std::string> Lines;
-  for (unsigned LineStart = 0; LineStart < Len; ++LineStart) {
-    unsigned LineEnd = LineStart;
-    while (LineEnd < Len && Str[LineEnd] != '\n')
-      ++LineEnd;
-    if (LineStart != LineEnd || KeepEmptyLines)
-      Lines.push_back(std::string(&Str[LineStart], &Str[LineEnd]));
-    LineStart = LineEnd;
-  }
-  return Lines;
-}
-
-/// \brief Determine whether the string Haystack starts with the
-/// substring Needle.
-static bool startsWith(const std::string &Haystack, const char *Needle) {
-  for (unsigned I = 0, N = Haystack.size(); Needle[I] != 0; ++I) {
-    if (I == N)
-      return false;
-    if (Haystack[I] != Needle[I])
-      return false;
-  }
-
+  Reader.Diag(diag::warn_pch_target_triple)
+    << Triple << PP.getTargetInfo().getTriple().str();
   return true;
 }
 
-/// \brief Determine whether the string Haystack starts with the
-/// substring Needle.
-static inline bool startsWith(const std::string &Haystack,
-                              const std::string &Needle) {
-  return startsWith(Haystack, Needle.c_str());
-}
-
-bool PCHValidator::ReadPredefinesBuffer(const char *PCHPredef,
-                                        unsigned PCHPredefLen,
+bool PCHValidator::ReadPredefinesBuffer(llvm::StringRef PCHPredef,
                                         FileID PCHBufferID,
+                                        llvm::StringRef OriginalFileName,
                                         std::string &SuggestedPredefines) {
-  const char *Predef = PP.getPredefines().c_str();
-  unsigned PredefLen = PP.getPredefines().size();
+  // We are in the context of an implicit include, so the predefines buffer will
+  // have a #include entry for the PCH file itself (as normalized by the
+  // preprocessor initialization). Find it and skip over it in the checking
+  // below.
+  llvm::SmallString<256> PCHInclude;
+  PCHInclude += "#include \"";
+  PCHInclude += NormalizeDashIncludePath(OriginalFileName);
+  PCHInclude += "\"\n";
+  std::pair<llvm::StringRef,llvm::StringRef> Split =
+    llvm::StringRef(PP.getPredefines()).split(PCHInclude.str());
+  llvm::StringRef Left =  Split.first, Right = Split.second;
+  assert(Left != PP.getPredefines() && "Missing PCH include entry!");
 
-  // If the two predefines buffers compare equal, we're done!
-  if (PredefLen == PCHPredefLen &&
-      strncmp(Predef, PCHPredef, PCHPredefLen) == 0)
+  // If the predefines is equal to the joined left and right halves, we're done!
+  if (Left.size() + Right.size() == PCHPredef.size() &&
+      PCHPredef.startswith(Left) && PCHPredef.endswith(Right))
     return false;
 
   SourceManager &SourceMgr = PP.getSourceManager();
 
-  // The predefines buffers are different. Determine what the
-  // differences are, and whether they require us to reject the PCH
-  // file.
-  std::vector<std::string> CmdLineLines = splitLines(Predef, PredefLen);
-  std::vector<std::string> PCHLines = splitLines(PCHPredef, PCHPredefLen);
+  // The predefines buffers are different. Determine what the differences are,
+  // and whether they require us to reject the PCH file.
+  llvm::SmallVector<llvm::StringRef, 8> PCHLines;
+  PCHPredef.split(PCHLines, "\n", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
 
-  // Sort both sets of predefined buffer lines, since
+  llvm::SmallVector<llvm::StringRef, 8> CmdLineLines;
+  Left.split(CmdLineLines, "\n", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
+  Right.split(CmdLineLines, "\n", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
+
+  // Sort both sets of predefined buffer lines, since we allow some extra
+  // definitions and they may appear at any point in the output.
   std::sort(CmdLineLines.begin(), CmdLineLines.end());
   std::sort(PCHLines.begin(), PCHLines.end());
 
-  // Determine which predefines that where used to build the PCH file
-  // are missing from the command line.
-  std::vector<std::string> MissingPredefines;
+  // Determine which predefines that were used to build the PCH file are missing
+  // from the command line.
+  std::vector<llvm::StringRef> MissingPredefines;
   std::set_difference(PCHLines.begin(), PCHLines.end(),
                       CmdLineLines.begin(), CmdLineLines.end(),
                       std::back_inserter(MissingPredefines));
@@ -205,31 +180,30 @@ bool PCHValidator::ReadPredefinesBuffer(const char *PCHPredef,
   bool MissingDefines = false;
   bool ConflictingDefines = false;
   for (unsigned I = 0, N = MissingPredefines.size(); I != N; ++I) {
-    const std::string &Missing = MissingPredefines[I];
-    if (!startsWith(Missing, "#define ") != 0) {
+    llvm::StringRef Missing = MissingPredefines[I];
+    if (!Missing.startswith("#define ")) {
       Reader.Diag(diag::warn_pch_compiler_options_mismatch);
       return true;
     }
 
-    // This is a macro definition. Determine the name of the macro
-    // we're defining.
+    // This is a macro definition. Determine the name of the macro we're
+    // defining.
     std::string::size_type StartOfMacroName = strlen("#define ");
     std::string::size_type EndOfMacroName
       = Missing.find_first_of("( \n\r", StartOfMacroName);
     assert(EndOfMacroName != std::string::npos &&
            "Couldn't find the end of the macro name");
-    std::string MacroName = Missing.substr(StartOfMacroName,
-                                           EndOfMacroName - StartOfMacroName);
+    llvm::StringRef MacroName = Missing.slice(StartOfMacroName, EndOfMacroName);
 
-    // Determine whether this macro was given a different definition
-    // on the command line.
-    std::string MacroDefStart = "#define " + MacroName;
+    // Determine whether this macro was given a different definition on the
+    // command line.
+    std::string MacroDefStart = "#define " + MacroName.str();
     std::string::size_type MacroDefLen = MacroDefStart.size();
-    std::vector<std::string>::iterator ConflictPos
+    llvm::SmallVector<llvm::StringRef, 8>::iterator ConflictPos
       = std::lower_bound(CmdLineLines.begin(), CmdLineLines.end(),
                          MacroDefStart);
     for (; ConflictPos != CmdLineLines.end(); ++ConflictPos) {
-      if (!startsWith(*ConflictPos, MacroDefStart)) {
+      if (!ConflictPos->startswith(MacroDefStart)) {
         // Different macro; we're done.
         ConflictPos = CmdLineLines.end();
         break;
@@ -250,21 +224,18 @@ bool PCHValidator::ReadPredefinesBuffer(const char *PCHPredef,
           << MacroName;
 
       // Show the definition of this macro within the PCH file.
-      const char *MissingDef = strstr(PCHPredef, Missing.c_str());
-      unsigned Offset = MissingDef - PCHPredef;
-      SourceLocation PCHMissingLoc
-        = SourceMgr.getLocForStartOfFile(PCHBufferID)
-            .getFileLocWithOffset(Offset);
-      Reader.Diag(PCHMissingLoc, diag::note_pch_macro_defined_as)
-        << MacroName;
+      llvm::StringRef::size_type Offset = PCHPredef.find(Missing);
+      assert(Offset != llvm::StringRef::npos && "Unable to find macro!");
+      SourceLocation PCHMissingLoc = SourceMgr.getLocForStartOfFile(PCHBufferID)
+        .getFileLocWithOffset(Offset);
+      Reader.Diag(PCHMissingLoc, diag::note_pch_macro_defined_as) << MacroName;
 
       ConflictingDefines = true;
       continue;
     }
 
-    // If the macro doesn't conflict, then we'll just pick up the
-    // macro definition from the PCH file. Warn the user that they
-    // made a mistake.
+    // If the macro doesn't conflict, then we'll just pick up the macro
+    // definition from the PCH file. Warn the user that they made a mistake.
     if (ConflictingDefines)
       continue; // Don't complain if there are already conflicting defs
 
@@ -274,10 +245,9 @@ bool PCHValidator::ReadPredefinesBuffer(const char *PCHPredef,
     }
 
     // Show the definition of this macro within the PCH file.
-    const char *MissingDef = strstr(PCHPredef, Missing.c_str());
-    unsigned Offset = MissingDef - PCHPredef;
-    SourceLocation PCHMissingLoc
-      = SourceMgr.getLocForStartOfFile(PCHBufferID)
+    llvm::StringRef::size_type Offset = PCHPredef.find(Missing);
+    assert(Offset != llvm::StringRef::npos && "Unable to find macro!");
+    SourceLocation PCHMissingLoc = SourceMgr.getLocForStartOfFile(PCHBufferID)
       .getFileLocWithOffset(Offset);
     Reader.Diag(PCHMissingLoc, diag::note_using_macro_def_from_pch);
   }
@@ -289,13 +259,13 @@ bool PCHValidator::ReadPredefinesBuffer(const char *PCHPredef,
   // parameters that were not present when building the PCH
   // file. Extra #defines are okay, so long as the identifiers being
   // defined were not used within the precompiled header.
-  std::vector<std::string> ExtraPredefines;
+  std::vector<llvm::StringRef> ExtraPredefines;
   std::set_difference(CmdLineLines.begin(), CmdLineLines.end(),
                       PCHLines.begin(), PCHLines.end(),
                       std::back_inserter(ExtraPredefines));
   for (unsigned I = 0, N = ExtraPredefines.size(); I != N; ++I) {
-    const std::string &Extra = ExtraPredefines[I];
-    if (!startsWith(Extra, "#define ") != 0) {
+    llvm::StringRef &Extra = ExtraPredefines[I];
+    if (!Extra.startswith("#define ")) {
       Reader.Diag(diag::warn_pch_compiler_options_mismatch);
       return true;
     }
@@ -307,16 +277,13 @@ bool PCHValidator::ReadPredefinesBuffer(const char *PCHPredef,
       = Extra.find_first_of("( \n\r", StartOfMacroName);
     assert(EndOfMacroName != std::string::npos &&
            "Couldn't find the end of the macro name");
-    std::string MacroName = Extra.substr(StartOfMacroName,
-                                         EndOfMacroName - StartOfMacroName);
+    llvm::StringRef MacroName = Extra.slice(StartOfMacroName, EndOfMacroName);
 
     // Check whether this name was used somewhere in the PCH file. If
     // so, defining it as a macro could change behavior, so we reject
     // the PCH file.
-    if (IdentifierInfo *II = Reader.get(MacroName.c_str(),
-                                 MacroName.c_str() + MacroName.size())) {
-      Reader.Diag(diag::warn_macro_name_used_in_pch)
-        << II;
+    if (IdentifierInfo *II = Reader.get(MacroName)) {
+      Reader.Diag(diag::warn_macro_name_used_in_pch) << II;
       return true;
     }
 
@@ -650,11 +617,11 @@ bool PCHReader::Error(const char *Msg) {
 ///
 /// \returns true if there was a mismatch (in which case the PCH file
 /// should be ignored), or false otherwise.
-bool PCHReader::CheckPredefinesBuffer(const char *PCHPredef,
-                                      unsigned PCHPredefLen,
+bool PCHReader::CheckPredefinesBuffer(llvm::StringRef PCHPredef,
                                       FileID PCHBufferID) {
   if (Listener)
-    return Listener->ReadPredefinesBuffer(PCHPredef, PCHPredefLen, PCHBufferID,
+    return Listener->ReadPredefinesBuffer(PCHPredef, PCHBufferID,
+                                          ActualOriginalFileName,
                                           SuggestedPredefines);
   return false;
 }
@@ -1364,7 +1331,8 @@ PCHReader::ReadPCHBlock() {
       break;
 
     case pch::ORIGINAL_FILE_NAME:
-      OriginalFileName.assign(BlobStart, BlobLen);
+      ActualOriginalFileName.assign(BlobStart, BlobLen);
+      OriginalFileName = ActualOriginalFileName;
       MaybeAddSystemRootToFilename(OriginalFileName);
       break;
 
@@ -1403,10 +1371,7 @@ PCHReader::PCHReadResult PCHReader::ReadPCH(const std::string &FileName) {
   //
   // FIXME: This shouldn't be here, we should just take a raw_ostream.
   std::string ErrStr;
-  if (FileName == "-")
-    Buffer.reset(llvm::MemoryBuffer::getSTDIN());
-  else
-    Buffer.reset(llvm::MemoryBuffer::getFile(FileName.c_str(), &ErrStr));
+  Buffer.reset(llvm::MemoryBuffer::getFileOrSTDIN(FileName, &ErrStr));
   if (!Buffer) {
     Error(ErrStr.c_str());
     return IgnorePCH;
@@ -1478,7 +1443,7 @@ PCHReader::PCHReadResult PCHReader::ReadPCH(const std::string &FileName) {
   }
 
   // Check the predefines buffer.
-  if (CheckPredefinesBuffer(PCHPredefines, PCHPredefinesLen,
+  if (CheckPredefinesBuffer(llvm::StringRef(PCHPredefines, PCHPredefinesLen),
                             PCHPredefinesBufferID))
     return IgnorePCH;
 
@@ -1741,6 +1706,7 @@ bool PCHReader::ParseLanguageOptions(
     PARSE_LANGOPT(NoInline);
     PARSE_LANGOPT(AccessControl);
     PARSE_LANGOPT(CharIsSigned);
+    PARSE_LANGOPT(ShortWChar);
     LangOpts.setGCMode((LangOptions::GCMode)Record[Idx]);
     ++Idx;
     LangOpts.setVisibilityMode((LangOptions::VisibilityMode)Record[Idx]);
@@ -2213,6 +2179,14 @@ PCHReader::GetTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
     return ReadDeclExpr();
   case TemplateArgument::Type:
     return GetDeclaratorInfo(Record, Index);
+  case TemplateArgument::Template: {
+    SourceLocation 
+      QualStart = SourceLocation::getFromRawEncoding(Record[Index++]),
+      QualEnd = SourceLocation::getFromRawEncoding(Record[Index++]),
+      TemplateNameLoc = SourceLocation::getFromRawEncoding(Record[Index++]);
+    return TemplateArgumentLocInfo(SourceRange(QualStart, QualEnd),
+                                   TemplateNameLoc);
+  }
   case TemplateArgument::Null:
   case TemplateArgument::Integral:
   case TemplateArgument::Declaration:

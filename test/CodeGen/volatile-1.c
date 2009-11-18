@@ -1,5 +1,5 @@
-// RUN: clang-cc -Wno-unused-value -emit-llvm < %s -o %t &&
-// RUN: grep volatile %t | count 145 &&
+// RUN: clang-cc -Wno-unused-value -emit-llvm < %s -o %t
+// RUN: grep volatile %t | count 145
 // RUN: grep memcpy %t | count 4
 
 volatile int i, j, k;
@@ -14,7 +14,7 @@ volatile struct S {
 } a, b;
 
 //void operator =(volatile struct S&o1, volatile struct S&o2) volatile;
-#include <stdio.h>
+int printf(const char *, ...);
 
 int main() {
   // A use.

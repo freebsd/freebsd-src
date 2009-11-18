@@ -34,12 +34,15 @@ class TextDiagnosticPrinter : public DiagnosticClient {
 
   SourceLocation LastWarningLoc;
   FullSourceLoc LastLoc;
-  bool LastCaretDiagnosticWasNote;
+  unsigned LastCaretDiagnosticWasNote : 1;
+  unsigned OwnsOutputStream : 1;
 
 public:
-  TextDiagnosticPrinter(llvm::raw_ostream &os, const DiagnosticOptions &diags);
+  TextDiagnosticPrinter(llvm::raw_ostream &os, const DiagnosticOptions &diags,
+                        bool OwnsOutputStream = false);
+  virtual ~TextDiagnosticPrinter();
 
-  void BeginSourceFile(const LangOptions &LO) {
+  void BeginSourceFile(const LangOptions &LO, const Preprocessor *PP) {
     LangOpts = &LO;
   }
 

@@ -19,7 +19,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/Frontend/CompileOptions.h"
+#include "clang/CodeGen/CodeGenOptions.h"
 #include "llvm/GlobalVariable.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/Target/TargetData.h"
@@ -320,7 +320,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
       
       // All constant structs and arrays should be global if
       // their initializer is constant and if the element type is POD.
-      if (CGM.getCompileOpts().MergeAllConstants) {
+      if (CGM.getCodeGenOpts().MergeAllConstants) {
         if (Ty.isConstant(getContext())
             && (Ty->isArrayType() || Ty->isRecordType())
             && (D.getInit() 
@@ -507,7 +507,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
 
   // Handle CXX destruction of variables.
   QualType DtorTy(Ty);
-  if (const ArrayType *Array = DtorTy->getAs<ArrayType>())
+  while (const ArrayType *Array = getContext().getAsArrayType(DtorTy))
     DtorTy = getContext().getBaseElementType(Array);
   if (const RecordType *RT = DtorTy->getAs<RecordType>())
     if (CXXRecordDecl *ClassDecl = dyn_cast<CXXRecordDecl>(RT->getDecl())) {

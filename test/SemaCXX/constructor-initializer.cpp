@@ -99,7 +99,9 @@ struct Current : Derived {
 
                         // FIXME. This is bad message!
 struct M {              // expected-note {{candidate function}} \
-                        // expected-note {{candidate function}}
+                        // expected-note {{candidate function}} \
+                        // expected-note {{declared here}} \
+                        // expected-note {{declared here}}
   M(int i, int j);      // expected-note {{candidate function}} \
                         // // expected-note {{candidate function}}
 };
@@ -110,9 +112,10 @@ struct N : M  {
   M m1;
 };
 
-struct P : M  { // expected-error {{default constructor for 'struct M' is missing in initialization of base class}}
-  P()  {  }
-  M m; // expected-error {{default constructor for 'struct M' is missing in initialization of member}}
+struct P : M  {
+  P()  {  } // expected-error {{base class 'struct M'}} \
+            // expected-error {{member 'm'}}
+  M m; // expected-note {{member is declared here}}
 };
 
 struct Q {
@@ -154,4 +157,19 @@ class CopyConstructorTest {
       : A(rhs.A),
         B(B),  // expected-warning {{field is uninitialized when used here}}
         C(rhs.C || C) { }  // expected-warning {{field is uninitialized when used here}}
+};
+
+// Make sure we aren't marking default constructors when we shouldn't be.
+template<typename T>
+struct NDC {
+  T &ref;
+  
+  NDC() { }
+  NDC(T &ref) : ref(ref) { }
+};
+  
+struct X0 : NDC<int> {
+  X0(int &ref) : NDC<int>(ref), ndc(ref) { }
+  
+  NDC<int> ndc;
 };

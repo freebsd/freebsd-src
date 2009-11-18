@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
@@ -24,9 +25,6 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   // These should be overridden by concrete targets as needed.
   TLSSupported = true;
   PointerWidth = PointerAlign = 32;
-  WCharWidth = WCharAlign = 32;
-  Char16Width = Char16Align = 16;
-  Char32Width = Char32Align = 32;
   IntWidth = IntAlign = 32;
   LongWidth = LongAlign = 32;
   LongLongWidth = LongLongAlign = 64;
@@ -36,7 +34,6 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   DoubleAlign = 64;
   LongDoubleWidth = 64;
   LongDoubleAlign = 64;
-  IntMaxTWidth = 64;
   SizeType = UnsignedLong;
   PtrDiffType = SignedLong;
   IntMaxType = SignedLongLong;
@@ -51,7 +48,7 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   DoubleFormat = &llvm::APFloat::IEEEdouble;
   LongDoubleFormat = &llvm::APFloat::IEEEdouble;
   DescriptionString = "E-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
-                      "i64:64:64-f32:32:32-f64:64:64";
+                      "i64:64:64-f32:32:32-f64:64:64-n32";
   UserLabelPrefix = "_";
 }
 
@@ -95,14 +92,30 @@ const char *TargetInfo::getTypeConstantSuffix(IntType T) {
 unsigned TargetInfo::getTypeWidth(IntType T) const {
   switch (T) {
   default: assert(0 && "not an integer!");
-  case SignedShort:      return getShortWidth();
+  case SignedShort:
   case UnsignedShort:    return getShortWidth();
-  case SignedInt:        return getIntWidth();
+  case SignedInt:
   case UnsignedInt:      return getIntWidth();
-  case SignedLong:       return getLongWidth();
+  case SignedLong:
   case UnsignedLong:     return getLongWidth();
-  case SignedLongLong:   return getLongLongWidth();
+  case SignedLongLong:
   case UnsignedLongLong: return getLongLongWidth();
+  };
+}
+
+/// getTypeAlign - Return the alignment (in bits) of the specified integer type 
+/// enum. For example, SignedInt -> getIntAlign().
+unsigned TargetInfo::getTypeAlign(IntType T) const {
+  switch (T) {
+  default: assert(0 && "not an integer!");
+  case SignedShort:
+  case UnsignedShort:    return getShortAlign();
+  case SignedInt:
+  case UnsignedInt:      return getIntAlign();
+  case SignedLong:
+  case UnsignedLong:     return getLongAlign();
+  case SignedLongLong:
+  case UnsignedLongLong: return getLongLongAlign();
   };
 }
 
@@ -124,6 +137,14 @@ bool TargetInfo::isTypeSigned(IntType T) const {
   };
 }
 
+/// setForcedLangOptions - Set forced language options.
+/// Apply changes to the target information with respect to certain
+/// language options which change the target configuration.
+void TargetInfo::setForcedLangOptions(LangOptions &Opts) {
+  if (Opts.ShortWChar) {
+    WCharType = UnsignedShort;
+  }
+}
 
 //===----------------------------------------------------------------------===//
 

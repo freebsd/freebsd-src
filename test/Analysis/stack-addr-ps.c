@@ -1,7 +1,5 @@
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify %s &&
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify %s
 // RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -verify %s
-
-#include <stdlib.h>
 
 int* f1() {
   int x = 0;

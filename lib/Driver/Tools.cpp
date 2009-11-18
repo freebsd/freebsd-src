@@ -26,6 +26,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Host.h"
 #include "llvm/System/Process.h"
 
 #include "InputInfo.h"
@@ -320,6 +321,23 @@ static std::string getLLVMTriple(const ToolChain &TC, const ArgList &Args) {
   }
 }
 
+// FIXME: Move to target hook.
+static bool isSignedCharDefault(const llvm::Triple &Triple) {
+  switch (Triple.getArch()) {
+  default:
+    return true;
+
+  case llvm::Triple::ppc:
+  case llvm::Triple::ppc64:
+    if (Triple.getOS() == llvm::Triple::Darwin)
+      return true;
+    return false;
+
+  case llvm::Triple::systemz:
+    return false;
+  }
+}
+
 void Clang::AddARMTargetArgs(const ArgList &Args,
                              ArgStringList &CmdArgs) const {
   const Driver &D = getToolChain().getHost().getDriver();
@@ -428,26 +446,40 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
                    false))
     CmdArgs.push_back("--no-implicit-float");
 
+  const char *CPUName = 0;
   if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-    // FIXME: We may need some translation here from the options gcc takes to
-    // names the LLVM backend understand?
-    CmdArgs.push_back("-mcpu");
-    CmdArgs.push_back(A->getValue(Args));
-  } else {
-    // Select default CPU.
+    if (llvm::StringRef(A->getValue(Args)) == "native") {
+      // FIXME: Reject attempts to use -march=native unless the target matches
+      // the host.
+      //
+      // FIXME: We should also incorporate the detected target features for use
+      // with -native.
+      std::string CPU = llvm::sys::getHostCPUName();
+      if (!CPU.empty())
+        CPUName = Args.MakeArgString(CPU);
+    } else
+      CPUName = A->getValue(Args);
+  }
 
+  // Select the default CPU if none was given (or detection failed).
+  if (!CPUName) {
     // FIXME: Need target hooks.
     if (memcmp(getToolChain().getOS().c_str(), "darwin", 6) == 0) {
       if (getToolChain().getArchName() == "x86_64")
-        CmdArgs.push_back("--mcpu=core2");
+        CPUName = "core2";
       else if (getToolChain().getArchName() == "i386")
-        CmdArgs.push_back("--mcpu=yonah");
+        CPUName = "yonah";
     } else {
       if (getToolChain().getArchName() == "x86_64")
-        CmdArgs.push_back("--mcpu=x86-64");
+        CPUName = "x86-64";
       else if (getToolChain().getArchName() == "i386")
-        CmdArgs.push_back("--mcpu=pentium4");
+        CPUName = "pentium4";
     }
+  }
+
+  if (CPUName) {
+    CmdArgs.push_back("--mcpu");
+    CmdArgs.push_back(CPUName);
   }
 
   // FIXME: Use iterator.
@@ -855,18 +887,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);
   Args.AddLastArg(CmdArgs, options::OPT_ffreestanding);
   Args.AddLastArg(CmdArgs, options::OPT_fheinous_gnu_extensions);
-  Args.AddLastArg(CmdArgs, options::OPT_fgnu_runtime);
   Args.AddLastArg(CmdArgs, options::OPT_flax_vector_conversions);
-  Args.AddLastArg(CmdArgs, options::OPT_fms_extensions);
-  Args.AddLastArg(CmdArgs, options::OPT_fnext_runtime);
   Args.AddLastArg(CmdArgs, options::OPT_fno_caret_diagnostics);
   Args.AddLastArg(CmdArgs, options::OPT_fno_show_column);
   Args.AddLastArg(CmdArgs, options::OPT_fobjc_gc_only);
   Args.AddLastArg(CmdArgs, options::OPT_fobjc_gc);
   Args.AddLastArg(CmdArgs, options::OPT_fobjc_sender_dependent_dispatch);
-  // FIXME: Should we remove this?
-  Args.AddLastArg(CmdArgs, options::OPT_fobjc_nonfragile_abi);
-  Args.AddLastArg(CmdArgs, options::OPT_fobjc_tight_layout);
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_print_source_range_info);
   Args.AddLastArg(CmdArgs, options::OPT_ftime_report);
   Args.AddLastArg(CmdArgs, options::OPT_ftrapv);
@@ -875,32 +901,34 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   Args.AddLastArg(CmdArgs, options::OPT_pthread);
 
-  // Forward stack protector flags.
+  // -stack-protector=0 is default.
+  unsigned StackProtectorLevel = 0;
   if (Arg *A = Args.getLastArg(options::OPT_fno_stack_protector,
                                options::OPT_fstack_protector_all,
                                options::OPT_fstack_protector)) {
-    if (A->getOption().matches(options::OPT_fno_stack_protector))
-      CmdArgs.push_back("--stack-protector=0");
-    else if (A->getOption().matches(options::OPT_fstack_protector))
-      CmdArgs.push_back("--stack-protector=1");
-    else
-      CmdArgs.push_back("--stack-protector=2");
+    if (A->getOption().matches(options::OPT_fstack_protector))
+      StackProtectorLevel = 1;
+    else if (A->getOption().matches(options::OPT_fstack_protector_all))
+      StackProtectorLevel = 2;
+  } else
+    StackProtectorLevel = getToolChain().GetDefaultStackProtectorLevel();
+  if (StackProtectorLevel) {
+    CmdArgs.push_back("-stack-protector");
+    CmdArgs.push_back(Args.MakeArgString(llvm::Twine(StackProtectorLevel)));
   }
 
   // Forward -f options with positive and negative forms; we translate
   // these by hand.
 
-  // -fbuiltin is default, only pass non-default.
+  // -fbuiltin is default.
   if (!Args.hasFlag(options::OPT_fbuiltin, options::OPT_fno_builtin))
     CmdArgs.push_back("-fbuiltin=0");
 
-  // -fblocks default varies depending on platform and language; only
-  // pass if specified.
-  if (Arg *A = Args.getLastArg(options::OPT_fblocks, options::OPT_fno_blocks)) {
-    if (A->getOption().matches(options::OPT_fblocks))
-      CmdArgs.push_back("-fblocks");
-    else
-      CmdArgs.push_back("-fblocks=0");
+  // -fblocks=0 is default.
+  if (Args.hasFlag(options::OPT_fblocks, options::OPT_fno_blocks,
+                   getToolChain().IsBlocksDefault())) {
+    Args.AddLastArg(CmdArgs, options::OPT_fblock_introspection);
+    CmdArgs.push_back("-fblocks");
   }
 
   if (needsExceptions(Args, InputType, getToolChain().getTriple()))
@@ -908,18 +936,40 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   else
     CmdArgs.push_back("-fexceptions=0");
 
-  // -frtti is default, only pass non-default.
+  // -frtti is default.
   if (!Args.hasFlag(options::OPT_frtti, options::OPT_fno_rtti))
     CmdArgs.push_back("-frtti=0");
 
-  // -fsigned-char/-funsigned-char default varies depending on platform; only
+  // -fsigned-char is default.
+  if (!Args.hasFlag(options::OPT_fsigned_char,
+                    options::OPT_funsigned_char,
+                    isSignedCharDefault(getToolChain().getTriple())))
+    CmdArgs.push_back("-fsigned-char=0");
+
+  // -fms-extensions=0 is default.
+  if (Args.hasFlag(options::OPT_fms_extensions,
+                   options::OPT_fno_ms_extensions,
+                   getToolChain().getTriple().getOS() == llvm::Triple::Win32))
+    CmdArgs.push_back("-fms-extensions");
+
+  // -fnext-runtime is default.
+  if (!Args.hasFlag(options::OPT_fnext_runtime,
+                    options::OPT_fgnu_runtime,
+                    getToolChain().getTriple().getOS() == llvm::Triple::Darwin))
+    CmdArgs.push_back("-fgnu-runtime");
+
+  // -fobjc-nonfragile-abi=0 is default.
+  if (types::isObjC(InputType)) {
+    if (Args.hasArg(options::OPT_fobjc_nonfragile_abi) ||
+        getToolChain().IsObjCNonFragileABIDefault())
+      CmdArgs.push_back("-fobjc-nonfragile-abi");
+  }
+
+  // -fshort-wchar default varies depending on platform; only
   // pass if specified.
-  if (Arg *A = Args.getLastArg(options::OPT_fsigned_char,
-                               options::OPT_funsigned_char)) {
-    if (A->getOption().matches(options::OPT_fsigned_char))
-      CmdArgs.push_back("-fsigned-char");
-    else
-      CmdArgs.push_back("-fsigned-char=0");
+  if (Arg *A = Args.getLastArg(options::OPT_fshort_wchar)) {
+    if (A->getOption().matches(options::OPT_fshort_wchar))
+      CmdArgs.push_back("-fshort-wchar");
   }
 
   // -fno-pascal-strings is default, only pass non-default. If the tool chain
@@ -2588,6 +2638,10 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
     else
       CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
     CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtn.o")));
+    // FIXME: g++ is more complicated here, it tries to put -lstdc++
+    // before -lm, for example.
+    if (D.CCCIsCXX)
+      CmdArgs.push_back("-lstdc++");
   }
 
   const char *Exec =

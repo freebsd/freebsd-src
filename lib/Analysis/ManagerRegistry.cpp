@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Frontend/ManagerRegistry.h"
+#include "clang/Analysis/ManagerRegistry.h"
 
 using namespace clang;
 

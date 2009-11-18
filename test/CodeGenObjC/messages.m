@@ -1,10 +1,9 @@
-// RUN: clang-cc -fnext-runtime --emit-llvm -o %t %s &&
-// RUN: grep "objc_msgSend" %t | count 6 &&
-// RUN: clang-cc -fgnu-runtime --emit-llvm -o %t %s &&
-// RUN: grep "objc_msg_lookup" %t | count 6 &&
-// RUN: clang-cc -fgnu-runtime -fobjc-nonfragile-abi --emit-llvm -o %t %s &&
-// RUN: grep "objc_msg_lookup_sender" %t | count 6 &&
-// RUN: true
+// RUN: clang-cc --emit-llvm -o %t %s
+// RUN: grep "objc_msgSend" %t | count 6
+// RUN: clang-cc -fgnu-runtime --emit-llvm -o %t %s
+// RUN: grep "objc_msg_lookup" %t | count 6
+// RUN: clang-cc -fgnu-runtime -fobjc-nonfragile-abi --emit-llvm -o %t %s
+// RUN: grep "objc_msg_lookup_sender" %t | count 6
 
 typedef struct {
   int x;

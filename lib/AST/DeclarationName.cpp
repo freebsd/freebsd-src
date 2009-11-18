@@ -18,6 +18,7 @@
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include <cstdio>
 using namespace clang;
 
 namespace clang {
@@ -308,6 +309,10 @@ DeclarationName DeclarationName::getUsingDirectiveName() {
   Ptr |= StoredDeclarationNameExtra;
 
   return DeclarationName(Ptr);
+}
+
+void DeclarationName::dump() const {
+  fprintf(stderr, "%s\n", getAsString().c_str());
 }
 
 DeclarationNameTable::DeclarationNameTable() {

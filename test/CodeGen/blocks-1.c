@@ -1,13 +1,13 @@
-// RUN: clang-cc %s -emit-llvm -o %t -fblocks &&
-// RUN: grep "_Block_object_dispose" %t | count 17 &&
-// RUN: grep "__copy_helper_block_" %t | count 16 &&
-// RUN: grep "__destroy_helper_block_" %t | count 16 &&
-// RUN: grep "__Block_byref_id_object_copy_" %t | count 2 &&
-// RUN: grep "__Block_byref_id_object_dispose_" %t | count 2 &&
-// RUN: grep "i32 135)" %t | count 2 &&
+// RUN: clang-cc %s -emit-llvm -o %t -fblocks
+// RUN: grep "_Block_object_dispose" %t | count 17
+// RUN: grep "__copy_helper_block_" %t | count 16
+// RUN: grep "__destroy_helper_block_" %t | count 16
+// RUN: grep "__Block_byref_id_object_copy_" %t | count 2
+// RUN: grep "__Block_byref_id_object_dispose_" %t | count 2
+// RUN: grep "i32 135)" %t | count 2
 // RUN: grep "_Block_object_assign" %t | count 10
 
-#include <stdio.h>
+int printf(const char *, ...);
 
 void test1() {
   __block int a;

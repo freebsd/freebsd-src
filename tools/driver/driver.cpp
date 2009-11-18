@@ -197,6 +197,16 @@ int main(int argc, const char **argv) {
                    llvm::sys::getHostTriple().c_str(),
                    "a.out", IsProduction, Diags);
 
+  // Check for ".*++" or ".*++-[^-]*" to determine if we are a C++
+  // compiler. This matches things like "c++", "clang++", and "clang++-1.1".
+  //
+  // Note that we intentionally want to use argv[0] here, to support "clang++"
+  // being a symlink.
+  std::string ProgName(llvm::sys::Path(argv[0]).getBasename());
+  if (llvm::StringRef(ProgName).endswith("++") ||
+      llvm::StringRef(ProgName).rsplit('-').first.endswith("++"))
+    TheDriver.CCCIsCXX = true;
+
   llvm::OwningPtr<Compilation> C;
 
   // Handle QA_OVERRIDE_GCC3_OPTIONS and CCC_ADD_ARGS, used for editing a

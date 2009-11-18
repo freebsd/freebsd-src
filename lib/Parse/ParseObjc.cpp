@@ -61,6 +61,8 @@ Parser::DeclPtrTy Parser::ParseObjCAtDirectives() {
 Parser::DeclPtrTy Parser::ParseObjCAtClassDeclaration(SourceLocation atLoc) {
   ConsumeToken(); // the identifier "class"
   llvm::SmallVector<IdentifierInfo *, 8> ClassNames;
+  llvm::SmallVector<SourceLocation, 8> ClassLocs;
+
 
   while (1) {
     if (Tok.isNot(tok::identifier)) {
@@ -69,6 +71,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtClassDeclaration(SourceLocation atLoc) {
       return DeclPtrTy();
     }
     ClassNames.push_back(Tok.getIdentifierInfo());
+    ClassLocs.push_back(Tok.getLocation());
     ConsumeToken();
 
     if (Tok.isNot(tok::comma))
@@ -81,8 +84,9 @@ Parser::DeclPtrTy Parser::ParseObjCAtClassDeclaration(SourceLocation atLoc) {
   if (ExpectAndConsume(tok::semi, diag::err_expected_semi_after, "@class"))
     return DeclPtrTy();
 
-  return Actions.ActOnForwardClassDeclaration(atLoc,
-                                      &ClassNames[0], ClassNames.size());
+  return Actions.ActOnForwardClassDeclaration(atLoc, ClassNames.data(),
+                                              ClassLocs.data(),
+                                              ClassNames.size());
 }
 
 ///
@@ -123,6 +127,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
     Diag(Tok, diag::err_expected_ident); // missing class or category name.
     return DeclPtrTy();
   }
+
   // We have a class or category name - consume it.
   IdentifierInfo *nameId = Tok.getIdentifierInfo();
   SourceLocation nameLoc = ConsumeToken();
@@ -829,6 +834,12 @@ ParseObjCProtocolReferences(llvm::SmallVectorImpl<Action::DeclPtrTy> &Protocols,
   llvm::SmallVector<IdentifierLocPair, 8> ProtocolIdents;
 
   while (1) {
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteObjCProtocolReferences(ProtocolIdents.data(), 
+                                                 ProtocolIdents.size());
+      ConsumeToken();
+    }
+
     if (Tok.isNot(tok::identifier)) {
       Diag(Tok, diag::err_expected_ident);
       SkipUntil(tok::greater);
@@ -895,7 +906,8 @@ void Parser::ParseObjCClassInstanceVariables(DeclPtrTy interfaceDecl,
 
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
-      Diag(Tok, diag::ext_extra_struct_semi);
+      Diag(Tok, diag::ext_extra_struct_semi)
+        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
       ConsumeToken();
       continue;
     }
@@ -981,6 +993,11 @@ Parser::DeclPtrTy Parser::ParseObjCAtProtocolDeclaration(SourceLocation AtLoc,
   assert(Tok.isObjCAtKeyword(tok::objc_protocol) &&
          "ParseObjCAtProtocolDeclaration(): Expected @protocol");
   ConsumeToken(); // the "protocol" identifier
+
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteObjCProtocolDecl(CurScope);
+    ConsumeToken();
+  }
 
   if (Tok.isNot(tok::identifier)) {
     Diag(Tok, diag::err_expected_ident); // missing protocol name.
@@ -1092,6 +1109,7 @@ Parser::DeclPtrTy Parser::ParseObjCAtImplementationDeclaration(
                                     atLoc, nameId, nameLoc, categoryId,
                                     categoryLoc);
     ObjCImpDecl = ImplCatType;
+    PendingObjCImpDecl.push_back(ObjCImpDecl);
     return DeclPtrTy();
   }
   // We have a class implementation
@@ -1114,7 +1132,8 @@ Parser::DeclPtrTy Parser::ParseObjCAtImplementationDeclaration(
   if (Tok.is(tok::l_brace)) // we have ivars
     ParseObjCClassInstanceVariables(ImplClsType/*FIXME*/, atLoc);
   ObjCImpDecl = ImplClsType;
-
+  PendingObjCImpDecl.push_back(ObjCImpDecl);
+  
   return DeclPtrTy();
 }
 
@@ -1126,10 +1145,19 @@ Parser::DeclPtrTy Parser::ParseObjCAtEndDeclaration(SourceLocation atLoc) {
   if (ObjCImpDecl) {
     Actions.ActOnAtEnd(atLoc, ObjCImpDecl);
     ObjCImpDecl = DeclPtrTy();
+    PendingObjCImpDecl.pop_back();
   }
   else
     Diag(atLoc, diag::warn_expected_implementation); // missing @implementation
   return Result;
+}
+
+Parser::DeclGroupPtrTy Parser::RetrievePendingObjCImpDecl() {
+  if (PendingObjCImpDecl.empty())
+    return Actions.ConvertDeclToDeclGroup(DeclPtrTy());
+  DeclPtrTy ImpDecl = PendingObjCImpDecl.pop_back_val();
+  Actions.ActOnAtEnd(SourceLocation(), ImpDecl);
+  return Actions.ConvertDeclToDeclGroup(ImpDecl);
 }
 
 ///   compatibility-alias-decl:
@@ -1201,6 +1229,8 @@ Parser::DeclPtrTy Parser::ParseObjCPropertySynthesize(SourceLocation atLoc) {
   }
   if (Tok.isNot(tok::semi))
     Diag(Tok, diag::err_expected_semi_after) << "@synthesize";
+  else
+    ConsumeToken(); // consume ';'
   return DeclPtrTy();
 }
 
@@ -1406,8 +1436,10 @@ Parser::DeclPtrTy Parser::ParseObjCMethodDefinition() {
 
   // parse optional ';'
   if (Tok.is(tok::semi)) {
-    if (ObjCImpDecl)
-      Diag(Tok, diag::warn_semicolon_before_method_nody);
+    if (ObjCImpDecl) {
+      Diag(Tok, diag::warn_semicolon_before_method_body)
+        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
+    }
     ConsumeToken();
   }
 
@@ -1546,6 +1578,13 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
                                        SourceLocation NameLoc,
                                        IdentifierInfo *ReceiverName,
                                        ExprArg ReceiverExpr) {
+  if (Tok.is(tok::code_completion)) {
+    if (ReceiverName)
+      Actions.CodeCompleteObjCClassMessage(CurScope, ReceiverName, NameLoc);
+    else
+      Actions.CodeCompleteObjCInstanceMessage(CurScope, ReceiverExpr.get());
+    ConsumeToken();
+  }
   // Parse objc-selector
   SourceLocation Loc;
   IdentifierInfo *selIdent = ParseObjCSelectorPiece(Loc);

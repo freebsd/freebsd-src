@@ -12,14 +12,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Analysis/PathSensitive/Checkers/UndefinedArgChecker.h"
+#include "clang/Analysis/PathSensitive/CheckerVisitor.h"
 #include "clang/Analysis/PathSensitive/BugReporter.h"
+#include "GRExprEngineInternalChecks.h"
 
 using namespace clang;
 
-void *UndefinedArgChecker::getTag() {
-  static int x = 0;
-  return &x;
+namespace {
+class VISIBILITY_HIDDEN UndefinedArgChecker
+  : public CheckerVisitor<UndefinedArgChecker> {
+  BugType *BT;
+public:
+  UndefinedArgChecker() : BT(0) {}
+  static void *getTag() {
+    static int x = 0;
+    return &x;
+  }
+  void PreVisitCallExpr(CheckerContext &C, const CallExpr *CE);
+};
+} // end anonymous namespace
+
+void clang::RegisterUndefinedArgChecker(GRExprEngine &Eng) {
+  Eng.registerCheck(new UndefinedArgChecker());
 }
 
 void UndefinedArgChecker::PreVisitCallExpr(CheckerContext &C, 
@@ -29,11 +43,10 @@ void UndefinedArgChecker::PreVisitCallExpr(CheckerContext &C,
     if (C.getState()->getSVal(*I).isUndef()) {
       if (ExplodedNode *N = C.GenerateNode(CE, true)) {
         if (!BT)
-          BT = new BugType("Pass-by-value argument in function call is "
-                           "undefined", "Logic error");
+          BT = new BuiltinBug("Pass-by-value argument in function call is "
+                              "undefined");
         // Generate a report for this bug.
-        EnhancedBugReport *R = new EnhancedBugReport(*BT, BT->getName().c_str(),
-                                                     N);
+        EnhancedBugReport *R = new EnhancedBugReport(*BT, BT->getName(), N);
         R->addRange((*I)->getSourceRange());
         R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, *I);
         C.EmitReport(R);

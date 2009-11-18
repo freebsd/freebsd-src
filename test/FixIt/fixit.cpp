@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -pedantic -fixit %s -o - | clang-cc -fsyntax-only -pedantic -Werror -x c++ -
+// RUN: clang-cc -pedantic -fixit %s -o - | clang-cc -fsyntax-only -pedantic -Werror -x c++ -
 
 /* This is a test of the various code modification hints that are
    provided as part of warning or extension diagnostics. All of the
@@ -27,3 +27,12 @@ public:
 struct CT<0> { }; // expected-error{{'template<>'}}
 
 template<> class CT<1> { }; // expected-error{{tag type}}
+
+// PR5444
+namespace PR5444 {
+  void foo(int x, int y = 0);
+  void foo(int x, int y = 0) { }
+
+  void foo(int  = 0);
+  void foo(int  = 0) { }
+}

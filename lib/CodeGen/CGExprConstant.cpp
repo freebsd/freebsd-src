@@ -262,7 +262,7 @@ class VISIBILITY_HIDDEN ConstStructBuilder {
         uint64_t NumBytes =
           AlignedElementOffsetInBytes - ElementOffsetInBytes;
 
-        const llvm::Type *Ty = llvm::Type::getInt8Ty(CGF->getLLVMContext());
+        const llvm::Type *Ty = llvm::Type::getInt8Ty(CGM.getLLVMContext());
         if (NumBytes > 1)
           Ty = llvm::ArrayType::get(Ty, NumBytes);
 
@@ -766,27 +766,21 @@ public:
       return llvm::ConstantExpr::getBitCast(C, ConvertType(E->getType()));
     }
     case Expr::PredefinedExprClass: {
-      // __func__/__FUNCTION__ -> "".  __PRETTY_FUNCTION__ -> "top level".
-      std::string Str;
-      if (cast<PredefinedExpr>(E)->getIdentType() ==
-          PredefinedExpr::PrettyFunction)
-        Str = "top level";
+      unsigned Type = cast<PredefinedExpr>(E)->getIdentType();
+      if (CGF) {
+        LValue Res = CGF->EmitPredefinedFunctionName(Type);
+        return cast<llvm::Constant>(Res.getAddress());
+      } else if (Type == PredefinedExpr::PrettyFunction) {
+        return CGM.GetAddrOfConstantCString("top level", ".tmp");
+      }
 
-      return CGM.GetAddrOfConstantCString(Str, ".tmp");
+      return CGM.GetAddrOfConstantCString("", ".tmp");
     }
     case Expr::AddrLabelExprClass: {
       assert(CGF && "Invalid address of label expression outside function.");
-#ifndef USEINDIRECTBRANCH
-      unsigned id =
-          CGF->GetIDForAddrOfLabel(cast<AddrLabelExpr>(E)->getLabel());
-      llvm::Constant *C =
-            llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), id);
-      return llvm::ConstantExpr::getIntToPtr(C, ConvertType(E->getType()));
-#else
       llvm::Constant *Ptr =
         CGF->GetAddrOfLabel(cast<AddrLabelExpr>(E)->getLabel());
       return llvm::ConstantExpr::getBitCast(Ptr, ConvertType(E->getType()));
-#endif
     }
     case Expr::CallExprClass: {
       CallExpr* CE = cast<CallExpr>(E);
@@ -827,9 +821,7 @@ llvm::Constant *CodeGenModule::EmitConstantExpr(const Expr *E,
   else
     Success = E->Evaluate(Result, Context);
 
-  if (Success) {
-    assert(!Result.HasSideEffects &&
-           "Constant expr should not have any side effects!");
+  if (Success && !Result.HasSideEffects) {
     switch (Result.Val.getKind()) {
     case APValue::Uninitialized:
       assert(0 && "Constant expressions should be initialized.");

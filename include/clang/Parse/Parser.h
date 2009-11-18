@@ -114,7 +114,7 @@ public:
   ~Parser();
 
   const LangOptions &getLang() const { return PP.getLangOptions(); }
-  TargetInfo &getTargetInfo() const { return PP.getTargetInfo(); }
+  const TargetInfo &getTargetInfo() const { return PP.getTargetInfo(); }
   Preprocessor &getPreprocessor() const { return PP; }
   Action &getActions() const { return Actions; }
 
@@ -178,6 +178,8 @@ public:
   /// ParseTopLevelDecl - Parse one top-level declaration. Returns true if
   /// the EOF was encountered.
   bool ParseTopLevelDecl(DeclGroupPtrTy &Result);
+
+  DeclGroupPtrTy RetrievePendingObjCImpDecl();
 
 private:
   //===--------------------------------------------------------------------===//
@@ -331,7 +333,7 @@ private:
   /// either "commit the consumed tokens" or revert to the previously marked
   /// token position. Example:
   ///
-  ///   TentativeParsingAction TPA;
+  ///   TentativeParsingAction TPA(*this);
   ///   ConsumeToken();
   ///   ....
   ///   TPA.Revert();
@@ -783,6 +785,7 @@ private:
                                            AttributeList *prefixAttrs = 0);
 
   DeclPtrTy ObjCImpDecl;
+  llvm::SmallVector<DeclPtrTy, 4> PendingObjCImpDecl;
 
   DeclPtrTy ParseObjCAtImplementationDeclaration(SourceLocation atLoc);
   DeclPtrTy ParseObjCAtEndDeclaration(SourceLocation atLoc);
@@ -1226,13 +1229,18 @@ private:
     Parser &P;
     CXXScopeSpec &SS;
     bool EnteredScope;
+    bool CreatedScope;
   public:
     DeclaratorScopeObj(Parser &p, CXXScopeSpec &ss)
-      : P(p), SS(ss), EnteredScope(false) {}
+      : P(p), SS(ss), EnteredScope(false), CreatedScope(false) {}
 
     void EnterDeclaratorScope() {
       assert(!EnteredScope && "Already entered the scope!");
       assert(SS.isSet() && "C++ scope was not set!");
+
+      CreatedScope = true;
+      P.EnterScope(0); // Not a decl scope.
+
       if (P.Actions.ActOnCXXEnterDeclaratorScope(P.CurScope, SS))
         SS.setScopeRep(0);
       
@@ -1245,6 +1253,8 @@ private:
         assert(SS.isSet() && "C++ scope was cleared ?");
         P.Actions.ActOnCXXExitDeclaratorScope(P.CurScope, SS);
       }
+      if (CreatedScope)
+        P.ExitScope();
     }
   };
 
@@ -1347,9 +1357,7 @@ private:
   DeclPtrTy ParseTemplateTemplateParameter(unsigned Depth, unsigned Position);
   DeclPtrTy ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position);
   // C++ 14.3: Template arguments [temp.arg]
-  typedef llvm::SmallVector<void *, 16> TemplateArgList;
-  typedef llvm::SmallVector<bool, 16> TemplateArgIsTypeList;
-  typedef llvm::SmallVector<SourceLocation, 16> TemplateArgLocationList;
+  typedef llvm::SmallVector<ParsedTemplateArgument, 16> TemplateArgList;
 
   bool ParseTemplateIdAfterTemplateName(TemplateTy Template,
                                         SourceLocation TemplateNameLoc,
@@ -1357,8 +1365,6 @@ private:
                                         bool ConsumeLastToken,
                                         SourceLocation &LAngleLoc,
                                         TemplateArgList &TemplateArgs,
-                                    TemplateArgIsTypeList &TemplateArgIsType,
-                               TemplateArgLocationList &TemplateArgLocations,
                                         SourceLocation &RAngleLoc);
 
   bool AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
@@ -1367,10 +1373,9 @@ private:
                                SourceLocation TemplateKWLoc = SourceLocation(),
                                bool AllowTypeAnnotation = true);
   void AnnotateTemplateIdTokenAsType(const CXXScopeSpec *SS = 0);
-  bool ParseTemplateArgumentList(TemplateArgList &TemplateArgs,
-                                 TemplateArgIsTypeList &TemplateArgIsType,
-                                 TemplateArgLocationList &TemplateArgLocations);
-  void *ParseTemplateArgument(bool &ArgIsType);
+  bool ParseTemplateArgumentList(TemplateArgList &TemplateArgs);
+  ParsedTemplateArgument ParseTemplateTemplateArgument();
+  ParsedTemplateArgument ParseTemplateArgument();
   DeclPtrTy ParseExplicitInstantiation(SourceLocation ExternLoc,
                                        SourceLocation TemplateLoc,
                                        SourceLocation &DeclEnd);

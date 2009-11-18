@@ -1,4 +1,4 @@
-//===--- Utils.h - Misc utilities for the front-end------------------------===//
+//===--- Utils.h - Misc utilities for the front-end -------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,42 +14,57 @@
 #ifndef LLVM_CLANG_FRONTEND_UTILS_H
 #define LLVM_CLANG_FRONTEND_UTILS_H
 
+#include "llvm/ADT/StringRef.h"
 #include <vector>
 #include <string>
 
 namespace llvm {
+class Triple;
 class raw_ostream;
 class raw_fd_ostream;
 }
 
 namespace clang {
-class Preprocessor;
-class MinimalAction;
-class TargetInfo;
-class Diagnostic;
 class ASTConsumer;
-class IdentifierTable;
-class SourceManager;
-class LangOptions;
 class Decl;
+class DependencyOutputOptions;
+class Diagnostic;
+class DiagnosticOptions;
+class HeaderSearch;
+class HeaderSearchOptions;
+class IdentifierTable;
+class LangOptions;
+class MinimalAction;
+class Preprocessor;
+class PreprocessorOptions;
+class PreprocessorOutputOptions;
+class SourceManager;
 class Stmt;
+class TargetInfo;
+
+/// Normalize \arg File for use in a user defined #include directive (in the
+/// predefines buffer).
+std::string NormalizeDashIncludePath(llvm::StringRef File);
+
+/// Apply the header search options to get given HeaderSearch object.
+void ApplyHeaderSearchOptions(HeaderSearch &HS,
+                              const HeaderSearchOptions &HSOpts,
+                              const LangOptions &Lang,
+                              const llvm::Triple &triple);
+
+/// InitializePreprocessor - Initialize the preprocessor getting it and the
+/// environment ready to process a single file.
+void InitializePreprocessor(Preprocessor &PP,
+                            const PreprocessorOptions &PPOpts,
+                            const HeaderSearchOptions &HSOpts);
 
 /// ProcessWarningOptions - Initialize the diagnostic client and process the
 /// warning options specified on the command line.
-bool ProcessWarningOptions(Diagnostic &Diags,
-                           std::vector<std::string> &Warnings,
-                           bool Pedantic, bool PedanticErrors,
-                           bool NoWarnings);
-
-/// DoPrintPreprocessedInput - Implement -E -dM mode.
-void DoPrintMacros(Preprocessor &PP, llvm::raw_ostream* OS);
+bool ProcessWarningOptions(Diagnostic &Diags, const DiagnosticOptions &Opts);
 
 /// DoPrintPreprocessedInput - Implement -E mode.
 void DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream* OS,
-                              bool EnableCommentOutput,
-                              bool EnableMacroCommentOutput,
-                              bool DisableLineMarkers,
-                              bool DumpDefines);
+                              const PreprocessorOutputOptions &Opts);
 
 /// RewriteMacrosInInput - Implement -rewrite-macros mode.
 void RewriteMacrosInInput(Preprocessor &PP, llvm::raw_ostream* OS);
@@ -67,13 +82,12 @@ bool CheckDiagnostics(Preprocessor &PP);
 
 /// AttachDependencyFileGen - Create a dependency file generator, and attach
 /// it to the given preprocessor.  This takes ownership of the output stream.
-void AttachDependencyFileGen(Preprocessor *PP, llvm::raw_ostream *OS,
-                             std::vector<std::string> &Targets,
-                             bool IncludeSystemHeaders, bool PhonyTarget);
+void AttachDependencyFileGen(Preprocessor &PP,
+                             const DependencyOutputOptions &Opts);
 
 /// CacheTokens - Cache tokens for use with PCH. Note that this requires
 /// a seekable stream.
-void CacheTokens(Preprocessor& PP, llvm::raw_fd_ostream* OS);
+void CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS);
 
 }  // end namespace clang
 

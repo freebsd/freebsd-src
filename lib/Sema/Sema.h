@@ -93,6 +93,7 @@ namespace clang {
   class FunctionProtoType;
   class CXXBasePaths;
   class CXXTemporary;
+  class LookupResult;
 
 /// BlockSemaInfo - When a block is being parsed, this contains information
 /// about the block.  It is pointed to from Sema::CurBlock.
@@ -373,7 +374,8 @@ public:
   bool isSelfExpr(Expr *RExpr);
 public:
   Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
-       bool CompleteTranslationUnit = true);
+       bool CompleteTranslationUnit = true,
+       CodeCompleteConsumer *CompletionConsumer = 0);
   ~Sema() {
     if (PackContext) FreePackedContext();
   }
@@ -804,13 +806,15 @@ public:
                            QualType& ConvertedType, bool &IncompatibleObjC);
   bool isObjCPointerConversion(QualType FromType, QualType ToType,
                                QualType& ConvertedType, bool &IncompatibleObjC);
-  bool CheckPointerConversion(Expr *From, QualType ToType, 
-                              CastExpr::CastKind &Kind);
+  bool CheckPointerConversion(Expr *From, QualType ToType,
+                              CastExpr::CastKind &Kind,
+                              bool IgnoreBaseAccess);
   bool IsMemberPointerConversion(Expr *From, QualType FromType, QualType ToType,
                                  bool InOverloadResolution,
                                  QualType &ConvertedType);
   bool CheckMemberPointerConversion(Expr *From, QualType ToType,
-                                    CastExpr::CastKind &Kind);
+                                    CastExpr::CastKind &Kind,
+                                    bool IgnoreBaseAccess);
   bool IsQualificationConversion(QualType FromType, QualType ToType);
   OverloadingResult IsUserDefinedConversion(Expr *From, QualType ToType,
                                UserDefinedConversionSequence& User,
@@ -870,6 +874,11 @@ public:
                              Expr **Args, unsigned NumArgs,
                              OverloadCandidateSet& CandidateSet,
                              bool SuppressUserConversions = false);
+  void AddMethodCandidate(NamedDecl *Decl,
+                          Expr *Object, Expr **Args, unsigned NumArgs,
+                          OverloadCandidateSet& CandidateSet,
+                          bool SuppressUserConversion = false,
+                          bool ForceRValue = false);
   void AddMethodCandidate(CXXMethodDecl *Method,
                           Expr *Object, Expr **Args, unsigned NumArgs,
                           OverloadCandidateSet& CandidateSet,
@@ -1073,255 +1082,14 @@ public:
     LookupObjCCategoryImplName
   };
 
-  /// @brief Represents the results of name lookup.
-  ///
-  /// An instance of the LookupResult class captures the results of a
-  /// single name lookup, which can return no result (nothing found),
-  /// a single declaration, a set of overloaded functions, or an
-  /// ambiguity. Use the getKind() method to determine which of these
-  /// results occurred for a given lookup.
-  ///
-  /// Any non-ambiguous lookup can be converted into a single
-  /// (possibly NULL) @c NamedDecl* via the getAsSingleDecl() method.
-  /// This permits the common-case usage in C and Objective-C where
-  /// name lookup will always return a single declaration.  Use of
-  /// this is largely deprecated; callers should handle the possibility
-  /// of multiple declarations.
-  class LookupResult {
-  public:
-    enum LookupKind {
-      /// @brief No entity found met the criteria.
-      NotFound = 0,
-
-      /// @brief Name lookup found a single declaration that met the
-      /// criteria. getAsDecl will return this declaration.
-      Found,
-
-      /// @brief Name lookup found a set of overloaded functions that
-      /// met the criteria. getAsDecl will turn this set of overloaded
-      /// functions into an OverloadedFunctionDecl.
-      FoundOverloaded,
-
-      /// @brief Name lookup results in an ambiguity; use
-      /// getAmbiguityKind to figure out what kind of ambiguity
-      /// we have.
-      Ambiguous
-    };
-
-    enum AmbiguityKind {
-      /// Name lookup results in an ambiguity because multiple
-      /// entities that meet the lookup criteria were found in
-      /// subobjects of different types. For example:
-      /// @code
-      /// struct A { void f(int); }
-      /// struct B { void f(double); }
-      /// struct C : A, B { };
-      /// void test(C c) {
-      ///   c.f(0); // error: A::f and B::f come from subobjects of different
-      ///           // types. overload resolution is not performed.
-      /// }
-      /// @endcode
-      AmbiguousBaseSubobjectTypes,
-
-      /// Name lookup results in an ambiguity because multiple
-      /// nonstatic entities that meet the lookup criteria were found
-      /// in different subobjects of the same type. For example:
-      /// @code
-      /// struct A { int x; };
-      /// struct B : A { };
-      /// struct C : A { };
-      /// struct D : B, C { };
-      /// int test(D d) {
-      ///   return d.x; // error: 'x' is found in two A subobjects (of B and C)
-      /// }
-      /// @endcode
-      AmbiguousBaseSubobjects,
-
-      /// Name lookup results in an ambiguity because multiple definitions
-      /// of entity that meet the lookup criteria were found in different
-      /// declaration contexts.
-      /// @code
-      /// namespace A {
-      ///   int i;
-      ///   namespace B { int i; }
-      ///   int test() {
-      ///     using namespace B;
-      ///     return i; // error 'i' is found in namespace A and A::B
-      ///    }
-      /// }
-      /// @endcode
-      AmbiguousReference,
-
-      /// Name lookup results in an ambiguity because an entity with a
-      /// tag name was hidden by an entity with an ordinary name from
-      /// a different context.
-      /// @code
-      /// namespace A { struct Foo {}; }
-      /// namespace B { void Foo(); }
-      /// namespace C {
-      ///   using namespace A;
-      ///   using namespace B;
-      /// }
-      /// void test() {
-      ///   C::Foo(); // error: tag 'A::Foo' is hidden by an object in a
-      ///             // different namespace
-      /// }
-      /// @endcode
-      AmbiguousTagHiding
-    };
-
-    typedef llvm::SmallVector<NamedDecl*, 4> DeclsTy;
-    typedef DeclsTy::const_iterator iterator;
-
-    LookupResult()
-      : Kind(NotFound),
-        Paths(0)
-    {}
-    ~LookupResult() {
-      if (Paths) deletePaths(Paths);
-    }
-
-    bool isAmbiguous() const {
-      return getKind() == Ambiguous;
-    }
-
-    LookupKind getKind() const {
-      sanity();
-      return Kind;
-    }
-
-    AmbiguityKind getAmbiguityKind() const {
-      assert(isAmbiguous());
-      return Ambiguity;
-    }
-
-    iterator begin() const { return Decls.begin(); }
-    iterator end() const { return Decls.end(); }
-
-    /// \brief Return true if no decls were found
-    bool empty() const { return Decls.empty(); }
-
-    /// \brief Return the base paths structure that's associated with
-    /// these results, or null if none is.
-    CXXBasePaths *getBasePaths() const {
-      return Paths;
-    }
-
-    /// \brief Add a declaration to these results.
-    void addDecl(NamedDecl *D) {
-      Decls.push_back(D->getUnderlyingDecl());
-      Kind = Found;
-    }
-
-    /// \brief Add all the declarations from another set of lookup
-    /// results.
-    void addAllDecls(const LookupResult &Other) {
-      Decls.append(Other.begin(), Other.end());
-      Kind = Found;
-    }
-
-    /// \brief Hides a set of declarations.
-    template <class NamedDeclSet> void hideDecls(const NamedDeclSet &Set) {
-      unsigned I = 0, N = Decls.size();
-      while (I < N) {
-        if (Set.count(Decls[I]))
-          Decls[I] = Decls[--N];
-        else
-          I++;
-      }
-      Decls.set_size(N);
-    }
-
-    /// \brief Resolves the kind of the lookup, possibly hiding decls.
-    ///
-    /// This should be called in any environment where lookup might
-    /// generate multiple lookup results.
-    void resolveKind();
-
-    /// \brief Fetch this as an unambiguous single declaration
-    /// (possibly an overloaded one).
-    ///
-    /// This is deprecated; users should be written to handle
-    /// ambiguous and overloaded lookups.
-    NamedDecl *getAsSingleDecl(ASTContext &Context) const;
-
-    /// \brief Fetch the unique decl found by this lookup.  Asserts
-    /// that one was found.
-    ///
-    /// This is intended for users who have examined the result kind
-    /// and are certain that there is only one result.
-    NamedDecl *getFoundDecl() const {
-      assert(getKind() == Found && "getFoundDecl called on non-unique result");
-      return *Decls.begin();
-    }
-
-    /// \brief Asks if the result is a single tag decl.
-    bool isSingleTagDecl() const {
-      return getKind() == Found && isa<TagDecl>(getFoundDecl());
-    }
-
-    /// \brief Make these results show that the name was found in
-    /// base classes of different types.
-    ///
-    /// The given paths object is copied and invalidated.
-    void setAmbiguousBaseSubobjectTypes(CXXBasePaths &P);
-
-    /// \brief Make these results show that the name was found in
-    /// distinct base classes of the same type.
-    ///
-    /// The given paths object is copied and invalidated.
-    void setAmbiguousBaseSubobjects(CXXBasePaths &P);
-
-    /// \brief Make these results show that the name was found in
-    /// different contexts and a tag decl was hidden by an ordinary
-    /// decl in a different context.
-    void setAmbiguousQualifiedTagHiding() {
-      setAmbiguous(AmbiguousTagHiding);
-    }
-
-    /// \brief Clears out any current state.
-    void clear() {
-      Kind = NotFound;
-      Decls.clear();
-      if (Paths) deletePaths(Paths);
-      Paths = NULL;
-    }
-
-    void print(llvm::raw_ostream &);
-
-  private:
-    void setAmbiguous(AmbiguityKind AK) {
-      Kind = Ambiguous;
-      Ambiguity = AK;
-    }
-
-    void addDeclsFromBasePaths(const CXXBasePaths &P);
-
-    // Sanity checks.
-    void sanity() const {
-      assert(Kind != NotFound || Decls.size() == 0);
-      assert(Kind != Found || Decls.size() == 1);
-      assert(Kind == NotFound || Kind == Found ||
-             (Kind == Ambiguous && Ambiguity == AmbiguousBaseSubobjects)
-             || Decls.size() > 1);
-      assert((Paths != NULL) == (Kind == Ambiguous &&
-                                 (Ambiguity == AmbiguousBaseSubobjectTypes ||
-                                  Ambiguity == AmbiguousBaseSubobjects)));
-    }
-
-    static void deletePaths(CXXBasePaths *);
-
-    LookupKind Kind;
-    AmbiguityKind Ambiguity; // ill-defined unless ambiguous
-    DeclsTy Decls;
-    CXXBasePaths *Paths;
+  enum RedeclarationKind {
+    NotForRedeclaration,
+    ForRedeclaration
   };
 
 private:
-  typedef llvm::SmallVector<LookupResult, 3> LookupResultsVecTy;
+  bool CppLookupName(LookupResult &R, Scope *S);
 
-  bool CppLookupName(LookupResult &R, Scope *S, DeclarationName Name,
-                     LookupNameKind NameKind, bool RedeclarationOnly);
 public:
   /// Determines whether D is a suitable lookup result according to the
   /// lookup criteria.
@@ -1360,27 +1128,13 @@ public:
   /// ambiguity and overloaded.
   NamedDecl *LookupSingleName(Scope *S, DeclarationName Name,
                               LookupNameKind NameKind,
-                              bool RedeclarationOnly = false) {
-    LookupResult R;
-    LookupName(R, S, Name, NameKind, RedeclarationOnly);
-    return R.getAsSingleDecl(Context);
-  }
+                              RedeclarationKind Redecl
+                                = NotForRedeclaration);
   bool LookupName(LookupResult &R, Scope *S,
-                  DeclarationName Name,
-                  LookupNameKind NameKind,
-                  bool RedeclarationOnly = false,
-                  bool AllowBuiltinCreation = false,
-                  SourceLocation Loc = SourceLocation());
-  bool LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
-                           DeclarationName Name,
-                           LookupNameKind NameKind,
-                           bool RedeclarationOnly = false);
+                  bool AllowBuiltinCreation = false);
+  bool LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx);
   bool LookupParsedName(LookupResult &R, Scope *S, const CXXScopeSpec *SS,
-                        DeclarationName Name,
-                        LookupNameKind NameKind,
-                        bool RedeclarationOnly = false,
                         bool AllowBuiltinCreation = false,
-                        SourceLocation Loc = SourceLocation(),
                         bool EnteringContext = false);
 
   ObjCProtocolDecl *LookupProtocol(IdentifierInfo *II);
@@ -1398,9 +1152,7 @@ public:
                                    AssociatedNamespaceSet &AssociatedNamespaces,
                                    AssociatedClassSet &AssociatedClasses);
 
-  bool DiagnoseAmbiguousLookup(LookupResult &Result, DeclarationName Name,
-                               SourceLocation NameLoc,
-                               SourceRange LookupRange = SourceRange());
+  bool DiagnoseAmbiguousLookup(LookupResult &Result);
   //@}
 
   ObjCInterfaceDecl *getObjCInterfaceDecl(IdentifierInfo *Id);
@@ -1447,6 +1199,12 @@ public:
   void ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
                                  ObjCContainerDecl* IDecl,
                                  bool IncompleteImpl = false);
+  
+  /// AtomicPropertySetterGetterRules - This routine enforces the rule (via
+  /// warning) when atomic property has one but not the other user-declared
+  /// setter or getter.
+  void AtomicPropertySetterGetterRules(ObjCImplDecl* IMPDecl,
+                                       ObjCContainerDecl* IDecl);
 
   /// MatchTwoMethodDeclarations - Checks if two methods' type match and returns
   /// true, or false, accordingly.
@@ -1610,7 +1368,8 @@ public:
                              Expr **Args, unsigned NumArgs);
 
   void CheckSignCompare(Expr *LHS, Expr *RHS, SourceLocation Loc,
-                        const PartialDiagnostic &PD);
+                        const PartialDiagnostic &PD,
+                        bool Equality = false);
 
   virtual ExpressionEvaluationContext
   PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext);
@@ -1746,11 +1505,6 @@ public:
                                const FunctionProtoType *Proto,
                                Expr **Args, unsigned NumArgs,
                                SourceLocation RParenLoc);
-  void BuildBaseOrMemberInitializers(ASTContext &C,
-                                 CXXConstructorDecl *Constructor,
-                                 CXXBaseOrMemberInitializer **Initializers,
-                                 unsigned NumInitializers
-                                 );
 
   void DeconstructCallFunction(Expr *FnExpr,
                                NamedDecl *&Function,
@@ -1890,12 +1644,15 @@ public:
                                            SourceLocation IdentLoc,
                                            IdentifierInfo *Ident);
 
-  NamedDecl *BuildUsingDeclaration(SourceLocation UsingLoc,
+  NamedDecl *BuildUsingDeclaration(Scope *S, AccessSpecifier AS,
+                                   SourceLocation UsingLoc,
                                    const CXXScopeSpec &SS,
                                    SourceLocation IdentLoc,
                                    DeclarationName Name,
                                    AttributeList *AttrList,
-                                   bool IsTypeName);
+                                   bool IsInstantiation,
+                                   bool IsTypeName,
+                                   SourceLocation TypenameLoc);
 
   virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
                                           AccessSpecifier AS,
@@ -1903,7 +1660,8 @@ public:
                                           const CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
                                           AttributeList *AttrList,
-                                          bool IsTypeName);
+                                          bool IsTypeName,
+                                          SourceLocation TypenameLoc);
 
   /// AddCXXDirectInitializerToDecl - This action is called immediately after
   /// ActOnDeclarator, when a C++ direct initializer is present.
@@ -1997,6 +1755,12 @@ public:
   };
 
   CXXConstructorDecl *
+  TryInitializationByConstructor(QualType ClassType,
+                                 Expr **Args, unsigned NumArgs,
+                                 SourceLocation Loc,
+                                 InitializationKind Kind);
+  
+  CXXConstructorDecl *
   PerformInitializationByConstructor(QualType ClassType,
                                      MultiExprArg ArgsPtr,
                                      SourceLocation Loc, SourceRange Range,
@@ -2087,6 +1851,9 @@ public:
   void DeclareGlobalNewDelete();
   void DeclareGlobalAllocationFunction(DeclarationName Name, QualType Return,
                                        QualType Argument);
+
+  bool FindDeallocationFunction(SourceLocation StartLoc, CXXRecordDecl *RD, 
+                                DeclarationName Name, FunctionDecl* &Operator);
 
   /// ActOnCXXDelete - Parsed a C++ 'delete' expression
   virtual OwningExprResult ActOnCXXDelete(SourceLocation StartLoc,
@@ -2276,17 +2043,15 @@ public:
                                      SourceLocation RParenLoc,
                                      CXXRecordDecl *ClassDecl);
 
-  void SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
+  bool SetBaseOrMemberInitializers(CXXConstructorDecl *Constructor,
                               CXXBaseOrMemberInitializer **Initializers,
                               unsigned NumInitializers,
-                              llvm::SmallVectorImpl<CXXBaseSpecifier *>& Bases,
-                              llvm::SmallVectorImpl<FieldDecl *>&Members);
+                              bool IsImplicitConstructor);
 
-  /// computeBaseOrMembersToDestroy - Compute information in current
-  /// destructor decl's AST of bases and non-static data members which will be
-  /// implicitly destroyed. We are storing the destruction in the order that
-  /// they should occur (which is the reverse of construction order).
-  void computeBaseOrMembersToDestroy(CXXDestructorDecl *Destructor);
+  /// MarkBaseAndMemberDestructorsReferenced - Given a destructor decl,
+  /// mark all its non-trivial member and base destructor declarations
+  /// as referenced.
+  void MarkBaseAndMemberDestructorsReferenced(CXXDestructorDecl *Destructor);
 
   void AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl);
 
@@ -2320,6 +2085,7 @@ public:
   void CheckConstructor(CXXConstructorDecl *Constructor);
   QualType CheckDestructorDeclarator(Declarator &D,
                                      FunctionDecl::StorageClass& SC);
+  void CheckDestructor(CXXDestructorDecl *Destructor);
   void CheckConversionDeclarator(Declarator &D, QualType &R,
                                  FunctionDecl::StorageClass& SC);
   DeclPtrTy ActOnConversionDeclarator(CXXConversionDecl *Conversion);
@@ -2353,7 +2119,8 @@ public:
   bool IsDerivedFrom(QualType Derived, QualType Base, CXXBasePaths &Paths);
   
   bool CheckDerivedToBaseConversion(QualType Derived, QualType Base,
-                                    SourceLocation Loc, SourceRange Range);
+                                    SourceLocation Loc, SourceRange Range,
+                                    bool IgnoreAccess = false);
   bool CheckDerivedToBaseConversion(QualType Derived, QualType Base,
                                     unsigned InaccessibleBaseID,
                                     unsigned AmbigiousBaseConvID,
@@ -2451,7 +2218,7 @@ public:
                                                    unsigned Position);
   virtual void ActOnTemplateTemplateParameterDefault(DeclPtrTy TemplateParam,
                                                      SourceLocation EqualLoc,
-                                                     ExprArg Default);
+                                        const ParsedTemplateArgument &Default);
 
   virtual TemplateParamsTy *
   ActOnTemplateParameterList(unsigned Depth,
@@ -2477,8 +2244,7 @@ public:
                                 AccessSpecifier AS);
 
   void translateTemplateArguments(ASTTemplateArgsPtr &TemplateArgsIn,
-                                  SourceLocation *TemplateArgLocsIn,
-                        llvm::SmallVector<TemplateArgumentLoc, 16> &TempArgs);
+                        llvm::SmallVectorImpl<TemplateArgumentLoc> &TempArgs);
     
   QualType CheckTemplateIdType(TemplateName Template,
                                SourceLocation TemplateLoc,
@@ -2491,7 +2257,6 @@ public:
   ActOnTemplateIdType(TemplateTy Template, SourceLocation TemplateLoc,
                       SourceLocation LAngleLoc,
                       ASTTemplateArgsPtr TemplateArgs,
-                      SourceLocation *TemplateArgLocs,
                       SourceLocation RAngleLoc);
 
   virtual TypeResult ActOnTagTemplateIdType(TypeResult Type,
@@ -2513,7 +2278,6 @@ public:
                                        SourceLocation TemplateNameLoc,
                                        SourceLocation LAngleLoc,
                                        ASTTemplateArgsPtr TemplateArgs,
-                                       SourceLocation *TemplateArgLocs,
                                        SourceLocation RAngleLoc);
 
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
@@ -2534,7 +2298,6 @@ public:
                                    SourceLocation TemplateNameLoc,
                                    SourceLocation LAngleLoc,
                                    ASTTemplateArgsPtr TemplateArgs,
-                                   SourceLocation *TemplateArgLocs,
                                    SourceLocation RAngleLoc,
                                    AttributeList *Attr,
                                  MultiTemplateParamsArg TemplateParameterLists);
@@ -2575,7 +2338,6 @@ public:
                              SourceLocation TemplateNameLoc,
                              SourceLocation LAngleLoc,
                              ASTTemplateArgsPtr TemplateArgs,
-                             SourceLocation *TemplateArgLocs,
                              SourceLocation RAngleLoc,
                              AttributeList *Attr);
 
@@ -2595,6 +2357,13 @@ public:
                                                 SourceLocation TemplateLoc,
                                                 Declarator &D);
     
+  bool CheckTemplateArgument(NamedDecl *Param,
+                             const TemplateArgumentLoc &Arg,
+                             TemplateDecl *Template,
+                             SourceLocation TemplateLoc,
+                             SourceLocation RAngleLoc,
+                             TemplateArgumentListBuilder &Converted);
+  
   bool CheckTemplateArgumentList(TemplateDecl *Template,
                                  SourceLocation TemplateLoc,
                                  SourceLocation LAngleLoc,
@@ -2612,17 +2381,54 @@ public:
                              DeclaratorInfo *Arg);
   bool CheckTemplateArgumentAddressOfObjectOrFunction(Expr *Arg,
                                                       NamedDecl *&Entity);
-  bool CheckTemplateArgumentPointerToMember(Expr *Arg, NamedDecl *&Member);
+  bool CheckTemplateArgumentPointerToMember(Expr *Arg, 
+                                            TemplateArgument &Converted);
   bool CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
                              QualType InstantiatedParamType, Expr *&Arg,
                              TemplateArgument &Converted);
-  bool CheckTemplateArgument(TemplateTemplateParmDecl *Param, DeclRefExpr *Arg);
+  bool CheckTemplateArgument(TemplateTemplateParmDecl *Param, 
+                             const TemplateArgumentLoc &Arg);
+  
+  /// \brief Enumeration describing how template parameter lists are compared
+  /// for equality.
+  enum TemplateParameterListEqualKind {
+    /// \brief We are matching the template parameter lists of two templates
+    /// that might be redeclarations.
+    ///
+    /// \code
+    /// template<typename T> struct X;
+    /// template<typename T> struct X;
+    /// \endcode
+    TPL_TemplateMatch,
+    
+    /// \brief We are matching the template parameter lists of two template
+    /// template parameters as part of matching the template parameter lists
+    /// of two templates that might be redeclarations.
+    ///
+    /// \code
+    /// template<template<int I> class TT> struct X;
+    /// template<template<int Value> class Other> struct X;
+    /// \endcode
+    TPL_TemplateTemplateParmMatch,
+    
+    /// \brief We are matching the template parameter lists of a template
+    /// template argument against the template parameter lists of a template
+    /// template parameter.
+    ///
+    /// \code
+    /// template<template<int Value> class Metafun> struct X;
+    /// template<int Value> struct integer_c;
+    /// X<integer_c> xic;
+    /// \endcode
+    TPL_TemplateTemplateArgumentMatch
+  };
+  
   bool TemplateParameterListsAreEqual(TemplateParameterList *New,
                                       TemplateParameterList *Old,
                                       bool Complain,
-                                      bool IsTemplateTemplateParm = false,
+                                      TemplateParameterListEqualKind Kind,
                                       SourceLocation TemplateArgLoc
-                                       = SourceLocation());
+                                        = SourceLocation());
 
   bool CheckTemplateDeclScope(Scope *S, TemplateParameterList *TemplateParams);
 
@@ -2659,6 +2465,11 @@ public:
   std::string
   getTemplateArgumentBindingsText(const TemplateParameterList *Params,
                                   const TemplateArgumentList &Args);
+
+  std::string
+  getTemplateArgumentBindingsText(const TemplateParameterList *Params,
+                                  const TemplateArgument *Args,
+                                  unsigned NumArgs);
   
   /// \brief Describes the result of template argument deduction.
   ///
@@ -2849,7 +2660,8 @@ public:
   // C++ Template Instantiation
   //
 
-  MultiLevelTemplateArgumentList getTemplateInstantiationArgs(NamedDecl *D);
+  MultiLevelTemplateArgumentList getTemplateInstantiationArgs(NamedDecl *D,
+                                     const TemplateArgumentList *Innermost = 0);
 
   /// \brief A template instantiation that is currently in progress.
   struct ActiveTemplateInstantiation {
@@ -2880,17 +2692,30 @@ public:
       /// partial specialization or a function template. The
       /// Entity is either a ClassTemplatePartialSpecializationDecl or
       /// a FunctionTemplateDecl.
-      DeducedTemplateArgumentSubstitution
+      DeducedTemplateArgumentSubstitution,
+      
+      /// We are substituting prior template arguments into a new
+      /// template parameter. The template parameter itself is either a
+      /// NonTypeTemplateParmDecl or a TemplateTemplateParmDecl.
+      PriorTemplateArgumentSubstitution,
+      
+      /// We are checking the validity of a default template argument that
+      /// has been used when naming a template-id.
+      DefaultTemplateArgumentChecking
     } Kind;
 
     /// \brief The point of instantiation within the source code.
     SourceLocation PointOfInstantiation;
 
+    /// \brief The template in which we are performing the instantiation,
+    /// for substitutions of prior template arguments.
+    TemplateDecl *Template;
+    
     /// \brief The entity that is being instantiated.
     uintptr_t Entity;
 
-    // \brief If this the instantiation of a default template
-    // argument, the list of template arguments.
+    /// \brief The list of template arguments we are substituting, if they
+    /// are not part of the entity.
     const TemplateArgument *TemplateArgs;
 
     /// \brief The number of template arguments in TemplateArgs.
@@ -2901,9 +2726,14 @@ public:
     /// template instantiation.
     SourceRange InstantiationRange;
 
-    ActiveTemplateInstantiation() : Kind(TemplateInstantiation), Entity(0),
-                                    TemplateArgs(0), NumTemplateArgs(0) {}
+    ActiveTemplateInstantiation()
+      : Kind(TemplateInstantiation), Template(0), Entity(0), TemplateArgs(0), 
+        NumTemplateArgs(0) {}
 
+    /// \brief Determines whether this template is an actual instantiation
+    /// that should be counted toward the maximum instantiation depth.
+    bool isInstantiationRecord() const;
+    
     friend bool operator==(const ActiveTemplateInstantiation &X,
                            const ActiveTemplateInstantiation &Y) {
       if (X.Kind != Y.Kind)
@@ -2916,6 +2746,13 @@ public:
       case TemplateInstantiation:
         return true;
 
+      case PriorTemplateArgumentSubstitution:
+      case DefaultTemplateArgumentChecking:
+        if (X.Template != Y.Template)
+          return false;
+          
+        // Fall through
+          
       case DefaultTemplateArgumentInstantiation:
       case ExplicitTemplateArgumentSubstitution:
       case DeducedTemplateArgumentSubstitution:
@@ -2942,6 +2779,11 @@ public:
   llvm::SmallVector<ActiveTemplateInstantiation, 16>
     ActiveTemplateInstantiations;
 
+  /// \brief The number of ActiveTemplateInstantiation entries in
+  /// \c ActiveTemplateInstantiations that are not actual instantiations and,
+  /// therefore, should not be counted as part of the instantiation depth.
+  unsigned NonInstantiationEntries;
+  
   /// \brief The last template from which a template instantiation
   /// error or warning was produced.
   ///
@@ -3001,6 +2843,32 @@ public:
                           unsigned NumTemplateArgs,
                           SourceRange InstantiationRange = SourceRange());
 
+    /// \brief Note that we are substituting prior template arguments into a
+    /// non-type or template template parameter.
+    InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
+                          TemplateDecl *Template,
+                          NonTypeTemplateParmDecl *Param,
+                          const TemplateArgument *TemplateArgs,
+                          unsigned NumTemplateArgs,
+                          SourceRange InstantiationRange);
+
+    InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
+                          TemplateDecl *Template,
+                          TemplateTemplateParmDecl *Param,
+                          const TemplateArgument *TemplateArgs,
+                          unsigned NumTemplateArgs,
+                          SourceRange InstantiationRange);
+    
+    /// \brief Note that we are checking the default template argument
+    /// against the template parameter for a given template-id.
+    InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
+                          TemplateDecl *Template,
+                          NamedDecl *Param,
+                          const TemplateArgument *TemplateArgs,
+                          unsigned NumTemplateArgs,
+                          SourceRange InstantiationRange);
+    
+    
     /// \brief Note that we have finished instantiating this template.
     void Clear();
 
@@ -3273,8 +3141,9 @@ public:
                                                   SourceLocation CatLoc);
 
   virtual DeclPtrTy ActOnForwardClassDeclaration(SourceLocation Loc,
-                                               IdentifierInfo **IdentList,
-                                               unsigned NumElts);
+                                                 IdentifierInfo **IdentList,
+                                                 SourceLocation *IdentLocs,
+                                                 unsigned NumElts);
 
   virtual DeclPtrTy ActOnForwardProtocolDeclaration(SourceLocation AtProtocolLoc,
                                             const IdentifierLocPair *IdentList,
@@ -3484,6 +3353,12 @@ public:
     /// CompatiblePointerDiscardsQualifiers - The assignment discards
     /// c/v/r qualifiers, which we accept as an extension.
     CompatiblePointerDiscardsQualifiers,
+    
+    /// IncompatibleNestedPointerQualifiers - The assignment is between two
+    /// nested pointer types, and the qualifiers other than the first two
+    /// levels differ e.g. char ** -> const char **, but we accept them as an 
+    /// extension. 
+    IncompatibleNestedPointerQualifiers,
 
     /// IncompatibleVectors - The assignment is between two vector types that
     /// have the same size, which we accept as an extension.
@@ -3555,10 +3430,11 @@ public:
                                  ImplicitConversionSequence& ICS);
   bool PerformImplicitConversion(Expr *&From, QualType ToType,
                                  const ImplicitConversionSequence& ICS,
-                                 const char *Flavor);
+                                 const char *Flavor,
+                                 bool IgnoreBaseAccess = false);
   bool PerformImplicitConversion(Expr *&From, QualType ToType,
                                  const StandardConversionSequence& SCS,
-                                 const char *Flavor);
+                                 const char *Flavor, bool IgnoreBaseAccess);
   
   bool BuildCXXDerivedToBaseExpr(Expr *&From, CastExpr::CastKind CastKind,
                                  const ImplicitConversionSequence& ICS,
@@ -3660,7 +3536,8 @@ public:
                           bool SuppressUserConversions,
                           bool AllowExplicit,
                           bool ForceRValue,
-                          ImplicitConversionSequence *ICS = 0);
+                          ImplicitConversionSequence *ICS = 0,
+                          bool IgnoreBaseAccess = false);
 
   /// CheckCastTypes - Check type constraints for casting between types under
   /// C semantics, or forward to CXXCheckCStyleCast in C++.
@@ -3745,7 +3622,6 @@ public:
 
   /// \name Code completion
   //@{
-  void setCodeCompleteConsumer(CodeCompleteConsumer *CCC);
   virtual void CodeCompleteOrdinaryName(Scope *S);
   virtual void CodeCompleteMemberReferenceExpr(Scope *S, ExprTy *Base,
                                                SourceLocation OpLoc,
@@ -3763,7 +3639,13 @@ public:
   virtual void CodeCompleteOperatorName(Scope *S);
   
   virtual void CodeCompleteObjCProperty(Scope *S, ObjCDeclSpec &ODS);
-  //@}
+  virtual void CodeCompleteObjCClassMessage(Scope *S, IdentifierInfo *FName,
+                                            SourceLocation FNameLoc);
+  virtual void CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver);
+  virtual void CodeCompleteObjCProtocolReferences(IdentifierLocPair *Protocols,
+                                                  unsigned NumProtocols);
+  virtual void CodeCompleteObjCProtocolDecl(Scope *S);
+ //@}
   
   //===--------------------------------------------------------------------===//
   // Extra semantic analysis beyond the C type system
@@ -3807,7 +3689,6 @@ private:
                             SourceLocation ReturnLoc);
   void CheckFloatComparison(SourceLocation loc, Expr* lex, Expr* rex);
 };
-
 
 //===--------------------------------------------------------------------===//
 // Typed version of Parser::ExprArg (smart pointer for wrapping Expr pointers).

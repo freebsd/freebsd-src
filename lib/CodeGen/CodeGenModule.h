@@ -23,6 +23,7 @@
 #include "CGCXX.h"
 #include "CGVtable.h"
 #include "CodeGenTypes.h"
+#include "GlobalDecl.h"
 #include "Mangle.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/DenseMap.h"
@@ -30,8 +31,6 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/ValueHandle.h"
 #include <list>
-
-#define ATTACH_DEBUG_INFO_TO_AN_INSN 1 
 
 namespace llvm {
   class Module;
@@ -61,7 +60,7 @@ namespace clang {
   class ValueDecl;
   class VarDecl;
   class LangOptions;
-  class CompileOptions;
+  class CodeGenOptions;
   class Diagnostic;
   class AnnotateAttr;
   class CXXDestructorDecl;
@@ -72,46 +71,7 @@ namespace CodeGen {
   class CGDebugInfo;
   class CGObjCRuntime;
 
-/// GlobalDecl - represents a global declaration. This can either be a
-/// CXXConstructorDecl and the constructor type (Base, Complete).
-/// a CXXDestructorDecl and the destructor type (Base, Complete) or
-/// a VarDecl, a FunctionDecl or a BlockDecl.
-class GlobalDecl {
-  llvm::PointerIntPair<const Decl*, 2> Value;
-
-  void Init(const Decl *D) {
-    assert(!isa<CXXConstructorDecl>(D) && "Use other ctor with ctor decls!");
-    assert(!isa<CXXDestructorDecl>(D) && "Use other ctor with dtor decls!");
-
-    Value.setPointer(D);
-  }
   
-public:
-  GlobalDecl() {}
-
-  GlobalDecl(const VarDecl *D) { Init(D);}
-  GlobalDecl(const FunctionDecl *D) { Init(D); }
-  GlobalDecl(const BlockDecl *D) { Init(D); }
-  GlobalDecl(const ObjCMethodDecl *D) { Init(D); }
-
-  GlobalDecl(const CXXConstructorDecl *D, CXXCtorType Type)
-  : Value(D, Type) {}
-  GlobalDecl(const CXXDestructorDecl *D, CXXDtorType Type)
-  : Value(D, Type) {}
-
-  const Decl *getDecl() const { return Value.getPointer(); }
-
-  CXXCtorType getCtorType() const {
-    assert(isa<CXXConstructorDecl>(getDecl()) && "Decl is not a ctor!");
-    return static_cast<CXXCtorType>(Value.getInt());
-  }
-
-  CXXDtorType getDtorType() const {
-    assert(isa<CXXDestructorDecl>(getDecl()) && "Decl is not a dtor!");
-    return static_cast<CXXDtorType>(Value.getInt());
-  }
-};
-
 /// CodeGenModule - This class organizes the cross-function state that is used
 /// while generating LLVM code.
 class CodeGenModule : public BlockModule {
@@ -122,7 +82,7 @@ class CodeGenModule : public BlockModule {
 
   ASTContext &Context;
   const LangOptions &Features;
-  const CompileOptions &CompileOpts;
+  const CodeGenOptions &CodeGenOpts;
   llvm::Module &TheModule;
   const llvm::TargetData &TheTargetData;
   Diagnostic &Diags;
@@ -201,7 +161,7 @@ class CodeGenModule : public BlockModule {
 
   llvm::LLVMContext &VMContext;
 public:
-  CodeGenModule(ASTContext &C, const CompileOptions &CompileOpts,
+  CodeGenModule(ASTContext &C, const CodeGenOptions &CodeGenOpts,
                 llvm::Module &M, const llvm::TargetData &TD, Diagnostic &Diags);
 
   ~CodeGenModule();
@@ -222,7 +182,7 @@ public:
 
   CGDebugInfo *getDebugInfo() { return DebugInfo; }
   ASTContext &getContext() const { return Context; }
-  const CompileOptions &getCompileOpts() const { return CompileOpts; }
+  const CodeGenOptions &getCodeGenOpts() const { return CodeGenOpts; }
   const LangOptions &getLangOptions() const { return Features; }
   llvm::Module &getModule() const { return TheModule; }
   CodeGenTypes &getTypes() { return Types; }
@@ -252,8 +212,26 @@ public:
   llvm::Constant *GetAddrOfFunction(GlobalDecl GD,
                                     const llvm::Type *Ty = 0);
 
+  /// GenerateVtable - Generate the vtable for the given type.  LayoutClass is
+  /// the class to use for the virtual base layout information.  For
+  /// non-construction vtables, this is always the same as RD.  Offset is the
+  /// offset in bits for the RD object in the LayoutClass, if we're generating a
+  /// construction vtable, otherwise 0.
+  llvm::Constant *GenerateVtable(const CXXRecordDecl *LayoutClass,
+                                 const CXXRecordDecl *RD,
+                                 uint64_t Offset=0);
+
+  /// GenerateVTT - Generate the VTT for the given type.
+  llvm::Constant *GenerateVTT(const CXXRecordDecl *RD);
+
   /// GenerateRtti - Generate the rtti information for the given type.
   llvm::Constant *GenerateRtti(const CXXRecordDecl *RD);
+  /// GenerateRttiRef - Generate a reference to the rtti information for the
+  /// given type.
+  llvm::Constant *GenerateRttiRef(const CXXRecordDecl *RD);
+  /// GenerateRttiNonClass - Generate the rtti information for the given
+  /// non-class type.
+  llvm::Constant *GenerateRttiNonClass(QualType Ty);
 
   /// BuildThunk - Build a thunk for the given method
   llvm::Constant *BuildThunk(const CXXMethodDecl *MD, bool Extern, int64_t nv,
@@ -262,6 +240,11 @@ public:
   llvm::Constant *BuildCovariantThunk(const CXXMethodDecl *MD, bool Extern,
                                       int64_t nv_t, int64_t v_t,
                                       int64_t nv_r, int64_t v_r);
+
+  typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
+  typedef llvm::DenseMap<const CXXRecordDecl *,
+                         llvm::DenseMap<CtorVtable_t, int64_t>*> AddrMap_t;
+  llvm::DenseMap<const CXXRecordDecl *, AddrMap_t*> AddressPoints;
 
   /// GetCXXBaseClassOffset - Returns the offset from a derived class to its
   /// base class. Returns null if the offset is 0.
@@ -499,7 +482,7 @@ private:
 
   /// EmitCXXGlobalInitFunc - Emit a function that initializes C++ globals.
   void EmitCXXGlobalInitFunc();
-
+  
   // FIXME: Hardcoding priority here is gross.
   void AddGlobalCtor(llvm::Function *Ctor, int Priority=65535);
   void AddGlobalDtor(llvm::Function *Dtor, int Priority=65535);

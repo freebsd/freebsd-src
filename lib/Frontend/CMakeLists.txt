@@ -6,17 +6,21 @@ add_clang_library(clangFrontend
   AnalysisConsumer.cpp
   Backend.cpp
   CacheTokens.cpp
+  CompilerInstance.cpp
+  CompilerInvocation.cpp
   DeclXML.cpp
   DependencyFile.cpp
   DiagChecker.cpp
   DocumentXML.cpp
   FixItRewriter.cpp
+  FrontendAction.cpp
+  FrontendActions.cpp
+  FrontendOptions.cpp
   GeneratePCH.cpp
   HTMLDiagnostics.cpp
   HTMLPrint.cpp
   InitHeaderSearch.cpp
   InitPreprocessor.cpp
-  ManagerRegistry.cpp
   PCHReader.cpp
   PCHReaderDecl.cpp
   PCHReaderStmt.cpp
@@ -34,6 +38,7 @@ add_clang_library(clangFrontend
   TextDiagnosticBuffer.cpp
   TextDiagnosticPrinter.cpp
   TypeXML.cpp
+  VerifyDiagnosticsClient.cpp
   Warnings.cpp
   )
 

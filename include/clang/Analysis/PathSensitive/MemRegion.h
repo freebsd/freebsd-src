@@ -77,6 +77,8 @@ public:
 
   const MemRegion *getBaseRegion() const;
 
+  const MemRegion *StripCasts() const;
+
   bool hasStackStorage() const;
 
   bool hasParametersStorage() const;
