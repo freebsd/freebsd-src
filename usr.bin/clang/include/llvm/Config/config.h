@@ -10,8 +10,23 @@
    */
 /* #undef CRAY_STACKSEG_END */
 
+/* 32 bit multilib directory. */
+#define CXX_INCLUDE_32BIT_DIR ""
+
+/* 64 bit multilib directory. */
+#define CXX_INCLUDE_64BIT_DIR ""
+
+/* Arch the libstdc++ headers. */
+#define CXX_INCLUDE_ARCH ""
+
+/* Directory with the libstdc++ headers. */
+#define CXX_INCLUDE_ROOT ""
+
 /* Define to 1 if using `alloca.c'. */
 /* #undef C_ALLOCA */
+
+/* Directories clang will search for headers */
+#define C_INCLUDE_DIRS ""
 
 /* Define if CBE is enabled for printf %a output */
 #define ENABLE_CBE_PRINTF_A 1

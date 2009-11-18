@@ -5,7 +5,7 @@ LIB=	llvmarmcodegen
 SRCDIR=	lib/Target/ARM
 SRCS=	ARMBaseInstrInfo.cpp ARMBaseRegisterInfo.cpp \
 	ARMCodeEmitter.cpp ARMConstantIslandPass.cpp \
-	ARMConstantPoolValue.cpp ARMISelDAGToDAG.cpp \
+	ARMConstantPoolValue.cpp ARMExpandPseudoInsts.cpp ARMISelDAGToDAG.cpp \
 	ARMISelLowering.cpp ARMInstrInfo.cpp ARMJITInfo.cpp \
 	ARMLoadStoreOptimizer.cpp ARMLoadStoreOptimizer.cpp ARMMCAsmInfo.cpp \
 	ARMRegisterInfo.cpp ARMSubtarget.cpp ARMTargetMachine.cpp \

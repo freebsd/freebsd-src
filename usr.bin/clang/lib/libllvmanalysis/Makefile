@@ -8,7 +8,8 @@ SRCS=	AliasAnalysis.cpp AliasAnalysisCounter.cpp \
 	AliasSetTracker.cpp Analysis.cpp BasicAliasAnalysis.cpp \
 	CFGPrinter.cpp CaptureTracking.cpp ConstantFolding.cpp \
 	DbgInfoPrinter.cpp DebugInfo.cpp IVUsers.cpp InlineCost.cpp \
-	InstCount.cpp Interval.cpp IntervalPartition.cpp \
+	InstructionSimplify.cpp \
+	InstCount.cpp Interval.cpp IntervalPartition.cpp LazyValueInfo.cpp \
 	LibCallAliasAnalysis.cpp LibCallSemantics.cpp LiveValues.cpp \
 	LoopDependenceAnalysis.cpp LoopInfo.cpp LoopPass.cpp \
 	MemoryBuiltins.cpp MemoryDependenceAnalysis.cpp PointerTracking.cpp \

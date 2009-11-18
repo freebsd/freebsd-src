@@ -4,7 +4,8 @@ PROG_CXX=clang-cc
 BINDIR=	/usr/libexec
 
 SRCDIR=	tools/clang/tools/clang-cc
-SRCS=	clang-cc.cpp
+SRCS=	clang-cc.cpp Options.cpp
+LDFLAGS+=	-pthread
 MAN=
 
 TGHDRS=	DiagnosticCommonKinds DiagnosticFrontendKinds \
