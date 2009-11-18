@@ -16,7 +16,6 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/GlobalAlias.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -95,8 +94,7 @@ void GlobalValue::copyAttributesFrom(const GlobalValue *Src) {
 // GlobalVariable Implementation
 //===----------------------------------------------------------------------===//
 
-GlobalVariable::GlobalVariable(LLVMContext &Context, const Type *Ty,
-                               bool constant, LinkageTypes Link,
+GlobalVariable::GlobalVariable(const Type *Ty, bool constant, LinkageTypes Link,
                                Constant *InitVal, const Twine &Name,
                                bool ThreadLocal, unsigned AddressSpace)
   : GlobalValue(PointerType::get(Ty, AddressSpace), 
@@ -171,6 +169,21 @@ void GlobalVariable::replaceUsesOfWithOnConstant(Value *From, Value *To,
 
   // Okay, preconditions out of the way, replace the constant initializer.
   this->setOperand(0, cast<Constant>(To));
+}
+
+void GlobalVariable::setInitializer(Constant *InitVal) {
+  if (InitVal == 0) {
+    if (hasInitializer()) {
+      Op<0>().set(0);
+      NumOperands = 0;
+    }
+  } else {
+    assert(InitVal->getType() == getType()->getElementType() &&
+           "Initializer type must match GlobalVariable type");
+    if (!hasInitializer())
+      NumOperands = 1;
+    Op<0>().set(InitVal);
+  }
 }
 
 /// copyAttributesFrom - copy all additional attributes (those not needed to

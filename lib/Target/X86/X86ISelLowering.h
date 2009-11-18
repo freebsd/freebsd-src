@@ -286,7 +286,7 @@ namespace llvm {
     /// isMOVHPMask - Return true if the specified VECTOR_SHUFFLE operand
     /// specifies a shuffle of elements that is suitable for MOVHP{S|D}.
     /// as well as MOVLHPS.
-    bool isMOVHPMask(ShuffleVectorSDNode *N);
+    bool isMOVLHPSMask(ShuffleVectorSDNode *N);
 
     /// isUNPCKLMask - Return true if the specified VECTOR_SHUFFLE operand
     /// specifies a shuffle of elements that is suitable for input to UNPCKL.
@@ -698,6 +698,12 @@ namespace llvm {
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
                   DebugLoc dl, SelectionDAG &DAG);
+
+    virtual bool
+      CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
+                     const SmallVectorImpl<EVT> &OutTys,
+                     const SmallVectorImpl<ISD::ArgFlagsTy> &ArgsFlags,
+                     SelectionDAG &DAG);
 
     void ReplaceATOMIC_BINARY_64(SDNode *N, SmallVectorImpl<SDValue> &Results,
                                  SelectionDAG &DAG, unsigned NewOp);

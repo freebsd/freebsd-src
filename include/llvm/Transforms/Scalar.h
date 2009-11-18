@@ -171,14 +171,6 @@ FunctionPass *createReassociatePass();
 
 //===----------------------------------------------------------------------===//
 //
-// CondPropagationPass - This pass propagates information about conditional
-// expressions through the program, allowing it to eliminate conditional
-// branches in some cases.
-//
-FunctionPass *createCondPropagationPass();
-
-//===----------------------------------------------------------------------===//
-//
 // TailDuplication - Eliminate unconditional branches through controlled code
 // duplication, creating simpler CFG structures.
 //
@@ -271,7 +263,7 @@ extern const PassInfo *const LCSSAID;
 // GVN - This pass performs global value numbering and redundant load 
 // elimination cotemporaneously.
 //
-FunctionPass *createGVNPass(bool NoPRE = false);
+FunctionPass *createGVNPass(bool NoPRE = false, bool NoLoads = false);
 
 //===----------------------------------------------------------------------===//
 //

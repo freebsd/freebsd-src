@@ -22,8 +22,7 @@
 #include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
-static const MCAsmInfo *createMCAsmInfo(const Target &T,
-                                                const StringRef &TT) {
+static const MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
   Triple TheTriple(TT);
   switch (TheTriple.getOS()) {
   case Triple::Darwin:
@@ -186,14 +185,8 @@ bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
   }
   
   // 64-bit JIT places everything in the same buffer except external functions.
-  // On Darwin, use small code model but hack the call instruction for 
-  // externals.  Elsewhere, do not assume globals are in the lower 4G.
-  if (Subtarget.is64Bit()) {
-    if (Subtarget.isTargetDarwin())
-      setCodeModel(CodeModel::Small);
-    else
+  if (Subtarget.is64Bit())
       setCodeModel(CodeModel::Large);
-  }
 
   PM.add(createX86CodeEmitterPass(*this, MCE));
 
@@ -212,14 +205,8 @@ bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
   }
   
   // 64-bit JIT places everything in the same buffer except external functions.
-  // On Darwin, use small code model but hack the call instruction for 
-  // externals.  Elsewhere, do not assume globals are in the lower 4G.
-  if (Subtarget.is64Bit()) {
-    if (Subtarget.isTargetDarwin())
-      setCodeModel(CodeModel::Small);
-    else
+  if (Subtarget.is64Bit())
       setCodeModel(CodeModel::Large);
-  }
 
   PM.add(createX86JITCodeEmitterPass(*this, JCE));
 

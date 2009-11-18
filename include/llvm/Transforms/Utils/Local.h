@@ -78,6 +78,21 @@ void RecursivelyDeleteDeadPHINode(PHINode *PN);
 //  Control Flow Graph Restructuring.
 //
 
+/// RemovePredecessorAndSimplify - Like BasicBlock::removePredecessor, this
+/// method is called when we're about to delete Pred as a predecessor of BB.  If
+/// BB contains any PHI nodes, this drops the entries in the PHI nodes for Pred.
+///
+/// Unlike the removePredecessor method, this attempts to simplify uses of PHI
+/// nodes that collapse into identity values.  For example, if we have:
+///   x = phi(1, 0, 0, 0)
+///   y = and x, z
+///
+/// .. and delete the predecessor corresponding to the '1', this will attempt to
+/// recursively fold the 'and' to 0.
+void RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred,
+                                  TargetData *TD = 0);
+    
+  
 /// MergeBasicBlockIntoOnlyPred - BB is a block with one predecessor and its
 /// predecessor is known to have one successor (BB!).  Eliminate the edge
 /// between them, moving the instructions in the predecessor into BB.  This
@@ -85,7 +100,14 @@ void RecursivelyDeleteDeadPHINode(PHINode *PN);
 ///
 void MergeBasicBlockIntoOnlyPred(BasicBlock *BB, Pass *P = 0);
     
-  
+
+/// TryToSimplifyUncondBranchFromEmptyBlock - BB is known to contain an
+/// unconditional branch, and contains no instructions other than PHI nodes,
+/// potential debug intrinsics and the branch.  If possible, eliminate BB by
+/// rewriting all the predecessors to branch to the successor block and return
+/// true.  If we can't transform, return false.
+bool TryToSimplifyUncondBranchFromEmptyBlock(BasicBlock *BB);
+    
 /// SimplifyCFG - This function is used to do simplification of a CFG.  For
 /// example, it adjusts branches to branches to eliminate the extra hop, it
 /// eliminates unreachable basic blocks, and does other "peephole" optimization

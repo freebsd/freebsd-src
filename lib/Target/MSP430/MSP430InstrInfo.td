@@ -127,7 +127,7 @@ def NOP : Pseudo<(outs), (ins), "nop", []>;
 //
 
 // FIXME: Provide proper encoding!
-let isReturn = 1, isTerminator = 1 in {
+let isReturn = 1, isTerminator = 1, isBarrier = 1 in {
   def RET : Pseudo<(outs), (ins), "ret", [(MSP430retflag)]>;
 }
 
@@ -142,7 +142,7 @@ let isBarrier = 1 in
 // Conditional branches
 let Uses = [SRW] in
   def JCC : Pseudo<(outs), (ins brtarget:$dst, cc:$cc),
-                            "j$cc $dst",
+                            "j$cc\t$dst",
                             [(MSP430brcc bb:$dst, imm:$cc)]>;
 } // isBranch, isTerminator
 
@@ -215,6 +215,13 @@ def MOVZX16rm8 : Pseudo<(outs GR16:$dst), (ins memsrc:$src),
                 "mov.b\t{$src, $dst}",
                 [(set GR16:$dst, (zextloadi16i8 addr:$src))]>;
 
+let mayLoad = 1, hasExtraDefRegAllocReq = 1, Constraints = "$base = $base_wb" in {
+def MOV8rm_POST : Pseudo<(outs GR8:$dst, GR16:$base_wb), (ins GR16:$base),
+                          "mov.b\t{@$base+, $dst}", []>;
+def MOV16rm_POST : Pseudo<(outs GR16:$dst, GR16:$base_wb), (ins GR16:$base),
+                          "mov.w\t{@$base+, $dst}", []>;
+}
+
 // Any instruction that defines a 8-bit result leaves the high half of the
 // register. Truncate can be lowered to EXTRACT_SUBREG, and CopyFromReg may
 // be copying from a truncate, but any other 8-bit operation will zero-extend
@@ -279,6 +286,15 @@ def ADD16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
                      "add.w\t{$src2, $dst}",
                      [(set GR16:$dst, (add GR16:$src1, (load addr:$src2))),
                       (implicit SRW)]>;
+
+let mayLoad = 1, hasExtraDefRegAllocReq = 1, 
+Constraints = "$base = $base_wb, $src1 = $dst" in {
+def ADD8rm_POST : Pseudo<(outs GR8:$dst, GR16:$base_wb), (ins GR8:$src1, GR16:$base),
+                          "add.b\t{@$base+, $dst}", []>;
+def ADD16rm_POST : Pseudo<(outs GR16:$dst, GR16:$base_wb), (ins GR16:$src1, GR16:$base),
+                          "add.w\t{@$base+, $dst}", []>;
+}
+
 
 def ADD8ri  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, i8imm:$src2),
                      "add.b\t{$src2, $dst}",
@@ -409,6 +425,14 @@ def AND16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
                      [(set GR16:$dst, (and GR16:$src1, (load addr:$src2))),
                       (implicit SRW)]>;
 
+let mayLoad = 1, hasExtraDefRegAllocReq = 1, 
+Constraints = "$base = $base_wb, $src1 = $dst" in {
+def AND8rm_POST : Pseudo<(outs GR8:$dst, GR16:$base_wb), (ins GR8:$src1, GR16:$base),
+                          "and.b\t{@$base+, $dst}", []>;
+def AND16rm_POST : Pseudo<(outs GR16:$dst, GR16:$base_wb), (ins GR16:$src1, GR16:$base),
+                          "and.w\t{@$base+, $dst}", []>;
+}
+
 let isTwoAddress = 0 in {
 def AND8mr  : Pseudo<(outs), (ins memdst:$dst, GR8:$src),
                 "and.b\t{$src, $dst}",
@@ -438,6 +462,92 @@ def AND16mm : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
                  (implicit SRW)]>;
 }
 
+let isCommutable = 1 in { // X = OR Y, Z  == X = OR Z, Y
+def OR8rr  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, GR8:$src2),
+                    "bis.b\t{$src2, $dst}",
+                    [(set GR8:$dst, (or GR8:$src1, GR8:$src2))]>;
+def OR16rr : Pseudo<(outs GR16:$dst), (ins GR16:$src1, GR16:$src2),
+                    "bis.w\t{$src2, $dst}",
+                    [(set GR16:$dst, (or GR16:$src1, GR16:$src2))]>;
+}
+
+def OR8ri  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, i8imm:$src2),
+                    "bis.b\t{$src2, $dst}",
+                    [(set GR8:$dst, (or GR8:$src1, imm:$src2))]>;
+def OR16ri : Pseudo<(outs GR16:$dst), (ins GR16:$src1, i16imm:$src2),
+                    "bis.w\t{$src2, $dst}",
+                    [(set GR16:$dst, (or GR16:$src1, imm:$src2))]>;
+
+def OR8rm  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, memsrc:$src2),
+                    "bis.b\t{$src2, $dst}",
+                    [(set GR8:$dst, (or GR8:$src1, (load addr:$src2)))]>;
+def OR16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
+                    "bis.w\t{$src2, $dst}",
+                    [(set GR16:$dst, (or GR16:$src1, (load addr:$src2)))]>;
+
+let mayLoad = 1, hasExtraDefRegAllocReq = 1, 
+Constraints = "$base = $base_wb, $src1 = $dst" in {
+def OR8rm_POST : Pseudo<(outs GR8:$dst, GR16:$base_wb), (ins GR8:$src1, GR16:$base),
+                        "bis.b\t{@$base+, $dst}", []>;
+def OR16rm_POST : Pseudo<(outs GR16:$dst, GR16:$base_wb), (ins GR16:$src1, GR16:$base),
+                         "bis.w\t{@$base+, $dst}", []>;
+}
+
+let isTwoAddress = 0 in {
+def OR8mr  : Pseudo<(outs), (ins memdst:$dst, GR8:$src),
+                "bis.b\t{$src, $dst}",
+                [(store (or (load addr:$dst), GR8:$src), addr:$dst)]>;
+def OR16mr : Pseudo<(outs), (ins memdst:$dst, GR16:$src),
+                "bis.w\t{$src, $dst}",
+                [(store (or (load addr:$dst), GR16:$src), addr:$dst)]>;
+
+def OR8mi  : Pseudo<(outs), (ins memdst:$dst, i8imm:$src),
+                "bis.b\t{$src, $dst}",
+                [(store (or (load addr:$dst), (i8 imm:$src)), addr:$dst)]>;
+def OR16mi : Pseudo<(outs), (ins memdst:$dst, i16imm:$src),
+                "bis.w\t{$src, $dst}",
+                [(store (or (load addr:$dst), (i16 imm:$src)), addr:$dst)]>;
+
+def OR8mm  : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
+                "bis.b\t{$src, $dst}",
+                [(store (or (i8 (load addr:$dst)),
+                            (i8 (load addr:$src))), addr:$dst)]>;
+def OR16mm : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
+                "bis.w\t{$src, $dst}",
+                 [(store (or (i16 (load addr:$dst)),
+                             (i16 (load addr:$src))), addr:$dst)]>;
+}
+
+// bic does not modify condition codes
+def BIC8rr :  Pseudo<(outs GR8:$dst), (ins GR8:$src1, GR8:$src2),
+                "bic.b\t{$src2, $dst}",
+                [(set GR8:$dst, (and GR8:$src1, (not GR8:$src2)))]>;
+def BIC16rr : Pseudo<(outs GR16:$dst), (ins GR16:$src1, GR16:$src2),
+                "bic.w\t{$src2, $dst}",
+                [(set GR16:$dst, (and GR16:$src1, (not GR16:$src2)))]>;
+
+def BIC8rm :  Pseudo<(outs GR8:$dst), (ins GR8:$src1, memsrc:$src2),
+                "bic.b\t{$src2, $dst}",
+                [(set GR8:$dst, (and GR8:$src1, (not (i8 (load addr:$src2)))))]>;
+def BIC16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
+                "bic.w\t{$src2, $dst}",
+                [(set GR16:$dst, (and GR16:$src1, (not (i16 (load addr:$src2)))))]>;
+
+let isTwoAddress = 0 in {
+def BIC8mr :  Pseudo<(outs), (ins memdst:$dst, GR8:$src),
+                "bic.b\t{$src, $dst}",
+                [(store (and (load addr:$dst), (not GR8:$src)), addr:$dst)]>;
+def BIC16mr : Pseudo<(outs), (ins memdst:$dst, GR16:$src),
+                "bic.w\t{$src, $dst}",
+                [(store (and (load addr:$dst), (not GR16:$src)), addr:$dst)]>;
+
+def BIC8mm :  Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
+                "bic.b\t{$src, $dst}",
+                [(store (and (load addr:$dst), (not (i8 (load addr:$src)))), addr:$dst)]>;
+def BIC16mm : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
+                "bic.w\t{$src, $dst}",
+                [(store (and (load addr:$dst), (not (i16 (load addr:$src)))), addr:$dst)]>;
+}
 
 let isCommutable = 1 in { // X = XOR Y, Z  == X = XOR Z, Y
 def XOR8rr  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, GR8:$src2),
@@ -467,6 +577,14 @@ def XOR16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
                      "xor.w\t{$src2, $dst}",
                      [(set GR16:$dst, (xor GR16:$src1, (load addr:$src2))),
                       (implicit SRW)]>;
+
+let mayLoad = 1, hasExtraDefRegAllocReq = 1, 
+Constraints = "$base = $base_wb, $src1 = $dst" in {
+def XOR8rm_POST : Pseudo<(outs GR8:$dst, GR16:$base_wb), (ins GR8:$src1, GR16:$base),
+                          "xor.b\t{@$base+, $dst}", []>;
+def XOR16rm_POST : Pseudo<(outs GR16:$dst, GR16:$base_wb), (ins GR16:$src1, GR16:$base),
+                          "xor.w\t{@$base+, $dst}", []>;
+}
 
 let isTwoAddress = 0 in {
 def XOR8mr  : Pseudo<(outs), (ins memdst:$dst, GR8:$src),
@@ -524,6 +642,14 @@ def SUB16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
                      "sub.w\t{$src2, $dst}",
                      [(set GR16:$dst, (sub GR16:$src1, (load addr:$src2))),
                       (implicit SRW)]>;
+
+let mayLoad = 1, hasExtraDefRegAllocReq = 1, 
+Constraints = "$base = $base_wb, $src1 = $dst" in {
+def SUB8rm_POST : Pseudo<(outs GR8:$dst, GR16:$base_wb), (ins GR8:$src1, GR16:$base),
+                          "sub.b\t{@$base+, $dst}", []>;
+def SUB16rm_POST : Pseudo<(outs GR16:$dst, GR16:$base_wb), (ins GR16:$src1, GR16:$base),
+                          "sub.w\t{@$base+, $dst}", []>;
+}
 
 let isTwoAddress = 0 in {
 def SUB8mr  : Pseudo<(outs), (ins memdst:$dst, GR8:$src),
@@ -650,57 +776,13 @@ def SEXT16r : Pseudo<(outs GR16:$dst), (ins GR16:$src),
 
 } // Defs = [SRW]
 
+def ZEXT16r : Pseudo<(outs GR16:$dst), (ins GR16:$src),
+                     "mov.b\t{$src, $dst}",
+                     [(set GR16:$dst, (zext (trunc GR16:$src)))]>;
+
 def SWPB16r : Pseudo<(outs GR16:$dst), (ins GR16:$src),
                      "swpb\t$dst",
                      [(set GR16:$dst, (bswap GR16:$src))]>;
-
-let isCommutable = 1 in { // X = OR Y, Z  == X = OR Z, Y
-def OR8rr  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, GR8:$src2),
-                    "bis.b\t{$src2, $dst}",
-                    [(set GR8:$dst, (or GR8:$src1, GR8:$src2))]>;
-def OR16rr : Pseudo<(outs GR16:$dst), (ins GR16:$src1, GR16:$src2),
-                    "bis.w\t{$src2, $dst}",
-                    [(set GR16:$dst, (or GR16:$src1, GR16:$src2))]>;
-}
-
-def OR8ri  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, i8imm:$src2),
-                    "bis.b\t{$src2, $dst}",
-                    [(set GR8:$dst, (or GR8:$src1, imm:$src2))]>;
-def OR16ri : Pseudo<(outs GR16:$dst), (ins GR16:$src1, i16imm:$src2),
-                    "bis.w\t{$src2, $dst}",
-                    [(set GR16:$dst, (or GR16:$src1, imm:$src2))]>;
-
-def OR8rm  : Pseudo<(outs GR8:$dst), (ins GR8:$src1, memsrc:$src2),
-                    "bis.b\t{$src2, $dst}",
-                    [(set GR8:$dst, (or GR8:$src1, (load addr:$src2)))]>;
-def OR16rm : Pseudo<(outs GR16:$dst), (ins GR16:$src1, memsrc:$src2),
-                    "bis.w\t{$src2, $dst}",
-                    [(set GR16:$dst, (or GR16:$src1, (load addr:$src2)))]>;
-
-let isTwoAddress = 0 in {
-def OR8mr  : Pseudo<(outs), (ins memdst:$dst, GR8:$src),
-                "bis.b\t{$src, $dst}",
-                [(store (or (load addr:$dst), GR8:$src), addr:$dst)]>;
-def OR16mr : Pseudo<(outs), (ins memdst:$dst, GR16:$src),
-                "bis.w\t{$src, $dst}",
-                [(store (or (load addr:$dst), GR16:$src), addr:$dst)]>;
-
-def OR8mi  : Pseudo<(outs), (ins memdst:$dst, i8imm:$src),
-                "bis.b\t{$src, $dst}",
-                [(store (or (load addr:$dst), (i8 imm:$src)), addr:$dst)]>;
-def OR16mi : Pseudo<(outs), (ins memdst:$dst, i16imm:$src),
-                "bis.w\t{$src, $dst}",
-                [(store (or (load addr:$dst), (i16 imm:$src)), addr:$dst)]>;
-
-def OR8mm  : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
-                "bis.b\t{$src, $dst}",
-                [(store (or (i8 (load addr:$dst)),
-                            (i8 (load addr:$src))), addr:$dst)]>;
-def OR16mm : Pseudo<(outs), (ins memdst:$dst, memsrc:$src),
-                "bis.w\t{$src, $dst}",
-                 [(store (or (i16 (load addr:$dst)),
-                             (i16 (load addr:$src))), addr:$dst)]>;
-}
 
 } // isTwoAddress = 1
 
@@ -851,3 +933,6 @@ def : Pat<(store (subc (load addr:$dst), GR8:$src), addr:$dst),
           (SUB8mr addr:$dst, GR8:$src)>;
 def : Pat<(store (subc (load addr:$dst), (i8 (load addr:$src))), addr:$dst),
           (SUB8mm addr:$dst, addr:$src)>;
+
+// peephole patterns
+def : Pat<(and GR16:$src, 255), (ZEXT16r GR16:$src)>;

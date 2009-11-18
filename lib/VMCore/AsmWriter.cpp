@@ -1238,7 +1238,8 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
     return;
   }
 
-  if (V->getValueID() == Value::PseudoSourceValueVal) {
+  if (V->getValueID() == Value::PseudoSourceValueVal ||
+      V->getValueID() == Value::FixedStackPseudoSourceValueVal) {
     V->print(Out);
     return;
   }
@@ -1497,8 +1498,8 @@ static void PrintLinkage(GlobalValue::LinkageTypes LT,
   case GlobalValue::AvailableExternallyLinkage:
     Out << "available_externally ";
     break;
-  case GlobalValue::GhostLinkage:
-    llvm_unreachable("GhostLinkage not allowed in AsmWriter!");
+    // This is invalid syntax and just a debugging aid.
+  case GlobalValue::GhostLinkage:	  Out << "ghost ";	    break;
   }
 }
 

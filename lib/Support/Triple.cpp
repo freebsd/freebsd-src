@@ -94,6 +94,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
   case MinGW64: return "mingw64";
   case NetBSD: return "netbsd";
   case OpenBSD: return "openbsd";
+  case Psp: return "psp";
   case Solaris: return "solaris";
   case Win32: return "win32";
   case Haiku: return "haiku";
@@ -102,7 +103,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
   return "<invalid>";
 }
 
-Triple::ArchType Triple::getArchTypeForLLVMName(const StringRef &Name) {
+Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
   if (Name == "alpha")
     return alpha;
   if (Name == "arm")
@@ -141,7 +142,7 @@ Triple::ArchType Triple::getArchTypeForLLVMName(const StringRef &Name) {
   return UnknownArch;
 }
 
-Triple::ArchType Triple::getArchTypeForDarwinArchName(const StringRef &Str) {
+Triple::ArchType Triple::getArchTypeForDarwinArchName(StringRef Str) {
   // See arch(3) and llvm-gcc's driver-driver.c. We don't implement support for
   // archs which Darwin doesn't use.
 
@@ -176,6 +177,33 @@ Triple::ArchType Triple::getArchTypeForDarwinArchName(const StringRef &Str) {
     return Triple::arm;
 
   return Triple::UnknownArch;
+}
+
+// Returns architecture name that is unsderstood by the target assembler.
+const char *Triple::getArchNameForAssembler() {
+  if (getOS() != Triple::Darwin && getVendor() != Triple::Apple)
+    return NULL;
+
+  StringRef Str = getArchName();
+  if (Str == "i386")
+    return "i386";
+  if (Str == "x86_64")
+    return "x86_64";
+  if (Str == "powerpc")
+    return "ppc";
+  if (Str == "powerpc64")
+    return "ppc64";
+  if (Str == "arm")
+    return "arm";
+  if (Str == "armv4t" || Str == "thumbv4t")
+    return "armv4t";
+  if (Str == "armv5" || Str == "armv5e" || Str == "thumbv5" || Str == "thumbv5e")
+    return "armv5";
+  if (Str == "armv6" || Str == "thumbv6")
+    return "armv6";
+  if (Str == "armv7" || Str == "thumbv7")
+    return "armv7";
+  return NULL;
 }
 
 //
@@ -273,6 +301,8 @@ void Triple::Parse() const {
     OS = NetBSD;
   else if (OSName.startswith("openbsd"))
     OS = OpenBSD;
+  else if (OSName.startswith("psp"))
+    OS = Psp;
   else if (OSName.startswith("solaris"))
     OS = Solaris;
   else if (OSName.startswith("win32"))
@@ -393,7 +423,7 @@ void Triple::setOS(OSType Kind) {
   setOSName(getOSTypeName(Kind));
 }
 
-void Triple::setArchName(const StringRef &Str) {
+void Triple::setArchName(StringRef Str) {
   // Work around a miscompilation bug for Twines in gcc 4.0.3.
   SmallString<64> Triple;
   Triple += Str;
@@ -404,11 +434,11 @@ void Triple::setArchName(const StringRef &Str) {
   setTriple(Triple.str());
 }
 
-void Triple::setVendorName(const StringRef &Str) {
+void Triple::setVendorName(StringRef Str) {
   setTriple(getArchName() + "-" + Str + "-" + getOSAndEnvironmentName());
 }
 
-void Triple::setOSName(const StringRef &Str) {
+void Triple::setOSName(StringRef Str) {
   if (hasEnvironment())
     setTriple(getArchName() + "-" + getVendorName() + "-" + Str +
               "-" + getEnvironmentName());
@@ -416,11 +446,11 @@ void Triple::setOSName(const StringRef &Str) {
     setTriple(getArchName() + "-" + getVendorName() + "-" + Str);
 }
 
-void Triple::setEnvironmentName(const StringRef &Str) {
-  setTriple(getArchName() + "-" + getVendorName() + "-" + getOSName() + 
+void Triple::setEnvironmentName(StringRef Str) {
+  setTriple(getArchName() + "-" + getVendorName() + "-" + getOSName() +
             "-" + Str);
 }
 
-void Triple::setOSAndEnvironmentName(const StringRef &Str) {
+void Triple::setOSAndEnvironmentName(StringRef Str) {
   setTriple(getArchName() + "-" + getVendorName() + "-" + Str);
 }

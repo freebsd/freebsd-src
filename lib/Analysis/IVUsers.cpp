@@ -151,6 +151,8 @@ static bool IVUseShouldUsePostIncValue(Instruction *User, Instruction *IV,
   if (L->contains(User->getParent())) return false;
 
   BasicBlock *LatchBlock = L->getLoopLatch();
+  if (!LatchBlock)
+    return false;
 
   // Ok, the user is outside of the loop.  If it is dominated by the latch
   // block, use the post-inc value.
@@ -263,6 +265,18 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     }
   }
   return true;
+}
+
+void IVUsers::AddUser(const SCEV *Stride, const SCEV *Offset,
+                      Instruction *User, Value *Operand) {
+  IVUsersOfOneStride *StrideUses = IVUsesByStride[Stride];
+  if (!StrideUses) {    // First occurrence of this stride?
+    StrideOrder.push_back(Stride);
+    StrideUses = new IVUsersOfOneStride(Stride);
+    IVUses.push_back(StrideUses);
+    IVUsesByStride[Stride] = StrideUses;
+  }
+  IVUsesByStride[Stride]->addUser(Offset, User, Operand);
 }
 
 IVUsers::IVUsers()

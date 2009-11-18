@@ -20,6 +20,8 @@ namespace llvm {
 
 class SDep;
 class SUnit;
+class TargetRegisterClass;
+template <typename T> class SmallVectorImpl;
 
 //===----------------------------------------------------------------------===//
 ///
@@ -36,6 +38,7 @@ public:
   // AntiDepBreakMode - Type of anti-dependence breaking that should
   // be performed before post-RA scheduling.
   typedef enum { ANTIDEP_NONE, ANTIDEP_CRITICAL, ANTIDEP_ALL } AntiDepBreakMode;
+  typedef SmallVectorImpl<TargetRegisterClass*> RegClassVector;
 
   virtual ~TargetSubtarget();
 
@@ -47,13 +50,12 @@ public:
 
   // enablePostRAScheduler - If the target can benefit from post-regalloc
   // scheduling and the specified optimization level meets the requirement
-  // return true to enable post-register-allocation scheduling. 
+  // return true to enable post-register-allocation scheduling. In
+  // CriticalPathRCs return any register classes that should only be broken
+  // if on the critical path. 
   virtual bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
-                                     AntiDepBreakMode& mode) const {
-    mode = ANTIDEP_NONE;
-    return false;
-  }
-
+                                     AntiDepBreakMode& Mode,
+                                     RegClassVector& CriticalPathRCs) const;
   // adjustSchedDependency - Perform target specific adjustments to
   // the latency of a schedule dependency.
   virtual void adjustSchedDependency(SUnit *def, SUnit *use, 

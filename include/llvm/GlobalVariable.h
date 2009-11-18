@@ -28,7 +28,6 @@ namespace llvm {
 
 class Module;
 class Constant;
-class LLVMContext;
 template<typename ValueSubClass, typename ItemParentClass>
   class SymbolTableListTraits;
 
@@ -50,8 +49,7 @@ public:
   }
   /// GlobalVariable ctor - If a parent module is specified, the global is
   /// automatically inserted into the end of the specified modules global list.
-  GlobalVariable(LLVMContext &Context, const Type *Ty, bool isConstant,
-                 LinkageTypes Linkage,
+  GlobalVariable(const Type *Ty, bool isConstant, LinkageTypes Linkage,
                  Constant *Initializer = 0, const Twine &Name = "",
                  bool ThreadLocal = false, unsigned AddressSpace = 0);
   /// GlobalVariable ctor - This creates a global and inserts it before the
@@ -101,18 +99,10 @@ public:
     assert(hasInitializer() && "GV doesn't have initializer!");
     return static_cast<Constant*>(Op<0>().get());
   }
-  inline void setInitializer(Constant *CPV) {
-    if (CPV == 0) {
-      if (hasInitializer()) {
-        Op<0>().set(0);
-        NumOperands = 0;
-      }
-    } else {
-      if (!hasInitializer())
-        NumOperands = 1;
-      Op<0>().set(CPV);
-    }
-  }
+  /// setInitializer - Sets the initializer for this global variable, removing
+  /// any existing initializer if InitVal==NULL.  If this GV has type T*, the
+  /// initializer must have type T.
+  void setInitializer(Constant *InitVal);
 
   /// If the value is a global constant, its value is immutable throughout the
   /// runtime execution of the program.  Assigning a value into the constant

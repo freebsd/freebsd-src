@@ -23,7 +23,6 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetData.h"
@@ -99,7 +98,7 @@ static bool isNonEscapingLocalObject(const Value *V) {
 /// isObjectSmallerThan - Return true if we can prove that the object specified
 /// by V is smaller than Size.
 static bool isObjectSmallerThan(const Value *V, unsigned Size,
-                                LLVMContext &Context, const TargetData &TD) {
+                                const TargetData &TD) {
   const Type *AccessTy;
   if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(V)) {
     AccessTy = GV->getType()->getElementType();
@@ -109,7 +108,7 @@ static bool isObjectSmallerThan(const Value *V, unsigned Size,
     else
       return false;
   } else if (const CallInst* CI = extractMallocCall(V)) {
-    if (!isArrayMalloc(V, Context, &TD))
+    if (!isArrayMalloc(V, &TD))
       // The size is the argument to the malloc call.
       if (const ConstantInt* C = dyn_cast<ConstantInt>(CI->getOperand(1)))
         return (C->getZExtValue() < Size);
@@ -647,11 +646,25 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
   const Value *O1 = V1->getUnderlyingObject();
   const Value *O2 = V2->getUnderlyingObject();
 
+  // Null values in the default address space don't point to any object, so they
+  // don't alias any other pointer.
+  if (const ConstantPointerNull *CPN = dyn_cast<ConstantPointerNull>(O1))
+    if (CPN->getType()->getAddressSpace() == 0)
+      return NoAlias;
+  if (const ConstantPointerNull *CPN = dyn_cast<ConstantPointerNull>(O2))
+    if (CPN->getType()->getAddressSpace() == 0)
+      return NoAlias;
+
   if (O1 != O2) {
     // If V1/V2 point to two different objects we know that we have no alias.
     if (isIdentifiedObject(O1) && isIdentifiedObject(O2))
       return NoAlias;
-  
+
+    // Constant pointers can't alias with non-const isIdentifiedObject objects.
+    if ((isa<Constant>(O1) && isIdentifiedObject(O2) && !isa<Constant>(O2)) ||
+        (isa<Constant>(O2) && isIdentifiedObject(O1) && !isa<Constant>(O1)))
+      return NoAlias;
+
     // Arguments can't alias with local allocations or noalias calls.
     if ((isa<Argument>(O1) && (isa<AllocaInst>(O2) || isNoAliasCall(O2))) ||
         (isa<Argument>(O2) && (isa<AllocaInst>(O1) || isNoAliasCall(O1))))
@@ -665,10 +678,9 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
   
   // If the size of one access is larger than the entire object on the other
   // side, then we know such behavior is undefined and can assume no alias.
-  LLVMContext &Context = V1->getContext();
   if (TD)
-    if ((V1Size != ~0U && isObjectSmallerThan(O2, V1Size, Context, *TD)) ||
-        (V2Size != ~0U && isObjectSmallerThan(O1, V2Size, Context, *TD)))
+    if ((V1Size != ~0U && isObjectSmallerThan(O2, V1Size, *TD)) ||
+        (V2Size != ~0U && isObjectSmallerThan(O1, V2Size, *TD)))
       return NoAlias;
   
   // If one pointer is the result of a call/invoke and the other is a
@@ -707,16 +719,16 @@ BasicAliasAnalysis::aliasCheck(const Value *V1, unsigned V1Size,
 
 // This function is used to determine if the indices of two GEP instructions are
 // equal. V1 and V2 are the indices.
-static bool IndexOperandsEqual(Value *V1, Value *V2, LLVMContext &Context) {
+static bool IndexOperandsEqual(Value *V1, Value *V2) {
   if (V1->getType() == V2->getType())
     return V1 == V2;
   if (Constant *C1 = dyn_cast<Constant>(V1))
     if (Constant *C2 = dyn_cast<Constant>(V2)) {
       // Sign extend the constants to long types, if necessary
-      if (C1->getType() != Type::getInt64Ty(Context))
-        C1 = ConstantExpr::getSExt(C1, Type::getInt64Ty(Context));
-      if (C2->getType() != Type::getInt64Ty(Context)) 
-        C2 = ConstantExpr::getSExt(C2, Type::getInt64Ty(Context));
+      if (C1->getType() != Type::getInt64Ty(C1->getContext()))
+        C1 = ConstantExpr::getSExt(C1, Type::getInt64Ty(C1->getContext()));
+      if (C2->getType() != Type::getInt64Ty(C1->getContext())) 
+        C2 = ConstantExpr::getSExt(C2, Type::getInt64Ty(C1->getContext()));
       return C1 == C2;
     }
   return false;
@@ -737,8 +749,6 @@ BasicAliasAnalysis::CheckGEPInstructions(
 
   const PointerType *GEPPointerTy = cast<PointerType>(BasePtr1Ty);
 
-  LLVMContext &Context = GEPPointerTy->getContext();
-
   // Find the (possibly empty) initial sequence of equal values... which are not
   // necessarily constants.
   unsigned NumGEP1Operands = NumGEP1Ops, NumGEP2Operands = NumGEP2Ops;
@@ -746,8 +756,7 @@ BasicAliasAnalysis::CheckGEPInstructions(
   unsigned MaxOperands = std::max(NumGEP1Operands, NumGEP2Operands);
   unsigned UnequalOper = 0;
   while (UnequalOper != MinOperands &&
-         IndexOperandsEqual(GEP1Ops[UnequalOper], GEP2Ops[UnequalOper],
-         Context)) {
+         IndexOperandsEqual(GEP1Ops[UnequalOper], GEP2Ops[UnequalOper])) {
     // Advance through the type as we go...
     ++UnequalOper;
     if (const CompositeType *CT = dyn_cast<CompositeType>(BasePtr1Ty))
@@ -811,10 +820,11 @@ BasicAliasAnalysis::CheckGEPInstructions(
         if (Constant *G2OC = dyn_cast<ConstantInt>(const_cast<Value*>(G2Oper))){
           if (G1OC->getType() != G2OC->getType()) {
             // Sign extend both operands to long.
-            if (G1OC->getType() != Type::getInt64Ty(Context))
-              G1OC = ConstantExpr::getSExt(G1OC, Type::getInt64Ty(Context));
-            if (G2OC->getType() != Type::getInt64Ty(Context)) 
-              G2OC = ConstantExpr::getSExt(G2OC, Type::getInt64Ty(Context));
+            const Type *Int64Ty = Type::getInt64Ty(G1OC->getContext());
+            if (G1OC->getType() != Int64Ty)
+              G1OC = ConstantExpr::getSExt(G1OC, Int64Ty);
+            if (G2OC->getType() != Int64Ty) 
+              G2OC = ConstantExpr::getSExt(G2OC, Int64Ty);
             GEP1Ops[FirstConstantOper] = G1OC;
             GEP2Ops[FirstConstantOper] = G2OC;
           }
@@ -950,7 +960,7 @@ BasicAliasAnalysis::CheckGEPInstructions(
   for (unsigned i = 0; i != FirstConstantOper; ++i) {
     if (!isa<StructType>(ZeroIdxTy))
       GEP1Ops[i] = GEP2Ops[i] = 
-                              Constant::getNullValue(Type::getInt32Ty(Context));
+              Constant::getNullValue(Type::getInt32Ty(ZeroIdxTy->getContext()));
 
     if (const CompositeType *CT = dyn_cast<CompositeType>(ZeroIdxTy))
       ZeroIdxTy = CT->getTypeAtIndex(GEP1Ops[i]);
@@ -992,11 +1002,11 @@ BasicAliasAnalysis::CheckGEPInstructions(
           //
           if (const ArrayType *AT = dyn_cast<ArrayType>(BasePtr1Ty))
             GEP1Ops[i] =
-                  ConstantInt::get(Type::getInt64Ty(Context), 
+                  ConstantInt::get(Type::getInt64Ty(AT->getContext()), 
                                    AT->getNumElements()-1);
           else if (const VectorType *VT = dyn_cast<VectorType>(BasePtr1Ty))
             GEP1Ops[i] = 
-                  ConstantInt::get(Type::getInt64Ty(Context),
+                  ConstantInt::get(Type::getInt64Ty(VT->getContext()),
                                    VT->getNumElements()-1);
         }
       }

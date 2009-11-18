@@ -90,6 +90,14 @@ public:
   MachineFunction *MF;
   MachineRegisterInfo *RegInfo;
 
+  /// CanLowerReturn - true iff the function's return value can be lowered to
+  /// registers.
+  bool CanLowerReturn;
+
+  /// DemoteRegister - if CanLowerReturn is false, DemoteRegister is a vreg
+  /// allocated to hold a pointer to the hidden sret parameter.
+  unsigned DemoteRegister;
+
   explicit FunctionLoweringInfo(TargetLowering &TLI);
 
   /// set - Initialize this FunctionLoweringInfo with the given Function
@@ -193,9 +201,9 @@ class SelectionDAGLowering {
     Case() : Low(0), High(0), BB(0) { }
     Case(Constant* low, Constant* high, MachineBasicBlock* bb) :
       Low(low), High(high), BB(bb) { }
-    uint64_t size() const {
-      uint64_t rHigh = cast<ConstantInt>(High)->getSExtValue();
-      uint64_t rLow  = cast<ConstantInt>(Low)->getSExtValue();
+    APInt size() const {
+      const APInt &rHigh = cast<ConstantInt>(High)->getValue();
+      const APInt &rLow  = cast<ConstantInt>(Low)->getValue();
       return (rHigh - rLow + 1ULL);
     }
   };

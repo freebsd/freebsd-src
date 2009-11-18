@@ -43,6 +43,7 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
@@ -324,82 +325,12 @@ bool FastISel::SelectCall(User *I) {
   unsigned IID = F->getIntrinsicID();
   switch (IID) {
   default: break;
-  case Intrinsic::dbg_stoppoint: {
-    DbgStopPointInst *SPI = cast<DbgStopPointInst>(I);
-    if (isValidDebugInfoIntrinsic(*SPI, CodeGenOpt::None))
-      setCurDebugLoc(ExtractDebugLocation(*SPI, MF.getDebugLocInfo()));
+  case Intrinsic::dbg_stoppoint: 
+  case Intrinsic::dbg_region_start: 
+  case Intrinsic::dbg_region_end: 
+  case Intrinsic::dbg_func_start:
+    // FIXME - Remove this instructions once the dust settles.
     return true;
-  }
-  case Intrinsic::dbg_region_start: {
-    DbgRegionStartInst *RSI = cast<DbgRegionStartInst>(I);
-    if (isValidDebugInfoIntrinsic(*RSI, CodeGenOpt::None) && DW
-        && DW->ShouldEmitDwarfDebug()) {
-      unsigned ID = 
-        DW->RecordRegionStart(RSI->getContext());
-      const TargetInstrDesc &II = TII.get(TargetInstrInfo::DBG_LABEL);
-      BuildMI(MBB, DL, II).addImm(ID);
-    }
-    return true;
-  }
-  case Intrinsic::dbg_region_end: {
-    DbgRegionEndInst *REI = cast<DbgRegionEndInst>(I);
-    if (isValidDebugInfoIntrinsic(*REI, CodeGenOpt::None) && DW
-        && DW->ShouldEmitDwarfDebug()) {
-     unsigned ID = 0;
-     DISubprogram Subprogram(REI->getContext());
-     if (isInlinedFnEnd(*REI, MF.getFunction())) {
-        // This is end of an inlined function.
-        const TargetInstrDesc &II = TII.get(TargetInstrInfo::DBG_LABEL);
-        ID = DW->RecordInlinedFnEnd(Subprogram);
-        if (ID)
-          // Returned ID is 0 if this is unbalanced "end of inlined
-          // scope". This could happen if optimizer eats dbg intrinsics
-          // or "beginning of inlined scope" is not recoginized due to
-          // missing location info. In such cases, ignore this region.end.
-          BuildMI(MBB, DL, II).addImm(ID);
-      } else {
-        const TargetInstrDesc &II = TII.get(TargetInstrInfo::DBG_LABEL);
-        ID =  DW->RecordRegionEnd(REI->getContext());
-        BuildMI(MBB, DL, II).addImm(ID);
-      }
-    }
-    return true;
-  }
-  case Intrinsic::dbg_func_start: {
-    DbgFuncStartInst *FSI = cast<DbgFuncStartInst>(I);
-    if (!isValidDebugInfoIntrinsic(*FSI, CodeGenOpt::None) || !DW
-        || !DW->ShouldEmitDwarfDebug()) 
-      return true;
-
-    if (isInlinedFnStart(*FSI, MF.getFunction())) {
-      // This is a beginning of an inlined function.
-      
-      // If llvm.dbg.func.start is seen in a new block before any
-      // llvm.dbg.stoppoint intrinsic then the location info is unknown.
-      // FIXME : Why DebugLoc is reset at the beginning of each block ?
-      DebugLoc PrevLoc = DL;
-      if (PrevLoc.isUnknown())
-        return true;
-      // Record the source line.
-      setCurDebugLoc(ExtractDebugLocation(*FSI, MF.getDebugLocInfo()));
-      
-      DebugLocTuple PrevLocTpl = MF.getDebugLocTuple(PrevLoc);
-      DISubprogram SP(FSI->getSubprogram());
-      unsigned LabelID = 
-        DW->RecordInlinedFnStart(SP,DICompileUnit(PrevLocTpl.Scope),
-                                 PrevLocTpl.Line, PrevLocTpl.Col);
-      const TargetInstrDesc &II = TII.get(TargetInstrInfo::DBG_LABEL);
-      BuildMI(MBB, DL, II).addImm(LabelID);
-      return true;
-    }
-    
-    // This is a beginning of a new function.
-    MF.setDefaultDebugLoc(ExtractDebugLocation(*FSI, MF.getDebugLocInfo()));
-    
-    // llvm.dbg.func_start also defines beginning of function scope.
-    DW->RecordRegionStart(FSI->getSubprogram());
-    return true;
-  }
   case Intrinsic::dbg_declare: {
     DbgDeclareInst *DI = cast<DbgDeclareInst>(I);
     if (!isValidDebugInfoIntrinsic(*DI, CodeGenOpt::None) || !DW
@@ -416,11 +347,13 @@ bool FastISel::SelectCall(User *I) {
       StaticAllocaMap.find(AI);
     if (SI == StaticAllocaMap.end()) break; // VLAs.
     int FI = SI->second;
-    if (MMI)
-      MMI->setVariableDbgInfo(DI->getVariable(), FI);
-#ifndef ATTACH_DEBUG_INFO_TO_AN_INSN
-    DW->RecordVariable(DI->getVariable(), FI);
-#endif
+    if (MMI) {
+      MetadataContext &TheMetadata = 
+        DI->getParent()->getContext().getMetadata();
+      unsigned MDDbgKind = TheMetadata.getMDKind("dbg");
+      MDNode *Dbg = TheMetadata.getMD(MDDbgKind, DI);
+      MMI->setVariableDbgInfo(DI->getVariable(), FI, Dbg);
+    }
     return true;
   }
   case Intrinsic::eh_exception: {

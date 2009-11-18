@@ -23,6 +23,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
+#include "llvm/Target/TargetSubtarget.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/SmallSet.h"
@@ -85,8 +86,11 @@ namespace llvm {
     unsigned GetGroup(unsigned Reg);
     
     // GetGroupRegs - Return a vector of the registers belonging to a
-    // group.
-    void GetGroupRegs(unsigned Group, std::vector<unsigned> &Regs);
+    // group. If RegRefs is non-NULL then only included referenced registers.
+    void GetGroupRegs(
+       unsigned Group,
+       std::vector<unsigned> &Regs,
+       std::multimap<unsigned, AggressiveAntiDepState::RegisterReference> *RegRefs);
 
     // UnionGroups - Union Reg1's and Reg2's groups to form a new
     // group. Return the index of the GroupNode representing the
@@ -114,6 +118,10 @@ namespace llvm {
     /// because they may not be safe to break.
     const BitVector AllocatableSet;
 
+    /// CriticalPathSet - The set of registers that should only be
+    /// renamed if they are on the critical path.
+    BitVector CriticalPathSet;
+
     /// State - The state used to identify and rename anti-dependence
     /// registers.
     AggressiveAntiDepState *State;
@@ -124,7 +132,8 @@ namespace llvm {
     AggressiveAntiDepState *SavedState;
 
   public:
-    AggressiveAntiDepBreaker(MachineFunction& MFi);
+    AggressiveAntiDepBreaker(MachineFunction& MFi, 
+                             TargetSubtarget::RegClassVector& CriticalPathRCs);
     ~AggressiveAntiDepBreaker();
     
     /// GetMaxTrials - As anti-dependencies are broken, additional

@@ -103,11 +103,13 @@ FunctionPass *createARMObjectCodeEmitterPass(ARMBaseTargetMachine &TM,
                                              ObjectCodeEmitter &OCE);
 
 FunctionPass *createARMLoadStoreOptimizationPass(bool PreAlloc = false);
+FunctionPass *createARMExpandPseudoPass();
 FunctionPass *createARMConstantIslandPass();
 FunctionPass *createNEONPreAllocPass();
 FunctionPass *createNEONMoveFixPass();
 FunctionPass *createThumb2ITBlockPass();
 FunctionPass *createThumb2SizeReductionPass();
+FunctionPass *createARMMaxStackAlignmentCalculatorPass();
 
 extern Target TheARMTarget, TheThumbTarget;
 

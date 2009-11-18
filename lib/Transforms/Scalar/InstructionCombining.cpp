@@ -42,6 +42,7 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Operator.h"
 #include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Target/TargetData.h"
@@ -283,6 +284,8 @@ namespace {
     Instruction *visitSelectInstWithICmp(SelectInst &SI, ICmpInst *ICI);
     Instruction *visitCallInst(CallInst &CI);
     Instruction *visitInvokeInst(InvokeInst &II);
+
+    Instruction *SliceUpIllegalIntegerPHI(PHINode &PN);
     Instruction *visitPHINode(PHINode &PN);
     Instruction *visitGetElementPtrInst(GetElementPtrInst &GEP);
     Instruction *visitAllocaInst(AllocaInst &AI);
@@ -380,10 +383,6 @@ namespace {
     /// commutative operators.
     bool SimplifyCommutative(BinaryOperator &I);
 
-    /// SimplifyCompare - This reorders the operands of a CmpInst to get them in
-    /// most-complex to least-complex order.
-    bool SimplifyCompare(CmpInst &I);
-
     /// SimplifyDemandedUseBits - Attempts to replace V with a simpler value
     /// based on the demanded bits.
     Value *SimplifyDemandedUseBits(Value *V, APInt DemandedMask, 
@@ -476,6 +475,34 @@ static const Type *getPromotedType(const Type *Ty) {
       return Type::getInt32Ty(Ty->getContext());
   }
   return Ty;
+}
+
+/// ShouldChangeType - Return true if it is desirable to convert a computation
+/// from 'From' to 'To'.  We don't want to convert from a legal to an illegal
+/// type for example, or from a smaller to a larger illegal type.
+static bool ShouldChangeType(const Type *From, const Type *To,
+                             const TargetData *TD) {
+  assert(isa<IntegerType>(From) && isa<IntegerType>(To));
+  
+  // If we don't have TD, we don't know if the source/dest are legal.
+  if (!TD) return false;
+  
+  unsigned FromWidth = From->getPrimitiveSizeInBits();
+  unsigned ToWidth = To->getPrimitiveSizeInBits();
+  bool FromLegal = TD->isLegalInteger(FromWidth);
+  bool ToLegal = TD->isLegalInteger(ToWidth);
+  
+  // If this is a legal integer from type, and the result would be an illegal
+  // type, don't do the transformation.
+  if (FromLegal && !ToLegal)
+    return false;
+  
+  // Otherwise, if both are illegal, do not increase the size of the result. We
+  // do allow things like i160 -> i64, but not i64 -> i160.
+  if (!FromLegal && !ToLegal && ToWidth > FromWidth)
+    return false;
+  
+  return true;
 }
 
 /// getBitCastOperand - If the specified operand is a CastInst, a constant
@@ -582,17 +609,6 @@ bool InstCombiner::SimplifyCommutative(BinaryOperator &I) {
         }
     }
   return Changed;
-}
-
-/// SimplifyCompare - For a CmpInst this function just orders the operands
-/// so that theyare listed from right (least complex) to left (most complex).
-/// This puts constants before unary operators before binary operators.
-bool InstCombiner::SimplifyCompare(CmpInst &I) {
-  if (getComplexity(I.getOperand(0)) >= getComplexity(I.getOperand(1)))
-    return false;
-  I.swapOperands();
-  // Compare instructions are not associative so there's nothing else we can do.
-  return true;
 }
 
 // dyn_castNegVal - Given a 'sub' instruction, return the RHS of the instruction
@@ -4304,25 +4320,15 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
   bool Changed = SimplifyCommutative(I);
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
-  if (isa<UndefValue>(Op1))                         // X & undef -> 0
-    return ReplaceInstUsesWith(I, Constant::getNullValue(I.getType()));
-
-  // and X, X = X
-  if (Op0 == Op1)
-    return ReplaceInstUsesWith(I, Op1);
+  if (Value *V = SimplifyAndInst(Op0, Op1, TD))
+    return ReplaceInstUsesWith(I, V);
+    
 
   // See if we can simplify any instructions used by the instruction whose sole 
   // purpose is to compute bits we don't care about.
   if (SimplifyDemandedInstructionBits(I))
     return &I;
-  if (isa<VectorType>(I.getType())) {
-    if (ConstantVector *CP = dyn_cast<ConstantVector>(Op1)) {
-      if (CP->isAllOnesValue())            // X & <-1,-1> -> X
-        return ReplaceInstUsesWith(I, I.getOperand(0));
-    } else if (isa<ConstantAggregateZero>(Op1)) {
-      return ReplaceInstUsesWith(I, Op1);  // X & <0,0> -> <0,0>
-    }
-  }
+  
 
   if (ConstantInt *AndRHS = dyn_cast<ConstantInt>(Op1)) {
     const APInt &AndRHSMask = AndRHS->getValue();
@@ -4443,42 +4449,29 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
         return NV;
   }
 
-  Value *Op0NotVal = dyn_castNotVal(Op0);
-  Value *Op1NotVal = dyn_castNotVal(Op1);
-
-  if (Op0NotVal == Op1 || Op1NotVal == Op0)  // A & ~A  == ~A & A == 0
-    return ReplaceInstUsesWith(I, Constant::getNullValue(I.getType()));
 
   // (~A & ~B) == (~(A | B)) - De Morgan's Law
-  if (Op0NotVal && Op1NotVal && isOnlyUse(Op0) && isOnlyUse(Op1)) {
-    Value *Or = Builder->CreateOr(Op0NotVal, Op1NotVal,
-                                  I.getName()+".demorgan");
-    return BinaryOperator::CreateNot(Or);
-  }
-  
+  if (Value *Op0NotVal = dyn_castNotVal(Op0))
+    if (Value *Op1NotVal = dyn_castNotVal(Op1))
+      if (Op0->hasOneUse() && Op1->hasOneUse()) {
+        Value *Or = Builder->CreateOr(Op0NotVal, Op1NotVal,
+                                      I.getName()+".demorgan");
+        return BinaryOperator::CreateNot(Or);
+      }
+
   {
     Value *A = 0, *B = 0, *C = 0, *D = 0;
-    if (match(Op0, m_Or(m_Value(A), m_Value(B)))) {
-      if (A == Op1 || B == Op1)    // (A | ?) & A  --> A
-        return ReplaceInstUsesWith(I, Op1);
+    // (A|B) & ~(A&B) -> A^B
+    if (match(Op0, m_Or(m_Value(A), m_Value(B))) &&
+        match(Op1, m_Not(m_And(m_Value(C), m_Value(D)))) &&
+        ((A == C && B == D) || (A == D && B == C)))
+      return BinaryOperator::CreateXor(A, B);
     
-      // (A|B) & ~(A&B) -> A^B
-      if (match(Op1, m_Not(m_And(m_Value(C), m_Value(D))))) {
-        if ((A == C && B == D) || (A == D && B == C))
-          return BinaryOperator::CreateXor(A, B);
-      }
-    }
-    
-    if (match(Op1, m_Or(m_Value(A), m_Value(B)))) {
-      if (A == Op0 || B == Op0)    // A & (A | ?)  --> A
-        return ReplaceInstUsesWith(I, Op0);
-
-      // ~(A&B) & (A|B) -> A^B
-      if (match(Op0, m_Not(m_And(m_Value(C), m_Value(D))))) {
-        if ((A == C && B == D) || (A == D && B == C))
-          return BinaryOperator::CreateXor(A, B);
-      }
-    }
+    // ~(A&B) & (A|B) -> A^B
+    if (match(Op1, m_Or(m_Value(A), m_Value(B))) &&
+        match(Op0, m_Not(m_And(m_Value(C), m_Value(D)))) &&
+        ((A == C && B == D) || (A == D && B == C)))
+      return BinaryOperator::CreateXor(A, B);
     
     if (Op0->hasOneUse() &&
         match(Op0, m_Xor(m_Value(A), m_Value(B)))) {
@@ -5010,27 +5003,15 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
   bool Changed = SimplifyCommutative(I);
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
-  if (isa<UndefValue>(Op1))                       // X | undef -> -1
-    return ReplaceInstUsesWith(I, Constant::getAllOnesValue(I.getType()));
-
-  // or X, X = X
-  if (Op0 == Op1)
-    return ReplaceInstUsesWith(I, Op0);
-
+  if (Value *V = SimplifyOrInst(Op0, Op1, TD))
+    return ReplaceInstUsesWith(I, V);
+  
+  
   // See if we can simplify any instructions used by the instruction whose sole 
   // purpose is to compute bits we don't care about.
   if (SimplifyDemandedInstructionBits(I))
     return &I;
-  if (isa<VectorType>(I.getType())) {
-    if (isa<ConstantAggregateZero>(Op1)) {
-      return ReplaceInstUsesWith(I, Op0);  // X | <0,0> -> X
-    } else if (ConstantVector *CP = dyn_cast<ConstantVector>(Op1)) {
-      if (CP->isAllOnesValue())            // X | <-1,-1> -> <-1,-1>
-        return ReplaceInstUsesWith(I, I.getOperand(1));
-    }
-  }
 
-  // or X, -1 == -1
   if (ConstantInt *RHS = dyn_cast<ConstantInt>(Op1)) {
     ConstantInt *C1 = 0; Value *X = 0;
     // (X & C1) | C2 --> (X | C2) & (C1|C2)
@@ -5062,13 +5043,6 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
 
   Value *A = 0, *B = 0;
   ConstantInt *C1 = 0, *C2 = 0;
-
-  if (match(Op0, m_And(m_Value(A), m_Value(B))))
-    if (A == Op1 || B == Op1)    // (A & ?) | A  --> A
-      return ReplaceInstUsesWith(I, Op1);
-  if (match(Op1, m_And(m_Value(A), m_Value(B))))
-    if (A == Op0 || B == Op0)    // A | (A & ?)  --> A
-      return ReplaceInstUsesWith(I, Op0);
 
   // (A | B) | C  and  A | (B | C)                  -> bswap if possible.
   // (A >> B) | (C << D)  and  (A << B) | (B >> C)  -> bswap if possible.
@@ -5203,23 +5177,14 @@ Instruction *InstCombiner::visitOr(BinaryOperator &I) {
     if (Ret) return Ret;
   }
 
-  if ((A = dyn_castNotVal(Op0))) {   // ~A | Op1
-    if (A == Op1)   // ~A | A == -1
-      return ReplaceInstUsesWith(I, Constant::getAllOnesValue(I.getType()));
-  } else {
-    A = 0;
-  }
-  // Note, A is still live here!
-  if ((B = dyn_castNotVal(Op1))) {   // Op0 | ~B
-    if (Op0 == B)
-      return ReplaceInstUsesWith(I, Constant::getAllOnesValue(I.getType()));
-
-    // (~A | ~B) == (~(A & B)) - De Morgan's Law
-    if (A && isOnlyUse(Op0) && isOnlyUse(Op1)) {
-      Value *And = Builder->CreateAnd(A, B, I.getName()+".demorgan");
-      return BinaryOperator::CreateNot(And);
-    }
-  }
+  // (~A | ~B) == (~(A & B)) - De Morgan's Law
+  if (Value *Op0NotVal = dyn_castNotVal(Op0))
+    if (Value *Op1NotVal = dyn_castNotVal(Op1))
+      if (Op0->hasOneUse() && Op1->hasOneUse()) {
+        Value *And = Builder->CreateAnd(Op0NotVal, Op1NotVal,
+                                        I.getName()+".demorgan");
+        return BinaryOperator::CreateNot(And);
+      }
 
   // (icmp1 A, B) | (icmp2 A, B) --> (icmp3 A, B)
   if (ICmpInst *RHS = dyn_cast<ICmpInst>(I.getOperand(1))) {
@@ -5942,28 +5907,25 @@ Instruction *InstCombiner::FoldFCmp_IntToFP_Cst(FCmpInst &I,
 }
 
 Instruction *InstCombiner::visitFCmpInst(FCmpInst &I) {
-  bool Changed = SimplifyCompare(I);
-  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-
-  // Fold trivial predicates.
-  if (I.getPredicate() == FCmpInst::FCMP_FALSE)
-    return ReplaceInstUsesWith(I, ConstantInt::get(I.getType(), 0));
-  if (I.getPredicate() == FCmpInst::FCMP_TRUE)
-    return ReplaceInstUsesWith(I, ConstantInt::get(I.getType(), 1));
+  bool Changed = false;
   
+  /// Orders the operands of the compare so that they are listed from most
+  /// complex to least complex.  This puts constants before unary operators,
+  /// before binary operators.
+  if (getComplexity(I.getOperand(0)) < getComplexity(I.getOperand(1))) {
+    I.swapOperands();
+    Changed = true;
+  }
+
+  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+  
+  if (Value *V = SimplifyFCmpInst(I.getPredicate(), Op0, Op1, TD))
+    return ReplaceInstUsesWith(I, V);
+
   // Simplify 'fcmp pred X, X'
   if (Op0 == Op1) {
     switch (I.getPredicate()) {
     default: llvm_unreachable("Unknown predicate!");
-    case FCmpInst::FCMP_UEQ:    // True if unordered or equal
-    case FCmpInst::FCMP_UGE:    // True if unordered, greater than, or equal
-    case FCmpInst::FCMP_ULE:    // True if unordered, less than, or equal
-      return ReplaceInstUsesWith(I, ConstantInt::get(I.getType(), 1));
-    case FCmpInst::FCMP_OGT:    // True if ordered and greater than
-    case FCmpInst::FCMP_OLT:    // True if ordered and less than
-    case FCmpInst::FCMP_ONE:    // True if ordered and operands are unequal
-      return ReplaceInstUsesWith(I, ConstantInt::get(I.getType(), 0));
-      
     case FCmpInst::FCMP_UNO:    // True if unordered: isnan(X) | isnan(Y)
     case FCmpInst::FCMP_ULT:    // True if unordered or less than
     case FCmpInst::FCMP_UGT:    // True if unordered or greater than
@@ -5984,23 +5946,8 @@ Instruction *InstCombiner::visitFCmpInst(FCmpInst &I) {
     }
   }
     
-  if (isa<UndefValue>(Op1))                  // fcmp pred X, undef -> undef
-    return ReplaceInstUsesWith(I, UndefValue::get(I.getType()));
-
   // Handle fcmp with constant RHS
   if (Constant *RHSC = dyn_cast<Constant>(Op1)) {
-    // If the constant is a nan, see if we can fold the comparison based on it.
-    if (ConstantFP *CFP = dyn_cast<ConstantFP>(RHSC)) {
-      if (CFP->getValueAPF().isNaN()) {
-        if (FCmpInst::isOrdered(I.getPredicate()))   // True if ordered and...
-          return ReplaceInstUsesWith(I, ConstantInt::getFalse(*Context));
-        assert(FCmpInst::isUnordered(I.getPredicate()) &&
-               "Comparison must be either ordered or unordered!");
-        // True if unordered.
-        return ReplaceInstUsesWith(I, ConstantInt::getTrue(*Context));
-      }
-    }
-    
     if (Instruction *LHSI = dyn_cast<Instruction>(Op0))
       switch (LHSI->getOpcode()) {
       case Instruction::PHI:
@@ -6047,26 +5994,22 @@ Instruction *InstCombiner::visitFCmpInst(FCmpInst &I) {
 }
 
 Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
-  bool Changed = SimplifyCompare(I);
-  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-  const Type *Ty = Op0->getType();
-
-  // icmp X, X
-  if (Op0 == Op1)
-    return ReplaceInstUsesWith(I, ConstantInt::get(I.getType(),
-                                                   I.isTrueWhenEqual()));
-
-  if (isa<UndefValue>(Op1))                  // X icmp undef -> undef
-    return ReplaceInstUsesWith(I, UndefValue::get(I.getType()));
+  bool Changed = false;
   
-  // icmp <global/alloca*/null>, <global/alloca*/null> - Global/Stack value
-  // addresses never equal each other!  We already know that Op0 != Op1.
-  if ((isa<GlobalValue>(Op0) || isa<AllocaInst>(Op0) || 
-       isa<ConstantPointerNull>(Op0)) &&
-      (isa<GlobalValue>(Op1) || isa<AllocaInst>(Op1) || 
-       isa<ConstantPointerNull>(Op1)))
-    return ReplaceInstUsesWith(I, ConstantInt::get(Type::getInt1Ty(*Context), 
-                                                   !I.isTrueWhenEqual()));
+  /// Orders the operands of the compare so that they are listed from most
+  /// complex to least complex.  This puts constants before unary operators,
+  /// before binary operators.
+  if (getComplexity(I.getOperand(0)) < getComplexity(I.getOperand(1))) {
+    I.swapOperands();
+    Changed = true;
+  }
+  
+  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+  
+  if (Value *V = SimplifyICmpInst(I.getPredicate(), Op0, Op1, TD))
+    return ReplaceInstUsesWith(I, V);
+  
+  const Type *Ty = Op0->getType();
 
   // icmp's with boolean values can always be turned into bitwise operations
   if (Ty == Type::getInt1Ty(*Context)) {
@@ -6131,27 +6074,24 @@ Instruction *InstCombiner::visitICmpInst(ICmpInst &I) {
     
     // If we have an icmp le or icmp ge instruction, turn it into the
     // appropriate icmp lt or icmp gt instruction.  This allows us to rely on
-    // them being folded in the code below.
+    // them being folded in the code below.  The SimplifyICmpInst code has
+    // already handled the edge cases for us, so we just assert on them.
     switch (I.getPredicate()) {
     default: break;
     case ICmpInst::ICMP_ULE:
-      if (CI->isMaxValue(false))                 // A <=u MAX -> TRUE
-        return ReplaceInstUsesWith(I, ConstantInt::getTrue(*Context));
+      assert(!CI->isMaxValue(false));                 // A <=u MAX -> TRUE
       return new ICmpInst(ICmpInst::ICMP_ULT, Op0,
                           AddOne(CI));
     case ICmpInst::ICMP_SLE:
-      if (CI->isMaxValue(true))                  // A <=s MAX -> TRUE
-        return ReplaceInstUsesWith(I, ConstantInt::getTrue(*Context));
+      assert(!CI->isMaxValue(true));                  // A <=s MAX -> TRUE
       return new ICmpInst(ICmpInst::ICMP_SLT, Op0,
                           AddOne(CI));
     case ICmpInst::ICMP_UGE:
-      if (CI->isMinValue(false))                 // A >=u MIN -> TRUE
-        return ReplaceInstUsesWith(I, ConstantInt::getTrue(*Context));
+      assert(!CI->isMinValue(false));                  // A >=u MIN -> TRUE
       return new ICmpInst(ICmpInst::ICMP_UGT, Op0,
                           SubOne(CI));
     case ICmpInst::ICMP_SGE:
-      if (CI->isMinValue(true))                  // A >=s MIN -> TRUE
-        return ReplaceInstUsesWith(I, ConstantInt::getTrue(*Context));
+      assert(!CI->isMinValue(true));                   // A >=s MIN -> TRUE
       return new ICmpInst(ICmpInst::ICMP_SGT, Op0,
                           SubOne(CI));
     }
@@ -8083,8 +8023,7 @@ bool InstCombiner::CanEvaluateInDifferentType(Value *V, const Type *Ty,
 Value *InstCombiner::EvaluateInDifferentType(Value *V, const Type *Ty, 
                                              bool isSigned) {
   if (Constant *C = dyn_cast<Constant>(V))
-    return ConstantExpr::getIntegerCast(C, Ty,
-                                               isSigned /*Sext or ZExt*/);
+    return ConstantExpr::getIntegerCast(C, Ty, isSigned /*Sext or ZExt*/);
 
   // Otherwise, it must be an instruction.
   Instruction *I = cast<Instruction>(V);
@@ -8117,8 +8056,7 @@ Value *InstCombiner::EvaluateInDifferentType(Value *V, const Type *Ty,
       return I->getOperand(0);
     
     // Otherwise, must be the same type of cast, so just reinsert a new one.
-    Res = CastInst::Create(cast<CastInst>(I)->getOpcode(), I->getOperand(0),
-                           Ty);
+    Res = CastInst::Create(cast<CastInst>(I)->getOpcode(), I->getOperand(0),Ty);
     break;
   case Instruction::Select: {
     Value *True = EvaluateInDifferentType(I->getOperand(1), Ty, isSigned);
@@ -8167,9 +8105,15 @@ Instruction *InstCombiner::commonCastTransforms(CastInst &CI) {
       return NV;
 
   // If we are casting a PHI then fold the cast into the PHI
-  if (isa<PHINode>(Src))
-    if (Instruction *NV = FoldOpIntoPhi(CI))
-      return NV;
+  if (isa<PHINode>(Src)) {
+    // We don't do this if this would create a PHI node with an illegal type if
+    // it is currently legal.
+    if (!isa<IntegerType>(Src->getType()) ||
+        !isa<IntegerType>(CI.getType()) ||
+        ShouldChangeType(CI.getType(), Src->getType(), TD))
+      if (Instruction *NV = FoldOpIntoPhi(CI))
+        return NV;
+  }
   
   return 0;
 }
@@ -8289,23 +8233,6 @@ Instruction *InstCombiner::commonPointerCastTransforms(CastInst &CI) {
   return commonCastTransforms(CI);
 }
 
-/// isSafeIntegerType - Return true if this is a basic integer type, not a crazy
-/// type like i42.  We don't want to introduce operations on random non-legal
-/// integer types where they don't already exist in the code.  In the future,
-/// we should consider making this based off target-data, so that 32-bit targets
-/// won't get i64 operations etc.
-static bool isSafeIntegerType(const Type *Ty) {
-  switch (Ty->getPrimitiveSizeInBits()) {
-  case 8:
-  case 16:
-  case 32:
-  case 64:
-    return true;
-  default: 
-    return false;
-  }
-}
-
 /// commonIntCastTransforms - This function implements the common transforms
 /// for trunc, zext, and sext.
 Instruction *InstCombiner::commonIntCastTransforms(CastInst &CI) {
@@ -8334,8 +8261,8 @@ Instruction *InstCombiner::commonIntCastTransforms(CastInst &CI) {
   // Only do this if the dest type is a simple type, don't convert the
   // expression tree to something weird like i93 unless the source is also
   // strange.
-  if ((isSafeIntegerType(DestTy->getScalarType()) ||
-       !isSafeIntegerType(SrcI->getType()->getScalarType())) &&
+  if ((isa<VectorType>(DestTy) ||
+       ShouldChangeType(SrcI->getType(), DestTy, TD)) &&
       CanEvaluateInDifferentType(SrcI, DestTy,
                                  CI.getOpcode(), NumCastsRemoved)) {
     // If this cast is a truncate, evaluting in a different type always
@@ -8356,6 +8283,7 @@ Instruction *InstCombiner::commonIntCastTransforms(CastInst &CI) {
       break;
     case Instruction::ZExt: {
       DoXForm = NumCastsRemoved >= 1;
+      
       if (!DoXForm && 0) {
         // If it's unnecessary to issue an AND to clear the high bits, it's
         // always profitable to do this xform.
@@ -8522,7 +8450,7 @@ Instruction *InstCombiner::visitTrunc(TruncInst &CI) {
       return BinaryOperator::CreateLShr(V1, V2);
     }
   }
-  
+ 
   return 0;
 }
 
@@ -10880,9 +10808,10 @@ Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
 }
 
 
-// FoldPHIArgOpIntoPHI - If all operands to a PHI node are the same "unary"
-// operator and they all are only used by the PHI, PHI together their
-// inputs, and do the operation once, to the result of the PHI.
+
+/// FoldPHIArgOpIntoPHI - If all operands to a PHI node are the same "unary"
+/// operator and they all are only used by the PHI, PHI together their
+/// inputs, and do the operation once, to the result of the PHI.
 Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   Instruction *FirstInst = cast<Instruction>(PN.getIncomingValue(0));
 
@@ -10900,6 +10829,13 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   
   if (isa<CastInst>(FirstInst)) {
     CastSrcTy = FirstInst->getOperand(0)->getType();
+
+    // Be careful about transforming integer PHIs.  We don't want to pessimize
+    // the code by turning an i32 into an i1293.
+    if (isa<IntegerType>(PN.getType()) && isa<IntegerType>(CastSrcTy)) {
+      if (!ShouldChangeType(PN.getType(), CastSrcTy, TD))
+        return 0;
+    }
   } else if (isa<BinaryOperator>(FirstInst) || isa<CmpInst>(FirstInst)) {
     // Can fold binop, compare or shift here if the RHS is a constant, 
     // otherwise call FoldPHIArgBinOpIntoPHI.
@@ -11012,6 +10948,222 @@ static bool PHIsEqualValue(PHINode *PN, Value *NonPhiInVal,
 }
 
 
+namespace {
+struct PHIUsageRecord {
+  unsigned PHIId;     // The ID # of the PHI (something determinstic to sort on)
+  unsigned Shift;     // The amount shifted.
+  Instruction *Inst;  // The trunc instruction.
+  
+  PHIUsageRecord(unsigned pn, unsigned Sh, Instruction *User)
+    : PHIId(pn), Shift(Sh), Inst(User) {}
+  
+  bool operator<(const PHIUsageRecord &RHS) const {
+    if (PHIId < RHS.PHIId) return true;
+    if (PHIId > RHS.PHIId) return false;
+    if (Shift < RHS.Shift) return true;
+    if (Shift > RHS.Shift) return false;
+    return Inst->getType()->getPrimitiveSizeInBits() <
+           RHS.Inst->getType()->getPrimitiveSizeInBits();
+  }
+};
+  
+struct LoweredPHIRecord {
+  PHINode *PN;        // The PHI that was lowered.
+  unsigned Shift;     // The amount shifted.
+  unsigned Width;     // The width extracted.
+  
+  LoweredPHIRecord(PHINode *pn, unsigned Sh, const Type *Ty)
+    : PN(pn), Shift(Sh), Width(Ty->getPrimitiveSizeInBits()) {}
+  
+  // Ctor form used by DenseMap.
+  LoweredPHIRecord(PHINode *pn, unsigned Sh)
+    : PN(pn), Shift(Sh), Width(0) {}
+};
+}
+
+namespace llvm {
+  template<>
+  struct DenseMapInfo<LoweredPHIRecord> {
+    static inline LoweredPHIRecord getEmptyKey() {
+      return LoweredPHIRecord(0, 0);
+    }
+    static inline LoweredPHIRecord getTombstoneKey() {
+      return LoweredPHIRecord(0, 1);
+    }
+    static unsigned getHashValue(const LoweredPHIRecord &Val) {
+      return DenseMapInfo<PHINode*>::getHashValue(Val.PN) ^ (Val.Shift>>3) ^
+             (Val.Width>>3);
+    }
+    static bool isEqual(const LoweredPHIRecord &LHS,
+                        const LoweredPHIRecord &RHS) {
+      return LHS.PN == RHS.PN && LHS.Shift == RHS.Shift &&
+             LHS.Width == RHS.Width;
+    }
+    static bool isPod() { return true; }
+  };
+}
+
+
+/// SliceUpIllegalIntegerPHI - This is an integer PHI and we know that it has an
+/// illegal type: see if it is only used by trunc or trunc(lshr) operations.  If
+/// so, we split the PHI into the various pieces being extracted.  This sort of
+/// thing is introduced when SROA promotes an aggregate to large integer values.
+///
+/// TODO: The user of the trunc may be an bitcast to float/double/vector or an
+/// inttoptr.  We should produce new PHIs in the right type.
+///
+Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
+  // PHIUsers - Keep track of all of the truncated values extracted from a set
+  // of PHIs, along with their offset.  These are the things we want to rewrite.
+  SmallVector<PHIUsageRecord, 16> PHIUsers;
+  
+  // PHIs are often mutually cyclic, so we keep track of a whole set of PHI
+  // nodes which are extracted from. PHIsToSlice is a set we use to avoid
+  // revisiting PHIs, PHIsInspected is a ordered list of PHIs that we need to
+  // check the uses of (to ensure they are all extracts).
+  SmallVector<PHINode*, 8> PHIsToSlice;
+  SmallPtrSet<PHINode*, 8> PHIsInspected;
+  
+  PHIsToSlice.push_back(&FirstPhi);
+  PHIsInspected.insert(&FirstPhi);
+  
+  for (unsigned PHIId = 0; PHIId != PHIsToSlice.size(); ++PHIId) {
+    PHINode *PN = PHIsToSlice[PHIId];
+    
+    for (Value::use_iterator UI = PN->use_begin(), E = PN->use_end();
+         UI != E; ++UI) {
+      Instruction *User = cast<Instruction>(*UI);
+      
+      // If the user is a PHI, inspect its uses recursively.
+      if (PHINode *UserPN = dyn_cast<PHINode>(User)) {
+        if (PHIsInspected.insert(UserPN))
+          PHIsToSlice.push_back(UserPN);
+        continue;
+      }
+      
+      // Truncates are always ok.
+      if (isa<TruncInst>(User)) {
+        PHIUsers.push_back(PHIUsageRecord(PHIId, 0, User));
+        continue;
+      }
+      
+      // Otherwise it must be a lshr which can only be used by one trunc.
+      if (User->getOpcode() != Instruction::LShr ||
+          !User->hasOneUse() || !isa<TruncInst>(User->use_back()) ||
+          !isa<ConstantInt>(User->getOperand(1)))
+        return 0;
+      
+      unsigned Shift = cast<ConstantInt>(User->getOperand(1))->getZExtValue();
+      PHIUsers.push_back(PHIUsageRecord(PHIId, Shift, User->use_back()));
+    }
+  }
+  
+  // If we have no users, they must be all self uses, just nuke the PHI.
+  if (PHIUsers.empty())
+    return ReplaceInstUsesWith(FirstPhi, UndefValue::get(FirstPhi.getType()));
+  
+  // If this phi node is transformable, create new PHIs for all the pieces
+  // extracted out of it.  First, sort the users by their offset and size.
+  array_pod_sort(PHIUsers.begin(), PHIUsers.end());
+  
+  DEBUG(errs() << "SLICING UP PHI: " << FirstPhi << '\n';
+            for (unsigned i = 1, e = PHIsToSlice.size(); i != e; ++i)
+              errs() << "AND USER PHI #" << i << ": " << *PHIsToSlice[i] <<'\n';
+        );
+  
+  // PredValues - This is a temporary used when rewriting PHI nodes.  It is
+  // hoisted out here to avoid construction/destruction thrashing.
+  DenseMap<BasicBlock*, Value*> PredValues;
+  
+  // ExtractedVals - Each new PHI we introduce is saved here so we don't
+  // introduce redundant PHIs.
+  DenseMap<LoweredPHIRecord, PHINode*> ExtractedVals;
+  
+  for (unsigned UserI = 0, UserE = PHIUsers.size(); UserI != UserE; ++UserI) {
+    unsigned PHIId = PHIUsers[UserI].PHIId;
+    PHINode *PN = PHIsToSlice[PHIId];
+    unsigned Offset = PHIUsers[UserI].Shift;
+    const Type *Ty = PHIUsers[UserI].Inst->getType();
+    
+    PHINode *EltPHI;
+    
+    // If we've already lowered a user like this, reuse the previously lowered
+    // value.
+    if ((EltPHI = ExtractedVals[LoweredPHIRecord(PN, Offset, Ty)]) == 0) {
+      
+      // Otherwise, Create the new PHI node for this user.
+      EltPHI = PHINode::Create(Ty, PN->getName()+".off"+Twine(Offset), PN);
+      assert(EltPHI->getType() != PN->getType() &&
+             "Truncate didn't shrink phi?");
+    
+      for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
+        BasicBlock *Pred = PN->getIncomingBlock(i);
+        Value *&PredVal = PredValues[Pred];
+        
+        // If we already have a value for this predecessor, reuse it.
+        if (PredVal) {
+          EltPHI->addIncoming(PredVal, Pred);
+          continue;
+        }
+
+        // Handle the PHI self-reuse case.
+        Value *InVal = PN->getIncomingValue(i);
+        if (InVal == PN) {
+          PredVal = EltPHI;
+          EltPHI->addIncoming(PredVal, Pred);
+          continue;
+        } else if (PHINode *InPHI = dyn_cast<PHINode>(PN)) {
+          // If the incoming value was a PHI, and if it was one of the PHIs we
+          // already rewrote it, just use the lowered value.
+          if (Value *Res = ExtractedVals[LoweredPHIRecord(InPHI, Offset, Ty)]) {
+            PredVal = Res;
+            EltPHI->addIncoming(PredVal, Pred);
+            continue;
+          }
+        }
+        
+        // Otherwise, do an extract in the predecessor.
+        Builder->SetInsertPoint(Pred, Pred->getTerminator());
+        Value *Res = InVal;
+        if (Offset)
+          Res = Builder->CreateLShr(Res, ConstantInt::get(InVal->getType(),
+                                                          Offset), "extract");
+        Res = Builder->CreateTrunc(Res, Ty, "extract.t");
+        PredVal = Res;
+        EltPHI->addIncoming(Res, Pred);
+        
+        // If the incoming value was a PHI, and if it was one of the PHIs we are
+        // rewriting, we will ultimately delete the code we inserted.  This
+        // means we need to revisit that PHI to make sure we extract out the
+        // needed piece.
+        if (PHINode *OldInVal = dyn_cast<PHINode>(PN->getIncomingValue(i)))
+          if (PHIsInspected.count(OldInVal)) {
+            unsigned RefPHIId = std::find(PHIsToSlice.begin(),PHIsToSlice.end(),
+                                          OldInVal)-PHIsToSlice.begin();
+            PHIUsers.push_back(PHIUsageRecord(RefPHIId, Offset, 
+                                              cast<Instruction>(Res)));
+            ++UserE;
+          }
+      }
+      PredValues.clear();
+      
+      DEBUG(errs() << "  Made element PHI for offset " << Offset << ": "
+                   << *EltPHI << '\n');
+      ExtractedVals[LoweredPHIRecord(PN, Offset, Ty)] = EltPHI;
+    }
+    
+    // Replace the use of this piece with the PHI node.
+    ReplaceInstUsesWith(*PHIUsers[UserI].Inst, EltPHI);
+  }
+  
+  // Replace all the remaining uses of the PHI nodes (self uses and the lshrs)
+  // with undefs.
+  Value *Undef = UndefValue::get(FirstPhi.getType());
+  for (unsigned i = 1, e = PHIsToSlice.size(); i != e; ++i)
+    ReplaceInstUsesWith(*PHIsToSlice[i], Undef);
+  return ReplaceInstUsesWith(FirstPhi, Undef);
+}
+
 // PHINode simplification
 //
 Instruction *InstCombiner::visitPHINode(PHINode &PN) {
@@ -11117,6 +11269,15 @@ Instruction *InstCombiner::visitPHINode(PHINode &PN) {
       }
     }
 
+  // If this is an integer PHI and we know that it has an illegal type, see if
+  // it is only used by trunc or trunc(lshr) operations.  If so, we split the
+  // PHI into the various pieces being extracted.  This sort of thing is
+  // introduced when SROA promotes an aggregate to a single large integer type.
+  if (isa<IntegerType>(PN.getType()) && TD &&
+      !TD->isLegalInteger(PN.getType()->getPrimitiveSizeInBits()))
+    if (Instruction *Res = SliceUpIllegalIntegerPHI(PN))
+      return Res;
+  
   return 0;
 }
 
@@ -12210,6 +12371,47 @@ Instruction *InstCombiner::visitExtractValueInst(ExtractValueInst &EV) {
       return ExtractValueInst::Create(IV->getInsertedValueOperand(), 
                                       exti, exte);
   }
+  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(Agg)) {
+    // We're extracting from an intrinsic, see if we're the only user, which
+    // allows us to simplify multiple result intrinsics to simpler things that
+    // just get one value..
+    if (II->hasOneUse()) {
+      // Check if we're grabbing the overflow bit or the result of a 'with
+      // overflow' intrinsic.  If it's the latter we can remove the intrinsic
+      // and replace it with a traditional binary instruction.
+      switch (II->getIntrinsicID()) {
+      case Intrinsic::uadd_with_overflow:
+      case Intrinsic::sadd_with_overflow:
+        if (*EV.idx_begin() == 0) {  // Normal result.
+          Value *LHS = II->getOperand(1), *RHS = II->getOperand(2);
+          II->replaceAllUsesWith(UndefValue::get(II->getType()));
+          EraseInstFromFunction(*II);
+          return BinaryOperator::CreateAdd(LHS, RHS);
+        }
+        break;
+      case Intrinsic::usub_with_overflow:
+      case Intrinsic::ssub_with_overflow:
+        if (*EV.idx_begin() == 0) {  // Normal result.
+          Value *LHS = II->getOperand(1), *RHS = II->getOperand(2);
+          II->replaceAllUsesWith(UndefValue::get(II->getType()));
+          EraseInstFromFunction(*II);
+          return BinaryOperator::CreateSub(LHS, RHS);
+        }
+        break;
+      case Intrinsic::umul_with_overflow:
+      case Intrinsic::smul_with_overflow:
+        if (*EV.idx_begin() == 0) {  // Normal result.
+          Value *LHS = II->getOperand(1), *RHS = II->getOperand(2);
+          II->replaceAllUsesWith(UndefValue::get(II->getType()));
+          EraseInstFromFunction(*II);
+          return BinaryOperator::CreateMul(LHS, RHS);
+        }
+        break;
+      default:
+        break;
+      }
+    }
+  }
   // Can't simplify extracts from other values. Note that nested extracts are
   // already simplified implicitely by the above (extract ( extract (insert) )
   // will be translated into extract ( insert ( extract ) ) first and then just
@@ -12715,29 +12917,33 @@ Instruction *InstCombiner::visitShuffleVectorInst(ShuffleVectorInst &SVI) {
     if (isa<UndefValue>(RHS)) {
       std::vector<unsigned> LHSMask = getShuffleMask(LHSSVI);
 
-      std::vector<unsigned> NewMask;
-      for (unsigned i = 0, e = Mask.size(); i != e; ++i)
-        if (Mask[i] >= 2*e)
-          NewMask.push_back(2*e);
-        else
-          NewMask.push_back(LHSMask[Mask[i]]);
+      if (LHSMask.size() == Mask.size()) {
+        std::vector<unsigned> NewMask;
+        for (unsigned i = 0, e = Mask.size(); i != e; ++i)
+          if (Mask[i] >= 2*e)
+            NewMask.push_back(2*e);
+          else
+            NewMask.push_back(LHSMask[Mask[i]]);
       
-      // If the result mask is equal to the src shuffle or this shuffle mask, do
-      // the replacement.
-      if (NewMask == LHSMask || NewMask == Mask) {
-        unsigned LHSInNElts =
-          cast<VectorType>(LHSSVI->getOperand(0)->getType())->getNumElements();
-        std::vector<Constant*> Elts;
-        for (unsigned i = 0, e = NewMask.size(); i != e; ++i) {
-          if (NewMask[i] >= LHSInNElts*2) {
-            Elts.push_back(UndefValue::get(Type::getInt32Ty(*Context)));
-          } else {
-            Elts.push_back(ConstantInt::get(Type::getInt32Ty(*Context), NewMask[i]));
+        // If the result mask is equal to the src shuffle or this
+        // shuffle mask, do the replacement.
+        if (NewMask == LHSMask || NewMask == Mask) {
+          unsigned LHSInNElts =
+            cast<VectorType>(LHSSVI->getOperand(0)->getType())->
+            getNumElements();
+          std::vector<Constant*> Elts;
+          for (unsigned i = 0, e = NewMask.size(); i != e; ++i) {
+            if (NewMask[i] >= LHSInNElts*2) {
+              Elts.push_back(UndefValue::get(Type::getInt32Ty(*Context)));
+            } else {
+              Elts.push_back(ConstantInt::get(Type::getInt32Ty(*Context),
+                                              NewMask[i]));
+            }
           }
+          return new ShuffleVectorInst(LHSSVI->getOperand(0),
+                                       LHSSVI->getOperand(1),
+                                       ConstantVector::get(Elts));
         }
-        return new ShuffleVectorInst(LHSSVI->getOperand(0),
-                                     LHSSVI->getOperand(1),
-                                     ConstantVector::get(Elts));
       }
     }
   }
@@ -12824,7 +13030,7 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB,
       
       // ConstantProp instruction if trivially constant.
       if (!Inst->use_empty() && isa<Constant>(Inst->getOperand(0)))
-        if (Constant *C = ConstantFoldInstruction(Inst, BB->getContext(), TD)) {
+        if (Constant *C = ConstantFoldInstruction(Inst, TD)) {
           DEBUG(errs() << "IC: ConstFold to: " << *C << " from: "
                        << *Inst << '\n');
           Inst->replaceAllUsesWith(C);
@@ -12846,8 +13052,7 @@ static bool AddReachableCodeToWorklist(BasicBlock *BB,
           if (!FoldedConstants.insert(CE))
             continue;
           
-          Constant *NewC =
-            ConstantFoldConstantExpression(CE, BB->getContext(), TD);
+          Constant *NewC = ConstantFoldConstantExpression(CE, TD);
           if (NewC && NewC != CE) {
             *i = NewC;
             MadeIRChange = true;
@@ -12954,7 +13159,7 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
 
     // Instruction isn't dead, see if we can constant propagate it.
     if (!I->use_empty() && isa<Constant>(I->getOperand(0)))
-      if (Constant *C = ConstantFoldInstruction(I, F.getContext(), TD)) {
+      if (Constant *C = ConstantFoldInstruction(I, TD)) {
         DEBUG(errs() << "IC: ConstFold to: " << *C << " from: " << *I << '\n');
 
         // Add operands to the worklist.
@@ -13065,7 +13270,7 @@ bool InstCombiner::runOnFunction(Function &F) {
   /// Builder - This is an IRBuilder that automatically inserts new
   /// instructions into the worklist when they are created.
   IRBuilder<true, TargetFolder, InstCombineIRInserter> 
-    TheBuilder(F.getContext(), TargetFolder(TD, F.getContext()),
+    TheBuilder(F.getContext(), TargetFolder(TD),
                InstCombineIRInserter(Worklist));
   Builder = &TheBuilder;
   

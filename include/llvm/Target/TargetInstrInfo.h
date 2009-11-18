@@ -171,6 +171,25 @@ public:
                                        int &FrameIndex) const {
     return 0;
   }
+
+  /// isLoadFromStackSlotPostFE - Check for post-frame ptr elimination
+  /// stack locations as well.  This uses a heuristic so it isn't
+  /// reliable for correctness.
+  virtual unsigned isLoadFromStackSlotPostFE(const MachineInstr *MI,
+                                             int &FrameIndex) const {
+    return 0;
+  }
+
+  /// hasLoadFromStackSlot - If the specified machine instruction has
+  /// a load from a stack slot, return true along with the FrameIndex
+  /// of the loaded stack slot.  If not, return false.  Unlike
+  /// isLoadFromStackSlot, this returns true for any instructions that
+  /// loads from the stack.  This is just a hint, as some cases may be
+  /// missed.
+  virtual bool hasLoadFromStackSlot(const MachineInstr *MI,
+                                    int &FrameIndex) const {
+    return 0;
+  }
   
   /// isStoreToStackSlot - If the specified machine instruction is a direct
   /// store to a stack slot, return the virtual or physical register number of
@@ -182,12 +201,32 @@ public:
     return 0;
   }
 
+  /// isStoreToStackSlotPostFE - Check for post-frame ptr elimination
+  /// stack locations as well.  This uses a heuristic so it isn't
+  /// reliable for correctness.
+  virtual unsigned isStoreToStackSlotPostFE(const MachineInstr *MI,
+                                      int &FrameIndex) const {
+    return 0;
+  }
+
+  /// hasStoreToStackSlot - If the specified machine instruction has a
+  /// store to a stack slot, return true along with the FrameIndex of
+  /// the loaded stack slot.  If not, return false.  Unlike
+  /// isStoreToStackSlot, this returns true for any instructions that
+  /// loads from the stack.  This is just a hint, as some cases may be
+  /// missed.
+  virtual bool hasStoreToStackSlot(const MachineInstr *MI,
+                                   int &FrameIndex) const {
+    return 0;
+  }
+
   /// reMaterialize - Re-issue the specified 'original' instruction at the
   /// specific location targeting a new destination register.
   virtual void reMaterialize(MachineBasicBlock &MBB,
                              MachineBasicBlock::iterator MI,
                              unsigned DestReg, unsigned SubIdx,
-                             const MachineInstr *Orig) const = 0;
+                             const MachineInstr *Orig,
+                             const TargetRegisterInfo *TRI) const = 0;
 
   /// convertToThreeAddress - This method must be implemented by targets that
   /// set the M_CONVERTIBLE_TO_3_ADDR flag.  When this flag is set, the target
@@ -225,6 +264,14 @@ public:
   /// is not in a form which this routine understands.
   virtual bool findCommutedOpIndices(MachineInstr *MI, unsigned &SrcOpIdx1,
                                      unsigned &SrcOpIdx2) const = 0;
+
+  /// isIdentical - Return true if two instructions are identical. This differs
+  /// from MachineInstr::isIdenticalTo() in that it does not require the
+  /// virtual destination registers to be the same. This is used by MachineLICM
+  /// and other MI passes to perform CSE.
+  virtual bool isIdentical(const MachineInstr *MI,
+                           const MachineInstr *Other,
+                           const MachineRegisterInfo *MRI) const = 0;
 
   /// AnalyzeBranch - Analyze the branching code at the end of MBB, returning
   /// true if it cannot be understood (e.g. it's a switch dispatch or isn't
@@ -489,6 +536,13 @@ public:
   /// length.
   virtual unsigned getInlineAsmLength(const char *Str,
                                       const MCAsmInfo &MAI) const;
+
+  /// TailDuplicationLimit - Returns the limit on the number of instructions
+  /// in basic block MBB beyond which it will not be tail-duplicated.
+  virtual unsigned TailDuplicationLimit(const MachineBasicBlock &MBB,
+                                        unsigned DefaultLimit) const {
+    return DefaultLimit;
+  }
 };
 
 /// TargetInstrInfoImpl - This is the default implementation of
@@ -509,7 +563,12 @@ public:
   virtual void reMaterialize(MachineBasicBlock &MBB,
                              MachineBasicBlock::iterator MI,
                              unsigned DestReg, unsigned SubReg,
-                             const MachineInstr *Orig) const;
+                             const MachineInstr *Orig,
+                             const TargetRegisterInfo *TRI) const;
+  virtual bool isIdentical(const MachineInstr *MI,
+                           const MachineInstr *Other,
+                           const MachineRegisterInfo *MRI) const;
+
   virtual unsigned GetFunctionSizeInBytes(const MachineFunction &MF) const;
 };
 

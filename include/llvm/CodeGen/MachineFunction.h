@@ -23,7 +23,6 @@
 #include "llvm/Support/DebugLoc.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Recycler.h"
-#include <map>
 
 namespace llvm {
 
@@ -114,6 +113,9 @@ class MachineFunction {
 
   // The alignment of the function.
   unsigned Alignment;
+
+  MachineFunction(const MachineFunction &); // intentionally unimplemented
+  void operator=(const MachineFunction&);   // intentionally unimplemented
 
 public:
   MachineFunction(Function *Fn, const TargetMachine &TM);
@@ -228,6 +230,10 @@ public:
   /// dump - Print the current MachineFunction to cerr, useful for debugger use.
   ///
   void dump() const;
+
+  /// verify - Run the current MachineFunction through the machine code
+  /// verifier, useful for debugger use.
+  void verify() const;
 
   // Provide accessors for the MachineBasicBlock list...
   typedef BasicBlockListType::iterator iterator;

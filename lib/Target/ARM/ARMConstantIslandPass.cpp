@@ -31,6 +31,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/CommandLine.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -42,6 +43,13 @@ STATISTIC(NumTBs,        "Number of table branches generated");
 STATISTIC(NumT2CPShrunk, "Number of Thumb2 constantpool instructions shrunk");
 STATISTIC(NumT2BrShrunk, "Number of Thumb2 immediate branches shrunk");
 STATISTIC(NumCBZ,        "Number of CBZ / CBNZ formed");
+STATISTIC(NumJTMoved,    "Number of jump table destination blocks moved");
+STATISTIC(NumJTInserted, "Number of jump table intermediate blocks inserted");
+
+
+static cl::opt<bool>
+AdjustJumpTableBlocks("arm-adjust-jump-tables", cl::Hidden, cl::init(true),
+          cl::desc("Adjust basic block layout to better use TB[BH]"));
 
 namespace {
   /// ARMConstantIslands - Due to limited PC-relative displacements, ARM
@@ -174,6 +182,7 @@ namespace {
     void DoInitialPlacement(MachineFunction &MF,
                             std::vector<MachineInstr*> &CPEMIs);
     CPEntry *findConstPoolEntry(unsigned CPI, const MachineInstr *CPEMI);
+    void JumpTableFunctionScan(MachineFunction &MF);
     void InitialFunctionScan(MachineFunction &MF,
                              const std::vector<MachineInstr*> &CPEMIs);
     MachineBasicBlock *SplitBlockBeforeInstr(MachineInstr *MI);
@@ -201,7 +210,10 @@ namespace {
     bool UndoLRSpillRestore();
     bool OptimizeThumb2Instructions(MachineFunction &MF);
     bool OptimizeThumb2Branches(MachineFunction &MF);
+    bool ReorderThumb2JumpTables(MachineFunction &MF);
     bool OptimizeThumb2JumpTables(MachineFunction &MF);
+    MachineBasicBlock *AdjustJTTargetBlockForward(MachineBasicBlock *BB,
+                                                  MachineBasicBlock *JTBB);
 
     unsigned GetOffsetOf(MachineInstr *MI) const;
     void dumpBBs();
@@ -262,6 +274,18 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &MF) {
   // the numbers agree with the position of the block in the function.
   MF.RenumberBlocks();
 
+  // Try to reorder and otherwise adjust the block layout to make good use
+  // of the TB[BH] instructions.
+  bool MadeChange = false;
+  if (isThumb2 && AdjustJumpTableBlocks) {
+    JumpTableFunctionScan(MF);
+    MadeChange |= ReorderThumb2JumpTables(MF);
+    // Data is out of date, so clear it. It'll be re-computed later.
+    T2JumpTables.clear();
+    // Blocks may have shifted around. Keep the numbering up to date.
+    MF.RenumberBlocks();
+  }
+
   // Thumb1 functions containing constant pools get 4-byte alignment.
   // This is so we can keep exact track of where the alignment padding goes.
 
@@ -292,7 +316,6 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &MF) {
 
   // Iteratively place constant pool entries and fix up branches until there
   // is no change.
-  bool MadeChange = false;
   unsigned NoCPIters = 0, NoBRIters = 0;
   while (true) {
     bool CPChange = false;
@@ -407,6 +430,21 @@ ARMConstantIslands::CPEntry
       return &CPEs[i];
   }
   return NULL;
+}
+
+/// JumpTableFunctionScan - Do a scan of the function, building up
+/// information about the sizes of each block and the locations of all
+/// the jump tables.
+void ARMConstantIslands::JumpTableFunctionScan(MachineFunction &MF) {
+  for (MachineFunction::iterator MBBI = MF.begin(), E = MF.end();
+       MBBI != E; ++MBBI) {
+    MachineBasicBlock &MBB = *MBBI;
+
+    for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end();
+         I != E; ++I)
+      if (I->getDesc().isBranch() && I->getOpcode() == ARM::t2BR_JT)
+        T2JumpTables.push_back(I);
+  }
 }
 
 /// InitialFunctionScan - Do the initial scan of the function, building up
@@ -541,8 +579,8 @@ void ARMConstantIslands::InitialFunctionScan(MachineFunction &MF,
             Scale = 4;  // +(offset_8*4)
             break;
 
-          case ARM::FLDD:
-          case ARM::FLDS:
+          case ARM::VLDRD:
+          case ARM::VLDRS:
             Bits = 8;
             Scale = 4;  // +-(offset_8*4)
             NegOk = true;
@@ -1552,7 +1590,6 @@ bool ARMConstantIslands::OptimizeThumb2Branches(MachineFunction &MF) {
   return MadeChange;
 }
 
-
 /// OptimizeThumb2JumpTables - Use tbb / tbh instructions to generate smaller
 /// jumptables when it's possible.
 bool ARMConstantIslands::OptimizeThumb2JumpTables(MachineFunction &MF) {
@@ -1560,7 +1597,7 @@ bool ARMConstantIslands::OptimizeThumb2JumpTables(MachineFunction &MF) {
 
   // FIXME: After the tables are shrunk, can we get rid some of the
   // constantpool tables?
-  const MachineJumpTableInfo *MJTI = MF.getJumpTableInfo();
+  MachineJumpTableInfo *MJTI = MF.getJumpTableInfo();
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
     MachineInstr *MI = T2JumpTables[i];
@@ -1659,4 +1696,100 @@ bool ARMConstantIslands::OptimizeThumb2JumpTables(MachineFunction &MF) {
   }
 
   return MadeChange;
+}
+
+/// ReorderThumb2JumpTables - Adjust the function's block layout to ensure that
+/// jump tables always branch forwards, since that's what tbb and tbh need.
+bool ARMConstantIslands::ReorderThumb2JumpTables(MachineFunction &MF) {
+  bool MadeChange = false;
+
+  MachineJumpTableInfo *MJTI = MF.getJumpTableInfo();
+  const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
+  for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
+    MachineInstr *MI = T2JumpTables[i];
+    const TargetInstrDesc &TID = MI->getDesc();
+    unsigned NumOps = TID.getNumOperands();
+    unsigned JTOpIdx = NumOps - (TID.isPredicable() ? 3 : 2);
+    MachineOperand JTOP = MI->getOperand(JTOpIdx);
+    unsigned JTI = JTOP.getIndex();
+    assert(JTI < JT.size());
+
+    // We prefer if target blocks for the jump table come after the jump
+    // instruction so we can use TB[BH]. Loop through the target blocks
+    // and try to adjust them such that that's true.
+    int JTNumber = MI->getParent()->getNumber();
+    const std::vector<MachineBasicBlock*> &JTBBs = JT[JTI].MBBs;
+    for (unsigned j = 0, ee = JTBBs.size(); j != ee; ++j) {
+      MachineBasicBlock *MBB = JTBBs[j];
+      int DTNumber = MBB->getNumber();
+
+      if (DTNumber < JTNumber) {
+        // The destination precedes the switch. Try to move the block forward
+        // so we have a positive offset.
+        MachineBasicBlock *NewBB =
+          AdjustJTTargetBlockForward(MBB, MI->getParent());
+        if (NewBB)
+          MJTI->ReplaceMBBInJumpTable(JTI, JTBBs[j], NewBB);
+        MadeChange = true;
+      }
+    }
+  }
+
+  return MadeChange;
+}
+
+MachineBasicBlock *ARMConstantIslands::
+AdjustJTTargetBlockForward(MachineBasicBlock *BB, MachineBasicBlock *JTBB)
+{
+  MachineFunction &MF = *BB->getParent();
+
+  // If it's the destination block is terminated by an unconditional branch,
+  // try to move it; otherwise, create a new block following the jump
+  // table that branches back to the actual target. This is a very simple
+  // heuristic. FIXME: We can definitely improve it.
+  MachineBasicBlock *TBB = 0, *FBB = 0;
+  SmallVector<MachineOperand, 4> Cond;
+  SmallVector<MachineOperand, 4> CondPrior;
+  MachineFunction::iterator BBi = BB;
+  MachineFunction::iterator OldPrior = prior(BBi);
+
+  // If the block terminator isn't analyzable, don't try to move the block
+  bool B = TII->AnalyzeBranch(*BB, TBB, FBB, Cond);
+
+  // If the block ends in an unconditional branch, move it. The prior block
+  // has to have an analyzable terminator for us to move this one. Be paranoid
+  // and make sure we're not trying to move the entry block of the function.
+  if (!B && Cond.empty() && BB != MF.begin() &&
+      !TII->AnalyzeBranch(*OldPrior, TBB, FBB, CondPrior)) {
+    BB->moveAfter(JTBB);
+    OldPrior->updateTerminator();
+    BB->updateTerminator();
+    // Update numbering to account for the block being moved.
+    MF.RenumberBlocks();
+    ++NumJTMoved;
+    return NULL;
+  }
+
+  // Create a new MBB for the code after the jump BB.
+  MachineBasicBlock *NewBB =
+    MF.CreateMachineBasicBlock(JTBB->getBasicBlock());
+  MachineFunction::iterator MBBI = JTBB; ++MBBI;
+  MF.insert(MBBI, NewBB);
+
+  // Add an unconditional branch from NewBB to BB.
+  // There doesn't seem to be meaningful DebugInfo available; this doesn't
+  // correspond directly to anything in the source.
+  assert (isThumb2 && "Adjusting for TB[BH] but not in Thumb2?");
+  BuildMI(NewBB, DebugLoc::getUnknownLoc(), TII->get(ARM::t2B)).addMBB(BB);
+
+  // Update internal data structures to account for the newly inserted MBB.
+  MF.RenumberBlocks(NewBB);
+
+  // Update the CFG.
+  NewBB->addSuccessor(BB);
+  JTBB->removeSuccessor(BB);
+  JTBB->addSuccessor(NewBB);
+
+  ++NumJTInserted;
+  return NewBB;
 }

@@ -9,6 +9,7 @@
 
 #include "gtest/gtest.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -110,6 +111,92 @@ TEST(StringRefTest, Split) {
             Str.rsplit('o'));
 }
 
+// XFAIL for PR5482, StringRef is miscompiled by Apple gcc.
+#if (!defined(__llvm__) && defined(__APPLE__) && defined(__OPTIMIZE__))
+#define SKIP_SPLIT2
+#endif
+#ifndef SKIP_SPLIT2
+TEST(StringRefTest, Split2) {
+  SmallVector<StringRef, 5> parts;
+  SmallVector<StringRef, 5> expected;
+
+  expected.push_back("ab"); expected.push_back("c");
+  StringRef(",ab,,c,").split(parts, ",", -1, false);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back(""); expected.push_back("ab"); expected.push_back("");
+  expected.push_back("c"); expected.push_back("");
+  StringRef(",ab,,c,").split(parts, ",", -1, true);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("");
+  StringRef("").split(parts, ",", -1, true);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  StringRef("").split(parts, ",", -1, false);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  StringRef(",").split(parts, ",", -1, false);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back(""); expected.push_back("");
+  StringRef(",").split(parts, ",", -1, true);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a"); expected.push_back("b");
+  StringRef("a,b").split(parts, ",", -1, true);
+  EXPECT_TRUE(parts == expected);
+
+  // Test MaxSplit
+  expected.clear(); parts.clear();
+  expected.push_back("a,,b,c");
+  StringRef("a,,b,c").split(parts, ",", 0, true);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a,,b,c");
+  StringRef("a,,b,c").split(parts, ",", 0, false);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a"); expected.push_back(",b,c");
+  StringRef("a,,b,c").split(parts, ",", 1, true);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a"); expected.push_back(",b,c");
+  StringRef("a,,b,c").split(parts, ",", 1, false);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a"); expected.push_back(""); expected.push_back("b,c");
+  StringRef("a,,b,c").split(parts, ",", 2, true);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a"); expected.push_back("b,c");
+  StringRef("a,,b,c").split(parts, ",", 2, false);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a"); expected.push_back(""); expected.push_back("b");
+  expected.push_back("c");
+  StringRef("a,,b,c").split(parts, ",", 3, true);
+  EXPECT_TRUE(parts == expected);
+
+  expected.clear(); parts.clear();
+  expected.push_back("a"); expected.push_back("b"); expected.push_back("c");
+  StringRef("a,,b,c").split(parts, ",", 3, false);
+  EXPECT_TRUE(parts == expected);
+}
+#endif
+
 TEST(StringRefTest, StartsWith) {
   StringRef Str("hello");
   EXPECT_TRUE(Str.startswith("he"));
@@ -125,6 +212,8 @@ TEST(StringRefTest, Find) {
   EXPECT_EQ(0U, Str.find("hello"));
   EXPECT_EQ(1U, Str.find("ello"));
   EXPECT_EQ(StringRef::npos, Str.find("zz"));
+  EXPECT_EQ(2U, Str.find("ll", 2));
+  EXPECT_EQ(StringRef::npos, Str.find("ll", 3));
 
   EXPECT_EQ(3U, Str.rfind('l'));
   EXPECT_EQ(StringRef::npos, Str.rfind('z'));
@@ -132,6 +221,14 @@ TEST(StringRefTest, Find) {
   EXPECT_EQ(0U, Str.rfind("hello"));
   EXPECT_EQ(1U, Str.rfind("ello"));
   EXPECT_EQ(StringRef::npos, Str.rfind("zz"));
+
+  EXPECT_EQ(2U, Str.find_first_of('l'));
+  EXPECT_EQ(1U, Str.find_first_of("el"));
+  EXPECT_EQ(StringRef::npos, Str.find_first_of("xyz"));
+
+  EXPECT_EQ(1U, Str.find_first_not_of('h'));
+  EXPECT_EQ(4U, Str.find_first_not_of("hel"));
+  EXPECT_EQ(StringRef::npos, Str.find_first_not_of("hello"));
 }
 
 TEST(StringRefTest, Count) {

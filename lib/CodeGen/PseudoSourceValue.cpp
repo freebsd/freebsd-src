@@ -43,33 +43,12 @@ static const char *const PSVNames[] = {
 // Eventually these should be uniqued on LLVMContext rather than in a managed
 // static.  For now, we can safely use the global context for the time being to
 // squeak by.
-PseudoSourceValue::PseudoSourceValue() :
+PseudoSourceValue::PseudoSourceValue(enum ValueTy Subclass) :
   Value(Type::getInt8PtrTy(getGlobalContext()),
-        PseudoSourceValueVal) {}
+        Subclass) {}
 
 void PseudoSourceValue::printCustom(raw_ostream &O) const {
   O << PSVNames[this - *PSVs];
-}
-
-namespace {
-  /// FixedStackPseudoSourceValue - A specialized PseudoSourceValue
-  /// for holding FixedStack values, which must include a frame
-  /// index.
-  class FixedStackPseudoSourceValue : public PseudoSourceValue {
-    const int FI;
-  public:
-    explicit FixedStackPseudoSourceValue(int fi) : FI(fi) {}
-
-    virtual bool isConstant(const MachineFrameInfo *MFI) const;
-
-    virtual bool isAliased(const MachineFrameInfo *MFI) const;
-
-    virtual bool mayAlias(const MachineFrameInfo *) const;
-
-    virtual void printCustom(raw_ostream &OS) const {
-      OS << "FixedStack" << FI;
-    }
-  };
 }
 
 static ManagedStatic<std::map<int, const PseudoSourceValue *> > FSValues;
@@ -129,4 +108,8 @@ bool FixedStackPseudoSourceValue::mayAlias(const MachineFrameInfo *MFI) const {
     return true;
   // Spill slots will not alias any LLVM IR value.
   return !MFI->isSpillSlotObjectIndex(FI);
+}
+
+void FixedStackPseudoSourceValue::printCustom(raw_ostream &OS) const {
+  OS << "FixedStack" << FI;
 }

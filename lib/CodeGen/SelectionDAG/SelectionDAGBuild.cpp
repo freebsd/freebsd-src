@@ -26,6 +26,7 @@
 #include "llvm/Instructions.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/GCStrategy.h"
@@ -304,7 +305,7 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
         TySize *= CUI->getZExtValue();   // Get total allocated size.
         if (TySize == 0) TySize = 1; // Don't create zero-sized stack objects.
         StaticAllocaMap[AI] =
-          MF->getFrameInfo()->CreateStackObject(TySize, Align);
+          MF->getFrameInfo()->CreateStackObject(TySize, Align, false);
       }
 
   for (; BB != EB; ++BB)
@@ -334,25 +335,6 @@ void FunctionLoweringInfo::set(Function &fn, MachineFunction &mf,
     DebugLoc DL;
     for (BasicBlock::iterator
            I = BB->begin(), E = BB->end(); I != E; ++I) {
-      if (CallInst *CI = dyn_cast<CallInst>(I)) {
-        if (Function *F = CI->getCalledFunction()) {
-          switch (F->getIntrinsicID()) {
-          default: break;
-          case Intrinsic::dbg_stoppoint: {
-            DbgStopPointInst *SPI = cast<DbgStopPointInst>(I);
-            if (isValidDebugInfoIntrinsic(*SPI, CodeGenOpt::Default)) 
-              DL = ExtractDebugLocation(*SPI, MF->getDebugLocInfo());
-            break;
-          }
-          case Intrinsic::dbg_func_start: {
-            DbgFuncStartInst *FSI = cast<DbgFuncStartInst>(I);
-            if (isValidDebugInfoIntrinsic(*FSI, CodeGenOpt::Default)) 
-              DL = ExtractDebugLocation(*FSI, MF->getDebugLocInfo());
-            break;
-          }
-          }
-        }
-      }
 
       PN = dyn_cast<PHINode>(I);
       if (!PN || PN->use_empty()) continue;
@@ -947,58 +929,143 @@ SDValue SelectionDAGLowering::getValue(const Value *V) {
   return RFV.getCopyFromRegs(DAG, getCurDebugLoc(), Chain, NULL);
 }
 
+/// Get the EVTs and ArgFlags collections that represent the return type
+/// of the given function.  This does not require a DAG or a return value, and
+/// is suitable for use before any DAGs for the function are constructed.
+static void getReturnInfo(const Type* ReturnType,
+                   Attributes attr, SmallVectorImpl<EVT> &OutVTs,
+                   SmallVectorImpl<ISD::ArgFlagsTy> &OutFlags,
+                   TargetLowering &TLI,
+                   SmallVectorImpl<uint64_t> *Offsets = 0) {
+  SmallVector<EVT, 4> ValueVTs;
+  ComputeValueVTs(TLI, ReturnType, ValueVTs, Offsets);
+  unsigned NumValues = ValueVTs.size();
+  if ( NumValues == 0 ) return;
+
+  for (unsigned j = 0, f = NumValues; j != f; ++j) {
+    EVT VT = ValueVTs[j];
+    ISD::NodeType ExtendKind = ISD::ANY_EXTEND;
+
+    if (attr & Attribute::SExt)
+      ExtendKind = ISD::SIGN_EXTEND;
+    else if (attr & Attribute::ZExt)
+      ExtendKind = ISD::ZERO_EXTEND;
+
+    // FIXME: C calling convention requires the return type to be promoted to
+    // at least 32-bit. But this is not necessary for non-C calling
+    // conventions. The frontend should mark functions whose return values
+    // require promoting with signext or zeroext attributes.
+    if (ExtendKind != ISD::ANY_EXTEND && VT.isInteger()) {
+      EVT MinVT = TLI.getRegisterType(ReturnType->getContext(), MVT::i32);
+      if (VT.bitsLT(MinVT))
+        VT = MinVT;
+    }
+
+    unsigned NumParts = TLI.getNumRegisters(ReturnType->getContext(), VT);
+    EVT PartVT = TLI.getRegisterType(ReturnType->getContext(), VT);
+    // 'inreg' on function refers to return value
+    ISD::ArgFlagsTy Flags = ISD::ArgFlagsTy();
+    if (attr & Attribute::InReg)
+      Flags.setInReg();
+
+    // Propagate extension type if any
+    if (attr & Attribute::SExt)
+      Flags.setSExt();
+    else if (attr & Attribute::ZExt)
+      Flags.setZExt();
+
+    for (unsigned i = 0; i < NumParts; ++i) {
+      OutVTs.push_back(PartVT);
+      OutFlags.push_back(Flags);
+    }
+  }
+}
 
 void SelectionDAGLowering::visitRet(ReturnInst &I) {
   SDValue Chain = getControlRoot();
   SmallVector<ISD::OutputArg, 8> Outs;
-  for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
+  FunctionLoweringInfo &FLI = DAG.getFunctionLoweringInfo();
+  
+  if (!FLI.CanLowerReturn) {
+    unsigned DemoteReg = FLI.DemoteRegister;
+    const Function *F = I.getParent()->getParent();
+
+    // Emit a store of the return value through the virtual register.
+    // Leave Outs empty so that LowerReturn won't try to load return
+    // registers the usual way.
+    SmallVector<EVT, 1> PtrValueVTs;
+    ComputeValueVTs(TLI, PointerType::getUnqual(F->getReturnType()), 
+                    PtrValueVTs);
+
+    SDValue RetPtr = DAG.getRegister(DemoteReg, PtrValueVTs[0]);
+    SDValue RetOp = getValue(I.getOperand(0));
+  
     SmallVector<EVT, 4> ValueVTs;
-    ComputeValueVTs(TLI, I.getOperand(i)->getType(), ValueVTs);
+    SmallVector<uint64_t, 4> Offsets;
+    ComputeValueVTs(TLI, I.getOperand(0)->getType(), ValueVTs, &Offsets);
     unsigned NumValues = ValueVTs.size();
-    if (NumValues == 0) continue;
 
-    SDValue RetOp = getValue(I.getOperand(i));
-    for (unsigned j = 0, f = NumValues; j != f; ++j) {
-      EVT VT = ValueVTs[j];
+    SmallVector<SDValue, 4> Chains(NumValues);
+    EVT PtrVT = PtrValueVTs[0];
+    for (unsigned i = 0; i != NumValues; ++i)
+      Chains[i] = DAG.getStore(Chain, getCurDebugLoc(),
+                  SDValue(RetOp.getNode(), RetOp.getResNo() + i),
+                  DAG.getNode(ISD::ADD, getCurDebugLoc(), PtrVT, RetPtr,
+                  DAG.getConstant(Offsets[i], PtrVT)),
+                  NULL, Offsets[i], false, 0);
+    Chain = DAG.getNode(ISD::TokenFactor, getCurDebugLoc(),
+                        MVT::Other, &Chains[0], NumValues);
+  }
+  else {
+    for (unsigned i = 0, e = I.getNumOperands(); i != e; ++i) {
+      SmallVector<EVT, 4> ValueVTs;
+      ComputeValueVTs(TLI, I.getOperand(i)->getType(), ValueVTs);
+      unsigned NumValues = ValueVTs.size();
+      if (NumValues == 0) continue;
+  
+      SDValue RetOp = getValue(I.getOperand(i));
+      for (unsigned j = 0, f = NumValues; j != f; ++j) {
+        EVT VT = ValueVTs[j];
 
-      ISD::NodeType ExtendKind = ISD::ANY_EXTEND;
+        ISD::NodeType ExtendKind = ISD::ANY_EXTEND;
 
-      const Function *F = I.getParent()->getParent();
-      if (F->paramHasAttr(0, Attribute::SExt))
-        ExtendKind = ISD::SIGN_EXTEND;
-      else if (F->paramHasAttr(0, Attribute::ZExt))
-        ExtendKind = ISD::ZERO_EXTEND;
+        const Function *F = I.getParent()->getParent();
+        if (F->paramHasAttr(0, Attribute::SExt))
+          ExtendKind = ISD::SIGN_EXTEND;
+        else if (F->paramHasAttr(0, Attribute::ZExt))
+          ExtendKind = ISD::ZERO_EXTEND;
 
-      // FIXME: C calling convention requires the return type to be promoted to
-      // at least 32-bit. But this is not necessary for non-C calling
-      // conventions. The frontend should mark functions whose return values
-      // require promoting with signext or zeroext attributes.
-      if (ExtendKind != ISD::ANY_EXTEND && VT.isInteger()) {
-        EVT MinVT = TLI.getRegisterType(*DAG.getContext(), MVT::i32);
-        if (VT.bitsLT(MinVT))
-          VT = MinVT;
+        // FIXME: C calling convention requires the return type to be promoted to
+        // at least 32-bit. But this is not necessary for non-C calling
+        // conventions. The frontend should mark functions whose return values
+        // require promoting with signext or zeroext attributes.
+        if (ExtendKind != ISD::ANY_EXTEND && VT.isInteger()) {
+          EVT MinVT = TLI.getRegisterType(*DAG.getContext(), MVT::i32);
+          if (VT.bitsLT(MinVT))
+            VT = MinVT;
+        }
+
+        unsigned NumParts = TLI.getNumRegisters(*DAG.getContext(), VT);
+        EVT PartVT = TLI.getRegisterType(*DAG.getContext(), VT);
+        SmallVector<SDValue, 4> Parts(NumParts);
+        getCopyToParts(DAG, getCurDebugLoc(),
+                       SDValue(RetOp.getNode(), RetOp.getResNo() + j),
+                       &Parts[0], NumParts, PartVT, ExtendKind);
+
+        // 'inreg' on function refers to return value
+        ISD::ArgFlagsTy Flags = ISD::ArgFlagsTy();
+        if (F->paramHasAttr(0, Attribute::InReg))
+          Flags.setInReg();
+
+        // Propagate extension type if any
+        if (F->paramHasAttr(0, Attribute::SExt))
+          Flags.setSExt();
+        else if (F->paramHasAttr(0, Attribute::ZExt))
+          Flags.setZExt();
+
+        for (unsigned i = 0; i < NumParts; ++i)
+          Outs.push_back(ISD::OutputArg(Flags, Parts[i], /*isfixed=*/true));
       }
-
-      unsigned NumParts = TLI.getNumRegisters(*DAG.getContext(), VT);
-      EVT PartVT = TLI.getRegisterType(*DAG.getContext(), VT);
-      SmallVector<SDValue, 4> Parts(NumParts);
-      getCopyToParts(DAG, getCurDebugLoc(),
-                     SDValue(RetOp.getNode(), RetOp.getResNo() + j),
-                     &Parts[0], NumParts, PartVT, ExtendKind);
-
-      // 'inreg' on function refers to return value
-      ISD::ArgFlagsTy Flags = ISD::ArgFlagsTy();
-      if (F->paramHasAttr(0, Attribute::InReg))
-        Flags.setInReg();
-
-      // Propagate extension type if any
-      if (F->paramHasAttr(0, Attribute::SExt))
-        Flags.setSExt();
-      else if (F->paramHasAttr(0, Attribute::ZExt))
-        Flags.setZExt();
-
-      for (unsigned i = 0; i < NumParts; ++i)
-        Outs.push_back(ISD::OutputArg(Flags, Parts[i], /*isfixed=*/true));
     }
   }
 
@@ -1691,19 +1758,19 @@ bool SelectionDAGLowering::handleJTSwitchCase(CaseRec& CR,
   Case& FrontCase = *CR.Range.first;
   Case& BackCase  = *(CR.Range.second-1);
 
-  const APInt& First = cast<ConstantInt>(FrontCase.Low)->getValue();
-  const APInt& Last  = cast<ConstantInt>(BackCase.High)->getValue();
+  const APInt &First = cast<ConstantInt>(FrontCase.Low)->getValue();
+  const APInt &Last  = cast<ConstantInt>(BackCase.High)->getValue();
 
-  size_t TSize = 0;
+  APInt TSize(First.getBitWidth(), 0);
   for (CaseItr I = CR.Range.first, E = CR.Range.second;
        I!=E; ++I)
     TSize += I->size();
 
-  if (!areJTsAllowed(TLI) || TSize <= 3)
+  if (!areJTsAllowed(TLI) || TSize.ult(APInt(First.getBitWidth(), 4)))
     return false;
 
   APInt Range = ComputeRange(First, Last);
-  double Density = (double)TSize / Range.roundToDouble();
+  double Density = TSize.roundToDouble() / Range.roundToDouble();
   if (Density < 0.4)
     return false;
 
@@ -1797,32 +1864,34 @@ bool SelectionDAGLowering::handleBTSplitSwitchCase(CaseRec& CR,
   // Size is the number of Cases represented by this range.
   unsigned Size = CR.Range.second - CR.Range.first;
 
-  const APInt& First = cast<ConstantInt>(FrontCase.Low)->getValue();
-  const APInt& Last  = cast<ConstantInt>(BackCase.High)->getValue();
+  const APInt &First = cast<ConstantInt>(FrontCase.Low)->getValue();
+  const APInt &Last  = cast<ConstantInt>(BackCase.High)->getValue();
   double FMetric = 0;
   CaseItr Pivot = CR.Range.first + Size/2;
 
   // Select optimal pivot, maximizing sum density of LHS and RHS. This will
   // (heuristically) allow us to emit JumpTable's later.
-  size_t TSize = 0;
+  APInt TSize(First.getBitWidth(), 0);
   for (CaseItr I = CR.Range.first, E = CR.Range.second;
        I!=E; ++I)
     TSize += I->size();
 
-  size_t LSize = FrontCase.size();
-  size_t RSize = TSize-LSize;
+  APInt LSize = FrontCase.size();
+  APInt RSize = TSize-LSize;
   DEBUG(errs() << "Selecting best pivot: \n"
                << "First: " << First << ", Last: " << Last <<'\n'
                << "LSize: " << LSize << ", RSize: " << RSize << '\n');
   for (CaseItr I = CR.Range.first, J=I+1, E = CR.Range.second;
        J!=E; ++I, ++J) {
-    const APInt& LEnd = cast<ConstantInt>(I->High)->getValue();
-    const APInt& RBegin = cast<ConstantInt>(J->Low)->getValue();
+    const APInt &LEnd = cast<ConstantInt>(I->High)->getValue();
+    const APInt &RBegin = cast<ConstantInt>(J->Low)->getValue();
     APInt Range = ComputeRange(LEnd, RBegin);
     assert((Range - 2ULL).isNonNegative() &&
            "Invalid case distance");
-    double LDensity = (double)LSize / (LEnd - First + 1ULL).roundToDouble();
-    double RDensity = (double)RSize / (Last - RBegin + 1ULL).roundToDouble();
+    double LDensity = (double)LSize.roundToDouble() / 
+                           (LEnd - First + 1ULL).roundToDouble();
+    double RDensity = (double)RSize.roundToDouble() /
+                           (Last - RBegin + 1ULL).roundToDouble();
     double Metric = Range.logBase2()*(LDensity+RDensity);
     // Should always split in some non-trivial place
     DEBUG(errs() <<"=>Step\n"
@@ -3842,112 +3911,12 @@ SelectionDAGLowering::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
                                I.getOperand(1), 0, I.getOperand(2), 0));
     return 0;
   }
-  case Intrinsic::dbg_stoppoint: {
-    DbgStopPointInst &SPI = cast<DbgStopPointInst>(I);
-    if (isValidDebugInfoIntrinsic(SPI, CodeGenOpt::Default)) {
-      MachineFunction &MF = DAG.getMachineFunction();
-      DebugLoc Loc = ExtractDebugLocation(SPI, MF.getDebugLocInfo());
-      setCurDebugLoc(Loc);
-
-      if (OptLevel == CodeGenOpt::None)
-        DAG.setRoot(DAG.getDbgStopPoint(Loc, getRoot(),
-                                        SPI.getLine(),
-                                        SPI.getColumn(),
-                                        SPI.getContext()));
-    }
+  case Intrinsic::dbg_stoppoint: 
+  case Intrinsic::dbg_region_start:
+  case Intrinsic::dbg_region_end:
+  case Intrinsic::dbg_func_start:
+    // FIXME - Remove this instructions once the dust settles.
     return 0;
-  }
-  case Intrinsic::dbg_region_start: {
-    DwarfWriter *DW = DAG.getDwarfWriter();
-    DbgRegionStartInst &RSI = cast<DbgRegionStartInst>(I);
-    if (isValidDebugInfoIntrinsic(RSI, OptLevel) && DW
-        && DW->ShouldEmitDwarfDebug()) {
-      unsigned LabelID =
-        DW->RecordRegionStart(RSI.getContext());
-      DAG.setRoot(DAG.getLabel(ISD::DBG_LABEL, getCurDebugLoc(),
-                               getRoot(), LabelID));
-    }
-    return 0;
-  }
-  case Intrinsic::dbg_region_end: {
-    DwarfWriter *DW = DAG.getDwarfWriter();
-    DbgRegionEndInst &REI = cast<DbgRegionEndInst>(I);
-
-    if (!isValidDebugInfoIntrinsic(REI, OptLevel) || !DW
-        || !DW->ShouldEmitDwarfDebug()) 
-      return 0;
-
-    MachineFunction &MF = DAG.getMachineFunction();
-    DISubprogram Subprogram(REI.getContext());
-    
-    if (isInlinedFnEnd(REI, MF.getFunction())) {
-      // This is end of inlined function. Debugging information for inlined
-      // function is not handled yet (only supported by FastISel).
-      if (OptLevel == CodeGenOpt::None) {
-        unsigned ID = DW->RecordInlinedFnEnd(Subprogram);
-        if (ID != 0)
-          // Returned ID is 0 if this is unbalanced "end of inlined
-          // scope". This could happen if optimizer eats dbg intrinsics or
-          // "beginning of inlined scope" is not recoginized due to missing
-          // location info. In such cases, do ignore this region.end.
-          DAG.setRoot(DAG.getLabel(ISD::DBG_LABEL, getCurDebugLoc(), 
-                                   getRoot(), ID));
-      }
-      return 0;
-    } 
-
-    unsigned LabelID =
-      DW->RecordRegionEnd(REI.getContext());
-    DAG.setRoot(DAG.getLabel(ISD::DBG_LABEL, getCurDebugLoc(),
-                             getRoot(), LabelID));
-    return 0;
-  }
-  case Intrinsic::dbg_func_start: {
-    DwarfWriter *DW = DAG.getDwarfWriter();
-    DbgFuncStartInst &FSI = cast<DbgFuncStartInst>(I);
-    if (!isValidDebugInfoIntrinsic(FSI, CodeGenOpt::None))
-      return 0;
-
-    MachineFunction &MF = DAG.getMachineFunction();
-    // This is a beginning of an inlined function.
-    if (isInlinedFnStart(FSI, MF.getFunction())) {
-      if (OptLevel != CodeGenOpt::None)
-        // FIXME: Debugging informaation for inlined function is only
-        // supported at CodeGenOpt::Node.
-        return 0;
-      
-      DebugLoc PrevLoc = CurDebugLoc;
-      // If llvm.dbg.func.start is seen in a new block before any
-      // llvm.dbg.stoppoint intrinsic then the location info is unknown.
-      // FIXME : Why DebugLoc is reset at the beginning of each block ?
-      if (PrevLoc.isUnknown())
-        return 0;
-      
-      // Record the source line.
-      setCurDebugLoc(ExtractDebugLocation(FSI, MF.getDebugLocInfo()));
-      
-      if (!DW || !DW->ShouldEmitDwarfDebug())
-        return 0;
-      DebugLocTuple PrevLocTpl = MF.getDebugLocTuple(PrevLoc);
-      DISubprogram SP(FSI.getSubprogram());
-      DICompileUnit CU(PrevLocTpl.Scope);
-      unsigned LabelID = DW->RecordInlinedFnStart(SP, CU,
-                                                  PrevLocTpl.Line,
-                                                  PrevLocTpl.Col);
-      DAG.setRoot(DAG.getLabel(ISD::DBG_LABEL, getCurDebugLoc(),
-                               getRoot(), LabelID));
-      return 0;
-    }
-
-    // This is a beginning of a new function.
-    MF.setDefaultDebugLoc(ExtractDebugLocation(FSI, MF.getDebugLocInfo()));
-
-    if (!DW || !DW->ShouldEmitDwarfDebug())
-      return 0;
-    // llvm.dbg.func_start also defines beginning of function scope.
-    DW->RecordRegionStart(FSI.getSubprogram());
-    return 0;
-  }
   case Intrinsic::dbg_declare: {
     if (OptLevel != CodeGenOpt::None) 
       // FIXME: Variable debug info is not supported here.
@@ -3972,13 +3941,15 @@ SelectionDAGLowering::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     if (SI == FuncInfo.StaticAllocaMap.end()) 
       return 0; // VLAs.
     int FI = SI->second;
-#ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
+
     MachineModuleInfo *MMI = DAG.getMachineModuleInfo();
-    if (MMI) 
-      MMI->setVariableDbgInfo(Variable, FI);
-#else
-    DW->RecordVariable(Variable, FI);
-#endif
+    if (MMI) {
+      MetadataContext &TheMetadata = 
+        DI.getParent()->getContext().getMetadata();
+      unsigned MDDbgKind = TheMetadata.getMDKind("dbg");
+      MDNode *Dbg = TheMetadata.getMD(MDDbgKind, &DI);
+      MMI->setVariableDbgInfo(Variable, FI, Dbg);
+    }
     return 0;
   }
   case Intrinsic::eh_exception: {
@@ -4233,7 +4204,7 @@ SelectionDAGLowering::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     EVT Ty = Arg.getValueType();
 
     if (CI->getZExtValue() < 2)
-      setValue(&I, DAG.getConstant(-1U, Ty));
+      setValue(&I, DAG.getConstant(-1ULL, Ty));
     else
       setValue(&I, DAG.getConstant(0, Ty));
     return 0;
@@ -4355,6 +4326,16 @@ SelectionDAGLowering::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
     return implVisitBinaryAtomic(I, ISD::ATOMIC_LOAD_UMAX);
   case Intrinsic::atomic_swap:
     return implVisitBinaryAtomic(I, ISD::ATOMIC_SWAP);
+
+  case Intrinsic::invariant_start:
+  case Intrinsic::lifetime_start:
+    // Discard region information.
+    setValue(&I, DAG.getUNDEF(TLI.getPointerTy()));
+    return 0;
+  case Intrinsic::invariant_end:
+  case Intrinsic::lifetime_end:
+    // Discard region information.
+    return 0;
   }
 }
 
@@ -4368,7 +4349,7 @@ SelectionDAGLowering::visitIntrinsicCall(CallInst &I, unsigned Intrinsic) {
 /// TargetLowering::IsEligibleForTailCallOptimization.
 ///
 static bool
-isInTailCallPosition(const Instruction *I, Attributes RetAttr,
+isInTailCallPosition(const Instruction *I, Attributes CalleeRetAttr,
                      const TargetLowering &TLI) {
   const BasicBlock *ExitBB = I->getParent();
   const TerminatorInst *Term = ExitBB->getTerminator();
@@ -4395,9 +4376,14 @@ isInTailCallPosition(const Instruction *I, Attributes RetAttr,
   // what the call's return type is.
   if (!Ret || Ret->getNumOperands() == 0) return true;
 
+  // If the return value is undef, it doesn't matter what the call's
+  // return type is.
+  if (isa<UndefValue>(Ret->getOperand(0))) return true;
+
   // Conservatively require the attributes of the call to match those of
-  // the return.
-  if (F->getAttributes().getRetAttributes() != RetAttr)
+  // the return. Ignore noalias because it doesn't affect the call sequence.
+  unsigned CallerRetAttr = F->getAttributes().getRetAttributes();
+  if ((CalleeRetAttr ^ CallerRetAttr) & ~Attribute::NoAlias)
     return false;
 
   // Otherwise, make sure the unmodified return value of I is the return value.
@@ -4431,15 +4417,52 @@ void SelectionDAGLowering::LowerCallTo(CallSite CS, SDValue Callee,
                                        MachineBasicBlock *LandingPad) {
   const PointerType *PT = cast<PointerType>(CS.getCalledValue()->getType());
   const FunctionType *FTy = cast<FunctionType>(PT->getElementType());
+  const Type *RetTy = FTy->getReturnType();
   MachineModuleInfo *MMI = DAG.getMachineModuleInfo();
   unsigned BeginLabel = 0, EndLabel = 0;
 
   TargetLowering::ArgListTy Args;
   TargetLowering::ArgListEntry Entry;
   Args.reserve(CS.arg_size());
-  unsigned j = 1;
+
+  // Check whether the function can return without sret-demotion.
+  SmallVector<EVT, 4> OutVTs;
+  SmallVector<ISD::ArgFlagsTy, 4> OutsFlags;
+  SmallVector<uint64_t, 4> Offsets;
+  getReturnInfo(RetTy, CS.getAttributes().getRetAttributes(), 
+    OutVTs, OutsFlags, TLI, &Offsets);
+  
+
+  bool CanLowerReturn = TLI.CanLowerReturn(CS.getCallingConv(), 
+                        FTy->isVarArg(), OutVTs, OutsFlags, DAG);
+
+  SDValue DemoteStackSlot;
+
+  if (!CanLowerReturn) {
+    uint64_t TySize = TLI.getTargetData()->getTypeAllocSize(
+                      FTy->getReturnType());
+    unsigned Align  = TLI.getTargetData()->getPrefTypeAlignment(
+                      FTy->getReturnType());
+    MachineFunction &MF = DAG.getMachineFunction();
+    int SSFI = MF.getFrameInfo()->CreateStackObject(TySize, Align, false);
+    const Type *StackSlotPtrType = PointerType::getUnqual(FTy->getReturnType());
+
+    DemoteStackSlot = DAG.getFrameIndex(SSFI, TLI.getPointerTy());
+    Entry.Node = DemoteStackSlot;
+    Entry.Ty = StackSlotPtrType;
+    Entry.isSExt = false;
+    Entry.isZExt = false;
+    Entry.isInReg = false;
+    Entry.isSRet = true;
+    Entry.isNest = false;
+    Entry.isByVal = false;
+    Entry.Alignment = Align;
+    Args.push_back(Entry);
+    RetTy = Type::getVoidTy(FTy->getContext());
+  }
+
   for (CallSite::arg_iterator i = CS.arg_begin(), e = CS.arg_end();
-       i != e; ++i, ++j) {
+       i != e; ++i) {
     SDValue ArgNode = getValue(*i);
     Entry.Node = ArgNode; Entry.Ty = (*i)->getType();
 
@@ -4475,7 +4498,7 @@ void SelectionDAGLowering::LowerCallTo(CallSite CS, SDValue Callee,
     isTailCall = false;
 
   std::pair<SDValue,SDValue> Result =
-    TLI.LowerCallTo(getRoot(), CS.getType(),
+    TLI.LowerCallTo(getRoot(), RetTy,
                     CS.paramHasAttr(0, Attribute::SExt),
                     CS.paramHasAttr(0, Attribute::ZExt), FTy->isVarArg(),
                     CS.paramHasAttr(0, Attribute::InReg), FTy->getNumParams(),
@@ -4489,6 +4512,35 @@ void SelectionDAGLowering::LowerCallTo(CallSite CS, SDValue Callee,
          "Null value expected with tail call!");
   if (Result.first.getNode())
     setValue(CS.getInstruction(), Result.first);
+  else if (!CanLowerReturn && Result.second.getNode()) {
+    // The instruction result is the result of loading from the
+    // hidden sret parameter.
+    SmallVector<EVT, 1> PVTs;
+    const Type *PtrRetTy = PointerType::getUnqual(FTy->getReturnType());
+
+    ComputeValueVTs(TLI, PtrRetTy, PVTs);
+    assert(PVTs.size() == 1 && "Pointers should fit in one register");
+    EVT PtrVT = PVTs[0];
+    unsigned NumValues = OutVTs.size();
+    SmallVector<SDValue, 4> Values(NumValues);
+    SmallVector<SDValue, 4> Chains(NumValues);
+
+    for (unsigned i = 0; i < NumValues; ++i) {
+      SDValue L = DAG.getLoad(OutVTs[i], getCurDebugLoc(), Result.second,
+        DAG.getNode(ISD::ADD, getCurDebugLoc(), PtrVT, DemoteStackSlot,
+        DAG.getConstant(Offsets[i], PtrVT)),
+        NULL, Offsets[i], false, 1);
+      Values[i] = L;
+      Chains[i] = L.getValue(1);
+    }
+    SDValue Chain = DAG.getNode(ISD::TokenFactor, getCurDebugLoc(),
+                                MVT::Other, &Chains[0], NumValues);
+    PendingLoads.push_back(Chain);
+
+    setValue(CS.getInstruction(), DAG.getNode(ISD::MERGE_VALUES,
+             getCurDebugLoc(), DAG.getVTList(&OutVTs[0], NumValues),
+             &Values[0], NumValues));
+  }
   // As a special case, a null chain means that a tail call has
   // been emitted and the DAG root is already updated.
   if (Result.second.getNode())
@@ -5229,7 +5281,7 @@ void SelectionDAGLowering::visitInlineAsm(CallSite CS) {
         uint64_t TySize = TLI.getTargetData()->getTypeAllocSize(Ty);
         unsigned Align  = TLI.getTargetData()->getPrefTypeAlignment(Ty);
         MachineFunction &MF = DAG.getMachineFunction();
-        int SSFI = MF.getFrameInfo()->CreateStackObject(TySize, Align);
+        int SSFI = MF.getFrameInfo()->CreateStackObject(TySize, Align, false);
         SDValue StackSlot = DAG.getFrameIndex(SSFI, TLI.getPointerTy());
         Chain = DAG.getStore(Chain, getCurDebugLoc(),
                              OpInfo.CallOperand, StackSlot, NULL, 0);
@@ -5757,9 +5809,32 @@ void SelectionDAGISel::LowerArguments(BasicBlock *LLVMBB) {
   SDValue OldRoot = DAG.getRoot();
   DebugLoc dl = SDL->getCurDebugLoc();
   const TargetData *TD = TLI.getTargetData();
+  SmallVector<ISD::InputArg, 16> Ins;
+
+  // Check whether the function can return without sret-demotion.
+  SmallVector<EVT, 4> OutVTs;
+  SmallVector<ISD::ArgFlagsTy, 4> OutsFlags;
+  getReturnInfo(F.getReturnType(), F.getAttributes().getRetAttributes(), 
+                OutVTs, OutsFlags, TLI);
+  FunctionLoweringInfo &FLI = DAG.getFunctionLoweringInfo();
+
+  FLI.CanLowerReturn = TLI.CanLowerReturn(F.getCallingConv(), F.isVarArg(), 
+    OutVTs, OutsFlags, DAG);
+  if (!FLI.CanLowerReturn) {
+    // Put in an sret pointer parameter before all the other parameters.
+    SmallVector<EVT, 1> ValueVTs;
+    ComputeValueVTs(TLI, PointerType::getUnqual(F.getReturnType()), ValueVTs);
+
+    // NOTE: Assuming that a pointer will never break down to more than one VT
+    // or one register.
+    ISD::ArgFlagsTy Flags;
+    Flags.setSRet();
+    EVT RegisterVT = TLI.getRegisterType(*CurDAG->getContext(), ValueVTs[0]);
+    ISD::InputArg RetArg(Flags, RegisterVT, true);
+    Ins.push_back(RetArg);
+  }
 
   // Set up the incoming argument description vector.
-  SmallVector<ISD::InputArg, 16> Ins;
   unsigned Idx = 1;
   for (Function::arg_iterator I = F.arg_begin(), E = F.arg_end();
        I != E; ++I, ++Idx) {
@@ -5837,6 +5912,28 @@ void SelectionDAGISel::LowerArguments(BasicBlock *LLVMBB) {
   // Set up the argument values.
   unsigned i = 0;
   Idx = 1;
+  if (!FLI.CanLowerReturn) {
+    // Create a virtual register for the sret pointer, and put in a copy
+    // from the sret argument into it.
+    SmallVector<EVT, 1> ValueVTs;
+    ComputeValueVTs(TLI, PointerType::getUnqual(F.getReturnType()), ValueVTs);
+    EVT VT = ValueVTs[0];
+    EVT RegVT = TLI.getRegisterType(*CurDAG->getContext(), VT);
+    ISD::NodeType AssertOp = ISD::DELETED_NODE;
+    SDValue ArgValue = getCopyFromParts(DAG, dl, &InVals[0], 1, RegVT,
+                                        VT, AssertOp);
+
+    MachineFunction& MF = SDL->DAG.getMachineFunction();
+    MachineRegisterInfo& RegInfo = MF.getRegInfo();
+    unsigned SRetReg = RegInfo.createVirtualRegister(TLI.getRegClassFor(RegVT));
+    FLI.DemoteRegister = SRetReg;
+    NewRoot = SDL->DAG.getCopyToReg(NewRoot, SDL->getCurDebugLoc(), SRetReg, ArgValue);
+    DAG.setRoot(NewRoot);
+    
+    // i indexes lowered arguments.  Bump it past the hidden sret argument.
+    // Idx indexes LLVM arguments.  Don't touch it.
+    ++i;
+  }
   for (Function::arg_iterator I = F.arg_begin(), E = F.arg_end(); I != E;
       ++I, ++Idx) {
     SmallVector<SDValue, 4> ArgValues;
