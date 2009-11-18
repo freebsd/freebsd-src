@@ -319,8 +319,6 @@ long vmspace_wired_count(struct vmspace *vmspace);
  */
 #define VM_FAULT_NORMAL 0		/* Nothing special */
 #define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
-#define VM_FAULT_USER_WIRE 2		/* Likewise, but for user purposes */
-#define VM_FAULT_WIRE_MASK (VM_FAULT_CHANGE_WIRING|VM_FAULT_USER_WIRE)
 #define VM_FAULT_DIRTY 8		/* Dirty the page */
 
 /*
