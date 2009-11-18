@@ -59,6 +59,7 @@ struct mx25l_softc
 	device_t	sc_dev;
 	uint8_t		sc_manufacturer_id;
 	uint16_t	sc_device_id;
+	unsigned int	sc_sectorsize;
 	struct mtx	sc_mtx;
 	struct disk	*sc_disk;
 	struct proc	*sc_p;
@@ -85,6 +86,7 @@ struct mx25l_flash_ident flash_devices[] = {
 	{ "mx25ll32",  0xc2, 0x2016, 64 * 1024,  64 },
 	{ "mx25ll64",  0xc2, 0x2017, 64 * 1024, 128 },
 	{ "mx25ll128", 0xc2, 0x2018, 64 * 1024, 256 },
+	{ "s25fl128",  0x01, 0x2018, 64 * 1024, 256 },
 };
 
 static uint8_t
@@ -201,6 +203,136 @@ mx25l_erase_sector(device_t dev, off_t sector)
 }
 
 static int
+mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
+{
+	struct mx25l_softc *sc;
+	uint8_t txBuf[8], rxBuf[8];
+	struct spi_command cmd;
+	off_t write_offset;
+	long bytes_to_write, bytes_writen;
+	device_t pdev;
+	int err = 0;
+
+	pdev = device_get_parent(dev);
+	sc = device_get_softc(dev);
+
+	cmd.tx_cmd_sz = 4;
+	cmd.rx_cmd_sz = 4;
+
+	bytes_writen = 0;
+	write_offset = offset;
+
+	/*
+	 * Sanity checks
+	 */
+	KASSERT(count % sc->sc_sectorsize == 0,
+	    ("count for BIO_WRITE is not sector size (%d bytes) aligned",
+		sc->sc_sectorsize));
+
+	KASSERT(offset % sc->sc_sectorsize == 0,
+	    ("offset for BIO_WRITE is not sector size (%d bytes) aligned",
+		sc->sc_sectorsize));
+
+	/*
+	 * Assume here that we write per-sector only 
+	 * and sector size should be 256 bytes aligned
+	 */
+	KASSERT(write_offset % FLASH_PAGE_SIZE == 0,
+	    ("offset for BIO_WRITE is not page size (%d bytes) aligned",
+		FLASH_PAGE_SIZE));
+
+	/*
+	 * Maximum write size for CMD_PAGE_PROGRAM is 
+	 * FLASH_PAGE_SIZE, so split data to chunks 
+	 * FLASH_PAGE_SIZE bytes eash and write them
+	 * one by one
+	 */
+	while (bytes_writen < count) {
+		/*
+		 * If we crossed sector boundary - erase next sector
+		 */
+		if (((offset + bytes_writen) % sc->sc_sectorsize) == 0)
+			mx25l_erase_sector(dev, offset + bytes_writen);
+
+		txBuf[0] = CMD_PAGE_PROGRAM;
+		txBuf[1] = ((write_offset >> 16) & 0xff);
+		txBuf[2] = ((write_offset >> 8) & 0xff);
+		txBuf[3] = (write_offset & 0xff);
+
+		bytes_to_write = MIN(FLASH_PAGE_SIZE,
+		    count - bytes_writen);
+		cmd.tx_cmd = txBuf;
+		cmd.rx_cmd = rxBuf;
+		cmd.tx_data = data + bytes_writen;
+		cmd.tx_data_sz = bytes_to_write;
+		cmd.rx_data = data + bytes_writen;
+		cmd.rx_data_sz = bytes_to_write;
+
+		/*
+		 * Eash completed write operation resets WEL 
+		 * (write enable latch) to disabled state,
+		 * so we re-enable it here 
+		 */
+		mx25l_wait_for_device_ready(dev);
+		mx25l_set_writable(dev, 1);
+
+		err = SPIBUS_TRANSFER(pdev, dev, &cmd);
+		if (err)
+			break;
+
+		bytes_writen += bytes_to_write;
+		write_offset += bytes_to_write;
+	}
+
+	return (err);
+}
+
+static int
+mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
+{
+	struct mx25l_softc *sc;
+	uint8_t txBuf[8], rxBuf[8];
+	struct spi_command cmd;
+	device_t pdev;
+	int err = 0;
+
+	pdev = device_get_parent(dev);
+	sc = device_get_softc(dev);
+
+	/*
+	 * Sanity checks
+	 */
+	KASSERT(count % sc->sc_sectorsize == 0,
+	    ("count for BIO_WRITE is not sector size (%d bytes) aligned",
+		sc->sc_sectorsize));
+
+	KASSERT(offset % sc->sc_sectorsize == 0,
+	    ("offset for BIO_WRITE is not sector size (%d bytes) aligned",
+		sc->sc_sectorsize));
+
+	txBuf[0] = CMD_FAST_READ;
+	cmd.tx_cmd_sz = 5;
+	cmd.rx_cmd_sz = 5;
+
+	txBuf[1] = ((offset >> 16) & 0xff);
+	txBuf[2] = ((offset >> 8) & 0xff);
+	txBuf[3] = (offset & 0xff);
+	/* Dummy byte */
+	txBuf[4] = 0;
+
+	cmd.tx_cmd = txBuf;
+	cmd.rx_cmd = rxBuf;
+	cmd.tx_data = data;
+	cmd.tx_data_sz = count;
+	cmd.rx_data = data;
+	cmd.rx_data_sz = count;
+
+	err = SPIBUS_TRANSFER(pdev, dev, &cmd);
+
+	return (err);
+}
+
+static int
 mx25l_probe(device_t dev)
 {
 	device_set_desc(dev, "M25Pxx Flash Family");
@@ -235,6 +367,8 @@ mx25l_attach(device_t dev)
 	sc->sc_disk->d_mediasize = ident->sectorsize * ident->sectorcount;
 	sc->sc_disk->d_unit = device_get_unit(sc->sc_dev);
 	sc->sc_disk->d_dump = NULL;		/* NB: no dumps */
+	/* Sectorsize for erase operations */
+	sc->sc_sectorsize =  ident->sectorsize;
 
         /* NB: use stripesize to hold the erase/region size for RedBoot */
 	sc->sc_disk->d_stripesize = ident->sectorsize;
@@ -294,15 +428,10 @@ mx25l_task(void *arg)
 {
 	struct mx25l_softc *sc = (struct mx25l_softc*)arg;
 	struct bio *bp;
-	uint8_t txBuf[8], rxBuf[8];
-	struct spi_command cmd;
-	device_t dev, pdev;
-	off_t write_offset;
-	long bytes_to_write, bytes_writen;
+	device_t dev;
 
 	for (;;) {
 		dev = sc->sc_dev;
-		pdev = device_get_parent(dev);
 		M25PXX_LOCK(sc);
 		do {
 			bp = bioq_first(&sc->sc_bio_queue);
@@ -312,82 +441,18 @@ mx25l_task(void *arg)
 		bioq_remove(&sc->sc_bio_queue, bp);
 		M25PXX_UNLOCK(sc);
 
-		if (bp->bio_cmd == BIO_READ) {
-			txBuf[0] = CMD_FAST_READ;
-			cmd.tx_cmd_sz = 5;
-			cmd.rx_cmd_sz = 5;
-
-			txBuf[1] = (((bp->bio_offset) >> 16) & 0xff);
-			txBuf[2] = (((bp->bio_offset) >> 8) & 0xff);
-			txBuf[3] = ((bp->bio_offset) & 0xff);
-			/* Dummy byte */
-			txBuf[4] = 0;
-
-			cmd.tx_cmd = txBuf;
-			cmd.rx_cmd = rxBuf;
-			cmd.tx_data = bp->bio_data;
-			cmd.tx_data_sz = bp->bio_bcount;
-			cmd.rx_data = bp->bio_data;
-			cmd.rx_data_sz = bp->bio_bcount;
-
-			bp->bio_error = SPIBUS_TRANSFER(pdev, dev, &cmd);
-		}
-		else if (bp->bio_cmd == BIO_WRITE) {
-			mx25l_erase_sector(dev, bp->bio_offset);
-
-			cmd.tx_cmd_sz = 4;
-			cmd.rx_cmd_sz = 4;
-
-			bytes_writen = 0;
-			write_offset = bp->bio_offset;
-
-			/*
-			 * I assume here that we write per-sector only 
-			 * and sector size should be 256 bytes aligned
-			 */
-			KASSERT(write_offset % FLASH_PAGE_SIZE == 0,
-			    ("offset for BIO_WRITE is not %d bytes aliIgned",
-				FLASH_PAGE_SIZE));
-
-			/*
-			 * Maximum write size for CMD_PAGE_PROGRAM is 
-			 * FLASH_PAGE_SIZE, so split data to chunks 
-			 * FLASH_PAGE_SIZE bytes eash and write them
-			 * one by one
-			 */
-			while (bytes_writen < bp->bio_bcount) {
-				txBuf[0] = CMD_PAGE_PROGRAM;
-				txBuf[1] = ((write_offset >> 16) & 0xff);
-				txBuf[2] = ((write_offset >> 8) & 0xff);
-				txBuf[3] = (write_offset & 0xff);
-
-				bytes_to_write = MIN(FLASH_PAGE_SIZE,
-				    bp->bio_bcount - bytes_writen);
-				cmd.tx_cmd = txBuf;
-				cmd.rx_cmd = rxBuf;
-				cmd.tx_data = bp->bio_data + bytes_writen;
-				cmd.tx_data_sz = bytes_to_write;
-				cmd.rx_data = bp->bio_data + bytes_writen;
-				cmd.rx_data_sz = bytes_to_write;
-
-				/*
-				 * Eash completed write operation resets WEL 
-				 * (write enable latch) to disabled state,
-				 * so we re-enable it here 
-				 */
-				mx25l_wait_for_device_ready(dev);
-				mx25l_set_writable(dev, 1);
-
-				bp->bio_error = SPIBUS_TRANSFER(pdev, dev, &cmd);
-				if (bp->bio_error)
-					break;
-
-				bytes_writen += bytes_to_write;
-				write_offset += bytes_to_write;
-			}
-		}
-		else
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+			bp->bio_error = mx25l_read(dev, bp->bio_offset, 
+			    bp->bio_data, bp->bio_bcount);
+			break;
+		case BIO_WRITE:
+			bp->bio_error = mx25l_write(dev, bp->bio_offset, 
+			    bp->bio_data, bp->bio_bcount);
+			break;
+		default:
 			bp->bio_error = EINVAL;
+		}
 
 
 		biodone(bp);
