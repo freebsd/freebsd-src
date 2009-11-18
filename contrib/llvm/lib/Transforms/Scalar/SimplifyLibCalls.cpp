@@ -100,7 +100,7 @@ public:
 
   /// EmitPutChar - Emit a call to the putchar function.  This assumes that Char
   /// is an integer.
-  void EmitPutChar(Value *Char, IRBuilder<> &B);
+  Value *EmitPutChar(Value *Char, IRBuilder<> &B);
 
   /// EmitPutS - Emit a call to the puts function.  This assumes that Str is
   /// some pointer.
@@ -252,18 +252,20 @@ Value *LibCallOptimization::EmitUnaryFloatFnCall(Value *Op, const char *Name,
 
 /// EmitPutChar - Emit a call to the putchar function.  This assumes that Char
 /// is an integer.
-void LibCallOptimization::EmitPutChar(Value *Char, IRBuilder<> &B) {
+Value *LibCallOptimization::EmitPutChar(Value *Char, IRBuilder<> &B) {
   Module *M = Caller->getParent();
   Value *PutChar = M->getOrInsertFunction("putchar", Type::getInt32Ty(*Context),
                                           Type::getInt32Ty(*Context), NULL);
   CallInst *CI = B.CreateCall(PutChar,
                               B.CreateIntCast(Char,
 					      Type::getInt32Ty(*Context),
+                                              /*isSigned*/true,
 					      "chari"),
                               "putchar");
 
   if (const Function *F = dyn_cast<Function>(PutChar->stripPointerCasts()))
     CI->setCallingConv(F->getCallingConv());
+  return CI;
 }
 
 /// EmitPutS - Emit a call to the puts function.  This assumes that Str is
@@ -302,7 +304,8 @@ void LibCallOptimization::EmitFPutC(Value *Char, Value *File, IRBuilder<> &B) {
 			       Type::getInt32Ty(*Context),
 			       Type::getInt32Ty(*Context),
                                File->getType(), NULL);
-  Char = B.CreateIntCast(Char, Type::getInt32Ty(*Context), "chari");
+  Char = B.CreateIntCast(Char, Type::getInt32Ty(*Context), /*isSigned*/true,
+                         "chari");
   CallInst *CI = B.CreateCall2(F, Char, File, "fputc");
 
   if (const Function *Fn = dyn_cast<Function>(F->stripPointerCasts()))
@@ -955,6 +958,17 @@ struct MemCmpOpt : public LibCallOptimization {
       return B.CreateZExt(B.CreateXor(LHSV, RHSV, "shortdiff"), CI->getType());
     }
 
+    // Constant folding: memcmp(x, y, l) -> cnst (all arguments are constant)
+    std::string LHSStr, RHSStr;
+    if (GetConstantStringInfo(LHS, LHSStr) &&
+        GetConstantStringInfo(RHS, RHSStr)) {
+      // Make sure we're not reading out-of-bounds memory.
+      if (Len > LHSStr.length() || Len > RHSStr.length())
+        return 0;
+      uint64_t Ret = memcmp(LHSStr.data(), RHSStr.data(), Len);
+      return ConstantInt::get(CI->getType(), Ret);
+    }
+
     return 0;
   }
 };
@@ -1314,11 +1328,13 @@ struct PrintFOpt : public LibCallOptimization {
       return CI->use_empty() ? (Value*)CI :
                                ConstantInt::get(CI->getType(), 0);
 
-    // printf("x") -> putchar('x'), even for '%'.
+    // printf("x") -> putchar('x'), even for '%'.  Return the result of putchar
+    // in case there is an error writing to stdout.
     if (FormatStr.size() == 1) {
-      EmitPutChar(ConstantInt::get(Type::getInt32Ty(*Context), FormatStr[0]), B);
-      return CI->use_empty() ? (Value*)CI :
-                               ConstantInt::get(CI->getType(), 1);
+      Value *Res = EmitPutChar(ConstantInt::get(Type::getInt32Ty(*Context),
+                                                FormatStr[0]), B);
+      if (CI->use_empty()) return CI;
+      return B.CreateIntCast(Res, CI->getType(), true);
     }
 
     // printf("foo\n") --> puts("foo")
@@ -1339,9 +1355,10 @@ struct PrintFOpt : public LibCallOptimization {
     // printf("%c", chr) --> putchar(*(i8*)dst)
     if (FormatStr == "%c" && CI->getNumOperands() > 2 &&
         isa<IntegerType>(CI->getOperand(2)->getType())) {
-      EmitPutChar(CI->getOperand(2), B);
-      return CI->use_empty() ? (Value*)CI :
-                               ConstantInt::get(CI->getType(), 1);
+      Value *Res = EmitPutChar(CI->getOperand(2), B);
+      
+      if (CI->use_empty()) return CI;
+      return B.CreateIntCast(Res, CI->getType(), true);
     }
 
     // printf("%s\n", str) --> puts(str)
@@ -2478,10 +2495,6 @@ bool SimplifyLibCalls::doInitialization(Module &M) {
 //
 // lround, lroundf, lroundl:
 //   * lround(cnst) -> cnst'
-//
-// memcmp:
-//   * memcmp(x,y,l)   -> cnst
-//      (if all arguments are constant and strlen(x) <= l and strlen(y) <= l)
 //
 // pow, powf, powl:
 //   * pow(exp(x),y)  -> exp(x*y)

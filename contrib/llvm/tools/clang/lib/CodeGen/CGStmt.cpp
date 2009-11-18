@@ -148,13 +148,8 @@ RValue CodeGenFunction::EmitCompoundStmt(const CompoundStmt &S, bool GetLast,
 
   CGDebugInfo *DI = getDebugInfo();
   if (DI) {
-#ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
     DI->setLocation(S.getLBracLoc());
     DI->EmitRegionStart(CurFn, Builder);
-#else
-    EnsureInsertPoint();
-    DI->setLocation(S.getLBracLoc());
-#endif    
   }
 
   // Keep track of the current cleanup stack depth.
@@ -167,13 +162,8 @@ RValue CodeGenFunction::EmitCompoundStmt(const CompoundStmt &S, bool GetLast,
     EmitStmt(*I);
 
   if (DI) {
-#ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
     DI->setLocation(S.getLBracLoc());
     DI->EmitRegionEnd(CurFn, Builder);
-#else
-    EnsureInsertPoint();
-    DI->setLocation(S.getLBracLoc());
-#endif    
   }
 
   RValue RV;
@@ -284,16 +274,9 @@ void CodeGenFunction::EmitGotoStmt(const GotoStmt &S) {
 
 
 void CodeGenFunction::EmitIndirectGotoStmt(const IndirectGotoStmt &S) {
-  // Emit initial switch which will be patched up later by
-  // EmitIndirectSwitches(). We need a default dest, so we use the
-  // current BB, but this is overwritten.
-#ifndef USEINDIRECTBRANCH
-  llvm::Value *V = Builder.CreatePtrToInt(EmitScalarExpr(S.getTarget()),
-                                          llvm::Type::getInt32Ty(VMContext),
-#else
+  // Ensure that we have an i8* for our PHI node.
   llvm::Value *V = Builder.CreateBitCast(EmitScalarExpr(S.getTarget()),
                                          llvm::Type::getInt8PtrTy(VMContext),
-#endif
                                           "addr");
   llvm::BasicBlock *CurBB = Builder.GetInsertBlock();
   
@@ -491,13 +474,11 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S) {
   BreakContinueStack.push_back(BreakContinue(AfterFor, ContinueBlock));
 
   // If the condition is true, execute the body of the for stmt.
-#ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
   CGDebugInfo *DI = getDebugInfo();
   if (DI) {
     DI->setLocation(S.getSourceRange().getBegin());
     DI->EmitRegionStart(CurFn, Builder);
   }
-#endif
   EmitStmt(S.getBody());
 
   BreakContinueStack.pop_back();
@@ -510,12 +491,10 @@ void CodeGenFunction::EmitForStmt(const ForStmt &S) {
 
   // Finally, branch back up to the condition for the next iteration.
   EmitBranch(CondBlock);
-#ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
   if (DI) {
     DI->setLocation(S.getSourceRange().getEnd());
     DI->EmitRegionEnd(CurFn, Builder);
   }
-#endif
 
   // Emit the fall-through block.
   EmitBlock(AfterFor, true);
@@ -758,7 +737,7 @@ void CodeGenFunction::EmitSwitchStmt(const SwitchStmt &S) {
 }
 
 static std::string
-SimplifyConstraint(const char *Constraint, TargetInfo &Target,
+SimplifyConstraint(const char *Constraint, const TargetInfo &Target,
                  llvm::SmallVectorImpl<TargetInfo::ConstraintInfo> *OutCons=0) {
   std::string Result;
 

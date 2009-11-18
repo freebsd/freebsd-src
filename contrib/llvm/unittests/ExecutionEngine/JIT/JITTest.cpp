@@ -61,6 +61,7 @@ class RecordingJITMemoryManager : public JITMemoryManager {
 public:
   RecordingJITMemoryManager()
     : Base(JITMemoryManager::CreateDefaultMemManager()) {
+    stubsAllocated = 0;
   }
 
   virtual void setMemoryWritable() { Base->setMemoryWritable(); }
@@ -68,8 +69,6 @@ public:
   virtual void setPoisonMemory(bool poison) { Base->setPoisonMemory(poison); }
   virtual void AllocateGOT() { Base->AllocateGOT(); }
   virtual uint8_t *getGOTBase() const { return Base->getGOTBase(); }
-  virtual void SetDlsymTable(void *ptr) { Base->SetDlsymTable(ptr); }
-  virtual void *getDlsymTable() const { return Base->getDlsymTable(); }
   struct StartFunctionBodyCall {
     StartFunctionBodyCall(uint8_t *Result, const Function *F,
                           uintptr_t ActualSize, uintptr_t ActualSizeResult)
@@ -90,8 +89,10 @@ public:
       StartFunctionBodyCall(Result, F, InitialActualSize, ActualSize));
     return Result;
   }
+  int stubsAllocated;
   virtual uint8_t *allocateStub(const GlobalValue* F, unsigned StubSize,
                                 unsigned Alignment) {
+    stubsAllocated++;
     return Base->allocateStub(F, StubSize, Alignment);
   }
   struct EndFunctionBodyCall {
@@ -303,7 +304,6 @@ TEST_F(JITTest, FarCallToKnownFunction) {
       ConstantInt::get(TypeBuilder<int, false>::get(Context), 7));
   Builder.CreateRet(result);
 
-  TheJIT->EnableDlsymStubs(false);
   TheJIT->DisableLazyCompilation(true);
   int (*TestFunctionPtr)() = reinterpret_cast<int(*)()>(
       (intptr_t)TheJIT->getPointerToFunction(TestFunction));
@@ -437,10 +437,16 @@ TEST_F(JITTest, ModuleDeletion) {
             RJMM->deallocateFunctionBodyCalls.size());
 
   SmallPtrSet<const void*, 2> ExceptionTablesDeallocated;
+  unsigned NumTablesDeallocated = 0;
   for (unsigned i = 0, e = RJMM->deallocateExceptionTableCalls.size();
        i != e; ++i) {
     ExceptionTablesDeallocated.insert(
         RJMM->deallocateExceptionTableCalls[i].ET);
+    if (RJMM->deallocateExceptionTableCalls[i].ET != NULL) {
+        // If JITEmitDebugInfo is off, we'll "deallocate" NULL, which doesn't
+        // appear in startExceptionTableCalls.
+        NumTablesDeallocated++;
+    }
   }
   for (unsigned i = 0, e = RJMM->startExceptionTableCalls.size(); i != e; ++i) {
     EXPECT_TRUE(ExceptionTablesDeallocated.count(
@@ -449,8 +455,48 @@ TEST_F(JITTest, ModuleDeletion) {
       << RJMM->startExceptionTableCalls[i].F_dump;
   }
   EXPECT_EQ(RJMM->startExceptionTableCalls.size(),
-            RJMM->deallocateExceptionTableCalls.size());
+            NumTablesDeallocated);
 }
+
+#if !defined(__arm__) && !defined(__powerpc__) && !defined(__ppc__)
+typedef int (*FooPtr) ();
+
+TEST_F(JITTest, NoStubs) {
+  LoadAssembly("define void @bar() {"
+	       "entry: "
+	       "ret void"
+	       "}"
+	       " "
+	       "define i32 @foo() {"
+	       "entry:"
+	       "call void @bar()"
+	       "ret i32 undef"
+	       "}"
+	       " "
+	       "define i32 @main() {"
+	       "entry:"
+	       "%0 = call i32 @foo()"
+	       "call void @bar()"
+	       "ret i32 undef"
+	       "}");
+  Function *foo = M->getFunction("foo");
+  uintptr_t tmp = (uintptr_t)(TheJIT->getPointerToFunction(foo));
+  FooPtr ptr = (FooPtr)(tmp);
+
+  (ptr)();
+
+  // We should now allocate no more stubs, we have the code to foo
+  // and the existing stub for bar.
+  int stubsBefore = RJMM->stubsAllocated;
+  Function *func = M->getFunction("main");
+  TheJIT->getPointerToFunction(func);
+
+  Function *bar = M->getFunction("bar");
+  TheJIT->getPointerToFunction(bar);
+
+  ASSERT_EQ(stubsBefore, RJMM->stubsAllocated);
+}
+#endif
 
 // This code is copied from JITEventListenerTest, but it only runs once for all
 // the tests in this directory.  Everything seems fine, but that's strange

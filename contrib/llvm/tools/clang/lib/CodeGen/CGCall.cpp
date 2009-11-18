@@ -19,7 +19,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
-#include "clang/Frontend/CompileOptions.h"
+#include "clang/CodeGen/CodeGenOptions.h"
 #include "llvm/Attributes.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Target/TargetData.h"
@@ -441,17 +441,12 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
       RetAttrs |= llvm::Attribute::NoAlias;
   }
 
-  if (CompileOpts.OptimizeSize)
+  if (CodeGenOpts.OptimizeSize)
     FuncAttrs |= llvm::Attribute::OptimizeForSize;
-  if (CompileOpts.DisableRedZone)
+  if (CodeGenOpts.DisableRedZone)
     FuncAttrs |= llvm::Attribute::NoRedZone;
-  if (CompileOpts.NoImplicitFloat)
+  if (CodeGenOpts.NoImplicitFloat)
     FuncAttrs |= llvm::Attribute::NoImplicitFloat;
-
-  if (Features.getStackProtectorMode() == LangOptions::SSPOn)
-    FuncAttrs |= llvm::Attribute::StackProtect;
-  else if (Features.getStackProtectorMode() == LangOptions::SSPReq)
-    FuncAttrs |= llvm::Attribute::StackProtectReq;
 
   QualType RetTy = FI.getReturnType();
   unsigned Index = 1;

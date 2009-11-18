@@ -1,4 +1,4 @@
-//===- Thumb1InstrInfo.cpp - Thumb-1 Instruction Information --------*- C++ -*-===//
+//===- Thumb1InstrInfo.cpp - Thumb-1 Instruction Information ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ARMInstrInfo.h"
+#include "Thumb1InstrInfo.h"
 #include "ARM.h"
 #include "ARMGenInstrInfo.inc"
 #include "ARMMachineFunctionInfo.h"

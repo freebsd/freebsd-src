@@ -70,7 +70,7 @@ Linker::LinkInItems(const ItemList& Items, ItemList& NativeItems) {
 
 /// LinkInLibrary - links one library into the HeadModule.
 ///
-bool Linker::LinkInLibrary(const StringRef &Lib, bool& is_native) {
+bool Linker::LinkInLibrary(StringRef Lib, bool& is_native) {
   is_native = false;
   // Determine where this library lives.
   sys::Path Pathname = FindLib(Lib);
@@ -160,14 +160,17 @@ bool Linker::LinkInFile(const sys::Path &File, bool &is_native) {
   // Check for a file of name "-", which means "read standard input"
   if (File.str() == "-") {
     std::auto_ptr<Module> M;
-    if (MemoryBuffer *Buffer = MemoryBuffer::getSTDIN()) {
+    MemoryBuffer *Buffer = MemoryBuffer::getSTDIN();
+    if (!Buffer->getBufferSize()) {
+      delete Buffer;
+      Error = "standard input is empty";
+    } else {
       M.reset(ParseBitcodeFile(Buffer, Context, &Error));
       delete Buffer;
       if (M.get())
         if (!LinkInModule(M.get(), &Error))
           return false;
-    } else 
-      Error = "standard input is empty";
+    }
     return error("Cannot link stdin: " + Error);
   }
 
@@ -187,7 +190,6 @@ bool Linker::LinkInFile(const sys::Path &File, bool &is_native) {
     case sys::Archive_FileType:
       // A user may specify an ar archive without -l, perhaps because it
       // is not installed as a library. Detect that and link the archive.
-      verbose("Linking archive file '" + File.str() + "'");
       if (LinkInArchive(File, is_native))
         return true;
       break;

@@ -14,6 +14,7 @@
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Parse/DeclSpec.h"
+#include "clang/Parse/Template.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
@@ -108,52 +109,43 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
       if (!HasScopeSpecifier && !ObjectType)
         break;
 
+      TentativeParsingAction TPA(*this);
       SourceLocation TemplateKWLoc = ConsumeToken();
       
       UnqualifiedId TemplateName;
       if (Tok.is(tok::identifier)) {
-        TemplateName.setIdentifier(Tok.getIdentifierInfo(), Tok.getLocation());
-        
-        // If the next token is not '<', we may have a stray 'template' keyword.
-        // Complain and suggest removing the template keyword, but otherwise
-        // allow parsing to continue.
-        if (NextToken().isNot(tok::less)) {
-          Diag(NextToken().getLocation(),
-               diag::err_less_after_template_name_in_nested_name_spec)
-            << Tok.getIdentifierInfo()->getName()
-            << CodeModificationHint::CreateRemoval(SourceRange(TemplateKWLoc));
-          break;
-        }
-        
         // Consume the identifier.
+        TemplateName.setIdentifier(Tok.getIdentifierInfo(), Tok.getLocation());
         ConsumeToken();
       } else if (Tok.is(tok::kw_operator)) {
         if (ParseUnqualifiedIdOperator(SS, EnteringContext, ObjectType, 
-                                       TemplateName))
+                                       TemplateName)) {
+          TPA.Commit();
           break;
+        }
         
         if (TemplateName.getKind() != UnqualifiedId::IK_OperatorFunctionId) {
           Diag(TemplateName.getSourceRange().getBegin(),
                diag::err_id_after_template_in_nested_name_spec)
             << TemplateName.getSourceRange();
-          break;
-        } else if (Tok.isNot(tok::less)) {
-          std::string OperatorName = "operator ";
-          OperatorName += getOperatorSpelling(
-                                      TemplateName.OperatorFunctionId.Operator);
-          Diag(Tok.getLocation(),
-               diag::err_less_after_template_name_in_nested_name_spec)
-            << OperatorName
-            << TemplateName.getSourceRange();
+          TPA.Commit();
           break;
         }
       } else {
-        Diag(Tok.getLocation(),
-             diag::err_id_after_template_in_nested_name_spec)
-          << SourceRange(TemplateKWLoc);
+        TPA.Revert();
         break;
       }
 
+      // If the next token is not '<', we have a qualified-id that refers
+      // to a template name, such as T::template apply, but is not a 
+      // template-id.
+      if (Tok.isNot(tok::less)) {
+        TPA.Revert();
+        break;
+      }        
+      
+      // Commit to parsing the template-id.
+      TPA.Commit();
       TemplateTy Template
         = Actions.ActOnDependentTemplateName(TemplateKWLoc, SS, TemplateName,
                                              ObjectType);
@@ -381,13 +373,7 @@ Parser::OwningExprResult Parser::ParseCXXCasts() {
   OwningExprResult Result = ParseExpression();
 
   // Match the ')'.
-  if (Result.isInvalid())
-    SkipUntil(tok::r_paren);
-
-  if (Tok.is(tok::r_paren))
-    RParenLoc = ConsumeParen();
-  else
-    MatchRHSPunctuation(tok::r_paren, LParenLoc);
+  RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
 
   if (!Result.isInvalid() && !CastTy.isInvalid())
     Result = Actions.ActOnCXXNamedCast(OpLoc, Kind,
@@ -820,13 +806,9 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
   // Parse the enclosed template argument list.
   SourceLocation LAngleLoc, RAngleLoc;
   TemplateArgList TemplateArgs;
-  TemplateArgIsTypeList TemplateArgIsType;
-  TemplateArgLocationList TemplateArgLocations;
   if (ParseTemplateIdAfterTemplateName(Template, Id.StartLocation,
                                        &SS, true, LAngleLoc,
                                        TemplateArgs,
-                                       TemplateArgIsType,
-                                       TemplateArgLocations,
                                        RAngleLoc))
     return true;
   
@@ -851,15 +833,10 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
     TemplateId->Kind = TNK;
     TemplateId->LAngleLoc = LAngleLoc;
     TemplateId->RAngleLoc = RAngleLoc;
-    void **Args = TemplateId->getTemplateArgs();
-    bool *ArgIsType = TemplateId->getTemplateArgIsType();
-    SourceLocation *ArgLocs = TemplateId->getTemplateArgLocations();
+    ParsedTemplateArgument *Args = TemplateId->getTemplateArgs();
     for (unsigned Arg = 0, ArgEnd = TemplateArgs.size(); 
-         Arg != ArgEnd; ++Arg) {
+         Arg != ArgEnd; ++Arg)
       Args[Arg] = TemplateArgs[Arg];
-      ArgIsType[Arg] = TemplateArgIsType[Arg];
-      ArgLocs[Arg] = TemplateArgLocations[Arg];
-    }
     
     Id.setTemplateId(TemplateId);
     return false;
@@ -867,14 +844,12 @@ bool Parser::ParseUnqualifiedIdTemplateId(CXXScopeSpec &SS,
 
   // Bundle the template arguments together.
   ASTTemplateArgsPtr TemplateArgsPtr(Actions, TemplateArgs.data(),
-                                     TemplateArgIsType.data(),
                                      TemplateArgs.size());
   
   // Constructor and destructor names.
   Action::TypeResult Type
     = Actions.ActOnTemplateIdType(Template, NameLoc,
                                   LAngleLoc, TemplateArgsPtr,
-                                  &TemplateArgLocations[0],
                                   RAngleLoc);
   if (Type.isInvalid())
     return true;

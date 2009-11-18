@@ -45,6 +45,70 @@ static const bool ViewRMWDAGs = false;
 
 STATISTIC(NumLoadMoved, "Number of loads moved below TokenFactor");
 
+
+namespace {
+  struct MSP430ISelAddressMode {
+    enum {
+      RegBase,
+      FrameIndexBase
+    } BaseType;
+
+    struct {            // This is really a union, discriminated by BaseType!
+      SDValue Reg;
+      int FrameIndex;
+    } Base;
+
+    int16_t Disp;
+    GlobalValue *GV;
+    Constant *CP;
+    BlockAddress *BlockAddr;
+    const char *ES;
+    int JT;
+    unsigned Align;    // CP alignment.
+
+    MSP430ISelAddressMode()
+      : BaseType(RegBase), Disp(0), GV(0), CP(0), BlockAddr(0),
+        ES(0), JT(-1), Align(0) {
+    }
+
+    bool hasSymbolicDisplacement() const {
+      return GV != 0 || CP != 0 || ES != 0 || JT != -1;
+    }
+
+    bool hasBaseReg() const {
+      return Base.Reg.getNode() != 0;
+    }
+
+    void setBaseReg(SDValue Reg) {
+      BaseType = RegBase;
+      Base.Reg = Reg;
+    }
+
+    void dump() {
+      errs() << "MSP430ISelAddressMode " << this << '\n';
+      if (Base.Reg.getNode() != 0) {
+        errs() << "Base.Reg ";
+        Base.Reg.getNode()->dump();
+      } else {
+        errs() << " Base.FrameIndex " << Base.FrameIndex << '\n';
+      }
+      errs() << " Disp " << Disp << '\n';
+      if (GV) {
+        errs() << "GV ";
+        GV->dump();
+      } else if (CP) {
+        errs() << " CP ";
+        CP->dump();
+        errs() << " Align" << Align << '\n';
+      } else if (ES) {
+        errs() << "ES ";
+        errs() << ES << '\n';
+      } else if (JT != -1)
+        errs() << " JT" << JT << " Align" << Align << '\n';
+    }
+  };
+}
+
 /// MSP430DAGToDAGISel - MSP430 specific code to select MSP430 machine
 /// instructions for SelectionDAG operations.
 ///
@@ -65,6 +129,10 @@ namespace {
       return "MSP430 DAG->DAG Pattern Instruction Selection";
     }
 
+    bool MatchAddress(SDValue N, MSP430ISelAddressMode &AM);
+    bool MatchWrapper(SDValue N, MSP430ISelAddressMode &AM);
+    bool MatchAddressBase(SDValue N, MSP430ISelAddressMode &AM);
+
     bool IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
                                     SDNode *Root) const;
 
@@ -79,6 +147,10 @@ namespace {
     DenseMap<SDNode*, SDNode*> RMWStores;
     void PreprocessForRMW();
     SDNode *Select(SDValue Op);
+    SDNode *SelectIndexedLoad(SDValue Op);
+    SDNode *SelectIndexedBinOp(SDValue Op, SDValue N1, SDValue N2,
+                               unsigned Opc8, unsigned Opc16);
+
     bool SelectAddr(SDValue Op, SDValue Addr, SDValue &Base, SDValue &Disp);
 
   #ifndef NDEBUG
@@ -95,50 +167,155 @@ FunctionPass *llvm::createMSP430ISelDag(MSP430TargetMachine &TM,
   return new MSP430DAGToDAGISel(TM, OptLevel);
 }
 
-// FIXME: This is pretty dummy routine and needs to be rewritten in the future.
-bool MSP430DAGToDAGISel::SelectAddr(SDValue Op, SDValue Addr,
-                                    SDValue &Base, SDValue &Disp) {
-  // Try to match frame address first.
-  if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
-    Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i16);
-    Disp = CurDAG->getTargetConstant(0, MVT::i16);
+
+/// MatchWrapper - Try to match MSP430ISD::Wrapper node into an addressing mode.
+/// These wrap things that will resolve down into a symbol reference.  If no
+/// match is possible, this returns true, otherwise it returns false.
+bool MSP430DAGToDAGISel::MatchWrapper(SDValue N, MSP430ISelAddressMode &AM) {
+  // If the addressing mode already has a symbol as the displacement, we can
+  // never match another symbol.
+  if (AM.hasSymbolicDisplacement())
+    return true;
+
+  SDValue N0 = N.getOperand(0);
+
+  if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(N0)) {
+    AM.GV = G->getGlobal();
+    AM.Disp += G->getOffset();
+    //AM.SymbolFlags = G->getTargetFlags();
+  } else if (ConstantPoolSDNode *CP = dyn_cast<ConstantPoolSDNode>(N0)) {
+    AM.CP = CP->getConstVal();
+    AM.Align = CP->getAlignment();
+    AM.Disp += CP->getOffset();
+    //AM.SymbolFlags = CP->getTargetFlags();
+  } else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(N0)) {
+    AM.ES = S->getSymbol();
+    //AM.SymbolFlags = S->getTargetFlags();
+  } else if (JumpTableSDNode *J = dyn_cast<JumpTableSDNode>(N0)) {
+    AM.JT = J->getIndex();
+    //AM.SymbolFlags = J->getTargetFlags();
+  } else {
+    AM.BlockAddr = cast<BlockAddressSDNode>(N0)->getBlockAddress();
+    //AM.SymbolFlags = cast<BlockAddressSDNode>(N0)->getTargetFlags();
+  }
+  return false;
+}
+
+/// MatchAddressBase - Helper for MatchAddress. Add the specified node to the
+/// specified addressing mode without any further recursion.
+bool MSP430DAGToDAGISel::MatchAddressBase(SDValue N, MSP430ISelAddressMode &AM) {
+  // Is the base register already occupied?
+  if (AM.BaseType != MSP430ISelAddressMode::RegBase || AM.Base.Reg.getNode()) {
+    // If so, we cannot select it.
     return true;
   }
 
-  switch (Addr.getOpcode()) {
-  case ISD::ADD:
-   // Operand is a result from ADD with constant operand which fits into i16.
-   if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1))) {
-      uint64_t CVal = CN->getZExtValue();
-      // Offset should fit into 16 bits.
-      if (((CVal << 48) >> 48) == CVal) {
-        SDValue N0 = Addr.getOperand(0);
-        if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(N0))
-          Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), MVT::i16);
-        else
-          Base = N0;
+  // Default, generate it as a register.
+  AM.BaseType = MSP430ISelAddressMode::RegBase;
+  AM.Base.Reg = N;
+  return false;
+}
 
-        Disp = CurDAG->getTargetConstant(CVal, MVT::i16);
-        return true;
-      }
-    }
-    break;
+bool MSP430DAGToDAGISel::MatchAddress(SDValue N, MSP430ISelAddressMode &AM) {
+  DebugLoc dl = N.getDebugLoc();
+  DEBUG({
+      errs() << "MatchAddress: ";
+      AM.dump();
+    });
+
+  switch (N.getOpcode()) {
+  default: break;
+  case ISD::Constant: {
+    uint64_t Val = cast<ConstantSDNode>(N)->getSExtValue();
+    AM.Disp += Val;
+    return false;
+  }
+
   case MSP430ISD::Wrapper:
-    SDValue N0 = Addr.getOperand(0);
-    if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(N0)) {
-      Base = CurDAG->getTargetGlobalAddress(G->getGlobal(),
-                                            MVT::i16, G->getOffset());
-      Disp = CurDAG->getTargetConstant(0, MVT::i16);
-      return true;
-    } else if (ExternalSymbolSDNode *E = dyn_cast<ExternalSymbolSDNode>(N0)) {
-      Base = CurDAG->getTargetExternalSymbol(E->getSymbol(), MVT::i16);
-      Disp = CurDAG->getTargetConstant(0, MVT::i16);
+    if (!MatchWrapper(N, AM))
+      return false;
+    break;
+
+  case ISD::FrameIndex:
+    if (AM.BaseType == MSP430ISelAddressMode::RegBase
+        && AM.Base.Reg.getNode() == 0) {
+      AM.BaseType = MSP430ISelAddressMode::FrameIndexBase;
+      AM.Base.FrameIndex = cast<FrameIndexSDNode>(N)->getIndex();
+      return false;
     }
     break;
-  };
 
-  Base = Addr;
-  Disp = CurDAG->getTargetConstant(0, MVT::i16);
+  case ISD::ADD: {
+    MSP430ISelAddressMode Backup = AM;
+    if (!MatchAddress(N.getNode()->getOperand(0), AM) &&
+        !MatchAddress(N.getNode()->getOperand(1), AM))
+      return false;
+    AM = Backup;
+    if (!MatchAddress(N.getNode()->getOperand(1), AM) &&
+        !MatchAddress(N.getNode()->getOperand(0), AM))
+      return false;
+    AM = Backup;
+
+    break;
+  }
+
+  case ISD::OR:
+    // Handle "X | C" as "X + C" iff X is known to have C bits clear.
+    if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(N.getOperand(1))) {
+      MSP430ISelAddressMode Backup = AM;
+      uint64_t Offset = CN->getSExtValue();
+      // Start with the LHS as an addr mode.
+      if (!MatchAddress(N.getOperand(0), AM) &&
+          // Address could not have picked a GV address for the displacement.
+          AM.GV == NULL &&
+          // Check to see if the LHS & C is zero.
+          CurDAG->MaskedValueIsZero(N.getOperand(0), CN->getAPIntValue())) {
+        AM.Disp += Offset;
+        return false;
+      }
+      AM = Backup;
+    }
+    break;
+  }
+
+  return MatchAddressBase(N, AM);
+}
+
+/// SelectAddr - returns true if it is able pattern match an addressing mode.
+/// It returns the operands which make up the maximal addressing mode it can
+/// match by reference.
+bool MSP430DAGToDAGISel::SelectAddr(SDValue Op, SDValue N,
+                                    SDValue &Base, SDValue &Disp) {
+  MSP430ISelAddressMode AM;
+
+  if (MatchAddress(N, AM))
+    return false;
+
+  EVT VT = N.getValueType();
+  if (AM.BaseType == MSP430ISelAddressMode::RegBase) {
+    if (!AM.Base.Reg.getNode())
+      AM.Base.Reg = CurDAG->getRegister(0, VT);
+  }
+
+  Base  = (AM.BaseType == MSP430ISelAddressMode::FrameIndexBase) ?
+    CurDAG->getTargetFrameIndex(AM.Base.FrameIndex, TLI.getPointerTy()) :
+    AM.Base.Reg;
+
+  if (AM.GV)
+    Disp = CurDAG->getTargetGlobalAddress(AM.GV, MVT::i16, AM.Disp,
+                                          0/*AM.SymbolFlags*/);
+  else if (AM.CP)
+    Disp = CurDAG->getTargetConstantPool(AM.CP, MVT::i16,
+                                         AM.Align, AM.Disp, 0/*AM.SymbolFlags*/);
+  else if (AM.ES)
+    Disp = CurDAG->getTargetExternalSymbol(AM.ES, MVT::i16, 0/*AM.SymbolFlags*/);
+  else if (AM.JT != -1)
+    Disp = CurDAG->getTargetJumpTable(AM.JT, MVT::i16, 0/*AM.SymbolFlags*/);
+  else if (AM.BlockAddr)
+    Disp = CurDAG->getBlockAddress(AM.BlockAddr, DebugLoc()/*MVT::i32*/,
+                                   true /*AM.SymbolFlags*/);
+  else
+    Disp = CurDAG->getTargetConstant(AM.Disp, MVT::i16);
 
   return true;
 }
@@ -187,7 +364,7 @@ bool MSP430DAGToDAGISel::IsLegalAndProfitableToFold(SDNode *N, SDNode *U,
   /// TokenFactor by PreprocessForRMW. Query the map Store => Load1 (created
   /// during preprocessing) to determine whether it's legal to introduce such
   /// "cycle" for a moment.
-  DenseMap<SDNode*, SDNode*>::iterator I = RMWStores.find(Root);
+  DenseMap<SDNode*, SDNode*>::const_iterator I = RMWStores.find(Root);
   if (I != RMWStores.end() && I->second == N)
     return true;
 
@@ -423,6 +600,89 @@ void MSP430DAGToDAGISel::PreprocessForRMW() {
   }
 }
 
+
+static bool isValidIndexedLoad(const LoadSDNode *LD) {
+  ISD::MemIndexedMode AM = LD->getAddressingMode();
+  if (AM != ISD::POST_INC || LD->getExtensionType() != ISD::NON_EXTLOAD)
+    return false;
+
+  EVT VT = LD->getMemoryVT();
+
+  switch (VT.getSimpleVT().SimpleTy) {
+  case MVT::i8:
+    // Sanity check
+    if (cast<ConstantSDNode>(LD->getOffset())->getZExtValue() != 1)
+      return false;
+
+    break;
+  case MVT::i16:
+    // Sanity check
+    if (cast<ConstantSDNode>(LD->getOffset())->getZExtValue() != 2)
+      return false;
+
+    break;
+  default:
+    return false;
+  }
+
+  return true;
+}
+
+SDNode *MSP430DAGToDAGISel::SelectIndexedLoad(SDValue Op) {
+  LoadSDNode *LD = cast<LoadSDNode>(Op);
+  if (!isValidIndexedLoad(LD))
+    return NULL;
+
+  MVT VT = LD->getMemoryVT().getSimpleVT();
+
+  unsigned Opcode = 0;
+  switch (VT.SimpleTy) {
+  case MVT::i8:
+    Opcode = MSP430::MOV8rm_POST;
+    break;
+  case MVT::i16:
+    Opcode = MSP430::MOV16rm_POST;
+    break;
+  default:
+    return NULL;
+  }
+
+   return CurDAG->getMachineNode(Opcode, Op.getDebugLoc(),
+                                 VT, MVT::i16, MVT::Other,
+                                 LD->getBasePtr(), LD->getChain());
+}
+
+SDNode *MSP430DAGToDAGISel::SelectIndexedBinOp(SDValue Op,
+                                               SDValue N1, SDValue N2,
+                                               unsigned Opc8, unsigned Opc16) {
+  if (N1.getOpcode() == ISD::LOAD &&
+      N1.hasOneUse() &&
+      IsLegalAndProfitableToFold(N1.getNode(), Op.getNode(), Op.getNode())) {
+    LoadSDNode *LD = cast<LoadSDNode>(N1);
+    if (!isValidIndexedLoad(LD))
+      return NULL;
+
+    MVT VT = LD->getMemoryVT().getSimpleVT();
+    unsigned Opc = (VT == MVT::i16 ? Opc16 : Opc8);
+    MachineSDNode::mmo_iterator MemRefs0 = MF->allocateMemRefsArray(1);
+    MemRefs0[0] = cast<MemSDNode>(N1)->getMemOperand();
+    SDValue Ops0[] = { N2, LD->getBasePtr(), LD->getChain() };
+    SDNode *ResNode =
+      CurDAG->SelectNodeTo(Op.getNode(), Opc,
+                           VT, MVT::i16, MVT::Other,
+                           Ops0, 3);
+    cast<MachineSDNode>(ResNode)->setMemRefs(MemRefs0, MemRefs0 + 1);
+    // Transfer chain.
+    ReplaceUses(SDValue(N1.getNode(), 2), SDValue(ResNode, 2));
+    // Transfer writeback.
+    ReplaceUses(SDValue(N1.getNode(), 1), SDValue(ResNode, 1));
+    return ResNode;
+  }
+
+  return NULL;
+}
+
+
 /// InstructionSelect - This callback is invoked by
 /// SelectionDAGISel when it has created a SelectionDAG for us to codegen.
 void MSP430DAGToDAGISel::InstructionSelect() {
@@ -437,8 +697,6 @@ void MSP430DAGToDAGISel::InstructionSelect() {
 
   DEBUG(errs() << "Selection DAG after RMW preprocessing:\n");
   DEBUG(CurDAG->dump());
-
-  DEBUG(BB->dump());
 
   // Codegen the basic block.
   DEBUG(errs() << "===== Instruction selection begins:\n");
@@ -482,6 +740,72 @@ SDNode *MSP430DAGToDAGISel::Select(SDValue Op) {
     return CurDAG->getMachineNode(MSP430::ADD16ri, dl, MVT::i16,
                                   TFI, CurDAG->getTargetConstant(0, MVT::i16));
   }
+  case ISD::LOAD:
+    if (SDNode *ResNode = SelectIndexedLoad(Op))
+      return ResNode;
+    // Other cases are autogenerated.
+    break;
+  case ISD::ADD:
+    if (SDNode *ResNode =
+        SelectIndexedBinOp(Op,
+                           Op.getOperand(0), Op.getOperand(1),
+                           MSP430::ADD8rm_POST, MSP430::ADD16rm_POST))
+      return ResNode;
+    else if (SDNode *ResNode =
+             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+                                MSP430::ADD8rm_POST, MSP430::ADD16rm_POST))
+      return ResNode;
+
+    // Other cases are autogenerated.
+    break;
+  case ISD::SUB:
+    if (SDNode *ResNode =
+        SelectIndexedBinOp(Op,
+                           Op.getOperand(0), Op.getOperand(1),
+                           MSP430::SUB8rm_POST, MSP430::SUB16rm_POST))
+      return ResNode;
+
+    // Other cases are autogenerated.
+    break;
+  case ISD::AND:
+    if (SDNode *ResNode =
+        SelectIndexedBinOp(Op,
+                           Op.getOperand(0), Op.getOperand(1),
+                           MSP430::AND8rm_POST, MSP430::AND16rm_POST))
+      return ResNode;
+    else if (SDNode *ResNode =
+             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+                                MSP430::AND8rm_POST, MSP430::AND16rm_POST))
+      return ResNode;
+
+    // Other cases are autogenerated.
+    break;
+  case ISD::OR:
+    if (SDNode *ResNode =
+        SelectIndexedBinOp(Op,
+                           Op.getOperand(0), Op.getOperand(1),
+                           MSP430::OR8rm_POST, MSP430::OR16rm_POST))
+      return ResNode;
+    else if (SDNode *ResNode =
+             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+                                MSP430::OR8rm_POST, MSP430::OR16rm_POST))
+      return ResNode;
+
+    // Other cases are autogenerated.
+    break;
+  case ISD::XOR:
+    if (SDNode *ResNode =
+        SelectIndexedBinOp(Op,
+                           Op.getOperand(0), Op.getOperand(1),
+                           MSP430::XOR8rm_POST, MSP430::XOR16rm_POST))
+      return ResNode;
+    else if (SDNode *ResNode =
+             SelectIndexedBinOp(Op, Op.getOperand(1), Op.getOperand(0),
+                                MSP430::XOR8rm_POST, MSP430::XOR16rm_POST))
+      return ResNode;
+
+    // Other cases are autogenerated.
+    break;
   }
 
   // Select the default instruction

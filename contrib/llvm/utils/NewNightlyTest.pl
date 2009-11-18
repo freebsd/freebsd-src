@@ -43,6 +43,7 @@ use Socket;
 #                   the source tree.
 #  -noremove        Do not remove the BUILDDIR after it has been built.
 #  -noremoveresults Do not remove the WEBDIR after it has been built.
+#  -noclean         Do not run 'make clean' before building.
 #  -nobuild         Do not build llvm. If tests are enabled perform them
 #                   on the llvm build specified in the build directory
 #  -release         Build an LLVM Release version
@@ -53,6 +54,7 @@ use Socket;
 #                   building LLVM.
 #  -use-gmake       Use gmake instead of the default make command to build
 #                   llvm and run tests.
+#  -llvmgccdir      Next argument specifies the llvm-gcc install prefix.
 #
 # TESTING OPTIONS:
 #  -notest          Do not even attempt to run the test programs.
@@ -115,20 +117,14 @@ $TestSVNURL    = 'http://llvm.org/svn/llvm-project' unless $TestSVNURL;
 my $BuildDir   = $ENV{'BUILDDIR'};
 my $WebDir     = $ENV{'WEBDIR'};
 
-my $LLVMSrcDir   = $ENV{'LLVMSRCDIR'};
-$LLVMSrcDir    = "$BuildDir/llvm" unless $LLVMSrcDir;
-my $LLVMObjDir   = $ENV{'LLVMOBJDIR'};
-$LLVMObjDir    = "$BuildDir/llvm" unless $LLVMObjDir;
-my $LLVMTestDir   = $ENV{'LLVMTESTDIR'};
-$LLVMTestDir    = "$BuildDir/llvm/projects/llvm-test" unless $LLVMTestDir;
-
 ##############################################################
 #
 # Calculate the date prefix...
 #
 ##############################################################
+use POSIX;
 @TIME = localtime;
-my $DATE = sprintf "%4d-%02d-%02d_%02d-%02d", $TIME[5]+1900, $TIME[4]+1, $TIME[3], $TIME[1], $TIME[0];
+my $DATE = strftime("%Y-%m-%d_%H-%M-%S", localtime());
 
 ##############################################################
 #
@@ -147,6 +143,14 @@ $SUBMIT = 1;
 $PARALLELJOBS = "2";
 my $TESTFLAGS="";
 
+if ($ENV{'LLVMGCCDIR'}) {
+  $CONFIGUREARGS .= " --with-llvmgccdir=" . $ENV{'LLVMGCCDIR'};
+  $LLVMGCCPATH = $ENV{'LLVMGCCDIR'} . '/bin';
+}
+else {
+  $LLVMGCCPATH = "";
+}
+
 while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   shift;
   last if /^--$/;  # Stop processing arguments on --
@@ -154,6 +158,7 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   # List command line options here...
   if (/^-config$/)         { $CONFIG_PATH = "$ARGV[0]"; shift; next; }
   if (/^-nocheckout$/)     { $NOCHECKOUT = 1; next; }
+  if (/^-noclean$/)        { $NOCLEAN = 1; next; }
   if (/^-noremove$/)       { $NOREMOVE = 1; next; }
   if (/^-noremoveatend$/)  { $NOREMOVEATEND = 1; next; }
   if (/^-noremoveresults$/){ $NOREMOVERESULTS = 1; next; }
@@ -211,21 +216,17 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   if (/^-test-cxxflags/)   { $TESTFLAGS = "$TESTFLAGS CXXFLAGS=\'$ARGV[0]\'";
                              shift; next; }
   if (/^-compileflags/)    { $MAKEOPTS = "$MAKEOPTS $ARGV[0]"; shift; next; }
+  if (/^-llvmgccdir/)      { $CONFIGUREARGS .= " --with-llvmgccdir=\'$ARGV[0]\'";
+                             $LLVMGCCPATH = $ARGV[0] . '/bin';
+                             shift; next;}
+  if (/^-noexternals$/)    { $NOEXTERNALS = 1; next; }
   if (/^-use-gmake/)       { $MAKECMD = "gmake"; shift; next; }
   if (/^-extraflags/)      { $CONFIGUREARGS .=
                              " --with-extra-options=\'$ARGV[0]\'"; shift; next;}
   if (/^-noexternals$/)    { $NOEXTERNALS = 1; next; }
-  if (/^-nodejagnu$/)      { $NODEJAGNU = 1; next; }
+  if (/^-nodejagnu$/)      { next; }
   if (/^-nobuild$/)        { $NOBUILD = 1; next; }
   print "Unknown option: $_ : ignoring!\n";
-}
-
-if ($ENV{'LLVMGCCDIR'}) {
-  $CONFIGUREARGS .= " --with-llvmgccdir=" . $ENV{'LLVMGCCDIR'};
-  $LLVMGCCPATH = $ENV{'LLVMGCCDIR'} . '/bin';
-}
-else {
-  $LLVMGCCPATH = "";
 }
 
 if ($CONFIGUREARGS !~ /--disable-jit/) {
@@ -263,6 +264,13 @@ if ($nickname eq "") {
   die ("Please invoke NewNightlyTest.pl with command line option " .
        "\"-nickname <nickname>\"");
 }
+
+my $LLVMSrcDir   = $ENV{'LLVMSRCDIR'};
+$LLVMSrcDir    = "$BuildDir/llvm" unless $LLVMSrcDir;
+my $LLVMObjDir   = $ENV{'LLVMOBJDIR'};
+$LLVMObjDir    = "$BuildDir/llvm" unless $LLVMObjDir;
+my $LLVMTestDir   = $ENV{'LLVMTESTDIR'};
+$LLVMTestDir    = "$BuildDir/llvm/projects/llvm-test" unless $LLVMTestDir;
 
 ##############################################################
 #
@@ -381,39 +389,6 @@ sub CopyFile { #filename, newfile
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# This function is meant to read in the dejagnu sum file and
-# return a string with only the results (i.e. PASS/FAIL/XPASS/
-# XFAIL).
-#
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sub GetDejagnuTestResults { # (filename, log)
-    my ($filename, $DejagnuLog) = @_;
-    my @lines;
-    $/ = "\n"; #Make sure we're going line at a time.
-
-    if( $VERBOSE) { print "DEJAGNU TEST RESULTS:\n"; }
-
-    if (open SRCHFILE, $filename) {
-        # Process test results
-        while ( <SRCHFILE> ) {
-            if ( length($_) > 1 ) {
-                chomp($_);
-                if ( m/^(PASS|XPASS|FAIL|XFAIL): .*\/llvm\/test\/(.*)$/ ) {
-                    push(@lines, "$1: test/$2");
-                }
-            }
-        }
-    }
-    close SRCHFILE;
-
-    my $content = join("\n", @lines);
-    return $content;
-}
-
-
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
 # This function acts as a mini web browswer submitting data
 # to our central server via the post method
 #
@@ -523,7 +498,9 @@ sub BuildLLVM {
   RunLoggedCommand("(time -p $NICE ./configure $CONFIGUREARGS $EXTRAFLAGS) ",
                    $ConfigureLog, "CONFIGURE");
   # Build the entire tree, capturing the output into $BuildLog
-  RunAppendingLoggedCommand("($NICE $MAKECMD $MAKEOPTS clean)", $BuildLog, "BUILD CLEAN");
+  if (!$NOCLEAN) {
+      RunAppendingLoggedCommand("($NICE $MAKECMD $MAKEOPTS clean)", $BuildLog, "BUILD CLEAN");
+  }
   RunAppendingLoggedCommand("(time -p $NICE $MAKECMD $MAKEOPTS)", $BuildLog, "BUILD");
 
   if (`grep '^$MAKECMD\[^:]*: .*Error' $BuildLog | wc -l` + 0 ||
@@ -534,21 +511,6 @@ sub BuildLLVM {
   return 1;
 }
 
-# Running dejagnu tests and save results to log.
-sub RunDejaGNUTests {
-  die "Invalid call!" unless $ConfigMode == 0;
-  # Run the feature and regression tests, results are put into testrun.sum and
-  # the full log in testrun.log.
-  system "rm -f test/testrun.log test/testrun.sum";
-  RunLoggedCommand("(time -p $MAKECMD $MAKEOPTS check)", $DejagnuLog, "DEJAGNU");
-
-  # Copy the testrun.log and testrun.sum to our webdir.
-  CopyFile("test/testrun.log", $DejagnuLog);
-  CopyFile("test/testrun.sum", $DejagnuSum);
-
-  return GetDejagnuTestResults($DejagnuSum, $DejagnuLog);
-}
-
 # Run the named tests (i.e. "SingleSource" "MultiSource" "External")
 sub TestDirectory {
   my $SubDir = shift;
@@ -557,11 +519,9 @@ sub TestDirectory {
 
   my $ProgramTestLog = "$Prefix-$SubDir-ProgramTest.txt";
 
-  # Make sure to clean things if in non-config mode.
-  if ($ConfigMode == 1) {
-    RunLoggedCommand("$MAKECMD -k $MAKEOPTS $PROGTESTOPTS clean $TESTFLAGS",
-                     $ProgramTestLog, "TEST DIRECTORY $SubDir");
-  }
+  # Make sure to clean the test results.
+  RunLoggedCommand("$MAKECMD -k $MAKEOPTS $PROGTESTOPTS clean $TESTFLAGS",
+                   $ProgramTestLog, "TEST DIRECTORY $SubDir");
 
   # Run the programs tests... creating a report.nightly.csv file.
   my $LLCBetaOpts = "";
@@ -660,9 +620,6 @@ if ($CONFIG_PATH ne "") {
   $ConfigureLog = "$Prefix-Configure-Log.txt";
   $BuildLog = "$Prefix-Build-Log.txt";
   $COLog = "$Prefix-CVS-Log.txt";
-  $DejagnuLog = "$Prefix-Dejagnu-testrun.log";
-  $DejagnuSum = "$Prefix-Dejagnu-testrun.sum";
-  $DejagnuLog = "$Prefix-DejagnuTests-Log.txt";
 }
 
 if ($VERBOSE) {
@@ -693,7 +650,6 @@ if ($VERBOSE) {
 $starttime = `date "+20%y-%m-%d %H:%M:%S"`;
 
 my $BuildError = 0, $BuildStatus = "OK";
-my $DejagnuTestResults = "Dejagnu skipped by user choice.";
 if ($ConfigMode == 0) {
   if (!$NOCHECKOUT) {
     CheckoutSource();
@@ -708,13 +664,7 @@ if ($ConfigMode == 0) {
       if( $VERBOSE) { print  "\n***ERROR BUILDING TREE\n\n"; }
       $BuildError = 1;
       $BuildStatus = "Error: compilation aborted";
-      $NODEJAGNU=1;
     }
-  }
-
-  # Run DejaGNU.
-  if (!$NODEJAGNU && !$BuildError) {
-    $DejagnuTestResults = RunDejaGNUTests();
   }
 }
 
@@ -758,6 +708,8 @@ if ($GCCPATH ne "") {
 my $gcc_version = (split '\n', $gcc_version_long)[0];
 
 # Get llvm-gcc target triple.
+#
+# FIXME: This shouldn't be hardwired to llvm-gcc.
 my $llvmgcc_version_long = "";
 if ($LLVMGCCPATH ne "") {
   $llvmgcc_version_long = `$LLVMGCCPATH/llvm-gcc -v 2>&1`;
@@ -768,11 +720,10 @@ if ($LLVMGCCPATH ne "") {
 my $targetTriple = $1;
 
 # Logs.
-my ($ConfigureLogData, $BuildLogData, $DejagnuLogData, $CheckoutLogData) = "";
+my ($ConfigureLogData, $BuildLogData, $CheckoutLogData) = "";
 if ($ConfigMode == 0) {
   $ConfigureLogData = ReadFile $ConfigureLog;
   $BuildLogData = ReadFile $BuildLog;
-  $DejagnuLogData = ReadFile $DejagnuLog;
   $CheckoutLogData = ReadFile $COLog;
 }
 
@@ -798,14 +749,6 @@ my $BuildWallTime = GetRegex "^real ([0-9.]+)", $BuildLogData;
 $BuildTime=-1 unless $BuildTime;
 $BuildWallTime=-1 unless $BuildWallTime;
 
-# DejaGNU info.
-my $DejagnuTimeU = GetRegex "^user ([0-9.]+)", $DejagnuLogData;
-my $DejagnuTimeS = GetRegex "^sys ([0-9.]+)", $DejagnuLogData;
-$DejagnuTime  = $DejagnuTimeU+$DejagnuTimeS;  # DejagnuTime = User+System
-$DejagnuWallTime = GetRegex "^real ([0-9.]+)", $DejagnuLogData;
-$DejagnuTime     = "0.0" unless $DejagnuTime;
-$DejagnuWallTime = "0.0" unless $DejagnuWallTime;
-
 if ( $VERBOSE ) { print "SEND THE DATA VIA THE POST REQUEST\n"; }
 
 my %hash_of_data = (
@@ -813,8 +756,8 @@ my %hash_of_data = (
   'build_data' => $ConfigureLogData . $BuildLogData,
   'gcc_version' => $gcc_version,
   'nickname' => $nickname,
-  'dejagnutime_wall' => $DejagnuWallTime,
-  'dejagnutime_cpu' => $DejagnuTime,
+  'dejagnutime_wall' => "0.0",
+  'dejagnutime_cpu' => "0.0",
   'cvscheckouttime_wall' => $CheckoutTime_Wall,
   'cvscheckouttime_cpu' => $CheckoutTime_CPU,
   'configtime_wall' => $ConfigWallTime,
@@ -830,8 +773,8 @@ my %hash_of_data = (
   'expfail_tests' => $xfails,
   'unexpfail_tests' => $fails,
   'all_tests' => $all_tests,
-  'dejagnutests_results' => $DejagnuTestResults,
-  'dejagnutests_log' => $DejagnuLogData,
+  'dejagnutests_results' => "Dejagnu skipped by user choice.",
+  'dejagnutests_log' => "",
   'starttime' => $starttime,
   'endtime' => $endtime,
   'target_triple' => $targetTriple,

@@ -1,7 +1,7 @@
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -verify %s &&
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s &&
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify %s &&
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -verify %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=range -verify %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=basic -verify %s
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify %s
 
 struct s {
   int data;
@@ -120,7 +120,7 @@ struct s1 {
 // building: a->e, e->d. Only then 'a' could be added to live region roots.
 void f13(double timeout) {
   struct s1 a;
-  a.e.d = (long) timeout;
+  a.e.d = (int) timeout;
   if (a.e.d == 10)
     a.e.d = 4;
 }
@@ -153,7 +153,7 @@ struct s3 p[1];
 // an ElementRegion of type 'char'. Then load a nonloc::SymbolVal from it and
 // assigns to 'a'. 
 void f16(struct s3 *p) {
-  struct s3 a = *((struct s3*) ((char*) &p[0]));
+  struct s3 a = *((struct s3*) ((char*) &p[0])); // expected-warning{{Casting a non-structure type to a structure type and accessing a field can lead to memory access errors or data corruption.}}
 }
 
 void inv(struct s1 *);

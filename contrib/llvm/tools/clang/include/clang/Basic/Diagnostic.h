@@ -32,6 +32,7 @@ namespace clang {
   class IdentifierInfo;
   class LangOptions;
   class PartialDiagnostic;
+  class Preprocessor;
   class SourceRange;
 
   // Import the diagnostic enums themselves.
@@ -105,6 +106,10 @@ public:
   /// modification is known.
   CodeModificationHint() : RemoveRange(), InsertionLoc() { }
 
+  bool isNull() const {
+    return !RemoveRange.isValid() && !InsertionLoc.isValid();
+  }
+  
   /// \brief Create a code modification hint that inserts the given
   /// code string at a specific location.
   static CodeModificationHint CreateInsertion(SourceLocation InsertionLoc,
@@ -382,6 +387,7 @@ public:
   /// @c Pos represents the source location associated with the diagnostic,
   /// which can be an invalid location if no position information is available.
   inline DiagnosticBuilder Report(FullSourceLoc Pos, unsigned DiagID);
+  inline DiagnosticBuilder Report(unsigned DiagID);
 
   /// \brief Clear out the current diagnostic.
   void Clear() { CurDiagID = ~0U; }
@@ -586,6 +592,9 @@ public:
   }
 
   void AddCodeModificationHint(const CodeModificationHint &Hint) const {
+    if (Hint.isNull())
+      return;
+    
     assert(NumCodeModificationHints < Diagnostic::MaxCodeModificationHints &&
            "Too many code modification hints!");
     if (DiagObj)
@@ -663,6 +672,9 @@ inline DiagnosticBuilder Diagnostic::Report(FullSourceLoc Loc, unsigned DiagID){
   CurDiagLoc = Loc;
   CurDiagID = DiagID;
   return DiagnosticBuilder(this);
+}
+inline DiagnosticBuilder Diagnostic::Report(unsigned DiagID) {
+  return Report(FullSourceLoc(), DiagID);
 }
 
 //===----------------------------------------------------------------------===//
@@ -780,7 +792,8 @@ public:
   /// \arg LO - The language options for the source file being processed.
   /// \arg PP - The preprocessor object being used for the source; this optional
   /// and may not be present, for example when processing AST source files.
-  virtual void BeginSourceFile(const LangOptions &LangOpts) {}
+  virtual void BeginSourceFile(const LangOptions &LangOpts,
+                               const Preprocessor *PP = 0) {}
 
   /// EndSourceFile - Callback to inform the diagnostic client that processing
   /// of a source file has ended. The diagnostic client should assume that any

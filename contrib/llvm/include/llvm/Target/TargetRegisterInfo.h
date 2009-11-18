@@ -275,6 +275,7 @@ private:
   regclass_iterator RegClassBegin, RegClassEnd;   // List of regclasses
 
   int CallFrameSetupOpcode, CallFrameDestroyOpcode;
+
 protected:
   TargetRegisterInfo(const TargetRegisterDesc *D, unsigned NR,
                      regclass_iterator RegClassBegin,
@@ -462,6 +463,11 @@ public:
   /// for physical register RegNo. Return zero if the sub-register does not
   /// exist.
   virtual unsigned getSubReg(unsigned RegNo, unsigned Index) const = 0;
+
+  /// getSubRegIndex - For a given register pair, return the sub-register index
+  /// if they are second register is a sub-register of the second. Return zero
+  /// otherwise.
+  virtual unsigned getSubRegIndex(unsigned RegNo, unsigned SubRegNo) const = 0;
 
   /// getMatchingSuperReg - Return a super-register of the specified register
   /// Reg so its sub-register of index SubIdx is Reg.
@@ -684,7 +690,7 @@ public:
 
   /// getFrameRegister - This method should return the register used as a base
   /// for values allocated in the current stack frame.
-  virtual unsigned getFrameRegister(MachineFunction &MF) const = 0;
+  virtual unsigned getFrameRegister(const MachineFunction &MF) const = 0;
 
   /// getFrameIndexOffset - Returns the displacement from the frame register to
   /// the stack frame of the specified index.

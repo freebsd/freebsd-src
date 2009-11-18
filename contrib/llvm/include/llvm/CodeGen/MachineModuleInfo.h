@@ -44,8 +44,6 @@
 #include "llvm/Pass.h"
 #include "llvm/Metadata.h"
 
-#define ATTACH_DEBUG_INFO_TO_AN_INSN 1
-
 namespace llvm {
 
 //===----------------------------------------------------------------------===//
@@ -150,7 +148,8 @@ class MachineModuleInfo : public ImmutablePass {
 public:
   static char ID; // Pass identification, replacement for typeid
 
-  typedef SmallVector< std::pair<TrackingVH<MDNode>, unsigned>, 4 > 
+  typedef std::pair<unsigned, TrackingVH<MDNode> > UnsignedAndMDNodePair;
+  typedef SmallVector< std::pair<TrackingVH<MDNode>, UnsignedAndMDNodePair>, 4>
     VariableDbgInfoMapTy;
   VariableDbgInfoMapTy VariableDbgInfo;
 
@@ -336,8 +335,8 @@ public:
 
   /// setVariableDbgInfo - Collect information used to emit debugging information
   /// of a variable.
-  void setVariableDbgInfo(MDNode *N, unsigned S) {
-    VariableDbgInfo.push_back(std::make_pair(N, S));
+  void setVariableDbgInfo(MDNode *N, unsigned Slot, MDNode *Scope) {
+    VariableDbgInfo.push_back(std::make_pair(N, std::make_pair(Slot, Scope)));
   }
 
   VariableDbgInfoMapTy &getVariableDbgInfo() {  return VariableDbgInfo;  }

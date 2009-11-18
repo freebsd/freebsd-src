@@ -1215,6 +1215,13 @@ target datalayout = "<i>layout specification</i>"
   <dt><tt>s<i>size</i>:<i>abi</i>:<i>pref</i></tt></dt>
   <dd>This specifies the alignment for a stack object of a given bit
       <i>size</i>.</dd>
+
+  <dt><tt>n<i>size1</i>:<i>size2</i>:<i>size3</i>...</tt></dt>
+  <dd>This specifies a set of native integer widths for the target CPU
+      in bits.  For example, it might contain "n32" for 32-bit PowerPC,
+      "n32:64" for PowerPC 64, or "n8:16:32:64" for X86-64.  Elements of
+      this set are considered to support most general arithmetic 
+      operations efficiently.</dd>
 </dl>
 
 <p>When constructing the data layout for a given target, LLVM starts with a
@@ -1569,12 +1576,12 @@ Classifications</a> </div>
   </tr>
 </table>
 
-<p>Note that 'variable sized arrays' can be implemented in LLVM with a zero
-   length array.  Normally, accesses past the end of an array are undefined in
-   LLVM (e.g. it is illegal to access the 5th element of a 3 element array).  As
-   a special case, however, zero length arrays are recognized to be variable
-   length.  This allows implementation of 'pascal style arrays' with the LLVM
-   type "<tt>{ i32, [0 x float]}</tt>", for example.</p>
+<p>There is no restriction on indexing beyond the end of the array implied by
+   a static type (though there are restrictions on indexing beyond the bounds
+   of an allocated object in some cases). This means that single-dimension
+   'variable sized array' addressing can be implemented in LLVM with a zero
+   length array type. An implementation of 'pascal style arrays' in LLVM could
+   use the type "<tt>{ i32, [0 x float]}</tt>", for example.</p>
 
 <p>Note that the code generator does not yet support large aggregate types to be
    used as function return types. The specific limit on how large an aggregate
@@ -7278,7 +7285,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-11-02 01:25:26 +0100 (Mon, 02 Nov 2009) $
+  Last modified: $Date: 2009-11-09 20:01:53 +0100 (Mon, 09 Nov 2009) $
 </address>
 
 </body>

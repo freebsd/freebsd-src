@@ -267,6 +267,12 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
     return EmitCXXBindTemporaryLValue(cast<CXXBindTemporaryExpr>(E));
   case Expr::CXXExprWithTemporariesClass:
     return EmitCXXExprWithTemporariesLValue(cast<CXXExprWithTemporaries>(E));
+  case Expr::CXXZeroInitValueExprClass:
+    return EmitNullInitializationLValue(cast<CXXZeroInitValueExpr>(E));
+  case Expr::CXXDefaultArgExprClass:
+    return EmitLValue(cast<CXXDefaultArgExpr>(E)->getExpr());
+  case Expr::CXXTypeidExprClass:
+    return EmitCXXTypeidLValue(cast<CXXTypeidExpr>(E));
 
   case Expr::ObjCMessageExprClass:
     return EmitObjCMessageExprLValue(cast<ObjCMessageExpr>(E));
@@ -303,8 +309,6 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
   case Expr::CXXReinterpretCastExprClass:
   case Expr::CXXConstCastExprClass:
     return EmitCastLValue(cast<CastExpr>(E));
-  case Expr::CXXZeroInitValueExprClass:
-    return EmitNullInitializationLValue(cast<CXXZeroInitValueExpr>(E));
   }
 }
 
@@ -813,53 +817,53 @@ static void setObjCGCLValueClass(const ASTContext &Ctx, const Expr *E,
   }
 }
 
+static LValue EmitGlobalVarDeclLValue(CodeGenFunction &CGF,
+                                      const Expr *E, const VarDecl *VD) {
+  assert((VD->hasExternalStorage() || VD->isFileVarDecl()) &&
+         "Var decl must have external storage or be a file var decl!");
+
+  llvm::Value *V = CGF.CGM.GetAddrOfGlobalVar(VD);
+  if (VD->getType()->isReferenceType())
+    V = CGF.Builder.CreateLoad(V, "tmp");
+  LValue LV = LValue::MakeAddr(V, CGF.MakeQualifiers(E->getType()));
+  setObjCGCLValueClass(CGF.getContext(), E, LV);
+  return LV;
+}
+
 LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
-  const VarDecl *VD = dyn_cast<VarDecl>(E->getDecl());
+  const NamedDecl *ND = E->getDecl();
 
-  if (VD && (VD->isBlockVarDecl() || isa<ParmVarDecl>(VD) ||
-        isa<ImplicitParamDecl>(VD))) {
-    LValue LV;
-    bool NonGCable = VD->hasLocalStorage() &&
-      !VD->hasAttr<BlocksAttr>();
-    if (VD->hasExternalStorage()) {
-      llvm::Value *V = CGM.GetAddrOfGlobalVar(VD);
-      if (VD->getType()->isReferenceType())
-        V = Builder.CreateLoad(V, "tmp");
-      LV = LValue::MakeAddr(V, MakeQualifiers(E->getType()));
-    } else {
-      llvm::Value *V = LocalDeclMap[VD];
-      assert(V && "DeclRefExpr not entered in LocalDeclMap?");
+  if (const VarDecl *VD = dyn_cast<VarDecl>(ND)) {
+    
+    // Check if this is a global variable.
+    if (VD->hasExternalStorage() || VD->isFileVarDecl()) 
+      return EmitGlobalVarDeclLValue(*this, E, VD);
 
-      Qualifiers Quals = MakeQualifiers(E->getType());
-      // local variables do not get their gc attribute set.
-      // local static?
-      if (NonGCable) Quals.removeObjCGCAttr();
+    bool NonGCable = VD->hasLocalStorage() && !VD->hasAttr<BlocksAttr>();
 
-      if (VD->hasAttr<BlocksAttr>()) {
-        V = Builder.CreateStructGEP(V, 1, "forwarding");
-        V = Builder.CreateLoad(V, false);
-        V = Builder.CreateStructGEP(V, getByRefValueLLVMField(VD),
-                                    VD->getNameAsString());
-      }
-      if (VD->getType()->isReferenceType())
-        V = Builder.CreateLoad(V, "tmp");
-      LV = LValue::MakeAddr(V, Quals);
+    llvm::Value *V = LocalDeclMap[VD];
+    assert(V && "DeclRefExpr not entered in LocalDeclMap?");
+
+    Qualifiers Quals = MakeQualifiers(E->getType());
+    // local variables do not get their gc attribute set.
+    // local static?
+    if (NonGCable) Quals.removeObjCGCAttr();
+
+    if (VD->hasAttr<BlocksAttr>()) {
+      V = Builder.CreateStructGEP(V, 1, "forwarding");
+      V = Builder.CreateLoad(V, false);
+      V = Builder.CreateStructGEP(V, getByRefValueLLVMField(VD),
+                                  VD->getNameAsString());
     }
+    if (VD->getType()->isReferenceType())
+      V = Builder.CreateLoad(V, "tmp");
+    LValue LV = LValue::MakeAddr(V, Quals);
     LValue::SetObjCNonGC(LV, NonGCable);
     setObjCGCLValueClass(getContext(), E, LV);
     return LV;
   }
   
-  if (VD && VD->isFileVarDecl()) {
-    llvm::Value *V = CGM.GetAddrOfGlobalVar(VD);
-    if (VD->getType()->isReferenceType())
-      V = Builder.CreateLoad(V, "tmp");
-    LValue LV = LValue::MakeAddr(V, MakeQualifiers(E->getType()));
-    setObjCGCLValueClass(getContext(), E, LV);
-    return LV;
-  }
-  
-  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(E->getDecl())) {
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(ND)) {
     llvm::Value* V = CGM.GetAddrOfFunction(FD);
     if (!FD->hasPrototype()) {
       if (const FunctionProtoType *Proto =
@@ -876,20 +880,15 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
     return LValue::MakeAddr(V, MakeQualifiers(E->getType()));
   }
   
-  if (const ImplicitParamDecl *IPD = dyn_cast<ImplicitParamDecl>(E->getDecl())){
-    llvm::Value *V = LocalDeclMap[IPD];
-    assert(V && "BlockVarDecl not entered in LocalDeclMap?");
-    return LValue::MakeAddr(V, MakeQualifiers(E->getType()));
-  }
-  
   if (E->getQualifier()) {
     // FIXME: the qualifier check does not seem sufficient here
-    return EmitPointerToDataMemberLValue(E);
+    return EmitPointerToDataMemberLValue(cast<FieldDecl>(ND));
   }
   
-  assert(0 && "Unimp declref");
-  //an invalid LValue, but the assert will
-  //ensure that this point is never reached.
+  assert(false && "Unhandled DeclRefExpr");
+  
+  // an invalid LValue, but the assert will
+  // ensure that this point is never reached.
   return LValue();
 }
 
@@ -924,12 +923,16 @@ LValue CodeGenFunction::EmitUnaryOpLValue(const UnaryOperator *E) {
     return LV;
   }
   case UnaryOperator::Real:
-  case UnaryOperator::Imag:
+  case UnaryOperator::Imag: {
     LValue LV = EmitLValue(E->getSubExpr());
     unsigned Idx = E->getOpcode() == UnaryOperator::Imag;
     return LValue::MakeAddr(Builder.CreateStructGEP(LV.getAddress(),
                                                     Idx, "idx"),
                             MakeQualifiers(ExprTy));
+  }
+  case UnaryOperator::PreInc:
+  case UnaryOperator::PreDec:
+    return EmitUnsupportedLValue(E, "pre-inc/dec expression");
   }
 }
 
@@ -1151,18 +1154,24 @@ LValue CodeGenFunction::EmitMemberExpr(const MemberExpr *E) {
     BaseQuals = BaseTy.getQualifiers();
   }
 
-  FieldDecl *Field = dyn_cast<FieldDecl>(E->getMemberDecl());
-  // FIXME: Handle non-field member expressions
-  assert(Field && "No code generation for non-field member references");
-  LValue MemExpLV = EmitLValueForField(BaseValue, Field, isUnion,
-                                       BaseQuals.getCVRQualifiers());
-  LValue::SetObjCNonGC(MemExpLV, isNonGC);
-  setObjCGCLValueClass(getContext(), E, MemExpLV);
-  return MemExpLV;
+  NamedDecl *ND = E->getMemberDecl();
+  if (FieldDecl *Field = dyn_cast<FieldDecl>(ND)) {
+    LValue LV = EmitLValueForField(BaseValue, Field, isUnion,
+                                   BaseQuals.getCVRQualifiers());
+    LValue::SetObjCNonGC(LV, isNonGC);
+    setObjCGCLValueClass(getContext(), E, LV);
+    return LV;
+  }
+  
+  if (VarDecl *VD = dyn_cast<VarDecl>(ND))
+    return EmitGlobalVarDeclLValue(*this, E, VD);
+  
+  assert(false && "Unhandled member declaration!");
+  return LValue();
 }
 
 LValue CodeGenFunction::EmitLValueForBitfield(llvm::Value* BaseValue,
-                                              FieldDecl* Field,
+                                              const FieldDecl* Field,
                                               unsigned CVRQualifiers) {
   CodeGenTypes::BitFieldInfo Info = CGM.getTypes().getBitFieldInfo(Field);
 
@@ -1187,7 +1196,7 @@ LValue CodeGenFunction::EmitLValueForBitfield(llvm::Value* BaseValue,
 }
 
 LValue CodeGenFunction::EmitLValueForField(llvm::Value* BaseValue,
-                                           FieldDecl* Field,
+                                           const FieldDecl* Field,
                                            bool isUnion,
                                            unsigned CVRQualifiers) {
   if (Field->isBitField())
@@ -1281,22 +1290,26 @@ CodeGenFunction::EmitConditionalOperatorLValue(const ConditionalOperator* E) {
   return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
 }
 
-/// EmitCastLValue - Casts are never lvalues.  If a cast is needed by the code
-/// generator in an lvalue context, then it must mean that we need the address
-/// of an aggregate in order to access one of its fields.  This can happen for
-/// all the reasons that casts are permitted with aggregate result, including
-/// noop aggregate casts, and cast from scalar to union.
+/// EmitCastLValue - Casts are never lvalues unless that cast is a dynamic_cast.
+/// If the cast is a dynamic_cast, we can have the usual lvalue result,
+/// otherwise if a cast is needed by the code generator in an lvalue context,
+/// then it must mean that we need the address of an aggregate in order to
+/// access one of its fields.  This can happen for all the reasons that casts
+/// are permitted with aggregate result, including noop aggregate casts, and
+/// cast from scalar to union.
 LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
   switch (E->getCastKind()) {
   default:
-    // If this is an lvalue cast, treat it as a no-op.
-    // FIXME: We shouldn't need to check for this explicitly!
-    if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E))
-      if (ICE->isLvalueCast())
-        return EmitLValue(E->getSubExpr());
-    
-    assert(0 && "Unhandled cast!");
-      
+    return EmitUnsupportedLValue(E, "unexpected cast lvalue");
+
+  case CastExpr::CK_Dynamic: {
+    LValue LV = EmitLValue(E->getSubExpr());
+    llvm::Value *V = LV.getAddress();
+    const CXXDynamicCastExpr *DCE = cast<CXXDynamicCastExpr>(E);
+    return LValue::MakeAddr(EmitDynamicCast(V, DCE),
+                            MakeQualifiers(E->getType()));
+  }
+
   case CastExpr::CK_NoOp:
   case CastExpr::CK_ConstructorConversion:
   case CastExpr::CK_UserDefinedConversion:
@@ -1320,13 +1333,24 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
     
     return LValue::MakeAddr(Base, MakeQualifiers(E->getType()));
   }
-
   case CastExpr::CK_ToUnion: {
     llvm::Value *Temp = CreateTempAlloca(ConvertType(E->getType()));
     EmitAnyExpr(E->getSubExpr(), Temp, false);
 
     return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
-    }
+  }
+  case CastExpr::CK_BaseToDerived: {
+    return EmitUnsupportedLValue(E, "base-to-derived cast lvalue");
+  }
+  case CastExpr::CK_BitCast: {
+    // This must be a reinterpret_cast (or c-style equivalent).
+    const ExplicitCastExpr *CE = cast<ExplicitCastExpr>(E);
+    
+    LValue LV = EmitLValue(E->getSubExpr());
+    llvm::Value *V = Builder.CreateBitCast(LV.getAddress(),
+                                           ConvertType(CE->getTypeAsWritten()));
+    return LValue::MakeAddr(V, MakeQualifiers(E->getType()));
+  }
   }
 }
 
@@ -1449,6 +1473,12 @@ LValue CodeGenFunction::EmitCXXConstructLValue(const CXXConstructExpr *E) {
 }
 
 LValue
+CodeGenFunction::EmitCXXTypeidLValue(const CXXTypeidExpr *E) {
+  llvm::Value *Temp = EmitCXXTypeidExpr(E);
+  return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
+}
+
+LValue
 CodeGenFunction::EmitCXXBindTemporaryLValue(const CXXBindTemporaryExpr *E) {
   LValue LV = EmitLValue(E->getSubExpr());
   PushCXXTemporary(E->getTemporary(), LV.getAddress());
@@ -1526,19 +1556,18 @@ LValue CodeGenFunction::EmitStmtExprLValue(const StmtExpr *E) {
 }
 
 
-LValue CodeGenFunction::EmitPointerToDataMemberLValue(const DeclRefExpr *E) {
-  const FieldDecl *Field = cast<FieldDecl>(E->getDecl());
+LValue CodeGenFunction::EmitPointerToDataMemberLValue(const FieldDecl *Field) {
   const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(Field->getDeclContext());
   QualType NNSpecTy = 
     getContext().getCanonicalType(
       getContext().getTypeDeclType(const_cast<CXXRecordDecl*>(ClassDecl)));
   NNSpecTy = getContext().getPointerType(NNSpecTy);
   llvm::Value *V = llvm::Constant::getNullValue(ConvertType(NNSpecTy));
-  LValue MemExpLV = EmitLValueForField(V, const_cast<FieldDecl*>(Field), 
-                                       /*isUnion*/false, /*Qualifiers*/0);
+  LValue MemExpLV = EmitLValueForField(V, Field, /*isUnion=*/false, 
+                                       /*Qualifiers=*/0);
   const llvm::Type *ResultType = ConvertType(getContext().getPointerDiffType());
   V = Builder.CreatePtrToInt(MemExpLV.getAddress(), ResultType, "datamember");
-  return LValue::MakeAddr(V, MakeQualifiers(E->getType()));
+  return LValue::MakeAddr(V, MakeQualifiers(Field->getType()));
 }
 
 RValue CodeGenFunction::EmitCall(llvm::Value *Callee, QualType CalleeType,
@@ -1571,16 +1600,14 @@ RValue CodeGenFunction::EmitCall(llvm::Value *Callee, QualType CalleeType,
 
 LValue CodeGenFunction::
 EmitPointerToDataMemberBinaryExpr(const BinaryOperator *E) {
-  llvm::Value *BaseV = EmitLValue(E->getLHS()).getAddress();
+  llvm::Value *BaseV;
   if (E->getOpcode() == BinaryOperator::PtrMemI)
-    BaseV = Builder.CreateLoad(BaseV, "indir.ptr");
+    BaseV = EmitScalarExpr(E->getLHS());
+  else
+    BaseV = EmitLValue(E->getLHS()).getAddress();
   const llvm::Type *i8Ty = llvm::Type::getInt8PtrTy(getLLVMContext());
   BaseV = Builder.CreateBitCast(BaseV, i8Ty);
-  LValue RHSLV = EmitLValue(E->getRHS());
-  llvm::Value *OffsetV = 
-    EmitLoadOfLValue(RHSLV, E->getRHS()->getType()).getScalarVal();
-  const llvm::Type* ResultType = ConvertType(getContext().getPointerDiffType());
-  OffsetV = Builder.CreateBitCast(OffsetV, ResultType);
+  llvm::Value *OffsetV = EmitScalarExpr(E->getRHS());
   llvm::Value *AddV = Builder.CreateInBoundsGEP(BaseV, OffsetV, "add.ptr");
 
   QualType Ty = E->getRHS()->getType();

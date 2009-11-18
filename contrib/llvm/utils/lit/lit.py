@@ -236,8 +236,8 @@ def getTests(path, litConfig, testSuiteCache, localConfigCache):
         litConfig.note('resolved input %r to %r::%r' % (path, ts.name,
                                                         path_in_suite))
 
-    return getTestsInSuite(ts, path_in_suite, litConfig,
-                           testSuiteCache, localConfigCache)
+    return ts, getTestsInSuite(ts, path_in_suite, litConfig,
+                               testSuiteCache, localConfigCache)
 
 def getTestsInSuite(ts, path_in_suite, litConfig,
                     testSuiteCache, localConfigCache):
@@ -277,19 +277,24 @@ def getTestsInSuite(ts, path_in_suite, litConfig,
         # site configuration and then in the source path.
         file_execpath = ts.getExecPath(path_in_suite + (filename,))
         if dirContainsTestSuite(file_execpath):
-            subiter = getTests(file_execpath, litConfig,
-                               testSuiteCache, localConfigCache)
+            sub_ts, subiter = getTests(file_execpath, litConfig,
+                                       testSuiteCache, localConfigCache)
         elif dirContainsTestSuite(file_sourcepath):
-            subiter = getTests(file_sourcepath, litConfig,
-                               testSuiteCache, localConfigCache)
+            sub_ts, subiter = getTests(file_sourcepath, litConfig,
+                                       testSuiteCache, localConfigCache)
         else:
             # Otherwise, continue loading from inside this test suite.
             subiter = getTestsInSuite(ts, path_in_suite + (filename,),
                                       litConfig, testSuiteCache,
                                       localConfigCache)
+            sub_ts = None
 
+        N = 0
         for res in subiter:
+            N += 1
             yield res
+        if sub_ts and not N:
+            litConfig.warning('test suite %r contained no tests' % sub_ts.name)
 
 def runTests(numThreads, litConfig, provider, display):
     # If only using one testing thread, don't use threads at all; this lets us
@@ -383,6 +388,9 @@ def main():
     group.add_option("", "--no-tcl-as-sh", dest="useTclAsSh",
                       help="Don't run Tcl scripts using 'sh'",
                       action="store_false", default=True)
+    group.add_option("", "--repeat", dest="repeatTests", metavar="N",
+                      help="Repeat tests N times (for timing)",
+                      action="store", default=None, type=int)
     parser.add_option_group(group)
 
     (opts, args) = parser.parse_args()
@@ -428,7 +436,7 @@ def main():
     for input in inputs:
         prev = len(tests)
         tests.extend(getTests(input, litConfig,
-                              testSuiteCache, localConfigCache))
+                              testSuiteCache, localConfigCache)[1])
         if prev == len(tests):
             litConfig.warning('input %r contained no tests' % input)
 
@@ -447,8 +455,8 @@ def main():
         print '-- Test Suites --'
         suitesAndTests = suitesAndTests.items()
         suitesAndTests.sort(key = lambda (ts,_): ts.name)
-        for ts,tests in suitesAndTests:
-            print '  %s - %d tests' %(ts.name, len(tests))
+        for ts,ts_tests in suitesAndTests:
+            print '  %s - %d tests' %(ts.name, len(ts_tests))
             print '    Source Root: %s' % ts.source_root
             print '    Exec Root  : %s' % ts.exec_root
 
@@ -466,6 +474,11 @@ def main():
         extra = ' of %d' % numTotalTests
     header = '-- Testing: %d%s tests, %d threads --'%(len(tests),extra,
                                                       opts.numThreads)
+
+    if opts.repeatTests:
+        tests = [t.copyWithIndex(i)
+                 for t in tests
+                 for i in range(opts.repeatTests)]
 
     progressBar = None
     if not opts.quiet:
@@ -519,11 +532,16 @@ def main():
         print
 
     if opts.timeTests:
-        byTime = list(tests)
-        byTime.sort(key = lambda t: t.elapsed)
+        # Collate, in case we repeated tests.
+        times = {}
+        for t in tests:
+            key = t.getFullName()
+            times[key] = times.get(key, 0.) + t.elapsed
+
+        byTime = list(times.items())
+        byTime.sort(key = lambda (name,elapsed): elapsed)
         if byTime:
-            Util.printHistogram([(t.getFullName(), t.elapsed) for t in byTime],
-                                title='Tests')
+            Util.printHistogram(byTime, title='Tests')
 
     for name,code in (('Expected Passes    ', Test.PASS),
                       ('Expected Failures  ', Test.XFAIL),

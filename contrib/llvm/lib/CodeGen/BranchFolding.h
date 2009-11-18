@@ -11,7 +11,6 @@
 #define LLVM_CODEGEN_BRANCHFOLDING_HPP
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include <vector>
 
 namespace llvm {
@@ -20,6 +19,7 @@ namespace llvm {
   class RegScavenger;
   class TargetInstrInfo;
   class TargetRegisterInfo;
+  template<typename T> class SmallVectorImpl;
 
   class BranchFolder {
   public:
@@ -30,11 +30,58 @@ namespace llvm {
                           const TargetRegisterInfo *tri,
                           MachineModuleInfo *mmi);
   private:
-    typedef std::pair<unsigned,MachineBasicBlock*> MergePotentialsElt;
+    class MergePotentialsElt {
+      unsigned Hash;
+      MachineBasicBlock *Block;
+    public:
+      MergePotentialsElt(unsigned h, MachineBasicBlock *b)
+        : Hash(h), Block(b) {}
+
+      unsigned getHash() const { return Hash; }
+      MachineBasicBlock *getBlock() const { return Block; }
+
+      void setBlock(MachineBasicBlock *MBB) {
+        Block = MBB;
+      }
+
+      bool operator<(const MergePotentialsElt &) const;
+    };
     typedef std::vector<MergePotentialsElt>::iterator MPIterator;
     std::vector<MergePotentialsElt> MergePotentials;
 
-    typedef std::pair<MPIterator, MachineBasicBlock::iterator> SameTailElt;
+    class SameTailElt {
+      MPIterator MPIter;
+      MachineBasicBlock::iterator TailStartPos;
+    public:
+      SameTailElt(MPIterator mp, MachineBasicBlock::iterator tsp)
+        : MPIter(mp), TailStartPos(tsp) {}
+
+      MPIterator getMPIter() const {
+        return MPIter;
+      }
+      MergePotentialsElt &getMergePotentialsElt() const {
+        return *getMPIter();
+      }
+      MachineBasicBlock::iterator getTailStartPos() const {
+        return TailStartPos;
+      }
+      unsigned getHash() const {
+        return getMergePotentialsElt().getHash();
+      }
+      MachineBasicBlock *getBlock() const {
+        return getMergePotentialsElt().getBlock();
+      }
+      bool tailIsWholeBlock() const {
+        return TailStartPos == getBlock()->begin();
+      }
+
+      void setBlock(MachineBasicBlock *MBB) {
+        getMergePotentialsElt().setBlock(MBB);
+      }
+      void setTailStartPos(MachineBasicBlock::iterator Pos) {
+        TailStartPos = Pos;
+      }
+    };
     std::vector<SameTailElt> SameTails;
 
     bool EnableTailMerge;
@@ -44,18 +91,23 @@ namespace llvm {
     RegScavenger *RS;
 
     bool TailMergeBlocks(MachineFunction &MF);
-    bool TryMergeBlocks(MachineBasicBlock* SuccBB,
-                        MachineBasicBlock* PredBB);
+    bool TryTailMergeBlocks(MachineBasicBlock* SuccBB,
+                       MachineBasicBlock* PredBB);
     void ReplaceTailWithBranchTo(MachineBasicBlock::iterator OldInst,
                                  MachineBasicBlock *NewDest);
     MachineBasicBlock *SplitMBBAt(MachineBasicBlock &CurMBB,
                                   MachineBasicBlock::iterator BBI1);
-    unsigned ComputeSameTails(unsigned CurHash, unsigned minCommonTailLength);
+    unsigned ComputeSameTails(unsigned CurHash, unsigned minCommonTailLength,
+                              MachineBasicBlock *SuccBB,
+                              MachineBasicBlock *PredBB);
     void RemoveBlocksWithHash(unsigned CurHash, MachineBasicBlock* SuccBB,
                                                 MachineBasicBlock* PredBB);
     unsigned CreateCommonTailOnlyBlock(MachineBasicBlock *&PredBB,
                                        unsigned maxCommonTailLength);
 
+    bool TailDuplicateBlocks(MachineFunction &MF);
+    bool TailDuplicate(MachineBasicBlock *TailBB, MachineFunction &MF);
+    
     bool OptimizeBranches(MachineFunction &MF);
     bool OptimizeBlock(MachineBasicBlock *MBB);
     void RemoveDeadBlock(MachineBasicBlock *MBB);
@@ -65,19 +117,6 @@ namespace llvm {
     bool CanFallThrough(MachineBasicBlock *CurBB, bool BranchUnAnalyzable,
                         MachineBasicBlock *TBB, MachineBasicBlock *FBB,
                         const SmallVectorImpl<MachineOperand> &Cond);
-  };
-
-
-  /// BranchFolderPass - Wrap branch folder in a machine function pass.
-  class BranchFolderPass : public MachineFunctionPass,
-                           public BranchFolder {
-  public:
-    static char ID;
-    explicit BranchFolderPass(bool defaultEnableTailMerge)
-      :  MachineFunctionPass(&ID), BranchFolder(defaultEnableTailMerge) {}
-
-    virtual bool runOnMachineFunction(MachineFunction &MF);
-    virtual const char *getPassName() const { return "Control Flow Optimizer"; }
   };
 }
 

@@ -74,7 +74,7 @@ class CodeGenFunction : public BlockFunction {
   void operator=(const CodeGenFunction&);  // DO NOT IMPLEMENT
 public:
   CodeGenModule &CGM;  // Per-module state.
-  TargetInfo &Target;
+  const TargetInfo &Target;
 
   typedef std::pair<llvm::Value *, llvm::Value *> ComplexPairTy;
   CGBuilderTy Builder;
@@ -193,28 +193,12 @@ public:
 private:
   CGDebugInfo *DebugInfo;
 
-#ifndef USEINDIRECTBRANCH
-  /// LabelIDs - Track arbitrary ids assigned to labels for use in implementing
-  /// the GCC address-of-label extension and indirect goto. IDs are assigned to
-  /// labels inside getIDForAddrOfLabel().
-  std::map<const LabelStmt*, unsigned> LabelIDs;
-#else
   /// IndirectBranch - The first time an indirect goto is seen we create a
   /// block with an indirect branch.  Every time we see the address of a label
   /// taken, we add the label to the indirect goto.  Every subsequent indirect
   /// goto is codegen'd as a jump to the IndirectBranch's basic block.
   llvm::IndirectBrInst *IndirectBranch;
-#endif
 
-#ifndef USEINDIRECTBRANCH
-  /// IndirectGotoSwitch - The first time an indirect goto is seen we create a
-  /// block with the switch for the indirect gotos.  Every time we see the
-  /// address of a label taken, we add the label to the indirect goto.  Every
-  /// subsequent indirect goto is codegen'd as a jump to the
-  /// IndirectGotoSwitch's basic block.
-  llvm::SwitchInst *IndirectGotoSwitch;
-
-#endif
   /// LocalDeclMap - This keeps track of the LLVM allocas or globals for local C
   /// decls.
   llvm::DenseMap<const Decl*, llvm::Value*> LocalDeclMap;
@@ -396,9 +380,6 @@ public:
   /// FinishFunction - Complete IR generation of the current function. It is
   /// legal to call this function even if there is no current insertion point.
   void FinishFunction(SourceLocation EndLoc=SourceLocation());
-
-  /// GenerateVtable - Generate the vtable for the given type.
-  llvm::Value *GenerateVtable(const CXXRecordDecl *RD);
 
   /// DynamicTypeAdjust - Do the non-virtual and virtual adjustments on an
   /// object pointer to alter the dynamic type of the pointer.  Used by
@@ -586,11 +567,7 @@ public:
   /// the input field number being accessed.
   static unsigned getAccessedFieldNo(unsigned Idx, const llvm::Constant *Elts);
 
-#ifndef USEINDIRECTBRANCH
-  unsigned GetIDForAddrOfLabel(const LabelStmt *L);
-#else
   llvm::BlockAddress *GetAddrOfLabel(const LabelStmt *L);
-#endif
   llvm::BasicBlock *GetIndirectGotoBlock();
 
   /// EmitMemSetToZero - Generate code to memset a value of the given type to 0.
@@ -669,6 +646,14 @@ public:
                                  const ArrayType *Array,
                                  llvm::Value *This);
 
+  void EmitCXXAggrDestructorCall(const CXXDestructorDecl *D,
+                                 llvm::Value *NumElements,
+                                 llvm::Value *This);
+
+  llvm::Constant * GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
+                                                const ArrayType *Array,
+                                                llvm::Value *This);
+
   void EmitCXXDestructorCall(const CXXDestructorDecl *D, CXXDtorType Type,
                              llvm::Value *This);
 
@@ -677,6 +662,12 @@ public:
 
   llvm::Value *EmitCXXNewExpr(const CXXNewExpr *E);
   void EmitCXXDeleteExpr(const CXXDeleteExpr *E);
+
+  void EmitDeleteCall(const FunctionDecl *DeleteFD, llvm::Value *Ptr,
+                      QualType DeleteTy);
+
+  llvm::Value* EmitCXXTypeidExpr(const CXXTypeidExpr *E);
+  llvm::Value *EmitDynamicCast(llvm::Value *V, const CXXDynamicCastExpr *DCE);
 
   //===--------------------------------------------------------------------===//
   //                            Declaration Emission
@@ -851,17 +842,18 @@ public:
   LValue EmitConditionalOperatorLValue(const ConditionalOperator *E);
   LValue EmitCastLValue(const CastExpr *E);
   LValue EmitNullInitializationLValue(const CXXZeroInitValueExpr *E);
-  LValue EmitPointerToDataMemberLValue(const DeclRefExpr *E);
+  
+  LValue EmitPointerToDataMemberLValue(const FieldDecl *Field);
   
   llvm::Value *EmitIvarOffset(const ObjCInterfaceDecl *Interface,
                               const ObjCIvarDecl *Ivar);
-  LValue EmitLValueForField(llvm::Value* Base, FieldDecl* Field,
+  LValue EmitLValueForField(llvm::Value* Base, const FieldDecl* Field,
                             bool isUnion, unsigned CVRQualifiers);
   LValue EmitLValueForIvar(QualType ObjectTy,
                            llvm::Value* Base, const ObjCIvarDecl *Ivar,
                            unsigned CVRQualifiers);
 
-  LValue EmitLValueForBitfield(llvm::Value* Base, FieldDecl* Field,
+  LValue EmitLValueForBitfield(llvm::Value* Base, const FieldDecl* Field,
                                 unsigned CVRQualifiers);
 
   LValue EmitBlockDeclRefLValue(const BlockDeclRefExpr *E);
@@ -870,6 +862,7 @@ public:
   LValue EmitCXXConstructLValue(const CXXConstructExpr *E);
   LValue EmitCXXBindTemporaryLValue(const CXXBindTemporaryExpr *E);
   LValue EmitCXXExprWithTemporariesLValue(const CXXExprWithTemporaries *E);
+  LValue EmitCXXTypeidLValue(const CXXTypeidExpr *E);
   
   LValue EmitObjCMessageExprLValue(const ObjCMessageExpr *E);
   LValue EmitObjCIvarRefLValue(const ObjCIvarRefExpr *E);
@@ -901,8 +894,11 @@ public:
                   const Decl *TargetDecl = 0);
   RValue EmitCallExpr(const CallExpr *E);
 
-  llvm::Value *BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *&This,
+  llvm::Value *BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *This,
                                 const llvm::Type *Ty);
+  llvm::Value *BuildVirtualCall(const CXXDestructorDecl *DD, CXXDtorType Type, 
+                                llvm::Value *&This, const llvm::Type *Ty);
+
   RValue EmitCXXMemberCall(const CXXMethodDecl *MD,
                            llvm::Value *Callee,
                            llvm::Value *This,
@@ -1016,7 +1012,7 @@ public:
 
   /// EmitCXXGlobalDtorRegistration - Emits a call to register the global ptr
   /// with the C++ runtime so that its destructor will be called at exit.
-  void EmitCXXGlobalDtorRegistration(const CXXDestructorDecl *Dtor,
+  void EmitCXXGlobalDtorRegistration(llvm::Constant *DtorFn,
                                      llvm::Constant *DeclPtr);
 
   /// GenerateCXXGlobalInitFunc - Generates code for initializing global
@@ -1033,7 +1029,7 @@ public:
                                     bool IsInitializer = false);
 
   void EmitCXXThrowExpr(const CXXThrowExpr *E);
-  
+
   //===--------------------------------------------------------------------===//
   //                             Internal Helpers
   //===--------------------------------------------------------------------===//
@@ -1101,6 +1097,7 @@ private:
     if (CallArgTypeInfo) {
       for (typename T::arg_type_iterator I = CallArgTypeInfo->arg_type_begin(),
            E = CallArgTypeInfo->arg_type_end(); I != E; ++I, ++Arg) {
+        assert(Arg != ArgEnd && "Running over edge of argument list!");
         QualType ArgType = *I;
 
         assert(getContext().getCanonicalType(ArgType.getNonReferenceType()).

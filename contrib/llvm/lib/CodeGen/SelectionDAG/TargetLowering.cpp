@@ -22,7 +22,6 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
@@ -65,22 +64,27 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::SRA_I32] = "__ashrsi3";
   Names[RTLIB::SRA_I64] = "__ashrdi3";
   Names[RTLIB::SRA_I128] = "__ashrti3";
+  Names[RTLIB::MUL_I8] = "__mulqi3";
   Names[RTLIB::MUL_I16] = "__mulhi3";
   Names[RTLIB::MUL_I32] = "__mulsi3";
   Names[RTLIB::MUL_I64] = "__muldi3";
   Names[RTLIB::MUL_I128] = "__multi3";
+  Names[RTLIB::SDIV_I8] = "__divqi3";
   Names[RTLIB::SDIV_I16] = "__divhi3";
   Names[RTLIB::SDIV_I32] = "__divsi3";
   Names[RTLIB::SDIV_I64] = "__divdi3";
   Names[RTLIB::SDIV_I128] = "__divti3";
+  Names[RTLIB::UDIV_I8] = "__udivqi3";
   Names[RTLIB::UDIV_I16] = "__udivhi3";
   Names[RTLIB::UDIV_I32] = "__udivsi3";
   Names[RTLIB::UDIV_I64] = "__udivdi3";
   Names[RTLIB::UDIV_I128] = "__udivti3";
+  Names[RTLIB::SREM_I8] = "__modqi3";
   Names[RTLIB::SREM_I16] = "__modhi3";
   Names[RTLIB::SREM_I32] = "__modsi3";
   Names[RTLIB::SREM_I64] = "__moddi3";
   Names[RTLIB::SREM_I128] = "__modti3";
+  Names[RTLIB::UREM_I8] = "__umodqi3";
   Names[RTLIB::UREM_I16] = "__umodhi3";
   Names[RTLIB::UREM_I32] = "__umodsi3";
   Names[RTLIB::UREM_I64] = "__umoddi3";
@@ -2360,7 +2364,7 @@ getRegForInlineAsmConstraint(const std::string &Constraint,
   assert(*(Constraint.end()-1) == '}' && "Not a brace enclosed constraint?");
 
   // Remove the braces from around the name.
-  std::string RegName(Constraint.begin()+1, Constraint.end()-1);
+  StringRef RegName(Constraint.data()+1, Constraint.size()-2);
 
   // Figure out which register class contains this reg.
   const TargetRegisterInfo *RI = TM.getRegisterInfo();
@@ -2383,7 +2387,7 @@ getRegForInlineAsmConstraint(const std::string &Constraint,
     
     for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end(); 
          I != E; ++I) {
-      if (StringsEqualNoCase(RegName, RI->getName(*I)))
+      if (RegName.equals_lower(RI->getName(*I)))
         return std::make_pair(*I, RC);
     }
   }

@@ -48,6 +48,7 @@ let PrintMethod = "printFCCOperand" in
 def In32BitMode      : Predicate<"!Subtarget.isFP64bit()">;
 def IsSingleFloat    : Predicate<"Subtarget.isSingleFloat()">;
 def IsNotSingleFloat : Predicate<"!Subtarget.isSingleFloat()">;
+def IsNotMipsI       : Predicate<"!Subtarget.isMips1()">;
 
 //===----------------------------------------------------------------------===//
 // Instruction Class Templates
@@ -173,7 +174,7 @@ let fd = 0 in {
 }
 
 /// Floating Point Memory Instructions
-let Predicates = [IsNotSingleFloat] in {
+let Predicates = [IsNotSingleFloat, IsNotMipsI] in {
   def LDC1 : FFI<0b110101, (outs AFGR64:$ft), (ins mem:$addr), 
                  "ldc1 $ft, $addr", [(set AFGR64:$ft, (load addr:$addr))]>;
 
@@ -284,7 +285,12 @@ def fpimm0 : PatLeaf<(fpimm), [{
   return N->isExactlyValue(+0.0);
 }]>;
 
+def fpimm0neg : PatLeaf<(fpimm), [{
+  return N->isExactlyValue(-0.0);
+}]>;
+
 def : Pat<(f32 fpimm0), (MTC1 ZERO)>;
+def : Pat<(f32 fpimm0neg), (FNEG_S32 (MTC1 ZERO))>;
 
 def : Pat<(f32 (sint_to_fp CPURegs:$src)), (CVTS_W32 (MTC1 CPURegs:$src))>;
 def : Pat<(f64 (sint_to_fp CPURegs:$src)), (CVTD_W32 (MTC1 CPURegs:$src))>;

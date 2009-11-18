@@ -495,7 +495,8 @@ public:
 //--------------------------------------------------
 // basic_parser - Super class of parsers to provide boilerplate code
 //
-struct basic_parser_impl {  // non-template implementation of basic_parser<t>
+class basic_parser_impl {  // non-template implementation of basic_parser<t>
+public:
   virtual ~basic_parser_impl() {}
 
   enum ValueExpected getValueExpectedFlagDefault() const {
@@ -525,7 +526,8 @@ struct basic_parser_impl {  // non-template implementation of basic_parser<t>
 // a typedef for the provided data type.
 //
 template<class DataType>
-struct basic_parser : public basic_parser_impl {
+class basic_parser : public basic_parser_impl {
+public:
   typedef DataType parser_data_type;
 };
 
@@ -779,6 +781,8 @@ public:
 
   DataType &getValue() { check(); return *Location; }
   const DataType &getValue() const { check(); return *Location; }
+  
+  operator DataType() const { return this->getValue(); }
 };
 
 
@@ -813,6 +817,8 @@ public:
   void setValue(const T &V) { Value = V; }
   DataType &getValue() { return Value; }
   DataType getValue() const { return Value; }
+
+  operator DataType() const { return getValue(); }
 
   // If the datatype is a pointer, support -> on it.
   DataType operator->() const { return Value; }
@@ -862,8 +868,6 @@ public:
   void setInitialValue(const DataType &V) { this->setValue(V); }
 
   ParserClass &getParser() { return Parser; }
-
-  operator DataType() const { return this->getValue(); }
 
   template<class T>
   DataType &operator=(const T &Val) {

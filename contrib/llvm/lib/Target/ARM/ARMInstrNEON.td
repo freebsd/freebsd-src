@@ -102,6 +102,19 @@ def addrmode_neonldstm : Operand<i32>,
 }
 */
 
+def h8imm  : Operand<i8> {
+  let PrintMethod = "printHex8ImmOperand";
+}
+def h16imm : Operand<i16> {
+  let PrintMethod = "printHex16ImmOperand";
+}
+def h32imm : Operand<i32> {
+  let PrintMethod = "printHex32ImmOperand";
+}
+def h64imm : Operand<i64> {
+  let PrintMethod = "printHex64ImmOperand";
+}
+
 //===----------------------------------------------------------------------===//
 // NEON load / store instructions
 //===----------------------------------------------------------------------===//
@@ -133,7 +146,7 @@ def VLDMS : NI<(outs),
 // Use vldmia to load a Q register as a D register pair.
 def VLDRQ : NI4<(outs QPR:$dst), (ins addrmode4:$addr),
                IIC_fpLoadm,
-               "vldmia $addr, ${dst:dregpair}",
+               "vldmia\t$addr, ${dst:dregpair}",
                [(set QPR:$dst, (v2f64 (load addrmode4:$addr)))]> {
   let Inst{27-25} = 0b110;
   let Inst{24}    = 0; // P bit
@@ -145,7 +158,7 @@ def VLDRQ : NI4<(outs QPR:$dst), (ins addrmode4:$addr),
 // Use vstmia to store a Q register as a D register pair.
 def VSTRQ : NI4<(outs), (ins QPR:$src, addrmode4:$addr),
                IIC_fpStorem,
-               "vstmia $addr, ${src:dregpair}",
+               "vstmia\t$addr, ${src:dregpair}",
                [(store (v2f64 QPR:$src), addrmode4:$addr)]> {
   let Inst{27-25} = 0b110;
   let Inst{24}    = 0; // P bit
@@ -2282,7 +2295,7 @@ def  VCNTq    : N2VQInt<0b11, 0b11, 0b00, 0b00, 0b01010, 0,
 
 //   VMOV     : Vector Move (Register)
 
-def  VMOVD    : N3V<0, 0, 0b10, 0b0001, 0, 1, (outs DPR:$dst), (ins DPR:$src),
+def  VMOVDneon: N3V<0, 0, 0b10, 0b0001, 0, 1, (outs DPR:$dst), (ins DPR:$src),
                     IIC_VMOVD, "vmov\t$dst, $src", "", []>;
 def  VMOVQ    : N3V<0, 0, 0b10, 0b0001, 1, 1, (outs QPR:$dst), (ins QPR:$src),
                     IIC_VMOVD, "vmov\t$dst, $src", "", []>;
@@ -2325,38 +2338,38 @@ def vmovImm64 : PatLeaf<(build_vector), [{
 // be encoded based on the immed values.
 
 def VMOVv8i8  : N1ModImm<1, 0b000, 0b1110, 0, 0, 0, 1, (outs DPR:$dst),
-                         (ins i8imm:$SIMM), IIC_VMOVImm,
+                         (ins h8imm:$SIMM), IIC_VMOVImm,
                          "vmov.i8\t$dst, $SIMM", "",
                          [(set DPR:$dst, (v8i8 vmovImm8:$SIMM))]>;
 def VMOVv16i8 : N1ModImm<1, 0b000, 0b1110, 0, 1, 0, 1, (outs QPR:$dst),
-                         (ins i8imm:$SIMM), IIC_VMOVImm,
+                         (ins h8imm:$SIMM), IIC_VMOVImm,
                          "vmov.i8\t$dst, $SIMM", "",
                          [(set QPR:$dst, (v16i8 vmovImm8:$SIMM))]>;
 
 def VMOVv4i16 : N1ModImm<1, 0b000, 0b1000, 0, 0, 0, 1, (outs DPR:$dst),
-                         (ins i16imm:$SIMM), IIC_VMOVImm,
+                         (ins h16imm:$SIMM), IIC_VMOVImm,
                          "vmov.i16\t$dst, $SIMM", "",
                          [(set DPR:$dst, (v4i16 vmovImm16:$SIMM))]>;
 def VMOVv8i16 : N1ModImm<1, 0b000, 0b1000, 0, 1, 0, 1, (outs QPR:$dst),
-                         (ins i16imm:$SIMM), IIC_VMOVImm,
+                         (ins h16imm:$SIMM), IIC_VMOVImm,
                          "vmov.i16\t$dst, $SIMM", "",
                          [(set QPR:$dst, (v8i16 vmovImm16:$SIMM))]>;
 
 def VMOVv2i32 : N1ModImm<1, 0b000, 0b0000, 0, 0, 0, 1, (outs DPR:$dst),
-                         (ins i32imm:$SIMM), IIC_VMOVImm,
+                         (ins h32imm:$SIMM), IIC_VMOVImm,
                          "vmov.i32\t$dst, $SIMM", "",
                          [(set DPR:$dst, (v2i32 vmovImm32:$SIMM))]>;
 def VMOVv4i32 : N1ModImm<1, 0b000, 0b0000, 0, 1, 0, 1, (outs QPR:$dst),
-                         (ins i32imm:$SIMM), IIC_VMOVImm,
+                         (ins h32imm:$SIMM), IIC_VMOVImm,
                          "vmov.i32\t$dst, $SIMM", "",
                          [(set QPR:$dst, (v4i32 vmovImm32:$SIMM))]>;
 
 def VMOVv1i64 : N1ModImm<1, 0b000, 0b1110, 0, 0, 1, 1, (outs DPR:$dst),
-                         (ins i64imm:$SIMM), IIC_VMOVImm,
+                         (ins h64imm:$SIMM), IIC_VMOVImm,
                          "vmov.i64\t$dst, $SIMM", "",
                          [(set DPR:$dst, (v1i64 vmovImm64:$SIMM))]>;
 def VMOVv2i64 : N1ModImm<1, 0b000, 0b1110, 0, 1, 1, 1, (outs QPR:$dst),
-                         (ins i64imm:$SIMM), IIC_VMOVImm,
+                         (ins h64imm:$SIMM), IIC_VMOVImm,
                          "vmov.i64\t$dst, $SIMM", "",
                          [(set QPR:$dst, (v2i64 vmovImm64:$SIMM))]>;
 

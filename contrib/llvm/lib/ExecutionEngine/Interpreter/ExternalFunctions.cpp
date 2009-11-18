@@ -158,7 +158,7 @@ static void *ffiValueFor(const Type *Ty, const GenericValue &AV,
       }
     case Type::FloatTyID: {
       float *FloatPtr = (float *) ArgDataPtr;
-      *FloatPtr = AV.DoubleVal;
+      *FloatPtr = AV.FloatVal;
       return ArgDataPtr;
     }
     case Type::DoubleTyID: {
@@ -284,6 +284,9 @@ GenericValue Interpreter::callExternalFunction(Function *F,
   else
     llvm_report_error("Tried to execute an unknown external function: " +
                       F->getType()->getDescription() + " " +F->getName());
+#ifndef USE_LIBFFI
+  errs() << "Recompiling LLVM with --enable-libffi might help.\n";
+#endif
   return GenericValue();
 }
 
@@ -419,83 +422,6 @@ GenericValue lle_X_printf(const FunctionType *FT,
   return GV;
 }
 
-static void ByteswapSCANFResults(LLVMContext &C,
-                                 const char *Fmt, void *Arg0, void *Arg1,
-                                 void *Arg2, void *Arg3, void *Arg4, void *Arg5,
-                                 void *Arg6, void *Arg7, void *Arg8) {
-  void *Args[] = { Arg0, Arg1, Arg2, Arg3, Arg4, Arg5, Arg6, Arg7, Arg8, 0 };
-
-  // Loop over the format string, munging read values as appropriate (performs
-  // byteswaps as necessary).
-  unsigned ArgNo = 0;
-  while (*Fmt) {
-    if (*Fmt++ == '%') {
-      // Read any flag characters that may be present...
-      bool Suppress = false;
-      bool Half = false;
-      bool Long = false;
-      bool LongLong = false;  // long long or long double
-
-      while (1) {
-        switch (*Fmt++) {
-        case '*': Suppress = true; break;
-        case 'a': /*Allocate = true;*/ break;  // We don't need to track this
-        case 'h': Half = true; break;
-        case 'l': Long = true; break;
-        case 'q':
-        case 'L': LongLong = true; break;
-        default:
-          if (Fmt[-1] > '9' || Fmt[-1] < '0')   // Ignore field width specs
-            goto Out;
-        }
-      }
-    Out:
-
-      // Read the conversion character
-      if (!Suppress && Fmt[-1] != '%') { // Nothing to do?
-        unsigned Size = 0;
-        const Type *Ty = 0;
-
-        switch (Fmt[-1]) {
-        case 'i': case 'o': case 'u': case 'x': case 'X': case 'n': case 'p':
-        case 'd':
-          if (Long || LongLong) {
-            Size = 8; Ty = Type::getInt64Ty(C);
-          } else if (Half) {
-            Size = 4; Ty = Type::getInt16Ty(C);
-          } else {
-            Size = 4; Ty = Type::getInt32Ty(C);
-          }
-          break;
-
-        case 'e': case 'g': case 'E':
-        case 'f':
-          if (Long || LongLong) {
-            Size = 8; Ty = Type::getDoubleTy(C);
-          } else {
-            Size = 4; Ty = Type::getFloatTy(C);
-          }
-          break;
-
-        case 's': case 'c': case '[':  // No byteswap needed
-          Size = 1;
-          Ty = Type::getInt8Ty(C);
-          break;
-
-        default: break;
-        }
-
-        if (Size) {
-          GenericValue GV;
-          void *Arg = Args[ArgNo++];
-          memcpy(&GV, Arg, Size);
-          TheInterpreter->StoreValueToMemory(GV, (GenericValue*)Arg, Ty);
-        }
-      }
-    }
-  }
-}
-
 // int sscanf(const char *format, ...);
 GenericValue lle_X_sscanf(const FunctionType *FT,
                           const std::vector<GenericValue> &args) {
@@ -508,9 +434,6 @@ GenericValue lle_X_sscanf(const FunctionType *FT,
   GenericValue GV;
   GV.IntVal = APInt(32, sscanf(Args[0], Args[1], Args[2], Args[3], Args[4],
                         Args[5], Args[6], Args[7], Args[8], Args[9]));
-  ByteswapSCANFResults(FT->getContext(),
-                       Args[1], Args[2], Args[3], Args[4],
-                       Args[5], Args[6], Args[7], Args[8], Args[9], 0);
   return GV;
 }
 
@@ -526,9 +449,6 @@ GenericValue lle_X_scanf(const FunctionType *FT,
   GenericValue GV;
   GV.IntVal = APInt(32, scanf( Args[0], Args[1], Args[2], Args[3], Args[4],
                         Args[5], Args[6], Args[7], Args[8], Args[9]));
-  ByteswapSCANFResults(FT->getContext(),
-                       Args[0], Args[1], Args[2], Args[3], Args[4],
-                       Args[5], Args[6], Args[7], Args[8], Args[9]);
   return GV;
 }
 

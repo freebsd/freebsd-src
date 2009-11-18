@@ -21,10 +21,7 @@
 #define LLVM_TARGET_TARGETDATA_H
 
 #include "llvm/Pass.h"
-#include "llvm/System/DataTypes.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
-#include <string>
 
 namespace llvm {
 
@@ -33,6 +30,7 @@ class Type;
 class IntegerType;
 class StructType;
 class StructLayout;
+class StructLayoutMap;
 class GlobalVariable;
 class LLVMContext;
 
@@ -73,26 +71,22 @@ private:
   unsigned char PointerABIAlign;       ///< Pointer ABI alignment
   unsigned char PointerPrefAlign;      ///< Pointer preferred alignment
 
-  //! Where the primitive type alignment data is stored.
-  /*!
-   @sa init().
-   @note Could support multiple size pointer alignments, e.g., 32-bit pointers
-   vs. 64-bit pointers by extending TargetAlignment, but for now, we don't.
-   */
+  SmallVector<unsigned char, 8> LegalIntWidths; ///< Legal Integers.
+  
+  /// Alignments- Where the primitive type alignment data is stored.
+  ///
+  /// @sa init().
+  /// @note Could support multiple size pointer alignments, e.g., 32-bit
+  /// pointers vs. 64-bit pointers by extending TargetAlignment, but for now,
+  /// we don't.
   SmallVector<TargetAlignElem, 16> Alignments;
-  //! Alignment iterator shorthand
-  typedef SmallVector<TargetAlignElem, 16>::iterator align_iterator;
-  //! Constant alignment iterator shorthand
-  typedef SmallVector<TargetAlignElem, 16>::const_iterator align_const_iterator;
-  //! Invalid alignment.
-  /*!
-    This member is a signal that a requested alignment type and bit width were
-    not found in the SmallVector.
-   */
+  
+  /// InvalidAlignmentElem - This member is a signal that a requested alignment
+  /// type and bit width were not found in the SmallVector.
   static const TargetAlignElem InvalidAlignmentElem;
 
-  // Opaque pointer for the StructType -> StructLayout map.
-  mutable void* LayoutMap;
+  // The StructType -> StructLayout map.
+  mutable StructLayoutMap *LayoutMap;
 
   //! Set/initialize target alignments
   void setAlignment(AlignTypeEnum align_type, unsigned char abi_align,
@@ -106,8 +100,8 @@ private:
   ///
   /// Predicate that tests a TargetAlignElem reference returned by get() against
   /// InvalidAlignmentElem.
-  inline bool validAlignment(const TargetAlignElem &align) const {
-    return (&align != &InvalidAlignmentElem);
+  bool validAlignment(const TargetAlignElem &align) const {
+    return &align != &InvalidAlignmentElem;
   }
 
 public:
@@ -115,13 +109,10 @@ public:
   ///
   /// @note This has to exist, because this is a pass, but it should never be
   /// used.
-  TargetData() : ImmutablePass(&ID) {
-    llvm_report_error("Bad TargetData ctor used.  "
-                      "Tool did not specify a TargetData to use?");
-  }
-
+  TargetData();
+  
   /// Constructs a TargetData from a specification string. See init().
-  explicit TargetData(const std::string &TargetDescription)
+  explicit TargetData(StringRef TargetDescription)
     : ImmutablePass(&ID) {
     init(TargetDescription);
   }
@@ -135,6 +126,7 @@ public:
     PointerMemSize(TD.PointerMemSize),
     PointerABIAlign(TD.PointerABIAlign),
     PointerPrefAlign(TD.PointerPrefAlign),
+    LegalIntWidths(TD.LegalIntWidths),
     Alignments(TD.Alignments),
     LayoutMap(0)
   { }
@@ -142,16 +134,35 @@ public:
   ~TargetData();  // Not virtual, do not subclass this class
 
   //! Parse a target data layout string and initialize TargetData alignments.
-  void init(const std::string &TargetDescription);
+  void init(StringRef TargetDescription);
 
   /// Target endianness...
-  bool          isLittleEndian()       const { return     LittleEndian; }
-  bool          isBigEndian()          const { return    !LittleEndian; }
+  bool isLittleEndian() const { return LittleEndian; }
+  bool isBigEndian() const { return !LittleEndian; }
 
   /// getStringRepresentation - Return the string representation of the
   /// TargetData.  This representation is in the same format accepted by the
   /// string constructor above.
   std::string getStringRepresentation() const;
+  
+  /// isLegalInteger - This function returns true if the specified type is
+  /// known tobe a native integer type supported by the CPU.  For example,
+  /// i64 is not native on most 32-bit CPUs and i37 is not native on any known
+  /// one.  This returns false if the integer width is not legal.
+  ///
+  /// The width is specified in bits.
+  ///
+  bool isLegalInteger(unsigned Width) const {
+    for (unsigned i = 0, e = LegalIntWidths.size(); i != e; ++i)
+      if (LegalIntWidths[i] == Width)
+        return true;
+    return false;
+  }
+  
+  bool isIllegalInteger(unsigned Width) const {
+    return !isLegalInteger(Width);
+  }
+  
   /// Target pointer alignment
   unsigned char getPointerABIAlignment() const { return PointerABIAlign; }
   /// Return target's alignment for stack-based pointers

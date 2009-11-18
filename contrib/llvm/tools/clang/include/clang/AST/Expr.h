@@ -87,7 +87,7 @@ public:
     // type. Additionally, inspect Expr::isLvalue to determine whether
     // an expression that is adjusted in this manner should be
     // considered an lvalue.
-    assert((TR.isNull() || !TR->isReferenceType()) &&
+    assert((t.isNull() || !t->isReferenceType()) &&
            "Expressions can't have reference type");
 
     TR = t;
@@ -250,6 +250,12 @@ public:
   /// folded, but discard the result.
   bool isEvaluatable(ASTContext &Ctx) const;
 
+  /// HasSideEffects - This routine returns true for all those expressions
+  /// which must be evaluated each time and must not be optimization away 
+  /// or evaluated at compile time. Example is a function call, volatile
+  /// variable read.
+  bool HasSideEffects(ASTContext &Ctx) const;
+  
   /// EvaluateAsInt - Call Evaluate and return the folded integer. This
   /// must be called on an expression that constant folds to an integer.
   llvm::APSInt EvaluateAsInt(ASTContext &Ctx) const;
@@ -1512,6 +1518,9 @@ public:
 
     /// CK_NoOp - Used for const_cast.
     CK_NoOp,
+
+    /// CK_BaseToDerived - Base to derived class casts.
+    CK_BaseToDerived,
 
     /// CK_DerivedToBase - Derived to base class casts.
     CK_DerivedToBase,

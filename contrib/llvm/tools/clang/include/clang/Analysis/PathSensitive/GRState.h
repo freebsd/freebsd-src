@@ -195,6 +195,9 @@ public:
   //
 
   const GRState *Assume(DefinedOrUnknownSVal cond, bool assumption) const;
+  
+  std::pair<const GRState*, const GRState*>
+  Assume(DefinedOrUnknownSVal cond) const;
 
   const GRState *AssumeInBound(DefinedOrUnknownSVal idx,
                                DefinedOrUnknownSVal upperBound,
@@ -330,12 +333,6 @@ public:
   void printStdErr() const;
 
   void printDOT(llvm::raw_ostream& Out) const;
-
-  // Tags used for the Generic Data Map.
-  struct NullDerefTag {
-    static int TagInt;
-    typedef const SVal* data_type;
-  };
 };
 
 class GRStateSet {
@@ -402,10 +399,6 @@ private:
 
   /// Alloc - A BumpPtrAllocator to allocate states.
   llvm::BumpPtrAllocator& Alloc;
-
-  /// CurrentStmt - The block-level statement currently being visited.  This
-  ///  is set by GRExprEngine.
-  Stmt* CurrentStmt;
 
   /// TF - Object that represents a bundle of transfer functions
   ///  for manipulating and creating SVals.
@@ -582,6 +575,15 @@ inline const GRState *GRState::Assume(DefinedOrUnknownSVal Cond,
   
   return getStateManager().ConstraintMgr->Assume(this, cast<DefinedSVal>(Cond),
                                                  Assumption);
+}
+  
+inline std::pair<const GRState*, const GRState*>
+GRState::Assume(DefinedOrUnknownSVal Cond) const {
+  if (Cond.isUnknown())
+    return std::make_pair(this, this);
+  
+  return getStateManager().ConstraintMgr->AssumeDual(this,
+                                                     cast<DefinedSVal>(Cond));
 }
 
 inline const GRState *GRState::AssumeInBound(DefinedOrUnknownSVal Idx,

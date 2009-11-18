@@ -432,6 +432,9 @@ public:
   virtual CXXRecordDecl *getCanonicalDecl() {
     return cast<CXXRecordDecl>(RecordDecl::getCanonicalDecl());
   }
+  virtual const CXXRecordDecl *getCanonicalDecl() const {
+    return cast<CXXRecordDecl>(RecordDecl::getCanonicalDecl());
+  }
 
   static CXXRecordDecl *Create(ASTContext &C, TagKind TK, DeclContext *DC,
                                SourceLocation L, IdentifierInfo *Id,
@@ -768,7 +771,7 @@ public:
   /// \param Base the base class we are searching for.
   ///
   /// \returns true if this class is derived from Base, false otherwise.
-  bool isDerivedFrom(CXXRecordDecl *Base);
+  bool isDerivedFrom(CXXRecordDecl *Base) const;
   
   /// \brief Determine whether this class is derived from the type \p Base.
   ///
@@ -786,7 +789,7 @@ public:
   ///
   /// \todo add a separate paramaeter to configure IsDerivedFrom, rather than 
   /// tangling input and output in \p Paths  
-  bool isDerivedFrom(CXXRecordDecl *Base, CXXBasePaths &Paths);
+  bool isDerivedFrom(CXXRecordDecl *Base, CXXBasePaths &Paths) const;
   
   /// \brief Function type used by lookupInBases() to determine whether a 
   /// specific base class subobject matches the lookup criteria.
@@ -801,7 +804,7 @@ public:
   /// lookupInBases().
   ///
   /// \returns true if this base matched the search criteria, false otherwise.
-  typedef bool BaseMatchesCallback(CXXBaseSpecifier *Specifier,
+  typedef bool BaseMatchesCallback(const CXXBaseSpecifier *Specifier,
                                    CXXBasePath &Path,
                                    void *UserData);
   
@@ -826,7 +829,7 @@ public:
   /// \returns true if there exists any path from this class to a base class
   /// subobject that matches the search criteria.
   bool lookupInBases(BaseMatchesCallback *BaseMatches, void *UserData,
-                     CXXBasePaths &Paths);
+                     CXXBasePaths &Paths) const;
   
   /// \brief Base-class lookup callback that determines whether the given
   /// base class specifier refers to a specific class declaration.
@@ -835,8 +838,8 @@ public:
   /// a given derived class has is a base class subobject of a particular type.
   /// The user data pointer should refer to the canonical CXXRecordDecl of the
   /// base class that we are searching for.
-  static bool FindBaseClass(CXXBaseSpecifier *Specifier, CXXBasePath &Path,
-                            void *BaseRecord);
+  static bool FindBaseClass(const CXXBaseSpecifier *Specifier,
+                            CXXBasePath &Path, void *BaseRecord);
   
   /// \brief Base-class lookup callback that determines whether there exists
   /// a tag with the given name.
@@ -844,8 +847,8 @@ public:
   /// This callback can be used with \c lookupInBases() to find tag members
   /// of the given name within a C++ class hierarchy. The user data pointer
   /// is an opaque \c DeclarationName pointer.
-  static bool FindTagMember(CXXBaseSpecifier *Specifier, CXXBasePath &Path,
-                            void *Name);
+  static bool FindTagMember(const CXXBaseSpecifier *Specifier,
+                            CXXBasePath &Path, void *Name);
 
   /// \brief Base-class lookup callback that determines whether there exists
   /// a member with the given name.
@@ -853,8 +856,8 @@ public:
   /// This callback can be used with \c lookupInBases() to find members
   /// of the given name within a C++ class hierarchy. The user data pointer
   /// is an opaque \c DeclarationName pointer.
-  static bool FindOrdinaryMember(CXXBaseSpecifier *Specifier, CXXBasePath &Path,
-                                 void *Name);
+  static bool FindOrdinaryMember(const CXXBaseSpecifier *Specifier,
+                                 CXXBasePath &Path, void *Name);
   
   /// \brief Base-class lookup callback that determines whether there exists
   /// a member with the given name that can be used in a nested-name-specifier.
@@ -862,7 +865,7 @@ public:
   /// This callback can be used with \c lookupInBases() to find membes of
   /// the given name within a C++ class hierarchy that can occur within
   /// nested-name-specifiers.
-  static bool FindNestedNameSpecifierMember(CXXBaseSpecifier *Specifier, 
+  static bool FindNestedNameSpecifierMember(const CXXBaseSpecifier *Specifier,
                                             CXXBasePath &Path,
                                             void *UserData);
   
@@ -1244,6 +1247,11 @@ public:
   /// used for user-defined conversions.
   bool isConvertingConstructor(bool AllowExplicit) const;
 
+  /// \brief Determine whether this is a member template specialization that
+  /// looks like a copy constructor. Such constructors are never used to copy
+  /// an object.
+  bool isCopyConstructorLikeSpecialization() const;
+  
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {
     return D->getKind() == CXXConstructor;
@@ -1261,13 +1269,6 @@ public:
 /// };
 /// @endcode
 class CXXDestructorDecl : public CXXMethodDecl {
-public:
-  enum KindOfObjectToDestroy {
-    VBASE = 0x1,
-    DRCTNONVBASE = 0x2,
-    ANYBASE = 0x3
-  };
-private:
   /// ImplicitlyDefined - Whether this destructor was implicitly
   /// defined by the compiler. When false, the destructor was defined
   /// by the user. In C++03, this flag will have the same value as
@@ -1276,24 +1277,15 @@ private:
   /// @c !Implicit && ImplicitlyDefined.
   bool ImplicitlyDefined : 1;
 
-  /// Support for base and member destruction.
-  /// BaseOrMemberDestructions - The arguments used to destruct the base
-  /// or member. Each uintptr_t value represents one of base classes (either
-  /// virtual or direct non-virtual base), or non-static data member
-  /// to be destroyed. The low two bits encode the kind of object
-  /// being destroyed.
-  uintptr_t *BaseOrMemberDestructions;
-  unsigned NumBaseOrMemberDestructions;
-
+  FunctionDecl *OperatorDelete;
+  
   CXXDestructorDecl(CXXRecordDecl *RD, SourceLocation L,
                     DeclarationName N, QualType T,
                     bool isInline, bool isImplicitlyDeclared)
     : CXXMethodDecl(CXXDestructor, RD, L, N, T, /*DInfo=*/0, false, isInline),
-      ImplicitlyDefined(false),
-      BaseOrMemberDestructions(0), NumBaseOrMemberDestructions(0) {
+      ImplicitlyDefined(false), OperatorDelete(0) {
     setImplicit(isImplicitlyDeclared);
   }
-  virtual void Destroy(ASTContext& C);
 
 public:
   static CXXDestructorDecl *Create(ASTContext &C, CXXRecordDecl *RD,
@@ -1319,95 +1311,8 @@ public:
     ImplicitlyDefined = ID;
   }
 
-  /// destr_iterator - Iterates through the member/base destruction list.
-
-  /// destr_const_iterator - Iterates through the member/base destruction list.
-  typedef uintptr_t const destr_const_iterator;
-
-  /// destr_begin() - Retrieve an iterator to the first destructed member/base.
-  uintptr_t* destr_begin() {
-    return BaseOrMemberDestructions;
-  }
-  /// destr_begin() - Retrieve an iterator to the first destructed member/base.
-  uintptr_t* destr_begin() const {
-    return BaseOrMemberDestructions;
-  }
-
-  /// destr_end() - Retrieve an iterator past the last destructed member/base.
-  uintptr_t* destr_end() {
-    return BaseOrMemberDestructions + NumBaseOrMemberDestructions;
-  }
-  /// destr_end() - Retrieve an iterator past the last destructed member/base.
-  uintptr_t* destr_end() const {
-    return BaseOrMemberDestructions + NumBaseOrMemberDestructions;
-  }
-
-  /// getNumBaseOrMemberDestructions - Number of base and non-static members
-  /// to destroy.
-  unsigned getNumBaseOrMemberDestructions() const {
-    return NumBaseOrMemberDestructions;
-  }
-
-  /// setNumBaseOrMemberDestructions - Set number of base and non-static members
-  /// to destroy.
-  void setNumBaseOrMemberDestructions(unsigned numBaseOrMemberDestructions) {
-    NumBaseOrMemberDestructions = numBaseOrMemberDestructions;
-  }
-
-  /// getBaseOrMemberToDestroy - get the generic 'member' representing either
-  /// the field or a base class.
-  uintptr_t* getBaseOrMemberToDestroy() const {
-    return BaseOrMemberDestructions;
-  }
-
-  /// setBaseOrMemberToDestroy - set the generic 'member' representing either
-  /// the field or a base class.
-  void setBaseOrMemberDestructions(uintptr_t* baseOrMemberDestructions) {
-    BaseOrMemberDestructions = baseOrMemberDestructions;
-  }
-
-  /// isVbaseToDestroy - returns true, if object is virtual base.
-  bool isVbaseToDestroy(uintptr_t Vbase) const {
-    return (Vbase & VBASE) != 0;
-  }
-  /// isDirectNonVBaseToDestroy - returns true, if object is direct non-virtual
-  /// base.
-  bool isDirectNonVBaseToDestroy(uintptr_t DrctNonVbase) const {
-    return (DrctNonVbase & DRCTNONVBASE) != 0;
-  }
-  /// isAnyBaseToDestroy - returns true, if object is any base (virtual or
-  /// direct non-virtual)
-  bool isAnyBaseToDestroy(uintptr_t AnyBase) const {
-    return (AnyBase & ANYBASE) != 0;
-  }
-  /// isMemberToDestroy - returns true if object is a non-static data member.
-  bool isMemberToDestroy(uintptr_t Member) const {
-    return (Member & ANYBASE)  == 0;
-  }
-  /// getAnyBaseClassToDestroy - Get the type for the given base class object.
-  Type *getAnyBaseClassToDestroy(uintptr_t Base) const {
-    if (isAnyBaseToDestroy(Base))
-      return reinterpret_cast<Type*>(Base  & ~0x03);
-    return 0;
-  }
-  /// getMemberToDestroy - Get the member for the given object.
-  FieldDecl *getMemberToDestroy(uintptr_t Member) const {
-    if (isMemberToDestroy(Member))
-      return reinterpret_cast<FieldDecl *>(Member);
-    return 0;
-  }
-  /// getVbaseClassToDestroy - Get the virtual base.
-  Type *getVbaseClassToDestroy(uintptr_t Vbase) const {
-    if (isVbaseToDestroy(Vbase))
-      return reinterpret_cast<Type*>(Vbase  & ~0x01);
-    return 0;
-  }
-  /// getDirectNonVBaseClassToDestroy - Get the virtual base.
-  Type *getDirectNonVBaseClassToDestroy(uintptr_t Base) const {
-    if (isDirectNonVBaseToDestroy(Base))
-      return reinterpret_cast<Type*>(Base  & ~0x02);
-    return 0;
-  }
+  void setOperatorDelete(FunctionDecl *OD) { OperatorDelete = OD; }
+  const FunctionDecl *getOperatorDelete() const { return OperatorDelete; }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {
@@ -1739,6 +1644,56 @@ public:
   static bool classof(const NamespaceAliasDecl *D) { return true; }
 };
 
+/// UsingShadowDecl - Represents a shadow declaration introduced into
+/// a scope by a (resolved) using declaration.  For example,
+///
+/// namespace A {
+///   void foo();
+/// }
+/// namespace B {
+///   using A::foo(); // <- a UsingDecl
+///                   // Also creates a UsingShadowDecl for A::foo in B
+/// }
+///
+class UsingShadowDecl : public NamedDecl {
+  /// The referenced declaration.
+  NamedDecl *Underlying;
+
+  /// The using declaration which introduced this decl.
+  UsingDecl *Using;
+
+  UsingShadowDecl(DeclContext *DC, SourceLocation Loc, UsingDecl *Using,
+                  NamedDecl *Target)
+    : NamedDecl(UsingShadow, DC, Loc, Target->getDeclName()),
+      Underlying(Target), Using(Using) {
+    IdentifierNamespace = Target->getIdentifierNamespace();
+    setImplicit();
+  }
+
+public:
+  static UsingShadowDecl *Create(ASTContext &C, DeclContext *DC,
+                                 SourceLocation Loc, UsingDecl *Using,
+                                 NamedDecl *Target) {
+    return new (C) UsingShadowDecl(DC, Loc, Using, Target);
+  }
+
+  /// Gets the underlying declaration which has been brought into the
+  /// local scope.
+  NamedDecl *getTargetDecl() const {
+    return Underlying;
+  }
+
+  /// Gets the using declaration to which this declaration is tied.
+  UsingDecl *getUsingDecl() const {
+    return Using;
+  }
+
+  static bool classof(const Decl *D) {
+    return D->getKind() == Decl::UsingShadow;
+  }
+  static bool classof(const UsingShadowDecl *D) { return true; }
+};
+
 /// UsingDecl - Represents a C++ using-declaration. For example:
 ///    using someNameSpace::someIdentifier;
 class UsingDecl : public NamedDecl {
@@ -1746,29 +1701,26 @@ class UsingDecl : public NamedDecl {
   /// preceding the declaration name.
   SourceRange NestedNameRange;
 
-  /// \brief The source location of the target declaration name.
-  SourceLocation TargetNameLocation;
-
   /// \brief The source location of the "using" location itself.
   SourceLocation UsingLocation;
 
-  /// \brief Target declaration.
-  NamedDecl* TargetDecl;
-
   /// \brief Target nested name specifier.
-  NestedNameSpecifier* TargetNestedNameDecl;
+  NestedNameSpecifier* TargetNestedName;
+
+  /// \brief The collection of shadow declarations associated with
+  /// this using declaration.  This set can change as a class is
+  /// processed.
+  llvm::SmallPtrSet<UsingShadowDecl*, 8> Shadows;
 
   // \brief Has 'typename' keyword.
   bool IsTypeName;
 
   UsingDecl(DeclContext *DC, SourceLocation L, SourceRange NNR,
-            SourceLocation TargetNL, SourceLocation UL, NamedDecl* Target,
-            NestedNameSpecifier* TargetNNS, bool IsTypeNameArg)
-    : NamedDecl(Decl::Using, DC, L, Target->getDeclName()),
-      NestedNameRange(NNR), TargetNameLocation(TargetNL),
-      UsingLocation(UL), TargetDecl(Target),
-      TargetNestedNameDecl(TargetNNS), IsTypeName(IsTypeNameArg) {
-    this->IdentifierNamespace = TargetDecl->getIdentifierNamespace();
+            SourceLocation UL, NestedNameSpecifier* TargetNNS,
+            DeclarationName Name, bool IsTypeNameArg)
+    : NamedDecl(Decl::Using, DC, L, Name),
+      NestedNameRange(NNR), UsingLocation(UL), TargetNestedName(TargetNNS),
+      IsTypeName(IsTypeNameArg) {
   }
 
 public:
@@ -1776,28 +1728,37 @@ public:
   /// preceding the namespace name.
   SourceRange getNestedNameRange() { return NestedNameRange; }
 
-  /// \brief Returns the source location of the target declaration name.
-  SourceLocation getTargetNameLocation() { return TargetNameLocation; }
-
   /// \brief Returns the source location of the "using" location itself.
   SourceLocation getUsingLocation() { return UsingLocation; }
 
-  /// \brief getTargetDecl - Returns target specified by using-decl.
-  NamedDecl *getTargetDecl() { return TargetDecl; }
-  const NamedDecl *getTargetDecl() const { return TargetDecl; }
-
   /// \brief Get target nested name declaration.
   NestedNameSpecifier* getTargetNestedNameDecl() {
-    return TargetNestedNameDecl;
+    return TargetNestedName;
   }
 
   /// isTypeName - Return true if using decl has 'typename'.
   bool isTypeName() const { return IsTypeName; }
 
+  typedef llvm::SmallPtrSet<UsingShadowDecl*,8>::const_iterator shadow_iterator;
+  shadow_iterator shadow_begin() const { return Shadows.begin(); }
+  shadow_iterator shadow_end() const { return Shadows.end(); }
+
+  void addShadowDecl(UsingShadowDecl *S) {
+    assert(S->getUsingDecl() == this);
+    if (!Shadows.insert(S)) {
+      assert(false && "declaration already in set");
+    }
+  }
+  void removeShadowDecl(UsingShadowDecl *S) {
+    assert(S->getUsingDecl() == this);
+    if (!Shadows.erase(S)) {
+      assert(false && "declaration not in set");
+    }
+  }
+
   static UsingDecl *Create(ASTContext &C, DeclContext *DC,
-      SourceLocation L, SourceRange NNR, SourceLocation TargetNL,
-      SourceLocation UL, NamedDecl* Target,
-      NestedNameSpecifier* TargetNNS, bool IsTypeNameArg);
+      SourceLocation IdentL, SourceRange NNR, SourceLocation UsingL,
+      NestedNameSpecifier* TargetNNS, DeclarationName Name, bool IsTypeNameArg);
 
   static bool classof(const Decl *D) {
     return D->getKind() == Decl::Using;
@@ -1805,31 +1766,33 @@ public:
   static bool classof(const UsingDecl *D) { return true; }
 };
 
-/// UnresolvedUsingDecl - Represents a using declaration whose name can not
-/// yet be resolved.
-class UnresolvedUsingDecl : public NamedDecl {
+/// UnresolvedUsingValueDecl - Represents a dependent using
+/// declaration which was not marked with 'typename'.  Unlike
+/// non-dependent using declarations, these *only* bring through
+/// non-types; otherwise they would break two-phase lookup.
+///
+/// template <class T> class A : public Base<T> {
+///   using Base<T>::foo;
+/// };
+class UnresolvedUsingValueDecl : public ValueDecl {
   /// \brief The source range that covers the nested-name-specifier
   /// preceding the declaration name.
   SourceRange TargetNestedNameRange;
 
-  /// \brief The source location of the target declaration name.
-  SourceLocation TargetNameLocation;
+  /// \brief The source location of the 'using' keyword
+  SourceLocation UsingLocation;
 
   NestedNameSpecifier *TargetNestedNameSpecifier;
 
-  DeclarationName TargetName;
-
-  // \brief Has 'typename' keyword.
-  bool IsTypeName;
-
-  UnresolvedUsingDecl(DeclContext *DC, SourceLocation UsingLoc,
-                      SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
-                      SourceLocation TargetNameLoc, DeclarationName TargetName,
-                      bool IsTypeNameArg)
-  : NamedDecl(Decl::UnresolvedUsing, DC, UsingLoc, TargetName),
-    TargetNestedNameRange(TargetNNR), TargetNameLocation(TargetNameLoc),
-    TargetNestedNameSpecifier(TargetNNS), TargetName(TargetName),
-    IsTypeName(IsTypeNameArg) { }
+  UnresolvedUsingValueDecl(DeclContext *DC, QualType Ty,
+                           SourceLocation UsingLoc, SourceRange TargetNNR,
+                           NestedNameSpecifier *TargetNNS,
+                           SourceLocation TargetNameLoc,
+                           DeclarationName TargetName)
+    : ValueDecl(Decl::UnresolvedUsingValue, DC, TargetNameLoc, TargetName, Ty),
+    TargetNestedNameRange(TargetNNR), UsingLocation(UsingLoc),
+    TargetNestedNameSpecifier(TargetNNS)
+  { }
 
 public:
   /// \brief Returns the source range that covers the nested-name-specifier
@@ -1841,26 +1804,77 @@ public:
     return TargetNestedNameSpecifier;
   }
 
-  /// \brief Returns the source location of the target declaration name.
-  SourceLocation getTargetNameLocation() const { return TargetNameLocation; }
+  /// \brief Returns the source location of the 'using' keyword.
+  SourceLocation getUsingLoc() const { return UsingLocation; }
 
-  /// \brief Returns the source location of the target declaration name.
-  DeclarationName getTargetName() const { return TargetName; }
-
-  bool isTypeName() const { return IsTypeName; }
-
-  static UnresolvedUsingDecl *Create(ASTContext &C, DeclContext *DC,
-                                     SourceLocation UsingLoc,
-                                     SourceRange TargetNNR,
-                                     NestedNameSpecifier *TargetNNS,
-                                     SourceLocation TargetNameLoc,
-                                     DeclarationName TargetName,
-                                     bool IsTypeNameArg);
+  static UnresolvedUsingValueDecl *
+    Create(ASTContext &C, DeclContext *DC, SourceLocation UsingLoc,
+           SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
+           SourceLocation TargetNameLoc, DeclarationName TargetName);
 
   static bool classof(const Decl *D) {
-    return D->getKind() == Decl::UnresolvedUsing;
+    return D->getKind() == Decl::UnresolvedUsingValue;
   }
-  static bool classof(const UnresolvedUsingDecl *D) { return true; }
+  static bool classof(const UnresolvedUsingValueDecl *D) { return true; }
+};
+
+/// UnresolvedUsingTypenameDecl - Represents a dependent using
+/// declaration which was marked with 'typename'.
+///
+/// template <class T> class A : public Base<T> {
+///   using typename Base<T>::foo;
+/// };
+///
+/// The type associated with a unresolved using typename decl is
+/// currently always a typename type.
+class UnresolvedUsingTypenameDecl : public TypeDecl {
+  /// \brief The source range that covers the nested-name-specifier
+  /// preceding the declaration name.
+  SourceRange TargetNestedNameRange;
+
+  /// \brief The source location of the 'using' keyword
+  SourceLocation UsingLocation;
+
+  /// \brief The source location of the 'typename' keyword
+  SourceLocation TypenameLocation;
+
+  NestedNameSpecifier *TargetNestedNameSpecifier;
+
+  UnresolvedUsingTypenameDecl(DeclContext *DC, SourceLocation UsingLoc,
+                    SourceLocation TypenameLoc,
+                    SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
+                    SourceLocation TargetNameLoc, IdentifierInfo *TargetName)
+  : TypeDecl(Decl::UnresolvedUsingTypename, DC, TargetNameLoc, TargetName),
+    TargetNestedNameRange(TargetNNR), UsingLocation(UsingLoc),
+    TypenameLocation(TypenameLoc), TargetNestedNameSpecifier(TargetNNS)
+  { }
+
+public:
+  /// \brief Returns the source range that covers the nested-name-specifier
+  /// preceding the namespace name.
+  SourceRange getTargetNestedNameRange() const { return TargetNestedNameRange; }
+
+  /// \brief Get target nested name declaration.
+  NestedNameSpecifier* getTargetNestedNameSpecifier() {
+    return TargetNestedNameSpecifier;
+  }
+
+  /// \brief Returns the source location of the 'using' keyword.
+  SourceLocation getUsingLoc() const { return UsingLocation; }
+
+  /// \brief Returns the source location of the 'typename' keyword.
+  SourceLocation getTypenameLoc() const { return TypenameLocation; }
+
+  static UnresolvedUsingTypenameDecl *
+    Create(ASTContext &C, DeclContext *DC, SourceLocation UsingLoc,
+           SourceLocation TypenameLoc,
+           SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
+           SourceLocation TargetNameLoc, DeclarationName TargetName);
+
+  static bool classof(const Decl *D) {
+    return D->getKind() == Decl::UnresolvedUsingTypename;
+  }
+  static bool classof(const UnresolvedUsingTypenameDecl *D) { return true; }
 };
 
 /// StaticAssertDecl - Represents a C++0x static_assert declaration.

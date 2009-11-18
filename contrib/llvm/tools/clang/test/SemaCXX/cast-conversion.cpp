@@ -19,3 +19,28 @@ int main () {
 			// expected-warning {{expression result unused}}
 }
 
+template<class T>
+struct X0 {
+  X0(const T &);
+};
+
+template<class T>
+X0<T> make_X0(const T &Val) {
+  return X0<T>(Val);
+}
+
+void test_X0() {
+  const char array[2];
+  make_X0(array);
+}
+
+// PR5210 recovery
+class C {
+protected:
+  template <int> float* &f0(); // expected-note{{candidate}}
+  template <unsigned> float* &f0(); // expected-note{{candidate}}
+
+  void f1() {
+    static_cast<float*>(f0<0>()); // expected-error{{ambiguous}}
+  }
+};

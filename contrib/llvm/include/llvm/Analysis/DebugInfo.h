@@ -26,8 +26,6 @@
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ValueHandle.h"
 
-#define ATTACH_DEBUG_INFO_TO_AN_INSN 1
-
 namespace llvm {
   class BasicBlock;
   class Constant;
@@ -46,9 +44,11 @@ namespace llvm {
   class Instruction;
   class LLVMContext;
 
+  /// DIDescriptor - A thin wraper around MDNode to access encoded debug info. This should not
+  /// be stored in a container, because underly MDNode may change in certain situations.
   class DIDescriptor {
   protected:
-    TrackingVH<MDNode> DbgNode;
+    MDNode  *DbgNode;
 
     /// DIDescriptor constructor.  If the specified node is non-null, check
     /// to make sure that the tag in the descriptor matches 'RequiredTag'.  If
@@ -468,15 +468,8 @@ namespace llvm {
     Module &M;
     LLVMContext& VMContext;
 
-    // Cached values for uniquing and faster lookups.
     const Type *EmptyStructPtr; // "{}*".
-    Function *StopPointFn;   // llvm.dbg.stoppoint
-    Function *FuncStartFn;   // llvm.dbg.func.start
-    Function *RegionStartFn; // llvm.dbg.region.start
-    Function *RegionEndFn;   // llvm.dbg.region.end
     Function *DeclareFn;     // llvm.dbg.declare
-    StringMap<Constant*> StringCache;
-    DenseMap<Constant*, DIDescriptor> SimpleConstantCache;
 
     DIFactory(const DIFactory &);     // DO NOT IMPLEMENT
     void operator=(const DIFactory&); // DO NOT IMPLEMENT
@@ -496,26 +489,26 @@ namespace llvm {
     /// CreateCompileUnit - Create a new descriptor for the specified compile
     /// unit.
     DICompileUnit CreateCompileUnit(unsigned LangID,
-                                    StringRef Filenae,
-                                    StringRef Directory,
-                                    StringRef Producer,
+                                    const char * Filename,
+                                    const char * Directory,
+                                    const char * Producer,
                                     bool isMain = false,
                                     bool isOptimized = false,
                                     const char *Flags = "",
                                     unsigned RunTimeVer = 0);
 
     /// CreateEnumerator - Create a single enumerator value.
-    DIEnumerator CreateEnumerator(StringRef Name, uint64_t Val);
+    DIEnumerator CreateEnumerator(const char * Name, uint64_t Val);
 
     /// CreateBasicType - Create a basic type like int, float, etc.
-    DIBasicType CreateBasicType(DIDescriptor Context, StringRef Name,
+    DIBasicType CreateBasicType(DIDescriptor Context, const char * Name,
                                 DICompileUnit CompileUnit, unsigned LineNumber,
                                 uint64_t SizeInBits, uint64_t AlignInBits,
                                 uint64_t OffsetInBits, unsigned Flags,
                                 unsigned Encoding);
 
     /// CreateBasicType - Create a basic type like int, float, etc.
-    DIBasicType CreateBasicTypeEx(DIDescriptor Context, StringRef Name,
+    DIBasicType CreateBasicTypeEx(DIDescriptor Context, const char * Name,
                                 DICompileUnit CompileUnit, unsigned LineNumber,
                                 Constant *SizeInBits, Constant *AlignInBits,
                                 Constant *OffsetInBits, unsigned Flags,
@@ -524,7 +517,7 @@ namespace llvm {
     /// CreateDerivedType - Create a derived type like const qualified type,
     /// pointer, typedef, etc.
     DIDerivedType CreateDerivedType(unsigned Tag, DIDescriptor Context,
-                                    StringRef Name,
+                                    const char * Name,
                                     DICompileUnit CompileUnit,
                                     unsigned LineNumber,
                                     uint64_t SizeInBits, uint64_t AlignInBits,
@@ -534,7 +527,7 @@ namespace llvm {
     /// CreateDerivedType - Create a derived type like const qualified type,
     /// pointer, typedef, etc.
     DIDerivedType CreateDerivedTypeEx(unsigned Tag, DIDescriptor Context,
-                                        StringRef Name,
+                                        const char * Name,
                                     DICompileUnit CompileUnit,
                                     unsigned LineNumber,
                                     Constant *SizeInBits, Constant *AlignInBits,
@@ -543,7 +536,7 @@ namespace llvm {
 
     /// CreateCompositeType - Create a composite type like array, struct, etc.
     DICompositeType CreateCompositeType(unsigned Tag, DIDescriptor Context,
-                                        StringRef Name,
+                                        const char * Name,
                                         DICompileUnit CompileUnit,
                                         unsigned LineNumber,
                                         uint64_t SizeInBits,
@@ -555,7 +548,7 @@ namespace llvm {
 
     /// CreateCompositeType - Create a composite type like array, struct, etc.
     DICompositeType CreateCompositeTypeEx(unsigned Tag, DIDescriptor Context,
-                                        StringRef Name,
+                                        const char * Name,
                                         DICompileUnit CompileUnit,
                                         unsigned LineNumber,
                                         Constant *SizeInBits,
@@ -567,25 +560,25 @@ namespace llvm {
 
     /// CreateSubprogram - Create a new descriptor for the specified subprogram.
     /// See comments in DISubprogram for descriptions of these fields.
-    DISubprogram CreateSubprogram(DIDescriptor Context, StringRef Name,
-                                  StringRef DisplayName,
-                                  StringRef LinkageName,
+    DISubprogram CreateSubprogram(DIDescriptor Context, const char * Name,
+                                  const char * DisplayName,
+                                  const char * LinkageName,
                                   DICompileUnit CompileUnit, unsigned LineNo,
                                   DIType Type, bool isLocalToUnit,
                                   bool isDefinition);
 
     /// CreateGlobalVariable - Create a new descriptor for the specified global.
     DIGlobalVariable
-    CreateGlobalVariable(DIDescriptor Context, StringRef Name,
-                         StringRef DisplayName,
-                         StringRef LinkageName,
+    CreateGlobalVariable(DIDescriptor Context, const char * Name,
+                         const char * DisplayName,
+                         const char * LinkageName,
                          DICompileUnit CompileUnit,
                          unsigned LineNo, DIType Type, bool isLocalToUnit,
                          bool isDefinition, llvm::GlobalVariable *GV);
 
     /// CreateVariable - Create a new descriptor for the specified variable.
     DIVariable CreateVariable(unsigned Tag, DIDescriptor Context,
-                              StringRef Name,
+                              const char * Name,
                               DICompileUnit CompileUnit, unsigned LineNo,
                               DIType Type);
 
@@ -605,30 +598,13 @@ namespace llvm {
     DILocation CreateLocation(unsigned LineNo, unsigned ColumnNo,
                               DIScope S, DILocation OrigLoc);
 
-    /// InsertStopPoint - Create a new llvm.dbg.stoppoint intrinsic invocation,
-    /// inserting it at the end of the specified basic block.
-    void InsertStopPoint(DICompileUnit CU, unsigned LineNo, unsigned ColNo,
-                         BasicBlock *BB);
-
-    /// InsertSubprogramStart - Create a new llvm.dbg.func.start intrinsic to
-    /// mark the start of the specified subprogram.
-    void InsertSubprogramStart(DISubprogram SP, BasicBlock *BB);
-
-    /// InsertRegionStart - Insert a new llvm.dbg.region.start intrinsic call to
-    /// mark the start of a region for the specified scoping descriptor.
-    void InsertRegionStart(DIDescriptor D, BasicBlock *BB);
-
-    /// InsertRegionEnd - Insert a new llvm.dbg.region.end intrinsic call to
-    /// mark the end of a region for the specified scoping descriptor.
-    void InsertRegionEnd(DIDescriptor D, BasicBlock *BB);
+    /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
+    Instruction *InsertDeclare(llvm::Value *Storage, DIVariable D,
+                               BasicBlock *InsertAtEnd);
 
     /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
-    void InsertDeclare(llvm::Value *Storage, DIVariable D,
-                       BasicBlock *InsertAtEnd);
-
-    /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
-    void InsertDeclare(llvm::Value *Storage, DIVariable D,
-                       Instruction *InsertBefore);
+    Instruction *InsertDeclare(llvm::Value *Storage, DIVariable D,
+                               Instruction *InsertBefore);
 
   private:
     Constant *GetTagConstant(unsigned TAG);
@@ -693,12 +669,6 @@ bool getLocationInfo(const Value *V, std::string &DisplayName,
   DebugLoc ExtractDebugLocation(DbgFuncStartInst &FSI,
                                 DebugLocTracker &DebugLocInfo);
 
-  /// isInlinedFnStart - Return true if FSI is starting an inlined function.
-  bool isInlinedFnStart(DbgFuncStartInst &FSI, const Function *CurrentFn);
-
-  /// isInlinedFnEnd - Return true if REI is ending an inlined function.
-  bool isInlinedFnEnd(DbgRegionEndInst &REI, const Function *CurrentFn);
-  /// DebugInfoFinder - This object collects DebugInfo from a module.
   class DebugInfoFinder {
 
   public:
@@ -716,20 +686,11 @@ bool getLocationInfo(const Value *V, std::string &DisplayName,
     /// processSubprogram - Process DISubprogram.
     void processSubprogram(DISubprogram SP);
 
-    /// processStopPoint - Process DbgStopPointInst.
-    void processStopPoint(DbgStopPointInst *SPI);
-
-    /// processFuncStart - Process DbgFuncStartInst.
-    void processFuncStart(DbgFuncStartInst *FSI);
-
-    /// processRegionStart - Process DbgRegionStart.
-    void processRegionStart(DbgRegionStartInst *DRS);
-
-    /// processRegionEnd - Process DbgRegionEnd.
-    void processRegionEnd(DbgRegionEndInst *DRE);
-
     /// processDeclare - Process DbgDeclareInst.
     void processDeclare(DbgDeclareInst *DDI);
+
+    /// processLocation - Process DILocation.
+    void processLocation(DILocation Loc);
 
     /// addCompileUnit - Add compile unit into CUs.
     bool addCompileUnit(DICompileUnit CU);

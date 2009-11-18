@@ -1270,11 +1270,12 @@ SDValue SelectionDAG::getConvertRndSat(EVT VT, DebugLoc dl,
     return Val;
 
   FoldingSetNodeID ID;
+  SDValue Ops[] = { Val, DTy, STy, Rnd, Sat };
+  AddNodeIDNode(ID, ISD::CONVERT_RNDSAT, getVTList(VT), &Ops[0], 5);
   void* IP = 0;
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
   CvtRndSatSDNode *N = NodeAllocator.Allocate<CvtRndSatSDNode>();
-  SDValue Ops[] = { Val, DTy, STy, Rnd, Sat };
   new (N) CvtRndSatSDNode(VT, dl, Ops, 5, Code);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
@@ -1378,7 +1379,7 @@ SDValue SelectionDAG::CreateStackTemporary(EVT VT, unsigned minAlign) {
   unsigned StackAlign =
   std::max((unsigned)TLI.getTargetData()->getPrefTypeAlignment(Ty), minAlign);
 
-  int FrameIdx = FrameInfo->CreateStackObject(ByteSize, StackAlign);
+  int FrameIdx = FrameInfo->CreateStackObject(ByteSize, StackAlign, false);
   return getFrameIndex(FrameIdx, TLI.getPointerTy());
 }
 
@@ -1394,7 +1395,7 @@ SDValue SelectionDAG::CreateStackTemporary(EVT VT1, EVT VT2) {
                             TD->getPrefTypeAlignment(Ty2));
 
   MachineFrameInfo *FrameInfo = getMachineFunction().getFrameInfo();
-  int FrameIdx = FrameInfo->CreateStackObject(Bytes, Align);
+  int FrameIdx = FrameInfo->CreateStackObject(Bytes, Align, false);
   return getFrameIndex(FrameIdx, TLI.getPointerTy());
 }
 
@@ -5814,9 +5815,8 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
 
 void SDNode::print(raw_ostream &OS, const SelectionDAG *G) const {
   print_types(OS, G);
-  OS << " ";
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
-    if (i) OS << ", ";
+    if (i) OS << ", "; else OS << " ";
     OS << (void*)getOperand(i).getNode();
     if (unsigned RN = getOperand(i).getResNo())
       OS << ":" << RN;
@@ -5916,7 +5916,8 @@ bool BuildVectorSDNode::isConstantSplat(APInt &SplatValue,
                                         APInt &SplatUndef,
                                         unsigned &SplatBitSize,
                                         bool &HasAnyUndefs,
-                                        unsigned MinSplatBits) {
+                                        unsigned MinSplatBits,
+                                        bool isBigEndian) {
   EVT VT = getValueType(0);
   assert(VT.isVector() && "Expected a vector type");
   unsigned sz = VT.getSizeInBits();
@@ -5933,12 +5934,14 @@ bool BuildVectorSDNode::isConstantSplat(APInt &SplatValue,
   unsigned int nOps = getNumOperands();
   assert(nOps > 0 && "isConstantSplat has 0-size build vector");
   unsigned EltBitSize = VT.getVectorElementType().getSizeInBits();
-  for (unsigned i = 0; i < nOps; ++i) {
+
+  for (unsigned j = 0; j < nOps; ++j) {
+    unsigned i = isBigEndian ? nOps-1-j : j;
     SDValue OpVal = getOperand(i);
-    unsigned BitPos = i * EltBitSize;
+    unsigned BitPos = j * EltBitSize;
 
     if (OpVal.getOpcode() == ISD::UNDEF)
-      SplatUndef |= APInt::getBitsSet(sz, BitPos, BitPos +EltBitSize);
+      SplatUndef |= APInt::getBitsSet(sz, BitPos, BitPos + EltBitSize);
     else if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(OpVal))
       SplatValue |= (APInt(CN->getAPIntValue()).zextOrTrunc(EltBitSize).
                      zextOrTrunc(sz) << BitPos);

@@ -16,6 +16,8 @@
 #include <string>
 
 namespace llvm {
+  template<typename T>
+  class SmallVectorImpl;
 
   /// StringRef - Represent a constant reference to a string, i.e. a character
   /// array and a length, which need not be null terminated.
@@ -46,7 +48,7 @@ namespace llvm {
 
     /// Construct a string ref from a cstring.
     /*implicit*/ StringRef(const char *Str)
-      : Data(Str) { if (Str) Length = ::strlen(Str); else Length = 0; }
+      : Data(Str), Length(::strlen(Str)) {}
 
     /// Construct a string ref from a pointer and length.
     /*implicit*/ StringRef(const char *data, size_t length)
@@ -54,7 +56,7 @@ namespace llvm {
 
     /// Construct a string ref from an std::string.
     /*implicit*/ StringRef(const std::string &Str)
-      : Data(Str.c_str()), Length(Str.length()) {}
+      : Data(Str.data()), Length(Str.length()) {}
 
     /// @}
     /// @name Iterators
@@ -92,14 +94,19 @@ namespace llvm {
 
     /// equals - Check for string equality, this is more efficient than
     /// compare() when the relative ordering of inequal strings isn't needed.
-    bool equals(const StringRef &RHS) const {
+    bool equals(StringRef RHS) const {
       return (Length == RHS.Length &&
               memcmp(Data, RHS.Data, RHS.Length) == 0);
     }
 
+    /// equals_lower - Check for string equality, ignoring case.
+    bool equals_lower(StringRef RHS) const {
+      return Length == RHS.Length && compare_lower(RHS) == 0;
+    }
+
     /// compare - Compare two strings; the result is -1, 0, or 1 if this string
     /// is lexicographically less than, equal to, or greater than the \arg RHS.
-    int compare(const StringRef &RHS) const {
+    int compare(StringRef RHS) const {
       // Check the prefix for a mismatch.
       if (int Res = memcmp(Data, RHS.Data, std::min(Length, RHS.Length)))
         return Res < 0 ? -1 : 1;
@@ -109,6 +116,9 @@ namespace llvm {
         return 0;
       return Length < RHS.Length ? -1 : 1;
     }
+
+    /// compare_lower - Compare two strings, ignoring case.
+    int compare_lower(StringRef RHS) const;
 
     /// str - Get the contents as an std::string.
     std::string str() const { return std::string(Data, Length); }
@@ -135,12 +145,12 @@ namespace llvm {
     /// @{
 
     /// startswith - Check if this string starts with the given \arg Prefix.
-    bool startswith(const StringRef &Prefix) const {
+    bool startswith(StringRef Prefix) const {
       return substr(0, Prefix.Length).equals(Prefix);
     }
 
     /// endswith - Check if this string ends with the given \arg Suffix.
-    bool endswith(const StringRef &Suffix) const {
+    bool endswith(StringRef Suffix) const {
       return slice(size() - Suffix.Length, size()).equals(Suffix);
     }
 
@@ -152,8 +162,8 @@ namespace llvm {
     ///
     /// \return - The index of the first occurence of \arg C, or npos if not
     /// found.
-    size_t find(char C) const {
-      for (size_t i = 0, e = Length; i != e; ++i)
+    size_t find(char C, size_t From = 0) const {
+      for (size_t i = std::min(From, Length), e = Length; i != e; ++i)
         if (Data[i] == C)
           return i;
       return npos;
@@ -163,7 +173,7 @@ namespace llvm {
     ///
     /// \return - The index of the first occurence of \arg Str, or npos if not
     /// found.
-    size_t find(const StringRef &Str) const;
+    size_t find(StringRef Str, size_t From = 0) const;
 
     /// rfind - Search for the last character \arg C in the string.
     ///
@@ -184,19 +194,27 @@ namespace llvm {
     ///
     /// \return - The index of the last occurence of \arg Str, or npos if not
     /// found.
-    size_t rfind(const StringRef &Str) const;
+    size_t rfind(StringRef Str) const;
 
-    /// find_first_of - Find the first instance of the specified character or
-    /// return npos if not in string.  Same as find.
-    size_type find_first_of(char C) const { return find(C); }
+    /// find_first_of - Find the first character in the string that is \arg C,
+    /// or npos if not found. Same as find.
+    size_type find_first_of(char C, size_t = 0) const { return find(C); }
 
-    /// find_first_of - Find the first character from the string 'Chars' in the
-    /// current string or return npos if not in string.
-    size_type find_first_of(StringRef Chars) const;
+    /// find_first_of - Find the first character in the string that is in \arg
+    /// Chars, or npos if not found.
+    ///
+    /// Note: O(size() * Chars.size())
+    size_type find_first_of(StringRef Chars, size_t From = 0) const;
 
     /// find_first_not_of - Find the first character in the string that is not
-    /// in the string 'Chars' or return npos if all are in string. Same as find.
-    size_type find_first_not_of(StringRef Chars) const;
+    /// \arg C or npos if not found.
+    size_type find_first_not_of(char C, size_t From = 0) const;
+
+    /// find_first_not_of - Find the first character in the string that is not
+    /// in the string \arg Chars, or npos if not found.
+    ///
+    /// Note: O(size() * Chars.size())
+    size_type find_first_not_of(StringRef Chars, size_t From = 0) const;
 
     /// @}
     /// @name Helpful Algorithms
@@ -213,7 +231,7 @@ namespace llvm {
 
     /// count - Return the number of non-overlapped occurrences of \arg Str in
     /// the string.
-    size_t count(const StringRef &Str) const;
+    size_t count(StringRef Str) const;
 
     /// getAsInteger - Parse the current string as an integer of the specified
     /// radix.  If Radix is specified as zero, this does radix autosensing using
@@ -281,6 +299,42 @@ namespace llvm {
       return std::make_pair(slice(0, Idx), slice(Idx+1, npos));
     }
 
+    /// split - Split into two substrings around the first occurence of a
+    /// separator string.
+    ///
+    /// If \arg Separator is in the string, then the result is a pair (LHS, RHS)
+    /// such that (*this == LHS + Separator + RHS) is true and RHS is
+    /// maximal. If \arg Separator is not in the string, then the result is a
+    /// pair (LHS, RHS) where (*this == LHS) and (RHS == "").
+    ///
+    /// \param Separator - The string to split on.
+    /// \return - The split substrings.
+    std::pair<StringRef, StringRef> split(StringRef Separator) const {
+      size_t Idx = find(Separator);
+      if (Idx == npos)
+        return std::make_pair(*this, StringRef());
+      return std::make_pair(slice(0, Idx), slice(Idx + Separator.size(), npos));
+    }
+
+    /// split - Split into substrings around the occurences of a separator
+    /// string.
+    ///
+    /// Each substring is stored in \arg A. If \arg MaxSplit is >= 0, at most
+    /// \arg MaxSplit splits are done and consequently <= \arg MaxSplit
+    /// elements are added to A.
+    /// If \arg KeepEmpty is false, empty strings are not added to \arg A. They
+    /// still count when considering \arg MaxSplit
+    /// An useful invariant is that
+    /// Separator.join(A) == *this if MaxSplit == -1 and KeepEmpty == true
+    ///
+    /// \param A - Where to put the substrings.
+    /// \param Separator - The string to split on.
+    /// \param MaxSplit - The maximum number of times the string is split.
+    /// \parm KeepEmpty - True if empty substring should be added.
+    void split(SmallVectorImpl<StringRef> &A,
+               StringRef Separator, int MaxSplit = -1,
+               bool KeepEmpty = true) const;
+
     /// rsplit - Split into two substrings around the last occurence of a
     /// separator character.
     ///
@@ -304,27 +358,27 @@ namespace llvm {
   /// @name StringRef Comparison Operators
   /// @{
 
-  inline bool operator==(const StringRef &LHS, const StringRef &RHS) {
+  inline bool operator==(StringRef LHS, StringRef RHS) {
     return LHS.equals(RHS);
   }
 
-  inline bool operator!=(const StringRef &LHS, const StringRef &RHS) {
+  inline bool operator!=(StringRef LHS, StringRef RHS) {
     return !(LHS == RHS);
   }
 
-  inline bool operator<(const StringRef &LHS, const StringRef &RHS) {
+  inline bool operator<(StringRef LHS, StringRef RHS) {
     return LHS.compare(RHS) == -1;
   }
 
-  inline bool operator<=(const StringRef &LHS, const StringRef &RHS) {
+  inline bool operator<=(StringRef LHS, StringRef RHS) {
     return LHS.compare(RHS) != 1;
   }
 
-  inline bool operator>(const StringRef &LHS, const StringRef &RHS) {
+  inline bool operator>(StringRef LHS, StringRef RHS) {
     return LHS.compare(RHS) == 1;
   }
 
-  inline bool operator>=(const StringRef &LHS, const StringRef &RHS) {
+  inline bool operator>=(StringRef LHS, StringRef RHS) {
     return LHS.compare(RHS) != -1;
   }
 

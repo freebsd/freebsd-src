@@ -62,8 +62,8 @@ namespace llvm {
       SRA_FLAG,     // V,Flag = sra_flag X -> sra X, 1 + save carry out.
       RRX,          // V = RRX X, Flag     -> srl X, 1 + shift in carry flag.
 
-      FMRRD,        // double to two gprs.
-      FMDRR,        // Two gprs to double.
+      VMOVRRD,      // double to two gprs.
+      VMOVDRR,      // Two gprs to double.
 
       EH_SJLJ_SETJMP,    // SjLj exception handling setjmp.
       EH_SJLJ_LONGJMP,   // SjLj exception handling longjmp.
@@ -180,6 +180,12 @@ namespace llvm {
     virtual bool isLegalAddressingMode(const AddrMode &AM, const Type *Ty)const;
     bool isLegalT2ScaledAddressingMode(const AddrMode &AM, EVT VT) const;
 
+    /// isLegalICmpImmediate - Return true if the specified immediate is legal
+    /// icmp immediate, that is the target has icmp instructions which can compare
+    /// a register against the immediate without having to materialize the
+    /// immediate into a register.
+    virtual bool isLegalICmpImmediate(int64_t Imm) const;
+
     /// getPreIndexedAddressParts - returns true by value, base pointer and
     /// offset pointer and addressing mode by reference if the node's address
     /// can be legally represented as pre-indexed load / store address.
@@ -278,8 +284,12 @@ namespace llvm {
                                    SelectionDAG &DAG);
     SDValue LowerGLOBAL_OFFSET_TABLE(SDValue Op, SelectionDAG &DAG);
     SDValue LowerBR_JT(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG);
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG);
     SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerShiftRightParts(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG);
 
     SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                                       SDValue Chain,
@@ -315,6 +325,9 @@ namespace llvm {
                   CallingConv::ID CallConv, bool isVarArg,
                   const SmallVectorImpl<ISD::OutputArg> &Outs,
                   DebugLoc dl, SelectionDAG &DAG);
+
+    SDValue getARMCmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
+                      SDValue &ARMCC, SelectionDAG &DAG, DebugLoc dl);
   };
 }
 

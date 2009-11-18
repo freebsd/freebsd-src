@@ -74,6 +74,25 @@ unsigned DwarfException::SizeOfEncodedValue(unsigned Encoding) {
   return 0;
 }
 
+/// CreateLabelDiff - Emit a label and subtract it from the expression we
+/// already have.  This is equivalent to emitting "foo - .", but we have to emit
+/// the label for "." directly.
+const MCExpr *DwarfException::CreateLabelDiff(const MCExpr *ExprRef,
+                                              const char *LabelName,
+                                              unsigned Index) {
+  SmallString<64> Name;
+  raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix()
+                            << LabelName << Asm->getFunctionNumber()
+                            << "_" << Index;
+  MCSymbol *DotSym = Asm->OutContext.GetOrCreateSymbol(Name.str());
+  Asm->OutStreamer.EmitLabel(DotSym);
+
+  return MCBinaryExpr::CreateSub(ExprRef,
+                                 MCSymbolRefExpr::Create(DotSym,
+                                                         Asm->OutContext),
+                                 Asm->OutContext);
+}
+
 /// EmitCIE - Emit a Common Information Entry (CIE). This holds information that
 /// is shared among many Frame Description Entries.  There is at least one CIE
 /// in every non-empty .debug_frame section.
@@ -176,24 +195,10 @@ void DwarfException::EmitCIE(const Function *PersonalityFn, unsigned Index) {
 
   // If there is a personality, we need to indicate the function's location.
   if (PersonalityRef) {
-    // If the reference to the personality function symbol is not already
-    // pc-relative, then we need to subtract our current address from it.  Do
-    // this by emitting a label and subtracting it from the expression we
-    // already have.  This is equivalent to emitting "foo - .", but we have to
-    // emit the label for "." directly.
-    if (!IsPersonalityPCRel) {
-      SmallString<64> Name;
-      raw_svector_ostream(Name) << MAI->getPrivateGlobalPrefix()
-         << "personalityref_addr" << Asm->getFunctionNumber() << "_" << Index;
-      MCSymbol *DotSym = Asm->OutContext.GetOrCreateSymbol(Name.str());
-      Asm->OutStreamer.EmitLabel(DotSym);
-      
-      PersonalityRef =  
-        MCBinaryExpr::CreateSub(PersonalityRef,
-                                MCSymbolRefExpr::Create(DotSym,Asm->OutContext),
-                                Asm->OutContext);
-    }
-    
+    if (!IsPersonalityPCRel)
+      PersonalityRef = CreateLabelDiff(PersonalityRef, "personalityref_addr",
+                                       Index);
+
     O << MAI->getData32bitsDirective();
     PersonalityRef->print(O, MAI);
     Asm->EOL("Personality");
@@ -232,11 +237,16 @@ void DwarfException::EmitFDE(const FunctionEHFrameInfo &EHFrameInfo) {
   // corresponding function is static, this should not be externally visible.
   if (!TheFunc->hasLocalLinkage())
     if (const char *GlobalEHDirective = MAI->getGlobalEHDirective())
-      O << GlobalEHDirective << EHFrameInfo.FnName << "\n";
+      O << GlobalEHDirective << EHFrameInfo.FnName << '\n';
 
   // If corresponding function is weak definition, this should be too.
   if (TheFunc->isWeakForLinker() && MAI->getWeakDefDirective())
-    O << MAI->getWeakDefDirective() << EHFrameInfo.FnName << "\n";
+    O << MAI->getWeakDefDirective() << EHFrameInfo.FnName << '\n';
+
+  // If corresponding function is hidden, this should be too.
+  if (TheFunc->hasHiddenVisibility())
+    if (const char *HiddenDirective = MAI->getHiddenDirective())
+      O << HiddenDirective << EHFrameInfo.FnName << '\n' ;
 
   // If there are no calls then you can't unwind.  This may mean we can omit the
   // EH Frame, but some environments do not handle weak absolute symbols. If
@@ -457,6 +467,39 @@ ComputeActionsTable(const SmallVectorImpl<const LandingPadInfo*> &LandingPads,
   return SizeActions;
 }
 
+/// CallToNoUnwindFunction - Return `true' if this is a call to a function
+/// marked `nounwind'. Return `false' otherwise.
+bool DwarfException::CallToNoUnwindFunction(const MachineInstr *MI) {
+  assert(MI->getDesc().isCall() && "This should be a call instruction!");
+
+  bool MarkedNoUnwind = false;
+  bool SawFunc = false;
+
+  for (unsigned I = 0, E = MI->getNumOperands(); I != E; ++I) {
+    const MachineOperand &MO = MI->getOperand(I);
+
+    if (MO.isGlobal()) {
+      if (Function *F = dyn_cast<Function>(MO.getGlobal())) {
+        if (SawFunc) {
+          // Be conservative. If we have more than one function operand for this
+          // call, then we can't make the assumption that it's the callee and
+          // not a parameter to the call.
+          // 
+          // FIXME: Determine if there's a way to say that `F' is the callee or
+          // parameter.
+          MarkedNoUnwind = false;
+          break;
+        }
+
+        MarkedNoUnwind = F->doesNotThrow();
+        SawFunc = true;
+      }
+    }
+  }
+
+  return MarkedNoUnwind;
+}
+
 /// ComputeCallSiteTable - Compute the call-site table.  The entry for an invoke
 /// has a try-range containing the call, a non-zero landing pad, and an
 /// appropriate action.  The entry for an ordinary call has a try-range
@@ -485,7 +528,9 @@ ComputeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
     for (MachineBasicBlock::const_iterator MI = I->begin(), E = I->end();
          MI != E; ++MI) {
       if (!MI->isLabel()) {
-        SawPotentiallyThrowing |= MI->getDesc().isCall();
+        if (MI->getDesc().isCall())
+          SawPotentiallyThrowing |= !CallToNoUnwindFunction(MI);
+
         continue;
       }
 
@@ -497,7 +542,7 @@ ComputeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
         SawPotentiallyThrowing = false;
 
       // Beginning of a new try-range?
-      RangeMapType::iterator L = PadMap.find(BeginLabel);
+      RangeMapType::const_iterator L = PadMap.find(BeginLabel);
       if (L == PadMap.end())
         // Nope, it was just some random label.
         continue;

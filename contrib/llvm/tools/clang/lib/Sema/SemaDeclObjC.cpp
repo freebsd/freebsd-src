@@ -112,6 +112,14 @@ ActOnStartClassInterface(SourceLocation AtInterfaceLoc,
       IDecl->setLocation(AtInterfaceLoc);
       IDecl->setForwardDecl(false);
       IDecl->setClassLoc(ClassLoc);
+      
+      // Since this ObjCInterfaceDecl was created by a forward declaration,
+      // we now add it to the DeclContext since it wasn't added before
+      // (see ActOnForwardClassDeclaration).
+      CurContext->addDecl(IDecl);
+      
+      if (AttrList)
+        ProcessDeclAttributeList(TUScope, IDecl, AttrList);
     }
   } else {
     IDecl = ObjCInterfaceDecl::Create(Context, CurContext, AtInterfaceLoc,
@@ -1113,10 +1121,46 @@ void Sema::ImplMethodsVsClassMethods(ObjCImplDecl* IMPDecl,
     assert(false && "invalid ObjCContainerDecl type.");
 }
 
+void
+Sema::AtomicPropertySetterGetterRules (ObjCImplDecl* IMPDecl,
+                                       ObjCContainerDecl* IDecl) {
+  // Rules apply in non-GC mode only
+  if (getLangOptions().getGCMode() != LangOptions::NonGC)
+    return;
+  for (ObjCContainerDecl::prop_iterator I = IDecl->prop_begin(),
+       E = IDecl->prop_end();
+       I != E; ++I) {
+    ObjCPropertyDecl *Property = (*I);
+    unsigned Attributes = Property->getPropertyAttributes();
+    // We only care about readwrite atomic property.
+    if ((Attributes & ObjCPropertyDecl::OBJC_PR_nonatomic) ||
+        !(Attributes & ObjCPropertyDecl::OBJC_PR_readwrite))
+      continue;
+    if (const ObjCPropertyImplDecl *PIDecl
+         = IMPDecl->FindPropertyImplDecl(Property->getIdentifier())) {
+      if (PIDecl->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
+        continue;
+      ObjCMethodDecl *GetterMethod =
+        IMPDecl->getInstanceMethod(Property->getGetterName());
+      ObjCMethodDecl *SetterMethod = 
+        IMPDecl->getInstanceMethod(Property->getSetterName());
+      if ((GetterMethod && !SetterMethod) || (!GetterMethod && SetterMethod)) {
+        SourceLocation MethodLoc = 
+          (GetterMethod ? GetterMethod->getLocation() 
+                        : SetterMethod->getLocation());
+        Diag(MethodLoc, diag::warn_atomic_property_rule)
+          << Property->getIdentifier();
+        Diag(Property->getLocation(), diag::note_property_declare);
+      }
+    }
+  }
+}
+
 /// ActOnForwardClassDeclaration -
 Action::DeclPtrTy
 Sema::ActOnForwardClassDeclaration(SourceLocation AtClassLoc,
                                    IdentifierInfo **IdentList,
+                                   SourceLocation *IdentLocs,
                                    unsigned NumElts) {
   llvm::SmallVector<ObjCInterfaceDecl*, 32> Interfaces;
 
@@ -1153,18 +1197,23 @@ Sema::ActOnForwardClassDeclaration(SourceLocation AtClassLoc,
     ObjCInterfaceDecl *IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
     if (!IDecl) {  // Not already seen?  Make a forward decl.
       IDecl = ObjCInterfaceDecl::Create(Context, CurContext, AtClassLoc,
-                                        IdentList[i],
-                                        // FIXME: need to get the 'real'
-                                        // identifier loc from the parser.
-                                        AtClassLoc, true);
-      PushOnScopeChains(IDecl, TUScope);
+                                        IdentList[i], IdentLocs[i], true);
+      
+      // Push the ObjCInterfaceDecl on the scope chain but do *not* add it to
+      // the current DeclContext.  This prevents clients that walk DeclContext
+      // from seeing the imaginary ObjCInterfaceDecl until it is actually
+      // declared later (if at all).  We also take care to explicitly make
+      // sure this declaration is visible for name lookup.
+      PushOnScopeChains(IDecl, TUScope, false);
+      CurContext->makeDeclVisibleInContext(IDecl, true);
     }
 
     Interfaces.push_back(IDecl);
   }
 
+  assert(Interfaces.size() == NumElts);
   ObjCClassDecl *CDecl = ObjCClassDecl::Create(Context, CurContext, AtClassLoc,
-                                               &Interfaces[0],
+                                               Interfaces.data(), IdentLocs,
                                                Interfaces.size());
   CurContext->addDecl(CDecl);
   CheckObjCDeclScope(CDecl);
@@ -1524,12 +1573,17 @@ void Sema::ActOnAtEnd(SourceLocation AtEndLoc, DeclPtrTy classDecl,
   // should be true.
   if (!ClassDecl)
     return;
-
+  
   bool isInterfaceDeclKind =
         isa<ObjCInterfaceDecl>(ClassDecl) || isa<ObjCCategoryDecl>(ClassDecl)
          || isa<ObjCProtocolDecl>(ClassDecl);
   bool checkIdenticalMethods = isa<ObjCImplementationDecl>(ClassDecl);
 
+  if (!isInterfaceDeclKind && AtEndLoc.isInvalid()) {
+    AtEndLoc = ClassDecl->getLocation();
+    Diag(AtEndLoc, diag::warn_missing_atend);
+  }
+  
   DeclContext *DC = dyn_cast<DeclContext>(ClassDecl);
 
   // FIXME: Remove these and use the ObjCContainerDecl/DeclContext.
@@ -1608,8 +1662,10 @@ void Sema::ActOnAtEnd(SourceLocation AtEndLoc, DeclPtrTy classDecl,
   }
   if (ObjCImplementationDecl *IC=dyn_cast<ObjCImplementationDecl>(ClassDecl)) {
     IC->setAtEndLoc(AtEndLoc);
-    if (ObjCInterfaceDecl* IDecl = IC->getClassInterface())
+    if (ObjCInterfaceDecl* IDecl = IC->getClassInterface()) {
       ImplMethodsVsClassMethods(IC, IDecl);
+      AtomicPropertySetterGetterRules(IC, IDecl);
+    }
   } else if (ObjCCategoryImplDecl* CatImplClass =
                                    dyn_cast<ObjCCategoryImplDecl>(ClassDecl)) {
     CatImplClass->setAtEndLoc(AtEndLoc);
@@ -1910,13 +1966,12 @@ Sema::DeclPtrTy Sema::ActOnProperty(Scope *S, SourceLocation AtLoc,
           // with continuation class's readwrite property attribute!
           unsigned PIkind = PIDecl->getPropertyAttributes();
           if (isReadWrite && (PIkind & ObjCPropertyDecl::OBJC_PR_readonly)) {
-            unsigned assignRetainCopyNonatomic = 
-              (ObjCPropertyDecl::OBJC_PR_assign |
-               ObjCPropertyDecl::OBJC_PR_retain |
+            unsigned retainCopyNonatomic = 
+              (ObjCPropertyDecl::OBJC_PR_retain |
                ObjCPropertyDecl::OBJC_PR_copy |
                ObjCPropertyDecl::OBJC_PR_nonatomic);
-            if ((Attributes & assignRetainCopyNonatomic) !=
-                (PIkind & assignRetainCopyNonatomic)) {
+            if ((Attributes & retainCopyNonatomic) !=
+                (PIkind & retainCopyNonatomic)) {
               Diag(AtLoc, diag::warn_property_attr_mismatch);
               Diag(PIDecl->getLocation(), diag::note_property_declare);
             }

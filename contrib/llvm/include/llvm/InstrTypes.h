@@ -214,6 +214,27 @@ public:
     return BO;
   }
 
+  /// CreateNUWAdd - Create an Add operator with the NUW flag set.
+  ///
+  static BinaryOperator *CreateNUWAdd(Value *V1, Value *V2,
+                                      const Twine &Name = "") {
+    BinaryOperator *BO = CreateAdd(V1, V2, Name);
+    BO->setHasNoUnsignedWrap(true);
+    return BO;
+  }
+  static BinaryOperator *CreateNUWAdd(Value *V1, Value *V2,
+                                      const Twine &Name, BasicBlock *BB) {
+    BinaryOperator *BO = CreateAdd(V1, V2, Name, BB);
+    BO->setHasNoUnsignedWrap(true);
+    return BO;
+  }
+  static BinaryOperator *CreateNUWAdd(Value *V1, Value *V2,
+                                      const Twine &Name, Instruction *I) {
+    BinaryOperator *BO = CreateAdd(V1, V2, Name, I);
+    BO->setHasNoUnsignedWrap(true);
+    return BO;
+  }
+
   /// CreateNSWSub - Create an Sub operator with the NSW flag set.
   ///
   static BinaryOperator *CreateNSWSub(Value *V1, Value *V2,
@@ -232,6 +253,27 @@ public:
                                       const Twine &Name, Instruction *I) {
     BinaryOperator *BO = CreateSub(V1, V2, Name, I);
     BO->setHasNoSignedWrap(true);
+    return BO;
+  }
+
+  /// CreateNUWSub - Create an Sub operator with the NUW flag set.
+  ///
+  static BinaryOperator *CreateNUWSub(Value *V1, Value *V2,
+                                      const Twine &Name = "") {
+    BinaryOperator *BO = CreateSub(V1, V2, Name);
+    BO->setHasNoUnsignedWrap(true);
+    return BO;
+  }
+  static BinaryOperator *CreateNUWSub(Value *V1, Value *V2,
+                                      const Twine &Name, BasicBlock *BB) {
+    BinaryOperator *BO = CreateSub(V1, V2, Name, BB);
+    BO->setHasNoUnsignedWrap(true);
+    return BO;
+  }
+  static BinaryOperator *CreateNUWSub(Value *V1, Value *V2,
+                                      const Twine &Name, Instruction *I) {
+    BinaryOperator *BO = CreateSub(V1, V2, Name, I);
+    BO->setHasNoUnsignedWrap(true);
     return BO;
   }
 
@@ -658,7 +700,7 @@ public:
   /// @brief Create a CmpInst
   static CmpInst *Create(OtherOps Op, unsigned short predicate, Value *S1,
                          Value *S2, const Twine &Name, BasicBlock *InsertAtEnd);
-
+  
   /// @brief Get the opcode casted to the right type
   OtherOps getOpcode() const {
     return static_cast<OtherOps>(Instruction::getOpcode());
@@ -670,6 +712,18 @@ public:
   /// @brief Set the predicate for this instruction to the specified value.
   void setPredicate(Predicate P) { SubclassData = P; }
 
+  static bool isFPPredicate(Predicate P) {
+    return P >= FIRST_FCMP_PREDICATE && P <= LAST_FCMP_PREDICATE;
+  }
+  
+  static bool isIntPredicate(Predicate P) {
+    return P >= FIRST_ICMP_PREDICATE && P <= LAST_ICMP_PREDICATE;
+  }
+  
+  bool isFPPredicate() const { return isFPPredicate(getPredicate()); }
+  bool isIntPredicate() const { return isIntPredicate(getPredicate()); }
+  
+  
   /// For example, EQ -> NE, UGT -> ULE, SLT -> SGE,
   ///              OEQ -> UNE, UGT -> OLE, OLT -> UGE, etc.
   /// @returns the inverse predicate for the instruction's current predicate.

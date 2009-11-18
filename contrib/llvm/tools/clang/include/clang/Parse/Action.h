@@ -1203,6 +1203,8 @@ public:
   /// 'typename' keyword. FIXME: This will eventually be split into a 
   /// separate action.
   ///
+  /// \param TypenameLoc the location of the 'typename' keyword, if present
+  ///
   /// \returns a representation of the using declaration.
   virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
                                           AccessSpecifier AS,
@@ -1210,7 +1212,8 @@ public:
                                           const CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
                                           AttributeList *AttrList,
-                                          bool IsTypeName);
+                                          bool IsTypeName,
+                                          SourceLocation TypenameLoc);
 
   /// ActOnParamDefaultArgument - Parse default argument for function parameter
   virtual void ActOnParamDefaultArgument(DeclPtrTy param,
@@ -1577,7 +1580,7 @@ public:
   /// parameter.
   virtual void ActOnTemplateTemplateParameterDefault(DeclPtrTy TemplateParam,
                                                      SourceLocation EqualLoc,
-                                                     ExprArg Default) {
+                                        const ParsedTemplateArgument &Default) {
   }
 
   /// ActOnTemplateParameterList - Called when a complete template
@@ -1632,7 +1635,6 @@ public:
                                          SourceLocation TemplateLoc,
                                          SourceLocation LAngleLoc,
                                          ASTTemplateArgsPtr TemplateArgs,
-                                         SourceLocation *TemplateArgLocs,
                                          SourceLocation RAngleLoc) {
     return TypeResult();
   };
@@ -1737,7 +1739,6 @@ public:
                                    SourceLocation TemplateNameLoc,
                                    SourceLocation LAngleLoc,
                                    ASTTemplateArgsPtr TemplateArgs,
-                                   SourceLocation *TemplateArgLocs,
                                    SourceLocation RAngleLoc,
                                    AttributeList *Attr,
                               MultiTemplateParamsArg TemplateParameterLists) {
@@ -1817,7 +1818,6 @@ public:
                              SourceLocation TemplateNameLoc,
                              SourceLocation LAngleLoc,
                              ASTTemplateArgsPtr TemplateArgs,
-                             SourceLocation *TemplateArgLocs,
                              SourceLocation RAngleLoc,
                              AttributeList *Attr) {
     return DeclResult();
@@ -2105,6 +2105,7 @@ public:
   virtual DeclPtrTy ActOnForwardClassDeclaration(
     SourceLocation AtClassLoc,
     IdentifierInfo **IdentList,
+    SourceLocation *IdentLocs,
     unsigned NumElts) {
     return DeclPtrTy();
   }
@@ -2329,6 +2330,47 @@ public:
   ///
   /// \param S the scope in which the operator keyword occurs.  
   virtual void CodeCompleteObjCProperty(Scope *S, ObjCDeclSpec &ODS) { }
+  
+  /// \brief Code completion for an ObjC message expression that refers to
+  /// a class method.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after the class name.
+  ///
+  /// \param S the scope in which the message expression occurs. 
+  /// \param FName the factory name. 
+  /// \param FNameLoc the source location of the factory name.
+  virtual void CodeCompleteObjCClassMessage(Scope *S, IdentifierInfo *FName,
+                                            SourceLocation FNameLoc){ }
+  
+  /// \brief Code completion for an ObjC message expression that refers to
+  /// an instance method.
+  ///
+  /// This code completion action is invoked when the code-completion token is
+  /// found after the receiver expression.
+  ///
+  /// \param S the scope in which the operator keyword occurs.  
+  /// \param Receiver an expression for the receiver of the message. 
+  virtual void CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver) { }
+
+  /// \brief Code completion for a list of protocol references in Objective-C,
+  /// such as P1 and P2 in \c id<P1,P2>.
+  ///
+  /// This code completion action is invoked prior to each identifier 
+  /// in the protocol list.
+  ///
+  /// \param Protocols the set of protocols that have already been parsed.
+  ///
+  /// \param NumProtocols the number of protocols that have already been
+  /// parsed.
+  virtual void CodeCompleteObjCProtocolReferences(IdentifierLocPair *Protocols,
+                                                  unsigned NumProtocols) { }
+
+  /// \brief Code completion for a protocol declaration or definition, after
+  /// the @protocol but before any identifier.
+  ///
+  /// \param S the scope in which the protocol declaration occurs.
+  virtual void CodeCompleteObjCProtocolDecl(Scope *S) { }
   //@}
 };
 
@@ -2398,6 +2440,7 @@ public:
 
   virtual DeclPtrTy ActOnForwardClassDeclaration(SourceLocation AtClassLoc,
                                                  IdentifierInfo **IdentList,
+                                                 SourceLocation *SLocs,
                                                  unsigned NumElts);
 
   virtual DeclPtrTy ActOnStartClassInterface(SourceLocation interLoc,

@@ -1,5 +1,5 @@
-// RUN: clang-cc -triple i386-apple-darwin9 -analyze -checker-cfref --analyzer-store=region --verify -fblocks %s &&
-// RUN: clang-cc -triple x86_64-apple-darwin9 -analyze -checker-cfref --analyzer-store=region --verify -fblocks %s
+// RUN: clang-cc -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region --verify -fblocks %s
+// RUN: clang-cc -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region --verify -fblocks %s
 
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -286,7 +286,7 @@ struct WrappedStruct { unsigned z; };
 int test_handle_array_wrapper() {
   struct ArrayWrapper x;
   test_handle_array_wrapper(&x);
-  struct WrappedStruct *p = (struct WrappedStruct*) x.y;
+  struct WrappedStruct *p = (struct WrappedStruct*) x.y; // expected-warning{{Casting a non-structure type to a structure type and accessing a field can lead to memory access errors or data corruption.}}
   return p->z;  // no-warning
 }
 
@@ -431,3 +431,42 @@ pr5316_REFRESH_ELEMENT;
 static void pr5316(pr5316_REFRESH_ELEMENT *dst, const pr5316_REFRESH_ELEMENT *src) {
   while ((*dst++ = *src++).chr != L'\0')  ;
 }
+
+//===----------------------------------------------------------------------===//
+// Exercise creating ElementRegion with symbolic super region.
+//===----------------------------------------------------------------------===//
+void element_region_with_symbolic_superregion(int* p) {
+  int *x;
+  int a;
+  if (p[0] == 1)
+    x = &a;
+  if (p[0] == 1)
+    (void)*x; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// Test returning an out-of-bounds pointer (CWE-466)
+//===----------------------------------------------------------------------===//
+
+static int test_cwe466_return_outofbounds_pointer_a[10];
+int *test_cwe466_return_outofbounds_pointer() {
+  int *p = test_cwe466_return_outofbounds_pointer_a+10;
+  return p; // expected-warning{{Returned pointer value points outside the original object}}
+}
+
+//===----------------------------------------------------------------------===//
+// PR 3135 - Test case that shows that a variable may get invalidated when its
+// address is included in a structure that is passed-by-value to an unknown function.
+//===----------------------------------------------------------------------===//
+
+typedef struct { int *a; } pr3135_structure;
+int pr3135_bar(pr3135_structure *x);
+int pr3135() {
+  int x;
+  pr3135_structure y = { &x };
+  // the call to pr3135_bar may initialize x
+  if (pr3135_bar(&y) && x) // no-warning
+    return 1;
+  return 0;
+}
+

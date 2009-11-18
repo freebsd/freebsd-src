@@ -58,7 +58,7 @@ public:
     : Ty(ty), Data(opaqueData) { }
 
   TypeLocClass getTypeLocClass() const {
-    if (getType().hasQualifiers()) return Qualified;
+    if (getType().hasLocalQualifiers()) return Qualified;
     return (TypeLocClass) getType()->getTypeClass();
   }
 
@@ -155,7 +155,7 @@ public:
   }
 
   static bool classof(const TypeLoc *TL) {
-    return !TL->getType().hasQualifiers();
+    return !TL->getType().hasLocalQualifiers();
   }
   static bool classof(const UnqualTypeLoc *TL) { return true; }
 };
@@ -196,11 +196,11 @@ public:
   /// \brief Returns the size of the type source info data block.
   unsigned getFullDataSize() const {
     return getLocalDataSize() + 
-      getFullDataSizeForType(getType().getUnqualifiedType());
+      getFullDataSizeForType(getType().getLocalUnqualifiedType());
   }
 
   static bool classof(const TypeLoc *TL) {
-    return TL->getType().hasQualifiers();
+    return TL->getType().hasLocalQualifiers();
   }
   static bool classof(const QualifiedTypeLoc *TL) { return true; }
 };
@@ -919,6 +919,10 @@ public:
         Info = TemplateArgumentLocInfo((DeclaratorInfo*) 0);
         break;
 
+      case TemplateArgument::Template:
+        Info = TemplateArgumentLocInfo(SourceRange(), SourceLocation());
+        break;
+          
       case TemplateArgument::Integral:
       case TemplateArgument::Pack:
       case TemplateArgument::Null:

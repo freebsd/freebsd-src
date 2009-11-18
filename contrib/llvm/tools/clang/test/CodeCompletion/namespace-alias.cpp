@@ -11,11 +11,10 @@ namespace N2 {
   namespace I1 { }
   
   namespace New =
-  // RUN: clang-cc -fsyntax-only -code-completion-at=%s:13:18 %s -o - | FileCheck -check-prefix=CC1 %s &&
+  // RUN: clang-cc -fsyntax-only -code-completion-at=%s:13:18 %s -o - | FileCheck -check-prefix=CC1 %s
   // CHECK-CC1: I1 : 1
   // CHECK-CC1: I4 : 1
   // CHECK-CC1: I5 : 1
   // CHECK-CC1: N2 : 3
   // CHECK-CC1-NEXT: N4 : 3
-  // RUN: true
   

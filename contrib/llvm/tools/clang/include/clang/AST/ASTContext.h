@@ -37,6 +37,7 @@ namespace llvm {
 namespace clang {
   class FileManager;
   class ASTRecordLayout;
+  class BlockExpr;
   class Expr;
   class ExternalASTSource;
   class IdentifierTable;
@@ -55,7 +56,6 @@ namespace clang {
   class TranslationUnitDecl;
   class TypeDecl;
   class TypedefDecl;
-  class UnresolvedUsingDecl;
   class UsingDecl;
 
   namespace Builtin { class Context; }
@@ -204,7 +204,7 @@ class ASTContext {
   ///
   /// This mapping will contain an entry that maps from the UsingDecl in
   /// B<int> to the UnresolvedUsingDecl in B<T>.
-  llvm::DenseMap<UsingDecl *, UnresolvedUsingDecl *>
+  llvm::DenseMap<UsingDecl *, NamedDecl *>
     InstantiatedFromUnresolvedUsingDecl;
 
   llvm::DenseMap<FieldDecl *, FieldDecl *> InstantiatedFromUnnamedFieldDecl;
@@ -232,7 +232,7 @@ class ASTContext {
   llvm::DenseMap<const Decl *, std::string> DeclComments;
 
 public:
-  TargetInfo &Target;
+  const TargetInfo &Target;
   IdentifierTable &Idents;
   SelectorTable &Selectors;
   Builtin::Context &BuiltinInfo;
@@ -284,12 +284,11 @@ public:
 
   /// \brief If this using decl is instantiated from an unresolved using decl,
   /// return it.
-  UnresolvedUsingDecl *getInstantiatedFromUnresolvedUsingDecl(UsingDecl *UUD);
+  NamedDecl *getInstantiatedFromUnresolvedUsingDecl(UsingDecl *UUD);
 
   /// \brief Note that the using decl \p Inst is an instantiation of
   /// the unresolved using decl \p Tmpl of a class template.
-  void setInstantiatedFromUnresolvedUsingDecl(UsingDecl *Inst,
-                                              UnresolvedUsingDecl *Tmpl);
+  void setInstantiatedFromUnresolvedUsingDecl(UsingDecl *Inst, NamedDecl *Tmpl);
 
 
   FieldDecl *getInstantiatedFromUnnamedFieldDecl(FieldDecl *Field);
@@ -319,7 +318,7 @@ public:
   CanQualType UndeducedAutoTy;
   CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy;
 
-  ASTContext(const LangOptions& LOpts, SourceManager &SM, TargetInfo &t,
+  ASTContext(const LangOptions& LOpts, SourceManager &SM, const TargetInfo &t,
              IdentifierTable &idents, SelectorTable &sels,
              Builtin::Context &builtins,
              bool FreeMemory = true, unsigned size_reserve=0);
@@ -672,6 +671,10 @@ public:
   /// declaration.
   void getObjCEncodingForMethodDecl(const ObjCMethodDecl *Decl, std::string &S);
 
+  /// getObjCEncodingForBlockDecl - Return the encoded type for this block
+  /// declaration.
+  void getObjCEncodingForBlock(const BlockExpr *Expr, std::string& S);
+  
   /// getObjCEncodingForPropertyDecl - Return the encoded type for
   /// this method declaration. If non-NULL, Container must be either
   /// an ObjCCategoryImplDecl or ObjCImplementationDecl; it should
@@ -872,9 +875,9 @@ public:
   /// \brief Determine whether the given types are equivalent after
   /// cvr-qualifiers have been removed.
   bool hasSameUnqualifiedType(QualType T1, QualType T2) {
-    T1 = getCanonicalType(T1);
-    T2 = getCanonicalType(T2);
-    return T1.getUnqualifiedType() == T2.getUnqualifiedType();
+    CanQualType CT1 = getCanonicalType(T1);
+    CanQualType CT2 = getCanonicalType(T2);
+    return CT1.getUnqualifiedType() == CT2.getUnqualifiedType();
   }
 
   /// \brief Retrieves the "canonical" declaration of
@@ -925,6 +928,10 @@ public:
   /// types, values, and templates.
   TemplateName getCanonicalTemplateName(TemplateName Name);
 
+  /// \brief Determine whether the given template names refer to the same
+  /// template.
+  bool hasSameTemplateName(TemplateName X, TemplateName Y);
+  
   /// \brief Retrieve the "canonical" template argument.
   ///
   /// The canonical template argument is the simplest template argument

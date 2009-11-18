@@ -443,6 +443,11 @@ uint32_t ValueTable::lookup_or_add_call(CallInst* C) {
       valueNumbering[C] = e;
       return e;
     }
+    if (!MD) {
+      e = nextValueNumber++;
+      valueNumbering[C] = e;
+      return e;
+    }
 
     MemDepResult local_dep = MD->getDependency(C);
 
@@ -624,7 +629,7 @@ uint32_t ValueTable::lookup_or_add(Value *V) {
 /// lookup - Returns the value number of the specified value. Fails if
 /// the value has not yet been numbered.
 uint32_t ValueTable::lookup(Value *V) const {
-  DenseMap<Value*, uint32_t>::iterator VI = valueNumbering.find(V);
+  DenseMap<Value*, uint32_t>::const_iterator VI = valueNumbering.find(V);
   assert(VI != valueNumbering.end() && "Value not numbered?");
   return VI->second;
 }
@@ -644,7 +649,7 @@ void ValueTable::erase(Value *V) {
 /// verifyRemoved - Verify that the value is removed from all internal data
 /// structures.
 void ValueTable::verifyRemoved(const Value *V) const {
-  for (DenseMap<Value*, uint32_t>::iterator
+  for (DenseMap<Value*, uint32_t>::const_iterator
          I = valueNumbering.begin(), E = valueNumbering.end(); I != E; ++I) {
     assert(I->first != V && "Inst still occurs in value numbering map!");
   }
@@ -669,10 +674,12 @@ namespace {
     bool runOnFunction(Function &F);
   public:
     static char ID; // Pass identification, replacement for typeid
-    GVN(bool nopre = false) : FunctionPass(&ID), NoPRE(nopre) { }
+    explicit GVN(bool nopre = false, bool noloads = false)
+      : FunctionPass(&ID), NoPRE(nopre), NoLoads(noloads), MD(0) { }
 
   private:
     bool NoPRE;
+    bool NoLoads;
     MemoryDependenceAnalysis *MD;
     DominatorTree *DT;
 
@@ -682,7 +689,8 @@ namespace {
     // This transformation requires dominator postdominator info
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<DominatorTree>();
-      AU.addRequired<MemoryDependenceAnalysis>();
+      if (!NoLoads)
+        AU.addRequired<MemoryDependenceAnalysis>();
       AU.addRequired<AliasAnalysis>();
 
       AU.addPreserved<DominatorTree>();
@@ -711,7 +719,9 @@ namespace {
 }
 
 // createGVNPass - The public interface to this file...
-FunctionPass *llvm::createGVNPass(bool NoPRE) { return new GVN(NoPRE); }
+FunctionPass *llvm::createGVNPass(bool NoPRE, bool NoLoads) {
+  return new GVN(NoPRE, NoLoads);
+}
 
 static RegisterPass<GVN> X("gvn",
                            "Global Value Numbering");
@@ -1476,6 +1486,9 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
 /// processLoad - Attempt to eliminate a load, first by eliminating it
 /// locally, and then attempting non-local elimination if that fails.
 bool GVN::processLoad(LoadInst *L, SmallVectorImpl<Instruction*> &toErase) {
+  if (!MD)
+    return false;
+
   if (L->isVolatile())
     return false;
 
@@ -1686,7 +1699,7 @@ bool GVN::processInstruction(Instruction *I,
 
     if (constVal) {
       p->replaceAllUsesWith(constVal);
-      if (isa<PointerType>(constVal->getType()))
+      if (MD && isa<PointerType>(constVal->getType()))
         MD->invalidateCachedPointerInfo(constVal);
       VN.erase(p);
 
@@ -1707,7 +1720,7 @@ bool GVN::processInstruction(Instruction *I,
     // Remove it!
     VN.erase(I);
     I->replaceAllUsesWith(repl);
-    if (isa<PointerType>(repl->getType()))
+    if (MD && isa<PointerType>(repl->getType()))
       MD->invalidateCachedPointerInfo(repl);
     toErase.push_back(I);
     return true;
@@ -1721,7 +1734,8 @@ bool GVN::processInstruction(Instruction *I,
 
 /// runOnFunction - This is the main transformation entry point for a function.
 bool GVN::runOnFunction(Function& F) {
-  MD = &getAnalysis<MemoryDependenceAnalysis>();
+  if (!NoLoads)
+    MD = &getAnalysis<MemoryDependenceAnalysis>();
   DT = &getAnalysis<DominatorTree>();
   VN.setAliasAnalysis(&getAnalysis<AliasAnalysis>());
   VN.setMemDep(MD);
@@ -1793,7 +1807,7 @@ bool GVN::processBlock(BasicBlock *BB) {
     for (SmallVector<Instruction*, 4>::iterator I = toErase.begin(),
          E = toErase.end(); I != E; ++I) {
       DEBUG(errs() << "GVN removed: " << **I << '\n');
-      MD->removeInstruction(*I);
+      if (MD) MD->removeInstruction(*I);
       (*I)->eraseFromParent();
       DEBUG(verifyRemoved(*I));
     }
@@ -1946,12 +1960,12 @@ bool GVN::performPRE(Function &F) {
       localAvail[CurrentBlock]->table[ValNo] = Phi;
 
       CurInst->replaceAllUsesWith(Phi);
-      if (isa<PointerType>(Phi->getType()))
+      if (MD && isa<PointerType>(Phi->getType()))
         MD->invalidateCachedPointerInfo(Phi);
       VN.erase(CurInst);
 
       DEBUG(errs() << "GVN PRE removed: " << *CurInst << '\n');
-      MD->removeInstruction(CurInst);
+      if (MD) MD->removeInstruction(CurInst);
       CurInst->eraseFromParent();
       DEBUG(verifyRemoved(CurInst));
       Changed = true;
@@ -2011,12 +2025,12 @@ void GVN::verifyRemoved(const Instruction *Inst) const {
 
   // Walk through the value number scope to make sure the instruction isn't
   // ferreted away in it.
-  for (DenseMap<BasicBlock*, ValueNumberScope*>::iterator
+  for (DenseMap<BasicBlock*, ValueNumberScope*>::const_iterator
          I = localAvail.begin(), E = localAvail.end(); I != E; ++I) {
     const ValueNumberScope *VNS = I->second;
 
     while (VNS) {
-      for (DenseMap<uint32_t, Value*>::iterator
+      for (DenseMap<uint32_t, Value*>::const_iterator
              II = VNS->table.begin(), IE = VNS->table.end(); II != IE; ++II) {
         assert(II->second != Inst && "Inst still in value numbering scope!");
       }

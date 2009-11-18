@@ -108,7 +108,6 @@ private:
 /// InstructionSelect - This callback is invoked by
 /// SelectionDAGISel when it has created a SelectionDAG for us to codegen.
 void MipsDAGToDAGISel::InstructionSelect() {
-  DEBUG(BB->dump());
   // Codegen the basic block.
   DEBUG(errs() << "===== Instruction selection begins:\n");
   DEBUG(Indent = 0);
@@ -169,6 +168,27 @@ SelectAddr(SDValue Op, SDValue Addr, SDValue &Offset, SDValue &Base)
 
         Offset = CurDAG->getTargetConstant(CN->getZExtValue(), MVT::i32);
         return true;
+      }
+    }
+
+    // When loading from constant pools, load the lower address part in
+    // the instruction itself. Instead of:
+    //  lui $2, %hi($CPI1_0)
+    //  addiu $2, $2, %lo($CPI1_0)
+    //  lwc1 $f0, 0($2)
+    // Generate:
+    //  lui $2, %hi($CPI1_0)
+    //  lwc1 $f0, %lo($CPI1_0)($2)
+    if (Addr.getOperand(0).getOpcode() == MipsISD::Hi &&
+        Addr.getOperand(1).getOpcode() == MipsISD::Lo) {
+      SDValue LoVal = Addr.getOperand(1); 
+      if (ConstantPoolSDNode *CP = dyn_cast<ConstantPoolSDNode>(
+          LoVal.getOperand(0))) {
+        if (!CP->getOffset()) {
+          Base = Addr.getOperand(0);
+          Offset = LoVal.getOperand(0);
+          return true;
+        }
       }
     }
   }
@@ -314,6 +334,16 @@ SDNode* MipsDAGToDAGISel::Select(SDValue N) {
     // Get target GOT address.
     case ISD::GLOBAL_OFFSET_TABLE:
       return getGlobalBaseReg();
+
+    case ISD::ConstantFP: {
+      ConstantFPSDNode *CN = dyn_cast<ConstantFPSDNode>(N);
+      if (N.getValueType() == MVT::f64 && CN->isExactlyValue(+0.0)) { 
+        SDValue Zero = CurDAG->getRegister(Mips::ZERO, MVT::i32);
+        ReplaceUses(N, Zero);
+        return Zero.getNode();
+      }
+      break;
+    }
 
     /// Handle direct and indirect calls when using PIC. On PIC, when 
     /// GOT is smaller than about 64k (small code) the GA target is 

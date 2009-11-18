@@ -201,9 +201,9 @@ def warn_expected_implementation : Warning<
   "@end must appear in an @implementation context">;
 def error_property_ivar_decl : Error<
   "property synthesize requires specification of an ivar">;
-def warn_semicolon_before_method_nody : Warning<
+def warn_semicolon_before_method_body : Warning<
   "semicolon before method body is ignored">,
-  InGroup<DiagGroup<"semicolon-before-method-body">>;
+  InGroup<DiagGroup<"semicolon-before-method-body">>, DefaultIgnore;
 
 def err_expected_field_designator : Error<
   "expected a field designator, such as '.field = 4'">;
@@ -230,7 +230,7 @@ def ext_ellipsis_exception_spec : Extension<
 def err_expected_catch : Error<"expected catch">;
 def err_expected_lbrace_or_comma : Error<"expected '{' or ','">;
 def err_using_namespace_in_class : Error<
-  "'using namespace' in class not allowed">;
+  "'using namespace' is not allowed in classes">;
 def err_ident_in_pseudo_dtor_not_a_type : Error<
   "identifier %0 in pseudo-destructor expression does not name a type">;
 
@@ -288,6 +288,10 @@ def err_explicit_spec_non_template : Error<
 
 def err_variadic_templates : Error<
   "variadic templates are only allowed in C++0x">;
+  
+def err_default_template_template_parameter_not_template : Error<
+  "default template argument for a template template parameter must be a class "
+  "template">;
   
 // C++ declarations
 def err_friend_decl_defines_class : Error<

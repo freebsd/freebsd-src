@@ -12,16 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "GRExprEngineInternalChecks.h"
 #include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/Analysis/PathSensitive/GRExprEngine.h"
 #include "clang/Analysis/PathSensitive/CheckerVisitor.h"
-#include "clang/Analysis/PathSensitive/Checkers/DereferenceChecker.h"
-#include "clang/Analysis/PathSensitive/Checkers/DivZeroChecker.h"
-#include "clang/Analysis/PathSensitive/Checkers/BadCallChecker.h"
-#include "clang/Analysis/PathSensitive/Checkers/UndefinedArgChecker.h"
 #include "clang/Analysis/PathSensitive/Checkers/UndefinedAssignmentChecker.h"
-#include "clang/Analysis/PathSensitive/Checkers/AttrNonNullChecker.h"
-#include "clang/Analysis/PathSensitive/Checkers/VLASizeChecker.h"
 #include "clang/Analysis/PathDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/Support/Compiler.h"
@@ -290,79 +285,6 @@ public:
   }
 };
 
-class VISIBILITY_HIDDEN RetStack : public BuiltinBug {
-public:
-  RetStack(GRExprEngine* eng)
-    : BuiltinBug(eng, "Return of address to stack-allocated memory") {}
-
-  void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {
-    for (GRExprEngine::ret_stackaddr_iterator I=Eng.ret_stackaddr_begin(),
-         End = Eng.ret_stackaddr_end(); I!=End; ++I) {
-
-      ExplodedNode* N = *I;
-      const Stmt *S = cast<PostStmt>(N->getLocation()).getStmt();
-      const Expr* E = cast<ReturnStmt>(S)->getRetValue();
-      assert(E && "Return expression cannot be NULL");
-
-      // Get the value associated with E.
-      loc::MemRegionVal V = cast<loc::MemRegionVal>(N->getState()->getSVal(E));
-
-      // Generate a report for this bug.
-      std::string buf;
-      llvm::raw_string_ostream os(buf);
-      SourceRange R;
-
-      // Check if the region is a compound literal.
-      if (const CompoundLiteralRegion* CR =
-            dyn_cast<CompoundLiteralRegion>(V.getRegion())) {
-
-        const CompoundLiteralExpr* CL = CR->getLiteralExpr();
-        os << "Address of stack memory associated with a compound literal "
-              "declared on line "
-            << BR.getSourceManager()
-                    .getInstantiationLineNumber(CL->getLocStart())
-            << " returned.";
-
-        R = CL->getSourceRange();
-      }
-      else if (const AllocaRegion* AR = dyn_cast<AllocaRegion>(V.getRegion())) {
-        const Expr* ARE = AR->getExpr();
-        SourceLocation L = ARE->getLocStart();
-        R = ARE->getSourceRange();
-
-        os << "Address of stack memory allocated by call to alloca() on line "
-           << BR.getSourceManager().getInstantiationLineNumber(L)
-           << " returned.";
-      }
-      else {
-        os << "Address of stack memory associated with local variable '"
-           << V.getRegion()->getString() << "' returned.";
-      }
-
-      RangedBugReport *report = new RangedBugReport(*this, os.str().c_str(), N);
-      report->addRange(E->getSourceRange());
-      if (R.isValid()) report->addRange(R);
-      BR.EmitReport(report);
-    }
-  }
-};
-
-class VISIBILITY_HIDDEN RetUndef : public BuiltinBug {
-public:
-  RetUndef(GRExprEngine* eng) : BuiltinBug(eng, "Garbage return value",
-              "Undefined or garbage value returned to caller") {}
-
-  void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {
-    Emit(BR, Eng.ret_undef_begin(), Eng.ret_undef_end());
-  }
-
-  void registerInitialVisitors(BugReporterContext& BRC,
-                               const ExplodedNode* N,
-                               BuiltinBugReport *R) {
-    registerTrackNullOrUndefValue(BRC, GetRetValExpr(N), N);
-  }
-};
-
 class VISIBILITY_HIDDEN UndefBranch : public BuiltinBug {
   struct VISIBILITY_HIDDEN FindUndefExpr {
     GRStateManager& VM;
@@ -439,17 +361,6 @@ public:
   }
 };
 
-class VISIBILITY_HIDDEN OutOfBoundMemoryAccess : public BuiltinBug {
-public:
-  OutOfBoundMemoryAccess(GRExprEngine* eng)
-    : BuiltinBug(eng,"Out-of-bounds memory access",
-                     "Load or store into an out-of-bound memory position.") {}
-
-  void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {
-    Emit(BR, Eng.explicit_oob_memacc_begin(), Eng.explicit_oob_memacc_end());
-  }
-};
-
 } // end clang namespace
 
 //===----------------------------------------------------------------------===//
@@ -464,11 +375,8 @@ void GRExprEngine::RegisterInternalChecks() {
   // to 'FlushReports' from BugReporter.
   BR.Register(new UndefBranch(this));
   BR.Register(new UndefResult(this));
-  BR.Register(new RetStack(this));
-  BR.Register(new RetUndef(this));
   BR.Register(new BadMsgExprArg(this));
   BR.Register(new BadReceiver(this));
-  BR.Register(new OutOfBoundMemoryAccess(this));
   BR.Register(new NilReceiverStructRet(this));
   BR.Register(new NilReceiverLargerThanVoidPtrRet(this));
 
@@ -476,14 +384,17 @@ void GRExprEngine::RegisterInternalChecks() {
   // explicitly registered with the BugReporter.  If they issue any BugReports,
   // their associated BugType will get registered with the BugReporter
   // automatically.  Note that the check itself is owned by the GRExprEngine
-  // object.
-  registerCheck(new AttrNonNullChecker());
-  registerCheck(new UndefinedArgChecker());
+  // object.  
   registerCheck(new UndefinedAssignmentChecker());
-  registerCheck(new BadCallChecker());
-  registerCheck(new DivZeroChecker());
-  registerCheck(new UndefDerefChecker());
-  registerCheck(new NullDerefChecker());
-  registerCheck(new UndefSizedVLAChecker());
-  registerCheck(new ZeroSizedVLAChecker());
+  
+  RegisterAttrNonNullChecker(*this);
+  RegisterUndefinedArgChecker(*this);
+  RegisterBadCallChecker(*this);
+  RegisterDereferenceChecker(*this);
+  RegisterVLASizeChecker(*this);
+  RegisterDivZeroChecker(*this);
+  RegisterReturnStackAddressChecker(*this);
+  RegisterReturnUndefChecker(*this);
+  RegisterFixedAddressChecker(*this);
+  RegisterUndefinedArraySubscriptChecker(*this);
 }

@@ -55,6 +55,7 @@ public:
   unsigned POSIXThreads      : 1; // Compiling with POSIX thread support
                                   // (-pthread)
   unsigned Blocks            : 1; // block extension to C
+  unsigned BlockIntrospection: 1; // block have ObjC type encodings.
   unsigned EmitAllDecls      : 1; // Emit all declarations, even if
                                   // they are unused.
   unsigned MathErrno         : 1; // Math functions must respect errno
@@ -83,6 +84,7 @@ public:
   unsigned AccessControl     : 1; // Whether C++ access control should
                                   // be enabled.
   unsigned CharIsSigned      : 1; // Whether char is a signed or unsigned type
+  unsigned ShortWChar        : 1; // Force wchar_t to be unsigned short int.
 
   unsigned OpenCL            : 1; // OpenCL C99 language extensions.
 
@@ -125,7 +127,8 @@ public:
     ObjCConstantStringClass = 0;
     C99 = Microsoft = CPlusPlus = CPlusPlus0x = 0;
     CXXOperatorNames = PascalStrings = WritableStrings = 0;
-    Exceptions = NeXTRuntime = Freestanding = NoBuiltin = 0;
+    Exceptions = Freestanding = NoBuiltin = 0;
+    NeXTRuntime = 1;
     Rtti = 1;
     LaxVectorConversions = 1;
     HeinousExtensions = 0;
@@ -137,6 +140,7 @@ public:
     ThreadsafeStatics = 0;
     POSIXThreads = 0;
     Blocks = 0;
+    BlockIntrospection = 0;
     EmitAllDecls = 0;
     MathErrno = 1;
 
@@ -159,6 +163,7 @@ public:
     NoInline = 0;
 
     CharIsSigned = 1;
+    ShortWChar = 0;
 
     MainFileName = 0;
   }

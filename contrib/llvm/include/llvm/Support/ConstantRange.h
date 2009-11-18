@@ -187,6 +187,14 @@ public:
   /// truncated to the specified type.
   ConstantRange truncate(uint32_t BitWidth) const;
 
+  /// zextOrTrunc - make this range have the bit width given by \p BitWidth. The
+  /// value is zero extended, truncated, or left alone to make it that width.
+  ConstantRange zextOrTrunc(uint32_t BitWidth) const;
+  
+  /// sextOrTrunc - make this range have the bit width given by \p BitWidth. The
+  /// value is sign extended, truncated, or left alone to make it that width.
+  ConstantRange sextOrTrunc(uint32_t BitWidth) const;
+
   /// add - Return a new range representing the possible values resulting
   /// from an addition of a value in this range and a value in Other.
   ConstantRange add(const ConstantRange &Other) const;
@@ -208,6 +216,18 @@ public:
   /// from an unsigned division of a value in this range and a value in Other.
   /// TODO: This isn't fully implemented yet.
   ConstantRange udiv(const ConstantRange &Other) const;
+
+  /// shl - Return a new range representing the possible values resulting
+  /// from a left shift of a value in this range by the Amount value.
+  ConstantRange shl(const ConstantRange &Amount) const;
+
+  /// ashr - Return a new range representing the possible values resulting from
+  /// an arithmetic right shift of a value in this range by the Amount value.
+  ConstantRange ashr(const ConstantRange &Amount) const;
+
+  /// shr - Return a new range representing the possible values resulting
+  /// from a logical right shift of a value in this range by the Amount value.
+  ConstantRange lshr(const ConstantRange &Amount) const;
 
   /// print - Print out the bounds to a stream...
   ///

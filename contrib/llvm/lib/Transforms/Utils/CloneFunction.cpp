@@ -20,6 +20,7 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/GlobalVariable.h"
 #include "llvm/Function.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/Analysis/ConstantFolding.h"
@@ -322,8 +323,6 @@ void PruningFunctionCloner::CloneBlock(const BasicBlock *BB,
 /// mapping its operands through ValueMap if they are available.
 Constant *PruningFunctionCloner::
 ConstantFoldMappedInstruction(const Instruction *I) {
-  LLVMContext &Context = I->getContext();
-  
   SmallVector<Constant*, 8> Ops;
   for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i)
     if (Constant *Op = dyn_cast_or_null<Constant>(MapValue(I->getOperand(i),
@@ -333,9 +332,8 @@ ConstantFoldMappedInstruction(const Instruction *I) {
       return 0;  // All operands not constant!
 
   if (const CmpInst *CI = dyn_cast<CmpInst>(I))
-    return ConstantFoldCompareInstOperands(CI->getPredicate(),
-                                           &Ops[0], Ops.size(), 
-                                           Context, TD);
+    return ConstantFoldCompareInstOperands(CI->getPredicate(), Ops[0], Ops[1],
+                                           TD);
 
   if (const LoadInst *LI = dyn_cast<LoadInst>(I))
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Ops[0]))
@@ -346,7 +344,28 @@ ConstantFoldMappedInstruction(const Instruction *I) {
                                                           CE);
 
   return ConstantFoldInstOperands(I->getOpcode(), I->getType(), &Ops[0],
-                                  Ops.size(), Context, TD);
+                                  Ops.size(), TD);
+}
+
+static MDNode *UpdateInlinedAtInfo(MDNode *InsnMD, MDNode *TheCallMD,
+                                   LLVMContext &Context) {
+  DILocation ILoc(InsnMD);
+  if (ILoc.isNull()) return InsnMD;
+
+  DILocation CallLoc(TheCallMD);
+  if (CallLoc.isNull()) return InsnMD;
+
+  DILocation OrigLocation = ILoc.getOrigLocation();
+  MDNode *NewLoc = TheCallMD;
+  if (!OrigLocation.isNull())
+    NewLoc = UpdateInlinedAtInfo(OrigLocation.getNode(), TheCallMD, Context);
+
+  SmallVector<Value *, 4> MDVs;
+  MDVs.push_back(InsnMD->getElement(0)); // Line
+  MDVs.push_back(InsnMD->getElement(1)); // Col
+  MDVs.push_back(InsnMD->getElement(2)); // Scope
+  MDVs.push_back(NewLoc);
+  return MDNode::get(Context, MDVs.data(), MDVs.size());
 }
 
 /// CloneAndPruneFunctionInto - This works exactly like CloneFunctionInto,
@@ -361,7 +380,8 @@ void llvm::CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
                                      SmallVectorImpl<ReturnInst*> &Returns,
                                      const char *NameSuffix, 
                                      ClonedCodeInfo *CodeInfo,
-                                     const TargetData *TD) {
+                                     const TargetData *TD,
+                                     Instruction *TheCall) {
   assert(NameSuffix && "NameSuffix cannot be null!");
   
 #ifndef NDEBUG
@@ -400,19 +420,52 @@ void llvm::CloneAndPruneFunctionInto(Function *NewFunc, const Function *OldFunc,
     // references as we go.  This uses ValueMap to do all the hard work.
     //
     BasicBlock::iterator I = NewBB->begin();
+
+    LLVMContext &Context = OldFunc->getContext();
+    unsigned DbgKind = Context.getMetadata().getMDKind("dbg");
+    MDNode *TheCallMD = NULL;
+    SmallVector<Value *, 4> MDVs;
+    if (TheCall && TheCall->hasMetadata()) 
+      TheCallMD = Context.getMetadata().getMD(DbgKind, TheCall);
     
     // Handle PHI nodes specially, as we have to remove references to dead
     // blocks.
     if (PHINode *PN = dyn_cast<PHINode>(I)) {
       // Skip over all PHI nodes, remembering them for later.
       BasicBlock::const_iterator OldI = BI->begin();
-      for (; (PN = dyn_cast<PHINode>(I)); ++I, ++OldI)
+      for (; (PN = dyn_cast<PHINode>(I)); ++I, ++OldI) {
+        if (I->hasMetadata()) {
+          if (TheCallMD) {
+            if (MDNode *IMD = Context.getMetadata().getMD(DbgKind, I)) {
+              MDNode *NewMD = UpdateInlinedAtInfo(IMD, TheCallMD, Context);
+              Context.getMetadata().addMD(DbgKind, NewMD, I);
+            }
+          } else {
+            // The cloned instruction has dbg info but the call instruction
+            // does not have dbg info. Remove dbg info from cloned instruction.
+            Context.getMetadata().removeMD(DbgKind, I);
+          }
+        }
         PHIToResolve.push_back(cast<PHINode>(OldI));
+      }
     }
     
     // Otherwise, remap the rest of the instructions normally.
-    for (; I != NewBB->end(); ++I)
+    for (; I != NewBB->end(); ++I) {
+      if (I->hasMetadata()) {
+        if (TheCallMD) {
+          if (MDNode *IMD = Context.getMetadata().getMD(DbgKind, I)) {
+            MDNode *NewMD = UpdateInlinedAtInfo(IMD, TheCallMD, Context);
+            Context.getMetadata().addMD(DbgKind, NewMD, I);
+          }
+        } else {
+          // The cloned instruction has dbg info but the call instruction
+          // does not have dbg info. Remove dbg info from cloned instruction.
+          Context.getMetadata().removeMD(DbgKind, I);
+        }
+      }
       RemapInstruction(I, ValueMap);
+    }
   }
   
   // Defer PHI resolution until rest of function is resolved, PHI resolution

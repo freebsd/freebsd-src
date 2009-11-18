@@ -392,6 +392,11 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   Reserved.set(X86::SP);
   Reserved.set(X86::SPL);
 
+  // Set the instruction pointer register and its aliases as reserved.
+  Reserved.set(X86::RIP);
+  Reserved.set(X86::EIP);
+  Reserved.set(X86::IP);
+
   // Set the frame-pointer register and its aliases as reserved if needed.
   if (hasFP(MF)) {
     Reserved.set(X86::RBP);
@@ -450,12 +455,17 @@ bool X86RegisterInfo::hasFP(const MachineFunction &MF) const {
 
 bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
+  bool requiresRealignment =
+    RealignStack && (MFI->getMaxAlignment() > StackAlign);
 
   // FIXME: Currently we don't support stack realignment for functions with
-  //        variable-sized allocas
-  return (RealignStack &&
-          (MFI->getMaxAlignment() > StackAlign &&
-           !MFI->hasVarSizedObjects()));
+  //        variable-sized allocas.
+  // FIXME: Temporary disable the error - it seems to be too conservative.
+  if (0 && requiresRealignment && MFI->hasVarSizedObjects())
+    llvm_report_error(
+      "Stack realignment in presense of dynamic allocas is not supported");
+
+  return (requiresRealignment && !MFI->hasVarSizedObjects());
 }
 
 bool X86RegisterInfo::hasReservedCallFrame(MachineFunction &MF) const {
@@ -610,8 +620,8 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // Offset is a 32-bit integer.
     int Offset = getFrameIndexOffset(MF, FrameIndex) +
       (int)(MI.getOperand(i + 3).getImm());
-  
-     MI.getOperand(i + 3).ChangeToImmediate(Offset);
+
+    MI.getOperand(i + 3).ChangeToImmediate(Offset);
   } else {
     // Offset is symbolic. This is extremely rare.
     uint64_t Offset = getFrameIndexOffset(MF, FrameIndex) +
@@ -647,7 +657,8 @@ X86RegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
     //   }
     //   [EBP]
     MFI->CreateFixedObject(-TailCallReturnAddrDelta,
-                           (-1U*SlotSize)+TailCallReturnAddrDelta);
+                           (-1U*SlotSize)+TailCallReturnAddrDelta,
+                           true, false);
   }
 
   if (hasFP(MF)) {
@@ -659,7 +670,8 @@ X86RegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
     int FrameIdx = MFI->CreateFixedObject(SlotSize,
                                           -(int)SlotSize +
                                           TFI.getOffsetOfLocalArea() +
-                                          TailCallReturnAddrDelta);
+                                          TailCallReturnAddrDelta,
+                                          true, false);
     assert(FrameIdx == MFI->getObjectIndexBegin() &&
            "Slot for EBP register must be last in order to be found!");
     FrameIdx = 0;
@@ -1271,7 +1283,7 @@ unsigned X86RegisterInfo::getRARegister() const {
                  : X86::EIP;    // Should have dwarf #8.
 }
 
-unsigned X86RegisterInfo::getFrameRegister(MachineFunction &MF) const {
+unsigned X86RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   return hasFP(MF) ? FramePtr : StackPtr;
 }
 

@@ -32,7 +32,6 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InlineCost.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -406,6 +405,10 @@ bool LoopUnswitch::UnswitchIfProfitable(Value *LoopCond, Constant *Val){
 
   initLoopData();
   Function *F = loopHeader->getParent();
+
+  // If LoopSimplify was unable to form a preheader, don't do any unswitching.
+  if (!loopPreheader)
+    return false;
 
   // If the condition is trivial, always unswitch.  There is no code growth for
   // this case.
@@ -957,7 +960,7 @@ void LoopUnswitch::SimplifyCode(std::vector<Instruction*> &Worklist, Loop *L) {
     Worklist.pop_back();
     
     // Simple constant folding.
-    if (Constant *C = ConstantFoldInstruction(I, I->getContext())) {
+    if (Constant *C = ConstantFoldInstruction(I)) {
       ReplaceUsesOfWith(I, C, Worklist, L, LPM);
       continue;
     }

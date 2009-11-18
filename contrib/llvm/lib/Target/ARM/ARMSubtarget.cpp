@@ -16,6 +16,7 @@
 #include "llvm/GlobalValue.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/ADT/SmallVector.h"
 using namespace llvm;
 
 static cl::opt<bool>
@@ -108,6 +109,8 @@ ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &FS,
     if (UseNEONFP.getPosition() == 0)
       UseNEONForSinglePrecisionFP = true;
   }
+  HasBranchTargetBuffer = (CPUString == "cortex-a8" ||
+                           CPUString == "cortex-a9");
 }
 
 /// GVIsIndirectSymbol - true if the GV will be accessed via an indirect symbol.
@@ -158,4 +161,14 @@ ARMSubtarget::GVIsIndirectSymbol(GlobalValue *GV, Reloc::Model RelocM) const {
   }
 
   return false;
+}
+
+bool ARMSubtarget::enablePostRAScheduler(
+           CodeGenOpt::Level OptLevel,
+           TargetSubtarget::AntiDepBreakMode& Mode,
+           RegClassVector& CriticalPathRCs) const {
+  Mode = TargetSubtarget::ANTIDEP_CRITICAL;
+  CriticalPathRCs.clear();
+  CriticalPathRCs.push_back(&ARM::GPRRegClass);
+  return PostRAScheduler && OptLevel >= CodeGenOpt::Default;
 }

@@ -12,6 +12,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Force NDEBUG on in any optimized build on Darwin.
+//
+// FIXME: This is a huge hack, to work around ridiculously awful compile times
+// on this file with gcc-4.2 on Darwin, in Release mode.
+#if (!defined(__llvm__) && defined(__APPLE__) && \
+     defined(__OPTIMIZE__) && !defined(NDEBUG))
+#define NDEBUG
+#endif
+
 #define DEBUG_TYPE "x86-isel"
 #include "X86.h"
 #include "X86InstrBuilder.h"
@@ -661,7 +670,6 @@ void X86DAGToDAGISel::InstructionSelect() {
   const Function *F = MF->getFunction();
   OptForSize = F->hasFnAttr(Attribute::OptimizeForSize);
 
-  DEBUG(BB->dump());
   if (OptLevel != CodeGenOpt::None)
     PreprocessForRMW();
 
@@ -1950,14 +1958,12 @@ SDNode *X86DAGToDAGISel::Select(SDValue N) {
                             0);
           // We just did a 32-bit clear, insert it into a 64-bit register to
           // clear the whole 64-bit reg.
-          SDValue Undef =
-            SDValue(CurDAG->getMachineNode(TargetInstrInfo::IMPLICIT_DEF,
-                                           dl, MVT::i64), 0);
+          SDValue Zero = CurDAG->getTargetConstant(0, MVT::i64);
           SDValue SubRegNo =
             CurDAG->getTargetConstant(X86::SUBREG_32BIT, MVT::i32);
           ClrNode =
-            SDValue(CurDAG->getMachineNode(TargetInstrInfo::INSERT_SUBREG, dl,
-                                           MVT::i64, Undef, ClrNode, SubRegNo),
+            SDValue(CurDAG->getMachineNode(TargetInstrInfo::SUBREG_TO_REG, dl,
+                                           MVT::i64, Zero, ClrNode, SubRegNo),
                     0);
         } else {
           ClrNode = SDValue(CurDAG->getMachineNode(ClrOpcode, dl, NVT), 0);

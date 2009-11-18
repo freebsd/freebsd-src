@@ -94,6 +94,7 @@ public:
     MinGW64,
     NetBSD,
     OpenBSD,
+    Psp,
     Solaris,
     Win32,
     Haiku
@@ -160,6 +161,8 @@ public:
   /// @name Direct Component Access
   /// @{
 
+  const std::string &str() const { return Data; }
+
   const std::string &getTriple() const { return Data; }
 
   /// getArchName - Get the architecture (first) component of the
@@ -218,23 +221,27 @@ public:
 
   /// setArchName - Set the architecture (first) component of the
   /// triple by name.
-  void setArchName(const StringRef &Str);
+  void setArchName(StringRef Str);
 
   /// setVendorName - Set the vendor (second) component of the triple
   /// by name.
-  void setVendorName(const StringRef &Str);
+  void setVendorName(StringRef Str);
 
   /// setOSName - Set the operating system (third) component of the
   /// triple by name.
-  void setOSName(const StringRef &Str);
+  void setOSName(StringRef Str);
 
   /// setEnvironmentName - Set the optional environment (fourth)
   /// component of the triple by name.
-  void setEnvironmentName(const StringRef &Str);
+  void setEnvironmentName(StringRef Str);
 
   /// setOSAndEnvironmentName - Set the operating system and optional
   /// environment components with a single string.
-  void setOSAndEnvironmentName(const StringRef &Str);
+  void setOSAndEnvironmentName(StringRef Str);
+
+  /// getArchNameForAssembler - Get an architecture name that is understood by the
+  /// target assembler.
+  const char *getArchNameForAssembler();
 
   /// @}
   /// @name Static helpers for IDs.
@@ -265,12 +272,12 @@ public:
 
   /// getArchTypeForLLVMName - The canonical type for the given LLVM
   /// architecture name (e.g., "x86").
-  static ArchType getArchTypeForLLVMName(const StringRef &Str);
+  static ArchType getArchTypeForLLVMName(StringRef Str);
 
   /// getArchTypeForDarwinArchName - Get the architecture type for a "Darwin"
   /// architecture name, for example as accepted by "gcc -arch" (see also
   /// arch(3)).
-  static ArchType getArchTypeForDarwinArchName(const StringRef &Str);
+  static ArchType getArchTypeForDarwinArchName(StringRef Str);
 
   /// @}
 };
