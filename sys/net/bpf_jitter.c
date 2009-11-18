@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #else
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #endif
 
@@ -127,7 +129,7 @@ bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
 	if (filter->func != bpf_jit_accept_all)
-		free(filter->func);
+		munmap(filter->func, BPF_JIT_MAXSIZE);
 	free(filter);
 }
 #endif

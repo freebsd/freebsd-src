@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,8 @@
 
 #ifdef _KERNEL
 MALLOC_DECLARE(M_BPFJIT);
+#else
+#define	BPF_JIT_MAXSIZE		PAGE_SIZE
 #endif
 
 extern int bpf_jitter_enable;
