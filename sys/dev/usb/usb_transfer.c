@@ -416,9 +416,15 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		case USB_SPEED_LOW:
 		case USB_SPEED_FULL:
 			frame_limit = USB_MAX_FS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = 0;
 			break;
 		default:
 			frame_limit = USB_MAX_HS_ISOC_FRAMES_PER_XFER;
+			xfer->fps_shift = edesc->bInterval;
+			if (xfer->fps_shift > 0)
+				xfer->fps_shift--;
+			if (xfer->fps_shift > 3)
+				xfer->fps_shift = 3;
 			break;
 		}
 
@@ -1332,7 +1338,9 @@ usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 	/* check if there is a length mismatch */
 
 	if (len > xfer->flags_int.control_rem) {
-		DPRINTFN(0, "Length greater than remaining length!\n");
+		DPRINTFN(0, "Length (%d) greater than "
+		    "remaining length (%d)!\n", len,
+		    xfer->flags_int.control_rem);
 		goto error;
 	}
 	/* check if we are doing a short transfer */
@@ -1620,7 +1628,10 @@ usbd_transfer_start(struct usb_xfer *xfer)
 	/* mark the USB transfer started */
 
 	if (!xfer->flags_int.started) {
+		/* lock the BUS lock to avoid races updating flags_int */
+		USB_BUS_LOCK(xfer->xroot->bus);
 		xfer->flags_int.started = 1;
+		USB_BUS_UNLOCK(xfer->xroot->bus);
 	}
 	/* check if the USB transfer callback is already transferring */
 
@@ -1655,14 +1666,21 @@ usbd_transfer_stop(struct usb_xfer *xfer)
 	/* check if the USB transfer was ever opened */
 
 	if (!xfer->flags_int.open) {
-		/* nothing to do except clearing the "started" flag */
-		xfer->flags_int.started = 0;
+		if (xfer->flags_int.started) {
+			/* nothing to do except clearing the "started" flag */
+			/* lock the BUS lock to avoid races updating flags_int */
+			USB_BUS_LOCK(xfer->xroot->bus);
+			xfer->flags_int.started = 0;
+			USB_BUS_UNLOCK(xfer->xroot->bus);
+		}
 		return;
 	}
 	/* try to stop the current USB transfer */
 
 	USB_BUS_LOCK(xfer->xroot->bus);
-	xfer->error = USB_ERR_CANCELLED;/* override any previous error */
+	/* override any previous error */
+	xfer->error = USB_ERR_CANCELLED;
+
 	/*
 	 * Clear "open" and "started" when both private and USB lock
 	 * is locked so that we don't get a race updating "flags_int"
@@ -1785,8 +1803,18 @@ usbd_transfer_drain(struct usb_xfer *xfer)
 
 	usbd_transfer_stop(xfer);
 
-	while (usbd_transfer_pending(xfer)) {
+	while (usbd_transfer_pending(xfer) || 
+	    xfer->flags_int.doing_callback) {
+
+		/* 
+		 * It is allowed that the callback can drop its
+		 * transfer mutex. In that case checking only
+		 * "usbd_transfer_pending()" is not enough to tell if
+		 * the USB transfer is fully drained. We also need to
+		 * check the internal "doing_callback" flag.
+		 */
 		xfer->flags_int.draining = 1;
+
 		/*
 		 * Wait until the current outstanding USB
 		 * transfer is complete !
@@ -1802,6 +1830,23 @@ usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
 	return (&xfer->frbuffers[frindex]);
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_xfer_get_fps_shift
+ *
+ * The following function is only useful for isochronous transfers. It
+ * returns how many times the frame execution rate has been shifted
+ * down.
+ *
+ * Return value:
+ * Success: 0..3
+ * Failure: 0
+ *------------------------------------------------------------------------*/
+uint8_t
+usbd_xfer_get_fps_shift(struct usb_xfer *xfer)
+{
+	return (xfer->fps_shift);
 }
 
 usb_frlength_t
@@ -2031,6 +2076,9 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	/* get next USB transfer in the queue */
 	info->done_q.curr = NULL;
 
+	/* set flag in case of drain */
+	xfer->flags_int.doing_callback = 1;
+
 	USB_BUS_UNLOCK(info->bus);
 	USB_BUS_LOCK_ASSERT(info->bus, MA_NOTOWNED);
 
@@ -2083,12 +2131,17 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	if ((!xfer->flags_int.open) &&
 	    (xfer->flags_int.started) &&
 	    (xfer->usb_state == USB_ST_ERROR)) {
+		/* clear flag in case of drain */
+		xfer->flags_int.doing_callback = 0;
 		/* try to loop, but not recursivly */
 		usb_command_wrapper(&info->done_q, xfer);
 		return;
 	}
 
 done:
+	/* clear flag in case of drain */
+	xfer->flags_int.doing_callback = 0;
+
 	/*
 	 * Check if we are draining.
 	 */
@@ -2190,6 +2243,8 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 	 */
 	if (!xfer->flags_int.transferring) {
 		DPRINTF("not transferring\n");
+		/* end of control transfer, if any */
+		xfer->flags_int.control_act = 0;
 		return;
 	}
 	/* only set transfer error if not already set */
@@ -2907,13 +2962,9 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 		}
 
 		/* Make sure cv_signal() and cv_broadcast() is not called */
-		udev->bus->control_xfer_proc.up_dsleep = 0;
 		udev->bus->control_xfer_proc.up_msleep = 0;
-		udev->bus->explore_proc.up_dsleep = 0;
 		udev->bus->explore_proc.up_msleep = 0;
-		udev->bus->giant_callback_proc.up_dsleep = 0;
 		udev->bus->giant_callback_proc.up_msleep = 0;
-		udev->bus->non_giant_callback_proc.up_dsleep = 0;
 		udev->bus->non_giant_callback_proc.up_msleep = 0;
 
 		/* poll USB hardware */

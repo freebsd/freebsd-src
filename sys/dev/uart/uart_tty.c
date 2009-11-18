@@ -166,33 +166,29 @@ uart_tty_outwakeup(struct tty *tp)
 	if (sc == NULL || sc->sc_leaving)
 		return;
 
-	/*
-	 * Handle input flow control. Note that if we have hardware support,
-	 * we don't do anything here. We continue to receive until our buffer
-	 * is full. At that time we cannot empty the UART itself and it will
-	 * de-assert RTS for us. In that situation we're completely stuffed.
-	 * Without hardware support, we need to toggle RTS ourselves.
-	 */
-	if ((tp->t_termios.c_cflag & CRTS_IFLOW) && !sc->sc_hwiflow) {
-#if 0
-		/*if ((tp->t_state & TS_TBLOCK) &&
-		    (sc->sc_hwsig & SER_RTS))
-			UART_SETSIG(sc, SER_DRTS);
-		else */ if (/*!(tp->t_state & TS_TBLOCK) &&*/
-		    !(sc->sc_hwsig & SER_RTS))
-			UART_SETSIG(sc, SER_DRTS|SER_RTS);
-#endif
-		/* XXX: we should use inwakeup to implement this! */
-		if (!(sc->sc_hwsig & SER_RTS))
-			UART_SETSIG(sc, SER_DRTS|SER_RTS);
-	}
-
 	if (sc->sc_txbusy)
 		return;
 
 	sc->sc_txdatasz = ttydisc_getc(tp, sc->sc_txbuf, sc->sc_txfifosz);
 	if (sc->sc_txdatasz != 0)
 		UART_TRANSMIT(sc);
+}
+
+static void
+uart_tty_inwakeup(struct tty *tp)
+{
+	struct uart_softc *sc;
+
+	sc = tty_softc(tp);
+	if (sc == NULL || sc->sc_leaving)
+		return;
+
+	if (sc->sc_isquelch) {
+		if ((tp->t_termios.c_cflag & CRTS_IFLOW) && !sc->sc_hwiflow)
+			UART_SETSIG(sc, SER_DRTS|SER_RTS);
+		sc->sc_isquelch = 0;
+		uart_sched_softih(sc, SER_INT_RXREADY);
+	}
 }
 
 static int
@@ -252,9 +248,9 @@ uart_tty_param(struct tty *tp, struct termios *t)
 	UART_SETSIG(sc, SER_DDTR | SER_DTR);
 	/* Set input flow control state. */
 	if (!sc->sc_hwiflow) {
-		/* if ((t->c_cflag & CRTS_IFLOW) && (tp->t_state & TS_TBLOCK))
+		if ((t->c_cflag & CRTS_IFLOW) && sc->sc_isquelch)
 			UART_SETSIG(sc, SER_DRTS);
-		else */
+		else
 			UART_SETSIG(sc, SER_DRTS | SER_RTS);
 	} else
 		UART_IOCTL(sc, UART_IOCTL_IFLOW, (t->c_cflag & CRTS_IFLOW));
@@ -294,8 +290,8 @@ uart_tty_intr(void *arg)
 	tty_lock(tp);
 
 	if (pend & SER_INT_RXREADY) {
-		while (!uart_rx_empty(sc) /* && !(tp->t_state & TS_TBLOCK)*/) {
-			xc = uart_rx_get(sc);
+		while (!uart_rx_empty(sc) && !sc->sc_isquelch) {
+			xc = uart_rx_peek(sc);
 			c = xc & 0xff;
 			if (xc & UART_STAT_FRAMERR)
 				err |= TRE_FRAMING;
@@ -303,7 +299,13 @@ uart_tty_intr(void *arg)
 				err |= TRE_OVERRUN;
 			if (xc & UART_STAT_PARERR)
 				err |= TRE_PARITY;
-			ttydisc_rint(tp, c, err);
+			if (ttydisc_rint(tp, c, err) != 0) {
+				sc->sc_isquelch = 1;
+				if ((tp->t_termios.c_cflag & CRTS_IFLOW) &&
+				    !sc->sc_hwiflow)
+					UART_SETSIG(sc, SER_DRTS);
+			} else
+				uart_rx_next(sc);
 		}
 	}
 
@@ -344,6 +346,7 @@ static struct ttydevsw uart_tty_class = {
 	.tsw_open	= uart_tty_open,
 	.tsw_close	= uart_tty_close,
 	.tsw_outwakeup	= uart_tty_outwakeup,
+	.tsw_inwakeup	= uart_tty_inwakeup,
 	.tsw_ioctl	= uart_tty_ioctl,
 	.tsw_param	= uart_tty_param,
 	.tsw_modem	= uart_tty_modem,

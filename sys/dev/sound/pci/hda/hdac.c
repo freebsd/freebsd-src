@@ -38,7 +38,6 @@
  *     2) HDA Codecs support, which may include
  *        - HDA
  *        - Modem
- *        - HDMI
  *     3) Widget parser - the real magic of why this driver works on so
  *        many hardwares with minimal vendor specific quirk. The original
  *        parser was written using Ruby and can be found at
@@ -87,7 +86,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090624_0136"
+#define HDA_DRV_TEST_REV	"20091113_0138"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -146,7 +145,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_INTEL_82801G	HDA_MODEL_CONSTRUCT(INTEL, 0x27d8)
 #define HDA_INTEL_82801H	HDA_MODEL_CONSTRUCT(INTEL, 0x284b)
 #define HDA_INTEL_82801I	HDA_MODEL_CONSTRUCT(INTEL, 0x293e)
-#define HDA_INTEL_82801J	HDA_MODEL_CONSTRUCT(INTEL, 0x3a3e)
+#define HDA_INTEL_82801JI	HDA_MODEL_CONSTRUCT(INTEL, 0x3a3e)
+#define HDA_INTEL_82801JD	HDA_MODEL_CONSTRUCT(INTEL, 0x3a6e)
 #define HDA_INTEL_PCH		HDA_MODEL_CONSTRUCT(INTEL, 0x3b56)
 #define HDA_INTEL_SCH		HDA_MODEL_CONSTRUCT(INTEL, 0x811b)
 #define HDA_INTEL_ALL		HDA_MODEL_CONSTRUCT(INTEL, 0xffff)
@@ -171,6 +171,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_NVIDIA_MCP79_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0ac1)
 #define HDA_NVIDIA_MCP79_3	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0ac2)
 #define HDA_NVIDIA_MCP79_4	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0ac3)
+#define HDA_NVIDIA_MCP89_1	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0d94)
+#define HDA_NVIDIA_MCP89_2	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0d95)
+#define HDA_NVIDIA_MCP89_3	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0d96)
+#define HDA_NVIDIA_MCP89_4	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0d97)
 #define HDA_NVIDIA_ALL		HDA_MODEL_CONSTRUCT(NVIDIA, 0xffff)
 
 /* ATI */
@@ -486,7 +490,8 @@ static const struct {
 	{ HDA_INTEL_82801G,  "Intel 82801G",	0 },
 	{ HDA_INTEL_82801H,  "Intel 82801H",	0 },
 	{ HDA_INTEL_82801I,  "Intel 82801I",	0 },
-	{ HDA_INTEL_82801J,  "Intel 82801J",	0 },
+	{ HDA_INTEL_82801JI, "Intel 82801JI",	0 },
+	{ HDA_INTEL_82801JD, "Intel 82801JD",	0 },
 	{ HDA_INTEL_PCH,     "Intel PCH",	0 },
 	{ HDA_INTEL_SCH,     "Intel SCH",	0 },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51",	HDAC_NO_MSI },
@@ -507,6 +512,10 @@ static const struct {
 	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79",	0 },
 	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79",	0 },
 	{ HDA_NVIDIA_MCP79_4, "NVidia MCP79",	0 },
+	{ HDA_NVIDIA_MCP89_1, "NVidia MCP89",	0 },
+	{ HDA_NVIDIA_MCP89_2, "NVidia MCP89",	0 },
+	{ HDA_NVIDIA_MCP89_3, "NVidia MCP89",	0 },
+	{ HDA_NVIDIA_MCP89_4, "NVidia MCP89",	0 },
 	{ HDA_ATI_SB450,     "ATI SB450",	0 },
 	{ HDA_ATI_SB600,     "ATI SB600",	0 },
 	{ HDA_ATI_RS600,     "ATI RS600",	0 },
@@ -613,6 +622,7 @@ static const struct {
 #define HDA_CODEC_ALC882	HDA_CODEC_CONSTRUCT(REALTEK, 0x0882)
 #define HDA_CODEC_ALC883	HDA_CODEC_CONSTRUCT(REALTEK, 0x0883)
 #define HDA_CODEC_ALC885	HDA_CODEC_CONSTRUCT(REALTEK, 0x0885)
+#define HDA_CODEC_ALC887	HDA_CODEC_CONSTRUCT(REALTEK, 0x0887)
 #define HDA_CODEC_ALC888	HDA_CODEC_CONSTRUCT(REALTEK, 0x0888)
 #define HDA_CODEC_ALC889	HDA_CODEC_CONSTRUCT(REALTEK, 0x0889)
 #define HDA_CODEC_ALCXXXX	HDA_CODEC_CONSTRUCT(REALTEK, 0xffff)
@@ -754,6 +764,16 @@ static const struct {
 #define HDA_CODEC_VT1702_5	HDA_CODEC_CONSTRUCT(VIA, 0x5398)
 #define HDA_CODEC_VT1702_6	HDA_CODEC_CONSTRUCT(VIA, 0x6398)
 #define HDA_CODEC_VT1702_7	HDA_CODEC_CONSTRUCT(VIA, 0x7398)
+#define HDA_CODEC_VT1716S_0	HDA_CODEC_CONSTRUCT(VIA, 0x0433)
+#define HDA_CODEC_VT1716S_1	HDA_CODEC_CONSTRUCT(VIA, 0xa721)
+#define HDA_CODEC_VT1718S_0	HDA_CODEC_CONSTRUCT(VIA, 0x0428)
+#define HDA_CODEC_VT1718S_1	HDA_CODEC_CONSTRUCT(VIA, 0x4428)
+#define HDA_CODEC_VT1812	HDA_CODEC_CONSTRUCT(VIA, 0x0448)
+#define HDA_CODEC_VT1818S	HDA_CODEC_CONSTRUCT(VIA, 0x0440)
+#define HDA_CODEC_VT1828S	HDA_CODEC_CONSTRUCT(VIA, 0x4441)
+#define HDA_CODEC_VT2002P_0	HDA_CODEC_CONSTRUCT(VIA, 0x0438)
+#define HDA_CODEC_VT2002P_1	HDA_CODEC_CONSTRUCT(VIA, 0x4438)
+#define HDA_CODEC_VT2020	HDA_CODEC_CONSTRUCT(VIA, 0x0441)
 #define HDA_CODEC_VTXXXX	HDA_CODEC_CONSTRUCT(VIA, 0xffff)
 
 /* ATI */
@@ -776,6 +796,7 @@ static const struct {
 #define HDA_CODEC_INTELG45_2	HDA_CODEC_CONSTRUCT(INTEL, 0x2802)
 #define HDA_CODEC_INTELG45_3	HDA_CODEC_CONSTRUCT(INTEL, 0x2803)
 #define HDA_CODEC_INTELG45_4	HDA_CODEC_CONSTRUCT(INTEL, 0x29fb)
+#define HDA_CODEC_INTELQ57	HDA_CODEC_CONSTRUCT(INTEL, 0x0054)
 #define HDA_CODEC_INTELXXXX	HDA_CODEC_CONSTRUCT(INTEL, 0xffff)
 
 /* Codecs */
@@ -798,6 +819,7 @@ static const struct {
 	{ HDA_CODEC_ALC882,    "Realtek ALC882" },
 	{ HDA_CODEC_ALC883,    "Realtek ALC883" },
 	{ HDA_CODEC_ALC885,    "Realtek ALC885" },
+	{ HDA_CODEC_ALC887,    "Realtek ALC887" },
 	{ HDA_CODEC_ALC888,    "Realtek ALC888" },
 	{ HDA_CODEC_ALC889,    "Realtek ALC889" },
 	{ HDA_CODEC_AD1882,    "Analog Devices AD1882" },
@@ -906,6 +928,16 @@ static const struct {
 	{ HDA_CODEC_VT1702_5, "VIA VT1702_5" },
 	{ HDA_CODEC_VT1702_6, "VIA VT1702_6" },
 	{ HDA_CODEC_VT1702_7, "VIA VT1702_7" },
+	{ HDA_CODEC_VT1716S_0, "VIA VT1716S_0" },
+	{ HDA_CODEC_VT1716S_1, "VIA VT1716S_1" },
+	{ HDA_CODEC_VT1718S_0, "VIA VT1718S_0" },
+	{ HDA_CODEC_VT1718S_1, "VIA VT1718S_1" },
+	{ HDA_CODEC_VT1812, "VIA VT1812" },
+	{ HDA_CODEC_VT1818S, "VIA VT1818S" },
+	{ HDA_CODEC_VT1828S, "VIA VT1828S" },
+	{ HDA_CODEC_VT2002P_0, "VIA VT2002P_0" },
+	{ HDA_CODEC_VT2002P_1, "VIA VT2002P_1" },
+	{ HDA_CODEC_VT2020, "VIA VT2020" },
 	{ HDA_CODEC_ATIRS600_1,"ATI RS600 HDMI" },
 	{ HDA_CODEC_ATIRS600_2,"ATI RS600 HDMI" },
 	{ HDA_CODEC_ATIRS690,  "ATI RS690/780 HDMI" },
@@ -919,6 +951,7 @@ static const struct {
 	{ HDA_CODEC_INTELG45_2, "Intel G45 HDMI" },
 	{ HDA_CODEC_INTELG45_3, "Intel G45 HDMI" },
 	{ HDA_CODEC_INTELG45_4, "Intel G45 HDMI" },
+	{ HDA_CODEC_INTELQ57, "Intel Q57 HDMI" },
 	{ HDA_CODEC_SII1390,   "Silicon Image SiI1390 HDMI" },
 	{ HDA_CODEC_SII1392,   "Silicon Image SiI1392 HDMI" },
 	/* Unknown codec */
@@ -1520,7 +1553,7 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	sc->num_iss = HDAC_GCAP_ISS(gcap);
 	sc->num_oss = HDAC_GCAP_OSS(gcap);
 	sc->num_bss = HDAC_GCAP_BSS(gcap);
-
+	sc->num_sdo = HDAC_GCAP_NSDO(gcap);
 	sc->support_64bit = HDA_FLAG_MATCH(gcap, HDAC_GCAP_64OK);
 
 	corbsize = HDAC_READ_1(&sc->mem, HDAC_CORBSIZE);
@@ -1555,11 +1588,12 @@ hdac_get_capabilities(struct hdac_softc *sc)
 		return (ENXIO);
 	}
 
-	HDA_BOOTHVERBOSE(
-		device_printf(sc->dev, "    CORB size: %d\n", sc->corb_size);
-		device_printf(sc->dev, "    RIRB size: %d\n", sc->rirb_size);
-		device_printf(sc->dev, "      Streams: ISS=%d OSS=%d BSS=%d\n",
-		    sc->num_iss, sc->num_oss, sc->num_bss);
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "Caps: OSS %d, ISS %d, BSS %d, "
+		    "NSDO %d%s, CORB %d, RIRB %d\n",
+		    sc->num_oss, sc->num_iss, sc->num_bss, 1 << sc->num_sdo,
+		    sc->support_64bit ? ", 64bit" : "",
+		    sc->corb_size, sc->rirb_size);
 	);
 
 	return (0);
@@ -3474,6 +3508,14 @@ hdac_stream_setup(struct hdac_chan *ch)
 		}
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i], c), cad);
+#if 0
+		hdac_command(sc,
+		    HDA_CMD_SET_CONV_CHAN_COUNT(cad, ch->io[i], 1), cad);
+		hdac_command(sc,
+		    HDA_CMD_SET_HDMI_CHAN_SLOT(cad, ch->io[i], 0x00), cad);
+		hdac_command(sc,
+		    HDA_CMD_SET_HDMI_CHAN_SLOT(cad, ch->io[i], 0x11), cad);
+#endif
 		chn +=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap) ?
 		    2 : 1;
@@ -4481,7 +4523,7 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 	for (i = 0; i < max; i++) {
 		as[i].hpredir = -1;
 		as[i].chan = -1;
-		as[i].digital = 1;
+		as[i].digital = 0;
 	}
 
 	/* Scan associations skipping as=0. */
@@ -4536,8 +4578,14 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 				    __func__, w->nid, j);
 				as[cnt].enable = 0;
 			}
-			if (!HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap))
-				as[cnt].digital = 0;
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap)) {
+				if (HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap))
+					as[cnt].digital = 3;
+				else if (HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+					as[cnt].digital = 2;
+				else
+					as[cnt].digital = 1;
+			}
 			/* Headphones with seq=15 may mean redirection. */
 			if (type == HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT &&
 			    seq == 15)
@@ -6537,15 +6585,15 @@ hdac_create_pcms(struct hdac_devinfo *devinfo)
 		devinfo->function.audio.devs[i].devinfo = devinfo;
 		devinfo->function.audio.devs[i].play = -1;
 		devinfo->function.audio.devs[i].rec = -1;
-		devinfo->function.audio.devs[i].digital = 2;
+		devinfo->function.audio.devs[i].digital = 255;
 	}
 	for (i = 0; i < devinfo->function.audio.ascnt; i++) {
 		if (as[i].enable == 0)
 			continue;
 		for (j = 0; j < devinfo->function.audio.num_devs; j++) {
-			if (devinfo->function.audio.devs[j].digital != 2 &&
-			    devinfo->function.audio.devs[j].digital !=
-			    as[i].digital)
+			if (devinfo->function.audio.devs[j].digital != 255 &&
+			    (!devinfo->function.audio.devs[j].digital) !=
+			    (!as[i].digital))
 				continue;
 			if (as[i].dir == HDA_CTL_IN) {
 				if (devinfo->function.audio.devs[j].rec >= 0)
@@ -6721,6 +6769,8 @@ hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 		printf(" IN");
 	if (HDA_PARAM_PIN_CAP_BALANCED_IO_PINS(pincap))
 		printf(" BAL");
+	if (HDA_PARAM_PIN_CAP_HDMI(pincap))
+		printf(" HDMI");
 	if (HDA_PARAM_PIN_CAP_VREF_CTRL(pincap)) {
 		printf(" VREF[");
 		if (HDA_PARAM_PIN_CAP_VREF_CTRL_50(pincap))
@@ -6737,6 +6787,10 @@ hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 	}
 	if (HDA_PARAM_PIN_CAP_EAPD_CAP(pincap))
 		printf(" EAPD");
+	if (HDA_PARAM_PIN_CAP_DP(pincap))
+		printf(" DP");
+	if (HDA_PARAM_PIN_CAP_HBR(pincap))
+		printf(" HBR");
 	printf("\n");
 	device_printf(sc->dev, "     Pin config: 0x%08x\n",
 	    w->wclass.pin.config);
@@ -6844,8 +6898,11 @@ hdac_dump_nodes(struct hdac_devinfo *devinfo)
 			    printf(" PROC");
 			if (HDA_PARAM_AUDIO_WIDGET_CAP_STRIPE(w->param.widget_cap))
 			    printf(" STRIPE");
-			if (HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap))
+			j = HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap);
+			if (j == 1)
 			    printf(" STEREO");
+			else if (j > 1)
+			    printf(" %dCH", j + 1);
 			printf("\n");
 		}
 		if (w->bindas != -1) {
@@ -7946,7 +8003,9 @@ hdac_pcm_probe(device_t dev)
 	snprintf(buf, sizeof(buf), "HDA %s PCM #%d %s",
 	    hdac_codec_name(pdevinfo->devinfo->codec),
 	    pdevinfo->index,
-	    pdevinfo->digital?"Digital":"Analog");
+	    (pdevinfo->digital == 3)?"DisplayPort":
+	    ((pdevinfo->digital == 2)?"HDMI":
+	    ((pdevinfo->digital)?"Digital":"Analog")));
 	device_set_desc_copy(dev, buf);
 	return (0);
 }

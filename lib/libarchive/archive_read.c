@@ -928,9 +928,12 @@ __archive_read_filter_ahead(struct archive_read_filter *filter,
 	for (;;) {
 
 		/*
-		 * If we can satisfy from the copy buffer, we're done.
+		 * If we can satisfy from the copy buffer (and the
+		 * copy buffer isn't empty), we're done.  In particular,
+		 * note that min == 0 is a perfectly well-defined
+		 * request.
 		 */
-		if (filter->avail >= min) {
+		if (filter->avail >= min && filter->avail > 0) {
 			if (avail != NULL)
 				*avail = filter->avail;
 			return (filter->next);

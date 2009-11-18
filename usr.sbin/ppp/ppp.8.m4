@@ -27,7 +27,7 @@ changecom(,)dnl
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2007
+.Dd August 25, 2009
 .Dt PPP 8
 .Os
 .Sh NAME
@@ -171,6 +171,17 @@ If callback is configured,
 will use the
 .Dq set device
 information when dialing back.
+.Pp
+When run in
+.Fl direct
+mode,
+.Nm
+will behave slightly differently if descriptor 0 was created by
+.Xr pipe 2 .
+As pipes are not bi-directional, ppp will redirect all writes to descriptor
+1 (standard output), leaving only reads acting on descriptor 0.
+No special action is taken if descriptor 0 was created by
+.Xr socketpair 2 .
 .It Fl dedicated
 This option is designed for machines connected with a dedicated
 wire.
@@ -6055,6 +6066,8 @@ This socket is used to pass links between different instances of
 .Xr tcpdump 1 ,
 .Xr telnet 1 ,
 .Xr kldload 2 ,
+.Xr pipe 2 ,
+.Xr socketpair 2 ,
 ifdef({LOCALNAT},{},{.Xr libalias 3 ,
 })dnl
 ifdef({LOCALRAD},{},{.Xr libradius 3 ,

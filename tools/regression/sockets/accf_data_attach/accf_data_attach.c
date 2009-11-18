@@ -169,9 +169,6 @@ main(int argc, char *argv[])
 	if (ret != 0)
 		errx(-1, "not ok 9 - setsockopt() after listen() failed with %d "
 		    "(%s)", errno, strerror(errno));
-	if (len != sizeof(afa))
-		errx(-1, "not ok 9 - setsockopt() after listen() returned wrong "
-		    "size (%d vs expected %d)", len, sizeof(afa));
 	printf("ok 9 - setsockopt\n");
 
 	/*
@@ -186,7 +183,7 @@ main(int argc, char *argv[])
 		    "failed with %d (%s)", errno, strerror(errno));
 	if (len != sizeof(afa))
 		errx(-1, "not ok 10 - getsockopt() after setsockopet()  after "
-		    "listen() returned wrong size (got %d expected %d)", len,
+		    "listen() returned wrong size (got %d expected %zd)", len,
 		    sizeof(afa));
 	if (strcmp(afa.af_name, ACCF_NAME) != 0)
 		errx(-1, "not ok 10 - getsockopt() after setsockopt() after "

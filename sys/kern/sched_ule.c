@@ -495,7 +495,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	tdq->tdq_load++;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -514,7 +514,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
 
 	tdq->tdq_load--;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -1406,7 +1406,7 @@ sched_priority(struct thread *td)
 	 * score.  Negative nice values make it easier for a thread to be
 	 * considered interactive.
 	 */
-	score = imax(0, sched_interact_score(td) - td->td_proc->p_nice);
+	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_REALTIME;
 		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
@@ -1749,19 +1749,19 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 */
 	spinlock_enter();
 	thread_block_switch(td);	/* This releases the lock on tdq. */
-	TDQ_LOCK(tdn);
+
+	/*
+	 * Acquire both run-queue locks before placing the thread on the new
+	 * run-queue to avoid deadlocks created by placing a thread with a
+	 * blocked lock on the run-queue of a remote processor.  The deadlock
+	 * occurs when a third processor attempts to lock the two queues in
+	 * question while the target processor is spinning with its own
+	 * run-queue lock held while waiting for the blocked lock to clear.
+	 */
+	tdq_lock_pair(tdn, tdq);
 	tdq_add(tdn, td, flags);
 	tdq_notify(tdn, td);
-	/*
-	 * After we unlock tdn the new cpu still can't switch into this
-	 * thread until we've unblocked it in cpu_switch().  The lock
-	 * pointers may match in the case of HTT cores.  Don't unlock here
-	 * or we can deadlock when the other CPU runs the IPI handler.
-	 */
-	if (TDQ_LOCKPTR(tdn) != TDQ_LOCKPTR(tdq)) {
-		TDQ_UNLOCK(tdn);
-		TDQ_LOCK(tdq);
-	}
+	TDQ_UNLOCK(tdn);
 	spinlock_exit();
 #endif
 	return (TDQ_LOCKPTR(tdn));

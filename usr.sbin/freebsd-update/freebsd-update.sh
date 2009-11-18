@@ -284,6 +284,9 @@ config_TargetRelease () {
 	else
 		return 1
 	fi
+	if echo ${TARGETRELEASE} | grep -qE '^[0-9.]+$'; then
+		TARGETRELEASE="${TARGETRELEASE}-RELEASE"
+	fi
 }
 
 # Define what happens to output of utilities

@@ -8,6 +8,7 @@ LINKS+=	${BINDIR}/swapon ${BINDIR}/swapctl
 MLINKS=	swapon.8 swapoff.8
 MLINKS+=swapon.8 swapctl.8
 
+WARNS?=	2
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
 

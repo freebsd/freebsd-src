@@ -40,9 +40,7 @@
 #include SESINC
 
 int
-main(a, v)
-	int a;
-	char **v;
+main(int a, char **v)
 {
 	int fd;
 

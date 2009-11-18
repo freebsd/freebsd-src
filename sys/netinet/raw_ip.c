@@ -84,9 +84,9 @@ VNET_DEFINE(struct inpcbinfo, ripcbinfo);
  * The data hooks are not used here but it is convenient
  * to keep them all in one place.
  */
-int (*ip_fw_ctl_ptr)(struct sockopt *) = NULL;
+VNET_DEFINE(ip_fw_chk_ptr_t, ip_fw_chk_ptr) = NULL;
+VNET_DEFINE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr) = NULL;
 int (*ip_dn_ctl_ptr)(struct sockopt *) = NULL;
-int (*ip_fw_chk_ptr)(struct ip_fw_args *args) = NULL;
 int (*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa) = NULL;
 
 /*
@@ -343,17 +343,35 @@ rip_input(struct mbuf *m, int off)
 		 */
 		if (inp->inp_moptions != NULL &&
 		    IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
-			struct sockaddr_in group;
+			/*
+			 * If the incoming datagram is for IGMP, allow it
+			 * through unconditionally to the raw socket.
+			 *
+			 * In the case of IGMPv2, we may not have explicitly
+			 * joined the group, and may have set IFF_ALLMULTI
+			 * on the interface. imo_multi_filter() may discard
+			 * control traffic we actually need to see.
+			 *
+			 * Userland multicast routing daemons should continue
+			 * filter the control traffic appropriately.
+			 */
 			int blocked;
 
-			bzero(&group, sizeof(struct sockaddr_in));
-			group.sin_len = sizeof(struct sockaddr_in);
-			group.sin_family = AF_INET;
-			group.sin_addr = ip->ip_dst;
+			blocked = MCAST_PASS;
+			if (proto != IPPROTO_IGMP) {
+				struct sockaddr_in group;
 
-			blocked = imo_multi_filter(inp->inp_moptions, ifp,
-			    (struct sockaddr *)&group,
-			    (struct sockaddr *)&ripsrc);
+				bzero(&group, sizeof(struct sockaddr_in));
+				group.sin_len = sizeof(struct sockaddr_in);
+				group.sin_family = AF_INET;
+				group.sin_addr = ip->ip_dst;
+
+				blocked = imo_multi_filter(inp->inp_moptions,
+				    ifp,
+				    (struct sockaddr *)&group,
+				    (struct sockaddr *)&ripsrc);
+			}
+
 			if (blocked != MCAST_PASS) {
 				IPSTAT_INC(ips_notmember);
 				continue;
@@ -523,8 +541,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_LIST:
 		case IP_FW_NAT_GET_CONFIG:
 		case IP_FW_NAT_GET_LOG:
-			if (ip_fw_ctl_ptr != NULL)
-				error = ip_fw_ctl_ptr(sopt);
+			if (V_ip_fw_ctl_ptr != NULL)
+				error = V_ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
 			break;
@@ -584,8 +602,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_FLUSH:
 		case IP_FW_NAT_CFG:
 		case IP_FW_NAT_DEL:
-			if (ip_fw_ctl_ptr != NULL)
-				error = ip_fw_ctl_ptr(sopt);
+			if (V_ip_fw_ctl_ptr != NULL)
+				error = V_ip_fw_ctl_ptr(sopt);
 			else
 				error = ENOPROTOOPT;
 			break;
@@ -715,6 +733,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
+		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
 		ifa_free(&ia->ia_ifa);
 		break;
 	}

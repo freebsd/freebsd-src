@@ -695,7 +695,7 @@ nfsrv_setacl(vnode_t vp, NFSACL_T *aclp, struct ucred *cred,
 	if (nfsrv_useacl == 0 || !NFSHASNFS4ACL(vnode_mount(vp)))
 		return (NFSERR_ATTRNOTSUPP);
 	/*
-	 * With NFS4 ACLs, chmod(2) may need to add additional entries.
+	 * With NFSv4 ACLs, chmod(2) may need to add additional entries.
 	 * Make sure it has enough room for that - splitting every entry
 	 * into two and appending "canonical six" entries at the end.
 	 * Cribbed out of kern/vfs_acl.c - Rick M.

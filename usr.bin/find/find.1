@@ -312,6 +312,7 @@ character in its pathname relative to
 .Dq Pa \&.
 for security reasons.
 Depth-first traversal processing is implied by this option.
+Following symlinks is incompatible with this option.
 .It Ic -depth
 Always true;
 same as the
@@ -920,7 +921,7 @@ recent than the current time minus one minute.
 Use the
 .Xr echo 1
 command to print out a list of all the files.
-.It Li "find -L /usr/ports/packages -type l -delete"
+.It Li "find -L /usr/ports/packages -type l -exec rm -- {} +"
 Delete all broken symbolic links in
 .Pa /usr/ports/packages .
 .It Li "find /usr/src -name CVS -prune -o -depth +6 -print"

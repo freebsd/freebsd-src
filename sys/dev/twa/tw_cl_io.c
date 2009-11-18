@@ -396,7 +396,7 @@ tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
  *			non-zero-- failure
  */
 TW_INT32
-tw_cl_ioctl(struct tw_cl_ctlr_handle *ctlr_handle, TW_INT32 cmd, TW_VOID *buf)
+tw_cl_ioctl(struct tw_cl_ctlr_handle *ctlr_handle, u_long cmd, TW_VOID *buf)
 {
 	struct tw_cli_ctlr_context	*ctlr =
 		(struct tw_cli_ctlr_context *)(ctlr_handle->cl_ctlr_ctxt);

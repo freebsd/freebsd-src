@@ -82,6 +82,9 @@
  */
 #define	MAP_FILE	 0x0000	/* map from file (default) */
 #define	MAP_ANON	 0x1000	/* allocated from memory, swap space */
+#ifndef _KERNEL
+#define	MAP_ANONYMOUS	 MAP_ANON /* For compatibility. */
+#endif /* !_KERNEL */
 
 /*
  * Extended flags
@@ -208,6 +211,7 @@ __BEGIN_DECLS
  * posix_typed_mem_open().
  */
 #if __BSD_VISIBLE
+int	getpagesizes(size_t *, int);
 int	madvise(void *, size_t, int);
 int	mincore(const void *, size_t, char *);
 int	minherit(void *, size_t, int);

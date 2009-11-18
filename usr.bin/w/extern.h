@@ -38,6 +38,6 @@
 extern	int use_ampm;
 
 struct kinfo_proc;
-void	pr_attime(time_t *, time_t *);
+int	pr_attime(time_t *, time_t *);
 int	pr_idle(time_t);
 int	proc_compare(struct kinfo_proc *, struct kinfo_proc *);

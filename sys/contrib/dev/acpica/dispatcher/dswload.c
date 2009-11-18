@@ -263,7 +263,7 @@ AcpiDsLoad1BeginOp (
              * Target of Scope() not found. Generate an External for it, and
              * insert the name into the namespace.
              */
-            AcpiDmAddToExternalList (Path, ACPI_TYPE_DEVICE, 0);
+            AcpiDmAddToExternalList (Op, Path, ACPI_TYPE_DEVICE, 0);
             Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
                        ACPI_IMODE_LOAD_PASS1, ACPI_NS_SEARCH_PARENT,
                        WalkState, &Node);
@@ -672,20 +672,6 @@ AcpiDsLoad2BeginOp (
               (WalkState->Opcode != AML_INT_NAMEPATH_OP)) ||
             (!(WalkState->OpInfo->Flags & AML_NAMED)))
         {
-#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
-            if ((WalkState->OpInfo->Class == AML_CLASS_EXECUTE) ||
-                (WalkState->OpInfo->Class == AML_CLASS_CONTROL))
-            {
-                ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-                    "Begin/EXEC: %s (fl %8.8X)\n", WalkState->OpInfo->Name,
-                    WalkState->OpInfo->Flags));
-
-                /* Executing a type1 or type2 opcode outside of a method */
-
-                Status = AcpiDsExecBeginOp (WalkState, OutOp);
-                return_ACPI_STATUS (Status);
-            }
-#endif
             return_ACPI_STATUS (AE_OK);
         }
 
@@ -746,29 +732,45 @@ AcpiDsLoad2BeginOp (
         break;
 
     case AML_SCOPE_OP:
-        /*
-         * The Path is an object reference to an existing object.
-         * Don't enter the name into the namespace, but look it up
-         * for use later.
-         */
-        Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
+
+        /* Special case for Scope(\) -> refers to the Root node */
+
+        if (Op && (Op->Named.Node == AcpiGbl_RootNode))
+        {
+            Node = Op->Named.Node;
+
+            Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                return_ACPI_STATUS (Status);
+            }
+        }
+        else
+        {
+            /*
+             * The Path is an object reference to an existing object.
+             * Don't enter the name into the namespace, but look it up
+             * for use later.
+             */
+            Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
                         ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
                         WalkState, &(Node));
-        if (ACPI_FAILURE (Status))
-        {
+            if (ACPI_FAILURE (Status))
+            {
 #ifdef ACPI_ASL_COMPILER
-            if (Status == AE_NOT_FOUND)
-            {
-                Status = AE_OK;
-            }
-            else
-            {
-                ACPI_ERROR_NAMESPACE (BufferPtr, Status);
-            }
+                if (Status == AE_NOT_FOUND)
+                {
+                    Status = AE_OK;
+                }
+                else
+                {
+                    ACPI_ERROR_NAMESPACE (BufferPtr, Status);
+                }
 #else
-            ACPI_ERROR_NAMESPACE (BufferPtr, Status);
+                ACPI_ERROR_NAMESPACE (BufferPtr, Status);
 #endif
-            return_ACPI_STATUS (Status);
+                return_ACPI_STATUS (Status);
+            }
         }
 
         /*
@@ -862,7 +864,12 @@ AcpiDsLoad2BeginOp (
         {
             /* Execution mode, node cannot already exist, node is temporary */
 
-            Flags |= (ACPI_NS_ERROR_IF_FOUND | ACPI_NS_TEMPORARY);
+            Flags |= ACPI_NS_ERROR_IF_FOUND;
+
+            if (!(WalkState->ParseFlags & ACPI_PARSE_MODULE_LEVEL))
+            {
+                Flags |= ACPI_NS_TEMPORARY;
+            }
         }
 
         /* Add new entry or lookup existing entry */
@@ -952,24 +959,6 @@ AcpiDsLoad2EndOp (
 
     if (!(WalkState->OpInfo->Flags & AML_NSOBJECT))
     {
-#ifndef ACPI_NO_METHOD_EXECUTION
-#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
-        /* No namespace object. Executable opcode? */
-
-        if ((WalkState->OpInfo->Class == AML_CLASS_EXECUTE) ||
-            (WalkState->OpInfo->Class == AML_CLASS_CONTROL))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-                "End/EXEC:   %s (fl %8.8X)\n", WalkState->OpInfo->Name,
-                WalkState->OpInfo->Flags));
-
-            /* Executing a type1 or type2 opcode outside of a method */
-
-            Status = AcpiDsExecEndOp (WalkState);
-            return_ACPI_STATUS (Status);
-        }
-#endif
-#endif
         return_ACPI_STATUS (AE_OK);
     }
 

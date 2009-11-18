@@ -151,7 +151,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				kp->ki_cr_flags |= KI_CRF_GRP_OVERFLOW;
 			}
 				kp->ki_ngroups = ucred.cr_ngroups;
-			bcopy(ucred.cr_groups, kp->ki_groups,
+			kvm_read(kd, (u_long)ucred.cr_groups, kp->ki_groups,
 			    kp->ki_ngroups * sizeof(gid_t));
 			kp->ki_uid = ucred.cr_uid;
 			if (ucred.cr_prison != NULL) {

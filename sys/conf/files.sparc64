@@ -57,7 +57,6 @@ dev/sound/sbus/cs4231.c		optional	snd_audiocs ebus | \
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_sparc64.c	optional	uart
 dev/uart/uart_kbd_sun.c		optional	uart sc
 kern/syscalls.c			optional	ktr

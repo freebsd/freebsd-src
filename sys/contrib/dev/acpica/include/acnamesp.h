@@ -146,6 +146,14 @@
 #define ACPI_NS_WALK_UNLOCK         0x01
 #define ACPI_NS_WALK_TEMP_NODES     0x02
 
+/* Object is not a package element */
+
+#define ACPI_NOT_PACKAGE_ELEMENT    ACPI_UINT32_MAX
+
+/* Always emit warning message, not dependent on node flags */
+
+#define ACPI_WARN_ALWAYS            0
+
 
 /*
  * nsinit - Namespace initialization
@@ -181,7 +189,8 @@ AcpiNsWalkNamespace (
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
     UINT32                  Flags,
-    ACPI_WALK_CALLBACK      UserFunction,
+    ACPI_WALK_CALLBACK      PreOrderVisit,
+    ACPI_WALK_CALLBACK      PostOrderVisit,
     void                    *Context,
     void                    **ReturnValue);
 
@@ -238,6 +247,10 @@ AcpiNsCreateNode (
 
 void
 AcpiNsDeleteNode (
+    ACPI_NAMESPACE_NODE     *Node);
+
+void
+AcpiNsRemoveNode (
     ACPI_NAMESPACE_NODE     *Node);
 
 void
@@ -309,6 +322,10 @@ AcpiNsDumpObjects (
 ACPI_STATUS
 AcpiNsEvaluate (
     ACPI_EVALUATE_INFO      *Info);
+
+void
+AcpiNsExecModuleCodeList (
+    void);
 
 
 /*
@@ -409,6 +426,35 @@ AcpiNsGetAttachedData (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_OBJECT_HANDLER     Handler,
     void                    **Data);
+
+
+/*
+ * nsrepair - General return object repair for all
+ * predefined methods/objects
+ */
+ACPI_STATUS
+AcpiNsRepairObject (
+    ACPI_PREDEFINED_DATA    *Data,
+    UINT32                  ExpectedBtypes,
+    UINT32                  PackageIndex,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
+
+ACPI_STATUS
+AcpiNsRepairPackageList (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ObjDescPtr);
+
+
+/*
+ * nsrepair2 - Return object repair for specific
+ * predefined methods/objects
+ */
+ACPI_STATUS
+AcpiNsComplexRepairs (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_STATUS             ValidateStatus,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 
 /*

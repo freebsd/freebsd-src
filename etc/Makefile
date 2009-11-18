@@ -18,8 +18,13 @@ BIN1=	auth.conf \
 	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
-	sysctl.conf syslog.conf \
-	etc.${MACHINE_ARCH}/ttys
+	sysctl.conf syslog.conf
+
+.if exists(${.CURDIR}/etc.${MACHINE}/ttys)
+BIN1+=	etc.${MACHINE}/ttys
+.else
+BIN1+=	etc.${MACHINE_ARCH}/ttys
+.endif
 
 OPENBSMDIR=			${.CURDIR}/../contrib/openbsm
 BSM_ETC_OPEN_FILES=		${OPENBSMDIR}/etc/audit_class \
@@ -99,8 +104,7 @@ BIN1+= regdomain.xml
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
-	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
+MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 .if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
 .endif

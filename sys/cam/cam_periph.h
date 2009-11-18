@@ -79,6 +79,8 @@ struct periph_driver {
 	char			 *driver_name;
 	TAILQ_HEAD(,cam_periph)	 units;
 	u_int			 generation;
+	u_int			 flags;
+#define CAM_PERIPH_DRV_EARLY		0x01
 };
 
 typedef enum {
@@ -115,7 +117,6 @@ struct cam_periph {
 #define CAM_PERIPH_INVALID		0x08
 #define CAM_PERIPH_NEW_DEV_FOUND	0x10
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
-#define CAM_PERIPH_POLLED		0x40
 	u_int32_t		 immediate_priority;
 	u_int32_t		 refcount;
 	SLIST_HEAD(, ccb_hdr)	 ccb_list;	/* For "immediate" requests */

@@ -152,8 +152,8 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 	 * attach:
 	 */
 	USB_XFER_UNLOCK(xfer);
-	mtx_lock(&Giant);		/* XXX */
-	sx_xlock(udev->default_sx + 1);
+
+	usbd_enum_lock(udev);
 
 	if (conf_no == USB_UNCONFIG_NO) {
 		conf_no = USB_UNCONFIG_INDEX;
@@ -176,8 +176,7 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 		goto done;
 	}
 done:
-	mtx_unlock(&Giant);		/* XXX */
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (err);
 }
@@ -190,19 +189,19 @@ usb_check_alt_setting(struct usb_device *udev,
 	usb_error_t err = 0;
 
 	/* automatic locking */
-	if (sx_xlocked(udev->default_sx + 1)) {
+	if (usbd_enum_is_locked(udev)) {
 		do_unlock = 0;
 	} else {
 		do_unlock = 1;
-		sx_xlock(udev->default_sx + 1);
+		usbd_enum_lock(udev);
 	}
 
 	if (alt_index >= usbd_get_no_alts(udev->cdesc, iface->idesc))
 		err = USB_ERR_INVAL;
 
-	if (do_unlock) {
-		sx_unlock(udev->default_sx + 1);
-	}
+	if (do_unlock)
+		usbd_enum_unlock(udev);
+
 	return (err);
 }
 
@@ -236,8 +235,8 @@ usb_handle_iface_request(struct usb_xfer *xfer,
 	 * attach:
 	 */
 	USB_XFER_UNLOCK(xfer);
-	mtx_lock(&Giant);		/* XXX */
-	sx_xlock(udev->default_sx + 1);
+
+	usbd_enum_lock(udev);
 
 	error = ENXIO;
 
@@ -353,20 +352,17 @@ tr_repeat:
 		goto tr_stalled;
 	}
 tr_valid:
-	mtx_unlock(&Giant);
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (0);
 
 tr_short:
-	mtx_unlock(&Giant);
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_SHORT_XFER);
 
 tr_stalled:
-	mtx_unlock(&Giant);
-	sx_unlock(udev->default_sx + 1);
+	usbd_enum_unlock(udev);
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_STALLED);
 }

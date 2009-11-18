@@ -62,8 +62,8 @@ struct ifinfo *iflist;
 struct timeval tm_max =	{0x7fffffff, 0x7fffffff};
 static int log_upto = 999;
 static int fflag = 0;
-static int Fflag = 0;	/* force setting sysctl parameters */
 
+int Fflag = 0;	/* force setting sysctl parameters */
 int aflag = 0;
 int dflag = 0;
 
@@ -197,12 +197,8 @@ main(int argc, char **argv)
 #endif
 
 	if (Fflag) {
-		setinet6sysctl(IPV6CTL_ACCEPT_RTADV, 1);
 		setinet6sysctl(IPV6CTL_FORWARDING, 0);
 	} else {
-		/* warn if accept_rtadv is down */
-		if (!getinet6sysctl(IPV6CTL_ACCEPT_RTADV))
-			warnx("kernel is configured not to accept RAs");
 		/* warn if forwarding is up */
 		if (getinet6sysctl(IPV6CTL_FORWARDING))
 			warnx("kernel is configured as a router, not a host");

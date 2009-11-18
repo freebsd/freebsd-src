@@ -288,7 +288,7 @@ static devclass_t acpi_ibm_devclass;
 DRIVER_MODULE(acpi_ibm, acpi, acpi_ibm_driver, acpi_ibm_devclass,
 	      0, 0);
 MODULE_DEPEND(acpi_ibm, acpi, 1, 1, 1);
-static char    *ibm_ids[] = {"IBM0057", "IBM0068", NULL};
+static char    *ibm_ids[] = {"IBM0068", NULL};
 
 static void
 ibm_led(void *softc, int onoff)
@@ -356,8 +356,6 @@ acpi_ibm_attach(device_t dev)
 	}
 	sc->ec_handle = acpi_get_handle(sc->ec_dev);
 
-	ACPI_SERIAL_BEGIN(ibm);
-
 	/* Get the sysctl tree */
 	sc->sysctl_ctx = device_get_sysctl_ctx(dev);
 	sc->sysctl_tree = device_get_sysctl_tree(dev);
@@ -403,8 +401,6 @@ acpi_ibm_attach(device_t dev)
 		    sc, 0, acpi_ibm_thermal_sysctl, "I",
 		    "Thermal zones");
 	}
-
-	ACPI_SERIAL_END(ibm);
 
 	/* Handle notifies */
 	AcpiInstallNotifyHandler(sc->handle, ACPI_DEVICE_NOTIFY,

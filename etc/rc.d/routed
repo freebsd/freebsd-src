@@ -10,13 +10,12 @@
 . /etc/rc.subr
 
 name="routed"
+desc="network RIP and router discovery routing daemon"
+rcvar=`set_rcvar`
 
-# XXX - Executable may be in a different location. The $name variable
-#       is different from the variable in rc.conf(5) so the
-#       subroutines in rc.subr won't catch it.
-#
+set_rcvar_obsolete router_enable routed_enable
+set_rcvar_obsolete router routed_program
+set_rcvar_obsolete router_flags	routed_flags
+
 load_rc_config $name
-rcvar="router_enable"
-command="${router:-/sbin/${name}}"
-eval ${name}_flags=\"${router_flags}\"
 run_rc_command "$1"

@@ -2276,6 +2276,33 @@ out:
 	return (prevpm);
 }
 
+void
+pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
+{
+	pmap_t oldpm;
+	struct ia64_lpte *pte;
+	vm_offset_t lim;
+	vm_size_t len;
+
+	sz += va & 31;
+	va &= ~31;
+	sz = (sz + 31) & ~31;
+
+	PMAP_LOCK(pm);
+	oldpm = pmap_switch(pm);
+	while (sz > 0) {
+		lim = round_page(va);
+		len = MIN(lim - va, sz);
+		pte = pmap_find_vhpt(va);
+		if (pte != NULL && pmap_present(pte))
+			ia64_sync_icache(va, len);
+		va += len;
+		sz -= len;
+	}
+	pmap_switch(oldpm);
+	PMAP_UNLOCK(pm);
+}
+
 /*
  *	Increase the starting virtual address of the given mapping if a
  *	different alignment might result in more superpage mappings.

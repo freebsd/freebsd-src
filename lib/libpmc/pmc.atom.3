@@ -93,13 +93,13 @@ Configure the PMC to increment only if the number of configured
 events measured in a cycle is greater than or equal to
 .Ar value .
 .It Li edge
-Configure the PMC to count the number of deasserted to asserted
+Configure the PMC to count the number of de-asserted to asserted
 transitions of the conditions expressed by the other qualifiers.
 If specified, the counter will increment only once whenever a
 condition becomes true, irrespective of the number of clocks during
 which the condition remains true.
 .It Li inv
-Invert the sense of comparision when the
+Invert the sense of comparison when the
 .Dq Li cmask
 qualifier is present, making the counter increment when the number of
 events per cycle is less than the value specified by the
@@ -170,7 +170,7 @@ The default is
 .Dq Li both .
 .Pp
 Events that require a cache coherence qualifier to be specified use an
-additional qualifer
+additional qualifier
 .Dq Li cachestate= Ns Ar state ,
 where argument
 .Ar state
@@ -371,7 +371,7 @@ This event is thread independent.
 .Xc
 .Pq Event 60H
 The number of pending full cache line read transactions on the bus
-occuring in each cycle.
+occurring in each cycle.
 This event is thread independent.
 .It Li BUS_TRANS_P Xo
 .Op ,agent= Ns Ar agent
@@ -432,7 +432,7 @@ The number of burst read transactions.
 .Op ,core= Ns Ar core
 .Xc
 .Pq Event 6CH
-The number of completed I/O bus transaactions due to
+The number of completed I/O bus transactions due to
 .Li IN
 and
 .Li OUT
@@ -448,7 +448,7 @@ The number of Read For Ownership bus transactions.
 .Op ,core= Ns Ar core
 .Xc
 .Pq Event 67H
-The number explicit writeback bus transactions due to dirty line
+The number explicit write-back bus transactions due to dirty line
 evictions.
 .It Li CMP_SNOOP Xo
 .Op ,core= Ns Ar core
@@ -693,7 +693,7 @@ fetch unit.
 .It Li L2_LD Xo
 .Op ,cachestate= Ns Ar state
 .Op ,core= Ns Ar core
-.Op ,prefech= Ns Ar prefetch
+.Op ,prefetch= Ns Ar prefetch
 .Xc
 .Pq Event 29H
 The number of L2 cache read requests from L1 cache and L2
@@ -778,7 +778,7 @@ The number of loads blocked by preceding stores to the same address
 whose data value is not known.
 .It Li LOAD_BLOCK.UNTIL_RETIRE
 .Pq Event 03H , Umask 10H
-The numer of load operations that were blocked until retirement.
+The number of load operations that were blocked until retirement.
 .It Li LOAD_HIT_PRE
 .Pq Event 4CH , Umask 00H
 The number of load operations that conflicted with an prefetch to the

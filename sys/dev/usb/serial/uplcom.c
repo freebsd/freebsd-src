@@ -186,6 +186,7 @@ static void	uplcom_start_write(struct ucom_softc *);
 static void	uplcom_stop_write(struct ucom_softc *);
 static void	uplcom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
+static void	uplcom_poll(struct ucom_softc *ucom);
 
 static device_probe_t uplcom_probe;
 static device_attach_t uplcom_attach;
@@ -239,6 +240,7 @@ static struct ucom_callback uplcom_callback = {
 	.ucom_stop_read = &uplcom_stop_read,
 	.ucom_start_write = &uplcom_start_write,
 	.ucom_stop_write = &uplcom_stop_write,
+	.ucom_poll = &uplcom_poll,
 };
 
 #define	USB_UPL(v,p,rl,rh,t)				\
@@ -861,4 +863,11 @@ tr_setup:
 		}
 		return;
 	}
+}
+
+static void
+uplcom_poll(struct ucom_softc *ucom)
+{
+	struct uplcom_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UPLCOM_N_TRANSFER);
 }

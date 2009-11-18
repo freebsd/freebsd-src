@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 1999
+.Dd September 2, 2009
 .Dt INET6 4
 .Os
 .Sh NAME
@@ -307,7 +307,8 @@ Integer: default maximum number of fragmented packets the node will accept.
 The flag is provided basically for avoiding possible DoS attacks.
 .It Dv IPV6CTL_ACCEPT_RTADV
 .Pq ip6.accept_rtadv
-Boolean: enable/disable receiving of
+Boolean: the default value of a per-interface flag to
+enable/disable receiving of
 .Tn ICMPv6
 router advertisement packets,
 and autoconfiguration of address prefixes and default routers.
@@ -315,6 +316,11 @@ The node must be a host
 (not a router)
 for the option to be meaningful.
 Defaults to off.
+.It Dv IPV6CTL_AUTO_LINKLOCAL
+.Pq ip6.auto_linklocal
+Boolean: the default value of a per-interface flag to
+enable/disable performing automatic link-local address configuration.
+Defaults to on.
 .It Dv IPV6CTL_KEEPFAITH
 .Pq ip6.keepfaith
 Boolean: enable/disable

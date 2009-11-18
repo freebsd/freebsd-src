@@ -92,15 +92,15 @@ static int dohalt, dopower, doreboot, killflg, mbuflen, oflag;
 static char mbuf[BUFSIZ];
 static const char *nosync, *whom;
 
-void badtime(void);
-void die_you_gravy_sucking_pig_dog(void);
-void finish(int);
-void getoffset(char *);
-void loop(void);
-void nolog(void);
-void timeout(int);
-void timewarn(int);
-void usage(const char *);
+static void badtime(void);
+static void die_you_gravy_sucking_pig_dog(void);
+static void finish(int);
+static void getoffset(char *);
+static void loop(void);
+static void nolog(void);
+static void timeout(int);
+static void timewarn(int);
+static void usage(const char *);
 
 extern const char **environ;
 
@@ -219,8 +219,8 @@ main(int argc, char **argv)
 	return(0);
 }
 
-void
-loop()
+static void
+loop(void)
 {
 	struct interval *tp;
 	u_int sltime;
@@ -268,7 +268,7 @@ static const char *restricted_environ[] = {
 	NULL
 };
 
-void
+static void
 timewarn(int timeleft)
 {
 	static int first;
@@ -318,13 +318,13 @@ timewarn(int timeleft)
 	}
 }
 
-void
+static void
 timeout(int signo __unused)
 {
 	longjmp(alarmbuf, 1);
 }
 
-void
+static void
 die_you_gravy_sucking_pig_dog()
 {
 	char *empty_environ[] = { NULL };
@@ -385,7 +385,7 @@ die_you_gravy_sucking_pig_dog()
 
 #define	ATOI2(p)	(p[0] - '0') * 10 + (p[1] - '0'); p += 2;
 
-void
+static void
 getoffset(char *timearg)
 {
 	struct tm *lt;
@@ -468,8 +468,8 @@ getoffset(char *timearg)
 }
 
 #define	NOMSG	"\n\nNO LOGINS: System going down at "
-void
-nolog()
+static void
+nolog(void)
 {
 	int logfd;
 	char *ct;
@@ -490,7 +490,7 @@ nolog()
 	}
 }
 
-void
+static void
 finish(int signo __unused)
 {
 	if (!killflg)
@@ -498,13 +498,13 @@ finish(int signo __unused)
 	exit(0);
 }
 
-void
+static void
 badtime()
 {
 	errx(1, "bad time format");
 }
 
-void
+static void
 usage(const char *cp)
 {
 	if (cp != NULL)

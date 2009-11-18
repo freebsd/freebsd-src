@@ -70,7 +70,7 @@ static void	printsize(size_t, off_t);
 static void	endcolor(int);
 static int	colortype(mode_t);
 #endif
-static void	aclmode(char *, const FTSENT *, int *);
+static void	aclmode(char *, const FTSENT *);
 
 #define	IS_NOPRINT(p)	((p)->fts_number == NO_PRINT)
 
@@ -139,16 +139,12 @@ printlong(const DISPLAY *dp)
 #ifdef COLORLS
 	int color_printed = 0;
 #endif
-	int haveacls;
-	dev_t prevdev;
 
 	if ((dp->list == NULL || dp->list->fts_level != FTS_ROOTLEVEL) &&
 	    (f_longform || f_size)) {
 		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
 	}
 
-	haveacls = 1;
-	prevdev = (dev_t)-1;
 	for (p = dp->list; p; p = p->fts_link) {
 		if (IS_NOPRINT(p))
 			continue;
@@ -159,14 +155,7 @@ printlong(const DISPLAY *dp)
 			(void)printf("%*jd ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
 		strmode(sp->st_mode, buf);
-		/*
-		 * Cache whether or not the filesystem supports ACL's to
-		 * avoid expensive syscalls. Try again when we change devices.
-		 */
-		if (haveacls || sp->st_dev != prevdev) {
-			aclmode(buf, p, &haveacls);
-			prevdev = sp->st_dev;
-		}
+		aclmode(buf, p);
 		np = p->fts_pointer;
 		(void)printf("%s %*u %-*s  %-*s  ", buf, dp->s_nlink,
 		    sp->st_nlink, dp->s_user, np->user, dp->s_group,
@@ -612,56 +601,73 @@ printsize(size_t width, off_t bytes)
 		(void)printf("%*jd ", (u_int)width, bytes);
 }
 
+/*
+ * Add a + after the standard rwxrwxrwx mode if the file has an
+ * ACL. strmode() reserves space at the end of the string.
+ */
 static void
-aclmode(char *buf, const FTSENT *p, int *haveacls)
+aclmode(char *buf, const FTSENT *p)
 {
 	char name[MAXPATHLEN + 1];
-	int entries, ret;
+	int ret, trivial;
+	static dev_t previous_dev = NODEV;
+	static int supports_acls = -1;
+	static int type = ACL_TYPE_ACCESS;
 	acl_t facl;
-	acl_entry_t ae;
 
 	/*
-	 * Add a + after the standard rwxrwxrwx mode if the file has an
-	 * extended ACL. strmode() reserves space at the end of the string.
+	 * XXX: ACLs are not supported on whiteouts and device files
+	 * residing on UFS.
 	 */
+	if (S_ISCHR(p->fts_statp->st_mode) || S_ISBLK(p->fts_statp->st_mode) ||
+	    S_ISWHT(p->fts_statp->st_mode))
+		return;
+
+	if (previous_dev == p->fts_statp->st_dev && supports_acls == 0)
+		return;
+
 	if (p->fts_level == FTS_ROOTLEVEL)
 		snprintf(name, sizeof(name), "%s", p->fts_name);
 	else
 		snprintf(name, sizeof(name), "%s/%s",
 		    p->fts_parent->fts_accpath, p->fts_name);
-	/*
-	 * We have no way to tell whether a symbolic link has an ACL since
-	 * pathconf() and acl_get_file() both follow them.  They also don't
-	 * support whiteouts.
-	 */
-	if (S_ISLNK(p->fts_statp->st_mode) || S_ISWHT(p->fts_statp->st_mode)) {
-		*haveacls = 1;
-		return;
-	}
-	if ((ret = pathconf(name, _PC_ACL_EXTENDED)) <= 0) {
-		if (ret < 0 && errno != EINVAL)
+
+	if (previous_dev != p->fts_statp->st_dev) {
+		previous_dev = p->fts_statp->st_dev;
+		supports_acls = 0;
+
+		ret = lpathconf(name, _PC_ACL_NFS4);
+		if (ret > 0) {
+			type = ACL_TYPE_NFS4;
+			supports_acls = 1;
+		} else if (ret < 0 && errno != EINVAL) {
 			warn("%s", name);
-		else
-			*haveacls = 0;
+			return;
+		}
+		if (supports_acls == 0) {
+			ret = lpathconf(name, _PC_ACL_EXTENDED);
+			if (ret > 0) {
+				type = ACL_TYPE_ACCESS;
+				supports_acls = 1;
+			} else if (ret < 0 && errno != EINVAL) {
+				warn("%s", name);
+				return;
+			}
+		}
+	}
+	if (supports_acls == 0)
+		return;
+	facl = acl_get_link_np(name, type);
+	if (facl == NULL) {
+		warn("%s", name);
 		return;
 	}
-	*haveacls = 1;
-	if ((facl = acl_get_file(name, ACL_TYPE_ACCESS)) != NULL) {
-		if (acl_get_entry(facl, ACL_FIRST_ENTRY, &ae) == 1) {
-			entries = 1;
-			while (acl_get_entry(facl, ACL_NEXT_ENTRY, &ae) == 1)
-				if (++entries > 3)
-					break;
-			/*
-			 * POSIX.1e requires that ACLs of type ACL_TYPE_ACCESS
-			 * must have at least three entries (owner, group,
-			 * and other). So anything with more than 3 ACLs looks
-			 * interesting to us.
-			 */
-			if (entries > 3)
-				buf[10] = '+';
-		}
+	if (acl_is_trivial_np(facl, &trivial)) {
 		acl_free(facl);
-	} else
 		warn("%s", name);
+		return;
+	}
+	if (!trivial)
+		buf[10] = '+';
+	acl_free(facl);
 }

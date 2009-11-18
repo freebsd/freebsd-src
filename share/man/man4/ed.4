@@ -425,3 +425,21 @@ driver is slow by today's standards.
 .Pp
 PC Card attachment supports the D-Link DMF650TX LAN/Modem card's Ethernet
 port only at this time.
+.Pp
+Some devices supported by
+.Nm
+do not generate the link state change events used by
+.Xr devd 8
+to start
+.Xr dhclinet 8 .
+If you have problems with
+.Xr dhclient 8
+not starting and the device is always attached to the network it may
+be possible to work around this by changing
+.Dq Li DHCP
+to
+.Dq Li SYNCDHCP
+in the
+.Va ifconfig_ed0
+entry in
+.Pa /etc/rc.conf .

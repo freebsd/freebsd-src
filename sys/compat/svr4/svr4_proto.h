@@ -503,6 +503,12 @@ int	svr4_sys_sendto(struct thread *, struct svr4_sys_sendto_args *);
 
 #endif /* COMPAT_FREEBSD6 */
 
+
+#ifdef COMPAT_FREEBSD7
+
+
+#endif /* COMPAT_FREEBSD7 */
+
 #define	SVR4_SYS_AUE_svr4_sys_open	AUE_NULL
 #define	SVR4_SYS_AUE_svr4_sys_wait	AUE_NULL
 #define	SVR4_SYS_AUE_svr4_sys_creat	AUE_NULL

@@ -394,6 +394,11 @@ AcpiPsExecuteMethod (
         goto Cleanup;
     }
 
+    if (Info->ObjDesc->Method.Flags & AOPOBJ_MODULE_LEVEL)
+    {
+        WalkState->ParseFlags |= ACPI_PARSE_MODULE_LEVEL;
+    }
+
     /* Invoke an internal method if necessary */
 
     if (Info->ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
@@ -417,15 +422,13 @@ AcpiPsExecuteMethod (
     if (AcpiGbl_EnableInterpreterSlack)
     {
         WalkState->ImplicitReturnObj =
-            AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            AcpiUtCreateIntegerObject ((UINT64) 0);
         if (!WalkState->ImplicitReturnObj)
         {
             Status = AE_NO_MEMORY;
             AcpiDsDeleteWalkState (WalkState);
             goto Cleanup;
         }
-
-        WalkState->ImplicitReturnObj->Integer.Value = 0;
     }
 
     /* Parse the AML */

@@ -497,7 +497,9 @@ SYSCTL_VNET_STRUCT(_net_inet6_ip6, IPV6CTL_STATS, stats, CTLFLAG_RD,
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
 	CTLFLAG_RW, &VNET_NAME(ip6_maxfragpackets), 0, "");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
-	CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0, "");
+	CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0,
+	"Default value of per-interface flag for accepting ICMPv6 Router"
+	"Advertisement messages");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&VNET_NAME(ip6_keepfaith), 0, "");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_LOG_INTERVAL, log_interval,
@@ -527,7 +529,9 @@ SYSCTL_VNET_PROC(_net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_V6ONLY, v6only,	CTLFLAG_RW,
 	&VNET_NAME(ip6_v6only), 0, "");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL, auto_linklocal,
-	CTLFLAG_RW, &VNET_NAME(ip6_auto_linklocal), 0, "");
+	CTLFLAG_RW, &VNET_NAME(ip6_auto_linklocal), 0,
+	"Default value of per-interface flag for automatically adding an IPv6"
+	" link-local address to interfaces when attached");
 SYSCTL_VNET_STRUCT(_net_inet6_ip6, IPV6CTL_RIP6STATS, rip6stats, CTLFLAG_RD,
 	&VNET_NAME(rip6stat), rip6stat, "");
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_PREFER_TEMPADDR, prefer_tempaddr,

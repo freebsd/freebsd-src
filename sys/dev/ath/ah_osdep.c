@@ -110,7 +110,7 @@ ath_hal_malloc(size_t size)
 void
 ath_hal_free(void* p)
 {
-	return free(p, M_ATH_HAL);
+	free(p, M_ATH_HAL);
 }
 
 void

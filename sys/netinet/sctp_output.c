@@ -3570,7 +3570,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				ip->ip_src = over_addr->sin.sin_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 		}
 		if (port) {
@@ -3829,7 +3829,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		sin6 = &tmp;
 
 		/* KAME hack: embed scopeid */
-		if (sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
+		if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 			SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 			return (EINVAL);
 		}
@@ -3883,7 +3883,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			if (net->src_addr_selected == 0) {
 				sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
 				/* KAME hack: embed scopeid */
-				if (sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
+				if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 					SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 					return (EINVAL);
 				}
@@ -3906,7 +3906,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		} else {
 			sin6 = (struct sockaddr_in6 *)&ro->ro_dst;
 			/* KAME hack: embed scopeid */
-			if (sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
+			if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 				SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 				return (EINVAL);
 			}
@@ -3924,7 +3924,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				sctp_free_ifa(_lsrc);
 			} else {
 				lsa6->sin6_addr = over_addr->sin6.sin6_addr;
-				SCTP_RTALLOC((&ro->ro_rt), vrf_id);
+				SCTP_RTALLOC(ro, vrf_id);
 			}
 			(void)sa6_recoverscope(sin6);
 		}
@@ -5143,7 +5143,7 @@ do_a_abort:
 					 */
 					(void)sa6_recoverscope(sin6);
 					stc.scope_id = sin6->sin6_scope_id;
-					sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
+					sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone));
 					stc.loopback_scope = 1;
 					stc.local_scope = 0;
 					stc.site_scope = 1;
@@ -5179,7 +5179,7 @@ do_a_abort:
 					 */
 					(void)sa6_recoverscope(sin6);
 					stc.scope_id = sin6->sin6_scope_id;
-					sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
+					sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone));
 				} else if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)) {
 					/*
 					 * If the new destination is
@@ -5602,37 +5602,13 @@ sctp_insert_on_wheel(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_stream_out *strq, int holds_lock)
 {
-	struct sctp_stream_out *stre, *strn;
-
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
-	if ((strq->next_spoke.tqe_next) ||
-	    (strq->next_spoke.tqe_prev)) {
-		/* already on wheel */
-		goto outof_here;
+	if ((strq->next_spoke.tqe_next == NULL) &&
+	    (strq->next_spoke.tqe_prev == NULL)) {
+		TAILQ_INSERT_TAIL(&asoc->out_wheel, strq, next_spoke);
 	}
-	stre = TAILQ_FIRST(&asoc->out_wheel);
-	if (stre == NULL) {
-		/* only one on wheel */
-		TAILQ_INSERT_HEAD(&asoc->out_wheel, strq, next_spoke);
-		goto outof_here;
-	}
-	for (; stre; stre = strn) {
-		strn = TAILQ_NEXT(stre, next_spoke);
-		if (stre->stream_no > strq->stream_no) {
-			TAILQ_INSERT_BEFORE(stre, strq, next_spoke);
-			goto outof_here;
-		} else if (stre->stream_no == strq->stream_no) {
-			/* huh, should not happen */
-			goto outof_here;
-		} else if (strn == NULL) {
-			/* next one is null */
-			TAILQ_INSERT_AFTER(&asoc->out_wheel, stre, strq,
-			    next_spoke);
-		}
-	}
-outof_here:
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
@@ -5645,19 +5621,26 @@ sctp_remove_from_wheel(struct sctp_tcb *stcb,
     int holds_lock)
 {
 	/* take off and then setup so we know it is not on the wheel */
-	if (holds_lock == 0)
+	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
-	if (TAILQ_FIRST(&strq->outqueue)) {
-		/* more was added */
-		if (holds_lock == 0)
-			SCTP_TCB_SEND_UNLOCK(stcb);
-		return;
 	}
-	TAILQ_REMOVE(&asoc->out_wheel, strq, next_spoke);
-	strq->next_spoke.tqe_next = NULL;
-	strq->next_spoke.tqe_prev = NULL;
-	if (holds_lock == 0)
+	if (TAILQ_EMPTY(&strq->outqueue)) {
+		if (asoc->last_out_stream == strq) {
+			asoc->last_out_stream = TAILQ_PREV(asoc->last_out_stream, sctpwheel_listhead, next_spoke);
+			if (asoc->last_out_stream == NULL) {
+				asoc->last_out_stream = TAILQ_LAST(&asoc->out_wheel, sctpwheel_listhead);
+			}
+			if (asoc->last_out_stream == strq) {
+				asoc->last_out_stream = NULL;
+			}
+		}
+		TAILQ_REMOVE(&asoc->out_wheel, strq, next_spoke);
+		strq->next_spoke.tqe_next = NULL;
+		strq->next_spoke.tqe_prev = NULL;
+	}
+	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
+	}
 }
 
 static void
@@ -5892,10 +5875,8 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	sp->strseq = 0;
 	if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 		sp->net = net;
-		sp->addr_over = 1;
 	} else {
 		sp->net = stcb->asoc.primary_destination;
-		sp->addr_over = 0;
 	}
 	atomic_add_int(&sp->net->ref_count, 1);
 	(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
@@ -7069,7 +7050,6 @@ dont_do_it:
 
 	chk->rec.data.timetodrop = sp->ts;
 	chk->flags = sp->act_flags;
-	chk->addr_over = sp->addr_over;
 
 	chk->whoTo = net;
 	atomic_add_int(&chk->whoTo->ref_count, 1);
@@ -7190,22 +7170,14 @@ sctp_select_a_stream(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 	/* Find the next stream to use */
 	if (asoc->last_out_stream == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
-		if (asoc->last_out_stream == NULL) {
-			/* huh nothing on the wheel, TSNH */
-			return (NULL);
+		strq = TAILQ_FIRST(&asoc->out_wheel);
+	} else {
+		strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+		if (strq == NULL) {
+			strq = TAILQ_FIRST(&asoc->out_wheel);
 		}
-		goto done_it;
 	}
-	strq = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
-done_it:
-	if (strq == NULL) {
-		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
-	}
-	/* Save off the last stream */
-	asoc->last_out_stream = strq;
 	return (strq);
-
 }
 
 
@@ -7214,7 +7186,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
     struct sctp_nets *net, int frag_point, int eeor_mode, int *quit_now)
 {
 	struct sctp_association *asoc;
-	struct sctp_stream_out *strq, *strqn, *strqt;
+	struct sctp_stream_out *strq, *strqn;
 	int goal_mtu, moved_how_much, total_moved = 0, bail = 0;
 	int locked, giveup;
 	struct sctp_stream_queue_pending *sp;
@@ -7280,7 +7252,9 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		bail = 0;
 		moved_how_much = sctp_move_to_outqueue(stcb, net, strq, goal_mtu, frag_point, &locked,
 		    &giveup, eeor_mode, &bail);
-		asoc->last_out_stream = strq;
+		if (moved_how_much)
+			asoc->last_out_stream = strq;
+
 		if (locked) {
 			asoc->locked_on_sending = strq;
 			if ((moved_how_much == 0) || (giveup) || bail)
@@ -7288,11 +7262,10 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 				break;
 		} else {
 			asoc->locked_on_sending = NULL;
-			strqt = sctp_select_a_stream(stcb, asoc);
-			if (TAILQ_FIRST(&strq->outqueue) == NULL) {
+			if (TAILQ_EMPTY(&strq->outqueue)) {
 				if (strq == strqn) {
 					/* Must move start to next one */
-					strqn = TAILQ_NEXT(asoc->last_out_stream, next_spoke);
+					strqn = TAILQ_NEXT(strq, next_spoke);
 					if (strqn == NULL) {
 						strqn = TAILQ_FIRST(&asoc->out_wheel);
 						if (strqn == NULL) {
@@ -7305,7 +7278,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 			if ((giveup) || bail) {
 				break;
 			}
-			strq = strqt;
+			strq = sctp_select_a_stream(stcb, asoc);
 			if (strq == NULL) {
 				break;
 			}
@@ -9466,6 +9439,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 
 	if ((un_sent <= 0) &&
 	    (TAILQ_EMPTY(&asoc->control_send_queue)) &&
+	    (TAILQ_EMPTY(&asoc->asconf_send_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0)) {
 		/* Nothing to do unless there is something to be sent left */
 		return;
@@ -10768,7 +10742,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 
 		/* Fill in the IPv6 header for the ABORT */
 		ip6_out->ip6_flow = ip6->ip6_flow;
-		ip6_out->ip6_hlim = MODULE_GLOBAL(MOD_INET6, ip6_defhlim);
+		ip6_out->ip6_hlim = MODULE_GLOBAL(ip6_defhlim);
 		if (port) {
 			ip6_out->ip6_nxt = IPPROTO_UDP;
 		} else {
@@ -11787,7 +11761,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 
 		/* Fill in the IP6 header for the ABORT */
 		ip6_out->ip6_flow = ip6->ip6_flow;
-		ip6_out->ip6_hlim = MODULE_GLOBAL(MOD_INET6, ip6_defhlim);
+		ip6_out->ip6_hlim = MODULE_GLOBAL(ip6_defhlim);
 		if (port) {
 			ip6_out->ip6_nxt = IPPROTO_UDP;
 		} else {
@@ -12014,7 +11988,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 
 		/* Fill in the IP6 header for the ABORT */
 		ip6_out->ip6_flow = ip6->ip6_flow;
-		ip6_out->ip6_hlim = MODULE_GLOBAL(MOD_INET6, ip6_defhlim);
+		ip6_out->ip6_hlim = MODULE_GLOBAL(ip6_defhlim);
 		if (port) {
 			ip6_out->ip6_nxt = IPPROTO_UDP;
 		} else {
@@ -12275,10 +12249,8 @@ skip_copy:
 	} else {
 		if (sp->sinfo_flags & SCTP_ADDR_OVER) {
 			sp->net = net;
-			sp->addr_over = 1;
 		} else {
 			sp->net = asoc->primary_destination;
-			sp->addr_over = 0;
 		}
 		atomic_add_int(&sp->net->ref_count, 1);
 		sctp_set_prsctp_policy(sp);
@@ -12384,8 +12356,8 @@ sctp_lower_sosend(struct socket *so,
 
 	t_inp = inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EFAULT);
-		error = EFAULT;
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+		error = EINVAL;
 		if (i_pak) {
 			SCTP_RELEASE_PKT(i_pak);
 		}
@@ -12432,8 +12404,8 @@ sctp_lower_sosend(struct socket *so,
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 	    (inp->sctp_socket->so_qlimit)) {
 		/* The listener can NOT send */
-		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EFAULT);
-		error = EFAULT;
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, ENOTCONN);
+		error = ENOTCONN;
 		goto out_unlocked;
 	}
 	if ((use_rcvinfo) && srcv) {
@@ -12566,8 +12538,8 @@ sctp_lower_sosend(struct socket *so,
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 			/* Should I really unlock ? */
-			SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EFAULT);
-			error = EFAULT;
+			SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+			error = EINVAL;
 			goto out_unlocked;
 
 		}
@@ -12596,6 +12568,12 @@ sctp_lower_sosend(struct socket *so,
 		}
 	}
 	if (stcb == NULL) {
+		if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+		    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
+			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, ENOTCONN);
+			error = ENOTCONN;
+			goto out_unlocked;
+		}
 		if (addr == NULL) {
 			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, ENOENT);
 			error = ENOENT;
@@ -13759,7 +13737,7 @@ sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t * ro)
 		return (0);
 
 	/* get prefix entry of address */
-	LIST_FOREACH(pfx, &MODULE_GLOBAL(MOD_INET6, nd_prefix), ndpr_entry) {
+	LIST_FOREACH(pfx, &MODULE_GLOBAL(nd_prefix), ndpr_entry) {
 		if (pfx->ndpr_stateflags & NDPRF_DETACHED)
 			continue;
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pfx->ndpr_prefix.sin6_addr,

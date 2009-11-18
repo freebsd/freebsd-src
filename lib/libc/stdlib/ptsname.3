@@ -134,14 +134,22 @@ The slave pseudo-terminal device could not be accessed.
 The
 .Fn ptsname
 function conforms to
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .Pp
 This implementation of
 .Fn grantpt
 and
 .Fn unlockpt
-does not comply with any standard, because these functions assume the
-pseudo-terminal has the correct attributes upon creation.
+does not conform to
+.St -p1003.1-2008 ,
+because it depends on
+.Xr posix_openpt 2
+to create the pseudo-terminal device with proper permissions in place.
+It only validates whether
+.Fa fildes
+is a valid pseudo-terminal master device.
+Future revisions of the specification will likely allow this behaviour,
+as stated by the Austin Group.
 .Sh HISTORY
 The
 .Fn grantpt ,
@@ -150,15 +158,3 @@ and
 .Fn unlockpt
 functions appeared in
 .Fx 5.0 .
-.Sh NOTES
-The purpose of the
-.Fn grantpt
-and
-.Fn unlockpt
-functions has no meaning in
-.Fx ,
-because pseudo-terminals obtained by
-.Xr posix_openpt 2
-are created on demand.
-Because these devices are created with proper permissions in place, they
-are guaranteed to be unused by unprivileged processes.

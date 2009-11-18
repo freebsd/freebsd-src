@@ -202,10 +202,8 @@ again:
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		if (!nortfree) {
+		if (!nortfree)
 			RTFREE(ro->ro_rt);
-			LLE_FREE(ro->ro_lle);
-		}
 		ro->ro_rt = (struct rtentry *)NULL;
 		ro->ro_lle = (struct llentry *)NULL;
 	}
@@ -468,7 +466,7 @@ again:
 
 sendit:
 #ifdef IPSEC
-	switch(ip_ipsec_output(&m, inp, &flags, &error, &ifp)) {
+	switch(ip_ipsec_output(&m, inp, &flags, &error)) {
 	case 1:
 		goto bad;
 	case -1:
@@ -491,12 +489,12 @@ sendit:
 #endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passout;
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	error = pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
+	error = pfil_run_hooks(&V_inet_pfil_hook, &m, ifp, PFIL_OUT, inp);
 	if (error != 0 || m == NULL)
 		goto done;
 

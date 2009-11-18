@@ -94,6 +94,7 @@ struct ucom_callback {
 	void    (*ucom_cfg_set_dtr) (struct ucom_softc *, uint8_t);
 	void    (*ucom_cfg_set_rts) (struct ucom_softc *, uint8_t);
 	void    (*ucom_cfg_set_break) (struct ucom_softc *, uint8_t);
+	void    (*ucom_cfg_set_ring) (struct ucom_softc *, uint8_t);
 	void    (*ucom_cfg_param) (struct ucom_softc *, struct termios *);
 	void    (*ucom_cfg_open) (struct ucom_softc *);
 	void    (*ucom_cfg_close) (struct ucom_softc *);
@@ -105,6 +106,7 @@ struct ucom_callback {
 	void    (*ucom_start_write) (struct ucom_softc *);
 	void    (*ucom_stop_write) (struct ucom_softc *);
 	void    (*ucom_tty_name) (struct ucom_softc *, char *pbuf, uint16_t buflen, uint16_t local_subunit);
+	void    (*ucom_poll) (struct ucom_softc *);
 };
 
 /* Line status register */
@@ -162,13 +164,14 @@ struct ucom_softc {
 	uint32_t sc_unit;
 	uint32_t sc_local_unit;
 	uint16_t sc_portno;
-	uint8_t	sc_flag;
+	uint16_t sc_flag;
 #define	UCOM_FLAG_RTS_IFLOW	0x01	/* use RTS input flow control */
 #define	UCOM_FLAG_GONE		0x02	/* the device is gone */
 #define	UCOM_FLAG_ATTACHED	0x04	/* set if attached */
 #define	UCOM_FLAG_GP_DATA	0x08	/* set if get and put data is possible */
 #define	UCOM_FLAG_LL_READY	0x20	/* set if low layer is ready */
 #define	UCOM_FLAG_HL_READY	0x40	/* set if high layer is ready */
+#define	UCOM_FLAG_CONSOLE	0x80	/* set if device is a console */
 	uint8_t	sc_lsr;
 	uint8_t	sc_msr;
 	uint8_t	sc_mcr;
@@ -180,6 +183,7 @@ struct ucom_softc {
 #define	UCOM_LS_DTR	0x01
 #define	UCOM_LS_RTS	0x02
 #define	UCOM_LS_BREAK	0x04
+#define	UCOM_LS_RING	0x08
 };
 
 #define	ucom_cfg_do_request(udev,com,req,ptr,flags,timo) \

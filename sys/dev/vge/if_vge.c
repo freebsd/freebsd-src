@@ -945,9 +945,6 @@ vge_attach(dev)
 		goto fail;
 	}
 
-	sc->vge_btag = rman_get_bustag(sc->vge_res);
-	sc->vge_bhandle = rman_get_bushandle(sc->vge_res);
-
 	/* Allocate interrupt */
 	rid = 0;
 	sc->vge_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
@@ -966,8 +963,6 @@ vge_attach(dev)
 	 * Get station address from the EEPROM.
 	 */
 	vge_read_eeprom(sc, (caddr_t)eaddr, VGE_EE_EADDR, 3, 0);
-
-	sc->vge_unit = unit;
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -993,7 +988,7 @@ vge_attach(dev)
 
 	ifp = sc->vge_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("vge%d: can not if_alloc()\n", sc->vge_unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -1001,7 +996,7 @@ vge_attach(dev)
 	/* Do MII setup */
 	if (mii_phy_probe(dev, &sc->vge_miibus,
 	    vge_ifmedia_upd, vge_ifmedia_sts)) {
-		printf("vge%d: MII without any phy!\n", sc->vge_unit);
+		device_printf(dev, "MII without any phy!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1736,8 +1731,7 @@ vge_encap(sc, m_head, idx)
 	    m_head, vge_dma_map_tx_desc, &arg, BUS_DMA_NOWAIT);
 
 	if (error && error != EFBIG) {
-		printf("vge%d: can't map mbuf (error %d)\n",
-		    sc->vge_unit, error);
+		if_printf(sc->vge_ifp, "can't map mbuf (error %d)\n", error);
 		return (ENOBUFS);
 	}
 
@@ -1758,8 +1752,8 @@ vge_encap(sc, m_head, idx)
 		error = bus_dmamap_load_mbuf(sc->vge_ldata.vge_mtag, map,
 		    m_head, vge_dma_map_tx_desc, &arg, BUS_DMA_NOWAIT);
 		if (error) {
-			printf("vge%d: can't map mbuf (error %d)\n",
-			    sc->vge_unit, error);
+			if_printf(sc->vge_ifp, "can't map mbuf (error %d)\n",
+			    error);
 			return (EFBIG);
 		}
 	}
@@ -2254,7 +2248,7 @@ vge_watchdog(ifp)
 
 	sc = ifp->if_softc;
 	VGE_LOCK(sc);
-	printf("vge%d: watchdog timeout\n", sc->vge_unit);
+	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
 
 	vge_txeof(sc);

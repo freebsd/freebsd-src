@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ohci.h>
+#include <dev/usb/controller/ohcireg.h>
 
 #define	PCI_OHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_OHCI_VENDORID_AMD		0x1022

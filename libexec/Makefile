@@ -9,7 +9,6 @@ SUBDIR=	${_atrun} \
 	fingerd \
 	ftpd \
 	getty \
-	lukemftpd \
 	${_mail.local} \
 	${_mknetid} \
 	${_pppoed} \

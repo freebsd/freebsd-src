@@ -12,7 +12,7 @@ LDADD+= -lcrypto
 .endif
 CFLAGS+=	-DBSDTAR_VERSION_STRING=\"${BSDTAR_VERSION_STRING}\"
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../../lib/libarchive
 SYMLINKS=	bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
 DEBUG_FLAGS=-g

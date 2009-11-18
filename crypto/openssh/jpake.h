@@ -1,4 +1,4 @@
-/* $OpenBSD: jpake.h,v 1.1 2008/11/04 08:22:13 djm Exp $ */
+/* $OpenBSD: jpake.h,v 1.2 2009/03/05 07:18:19 djm Exp $ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *
@@ -28,20 +28,16 @@
 # define JPAKE_DEBUG_BUF(a)
 # define JPAKE_DEBUG_CTX(a)
 #else
-# define JPAKE_DEBUG_BN(a)	jpake_debug3_bn a
-# define JPAKE_DEBUG_BUF(a)	jpake_debug3_buf a
+# define JPAKE_DEBUG_BN(a)	debug3_bn a
+# define JPAKE_DEBUG_BUF(a)	debug3_buf a
 # define JPAKE_DEBUG_CTX(a)	jpake_dump a
-#endif /* SCHNORR_DEBUG */
-
-struct jpake_group {
-	BIGNUM *p, *q, *g;
-};
+#endif /* JPAKE_DEBUG */
 
 #define KZP_ID_LEN	16	/* Length of client and server IDs */
 
 struct jpake_ctx {
 	/* Parameters */
-	struct jpake_group *grp;
+	struct modp_group *grp;
 
 	/* Private values shared by client and server */
 	BIGNUM *s;			/* Secret (salted, crypted password) */
@@ -83,26 +79,18 @@ struct jpake_ctx {
 };
 
 /* jpake.c */
-struct jpake_group *jpake_default_group(void);
-BIGNUM *bn_rand_range_gt_one(const BIGNUM *high);
-int hash_buffer(const u_char *, u_int, const EVP_MD *, u_char **, u_int *);
-void jpake_debug3_bn(const BIGNUM *, const char *, ...)
-    __attribute__((__nonnull__ (2)))
-    __attribute__((format(printf, 2, 3)));
-void jpake_debug3_buf(const u_char *, u_int, const char *, ...)
-    __attribute__((__nonnull__ (3)))
-    __attribute__((format(printf, 3, 4)));
+struct modp_group *jpake_default_group(void);
 void jpake_dump(struct jpake_ctx *, const char *, ...)
     __attribute__((__nonnull__ (2)))
     __attribute__((format(printf, 2, 3)));
 struct jpake_ctx *jpake_new(void);
 void jpake_free(struct jpake_ctx *);
 
-void jpake_step1(struct jpake_group *, u_char **, u_int *,
+void jpake_step1(struct modp_group *, u_char **, u_int *,
     BIGNUM **, BIGNUM **, BIGNUM **, BIGNUM **,
     u_char **, u_int *, u_char **, u_int *);
 
-void jpake_step2(struct jpake_group *, BIGNUM *,
+void jpake_step2(struct modp_group *, BIGNUM *,
     BIGNUM *, BIGNUM *, BIGNUM *, BIGNUM *,
     const u_char *, u_int, const u_char *, u_int,
     const u_char *, u_int, const u_char *, u_int,
@@ -113,7 +101,7 @@ void jpake_confirm_hash(const BIGNUM *,
     const u_char *, u_int,
     u_char **, u_int *);
 
-void jpake_key_confirm(struct jpake_group *, BIGNUM *, BIGNUM *,
+void jpake_key_confirm(struct modp_group *, BIGNUM *, BIGNUM *,
     BIGNUM *, BIGNUM *, BIGNUM *, BIGNUM *, BIGNUM *,
     const u_char *, u_int, const u_char *, u_int,
     const u_char *, u_int, const u_char *, u_int,
@@ -121,14 +109,6 @@ void jpake_key_confirm(struct jpake_group *, BIGNUM *, BIGNUM *,
 
 int jpake_check_confirm(const BIGNUM *, const u_char *, u_int,
     const u_char *, u_int, const u_char *, u_int);
-
-/* schnorr.c */
-int schnorr_sign(const BIGNUM *, const BIGNUM *, const BIGNUM *,
-    const BIGNUM *, const BIGNUM *, const u_char *, u_int ,
-    u_char **, u_int *);
-int schnorr_verify(const BIGNUM *, const BIGNUM *, const BIGNUM *, 
-    const BIGNUM *, const u_char *, u_int,
-    const u_char *, u_int);
 
 #endif /* JPAKE_H */
 

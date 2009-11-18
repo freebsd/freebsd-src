@@ -31,12 +31,14 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
+#include "opt_teken.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/consio.h>
+#include <sys/kbio.h>
 
 #if defined(__sparc64__) || defined(__powerpc__)
 #include <machine/sc_machdep.h>
@@ -46,19 +48,20 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/syscons/syscons.h>
 
-#include <dev/syscons/teken/teken.h>
+#include <teken/teken.h>
 
 static void scteken_revattr(unsigned char, teken_attr_t *);
 static unsigned int scteken_attr(const teken_attr_t *);
 
-static sc_term_init_t	scteken_init;
-static sc_term_term_t	scteken_term;
-static sc_term_puts_t	scteken_puts;
-static sc_term_ioctl_t	scteken_ioctl;
-static sc_term_default_attr_t scteken_default_attr;
-static sc_term_clear_t	scteken_clear;
-static sc_term_input_t	scteken_input;
-static void		scteken_nop(void);
+static sc_term_init_t		scteken_init;
+static sc_term_term_t		scteken_term;
+static sc_term_puts_t		scteken_puts;
+static sc_term_ioctl_t		scteken_ioctl;
+static sc_term_default_attr_t	scteken_default_attr;
+static sc_term_clear_t		scteken_clear;
+static sc_term_input_t		scteken_input;
+static sc_term_fkeystr_t	scteken_fkeystr;
+static void			scteken_nop(void);
 
 typedef struct {
 	teken_t		ts_teken;
@@ -83,6 +86,7 @@ static sc_term_sw_t sc_term_scteken = {
 	scteken_clear,
 	(sc_term_notify_t *)scteken_nop,
 	scteken_input,
+	scteken_fkeystr,
 };
 
 SCTERM_MODULE(scteken, sc_term_scteken);
@@ -125,14 +129,23 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		/* FALLTHROUGH */
 	case SC_TE_WARM_INIT:
 		teken_init(&ts->ts_teken, &scteken_funcs, scp);
+#ifndef TEKEN_UTF8
+		teken_set_8bit(&ts->ts_teken);
+#endif /* !TEKEN_UTF8 */
+#ifdef TEKEN_CONS25
+		teken_set_cons25(&ts->ts_teken);
+#endif /* TEKEN_CONS25 */
 
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;
 		teken_set_winsize(&ts->ts_teken, &tp);
 
-		tp.tp_row = scp->cursor_pos / scp->xsize;
-		tp.tp_col = scp->cursor_pos % scp->xsize;
-		teken_set_cursor(&ts->ts_teken, &tp);
+		if (scp->cursor_pos < scp->ysize * scp->xsize) {
+			/* Valid old cursor position. */
+			tp.tp_row = scp->cursor_pos / scp->xsize;
+			tp.tp_col = scp->cursor_pos % scp->xsize;
+			teken_set_cursor(&ts->ts_teken, &tp);
+		}
 		break;
 	}
 
@@ -231,6 +244,56 @@ scteken_input(scr_stat *scp, int c, struct tty *tp)
 	return FALSE;
 }
 
+static const char *
+scteken_fkeystr(scr_stat *scp, int c)
+{
+	teken_stat *ts = scp->ts;
+	unsigned int k;
+
+	switch (c) {
+	case FKEY | F(1):  case FKEY | F(2):  case FKEY | F(3):
+	case FKEY | F(4):  case FKEY | F(5):  case FKEY | F(6):
+	case FKEY | F(7):  case FKEY | F(8):  case FKEY | F(9):
+	case FKEY | F(10): case FKEY | F(11): case FKEY | F(12):
+		k = TKEY_F1 + c - (FKEY | F(1));
+		break;
+	case FKEY | F(49):
+		k = TKEY_HOME;
+		break;
+	case FKEY | F(50):
+		k = TKEY_UP;
+		break;
+	case FKEY | F(51):
+		k = TKEY_PAGE_UP;
+		break;
+	case FKEY | F(53):
+		k = TKEY_LEFT;
+		break;
+	case FKEY | F(55):
+		k = TKEY_RIGHT;
+		break;
+	case FKEY | F(57):
+		k = TKEY_END;
+		break;
+	case FKEY | F(58):
+		k = TKEY_DOWN;
+		break;
+	case FKEY | F(59):
+		k = TKEY_PAGE_DOWN;
+		break;
+	case FKEY | F(60):
+		k = TKEY_INSERT;
+		break;
+	case FKEY | F(61):
+		k = TKEY_DELETE;
+		break;
+	default:
+		return (NULL);
+	}
+
+	return (teken_get_sequence(&ts->ts_teken, k));
+}
+
 static void
 scteken_nop(void)
 {
@@ -300,12 +363,20 @@ static unsigned int
 scteken_attr(const teken_attr_t *a)
 {
 	unsigned int attr = 0;
+	teken_color_t fg, bg;
 
+	if (a->ta_format & TF_REVERSE) {
+		fg = teken_256to8(a->ta_bgcolor);
+		bg = teken_256to8(a->ta_fgcolor);
+	} else {
+		fg = teken_256to8(a->ta_fgcolor);
+		bg = teken_256to8(a->ta_bgcolor);
+	}
 	if (a->ta_format & TF_BOLD)
-		attr |= fgcolors_bold[a->ta_fgcolor];
+		attr |= fgcolors_bold[fg];
 	else
-		attr |= fgcolors_normal[a->ta_fgcolor];
-	attr |= bgcolors[a->ta_bgcolor];
+		attr |= fgcolors_normal[fg];
+	attr |= bgcolors[bg];
 
 #ifdef FG_UNDERLINE
 	if (a->ta_format & TF_UNDERLINE)
@@ -626,6 +697,9 @@ scteken_param(void *arg, int cmd, unsigned int value)
 		scp->bell_pitch = TP_SETBELLPD_PITCH(value);
 		scp->bell_duration = TP_SETBELLPD_DURATION(value);
 		break;
+	case TP_MOUSE:
+		scp->mouse_level = value;
+		break;
 	}
 }
 
@@ -634,5 +708,5 @@ scteken_respond(void *arg, const void *buf, size_t len)
 {
 	scr_stat *scp = arg;
 
-	sc_respond(scp, buf, len);
+	sc_respond(scp, buf, len, 0);
 }

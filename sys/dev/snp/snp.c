@@ -192,7 +192,7 @@ snp_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct snp_softc *ss;
 	struct tty *tp;
-	int error, len, i;
+	int error, len;
 	char in[SNP_INPUT_BUFSIZE];
 
 	error = devfs_get_cdevpriv((void **)&ss);
@@ -223,14 +223,9 @@ snp_write(struct cdev *dev, struct uio *uio, int flag)
 		 * because we shouldn't bail out when we're running
 		 * close to the watermarks.
 		 */
-		if (ttydisc_can_bypass(tp)) {
-			ttydisc_rint_bypass(tp, in, len);
-		} else {
-			for (i = 0; i < len; i++)
-				ttydisc_rint(tp, in[i], 0);
-		}
-
+		ttydisc_rint_simple(tp, in, len);
 		ttydisc_rint_done(tp);
+
 		tty_unlock(tp);
 	}
 

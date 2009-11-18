@@ -196,6 +196,7 @@ static void	umodem_cfg_set_break(struct ucom_softc *, uint8_t);
 static void	*umodem_get_desc(struct usb_attach_arg *, uint8_t, uint8_t);
 static usb_error_t umodem_set_comm_feature(struct usb_device *, uint8_t,
 		    uint16_t, uint16_t);
+static void	umodem_poll(struct ucom_softc *ucom);
 
 static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
 
@@ -242,6 +243,7 @@ static const struct ucom_callback umodem_callback = {
 	.ucom_stop_read = &umodem_stop_read,
 	.ucom_start_write = &umodem_start_write,
 	.ucom_stop_write = &umodem_stop_write,
+	.ucom_poll = &umodem_poll,
 };
 
 static device_method_t umodem_methods[] = {
@@ -809,4 +811,11 @@ umodem_detach(device_t dev)
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+static void
+umodem_poll(struct ucom_softc *ucom)
+{
+	struct umodem_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UMODEM_N_TRANSFER);
 }

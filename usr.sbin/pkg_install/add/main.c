@@ -89,7 +89,7 @@ struct {
 	{ 503100, 599000, "/packages-5-stable" },
 	{ 600100, 699000, "/packages-6-stable" },
 	{ 700100, 799000, "/packages-7-stable" },
-	{ 800000, 899000, "/packages-8-stable" },
+	{ 800500, 899000, "/packages-8-stable" },
 	{ 900000, 999000, "/packages-9-current" },
 	{ 0, 9999999, "/packages-current" },
 	{ 0, 0, NULL }

@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/watchdog.h>
 
+#include <isa/isavar.h>
 #include <dev/pci/pcivar.h>
 
 #include <dev/ichwd/ichwd.h>
@@ -393,7 +394,9 @@ static int
 ichwd_probe(device_t dev)
 {
 
-	(void)dev;
+	/* Do not claim some ISA PnP device by accident. */
+	if (isa_get_logicalid(dev) != 0)
+		return (ENXIO);
 	return (0);
 }
 
@@ -465,7 +468,7 @@ ichwd_attach(device_t dev)
 	if (ichwd_clear_noreboot(sc) != 0)
 		goto fail;
 
-	device_printf(dev, "%s (ICH%d or equivalent)\n",
+	ichwd_verbose_printf(dev, "%s (ICH%d or equivalent)\n",
 	    device_get_desc(dev), sc->ich_version);
 
 	/*
@@ -553,23 +556,4 @@ static driver_t ichwd_driver = {
 	sizeof(struct ichwd_softc),
 };
 
-static int
-ichwd_modevent(module_t mode, int type, void *data)
-{
-	int error = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		printf("ichwd module loaded\n");
-		break;
-	case MOD_UNLOAD:
-		printf("ichwd module unloaded\n");
-		break;
-	case MOD_SHUTDOWN:
-		printf("ichwd module shutting down\n");
-		break;
-	}
-	return (error);
-}
-
-DRIVER_MODULE(ichwd, isa, ichwd_driver, ichwd_devclass, ichwd_modevent, NULL);
+DRIVER_MODULE(ichwd, isa, ichwd_driver, ichwd_devclass, NULL, NULL);

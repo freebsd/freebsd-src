@@ -41,21 +41,31 @@ __FBSDID("$FreeBSD$");
  * remove ACL entries from an ACL
  */
 int
-remove_acl(acl_t acl, acl_t *prev_acl)
+remove_acl(acl_t acl, acl_t *prev_acl, const char *filename)
 {
 	acl_entry_t	entry;
 	acl_t		acl_new;
 	acl_tag_t	tag;
-	int		carried_error, entry_id;
+	int		carried_error, entry_id, acl_brand, prev_acl_brand;
 
 	carried_error = 0;
 
-	if (acl_type == ACL_TYPE_ACCESS)
-		acl_new = acl_dup(prev_acl[ACCESS_ACL]);
-	else
-		acl_new = acl_dup(prev_acl[DEFAULT_ACL]);
+	acl_get_brand_np(acl, &acl_brand);
+	acl_get_brand_np(*prev_acl, &prev_acl_brand);
+
+	if (acl_brand != prev_acl_brand) {
+		warnx("%s: branding mismatch; existing ACL is %s, "
+		    "entry to be removed is %s", filename,
+		    prev_acl_brand == ACL_BRAND_NFS4 ? "NFSv4" : "POSIX.1e",
+		    acl_brand == ACL_BRAND_NFS4 ? "NFSv4" : "POSIX.1e");
+		return (-1);
+	}
+
+	carried_error = 0;
+
+	acl_new = acl_dup(*prev_acl);
 	if (acl_new == NULL)
-		err(1, "acl_dup() failed");
+		err(1, "%s: acl_dup() failed", filename);
 
 	tag = ACL_UNDEFINED_TAG;
 
@@ -64,22 +74,67 @@ remove_acl(acl_t acl, acl_t *prev_acl)
 	while (acl_get_entry(acl, entry_id, &entry) == 1) {
 		entry_id = ACL_NEXT_ENTRY;
 		if (acl_get_tag_type(entry, &tag) == -1)
-			err(1, "acl_get_tag_type() failed");
+			err(1, "%s: acl_get_tag_type() failed", filename);
 		if (tag == ACL_MASK)
 			have_mask++;
 		if (acl_delete_entry(acl_new, entry) == -1) {
 			carried_error++;
-			warnx("cannot remove non-existent acl entry");
+			warnx("%s: cannot remove non-existent ACL entry",
+			    filename);
 		}
 	}
 
-	if (acl_type == ACL_TYPE_ACCESS) {
-		acl_free(prev_acl[ACCESS_ACL]);
-		prev_acl[ACCESS_ACL] = acl_new;
-	} else {
-		acl_free(prev_acl[DEFAULT_ACL]);
-		prev_acl[DEFAULT_ACL] = acl_new;
+	acl_free(*prev_acl);
+	*prev_acl = acl_new;
+
+	if (carried_error)
+		return (-1);
+
+	return (0);
+}
+
+int
+remove_by_number(uint entry_number, acl_t *prev_acl, const char *filename)
+{
+	acl_entry_t	entry;
+	acl_t		acl_new;
+	acl_tag_t	tag;
+	int		carried_error, entry_id;
+	uint		i;
+
+	carried_error = 0;
+
+	acl_new = acl_dup(*prev_acl);
+	if (acl_new == NULL)
+		err(1, "%s: acl_dup() failed", filename);
+
+	tag = ACL_UNDEFINED_TAG;
+
+	/*
+	 * Find out whether we're removing the mask entry,
+	 * to behave the same as the routine above.
+	 *
+	 * XXX: Is this loop actually needed?
+	 */
+	entry_id = ACL_FIRST_ENTRY;
+	i = 0;
+	while (acl_get_entry(acl_new, entry_id, &entry) == 1) {
+		entry_id = ACL_NEXT_ENTRY;
+		if (i != entry_number)
+			continue;
+		if (acl_get_tag_type(entry, &tag) == -1)
+			err(1, "%s: acl_get_tag_type() failed", filename);
+		if (tag == ACL_MASK)
+			have_mask++;
 	}
+
+	if (acl_delete_entry_np(acl_new, entry_number) == -1) {
+		carried_error++;
+		warn("%s: acl_delete_entry_np() failed", filename);
+	}
+
+	acl_free(*prev_acl);
+	*prev_acl = acl_new;
 
 	if (carried_error)
 		return (-1);
@@ -91,18 +146,14 @@ remove_acl(acl_t acl, acl_t *prev_acl)
  * remove default entries
  */
 int
-remove_default(acl_t *prev_acl)
+remove_default(acl_t *prev_acl, const char *filename)
 {
 
-	if (prev_acl[1]) {
-		acl_free(prev_acl[1]);
-		prev_acl[1] = acl_init(ACL_MAX_ENTRIES);
-		if (prev_acl[1] == NULL)
-			err(1, "acl_init() failed");
-	} else {
-		warn("cannot remove default ACL");
-		return (-1);
-	}
+	acl_free(*prev_acl);
+	*prev_acl = acl_init(ACL_MAX_ENTRIES);
+	if (*prev_acl == NULL)
+		err(1, "%s: acl_init() failed", filename);
+
 	return (0);
 }
 
@@ -110,71 +161,14 @@ remove_default(acl_t *prev_acl)
  * remove extended entries
  */
 void
-remove_ext(acl_t *prev_acl)
+remove_ext(acl_t *prev_acl, const char *filename)
 {
-	acl_t acl_new, acl_old;
-	acl_entry_t entry, entry_new;
-	acl_permset_t perm;
-	acl_tag_t tag;
-	int entry_id, have_mask_entry;
+	acl_t acl_new;
 
-	if (acl_type == ACL_TYPE_ACCESS)
-		acl_old = acl_dup(prev_acl[ACCESS_ACL]);
-	else
-		acl_old = acl_dup(prev_acl[DEFAULT_ACL]);
-	if (acl_old == NULL)
-		err(1, "acl_dup() failed");
-
-	have_mask_entry = 0;
-	acl_new = acl_init(ACL_MAX_ENTRIES);
+	acl_new = acl_strip_np(*prev_acl, !n_flag);
 	if (acl_new == NULL)
-		err(1, "acl_init() failed");
-	tag = ACL_UNDEFINED_TAG;
+		err(1, "%s: acl_strip_np() failed", filename);
 
-	/* only save the default user/group/other entries */
-	entry_id = ACL_FIRST_ENTRY;
-	while (acl_get_entry(acl_old, entry_id, &entry) == 1) {
-		entry_id = ACL_NEXT_ENTRY;
-
-		if (acl_get_tag_type(entry, &tag) == -1)
-			err(1, "acl_get_tag_type() failed");
-
-		switch(tag) {
-		case ACL_USER_OBJ:
-		case ACL_GROUP_OBJ:
-		case ACL_OTHER:
-			if (acl_get_tag_type(entry, &tag) == -1)
-				err(1, "acl_get_tag_type() failed");
-			if (acl_get_permset(entry, &perm) == -1)
-				err(1, "acl_get_permset() failed");
-			if (acl_create_entry(&acl_new, &entry_new) == -1)
-				err(1, "acl_create_entry() failed");
-			if (acl_set_tag_type(entry_new, tag) == -1)
-				err(1, "acl_set_tag_type() failed");
-			if (acl_set_permset(entry_new, perm) == -1)
-				err(1, "acl_get_permset() failed");
-			if (acl_copy_entry(entry_new, entry) == -1)
-				err(1, "acl_copy_entry() failed");
-			break;
-		case ACL_MASK:
-			have_mask_entry = 1;
-			break;
-		default:
-			break;
-		}
-	}
-	if (have_mask_entry && n_flag == 0) {
-		if (acl_calc_mask(&acl_new) == -1)
-			err(1, "acl_calc_mask() failed");
-	} else {
-		have_mask = 1;
-	}
-
-	if (acl_type == ACL_TYPE_ACCESS) {
-		acl_free(prev_acl[ACCESS_ACL]);
-		prev_acl[ACCESS_ACL] = acl_new;
-	} else {
-		acl_free(prev_acl[DEFAULT_ACL]);
-		prev_acl[DEFAULT_ACL] = acl_new;
-	}
+	acl_free(*prev_acl);
+	*prev_acl = acl_new;
 }

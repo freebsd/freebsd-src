@@ -255,7 +255,7 @@ acpi_cpu_probe(device_t dev)
 
     /* Mark this processor as in-use and save our derived id for attach. */
     cpu_softc[cpu_id] = (void *)1;
-    acpi_set_magic(dev, cpu_id);
+    acpi_set_private(dev, (void*)(intptr_t)cpu_id);
     device_set_desc(dev, "ACPI CPU");
 
     return (0);
@@ -286,7 +286,7 @@ acpi_cpu_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->cpu_dev = dev;
     sc->cpu_handle = acpi_get_handle(dev);
-    cpu_id = acpi_get_magic(dev);
+    cpu_id = (int)(intptr_t)acpi_get_private(dev);
     cpu_softc[cpu_id] = sc;
     pcpu_data = pcpu_find(cpu_id);
     pcpu_data->pc_device = dev;
@@ -940,7 +940,7 @@ acpi_cpu_idle()
      * get the time very close to the CPU start/stop clock logic, this
      * is the only reliable time source.
      */
-    AcpiRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
     CPU_GET_REG(cx_next->p_lvlx, 1);
 
     /*
@@ -949,8 +949,8 @@ acpi_cpu_idle()
      * the processor has stopped.  Doing it again provides enough
      * margin that we are certain to have a correct value.
      */
-    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-    AcpiRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
 
     /* Enable bus master arbitration and disable bus master wakeup. */
     if (cx_next->type == ACPI_STATE_C3 &&

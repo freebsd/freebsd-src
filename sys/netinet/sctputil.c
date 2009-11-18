@@ -1446,6 +1446,7 @@ sctp_timeout_handler(void *t)
 	inp = (struct sctp_inpcb *)tmr->ep;
 	stcb = (struct sctp_tcb *)tmr->tcb;
 	net = (struct sctp_nets *)tmr->net;
+	CURVNET_SET((struct vnet *)tmr->vnet);
 	did_output = 1;
 
 #ifdef SCTP_AUDITING_ENABLED
@@ -1459,6 +1460,7 @@ sctp_timeout_handler(void *t)
 		 * SCTP_PRINTF("Stale SCTP timer fired (%p), ignoring...\n",
 		 * tmr);
 		 */
+		CURVNET_RESTORE();
 		return;
 	}
 	tmr->stopped_from = 0xa001;
@@ -1467,10 +1469,12 @@ sctp_timeout_handler(void *t)
 		 * SCTP_PRINTF("SCTP timer fired with invalid type: 0x%x\n",
 		 * tmr->type);
 		 */
+		CURVNET_RESTORE();
 		return;
 	}
 	tmr->stopped_from = 0xa002;
 	if ((tmr->type != SCTP_TIMER_TYPE_ADDR_WQ) && (inp == NULL)) {
+		CURVNET_RESTORE();
 		return;
 	}
 	/* if this is an iterator timeout, get the struct and clear inp */
@@ -1494,6 +1498,7 @@ sctp_timeout_handler(void *t)
 		    (tmr->type != SCTP_TIMER_TYPE_ASOCKILL))
 		    ) {
 			SCTP_INP_DECR_REF(inp);
+			CURVNET_RESTORE();
 			return;
 		}
 	}
@@ -1505,6 +1510,7 @@ sctp_timeout_handler(void *t)
 			if (inp) {
 				SCTP_INP_DECR_REF(inp);
 			}
+			CURVNET_RESTORE();
 			return;
 		}
 	}
@@ -1517,6 +1523,7 @@ sctp_timeout_handler(void *t)
 		if (stcb) {
 			atomic_add_int(&stcb->asoc.refcnt, -1);
 		}
+		CURVNET_RESTORE();
 		return;
 	}
 	tmr->stopped_from = 0xa006;
@@ -1531,6 +1538,7 @@ sctp_timeout_handler(void *t)
 			if (inp) {
 				SCTP_INP_DECR_REF(inp);
 			}
+			CURVNET_RESTORE();
 			return;
 		}
 	}
@@ -1903,6 +1911,7 @@ out_decr:
 out_no_decr:
 	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type %d)\n",
 	    type);
+	CURVNET_RESTORE();
 }
 
 void
@@ -2263,6 +2272,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	tmr->tcb = (void *)stcb;
 	tmr->net = (void *)net;
 	tmr->self = (void *)tmr;
+	tmr->vnet = (void *)curvnet;
 	tmr->ticks = sctp_get_tick_count();
 	(void)SCTP_OS_TIMER_START(&tmr->timer, to_ticks, sctp_timeout_handler, tmr);
 	return;
@@ -4781,7 +4791,6 @@ next_on_sent:
 					chk->rec.data.payloadtype = sp->ppid;
 					chk->rec.data.context = sp->context;
 					chk->flags = sp->act_flags;
-					chk->addr_over = sp->addr_over;
 					chk->whoTo = sp->net;
 					atomic_add_int(&chk->whoTo->ref_count, 1);
 					chk->rec.data.TSN_seq = atomic_fetchadd_int(&stcb->asoc.sending_seq, 1);
@@ -6146,11 +6155,11 @@ sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id)
 	 * newest first :-0
 	 */
 	LIST_INSERT_HEAD(&SCTP_BASE_INFO(addr_wq), wi, sctp_nxt_addr);
+	SCTP_IPI_ITERATOR_WQ_UNLOCK();
 	sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 	    (struct sctp_inpcb *)NULL,
 	    (struct sctp_tcb *)NULL,
 	    (struct sctp_nets *)NULL);
-	SCTP_IPI_ITERATOR_WQ_UNLOCK();
 	return (0);
 }
 

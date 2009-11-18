@@ -624,10 +624,11 @@ usb_start_wait_urb(struct urb *urb, usb_timeout_t timeout, uint16_t *p_actlen)
 done:
 	if (do_unlock)
 		mtx_unlock(&Giant);
-	if (err) {
-		*p_actlen = 0;
-	} else {
-		*p_actlen = urb->actual_length;
+	if (p_actlen != NULL) {
+		if (err)
+			*p_actlen = 0;
+		else
+			*p_actlen = urb->actual_length;
 	}
 	return (err);
 }
@@ -1362,8 +1363,17 @@ usb_linux_isoc_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			for (x = 0; x < urb->number_of_packets; x++) {
 				uipd = urb->iso_frame_desc + x;
+				if (uipd->length > xfer->frlengths[x]) {
+					if (urb->transfer_flags & URB_SHORT_NOT_OK) {
+						/* XXX should be EREMOTEIO */
+						uipd->status = -EPIPE;
+					} else {
+						uipd->status = 0;
+					}
+				} else {
+					uipd->status = 0;
+				}
 				uipd->actual_length = xfer->frlengths[x];
-				uipd->status = 0;
 				if (!xfer->flags.ext_buffer) {
 					usbd_copy_out(xfer->frbuffers, offset,
 					    USB_ADD_BYTES(urb->transfer_buffer,
@@ -1385,8 +1395,8 @@ usb_linux_isoc_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (xfer->actlen < xfer->sumlen) {
 			/* short transfer */
 			if (urb->transfer_flags & URB_SHORT_NOT_OK) {
-				urb->status = -EPIPE;	/* XXX should be
-							 * EREMOTEIO */
+				/* XXX should be EREMOTEIO */
+				urb->status = -EPIPE;
 			} else {
 				urb->status = 0;
 			}
@@ -1482,6 +1492,7 @@ tr_setup:
 		/* Set zero for "actual_length" */
 		for (x = 0; x < urb->number_of_packets; x++) {
 			urb->iso_frame_desc[x].actual_length = 0;
+			urb->iso_frame_desc[x].status = urb->status;
 		}
 
 		/* call callback */
@@ -1662,4 +1673,59 @@ setup_bulk:
 		}
 		goto tr_setup;
 	}
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_fill_bulk_urb
+ *------------------------------------------------------------------------*/
+void
+usb_fill_bulk_urb(struct urb *urb, struct usb_device *udev,
+    struct usb_host_endpoint *uhe, void *buf,
+    int length, usb_complete_t callback, void *arg)
+{
+	urb->dev = udev;
+	urb->endpoint = uhe;
+	urb->transfer_buffer = buf;
+	urb->transfer_buffer_length = length;
+	urb->complete = callback;
+	urb->context = arg;
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_bulk_msg
+ *
+ * NOTE: This function can also be used for interrupt endpoints!
+ *
+ * Return values:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+int
+usb_bulk_msg(struct usb_device *udev, struct usb_host_endpoint *uhe,
+    void *data, int len, uint16_t *pactlen, usb_timeout_t timeout)
+{
+	struct urb *urb;
+	int err;
+
+	if (uhe == NULL)
+		return (-EINVAL);
+	if (len < 0)
+		return (-EINVAL);
+
+	err = usb_setup_endpoint(udev, uhe, 4096 /* bytes */);
+	if (err)
+		return (err);
+
+	urb = usb_alloc_urb(0, 0);
+	if (urb == NULL)
+		return (-ENOMEM);
+
+        usb_fill_bulk_urb(urb, udev, uhe, data, len,
+	    usb_linux_wait_complete, NULL);
+
+	err = usb_start_wait_urb(urb, timeout, pactlen);
+
+	usb_free_urb(urb);
+
+	return (err);
 }

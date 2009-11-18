@@ -101,14 +101,16 @@ checks the core dump in various ways to make sure that it is complete.
 If it passes these checks, it saves the core image in
 .Ar directory Ns Pa /vmcore.#
 and information about the core in
-.Ar directory Ns Pa /info.#
+.Ar directory Ns Pa /info.# .
 For kernel textdumps generated with the
 .Xr textdump 4
 facility, output will be stored in the
 .Xr tar 5
 format and named
-.Ar director Ns Pa /textdump.tar.#
-The ``#'' is the number from the first line of the file
+.Ar directory Ns Pa /textdump.tar.# .
+The
+.Dq #
+is the number from the first line of the file
 .Ar directory Ns Pa /bounds ,
 and it is incremented and stored back into the file each time
 .Nm

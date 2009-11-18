@@ -47,8 +47,8 @@
 #include <unistd.h>
 #include <err.h>
 
-#include "../../sys/net80211/ieee80211_ioctl.h"
-#include "../../sys/net80211/ieee80211_radiotap.h"
+#include "../../../../sys/net80211/ieee80211_ioctl.h"
+#include "../../../../sys/net80211/ieee80211_radiotap.h"
 
 /*
  * Get Hardware Statistics.

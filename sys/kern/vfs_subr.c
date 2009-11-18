@@ -3520,6 +3520,9 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 	accmode_t dac_granted;
 	accmode_t priv_granted;
 
+	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
+	    ("invalid bit in accmode"));
+
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
 	 * as requested.  If it exists, go with that.
@@ -4002,8 +4005,12 @@ static int	filt_fsattach(struct knote *kn);
 static void	filt_fsdetach(struct knote *kn);
 static int	filt_fsevent(struct knote *kn, long hint);
 
-struct filterops fs_filtops =
-	{ 0, filt_fsattach, filt_fsdetach, filt_fsevent };
+struct filterops fs_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_fsattach,
+	.f_detach = filt_fsdetach,
+	.f_event = filt_fsevent
+};
 
 static int
 filt_fsattach(struct knote *kn)
@@ -4076,12 +4083,21 @@ static int	filt_vfsread(struct knote *kn, long hint);
 static int	filt_vfswrite(struct knote *kn, long hint);
 static int	filt_vfsvnode(struct knote *kn, long hint);
 static void	filt_vfsdetach(struct knote *kn);
-static struct filterops vfsread_filtops =
-	{ 1, NULL, filt_vfsdetach, filt_vfsread };
-static struct filterops vfswrite_filtops =
-	{ 1, NULL, filt_vfsdetach, filt_vfswrite };
-static struct filterops vfsvnode_filtops =
-	{ 1, NULL, filt_vfsdetach, filt_vfsvnode };
+static struct filterops vfsread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_vfsdetach,
+	.f_event = filt_vfsread
+};
+static struct filterops vfswrite_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_vfsdetach,
+	.f_event = filt_vfswrite
+};
+static struct filterops vfsvnode_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_vfsdetach,
+	.f_event = filt_vfsvnode
+};
 
 static void
 vfs_knllock(void *arg)
@@ -4269,8 +4285,12 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 void
 vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 {
+	struct mount *mp;
 
-	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
+	mp = vp->v_mount;
+	VFS_ASSERT_GIANT(mp);
+	ASSERT_VOP_LOCKED(vp, "vfs_mark_atime");
+	if (mp != NULL && (mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		(void)VOP_MARKATIME(vp);
 }
 

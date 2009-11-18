@@ -343,6 +343,17 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			break;
 		}
 		if (IS_FC(isp)) {
+			/*
+			 * We don't really support dual role at present on FC cards.
+			 *
+			 * We should, but a bunch of things are currently broken,
+			 * so don't allow it.
+			 */
+			if (nr == ISP_ROLE_BOTH) {
+				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
+				retval = EINVAL;
+				break;
+			}
 			*(int *)addr = FCPARAM(isp, chan)->role;
 #ifdef	ISP_INTERNAL_TARGET
 			ISP_LOCK(isp);
@@ -2943,8 +2954,8 @@ isp_target_mark_aborted_early(ispsoftc_t *isp, tstate_t *tptr, uint32_t tag_id)
 
 #ifdef	ISP_INTERNAL_TARGET
 // #define	ISP_FORCE_TIMEOUT		1
-#define	ISP_TEST_WWNS			1
-#define	ISP_TEST_SEPARATE_STATUS	1
+// #define	ISP_TEST_WWNS			1
+// #define	ISP_TEST_SEPARATE_STATUS	1
 
 #define	ccb_data_offset		ppriv_field0
 #define	ccb_atio		ppriv_ptr1
@@ -4238,6 +4249,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_disable_lun(isp, ccb);
 		}
 		break;
+	case XPT_IMMED_NOTIFY:
 	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
@@ -4287,11 +4299,19 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h, sim_links.sle);
 			ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
 			    ((struct ccb_immediate_notify *)ccb)->seq_id, tptr->inot_count);
+		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+			tptr->inot_count++;
+			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h, sim_links.sle);
+			ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
+			    ((struct ccb_immediate_notify *)ccb)->seq_id, tptr->inot_count);
 		}
 		rls_lun_statep(isp, tptr);
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		break;
 	}
+	case XPT_NOTIFY_ACK:
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		break;
 	case XPT_NOTIFY_ACKNOWLEDGE:		/* notify ack */
 	{
 		tstate_t *tptr;
@@ -4601,10 +4621,21 @@ isp_prt(isp, ISP_LOGALL, "Setting Channel %d wwns to 0x%jx 0x%jx", bus, fcp->isp
 				}
 				break;
 			case KNOB_ROLE_BOTH:
+#if 0
 				if (fcp->role != ISP_ROLE_BOTH) {
 					rchange = 1;
 					newrole = ISP_ROLE_BOTH;
 				}
+#else
+				/*
+				 * We don't really support dual role at present on FC cards.
+				 *
+				 * We should, but a bunch of things are currently broken,
+				 * so don't allow it.
+				 */
+				isp_prt(isp, ISP_LOGERR, "cannot support dual role at present");
+				ccb->ccb_h.status = CAM_REQ_INVALID;
+#endif
 				break;
 			}
 			if (rchange) {

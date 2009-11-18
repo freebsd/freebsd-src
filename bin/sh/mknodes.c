@@ -248,8 +248,11 @@ output(char *file)
 	fputs("\tstruct nodelist *next;\n", hfile);
 	fputs("\tunion node *n;\n", hfile);
 	fputs("};\n\n\n", hfile);
-	fputs("union node *copyfunc(union node *);\n", hfile);
-	fputs("void freefunc(union node *);\n", hfile);
+	fputs("struct funcdef;\n", hfile);
+	fputs("struct funcdef *copyfunc(union node *);\n", hfile);
+	fputs("union node *getfuncnode(struct funcdef *);\n", hfile);
+	fputs("void reffunc(struct funcdef *);\n", hfile);
+	fputs("void unreffunc(struct funcdef *);\n", hfile);
 
 	fputs(writer, cfile);
 	while (fgets(line, sizeof line, patfile) != NULL) {

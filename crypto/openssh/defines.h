@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.153 2009/02/01 11:19:54 dtucker Exp $ */
+/* $Id: defines.h,v 1.156 2009/08/28 01:21:07 dtucker Exp $ */
 
 
 /* Constants */
@@ -299,6 +299,9 @@ struct	sockaddr_un {
 
 #ifndef HAVE_IN_ADDR_T
 typedef u_int32_t	in_addr_t;
+#endif
+#ifndef HAVE_IN_PORT_T
+typedef u_int16_t	in_port_t;
 #endif
 
 #if defined(BROKEN_SYS_TERMIO_H) && !defined(_STRUCT_WINSIZE)
@@ -591,6 +594,10 @@ struct winsize {
 #define FSID_TO_ULONG(f) \
 	((((u_int64_t)(f).val[0] & 0xffffffffUL) << 32) | \
 	    ((f).val[1] & 0xffffffffUL))
+#elif defined(FSID_HAS___VAL)
+#define FSID_TO_ULONG(f) \
+	((((u_int64_t)(f).__val[0] & 0xffffffffUL) << 32) | \
+	    ((f).__val[1] & 0xffffffffUL))
 #else
 # define FSID_TO_ULONG(f) ((f))
 #endif
@@ -740,6 +747,10 @@ struct winsize {
 
 #ifndef INET6_ADDRSTRLEN	/* for non IPv6 machines */
 #define INET6_ADDRSTRLEN 46
+#endif
+
+#ifndef SSH_IOBUFSZ
+# define SSH_IOBUFSZ 8192
 #endif
 
 #endif /* _DEFINES_H */

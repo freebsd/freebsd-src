@@ -62,12 +62,12 @@ ixp425_md_attach(device_t dev)
 	/* PCI Reset Assert */
 	reg = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPOUTR);
 	reg &= ~(1U << GPIO_PCI_RESET);
-	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOUTR, reg & ~(1U << GPIO_PCI_RESET));
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOUTR, reg);
 
 	/* PCI Clock Disable */
 	reg = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPCLKR);
 	reg &= ~GPCLKR_MUX14;
-	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPCLKR, reg & ~GPCLKR_MUX14);
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPCLKR, reg);
 
 	/*
 	 * set GPIO Direction

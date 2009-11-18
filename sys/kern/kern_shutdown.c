@@ -581,6 +581,10 @@ panic(const char *fmt, ...)
 
 /*
  * Support for poweroff delay.
+ *
+ * Please note that setting this delay too short might power off your machine
+ * before the write cache on your hard disk has been flushed, leading to
+ * soft-updates inconsistencies.
  */
 #ifndef POWEROFF_DELAY
 # define POWEROFF_DELAY 5000
@@ -614,16 +618,14 @@ void
 kproc_shutdown(void *arg, int howto)
 {
 	struct proc *p;
-	char procname[MAXCOMLEN + 1];
 	int error;
 
 	if (panicstr)
 		return;
 
 	p = (struct proc *)arg;
-	strlcpy(procname, p->p_comm, sizeof(procname));
 	printf("Waiting (max %d seconds) for system process `%s' to stop...",
-	    kproc_shutdown_wait, procname);
+	    kproc_shutdown_wait, p->p_comm);
 	error = kproc_suspend(p, kproc_shutdown_wait * hz);
 
 	if (error == EWOULDBLOCK)
@@ -636,16 +638,14 @@ void
 kthread_shutdown(void *arg, int howto)
 {
 	struct thread *td;
-	char procname[MAXCOMLEN + 1];
 	int error;
 
 	if (panicstr)
 		return;
 
 	td = (struct thread *)arg;
-	strlcpy(procname, td->td_name, sizeof(procname));
 	printf("Waiting (max %d seconds) for system thread `%s' to stop...",
-	    kproc_shutdown_wait, procname);
+	    kproc_shutdown_wait, td->td_name);
 	error = kthread_suspend(td, kproc_shutdown_wait * hz);
 
 	if (error == EWOULDBLOCK)

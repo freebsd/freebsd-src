@@ -421,6 +421,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	struct vnode *vp;
 	int error, flg, tmp;
 	int vfslocked;
+	u_int old, new;
+	uint64_t bsize;
 
 	vfslocked = 0;
 	error = 0;
@@ -686,6 +688,48 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		vfslocked = 0;
 		fdrop(fp, td);
 		break;
+
+	case F_RDAHEAD:
+		arg = arg ? 128 * 1024: 0;
+		/* FALLTHROUGH */
+	case F_READAHEAD:
+		FILEDESC_SLOCK(fdp);
+		if ((fp = fdtofp(fd, fdp)) == NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
+		if (fp->f_type != DTYPE_VNODE) {
+			FILEDESC_SUNLOCK(fdp);
+			error = EBADF;
+			break;
+		}
+		fhold(fp);
+		FILEDESC_SUNLOCK(fdp);
+		if (arg != 0) {
+			vp = fp->f_vnode;
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			error = vn_lock(vp, LK_SHARED);
+			if (error != 0)
+				goto readahead_vnlock_fail;
+			bsize = fp->f_vnode->v_mount->mnt_stat.f_iosize;
+			VOP_UNLOCK(vp, 0);
+			fp->f_seqcount = (arg + bsize - 1) / bsize;
+			do {
+				new = old = fp->f_flag;
+				new |= FRDAHEAD;
+			} while (atomic_cmpset_rel_int(&fp->f_flag, old, new) == 0);
+readahead_vnlock_fail:
+			VFS_UNLOCK_GIANT(vfslocked);
+		} else {
+			do {
+				new = old = fp->f_flag;
+				new &= ~FRDAHEAD;
+			} while (atomic_cmpset_rel_int(&fp->f_flag, old, new) == 0);
+		}
+		fdrop(fp, td);
+		break;
+
 	default:
 		error = EINVAL;
 		break;

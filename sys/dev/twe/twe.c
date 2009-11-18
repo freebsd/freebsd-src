@@ -487,7 +487,7 @@ twe_dump_blocks(struct twe_softc *sc, int unit,	u_int32_t lba, void *data, int n
  * Handle controller-specific control operations.
  */
 int
-twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
+twe_ioctl(struct twe_softc *sc, u_long ioctlcmd, void *addr)
 {
     struct twe_usercommand	*tu = (struct twe_usercommand *)addr;
     struct twe_paramcommand	*tp = (struct twe_paramcommand *)addr;

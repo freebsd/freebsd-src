@@ -38,6 +38,18 @@
 #define	CDCE_FRAMES_MAX	8		/* units */
 #define	CDCE_IND_SIZE_MAX 32            /* bytes */
 
+#define	CDCE_NCM_TX_MAXLEN 2048UL	/* bytes */
+#define	CDCE_NCM_TX_FRAMES_MAX 8	/* units */
+
+#define	CDCE_NCM_RX_MAXLEN (1UL << 14)	/* bytes */
+#define	CDCE_NCM_RX_FRAMES_MAX 1	/* units */
+
+#define	CDCE_NCM_SUBFRAMES_MAX 32	/* units */
+
+#ifndef CDCE_HAVE_NCM
+#define	CDCE_HAVE_NCM 1
+#endif
+
 enum {
 	CDCE_BULK_RX,
 	CDCE_BULK_TX,
@@ -46,9 +58,24 @@ enum {
 	CDCE_N_TRANSFER,
 };
 
+struct cdce_ncm {
+	struct usb_ncm16_hdr hdr;
+	struct usb_ncm16_dpt dpt;
+	struct usb_ncm16_dp dp[CDCE_NCM_SUBFRAMES_MAX];
+	uint32_t rx_max;
+	uint32_t tx_max;
+	uint16_t tx_remainder;
+	uint16_t tx_modulus;
+	uint16_t tx_struct_align;
+	uint16_t tx_seq;
+};
+
 struct cdce_softc {
 	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
+#if CDCE_HAVE_NCM
+	struct cdce_ncm		sc_ncm;
+#endif
 	struct usb_xfer	*sc_xfer[CDCE_N_TRANSFER];
 	struct mbuf		*sc_rx_buf[CDCE_FRAMES_MAX];
 	struct mbuf		*sc_tx_buf[CDCE_FRAMES_MAX];
@@ -59,7 +86,6 @@ struct cdce_softc {
 #define	CDCE_FLAG_RX_DATA	0x0010
 
 	uint8_t sc_eaddr_str_index;
-	uint8_t	sc_data_iface_no;
 	uint8_t	sc_ifaces_index[2];
 };
 

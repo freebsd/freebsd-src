@@ -124,6 +124,12 @@ fts_open(argv, options, compar)
 		return (NULL);
 	}
 
+	/* fts_open() requires at least one path */
+	if (*argv == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
 	/* Allocate/initialize the stream. */
 	if ((priv = malloc(sizeof(*priv))) == NULL)
 		return (NULL);

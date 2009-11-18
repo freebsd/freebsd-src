@@ -1017,6 +1017,7 @@ physical_Open(struct physical *p)
     p->fd = STDIN_FILENO;
     for (h = 0; h < NDEVICES && p->handler == NULL && p->fd >= 0; h++)
       p->handler = (*devices[h].create)(p);
+    close(STDOUT_FILENO);
     if (p->fd >= 0) {
       if (p->handler == NULL) {
         physical_SetupStack(p, "unknown", PHYSICAL_NOFORCE);

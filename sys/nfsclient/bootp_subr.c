@@ -389,7 +389,7 @@ bootpboot_p_iflist(void)
 	struct ifaddr *ifa;
 
 	printf("Interface list:\n");
-	IFNET_RLOCK(); /* could sleep, but okay for debugging XXX */
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet);
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {

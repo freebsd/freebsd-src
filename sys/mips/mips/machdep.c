@@ -274,6 +274,9 @@ mips_proc0_init(void)
 	    (thread0.td_kstack_pages - 1) * PAGE_SIZE) - 1;
 	thread0.td_frame = &thread0.td_pcb->pcb_regs;
 
+	/* Steal memory for the dynamic per-cpu area. */
+	dpcpu_init((void *)pmap_steal_memory(DPCPU_SIZE), 0);
+
 	/*
 	 * There is no need to initialize md_upte array for thread0 as it's
 	 * located in .bss section and should be explicitly zeroed during 

@@ -191,7 +191,7 @@ struct tty;
 typedef struct sc_softc {
 	int		unit;			/* unit # */
 	int		config;			/* configuration flags */
-#define SC_VESA800X600	(1 << 7)
+#define SC_VESAMODE	(1 << 7)
 #define SC_AUTODETECT_KBD (1 << 8)
 #define SC_KERNEL_CONSOLE (1 << 9)
 
@@ -314,6 +314,7 @@ typedef struct scr_stat {
 	short		mouse_buttons;		/* mouse buttons */
 	int		mouse_cut_start;	/* mouse cut start pos */
 	int		mouse_cut_end;		/* mouse cut end pos */
+	int		mouse_level;		/* xterm mouse protocol */
 	struct proc 	*mouse_proc;		/* proc* of controlling proc */
 	pid_t 		mouse_pid;		/* pid of controlling proc */
 	int		mouse_signal;		/* signal # to report with */
@@ -380,6 +381,7 @@ typedef void	sc_term_notify_t(scr_stat *scp, int event);
 #define SC_TE_NOTIFY_VTSWITCH_IN	0
 #define SC_TE_NOTIFY_VTSWITCH_OUT	1
 typedef int	sc_term_input_t(scr_stat *scp, int c, struct tty *tp);
+typedef const char *sc_term_fkeystr_t(scr_stat *scp, int c);
 
 typedef struct sc_term_sw {
 	LIST_ENTRY(sc_term_sw)	link;
@@ -397,6 +399,7 @@ typedef struct sc_term_sw {
 	sc_term_clear_t		*te_clear;
 	sc_term_notify_t	*te_notify;
 	sc_term_input_t		*te_input;
+	sc_term_fkeystr_t	*te_fkeystr;
 } sc_term_sw_t;
 
 #define SCTERM_MODULE(name, sw)					\
@@ -564,7 +567,8 @@ int		sc_switch_scr(sc_softc_t *sc, u_int next_scr);
 void		sc_alloc_scr_buffer(scr_stat *scp, int wait, int discard);
 int		sc_init_emulator(scr_stat *scp, char *name);
 void		sc_paste(scr_stat *scp, const u_char *p, int count);
-void		sc_respond(scr_stat *scp, const u_char *p, int count);
+void		sc_respond(scr_stat *scp, const u_char *p,
+			   int count, int wakeup);
 void		sc_bell(scr_stat *scp, int pitch, int duration);
 
 /* schistory.c */

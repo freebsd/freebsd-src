@@ -95,7 +95,15 @@ SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	UVISOR_CONFIG_INDEX	0
 #define	UVISOR_IFACE_INDEX	0
-#define	UVISOR_BUFSIZE       1024	/* bytes */
+
+/*
+ * The following buffer sizes are hardcoded due to the way the Palm
+ * firmware works. It looks like the device is not short terminating
+ * the data transferred.
+ */
+#define	UVISORIBUFSIZE	       0	/* Use wMaxPacketSize */
+#define	UVISOROBUFSIZE	       32	/* bytes */
+#define	UVISOROFRAMES	       32	/* units */
 
 /* From the Linux driver */
 /*
@@ -208,7 +216,8 @@ static const struct usb_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.bufsize = UVISOR_BUFSIZE,	/* bytes */
+		.bufsize = UVISOROBUFSIZE * UVISOROFRAMES,
+		.frames = UVISOROFRAMES,
 		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
 		.callback = &uvisor_write_callback,
 	},
@@ -217,7 +226,7 @@ static const struct usb_config uvisor_config[UVISOR_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = UVISOR_BUFSIZE,	/* bytes */
+		.bufsize = UVISORIBUFSIZE,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uvisor_read_callback,
 	},
@@ -270,7 +279,7 @@ static const struct usb_device_id uvisor_devs[] = {
 	{USB_VPI(USB_VENDOR_PALM, USB_PRODUCT_PALM_ZIRE31, UVISOR_FLAG_PALM4)},
 	{USB_VPI(USB_VENDOR_SAMSUNG, USB_PRODUCT_SAMSUNG_I500, UVISOR_FLAG_PALM4)},
 	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_40, 0)},
-	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_41, UVISOR_FLAG_PALM4)},
+	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_41, 0)},
 	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_S360, UVISOR_FLAG_PALM4)},
 	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_NX60, UVISOR_FLAG_PALM4)},
 	{USB_VPI(USB_VENDOR_SONY, USB_PRODUCT_SONY_CLIE_35, UVISOR_FLAG_PALM35)},
@@ -375,7 +384,6 @@ uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config 
 	struct uvisor_connection_info coninfo;
 	struct uvisor_palm_connection_info pconinfo;
 	uint16_t actlen;
-	uWord wAvail;
 	uint8_t buffer[256];
 
 	if (sc->sc_flag & UVISOR_FLAG_VISOR) {
@@ -496,6 +504,9 @@ uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config 
 			goto done;
 		}
 	}
+#if 0
+	uWord wAvail;
+
 	DPRINTF("getting available bytes\n");
 	req.bmRequestType = UT_READ_VENDOR_ENDPOINT;
 	req.bRequest = UVISOR_REQUEST_BYTES_AVAILABLE;
@@ -507,6 +518,7 @@ uvisor_init(struct uvisor_softc *sc, struct usb_device *udev, struct usb_config 
 		goto done;
 	}
 	DPRINTF("avail=%d\n", UGETW(wAvail));
+#endif
 
 	DPRINTF("done\n");
 done:
@@ -579,19 +591,31 @@ uvisor_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct uvisor_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
 	uint32_t actlen;
+	uint8_t x;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		pc = usbd_xfer_get_frame(xfer, 0);
-		if (ucom_get_data(&sc->sc_ucom, pc, 0,
-		    UVISOR_BUFSIZE, &actlen)) {
+		for (x = 0; x != UVISOROFRAMES; x++) {
 
-			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_xfer_set_frame_offset(xfer, 
+			    x * UVISOROBUFSIZE, x);
+
+			pc = usbd_xfer_get_frame(xfer, x);
+			if (ucom_get_data(&sc->sc_ucom, pc, 0,
+			    UVISOROBUFSIZE, &actlen)) {
+				usbd_xfer_set_frame_len(xfer, x, actlen);
+			} else {
+				break;
+			}
+		}
+		/* check for data */
+		if (x != 0) {
+			usbd_xfer_set_frames(xfer, x);
 			usbd_transfer_submit(xfer);
 		}
-		return;
+		break;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
@@ -599,7 +623,7 @@ tr_setup:
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		return;
+		break;
 	}
 }
 

@@ -691,7 +691,7 @@ DMenu MenuMediaFTP = {
       { " Ireland #3",	"ftp3.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.ie.freebsd.org" },
 
-      { "Isreal",	"ftp.il.freebsd.org", NULL, dmenuSetVariable, NULL,
+      { "Israel",	"ftp.il.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.il.freebsd.org" },
 
       { "Italy",	"ftp.it.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -1031,10 +1031,6 @@ DMenu MenuKernelDistributions = {
 	NULL,		clearKernel, NULL, NULL, ' ', ' ', ' ' },
       { " GENERIC",	"GENERIC kernel configuration",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &KernelDists, '[', 'X', ']', DIST_KERNEL_GENERIC },
-#ifdef WITH_SMP
-      { " SMP",		"GENERIC symmetric multiprocessor kernel configuration",
-	dmenuFlagCheck,	dmenuSetFlag,	NULL, &KernelDists, '[', 'X', ']', DIST_KERNEL_SMP },
-#endif
       { NULL } },
 };
 

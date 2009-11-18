@@ -196,7 +196,14 @@ AcpiExAddTable (
     {
         AcpiUtRemoveReference (ObjDesc);
         *DdbHandle = NULL;
+        return_ACPI_STATUS (Status);
     }
+
+    /* Execute any module-level code that was found in the table */
+
+    AcpiExExitInterpreter ();
+    AcpiNsExecModuleCodeList ();
+    AcpiExEnterInterpreter ();
 
     return_ACPI_STATUS (Status);
 }
@@ -256,15 +263,13 @@ AcpiExLoadTableOp (
 
         /* Table not found, return an Integer=0 and AE_OK */
 
-        DdbHandle = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+        DdbHandle = AcpiUtCreateIntegerObject ((UINT64) 0);
         if (!DdbHandle)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        DdbHandle->Integer.Value = 0;
         *ReturnDesc = DdbHandle;
-
         return_ACPI_STATUS (AE_OK);
     }
 

@@ -37,11 +37,9 @@
 #
 # The directory regress.test.out contains the expected test results
 #
-# These are the regression tests created during the development of the
-# BSD sed.  The reference file naming scheme used in this script can't
-# handle gracefully the insertion of new tests between existing ones.
-# Therefore, either use the new m4-based regress.t framework, or add
-# tests after the last existing test.
+# These are the regression tests mostly created during the development
+# of the BSD sed.  Each test should have a unique mark name, which is
+# used for naming the corresponding file in regress.multitest.out.
 
 main()
 {
@@ -88,11 +86,11 @@ result()
 	else
 		TODO=''
 	fi
-	if ! [ -r $REGRESS/${MARK}_${TESTNAME} ] ; then
-		echo "Seeding $REGRESS/${MARK}_${TESTNAME} with current result" 1>&2
-		cp current.out $REGRESS/${MARK}_${TESTNAME}
+	if ! [ -r $REGRESS/${TESTNAME} ] ; then
+		echo "Seeding $REGRESS/${TESTNAME} with current result" 1>&2
+		cp current.out $REGRESS/${TESTNAME}
 	fi
-	if diff -c $REGRESS/${MARK}_${TESTNAME} current.out ; then
+	if diff -c $REGRESS/${TESTNAME} current.out ; then
 		echo "ok $MARK $TESTNAME # $TODO$COMMENT"
 	else
 		echo "not ok $MARK $TESTNAME # $TODO$COMMENT"
@@ -434,6 +432,26 @@ u2/g' lines1
 	# POSIX does not say that this should work,
 	# but it does for GNU, BSD, and SunOS
 	mark '8.17' ; $SED -e 's/[/]/Q/' lines1
+
+	COMMENT='[ as an s delimiter and its escapes'
+	mark '8.18' ; $SED -e 's[_[X[' lines1
+	# This is a matter of interpretation
+	# POSIX 1003.1, 2004 says "Within the BRE and the replacement,
+	# the BRE delimiter itself can be used as a *literal* character
+	# if it is preceded by a backslash"
+	# SunOS 5.1 /usr/bin/sed and Mac OS X follow the literal POSIX
+	# interpretation.
+	# GNU sed version 4.1.5 treats \[ as the beginning of a character
+	# set specification (both with --posix and without).
+	mark '8.19' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X['
+	mark '8.20' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X\[['
+	COMMENT='\ in y command'
+	mark '8.21'
+	echo 'a\b(c' |
+	$SED 'y%ABCDEFGHIJKLMNOPQRSTUVWXYZ, /\\()"%abcdefghijklmnopqrstuvwxyz,------%'
+	COMMENT='\n in a character class and a BRE'
+	mark '8.22' ; (echo 1; echo 2) | $SED -n '1{;N;s/[\n]/X/;p;}'
+	mark '8.23' ; (echo 1; echo 2) | $SED -n '1{;N;s/\n/X/;p;}'
 }
 
 test_error()

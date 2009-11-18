@@ -2322,6 +2322,9 @@ tr_setup:
 			} else
 				(void)ieee80211_input_all(ic, m, rssi, nf);
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			zyd_start(ifp);
 		ZYD_LOCK(sc);
 		break;
 
@@ -2431,6 +2434,9 @@ tr_setup:
 			usbd_xfer_set_priv(xfer, data);
 			usbd_transfer_submit(xfer);
 		}
+		ZYD_UNLOCK(sc);
+		zyd_start(ifp);
+		ZYD_LOCK(sc);
 		break;
 
 	default:			/* Error */
@@ -2547,7 +2553,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 	bits = (rate == 11) ? (totlen * 16) + 10 :
 	    ((rate == 22) ? (totlen * 8) + 10 : (totlen * 8));
-	desc->plcp_length = bits / ratediv[phy];
+	desc->plcp_length = htole16(bits / ratediv[phy]);
 	desc->plcp_service = 0;
 	if (rate == 22 && (bits % 11) > 0 && (bits % 11) <= 3)
 		desc->plcp_service |= ZYD_PLCP_LENGEXT;

@@ -85,8 +85,6 @@ static int	fix_unaligned(struct thread *td, struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
-static __inline void	setusr(u_int);
-
 int	setfault(faultbuf);		/* defined in locore.S */
 
 /* Why are these not defined in a header? */
@@ -417,43 +415,8 @@ syscall(struct trapframe *frame)
 		CTR3(KTR_SYSC, "syscall: p=%s %s ret=%x", td->td_name,
 		     syscallnames[code], td->td_retval[0]);
 	}
-	switch (error) {
-	case 0:
-		if (frame->fixreg[0] == SYS___syscall &&
-		    code != SYS_freebsd6_lseek && code != SYS_lseek) {
-			/*
-			 * 64-bit return, 32-bit syscall. Fixup byte order
-			 */
-			frame->fixreg[FIRSTARG] = 0;
-			frame->fixreg[FIRSTARG + 1] = td->td_retval[0];
-		} else {
-			frame->fixreg[FIRSTARG] = td->td_retval[0];
-			frame->fixreg[FIRSTARG + 1] = td->td_retval[1];
-		}
-		/* XXX: Magic number */
-		frame->cr &= ~0x10000000;
-		break;
-	case ERESTART:
-		/*
-		 * Set user's pc back to redo the system call.
-		 */
-		frame->srr0 -= 4;
-		break;
-	case EJUSTRETURN:
-		/* nothing to do */
-		break;
-	default:
-		if (p->p_sysent->sv_errsize) {
-			if (error >= p->p_sysent->sv_errsize)
-				error = -1;	/* XXX */
-			else
-				error = p->p_sysent->sv_errtbl[error];
-		}
-		frame->fixreg[FIRSTARG] = error;
-		/* XXX: Magic number: Carry Flag Equivalent? */
-		frame->cr |= 0x10000000;
-		break;
-	}
+
+	cpu_set_syscall_retval(td, error);
 
 	/*
 	 * Check for misbehavior.
@@ -556,13 +519,6 @@ trap_pfault(struct trapframe *frame, int user)
 		return (0);
 
 	return (SIGSEGV);
-}
-
-static __inline void
-setusr(u_int content)
-{
-	__asm __volatile ("isync; mtsr %0,%1; isync"
-		      :: "n"(USER_SR), "r"(content));
 }
 
 int

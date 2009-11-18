@@ -127,6 +127,7 @@ static void     linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static void	exec_linux_setregs(struct thread *td, u_long entry,
 				   u_long stack, u_long ps_strings);
 static void	linux32_fixlimit(struct rlimit *rl, int which);
+static boolean_t linux32_trans_osrel(const Elf_Note *note, int32_t *osrel);
 
 static eventhandler_tag linux_exit_tag;
 static eventhandler_tag linux_schedtail_tag;
@@ -564,9 +565,9 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 int
 linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 {
-	struct proc *p = td->td_proc;
 	struct l_sigframe frame;
 	struct trapframe *regs;
+	sigset_t bmask;
 	l_sigset_t lmask;
 	int eflags, i;
 	ksiginfo_t ksi;
@@ -622,11 +623,8 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	lmask.__bits[0] = frame.sf_sc.sc_mask;
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		lmask.__bits[i+1] = frame.sf_extramask[i];
-	PROC_LOCK(p);
-	linux_to_bsd_sigset(&lmask, &td->td_sigmask);
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	linux_to_bsd_sigset(&lmask, &bmask);
+	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
 	/*
 	 * Restore signal context.
@@ -665,9 +663,9 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 int
 linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 {
-	struct proc *p = td->td_proc;
 	struct l_ucontext uc;
 	struct l_sigcontext *context;
+	sigset_t bmask;
 	l_stack_t *lss;
 	stack_t ss;
 	struct trapframe *regs;
@@ -724,11 +722,8 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 		return(EINVAL);
 	}
 
-	PROC_LOCK(p);
-	linux_to_bsd_sigset(&uc.uc_sigmask, &td->td_sigmask);
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	linux_to_bsd_sigset(&uc.uc_sigmask, &bmask);
+	kern_sigprocmask(td, SIG_SETMASK, &bmask, NULL, 0);
 
 	/*
 	 * Restore signal context
@@ -1066,14 +1061,38 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32
 };
 
-static char GNULINUX_ABI_VENDOR[] = "GNU";
+static char GNU_ABI_VENDOR[] = "GNU";
+static int GNULINUX_ABI_DESC = 0;
+
+static boolean_t
+linux32_trans_osrel(const Elf_Note *note, int32_t *osrel)
+{
+	const Elf32_Word *desc;
+	uintptr_t p;
+
+	p = (uintptr_t)(note + 1);
+	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+
+	desc = (const Elf32_Word *)p;
+	if (desc[0] != GNULINUX_ABI_DESC)
+		return (FALSE);
+
+	/*
+	 * For linux we encode osrel as follows (see linux_mib.c):
+	 * VVVMMMIII (version, major, minor), see linux_mib.c.
+	 */
+	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];
+
+	return (TRUE);
+}
 
 static Elf_Brandnote linux32_brandnote = {
-	.hdr.n_namesz	= sizeof(GNULINUX_ABI_VENDOR),
-	.hdr.n_descsz	= 16,
+	.hdr.n_namesz	= sizeof(GNU_ABI_VENDOR),
+	.hdr.n_descsz	= 16,	/* XXX at least 16 */
 	.hdr.n_type	= 1,
-	.vendor		= GNULINUX_ABI_VENDOR,
-	.flags		= 0
+	.vendor		= GNU_ABI_VENDOR,
+	.flags		= BN_TRANSLATE_OSREL,
+	.trans_osrel	= linux32_trans_osrel
 };
 
 static Elf32_Brandinfo linux_brand = {

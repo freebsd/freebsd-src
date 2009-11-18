@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2008
+.Dd September 26, 2009
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -245,7 +245,8 @@ will be initialized to 0x5a.
 This is intended for debugging and will impact performance negatively.
 .It K
 Double/halve the virtual memory chunk size.
-The default chunk size is 1 MB.
+The default chunk size is the maximum of 1 MB and the largest
+page size that is less than or equal to 4 MB.
 .It M
 Use
 .Xr mmap 2
@@ -561,6 +562,7 @@ _malloc_options = "X";
 .Xr alloca 3 ,
 .Xr atexit 3 ,
 .Xr getpagesize 3 ,
+.Xr getpagesizes 3 ,
 .Xr memory 3 ,
 .Xr posix_memalign 3
 .Sh STANDARDS

@@ -560,7 +560,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = ath_start;
-	ifp->if_watchdog = NULL;
 	ifp->if_ioctl = ath_ioctl;
 	ifp->if_init = ath_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -1236,7 +1235,16 @@ ath_resume(struct ath_softc *sc)
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
-			ieee80211_beacon_miss(ic);
+			/*
+			 * Program the beacon registers using the last rx'd
+			 * beacon frame and enable sync on the next beacon
+			 * we see.  This should handle the case where we
+			 * wakeup and find the same AP and also the case where
+			 * we wakeup and need to roam.  For the latter we
+			 * should get bmiss events that trigger a roam.
+			 */
+			ath_beacon_config(sc, NULL);
+			sc->sc_syncbeacon = 1;
 		} else
 			ieee80211_resume_all(ic);
 	}
@@ -1443,7 +1451,7 @@ ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask, uint32_t *hangs)
 	uint32_t rsize;
 	void *sp;
 
-	if (!ath_hal_getdiagstate(ah, 32, &mask, sizeof(&mask), &sp, &rsize))
+	if (!ath_hal_getdiagstate(ah, 32, &mask, sizeof(mask), &sp, &rsize))
 		return 0;
 	KASSERT(rsize == sizeof(uint32_t), ("resultsize %u", rsize));
 	*hangs = *(uint32_t *)sp;

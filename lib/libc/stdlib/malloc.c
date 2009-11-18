@@ -4795,6 +4795,21 @@ malloc_init_hard(void)
 		}
 	}
 
+	/*
+	 * Increase the chunk size to the largest page size that is greater
+	 * than the default chunk size and less than or equal to 4MB.
+	 */
+	{
+		size_t pagesizes[MAXPAGESIZES];
+		int k, nsizes;
+
+		nsizes = getpagesizes(pagesizes, MAXPAGESIZES);
+		for (k = 0; k < nsizes; k++)
+			if (pagesizes[k] <= (1LU << 22))
+				while ((1LU << opt_chunk_2pow) < pagesizes[k])
+					opt_chunk_2pow++;
+	}
+
 	for (i = 0; i < 3; i++) {
 		unsigned j;
 
@@ -5101,7 +5116,7 @@ MALLOC_OUT:
 	arena_maxclass = chunksize - (arena_chunk_header_npages <<
 	    PAGE_SHIFT);
 
-	UTRACE(0, 0, 0);
+	UTRACE((void *)(intptr_t)(-1), 0, 0);
 
 #ifdef MALLOC_STATS
 	memset(&stats_chunks, 0, sizeof(chunk_stats_t));
@@ -5320,6 +5335,15 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 			goto RETURN;
 		}
 
+		if (size == 0) {
+			if (opt_sysv == false)
+				size = 1;
+			else {
+				result = NULL;
+				ret = 0;
+				goto RETURN;
+			}
+		}
 		result = ipalloc(alignment, size);
 	}
 

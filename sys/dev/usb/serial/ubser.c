@@ -163,6 +163,7 @@ static void	ubser_start_read(struct ucom_softc *);
 static void	ubser_stop_read(struct ucom_softc *);
 static void	ubser_start_write(struct ucom_softc *);
 static void	ubser_stop_write(struct ucom_softc *);
+static void	ubser_poll(struct ucom_softc *ucom);
 
 static const struct usb_config ubser_config[UBSER_N_TRANSFER] = {
 
@@ -193,6 +194,7 @@ static const struct ucom_callback ubser_callback = {
 	.ucom_stop_read = &ubser_stop_read,
 	.ucom_start_write = &ubser_start_write,
 	.ucom_stop_write = &ubser_stop_write,
+	.ucom_poll = &ubser_poll,
 };
 
 static device_method_t ubser_methods[] = {
@@ -534,4 +536,11 @@ ubser_stop_write(struct ucom_softc *ucom)
 	struct ubser_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[UBSER_BULK_DT_WR]);
+}
+
+static void
+ubser_poll(struct ucom_softc *ucom)
+{
+	struct ubser_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UBSER_N_TRANSFER);
 }

@@ -130,6 +130,17 @@
 
 #define DB_FULL_OP_INFO     "[%4.4s] @%5.5X #%4.4X:  "
 
+/* Stub for non-compiler code */
+
+#ifndef ACPI_ASL_COMPILER
+void
+AcpiDmEmitExternals (
+    void)
+{
+    return;
+}
+#endif
+
 /* Local prototypes */
 
 static ACPI_STATUS
@@ -148,68 +159,6 @@ static UINT32
 AcpiDmBlockType (
     ACPI_PARSE_OBJECT       *Op);
 
-static const char *
-AcpiDmGetObjectTypeName (
-    ACPI_OBJECT_TYPE        Type);
-
-/*
- * This table maps ACPI_OBJECT_TYPEs to the corresponding ASL
- * ObjectTypeKeyword. Used to generate typed external declarations
- */
-static const char           *AcpiGbl_DmTypeNames[] =
-{
-    /* 00 */ "",                    /* Type ANY */
-    /* 01 */ ", IntObj",
-    /* 02 */ ", StrObj",
-    /* 03 */ ", BuffObj",
-    /* 04 */ ", PkgObj",
-    /* 05 */ ", FieldUnitObj",
-    /* 06 */ ", DeviceObj",
-    /* 07 */ ", EventObj",
-    /* 08 */ ", MethodObj",
-    /* 09 */ ", MutexObj",
-    /* 10 */ ", OpRegionObj",
-    /* 11 */ ", PowerResObj",
-    /* 12 */ ", ProcessorObj",
-    /* 13 */ ", ThermalZoneObj",
-    /* 14 */ ", BuffFieldObj",
-    /* 15 */ ", DDBHandleObj",
-    /* 16 */ "",                    /* Debug object */
-    /* 17 */ ", FieldUnitObj",
-    /* 18 */ ", FieldUnitObj",
-    /* 19 */ ", FieldUnitObj"
-};
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDmGetObjectTypeName
- *
- * PARAMETERS:  Type        - An ACPI_OBJECT_TYPE
- *
- * RETURN:      Pointer to a string
- *
- * DESCRIPTION: Map an object type to the ASL object type string.
- *
- ******************************************************************************/
-
-static const char *
-AcpiDmGetObjectTypeName (
-    ACPI_OBJECT_TYPE        Type)
-{
-
-    if (Type == ACPI_TYPE_LOCAL_SCOPE)
-    {
-        Type = ACPI_TYPE_DEVICE;
-    }
-
-    else if (Type > ACPI_TYPE_LOCAL_INDEX_FIELD)
-    {
-        return ("");
-    }
-
-    return (AcpiGbl_DmTypeNames[Type]);
-}
 
 
 /*******************************************************************************
@@ -522,7 +471,6 @@ AcpiDmDescendingOp (
     const ACPI_OPCODE_INFO  *OpInfo;
     UINT32                  Name;
     ACPI_PARSE_OBJECT       *NextOp;
-    ACPI_EXTERNAL_LIST      *NextExternal;
 
 
     if (Op->Common.DisasmFlags & ACPI_PARSEOP_IGNORE)
@@ -554,35 +502,7 @@ AcpiDmDescendingOp (
 
             /* Emit all External() declarations here */
 
-            if (AcpiGbl_ExternalList)
-            {
-                /*
-                 * Walk the list of externals (unresolved references)
-                 * found during parsing
-                 */
-                while (AcpiGbl_ExternalList)
-                {
-                    AcpiOsPrintf ("    External (%s%s",
-                        AcpiGbl_ExternalList->Path,
-                        AcpiDmGetObjectTypeName (AcpiGbl_ExternalList->Type));
-
-                    if (AcpiGbl_ExternalList->Type == ACPI_TYPE_METHOD)
-                    {
-                        AcpiOsPrintf (")    // %d Arguments\n", AcpiGbl_ExternalList->Value);
-                    }
-                    else
-                    {
-                        AcpiOsPrintf (")\n");
-                    }
-
-                    NextExternal = AcpiGbl_ExternalList->Next;
-                    ACPI_FREE (AcpiGbl_ExternalList->Path);
-                    ACPI_FREE (AcpiGbl_ExternalList);
-                    AcpiGbl_ExternalList = NextExternal;
-                }
-                AcpiOsPrintf ("\n");
-            }
-
+            AcpiDmEmitExternals ();
             return (AE_OK);
         }
     }

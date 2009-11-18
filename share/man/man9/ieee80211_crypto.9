@@ -65,10 +65,10 @@
 .\"
 .Ft int
 .Fo ieee80211_crypto_newkey
-.Fa "struct ieee80211vap *
-.Fa "int cipher
-.Fa "int flags
-.Fa "struct ieee80211_key *
+.Fa "struct ieee80211vap *"
+.Fa "int cipher"
+.Fa "int flags"
+.Fa "struct ieee80211_key *"
 .Fc
 .\"
 .Ft int
@@ -141,7 +141,7 @@ so it can reclaim resources.
 .Pp
 Crypto modules can notify the system of two events.
 When a packet replay event is recognized
-.Fn ieee80111_notify_replay_failure
+.Fn ieee80211_notify_replay_failure
 can be used to signal the event.
 When a
 .Dv TKIP
@@ -256,4 +256,4 @@ when receive traffic is active.
 .Xr ioctl 2 ,
 .Xr wlan_ccmp 4 ,
 .Xr wlan_tkip 4 ,
-.Xr wlan_wep 4 .
+.Xr wlan_wep 4

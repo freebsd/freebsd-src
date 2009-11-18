@@ -345,6 +345,12 @@ int	ibcs2_isc(struct thread *, struct ibcs2_isc_args *);
 
 #endif /* COMPAT_FREEBSD6 */
 
+
+#ifdef COMPAT_FREEBSD7
+
+
+#endif /* COMPAT_FREEBSD7 */
+
 #define	IBCS2_SYS_AUE_ibcs2_read	AUE_NULL
 #define	IBCS2_SYS_AUE_ibcs2_open	AUE_OPEN_RWTC
 #define	IBCS2_SYS_AUE_ibcs2_wait	AUE_WAIT4

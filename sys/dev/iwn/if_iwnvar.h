@@ -1,6 +1,8 @@
 /*	$FreeBSD$	*/
+/*	$OpenBSD: if_iwnvar.h,v 1.12 2009/05/29 08:25:45 damien Exp $	*/
+
 /*-
- * Copyright (c) 2007
+ * Copyright (c) 2007, 2008
  *	Damien Bergamini <damien.bergamini@free.fr>
  * Copyright (c) 2008 Sam Leffler, Errno Consulting
  *
@@ -60,6 +62,8 @@ struct iwn_dma_info {
 
 struct iwn_tx_data {
 	bus_dmamap_t		map;
+	bus_addr_t		cmd_paddr;
+	bus_addr_t		scratch_paddr;
 	struct mbuf		*m;
 	struct ieee80211_node	*ni;
 };
@@ -70,45 +74,52 @@ struct iwn_tx_ring {
 	struct iwn_tx_desc	*desc;
 	struct iwn_tx_cmd	*cmd;
 	struct iwn_tx_data	data[IWN_TX_RING_COUNT];
-	bus_dma_tag_t		data_dmat;
 	int			qid;
 	int			queued;
 	int			cur;
 };
 
+struct iwn_softc;
+
 struct iwn_rx_data {
-	bus_dmamap_t		map;
-	struct mbuf		*m;
+	struct mbuf	*m;
+	bus_dmamap_t	map;
 };
 
 struct iwn_rx_ring {
 	struct iwn_dma_info	desc_dma;
+	struct iwn_dma_info	stat_dma;
 	uint32_t		*desc;
+	struct iwn_rx_status	*stat;
 	struct iwn_rx_data	data[IWN_RX_RING_COUNT];
-	bus_dma_tag_t		data_dmat;
 	int			cur;
 };
 
 struct iwn_node {
 	struct	ieee80211_node		ni;	/* must be the first */
-	struct	ieee80211_amrr_node	amn;
-};
 #define	IWN_NODE(_ni)	((struct iwn_node *)(_ni))
+
+	struct	ieee80211_amrr_node	amn;
+	uint16_t			disable_tid;
+	uint8_t				id;
+	uint8_t				ridx[IEEE80211_RATE_MAXSIZE];
+};
 
 struct iwn_calib_state {
 	uint8_t		state;
 #define IWN_CALIB_STATE_INIT	0
 #define IWN_CALIB_STATE_ASSOC	1
 #define IWN_CALIB_STATE_RUN	2
+
 	u_int		nbeacons;
 	uint32_t	noise[3];
 	uint32_t	rssi[3];
-	uint32_t	corr_ofdm_x1;
-	uint32_t	corr_ofdm_mrc_x1;
-	uint32_t	corr_ofdm_x4;
-	uint32_t	corr_ofdm_mrc_x4;
-	uint32_t	corr_cck_x4;
-	uint32_t	corr_cck_mrc_x4;
+	uint32_t	ofdm_x1;
+	uint32_t	ofdm_mrc_x1;
+	uint32_t	ofdm_x4;
+	uint32_t	ofdm_mrc_x4;
+	uint32_t	cck_x4;
+	uint32_t	cck_mrc_x4;
 	uint32_t	bad_plcp_ofdm;
 	uint32_t	fa_ofdm;
 	uint32_t	bad_plcp_cck;
@@ -118,6 +129,7 @@ struct iwn_calib_state {
 #define IWN_CCK_STATE_INIT	0
 #define IWN_CCK_STATE_LOFA	1
 #define IWN_CCK_STATE_HIFA	2
+
 	uint8_t		noise_samples[20];
 	u_int		cur_noise_sample;
 	uint8_t		noise_ref;
@@ -126,10 +138,60 @@ struct iwn_calib_state {
 	uint32_t	energy_cck;
 };
 
+struct iwn_calib_info {
+	uint8_t		*buf;
+	u_int		len;
+};
+
+struct iwn_fw_part {
+	const uint8_t	*text;
+	uint32_t	textsz;
+	const uint8_t	*data;
+	uint32_t	datasz;
+};
+
+struct iwn_fw_info {
+	u_char			*data;
+	struct iwn_fw_part	init;
+	struct iwn_fw_part	main;
+	struct iwn_fw_part	boot;
+};
+
+struct iwn_hal {
+	int		(*load_firmware)(struct iwn_softc *);
+	void		(*read_eeprom)(struct iwn_softc *);
+	int		(*post_alive)(struct iwn_softc *);
+	int		(*apm_init)(struct iwn_softc *);
+	int		(*nic_config)(struct iwn_softc *);
+	void		(*update_sched)(struct iwn_softc *, int, int, uint8_t,
+			    uint16_t);
+	int		(*get_temperature)(struct iwn_softc *);
+	int		(*get_rssi)(struct iwn_softc *, struct iwn_rx_stat *);
+	int		(*set_txpower)(struct iwn_softc *,
+			    struct ieee80211_channel *, int);
+	int		(*init_gains)(struct iwn_softc *);
+	int		(*set_gains)(struct iwn_softc *);
+	int		(*add_node)(struct iwn_softc *, struct iwn_node_info *,
+			    int);
+	void		(*tx_done)(struct iwn_softc *, struct iwn_rx_desc *,
+			    struct iwn_rx_data *);
+	const struct	iwn_sensitivity_limits *limits;
+	int		ntxqs;
+	int		ndmachnls;
+	uint8_t		broadcast_id;
+	int		rxonsz;
+	int		schedsz;
+	uint32_t	fw_text_maxsz;
+	uint32_t	fw_data_maxsz;
+	uint32_t	fwsz;
+	bus_size_t	sched_txfact_addr;
+};
+
 struct iwn_vap {
 	struct ieee80211vap	iv_vap;
 	struct ieee80211_amrr	iv_amrr;
 	struct callout		iv_amrr_to;
+	uint8_t			iv_ridx;
 
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
@@ -139,67 +201,94 @@ struct iwn_vap {
 struct iwn_softc {
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
-	struct callout		sc_timer_to;	/* calib+watchdog timer */
-	int			sc_tx_timer;	/* tx watchdog timer/counter */
-	const struct ieee80211_channel *sc_curchan;
-
-        struct iwn_rx_radiotap_header sc_rxtap;
-        struct iwn_tx_radiotap_header sc_txtap;
 
 	/* locks */
 	struct mtx		sc_mtx;
 
-	/* bus */
+	/* Bus */
 	device_t 		sc_dev;
 	int			mem_rid;
 	int			irq_rid;
 	struct resource 	*mem;
 	struct resource		*irq;
 
-	/* shared area */
-	struct iwn_dma_info	shared_dma;
-	struct iwn_shared	*shared;
+	u_int			sc_flags;
+#define IWN_FLAG_HAS_5GHZ	(1 << 0)
+#define IWN_FLAG_HAS_OTPROM	(1 << 1)
+#define IWN_FLAG_FIRST_BOOT	(1 << 2)
 
-	/* "keep warm" page */
+	uint8_t 		hw_type;
+	const struct iwn_hal	*sc_hal;
+	const char		*fwname;
+
+	/* TX scheduler rings. */
+	struct iwn_dma_info	sched_dma;
+	uint16_t		*sched;
+	uint32_t		sched_base;
+
+	/* "Keep Warm" page. */
 	struct iwn_dma_info	kw_dma;
 
-	/* firmware image */
+	/* Firmware image. */
 	const struct firmware	*fw_fp;
 
-	/* firmware DMA transfer */
+	/* Firmware DMA transfer. */
 	struct iwn_dma_info	fw_dma;
 
-	/* rings */
-	struct iwn_tx_ring	txq[IWN_NTXQUEUES];
+	/* TX/RX rings. */
+	struct iwn_tx_ring	txq[IWN5000_NTXQUEUES];
 	struct iwn_rx_ring	rxq;
 
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
 	void 			*sc_ih;
 	bus_size_t		sc_sz;
+	int			sc_cap_off;	/* PCIe Capabilities. */
 
 	/* Tasks used by the driver */
 	struct task             sc_reinit_task;
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
-
-	/* Thermal calibration */
+	
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
+
+	struct iwn_fw_info	fw;
+	struct iwn_calib_info	calibcmd[5];
+	uint32_t		errptr;
 
 	struct iwn_rx_stat	last_rx_stat;
 	int			last_rx_valid;
 	struct iwn_ucode_info	ucode_info;
-	struct iwn_config	config;
+	struct iwn_rxon		rxon;
 	uint32_t		rawtemp;
 	int			temp;
 	int			noise;
-	uint8_t			antmsk;
+	uint32_t		qfullmsk;
 
-	struct iwn_eeprom_band	bands[IWN_NBANDS];
+	struct iwn4965_eeprom_band
+				bands[IWN_NBANDS];
+	uint16_t		rfcfg;
+	char			eeprom_domain[4];
+	uint32_t		eeprom_crystal;
 	int16_t			eeprom_voltage;
 	int8_t			maxpwr2GHz;
 	int8_t			maxpwr5GHz;
+	int8_t			maxpwr[IEEE80211_CHAN_MAX];
+
+	uint32_t		critical_temp;
+	uint8_t			ntxchains;
+	uint8_t			nrxchains;
+	uint8_t			txantmsk;
+	uint8_t			rxantmsk;
+	uint8_t			antmsk;
+
+	struct callout		sc_timer_to;
+	int			sc_tx_timer;
+
+	struct iwn_rx_radiotap_header sc_rxtap;
+	struct iwn_tx_radiotap_header sc_txtap;
+	const struct ieee80211_channel *sc_curchan;
 };
 
 #define IWN_LOCK_INIT(_sc) \

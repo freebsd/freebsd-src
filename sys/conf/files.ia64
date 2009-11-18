@@ -60,7 +60,6 @@ dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_ia64.c	optional	uart
 dev/acpica/acpi_if.m		standard
 ia64/acpica/OsdEnvironment.c	optional	acpi
@@ -85,6 +84,7 @@ ia64/ia64/elf_machdep.c		standard
 ia64/ia64/emulate.c		standard
 ia64/ia64/exception.S		standard
 ia64/ia64/gdb_machdep.c		optional	gdb
+ia64/ia64/highfp.c		standard
 ia64/ia64/in_cksum.c		optional	inet
 ia64/ia64/interrupt.c		standard
 ia64/ia64/locore.S		standard	no-obj

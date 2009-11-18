@@ -414,6 +414,12 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    case ATA_UDMA6:
 		cpi->base_transfer_speed = 133000;
 		break;
+	    case ATA_SA150:
+		cpi->base_transfer_speed = 150000;
+		break;
+	    case ATA_SA300:
+		cpi->base_transfer_speed = 300000;
+		break;
 	    default:
 		break;
 	    }
@@ -629,7 +635,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	request->data = buf;
 	request->bytecount = len;
 	request->transfersize = min(request->bytecount, 65534);
-	request->timeout = ccb_h->timeout / 1000; /* XXX lost granularity */
+	request->timeout = (ccb_h->timeout + 999) / 1000;
 	request->callback = &atapi_cb;
 	request->flags = request_flags;
 
@@ -732,7 +738,7 @@ atapi_cb(struct ata_request *request)
 		request->data = (caddr_t)&csio->sense_data;
 		request->bytecount = sizeof(struct atapi_sense);
 		request->transfersize = min(request->bytecount, 65534);
-		request->timeout = csio->ccb_h.timeout / 1000;
+		request->timeout = (csio->ccb_h.timeout + 999) / 1000;
 		request->retries = 2;
 		request->flags = ATA_R_QUIET|ATA_R_ATAPI|ATA_R_IMMEDIATE;
 		hcb->flags |= AUTOSENSE;

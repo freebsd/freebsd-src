@@ -75,6 +75,7 @@ void	udp_stats(u_long, const char *, int, int);
 void	sctp_protopr(u_long, const char *, int, int);
 void	sctp_stats(u_long, const char *, int, int);
 #endif
+void	arp_stats(u_long, const char *, int, int);
 void	ip_stats(u_long, const char *, int, int);
 void	icmp_stats(u_long, const char *, int, int);
 void	igmp_stats(u_long, const char *, int, int);
@@ -149,7 +150,7 @@ void	ddp_stats(u_long, const char *, int, int);
 void	netgraphprotopr(u_long, const char *, int, int);
 #endif
 
-void	unixpr(u_long, u_long, u_long, u_long);
+void	unixpr(u_long, u_long, u_long, u_long, u_long);
 
 void	esis_stats(u_long, const char *, int, int);
 void	clnp_stats(u_long, const char *, int, int);

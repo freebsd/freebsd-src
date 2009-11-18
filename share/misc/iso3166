@@ -1,5 +1,8 @@
 # $FreeBSD$
 #
+# Please consult with http://www.FreeBSD.org/internal/i18n.html before
+# making changes to this file.
+#
 # ISO 3166 country codes
 # This includes many places that are not legally independent countries,
 # but which is it convenient to refer to separately from their
@@ -42,7 +45,7 @@ BZ	BLZ	084	Belize
 BJ	BEN	204	Benin
 BM	BMU	060	Bermuda
 BT	BTN	064	Bhutan
-BO	BOL	068	Bolivia
+BO	BOL	068	Bolivia, Plurinational State of
 BA	BIH	070	Bosnia and Herzegovina
 BW	BWA	072	Botswana
 BV	BVT	074	Bouvet Island
@@ -230,7 +233,7 @@ SZ	SWZ	748	Swaziland
 SE	SWE	752	Sweden
 CH	CHE	756	Switzerland
 SY	SYR	760	Syrian Arab Republic
-TW	TWN	158	Taiwan, Province of China
+TW	TWN	158	Taiwan
 TJ	TJK	762	Tajikistan
 TZ	TZA	834	Tanzania, United Republic of
 TH	THA	764	Thailand
@@ -253,7 +256,7 @@ UY	URY	858	Uruguay
 UZ	UZB	860	Uzbekistan
 VU	VUT	548	Vanuatu
 VA	VAT	336	Holy See (Vatican City State)
-VE	VEN	862	Venezuela
+VE	VEN	862	Venezuela, Bolivarian Republic of
 VN	VNM	704	Viet Nam
 VG	VGB	092	Virgin Islands, British
 VI	VIR	850	Virgin Islands, U.S.
@@ -518,3 +521,19 @@ ZW	ZWE	716	Zimbabwe
 #
 # Newsletter VI-1 2007-09-21
 #  Added SAINT BARTHELEMY (BL) and SAINT MARTIN (MF).
+#
+# Newsletter VI-2 2008-04-25
+#  Name changes for Moldova, Montenegro and other minor corrections.
+#
+# Newsletter VI-3 2008-09-09
+#  Name change for Nepal and other minor corrections.
+#  Not relevant to this file.
+#
+# Newsletter VI-4 2009-01-07
+#  Name change for the Republic of Moldova and other minor corrections.
+#
+# Newsletter VI-5 2009-03-03
+#  Name change for Bolivarian Republic of Venezuela and other minor corrections.
+#
+# Newsletter VI-6 2009-05-08
+#  Name change for Plurinational State of Bolivia.

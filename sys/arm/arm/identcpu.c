@@ -54,30 +54,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #include <machine/cpuconf.h>
+#include <machine/md_var.h>
 
 char machine[] = "arm";
 
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
         machine, 0, "Machine class");
-enum cpu_class {
-	CPU_CLASS_NONE,
-	CPU_CLASS_ARM2,
-	CPU_CLASS_ARM2AS,
-	CPU_CLASS_ARM3,
-	CPU_CLASS_ARM6,
-	CPU_CLASS_ARM7,
-	CPU_CLASS_ARM7TDMI,
-	CPU_CLASS_ARM8,
-	CPU_CLASS_ARM9TDMI,
-	CPU_CLASS_ARM9ES,
-	CPU_CLASS_ARM9EJS,
-	CPU_CLASS_ARM10E,
-	CPU_CLASS_ARM10EJ,
-	CPU_CLASS_SA1,
-	CPU_CLASS_XSCALE,
-	CPU_CLASS_ARM11J,
-	CPU_CLASS_MARVELL
-};
 
 static const char * const generic_steppings[16] = {
 	"rev 0",	"rev 1",	"rev 2",	"rev 3",
@@ -372,11 +354,11 @@ static const char * const wtnames[] = {
 
 
 extern int ctrl;
+enum cpu_class cpu_class = CPU_CLASS_NONE;
 void
 identify_arm_cpu(void)
 {
 	u_int cpuid;
-	enum cpu_class cpu_class = CPU_CLASS_NONE;
 	int i;
 
 	cpuid = cpu_id();

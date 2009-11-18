@@ -104,7 +104,7 @@ struct nfhret {
 #define	OF_NOINET6	8
 int retrycnt = -1;
 int opflags = 0;
-int nfsproto = IPPROTO_UDP;
+int nfsproto = IPPROTO_TCP;
 int mnttcp_ok = 1;
 int noconn = 0;
 char *portspec = NULL;	/* Server nfs port; NULL means look up via rpcbind. */
@@ -232,15 +232,15 @@ main(int argc, char *argv[])
 				char *pnextopt = NULL;
 				char *val = "";
 				pass_flag_to_nmount = 1;
-				pval = strchr(opt, '=');
 				pnextopt = strchr(opt, ',');
+				if (pnextopt != NULL) {
+					*pnextopt = '\0';
+					pnextopt++;
+				}
+				pval = strchr(opt, '=');
 				if (pval != NULL) {
 					*pval = '\0';
 					val = pval + 1;
-				}
-				if (pnextopt) {
-					*pnextopt = '\0';
-					pnextopt++;
 				}
 				if (strcmp(opt, "bg") == 0) {
 					opflags |= BGRND;

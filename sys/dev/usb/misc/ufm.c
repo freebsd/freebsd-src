@@ -86,11 +86,9 @@ static device_attach_t ufm_attach;
 static device_detach_t ufm_detach;
 
 static usb_fifo_ioctl_t ufm_ioctl;
-static usb_fifo_open_t ufm_open;
 
 static struct usb_fifo_methods ufm_fifo_methods = {
 	.f_ioctl = &ufm_ioctl,
-	.f_open = &ufm_open,
 	.basename[0] = "ufm",
 };
 
@@ -175,15 +173,6 @@ ufm_detach(device_t dev)
 
 	mtx_destroy(&sc->sc_mtx);
 
-	return (0);
-}
-
-static int
-ufm_open(struct usb_fifo *dev, int fflags)
-{
-	if ((fflags & (FWRITE | FREAD)) != (FWRITE | FREAD)) {
-		return (EACCES);
-	}
 	return (0);
 }
 
@@ -314,6 +303,10 @@ ufm_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 {
 	struct ufm_softc *sc = usb_fifo_softc(fifo);
 	int error = 0;
+
+	if ((fflags & (FWRITE | FREAD)) != (FWRITE | FREAD)) {
+		return (EACCES);
+	}
 
 	switch (cmd) {
 	case FM_SET_FREQ:

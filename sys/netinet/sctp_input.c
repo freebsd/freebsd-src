@@ -834,6 +834,9 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		return;
 	} else {
 		sctp_update_acked(stcb, cp, net, abort_flag);
+		if (*abort_flag) {
+			return;
+		}
 	}
 	if (asoc->control_pdapi) {
 		/*
@@ -5873,7 +5876,7 @@ sctp_skip_csum_4:
 	 * idea, so I will leave it in place.
 	 */
 	if (inp && ipsec4_in_reject(m, &inp->ip_inp.inp)) {
-		MODULE_GLOBAL(MOD_IPSEC, ipsec4stat).in_polvio++;
+		MODULE_GLOBAL(ipsec4stat).in_polvio++;
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
 	}

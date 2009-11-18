@@ -110,8 +110,8 @@ void vfs_setmntopt(vfs_t *vfsp, const char *name, const char *arg,
     int flags __unused);
 void vfs_clearmntopt(vfs_t *vfsp, const char *name);
 int vfs_optionisset(const vfs_t *vfsp, const char *opt, char **argp);
-int domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
-    char *fspec, int fsflags);
+int mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype,
+    char *fspath, char *fspec, int fsflags);
 
 typedef	uint64_t	vfs_feature_t;
 

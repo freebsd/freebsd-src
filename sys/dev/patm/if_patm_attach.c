@@ -197,11 +197,9 @@ patm_attach(device_t dev)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_SIMPLEX;
-	ifp->if_watchdog = NULL;
 	ifp->if_init = patm_init;
 	ifp->if_ioctl = patm_ioctl;
 	ifp->if_start = patm_start;
-	ifp->if_watchdog = NULL;
 
 	/* do this early so we can destroy unconditionally */
 	mtx_init(&sc->mtx, device_get_nameunit(dev),

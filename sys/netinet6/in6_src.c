@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/route.h>
 #include <net/if_llatbl.h>
 #ifdef RADIX_MPATH
@@ -697,8 +698,25 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (error == EHOSTUNREACH)
 		V_ip6stat.ip6s_noroute++;
 
-	if (retifp != NULL)
+	if (retifp != NULL) {
 		*retifp = ifp;
+
+		/*
+		 * Adjust the "outgoing" interface.  If we're going to loop 
+		 * the packet back to ourselves, the ifp would be the loopback 
+		 * interface. However, we'd rather know the interface associated 
+		 * to the destination address (which should probably be one of 
+		 * our own addresses.)
+		 */
+		if (rt) {
+			if ((rt->rt_ifp->if_flags & IFF_LOOPBACK) &&
+			    (rt->rt_gateway->sa_family == AF_LINK))
+				*retifp = 
+					ifnet_byindex(((struct sockaddr_dl *)
+						       rt->rt_gateway)->sdl_index);
+		}
+	}
+
 	if (retrt != NULL)
 		*retrt = rt;	/* rt may be NULL */
 
@@ -749,16 +767,6 @@ in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			RTFREE(rt);
 		return (flags);
 	}
-
-	/*
-	 * Adjust the "outgoing" interface.  If we're going to loop the packet
-	 * back to ourselves, the ifp would be the loopback interface.
-	 * However, we'd rather know the interface associated to the
-	 * destination address (which should probably be one of our own
-	 * addresses.)
-	 */
-	if (rt && rt->rt_ifa && rt->rt_ifa->ifa_ifp)
-		*retifp = rt->rt_ifa->ifa_ifp;
 
 	if (ro == &sro && rt && rt == sro.ro_rt)
 		RTFREE(rt);

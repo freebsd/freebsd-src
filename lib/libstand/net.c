@@ -68,14 +68,11 @@ __FBSDID("$FreeBSD$");
  * zero errno to indicate it isn't done yet.
  */
 ssize_t
-sendrecv(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
-	struct iodesc *d;
-	ssize_t (*sproc)(struct iodesc *, void *, size_t);
-	void *sbuf;
-	size_t ssize;
-	ssize_t (*rproc)(struct iodesc *, void *, size_t, time_t);
-	void *rbuf;
-	size_t rsize;
+sendrecv(struct iodesc *d,
+	ssize_t (*sproc)(struct iodesc *, void *, size_t),
+	void *sbuf, size_t ssize,
+	ssize_t (*rproc)(struct iodesc *, void *, size_t, time_t),
+	void *rbuf, size_t rsize)
 {
 	ssize_t cc;
 	time_t t, tmo, tlast;
@@ -87,7 +84,8 @@ sendrecv(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
 #endif
 
 	tmo = MINTMO;
-	tlast = tleft = 0;
+	tlast = 0;
+	tleft = 0;
 	t = getsecs();
 	for (;;) {
 		if (tleft <= 0) {
@@ -107,7 +105,8 @@ sendrecv(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
 
 			if (cc == -1) {
 				/* Error on transmit; wait before retrying */
-				while ((getsecs() - t) < tmo);
+				while ((getsecs() - t) < tmo)
+					;
 				tleft = 0;
 				continue;
 			}
@@ -133,8 +132,7 @@ sendrecv(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
  * Return values are in network order.
  */
 n_long
-inet_addr(cp)
-	char *cp;
+inet_addr(char *cp)
 {
 	u_long val;
 	int n;
@@ -211,16 +209,14 @@ inet_addr(cp)
 }
 
 char *
-inet_ntoa(ia)
-	struct in_addr ia;
+inet_ntoa(struct in_addr ia)
 {
 	return (intoa(ia.s_addr));
 }
 
 /* Similar to inet_ntoa() */
 char *
-intoa(addr)
-	n_long addr;
+intoa(n_long addr)
 {
 	char *cp;
 	u_int byte;
@@ -250,9 +246,7 @@ intoa(addr)
 }
 
 static char *
-number(s, n)
-	char *s;
-	int *n;
+number(char *s, int *n)
 {
 	for (*n = 0; isdigit(*s); s++)
 		*n = (*n * 10) + *s - '0';
@@ -260,8 +254,7 @@ number(s, n)
 }
 
 n_long
-ip_convertaddr(p)
-	char *p;
+ip_convertaddr(char *p)
 {
 #define IP_ANYADDR	0
 	n_long addr = 0, n;

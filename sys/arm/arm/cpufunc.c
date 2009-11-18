@@ -83,15 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/ixp425/ixp425var.h>
 #endif
 
-#if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
-#include <arm/xscale/xscalereg.h>
-#endif
-
-#if defined(PERFCTRS)
-struct arm_pmc_funcs *arm_pmc;
-#endif
-
 /* PRIMARY CACHE VARIABLES */
 int	arm_picache_size;
 int	arm_picache_line_size;
@@ -1097,18 +1088,6 @@ set_cpufuncs()
 
 		i80200_icu_init();
 
-		/*
-		 * Reset the Performance Monitoring Unit to a
-		 * pristine state:
-		 *	- CCNT, PMN0, PMN1 reset to 0
-		 *	- overflow indications cleared
-		 *	- all counters disabled
-		 */
-		__asm __volatile("mcr p14, 0, %0, c0, c0, 0"
-			:
-			: "r" (PMNC_P|PMNC_C|PMNC_PMN0_IF|PMNC_PMN1_IF|
-			       PMNC_CC_IF));
-
 #if defined(XSCALE_CCLKCFG)
 		/*
 		 * Crank CCLKCFG to maximum legal value.
@@ -1128,10 +1107,6 @@ set_cpufuncs()
 			: "r" (BCUCTL_E0|BCUCTL_E1|BCUCTL_EV));
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		/*
 		 * i80200 errata: Step-A0 and A1 have a bug where
 		 * D$ dirty bits are not cleared on "invalidate by
@@ -1152,23 +1127,7 @@ set_cpufuncs()
 	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
 	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0 ||
 	    cputype == CPU_ID_80219_400 || cputype == CPU_ID_80219_600) {
-		/*
-		 * Reset the Performance Monitoring Unit to a
-		 * pristine state:
-		 *	- CCNT, PMN0, PMN1 reset to 0
-		 *	- overflow indications cleared
-		 *	- all counters disabled
-		 */
-		__asm __volatile("mcr p14, 0, %0, c0, c0, 0"
-			:
-			: "r" (PMNC_P|PMNC_C|PMNC_PMN0_IF|PMNC_PMN1_IF|
-			       PMNC_CC_IF));
-
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1179,10 +1138,6 @@ set_cpufuncs()
 #if defined(CPU_XSCALE_81342)
 	if (cputype == CPU_ID_81342) {
 		cpufuncs = xscalec3_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1196,10 +1151,6 @@ set_cpufuncs()
 	    (cputype & ~CPU_ID_XSCALE_COREREV_MASK) == CPU_ID_PXA210) {
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1215,10 +1166,6 @@ set_cpufuncs()
             cputype == CPU_ID_IXP425_266 || cputype == CPU_ID_IXP435) {
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();

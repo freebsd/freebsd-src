@@ -2,7 +2,7 @@
 .\" Written by Garrett Wollman
 .\" This file is in the public domain.
 .\"
-.Dd July 9, 2009
+.Dd September 22, 2009
 .Dt PROCFS 5
 .Os
 .Sh NAME
@@ -117,6 +117,12 @@ Not implemented.
 .It Pa notepg
 Used for sending signal to the process group.
 Not implemented.
+.It Pa osrel
+Allows read and write of the kernel osrel value assigned to the process.
+It affects the compatibility shims that are turned on and off
+depending on the value.
+Initial process value is read from the ABI note tag in the executed ELF image,
+and is zero if the tag not supported by binary format or was not found.
 .It Pa regs
 Allows read and write access to the process' register set.
 This file contains a binary data structure
@@ -237,6 +243,8 @@ the complete virtual address space of the process
 used for signaling the process
 .It Pa /proc/curproc/notepg
 used for signaling the process group
+.It Pa /proc/curproc/osrel
+the process osrel value
 .It Pa /proc/curproc/regs
 the process register set
 .It Pa /proc/curproc/rlimit

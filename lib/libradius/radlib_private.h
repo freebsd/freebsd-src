@@ -38,6 +38,7 @@
 /* Handle types */
 #define RADIUS_AUTH		0   /* RADIUS authentication, default */
 #define RADIUS_ACCT		1   /* RADIUS accounting */
+#define RADIUS_SERVER		2   /* RADIUS server */
 
 /* Defaults */
 #define MAXTRIES		3
@@ -75,18 +76,18 @@ struct rad_handle {
 	int		 num_servers;	/* Number of valid server entries */
 	int		 ident;		/* Current identifier value */
 	char		 errmsg[ERRSIZE];	/* Most recent error message */
-	unsigned char	 request[MSGSIZE];	/* Request to send */
-	char	 	 request_created; /* rad_create_request() called? */
-	int		 req_len;	/* Length of request */
+	unsigned char	 out[MSGSIZE];	/* Request to send */
+	char		 out_created;	/* rad_create_request() called? */
+	int		 out_len;	/* Length of request */
 	char		 pass[PASSSIZE];	/* Cleartext password */
 	int		 pass_len;	/* Length of cleartext password */
 	int		 pass_pos;	/* Position of scrambled password */
-	char	 	 chap_pass;	/* Have we got a CHAP_PASSWORD ? */
+	char		 chap_pass;	/* Have we got a CHAP_PASSWORD ? */
 	int		 authentic_pos;	/* Position of message authenticator */
 	char		 eap_msg;	/* Are we an EAP Proxy? */
-	unsigned char	 response[MSGSIZE];	/* Response received */
-	int		 resp_len;	/* Length of response */
-	int		 resp_pos;	/* Current position scanning attrs */
+	unsigned char	 in[MSGSIZE];	/* Response received */
+	int		 in_len;	/* Length of response */
+	int		 in_pos;	/* Current position scanning attrs */
 	int		 total_tries;	/* How many requests we'll send */
 	int		 try;		/* How many requests we've sent */
 	int		 srv;		/* Server number we did last */

@@ -120,8 +120,8 @@ getdelim(char ** __restrict linep, size_t * __restrict linecapp, int delim,
 		goto error;
 	}
 
-	if (*linecapp == 0)
-		*linep = NULL;
+	if (*linep == NULL)
+		*linecapp = 0;
 
 	if (fp->_r <= 0 && __srefill(fp)) {
 		/* If fp is at EOF already, we just need space for the NUL. */

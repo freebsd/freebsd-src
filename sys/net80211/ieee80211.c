@@ -391,7 +391,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = ieee80211_start;
 	ifp->if_ioctl = ieee80211_ioctl;
-	ifp->if_watchdog = NULL;		/* NB: no watchdog routine */
 	ifp->if_init = ieee80211_init;
 	/* NB: input+output filled in by ether_ifattach */
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);

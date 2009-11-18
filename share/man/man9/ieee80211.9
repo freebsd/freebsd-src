@@ -225,7 +225,7 @@ Allocate and initialize a
 structure.
 This method cannot sleep.
 The default method allocates zero'd memory using
-.Xr malloc 9.
+.Xr malloc 9 .
 Drivers should override this method to allocate extended storage
 for their own needs.
 Memory allocated by the driver must be tagged with
@@ -301,7 +301,7 @@ This method is called immediately after each channel change
 and must initiate the work to scan a channel and schedule a timer
 to advance to the next channel in the scan list.
 This callback is done in a sleepable context.
-The default method handles active scan work (e.g. sending ProbRequest
+The default method handles active scan work (e.g. sending ProbeRequest
 frames), and schedules a call to 
 .Xr ieee80211_scan_next 9
 according to the maximum dwell time for the channel.
@@ -558,4 +558,4 @@ Device supports Reduced Inter Frame Spacing (RIFS).
 .Xr ieee80211_send_action 9 ,
 .Xr ieee80211_radiotap_attach 9 ,
 .Xr ifnet 9 ,
-.Xr malloc 9 .
+.Xr malloc 9

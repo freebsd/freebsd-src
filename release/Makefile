@@ -242,6 +242,7 @@ MFSSIZE=		4096
 MFSINODE=		8192
 MFSLABEL=		auto
 MINIROOT=
+SEPARATE_LIVEFS=
 .elif ${TARGET_ARCH} == "ia64"
 DISKLABEL=		""
 MAKE_DVD=
@@ -646,6 +647,7 @@ release.2:
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && ${CROSSMAKE} ${WORLD_FLAGS} distributeworld \
 	    DISTDIR=${RD}/trees
+	sh ${.CURDIR}/scripts/mm-mtree.sh -F "${CROSSENV}" -D "${RD}/trees/base"
 	touch ${.TARGET}
 
 # Make and install the generic kernel(s).
@@ -696,7 +698,7 @@ release.5:
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		(find ${OTHER_DISTS} -path '*/var/empty' | xargs chflags noschg; \
-		find ${OTHER_DISTS} -depth -type d -empty -print | xargs rmdir)
+		find ${OTHER_DISTS} -depth -type d -empty -delete)
 	touch ${.TARGET}
 
 #
@@ -1162,10 +1164,10 @@ iso.1:
 .endif
 
 #
-# --==## Documentation Project files such as the Handbook and FAQ ##==--
+# --==## Documentation Project tools required to build the release notes ##==--
 #
 doc.1:
-	@echo "Making docs..."
+	@echo "Making docproj tools..."
 	@for i in ${DOCPORTS}; do \
 	    cd /usr/ports/$$i && \
 	    env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \

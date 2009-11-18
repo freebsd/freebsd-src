@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2006
+.Dd September 11, 2009
 .Dt SYSCONS 4
 .Os
 .Sh NAME
@@ -61,6 +61,7 @@
 In
 .Pa /boot/device.hints :
 .Cd hint.sc.0.at="isa"
+.Cd hint.sc.0.vesa_mode=0x103
 .Sh DESCRIPTION
 The
 .Nm
@@ -325,7 +326,7 @@ This mode is useful on some laptop computers, but less so on
 most other systems, and it adds substantial amount of code to syscons.
 If this option is NOT defined, you can reduce the kernel size a lot.
 See the
-.Dv VESA800X600
+.Dv VESAMODE
 flag below.
 .It Dv SC_TWOBUTTON_MOUSE
 If you have a two button mouse, you may want to add this option
@@ -426,15 +427,18 @@ or else at the loader prompt (see
 .\".It bit 6 (QUIET_BELL)
 .\"This option suppresses the bell, whether audible or visual,
 .\"if it is rung in a background virtual terminal.
-.It 0x0080 (VESA800X600)
-This option puts the video card in the VESA 800x600 pixel, 16 color
-mode.
-It may be useful for laptop computers for which the 800x600 mode
-is otherwise unsupported by the X server.
+.It 0x0080 (VESAMODE)
+This option puts the video card in the VESA mode specified by
+.Pa /boot/device.hints
+variable
+.Va vesa_mode
+during kernel initialization.
 Note that in order for this flag to work, the kernel must be
 compiled with the
 .Dv SC_PIXEL_MODE
 option explained above.
+A list of the available mode can be obtained via
+.Xr vidcontrol 1 .
 .\"Note also that the ``copy-and-paste'' function is not currently supported
 .\"in this mode and the mouse pointer will not be displayed.
 .It 0x0100 (AUTODETECT_KBD)

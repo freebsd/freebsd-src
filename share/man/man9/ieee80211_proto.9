@@ -119,7 +119,7 @@ and
 .Vt ic_bsschan
 are guaranteed to be usable.
 .It Dv IEEE80211_S_CSA
-Channel Switch Annoucememnt (CSA) is pending.
+Channel Switch Announcement (CSA) is pending.
 This state is reached only from
 .Dv IEEE80211_S_RUN
 when either a CSA is received from an access point (in station mode)
@@ -229,11 +229,11 @@ handled by
 or, in the case of card eject or vap destroy,
 work will be initiated outside the driver.
 .Sh SEE ALSO
-.Xr ioctl 2
+.Xr ioctl 2 ,
+.Xr wpa_supplicant 8 ,
 .Xr ieee80211 9 ,
-.Xr ifnet 9
+.Xr ifnet 9 ,
 .Xr taskqueue 9
-.Xr wpa_supplicant 8
 .Sh HISTORY
 The state machine concept was part of the original
 .Nm ieee80211

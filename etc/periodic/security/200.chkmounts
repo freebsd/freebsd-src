@@ -50,6 +50,9 @@ case "$daily_status_security_chkmounts_enable" in
 		ignore="${ignore}|^amd:"
 	esac
 	[ -n "$ignore" ] && cmd="egrep -v ${ignore#|}" || cmd=cat
+	if ! [ -f /etc/fstab ]; then
+		export PATH_FSTAB=/dev/null
+	fi
 	mount -p | sort | ${cmd} |
 	  check_diff mount - "${host} changes in mounted filesystems:"
 	rc=$?;;

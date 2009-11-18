@@ -133,6 +133,7 @@
 #define DEVICEID_MRVL_8039	0x4353
 #define DEVICEID_MRVL_8040	0x4354
 #define DEVICEID_MRVL_8040T	0x4355
+#define DEVICEID_MRVL_8042	0x4357
 #define DEVICEID_MRVL_8048	0x435A
 #define DEVICEID_MRVL_4360	0x4360
 #define DEVICEID_MRVL_4361	0x4361
@@ -143,11 +144,13 @@
 #define DEVICEID_MRVL_436A	0x436A
 #define DEVICEID_MRVL_436B	0x436B
 #define DEVICEID_MRVL_436C	0x436C
+#define DEVICEID_MRVL_4380	0x4380
 
 /*
  * D-Link gigabit ethernet device ID
  */
 #define DEVICEID_DLINK_DGE550SX	0x4001
+#define DEVICEID_DLINK_DGE560SX	0x4002
 #define DEVICEID_DLINK_DGE560T	0x4b00
 
 #define BIT_31		(1 << 31)
@@ -889,6 +892,8 @@
 #define CHIP_ID_YUKON_EC	0xb6 /* Chip ID for YUKON-2 EC */
 #define CHIP_ID_YUKON_FE	0xb7 /* Chip ID for YUKON-2 FE */
 #define CHIP_ID_YUKON_FE_P	0xb8 /* Chip ID for YUKON-2 FE+ */
+#define CHIP_ID_YUKON_SUPR	0xb9 /* Chip ID for YUKON-2 Supreme */
+#define CHIP_ID_YUKON_UL_2	0xba /* Chip ID for YUKON-2 Ultra 2 */
 
 #define	CHIP_REV_YU_XL_A0	0 /* Chip Rev. for Yukon-2 A0 */
 #define	CHIP_REV_YU_XL_A1	1 /* Chip Rev. for Yukon-2 A1 */
@@ -2403,6 +2408,12 @@ struct msk_ring_data {
 #define	MSK_TX_TIMEOUT		5
 #define	MSK_PUT_WM	10
 
+struct msk_mii_data {
+	int		port;
+	uint32_t	pmd;
+	int		mii_flags;
+};
+
 /* Forward decl. */
 struct msk_if_softc;
 
@@ -2466,7 +2477,6 @@ struct msk_softc {
 	uint8_t			msk_num_port;
 	int			msk_ramsize;	/* amount of SRAM on NIC */
 	uint32_t		msk_pmd;	/* physical media type */
-	uint32_t		msk_coppertype;
 	uint32_t		msk_intrmask;
 	uint32_t		msk_intrhwemask;
 	uint32_t		msk_pflags;

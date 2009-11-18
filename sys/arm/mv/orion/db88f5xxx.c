@@ -70,12 +70,10 @@ __FBSDID("$FreeBSD$");
  * 0xffff_2000 - 0xffff_ffff	: unused (~55KB)
  */
 
-const struct pmap_devmap *pmap_devmap_bootstrap_table;
-vm_offset_t pmap_bootstrap_lastaddr;
 int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin);
 
 /* Static device mappings. */
-static const struct pmap_devmap pmap_devmap[] = {
+const struct pmap_devmap pmap_devmap[] = {
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
@@ -183,16 +181,6 @@ const struct gpio_config mv_gpio_config[] = {
 	{ -1, -1, -1 }
 };
 #endif
-
-int
-platform_pmap_init(void)
-{
-
-	pmap_bootstrap_lastaddr = MV_BASE - ARM_NOCACHE_KVA_SIZE;
-	pmap_devmap_bootstrap_table = &pmap_devmap[0];
-
-	return (0);
-}
 
 void
 platform_mpp_init(void)

@@ -82,7 +82,6 @@ struct heredoc {
 
 
 STATIC struct heredoc *heredoclist;	/* list of here documents to read */
-STATIC int parsebackquote;	/* nonzero if we are inside backquotes */
 STATIC int doprompt;		/* if set, prompt the user */
 STATIC int needprompt;		/* true if interactive and at start of line */
 STATIC int lasttoken;		/* last token read */
@@ -365,7 +364,9 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1 = (union node *)stalloc(sizeof (struct nfor));
 		n1->type = NFOR;
 		n1->nfor.var = wordtext;
-		if (readtoken() == TWORD && ! quoteflag && equal(wordtext, "in")) {
+		while (readtoken() == TNL)
+			;
+		if (lasttoken == TWORD && ! quoteflag && equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
 				n2 = (union node *)stalloc(sizeof (struct narg));
@@ -1043,7 +1044,7 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 endword:
 	if (syntax == ARISYNTAX)
 		synerror("Missing '))'");
-	if (syntax != BASESYNTAX && ! parsebackquote && eofmark == NULL)
+	if (syntax != BASESYNTAX && eofmark == NULL)
 		synerror("Unterminated quoted string");
 	if (varnest != 0) {
 		startlinno = plinno;
@@ -1303,20 +1304,22 @@ parsesub: {
 
 parsebackq: {
 	struct nodelist **nlpp;
-	int savepbq;
 	union node *n;
 	char *volatile str;
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
 	int savelen;
 	int saveprompt;
+	const int bq_startlinno = plinno;
 
-	savepbq = parsebackquote;
 	if (setjmp(jmploc.loc)) {
 		if (str)
 			ckfree(str);
-		parsebackquote = 0;
 		handler = savehandler;
+		if (exception == EXERROR) {
+			startlinno = bq_startlinno;
+			synerror("Error in command substitution");
+		}
 		longjmp(handler->loc, 1);
 	}
 	INTOFF;
@@ -1397,7 +1400,6 @@ done:
 		nlpp = &(*nlpp)->next;
 	*nlpp = (struct nodelist *)stalloc(sizeof (struct nodelist));
 	(*nlpp)->next = NULL;
-	parsebackquote = oldstyle;
 
 	if (oldstyle) {
 		saveprompt = doprompt;
@@ -1433,7 +1435,6 @@ done:
 		str = NULL;
 		INTON;
 	}
-	parsebackquote = savepbq;
 	handler = savehandler;
 	if (arinest || dblquote)
 		USTPUTC(CTLBACKQ | CTLQUOTE, out);

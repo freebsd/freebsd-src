@@ -27,6 +27,7 @@ SUBDIR= cat \
 	pax \
 	pkill \
 	ps \
+	pwait \
 	pwd \
 	${_rcp} \
 	realpath \

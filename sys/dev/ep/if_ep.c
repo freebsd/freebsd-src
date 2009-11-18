@@ -665,14 +665,13 @@ rescan:
 #ifdef EP_LOCAL_STATS
 						sc->tx_underrun++;
 #endif
-					} else {
-						if (status & TXS_JABBER);
-						else
-							++ifp->if_collisions;
-							/* TXS_MAX_COLLISION
-							 * we shouldn't get
-							 * here
-							 */
+					}
+					if (status & TXS_MAX_COLLISION) {
+						/*
+						 * TXS_MAX_COLLISION we
+						 * shouldn't get here
+						 */
+						++ifp->if_collisions;
 					}
 					++ifp->if_oerrors;
 					CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
