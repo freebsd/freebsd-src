@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpf_jitter.h>
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
+bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *, int *);
 
 static u_int	bpf_jit_accept_all(u_char *, u_int, u_int);
 
@@ -81,7 +81,8 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	}
 
 	/* Create the binary */
-	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
+	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size,
+	    filter->mem)) == NULL) {
 		free(filter, M_BPFJIT);
 		return (NULL);
 	}
@@ -94,7 +95,7 @@ bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
 	if (filter->func != bpf_jit_accept_all)
-		free(filter->func, M_BPFJIT);
+		contigfree(filter->func, filter->size, M_BPFJIT);
 	free(filter, M_BPFJIT);
 }
 #else
@@ -116,7 +117,8 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	}
 
 	/* Create the binary */
-	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
+	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size,
+	    filter->mem)) == NULL) {
 		free(filter);
 		return (NULL);
 	}
@@ -129,7 +131,7 @@ bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
 	if (filter->func != bpf_jit_accept_all)
-		munmap(filter->func, BPF_JIT_MAXSIZE);
+		munmap(filter->func, filter->size);
 	free(filter);
 }
 #endif
