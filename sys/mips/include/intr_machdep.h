@@ -52,11 +52,25 @@ extern struct mips_intrhand mips_intr_handlers[];
 
 struct trapframe;
 
+void cpu_init_interrupts(void);
 void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *, 
     void *, int, int, void **);
 void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*), 
     void *, int, int, void **);
 void cpu_intr(struct trapframe *);
 
+/*
+ * Opaque datatype that represents intr counter
+ */
+typedef unsigned long* mips_intrcnt_t;
 
+mips_intrcnt_t mips_intrcnt_create(const char *);
+void mips_intrcnt_setname(mips_intrcnt_t, const char *);
+
+static __inline void
+mips_intrcnt_inc(mips_intrcnt_t counter)
+{
+	if (counter)
+		atomic_add_long(counter, 1);
+}
 #endif /* !_MACHINE_INTR_MACHDEP_H_ */

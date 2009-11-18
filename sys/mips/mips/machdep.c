@@ -75,16 +75,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <sys/user.h>
+#include <sys/interrupt.h>
 #include <sys/cons.h>
 #include <sys/syslog.h>
-#include <machine/cache.h>
-#include <machine/cpu.h>
-#include <net/netisr.h>
-#include <machine/md_var.h>
-#include <machine/clock.h>
 #include <machine/asm.h>
 #include <machine/bootinfo.h>
+#include <machine/cache.h>
+#include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/hwfunc.h>
+#include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #ifdef DDB
 #include <sys/kdb.h>
 #include <ddb/ddb.h>
@@ -186,6 +187,7 @@ cpu_startup(void *dummy)
 
 	printf("avail memory = %lu (%luMB)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1048576);
+	cpu_init_interrupts();
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
