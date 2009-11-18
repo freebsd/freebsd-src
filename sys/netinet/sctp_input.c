@@ -834,6 +834,9 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		return;
 	} else {
 		sctp_update_acked(stcb, cp, net, abort_flag);
+		if (*abort_flag) {
+			return;
+		}
 	}
 	if (asoc->control_pdapi) {
 		/*
