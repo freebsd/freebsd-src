@@ -36,8 +36,6 @@
 
 #ifdef _KERNEL
 MALLOC_DECLARE(M_BPFJIT);
-#else
-#define	BPF_JIT_MAXSIZE		PAGE_SIZE
 #endif
 
 extern int bpf_jitter_enable;
@@ -55,7 +53,7 @@ typedef u_int (*bpf_filter_func)(u_char *, u_int, u_int);
 typedef struct bpf_jit_filter {
 	/* The native filtering binary, in the form of a bpf_filter_func. */
 	bpf_filter_func	func;
-
+	size_t		size;
 	int		mem[BPF_MEMWORDS];	/* Scratch memory */
 } bpf_jit_filter;
 

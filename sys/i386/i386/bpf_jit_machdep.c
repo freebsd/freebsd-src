@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/i386/bpf_jit_machdep.h>
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
+bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *, int *);
 
 /*
  * emit routine to update the jump table
@@ -97,7 +97,7 @@ emit_code(bpf_bin_stream *stream, u_int value, u_int len)
  * Function that does the real stuff
  */
 bpf_filter_func
-bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
+bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 {
 	bpf_bin_stream stream;
 	struct bpf_insn *ins;
@@ -504,23 +504,21 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 #ifndef _KERNEL
 			if (mprotect(stream.ibuf, stream.cur_ip,
 			    PROT_READ | PROT_EXEC) != 0) {
-				munmap(stream.ibuf, BPF_JIT_MAXSIZE);
+				munmap(stream.ibuf, stream.cur_ip);
 				stream.ibuf = NULL;
 			}
 #endif
+			*size = stream.cur_ip;
 			break;
 		}
 
 #ifdef _KERNEL
-		stream.ibuf = (char *)malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
+		stream.ibuf = (char *)contigmalloc(stream.cur_ip, M_BPFJIT,
+		    M_NOWAIT, 0, ~0ULL, 16, 0);
 		if (stream.ibuf == NULL)
 			break;
 #else
-		if (stream.cur_ip > BPF_JIT_MAXSIZE) {
-			stream.ibuf = NULL;
-			break;
-		}
-		stream.ibuf = (char *)mmap(NULL, BPF_JIT_MAXSIZE,
+		stream.ibuf = (char *)mmap(NULL, stream.cur_ip,
 		    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
 		if (stream.ibuf == MAP_FAILED) {
 			stream.ibuf = NULL;
