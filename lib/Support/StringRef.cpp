@@ -15,6 +15,26 @@ using namespace llvm;
 const size_t StringRef::npos;
 #endif
 
+static char ascii_tolower(char x) {
+  if (x >= 'A' && x <= 'Z')
+    return x - 'A' + 'a';
+  return x;
+}
+
+/// compare_lower - Compare strings, ignoring case.
+int StringRef::compare_lower(StringRef RHS) const {
+  for (size_t I = 0, E = std::min(Length, RHS.Length); I != E; ++I) {
+    char LHC = ascii_tolower(Data[I]);
+    char RHC = ascii_tolower(RHS.Data[I]);
+    if (LHC != RHC)
+      return LHC < RHC ? -1 : 1;
+  }
+
+  if (Length == RHS.Length)
+        return 0;
+  return Length < RHS.Length ? -1 : 1;
+}
+
 //===----------------------------------------------------------------------===//
 // String Searching
 //===----------------------------------------------------------------------===//
@@ -24,11 +44,11 @@ const size_t StringRef::npos;
 ///
 /// \return - The index of the first occurence of \arg Str, or npos if not
 /// found.
-size_t StringRef::find(const StringRef &Str) const {
+size_t StringRef::find(StringRef Str, size_t From) const {
   size_t N = Str.size();
   if (N > Length)
     return npos;
-  for (size_t i = 0, e = Length - N + 1; i != e; ++i)
+  for (size_t e = Length - N + 1, i = std::min(From, e); i != e; ++i)
     if (substr(i, N).equals(Str))
       return i;
   return npos;
@@ -38,7 +58,7 @@ size_t StringRef::find(const StringRef &Str) const {
 ///
 /// \return - The index of the last occurence of \arg Str, or npos if not
 /// found.
-size_t StringRef::rfind(const StringRef &Str) const {
+size_t StringRef::rfind(StringRef Str) const {
   size_t N = Str.size();
   if (N > Length)
     return npos;
@@ -50,19 +70,34 @@ size_t StringRef::rfind(const StringRef &Str) const {
   return npos;
 }
 
-/// find_first_of - Find the first character from the string 'Chars' in the
-/// current string or return npos if not in string.
-StringRef::size_type StringRef::find_first_of(StringRef Chars) const {
-  for (size_type i = 0, e = Length; i != e; ++i)
+/// find_first_of - Find the first character in the string that is in \arg
+/// Chars, or npos if not found.
+///
+/// Note: O(size() * Chars.size())
+StringRef::size_type StringRef::find_first_of(StringRef Chars,
+                                              size_t From) const {
+  for (size_type i = std::min(From, Length), e = Length; i != e; ++i)
     if (Chars.find(Data[i]) != npos)
       return i;
   return npos;
 }
 
 /// find_first_not_of - Find the first character in the string that is not
-/// in the string 'Chars' or return npos if all are in string. Same as find.
-StringRef::size_type StringRef::find_first_not_of(StringRef Chars) const {
-  for (size_type i = 0, e = Length; i != e; ++i)
+/// \arg C or npos if not found.
+StringRef::size_type StringRef::find_first_not_of(char C, size_t From) const {
+  for (size_type i = std::min(From, Length), e = Length; i != e; ++i)
+    if (Data[i] != C)
+      return i;
+  return npos;
+}
+
+/// find_first_not_of - Find the first character in the string that is not
+/// in the string \arg Chars, or npos if not found.
+///
+/// Note: O(size() * Chars.size())
+StringRef::size_type StringRef::find_first_not_of(StringRef Chars,
+                                                  size_t From) const {
+  for (size_type i = std::min(From, Length), e = Length; i != e; ++i)
     if (Chars.find(Data[i]) == npos)
       return i;
   return npos;
@@ -75,7 +110,7 @@ StringRef::size_type StringRef::find_first_not_of(StringRef Chars) const {
 
 /// count - Return the number of non-overlapped occurrences of \arg Str in
 /// the string.
-size_t StringRef::count(const StringRef &Str) const {
+size_t StringRef::count(StringRef Str) const {
   size_t Count = 0;
   size_t N = Str.size();
   if (N > Length)

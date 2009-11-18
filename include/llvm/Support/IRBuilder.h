@@ -151,6 +151,15 @@ public:
       Context.getMetadata().addMD(MDKind, CurDbgLocation, I);
   }
 
+  /// SetDebugLocation -  Set location information for the given instruction.
+  void SetDebugLocation(Instruction *I, MDNode *Loc) {
+    if (MDKind == 0) 
+      MDKind = Context.getMetadata().getMDKind("dbg");
+    if (MDKind == 0)
+      MDKind = Context.getMetadata().registerMDKind("dbg");
+    Context.getMetadata().addMD(MDKind, Loc, I);
+  }
+
   /// Insert - Insert and return the specified instruction.
   template<typename InstTy>
   InstTy *Insert(InstTy *I, const Twine &Name = "") const {
@@ -700,6 +709,11 @@ public:
       return Folder.CreateIntCast(VC, DestTy, isSigned);
     return Insert(CastInst::CreateIntegerCast(V, DestTy, isSigned), Name);
   }
+private:
+  // Provided to resolve 'CreateIntCast(Ptr, Ptr, "...")', giving a compile time
+  // error, instead of converting the string to bool for the isSigned parameter.
+  Value *CreateIntCast(Value *, const Type *, const char *); // DO NOT IMPLEMENT
+public:
   Value *CreateFPCast(Value *V, const Type *DestTy, const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;

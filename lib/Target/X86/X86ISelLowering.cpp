@@ -1087,6 +1087,17 @@ unsigned X86TargetLowering::getFunctionAlignment(const Function *F) const {
 
 #include "X86GenCallingConv.inc"
 
+bool 
+X86TargetLowering::CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
+                        const SmallVectorImpl<EVT> &OutTys,
+                        const SmallVectorImpl<ISD::ArgFlagsTy> &ArgsFlags,
+                        SelectionDAG &DAG) {
+  SmallVector<CCValAssign, 16> RVLocs;
+  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
+                 RVLocs, *DAG.getContext());
+  return CCInfo.CheckReturn(OutTys, ArgsFlags, RetCC_X86);
+}
+
 SDValue
 X86TargetLowering::LowerReturn(SDValue Chain,
                                CallingConv::ID CallConv, bool isVarArg,
@@ -1370,7 +1381,7 @@ X86TargetLowering::LowerMemArgument(SDValue Chain,
   // In case of tail call optimization mark all arguments mutable. Since they
   // could be overwritten by lowering of arguments in case of a tail call.
   int FI = MFI->CreateFixedObject(ValVT.getSizeInBits()/8,
-                                  VA.getLocMemOffset(), isImmutable);
+                                  VA.getLocMemOffset(), isImmutable, false);
   SDValue FIN = DAG.getFrameIndex(FI, getPointerTy());
   if (Flags.isByVal())
     return FIN;
@@ -1499,7 +1510,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
   // the start of the first vararg value... for expansion of llvm.va_start.
   if (isVarArg) {
     if (Is64Bit || CallConv != CallingConv::X86_FastCall) {
-      VarArgsFrameIndex = MFI->CreateFixedObject(1, StackSize);
+      VarArgsFrameIndex = MFI->CreateFixedObject(1, StackSize, true, false);
     }
     if (Is64Bit) {
       unsigned TotalNumIntRegs = 0, TotalNumXMMRegs = 0;
@@ -1550,7 +1561,8 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
       VarArgsGPOffset = NumIntRegs * 8;
       VarArgsFPOffset = TotalNumIntRegs * 8 + NumXMMRegs * 16;
       RegSaveFrameIndex = MFI->CreateStackObject(TotalNumIntRegs * 8 +
-                                                 TotalNumXMMRegs * 16, 16);
+                                                 TotalNumXMMRegs * 16, 16,
+                                                 false);
 
       // Store the integer parameter registers.
       SmallVector<SDValue, 8> MemOps;
@@ -1671,7 +1683,8 @@ EmitTailCallStoreRetAddr(SelectionDAG & DAG, MachineFunction &MF,
   // Calculate the new stack slot for the return address.
   int SlotSize = Is64Bit ? 8 : 4;
   int NewReturnAddrFI =
-    MF.getFrameInfo()->CreateFixedObject(SlotSize, FPDiff-SlotSize);
+    MF.getFrameInfo()->CreateFixedObject(SlotSize, FPDiff-SlotSize,
+                                         true, false);
   EVT VT = Is64Bit ? MVT::i64 : MVT::i32;
   SDValue NewRetAddrFrIdx = DAG.getFrameIndex(NewReturnAddrFI, VT);
   Chain = DAG.getStore(Chain, dl, RetAddrFrIdx, NewRetAddrFrIdx,
@@ -1884,7 +1897,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
         // Create frame index.
         int32_t Offset = VA.getLocMemOffset()+FPDiff;
         uint32_t OpSize = (VA.getLocVT().getSizeInBits()+7)/8;
-        FI = MF.getFrameInfo()->CreateFixedObject(OpSize, Offset);
+        FI = MF.getFrameInfo()->CreateFixedObject(OpSize, Offset, true, false);
         FIN = DAG.getFrameIndex(FI, getPointerTy());
 
         if (Flags.isByVal()) {
@@ -1924,9 +1937,19 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                      FPDiff, dl);
   }
 
-  // If the callee is a GlobalAddress node (quite common, every direct call is)
-  // turn it into a TargetGlobalAddress node so that legalize doesn't hack it.
-  if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
+  bool WasGlobalOrExternal = false;
+  if (getTargetMachine().getCodeModel() == CodeModel::Large) {
+    assert(Is64Bit && "Large code model is only legal in 64-bit mode.");
+    // In the 64-bit large code model, we have to make all calls
+    // through a register, since the call instruction's 32-bit
+    // pc-relative offset may not be large enough to hold the whole
+    // address.
+  } else if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
+    WasGlobalOrExternal = true;
+    // If the callee is a GlobalAddress node (quite common, every direct call
+    // is) turn it into a TargetGlobalAddress node so that legalize doesn't hack
+    // it.
+
     // We should use extra load for direct calls to dllimported functions in
     // non-JIT mode.
     GlobalValue *GV = G->getGlobal();
@@ -1954,6 +1977,7 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
                                           G->getOffset(), OpFlags);
     }
   } else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee)) {
+    WasGlobalOrExternal = true;
     unsigned char OpFlags = 0;
 
     // On ELF targets, in either X86-64 or X86-32 mode, direct calls to external
@@ -1971,7 +1995,9 @@ X86TargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
     Callee = DAG.getTargetExternalSymbol(S->getSymbol(), getPointerTy(),
                                          OpFlags);
-  } else if (isTailCall) {
+  }
+
+  if (isTailCall && !WasGlobalOrExternal) {
     unsigned Opc = Is64Bit ? X86::R11 : X86::EAX;
 
     Chain = DAG.getCopyToReg(Chain,  dl,
@@ -2169,7 +2195,8 @@ SDValue X86TargetLowering::getReturnAddressFrameIndex(SelectionDAG &DAG) {
   if (ReturnAddrIndex == 0) {
     // Set up a frame object for the return address.
     uint64_t SlotSize = TD->getPointerSize();
-    ReturnAddrIndex = MF.getFrameInfo()->CreateFixedObject(SlotSize, -SlotSize);
+    ReturnAddrIndex = MF.getFrameInfo()->CreateFixedObject(SlotSize, -SlotSize,
+                                                           true, false);
     FuncInfo->setRAIndex(ReturnAddrIndex);
   }
 
@@ -2517,6 +2544,21 @@ bool X86::isMOVHLPSMask(ShuffleVectorSDNode *N) {
          isUndefOrEqual(N->getMaskElt(3), 3);
 }
 
+/// isMOVHLPS_v_undef_Mask - Special case of isMOVHLPSMask for canonical form
+/// of vector_shuffle v, v, <2, 3, 2, 3>, i.e. vector_shuffle v, undef,
+/// <2, 3, 2, 3>
+bool X86::isMOVHLPS_v_undef_Mask(ShuffleVectorSDNode *N) {
+  unsigned NumElems = N->getValueType(0).getVectorNumElements();
+  
+  if (NumElems != 4)
+    return false;
+  
+  return isUndefOrEqual(N->getMaskElt(0), 2) &&
+  isUndefOrEqual(N->getMaskElt(1), 3) &&
+  isUndefOrEqual(N->getMaskElt(2), 2) &&
+  isUndefOrEqual(N->getMaskElt(3), 3);
+}
+
 /// isMOVLPMask - Return true if the specified VECTOR_SHUFFLE operand
 /// specifies a shuffle of elements that is suitable for input to MOVLP{S|D}.
 bool X86::isMOVLPMask(ShuffleVectorSDNode *N) {
@@ -2536,10 +2578,9 @@ bool X86::isMOVLPMask(ShuffleVectorSDNode *N) {
   return true;
 }
 
-/// isMOVHPMask - Return true if the specified VECTOR_SHUFFLE operand
-/// specifies a shuffle of elements that is suitable for input to MOVHP{S|D}
-/// and MOVLHPS.
-bool X86::isMOVHPMask(ShuffleVectorSDNode *N) {
+/// isMOVLHPSMask - Return true if the specified VECTOR_SHUFFLE operand
+/// specifies a shuffle of elements that is suitable for input to MOVLHPS.
+bool X86::isMOVLHPSMask(ShuffleVectorSDNode *N) {
   unsigned NumElems = N->getValueType(0).getVectorNumElements();
 
   if (NumElems != 2 && NumElems != 4)
@@ -2554,21 +2595,6 @@ bool X86::isMOVHPMask(ShuffleVectorSDNode *N) {
       return false;
 
   return true;
-}
-
-/// isMOVHLPS_v_undef_Mask - Special case of isMOVHLPSMask for canonical form
-/// of vector_shuffle v, v, <2, 3, 2, 3>, i.e. vector_shuffle v, undef,
-/// <2, 3, 2, 3>
-bool X86::isMOVHLPS_v_undef_Mask(ShuffleVectorSDNode *N) {
-  unsigned NumElems = N->getValueType(0).getVectorNumElements();
-
-  if (NumElems != 4)
-    return false;
-
-  return isUndefOrEqual(N->getMaskElt(0), 2) &&
-         isUndefOrEqual(N->getMaskElt(1), 3) &&
-         isUndefOrEqual(N->getMaskElt(2), 2) &&
-         isUndefOrEqual(N->getMaskElt(3), 3);
 }
 
 /// isUNPCKLMask - Return true if the specified VECTOR_SHUFFLE operand
@@ -4264,7 +4290,7 @@ X86TargetLowering::LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) {
   if (!isMMX && (X86::isMOVSHDUPMask(SVOp) ||
                  X86::isMOVSLDUPMask(SVOp) ||
                  X86::isMOVHLPSMask(SVOp) ||
-                 X86::isMOVHPMask(SVOp) ||
+                 X86::isMOVLHPSMask(SVOp) ||
                  X86::isMOVLPMask(SVOp)))
     return Op;
 
@@ -4961,7 +4987,7 @@ SDValue X86TargetLowering::LowerSINT_TO_FP(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
   unsigned Size = SrcVT.getSizeInBits()/8;
   MachineFunction &MF = DAG.getMachineFunction();
-  int SSFI = MF.getFrameInfo()->CreateStackObject(Size, Size);
+  int SSFI = MF.getFrameInfo()->CreateStackObject(Size, Size, false);
   SDValue StackSlot = DAG.getFrameIndex(SSFI, getPointerTy());
   SDValue Chain = DAG.getStore(DAG.getEntryNode(), dl, Op.getOperand(0),
                                StackSlot,
@@ -4995,7 +5021,7 @@ SDValue X86TargetLowering::BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain,
     // shouldn't be necessary except that RFP cannot be live across
     // multiple blocks. When stackifier is fixed, they can be uncoupled.
     MachineFunction &MF = DAG.getMachineFunction();
-    int SSFI = MF.getFrameInfo()->CreateStackObject(8, 8);
+    int SSFI = MF.getFrameInfo()->CreateStackObject(8, 8, false);
     SDValue StackSlot = DAG.getFrameIndex(SSFI, getPointerTy());
     Tys = DAG.getVTList(MVT::Other);
     SmallVector<SDValue, 8> Ops;
@@ -5205,7 +5231,7 @@ FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG, bool IsSigned) {
   // stack slot.
   MachineFunction &MF = DAG.getMachineFunction();
   unsigned MemSize = DstTy.getSizeInBits()/8;
-  int SSFI = MF.getFrameInfo()->CreateStackObject(MemSize, MemSize);
+  int SSFI = MF.getFrameInfo()->CreateStackObject(MemSize, MemSize, false);
   SDValue StackSlot = DAG.getFrameIndex(SSFI, getPointerTy());
 
   unsigned Opc;
@@ -5228,7 +5254,7 @@ FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG, bool IsSigned) {
     };
     Value = DAG.getNode(X86ISD::FLD, dl, Tys, Ops, 3);
     Chain = Value.getValue(1);
-    SSFI = MF.getFrameInfo()->CreateStackObject(MemSize, MemSize);
+    SSFI = MF.getFrameInfo()->CreateStackObject(MemSize, MemSize, false);
     StackSlot = DAG.getFrameIndex(SSFI, getPointerTy());
   }
 
@@ -6752,7 +6778,7 @@ SDValue X86TargetLowering::LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
 
   // Save FP Control Word to stack slot
-  int SSFI = MF.getFrameInfo()->CreateStackObject(2, StackAlignment);
+  int SSFI = MF.getFrameInfo()->CreateStackObject(2, StackAlignment, false);
   SDValue StackSlot = DAG.getFrameIndex(SSFI, getPointerTy());
 
   SDValue Chain = DAG.getNode(X86ISD::FNSTCW16m, dl, MVT::Other,
@@ -7977,7 +8003,7 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     // Change the floating point control register to use "round towards zero"
     // mode when truncating to an integer value.
     MachineFunction *F = BB->getParent();
-    int CWFrameIdx = F->getFrameInfo()->CreateStackObject(2, 2);
+    int CWFrameIdx = F->getFrameInfo()->CreateStackObject(2, 2, false);
     addFrameReference(BuildMI(BB, DL, TII->get(X86::FNSTCW16m)), CWFrameIdx);
 
     // Load the old value of the high byte of the control word...
@@ -9585,14 +9611,14 @@ X86TargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
     }
 
     // GCC allows "st(0)" to be called just plain "st".
-    if (StringsEqualNoCase("{st}", Constraint)) {
+    if (StringRef("{st}").equals_lower(Constraint)) {
       Res.first = X86::ST0;
       Res.second = X86::RFP80RegisterClass;
       return Res;
     }
 
     // flags -> EFLAGS
-    if (StringsEqualNoCase("{flags}", Constraint)) {
+    if (StringRef("{flags}").equals_lower(Constraint)) {
       Res.first = X86::EFLAGS;
       Res.second = X86::CCRRegisterClass;
       return Res;

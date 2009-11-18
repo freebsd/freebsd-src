@@ -1,4 +1,4 @@
-//===- ARMBaseInstrInfo.h - ARM Base Instruction Information -------------*- C++ -*-===//
+//===- ARMBaseInstrInfo.h - ARM Base Instruction Information ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -261,9 +261,20 @@ public:
 
   virtual MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
                                               MachineInstr* MI,
-                                              const SmallVectorImpl<unsigned> &Ops,
+                                           const SmallVectorImpl<unsigned> &Ops,
                                               MachineInstr* LoadMI) const;
 
+  virtual void reMaterialize(MachineBasicBlock &MBB,
+                             MachineBasicBlock::iterator MI,
+                             unsigned DestReg, unsigned SubIdx,
+                             const MachineInstr *Orig,
+                             const TargetRegisterInfo *TRI) const;
+
+  virtual bool isIdentical(const MachineInstr *MI, const MachineInstr *Other,
+                           const MachineRegisterInfo *MRI) const;
+
+  virtual unsigned TailDuplicationLimit(const MachineBasicBlock &MBB,
+                                        unsigned DefaultLimit) const;
 };
 
 static inline

@@ -1043,7 +1043,8 @@ PPCRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
     int FPOffset = PPCFrameInfo::getFramePointerSaveOffset(IsPPC64,
                                                            isDarwinABI);
     // Allocate the frame index for frame pointer save area.
-    FPSI = MF.getFrameInfo()->CreateFixedObject(IsPPC64? 8 : 4, FPOffset);
+    FPSI = MF.getFrameInfo()->CreateFixedObject(IsPPC64? 8 : 4, FPOffset,
+                                                true, false);
     // Save the result.
     FI->setFramePointerSaveIndex(FPSI);                      
   }
@@ -1051,7 +1052,8 @@ PPCRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
   // Reserve stack space to move the linkage area to in case of a tail call.
   int TCSPDelta = 0;
   if (PerformTailCallOpt && (TCSPDelta = FI->getTailCallSPDelta()) < 0) {
-    MF.getFrameInfo()->CreateFixedObject(-1 * TCSPDelta, TCSPDelta);
+    MF.getFrameInfo()->CreateFixedObject(-1 * TCSPDelta, TCSPDelta,
+                                         true, false);
   }
   
   // Reserve a slot closest to SP or frame pointer if we have a dynalloc or
@@ -1067,7 +1069,8 @@ PPCRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
       const TargetRegisterClass *G8RC = &PPC::G8RCRegClass;
       const TargetRegisterClass *RC = IsPPC64 ? G8RC : GPRC;
       RS->setScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
-                                                         RC->getAlignment()));
+                                                         RC->getAlignment(),
+                                                         false));
     }
 }
 
@@ -1356,12 +1359,6 @@ PPCRegisterInfo::emitPrologue(MachineFunction &MF) const {
   unsigned TargetAlign = MF.getTarget().getFrameInfo()->getStackAlignment();
   unsigned MaxAlign = MFI->getMaxAlignment();
 
-  if (needsFrameMoves) {
-    // Mark effective beginning of when frame pointer becomes valid.
-    FrameLabelId = MMI->NextLabelID();
-    BuildMI(MBB, MBBI, dl, TII.get(PPC::DBG_LABEL)).addImm(FrameLabelId);
-  }
-  
   // Adjust stack pointer: r1 += NegFrameSize.
   // If there is a preferred stack alignment, align R1 now
   if (!IsPPC64) {
@@ -1431,12 +1428,18 @@ PPCRegisterInfo::emitPrologue(MachineFunction &MF) const {
         .addReg(PPC::X0);
     }
   }
+
+  std::vector<MachineMove> &Moves = MMI->getFrameMoves();
   
+  // Add the "machine moves" for the instructions we generated above, but in
+  // reverse order.
   if (needsFrameMoves) {
-    std::vector<MachineMove> &Moves = MMI->getFrameMoves();
-    
+    // Mark effective beginning of when frame pointer becomes valid.
+    FrameLabelId = MMI->NextLabelID();
+    BuildMI(MBB, MBBI, dl, TII.get(PPC::DBG_LABEL)).addImm(FrameLabelId);
+  
+    // Show update of SP.
     if (NegFrameSize) {
-      // Show update of SP.
       MachineLocation SPDst(MachineLocation::VirtualFP);
       MachineLocation SPSrc(MachineLocation::VirtualFP, NegFrameSize);
       Moves.push_back(MachineMove(FrameLabelId, SPDst, SPSrc));
@@ -1451,30 +1454,14 @@ PPCRegisterInfo::emitPrologue(MachineFunction &MF) const {
       Moves.push_back(MachineMove(FrameLabelId, FPDst, FPSrc));
     }
 
-    // Add callee saved registers to move list.
-    const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
-    for (unsigned I = 0, E = CSI.size(); I != E; ++I) {
-      int Offset = MFI->getObjectOffset(CSI[I].getFrameIdx());
-      unsigned Reg = CSI[I].getReg();
-      if (Reg == PPC::LR || Reg == PPC::LR8 || Reg == PPC::RM) continue;
-      MachineLocation CSDst(MachineLocation::VirtualFP, Offset);
-      MachineLocation CSSrc(Reg);
-      Moves.push_back(MachineMove(FrameLabelId, CSDst, CSSrc));
+    if (MustSaveLR) {
+      MachineLocation LRDst(MachineLocation::VirtualFP, LROffset);
+      MachineLocation LRSrc(IsPPC64 ? PPC::LR8 : PPC::LR);
+      Moves.push_back(MachineMove(FrameLabelId, LRDst, LRSrc));
     }
-    
-    MachineLocation LRDst(MachineLocation::VirtualFP, LROffset);
-    MachineLocation LRSrc(IsPPC64 ? PPC::LR8 : PPC::LR);
-    Moves.push_back(MachineMove(FrameLabelId, LRDst, LRSrc));
-    
-    // Mark effective beginning of when frame pointer is ready.
-    unsigned ReadyLabelId = MMI->NextLabelID();
-    BuildMI(MBB, MBBI, dl, TII.get(PPC::DBG_LABEL)).addImm(ReadyLabelId);
-    
-    MachineLocation FPDst(HasFP ? (IsPPC64 ? PPC::X31 : PPC::R31) :
-                                  (IsPPC64 ? PPC::X1 : PPC::R1));
-    MachineLocation FPSrc(MachineLocation::VirtualFP);
-    Moves.push_back(MachineMove(ReadyLabelId, FPDst, FPSrc));
   }
+
+  unsigned ReadyLabelId = 0;
 
   // If there is a frame pointer, copy R1 into R31
   if (HasFP) {
@@ -1486,6 +1473,33 @@ PPCRegisterInfo::emitPrologue(MachineFunction &MF) const {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::OR8), PPC::X31)
         .addReg(PPC::X1)
         .addReg(PPC::X1);
+    }
+
+    if (needsFrameMoves) {
+      ReadyLabelId = MMI->NextLabelID();
+
+      // Mark effective beginning of when frame pointer is ready.
+      BuildMI(MBB, MBBI, dl, TII.get(PPC::DBG_LABEL)).addImm(ReadyLabelId);
+
+      MachineLocation FPDst(HasFP ? (IsPPC64 ? PPC::X31 : PPC::R31) :
+                                    (IsPPC64 ? PPC::X1 : PPC::R1));
+      MachineLocation FPSrc(MachineLocation::VirtualFP);
+      Moves.push_back(MachineMove(ReadyLabelId, FPDst, FPSrc));
+    }
+  }
+
+  if (needsFrameMoves) {
+    unsigned LabelId = HasFP ? ReadyLabelId : FrameLabelId;
+
+    // Add callee saved registers to move list.
+    const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
+    for (unsigned I = 0, E = CSI.size(); I != E; ++I) {
+      int Offset = MFI->getObjectOffset(CSI[I].getFrameIdx());
+      unsigned Reg = CSI[I].getReg();
+      if (Reg == PPC::LR || Reg == PPC::LR8 || Reg == PPC::RM) continue;
+      MachineLocation CSDst(MachineLocation::VirtualFP, Offset);
+      MachineLocation CSSrc(Reg);
+      Moves.push_back(MachineMove(LabelId, CSDst, CSSrc));
     }
   }
 }
@@ -1700,7 +1714,7 @@ unsigned PPCRegisterInfo::getRARegister() const {
   return !Subtarget.isPPC64() ? PPC::LR : PPC::LR8;
 }
 
-unsigned PPCRegisterInfo::getFrameRegister(MachineFunction &MF) const {
+unsigned PPCRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   if (!Subtarget.isPPC64())
     return hasFP(MF) ? PPC::R31 : PPC::R1;
   else

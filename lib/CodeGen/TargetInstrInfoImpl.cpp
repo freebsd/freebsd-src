@@ -135,12 +135,50 @@ void TargetInstrInfoImpl::reMaterialize(MachineBasicBlock &MBB,
                                         MachineBasicBlock::iterator I,
                                         unsigned DestReg,
                                         unsigned SubIdx,
-                                        const MachineInstr *Orig) const {
+                                        const MachineInstr *Orig,
+                                        const TargetRegisterInfo *TRI) const {
   MachineInstr *MI = MBB.getParent()->CloneMachineInstr(Orig);
   MachineOperand &MO = MI->getOperand(0);
-  MO.setReg(DestReg);
-  MO.setSubReg(SubIdx);
+  if (TargetRegisterInfo::isVirtualRegister(DestReg)) {
+    MO.setReg(DestReg);
+    MO.setSubReg(SubIdx);
+  } else if (SubIdx) {
+    MO.setReg(TRI->getSubReg(DestReg, SubIdx));
+  } else {
+    MO.setReg(DestReg);
+  }
   MBB.insert(I, MI);
+}
+
+bool
+TargetInstrInfoImpl::isIdentical(const MachineInstr *MI,
+                                 const MachineInstr *Other,
+                                 const MachineRegisterInfo *MRI) const {
+  if (MI->getOpcode() != Other->getOpcode() ||
+      MI->getNumOperands() != Other->getNumOperands())
+    return false;
+
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    const MachineOperand &MO = MI->getOperand(i);
+    const MachineOperand &OMO = Other->getOperand(i);
+    if (MO.isReg() && MO.isDef()) {
+      assert(OMO.isReg() && OMO.isDef());
+      unsigned Reg = MO.getReg();
+      if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+        if (Reg != OMO.getReg())
+          return false;
+      } else if (MRI->getRegClass(MO.getReg()) !=
+                 MRI->getRegClass(OMO.getReg()))
+        return false;
+
+      continue;
+    }
+
+    if (!MO.isIdenticalTo(OMO))
+      return false;
+  }
+
+  return true;
 }
 
 unsigned

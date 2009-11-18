@@ -25,13 +25,14 @@ namespace llvm {
 struct LandingPadInfo;
 class MachineModuleInfo;
 class MCAsmInfo;
+class MCExpr;
 class Timer;
 class raw_ostream;
 
 //===----------------------------------------------------------------------===//
 /// DwarfException - Emits Dwarf exception handling directives.
 ///
-class VISIBILITY_HIDDEN DwarfException : public Dwarf {
+class DwarfException : public Dwarf {
   struct FunctionEHFrameInfo {
     std::string FnName;
     unsigned Number;
@@ -155,6 +156,10 @@ class VISIBILITY_HIDDEN DwarfException : public Dwarf {
                                SmallVectorImpl<ActionEntry> &Actions,
                                SmallVectorImpl<unsigned> &FirstActions);
 
+  /// CallToNoUnwindFunction - Return `true' if this is a call to a function
+  /// marked `nounwind'. Return `false' otherwise.
+  bool CallToNoUnwindFunction(const MachineInstr *MI);
+
   /// ComputeCallSiteTable - Compute the call-site table.  The entry for an
   /// invoke has a try-range containing the call, a non-zero landing pad and an
   /// appropriate action.  The entry for an ordinary call has a try-range
@@ -168,6 +173,11 @@ class VISIBILITY_HIDDEN DwarfException : public Dwarf {
                             const SmallVectorImpl<unsigned> &FirstActions);
   void EmitExceptionTable();
 
+  /// CreateLabelDiff - Emit a label and subtract it from the expression we
+  /// already have.  This is equivalent to emitting "foo - .", but we have to
+  /// emit the label for "." directly.
+  const MCExpr *CreateLabelDiff(const MCExpr *ExprRef, const char *LabelName,
+                                unsigned Index);
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.

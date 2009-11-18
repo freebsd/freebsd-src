@@ -103,7 +103,10 @@ public:
       Kills.erase(I);
       return true;
     }
-    
+
+    /// findKill - Find a kill instruction in MBB. Return NULL if none is found.
+    MachineInstr *findKill(const MachineBasicBlock *MBB) const;
+
     void dump() const;
   };
 
@@ -263,6 +266,12 @@ public:
   void HandleVirtRegDef(unsigned reg, MachineInstr *MI);
   void HandleVirtRegUse(unsigned reg, MachineBasicBlock *MBB,
                         MachineInstr *MI);
+
+  /// addNewBlock - Add a new basic block BB as an empty succcessor to
+  /// DomBB. All variables that are live out of DomBB will be marked as passing
+  /// live through BB. This method assumes that the machine code is still in SSA
+  /// form.
+  void addNewBlock(MachineBasicBlock *BB, MachineBasicBlock *DomBB);
 };
 
 } // End llvm namespace

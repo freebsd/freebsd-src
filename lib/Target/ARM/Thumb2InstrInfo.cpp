@@ -1,4 +1,4 @@
-//===- Thumb2InstrInfo.cpp - Thumb-2 Instruction Information --------*- C++ -*-===//
+//===- Thumb2InstrInfo.cpp - Thumb-2 Instruction Information ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,8 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ARMInstrInfo.h"
+#include "Thumb2InstrInfo.h"
 #include "ARM.h"
+#include "ARMConstantPoolValue.h"
 #include "ARMAddressingModes.h"
 #include "ARMGenInstrInfo.inc"
 #include "ARMMachineFunctionInfo.h"
@@ -131,7 +132,6 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   ARMBaseInstrInfo::loadRegFromStackSlot(MBB, I, DestReg, FI, RC);
 }
-
 
 void llvm::emitT2RegPlusImmediate(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator &MBBI, DebugLoc dl,

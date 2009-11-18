@@ -18,4 +18,3 @@ entry:
         %tmp4 = shufflevector <4 x float> %tmp3, <4 x float> %tmp, <4 x i32> < i32 2, i32 3, i32 6, i32 7 >           ; <<4 x float>> [#uses=1]
         ret <4 x float> %tmp4
 }
-

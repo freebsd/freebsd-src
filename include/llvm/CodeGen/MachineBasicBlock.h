@@ -225,7 +225,13 @@ public:
   /// potential fall-throughs at the end of the block.
   void moveBefore(MachineBasicBlock *NewAfter);
   void moveAfter(MachineBasicBlock *NewBefore);
-  
+
+  /// updateTerminator - Update the terminator instructions in block to account
+  /// for changes to the layout. If the block previously used a fallthrough,
+  /// it may now need a branch, and if it previously used branching it may now
+  /// be able to use a fallthrough.
+  void updateTerminator();
+
   // Machine-CFG mutators
   
   /// addSuccessor - Add succ as a successor of this MachineBasicBlock.
@@ -246,7 +252,7 @@ public:
   
   /// transferSuccessors - Transfers all the successors from MBB to this
   /// machine basic block (i.e., copies all the successors fromMBB and
-  /// remove all the successors fromBB).
+  /// remove all the successors from fromMBB).
   void transferSuccessors(MachineBasicBlock *fromMBB);
   
   /// isSuccessor - Return true if the specified MBB is a successor of this
@@ -351,6 +357,8 @@ private:   // Methods used to maintain doubly linked list of blocks...
 };
 
 raw_ostream& operator<<(raw_ostream &OS, const MachineBasicBlock &MBB);
+
+void WriteAsOperand(raw_ostream &, const MachineBasicBlock*, bool t);
 
 //===--------------------------------------------------------------------===//
 // GraphTraits specializations for machine basic block graphs (machine-CFGs)

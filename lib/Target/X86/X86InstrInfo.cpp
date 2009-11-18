@@ -26,11 +26,15 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/LiveVariables.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/MC/MCAsmInfo.h"
+
+#include <limits>
+
 using namespace llvm;
 
 static cl::opt<bool>
@@ -707,9 +711,23 @@ bool X86InstrInfo::isMoveInstr(const MachineInstr& MI,
   }
 }
 
-unsigned X86InstrInfo::isLoadFromStackSlot(const MachineInstr *MI, 
-                                           int &FrameIndex) const {
-  switch (MI->getOpcode()) {
+/// isFrameOperand - Return true and the FrameIndex if the specified
+/// operand and follow operands form a reference to the stack frame.
+bool X86InstrInfo::isFrameOperand(const MachineInstr *MI, unsigned int Op,
+                                  int &FrameIndex) const {
+  if (MI->getOperand(Op).isFI() && MI->getOperand(Op+1).isImm() &&
+      MI->getOperand(Op+2).isReg() && MI->getOperand(Op+3).isImm() &&
+      MI->getOperand(Op+1).getImm() == 1 &&
+      MI->getOperand(Op+2).getReg() == 0 &&
+      MI->getOperand(Op+3).getImm() == 0) {
+    FrameIndex = MI->getOperand(Op).getIndex();
+    return true;
+  }
+  return false;
+}
+
+static bool isFrameLoadOpcode(int Opcode) {
+  switch (Opcode) {
   default: break;
   case X86::MOV8rm:
   case X86::MOV16rm:
@@ -723,22 +741,14 @@ unsigned X86InstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
   case X86::MOVDQArm:
   case X86::MMX_MOVD64rm:
   case X86::MMX_MOVQ64rm:
-    if (MI->getOperand(1).isFI() && MI->getOperand(2).isImm() &&
-        MI->getOperand(3).isReg() && MI->getOperand(4).isImm() &&
-        MI->getOperand(2).getImm() == 1 &&
-        MI->getOperand(3).getReg() == 0 &&
-        MI->getOperand(4).getImm() == 0) {
-      FrameIndex = MI->getOperand(1).getIndex();
-      return MI->getOperand(0).getReg();
-    }
+    return true;
     break;
   }
-  return 0;
+  return false;
 }
 
-unsigned X86InstrInfo::isStoreToStackSlot(const MachineInstr *MI,
-                                          int &FrameIndex) const {
-  switch (MI->getOpcode()) {
+static bool isFrameStoreOpcode(int Opcode) {
+  switch (Opcode) {
   default: break;
   case X86::MOV8mr:
   case X86::MOV16mr:
@@ -753,17 +763,81 @@ unsigned X86InstrInfo::isStoreToStackSlot(const MachineInstr *MI,
   case X86::MMX_MOVD64mr:
   case X86::MMX_MOVQ64mr:
   case X86::MMX_MOVNTQmr:
-    if (MI->getOperand(0).isFI() && MI->getOperand(1).isImm() &&
-        MI->getOperand(2).isReg() && MI->getOperand(3).isImm() &&
-        MI->getOperand(1).getImm() == 1 &&
-        MI->getOperand(2).getReg() == 0 &&
-        MI->getOperand(3).getImm() == 0) {
-      FrameIndex = MI->getOperand(0).getIndex();
-      return MI->getOperand(X86AddrNumOperands).getReg();
-    }
-    break;
+    return true;
+  }
+  return false;
+}
+
+unsigned X86InstrInfo::isLoadFromStackSlot(const MachineInstr *MI, 
+                                           int &FrameIndex) const {
+  if (isFrameLoadOpcode(MI->getOpcode()))
+    if (isFrameOperand(MI, 1, FrameIndex))
+      return MI->getOperand(0).getReg();
+  return 0;
+}
+
+unsigned X86InstrInfo::isLoadFromStackSlotPostFE(const MachineInstr *MI, 
+                                                 int &FrameIndex) const {
+  if (isFrameLoadOpcode(MI->getOpcode())) {
+    unsigned Reg;
+    if ((Reg = isLoadFromStackSlot(MI, FrameIndex)))
+      return Reg;
+    // Check for post-frame index elimination operations
+    return hasLoadFromStackSlot(MI, FrameIndex);
   }
   return 0;
+}
+
+bool X86InstrInfo::hasLoadFromStackSlot(const MachineInstr *MI,
+                                        int &FrameIndex) const {
+  for (MachineInstr::mmo_iterator o = MI->memoperands_begin(),
+         oe = MI->memoperands_end();
+       o != oe;
+       ++o) {
+    if ((*o)->isLoad() && (*o)->getValue())
+      if (const FixedStackPseudoSourceValue *Value =
+          dyn_cast<const FixedStackPseudoSourceValue>((*o)->getValue())) {
+        FrameIndex = Value->getFrameIndex();
+        return true;
+      }
+  }
+  return false;
+}
+
+unsigned X86InstrInfo::isStoreToStackSlot(const MachineInstr *MI,
+                                          int &FrameIndex) const {
+  if (isFrameStoreOpcode(MI->getOpcode()))
+    if (isFrameOperand(MI, 0, FrameIndex))
+      return MI->getOperand(X86AddrNumOperands).getReg();
+  return 0;
+}
+
+unsigned X86InstrInfo::isStoreToStackSlotPostFE(const MachineInstr *MI,
+                                                int &FrameIndex) const {
+  if (isFrameStoreOpcode(MI->getOpcode())) {
+    unsigned Reg;
+    if ((Reg = isStoreToStackSlot(MI, FrameIndex)))
+      return Reg;
+    // Check for post-frame index elimination operations
+    return hasStoreToStackSlot(MI, FrameIndex);
+  }
+  return 0;
+}
+
+bool X86InstrInfo::hasStoreToStackSlot(const MachineInstr *MI,
+                                       int &FrameIndex) const {
+  for (MachineInstr::mmo_iterator o = MI->memoperands_begin(),
+         oe = MI->memoperands_end();
+       o != oe;
+       ++o) {
+    if ((*o)->isStore() && (*o)->getValue())
+      if (const FixedStackPseudoSourceValue *Value =
+          dyn_cast<const FixedStackPseudoSourceValue>((*o)->getValue())) {
+        FrameIndex = Value->getFrameIndex();
+        return true;
+      }
+  }
+  return false;
 }
 
 /// regIsPICBase - Return true if register is PIC base (i.e.g defined by
@@ -794,10 +868,14 @@ X86InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr *MI,
     case X86::MOVSSrm:
     case X86::MOVSDrm:
     case X86::MOVAPSrm:
+    case X86::MOVUPSrm:
+    case X86::MOVUPSrm_Int:
     case X86::MOVAPDrm:
     case X86::MOVDQArm:
     case X86::MMX_MOVD64rm:
-    case X86::MMX_MOVQ64rm: {
+    case X86::MMX_MOVQ64rm:
+    case X86::FsMOVAPSrm:
+    case X86::FsMOVAPDrm: {
       // Loads from constant pools are trivially rematerializable.
       if (MI->getOperand(1).isReg() &&
           MI->getOperand(2).isImm() &&
@@ -917,12 +995,13 @@ static bool isSafeToClobberEFLAGS(MachineBasicBlock &MBB,
 void X86InstrInfo::reMaterialize(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator I,
                                  unsigned DestReg, unsigned SubIdx,
-                                 const MachineInstr *Orig) const {
+                                 const MachineInstr *Orig,
+                                 const TargetRegisterInfo *TRI) const {
   DebugLoc DL = DebugLoc::getUnknownLoc();
   if (I != MBB.end()) DL = I->getDebugLoc();
 
   if (SubIdx && TargetRegisterInfo::isPhysicalRegister(DestReg)) {
-    DestReg = RI.getSubReg(DestReg, SubIdx);
+    DestReg = TRI->getSubReg(DestReg, SubIdx);
     SubIdx = 0;
   }
 
@@ -1891,8 +1970,7 @@ void X86InstrInfo::storeRegToAddr(MachineFunction &MF, unsigned SrcReg,
                                   MachineInstr::mmo_iterator MMOBegin,
                                   MachineInstr::mmo_iterator MMOEnd,
                                   SmallVectorImpl<MachineInstr*> &NewMIs) const {
-  bool isAligned = (RI.getStackAlignment() >= 16) ||
-    RI.needsStackRealignment(MF);
+  bool isAligned = (*MMOBegin)->getAlignment() >= 16;
   unsigned Opc = getStoreRegOpcode(SrcReg, RC, isAligned, TM);
   DebugLoc DL = DebugLoc::getUnknownLoc();
   MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc));
@@ -1985,8 +2063,7 @@ void X86InstrInfo::loadRegFromAddr(MachineFunction &MF, unsigned DestReg,
                                  MachineInstr::mmo_iterator MMOBegin,
                                  MachineInstr::mmo_iterator MMOEnd,
                                  SmallVectorImpl<MachineInstr*> &NewMIs) const {
-  bool isAligned = (RI.getStackAlignment() >= 16) ||
-    RI.needsStackRealignment(MF);
+  bool isAligned = (*MMOBegin)->getAlignment() >= 16;
   unsigned Opc = getLoadRegOpcode(DestReg, RC, isAligned, TM);
   DebugLoc DL = DebugLoc::getUnknownLoc();
   MachineInstrBuilder MIB = BuildMI(MF, DL, get(Opc), DestReg);
@@ -2170,7 +2247,7 @@ X86InstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
   // If table selected...
   if (OpcodeTablePtr) {
     // Find the Opcode to fuse
-    DenseMap<unsigned*, std::pair<unsigned,unsigned> >::iterator I =
+    DenseMap<unsigned*, std::pair<unsigned,unsigned> >::const_iterator I =
       OpcodeTablePtr->find((unsigned*)MI->getOpcode());
     if (I != OpcodeTablePtr->end()) {
       unsigned Opcode = I->second.first;
@@ -2402,7 +2479,7 @@ bool X86InstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
   
   if (OpcodeTablePtr) {
     // Find the Opcode to fuse
-    DenseMap<unsigned*, std::pair<unsigned,unsigned> >::iterator I =
+    DenseMap<unsigned*, std::pair<unsigned,unsigned> >::const_iterator I =
       OpcodeTablePtr->find((unsigned*)Opc);
     if (I != OpcodeTablePtr->end())
       return true;
@@ -2413,7 +2490,7 @@ bool X86InstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
 bool X86InstrInfo::unfoldMemoryOperand(MachineFunction &MF, MachineInstr *MI,
                                 unsigned Reg, bool UnfoldLoad, bool UnfoldStore,
                                 SmallVectorImpl<MachineInstr*> &NewMIs) const {
-  DenseMap<unsigned*, std::pair<unsigned,unsigned> >::iterator I =
+  DenseMap<unsigned*, std::pair<unsigned,unsigned> >::const_iterator I =
     MemOp2RegOpTable.find((unsigned*)MI->getOpcode());
   if (I == MemOp2RegOpTable.end())
     return false;
@@ -2530,7 +2607,7 @@ X86InstrInfo::unfoldMemoryOperand(SelectionDAG &DAG, SDNode *N,
   if (!N->isMachineOpcode())
     return false;
 
-  DenseMap<unsigned*, std::pair<unsigned,unsigned> >::iterator I =
+  DenseMap<unsigned*, std::pair<unsigned,unsigned> >::const_iterator I =
     MemOp2RegOpTable.find((unsigned*)N->getMachineOpcode());
   if (I == MemOp2RegOpTable.end())
     return false;
@@ -2563,17 +2640,16 @@ X86InstrInfo::unfoldMemoryOperand(SelectionDAG &DAG, SDNode *N,
   MachineFunction &MF = DAG.getMachineFunction();
   if (FoldedLoad) {
     EVT VT = *RC->vt_begin();
-    bool isAligned = (RI.getStackAlignment() >= 16) ||
-      RI.needsStackRealignment(MF);
+    std::pair<MachineInstr::mmo_iterator,
+              MachineInstr::mmo_iterator> MMOs =
+      MF.extractLoadMemRefs(cast<MachineSDNode>(N)->memoperands_begin(),
+                            cast<MachineSDNode>(N)->memoperands_end());
+    bool isAligned = (*MMOs.first)->getAlignment() >= 16;
     Load = DAG.getMachineNode(getLoadRegOpcode(0, RC, isAligned, TM), dl,
                               VT, MVT::Other, &AddrOps[0], AddrOps.size());
     NewNodes.push_back(Load);
 
     // Preserve memory reference information.
-    std::pair<MachineInstr::mmo_iterator,
-              MachineInstr::mmo_iterator> MMOs =
-      MF.extractLoadMemRefs(cast<MachineSDNode>(N)->memoperands_begin(),
-                            cast<MachineSDNode>(N)->memoperands_end());
     cast<MachineSDNode>(Load)->setMemRefs(MMOs.first, MMOs.second);
   }
 
@@ -2601,8 +2677,11 @@ X86InstrInfo::unfoldMemoryOperand(SelectionDAG &DAG, SDNode *N,
     AddrOps.pop_back();
     AddrOps.push_back(SDValue(NewNode, 0));
     AddrOps.push_back(Chain);
-    bool isAligned = (RI.getStackAlignment() >= 16) ||
-      RI.needsStackRealignment(MF);
+    std::pair<MachineInstr::mmo_iterator,
+              MachineInstr::mmo_iterator> MMOs =
+      MF.extractStoreMemRefs(cast<MachineSDNode>(N)->memoperands_begin(),
+                             cast<MachineSDNode>(N)->memoperands_end());
+    bool isAligned = (*MMOs.first)->getAlignment() >= 16;
     SDNode *Store = DAG.getMachineNode(getStoreRegOpcode(0, DstRC,
                                                          isAligned, TM),
                                        dl, MVT::Other,
@@ -2610,10 +2689,6 @@ X86InstrInfo::unfoldMemoryOperand(SelectionDAG &DAG, SDNode *N,
     NewNodes.push_back(Store);
 
     // Preserve memory reference information.
-    std::pair<MachineInstr::mmo_iterator,
-              MachineInstr::mmo_iterator> MMOs =
-      MF.extractStoreMemRefs(cast<MachineSDNode>(N)->memoperands_begin(),
-                             cast<MachineSDNode>(N)->memoperands_end());
     cast<MachineSDNode>(Load)->setMemRefs(MMOs.first, MMOs.second);
   }
 
@@ -2623,7 +2698,7 @@ X86InstrInfo::unfoldMemoryOperand(SelectionDAG &DAG, SDNode *N,
 unsigned X86InstrInfo::getOpcodeAfterMemoryUnfold(unsigned Opc,
                                       bool UnfoldLoad, bool UnfoldStore,
                                       unsigned *LoadRegIndex) const {
-  DenseMap<unsigned*, std::pair<unsigned,unsigned> >::iterator I =
+  DenseMap<unsigned*, std::pair<unsigned,unsigned> >::const_iterator I =
     MemOp2RegOpTable.find((unsigned*)Opc);
   if (I == MemOp2RegOpTable.end())
     return 0;

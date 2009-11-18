@@ -366,6 +366,9 @@ bool DIGlobalVariable::Verify() const {
   if (isNull())
     return false;
 
+  if (!getDisplayName())
+    return false;
+
   if (getContext().isNull())
     return false;
 
@@ -406,6 +409,10 @@ uint64_t DIDerivedType::getOriginalTypeSize() const {
       Tag == dwarf::DW_TAG_const_type || Tag == dwarf::DW_TAG_volatile_type ||
       Tag == dwarf::DW_TAG_restrict_type) {
     DIType BaseType = getTypeDerivedFrom();
+    // If this type is not derived from any type then take conservative 
+    // approach.
+    if (BaseType.isNull())
+      return getSizeInBits();
     if (BaseType.isDerivedType())
       return DIDerivedType(BaseType.getNode()).getOriginalTypeSize();
     else
@@ -599,9 +606,7 @@ void DIVariable::dump() const {
 //===----------------------------------------------------------------------===//
 
 DIFactory::DIFactory(Module &m)
-  : M(m), VMContext(M.getContext()), StopPointFn(0), FuncStartFn(0),
-    RegionStartFn(0), RegionEndFn(0),
-    DeclareFn(0) {
+  : M(m), VMContext(M.getContext()), DeclareFn(0) {
   EmptyStructPtr = PointerType::getUnqual(StructType::get(VMContext));
 }
 
@@ -646,9 +651,9 @@ DISubrange DIFactory::GetOrCreateSubrange(int64_t Lo, int64_t Hi) {
 /// CreateCompileUnit - Create a new descriptor for the specified compile
 /// unit.  Note that this does not unique compile units within the module.
 DICompileUnit DIFactory::CreateCompileUnit(unsigned LangID,
-                                           StringRef Filename,
-                                           StringRef Directory,
-                                           StringRef Producer,
+                                           const char * Filename,
+                                           const char * Directory,
+                                           const char * Producer,
                                            bool isMain,
                                            bool isOptimized,
                                            const char *Flags,
@@ -670,7 +675,7 @@ DICompileUnit DIFactory::CreateCompileUnit(unsigned LangID,
 }
 
 /// CreateEnumerator - Create a single enumerator value.
-DIEnumerator DIFactory::CreateEnumerator(StringRef Name, uint64_t Val){
+DIEnumerator DIFactory::CreateEnumerator(const char * Name, uint64_t Val){
   Value *Elts[] = {
     GetTagConstant(dwarf::DW_TAG_enumerator),
     MDString::get(VMContext, Name),
@@ -682,7 +687,7 @@ DIEnumerator DIFactory::CreateEnumerator(StringRef Name, uint64_t Val){
 
 /// CreateBasicType - Create a basic type like int, float, etc.
 DIBasicType DIFactory::CreateBasicType(DIDescriptor Context,
-                                       StringRef Name,
+                                       const char * Name,
                                        DICompileUnit CompileUnit,
                                        unsigned LineNumber,
                                        uint64_t SizeInBits,
@@ -707,7 +712,7 @@ DIBasicType DIFactory::CreateBasicType(DIDescriptor Context,
 
 /// CreateBasicType - Create a basic type like int, float, etc.
 DIBasicType DIFactory::CreateBasicTypeEx(DIDescriptor Context,
-                                         StringRef Name,
+                                         const char * Name,
                                          DICompileUnit CompileUnit,
                                          unsigned LineNumber,
                                          Constant *SizeInBits,
@@ -734,7 +739,7 @@ DIBasicType DIFactory::CreateBasicTypeEx(DIDescriptor Context,
 /// pointer, typedef, etc.
 DIDerivedType DIFactory::CreateDerivedType(unsigned Tag,
                                            DIDescriptor Context,
-                                           StringRef Name,
+                                           const char * Name,
                                            DICompileUnit CompileUnit,
                                            unsigned LineNumber,
                                            uint64_t SizeInBits,
@@ -762,7 +767,7 @@ DIDerivedType DIFactory::CreateDerivedType(unsigned Tag,
 /// pointer, typedef, etc.
 DIDerivedType DIFactory::CreateDerivedTypeEx(unsigned Tag,
                                              DIDescriptor Context,
-                                             StringRef Name,
+                                             const char * Name,
                                              DICompileUnit CompileUnit,
                                              unsigned LineNumber,
                                              Constant *SizeInBits,
@@ -789,7 +794,7 @@ DIDerivedType DIFactory::CreateDerivedTypeEx(unsigned Tag,
 /// CreateCompositeType - Create a composite type like array, struct, etc.
 DICompositeType DIFactory::CreateCompositeType(unsigned Tag,
                                                DIDescriptor Context,
-                                               StringRef Name,
+                                               const char * Name,
                                                DICompileUnit CompileUnit,
                                                unsigned LineNumber,
                                                uint64_t SizeInBits,
@@ -821,7 +826,7 @@ DICompositeType DIFactory::CreateCompositeType(unsigned Tag,
 /// CreateCompositeType - Create a composite type like array, struct, etc.
 DICompositeType DIFactory::CreateCompositeTypeEx(unsigned Tag,
                                                  DIDescriptor Context,
-                                                 StringRef Name,
+                                                 const char * Name,
                                                  DICompileUnit CompileUnit,
                                                  unsigned LineNumber,
                                                  Constant *SizeInBits,
@@ -854,9 +859,9 @@ DICompositeType DIFactory::CreateCompositeTypeEx(unsigned Tag,
 /// See comments in DISubprogram for descriptions of these fields.  This
 /// method does not unique the generated descriptors.
 DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
-                                         StringRef Name,
-                                         StringRef DisplayName,
-                                         StringRef LinkageName,
+                                         const char * Name,
+                                         const char * DisplayName,
+                                         const char * LinkageName,
                                          DICompileUnit CompileUnit,
                                          unsigned LineNo, DIType Type,
                                          bool isLocalToUnit,
@@ -880,9 +885,9 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
 
 /// CreateGlobalVariable - Create a new descriptor for the specified global.
 DIGlobalVariable
-DIFactory::CreateGlobalVariable(DIDescriptor Context, StringRef Name,
-                                StringRef DisplayName,
-                                StringRef LinkageName,
+DIFactory::CreateGlobalVariable(DIDescriptor Context, const char * Name,
+                                const char * DisplayName,
+                                const char * LinkageName,
                                 DICompileUnit CompileUnit,
                                 unsigned LineNo, DIType Type,bool isLocalToUnit,
                                 bool isDefinition, llvm::GlobalVariable *Val) {
@@ -914,7 +919,7 @@ DIFactory::CreateGlobalVariable(DIDescriptor Context, StringRef Name,
 
 /// CreateVariable - Create a new descriptor for the specified variable.
 DIVariable DIFactory::CreateVariable(unsigned Tag, DIDescriptor Context,
-                                     StringRef Name,
+                                     const char * Name,
                                      DICompileUnit CompileUnit, unsigned LineNo,
                                      DIType Type) {
   Value *Elts[] = {
@@ -976,60 +981,8 @@ DILocation DIFactory::CreateLocation(unsigned LineNo, unsigned ColumnNo,
 // DIFactory: Routines for inserting code into a function
 //===----------------------------------------------------------------------===//
 
-/// InsertStopPoint - Create a new llvm.dbg.stoppoint intrinsic invocation,
-/// inserting it at the end of the specified basic block.
-void DIFactory::InsertStopPoint(DICompileUnit CU, unsigned LineNo,
-                                unsigned ColNo, BasicBlock *BB) {
-
-  // Lazily construct llvm.dbg.stoppoint function.
-  if (!StopPointFn)
-    StopPointFn = llvm::Intrinsic::getDeclaration(&M,
-                                              llvm::Intrinsic::dbg_stoppoint);
-
-  // Invoke llvm.dbg.stoppoint
-  Value *Args[] = {
-    ConstantInt::get(llvm::Type::getInt32Ty(VMContext), LineNo),
-    ConstantInt::get(llvm::Type::getInt32Ty(VMContext), ColNo),
-    CU.getNode()
-  };
-  CallInst::Create(StopPointFn, Args, Args+3, "", BB);
-}
-
-/// InsertSubprogramStart - Create a new llvm.dbg.func.start intrinsic to
-/// mark the start of the specified subprogram.
-void DIFactory::InsertSubprogramStart(DISubprogram SP, BasicBlock *BB) {
-  // Lazily construct llvm.dbg.func.start.
-  if (!FuncStartFn)
-    FuncStartFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_func_start);
-
-  // Call llvm.dbg.func.start which also implicitly sets a stoppoint.
-  CallInst::Create(FuncStartFn, SP.getNode(), "", BB);
-}
-
-/// InsertRegionStart - Insert a new llvm.dbg.region.start intrinsic call to
-/// mark the start of a region for the specified scoping descriptor.
-void DIFactory::InsertRegionStart(DIDescriptor D, BasicBlock *BB) {
-  // Lazily construct llvm.dbg.region.start function.
-  if (!RegionStartFn)
-    RegionStartFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_region_start);
-
-  // Call llvm.dbg.func.start.
-  CallInst::Create(RegionStartFn, D.getNode(), "", BB);
-}
-
-/// InsertRegionEnd - Insert a new llvm.dbg.region.end intrinsic call to
-/// mark the end of a region for the specified scoping descriptor.
-void DIFactory::InsertRegionEnd(DIDescriptor D, BasicBlock *BB) {
-  // Lazily construct llvm.dbg.region.end function.
-  if (!RegionEndFn)
-    RegionEndFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_region_end);
-
-  // Call llvm.dbg.region.end.
-  CallInst::Create(RegionEndFn, D.getNode(), "", BB);
-}
-
 /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
-void DIFactory::InsertDeclare(Value *Storage, DIVariable D,
+Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
                               Instruction *InsertBefore) {
   // Cast the storage to a {}* for the call to llvm.dbg.declare.
   Storage = new BitCastInst(Storage, EmptyStructPtr, "", InsertBefore);
@@ -1038,11 +991,11 @@ void DIFactory::InsertDeclare(Value *Storage, DIVariable D,
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
   Value *Args[] = { Storage, D.getNode() };
-  CallInst::Create(DeclareFn, Args, Args+2, "", InsertBefore);
+  return CallInst::Create(DeclareFn, Args, Args+2, "", InsertBefore);
 }
 
 /// InsertDeclare - Insert a new llvm.dbg.declare intrinsic call.
-void DIFactory::InsertDeclare(Value *Storage, DIVariable D,
+Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
                               BasicBlock *InsertAtEnd) {
   // Cast the storage to a {}* for the call to llvm.dbg.declare.
   Storage = new BitCastInst(Storage, EmptyStructPtr, "", InsertAtEnd);
@@ -1051,7 +1004,7 @@ void DIFactory::InsertDeclare(Value *Storage, DIVariable D,
     DeclareFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_declare);
 
   Value *Args[] = { Storage, D.getNode() };
-  CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);
+  return CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);
 }
 
 
@@ -1062,38 +1015,18 @@ void DIFactory::InsertDeclare(Value *Storage, DIVariable D,
 /// processModule - Process entire module and collect debug info.
 void DebugInfoFinder::processModule(Module &M) {
 
-#ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
   MetadataContext &TheMetadata = M.getContext().getMetadata();
   unsigned MDDbgKind = TheMetadata.getMDKind("dbg");
-#endif
+
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
     for (Function::iterator FI = (*I).begin(), FE = (*I).end(); FI != FE; ++FI)
       for (BasicBlock::iterator BI = (*FI).begin(), BE = (*FI).end(); BI != BE;
            ++BI) {
-        if (DbgStopPointInst *SPI = dyn_cast<DbgStopPointInst>(BI))
-          processStopPoint(SPI);
-        else if (DbgFuncStartInst *FSI = dyn_cast<DbgFuncStartInst>(BI))
-          processFuncStart(FSI);
-        else if (DbgRegionStartInst *DRS = dyn_cast<DbgRegionStartInst>(BI))
-          processRegionStart(DRS);
-        else if (DbgRegionEndInst *DRE = dyn_cast<DbgRegionEndInst>(BI))
-          processRegionEnd(DRE);
-        else if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI))
+        if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI))
           processDeclare(DDI);
-#ifdef ATTACH_DEBUG_INFO_TO_AN_INSN
-        else if (MDDbgKind) {
-          if (MDNode *L = TheMetadata.getMD(MDDbgKind, BI)) {
-            DILocation Loc(L);
-            DIScope S(Loc.getScope().getNode());
-            if (S.isCompileUnit())
-              addCompileUnit(DICompileUnit(S.getNode()));
-            else if (S.isSubprogram())
-              processSubprogram(DISubprogram(S.getNode()));
-            else if (S.isLexicalBlock())
-              processLexicalBlock(DILexicalBlock(S.getNode()));
-          }
-        }
-#endif
+        else if (MDDbgKind) 
+          if (MDNode *L = TheMetadata.getMD(MDDbgKind, BI)) 
+            processLocation(DILocation(L));
       }
 
   NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.gv");
@@ -1107,6 +1040,20 @@ void DebugInfoFinder::processModule(Module &M) {
       processType(DIG.getType());
     }
   }
+}
+
+/// processLocation - Process DILocation.
+void DebugInfoFinder::processLocation(DILocation Loc) {
+  if (Loc.isNull()) return;
+  DIScope S(Loc.getScope().getNode());
+  if (S.isNull()) return;
+  if (S.isCompileUnit())
+    addCompileUnit(DICompileUnit(S.getNode()));
+  else if (S.isSubprogram())
+    processSubprogram(DISubprogram(S.getNode()));
+  else if (S.isLexicalBlock())
+    processLexicalBlock(DILexicalBlock(S.getNode()));
+  processLocation(Loc.getOrigLocation());
 }
 
 /// processType - Process DIType.
@@ -1154,30 +1101,6 @@ void DebugInfoFinder::processSubprogram(DISubprogram SP) {
     return;
   addCompileUnit(SP.getCompileUnit());
   processType(SP.getType());
-}
-
-/// processStopPoint - Process DbgStopPointInst.
-void DebugInfoFinder::processStopPoint(DbgStopPointInst *SPI) {
-  MDNode *Context = dyn_cast<MDNode>(SPI->getContext());
-  addCompileUnit(DICompileUnit(Context));
-}
-
-/// processFuncStart - Process DbgFuncStartInst.
-void DebugInfoFinder::processFuncStart(DbgFuncStartInst *FSI) {
-  MDNode *SP = dyn_cast<MDNode>(FSI->getSubprogram());
-  processSubprogram(DISubprogram(SP));
-}
-
-/// processRegionStart - Process DbgRegionStart.
-void DebugInfoFinder::processRegionStart(DbgRegionStartInst *DRS) {
-  MDNode *SP = dyn_cast<MDNode>(DRS->getContext());
-  processSubprogram(DISubprogram(SP));
-}
-
-/// processRegionEnd - Process DbgRegionEnd.
-void DebugInfoFinder::processRegionEnd(DbgRegionEndInst *DRE) {
-  MDNode *SP = dyn_cast<MDNode>(DRE->getContext());
-  processSubprogram(DISubprogram(SP));
 }
 
 /// processDeclare - Process DbgDeclareInst.
@@ -1474,23 +1397,5 @@ bool getLocationInfo(const Value *V, std::string &DisplayName,
     DebugLocInfo.DebugIdMap[Tuple] = Id;
 
     return DebugLoc::get(Id);
-  }
-
-  /// isInlinedFnStart - Return true if FSI is starting an inlined function.
-  bool isInlinedFnStart(DbgFuncStartInst &FSI, const Function *CurrentFn) {
-    DISubprogram Subprogram(cast<MDNode>(FSI.getSubprogram()));
-    if (Subprogram.describes(CurrentFn))
-      return false;
-
-    return true;
-  }
-
-  /// isInlinedFnEnd - Return true if REI is ending an inlined function.
-  bool isInlinedFnEnd(DbgRegionEndInst &REI, const Function *CurrentFn) {
-    DISubprogram Subprogram(cast<MDNode>(REI.getContext()));
-    if (Subprogram.isNull() || Subprogram.describes(CurrentFn))
-      return false;
-
-    return true;
   }
 }

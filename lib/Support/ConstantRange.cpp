@@ -492,6 +492,30 @@ ConstantRange ConstantRange::truncate(uint32_t DstTySize) const {
   return ConstantRange(L, U);
 }
 
+/// zextOrTrunc - make this range have the bit width given by \p DstTySize. The
+/// value is zero extended, truncated, or left alone to make it that width.
+ConstantRange ConstantRange::zextOrTrunc(uint32_t DstTySize) const {
+  unsigned SrcTySize = getBitWidth();
+  if (SrcTySize > DstTySize)
+    return truncate(DstTySize);
+  else if (SrcTySize < DstTySize)
+    return zeroExtend(DstTySize);
+  else
+    return *this;
+}
+
+/// sextOrTrunc - make this range have the bit width given by \p DstTySize. The
+/// value is sign extended, truncated, or left alone to make it that width.
+ConstantRange ConstantRange::sextOrTrunc(uint32_t DstTySize) const {
+  unsigned SrcTySize = getBitWidth();
+  if (SrcTySize > DstTySize)
+    return truncate(DstTySize);
+  else if (SrcTySize < DstTySize)
+    return signExtend(DstTySize);
+  else
+    return *this;
+}
+
 ConstantRange
 ConstantRange::add(const ConstantRange &Other) const {
   if (isEmptySet() || Other.isEmptySet())
@@ -583,6 +607,43 @@ ConstantRange::udiv(const ConstantRange &RHS) const {
     return ConstantRange(getBitWidth(), /*isFullSet=*/true);
 
   return ConstantRange(Lower, Upper);
+}
+
+ConstantRange
+ConstantRange::shl(const ConstantRange &Amount) const {
+  if (isEmptySet())
+    return *this;
+
+  APInt min = getUnsignedMin() << Amount.getUnsignedMin();
+  APInt max = getUnsignedMax() << Amount.getUnsignedMax();
+
+  // there's no overflow!
+  APInt Zeros(getBitWidth(), getUnsignedMax().countLeadingZeros());
+  if (Zeros.uge(Amount.getUnsignedMax()))
+    return ConstantRange(min, max);
+
+  // FIXME: implement the other tricky cases
+  return ConstantRange(getBitWidth());
+}
+
+ConstantRange
+ConstantRange::ashr(const ConstantRange &Amount) const {
+  if (isEmptySet())
+    return *this;
+
+  APInt min = getUnsignedMax().ashr(Amount.getUnsignedMin());
+  APInt max = getUnsignedMin().ashr(Amount.getUnsignedMax());
+  return ConstantRange(min, max);
+}
+
+ConstantRange
+ConstantRange::lshr(const ConstantRange &Amount) const {
+  if (isEmptySet())
+    return *this;
+  
+  APInt min = getUnsignedMax().lshr(Amount.getUnsignedMin());
+  APInt max = getUnsignedMin().lshr(Amount.getUnsignedMax());
+  return ConstantRange(min, max);
 }
 
 /// print - Print out the bounds to a stream...

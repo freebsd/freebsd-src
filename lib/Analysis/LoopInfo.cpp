@@ -263,14 +263,13 @@ bool Loop::isLCSSAForm() const {
   SmallPtrSet<BasicBlock *, 16> LoopBBs(block_begin(), block_end());
 
   for (block_iterator BI = block_begin(), E = block_end(); BI != E; ++BI) {
-    BasicBlock  *BB = *BI;
-    for (BasicBlock ::iterator I = BB->begin(), E = BB->end(); I != E;++I)
+    BasicBlock *BB = *BI;
+    for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E;++I)
       for (Value::use_iterator UI = I->use_begin(), E = I->use_end(); UI != E;
            ++UI) {
         BasicBlock *UserBB = cast<Instruction>(*UI)->getParent();
-        if (PHINode *P = dyn_cast<PHINode>(*UI)) {
+        if (PHINode *P = dyn_cast<PHINode>(*UI))
           UserBB = P->getIncomingBlock(UI);
-        }
 
         // Check the current block, as a fast-path.  Most values are used in
         // the same block they are defined in.
@@ -286,12 +285,14 @@ bool Loop::isLCSSAForm() const {
 /// the LoopSimplify form transforms loops to, which is sometimes called
 /// normal form.
 bool Loop::isLoopSimplifyForm() const {
-  // Normal-form loops have a preheader.
-  if (!getLoopPreheader())
-    return false;
-  // Normal-form loops have a single backedge.
-  if (!getLoopLatch())
-    return false;
+  // Normal-form loops have a preheader, a single backedge, and all of their
+  // exits have all their predecessors inside the loop.
+  return getLoopPreheader() && getLoopLatch() && hasDedicatedExits();
+}
+
+/// hasDedicatedExits - Return true if no exit block for the loop
+/// has a predecessor that is outside the loop.
+bool Loop::hasDedicatedExits() const {
   // Sort the blocks vector so that we can use binary search to do quick
   // lookups.
   SmallPtrSet<BasicBlock *, 16> LoopBBs(block_begin(), block_end());

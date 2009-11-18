@@ -17,6 +17,7 @@
 #include "llvm/Target/TargetInstrItineraries.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetSubtarget.h"
+#include "ARMBaseRegisterInfo.h"
 #include <string>
 
 namespace llvm {
@@ -48,6 +49,9 @@ protected:
   /// specified. Use the method useNEONForSinglePrecisionFP() to
   /// determine if NEON should actually be used.
   bool UseNEONForSinglePrecisionFP;
+
+  /// HasBranchTargetBuffer - True if processor can predict indirect branches.
+  bool HasBranchTargetBuffer;
 
   /// IsThumb - True if we are in thumb mode, false if in ARM mode.
   bool IsThumb;
@@ -122,17 +126,16 @@ protected:
   bool isThumb2() const { return IsThumb && (ThumbMode == Thumb2); }
   bool hasThumb2() const { return ThumbMode >= Thumb2; }
 
+  bool hasBranchTargetBuffer() const { return HasBranchTargetBuffer; }
+
   bool isR9Reserved() const { return IsR9Reserved; }
 
   const std::string & getCPUString() const { return CPUString; }
   
-  /// enablePostRAScheduler - True at 'More' optimization except
-  /// for Thumb1.
+  /// enablePostRAScheduler - True at 'More' optimization.
   bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
-                             TargetSubtarget::AntiDepBreakMode& mode) const {
-    mode = TargetSubtarget::ANTIDEP_CRITICAL;
-    return PostRAScheduler && OptLevel >= CodeGenOpt::Default;
-  }
+                             TargetSubtarget::AntiDepBreakMode& Mode,
+                             RegClassVector& CriticalPathRCs) const;
 
   /// getInstrItins - Return the instruction itineraies based on subtarget
   /// selection.

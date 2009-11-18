@@ -81,25 +81,9 @@ unsigned DwarfWriter::RecordSourceLine(unsigned Line, unsigned Col,
   return DD->RecordSourceLine(Line, Col, Scope);
 }
 
-/// RecordRegionStart - Indicate the start of a region.
-unsigned DwarfWriter::RecordRegionStart(MDNode *N) {
-  return DD->RecordRegionStart(N);
-}
-
-/// RecordRegionEnd - Indicate the end of a region.
-unsigned DwarfWriter::RecordRegionEnd(MDNode *N) {
-  return DD->RecordRegionEnd(N);
-}
-
 /// getRecordSourceLineCount - Count source lines.
 unsigned DwarfWriter::getRecordSourceLineCount() {
   return DD->getRecordSourceLineCount();
-}
-
-/// RecordVariable - Indicate the declaration of  a local variable.
-///
-void DwarfWriter::RecordVariable(MDNode *N, unsigned FrameIndex) {
-  DD->RecordVariable(N, FrameIndex);
 }
 
 /// ShouldEmitDwarfDebug - Returns true if Dwarf debugging declarations should
@@ -108,20 +92,9 @@ bool DwarfWriter::ShouldEmitDwarfDebug() const {
   return DD && DD->ShouldEmitDwarfDebug();
 }
 
-//// RecordInlinedFnStart
-unsigned DwarfWriter::RecordInlinedFnStart(DISubprogram SP, DICompileUnit CU,
-                                           unsigned Line, unsigned Col) {
-  return DD->RecordInlinedFnStart(SP, CU, Line, Col);
+void DwarfWriter::BeginScope(const MachineInstr *MI, unsigned L) {
+  DD->BeginScope(MI, L);
 }
-
-/// RecordInlinedFnEnd - Indicate the end of inlined subroutine.
-unsigned DwarfWriter::RecordInlinedFnEnd(DISubprogram SP) {
-  return DD->RecordInlinedFnEnd(SP);
-}
-
-void DwarfWriter::SetDbgScopeBeginLabels(const MachineInstr *MI, unsigned L) {
-  DD->SetDbgScopeEndLabels(MI, L);
-}
-void DwarfWriter::SetDbgScopeEndLabels(const MachineInstr *MI, unsigned L) {
-  DD->SetDbgScopeBeginLabels(MI, L);
+void DwarfWriter::EndScope(const MachineInstr *MI) {
+  DD->EndScope(MI);
 }

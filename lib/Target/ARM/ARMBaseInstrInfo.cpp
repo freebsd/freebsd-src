@@ -1,4 +1,4 @@
-//===- ARMBaseInstrInfo.cpp - ARM Instruction Information -----------*- C++ -*-===//
+//===- ARMBaseInstrInfo.cpp - ARM Instruction Information -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,11 +14,16 @@
 #include "ARMBaseInstrInfo.h"
 #include "ARM.h"
 #include "ARMAddressingModes.h"
+#include "ARMConstantPoolValue.h"
 #include "ARMGenInstrInfo.inc"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMRegisterInfo.h"
+#include "llvm/Constants.h"
+#include "llvm/Function.h"
+#include "llvm/GlobalValue.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/LiveVariables.h"
+#include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
@@ -504,9 +509,9 @@ ARMBaseInstrInfo::isMoveInstr(const MachineInstr &MI,
 
   switch (MI.getOpcode()) {
   default: break;
-  case ARM::FCPYS:
-  case ARM::FCPYD:
+  case ARM::VMOVS:
   case ARM::VMOVD:
+  case ARM::VMOVDneon:
   case ARM::VMOVQ: {
     SrcReg = MI.getOperand(1).getReg();
     DstReg = MI.getOperand(0).getReg();
@@ -556,8 +561,8 @@ ARMBaseInstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
       return MI->getOperand(0).getReg();
     }
     break;
-  case ARM::FLDD:
-  case ARM::FLDS:
+  case ARM::VLDRD:
+  case ARM::VLDRS:
     if (MI->getOperand(1).isFI() &&
         MI->getOperand(2).isImm() &&
         MI->getOperand(2).getImm() == 0) {
@@ -595,8 +600,8 @@ ARMBaseInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
       return MI->getOperand(0).getReg();
     }
     break;
-  case ARM::FSTD:
-  case ARM::FSTS:
+  case ARM::VSTRD:
+  case ARM::VSTRS:
     if (MI->getOperand(1).isFI() &&
         MI->getOperand(2).isImm() &&
         MI->getOperand(2).getImm() == 0) {
@@ -632,17 +637,17 @@ ARMBaseInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
     AddDefaultCC(AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::MOVr),
                                         DestReg).addReg(SrcReg)));
   } else if (DestRC == ARM::SPRRegisterClass) {
-    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::FCPYS), DestReg)
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VMOVS), DestReg)
                    .addReg(SrcReg));
   } else if (DestRC == ARM::DPRRegisterClass) {
-    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::FCPYD), DestReg)
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VMOVD), DestReg)
                    .addReg(SrcReg));
   } else if (DestRC == ARM::DPR_VFP2RegisterClass ||
              DestRC == ARM::DPR_8RegisterClass ||
              SrcRC == ARM::DPR_VFP2RegisterClass ||
              SrcRC == ARM::DPR_8RegisterClass) {
     // Always use neon reg-reg move if source or dest is NEON-only regclass.
-    BuildMI(MBB, I, DL, get(ARM::VMOVD), DestReg).addReg(SrcReg);
+    BuildMI(MBB, I, DL, get(ARM::VMOVDneon), DestReg).addReg(SrcReg);
   } else if (DestRC == ARM::QPRRegisterClass ||
              DestRC == ARM::QPR_VFP2RegisterClass ||
              DestRC == ARM::QPR_8RegisterClass) {
@@ -662,12 +667,13 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   if (I != MBB.end()) DL = I->getDebugLoc();
   MachineFunction &MF = *MBB.getParent();
   MachineFrameInfo &MFI = *MF.getFrameInfo();
+  unsigned Align = MFI.getObjectAlignment(FI);
 
   MachineMemOperand *MMO =
     MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FI),
                             MachineMemOperand::MOStore, 0,
                             MFI.getObjectSize(FI),
-                            MFI.getObjectAlignment(FI));
+                            Align);
 
   if (RC == ARM::GPRRegisterClass) {
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::STR))
@@ -676,19 +682,27 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   } else if (RC == ARM::DPRRegisterClass ||
              RC == ARM::DPR_VFP2RegisterClass ||
              RC == ARM::DPR_8RegisterClass) {
-    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::FSTD))
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTRD))
                    .addReg(SrcReg, getKillRegState(isKill))
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
   } else if (RC == ARM::SPRRegisterClass) {
-    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::FSTS))
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTRS))
                    .addReg(SrcReg, getKillRegState(isKill))
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
   } else {
     assert((RC == ARM::QPRRegisterClass ||
             RC == ARM::QPR_VFP2RegisterClass) && "Unknown regclass!");
     // FIXME: Neon instructions should support predicates
-    BuildMI(MBB, I, DL, get(ARM::VSTRQ)).addReg(SrcReg, getKillRegState(isKill))
-      .addFrameIndex(FI).addImm(0).addMemOperand(MMO);
+    if (Align >= 16
+        && (getRegisterInfo().needsStackRealignment(MF))) {
+      BuildMI(MBB, I, DL, get(ARM::VST1q64))
+        .addFrameIndex(FI).addImm(0).addImm(0).addImm(128).addMemOperand(MMO)
+        .addReg(SrcReg, getKillRegState(isKill));
+    } else {
+      BuildMI(MBB, I, DL, get(ARM::VSTRQ)).
+        addReg(SrcReg, getKillRegState(isKill))
+        .addFrameIndex(FI).addImm(0).addMemOperand(MMO);
+    }
   }
 }
 
@@ -700,12 +714,13 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   if (I != MBB.end()) DL = I->getDebugLoc();
   MachineFunction &MF = *MBB.getParent();
   MachineFrameInfo &MFI = *MF.getFrameInfo();
+  unsigned Align = MFI.getObjectAlignment(FI);
 
   MachineMemOperand *MMO =
     MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FI),
                             MachineMemOperand::MOLoad, 0,
                             MFI.getObjectSize(FI),
-                            MFI.getObjectAlignment(FI));
+                            Align);
 
   if (RC == ARM::GPRRegisterClass) {
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::LDR), DestReg)
@@ -713,18 +728,24 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   } else if (RC == ARM::DPRRegisterClass ||
              RC == ARM::DPR_VFP2RegisterClass ||
              RC == ARM::DPR_8RegisterClass) {
-    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::FLDD), DestReg)
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDRD), DestReg)
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
   } else if (RC == ARM::SPRRegisterClass) {
-    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::FLDS), DestReg)
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDRS), DestReg)
                    .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
   } else {
     assert((RC == ARM::QPRRegisterClass ||
             RC == ARM::QPR_VFP2RegisterClass ||
             RC == ARM::QPR_8RegisterClass) && "Unknown regclass!");
     // FIXME: Neon instructions should support predicates
-    BuildMI(MBB, I, DL, get(ARM::VLDRQ), DestReg).addFrameIndex(FI).addImm(0).
-      addMemOperand(MMO);
+    if (Align >= 16
+        && (getRegisterInfo().needsStackRealignment(MF))) {
+      BuildMI(MBB, I, DL, get(ARM::VLD1q64), DestReg)
+        .addFrameIndex(FI).addImm(0).addImm(0).addImm(128).addMemOperand(MMO);
+    } else {
+      BuildMI(MBB, I, DL, get(ARM::VLDRQ), DestReg).addFrameIndex(FI).addImm(0).
+        addMemOperand(MMO);
+    }
   }
 }
 
@@ -805,7 +826,7 @@ foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
                 DstSubReg)
         .addFrameIndex(FI).addImm(0).addImm(ARMCC::AL).addReg(0);
     }
-  } else if (Opc == ARM::FCPYS) {
+  } else if (Opc == ARM::VMOVS) {
     unsigned Pred = MI->getOperand(2).getImm();
     unsigned PredReg = MI->getOperand(3).getReg();
     if (OpNum == 0) { // move -> store
@@ -813,7 +834,7 @@ foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
       unsigned SrcSubReg = MI->getOperand(1).getSubReg();
       bool isKill = MI->getOperand(1).isKill();
       bool isUndef = MI->getOperand(1).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::FSTS))
+      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VSTRS))
         .addReg(SrcReg, getKillRegState(isKill) | getUndefRegState(isUndef),
                 SrcSubReg)
         .addFrameIndex(FI)
@@ -823,7 +844,7 @@ foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
       unsigned DstSubReg = MI->getOperand(0).getSubReg();
       bool isDead = MI->getOperand(0).isDead();
       bool isUndef = MI->getOperand(0).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::FLDS))
+      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VLDRS))
         .addReg(DstReg,
                 RegState::Define |
                 getDeadRegState(isDead) |
@@ -832,7 +853,7 @@ foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
         .addFrameIndex(FI).addImm(0).addImm(Pred).addReg(PredReg);
     }
   }
-  else if (Opc == ARM::FCPYD) {
+  else if (Opc == ARM::VMOVD) {
     unsigned Pred = MI->getOperand(2).getImm();
     unsigned PredReg = MI->getOperand(3).getReg();
     if (OpNum == 0) { // move -> store
@@ -840,7 +861,7 @@ foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
       unsigned SrcSubReg = MI->getOperand(1).getSubReg();
       bool isKill = MI->getOperand(1).isKill();
       bool isUndef = MI->getOperand(1).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::FSTD))
+      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VSTRD))
         .addReg(SrcReg,
                 getKillRegState(isKill) | getUndefRegState(isUndef),
                 SrcSubReg)
@@ -850,7 +871,7 @@ foldMemoryOperandImpl(MachineFunction &MF, MachineInstr *MI,
       unsigned DstSubReg = MI->getOperand(0).getSubReg();
       bool isDead = MI->getOperand(0).isDead();
       bool isUndef = MI->getOperand(0).isUndef();
-      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::FLDD))
+      NewMI = BuildMI(MF, MI->getDebugLoc(), get(ARM::VLDRD))
         .addReg(DstReg,
                 RegState::Define |
                 getDeadRegState(isDead) |
@@ -886,13 +907,112 @@ ARMBaseInstrInfo::canFoldMemoryOperand(const MachineInstr *MI,
              Opc == ARM::tMOVtgpr2gpr ||
              Opc == ARM::tMOVgpr2tgpr) {
     return true;
-  } else if (Opc == ARM::FCPYS || Opc == ARM::FCPYD) {
+  } else if (Opc == ARM::VMOVS || Opc == ARM::VMOVD) {
     return true;
-  } else if (Opc == ARM::VMOVD || Opc == ARM::VMOVQ) {
+  } else if (Opc == ARM::VMOVDneon || Opc == ARM::VMOVQ) {
     return false; // FIXME
   }
 
   return false;
+}
+
+void ARMBaseInstrInfo::
+reMaterialize(MachineBasicBlock &MBB,
+              MachineBasicBlock::iterator I,
+              unsigned DestReg, unsigned SubIdx,
+              const MachineInstr *Orig,
+              const TargetRegisterInfo *TRI) const {
+  DebugLoc dl = Orig->getDebugLoc();
+
+  if (SubIdx && TargetRegisterInfo::isPhysicalRegister(DestReg)) {
+    DestReg = TRI->getSubReg(DestReg, SubIdx);
+    SubIdx = 0;
+  }
+
+  unsigned Opcode = Orig->getOpcode();
+  switch (Opcode) {
+  default: {
+    MachineInstr *MI = MBB.getParent()->CloneMachineInstr(Orig);
+    MI->getOperand(0).setReg(DestReg);
+    MBB.insert(I, MI);
+    break;
+  }
+  case ARM::tLDRpci_pic:
+  case ARM::t2LDRpci_pic: {
+    MachineFunction &MF = *MBB.getParent();
+    ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
+    MachineConstantPool *MCP = MF.getConstantPool();
+    unsigned CPI = Orig->getOperand(1).getIndex();
+    const MachineConstantPoolEntry &MCPE = MCP->getConstants()[CPI];
+    assert(MCPE.isMachineConstantPoolEntry() &&
+           "Expecting a machine constantpool entry!");
+    ARMConstantPoolValue *ACPV =
+      static_cast<ARMConstantPoolValue*>(MCPE.Val.MachineCPVal);
+    unsigned PCLabelId = AFI->createConstPoolEntryUId();
+    ARMConstantPoolValue *NewCPV = 0;
+    if (ACPV->isGlobalValue())
+      NewCPV = new ARMConstantPoolValue(ACPV->getGV(), PCLabelId,
+                                        ARMCP::CPValue, 4);
+    else if (ACPV->isExtSymbol())
+      NewCPV = new ARMConstantPoolValue(MF.getFunction()->getContext(),
+                                        ACPV->getSymbol(), PCLabelId, 4);
+    else if (ACPV->isBlockAddress())
+      NewCPV = new ARMConstantPoolValue(ACPV->getBlockAddress(), PCLabelId,
+                                        ARMCP::CPBlockAddress, 4);
+    else
+      llvm_unreachable("Unexpected ARM constantpool value type!!");
+    CPI = MCP->getConstantPoolIndex(NewCPV, MCPE.getAlignment());
+    MachineInstrBuilder MIB = BuildMI(MBB, I, Orig->getDebugLoc(), get(Opcode),
+                                      DestReg)
+      .addConstantPoolIndex(CPI).addImm(PCLabelId);
+    (*MIB).setMemRefs(Orig->memoperands_begin(), Orig->memoperands_end());
+    break;
+  }
+  }
+
+  MachineInstr *NewMI = prior(I);
+  NewMI->getOperand(0).setSubReg(SubIdx);
+}
+
+bool ARMBaseInstrInfo::isIdentical(const MachineInstr *MI0,
+                                  const MachineInstr *MI1,
+                                  const MachineRegisterInfo *MRI) const {
+  int Opcode = MI0->getOpcode();
+  if (Opcode == ARM::t2LDRpci_pic || Opcode == ARM::tLDRpci_pic) {
+    if (MI1->getOpcode() != Opcode)
+      return false;
+    if (MI0->getNumOperands() != MI1->getNumOperands())
+      return false;
+
+    const MachineOperand &MO0 = MI0->getOperand(1);
+    const MachineOperand &MO1 = MI1->getOperand(1);
+    if (MO0.getOffset() != MO1.getOffset())
+      return false;
+
+    const MachineFunction *MF = MI0->getParent()->getParent();
+    const MachineConstantPool *MCP = MF->getConstantPool();
+    int CPI0 = MO0.getIndex();
+    int CPI1 = MO1.getIndex();
+    const MachineConstantPoolEntry &MCPE0 = MCP->getConstants()[CPI0];
+    const MachineConstantPoolEntry &MCPE1 = MCP->getConstants()[CPI1];
+    ARMConstantPoolValue *ACPV0 =
+      static_cast<ARMConstantPoolValue*>(MCPE0.Val.MachineCPVal);
+    ARMConstantPoolValue *ACPV1 =
+      static_cast<ARMConstantPoolValue*>(MCPE1.Val.MachineCPVal);
+    return ACPV0->hasSameValue(ACPV1);
+  }
+
+  return TargetInstrInfoImpl::isIdentical(MI0, MI1, MRI);
+}
+
+unsigned ARMBaseInstrInfo::TailDuplicationLimit(const MachineBasicBlock &MBB,
+                                                unsigned DefaultLimit) const {
+  // If the target processor can predict indirect branches, it is highly
+  // desirable to duplicate them, since it can often make them predictable.
+  if (!MBB.empty() && isIndirectBranchOpcode(MBB.back().getOpcode()) &&
+      getSubtarget().hasBranchTargetBuffer())
+    return DefaultLimit + 2;
+  return DefaultLimit;
 }
 
 /// getInstrPredicate - If instruction is predicated, returns its predicate
@@ -1022,6 +1142,7 @@ bool llvm::rewriteARMFrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
       break;
     }
     case ARMII::AddrMode4:
+    case ARMII::AddrMode6:
       // Can't fold any offset even if it's zero.
       return false;
     case ARMII::AddrMode5: {

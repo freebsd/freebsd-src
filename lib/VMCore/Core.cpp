@@ -1860,8 +1860,9 @@ LLVMValueRef LLVMBuildPointerCast(LLVMBuilderRef B, LLVMValueRef Val,
 }
 
 LLVMValueRef LLVMBuildIntCast(LLVMBuilderRef B, LLVMValueRef Val,
-                              LLVMTypeRef DestTy, const char *Name) {
-  return wrap(unwrap(B)->CreateIntCast(unwrap(Val), unwrap(DestTy), Name));
+                              LLVMTypeRef DestTy, int isSigned,
+                              const char *Name) {
+  return wrap(unwrap(B)->CreateIntCast(unwrap(Val), unwrap(DestTy), isSigned, Name));
 }
 
 LLVMValueRef LLVMBuildFPCast(LLVMBuilderRef B, LLVMValueRef Val,
@@ -1987,13 +1988,15 @@ int LLVMCreateMemoryBufferWithContentsOfFile(const char *Path,
 
 int LLVMCreateMemoryBufferWithSTDIN(LLVMMemoryBufferRef *OutMemBuf,
                                     char **OutMessage) {
-  if (MemoryBuffer *MB = MemoryBuffer::getSTDIN()) {
-    *OutMemBuf = wrap(MB);
-    return 0;
+  MemoryBuffer *MB = MemoryBuffer::getSTDIN();
+  if (!MB->getBufferSize()) {
+    delete MB;
+    *OutMessage = strdup("stdin is empty.");
+    return 1;
   }
-  
-  *OutMessage = strdup("stdin is empty.");
-  return 1;
+
+  *OutMemBuf = wrap(MB);
+  return 0;
 }
 
 void LLVMDisposeMemoryBuffer(LLVMMemoryBufferRef MemBuf) {

@@ -39,6 +39,17 @@ MDString *MDString::get(LLVMContext &Context, StringRef Str) {
     new MDString(Context, Entry.getKey());
 }
 
+MDString *MDString::get(LLVMContext &Context, const char *Str) {
+  LLVMContextImpl *pImpl = Context.pImpl;
+  StringMapEntry<MDString *> &Entry = 
+    pImpl->MDStringCache.GetOrCreateValue(Str ? StringRef(Str) : StringRef());
+  MDString *&S = Entry.getValue();
+  if (S) return S;
+  
+  return S = 
+    new MDString(Context, Entry.getKey());
+}
+
 //===----------------------------------------------------------------------===//
 // MDNode implementation.
 //
@@ -341,11 +352,11 @@ MDNode *MetadataContextImpl::getMD(unsigned MDKind, const Instruction *Inst) {
 /// getMDs - Get the metadata attached to an Instruction.
 void MetadataContextImpl::
 getMDs(const Instruction *Inst, SmallVectorImpl<MDPairTy> &MDs) const {
-  MDStoreTy::iterator I = MetadataStore.find(Inst);
+  MDStoreTy::const_iterator I = MetadataStore.find(Inst);
   if (I == MetadataStore.end())
     return;
   MDs.resize(I->second.size());
-  for (MDMapTy::iterator MI = I->second.begin(), ME = I->second.end();
+  for (MDMapTy::const_iterator MI = I->second.begin(), ME = I->second.end();
        MI != ME; ++MI)
     // MD kinds are numbered from 1.
     MDs[MI->first - 1] = std::make_pair(MI->first, MI->second);

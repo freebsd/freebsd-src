@@ -507,7 +507,7 @@ void ValueTable::erase(Value *V) {
 /// verifyRemoved - Verify that the value is removed from all internal data
 /// structures.
 void ValueTable::verifyRemoved(const Value *V) const {
-  for (DenseMap<Value*, uint32_t>::iterator
+  for (DenseMap<Value*, uint32_t>::const_iterator
          I = valueNumbering.begin(), E = valueNumbering.end(); I != E; ++I) {
     assert(I->first != V && "Inst still occurs in value numbering map!");
   }
@@ -629,9 +629,6 @@ bool SCCVN::runOnFunction(Function& F) {
     }
   }
 
-  // FIXME: This code is commented out for now, because it can lead to the
-  // insertion of a lot of redundant PHIs being inserted by SSAUpdater.
-#if 0
   // Perform a forward data-flow to compute availability at all points on
   // the CFG.
   do {
@@ -709,7 +706,6 @@ bool SCCVN::runOnFunction(Function& F) {
       CurInst->eraseFromParent();
     }
   }
-#endif
 
   VT.clear();
   for (DenseMap<BasicBlock*, ValueNumberScope*>::iterator

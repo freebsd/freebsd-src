@@ -15,7 +15,6 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Function.h"
 #include "llvm/IntrinsicInst.h"
-#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -49,6 +48,7 @@ namespace {
       AU.addRequiredID(LCSSAID);
       AU.addPreservedID(LCSSAID);
       AU.addPreserved<ScalarEvolution>();
+      AU.addRequired<LoopInfo>();
       AU.addPreserved<LoopInfo>();
       AU.addPreserved<DominatorTree>();
       AU.addPreserved<DominanceFrontier>();
@@ -104,16 +104,17 @@ bool LoopRotate::runOnLoop(Loop *Lp, LPPassManager &LPM) {
 bool LoopRotate::rotateLoop(Loop *Lp, LPPassManager &LPM) {
   L = Lp;
 
-  OrigHeader =  L->getHeader();
   OrigPreHeader = L->getLoopPreheader();
+  if (!OrigPreHeader) return false;
+
   OrigLatch = L->getLoopLatch();
+  if (!OrigLatch) return false;
+
+  OrigHeader =  L->getHeader();
 
   // If the loop has only one block then there is not much to rotate.
   if (L->getBlocks().size() == 1)
     return false;
-
-  assert(OrigHeader && OrigLatch && OrigPreHeader &&
-         "Loop is not in canonical form");
 
   // If the loop header is not one of the loop exiting blocks then
   // either this loop is already rotated or it is not
@@ -287,7 +288,7 @@ void LoopRotate::preserveCanonicalLoopForm(LPPassManager &LPM) {
                                                 "bb.nph",
                                                 OrigHeader->getParent(), 
                                                 NewHeader);
-  LoopInfo &LI = LPM.getAnalysis<LoopInfo>();
+  LoopInfo &LI = getAnalysis<LoopInfo>();
   if (Loop *PL = LI.getLoopFor(OrigPreHeader))
     PL->addBasicBlockToLoop(NewPreHeader, LI.getBase());
   BranchInst::Create(NewHeader, NewPreHeader);

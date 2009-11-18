@@ -321,7 +321,7 @@ time.
 4) Once we added support for multiple result patterns, write indexed loads
    patterns instead of C++ instruction selection code.
 
-5) Use FLDM / FSTM to emulate indexed FP load / store.
+5) Use VLDM / VSTM to emulate indexed FP load / store.
 
 //===---------------------------------------------------------------------===//
 
@@ -591,3 +591,8 @@ http://lists.cs.uiuc.edu/pipermail/llvmdev/2009-June/022763.html
 //===---------------------------------------------------------------------===//
 
 Make use of the "rbit" instruction.
+
+//===---------------------------------------------------------------------===//
+
+Take a look at test/CodeGen/Thumb2/machine-licm.ll. ARM should be taught how
+to licm and cse the unnecessary load from cp#1.

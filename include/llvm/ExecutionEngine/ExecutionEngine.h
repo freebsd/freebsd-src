@@ -91,7 +91,6 @@ class ExecutionEngine {
   bool CompilingLazily;
   bool GVCompilationDisabled;
   bool SymbolSearchingDisabled;
-  bool DlsymStubsEnabled;
 
   friend class EngineBuilder;  // To allow access to JITCtor and InterpCtor.
 
@@ -114,7 +113,8 @@ protected:
                                      std::string *ErrorStr,
                                      JITMemoryManager *JMM,
                                      CodeGenOpt::Level OptLevel,
-                                     bool GVsWithCode);
+                                     bool GVsWithCode,
+				     CodeModel::Model CMM);
   static ExecutionEngine *(*InterpCtor)(ModuleProvider *MP,
                                         std::string *ErrorStr);
 
@@ -174,7 +174,9 @@ public:
                                     JITMemoryManager *JMM = 0,
                                     CodeGenOpt::Level OptLevel =
                                       CodeGenOpt::Default,
-                                    bool GVsWithCode = true);
+                                    bool GVsWithCode = true,
+				    CodeModel::Model CMM =
+				      CodeModel::Default);
 
   /// addModuleProvider - Add a ModuleProvider to the list of modules that we
   /// can JIT from.  Note that this takes ownership of the ModuleProvider: when
@@ -369,15 +371,7 @@ public:
   bool isSymbolSearchingDisabled() const {
     return SymbolSearchingDisabled;
   }
-  
-  /// EnableDlsymStubs - 
-  void EnableDlsymStubs(bool Enabled = true) {
-    DlsymStubsEnabled = Enabled;
-  }
-  bool areDlsymStubsEnabled() const {
-    return DlsymStubsEnabled;
-  }
-  
+
   /// InstallLazyFunctionCreator - If an unknown function is needed, the
   /// specified function pointer is invoked to create it.  If it returns null,
   /// the JIT will abort.
@@ -434,6 +428,7 @@ class EngineBuilder {
   CodeGenOpt::Level OptLevel;
   JITMemoryManager *JMM;
   bool AllocateGVsWithCode;
+  CodeModel::Model CMModel;
 
   /// InitEngine - Does the common initialization of default options.
   ///
@@ -443,6 +438,7 @@ class EngineBuilder {
     OptLevel = CodeGenOpt::Default;
     JMM = NULL;
     AllocateGVsWithCode = false;
+    CMModel = CodeModel::Default;
   }
 
  public:
@@ -484,6 +480,13 @@ class EngineBuilder {
   /// defaults to CodeGenOpt::Default.
   EngineBuilder &setOptLevel(CodeGenOpt::Level l) {
     OptLevel = l;
+    return *this;
+  }
+
+  /// setCodeModel - Set the CodeModel that the ExecutionEngine target
+  /// data is using. Defaults to target specific default "CodeModel::Default".
+  EngineBuilder &setCodeModel(CodeModel::Model M) {
+    CMModel = M;
     return *this;
   }
 

@@ -80,22 +80,26 @@ bool ARMInstrInfo::BlockHasNoFallThrough(const MachineBasicBlock &MBB) const {
 }
 
 void ARMInstrInfo::
-reMaterialize(MachineBasicBlock &MBB,
-              MachineBasicBlock::iterator I,
-              unsigned DestReg, unsigned SubIdx,
-              const MachineInstr *Orig) const {
+reMaterialize(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+              unsigned DestReg, unsigned SubIdx, const MachineInstr *Orig,
+              const TargetRegisterInfo *TRI) const {
   DebugLoc dl = Orig->getDebugLoc();
-  if (Orig->getOpcode() == ARM::MOVi2pieces) {
+  unsigned Opcode = Orig->getOpcode();
+  switch (Opcode) {
+  default:
+    break;
+  case ARM::MOVi2pieces: {
     RI.emitLoadConstPool(MBB, I, dl,
                          DestReg, SubIdx,
                          Orig->getOperand(1).getImm(),
                          (ARMCC::CondCodes)Orig->getOperand(2).getImm(),
                          Orig->getOperand(3).getReg());
+    MachineInstr *NewMI = prior(I);
+    NewMI->getOperand(0).setSubReg(SubIdx);
     return;
   }
+  }
 
-  MachineInstr *MI = MBB.getParent()->CloneMachineInstr(Orig);
-  MI->getOperand(0).setReg(DestReg);
-  MBB.insert(I, MI);
+  return ARMBaseInstrInfo::reMaterialize(MBB, I, DestReg, SubIdx, Orig, TRI);
 }
 

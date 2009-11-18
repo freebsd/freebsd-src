@@ -225,9 +225,9 @@ def movhlps_undef : PatFrag<(ops node:$lhs, node:$rhs),
   return X86::isMOVHLPS_v_undef_Mask(cast<ShuffleVectorSDNode>(N));
 }]>;
 
-def movhp : PatFrag<(ops node:$lhs, node:$rhs),
-                    (vector_shuffle node:$lhs, node:$rhs), [{
-  return X86::isMOVHPMask(cast<ShuffleVectorSDNode>(N));
+def movlhps : PatFrag<(ops node:$lhs, node:$rhs),
+                      (vector_shuffle node:$lhs, node:$rhs), [{
+  return X86::isMOVLHPSMask(cast<ShuffleVectorSDNode>(N));
 }]>;
 
 def movlp : PatFrag<(ops node:$lhs, node:$rhs),
@@ -497,7 +497,7 @@ def FsMOVAPSrr : PSI<0x28, MRMSrcReg, (outs FR32:$dst), (ins FR32:$src),
 
 // Alias instruction to load FR32 from f128mem using movaps. Upper bits are
 // disregarded.
-let canFoldAsLoad = 1 in
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in
 def FsMOVAPSrm : PSI<0x28, MRMSrcMem, (outs FR32:$dst), (ins f128mem:$src),
                      "movaps\t{$src, $dst|$dst, $src}",
                      [(set FR32:$dst, (alignedloadfsf32 addr:$src))]>;
@@ -706,7 +706,7 @@ def MOVAPSmr : PSI<0x29, MRMDestMem, (outs), (ins f128mem:$dst, VR128:$src),
 let neverHasSideEffects = 1 in
 def MOVUPSrr : PSI<0x10, MRMSrcReg, (outs VR128:$dst), (ins VR128:$src),
                    "movups\t{$src, $dst|$dst, $src}", []>;
-let canFoldAsLoad = 1 in
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in
 def MOVUPSrm : PSI<0x10, MRMSrcMem, (outs VR128:$dst), (ins f128mem:$src),
                    "movups\t{$src, $dst|$dst, $src}",
                    [(set VR128:$dst, (loadv4f32 addr:$src))]>;
@@ -715,7 +715,7 @@ def MOVUPSmr : PSI<0x11, MRMDestMem, (outs), (ins f128mem:$dst, VR128:$src),
                    [(store (v4f32 VR128:$src), addr:$dst)]>;
 
 // Intrinsic forms of MOVUPS load and store
-let canFoldAsLoad = 1 in
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in
 def MOVUPSrm_Int : PSI<0x10, MRMSrcMem, (outs VR128:$dst), (ins f128mem:$src),
                        "movups\t{$src, $dst|$dst, $src}",
                        [(set VR128:$dst, (int_x86_sse_loadu_ps addr:$src))]>;
@@ -735,7 +735,7 @@ let Constraints = "$src1 = $dst" in {
                        (outs VR128:$dst), (ins VR128:$src1, f64mem:$src2),
                        "movhps\t{$src2, $dst|$dst, $src2}",
        [(set VR128:$dst,
-         (movhp VR128:$src1,
+         (movlhps VR128:$src1,
                 (bc_v4f32 (v2f64 (scalar_to_vector (loadf64 addr:$src2))))))]>;
   } // AddedComplexity
 } // Constraints = "$src1 = $dst"
@@ -760,7 +760,7 @@ def MOVLHPSrr : PSI<0x16, MRMSrcReg, (outs VR128:$dst),
                                      (ins VR128:$src1, VR128:$src2),
                     "movlhps\t{$src2, $dst|$dst, $src2}",
                     [(set VR128:$dst,
-                      (v4f32 (movhp VR128:$src1, VR128:$src2)))]>;
+                      (v4f32 (movlhps VR128:$src1, VR128:$src2)))]>;
 
 def MOVHLPSrr : PSI<0x12, MRMSrcReg, (outs VR128:$dst),
                                      (ins VR128:$src1, VR128:$src2),
@@ -1256,7 +1256,7 @@ def FsMOVAPDrr : PDI<0x28, MRMSrcReg, (outs FR64:$dst), (ins FR64:$src),
 
 // Alias instruction to load FR64 from f128mem using movapd. Upper bits are
 // disregarded.
-let canFoldAsLoad = 1 in
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in
 def FsMOVAPDrm : PDI<0x28, MRMSrcMem, (outs FR64:$dst), (ins f128mem:$src),
                      "movapd\t{$src, $dst|$dst, $src}",
                      [(set FR64:$dst, (alignedloadfsf64 addr:$src))]>;
@@ -1494,7 +1494,7 @@ let Constraints = "$src1 = $dst" in {
                        (outs VR128:$dst), (ins VR128:$src1, f64mem:$src2),
                        "movhpd\t{$src2, $dst|$dst, $src2}",
                        [(set VR128:$dst,
-                         (v2f64 (movhp VR128:$src1,
+                         (v2f64 (movlhps VR128:$src1,
                                  (scalar_to_vector (loadf64 addr:$src2)))))]>;
   } // AddedComplexity
 } // Constraints = "$src1 = $dst"
@@ -2085,7 +2085,7 @@ def PSHUFDmi : PDIi8<0x70, MRMSrcMem,
                      [(set VR128:$dst, (v4i32 (pshufd:$src2
                                              (bc_v4i32(memopv2i64 addr:$src1)),
                                              (undef))))]>;
-}                                             
+}
 
 // SSE2 with ImmT == Imm8 and XS prefix.
 def PSHUFHWri : Ii8<0x70, MRMSrcReg,
@@ -2874,7 +2874,7 @@ def : Pat<(v16i8 (palign:$src3 VR128:$src1, VR128:$src2)),
           (PALIGNR128rr VR128:$src2, VR128:$src1,
                         (SHUFFLE_get_palign_imm VR128:$src3))>,
       Requires<[HasSSSE3]>;
-}      
+}
 
 def : Pat<(X86pshufb VR128:$src, VR128:$mask),
           (PSHUFBrr128 VR128:$src, VR128:$mask)>, Requires<[HasSSSE3]>;
@@ -3035,7 +3035,7 @@ def : Pat<(v4i32 (unpckh_undef VR128:$src, (undef))),
 
 let AddedComplexity = 20 in {
 // vector_shuffle v1, v2 <0, 1, 4, 5> using MOVLHPS
-def : Pat<(v4i32 (movhp VR128:$src1, VR128:$src2)),
+def : Pat<(v4i32 (movlhps VR128:$src1, VR128:$src2)),
           (MOVLHPSrr VR128:$src1, VR128:$src2)>;
 
 // vector_shuffle v1, v2 <6, 7, 2, 3> using MOVHLPS
@@ -3051,48 +3051,26 @@ def : Pat<(v4i32 (movhlps_undef VR128:$src1, (undef))),
 
 let AddedComplexity = 20 in {
 // vector_shuffle v1, (load v2) <4, 5, 2, 3> using MOVLPS
-// vector_shuffle v1, (load v2) <0, 1, 4, 5> using MOVHPS
 def : Pat<(v4f32 (movlp VR128:$src1, (load addr:$src2))),
           (MOVLPSrm VR128:$src1, addr:$src2)>, Requires<[HasSSE1]>;
 def : Pat<(v2f64 (movlp VR128:$src1, (load addr:$src2))),
           (MOVLPDrm VR128:$src1, addr:$src2)>, Requires<[HasSSE2]>;
-def : Pat<(v4f32 (movhp VR128:$src1, (load addr:$src2))),
-          (MOVHPSrm VR128:$src1, addr:$src2)>, Requires<[HasSSE1]>;
-def : Pat<(v2f64 (movhp VR128:$src1, (load addr:$src2))),
-          (MOVHPDrm VR128:$src1, addr:$src2)>, Requires<[HasSSE2]>;
-
 def : Pat<(v4i32 (movlp VR128:$src1, (load addr:$src2))),
           (MOVLPSrm VR128:$src1, addr:$src2)>, Requires<[HasSSE2]>;
 def : Pat<(v2i64 (movlp VR128:$src1, (load addr:$src2))),
           (MOVLPDrm VR128:$src1, addr:$src2)>, Requires<[HasSSE2]>;
-def : Pat<(v4i32 (movhp VR128:$src1, (load addr:$src2))),
-          (MOVHPSrm VR128:$src1, addr:$src2)>, Requires<[HasSSE1]>;
-def : Pat<(v2i64 (movhp VR128:$src1, (load addr:$src2))),
-          (MOVHPDrm VR128:$src1, addr:$src2)>, Requires<[HasSSE2]>;
 }
 
 // (store (vector_shuffle (load addr), v2, <4, 5, 2, 3>), addr) using MOVLPS
-// (store (vector_shuffle (load addr), v2, <0, 1, 4, 5>), addr) using MOVHPS
 def : Pat<(store (v4f32 (movlp (load addr:$src1), VR128:$src2)), addr:$src1),
           (MOVLPSmr addr:$src1, VR128:$src2)>, Requires<[HasSSE1]>;
 def : Pat<(store (v2f64 (movlp (load addr:$src1), VR128:$src2)), addr:$src1),
           (MOVLPDmr addr:$src1, VR128:$src2)>, Requires<[HasSSE2]>;
-def : Pat<(store (v4f32 (movhp (load addr:$src1), VR128:$src2)), addr:$src1),
-          (MOVHPSmr addr:$src1, VR128:$src2)>, Requires<[HasSSE1]>;
-def : Pat<(store (v2f64 (movhp (load addr:$src1), VR128:$src2)), addr:$src1),
-          (MOVHPDmr addr:$src1, VR128:$src2)>, Requires<[HasSSE2]>;
-
 def : Pat<(store (v4i32 (movlp (bc_v4i32 (loadv2i64 addr:$src1)), VR128:$src2)),
                  addr:$src1),
           (MOVLPSmr addr:$src1, VR128:$src2)>, Requires<[HasSSE1]>;
 def : Pat<(store (v2i64 (movlp (load addr:$src1), VR128:$src2)), addr:$src1),
           (MOVLPDmr addr:$src1, VR128:$src2)>, Requires<[HasSSE2]>;
-def : Pat<(store (v4i32 (movhp (bc_v4i32 (loadv2i64 addr:$src1)), VR128:$src2)),
-                 addr:$src1),
-          (MOVHPSmr addr:$src1, VR128:$src2)>, Requires<[HasSSE1]>;
-def : Pat<(store (v2i64 (movhp (load addr:$src1), VR128:$src2)), addr:$src1),
-          (MOVHPDmr addr:$src1, VR128:$src2)>, Requires<[HasSSE2]>;
-
 
 let AddedComplexity = 15 in {
 // Setting the lowest element in the vector.

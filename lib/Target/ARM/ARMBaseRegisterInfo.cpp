@@ -44,10 +44,6 @@ static cl::opt<bool>
 ReuseFrameIndexVals("arm-reuse-frame-index-vals", cl::Hidden, cl::init(true),
           cl::desc("Reuse repeated frame index values"));
 
-static cl::opt<bool>
-ARMDynamicStackAlign("arm-dynamic-stack-alignment", cl::Hidden, cl::init(false),
-          cl::desc("Dynamically re-align the stack as needed"));
-
 unsigned ARMBaseRegisterInfo::getRegisterNumbering(unsigned RegEnum,
                                                    bool *isSPVFP) {
   if (isSPVFP)
@@ -476,11 +472,7 @@ ARMBaseRegisterInfo::UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
 }
 
 static unsigned calculateMaxStackAlignment(const MachineFrameInfo *FFI) {
-  // FIXME: For now, force at least 128-bit alignment. This will push the
-  // nightly tester harder for making sure things work correctly. When
-  // we're ready to enable this for real, this goes back to starting at zero.
-  unsigned MaxAlign = 16;
-//  unsigned MaxAlign = 0;
+  unsigned MaxAlign = 0;
 
   for (int i = FFI->getObjectIndexBegin(),
          e = FFI->getObjectIndexEnd(); i != e; ++i) {
@@ -508,20 +500,12 @@ bool ARMBaseRegisterInfo::hasFP(const MachineFunction &MF) const {
 
 bool ARMBaseRegisterInfo::
 needsStackRealignment(const MachineFunction &MF) const {
-  // Only do this for ARM if explicitly enabled
-  // FIXME: Once it's passing all the tests, enable by default
-  if (!ARMDynamicStackAlign)
-    return false;
-
-  // FIXME: To force more brutal testing, realign whether we need to or not.
-  // Change this to be more selective when we turn it on for real, of course.
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
-//  unsigned StackAlign = MF.getTarget().getFrameInfo()->getStackAlignment();
+  unsigned StackAlign = MF.getTarget().getFrameInfo()->getStackAlignment();
   return (RealignStack &&
           !AFI->isThumb1OnlyFunction() &&
-          AFI->hasStackFrame() &&
-//          (MFI->getMaxAlignment() > StackAlign) &&
+          (MFI->getMaxAlignment() > StackAlign) &&
           !MFI->hasVarSizedObjects());
 }
 
@@ -529,7 +513,8 @@ bool ARMBaseRegisterInfo::cannotEliminateFrame(const MachineFunction &MF) const 
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   if (NoFramePointerElim && MFI->hasCalls())
     return true;
-  return MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken();
+  return MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken()
+    || needsStackRealignment(MF);
 }
 
 /// estimateStackSize - Estimate and return the size of the frame.
@@ -604,7 +589,7 @@ ARMBaseRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
 
   // Calculate and set max stack object alignment early, so we can decide
   // whether we will need stack realignment (and thus FP).
-  if (ARMDynamicStackAlign) {
+  if (RealignStack) {
     unsigned MaxAlign = std::max(MFI->getMaxAlignment(),
                                  calculateMaxStackAlignment(MFI));
     MFI->setMaxAlignment(MaxAlign);
@@ -789,7 +774,8 @@ ARMBaseRegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
           // Reserve a slot closest to SP or frame pointer.
           const TargetRegisterClass *RC = ARM::GPRRegisterClass;
           RS->setScavengingFrameIndex(MFI->CreateStackObject(RC->getSize(),
-                                                           RC->getAlignment()));
+                                                             RC->getAlignment(),
+                                                             false));
         }
       }
     }
@@ -806,7 +792,8 @@ unsigned ARMBaseRegisterInfo::getRARegister() const {
   return ARM::LR;
 }
 
-unsigned ARMBaseRegisterInfo::getFrameRegister(MachineFunction &MF) const {
+unsigned 
+ARMBaseRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   if (STI.isTargetDarwin() || hasFP(MF))
     return FramePtr;
   return ARM::SP;
@@ -1183,7 +1170,8 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // as much as possible above, handle the rest, providing a register that is
   // SP+LargeImm.
   assert((Offset ||
-          (MI.getDesc().TSFlags & ARMII::AddrModeMask) == ARMII::AddrMode4) &&
+          (MI.getDesc().TSFlags & ARMII::AddrModeMask) == ARMII::AddrMode4 ||
+          (MI.getDesc().TSFlags & ARMII::AddrModeMask) == ARMII::AddrMode6) &&
          "This code isn't needed if offset already handled!");
 
   unsigned ScratchReg = 0;
@@ -1192,7 +1180,7 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     ? ARMCC::AL : (ARMCC::CondCodes)MI.getOperand(PIdx).getImm();
   unsigned PredReg = (PIdx == -1) ? 0 : MI.getOperand(PIdx+1).getReg();
   if (Offset == 0)
-    // Must be addrmode4.
+    // Must be addrmode4/6.
     MI.getOperand(i).ChangeToRegister(FrameReg, false, false, false);
   else {
     ScratchReg = MF.getRegInfo().createVirtualRegister(ARM::GPRRegisterClass);
@@ -1346,7 +1334,7 @@ emitPrologue(MachineFunction &MF) const {
   AFI->setGPRCalleeSavedArea2Offset(GPRCS2Offset);
   AFI->setDPRCalleeSavedAreaOffset(DPRCSOffset);
 
-  movePastCSLoadStoreOps(MBB, MBBI, ARM::FSTD, 0, 3, STI);
+  movePastCSLoadStoreOps(MBB, MBBI, ARM::VSTRD, 0, 3, STI);
   NumBytes = DPRCSOffset;
   if (NumBytes) {
     // Adjust SP after all the callee-save spills.
@@ -1385,7 +1373,7 @@ static bool isCalleeSavedRegister(unsigned Reg, const unsigned *CSRegs) {
 static bool isCSRestore(MachineInstr *MI,
                         const ARMBaseInstrInfo &TII,
                         const unsigned *CSRegs) {
-  return ((MI->getOpcode() == (int)ARM::FLDD ||
+  return ((MI->getOpcode() == (int)ARM::VLDRD ||
            MI->getOpcode() == (int)ARM::LDR ||
            MI->getOpcode() == (int)ARM::t2LDRi12) &&
           MI->getOperand(1).isFI() &&
@@ -1411,7 +1399,7 @@ emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const {
     if (NumBytes != 0)
       emitSPUpdate(isARM, MBB, MBBI, dl, TII, NumBytes);
   } else {
-    // Unwind MBBI to point to first LDR / FLDD.
+    // Unwind MBBI to point to first LDR / VLDRD.
     const unsigned *CSRegs = getCalleeSavedRegs();
     if (MBBI != MBB.begin()) {
       do
@@ -1459,7 +1447,7 @@ emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const {
       emitSPUpdate(isARM, MBB, MBBI, dl, TII, NumBytes);
 
     // Move SP to start of integer callee save spill area 2.
-    movePastCSLoadStoreOps(MBB, MBBI, ARM::FLDD, 0, 3, STI);
+    movePastCSLoadStoreOps(MBB, MBBI, ARM::VLDRD, 0, 3, STI);
     emitSPUpdate(isARM, MBB, MBBI, dl, TII, AFI->getDPRCalleeSavedAreaSize());
 
     // Move SP to start of integer callee save spill area 1.
@@ -1473,6 +1461,50 @@ emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const {
 
   if (VARegSaveSize)
     emitSPUpdate(isARM, MBB, MBBI, dl, TII, VARegSaveSize);
+}
+
+namespace {
+  struct MaximalStackAlignmentCalculator : public MachineFunctionPass {
+    static char ID;
+    MaximalStackAlignmentCalculator() : MachineFunctionPass(&ID) {}
+
+    virtual bool runOnMachineFunction(MachineFunction &MF) {
+      MachineFrameInfo *FFI = MF.getFrameInfo();
+      MachineRegisterInfo &RI = MF.getRegInfo();
+
+      // Calculate max stack alignment of all already allocated stack objects.
+      unsigned MaxAlign = calculateMaxStackAlignment(FFI);
+
+      // Be over-conservative: scan over all vreg defs and find, whether vector
+      // registers are used. If yes - there is probability, that vector register
+      // will be spilled and thus stack needs to be aligned properly.
+      for (unsigned RegNum = TargetRegisterInfo::FirstVirtualRegister;
+           RegNum < RI.getLastVirtReg(); ++RegNum)
+        MaxAlign = std::max(MaxAlign, RI.getRegClass(RegNum)->getAlignment());
+
+      if (FFI->getMaxAlignment() == MaxAlign)
+        return false;
+
+      FFI->setMaxAlignment(MaxAlign);
+      return true;
+    }
+
+    virtual const char *getPassName() const {
+      return "ARM Stack Required Alignment Auto-Detector";
+    }
+
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      AU.setPreservesCFG();
+      MachineFunctionPass::getAnalysisUsage(AU);
+    }
+  };
+
+  char MaximalStackAlignmentCalculator::ID = 0;
+}
+
+FunctionPass*
+llvm::createARMMaxStackAlignmentCalculatorPass() {
+  return new MaximalStackAlignmentCalculator();
 }
 
 #include "ARMGenRegisterInfo.inc"

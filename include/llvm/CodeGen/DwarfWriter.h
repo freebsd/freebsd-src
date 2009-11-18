@@ -87,31 +87,15 @@ public:
   /// the source line list.
   unsigned RecordSourceLine(unsigned Line, unsigned Col, MDNode *Scope);
 
-  /// RecordRegionStart - Indicate the start of a region.
-  unsigned RecordRegionStart(MDNode *N);
-
-  /// RecordRegionEnd - Indicate the end of a region.
-  unsigned RecordRegionEnd(MDNode *N);
-
   /// getRecordSourceLineCount - Count source lines.
   unsigned getRecordSourceLineCount();
-
-  /// RecordVariable - Indicate the declaration of  a local variable.
-  ///
-  void RecordVariable(MDNode *N, unsigned FrameIndex);
 
   /// ShouldEmitDwarfDebug - Returns true if Dwarf debugging declarations should
   /// be emitted.
   bool ShouldEmitDwarfDebug() const;
 
-  //// RecordInlinedFnStart - Indicate the start of a inlined function.
-  unsigned RecordInlinedFnStart(DISubprogram SP, DICompileUnit CU,
-                                unsigned Line, unsigned Col);
-
-  /// RecordInlinedFnEnd - Indicate the end of inlined subroutine.
-  unsigned RecordInlinedFnEnd(DISubprogram SP);
-  void SetDbgScopeBeginLabels(const MachineInstr *MI, unsigned L);
-  void SetDbgScopeEndLabels(const MachineInstr *MI, unsigned L);
+  void BeginScope(const MachineInstr *MI, unsigned Label);
+  void EndScope(const MachineInstr *MI);
 };
 
 } // end llvm namespace

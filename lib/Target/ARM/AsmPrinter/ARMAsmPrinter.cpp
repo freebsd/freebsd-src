@@ -43,6 +43,7 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -138,6 +139,19 @@ namespace {
     void printVFPf32ImmOperand(const MachineInstr *MI, int OpNum);
     void printVFPf64ImmOperand(const MachineInstr *MI, int OpNum);
 
+    void printHex8ImmOperand(const MachineInstr *MI, int OpNum) {
+      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xff);
+    }
+    void printHex16ImmOperand(const MachineInstr *MI, int OpNum) {
+      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffff);
+    }
+    void printHex32ImmOperand(const MachineInstr *MI, int OpNum) {
+      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm() & 0xffffffff);
+    }
+    void printHex64ImmOperand(const MachineInstr *MI, int OpNum) {
+      O << "#0x" << utohexstr(MI->getOperand(OpNum).getImm());
+    }
+
     virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
                                  unsigned AsmVariant, const char *ExtraCode);
     virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNum,
@@ -199,7 +213,7 @@ namespace {
       if (ACPV->hasModifier()) O << "(" << ACPV->getModifier() << ")";
       if (ACPV->getPCAdjustment() != 0) {
         O << "-(" << MAI->getPrivateGlobalPrefix() << "PC"
-          << ACPV->getLabelId()
+          << getFunctionNumber() << "_"  << ACPV->getLabelId()
           << "+" << (unsigned)ACPV->getPCAdjustment();
          if (ACPV->mustAddCurrentAddress())
            O << "-.";
@@ -333,6 +347,7 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
                                                &ARM::DPR_VFP2RegClass);
       O << getRegisterName(DReg) << '[' << (RegNum & 1) << ']';
     } else {
+      assert(!MO.getSubReg() && "Subregs should be eliminated!");
       O << getRegisterName(Reg);
     }
     break;
@@ -594,12 +609,7 @@ void ARMAsmPrinter::printAddrMode5Operand(const MachineInstr *MI, int Op,
 
   if (Modifier && strcmp(Modifier, "submode") == 0) {
     ARM_AM::AMSubMode Mode = ARM_AM::getAM5SubMode(MO2.getImm());
-    if (MO1.getReg() == ARM::SP) {
-      bool isFLDM = (MI->getOpcode() == ARM::FLDMD ||
-                     MI->getOpcode() == ARM::FLDMS);
-      O << ARM_AM::getAMSubModeAltStr(Mode, isFLDM);
-    } else
-      O << ARM_AM::getAMSubModeStr(Mode);
+    O << ARM_AM::getAMSubModeStr(Mode);
     return;
   } else if (Modifier && strcmp(Modifier, "base") == 0) {
     // Used for FSTM{D|S} and LSTM{D|S} operations.
@@ -623,9 +633,14 @@ void ARMAsmPrinter::printAddrMode6Operand(const MachineInstr *MI, int Op) {
   const MachineOperand &MO1 = MI->getOperand(Op);
   const MachineOperand &MO2 = MI->getOperand(Op+1);
   const MachineOperand &MO3 = MI->getOperand(Op+2);
+  const MachineOperand &MO4 = MI->getOperand(Op+3);
 
-  // FIXME: No support yet for specifying alignment.
-  O << "[" << getRegisterName(MO1.getReg()) << "]";
+  O << "[" << getRegisterName(MO1.getReg());
+  if (MO4.getImm()) {
+    // FIXME: Both darwin as and GNU as violate ARM docs here.
+    O << ", :" << MO4.getImm();
+  }
+  O << "]";
 
   if (ARM_AM::getAM6WBFlag(MO3.getImm())) {
     if (MO2.getReg() == 0)
@@ -697,11 +712,8 @@ ARMAsmPrinter::printThumbAddrModeRI5Operand(const MachineInstr *MI, int Op,
   O << "[" << getRegisterName(MO1.getReg());
   if (MO3.getReg())
     O << ", " << getRegisterName(MO3.getReg());
-  else if (unsigned ImmOffs = MO2.getImm()) {
-    O << ", #" << ImmOffs;
-    if (Scale > 1)
-      O << " * " << Scale;
-  }
+  else if (unsigned ImmOffs = MO2.getImm())
+    O << ", #" << ImmOffs * Scale;
   O << "]";
 }
 
@@ -844,7 +856,8 @@ void ARMAsmPrinter::printSBitModifierOperand(const MachineInstr *MI, int OpNum){
 
 void ARMAsmPrinter::printPCLabel(const MachineInstr *MI, int OpNum) {
   int Id = (int)MI->getOperand(OpNum).getImm();
-  O << MAI->getPrivateGlobalPrefix() << "PC" << Id;
+  O << MAI->getPrivateGlobalPrefix()
+    << "PC" << getFunctionNumber() << "_" << Id;
 }
 
 void ARMAsmPrinter::printRegisterList(const MachineInstr *MI, int OpNum) {
@@ -1070,7 +1083,7 @@ void ARMAsmPrinter::printMachineInstruction(const MachineInstr *MI) {
     printInstruction(MI);
   }
   
-  if (VerboseAsm && !MI->getDebugLoc().isUnknown())
+  if (VerboseAsm)
     EmitComments(*MI);
   O << '\n';
   processDebugLoc(MI, false);
@@ -1107,9 +1120,8 @@ void ARMAsmPrinter::EmitStartOfAsmFile(Module &M) {
     }
   }
 
-  // Use unified assembler syntax mode for Thumb.
-  if (Subtarget->isThumb())
-    O << "\t.syntax unified\n";
+  // Use unified assembler syntax.
+  O << "\t.syntax unified\n";
 
   // Emit ARM Build Attributes
   if (Subtarget->isTargetELF()) {
@@ -1349,7 +1361,6 @@ void ARMAsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
     printKill(MI);
     return;
   case TargetInstrInfo::INLINEASM:
-    O << '\t';
     printInlineAsm(MI);
     return;
   case TargetInstrInfo::IMPLICIT_DEF:
@@ -1365,7 +1376,8 @@ void ARMAsmPrinter::printInstructionThroughMCStreamer(const MachineInstr *MI) {
     // FIXME: MOVE TO SHARED PLACE.
     unsigned Id = (unsigned)MI->getOperand(2).getImm();
     const char *Prefix = MAI->getPrivateGlobalPrefix();
-    MCSymbol *Label =OutContext.GetOrCreateSymbol(Twine(Prefix)+"PC"+Twine(Id));
+    MCSymbol *Label =OutContext.GetOrCreateSymbol(Twine(Prefix)
+                         + "PC" + Twine(getFunctionNumber()) + "_" + Twine(Id));
     OutStreamer.EmitLabel(Label);
     
     
