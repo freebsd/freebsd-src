@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2005-2009 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #else
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/param.h>
 #endif
 
 #include <sys/types.h>
@@ -97,9 +99,9 @@ emit_code(bpf_bin_stream *stream, u_int value, u_int len)
 bpf_filter_func
 bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 {
+	bpf_bin_stream stream;
 	struct bpf_insn *ins;
 	u_int i, pass;
-	bpf_bin_stream stream;
 
 	/*
 	 * NOTE: do not modify the name of this variable, as it's used by
@@ -475,20 +477,31 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 		}
 
 		pass++;
-		if (pass == 2)
+		if (pass >= 2) {
+#ifndef _KERNEL
+			if (mprotect(stream.ibuf, stream.cur_ip,
+			    PROT_READ | PROT_EXEC) != 0) {
+				munmap(stream.ibuf, BPF_JIT_MAXSIZE);
+				stream.ibuf = NULL;
+			}
+#endif
 			break;
+		}
 
 #ifdef _KERNEL
 		stream.ibuf = (char *)malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
-		if (stream.ibuf == NULL) {
-			free(stream.refs, M_BPFJIT);
-			return (NULL);
-		}
+		if (stream.ibuf == NULL)
+			break;
 #else
-		stream.ibuf = (char *)malloc(stream.cur_ip);
-		if (stream.ibuf == NULL) {
-			free(stream.refs);
-			return (NULL);
+		if (stream.cur_ip > BPF_JIT_MAXSIZE) {
+			stream.ibuf = NULL;
+			break;
+		}
+		stream.ibuf = (char *)mmap(NULL, BPF_JIT_MAXSIZE,
+		    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+		if (stream.ibuf == MAP_FAILED) {
+			stream.ibuf = NULL;
+			break;
 		}
 #endif
 
