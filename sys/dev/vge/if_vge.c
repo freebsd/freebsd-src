@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -160,12 +159,13 @@ static int vge_rxeof		(struct vge_softc *);
 static void vge_txeof		(struct vge_softc *);
 static void vge_intr		(void *);
 static void vge_tick		(void *);
-static void vge_tx_task		(void *, int);
 static void vge_start		(struct ifnet *);
+static void vge_start_locked	(struct ifnet *);
 static int vge_ioctl		(struct ifnet *, u_long, caddr_t);
 static void vge_init		(void *);
+static void vge_init_locked	(struct vge_softc *);
 static void vge_stop		(struct vge_softc *);
-static void vge_watchdog	(struct ifnet *);
+static void vge_watchdog	(void *);
 static int vge_suspend		(device_t);
 static int vge_resume		(device_t);
 static int vge_shutdown		(device_t);
@@ -378,7 +378,7 @@ vge_miibus_readreg(dev, phy, reg)
 	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
 		return(0);
 
-	VGE_LOCK(sc);
+	VGE_LOCK_ASSERT(sc);
 	vge_miipoll_stop(sc);
 
 	/* Specify the register we want to read. */
@@ -400,7 +400,6 @@ vge_miibus_readreg(dev, phy, reg)
 		rval = CSR_READ_2(sc, VGE_MIIDATA);
 
 	vge_miipoll_start(sc);
-	VGE_UNLOCK(sc);
 
 	return (rval);
 }
@@ -418,7 +417,7 @@ vge_miibus_writereg(dev, phy, reg, data)
 	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
 		return(0);
 
-	VGE_LOCK(sc);
+	VGE_LOCK_ASSERT(sc);
 	vge_miipoll_stop(sc);
 
 	/* Specify the register we want to write. */
@@ -443,7 +442,6 @@ vge_miibus_writereg(dev, phy, reg, data)
 	}
 
 	vge_miipoll_start(sc);
-	VGE_UNLOCK(sc);
 
 	return (rval);
 }
@@ -929,7 +927,9 @@ vge_attach(dev)
 	sc->vge_dev = dev;
 
 	mtx_init(&sc->vge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF | MTX_RECURSE);
+	    MTX_DEF);
+	callout_init_mtx(&sc->vge_watchdog, &sc->vge_mtx, 0);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -1014,13 +1014,10 @@ vge_attach(dev)
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	ifp->if_watchdog = vge_watchdog;
 	ifp->if_init = vge_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, VGE_IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = VGE_IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
-
-	TASK_INIT(&sc->vge_txtask, 0, vge_tx_task, ifp);
 
 	/*
 	 * Call MI attach routine.
@@ -1070,21 +1067,11 @@ vge_detach(dev)
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
-		vge_stop(sc);
-		/*
-		 * Force off the IFF_UP flag here, in case someone
-		 * still had a BPF descriptor attached to this
-		 * interface. If they do, ether_ifattach() will cause
-		 * the BPF code to try and clear the promisc mode
-		 * flag, which will bubble down to vge_ioctl(),
-		 * which will try to call vge_init() again. This will
-		 * turn the NIC back on and restart the MII ticker,
-		 * which will panic the system when the kernel tries
-		 * to invoke the vge_tick() function that isn't there
-		 * anymore.
-		 */
-		ifp->if_flags &= ~IFF_UP;
 		ether_ifdetach(ifp);
+		VGE_LOCK(sc);
+		vge_stop(sc);
+		VGE_UNLOCK(sc);
+		callout_drain(&sc->vge_watchdog);
 	}
 	if (sc->vge_miibus)
 		device_delete_child(dev, sc->vge_miibus);
@@ -1523,7 +1510,7 @@ vge_txeof(sc)
 	if (idx != sc->vge_ldata.vge_tx_considx) {
 		sc->vge_ldata.vge_tx_considx = idx;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_timer = 0;
+		sc->vge_timer = 0;
 	}
 
 	/*
@@ -1549,7 +1536,7 @@ vge_tick(xsc)
 
 	sc = xsc;
 	ifp = sc->vge_ifp;
-	VGE_LOCK(sc);
+	VGE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->vge_miibus);
 
 	mii_tick(mii);
@@ -1566,12 +1553,9 @@ vge_tick(xsc)
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_UP);
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-				taskqueue_enqueue(taskqueue_swi,
-				    &sc->vge_txtask);
+				vge_start_locked(ifp);
 		}
 	}
-
-	VGE_UNLOCK(sc);
 
 	return;
 }
@@ -1592,7 +1576,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	vge_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(taskqueue_swi, &sc->vge_txtask);
+		vge_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
 		u_int32_t       status;
@@ -1608,7 +1592,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & VGE_ISR_TXDMA_STALL ||
 		    status & VGE_ISR_RXDMA_STALL)
-			vge_init(sc);
+			vge_init_locked(sc);
 
 		if (status & (VGE_ISR_RXOFLOW|VGE_ISR_RXNODESC)) {
 			vge_rxeof(sc);
@@ -1681,7 +1665,7 @@ vge_intr(arg)
 			vge_txeof(sc);
 
 		if (status & (VGE_ISR_TXDMA_STALL|VGE_ISR_RXDMA_STALL))
-			vge_init(sc);
+			vge_init_locked(sc);
 
 		if (status & VGE_ISR_LINKSTS)
 			vge_tick(sc);
@@ -1690,10 +1674,10 @@ vge_intr(arg)
 	/* Re-enable interrupts */
 	CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 
-	VGE_UNLOCK(sc);
-
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(taskqueue_swi, &sc->vge_txtask);
+		vge_start_locked(ifp);
+
+	VGE_UNLOCK(sc);
 
 	return;
 }
@@ -1774,19 +1758,6 @@ vge_encap(sc, m_head, idx)
 	return (0);
 }
 
-static void
-vge_tx_task(arg, npending)
-	void			*arg;
-	int			npending;
-{
-	struct ifnet		*ifp;
-
-	ifp = arg;
-	vge_start(ifp);
-
-	return;
-}
-
 /*
  * Main transmit routine.
  */
@@ -1796,21 +1767,29 @@ vge_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct vge_softc	*sc;
+
+	sc = ifp->if_softc;
+	VGE_LOCK(sc);
+	vge_start_locked(ifp);
+	VGE_UNLOCK(sc);
+}
+
+static void
+vge_start_locked(ifp)
+	struct ifnet		*ifp;
+{
+	struct vge_softc	*sc;
 	struct mbuf		*m_head = NULL;
 	int			idx, pidx = 0;
 
 	sc = ifp->if_softc;
-	VGE_LOCK(sc);
+	VGE_LOCK_ASSERT(sc);
 
-	if (!sc->vge_link || ifp->if_drv_flags & IFF_DRV_OACTIVE) {
-		VGE_UNLOCK(sc);
+	if (!sc->vge_link || ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
-	}
 
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		VGE_UNLOCK(sc);
+	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		return;
-	}
 
 	idx = sc->vge_ldata.vge_tx_prodidx;
 
@@ -1843,10 +1822,8 @@ vge_start(ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (idx == sc->vge_ldata.vge_tx_prodidx) {
-		VGE_UNLOCK(sc);
+	if (idx == sc->vge_ldata.vge_tx_prodidx)
 		return;
-	}
 
 	/* Flush the TX descriptors */
 
@@ -1870,12 +1847,10 @@ vge_start(ifp)
 	 */
 	CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
 
-	VGE_UNLOCK(sc);
-
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->vge_timer = 5;
 
 	return;
 }
@@ -1885,11 +1860,20 @@ vge_init(xsc)
 	void			*xsc;
 {
 	struct vge_softc	*sc = xsc;
+
+	VGE_LOCK(sc);
+	vge_init_locked(sc);
+	VGE_UNLOCK(sc);
+}
+
+static void
+vge_init_locked(struct vge_softc *sc)
+{
 	struct ifnet		*ifp = sc->vge_ifp;
 	struct mii_data		*mii;
 	int			i;
 
-	VGE_LOCK(sc);
+	VGE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->vge_miibus);
 
 	/*
@@ -2045,11 +2029,10 @@ vge_init(xsc)
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	callout_reset(&sc->vge_watchdog, hz, vge_watchdog, sc);
 
 	sc->vge_if_flags = 0;
 	sc->vge_link = 0;
-
-	VGE_UNLOCK(sc);
 
 	return;
 }
@@ -2087,7 +2070,9 @@ vge_ifmedia_sts(ifp, ifmr)
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->vge_miibus);
 
+	VGE_LOCK(sc);
 	mii_pollstat(mii);
+	VGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 
@@ -2162,6 +2147,7 @@ vge_ioctl(ifp, command, data)
 		ifp->if_mtu = ifr->ifr_mtu;
 		break;
 	case SIOCSIFFLAGS:
+		VGE_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -2176,16 +2162,19 @@ vge_ioctl(ifp, command, data)
 				    VGE_RXCTL_RX_PROMISC);
 				vge_setmulti(sc);
                         } else
-				vge_init(sc);
+				vge_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				vge_stop(sc);
 		}
 		sc->vge_if_flags = ifp->if_flags;
+		VGE_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		VGE_LOCK(sc);
 		vge_setmulti(sc);
+		VGE_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -2219,6 +2208,7 @@ vge_ioctl(ifp, command, data)
 			}
 		}
 #endif /* DEVICE_POLLING */
+		VGE_LOCK(sc);
 		if ((mask & IFCAP_TXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
@@ -2230,6 +2220,7 @@ vge_ioctl(ifp, command, data)
 		if ((mask & IFCAP_RXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+		VGE_UNLOCK(sc);
 	    }
 		break;
 	default:
@@ -2241,22 +2232,25 @@ vge_ioctl(ifp, command, data)
 }
 
 static void
-vge_watchdog(ifp)
-	struct ifnet		*ifp;
+vge_watchdog(void *arg)
 {
-	struct vge_softc		*sc;
+	struct vge_softc *sc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
-	VGE_LOCK(sc);
+	sc = arg;
+	VGE_LOCK_ASSERT(sc);
+	callout_reset(&sc->vge_watchdog, hz, vge_watchdog, sc);
+	if (sc->vge_timer == 0 || --sc->vge_timer > 0)
+		return;
+
+	ifp = sc->vge_ifp;
 	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
 
 	vge_txeof(sc);
 	vge_rxeof(sc);
 
-	vge_init(sc);
-
-	VGE_UNLOCK(sc);
+	vge_init_locked(sc);
 
 	return;
 }
@@ -2272,9 +2266,10 @@ vge_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
-	VGE_LOCK(sc);
+	VGE_LOCK_ASSERT(sc);
 	ifp = sc->vge_ifp;
-	ifp->if_timer = 0;
+	sc->vge_timer = 0;
+	callout_stop(&sc->vge_watchdog);
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
@@ -2312,8 +2307,6 @@ vge_stop(sc)
 		}
 	}
 
-	VGE_UNLOCK(sc);
-
 	return;
 }
 
@@ -2330,9 +2323,11 @@ vge_suspend(dev)
 
 	sc = device_get_softc(dev);
 
+	VGE_LOCK(sc);
 	vge_stop(sc);
 
 	sc->suspended = 1;
+	VGE_UNLOCK(sc);
 
 	return (0);
 }
@@ -2357,10 +2352,12 @@ vge_resume(dev)
 	pci_enable_io(dev, SYS_RES_MEMORY);
 
 	/* reinitialize interface if necessary */
+	VGE_LOCK(sc);
 	if (ifp->if_flags & IFF_UP)
-		vge_init(sc);
+		vge_init_locked(sc);
 
 	sc->suspended = 0;
+	VGE_UNLOCK(sc);
 
 	return (0);
 }
@@ -2377,7 +2374,9 @@ vge_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	VGE_LOCK(sc);
 	vge_stop(sc);
+	VGE_UNLOCK(sc);
 
 	return (0);
 }
