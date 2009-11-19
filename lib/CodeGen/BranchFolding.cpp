@@ -41,8 +41,12 @@ using namespace llvm;
 STATISTIC(NumDeadBlocks, "Number of dead blocks removed");
 STATISTIC(NumBranchOpts, "Number of branches optimized");
 STATISTIC(NumTailMerge , "Number of block tails merged");
+STATISTIC(NumTailDups  , "Number of tail duplicated blocks");
+STATISTIC(NumInstrDups , "Additional instructions due to tail duplication");
+
 static cl::opt<cl::boolOrDefault> FlagEnableTailMerge("enable-tail-merge",
                               cl::init(cl::BOU_UNSET), cl::Hidden);
+
 // Throttle for huge numbers of predecessors (compile speed problems)
 static cl::opt<unsigned>
 TailMergeThreshold("tail-merge-threshold",
@@ -193,7 +197,6 @@ bool BranchFolder::OptimizeFunction(MachineFunction &MF,
     MadeChange |= OptimizeImpDefsBlock(MBB);
   }
 
-
   bool MadeChangeThisIteration = true;
   while (MadeChangeThisIteration) {
     MadeChangeThisIteration = false;
@@ -202,10 +205,15 @@ bool BranchFolder::OptimizeFunction(MachineFunction &MF,
     MadeChange |= MadeChangeThisIteration;
   }
 
-  // Do tail duplication once after tail merging is done.  Otherwise it is
+  // Do tail duplication after tail merging is done.  Otherwise it is
   // tough to avoid situations where tail duplication and tail merging undo
   // each other's transformations ad infinitum.
-  MadeChange |= TailDuplicateBlocks(MF);
+  MadeChangeThisIteration = true;
+  while (MadeChangeThisIteration) {
+    MadeChangeThisIteration = false;
+    MadeChangeThisIteration |= TailDuplicateBlocks(MF);
+    MadeChange |= MadeChangeThisIteration;
+  }
 
   // See if any jump tables have become mergable or dead as the code generator
   // did its thing.
@@ -1003,9 +1011,6 @@ static bool IsBetterFallthrough(MachineBasicBlock *MBB1,
 bool BranchFolder::TailDuplicateBlocks(MachineFunction &MF) {
   bool MadeChange = false;
 
-  // Make sure blocks are numbered in order
-  MF.RenumberBlocks();
-
   for (MachineFunction::iterator I = ++MF.begin(), E = MF.end(); I != E; ) {
     MachineBasicBlock *MBB = I++;
 
@@ -1017,6 +1022,7 @@ bool BranchFolder::TailDuplicateBlocks(MachineFunction &MF) {
 
     // If it is dead, remove it.
     if (MBB->pred_empty()) {
+      NumInstrDups -= MBB->size();
       RemoveDeadBlock(MBB);
       MadeChange = true;
       ++NumDeadBlocks;
@@ -1097,6 +1103,7 @@ bool BranchFolder::TailDuplicate(MachineBasicBlock *TailBB,
       MachineInstr *NewMI = MF.CloneMachineInstr(I);
       PredBB->insert(PredBB->end(), NewMI);
     }
+    NumInstrDups += TailBB->size() - 1; // subtract one for removed branch
 
     // Update the CFG.
     PredBB->removeSuccessor(PredBB->succ_begin());
@@ -1107,6 +1114,7 @@ bool BranchFolder::TailDuplicate(MachineBasicBlock *TailBB,
        PredBB->addSuccessor(*I);
 
     Changed = true;
+    ++NumTailDups;
   }
 
   // If TailBB was duplicated into all its predecessors except for the prior
