@@ -429,6 +429,8 @@ cpu_e500_setup(int cpuid, uint16_t vers)
 {
 	register_t hid0;
 
+	printf("\n");
+
 	hid0 = mfspr(SPR_HID0);
 	printf("cpu%d: HID0 %b", cpuid, (int)hid0, HID0_E500_BITMASK);
 }
