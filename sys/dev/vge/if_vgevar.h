@@ -111,8 +111,9 @@ struct vge_softc {
 	int			vge_rx_consumed;
 	int			vge_link;
 	int			vge_camidx;
-	struct task		vge_txtask;
 	struct mtx		vge_mtx;
+	struct callout		vge_watchdog;
+	int			vge_timer;
 	struct mbuf		*vge_head;
 	struct mbuf		*vge_tail;
 
