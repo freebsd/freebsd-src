@@ -28,7 +28,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <opt_xtrace.h>
+#include "opt_xtrace.h"
 
 #include <machine/pte.h>
 #include <assym.s>
