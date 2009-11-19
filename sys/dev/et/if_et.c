@@ -1358,7 +1358,7 @@ et_free_rx_ring(struct et_softc *sc)
 			struct et_rxbuf *rb = &rbd->rbd_buf[i];
 
 			if (rb->rb_mbuf != NULL) {
-				bus_dmamap_unload(sc->sc_mbuf_dtag, 
+				bus_dmamap_unload(sc->sc_mbuf_dtag,
 			  	    rb->rb_dmap);
 				m_freem(rb->rb_mbuf);
 				rb->rb_mbuf = NULL;
