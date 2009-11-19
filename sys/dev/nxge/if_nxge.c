@@ -2946,7 +2946,6 @@ xge_flush_txds(xge_hal_channel_h channelh)
 	struct ifnet *ifnetp = lldev->ifnetp;
 	u8 t_code;
 
-	ifnetp->if_timer = 0;
 	while(xge_hal_fifo_dtr_next_completed(channelh, &tx_dtr, &t_code)
 	    == XGE_HAL_OK) {
 	    XGE_DRV_STATS(tx_desc_compl);
@@ -3105,7 +3104,6 @@ _exit1:
 	XGE_DRV_STATS(tx_again);
 
 _exit:
-	ifnetp->if_timer = 15;
 }
 
 /**
@@ -3268,8 +3266,6 @@ xge_tx_compl(xge_hal_channel_h channelh,
 	mtx_lock(&lldev->mtx_tx[qindex]);
 
 	XGE_DRV_STATS(tx_completions);
-
-	ifnetp->if_timer = 0;
 
 	/*
 	 * For each completed descriptor: Get private structure, free buffer,
