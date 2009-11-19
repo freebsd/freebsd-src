@@ -514,7 +514,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 
 #ifdef _KERNEL
 		stream.ibuf = (char *)contigmalloc(stream.cur_ip, M_BPFJIT,
-		    M_NOWAIT, 0, ~0ULL, 16, 0);
+		    M_NOWAIT, 0, ~0UL, 16, 0);
 		if (stream.ibuf == NULL)
 			break;
 #else
