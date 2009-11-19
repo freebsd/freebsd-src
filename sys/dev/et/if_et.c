@@ -404,8 +404,8 @@ et_miibus_readreg(device_t dev, int phy, int reg)
 	/* Stop any pending operations */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
 
-	val = __SHIFTIN(phy, ET_MII_ADDR_PHY) |
-	      __SHIFTIN(reg, ET_MII_ADDR_REG);
+	val = (phy << ET_MII_ADDR_PHY_SHIFT) & ET_MII_ADDR_PHY_MASK;
+	val |= (reg << ET_MII_ADDR_REG_SHIFT) & ET_MII_ADDR_REG_MASK;
 	CSR_WRITE_4(sc, ET_MII_ADDR, val);
 
 	/* Start reading */
@@ -429,7 +429,7 @@ et_miibus_readreg(device_t dev, int phy, int reg)
 #undef NRETRY
 
 	val = CSR_READ_4(sc, ET_MII_STAT);
-	ret = __SHIFTOUT(val, ET_MII_STAT_VALUE);
+	ret = val & ET_MII_STAT_VALUE_MASK;
 
 back:
 	/* Make sure that the current operation is stopped */
@@ -447,12 +447,13 @@ et_miibus_writereg(device_t dev, int phy, int reg, int val0)
 	/* Stop any pending operations */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
 
-	val = __SHIFTIN(phy, ET_MII_ADDR_PHY) |
-	      __SHIFTIN(reg, ET_MII_ADDR_REG);
+	val = (phy << ET_MII_ADDR_PHY_SHIFT) & ET_MII_ADDR_PHY_MASK;
+	val |= (reg << ET_MII_ADDR_REG_SHIFT) & ET_MII_ADDR_REG_MASK;
 	CSR_WRITE_4(sc, ET_MII_ADDR, val);
 
 	/* Start writing */
-	CSR_WRITE_4(sc, ET_MII_CTRL, __SHIFTIN(val0, ET_MII_CTRL_VALUE));
+	CSR_WRITE_4(sc, ET_MII_CTRL,
+	    (val0 << ET_MII_CTRL_VALUE_SHIFT) & ET_MII_CTRL_VALUE_MASK);
 
 #define NRETRY 100
 
@@ -601,8 +602,13 @@ et_bus_config(device_t dev)
 	/*
 	 * Set L0s and L1 latency timer to 2us
 	 */
-	val = ET_PCIV_L0S_LATENCY(2) | ET_PCIV_L1_LATENCY(2);
-	pci_write_config(dev, ET_PCIR_L0S_L1_LATENCY, val, 1);
+	val = pci_read_config(dev, ET_PCIR_L0S_L1_LATENCY, 4);
+	val &= ~(PCIM_LINK_CAP_L0S_EXIT | PCIM_LINK_CAP_L1_EXIT);
+	/* L0s exit latency : 2us */
+	val |= 0x00005000;
+	/* L1 exit latency : 2us */
+	val |= 0x00028000;
+	pci_write_config(dev, ET_PCIR_L0S_L1_LATENCY, val, 4);
 
 	/*
 	 * Set max read request size to 2048 bytes
@@ -1021,10 +1027,10 @@ et_chip_attach(struct et_softc *sc)
 	/*
 	 * Setup half duplex mode
 	 */
-	val = __SHIFTIN(10, ET_MAC_HDX_ALT_BEB_TRUNC) |
-	      __SHIFTIN(15, ET_MAC_HDX_REXMIT_MAX) |
-	      __SHIFTIN(55, ET_MAC_HDX_COLLWIN) |
-	      ET_MAC_HDX_EXC_DEFER;
+	val = (10 << ET_MAC_HDX_ALT_BEB_TRUNC_SHIFT) |
+	    (15 << ET_MAC_HDX_REXMIT_MAX_SHIFT) |
+	    (55 << ET_MAC_HDX_COLLWIN_SHIFT) |
+	    ET_MAC_HDX_EXC_DEFER;
 	CSR_WRITE_4(sc, ET_MAC_HDX, val);
 
 	/* Clear MAC control */
@@ -1655,19 +1661,19 @@ et_init_mac(struct et_softc *sc)
 	/*
 	 * Setup inter packet gap
 	 */
-	val = __SHIFTIN(56, ET_IPG_NONB2B_1) |
-	      __SHIFTIN(88, ET_IPG_NONB2B_2) |
-	      __SHIFTIN(80, ET_IPG_MINIFG) |
-	      __SHIFTIN(96, ET_IPG_B2B);
+	val = (56 << ET_IPG_NONB2B_1_SHIFT) |
+	    (88 << ET_IPG_NONB2B_2_SHIFT) |
+	    (80 << ET_IPG_MINIFG_SHIFT) |
+	    (96 << ET_IPG_B2B_SHIFT);
 	CSR_WRITE_4(sc, ET_IPG, val);
 
 	/*
 	 * Setup half duplex mode
 	 */
-	val = __SHIFTIN(10, ET_MAC_HDX_ALT_BEB_TRUNC) |
-	      __SHIFTIN(15, ET_MAC_HDX_REXMIT_MAX) |
-	      __SHIFTIN(55, ET_MAC_HDX_COLLWIN) |
-	      ET_MAC_HDX_EXC_DEFER;
+	val = (10 << ET_MAC_HDX_ALT_BEB_TRUNC_SHIFT) |
+	    (15 << ET_MAC_HDX_REXMIT_MAX_SHIFT) |
+	    (55 << ET_MAC_HDX_COLLWIN_SHIFT) |
+	    ET_MAC_HDX_EXC_DEFER;
 	CSR_WRITE_4(sc, ET_MAC_HDX, val);
 
 	/* Clear MAC control */
@@ -1738,7 +1744,7 @@ et_init_rxmac(struct et_softc *sc)
 		 * since this is the size of the PCI-Express TLP's
 		 * that the ET1310 uses.
 		 */
-		val = __SHIFTIN(ET_RXMAC_SEGSZ(256), ET_RXMAC_MC_SEGSZ_MAX) |
+		val = (ET_RXMAC_SEGSZ(256) & ET_RXMAC_MC_SEGSZ_MAX_MASK) |
 		      ET_RXMAC_MC_SEGSZ_ENABLE;
 	} else {
 		val = 0;
@@ -1761,7 +1767,9 @@ et_init_rxmac(struct et_softc *sc)
 	/*
 	 * Configure runt filtering (may not work on certain chip generation)
 	 */
-	val = __SHIFTIN(ETHER_MIN_LEN, ET_PKTFILT_MINLEN) | ET_PKTFILT_FRAG;
+	val = (ETHER_MIN_LEN << ET_PKTFILT_MINLEN_SHIFT) &
+	    ET_PKTFILT_MINLEN_MASK;
+	val |= ET_PKTFILT_FRAG;
 	CSR_WRITE_4(sc, ET_PKTFILT, val);
 
 	/* Enable RX MAC but leave WOL disabled */
@@ -1793,11 +1801,9 @@ et_start_rxdma(struct et_softc *sc)
 {
 	uint32_t val = 0;
 
-	val |= __SHIFTIN(sc->sc_rx_data[0].rbd_bufsize,
-			 ET_RXDMA_CTRL_RING0_SIZE) |
+	val |= (sc->sc_rx_data[0].rbd_bufsize & ET_RXDMA_CTRL_RING0_SIZE_MASK) |
 	       ET_RXDMA_CTRL_RING0_ENABLE;
-	val |= __SHIFTIN(sc->sc_rx_data[1].rbd_bufsize,
-			 ET_RXDMA_CTRL_RING1_SIZE) |
+	val |= (sc->sc_rx_data[1].rbd_bufsize & ET_RXDMA_CTRL_RING1_SIZE_MASK) |
 	       ET_RXDMA_CTRL_RING1_ENABLE;
 
 	CSR_WRITE_4(sc, ET_RXDMA_CTRL, val);
@@ -1892,7 +1898,8 @@ et_rxeof(struct et_softc *sc)
 
 	rxs_stat_ring = rxsd->rxsd_status->rxs_stat_ring;
 	rxst_wrap = (rxs_stat_ring & ET_RXS_STATRING_WRAP) ? 1 : 0;
-	rxst_index = __SHIFTOUT(rxs_stat_ring, ET_RXS_STATRING_INDEX);
+	rxst_index = (rxs_stat_ring & ET_RXS_STATRING_INDEX_MASK) >>
+	    ET_RXS_STATRING_INDEX_SHIFT;
 
 	while (rxst_index != rxst_ring->rsr_index ||
 	       rxst_wrap != rxst_ring->rsr_wrap) {
@@ -1906,16 +1913,18 @@ et_rxeof(struct et_softc *sc)
 		MPASS(rxst_ring->rsr_index < ET_RX_NSTAT);
 		st = &rxst_ring->rsr_stat[rxst_ring->rsr_index];
 
-		buflen = __SHIFTOUT(st->rxst_info2, ET_RXST_INFO2_LEN);
-		buf_idx = __SHIFTOUT(st->rxst_info2, ET_RXST_INFO2_BUFIDX);
-		ring_idx = __SHIFTOUT(st->rxst_info2, ET_RXST_INFO2_RINGIDX);
+		buflen = (st->rxst_info2 & ET_RXST_INFO2_LEN_MASK) >>
+		    ET_RXST_INFO2_LEN_SHIFT;
+		buf_idx = (st->rxst_info2 & ET_RXST_INFO2_BUFIDX_MASK) >>
+		    ET_RXST_INFO2_BUFIDX_SHIFT;
+		ring_idx = (st->rxst_info2 & ET_RXST_INFO2_RINGIDX_MASK) >>
+		    ET_RXST_INFO2_RINGIDX_SHIFT;
 
 		if (++rxst_ring->rsr_index == ET_RX_NSTAT) {
 			rxst_ring->rsr_index = 0;
 			rxst_ring->rsr_wrap ^= 1;
 		}
-		rxstat_pos = __SHIFTIN(rxst_ring->rsr_index,
-				       ET_RXSTAT_POS_INDEX);
+		rxstat_pos = rxst_ring->rsr_index & ET_RXSTAT_POS_INDEX_MASK;
 		if (rxst_ring->rsr_wrap)
 			rxstat_pos |= ET_RXSTAT_POS_WRAP;
 		CSR_WRITE_4(sc, ET_RXSTAT_POS, rxstat_pos);
@@ -1968,7 +1977,7 @@ et_rxeof(struct et_softc *sc)
 			rx_ring->rr_index = 0;
 			rx_ring->rr_wrap ^= 1;
 		}
-		rxring_pos = __SHIFTIN(rx_ring->rr_index, ET_RX_RING_POS_INDEX);
+		rxring_pos = rx_ring->rr_index & ET_RX_RING_POS_INDEX_MASK;
 		if (rx_ring->rr_wrap)
 			rxring_pos |= ET_RX_RING_POS_WRAP;
 		CSR_WRITE_4(sc, rx_ring->rr_posreg, rxring_pos);
@@ -2056,7 +2065,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		td = &tx_ring->tr_desc[idx];
 		td->td_addr_hi = ET_ADDR_HI(segs[i].ds_addr);
 		td->td_addr_lo = ET_ADDR_LO(segs[i].ds_addr);
-		td->td_ctrl1 = __SHIFTIN(segs[i].ds_len, ET_TDCTRL1_LEN);
+		td->td_ctrl1 =  segs[i].ds_len & ET_TDCTRL1_LEN_MASK;
 
 		if (i == ctx.nsegs - 1) {	/* Last frag */
 			td->td_ctrl2 = last_td_ctrl2;
@@ -2083,8 +2092,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
 			BUS_DMASYNC_PREWRITE);
 
-	tx_ready_pos = __SHIFTIN(tx_ring->tr_ready_index,
-		       ET_TX_READY_POS_INDEX);
+	tx_ready_pos = tx_ring->tr_ready_index & ET_TX_READY_POS_INDEX_MASK;
 	if (tx_ring->tr_ready_wrap)
 		tx_ready_pos |= ET_TX_READY_POS_WRAP;
 	CSR_WRITE_4(sc, ET_TX_READY_POS, tx_ready_pos);
@@ -2119,7 +2127,7 @@ et_txeof(struct et_softc *sc)
 		return;
 
 	tx_done = CSR_READ_4(sc, ET_TX_DONE_POS);
-	end = __SHIFTOUT(tx_done, ET_TX_DONE_POS_INDEX);
+	end = tx_done & ET_TX_DONE_POS_INDEX_MASK;
 	wrap = (tx_done & ET_TX_DONE_POS_WRAP) ? 1 : 0;
 
 	while (tbd->tbd_start_index != end || tbd->tbd_start_wrap != wrap) {
@@ -2352,7 +2360,8 @@ et_setmedia(struct et_softc *sc)
 	cfg2 &= ~(ET_MAC_CFG2_MODE_MII | ET_MAC_CFG2_MODE_GMII |
 		  ET_MAC_CFG2_FDX | ET_MAC_CFG2_BIGFRM);
 	cfg2 |= ET_MAC_CFG2_LENCHK | ET_MAC_CFG2_CRC | ET_MAC_CFG2_PADCRC |
-		__SHIFTIN(7, ET_MAC_CFG2_PREAMBLE_LEN);
+	    ((7 << ET_MAC_CFG2_PREAMBLE_LEN_SHIFT) &
+	    ET_MAC_CFG2_PREAMBLE_LEN_MASK);
 
 	ctrl = CSR_READ_4(sc, ET_MAC_CTRL);
 	ctrl &= ~(ET_MAC_CTRL_GHDX | ET_MAC_CTRL_MODE_MII);
@@ -2384,7 +2393,7 @@ et_setup_rxdesc(struct et_rxbuf_data *rbd, int buf_idx, bus_addr_t paddr)
 
 	desc->rd_addr_hi = ET_ADDR_HI(paddr);
 	desc->rd_addr_lo = ET_ADDR_LO(paddr);
-	desc->rd_ctrl = __SHIFTIN(buf_idx, ET_RDCTRL_BUFIDX);
+	desc->rd_ctrl = buf_idx & ET_RDCTRL_BUFIDX_MASK;
 
 	bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
 			BUS_DMASYNC_PREWRITE);
