@@ -269,8 +269,6 @@ et_attach(device_t dev)
 		device_printf(dev, "can't allocate IO memory\n");
 		return (ENXIO);
 	}
-	sc->sc_mem_bt = rman_get_bustag(sc->sc_mem_res);
-	sc->sc_mem_bh = rman_get_bushandle(sc->sc_mem_res);
 
 	msic = 0;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
