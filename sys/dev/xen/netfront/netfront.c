@@ -1056,7 +1056,6 @@ xn_txeof(struct netfront_info *np)
 		return;
 	
 	ifp = np->xn_ifp;
-	ifp->if_timer = 0;
 	
 	do {
 		prod = np->tx.sring->rsp_prod;
@@ -1948,9 +1947,6 @@ create_netdev(device_t dev)
     	ifp->if_ioctl = xn_ioctl;
     	ifp->if_output = ether_output;
     	ifp->if_start = xn_start;
-#ifdef notyet
-    	ifp->if_watchdog = xn_watchdog;
-#endif
     	ifp->if_init = xn_ifinit;
     	ifp->if_mtu = ETHERMTU;
     	ifp->if_snd.ifq_maxlen = NET_TX_RING_SIZE - 1;
