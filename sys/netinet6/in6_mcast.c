@@ -2272,8 +2272,10 @@ out_im6f_rollback:
 
 	if (is_final) {
 		/* Remove the gap in the membership array. */
-		for (++idx; idx < imo->im6o_num_memberships; ++idx)
+		for (++idx; idx < imo->im6o_num_memberships; ++idx) {
 			imo->im6o_membership[idx-1] = imo->im6o_membership[idx];
+			imo->im6o_mfilters[idx-1] = imo->im6o_mfilters[idx];
+		}
 		imo->im6o_num_memberships--;
 	}
 
