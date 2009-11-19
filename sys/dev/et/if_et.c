@@ -373,7 +373,8 @@ et_detach(device_t dev)
 		if_free(sc->ifp);
 
 	et_dma_free(dev);
-	/* XXX Destroy lock here */
+
+	mtx_destroy(&sc->sc_mtx);
 
 	return 0;
 }
