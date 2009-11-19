@@ -2943,7 +2943,6 @@ xge_flush_txds(xge_hal_channel_h channelh)
 	xge_lldev_t *lldev = xge_hal_channel_userdata(channelh);
 	xge_hal_dtr_h tx_dtr;
 	xge_tx_priv_t *tx_priv;
-	struct ifnet *ifnetp = lldev->ifnetp;
 	u8 t_code;
 
 	while(xge_hal_fifo_dtr_next_completed(channelh, &tx_dtr, &t_code)
@@ -3005,7 +3004,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 
 	/* If device is not initialized, return */
 	if((!lldev->initialized) || (!(ifnetp->if_drv_flags & IFF_DRV_RUNNING)))
-	    goto _exit;
+	    return;
 
 	XGE_DRV_STATS(tx_calls);
 
@@ -3015,7 +3014,10 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	 */
 	for(;;) {
 	    IF_DEQUEUE(&ifnetp->if_snd, m_head);
-	    if(m_head == NULL) break;
+	    if (m_head == NULL) {
+		ifnetp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
+		return;
+	    }
 
 	    for(m_buf = m_head; m_buf != NULL; m_buf = m_buf->m_next) {
 	        if(m_buf->m_len) count += 1;
@@ -3032,7 +3034,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	    if(status != XGE_HAL_OK) {
 	        XGE_DRV_STATS(tx_no_txd);
 	        xge_flush_txds(channelh);
-	        goto _exit1;
+		break;
 	    }
 
 	    vlan_tag =
@@ -3053,7 +3055,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	        ll_tx_priv->dma_map, m_head, segs, &nsegs, BUS_DMA_NOWAIT)) {
 	        xge_trace(XGE_TRACE, "DMA map load failed");
 	        XGE_DRV_STATS(tx_map_fail);
-	        goto _exit1;
+		break;
 	    }
 
 	    if(lldev->driver_stats.tx_max_frags < nsegs)
@@ -3092,9 +3094,7 @@ xge_send_locked(struct ifnet *ifnetp, int qindex)
 	     * listener so that we can use tools like tcpdump */
 	    ETHER_BPF_MTAP(ifnetp, m_head);
 	}
-	ifnetp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
-	goto _exit;
-_exit1:
+
 	/* Prepend the packet back to queue */
 	IF_PREPEND(&ifnetp->if_snd, m_head);
 	ifnetp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -3102,8 +3102,6 @@ _exit1:
 	xge_queue_produce_context(xge_hal_device_queue(lldev->devh),
 	    XGE_LL_EVENT_TRY_XMIT_AGAIN, lldev->devh);
 	XGE_DRV_STATS(tx_again);
-
-_exit:
 }
 
 /**
