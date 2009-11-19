@@ -1917,11 +1917,6 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	(void)in6_setscope(&gsa->sin6.sin6_addr, ifp, NULL);
 
-	/*
-	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
-	 * On an existing inclusive membership, it just adds the
-	 * source to the filter list.
-	 */
 	imo = in6p_findmoptions(inp);
 	idx = im6o_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
@@ -1929,15 +1924,33 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	} else {
 		inm = imo->im6o_membership[idx];
 		imf = &imo->im6o_mfilters[idx];
-		if (ssa->ss.ss_family != AF_UNSPEC &&
-		    imf->im6f_st[1] != MCAST_INCLUDE) {
-			error = EINVAL;
-			goto out_in6p_locked;
-		}
-		lims = im6o_match_source(imo, idx, &ssa->sa);
-		if (lims != NULL) {
-			error = EADDRNOTAVAIL;
-			goto out_in6p_locked;
+		if (ssa->ss.ss_family != AF_UNSPEC) {
+			/*
+			 * MCAST_JOIN_SOURCE_GROUP on an exclusive membership
+			 * is an error. On an existing inclusive membership,
+			 * it just adds the source to the filter list.
+			 */
+			if (imf->im6f_st[1] != MCAST_INCLUDE) {
+				error = EINVAL;
+				goto out_in6p_locked;
+			}
+			/* Throw out duplicates. */
+			lims = im6o_match_source(imo, idx, &ssa->sa);
+			if (lims != NULL) {
+				error = EADDRNOTAVAIL;
+				goto out_in6p_locked;
+			}
+		} else {
+			/*
+			 * MCAST_JOIN_GROUP on an existing inclusive
+			 * membership is an error; if you want to change
+			 * filter mode, you must use the userland API
+			 * setsourcefilter().
+			 */
+			if (imf->im6f_st[1] == MCAST_INCLUDE) {
+				error = EINVAL;
+				goto out_in6p_locked;
+			}
 		}
 	}
 
@@ -1970,7 +1983,8 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Graft new source into filter list for this inpcb's
 	 * membership of the group. The in6_multi may not have
-	 * been allocated yet if this is a new membership.
+	 * been allocated yet if this is a new membership, however,
+	 * the in_mfilter slot will be allocated and must be initialized.
 	 */
 	if (ssa->ss.ss_family != AF_UNSPEC) {
 		/* Membership starts in IN mode */
@@ -1986,6 +2000,12 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			    __func__);
 			error = ENOMEM;
 			goto out_im6o_free;
+		}
+	} else {
+		/* No address specified; Membership starts in EX mode */
+		if (is_new) {
+			CTR1(KTR_MLD, "%s: new join w/o source", __func__);
+			im6f_init(imf, MCAST_UNDEFINED, MCAST_EXCLUDE);
 		}
 	}
 
