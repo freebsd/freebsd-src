@@ -4642,8 +4642,9 @@ lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
 
 /* Called from a softirq once a second. */
 static void
-lmc_ifnet_watchdog(struct ifnet *ifp)
+lmc_watchdog(void *arg)
   {
+  struct ifnet *ifp = arg;
   softc_t *sc = IFP2SC(ifp);
   u_int8_t old_oper_status = sc->status.oper_status;
   struct event_cntrs *cntrs = &sc->status.cntrs;
@@ -4734,7 +4735,7 @@ lmc_ifnet_watchdog(struct ifnet *ifp)
 # endif
 
   /* Call this procedure again after one second. */
-  ifp->if_timer = 1;
+  callout_reset(&sc->callout, hz, lmc_watchdog, ifp);
   }
 
 # ifdef __OpenBSD__
@@ -4822,8 +4823,6 @@ setup_ifnet(struct ifnet *ifp)
   ifp->if_start    = lmc_ifnet_start;	/* sppp changes this */
   ifp->if_output   = lmc_raw_output;	/* sppp & p2p change this */
   ifp->if_input    = lmc_raw_input;
-  ifp->if_watchdog = lmc_ifnet_watchdog;
-  ifp->if_timer    = 1;
   ifp->if_mtu      = MAX_DESC_LEN;	/* sppp & p2p change this */
   ifp->if_type     = IFT_PTPSERIAL;	/* p2p changes this */
 
@@ -4916,6 +4915,8 @@ lmc_ifnet_attach(softc_t *sc)
     ifmedia_set(&sc->ifm, IFM_TDM | IFM_NONE);
     }
 # endif  /* __OpenBSD__ */
+
+  callout_reset(&sc->callout, hz, lmc_watchdog, sc);
 
   return 0;
   }
@@ -5244,7 +5245,7 @@ ng_watchdog(void *arg)
   sc->status.line_prot = 0;
 
   /* Call this procedure again after one second. */
-  callout_reset(&sc->ng_callout, hz, ng_watchdog, sc);
+  callout_reset(&sc->callout, hz, ng_watchdog, sc);
   }
 # endif
 
@@ -5301,16 +5302,9 @@ ng_attach(softc_t *sc)
   IFQ_SET_MAXLEN(&sc->ng_sndq,  SNDQ_MAXLEN);
   IFQ_SET_READY(&sc->ng_sndq);
 
-  /* If ifnet is present, it will call watchdog. */
-  /* Otherwise, arrange to call watchdog here. */
 # if (IFNET == 0)
   /* Arrange to call ng_watchdog() once a second. */
-#  if (__FreeBSD_version >= 500000)
-  callout_init(&sc->ng_callout, 0);
-#  else  /* FreeBSD-4 */
-  callout_init(&sc->ng_callout);
-#  endif
-  callout_reset(&sc->ng_callout, hz, ng_watchdog, sc);
+  callout_reset(&sc->callout, hz, ng_watchdog, sc);
 # endif
 
   return 0;
@@ -5319,9 +5313,7 @@ ng_attach(softc_t *sc)
 static void
 ng_detach(softc_t *sc)
   {
-# if (IFNET == 0)
-  callout_stop(&sc->ng_callout);
-# endif
+  callout_drain(&sc->callout);
 # if (__FreeBSD_version >= 500000)
   mtx_destroy(&sc->ng_sndq.ifq_mtx);
   mtx_destroy(&sc->ng_fastq.ifq_mtx);
@@ -5492,6 +5484,12 @@ attach_card(softc_t *sc, const char *intrstr)
 
   /* Start the card. */
   if ((error = startup_card(sc))) return error;
+
+#  if (__FreeBSD_version >= 500000)
+  callout_init(&sc->callout, 0);
+#  else  /* FreeBSD-4 */
+  callout_init(&sc->callout);
+#  endif
 
   /* Attach a kernel interface. */
 #if NETGRAPH
