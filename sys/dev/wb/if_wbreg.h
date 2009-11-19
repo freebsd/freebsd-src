@@ -372,6 +372,7 @@ struct wb_softc {
 	u_int8_t		wb_type;
 	u_int16_t		wb_txthresh;
 	int			wb_cachesize;
+	int			wb_timer;
 	caddr_t			wb_ldata_ptr;
 	struct wb_list_data	*wb_ldata;
 	struct wb_chain_data	wb_cdata;
