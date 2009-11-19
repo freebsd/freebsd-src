@@ -92,9 +92,9 @@ m_getl(int len, int how, int type, int flags, int *psize)
 #define ET_JUMBO_MEM_SIZE	(ET_JSLOTS * ET_JLEN)
 
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4((sc)->sc_mem_bt, (sc)->sc_mem_bh, (reg), (val))
+	bus_write_4((sc)->sc_mem_res, (reg), (val))
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4((sc)->sc_mem_bt, (sc)->sc_mem_bh, (reg))
+	bus_read_4((sc)->sc_mem_res, (reg))
 
 #define ET_ADDR_HI(addr)	((uint64_t) (addr) >> 32)
 #define ET_ADDR_LO(addr)	((uint64_t) (addr) & 0xffffffff)
@@ -229,8 +229,6 @@ struct et_softc {
 	device_t		dev;
 	struct mtx		sc_mtx;
 	device_t		sc_miibus;
-	bus_space_handle_t	sc_mem_bh;
-	bus_space_tag_t		sc_mem_bt;
 	void			*sc_irq_handle;
 	struct resource		*sc_irq_res;
 	struct resource		*sc_mem_res;
