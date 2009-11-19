@@ -2342,9 +2342,11 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	if (msfr.msfr_nsrcs > in6_mcast_maxsocksrc ||
-	    (msfr.msfr_fmode != MCAST_EXCLUDE &&
-	     msfr.msfr_fmode != MCAST_INCLUDE))
+	if (msfr.msfr_nsrcs > in6_mcast_maxsocksrc)
+		return (ENOBUFS);
+
+	if (msfr.msfr_fmode != MCAST_EXCLUDE &&
+	    msfr.msfr_fmode != MCAST_INCLUDE)
 		return (EINVAL);
 
 	if (msfr.msfr_group.ss_family != AF_INET6 ||
