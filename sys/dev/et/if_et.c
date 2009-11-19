@@ -322,13 +322,8 @@ et_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
 
-#if __FreeBSD_version > 700030
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 			       NULL, et_intr, sc, &sc->sc_irq_handle);
-#else
-	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-			       et_intr, sc, &sc->sc_irq_handle);
-#endif
 
 	if (error) {
 		ether_ifdetach(ifp);
