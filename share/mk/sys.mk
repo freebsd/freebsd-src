@@ -64,7 +64,7 @@ CFLAGS		+=	-g
 .endif
 .endif
 
-CXX		?=	c++
+CXX		?=	clang++
 CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs:N-W*-prototypes:N-Wno-pointer-sign}
 
 CPP		?=	cpp
