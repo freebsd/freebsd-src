@@ -45,22 +45,18 @@ namespace A {
     using namespace E; // expected-error{{reference to 'E' is ambiguous}}
   }
 
-  struct K2 {}; // expected-note{{candidate found by name lookup is 'A::K2'}}
+  struct K2 {}; // expected-note 2{{candidate found by name lookup is 'A::K2'}}
 }
 
-struct K2 {}; // expected-note{{candidate found by name lookup is 'K2'}}
+struct K2 {}; // expected-note 2{{candidate found by name lookup is 'K2'}}
 
 using namespace A;
 
 void K1::foo() {} // okay
 
-// FIXME: Do we want err_ovl_no_viable_function_in_init here?
-struct K2 k2; // expected-error{{reference to 'K2' is ambiguous}} \
-                 expected-error{{incomplete type}}
+struct K2 *k2; // expected-error{{reference to 'K2' is ambiguous}}
 
-// FIXME: This case is incorrectly diagnosed!
-//K2 k3;
-
+K2 *k3; // expected-error{{reference to 'K2' is ambiguous}}
 
 class X { // expected-note{{candidate found by name lookup is 'X'}}
   // FIXME: produce a suitable error message for this

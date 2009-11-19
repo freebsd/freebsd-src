@@ -15,7 +15,6 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/Option.h"
-#include "clang/Driver/Options.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -179,6 +178,9 @@ void ApplyQAOverride(std::vector<const char*> &Args, const char *OverrideStr,
   }
 }
 
+extern int cc1_main(Diagnostic &Diags,
+                    const char **ArgBegin, const char **ArgEnd);
+
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
@@ -187,6 +189,10 @@ int main(int argc, const char **argv) {
   DriverDiagnosticPrinter DiagClient(Path.getBasename(), llvm::errs());
 
   Diagnostic Diags(&DiagClient);
+
+  // Dispatch to cc1_main if appropriate.
+  if (argc > 1 && llvm::StringRef(argv[1]) == "-cc1")
+    return cc1_main(Diags, argv+2, argv+argc);
 
 #ifdef CLANG_IS_PRODUCTION
   bool IsProduction = true;

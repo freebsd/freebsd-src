@@ -284,100 +284,102 @@ void ImplicitConversionSequence::DebugPrint() const {
 // signature), IsOverload returns false and MatchedDecl will be set to
 // point to the FunctionDecl for #2.
 bool
-Sema::IsOverload(FunctionDecl *New, Decl* OldD,
-                 OverloadedFunctionDecl::function_iterator& MatchedDecl) {
-  if (OverloadedFunctionDecl* Ovl = dyn_cast<OverloadedFunctionDecl>(OldD)) {
-    // Is this new function an overload of every function in the
-    // overload set?
-    OverloadedFunctionDecl::function_iterator Func = Ovl->function_begin(),
-                                           FuncEnd = Ovl->function_end();
-    for (; Func != FuncEnd; ++Func) {
-      if (!IsOverload(New, *Func, MatchedDecl)) {
-        MatchedDecl = Func;
+Sema::IsOverload(FunctionDecl *New, LookupResult &Previous, NamedDecl *&Match) {
+  for (LookupResult::iterator I = Previous.begin(), E = Previous.end();
+         I != E; ++I) {
+    NamedDecl *Old = (*I)->getUnderlyingDecl();
+    if (FunctionTemplateDecl *OldT = dyn_cast<FunctionTemplateDecl>(Old)) {
+      if (!IsOverload(New, OldT->getTemplatedDecl())) {
+        Match = Old;
         return false;
       }
-    }
-
-    // This function overloads every function in the overload set.
-    return true;
-  } else if (FunctionTemplateDecl *Old = dyn_cast<FunctionTemplateDecl>(OldD))
-    return IsOverload(New, Old->getTemplatedDecl(), MatchedDecl);
-  else if (FunctionDecl* Old = dyn_cast<FunctionDecl>(OldD)) {
-    FunctionTemplateDecl *OldTemplate = Old->getDescribedFunctionTemplate();
-    FunctionTemplateDecl *NewTemplate = New->getDescribedFunctionTemplate();
-
-    // C++ [temp.fct]p2:
-    //   A function template can be overloaded with other function templates
-    //   and with normal (non-template) functions.
-    if ((OldTemplate == 0) != (NewTemplate == 0))
-      return true;
-
-    // Is the function New an overload of the function Old?
-    QualType OldQType = Context.getCanonicalType(Old->getType());
-    QualType NewQType = Context.getCanonicalType(New->getType());
-
-    // Compare the signatures (C++ 1.3.10) of the two functions to
-    // determine whether they are overloads. If we find any mismatch
-    // in the signature, they are overloads.
-
-    // If either of these functions is a K&R-style function (no
-    // prototype), then we consider them to have matching signatures.
-    if (isa<FunctionNoProtoType>(OldQType.getTypePtr()) ||
-        isa<FunctionNoProtoType>(NewQType.getTypePtr()))
+    } else if (FunctionDecl *OldF = dyn_cast<FunctionDecl>(Old)) {
+      if (!IsOverload(New, OldF)) {
+        Match = Old;
+        return false;
+      }
+    } else {
+      // (C++ 13p1):
+      //   Only function declarations can be overloaded; object and type
+      //   declarations cannot be overloaded.
+      Match = Old;
       return false;
-
-    FunctionProtoType* OldType = cast<FunctionProtoType>(OldQType);
-    FunctionProtoType* NewType = cast<FunctionProtoType>(NewQType);
-
-    // The signature of a function includes the types of its
-    // parameters (C++ 1.3.10), which includes the presence or absence
-    // of the ellipsis; see C++ DR 357).
-    if (OldQType != NewQType &&
-        (OldType->getNumArgs() != NewType->getNumArgs() ||
-         OldType->isVariadic() != NewType->isVariadic() ||
-         !std::equal(OldType->arg_type_begin(), OldType->arg_type_end(),
-                     NewType->arg_type_begin())))
-      return true;
-
-    // C++ [temp.over.link]p4:
-    //   The signature of a function template consists of its function
-    //   signature, its return type and its template parameter list. The names
-    //   of the template parameters are significant only for establishing the
-    //   relationship between the template parameters and the rest of the
-    //   signature.
-    //
-    // We check the return type and template parameter lists for function
-    // templates first; the remaining checks follow.
-    if (NewTemplate &&
-        (!TemplateParameterListsAreEqual(NewTemplate->getTemplateParameters(),
-                                         OldTemplate->getTemplateParameters(),
-                                         false, TPL_TemplateMatch) ||
-         OldType->getResultType() != NewType->getResultType()))
-      return true;
-
-    // If the function is a class member, its signature includes the
-    // cv-qualifiers (if any) on the function itself.
-    //
-    // As part of this, also check whether one of the member functions
-    // is static, in which case they are not overloads (C++
-    // 13.1p2). While not part of the definition of the signature,
-    // this check is important to determine whether these functions
-    // can be overloaded.
-    CXXMethodDecl* OldMethod = dyn_cast<CXXMethodDecl>(Old);
-    CXXMethodDecl* NewMethod = dyn_cast<CXXMethodDecl>(New);
-    if (OldMethod && NewMethod &&
-        !OldMethod->isStatic() && !NewMethod->isStatic() &&
-        OldMethod->getTypeQualifiers() != NewMethod->getTypeQualifiers())
-      return true;
-
-    // The signatures match; this is not an overload.
-    return false;
-  } else {
-    // (C++ 13p1):
-    //   Only function declarations can be overloaded; object and type
-    //   declarations cannot be overloaded.
-    return false;
+    }
   }
+
+  return true;
+}
+
+bool Sema::IsOverload(FunctionDecl *New, FunctionDecl *Old) {
+  FunctionTemplateDecl *OldTemplate = Old->getDescribedFunctionTemplate();
+  FunctionTemplateDecl *NewTemplate = New->getDescribedFunctionTemplate();
+
+  // C++ [temp.fct]p2:
+  //   A function template can be overloaded with other function templates
+  //   and with normal (non-template) functions.
+  if ((OldTemplate == 0) != (NewTemplate == 0))
+    return true;
+
+  // Is the function New an overload of the function Old?
+  QualType OldQType = Context.getCanonicalType(Old->getType());
+  QualType NewQType = Context.getCanonicalType(New->getType());
+
+  // Compare the signatures (C++ 1.3.10) of the two functions to
+  // determine whether they are overloads. If we find any mismatch
+  // in the signature, they are overloads.
+
+  // If either of these functions is a K&R-style function (no
+  // prototype), then we consider them to have matching signatures.
+  if (isa<FunctionNoProtoType>(OldQType.getTypePtr()) ||
+      isa<FunctionNoProtoType>(NewQType.getTypePtr()))
+    return false;
+
+  FunctionProtoType* OldType = cast<FunctionProtoType>(OldQType);
+  FunctionProtoType* NewType = cast<FunctionProtoType>(NewQType);
+
+  // The signature of a function includes the types of its
+  // parameters (C++ 1.3.10), which includes the presence or absence
+  // of the ellipsis; see C++ DR 357).
+  if (OldQType != NewQType &&
+      (OldType->getNumArgs() != NewType->getNumArgs() ||
+       OldType->isVariadic() != NewType->isVariadic() ||
+       !std::equal(OldType->arg_type_begin(), OldType->arg_type_end(),
+                   NewType->arg_type_begin())))
+    return true;
+
+  // C++ [temp.over.link]p4:
+  //   The signature of a function template consists of its function
+  //   signature, its return type and its template parameter list. The names
+  //   of the template parameters are significant only for establishing the
+  //   relationship between the template parameters and the rest of the
+  //   signature.
+  //
+  // We check the return type and template parameter lists for function
+  // templates first; the remaining checks follow.
+  if (NewTemplate &&
+      (!TemplateParameterListsAreEqual(NewTemplate->getTemplateParameters(),
+                                       OldTemplate->getTemplateParameters(),
+                                       false, TPL_TemplateMatch) ||
+       OldType->getResultType() != NewType->getResultType()))
+    return true;
+
+  // If the function is a class member, its signature includes the
+  // cv-qualifiers (if any) on the function itself.
+  //
+  // As part of this, also check whether one of the member functions
+  // is static, in which case they are not overloads (C++
+  // 13.1p2). While not part of the definition of the signature,
+  // this check is important to determine whether these functions
+  // can be overloaded.
+  CXXMethodDecl* OldMethod = dyn_cast<CXXMethodDecl>(Old);
+  CXXMethodDecl* NewMethod = dyn_cast<CXXMethodDecl>(New);
+  if (OldMethod && NewMethod &&
+      !OldMethod->isStatic() && !NewMethod->isStatic() &&
+      OldMethod->getTypeQualifiers() != NewMethod->getTypeQualifiers())
+    return true;
+  
+  // The signatures match; this is not an overload.
+  return false;
 }
 
 /// TryImplicitConversion - Attempt to perform an implicit conversion
@@ -1545,18 +1547,23 @@ Sema::OverloadingResult Sema::IsUserDefinedConversion(
 }
   
 bool
-Sema::DiagnoseAmbiguousUserDefinedConversion(Expr *From, QualType ToType) {
+Sema::DiagnoseMultipleUserDefinedConversion(Expr *From, QualType ToType) {
   ImplicitConversionSequence ICS;
   OverloadCandidateSet CandidateSet;
   OverloadingResult OvResult = 
     IsUserDefinedConversion(From, ToType, ICS.UserDefined,
                             CandidateSet, true, false, false);
-  if (OvResult != OR_Ambiguous)
+  if (OvResult == OR_Ambiguous)
+    Diag(From->getSourceRange().getBegin(),
+         diag::err_typecheck_ambiguous_condition)
+          << From->getType() << ToType << From->getSourceRange();
+  else if (OvResult == OR_No_Viable_Function && !CandidateSet.empty())
+    Diag(From->getSourceRange().getBegin(),
+         diag::err_typecheck_nonviable_condition)
+    << From->getType() << ToType << From->getSourceRange();
+  else
     return false;
-  Diag(From->getSourceRange().getBegin(),
-       diag::err_typecheck_ambiguous_condition)
-  << From->getType() << ToType << From->getSourceRange();
-    PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/false);
+  PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/false);
   return true;  
 }
 
@@ -2072,7 +2079,7 @@ bool Sema::PerformCopyInitialization(Expr *&From, QualType ToType,
   if (!PerformImplicitConversion(From, ToType, Flavor,
                                  /*AllowExplicit=*/false, Elidable))
     return false;
-  if (!DiagnoseAmbiguousUserDefinedConversion(From, ToType))
+  if (!DiagnoseMultipleUserDefinedConversion(From, ToType))
     return Diag(From->getSourceRange().getBegin(),
                 diag::err_typecheck_convert_incompatible)
       << ToType << From->getType() << Flavor << From->getSourceRange();
@@ -2085,8 +2092,11 @@ bool Sema::PerformCopyInitialization(Expr *&From, QualType ToType,
 ImplicitConversionSequence
 Sema::TryObjectArgumentInitialization(Expr *From, CXXMethodDecl *Method) {
   QualType ClassType = Context.getTypeDeclType(Method->getParent());
-  QualType ImplicitParamType
-    = Context.getCVRQualifiedType(ClassType, Method->getTypeQualifiers());
+  // [class.dtor]p2: A destructor can be invoked for a const, volatile or
+  //                 const volatile object.
+  unsigned Quals = isa<CXXDestructorDecl>(Method) ?
+    Qualifiers::Const | Qualifiers::Volatile : Method->getTypeQualifiers();
+  QualType ImplicitParamType =  Context.getCVRQualifiedType(ClassType, Quals);
 
   // Set up the conversion sequence as a "bad" conversion, to allow us
   // to exit early.
@@ -2101,7 +2111,7 @@ Sema::TryObjectArgumentInitialization(Expr *From, CXXMethodDecl *Method) {
 
   assert(FromType->isRecordType());
 
-  // The implicit object parmeter is has the type "reference to cv X",
+  // The implicit object parameter is has the type "reference to cv X",
   // where X is the class of which the function is a member
   // (C++ [over.match.funcs]p4). However, when finding an implicit
   // conversion sequence for the argument, we are not allowed to
@@ -2192,7 +2202,7 @@ bool Sema::PerformContextuallyConvertToBool(Expr *&From) {
   if (!PerformImplicitConversion(From, Context.BoolTy, ICS, "converting"))
     return false;
   
-  if (!DiagnoseAmbiguousUserDefinedConversion(From, Context.BoolTy))
+  if (!DiagnoseMultipleUserDefinedConversion(From, Context.BoolTy))
     return  Diag(From->getSourceRange().getBegin(),
                  diag::err_typecheck_bool_condition)
                   << From->getType() << From->getSourceRange();
@@ -3017,6 +3027,12 @@ BuiltinCandidateTypeSet::AddPointerWithMoreQualifiedTypeVariants(QualType Ty,
   assert(PointerTy && "type was not a pointer type!");
 
   QualType PointeeTy = PointerTy->getPointeeType();
+  // Don't add qualified variants of arrays. For one, they're not allowed
+  // (the qualifier would sink to the element type), and for another, the
+  // only overload situation where it matters is subscript or pointer +- int,
+  // and those shouldn't have qualifier variants anyway.
+  if (PointeeTy->isArrayType())
+    return true;
   unsigned BaseCVR = PointeeTy.getCVRQualifiers();
   if (const ConstantArrayType *Array =Context.getAsConstantArrayType(PointeeTy))
     BaseCVR = Array->getElementType().getCVRQualifiers();
@@ -3057,6 +3073,12 @@ BuiltinCandidateTypeSet::AddMemberPointerWithMoreQualifiedTypeVariants(
   assert(PointerTy && "type was not a member pointer type!");
 
   QualType PointeeTy = PointerTy->getPointeeType();
+  // Don't add qualified variants of arrays. For one, they're not allowed
+  // (the qualifier would sink to the element type), and for another, the
+  // only overload situation where it matters is subscript or pointer +- int,
+  // and those shouldn't have qualifier variants anyway.
+  if (PointeeTy->isArrayType())
+    return true;
   const Type *ClassTy = PointerTy->getClass();
 
   // Iterate through all strict supersets of the pointee type's CVR
@@ -4873,11 +4895,13 @@ Sema::CreateOverloadedBinOp(SourceLocation OpLoc,
   if (Opc == BinaryOperator::PtrMemD)
     return CreateBuiltinBinOp(OpLoc, Opc, Args[0], Args[1]);
 
-  // If this is one of the assignment operators, we only perform
-  // overload resolution if the left-hand side is a class or
-  // enumeration type (C++ [expr.ass]p3).
-  if (Opc >= BinaryOperator::Assign && Opc <= BinaryOperator::OrAssign &&
-      !Args[0]->getType()->isOverloadableType())
+  // If this is the assignment operator, we only perform overload resolution
+  // if the left-hand side is a class or enumeration type. This is actually
+  // a hack. The standard requires that we do overload resolution between the
+  // various built-in candidates, but as DR507 points out, this can lead to
+  // problems. So we do it this way, which pretty much follows what GCC does.
+  // Note that we go the traditional code path for compound assignment forms.
+  if (Opc==BinaryOperator::Assign && !Args[0]->getType()->isOverloadableType())
     return CreateBuiltinBinOp(OpLoc, Opc, Args[0], Args[1]);
 
   // Build an empty overload set.

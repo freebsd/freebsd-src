@@ -14,7 +14,9 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/HostInfo.h"
+#include "clang/Driver/OptTable.h"
 #include "clang/Driver/Option.h"
+#include "clang/Driver/Options.h"
 
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -303,9 +305,9 @@ DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
   // and try to push it down into tool specific logic.
 
   Arg *OSXVersion =
-    Args.getLastArg(options::OPT_mmacosx_version_min_EQ, false);
+    Args.getLastArgNoClaim(options::OPT_mmacosx_version_min_EQ);
   Arg *iPhoneVersion =
-    Args.getLastArg(options::OPT_miphoneos_version_min_EQ, false);
+    Args.getLastArgNoClaim(options::OPT_miphoneos_version_min_EQ);
   if (OSXVersion && iPhoneVersion) {
     getHost().getDriver().Diag(clang::diag::err_drv_argument_not_allowed_with)
           << OSXVersion->getAsString(Args)
@@ -365,8 +367,7 @@ DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
     // Sob. These is strictly gcc compatible for the time being. Apple
     // gcc translates options twice, which means that self-expanding
     // options add duplicates.
-    options::ID id = A->getOption().getId();
-    switch (id) {
+    switch ((options::ID) A->getOption().getID()) {
     default:
       DAL->append(A);
       break;
@@ -440,7 +441,7 @@ DerivedArgList *Darwin::TranslateArgs(InputArgList &Args,
 
   if (getTriple().getArch() == llvm::Triple::x86 ||
       getTriple().getArch() == llvm::Triple::x86_64)
-    if (!Args.hasArg(options::OPT_mtune_EQ, false))
+    if (!Args.hasArgNoClaim(options::OPT_mtune_EQ))
       DAL->append(DAL->MakeJoinedArg(0, Opts.getOption(options::OPT_mtune_EQ),
                                      "core2"));
 

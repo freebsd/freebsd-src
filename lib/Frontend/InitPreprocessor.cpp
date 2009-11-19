@@ -237,6 +237,13 @@ static void DefineType(const char *MacroName, TargetInfo::IntType Ty,
   DefineBuiltinMacro(Buf, MacroBuf);
 }
 
+static void DefineTypeWidth(const char *MacroName, TargetInfo::IntType Ty,
+                            const TargetInfo &TI, std::vector<char> &Buf) {
+  char MacroBuf[60];
+  sprintf(MacroBuf, "%s=%d", MacroName, TI.getTypeWidth(Ty));
+  DefineBuiltinMacro(Buf, MacroBuf);
+}
+
 static void DefineExactWidthIntType(TargetInfo::IntType Ty, 
                                const TargetInfo &TI, std::vector<char> &Buf) {
   char MacroBuf[60];
@@ -381,10 +388,10 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   DefineTypeSize("__WCHAR_MAX__", TI.getWCharType(), TI, Buf);
   DefineTypeSize("__INTMAX_MAX__", TI.getIntMaxType(), TI, Buf);
 
-  DefineType("__INTMAX_TYPE__", TI.getIntMaxType(), Buf);
-  DefineType("__UINTMAX_TYPE__", TI.getUIntMaxType(), Buf);
+  DefineTypeWidth("__INTMAX_WIDTH__",  TI.getIntMaxType(), TI, Buf);
   DefineType("__PTRDIFF_TYPE__", TI.getPtrDiffType(0), Buf);
   DefineType("__INTPTR_TYPE__", TI.getIntPtrType(), Buf);
+  DefineTypeWidth("__INTPTR_WIDTH__", TI.getIntPtrType(), TI, Buf);
   DefineType("__SIZE_TYPE__", TI.getSizeType(), Buf);
   DefineType("__WCHAR_TYPE__", TI.getWCharType(), Buf);
   DefineType("__WINT_TYPE__", TI.getWIntType(), Buf);

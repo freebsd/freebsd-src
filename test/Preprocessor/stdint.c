@@ -28,11 +28,11 @@
 // ARM:typedef int8_t int_fast8_t;
 // ARM:typedef uint8_t uint_fast8_t;
 //
-// ARM:typedef long int intptr_t;
-// ARM:typedef unsigned long int uintptr_t;
+// ARM:typedef int32_t intptr_t;
+// ARM:typedef uint32_t uintptr_t;
 // 
-// ARM:typedef long long int intmax_t;
-// ARM:typedef long long unsigned int uintmax_t;
+// ARM:typedef int64_t intmax_t;
+// ARM:typedef uint64_t uintmax_t;
 //
 // ARM:INT8_MAX_ 127
 // ARM:INT8_MIN_ (-127 -1)
@@ -83,7 +83,7 @@
 //
 // ARM:INTMAX_MIN_ (-9223372036854775807LL -1)
 // ARM:INTMAX_MAX_ 9223372036854775807LL
-// ARM:UINTMAX_MAX_ (9223372036854775807LL*2ULL +1ULL)
+// ARM:UINTMAX_MAX_ 18446744073709551615ULL
 //
 // ARM:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // ARM:SIG_ATOMIC_MAX_ 2147483647
@@ -136,11 +136,11 @@
 // BFIN:typedef int8_t int_fast8_t;
 // BFIN:typedef uint8_t uint_fast8_t;
 //
-// BFIN:typedef long int intptr_t;
-// BFIN:typedef unsigned long int uintptr_t;
+// BFIN:typedef int32_t intptr_t;
+// BFIN:typedef uint32_t uintptr_t;
 //
-// BFIN:typedef long long int intmax_t;
-// BFIN:typedef long long unsigned int uintmax_t;
+// BFIN:typedef int64_t intmax_t;
+// BFIN:typedef uint64_t uintmax_t;
 //
 // BFIN:INT8_MAX_ 127
 // BFIN:INT8_MIN_ (-127 -1)
@@ -191,7 +191,7 @@
 //
 // BFIN:INTMAX_MIN_ (-9223372036854775807LL -1)
 // BFIN:INTMAX_MAX_ 9223372036854775807LL
-// BFIN:UINTMAX_MAX_ (9223372036854775807LL*2ULL +1ULL)
+// BFIN:UINTMAX_MAX_ 18446744073709551615ULL
 //
 // BFIN:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // BFIN:SIG_ATOMIC_MAX_ 2147483647
@@ -244,11 +244,11 @@
 // I386:typedef int8_t int_fast8_t;
 // I386:typedef uint8_t uint_fast8_t;
 //
-// I386:typedef int intptr_t;
-// I386:typedef unsigned int uintptr_t;
+// I386:typedef int32_t intptr_t;
+// I386:typedef uint32_t uintptr_t;
 //
-// I386:typedef long long int intmax_t;
-// I386:typedef long long unsigned int uintmax_t;
+// I386:typedef int64_t intmax_t;
+// I386:typedef uint64_t uintmax_t;
 //
 // I386:INT8_MAX_ 127
 // I386:INT8_MIN_ (-127 -1)
@@ -299,7 +299,7 @@
 //
 // I386:INTMAX_MIN_ (-9223372036854775807LL -1)
 // I386:INTMAX_MAX_ 9223372036854775807LL
-// I386:UINTMAX_MAX_ (9223372036854775807LL*2ULL +1ULL)
+// I386:UINTMAX_MAX_ 18446744073709551615ULL
 //
 // I386:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // I386:SIG_ATOMIC_MAX_ 2147483647
@@ -344,11 +344,11 @@
 // MSP430:typedef int8_t int_fast8_t;
 // MSP430:typedef uint8_t uint_fast8_t;
 //
-// MSP430:typedef short intptr_t;
-// MSP430:typedef unsigned short uintptr_t;
+// MSP430:typedef int16_t intptr_t;
+// MSP430:typedef uint16_t uintptr_t;
 //
-// MSP430:typedef long int intmax_t;
-// MSP430:typedef long unsigned int uintmax_t;
+// MSP430:typedef int32_t intmax_t;
+// MSP430:typedef uint32_t uintmax_t;
 //
 // MSP430:INT8_MAX_ 127
 // MSP430:INT8_MIN_ (-127 -1)
@@ -399,7 +399,7 @@
 //
 // MSP430:INTMAX_MIN_ (-2147483647L -1)
 // MSP430:INTMAX_MAX_ 2147483647L
-// MSP430:UINTMAX_MAX_ (2147483647L*2ULL +1ULL)
+// MSP430:UINTMAX_MAX_ 4294967295UL
 //
 // MSP430:SIG_ATOMIC_MIN_ (-2147483647L -1)
 // MSP430:SIG_ATOMIC_MAX_ 2147483647L
@@ -418,8 +418,8 @@
 // MSP430:INT64_C_(0) INT64_C(0)
 // MSP430:UINT64_C_(0) UINT64_C(0)
 //
-// MSP430:INTMAX_C_(0) 0LL
-// MSP430:UINTMAX_C_(0) 0ULL
+// MSP430:INTMAX_C_(0) 0L
+// MSP430:UINTMAX_C_(0) 0UL
 //
 // RUN: clang-cc -E -ffreestanding -triple=pic16-none-none %s | FileCheck -check-prefix PIC16 %s
 // 
@@ -444,11 +444,11 @@
 // PIC16:typedef int8_t int_fast8_t;
 // PIC16:typedef uint8_t uint_fast8_t;
 //
-// PIC16:typedef short intptr_t;
-// PIC16:typedef unsigned short uintptr_t;
+// PIC16:typedef int16_t intptr_t;
+// PIC16:typedef uint16_t uintptr_t;
 //
-// PIC16:typedef long int intmax_t;
-// PIC16:typedef long unsigned int uintmax_t;
+// PIC16:typedef int32_t intmax_t;
+// PIC16:typedef uint32_t uintmax_t;
 //
 // PIC16:INT8_MAX_ 127
 // PIC16:INT8_MIN_ (-127 -1)
@@ -499,7 +499,7 @@
 //
 // PIC16:INTMAX_MIN_ (-2147483647L -1)
 // PIC16:INTMAX_MAX_ 2147483647L
-// PIC16:UINTMAX_MAX_ (2147483647L*2ULL +1ULL)
+// PIC16:UINTMAX_MAX_ 4294967295UL
 //
 // PIC16:SIG_ATOMIC_MIN_ (-2147483647L -1)
 // PIC16:SIG_ATOMIC_MAX_ 2147483647L
@@ -518,8 +518,8 @@
 // PIC16:INT64_C_(0) INT64_C(0)
 // PIC16:UINT64_C_(0) UINT64_C(0)
 //
-// PIC16:INTMAX_C_(0) 0LL
-// PIC16:UINTMAX_C_(0) 0ULL
+// PIC16:INTMAX_C_(0) 0L
+// PIC16:UINTMAX_C_(0) 0UL
 //
 // RUN: clang-cc -E -ffreestanding -triple=powerpc64-none-none %s | FileCheck -check-prefix PPC64 %s
 //
@@ -551,11 +551,11 @@
 // PPC64:typedef int8_t int_fast8_t;
 // PPC64:typedef uint8_t uint_fast8_t;
 //
-// PPC64:typedef long int intptr_t;
-// PPC64:typedef unsigned long int uintptr_t;
+// PPC64:typedef int64_t intptr_t;
+// PPC64:typedef uint64_t uintptr_t;
 //
-// PPC64:typedef long int intmax_t;
-// PPC64:typedef long unsigned int uintmax_t;
+// PPC64:typedef int64_t intmax_t;
+// PPC64:typedef uint64_t uintmax_t;
 //
 // PPC64:INT8_MAX_ 127
 // PPC64:INT8_MIN_ (-127 -1)
@@ -606,7 +606,7 @@
 //
 // PPC64:INTMAX_MIN_ (-9223372036854775807L -1)
 // PPC64:INTMAX_MAX_ 9223372036854775807L
-// PPC64:UINTMAX_MAX_ (9223372036854775807L*2ULL +1ULL)
+// PPC64:UINTMAX_MAX_ 18446744073709551615UL
 //
 // PPC64:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // PPC64:SIG_ATOMIC_MAX_ 2147483647
@@ -625,8 +625,8 @@
 // PPC64:INT64_C_(0) 0L
 // PPC64:UINT64_C_(0) 0UL
 //
-// PPC64:INTMAX_C_(0) 0LL
-// PPC64:UINTMAX_C_(0) 0ULL
+// PPC64:INTMAX_C_(0) 0L
+// PPC64:UINTMAX_C_(0) 0UL
 //
 // RUN: clang-cc -E -ffreestanding -triple=powerpc-none-none %s | FileCheck -check-prefix PPC %s
 //
@@ -659,11 +659,11 @@
 // PPC:typedef int8_t int_fast8_t;
 // PPC:typedef uint8_t uint_fast8_t;
 //
-// PPC:typedef long int intptr_t;
-// PPC:typedef unsigned long int uintptr_t;
+// PPC:typedef int32_t intptr_t;
+// PPC:typedef uint32_t uintptr_t;
 //
-// PPC:typedef long long int intmax_t;
-// PPC:typedef long long unsigned int uintmax_t;
+// PPC:typedef int64_t intmax_t;
+// PPC:typedef uint64_t uintmax_t;
 //
 // PPC:INT8_MAX_ 127
 // PPC:INT8_MIN_ (-127 -1)
@@ -714,7 +714,7 @@
 //
 // PPC:INTMAX_MIN_ (-9223372036854775807LL -1)
 // PPC:INTMAX_MAX_ 9223372036854775807LL
-// PPC:UINTMAX_MAX_ (9223372036854775807LL*2ULL +1ULL)
+// PPC:UINTMAX_MAX_ 18446744073709551615ULL
 //
 // PPC:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // PPC:SIG_ATOMIC_MAX_ 2147483647
@@ -766,11 +766,11 @@
 // S390X:typedef int8_t int_fast8_t;
 // S390X:typedef uint8_t uint_fast8_t;
 //
-// S390X:typedef long int intptr_t;
-// S390X:typedef unsigned long int uintptr_t;
+// S390X:typedef int64_t intptr_t;
+// S390X:typedef uint64_t uintptr_t;
 //
-// S390X:typedef long long int intmax_t;
-// S390X:typedef long long unsigned int uintmax_t;
+// S390X:typedef int64_t intmax_t;
+// S390X:typedef uint64_t uintmax_t;
 //
 // S390X:INT8_MAX_ 127
 // S390X:INT8_MIN_ (-127 -1)
@@ -819,9 +819,9 @@
 // S390X:PTRDIFF_MAX_ 9223372036854775807L
 // S390X:SIZE_MAX_ 18446744073709551615UL
 //
-// S390X:INTMAX_MIN_ (-9223372036854775807LL -1)
-// S390X:INTMAX_MAX_ 9223372036854775807LL
-// S390X:UINTMAX_MAX_ (9223372036854775807LL*2ULL +1ULL)
+// S390X:INTMAX_MIN_ (-9223372036854775807L -1)
+// S390X:INTMAX_MAX_ 9223372036854775807L
+// S390X:UINTMAX_MAX_ 18446744073709551615UL
 //
 // S390X:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // S390X:SIG_ATOMIC_MAX_ 2147483647
@@ -840,8 +840,8 @@
 // S390X:INT64_C_(0) 0L
 // S390X:UINT64_C_(0) 0UL
 //
-// S390X:INTMAX_C_(0) 0LL
-// S390X:UINTMAX_C_(0) 0ULL
+// S390X:INTMAX_C_(0) 0L
+// S390X:UINTMAX_C_(0) 0UL
 //
 // RUN: clang-cc -E -ffreestanding -triple=sparc-none-none %s | FileCheck -check-prefix SPARC %s
 //
@@ -873,11 +873,11 @@
 // SPARC:typedef int8_t int_fast8_t;
 // SPARC:typedef uint8_t uint_fast8_t;
 //
-// SPARC:typedef long int intptr_t;
-// SPARC:typedef unsigned long int uintptr_t;
+// SPARC:typedef int32_t intptr_t;
+// SPARC:typedef uint32_t uintptr_t;
 //
-// SPARC:typedef long long int intmax_t;
-// SPARC:typedef long long unsigned int uintmax_t;
+// SPARC:typedef int64_t intmax_t;
+// SPARC:typedef uint64_t uintmax_t;
 //
 // SPARC:INT8_MAX_ 127
 // SPARC:INT8_MIN_ (-127 -1)
@@ -928,7 +928,7 @@
 //
 // SPARC:INTMAX_MIN_ (-9223372036854775807LL -1)
 // SPARC:INTMAX_MAX_ 9223372036854775807LL
-// SPARC:UINTMAX_MAX_ (9223372036854775807LL*2ULL +1ULL)
+// SPARC:UINTMAX_MAX_ 18446744073709551615ULL
 //
 // SPARC:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // SPARC:SIG_ATOMIC_MAX_ 2147483647
@@ -973,11 +973,11 @@
 // TCE:typedef int8_t int_fast8_t;
 // TCE:typedef uint8_t uint_fast8_t;
 //
-// TCE:typedef int intptr_t;
-// TCE:typedef unsigned int uintptr_t;
+// TCE:typedef int32_t intptr_t;
+// TCE:typedef uint32_t uintptr_t;
 //
-// TCE:typedef long int intmax_t;
-// TCE:typedef long unsigned int uintmax_t;
+// TCE:typedef int32_t intmax_t;
+// TCE:typedef uint32_t uintmax_t;
 //
 // TCE:INT8_MAX_ 127
 // TCE:INT8_MIN_ (-127 -1)
@@ -1026,9 +1026,9 @@
 // TCE:PTRDIFF_MAX_ 2147483647
 // TCE:SIZE_MAX_ 4294967295U
 //
-// TCE:INTMAX_MIN_ (-2147483647L -1)
-// TCE:INTMAX_MAX_ 2147483647L
-// TCE:UINTMAX_MAX_ (2147483647L*2ULL +1ULL)
+// TCE:INTMAX_MIN_ (-2147483647 -1)
+// TCE:INTMAX_MAX_ 2147483647
+// TCE:UINTMAX_MAX_ 4294967295U
 //
 // TCE:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // TCE:SIG_ATOMIC_MAX_ 2147483647
@@ -1047,8 +1047,8 @@
 // TCE:INT64_C_(0) INT64_C(0)
 // TCE:UINT64_C_(0) UINT64_C(0)
 //
-// TCE:INTMAX_C_(0) 0LL
-// TCE:UINTMAX_C_(0) 0ULL
+// TCE:INTMAX_C_(0) 0
+// TCE:UINTMAX_C_(0) 0U
 //
 // RUN: clang-cc -E -ffreestanding -triple=x86_64-none-none %s | FileCheck -check-prefix X86_64 %s
 //
@@ -1081,11 +1081,11 @@
 // X86_64:typedef int8_t int_fast8_t;
 // X86_64:typedef uint8_t uint_fast8_t;
 //
-// X86_64:typedef long int intptr_t;
-// X86_64:typedef unsigned long int uintptr_t;
+// X86_64:typedef int64_t intptr_t;
+// X86_64:typedef uint64_t uintptr_t;
 //
-// X86_64:typedef long int intmax_t;
-// X86_64:typedef long unsigned int uintmax_t;
+// X86_64:typedef int64_t intmax_t;
+// X86_64:typedef uint64_t uintmax_t;
 //
 // X86_64:INT8_MAX_ 127
 // X86_64:INT8_MIN_ (-127 -1)
@@ -1136,7 +1136,7 @@
 //
 // X86_64:INTMAX_MIN_ (-9223372036854775807L -1)
 // X86_64:INTMAX_MAX_ 9223372036854775807L
-// X86_64:UINTMAX_MAX_ (9223372036854775807L*2ULL +1ULL)
+// X86_64:UINTMAX_MAX_ 18446744073709551615UL
 //
 // X86_64:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // X86_64:SIG_ATOMIC_MAX_ 2147483647
@@ -1155,8 +1155,8 @@
 // X86_64:INT64_C_(0) 0L
 // X86_64:UINT64_C_(0) 0UL
 //
-// X86_64:INTMAX_C_(0) 0LL
-// X86_64:UINTMAX_C_(0) 0ULL
+// X86_64:INTMAX_C_(0) 0L
+// X86_64:UINTMAX_C_(0) 0UL
 //
 
 #include <stdint.h>

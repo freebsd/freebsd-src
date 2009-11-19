@@ -100,14 +100,12 @@ AnalyzeSpecificFunction("analyze-function",
 
 static llvm::cl::opt<bool>
 EagerlyAssume("analyzer-eagerly-assume",
-          llvm::cl::init(false),
               llvm::cl::desc("Eagerly assume the truth/falseness of some "
                              "symbolic constraints"));
 
 static llvm::cl::opt<bool>
-PurgeDead("analyzer-purge-dead",
-          llvm::cl::init(true),
-          llvm::cl::desc("Remove dead symbols, bindings, and constraints before"
+NoPurgeDead("analyzer-no-purge-dead",
+          llvm::cl::desc("Don't remove dead symbols, bindings, and constraints before"
                          " processing a statement"));
 
 static llvm::cl::opt<bool>
@@ -136,8 +134,7 @@ DisableLLVMOptimizations("disable-llvm-optzns",
 
 static llvm::cl::opt<bool>
 DisableRedZone("disable-red-zone",
-               llvm::cl::desc("Do not emit code that uses the red zone."),
-               llvm::cl::init(false));
+               llvm::cl::desc("Do not emit code that uses the red zone."));
 
 static llvm::cl::opt<bool>
 GenerateDebugInfo("g",
@@ -150,8 +147,7 @@ NoCommon("fno-common",
 
 static llvm::cl::opt<bool>
 NoImplicitFloat("no-implicit-float",
-  llvm::cl::desc("Don't generate implicit floating point instructions (x86-only)"),
-  llvm::cl::init(false));
+  llvm::cl::desc("Don't generate implicit floating point instructions (x86-only)"));
 
 static llvm::cl::opt<bool>
 NoMergeConstants("fno-merge-all-constants",
@@ -170,8 +166,7 @@ struct OptLevelParser : public llvm::cl::parser<unsigned> {
 };
 static llvm::cl::opt<unsigned, false, OptLevelParser>
 OptLevel("O", llvm::cl::Prefix,
-         llvm::cl::desc("Optimization level"),
-         llvm::cl::init(0));
+         llvm::cl::desc("Optimization level"));
 
 static llvm::cl::opt<bool>
 OptSize("Os", llvm::cl::desc("Optimize for size"));
@@ -264,7 +259,7 @@ PrintColorDiagnostic("fcolor-diagnostics",
                      llvm::cl::desc("Use colors in diagnostics"));
 
 static llvm::cl::opt<bool>
-SilenceRewriteMacroWarning("Wno-rewrite-macros", llvm::cl::init(false),
+SilenceRewriteMacroWarning("Wno-rewrite-macros",
                            llvm::cl::desc("Silence ObjC rewriting warnings"));
 
 static llvm::cl::opt<bool>
@@ -287,9 +282,8 @@ CodeCompletionAt("code-completion-at",
               llvm::cl::desc("Dump code-completion information at a location"));
 
 static llvm::cl::opt<bool>
-CodeCompletionDebugPrinter("code-completion-debug-printer",
-                      llvm::cl::desc("Use the \"debug\" code-completion print"),
-                           llvm::cl::init(true));
+NoCodeCompletionDebugPrinter("no-code-completion-debug-printer",
+                      llvm::cl::desc("Don't the \"debug\" code-completion print"));
 
 static llvm::cl::opt<bool>
 CodeCompletionWantsMacros("code-completion-macros",
@@ -297,8 +291,7 @@ CodeCompletionWantsMacros("code-completion-macros",
 
 static llvm::cl::opt<bool>
 DisableFree("disable-free",
-           llvm::cl::desc("Disable freeing of memory on exit"),
-           llvm::cl::init(false));
+           llvm::cl::desc("Disable freeing of memory on exit"));
 
 static llvm::cl::opt<bool>
 EmptyInputOnly("empty-input-only",
@@ -444,12 +437,11 @@ TimeReport("ftime-report",
 namespace langoptions {
 
 static llvm::cl::opt<bool>
-AllowBuiltins("fbuiltin", llvm::cl::init(true),
-             llvm::cl::desc("Disable implicit builtin knowledge of functions"));
+NoBuiltin("fno-builtin",
+          llvm::cl::desc("Disable implicit builtin knowledge of functions"));
 
 static llvm::cl::opt<bool>
-AltiVec("faltivec", llvm::cl::desc("Enable AltiVec vector initializer syntax"),
-                    llvm::cl::init(false));
+AltiVec("faltivec", llvm::cl::desc("Enable AltiVec vector initializer syntax"));
 
 static llvm::cl::opt<bool>
 AccessControl("faccess-control",
@@ -537,8 +529,8 @@ MainFileName("main-file-name",
              llvm::cl::desc("Main file name to use for debug info"));
 
 static llvm::cl::opt<bool>
-MathErrno("fmath-errno", llvm::cl::init(true),
-          llvm::cl::desc("Require math functions to respect errno"));
+NoMathErrno("fno-math-errno",
+          llvm::cl::desc("Don't require math functions to respect errno"));
 
 static llvm::cl::opt<bool>
 NoElideConstructors("fno-elide-constructors",
@@ -581,15 +573,13 @@ ObjCNonFragileABI("fobjc-nonfragile-abi",
 
 static llvm::cl::opt<bool>
 OverflowChecking("ftrapv",
-                 llvm::cl::desc("Trap on integer overflow"),
-                 llvm::cl::init(false));
+                 llvm::cl::desc("Trap on integer overflow"));
 
 static llvm::cl::opt<unsigned>
 PICLevel("pic-level", llvm::cl::desc("Value for __PIC__"));
 
 static llvm::cl::opt<bool>
-PThread("pthread", llvm::cl::desc("Support POSIX threads in generated code"),
-         llvm::cl::init(false));
+PThread("pthread", llvm::cl::desc("Support POSIX threads in generated code"));
 
 static llvm::cl::opt<bool>
 PascalStrings("fpascal-strings",
@@ -597,8 +587,8 @@ PascalStrings("fpascal-strings",
                              "string literals"));
 
 static llvm::cl::opt<bool>
-Rtti("frtti", llvm::cl::init(true),
-     llvm::cl::desc("Enable generation of rtti information"));
+NoRtti("fno-rtti",
+     llvm::cl::desc("Disable generation of rtti information"));
 
 static llvm::cl::opt<bool>
 ShortWChar("fshort-wchar",
@@ -609,8 +599,7 @@ StaticDefine("static-define", llvm::cl::desc("Should __STATIC__ be defined"));
 
 static llvm::cl::opt<int>
 StackProtector("stack-protector",
-               llvm::cl::desc("Enable stack protectors"),
-               llvm::cl::init(-1));
+               llvm::cl::desc("Enable stack protectors"));
 
 static llvm::cl::opt<LangOptions::VisibilityMode>
 SymbolVisibility("fvisibility",
@@ -625,7 +614,7 @@ SymbolVisibility("fvisibility",
                                   clEnumValEnd));
 
 static llvm::cl::opt<unsigned>
-TemplateDepth("ftemplate-depth", llvm::cl::init(99),
+TemplateDepth("ftemplate-depth",
               llvm::cl::desc("Maximum depth of recursive template "
                              "instantiation"));
 
@@ -724,7 +713,7 @@ iwithprefixbefore_vals("iwithprefixbefore", llvm::cl::value_desc("dir"),
             llvm::cl::desc("Set directory to include search path with prefix"));
 
 static llvm::cl::opt<std::string>
-isysroot("isysroot", llvm::cl::value_desc("dir"), llvm::cl::init("/"),
+isysroot("isysroot", llvm::cl::value_desc("dir"),
          llvm::cl::desc("Set the system root directory (usually /)"));
 
 static llvm::cl::opt<bool>
@@ -793,7 +782,7 @@ void clang::InitializeAnalyzerOptions(AnalyzerOptions &Opts) {
   Opts.VisualizeEGUbi = VisualizeEGUbi;
   Opts.AnalyzeAll = AnalyzeAll;
   Opts.AnalyzerDisplayProgress = AnalyzerDisplayProgress;
-  Opts.PurgeDead = PurgeDead;
+  Opts.PurgeDead = !NoPurgeDead;
   Opts.EagerlyAssume = EagerlyAssume;
   Opts.AnalyzeSpecificFunction = AnalyzeSpecificFunction;
   Opts.EnableExperimentalChecks = AnalyzerExperimentalChecks;
@@ -807,7 +796,8 @@ void clang::InitializeCodeGenOptions(CodeGenOptions &Opts,
   using namespace codegenoptions;
 
   // -Os implies -O2
-  Opts.OptimizationLevel = OptSize ? 2 : OptLevel;
+  unsigned Opt = OptLevel.getPosition() ? OptLevel : 0;
+  Opts.OptimizationLevel = OptSize ? 2 : Opt;
 
   // We must always run at least the always inlining pass.
   Opts.Inlining = (Opts.OptimizationLevel > 1) ? CodeGenOptions::NormalInlining
@@ -875,7 +865,7 @@ void clang::InitializeFrontendOptions(FrontendOptions &Opts) {
   }
 
   Opts.CodeCompletionAt = CodeCompletionAt;
-  Opts.DebugCodeCompletionPrinter = CodeCompletionDebugPrinter;
+  Opts.DebugCodeCompletionPrinter = !NoCodeCompletionDebugPrinter;
   Opts.DisableFree = DisableFree;
   Opts.EmptyInputOnly = EmptyInputOnly;
   Opts.FixItLocations = FixItAtLocations;
@@ -907,7 +897,8 @@ void clang::InitializeHeaderSearchOptions(HeaderSearchOptions &Opts,
                                           llvm::StringRef BuiltinIncludePath) {
   using namespace headersearchoptions;
 
-  Opts.Sysroot = isysroot;
+  if (isysroot.getPosition())
+    Opts.Sysroot = isysroot;
   Opts.Verbose = Verbose;
 
   // Handle -I... and -F... options, walking the lists in parallel.
@@ -1231,7 +1222,7 @@ void clang::InitializeLangOptions(LangOptions &Options,
   if (NoLaxVectorConversions.getPosition())
       Options.LaxVectorConversions = 0;
   Options.Exceptions = Exceptions;
-  Options.Rtti = Rtti;
+  Options.Rtti = !NoRtti;
   if (EnableBlocks.getPosition())
     Options.Blocks = EnableBlocks;
   if (CharIsSigned.getPosition())
@@ -1239,8 +1230,7 @@ void clang::InitializeLangOptions(LangOptions &Options,
   if (ShortWChar.getPosition())
     Options.ShortWChar = ShortWChar;
 
-  if (!AllowBuiltins)
-    Options.NoBuiltin = 1;
+  Options.NoBuiltin = NoBuiltin;
   if (Freestanding)
     Options.Freestanding = Options.NoBuiltin = 1;
 
@@ -1255,9 +1245,10 @@ void clang::InitializeLangOptions(LangOptions &Options,
   // OpenCL and C++ both have bool, true, false keywords.
   Options.Bool = Options.OpenCL | Options.CPlusPlus;
 
-  Options.MathErrno = MathErrno;
+  Options.MathErrno = !NoMathErrno;
 
-  Options.InstantiationDepth = TemplateDepth;
+  if (TemplateDepth.getPosition())
+    Options.InstantiationDepth = TemplateDepth;
 
   // Override the default runtime if the user requested it.
   if (GNURuntime)
@@ -1273,8 +1264,10 @@ void clang::InitializeLangOptions(LangOptions &Options,
     Options.EmitAllDecls = 1;
 
   // The __OPTIMIZE_SIZE__ define is tied to -Oz, which we don't support.
+  unsigned Opt =
+    codegenoptions::OptLevel.getPosition() ? codegenoptions::OptLevel : 0;
   Options.OptimizeSize = 0;
-  Options.Optimize = codegenoptions::OptSize || codegenoptions::OptLevel;
+  Options.Optimize = codegenoptions::OptSize || Opt;
 
   assert(PICLevel <= 2 && "Invalid value for -pic-level");
   Options.PICLevel = PICLevel;
@@ -1286,17 +1279,18 @@ void clang::InitializeLangOptions(LangOptions &Options,
   // inlining enabled.
   //
   // FIXME: This is affected by other options (-fno-inline).
-  Options.NoInline = !codegenoptions::OptLevel;
+  Options.NoInline = !Opt;
 
   Options.Static = StaticDefine;
 
-  switch (StackProtector) {
-  default:
-    assert(StackProtector <= 2 && "Invalid value for -stack-protector");
-  case -1: break;
-  case 0: Options.setStackProtectorMode(LangOptions::SSPOff); break;
-  case 1: Options.setStackProtectorMode(LangOptions::SSPOn);  break;
-  case 2: Options.setStackProtectorMode(LangOptions::SSPReq); break;
+  if (StackProtector.getPosition()) {
+    switch (StackProtector) {
+    default:
+      assert(0 && "Invalid value for -stack-protector");
+    case 0: Options.setStackProtectorMode(LangOptions::SSPOff); break;
+    case 1: Options.setStackProtectorMode(LangOptions::SSPOn);  break;
+    case 2: Options.setStackProtectorMode(LangOptions::SSPReq); break;
+    }
   }
 
   if (MainFileName.getPosition())

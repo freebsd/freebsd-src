@@ -18,6 +18,7 @@
 #include "clang/Driver/Job.h"
 #include "clang/Driver/HostInfo.h"
 #include "clang/Driver/Option.h"
+#include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
 #include "clang/Driver/Util.h"
 
@@ -81,8 +82,8 @@ void Clang::AddPreprocessingOptions(const Driver &D,
         DepFile = Output.getFilename();
     } else if (Arg *MF = Args.getLastArg(options::OPT_MF)) {
       DepFile = MF->getValue(Args);
-    } else if (A->getOption().getId() == options::OPT_M ||
-               A->getOption().getId() == options::OPT_MM) {
+    } else if (A->getOption().matches(options::OPT_M) ||
+               A->getOption().matches(options::OPT_MM)) {
       DepFile = "-";
     } else {
       DepFile = darwin::CC1::getDependencyFileName(Args, Inputs);
@@ -116,8 +117,8 @@ void Clang::AddPreprocessingOptions(const Driver &D,
       CmdArgs.push_back(DepTarget);
     }
 
-    if (A->getOption().getId() == options::OPT_M ||
-        A->getOption().getId() == options::OPT_MD)
+    if (A->getOption().matches(options::OPT_M) ||
+        A->getOption().matches(options::OPT_MD))
       CmdArgs.push_back("-sys-header-deps");
   }
 
@@ -778,12 +779,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     break;
   }
 
-  if (Args.hasFlag(options::OPT_fmath_errno,
+  // -fmath-errno is default.
+  if (!Args.hasFlag(options::OPT_fmath_errno,
                    options::OPT_fno_math_errno,
                    getToolChain().IsMathErrnoDefault()))
-    CmdArgs.push_back("--fmath-errno=1");
-  else
-    CmdArgs.push_back("--fmath-errno=0");
+    CmdArgs.push_back("-fno-math-errno");
 
   if (Arg *A = Args.getLastArg(options::OPT_flimited_precision_EQ)) {
     CmdArgs.push_back("--limit-float-precision");
@@ -822,7 +822,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Manually translate -O to -O2 and -O4 to -O3; let clang reject
   // others.
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    if (A->getOption().getId() == options::OPT_O4)
+    if (A->getOption().matches(options::OPT_O4))
       CmdArgs.push_back("-O3");
     else if (A->getValue(Args)[0] == '\0')
       CmdArgs.push_back("-O2");
@@ -864,7 +864,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(A->getValue(Args));
   }
 
-  if (Args.hasArg(options::OPT__relocatable_pch, true))
+  if (Args.hasArg(options::OPT__relocatable_pch))
     CmdArgs.push_back("--relocatable-pch");
 
   if (Arg *A = Args.getLastArg(options::OPT_fconstant_string_class_EQ)) {
@@ -922,7 +922,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // -fbuiltin is default.
   if (!Args.hasFlag(options::OPT_fbuiltin, options::OPT_fno_builtin))
-    CmdArgs.push_back("-fbuiltin=0");
+    CmdArgs.push_back("-fno-builtin");
 
   // -fblocks=0 is default.
   if (Args.hasFlag(options::OPT_fblocks, options::OPT_fno_blocks,
@@ -938,7 +938,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // -frtti is default.
   if (!Args.hasFlag(options::OPT_frtti, options::OPT_fno_rtti))
-    CmdArgs.push_back("-frtti=0");
+    CmdArgs.push_back("-fno-rtti");
 
   // -fsigned-char is default.
   if (!Args.hasFlag(options::OPT_fsigned_char,
@@ -2609,6 +2609,8 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
     // FIXME: For some reason GCC passes -lgcc and -lgcc_s before adding
     // the default system libraries. Just mimic this for now.
     CmdArgs.push_back("-lgcc");
+    if (D.CCCIsCXX)
+      CmdArgs.push_back("-lstdc++");
     if (Args.hasArg(options::OPT_static)) {
       CmdArgs.push_back("-lgcc_eh");
     } else {
@@ -2638,10 +2640,6 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
     else
       CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtendS.o")));
     CmdArgs.push_back(Args.MakeArgString(getToolChain().GetFilePath(C, "crtn.o")));
-    // FIXME: g++ is more complicated here, it tries to put -lstdc++
-    // before -lm, for example.
-    if (D.CCCIsCXX)
-      CmdArgs.push_back("-lstdc++");
   }
 
   const char *Exec =

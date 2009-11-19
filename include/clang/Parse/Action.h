@@ -2329,29 +2329,75 @@ public:
   /// found after the left paren.
   ///
   /// \param S the scope in which the operator keyword occurs.  
-  virtual void CodeCompleteObjCProperty(Scope *S, ObjCDeclSpec &ODS) { }
-  
+  virtual void CodeCompleteObjCPropertyFlags(Scope *S, ObjCDeclSpec &ODS) { }
+
+  /// \brief Code completion for the getter of an Objective-C property 
+  /// declaration.  
+  ///
+  /// This code completion action is invoked when the code-completion
+  /// token is found after the "getter = " in a property declaration.
+  ///
+  /// \param S the scope in which the property is being declared.
+  ///
+  /// \param ClassDecl the Objective-C class or category in which the property
+  /// is being defined.
+  ///
+  /// \param Methods the set of methods declared thus far within \p ClassDecl.
+  ///
+  /// \param NumMethods the number of methods in \p Methods
+  virtual void CodeCompleteObjCPropertyGetter(Scope *S, DeclPtrTy ClassDecl,
+                                              DeclPtrTy *Methods,
+                                              unsigned NumMethods) {
+  }
+
+  /// \brief Code completion for the setter of an Objective-C property 
+  /// declaration.  
+  ///
+  /// This code completion action is invoked when the code-completion
+  /// token is found after the "setter = " in a property declaration.
+  ///
+  /// \param S the scope in which the property is being declared.
+  ///
+  /// \param ClassDecl the Objective-C class or category in which the property
+  /// is being defined.
+  ///
+  /// \param Methods the set of methods declared thus far within \p ClassDecl.
+  ///
+  /// \param NumMethods the number of methods in \p Methods
+  virtual void CodeCompleteObjCPropertySetter(Scope *S, DeclPtrTy ClassDecl,
+                                              DeclPtrTy *Methods,
+                                              unsigned NumMethods) {
+  }
+
   /// \brief Code completion for an ObjC message expression that refers to
   /// a class method.
   ///
   /// This code completion action is invoked when the code-completion token is
-  /// found after the class name.
+  /// found after the class name and after each argument.
   ///
   /// \param S the scope in which the message expression occurs. 
   /// \param FName the factory name. 
   /// \param FNameLoc the source location of the factory name.
+  /// \param SelIdents the identifiers that describe the selector (thus far).
+  /// \param NumSelIdents the number of identifiers in \p SelIdents.
   virtual void CodeCompleteObjCClassMessage(Scope *S, IdentifierInfo *FName,
-                                            SourceLocation FNameLoc){ }
+                                            SourceLocation FNameLoc,
+                                            IdentifierInfo **SelIdents,
+                                            unsigned NumSelIdents){ }
   
   /// \brief Code completion for an ObjC message expression that refers to
   /// an instance method.
   ///
   /// This code completion action is invoked when the code-completion token is
-  /// found after the receiver expression.
+  /// found after the receiver expression and after each argument.
   ///
   /// \param S the scope in which the operator keyword occurs.  
   /// \param Receiver an expression for the receiver of the message. 
-  virtual void CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver) { }
+  /// \param SelIdents the identifiers that describe the selector (thus far).
+  /// \param NumSelIdents the number of identifiers in \p SelIdents.
+  virtual void CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver,
+                                               IdentifierInfo **SelIdents,
+                                               unsigned NumSelIdents) { }
 
   /// \brief Code completion for a list of protocol references in Objective-C,
   /// such as P1 and P2 in \c id<P1,P2>.
@@ -2371,6 +2417,61 @@ public:
   ///
   /// \param S the scope in which the protocol declaration occurs.
   virtual void CodeCompleteObjCProtocolDecl(Scope *S) { }
+
+  /// \brief Code completion for an Objective-C interface, after the
+  /// @interface but before any identifier.
+  virtual void CodeCompleteObjCInterfaceDecl(Scope *S) { }
+
+  /// \brief Code completion for the superclass of an Objective-C
+  /// interface, after the ':'.
+  ///
+  /// \param S the scope in which the interface declaration occurs.
+  ///
+  /// \param ClassName the name of the class being defined.
+  virtual void CodeCompleteObjCSuperclass(Scope *S, 
+                                          IdentifierInfo *ClassName) {
+  }
+
+  /// \brief Code completion for an Objective-C implementation, after the
+  /// @implementation but before any identifier.
+  virtual void CodeCompleteObjCImplementationDecl(Scope *S) { }
+  
+  /// \brief Code completion for the category name in an Objective-C interface
+  /// declaration.
+  ///
+  /// This code completion action is invoked after the '(' that indicates
+  /// a category name within an Objective-C interface declaration.
+  virtual void CodeCompleteObjCInterfaceCategory(Scope *S, 
+                                                 IdentifierInfo *ClassName) {
+  }
+
+  /// \brief Code completion for the category name in an Objective-C category
+  /// implementation.
+  ///
+  /// This code completion action is invoked after the '(' that indicates
+  /// the category name within an Objective-C category implementation.
+  virtual void CodeCompleteObjCImplementationCategory(Scope *S, 
+                                                   IdentifierInfo *ClassName) {
+  }
+  
+  /// \brief Code completion for the property names when defining an
+  /// Objective-C property.
+  ///
+  /// This code completion action is invoked after @synthesize or @dynamic and
+  /// after each "," within one of those definitions.
+  virtual void CodeCompleteObjCPropertyDefinition(Scope *S, 
+                                                  DeclPtrTy ObjCImpDecl) {
+  }
+
+  /// \brief Code completion for the instance variable name that should 
+  /// follow an '=' when synthesizing an Objective-C property.
+  ///
+  /// This code completion action is invoked after each '=' that occurs within
+  /// an @synthesized definition.
+  virtual void CodeCompleteObjCPropertySynthesizeIvar(Scope *S, 
+                                                   IdentifierInfo *PropertyName,
+                                                  DeclPtrTy ObjCImpDecl) {
+  }
   //@}
 };
 

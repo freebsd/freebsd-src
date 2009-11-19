@@ -16,6 +16,7 @@
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/HostInfo.h"
 #include "clang/Driver/Job.h"
+#include "clang/Driver/OptTable.h"
 #include "clang/Driver/Option.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/Tool.h"
@@ -44,7 +45,7 @@ Driver::Driver(const char *_Name, const char *_Dir,
                const char *_DefaultHostTriple,
                const char *_DefaultImageName,
                bool IsProduction, Diagnostic &_Diags)
-  : Opts(new OptTable()), Diags(_Diags),
+  : Opts(createDriverOptTable()), Diags(_Diags),
     Name(_Name), Dir(_Dir), DefaultHostTriple(_DefaultHostTriple),
     DefaultImageName(_DefaultImageName),
     Host(0),
@@ -75,40 +76,23 @@ Driver::~Driver() {
 InputArgList *Driver::ParseArgStrings(const char **ArgBegin,
                                       const char **ArgEnd) {
   llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
-  InputArgList *Args = new InputArgList(ArgBegin, ArgEnd);
+  unsigned MissingArgIndex, MissingArgCount;
+  InputArgList *Args = getOpts().ParseArgs(ArgBegin, ArgEnd,
+                                           MissingArgIndex, MissingArgCount);
 
-  // FIXME: Handle '@' args (or at least error on them).
+  // Check for missing argument error.
+  if (MissingArgCount)
+    Diag(clang::diag::err_drv_missing_argument)
+      << Args->getArgString(MissingArgIndex) << MissingArgCount;
 
-  unsigned Index = 0, End = ArgEnd - ArgBegin;
-  while (Index < End) {
-    // gcc's handling of empty arguments doesn't make sense, but this is not a
-    // common use case. :)
-    //
-    // We just ignore them here (note that other things may still take them as
-    // arguments).
-    if (Args->getArgString(Index)[0] == '\0') {
-      ++Index;
-      continue;
-    }
-
-    unsigned Prev = Index;
-    Arg *A = getOpts().ParseOneArg(*Args, Index);
-    assert(Index > Prev && "Parser failed to consume argument.");
-
-    // Check for missing argument error.
-    if (!A) {
-      assert(Index >= End && "Unexpected parser error.");
-      Diag(clang::diag::err_drv_missing_argument)
-        << Args->getArgString(Prev)
-        << (Index - Prev - 1);
-      break;
-    }
-
+  // Check for unsupported options.
+  for (ArgList::const_iterator it = Args->begin(), ie = Args->end();
+       it != ie; ++it) {
+    Arg *A = *it;
     if (A->getOption().isUnsupported()) {
       Diag(clang::diag::err_drv_unsupported_opt) << A->getAsString(*Args);
       continue;
     }
-    Args->append(A);
   }
 
   return Args;
@@ -340,8 +324,8 @@ void Driver::PrintHelp(bool ShowHidden) const {
   // Render help text into (option, help) pairs.
   std::vector< std::pair<std::string, const char*> > OptionHelp;
 
-  for (unsigned i = options::OPT_INPUT, e = options::LastOption; i != e; ++i) {
-    options::ID Id = (options::ID) i;
+  for (unsigned i = 0, e = getOpts().getNumOptions(); i != e; ++i) {
+    options::ID Id = (options::ID) (i + 1);
     if (const char *Text = getOpts().getOptionHelpText(Id))
       OptionHelp.push_back(std::make_pair(getOptionHelpName(getOpts(), Id),
                                           Text));
@@ -591,7 +575,7 @@ void Driver::BuildUniversalActions(const ArgList &Args,
        it != ie; ++it) {
     Arg *A = *it;
 
-    if (A->getOption().getId() == options::OPT_arch) {
+    if (A->getOption().matches(options::OPT_arch)) {
       // Validate the option here; we don't save the type here because its
       // particular spelling may participate in other driver choices.
       llvm::Triple::ArchType Arch =
@@ -686,7 +670,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
           //
           // Otherwise emit an error but still use a valid type to avoid
           // spurious errors (e.g., no inputs).
-          if (!Args.hasArg(options::OPT_E, false))
+          if (!Args.hasArgNoClaim(options::OPT_E))
             Diag(clang::diag::err_drv_unknown_stdin_type);
           Ty = types::TY_C;
         } else {
@@ -730,7 +714,7 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
       // necessary.
       Inputs.push_back(std::make_pair(types::TY_Object, A));
 
-    } else if (A->getOption().getId() == options::OPT_x) {
+    } else if (A->getOption().matches(options::OPT_x)) {
       InputTypeArg = A;
       InputType = types::lookupTypeForTypeSpecifier(A->getValue(Args));
 
@@ -984,7 +968,7 @@ void Driver::BuildJobs(Compilation &C) const {
         // FIXME: Use iterator.
         for (ArgList::const_iterator it = C.getArgs().begin(),
                ie = C.getArgs().end(); it != ie; ++it) {
-          if ((*it)->isClaimed() && (*it)->getOption().matches(Opt.getId())) {
+          if ((*it)->isClaimed() && (*it)->getOption().matches(&Opt)) {
             DuplicateClaimed = true;
             break;
           }

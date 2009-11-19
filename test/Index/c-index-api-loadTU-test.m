@@ -1,21 +1,21 @@
 // RUN: clang-cc -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fblocks -emit-pch -x objective-c %s -o %t.ast
 // RUN: c-index-test -test-load-tu %t.ast all | FileCheck %s
 
-// CHECK: <invalid loc>:0:0: TypedefDecl=__int128_t:0:0 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:0:0: TypedefDecl=__uint128_t:0:0 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:0:0: StructDecl=objc_selector:0:0 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:0:0: TypedefDecl=SEL:0:0 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:0:0: ObjCInterfaceDecl=Protocol:0:0 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:0:0: TypedefDecl=id:0:0 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:0:0: TypedefDecl=Class:0:0 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:80:16: StructDecl=__va_list_tag:80:16 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:80:42: FieldDecl=gp_offset:80:42 [Context=__va_list_tag]
-// CHECK: <invalid loc>:80:63: FieldDecl=fp_offset:80:63 [Context=__va_list_tag]
-// CHECK: <invalid loc>:80:81: FieldDecl=overflow_arg_area:80:81 [Context=__va_list_tag]
-// CHECK: <invalid loc>:80:107: FieldDecl=reg_save_area:80:107 [Context=__va_list_tag]
-// CHECK: <invalid loc>:80:123: TypedefDecl=__va_list_tag:80:123 [Context=c-index-api-loadTU-test.m]
-// CHECK: <invalid loc>:80:159: TypedefDecl=__builtin_va_list:80:159 [Context=c-index-api-loadTU-test.m]
-// 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 @interface Foo 
 {
