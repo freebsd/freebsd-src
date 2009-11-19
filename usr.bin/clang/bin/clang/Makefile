@@ -5,7 +5,7 @@
 PROG_CXX=clang
 
 SRCDIR=	tools/clang/tools/driver
-SRCS=	driver.cpp
+SRCS=	cc1_main.cpp driver.cpp
 MAN=
 
 .if ${MK_CLANG_IS_CC} != "no"
@@ -15,7 +15,7 @@ LINKS=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/clang++
 .endif
 
-TGHDRS=	DiagnosticCommonKinds
+TGHDRS=	DiagnosticCommonKinds DiagnosticDriverKinds CC1Options
 LIBDEPS=clangdriver clangfrontend clanglex clangbasic \
 	llvmbitreader llvmbitwriter llvmsupport llvmsystem
 

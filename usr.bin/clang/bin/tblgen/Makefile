@@ -8,7 +8,7 @@ SRCS=	AsmMatcherEmitter.cpp AsmWriterEmitter.cpp CallingConvEmitter.cpp \
 	CodeGenDAGPatterns.cpp CodeGenInstruction.cpp \
 	CodeGenTarget.cpp DAGISelEmitter.cpp FastISelEmitter.cpp \
 	InstrEnumEmitter.cpp InstrInfoEmitter.cpp IntrinsicEmitter.cpp \
-	LLVMCConfigurationEmitter.cpp Record.cpp \
+	LLVMCConfigurationEmitter.cpp OptParserEmitter.cpp Record.cpp \
 	RegisterInfoEmitter.cpp SubtargetEmitter.cpp TGLexer.cpp \
 	TGParser.cpp TGValueTypes.cpp TableGen.cpp TableGenBackend.cpp
 

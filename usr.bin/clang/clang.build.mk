@@ -50,6 +50,15 @@ Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 		-gen-clang-diags-defs -clang-component=${hdr} \
 		${CLANG_SRCS}/include/clang/Basic/Diagnostic.td > ${.TARGET}
 .endfor
+Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
+	   -gen-opt-parser-defs \
+	   ${CLANG_SRCS}/include/clang/Driver/Options.td > ${.TARGET}
+
+CC1Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1Options.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Driver \
+	   -gen-opt-parser-defs \
+	   ${CLANG_SRCS}/include/clang/Driver/CC1Options.td > ${.TARGET}
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPADD+=		${TGHDRS:C/$/.inc.h/}
