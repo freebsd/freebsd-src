@@ -3023,15 +3023,16 @@ re_resume(device_t dev)
 			    CSR_READ_1(sc, RL_GPIO) | 0x01);
 	}
 
-	/* reinitialize interface if necessary */
-	if (ifp->if_flags & IFF_UP)
-		re_init_locked(sc);
-
 	/*
 	 * Clear WOL matching such that normal Rx filtering
 	 * wouldn't interfere with WOL patterns.
 	 */
 	re_clrwol(sc);
+
+	/* reinitialize interface if necessary */
+	if (ifp->if_flags & IFF_UP)
+		re_init_locked(sc);
+
 	sc->suspended = 0;
 	RL_UNLOCK(sc);
 
