@@ -33,6 +33,8 @@
 struct sn_softc {
 	struct ifnet    *ifp;
 	struct mtx sc_mtx;
+	struct callout watchdog;
+	int		timer;
 	int             pages_wanted;	/* Size of outstanding MMU ALLOC */
 	int             intr_mask;	/* Most recently set interrupt mask */
 	device_t	dev;

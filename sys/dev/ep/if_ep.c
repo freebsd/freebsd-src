@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -91,10 +92,12 @@ static int ep_media2if_media[] =
 static void epinit(void *);
 static int epioctl(struct ifnet *, u_long, caddr_t);
 static void epstart(struct ifnet *);
-static void epwatchdog(struct ifnet *);
 
+static void ep_intr_locked(struct ep_softc *);
 static void epstart_locked(struct ifnet *);
 static void epinit_locked(struct ep_softc *);
+static void eptick(void *);
+static void epwatchdog(struct ep_softc *);
 
 /* if_media functions */
 static int ep_ifmedia_upd(struct ifnet *);
@@ -302,12 +305,12 @@ ep_attach(struct ep_softc *sc)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = epstart;
 	ifp->if_ioctl = epioctl;
-	ifp->if_watchdog = epwatchdog;
 	ifp->if_init = epinit;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
+	callout_init_mtx(&sc->watchdog_timer, &sc->sc_mtx, 0);
 	if (!sc->epb.mii_trans) {
 		ifmedia_init(&sc->ifmedia, 0, ep_ifmedia_upd, ep_ifmedia_sts);
 
@@ -361,6 +364,7 @@ ep_detach(device_t dev)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	EP_UNLOCK(sc);
 	ether_ifdetach(ifp);
+	callout_drain(&sc->watchdog_timer);
 	ep_free(dev);
 
 	if_free(ifp);
@@ -457,6 +461,7 @@ epinit_locked(struct ep_softc *sc)
 
 	GO_WINDOW(sc, 1);
 	epstart_locked(ifp);
+	callout_reset(&sc->watchdog_timer, hz, eptick, sc);
 }
 
 static void
@@ -556,7 +561,7 @@ startagain:
 
 	BPF_MTAP(ifp, m0);
 
-	ifp->if_timer = 2;
+	sc->tx_timer = 2;
 	ifp->if_opackets++;
 	m_freem(m0);
 
@@ -583,20 +588,26 @@ void
 ep_intr(void *arg)
 {
 	struct ep_softc *sc;
-	int status;
-	struct ifnet *ifp;
 
 	sc = (struct ep_softc *) arg;
 	EP_LOCK(sc);
+	ep_intr_locked(sc);
+	EP_UNLOCK(sc);
+}
+
+static void
+ep_intr_locked(struct ep_softc *sc)
+{
+	int status;
+	struct ifnet *ifp;
+
 	/* XXX 4.x splbio'd here to reduce interruptability */
 
 	/*
 	 * quick fix: Try to detect an interrupt when the card goes away.
 	 */
-	if (sc->gone || CSR_READ_2(sc, EP_STATUS) == 0xffff) {
-		EP_UNLOCK(sc);
+	if (sc->gone || CSR_READ_2(sc, EP_STATUS) == 0xffff)
 		return;
-	}
 	ifp = sc->ifp;
 
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);	/* disable all Ints */
@@ -612,14 +623,14 @@ rescan:
 			epread(sc);
 		if (status & S_TX_AVAIL) {
 			/* we need ACK */
-			ifp->if_timer = 0;
+			sc->tx_timer = 0;
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			GO_WINDOW(sc, 1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
 			epstart_locked(ifp);
 		}
 		if (status & S_CARD_FAILURE) {
-			ifp->if_timer = 0;
+			sc->tx_timer = 0;
 #ifdef EP_LOCAL_STATS
 			device_printf(sc->dev, "\n\tStatus: %x\n", status);
 			GO_WINDOW(sc, 4);
@@ -642,11 +653,10 @@ rescan:
 
 #endif
 			epinit_locked(sc);
-			EP_UNLOCK(sc);
 			return;
 		}
 		if (status & S_TX_COMPLETE) {
-			ifp->if_timer = 0;
+			sc->tx_timer = 0;
 			/*
 			 * We need ACK. We do it at the end.
 			 *
@@ -700,7 +710,6 @@ rescan:
 
 	/* re-enable Ints */
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK | S_5_INTS);
-	EP_UNLOCK(sc);
 }
 
 static void
@@ -933,7 +942,6 @@ epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		EP_LOCK(sc);
 		if (((ifp->if_flags & IFF_UP) == 0) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			epstop(sc);
 		} else
 			/* reinitialize card on any parameter change */
@@ -966,15 +974,27 @@ epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
-epwatchdog(struct ifnet *ifp)
+eptick(void *arg)
 {
-	struct ep_softc *sc = ifp->if_softc;
+	struct ep_softc *sc;
 
+	sc = arg;
+	if (sc->tx_timer != 0 && --sc->tx_timer == 0)
+		epwatchdog(sc);
+	callout_reset(&sc->watchdog_timer, hz, eptick, sc);
+}
+
+static void
+epwatchdog(struct ep_softc *sc)
+{
+	struct ifnet *ifp;
+
+	ifp = sc->ifp;
 	if (sc->gone)
 		return;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	epstart(ifp);
-	ep_intr(ifp->if_softc);
+	epstart_locked(ifp);
+	ep_intr_locked(sc);
 }
 
 static void
@@ -997,4 +1017,7 @@ epstop(struct ep_softc *sc)
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_INTR_MASK);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_FILTER);
+
+	sc->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	callout_stop(&sc->watchdog_timer);
 }
