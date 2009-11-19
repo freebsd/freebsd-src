@@ -29,7 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <opt_xtrace.h>
+#include "opt_xtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
