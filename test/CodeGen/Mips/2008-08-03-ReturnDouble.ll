@@ -1,7 +1,6 @@
 ; Double return in abicall (default)
 ; RUN: llc < %s -march=mips
 ; PR2615
-; XFAIL: *
 
 define double @main(...) {
 entry:

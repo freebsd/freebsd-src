@@ -110,6 +110,7 @@ namespace {
                                 const char *Modifier = 0);
     void printBitfieldInvMaskImmOperand (const MachineInstr *MI, int OpNum);
 
+    void printThumbS4ImmOperand(const MachineInstr *MI, int OpNum);
     void printThumbITMask(const MachineInstr *MI, int OpNum);
     void printThumbAddrModeRROperand(const MachineInstr *MI, int OpNum);
     void printThumbAddrModeRI5Operand(const MachineInstr *MI, int OpNum,
@@ -674,6 +675,10 @@ ARMAsmPrinter::printBitfieldInvMaskImmOperand(const MachineInstr *MI, int Op) {
 
 //===--------------------------------------------------------------------===//
 
+void ARMAsmPrinter::printThumbS4ImmOperand(const MachineInstr *MI, int Op) {
+  O << "#" <<  MI->getOperand(Op).getImm() * 4;
+}
+
 void
 ARMAsmPrinter::printThumbITMask(const MachineInstr *MI, int Op) {
   // (3 - the number of trailing zeros) is the number of then / else.
@@ -713,7 +718,7 @@ ARMAsmPrinter::printThumbAddrModeRI5Operand(const MachineInstr *MI, int Op,
   if (MO3.getReg())
     O << ", " << getRegisterName(MO3.getReg());
   else if (unsigned ImmOffs = MO2.getImm())
-    O << ", #" << ImmOffs * Scale;
+    O << ", #+" << ImmOffs * Scale;
   O << "]";
 }
 
@@ -735,7 +740,7 @@ void ARMAsmPrinter::printThumbAddrModeSPOperand(const MachineInstr *MI,int Op) {
   const MachineOperand &MO2 = MI->getOperand(Op+1);
   O << "[" << getRegisterName(MO1.getReg());
   if (unsigned ImmOffs = MO2.getImm())
-    O << ", #" << ImmOffs << " * 4";
+    O << ", #+" << ImmOffs*4;
   O << "]";
 }
 
@@ -801,9 +806,9 @@ void ARMAsmPrinter::printT2AddrModeImm8s4Operand(const MachineInstr *MI,
   int32_t OffImm = (int32_t)MO2.getImm() / 4;
   // Don't print +0.
   if (OffImm < 0)
-    O << ", #-" << -OffImm << " * 4";
+    O << ", #-" << -OffImm * 4;
   else if (OffImm > 0)
-    O << ", #+" << OffImm << " * 4";
+    O << ", #+" << OffImm * 4;
   O << "]";
 }
 
