@@ -981,13 +981,6 @@ cxgb_makedev(struct port_info *pi)
 	return (0);
 }
 
-#ifndef LRO_SUPPORTED
-#ifdef IFCAP_LRO
-#undef IFCAP_LRO
-#endif
-#define IFCAP_LRO 0x0
-#endif
-
 #ifdef TSO_SUPPORTED
 #define CXGB_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO)
 /* Don't enable TSO6 yet */
@@ -1994,7 +1987,6 @@ cxgb_set_mtu(struct port_info *p, int mtu)
 	return (error);
 }
 
-#ifdef LRO_SUPPORTED
 /*
  * Mark lro enabled or disabled in all qsets for this port
  */
@@ -2012,7 +2004,6 @@ cxgb_set_lro(struct port_info *p, int enabled)
 	}
 	return (0);
 }
-#endif
 
 static int
 cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
@@ -2105,14 +2096,14 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 				error = EINVAL;
 			}
 		}
-#ifdef LRO_SUPPORTED
+
 		if (mask & IFCAP_LRO) {
 			ifp->if_capenable ^= IFCAP_LRO;
 
 			/* Safe to do this even if cxgb_up not called yet */
 			cxgb_set_lro(p, ifp->if_capenable & IFCAP_LRO);
 		}
-#endif
+
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = ifp->if_drv_flags & IFF_DRV_RUNNING;
