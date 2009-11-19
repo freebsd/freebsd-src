@@ -14,7 +14,6 @@ using namespace clang;
 
 void CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
                            const llvm::SmallVectorImpl<llvm::StringRef> &Args) {
-  llvm::llvm_report_error("FIXME: Not yet implemented!");
 }
 
 static const char *getAnalysisName(Analyses Kind) {
@@ -83,8 +82,8 @@ static void AnalyzerOptsToArgs(const AnalyzerOptions &Opts,
     Res.push_back("-analyzer-display-progress");
   if (Opts.EagerlyAssume)
     Res.push_back("-analyzer-eagerly-assume");
-  if (Opts.PurgeDead)
-    Res.push_back("-analyzer-purge-dead");
+  if (!Opts.PurgeDead)
+    Res.push_back("-analyzer-no-purge-dead");
   if (Opts.TrimGraph)
     Res.push_back("-trim-egraph");
   if (Opts.VisualizeEGDot)
@@ -238,7 +237,7 @@ static const char *getActionName(frontend::ActionKind Kind) {
 static void FrontendOptsToArgs(const FrontendOptions &Opts,
                                std::vector<std::string> &Res) {
   if (!Opts.DebugCodeCompletionPrinter)
-    Res.push_back("-code-completion-debug-printer=0");
+    Res.push_back("-no-code-completion-debug-printer");
   if (Opts.DisableFree)
     Res.push_back("-disable-free");
   if (Opts.EmptyInputOnly)
@@ -298,7 +297,7 @@ static void FrontendOptsToArgs(const FrontendOptions &Opts,
 
 static void HeaderSearchOptsToArgs(const HeaderSearchOptions &Opts,
                                    std::vector<std::string> &Res) {
-  if (Opts.Sysroot.empty()) {
+  if (Opts.Sysroot != "/") {
     Res.push_back("-isysroot");
     Res.push_back(Opts.Sysroot);
   }
@@ -394,8 +393,8 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-faltivec");
   Res.push_back("-fexceptions");
   Res.push_back(Opts.Exceptions ? "1" : "0");
-  Res.push_back("-frtti");
-  Res.push_back(Opts.Rtti ? "1" : "0");
+  if (!Opts.Rtti)
+    Res.push_back("-fno-rtti");
   if (!Opts.NeXTRuntime)
     Res.push_back("-fgnu-runtime");
   if (Opts.Freestanding)
@@ -411,7 +410,7 @@ static void LangOptsToArgs(const LangOptions &Opts,
   if (Opts.EmitAllDecls)
     Res.push_back("-femit-all-decls");
   if (!Opts.MathErrno)
-    Res.push_back("-fmath-errno=0");
+    Res.push_back("-fno-math-errno");
   if (Opts.OverflowChecking)
     Res.push_back("-ftrapv");
   if (Opts.HeinousExtensions)

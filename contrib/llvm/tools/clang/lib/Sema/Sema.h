@@ -548,26 +548,32 @@ public:
   DeclPtrTy HandleDeclarator(Scope *S, Declarator &D,
                              MultiTemplateParamsArg TemplateParameterLists,
                              bool IsFunctionDefinition);
-  void RegisterLocallyScopedExternCDecl(NamedDecl *ND, NamedDecl *PrevDecl,
+  void RegisterLocallyScopedExternCDecl(NamedDecl *ND,
+                                        const LookupResult &Previous,
                                         Scope *S);
   void DiagnoseFunctionSpecifiers(Declarator& D);
+  bool CheckRedeclaration(DeclContext *DC,
+                          DeclarationName Name,
+                          SourceLocation NameLoc,
+                          unsigned Diagnostic);
   NamedDecl* ActOnTypedefDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                     QualType R, DeclaratorInfo *DInfo,
-                                    NamedDecl* PrevDecl, bool &Redeclaration);
+                                    LookupResult &Previous, bool &Redeclaration);
   NamedDecl* ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                      QualType R, DeclaratorInfo *DInfo,
-                                     NamedDecl* PrevDecl,
+                                     LookupResult &Previous,
                                      MultiTemplateParamsArg TemplateParamLists,
                                      bool &Redeclaration);
-  void CheckVariableDeclaration(VarDecl *NewVD, NamedDecl *PrevDecl,
+  void CheckVariableDeclaration(VarDecl *NewVD, LookupResult &Previous,
                                 bool &Redeclaration);
   NamedDecl* ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                      QualType R, DeclaratorInfo *DInfo,
-                                     NamedDecl* PrevDecl,
+                                     LookupResult &Previous,
                                      MultiTemplateParamsArg TemplateParamLists,
                                      bool IsFunctionDefinition,
                                      bool &Redeclaration);
-  void CheckFunctionDeclaration(FunctionDecl *NewFD, NamedDecl *&PrevDecl,
+  void AddOverriddenMethods(CXXRecordDecl *DC, CXXMethodDecl *MD);
+  void CheckFunctionDeclaration(FunctionDecl *NewFD, LookupResult &Previous,
                                 bool IsExplicitSpecialization,
                                 bool &Redeclaration,
                                 bool &OverloadableAttrRequired);
@@ -779,15 +785,17 @@ public:
   /// Subroutines of ActOnDeclarator().
   TypedefDecl *ParseTypedefDecl(Scope *S, Declarator &D, QualType T,
                                 DeclaratorInfo *DInfo);
-  void MergeTypeDefDecl(TypedefDecl *New, Decl *Old);
+  void MergeTypeDefDecl(TypedefDecl *New, LookupResult &OldDecls);
   bool MergeFunctionDecl(FunctionDecl *New, Decl *Old);
   bool MergeCompatibleFunctionDecls(FunctionDecl *New, FunctionDecl *Old);
-  void MergeVarDecl(VarDecl *New, Decl *Old);
+  void MergeVarDecl(VarDecl *New, LookupResult &OldDecls);
   bool MergeCXXFunctionDecl(FunctionDecl *New, FunctionDecl *Old);
 
   /// C++ Overloading.
-  bool IsOverload(FunctionDecl *New, Decl* OldD,
-                  OverloadedFunctionDecl::function_iterator &MatchedDecl);
+  bool IsOverload(FunctionDecl *New, LookupResult &OldDecls,
+                  NamedDecl *&OldDecl);
+  bool IsOverload(FunctionDecl *New, FunctionDecl *Old);
+
   ImplicitConversionSequence
   TryImplicitConversion(Expr* From, QualType ToType,
                         bool SuppressUserConversions,
@@ -822,7 +830,7 @@ public:
                                bool AllowConversionFunctions,
                                bool AllowExplicit, bool ForceRValue,
                                bool UserCast = false);
-  bool DiagnoseAmbiguousUserDefinedConversion(Expr *From, QualType ToType);
+  bool DiagnoseMultipleUserDefinedConversion(Expr *From, QualType ToType);
                                               
 
   ImplicitConversionSequence::CompareKind
@@ -2324,8 +2332,8 @@ public:
                             const TemplateArgumentLoc *ExplicitTemplateArgs,
                                            unsigned NumExplicitTemplateArgs,
                                            SourceLocation RAngleLoc,
-                                           NamedDecl *&PrevDecl);
-  bool CheckMemberSpecialization(NamedDecl *Member, NamedDecl *&PrevDecl);
+                                           LookupResult &Previous);
+  bool CheckMemberSpecialization(NamedDecl *Member, LookupResult &Previous);
     
   virtual DeclResult
   ActOnExplicitInstantiation(Scope *S,
@@ -3638,14 +3646,38 @@ public:
   virtual void CodeCompleteNamespaceAliasDecl(Scope *S);
   virtual void CodeCompleteOperatorName(Scope *S);
   
-  virtual void CodeCompleteObjCProperty(Scope *S, ObjCDeclSpec &ODS);
+  virtual void CodeCompleteObjCPropertyFlags(Scope *S, ObjCDeclSpec &ODS);
+  virtual void CodeCompleteObjCPropertyGetter(Scope *S, DeclPtrTy ClassDecl,
+                                              DeclPtrTy *Methods,
+                                              unsigned NumMethods);
+  virtual void CodeCompleteObjCPropertySetter(Scope *S, DeclPtrTy ClassDecl,
+                                              DeclPtrTy *Methods,
+                                              unsigned NumMethods);
+
   virtual void CodeCompleteObjCClassMessage(Scope *S, IdentifierInfo *FName,
-                                            SourceLocation FNameLoc);
-  virtual void CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver);
+                                            SourceLocation FNameLoc,
+                                            IdentifierInfo **SelIdents, 
+                                            unsigned NumSelIdents);
+  virtual void CodeCompleteObjCInstanceMessage(Scope *S, ExprTy *Receiver,
+                                               IdentifierInfo **SelIdents,
+                                               unsigned NumSelIdents);
   virtual void CodeCompleteObjCProtocolReferences(IdentifierLocPair *Protocols,
                                                   unsigned NumProtocols);
   virtual void CodeCompleteObjCProtocolDecl(Scope *S);
- //@}
+  virtual void CodeCompleteObjCInterfaceDecl(Scope *S);
+  virtual void CodeCompleteObjCSuperclass(Scope *S, 
+                                          IdentifierInfo *ClassName);
+  virtual void CodeCompleteObjCImplementationDecl(Scope *S);
+  virtual void CodeCompleteObjCInterfaceCategory(Scope *S, 
+                                                 IdentifierInfo *ClassName);
+  virtual void CodeCompleteObjCImplementationCategory(Scope *S, 
+                                                    IdentifierInfo *ClassName);
+  virtual void CodeCompleteObjCPropertyDefinition(Scope *S, 
+                                                  DeclPtrTy ObjCImpDecl);
+  virtual void CodeCompleteObjCPropertySynthesizeIvar(Scope *S, 
+                                                  IdentifierInfo *PropertyName,
+                                                      DeclPtrTy ObjCImpDecl);
+  //@}
   
   //===--------------------------------------------------------------------===//
   // Extra semantic analysis beyond the C type system

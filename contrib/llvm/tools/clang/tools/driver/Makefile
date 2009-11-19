@@ -9,6 +9,7 @@
 LEVEL = ../../../..
 
 TOOLNAME = clang
+TOOLALIAS = clang++
 CPPFLAGS += -I$(PROJ_SRC_DIR)/../../include -I$(PROJ_OBJ_DIR)/../../include
 CXXFLAGS = -fno-rtti
 
@@ -18,7 +19,7 @@ TOOL_NO_EXPORTS = 1
 # FIXME: It is unfortunate we need to pull in the bitcode reader and
 # writer just to get the serializer stuff used by clangBasic.
 LINK_COMPONENTS := system support bitreader bitwriter
-USEDLIBS = clangDriver.a clangBasic.a
+USEDLIBS = clangDriver.a clangBasic.a clangFrontend.a
 
 include $(LEVEL)/Makefile.common
 

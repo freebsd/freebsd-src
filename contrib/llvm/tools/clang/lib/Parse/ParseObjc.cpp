@@ -123,6 +123,12 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
          "ParseObjCAtInterfaceDeclaration(): Expected @interface");
   ConsumeToken(); // the "interface" identifier
 
+  // Code completion after '@interface'.
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteObjCInterfaceDecl(CurScope);
+    ConsumeToken();
+  }
+
   if (Tok.isNot(tok::identifier)) {
     Diag(Tok, diag::err_expected_ident); // missing class or category name.
     return DeclPtrTy();
@@ -137,6 +143,11 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
     SourceLocation categoryLoc, rparenLoc;
     IdentifierInfo *categoryId = 0;
 
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteObjCInterfaceCategory(CurScope, nameId);
+      ConsumeToken();
+    }
+    
     // For ObjC2, the category name is optional (not an error).
     if (Tok.is(tok::identifier)) {
       categoryId = Tok.getIdentifierInfo();
@@ -181,6 +192,13 @@ Parser::DeclPtrTy Parser::ParseObjCAtInterfaceDeclaration(
 
   if (Tok.is(tok::colon)) { // a super class is specified.
     ConsumeToken();
+
+    // Code completion of superclass names.
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteObjCSuperclass(CurScope, nameId);
+      ConsumeToken();
+    }
+
     if (Tok.isNot(tok::identifier)) {
       Diag(Tok, diag::err_expected_ident); // missing super class name.
       return DeclPtrTy();
@@ -308,7 +326,8 @@ void Parser::ParseObjCInterfaceDeclList(DeclPtrTy interfaceDecl,
       ObjCDeclSpec OCDS;
       // Parse property attribute list, if any.
       if (Tok.is(tok::l_paren))
-        ParseObjCPropertyAttribute(OCDS);
+        ParseObjCPropertyAttribute(OCDS, interfaceDecl,
+                                   allMethods.data(), allMethods.size());
 
       struct ObjCPropertyCallback : FieldCallback {
         Parser &P;
@@ -407,13 +426,15 @@ void Parser::ParseObjCInterfaceDeclList(DeclPtrTy interfaceDecl,
 ///     copy
 ///     nonatomic
 ///
-void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS) {
+void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS, DeclPtrTy ClassDecl,
+                                        DeclPtrTy *Methods, 
+                                        unsigned NumMethods) {
   assert(Tok.getKind() == tok::l_paren);
   SourceLocation LHSLoc = ConsumeParen(); // consume '('
 
   while (1) {
     if (Tok.is(tok::code_completion)) {
-      Actions.CodeCompleteObjCProperty(CurScope, DS);
+      Actions.CodeCompleteObjCPropertyFlags(CurScope, DS);
       ConsumeToken();
     }
     const IdentifierInfo *II = Tok.getIdentifierInfo();
@@ -443,6 +464,16 @@ void Parser::ParseObjCPropertyAttribute(ObjCDeclSpec &DS) {
       if (ExpectAndConsume(tok::equal, diag::err_objc_expected_equal, "",
                            tok::r_paren))
         return;
+
+      if (Tok.is(tok::code_completion)) {
+        if (II->getNameStart()[0] == 's')
+          Actions.CodeCompleteObjCPropertySetter(CurScope, ClassDecl,
+                                                 Methods, NumMethods);
+        else
+          Actions.CodeCompleteObjCPropertyGetter(CurScope, ClassDecl,
+                                                 Methods, NumMethods);
+        ConsumeToken();
+      }
 
       if (Tok.isNot(tok::identifier)) {
         Diag(Tok, diag::err_expected_ident);
@@ -1078,6 +1109,12 @@ Parser::DeclPtrTy Parser::ParseObjCAtImplementationDeclaration(
          "ParseObjCAtImplementationDeclaration(): Expected @implementation");
   ConsumeToken(); // the "implementation" identifier
 
+  // Code completion after '@implementation'.
+  if (Tok.is(tok::code_completion)) {
+    Actions.CodeCompleteObjCImplementationDecl(CurScope);
+    ConsumeToken();
+  }
+
   if (Tok.isNot(tok::identifier)) {
     Diag(Tok, diag::err_expected_ident); // missing class or category name.
     return DeclPtrTy();
@@ -1092,6 +1129,11 @@ Parser::DeclPtrTy Parser::ParseObjCAtImplementationDeclaration(
     SourceLocation categoryLoc, rparenLoc;
     IdentifierInfo *categoryId = 0;
 
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteObjCImplementationCategory(CurScope, nameId);
+      ConsumeToken();
+    }
+    
     if (Tok.is(tok::identifier)) {
       categoryId = Tok.getIdentifierInfo();
       categoryLoc = ConsumeToken();
@@ -1202,18 +1244,32 @@ Parser::DeclPtrTy Parser::ParseObjCPropertySynthesize(SourceLocation atLoc) {
   assert(Tok.isObjCAtKeyword(tok::objc_synthesize) &&
          "ParseObjCPropertyDynamic(): Expected '@synthesize'");
   SourceLocation loc = ConsumeToken(); // consume synthesize
-  if (Tok.isNot(tok::identifier)) {
-    Diag(Tok, diag::err_expected_ident);
-    return DeclPtrTy();
-  }
 
-  while (Tok.is(tok::identifier)) {
+  while (true) {
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteObjCPropertyDefinition(CurScope, ObjCImpDecl);
+      ConsumeToken();
+    }
+    
+    if (Tok.isNot(tok::identifier)) {
+      Diag(Tok, diag::err_synthesized_property_name);
+      SkipUntil(tok::semi);
+      return DeclPtrTy();
+    }
+    
     IdentifierInfo *propertyIvar = 0;
     IdentifierInfo *propertyId = Tok.getIdentifierInfo();
     SourceLocation propertyLoc = ConsumeToken(); // consume property name
     if (Tok.is(tok::equal)) {
       // property '=' ivar-name
       ConsumeToken(); // consume '='
+      
+      if (Tok.is(tok::code_completion)) {
+        Actions.CodeCompleteObjCPropertySynthesizeIvar(CurScope, propertyId,
+                                                       ObjCImpDecl);
+        ConsumeToken();
+      }
+      
       if (Tok.isNot(tok::identifier)) {
         Diag(Tok, diag::err_expected_ident);
         break;
@@ -1227,8 +1283,10 @@ Parser::DeclPtrTy Parser::ParseObjCPropertySynthesize(SourceLocation atLoc) {
       break;
     ConsumeToken(); // consume ','
   }
-  if (Tok.isNot(tok::semi))
+  if (Tok.isNot(tok::semi)) {
     Diag(Tok, diag::err_expected_semi_after) << "@synthesize";
+    SkipUntil(tok::semi);
+  }
   else
     ConsumeToken(); // consume ';'
   return DeclPtrTy();
@@ -1245,11 +1303,18 @@ Parser::DeclPtrTy Parser::ParseObjCPropertyDynamic(SourceLocation atLoc) {
   assert(Tok.isObjCAtKeyword(tok::objc_dynamic) &&
          "ParseObjCPropertyDynamic(): Expected '@dynamic'");
   SourceLocation loc = ConsumeToken(); // consume dynamic
-  if (Tok.isNot(tok::identifier)) {
-    Diag(Tok, diag::err_expected_ident);
-    return DeclPtrTy();
-  }
-  while (Tok.is(tok::identifier)) {
+  while (true) {
+    if (Tok.is(tok::code_completion)) {
+      Actions.CodeCompleteObjCPropertyDefinition(CurScope, ObjCImpDecl);
+      ConsumeToken();
+    }
+    
+    if (Tok.isNot(tok::identifier)) {
+      Diag(Tok, diag::err_expected_ident);
+      SkipUntil(tok::semi);
+      return DeclPtrTy();
+    }
+    
     IdentifierInfo *propertyId = Tok.getIdentifierInfo();
     SourceLocation propertyLoc = ConsumeToken(); // consume property name
     Actions.ActOnPropertyImplDecl(atLoc, propertyLoc, false, ObjCImpDecl,
@@ -1580,11 +1645,14 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
                                        ExprArg ReceiverExpr) {
   if (Tok.is(tok::code_completion)) {
     if (ReceiverName)
-      Actions.CodeCompleteObjCClassMessage(CurScope, ReceiverName, NameLoc);
+      Actions.CodeCompleteObjCClassMessage(CurScope, ReceiverName, NameLoc, 
+                                           0, 0);
     else
-      Actions.CodeCompleteObjCInstanceMessage(CurScope, ReceiverExpr.get());
+      Actions.CodeCompleteObjCInstanceMessage(CurScope, ReceiverExpr.get(), 
+                                              0, 0);
     ConsumeToken();
   }
+  
   // Parse objc-selector
   SourceLocation Loc;
   IdentifierInfo *selIdent = ParseObjCSelectorPiece(Loc);
@@ -1622,6 +1690,19 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
       // We have a valid expression.
       KeyExprs.push_back(Res.release());
 
+      // Code completion after each argument.
+      if (Tok.is(tok::code_completion)) {
+        if (ReceiverName)
+          Actions.CodeCompleteObjCClassMessage(CurScope, ReceiverName, NameLoc,
+                                               KeyIdents.data(), 
+                                               KeyIdents.size());
+        else
+          Actions.CodeCompleteObjCInstanceMessage(CurScope, ReceiverExpr.get(),
+                                                  KeyIdents.data(), 
+                                                  KeyIdents.size());
+        ConsumeToken();
+      }
+            
       // Check for another keyword selector.
       selIdent = ParseObjCSelectorPiece(Loc);
       if (!selIdent && Tok.isNot(tok::colon))

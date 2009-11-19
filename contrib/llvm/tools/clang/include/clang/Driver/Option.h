@@ -10,8 +10,7 @@
 #ifndef CLANG_DRIVER_OPTION_H_
 #define CLANG_DRIVER_OPTION_H_
 
-#include "Options.h"
-
+#include "clang/Driver/OptSpecifier.h"
 #include "llvm/Support/Casting.h"
 using llvm::isa;
 using llvm::cast;
@@ -54,7 +53,8 @@ namespace driver {
   private:
     OptionClass Kind;
 
-    options::ID ID;
+    /// The option ID.
+    OptSpecifier ID;
 
     /// The option name.
     const char *Name;
@@ -89,12 +89,12 @@ namespace driver {
     bool NoArgumentUnused : 1;
 
   protected:
-    Option(OptionClass Kind, options::ID ID, const char *Name,
+    Option(OptionClass Kind, OptSpecifier ID, const char *Name,
            const OptionGroup *Group, const Option *Alias);
   public:
     virtual ~Option();
 
-    options::ID getId() const { return ID; }
+    unsigned getID() const { return ID.getID(); }
     OptionClass getKind() const { return Kind; }
     const char *getName() const { return Name; }
     const OptionGroup *getGroup() const { return Group; }
@@ -138,8 +138,11 @@ namespace driver {
 
     /// matches - Predicate for whether this option is part of the
     /// given option (which may be a group).
-    bool matches(const Option *Opt) const;
-    bool matches(options::ID Id) const;
+    ///
+    /// Note that matches against options which are an alias should never be
+    /// done -- aliases do not participate in matching and so such a query will
+    /// always be false.
+    bool matches(OptSpecifier ID) const;
 
     /// accept - Potentially accept the current argument, returning a
     /// new Arg instance, or 0 if the option does not accept this
@@ -159,7 +162,7 @@ namespace driver {
   /// by the driver.
   class OptionGroup : public Option {
   public:
-    OptionGroup(options::ID ID, const char *Name, const OptionGroup *Group);
+    OptionGroup(OptSpecifier ID, const char *Name, const OptionGroup *Group);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
 
@@ -174,7 +177,7 @@ namespace driver {
   /// InputOption - Dummy option class for representing driver inputs.
   class InputOption : public Option {
   public:
-    InputOption();
+    InputOption(OptSpecifier ID);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
 
@@ -187,7 +190,7 @@ namespace driver {
   /// UnknownOption - Dummy option class for represent unknown arguments.
   class UnknownOption : public Option {
   public:
-    UnknownOption();
+    UnknownOption(OptSpecifier ID);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
 
@@ -201,7 +204,7 @@ namespace driver {
 
   class FlagOption : public Option {
   public:
-    FlagOption(options::ID ID, const char *Name, const OptionGroup *Group,
+    FlagOption(OptSpecifier ID, const char *Name, const OptionGroup *Group,
                const Option *Alias);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
@@ -214,7 +217,7 @@ namespace driver {
 
   class JoinedOption : public Option {
   public:
-    JoinedOption(options::ID ID, const char *Name, const OptionGroup *Group,
+    JoinedOption(OptSpecifier ID, const char *Name, const OptionGroup *Group,
                  const Option *Alias);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
@@ -227,8 +230,8 @@ namespace driver {
 
   class SeparateOption : public Option {
   public:
-    SeparateOption(options::ID ID, const char *Name, const OptionGroup *Group,
-                   const Option *Alias);
+    SeparateOption(OptSpecifier ID, const char *Name,
+                   const OptionGroup *Group, const Option *Alias);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
 
@@ -240,7 +243,7 @@ namespace driver {
 
   class CommaJoinedOption : public Option {
   public:
-    CommaJoinedOption(options::ID ID, const char *Name,
+    CommaJoinedOption(OptSpecifier ID, const char *Name,
                       const OptionGroup *Group, const Option *Alias);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
@@ -259,7 +262,7 @@ namespace driver {
     unsigned NumArgs;
 
   public:
-    MultiArgOption(options::ID ID, const char *Name, const OptionGroup *Group,
+    MultiArgOption(OptSpecifier ID, const char *Name, const OptionGroup *Group,
                    const Option *Alias, unsigned NumArgs);
 
     unsigned getNumArgs() const { return NumArgs; }
@@ -276,7 +279,7 @@ namespace driver {
   /// prefixes its (non-empty) value, or is follwed by a value.
   class JoinedOrSeparateOption : public Option {
   public:
-    JoinedOrSeparateOption(options::ID ID, const char *Name,
+    JoinedOrSeparateOption(OptSpecifier ID, const char *Name,
                            const OptionGroup *Group, const Option *Alias);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
@@ -291,7 +294,7 @@ namespace driver {
   /// value and is followed by another value.
   class JoinedAndSeparateOption : public Option {
   public:
-    JoinedAndSeparateOption(options::ID ID, const char *Name,
+    JoinedAndSeparateOption(OptSpecifier ID, const char *Name,
                             const OptionGroup *Group, const Option *Alias);
 
     virtual Arg *accept(const InputArgList &Args, unsigned &Index) const;
