@@ -213,16 +213,19 @@ typedef __uint_least8_t uint_fast8_t;
 
 /* C99 7.18.1.4 Integer types capable of holding object pointers.
  */
+#define __stdint_join3(a,b,c) a ## b ## c
+#define __stdint_exjoin3(a,b,c) __stdint_join3(a,b,c)
+
 #ifndef __intptr_t_defined
-typedef __INTPTR_TYPE__          intptr_t;
+typedef __stdint_exjoin3( int, __INTPTR_WIDTH__, _t) intptr_t;
 #define __intptr_t_defined
 #endif
-typedef unsigned __INTPTR_TYPE__ uintptr_t;
+typedef __stdint_exjoin3(uint, __INTPTR_WIDTH__, _t) uintptr_t;
 
 /* C99 7.18.1.5 Greatest-width integer types.
  */
-typedef __INTMAX_TYPE__   intmax_t;
-typedef __UINTMAX_TYPE__ uintmax_t;
+typedef __stdint_exjoin3( int, __INTMAX_WIDTH__, _t) intmax_t;
+typedef __stdint_exjoin3(uint, __INTMAX_WIDTH__, _t) uintmax_t;
 
 /* C99 7.18.4 Macros for minimum-width integer constants.
  *
@@ -600,29 +603,24 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 /* C99 7.18.2.4 Limits of integer types capable of holding object pointers. */
 /* C99 7.18.3 Limits of other integer types. */
 
+#define  INTPTR_MIN __stdint_exjoin3( INT, __INTPTR_WIDTH__, _MIN)
+#define  INTPTR_MAX __stdint_exjoin3( INT, __INTPTR_WIDTH__, _MAX)
+#define UINTPTR_MAX __stdint_exjoin3(UINT, __INTPTR_WIDTH__, _MAX)
+
 #if __POINTER_WIDTH__ == 64
 
-#define  INTPTR_MIN  INT64_MIN
-#define  INTPTR_MAX  INT64_MAX
-#define UINTPTR_MAX UINT64_MAX
 #define PTRDIFF_MIN  INT64_MIN
 #define PTRDIFF_MAX  INT64_MAX
 #define SIZE_MAX    UINT64_MAX
 
 #elif __POINTER_WIDTH__ == 32
 
-#define  INTPTR_MIN  INT32_MIN
-#define  INTPTR_MAX  INT32_MAX
-#define UINTPTR_MAX UINT32_MAX
 #define PTRDIFF_MIN  INT32_MIN
 #define PTRDIFF_MAX  INT32_MAX
 #define SIZE_MAX    UINT32_MAX
 
 #elif __POINTER_WIDTH__ == 16
 
-#define  INTPTR_MIN  INT16_MIN
-#define  INTPTR_MAX  INT16_MAX
-#define UINTPTR_MAX UINT16_MAX
 #define PTRDIFF_MIN  INT16_MIN
 #define PTRDIFF_MAX  INT16_MAX
 #define SIZE_MAX    UINT16_MAX
@@ -632,9 +630,9 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #endif
 
 /* C99 7.18.2.5 Limits of greatest-width integer types. */
-#define INTMAX_MIN  (-__INTMAX_MAX__-1)
-#define INTMAX_MAX   __INTMAX_MAX__
-#define UINTMAX_MAX (__INTMAX_MAX__*2ULL+1ULL)
+#define INTMAX_MIN  __stdint_exjoin3( INT, __INTMAX_WIDTH__, _MIN)
+#define INTMAX_MAX  __stdint_exjoin3( INT, __INTMAX_WIDTH__, _MAX)
+#define UINTMAX_MAX __stdint_exjoin3(UINT, __INTMAX_WIDTH__, _MAX)
 
 /* C99 7.18.3 Limits of other integer types. */
 #define SIG_ATOMIC_MIN INT32_MIN
@@ -653,8 +651,8 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #endif
 
 /* 7.18.4.2 Macros for greatest-width integer constants. */
-#define INTMAX_C(v)  v##LL
-#define UINTMAX_C(v) v##ULL
+#define INTMAX_C(v)  __stdint_exjoin3( INT, __INTMAX_WIDTH__, _C(v))
+#define UINTMAX_C(v) __stdint_exjoin3(UINT, __INTMAX_WIDTH__, _C(v))
 
 #endif /* __STDC_HOSTED__ */
 #endif /* __CLANG_STDINT_H */
