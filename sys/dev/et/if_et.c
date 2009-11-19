@@ -78,7 +78,7 @@ MODULE_DEPEND(et, miibus, 1, 1, 1);
 
 /* Tunables. */
 static int msi_disable = 0;
-TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+TUNABLE_INT("hw.et.msi_disable", &msi_disable);
 
 static int	et_probe(device_t);
 static int	et_attach(device_t);
@@ -276,7 +276,7 @@ et_attach(device_t dev)
 		sc->sc_flags |= ET_FLAG_PCIE;
 		msic = pci_msi_count(dev);
 		if (bootverbose)
-			device_printf(dev, "MSI count : %d\n", msic);
+			device_printf(dev, "MSI count: %d\n", msic);
 	}
 	if (msic > 0 && msi_disable == 0) {
 		msic = 1;
