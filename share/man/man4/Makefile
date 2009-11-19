@@ -15,6 +15,7 @@ MAN=	aac.4 \
 	${_acpi_toshiba.4} \
 	acpi_video.4 \
 	${_acpi_wmi.4} \
+	ada.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
