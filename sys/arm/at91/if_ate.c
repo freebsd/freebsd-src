@@ -276,7 +276,6 @@ ate_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_timer = 0;
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_COLLS;
@@ -999,7 +998,6 @@ atestop(struct ate_softc *sc)
 	ATE_ASSERT_LOCKED(sc);
 	ifp = sc->ifp;
 	if (ifp) {
-		ifp->if_timer = 0;
 		ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	}
 
