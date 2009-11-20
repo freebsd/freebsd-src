@@ -33,11 +33,8 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-/*
- * This implements pthread_once() for the single-threaded case.  It is
- * non-static so that it can be used by _pthread_stubs.c.
- */
-int
+/* This implements pthread_once() for the single-threaded case. */
+static int
 _libc_once(pthread_once_t *once_control, void (*init_routine)(void))
 {
 
