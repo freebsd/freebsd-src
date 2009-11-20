@@ -6,6 +6,7 @@
 #ifndef __OCTEON_PCMAP_REGS_H__
 #define __OCTEON_PCMAP_REGS_H__
 
+#include "opt_cputype.h" 
 
 #define OCTEON_CACHE_LINE_SIZE	0x80	/* 128 bytes cache line size */
 #define IS_OCTEON_ALIGNED(p)	(!((u_long)(p) & 0x7f))
@@ -549,7 +550,7 @@ typedef enum {
 
 /*  PTR_SIZE == sizeof(uint32_t)  */
 
-#if 0
+#ifdef ISA_MIPS32
 #define mipsx_addr_size				uint32_t	// u_int64
 #define MIPSX_ADDR_SIZE_KSEGX_BIT_SHIFT		30		// 62
 #define MIPSX_ADDR_SIZE_KSEGX_MASK_REMOVED	0x1fffffff	// 0x1fffffff
