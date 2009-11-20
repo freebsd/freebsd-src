@@ -80,6 +80,8 @@ MODULE_DEPEND(et, miibus, 1, 1, 1);
 static int msi_disable = 0;
 TUNABLE_INT("hw.et.msi_disable", &msi_disable);
 
+#define	ET_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+
 static int	et_probe(device_t);
 static int	et_attach(device_t);
 static int	et_detach(device_t);
@@ -332,7 +334,7 @@ et_attach(device_t dev)
 	ifp->if_ioctl = et_ioctl;
 	ifp->if_start = et_start;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	ifp->if_capabilities = /*IFCAP_TXCSUM*/IFCAP_HWCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -1175,7 +1177,7 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct et_softc *sc = ifp->if_softc;
 	struct mii_data *mii = device_get_softc(sc->sc_miibus);
 	struct ifreq *ifr = (struct ifreq *)data;
-	int error = 0, max_framelen;
+	int error = 0, mask, max_framelen;
 
 /* XXX LOCKSUSED */
 	switch (cmd) {
@@ -1230,6 +1232,20 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			et_init(sc);
 		}
+		break;
+
+	case SIOCSIFCAP:
+		ET_LOCK(sc);
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
+				ifp->if_hwassist |= ET_CSUM_FEATURES;
+			else
+				ifp->if_hwassist &= ~ET_CSUM_FEATURES;
+		}
+		ET_UNLOCK(sc);
 		break;
 
 	default:
@@ -2026,7 +2042,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	struct et_txdesc *td;
 	bus_dmamap_t map;
 	int error, maxsegs, first_idx, last_idx, i;
-	uint32_t tx_ready_pos, last_td_ctrl2;
+	uint32_t csum_flags, tx_ready_pos, last_td_ctrl2;
 
 	maxsegs = ET_TX_NDESC - tbd->tbd_used;
 	if (maxsegs > ET_NSEG_MAX)
@@ -2088,6 +2104,15 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		last_td_ctrl2 |= ET_TDCTRL2_INTR;
 	}
 
+	csum_flags = 0;
+	if ((m->m_pkthdr.csum_flags & ET_CSUM_FEATURES) != 0) {
+		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_IP;
+		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_UDP;
+		else if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_TCP;
+	}
 	last_idx = -1;
 	for (i = 0; i < ctx.nsegs; ++i) {
 		int idx;
@@ -2097,11 +2122,11 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		td->td_addr_hi = htole32(ET_ADDR_HI(segs[i].ds_addr));
 		td->td_addr_lo = htole32(ET_ADDR_LO(segs[i].ds_addr));
 		td->td_ctrl1 =  htole32(segs[i].ds_len & ET_TDCTRL1_LEN_MASK);
-
 		if (i == ctx.nsegs - 1) {	/* Last frag */
-			td->td_ctrl2 = htole32(last_td_ctrl2);
+			td->td_ctrl2 = htole32(last_td_ctrl2 | csum_flags);
 			last_idx = idx;
-		}
+		} else
+			td->td_ctrl2 = htole32(csum_flags);
 
 		MPASS(tx_ring->tr_ready_index < ET_TX_NDESC);
 		if (++tx_ring->tr_ready_index == ET_TX_NDESC) {
