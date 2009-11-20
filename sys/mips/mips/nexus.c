@@ -404,6 +404,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	 * If this is a memory resource, track the direct mapping
 	 * in the uncached MIPS KSEG1 segment.
 	 */
+	/* XXX we shouldn't be supporting sys_res_ioport here */
 	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
 		caddr_t vaddr = 0;
 		u_int32_t paddr;
@@ -417,7 +418,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 		rman_set_virtual(r, vaddr);
 		rman_set_bustag(r, mips_bus_space_generic);
-		rman_set_bushandle(r, (bus_space_handle_t)vaddr);
+		rman_set_bushandle(r, (bus_space_handle_t)(uintptr_t)vaddr);
 	}
 
 	return (rman_activate_resource(r));
