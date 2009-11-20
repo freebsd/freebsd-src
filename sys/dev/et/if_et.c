@@ -336,7 +336,7 @@ et_attach(device_t dev)
 	ifp->if_ioctl = et_ioctl;
 	ifp->if_start = et_start;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_capabilities = /*IFCAP_TXCSUM*/IFCAP_HWCSUM | IFCAP_VLAN_MTU;
+	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC);
 	IFQ_SET_READY(&ifp->if_snd);
