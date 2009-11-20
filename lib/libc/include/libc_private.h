@@ -152,7 +152,6 @@ void _init_tls(void);
  * and multi-threaded applications.
  */
 int _once(pthread_once_t *, void (*)(void));
-int _libc_once(pthread_once_t *, void (*)(void));
 
 /*
  * Set the TLS thread pointer
