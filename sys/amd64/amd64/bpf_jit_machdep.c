@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #else
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #endif
@@ -104,38 +105,38 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 	u_int i, pass;
 
 	/*
-	 * NOTE: do not modify the name of this variable, as it's used by
+	 * NOTE: Do not modify the name of this variable, as it's used by
 	 * the macros to emit code.
 	 */
 	emit_func emitm;
 
-	/* Allocate the reference table for the jumps */
+	/* Allocate the reference table for the jumps. */
 #ifdef _KERNEL
-	stream.refs = malloc((nins + 1) * sizeof(u_int), M_BPFJIT, M_NOWAIT);
+	stream.refs = malloc((nins + 1) * sizeof(u_int), M_BPFJIT,
+	    M_NOWAIT | M_ZERO);
 #else
 	stream.refs = malloc((nins + 1) * sizeof(u_int));
 #endif
 	if (stream.refs == NULL)
 		return (NULL);
-
-	/* Reset the reference table */
-	for (i = 0; i < nins + 1; i++)
-		stream.refs[i] = 0;
+#ifndef _KERNEL
+	memset(stream.refs, 0, (nins + 1) * sizeof(u_int));
+#endif
 
 	stream.cur_ip = 0;
 	stream.bpf_pc = 0;
+	stream.ibuf = NULL;
 
 	/*
-	 * the first pass will emit the lengths of the instructions
-	 * to create the reference table
+	 * The first pass will emit the lengths of the instructions
+	 * to create the reference table.
 	 */
 	emitm = emit_length;
 
-	pass = 0;
-	for (;;) {
+	for (pass = 0; pass < 2; pass++) {
 		ins = prog;
 
-		/* create the procedure header */
+		/* Create the procedure header. */
 		PUSH(RBP);
 		MOVrq(RSP, RBP);
 		SUBib(BPF_MEMWORDS * sizeof(uint32_t), RSP);
@@ -470,25 +471,16 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 			ins++;
 		}
 
-		pass++;
-		if (pass >= 2) {
-#ifndef _KERNEL
-			if (mprotect(stream.ibuf, stream.cur_ip,
-			    PROT_READ | PROT_EXEC) != 0) {
-				munmap(stream.ibuf, stream.cur_ip);
-				stream.ibuf = NULL;
-			}
-#endif
-			*size = stream.cur_ip;
-			break;
-		}
+		if (pass > 0)
+			continue;
 
+		*size = stream.cur_ip;
 #ifdef _KERNEL
-		stream.ibuf = malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
+		stream.ibuf = malloc(*size, M_BPFJIT, M_NOWAIT);
 		if (stream.ibuf == NULL)
 			break;
 #else
-		stream.ibuf = mmap(NULL, stream.cur_ip, PROT_READ | PROT_WRITE,
+		stream.ibuf = mmap(NULL, *size, PROT_READ | PROT_WRITE,
 		    MAP_ANON, -1, 0);
 		if (stream.ibuf == MAP_FAILED) {
 			stream.ibuf = NULL;
@@ -497,28 +489,33 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 #endif
 
 		/*
-		 * modify the reference table to contain the offsets and
-		 * not the lengths of the instructions
+		 * Modify the reference table to contain the offsets and
+		 * not the lengths of the instructions.
 		 */
 		for (i = 1; i < nins + 1; i++)
 			stream.refs[i] += stream.refs[i - 1];
 
-		/* Reset the counters */
+		/* Reset the counters. */
 		stream.cur_ip = 0;
 		stream.bpf_pc = 0;
 
-		/* the second pass creates the actual code */
+		/* The second pass creates the actual code. */
 		emitm = emit_code;
 	}
 
 	/*
-	 * the reference table is needed only during compilation,
-	 * now we can free it
+	 * The reference table is needed only during compilation,
+	 * now we can free it.
 	 */
 #ifdef _KERNEL
 	free(stream.refs, M_BPFJIT);
 #else
 	free(stream.refs);
+	if (stream.ibuf != NULL &&
+	    mprotect(stream.ibuf, *size, PROT_READ | PROT_EXEC) != 0) {
+		munmap(stream.ibuf, *size);
+		stream.ibuf = NULL;
+	}
 #endif
 
 	return ((bpf_filter_func)stream.ibuf);
