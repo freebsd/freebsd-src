@@ -1966,7 +1966,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		imf = &imo->imo_mfilters[idx];
 		if (ssa->ss.ss_family != AF_UNSPEC) {
 			/*
-			 * MCAST_JOIN_SOURCE on an exclusive membership
+			 * MCAST_JOIN_SOURCE_GROUP on an exclusive membership
 			 * is an error. On an existing inclusive membership,
 			 * it just adds the source to the filter list.
 			 */
