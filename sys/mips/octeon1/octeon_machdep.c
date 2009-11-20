@@ -605,8 +605,8 @@ void ciu_dump_interrutps_enabled (int core_num, int intx, int enx, int ciu_ip)
         }
 
 	ciu_intr_bits =  oct_read64(ciu_intr_reg_addr);
-        printf(" CIU core %d  int: %d  en: %d  ip: %d  Add: %p  enabled: 0x%llX  SR: %x\n",
-	    core_num, intx, enx, ciu_ip, (void *)ciu_intr_reg_addr,
+        printf(" CIU core %d  int: %d  en: %d  ip: %d  Add: %#llx  enabled: %#llx  SR: %x\n",
+	    core_num, intx, enx, ciu_ip, (unsigned long long)ciu_intr_reg_addr,
 	    (unsigned long long)ciu_intr_bits, mips_rd_status());
 }
 
