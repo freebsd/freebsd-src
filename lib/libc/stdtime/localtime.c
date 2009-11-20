@@ -235,9 +235,8 @@ static struct state	gmtmem;
 
 static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
-static int		gmt_is_set;
+static pthread_once_t	gmt_once = PTHREAD_ONCE_INIT;
 static pthread_rwlock_t	lcl_rwlock = PTHREAD_RWLOCK_INITIALIZER;
-static pthread_mutex_t	gmt_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 char *			tzname[2] = {
 	wildabbr,
@@ -1464,6 +1463,17 @@ struct tm *		tmp;
 	return tmp;
 }
 
+static void
+gmt_init(void)
+{
+
+#ifdef ALL_STATE
+	gmtptr = (struct state *) malloc(sizeof *gmtptr);
+	if (gmtptr != NULL)
+#endif /* defined ALL_STATE */
+		gmtload(gmtptr);
+}
+
 /*
 ** gmtsub is to gmtime as localsub is to localtime.
 */
@@ -1476,16 +1486,7 @@ struct tm * const	tmp;
 {
 	register struct tm *	result;
 
-	_MUTEX_LOCK(&gmt_mutex);
-	if (!gmt_is_set) {
-#ifdef ALL_STATE
-		gmtptr = (struct state *) malloc(sizeof *gmtptr);
-		if (gmtptr != NULL)
-#endif /* defined ALL_STATE */
-			gmtload(gmtptr);
-		gmt_is_set = TRUE;
-	}
-	_MUTEX_UNLOCK(&gmt_mutex);
+	_once(&gmt_once, gmt_init);
 	result = timesub(timep, offset, gmtptr, tmp);
 #ifdef TM_ZONE
 	/*
