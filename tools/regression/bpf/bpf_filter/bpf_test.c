@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2008 Jung-uk Kim <jkim@FreeBSD.org>. All rights reserved.
+ * Copyright (C) 2009 Jung-uk Kim <jkim@FreeBSD.org>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -57,6 +57,8 @@ static int	verbose = LOG_LEVEL;
 
 #ifdef BPF_JIT_COMPILER
 
+#include <libutil.h>
+
 #include <net/bpf_jitter.h>
 
 static u_int
@@ -72,6 +74,10 @@ bpf_compile_and_filter(void)
 		if (verbose > 0)
 			printf("FATAL\n");
 		exit(FATAL);
+	}
+	if (verbose > 2) {
+		printf("\n");
+		hexdump(filter->func, filter->size, NULL, HD_OMIT_CHARS);
 	}
 
 	for (i = 0; i < BPF_NRUNS; i++)
@@ -222,6 +228,14 @@ main(void)
 	for (i = 0; i < BPF_NRUNS; i++)
 		ret = bpf_filter(nins != 0 ? pc : NULL, pkt, wirelen, buflen);
 #endif
+	if (expect_signal != 0) {
+		if (verbose > 1)
+			printf("Expected signal %d but got none:\t",
+			    expect_signal);
+		if (verbose > 0)
+			printf("FAILED\n");
+		return (FAILED);
+	}
 	if (ret != expect) {
 		if (verbose > 1)
 			printf("Expected 0x%x but got 0x%x:\t", expect, ret);
