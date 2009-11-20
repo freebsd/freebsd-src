@@ -50,6 +50,12 @@
       the last release, as well as significant changes to the &os;
       kernel and userland.
       Some brief remarks on upgrading are also presented.</para>
+
+    <para>NOTE: the full release notes were not available at the time
+      the release builds were started.  See the online version of the
+      release notes for the most up to date information.  The online
+      release notes can be found at <ulink url="&release.url;"></ulink>.
+    </para>
   </abstract>
 </articleinfo>
 
@@ -138,83 +144,15 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>A new &man.cpuset.2; API has been added
-      for thread to CPU binding and CPU resource grouping and
-      assignment.  The &man.cpuset.1; userland utility has been added
-      to allow manipulation of processor sets.</para>
-
-    <para role="merged">The &man.ddb.4; kernel debugger now has an output capture
-      facility.  Input and output from &man.ddb.4; can now be captured
-      to a memory buffer for later inspection using &man.sysctl.8; or
-      a textdump.  The new <command>capture</command> command controls
-      this feature.</para>
-
-    <para role="merged">The &man.ddb.4; debugger now supports a simple scripting
-      facility, which supports a set of named scripts consisting of a
-      set of &man.ddb.4; commands.  These commands can be managed from
-      within &man.ddb.4; or with the use of the new &man.ddb.8;
-      utility.  More details can be found in the &man.ddb.4; manual
-      page.</para>
-
-    <para role="merged">The kernel now supports a new textdump format of kernel
-      dumps.  A textdump provides higher-level information via
-      mechanically generated/extracted debugging output, rather than a
-      simple memory dump.  This facility can be used to generate brief
-      kernel bug reports that are rich in debugging information, but
-      are not dependent on kernel symbol tables or precisely
-      synchronized source code.  More information can be found in the
-      &man.textdump.4; manual page.</para>
-
-    <para>Kernel support for M:N threading has been removed.  While
-      the KSE (Kernel Scheduled Entities) project was quite successful
-      in bringing threading to FreeBSD, the M:N approach taken by the
-      KSE library was never developed to its full potential.
-      Backwards compatibility for applications using KSE threading
-      will be provided via &man.libmap.conf.5; for dynamically linked
-      binaries.  The &os; Project greatly appreciates the work of
-      &a.julian;, &a.deischen;, and &a.davidxu; on KSE support.</para>
-
-    <para>The &os; kernel now exports information about certain kernel
-      features via the <varname>kern.features</varname> sysctl tree.
-      The &man.feature.present.3; library call provides a convenient
-      interface for user applications to test the presence of
-      features.</para>
-
-    <para arch="amd64">The &os; kernel now has support for large
-      memory page mappings (<quote>superpages</quote>).</para>
-
-    <para arch="amd64,i386,ia64,powerpc" role="merged">The ULE
-      scheduler is now the default process scheduler
-      in <filename>GENERIC</filename> kernels.</para>
-
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para arch="amd64,i386" role="merged">The BTX kernel used by the boot
-	loader has been changed to invoke BIOS routines from real
-	mode.  This change makes it possible to boot &os; from USB
-	devices.</para>
-
-      <para arch="amd64,i386" role="merged">A new gptboot boot loader has
-        been added to support booting from a GPT labeled disk.  A
-        new <command>boot</command> command has been added to
-        &man.gpt.8;, which makes a GPT disk bootable by writing the
-        required bits of the boot loader, creating a new boot
-        partition if required.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="proc">
       <title>Hardware Support</title>
-
-      <para role="merged">The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
-        PCMCIA smartcard readers, has been added.</para>
-
-      <para>The &man.syscons.4; driver now supports Colemak keyboard layout.</para>
-
-      <para role="merged">The &man.uslcom.4; driver, a driver for Silicon
-        Laboratories CP2101/CP2102-based USB serial adapters, has been
-        imported from OpenBSD.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -226,40 +164,7 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>The &man.ale.4; driver has been added to provide support
-	  for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.</para>
-
-	<para>The &man.em.4; driver has been split into two drivers
-	  with some common parts.  The &man.em.4; driver will continue
-	  to support adapters up to the 82575, as well as new
-	  client/desktop adapters.  A new &man.igb.4; driver
-	  will support new server adapters.</para>
-
-	<para>The &man.jme.4; driver has been added to provide support
-	  for PCIe network adapters based on JMicron JMC250 Gigabit
-	  Ethernet and JMC260 Fast Ethernet controllers.</para>
-
-	<para>The &man.malo.4; driver has been added to provide
-	  support for Marvell Libertas 88W8335 based PCI network
-	  adapters.</para>
-
-	<para>The firmware for the &man.mxge.4; driver has been
-	  updated from 1.4.25 to 1.4.29.</para>
-
-	<para>The &man.sf.4; driver has been overhauled to improve its
-	  performance and to add support for checksum offloading.  It
-	  should also work on all architectures.</para>
-
-	<para>The &man.re.4; driver has been overhauled to fix a
-	  number of issues.  This driver now has Wake On LAN (WOL)
-	  support.</para>
-
-	<para>The &man.vr.4; driver has been overhauled to fix a
-	  number of outstanding issues.  It also now works on all
-	  architectures.</para>
-
-	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver has
-	  been updated to include a number of stability fixes.</para>
+        <para></para>
 
       </sect4>
     </sect3>
@@ -267,161 +172,27 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>The &man.bpf.4; packet filter and capture facility now
-        supports a zero-copy mode of operation, in which buffers are
-        loaned from a user process to the kernel.  This feature can
-        be enabled by setting
-        the <varname>net.bpf.zerocopy_enable</varname> sysctl
-        variable to <literal>1</literal>.</para>
-
-      <para>ISDN4BSD(I4B), <filename>netatm</filename>, and all
-        related subsystems have been removed due to lack of
-        multi-processor support.</para>
-
-      <para role="merged">A bug in TCP options padding, where the wrong padding
-        bytes were used, has been fixed.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para role="merged">The &man.aac.4; driver now supports volumes larger than
-        2TB in size.</para>
-
-      <para>The &man.ata.4; driver now supports a spindown command for
-        disks; after a configurable amount of time, if no requests
-        have been received for a disk, the disk will be spun down
-        until the next request.  The &man.atacontrol.8; utility now
-        supports a <command>spindown</command> command to configure
-        this feature.</para>
-
-      <para role="merged">The &man.hptrr.4; driver has been updated to version 1.2
-        from Highpoint.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para>A problem with using &man.mmap.2; on ZFS filesystems has
-        been fixed.</para>
-
-      <para>A new kernel-mode NFS lock manager has been added,
-        improving performance and behavior of NFS locking.  A new
-        &man.clear.locks.8; command has been added to clear locks held
-        on behalf of an NFS client.</para>
+      <para></para>
 
     </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
-
-    <para role="merged">The &man.adduser.8; utility now supports
-      a <option>-M</option> option to set the mode of a new user's
-      home directory.</para>
-
-    <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
-      based on <filename>libarchive</filename>, have replaced the GNU
-      Binutils versions of these utilities.</para>
-
-    <para role="merged">&man.chflags.1; now supports a <option>-v</option> flag for
-      verbose output and a <option>-f</option> flag to ignore errors
-      with the same semantics as (for example)
-      &man.chmod.1;.</para>
-
-    <para>For compatiblity with other implementations, &man.cp.1; now
-      supports a <option>-a</option> flag, which is equivalent to
-      specifying the <option>-RrP</option> flags.</para>
-
-    <para>BSD-licensed version of &man.cpio.1; based on
-      <filename>libarchive</filename>, has replaced the GNU cpio.
-      Note that the GNU cpio is still installed as
-      <filename>gcpio</filename>.</para>
-
-    <para>The &man.env.1; program now supports <option>-u
-      <replaceable>name</replaceable></option>
-      which will completely unset the given variable
-      <replaceable>name</replaceable> by removing it from the environment,
-      instead of just setting it to a null value.</para>
-
-    <para>The &man.fdopendir.3; library function has been added.</para>
-
-    <para role="merged">The &man.fetch.3; library now support HTTP 1.1
-      If-Modified-Since behavior.  The &man.fetch.1; program now
-      supports <option>-i <replaceable>filename</replaceable></option>
-      which will only download the specified HTTP URL if the content
-      is newer than <replaceable>filename</replaceable>.</para>
-
-    <para>&man.find.1; has been enhanced by the addition of a number
-      of primaries that were present in GNU find but not &os;
-      &man.find.1;.</para>
-
-    <para>&man.jexec.8; now supports <option>-h
-      <replaceable>hostname</replaceable></option> option to specify the
-      jail where the command will be executed.</para>
-
-    <para>&man.kgdb.1; now supports a new <command>add-kld</command>
-      command to make it easier to debug crash dumps with kernel
-      modules.</para>
-
-    <para>The &man.ls.1; program now supports a <option>-D</option>
-      option to specify a date format string to be used with the long
-      format (<option>-l</option>) output.</para>
-
-    <para>&man.nc.1; now supports a <option>-O</option> switch to
-      disable the use of TCP options.</para>
-
-    <para>The &man.ping6.8; utility now returns <literal>2</literal>
-      when the packet transmission was successful but no responses
-      were received (this is the same behavior as &man.ping.8;).
-      It returned a non-zero value before this change.</para>
-
-    <para>The &man.procstat.1; utility has been added to display
-      detailed information about processes.</para>
-
-    <para role="merged">The &man.realpath.1; utility now supports
-      a <option>-q</option> flag to suppress warnings; it now also
-      accepts multiple paths on its command line.</para>
-
-    <para>The &man.split.1; utility now supports a <option>-n</option>
-      flag to split a file into a certain number of chunks.</para>
-
-    <para>The &man.tar.1; utility now supports a <option>-Z</option>
-      flag to enable &man.compress.1;-style
-      compression/decompression.</para>
-
-    <para>The &man.tar.1; utility now supports a
-      <option>--numeric-owner</option> flag to ignore user/group names
-      on create and extract.</para>
-
-    <para>The &man.tar.1; utility now supports an
-      <option>-S</option> flag to sparsify files on extraction.</para>
-
-    <para>The &man.tar.1; utility now supports a <option>-s</option>
-      flag to substitute filenames based on the specified regular
-      expression.</para>
-
-    <para>The &man.tcgetsid.3; library function has been added to
-      return the process group ID for the session leader for the
-      controlling terminal.  It is defined in IEEE Std 1003.1-2001
-      (POSIX).</para>
-
-    <para>&man.top.1; now supports a <option>-P</option> flag to
-      provide per-CPU usage statistics.</para>
-
-    <para>&man.zdump.8; is now working properly on 64 bit architectures.
-      </para>
-
-    <para>&man.traceroute.8; now has the ability to print the AS
-      number for each hop with the new <option>-a</option> switch; a
-      new <option>-A</option> option allows selecting a particular
-      WHOIS server.</para>
-
-    <para>&man.traceroute6.8; now supports a <option>-U</option> flag
-      to send probe packets with no upper-layer protocol, rather than
-      the usual UDP probe packets.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -434,83 +205,21 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para role="merged"><application>AMD</application> has been updated from 6.0.10
-      to 6.1.5.</para>
-
-    <para role="merged"><application>awk</application> has been updated from 1 May
-      2007 release to the 23 October 2007 release.</para>
-
-    <para role="merged"><application>bzip2</application> has been updated from 1.0.4
-      to 1.0.5.</para>
-
-    <para><application>CVS</application> has been updated from 1.11.17
-      to a post-1.11.22 snapshot from 10 March 2008.</para>
-
-    <para><application>FILE</application> has been updated from 4.23
-      to 5.03.</para>
-
-    <para><application>hostapd</application> has been
-      updated from 0.5.8 to 0.5.10.</para>
-
-    <para><application>IPFilter</application> has been updated from
-      4.1.23 to 4.1.28.</para>
-
-    <para><application>less</application> has been updated from
-      v408 to v429.</para>
-
-    <para><application>ncurses</application> has been updated from
-      5.6-20061217 to 5.6-20080503.</para>
-
-    <para role="merged"><application>OpenSSH</application> has been updated
-      from 4.5p1 to 5.1p1.</para>
-
-    <para role="merged"><application>OpenPAM</application> has been updated from the
-      Figwort release to the Hydrangea release.</para>
-
-    <para role="merged"><application>sendmail</application> has been updated from
-      8.14.1 to 8.14.3.</para>
-
-    <para role="merged">The timezone database has been updated from
-      the <application>tzdata2008h</application> release to
-      the <application>tzdata2009j</application> release.</para>
-
-    <para>The stdtime part of libc, &man.zdump.8 and &man.zic.8
-      have been updated from the <application>tzcode2004a</application>
-      release to the <application>tzcode2009h</application> release.
-      If you have upgraded from source or via the &man.freebsd-update.8,
-      then please run &man.tzsetup.8 to install a new /etc/localtime.
-      </para>
-
-    <para><application>WPA Supplicant</application> has been
-      updated from 0.5.8 to 0.5.10.</para>
+      <para></para>
 
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>The &man.pkg.create.1; utility now supports
-      <option>-n</option>.  When this option is specified and a
-      package tarball exists, it will not be overwritten.  This is
-      useful when multiple packages are saved with several consecutive
-      runs of &man.pkg.create.1; with the <option>-Rb</option>
-      options.</para>
-
-    <para>The pkg_sign and pkg_check utilities for cryptographically
-      signing &os; packages have been removed.  They were only useful
-      for packages compressed using &man.gzip.1;; however
-      &man.bzip2.1; compression has been the norm for some time
-      now.</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para role="merged">The supported version of
-      the <application>GNOME</application> desktop environment
-      (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.20.1 to 2.22.</para>
+    <para></para>
 
   </sect2>
 
