@@ -138,8 +138,8 @@ struct dsk {
     unsigned unit;
     unsigned slice;
     unsigned part;
-    unsigned start;
     int init;
+    daddr_t start;
 };
 static char cmd[512];
 static char kname[1024];
@@ -163,7 +163,7 @@ static int parse(void);
 static void printf(const char *,...);
 static void putchar(int);
 static uint32_t memsize(void);
-static int drvread(struct dsk *, void *, unsigned, unsigned);
+static int drvread(struct dsk *, void *, daddr_t, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
@@ -310,7 +310,8 @@ static int
 vdev_read(vdev_t *vdev, void *priv, off_t off, void *buf, size_t bytes)
 {
 	char *p;
-	unsigned int lba, nb;
+	daddr_t lba;
+	unsigned int nb;
 	struct dsk *dsk = (struct dsk *) priv;
 
 	if ((off & (DEV_BSIZE - 1)) || (bytes & (DEV_BSIZE - 1)))
@@ -964,7 +965,7 @@ static struct {
 #endif
 
 static int
-drvread(struct dsk *dsk, void *buf, unsigned lba, unsigned nblk)
+drvread(struct dsk *dsk, void *buf, daddr_t lba, unsigned nblk)
 {
 #ifdef GPT
     static unsigned c = 0x2d5c7c2f;
@@ -999,7 +1000,7 @@ drvread(struct dsk *dsk, void *buf, unsigned lba, unsigned nblk)
     v86.es = VTOPSEG(buf);
     v86.eax = lba;
     v86.ebx = VTOPOFF(buf);
-    v86.ecx = lba >> 16;
+    v86.ecx = lba >> 32;
     v86.edx = nblk << 8 | dsk->drive;
     v86int();
     v86.ctl = V86_FLAGS;
