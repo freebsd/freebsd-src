@@ -104,7 +104,7 @@ struct et_txdesc {
 	uint32_t	td_addr_lo;
 	uint32_t	td_ctrl1;	/* ET_TDCTRL1_ */
 	uint32_t	td_ctrl2;	/* ET_TDCTRL2_ */
-} __packed;
+};
 
 #define ET_TDCTRL1_LEN_MASK	0x0000FFFF
 
@@ -116,14 +116,14 @@ struct et_rxdesc {
 	uint32_t	rd_addr_lo;
 	uint32_t	rd_addr_hi;
 	uint32_t	rd_ctrl;	/* ET_RDCTRL_ */
-} __packed;
+};
 
 #define ET_RDCTRL_BUFIDX_MASK	0x000003FF
 
 struct et_rxstat {
 	uint32_t	rxst_info1;
 	uint32_t	rxst_info2;	/* ET_RXST_INFO2_ */
-} __packed;
+};
 
 #define ET_RXST_INFO2_LEN_MASK	0x0000FFFF
 #define ET_RXST_INFO2_LEN_SHIFT	0
@@ -135,7 +135,7 @@ struct et_rxstat {
 struct et_rxstatus {
 	uint32_t	rxs_ring;
 	uint32_t	rxs_stat_ring;	/* ET_RXS_STATRING_ */
-} __packed;
+};
 
 #define ET_RXS_STATRING_INDEX_MASK	0x0FFF0000
 #define ET_RXS_STATRING_INDEX_SHIFT	16
