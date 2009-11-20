@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #else
 #include <stdlib.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/types.h>
@@ -62,27 +61,36 @@ SYSCTL_NODE(_net, OID_AUTO, bpf_jitter, CTLFLAG_RW, 0, "BPF JIT compiler");
 int bpf_jitter_enable = 1;
 SYSCTL_INT(_net_bpf_jitter, OID_AUTO, enable, CTLFLAG_RW,
     &bpf_jitter_enable, 0, "enable BPF JIT compiler");
+#endif
 
 bpf_jit_filter *
 bpf_jitter(struct bpf_insn *fp, int nins)
 {
 	bpf_jit_filter *filter;
 
-	/* Allocate the filter structure */
+	/* Allocate the filter structure. */
+#ifdef _KERNEL
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter),
 	    M_BPFJIT, M_NOWAIT);
+#else
+	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
+#endif
 	if (filter == NULL)
 		return (NULL);
 
-	/* No filter means accept all */
+	/* No filter means accept all. */
 	if (fp == NULL || nins == 0) {
 		filter->func = bpf_jit_accept_all;
 		return (filter);
 	}
 
-	/* Create the binary */
+	/* Create the binary. */
 	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size)) == NULL) {
+#ifdef _KERNEL
 		free(filter, M_BPFJIT);
+#else
+		free(filter);
+#endif
 		return (NULL);
 	}
 
@@ -93,45 +101,16 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
+#ifdef _KERNEL
 	if (filter->func != bpf_jit_accept_all)
 		free(filter->func, M_BPFJIT);
 	free(filter, M_BPFJIT);
-}
 #else
-bpf_jit_filter *
-bpf_jitter(struct bpf_insn *fp, int nins)
-{
-	bpf_jit_filter *filter;
-
-	/* Allocate the filter structure */
-	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
-	if (filter == NULL)
-		return (NULL);
-
-	/* No filter means accept all */
-	if (fp == NULL || nins == 0) {
-		filter->func = bpf_jit_accept_all;
-		return (filter);
-	}
-
-	/* Create the binary */
-	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size)) == NULL) {
-		free(filter);
-		return (NULL);
-	}
-
-	return (filter);
-}
-
-void
-bpf_destroy_jit_filter(bpf_jit_filter *filter)
-{
-
 	if (filter->func != bpf_jit_accept_all)
 		munmap(filter->func, filter->size);
 	free(filter);
-}
 #endif
+}
 
 static u_int
 bpf_jit_accept_all(__unused u_char *p, __unused u_int wirelen,
