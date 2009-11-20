@@ -85,8 +85,9 @@ static driver_t uart_octeon_driver = {
 
 extern 
 SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
-	static int
-	    uart_octeon_probe(device_t dev)
+
+static int
+uart_octeon_probe(device_t dev)
 {
 	struct uart_softc *sc;
 	int unit;
