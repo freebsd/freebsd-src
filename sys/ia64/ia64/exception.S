@@ -28,7 +28,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kstack_pages.h"
 #include "opt_xtrace.h"
 
 #include <machine/pte.h>
