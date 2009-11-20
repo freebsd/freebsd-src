@@ -720,7 +720,7 @@ nfsvno_write(struct vnode *vp, off_t off, int retlen, int cnt, int stable,
 int
 nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
     struct vnode **vpp, struct nfsvattr *nvap, int *exclusive_flagp,
-    u_char *cverf, NFSDEV_T rdev, struct thread *p, struct nfsexstuff *exp)
+    int32_t *cverf, NFSDEV_T rdev, struct thread *p, struct nfsexstuff *exp)
 {
 	u_quad_t tempsize;
 	int error;
@@ -737,8 +737,8 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				if (*exclusive_flagp) {
 					*exclusive_flagp = 0;
 					NFSVNO_ATTRINIT(nvap);
-					NFSBCOPY(cverf,(caddr_t)&nvap->na_atime,
-					    NFSX_VERF);
+					nvap->na_atime.tv_sec = cverf[0];
+					nvap->na_atime.tv_nsec = cverf[1];
 					error = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, nd->nd_cred);
 				}
@@ -1285,7 +1285,7 @@ nfsvno_statfs(struct vnode *vp, struct statfs *sf)
 void
 nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
     nfsquad_t clientid, nfsv4stateid_t *stateidp, struct nfsstate *stp,
-    int *exclusive_flagp, struct nfsvattr *nvap, u_char *cverf, int create,
+    int *exclusive_flagp, struct nfsvattr *nvap, int32_t *cverf, int create,
     NFSACL_T *aclp, nfsattrbit_t *attrbitp, struct ucred *cred, struct thread *p,
     struct nfsexstuff *exp, struct vnode **vpp)
 {
@@ -1307,9 +1307,8 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				if (*exclusive_flagp) {
 					*exclusive_flagp = 0;
 					NFSVNO_ATTRINIT(nvap);
-					NFSBCOPY(cverf,
-					    (caddr_t)&nvap->na_atime,
-					    NFSX_VERF);
+					nvap->na_atime.tv_sec = cverf[0];
+					nvap->na_atime.tv_nsec = cverf[1];
 					nd->nd_repstat = VOP_SETATTR(ndp->ni_vp,
 					    &nvap->na_vattr, cred);
 				} else {
