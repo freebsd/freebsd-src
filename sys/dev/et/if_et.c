@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  *
  * $DragonFly: src/sys/dev/netif/et/if_et.c,v 1.10 2008/05/18 07:47:14 sephe Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
