@@ -833,7 +833,11 @@ libusb10_complete_transfer(struct libusb20_transfer *pxfer,
 	if (pxfer != NULL)
 		libusb20_tr_set_priv_sc1(pxfer, NULL);
 
+	/* set transfer status */
 	uxfer->status = status;
+
+	/* update super transfer state */
+	sxfer->state = LIBUSB_SUPER_XFER_ST_NONE;
 
 	dev = libusb_get_device(uxfer->dev_handle);
 
@@ -1111,6 +1115,8 @@ libusb10_submit_transfer_sub(struct libusb20_device *pdev, uint8_t endpoint)
 		return;
 	case 2:
 		sxfer = libusb20_tr_get_priv_sc1(pxfer1);
+		if (sxfer == NULL)
+			return;		/* cancelling */
 		if (sxfer->rem_len)
 			return;		/* cannot queue another one */
 		/* swap transfers */
@@ -1118,6 +1124,8 @@ libusb10_submit_transfer_sub(struct libusb20_device *pdev, uint8_t endpoint)
 		break;
 	case 1:
 		sxfer = libusb20_tr_get_priv_sc1(pxfer0);
+		if (sxfer == NULL)
+			return;		/* cancelling */
 		if (sxfer->rem_len)
 			return;		/* cannot queue another one */
 		/* swap transfers */
@@ -1229,12 +1237,18 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 	if (pxfer0 == NULL || pxfer1 == NULL) {
 		err = LIBUSB_ERROR_OTHER;
 	} else if ((sxfer->entry.tqe_prev != NULL) ||
-		    (libusb20_tr_get_priv_sc1(pxfer0) == sxfer) ||
+	    (libusb20_tr_get_priv_sc1(pxfer0) == sxfer) ||
 	    (libusb20_tr_get_priv_sc1(pxfer1) == sxfer)) {
 		err = LIBUSB_ERROR_BUSY;
 	} else {
+
+		/* set pending state */
+		sxfer->state = LIBUSB_SUPER_XFER_ST_PEND;
+
+		/* insert transfer into transfer head list */
 		TAILQ_INSERT_TAIL(&dev->tr_head, sxfer, entry);
 
+		/* start work transfers */
 		libusb10_submit_transfer_sub(
 		    uxfer->dev_handle, endpoint);
 
@@ -1258,12 +1272,14 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
 	uint32_t endpoint;
+	int retval;
 
 	if (uxfer == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
+	/* check if not initialised */
 	if (uxfer->dev_handle == NULL)
-		return (LIBUSB_ERROR_INVALID_PARAM);
+		return (LIBUSB_ERROR_NOT_FOUND);
 
 	endpoint = uxfer->endpoint;
 
@@ -1277,39 +1293,50 @@ libusb_cancel_transfer(struct libusb_transfer *uxfer)
 	sxfer = (struct libusb_super_transfer *)(
 	    (uint8_t *)uxfer - sizeof(*sxfer));
 
+	retval = 0;
+
 	CTX_LOCK(dev->ctx);
 
 	pxfer0 = libusb10_get_transfer(uxfer->dev_handle, endpoint, 0);
 	pxfer1 = libusb10_get_transfer(uxfer->dev_handle, endpoint, 1);
 
-	if (sxfer->entry.tqe_prev != NULL) {
+	if (sxfer->state != LIBUSB_SUPER_XFER_ST_PEND) {
+		/* only update the transfer status */
+		uxfer->status = LIBUSB_TRANSFER_CANCELLED;
+		retval = LIBUSB_ERROR_NOT_FOUND;
+	} else if (sxfer->entry.tqe_prev != NULL) {
 		/* we are lucky - transfer is on a queue */
 		TAILQ_REMOVE(&dev->tr_head, sxfer, entry);
 		sxfer->entry.tqe_prev = NULL;
-		libusb10_complete_transfer(NULL, sxfer, LIBUSB_TRANSFER_CANCELLED);
+		libusb10_complete_transfer(NULL,
+		    sxfer, LIBUSB_TRANSFER_CANCELLED);
 	} else if (pxfer0 == NULL || pxfer1 == NULL) {
 		/* not started */
+		retval = LIBUSB_ERROR_NOT_FOUND;
 	} else if (libusb20_tr_get_priv_sc1(pxfer0) == sxfer) {
-		libusb10_complete_transfer(pxfer0, sxfer, LIBUSB_TRANSFER_CANCELLED);
+		libusb10_complete_transfer(pxfer0,
+		    sxfer, LIBUSB_TRANSFER_CANCELLED);
 		libusb20_tr_stop(pxfer0);
 		/* make sure the queue doesn't stall */
 		libusb10_submit_transfer_sub(
 		    uxfer->dev_handle, endpoint);
 	} else if (libusb20_tr_get_priv_sc1(pxfer1) == sxfer) {
-		libusb10_complete_transfer(pxfer1, sxfer, LIBUSB_TRANSFER_CANCELLED);
+		libusb10_complete_transfer(pxfer1,
+		    sxfer, LIBUSB_TRANSFER_CANCELLED);
 		libusb20_tr_stop(pxfer1);
 		/* make sure the queue doesn't stall */
 		libusb10_submit_transfer_sub(
 		    uxfer->dev_handle, endpoint);
 	} else {
 		/* not started */
+		retval = LIBUSB_ERROR_NOT_FOUND;
 	}
 
 	CTX_UNLOCK(dev->ctx);
 
 	DPRINTF(dev->ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer leave");
 
-	return (0);
+	return (retval);
 }
 
 UNEXPORTED void
