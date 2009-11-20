@@ -6,41 +6,35 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "8.0-CURRENT">
+<!ENTITY release.current "8.0-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "7.0-RELEASE">
-
-<!-- The previous stable release, useful for pointing user's at the
-     release they SHOULD be running if they don't want the bleeding
-     edge. -->
-<!ENTITY release.prev.stable "7.0-RELEASE">
+<!ENTITY release.prev "7.2-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "8.0-RELEASE">
+<!ENTITY release.next "8.1-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "8-CURRENT">
+<!ENTITY release.branch "8.0-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
+<!ENTITY release.url "http://www.FreeBSD.org/">
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
-<!ENTITY release.type "snapshot">
-<!ENTITY % release.type.current  "INCLUDE">
+<!ENTITY release.type "release">
+<!ENTITY % release.type.current  "IGNORE">
 <!ENTITY % release.type.snapshot "IGNORE">
-<!ENTITY % release.type.release "IGNORE">
+<!ENTITY % release.type.release "INCLUDE">
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
-<!ENTITY release.manpath.xfree86       "4.5.0">
-<!ENTITY release.manpath.xorg          "7.2">
-<!ENTITY release.manpath.netbsd        "3.0">
+<!ENTITY release.manpath.xorg          "7.4">
+<!ENTITY release.manpath.netbsd        "4.0.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "8-current">
+<!ENTITY release.manpath.freebsd       "8.0-RELEASE">
 
 <!-- Text constants which probably don't need to be changed.-->
 
