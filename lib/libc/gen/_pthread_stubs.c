@@ -105,7 +105,7 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_LOCK */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_TRYLOCK */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_UNLOCK */
-	{PJT_DUAL_ENTRY(_libc_once)},   /* PJT_ONCE */
+	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ONCE */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_DESTROY */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_INIT */
 	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_RDLOCK */
