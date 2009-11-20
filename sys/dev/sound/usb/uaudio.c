@@ -118,7 +118,6 @@ struct uaudio_mixer_node {
 	int32_t	maxval;
 #define	MIX_MAX_CHAN 8
 	int32_t	wValue[MIX_MAX_CHAN];	/* using nchan */
-	uint32_t mod;		/* modulus */
 	uint32_t mul;
 	uint32_t ctl;
 
@@ -1318,6 +1317,11 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 	ch->pcm_cap.minspeed = ch->sample_rate;
 	ch->pcm_cap.maxspeed = ch->sample_rate;
 
+	/* setup mutex and PCM channel */
+
+	ch->pcm_ch = c;
+	ch->pcm_mtx = c->lock;
+
 	if (ch->p_asf1d->bNrChannels >= 2)
 		ch->pcm_cap.fmtlist[0] =
 		    SND_FORMAT(ch->p_fmt->freebsd_fmt, 2, 0);
@@ -1391,8 +1395,6 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 	ch->start = ch->buf;
 	ch->end = ch->buf + buf_size;
 	ch->cur = ch->buf;
-	ch->pcm_ch = c;
-	ch->pcm_mtx = c->lock;
 	ch->pcm_buf = b;
 
 	if (ch->pcm_mtx == NULL) {
@@ -1570,9 +1572,7 @@ uaudio_mixer_add_ctl(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 	if (mc->type == MIX_ON_OFF) {
 		mc->minval = 0;
 		mc->maxval = 1;
-		mc->mod = 1;
 	} else if (mc->type == MIX_SELECTOR) {
-		mc->mod = 1;
 	} else {
 
 		/* determine min and max values */
@@ -1600,11 +1600,8 @@ uaudio_mixer_add_ctl(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 
 		/* compute value alignment */
 		res = uaudio_mixer_get(sc->sc_udev, GET_RES, mc);
-		if (res == 0)
-			res = 1;
-		mc->mod = mc->mul / res;
-		if (mc->mod == 0)
-			mc->mod = 1;
+
+		DPRINTF("Resolution = %d\n", (int)res);
 	}
 
 	uaudio_mixer_add_ctl_sub(sc, mc);
@@ -3096,9 +3093,6 @@ uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int32_t val)
 
 		/* compute actual volume */
 		val = (val * mc->mul) / 255;
-
-		/* align volume level */
-		val = val - (val % mc->mod);
 
 		/* add lower offset */
 		val = val + mc->minval;
