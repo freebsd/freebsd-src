@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/amd64/bpf_jit_machdep.h>
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *, int *);
+bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
 
 /*
  * emit routine to update the jump table
@@ -97,7 +97,7 @@ emit_code(bpf_bin_stream *stream, u_int value, u_int len)
  * Function that does the real stuff
  */
 bpf_filter_func
-bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
+bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 {
 	bpf_bin_stream stream;
 	struct bpf_insn *ins;
@@ -111,10 +111,9 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 
 	/* Allocate the reference table for the jumps */
 #ifdef _KERNEL
-	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int),
-	    M_BPFJIT, M_NOWAIT);
+	stream.refs = malloc((nins + 1) * sizeof(u_int), M_BPFJIT, M_NOWAIT);
 #else
-	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int));
+	stream.refs = malloc((nins + 1) * sizeof(u_int));
 #endif
 	if (stream.refs == NULL)
 		return (NULL);
@@ -137,8 +136,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 		ins = prog;
 
 		/* create the procedure header */
-		MOVrq2(RBX, R8);
-		MOVrq(RDI, RBX);
+		PUSH(RBP);
+		MOVrq(RSP, RBP);
+		SUBib(BPF_MEMWORDS * sizeof(uint32_t), RSP);
+		MOVrq2(RDI, R8);
 		MOVrd2(ESI, R9D);
 		MOVrd(EDX, EDI);
 
@@ -155,13 +156,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 
 			case BPF_RET|BPF_K:
 				MOVid(ins->k, EAX);
-				MOVrq3(R8, RBX);
-				RET();
+				LEAVE_RET();
 				break;
 
 			case BPF_RET|BPF_A:
-				MOVrq3(R8, RBX);
-				RET();
+				LEAVE_RET();
 				break;
 
 			case BPF_LD|BPF_W|BPF_ABS:
@@ -171,11 +170,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				MOVrd(EDI, ECX);
 				SUBrd(ESI, ECX);
 				CMPid(sizeof(int32_t), ECX);
-				JAEb(6);
+				JAEb(4);
 				ZEROrd(EAX);
-				MOVrq3(R8, RBX);
-				RET();
-				MOVobd(RBX, RSI, EAX);
+				LEAVE_RET();
+				MOVrq3(R8, RCX);
+				MOVobd(RCX, RSI, EAX);
 				BSWAP(EAX);
 				break;
 
@@ -187,10 +186,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				MOVrd(EDI, ECX);
 				SUBrd(ESI, ECX);
 				CMPid(sizeof(int16_t), ECX);
-				JAEb(4);
-				MOVrq3(R8, RBX);
-				RET();
-				MOVobw(RBX, RSI, AX);
+				JAEb(2);
+				LEAVE_RET();
+				MOVrq3(R8, RCX);
+				MOVobw(RCX, RSI, AX);
 				SWAP_AX();
 				break;
 
@@ -198,10 +197,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				ZEROrd(EAX);
 				MOVid(ins->k, ESI);
 				CMPrd(EDI, ESI);
-				JBb(4);
-				MOVrq3(R8, RBX);
-				RET();
-				MOVobb(RBX, RSI, AL);
+				JBb(2);
+				LEAVE_RET();
+				MOVrq3(R8, RCX);
+				MOVobb(RCX, RSI, AL);
 				break;
 
 			case BPF_LD|BPF_W|BPF_LEN:
@@ -224,11 +223,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				MOVrd(EDI, ECX);
 				SUBrd(ESI, ECX);
 				CMPid(sizeof(int32_t), ECX);
-				JAEb(6);
+				JAEb(4);
 				ZEROrd(EAX);
-				MOVrq3(R8, RBX);
-				RET();
-				MOVobd(RBX, RSI, EAX);
+				LEAVE_RET();
+				MOVrq3(R8, RCX);
+				MOVobd(RCX, RSI, EAX);
 				BSWAP(EAX);
 				break;
 
@@ -245,10 +244,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				MOVrd(EDI, ECX);
 				SUBrd(ESI, ECX);
 				CMPid(sizeof(int16_t), ECX);
-				JAEb(4);
-				MOVrq3(R8, RBX);
-				RET();
-				MOVobw(RBX, RSI, AX);
+				JAEb(2);
+				LEAVE_RET();
+				MOVrq3(R8, RCX);
+				MOVobw(RCX, RSI, AX);
 				SWAP_AX();
 				break;
 
@@ -260,22 +259,22 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				MOVrd(EDI, ECX);
 				SUBrd(EDX, ECX);
 				CMPrd(ESI, ECX);
-				JAb(4);
-				MOVrq3(R8, RBX);
-				RET();
+				JAb(2);
+				LEAVE_RET();
+				MOVrq3(R8, RCX);
 				ADDrd(EDX, ESI);
-				MOVobb(RBX, RSI, AL);
+				MOVobb(RCX, RSI, AL);
 				break;
 
 			case BPF_LDX|BPF_MSH|BPF_B:
 				MOVid(ins->k, ESI);
 				CMPrd(EDI, ESI);
-				JBb(6);
+				JBb(4);
 				ZEROrd(EAX);
-				MOVrq3(R8, RBX);
-				RET();
+				LEAVE_RET();
 				ZEROrd(EDX);
-				MOVobb(RBX, RSI, DL);
+				MOVrq3(R8, RCX);
+				MOVobb(RCX, RSI, DL);
 				ANDib(0x0f, DL);
 				SHLib(2, EDX);
 				break;
@@ -289,15 +288,13 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				break;
 
 			case BPF_LD|BPF_MEM:
-				MOViq((uintptr_t)mem, RCX);
-				MOVid(ins->k * 4, ESI);
-				MOVobd(RCX, RSI, EAX);
+				MOVid(ins->k * sizeof(uint32_t), ESI);
+				MOVobd(RSP, RSI, EAX);
 				break;
 
 			case BPF_LDX|BPF_MEM:
-				MOViq((uintptr_t)mem, RCX);
-				MOVid(ins->k * 4, ESI);
-				MOVobd(RCX, RSI, EDX);
+				MOVid(ins->k * sizeof(uint32_t), ESI);
+				MOVobd(RSP, RSI, EDX);
 				break;
 
 			case BPF_ST:
@@ -306,15 +303,13 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				 * be optimized if the previous instruction
 				 * was already of this type
 				 */
-				MOViq((uintptr_t)mem, RCX);
-				MOVid(ins->k * 4, ESI);
-				MOVomd(EAX, RCX, RSI);
+				MOVid(ins->k * sizeof(uint32_t), ESI);
+				MOVomd(EAX, RSP, RSI);
 				break;
 
 			case BPF_STX:
-				MOViq((uintptr_t)mem, RCX);
-				MOVid(ins->k * 4, ESI);
-				MOVomd(EDX, RCX, RSI);
+				MOVid(ins->k * sizeof(uint32_t), ESI);
+				MOVomd(EDX, RSP, RSI);
 				break;
 
 			case BPF_JMP|BPF_JA:
@@ -394,10 +389,9 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 
 			case BPF_ALU|BPF_DIV|BPF_X:
 				TESTrd(EDX, EDX);
-				JNEb(6);
+				JNEb(4);
 				ZEROrd(EAX);
-				MOVrq3(R8, RBX);
-				RET();
+				LEAVE_RET();
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
 				DIVrd(ECX);
@@ -490,13 +484,12 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 		}
 
 #ifdef _KERNEL
-		stream.ibuf = (char *)contigmalloc(stream.cur_ip, M_BPFJIT,
-		    M_NOWAIT, 0, ~0UL, 16, 0);
+		stream.ibuf = malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
 		if (stream.ibuf == NULL)
 			break;
 #else
-		stream.ibuf = (char *)mmap(NULL, stream.cur_ip,
-		    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+		stream.ibuf = mmap(NULL, stream.cur_ip, PROT_READ | PROT_WRITE,
+		    MAP_ANON, -1, 0);
 		if (stream.ibuf == MAP_FAILED) {
 			stream.ibuf = NULL;
 			break;

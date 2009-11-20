@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpf_jitter.h>
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *, int *);
+bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
 
 static u_int	bpf_jit_accept_all(u_char *, u_int, u_int);
 
@@ -70,7 +70,7 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 
 	/* Allocate the filter structure */
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter),
-	    M_BPFJIT, M_NOWAIT | M_ZERO);
+	    M_BPFJIT, M_NOWAIT);
 	if (filter == NULL)
 		return (NULL);
 
@@ -81,8 +81,7 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	}
 
 	/* Create the binary */
-	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size,
-	    filter->mem)) == NULL) {
+	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size)) == NULL) {
 		free(filter, M_BPFJIT);
 		return (NULL);
 	}
@@ -95,7 +94,7 @@ bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
 	if (filter->func != bpf_jit_accept_all)
-		contigfree(filter->func, filter->size, M_BPFJIT);
+		free(filter->func, M_BPFJIT);
 	free(filter, M_BPFJIT);
 }
 #else
@@ -108,7 +107,6 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
 	if (filter == NULL)
 		return (NULL);
-	memset(filter, 0, sizeof(*filter));
 
 	/* No filter means accept all */
 	if (fp == NULL || nins == 0) {
@@ -117,8 +115,7 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	}
 
 	/* Create the binary */
-	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size,
-	    filter->mem)) == NULL) {
+	if ((filter->func = bpf_jit_compile(fp, nins, &filter->size)) == NULL) {
 		free(filter);
 		return (NULL);
 	}
