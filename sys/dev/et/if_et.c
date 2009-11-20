@@ -1913,7 +1913,7 @@ et_rxeof(struct et_softc *sc)
 	struct ifnet *ifp;
 	struct et_rxstatus_data *rxsd;
 	struct et_rxstat_ring *rxst_ring;
-	uint32_t rxs_stat_ring;
+	uint32_t rxs_stat_ring, rxst_info2;
 	int rxst_wrap, rxst_index;
 
 	ET_LOCK_ASSERT(sc);
@@ -1929,7 +1929,7 @@ et_rxeof(struct et_softc *sc)
 	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
 			BUS_DMASYNC_POSTREAD);
 
-	rxs_stat_ring = rxsd->rxsd_status->rxs_stat_ring;
+	rxs_stat_ring = le32toh(rxsd->rxsd_status->rxs_stat_ring);
 	rxst_wrap = (rxs_stat_ring & ET_RXS_STATRING_WRAP) ? 1 : 0;
 	rxst_index = (rxs_stat_ring & ET_RXS_STATRING_INDEX_MASK) >>
 	    ET_RXS_STATRING_INDEX_SHIFT;
@@ -1945,12 +1945,12 @@ et_rxeof(struct et_softc *sc)
 
 		MPASS(rxst_ring->rsr_index < ET_RX_NSTAT);
 		st = &rxst_ring->rsr_stat[rxst_ring->rsr_index];
-
-		buflen = (st->rxst_info2 & ET_RXST_INFO2_LEN_MASK) >>
+		rxst_info2 = le32toh(st->rxst_info2);
+		buflen = (rxst_info2 & ET_RXST_INFO2_LEN_MASK) >>
 		    ET_RXST_INFO2_LEN_SHIFT;
-		buf_idx = (st->rxst_info2 & ET_RXST_INFO2_BUFIDX_MASK) >>
+		buf_idx = (rxst_info2 & ET_RXST_INFO2_BUFIDX_MASK) >>
 		    ET_RXST_INFO2_BUFIDX_SHIFT;
-		ring_idx = (st->rxst_info2 & ET_RXST_INFO2_RINGIDX_MASK) >>
+		ring_idx = (rxst_info2 & ET_RXST_INFO2_RINGIDX_MASK) >>
 		    ET_RXST_INFO2_RINGIDX_SHIFT;
 
 		if (++rxst_ring->rsr_index == ET_RX_NSTAT) {
@@ -2096,12 +2096,12 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 
 		idx = (first_idx + i) % ET_TX_NDESC;
 		td = &tx_ring->tr_desc[idx];
-		td->td_addr_hi = ET_ADDR_HI(segs[i].ds_addr);
-		td->td_addr_lo = ET_ADDR_LO(segs[i].ds_addr);
-		td->td_ctrl1 =  segs[i].ds_len & ET_TDCTRL1_LEN_MASK;
+		td->td_addr_hi = htole32(ET_ADDR_HI(segs[i].ds_addr));
+		td->td_addr_lo = htole32(ET_ADDR_LO(segs[i].ds_addr));
+		td->td_ctrl1 =  htole32(segs[i].ds_len & ET_TDCTRL1_LEN_MASK);
 
 		if (i == ctx.nsegs - 1) {	/* Last frag */
-			td->td_ctrl2 = last_td_ctrl2;
+			td->td_ctrl2 = htole32(last_td_ctrl2);
 			last_idx = idx;
 		}
 
@@ -2112,7 +2112,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		}
 	}
 	td = &tx_ring->tr_desc[first_idx];
-	td->td_ctrl2 |= ET_TDCTRL2_FIRST_FRAG;	/* First frag */
+	td->td_ctrl2 |= htole32(ET_TDCTRL2_FIRST_FRAG);	/* First frag */
 
 	MPASS(last_idx >= 0);
 	tbd->tbd_buf[first_idx].tb_dmap = tbd->tbd_buf[last_idx].tb_dmap;
@@ -2424,9 +2424,9 @@ et_setup_rxdesc(struct et_rxbuf_data *rbd, int buf_idx, bus_addr_t paddr)
 	MPASS(buf_idx < ET_RX_NDESC);
 	desc = &rx_ring->rr_desc[buf_idx];
 
-	desc->rd_addr_hi = ET_ADDR_HI(paddr);
-	desc->rd_addr_lo = ET_ADDR_LO(paddr);
-	desc->rd_ctrl = buf_idx & ET_RDCTRL_BUFIDX_MASK;
+	desc->rd_addr_hi = htole32(ET_ADDR_HI(paddr));
+	desc->rd_addr_lo = htole32(ET_ADDR_LO(paddr));
+	desc->rd_ctrl = htole32(buf_idx & ET_RDCTRL_BUFIDX_MASK);
 
 	bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
 			BUS_DMASYNC_PREWRITE);
