@@ -43,6 +43,7 @@ CFLAGS+=	-DBPF_VALIDATE
 SRCS+=		${SYSDIR}/net/bpf_jitter.c	\
 		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
 CFLAGS+=	-DBPF_JIT_COMPILER
+LIBS+=		-lutil
 WARNS?=		6
 .else
 SRCS+=		${SYSDIR}/net/bpf_filter.c
@@ -52,7 +53,7 @@ WARNS?=		2
 .for TEST in ${TEST_CASES}
 ${TEST}:	${.CURDIR}/tests/${TEST}.h ${SRCS}
 	@${CC} ${CFLAGS} -DBPF_TEST_H=\"${TEST}.h\"	\
-	    -o ${.CURDIR}/${TEST} ${SRCS}
+	    -o ${.CURDIR}/${TEST} ${SRCS} ${LIBS}
 .endfor
 
 all:		${TEST_CASES}
