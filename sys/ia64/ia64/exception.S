@@ -28,10 +28,19 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kstack_pages.h"
 #include "opt_xtrace.h"
 
 #include <machine/pte.h>
 #include <assym.s>
+
+/*
+ * Nested TLB restart tokens. These are used by the
+ * nested TLB handler for jumping back to the code
+ * where the nested TLB was caused.
+ */
+#define	NTLBRT_SAVE	0x12c12c
+#define	NTLBRT_RESTORE  0x12c12d
 
 /*
  * ar.k7 = kernel memory stack
@@ -140,9 +149,10 @@ ENTRY_NOPROFILE(exception_save, 0)
 	add		r31=8,r30
 	;;
 }
-{	.mlx
+{	.mib
 	mov		r22=cr.iip
-	movl		r26=exception_save_restart
+	addl		r29=NTLBRT_SAVE,r0	// 22-bit restart token.
+	nop		0
 	;;
 }
 
@@ -157,7 +167,7 @@ ENTRY_NOPROFILE(exception_save, 0)
 	 * that are currently alive:
 	 *	r16,r17=arguments
 	 *	r18=pr, r19=length, r20=unat, r21=rsc, r22=iip, r23=TOS
-	 *	r26=restart point
+	 *	r29=restart point
 	 *	r30,r31=trapframe pointers
 	 *	p14,p15=memory stack switch
 	 */
@@ -544,7 +554,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 	ld8		r21=[r31],24		// rnat
 	mov		ar.pfs=r28
 	;;
-	ld8.fill	r29=[r30],16		// tp
+	ld8.fill	r26=[r30],16		// tp
 	ld8		r22=[r31],16		// rsc
 	;;
 {	.mmi
@@ -555,21 +565,21 @@ ENTRY_NOPROFILE(exception_restore, 0)
 }
 {	.mmi
 	ld8.fill	r1=[r30],16		// gp
-	ld8		r25=[r31],16		// ndirty
+	ld8		r27=[r31],16		// ndirty
 	cmp.le		p14,p15=5,r28
 	;;
 }
 {	.mmb
-	ld8		r26=[r30]		// cfm
+	ld8		r25=[r30]		// cfm
 	ld8		r19=[r31]		// ip
 	nop		0
 	;;
 }
-{	.mib
+{	.mii
 	// Switch register stack
 	alloc		r30=ar.pfs,0,0,0,0	// discard current frame
-	shl		r31=r25,16		// value for ar.rsc
-	nop		0
+	shl		r31=r27,16		// value for ar.rsc
+(p15)	mov		r13=r26
 	;;
 }
 	// The loadrs can fault if the backing store is not currently
@@ -580,7 +590,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 {	.mmi
 	mov		ar.rsc=r31		// setup for loadrs
 	mov		ar.k7=r16
-(p15)	mov		r13=r29
+	addl		r29=NTLBRT_RESTORE,r0	// 22-bit restart token 
 	;;
 }
 exception_restore_restart:
@@ -611,7 +621,7 @@ exception_restore_restart:
 }
 {	.mmi
 	mov		cr.ipsr=r24
-	mov		cr.ifs=r26
+	mov		cr.ifs=r25
 	mov		pr=r18,0x1ffff
 	;;
 }
@@ -944,7 +954,7 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 }
 {	.mii
 	ld8		r27=[r27]				// dir L0 page
-	extr.u		r29=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
+	extr.u		r26=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
 	;;
 	dep		r27=0,r27,61,3
 	;;
@@ -957,16 +967,16 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	;;
 }
 {	.mmi
-	shladd		r27=r29,3,r27
+	shladd		r27=r26,3,r27
 	;;
-	mov		r29=rr[r30]
+	mov		r26=rr[r30]
 	dep		r27=0,r27,61,3
 	;;
 }
 {	.mii
 	ld8		r27=[r27]				// pte page
 	shl		r28=r28,5
-	dep		r29=0,r29,0,2
+	dep		r26=0,r26,0,2
 	;;
 }
 {	.mmi
@@ -979,28 +989,54 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 {	.mmi
 	ld8		r28=[r27]		// pte
 	;;
-	mov		cr.itir=r29
+	mov		cr.itir=r26
 	or		r28=PTE_DIRTY+PTE_ACCESSED,r28
 	;;
 }
-{	.mlx
+{	.mmi
 	st8		[r27]=r28
-	movl		r29=exception_save_restart
 	;;
+	addl		r26=NTLBRT_SAVE,r0
+	addl		r27=NTLBRT_RESTORE,r0
 }
 {	.mmi
 	itc.d		r28
 	;;
 	ssm		psr.dt
-	cmp.eq		p12,p13=r26,r29
+	cmp.eq		p12,p0=r29,r26
 	;;
 }
-{	.mbb
+{	.mib
 	srlz.d
+	cmp.eq		p13,p0=r29,r27
 (p12)	br.sptk		exception_save_restart
+	;;
+}
+{	.mib
+	nop		0
+	nop		0
 (p13)	br.sptk		exception_restore_restart
 	;;
 }
+{	.mlx
+	mov		r26=ar.bsp
+	movl		r27=kstack
+	;;
+}
+{	.mib
+	mov		r28=sp
+	addl		r27=KSTACK_PAGES*PAGE_SIZE-16,r0
+	nop		0
+	;;
+}
+{	.mmi
+	mov		sp=r27
+	;;
+	mov		r27=ar.bspstore
+	nop		0
+	;;
+}
+	CALL(trap, 5, r30)
 IVT_END(Data_Nested_TLB)
 
 IVT_ENTRY(Instruction_Key_Miss, 0x1800)
