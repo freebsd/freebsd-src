@@ -196,6 +196,25 @@ static struct bus_space generic_space = {
 	NULL,
 };
 
+/* Ultra-gross kludge */
+#include "opt_cputype.h"
+#if defined(TARGET_OCTEON) && defined(ISA_MIPS32)
+#include <mips/octeon1/octeon_pcmap_regs.h>
+#define rd8(a) oct_read8(a)
+#define rd16(a) oct_read16(a)
+#define rd32(a) oct_read32(a)
+#define wr8(a, v) oct_write8(a, v)
+#define wr16(a, v) oct_write16(a, v)
+#define wr32(a, v) oct_write32(a, v)
+#else
+#define rd8(a) readb(a)
+#define rd16(a) readw(a)
+#define rd32(a) readl(a)
+#define wr8(a, v) writeb(a, v)
+#define wr16(a, v) writew(a, v)
+#define wr32(a, v) writel(a, v)
+#endif
+
 /* generic bus_space tag */
 bus_space_tag_t mips_bus_space_generic = &generic_space;
 
@@ -233,7 +252,7 @@ generic_bs_r_1(void *t, bus_space_handle_t handle,
     bus_size_t offset)
 {
 
-	return (readb(handle + offset));
+	return (rd8(handle + offset));
 }
 
 u_int16_t
@@ -241,7 +260,7 @@ generic_bs_r_2(void *t, bus_space_handle_t handle,
     bus_size_t offset)
 {
 
-	return (readw(handle + offset));
+	return (rd16(handle + offset));
 }
 
 u_int32_t
@@ -249,7 +268,7 @@ generic_bs_r_4(void *t, bus_space_handle_t handle,
     bus_size_t offset)
 {
 
-	return (readl(handle + offset));
+	return (rd32(handle + offset));
 }
 
 
@@ -259,7 +278,7 @@ generic_bs_rm_1(void *t, bus_space_handle_t bsh,
 {
 
 	while (count--)
-		*addr++ = readb(bsh + offset);
+		*addr++ = rd8(bsh + offset);
 }
 
 void
@@ -269,7 +288,7 @@ generic_bs_rm_2(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--)
-		*addr++ = readw(baddr);
+		*addr++ = rd16(baddr);
 }
 
 void
@@ -279,7 +298,7 @@ generic_bs_rm_4(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--)
-		*addr++ = readl(baddr);
+		*addr++ = rd32(baddr);
 }
 
 
@@ -295,7 +314,7 @@ generic_bs_rr_1(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--) {
-		*addr++ = readb(baddr);
+		*addr++ = rd8(baddr);
 		baddr += 1;
 	}
 }
@@ -307,7 +326,7 @@ generic_bs_rr_2(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--) {
-		*addr++ = readw(baddr);
+		*addr++ = rd16(baddr);
 		baddr += 2;
 	}
 }
@@ -319,7 +338,7 @@ generic_bs_rr_4(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--) {
-		*addr++ = readl(baddr);
+		*addr++ = rd32(baddr);
 		baddr += 4;
 	}
 }
@@ -333,7 +352,7 @@ generic_bs_w_1(void *t, bus_space_handle_t bsh,
     bus_size_t offset, u_int8_t value)
 {
 
-	writeb(bsh + offset, value);
+	wr8(bsh + offset, value);
 }
 
 void
@@ -341,7 +360,7 @@ generic_bs_w_2(void *t, bus_space_handle_t bsh,
     bus_size_t offset, u_int16_t value)
 {
 
-	writew(bsh + offset, value);
+	wr16(bsh + offset, value);
 }
 
 void
@@ -349,7 +368,7 @@ generic_bs_w_4(void *t, bus_space_handle_t bsh,
     bus_size_t offset, u_int32_t value)
 {
 
-	writel(bsh + offset, value);
+	wr32(bsh + offset, value);
 }
 
 /*
@@ -363,7 +382,7 @@ generic_bs_wm_1(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--)
-		writeb(baddr, *addr++);
+		wr8(baddr, *addr++);
 }
 
 void
@@ -373,7 +392,7 @@ generic_bs_wm_2(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--)
-		writew(baddr, *addr++);
+		wr16(baddr, *addr++);
 }
 
 void
@@ -383,7 +402,7 @@ generic_bs_wm_4(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--)
-		writel(baddr, *addr++);
+		wr32(baddr, *addr++);
 }
 
 /*
@@ -397,7 +416,7 @@ generic_bs_wr_1(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--) {
-		writeb(baddr, *addr++);
+		wr8(baddr, *addr++);
 		baddr += 1;
 	}
 }
@@ -409,7 +428,7 @@ generic_bs_wr_2(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--) {
-		writew(baddr, *addr++);
+		wr16(baddr, *addr++);
 		baddr += 2;
 	}
 }
@@ -421,7 +440,7 @@ generic_bs_wr_4(void *t, bus_space_handle_t bsh,
 	bus_addr_t baddr = bsh + offset;
 
 	while (count--) {
-		writel(baddr, *addr++);
+		wr32(baddr, *addr++);
 		baddr += 4;
 	}
 }
@@ -437,7 +456,7 @@ generic_bs_sm_1(void *t, bus_space_handle_t bsh,
 	bus_addr_t addr = bsh + offset;
 
 	while (count--)
-		writeb(addr, value);
+		wr8(addr, value);
 }
 
 void
@@ -447,7 +466,7 @@ generic_bs_sm_2(void *t, bus_space_handle_t bsh,
 	bus_addr_t addr = bsh + offset;
 
 	while (count--)
-		writew(addr, value);
+		wr16(addr, value);
 }
 
 void
@@ -457,7 +476,7 @@ generic_bs_sm_4(void *t, bus_space_handle_t bsh,
 	bus_addr_t addr = bsh + offset;
 
 	while (count--)
-		writel(addr, value);
+		wr32(addr, value);
 }
 
 /*
@@ -471,7 +490,7 @@ generic_bs_sr_1(void *t, bus_space_handle_t bsh,
 	bus_addr_t addr = bsh + offset;
 
 	for (; count != 0; count--, addr++)
-		writeb(addr, value);
+		wr8(addr, value);
 }
 
 void
@@ -481,7 +500,7 @@ generic_bs_sr_2(void *t, bus_space_handle_t bsh,
 	bus_addr_t addr = bsh + offset;
 
 	for (; count != 0; count--, addr += 2)
-		writew(addr, value);
+		wr16(addr, value);
 }
 
 void
@@ -491,7 +510,7 @@ generic_bs_sr_4(void *t, bus_space_handle_t bsh,
 	bus_addr_t addr = bsh + offset;
 
 	for (; count != 0; count--, addr += 4)
-		writel(addr, value);
+		wr32(addr, value);
 }
 
 /*
@@ -509,12 +528,12 @@ generic_bs_c_1(void *t, bus_space_handle_t bsh1,
 	if (addr1 >= addr2) {
 		/* src after dest: copy forward */
 		for (; count != 0; count--, addr1++, addr2++)
-			writeb(addr2, readb(addr1));
+			wr8(addr2, rd8(addr1));
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += (count - 1), addr2 += (count - 1);
 		    count != 0; count--, addr1--, addr2--)
-			writeb(addr2, readb(addr1));
+			wr8(addr2, rd8(addr1));
 	}
 }
 
@@ -529,12 +548,12 @@ generic_bs_c_2(void *t, bus_space_handle_t bsh1,
 	if (addr1 >= addr2) {
 		/* src after dest: copy forward */
 		for (; count != 0; count--, addr1 += 2, addr2 += 2)
-			writew(addr2, readw(addr1));
+			wr16(addr2, rd16(addr1));
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += 2 * (count - 1), addr2 += 2 * (count - 1);
 		    count != 0; count--, addr1 -= 2, addr2 -= 2)
-			writew(addr2, readw(addr1));
+			wr16(addr2, rd16(addr1));
 	}
 }
 
@@ -549,12 +568,12 @@ generic_bs_c_4(void *t, bus_space_handle_t bsh1,
 	if (addr1 >= addr2) {
 		/* src after dest: copy forward */
 		for (; count != 0; count--, addr1 += 4, addr2 += 4)
-			writel(addr2, readl(addr1));
+			wr32(addr2, rd32(addr1));
 	} else {
 		/* dest after src: copy backwards */
 		for (addr1 += 4 * (count - 1), addr2 += 4 * (count - 1);
 		    count != 0; count--, addr1 -= 4, addr2 -= 4)
-			writel(addr2, readl(addr1));
+			wr32(addr2, rd32(addr1));
 	}
 }
 
