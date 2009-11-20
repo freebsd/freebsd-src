@@ -1982,11 +1982,9 @@ et_rxeof(struct et_softc *sc)
 				m = NULL;
 				ifp->if_ierrors++;
 			} else {
-				m->m_pkthdr.len = m->m_len = buflen;
+				m->m_pkthdr.len = m->m_len =
+				    buflen - ETHER_CRC_LEN;
 				m->m_pkthdr.rcvif = ifp;
-
-				m_adj(m, -ETHER_CRC_LEN);
-
 				ifp->if_ipackets++;
 				ET_UNLOCK(sc);
 				ifp->if_input(ifp, m);
