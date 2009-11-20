@@ -203,6 +203,13 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, i32, 4);						\
 } while (0)
 
+/* subl i8,r32 */
+#define SUBib(i8, r32) do {						\
+	emitm(&stream, 0x83, 1);					\
+	emitm(&stream, (29 << 3) | (r32 & 0x7), 1);			\
+	emitm(&stream, i8, 1);						\
+} while (0)
+
 /* mull r32 */
 #define MULrd(r32) do {							\
 	emitm(&stream, 0xf7, 1);					\

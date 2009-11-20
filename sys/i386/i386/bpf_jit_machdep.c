@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/i386/bpf_jit_machdep.h>
 
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *, int *);
+bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, size_t *);
 
 /*
  * emit routine to update the jump table
@@ -97,7 +97,7 @@ emit_code(bpf_bin_stream *stream, u_int value, u_int len)
  * Function that does the real stuff
  */
 bpf_filter_func
-bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
+bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 {
 	bpf_bin_stream stream;
 	struct bpf_insn *ins;
@@ -111,10 +111,9 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 
 	/* Allocate the reference table for the jumps */
 #ifdef _KERNEL
-	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int),
-	    M_BPFJIT, M_NOWAIT);
+	stream.refs = malloc((nins + 1) * sizeof(u_int), M_BPFJIT, M_NOWAIT);
 #else
-	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int));
+	stream.refs = malloc((nins + 1) * sizeof(u_int));
 #endif
 	if (stream.refs == NULL)
 		return (NULL);
@@ -139,6 +138,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 		/* create the procedure header */
 		PUSH(EBP);
 		MOVrd(ESP, EBP);
+		SUBib(BPF_MEMWORDS * sizeof(uint32_t), ESP);
 		PUSH(EDI);
 		PUSH(ESI);
 		PUSH(EBX);
@@ -310,14 +310,16 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				break;
 
 			case BPF_LD|BPF_MEM:
-				MOVid((uintptr_t)mem, ECX);
-				MOVid(ins->k * 4, ESI);
+				MOVrd(EBP, ECX);
+				MOVid(((int)ins->k - BPF_MEMWORDS) *
+				    sizeof(uint32_t), ESI);
 				MOVobd(ECX, ESI, EAX);
 				break;
 
 			case BPF_LDX|BPF_MEM:
-				MOVid((uintptr_t)mem, ECX);
-				MOVid(ins->k * 4, ESI);
+				MOVrd(EBP, ECX);
+				MOVid(((int)ins->k - BPF_MEMWORDS) *
+				    sizeof(uint32_t), ESI);
 				MOVobd(ECX, ESI, EDX);
 				break;
 
@@ -327,14 +329,16 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 				 * be optimized if the previous instruction
 				 * was already of this type
 				 */
-				MOVid((uintptr_t)mem, ECX);
-				MOVid(ins->k * 4, ESI);
+				MOVrd(EBP, ECX);
+				MOVid(((int)ins->k - BPF_MEMWORDS) *
+				    sizeof(uint32_t), ESI);
 				MOVomd(EAX, ECX, ESI);
 				break;
 
 			case BPF_STX:
-				MOVid((uintptr_t)mem, ECX);
-				MOVid(ins->k * 4, ESI);
+				MOVrd(EBP, ECX);
+				MOVid(((int)ins->k - BPF_MEMWORDS) *
+				    sizeof(uint32_t), ESI);
 				MOVomd(EDX, ECX, ESI);
 				break;
 
@@ -513,13 +517,12 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size, int *mem)
 		}
 
 #ifdef _KERNEL
-		stream.ibuf = (char *)contigmalloc(stream.cur_ip, M_BPFJIT,
-		    M_NOWAIT, 0, ~0UL, 16, 0);
+		stream.ibuf = malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
 		if (stream.ibuf == NULL)
 			break;
 #else
-		stream.ibuf = (char *)mmap(NULL, stream.cur_ip,
-		    PROT_READ | PROT_WRITE, MAP_ANON, -1, 0);
+		stream.ibuf = mmap(NULL, stream.cur_ip, PROT_READ | PROT_WRITE,
+		    MAP_ANON, -1, 0);
 		if (stream.ibuf == MAP_FAILED) {
 			stream.ibuf = NULL;
 			break;

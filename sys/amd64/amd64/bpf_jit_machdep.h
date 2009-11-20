@@ -215,9 +215,14 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, 0xc486, 2);					\
 } while (0)
 
-/* ret */
-#define RET() do {						\
-	emitm(&stream, 0xc3, 1);					\
+/* pushq r64 */
+#define PUSH(r64) do {							\
+	emitm(&stream, (5 << 4) | (0 << 3) | (r64 & 0x7), 1);		\
+} while (0)
+
+/* leave/ret */
+#define LEAVE_RET() do {						\
+	emitm(&stream, 0xc3c9, 2);					\
 } while (0)
 
 /* addl sr32,dr32 */
@@ -251,6 +256,13 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 #define SUB_EAXi(i32) do {						\
 	emitm(&stream, 0x2d, 1);					\
 	emitm(&stream, i32, 4);						\
+} while (0)
+
+/* subq i8,r64 */
+#define SUBib(i8, r64) do {						\
+	emitm(&stream, 0x8348, 2);					\
+	emitm(&stream, (29 << 3) | (r64 & 0x7), 1);			\
+	emitm(&stream, i8, 1);						\
 } while (0)
 
 /* mull r32 */
