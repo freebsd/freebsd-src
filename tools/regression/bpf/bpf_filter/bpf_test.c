@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2009 Jung-uk Kim <jkim@FreeBSD.org>. All rights reserved.
+ * Copyright (C) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
