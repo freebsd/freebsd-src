@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMATE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/alc/if_alcreg.h,v 1.1.4.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	_IF_ALCREG_H

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/Versions.def,v 1.8.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 # This is our first version; it depends on no other.
 # This version was first added to 7.0-current.

@@ -22,7 +22,7 @@
  *	Ann Arbor, Michigan
  *	+1-313-764-2278
  *	netatalk@umich.edu
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/phase2.h,v 1.3.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <net/if_llc.h>

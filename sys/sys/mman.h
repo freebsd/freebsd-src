@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mman.h,v 1.42.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _SYS_MMAN_H_

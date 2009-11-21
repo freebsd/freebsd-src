@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/tl/if_tl.c,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Texas Instruments ThunderLAN driver for FreeBSD 2.2.6 and 3.x.

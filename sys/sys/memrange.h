@@ -1,7 +1,7 @@
 /*
  * Memory range attribute operations, peformed on /dev/mem
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/memrange.h,v 1.8.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* Memory range attributes */

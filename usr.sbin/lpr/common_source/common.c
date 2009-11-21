@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)common.c	8.5 (Berkeley) 4/28/95";
 #endif
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/common_source/common.c,v 1.34.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

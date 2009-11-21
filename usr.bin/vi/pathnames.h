@@ -1,5 +1,5 @@
 /* @(#)pathnames.h.in	8.4 (Berkeley) 6/26/96 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/vi/pathnames.h,v 1.3.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /* Read standard system paths first. */
 #include <paths.h>

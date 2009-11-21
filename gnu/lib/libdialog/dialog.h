@@ -22,7 +22,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/dialog.h,v 1.23.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  *
  */
 

@@ -24,7 +24,7 @@
  * This software is derived from software provide by Kwikbyte who specifically
  * disclaimed copyright on the code.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/mci_device.h,v 1.3.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 //*---------------------------------------------------------------------------

@@ -26,7 +26,7 @@
 /*      $NetBSD: pipe.S,v 1.6 2000/09/28 08:38:54 kleink Exp $  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/powerpc/sys/pipe.S,v 1.1.28.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include "SYS.h"
 

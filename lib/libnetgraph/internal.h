@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libnetgraph/internal.h,v 1.5.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  * $Whistle: internal.h,v 1.5 1999/01/20 00:57:22 archie Exp $
  */
 

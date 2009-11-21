@@ -1,5 +1,5 @@
 /*
- *  $FreeBSD$
+ *  $FreeBSD: src/sys/dev/cxgb/cxgb_include.h,v 1.9.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <sys/cdefs.h>

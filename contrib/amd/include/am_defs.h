@@ -39,7 +39,7 @@
  *
  * File: am-utils/include/am_defs.h
  * $Id: am_defs.h,v 1.15.2.16 2004/05/12 15:54:31 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/include/am_defs.h,v 1.15.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  *
  */
 

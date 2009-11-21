@@ -42,4 +42,4 @@
 
 
 	.section .rodata
-.ascii "$FreeBSD$\0"
+.ascii "$FreeBSD: src/lib/csu/powerpc/crtn.S,v 1.2.28.1.2.1 2009/10/25 01:10:29 kensmith Exp $\0"

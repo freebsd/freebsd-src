@@ -1,7 +1,7 @@
 /*-
  * Test 0023:	BPF_JMP+BPF_JSET+BPF_X
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0023.h,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* BPF program */

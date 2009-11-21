@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_securetty/Makefile,v 1.5.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 LIB=	pam_securetty
 SRCS=	pam_securetty.c

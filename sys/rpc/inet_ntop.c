@@ -19,7 +19,7 @@
 static const char rcsid[] = "$Id: inet_ntop.c,v 1.3.18.2 2005/11/03 23:02:22 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/rpc/inet_ntop.c,v 1.2.6.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

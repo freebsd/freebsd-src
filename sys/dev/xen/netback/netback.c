@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/xen/netback/netback.c,v 1.3.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $");
 #include "opt_sctp.h"
 
 #include <sys/param.h>

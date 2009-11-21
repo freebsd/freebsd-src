@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)shell.h	8.2 (Berkeley) 5/4/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/shell.h,v 1.18.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef SHELL_H_

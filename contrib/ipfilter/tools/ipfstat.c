@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipfstat.c,v 1.7.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 
 /*
  * Copyright (C) 2002-2006 by Darren Reed.

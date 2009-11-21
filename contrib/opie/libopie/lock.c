@@ -29,7 +29,7 @@ License Agreement applies to this software.
             Avoid NULL.
         Created at NRL for OPIE 2.2 from opiesubr2.c
 
-$FreeBSD$
+$FreeBSD: src/contrib/opie/libopie/lock.c,v 1.3.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 */
 #include "opie_cfg.h"
 #if HAVE_STRING_H

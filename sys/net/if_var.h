@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)if.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_var.h,v 1.152.2.5.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	_NET_IF_VAR_H_

@@ -47,7 +47,7 @@
  *
  *	from: @(#)locore.s	8.5 (Berkeley) 1/4/94
  *	JNPR: locore.S,v 1.6.2.1 2007/08/29 12:24:49 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/mips/locore.S,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /*

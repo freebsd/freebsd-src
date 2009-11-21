@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libgssapi/gss_inquire_cred_by_mech.c,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <gssapi/gssapi.h>

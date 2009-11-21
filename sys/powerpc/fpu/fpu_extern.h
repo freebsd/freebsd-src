@@ -1,5 +1,5 @@
 /*	$NetBSD: fpu_extern.h,v 1.3 2005/12/11 12:18:42 christos Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/fpu/fpu_extern.h,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1995 The NetBSD Foundation, Inc.

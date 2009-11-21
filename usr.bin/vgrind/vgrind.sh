@@ -33,7 +33,7 @@
 #
 #       @(#)vgrind.sh	8.1 (Berkeley) 6/6/93
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/vgrind/vgrind.sh,v 1.4.32.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #
 
 voptions=""

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unpcb.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/unpcb.h,v 1.23.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _SYS_UNPCB_H_

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/colldef/Makefile,v 1.21.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=	colldef
 SRCS=	parse.y scan.l y.tab.h

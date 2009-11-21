@@ -26,7 +26,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/mfc/mfc.pl,v 1.13.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #
 
 # This perl scripts only uses programs that are part of the base system.

@@ -1,6 +1,6 @@
 /*-
  *	JNPR: pltfm.h,v 1.5.2.1 2007/09/10 05:56:11 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/pltfm.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_PLTFM_H_

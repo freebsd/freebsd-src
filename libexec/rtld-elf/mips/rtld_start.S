@@ -1,5 +1,5 @@
 /*	$NetBSD: rtld_start.S,v 1.9 2002/10/05 11:59:05 mycroft Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/rtld-elf/mips/rtld_start.S,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /*
  * Copyright 1997 Michael L. Hitch <mhitch@montana.edu>

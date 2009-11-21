@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/tftpd/tftpd.c,v 1.38.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $";
 #endif /* not lint */
 
 /*

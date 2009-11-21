@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.1 2002/03/01 11:21:58 ad Exp $
-# $FreeBSD$
+# $FreeBSD: src/bin/pkill/Makefile,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=	pkill
 WARNS?=	5

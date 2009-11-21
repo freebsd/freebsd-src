@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/unlink/12.t,v 1.1.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 desc="unlink returns EROFS if the named file resides on a read-only file system"
 

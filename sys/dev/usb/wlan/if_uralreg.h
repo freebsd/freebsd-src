@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/wlan/if_uralreg.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 2005, 2006

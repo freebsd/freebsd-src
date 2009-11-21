@@ -36,7 +36,7 @@
  * Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/slcompress.c,v 1.39.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <sys/param.h>

@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pci/ignore_pci.c,v 1.4.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * 'Ignore' driver - eats devices that show up errnoeously on PCI

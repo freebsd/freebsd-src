@@ -46,7 +46,7 @@
 ** SUCH DAMAGE.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/i386/sysdep.h,v 1.8.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 #if !defined (__SYSDEP_H__)
 #define __SYSDEP_H__ 

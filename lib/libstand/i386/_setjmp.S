@@ -32,7 +32,7 @@
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$FreeBSD$"
+	.asciz "$FreeBSD: src/lib/libstand/i386/_setjmp.S,v 1.7.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*

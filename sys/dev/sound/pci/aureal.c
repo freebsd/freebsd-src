@@ -35,7 +35,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/aureal.c,v 1.37.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /* PCI IDs of supported chips */
 #define AU8820_PCI_ID 0x000112eb

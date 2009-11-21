@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/_limits.h,v 1.28.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE__LIMITS_H_

@@ -39,7 +39,7 @@
  *	from: @(#)cache.h	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: cache.h,v 1.3 2000/08/01 00:28:02 eeh Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/cache.h,v 1.15.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_CACHE_H_

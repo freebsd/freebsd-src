@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ngctl/main.c,v 1.25.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  * $Whistle: main.c,v 1.12 1999/11/29 19:17:46 archie Exp $
  */
 

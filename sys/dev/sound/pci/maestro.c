@@ -58,7 +58,7 @@
 
 #include <dev/sound/pci/maestro_reg.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/maestro.c,v 1.38.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * PCI IDs of supported chips:

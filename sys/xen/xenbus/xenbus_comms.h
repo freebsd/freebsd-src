@@ -24,7 +24,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/xen/xenbus/xenbus_comms.h,v 1.4.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _XENBUS_COMMS_H

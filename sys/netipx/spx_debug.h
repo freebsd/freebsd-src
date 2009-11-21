@@ -58,7 +58,7 @@
  *
  *	@(#)spx_debug.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netipx/spx_debug.h,v 1.18.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _NETIPX_SPX_DEBUG_H_

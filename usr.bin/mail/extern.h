@@ -32,7 +32,7 @@
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/20/95 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mail/extern.h,v 1.9.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 struct name *cat(struct name *, struct name *);

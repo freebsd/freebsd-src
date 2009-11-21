@@ -5,7 +5,7 @@
  *  display.  These definitions are used by the routines in "display.c" for
  *  cursor addressing.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/top/layout.h,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 extern int  x_lastpid;		/* 10 */

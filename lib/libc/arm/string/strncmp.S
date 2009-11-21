@@ -30,7 +30,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/string/strncmp.S,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 ENTRY(strncmp)
 /* if (len == 0) return 0 */

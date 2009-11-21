@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/mips/dump_machdep.c,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /* Note to writer, when using pmap_kenter_temporary() you must,
  * after using the va to write out the page, call 

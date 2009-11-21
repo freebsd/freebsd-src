@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sockio.h	8.1 (Berkeley) 3/28/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/sockio.h,v 1.35.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _SYS_SOCKIO_H_

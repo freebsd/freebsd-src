@@ -1,5 +1,5 @@
 # $Id: Makefile.inc,v 1.1 2000/07/14 18:16:22 iwasaki Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/acpi/Makefile.inc,v 1.10.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 ACPICA_DIR= ${.CURDIR}/../../../sys/contrib/dev/acpica
 CFLAGS+= -I${.CURDIR}/../../../sys

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/svr4/Makefile,v 1.36.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../${MACHINE_ARCH}/svr4 ${.CURDIR}/../../compat/svr4
 KMOD=	svr4

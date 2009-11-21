@@ -29,7 +29,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	$NetBSD: frame.h,v 1.2 1999/01/10 10:13:15 tsubai Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/include/frame.h,v 1.14.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	_MACHINE_FRAME_H_

@@ -30,7 +30,7 @@
  *
  *	from: @(#)rpc.h 1.9 88/02/08 SMI
  *	from: @(#)rpc.h	2.4 89/07/11 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/include/rpc/rpc.h,v 1.17.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /*

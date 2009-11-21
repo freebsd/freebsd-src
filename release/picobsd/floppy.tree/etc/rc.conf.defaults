@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/floppy.tree/etc/rc.conf.defaults,v 1.2.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #
 # rc.conf for picobsd. This is sourced from /etc/rc1, and is supposed to
 # contain only shell functions that are used later in /etc/rc1.

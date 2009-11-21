@@ -39,4 +39,4 @@
 	 restore
 
 	.section .rodata
-.ascii "$FreeBSD$\0"
+.ascii "$FreeBSD: src/lib/csu/sparc64/crtn.S,v 1.1.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $\0"

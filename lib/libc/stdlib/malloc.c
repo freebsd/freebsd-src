@@ -156,7 +156,7 @@
 #define	MALLOC_DSS
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/malloc.c,v 1.183.2.3.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include "libc_private.h"
 #ifdef MALLOC_DEBUG

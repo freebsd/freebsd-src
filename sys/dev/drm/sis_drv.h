@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/sis_drv.h,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #ifndef _SIS_DRV_H_
 #define _SIS_DRV_H_

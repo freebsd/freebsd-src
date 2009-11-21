@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/nscd/singletons.h,v 1.3.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef __NSCD_SINGLETONS_H__

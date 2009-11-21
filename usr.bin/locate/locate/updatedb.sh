@@ -26,7 +26,7 @@
 #
 # updatedb - update locate database for local mounted filesystems
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/locate/locate/updatedb.sh,v 1.22.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 if [ "$(id -u)" = "0" ]; then
 	echo ">>> WARNING" 1>&2

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/opcodes/ppc-dis.c,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /* ppc-dis.c -- Disassemble PowerPC instructions
    Copyright 1994, 1995, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.

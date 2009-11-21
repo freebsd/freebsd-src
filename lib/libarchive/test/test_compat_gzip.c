@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_compat_gzip.c,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Verify our ability to read sample files compatibly with gunzip.

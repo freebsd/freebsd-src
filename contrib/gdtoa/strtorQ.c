@@ -29,7 +29,7 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gdtoa/strtorQ.c,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 #include "gdtoaimp.h"
 

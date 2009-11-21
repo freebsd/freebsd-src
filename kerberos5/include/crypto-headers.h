@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/kerberos5/include/crypto-headers.h,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 #ifndef __crypto_headers_h__
 #define __crypto_headers_h__
 #define OPENSSL_DES_LIBDES_COMPATIBILITY

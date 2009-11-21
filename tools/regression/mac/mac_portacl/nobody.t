@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/mac/mac_portacl/nobody.t,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 dir=`dirname $0`
 . ${dir}/misc.sh

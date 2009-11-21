@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/msun/Makefile,v 1.15.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 TESTS=	test-conj test-csqrt test-exponential test-fenv test-fma \
 	test-fmaxmin test-ilogb test-invtrig test-lrint \

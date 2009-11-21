@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/mips/malta/files.malta,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 mips/malta/gt.c				standard
 mips/malta/gt_pci.c			standard
 mips/malta/obio.c			optional uart

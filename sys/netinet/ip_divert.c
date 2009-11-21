@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/ip_divert.c,v 1.156.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #if !defined(KLD_MODULE)
 #include "opt_inet.h"

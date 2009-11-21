@@ -27,7 +27,7 @@
  * rights to redistribute these changes.
  *
  *	JNPR: setjmp.h,v 1.2 2006/12/02 09:53:41 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/setjmp.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_SETJMP_H_

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/rename/21.t,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 desc="write access to subdirectory is required to move it to another directory"
 

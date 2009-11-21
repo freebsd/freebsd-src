@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_tan.S,v 1.7.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $")
 
 ENTRY(tan)
 	fldl	4(%esp)

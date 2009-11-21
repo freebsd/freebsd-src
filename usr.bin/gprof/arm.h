@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)i386.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gprof/arm.h,v 1.1.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
     /*

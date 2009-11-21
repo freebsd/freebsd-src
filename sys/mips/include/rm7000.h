@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	JNPR: rm7000.h,v 1.2.4.1 2007/08/29 12:06:30 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/rm7000.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_RM7000_H_

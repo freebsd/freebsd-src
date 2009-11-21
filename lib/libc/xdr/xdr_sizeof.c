@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/xdr/xdr_sizeof.c,v 1.5.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include "namespace.h"
 #include <rpc/types.h>

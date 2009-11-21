@@ -12,7 +12,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/btx/btxldr/btxldr.S,v 1.20.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #define	RBX_MUTE	0x10	/* -m */

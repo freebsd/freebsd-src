@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/driver.c,v 1.22.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS

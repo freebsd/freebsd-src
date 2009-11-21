@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/liby/main.c,v 1.5.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #ifndef lint
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/4/93";

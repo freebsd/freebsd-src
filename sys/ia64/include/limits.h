@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/limits.h,v 1.13.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /* From: NetBSD: limits.h,v 1.3 1997/04/06 08:47:31 cgd Exp */
 
 /*-

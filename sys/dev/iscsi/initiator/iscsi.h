@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/iscsi/initiator/iscsi.h,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 /*
  | $Id: iscsi.h,v 1.17 2006/12/01 09:10:17 danny Exp danny $

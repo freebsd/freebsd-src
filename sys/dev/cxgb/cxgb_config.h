@@ -26,7 +26,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 
-$FreeBSD$
+$FreeBSD: src/sys/dev/cxgb/cxgb_config.h,v 1.11.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 ***************************************************************************/
 #ifndef _CXGB_CONFIG_H_

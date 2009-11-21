@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/open/10.t,v 1.1.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 desc="open returns EPERM when the named file has its immutable flag set and the file is to be modified"
 

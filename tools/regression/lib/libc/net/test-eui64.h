@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/lib/libc/net/test-eui64.h,v 1.2.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 #ifndef _TEST_EUI64_H
 #define _TEST_EUI64_H

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/unlink/08.t,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 desc="unlink may return EPERM if the named file is a directory"
 

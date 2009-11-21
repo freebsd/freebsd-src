@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/netcat/FREEBSD-upgrade,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 1. Export from OpenBSD's nc(1) into an empty directory (say "v-nc").
 2. while read pattern; do rm ${pattern} ; done < FREEBSD-Xlist

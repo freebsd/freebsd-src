@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/ipip_var.h,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 /*	$OpenBSD: ip_ipip.h,v 1.5 2002/06/09 16:26:10 itojun Exp $ */
 /*-
  * The authors of this code are John Ioannidis (ji@tla.org),

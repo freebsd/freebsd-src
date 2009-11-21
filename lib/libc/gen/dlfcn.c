@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/dlfcn.c,v 1.16.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Linkage to services provided by the dynamic linker.

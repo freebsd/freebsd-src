@@ -21,7 +21,7 @@
  *
  * Portions Copyright 2008 John Birrell jb@freebsd.org
  *
- * $FreeBSD$
+ * $FreeBSD: src/cddl/lib/libdtrace/signal.d,v 1.1.4.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 inline int SIGHUP = 1;

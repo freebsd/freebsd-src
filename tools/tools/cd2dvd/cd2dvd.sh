@@ -25,7 +25,7 @@
 #
 # Merges FreeBSD's several CD installation medias to the single DVD disk.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/cd2dvd/cd2dvd.sh,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 ## Helper functions
 usage () {

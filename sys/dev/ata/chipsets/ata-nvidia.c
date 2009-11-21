@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ata/chipsets/ata-nvidia.c,v 1.9.2.1.2.2 2009/10/29 11:52:26 mav Exp $");
 
 #include "opt_ata.h"
 #include <sys/param.h>

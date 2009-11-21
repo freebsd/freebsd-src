@@ -1,7 +1,7 @@
 /*
  * Header for general data acquisition definitions.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/dataacq.h,v 1.5.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	_SYS_DATAACQ_H_

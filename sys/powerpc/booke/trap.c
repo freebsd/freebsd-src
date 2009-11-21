@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/booke/trap.c,v 1.4.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include "opt_fpu_emu.h"
 #include "opt_ktrace.h"

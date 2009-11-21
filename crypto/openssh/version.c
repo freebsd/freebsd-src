@@ -26,7 +26,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/version.c,v 1.7.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <string.h>
 

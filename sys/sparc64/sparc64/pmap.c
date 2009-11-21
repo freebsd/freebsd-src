@@ -42,7 +42,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/pmap.c,v 1.182.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Manages physical address maps.

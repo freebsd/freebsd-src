@@ -1,6 +1,6 @@
 .file "__umodsi3.s"
 
-// $FreeBSD$
+// $FreeBSD: src/sys/libkern/ia64/__umodsi3.S,v 1.2.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 //-
 // Copyright (c) 2000, Intel Corporation

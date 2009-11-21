@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/less/defines.h,v 1.8.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /* defines.h.  Generated from defines.h.in by configure.  */
 /* defines.h.in.  Generated from configure.ac by autoheader.  */
 

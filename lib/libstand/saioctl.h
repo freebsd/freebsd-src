@@ -30,7 +30,7 @@
  *
  *	@(#)saioctl.h	8.1 (Berkeley) 6/11/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/saioctl.h,v 1.2.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* ioctl's -- for disks just now */

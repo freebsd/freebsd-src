@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/bin/sh/execution/fork1.0,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 result=$(sh -c 'ps -p $$ -o comm=')
 test "$result" = "ps" || exit 1

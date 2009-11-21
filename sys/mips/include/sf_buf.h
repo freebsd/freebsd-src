@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	from: src/sys/i386/include/sf_buf.h,v 1.4 2005/02/13 06:23:13 alc
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/sf_buf.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_SF_BUF_H_

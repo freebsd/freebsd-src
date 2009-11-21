@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/c89/c89.c,v 1.5.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <err.h>
 #include <stdio.h>

@@ -25,7 +25,7 @@
  *
  * From: FreeBSD: src/sys/miscfs/kernfs/kernfs_vfsops.c 1.36
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/devfs/devfs_devs.c,v 1.57.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <sys/param.h>

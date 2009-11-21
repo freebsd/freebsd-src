@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/include/port_before.h,v 1.1.12.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 #ifndef _PORT_BEFORE_H_
 #define _PORT_BEFORE_H_

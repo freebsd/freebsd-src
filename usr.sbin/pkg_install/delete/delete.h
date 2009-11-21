@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/delete/delete.h,v 1.8.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

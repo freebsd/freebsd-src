@@ -1,7 +1,7 @@
 /*-
  * Test 0009:	BPF_LDX+BPF_IMM & BPF_LD+BPF_W+BPF_IND
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0009.h,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* BPF program */

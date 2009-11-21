@@ -32,7 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "opt_ddb.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/net/flowtable.c,v 1.15.2.8.2.2 2009/10/28 22:00:49 qingli Exp $");
 
 #include <sys/param.h>  
 #include <sys/types.h>

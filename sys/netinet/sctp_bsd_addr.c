@@ -31,7 +31,7 @@
 /* $KAME: sctp_output.c,v 1.46 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/sctp_bsd_addr.c,v 1.24.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_var.h>

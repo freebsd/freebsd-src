@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/env/env.c,v 1.20.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <err.h>
 #include <errno.h>

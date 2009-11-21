@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/libexec/mknetid/parse_group.c,v 1.7.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $";
 #endif /* not lint */
 
 /*

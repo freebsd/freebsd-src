@@ -27,7 +27,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/crashinfo/crashinfo.sh,v 1.1.6.1.2.2 2009/11/10 00:52:22 delphij Exp $
 
 usage()
 {

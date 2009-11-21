@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/tools/ether_reflect/ether_reflect.c,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <unistd.h>
 #include <stdlib.h>

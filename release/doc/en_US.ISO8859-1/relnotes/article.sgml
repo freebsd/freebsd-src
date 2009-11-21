@@ -17,7 +17,7 @@
 
   <corpauthor>The &os; Project</corpauthor>
 
-  <pubdate>$FreeBSD$</pubdate>
+  <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/relnotes/article.sgml,v 1.1101.2.2.2.2 2009/11/20 15:53:59 kensmith Exp $</pubdate>
 
   <copyright>
     <year>2000</year>

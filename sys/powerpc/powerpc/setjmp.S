@@ -1,4 +1,4 @@
-/*	$FreeBSD$  */
+/*	$FreeBSD: src/sys/powerpc/powerpc/setjmp.S,v 1.1.28.1.2.1 2009/10/25 01:10:29 kensmith Exp $  */
 /*	from:	NetBSD: setjmp.S,v 1.1 1998/01/27 15:13:12 sakamoto Exp $  */
 /*	from:	OpenBSD: setjmp.S,v 1.2 1996/12/28 06:22:18 rahnds Exp 	*/
 /* kernel version of this file, does not have signal goop */

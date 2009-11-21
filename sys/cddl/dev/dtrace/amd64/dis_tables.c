@@ -18,7 +18,7 @@
  *
  * CDDL HEADER END
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cddl/dev/dtrace/amd64/dis_tables.c,v 1.1.4.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 /*
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.

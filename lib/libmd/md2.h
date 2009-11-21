@@ -1,5 +1,5 @@
 /* MD2.H - header file for MD2C.C
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/md2.h,v 1.10.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

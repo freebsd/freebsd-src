@@ -37,7 +37,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_ppp.h,v 1.14.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  * $Whistle: ng_ppp.h,v 1.8 1999/01/25 02:40:02 archie Exp $
  */
 

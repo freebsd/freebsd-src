@@ -29,7 +29,7 @@
  * rights to redistribute these changes.
  *
  *	JNPR: clockvar.h,v 1.3 2006/08/07 05:38:57 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/clockvar.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /*

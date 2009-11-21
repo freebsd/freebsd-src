@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/ukphy_subr.c,v 1.10.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Subroutines shared by the ukphy driver and other PHY drivers.

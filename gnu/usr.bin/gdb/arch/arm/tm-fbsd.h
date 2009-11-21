@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/tm-fbsd.h,v 1.1.12.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /* Macro definitions for ARM running under NetBSD.
    Copyright 2003 Free Software Foundation, Inc.

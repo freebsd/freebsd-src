@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/Makefile,v 1.75.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 LOCALES=	bg_BG.CP1251 \
 		be_BY.CP1131 \

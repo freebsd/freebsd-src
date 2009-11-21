@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/hv_pci.c,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Support for the Hypervisor PCI bus.

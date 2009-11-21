@@ -20,7 +20,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/p_string.c,v 1.3.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  *****************************************************************************/
 
 #include "lib.h"

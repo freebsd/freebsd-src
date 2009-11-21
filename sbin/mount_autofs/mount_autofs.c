@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  * $Id: mount_autofs.c,v 1.5 2004/09/08 08:12:21 bright Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sbin/mount_autofs/mount_autofs.c,v 1.4.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 #include <err.h>
 #include <stdio.h>

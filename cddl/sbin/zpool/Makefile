@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/cddl/sbin/zpool/Makefile,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../cddl/contrib/opensolaris/cmd/zpool \
 	${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs

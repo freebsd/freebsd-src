@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/msi.c,v 1.14.2.1.2.2 2009/11/06 17:09:04 attilio Exp $");
 
 #include <sys/param.h>
 #include <sys/bus.h>

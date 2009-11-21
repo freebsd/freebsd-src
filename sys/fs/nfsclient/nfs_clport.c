@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/fs/nfsclient/nfs_clport.c,v 1.5.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * generally, I don't like #includes inside .h files, but it seems to

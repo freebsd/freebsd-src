@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libbz2/Makefile,v 1.8.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 BZ2DIR=	${.CURDIR}/../../contrib/bzip2
 .PATH: ${BZ2DIR}

@@ -34,7 +34,7 @@
  *	Id: lptreg.h,v 1.6 1997/02/22 09:36:52 peter Exp
  *	From Id: nlpt.h,v 1.3 1999/01/10 12:04:54 nsouch Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ppbus/lpt.h,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /*

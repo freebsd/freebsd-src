@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libdevstat/Makefile,v 1.17.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 LIB=	devstat
 SHLIBDIR?= /lib

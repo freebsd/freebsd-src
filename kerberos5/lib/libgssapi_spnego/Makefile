@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/lib/libgssapi_spnego/Makefile,v 1.1.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 LIB=	gssapi_spnego
 LDFLAGS= -Wl,-Bsymbolic

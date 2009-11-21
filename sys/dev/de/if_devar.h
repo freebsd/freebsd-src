@@ -1,6 +1,6 @@
 /*	$NetBSD: if_devar.h,v 1.32 1999/04/01 14:55:25 tsubai Exp $	*/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/de/if_devar.h,v 1.45.10.2.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)

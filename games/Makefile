@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/31/94
-# $FreeBSD$
+# $FreeBSD: src/games/Makefile,v 1.20.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 SUBDIR= \
 	bcd \

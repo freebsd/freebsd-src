@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/icsphy.c,v 1.1.12.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * driver for Integrated Circuit Systems' ICS1889-1893 ethernet 10/100 PHY

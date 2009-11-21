@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/gdb/arch/i386/Makefile,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 GENSRCS+= xm.h
 .if !defined(GDB_CROSS_DEBUGGER)

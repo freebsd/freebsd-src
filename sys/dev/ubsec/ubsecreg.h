@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ubsec/ubsecreg.h,v 1.7.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /*	$OpenBSD: ubsecreg.h,v 1.27 2002/09/11 22:40:31 jason Exp $	*/
 
 /*-

@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_rootok/Makefile,v 1.6.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 LIB=	pam_rootok
 SRCS=	pam_rootok.c

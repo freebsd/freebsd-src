@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/src/preproc/refer/Makefile,v 1.4.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG_CXX=	refer
 SRCS=		command.cpp label.cpp ref.cpp refer.cpp token.cpp

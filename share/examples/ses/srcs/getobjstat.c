@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/ses/srcs/getobjstat.c,v 1.1.56.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /*
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.

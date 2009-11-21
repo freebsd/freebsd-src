@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/esp.h,v 1.2.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 /*	$KAME: esp.h,v 1.16 2000/10/18 21:28:00 itojun Exp $	*/
 
 /*-

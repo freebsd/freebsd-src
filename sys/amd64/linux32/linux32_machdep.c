@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/linux32/linux32_machdep.c,v 1.53.2.1.2.2 2009/11/05 16:16:56 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

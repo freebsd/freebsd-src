@@ -26,7 +26,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: FreeBSD: src/sys/alpha/include/ucontext.h,v 1.3 1999/10/08
- * $FreeBSD$
+ * $FreeBSD: src/sys/sun4v/include/ucontext.h,v 1.1.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_UCONTEXT_H_

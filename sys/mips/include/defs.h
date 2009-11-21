@@ -6,7 +6,7 @@
  * Jim Hayes, November 1996
  *
  *	JNPR: defs.h,v 1.3.2.1 2007/09/10 08:16:32 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/defs.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef __DEFS_H__

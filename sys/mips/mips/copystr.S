@@ -52,7 +52,7 @@
 #include "assym.s"
 #include <machine/asm.h>
 #include <machine/asmacros.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/mips/mips/copystr.S,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/errno.h>
 

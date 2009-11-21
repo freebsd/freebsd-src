@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w 
 
-#$FreeBSD$
+#$FreeBSD: src/sys/dev/cxgb/bin2h.pl,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 if ($#ARGV != 1) {
   print "bin2h.pl <firmware> <headername>\n";

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)glob.h	8.1 (Berkeley) 6/2/93
- * $FreeBSD$
+ * $FreeBSD: src/include/glob.h,v 1.10.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _GLOB_H_

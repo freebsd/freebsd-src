@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/check_utility_compat.c,v 1.3.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * I din't use "namespace.h" here because none of the relevant utilities

@@ -1,5 +1,5 @@
 /* $NetBSD: arm-gcc.h,v 1.2 2001/02/21 18:09:25 bjh21 Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/mips/softfloat/mips-gcc.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /*
 -------------------------------------------------------------------------------

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)regex2.h	8.4 (Berkeley) 3/20/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/regex/regex2.h,v 1.11.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /*

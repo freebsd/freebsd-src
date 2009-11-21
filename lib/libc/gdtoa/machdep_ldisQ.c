@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gdtoa/machdep_ldisQ.c,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <float.h>
 

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cpio/test/test_gcpio_compat.c,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 static void
 unpack_test(const char *from, const char *options, const char *se)

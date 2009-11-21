@@ -6,7 +6,7 @@
 #
 # Trust me, RUN THIS SCRIPT :)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/drivers/make_pseudo_driver.sh,v 1.15.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #
 #-------cut here------------------
 

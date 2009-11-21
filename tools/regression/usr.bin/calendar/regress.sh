@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/calendar/regress.sh,v 1.2.12.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 CALENDAR_FILE="-f calendar.calibrate"
 CALENDAR_BIN="calendar"

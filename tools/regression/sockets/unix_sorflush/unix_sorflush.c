@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/tools/regression/sockets/unix_sorflush/unix_sorflush.c,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/socket.h>
 

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libcompat/4.3/regex.c,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Compatibility routines that implement the old re_comp/re_exec interface in

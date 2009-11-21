@@ -36,7 +36,7 @@
 #include <machine/asm.h>
 
 RCSID("from: FreeBSD: src/lib/msun/i387/e_remainder.S,v 1.8 2005/02/04 14:08:32 das Exp")
-__FBSDID("$FreeBSD$")
+__FBSDID("$FreeBSD: src/lib/msun/amd64/e_remainder.S,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $")
 
 ENTRY(remainder)
 	movsd	%xmm0,-8(%rsp)

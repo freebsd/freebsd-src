@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/net80211/wlantxtime/Makefile,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=	wlantxtime
 BINDIR=	/usr/local/bin

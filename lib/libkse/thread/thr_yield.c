@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/thread/thr_yield.c,v 1.20.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 #include <pthread.h>
 #include "thr_private.h"

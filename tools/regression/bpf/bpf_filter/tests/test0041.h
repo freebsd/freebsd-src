@@ -1,7 +1,7 @@
 /*-
  * Test 0041:	BPF_MISC+BPF_TAX
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0041.h,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* BPF program */

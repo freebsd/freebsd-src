@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/netcat/FREEBSD-vendor,v 1.2.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $
 Project:	netcat (aka src/usr.bin/nc in OpenBSD)
 ProjectURL:	http://www.openbsd.org/
 Version:	4.4

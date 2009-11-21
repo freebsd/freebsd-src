@@ -1,5 +1,5 @@
 # @(#) Makefile 1.23 97/03/21 19:27:20
-# $FreeBSD$
+# $FreeBSD: src/contrib/tcp_wrappers/Makefile,v 1.2.56.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 what:
 	@echo

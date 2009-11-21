@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/msun/ld80/s_nanl.c,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <math.h>

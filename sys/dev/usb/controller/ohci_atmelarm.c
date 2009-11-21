@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/controller/ohci_atmelarm.c,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/stdint.h>
 #include <sys/stddef.h>

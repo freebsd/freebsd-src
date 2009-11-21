@@ -1,5 +1,5 @@
 # Make `routed` for FreeBSD
-# $FreeBSD$
+# $FreeBSD: src/sbin/routed/Makefile,v 1.18.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=   routed
 SRCS=   if.c input.c main.c output.c parms.c radix.c rdisc.c table.c trace.c

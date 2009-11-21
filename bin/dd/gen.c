@@ -1,7 +1,7 @@
 /*-
  * This program is in the public domain
  *
- * $FreeBSD$
+ * $FreeBSD: src/bin/dd/gen.c,v 1.2.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <stdio.h>

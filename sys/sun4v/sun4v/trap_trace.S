@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")				
+__FBSDID("$FreeBSD: src/sys/sun4v/sun4v/trap_trace.S,v 1.1.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $")				
 	
 #include "opt_trap_trace.h"
 

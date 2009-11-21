@@ -38,7 +38,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/mips/net/ntohl.S,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 LEAF(ntohl)                            # a0 = 0x11223344, return 0x44332211
 #ifdef __MIPSEB__

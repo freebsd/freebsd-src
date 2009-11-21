@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.3 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/fsinterface/Makefile,v 1.7.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 VOLUME=	papers
 DOC=	fsinterface

@@ -25,7 +25,7 @@
  */
 
 #if 0
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/indent/indent.h,v 1.2.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 #endif
 
 void	addkey(char *, int);

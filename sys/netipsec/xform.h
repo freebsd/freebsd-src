@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netipsec/xform.h,v 1.4.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 /*	$OpenBSD: ip_ipsp.h,v 1.119 2002/03/14 01:27:11 millert Exp $	*/
 /*-
  * The authors of this code are John Ioannidis (ji@tla.org),

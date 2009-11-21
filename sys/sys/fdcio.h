@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/fdcio.h,v 1.21.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	_MACHINE_IOCTL_FD_H_

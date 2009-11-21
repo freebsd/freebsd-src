@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ic/wd33c93reg.h,v 1.2.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /*	$NecBSD: wd33c93reg.h,v 1.21.24.1 2001/06/13 05:52:05 honda Exp $	*/
 /*	$NetBSD$	*/
 /*-

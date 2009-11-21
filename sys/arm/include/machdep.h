@@ -1,5 +1,5 @@
 /* $NetBSD: machdep.h,v 1.7 2002/02/21 02:52:21 thorpej Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/include/machdep.h,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 #ifndef _MACHDEP_BOOT_MACHDEP_H_
 #define _MACHDEP_BOOT_MACHDEP_H_

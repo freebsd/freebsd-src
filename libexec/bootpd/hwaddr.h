@@ -1,7 +1,7 @@
 /* 
  * hwaddr.h
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/hwaddr.h,v 1.7.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	HWADDR_H

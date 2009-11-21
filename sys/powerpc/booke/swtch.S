@@ -23,9 +23,9 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: $NetBSD: locore.S,v 1.24 2000/05/31 05:09:17 thorpej Exp $
- *	from: $FreeBSD$
+ *	from: $FreeBSD: src/sys/powerpc/booke/swtch.S,v 1.4.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/powerpc/booke/swtch.S,v 1.4.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 /*-
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.

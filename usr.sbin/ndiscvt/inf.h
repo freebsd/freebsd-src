@@ -1,7 +1,7 @@
 /*
  * $Id: inf.h,v 1.3 2003/11/30 21:58:16 winter Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ndiscvt/inf.h,v 1.1.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #define W_MAX	16

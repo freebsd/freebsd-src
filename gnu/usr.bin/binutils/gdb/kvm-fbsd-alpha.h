@@ -19,7 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/binutils/gdb/kvm-fbsd-alpha.h,v 1.1.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include "alpha/tm-alpha.h"
 

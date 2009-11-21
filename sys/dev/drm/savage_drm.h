@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/savage_drm.h,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #ifndef __SAVAGE_DRM_H__
 #define __SAVAGE_DRM_H__

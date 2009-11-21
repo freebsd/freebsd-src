@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/sade/menus.c,v 1.423.12.1.2.1 2009/10/25 01:10:29 kensmith Exp $";
 #endif
 
 #include "sade.h"

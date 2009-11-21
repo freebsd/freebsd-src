@@ -14,7 +14,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/boot0/boot0.S,v 1.22.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* build options: */

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ie/if_iereg.h,v 1.6.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  * definitions for AT&T StarLAN 10 etc...
  */
 

@@ -37,7 +37,7 @@
  *
  * $Id: ib_verbs.h 1349 2004-12-16 21:09:43Z roland $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/rdma/ib_verbs.h,v 1.1.4.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 

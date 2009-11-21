@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/natd/natd.h,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #define PIDFILE	"/var/run/natd.pid"

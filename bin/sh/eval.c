@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/sh/eval.c,v 1.64.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <paths.h>
 #include <signal.h>

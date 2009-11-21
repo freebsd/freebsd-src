@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ct/ct_machdep.h,v 1.6.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /*	$NecBSD: ct_machdep.h,v 1.4.12.2 2001/06/20 06:13:34 honda Exp $	*/
 /*	$NetBSD$	*/
 

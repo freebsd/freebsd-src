@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  * $Id: autodriver.c,v 1.9 2004/09/08 08:12:21 bright Exp $
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/autofs/driver/autodriver.c,v 1.3.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 #include <ctype.h>
 #include <err.h>

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_eli/integrity-copy.t,v 1.4.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 base=`basename $0`
 no=45

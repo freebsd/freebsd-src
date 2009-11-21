@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  * from: NetBSD: zopen.c,v 1.8 2003/08/07 11:13:29 agc Exp
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gzip/zuncompress.c,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* This file is #included by gzip.c */

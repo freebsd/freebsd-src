@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/arch/powerpc/include/atomic_ops.h,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	_ATOMIC_OPS_H_

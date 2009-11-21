@@ -28,7 +28,7 @@
  *
  *	@(#)fs.h	8.13 (Berkeley) 3/21/95
  * %FreeBSD: src/sys/ufs/ffs/fs.h,v 1.14.2.3 2001/09/21 19:15:22 dillon Exp %
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/fs.h,v 1.2.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _UFS_FFS_FS_H_

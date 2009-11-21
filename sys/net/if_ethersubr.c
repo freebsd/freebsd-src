@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_ethersubr.c,v 1.270.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include "opt_atalk.h"

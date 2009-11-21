@@ -10,7 +10,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/e_pow.c,v 1.13.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /* __ieee754_pow(x,y) return x**y
  *

@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile.inc,v 1.27 2005/10/07 17:16:40 tsutsui Exp $
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/mips/gen/Makefile.inc,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 SRCS+=	infinity.c fabs.c ldexp.c modf.c
 

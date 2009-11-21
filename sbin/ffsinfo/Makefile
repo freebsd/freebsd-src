@@ -1,7 +1,7 @@
 # @(#)Makefile    8.8 (Berkeley) 6/21/2000
 #
 # $TSHeader: src/sbin/ffsinfo/Makefile,v 1.3 2000/12/05 19:45:10 tomsoft Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/ffsinfo/Makefile,v 1.7.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #
 
 GROWFS= ${.CURDIR}/../growfs

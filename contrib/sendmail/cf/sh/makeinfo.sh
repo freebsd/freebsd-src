@@ -13,7 +13,7 @@
 #
 #	$Id: makeinfo.sh,v 8.14 1999/02/07 07:26:25 gshapiro Exp $
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/sendmail/cf/sh/makeinfo.sh,v 1.8.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #
 
 usewhoami=0

@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet/in.c,v 1.143.2.9.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include "opt_carp.h"
 

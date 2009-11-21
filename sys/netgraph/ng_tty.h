@@ -38,7 +38,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_tty.h,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  * $Whistle: ng_tty.h,v 1.7 1999/01/20 00:22:15 archie Exp $
  */
 

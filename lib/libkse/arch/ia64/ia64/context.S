@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/ia64/ia64/context.S,v 1.6.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/syscall.h>
 

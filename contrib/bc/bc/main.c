@@ -26,7 +26,7 @@
                 Western Washington University
                 Bellingham, WA 98226-9062
 
-$FreeBSD$
+$FreeBSD: src/contrib/bc/bc/main.c,v 1.8.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
        
 *************************************************************************/
 

@@ -34,7 +34,7 @@
 
   $Id: authgss_prot.c,v 1.18 2000/09/01 04:14:03 dugsong Exp $
 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/librpcsec_gss/rpcsec_gss_prot.c,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>

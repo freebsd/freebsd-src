@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/29/93
-#	$FreeBSD$
+#	$FreeBSD: src/usr.bin/gprof/Makefile,v 1.8.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=	gprof
 SRCS=	gprof.c aout.c arcs.c dfn.c elf.c lookup.c hertz.c \

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/eficon.h,v 1.3.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 #ifndef _EFI_CON_H
 #define _EFI_CON_H
 

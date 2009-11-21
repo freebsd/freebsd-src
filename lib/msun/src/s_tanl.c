@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_tanl.c,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Compute tan(x) for x where x is reduced to y = x - k * pi / 2.

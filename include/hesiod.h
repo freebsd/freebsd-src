@@ -1,5 +1,5 @@
 /*	$NetBSD: hesiod.h,v 1.3 1999/01/24 23:53:18 lukem Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/include/hesiod.h,v 1.2.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 
 /*-

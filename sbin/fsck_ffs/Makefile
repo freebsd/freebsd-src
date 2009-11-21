@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/fsck_ffs/Makefile,v 1.18.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #	@(#)Makefile	8.2 (Berkeley) 4/27/95
 
 PROG=	fsck_ffs

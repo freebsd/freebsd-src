@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/audit/audit_pipe_ioctl/audit_pipe_ioctl.c,v 1.1.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /*

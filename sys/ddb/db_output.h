@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_output.h,v 1.15.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _DDB_DB_OUTPUT_H_

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/setkey/parse.y,v 1.11.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 /*	$KAME: parse.y,v 1.83 2004/05/18 08:48:23 sakane Exp $	*/
 
 /*

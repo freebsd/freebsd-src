@@ -20,7 +20,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/bfd/elf.c,v 1.19.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 
 /*  SECTION

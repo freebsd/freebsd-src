@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/ncv/ncr53c500hwtab.h,v 1.3.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 /*	$NecBSD: ncr53c500hwtab.h,v 1.2.18.1 2001/06/08 06:27:44 honda Exp $	*/
 /*	$NetBSD$	*/
 

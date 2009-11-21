@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/crypto/heimdal/appl/rcp/extern.h,v 1.1.1.1.38.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 typedef struct {

@@ -31,7 +31,7 @@
  *
  *	JNPR: archtype.h,v 1.6 2007/08/09 11:23:32 katta
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/archtype.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_ARCHTYPE_H_

@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ie/if_ie507.h,v 1.5.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  * Definitions for 3C507
  */
 

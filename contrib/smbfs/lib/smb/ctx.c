@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ctx.c,v 1.24 2002/04/13 14:35:28 bp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/smbfs/lib/smb/ctx.c,v 1.7.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 #include <sys/param.h>
 #include <sys/sysctl.h>

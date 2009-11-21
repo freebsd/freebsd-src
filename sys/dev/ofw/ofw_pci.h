@@ -36,7 +36,7 @@
  *
  *	from: NetBSD: ofw_pci.h,v 1.5 2003/10/22 09:04:39 mjl Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ofw/ofw_pci.h,v 1.2.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _DEV_OFW_OFW_PCI_H_

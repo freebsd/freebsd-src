@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/ufs/uprintf/Makefile,v 1.2.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=	ufs_uprintf
 WARNS?=	3

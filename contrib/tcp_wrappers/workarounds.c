@@ -6,7 +6,7 @@
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/workarounds.c,v 1.2.56.1.2.1 2009/10/25 01:10:29 kensmith Exp $
   */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/fstest/tests/misc.sh,v 1.6.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 ntest=1
 

@@ -2,7 +2,7 @@
  * Offsets into structures used from asm.  Must be kept in sync with
  * appropriate headers.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libkse/arch/sparc64/sparc64/assym.s,v 1.3.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #define	UC_MCONTEXT	0x40

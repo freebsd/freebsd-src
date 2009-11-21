@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libvgl/Makefile,v 1.13.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 LIB=	vgl
 SHLIB_MAJOR= 6
 CFLAGS+=-Wall -I${.CURDIR}

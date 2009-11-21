@@ -16,7 +16,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/cron/cron/compat.h,v 1.5.56.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef __P

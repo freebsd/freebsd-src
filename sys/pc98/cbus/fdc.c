@@ -50,7 +50,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/cbus/fdc.c,v 1.171.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include "opt_fdc.h"

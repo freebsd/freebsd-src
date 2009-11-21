@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/ntfs/ntfs_compr.h,v 1.6.40.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #define NTFS_COMPBLOCK_SIZE	0x1000

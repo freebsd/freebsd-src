@@ -1,5 +1,5 @@
 /*	$NetBSD: ibcs2_termios.h,v 1.3 1994/10/26 02:53:07 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/ibcs2/ibcs2_termios.h,v 1.3.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 
 /*-
  * Copyright (c) 1994 Scott Bartram

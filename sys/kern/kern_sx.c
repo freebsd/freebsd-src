@@ -41,7 +41,7 @@
 #include "opt_no_adaptive_sx.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_sx.c,v 1.67.2.6.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/ktr.h>

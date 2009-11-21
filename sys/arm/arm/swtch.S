@@ -83,7 +83,7 @@
 #include <machine/asm.h>
 #include <machine/asmacros.h>
 #include <machine/armreg.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/swtch.S,v 1.27.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 
 /*

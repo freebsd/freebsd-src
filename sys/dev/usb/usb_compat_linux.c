@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/usb_compat_linux.c,v 1.17.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /*-
  * Copyright (c) 2007 Luigi Rizzo - Universita` di Pisa. All rights reserved.
  * Copyright (c) 2007 Hans Petter Selasky. All rights reserved.

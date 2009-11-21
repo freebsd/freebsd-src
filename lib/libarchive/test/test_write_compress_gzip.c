@@ -25,7 +25,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_compress_gzip.c,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * A basic exercise of gzip reading and writing.

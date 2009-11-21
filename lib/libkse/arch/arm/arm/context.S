@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkse/arch/arm/arm/context.S,v 1.4.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * int thr_setcontext(mcontext_t *mcp, intptr_t val, intptr_t *loc)

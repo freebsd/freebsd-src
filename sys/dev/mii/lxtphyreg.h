@@ -1,6 +1,6 @@
 /*	OpenBSD: lxtphyreg.h,v 1.1 1998/11/11 19:34:47 jason Exp 	*/
 /*	NetBSD: lxtphyreg.h,v 1.1 1998/10/24 00:33:17 thorpej Exp 	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/mii/lxtphyreg.h,v 1.1.38.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

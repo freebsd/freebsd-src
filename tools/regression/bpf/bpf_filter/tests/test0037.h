@@ -1,7 +1,7 @@
 /*-
  * Test 0037:	BPF_ALU+BPF_OR+BPF_K
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/bpf/bpf_filter/tests/test0037.h,v 1.2.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /* BPF program */

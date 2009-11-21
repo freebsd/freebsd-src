@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/usr.sbin/rtadvd/rrenum.h,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 /*	$KAME: rrenum.h,v 1.3 2001/01/21 15:37:14 itojun Exp $	*/
 
 /*

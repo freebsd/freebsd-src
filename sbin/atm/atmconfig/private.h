@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/atm/atmconfig/private.h,v 1.3.30.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 #include <sys/param.h>
 #include <sys/socket.h>

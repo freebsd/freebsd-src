@@ -38,7 +38,7 @@
 %/*static char sccsid[] = "from: @(#)spray.x	2.1 88/08/01 4.0 RPCSRC";*/
 %#endif /* not lint */
 %#include <sys/cdefs.h>
-%__FBSDID("$FreeBSD$");
+%__FBSDID("$FreeBSD: src/include/rpcsvc/spray.x,v 1.7.34.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 #endif
 
 const SPRAYMAX = 8845;	/* max amount can spray */

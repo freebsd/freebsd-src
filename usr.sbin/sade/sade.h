@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/sade.h,v 1.278.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _SADE_H_INCLUDE

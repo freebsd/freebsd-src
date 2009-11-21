@@ -30,7 +30,7 @@
  *
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libstand/if_ether.h,v 1.5.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 /*

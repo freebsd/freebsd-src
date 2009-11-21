@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)jot.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/jot/jot.c,v 1.38.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * jot - print sequential or random data

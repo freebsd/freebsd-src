@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/sysvmsg/Makefile,v 1.3.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 # SysV Message Queue Regression Utility
 # Obtained from: $NetBSD: Makefile,v 1.3 2002/03/05 21:56:59 thorpej Exp $
 

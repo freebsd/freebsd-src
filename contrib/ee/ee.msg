@@ -4,7 +4,7 @@ $
 $ For ee patchlevel 3
 $ 
 $ $Header: /home/hugh/sources/old_ae/RCS/ee.msg,v 1.8 1996/11/30 03:23:40 hugh Exp $
-$ $FreeBSD$
+$ $FreeBSD: src/contrib/ee/ee.msg,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 $ 
 $ 
 $set 1

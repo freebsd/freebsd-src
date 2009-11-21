@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_rules.h,v 1.1.1.1.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $	*/
 
 extern int ipfrule_add __P((void));
 extern int ipfrule_remove __P((void));

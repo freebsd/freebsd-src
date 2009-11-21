@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)softdep.h	9.7 (McKusick) 6/21/00
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/ffs/softdep.h,v 1.19.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <sys/queue.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$  */
+/* $FreeBSD: src/usr.sbin/sysinstall/dist.h,v 1.75.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $  */
 
 #ifndef _DIST_H_INCLUDE
 #define _DIST_H_INCLUDE

@@ -46,7 +46,7 @@ static const char sccsid[] = "@(#)random.c	8.5 (Berkeley) 4/5/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/games/random/random.c,v 1.24.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <sys/types.h>
 

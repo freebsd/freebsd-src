@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  * $DragonFly: src/sys/dev/netif/et/if_et.c,v 1.10 2008/05/18 07:47:14 sephe Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/et/if_et.c,v 1.3.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #include <sys/param.h>

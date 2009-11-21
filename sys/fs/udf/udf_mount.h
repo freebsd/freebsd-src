@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/udf/udf_mount.h,v 1.3.32.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #define	UDFMNT_KICONV	0x00000001

@@ -27,7 +27,7 @@
 # SUCH DAMAGE.
 #
 
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/cdboot/cdboot.s,v 1.19.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 #
 # This program is a freestanding boot program to load an a.out binary

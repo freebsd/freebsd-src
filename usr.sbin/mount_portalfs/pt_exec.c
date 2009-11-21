@@ -34,7 +34,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mount_portalfs/pt_exec.c,v 1.8.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 #include <errno.h>
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.15 (Berkeley) 7/28/94
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/db/test/Makefile,v 1.3.36.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=	dbtest
 OBJS=	dbtest.o strerror.o

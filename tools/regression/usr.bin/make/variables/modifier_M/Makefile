@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/variables/modifier_M/Makefile,v 1.1.22.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 #
 # Test the M modifier.
 #

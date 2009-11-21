@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/pc98/boot2/sys.c,v 1.8.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /*
  * Ported to PC-9801 by Yoshio Kimura

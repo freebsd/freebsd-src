@@ -2,7 +2,7 @@
 # Makefile for RR182x FreeBSD driver
 # Copyright (c)  2004-2005 HighPoint Technologies, Inc. All rights reserved
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/hptmv/Makefile,v 1.4.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 HPTMV= ${.CURDIR}/../../dev/hptmv
 .PATH: ${HPTMV}

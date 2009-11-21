@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/rlconf.h,v 1.8.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /* rlconf.h -- readline configuration definitions */
 
 /* Copyright (C) 1994 Free Software Foundation, Inc.

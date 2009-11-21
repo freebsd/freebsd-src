@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/18/94
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/arp/Makefile,v 1.15.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 
 PROG=	arp
 MAN=	arp.4 arp.8

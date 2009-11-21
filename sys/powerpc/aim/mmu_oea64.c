@@ -91,7 +91,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/aim/mmu_oea64.c,v 1.4.2.1.2.2 2009/11/09 21:54:34 nwhitehorn Exp $");
 
 /*
  * Manages physical address maps.

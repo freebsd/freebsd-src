@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.3 (Berkeley) 8/10/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/dirent.h,v 1.15.10.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef	_SYS_DIRENT_H_

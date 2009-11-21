@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/usb/serial/ugensa.c,v 1.11.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $ */
 /*	$NetBSD: ugensa.c,v 1.9.2.1 2007/03/24 14:55:50 yamt Exp $	*/
 
 /*

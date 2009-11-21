@@ -1,6 +1,6 @@
 /*
  *	JNPR: stdarg.h,v 1.3 2006/09/15 12:52:34 katta
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/include/stdarg.h,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  */
 
 #ifndef _MACHINE_STDARG_H_

@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  *
  *	JNPR: psraccess.S,v 1.4.2.1 2007/09/10 10:36:50 girish
- * $FreeBSD$
+ * $FreeBSD: src/sys/mips/mips/psraccess.S,v 1.1.2.1.2.1 2009/10/25 01:10:29 kensmith Exp $
  *
  */
 

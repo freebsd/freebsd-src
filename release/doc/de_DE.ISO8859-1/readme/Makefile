@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/de_DE.ISO8859-1/readme/Makefile,v 1.1.38.1.2.1 2009/10/25 01:10:29 kensmith Exp $
 # $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/Makefile,v 1.2 2002/03/10 18:41:44 ue Exp $
 # $Id: Makefile,v 1.5 2002/03/10 15:37:18 ue Exp $
 # basiert auf: 1.7

@@ -46,7 +46,7 @@ Report problems and direct all questions to:
 #include "partime.h"
 
 char const partimeId[]
-  = "$FreeBSD$";
+  = "$FreeBSD: src/gnu/usr.bin/rcs/lib/partime.c,v 1.6.56.1.2.1 2009/10/25 01:10:29 kensmith Exp $";
 
 
 /* Lookup tables for names of months, weekdays, time zones.  */

@@ -35,7 +35,7 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/t4dwave.c,v 1.55.2.2.2.1 2009/10/25 01:10:29 kensmith Exp $");
 
 /* -------------------------------------------------------------------- */
 
