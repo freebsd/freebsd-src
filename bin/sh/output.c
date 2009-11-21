@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 static int doformat_wr(void *, const char *, int);
 
 struct output output = {NULL, 0, NULL, OUTBUFSIZ, 1, 0};
-struct output errout = {NULL, 0, NULL, 100, 2, 0};
+struct output errout = {NULL, 0, NULL, 256, 2, 0};
 struct output memout = {NULL, 0, NULL, 0, MEM_OUT, 0};
 struct output *out1 = &output;
 struct output *out2 = &errout;
@@ -124,8 +124,6 @@ outstr(const char *p, struct output *file)
 {
 	while (*p)
 		outc(*p++, file);
-	if (file == out2)
-		flushout(file);
 }
 
 /* Like outstr(), but quote for re-input into the shell. */
@@ -255,7 +253,7 @@ out1fmt(const char *fmt, ...)
 }
 
 void
-dprintf(const char *fmt, ...)
+out2fmt_flush(const char *fmt, ...)
 {
 	va_list ap;
 
