@@ -85,7 +85,15 @@
 #define DL	2
 #define BL	3
 
-/* A stream of native binary code.*/
+/* Optimization flags */
+#define	BPF_JIT_FLAG_RET	0x01
+#define	BPF_JIT_FLAG_JMP	0x02
+#define	BPF_JIT_FLAG_MEM	0x04
+
+#define	BPF_JIT_FLAG_ALL	\
+    (BPF_JIT_FLAG_JMP | BPF_JIT_FLAG_MEM)
+
+/* A stream of native binary code */
 typedef struct bpf_bin_stream {
 	/* Current native instruction pointer. */
 	int		cur_ip;
@@ -117,7 +125,7 @@ typedef struct bpf_bin_stream {
 typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 
 /*
- * native Instruction Macros
+ * Native instruction macros
  */
 
 /* movl i32,r32 */
@@ -220,9 +228,14 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, (5 << 4) | (0 << 3) | (r64 & 0x7), 1);		\
 } while (0)
 
-/* leave/ret */
-#define LEAVE_RET() do {						\
-	emitm(&stream, 0xc3c9, 2);					\
+/* leaveq */
+#define LEAVE() do {							\
+	emitm(&stream, 0xc9, 1);					\
+} while (0)
+
+/* retq */
+#define RET() do {							\
+	emitm(&stream, 0xc3, 1);					\
 } while (0)
 
 /* addl sr32,dr32 */
