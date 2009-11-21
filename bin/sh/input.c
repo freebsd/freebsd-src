@@ -215,7 +215,7 @@ retry:
                                 if (flags >= 0 && flags & O_NONBLOCK) {
                                         flags &=~ O_NONBLOCK;
                                         if (fcntl(0, F_SETFL, flags) >= 0) {
-						out2str("sh: turning off NDELAY mode\n");
+						out2fmt_flush("sh: turning off NDELAY mode\n");
                                                 goto retry;
                                         }
                                 }
@@ -359,7 +359,7 @@ pushstring(char *s, int len, void *ap)
 	struct strpush *sp;
 
 	INTOFF;
-/*dprintf("*** calling pushstring: %s, %d\n", s, len);*/
+/*out2fmt_flush("*** calling pushstring: %s, %d\n", s, len);*/
 	if (parsefile->strpush) {
 		sp = ckmalloc(sizeof (struct strpush));
 		sp->prev = parsefile->strpush;
@@ -386,7 +386,7 @@ popstring(void)
 	parsenextc = sp->prevstring;
 	parsenleft = sp->prevnleft;
 	parselleft = sp->prevlleft;
-/*dprintf("*** calling popstring: restoring to '%s'\n", parsenextc);*/
+/*out2fmt_flush("*** calling popstring: restoring to '%s'\n", parsenextc);*/
 	if (sp->ap)
 		sp->ap->flag &= ~ALIASINUSE;
 	parsefile->strpush = sp->prev;
