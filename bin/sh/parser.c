@@ -1563,7 +1563,10 @@ setprompt(int which)
 #ifndef NO_HISTORY
 	if (!el)
 #endif
+	{
 		out2str(getprompt(NULL));
+		flushout(out2);
+	}
 }
 
 /*
