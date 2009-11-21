@@ -474,6 +474,7 @@ probe_drive(struct dsk *dsk, spa_t **spap)
     slba = hdr.hdr_lba_table;
     elba = slba + hdr.hdr_entries / entries_per_sec;
     while (slba < elba) {
+	dsk->start = 0;
 	if (drvread(dsk, sec, slba, 1))
 	    return;
 	for (part = 0; part < entries_per_sec; part++) {
@@ -494,7 +495,6 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 		     */
 		    dsk = copy_dsk(dsk);
 		}
-		break;
 	    }
 	}
 	slba++;
@@ -857,12 +857,13 @@ static void
 printf(const char *fmt,...)
 {
     va_list ap;
-    char buf[10];
+    char buf[20];
     char *s;
-    unsigned u;
+    unsigned long long u;
     int c;
     int minus;
     int prec;
+    int l;
     int len;
     int pad;
 
@@ -871,6 +872,7 @@ printf(const char *fmt,...)
 	if (c == '%') {
 	    minus = 0;
 	    prec = 0;
+	    l = 0;
 	nextfmt:
 	    c = *fmt++;
 	    switch (c) {
@@ -892,6 +894,9 @@ printf(const char *fmt,...)
 	    case 'c':
 		putchar(va_arg(ap, int));
 		continue;
+	    case 'l':
+		l++;
+		goto nextfmt;
 	    case 's':
 		s = va_arg(ap, char *);
 		if (prec) {
@@ -914,7 +919,17 @@ printf(const char *fmt,...)
 		}
 		continue;
 	    case 'u':
-		u = va_arg(ap, unsigned);
+		switch (l) {
+		case 2:
+		    u = va_arg(ap, unsigned long long);
+		    break;
+		case 1:
+		    u = va_arg(ap, unsigned long);
+		    break;
+		default:
+		    u = va_arg(ap, unsigned);
+		    break;
+		}
 		s = buf;
 		do
 		    *s++ = '0' + u % 10U;
