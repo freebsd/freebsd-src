@@ -650,6 +650,8 @@ load_extra_delays(const char *filename, struct dn_pipe *p)
 		}
 	}
 
+	fclose (f);
+
 	if (samples == -1) {
 	    warnx("'%s' not found, assuming 100", ED_TOK_SAMPLES);
 	    samples = 100;
