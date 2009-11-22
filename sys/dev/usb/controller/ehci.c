@@ -99,6 +99,9 @@ SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
 SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
     &ehcinohighspeed, 0, "Disable High Speed USB");
 
+TUNABLE_INT("hw.usb.ehci.debug", &ehcidebug);
+TUNABLE_INT("hw.usb.ehci.no_hs", &ehcinohighspeed);
+
 static void ehci_dump_regs(ehci_softc_t *sc);
 static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
 
