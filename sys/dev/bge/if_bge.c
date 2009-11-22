@@ -1053,8 +1053,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
-	    sc->bge_cdata.bge_rx_std_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
 
 	sc->bge_std = i - 1;
 	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
@@ -1097,8 +1096,7 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 	};
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
-	    sc->bge_cdata.bge_rx_jumbo_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
 	sc->bge_jumbo = i - 1;
 
