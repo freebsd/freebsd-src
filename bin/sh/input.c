@@ -509,6 +509,32 @@ popfile(void)
 
 
 /*
+ * Return current file (to go back to it later using popfilesupto()).
+ */
+
+struct parsefile *
+getcurrentfile(void)
+{
+	return parsefile;
+}
+
+
+/*
+ * Pop files until the given file is on top again. Useful for regular
+ * builtins that read shell commands from files or strings.
+ * If the given file is not an active file, an error is raised.
+ */
+
+void
+popfilesupto(struct parsefile *file)
+{
+	while (parsefile != file && parsefile != &basepf)
+		popfile();
+	if (parsefile != file)
+		error("popfilesupto() misused");
+}
+
+/*
  * Return to top level.
  */
 

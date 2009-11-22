@@ -45,6 +45,8 @@ extern int parsenleft;		/* number of characters left in input buffer */
 extern char *parsenextc;	/* next character in input buffer */
 extern int init_editline;	/* 0 == not setup, 1 == OK, -1 == failed */
 
+struct parsefile;
+
 char *pfgets(char *, int);
 int pgetc(void);
 int preadbuffer(void);
@@ -56,6 +58,8 @@ void setinputfile(char *, int);
 void setinputfd(int, int);
 void setinputstring(char *, int);
 void popfile(void);
+struct parsefile *getcurrentfile(void);
+void popfilesupto(struct parsefile *);
 void popallfiles(void);
 void closescript(void);
 

@@ -593,6 +593,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *savecmdname;
 	struct shparam saveparam;
 	struct localvar *savelocalvars;
+	struct parsefile *savetopfile;
 	volatile int e;
 	char *lastarg;
 	int realstatus;
@@ -833,6 +834,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			mode |= REDIR_BACKQ;
 		}
 		savecmdname = commandname;
+		savetopfile = getcurrentfile();
 		cmdenviron = varlist.list;
 		e = -1;
 		savehandler = handler;
@@ -867,6 +869,7 @@ cmddone:
 			if ((e != EXERROR && e != EXEXEC)
 			    || cmdentry.special)
 				exraise(e);
+			popfilesupto(savetopfile);
 			FORCEINTON;
 		}
 		if (cmdentry.u.index != EXECCMD)
