@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -1394,7 +1395,7 @@ devclass_add_device(devclass_t dc, device_t dev)
 
 	PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
-	buflen = snprintf(NULL, 0, "%s%d$", dc->name, dev->unit);
+	buflen = snprintf(NULL, 0, "%s%d$", dc->name, INT_MAX);
 	if (buflen < 0)
 		return (ENOMEM);
 	dev->nameunit = malloc(buflen, M_BUS, M_NOWAIT|M_ZERO);
