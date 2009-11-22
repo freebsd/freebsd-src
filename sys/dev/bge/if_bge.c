@@ -2413,7 +2413,6 @@ bge_dma_alloc(device_t dev)
 	return (0);
 }
 
-#if __FreeBSD_version > 602105
 /*
  * Return true if this device has more than one port.
  */
@@ -2462,7 +2461,6 @@ bge_can_use_msi(struct bge_softc *sc)
 	}
 	return (can_use_msi);
 }
-#endif
 
 static int
 bge_attach(device_t dev)
@@ -2471,7 +2469,7 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int error, reg, rid, trys;
+	int error, msicount, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2580,7 +2578,6 @@ bge_attach(device_t dev)
   	/*
 	 * Check if this is a PCI-X or PCI Express device.
   	 */
-#if __FreeBSD_version > 602101
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		/*
 		 * Found a PCI Express capabilities register, this
@@ -2588,13 +2585,6 @@ bge_attach(device_t dev)
 		 */
 		if (reg != 0) {
 			sc->bge_flags |= BGE_FLAG_PCIE;
-#else
-	if (BGE_IS_5705_PLUS(sc)) {
-		reg = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
-		if ((reg & 0xFF) == BGE_PCIE_CAPID) {
-			sc->bge_flags |= BGE_FLAG_PCIE;
-			reg = BGE_PCIE_CAPID;
-#endif
 			bge_set_max_readrq(sc, reg);
 		}
 	} else {
@@ -2607,30 +2597,22 @@ bge_attach(device_t dev)
 			sc->bge_flags |= BGE_FLAG_PCIX;
 	}
 
-#if __FreeBSD_version > 602105
-	{
-		int msicount;
-
-		/*
-		 * Allocate the interrupt, using MSI if possible.  These devices
-		 * support 8 MSI messages, but only the first one is used in
-		 * normal operation.
-		 */
-		if (bge_can_use_msi(sc)) {
-			msicount = pci_msi_count(dev);
-			if (msicount > 1)
-				msicount = 1;
-		} else
-			msicount = 0;
-		if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
-			rid = 1;
-			sc->bge_flags |= BGE_FLAG_MSI;
-		} else
-			rid = 0;
-	}
-#else
-	rid = 0;
-#endif
+	/*
+	 * Allocate the interrupt, using MSI if possible.  These devices
+	 * support 8 MSI messages, but only the first one is used in
+	 * normal operation.
+	 */
+	if (bge_can_use_msi(sc)) {
+		msicount = pci_msi_count(dev);
+		if (msicount > 1)
+			msicount = 1;
+	} else
+		msicount = 0;
+	if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
+		rid = 1;
+		sc->bge_flags |= BGE_FLAG_MSI;
+	} else
+		rid = 0;
 
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -2921,10 +2903,8 @@ bge_release_resources(struct bge_softc *sc)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->bge_flags & BGE_FLAG_MSI ? 1 : 0, sc->bge_irq);
 
-#if __FreeBSD_version > 602105
 	if (sc->bge_flags & BGE_FLAG_MSI)
 		pci_release_msi(dev);
-#endif
 
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
