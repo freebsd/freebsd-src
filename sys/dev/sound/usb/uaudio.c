@@ -559,6 +559,13 @@ uaudio_probe(device_t dev)
 		else
 			return (0);
 	}
+
+	/* check for MIDI stream */
+
+	if ((uaa->info.bInterfaceClass == UICLASS_AUDIO) &&
+	    (uaa->info.bInterfaceSubClass == UISUBCLASS_MIDISTREAM)) {
+		return (0);
+	}
 	return (ENXIO);
 }
 
