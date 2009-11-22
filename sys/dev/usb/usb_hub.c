@@ -1106,43 +1106,62 @@ done:
  *   The best Transaction Translation slot for an interrupt endpoint.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb_intr_find_best_slot(usb_size_t *ptr, uint8_t start, uint8_t end)
+usb_intr_find_best_slot(usb_size_t *ptr, uint8_t start,
+    uint8_t end, uint8_t mask)
 {
-	usb_size_t max = 0 - 1;
+	usb_size_t min = 0 - 1;
+	usb_size_t sum;
 	uint8_t x;
 	uint8_t y;
+	uint8_t z;
 
 	y = 0;
 
 	/* find the last slot with lesser used bandwidth */
 
 	for (x = start; x < end; x++) {
-		if (max >= ptr[x]) {
-			max = ptr[x];
+
+		sum = 0;
+
+		/* compute sum of bandwidth */
+		for (z = x; z < end; z++) {
+			if (mask & (1U << (z - x)))
+				sum += ptr[z];
+		}
+
+		/* check if the current multi-slot is more optimal */
+		if (min >= sum) {
+			min = sum;
 			y = x;
 		}
+
+		/* check if the mask is about to be shifted out */
+		if (mask & (1U << (end - 1 - x)))
+			break;
 	}
 	return (y);
 }
 
 /*------------------------------------------------------------------------*
- *	usb_intr_schedule_adjust
+ *	usb_hs_bandwidth_adjust
  *
  * This function will update the bandwith usage for the microframe
  * having index "slot" by "len" bytes. "len" can be negative.  If the
  * "slot" argument is greater or equal to "USB_HS_MICRO_FRAMES_MAX"
  * the "slot" argument will be replaced by the slot having least used
- * bandwidth.
+ * bandwidth. The "mask" argument is used for multi-slot allocations.
  *
  * Returns:
- *   The slot on which the bandwidth update was done.
+ *    The slot in which the bandwidth update was done: 0..7
  *------------------------------------------------------------------------*/
-uint8_t
-usb_intr_schedule_adjust(struct usb_device *udev, int16_t len, uint8_t slot)
+static uint8_t
+usb_hs_bandwidth_adjust(struct usb_device *udev, int16_t len,
+    uint8_t slot, uint8_t mask)
 {
 	struct usb_bus *bus = udev->bus;
 	struct usb_hub *hub;
 	enum usb_dev_speed speed;
+	uint8_t x;
 
 	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
 
@@ -1164,20 +1183,154 @@ usb_intr_schedule_adjust(struct usb_device *udev, int16_t len, uint8_t slot)
 		hub = udev->parent_hs_hub->hub;
 		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
 			slot = usb_intr_find_best_slot(hub->uframe_usage,
-			    USB_FS_ISOC_UFRAME_MAX, 6);
+			    USB_FS_ISOC_UFRAME_MAX, 6, mask);
 		}
-		hub->uframe_usage[slot] += len;
-		bus->uframe_usage[slot] += len;
+		for (x = slot; x < 8; x++) {
+			if (mask & (1U << (x - slot))) {
+				hub->uframe_usage[x] += len;
+				bus->uframe_usage[x] += len;
+			}
+		}
 		break;
 	default:
 		if (slot >= USB_HS_MICRO_FRAMES_MAX) {
 			slot = usb_intr_find_best_slot(bus->uframe_usage, 0,
-			    USB_HS_MICRO_FRAMES_MAX);
+			    USB_HS_MICRO_FRAMES_MAX, mask);
 		}
-		bus->uframe_usage[slot] += len;
+		for (x = slot; x < 8; x++) {
+			if (mask & (1U << (x - slot))) {
+				bus->uframe_usage[x] += len;
+			}
+		}
 		break;
 	}
 	return (slot);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_hs_bandwidth_alloc
+ *
+ * This function is a wrapper function for "usb_hs_bandwidth_adjust()".
+ *------------------------------------------------------------------------*/
+void
+usb_hs_bandwidth_alloc(struct usb_xfer *xfer)
+{
+	struct usb_device *udev;
+	uint8_t slot;
+	uint8_t mask;
+	uint8_t speed;
+
+	udev = xfer->xroot->udev;
+
+	if (udev->flags.usb_mode != USB_MODE_HOST)
+		return;		/* not supported */
+
+	xfer->endpoint->refcount_bw++;
+	if (xfer->endpoint->refcount_bw != 1)
+		return;		/* already allocated */
+
+	speed = usbd_get_speed(udev);
+
+	switch (xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE) {
+	case UE_INTERRUPT:
+		/* allocate a microframe slot */
+
+		mask = 0x01;
+		slot = usb_hs_bandwidth_adjust(udev,
+		    xfer->max_frame_size, USB_HS_MICRO_FRAMES_MAX, mask);
+
+		xfer->endpoint->usb_uframe = slot;
+		xfer->endpoint->usb_smask = mask << slot;
+
+		if ((speed != USB_SPEED_FULL) &&
+		    (speed != USB_SPEED_LOW)) {
+			xfer->endpoint->usb_cmask = 0x00 ;
+		} else {
+			xfer->endpoint->usb_cmask = (-(0x04 << slot)) & 0xFE;
+		}
+		break;
+
+	case UE_ISOCHRONOUS:
+		switch (usbd_xfer_get_fps_shift(xfer)) {
+		case 0:
+			mask = 0xFF;
+			break;
+		case 1:
+			mask = 0x55;
+			break;
+		case 2:
+			mask = 0x11;
+			break;
+		default:
+			mask = 0x01;
+			break;
+		}
+
+		/* allocate a microframe multi-slot */
+
+		slot = usb_hs_bandwidth_adjust(udev,
+		    xfer->max_frame_size, USB_HS_MICRO_FRAMES_MAX, mask);
+
+		xfer->endpoint->usb_uframe = slot;
+		xfer->endpoint->usb_cmask = 0;
+		xfer->endpoint->usb_smask = mask << slot;
+		break;
+
+	default:
+		xfer->endpoint->usb_uframe = 0;
+		xfer->endpoint->usb_cmask = 0;
+		xfer->endpoint->usb_smask = 0;
+		break;
+	}
+
+	DPRINTFN(11, "slot=%d, mask=0x%02x\n", 
+	    xfer->endpoint->usb_uframe, 
+	    xfer->endpoint->usb_smask >> xfer->endpoint->usb_uframe);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_hs_bandwidth_free
+ *
+ * This function is a wrapper function for "usb_hs_bandwidth_adjust()".
+ *------------------------------------------------------------------------*/
+void
+usb_hs_bandwidth_free(struct usb_xfer *xfer)
+{
+	struct usb_device *udev;
+	uint8_t slot;
+	uint8_t mask;
+
+	udev = xfer->xroot->udev;
+
+	if (udev->flags.usb_mode != USB_MODE_HOST)
+		return;		/* not supported */
+
+	xfer->endpoint->refcount_bw--;
+	if (xfer->endpoint->refcount_bw != 0)
+		return;		/* still allocated */
+
+	switch (xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE) {
+	case UE_INTERRUPT:
+	case UE_ISOCHRONOUS:
+
+		slot = xfer->endpoint->usb_uframe;
+		mask = xfer->endpoint->usb_smask;
+
+		/* free microframe slot(s): */ 	  
+		usb_hs_bandwidth_adjust(udev,
+		    -xfer->max_frame_size, slot, mask >> slot);
+
+		DPRINTFN(11, "slot=%d, mask=0x%02x\n", 
+		    slot, mask >> slot);
+
+		xfer->endpoint->usb_uframe = 0;
+		xfer->endpoint->usb_cmask = 0;
+		xfer->endpoint->usb_smask = 0;
+		break;
+
+	default:
+		break;
+	}
 }
 
 /*------------------------------------------------------------------------*

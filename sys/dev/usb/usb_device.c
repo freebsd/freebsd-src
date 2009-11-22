@@ -665,7 +665,7 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 			/* look for matching endpoints */
 			if ((iface_index == USB_IFACE_INDEX_ANY) ||
 			    (iface_index == ep->iface_index)) {
-				if (ep->refcount != 0) {
+				if (ep->refcount_alloc != 0) {
 					/*
 					 * This typically indicates a
 					 * more serious error.
