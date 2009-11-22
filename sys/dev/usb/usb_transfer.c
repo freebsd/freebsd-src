@@ -942,10 +942,18 @@ usbd_transfer_setup(struct usb_device *udev,
 				 * configuration and alternate setting
 				 * when USB transfers are in use on
 				 * the given interface. Search the USB
-				 * code for "endpoint->refcount" if you
+				 * code for "endpoint->refcount_alloc" if you
 				 * want more information.
 				 */
-				xfer->endpoint->refcount++;
+				USB_BUS_LOCK(info->bus);
+				if (xfer->endpoint->refcount_alloc >= USB_EP_REF_MAX)
+					parm.err = USB_ERR_INVAL;
+
+				xfer->endpoint->refcount_alloc++;
+
+				if (xfer->endpoint->refcount_alloc == 0)
+					panic("usbd_transfer_setup(): Refcount wrapped to zero\n");
+				USB_BUS_UNLOCK(info->bus);
 
 				/*
 				 * Whenever we set ppxfer[] then we
@@ -960,6 +968,10 @@ usbd_transfer_setup(struct usb_device *udev,
 				 */
 				ppxfer[n] = xfer;
 			}
+
+			/* check for error */
+			if (parm.err)
+				goto done;
 		}
 
 		if (buf || parm.err) {
@@ -1179,7 +1191,9 @@ usbd_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 		 * NOTE: default endpoint does not have an
 		 * interface, even if endpoint->iface_index == 0
 		 */
-		xfer->endpoint->refcount--;
+		USB_BUS_LOCK(info->bus);
+		xfer->endpoint->refcount_alloc--;
+		USB_BUS_UNLOCK(info->bus);
 
 		usb_callout_drain(&xfer->timeout_handle);
 
