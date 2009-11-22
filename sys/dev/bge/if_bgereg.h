@@ -2484,6 +2484,13 @@ struct bge_gib {
 #define	BGE_NSEG_JUMBO	4
 #define	BGE_NSEG_NEW 32
 
+/* Maximum DMA address for controllers that have 40bit DMA address bug. */
+#if (BUS_SPACE_MAXADDR < 0xFFFFFFFFFF)
+#define	BGE_DMA_MAXADDR		BUS_SPACE_MAXADDR
+#else
+#define	BGE_DMA_MAXADDR		0xFFFFFFFFFF
+#endif
+
 /*
  * Ring structures. Most of these reside in host memory and we tell
  * the NIC where they are via the ring control blocks. The exceptions
@@ -2600,6 +2607,8 @@ struct bge_softc {
 #define	BGE_FLAG_5714_FAMILY	0x00004000
 #define	BGE_FLAG_575X_PLUS	0x00008000
 #define	BGE_FLAG_5755_PLUS	0x00010000
+#define	BGE_FLAG_40BIT_BUG	0x00020000
+#define	BGE_FLAG_4G_BNDRY_BUG	0x00040000
 #define	BGE_FLAG_RX_ALIGNBUG	0x00100000
 #define	BGE_FLAG_NO_3LED	0x00200000
 #define	BGE_FLAG_ADC_BUG	0x00400000
