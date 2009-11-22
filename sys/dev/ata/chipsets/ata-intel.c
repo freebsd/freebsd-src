@@ -319,7 +319,7 @@ ata_intel_new_setmode(device_t dev, int mode)
 		      ata_mode2str(mode), ctlr->chip->text);
     if (!error) {
 	if (mode >= ATA_UDMA0) {
-	    u_int8_t utimings[] = { 0x00, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10 };
+	    u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
 
 	    pci_write_config(gparent, 0x48, reg48 | (0x0001 << devno), 2);
 	    pci_write_config(gparent, 0x4a,
@@ -331,7 +331,7 @@ ata_intel_new_setmode(device_t dev, int mode)
 	    pci_write_config(gparent, 0x4a, (reg4a & ~(0x3 << (devno << 2))),2);
 	}
 	reg54 |= 0x0400;
-	if (mode >= ATA_UDMA2)
+	if (mode >= ATA_UDMA3)
 	    reg54 |= (0x1 << devno);
 	else
 	    reg54 &= ~(0x1 << devno);
