@@ -782,7 +782,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		savelocalvars = localvars;
 		localvars = NULL;
 		reffunc(cmdentry.u.func);
-		INTON;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXSHELLPROC)
@@ -798,6 +797,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			longjmp(handler->loc, 1);
 		}
 		handler = &jmploc;
+		INTON;
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
 		funcnest++;

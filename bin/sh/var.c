@@ -195,7 +195,9 @@ setvarsafe(char *name, char *val, int flags)
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
 	int err = 0;
+	int inton;
 
+	inton = is_int_on();
 	if (setjmp(jmploc.loc))
 		err = 1;
 	else {
@@ -203,6 +205,7 @@ setvarsafe(char *name, char *val, int flags)
 		setvar(name, val, flags);
 	}
 	handler = savehandler;
+	SETINTON(inton);
 	return err;
 }
 

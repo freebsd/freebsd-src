@@ -1312,6 +1312,7 @@ parsebackq: {
 	int saveprompt;
 	const int bq_startlinno = plinno;
 
+	str = NULL;
 	if (setjmp(jmploc.loc)) {
 		if (str)
 			ckfree(str);
@@ -1323,7 +1324,6 @@ parsebackq: {
 		longjmp(handler->loc, 1);
 	}
 	INTOFF;
-	str = NULL;
 	savelen = out - stackblock();
 	if (savelen > 0) {
 		str = ckmalloc(savelen);
