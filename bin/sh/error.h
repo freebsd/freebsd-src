@@ -72,6 +72,8 @@ extern volatile sig_atomic_t intpending;
 
 #define INTOFF suppressint++
 #define INTON { if (--suppressint == 0 && intpending) onint(); }
+#define is_int_on() suppressint
+#define SETINTON(s) suppressint = (s)
 #define FORCEINTON {suppressint = 0; if (intpending) onint();}
 #define CLEAR_PENDING_INT intpending = 0
 #define int_pending() intpending
