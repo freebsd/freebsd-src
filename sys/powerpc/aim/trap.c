@@ -236,12 +236,6 @@ trap(struct trapframe *frame)
 		trap_fatal(frame);
 	}
 
-#ifdef	ALTIVEC
-	if (td != PCPU_GET(vecthread) ||
-	    td->td_pcb->pcb_veccpu != PCPU_GET(cpuid))
-		frame->srr1 &= ~PSL_VEC;
-#endif /* ALTIVEC */
-
 	if (sig != 0) {
 		if (p->p_sysent->sv_transtrap != NULL)
 			sig = (p->p_sysent->sv_transtrap)(sig, type);
