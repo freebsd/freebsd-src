@@ -361,8 +361,8 @@ static int bge_get_eaddr_nvram(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr_eeprom(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr(struct bge_softc *, uint8_t[]);
 
-static void bge_txeof(struct bge_softc *);
-static int bge_rxeof(struct bge_softc *);
+static void bge_txeof(struct bge_softc *, uint16_t);
+static int bge_rxeof(struct bge_softc *, uint16_t);
 
 static void bge_asf_driver_up (struct bge_softc *);
 static void bge_tick(void *);
@@ -3135,15 +3135,14 @@ bge_reset(struct bge_softc *sc)
  */
 
 static int
-bge_rxeof(struct bge_softc *sc)
+bge_rxeof(struct bge_softc *sc, uint16_t rx_prod)
 {
 	struct ifnet *ifp;
 	int rx_npkts = 0, stdcnt = 0, jumbocnt = 0;
-	uint16_t rx_prod, rx_cons;
+	uint16_t rx_cons;
 
 	BGE_LOCK_ASSERT(sc);
 	rx_cons = sc->bge_rx_saved_considx;
-	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 
 	/* Nothing to do. */
 	if (rx_cons == rx_prod)
@@ -3296,7 +3295,7 @@ bge_rxeof(struct bge_softc *sc)
 }
 
 static void
-bge_txeof(struct bge_softc *sc)
+bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 {
 	struct bge_tx_bd *cur_tx = NULL;
 	struct ifnet *ifp;
@@ -3304,8 +3303,7 @@ bge_txeof(struct bge_softc *sc)
 	BGE_LOCK_ASSERT(sc);
 
 	/* Nothing to do. */
-	if (sc->bge_tx_saved_considx ==
-	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx)
+	if (sc->bge_tx_saved_considx == tx_cons)
 		return;
 
 	ifp = sc->bge_ifp;
@@ -3316,8 +3314,7 @@ bge_txeof(struct bge_softc *sc)
 	 * Go through our tx ring and free mbufs for those
 	 * frames that have been sent.
 	 */
-	while (sc->bge_tx_saved_considx !=
-	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx) {
+	while (sc->bge_tx_saved_considx != tx_cons) {
 		uint32_t		idx = 0;
 
 		idx = sc->bge_tx_saved_considx;
@@ -3348,6 +3345,7 @@ static int
 bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct bge_softc *sc = ifp->if_softc;
+	uint16_t rx_prod, tx_cons;
 	uint32_t statusword;
 	int rx_npkts = 0;
 
@@ -3358,13 +3356,17 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
+	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
 
 	statusword = atomic_readandclear_32(
 	    &sc->bge_ldata.bge_status_block->bge_status);
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Note link event. It will be processed by POLL_AND_CHECK_STATUS. */
 	if (statusword & BGE_STATFLAG_LINKSTATE_CHANGED)
@@ -3377,12 +3379,12 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			bge_link_upd(sc);
 
 	sc->rxcycles = count;
-	rx_npkts = bge_rxeof(sc);
+	rx_npkts = bge_rxeof(sc, rx_prod);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		BGE_UNLOCK(sc);
 		return (rx_npkts);
 	}
-	bge_txeof(sc);
+	bge_txeof(sc, tx_cons);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
 
@@ -3397,6 +3399,7 @@ bge_intr(void *xsc)
 	struct bge_softc *sc;
 	struct ifnet *ifp;
 	uint32_t statusword;
+	uint16_t rx_prod, tx_cons;
 
 	sc = xsc;
 
@@ -3440,7 +3443,14 @@ bge_intr(void *xsc)
 
 	/* Make sure the descriptor ring indexes are coherent. */
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
+	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
+	sc->bge_ldata.bge_status_block->bge_status = 0;
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5700_B2) ||
@@ -3449,20 +3459,17 @@ bge_intr(void *xsc)
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer. */
-		bge_rxeof(sc);
+		bge_rxeof(sc, rx_prod);
 	}
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check TX ring producer/consumer. */
-		bge_txeof(sc);
+		bge_txeof(sc, tx_cons);
 	}
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
-
-	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
 
 	BGE_UNLOCK(sc);
 }
