@@ -348,6 +348,7 @@ main(int argc, char *argv[])
 
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		char host_buf[UT_HOSTSIZE + 1];
+		struct addrinfo hints, *res;
 		struct sockaddr_storage ss;
 		struct sockaddr *sa = (struct sockaddr *)&ss;
 		struct sockaddr_in *lsin = (struct sockaddr_in *)&ss;
@@ -365,23 +366,42 @@ main(int argc, char *argv[])
 			else
 				x_suffix = NULL;
 		}
+
+		isaddr = 0;
+		memset(&ss, '\0', sizeof(ss));
+		if (inet_pton(AF_INET6, p, &lsin6->sin6_addr) == 1) {
+			lsin6->sin6_len = sizeof(*lsin6);
+			lsin6->sin6_family = AF_INET6;
+			isaddr = 1;
+		} else if (inet_pton(AF_INET, p, &lsin->sin_addr) == 1) {
+			lsin->sin_len = sizeof(*lsin);
+			lsin->sin_family = AF_INET;
+			isaddr = 1;
+		}
 		if (!nflag) {
 			/* Attempt to change an IP address into a name */
-			isaddr = 0;
-			memset(&ss, '\0', sizeof(ss));
-			if (inet_pton(AF_INET6, p, &lsin6->sin6_addr) == 1) {
-				lsin6->sin6_len = sizeof(*lsin6);
-				lsin6->sin6_family = AF_INET6;
-				isaddr = 1;
-			} else if (inet_pton(AF_INET, p, &lsin->sin_addr) == 1) {
-				lsin->sin_len = sizeof(*lsin);
-				lsin->sin_family = AF_INET;
-				isaddr = 1;
-			}
 			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
 			    sa->sa_len) == HOSTNAME_FOUND)
 				p = fn;
+		} else if (!isaddr) {
+			/*
+			 * If a host has only one A/AAAA RR, change a
+			 * name into an IP address
+			 */
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_flags = AI_PASSIVE;
+			hints.ai_family = AF_UNSPEC;
+			hints.ai_socktype = SOCK_STREAM;
+			if (getaddrinfo(p, NULL, &hints, &res) == 0) {
+				if (res->ai_next == NULL &&
+				    getnameinfo(res->ai_addr, res->ai_addrlen,
+					fn, sizeof(fn), NULL, 0,
+					NI_NUMERICHOST) == 0)
+					p = fn;
+				freeaddrinfo(res);
+			}
 		}
+
 		if (x_suffix) {
 			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x_suffix);
 			p = buf;
