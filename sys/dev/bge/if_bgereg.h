@@ -1907,7 +1907,7 @@
 /*
  * This magic number is written to the firmware mailbox at 0xb50
  * before a software reset is issued.  After the internal firmware
- * has completed its initialization it will write the opposite of 
+ * has completed its initialization it will write the opposite of
  * this value, ~BGE_MAGIC_NUMBER, to the same location, allowing the
  * driver to synchronize with the firmware.
  */
