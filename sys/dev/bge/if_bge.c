@@ -2104,15 +2104,21 @@ bge_dma_alloc(device_t dev)
 {
 	struct bge_dmamap_arg ctx;
 	struct bge_softc *sc;
+	bus_addr_t lowaddr;
 	int i, error;
 
 	sc = device_get_softc(dev);
 
+	lowaddr = BUS_SPACE_MAXADDR;
+	if ((sc->bge_flags & BGE_FLAG_40BIT_BUG) != 0)
+		lowaddr = BGE_DMA_MAXADDR;
+	if ((sc->bge_flags & BGE_FLAG_4G_BNDRY_BUG) != 0)
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->bge_dev),
-	    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,	NULL,
+	    1, 0, lowaddr, BUS_SPACE_MAXADDR, NULL,
 	    NULL, BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT,
 	    0, NULL, NULL, &sc->bge_cdata.bge_parent_tag);
 
@@ -2566,6 +2572,16 @@ bge_attach(device_t dev)
 			sc->bge_flags |= BGE_FLAG_BER_BUG;
 	}
 
+	/*
+	 * All controllers that are not 5755 or higher have 4GB
+	 * boundary DMA bug.
+	 * Whenever an address crosses a multiple of the 4GB boundary
+	 * (including 4GB, 8Gb, 12Gb, etc.) and makes the transition
+	 * from 0xX_FFFF_FFFF to 0x(X+1)_0000_0000 an internal DMA
+	 * state machine will lockup and cause the device to hang.
+	 */
+	if (BGE_IS_5755_PLUS(sc) == 0)
+		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
 
 	/*
 	 * We could possibly check for BCOM_DEVICEID_BCM5788 in bge_probe()
@@ -2729,6 +2745,13 @@ bge_attach(device_t dev)
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
+	/*
+	 * The 40bit DMA bug applies to the 5714/5715 controllers and is
+	 * not actually a MAC controller bug but an issue with the embedded
+	 * PCIe to PCI-X bridge in the device. Use 40bit DMA workaround.
+	 */
+	if (BGE_IS_5714_FAMILY(sc) && (sc->bge_flags & BGE_FLAG_PCIX))
+		sc->bge_flags |= BGE_FLAG_40BIT_BUG;
 
 	/*
 	 * 5700 B0 chips do not support checksumming correctly due
