@@ -2261,7 +2261,7 @@ bge_dma_alloc(device_t dev)
 		    0, &sc->bge_cdata.bge_rx_jumbo_sparemap);
 		if (error) {
 			device_printf(sc->bge_dev,
-			    "can't create sapre DMA map for jumbo RX\n");
+			    "can't create spare DMA map for jumbo RX\n");
 			return (ENOMEM);
 		}
 		for (i = 0; i < BGE_JUMBO_RX_RING_CNT; i++) {
