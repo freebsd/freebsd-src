@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -362,7 +363,7 @@ static int bge_get_eaddr_eeprom(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr(struct bge_softc *, uint8_t[]);
 
 static void bge_txeof(struct bge_softc *, uint16_t);
-static int bge_rxeof(struct bge_softc *, uint16_t);
+static int bge_rxeof(struct bge_softc *, uint16_t, int);
 
 static void bge_asf_driver_up (struct bge_softc *);
 static void bge_tick(void *);
@@ -371,6 +372,8 @@ static void bge_stats_update_regs(struct bge_softc *);
 static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
 
 static void bge_intr(void *);
+static int bge_msi_intr(void *);
+static void bge_intr_task(void *, int);
 static void bge_start_locked(struct ifnet *);
 static void bge_start(struct ifnet *);
 static int bge_ioctl(struct ifnet *, u_long, caddr_t);
@@ -2470,6 +2473,8 @@ bge_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
 
+	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
+
 	/*
 	 * Map control/status registers.
 	 */
@@ -2832,8 +2837,27 @@ again:
 	 * Hookup IRQ last.
 	 */
 #if __FreeBSD_version > 700030
-	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	   NULL, bge_intr, sc, &sc->bge_intrhand);
+	if (BGE_IS_5755_PLUS(sc) && sc->bge_flags & BGE_FLAG_MSI) {
+		/* Take advantage of single-shot MSI. */
+		sc->bge_tq = taskqueue_create_fast("bge_taskq", M_WAITOK,
+		    taskqueue_thread_enqueue, &sc->bge_tq);
+		if (sc->bge_tq == NULL) {
+			device_printf(dev, "could not create taskqueue.\n");
+			ether_ifdetach(ifp);
+			error = ENXIO;
+			goto fail;
+		}
+		taskqueue_start_threads(&sc->bge_tq, 1, PI_NET, "%s taskq",
+		    device_get_nameunit(sc->bge_dev));
+		error = bus_setup_intr(dev, sc->bge_irq,
+		    INTR_TYPE_NET | INTR_MPSAFE, bge_msi_intr, NULL, sc,
+		    &sc->bge_intrhand);
+		if (error)
+			ether_ifdetach(ifp);
+	} else
+		error = bus_setup_intr(dev, sc->bge_irq,
+		    INTR_TYPE_NET | INTR_MPSAFE, NULL, bge_intr, sc,
+		    &sc->bge_intrhand);
 #else
 	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	   bge_intr, sc, &sc->bge_intrhand);
@@ -2875,6 +2899,8 @@ bge_detach(device_t dev)
 
 	callout_drain(&sc->bge_stat_ch);
 
+	if (sc->bge_tq)
+		taskqueue_drain(sc->bge_tq, &sc->bge_intr_task);
 	ether_ifdetach(ifp);
 
 	if (sc->bge_flags & BGE_FLAG_TBI) {
@@ -2895,6 +2921,9 @@ bge_release_resources(struct bge_softc *sc)
 	device_t dev;
 
 	dev = sc->bge_dev;
+
+	if (sc->bge_tq != NULL)
+		taskqueue_free(sc->bge_tq);
 
 	if (sc->bge_intrhand != NULL)
 		bus_teardown_intr(dev, sc->bge_irq, sc->bge_intrhand);
@@ -3135,13 +3164,12 @@ bge_reset(struct bge_softc *sc)
  */
 
 static int
-bge_rxeof(struct bge_softc *sc, uint16_t rx_prod)
+bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 {
 	struct ifnet *ifp;
 	int rx_npkts = 0, stdcnt = 0, jumbocnt = 0;
 	uint16_t rx_cons;
 
-	BGE_LOCK_ASSERT(sc);
 	rx_cons = sc->bge_rx_saved_considx;
 
 	/* Nothing to do. */
@@ -3258,9 +3286,12 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod)
 #endif
 		}
 
-		BGE_UNLOCK(sc);
-		(*ifp->if_input)(ifp, m);
-		BGE_LOCK(sc);
+		if (holdlck != 0) {
+			BGE_UNLOCK(sc);
+			(*ifp->if_input)(ifp, m);
+			BGE_LOCK(sc);
+		} else
+			(*ifp->if_input)(ifp, m);
 		rx_npkts++;
 
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
@@ -3379,7 +3410,7 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			bge_link_upd(sc);
 
 	sc->rxcycles = count;
-	rx_npkts = bge_rxeof(sc, rx_prod);
+	rx_npkts = bge_rxeof(sc, rx_prod, 1);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		BGE_UNLOCK(sc);
 		return (rx_npkts);
@@ -3392,6 +3423,69 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
+
+static int
+bge_msi_intr(void *arg)
+{
+	struct bge_softc *sc;
+
+	sc = (struct bge_softc *)arg;
+	/*
+	 * This interrupt is not shared and controller already
+	 * disabled further interrupt.
+	 */
+	taskqueue_enqueue(sc->bge_tq, &sc->bge_intr_task);
+	return (FILTER_HANDLED);
+}
+
+static void
+bge_intr_task(void *arg, int pending)
+{
+	struct bge_softc *sc;
+	struct ifnet *ifp;
+	uint32_t status;
+	uint16_t rx_prod, tx_cons;
+
+	sc = (struct bge_softc *)arg;
+	ifp = sc->bge_ifp;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	/* Get updated status block. */
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+	/* Save producer/consumer indexess. */
+	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
+	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
+	status = sc->bge_ldata.bge_status_block->bge_status;
+	sc->bge_ldata.bge_status_block->bge_status = 0;
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	/* Let controller work. */
+	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
+
+	if ((status & BGE_STATFLAG_LINKSTATE_CHANGED) != 0) {
+		BGE_LOCK(sc);
+		bge_link_upd(sc);
+		BGE_UNLOCK(sc);
+	}
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		/* Check RX return ring producer/consumer. */
+		bge_rxeof(sc, rx_prod, 0);
+	}
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		BGE_LOCK(sc);
+		/* Check TX ring producer/consumer. */
+		bge_txeof(sc, tx_cons);
+	    	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			bge_start_locked(ifp);
+		BGE_UNLOCK(sc);
+	}
+}
 
 static void
 bge_intr(void *xsc)
@@ -3459,7 +3553,7 @@ bge_intr(void *xsc)
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer. */
-		bge_rxeof(sc, rx_prod);
+		bge_rxeof(sc, rx_prod, 1);
 	}
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
