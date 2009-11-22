@@ -1667,6 +1667,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	identify_cpu();		/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
+	initializecpucache();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss[0].tss_rsp0 = thread0.td_kstack + \
