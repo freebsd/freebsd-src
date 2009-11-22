@@ -247,3 +247,39 @@ $ SIGUSR1
 30 ユーザ定義シグナル 1
 $ SIGUSR2
 31 ユーザ定義シグナル 2
+$
+$ gai_strerror() support catalog
+$
+$set 3
+$ 1 (obsolete)
+1 ホスト名のアドレスファミリーはサポートされません
+$ EAI_AGAIN
+2 名前解決での一時的な失敗
+$ EAI_BADFLAGS
+3 ai_flags の値が無効
+$ EAI_FAIL
+4 名前解決での回復不能な失敗
+$ EAI_FAMILY
+5 ai_family はサポートされません
+$ EAI_MEMORY
+6 メモリ割り当て失敗
+$ 7 (obsolete)
+7 ホスト名に対応するアドレスはありません
+$ EAI_NONAME
+8 ホスト名かサービス名が指定されない、または不明
+$ EAI_SERVICE
+9 サービス名は ai_socktype に対してサポートされません
+$ EAI_SOCKTYPE
+10 ai_socktype はサポートされません
+$ EAI_SYSTEM
+11 システムエラー、errno 参照
+$ EAI_BADHINTS
+12 hints の値が無効
+$ EAI_PROTOCOL
+13 解決されたプロトコルは不明です
+$ EAI_OVERFLOW
+14 引数バッファオーバフロー
+$ 0
+32766 成功
+$ NL_MSGMAX
+32767 不明なエラー
