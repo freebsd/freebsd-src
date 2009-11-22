@@ -175,6 +175,8 @@ static int umass_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
     &umass_debug, 0, "umass debug level");
+
+TUNABLE_INT("hw.usb.umass.debug", &umass_debug);
 #else
 #define	DIF(...) do { } while (0)
 #define	DPRINTF(...) do { } while (0)
