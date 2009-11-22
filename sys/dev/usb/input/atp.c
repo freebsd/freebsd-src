@@ -341,6 +341,7 @@ typedef struct atp_stroke {
 
 enum {
 	ATP_INTR_DT,
+	ATP_RESET,
 	ATP_N_TRANSFER,
 };
 
@@ -421,6 +422,7 @@ static struct usb_fifo_methods atp_fifo_methods = {
 /* device initialization and shutdown */
 static usb_error_t   atp_req_get_report(struct usb_device *udev, void *data);
 static int           atp_set_device_mode(device_t dev, interface_mode mode);
+static void          atp_reset_callback(struct usb_xfer *, usb_error_t);
 static int           atp_enable(struct atp_softc *sc);
 static void          atp_disable(struct atp_softc *sc);
 static int           atp_softc_populate(struct atp_softc *);
@@ -499,6 +501,40 @@ atp_set_device_mode(device_t dev, interface_mode mode)
 		return (ENXIO);
 
 	return (0);
+}
+
+void
+atp_reset_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	usb_device_request_t   req;
+	struct usb_page_cache *pc;
+	struct atp_softc      *sc = usbd_xfer_softc(xfer);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_SETUP:
+		sc->sc_mode_bytes[0] = RAW_SENSOR_MODE;
+		req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
+		req.bRequest = UR_SET_REPORT;
+		USETW2(req.wValue,
+		    (uint8_t)0x03 /* type */, (uint8_t)0x00 /* id */);
+		USETW(req.wIndex, 0);
+		USETW(req.wLength, MODE_LENGTH);
+
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_in(pc, 0, &req, sizeof(req));
+		pc = usbd_xfer_get_frame(xfer, 1);
+		usbd_copy_in(pc, 0, sc->sc_mode_bytes, MODE_LENGTH);
+
+		usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+		usbd_xfer_set_frame_len(xfer, 1, MODE_LENGTH);
+		usbd_xfer_set_frames(xfer, 2);
+		usbd_transfer_submit(xfer);
+		break;
+
+	case USB_ST_TRANSFERRED:
+	default:
+		break;
+	}
 }
 
 static int
@@ -1515,6 +1551,14 @@ static const struct usb_config atp_config[ATP_N_TRANSFER] = {
 		.bufsize   = 0, /* use wMaxPacketSize */
 		.callback  = &atp_intr,
 	},
+	[ATP_RESET] = {
+		.type      = UE_CONTROL,
+		.endpoint  = 0, /* Control pipe */
+		.direction = UE_DIR_ANY,
+		.bufsize = sizeof(struct usb_device_request) + MODE_LENGTH,
+		.callback  = &atp_reset_callback,
+		.interval = 0,  /* no pre-delay */
+	},
 };
 
 static int
@@ -1529,10 +1573,7 @@ atp_probe(device_t self)
 	    (uaa->info.bInterfaceProtocol != UIPROTO_MOUSE))
 		return (ENXIO);
 
-	if (usbd_lookup_id_by_uaa(atp_devs, sizeof(atp_devs), uaa) == 0)
-		return BUS_PROBE_SPECIFIC;
-	else
-		return ENXIO;
+	return (usbd_lookup_id_by_uaa(atp_devs, sizeof(atp_devs), uaa));
 }
 
 static int
@@ -1542,12 +1583,6 @@ atp_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	usb_error_t            err;
 
-	/* ensure that the probe was successful */
-	if (uaa->driver_info >= ATP_N_DEV_PARAMS) {
-		DPRINTF("device probe returned bad id: %lu\n",
-		    uaa->driver_info);
-		return (ENXIO);
-	}
 	DPRINTFN(ATP_LLEVEL_INFO, "sc=%p\n", sc);
 
 	sc->sc_dev        = dev;
@@ -1626,7 +1661,6 @@ static int
 atp_detach(device_t dev)
 {
 	struct atp_softc *sc;
-	int err;
 
 	sc = device_get_softc(dev);
 	if (sc->sc_state & ATP_ENABLED) {
@@ -1640,12 +1674,6 @@ atp_detach(device_t dev)
 	usbd_transfer_unsetup(sc->sc_xfer, ATP_N_TRANSFER);
 
 	mtx_destroy(&sc->sc_mutex);
-
-	err = atp_set_device_mode(dev, HID_MODE);
-	if (err != 0) {
-		DPRINTF("failed to reset mode to 'HID' (%d)\n", err);
-		return (err);
-	}
 
 	return (0);
 }
@@ -1823,10 +1851,7 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 			if (sc->sc_idlecount >= ATP_IDLENESS_THRESHOLD) {
 				DPRINTFN(ATP_LLEVEL_INFO, "idle\n");
 				sc->sc_idlecount = 0;
-
-				mtx_unlock(&sc->sc_mutex);
-				atp_set_device_mode(sc->sc_dev,RAW_SENSOR_MODE);
-				mtx_lock(&sc->sc_mutex);
+				usbd_transfer_start(sc->sc_xfer[ATP_RESET]);
 			}
 		} else {
 			sc->sc_idlecount = 0;
