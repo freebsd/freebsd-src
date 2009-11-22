@@ -3683,11 +3683,8 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	} else if (error != 0)
 		return (error);
 
-	/*
-	 * Sanity check: avoid coming within 16 descriptors
-	 * of the end of the ring.
-	 */
-	if (nsegs > (BGE_TX_RING_CNT - sc->bge_txcnt - 16)) {
+	/* Check if we have enough free send BDs. */
+	if (sc->bge_txcnt + nsegs >= BGE_TX_RING_CNT) {
 		bus_dmamap_unload(sc->bge_cdata.bge_tx_mtag, map);
 		return (ENOBUFS);
 	}
@@ -3752,18 +3749,25 @@ static void
 bge_start_locked(struct ifnet *ifp)
 {
 	struct bge_softc *sc;
-	struct mbuf *m_head = NULL;
+	struct mbuf *m_head;
 	uint32_t prodidx;
-	int count = 0;
+	int count;
 
 	sc = ifp->if_softc;
+	BGE_LOCK_ASSERT(sc);
 
-	if (!sc->bge_link || IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!sc->bge_link ||
+	    (ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	prodidx = sc->bge_tx_prodidx;
 
-	while(sc->bge_cdata.bge_tx_chain[prodidx] == NULL) {
+	for (count = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
+		if (sc->bge_txcnt > BGE_TX_RING_CNT - 16) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
@@ -3816,24 +3820,22 @@ bge_start_locked(struct ifnet *ifp)
 #endif
 	}
 
-	if (count == 0)
-		/* No packets were dequeued. */
-		return;
-
-	bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
-	    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
-	/* Transmit. */
-	bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
-	/* 5700 b2 errata */
-	if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
+	if (count > 0) {
+		bus_dmamap_sync(sc->bge_cdata.bge_tx_ring_tag,
+		    sc->bge_cdata.bge_tx_ring_map, BUS_DMASYNC_PREWRITE);
+		/* Transmit. */
 		bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
+		/* 5700 b2 errata */
+		if (sc->bge_chiprev == BGE_CHIPREV_5700_BX)
+			bge_writembx(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 
-	sc->bge_tx_prodidx = prodidx;
+		sc->bge_tx_prodidx = prodidx;
 
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	sc->bge_timer = 5;
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		sc->bge_timer = 5;
+	}
 }
 
 /*
