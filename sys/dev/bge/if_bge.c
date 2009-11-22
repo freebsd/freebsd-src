@@ -1757,8 +1757,15 @@ bge_blockinit(struct bge_softc *sc)
 	sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx = 0;
 	sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx = 0;
 
+	/* Set up status block size. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+		val = BGE_STATBLKSZ_FULL;
+	else
+		val = BGE_STATBLKSZ_32BYTE;
+
 	/* Turn on host coalescing state machine */
-	CSR_WRITE_4(sc, BGE_HCC_MODE, BGE_HCCMODE_ENABLE);
+	CSR_WRITE_4(sc, BGE_HCC_MODE, val | BGE_HCCMODE_ENABLE);
 
 	/* Turn on RX BD completion state machine and enable attentions */
 	CSR_WRITE_4(sc, BGE_RBDC_MODE,
@@ -2113,7 +2120,7 @@ bge_dma_alloc(device_t dev)
 	struct bge_dmamap_arg ctx;
 	struct bge_softc *sc;
 	bus_addr_t lowaddr;
-	bus_size_t txsegsz, txmaxsegsz;
+	bus_size_t sbsz, txsegsz, txmaxsegsz;
 	int i, error;
 
 	sc = device_get_softc(dev);
@@ -2365,14 +2372,25 @@ bge_dma_alloc(device_t dev)
 
 	sc->bge_ldata.bge_tx_ring_paddr = ctx.bge_busaddr;
 
-	/* Create tag for status block. */
+	/*
+	 * Create tag for status block.
+	 * Because we only use single Tx/Rx/Rx return ring, use
+	 * minimum status block size except BCM5700 AX/BX which
+	 * seems to want to see full status block size regardless
+	 * of configured number of ring.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
+	    sc->bge_chipid != BGE_CHIPID_BCM5700_C0)
+		sbsz = BGE_STATUS_BLK_SZ;
+	else
+		sbsz = 32;
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
 	    PAGE_SIZE, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, BGE_STATUS_BLK_SZ, 1, BGE_STATUS_BLK_SZ, 0,
-	    NULL, NULL, &sc->bge_cdata.bge_status_tag);
+	    NULL, sbsz, 1, sbsz, 0, NULL, NULL, &sc->bge_cdata.bge_status_tag);
 
 	if (error) {
-		device_printf(sc->bge_dev, "could not allocate dma tag\n");
+		device_printf(sc->bge_dev,
+		    "could not allocate status dma tag\n");
 		return (ENOMEM);
 	}
 
@@ -2383,7 +2401,7 @@ bge_dma_alloc(device_t dev)
 	if (error)
 		return (ENOMEM);
 
-	bzero((char *)sc->bge_ldata.bge_status_block, BGE_STATUS_BLK_SZ);
+	bzero((char *)sc->bge_ldata.bge_status_block, sbsz);
 
 	/* Load the address of the status block. */
 	ctx.sc = sc;
@@ -2391,7 +2409,7 @@ bge_dma_alloc(device_t dev)
 
 	error = bus_dmamap_load(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map, sc->bge_ldata.bge_status_block,
-	    BGE_STATUS_BLK_SZ, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
+	    sbsz, bge_dma_map_addr, &ctx, BUS_DMA_NOWAIT);
 
 	if (error)
 		return (ENOMEM);
