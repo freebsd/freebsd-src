@@ -1402,6 +1402,8 @@
 #define	BGE_RDMAMODE_MBUF_SBD_CRPT_ATTN	0x00002000
 #define	BGE_RDMAMODE_FIFO_SIZE_128	0x00020000
 #define	BGE_RDMAMODE_FIFO_LONG_BURST	0x00030000
+#define	BGE_RDMAMODE_TSO4_ENABLE	0x08000000
+#define	BGE_RDMAMODE_TSO6_ENABLE	0x10000000
 
 /* Read DMA status register */
 #define	BGE_RDMASTAT_PCI_TGT_ABRT_ATTN	0x00000004
@@ -1949,11 +1951,11 @@ struct bge_tx_bd {
 	uint16_t		bge_flags;
 	uint16_t		bge_len;
 	uint16_t		bge_vlan_tag;
-	uint16_t		bge_rsvd;
+	uint16_t		bge_mss;
 #else
 	uint16_t		bge_len;
 	uint16_t		bge_flags;
-	uint16_t		bge_rsvd;
+	uint16_t		bge_mss;
 	uint16_t		bge_vlan_tag;
 #endif
 };
@@ -2482,7 +2484,8 @@ struct bge_gib {
 #define	BGE_JSLOTS	384
 
 #define	BGE_NSEG_JUMBO	4
-#define	BGE_NSEG_NEW 32
+#define	BGE_NSEG_NEW	32
+#define	BGE_TSOSEG_SZ	4096
 
 /* Maximum DMA address for controllers that have 40bit DMA address bug. */
 #if (BUS_SPACE_MAXADDR < 0xFFFFFFFFFF)
@@ -2602,6 +2605,7 @@ struct bge_softc {
 #define	BGE_FLAG_MSI		0x00000100
 #define	BGE_FLAG_PCIX		0x00000200
 #define	BGE_FLAG_PCIE		0x00000400
+#define	BGE_FLAG_TSO		0x00000800
 #define	BGE_FLAG_5700_FAMILY	0x00001000
 #define	BGE_FLAG_5705_PLUS	0x00002000
 #define	BGE_FLAG_5714_FAMILY	0x00004000
