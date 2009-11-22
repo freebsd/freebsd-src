@@ -414,7 +414,7 @@ static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
-static void bge_set_max_readrq(struct bge_softc *, int);
+static void bge_set_max_readrq(struct bge_softc *);
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -558,25 +558,23 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
  * PCI Express only
  */
 static void
-bge_set_max_readrq(struct bge_softc *sc, int expr_ptr)
+bge_set_max_readrq(struct bge_softc *sc)
 {
 	device_t dev;
 	uint16_t val;
 
-	KASSERT((sc->bge_flags & BGE_FLAG_PCIE) && expr_ptr != 0,
-	    ("%s: not applicable", __func__));
-
 	dev = sc->bge_dev;
 
-	val = pci_read_config(dev, expr_ptr + BGE_PCIE_DEVCTL, 2);
-	if ((val & BGE_PCIE_DEVCTL_MAX_READRQ_MASK) !=
+	val = pci_read_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	if ((val & PCIM_EXP_CTL_MAX_READ_REQUEST) !=
 	    BGE_PCIE_DEVCTL_MAX_READRQ_4096) {
 		if (bootverbose)
 			device_printf(dev, "adjust device control 0x%04x ",
 			    val);
-		val &= ~BGE_PCIE_DEVCTL_MAX_READRQ_MASK;
+		val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
 		val |= BGE_PCIE_DEVCTL_MAX_READRQ_4096;
-		pci_write_config(dev, expr_ptr + BGE_PCIE_DEVCTL, val, 2);
+		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
+		    val, 2);
 		if (bootverbose)
 			printf("-> 0x%04x\n", val);
 	}
@@ -2583,15 +2581,16 @@ bge_attach(device_t dev)
 		 * Found a PCI Express capabilities register, this
 		 * must be a PCI Express device.
 		 */
-		if (reg != 0) {
-			sc->bge_flags |= BGE_FLAG_PCIE;
-			bge_set_max_readrq(sc, reg);
-		}
+		sc->bge_flags |= BGE_FLAG_PCIE;
+		sc->bge_expcap = reg;
+		bge_set_max_readrq(sc);
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
 		 * (This bit is not valid on PCI Express controllers.)
 		 */
+		if (pci_find_extcap(dev, PCIY_PCIX, &reg) == 0)
+			sc->bge_pcixcap = reg;
 		if ((pci_read_config(dev, BGE_PCI_PCISTATE, 4) &
 		    BGE_PCISTATE_PCI_BUSMODE) == 0)
 			sc->bge_flags |= BGE_FLAG_PCIX;
@@ -2602,17 +2601,20 @@ bge_attach(device_t dev)
 	 * support 8 MSI messages, but only the first one is used in
 	 * normal operation.
 	 */
-	if (bge_can_use_msi(sc)) {
-		msicount = pci_msi_count(dev);
-		if (msicount > 1)
-			msicount = 1;
-	} else
-		msicount = 0;
-	if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
-		rid = 1;
-		sc->bge_flags |= BGE_FLAG_MSI;
-	} else
-		rid = 0;
+	rid = 0;
+	if (pci_find_extcap(sc->bge_dev, PCIY_MSI, &reg) != 0) {
+		sc->bge_msicap = reg;
+		if (bge_can_use_msi(sc)) {
+			msicount = pci_msi_count(dev);
+			if (msicount > 1)
+				msicount = 1;
+		} else
+			msicount = 0;
+		if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
+			rid = 1;
+			sc->bge_flags |= BGE_FLAG_MSI;
+		}
+	}
 
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -2925,6 +2927,7 @@ bge_reset(struct bge_softc *sc)
 	device_t dev;
 	uint32_t cachesize, command, pcistate, reset, val;
 	void (*write_op)(struct bge_softc *, int, int);
+	uint16_t devctl;
 	int i;
 
 	dev = sc->bge_dev;
@@ -3003,11 +3006,17 @@ bge_reset(struct bge_softc *sc)
 			val = pci_read_config(dev, 0xC4, 4);
 			pci_write_config(dev, 0xC4, val | (1 << 15), 4);
 		}
-		/*
-		 * Set PCIE max payload size to 128 bytes and clear error
-		 * status.
-		 */
-		pci_write_config(dev, 0xD8, 0xF5000, 4);
+		devctl = pci_read_config(dev,
+		    sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+		/* Clear enable no snoop and disable relaxed ordering. */
+		devctl &= ~(0x0010 | 0x0800);
+		/* Set PCIE max payload size to 128. */
+		devctl &= ~PCIM_EXP_CTL_MAX_PAYLOAD;
+		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
+		    devctl, 2);
+		/* Clear error status. */
+		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_STA,
+		    0, 2);
 	}
 
 	/* Reset some of the PCI state that got zapped by reset. */
@@ -3022,8 +3031,10 @@ bge_reset(struct bge_softc *sc)
 	if (BGE_IS_5714_FAMILY(sc)) {
 		/* This chip disables MSI on reset. */
 		if (sc->bge_flags & BGE_FLAG_MSI) {
-			val = pci_read_config(dev, BGE_PCI_MSI_CTL, 2);
-			pci_write_config(dev, BGE_PCI_MSI_CTL,
+			val = pci_read_config(dev,
+			    sc->bge_msicap + PCIR_MSI_CTRL, 2);
+			pci_write_config(dev,
+			    sc->bge_msicap + PCIR_MSI_CTRL,
 			    val | PCIM_MSICTRL_MSI_ENABLE, 2);
 			val = CSR_READ_4(sc, BGE_MSI_MODE);
 			CSR_WRITE_4(sc, BGE_MSI_MODE,
