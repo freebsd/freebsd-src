@@ -799,7 +799,7 @@ ktrsyscall(struct ktr_syscall *ktr)
 				narg--;
 			}
 		}
-		while (narg) {
+		while (narg > 0) {
 			print_number(ip,narg,c);
 		}
 		(void)putchar(')');
