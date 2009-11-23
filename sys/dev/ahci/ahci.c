@@ -254,6 +254,10 @@ ahci_probe(device_t dev)
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid &&
 		    (valid || !(ahci_ids[i].quirks & AHCI_Q_NOFORCE))) {
+			/* Do not attach JMicrons with single PCI function. */
+			if (pci_get_vendor(dev) == 0x197b &&
+			    (pci_read_config(dev, 0xdf, 1) & 0x40) == 0)
+				return (ENXIO);
 			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
 			    ahci_ids[i].name);
 			device_set_desc_copy(dev, buf);
