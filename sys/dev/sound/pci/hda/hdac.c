@@ -1520,7 +1520,7 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	sc->num_iss = HDAC_GCAP_ISS(gcap);
 	sc->num_oss = HDAC_GCAP_OSS(gcap);
 	sc->num_bss = HDAC_GCAP_BSS(gcap);
-
+	sc->num_sdo = HDAC_GCAP_NSDO(gcap);
 	sc->support_64bit = HDA_FLAG_MATCH(gcap, HDAC_GCAP_64OK);
 
 	corbsize = HDAC_READ_1(&sc->mem, HDAC_CORBSIZE);
@@ -1555,11 +1555,12 @@ hdac_get_capabilities(struct hdac_softc *sc)
 		return (ENXIO);
 	}
 
-	HDA_BOOTHVERBOSE(
-		device_printf(sc->dev, "    CORB size: %d\n", sc->corb_size);
-		device_printf(sc->dev, "    RIRB size: %d\n", sc->rirb_size);
-		device_printf(sc->dev, "      Streams: ISS=%d OSS=%d BSS=%d\n",
-		    sc->num_iss, sc->num_oss, sc->num_bss);
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "Caps: OSS %d, ISS %d, BSS %d, "
+		    "NSDO %d%s, CORB %d, RIRB %d\n",
+		    sc->num_oss, sc->num_iss, sc->num_bss, 1 << sc->num_sdo,
+		    sc->support_64bit ? ", 64bit" : "",
+		    sc->corb_size, sc->rirb_size);
 	);
 
 	return (0);
