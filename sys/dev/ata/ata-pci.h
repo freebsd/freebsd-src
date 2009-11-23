@@ -36,6 +36,8 @@ struct ata_chip_id {
     char                *text;
 };
 
+#define ATA_PCI_MAX_CH	8
+
 /* structure describing a PCI ATA controller */
 struct ata_pci_controller {
     device_t            dev;
@@ -65,7 +67,7 @@ struct ata_pci_controller {
     struct {
     void                (*function)(void *);
     void                *argument;
-    } interrupt[8];     /* XXX SOS max ch# for now */
+    } interrupt[ATA_PCI_MAX_CH];
     void                *chipset_data;
 };
 
@@ -225,7 +227,10 @@ struct ata_pci_controller {
 #define ATA_M88SX6081           0x608111ab
 #define ATA_M88SX7042           0x704211ab
 #define ATA_M88SX6101           0x610111ab
+#define ATA_M88SX6102           0x610211ab
+#define ATA_M88SX6111           0x611111ab
 #define ATA_M88SX6121           0x612111ab
+#define ATA_M88SX6141           0x614111ab
 #define ATA_M88SX6145           0x614511ab
 
 #define ATA_MICRON_ID           0x1042
@@ -483,6 +488,11 @@ int ata_pci_attach(device_t dev);
 int ata_pci_detach(device_t dev);
 int ata_pci_suspend(device_t dev);
 int ata_pci_resume(device_t dev);
+int ata_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
+int ata_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value);
+uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
+void ata_pci_write_config(device_t dev, device_t child, int reg, 
+    uint32_t val, int width);
 struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
@@ -506,12 +516,6 @@ int ata_mode2idx(int mode);
 
 /* global prototypes from chipsets/ata-*.c */
 int ata_ahci_chipinit(device_t);
-int ata_ahci_ch_attach(device_t dev);
-int ata_ahci_ch_detach(device_t dev);
-int ata_ahci_ch_suspend(device_t dev);
-int ata_ahci_ch_resume(device_t dev);
-int ata_ahci_ctlr_reset(device_t dev);
-void ata_ahci_reset(device_t dev);
 int ata_marvell_edma_chipinit(device_t);
 int ata_sii_chipinit(device_t);
 
@@ -527,12 +531,16 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(device_suspend,   ata_pci_suspend), \
     DEVMETHOD(device_resume,    ata_pci_resume), \
     DEVMETHOD(device_shutdown,  bus_generic_shutdown), \
+    DEVMETHOD(bus_read_ivar,		ata_pci_read_ivar), \
+    DEVMETHOD(bus_write_ivar,		ata_pci_write_ivar), \
     DEVMETHOD(bus_alloc_resource,       ata_pci_alloc_resource), \
     DEVMETHOD(bus_release_resource,     ata_pci_release_resource), \
     DEVMETHOD(bus_activate_resource,    bus_generic_activate_resource), \
     DEVMETHOD(bus_deactivate_resource,  bus_generic_deactivate_resource), \
     DEVMETHOD(bus_setup_intr,           ata_pci_setup_intr), \
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr), \
+    DEVMETHOD(pci_read_config,		ata_pci_read_config), \
+    DEVMETHOD(pci_write_config,		ata_pci_write_config), \
     { 0, 0 } \
 }; \
 static driver_t __CONCAT(dname,_driver) = { \
