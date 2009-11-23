@@ -457,7 +457,7 @@ struct ata_siiprb_dma_prdentry {
     u_int32_t control;
 } __packed;
 
-#define ATA_SIIPRB_DMA_ENTRIES		125
+#define ATA_SIIPRB_DMA_ENTRIES		129
 struct ata_siiprb_ata_command {
     struct ata_siiprb_dma_prdentry prd[ATA_SIIPRB_DMA_ENTRIES];
 } __packed;
@@ -542,7 +542,7 @@ ata_siiprb_status(device_t dev)
 static int
 ata_siiprb_begin_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_siiprb_command *prb;
     struct ata_siiprb_dma_prdentry *prd;
@@ -556,28 +556,25 @@ ata_siiprb_begin_transaction(struct ata_request *request)
     }
 
     /* get a piece of the workspace for this request */
-    prb = (struct ata_siiprb_command *)
-	(ch->dma.work + (sizeof(struct ata_siiprb_command) * request->tag));
+    prb = (struct ata_siiprb_command *)ch->dma.work;
 
     /* clear the prb structure */
     bzero(prb, sizeof(struct ata_siiprb_command));
 
     /* setup the FIS for this request */
     if (!ata_request2fis_h2d(request, &prb->fis[0])) {
-        device_printf(request->dev, "setting up SATA FIS failed\n");
+        device_printf(request->parent, "setting up SATA FIS failed\n");
         request->result = EIO;
         return ATA_OP_FINISHED;
     }
 
     /* setup transfer type */
     if (request->flags & ATA_R_ATAPI) {
-        struct ata_device *atadev = device_get_softc(request->dev);
-
 	bcopy(request->u.atapi.ccb, prb->u.atapi.ccb, 16);
-	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
-	    ATA_OUTL(ctlr->r_res2, 0x1004 + offset, 0x00000020);
-	else
+	if (request->flags & ATA_R_ATAPI16)
 	    ATA_OUTL(ctlr->r_res2, 0x1000 + offset, 0x00000020);
+	else
+	    ATA_OUTL(ctlr->r_res2, 0x1004 + offset, 0x00000020);
 	if (request->flags & ATA_R_READ)
 	    prb->control = htole16(0x0010);
 	if (request->flags & ATA_R_WRITE)
@@ -590,19 +587,16 @@ ata_siiprb_begin_transaction(struct ata_request *request)
     /* if request moves data setup and load SG list */
     if (request->flags & (ATA_R_READ | ATA_R_WRITE)) {
 	if (ch->dma.load(request, prd, NULL)) {
-	    device_printf(request->dev, "setting up DMA failed\n");
+	    device_printf(request->parent, "setting up DMA failed\n");
 	    request->result = EIO;
 	    return ATA_OP_FINISHED;
 	}
     }
 
     /* activate the prb */
-    prb_bus = ch->dma.work_bus +
-	      (sizeof(struct ata_siiprb_command) * request->tag);
-    ATA_OUTL(ctlr->r_res2,
-	     0x1c00 + offset + (request->tag * sizeof(u_int64_t)), prb_bus);
-    ATA_OUTL(ctlr->r_res2,
-	     0x1c04 + offset + (request->tag * sizeof(u_int64_t)), prb_bus>>32);
+    prb_bus = ch->dma.work_bus;
+    ATA_OUTL(ctlr->r_res2, 0x1c00 + offset, prb_bus);
+    ATA_OUTL(ctlr->r_res2, 0x1c04 + offset, prb_bus>>32);
 
     /* start the timeout */
     callout_reset(&request->callout, request->timeout * hz,
@@ -613,7 +607,7 @@ ata_siiprb_begin_transaction(struct ata_request *request)
 static int
 ata_siiprb_end_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
     struct ata_siiprb_command *prb;
     int offset = ch->unit * 0x2000;
@@ -623,7 +617,7 @@ ata_siiprb_end_transaction(struct ata_request *request)
     callout_stop(&request->callout);
     
     prb = (struct ata_siiprb_command *)
-	((u_int8_t *)rman_get_virtual(ctlr->r_res2)+(request->tag << 7)+offset);
+	((u_int8_t *)rman_get_virtual(ctlr->r_res2) + offset);
 
     /* any controller errors flagged ? */
     if ((error = ATA_INL(ctlr->r_res2, 0x1024 + offset))) {
@@ -659,12 +653,10 @@ ata_siiprb_end_transaction(struct ata_request *request)
 
     /* on control commands read back registers to the request struct */
     if (request->flags & ATA_R_CONTROL) {
-        struct ata_device *atadev = device_get_softc(request->dev);
-
 	request->u.ata.count = prb->fis[12] | ((u_int16_t)prb->fis[13] << 8);
 	request->u.ata.lba = prb->fis[4] | ((u_int64_t)prb->fis[5] << 8) |
 			     ((u_int64_t)prb->fis[6] << 16);
-	if (atadev->flags & ATA_D_48BIT_ACTIVE)
+	if (request->flags & ATA_R_48BIT)
 	    request->u.ata.lba |= ((u_int64_t)prb->fis[8] << 24) |
 				  ((u_int64_t)prb->fis[9] << 32) |
 				  ((u_int64_t)prb->fis[10] << 40);
@@ -907,6 +899,7 @@ ata_siiprb_dmainit(device_t dev)
     /* note start and stop are not used here */
     ch->dma.setprd = ata_siiprb_dmasetprd;
     ch->dma.max_address = BUS_SPACE_MAXADDR;
+    ch->dma.max_iosize = (ATA_SIIPRB_DMA_ENTRIES - 1) * PAGE_SIZE;
 }
 
 ATA_DECLARE_DRIVER(ata_sii);
