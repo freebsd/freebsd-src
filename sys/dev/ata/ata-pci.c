@@ -477,7 +477,7 @@ ata_pci_dmareset(device_t dev)
     ch->dma.flags &= ~ATA_DMA_ACTIVE;
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
     if ((request = ch->running)) {
-	device_printf(request->dev, "DMA reset calling unload\n");
+	device_printf(dev, "DMA reset calling unload\n");
 	ch->dma.unload(request);
     }
 }

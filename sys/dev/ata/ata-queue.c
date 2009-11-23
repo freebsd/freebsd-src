@@ -52,17 +52,25 @@ void
 ata_queue_request(struct ata_request *request)
 {
     struct ata_channel *ch;
+    struct ata_device *atadev = device_get_softc(request->dev);
 
     /* treat request as virgin (this might be an ATA_R_REQUEUE) */
     request->result = request->status = request->error = 0;
 
-    /* check that the device is still valid */
+    /* Prepare paramers required by low-level code. */
+    request->unit = atadev->unit;
     if (!(request->parent = device_get_parent(request->dev))) {
 	request->result = ENXIO;
 	if (request->callback)
 	    (request->callback)(request);
 	return;
     }
+    if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16)
+	request->flags |= ATA_R_ATAPI16;
+    if ((atadev->param.config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
+	request->flags |= ATA_R_ATAPI_INTR;
+    if ((request->flags & ATA_R_ATAPI) == 0)
+	ata_modify_if_48bit(request);
     ch = device_get_softc(request->parent);
     callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
     if (!request->callback && !(request->flags & ATA_R_REQUEUE))

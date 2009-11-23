@@ -354,7 +354,7 @@ ata_marvell_edma_status(device_t dev)
 static int
 ata_marvell_edma_begin_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
     u_int32_t req_in;
     u_int8_t *bytep;
@@ -363,7 +363,9 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
 
     /* only DMA R/W goes through the EMDA machine */
     if (request->u.ata.command != ATA_READ_DMA &&
-	request->u.ata.command != ATA_WRITE_DMA) {
+	request->u.ata.command != ATA_WRITE_DMA &&
+	request->u.ata.command != ATA_READ_DMA48 &&
+	request->u.ata.command != ATA_WRITE_DMA48) {
 
 	/* disable the EDMA machinery */
 	if (ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)
@@ -371,12 +373,9 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
 	return ata_begin_transaction(request);
     }
 
-    /* check for 48 bit access and convert if needed */
-    ata_modify_if_48bit(request);
-
     /* check sanity, setup SG list and DMA engine */
     if ((error = ch->dma.load(request, NULL, NULL))) {
-	device_printf(request->dev, "setting up DMA failed\n");
+	device_printf(request->parent, "setting up DMA failed\n");
 	request->result = error;
 	return ATA_OP_FINISHED;
     }
@@ -472,7 +471,7 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
 static int
 ata_marvell_edma_end_transaction(struct ata_request *request)
 {
-    struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
+    struct ata_pci_controller *ctlr=device_get_softc(device_get_parent(request->parent));
     struct ata_channel *ch = device_get_softc(request->parent);
     int offset = (ch->unit > 3 ? 0x30014 : 0x20014);
     u_int32_t icr = ATA_INL(ctlr->r_res1, offset);
