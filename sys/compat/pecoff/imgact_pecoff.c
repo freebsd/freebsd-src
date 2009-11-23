@@ -135,7 +135,7 @@ exec_pecoff_coff_makecmds(struct image_params *,
 			  struct coff_filehdr *, int);
 
 static int      pecoff_signature(struct thread *, struct vnode *, const struct pecoff_dos_filehdr *);
-static int      pecoff_read_from(struct thread *, struct vnode *, int, caddr_t, int);
+static int      pecoff_read_from(struct thread *, struct vnode *, unsigned int, caddr_t, int);
 static int 
 pecoff_load_section(struct thread * td,
 		    struct vmspace * vmspace, struct vnode * vp,
@@ -291,7 +291,7 @@ pecoff_load_file(struct thread * td, const char *file, u_long * addr, u_long * e
 	struct vmspace *vmspace = td->td_proc->p_vmspace;
 	struct vattr    attr;
 	struct image_params image_params, *imgp;
-	int             peofs;
+	unsigned int peofs;
 	int             error, i, scnsiz;
 
 	imgp = &image_params;
@@ -549,7 +549,7 @@ int
 pecoff_read_from(td, vp, pos, buf, siz)
 	struct thread  *td;
 	struct vnode   *vp;
-	int             pos;
+	unsigned int    pos;
 	caddr_t         buf;
 	int             siz;
 {
