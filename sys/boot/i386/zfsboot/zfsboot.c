@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #define	KARGS_FLAGS_ZFS		0x4
 
 #define PATH_CONFIG	"/boot.config"
-#define PATH_BOOT3	"/boot/loader"
+#define PATH_BOOT3	"/boot/zfsloader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
