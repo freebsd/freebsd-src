@@ -528,7 +528,7 @@ ehci_detach(ehci_softc_t *sc)
 	usb_callout_stop(&sc->sc_tmo_pcd);
 	usb_callout_stop(&sc->sc_tmo_poll);
 
-	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
+	EOWRITE4(sc, EHCI_USBINTR, 0);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	if (ehci_hcreset(sc)) {
