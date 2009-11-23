@@ -27,9 +27,11 @@ ident		OCTEON1
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 makeoptions     TARGET_BIG_ENDIAN=defined
+makeoptions     LDSCRIPT_NAME=ldscript.mips.octeon1.kernel.32
 #makeoptions     TARGET_64BIT=defined
 
 options		KERNVIRTADDR=0x80100000
+makeoptions	KERNLOADADDR=0x80100000
 include		"../octeon1/std.octeon1"
 
 hints		"OCTEON1.hints"		#Default places to look for devices.
