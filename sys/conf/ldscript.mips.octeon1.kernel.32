@@ -5,11 +5,9 @@
 OUTPUT_FORMAT("elf32-tradbigmips", "elf32-tradbigmips", "elf32-tradlittlemips")
 OUTPUT_ARCH(mips)
 ENTRY(_start)
-   __DYNAMIC = 0;
-PROVIDE (_DYNAMIC = 0);
 
 SECTIONS {
-
+	. = KERNLOADADDR + SIZEOF_HEADERS;
 	.text . : {
 	    	*(.text)
 		*(.dynamic)
