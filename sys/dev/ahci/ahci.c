@@ -99,7 +99,14 @@ MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 static struct {
 	uint32_t	id;
 	const char	*name;
-	int		flags;
+	int		quirks;
+#define AHCI_Q_NOFORCE	1
+#define AHCI_Q_NOPMP	2
+#define AHCI_Q_NONCQ	4
+#define AHCI_Q_1CH	8
+#define AHCI_Q_2CH	16
+#define AHCI_Q_4CH	32
+#define AHCI_Q_EDGEIS	64
 } ahci_ids[] = {
 	{0x43801002, "ATI IXP600",	0},
 	{0x43901002, "ATI IXP700",	0},
@@ -145,6 +152,15 @@ static struct {
 	{0x3b2b8086, "Intel PCH",	0},
 	{0x3b2c8086, "Intel PCH",	0},
 	{0x3b2f8086, "Intel PCH",	0},
+	{0x2361197b, "JMicron JMB361",	AHCI_Q_NOFORCE},
+	{0x2363197b, "JMicron JMB363",	AHCI_Q_NOFORCE},
+	{0x2365197b, "JMicron JMB365",	AHCI_Q_NOFORCE},
+	{0x2366197b, "JMicron JMB366",	AHCI_Q_NOFORCE},
+	{0x2368197b, "JMicron JMB368",	AHCI_Q_NOFORCE},
+	{0x611111ab, "Marvell 88SX6111", AHCI_Q_NOFORCE|AHCI_Q_1CH|AHCI_Q_EDGEIS},
+	{0x612111ab, "Marvell 88SX6121", AHCI_Q_NOFORCE|AHCI_Q_2CH|AHCI_Q_EDGEIS},
+	{0x614111ab, "Marvell 88SX6141", AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
+	{0x614511ab, "Marvell 88SX6145", AHCI_Q_NOFORCE|AHCI_Q_4CH|AHCI_Q_EDGEIS},
 	{0x044c10de, "NVIDIA MCP65",	0},
 	{0x044d10de, "NVIDIA MCP65",	0},
 	{0x044e10de, "NVIDIA MCP65",	0},
@@ -226,9 +242,39 @@ static int
 ahci_probe(device_t dev)
 {
 	char buf[64];
+	int i, valid = 0;
+	uint32_t devid = pci_get_devid(dev);
+
+	/* Is this a possible AHCI candidate? */
+	if (pci_get_class(dev) == PCIC_STORAGE &&
+	    pci_get_subclass(dev) == PCIS_STORAGE_SATA &&
+	    pci_get_progif(dev) == PCIP_STORAGE_SATA_AHCI_1_0)
+		valid = 1;
+	/* Is this a known AHCI chip? */
+	for (i = 0; ahci_ids[i].id != 0; i++) {
+		if (ahci_ids[i].id == devid &&
+		    (valid || !(ahci_ids[i].quirks & AHCI_Q_NOFORCE))) {
+			snprintf(buf, sizeof(buf), "%s AHCI SATA controller",
+			    ahci_ids[i].name);
+			device_set_desc_copy(dev, buf);
+			return (BUS_PROBE_VENDOR);
+		}
+	}
+	if (!valid)
+		return (ENXIO);
+	device_set_desc_copy(dev, "AHCI SATA controller");
+	return (BUS_PROBE_VENDOR);
+}
+
+static int
+ahci_ata_probe(device_t dev)
+{
+	char buf[64];
 	int i;
 	uint32_t devid = pci_get_devid(dev);
 
+	if ((intptr_t)device_get_ivars(dev) >= 0)
+		return (ENXIO);
 	/* Is this a known AHCI chip? */
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid) {
@@ -238,11 +284,6 @@ ahci_probe(device_t dev)
 			return (BUS_PROBE_VENDOR);
 		}
 	}
-	/* Is this a possible AHCI candidate? */
-	if (pci_get_class(dev) != PCIC_STORAGE ||
-	    pci_get_subclass(dev) != PCIS_STORAGE_SATA ||
-	    pci_get_progif(dev) != PCIP_STORAGE_SATA_AHCI_1_0)
-		return (ENXIO);
 	device_set_desc_copy(dev, "AHCI SATA controller");
 	return (BUS_PROBE_VENDOR);
 }
@@ -252,10 +293,15 @@ ahci_attach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
 	device_t child;
-	int	error, unit, speed;
+	int	error, unit, speed, i;
+	uint32_t devid = pci_get_devid(dev);
 	u_int32_t version;
 
 	ctlr->dev = dev;
+	i = 0;
+	while (ahci_ids[i].id != 0 && ahci_ids[i].id != devid)
+		i++;
+	ctlr->quirks = ahci_ids[i].quirks;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "ccc", &ctlr->ccc);
 	/* if we have a memory BAR(5) we are likely on an AHCI part */
@@ -282,10 +328,32 @@ ahci_attach(device_t dev)
 		rman_fini(&ctlr->sc_iomem);
 		return (error);
 	};
-	/* Get the number of HW channels */
+	/* Get the HW capabilities */
+	version = ATA_INL(ctlr->r_mem, AHCI_VS);
+	ctlr->caps = ATA_INL(ctlr->r_mem, AHCI_CAP);
+	if (version >= 0x00010020)
+		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
 	ctlr->ichannels = ATA_INL(ctlr->r_mem, AHCI_PI);
+	if (ctlr->quirks & AHCI_Q_1CH) {
+		ctlr->caps &= ~AHCI_CAP_NPMASK;
+		ctlr->ichannels &= 0x01;
+	}
+	if (ctlr->quirks & AHCI_Q_2CH) {
+		ctlr->caps &= ~AHCI_CAP_NPMASK;
+		ctlr->caps |= 1;
+		ctlr->ichannels &= 0x03;
+	}
+	if (ctlr->quirks & AHCI_Q_4CH) {
+		ctlr->caps &= ~AHCI_CAP_NPMASK;
+		ctlr->caps |= 3;
+		ctlr->ichannels &= 0x0f;
+	}
 	ctlr->channels = MAX(flsl(ctlr->ichannels),
-	    (ATA_INL(ctlr->r_mem, AHCI_CAP) & AHCI_CAP_NPMASK) + 1);
+	    (ctlr->caps & AHCI_CAP_NPMASK) + 1);
+	if (ctlr->quirks & AHCI_Q_NOPMP)
+		ctlr->caps &= ~AHCI_CAP_SPM;
+	if (ctlr->quirks & AHCI_Q_NONCQ)
+		ctlr->caps &= ~AHCI_CAP_SNCQ;
 	/* Setup interrupts. */
 	if (ahci_setup_interrupt(dev)) {
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid, ctlr->r_mem);
@@ -293,10 +361,6 @@ ahci_attach(device_t dev)
 		return ENXIO;
 	}
 	/* Announce HW capabilities. */
-	version = ATA_INL(ctlr->r_mem, AHCI_VS);
-	ctlr->caps = ATA_INL(ctlr->r_mem, AHCI_CAP);
-	if (version >= 0x00010020)
-		ctlr->caps2 = ATA_INL(ctlr->r_mem, AHCI_CAP2);
 	speed = (ctlr->caps & AHCI_CAP_ISS) >> AHCI_CAP_ISS_SHIFT;
 	device_printf(dev,
 		    "AHCI v%x.%02x with %d %sGbps ports, Port Multiplier %s\n",
@@ -531,8 +595,15 @@ ahci_intr(void *data)
 	for (; unit < ctlr->channels; unit++) {
 		if ((is & (1 << unit)) != 0 &&
 		    (arg = ctlr->interrupt[unit].argument)) {
-			ctlr->interrupt[unit].function(arg);
-			ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
+			if (ctlr->quirks & AHCI_Q_EDGEIS) {
+				/* Some controller have edge triggered IS. */
+				ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
+				ctlr->interrupt[unit].function(arg);
+			} else {
+				/* but AHCI declares level triggered IS. */
+				ctlr->interrupt[unit].function(arg);
+				ATA_OUTL(ctlr->r_mem, AHCI_IS, 1 << unit);
+			}
 		}
 	}
 }
@@ -665,6 +736,25 @@ static driver_t ahci_driver = {
         sizeof(struct ahci_controller)
 };
 DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, 0, 0);
+static device_method_t ahci_ata_methods[] = {
+	DEVMETHOD(device_probe,     ahci_ata_probe),
+	DEVMETHOD(device_attach,    ahci_attach),
+	DEVMETHOD(device_detach,    ahci_detach),
+	DEVMETHOD(device_suspend,   ahci_suspend),
+	DEVMETHOD(device_resume,    ahci_resume),
+	DEVMETHOD(bus_print_child,  ahci_print_child),
+	DEVMETHOD(bus_alloc_resource,       ahci_alloc_resource),
+	DEVMETHOD(bus_release_resource,     ahci_release_resource),
+	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
+	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
+	{ 0, 0 }
+};
+static driver_t ahci_ata_driver = {
+        "ahci",
+        ahci_ata_methods,
+        sizeof(struct ahci_controller)
+};
+DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, 0, 0);
 MODULE_VERSION(ahci, 1);
 MODULE_DEPEND(ahci, cam, 1, 1, 1);
 
@@ -688,6 +778,7 @@ ahci_ch_attach(device_t dev)
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->caps = ctlr->caps;
 	ch->caps2 = ctlr->caps2;
+	ch->quirks = ctlr->quirks;
 	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1,
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
 	resource_int_value(device_get_name(dev),
@@ -858,7 +949,7 @@ static driver_t ahcich_driver = {
         ahcich_methods,
         sizeof(struct ahci_channel)
 };
-DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, 0, 0);
 
 struct ahci_dc_cb_args {
 	bus_addr_t maddr;
