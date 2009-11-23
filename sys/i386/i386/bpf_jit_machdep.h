@@ -61,12 +61,14 @@
 #define BL	3
 
 /* Optimization flags */
-#define	BPF_JIT_FLAG_RET	0x01
-#define	BPF_JIT_FLAG_JMP	0x02
-#define	BPF_JIT_FLAG_MEM	0x04
+#define	BPF_JIT_FRET	0x01
+#define	BPF_JIT_FPKT	0x02
+#define	BPF_JIT_FMEM	0x04
+#define	BPF_JIT_FJMP	0x08
+#define	BPF_JIT_FADK	0x10
 
 #define	BPF_JIT_FLAG_ALL	\
-    (BPF_JIT_FLAG_JMP | BPF_JIT_FLAG_MEM)
+    (BPF_JIT_FPKT | BPF_JIT_FMEM | BPF_JIT_FJMP | BPF_JIT_FADK)
 
 /* A stream of native binary code */
 typedef struct bpf_bin_stream {
