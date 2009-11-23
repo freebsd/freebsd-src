@@ -101,29 +101,45 @@ emit_code(bpf_bin_stream *stream, u_int value, u_int len)
 static int
 bpf_jit_optimize(struct bpf_insn *prog, u_int nins)
 {
-	const struct bpf_insn *p;
 	int flags;
 	u_int i;
 
 	/* Do we return immediately? */
 	if (BPF_CLASS(prog[0].code) == BPF_RET)
-		return (BPF_JIT_FLAG_RET);
+		return (BPF_JIT_FRET);
 
 	for (flags = 0, i = 0; i < nins; i++) {
-		p = &prog[i];
-
-		/* Do we need reference table? */
-		if ((flags & BPF_JIT_FLAG_JMP) == 0 &&
-		    BPF_CLASS(p->code) == BPF_JMP)
-			flags |= BPF_JIT_FLAG_JMP;
-
-		/* Do we need scratch memory? */
-		if ((flags & BPF_JIT_FLAG_MEM) == 0 &&
-		    (p->code == BPF_ST || p->code == BPF_STX ||
-		    p->code == (BPF_LD|BPF_MEM) ||
-		    p->code == (BPF_LDX|BPF_MEM)))
-			flags |= BPF_JIT_FLAG_MEM;
-
+		switch (prog[i].code) {
+		case BPF_LD|BPF_W|BPF_ABS:
+		case BPF_LD|BPF_H|BPF_ABS:
+		case BPF_LD|BPF_B|BPF_ABS:
+		case BPF_LD|BPF_W|BPF_IND:
+		case BPF_LD|BPF_H|BPF_IND:
+		case BPF_LD|BPF_B|BPF_IND:
+		case BPF_LDX|BPF_MSH|BPF_B:
+			flags |= BPF_JIT_FPKT;
+			break;
+		case BPF_LD|BPF_MEM:
+		case BPF_LDX|BPF_MEM:
+		case BPF_ST:
+		case BPF_STX:
+			flags |= BPF_JIT_FMEM;
+			break;
+		case BPF_JMP|BPF_JA:
+		case BPF_JMP|BPF_JGT|BPF_K:
+		case BPF_JMP|BPF_JGE|BPF_K:
+		case BPF_JMP|BPF_JEQ|BPF_K:
+		case BPF_JMP|BPF_JSET|BPF_K:
+		case BPF_JMP|BPF_JGT|BPF_X:
+		case BPF_JMP|BPF_JGE|BPF_X:
+		case BPF_JMP|BPF_JEQ|BPF_X:
+		case BPF_JMP|BPF_JSET|BPF_X:
+			flags |= BPF_JIT_FJMP;
+			break;
+		case BPF_ALU|BPF_DIV|BPF_K:
+			flags |= BPF_JIT_FADK;
+			break;
+		}
 		if (flags == BPF_JIT_FLAG_ALL)
 			break;
 	}
@@ -139,13 +155,9 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 {
 	bpf_bin_stream stream;
 	struct bpf_insn *ins;
-	int flags, flag_ret, flag_jmp, flag_mem;
+	int flags, fret, fpkt, fmem, fjmp, fadk;
+	int save_esp;
 	u_int i, pass;
-
-	flags = bpf_jit_optimize(prog, nins);
-	flag_ret = (flags & BPF_JIT_FLAG_RET) != 0;
-	flag_jmp = (flags & BPF_JIT_FLAG_JMP) != 0;
-	flag_mem = (flags & BPF_JIT_FLAG_MEM) != 0;
 
 	/*
 	 * NOTE: Do not modify the name of this variable, as it's used by
@@ -153,21 +165,29 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 	 */
 	emit_func emitm;
 
+	flags = bpf_jit_optimize(prog, nins);
+	fret = (flags & BPF_JIT_FRET) != 0;
+	fpkt = (flags & BPF_JIT_FPKT) != 0;
+	fmem = (flags & BPF_JIT_FMEM) != 0;
+	fjmp = (flags & BPF_JIT_FJMP) != 0;
+	fadk = (flags & BPF_JIT_FADK) != 0;
+	save_esp = (fpkt || fmem || fadk);	/* Stack is used. */
+
+	if (fret)
+		nins = 1;
+
 	memset(&stream, 0, sizeof(stream));
 
 	/* Allocate the reference table for the jumps. */
-	if (flag_jmp) {
+	if (fjmp) {
 #ifdef _KERNEL
 		stream.refs = malloc((nins + 1) * sizeof(u_int), M_BPFJIT,
 		    M_NOWAIT | M_ZERO);
 #else
-		stream.refs = malloc((nins + 1) * sizeof(u_int));
+		stream.refs = calloc(nins + 1, sizeof(u_int));
 #endif
 		if (stream.refs == NULL)
 			return (NULL);
-#ifndef _KERNEL
-		memset(stream.refs, 0, (nins + 1) * sizeof(u_int));
-#endif
 	}
 
 	/*
@@ -180,15 +200,16 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 		ins = prog;
 
 		/* Create the procedure header. */
-		if (!flag_ret) {
+		if (save_esp) {
 			PUSH(EBP);
 			MOVrd(ESP, EBP);
 		}
-		if (flag_mem)
+		if (fmem)
 			SUBib(BPF_MEMWORDS * sizeof(uint32_t), ESP);
-		if (!flag_ret) {
-			PUSH(EDI);
+		if (save_esp)
 			PUSH(ESI);
+		if (fpkt) {
+			PUSH(EDI);
 			PUSH(EBX);
 			MOVodd(8, EBP, EBX);
 			MOVodd(16, EBP, EDI);
@@ -207,20 +228,24 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 			case BPF_RET|BPF_K:
 				MOVid(ins->k, EAX);
-				if (!flag_ret) {
-					POP(EBX);
+				if (save_esp) {
+					if (fpkt) {
+						POP(EBX);
+						POP(EDI);
+					}
 					POP(ESI);
-					POP(EDI);
 					LEAVE();
 				}
 				RET();
 				break;
 
 			case BPF_RET|BPF_A:
-				if (!flag_ret) {
-					POP(EBX);
+				if (save_esp) {
+					if (fpkt) {
+						POP(EBX);
+						POP(EDI);
+					}
 					POP(ESI);
-					POP(EDI);
 					LEAVE();
 				}
 				RET();
@@ -236,8 +261,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				JAEb(7);
 				ZEROrd(EAX);
 				POP(EBX);
-				POP(ESI);
 				POP(EDI);
+				POP(ESI);
 				LEAVE();
 				RET();
 				MOVobd(EBX, ESI, EAX);
@@ -254,8 +279,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				CMPid(sizeof(int16_t), ECX);
 				JAEb(5);
 				POP(EBX);
-				POP(ESI);
 				POP(EDI);
+				POP(ESI);
 				LEAVE();
 				RET();
 				MOVobw(EBX, ESI, AX);
@@ -268,19 +293,29 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				CMPrd(EDI, ESI);
 				JBb(5);
 				POP(EBX);
-				POP(ESI);
 				POP(EDI);
+				POP(ESI);
 				LEAVE();
 				RET();
 				MOVobb(EBX, ESI, AL);
 				break;
 
 			case BPF_LD|BPF_W|BPF_LEN:
-				MOVodd(12, EBP, EAX);
+				if (save_esp)
+					MOVodd(12, EBP, EAX);
+				else {
+					MOVrd(ESP, ECX);
+					MOVodd(12, ECX, EAX);
+				}
 				break;
 
 			case BPF_LDX|BPF_W|BPF_LEN:
-				MOVodd(12, EBP, EDX);
+				if (save_esp)
+					MOVodd(12, EBP, EDX);
+				else {
+					MOVrd(ESP, ECX);
+					MOVodd(12, ECX, EDX);
+				}
 				break;
 
 			case BPF_LD|BPF_W|BPF_IND:
@@ -298,8 +333,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				JAEb(7);
 				ZEROrd(EAX);
 				POP(EBX);
-				POP(ESI);
 				POP(EDI);
+				POP(ESI);
 				LEAVE();
 				RET();
 				MOVobd(EBX, ESI, EAX);
@@ -321,8 +356,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				CMPid(sizeof(int16_t), ECX);
 				JAEb(5);
 				POP(EBX);
-				POP(ESI);
 				POP(EDI);
+				POP(ESI);
 				LEAVE();
 				RET();
 				MOVobw(EBX, ESI, AX);
@@ -339,8 +374,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				CMPrd(ESI, ECX);
 				JAb(5);
 				POP(EBX);
-				POP(ESI);
 				POP(EDI);
+				POP(ESI);
 				LEAVE();
 				RET();
 				ADDrd(EDX, ESI);
@@ -353,8 +388,8 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 				JBb(7);
 				ZEROrd(EAX);
 				POP(EBX);
-				POP(ESI);
 				POP(EDI);
+				POP(ESI);
 				LEAVE();
 				RET();
 				ZEROrd(EDX);
@@ -481,12 +516,22 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 			case BPF_ALU|BPF_DIV|BPF_X:
 				TESTrd(EDX, EDX);
-				JNEb(7);
-				ZEROrd(EAX);
-				POP(EBX);
-				POP(ESI);
-				POP(EDI);
-				LEAVE();
+				if (save_esp) {
+					if (fpkt) {
+						JNEb(7);
+						ZEROrd(EAX);
+						POP(EBX);
+						POP(EDI);
+					} else {
+						JNEb(5);
+						ZEROrd(EAX);
+					}
+					POP(ESI);
+					LEAVE();
+				} else {
+					JNEb(3);
+					ZEROrd(EAX);
+				}
 				RET();
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
@@ -587,7 +632,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 		 * Modify the reference table to contain the offsets and
 		 * not the lengths of the instructions.
 		 */
-		if (flag_jmp)
+		if (fjmp)
 			for (i = 1; i < nins + 1; i++)
 				stream.refs[i] += stream.refs[i - 1];
 
@@ -603,7 +648,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 	 * The reference table is needed only during compilation,
 	 * now we can free it.
 	 */
-	if (flag_jmp)
+	if (fjmp)
 #ifdef _KERNEL
 		free(stream.refs, M_BPFJIT);
 #else
