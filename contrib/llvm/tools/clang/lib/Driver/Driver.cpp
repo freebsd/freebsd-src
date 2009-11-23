@@ -950,7 +950,7 @@ void Driver::BuildJobs(Compilation &C) const {
 
   // If the user passed -Qunused-arguments or there were errors, don't warn
   // about any unused arguments.
-  if (Diags.getNumErrors() ||
+  if (1 || Diags.getNumErrors() ||
       C.getArgs().hasArg(options::OPT_Qunused_arguments))
     return;
 
