@@ -62,6 +62,8 @@
 #include <machine/cpuregs.h>
 #include <machine/pte.h>
 
+#include "opt_cputype.h"
+
 #include "assym.s"
 
 #if defined(ISA_MIPS32)

@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cputype.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -48,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/locore.h>
 #include <machine/pte.h>
 #include <machine/hwfunc.h>
-
-#include "opt_cputype.h"
 
 static struct mips_cpuinfo cpuinfo;
 

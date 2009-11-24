@@ -55,6 +55,7 @@
  *	assembly language support routines.
  */
 
+#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include <sys/errno.h>
 #include <machine/asm.h>
