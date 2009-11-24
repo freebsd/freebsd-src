@@ -2665,6 +2665,13 @@ bge_attach(device_t dev)
 	}
 
 	/*
+	 * The 40bit DMA bug applies to the 5714/5715 controllers and is
+	 * not actually a MAC controller bug but an issue with the embedded
+	 * PCIe to PCI-X bridge in the device. Use 40bit DMA workaround.
+	 */
+	if (BGE_IS_5714_FAMILY(sc) && (sc->bge_flags & BGE_FLAG_PCIX))
+		sc->bge_flags |= BGE_FLAG_40BIT_BUG;
+	/*
 	 * Allocate the interrupt, using MSI if possible.  These devices
 	 * support 8 MSI messages, but only the first one is used in
 	 * normal operation.
@@ -2798,13 +2805,6 @@ bge_attach(device_t dev)
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	/*
-	 * The 40bit DMA bug applies to the 5714/5715 controllers and is
-	 * not actually a MAC controller bug but an issue with the embedded
-	 * PCIe to PCI-X bridge in the device. Use 40bit DMA workaround.
-	 */
-	if (BGE_IS_5714_FAMILY(sc) && (sc->bge_flags & BGE_FLAG_PCIX))
-		sc->bge_flags |= BGE_FLAG_40BIT_BUG;
 
 	/*
 	 * 5700 B0 chips do not support checksumming correctly due
