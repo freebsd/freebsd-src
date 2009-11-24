@@ -325,7 +325,7 @@ xb_quiesce(struct blkfront_info *info)
 		}
 		if (blkif_queued_requests) {
 			// Still pending requests, wait for the disk i/o to complete
-			HYPERVISOR_block();
+			HYPERVISOR_yield();
 		}
 	}
 }
