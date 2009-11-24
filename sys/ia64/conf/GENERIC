@@ -37,13 +37,14 @@ options 	INET6		# IPv6 communications protocols
 options 	INVARIANTS	# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT # required by INVARIANTS
 options 	KTRACE		# ktrace(1) syscall trace support
-options 	MAC			# TrustedBSD MAC Framework
+options 	MAC		# TrustedBSD MAC Framework
 options 	MD_ROOT		# MD usable as root device
 options 	MSDOSFS		# MSDOS Filesystem
 options 	NFSCLIENT	# Network Filesystem Client
 options 	NFSSERVER	# Network Filesystem Server
 options 	NFSLOCKD	# Network Lock Manager
 options 	NFS_ROOT	# NFS usable as root device
+options 	PRINTF_BUFR_SIZE=128  # Printf buffering to limit interspersion
 options 	PROCFS		# Process filesystem (/proc)
 options 	PSEUDOFS	# Pseudo-filesystem framework
 options 	SCHED_ULE	# ULE scheduler
@@ -60,7 +61,7 @@ options 	UFS_ACL		# Support for access control lists
 options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	UFS_GJOURNAL	# Enable gjournal-based UFS journaling
 options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
-options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	HWPMC_HOOKS	# Necessary kernel hooks for hwpmc(4)
 
 # Various "busses"
 device		firewire	# FireWire bus code
