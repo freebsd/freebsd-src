@@ -722,7 +722,6 @@ platform_start(__register_t a0, __register_t a1,
 	platform_counter_freq = 330000000UL; /* XXX: from idt */
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
-	printf("Now is the time to get happy!\n");
 	/* Panic here, after cninit */ 
 #if 0
 	if (mem == 0)
