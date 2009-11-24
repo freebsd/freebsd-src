@@ -76,6 +76,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuinfo.h>
 #include <machine/cache.h>
 
+#include "opt_cputype.h"
+
 struct mips_cache_ops mips_cache_ops;
 
 void
