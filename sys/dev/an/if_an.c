@@ -2800,7 +2800,7 @@ an_start_locked(struct ifnet *ifp)
 				   tx_frame_802_3.an_tx_802_3_payload_len,
 				   (caddr_t)&sc->an_txbuf);
 
-			txcontrol = AN_TXCTL_8023;
+			txcontrol = AN_TXCTL_8023 | AN_TXCTL_HW(sc->mpi350);
 			/* write the txcontrol only */
 			an_write_data(sc, id, 0x08, (caddr_t)&txcontrol,
 				      sizeof(txcontrol));
@@ -2863,7 +2863,7 @@ an_start_locked(struct ifnet *ifp)
 				   tx_frame_802_3.an_tx_802_3_payload_len,
 				   (caddr_t)&sc->an_txbuf);
 
-			txcontrol = AN_TXCTL_8023;
+			txcontrol = AN_TXCTL_8023 | AN_TXCTL_HW(sc->mpi350);
 			/* write the txcontrol only */
 			bcopy((caddr_t)&txcontrol, &buf[0x08],
 			      sizeof(txcontrol));
@@ -2885,7 +2885,7 @@ an_start_locked(struct ifnet *ifp)
 			    tx_frame_802_3.an_tx_802_3_payload_len;
 			an_tx_desc.an_phys
 			    = sc->an_tx_buffer[idx].an_dma_paddr;
-			for (i = 0; i < sizeof(an_tx_desc) / 4 ; i++) {
+			for (i = sizeof(an_tx_desc) / 4 - 1; i >= 0; i--) {
 				CSR_MEM_AUX_WRITE_4(sc, AN_TX_DESC_OFFSET
 				    /* zero for now */
 				    + (0 * sizeof(an_tx_desc))
