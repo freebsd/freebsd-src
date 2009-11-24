@@ -516,7 +516,8 @@ panic(const char *fmt, ...)
 	va_list ap;
 	static char buf[256];
 
-	critical_enter();
+	if (td)
+		critical_enter();
 #ifdef SMP
 	/*
 	 * We don't want multiple CPU's to panic at the same time, so we
@@ -575,7 +576,8 @@ panic(const char *fmt, ...)
 	/* thread_unlock(td); */
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
-	critical_exit();
+	if (td)
+		critical_exit();
 	boot(bootopt);
 }
 
