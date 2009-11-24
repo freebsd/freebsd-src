@@ -415,12 +415,19 @@ siis_ch_attach(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 	struct cam_devq *devq;
-	int rid, error;
+	int rid, error, i;
 
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
+	for (i = 0; i < 16; i++) {
+		ch->user[i].revision = 0;
+		ch->user[i].mode = 0;
+		ch->user[i].bytecount = 8192;
+		ch->user[i].tags = SIIS_MAX_SLOTS;
+		ch->curr[i] = ch->user[i];
+	}
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "sata_rev", &ch->sata_rev);
 	mtx_init(&ch->mtx, "SIIS channel lock", NULL, MTX_DEF);
@@ -833,6 +840,13 @@ siis_check_collision(device_t dev, union ccb *ccb)
 
 	mtx_assert(&ch->mtx, MA_OWNED);
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
+		/* Tagged command while we have no supported tag free. */
+		if (((~ch->oslots) & (0x7fffffff >> (31 -
+		    ch->curr[ccb->ccb_h.target_id].tags))) == 0)
+			return (1);
+	}
+	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & (CAM_ATAIO_CONTROL | CAM_ATAIO_NEEDRESULT))) {
 		/* Atomic command while anything active. */
 		if (ch->numrslots != 0)
@@ -850,21 +864,20 @@ siis_begin_transaction(device_t dev, union ccb *ccb)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 	struct siis_slot *slot;
-	int tag;
+	int tag, tags;
 
 	mtx_assert(&ch->mtx, MA_OWNED);
 	/* Choose empty slot. */
-	tag = ch->lastslot;
-	while (ch->slot[tag].state != SIIS_SLOT_EMPTY) {
-		if (++tag >= SIIS_MAX_SLOTS)
-			tag = 0;
-		KASSERT(tag != ch->lastslot, ("siis: ALL SLOTS BUSY!"));
-	}
-	ch->lastslot = tag;
+	tags = SIIS_MAX_SLOTS;
+	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA))
+		tags = ch->curr[ccb->ccb_h.target_id].tags;
+	tag = fls((~ch->oslots) & (0x7fffffff >> (31 - tags))) - 1;
 	/* Occupy chosen slot. */
 	slot = &ch->slot[tag];
 	slot->ccb = ccb;
 	/* Update channel stats. */
+	ch->oslots |= (1 << slot->slot);
 	ch->numrslots++;
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
@@ -1118,6 +1131,7 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 	}
 	/* Free slot. */
+	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
 	if (et != SIIS_ERR_TIMEOUT) {
@@ -1143,7 +1157,7 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 	} else
 		xpt_done(ccb);
 	/* Unfreeze frozen command. */
-	if (ch->frozen && ch->numrslots == 0) {
+	if (ch->frozen && !siis_check_collision(dev, ch->frozen)) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
 		siis_begin_transaction(dev, fccb);
@@ -1554,7 +1568,20 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct	siis_device *d; 
 
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
+			d->revision = cts->xport_specific.sata.revision;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_MODE)
+			d->mode = cts->xport_specific.sata.mode;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
+			d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_TAGS)
+			d->tags = min(SIIS_MAX_SLOTS, cts->xport_specific.sata.tags);
 		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_PM) {
 			ch->pm_present = cts->xport_specific.sata.pm_present;
 			if (ch->pm_present)
@@ -1570,30 +1597,41 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 	/* Get default/user set transfer settings for the target */
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct  siis_device *d;
 		uint32_t status;
 
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
 		cts->protocol = PROTO_ATA;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cts->proto_specific.valid = 0;
 		cts->xport_specific.sata.valid = 0;
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS &&
+		    (ccb->ccb_h.target_id == 15 ||
+		    (ccb->ccb_h.target_id == 0 && !ch->pm_present))) {
 			status = ATA_INL(ch->r_mem, SIIS_P_SSTS) & ATA_SS_SPD_MASK;
-		else
-			status = ATA_INL(ch->r_mem, SIIS_P_SCTL) & ATA_SC_SPD_MASK;
-		if (status & ATA_SS_SPD_GEN3) {
-			cts->xport_specific.sata.bitrate = 600000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		} else if (status & ATA_SS_SPD_GEN2) {
-			cts->xport_specific.sata.bitrate = 300000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		} else if (status & ATA_SS_SPD_GEN1) {
-			cts->xport_specific.sata.bitrate = 150000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
+			if (status & 0x0f0) {
+				cts->xport_specific.sata.revision =
+				    (status & 0x0f0) >> 4;
+				cts->xport_specific.sata.valid |=
+				    CTS_SATA_VALID_REVISION;
+			}
+		} else {
+			cts->xport_specific.sata.revision = d->revision;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 		}
+		cts->xport_specific.sata.mode = d->mode;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
+		cts->xport_specific.sata.bytecount = d->bytecount;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_BYTECOUNT;
 		cts->xport_specific.sata.pm_present = ch->pm_present;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
+		cts->xport_specific.sata.tags = d->tags;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
