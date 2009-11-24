@@ -226,6 +226,12 @@ static int scsireadcapacity(struct cam_device *device, int argc, char **argv,
 static int atapm(struct cam_device *device, int argc, char **argv,
 			    char *combinedopt, int retry_count, int timeout);
 #endif /* MINIMALISTIC */
+#ifndef min
+#define min(a,b) (((a)<(b))?(a):(b))
+#endif
+#ifndef max
+#define max(a,b) (((a)>(b))?(a):(b))
+#endif
 
 camcontrol_optret
 getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, 
@@ -950,21 +956,27 @@ camxferrate(struct cam_device *device)
 
 		if (sas->valid & CTS_SAS_VALID_SPEED)
 			speed = sas->bitrate;
+	} else if (ccb->cts.transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &ccb->cts.xport_specific.ata;
+
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(ata->mode);
 	} else if (ccb->cts.transport == XPORT_SATA) {
-		struct ccb_trans_settings_sata *sata =
+		struct	ccb_trans_settings_sata *sata =
 		    &ccb->cts.xport_specific.sata;
 
-		if (sata->valid & CTS_SATA_VALID_SPEED)
-			speed = sata->bitrate;
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			speed = ata_revision2speed(sata->revision);
 	}
 
 	mb = speed / 1000;
 	if (mb > 0) {
-		fprintf(stdout, "%s%d: %d.%03dMB/s transfers ",
+		fprintf(stdout, "%s%d: %d.%03dMB/s transfers",
 			device->device_name, device->dev_unit_num,
 			mb, speed % 1000);
 	} else {
-		fprintf(stdout, "%s%d: %dKB/s transfers ",
+		fprintf(stdout, "%s%d: %dKB/s transfers",
 			device->device_name, device->dev_unit_num,
 			speed);
 	}
@@ -975,7 +987,7 @@ camxferrate(struct cam_device *device)
 
 		if (((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0)
 		 && (spi->sync_offset != 0))
-			fprintf(stdout, "(%d.%03dMHz, offset %d", freq / 1000,
+			fprintf(stdout, " (%d.%03dMHz, offset %d", freq / 1000,
 				freq % 1000, spi->sync_offset);
 
 		if (((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
@@ -995,18 +1007,24 @@ camxferrate(struct cam_device *device)
 		struct ccb_trans_settings_ata *ata =
 		    &ccb->cts.xport_specific.ata;
 
-		if (ata->valid & CTS_ATA_VALID_BYTECOUNT) {
-			fprintf(stdout, "(PIO size %dbytes)",
-			    ata->bytecount);
-		}
+		printf(" (");
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(ata->mode));
+		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
+			printf("PIO size %dbytes", ata->bytecount);
+		printf(")");
 	} else if (ccb->cts.transport == XPORT_SATA) {
 		struct ccb_trans_settings_sata *sata =
 		    &ccb->cts.xport_specific.sata;
 
-		if (sata->valid & CTS_SATA_VALID_BYTECOUNT) {
-			fprintf(stdout, "(PIO size %dbytes)",
-			    sata->bytecount);
-		}
+		printf(" (");
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			printf("SATA %d.x, ", sata->revision);
+		if (sata->valid & CTS_SATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(sata->mode));
+		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
+			printf("PIO size %dbytes", sata->bytecount);
+		printf(")");
 	}
 
 	if (ccb->cts.protocol == PROTO_SCSI) {
@@ -2757,7 +2775,44 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 				"enabled" : "disabled");
 		}
 	}
+	if (cts->transport == XPORT_ATA) {
+		struct ccb_trans_settings_ata *ata =
+		    &cts->xport_specific.ata;
 
+		if ((ata->valid & CTS_ATA_VALID_MODE) != 0) {
+			fprintf(stdout, "%sATA mode: %s\n", pathstr,
+				ata_mode2string(ata->mode));
+		}
+		if ((ata->valid & CTS_ATA_VALID_BYTECOUNT) != 0) {
+			fprintf(stdout, "%sPIO transaction length: %d\n",
+				pathstr, ata->bytecount);
+		}
+	}
+	if (cts->transport == XPORT_SATA) {
+		struct ccb_trans_settings_sata *sata =
+		    &cts->xport_specific.sata;
+
+		if ((sata->valid & CTS_SATA_VALID_REVISION) != 0) {
+			fprintf(stdout, "%sSATA revision: %d.x\n", pathstr,
+				sata->revision);
+		}
+		if ((sata->valid & CTS_SATA_VALID_MODE) != 0) {
+			fprintf(stdout, "%sATA mode: %s\n", pathstr,
+				ata_mode2string(sata->mode));
+		}
+		if ((sata->valid & CTS_SATA_VALID_BYTECOUNT) != 0) {
+			fprintf(stdout, "%sPIO transaction length: %d\n",
+				pathstr, sata->bytecount);
+		}
+		if ((sata->valid & CTS_SATA_VALID_PM) != 0) {
+			fprintf(stdout, "%sPMP presence: %d\n", pathstr,
+				sata->pm_present);
+		}
+		if ((sata->valid & CTS_SATA_VALID_TAGS) != 0) {
+			fprintf(stdout, "%sNumber of tags: %d\n", pathstr,
+				sata->tags);
+		}
+	}
 	if (cts->protocol == PROTO_SCSI) {
 		struct ccb_trans_settings_scsi *scsi=
 		    &cts->proto_specific.scsi;

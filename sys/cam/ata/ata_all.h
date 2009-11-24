@@ -112,7 +112,12 @@ void	ata_bpack(int8_t *src, int8_t *dst, int len);
 int	ata_max_pmode(struct ata_params *ap);
 int	ata_max_wmode(struct ata_params *ap);
 int	ata_max_umode(struct ata_params *ap);
-int	ata_max_mode(struct ata_params *ap, int mode, int maxmode);
+int	ata_max_mode(struct ata_params *ap, int maxmode);
+
+char *	ata_mode2string(int mode);
+u_int	ata_mode2speed(int mode);
+u_int	ata_revision2speed(int revision);
+int	ata_speed2revision(u_int speed);
 
 int	ata_identify_match(caddr_t identbuffer, caddr_t table_entry);
 int	ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry);
