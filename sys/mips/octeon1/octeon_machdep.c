@@ -682,7 +682,7 @@ platform_start(__register_t a0, __register_t a1,
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
 
         octeon_ciu_reset();
-    	octeon_uart_write_string(0, "\nPlatform Starting");
+    	octeon_uart_write_string(0, "Platform Starting\n");
 
 /* From here on down likely is bogus */
 	/*
@@ -722,9 +722,12 @@ platform_start(__register_t a0, __register_t a1,
 	platform_counter_freq = 330000000UL; /* XXX: from idt */
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
+	printf("Now is the time to get happy!\n");
 	/* Panic here, after cninit */ 
+#if 0
 	if (mem == 0)
 		panic("No mem=XX parameter in arguments");
+#endif
 
 	printf("cmd line: ");
 	for (i=0; i < argc; i++)
