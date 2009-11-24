@@ -178,9 +178,12 @@ cpu_identify(void)
 	case MIPS_PRID_CID_LEXRA:
 		printf("Lexra");
 		break;
+	case MIPS_PRID_CID_CAVIUM:
+		printf("Cavium");
+		break;
 	case MIPS_PRID_CID_PREHISTORIC:
 	default:
-		printf("Unknown");
+		printf("Unknown cid %#x", cpuinfo.cpu_vendor);
 		break;
 	}
 	printf(" processor v%d.%d\n", cpuinfo.cpu_rev, cpuinfo.cpu_impl);
