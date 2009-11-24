@@ -128,7 +128,7 @@ static uint8_t vlan_matrix[SW_DEVS] = {
 
 /* ifnet entry points */
 static void	admsw_start(struct ifnet *);
-static void	admsw_watchdog(struct ifnet *);
+static void	admsw_watchdog(void *);
 static int	admsw_ioctl(struct ifnet *, u_long, caddr_t);
 static void	admsw_init(void *);
 static void	admsw_stop(struct ifnet *, int);
@@ -398,6 +398,7 @@ admsw_attach(device_t dev)
 
 	device_printf(sc->sc_dev, "base Ethernet address %s\n",
 	    ether_sprintf(enaddr));
+	callout_init(&sc->sc_watchdog, 1);
 
 	rid = 0;
 	if ((sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
@@ -536,8 +537,6 @@ admsw_attach(device_t dev)
 		ifp->if_ioctl = admsw_ioctl;
 		ifp->if_output = ether_output;
 		ifp->if_start = admsw_start;
-		ifp->if_watchdog = admsw_watchdog;
-		ifp->if_timer = 0;
 		ifp->if_init = admsw_init;
 		ifp->if_mtu = ETHERMTU;
 		ifp->if_baudrate = IF_Mbps(100);
@@ -733,7 +732,7 @@ admsw_start(struct ifnet *ifp)
 		BPF_MTAP(ifp, m0);
 
 		/* Set a watchdog timer in case the chip flakes out. */
-		sc->sc_ifnet[0]->if_timer = 5;
+		sc->sc_timer = 5;
 	}
 }
 
@@ -743,25 +742,29 @@ admsw_start(struct ifnet *ifp)
  *	Watchdog timer handler.
  */
 static void
-admsw_watchdog(struct ifnet *ifp)
+admsw_watchdog(void *arg)
 {
-	struct admsw_softc *sc = ifp->if_softc;
+	struct admsw_softc *sc = arg;
 	int vlan;
+
+	callout_reset(&sc->watchdog, hz, admsw_watchdog, sc);
+	if (sc->sc_timer == 0 || --sc->timer > 0)
+		return;
 
 	/* Check if an interrupt was lost. */
 	if (sc->sc_txfree == ADMSW_NTXLDESC) {
 		device_printf(sc->sc_dev, "watchdog false alarm\n");
 		return;
 	}
-	if (sc->sc_ifnet[0]->if_timer != 0)
+	if (sc->sc_timer != 0)
 		device_printf(sc->sc_dev, "watchdog timer is %d!\n",  
-		    sc->sc_ifnet[0]->if_timer);
+		    sc->sc_timer);
 	admsw_txintr(sc, 0);
 	if (sc->sc_txfree == ADMSW_NTXLDESC) {
 		device_printf(sc->sc_dev, "tx IRQ lost (queue empty)\n");
 		return;
 	}
-	if (sc->sc_ifnet[0]->if_timer != 0) {
+	if (sc->sc_timer != 0) {
 		device_printf(sc->sc_dev, "tx IRQ lost (timer recharged)\n");
 		return;
 	}
@@ -938,7 +941,7 @@ admsw_txintr(struct admsw_softc *sc, int prio)
 		 * cancel the watchdog timer.
 		 */
 		if (sc->sc_txfree == ADMSW_NTXLDESC)
-			ifp->if_timer = 0;
+			sc->sc_timer = 0;
 
 	}
 
@@ -1096,6 +1099,9 @@ admsw_init(void *xsc)
 				    ~(ADMSW_INTR_SHD | ADMSW_INTR_SLD | 
 					ADMSW_INTR_RHD | ADMSW_INTR_RLD | 
 					ADMSW_INTR_HDF | ADMSW_INTR_LDF));
+
+				callout_reset(&sc->sc_watchdog, hz,
+				    admsw_watchdog, sc);
 			}
 			sc->ndevs++;
 		}
@@ -1137,11 +1143,14 @@ admsw_stop(struct ifnet *ifp, int disable)
 
 		/* disable interrupts */
 		REG_WRITE(ADMSW_INT_MASK, INT_MASK);
+
+		/* Cancel the watchdog timer. */
+		sc->sc_timer = 0;
+		callout_stop(&sc->sc_watchdog);
 	}
 
-	/* Mark the interface as down and cancel the watchdog timer. */
+	/* Mark the interface as down. */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
 
 	return;
 }
