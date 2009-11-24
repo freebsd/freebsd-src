@@ -22,14 +22,15 @@ cpu		CPU_MIPS4KC
 ident		OCTEON1
 
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
-makeoptions	LDSCRIPT_NAME=	ldscript.mips.mips64
+makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon.64
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 makeoptions     TARGET_BIG_ENDIAN=defined
 makeoptions     TARGET_64BIT=defined
+makeoptions	KERNLOADADDR=0xffffffff80100000
 
-options		KERNVIRTADDR=0x80100000
+options		KERNVIRTADDR=0xffffffff80100000
 include		"../octeon1/std.octeon1"
 
 hints		"OCTEON1.hints"		#Default places to look for devices.
