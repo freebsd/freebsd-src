@@ -92,23 +92,23 @@ uart_octeon_probe(device_t dev)
 	struct uart_softc *sc;
 	int unit;
 
-/*
- * Note that both tty0 & tty1 are viable consoles. We add child devices
- * such that ttyu0 ends up front of queue.
- */
 	unit = device_get_unit(dev);
 	sc = device_get_softc(dev);
-	sc->sc_sysdev = NULL;
+	sc->sc_class = &uart_oct16550_class;
+
+#if 1
+	/*
+	 * We inherit the settings from the systme console.  Note, the bst
+	 * bad bus_space_map are bogus here, but obio doesn't yet support
+	 * them, it seems.
+	 */
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
-	if (!unit) {
-		sc->sc_sysdev->bas.bst = 0;
-		sc->sc_sysdev->bas.bsh = OCTEON_UART0ADR;
-	}
-	sc->sc_class = &uart_oct16550_class;
-	sc->sc_bas.bst = 0;
-	sc->sc_bas.bsh = unit ? OCTEON_UART1ADR : OCTEON_UART0ADR;
-	sc->sc_bas.regshft = 0x3;
+	sc->sc_bas.bst = uart_bus_space_mem;
+	if (bus_space_map(sc->sc_bas.bst, OCTEON_UART0ADR, OCTEON_UART_SIZE,
+	    0, &sc->sc_bas.bsh) != 0)
+		return (ENXIO);
+#endif
 	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
 }
 
@@ -117,7 +117,5 @@ octeon_uart_identify(driver_t * drv, device_t parent)
 {
 	BUS_ADD_CHILD(parent, 0, "uart", 0);
 }
-
-
 
 DRIVER_MODULE(uart, obio, uart_octeon_driver, uart_devclass, 0, 0);
