@@ -145,8 +145,6 @@ interrupt(struct trapframe *tf)
 	/*
 	 * Handle ExtINT interrupts by generating an INTA cycle to
 	 * read the vector.
-	 * IPI_STOP_HARD is mapped to IPI_STOP so it is not necessary
-	 * to add it to this switch-like construct.
 	 */
 	if (vector == 0) {
 		inta = ib->ib_inta;
@@ -225,6 +223,10 @@ interrupt(struct trapframe *tf)
 		disable_intr();
 	} else if (vector == ipi_vector[IPI_STOP]) {
 		cpumask_t mybit = PCPU_GET(cpumask);
+
+		/* Make sure IPI_STOP_HARD is mapped to IPI_STOP. */
+		KASSERT(IPI_STOP == IPI_STOP_HARD,
+		    ("%s: IPI_STOP_HARD not handled.", __func__));
 
 		savectx(PCPU_PTR(pcb));
 		atomic_set_int(&stopped_cpus, mybit);
