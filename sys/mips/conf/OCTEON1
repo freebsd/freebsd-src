@@ -22,7 +22,7 @@ cpu		CPU_MIPS4KC
 ident		OCTEON1
 
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
-makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon.64
+makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1.64
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""

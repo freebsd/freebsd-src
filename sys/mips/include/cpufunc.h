@@ -208,12 +208,13 @@ mips_wr_ ## n ## s(uint32_t a0)					\
 #ifdef TARGET_OCTEON
 static __inline void mips_sync_icache (void)
 {
-    __asm __volatile (
-        ".set mips64\n"
-        ".word 0x041f0000\n"
-        "nop\n"
-        ".set mips0\n"
-        : : );
+	__asm __volatile (
+		".set push\n"
+		".set mips64\n"
+		".word 0x041f0000\n"		/* xxx ICACHE */
+		"nop\n"
+		".set pop\n"
+		: : );
 }
 #endif
 
