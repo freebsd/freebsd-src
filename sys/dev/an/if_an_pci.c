@@ -175,9 +175,6 @@ an_attach_pci(dev)
 		goto fail;
 	}
 
-	sc->an_btag = rman_get_bustag(sc->port_res);
-	sc->an_bhandle = rman_get_bushandle(sc->port_res);
-
 	/* Allocate memory for MPI350 */
 	if (sc->mpi350) {
 		/* Allocate memory */
@@ -187,8 +184,6 @@ an_attach_pci(dev)
 			device_printf(dev, "couldn't map memory\n");
 			goto fail;
 		}
-		sc->an_mem_btag = rman_get_bustag(sc->mem_res);
-		sc->an_mem_bhandle = rman_get_bushandle(sc->mem_res);
 
 		/* Allocate aux. memory */
 		sc->mem_aux_rid = PCIR_BAR(2);
@@ -198,8 +193,6 @@ an_attach_pci(dev)
 			device_printf(dev, "couldn't map aux memory\n");
 			goto fail;
 		}
-		sc->an_mem_aux_btag = rman_get_bustag(sc->mem_aux_res);
-		sc->an_mem_aux_bhandle = rman_get_bushandle(sc->mem_aux_res);
 
 		/* Allocate DMA region */
 		error = bus_dma_tag_create(NULL,	/* parent */

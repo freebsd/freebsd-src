@@ -349,9 +349,6 @@ an_probe(device_t dev)
 	 * to be able to issue commands and call some of the
 	 * other routines.
 	 */
-	sc->an_bhandle = rman_get_bushandle(sc->port_res);
-	sc->an_btag = rman_get_bustag(sc->port_res);
-
 	ssid.an_len = sizeof(ssid);
 	ssid.an_type = AN_RID_SSIDLIST;
 
