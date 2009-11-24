@@ -397,7 +397,7 @@ ad_init(device_t dev)
 
     /* use multiple sectors/interrupt if device supports it */
     if (ad_version(atadev->param.version_major)) {
-	int secsperint = max(1, min(atadev->param.sectors_intr, 16));
+	int secsperint = max(1, min(atadev->param.sectors_intr & 0xff, 16));
 
 	if (!ata_controlcmd(dev, ATA_SET_MULTI, 0, 0, secsperint))
 	    atadev->max_iosize = secsperint * DEV_BSIZE;
