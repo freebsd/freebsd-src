@@ -42,6 +42,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cputype.h"
 #include "opt_ddb.h"
 #include "opt_md.h"
 #include "opt_msgbuf.h"
@@ -259,8 +260,12 @@ void
 mips_proc0_init(void)
 {
 	proc_linkup(&proc0, &thread0);
+
+	KASSERT((kstack0 & PAGE_MASK) == 0,
+	    ("kstack0 is not aligned on a page boundary: %#lx\n",
+		(unsigned long)kstack0));
 	thread0.td_kstack = kstack0;
-	thread0.td_kstack_pages = KSTACK_PAGES - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_md.md_realstack = roundup2(thread0.td_kstack, PAGE_SIZE * 2);
 	/* Initialize pcpu info of cpu-zero */
 #ifdef SMP
