@@ -45,47 +45,39 @@
 /*
  * register space access macros
  */
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->an_btag, sc->an_bhandle, reg, val)
+#define CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->port_res, reg, val)
 
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->an_btag, sc->an_bhandle, reg)
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->port_res, reg)
 
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->an_btag, sc->an_bhandle, reg, val)
+#define CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->port_res, reg, val)
 
-#define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->an_btag, sc->an_bhandle, reg)
+#define CSR_READ_1(sc, reg)		bus_read_1(sc->port_res, reg)
 
 /*
  * memory space access macros
  */
-#define CSR_MEM_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->an_mem_btag, sc->an_mem_bhandle, reg, val)
+#define CSR_MEM_WRITE_2(sc, reg, val)	bus_write_2(sc->mem_res, reg, val)
 
-#define CSR_MEM_READ_2(sc, reg)		\
-	bus_space_read_2(sc->an_mem_btag, sc->an_mem_bhandle, reg)
+#define CSR_MEM_READ_2(sc, reg)		bus_read_2(sc->mem_res, reg)
 
-#define CSR_MEM_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->an_mem_btag, sc->an_mem_bhandle, reg, val)
+#define CSR_MEM_WRITE_1(sc, reg, val)	bus_write_1(sc->mem_res, reg, val)
 
-#define CSR_MEM_READ_1(sc, reg)		\
-	bus_space_read_1(sc->an_mem_btag, sc->an_mem_bhandle, reg)
+#define CSR_MEM_READ_1(sc, reg)		bus_read_1(sc->mem_res, reg)
 
 /*
  * aux. memory space access macros
  */
 #define CSR_MEM_AUX_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg, val)
+	bus_write_4(sc->mem_aux_res, reg, val)
 
 #define CSR_MEM_AUX_READ_4(sc, reg)		\
-	bus_space_read_4(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg)
+	bus_read_4(sc->mem_aux_res, reg)
 
 #define CSR_MEM_AUX_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg, val)
+	bus_write_1(sc->mem_aux_res, reg, val)
 
 #define CSR_MEM_AUX_READ_1(sc, reg)		\
-	bus_space_read_1(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg)
+	bus_read_1(sc->mem_aux_res, reg)
 
 /*
  * Size of Aironet I/O space.
@@ -454,11 +446,6 @@ struct an_softc	{
 	void*	irq_handle;	/* handle for irq handler */
 	struct resource* irq_res; /* resource for irq */
 
-	bus_space_handle_t	an_bhandle_p;
-	bus_space_handle_t	an_bhandle;
-	bus_space_tag_t		an_btag;
-	bus_space_handle_t	an_mem_bhandle;
-	bus_space_tag_t		an_mem_btag;
 	bus_space_handle_t	an_mem_aux_bhandle;
 	bus_space_tag_t		an_mem_aux_btag;
 	bus_dma_tag_t		an_dtag;
