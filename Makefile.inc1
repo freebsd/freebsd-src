@@ -277,7 +277,7 @@ LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 LIB32FLAGS=	-m32 ${LIB32CPUFLAGS} -mfancy-math-387 -DCOMPAT_32BIT \
 		-isystem ${LIB32TMP}/usr/include/ \
 		-L${LIB32TMP}/usr/lib32 \
-		-B${LIB32TMP}/usr/lib32
+		-B${LIB32TMP}
 
 # Yes, the flags are redundant.
 LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
@@ -442,6 +442,10 @@ build32:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	mkdir -p ${WORLDTMP}
+	# relink /usr/bin to the lib32 tmp so the -B can pick up
+	# the /usr/bin/ld and /usr/bin/as
+	rm -rf ${LIB32TMP}/usr/bin/
+	ln -sf ${WORLDTMP}/usr/bin/ ${LIB32TMP}/usr/bin
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 .if ${MK_KERBEROS} != "no"
 .for _t in obj depend all
