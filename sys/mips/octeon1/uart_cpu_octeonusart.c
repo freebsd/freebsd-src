@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 M. Warner Losh <imp@FreeBSD.org>
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * All rights reserved.
  *
@@ -25,14 +26,6 @@
  *
  * $Id$
  */
-/*
- * Skeleton of this file was based on respective code for ARM
- * code written by Olivier Houchard.
- */
-/*
- * XXXMIPS: This file is hacked from arm/... . XXXMIPS here means this file is
- * experimental and was written for MIPS32 port.
- */
 #include "opt_uart.h"
 
 #include <sys/cdefs.h>
@@ -49,42 +42,150 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 
 #include <mips/octeon1/octeonreg.h>
+#include <mips/octeon1/octeon_pcmap_regs.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/ktr.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
+
+#include <machine/bus.h>
+#include <machine/cache.h>
+
+/*
+ * Specailized uart bus space.  We present a 1 apart byte oriented
+ * bus to the outside world, but internally translate to/from the 8-apart
+ * 64-bit word bus that's on the octeon.  We only support simple read/write
+ * in this space.  Everything else is undefined.
+ */
+
+static uint8_t
+ou_bs_r_1(void *t, bus_space_handle_t handle, bus_size_t offset)
+{
+
+	return (oct_read64(handle + (offset << 3)));
+}
+
+static uint16_t
+ou_bs_r_2(void *t, bus_space_handle_t handle, bus_size_t offset)
+{
+
+	return (oct_read64(handle + (offset << 3)));
+}
+
+static uint32_t
+ou_bs_r_4(void *t, bus_space_handle_t handle, bus_size_t offset)
+{
+
+	return (oct_read64(handle + (offset << 3)));
+}
+
+static uint64_t
+ou_bs_r_8(void *t, bus_space_handle_t handle, bus_size_t offset)
+{
+
+	return (oct_read64(handle + (offset << 3)));
+}
+
+static void
+ou_bs_w_1(void *t, bus_space_handle_t bsh, bus_size_t offset, uint8_t value)
+{
+
+	oct_write64(bsh + (offset << 3), value);
+}
+
+static void
+ou_bs_w_2(void *t, bus_space_handle_t bsh, bus_size_t offset, uint16_t value)
+{
+
+	oct_write64(bsh + (offset << 3), value);
+}
+
+static void
+ou_bs_w_4(void *t, bus_space_handle_t bsh, bus_size_t offset, uint32_t value)
+{
+
+	oct_write64(bsh + (offset << 3), value);
+}
+
+static void
+ou_bs_w_8(void *t, bus_space_handle_t bsh, bus_size_t offset, uint64_t value)
+{
+
+	oct_write64(bsh + (offset << 3), value);
+}
+
+static struct bus_space octeon_uart_tag = {
+	.bs_map = generic_bs_map,
+	.bs_unmap = generic_bs_unmap,
+	.bs_subregion = generic_bs_subregion,
+	.bs_barrier = generic_bs_barrier,
+	.bs_r_1 = ou_bs_r_1,
+	.bs_r_2 = ou_bs_r_2,
+	.bs_r_4 = ou_bs_r_4,
+	.bs_r_8 = ou_bs_r_8,
+	.bs_w_1 = ou_bs_w_1,
+	.bs_w_2 = ou_bs_w_2,
+	.bs_w_4 = ou_bs_w_4,
+	.bs_w_8 = ou_bs_w_8,
+};
+
 extern struct uart_class uart_oct16550_class;
-extern struct uart_ops octeon_usart_ops;
-extern struct bus_space octeon_bs_tag;
 
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
+
 	return ((b1->bsh == b2->bsh && b1->bst == b2->bst) ? 1 : 0);
-	return (0);
 }
 
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	struct uart_class *class;
+	struct uart_class *class = &uart_oct16550_class;
 
-	class = &uart_oct16550_class;
+	/*
+	 * These fields need to be setup corretly for uart_getenv to
+	 * work in all cases.
+	 */
+	uart_bus_space_io = NULL;		/* No io map for this device */
+	uart_bus_space_mem = &octeon_uart_tag;
+	di->bas.bst = uart_bus_space_mem;
+
+	/*
+	 * If env specification for UART exists it takes precedence:
+	 * hw.uart.console="mm:0xf1012000" or similar
+	 */
+	if (uart_getenv(devtype, di, class) == 0)
+		return (0);
+
+	/*
+	 * Fallback to UART0 for console.
+	 */
 	di->ops = uart_getops(class);
-	di->bas.bst = 0;
 	di->bas.chan = 0;
-	di->bas.regshft = 3;	/* Each UART reg is 8 byte addresss apart.  1
-				 * << 3 */
+	if (bus_space_map(di->bas.bst, OCTEON_UART0ADR, OCTEON_UART_SIZE,
+	    0, &di->bas.bsh) != 0)
+		return (ENXIO);
+	di->bas.regshft = 0;
 	di->bas.rclk = 0;
 	di->baudrate = 115200;
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
 
-	di->bas.bsh = OCTEON_UART0ADR;
-	uart_getenv(devtype, di, class);
-
-	uart_bus_space_io = NULL;
-	uart_bus_space_mem = mips_bus_space_generic;
 	return (0);
 }
