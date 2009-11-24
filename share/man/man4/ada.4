@@ -36,12 +36,12 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for direct access devices, implementing
+driver provides support for direct access devices, implementing the
 .Tn ATA
 command protocol, that are attached to the system through a host adapter
-supported by CAM subsystem.
+supported by the CAM subsystem.
 .Pp
-Host adapter must also be separately configured into the system before a
+The host adapter must also be separately configured into the system before an
 .Tn ATA
 direct access device can be configured.
 .Sh COMMAND QUEUING
@@ -52,12 +52,12 @@ seeks.
 defines two types of queueing:
 .Tn TCQ (Tagged Command Queueing, PATA legacy)
 and
-.Tn NCQ (Native Command Queueing, SATA).
+.Tn NCQ (Native Command Queueing, SATA) .
 The
 .Nm
-device driver takes full advantage of the NCQ, when supported.
-To ensure that transactions to distant portions of the media,
-which may be deferred indefinitely by servicing requests nearer the current
+device driver takes full advantage of NCQ, when supported.
+To ensure that transactions to distant parts of the media,
+which may be deferred indefinitely by servicing requests closer to the current
 head position, are completed in a timely fashion, an ordered
 transaction is sent every 7 seconds during continuous device operation.
 .Sh CACHE EFFECTS
@@ -84,8 +84,8 @@ writes will be lost.
 The effect of a loss of write transactions on
 a file system is non-deterministic and can cause corruption.
 Most
-devices age write transactions to limit vulnerability to a few transactions
-recently reported as complete, but it is none-the-less recommended that
+devices age write transactions to limit the vulnerability to a few transactions
+recently reported as complete, but it is nonetheless recommended that
 systems with write cache enabled devices reside on an Uninterruptible
 Power Supply (UPS).
 The
@@ -125,14 +125,14 @@ seconds.
 ATA device nodes
 .El
 .Sh SEE ALSO
+.Xr ad 4 ,
 .Xr ahci 4 ,
-.Xr siis 4 ,
-.Xr ad 4
-.Xr da 4
+.Xr da 4 ,
+.Xr siis 4
 .Sh HISTORY
 The
 .Nm
 driver first appeared in
 .Fx 8.0 .
 .Sh AUTHORS
-.An Alexander Motin Aq mav@FreeBSD.org .
+.An Alexander Motin Aq mav@FreeBSD.org
