@@ -39,6 +39,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_cputype.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
