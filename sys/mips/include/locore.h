@@ -60,6 +60,7 @@ typedef int mips_prid_t;
 				/*	0x09	unannounced */
 				/*	0x0a	unannounced */
 #define     MIPS_PRID_CID_LEXRA		0x0b	/* Lexra */
+#define     MIPS_PRID_CID_CAVIUM	0x0d	/* Cavium */
 #define MIPS_PRID_COPTS(x)	(((x) >> 24) & 0x00ff)	/* Company Options */
 
 #ifdef _KERNEL
