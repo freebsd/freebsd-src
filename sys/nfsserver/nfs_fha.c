@@ -206,7 +206,7 @@ fha_extract_info(struct svc_req *req, struct fha_info *i)
 	if (error)
 		goto out;
 
-	i->fh = *(const u_int64_t *)(fh.fh_generic.fh_fid.fid_data);
+	bcopy(fh.fh_generic.fh_fid.fid_data, &i->fh, sizeof(i->fh));
 
 	/* Content ourselves with zero offset for all but reads. */
 	if (procnum != NFSPROC_READ)
