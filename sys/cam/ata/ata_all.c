@@ -491,22 +491,111 @@ ata_max_umode(struct ata_params *ap)
 }
 
 int
-ata_max_mode(struct ata_params *ap, int mode, int maxmode)
+ata_max_mode(struct ata_params *ap, int maxmode)
 {
 
-    if (maxmode && mode > maxmode)
-	mode = maxmode;
+	if (maxmode == 0)
+		maxmode = ATA_DMA_MAX;
+	if (maxmode >= ATA_UDMA0 && ata_max_umode(ap) > 0)
+		return (min(maxmode, ata_max_umode(ap)));
+	if (maxmode >= ATA_WDMA0 && ata_max_wmode(ap) > 0)
+		return (min(maxmode, ata_max_wmode(ap)));
+	return (min(maxmode, ata_max_pmode(ap)));
+}
 
-    if (mode >= ATA_UDMA0 && ata_max_umode(ap) > 0)
-	return (min(mode, ata_max_umode(ap)));
+char *
+ata_mode2string(int mode)
+{
+    switch (mode) {
+    case -1: return "UNSUPPORTED";
+    case 0: return "NONE";
+    case ATA_PIO0: return "PIO0";
+    case ATA_PIO1: return "PIO1";
+    case ATA_PIO2: return "PIO2";
+    case ATA_PIO3: return "PIO3";
+    case ATA_PIO4: return "PIO4";
+    case ATA_WDMA0: return "WDMA0";
+    case ATA_WDMA1: return "WDMA1";
+    case ATA_WDMA2: return "WDMA2";
+    case ATA_UDMA0: return "UDMA0";
+    case ATA_UDMA1: return "UDMA1";
+    case ATA_UDMA2: return "UDMA2";
+    case ATA_UDMA3: return "UDMA3";
+    case ATA_UDMA4: return "UDMA4";
+    case ATA_UDMA5: return "UDMA5";
+    case ATA_UDMA6: return "UDMA6";
+    default:
+	if (mode & ATA_DMA_MASK)
+	    return "BIOSDMA";
+	else
+	    return "BIOSPIO";
+    }
+}
 
-    if (mode >= ATA_WDMA0 && ata_max_wmode(ap) > 0)
-	return (min(mode, ata_max_wmode(ap)));
+u_int
+ata_mode2speed(int mode)
+{
+	switch (mode) {
+	case ATA_PIO0:
+	default:
+		return (3300);
+	case ATA_PIO1:
+		return (5200);
+	case ATA_PIO2:
+		return (8300);
+	case ATA_PIO3:
+		return (11100);
+	case ATA_PIO4:
+		return (16700);
+	case ATA_WDMA0:
+		return (4200);
+	case ATA_WDMA1:
+		return (13300);
+	case ATA_WDMA2:
+		return (16700);
+	case ATA_UDMA0:
+		return (16700);
+	case ATA_UDMA1:
+		return (25000);
+	case ATA_UDMA2:
+		return (33300);
+	case ATA_UDMA3:
+		return (44400);
+	case ATA_UDMA4:
+		return (66700);
+	case ATA_UDMA5:
+		return (100000);
+	case ATA_UDMA6:
+		return (133000);
+	}
+}
 
-    if (mode > ata_max_pmode(ap))
-	return (min(mode, ata_max_pmode(ap)));
+u_int
+ata_revision2speed(int revision)
+{
+	switch (revision) {
+	case 1:
+	default:
+		return (150000);
+	case 2:
+		return (300000);
+	case 3:
+		return (600000);
+	}
+}
 
-    return (mode);
+int
+ata_speed2revision(u_int speed)
+{
+	switch (speed) {
+	case 150000:
+	default:
+		return (1);
+	case 300000:
+		return (2);
+	case 600000:
+		return (3);
+	}
 }
 
 int

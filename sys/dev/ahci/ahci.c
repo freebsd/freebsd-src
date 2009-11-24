@@ -776,7 +776,7 @@ ahci_ch_attach(device_t dev)
 	struct ahci_controller *ctlr = device_get_softc(device_get_parent(dev));
 	struct ahci_channel *ch = device_get_softc(dev);
 	struct cam_devq *devq;
-	int rid, error;
+	int rid, error, i;
 
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
@@ -789,6 +789,13 @@ ahci_ch_attach(device_t dev)
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	if (ch->pm_level > 3)
 		callout_init_mtx(&ch->pm_timer, &ch->mtx, 0);
+	for (i = 0; i < 16; i++) {
+		ch->user[i].revision = 0;
+		ch->user[i].mode = 0;
+		ch->user[i].bytecount = 8192;
+		ch->user[i].tags = ch->numslots;
+		ch->curr[i] = ch->user[i];
+	}
 	/* Limit speed for my onboard JMicron external port.
 	 * It is not eSATA really. */
 	if (pci_get_devid(ctlr->dev) == 0x2363197b &&
@@ -1275,6 +1282,10 @@ ahci_check_collision(device_t dev, union ccb *ccb)
 		if (ch->numtslots != 0 &&
 		    ch->taggedtarget != ccb->ccb_h.target_id)
 			return (1);
+		/* Tagged command while we have no supported tag free. */
+		if (((~ch->oslots) & (0xffffffff >> (32 -
+		    ch->curr[ccb->ccb_h.target_id].tags))) == 0)
+			return (1);
 	} else {
 		/* Untagged command while tagged are active. */
 		if (ch->numrslots != 0 && ch->numtslots != 0)
@@ -1298,15 +1309,21 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	struct ahci_slot *slot;
-	int tag;
+	int tag, tags;
 
 	/* Choose empty slot. */
+	tags = ch->numslots;
+	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA))
+		tags = ch->curr[ccb->ccb_h.target_id].tags;
 	tag = ch->lastslot;
-	while (ch->slot[tag].state != AHCI_SLOT_EMPTY) {
-		if (++tag >= ch->numslots)
+	while (1) {
+		if (tag >= tags)
 			tag = 0;
-		KASSERT(tag != ch->lastslot, ("ahci: ALL SLOTS BUSY!"));
-	}
+		if (ch->slot[tag].state == AHCI_SLOT_EMPTY)
+			break;
+		tag++;
+	};
 	ch->lastslot = tag;
 	/* Occupy chosen slot. */
 	slot = &ch->slot[tag];
@@ -1315,6 +1332,7 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 	if (ch->numrslots == 0 && ch->pm_level > 3)
 		callout_stop(&ch->pm_timer);
 	/* Update channel stats. */
+	ch->oslots |= (1 << slot->slot);
 	ch->numrslots++;
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
@@ -1635,6 +1653,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
 	}
 	/* Free slot. */
+	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
 	slot->state = AHCI_SLOT_EMPTY;
@@ -1664,7 +1683,7 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	} else
 		xpt_done(ccb);
 	/* Unfreeze frozen command. */
-	if (ch->frozen && ch->numrslots == 0) {
+	if (ch->frozen && !ahci_check_collision(dev, ch->frozen)) {
 		union ccb *fccb = ch->frozen;
 		ch->frozen = NULL;
 		ahci_begin_transaction(dev, fccb);
@@ -2125,10 +2144,22 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct	ahci_device *d; 
 
-		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_PM) {
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
+			d->revision = cts->xport_specific.sata.revision;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_MODE)
+			d->mode = cts->xport_specific.sata.mode;
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_BYTECOUNT)
+			d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_TAGS)
+			d->tags = min(ch->numslots, cts->xport_specific.sata.tags);
+		if (cts->xport_specific.sata.valid & CTS_SATA_VALID_PM)
 			ch->pm_present = cts->xport_specific.sata.pm_present;
-		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -2137,36 +2168,41 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 	/* Get default/user set transfer settings for the target */
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct  ahci_device *d;
 		uint32_t status;
 
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
 		cts->protocol = PROTO_ATA;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cts->proto_specific.valid = 0;
 		cts->xport_specific.sata.valid = 0;
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS &&
+		    (ccb->ccb_h.target_id == 15 ||
+		    (ccb->ccb_h.target_id == 0 && !ch->pm_present))) {
 			status = ATA_INL(ch->r_mem, AHCI_P_SSTS) & ATA_SS_SPD_MASK;
-		else
-			status = ATA_INL(ch->r_mem, AHCI_P_SCTL) & ATA_SC_SPD_MASK;
-		if (status & ATA_SS_SPD_GEN3) {
-			cts->xport_specific.sata.bitrate = 600000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		} else if (status & ATA_SS_SPD_GEN2) {
-			cts->xport_specific.sata.bitrate = 300000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		} else if (status & ATA_SS_SPD_GEN1) {
-			cts->xport_specific.sata.bitrate = 150000;
-			cts->xport_specific.sata.valid |= CTS_SATA_VALID_SPEED;
-		}
-		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
-			cts->xport_specific.sata.pm_present =
-			    (ATA_INL(ch->r_mem, AHCI_P_CMD) & AHCI_P_CMD_PMA) ?
-			    1 : 0;
+			if (status & 0x0f0) {
+				cts->xport_specific.sata.revision =
+				    (status & 0x0f0) >> 4;
+				cts->xport_specific.sata.valid |=
+				    CTS_SATA_VALID_REVISION;
+			}
 		} else {
-			cts->xport_specific.sata.pm_present = ch->pm_present;
+			cts->xport_specific.sata.revision = d->revision;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 		}
+		cts->xport_specific.sata.mode = d->mode;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
+		cts->xport_specific.sata.bytecount = d->bytecount;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_BYTECOUNT;
+		cts->xport_specific.sata.pm_present = ch->pm_present;
 		cts->xport_specific.sata.valid |= CTS_SATA_VALID_PM;
+		cts->xport_specific.sata.tags = d->tags;
+		cts->xport_specific.sata.valid |= CTS_SATA_VALID_TAGS;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
