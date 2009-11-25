@@ -2677,7 +2677,7 @@ bge_attach(device_t dev)
 	 * normal operation.
 	 */
 	rid = 0;
-	if (pci_find_extcap(sc->bge_dev, PCIY_MSI, &reg) != 0) {
+	if (pci_find_extcap(sc->bge_dev, PCIY_MSI, &reg) == 0) {
 		sc->bge_msicap = reg;
 		if (bge_can_use_msi(sc)) {
 			msicount = pci_msi_count(dev);
