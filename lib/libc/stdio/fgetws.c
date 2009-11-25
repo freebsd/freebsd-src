@@ -89,7 +89,7 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 	if (!__mbsinit(&fp->_mbstate))
 		/* Incomplete character */
 		goto error;
-	*wsp++ = L'\0';
+	*wsp = L'\0';
 	FUNLOCKFILE(fp);
 
 	return (ws);
