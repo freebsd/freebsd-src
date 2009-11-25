@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 	struct ifaddrs *ifap, *ifa;
 	struct ifreq paifr;
 	const struct sockaddr_dl *sdl;
-	char options[1024], *cp;
+	char options[1024], *cp, *namecp = NULL;
 	const char *ifname;
 	struct option *p;
 	size_t iflen;
@@ -294,7 +294,7 @@ main(int argc, char *argv[])
 			sdl = (const struct sockaddr_dl *) ifa->ifa_addr;
 		else
 			sdl = NULL;
-		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0)
+		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0 && !namesonly)
 			continue;
 		iflen = strlcpy(name, ifa->ifa_name, sizeof(name));
 		if (iflen >= sizeof(name)) {
@@ -308,16 +308,32 @@ main(int argc, char *argv[])
 			continue;
 		if (uponly && (ifa->ifa_flags & IFF_UP) == 0)
 			continue;
-		ifindex++;
 		/*
 		 * Are we just listing the interfaces?
 		 */
 		if (namesonly) {
+			if (namecp == cp)
+				continue;
+			if (afp != NULL) {
+				/* special case for "ether" address family */
+				if (!strcmp(afp->af_name, "ether")) {
+					if (sdl == NULL ||
+					    sdl->sdl_type != IFT_ETHER ||
+					    sdl->sdl_alen != ETHER_ADDR_LEN)
+						continue;
+				} else {
+					if (ifa->ifa_addr->sa_family != afp->af_af)
+						continue;
+				}
+			}
+			namecp = cp;
+			ifindex++;
 			if (ifindex > 1)
 				printf(" ");
 			fputs(name, stdout);
 			continue;
 		}
+		ifindex++;
 
 		if (argc > 0)
 			ifconfig(argc, argv, 0, afp);
