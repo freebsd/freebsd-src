@@ -2614,6 +2614,8 @@ ohci_early_takeover(device_t self)
 				    "SMM does not respond, resetting\n");
 			bus_write_4(res, OHCI_CONTROL, OHCI_HCFS_RESET);
 		}
+		/* Disable interrupts */
+		bus_write_4(res, OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
 	}
 
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
@@ -2623,6 +2625,9 @@ ohci_early_takeover(device_t self)
 static void
 uhci_early_takeover(device_t self)
 {
+	struct resource *res;
+	int rid;
+
 	/*
 	 * Set the PIRQD enable bit and switch off all the others. We don't
 	 * want legacy support to interfere with us XXX Does this also mean
@@ -2630,6 +2635,14 @@ uhci_early_takeover(device_t self)
 	 * to the ports of the root hub?
 	 */
 	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
+
+	/* Disable interrupts */
+	rid = PCI_UHCI_BASE_REG;
+	res = bus_alloc_resource_any(self, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	if (res != NULL) {
+		bus_write_2(res, UHCI_INTR, 0);
+		bus_release_resource(self, SYS_RES_IOPORT, rid, res);
+	}
 }
 
 /* Perform early EHCI takeover from SMM. */
@@ -2641,6 +2654,7 @@ ehci_early_takeover(device_t self)
 	uint32_t eec;
 	uint8_t eecp;
 	uint8_t bios_sem;
+	uint8_t offs;
 	int rid;
 	int i;
 
@@ -2680,6 +2694,9 @@ ehci_early_takeover(device_t self)
 				printf("ehci early: "
 				    "SMM does not respond\n");
 		}
+		/* Disable interrupts */
+		offs = bus_read_1(res, EHCI_CAPLENGTH);
+		bus_write_4(res, offs + EHCI_USBINTR, 0);
 	}
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
 }
