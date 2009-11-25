@@ -198,6 +198,7 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 	u_long imcasts;
 	u_long oerrors;
 	u_long ierrors;
+	u_long idrops;
 	u_long collisions;
 	short timer;
 	int drops;
@@ -225,8 +226,8 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 			printf("%-7.7s", "Name");
 		else
 			printf("%-5.5s", "Name");
-		printf(" %5.5s %-13.13s %-17.17s %8.8s %5.5s",
-		    "Mtu", "Network", "Address", "Ipkts", "Ierrs");
+		printf(" %5.5s %-13.13s %-17.17s %8.8s %5.5s %5.5s",
+		    "Mtu", "Network", "Address", "Ipkts", "Ierrs", "Idrop");
 		if (bflag)
 			printf(" %10.10s","Ibytes");
 		printf(" %8.8s %5.5s", "Opkts", "Oerrs");
@@ -285,6 +286,7 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 		imcasts = ifnet.if_imcasts;
 		oerrors = ifnet.if_oerrors;
 		ierrors = ifnet.if_ierrors;
+		idrops = ifnet.if_iqdrops;
 		collisions = ifnet.if_collisions;
 		timer = ifnet.if_timer;
 		drops = ifnet.if_snd.ifq_drops;
@@ -423,6 +425,7 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 
 		show_stat("lu", 8, ipackets, link_layer|network_layer);
 		show_stat("lu", 5, ierrors, link_layer);
+		show_stat("lu", 5, idrops, link_layer);
 		if (bflag)
 			show_stat("lu", 10, ibytes, link_layer|network_layer);
 
@@ -513,6 +516,7 @@ struct	iftot {
 	char	ift_name[IFNAMSIZ];	/* interface name */
 	u_long	ift_ip;			/* input packets */
 	u_long	ift_ie;			/* input errors */
+	u_long	ift_id;			/* input drops */
 	u_long	ift_op;			/* output packets */
 	u_long	ift_oe;			/* output errors */
 	u_long	ift_co;			/* collisions */
@@ -598,8 +602,9 @@ banner:
 	printf("%17s %14s %16s", "input",
 	    interesting ? interesting->ift_name : "(Total)", "output");
 	putchar('\n');
-	printf("%10s %5s %10s %10s %5s %10s %5s",
-	    "packets", "errs", "bytes", "packets", "errs", "bytes", "colls");
+	printf("%10s %5s %5s %10s %10s %5s %10s %5s",
+	    "packets", "errs", "idrops", "bytes", "packets", "errs", "bytes",
+	    "colls");
 	if (dflag)
 		printf(" %5.5s", "drops");
 	putchar('\n');
@@ -615,6 +620,7 @@ loop:
 		if (!first) {
 			show_stat("lu", 10, ifnet.if_ipackets - ip->ift_ip, 1);
 			show_stat("lu", 5, ifnet.if_ierrors - ip->ift_ie, 1);
+			show_stat("lu", 5, ifnet.if_iqdrops - ip->ift_id, 1);
 			show_stat("lu", 10, ifnet.if_ibytes - ip->ift_ib, 1);
 			show_stat("lu", 10, ifnet.if_opackets - ip->ift_op, 1);
 			show_stat("lu", 5, ifnet.if_oerrors - ip->ift_oe, 1);
@@ -636,6 +642,7 @@ loop:
 	} else {
 		sum->ift_ip = 0;
 		sum->ift_ie = 0;
+		sum->ift_id = 0;
 		sum->ift_ib = 0;
 		sum->ift_op = 0;
 		sum->ift_oe = 0;
@@ -651,6 +658,7 @@ loop:
 			}
 			sum->ift_ip += ifnet.if_ipackets;
 			sum->ift_ie += ifnet.if_ierrors;
+			sum->ift_id += ifnet.if_iqdrops;
 			sum->ift_ib += ifnet.if_ibytes;
 			sum->ift_op += ifnet.if_opackets;
 			sum->ift_oe += ifnet.if_oerrors;
@@ -662,6 +670,7 @@ loop:
 		if (!first) {
 			show_stat("lu", 10, sum->ift_ip - total->ift_ip, 1);
 			show_stat("lu", 5, sum->ift_ie - total->ift_ie, 1);
+			show_stat("lu", 5, sum->ift_id - total->ift_id, 1);
 			show_stat("lu", 10, sum->ift_ib - total->ift_ib, 1);
 			show_stat("lu", 10, sum->ift_op - total->ift_op, 1);
 			show_stat("lu", 5, sum->ift_oe - total->ift_oe, 1);
