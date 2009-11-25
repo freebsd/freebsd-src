@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -351,6 +352,9 @@ main(int argc, char *argv[])
 	sigset_t mask;
 	pid_t ppid = 1, spid;
 	socklen_t len;
+
+	if (madvise(NULL, 0, MADV_PROTECT) != 0)
+		dprintf("madvise() failed: %s\n", strerror(errno));
 
 	bindhostname = NULL;
 	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nop:P:sS:Tuv"))
