@@ -1122,17 +1122,19 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 
 	/* change directory */
 	if (ftp_cwd(conn, url->doc) == -1)
-		return (NULL);
+		goto errsock;
 
 	/* stat file */
 	if (us && ftp_stat(conn, url->doc, us) == -1
 	    && fetchLastErrCode != FETCH_PROTO
 	    && fetchLastErrCode != FETCH_UNAVAIL)
-		return (NULL);
+		goto errsock;
 
 	/* just a stat */
-	if (strcmp(op, "STAT") == 0)
+	if (strcmp(op, "STAT") == 0) {
+		ftp_disconnect(conn);
 		return (FILE *)1; /* bogus return value */
+	}
 	if (strcmp(op, "STOR") == 0 || strcmp(op, "APPE") == 0)
 		oflag = O_WRONLY;
 	else
@@ -1140,6 +1142,10 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 
 	/* initiate the transfer */
 	return (ftp_transfer(conn, op, url->doc, oflag, url->offset, flags));
+
+errsock:
+	ftp_disconnect(conn);
+	return (NULL);
 }
 
 /*
