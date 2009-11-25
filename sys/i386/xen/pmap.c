@@ -223,6 +223,8 @@ static uma_zone_t pdptzone;
 #endif
 #endif
 
+static int pat_works;			/* Is page attribute table sane? */
+
 /*
  * Data for the pv entry allocation mechanism
  */
@@ -277,7 +279,7 @@ static struct mtx PMAP2mutex;
 
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 static int pg_ps_enabled;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
@@ -311,6 +313,7 @@ static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 static boolean_t pmap_is_prefaultable_locked(pmap_t pmap, vm_offset_t addr);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 
+static __inline void pagezero(void *page);
 
 #if defined(PAE) && !defined(XEN)
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
@@ -327,22 +330,6 @@ CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
 CTASSERT(KERNBASE % (1 << 24) == 0);
 
 
-
-static __inline void
-pagezero(void *page)
-{
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686) {
-#if defined(CPU_ENABLE_SSE)
-		if (cpu_feature & CPUID_SSE2)
-			sse2_pagezero(page);
-		else
-#endif
-			i686_pagezero(page);
-	} else
-#endif
-		bzero(page, PAGE_SIZE);
-}
 
 void 
 pd_set(struct pmap *pmap, int ptepindex, vm_paddr_t val, int type)
@@ -529,33 +516,36 @@ pmap_init_pat(void)
 	if (!(cpu_feature & CPUID_PAT))
 		return;
 
-#ifdef PAT_WORKS
-	/*
-	 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
-	 * Program 4 and 5 as WP and WC.
-	 * Leave 6 and 7 as UC and UC-.
-	 */
-	pat_msr = rdmsr(MSR_PAT);
-	pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
-	pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
-	    PAT_VALUE(5, PAT_WRITE_COMBINING);
-#else
-	/*
-	 * Due to some Intel errata, we can only safely use the lower 4
-	 * PAT entries.  Thus, just replace PAT Index 2 with WC instead
-	 * of UC-.
-	 *
-	 *   Intel Pentium III Processor Specification Update
-	 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
-	 * or Mode C Paging)
-	 *
-	 *   Intel Pentium IV  Processor Specification Update
-	 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
-	 */
-	pat_msr = rdmsr(MSR_PAT);
-	pat_msr &= ~PAT_MASK(2);
-	pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
-#endif
+	if (cpu_vendor_id != CPU_VENDOR_INTEL ||
+	    (CPUID_TO_FAMILY(cpu_id) == 6 && CPUID_TO_MODEL(cpu_id) >= 0xe)) {
+		/*
+		 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
+		 * Program 4 and 5 as WP and WC.
+		 * Leave 6 and 7 as UC and UC-.
+		 */
+		pat_msr = rdmsr(MSR_PAT);
+		pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
+		pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
+		    PAT_VALUE(5, PAT_WRITE_COMBINING);
+		pat_works = 1;
+	} else {
+		/*
+		 * Due to some Intel errata, we can only safely use the lower 4
+		 * PAT entries.  Thus, just replace PAT Index 2 with WC instead
+		 * of UC-.
+		 *
+		 *   Intel Pentium III Processor Specification Update
+		 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
+		 * or Mode C Paging)
+		 *
+		 *   Intel Pentium IV  Processor Specification Update
+		 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
+		 */
+		pat_msr = rdmsr(MSR_PAT);
+		pat_msr &= ~PAT_MASK(2);
+		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
+		pat_works = 0;
+	}
 	wrmsr(MSR_PAT, pat_msr);
 }
 
@@ -784,44 +774,48 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 	}
 	
 	/* Map the caching mode to a PAT index. */
-	switch (mode) {
-#ifdef PAT_WORKS
-	case PAT_UNCACHEABLE:
-		pat_index = 3;
-		break;
-	case PAT_WRITE_THROUGH:
-		pat_index = 1;
-		break;
-	case PAT_WRITE_BACK:
-		pat_index = 0;
-		break;
-	case PAT_UNCACHED:
-		pat_index = 2;
-		break;
-	case PAT_WRITE_COMBINING:
-		pat_index = 5;
-		break;
-	case PAT_WRITE_PROTECTED:
-		pat_index = 4;
-		break;
-#else
-	case PAT_UNCACHED:
-	case PAT_UNCACHEABLE:
-	case PAT_WRITE_PROTECTED:
-		pat_index = 3;
-		break;
-	case PAT_WRITE_THROUGH:
-		pat_index = 1;
-		break;
-	case PAT_WRITE_BACK:
-		pat_index = 0;
-		break;
-	case PAT_WRITE_COMBINING:
-		pat_index = 2;
-		break;
-#endif
-	default:
-		panic("Unknown caching mode %d\n", mode);
+	if (pat_works) {
+		switch (mode) {
+			case PAT_UNCACHEABLE:
+				pat_index = 3;
+				break;
+			case PAT_WRITE_THROUGH:
+				pat_index = 1;
+				break;
+			case PAT_WRITE_BACK:
+				pat_index = 0;
+				break;
+			case PAT_UNCACHED:
+				pat_index = 2;
+				break;
+			case PAT_WRITE_COMBINING:
+				pat_index = 5;
+				break;
+			case PAT_WRITE_PROTECTED:
+				pat_index = 4;
+				break;
+			default:
+				panic("Unknown caching mode %d\n", mode);
+		}
+	} else {
+		switch (mode) {
+			case PAT_UNCACHED:
+			case PAT_UNCACHEABLE:
+			case PAT_WRITE_PROTECTED:
+				pat_index = 3;
+				break;
+			case PAT_WRITE_THROUGH:
+				pat_index = 1;
+				break;
+			case PAT_WRITE_BACK:
+				pat_index = 0;
+				break;
+			case PAT_WRITE_COMBINING:
+				pat_index = 2;
+				break;
+			default:
+				panic("Unknown caching mode %d\n", mode);
+		}
 	}	
 
 	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
@@ -1735,7 +1729,7 @@ retry:
  * Deal with a SMP shootdown of other users of the pmap that we are
  * trying to dispose of.  This can be a bit hairy.
  */
-static u_int *lazymask;
+static cpumask_t *lazymask;
 static u_int lazyptd;
 static volatile u_int lazywait;
 
@@ -1744,7 +1738,7 @@ void pmap_lazyfix_action(void);
 void
 pmap_lazyfix_action(void)
 {
-	u_int mymask = PCPU_GET(cpumask);
+	cpumask_t mymask = PCPU_GET(cpumask);
 
 #ifdef COUNT_IPIS
 	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
@@ -1756,7 +1750,7 @@ pmap_lazyfix_action(void)
 }
 
 static void
-pmap_lazyfix_self(u_int mymask)
+pmap_lazyfix_self(cpumask_t mymask)
 {
 
 	if (rcr3() == lazyptd)
@@ -1768,8 +1762,7 @@ pmap_lazyfix_self(u_int mymask)
 static void
 pmap_lazyfix(pmap_t pmap)
 {
-	u_int mymask;
-	u_int mask;
+	cpumask_t mymask, mask;
 	u_int spins;
 
 	while ((mask = pmap->pm_active) != 0) {
@@ -3110,7 +3103,7 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	vm_offset_t va;
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
-	pmap_kenter(va, pa);
+	PT_SET_MA(va, (pa & ~PAGE_MASK) | PG_V | pgeflag);
 	invlpg(va);
 	return ((void *)crashdumpmap);
 }
@@ -3342,6 +3335,22 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 }	
+
+static __inline void
+pagezero(void *page)
+{
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686) {
+#if defined(CPU_ENABLE_SSE)
+		if (cpu_feature & CPUID_SSE2)
+			sse2_pagezero(page);
+		else
+#endif
+			i686_pagezero(page);
+	} else
+#endif
+		bzero(page, PAGE_SIZE);
+}
 
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
@@ -4162,7 +4171,6 @@ pmap_activate(struct thread *td)
 	td->td_pcb->pcb_cr3 = cr3;
 	PT_UPDATES_FLUSH();
 	load_cr3(cr3);
-		
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
