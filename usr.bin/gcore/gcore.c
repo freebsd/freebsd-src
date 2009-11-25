@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/linker_set.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -83,10 +84,11 @@ SET_DECLARE(dumpset, struct dumpers);
 int
 main(int argc, char *argv[])
 {
-	int ch, efd, fd, sflag;
+	int ch, efd, fd, name[4], sflag;
 	char *binfile, *corefile;
-	char fname[MAXPATHLEN];
+	char passpath[MAXPATHLEN], fname[MAXPATHLEN];
 	struct dumpers **d, *dumper;
+	size_t len;
 
 	sflag = 0;
 	corefile = NULL;
@@ -109,9 +111,14 @@ main(int argc, char *argv[])
 	switch (argc) {
 	case 1:
 		pid = atoi(argv[0]);
-		asprintf(&binfile, "/proc/%d/file", pid);
-		if (binfile == NULL)
-			errx(1, "allocation failure");
+		name[0] = CTL_KERN;
+		name[1] = KERN_PROC;
+		name[2] = KERN_PROC_PATHNAME;
+		name[3] = pid;
+		len = sizeof(passpath);
+		if (sysctl(name, 4, passpath, &len, NULL, 0) == -1)
+			errx(1, "kern.proc.pathname failure");
+		binfile = passpath;
 		break;
 	case 2:
 		pid = atoi(argv[1]);
