@@ -315,6 +315,7 @@ SND_DECLARE_FILE("$FreeBSD$");
  * (see HDA_CODEC_STAC9221 below).
  */
 #define APPLE_INTEL_MAC		0x76808384
+#define APPLE_MACBOOKPRO55	0xcb7910de
 
 /* LG Electronics */
 #define LG_VENDORID		0x1854
@@ -605,6 +606,11 @@ static const struct {
 #define HDA_CODEC_CONSTRUCT(vendor, id) \
 		(((uint32_t)(vendor##_VENDORID) << 16) | ((id) & 0xffff))
 
+/* Cirrus Logic */
+#define CIRRUSLOGIC_VENDORID	0x1013
+#define HDA_CODEC_CS4206	HDA_CODEC_CONSTRUCT(CIRRUSLOGIC, 0x4206)
+#define HDA_CODEC_CS4207	HDA_CODEC_CONSTRUCT(CIRRUSLOGIC, 0x4207)
+
 /* Realtek */
 #define REALTEK_VENDORID	0x10ec
 #define HDA_CODEC_ALC260	HDA_CODEC_CONSTRUCT(REALTEK, 0x0260)
@@ -804,6 +810,8 @@ static const struct {
 	uint32_t id;
 	char *name;
 } hdac_codecs[] = {
+	{ HDA_CODEC_CS4206,    "Cirrus Logic CS4206" },
+	{ HDA_CODEC_CS4207,    "Cirrus Logic CS4207" },
 	{ HDA_CODEC_ALC260,    "Realtek ALC260" },
 	{ HDA_CODEC_ALC262,    "Realtek ALC262" },
 	{ HDA_CODEC_ALC267,    "Realtek ALC267" },
@@ -4667,6 +4675,8 @@ static const struct {
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_OVREF50, 0},
 	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221,
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_GPIO1, 0 },
+	{ APPLE_MACBOOKPRO55, HDA_CODEC_CS4206,
+	    HDA_QUIRK_GPIO1 | HDA_QUIRK_GPIO3, 0 },
 	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205X,
 	    HDA_QUIRK_GPIO0, 0 },
 	{ DELL_V1400_SUBVENDOR, HDA_CODEC_STAC9228X,
