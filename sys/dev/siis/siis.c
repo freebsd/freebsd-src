@@ -69,7 +69,7 @@ static void siis_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int er
 static void siis_execute_transaction(struct siis_slot *slot);
 static void siis_timeout(struct siis_slot *slot);
 static void siis_end_transaction(struct siis_slot *slot, enum siis_err_type et);
-static int siis_setup_fis(struct siis_cmd *ctp, union ccb *ccb, int tag);
+static int siis_setup_fis(device_t dev, struct siis_cmd *ctp, union ccb *ccb, int tag);
 static void siis_dmainit(device_t dev);
 static void siis_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
 static void siis_dmafini(device_t dev);
@@ -415,21 +415,21 @@ siis_ch_attach(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
 	struct cam_devq *devq;
-	int rid, error, i;
+	int rid, error, i, sata_rev = 0;
 
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
+	resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "sata_rev", &sata_rev);
 	for (i = 0; i < 16; i++) {
-		ch->user[i].revision = 0;
+		ch->user[i].revision = sata_rev;
 		ch->user[i].mode = 0;
 		ch->user[i].bytecount = 8192;
 		ch->user[i].tags = SIIS_MAX_SLOTS;
 		ch->curr[i] = ch->user[i];
 	}
-	resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "sata_rev", &ch->sata_rev);
 	mtx_init(&ch->mtx, "SIIS channel lock", NULL, MTX_DEF);
 	rid = ch->unit;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -974,7 +974,7 @@ siis_execute_transaction(struct siis_slot *slot)
 			ctp->control |= htole16(SIIS_PRB_PACKET_WRITE);
 	}
 	/* Setup the FIS for this request */
-	if (!siis_setup_fis(ctp, ccb, slot->slot)) {
+	if (!siis_setup_fis(dev, ctp, ccb, slot->slot)) {
 		device_printf(ch->dev, "Setting up SATA FIS failed\n");
 		if (!ch->readlog)
 			xpt_freeze_simq(ch->sim, 1);
@@ -1346,7 +1346,7 @@ static void
 siis_reset(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
-	int i, retry = 0;
+	int i, retry = 0, sata_rev;
 	uint32_t val;
 
 	if (bootverbose)
@@ -1390,11 +1390,12 @@ siis_reset(device_t dev)
 	/* Disable port interrupts */
 	ATA_OUTL(ch->r_mem, SIIS_P_IECLR, 0x0000FFFF);
 	/* Set speed limit. */
-	if (ch->sata_rev == 1)
+	sata_rev = ch->user[ch->pm_present ? 15 : 0].revision;
+	if (sata_rev == 1)
 		val = ATA_SC_SPD_SPEED_GEN1;
-	else if (ch->sata_rev == 2)
+	else if (sata_rev == 2)
 		val = ATA_SC_SPD_SPEED_GEN2;
-	else if (ch->sata_rev == 3)
+	else if (sata_rev == 3)
 		val = ATA_SC_SPD_SPEED_GEN3;
 	else
 		val = 0;
@@ -1446,8 +1447,9 @@ retry:
 }
 
 static int
-siis_setup_fis(struct siis_cmd *ctp, union ccb *ccb, int tag)
+siis_setup_fis(device_t dev, struct siis_cmd *ctp, union ccb *ccb, int tag)
 {
+	struct siis_channel *ch = device_get_softc(dev);
 	u_int8_t *fis = &ctp->fis[0];
 
 	bzero(fis, 24);
@@ -1456,7 +1458,8 @@ siis_setup_fis(struct siis_cmd *ctp, union ccb *ccb, int tag)
 	if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		fis[1] |= 0x80;
 		fis[2] = ATA_PACKET_CMD;
-		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
+		    ch->curr[ccb->ccb_h.target_id].mode >= ATA_DMA)
 			fis[3] = ATA_F_DMA;
 		else {
 			fis[5] = ccb->csio.dxfer_len;
