@@ -119,9 +119,8 @@
 #define	SIG_DFL		((__sighandler_t *)0)
 #define	SIG_IGN		((__sighandler_t *)1)
 #define	SIG_ERR		((__sighandler_t *)-1)
-/*
- * XXX missing SIG_HOLD.
- */
+/* #define	SIG_CATCH	((__sighandler_t *)2) See signalvar.h */
+#define SIG_HOLD        ((__sighandler_t *)3)
 
 /*-
  * Type of a signal handling function.
