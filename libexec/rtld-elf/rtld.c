@@ -87,7 +87,7 @@ static void die(void) __dead2;
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
-static Obj_Entry *do_load_object(int, const char *, char *, struct stat *);
+static Obj_Entry *do_load_object(int, const char *, char *, struct stat *, int);
 static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
 static void errmsg_restore(char *);
@@ -103,7 +103,7 @@ static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
-static int load_needed_objects(Obj_Entry *);
+static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
 static Obj_Entry *obj_from_addr(const void *);
@@ -485,7 +485,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     preload_tail = obj_tail;
 
     dbg("loading needed objects");
-    if (load_needed_objects(obj_main) == -1)
+    if (load_needed_objects(obj_main, 0) == -1)
 	die();
 
     /* Make a list of all objects loaded at startup. */
@@ -932,6 +932,8 @@ digest_dynamic(Obj_Entry *obj, int early)
 #endif
 
 	case DT_FLAGS_1:
+		if (dynp->d_un.d_val & DF_1_NOOPEN)
+		    obj->z_noopen = true;
 		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
 		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_1_GLOBAL)
@@ -1425,7 +1427,7 @@ is_exported(const Elf_Sym *def)
  * returns -1 on failure.
  */
 static int
-load_needed_objects(Obj_Entry *first)
+load_needed_objects(Obj_Entry *first, int flags)
 {
     Obj_Entry *obj, *obj1;
 
@@ -1434,7 +1436,7 @@ load_needed_objects(Obj_Entry *first)
 
 	for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
 	    obj1 = needed->obj = load_object(obj->strtab + needed->name, obj,
-		false);
+		flags & ~RTLD_LO_NOLOAD);
 	    if (obj1 == NULL && !ld_tracing)
 		return -1;
 	    if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
@@ -1465,7 +1467,7 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, NULL, false) == NULL)
+	if (load_object(p, NULL, 0) == NULL)
 	    return -1;	/* XXX - cleanup */
 	p[len] = savech;
 	p += len;
@@ -1482,7 +1484,7 @@ load_preload_objects(void)
  * on failure.
  */
 static Obj_Entry *
-load_object(const char *name, const Obj_Entry *refobj, int noload)
+load_object(const char *name, const Obj_Entry *refobj, int flags)
 {
     Obj_Entry *obj;
     int fd = -1;
@@ -1528,11 +1530,11 @@ load_object(const char *name, const Obj_Entry *refobj, int noload)
 	close(fd);
 	return obj;
     }
-    if (noload)
+    if (flags & RTLD_LO_NOLOAD)
 	return (NULL);
 
     /* First use of this object, so we must map it in */
-    obj = do_load_object(fd, name, path, &sb);
+    obj = do_load_object(fd, name, path, &sb, flags);
     if (obj == NULL)
 	free(path);
     close(fd);
@@ -1541,7 +1543,8 @@ load_object(const char *name, const Obj_Entry *refobj, int noload)
 }
 
 static Obj_Entry *
-do_load_object(int fd, const char *name, char *path, struct stat *sbp)
+do_load_object(int fd, const char *name, char *path, struct stat *sbp,
+  int flags)
 {
     Obj_Entry *obj;
     struct statfs fs;
@@ -1568,6 +1571,13 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp)
     object_add_name(obj, name);
     obj->path = path;
     digest_dynamic(obj, 0);
+    if (obj->z_noopen && (flags & RTLD_LO_DLOPEN)) {
+	dbg("refusing to load non-loadable \"%s\"", obj->path);
+	_rtld_error("Cannot dlopen non-loadable %s\n", obj->path);
+	munmap(obj->mapbase, obj->mapsize);
+	obj_free(obj);
+	return (NULL);
+    }
 
     *obj_tail = obj;
     obj_tail = &obj->next;
@@ -1986,14 +1996,16 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    int result, lockstate, nodelete, noload;
+    int result, lockstate, nodelete, lo_flags;
 
     LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
 	environ = (char **)*get_program_var_addr("environ");
     nodelete = mode & RTLD_NODELETE;
-    noload = mode & RTLD_NOLOAD;
+    lo_flags = RTLD_LO_DLOPEN;
+    if (mode & RTLD_NOLOAD)
+	    lo_flags |= RTLD_LO_NOLOAD;
 
     objlist_init(&initlist);
 
@@ -2006,7 +2018,7 @@ dlopen(const char *name, int mode)
 	obj = obj_main;
 	obj->refcount++;
     } else {
-	obj = load_object(name, obj_main, noload);
+	obj = load_object(name, obj_main, lo_flags);
     }
 
     if (obj) {
@@ -2016,7 +2028,7 @@ dlopen(const char *name, int mode)
 	mode &= RTLD_MODEMASK;
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
-	    result = load_needed_objects(obj);
+	    result = load_needed_objects(obj, RTLD_LO_DLOPEN);
 	    init_dag(obj);
 	    if (result != -1)
 		result = rtld_verify_versions(&obj->dagmembers);
