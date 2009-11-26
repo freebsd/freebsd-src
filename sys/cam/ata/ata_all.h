@@ -115,6 +115,7 @@ int	ata_max_umode(struct ata_params *ap);
 int	ata_max_mode(struct ata_params *ap, int maxmode);
 
 char *	ata_mode2string(int mode);
+int	ata_string2mode(char *str);
 u_int	ata_mode2speed(int mode);
 u_int	ata_revision2speed(int revision);
 int	ata_speed2revision(u_int speed);
