@@ -34,6 +34,9 @@
 #include <dev/hptrr/os_bsd.h>
 #include <dev/hptrr/hptintf.h>
 
+static int attach_generic = 1;
+TUNABLE_INT("hw.hptrr.attach_generic", &attach_generic);
+
 static int hpt_probe(device_t dev)
 {
 	PCI_ID pci_id;
@@ -41,6 +44,9 @@ static int hpt_probe(device_t dev)
 	int i;
 	PHBA hba;
 
+	/* Some of supported chips are used not only by HPT. */
+	if (pci_get_vendor(dev) != 0x1103 && !attach_generic)
+		return (ENXIO);
 	for (him = him_list; him; him = him->next) {
 		for (i=0; him->get_supported_device_id(i, &pci_id); i++) {
 			if ((pci_get_vendor(dev) == pci_id.vid) &&
