@@ -121,7 +121,14 @@
 		   ((or (equal? arch #f)
 			(equal? arch "")
 			(equal? arch "all"))
-		    (process-children-trim))
+		    (make sequence
+		      (if (and (not (null? role)) (equal? role "7.1"))
+			  (literal " [7.1R]")
+			  (empty-sosofo))
+		      (if (and (not (null? role)) (equal? role "7.2"))
+			  (literal " [7.2R]")
+			  (empty-sosofo))
+		      (process-children-trim))
 		   (else
 		    (make sequence
 		      (literal "[")
@@ -135,6 +142,12 @@
 				(loop (car rest) (cdr rest)))
 			      (empty-sosofo))))
 		      (literal "] ")
+		      (if (and (not (null? role)) (equal? role "7.1"))
+			  (literal " [7.1R] ")
+			  (empty-sosofo))
+		      (if (and (not (null? role)) (equal? role "7.2"))
+			  (literal " [7.2R] ")
+			  (empty-sosofo))
 		      (process-children-trim))))
 		  (if (and (not (null? role)) (equal? role "merged"))
 		      (literal " [" merged-string "]")
@@ -158,7 +171,14 @@
 		   ((or (equal? arch #f)
 			(equal? arch "")
 			(equal? arch "all"))
-		    (process-children-trim))
+		    (make sequence
+		      (if (and (not (null? role)) (equal? role "7.1"))
+			  (literal " [7.1R] ")
+			  (empty-sosofo))
+		      (if (and (not (null? role)) (equal? role "7.2"))
+			  (literal " [7.2R] ")
+			  (empty-sosofo))
+		      (process-children-trim)))
 		   (else
 		    (make sequence
 		      (literal "[")
@@ -172,10 +192,16 @@
 				(loop (car rest) (cdr rest)))
 			      (empty-sosofo))))
 		      (literal "] ")
+		      (if (and (not (null? role)) (equal? role "7.1"))
+			  (literal " [7.1R]")
+			  (empty-sosofo))
+		      (if (and (not (null? role)) (equal? role "7.2"))
+			  (literal " [7.2R]")
+			  (empty-sosofo))
 		      (process-children-trim))))
 		  (if (and (not (null? role)) (equal? role "merged"))
 		      (literal " [" merged-string "]")
-		      (empty-sosofo)))))))
+		      (empty-sosofo))))))))
     ]]>
 
     <![ %output.html; [
@@ -198,7 +224,6 @@
                  (u (string-append "&release.man.url;?query="
                          (data r) "&" "sektion=" (data m))))
             (case v
-              (("xfree86") (string-append u "&" "manpath=XFree86+&release.manpath.xfree86;" ))
               (("xorg")    (string-append u "&" "manpath=Xorg+&release.manpath.xorg;" ))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+&release.manpath.netbsd;"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd-ports;"))
@@ -226,10 +251,24 @@
 		     ((or (equal? arch #f)
 			  (equal? arch "")
 			  (equal? arch "all"))
-		      (process-children))
+		      (make sequence
+			(if (and (not (null? role)) (equal? role "7.1"))
+			    (literal " [7.1R] ")
+			    (empty-sosofo))
+			(if (and (not (null? role)) (equal? role "7.2"))
+			    (literal " [7.2R] ")
+			    (empty-sosofo))
+			(process-children)))
 		     (else
 		      (sosofo-append
 		       (make sequence
+			 (make sequence
+			   (if (and (not (null? role)) (equal? role "7.1"))
+			       (literal " [7.1R] ")
+			       (empty-sosofo))
+			   (if (and (not (null? role)) (equal? role "7.2"))
+			       (literal " [7.2R] ")
+			       (empty-sosofo)))
 			 (literal "[")
 			 (let loop ((prev (car (split-string-to-list arch)))
 				    (rest (cdr (split-string-to-list arch))))
