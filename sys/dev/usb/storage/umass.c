@@ -2847,7 +2847,7 @@ umass_cam_detach_sim(struct umass_softc *sc)
 			sc->sc_sim->softc = UMASS_GONE;
 			cam_sim_free(sc->sc_sim, /* free_devq */ TRUE);
 		} else {
-			panic("%s: CAM layer is busy!\n",
+			panic("%s: CAM layer is busy\n",
 			    sc->sc_name);
 		}
 		sc->sc_sim = NULL;

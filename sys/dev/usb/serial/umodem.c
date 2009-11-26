@@ -311,7 +311,7 @@ umodem_attach(device_t dev)
 		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
 
 		if ((cud == NULL) || (cud->bLength < sizeof(*cud))) {
-			device_printf(dev, "no CM or union descriptor!\n");
+			device_printf(dev, "no CM or union descriptor\n");
 			goto detach;
 		}
 
@@ -344,7 +344,7 @@ umodem_attach(device_t dev)
 				break;
 			}
 		} else {
-			device_printf(dev, "no data interface!\n");
+			device_printf(dev, "no data interface\n");
 			goto detach;
 		}
 	}

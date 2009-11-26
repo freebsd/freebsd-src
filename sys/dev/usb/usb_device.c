@@ -1023,7 +1023,7 @@ usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
 			if (udev->flags.peer_suspended) {
 				err = DEVICE_RESUME(dev);
 				if (err) {
-					device_printf(dev, "Resume failed!\n");
+					device_printf(dev, "Resume failed\n");
 				}
 			}
 			if (device_detach(dev)) {
@@ -1038,7 +1038,7 @@ usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
 
 error:
 	/* Detach is not allowed to fail in the USB world */
-	panic("An USB driver would not detach!\n");
+	panic("A USB driver would not detach\n");
 }
 
 /*------------------------------------------------------------------------*
@@ -1131,7 +1131,7 @@ usb_probe_and_attach_sub(struct usb_device *udev,
 			 * to device_detach().  USB devices should
 			 * never fail on detach!
 			 */
-			panic("device_delete_child() failed!\n");
+			panic("device_delete_child() failed\n");
 		}
 	}
 	if (uaa->temp_dev == NULL) {
@@ -1140,7 +1140,7 @@ usb_probe_and_attach_sub(struct usb_device *udev,
 		uaa->temp_dev = device_add_child(udev->parent_dev, NULL, -1);
 		if (uaa->temp_dev == NULL) {
 			device_printf(udev->parent_dev,
-			    "Device creation failed!\n");
+			    "Device creation failed\n");
 			return (1);	/* failure */
 		}
 		device_set_ivars(uaa->temp_dev, uaa);
@@ -1320,7 +1320,7 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		/* remove the last created child; it is unused */
 
 		if (device_delete_child(udev->parent_dev, uaa.temp_dev)) {
-			DPRINTFN(0, "device delete child failed!\n");
+			DPRINTFN(0, "device delete child failed\n");
 		}
 	}
 done:
@@ -1353,7 +1353,7 @@ usb_suspend_resume_sub(struct usb_device *udev, device_t dev, uint8_t do_suspend
 		err = DEVICE_RESUME(dev);
 	}
 	if (err) {
-		device_printf(dev, "%s failed!\n",
+		device_printf(dev, "%s failed\n",
 		    do_suspend ? "Suspend" : "Resume");
 	}
 }
@@ -1473,13 +1473,13 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 
 	if (device_index == bus->devices_max) {
 		device_printf(bus->bdev,
-		    "No free USB device index for new device!\n");
+		    "No free USB device index for new device\n");
 		return (NULL);
 	}
 
 	if (depth > 0x10) {
 		device_printf(bus->bdev,
-		    "Invalid device depth!\n");
+		    "Invalid device depth\n");
 		return (NULL);
 	}
 	udev = malloc(sizeof(*udev), M_USB, M_WAITOK | M_ZERO);
@@ -1631,7 +1631,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
-		    "at addr %d failed, %s!\n", udev->address,
+		    "at addr %d failed, %s\n", udev->address,
 		    usbd_errstr(err));
 		/* XXX try to re-enumerate the device */
 		err = usbd_req_re_enumerate(udev, NULL);
@@ -1797,7 +1797,7 @@ repeat_set_config:
 			    (usbd_get_no_descriptors(udev->cdesc,
 			    UDESC_ENDPOINT) == 0)) {
 				DPRINTFN(0, "Found no endpoints "
-				    "(trying next config)!\n");
+				    "(trying next config)\n");
 				config_index++;
 				goto repeat_set_config;
 			}
@@ -1814,7 +1814,7 @@ repeat_set_config:
 				}
 			}
 		} else if (usb_test_huawei_autoinst_p(udev, &uaa) == 0) {
-			DPRINTFN(0, "Found Huawei auto-install disk!\n");
+			DPRINTFN(0, "Found Huawei auto-install disk\n");
 			/* leave device unconfigured */
 			usb_unconfigure(udev, 0);
 		}

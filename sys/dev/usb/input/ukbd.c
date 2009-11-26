@@ -926,7 +926,7 @@ ukbd_detach(device_t dev)
 	DPRINTF("\n");
 
 	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		panic("cannot detach polled keyboard!\n");
+		panic("cannot detach polled keyboard\n");
 	}
 	sc->sc_flags |= UKBD_FLAG_GONE;
 
