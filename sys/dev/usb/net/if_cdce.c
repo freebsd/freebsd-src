@@ -489,7 +489,7 @@ cdce_attach(device_t dev)
 				break;
 			}
 		} else {
-			device_printf(dev, "no data interface found!\n");
+			device_printf(dev, "no data interface found\n");
 			goto detach;
 		}
 	}
@@ -541,7 +541,7 @@ alloc_transfers:
 
 	if (error || (i == 32)) {
 		device_printf(dev, "No valid alternate "
-		    "setting found!\n");
+		    "setting found\n");
 		goto detach;
 	}
 

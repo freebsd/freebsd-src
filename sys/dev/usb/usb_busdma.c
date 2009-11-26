@@ -445,7 +445,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 		/*
 		 * This check verifies that the physical address is correct:
 		 */
-		DPRINTFN(0, "Page offset was not preserved!\n");
+		DPRINTFN(0, "Page offset was not preserved\n");
 		error = 1;
 		goto done;
 	}
@@ -764,8 +764,8 @@ usb_dma_tag_find(struct usb_dma_parent_tag *udpt,
 	struct usb_dma_tag *udt;
 	uint8_t nudt;
 
-	USB_ASSERT(align > 0, ("Invalid parameter align = 0!\n"));
-	USB_ASSERT(size > 0, ("Invalid parameter size = 0!\n"));
+	USB_ASSERT(align > 0, ("Invalid parameter align = 0\n"));
+	USB_ASSERT(size > 0, ("Invalid parameter size = 0\n"));
 
 	udt = udpt->utag_first;
 	nudt = udpt->utag_max;

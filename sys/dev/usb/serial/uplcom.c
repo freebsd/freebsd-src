@@ -377,7 +377,7 @@ uplcom_attach(device_t dev)
 	if (iface) {
 		id = usbd_get_interface_descriptor(iface);
 		if (id == NULL) {
-			device_printf(dev, "no interface descriptor (2)!\n");
+			device_printf(dev, "no interface descriptor (2)\n");
 			goto detach;
 		}
 		sc->sc_data_iface_no = id->bInterfaceNumber;
@@ -420,7 +420,7 @@ uplcom_attach(device_t dev)
 	 */
 	if (sc->sc_chiptype == TYPE_PL2303X) {
 		if (uplcom_pl2303x_init(uaa->device)) {
-			device_printf(dev, "init failed!\n");
+			device_printf(dev, "init failed\n");
 			goto detach;
 		}
 	}

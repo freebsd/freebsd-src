@@ -385,7 +385,7 @@ repeat:
 		    (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS))) {
 			if (timeout) {
 				DPRINTFN(0, "giving up port reset "
-				    "- device vanished!\n");
+				    "- device vanished\n");
 				goto error;
 			}
 			timeout = 1;
@@ -435,7 +435,7 @@ repeat:
 	child = usb_alloc_device(sc->sc_dev, udev->bus, udev,
 	    udev->depth + 1, portno - 1, portno, speed, mode);
 	if (child == NULL) {
-		DPRINTFN(0, "could not allocate new device!\n");
+		DPRINTFN(0, "could not allocate new device\n");
 		goto error;
 	}
 	return (0);			/* success */
@@ -711,14 +711,14 @@ uhub_attach(device_t dev)
 	    parent_hub->flags.self_powered : 0);
 
 	if (udev->depth > USB_HUB_MAX_DEPTH) {
-		DPRINTFN(0, "hub depth, %d, exceeded. HUB ignored!\n",
+		DPRINTFN(0, "hub depth, %d, exceeded. HUB ignored\n",
 		    USB_HUB_MAX_DEPTH);
 		goto error;
 	}
 	if (!udev->flags.self_powered && parent_hub &&
 	    (!parent_hub->flags.self_powered)) {
 		DPRINTFN(0, "bus powered HUB connected to "
-		    "bus powered HUB. HUB ignored!\n");
+		    "bus powered HUB. HUB ignored\n");
 		goto error;
 	}
 	/* get HUB descriptor */
@@ -740,11 +740,11 @@ uhub_attach(device_t dev)
 		goto error;
 	}
 	if (hubdesc.bNbrPorts != nports) {
-		DPRINTFN(0, "number of ports changed!\n");
+		DPRINTFN(0, "number of ports changed\n");
 		goto error;
 	}
 	if (nports == 0) {
-		DPRINTFN(0, "portless HUB!\n");
+		DPRINTFN(0, "portless HUB\n");
 		goto error;
 	}
 	hub = malloc(sizeof(hub[0]) + (sizeof(hub->ports[0]) * nports),
@@ -784,7 +784,7 @@ uhub_attach(device_t dev)
 	}
 	if (err) {
 		DPRINTFN(0, "cannot setup interrupt transfer, "
-		    "errstr=%s!\n", usbd_errstr(err));
+		    "errstr=%s\n", usbd_errstr(err));
 		goto error;
 	}
 	/* wait with power off for a while */
@@ -1924,7 +1924,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	err = usbd_req_clear_port_feature(udev->parent_hub,
 	    NULL, udev->port_no, UHF_PORT_SUSPEND);
 	if (err) {
-		DPRINTFN(0, "Resuming port failed!\n");
+		DPRINTFN(0, "Resuming port failed\n");
 		return;
 	}
 	/* resume settle time */
@@ -1972,7 +1972,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 		    NULL, UF_DEVICE_REMOTE_WAKEUP);
 		if (err) {
 			DPRINTFN(0, "Clearing device "
-			    "remote wakeup failed: %s!\n",
+			    "remote wakeup failed: %s\n",
 			    usbd_errstr(err));
 		}
 	}
@@ -2042,7 +2042,7 @@ repeat:
 		    NULL, UF_DEVICE_REMOTE_WAKEUP);
 		if (err) {
 			DPRINTFN(0, "Setting device "
-			    "remote wakeup failed!\n");
+			    "remote wakeup failed\n");
 		}
 	}
 	USB_BUS_LOCK(udev->bus);
