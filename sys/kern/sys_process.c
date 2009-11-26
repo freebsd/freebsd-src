@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
 #ifdef COMPAT_IA32
@@ -213,10 +214,10 @@ int
 proc_rwmem(struct proc *p, struct uio *uio)
 {
 	vm_map_t map;
-	vm_object_t backing_object, object = NULL;
-	vm_offset_t pageno = 0;		/* page number */
+	vm_object_t backing_object, object;
+	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
-	int error, fault_flags, writing;
+	int error, writing;
 
 	/*
 	 * Assert that someone has locked this vmspace.  (Should be
@@ -232,9 +233,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 	map = &p->p_vmspace->vm_map;
 
 	writing = uio->uio_rw == UIO_WRITE;
-	reqprot = writing ? (VM_PROT_WRITE | VM_PROT_OVERRIDE_WRITE) :
-	    VM_PROT_READ;
-	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL; 
+	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -269,7 +268,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		/*
 		 * Fault the page on behalf of the process
 		 */
-		error = vm_fault(map, pageno, reqprot, fault_flags);
+		error = vm_fault(map, pageno, reqprot, VM_FAULT_NORMAL);
 		if (error) {
 			if (error == KERN_RESOURCE_SHORTAGE)
 				error = ENOMEM;
@@ -279,8 +278,8 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		}
 
 		/*
-		 * Now we need to get the page.  out_entry, wired,
-		 * and single_use aren't used.  One would think the vm code
+		 * Now we need to get the page.  out_entry and wired
+		 * aren't used.  One would think the vm code
 		 * would be a *bit* nicer...  We use tmap because
 		 * vm_map_lookup() can change the map argument.
 		 */
@@ -302,6 +301,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 			pindex += OFF_TO_IDX(object->backing_object_offset);
 			VM_OBJECT_UNLOCK(object);
 			object = backing_object;
+		}
+		if (writing && m != NULL) {
+			vm_page_dirty(m);
+			vm_pager_page_unswapped(m);
 		}
 		VM_OBJECT_UNLOCK(object);
 		if (m == NULL) {
