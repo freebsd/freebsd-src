@@ -284,7 +284,7 @@ bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 		sc->cbw.bCDBLength = sc->cmd_len;
 		if (sc->cbw.bCDBLength > sizeof(sc->cbw.CBWCDB)) {
 			sc->cbw.bCDBLength = sizeof(sc->cbw.CBWCDB);
-			DPRINTFN(0, "Truncating long command!\n");
+			DPRINTFN(0, "Truncating long command\n");
 		}
 		usbd_xfer_set_frame_data(xfer, 0, &sc->cbw, sizeof(sc->cbw));
 		usbd_transfer_submit(xfer);

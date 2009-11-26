@@ -250,8 +250,6 @@ u3g_sierra_init(struct usb_device *udev)
 {
 	struct usb_device_request req;
 
-	DPRINTFN(0, "\n");
-
 	req.bmRequestType = UT_VENDOR;
 	req.bRequest = UR_SET_INTERFACE;
 	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
@@ -269,8 +267,6 @@ static void
 u3g_huawei_init(struct usb_device *udev)
 {
 	struct usb_device_request req;
-
-	DPRINTFN(0, "\n");
 
 	req.bmRequestType = UT_WRITE_DEVICE;
 	req.bRequest = UR_SET_FEATURE;

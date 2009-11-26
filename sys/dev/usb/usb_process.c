@@ -444,7 +444,7 @@ usb_proc_drain(struct usb_process *up)
 		if (cold) {
 			USB_THREAD_SUSPEND(up->up_ptr);
 			printf("WARNING: A USB process has "
-			    "been left suspended!\n");
+			    "been left suspended\n");
 			break;
 		}
 		cv_wait(&up->up_cv, up->up_mtx);
