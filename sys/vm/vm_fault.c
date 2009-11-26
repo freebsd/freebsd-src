@@ -702,7 +702,7 @@ vnode_locked:
 		/*
 		 * We only really need to copy if we want to write it.
 		 */
-		if (fault_type & VM_PROT_WRITE) {
+		if ((fault_type & (VM_PROT_COPY | VM_PROT_WRITE)) != 0) {
 			/*
 			 * This allows pages to be virtually copied from a 
 			 * backing_object into the first_object, where the 
