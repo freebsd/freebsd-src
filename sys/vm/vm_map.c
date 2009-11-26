@@ -3554,14 +3554,8 @@ RetryLookup:;
 
 	/*
 	 * Check whether this task is allowed to have this page.
-	 * Note the special case for MAP_ENTRY_COW
-	 * pages with an override.  This is to implement a forced
-	 * COW for debuggers.
 	 */
-	if (fault_type & VM_PROT_OVERRIDE_WRITE)
-		prot = entry->max_protection;
-	else
-		prot = entry->protection;
+	prot = entry->protection;
 	fault_type &= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE);
 	if ((fault_type & prot) != fault_type || prot == VM_PROT_NONE) {
 		vm_map_unlock_read(map);
@@ -3569,8 +3563,7 @@ RetryLookup:;
 	}
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE) &&
-	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
+	    (fault_type & VM_PROT_WRITE)) {
 		vm_map_unlock_read(map);
 		return (KERN_PROTECTION_FAILURE);
 	}
@@ -3581,7 +3574,7 @@ RetryLookup:;
 	 */
 	*wired = (entry->wired_count != 0);
 	if (*wired)
-		prot = fault_type = entry->protection;
+		fault_type = entry->protection;
 	size = entry->end - entry->start;
 	/*
 	 * If the entry was copy-on-write, we either ...
@@ -3594,7 +3587,8 @@ RetryLookup:;
 		 * If we don't need to write the page, we just demote the
 		 * permissions allowed.
 		 */
-		if (fault_type & VM_PROT_WRITE) {
+		if ((fault_type & VM_PROT_WRITE) != 0 ||
+		    (fault_typea & VM_PROT_COPY) != 0) {
 			/*
 			 * Make a new object, and place it in the object
 			 * chain.  Note that no new references have appeared
@@ -3717,21 +3711,14 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 
 	/*
 	 * Check whether this task is allowed to have this page.
-	 * Note the special case for MAP_ENTRY_COW
-	 * pages with an override.  This is to implement a forced
-	 * COW for debuggers.
 	 */
-	if (fault_type & VM_PROT_OVERRIDE_WRITE)
-		prot = entry->max_protection;
-	else
-		prot = entry->protection;
+	prot = entry->protection;
 	fault_type &= VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
 	if ((fault_type & prot) != fault_type)
 		return (KERN_PROTECTION_FAILURE);
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
-	    (fault_type & VM_PROT_WRITE) &&
-	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0)
+	    (fault_type & VM_PROT_WRITE))
 		return (KERN_PROTECTION_FAILURE);
 
 	/*
@@ -3740,7 +3727,7 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	 */
 	*wired = (entry->wired_count != 0);
 	if (*wired)
-		prot = fault_type = entry->protection;
+		fault_type = entry->protection;
 
 	if (entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 		/*
