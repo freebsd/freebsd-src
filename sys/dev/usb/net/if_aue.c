@@ -692,7 +692,7 @@ aue_attach(device_t dev)
 	    sc->sc_xfer, aue_config, AUE_N_TRANSFER,
 	    sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
 	}
 
