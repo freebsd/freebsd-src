@@ -36,13 +36,13 @@ trap 'rm -r "$tmp" || exit 1' EXIT
 
 export LC_ALL=C
 
-./unifdef -s "$@" | sort | uniq >"$tmp/ctrl"
+unifdef -s "$@" | sort | uniq >"$tmp/ctrl"
 cpp -dM "$@" | sort | sed 's/^#define //' >"$tmp/hashdefs"
 sed 's/[^A-Za-z0-9_].*$//' "$tmp/hashdefs" >"$tmp/alldef"
 comm -23 "$tmp/ctrl" "$tmp/alldef" >"$tmp/undef"
 comm -12 "$tmp/ctrl" "$tmp/alldef" >"$tmp/def"
 (
-	echo ./unifdef -k \\
+	echo unifdef -k \\
 	sed 's/.*/-U& \\/' "$tmp/undef"
 	while read sym
 	do sed -n 's/^'$sym'\(([^)]*)\)\{0,1\} /-D'$sym'=/p' "$tmp/hashdefs"
