@@ -532,6 +532,35 @@ ata_mode2string(int mode)
     }
 }
 
+int
+ata_string2mode(char *str)
+{
+	if (!strcasecmp(str, "PIO0")) return (ATA_PIO0);
+	if (!strcasecmp(str, "PIO1")) return (ATA_PIO1);
+	if (!strcasecmp(str, "PIO2")) return (ATA_PIO2);
+	if (!strcasecmp(str, "PIO3")) return (ATA_PIO3);
+	if (!strcasecmp(str, "PIO4")) return (ATA_PIO4);
+	if (!strcasecmp(str, "WDMA0")) return (ATA_WDMA0);
+	if (!strcasecmp(str, "WDMA1")) return (ATA_WDMA1);
+	if (!strcasecmp(str, "WDMA2")) return (ATA_WDMA2);
+	if (!strcasecmp(str, "UDMA0")) return (ATA_UDMA0);
+	if (!strcasecmp(str, "UDMA16")) return (ATA_UDMA0);
+	if (!strcasecmp(str, "UDMA1")) return (ATA_UDMA1);
+	if (!strcasecmp(str, "UDMA25")) return (ATA_UDMA1);
+	if (!strcasecmp(str, "UDMA2")) return (ATA_UDMA2);
+	if (!strcasecmp(str, "UDMA33")) return (ATA_UDMA2);
+	if (!strcasecmp(str, "UDMA3")) return (ATA_UDMA3);
+	if (!strcasecmp(str, "UDMA44")) return (ATA_UDMA3);
+	if (!strcasecmp(str, "UDMA4")) return (ATA_UDMA4);
+	if (!strcasecmp(str, "UDMA66")) return (ATA_UDMA4);
+	if (!strcasecmp(str, "UDMA5")) return (ATA_UDMA5);
+	if (!strcasecmp(str, "UDMA100")) return (ATA_UDMA5);
+	if (!strcasecmp(str, "UDMA6")) return (ATA_UDMA6);
+	if (!strcasecmp(str, "UDMA133")) return (ATA_UDMA6);
+	return (-1);
+}
+
+
 u_int
 ata_mode2speed(int mode)
 {
@@ -588,13 +617,16 @@ int
 ata_speed2revision(u_int speed)
 {
 	switch (speed) {
+	case 0:
+		return (0);
 	case 150000:
-	default:
 		return (1);
 	case 300000:
 		return (2);
 	case 600000:
 		return (3);
+	default:
+		return (-1);
 	}
 }
 
