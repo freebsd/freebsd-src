@@ -341,7 +341,7 @@ struct ahci_slot {
 };
 
 struct ahci_device {
-	u_int			revision;
+	int			revision;
 	int			mode;
 	u_int			bytecount;
 	u_int			tags;
@@ -362,7 +362,6 @@ struct ahci_channel {
 	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
-	int			sata_rev;	/* Maximum allowed SATA generation */
 
 	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	union ccb		*hold[AHCI_MAX_SLOTS];

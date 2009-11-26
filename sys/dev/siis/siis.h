@@ -347,7 +347,7 @@ struct siis_slot {
 };
 
 struct siis_device {
-	u_int			revision;
+	int			revision;
 	int			mode;
 	u_int			bytecount;
 	u_int			tags;
@@ -364,7 +364,6 @@ struct siis_channel {
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	int			pm_level;	/* power management level */
-	int			sata_rev;	/* Maximum allowed SATA generation */
 
 	struct siis_slot	slot[SIIS_MAX_SLOTS];
 	union ccb		*hold[SIIS_MAX_SLOTS];
