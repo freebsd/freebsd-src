@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$dotat: unifdef/unifdefall.sh,v 1.21 2009/11/25 19:54:34 fanf2 Exp $
+#	$dotat: unifdef/unifdefall.sh,v 1.24 2009/11/26 12:54:39 fanf2 Exp $
 # $FreeBSD$
 
 set -e
@@ -36,18 +36,26 @@ trap 'rm -r "$tmp" || exit 1' EXIT
 
 export LC_ALL=C
 
+# list of all controlling macros
 unifdef -s "$@" | sort | uniq >"$tmp/ctrl"
+# list of all macro definitions
 cpp -dM "$@" | sort | sed 's/^#define //' >"$tmp/hashdefs"
-sed 's/[^A-Za-z0-9_].*$//' "$tmp/hashdefs" >"$tmp/alldef"
+# list of defined macro names
+sed 's/[^A-Za-z0-9_].*$//' <"$tmp/hashdefs" >"$tmp/alldef"
+# list of undefined and defined controlling macros
 comm -23 "$tmp/ctrl" "$tmp/alldef" >"$tmp/undef"
 comm -12 "$tmp/ctrl" "$tmp/alldef" >"$tmp/def"
-(
-	echo unifdef -k \\
-	sed 's/.*/-U& \\/' "$tmp/undef"
-	while read sym
-	do sed -n 's/^'$sym'\(([^)]*)\)\{0,1\} /-D'$sym'=/p' "$tmp/hashdefs"
-	done <"$tmp/def" |
+# create a sed script that extracts the controlling macro definitions
+# and converts them to unifdef command-line arguments
+sed 's|.*|s/^&\\(([^)]*)\\)\\{0,1\\} /-D&=/p|' <"$tmp/def" >"$tmp/script"
+# create the final unifdef command
+{	echo unifdef -k \\
+	# convert the controlling undefined macros to -U arguments
+	sed 's/.*/-U& \\/' <"$tmp/undef"
+	# convert the controlling defined macros to quoted -D arguments
+	sed -nf "$tmp/script" <"$tmp/hashdefs" |
 		sed "s/'/'\\\\''/g;s/.*/'&' \\\\/"
 	echo '"$@"'
-) >"$tmp/cmd"
+} >"$tmp/cmd"
+# run the command we just created
 sh "$tmp/cmd" "$@"
