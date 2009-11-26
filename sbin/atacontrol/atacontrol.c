@@ -61,9 +61,6 @@ mode2str(int mode)
 	case ATA_UDMA6: return "UDMA133";
 	case ATA_SA150: return "SATA150";
 	case ATA_SA300: return "SATA300";
-	case ATA_USB: return "USB";
-	case ATA_USB1: return "USB1";
-	case ATA_USB2: return "USB2";
 	case ATA_DMA: return "BIOSDMA";
 	default: return "???";
 	}
@@ -95,9 +92,6 @@ str2mode(char *str)
 	if (!strcasecmp(str, "UDMA133")) return ATA_UDMA6;
 	if (!strcasecmp(str, "SATA150")) return ATA_SA150;
 	if (!strcasecmp(str, "SATA300")) return ATA_SA300;
-	if (!strcasecmp(str, "USB")) return ATA_USB;
-	if (!strcasecmp(str, "USB1")) return ATA_USB1;
-	if (!strcasecmp(str, "USB2")) return ATA_USB2;
 	if (!strcasecmp(str, "BIOSDMA")) return ATA_DMA;
 	return -1;
 }
