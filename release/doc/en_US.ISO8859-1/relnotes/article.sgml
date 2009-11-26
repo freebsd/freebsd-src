@@ -448,6 +448,12 @@ epair0b: flags=8842&lt;BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 	<filename>emulators/linux_base-f10</filename> (Fedora
 	10).</para>
 
+      <para role="8.0" arch="arm">The &os;/&arch.arm; now
+	supports mini dump.</para>
+
+      <para role="8.0" arch="powerpc">The &os;/&arch.powerpc; now
+	supports kernel core dump.</para>
+
       <para role="8.0" arch="amd64,i386">The &os; virtual memory
 	subsystem now supports fully transparent use of
 	<application>superpages</application> for application memory;
@@ -603,6 +609,9 @@ epair0b: flags=8842&lt;BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 	<para role="8.0">The &man.boot0cfg.8; utility now supports a
 	  new <option>-i</option> option to set the volume ID.</para>
 
+	<para role="8.0" arch="arm,powerpc">The &man.loader.8; now
+	  supports U-Boot support library.</para>
+
 	<para role="7.2">The &man.boot.8; now supports 4-byte volume ID that
 	  certain versions of &windows; put into the MBR and invoking
 	  PXE by pressing the F6 key on some supported BIOSes.</para>
@@ -637,6 +646,23 @@ epair0b: flags=8842&lt;BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 
 	<para role="8.0">The &os; now includes experimental support
 	  for &arch.mips; platform.</para>
+
+	<para role="8.0">Support for RTC on Dallas Semiconductor chips
+	  has been improved.  The DS133x and DS1553 are now
+	  supported.</para>
+
+	<para role="8.0" arch="arm">The &os;/&arch.arm; now supports
+	  Feroceon and Sheeva embedded CPU, Marvell Orion (88F5281),
+	  Kirkwood (88F6281), Discovery Innovation (MV-78100)
+	  systems-on-chip CPU.</para>
+
+	<para role="8.0" arch="powerpc">The &os;/&arch.powerpc; now
+	  supports SMP machines</para>
+
+	<para role="8.0" arch="powerpc">The &os;/&arch.powerpc; now
+	  supports E500 (Book-E) embedded CPU and Freescale
+	  PowerQUICCIII MPC85xx system-on-chip (including single and
+	  dual-core).</para>
 
 	<para role="8.0">The &man.acpi.4; subsystem now supports the System
 	  Resource Affinity Table (SRAT) used to describe affinity
@@ -885,6 +911,12 @@ epair0b: flags=8842&lt;BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 	    </listitem>
 	  </itemizedlist>
 
+	  <para role="8.0" arch="arm,powerpc">The mge(4) driver has
+	    been added to provide support for Marvell Gigabit Ethernet
+	    controllers found on ARM-based SOCs (Orion, Kirkwood,
+	    Discovery), as well as on system controllers for PowerPC
+	    processors (MV64430, MV6446x).</para>
+
 	  <para role="8.0">The &man.miibus.4; driver now supports
 	    the Marvell 88E3016.</para>
 
@@ -902,6 +934,11 @@ epair0b: flags=8842&lt;BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 
 	  <para role="8.0">The &man.nge.4; driver has been improved and
 	    now works on all platforms.</para>
+
+	  <para role="8.0">The tsec(4) driver has been added to
+	    provide support for Freescale integrated Three-Speed
+	    Ethernet Controller (TSEC).  This driver also works with
+	    the enhanced version of the controller (eTSEC).</para>
 
 	  <para role="8.0">The &man.uath.4; driver for USB wireless LAN
 	    adapter based on Atheros AR5005UG and AR5005UX chipsets
@@ -1735,6 +1772,9 @@ options	NFSD	# for NFS server</programlisting>
 	previous backup.  Otherwise the &man.freebsd-update.8; will
 	generate a new directory name for use by the backup.  This is
 	enabled by default.</para>
+
+      <para role="8.0">The &man.gdbserver.1; now supports &arch.arm;
+	and &arch.powerpc; platforms.</para>
 
       <para role="8.0">The &man.gpt.8; program has been removed in
 	favor of &man.gpart.8;.</para>
