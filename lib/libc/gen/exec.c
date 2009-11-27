@@ -209,7 +209,7 @@ execvPe(name, path, argv, envp)
 		bcopy(name, buf + lp + 1, ln);
 		buf[lp + ln + 1] = '\0';
 
-retry:		(void)_execve(bp, argv, environ);
+retry:		(void)_execve(bp, argv, envp);
 		switch (errno) {
 		case E2BIG:
 			goto done;
@@ -228,7 +228,7 @@ retry:		(void)_execve(bp, argv, environ);
 			memp[0] = "sh";
 			memp[1] = bp;
 			bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
-			(void)_execve(_PATH_BSHELL, memp, environ);
+			(void)_execve(_PATH_BSHELL, memp, envp);
 			goto done;
 		case ENOMEM:
 			goto done;
