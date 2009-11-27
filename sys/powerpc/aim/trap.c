@@ -491,9 +491,7 @@ trap_pfault(struct trapframe *frame, int user)
 		PROC_UNLOCK(p);
 
 		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype,
-		      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
-					      : VM_FAULT_NORMAL);
+		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 		PROC_LOCK(p);
 		--p->p_lock;
