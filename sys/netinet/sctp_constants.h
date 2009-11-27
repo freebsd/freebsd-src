@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define SCTP_KTRHEAD_NAME "sctp_iterator"
-#define SCTP_KTHREAD_PAGES 2
+#define SCTP_KTHREAD_PAGES 0
 
 
 /* If you support Multi-VRF how big to
