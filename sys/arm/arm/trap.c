@@ -425,8 +425,7 @@ data_abort_handler(trapframe_t *tf)
 		p->p_lock++;
 		PROC_UNLOCK(p);
 	}
-	error = vm_fault(map, va, ftype, (ftype & VM_PROT_WRITE) ? 
-	    VM_FAULT_DIRTY : VM_FAULT_NORMAL);
+	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	pcb->pcb_onfault = onfault;
 
 	if (map != kernel_map) {

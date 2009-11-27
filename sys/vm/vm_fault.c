@@ -857,19 +857,12 @@ vnode_locked:
 		vm_object_set_writeable_dirty(fs.object);
 
 		/*
-		 * If the fault is a write, we know that this page is being
-		 * written NOW so dirty it explicitly to save on 
-		 * pmap_is_modified() calls later.
-		 *
 		 * If this is a NOSYNC mmap we do not want to set VPO_NOSYNC
 		 * if the page is already dirty to prevent data written with
 		 * the expectation of being synced from not being synced.
 		 * Likewise if this entry does not request NOSYNC then make
 		 * sure the page isn't marked NOSYNC.  Applications sharing
 		 * data should use the same flags to avoid ping ponging.
-		 *
-		 * Also tell the backing pager, if any, that it should remove
-		 * any swap backing since the page is now dirty.
 		 */
 		if (fs.entry->eflags & MAP_ENTRY_NOSYNC) {
 			if (fs.m->dirty == 0)
@@ -877,7 +870,17 @@ vnode_locked:
 		} else {
 			fs.m->oflags &= ~VPO_NOSYNC;
 		}
-		if (fault_flags & VM_FAULT_DIRTY) {
+
+		/*
+		 * If the fault is a write, we know that this page is being
+		 * written NOW so dirty it explicitly to save on 
+		 * pmap_is_modified() calls later.
+		 *
+		 * Also tell the backing pager, if any, that it should remove
+		 * any swap backing since the page is now dirty.
+		 */
+		if ((fault_type & VM_PROT_WRITE) != 0 &&
+		    (fault_flags & VM_FAULT_CHANGE_WIRING) == 0) {
 			vm_page_dirty(fs.m);
 			vm_pager_page_unswapped(fs.m);
 		}
