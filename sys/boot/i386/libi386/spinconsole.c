@@ -82,10 +82,10 @@ spinc_putchar(int c)
         static time_t lasttime;
 	time_t now;
 
-        now = time(NULL);
-        if (now < (lasttime + 1))
-            return;
-        lasttime = now;
+	now = time(NULL);
+	if (now < (lasttime + 1))
+		return;
+	lasttime = now;
 	get_pos(&curx, &cury);
 	if (curx > 0)
 		curs_move(&curx, &cury, curx - 1, cury);
