@@ -232,9 +232,12 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |                 |                DragonFly 2.4.0
  |     V              |      |             OpenBSD 4.6                 |
  |                    |      |                 |                       |
-FreeBSD 8.0           |      |                 |                       |
+ *--FreeBSD           |      |                 |                       |
+ |    8.0             |      |                 |                       |
+ |     |              |      |                 |                       |
+ |     V              |      |                 |                       |
  |                    |      |                 |                       |
-FreeBSD 8 -current    |  NetBSD -current  OpenBSD -current             |
+FreeBSD 9 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
  v                    v      v                 v                       v
 
