@@ -79,7 +79,7 @@ spinc_putchar(int c)
 {
 	static int curx, cury;
 	static unsigned tw_chars = 0x5C2D2F7C;    /* "\-/|" */
-        static time_t lasttime;
+	static time_t lasttime;
 	time_t now;
 
 	now = time(NULL);
