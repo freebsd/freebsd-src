@@ -100,11 +100,13 @@ struct file_format *file_formats[] = {
 extern struct console vidconsole;
 extern struct console comconsole;
 extern struct console nullconsole;
+extern struct console spinconsole;
 
 struct console *consoles[] = {
     &vidconsole,
     &comconsole,
     &nullconsole,
+    &spinconsole,
     NULL
 };
 

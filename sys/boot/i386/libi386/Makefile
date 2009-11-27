@@ -8,7 +8,7 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	comconsole.c devicename.c elf32_freebsd.c \
 	elf64_freebsd.c \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
-	smbios.c time.c vidconsole.c amd64_tramp.S
+	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
 
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)

@@ -57,8 +57,8 @@ static int	vidc_started;
 void		end_term(void);
 void		bail_out(int c);
 void		vidc_term_emu(int c);
-void		get_pos(void);
-void		curs_move(int x, int y);
+void		get_pos(int *x, int *y);
+void		curs_move(int *_x, int *_y, int x, int y);
 void		write_char(int c, int fg, int bg);
 void		scroll_up(int rows, int fg, int bg);
 void		CD(void);
@@ -110,8 +110,8 @@ vidc_init(int arg)
 #ifdef TERM_EMU
     /* Init terminal emulator */
     end_term();
-    get_pos();
-    curs_move(curx, cury);
+    get_pos(&curx, &cury);
+    curs_move(&curx, &cury, curx, cury);
     fg_c = DEFAULT_FGCOLOR;
     bg_c = DEFAULT_BGCOLOR;
 #endif
@@ -120,7 +120,7 @@ vidc_init(int arg)
     return (0);	/* XXX reinit? */
 }
 
-static void
+void
 vidc_biosputchar(int c)
 {
 
@@ -151,7 +151,7 @@ vidc_rawputchar(int c)
 	    return;
 	case '\r':
 	    curx = 0;
-	    curs_move(curx, cury);
+	    curs_move(&curx, &cury, curx, cury);
 	    return;
 	case '\n':
 	    cury++;
@@ -159,13 +159,13 @@ vidc_rawputchar(int c)
 		scroll_up(1, fg_c, bg_c);
 		cury--;
 	    } else {
-		curs_move(curx, cury);
+		curs_move(&curx, &cury, curx, cury);
 	    }
 	    return;
 	case '\b':
 	    if (curx > 0) {
 		curx--;
-		curs_move(curx, cury);
+		curs_move(&curx, &cury, curx, cury);
 		/* write_char(' ', fg_c, bg_c); XXX destructive(!) */
 		return;
 	    }
@@ -183,7 +183,7 @@ vidc_rawputchar(int c)
 		cury--;
 	    }
 	}
-	curs_move(curx, cury);
+	curs_move(&curx, &cury, curx, cury);
 #endif
     }
 }
@@ -194,7 +194,7 @@ vidc_rawputchar(int c)
  * curx and cury appropriately.
  */
 void
-get_pos(void)
+get_pos(int *x, int *y)
 {
 
     v86.ctl = 0;
@@ -202,13 +202,13 @@ get_pos(void)
     v86.eax = 0x0300;
     v86.ebx = 0x0;
     v86int();
-    curx = v86.edx & 0x00ff;
-    cury = (v86.edx & 0xff00) >> 8;
+    *x = v86.edx & 0x00ff;
+    *y = (v86.edx & 0xff00) >> 8;
 }
 
 /* Move cursor to x rows and y cols (0-based). */
 void
-curs_move(int x, int y)
+curs_move(int *_x, int *_y, int x, int y)
 {
 
     v86.ctl = 0;
@@ -217,8 +217,8 @@ curs_move(int x, int y)
     v86.ebx = 0x0;
     v86.edx = ((0x00ff & y) << 8) + (0x00ff & x);
     v86int();
-    curx = x;
-    cury = y;
+    *_x = x;
+    *_y = y;
     /* If there is ctrl char at this position, cursor would be invisible.
      * Make it a space instead.
      */
@@ -277,7 +277,7 @@ void
 CD(void)
 {
 
-    get_pos();
+    get_pos(&curx, &cury);
     if (curx > 0) {
 	v86.ctl = 0;
 	v86.addr = 0x10;
@@ -312,7 +312,7 @@ CM(void)
 	args[0]--;
     if (args[1] > 0)
 	args[1]--;
-    curs_move(args[1], args[0]);
+    curs_move(&curx, &cury, args[1], args[0]);
     end_term();
 }
 
