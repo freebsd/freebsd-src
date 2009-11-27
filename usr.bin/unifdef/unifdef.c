@@ -24,17 +24,19 @@
  */
 
 /*
- * This code is derived from software contributed to Berkeley by Dave Yost.
+ * This code was derived from software contributed to Berkeley by Dave Yost.
  * It was rewritten to support ANSI C by Tony Finch. The original version
  * of unifdef carried the 4-clause BSD copyright licence. None of its code
  * remains in this version (though some of the names remain) so it now
  * carries a more liberal licence.
+ *
+ * The latest version is available from http://dotat.at/prog/unifdef
  */
 
 #include <sys/cdefs.h>
 
 #ifdef __IDSTRING
-__IDSTRING(dotat, "$dotat: unifdef/unifdef.c,v 1.188 2009/11/25 00:11:02 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: unifdef/unifdef.c,v 1.190 2009/11/27 17:21:26 fanf2 Exp $");
 #endif
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -460,9 +462,11 @@ keywordedit(const char *replacement)
 static void
 nest(void)
 {
-	depth += 1;
-	if (depth >= MAXDEPTH)
+	if (depth > MAXDEPTH-1)
+		abort(); /* bug */
+	if (depth == MAXDEPTH-1)
 		error("Too many levels of nesting");
+	depth += 1;
 	stifline[depth] = linenum;
 }
 static void
