@@ -538,17 +538,11 @@ dofault:
 			struct vmspace *vm;
 			vm_map_t map;
 			int rv = 0;
-			int flag;
 
 			vm = p->p_vmspace;
 			map = &vm->vm_map;
 			va = trunc_page((vm_offset_t)trapframe->badvaddr);
-			if ((vm_offset_t)trapframe->badvaddr < VM_MIN_KERNEL_ADDRESS) {
-				if (ftype & VM_PROT_WRITE)
-					flag = VM_FAULT_DIRTY;
-				else
-					flag = VM_FAULT_NORMAL;
-			} else {
+			if ((vm_offset_t)trapframe->badvaddr >= VM_MIN_KERNEL_ADDRESS) {
 				/*
 				 * Don't allow user-mode faults in kernel
 				 * address space.
@@ -564,14 +558,14 @@ dofault:
 			++p->p_lock;
 			PROC_UNLOCK(p);
 
-			rv = vm_fault(map, va, ftype, flag);
+			rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 			PROC_LOCK(p);
 			--p->p_lock;
 			PROC_UNLOCK(p);
 #ifdef VMFAULT_TRACE
 			printf("vm_fault(%x (pmap %x), %x (%x), %x, %d) -> %x at pc %x\n",
-			    map, &vm->vm_pmap, va, trapframe->badvaddr, ftype, flag,
+			    map, &vm->vm_pmap, va, trapframe->badvaddr, ftype, VM_FAULT_NORMAL,
 			    rv, trapframe->pc);
 #endif
 

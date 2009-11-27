@@ -319,7 +319,6 @@ long vmspace_wired_count(struct vmspace *vmspace);
  */
 #define VM_FAULT_NORMAL 0		/* Nothing special */
 #define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
-#define VM_FAULT_DIRTY 8		/* Dirty the page */
 
 /*
  * The following "find_space" options are supported by vm_map_find()
