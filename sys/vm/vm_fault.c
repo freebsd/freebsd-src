@@ -761,8 +761,10 @@ vnode_locked:
 				fs.first_m->valid = VM_PAGE_BITS_ALL;
 				if (wired && (fault_flags &
 				    VM_FAULT_CHANGE_WIRING) == 0) {
+					vm_page_lock_queues();
 					vm_page_wire(fs.first_m);
 					vm_page_unwire(fs.m, FALSE);
+					vm_page_unlock_queues();
 				}
 				/*
 				 * We no longer need the old page or object.
