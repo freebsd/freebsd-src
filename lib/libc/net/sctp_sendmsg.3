@@ -103,13 +103,13 @@ is set to
 the message is not transmitted.
 .Pp
 No indication of failure to deliver is implicit in a
-.Xr sctp_sendmsg 2
+.Xr sctp_sendmsg 3
 call.
 Locally detected errors are indicated by a return value of -1.
 .Pp
 If no space is available at the socket to hold
 the message to be transmitted, then
-.Xr sctp_sendmsg 2
+.Xr sctp_sendmsg 3
 normally blocks, unless the socket has been placed in
 non-blocking I/O mode.
 The
@@ -123,7 +123,7 @@ argument is an opaque 32 bit value that is passed transparently
 through the stack to the peer endpoint.
 It will be available on
 reception of a message (see
-.Xr sctp_recvmsg 2 ) .
+.Xr sctp_recvmsg 3 ) .
 Note that the stack passes this value without regard to byte
 order.
 .Pp
