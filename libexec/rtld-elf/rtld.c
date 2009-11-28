@@ -1571,9 +1571,10 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
     object_add_name(obj, name);
     obj->path = path;
     digest_dynamic(obj, 0);
-    if (obj->z_noopen && (flags & RTLD_LO_DLOPEN)) {
+    if (obj->z_noopen && (flags & (RTLD_LO_DLOPEN | RTLD_LO_TRACE)) ==
+      RTLD_LO_DLOPEN) {
 	dbg("refusing to load non-loadable \"%s\"", obj->path);
-	_rtld_error("Cannot dlopen non-loadable %s\n", obj->path);
+	_rtld_error("Cannot dlopen non-loadable %s", obj->path);
 	munmap(obj->mapbase, obj->mapsize);
 	obj_free(obj);
 	return (NULL);
@@ -2006,6 +2007,8 @@ dlopen(const char *name, int mode)
     lo_flags = RTLD_LO_DLOPEN;
     if (mode & RTLD_NOLOAD)
 	    lo_flags |= RTLD_LO_NOLOAD;
+    if (ld_tracing != NULL)
+	    lo_flags |= RTLD_LO_TRACE;
 
     objlist_init(&initlist);
 
