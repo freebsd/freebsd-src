@@ -182,35 +182,28 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
  * Just to add to the fun, exceptions must be off as well
  * so that we can't trap in 64-bit mode. What a pain.
  */
+struct mtx	tlbie_mutex;
 
 static __inline void
 TLBIE(pmap_t pmap, vm_offset_t va) {
-	register_t msr;
-	register_t scratch;
-
 	uint64_t vpn;
 	register_t vpn_hi, vpn_lo;
-
-#if 1
-	/*
-	 * CPU documentation says that tlbie takes the VPN, not the
-	 * VA. I think the code below does this correctly. We will see.
-	 */
+	register_t msr;
+	register_t scratch;
 
 	vpn = (uint64_t)(va & ADDR_PIDX);
 	if (pmap != NULL)
 		vpn |= (va_to_vsid(pmap,va) << 28);
-#else
-	vpn = va;
-#endif
 
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
 
+	mtx_lock_spin(&tlbie_mutex);
 	__asm __volatile("\
 	    mfmsr %0; \
 	    clrldi %1,%0,49; \
-	    insrdi %1,1,1,0; \
+	    mtmsr %1; \
+	    insrdi %1,%5,1,0; \
 	    mtmsrd %1; \
 	    ptesync; \
 	    \
@@ -222,7 +215,8 @@ TLBIE(pmap_t pmap, vm_offset_t va) {
 	    eieio; \
 	    tlbsync; \
 	    ptesync;" 
-	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32));
+	: "=r"(msr), "=r"(scratch) : "r"(vpn_hi), "r"(vpn_lo), "r"(32), "r"(1));
+	mtx_unlock_spin(&tlbie_mutex);
 }
 
 #define DISABLE_TRANS(msr)	msr = mfmsr(); mtmsr(msr & ~PSL_DR); isync()
@@ -352,7 +346,7 @@ static int		moea64_pte_insert(u_int, struct lpte *);
  * PVO calls.
  */
 static int	moea64_pvo_enter(pmap_t, uma_zone_t, struct pvo_head *,
-		    vm_offset_t, vm_offset_t, uint64_t, int, int);
+		    vm_offset_t, vm_offset_t, uint64_t, int);
 static void	moea64_pvo_remove(struct pvo_entry *, int);
 static struct	pvo_entry *moea64_pvo_find_va(pmap_t, vm_offset_t, int *);
 static struct	lpte *moea64_pvo_to_pte(const struct pvo_entry *, int);
@@ -825,6 +819,11 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	    MTX_RECURSE);
 
 	/*
+	 * Initialize the TLBIE lock. TLBIE can only be executed by one CPU.
+	 */
+	mtx_init(&tlbie_mutex, "tlbie mutex", NULL, MTX_SPIN);
+
+	/*
 	 * Initialise the unmanaged pvo pool.
 	 */
 	moea64_bpvo_pool = (struct pvo_entry *)moea64_bootstrap_alloc(
@@ -1259,7 +1258,7 @@ moea64_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pvo_flags |= PVO_FAKE;
 
 	error = moea64_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
-	    pte_lo, pvo_flags, 0);
+	    pte_lo, pvo_flags);
 
 	if (pmap == kernel_pmap)
 		TLBIE(pmap, va);
@@ -1432,16 +1431,15 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	if (pvo_allocator_start >= pvo_allocator_end)
 		panic("Ran out of PVO allocator buffer space!");
 
-	/* Now call pvo_enter in recursive mode */
 	moea64_pvo_enter(kernel_pmap, moea64_upvo_zone,
 	    &moea64_pvo_kunmanaged, va,  VM_PAGE_TO_PHYS(m), LPTE_M, 
-	    PVO_WIRED | PVO_BOOTSTRAP, 1);
+	    PVO_WIRED | PVO_BOOTSTRAP);
 
 	TLBIE(kernel_pmap, va);
-	
+
 	if (needed_lock)
 		PMAP_UNLOCK(kernel_pmap);
-
+	
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
                 bzero((void *)va, PAGE_SIZE);
 
@@ -1584,7 +1582,7 @@ moea64_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	PMAP_LOCK(kernel_pmap);
 	error = moea64_pvo_enter(kernel_pmap, moea64_upvo_zone,
 	    &moea64_pvo_kunmanaged, va, pa, pte_lo, 
-	    PVO_WIRED | VM_PROT_EXECUTE, 0);
+	    PVO_WIRED | VM_PROT_EXECUTE);
 
 	TLBIE(kernel_pmap, va);
 
@@ -1972,14 +1970,29 @@ static void
 tlbia(void)
 {
 	vm_offset_t i;
+	register_t msr, scratch;
 
-	for (i = 0; i < 0xFF000; i += 0x00001000) 
-		TLBIE(NULL,i);
+	for (i = 0; i < 0xFF000; i += 0x00001000) {
+		__asm __volatile("\
+		    mfmsr %0; \
+		    mr %1, %0; \
+		    insrdi %1,%3,1,0; \
+		    mtmsrd %1; \
+		    ptesync; \
+		    \
+		    tlbiel %2; \
+		    \
+		    mtmsrd %0; \
+		    eieio; \
+		    tlbsync; \
+		    ptesync;" 
+		: "=r"(msr), "=r"(scratch) : "r"(i), "r"(1));
+	}
 }
 
 static int
 moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
-    vm_offset_t va, vm_offset_t pa, uint64_t pte_lo, int flags, int recurse)
+    vm_offset_t va, vm_offset_t pa, uint64_t pte_lo, int flags)
 {
 	struct	 pvo_entry *pvo;
 	uint64_t vsid;
@@ -2015,16 +2028,14 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 * Remove any existing mapping for this page.  Reuse the pvo entry if
 	 * there is a mapping.
 	 */
-	if (!recurse)
-		LOCK_TABLE();
+	LOCK_TABLE();
 
 	LIST_FOREACH(pvo, &moea64_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
 			if ((pvo->pvo_pte.lpte.pte_lo & LPTE_RPGN) == pa &&
 			    (pvo->pvo_pte.lpte.pte_lo & LPTE_PP) ==
 			    (pte_lo & LPTE_PP)) {
-				if (!recurse)
-					UNLOCK_TABLE();
+				UNLOCK_TABLE();
 				return (0);
 			}
 			moea64_pvo_remove(pvo, -1);
@@ -2045,12 +2056,19 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		moea64_bpvo_pool_index++;
 		bootstrap = 1;
 	} else {
+		/*
+		 * Note: drop the table around the UMA allocation in
+		 * case the UMA allocator needs to manipulate the page
+		 * table. The mapping we are working with is already
+		 * protected by the PMAP lock.
+		 */
+		UNLOCK_TABLE();
 		pvo = uma_zalloc(zone, M_NOWAIT);
+		LOCK_TABLE();
 	}
 
 	if (pvo == NULL) {
-		if (!recurse)
-			UNLOCK_TABLE();
+		UNLOCK_TABLE();
 		return (ENOMEM);
 	}
 
@@ -2097,8 +2115,7 @@ moea64_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		moea64_pte_overflow++;
 	}
 
-	if (!recurse)
-		UNLOCK_TABLE();
+	UNLOCK_TABLE();
 
 	return (first ? ENOENT : 0);
 }
