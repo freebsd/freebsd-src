@@ -869,14 +869,16 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	ENABLE_TRANS(msr);
 
 	/*
-	 * Map certain important things, like ourselves and the exception
-	 * vectors
+	 * Map certain important things, like ourselves.
+	 *
+	 * NOTE: We do not map the exception vector space. That code is
+	 * used only in real mode, and leaving it unmapped allows us to
+	 * catch NULL pointer deferences, instead of making NULL a valid
+	 * address.
 	 */
 
 	DISABLE_TRANS(msr);
 	for (pa = kernelstart & ~PAGE_MASK; pa < kernelend; pa += PAGE_SIZE) 
-		moea64_kenter(mmup, pa, pa);
-	for (pa = EXC_RSVD; pa < EXC_LAST; pa += PAGE_SIZE) 
 		moea64_kenter(mmup, pa, pa);
 	ENABLE_TRANS(msr);
 
