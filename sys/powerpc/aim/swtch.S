@@ -171,7 +171,7 @@ ENTRY(savectx)
 	mr	%r12,%r2
 	stmw	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs */
 	mfcr	%r4			/* Save the condition register */
-	stw	%r4,PCB_CONTEXT(%r3)
+	stw	%r4,PCB_CR(%r3)
 	blr
 
 /*
