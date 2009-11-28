@@ -114,7 +114,10 @@ done:
 		g_free(filerecp);
 }
 
-const struct g_label_desc g_label_ntfs = {
+struct g_label_desc g_label_ntfs = {
 	.ld_taste = g_label_ntfs_taste,
-	.ld_dir = G_LABEL_NTFS_DIR
+	.ld_dir = G_LABEL_NTFS_DIR,
+	.ld_enabled = 1
 };
+
+G_LABEL_INIT(ntfs, g_label_ntfs, "Create device nodes for NTFS volumes");
