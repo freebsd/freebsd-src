@@ -67,6 +67,7 @@
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/hid.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
@@ -74,59 +75,102 @@
 
 int powerpc_pow_enabled;
 
+static void	cpu_6xx_setup(int cpuid, uint16_t vers);
+static void	cpu_e500_setup(int cpuid, uint16_t vers);
+static void	cpu_970_setup(int cpuid, uint16_t vers);
+
 struct cputab {
 	const char	*name;
 	uint16_t	version;
 	uint16_t	revfmt;
+	int		features;	/* Do not include PPC_FEATURE_32 or
+					 * PPC_FEATURE_HAS_MMU */
+	void		(*cpu_setup)(int cpuid, uint16_t vers);
 };
 #define	REVFMT_MAJMIN	1	/* %u.%u */
 #define	REVFMT_HEX	2	/* 0x%04x */
 #define	REVFMT_DEC	3	/* %u */
 static const struct cputab models[] = {
-        { "Motorola PowerPC 601",	MPC601,		REVFMT_DEC },
-        { "Motorola PowerPC 602",	MPC602,		REVFMT_DEC },
-        { "Motorola PowerPC 603",	MPC603,		REVFMT_MAJMIN },
-        { "Motorola PowerPC 603e",	MPC603e,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 603ev",	MPC603ev,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 604",	MPC604,		REVFMT_MAJMIN },
-        { "Motorola PowerPC 604ev",	MPC604ev,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 620",	MPC620,		REVFMT_HEX },
-        { "Motorola PowerPC 750",	MPC750,		REVFMT_MAJMIN },
-        { "IBM PowerPC 750FX",		IBM750FX,	REVFMT_MAJMIN },
-        { "IBM PowerPC 970",		IBM970,		REVFMT_MAJMIN },
-        { "IBM PowerPC 970FX",		IBM970FX,	REVFMT_MAJMIN },
-        { "IBM PowerPC 970GX",		IBM970GX,	REVFMT_MAJMIN },
-        { "IBM PowerPC 970MP",		IBM970MP,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 7455",	MPC7455,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 7457",	MPC7457,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 7447A",	MPC7447A,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 7448",	MPC7448,	REVFMT_MAJMIN },
-        { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN },
-        { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN },
-        { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN },
-        { "Unknown PowerPC CPU",	0,		REVFMT_HEX }
+        { "Motorola PowerPC 601",	MPC601,		REVFMT_DEC,
+	   PPC_FEATURE_HAS_FPU | PPC_FEATURE_UNIFIED_CACHE, cpu_6xx_setup },
+        { "Motorola PowerPC 602",	MPC602,		REVFMT_DEC,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 603",	MPC603,		REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 603e",	MPC603e,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 603ev",	MPC603ev,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 604",	MPC604,		REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 604ev",	MPC604ev,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 620",	MPC620,		REVFMT_HEX,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+        { "Motorola PowerPC 750",	MPC750,		REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "IBM PowerPC 750FX",		IBM750FX,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "IBM PowerPC 970",		IBM970,		REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   cpu_970_setup },
+        { "IBM PowerPC 970FX",		IBM970FX,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   cpu_970_setup },
+        { "IBM PowerPC 970GX",		IBM970GX,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   cpu_970_setup },
+        { "IBM PowerPC 970MP",		IBM970MP,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   cpu_970_setup },
+        { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 7455",	MPC7455,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 7457",	MPC7457,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 7447A",	MPC7447A,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 7448",	MPC7448,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Motorola PowerPC 8245",	MPC8245,	REVFMT_MAJMIN,
+	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
+        { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN,
+	   0, cpu_e500_setup },
+        { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
+	   0, cpu_e500_setup },
+        { "Unknown PowerPC CPU",	0,		REVFMT_HEX, 0, NULL },
 };
+
+static void	cpu_6xx_print_cacheinfo(u_int, uint16_t);
+static int	cpu_feature_bit(SYSCTL_HANDLER_ARGS);
 
 static char model[64];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 
-static void	cpu_print_speed(void);
+int cpu_features = PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU;
+SYSCTL_OPAQUE(_hw, OID_AUTO, cpu_features, CTLTYPE_INT | CTLFLAG_RD,
+    &cpu_features, sizeof(cpu_features), "IX", "PowerPC CPU features");
 
-static void	cpu_6xx_setup(int cpuid, uint16_t vers);
-static void	cpu_6xx_print_cacheinfo(u_int, uint16_t);
-static void	cpu_e500_setup(int cpuid, uint16_t vers);
-#ifndef E500
-static void	cpu_970_setup(int cpuid, uint16_t vers);
-#endif
+/* Provide some user-friendly aliases for bits in cpu_features */
+SYSCTL_PROC(_hw, OID_AUTO, floatingpoint, CTLTYPE_INT | CTLFLAG_RD,
+    0, PPC_FEATURE_HAS_FPU, cpu_feature_bit, "I",
+    "Floating point instructions executed in hardware");
+SYSCTL_PROC(_hw, OID_AUTO, altivec, CTLTYPE_INT | CTLFLAG_RD,
+    0, PPC_FEATURE_HAS_ALTIVEC, cpu_feature_bit, "I", "CPU supports Altivec");
 
 void
 cpu_setup(u_int cpuid)
 {
 	u_int		pvr, maj, min;
 	uint16_t	vers, rev, revfmt;
+	uint64_t	cps;
 	const struct	cputab *cp;
 	const char	*name;
 
@@ -175,57 +219,19 @@ cpu_setup(u_int cpuid)
 			break;
 	}
 
+	if (cpu_est_clockrate(0, &cps) == 0)
+		printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+	printf("\n");
+
+	cpu_features |= cp->features;
+	printf("cpu%d: Features %b\n", cpuid, cpu_features,
+	    PPC_FEATURE_BITMASK);
+
 	/*
 	 * Configure CPU
 	 */
-	switch (vers) {
-		case MPC603:
-		case MPC603e:
-		case MPC603ev:
-		case MPC604ev:
-		case MPC750:
-		case IBM750FX:
-		case MPC7400:
-		case MPC7410:
-		case MPC7447A:
-		case MPC7448:
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-		case MPC8240:
-		case MPC8245:
-			cpu_6xx_setup(cpuid, vers);
-			break;
-
-#ifndef E500
-		case IBM970:
-		case IBM970FX:
-		case IBM970GX:
-		case IBM970MP:
-			cpu_970_setup(cpuid, vers);
-			break;
-#endif
-
-		case FSL_E500v1:
-		case FSL_E500v2:
-			cpu_e500_setup(cpuid, vers);
-			break;
-
-		default:
-			/* HID setup is unknown */
-			break;
-	}
-
-	printf("\n");
-}
-
-void
-cpu_print_speed(void)
-{
-	uint64_t	cps;
-	
-	if (cpu_est_clockrate(0, &cps) == 0)
-		printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+	if (cp->cpu_setup != NULL)
+		cp->cpu_setup(cpuid, vers);
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -351,9 +357,6 @@ cpu_6xx_setup(int cpuid, uint16_t vers)
 
 	mtspr(SPR_HID0, hid0);
 
-	cpu_print_speed();
-	printf("\n");
-
 	if (bootverbose)
 		cpu_6xx_print_cacheinfo(cpuid, vers);
 
@@ -370,7 +373,7 @@ cpu_6xx_setup(int cpuid, uint16_t vers)
 			break;
 	}
 
-	printf("cpu%d: HID0 %b", cpuid, (int)hid0, bitmask);
+	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, bitmask);
 }
 
 
@@ -429,16 +432,14 @@ cpu_e500_setup(int cpuid, uint16_t vers)
 {
 	register_t hid0;
 
-	printf("\n");
-
 	hid0 = mfspr(SPR_HID0);
-	printf("cpu%d: HID0 %b", cpuid, (int)hid0, HID0_E500_BITMASK);
+	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
 }
 
-#ifndef E500
 static void
 cpu_970_setup(int cpuid, uint16_t vers)
 {
+#ifdef AIM
 	uint32_t hid0_hi, hid0_lo;
 
 	__asm __volatile ("mfspr %0,%2; clrldi %1,%0,32; srdi %0,%0,32;"
@@ -458,11 +459,19 @@ cpu_970_setup(int cpuid, uint16_t vers)
 		sync; isync"
 	    :: "r" (hid0_hi), "r"(hid0_lo), "K" (SPR_HID0));
 
-	cpu_print_speed();
-	printf("\n");
-
 	__asm __volatile ("mfspr %0,%1; srdi %0,%0,32;"
 	    : "=r" (hid0_hi) : "K" (SPR_HID0));
-	printf("cpu%d: HID0 %b", cpuid, (int)(hid0_hi), HID0_970_BITMASK);
-}
+	printf("cpu%d: HID0 %b\n", cpuid, (int)(hid0_hi), HID0_970_BITMASK);
 #endif
+}
+
+static int
+cpu_feature_bit(SYSCTL_HANDLER_ARGS)
+{
+	int result;
+
+	result = (cpu_features & arg2) ? 1 : 0;
+
+	return (sysctl_handle_int(oidp, &result, 0, req));
+}
+
