@@ -885,6 +885,8 @@ cpu_initclocks(void)
 {
 
 	decr_tc_init();
+	stathz = hz;
+	profhz = hz;
 }
 
 /*
