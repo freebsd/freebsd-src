@@ -84,28 +84,6 @@ dummy_perf(unsigned long vector, struct trapframe *tf)
 
 void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
 
-static unsigned int ints[MAXCPU];
-SYSCTL_OPAQUE(_debug, OID_AUTO, ints, CTLFLAG_RW, &ints, sizeof(ints), "IU",
-    "");
-
-static unsigned int clks[MAXCPU];
-#ifdef SMP
-SYSCTL_OPAQUE(_debug, OID_AUTO, clks, CTLFLAG_RW, &clks, sizeof(clks), "IU",
-    "");
-#else
-SYSCTL_INT(_debug, OID_AUTO, clks, CTLFLAG_RW, clks, 0, "");
-#endif
-
-#ifdef SMP
-static unsigned int asts[MAXCPU];
-SYSCTL_OPAQUE(_debug, OID_AUTO, asts, CTLFLAG_RW, &asts, sizeof(asts), "IU",
-    "");
-
-static unsigned int rdvs[MAXCPU];
-SYSCTL_OPAQUE(_debug, OID_AUTO, rdvs, CTLFLAG_RW, &rdvs, sizeof(rdvs), "IU",
-    "");
-#endif
-
 SYSCTL_NODE(_debug, OID_AUTO, clock, CTLFLAG_RW, 0, "clock statistics");
 
 static int adjust_edges = 0;
@@ -139,6 +117,8 @@ interrupt(struct trapframe *tf)
 
 	td = curthread;
 
+	PCPU_INC(cnt.v_intr);
+
 	vector = tf->tf_special.ifa;
 
  next:
@@ -147,28 +127,30 @@ interrupt(struct trapframe *tf)
 	 * read the vector.
 	 */
 	if (vector == 0) {
+		PCPU_INC(stats.pcs_nextints);
 		inta = ib->ib_inta;
-		printf("ExtINT interrupt: vector=%u\n", (int)inta);
 		if (inta == 15) {
+			PCPU_INC(stats.pcs_nstrays);
 			__asm __volatile("mov cr.eoi = r0;; srlz.d");
 			goto stray;
 		}
 		vector = (int)inta;
-	} else if (vector == 15)
+	} else if (vector == 15) {
+		PCPU_INC(stats.pcs_nstrays);
 		goto stray;
+	}
 
 	if (vector == CLOCK_VECTOR) {/* clock interrupt */
 		/* CTR0(KTR_INTR, "clock interrupt"); */
 
 		itc = ia64_get_itc();
 
-		PCPU_INC(cnt.v_intr);
+		PCPU_INC(stats.pcs_nclks);
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
 #else
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
-		clks[PCPU_GET(cpuid)]++;
 
 		critical_enter();
 
@@ -211,17 +193,19 @@ interrupt(struct trapframe *tf)
 
 #ifdef SMP
 	} else if (vector == ipi_vector[IPI_AST]) {
-		asts[PCPU_GET(cpuid)]++;
+		PCPU_INC(stats.pcs_nasts);
 		CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
 	} else if (vector == ipi_vector[IPI_HIGH_FP]) {
+		PCPU_INC(stats.pcs_nhighfps);
 		ia64_highfp_save_ipi();
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
-		rdvs[PCPU_GET(cpuid)]++;
+		PCPU_INC(stats.pcs_nrdvs);
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 		enable_intr();
 		smp_rendezvous_action();
 		disable_intr();
 	} else if (vector == ipi_vector[IPI_STOP]) {
+		PCPU_INC(stats.pcs_nstops);
 		cpumask_t mybit = PCPU_GET(cpumask);
 
 		/* Make sure IPI_STOP_HARD is mapped to IPI_STOP. */
@@ -235,6 +219,7 @@ interrupt(struct trapframe *tf)
 		atomic_clear_int(&started_cpus, mybit);
 		atomic_clear_int(&stopped_cpus, mybit);
 	} else if (vector == ipi_vector[IPI_PREEMPT]) {
+		PCPU_INC(stats.pcs_npreempts);
 		CTR1(KTR_SMP, "IPI_PREEMPT, cpuid=%d", PCPU_GET(cpuid));
 		__asm __volatile("mov cr.eoi = r0;; srlz.d");
 		enable_intr();
@@ -243,7 +228,7 @@ interrupt(struct trapframe *tf)
 		goto stray;
 #endif
 	} else {
-		ints[PCPU_GET(cpuid)]++;
+		PCPU_INC(stats.pcs_nhwints);
 		atomic_add_int(&td->td_intr_nesting_level, 1);
 		ia64_dispatch_intr(tf, vector);
 		atomic_subtract_int(&td->td_intr_nesting_level, 1);
