@@ -242,8 +242,9 @@ typedef struct Struct_Obj_Entry {
 				   dlsym. */
 
 /* Flags for load_object(). */
-#define	RTLD_LO_NOLOAD	0x01	/* dlopen() specified RTLD_NOLOAD */
-#define	RTLD_LO_DLOPEN	0x02	/* load_object() called from dlopen(). */
+#define	RTLD_LO_NOLOAD	0x01	/* dlopen() specified RTLD_NOLOAD. */
+#define	RTLD_LO_DLOPEN	0x02	/* Load_object() called from dlopen(). */
+#define	RTLD_LO_TRACE	0x04	/* Only tracing. */
 
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups
