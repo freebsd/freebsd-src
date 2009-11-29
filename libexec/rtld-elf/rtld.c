@@ -898,7 +898,7 @@ digest_dynamic(Obj_Entry *obj, int early)
 #endif
 
 	case DT_FLAGS:
-		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		if ((dynp->d_un.d_val & DF_ORIGIN) && trust)
 		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_SYMBOLIC)
 		    obj->symbolic = true;
