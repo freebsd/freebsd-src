@@ -485,8 +485,11 @@ e1000phy_status(struct mii_softc *sc)
 			return;
 		}
 	} else {
-		if (ssr & E1000_SSR_1000MBS)
-			mii->mii_media_active |= IFM_1000_SX;
+		/*
+		 * Some fiber PHY(88E1112) does not seem to set resolved
+		 * speed so always assume we've got IFM_1000_SX.
+		 */
+		mii->mii_media_active |= IFM_1000_SX;
 	}
 
 	if (ssr & E1000_SSR_DUPLEX)
