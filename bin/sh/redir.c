@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 
 #define EMPTY -2		/* marks an unused slot in redirtab */
+#define CLOSED -1		/* fd was not open before redir */
 #define PIPESIZE 4096		/* amount of buffering in a pipe */
 
 
@@ -101,7 +102,6 @@ redirect(union node *redir, int flags)
 	struct redirtab *sv = NULL;
 	int i;
 	int fd;
-	int try;
 	char memory[10];	/* file descriptors to write to memory */
 
 	for (i = 10 ; --i >= 0 ; )
@@ -116,38 +116,30 @@ redirect(union node *redir, int flags)
 	}
 	for (n = redir ; n ; n = n->nfile.next) {
 		fd = n->nfile.fd;
-		try = 0;
 		if ((n->nfile.type == NTOFD || n->nfile.type == NFROMFD) &&
 		    n->ndup.dupfd == fd)
 			continue; /* redirect from/to same file descriptor */
 
 		if ((flags & REDIR_PUSH) && sv->renamed[fd] == EMPTY) {
 			INTOFF;
-again:
 			if ((i = fcntl(fd, F_DUPFD, 10)) == -1) {
 				switch (errno) {
 				case EBADF:
-					if (!try) {
-						openredirect(n, memory);
-						try++;
-						goto again;
-					}
-					/* FALLTHROUGH*/
+					i = CLOSED;
+					break;
 				default:
 					INTON;
 					error("%d: %s", fd, strerror(errno));
 					break;
 				}
-			}
-			if (!try) {
-				sv->renamed[fd] = i;
-			}
+			} else
+				(void)fcntl(i, F_SETFD, FD_CLOEXEC);
+			sv->renamed[fd] = i;
 			INTON;
 		}
 		if (fd == 0)
 			fd0_redirected++;
-		if (!try)
-			openredirect(n, memory);
+		openredirect(n, memory);
 	}
 	if (memory[1])
 		out1 = &memout;
