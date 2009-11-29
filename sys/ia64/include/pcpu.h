@@ -34,9 +34,6 @@
 #include <machine/pcb.h>
 
 struct pcpu_stats {
-	struct sysctl_ctx_list pcs_sysctl_ctx;
-	struct sysctl_oid *pcs_sysctl_tree;
-
 	u_long		pcs_nasts;		/* IPI_AST counter. */
 	u_long		pcs_nclks;		/* Clock interrupt counter. */
 	u_long		pcs_nextints;		/* ExtINT counter. */
@@ -46,6 +43,11 @@ struct pcpu_stats {
 	u_long		pcs_nrdvs;		/* IPI_RENDEZVOUS counter. */
 	u_long		pcs_nstops;		/* IPI_STOP counter. */
 	u_long		pcs_nstrays;		/* Stray interrupt counter. */
+
+#ifdef _KERNEL
+	struct sysctl_ctx_list pcs_sysctl_ctx;
+	struct sysctl_oid *pcs_sysctl_tree;
+#endif
 };
 
 #define	PCPU_MD_FIELDS							\
