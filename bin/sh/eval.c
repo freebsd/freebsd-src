@@ -883,7 +883,6 @@ cmddone:
 #ifdef DEBUG
 		trputs("normal command:  ");  trargs(argv);
 #endif
-		clearredir();
 		redirect(cmd->ncmd.redirect, 0);
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			setvareq(sp->text, VEXPORT|VSTACK);
