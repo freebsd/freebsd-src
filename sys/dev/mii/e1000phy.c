@@ -247,7 +247,7 @@ e1000phy_reset(struct mii_softc *sc)
 		}
 	}
 
-	switch (MII_MODEL(esc->mii_model)) {
+	switch (esc->mii_model) {
 	case MII_MODEL_MARVELL_E3082:
 	case MII_MODEL_MARVELL_E1112:
 	case MII_MODEL_MARVELL_E1118:
