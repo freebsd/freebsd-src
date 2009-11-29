@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2009
+.Dd November 29, 2009
 .Dt IPSEC 4
 .Os
 .Sh NAME
@@ -215,7 +215,7 @@ To selectively enable/disable protocols, use
 .It Sy "Name	Default"
 .It "net.inet.esp.esp_enable	On"
 .It "net.inet.ah.ah_enable	On"
-.It "net.inet.ipcomp.ipcomp_enable	Off"
+.It "net.inet.ipcomp.ipcomp_enable	On"
 .El
 .Pp
 In addition the following variables are accessible via
@@ -408,6 +408,8 @@ size may alleviate this problem.
 .Pp
 The
 .Tn IPcomp
-protocol support is currently broken.
+protocol may occationally error because of
+.Xr zlib 3
+problems.
 .Pp
 This documentation needs more review.
