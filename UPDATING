@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20091129:
+	PECOFF image activator support removed.
+
 20081128:
 	FreeBSD 6.4-RELEASE
 
