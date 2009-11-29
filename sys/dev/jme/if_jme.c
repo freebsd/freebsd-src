@@ -306,6 +306,10 @@ jme_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 	JME_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		JME_UNLOCK(sc);
+		return;
+	}
 	mii = device_get_softc(sc->jme_miibus);
 
 	mii_pollstat(mii);
@@ -1585,8 +1589,10 @@ jme_resume(device_t dev)
 		    pmc + PCIR_POWER_STATUS, pmstat, 2);
 	}
 	ifp = sc->jme_ifp;
-	if ((ifp->if_flags & IFF_UP) != 0)
+	if ((ifp->if_flags & IFF_UP) != 0) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		jme_init_locked(sc);
+	}
 
 	JME_UNLOCK(sc);
 
@@ -1861,6 +1867,7 @@ jme_watchdog(struct jme_softc *sc)
 	if ((sc->jme_flags & JME_FLAG_LINK) == 0) {
 		if_printf(sc->jme_ifp, "watchdog timeout (missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		jme_init_locked(sc);
 		return;
 	}
@@ -1875,6 +1882,7 @@ jme_watchdog(struct jme_softc *sc)
 
 	if_printf(sc->jme_ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	jme_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(sc->jme_tq, &sc->jme_tx_task);
@@ -1917,8 +1925,10 @@ jme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				VLAN_CAPABILITIES(ifp);
 			}
 			ifp->if_mtu = ifr->ifr_mtu;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				jme_init_locked(sc);
+			}
 			JME_UNLOCK(sc);
 		}
 		break;
@@ -2642,6 +2652,8 @@ jme_init_locked(struct jme_softc *sc)
 	ifp = sc->jme_ifp;
 	mii = device_get_softc(sc->jme_miibus);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 	/*
 	 * Cancel any pending I/O.
 	 */
