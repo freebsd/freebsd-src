@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20091129: pecoff image activator removed
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/pecoff_machdep.h
+.endif
 # 20090203: adding_user.8 moved to adding_user.7
 OLD_FILES+=usr/share/man/man8/adding_user.8.gz
 # 20080407: pkg_sign has been removed
