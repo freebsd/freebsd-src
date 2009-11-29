@@ -1814,6 +1814,8 @@ re_rxeof(struct rl_softc *sc)
 
 	for (i = sc->rl_ldata.rl_rx_prodidx; maxpkt > 0;
 	    i = RL_RX_DESC_NXT(sc, i)) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 		cur_rx = &sc->rl_ldata.rl_rx_list[i];
 		rxstat = le32toh(cur_rx->rl_cmdstat);
 		if ((rxstat & RL_RDESC_STAT_OWN) != 0)
