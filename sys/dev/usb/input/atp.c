@@ -1850,6 +1850,21 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 			sc->sc_idlecount++;
 			if (sc->sc_idlecount >= ATP_IDLENESS_THRESHOLD) {
 				DPRINTFN(ATP_LLEVEL_INFO, "idle\n");
+
+				/*
+				 * Use the last frame before we go idle for
+				 * calibration on pads which do not send
+				 * calibration frames.
+				 */
+				if (sc->sc_params->prot < ATP_PROT_GEYSER3) {
+					memcpy(sc->base_x, sc->cur_x,
+					    sc->sc_params->n_xsensors *
+					    sizeof(*(sc->base_x)));
+					memcpy(sc->base_y, sc->cur_y,
+					    sc->sc_params->n_ysensors *
+					    sizeof(*(sc->base_y)));
+				}
+
 				sc->sc_idlecount = 0;
 				usbd_transfer_start(sc->sc_xfer[ATP_RESET]);
 			}
