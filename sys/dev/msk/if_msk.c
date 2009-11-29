@@ -137,7 +137,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/mii/brgphyreg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -3216,11 +3215,9 @@ msk_intr_gmac(struct msk_if_softc *sc_if)
 	status = CSR_READ_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_SRC));
 
 	/* GMAC Rx FIFO overrun. */
-	if ((status & GM_IS_RX_FF_OR) != 0) {
+	if ((status & GM_IS_RX_FF_OR) != 0)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
 		    GMF_CLI_RX_FO);
-		device_printf(sc_if->msk_if_dev, "Rx FIFO overrun!\n");
-	}
 	/* GMAC Tx FIFO underrun. */
 	if ((status & GM_IS_TX_FF_UR) != 0) {
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
