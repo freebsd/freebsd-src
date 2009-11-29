@@ -4190,7 +4190,7 @@ msk_stats_clear(struct msk_if_softc *sc_if)
 	gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_PHY_ADDR);
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac | GM_PAR_MIB_CLR);
 	/* Read all MIB Counters with Clear Mode set. */
-	for (i = GM_RXF_UC_OK; i <= GM_TXE_FIFO_UR; i++)
+	for (i = GM_RXF_UC_OK; i <= GM_TXE_FIFO_UR; i += sizeof(uint32_t))
 		reg = MSK_READ_MIB32(sc_if->msk_port, i);
 	/* Clear MIB Clear Counter Mode. */
 	gmac &= ~GM_PAR_MIB_CLR;
