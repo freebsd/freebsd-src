@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20091129:
+	PECOFF image activator support removed.
+
 20090831:
 	The newly imported zic(8) produces a new format in the
 	output. Please run tzsetup(8) to install the newly created
