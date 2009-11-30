@@ -31,6 +31,7 @@ MAN=	aac.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
+	${_amdsbwd.4} \
 	${_amdsmb.4} \
 	${_amdtemp.4} \
 	amr.4 \
@@ -610,6 +611,7 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
