@@ -1325,6 +1325,7 @@ kenv_getuint(struct hatm_softc *sc, const char *var,
 		freeenv(val);
 		return (EINVAL);
 	}
+	freeenv(val);
 	if (bootverbose)
 		if_printf(sc->ifp, "%s=%u\n", full, u);
 	*ptr = u;
