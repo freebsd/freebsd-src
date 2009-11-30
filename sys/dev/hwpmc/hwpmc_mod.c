@@ -1401,7 +1401,7 @@ pmc_process_csw_out(struct thread *td)
 
 			tmp = newvalue - PMC_PCPU_SAVED(cpu,ri);
 
-			PMCDBG(CSW,SWI,1,"cpu=%d ri=%d tmp=%jd", cpu, ri,
+			PMCDBG(CSW,SWO,1,"cpu=%d ri=%d tmp=%jd", cpu, ri,
 			    tmp);
 
 			if (mode == PMC_MODE_TS) {
