@@ -101,7 +101,7 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 		if (copyin((void *) sp, &pc, sizeof(pc)) != 0)
 			return (n);
 	} else if (copyin((void *) r, &pc, sizeof(pc)) != 0 ||
-	    copyin((void *) fp, &fp, sizeof(fp) != 0))
+	    copyin((void *) fp, &fp, sizeof(fp)) != 0)
 		return (n);
 
 	for (; n < nframes;) {
