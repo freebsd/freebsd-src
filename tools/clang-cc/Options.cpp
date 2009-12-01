@@ -21,6 +21,7 @@
 #include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Frontend/HeaderSearchOptions.h"
+#include "clang/Frontend/LangStandard.h"
 #include "clang/Frontend/PCHReader.h"
 #include "clang/Frontend/PreprocessorOptions.h"
 #include "clang/Frontend/PreprocessorOutputOptions.h"
@@ -81,7 +82,7 @@ static llvm::cl::opt<bool>
 AnalyzeAll("analyzer-opt-analyze-headers",
     llvm::cl::desc("Force the static analyzer to analyze "
                    "functions defined in header files"));
-  
+
 static llvm::cl::opt<bool>
 AnalyzerDisplayProgress("analyzer-display-progress",
           llvm::cl::desc("Emit verbose output about the analyzer's progress"));
@@ -93,7 +94,7 @@ AnalyzerExperimentalChecks("analyzer-experimental-checks",
 static llvm::cl::opt<bool>
 AnalyzerExperimentalInternalChecks("analyzer-experimental-internal-checks",
   llvm::cl::desc("Use new default path-sensitive checks currently in testing"));
-  
+
 static llvm::cl::opt<std::string>
 AnalyzeSpecificFunction("analyze-function",
                llvm::cl::desc("Run analysis on specific function"));
@@ -139,6 +140,46 @@ DisableRedZone("disable-red-zone",
 static llvm::cl::opt<bool>
 GenerateDebugInfo("g",
                   llvm::cl::desc("Generate source level debug information"));
+
+static llvm::cl::opt<bool>
+MAsmVerbose("masm-verbose", llvm::cl::desc("Generate verbose assembly output"));
+
+static llvm::cl::opt<std::string>
+MCodeModel("mcode-model", llvm::cl::desc("The code model to use"));
+
+static llvm::cl::opt<std::string>
+MDebugPass("mdebu-pass", llvm::cl::desc("Output additional debug information"));
+
+static llvm::cl::opt<bool>
+MDisableFPElim("mdisable-fp-elim",
+              llvm::cl::desc("Disable frame pointer elimination optimization"));
+
+static llvm::cl::opt<std::string>
+MFloatABI("mfloat-abi", llvm::cl::desc("The float ABI to use"));
+
+static llvm::cl::opt<std::string>
+MLimitFloatPrecision("mlimit-float-precision",
+                    llvm::cl::desc("Limit float precision to the given value"));
+
+static llvm::cl::opt<bool>
+MNoZeroInitializedInBSS("mno-zero-initialized-in-bss",
+                 llvm::cl::desc("Do not put zero initialized data in the BSS"));
+
+static llvm::cl::opt<bool>
+MSoftFloat("msoft-float", llvm::cl::desc("Use software floating point"));
+
+static llvm::cl::opt<std::string>
+MRelocationModel("mrelocation-model",
+                 llvm::cl::desc("The relocation model to use"),
+                 llvm::cl::init("pic"));
+
+static llvm::cl::opt<bool>
+MUnwindTables("munwind-tables",
+              llvm::cl::desc("Generate unwinding tables for all functions"));
+
+static llvm::cl::opt<std::string>
+MainFileName("main-file-name",
+             llvm::cl::desc("Main file name to use for debug info"));
 
 static llvm::cl::opt<bool>
 NoCommon("fno-common",
@@ -436,6 +477,8 @@ TimeReport("ftime-report",
 
 namespace langoptions {
 
+using namespace clang::frontend;
+
 static llvm::cl::opt<bool>
 NoBuiltin("fno-builtin",
           llvm::cl::desc("Disable implicit builtin knowledge of functions"));
@@ -448,8 +491,8 @@ AccessControl("faccess-control",
               llvm::cl::desc("Enable C++ access control"));
 
 static llvm::cl::opt<bool>
-CharIsSigned("fsigned-char",
-    llvm::cl::desc("Force char to be a signed/unsigned type"));
+NoSignedChar("fno-signed-char",
+    llvm::cl::desc("Char is unsigned"));
 
 static llvm::cl::opt<bool>
 DollarsInIdents("fdollars-in-identifiers",
@@ -481,52 +524,18 @@ GNURuntime("fgnu-runtime",
             llvm::cl::desc("Generate output compatible with the standard GNU "
                            "Objective-C runtime"));
 
-/// LangStds - Language standards we support.
-enum LangStds {
-  lang_unspecified,
-  lang_c89, lang_c94, lang_c99,
-  lang_gnu89, lang_gnu99,
-  lang_cxx98, lang_gnucxx98,
-  lang_cxx0x, lang_gnucxx0x
-};
-static llvm::cl::opt<LangStds>
+static llvm::cl::opt<LangStandard::Kind>
 LangStd("std", llvm::cl::desc("Language standard to compile for"),
-        llvm::cl::init(lang_unspecified),
-  llvm::cl::values(clEnumValN(lang_c89,      "c89",            "ISO C 1990"),
-                   clEnumValN(lang_c89,      "c90",            "ISO C 1990"),
-                   clEnumValN(lang_c89,      "iso9899:1990",   "ISO C 1990"),
-                   clEnumValN(lang_c94,      "iso9899:199409",
-                              "ISO C 1990 with amendment 1"),
-                   clEnumValN(lang_c99,      "c99",            "ISO C 1999"),
-                   clEnumValN(lang_c99,      "c9x",            "ISO C 1999"),
-                   clEnumValN(lang_c99,      "iso9899:1999",   "ISO C 1999"),
-                   clEnumValN(lang_c99,      "iso9899:199x",   "ISO C 1999"),
-                   clEnumValN(lang_gnu89,    "gnu89",
-                              "ISO C 1990 with GNU extensions"),
-                   clEnumValN(lang_gnu99,    "gnu99",
-                              "ISO C 1999 with GNU extensions (default for C)"),
-                   clEnumValN(lang_gnu99,    "gnu9x",
-                              "ISO C 1999 with GNU extensions"),
-                   clEnumValN(lang_cxx98,    "c++98",
-                              "ISO C++ 1998 with amendments"),
-                   clEnumValN(lang_gnucxx98, "gnu++98",
-                              "ISO C++ 1998 with amendments and GNU "
-                              "extensions (default for C++)"),
-                   clEnumValN(lang_cxx0x,    "c++0x",
-                              "Upcoming ISO C++ 200x with amendments"),
-                   clEnumValN(lang_gnucxx0x, "gnu++0x",
-                              "Upcoming ISO C++ 200x with amendments and GNU "
-                              "extensions"),
+        llvm::cl::init(LangStandard::lang_unspecified), llvm::cl::values(
+#define LANGSTANDARD(id, name, desc, features) \
+          clEnumValN(LangStandard::lang_##id, name, desc),
+#include "clang/Frontend/LangStandards.def"
                    clEnumValEnd));
 
 static llvm::cl::opt<bool>
 MSExtensions("fms-extensions",
              llvm::cl::desc("Accept some non-standard constructs used in "
                             "Microsoft header files "));
-
-static llvm::cl::opt<std::string>
-MainFileName("main-file-name",
-             llvm::cl::desc("Main file name to use for debug info"));
 
 static llvm::cl::opt<bool>
 NoMathErrno("fno-math-errno",
@@ -745,6 +754,7 @@ DumpDefines("dD", llvm::cl::desc("Print macro definitions in -E mode in "
                                 "addition to normal output"));
 
 }
+
 //===----------------------------------------------------------------------===//
 // Target Options
 //===----------------------------------------------------------------------===//
@@ -757,7 +767,7 @@ TargetABI("target-abi",
 
 static llvm::cl::opt<std::string>
 TargetCPU("mcpu",
-         llvm::cl::desc("Target a specific cpu type (-mcpu=help for details)"));
+         llvm::cl::desc("Target a specific cpu type ('-mcpu help' for details)"));
 
 static llvm::cl::list<std::string>
 TargetFeatures("target-feature", llvm::cl::desc("Target specific attributes"));
@@ -791,8 +801,7 @@ void clang::InitializeAnalyzerOptions(AnalyzerOptions &Opts) {
 }
 
 void clang::InitializeCodeGenOptions(CodeGenOptions &Opts,
-                                     const LangOptions &Lang,
-                                     bool TimePasses) {
+                                     const LangOptions &Lang) {
   using namespace codegenoptions;
 
   // -Os implies -O2
@@ -810,19 +819,27 @@ void clang::InitializeCodeGenOptions(CodeGenOptions &Opts,
   Opts.NoCommon = NoCommon;
   Opts.NoImplicitFloat = NoImplicitFloat;
   Opts.OptimizeSize = OptSize;
-  Opts.SimplifyLibCalls = 1;
   Opts.UnrollLoops = (Opts.OptimizationLevel > 1 && !OptSize);
 
-  // FIXME: Eliminate this dependency?
-  if (Lang.NoBuiltin)
-    Opts.SimplifyLibCalls = 0;
-  if (Lang.CPlusPlus)
-    Opts.NoCommon = 1;
-  Opts.TimePasses = TimePasses;
+  // LLVM Code Generator options.
+
+  Opts.AsmVerbose = MAsmVerbose;
+  Opts.CodeModel = MCodeModel;
+  Opts.DebugPass = MDebugPass;
+  Opts.DisableFPElim = MDisableFPElim;
+  Opts.FloatABI = MFloatABI;
+  Opts.LimitFloatPrecision = MLimitFloatPrecision;
+  Opts.NoZeroInitializedInBSS = MNoZeroInitializedInBSS;
+  Opts.SoftFloat = MSoftFloat;
+  Opts.RelocationModel = MRelocationModel;
+  Opts.UnwindTables = MUnwindTables;
 
 #ifdef NDEBUG
   Opts.VerifyModule = 0;
 #endif
+
+  if (MainFileName.getPosition())
+    Opts.MainFileName = MainFileName;
 }
 
 void clang::InitializeDependencyOutputOptions(DependencyOutputOptions &Opts) {
@@ -857,13 +874,8 @@ void clang::InitializeDiagnosticOptions(DiagnosticOptions &Opts) {
 void clang::InitializeFrontendOptions(FrontendOptions &Opts) {
   using namespace frontendoptions;
 
-  // Select program action.
   Opts.ProgramAction = ProgAction;
-  if (PluginActionName.getPosition()) {
-    Opts.ProgramAction = frontend::PluginAction;
-    Opts.ActionName = PluginActionName;
-  }
-
+  Opts.ActionName = PluginActionName;
   Opts.CodeCompletionAt = CodeCompletionAt;
   Opts.DebugCodeCompletionPrinter = !NoCodeCompletionDebugPrinter;
   Opts.DisableFree = DisableFree;
@@ -875,6 +887,14 @@ void clang::InitializeFrontendOptions(FrontendOptions &Opts) {
   Opts.ShowStats = Stats;
   Opts.ShowTimers = TimeReport;
   Opts.ViewClassInheritance = InheritanceViewCls;
+
+  // Enforce certain program action implications.
+  if (!Opts.ActionName.empty())
+    Opts.ProgramAction = frontend::PluginAction;
+  if (!Opts.ViewClassInheritance.empty())
+    Opts.ProgramAction = frontend::InheritanceView;
+  if (!Opts.FixItLocations.empty())
+    Opts.ProgramAction = frontend::FixIt;
 
   // '-' is the default input if none is given.
   if (InputFilenames.empty()) {
@@ -1054,46 +1074,70 @@ void clang::InitializePreprocessorOptions(PreprocessorOptions &Opts) {
 }
 
 void clang::InitializeLangOptions(LangOptions &Options,
-                                  FrontendOptions::InputKind IK,
-                                  TargetInfo &Target) {
+                                  FrontendOptions::InputKind IK) {
   using namespace langoptions;
 
-
-  switch (IK) {
-  case FrontendOptions::IK_None:
-  case FrontendOptions::IK_AST:
-    assert(0 && "Invalid input kind!");
-  case FrontendOptions::IK_Asm:
+  // Set some properties which depend soley on the input kind; it would be nice
+  // to move these to the language standard, and have the driver resolve the
+  // input kind + language standard.
+  if (IK == FrontendOptions::IK_Asm) {
     Options.AsmPreprocessor = 1;
-    // FALLTHROUGH
-  case FrontendOptions::IK_PreprocessedC:
-    // FALLTHROUGH
-  case FrontendOptions::IK_C:
-    // Do nothing.
-    break;
-  case FrontendOptions::IK_PreprocessedCXX:
-    // FALLTHROUGH
-  case FrontendOptions::IK_CXX:
-    Options.CPlusPlus = 1;
-    break;
-  case FrontendOptions::IK_PreprocessedObjC:
-    // FALLTHROUGH
-  case FrontendOptions::IK_ObjC:
+  } else if (IK == FrontendOptions::IK_ObjC ||
+             IK == FrontendOptions::IK_ObjCXX ||
+             IK == FrontendOptions::IK_PreprocessedObjC ||
+             IK == FrontendOptions::IK_PreprocessedObjCXX) {
     Options.ObjC1 = Options.ObjC2 = 1;
-    break;
-  case FrontendOptions::IK_PreprocessedObjCXX:
-    // FALLTHROUGH
-  case FrontendOptions::IK_ObjCXX:
-    Options.ObjC1 = Options.ObjC2 = 1;
-    Options.CPlusPlus = 1;
-    break;
-  case FrontendOptions::IK_OpenCL:
+  }
+
+  if (LangStd == LangStandard::lang_unspecified) {
+    // Based on the base language, pick one.
+    switch (IK) {
+    case FrontendOptions::IK_None:
+    case FrontendOptions::IK_AST:
+      assert(0 && "Invalid input kind!");
+    case FrontendOptions::IK_OpenCL:
+      LangStd = LangStandard::lang_opencl;
+      break;
+    case FrontendOptions::IK_Asm:
+    case FrontendOptions::IK_C:
+    case FrontendOptions::IK_PreprocessedC:
+    case FrontendOptions::IK_ObjC:
+    case FrontendOptions::IK_PreprocessedObjC:
+      LangStd = LangStandard::lang_gnu99;
+      break;
+    case FrontendOptions::IK_CXX:
+    case FrontendOptions::IK_PreprocessedCXX:
+    case FrontendOptions::IK_ObjCXX:
+    case FrontendOptions::IK_PreprocessedObjCXX:
+      LangStd = LangStandard::lang_gnucxx98;
+      break;
+    }
+  }
+
+  const LangStandard &Std = LangStandard::getLangStandardForKind(LangStd);
+  Options.BCPLComment = Std.hasBCPLComments();
+  Options.C99 = Std.isC99();
+  Options.CPlusPlus = Std.isCPlusPlus();
+  Options.CPlusPlus0x = Std.isCPlusPlus0x();
+  Options.Digraphs = Std.hasDigraphs();
+  Options.GNUInline = !Std.isC99();
+  Options.GNUMode = Std.isGNUMode();
+  Options.HexFloats = Std.hasHexFloats();
+  Options.ImplicitInt = Std.hasImplicitInt();
+
+  // OpenCL has some additional defaults.
+  if (LangStd == LangStandard::lang_opencl) {
     Options.OpenCL = 1;
     Options.AltiVec = 1;
     Options.CXXOperatorNames = 1;
     Options.LaxVectorConversions = 1;
-    break;
   }
+
+  // OpenCL and C++ both have bool, true, false keywords.
+  Options.Bool = Options.OpenCL || Options.CPlusPlus;
+
+  if (Options.CPlusPlus)
+    Options.CXXOperatorNames = !NoOperatorNames;
 
   if (ObjCExclusiveGC)
     Options.setGCMode(LangOptions::GCOnly);
@@ -1112,105 +1156,14 @@ void clang::InitializeLangOptions(LangOptions &Options,
   Options.setVisibilityMode(SymbolVisibility);
   Options.OverflowChecking = OverflowChecking;
 
-  if (LangStd == lang_unspecified) {
-    // Based on the base language, pick one.
-    switch (IK) {
-    case FrontendOptions::IK_None:
-    case FrontendOptions::IK_AST:
-      assert(0 && "Invalid input kind!");
-    case FrontendOptions::IK_OpenCL:
-      LangStd = lang_c99;
-      break;
-    case FrontendOptions::IK_Asm:
-    case FrontendOptions::IK_C:
-    case FrontendOptions::IK_PreprocessedC:
-    case FrontendOptions::IK_ObjC:
-    case FrontendOptions::IK_PreprocessedObjC:
-      LangStd = lang_gnu99;
-      break;
-    case FrontendOptions::IK_CXX:
-    case FrontendOptions::IK_PreprocessedCXX:
-    case FrontendOptions::IK_ObjCXX:
-    case FrontendOptions::IK_PreprocessedObjCXX:
-      LangStd = lang_gnucxx98;
-      break;
-    }
-  }
-
-  switch (LangStd) {
-  default: assert(0 && "Unknown language standard!");
-
-  // Fall through from newer standards to older ones.  This isn't really right.
-  // FIXME: Enable specifically the right features based on the language stds.
-  case lang_gnucxx0x:
-  case lang_cxx0x:
-    Options.CPlusPlus0x = 1;
-    // FALL THROUGH
-  case lang_gnucxx98:
-  case lang_cxx98:
-    Options.CPlusPlus = 1;
-    Options.CXXOperatorNames = !NoOperatorNames;
-    // FALL THROUGH.
-  case lang_gnu99:
-  case lang_c99:
-    Options.C99 = 1;
-    Options.HexFloats = 1;
-    // FALL THROUGH.
-  case lang_gnu89:
-    Options.BCPLComment = 1;  // Only for C99/C++.
-    // FALL THROUGH.
-  case lang_c94:
-    Options.Digraphs = 1;     // C94, C99, C++.
-    // FALL THROUGH.
-  case lang_c89:
-    break;
-  }
-
-  // GNUMode - Set if we're in gnu99, gnu89, gnucxx98, etc.
-  switch (LangStd) {
-  default: assert(0 && "Unknown language standard!");
-  case lang_gnucxx0x:
-  case lang_gnucxx98:
-  case lang_gnu99:
-  case lang_gnu89:
-    Options.GNUMode = 1;
-    break;
-  case lang_cxx0x:
-  case lang_cxx98:
-  case lang_c99:
-  case lang_c94:
-  case lang_c89:
-    Options.GNUMode = 0;
-    break;
-  }
-
-  if (Options.CPlusPlus) {
-    Options.C99 = 0;
-    Options.HexFloats = 0;
-  }
-
-  if (LangStd == lang_c89 || LangStd == lang_c94 || LangStd == lang_gnu89)
-    Options.ImplicitInt = 1;
-  else
-    Options.ImplicitInt = 0;
-
   // Mimicing gcc's behavior, trigraphs are only enabled if -trigraphs
   // is specified, or -std is set to a conforming mode.
   Options.Trigraphs = !Options.GNUMode;
   if (Trigraphs.getPosition())
     Options.Trigraphs = Trigraphs;  // Command line option wins if specified.
 
-  // If in a conformant language mode (e.g. -std=c99) Blocks defaults to off
-  // even if they are normally on for the target.  In GNU modes (e.g.
-  // -std=gnu99) the default for blocks depends on the target settings.
-  // However, blocks are not turned off when compiling Obj-C or Obj-C++ code.
-  if (!Options.ObjC1 && !Options.GNUMode)
-    Options.Blocks = 0;
-
-  // Default to not accepting '$' in identifiers when preprocessing assembler,
-  // but do accept when preprocessing C.  FIXME: these defaults are right for
-  // darwin, are they right everywhere?
-  Options.DollarIdents = IK != FrontendOptions::IK_Asm;
+  // Default to not accepting '$' in identifiers when preprocessing assembler.
+  Options.DollarIdents = !Options.AsmPreprocessor;
   if (DollarsInIdents.getPosition())  // Explicit setting overrides default.
     Options.DollarIdents = DollarsInIdents;
 
@@ -1223,10 +1176,8 @@ void clang::InitializeLangOptions(LangOptions &Options,
       Options.LaxVectorConversions = 0;
   Options.Exceptions = Exceptions;
   Options.Rtti = !NoRtti;
-  if (EnableBlocks.getPosition())
-    Options.Blocks = EnableBlocks;
-  if (CharIsSigned.getPosition())
-    Options.CharIsSigned = CharIsSigned;
+  Options.Blocks = EnableBlocks;
+  Options.CharIsSigned = !NoSignedChar;
   if (ShortWChar.getPosition())
     Options.ShortWChar = ShortWChar;
 
@@ -1242,9 +1193,6 @@ void clang::InitializeLangOptions(LangOptions &Options,
 
   Options.ElideConstructors = !NoElideConstructors;
 
-  // OpenCL and C++ both have bool, true, false keywords.
-  Options.Bool = Options.OpenCL | Options.CPlusPlus;
-
   Options.MathErrno = !NoMathErrno;
 
   if (TemplateDepth.getPosition())
@@ -1255,7 +1203,7 @@ void clang::InitializeLangOptions(LangOptions &Options,
     Options.NeXTRuntime = 0;
 
   if (!ObjCConstantStringClass.empty())
-    Options.ObjCConstantStringClass = ObjCConstantStringClass.c_str();
+    Options.ObjCConstantStringClass = ObjCConstantStringClass;
 
   if (ObjCNonFragileABI)
     Options.ObjCNonFragileABI = 1;
@@ -1271,8 +1219,6 @@ void clang::InitializeLangOptions(LangOptions &Options,
 
   assert(PICLevel <= 2 && "Invalid value for -pic-level");
   Options.PICLevel = PICLevel;
-
-  Options.GNUInline = !Options.C99;
 
   // This is the __NO_INLINE__ define, which just depends on things like the
   // optimization level and -fno-inline, not actually whether the backend has
@@ -1292,11 +1238,6 @@ void clang::InitializeLangOptions(LangOptions &Options,
     case 2: Options.setStackProtectorMode(LangOptions::SSPReq); break;
     }
   }
-
-  if (MainFileName.getPosition())
-    Options.setMainFileName(MainFileName.c_str());
-
-  Target.setForcedLangOptions(Options);
 }
 
 void

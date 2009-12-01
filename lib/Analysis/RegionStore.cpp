@@ -25,7 +25,6 @@
 #include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/ImmutableList.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Compiler.h"
 
 using namespace clang;
 
@@ -86,10 +85,10 @@ typedef llvm::ImmutableMap<const MemRegion*, BindingVal> RegionBindings;
 //===----------------------------------------------------------------------===//
 
 namespace {
-struct VISIBILITY_HIDDEN minimal_features_tag {};
-struct VISIBILITY_HIDDEN maximal_features_tag {};
+struct minimal_features_tag {};
+struct maximal_features_tag {};
 
-class VISIBILITY_HIDDEN RegionStoreFeatures {
+class RegionStoreFeatures {
   bool SupportsFields;
   bool SupportsRemaining;
 
@@ -114,7 +113,7 @@ public:
 //  MemRegions represent chunks of memory with a size (their "extent").  This
 //  GDM entry tracks the extents for regions.  Extents are in bytes.
 //
-namespace { class VISIBILITY_HIDDEN RegionExtents {}; }
+namespace { class RegionExtents {}; }
 static int RegionExtentsIndex = 0;
 namespace clang {
   template<> struct GRStateTrait<RegionExtents>
@@ -141,7 +140,7 @@ static bool IsAnyPointerOrIntptr(QualType ty, ASTContext &Ctx) {
 
 namespace {
 
-class VISIBILITY_HIDDEN RegionStoreSubRegionMap : public SubRegionMap {
+class RegionStoreSubRegionMap : public SubRegionMap {
   typedef llvm::ImmutableSet<const MemRegion*> SetTy;
   typedef llvm::DenseMap<const MemRegion*, SetTy> Map;
   SetTy::Factory F;
@@ -188,7 +187,7 @@ public:
   }
 };
 
-class VISIBILITY_HIDDEN RegionStoreManager : public StoreManager {
+class RegionStoreManager : public StoreManager {
   const RegionStoreFeatures Features;
   RegionBindings::Factory RBFactory;
   
@@ -215,6 +214,13 @@ public:
   /// getDefaultBinding - Returns an SVal* representing an optional default
   ///  binding associated with a region and its subregions.
   Optional<SVal> getDefaultBinding(RegionBindings B, const MemRegion *R);
+  
+  /// setImplicitDefaultValue - Set the default binding for the provided
+  ///  MemRegion to the value implicitly defined for compound literals when
+  ///  the value is not specified.  
+  const GRState *setImplicitDefaultValue(const GRState *state,
+                                         const MemRegion *R,
+                                         QualType T);
 
   /// getLValueString - Returns an SVal representing the lvalue of a
   ///  StringLiteral.  Within RegionStore a StringLiteral has an
@@ -705,7 +711,9 @@ DefinedOrUnknownSVal RegionStoreManager::getSizeInElements(const GRState *state,
       assert(0 && "Cannot index into a MemSpace");
       return UnknownVal();
 
-    case MemRegion::CodeTextRegionKind:
+    case MemRegion::FunctionTextRegionKind:
+    case MemRegion::BlockTextRegionKind:
+    case MemRegion::BlockDataRegionKind:
       // Technically this can happen if people do funny things with casts.
       return UnknownVal();
 
@@ -850,7 +858,9 @@ SVal RegionStoreManager::EvalBinOp(const GRState *state,
     case MemRegion::ObjCIvarRegionKind:
       return UnknownVal();
 
-    case MemRegion::CodeTextRegionKind:
+    case MemRegion::FunctionTextRegionKind:
+    case MemRegion::BlockTextRegionKind:
+    case MemRegion::BlockDataRegionKind:
       // Technically this can happen if people do funny things with casts.
       return UnknownVal();
 
@@ -1437,6 +1447,30 @@ RegionStoreManager::BindCompoundLiteral(const GRState *state,
   return Bind(state, loc::MemRegionVal(R), V);
 }
 
+const GRState *RegionStoreManager::setImplicitDefaultValue(const GRState *state,
+                                                           const MemRegion *R,
+                                                           QualType T) {
+  Store store = state->getStore();
+  RegionBindings B = GetRegionBindings(store);
+  SVal V;
+
+  if (Loc::IsLocType(T))
+    V = ValMgr.makeNull();
+  else if (T->isIntegerType())
+    V = ValMgr.makeZeroVal(T);
+  else if (T->isStructureType() || T->isArrayType()) {
+    // Set the default value to a zero constant when it is a structure
+    // or array.  The type doesn't really matter.
+    V = ValMgr.makeZeroVal(ValMgr.getContext().IntTy);
+  }
+  else {
+    return state;
+  }
+    
+  B = RBFactory.Add(B, R, BindingVal(V, BindingVal::Default));
+  return state->makeWithStore(B.getRoot());  
+}
+  
 const GRState *RegionStoreManager::BindArray(const GRState *state,
                                              const TypedRegion* R,
                                              SVal Init) {
@@ -1478,6 +1512,10 @@ const GRState *RegionStoreManager::BindArray(const GRState *state,
     return CopyLazyBindings(*LCV, state, R);
 
   // Remaining case: explicit compound values.
+  
+  if (Init.isUnknown())
+    return setImplicitDefaultValue(state, R, ElementTy);    
+  
   nonloc::CompoundVal& CV = cast<nonloc::CompoundVal>(Init);
   nonloc::CompoundVal::iterator VI = CV.begin(), VE = CV.end();
   uint64_t i = 0;
@@ -1497,17 +1535,10 @@ const GRState *RegionStoreManager::BindArray(const GRState *state,
       state = Bind(state, ValMgr.makeLoc(ER), *VI);
   }
 
-  // If the init list is shorter than the array length, set the array default
-  // value.
-  if (i < size) {
-    if (ElementTy->isIntegerType()) {
-      SVal V = ValMgr.makeZeroVal(ElementTy);
-      Store store = state->getStore();
-      RegionBindings B = GetRegionBindings(store);
-      B = RBFactory.Add(B, R, BindingVal(V, BindingVal::Default));
-      state = state->makeWithStore(B.getRoot());
-    }
-  }
+  // If the init list is shorter than the array length, set the
+  // array default value.
+  if (i < size)
+    state = setImplicitDefaultValue(state, R, ElementTy);
 
   return state;
 }
@@ -1619,9 +1650,9 @@ void RegionStoreManager::RemoveDeadBindings(GRState &state, Stmt* Loc,
   llvm::OwningPtr<RegionStoreSubRegionMap>
     SubRegions(getRegionStoreSubRegionMap(store));
   
-    // Do a pass over the regions in the store.  For VarRegions we check if
-    // the variable is still live and if so add it to the list of live roots.
-    // For other regions we populate our region backmap.
+  // Do a pass over the regions in the store.  For VarRegions we check if
+  // the variable is still live and if so add it to the list of live roots.
+  // For other regions we populate our region backmap.
   llvm::SmallVector<const MemRegion*, 10> IntermediateRoots;
   
   // Scan the direct bindings for "intermediate" roots.
@@ -1719,8 +1750,21 @@ tryAgain:
 
     // Mark the symbol for any live SymbolicRegion as "live".  This means we
     // should continue to track that symbol.
-    if (const SymbolicRegion* SymR = dyn_cast<SymbolicRegion>(R))
+    if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(R))
       SymReaper.markLive(SymR->getSymbol());
+    
+    // For BlockDataRegions, enqueue all VarRegions for that are referenced
+    // via BlockDeclRefExprs.
+    if (const BlockDataRegion *BD = dyn_cast<BlockDataRegion>(R)) {
+      for (BlockDataRegion::referenced_vars_iterator
+            RI = BD->referenced_vars_begin(), RE = BD->referenced_vars_end();
+           RI != RE; ++RI)
+        WorkList.push_back(std::make_pair(state_N, *RI));
+
+      // No possible data bindings on a BlockDataRegion.  Continue to the
+      // next region in the worklist.
+      continue;
+    }
 
     Store store_N = state_N->getStore();
     RegionBindings B_N = GetRegionBindings(store_N);

@@ -17,7 +17,6 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/Parse/DeclSpec.h"
-#include "llvm/Support/Compiler.h"
 #include <algorithm>
 
 namespace clang {
@@ -1050,35 +1049,34 @@ Sema::DeduceTemplateArguments(ClassTemplatePartialSpecializationDecl *Partial,
   const TemplateArgumentLoc *PartialTemplateArgs
     = Partial->getTemplateArgsAsWritten();
   unsigned N = Partial->getNumTemplateArgsAsWritten();
-  llvm::SmallVector<TemplateArgumentLoc, 16> InstArgs(N);
+
+  // Note that we don't provide the langle and rangle locations.
+  TemplateArgumentListInfo InstArgs;
+
   for (unsigned I = 0; I != N; ++I) {
     Decl *Param = const_cast<NamedDecl *>(
                     ClassTemplate->getTemplateParameters()->getParam(I));
-    if (Subst(PartialTemplateArgs[I], InstArgs[I],
+    TemplateArgumentLoc InstArg;
+    if (Subst(PartialTemplateArgs[I], InstArg,
               MultiLevelTemplateArgumentList(*DeducedArgumentList))) {
       Info.Param = makeTemplateParameter(Param);
       Info.FirstArg = PartialTemplateArgs[I].getArgument();
       return TDK_SubstitutionFailure;
     }
+    InstArgs.addArgument(InstArg);
   }
 
   TemplateArgumentListBuilder ConvertedInstArgs(
                                   ClassTemplate->getTemplateParameters(), N);
 
   if (CheckTemplateArgumentList(ClassTemplate, Partial->getLocation(),
-                                /*LAngle*/ SourceLocation(),
-                                InstArgs.data(), N,
-                                /*RAngle*/ SourceLocation(),
-                                false, ConvertedInstArgs)) {
+                                InstArgs, false, ConvertedInstArgs)) {
     // FIXME: fail with more useful information?
     return TDK_SubstitutionFailure;
   }
   
   for (unsigned I = 0, E = ConvertedInstArgs.flatSize(); I != E; ++I) {
-    // We don't really care if we overwrite the internal structures of
-    // the arg list builder, because we're going to throw it all away.
-    TemplateArgument &InstArg
-      = const_cast<TemplateArgument&>(ConvertedInstArgs.getFlatArguments()[I]);
+    TemplateArgument InstArg = ConvertedInstArgs.getFlatArguments()[I];
 
     Decl *Param = const_cast<NamedDecl *>(
                     ClassTemplate->getTemplateParameters()->getParam(I));
@@ -1130,9 +1128,6 @@ static bool isSimpleTemplateIdType(QualType T) {
 /// \param ExplicitTemplateArguments the explicitly-specified template
 /// arguments.
 ///
-/// \param NumExplicitTemplateArguments the number of explicitly-specified
-/// template arguments in @p ExplicitTemplateArguments. This value may be zero.
-///
 /// \param Deduced the deduced template arguments, which will be populated
 /// with the converted and checked explicit template arguments.
 ///
@@ -1151,8 +1146,7 @@ static bool isSimpleTemplateIdType(QualType T) {
 Sema::TemplateDeductionResult
 Sema::SubstituteExplicitTemplateArguments(
                                       FunctionTemplateDecl *FunctionTemplate,
-                             const TemplateArgumentLoc *ExplicitTemplateArgs,
-                                          unsigned NumExplicitTemplateArgs,
+                        const TemplateArgumentListInfo &ExplicitTemplateArgs,
                             llvm::SmallVectorImpl<TemplateArgument> &Deduced,
                                  llvm::SmallVectorImpl<QualType> &ParamTypes,
                                           QualType *FunctionType,
@@ -1161,7 +1155,7 @@ Sema::SubstituteExplicitTemplateArguments(
   TemplateParameterList *TemplateParams
     = FunctionTemplate->getTemplateParameters();
 
-  if (NumExplicitTemplateArgs == 0) {
+  if (ExplicitTemplateArgs.size() == 0) {
     // No arguments to substitute; just copy over the parameter types and
     // fill in the function type.
     for (FunctionDecl::param_iterator P = Function->param_begin(),
@@ -1185,7 +1179,7 @@ Sema::SubstituteExplicitTemplateArguments(
   //   template argument list shall not specify more template-arguments than
   //   there are corresponding template-parameters.
   TemplateArgumentListBuilder Builder(TemplateParams,
-                                      NumExplicitTemplateArgs);
+                                      ExplicitTemplateArgs.size());
 
   // Enter a new template instantiation context where we check the
   // explicitly-specified template arguments against this function template,
@@ -1197,10 +1191,8 @@ Sema::SubstituteExplicitTemplateArguments(
     return TDK_InstantiationDepth;
 
   if (CheckTemplateArgumentList(FunctionTemplate,
-                                SourceLocation(), SourceLocation(),
-                                ExplicitTemplateArgs,
-                                NumExplicitTemplateArgs,
                                 SourceLocation(),
+                                ExplicitTemplateArgs,
                                 true,
                                 Builder) || Trap.hasErrorOccurred())
     return TDK_InvalidExplicitArguments;
@@ -1279,25 +1271,6 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
   TemplateParameterList *TemplateParams
     = FunctionTemplate->getTemplateParameters();
 
-  // C++ [temp.deduct.type]p2:
-  //   [...] or if any template argument remains neither deduced nor
-  //   explicitly specified, template argument deduction fails.
-  TemplateArgumentListBuilder Builder(TemplateParams, Deduced.size());
-  for (unsigned I = 0, N = Deduced.size(); I != N; ++I) {
-    if (Deduced[I].isNull()) {
-      Info.Param = makeTemplateParameter(
-                            const_cast<NamedDecl *>(TemplateParams->getParam(I)));
-      return TDK_Incomplete;
-    }
-
-    Builder.Append(Deduced[I]);
-  }
-
-  // Form the template argument list from the deduced template arguments.
-  TemplateArgumentList *DeducedArgumentList
-    = new (Context) TemplateArgumentList(Context, Builder, /*TakeArgs=*/true);
-  Info.reset(DeducedArgumentList);
-
   // Template argument deduction for function templates in a SFINAE context.
   // Trap any errors that might occur.
   SFINAETrap Trap(*this);
@@ -1309,6 +1282,51 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
               ActiveTemplateInstantiation::DeducedTemplateArgumentSubstitution);
   if (Inst)
     return TDK_InstantiationDepth;
+
+  // C++ [temp.deduct.type]p2:
+  //   [...] or if any template argument remains neither deduced nor
+  //   explicitly specified, template argument deduction fails.
+  TemplateArgumentListBuilder Builder(TemplateParams, Deduced.size());
+  for (unsigned I = 0, N = Deduced.size(); I != N; ++I) {
+    if (!Deduced[I].isNull()) {
+      Builder.Append(Deduced[I]);
+      continue;
+    }
+
+    // Substitute into the default template argument, if available. 
+    NamedDecl *Param = FunctionTemplate->getTemplateParameters()->getParam(I);
+    TemplateArgumentLoc DefArg
+      = SubstDefaultTemplateArgumentIfAvailable(FunctionTemplate,
+                                              FunctionTemplate->getLocation(),
+                                  FunctionTemplate->getSourceRange().getEnd(),
+                                                Param,
+                                                Builder);
+
+    // If there was no default argument, deduction is incomplete.
+    if (DefArg.getArgument().isNull()) {
+      Info.Param = makeTemplateParameter(
+                         const_cast<NamedDecl *>(TemplateParams->getParam(I)));
+      return TDK_Incomplete;
+    }
+    
+    // Check whether we can actually use the default argument.
+    if (CheckTemplateArgument(Param, DefArg,
+                              FunctionTemplate,
+                              FunctionTemplate->getLocation(),
+                              FunctionTemplate->getSourceRange().getEnd(),
+                              Builder)) {
+      Info.Param = makeTemplateParameter(
+                         const_cast<NamedDecl *>(TemplateParams->getParam(I)));
+      return TDK_SubstitutionFailure;
+    }
+
+    // If we get here, we successfully used the default template argument.
+  }
+
+  // Form the template argument list from the deduced template arguments.
+  TemplateArgumentList *DeducedArgumentList
+    = new (Context) TemplateArgumentList(Context, Builder, /*TakeArgs=*/true);
+  Info.reset(DeducedArgumentList);
 
   // Substitute the deduced template arguments into the function template
   // declaration to produce the function template specialization.
@@ -1368,9 +1386,7 @@ Sema::FinishTemplateArgumentDeduction(FunctionTemplateDecl *FunctionTemplate,
 /// \returns the result of template argument deduction.
 Sema::TemplateDeductionResult
 Sema::DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                              bool HasExplicitTemplateArgs,
-                              const TemplateArgumentLoc *ExplicitTemplateArgs,
-                              unsigned NumExplicitTemplateArgs,
+                              const TemplateArgumentListInfo *ExplicitTemplateArgs,
                               Expr **Args, unsigned NumArgs,
                               FunctionDecl *&Specialization,
                               TemplateDeductionInfo &Info) {
@@ -1398,11 +1414,10 @@ Sema::DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
     = FunctionTemplate->getTemplateParameters();
   llvm::SmallVector<TemplateArgument, 4> Deduced;
   llvm::SmallVector<QualType, 4> ParamTypes;
-  if (NumExplicitTemplateArgs) {
+  if (ExplicitTemplateArgs) {
     TemplateDeductionResult Result =
       SubstituteExplicitTemplateArguments(FunctionTemplate,
-                                          ExplicitTemplateArgs,
-                                          NumExplicitTemplateArgs,
+                                          *ExplicitTemplateArgs,
                                           Deduced,
                                           ParamTypes,
                                           0,
@@ -1538,9 +1553,7 @@ Sema::DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
 /// \returns the result of template argument deduction.
 Sema::TemplateDeductionResult
 Sema::DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
-                              bool HasExplicitTemplateArgs,
-                              const TemplateArgumentLoc *ExplicitTemplateArgs,
-                              unsigned NumExplicitTemplateArgs,
+                        const TemplateArgumentListInfo *ExplicitTemplateArgs,
                               QualType ArgFunctionType,
                               FunctionDecl *&Specialization,
                               TemplateDeductionInfo &Info) {
@@ -1552,11 +1565,10 @@ Sema::DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
   // Substitute any explicit template arguments.
   llvm::SmallVector<TemplateArgument, 4> Deduced;
   llvm::SmallVector<QualType, 4> ParamTypes;
-  if (HasExplicitTemplateArgs) {
+  if (ExplicitTemplateArgs) {
     if (TemplateDeductionResult Result
           = SubstituteExplicitTemplateArguments(FunctionTemplate,
-                                                ExplicitTemplateArgs,
-                                                NumExplicitTemplateArgs,
+                                                *ExplicitTemplateArgs,
                                                 Deduced, ParamTypes,
                                                 &FunctionType, Info))
       return Result;

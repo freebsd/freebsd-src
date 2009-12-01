@@ -747,9 +747,14 @@ llvm::Constant *CGObjCGNU::GenerateProtocolList(
   std::vector<llvm::Constant*> Elements;
   for (const std::string *iter = Protocols.begin(), *endIter = Protocols.end();
       iter != endIter ; iter++) {
-    llvm::Constant *protocol = ExistingProtocols[*iter];
-    if (!protocol)
+    llvm::Constant *protocol = 0;
+    llvm::StringMap<llvm::Constant*>::iterator value =
+      ExistingProtocols.find(*iter);
+    if (value == ExistingProtocols.end()) {
       protocol = GenerateEmptyProtocol(*iter);
+    } else {
+      protocol = value->getValue();
+    }
     llvm::Constant *Ptr = llvm::ConstantExpr::getBitCast(protocol,
                                                            PtrToInt8Ty);
     Elements.push_back(Ptr);
@@ -1366,8 +1371,8 @@ llvm::Function *CGObjCGNU::ModuleInitFunction() {
         ConstantStrings.size() + 1);
     ConstantStrings.push_back(NULLPtr);
 
-    const char *StringClass = CGM.getLangOptions().ObjCConstantStringClass;
-    if (!StringClass) StringClass = "NXConstantString";
+    llvm::StringRef StringClass = CGM.getLangOptions().ObjCConstantStringClass;
+    if (StringClass.empty()) StringClass = "NXConstantString";
     Elements.push_back(MakeConstantString(StringClass,
                 ".objc_static_class_name"));
     Elements.push_back(llvm::ConstantArray::get(StaticsArrayTy,

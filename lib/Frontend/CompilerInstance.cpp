@@ -27,7 +27,9 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/System/Path.h"
+#include "llvm/System/Program.h"
 using namespace clang;
 
 CompilerInstance::CompilerInstance(llvm::LLVMContext *_LLVMContext,
@@ -255,6 +257,16 @@ void CompilerInstance::createCodeCompletionConsumer() {
                                  getFrontendOpts().DebugCodeCompletionPrinter,
                                  getFrontendOpts().ShowMacrosInCodeCompletion,
                                  llvm::outs()));
+
+  if (CompletionConsumer->isOutputBinary() &&
+      llvm::sys::Program::ChangeStdoutToBinary()) {
+    getPreprocessor().getDiagnostics().Report(diag::err_fe_stdout_binary);
+    CompletionConsumer.reset();
+  }
+}
+
+void CompilerInstance::createFrontendTimer() {
+  FrontendTimer.reset(new llvm::Timer("Clang front-end timer"));
 }
 
 CodeCompleteConsumer *
@@ -321,7 +333,7 @@ CompilerInstance::createOutputFile(llvm::StringRef OutputPath,
                                               &OutputPathName);
   if (!OS) {
     // FIXME: Don't fail this way.
-    llvm::errs() << "ERROR: " << Error << "\n";
+    llvm::errs() << "error: " << Error << "\n";
     ::exit(1);
   }
 
@@ -353,16 +365,16 @@ CompilerInstance::createOutputFile(llvm::StringRef OutputPath,
     OutFile = "-";
   }
 
-  llvm::raw_fd_ostream *OS =
+  llvm::OwningPtr<llvm::raw_fd_ostream> OS(
     new llvm::raw_fd_ostream(OutFile.c_str(), Error,
-                             (Binary ? llvm::raw_fd_ostream::F_Binary : 0));
-  if (!OS)
+                             (Binary ? llvm::raw_fd_ostream::F_Binary : 0)));
+  if (!Error.empty())
     return 0;
 
   if (ResultPathName)
     *ResultPathName = OutFile;
 
-  return OS;
+  return OS.take();
 }
 
 // Initialization Utilities

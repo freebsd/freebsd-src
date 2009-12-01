@@ -88,8 +88,8 @@ void Stmt::addStmtClass(StmtClass s) {
 
 static bool StatSwitch = false;
 
-bool Stmt::CollectingStats(bool enable) {
-  if (enable) StatSwitch = true;
+bool Stmt::CollectingStats(bool Enable) {
+  if (Enable) StatSwitch = true;
   return StatSwitch;
 }
 
@@ -559,7 +559,7 @@ Stmt::child_iterator CXXCatchStmt::child_end() {
   return &HandlerBlock + 1;
 }
 
-QualType CXXCatchStmt::getCaughtType() {
+QualType CXXCatchStmt::getCaughtType() const {
   if (ExceptionDecl)
     return ExceptionDecl->getType();
   return QualType();

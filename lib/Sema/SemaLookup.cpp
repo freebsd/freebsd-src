@@ -242,6 +242,7 @@ void LookupResult::deletePaths(CXXBasePaths *Paths) {
   delete Paths;
 }
 
+/// Resolves the result kind of this lookup.
 void LookupResult::resolveKind() {
   unsigned N = Decls.size();
 
@@ -251,8 +252,12 @@ void LookupResult::resolveKind() {
     return;
   }
 
+  // If there's a single decl, we need to examine it to decide what
+  // kind of lookup this is.
   if (N == 1) {
-    if (isa<UnresolvedUsingValueDecl>(Decls[0]))
+    if (isa<FunctionTemplateDecl>(Decls[0]))
+      ResultKind = FoundOverloaded;
+    else if (isa<UnresolvedUsingValueDecl>(Decls[0]))
       ResultKind = FoundUnresolvedValue;
     return;
   }
@@ -264,7 +269,7 @@ void LookupResult::resolveKind() {
 
   bool Ambiguous = false;
   bool HasTag = false, HasFunction = false, HasNonFunction = false;
-  bool HasUnresolved = false;
+  bool HasFunctionTemplate = false, HasUnresolved = false;
 
   unsigned UniqueTagIndex = 0;
   
@@ -290,7 +295,10 @@ void LookupResult::resolveKind() {
           Ambiguous = true;
         UniqueTagIndex = I;
         HasTag = true;
-      } else if (D->isFunctionOrFunctionTemplate()) {
+      } else if (isa<FunctionTemplateDecl>(D)) {
+        HasFunction = true;
+        HasFunctionTemplate = true;
+      } else if (isa<FunctionDecl>(D)) {
         HasFunction = true;
       } else {
         if (HasNonFunction)
@@ -323,7 +331,7 @@ void LookupResult::resolveKind() {
     setAmbiguous(LookupResult::AmbiguousReference);
   else if (HasUnresolved)
     ResultKind = LookupResult::FoundUnresolvedValue;
-  else if (N > 1)
+  else if (N > 1 || HasFunctionTemplate)
     ResultKind = LookupResult::FoundOverloaded;
   else
     ResultKind = LookupResult::Found;
@@ -1525,33 +1533,25 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
     // in which the function or function template is defined and the
     // classes and namespaces associated with its (non-dependent)
     // parameter types and return type.
-    DeclRefExpr *DRE = 0;
-    TemplateIdRefExpr *TIRE = 0;
     Arg = Arg->IgnoreParens();
-    if (UnaryOperator *unaryOp = dyn_cast<UnaryOperator>(Arg)) {
-      if (unaryOp->getOpcode() == UnaryOperator::AddrOf) {
-        DRE = dyn_cast<DeclRefExpr>(unaryOp->getSubExpr());
-        TIRE = dyn_cast<TemplateIdRefExpr>(unaryOp->getSubExpr());
-      }
-    } else {
-      DRE = dyn_cast<DeclRefExpr>(Arg);
-      TIRE = dyn_cast<TemplateIdRefExpr>(Arg);
-    }
+    if (UnaryOperator *unaryOp = dyn_cast<UnaryOperator>(Arg))
+      if (unaryOp->getOpcode() == UnaryOperator::AddrOf)
+        Arg = unaryOp->getSubExpr();
 
-    OverloadedFunctionDecl *Ovl = 0;
-    if (DRE)
-      Ovl = dyn_cast<OverloadedFunctionDecl>(DRE->getDecl());
-    else if (TIRE)
-      Ovl = TIRE->getTemplateName().getAsOverloadedFunctionDecl();
-    if (!Ovl)
+    // TODO: avoid the copies.  This should be easy when the cases
+    // share a storage implementation.
+    llvm::SmallVector<NamedDecl*, 8> Functions;
+
+    if (UnresolvedLookupExpr *ULE = dyn_cast<UnresolvedLookupExpr>(Arg))
+      Functions.append(ULE->decls_begin(), ULE->decls_end());
+    else
       continue;
 
-    for (OverloadedFunctionDecl::function_iterator Func = Ovl->function_begin(),
-                                                FuncEnd = Ovl->function_end();
-         Func != FuncEnd; ++Func) {
-      FunctionDecl *FDecl = dyn_cast<FunctionDecl>(*Func);
+    for (llvm::SmallVectorImpl<NamedDecl*>::iterator I = Functions.begin(),
+           E = Functions.end(); I != E; ++I) {
+      FunctionDecl *FDecl = dyn_cast<FunctionDecl>(*I);
       if (!FDecl)
-        FDecl = cast<FunctionTemplateDecl>(*Func)->getTemplatedDecl();
+        FDecl = cast<FunctionTemplateDecl>(*I)->getTemplatedDecl();
 
       // Add the namespace in which this function was defined. Note
       // that, if this is a member function, we do *not* consider the

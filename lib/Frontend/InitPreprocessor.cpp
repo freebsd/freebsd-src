@@ -388,13 +388,20 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   DefineTypeSize("__WCHAR_MAX__", TI.getWCharType(), TI, Buf);
   DefineTypeSize("__INTMAX_MAX__", TI.getIntMaxType(), TI, Buf);
 
+  DefineType("__INTMAX_TYPE__", TI.getIntMaxType(), Buf);
+  DefineType("__UINTMAX_TYPE__", TI.getUIntMaxType(), Buf);
   DefineTypeWidth("__INTMAX_WIDTH__",  TI.getIntMaxType(), TI, Buf);
   DefineType("__PTRDIFF_TYPE__", TI.getPtrDiffType(0), Buf);
+  DefineTypeWidth("__PTRDIFF_WIDTH__", TI.getPtrDiffType(0), TI, Buf);
   DefineType("__INTPTR_TYPE__", TI.getIntPtrType(), Buf);
   DefineTypeWidth("__INTPTR_WIDTH__", TI.getIntPtrType(), TI, Buf);
   DefineType("__SIZE_TYPE__", TI.getSizeType(), Buf);
+  DefineTypeWidth("__SIZE_WIDTH__", TI.getSizeType(), TI, Buf);
   DefineType("__WCHAR_TYPE__", TI.getWCharType(), Buf);
+  DefineTypeWidth("__WCHAR_WIDTH__", TI.getWCharType(), TI, Buf);
   DefineType("__WINT_TYPE__", TI.getWIntType(), Buf);
+  DefineTypeWidth("__WINT_WIDTH__", TI.getWIntType(), TI, Buf);
+  DefineTypeWidth("__SIG_ATOMIC_WIDTH__", TI.getSigAtomicType(), TI, Buf);
 
   DefineFloatMacros(Buf, "FLT", &TI.getFloatFormat());
   DefineFloatMacros(Buf, "DBL", &TI.getDoubleFormat());

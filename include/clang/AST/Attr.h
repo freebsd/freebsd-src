@@ -15,12 +15,12 @@
 #define LLVM_CLANG_AST_ATTR_H
 
 #include "llvm/Support/Casting.h"
-using llvm::dyn_cast;
-
+#include "llvm/ADT/StringRef.h"
 #include <cassert>
 #include <cstring>
 #include <string>
 #include <algorithm>
+using llvm::dyn_cast;
 
 namespace clang {
   class ASTContext;
@@ -49,6 +49,7 @@ public:
     AnalyzerNoReturn, // Clang-specific.
     Annotate,
     AsmLabel, // Represent GCC asm label extension.
+    BaseCheck,
     Blocks,
     CDecl,
     Cleanup,
@@ -59,9 +60,11 @@ public:
     Deprecated,
     Destructor,
     FastCall,
+    Final,
     Format,
     FormatArg,
     GNUInline,
+    Hiding,
     IBOutletKind, // Clang-specific.  Use "Kind" suffix to not conflict with
     Malloc,
     NoDebug,
@@ -71,6 +74,7 @@ public:
     NoThrow,
     ObjCException,
     ObjCNSObject,
+    Override,
     CFReturnsRetained,   // Clang/Checker-specific.
     NSReturnsRetained,   // Clang/Checker-specific.
     Overloadable, // Clang-specific
@@ -184,12 +188,24 @@ public:
 class AlignedAttr : public Attr {
   unsigned Alignment;
 public:
-  AlignedAttr(unsigned alignment) : Attr(Aligned), Alignment(alignment) {}
+  AlignedAttr(unsigned alignment)
+    : Attr(Aligned), Alignment(alignment) {}
 
   /// getAlignment - The specified alignment in bits.
   unsigned getAlignment() const { return Alignment; }
+  
+  /// getMaxAlignment - Get the maximum alignment of attributes on this list.
+  unsigned getMaxAlignment() const {
+    const AlignedAttr *Next = getNext<AlignedAttr>();
+    if (Next)
+      return std::max(Next->getMaxAlignment(), Alignment);
+    else
+      return Alignment;
+  }
 
-  virtual Attr* clone(ASTContext &C) const { return ::new (C) AlignedAttr(Alignment); }
+  virtual Attr* clone(ASTContext &C) const {
+    return ::new (C) AlignedAttr(Alignment);
+  }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *A) {
@@ -201,7 +217,7 @@ public:
 class AnnotateAttr : public Attr {
   std::string Annotation;
 public:
-  AnnotateAttr(const std::string &ann) : Attr(Annotate), Annotation(ann) {}
+  AnnotateAttr(llvm::StringRef ann) : Attr(Annotate), Annotation(ann) {}
 
   const std::string& getAnnotation() const { return Annotation; }
 
@@ -217,7 +233,7 @@ public:
 class AsmLabelAttr : public Attr {
   std::string Label;
 public:
-  AsmLabelAttr(const std::string &L) : Attr(AsmLabel), Label(L) {}
+  AsmLabelAttr(llvm::StringRef L) : Attr(AsmLabel), Label(L) {}
 
   const std::string& getLabel() const { return Label; }
 
@@ -235,7 +251,7 @@ DEF_SIMPLE_ATTR(AlwaysInline);
 class AliasAttr : public Attr {
   std::string Aliasee;
 public:
-  AliasAttr(const std::string &aliasee) : Attr(Alias), Aliasee(aliasee) {}
+  AliasAttr(llvm::StringRef aliasee) : Attr(Alias), Aliasee(aliasee) {}
 
   const std::string& getAliasee() const { return Aliasee; }
 
@@ -304,11 +320,12 @@ DEF_SIMPLE_ATTR(Malloc);
 DEF_SIMPLE_ATTR(NoReturn);
 DEF_SIMPLE_ATTR(AnalyzerNoReturn);
 DEF_SIMPLE_ATTR(Deprecated);
+DEF_SIMPLE_ATTR(Final);
 
 class SectionAttr : public Attr {
   std::string Name;
 public:
-  SectionAttr(const std::string &N) : Attr(Section), Name(N) {}
+  SectionAttr(llvm::StringRef N) : Attr(Section), Name(N) {}
 
   const std::string& getName() const { return Name; }
 
@@ -367,11 +384,11 @@ class FormatAttr : public Attr {
   std::string Type;
   int formatIdx, firstArg;
 public:
-  FormatAttr(const std::string &type, int idx, int first) : Attr(Format),
+  FormatAttr(llvm::StringRef type, int idx, int first) : Attr(Format),
              Type(type), formatIdx(idx), firstArg(first) {}
 
   const std::string& getType() const { return Type; }
-  void setType(const std::string &type) { Type = type; }
+  void setType(llvm::StringRef type) { Type = type; }
   int getFormatIdx() const { return formatIdx; }
   int getFirstArg() const { return firstArg; }
 
@@ -543,6 +560,11 @@ public:
 // Checker-specific attributes.
 DEF_SIMPLE_ATTR(CFReturnsRetained);
 DEF_SIMPLE_ATTR(NSReturnsRetained);
+
+// C++0x member checking attributes.
+DEF_SIMPLE_ATTR(BaseCheck);
+DEF_SIMPLE_ATTR(Hiding);
+DEF_SIMPLE_ATTR(Override);
 
 #undef DEF_SIMPLE_ATTR
 

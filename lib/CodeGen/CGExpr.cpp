@@ -137,7 +137,7 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
             const CXXDestructorDecl *Dtor =
               ClassDecl->getDestructor(getContext());
 
-            CleanupScope scope(*this);
+            DelayedCleanupBlock scope(*this);
             EmitCXXDestructorCall(Dtor, Dtor_Complete, Val.getAggregateAddr());
           }
         }
@@ -148,8 +148,8 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
     if (BaseClassDecl) {
       llvm::Value *Derived = Val.getAggregateAddr();
       llvm::Value *Base = 
-        GetAddressCXXOfBaseClass(Derived, DerivedClassDecl, BaseClassDecl, 
-                                 /*NullCheckValue=*/false);
+        GetAddressOfBaseClass(Derived, DerivedClassDecl, BaseClassDecl, 
+                              /*NullCheckValue=*/false);
       return RValue::get(Base);
     }
   }
@@ -258,8 +258,6 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
   case Expr::BlockDeclRefExprClass:
     return EmitBlockDeclRefLValue(cast<BlockDeclRefExpr>(E));
 
-  case Expr::CXXConditionDeclExprClass:
-    return EmitCXXConditionDeclLValue(cast<CXXConditionDeclExpr>(E));
   case Expr::CXXTemporaryObjectExprClass:
   case Expr::CXXConstructExprClass:
     return EmitCXXConstructLValue(cast<CXXConstructExpr>(E));
@@ -314,9 +312,12 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
 
 llvm::Value *CodeGenFunction::EmitLoadOfScalar(llvm::Value *Addr, bool Volatile,
                                                QualType Ty) {
-  llvm::Value *V = Builder.CreateLoad(Addr, Volatile, "tmp");
+  llvm::LoadInst *Load = Builder.CreateLoad(Addr, "tmp");
+  if (Volatile)
+    Load->setVolatile(true);
 
   // Bool can have different representation in memory than in registers.
+  llvm::Value *V = Load;
   if (Ty->isBooleanType())
     if (V->getType() != llvm::Type::getInt1Ty(VMContext))
       V = Builder.CreateTrunc(V, llvm::Type::getInt1Ty(VMContext), "tobool");
@@ -830,6 +831,24 @@ static LValue EmitGlobalVarDeclLValue(CodeGenFunction &CGF,
   return LV;
 }
 
+static LValue EmitFunctionDeclLValue(CodeGenFunction &CGF,
+                                      const Expr *E, const FunctionDecl *FD) {
+  llvm::Value* V = CGF.CGM.GetAddrOfFunction(FD);
+  if (!FD->hasPrototype()) {
+    if (const FunctionProtoType *Proto =
+            FD->getType()->getAs<FunctionProtoType>()) {
+      // Ugly case: for a K&R-style definition, the type of the definition
+      // isn't the same as the type of a use.  Correct for this with a
+      // bitcast.
+      QualType NoProtoType =
+          CGF.getContext().getFunctionNoProtoType(Proto->getResultType());
+      NoProtoType = CGF.getContext().getPointerType(NoProtoType);
+      V = CGF.Builder.CreateBitCast(V, CGF.ConvertType(NoProtoType), "tmp");
+    }
+  }
+  return LValue::MakeAddr(V, CGF.MakeQualifiers(E->getType()));
+}
+
 LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
   const NamedDecl *ND = E->getDecl();
 
@@ -851,7 +870,7 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
 
     if (VD->hasAttr<BlocksAttr>()) {
       V = Builder.CreateStructGEP(V, 1, "forwarding");
-      V = Builder.CreateLoad(V, false);
+      V = Builder.CreateLoad(V);
       V = Builder.CreateStructGEP(V, getByRefValueLLVMField(VD),
                                   VD->getNameAsString());
     }
@@ -863,22 +882,8 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
     return LV;
   }
   
-  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(ND)) {
-    llvm::Value* V = CGM.GetAddrOfFunction(FD);
-    if (!FD->hasPrototype()) {
-      if (const FunctionProtoType *Proto =
-              FD->getType()->getAs<FunctionProtoType>()) {
-        // Ugly case: for a K&R-style definition, the type of the definition
-        // isn't the same as the type of a use.  Correct for this with a
-        // bitcast.
-        QualType NoProtoType =
-            getContext().getFunctionNoProtoType(Proto->getResultType());
-        NoProtoType = getContext().getPointerType(NoProtoType);
-        V = Builder.CreateBitCast(V, ConvertType(NoProtoType), "tmp");
-      }
-    }
-    return LValue::MakeAddr(V, MakeQualifiers(E->getType()));
-  }
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(ND))
+    return EmitFunctionDeclLValue(*this, E, FD);
   
   if (E->getQualifier()) {
     // FIXME: the qualifier check does not seem sufficient here
@@ -1165,7 +1170,10 @@ LValue CodeGenFunction::EmitMemberExpr(const MemberExpr *E) {
   
   if (VarDecl *VD = dyn_cast<VarDecl>(ND))
     return EmitGlobalVarDeclLValue(*this, E, VD);
-  
+
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(ND))
+    return EmitFunctionDeclLValue(*this, E, FD);
+
   assert(false && "Unhandled member declaration!");
   return LValue();
 }
@@ -1328,8 +1336,8 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
     
     // Perform the derived-to-base conversion
     llvm::Value *Base = 
-      GetAddressCXXOfBaseClass(LV.getAddress(), DerivedClassDecl, 
-                               BaseClassDecl, /*NullCheckValue=*/false);
+      GetAddressOfBaseClass(LV.getAddress(), DerivedClassDecl, 
+                            BaseClassDecl, /*NullCheckValue=*/false);
     
     return LValue::MakeAddr(Base, MakeQualifiers(E->getType()));
   }
@@ -1340,7 +1348,23 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
     return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
   }
   case CastExpr::CK_BaseToDerived: {
-    return EmitUnsupportedLValue(E, "base-to-derived cast lvalue");
+    const RecordType *BaseClassTy = 
+      E->getSubExpr()->getType()->getAs<RecordType>();
+    CXXRecordDecl *BaseClassDecl = 
+      cast<CXXRecordDecl>(BaseClassTy->getDecl());
+    
+    const RecordType *DerivedClassTy = E->getType()->getAs<RecordType>();
+    CXXRecordDecl *DerivedClassDecl = 
+      cast<CXXRecordDecl>(DerivedClassTy->getDecl());
+    
+    LValue LV = EmitLValue(E->getSubExpr());
+    
+    // Perform the base-to-derived conversion
+    llvm::Value *Derived = 
+      GetAddressOfDerivedClass(LV.getAddress(), BaseClassDecl, 
+                               DerivedClassDecl, /*NullCheckValue=*/false);
+    
+    return LValue::MakeAddr(Derived, MakeQualifiers(E->getType()));
   }
   case CastExpr::CK_BitCast: {
     // This must be a reinterpret_cast (or c-style equivalent).
@@ -1458,12 +1482,6 @@ LValue CodeGenFunction::EmitVAArgExprLValue(const VAArgExpr *E) {
   llvm::Value *Temp = CreateTempAlloca(ConvertType(E->getType()));
   EmitAggExpr(E, Temp, false);
   return LValue::MakeAddr(Temp, MakeQualifiers(E->getType()));
-}
-
-LValue
-CodeGenFunction::EmitCXXConditionDeclLValue(const CXXConditionDeclExpr *E) {
-  EmitLocalBlockVarDecl(*E->getVarDecl());
-  return EmitDeclRefLValue(E);
 }
 
 LValue CodeGenFunction::EmitCXXConstructLValue(const CXXConstructExpr *E) {

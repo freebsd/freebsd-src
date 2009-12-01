@@ -30,7 +30,6 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/PathDiagnosticClients.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Program.h"
@@ -62,7 +61,7 @@ CreatePlistHTMLDiagnosticClient(const std::string& prefix,
 
 namespace {
 
- class VISIBILITY_HIDDEN AnalysisConsumer : public ASTConsumer {
+ class AnalysisConsumer : public ASTConsumer {
  public:
   typedef void (*CodeAction)(AnalysisConsumer &C, AnalysisManager &M, Decl *D);
    
@@ -312,7 +311,8 @@ static void ActionWarnUninitVals(AnalysisConsumer &C, AnalysisManager& mgr,
 }
 
 
-static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr, Decl *D, 
+static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
+                               Decl *D, 
                                GRTransferFuncs* tf) {
 
   llvm::OwningPtr<GRTransferFuncs> TF(tf);
@@ -327,10 +327,6 @@ static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr, Decl *
     return;  
   
   GRExprEngine Eng(mgr);
-
-  Eng.setTransferFunctions(tf);
-  Eng.RegisterInternalChecks(); // FIXME: Internal checks should just
-                                // automatically register.
   
   if (C.Opts.EnableExperimentalInternalChecks)
     RegisterExperimentalInternalChecks(Eng);
@@ -339,6 +335,8 @@ static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr, Decl *
   
   if (C.Opts.EnableExperimentalChecks)
     RegisterExperimentalChecks(Eng);
+  
+  Eng.setTransferFunctions(tf);  
 
   // Set the graph auditor.
   llvm::OwningPtr<ExplodedNode::Auditor> Auditor;
@@ -455,26 +453,8 @@ static void ActionWarnSizeofPointer(AnalysisConsumer &C, AnalysisManager &mgr,
 
 static void ActionInlineCall(AnalysisConsumer &C, AnalysisManager &mgr,
                              Decl *D) {
-  if (!D)
-    return;
-
-  C.DisplayFunction(D);
-  llvm::OwningPtr<GRTransferFuncs> TF(CreateCallInliner(mgr.getASTContext()));
-
-  // Construct the analysis engine.
-  GRExprEngine Eng(mgr);
-
-  Eng.setTransferFunctions(TF.get());
   
-  Eng.RegisterInternalChecks();
-  RegisterAppleChecks(Eng, *D);
-
-  // Execute the worklist algorithm.
-  Eng.ExecuteWorkList(mgr.getStackFrame(D));
-  
-  // Visualize the exploded graph.
-  if (mgr.shouldVisualizeGraphviz())
-    Eng.ViewGraph(mgr.shouldTrimGraph());
+  ActionGRExprEngine(C, mgr, D, CreateCallInliner(mgr.getASTContext()));
 }
 
 //===----------------------------------------------------------------------===//

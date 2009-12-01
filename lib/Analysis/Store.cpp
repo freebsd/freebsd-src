@@ -85,7 +85,10 @@ const MemRegion *StoreManager::CastRegion(const MemRegion *R, QualType CastToTy)
       assert(0 && "Invalid region cast");
       break;
     }
-    case MemRegion::CodeTextRegionKind: {
+    
+    case MemRegion::FunctionTextRegionKind:
+    case MemRegion::BlockTextRegionKind:
+    case MemRegion::BlockDataRegionKind: {
       // CodeTextRegion should be cast to only a function or block pointer type,
       // although they can in practice be casted to anything, e.g, void*, char*,
       // etc.  
@@ -194,12 +197,11 @@ const MemRegion *StoreManager::CastRegion(const MemRegion *R, QualType CastToTy)
 ///  as another region.
 SVal  StoreManager::CastRetrievedVal(SVal V, const TypedRegion *R,
                                      QualType castTy) {
-  ASTContext &Ctx = ValMgr.getContext();
-
   if (castTy.isNull())
     return V;
   
-  assert(Ctx.hasSameUnqualifiedType(castTy, R->getValueType(Ctx)));
+  assert(ValMgr.getContext().hasSameUnqualifiedType(castTy,
+                                         R->getValueType(ValMgr.getContext())));
   return V;
 }
 

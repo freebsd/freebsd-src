@@ -21,7 +21,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN DereferenceChecker : public Checker {
+class DereferenceChecker : public Checker {
   BuiltinBug *BT_null;
   BuiltinBug *BT_undef;
   llvm::SmallVector<ExplodedNode*, 2> ImplicitNullDerefNodes;
@@ -56,8 +56,7 @@ void DereferenceChecker::VisitLocation(CheckerContext &C, const Stmt *S,
                                        SVal l) {
   // Check for dereference of an undefined value.
   if (l.isUndef()) {
-    ExplodedNode *N = C.GenerateNode(S, true);
-    if (N) {
+    if (ExplodedNode *N = C.GenerateSink()) {
       if (!BT_undef)
         BT_undef = new BuiltinBug("Dereference of undefined pointer value");
       
@@ -82,34 +81,55 @@ void DereferenceChecker::VisitLocation(CheckerContext &C, const Stmt *S,
   
   // The explicit NULL case.
   if (nullState) {
-    // Generate an error node.
-    ExplodedNode *N = C.GenerateNode(S, nullState, true);    
-    if (N) {      
-      if (!notNullState) {
-        // We know that 'location' cannot be non-null.  This is what
-        // we call an "explicit" null dereference.        
-        if (!BT_null)
-          BT_null = new BuiltinBug("Null pointer dereference",
-                                   "Dereference of null pointer");
-
-        EnhancedBugReport *report =
-          new EnhancedBugReport(*BT_null, BT_null->getDescription(), N);
-        report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
-                                  bugreporter::GetDerefExpr(N));
-        
-        C.EmitReport(report);
+    if (!notNullState) {    
+      // Generate an error node.
+      ExplodedNode *N = C.GenerateSink(nullState);
+      if (!N)
         return;
+      
+      // We know that 'location' cannot be non-null.  This is what
+      // we call an "explicit" null dereference.        
+      if (!BT_null)
+        BT_null = new BuiltinBug("Dereference of null pointer");
+      
+      llvm::SmallString<100> buf;
+
+      switch (S->getStmtClass()) {
+        case Stmt::UnaryOperatorClass: {
+          const UnaryOperator *U = cast<UnaryOperator>(S);
+          const Expr *SU = U->getSubExpr()->IgnoreParens();
+          if (const DeclRefExpr *DR = dyn_cast<DeclRefExpr>(SU)) {
+            if (const VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
+              llvm::raw_svector_ostream os(buf);
+              os << "Dereference of null pointer loaded from variable '"
+                 << VD->getName() << '\'';
+            }
+          }
+        }
+        default:
+          break;
       }
 
+      EnhancedBugReport *report =
+        new EnhancedBugReport(*BT_null,
+                              buf.empty() ? BT_null->getDescription():buf.str(),
+                              N);
+
+      report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
+                                bugreporter::GetDerefExpr(N));
+      
+      C.EmitReport(report);
+      return;
+    }
+    else {
       // Otherwise, we have the case where the location could either be
       // null or not-null.  Record the error node as an "implicit" null
-      // dereference.
-      ImplicitNullDerefNodes.push_back(N);
+      // dereference.      
+      if (ExplodedNode *N = C.GenerateSink(nullState))
+        ImplicitNullDerefNodes.push_back(N);
     }
   }
   
   // From this point forward, we know that the location is not null.
-  assert(notNullState);
-  C.addTransition(state != nullState ? C.GenerateNode(S, notNullState) :
-                                       C.getPredecessor());
+  C.addTransition(notNullState);
 }

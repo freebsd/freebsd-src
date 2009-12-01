@@ -19,7 +19,6 @@
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Support/Compiler.h"
 #include <cstring>
 
 using namespace clang;
@@ -153,7 +152,7 @@ static APFloat HandleIntToFloatCast(QualType DestType, QualType SrcType,
 }
 
 namespace {
-class VISIBILITY_HIDDEN HasSideEffect
+class HasSideEffect
   : public StmtVisitor<HasSideEffect, bool> {
   EvalInfo &Info;
 public:
@@ -210,7 +209,7 @@ public:
 // LValue Evaluation
 //===----------------------------------------------------------------------===//
 namespace {
-class VISIBILITY_HIDDEN LValueExprEvaluator
+class LValueExprEvaluator
   : public StmtVisitor<LValueExprEvaluator, APValue> {
   EvalInfo &Info;
 public:
@@ -353,7 +352,7 @@ APValue LValueExprEvaluator::VisitUnaryDeref(UnaryOperator *E) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN PointerExprEvaluator
+class PointerExprEvaluator
   : public StmtVisitor<PointerExprEvaluator, APValue> {
   EvalInfo &Info;
 public:
@@ -508,7 +507,7 @@ APValue PointerExprEvaluator::VisitConditionalOperator(ConditionalOperator *E) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-  class VISIBILITY_HIDDEN VectorExprEvaluator
+  class VectorExprEvaluator
   : public StmtVisitor<VectorExprEvaluator, APValue> {
     EvalInfo &Info;
     APValue GetZeroVector(QualType VecType);
@@ -702,7 +701,7 @@ APValue VectorExprEvaluator::VisitUnaryImag(const UnaryOperator *E) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN IntExprEvaluator
+class IntExprEvaluator
   : public StmtVisitor<IntExprEvaluator, bool> {
   EvalInfo &Info;
   APValue &Result;
@@ -776,7 +775,20 @@ public:
                                                T1.getUnqualifiedType()),
                    E);
   }
-  bool VisitDeclRefExpr(const DeclRefExpr *E);
+
+  bool CheckReferencedDecl(const Expr *E, const Decl *D);
+  bool VisitDeclRefExpr(const DeclRefExpr *E) {
+    return CheckReferencedDecl(E, E->getDecl());
+  }
+  bool VisitMemberExpr(const MemberExpr *E) {
+    if (CheckReferencedDecl(E, E->getMemberDecl())) {
+      // Conservatively assume a MemberExpr will have side-effects
+      Info.EvalResult.HasSideEffects = true;
+      return true;
+    }
+    return false;
+  }
+
   bool VisitCallExpr(const CallExpr *E);
   bool VisitBinaryOperator(const BinaryOperator *E);
   bool VisitUnaryOperator(const UnaryOperator *E);
@@ -834,12 +846,12 @@ static bool EvaluateInteger(const Expr* E, APSInt &Result, EvalInfo &Info) {
   return true;
 }
 
-bool IntExprEvaluator::VisitDeclRefExpr(const DeclRefExpr *E) {
+bool IntExprEvaluator::CheckReferencedDecl(const Expr* E, const Decl* D) {
   // Enums are integer constant exprs.
-  if (const EnumConstantDecl *D = dyn_cast<EnumConstantDecl>(E->getDecl())) {
+  if (const EnumConstantDecl *ECD = dyn_cast<EnumConstantDecl>(D)) {
     // FIXME: This is an ugly hack around the fact that enums don't set their
     // signedness consistently; see PR3173.
-    APSInt SI = D->getInitVal();
+    APSInt SI = ECD->getInitVal();
     SI.setIsUnsigned(!E->getType()->isSignedIntegerType());
     // FIXME: This is an ugly hack around the fact that enums don't
     // set their width (!?!) consistently; see PR3173.
@@ -851,15 +863,15 @@ bool IntExprEvaluator::VisitDeclRefExpr(const DeclRefExpr *E) {
   // In C, they can also be folded, although they are not ICEs.
   if (Info.Ctx.getCanonicalType(E->getType()).getCVRQualifiers() 
                                                         == Qualifiers::Const) {
-    if (const VarDecl *D = dyn_cast<VarDecl>(E->getDecl())) {
+    if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
       const VarDecl *Def = 0;
-      if (const Expr *Init = D->getDefinition(Def)) {
-        if (APValue *V = D->getEvaluatedValue())
+      if (const Expr *Init = VD->getDefinition(Def)) {
+        if (APValue *V = VD->getEvaluatedValue())
           return Success(V->getInt(), E);
           
         if (Visit(const_cast<Expr*>(Init))) {
           // Cache the evaluated value in the variable declaration.
-          D->setEvaluatedValue(Info.Ctx, Result);
+          VD->setEvaluatedValue(Info.Ctx, Result);
           return true;
         }
 
@@ -1244,6 +1256,13 @@ bool IntExprEvaluator::VisitConditionalOperator(const ConditionalOperator *E) {
 }
 
 unsigned IntExprEvaluator::GetAlignOfType(QualType T) {
+  // C++ [expr.sizeof]p2: "When applied to a reference or a reference type,
+  //   the result is the size of the referenced type."
+  // C++ [expr.alignof]p3: "When alignof is applied to a reference type, the
+  //   result shall be the alignment of the referenced type."
+  if (const ReferenceType *Ref = T->getAs<ReferenceType>())
+    T = Ref->getPointeeType();
+
   // Get information about the alignment.
   unsigned CharSize = Info.Ctx.Target.getCharWidth();
 
@@ -1257,10 +1276,11 @@ unsigned IntExprEvaluator::GetAlignOfExpr(const Expr *E) {
   // alignof decl is always accepted, even if it doesn't make sense: we default
   // to 1 in those cases.
   if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
-    return Info.Ctx.getDeclAlignInBytes(DRE->getDecl());
+    return Info.Ctx.getDeclAlignInBytes(DRE->getDecl(), /*RefAsPointee*/true);
 
   if (const MemberExpr *ME = dyn_cast<MemberExpr>(E))
-    return Info.Ctx.getDeclAlignInBytes(ME->getMemberDecl());
+    return Info.Ctx.getDeclAlignInBytes(ME->getMemberDecl(),
+                                        /*RefAsPointee*/true);
 
   return GetAlignOfType(E->getType());
 }
@@ -1280,6 +1300,12 @@ bool IntExprEvaluator::VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr *E) {
   }
 
   QualType SrcTy = E->getTypeOfArgument();
+  // C++ [expr.sizeof]p2: "When applied to a reference or a reference type,
+  //   the result is the size of the referenced type."
+  // C++ [expr.alignof]p3: "When alignof is applied to a reference type, the
+  //   result shall be the alignment of the referenced type."
+  if (const ReferenceType *Ref = SrcTy->getAs<ReferenceType>())
+    SrcTy = Ref->getPointeeType();
 
   // sizeof(void), __alignof__(void), sizeof(function) = 1 as a gcc
   // extension.
@@ -1460,7 +1486,7 @@ bool IntExprEvaluator::VisitUnaryImag(const UnaryOperator *E) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN FloatExprEvaluator
+class FloatExprEvaluator
   : public StmtVisitor<FloatExprEvaluator, bool> {
   EvalInfo &Info;
   APFloat &Result;
@@ -1652,7 +1678,7 @@ bool FloatExprEvaluator::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN ComplexExprEvaluator
+class ComplexExprEvaluator
   : public StmtVisitor<ComplexExprEvaluator, APValue> {
   EvalInfo &Info;
 

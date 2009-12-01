@@ -31,7 +31,6 @@
 #include "clang/Basic/Version.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Bitcode/BitstreamReader.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/System/Path.h"
@@ -357,7 +356,7 @@ Expr *PCHReader::ReadTypeExpr() {
 
 
 namespace {
-class VISIBILITY_HIDDEN PCHMethodPoolLookupTrait {
+class PCHMethodPoolLookupTrait {
   PCHReader &Reader;
 
 public:
@@ -465,7 +464,7 @@ typedef OnDiskChainedHashTable<PCHMethodPoolLookupTrait>
   PCHMethodPoolLookupTable;
 
 namespace {
-class VISIBILITY_HIDDEN PCHIdentifierLookupTrait {
+class PCHIdentifierLookupTrait {
   PCHReader &Reader;
 
   // If we know the IdentifierInfo in advance, it is here and we will
@@ -676,7 +675,7 @@ bool PCHReader::ParseLineTable(llvm::SmallVectorImpl<uint64_t> &Record) {
 
 namespace {
 
-class VISIBILITY_HIDDEN PCHStatData {
+class PCHStatData {
 public:
   const bool hasStat;
   const ino_t ino;
@@ -692,7 +691,7 @@ public:
     : hasStat(false), ino(0), dev(0), mode(0), mtime(0), size(0) {}
 };
 
-class VISIBILITY_HIDDEN PCHStatLookupTrait {
+class PCHStatLookupTrait {
  public:
   typedef const char *external_key_type;
   typedef const char *internal_key_type;
@@ -740,7 +739,7 @@ class VISIBILITY_HIDDEN PCHStatLookupTrait {
 ///
 /// This cache is very similar to the stat cache used by pretokenized
 /// headers.
-class VISIBILITY_HIDDEN PCHStatCache : public StatSysCallCache {
+class PCHStatCache : public StatSysCallCache {
   typedef OnDiskChainedHashTable<PCHStatLookupTrait> CacheTy;
   CacheTy *Cache;
 
@@ -1554,6 +1553,12 @@ void PCHReader::InitializeContext(ASTContext &Ctx) {
   if (unsigned ObjCClassRedef
       = SpecialTypes[pch::SPECIAL_TYPE_OBJC_CLASS_REDEFINITION])
     Context->ObjCClassRedefinitionType = GetType(ObjCClassRedef);
+#if 0
+  // FIXME. Accommodate for this in several PCH/Index tests
+  if (unsigned ObjCSelRedef
+      = SpecialTypes[pch::SPECIAL_TYPE_OBJC_SEL_REDEFINITION])
+    Context->ObjCSelRedefinitionType = GetType(ObjCSelRedef);
+#endif
   if (unsigned String = SpecialTypes[pch::SPECIAL_TYPE_BLOCK_DESCRIPTOR])
     Context->setBlockDescriptorType(GetType(String));
   if (unsigned String
@@ -2155,6 +2160,7 @@ QualType PCHReader::GetType(pch::TypeID ID) {
     case pch::PREDEF_TYPE_CHAR32_ID:     T = Context->Char32Ty;           break;
     case pch::PREDEF_TYPE_OBJC_ID:       T = Context->ObjCBuiltinIdTy;    break;
     case pch::PREDEF_TYPE_OBJC_CLASS:    T = Context->ObjCBuiltinClassTy; break;
+    case pch::PREDEF_TYPE_OBJC_SEL:      T = Context->ObjCBuiltinSelTy;   break;
     }
 
     assert(!T.isNull() && "Unknown predefined type");
@@ -2582,6 +2588,10 @@ PCHReader::ReadDeclarationName(const RecordData &Record, unsigned &Idx) {
   case DeclarationName::CXXOperatorName:
     return Context->DeclarationNames.getCXXOperatorName(
                                        (OverloadedOperatorKind)Record[Idx++]);
+
+  case DeclarationName::CXXLiteralOperatorName:
+    return Context->DeclarationNames.getCXXLiteralOperatorName(
+                                       GetIdentifierInfo(Record, Idx));
 
   case DeclarationName::CXXUsingDirective:
     return DeclarationName::getUsingDirectiveName();

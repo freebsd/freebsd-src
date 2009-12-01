@@ -4,7 +4,6 @@ add_clang_library(clangAnalysis
   AnalysisContext.cpp
   ArrayBoundChecker.cpp
   AttrNonNullChecker.cpp
-  BadCallChecker.cpp
   BasicConstraintManager.cpp
   BasicObjCFoundationChecks.cpp
   BasicStore.cpp
@@ -13,6 +12,7 @@ add_clang_library(clangAnalysis
   BugReporterVisitors.cpp
   CFG.cpp
   CFRefCount.cpp
+  CallAndMessageChecker.cpp
   CallGraph.cpp
   CallInliner.cpp
   CastToStructChecker.cpp
@@ -22,6 +22,7 @@ add_clang_library(clangAnalysis
   CheckObjCUnusedIVars.cpp
   CheckSecuritySyntaxOnly.cpp
   CheckSizeofPointer.cpp
+  Checker.cpp
   DereferenceChecker.cpp
   DivZeroChecker.cpp
   Environment.cpp
@@ -31,7 +32,6 @@ add_clang_library(clangAnalysis
   GRCoreEngine.cpp
   GRExprEngine.cpp
   GRExprEngineExperimentalChecks.cpp
-  GRExprEngineInternalChecks.cpp
   GRState.cpp
   LiveVariables.cpp
   MallocChecker.cpp
@@ -54,7 +54,8 @@ add_clang_library(clangAnalysis
   SimpleSValuator.cpp
   Store.cpp
   SymbolManager.cpp
-  UndefinedArgChecker.cpp
+  UndefBranchChecker.cpp
+  UndefResultChecker.cpp
   UndefinedArraySubscriptChecker.cpp
   UndefinedAssignmentChecker.cpp
   UninitializedValues.cpp

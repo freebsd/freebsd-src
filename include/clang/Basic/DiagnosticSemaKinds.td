@@ -443,8 +443,9 @@ def err_implicit_object_parameter_init : Error<
 def note_field_decl : Note<"member is declared here">;
 def note_previous_class_decl : Note<
   "%0 declared here">;
-def note_ctor_synthesized_at : Note<
-  "implicit default constructor for %0 first required here">;
+def note_member_synthesized_at : Note<
+  "implicit default %select{constructor|copy constructor|"
+  "copy assignment operator|destructor}0 for %1 first required here">;
 def err_missing_default_ctor : Error<
   "%select{|implicit default }0constructor for %1 must explicitly initialize "
   "the %select{base class|member}2 %3 which does not have a default "
@@ -552,6 +553,15 @@ def err_auto_not_allowed : Error<
 def err_auto_var_requires_init : Error<
   "declaration of variable %0 with type %1 requires an initializer">;
   
+// C++0x attributes
+def err_repeat_attribute : Error<"'%0' attribute cannot be repeated">;
+
+// C++0x [[final]]
+def err_final_function_overridden : Error<
+  "declaration of %0 overrides a 'final' function">;
+def err_final_base : Error<
+  "derivation from 'final' %0">;
+  
 // Objective-C++
 def err_objc_decls_may_only_appear_in_global_scope : Error<
   "Objective-C declarations may only appear in global scope">;
@@ -638,8 +648,16 @@ def warn_attribute_weak_import_invalid_on_definition : Warning<
   "'weak_import' attribute cannot be specified on a definition">;
 def warn_attribute_wrong_decl_type : Warning<
   "%0 attribute only applies to %select{function|union|"
-  "variable and function|function or method|parameter|parameter or Objective-C method |"
-  "function, method or block}1 types">;
+  "variable and function|function or method|parameter|"
+  "parameter or Objective-C method |function, method or block|"
+  "virtual method or class|function, method, or parameter|class|virtual method"
+  "|member}1 types">;
+def err_attribute_wrong_decl_type : Error<
+  "%0 attribute only applies to %select{function|union|"
+  "variable and function|function or method|parameter|"
+  "parameter or Objective-C method |function, method or block|"
+  "virtual method or class|function, method, or parameter|class|virtual method"
+  "|member}1 types">;
 def warn_gnu_inline_attribute_requires_inline : Warning<
   "'gnu_inline' attribute requires function to be marked 'inline',"
   " attribute ignored">;
@@ -865,7 +883,7 @@ def err_addr_ovl_ambiguous : Error<
 def err_template_param_shadow : Error<
   "declaration of %0 shadows template parameter">;
 def note_template_param_here : Note<"template parameter is declared here">;
-def note_template_export_unsupported : Note<
+def warn_template_export_unsupported : Warning<
   "exported templates are unsupported">;
 def err_template_outside_namespace_or_class_scope : Error<
   "templates can only be declared in namespace or class scope">;
@@ -902,7 +920,15 @@ def note_template_param_prev_default_arg : Note<
   "previous default template argument defined here">;
 def err_template_param_default_arg_missing : Error<
   "template parameter missing a default argument">;
-  
+def err_template_parameter_default_in_function_template : Error<
+  "a template parameter of a function template cannot have a default argument "
+  "in C++98">;
+def err_template_parameter_default_template_member : Error<
+  "cannot add a default template argument to the definition of a member of a "
+  "class template">;
+def err_template_parameter_default_friend_template : Error<
+  "default template argument not permitted on a friend template">;
+
 def err_template_variable : Error<"variable %0 declared as a template">;
 def err_template_variable_noparams : Error<
   "extraneous 'template<>' in declaration of variable %0">;
@@ -1037,6 +1063,11 @@ def err_template_param_list_matches_nontemplate : Error<
 def err_template_spec_extra_headers : Error<
   "extraneous template parameter list in template specialization or "
   "out-of-line template definition">;
+def warn_template_spec_extra_headers : Warning<
+  "extraneous template parameter list in template specialization">;
+def note_explicit_template_spec_does_not_need_header : Note<
+  "'template<>' header not required for explicitly-specialized class %0 "
+  "declared here">;
 def err_template_qualified_declarator_no_match : Error<
   "nested name specifier '%0' for declaration does not refer into a class, "
   "class template or class template partial specialization">;
@@ -1197,6 +1228,10 @@ def err_template_kw_refers_to_non_template : Error<
     "%0 following the 'template' keyword does not refer to a template">;
 def err_template_kw_refers_to_function_template : Error<
     "%0 following the 'template' keyword refers to a function template">;
+def err_template_kw_refers_to_class_template : Error<
+    "'%0%1' instantiated to a class template, not a function template">;
+def note_referenced_class_template : Error<
+    "class template declared here">;
 
 // C++0x Variadic Templates
 def err_template_param_pack_default_arg : Error<
@@ -2050,6 +2085,8 @@ def err_base_init_direct_and_virtual : Error<
   "inherited virtual base class">;
 def err_not_direct_base_or_virtual : Error<
   "type %0 is not a direct or virtual base of '%1'">;
+def err_not_direct_base_or_virtual_multi : Error<
+  "type %0 is not a direct or virtual base of '%1'">;
 
 def err_in_class_initializer_non_integral_type : Error<
   "in-class initializer has non-integral, non-enumeration type %0">;
@@ -2275,6 +2312,15 @@ def err_typecheck_statement_requires_integer : Error<
   "statement requires expression of integer type (%0 invalid)">;
 def err_multiple_default_labels_defined : Error<
   "multiple default labels in one switch">;
+def err_switch_multiple_conversions : Error<
+  "multiple conversions from switch condition type %0 to an integral or "
+  "enumeration type">;
+def note_switch_conversion : Note<
+  "conversion to %select{integral|enumeration}0 type %1">;
+def err_switch_explicit_conversion : Error<
+  "switch condition type %0 requires explicit conversion to %1">;
+def err_switch_incomplete_class_type : Error<
+  "switch condition has incomplete class type %0">;
 def warn_empty_if_body : Warning<
   "if statement has empty body">, InGroup<EmptyBody>;
 def err_va_start_used_in_non_variadic_function : Error<

@@ -1,5 +1,4 @@
 // RUN: clang-cc -fsyntax-only -verify %s
-
 template<typename T, typename U> // expected-note{{previous template}}
 class X0 {
 public:
@@ -66,3 +65,36 @@ X0<T, U>::operator T*() const {
 
 namespace N { template <class X> class A {void a();}; }
 namespace N { template <class X> void A<X>::a() {} }
+
+// PR5566
+template<typename T>
+struct X1 { 
+  template<typename U>
+  struct B { void f(); };
+};
+
+template<typename T>
+template<typename U>
+void X1<T>::template B<U>::f() { }
+
+// PR5527
+template <template <class> class T>
+class X2 {
+  template <class F>
+  class Bar {
+    void Func();
+  };
+};
+
+template <template <class> class T>
+template <class F>
+void X2<T>::Bar<F>::Func() {}
+
+// PR5528
+template <template <class> class T>
+class X3 {
+  void F();
+};
+
+template <template <class> class T>
+void X3<T>::F() {}

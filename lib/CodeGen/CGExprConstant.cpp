@@ -22,14 +22,12 @@
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
 #include "llvm/GlobalVariable.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
 
 namespace  {
-
-class VISIBILITY_HIDDEN ConstStructBuilder {
+class ConstStructBuilder {
   CodeGenModule &CGM;
   CodeGenFunction *CGF;
 
@@ -377,7 +375,7 @@ public:
   }
 };
 
-class VISIBILITY_HIDDEN ConstExprEmitter :
+class ConstExprEmitter :
   public StmtVisitor<ConstExprEmitter, llvm::Constant*> {
   CodeGenModule &CGM;
   CodeGenFunction *CGF;
@@ -413,9 +411,10 @@ public:
     
     // Get the function pointer (or index if this is a virtual function).
     if (MD->isVirtual()) {
-      int64_t Index = CGM.getVtableInfo().getMethodVtableIndex(MD);
+      uint64_t Index = CGM.getVtableInfo().getMethodVtableIndex(MD);
       
-      Values[0] = llvm::ConstantInt::get(PtrDiffTy, Index + 1);
+      // The pointer is 1 + the virtual table offset in bytes.
+      Values[0] = llvm::ConstantInt::get(PtrDiffTy, (Index * 8) + 1);
     } else {
       llvm::Constant *FuncPtr = CGM.GetAddrOfFunction(MD);
 
@@ -673,7 +672,7 @@ public:
     if (ILE->getType()->isArrayType())
       return EmitArrayInitialization(ILE);
 
-    if (ILE->getType()->isStructureType())
+    if (ILE->getType()->isRecordType())
       return EmitStructInitialization(ILE);
 
     if (ILE->getType()->isUnionType())

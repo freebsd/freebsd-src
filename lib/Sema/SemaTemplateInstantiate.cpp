@@ -12,13 +12,13 @@
 
 #include "Sema.h"
 #include "TreeTransform.h"
+#include "Lookup.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Basic/LangOptions.h"
-#include "llvm/Support/Compiler.h"
 
 using namespace clang;
 
@@ -491,7 +491,7 @@ bool Sema::isSFINAEContext() const {
 // Template Instantiation for Types
 //===----------------------------------------------------------------------===/
 namespace {
-  class VISIBILITY_HIDDEN TemplateInstantiator
+  class TemplateInstantiator
     : public TreeTransform<TemplateInstantiator> {
     const MultiLevelTemplateArgumentList &TemplateArgs;
     SourceLocation Loc;
@@ -743,7 +743,6 @@ TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E,
               = SemaRef.BuildDeclRefExpr(VD, 
                                          VD->getType().getNonReferenceType(), 
                                          E->getLocation(), 
-                                         /*FIXME:*/false, /*FIXME:*/false,
                                          &SS);
             if (RefExpr.isInvalid())
               return SemaRef.ExprError();
@@ -755,8 +754,7 @@ TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E,
         }
 
         return SemaRef.BuildDeclRefExpr(VD, VD->getType().getNonReferenceType(),
-                                        E->getLocation(),
-                                        /*FIXME:*/false, /*FIXME:*/false);
+                                        E->getLocation());
       }
 
       assert(Arg.getKind() == TemplateArgument::Integral);
@@ -788,46 +786,7 @@ TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E,
   if (!InstD)
     return SemaRef.ExprError();
 
-  // Flatten using declarations into their shadow declarations.
-  if (isa<UsingDecl>(InstD)) {
-    UsingDecl *UD = cast<UsingDecl>(InstD);
-
-    bool HasNonFunction = false;
-
-    llvm::SmallVector<NamedDecl*, 8> Decls;
-    for (UsingDecl::shadow_iterator I = UD->shadow_begin(),
-                                    E = UD->shadow_end(); I != E; ++I) {
-      NamedDecl *TD = (*I)->getTargetDecl();
-      if (!TD->isFunctionOrFunctionTemplate())
-        HasNonFunction = true;
-
-      Decls.push_back(TD);
-    }
-
-    if (Decls.empty())
-      return SemaRef.ExprError();
-
-    if (Decls.size() == 1)
-      InstD = Decls[0];
-    else if (!HasNonFunction) {
-      OverloadedFunctionDecl *OFD
-        = OverloadedFunctionDecl::Create(SemaRef.Context,
-                                         UD->getDeclContext(),
-                                         UD->getDeclName());
-      for (llvm::SmallVectorImpl<NamedDecl*>::iterator I = Decls.begin(),
-                                                E = Decls.end(); I != E; ++I)
-        if (isa<FunctionDecl>(*I))
-          OFD->addOverload(cast<FunctionDecl>(*I));
-        else
-          OFD->addOverload(cast<FunctionTemplateDecl>(*I));
-
-      InstD = OFD;
-    } else {
-      // FIXME
-      assert(false && "using declaration resolved to mixed set");
-      return SemaRef.ExprError();
-    }
-  }
+  assert(!isa<UsingDecl>(InstD) && "decl ref instantiated to UsingDecl");
 
   CXXScopeSpec SS;
   NestedNameSpecifier *Qualifier = 0;
@@ -841,10 +800,7 @@ TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E,
     SS.setRange(E->getQualifierRange());
   }
   
-  return SemaRef.BuildDeclarationNameExpr(E->getLocation(), InstD,
-                                          /*FIXME:*/false,
-                                          &SS,
-                                          isAddressOfOperand);
+  return SemaRef.BuildDeclarationNameExpr(SS, E->getLocation(), InstD);
 }
 
 Sema::OwningExprResult TemplateInstantiator::TransformCXXDefaultArgExpr(

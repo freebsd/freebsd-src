@@ -535,6 +535,8 @@ void TypePrinter::PrintObjCObjectPointer(const ObjCObjectPointerType *T,
     ObjCQIString = "id";
   else if (T->isObjCClassType() || T->isObjCQualifiedClassType())
     ObjCQIString = "Class";
+  else if (T->isObjCSelType())
+    ObjCQIString = "SEL";
   else
     ObjCQIString = T->getInterfaceDecl()->getNameAsString();
   
@@ -597,6 +599,14 @@ static void PrintTemplateArgument(std::string &Buffer,
       assert(0 && "FIXME: Implement!");
       break;
   }
+}
+
+std::string TemplateSpecializationType::
+  PrintTemplateArgumentList(const TemplateArgumentListInfo &Args,
+                            const PrintingPolicy &Policy) {
+  return PrintTemplateArgumentList(Args.getArgumentArray(),
+                                   Args.size(),
+                                   Policy);
 }
 
 std::string

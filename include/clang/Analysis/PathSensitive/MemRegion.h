@@ -35,6 +35,7 @@ namespace clang {
 class MemRegionManager;
 class MemSpaceRegion;
 class LocationContext;
+class VarRegion;
 
 //===----------------------------------------------------------------------===//
 // Base region classes.
@@ -42,13 +43,16 @@ class LocationContext;
 
 /// MemRegion - The root abstract class for all memory regions.
 class MemRegion : public llvm::FoldingSetNode {
+  friend class MemRegionManager;
 public:
   enum Kind { MemSpaceRegionKind,
               SymbolicRegionKind,
               AllocaRegionKind,
               // Typed regions.
               BEG_TYPED_REGIONS,
-               CodeTextRegionKind,
+               FunctionTextRegionKind,
+               BlockTextRegionKind,
+               BlockDataRegionKind,
                CompoundLiteralRegionKind,
                StringRegionKind, ElementRegionKind,
                // Decl Regions.
@@ -237,44 +241,122 @@ public:
   }
 };
 
-/// CodeTextRegion - A region that represents code texts of a function. It wraps
-/// two kinds of code texts: real function and symbolic function. Real function
-/// is a function declared in the program. Symbolic function is a function
-/// pointer that we don't know which function it points to.
+
 class CodeTextRegion : public TypedRegion {
-  const FunctionDecl *FD;
-
+protected:
+  CodeTextRegion(const MemRegion *sreg, Kind k) : TypedRegion(sreg, k) {}
 public:
-
-  CodeTextRegion(const FunctionDecl* fd, const MemRegion* sreg)
-    : TypedRegion(sreg, CodeTextRegionKind), FD(fd) {}
-
   QualType getValueType(ASTContext &C) const {
     // Do not get the object type of a CodeTextRegion.
     assert(0);
     return QualType();
   }
+  
+  bool isBoundable() const { return false; }
+    
+  static bool classof(const MemRegion* R) {
+    Kind k = R->getKind();
+    return k >= FunctionTextRegionKind && k <= BlockTextRegionKind;
+  }
+};
 
+/// FunctionTextRegion - A region that represents code texts of function.
+class FunctionTextRegion : public CodeTextRegion {
+  const FunctionDecl *FD;
+public:
+  FunctionTextRegion(const FunctionDecl* fd, const MemRegion* sreg)
+    : CodeTextRegion(sreg, FunctionTextRegionKind), FD(fd) {}
+  
   QualType getLocationType(ASTContext &C) const {
     return C.getPointerType(FD->getType());
   }
-
+  
   const FunctionDecl *getDecl() const {
     return FD;
   }
-
-  bool isBoundable() const { return false; }
-
+    
   virtual void dumpToStream(llvm::raw_ostream& os) const;
-
+  
   void Profile(llvm::FoldingSetNodeID& ID) const;
-
+  
   static void ProfileRegion(llvm::FoldingSetNodeID& ID, const FunctionDecl *FD,
                             const MemRegion*);
-
+  
   static bool classof(const MemRegion* R) {
-    return R->getKind() == CodeTextRegionKind;
+    return R->getKind() == FunctionTextRegionKind;
   }
+};
+  
+  
+/// BlockTextRegion - A region that represents code texts of blocks (closures).
+///  Blocks are represented with two kinds of regions.  BlockTextRegions
+///  represent the "code", while BlockDataRegions represent instances of blocks,
+///  which correspond to "code+data".  The distinction is important, because
+///  like a closure a block captures the values of externally referenced
+///  variables.
+class BlockTextRegion : public CodeTextRegion {
+  const BlockDecl *BD;
+  CanQualType locTy;
+public:  
+  BlockTextRegion(const BlockDecl *bd, CanQualType lTy, const MemRegion* sreg)
+    : CodeTextRegion(sreg, BlockTextRegionKind), BD(bd), locTy(lTy) {}
+  
+  QualType getLocationType(ASTContext &C) const {
+    return locTy;
+  }
+  
+  const BlockDecl *getDecl() const {
+    return BD;
+  }
+    
+  virtual void dumpToStream(llvm::raw_ostream& os) const;
+  
+  void Profile(llvm::FoldingSetNodeID& ID) const;
+  
+  static void ProfileRegion(llvm::FoldingSetNodeID& ID, const BlockDecl *BD,
+                            CanQualType, const MemRegion*);
+  
+  static bool classof(const MemRegion* R) {
+    return R->getKind() == BlockTextRegionKind;
+  }
+};
+  
+/// BlockDataRegion - A region that represents a block instance.
+///  Blocks are represented with two kinds of regions.  BlockTextRegions
+///  represent the "code", while BlockDataRegions represent instances of blocks,
+///  which correspond to "code+data".  The distinction is important, because
+///  like a closure a block captures the values of externally referenced
+///  variables.
+/// BlockDataRegion - A region that represents code texts of blocks (closures).
+class BlockDataRegion : public SubRegion {
+  const BlockTextRegion *BC;
+  const LocationContext *LC;
+  void *ReferencedVars;
+public:  
+  BlockDataRegion(const BlockTextRegion *bc, 
+                  const LocationContext *lc,
+                  const MemRegion *sreg)
+  : SubRegion(sreg, BlockDataRegionKind), BC(bc), LC(lc), ReferencedVars(0) {}
+
+  const BlockTextRegion *getCodeRegion() const { return BC; }
+  
+  typedef const MemRegion * const * referenced_vars_iterator;
+  referenced_vars_iterator referenced_vars_begin() const;
+  referenced_vars_iterator referenced_vars_end() const;  
+    
+  virtual void dumpToStream(llvm::raw_ostream& os) const;
+    
+  void Profile(llvm::FoldingSetNodeID& ID) const;
+    
+  static void ProfileRegion(llvm::FoldingSetNodeID& ID,
+                            const BlockTextRegion *BC,
+                            const LocationContext *LC, const MemRegion *);
+    
+  static bool classof(const MemRegion* R) {
+    return R->getKind() == BlockDataRegionKind;
+  }
+private:
+  void LazyInitializeReferencedVars();
 };
 
 /// SymbolicRegion - A special, "non-concrete" region. Unlike other region
@@ -577,9 +659,11 @@ public:
     : C(c), A(a), globals(0), stack(0), stackArguments(0), heap(0),
       unknown(0), code(0) {}
 
-  ~MemRegionManager() {}
+  ~MemRegionManager();
 
   ASTContext &getContext() { return C; }
+  
+  llvm::BumpPtrAllocator &getAllocator() { return A; }
 
   /// getStackRegion - Retrieve the memory region associated with the
   ///  current stack frame.
@@ -656,7 +740,10 @@ public:
   ObjCIvarRegion *getObjCIvarRegion(const ObjCIvarDecl* ivd,
                                     const MemRegion* superRegion);
 
-  CodeTextRegion *getCodeTextRegion(const FunctionDecl *FD);
+  FunctionTextRegion *getFunctionTextRegion(const FunctionDecl *FD);
+  BlockTextRegion *getBlockTextRegion(const BlockDecl *BD, CanQualType locTy);
+  BlockDataRegion *getBlockDataRegion(const BlockTextRegion *bc,
+                                      const LocationContext *lc);
 
   template <typename RegionTy, typename A1>
   RegionTy* getRegion(const A1 a1);
@@ -666,6 +753,10 @@ public:
 
   template <typename RegionTy, typename A1, typename A2>
   RegionTy* getRegion(const A1 a1, const A2 a2);
+
+  template <typename RegionTy, typename A1, typename A2>
+  RegionTy* getSubRegion(const A1 a1, const A2 a2,
+                         const MemRegion* superRegion);
 
   bool isGlobalsRegion(const MemRegion* R) {
     assert(R);
@@ -745,6 +836,25 @@ RegionTy* MemRegionManager::getRegion(const A1 a1, const A2 a2) {
 
   return R;
 }
+  
+template <typename RegionTy, typename A1, typename A2>
+RegionTy* MemRegionManager::getSubRegion(const A1 a1, const A2 a2,
+                                         const MemRegion *superRegion) {
+  
+  llvm::FoldingSetNodeID ID;
+  RegionTy::ProfileRegion(ID, a1, a2, superRegion);
+  void* InsertPos;
+  RegionTy* R = cast_or_null<RegionTy>(Regions.FindNodeOrInsertPos(ID,
+                                                                   InsertPos));
+  
+  if (!R) {
+    R = (RegionTy*) A.Allocate<RegionTy>();
+    new (R) RegionTy(a1, a2, superRegion);
+    Regions.InsertNode(R, InsertPos);
+  }
+  
+  return R;
+}
 
 //===----------------------------------------------------------------------===//
 // Traits for constructing regions.
@@ -801,18 +911,21 @@ template <> struct MemRegionManagerTrait<SymbolicRegion> {
   }
 };
 
-template<> struct MemRegionManagerTrait<CodeTextRegion> {
+template<> struct MemRegionManagerTrait<FunctionTextRegion> {
   typedef MemSpaceRegion SuperRegionTy;
   static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
                                              const FunctionDecl*) {
     return MRMgr.getCodeRegion();
   }
+};
+template<> struct MemRegionManagerTrait<BlockTextRegion> {
+  typedef MemSpaceRegion SuperRegionTy;
   static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
-                                             SymbolRef, QualType) {
+                                             const BlockDecl*, CanQualType) {
     return MRMgr.getCodeRegion();
   }
 };
-
+  
 } // end clang namespace
 
 //===----------------------------------------------------------------------===//

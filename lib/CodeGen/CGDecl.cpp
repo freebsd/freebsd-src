@@ -30,7 +30,9 @@ using namespace CodeGen;
 
 void CodeGenFunction::EmitDecl(const Decl &D) {
   switch (D.getKind()) {
-  default: assert(0 && "Unknown decl kind!");
+  default:
+    CGM.ErrorUnsupported(&D, "decl");
+    return;
   case Decl::ParmVar:
     assert(0 && "Parmdecls should not be in declstmts!");
   case Decl::Function:  // void X();
@@ -38,7 +40,9 @@ void CodeGenFunction::EmitDecl(const Decl &D) {
   case Decl::Enum:      // enum X;
   case Decl::EnumConstant: // enum ? { X = ? }
   case Decl::CXXRecord: // struct/union/class X; [C++]
-  case Decl::UsingDirective: // using X; [C++]
+  case Decl::Using:          // using X; [C++]
+  case Decl::UsingShadow:
+  case Decl::UsingDirective: // using namespace X; [C++]
     // None of these decls require codegen support.
     return;
 
@@ -372,7 +376,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
 
       {
         // Push a cleanup block and restore the stack there.
-        CleanupScope scope(*this);
+        DelayedCleanupBlock scope(*this);
 
         V = Builder.CreateLoad(Stack, "tmp");
         llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::stackrestore);
@@ -517,7 +521,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
         
         if (const ConstantArrayType *Array = 
               getContext().getAsConstantArrayType(Ty)) {
-          CleanupScope Scope(*this);
+          DelayedCleanupBlock Scope(*this);
           QualType BaseElementTy = getContext().getBaseElementType(Array);
           const llvm::Type *BasePtr = ConvertType(BaseElementTy);
           BasePtr = llvm::PointerType::getUnqual(BasePtr);
@@ -528,7 +532,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
           // Make sure to jump to the exit block.
           EmitBranch(Scope.getCleanupExitBlock());
         } else {
-          CleanupScope Scope(*this);
+          DelayedCleanupBlock Scope(*this);
           EmitCXXDestructorCall(D, Dtor_Complete, DeclPtr);
         }
       }
@@ -541,7 +545,7 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
     llvm::Constant* F = CGM.GetAddrOfFunction(FD);
     assert(F && "Could not find function!");
 
-    CleanupScope scope(*this);
+    DelayedCleanupBlock scope(*this);
 
     const CGFunctionInfo &Info = CGM.getTypes().getFunctionInfo(FD);
 
@@ -562,9 +566,9 @@ void CodeGenFunction::EmitLocalBlockVarDecl(const VarDecl &D) {
   }
 
   if (needsDispose && CGM.getLangOptions().getGCMode() != LangOptions::GCOnly) {
-    CleanupScope scope(*this);
+    DelayedCleanupBlock scope(*this);
     llvm::Value *V = Builder.CreateStructGEP(DeclPtr, 1, "forwarding");
-    V = Builder.CreateLoad(V, false);
+    V = Builder.CreateLoad(V);
     BuildBlockRelease(V);
   }
 }

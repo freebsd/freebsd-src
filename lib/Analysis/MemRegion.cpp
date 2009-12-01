@@ -17,14 +17,24 @@
 #include "clang/Analysis/PathSensitive/MemRegion.h"
 #include "clang/Analysis/PathSensitive/ValueManager.h"
 #include "clang/Analysis/PathSensitive/AnalysisContext.h"
+#include "clang/AST/StmtVisitor.h"
 
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
-// Basic methods.
+// Object destruction.
 //===----------------------------------------------------------------------===//
 
 MemRegion::~MemRegion() {}
+
+MemRegionManager::~MemRegionManager() {
+  // All regions and their data are BumpPtrAllocated.  No need to call
+  // their destructors.
+}
+
+//===----------------------------------------------------------------------===//
+// Basic methods.
+//===----------------------------------------------------------------------===//
 
 bool SubRegion::isSubRegionOf(const MemRegion* R) const {
   const MemRegion* r = getSuperRegion();
@@ -126,15 +136,39 @@ void ElementRegion::Profile(llvm::FoldingSetNodeID& ID) const {
   ElementRegion::ProfileRegion(ID, ElementType, Index, superRegion);
 }
 
-void CodeTextRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
-                                   const FunctionDecl *FD,
-                                   const MemRegion*) {
-  ID.AddInteger(MemRegion::CodeTextRegionKind);
+void FunctionTextRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
+                                       const FunctionDecl *FD,
+                                       const MemRegion*) {
+  ID.AddInteger(MemRegion::FunctionTextRegionKind);
   ID.AddPointer(FD);
 }
 
-void CodeTextRegion::Profile(llvm::FoldingSetNodeID& ID) const {
-  CodeTextRegion::ProfileRegion(ID, FD, superRegion);
+void FunctionTextRegion::Profile(llvm::FoldingSetNodeID& ID) const {
+  FunctionTextRegion::ProfileRegion(ID, FD, superRegion);
+}
+
+void BlockTextRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
+                                   const BlockDecl *BD, CanQualType,
+                                   const MemRegion*) {
+  ID.AddInteger(MemRegion::BlockTextRegionKind);
+  ID.AddPointer(BD);
+}
+
+void BlockTextRegion::Profile(llvm::FoldingSetNodeID& ID) const {
+  BlockTextRegion::ProfileRegion(ID, BD, locTy, superRegion);
+}
+
+void BlockDataRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
+                                    const BlockTextRegion *BC,
+                                    const LocationContext *LC,
+                                    const MemRegion *) {
+  ID.AddInteger(MemRegion::BlockDataRegionKind);
+  ID.AddPointer(BC);
+  ID.AddPointer(LC);
+}
+
+void BlockDataRegion::Profile(llvm::FoldingSetNodeID& ID) const {
+  BlockDataRegion::ProfileRegion(ID, BC, LC, NULL);
 }
 
 //===----------------------------------------------------------------------===//
@@ -160,9 +194,18 @@ void AllocaRegion::dumpToStream(llvm::raw_ostream& os) const {
   os << "alloca{" << (void*) Ex << ',' << Cnt << '}';
 }
 
-void CodeTextRegion::dumpToStream(llvm::raw_ostream& os) const {
+void FunctionTextRegion::dumpToStream(llvm::raw_ostream& os) const {
   os << "code{" << getDecl()->getDeclName().getAsString() << '}';
 }
+
+void BlockTextRegion::dumpToStream(llvm::raw_ostream& os) const {
+  os << "block_code{" << (void*) this << '}';
+}
+
+void BlockDataRegion::dumpToStream(llvm::raw_ostream& os) const {
+  os << "block_data{" << BC << '}';
+}
+
 
 void CompoundLiteralRegion::dumpToStream(llvm::raw_ostream& os) const {
   // FIXME: More elaborate pretty-printing.
@@ -259,6 +302,18 @@ VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
   return getRegion<VarRegion>(D, LC);
 }
 
+BlockDataRegion *MemRegionManager::getBlockDataRegion(const BlockTextRegion *BC,
+                                                      const LocationContext *LC)
+{
+  // FIXME: Once we implement scope handling, we will need to properly lookup
+  // 'D' to the proper LocationContext.  For now, just strip down to the
+  // StackFrame.
+  while (!isa<StackFrameContext>(LC))
+    LC = LC->getParent();
+  
+  return getSubRegion<BlockDataRegion>(BC, LC, getStackRegion());
+}
+
 CompoundLiteralRegion*
 MemRegionManager::getCompoundLiteralRegion(const CompoundLiteralExpr* CL) {
   return getRegion<CompoundLiteralRegion>(CL);
@@ -287,9 +342,16 @@ MemRegionManager::getElementRegion(QualType elementType, SVal Idx,
   return R;
 }
 
-CodeTextRegion *MemRegionManager::getCodeTextRegion(const FunctionDecl *FD) {
-  return getRegion<CodeTextRegion>(FD);
+FunctionTextRegion *
+MemRegionManager::getFunctionTextRegion(const FunctionDecl *FD) {
+  return getRegion<FunctionTextRegion>(FD);
 }
+
+BlockTextRegion *MemRegionManager::getBlockTextRegion(const BlockDecl *BD,
+                                                      CanQualType locTy) {
+  return getRegion<BlockTextRegion>(BD, locTy);
+}
+
 
 /// getSymbolicRegion - Retrieve or create a "symbolic" memory region.
 SymbolicRegion* MemRegionManager::getSymbolicRegion(SymbolRef sym) {
@@ -473,3 +535,53 @@ RegionRawOffset ElementRegion::getAsRawOffset() const {
   return RegionRawOffset(superR, offset);
 }
 
+//===----------------------------------------------------------------------===//
+// BlockDataRegion
+//===----------------------------------------------------------------------===//
+
+void BlockDataRegion::LazyInitializeReferencedVars() {
+  if (ReferencedVars)
+    return;
+
+  AnalysisContext *AC = LC->getAnalysisContext();
+  AnalysisContext::referenced_decls_iterator I, E;
+  llvm::tie(I, E) = AC->getReferencedBlockVars(BC->getDecl());
+  
+  if (I == E) {
+    ReferencedVars = (void*) 0x1;
+    return;
+  }
+    
+  MemRegionManager &MemMgr = *getMemRegionManager();
+  llvm::BumpPtrAllocator &A = MemMgr.getAllocator();
+  BumpVectorContext BC(A);
+  
+  typedef BumpVector<const MemRegion*> VarVec;
+  VarVec *BV = (VarVec*) A.Allocate<VarVec>();
+  new (BV) VarVec(BC, (E - I) / sizeof(*I));
+  
+  for ( ; I != E; ++I)
+    BV->push_back(MemMgr.getVarRegion(*I, LC), BC);
+  
+  ReferencedVars = BV;
+}
+
+BlockDataRegion::referenced_vars_iterator
+BlockDataRegion::referenced_vars_begin() const {
+  const_cast<BlockDataRegion*>(this)->LazyInitializeReferencedVars();
+
+  BumpVector<const MemRegion*> *Vec =
+    static_cast<BumpVector<const MemRegion*>*>(ReferencedVars);
+  
+  return Vec == (void*) 0x1 ? NULL : Vec->begin();  
+}
+
+BlockDataRegion::referenced_vars_iterator
+BlockDataRegion::referenced_vars_end() const {
+  const_cast<BlockDataRegion*>(this)->LazyInitializeReferencedVars();
+
+  BumpVector<const MemRegion*> *Vec =
+    static_cast<BumpVector<const MemRegion*>*>(ReferencedVars);
+  
+  return Vec == (void*) 0x1 ? NULL : Vec->end();  
+}

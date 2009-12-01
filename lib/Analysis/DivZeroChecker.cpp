@@ -18,7 +18,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN DivZeroChecker : public CheckerVisitor<DivZeroChecker> {
+class DivZeroChecker : public CheckerVisitor<DivZeroChecker> {
   BuiltinBug *BT;
 public:
   DivZeroChecker() : BT(0) {}  
@@ -63,7 +63,7 @@ void DivZeroChecker::PreVisitBinaryOperator(CheckerContext &C,
   llvm::tie(stateNotZero, stateZero) = CM.AssumeDual(C.getState(), *DV);
 
   if (stateZero && !stateNotZero) {
-    if (ExplodedNode *N = C.GenerateNode(B, stateZero, true)) {
+    if (ExplodedNode *N = C.GenerateSink(stateZero)) {
       if (!BT)
         BT = new BuiltinBug("Division by zero");
 
@@ -80,6 +80,5 @@ void DivZeroChecker::PreVisitBinaryOperator(CheckerContext &C,
 
   // If we get here, then the denom should not be zero. We abandon the implicit
   // zero denom case for now.
-  if (stateNotZero != C.getState())
-    C.addTransition(C.GenerateNode(B, stateNotZero));
+  C.addTransition(stateNotZero);
 }

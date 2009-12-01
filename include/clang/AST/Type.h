@@ -82,6 +82,7 @@ namespace clang {
   class StmtIteratorBase;
   class TemplateArgument;
   class TemplateArgumentLoc;
+  class TemplateArgumentListInfo;
   class QualifiedNameType;
   struct PrintingPolicy;
 
@@ -859,6 +860,7 @@ public:
   bool isObjCQualifiedClassType() const;        // Class<foo>
   bool isObjCIdType() const;                    // id
   bool isObjCClassType() const;                 // Class
+  bool isObjCSelType() const;                 // Class
   bool isObjCBuiltinType() const;               // 'id' or 'Class'
   bool isTemplateTypeParmType() const;          // C++ template type parameter
   bool isNullPtrType() const;                   // C++0x nullptr_t
@@ -1000,7 +1002,8 @@ public:
     UndeducedAuto, // In C++0x, this represents the type of an auto variable
                    // that has not been deduced yet.
     ObjCId,    // This represents the ObjC 'id' type.
-    ObjCClass  // This represents the ObjC 'Class' type.
+    ObjCClass, // This represents the ObjC 'Class' type.
+    ObjCSel    // This represents the ObjC 'SEL' type.
   };
 private:
   Kind TypeKind;
@@ -1457,21 +1460,27 @@ public:
 
 /// DependentSizedArrayType - This type represents an array type in
 /// C++ whose size is a value-dependent expression. For example:
-/// @code
+///
+/// \code
 /// template<typename T, int Size>
 /// class array {
 ///   T data[Size];
 /// };
-/// @endcode
+/// \endcode
+///
 /// For these types, we won't actually know what the array bound is
 /// until template instantiation occurs, at which point this will
 /// become either a ConstantArrayType or a VariableArrayType.
 class DependentSizedArrayType : public ArrayType {
   ASTContext &Context;
 
-  /// SizeExpr - An assignment expression that will instantiate to the
+  /// \brief An assignment expression that will instantiate to the
   /// size of the array.
+  ///
+  /// The expression itself might be NULL, in which case the array
+  /// type will have its size deduced from an initializer.
   Stmt *SizeExpr;
+
   /// Brackets - The left and right array brackets.
   SourceRange Brackets;
 
@@ -2272,6 +2281,8 @@ public:
   static bool anyDependentTemplateArguments(const TemplateArgumentLoc *Args,
                                             unsigned NumArgs);
 
+  static bool anyDependentTemplateArguments(const TemplateArgumentListInfo &);
+
   /// \brief Print a template argument list, including the '<' and '>'
   /// enclosing the template arguments.
   static std::string PrintTemplateArgumentList(const TemplateArgument *Args,
@@ -2280,6 +2291,9 @@ public:
 
   static std::string PrintTemplateArgumentList(const TemplateArgumentLoc *Args,
                                                unsigned NumArgs,
+                                               const PrintingPolicy &Policy);
+
+  static std::string PrintTemplateArgumentList(const TemplateArgumentListInfo &,
                                                const PrintingPolicy &Policy);
 
   typedef const TemplateArgument * iterator;
@@ -2534,6 +2548,7 @@ public:
     return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCClass) &&
            !Protocols.size();
   }
+  
   /// isObjCQualifiedIdType - true for "id <p>".
   bool isObjCQualifiedIdType() const {
     return getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCId) &&
@@ -2881,8 +2896,13 @@ inline bool Type::isObjCClassType() const {
     return OPT->isObjCClassType();
   return false;
 }
+inline bool Type::isObjCSelType() const {
+  if (const PointerType *OPT = getAs<PointerType>())
+    return OPT->getPointeeType()->isSpecificBuiltinType(BuiltinType::ObjCSel);
+  return false;
+}
 inline bool Type::isObjCBuiltinType() const {
-  return isObjCIdType() || isObjCClassType();
+  return isObjCIdType() || isObjCClassType() || isObjCSelType();
 }
 inline bool Type::isTemplateTypeParmType() const {
   return isa<TemplateTypeParmType>(CanonicalType);

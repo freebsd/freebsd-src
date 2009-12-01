@@ -20,7 +20,6 @@
 #include "clang/Analysis/PathSensitive/GRExprEngine.h"
 #include "clang/Analysis/PathSensitive/Checkers/DereferenceChecker.h"
 #include "BasicObjCFoundationChecks.h"
-#include "llvm/Support/Compiler.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Decl.h"
 #include "llvm/ADT/SmallVector.h"
@@ -28,7 +27,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN NSErrorChecker : public BugType {
+class NSErrorChecker : public BugType {
   const Decl &CodeDecl;
   const bool isNSErrorWarning;
   IdentifierInfo * const II;
@@ -117,7 +116,7 @@ void NSErrorChecker::EmitRetTyWarning(BugReporter& BR, const Decl& CodeDecl) {
   BR.EmitBasicReport(isNSErrorWarning
                      ? "Bad return type when passing NSError**"
                      : "Bad return type when passing CFError*",
-                     getCategory().c_str(), os.str().c_str(),
+                     getCategory(), os.str(),
                      CodeDecl.getLocation());
 }
 
@@ -229,7 +228,7 @@ void NSErrorChecker::CheckParamDeref(const VarDecl *Param,
 
     os << Param->getNameAsString() << "' may be null.";
 
-    BugReport *report = new BugReport(*this, os.str().c_str(), *I);
+    BugReport *report = new BugReport(*this, os.str(), *I);
     // FIXME: Notable symbols are now part of the report.  We should
     //  add support for notable symbols in BugReport.
     //    BR.addNotableSymbol(SV->getSymbol());

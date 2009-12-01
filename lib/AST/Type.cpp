@@ -725,6 +725,7 @@ const char *BuiltinType::getName(const LangOptions &LO) const {
   case UndeducedAuto:     return "auto";
   case ObjCId:            return "id";
   case ObjCClass:         return "Class";
+  case ObjCSel:         return "SEL";
   }
 }
 
@@ -863,6 +864,11 @@ static bool isDependent(const TemplateArgument &Arg) {
   }
 
   return false;
+}
+
+bool TemplateSpecializationType::
+anyDependentTemplateArguments(const TemplateArgumentListInfo &Args) {
+  return anyDependentTemplateArguments(Args.getArgumentArray(), Args.size());
 }
 
 bool TemplateSpecializationType::

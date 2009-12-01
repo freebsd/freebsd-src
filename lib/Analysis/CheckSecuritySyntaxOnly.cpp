@@ -14,13 +14,12 @@
 #include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/Analysis/LocalCheckers.h"
 #include "clang/AST/StmtVisitor.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN WalkAST : public StmtVisitor<WalkAST> {
+class WalkAST : public StmtVisitor<WalkAST> {
   BugReporter &BR;
   IdentifierInfo *II_gets;
   IdentifierInfo *II_getpw;
@@ -210,7 +209,7 @@ void WalkAST::CheckLoopConditionForFloat(const ForStmt *FS) {
   ranges.push_back(drInc->getSourceRange());
 
   const char *bugType = "Floating point variable used as loop counter";
-  BR.EmitBasicReport(bugType, "Security", os.str().c_str(),
+  BR.EmitBasicReport(bugType, "Security", os.str(),
                      FS->getLocStart(), ranges.data(), ranges.size());
 }
 
@@ -347,7 +346,7 @@ void WalkAST::CheckCall_rand(const CallExpr *CE, const FunctionDecl *FD) {
 
   SourceRange R = CE->getCallee()->getSourceRange();
 
-  BR.EmitBasicReport(os1.str().c_str(), "Security", os2.str().c_str(),
+  BR.EmitBasicReport(os1.str(), "Security", os2.str(),
                      CE->getLocStart(), &R, 1);
 }
 
@@ -437,7 +436,7 @@ void WalkAST::CheckUncheckedReturnValue(CallExpr *CE) {
 
   SourceRange R = CE->getCallee()->getSourceRange();
 
-  BR.EmitBasicReport(os1.str().c_str(), "Security", os2.str().c_str(),
+  BR.EmitBasicReport(os1.str(), "Security", os2.str(),
                      CE->getLocStart(), &R, 1);
 }
 

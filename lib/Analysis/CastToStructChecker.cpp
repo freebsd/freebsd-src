@@ -19,7 +19,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN CastToStructChecker 
+class CastToStructChecker 
   : public CheckerVisitor<CastToStructChecker> {
   BuiltinBug *BT;
 public:
@@ -59,7 +59,7 @@ void CastToStructChecker::PreVisitCastExpr(CheckerContext &C,
 
   // Now the cast-to-type is struct pointer, the original type is not void*.
   if (!OrigPointeeTy->isRecordType()) {
-    if (ExplodedNode *N = C.GenerateNode(CE)) {
+    if (ExplodedNode *N = C.GenerateNode()) {
       if (!BT)
         BT = new BuiltinBug("Cast from non-struct type to struct type",
                             "Casting a non-structure type to a structure type "

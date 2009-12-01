@@ -130,13 +130,9 @@ void Clang::AddPreprocessingOptions(const Driver &D,
   // wonky, but we include looking for .gch so we can support seamless
   // replacement into a build system already set up to be generating
   // .gch files.
-  //
-  // FIXME: Use iterator.
-  for (ArgList::const_iterator
-         it = Args.begin(), ie = Args.end(); it != ie; ++it) {
-    const Arg *A = *it;
-    if (!A->getOption().matches(options::OPT_clang_i_Group))
-      continue;
+  for (arg_iterator it = Args.filtered_begin(options::OPT_clang_i_Group),
+         ie = Args.filtered_end(); it != ie; ++it) {
+    const Arg *A = it;
 
     if (A->getOption().matches(options::OPT_include)) {
       // Use PCH if the user requested it, except for C++ (for now).
@@ -209,7 +205,7 @@ void Clang::AddPreprocessingOptions(const Driver &D,
 /// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targetting.
 //
 // FIXME: tblgen this.
-static llvm::StringRef getARMTargetCPU(const ArgList &Args) {
+static const char *getARMTargetCPU(const ArgList &Args) {
   // FIXME: Warn on inconsistent use of -mcpu and -march.
 
   // If we have -mcpu=, use that.
@@ -370,7 +366,8 @@ void Clang::AddARMTargetArgs(const ArgList &Args,
   CmdArgs.push_back(ABIName);
 
   // Set the CPU based on -march= and -mcpu=.
-  CmdArgs.push_back(Args.MakeArgString("-mcpu=" + getARMTargetCPU(Args)));
+  CmdArgs.push_back("-mcpu");
+  CmdArgs.push_back(getARMTargetCPU(Args));
 
   // Select the float ABI as determined by -msoft-float, -mhard-float, and
   // -mfloat-abi=.
@@ -421,15 +418,15 @@ void Clang::AddARMTargetArgs(const ArgList &Args,
     // Floating point operations and argument passing are soft.
     //
     // FIXME: This changes CPP defines, we need -target-soft-float.
-    CmdArgs.push_back("-soft-float");
-    CmdArgs.push_back("-float-abi=soft");
+    CmdArgs.push_back("-msoft-float");
+    CmdArgs.push_back("-mfloat-abi=soft");
   } else if (FloatABI == "softfp") {
     // Floating point operations are hard, but argument passing is soft.
-    CmdArgs.push_back("-float-abi=soft");
+    CmdArgs.push_back("-mfloat-abi=soft");
   } else {
     // Floating point operations and argument passing are hard.
     assert(FloatABI == "hard" && "Invalid float abi!");
-    CmdArgs.push_back("-float-abi=hard");
+    CmdArgs.push_back("-mfloat-abi=hard");
   }
 }
 
@@ -440,12 +437,12 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
                     true) ||
       Args.hasArg(options::OPT_mkernel) ||
       Args.hasArg(options::OPT_fapple_kext))
-    CmdArgs.push_back("--disable-red-zone");
+    CmdArgs.push_back("-disable-red-zone");
 
   if (Args.hasFlag(options::OPT_msoft_float,
                    options::OPT_mno_soft_float,
                    false))
-    CmdArgs.push_back("--no-implicit-float");
+    CmdArgs.push_back("-no-implicit-float");
 
   const char *CPUName = 0;
   if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
@@ -479,29 +476,25 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
   }
 
   if (CPUName) {
-    CmdArgs.push_back("--mcpu");
+    CmdArgs.push_back("-mcpu");
     CmdArgs.push_back(CPUName);
   }
 
-  // FIXME: Use iterator.
-  for (ArgList::const_iterator
-         it = Args.begin(), ie = Args.end(); it != ie; ++it) {
-    const Arg *A = *it;
-    if (A->getOption().matches(options::OPT_m_x86_Features_Group)) {
-      llvm::StringRef Name = A->getOption().getName();
+  for (arg_iterator it = Args.filtered_begin(options::OPT_m_x86_Features_Group),
+         ie = Args.filtered_end(); it != ie; ++it) {
+    llvm::StringRef Name = it->getOption().getName();
+    it->claim();
 
-      // Skip over "-m".
-      assert(Name.startswith("-m") && "Invalid feature name.");
-      Name = Name.substr(2);
+    // Skip over "-m".
+    assert(Name.startswith("-m") && "Invalid feature name.");
+    Name = Name.substr(2);
 
-      bool IsNegative = Name.startswith("no-");
-      if (IsNegative)
-        Name = Name.substr(3);
+    bool IsNegative = Name.startswith("no-");
+    if (IsNegative)
+      Name = Name.substr(3);
 
-      A->claim();
-      CmdArgs.push_back("-target-feature");
-      CmdArgs.push_back(Args.MakeArgString((IsNegative ? "-" : "+") + Name));
-    }
+    CmdArgs.push_back("-target-feature");
+    CmdArgs.push_back(Args.MakeArgString((IsNegative ? "-" : "+") + Name));
   }
 }
 
@@ -707,39 +700,42 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     else
       Model = getToolChain().GetDefaultRelocationModel();
   }
-  CmdArgs.push_back("--relocation-model");
-  CmdArgs.push_back(Model);
+  if (llvm::StringRef(Model) != "pic") {
+    CmdArgs.push_back("-mrelocation-model");
+    CmdArgs.push_back(Model);
+  }
 
   // Infer the __PIC__ value.
   //
   // FIXME:  This isn't quite right on Darwin, which always sets
   // __PIC__=2.
   if (strcmp(Model, "pic") == 0 || strcmp(Model, "dynamic-no-pic") == 0) {
-    if (Args.hasArg(options::OPT_fPIC))
-      CmdArgs.push_back("-pic-level=2");
-    else
-      CmdArgs.push_back("-pic-level=1");
+    CmdArgs.push_back("-pic-level");
+    CmdArgs.push_back(Args.hasArg(options::OPT_fPIC) ? "2" : "1");
   }
+  if (!Args.hasFlag(options::OPT_fmerge_all_constants,
+                    options::OPT_fno_merge_all_constants))
+    CmdArgs.push_back("-no-merge-all-constants");
 
-  if (Args.hasArg(options::OPT_ftime_report))
-    CmdArgs.push_back("--time-passes");
+  // LLVM Code Generator Options.
+
   // FIXME: Set --enable-unsafe-fp-math.
   if (Args.hasFlag(options::OPT_fno_omit_frame_pointer,
                    options::OPT_fomit_frame_pointer))
-    CmdArgs.push_back("--disable-fp-elim");
+    CmdArgs.push_back("-mdisable-fp-elim");
   if (!Args.hasFlag(options::OPT_fzero_initialized_in_bss,
-                    options::OPT_fno_zero_initialized_in_bss,
-                    true))
-    CmdArgs.push_back("--nozero-initialized-in-bss");
+                    options::OPT_fno_zero_initialized_in_bss))
+    CmdArgs.push_back("-mno-zero-initialized-in-bss");
   if (Args.hasArg(options::OPT_dA) || Args.hasArg(options::OPT_fverbose_asm))
-    CmdArgs.push_back("--asm-verbose");
-  if (Args.hasArg(options::OPT_fdebug_pass_structure))
-    CmdArgs.push_back("--debug-pass=Structure");
-  if (Args.hasArg(options::OPT_fdebug_pass_arguments))
-    CmdArgs.push_back("--debug-pass=Arguments");
-  if (!Args.hasFlag(options::OPT_fmerge_all_constants,
-                    options::OPT_fno_merge_all_constants))
-    CmdArgs.push_back("--no-merge-all-constants");
+    CmdArgs.push_back("-masm-verbose");
+  if (Args.hasArg(options::OPT_fdebug_pass_structure)) {
+    CmdArgs.push_back("-mdebug-pass");
+    CmdArgs.push_back("Structure");
+  }
+  if (Args.hasArg(options::OPT_fdebug_pass_arguments)) {
+    CmdArgs.push_back("-mdebug-pass");
+    CmdArgs.push_back("Arguments");
+  }
 
   // This is a coarse approximation of what llvm-gcc actually does, both
   // -fasynchronous-unwind-tables and -fnon-call-exceptions interact in more
@@ -751,15 +747,18 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                  !Args.hasArg(options::OPT_mkernel));
   if (Args.hasFlag(options::OPT_funwind_tables, options::OPT_fno_unwind_tables,
                    AsynchronousUnwindTables))
-    CmdArgs.push_back("--unwind-tables=1");
-  else
-    CmdArgs.push_back("--unwind-tables=0");
+    CmdArgs.push_back("-munwind-tables");
+
+  if (Arg *A = Args.getLastArg(options::OPT_flimited_precision_EQ)) {
+    CmdArgs.push_back("-mlimit-float-precision");
+    CmdArgs.push_back(A->getValue(Args));
+  }
 
   // FIXME: Handle -mtune=.
   (void) Args.hasArg(options::OPT_mtune_EQ);
 
   if (Arg *A = Args.getLastArg(options::OPT_mcmodel_EQ)) {
-    CmdArgs.push_back("-code-model");
+    CmdArgs.push_back("-mcode-model");
     CmdArgs.push_back(A->getValue(Args));
   }
 
@@ -784,11 +783,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                    options::OPT_fno_math_errno,
                    getToolChain().IsMathErrnoDefault()))
     CmdArgs.push_back("-fno-math-errno");
-
-  if (Arg *A = Args.getLastArg(options::OPT_flimited_precision_EQ)) {
-    CmdArgs.push_back("--limit-float-precision");
-    CmdArgs.push_back(A->getValue(Args));
-  }
 
   Arg *Unsupported;
   if ((Unsupported = Args.getLastArg(options::OPT_MG)) ||
@@ -865,7 +859,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   if (Args.hasArg(options::OPT__relocatable_pch))
-    CmdArgs.push_back("--relocatable-pch");
+    CmdArgs.push_back("-relocatable-pch");
 
   if (Arg *A = Args.getLastArg(options::OPT_fconstant_string_class_EQ)) {
     CmdArgs.push_back("-fconstant-string-class");
@@ -873,13 +867,13 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   // Pass -fmessage-length=.
+  CmdArgs.push_back("-fmessage-length");
   if (Arg *A = Args.getLastArg(options::OPT_fmessage_length_EQ)) {
-    A->render(Args, CmdArgs);
+    CmdArgs.push_back(A->getValue(Args));
   } else {
     // If -fmessage-length=N was not specified, determine whether this is a
     // terminal and, if so, implicitly define -fmessage-length appropriately.
     unsigned N = llvm::sys::Process::StandardErrColumns();
-    CmdArgs.push_back("-fmessage-length");
     CmdArgs.push_back(Args.MakeArgString(llvm::Twine(N)));
   }
 
@@ -931,30 +925,26 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fblocks");
   }
 
+  // -fexceptions=0 is default.
   if (needsExceptions(Args, InputType, getToolChain().getTriple()))
     CmdArgs.push_back("-fexceptions");
-  else
-    CmdArgs.push_back("-fexceptions=0");
 
   // -frtti is default.
   if (!Args.hasFlag(options::OPT_frtti, options::OPT_fno_rtti))
     CmdArgs.push_back("-fno-rtti");
 
   // -fsigned-char is default.
-  if (!Args.hasFlag(options::OPT_fsigned_char,
-                    options::OPT_funsigned_char,
+  if (!Args.hasFlag(options::OPT_fsigned_char, options::OPT_funsigned_char,
                     isSignedCharDefault(getToolChain().getTriple())))
-    CmdArgs.push_back("-fsigned-char=0");
+    CmdArgs.push_back("-fno-signed-char");
 
   // -fms-extensions=0 is default.
-  if (Args.hasFlag(options::OPT_fms_extensions,
-                   options::OPT_fno_ms_extensions,
+  if (Args.hasFlag(options::OPT_fms_extensions, options::OPT_fno_ms_extensions,
                    getToolChain().getTriple().getOS() == llvm::Triple::Win32))
     CmdArgs.push_back("-fms-extensions");
 
   // -fnext-runtime is default.
-  if (!Args.hasFlag(options::OPT_fnext_runtime,
-                    options::OPT_fgnu_runtime,
+  if (!Args.hasFlag(options::OPT_fnext_runtime, options::OPT_fgnu_runtime,
                     getToolChain().getTriple().getOS() == llvm::Triple::Darwin))
     CmdArgs.push_back("-fgnu-runtime");
 
@@ -1092,15 +1082,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Explicitly warn that these options are unsupported, even though
   // we are allowing compilation to continue.
-  // FIXME: Use iterator.
-  for (ArgList::const_iterator
-         it = Args.begin(), ie = Args.end(); it != ie; ++it) {
-    const Arg *A = *it;
-    if (A->getOption().matches(options::OPT_pg)) {
-      A->claim();
-      D.Diag(clang::diag::warn_drv_clang_unsupported)
-        << A->getAsString(Args);
-    }
+  for (arg_iterator it = Args.filtered_begin(options::OPT_pg),
+         ie = Args.filtered_end(); it != ie; ++it) {
+    it->claim();
+    D.Diag(clang::diag::warn_drv_clang_unsupported) << it->getAsString(Args);
   }
 
   // Claim some arguments which clang supports automatically.
@@ -1113,15 +1098,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Claim some arguments which clang doesn't support, but we don't
   // care to warn the user about.
-
-  // FIXME: Use iterator.
-  for (ArgList::const_iterator
-         it = Args.begin(), ie = Args.end(); it != ie; ++it) {
-    const Arg *A = *it;
-    if (A->getOption().matches(options::OPT_clang_ignored_f_Group) ||
-        A->getOption().matches(options::OPT_clang_ignored_m_Group))
-      A->claim();
-  }
+  Args.ClaimAllArgs(options::OPT_clang_ignored_f_Group);
+  Args.ClaimAllArgs(options::OPT_clang_ignored_m_Group);
 }
 
 void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
@@ -1394,18 +1372,13 @@ void darwin::CC1::AddCC1OptionsArgs(const ArgList &Args, ArgStringList &CmdArgs,
     // used to inhibit the default -fno-builtin-str{cat,cpy}.
     //
     // FIXME: Should we grow a better way to deal with "removing" args?
-    //
-    // FIXME: Use iterator.
-    for (ArgList::const_iterator it = Args.begin(),
-           ie = Args.end(); it != ie; ++it) {
-      const Arg *A = *it;
-      if (A->getOption().matches(options::OPT_f_Group) ||
-          A->getOption().matches(options::OPT_fsyntax_only)) {
-        if (!A->getOption().matches(options::OPT_fbuiltin_strcat) &&
-            !A->getOption().matches(options::OPT_fbuiltin_strcpy)) {
-          A->claim();
-          A->render(Args, CmdArgs);
-        }
+    for (arg_iterator it = Args.filtered_begin(options::OPT_f_Group,
+                                               options::OPT_fsyntax_only),
+           ie = Args.filtered_end(); it != ie; ++it) {
+      if (!it->getOption().matches(options::OPT_fbuiltin_strcat) &&
+          !it->getOption().matches(options::OPT_fbuiltin_strcpy)) {
+        it->claim();
+        it->render(Args, CmdArgs);
       }
     }
   } else

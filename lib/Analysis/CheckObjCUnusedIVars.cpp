@@ -20,6 +20,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceManager.h"
 
 using namespace clang;
 
@@ -85,6 +86,17 @@ static void Scan(IvarUsageMap& M, const ObjCContainerDecl* D) {
   }
 }
 
+static void Scan(IvarUsageMap &M, const DeclContext *C, const FileID FID,
+                 SourceManager &SM) {
+  for (DeclContext::decl_iterator I=C->decls_begin(), E=C->decls_end();
+       I!=E; ++I)
+    if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(*I)) {
+      SourceLocation L = FD->getLocStart();
+      if (SM.getFileID(L) == FID)      
+        Scan(M, FD->getBody());
+    }
+}
+
 void clang::CheckObjCUnusedIvar(const ObjCImplementationDecl *D,
                                 BugReporter &BR) {
 
@@ -110,9 +122,29 @@ void clang::CheckObjCUnusedIvar(const ObjCImplementationDecl *D,
 
   if (M.empty())
     return;
-
+  
   // Now scan the implementation declaration.
   Scan(M, D);
+
+  
+  // Any potentially unused ivars?
+  bool hasUnused = false;
+  for (IvarUsageMap::iterator I = M.begin(), E = M.end(); I!=E; ++I)
+    if (I->second == Unused) {
+      hasUnused = true;
+      break;
+    }
+  
+  if (!hasUnused)
+    return;
+  
+  // We found some potentially unused ivars.  Scan the entire translation unit
+  // for functions inside the @implementation that reference these ivars.
+  // FIXME: In the future hopefully we can just use the lexical DeclContext
+  // to go from the ObjCImplementationDecl to the lexically "nested"
+  // C functions.
+  SourceManager &SM = BR.getSourceManager();
+  Scan(M, D->getDeclContext(), SM.getFileID(D->getLocation()), SM);
 
   // Find ivars that are unused.
   for (IvarUsageMap::iterator I = M.begin(), E = M.end(); I!=E; ++I)
@@ -125,6 +157,6 @@ void clang::CheckObjCUnusedIvar(const ObjCImplementationDecl *D,
             "(although it may be used by category methods).";
 
       BR.EmitBasicReport("Unused instance variable", "Optimization",
-                         os.str().c_str(), I->first->getLocation());
+                         os.str(), I->first->getLocation());
     }
 }

@@ -88,55 +88,6 @@ class GRExprEngine : public GRSubEngine {
   GRBugReporter BR;
 
 public:
-  typedef llvm::SmallPtrSet<ExplodedNode*,2> ErrorNodes;
-  typedef llvm::DenseMap<ExplodedNode*, Expr*> UndefArgsTy;
-
-  /// NilReceiverStructRetExplicit - Nodes in the ExplodedGraph that resulted
-  ///  from [x ...] with 'x' definitely being nil and the result was a 'struct'
-  //  (an undefined value).
-  ErrorNodes NilReceiverStructRetExplicit;
-
-  /// NilReceiverStructRetImplicit - Nodes in the ExplodedGraph that resulted
-  ///  from [x ...] with 'x' possibly being nil and the result was a 'struct'
-  //  (an undefined value).
-  ErrorNodes NilReceiverStructRetImplicit;
-
-  /// NilReceiverLargerThanVoidPtrRetExplicit - Nodes in the ExplodedGraph that
-  /// resulted from [x ...] with 'x' definitely being nil and the result's size
-  // was larger than sizeof(void *) (an undefined value).
-  ErrorNodes NilReceiverLargerThanVoidPtrRetExplicit;
-
-  /// NilReceiverLargerThanVoidPtrRetImplicit - Nodes in the ExplodedGraph that
-  /// resulted from [x ...] with 'x' possibly being nil and the result's size
-  // was larger than sizeof(void *) (an undefined value).
-  ErrorNodes NilReceiverLargerThanVoidPtrRetImplicit;
-
-  /// UndefBranches - Nodes in the ExplodedGraph that result from
-  ///  taking a branch based on an undefined value.
-  ErrorNodes UndefBranches;
-
-  /// UndefStores - Sinks in the ExplodedGraph that result from
-  ///  making a store to an undefined lvalue.
-  ErrorNodes UndefStores;
-
-  /// NoReturnCalls - Sinks in the ExplodedGraph that result from
-  //  calling a function with the attribute "noreturn".
-  ErrorNodes NoReturnCalls;
-
-  /// UndefResults - Nodes in the ExplodedGraph where the operands are defined
-  ///  by the result is not.  Excludes divide-by-zero errors.
-  ErrorNodes UndefResults;
-
-  /// UndefReceiver - Nodes in the ExplodedGraph resulting from message
-  ///  ObjC message expressions where the receiver is undefined (uninitialized).
-  ErrorNodes UndefReceivers;
-
-  /// MsgExprUndefArgs - Nodes in the ExplodedGraph resulting from
-  ///   message expressions where a pass-by-value argument has an undefined
-  ///  value.
-  UndefArgsTy MsgExprUndefArgs;
-
-public:
   GRExprEngine(AnalysisManager &mgr);
 
   ~GRExprEngine();
@@ -178,8 +129,6 @@ public:
   ExplodedGraph& getGraph() { return G; }
   const ExplodedGraph& getGraph() const { return G; }
 
-  void RegisterInternalChecks();
-
   template <typename CHECKER>
   void registerCheck(CHECKER *check) {
     unsigned entry = Checkers.size();
@@ -193,58 +142,6 @@ public:
   template <typename CHECKER>
   CHECKER *getChecker() const {
      return static_cast<CHECKER*>(lookupChecker(CHECKER::getTag()));
-  }
-
-  bool isNoReturnCall(const ExplodedNode* N) const {
-    return N->isSink() && NoReturnCalls.count(const_cast<ExplodedNode*>(N)) != 0;
-  }
-
-  typedef ErrorNodes::iterator undef_branch_iterator;
-  undef_branch_iterator undef_branches_begin() { return UndefBranches.begin(); }
-  undef_branch_iterator undef_branches_end() { return UndefBranches.end(); }
-
-  typedef ErrorNodes::iterator nil_receiver_struct_ret_iterator;
-
-  nil_receiver_struct_ret_iterator nil_receiver_struct_ret_begin() {
-    return NilReceiverStructRetExplicit.begin();
-  }
-
-  nil_receiver_struct_ret_iterator nil_receiver_struct_ret_end() {
-    return NilReceiverStructRetExplicit.end();
-  }
-
-  typedef ErrorNodes::iterator nil_receiver_larger_than_voidptr_ret_iterator;
-
-  nil_receiver_larger_than_voidptr_ret_iterator
-  nil_receiver_larger_than_voidptr_ret_begin() {
-    return NilReceiverLargerThanVoidPtrRetExplicit.begin();
-  }
-
-  nil_receiver_larger_than_voidptr_ret_iterator
-  nil_receiver_larger_than_voidptr_ret_end() {
-    return NilReceiverLargerThanVoidPtrRetExplicit.end();
-  }
-
-  typedef ErrorNodes::iterator undef_result_iterator;
-  undef_result_iterator undef_results_begin() { return UndefResults.begin(); }
-  undef_result_iterator undef_results_end() { return UndefResults.end(); }
-
-  typedef UndefArgsTy::iterator undef_arg_iterator;
-  undef_arg_iterator msg_expr_undef_arg_begin() {
-    return MsgExprUndefArgs.begin();
-  }
-  undef_arg_iterator msg_expr_undef_arg_end() {
-    return MsgExprUndefArgs.end();
-  }
-
-  typedef ErrorNodes::iterator undef_receivers_iterator;
-
-  undef_receivers_iterator undef_receivers_begin() {
-    return UndefReceivers.begin();
-  }
-
-  undef_receivers_iterator undef_receivers_end() {
-    return UndefReceivers.end();
   }
 
   void AddCheck(GRSimpleAPICheck* A, Stmt::StmtClass C);
@@ -312,7 +209,7 @@ public:
 protected:
   /// CheckerVisit - Dispatcher for performing checker-specific logic
   ///  at specific statements.
-  void CheckerVisit(Stmt *S, ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
+  bool CheckerVisit(Stmt *S, ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
                     bool isPrevisit);
   
   void CheckerVisitBind(const Stmt *AssignE, const Stmt *StoreE,
@@ -345,6 +242,9 @@ protected:
                                 AsmStmt::inputs_iterator I,
                                 AsmStmt::inputs_iterator E,
                                 ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  
+  /// VisitBlockExpr - Transfer function logic for BlockExprs.
+  void VisitBlockExpr(BlockExpr *BE, ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
   /// VisitBinaryOperator - Transfer function logic for binary operators.
   void VisitBinaryOperator(BinaryOperator* B, ExplodedNode* Pred, 
@@ -361,33 +261,38 @@ protected:
                     unsigned ParamIdx = 0);
 
   /// VisitCast - Transfer function logic for all casts (implicit and explicit).
-  void VisitCast(Expr* CastE, Expr* Ex, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitCast(Expr* CastE, Expr* Ex, ExplodedNode* Pred,
+                 ExplodedNodeSet& Dst);
 
   /// VisitCompoundLiteralExpr - Transfer function logic for compound literals.
   void VisitCompoundLiteralExpr(CompoundLiteralExpr* CL, ExplodedNode* Pred,
                                 ExplodedNodeSet& Dst, bool asLValue);
 
   /// VisitDeclRefExpr - Transfer function logic for DeclRefExprs.
-  void VisitDeclRefExpr(DeclRefExpr* DR, ExplodedNode* Pred, ExplodedNodeSet& Dst,
-                        bool asLValue);
+  void VisitDeclRefExpr(DeclRefExpr* DR, ExplodedNode* Pred,
+                        ExplodedNodeSet& Dst, bool asLValue);
 
   /// VisitDeclStmt - Transfer function logic for DeclStmts.
   void VisitDeclStmt(DeclStmt* DS, ExplodedNode* Pred, ExplodedNodeSet& Dst);
 
   /// VisitGuardedExpr - Transfer function logic for ?, __builtin_choose
-  void VisitGuardedExpr(Expr* Ex, Expr* L, Expr* R, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitGuardedExpr(Expr* Ex, Expr* L, Expr* R, ExplodedNode* Pred,
+                        ExplodedNodeSet& Dst);
 
-  void VisitInitListExpr(InitListExpr* E, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitInitListExpr(InitListExpr* E, ExplodedNode* Pred,
+                         ExplodedNodeSet& Dst);
 
   /// VisitLogicalExpr - Transfer function logic for '&&', '||'
-  void VisitLogicalExpr(BinaryOperator* B, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitLogicalExpr(BinaryOperator* B, ExplodedNode* Pred,
+                        ExplodedNodeSet& Dst);
 
   /// VisitMemberExpr - Transfer function for member expressions.
-  void VisitMemberExpr(MemberExpr* M, ExplodedNode* Pred, ExplodedNodeSet& Dst,bool asLValue);
+  void VisitMemberExpr(MemberExpr* M, ExplodedNode* Pred, ExplodedNodeSet& Dst,
+                       bool asLValue);
 
   /// VisitObjCIvarRefExpr - Transfer function logic for ObjCIvarRefExprs.
-  void VisitObjCIvarRefExpr(ObjCIvarRefExpr* DR, ExplodedNode* Pred, ExplodedNodeSet& Dst,
-                            bool asLValue);
+  void VisitObjCIvarRefExpr(ObjCIvarRefExpr* DR, ExplodedNode* Pred,
+                            ExplodedNodeSet& Dst, bool asLValue);
 
   /// VisitObjCForCollectionStmt - Transfer function logic for
   ///  ObjCForCollectionStmt.

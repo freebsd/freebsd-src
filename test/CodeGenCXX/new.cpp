@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -emit-llvm -o - | FileCheck %s
+// RUN: clang-cc -triple x86_64-unknown-unknown %s -emit-llvm -o - | FileCheck %s
 #include <stddef.h>
 
 void t1() {
@@ -72,3 +72,21 @@ void t8(int n) {
   new U[10];
   new U[n];
 }
+
+void t9() {
+  bool b;
+
+  new bool(true);  
+  new (&b) bool(true);
+}
+
+struct A {
+  void* operator new(__typeof(sizeof(int)), int, float, ...);
+  A();
+};
+
+A* t10() {
+   // CHECK: @_ZN1AnwEmifz
+  return new(1, 2, 3.45, 100) A;
+}
+

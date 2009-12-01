@@ -24,8 +24,6 @@
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Compiler.h"
-#include <algorithm> // for std::equal
 #include <map>
 #include <set>
 
@@ -41,7 +39,7 @@ namespace {
   /// contains any ill-formed subexpressions. For example, this will
   /// diagnose the use of local variables or parameters within the
   /// default argument expression.
-  class VISIBILITY_HIDDEN CheckDefaultArgumentVisitor
+  class CheckDefaultArgumentVisitor
     : public StmtVisitor<CheckDefaultArgumentVisitor, bool> {
     Expr *DefaultArg;
     Sema *S;
@@ -354,9 +352,8 @@ bool Sema::MergeCXXFunctionDecl(FunctionDecl *New, FunctionDecl *Old) {
 
   if (CheckEquivalentExceptionSpec(
           Old->getType()->getAs<FunctionProtoType>(), Old->getLocation(),
-          New->getType()->getAs<FunctionProtoType>(), New->getLocation())) {
+          New->getType()->getAs<FunctionProtoType>(), New->getLocation()))
     Invalid = true;
-  }
 
   return Invalid;
 }
@@ -489,6 +486,13 @@ Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
     Class->setEmpty(false);
   if (CXXBaseDecl->isPolymorphic())
     Class->setPolymorphic(true);
+  // C++0x CWG Issue #817 indicates that [[final]] classes shouldn't be bases.
+  if (CXXBaseDecl->hasAttr<FinalAttr>()) {
+    Diag(BaseLoc, diag::err_final_base) << BaseType.getAsString();
+    Diag(CXXBaseDecl->getLocation(), diag::note_previous_class_decl)
+      << BaseType.getAsString();
+    return 0;
+  }
 
   // C++ [dcl.init.aggr]p1:
   //   An aggregate is [...] a class with [...] no base classes [...].
@@ -783,7 +787,8 @@ std::string Sema::getAmbiguousPathsDisplayString(CXXBasePaths &Paths) {
 Sema::DeclPtrTy
 Sema::ActOnCXXMemberDeclarator(Scope *S, AccessSpecifier AS, Declarator &D,
                                MultiTemplateParamsArg TemplateParameterLists,
-                               ExprTy *BW, ExprTy *InitExpr, bool Deleted) {
+                               ExprTy *BW, ExprTy *InitExpr, bool IsDefinition,
+                               bool Deleted) {
   const DeclSpec &DS = D.getDeclSpec();
   DeclarationName Name = GetNameForDeclarator(D);
   Expr *BitWidth = static_cast<Expr*>(BW);
@@ -865,7 +870,7 @@ Sema::ActOnCXXMemberDeclarator(Scope *S, AccessSpecifier AS, Declarator &D,
                          AS);
     assert(Member && "HandleField never returns null");
   } else {
-    Member = HandleDeclarator(S, D, move(TemplateParameterLists), false)
+    Member = HandleDeclarator(S, D, move(TemplateParameterLists), IsDefinition)
                .getAs<Decl>();
     if (!Member) {
       if (BitWidth) DeleteExpr(BitWidth);
@@ -1708,7 +1713,7 @@ void Sema::ActOnDefaultCtorInitializers(DeclPtrTy CDtorDecl) {
 namespace {
   /// PureVirtualMethodCollector - traverses a class and its superclasses
   /// and determines if it has any pure virtual methods.
-  class VISIBILITY_HIDDEN PureVirtualMethodCollector {
+  class PureVirtualMethodCollector {
     ASTContext &Context;
 
   public:
@@ -1855,7 +1860,7 @@ bool Sema::RequireNonAbstractType(SourceLocation Loc, QualType T,
 }
 
 namespace {
-  class VISIBILITY_HIDDEN AbstractClassUsageDiagnoser
+  class AbstractClassUsageDiagnoser
     : public DeclVisitor<AbstractClassUsageDiagnoser, bool> {
     Sema &SemaRef;
     CXXRecordDecl *AbstractClass;
@@ -2164,6 +2169,8 @@ void Sema::AddImplicitlyDeclaredMembersToClass(CXXRecordDecl *ClassDecl) {
     Destructor->setImplicit();
     Destructor->setTrivial(ClassDecl->hasTrivialDestructor());
     ClassDecl->addDecl(Destructor);
+    
+    AddOverriddenMethods(ClassDecl, Destructor);
   }
 }
 
@@ -2360,9 +2367,9 @@ void Sema::CheckConstructor(CXXConstructorDecl *Constructor) {
   ClassDecl->addedConstructor(Context, Constructor);
 }
 
-/// CheckDestructor - Checks a fully-formed destructor for
-/// well-formedness, issuing any diagnostics required. 
-void Sema::CheckDestructor(CXXDestructorDecl *Destructor) {
+/// CheckDestructor - Checks a fully-formed destructor for well-formedness, 
+/// issuing any diagnostics required. Returns true on error.
+bool Sema::CheckDestructor(CXXDestructorDecl *Destructor) {
   CXXRecordDecl *RD = Destructor->getParent();
   
   if (Destructor->isVirtual()) {
@@ -2377,9 +2384,13 @@ void Sema::CheckDestructor(CXXDestructorDecl *Destructor) {
     FunctionDecl *OperatorDelete = 0;
     DeclarationName Name = 
     Context.DeclarationNames.getCXXOperatorName(OO_Delete);
-    if (!FindDeallocationFunction(Loc, RD, Name, OperatorDelete))
-      Destructor->setOperatorDelete(OperatorDelete);
+    if (FindDeallocationFunction(Loc, RD, Name, OperatorDelete))
+      return true;
+    
+    Destructor->setOperatorDelete(OperatorDelete);
   }
+  
+  return false;
 }
 
 static inline bool
@@ -2594,16 +2605,8 @@ Sema::DeclPtrTy Sema::ActOnConversionDeclarator(CXXConversionDecl *Conversion) {
     if (FunctionTemplateDecl *ConversionTemplate
           = Conversion->getDescribedFunctionTemplate())
       ExpectedPrevDecl = ConversionTemplate->getPreviousDeclaration();
-    OverloadedFunctionDecl *Conversions = ClassDecl->getConversionFunctions();
-    for (OverloadedFunctionDecl::function_iterator
-           Conv = Conversions->function_begin(),
-           ConvEnd = Conversions->function_end();
-         Conv != ConvEnd; ++Conv) {
-      if (*Conv == ExpectedPrevDecl) {
-        *Conv = Conversion;
-        return DeclPtrTy::make(Conversion);
-      }
-    }
+    if (ClassDecl->replaceConversion(ExpectedPrevDecl, Conversion))
+      return DeclPtrTy::make(Conversion);
     assert(Conversion->isInvalidDecl() && "Conversion should not get here.");
   } else if (FunctionTemplateDecl *ConversionTemplate
                = Conversion->getDescribedFunctionTemplate())
@@ -2723,6 +2726,14 @@ Sema::DeclPtrTy Sema::ActOnStartNamespaceDef(Scope *NamespcScope,
   return DeclPtrTy::make(Namespc);
 }
 
+/// getNamespaceDecl - Returns the namespace a decl represents. If the decl
+/// is a namespace alias, returns the namespace it points to.
+static inline NamespaceDecl *getNamespaceDecl(NamedDecl *D) {
+  if (NamespaceAliasDecl *AD = dyn_cast_or_null<NamespaceAliasDecl>(D))
+    return AD->getNamespace();
+  return dyn_cast_or_null<NamespaceDecl>(D);
+}
+
 /// ActOnFinishNamespaceDef - This callback is called after a namespace is
 /// exited. Decl is the DeclTy returned by ActOnStartNamespaceDef.
 void Sema::ActOnFinishNamespaceDef(DeclPtrTy D, SourceLocation RBrace) {
@@ -2754,9 +2765,9 @@ Sema::DeclPtrTy Sema::ActOnUsingDirective(Scope *S,
     return DeclPtrTy();
 
   if (!R.empty()) {
-    NamedDecl *NS = R.getFoundDecl();
-    // FIXME: Namespace aliases!
-    assert(isa<NamespaceDecl>(NS) && "expected namespace decl");
+    NamedDecl *Named = R.getFoundDecl();
+    assert((isa<NamespaceDecl>(Named) || isa<NamespaceAliasDecl>(Named))
+        && "expected namespace decl");
     // C++ [namespace.udir]p1:
     //   A using-directive specifies that the names in the nominated
     //   namespace can be used in the scope in which the
@@ -2769,18 +2780,15 @@ Sema::DeclPtrTy Sema::ActOnUsingDirective(Scope *S,
 
     // Find enclosing context containing both using-directive and
     // nominated namespace.
+    NamespaceDecl *NS = getNamespaceDecl(Named);
     DeclContext *CommonAncestor = cast<DeclContext>(NS);
     while (CommonAncestor && !CommonAncestor->Encloses(CurContext))
       CommonAncestor = CommonAncestor->getParent();
 
-    UDir = UsingDirectiveDecl::Create(Context,
-                                      CurContext, UsingLoc,
-                                      NamespcLoc,
+    UDir = UsingDirectiveDecl::Create(Context, CurContext, UsingLoc, NamespcLoc,
                                       SS.getRange(),
                                       (NestedNameSpecifier *)SS.getScopeRep(),
-                                      IdentLoc,
-                                      cast<NamespaceDecl>(NS),
-                                      CommonAncestor);
+                                      IdentLoc, Named, CommonAncestor);
     PushUsingDirective(S, UDir);
   } else {
     Diag(IdentLoc, diag::err_expected_namespace_name) << SS.getRange();
@@ -2817,6 +2825,7 @@ Sema::DeclPtrTy Sema::ActOnUsingDeclaration(Scope *S,
   switch (Name.getKind()) {
   case UnqualifiedId::IK_Identifier:
   case UnqualifiedId::IK_OperatorFunctionId:
+  case UnqualifiedId::IK_LiteralOperatorId:
   case UnqualifiedId::IK_ConversionFunctionId:
     break;
       
@@ -3007,14 +3016,6 @@ NamedDecl *Sema::BuildUsingDeclaration(Scope *S, AccessSpecifier AS,
   return UD;
 }
 
-/// getNamespaceDecl - Returns the namespace a decl represents. If the decl
-/// is a namespace alias, returns the namespace it points to.
-static inline NamespaceDecl *getNamespaceDecl(NamedDecl *D) {
-  if (NamespaceAliasDecl *AD = dyn_cast_or_null<NamespaceAliasDecl>(D))
-    return AD->getNamespace();
-  return dyn_cast_or_null<NamespaceDecl>(D);
-}
-
 Sema::DeclPtrTy Sema::ActOnNamespaceAliasDef(Scope *S,
                                              SourceLocation NamespaceLoc,
                                              SourceLocation AliasLoc,
@@ -3074,8 +3075,8 @@ void Sema::DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
   assert(ClassDecl && "DefineImplicitDefaultConstructor - invalid constructor");
 
   if (SetBaseOrMemberInitializers(Constructor, 0, 0, true)) {
-    Diag(CurrentLocation, diag::note_ctor_synthesized_at)
-      << Context.getTagDeclType(ClassDecl);
+    Diag(CurrentLocation, diag::note_member_synthesized_at) 
+      << CXXDefaultConstructor << Context.getTagDeclType(ClassDecl);
     Constructor->setInvalidDecl();
   } else {
     Constructor->setUsed();
@@ -3127,6 +3128,17 @@ void Sema::DefineImplicitDestructor(SourceLocation CurrentLocation,
       }
     }
   }
+  
+  // FIXME: If CheckDestructor fails, we should emit a note about where the
+  // implicit destructor was needed.
+  if (CheckDestructor(Destructor)) {
+    Diag(CurrentLocation, diag::note_member_synthesized_at) 
+      << CXXDestructor << Context.getTagDeclType(ClassDecl);
+
+    Destructor->setInvalidDecl();
+    return;
+  }
+
   Destructor->setUsed();
 }
 
@@ -3292,6 +3304,7 @@ Sema::BuildCXXConstructExpr(SourceLocation ConstructLoc, QualType DeclInitType,
   unsigned NumExprs = ExprArgs.size();
   Expr **Exprs = (Expr **)ExprArgs.release();
 
+  MarkDeclarationReferenced(ConstructLoc, Constructor);
   return Owned(CXXConstructExpr::Create(Context, DeclInitType, Constructor,
                                         Elidable, Exprs, NumExprs));
 }
@@ -3305,6 +3318,7 @@ Sema::BuildCXXTemporaryObjectExpr(CXXConstructorDecl *Constructor,
   unsigned NumExprs = Args.size();
   Expr **Exprs = (Expr **)Args.release();
 
+  MarkDeclarationReferenced(TyBeginLoc, Constructor);
   return Owned(new (Context) CXXTemporaryObjectExpr(Context, Constructor, Ty, 
                                                     TyBeginLoc, Exprs,
                                                     NumExprs, RParenLoc));
@@ -3490,7 +3504,8 @@ static void AddConstructorInitializationCandidates(Sema &SemaRef,
          Constructor->isConvertingConstructor(/*AllowExplicit=*/false)) ||
         (Kind == Sema::IK_Default && Constructor->isDefaultConstructor())) {
       if (ConstructorTmpl)
-        SemaRef.AddTemplateOverloadCandidate(ConstructorTmpl, false, 0, 0,
+        SemaRef.AddTemplateOverloadCandidate(ConstructorTmpl,
+                                             /*ExplicitArgs*/ 0,
                                              Args, NumArgs, CandidateSet);
       else
         SemaRef.AddOverloadCandidate(Constructor, Args, NumArgs, CandidateSet);
@@ -3612,10 +3627,13 @@ Sema::PerformInitializationByConstructor(QualType ClassType,
       Diag(Loc, diag::err_ovl_deleted_init)
         << Best->Function->isDeleted()
         << InitEntity << Range;
-    else
+    else {
+      const CXXRecordDecl *RD =
+          cast<CXXRecordDecl>(ClassType->getAs<RecordType>()->getDecl());
       Diag(Loc, diag::err_ovl_deleted_init)
         << Best->Function->isDeleted()
-        << InitEntity << Range;
+        << RD->getDeclName() << Range;
+    }
     PrintOverloadCandidates(CandidateSet, /*OnlyViable=*/true);
     return 0;
   }
@@ -3646,58 +3664,22 @@ Sema::CompleteConstructorCall(CXXConstructorDecl *Constructor,
     = Constructor->getType()->getAs<FunctionProtoType>();
   assert(Proto && "Constructor without a prototype?");
   unsigned NumArgsInProto = Proto->getNumArgs();
-  unsigned NumArgsToCheck = NumArgs;
   
   // If too few arguments are available, we'll fill in the rest with defaults.
-  if (NumArgs < NumArgsInProto) {
-    NumArgsToCheck = NumArgsInProto;
+  if (NumArgs < NumArgsInProto)
     ConvertedArgs.reserve(NumArgsInProto);
-  } else {
+  else
     ConvertedArgs.reserve(NumArgs);
-    if (NumArgs > NumArgsInProto)
-      NumArgsToCheck = NumArgsInProto;
-  }
-  
-  // Convert arguments
-  for (unsigned i = 0; i != NumArgsToCheck; i++) {
-    QualType ProtoArgType = Proto->getArgType(i);
-    
-    Expr *Arg;
-    if (i < NumArgs) {
-      Arg = Args[i];
-      
-      // Pass the argument.
-      if (PerformCopyInitialization(Arg, ProtoArgType, "passing"))
-        return true;
-      
-      Args[i] = 0;
-    } else {
-      ParmVarDecl *Param = Constructor->getParamDecl(i);
-      
-      OwningExprResult DefArg = BuildCXXDefaultArgExpr(Loc, Constructor, Param);
-      if (DefArg.isInvalid())
-        return true;
-      
-      Arg = DefArg.takeAs<Expr>();
-    }
-    
-    ConvertedArgs.push_back(Arg);
-  }
-  
-  // If this is a variadic call, handle args passed through "...".
-  if (Proto->isVariadic()) {
-    // Promote the arguments (C99 6.5.2.2p7).
-    for (unsigned i = NumArgsInProto; i != NumArgs; i++) {
-      Expr *Arg = Args[i];
-      if (DefaultVariadicArgumentPromotion(Arg, VariadicConstructor))
-        return true;
-      
-      ConvertedArgs.push_back(Arg);
-      Args[i] = 0;
-    }
-  }
-  
-  return false;
+
+  VariadicCallType CallType = 
+    Proto->isVariadic() ? VariadicConstructor : VariadicDoesNotApply;
+  llvm::SmallVector<Expr *, 8> AllArgs;
+  bool Invalid = GatherArgumentsForCall(Loc, Constructor,
+                                        Proto, 0, Args, NumArgs, AllArgs, 
+                                        CallType);
+  for (unsigned i =0, size = AllArgs.size(); i < size; i++)
+    ConvertedArgs.push_back(AllArgs[i]);
+  return Invalid;
 }
 
 /// CompareReferenceRelationship - Compare the two types T1 and T2 to
@@ -3888,18 +3870,17 @@ Sema::CheckReferenceInit(Expr *&Init, QualType DeclType,
       = dyn_cast<CXXRecordDecl>(T2->getAs<RecordType>()->getDecl());
 
     OverloadCandidateSet CandidateSet;
-    OverloadedFunctionDecl *Conversions
+    const UnresolvedSet *Conversions
       = T2RecordDecl->getVisibleConversionFunctions();
-    for (OverloadedFunctionDecl::function_iterator Func
-           = Conversions->function_begin();
-         Func != Conversions->function_end(); ++Func) {
+    for (UnresolvedSet::iterator I = Conversions->begin(),
+           E = Conversions->end(); I != E; ++I) {
       FunctionTemplateDecl *ConvTemplate
-        = dyn_cast<FunctionTemplateDecl>(*Func);
+        = dyn_cast<FunctionTemplateDecl>(*I);
       CXXConversionDecl *Conv;
       if (ConvTemplate)
         Conv = cast<CXXConversionDecl>(ConvTemplate->getTemplatedDecl());
       else
-        Conv = cast<CXXConversionDecl>(*Func);
+        Conv = cast<CXXConversionDecl>(*I);
       
       // If the conversion function doesn't return a reference type,
       // it can't be considered for this conversion.
@@ -4896,6 +4877,19 @@ bool Sema::CheckOverridingFunctionReturnType(const CXXMethodDecl *New,
   return false;
 }
 
+bool Sema::CheckOverridingFunctionAttributes(const CXXMethodDecl *New,
+                                             const CXXMethodDecl *Old)
+{
+  if (Old->hasAttr<FinalAttr>()) {
+    Diag(New->getLocation(), diag::err_final_function_overridden)
+      << New->getDeclName();
+    Diag(Old->getLocation(), diag::note_overridden_virtual_function);
+    return true;
+  }
+
+  return false;
+}
+
 /// ActOnCXXEnterDeclInitializer - Invoked when we are about to parse an
 /// initializer for the declaration 'Dcl'.
 /// After this method is called, according to [C++ 3.4.1p13], if 'Dcl' is a
@@ -4941,4 +4935,40 @@ void Sema::ActOnCXXExitDeclInitializer(Scope *S, DeclPtrTy Dcl) {
 
   assert(S->getEntity() == D->getDeclContext() && "Context imbalance!");
   ExitDeclaratorContext(S);
+}
+
+/// ActOnCXXConditionDeclarationExpr - Parsed a condition declaration of a
+/// C++ if/switch/while/for statement.
+/// e.g: "if (int x = f()) {...}"
+Action::DeclResult
+Sema::ActOnCXXConditionDeclaration(Scope *S, Declarator &D) {
+  // C++ 6.4p2:
+  // The declarator shall not specify a function or an array.
+  // The type-specifier-seq shall not contain typedef and shall not declare a
+  // new class or enumeration.
+  assert(D.getDeclSpec().getStorageClassSpec() != DeclSpec::SCS_typedef &&
+         "Parser allowed 'typedef' as storage class of condition decl.");
+  
+  DeclaratorInfo *DInfo = 0;
+  TagDecl *OwnedTag = 0;
+  QualType Ty = GetTypeForDeclarator(D, S, &DInfo, &OwnedTag);
+  
+  if (Ty->isFunctionType()) { // The declarator shall not specify a function...
+                              // We exit without creating a CXXConditionDeclExpr because a FunctionDecl
+                              // would be created and CXXConditionDeclExpr wants a VarDecl.
+    Diag(D.getIdentifierLoc(), diag::err_invalid_use_of_function_type)
+      << D.getSourceRange();
+    return DeclResult();
+  } else if (OwnedTag && OwnedTag->isDefinition()) {
+    // The type-specifier-seq shall not declare a new class or enumeration.
+    Diag(OwnedTag->getLocation(), diag::err_type_defined_in_condition);
+  }
+  
+  DeclPtrTy Dcl = ActOnDeclarator(S, D);
+  if (!Dcl)
+    return DeclResult();
+
+  VarDecl *VD = cast<VarDecl>(Dcl.getAs<Decl>());
+  VD->setDeclaredInCondition(true);
+  return Dcl;
 }

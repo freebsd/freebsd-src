@@ -30,8 +30,7 @@ class TargetOptions;
 void InitializeAnalyzerOptions(AnalyzerOptions &Opts);
 
 void InitializeCodeGenOptions(CodeGenOptions &Opts,
-                              const LangOptions &Lang,
-                              bool TimePasses);
+                              const LangOptions &Lang);
 
 void InitializeDependencyOutputOptions(DependencyOutputOptions &Opts);
 
@@ -42,9 +41,7 @@ void InitializeFrontendOptions(FrontendOptions &Opts);
 void InitializeHeaderSearchOptions(HeaderSearchOptions &Opts,
                                    llvm::StringRef BuiltinIncludePath);
 
-void InitializeLangOptions(LangOptions &Options,
-                           FrontendOptions::InputKind LK,
-                           TargetInfo &Target);
+void InitializeLangOptions(LangOptions &Options, FrontendOptions::InputKind LK);
 
 void InitializePreprocessorOptions(PreprocessorOptions &Opts);
 

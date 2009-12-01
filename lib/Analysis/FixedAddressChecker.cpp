@@ -19,7 +19,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN FixedAddressChecker 
+class FixedAddressChecker 
   : public CheckerVisitor<FixedAddressChecker> {
   BuiltinBug *BT;
 public:
@@ -53,7 +53,7 @@ void FixedAddressChecker::PreVisitBinaryOperator(CheckerContext &C,
   if (!RV.isConstant() || RV.isZeroConstant())
     return;
 
-  if (ExplodedNode *N = C.GenerateNode(B)) {
+  if (ExplodedNode *N = C.GenerateNode()) {
     if (!BT)
       BT = new BuiltinBug("Use fixed address", 
                           "Using a fixed address is not portable because that "

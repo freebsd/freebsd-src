@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "CGCall.h"
+#include "CGCXX.h"
 
 namespace llvm {
   class FunctionType;
@@ -34,6 +35,8 @@ namespace llvm {
 namespace clang {
   class ABIInfo;
   class ASTContext;
+  class CXXConstructorDecl;
+  class CXXDestructorDecl;
   class CXXMethodDecl;
   class FieldDecl;
   class FunctionProtoType;
@@ -61,17 +64,9 @@ namespace CodeGen {
     /// is a member pointer, or a struct that contains a member pointer.
     bool ContainsMemberPointer;
 
-    /// KeyFunction - The key function of the record layout (if one exists),
-    /// which is the first non-pure virtual function that is not inline at the
-    /// point of class definition.
-    /// See http://www.codesourcery.com/public/cxx-abi/abi.html#vague-vtable.
-    const CXXMethodDecl *KeyFunction;
-    
   public:
-    CGRecordLayout(const llvm::Type *T, bool ContainsMemberPointer,
-                   const CXXMethodDecl *KeyFunction)
-      : LLVMType(T), ContainsMemberPointer(ContainsMemberPointer),
-        KeyFunction(KeyFunction) { }
+    CGRecordLayout(const llvm::Type *T, bool ContainsMemberPointer)
+      : LLVMType(T), ContainsMemberPointer(ContainsMemberPointer) { }
 
     /// getLLVMType - Return llvm type associated with this record.
     const llvm::Type *getLLVMType() const {
@@ -80,10 +75,6 @@ namespace CodeGen {
 
     bool containsMemberPointer() const {
       return ContainsMemberPointer;
-    }
-
-    const CXXMethodDecl *getKeyFunction() const {
-      return KeyFunction;
     }
   };
 
@@ -173,6 +164,12 @@ public:
   const llvm::FunctionType *GetFunctionType(const CGFunctionInfo &Info,
                                             bool IsVariadic);
 
+
+  /// GetFunctionTypeForVtable - Get the LLVM function type for use in a vtable,
+  /// given a CXXMethodDecl. If the method to has an incomplete return type, 
+  /// and/or incomplete argument types, this will return the opaque type.
+  const llvm::Type *GetFunctionTypeForVtable(const CXXMethodDecl *MD);
+                                                     
   const CGRecordLayout &getCGRecordLayout(const TagDecl*) const;
 
   /// getLLVMFieldNo - Return llvm::StructType element number
@@ -192,7 +189,11 @@ public:
   const CGFunctionInfo &getFunctionInfo(const FunctionDecl *FD);
   const CGFunctionInfo &getFunctionInfo(const CXXMethodDecl *MD);
   const CGFunctionInfo &getFunctionInfo(const ObjCMethodDecl *MD);
-  
+  const CGFunctionInfo &getFunctionInfo(const CXXConstructorDecl *D,
+                                        CXXCtorType Type);
+  const CGFunctionInfo &getFunctionInfo(const CXXDestructorDecl *D,
+                                        CXXDtorType Type);
+
   // getFunctionInfo - Get the function info for a member function.
   const CGFunctionInfo &getFunctionInfo(const CXXRecordDecl *RD,
                                         const FunctionProtoType *FTP);

@@ -48,6 +48,7 @@ ASTContext::ASTContext(const LangOptions& LOpts, SourceManager &SM,
   BuiltinInfo(builtins), ExternalSource(0), PrintingPolicy(LOpts) {
   ObjCIdRedefinitionType = QualType();
   ObjCClassRedefinitionType = QualType();
+  ObjCSelRedefinitionType = QualType();
   if (size_reserve > 0) Types.reserve(size_reserve);
   TUDecl = TranslationUnitDecl::Create(*this);
   InitBuiltinTypes();
@@ -220,10 +221,12 @@ void ASTContext::InitBuiltinTypes() {
   // "Builtin" typedefs set by Sema::ActOnTranslationUnitScope().
   ObjCIdTypedefType = QualType();
   ObjCClassTypedefType = QualType();
+  ObjCSelTypedefType = QualType();
 
-  // Builtin types for 'id' and 'Class'.
+  // Builtin types for 'id', 'Class', and 'SEL'.
   InitBuiltinType(ObjCBuiltinIdTy, BuiltinType::ObjCId);
   InitBuiltinType(ObjCBuiltinClassTy, BuiltinType::ObjCClass);
+  InitBuiltinType(ObjCBuiltinSelTy, BuiltinType::ObjCSel);
 
   ObjCConstantStringType = QualType();
 
@@ -517,18 +520,23 @@ const llvm::fltSemantics &ASTContext::getFloatTypeSemantics(QualType T) const {
 /// getDeclAlignInBytes - Return a conservative estimate of the alignment of the
 /// specified decl.  Note that bitfields do not have a valid alignment, so
 /// this method will assert on them.
-unsigned ASTContext::getDeclAlignInBytes(const Decl *D) {
+/// If @p RefAsPointee, references are treated like their underlying type
+/// (for alignof), else they're treated like pointers (for CodeGen).
+unsigned ASTContext::getDeclAlignInBytes(const Decl *D, bool RefAsPointee) {
   unsigned Align = Target.getCharWidth();
 
   if (const AlignedAttr* AA = D->getAttr<AlignedAttr>())
-    Align = std::max(Align, AA->getAlignment());
+    Align = std::max(Align, AA->getMaxAlignment());
 
   if (const ValueDecl *VD = dyn_cast<ValueDecl>(D)) {
     QualType T = VD->getType();
     if (const ReferenceType* RT = T->getAs<ReferenceType>()) {
-      unsigned AS = RT->getPointeeType().getAddressSpace();
-      Align = Target.getPointerAlign(AS);
-    } else if (!T->isIncompleteType() && !T->isFunctionType()) {
+      if (RefAsPointee)
+        T = RT->getPointeeType();
+      else
+        T = getPointerType(RT->getPointeeType());
+    }
+    if (!T->isIncompleteType() && !T->isFunctionType()) {
       // Incomplete or function types default to 1.
       while (isa<VariableArrayType>(T) || isa<IncompleteArrayType>(T))
         T = cast<ArrayType>(T)->getElementType();
@@ -687,19 +695,21 @@ ASTContext::getTypeInfo(const Type *T) {
     Align = Target.getPointerAlign(AS);
     break;
   }
+  case Type::LValueReference:
+  case Type::RValueReference: {
+    // alignof and sizeof should never enter this code path here, so we go
+    // the pointer route.
+    unsigned AS = cast<ReferenceType>(T)->getPointeeType().getAddressSpace();
+    Width = Target.getPointerWidth(AS);
+    Align = Target.getPointerAlign(AS);
+    break;
+  }
   case Type::Pointer: {
     unsigned AS = cast<PointerType>(T)->getPointeeType().getAddressSpace();
     Width = Target.getPointerWidth(AS);
     Align = Target.getPointerAlign(AS);
     break;
   }
-  case Type::LValueReference:
-  case Type::RValueReference:
-    // "When applied to a reference or a reference type, the result is the size
-    // of the referenced type." C++98 5.3.3p2: expr.sizeof.
-    // FIXME: This is wrong for struct layout: a reference in a struct has
-    // pointer size.
-    return getTypeInfo(cast<ReferenceType>(T)->getPointeeType());
   case Type::MemberPointer: {
     // FIXME: This is ABI dependent. We use the Itanium C++ ABI.
     // http://www.codesourcery.com/public/cxx-abi/abi.html#member-pointers
@@ -761,7 +771,8 @@ ASTContext::getTypeInfo(const Type *T) {
   case Type::Typedef: {
     const TypedefDecl *Typedef = cast<TypedefType>(T)->getDecl();
     if (const AlignedAttr *Aligned = Typedef->getAttr<AlignedAttr>()) {
-      Align = Aligned->getAlignment();
+      Align = std::max(Aligned->getMaxAlignment(),
+                       getTypeAlign(Typedef->getUnderlyingType().getTypePtr()));
       Width = getTypeSize(Typedef->getUnderlyingType().getTypePtr());
     } else
       return getTypeInfo(Typedef->getUnderlyingType().getTypePtr());
@@ -1460,16 +1471,24 @@ QualType ASTContext::getDependentSizedArrayType(QualType EltTy,
                                                 ArrayType::ArraySizeModifier ASM,
                                                 unsigned EltTypeQuals,
                                                 SourceRange Brackets) {
-  assert((NumElts->isTypeDependent() || NumElts->isValueDependent()) &&
+  assert((!NumElts || NumElts->isTypeDependent() || 
+          NumElts->isValueDependent()) &&
          "Size must be type- or value-dependent!");
 
-  llvm::FoldingSetNodeID ID;
-  DependentSizedArrayType::Profile(ID, *this, getCanonicalType(EltTy), ASM,
-                                   EltTypeQuals, NumElts);
-
   void *InsertPos = 0;
-  DependentSizedArrayType *Canon
-    = DependentSizedArrayTypes.FindNodeOrInsertPos(ID, InsertPos);
+  DependentSizedArrayType *Canon = 0;
+
+  if (NumElts) {
+    // Dependently-sized array types that do not have a specified
+    // number of elements will have their sizes deduced from an
+    // initializer.
+    llvm::FoldingSetNodeID ID;
+    DependentSizedArrayType::Profile(ID, *this, getCanonicalType(EltTy), ASM,
+                                     EltTypeQuals, NumElts);
+
+    Canon = DependentSizedArrayTypes.FindNodeOrInsertPos(ID, InsertPos);
+  }
+
   DependentSizedArrayType *New;
   if (Canon) {
     // We already have a canonical version of this array type; use it as
@@ -1483,7 +1502,9 @@ QualType ASTContext::getDependentSizedArrayType(QualType EltTy,
       New = new (*this, TypeAlignment)
         DependentSizedArrayType(*this, EltTy, QualType(),
                                 NumElts, ASM, EltTypeQuals, Brackets);
-      DependentSizedArrayTypes.InsertNode(New, InsertPos);
+
+      if (NumElts)
+        DependentSizedArrayTypes.InsertNode(New, InsertPos);
     } else {
       QualType Canon = getDependentSizedArrayType(CanonEltTy, NumElts,
                                                   ASM, EltTypeQuals,
@@ -1818,9 +1839,10 @@ QualType ASTContext::getTemplateTypeParmType(unsigned Depth, unsigned Index,
 
 QualType
 ASTContext::getTemplateSpecializationType(TemplateName Template,
-                                          const TemplateArgumentLoc *Args,
-                                          unsigned NumArgs,
+                                          const TemplateArgumentListInfo &Args,
                                           QualType Canon) {
+  unsigned NumArgs = Args.size();
+
   llvm::SmallVector<TemplateArgument, 4> ArgVec;
   ArgVec.reserve(NumArgs);
   for (unsigned i = 0; i != NumArgs; ++i)
@@ -2318,6 +2340,22 @@ CanQualType ASTContext::getCanonicalType(QualType T) {
                                                         VAT->getSizeModifier(),
                                               VAT->getIndexTypeCVRQualifiers(),
                                                      VAT->getBracketsRange()));
+}
+
+DeclarationName ASTContext::getNameForTemplate(TemplateName Name) {
+  if (TemplateDecl *TD = Name.getAsTemplateDecl())
+    return TD->getDeclName();
+  
+  if (DependentTemplateName *DTN = Name.getAsDependentTemplateName()) {
+    if (DTN->isIdentifier()) {
+      return DeclarationNames.getIdentifier(DTN->getIdentifier());
+    } else {
+      return DeclarationNames.getCXXOperatorName(DTN->getOperator());
+    }
+  }
+
+  assert(Name.getAsOverloadedFunctionDecl());
+  return Name.getAsOverloadedFunctionDecl()->getDeclName();
 }
 
 TemplateName ASTContext::getCanonicalTemplateName(TemplateName Name) {
@@ -3374,9 +3412,14 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
                                false);
     return;
   }
-
+  
   if (const PointerType *PT = T->getAs<PointerType>()) {
+    if (PT->isObjCSelType()) {
+      S += ':';
+      return;
+    }
     QualType PointeeTy = PT->getPointeeType();
+    
     bool isReadOnly = false;
     // For historical/compatibility reasons, the read-only qualifier of the
     // pointee gets emitted _before_ the '^'.  The read-only qualifier of
@@ -3406,10 +3449,6 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
         std::string replace = "rn";
         S.replace(S.end()-2, S.end(), replace);
       }
-    }
-    if (isObjCSelType(PointeeTy)) {
-      S += ':';
-      return;
     }
 
     if (PointeeTy->isCharType()) {
@@ -3633,21 +3672,7 @@ void ASTContext::setObjCIdType(QualType T) {
 }
 
 void ASTContext::setObjCSelType(QualType T) {
-  ObjCSelType = T;
-
-  const TypedefType *TT = T->getAs<TypedefType>();
-  if (!TT)
-    return;
-  TypedefDecl *TD = TT->getDecl();
-
-  // typedef struct objc_selector *SEL;
-  const PointerType *ptr = TD->getUnderlyingType()->getAs<PointerType>();
-  if (!ptr)
-    return;
-  const RecordType *rec = ptr->getPointeeType()->getAsStructureType();
-  if (!rec)
-    return;
-  SelStructType = rec;
+  ObjCSelTypedefType = T;
 }
 
 void ASTContext::setObjCProtoType(QualType QT) {

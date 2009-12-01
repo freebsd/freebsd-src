@@ -24,7 +24,6 @@
 #include "llvm/GlobalVariable.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/Module.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Target/TargetData.h"
 #include <cstdarg>
@@ -45,7 +44,7 @@ struct BinOpInfo {
 };
 
 namespace {
-class VISIBILITY_HIDDEN ScalarExprEmitter
+class ScalarExprEmitter
   : public StmtVisitor<ScalarExprEmitter, Value*> {
   CodeGenFunction &CGF;
   CGBuilderTy &Builder;
@@ -141,8 +140,11 @@ public:
 
   // l-values.
   Value *VisitDeclRefExpr(DeclRefExpr *E) {
-    if (const EnumConstantDecl *EC = dyn_cast<EnumConstantDecl>(E->getDecl()))
-      return llvm::ConstantInt::get(VMContext, EC->getInitVal());
+    Expr::EvalResult Result;
+    if (E->Evaluate(Result, CGF.getContext()) && Result.Val.isInt()) {
+      assert(!Result.HasSideEffects && "Constant declref with side-effect?!");
+      return llvm::ConstantInt::get(VMContext, Result.Val.getInt());
+    }
     return EmitLoadOfLValue(E);
   }
   Value *VisitObjCSelectorExpr(ObjCSelectorExpr *E) {
@@ -167,7 +169,7 @@ public:
 
   Value *VisitArraySubscriptExpr(ArraySubscriptExpr *E);
   Value *VisitShuffleVectorExpr(ShuffleVectorExpr *E);
-  Value *VisitMemberExpr(Expr *E)           { return EmitLoadOfLValue(E); }
+  Value *VisitMemberExpr(MemberExpr *E);
   Value *VisitExtVectorElementExpr(Expr *E) { return EmitLoadOfLValue(E); }
   Value *VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
     return EmitLoadOfLValue(E);
@@ -184,14 +186,14 @@ public:
   Value *VisitImplicitValueInitExpr(const ImplicitValueInitExpr *E) {
     return llvm::Constant::getNullValue(ConvertType(E->getType()));
   }
-  Value *VisitCastExpr(const CastExpr *E) {
+  Value *VisitCastExpr(CastExpr *E) {
     // Make sure to evaluate VLA bounds now so that we have them for later.
     if (E->getType()->isVariablyModifiedType())
       CGF.EmitVLASize(E->getType());
 
     return EmitCastExpr(E);
   }
-  Value *EmitCastExpr(const CastExpr *E);
+  Value *EmitCastExpr(CastExpr *E);
 
   Value *VisitCallExpr(const CallExpr *E) {
     if (E->getCallReturnType()->isReferenceType())
@@ -558,6 +560,17 @@ Value *ScalarExprEmitter::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
   Value* SV = llvm::ConstantVector::get(indices.begin(), indices.size());
   return Builder.CreateShuffleVector(V1, V2, SV, "shuffle");
 }
+Value *ScalarExprEmitter::VisitMemberExpr(MemberExpr *E) {
+  Expr::EvalResult Result;
+  if (E->Evaluate(Result, CGF.getContext()) && Result.Val.isInt()) {
+    if (E->isArrow())
+      CGF.EmitScalarExpr(E->getBase());
+    else
+      EmitLValue(E->getBase());
+    return llvm::ConstantInt::get(VMContext, Result.Val.getInt());
+  }
+  return EmitLoadOfLValue(E);
+}
 
 Value *ScalarExprEmitter::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
   TestAndClearIgnoreResultAssign();
@@ -748,23 +761,40 @@ Value *ScalarExprEmitter::VisitInitListExpr(InitListExpr *E) {
   return V;
 }
 
+static bool ShouldNullCheckClassCastValue(const CastExpr *CE) {
+  const Expr *E = CE->getSubExpr();
+  
+  if (isa<CXXThisExpr>(E)) {
+    // We always assume that 'this' is never null.
+    return false;
+  }
+  
+  if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(CE)) {
+    // And that lvalue casts are never null.
+    if (ICE->isLvalueCast())
+      return false;
+  }
+
+  return true;
+}
+
 // VisitCastExpr - Emit code for an explicit or implicit cast.  Implicit casts
 // have to handle a more broad range of conversions than explicit casts, as they
 // handle things like function to ptr-to-function decay etc.
-Value *ScalarExprEmitter::EmitCastExpr(const CastExpr *CE) {
-  const Expr *E = CE->getSubExpr();
+Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
+  Expr *E = CE->getSubExpr();
   QualType DestTy = CE->getType();
   CastExpr::CastKind Kind = CE->getCastKind();
   
   if (!DestTy->isVoidType())
     TestAndClearIgnoreResultAssign();
 
+  // Since almost all cast kinds apply to scalars, this switch doesn't have
+  // a default case, so the compiler will warn on a missing case.  The cases
+  // are in the same order as in the CastKind enum.
   switch (Kind) {
-  default:
-    //return CGF.ErrorUnsupported(E, "type of cast");
-    break;
-
   case CastExpr::CK_Unknown:
+    // FIXME: All casts should have a known kind!
     //assert(0 && "Unknown cast kind!");
     break;
 
@@ -775,6 +805,18 @@ Value *ScalarExprEmitter::EmitCastExpr(const CastExpr *CE) {
   case CastExpr::CK_NoOp:
     return Visit(const_cast<Expr*>(E));
 
+  case CastExpr::CK_BaseToDerived: {
+    const CXXRecordDecl *BaseClassDecl = 
+      E->getType()->getCXXRecordDeclForPointerType();
+    const CXXRecordDecl *DerivedClassDecl = 
+      DestTy->getCXXRecordDeclForPointerType();
+    
+    Value *Src = Visit(const_cast<Expr*>(E));
+    
+    bool NullCheckValue = ShouldNullCheckClassCastValue(CE);
+    return CGF.GetAddressOfDerivedClass(Src, BaseClassDecl, DerivedClassDecl, 
+                                        NullCheckValue);
+  }
   case CastExpr::CK_DerivedToBase: {
     const RecordType *DerivedClassTy = 
       E->getType()->getAs<PointerType>()->getPointeeType()->getAs<RecordType>();
@@ -787,23 +829,19 @@ Value *ScalarExprEmitter::EmitCastExpr(const CastExpr *CE) {
     
     Value *Src = Visit(const_cast<Expr*>(E));
 
-    bool NullCheckValue = true;
-    
-    if (isa<CXXThisExpr>(E)) {
-      // We always assume that 'this' is never null.
-      NullCheckValue = false;
-    } else if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(CE)) {
-      // And that lvalue casts are never null.
-      if (ICE->isLvalueCast())
-        NullCheckValue = false;
-    }
-    return CGF.GetAddressCXXOfBaseClass(Src, DerivedClassDecl, BaseClassDecl,
-                                        NullCheckValue);
+    bool NullCheckValue = ShouldNullCheckClassCastValue(CE);
+    return CGF.GetAddressOfBaseClass(Src, DerivedClassDecl, BaseClassDecl,
+                                     NullCheckValue);
   }
-  case CastExpr::CK_ToUnion: {
+  case CastExpr::CK_Dynamic: {
+    Value *V = Visit(const_cast<Expr*>(E));
+    const CXXDynamicCastExpr *DCE = cast<CXXDynamicCastExpr>(CE);
+    return CGF.EmitDynamicCast(V, DCE);
+  }
+  case CastExpr::CK_ToUnion:
     assert(0 && "Should be unreachable!");
     break;
-  }
+
   case CastExpr::CK_ArrayToPointerDecay: {
     assert(E->getType()->isArrayType() &&
            "Array to pointer decay must have array source type!");
@@ -828,6 +866,35 @@ Value *ScalarExprEmitter::EmitCastExpr(const CastExpr *CE) {
   case CastExpr::CK_NullToMemberPointer:
     return CGF.CGM.EmitNullConstant(DestTy);
 
+  case CastExpr::CK_BaseToDerivedMemberPointer:
+  case CastExpr::CK_DerivedToBaseMemberPointer: {
+    Value *Src = Visit(E);
+
+    // See if we need to adjust the pointer.
+    const CXXRecordDecl *BaseDecl = 
+      cast<CXXRecordDecl>(E->getType()->getAs<MemberPointerType>()->
+                          getClass()->getAs<RecordType>()->getDecl());
+    const CXXRecordDecl *DerivedDecl = 
+      cast<CXXRecordDecl>(CE->getType()->getAs<MemberPointerType>()->
+                          getClass()->getAs<RecordType>()->getDecl());
+    if (CE->getCastKind() == CastExpr::CK_DerivedToBaseMemberPointer)
+      std::swap(DerivedDecl, BaseDecl);
+
+    llvm::Constant *Adj = CGF.CGM.GetCXXBaseClassOffset(DerivedDecl, BaseDecl);
+    if (Adj) {
+      if (CE->getCastKind() == CastExpr::CK_DerivedToBaseMemberPointer)
+        Src = Builder.CreateSub(Src, Adj, "adj");
+      else
+        Src = Builder.CreateAdd(Src, Adj, "adj");
+    }
+    return Src;
+  }
+
+  case CastExpr::CK_UserDefinedConversion:
+  case CastExpr::CK_ConstructorConversion:
+    assert(0 && "Should be unreachable!");
+    break;
+
   case CastExpr::CK_IntegralToPointer: {
     Value *Src = Visit(const_cast<Expr*>(E));
     
@@ -841,23 +908,14 @@ Value *ScalarExprEmitter::EmitCastExpr(const CastExpr *CE) {
     
     return Builder.CreateIntToPtr(IntResult, ConvertType(DestTy));
   }
-
   case CastExpr::CK_PointerToIntegral: {
     Value *Src = Visit(const_cast<Expr*>(E));
     return Builder.CreatePtrToInt(Src, ConvertType(DestTy));
   }
-
   case CastExpr::CK_ToVoid: {
     CGF.EmitAnyExpr(E, 0, false, true);
     return 0;
   }
-
-  case CastExpr::CK_Dynamic: {
-    Value *V = Visit(const_cast<Expr*>(E));
-    const CXXDynamicCastExpr *DCE = cast<CXXDynamicCastExpr>(CE);
-    return CGF.EmitDynamicCast(V, DCE);
-  }
-
   case CastExpr::CK_VectorSplat: {
     const llvm::Type *DstTy = ConvertType(DestTy);
     Value *Elt = Visit(const_cast<Expr*>(E));
@@ -879,7 +937,40 @@ Value *ScalarExprEmitter::EmitCastExpr(const CastExpr *CE) {
     llvm::Value *Yay = Builder.CreateShuffleVector(UnV, UnV, Mask, "splat");
     return Yay;
   }
+  case CastExpr::CK_IntegralCast:
+  case CastExpr::CK_IntegralToFloating:
+  case CastExpr::CK_FloatingToIntegral:
+  case CastExpr::CK_FloatingCast:
+    return EmitScalarConversion(Visit(E), E->getType(), DestTy);
 
+  case CastExpr::CK_MemberPointerToBoolean: {
+    const MemberPointerType* T = E->getType()->getAs<MemberPointerType>();
+    
+    if (T->getPointeeType()->isFunctionType()) {
+      // We have a member function pointer.
+      llvm::Value *Ptr = CGF.CreateTempAlloca(ConvertType(E->getType()));
+      
+      CGF.EmitAggExpr(E, Ptr, /*VolatileDest=*/false);
+      
+      // Get the pointer.
+      llvm::Value *FuncPtr = Builder.CreateStructGEP(Ptr, 0, "src.ptr");
+      FuncPtr = Builder.CreateLoad(FuncPtr);
+      
+      llvm::Value *IsNotNull = 
+        Builder.CreateICmpNE(FuncPtr,
+                             llvm::Constant::getNullValue(FuncPtr->getType()),
+                             "tobool");
+      
+      return IsNotNull;
+    }
+   
+    // We have a regular member pointer.
+    Value *Ptr = Visit(const_cast<Expr*>(E));
+    llvm::Value *IsNotNull = 
+      Builder.CreateICmpNE(Ptr, CGF.CGM.EmitNullConstant(E->getType()),
+                           "tobool");
+    return IsNotNull;
+  }
   }
 
   // Handle cases where the source is an non-complex type.
@@ -924,7 +1015,7 @@ Value *ScalarExprEmitter::VisitBlockDeclRefExpr(const BlockDeclRefExpr *E) {
   llvm::Value *V = CGF.GetAddrOfBlockDecl(E);
   if (E->getType().isObjCGCWeak())
     return CGF.CGM.getObjCRuntime().EmitObjCWeakRead(CGF, V);
-  return Builder.CreateLoad(V, false, "tmp");
+  return Builder.CreateLoad(V, "tmp");
 }
 
 //===----------------------------------------------------------------------===//
@@ -1583,10 +1674,10 @@ Value *ScalarExprEmitter::VisitBinLAnd(const BinaryOperator *E) {
        PI != PE; ++PI)
     PN->addIncoming(llvm::ConstantInt::getFalse(VMContext), *PI);
 
-  CGF.PushConditionalTempDestruction();
+  CGF.StartConditionalBranch();
   CGF.EmitBlock(RHSBlock);
   Value *RHSCond = CGF.EvaluateExprAsBool(E->getRHS());
-  CGF.PopConditionalTempDestruction();
+  CGF.FinishConditionalBranch();
 
   // Reaquire the RHS block, as there may be subblocks inserted.
   RHSBlock = Builder.GetInsertBlock();
@@ -1633,13 +1724,13 @@ Value *ScalarExprEmitter::VisitBinLOr(const BinaryOperator *E) {
        PI != PE; ++PI)
     PN->addIncoming(llvm::ConstantInt::getTrue(VMContext), *PI);
 
-  CGF.PushConditionalTempDestruction();
+  CGF.StartConditionalBranch();
 
   // Emit the RHS condition as a bool value.
   CGF.EmitBlock(RHSBlock);
   Value *RHSCond = CGF.EvaluateExprAsBool(E->getRHS());
 
-  CGF.PopConditionalTempDestruction();
+  CGF.FinishConditionalBranch();
 
   // Reaquire the RHS block, as there may be subblocks inserted.
   RHSBlock = Builder.GetInsertBlock();
@@ -1753,7 +1844,7 @@ VisitConditionalOperator(const ConditionalOperator *E) {
     Builder.CreateCondBr(CondBoolVal, LHSBlock, RHSBlock);
   }
 
-  CGF.PushConditionalTempDestruction();
+  CGF.StartConditionalBranch();
   CGF.EmitBlock(LHSBlock);
 
   // Handle the GNU extension for missing LHS.
@@ -1763,15 +1854,15 @@ VisitConditionalOperator(const ConditionalOperator *E) {
   else    // Perform promotions, to handle cases like "short ?: int"
     LHS = EmitScalarConversion(CondVal, E->getCond()->getType(), E->getType());
 
-  CGF.PopConditionalTempDestruction();
+  CGF.FinishConditionalBranch();
   LHSBlock = Builder.GetInsertBlock();
   CGF.EmitBranch(ContBlock);
 
-  CGF.PushConditionalTempDestruction();
+  CGF.StartConditionalBranch();
   CGF.EmitBlock(RHSBlock);
 
   Value *RHS = Visit(E->getRHS());
-  CGF.PopConditionalTempDestruction();
+  CGF.FinishConditionalBranch();
   RHSBlock = Builder.GetInsertBlock();
   CGF.EmitBranch(ContBlock);
 

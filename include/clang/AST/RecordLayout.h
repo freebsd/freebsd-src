@@ -47,6 +47,59 @@ class ASTRecordLayout {
   // FieldCount - Number of fields.
   unsigned FieldCount;
 
+public:
+  /// PrimaryBaseInfo - Contains info about a primary base.
+  struct PrimaryBaseInfo {
+    PrimaryBaseInfo() {}
+
+    PrimaryBaseInfo(const CXXRecordDecl *Base, bool IsVirtual)
+      : Value(Base, IsVirtual) {}
+
+    /// Value - Points to the primary base. The single-bit value
+    /// will be non-zero when the primary base is virtual.
+    llvm::PointerIntPair<const CXXRecordDecl *, 1, bool> Value;
+    
+    /// getBase - Returns the primary base.
+    const CXXRecordDecl *getBase() const { return Value.getPointer(); }
+  
+    /// isVirtual - Returns whether the primary base is virtual or not.
+    bool isVirtual() const { return Value.getInt(); }
+
+    friend bool operator==(const PrimaryBaseInfo &X, const PrimaryBaseInfo &Y) {
+      return X.Value == Y.Value;
+    }
+  }; 
+  
+  /// primary_base_info_iterator - An iterator for iterating the primary base
+  /// class chain.
+  class primary_base_info_iterator {
+    /// Current - The current base class info.
+    PrimaryBaseInfo Current;
+    
+  public:
+    primary_base_info_iterator() {}
+    primary_base_info_iterator(PrimaryBaseInfo Info) : Current(Info) {}
+
+    const PrimaryBaseInfo &operator*() const { return Current; }
+
+    primary_base_info_iterator& operator++() {
+      const CXXRecordDecl *RD = Current.getBase();
+      Current = RD->getASTContext().getASTRecordLayout(RD).getPrimaryBaseInfo();
+      return *this;
+    }
+
+    friend bool operator==(const primary_base_info_iterator &X,
+                           const primary_base_info_iterator &Y) {
+      return X.Current == Y.Current;
+    }
+    friend bool operator!=(const primary_base_info_iterator &X,
+                           const primary_base_info_iterator &Y) {
+      return !(X == Y);
+    }
+  };
+    
+private:
+  /// CXXRecordLayoutInfo - Contains C++ specific layout information.
   struct CXXRecordLayoutInfo {
     /// NonVirtualSize - The non-virtual size (in bits) of an object, which is
     /// the size of the object without virtual bases.
@@ -56,11 +109,9 @@ class ASTRecordLayout {
     /// which is the alignment of the object without virtual bases.
     uint64_t NonVirtualAlign;
 
-    /// PrimaryBase - The primary base for our vtable.
-    const CXXRecordDecl *PrimaryBase;
-    /// PrimaryBase - Wether or not the primary base was a virtual base.
-    bool PrimaryBaseWasVirtual;
-
+    /// PrimaryBase - The primary base info for this record.
+    PrimaryBaseInfo PrimaryBase;
+    
     /// BaseOffsets - Contains a map from base classes to their offset.
     /// FIXME: This should really use a SmallPtrMap, once we have one in LLVM :)
     llvm::DenseMap<const CXXRecordDecl *, uint64_t> BaseOffsets;
@@ -68,6 +119,13 @@ class ASTRecordLayout {
     /// VBaseOffsets - Contains a map from vbase classes to their offset.
     /// FIXME: This should really use a SmallPtrMap, once we have one in LLVM :)
     llvm::DenseMap<const CXXRecordDecl *, uint64_t> VBaseOffsets;
+    
+    /// KeyFunction - The key function, according to the Itanium C++ ABI,
+    /// section 5.2.3:
+    ///
+    /// ...the first non-pure virtual function that is not inline at the point
+    /// of class definition.
+    const CXXMethodDecl *KeyFunction;
   };
 
   /// CXXInfo - If the record layout is for a C++ record, this will have
@@ -92,11 +150,12 @@ class ASTRecordLayout {
   ASTRecordLayout(uint64_t size, unsigned alignment, uint64_t datasize,
                   const uint64_t *fieldoffsets, unsigned fieldcount,
                   uint64_t nonvirtualsize, unsigned nonvirtualalign,
-                  const CXXRecordDecl *PB, bool PBVirtual,
+                  const PrimaryBaseInfo &PrimaryBase,
                   const std::pair<const CXXRecordDecl *, uint64_t> *bases,
                   unsigned numbases,
                   const std::pair<const CXXRecordDecl *, uint64_t> *vbases,
-                  unsigned numvbases)
+                  unsigned numvbases,
+                  const CXXMethodDecl *KeyFunction)
   : Size(size), DataSize(datasize), FieldOffsets(0), Alignment(alignment),
   FieldCount(fieldcount), CXXInfo(new CXXRecordLayoutInfo) {
     if (FieldCount > 0)  {
@@ -105,14 +164,14 @@ class ASTRecordLayout {
         FieldOffsets[i] = fieldoffsets[i];
     }
 
-    CXXInfo->PrimaryBase = PB;
-    CXXInfo->PrimaryBaseWasVirtual = PBVirtual;
+    CXXInfo->PrimaryBase = PrimaryBase;
     CXXInfo->NonVirtualSize = nonvirtualsize;
     CXXInfo->NonVirtualAlign = nonvirtualalign;
     for (unsigned i = 0; i != numbases; ++i)
       CXXInfo->BaseOffsets[bases[i].first] = bases[i].second;
     for (unsigned i = 0; i != numvbases; ++i)
       CXXInfo->VBaseOffsets[vbases[i].first] = vbases[i].second;
+    CXXInfo->KeyFunction = KeyFunction;
   }
 
   ~ASTRecordLayout() {
@@ -162,17 +221,21 @@ public:
     return CXXInfo->NonVirtualAlign;
   }
 
-  /// getPrimaryBase - Get the primary base.
-  const CXXRecordDecl *getPrimaryBase() const {
+  /// getPrimaryBaseInfo - Get the primary base info.
+  const PrimaryBaseInfo &getPrimaryBaseInfo() const {
     assert(CXXInfo && "Record layout does not have C++ specific info!");
 
     return CXXInfo->PrimaryBase;
   }
-  /// getPrimaryBaseWasVirtual - Indicates if the primary base was virtual.
-  bool getPrimaryBaseWasVirtual() const {
-    assert(CXXInfo && "Record layout does not have C++ specific info!");
 
-    return CXXInfo->PrimaryBaseWasVirtual;
+  // FIXME: Migrate off of this function and use getPrimaryBaseInfo directly.
+  const CXXRecordDecl *getPrimaryBase() const {
+    return getPrimaryBaseInfo().getBase();
+  }
+
+  // FIXME: Migrate off of this function and use getPrimaryBaseInfo directly.
+  bool getPrimaryBaseWasVirtual() const {
+    return getPrimaryBaseInfo().isVirtual();
   }
 
   /// getBaseClassOffset - Get the offset, in bits, for the given base class.
@@ -189,6 +252,25 @@ public:
     assert(CXXInfo->VBaseOffsets.count(VBase) && "Did not find base!");
 
     return CXXInfo->VBaseOffsets[VBase];
+  }
+  
+  /// getKeyFunction - Get the key function.                  
+  const CXXMethodDecl *getKeyFunction() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+
+    return CXXInfo->KeyFunction;
+  }
+  
+  primary_base_info_iterator primary_base_begin() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+  
+    return primary_base_info_iterator(getPrimaryBaseInfo());
+  }
+
+  primary_base_info_iterator primary_base_end() const {
+    assert(CXXInfo && "Record layout does not have C++ specific info!");
+    
+    return primary_base_info_iterator();
   }
 };
 

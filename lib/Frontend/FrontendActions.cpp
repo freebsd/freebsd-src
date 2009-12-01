@@ -170,7 +170,8 @@ ASTConsumer *CodeGenAction::CreateASTConsumer(CompilerInstance &CI,
     OS.reset(CI.createDefaultOutputFile(true, InFile, "bc"));
 
   return CreateBackendConsumer(BA, CI.getDiagnostics(), CI.getLangOpts(),
-                               CI.getCodeGenOpts(), CI.getTargetOpts(), InFile,
+                               CI.getCodeGenOpts(), CI.getTargetOpts(),
+                               CI.getFrontendOpts().ShowTimers, InFile,
                                OS.take(), CI.getLLVMContext());
 }
 
@@ -192,14 +193,15 @@ void DumpRawTokensAction::ExecuteAction() {
   SourceManager &SM = PP.getSourceManager();
 
   // Start lexing the specified input file.
-  Lexer RawLex(SM.getMainFileID(), SM, PP.getLangOptions());
+  const llvm::MemoryBuffer *FromFile = SM.getBuffer(SM.getMainFileID());
+  Lexer RawLex(SM.getMainFileID(), FromFile, SM, PP.getLangOptions());
   RawLex.SetKeepWhitespaceMode(true);
 
   Token RawTok;
   RawLex.LexFromRawLexer(RawTok);
   while (RawTok.isNot(tok::eof)) {
     PP.DumpToken(RawTok, true);
-    fprintf(stderr, "\n");
+    llvm::errs() << "\n";
     RawLex.LexFromRawLexer(RawTok);
   }
 }
@@ -212,7 +214,7 @@ void DumpTokensAction::ExecuteAction() {
   do {
     PP.Lex(Tok);
     PP.DumpToken(Tok, true);
-    fprintf(stderr, "\n");
+    llvm::errs() << "\n";
   } while (Tok.isNot(tok::eof));
 }
 
@@ -222,8 +224,7 @@ void GeneratePTHAction::ExecuteAction() {
       CI.getFrontendOpts().OutputFile == "-") {
     // FIXME: Don't fail this way.
     // FIXME: Verify that we can actually seek in the given file.
-    llvm::errs() << "ERROR: PTH requires an seekable file for output!\n";
-    ::exit(1);
+    llvm::llvm_report_error("PTH requires a seekable file for output!");
   }
   llvm::raw_fd_ostream *OS =
     CI.createDefaultOutputFile(true, getCurrentFile());

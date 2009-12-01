@@ -46,9 +46,9 @@ struct RefState {
   }
 };
 
-class VISIBILITY_HIDDEN RegionState {};
+class RegionState {};
 
-class VISIBILITY_HIDDEN MallocChecker : public CheckerVisitor<MallocChecker> {
+class MallocChecker : public CheckerVisitor<MallocChecker> {
   BuiltinBug *BT_DoubleFree;
   BuiltinBug *BT_Leak;
   IdentifierInfo *II_malloc;
@@ -65,7 +65,7 @@ private:
   void MallocMem(CheckerContext &C, const CallExpr *CE);
   void FreeMem(CheckerContext &C, const CallExpr *CE);
 };
-}
+} // end anonymous namespace
 
 namespace clang {
   template <>
@@ -112,9 +112,7 @@ void MallocChecker::MallocMem(CheckerContext &C, const CallExpr *CE) {
   SymbolRef Sym = CallVal.getAsLocSymbol();
   assert(Sym);
   // Set the symbol's state to Allocated.
-  const GRState *AllocState 
-    = state->set<RegionState>(Sym, RefState::getAllocated(CE));
-  C.addTransition(C.GenerateNode(CE, AllocState));
+  C.addTransition(state->set<RegionState>(Sym, RefState::getAllocated(CE)));
 }
 
 void MallocChecker::FreeMem(CheckerContext &C, const CallExpr *CE) {
@@ -128,7 +126,7 @@ void MallocChecker::FreeMem(CheckerContext &C, const CallExpr *CE) {
 
   // Check double free.
   if (RS->isReleased()) {
-    ExplodedNode *N = C.GenerateNode(CE, true);
+    ExplodedNode *N = C.GenerateSink();
     if (N) {
       if (!BT_DoubleFree)
         BT_DoubleFree = new BuiltinBug("Double free",
@@ -144,7 +142,7 @@ void MallocChecker::FreeMem(CheckerContext &C, const CallExpr *CE) {
   // Normal free.
   const GRState *FreedState 
     = state->set<RegionState>(Sym, RefState::getReleased(CE));
-  C.addTransition(C.GenerateNode(CE, FreedState));
+  C.addTransition(FreedState);
 }
 
 void MallocChecker::EvalDeadSymbols(CheckerContext &C, const Stmt *S,
@@ -158,7 +156,7 @@ void MallocChecker::EvalDeadSymbols(CheckerContext &C, const Stmt *S,
       return;
 
     if (RS->isAllocated()) {
-      ExplodedNode *N = C.GenerateNode(S, true);
+      ExplodedNode *N = C.GenerateSink();
       if (N) {
         if (!BT_Leak)
           BT_Leak = new BuiltinBug("Memory leak",
@@ -173,6 +171,7 @@ void MallocChecker::EvalDeadSymbols(CheckerContext &C, const Stmt *S,
 
 void MallocChecker::EvalEndPath(GREndPathNodeBuilder &B, void *tag,
                                 GRExprEngine &Eng) {
+  SaveAndRestore<bool> OldHasGen(B.HasGeneratedNode);
   const GRState *state = B.getState();
   typedef llvm::ImmutableMap<SymbolRef, RefState> SymMap;
   SymMap M = state->get<RegionState>();
@@ -212,7 +211,5 @@ void MallocChecker::PreVisitReturnStmt(CheckerContext &C, const ReturnStmt *S) {
   if (RS->isAllocated())
     state = state->set<RegionState>(Sym, RefState::getEscaped(S));
 
-  ExplodedNode *N = C.GenerateNode(S, state);
-  if (N)
-    C.addTransition(N);
+  C.addTransition(state);
 }

@@ -21,7 +21,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN PthreadLockChecker
+class PthreadLockChecker
   : public CheckerVisitor<PthreadLockChecker> {
   BugType *BT;
 public:
@@ -42,7 +42,7 @@ public:
 } // end anonymous namespace
 
 // GDM Entry for tracking lock state.
-namespace { class VISIBILITY_HIDDEN LockSet {}; }
+namespace { class LockSet {}; }
 namespace clang {
 template <> struct GRStateTrait<LockSet> :
   public GRStatePartialTrait<llvm::ImmutableSet<const MemRegion*> > {
@@ -59,8 +59,8 @@ void PthreadLockChecker::PostVisitCallExpr(CheckerContext &C,
                                            const CallExpr *CE) {
   const GRState *state = C.getState();
   const Expr *Callee = CE->getCallee();
-  const CodeTextRegion *R =
-    dyn_cast_or_null<CodeTextRegion>(state->getSVal(Callee).getAsRegion());
+  const FunctionTextRegion *R =
+    dyn_cast_or_null<FunctionTextRegion>(state->getSVal(Callee).getAsRegion());
   
   if (!R)
     return;

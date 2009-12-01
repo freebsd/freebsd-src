@@ -177,6 +177,7 @@ unsigned PCHStmtReader::VisitLabelStmt(LabelStmt *S) {
 
 unsigned PCHStmtReader::VisitIfStmt(IfStmt *S) {
   VisitStmt(S);
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setCond(cast<Expr>(StmtStack[StmtStack.size() - 3]));
   S->setThen(StmtStack[StmtStack.size() - 2]);
   S->setElse(StmtStack[StmtStack.size() - 1]);
@@ -187,6 +188,7 @@ unsigned PCHStmtReader::VisitIfStmt(IfStmt *S) {
 
 unsigned PCHStmtReader::VisitSwitchStmt(SwitchStmt *S) {
   VisitStmt(S);
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setCond(cast<Expr>(StmtStack[StmtStack.size() - 2]));
   S->setBody(StmtStack.back());
   S->setSwitchLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -208,6 +210,7 @@ unsigned PCHStmtReader::VisitSwitchStmt(SwitchStmt *S) {
 
 unsigned PCHStmtReader::VisitWhileStmt(WhileStmt *S) {
   VisitStmt(S);
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setCond(cast_or_null<Expr>(StmtStack[StmtStack.size() - 2]));
   S->setBody(StmtStack.back());
   S->setWhileLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -228,6 +231,7 @@ unsigned PCHStmtReader::VisitForStmt(ForStmt *S) {
   VisitStmt(S);
   S->setInit(StmtStack[StmtStack.size() - 4]);
   S->setCond(cast_or_null<Expr>(StmtStack[StmtStack.size() - 3]));
+  S->setConditionVariable(cast_or_null<VarDecl>(Reader.GetDecl(Record[Idx++])));
   S->setInc(cast_or_null<Expr>(StmtStack[StmtStack.size() - 2]));
   S->setBody(StmtStack.back());
   S->setForLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));

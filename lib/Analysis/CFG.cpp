@@ -17,7 +17,6 @@
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "llvm/Support/GraphWriter.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Format.h"
 #include "llvm/ADT/DenseMap.h"
@@ -50,7 +49,7 @@ static SourceLocation GetEndLoc(Decl* D) {
 ///  constructed prior to its predecessor.  This allows us to nicely capture
 ///  implicit fall-throughs without extra basic blocks.
 ///
-class VISIBILITY_HIDDEN CFGBuilder {
+class CFGBuilder {
   ASTContext *Context;
   llvm::OwningPtr<CFG> cfg;
 
@@ -461,9 +460,12 @@ CFGBlock *CFGBuilder::VisitBinaryOperator(BinaryOperator *B, bool alwaysAdd) {
   return VisitStmt(B, alwaysAdd);
 }
 
-CFGBlock *CFGBuilder::VisitBlockExpr(BlockExpr* E, bool alwaysAdd) {
-  // FIXME
-  return NYS();
+CFGBlock *CFGBuilder::VisitBlockExpr(BlockExpr *E, bool alwaysAdd) {
+  if (alwaysAdd) {
+    autoCreateBlock();
+    AppendStmt(Block, E);
+  }
+  return Block;
 }
 
 CFGBlock *CFGBuilder::VisitBlockDeclRefExpr(BlockDeclRefExpr* E,
@@ -1624,7 +1626,7 @@ CFG::~CFG() {
 
 namespace {
 
-class VISIBILITY_HIDDEN StmtPrinterHelper : public PrinterHelper  {
+class StmtPrinterHelper : public PrinterHelper  {
 
   typedef llvm::DenseMap<Stmt*,std::pair<unsigned,unsigned> > StmtMapTy;
   StmtMapTy StmtMap;
@@ -1668,7 +1670,7 @@ public:
 
 
 namespace {
-class VISIBILITY_HIDDEN CFGBlockTerminatorPrint
+class CFGBlockTerminatorPrint
   : public StmtVisitor<CFGBlockTerminatorPrint,void> {
 
   llvm::raw_ostream& OS;
@@ -2047,8 +2049,10 @@ void CFG::viewCFG(const LangOptions &LO) const {
 namespace llvm {
 template<>
 struct DOTGraphTraits<const CFG*> : public DefaultDOTGraphTraits {
-  static std::string getNodeLabel(const CFGBlock* Node, const CFG* Graph,
-                                  bool ShortNames) {
+
+  DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
+
+  static std::string getNodeLabel(const CFGBlock* Node, const CFG* Graph) {
 
 #ifndef NDEBUG
     std::string OutSStr;

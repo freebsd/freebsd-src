@@ -42,9 +42,9 @@ public:
   }
 
   SourceLocation getCatchLoc() const { return CatchLoc; }
-  VarDecl *getExceptionDecl() { return ExceptionDecl; }
-  QualType getCaughtType();
-  Stmt *getHandlerBlock() { return HandlerBlock; }
+  VarDecl *getExceptionDecl() const { return ExceptionDecl; }
+  QualType getCaughtType() const;
+  Stmt *getHandlerBlock() const { return HandlerBlock; }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXCatchStmtClass;

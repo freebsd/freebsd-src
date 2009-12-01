@@ -31,38 +31,104 @@ using namespace clang;
 // Primary Expressions.
 //===----------------------------------------------------------------------===//
 
+void ExplicitTemplateArgumentList::initializeFrom(
+                                      const TemplateArgumentListInfo &Info) {
+  LAngleLoc = Info.getLAngleLoc();
+  RAngleLoc = Info.getRAngleLoc();
+  NumTemplateArgs = Info.size();
+
+  TemplateArgumentLoc *ArgBuffer = getTemplateArgs();
+  for (unsigned i = 0; i != NumTemplateArgs; ++i)
+    new (&ArgBuffer[i]) TemplateArgumentLoc(Info[i]);
+}
+
+void ExplicitTemplateArgumentList::copyInto(
+                                      TemplateArgumentListInfo &Info) const {
+  Info.setLAngleLoc(LAngleLoc);
+  Info.setRAngleLoc(RAngleLoc);
+  for (unsigned I = 0; I != NumTemplateArgs; ++I)
+    Info.addArgument(getTemplateArgs()[I]);
+}
+
+std::size_t ExplicitTemplateArgumentList::sizeFor(
+                                      const TemplateArgumentListInfo &Info) {
+  return sizeof(ExplicitTemplateArgumentList) +
+         sizeof(TemplateArgumentLoc) * Info.size();
+}
+
+void DeclRefExpr::computeDependence() {
+  TypeDependent = false;
+  ValueDependent = false;
+  
+  NamedDecl *D = getDecl();
+
+  // (TD) C++ [temp.dep.expr]p3:
+  //   An id-expression is type-dependent if it contains:
+  //
+  // and 
+  //
+  // (VD) C++ [temp.dep.constexpr]p2:
+  //  An identifier is value-dependent if it is:
+
+  //  (TD)  - an identifier that was declared with dependent type
+  //  (VD)  - a name declared with a dependent type,
+  if (getType()->isDependentType()) {
+    TypeDependent = true;
+    ValueDependent = true;
+  }
+  //  (TD)  - a conversion-function-id that specifies a dependent type
+  else if (D->getDeclName().getNameKind() 
+                               == DeclarationName::CXXConversionFunctionName &&
+           D->getDeclName().getCXXNameType()->isDependentType()) {
+    TypeDependent = true;
+    ValueDependent = true;
+  }
+  //  (TD)  - a template-id that is dependent,
+  else if (hasExplicitTemplateArgumentList() && 
+           TemplateSpecializationType::anyDependentTemplateArguments(
+                                                       getTemplateArgs(), 
+                                                       getNumTemplateArgs())) {
+    TypeDependent = true;
+    ValueDependent = true;
+  }
+  //  (VD)  - the name of a non-type template parameter,
+  else if (isa<NonTypeTemplateParmDecl>(D))
+    ValueDependent = true;
+  //  (VD) - a constant with integral or enumeration type and is
+  //         initialized with an expression that is value-dependent.
+  else if (VarDecl *Var = dyn_cast<VarDecl>(D)) {
+    if (Var->getType()->isIntegralType() &&
+        Var->getType().getCVRQualifiers() == Qualifiers::Const &&
+        Var->getInit() &&
+        Var->getInit()->isValueDependent())
+    ValueDependent = true;
+  }
+  //  (TD)  - a nested-name-specifier or a qualified-id that names a
+  //          member of an unknown specialization.
+  //        (handled by DependentScopeDeclRefExpr)
+}
+
 DeclRefExpr::DeclRefExpr(NestedNameSpecifier *Qualifier, 
                          SourceRange QualifierRange,
                          NamedDecl *D, SourceLocation NameLoc,
-                         bool HasExplicitTemplateArgumentList,
-                         SourceLocation LAngleLoc,
-                         const TemplateArgumentLoc *ExplicitTemplateArgs,
-                         unsigned NumExplicitTemplateArgs,
-                         SourceLocation RAngleLoc,
-                         QualType T, bool TD, bool VD)
-  : Expr(DeclRefExprClass, T, TD, VD),
+                         const TemplateArgumentListInfo *TemplateArgs,
+                         QualType T)
+  : Expr(DeclRefExprClass, T, false, false),
     DecoratedD(D,
                (Qualifier? HasQualifierFlag : 0) |
-               (HasExplicitTemplateArgumentList? 
-                                    HasExplicitTemplateArgumentListFlag : 0)),
+               (TemplateArgs ? HasExplicitTemplateArgumentListFlag : 0)),
     Loc(NameLoc) {
+  assert(!isa<OverloadedFunctionDecl>(D));
   if (Qualifier) {
     NameQualifier *NQ = getNameQualifier();
     NQ->NNS = Qualifier;
     NQ->Range = QualifierRange;
   }
       
-  if (HasExplicitTemplateArgumentList) {
-    ExplicitTemplateArgumentList *ETemplateArgs
-      = getExplicitTemplateArgumentList();
-    ETemplateArgs->LAngleLoc = LAngleLoc;
-    ETemplateArgs->RAngleLoc = RAngleLoc;
-    ETemplateArgs->NumTemplateArgs = NumExplicitTemplateArgs;
-    
-    TemplateArgumentLoc *TemplateArgs = ETemplateArgs->getTemplateArgs();
-    for (unsigned I = 0; I < NumExplicitTemplateArgs; ++I)
-      new (TemplateArgs + I) TemplateArgumentLoc(ExplicitTemplateArgs[I]);
-  }
+  if (TemplateArgs)
+    getExplicitTemplateArgumentList()->initializeFrom(*TemplateArgs);
+
+  computeDependence();
 }
 
 DeclRefExpr *DeclRefExpr::Create(ASTContext &Context,
@@ -70,39 +136,18 @@ DeclRefExpr *DeclRefExpr::Create(ASTContext &Context,
                                  SourceRange QualifierRange,
                                  NamedDecl *D,
                                  SourceLocation NameLoc,
-                                 QualType T, bool TD, bool VD) {
-  return Create(Context, Qualifier, QualifierRange, D, NameLoc,
-                false, SourceLocation(), 0, 0, SourceLocation(),
-                T, TD, VD);
-}
-
-DeclRefExpr *DeclRefExpr::Create(ASTContext &Context,
-                                 NestedNameSpecifier *Qualifier,
-                                 SourceRange QualifierRange,
-                                 NamedDecl *D,
-                                 SourceLocation NameLoc,
-                                 bool HasExplicitTemplateArgumentList,
-                                 SourceLocation LAngleLoc,
-                                 const TemplateArgumentLoc *ExplicitTemplateArgs,
-                                 unsigned NumExplicitTemplateArgs,
-                                 SourceLocation RAngleLoc,
-                                 QualType T, bool TD, bool VD) {
+                                 QualType T,
+                                 const TemplateArgumentListInfo *TemplateArgs) {
   std::size_t Size = sizeof(DeclRefExpr);
   if (Qualifier != 0)
     Size += sizeof(NameQualifier);
   
-  if (HasExplicitTemplateArgumentList)
-    Size += sizeof(ExplicitTemplateArgumentList) +
-            sizeof(TemplateArgumentLoc) * NumExplicitTemplateArgs;
+  if (TemplateArgs)
+    Size += ExplicitTemplateArgumentList::sizeFor(*TemplateArgs);
   
   void *Mem = Context.Allocate(Size, llvm::alignof<DeclRefExpr>());
   return new (Mem) DeclRefExpr(Qualifier, QualifierRange, D, NameLoc,
-                               HasExplicitTemplateArgumentList,
-                               LAngleLoc, 
-                               ExplicitTemplateArgs, 
-                               NumExplicitTemplateArgs,
-                               RAngleLoc,
-                               T, TD, VD);
+                               TemplateArgs, T);
 }
 
 SourceRange DeclRefExpr::getSourceRange() const {
@@ -427,15 +472,13 @@ QualType CallExpr::getCallReturnType() const {
 
 MemberExpr::MemberExpr(Expr *base, bool isarrow, NestedNameSpecifier *qual,
                        SourceRange qualrange, NamedDecl *memberdecl,
-                       SourceLocation l, bool has_explicit,
-                       SourceLocation langle,
-                       const TemplateArgumentLoc *targs, unsigned numtargs,
-                       SourceLocation rangle, QualType ty)
+                       SourceLocation l, const TemplateArgumentListInfo *targs,
+                       QualType ty)
   : Expr(MemberExprClass, ty,
          base->isTypeDependent() || (qual && qual->isDependent()),
          base->isValueDependent() || (qual && qual->isDependent())),
     Base(base), MemberDecl(memberdecl), MemberLoc(l), IsArrow(isarrow),
-    HasQualifier(qual != 0), HasExplicitTemplateArgumentList(has_explicit) {
+    HasQualifier(qual != 0), HasExplicitTemplateArgumentList(targs) {
   // Initialize the qualifier, if any.
   if (HasQualifier) {
     NameQualifier *NQ = getMemberQualifier();
@@ -444,17 +487,8 @@ MemberExpr::MemberExpr(Expr *base, bool isarrow, NestedNameSpecifier *qual,
   }
 
   // Initialize the explicit template argument list, if any.
-  if (HasExplicitTemplateArgumentList) {
-    ExplicitTemplateArgumentList *ETemplateArgs
-      = getExplicitTemplateArgumentList();
-    ETemplateArgs->LAngleLoc = langle;
-    ETemplateArgs->RAngleLoc = rangle;
-    ETemplateArgs->NumTemplateArgs = numtargs;
-
-    TemplateArgumentLoc *TemplateArgs = ETemplateArgs->getTemplateArgs();
-    for (unsigned I = 0; I < numtargs; ++I)
-      new (TemplateArgs + I) TemplateArgumentLoc(targs[I]);
-  }
+  if (targs)
+    getExplicitTemplateArgumentList()->initializeFrom(*targs);
 }
 
 MemberExpr *MemberExpr::Create(ASTContext &C, Expr *base, bool isarrow,
@@ -462,24 +496,18 @@ MemberExpr *MemberExpr::Create(ASTContext &C, Expr *base, bool isarrow,
                                SourceRange qualrange,
                                NamedDecl *memberdecl,
                                SourceLocation l,
-                               bool has_explicit,
-                               SourceLocation langle,
-                               const TemplateArgumentLoc *targs,
-                               unsigned numtargs,
-                               SourceLocation rangle,
+                               const TemplateArgumentListInfo *targs,
                                QualType ty) {
   std::size_t Size = sizeof(MemberExpr);
   if (qual != 0)
     Size += sizeof(NameQualifier);
 
-  if (has_explicit)
-    Size += sizeof(ExplicitTemplateArgumentList) +
-    sizeof(TemplateArgumentLoc) * numtargs;
+  if (targs)
+    Size += ExplicitTemplateArgumentList::sizeFor(*targs);
 
   void *Mem = C.Allocate(Size, llvm::alignof<MemberExpr>());
   return new (Mem) MemberExpr(base, isarrow, qual, qualrange, memberdecl, l,
-                              has_explicit, langle, targs, numtargs, rangle,
-                              ty);
+                              targs, ty);
 }
 
 const char *CastExpr::getCastKindName() const {
@@ -528,6 +556,8 @@ const char *CastExpr::getCastKindName() const {
     return "FloatingToIntegral";
   case CastExpr::CK_FloatingCast:
     return "FloatingCast";
+  case CastExpr::CK_MemberPointerToBoolean:
+    return "MemberPointerToBoolean";
   }
 
   assert(0 && "Unhandled cast kind!");
@@ -640,12 +670,17 @@ OverloadedOperatorKind BinaryOperator::getOverloadedOperator(Opcode Opc) {
 InitListExpr::InitListExpr(SourceLocation lbraceloc,
                            Expr **initExprs, unsigned numInits,
                            SourceLocation rbraceloc)
-  : Expr(InitListExprClass, QualType(),
-         hasAnyTypeDependentArguments(initExprs, numInits),
-         hasAnyValueDependentArguments(initExprs, numInits)),
+  : Expr(InitListExprClass, QualType(), false, false),
     LBraceLoc(lbraceloc), RBraceLoc(rbraceloc), SyntacticForm(0),
-    UnionFieldInit(0), HadArrayRangeDesignator(false) {
-
+    UnionFieldInit(0), HadArrayRangeDesignator(false) 
+{      
+  for (unsigned I = 0; I != numInits; ++I) {
+    if (initExprs[I]->isTypeDependent())
+      TypeDependent = true;
+    if (initExprs[I]->isValueDependent())
+      ValueDependent = true;
+  }
+      
   InitExprs.insert(InitExprs.end(), initExprs, initExprs+numInits);
 }
 
@@ -1091,10 +1126,10 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
     return LV_Valid;
   case PredefinedExprClass:
     return LV_Valid;
+  case UnresolvedLookupExprClass:
+    return LV_Valid;
   case CXXDefaultArgExprClass:
     return cast<CXXDefaultArgExpr>(this)->getExpr()->isLvalue(Ctx);
-  case CXXConditionDeclExprClass:
-    return LV_Valid;
   case CStyleCastExprClass:
   case CXXFunctionalCastExprClass:
   case CXXStaticCastExprClass:
@@ -1141,18 +1176,6 @@ Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
     return LV_Valid;
   }
 
-  case TemplateIdRefExprClass: {
-    const TemplateIdRefExpr *TID = cast<TemplateIdRefExpr>(this);
-    TemplateName Template = TID->getTemplateName();
-    NamedDecl *ND = Template.getAsTemplateDecl();
-    if (!ND)
-      ND = Template.getAsOverloadedFunctionDecl();
-    if (ND && DeclCanBeLvalue(ND, Ctx))
-      return LV_Valid;
-    
-    break;
-  } 
-    
   default:
     break;
   }
@@ -1491,19 +1514,18 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
   case Expr::CXXNullPtrLiteralExprClass:
   case Expr::CXXThisExprClass:
   case Expr::CXXThrowExprClass:
-  case Expr::CXXConditionDeclExprClass: // FIXME: is this correct?
   case Expr::CXXNewExprClass:
   case Expr::CXXDeleteExprClass:
   case Expr::CXXPseudoDestructorExprClass:
-  case Expr::UnresolvedFunctionNameExprClass:
-  case Expr::UnresolvedDeclRefExprClass:
-  case Expr::TemplateIdRefExprClass:
+  case Expr::UnresolvedLookupExprClass:
+  case Expr::DependentScopeDeclRefExprClass:
   case Expr::CXXConstructExprClass:
   case Expr::CXXBindTemporaryExprClass:
   case Expr::CXXExprWithTemporariesClass:
   case Expr::CXXTemporaryObjectExprClass:
   case Expr::CXXUnresolvedConstructExprClass:
-  case Expr::CXXUnresolvedMemberExprClass:
+  case Expr::CXXDependentScopeMemberExprClass:
+  case Expr::UnresolvedMemberExprClass:
   case Expr::ObjCStringLiteralClass:
   case Expr::ObjCEncodeExprClass:
   case Expr::ObjCMessageExprClass:

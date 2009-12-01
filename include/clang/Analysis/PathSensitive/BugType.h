@@ -34,13 +34,13 @@ private:
   friend class BugReporter;
   bool SuppressonSink;
 public:
-  BugType(const char *name, const char* cat)
+  BugType(llvm::StringRef name, llvm::StringRef cat)
     : Name(name), Category(cat), SuppressonSink(false) {}
   virtual ~BugType();
 
   // FIXME: Should these be made strings as well?
-  const std::string& getName() const { return Name; }
-  const std::string& getCategory() const { return Category; }
+  llvm::StringRef getName() const { return Name; }
+  llvm::StringRef getCategory() const { return Category; }
   
   /// isSuppressOnSink - Returns true if bug reports associated with this bug
   ///  type should be suppressed if the end node of the report is post-dominated
@@ -60,33 +60,15 @@ public:
 };
 
 class BuiltinBug : public BugType {
-  GRExprEngine *Eng;
-protected:
   const std::string desc;
 public:
   BuiltinBug(const char *name, const char *description)
-    : BugType(name, "Logic error"), Eng(0), desc(description) {}
+    : BugType(name, "Logic error"), desc(description) {}
   
   BuiltinBug(const char *name)
-    : BugType(name, "Logic error"), Eng(0), desc(name) {}
+    : BugType(name, "Logic error"), desc(name) {}
   
-  BuiltinBug(GRExprEngine *eng, const char* n, const char* d)
-    : BugType(n, "Logic error"), Eng(eng), desc(d) {}
-
-  BuiltinBug(GRExprEngine *eng, const char* n)
-    : BugType(n, "Logic error"), Eng(eng), desc(n) {}
-
-  const std::string &getDescription() const { return desc; }
-
-  virtual void FlushReportsImpl(BugReporter& BR, GRExprEngine& Eng) {}
-
-  void FlushReports(BugReporter& BR) { FlushReportsImpl(BR, *Eng); }
-
-  virtual void registerInitialVisitors(BugReporterContext& BRC,
-                                       const ExplodedNode* N,
-                                       BuiltinBugReport *R) {}
-
-  template <typename ITER> void Emit(BugReporter& BR, ITER I, ITER E);
+  llvm::StringRef getDescription() const { return desc; }
 };
 
 } // end clang namespace

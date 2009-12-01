@@ -1,4 +1,4 @@
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -warn-objc-missing-dealloc '-DIBOutlet=__attribute__((iboutlet))' %s --verify
+// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -warn-objc-missing-dealloc '-DIBOutlet=__attribute__((iboutlet))' %s -verify
 typedef signed char BOOL;
 @protocol NSObject
 - (BOOL)isEqual:(id)object;
@@ -39,7 +39,7 @@ typedef struct objc_selector *SEL;
 
 @end
 
-@implementation TestSELs // no-warning
+@implementation TestSELs
 - (id)init {
   if( (self = [super init]) ) {
     a = @selector(a);
