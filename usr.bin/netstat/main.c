@@ -339,7 +339,6 @@ int	numeric_port;	/* show ports numerically */
 static int pflag;	/* show given protocol */
 int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
-int	tflag;		/* show i/f watchdog timers */
 int	Wflag;		/* wide display */
 int	xflag;		/* extra information, includes all socket buffer info */
 int	zflag;		/* zero stats */
@@ -454,9 +453,6 @@ main(int argc, char *argv[])
 			break;
 		case 'S':
 			numeric_addr = 1;
-			break;
-		case 't':
-			tflag = 1;
 			break;
 		case 'u':
 			af = AF_UNIX;
