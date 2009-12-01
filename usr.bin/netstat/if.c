@@ -200,7 +200,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 	u_long ierrors;
 	u_long idrops;
 	u_long collisions;
-	short timer;
 	int drops;
 	struct sockaddr *sa = NULL;
 	char name[IFNAMSIZ];
@@ -234,8 +233,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 		if (bflag)
 			printf(" %10.10s","Obytes");
 		printf(" %5s", "Coll");
-		if (tflag)
-			printf(" %s", "Time");
 		if (dflag)
 			printf(" %s", "Drop");
 		putchar('\n');
@@ -288,7 +285,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 		ierrors = ifnet.if_ierrors;
 		idrops = ifnet.if_iqdrops;
 		collisions = ifnet.if_collisions;
-		timer = ifnet.if_timer;
 		drops = ifnet.if_snd.ifq_drops;
 
 		if (ifaddraddr == 0) {
@@ -435,8 +431,6 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 			show_stat("lu", 10, obytes, link_layer|network_layer);
 
 		show_stat("NRSlu", 5, collisions, link_layer);
-		if (tflag)
-			show_stat("LSd", 4, timer, link_layer);
 		if (dflag)
 			show_stat("LSd", 4, drops, link_layer);
 		putchar('\n');
