@@ -772,7 +772,7 @@ fetch_no_proxy_match(const char *host)
 				break;
 
 		d_len = q - p;
-		if (d_len > 0 && h_len > d_len &&
+		if (d_len > 0 && h_len >= d_len &&
 		    strncasecmp(host + h_len - d_len,
 			p, d_len) == 0) {
 			/* domain name matches */
