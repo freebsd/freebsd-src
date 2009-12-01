@@ -191,6 +191,10 @@ set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${LLVM_BINARY_DIR}/lib )
 add_llvm_definitions( -D__STDC_LIMIT_MACROS )
 add_llvm_definitions( -D__STDC_CONSTANT_MACROS )
 
+option(LLVM_ENABLE_WARNINGS "Enable compiler warnings." ON)
+option(LLVM_ENABLE_PEDANTIC "Compile with pedantic enabled." ON)
+option(LLVM_ENABLE_WERROR "Fail and stop if a warning is triggered." OFF)
+
 if( CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT WIN32 )
   # TODO: support other platforms and toolchains.
   option(LLVM_BUILD_32_BITS "Build 32 bits executables and libraries." OFF)
@@ -226,6 +230,27 @@ if( MSVC )
     add_llvm_definitions("/${LLVM_USE_CRT}")
     message(STATUS "Using VC++ CRT: ${LLVM_USE_CRT}")
   endif (NOT ${LLVM_USE_CRT} STREQUAL "")
+
+  # Enable warnings
+  if (LLVM_ENABLE_WARNINGS)
+    add_llvm_definitions( /W4 /Wall )
+    if (LLVM_ENABLE_PEDANTIC)
+      # No MSVC equivalent available
+    endif (LLVM_ENABLE_PEDANTIC)
+  endif (LLVM_ENABLE_WARNINGS)
+  if (LLVM_ENABLE_WERROR)
+    add_llvm_definitions( /WX )
+  endif (LLVM_ENABLE_WERROR)
+elseif( CMAKE_COMPILER_IS_GNUCXX )
+  if (LLVM_ENABLE_WARNINGS)
+    add_llvm_definitions( -Wall -W -Wno-unused-parameter -Wwrite-strings )
+    if (LLVM_ENABLE_PEDANTIC)
+      add_llvm_definitions( -pedantic -Wno-long-long )
+    endif (LLVM_ENABLE_PEDANTIC)
+  endif (LLVM_ENABLE_WARNINGS)
+  if (LLVM_ENABLE_WERROR)
+    add_llvm_definitions( -Werror )
+  endif (LLVM_ENABLE_WERROR)
 endif( MSVC )
 
 include_directories( ${LLVM_BINARY_DIR}/include ${LLVM_MAIN_INCLUDE_DIR})
@@ -280,6 +305,7 @@ add_subdirectory(utils/not)
 
 set(LLVM_ENUM_ASM_PRINTERS "")
 set(LLVM_ENUM_ASM_PARSERS "")
+set(LLVM_ENUM_DISASSEMBLERS "")
 foreach(t ${LLVM_TARGETS_TO_BUILD})
   message(STATUS "Targeting ${t}")
   add_subdirectory(lib/Target/${t})
@@ -294,6 +320,11 @@ foreach(t ${LLVM_TARGETS_TO_BUILD})
     set(LLVM_ENUM_ASM_PARSERS 
       "${LLVM_ENUM_ASM_PARSERS}LLVM_ASM_PARSER(${t})\n")
   endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/AsmParser/CMakeLists.txt )
+  if( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/Disassembler/CMakeLists.txt )
+    add_subdirectory(lib/Target/${t}/Disassembler)
+    set(LLVM_ENUM_DISASSEMBLERS
+      "${LLVM_ENUM_DISASSEMBLERS}LLVM_DISASSEMBLER(${t})\n")
+  endif( EXISTS ${LLVM_MAIN_SRC_DIR}/lib/Target/${t}/Disassembler/CMakeLists.txt )
   set(CURRENT_LLVM_TARGET)
 endforeach(t)
 
@@ -309,6 +340,12 @@ configure_file(
   ${LLVM_BINARY_DIR}/include/llvm/Config/AsmParsers.def
   )
 
+# Produce llvm/Config/Disassemblers.def
+configure_file(
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Config/Disassemblers.def.in
+  ${LLVM_BINARY_DIR}/include/llvm/Config/Disassemblers.def
+  )
+
 add_subdirectory(lib/ExecutionEngine)
 add_subdirectory(lib/ExecutionEngine/Interpreter)
 add_subdirectory(lib/ExecutionEngine/JIT)
@@ -319,14 +356,10 @@ add_subdirectory(lib/Archive)
 add_subdirectory(projects)
 
 option(LLVM_BUILD_TOOLS "Build LLVM tool programs." ON)
-if(LLVM_BUILD_TOOLS)
-  add_subdirectory(tools)
-endif()
+add_subdirectory(tools)
 
 option(LLVM_BUILD_EXAMPLES "Build LLVM example programs." OFF)
-if(LLVM_BUILD_EXAMPLES)
-  add_subdirectory(examples)
-endif ()
+add_subdirectory(examples)
 
 install(DIRECTORY include/
   DESTINATION include

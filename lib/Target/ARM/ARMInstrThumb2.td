@@ -49,8 +49,8 @@ def t2_so_imm_neg_XFORM : SDNodeXForm<imm, [{
 // 8-bit immediate rotated by an arbitrary number of bits, or an 8-bit
 // immediate splatted into multiple bytes of the word. t2_so_imm values are
 // represented in the imm field in the same 12-bit form that they are encoded
-// into t2_so_imm instructions: the 8-bit immediate is the least significant bits
-// [bits 0-7], the 4-bit shift/splat amount is the next 4 bits [bits 8-11].
+// into t2_so_imm instructions: the 8-bit immediate is the least significant
+// bits [bits 0-7], the 4-bit shift/splat amount is the next 4 bits [bits 8-11].
 def t2_so_imm : Operand<i32>,
                 PatLeaf<(imm), [{
   return ARM_AM::getT2SOImmVal((uint32_t)N->getZExtValue()) != -1; 
@@ -85,6 +85,21 @@ def t2_so_imm2part_1 : SDNodeXForm<imm, [{
 
 def t2_so_imm2part_2 : SDNodeXForm<imm, [{
   unsigned V = ARM_AM::getT2SOImmTwoPartSecond((unsigned)N->getZExtValue());
+  return CurDAG->getTargetConstant(V, MVT::i32);
+}]>;
+
+def t2_so_neg_imm2part : Operand<i32>, PatLeaf<(imm), [{
+      return ARM_AM::isT2SOImmTwoPartVal(-(int)N->getZExtValue());
+    }]> {
+}
+
+def t2_so_neg_imm2part_1 : SDNodeXForm<imm, [{
+  unsigned V = ARM_AM::getT2SOImmTwoPartFirst(-(int)N->getZExtValue());
+  return CurDAG->getTargetConstant(V, MVT::i32);
+}]>;
+
+def t2_so_neg_imm2part_2 : SDNodeXForm<imm, [{
+  unsigned V = ARM_AM::getT2SOImmTwoPartSecond(-(int)N->getZExtValue());
   return CurDAG->getTargetConstant(V, MVT::i32);
 }]>;
 
@@ -252,9 +267,9 @@ multiclass T2I_bin_ii12rs<string opc, PatFrag opnode, bit Commutable = 0> {
                  [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>;
 }
 
-/// T2I_adde_sube_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns for a
-/// binary operation that produces a value and use and define the carry bit.
-/// It's not predicable.
+/// T2I_adde_sube_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns
+/// for a binary operation that produces a value and use and define the carry
+/// bit. It's not predicable.
 let Uses = [CPSR] in {
 multiclass T2I_adde_sube_irs<string opc, PatFrag opnode, bit Commutable = 0> {
    // shifted imm
@@ -471,7 +486,7 @@ def t2SUBrSPs_   : PseudoInst<(outs GPR:$dst), (ins GPR:$sp, t2_so_reg:$rhs),
 //
 
 // Load
-let canFoldAsLoad = 1 in
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1  in 
 defm t2LDR   : T2I_ld<"ldr",  UnOpFrag<(load node:$Src)>>;
 
 // Loads with zero extension
@@ -615,7 +630,7 @@ def t2STR_POST : T2Iidxldst<(outs GPR:$base_wb),
                             AddrModeT2_i8, IndexModePost, IIC_iStoreiu,
                           "str", "\t$src, [$base], $offset", "$base = $base_wb",
              [(set GPR:$base_wb,
-                   (post_store GPR:$src, GPR:$base, t2am_imm8_offset:$offset))]>;
+                  (post_store GPR:$src, GPR:$base, t2am_imm8_offset:$offset))]>;
 
 def t2STRH_PRE  : T2Iidxldst<(outs GPR:$base_wb),
                             (ins GPR:$src, GPR:$base, t2am_imm8_offset:$offset),
@@ -718,9 +733,9 @@ def : T2Pat<(and (srl GPR:$Src, (i32 8)), 0xFF00FF),
             (t2UXTB16r_rot GPR:$Src, 8)>;
 
 defm t2UXTAB : T2I_bin_rrot<"uxtab",
-                            BinOpFrag<(add node:$LHS, (and node:$RHS, 0x00FF))>>;
+                           BinOpFrag<(add node:$LHS, (and node:$RHS, 0x00FF))>>;
 defm t2UXTAH : T2I_bin_rrot<"uxtah",
-                            BinOpFrag<(add node:$LHS, (and node:$RHS, 0xFFFF))>>;
+                           BinOpFrag<(add node:$LHS, (and node:$RHS, 0xFFFF))>>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1162,15 +1177,9 @@ def : T2Pat<(xor GPR:$LHS, t2_so_imm2part:$RHS),
 def : T2Pat<(add GPR:$LHS, t2_so_imm2part:$RHS),
              (t2ADDri (t2ADDri GPR:$LHS, (t2_so_imm2part_1 imm:$RHS)),
                     (t2_so_imm2part_2 imm:$RHS))>;
-def : T2Pat<(sub GPR:$LHS, t2_so_imm2part:$RHS),
-             (t2SUBri (t2SUBri GPR:$LHS, (t2_so_imm2part_1 imm:$RHS)),
-                    (t2_so_imm2part_2 imm:$RHS))>;
-
-// ConstantPool, GlobalAddress, and JumpTable
-def : T2Pat<(ARMWrapper  tglobaladdr :$dst), (t2LEApcrel tglobaladdr :$dst)>;
-def : T2Pat<(ARMWrapper  tconstpool  :$dst), (t2LEApcrel tconstpool  :$dst)>;
-def : T2Pat<(ARMWrapperJT tjumptable:$dst, imm:$id),
-            (t2LEApcrelJT tjumptable:$dst, imm:$id)>;
+def : T2Pat<(add GPR:$LHS, t2_so_neg_imm2part:$RHS),
+             (t2SUBri (t2SUBri GPR:$LHS, (t2_so_neg_imm2part_1 imm:$RHS)),
+                    (t2_so_neg_imm2part_2 imm:$RHS))>;
 
 // 32-bit immediate using movw + movt.
 // This is a single pseudo instruction to make it re-materializable. Remove
@@ -1180,10 +1189,20 @@ def t2MOVi32imm : T2Ix2<(outs GPR:$dst), (ins i32imm:$src), IIC_iMOVi,
                    "movw", "\t$dst, ${src:lo16}\n\tmovt${p}\t$dst, ${src:hi16}",
                      [(set GPR:$dst, (i32 imm:$src))]>;
 
+// ConstantPool, GlobalAddress, and JumpTable
+def : T2Pat<(ARMWrapper  tglobaladdr :$dst), (t2LEApcrel tglobaladdr :$dst)>,
+           Requires<[IsThumb2, DontUseMovt]>;
+def : T2Pat<(ARMWrapper  tconstpool  :$dst), (t2LEApcrel tconstpool  :$dst)>;
+def : T2Pat<(ARMWrapper  tglobaladdr :$dst), (t2MOVi32imm tglobaladdr :$dst)>,
+           Requires<[IsThumb2, UseMovt]>;
+
+def : T2Pat<(ARMWrapperJT tjumptable:$dst, imm:$id),
+            (t2LEApcrelJT tjumptable:$dst, imm:$id)>;
+
 // Pseudo instruction that combines ldr from constpool and add pc. This should
 // be expanded into two instructions late to allow if-conversion and
 // scheduling.
-let isReMaterializable = 1 in
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in 
 def t2LDRpci_pic : PseudoInst<(outs GPR:$dst), (ins i32imm:$addr, pclabel:$cp),
                    NoItinerary, "@ ldr.w\t$dst, $addr\n$cp:\n\tadd\t$dst, pc",
                [(set GPR:$dst, (ARMpic_add (load (ARMWrapper tconstpool:$addr)),

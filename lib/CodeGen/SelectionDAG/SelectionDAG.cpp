@@ -200,19 +200,6 @@ bool ISD::isScalarToVector(const SDNode *N) {
   return true;
 }
 
-
-/// isDebugLabel - Return true if the specified node represents a debug
-/// label (i.e. ISD::DBG_LABEL or TargetInstrInfo::DBG_LABEL node).
-bool ISD::isDebugLabel(const SDNode *N) {
-  SDValue Zero;
-  if (N->getOpcode() == ISD::DBG_LABEL)
-    return true;
-  if (N->isMachineOpcode() &&
-      N->getMachineOpcode() == TargetInstrInfo::DBG_LABEL)
-    return true;
-  return false;
-}
-
 /// getSetCCSwappedOperands - Return the operation corresponding to (Y op X)
 /// when given the operation for (X op Y).
 ISD::CondCode ISD::getSetCCSwappedOperands(ISD::CondCode Operation) {
@@ -393,13 +380,7 @@ static void AddNodeIDCustom(FoldingSetNodeID &ID, const SDNode *N) {
   case ISD::Register:
     ID.AddInteger(cast<RegisterSDNode>(N)->getReg());
     break;
-  case ISD::DBG_STOPPOINT: {
-    const DbgStopPointSDNode *DSP = cast<DbgStopPointSDNode>(N);
-    ID.AddInteger(DSP->getLine());
-    ID.AddInteger(DSP->getColumn());
-    ID.AddPointer(DSP->getCompileUnit());
-    break;
-  }
+
   case ISD::SRCVALUE:
     ID.AddPointer(cast<SrcValueSDNode>(N)->getValue());
     break;
@@ -462,7 +443,8 @@ static void AddNodeIDCustom(FoldingSetNodeID &ID, const SDNode *N) {
   }
   case ISD::TargetBlockAddress:
   case ISD::BlockAddress: {
-    ID.AddPointer(cast<BlockAddressSDNode>(N));
+    ID.AddPointer(cast<BlockAddressSDNode>(N)->getBlockAddress());
+    ID.AddInteger(cast<BlockAddressSDNode>(N)->getTargetFlags());
     break;
   }
   } // end switch (N->getOpcode())
@@ -508,8 +490,6 @@ static bool doNotCSE(SDNode *N) {
   switch (N->getOpcode()) {
   default: break;
   case ISD::HANDLENODE:
-  case ISD::DBG_LABEL:
-  case ISD::DBG_STOPPOINT:
   case ISD::EH_LABEL:
     return true;   // Never CSE these nodes.
   }
@@ -1296,16 +1276,6 @@ SDValue SelectionDAG::getRegister(unsigned RegNo, EVT VT) {
   return SDValue(N, 0);
 }
 
-SDValue SelectionDAG::getDbgStopPoint(DebugLoc DL, SDValue Root,
-                                      unsigned Line, unsigned Col,
-                                      MDNode *CU) {
-  SDNode *N = NodeAllocator.Allocate<DbgStopPointSDNode>();
-  new (N) DbgStopPointSDNode(Root, Line, Col, CU);
-  N->setDebugLoc(DL);
-  AllNodes.push_back(N);
-  return SDValue(N, 0);
-}
-
 SDValue SelectionDAG::getLabel(unsigned Opcode, DebugLoc dl,
                                SDValue Root,
                                unsigned LabelID) {
@@ -1323,18 +1293,20 @@ SDValue SelectionDAG::getLabel(unsigned Opcode, DebugLoc dl,
   return SDValue(N, 0);
 }
 
-SDValue SelectionDAG::getBlockAddress(BlockAddress *BA, DebugLoc DL,
-                                      bool isTarget) {
+SDValue SelectionDAG::getBlockAddress(BlockAddress *BA, EVT VT,
+                                      bool isTarget,
+                                      unsigned char TargetFlags) {
   unsigned Opc = isTarget ? ISD::TargetBlockAddress : ISD::BlockAddress;
 
   FoldingSetNodeID ID;
-  AddNodeIDNode(ID, Opc, getVTList(TLI.getPointerTy()), 0, 0);
+  AddNodeIDNode(ID, Opc, getVTList(VT), 0, 0);
   ID.AddPointer(BA);
+  ID.AddInteger(TargetFlags);
   void *IP = 0;
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
   SDNode *N = NodeAllocator.Allocate<BlockAddressSDNode>();
-  new (N) BlockAddressSDNode(Opc, DL, TLI.getPointerTy(), BA);
+  new (N) BlockAddressSDNode(Opc, VT, BA, TargetFlags);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
   return SDValue(N, 0);
@@ -5452,7 +5424,6 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::UNDEF:         return "undef";
   case ISD::MERGE_VALUES:  return "merge_values";
   case ISD::INLINEASM:     return "inlineasm";
-  case ISD::DBG_LABEL:     return "dbg_label";
   case ISD::EH_LABEL:      return "eh_label";
   case ISD::HANDLENODE:    return "handlenode";
 
@@ -5585,10 +5556,6 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::CTPOP:   return "ctpop";
   case ISD::CTTZ:    return "cttz";
   case ISD::CTLZ:    return "ctlz";
-
-  // Debug info
-  case ISD::DBG_STOPPOINT: return "dbg_stoppoint";
-  case ISD::DEBUG_LOC: return "debug_loc";
 
   // Trampolines
   case ISD::TRAMPOLINE: return "trampoline";
@@ -5810,6 +5777,8 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
     OS << ", ";
     WriteAsOperand(OS, BA->getBlockAddress()->getBasicBlock(), false);
     OS << ">";
+    if (unsigned int TF = BA->getTargetFlags())
+      OS << " [TF=" << TF << ']';
   }
 }
 
@@ -5836,6 +5805,66 @@ static void DumpNodes(const SDNode *N, unsigned indent, const SelectionDAG *G) {
   errs() << "\n";
   errs().indent(indent);
   N->dump(G);
+}
+
+SDValue SelectionDAG::UnrollVectorOp(SDNode *N, unsigned ResNE) {
+  assert(N->getNumValues() == 1 &&
+         "Can't unroll a vector with multiple results!");
+
+  EVT VT = N->getValueType(0);
+  unsigned NE = VT.getVectorNumElements();
+  EVT EltVT = VT.getVectorElementType();
+  DebugLoc dl = N->getDebugLoc();
+
+  SmallVector<SDValue, 8> Scalars;
+  SmallVector<SDValue, 4> Operands(N->getNumOperands());
+
+  // If ResNE is 0, fully unroll the vector op.
+  if (ResNE == 0)
+    ResNE = NE;
+  else if (NE > ResNE)
+    NE = ResNE;
+
+  unsigned i;
+  for (i= 0; i != NE; ++i) {
+    for (unsigned j = 0; j != N->getNumOperands(); ++j) {
+      SDValue Operand = N->getOperand(j);
+      EVT OperandVT = Operand.getValueType();
+      if (OperandVT.isVector()) {
+        // A vector operand; extract a single element.
+        EVT OperandEltVT = OperandVT.getVectorElementType();
+        Operands[j] = getNode(ISD::EXTRACT_VECTOR_ELT, dl,
+                              OperandEltVT,
+                              Operand,
+                              getConstant(i, MVT::i32));
+      } else {
+        // A scalar operand; just use it as is.
+        Operands[j] = Operand;
+      }
+    }
+
+    switch (N->getOpcode()) {
+    default:
+      Scalars.push_back(getNode(N->getOpcode(), dl, EltVT,
+                                &Operands[0], Operands.size()));
+      break;
+    case ISD::SHL:
+    case ISD::SRA:
+    case ISD::SRL:
+    case ISD::ROTL:
+    case ISD::ROTR:
+      Scalars.push_back(getNode(N->getOpcode(), dl, EltVT, Operands[0],
+                                getShiftAmountOperand(Operands[1])));
+      break;
+    }
+  }
+
+  for (; i < ResNE; ++i)
+    Scalars.push_back(getUNDEF(EltVT));
+
+  return getNode(ISD::BUILD_VECTOR, dl,
+                 EVT::getVectorVT(*getContext(), EltVT, ResNE),
+                 &Scalars[0], Scalars.size());
 }
 
 void SelectionDAG::dump() const {
@@ -5993,3 +6022,4 @@ bool ShuffleVectorSDNode::isSplatMask(const int *Mask, EVT VT) {
       return false;
   return true;
 }
+

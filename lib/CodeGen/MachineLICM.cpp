@@ -107,6 +107,10 @@ namespace {
     ///
     void HoistRegion(MachineDomTreeNode *N);
 
+    /// isLoadFromConstantMemory - Return true if the given instruction is a
+    /// load from constant memory.
+    bool isLoadFromConstantMemory(MachineInstr *MI);
+
     /// ExtractHoistableLoad - Unfold a load from the given machineinstr if
     /// the load itself could be hoisted. Return the unfolded and hoistable
     /// load, or null if the load couldn't be unfolded or if it wouldn't
@@ -338,6 +342,24 @@ static bool HasPHIUses(unsigned Reg, MachineRegisterInfo *RegInfo) {
   return false;
 }
 
+/// isLoadFromConstantMemory - Return true if the given instruction is a
+/// load from constant memory. Machine LICM will hoist these even if they are
+/// not re-materializable.
+bool MachineLICM::isLoadFromConstantMemory(MachineInstr *MI) {
+  if (!MI->getDesc().mayLoad()) return false;
+  if (!MI->hasOneMemOperand()) return false;
+  MachineMemOperand *MMO = *MI->memoperands_begin();
+  if (MMO->isVolatile()) return false;
+  if (!MMO->getValue()) return false;
+  const PseudoSourceValue *PSV = dyn_cast<PseudoSourceValue>(MMO->getValue());
+  if (PSV) {
+    MachineFunction &MF = *MI->getParent()->getParent();
+    return PSV->isConstant(MF.getFrameInfo());
+  } else {
+    return AA->pointsToConstantMemory(MMO->getValue());
+  }
+}
+
 /// IsProfitableToHoist - Return true if it is potentially profitable to hoist
 /// the given loop invariant.
 bool MachineLICM::IsProfitableToHoist(MachineInstr &MI) {
@@ -347,8 +369,15 @@ bool MachineLICM::IsProfitableToHoist(MachineInstr &MI) {
   // FIXME: For now, only hoist re-materilizable instructions. LICM will
   // increase register pressure. We want to make sure it doesn't increase
   // spilling.
-  if (!TII->isTriviallyReMaterializable(&MI, AA))
-    return false;
+  // Also hoist loads from constant memory, e.g. load from stubs, GOT. Hoisting
+  // these tend to help performance in low register pressure situation. The
+  // trade off is it may cause spill in high pressure situation. It will end up
+  // adding a store in the loop preheader. But the reload is no more expensive.
+  // The side benefit is these loads are frequently CSE'ed.
+  if (!TII->isTriviallyReMaterializable(&MI, AA)) {
+    if (!isLoadFromConstantMemory(&MI))
+      return false;
+  }
 
   // If result(s) of this instruction is used by PHIs, then don't hoist it.
   // The presence of joins makes it difficult for current register allocator
@@ -368,18 +397,9 @@ MachineInstr *MachineLICM::ExtractHoistableLoad(MachineInstr *MI) {
   // If not, we may be able to unfold a load and hoist that.
   // First test whether the instruction is loading from an amenable
   // memory location.
-  if (!MI->getDesc().mayLoad()) return 0;
-  if (!MI->hasOneMemOperand()) return 0;
-  MachineMemOperand *MMO = *MI->memoperands_begin();
-  if (MMO->isVolatile()) return 0;
-  MachineFunction &MF = *MI->getParent()->getParent();
-  if (!MMO->getValue()) return 0;
-  if (const PseudoSourceValue *PSV =
-        dyn_cast<PseudoSourceValue>(MMO->getValue())) {
-    if (!PSV->isConstant(MF.getFrameInfo())) return 0;
-  } else {
-    if (!AA->pointsToConstantMemory(MMO->getValue())) return 0;
-  }
+  if (!isLoadFromConstantMemory(MI))
+    return 0;
+
   // Next determine the register class for a temporary register.
   unsigned LoadRegIndex;
   unsigned NewOpc =
@@ -393,6 +413,8 @@ MachineInstr *MachineLICM::ExtractHoistableLoad(MachineInstr *MI) {
   const TargetRegisterClass *RC = TID.OpInfo[LoadRegIndex].getRegClass(TRI);
   // Ok, we're unfolding. Create a temporary register and do the unfold.
   unsigned Reg = RegInfo->createVirtualRegister(RC);
+
+  MachineFunction &MF = *MI->getParent()->getParent();
   SmallVector<MachineInstr *, 2> NewMIs;
   bool Success =
     TII->unfoldMemoryOperand(MF, MI, Reg,
@@ -487,10 +509,10 @@ void MachineLICM::Hoist(MachineInstr *MI) {
       errs() << "Hoisting " << *MI;
       if (CurPreheader->getBasicBlock())
         errs() << " to MachineBasicBlock "
-               << CurPreheader->getBasicBlock()->getName();
+               << CurPreheader->getName();
       if (MI->getParent()->getBasicBlock())
         errs() << " from MachineBasicBlock "
-               << MI->getParent()->getBasicBlock()->getName();
+               << MI->getParent()->getName();
       errs() << "\n";
     });
 

@@ -24,23 +24,29 @@
 namespace llvm {
 template<>
 struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
+
+  DOTGraphTraits (bool isSimple=false) : DefaultDOTGraphTraits(isSimple) {}
+
   static std::string getGraphName(const Function *F) {
     return "CFG for '" + F->getNameStr() + "' function";
   }
 
-  static std::string getNodeLabel(const BasicBlock *Node,
-                                  const Function *Graph,
-                                  bool ShortNames) {
-    if (ShortNames && !Node->getName().empty())
-      return Node->getNameStr() + ":";
+  static std::string getSimpleNodeLabel(const BasicBlock *Node,
+                                  const Function *Graph) {
+    if (!Node->getName().empty())
+      return Node->getNameStr(); 
 
     std::string Str;
     raw_string_ostream OS(Str);
 
-    if (ShortNames) {
-      WriteAsOperand(OS, Node, false);
-      return OS.str();
-    }
+    WriteAsOperand(OS, Node, false);
+    return OS.str();
+  }
+
+  static std::string getCompleteNodeLabel(const BasicBlock *Node,
+		                          const Function *Graph) {
+    std::string Str;
+    raw_string_ostream OS(Str);
 
     if (Node->getName().empty()) {
       WriteAsOperand(OS, Node, false);
@@ -63,6 +69,14 @@ struct DOTGraphTraits<const Function*> : public DefaultDOTGraphTraits {
       }
 
     return OutStr;
+  }
+
+  std::string getNodeLabel(const BasicBlock *Node,
+                           const Function *Graph) {
+    if (isSimple())
+      return getSimpleNodeLabel(Node, Graph);
+    else
+      return getCompleteNodeLabel(Node, Graph);
   }
 
   static std::string getEdgeSourceLabel(const BasicBlock *Node,

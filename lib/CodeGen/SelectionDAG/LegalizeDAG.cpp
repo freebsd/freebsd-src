@@ -158,7 +158,6 @@ private:
   SDValue EmitStackConvert(SDValue SrcOp, EVT SlotVT, EVT DestVT, DebugLoc dl);
   SDValue ExpandBUILD_VECTOR(SDNode *Node);
   SDValue ExpandSCALAR_TO_VECTOR(SDNode *Node);
-  SDValue ExpandDBG_STOPPOINT(SDNode *Node);
   void ExpandDYNAMIC_STACKALLOC(SDNode *Node,
                                 SmallVectorImpl<SDValue> &Results);
   SDValue ExpandFCOPYSIGN(SDNode *Node);
@@ -1517,6 +1516,7 @@ SDValue SelectionDAGLegalize::ExpandVectorBuildThroughStack(SDNode* Node) {
   // Create the stack frame object.
   EVT VT = Node->getValueType(0);
   EVT OpVT = Node->getOperand(0).getValueType();
+  EVT EltVT = VT.getVectorElementType();
   DebugLoc dl = Node->getDebugLoc();
   SDValue FIPtr = DAG.CreateStackTemporary(VT);
   int FI = cast<FrameIndexSDNode>(FIPtr.getNode())->getIndex();
@@ -1524,7 +1524,7 @@ SDValue SelectionDAGLegalize::ExpandVectorBuildThroughStack(SDNode* Node) {
 
   // Emit a store of each element to the stack slot.
   SmallVector<SDValue, 8> Stores;
-  unsigned TypeByteSize = OpVT.getSizeInBits() / 8;
+  unsigned TypeByteSize = EltVT.getSizeInBits() / 8;
   // Store (in the right endianness) the elements to memory.
   for (unsigned i = 0, e = Node->getNumOperands(); i != e; ++i) {
     // Ignore undef elements.
@@ -1535,8 +1535,13 @@ SDValue SelectionDAGLegalize::ExpandVectorBuildThroughStack(SDNode* Node) {
     SDValue Idx = DAG.getConstant(Offset, FIPtr.getValueType());
     Idx = DAG.getNode(ISD::ADD, dl, FIPtr.getValueType(), FIPtr, Idx);
 
-    Stores.push_back(DAG.getStore(DAG.getEntryNode(), dl, Node->getOperand(i),
-                                  Idx, SV, Offset));
+    // If EltVT smaller than OpVT, only store the bits necessary.
+    if (EltVT.bitsLT(OpVT))
+      Stores.push_back(DAG.getTruncStore(DAG.getEntryNode(), dl,
+                          Node->getOperand(i), Idx, SV, Offset, EltVT));
+    else
+      Stores.push_back(DAG.getStore(DAG.getEntryNode(), dl, 
+                                    Node->getOperand(i), Idx, SV, Offset));
   }
 
   SDValue StoreChain;
@@ -1588,37 +1593,6 @@ SDValue SelectionDAGLegalize::ExpandFCOPYSIGN(SDNode* Node) {
   return DAG.getNode(ISD::SELECT, dl, AbsVal.getValueType(), SignBit,
                      DAG.getNode(ISD::FNEG, dl, AbsVal.getValueType(), AbsVal),
                      AbsVal);
-}
-
-SDValue SelectionDAGLegalize::ExpandDBG_STOPPOINT(SDNode* Node) {
-  DebugLoc dl = Node->getDebugLoc();
-  DwarfWriter *DW = DAG.getDwarfWriter();
-  bool useDEBUG_LOC = TLI.isOperationLegalOrCustom(ISD::DEBUG_LOC,
-                                                    MVT::Other);
-  bool useLABEL = TLI.isOperationLegalOrCustom(ISD::DBG_LABEL, MVT::Other);
-
-  const DbgStopPointSDNode *DSP = cast<DbgStopPointSDNode>(Node);
-  MDNode *CU_Node = DSP->getCompileUnit();
-  if (DW && (useDEBUG_LOC || useLABEL)) {
-
-    unsigned Line = DSP->getLine();
-    unsigned Col = DSP->getColumn();
-
-    if (OptLevel == CodeGenOpt::None) {
-      // A bit self-referential to have DebugLoc on Debug_Loc nodes, but it
-      // won't hurt anything.
-      if (useDEBUG_LOC) {
-        return DAG.getNode(ISD::DEBUG_LOC, dl, MVT::Other, Node->getOperand(0),
-                           DAG.getConstant(Line, MVT::i32),
-                           DAG.getConstant(Col, MVT::i32),
-                           DAG.getSrcValue(CU_Node));
-      } else {
-        unsigned ID = DW->RecordSourceLine(Line, Col, CU_Node);
-        return DAG.getLabel(ISD::DBG_LABEL, dl, Node->getOperand(0), ID);
-      }
-    }
-  }
-  return Node->getOperand(0);
 }
 
 void SelectionDAGLegalize::ExpandDYNAMIC_STACKALLOC(SDNode* Node,
@@ -2269,15 +2243,11 @@ void SelectionDAGLegalize::ExpandNode(SDNode *Node,
     Results.push_back(DAG.getConstant(1, Node->getValueType(0)));
     break;
   case ISD::EH_RETURN:
-  case ISD::DBG_LABEL:
   case ISD::EH_LABEL:
   case ISD::PREFETCH:
   case ISD::MEMBARRIER:
   case ISD::VAEND:
     Results.push_back(Node->getOperand(0));
-    break;
-  case ISD::DBG_STOPPOINT:
-    Results.push_back(ExpandDBG_STOPPOINT(Node));
     break;
   case ISD::DYNAMIC_STACKALLOC:
     ExpandDYNAMIC_STACKALLOC(Node, Results);

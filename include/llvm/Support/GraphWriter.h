@@ -52,19 +52,48 @@ template<typename GraphType>
 class GraphWriter {
   raw_ostream &O;
   const GraphType &G;
-  bool ShortNames;
 
   typedef DOTGraphTraits<GraphType>           DOTTraits;
   typedef GraphTraits<GraphType>              GTraits;
   typedef typename GTraits::NodeType          NodeType;
   typedef typename GTraits::nodes_iterator    node_iterator;
   typedef typename GTraits::ChildIteratorType child_iterator;
+  DOTTraits DTraits;
+
+  // Writes the edge labels of the node to O and returns true if there are any
+  // edge labels not equal to the empty string "".
+  bool getEdgeSourceLabels(raw_ostream &O, NodeType *Node) {
+    child_iterator EI = GTraits::child_begin(Node);
+    child_iterator EE = GTraits::child_end(Node);
+    bool hasEdgeSourceLabels = false;
+
+    for (unsigned i = 0; EI != EE && i != 64; ++EI, ++i) {
+      std::string label = DTraits.getEdgeSourceLabel(Node, EI);
+
+      if (label == "")
+        continue;
+
+      hasEdgeSourceLabels = true;
+
+      if (i)
+        O << "|";
+
+      O << "<s" << i << ">" << DTraits.getEdgeSourceLabel(Node, EI);
+    }
+
+    if (EI != EE && hasEdgeSourceLabels)
+      O << "|<s64>truncated...";
+
+    return hasEdgeSourceLabels;
+  }
+
 public:
-  GraphWriter(raw_ostream &o, const GraphType &g, bool SN) :
-    O(o), G(g), ShortNames(SN) {}
+  GraphWriter(raw_ostream &o, const GraphType &g, bool SN) : O(o), G(g) {
+  DTraits = DOTTraits(SN); 
+}
 
   void writeHeader(const std::string &Name) {
-    std::string GraphName = DOTTraits::getGraphName(G);
+    std::string GraphName = DTraits.getGraphName(G);
 
     if (!Name.empty())
       O << "digraph \"" << DOT::EscapeString(Name) << "\" {\n";
@@ -73,14 +102,14 @@ public:
     else
       O << "digraph unnamed {\n";
 
-    if (DOTTraits::renderGraphFromBottomUp())
+    if (DTraits.renderGraphFromBottomUp())
       O << "\trankdir=\"BT\";\n";
 
     if (!Name.empty())
       O << "\tlabel=\"" << DOT::EscapeString(Name) << "\";\n";
     else if (!GraphName.empty())
       O << "\tlabel=\"" << DOT::EscapeString(GraphName) << "\";\n";
-    O << DOTTraits::getGraphProperties(G);
+    O << DTraits.getGraphProperties(G);
     O << "\n";
   }
 
@@ -105,53 +134,47 @@ public:
   }
 
   void writeNode(NodeType *Node) {
-    std::string NodeAttributes = DOTTraits::getNodeAttributes(Node, G);
+    std::string NodeAttributes = DTraits.getNodeAttributes(Node, G);
 
     O << "\tNode" << static_cast<const void*>(Node) << " [shape=record,";
     if (!NodeAttributes.empty()) O << NodeAttributes << ",";
     O << "label=\"{";
 
-    if (!DOTTraits::renderGraphFromBottomUp()) {
-      O << DOT::EscapeString(DOTTraits::getNodeLabel(Node, G, ShortNames));
+    if (!DTraits.renderGraphFromBottomUp()) {
+      O << DOT::EscapeString(DTraits.getNodeLabel(Node, G));
 
       // If we should include the address of the node in the label, do so now.
-      if (DOTTraits::hasNodeAddressLabel(Node, G))
+      if (DTraits.hasNodeAddressLabel(Node, G))
         O << "|" << (void*)Node;
     }
 
-    // Print out the fields of the current node...
-    child_iterator EI = GTraits::child_begin(Node);
-    child_iterator EE = GTraits::child_end(Node);
-    if (EI != EE) {
-      if (!DOTTraits::renderGraphFromBottomUp()) O << "|";
-      O << "{";
+    std::string edgeSourceLabels;
+    raw_string_ostream EdgeSourceLabels(edgeSourceLabels);
+    bool hasEdgeSourceLabels = getEdgeSourceLabels(EdgeSourceLabels, Node);
 
-      for (unsigned i = 0; EI != EE && i != 64; ++EI, ++i) {
-        if (i) O << "|";
-        O << "<s" << i << ">" << DOTTraits::getEdgeSourceLabel(Node, EI);
-      }
+    if (hasEdgeSourceLabels) {
+      if (!DTraits.renderGraphFromBottomUp()) O << "|";
 
-      if (EI != EE)
-        O << "|<s64>truncated...";
-      O << "}";
-      if (DOTTraits::renderGraphFromBottomUp()) O << "|";
+      O << "{" << EdgeSourceLabels.str() << "}";
+
+      if (DTraits.renderGraphFromBottomUp()) O << "|";
     }
 
-    if (DOTTraits::renderGraphFromBottomUp()) {
-      O << DOT::EscapeString(DOTTraits::getNodeLabel(Node, G, ShortNames));
+    if (DTraits.renderGraphFromBottomUp()) {
+      O << DOT::EscapeString(DTraits.getNodeLabel(Node, G));
 
       // If we should include the address of the node in the label, do so now.
-      if (DOTTraits::hasNodeAddressLabel(Node, G))
+      if (DTraits.hasNodeAddressLabel(Node, G))
         O << "|" << (void*)Node;
     }
 
-    if (DOTTraits::hasEdgeDestLabels()) {
+    if (DTraits.hasEdgeDestLabels()) {
       O << "|{";
 
-      unsigned i = 0, e = DOTTraits::numEdgeDestLabels(Node);
+      unsigned i = 0, e = DTraits.numEdgeDestLabels(Node);
       for (; i != e && i != 64; ++i) {
         if (i) O << "|";
-        O << "<d" << i << ">" << DOTTraits::getEdgeDestLabel(Node, i);
+        O << "<d" << i << ">" << DTraits.getEdgeDestLabel(Node, i);
       }
 
       if (i != e)
@@ -162,7 +185,8 @@ public:
     O << "}\"];\n";   // Finish printing the "node" line
 
     // Output all of the edges now
-    EI = GTraits::child_begin(Node);
+    child_iterator EI = GTraits::child_begin(Node);
+    child_iterator EE = GTraits::child_end(Node);
     for (unsigned i = 0; EI != EE && i != 64; ++EI, ++i)
       writeEdge(Node, i, EI);
     for (; EI != EE; ++EI)
@@ -172,8 +196,8 @@ public:
   void writeEdge(NodeType *Node, unsigned edgeidx, child_iterator EI) {
     if (NodeType *TargetNode = *EI) {
       int DestPort = -1;
-      if (DOTTraits::edgeTargetsEdgeSource(Node, EI)) {
-        child_iterator TargetIt = DOTTraits::getEdgeTarget(Node, EI);
+      if (DTraits.edgeTargetsEdgeSource(Node, EI)) {
+        child_iterator TargetIt = DTraits.getEdgeTarget(Node, EI);
 
         // Figure out which edge this targets...
         unsigned Offset =
@@ -181,9 +205,12 @@ public:
         DestPort = static_cast<int>(Offset);
       }
 
+      if (DTraits.getEdgeSourceLabel(Node, EI) == "")
+        edgeidx = -1;
+
       emitEdge(static_cast<const void*>(Node), edgeidx,
                static_cast<const void*>(TargetNode), DestPort,
-               DOTTraits::getEdgeAttributes(Node, EI));
+               DTraits.getEdgeAttributes(Node, EI));
     }
   }
 
@@ -221,12 +248,8 @@ public:
     if (SrcNodePort >= 0)
       O << ":s" << SrcNodePort;
     O << " -> Node" << DestNodeID;
-    if (DestNodePort >= 0) {
-      if (DOTTraits::hasEdgeDestLabels())
-        O << ":d" << DestNodePort;
-      else
-        O << ":s" << DestNodePort;
-    }
+    if (DestNodePort >= 0 && DTraits.hasEdgeDestLabels())
+      O << ":d" << DestNodePort;
 
     if (!Attrs.empty())
       O << "[" << Attrs << "]";

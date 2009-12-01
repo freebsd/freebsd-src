@@ -116,6 +116,10 @@ def IsNotDarwin : Predicate<"!Subtarget->isTargetDarwin()">;
 def CarryDefIsUnused : Predicate<"!N.getNode()->hasAnyUseOfValue(1)">;
 def CarryDefIsUsed   : Predicate<"N.getNode()->hasAnyUseOfValue(1)">;
 
+// FIXME: Eventually this will be just "hasV6T2Ops".
+def UseMovt   : Predicate<"Subtarget->useMovt()">;
+def DontUseMovt : Predicate<"!Subtarget->useMovt()">;
+
 //===----------------------------------------------------------------------===//
 // ARM Flag Definitions.
 
@@ -204,7 +208,7 @@ def hi16 : SDNodeXForm<imm, [{
 def lo16AllZero : PatLeaf<(i32 imm), [{
   // Returns true if all low 16-bits are 0.
   return (((uint32_t)N->getZExtValue()) & 0xFFFFUL) == 0;
-  }], hi16>;
+}], hi16>;
 
 /// imm0_65535 predicate - True if the 32-bit immediate is in the range 
 /// [0.65535].
@@ -281,6 +285,22 @@ def so_imm2part_1 : SDNodeXForm<imm, [{
 
 def so_imm2part_2 : SDNodeXForm<imm, [{
   unsigned V = ARM_AM::getSOImmTwoPartSecond((unsigned)N->getZExtValue());
+  return CurDAG->getTargetConstant(V, MVT::i32);
+}]>;
+
+def so_neg_imm2part : Operand<i32>, PatLeaf<(imm), [{
+      return ARM_AM::isSOImmTwoPartVal(-(int)N->getZExtValue());
+    }]> {
+  let PrintMethod = "printSOImm2PartOperand";
+}
+
+def so_neg_imm2part_1 : SDNodeXForm<imm, [{
+  unsigned V = ARM_AM::getSOImmTwoPartFirst(-(int)N->getZExtValue());
+  return CurDAG->getTargetConstant(V, MVT::i32);
+}]>;
+
+def so_neg_imm2part_2 : SDNodeXForm<imm, [{
+  unsigned V = ARM_AM::getSOImmTwoPartSecond(-(int)N->getZExtValue());
   return CurDAG->getTargetConstant(V, MVT::i32);
 }]>;
 
@@ -568,12 +588,6 @@ PseudoInst<(outs), (ins i32imm:$amt, pred:$p), NoItinerary,
            [(ARMcallseq_start timm:$amt)]>;
 }
 
-def DWARF_LOC :
-PseudoInst<(outs), (ins i32imm:$line, i32imm:$col, i32imm:$file), NoItinerary,
-           ".loc $file, $line, $col",
-           [(dwarf_loc (i32 imm:$line), (i32 imm:$col), (i32 imm:$file))]>;
-
-
 // Address computation and loads and stores in PIC mode.
 let isNotDuplicable = 1 in {
 def PICADD : AXI1<0b0100, (outs GPR:$dst), (ins GPR:$a, pclabel:$cp, pred:$p),
@@ -581,25 +595,24 @@ def PICADD : AXI1<0b0100, (outs GPR:$dst), (ins GPR:$a, pclabel:$cp, pred:$p),
                    [(set GPR:$dst, (ARMpic_add GPR:$a, imm:$cp))]>;
 
 let AddedComplexity = 10 in {
-let canFoldAsLoad = 1 in
 def PICLDR  : AXI2ldw<(outs GPR:$dst), (ins addrmodepc:$addr, pred:$p),
                   Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldr$p\t$dst, $addr",
                   [(set GPR:$dst, (load addrmodepc:$addr))]>;
 
 def PICLDRH : AXI3ldh<(outs GPR:$dst), (ins addrmodepc:$addr, pred:$p),
-                Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldr${p}h\t$dst, $addr",
+                Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldrh${p}\t$dst, $addr",
                   [(set GPR:$dst, (zextloadi16 addrmodepc:$addr))]>;
 
 def PICLDRB : AXI2ldb<(outs GPR:$dst), (ins addrmodepc:$addr, pred:$p),
-                Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldr${p}b\t$dst, $addr",
+                Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldrb${p}\t$dst, $addr",
                   [(set GPR:$dst, (zextloadi8 addrmodepc:$addr))]>;
 
 def PICLDRSH : AXI3ldsh<(outs GPR:$dst), (ins addrmodepc:$addr, pred:$p),
-               Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldr${p}sh\t$dst, $addr",
+               Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldrsh${p}\t$dst, $addr",
                   [(set GPR:$dst, (sextloadi16 addrmodepc:$addr))]>;
 
 def PICLDRSB : AXI3ldsb<(outs GPR:$dst), (ins addrmodepc:$addr, pred:$p),
-               Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldr${p}sb\t$dst, $addr",
+               Pseudo, IIC_iLoadr, "\n${addr:label}:\n\tldrsb${p}\t$dst, $addr",
                   [(set GPR:$dst, (sextloadi8 addrmodepc:$addr))]>;
 }
 let AddedComplexity = 10 in {
@@ -801,13 +814,14 @@ let isBranch = 1, isTerminator = 1 in {
 //
 
 // Load
-let canFoldAsLoad = 1, isReMaterializable = 1 in 
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in 
 def LDR  : AI2ldw<(outs GPR:$dst), (ins addrmode2:$addr), LdFrm, IIC_iLoadr,
                "ldr", "\t$dst, $addr",
                [(set GPR:$dst, (load addrmode2:$addr))]>;
 
 // Special LDR for loads from non-pc-relative constpools.
-let canFoldAsLoad = 1, mayLoad = 1, isReMaterializable = 1 in
+let canFoldAsLoad = 1, mayLoad = 1, isReMaterializable = 1,
+    mayHaveSideEffects = 1  in
 def LDRcp : AI2ldw<(outs GPR:$dst), (ins addrmode2:$addr), LdFrm, IIC_iLoadr,
                  "ldr", "\t$dst, $addr", []>;
 
@@ -992,7 +1006,7 @@ def MOVi16 : AI1<0b1000, (outs GPR:$dst), (ins i32imm:$src),
 let Constraints = "$src = $dst" in
 def MOVTi16 : AI1<0b1010, (outs GPR:$dst), (ins GPR:$src, i32imm:$imm),
                   DPFrm, IIC_iMOVi,
-                  "movt", "\t$dst, $imm", 
+                  "movt", "\t$dst, $imm",
                   [(set GPR:$dst,
                         (or (and GPR:$src, 0xffff), 
                             lo16AllZero:$imm))]>, UnaryDP,
@@ -1593,12 +1607,6 @@ let Defs =
 // Non-Instruction Patterns
 //
 
-// ConstantPool, GlobalAddress, and JumpTable
-def : ARMPat<(ARMWrapper  tglobaladdr :$dst), (LEApcrel tglobaladdr :$dst)>;
-def : ARMPat<(ARMWrapper  tconstpool  :$dst), (LEApcrel tconstpool  :$dst)>;
-def : ARMPat<(ARMWrapperJT tjumptable:$dst, imm:$id),
-             (LEApcrelJT tjumptable:$dst, imm:$id)>;
-
 // Large immediate handling.
 
 // Two piece so_imms.
@@ -1618,9 +1626,9 @@ def : ARMPat<(xor GPR:$LHS, so_imm2part:$RHS),
 def : ARMPat<(add GPR:$LHS, so_imm2part:$RHS),
              (ADDri (ADDri GPR:$LHS, (so_imm2part_1 imm:$RHS)),
                     (so_imm2part_2 imm:$RHS))>;
-def : ARMPat<(sub GPR:$LHS, so_imm2part:$RHS),
-             (SUBri (SUBri GPR:$LHS, (so_imm2part_1 imm:$RHS)),
-                    (so_imm2part_2 imm:$RHS))>;
+def : ARMPat<(add GPR:$LHS, so_neg_imm2part:$RHS),
+             (SUBri (SUBri GPR:$LHS, (so_neg_imm2part_1 imm:$RHS)),
+                    (so_neg_imm2part_2 imm:$RHS))>;
 
 // 32-bit immediate using movw + movt.
 // This is a single pseudo instruction, the benefit is that it can be remat'd
@@ -1628,9 +1636,18 @@ def : ARMPat<(sub GPR:$LHS, so_imm2part:$RHS),
 // FIXME: Remove this when we can do generalized remat.
 let isReMaterializable = 1 in
 def MOVi32imm : AI1x2<(outs GPR:$dst), (ins i32imm:$src), Pseudo, IIC_iMOVi,
-                    "movw", "\t$dst, ${src:lo16}\n\tmovt${p} $dst, ${src:hi16}",
+                    "movw", "\t$dst, ${src:lo16}\n\tmovt${p}\t$dst, ${src:hi16}",
                      [(set GPR:$dst, (i32 imm:$src))]>,
                Requires<[IsARM, HasV6T2]>;
+
+// ConstantPool, GlobalAddress, and JumpTable
+def : ARMPat<(ARMWrapper  tglobaladdr :$dst), (LEApcrel tglobaladdr :$dst)>,
+            Requires<[IsARM, DontUseMovt]>;
+def : ARMPat<(ARMWrapper  tconstpool  :$dst), (LEApcrel tconstpool  :$dst)>;
+def : ARMPat<(ARMWrapper  tglobaladdr :$dst), (MOVi32imm tglobaladdr :$dst)>,
+            Requires<[IsARM, UseMovt]>;
+def : ARMPat<(ARMWrapperJT tjumptable:$dst, imm:$id),
+             (LEApcrelJT tjumptable:$dst, imm:$id)>;
 
 // TODO: add,sub,and, 3-instr forms?
 

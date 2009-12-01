@@ -23,6 +23,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Signals.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
 #include <algorithm>
 using namespace llvm;
@@ -82,10 +83,21 @@ public:
   /// variables and is updated if this match defines new values.
   size_t Match(StringRef Buffer, size_t &MatchLen,
                StringMap<StringRef> &VariableTable) const;
-  
+
+  /// PrintFailureInfo - Print additional information about a failure to match
+  /// involving this pattern.
+  void PrintFailureInfo(const SourceMgr &SM, StringRef Buffer,
+                        const StringMap<StringRef> &VariableTable) const;
+
 private:
   static void AddFixedStringToRegEx(StringRef FixedStr, std::string &TheStr);
   bool AddRegExToRegEx(StringRef RegExStr, unsigned &CurParen, SourceMgr &SM);
+
+  /// ComputeMatchDistance - Compute an arbitrary estimate for the quality of
+  /// matching this pattern at the start of \arg Buffer; a distance of zero
+  /// should correspond to a perfect match.
+  unsigned ComputeMatchDistance(StringRef Buffer,
+                               const StringMap<StringRef> &VariableTable) const;
 };
 
 
@@ -140,7 +152,7 @@ bool Pattern::ParsePattern(StringRef PatternStr, SourceMgr &SM) {
     // Named RegEx matches.  These are of two forms: [[foo:.*]] which matches .*
     // (or some other regex) and assigns it to the FileCheck variable 'foo'. The
     // second form is [[foo]] which is a reference to foo.  The variable name
-    // itself must be of the form "[a-zA-Z][0-9a-zA-Z]*", otherwise we reject
+    // itself must be of the form "[a-zA-Z_][0-9a-zA-Z_]*", otherwise we reject
     // it.  This is to catch some common errors.
     if (PatternStr.size() >= 2 &&
         PatternStr[0] == '[' && PatternStr[1] == '[') {
@@ -167,7 +179,8 @@ bool Pattern::ParsePattern(StringRef PatternStr, SourceMgr &SM) {
 
       // Verify that the name is well formed.
       for (unsigned i = 0, e = Name.size(); i != e; ++i)
-        if ((Name[i] < 'a' || Name[i] > 'z') &&
+        if (Name[i] != '_' &&
+            (Name[i] < 'a' || Name[i] > 'z') &&
             (Name[i] < 'A' || Name[i] > 'Z') &&
             (Name[i] < '0' || Name[i] > '9')) {
           SM.PrintMessage(SMLoc::getFromPointer(Name.data()+i),
@@ -275,9 +288,15 @@ size_t Pattern::Match(StringRef Buffer, size_t &MatchLen,
     
     unsigned InsertOffset = 0;
     for (unsigned i = 0, e = VariableUses.size(); i != e; ++i) {
+      StringMap<StringRef>::iterator it =
+        VariableTable.find(VariableUses[i].first);
+      // If the variable is undefined, return an error.
+      if (it == VariableTable.end())
+        return StringRef::npos;
+
       // Look up the value and escape it so that we can plop it into the regex.
       std::string Value;
-      AddFixedStringToRegEx(VariableTable[VariableUses[i].first], Value);
+      AddFixedStringToRegEx(it->second, Value);
       
       // Plop it into the regex at the adjusted offset.
       TmpStr.insert(TmpStr.begin()+VariableUses[i].second+InsertOffset,
@@ -309,6 +328,86 @@ size_t Pattern::Match(StringRef Buffer, size_t &MatchLen,
   return FullMatch.data()-Buffer.data();
 }
 
+unsigned Pattern::ComputeMatchDistance(StringRef Buffer,
+                              const StringMap<StringRef> &VariableTable) const {
+  // Just compute the number of matching characters. For regular expressions, we
+  // just compare against the regex itself and hope for the best.
+  //
+  // FIXME: One easy improvement here is have the regex lib generate a single
+  // example regular expression which matches, and use that as the example
+  // string.
+  StringRef ExampleString(FixedStr);
+  if (ExampleString.empty())
+    ExampleString = RegExStr;
+
+  unsigned Distance = 0;
+  for (unsigned i = 0, e = ExampleString.size(); i != e; ++i)
+    if (Buffer.substr(i, 1) != ExampleString.substr(i, 1))
+      ++Distance;
+
+  return Distance;
+}
+
+void Pattern::PrintFailureInfo(const SourceMgr &SM, StringRef Buffer,
+                               const StringMap<StringRef> &VariableTable) const{
+  // If this was a regular expression using variables, print the current
+  // variable values.
+  if (!VariableUses.empty()) {
+    for (unsigned i = 0, e = VariableUses.size(); i != e; ++i) {
+      StringRef Var = VariableUses[i].first;
+      StringMap<StringRef>::const_iterator it = VariableTable.find(Var);
+      SmallString<256> Msg;
+      raw_svector_ostream OS(Msg);
+
+      // Check for undefined variable references.
+      if (it == VariableTable.end()) {
+        OS << "uses undefined variable \"";
+        OS.write_escaped(Var) << "\"";;
+      } else {
+        OS << "with variable \"";
+        OS.write_escaped(Var) << "\" equal to \"";
+        OS.write_escaped(it->second) << "\"";
+      }
+
+      SM.PrintMessage(SMLoc::getFromPointer(Buffer.data()), OS.str(), "note",
+                      /*ShowLine=*/false);
+    }
+  }
+
+  // Attempt to find the closest/best fuzzy match.  Usually an error happens
+  // because some string in the output didn't exactly match. In these cases, we
+  // would like to show the user a best guess at what "should have" matched, to
+  // save them having to actually check the input manually.
+  size_t NumLinesForward = 0;
+  size_t Best = StringRef::npos;
+  double BestQuality = 0;
+
+  // Use an arbitrary 4k limit on how far we will search.
+  for (size_t i = 0, e = std::min(4096, int(Buffer.size())); i != e; ++i) {
+    if (Buffer[i] == '\n')
+      ++NumLinesForward;
+
+    // Compute the "quality" of this match as an arbitrary combination of the
+    // match distance and the number of lines skipped to get to this match.
+    unsigned Distance = ComputeMatchDistance(Buffer.substr(i), VariableTable);
+    double Quality = Distance + (NumLinesForward / 100.);
+
+    if (Quality < BestQuality || Best == StringRef::npos) {
+      Best = i;
+      BestQuality = Quality;
+    }
+  }
+
+  if (Best != StringRef::npos && BestQuality < 50) {
+    // Print the "possible intended match here" line if we found something
+    // reasonable.
+    SM.PrintMessage(SMLoc::getFromPointer(Buffer.data() + Best),
+                    "possible intended match here", "note");
+
+    // FIXME: If we wanted to be really friendly we would show why the match
+    // failed, as it can be hard to spot simple one character differences.
+  }
+}
 
 //===----------------------------------------------------------------------===//
 // Check Strings.
@@ -477,7 +576,8 @@ static bool ReadCheckFile(SourceMgr &SM,
 }
 
 static void PrintCheckFailed(const SourceMgr &SM, const CheckString &CheckStr,
-                             StringRef Buffer) {
+                             StringRef Buffer,
+                             StringMap<StringRef> &VariableTable) {
   // Otherwise, we have an error, emit an error message.
   SM.PrintMessage(CheckStr.Loc, "expected string not found in input",
                   "error");
@@ -488,6 +588,9 @@ static void PrintCheckFailed(const SourceMgr &SM, const CheckString &CheckStr,
   
   SM.PrintMessage(SMLoc::getFromPointer(Buffer.data()), "scanning from here",
                   "note");
+
+  // Allow the pattern to print additional information if desired.
+  CheckStr.Pat.PrintFailureInfo(SM, Buffer, VariableTable);
 }
 
 /// CountNumNewlinesBetween - Count the number of newlines in the specified
@@ -558,7 +661,7 @@ int main(int argc, char **argv) {
     
     // If we didn't find a match, reject the input.
     if (Buffer.empty()) {
-      PrintCheckFailed(SM, CheckStr, SearchFrom);
+      PrintCheckFailed(SM, CheckStr, SearchFrom, VariableTable);
       return 1;
     }
 

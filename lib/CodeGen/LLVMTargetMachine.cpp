@@ -35,6 +35,8 @@ static cl::opt<bool> DisablePostRA("disable-post-ra", cl::Hidden,
     cl::desc("Disable Post Regalloc"));
 static cl::opt<bool> DisableBranchFold("disable-branch-fold", cl::Hidden,
     cl::desc("Disable branch folding"));
+static cl::opt<bool> DisableTailDuplicate("disable-tail-duplicate", cl::Hidden,
+    cl::desc("Disable tail duplication"));
 static cl::opt<bool> DisableCodePlace("disable-code-place", cl::Hidden,
     cl::desc("Disable code placement"));
 static cl::opt<bool> DisableSSC("disable-ssc", cl::Hidden,
@@ -66,6 +68,11 @@ static cl::opt<cl::boolOrDefault>
 EnableFastISelOption("fast-isel", cl::Hidden,
   cl::desc("Enable the \"fast\" instruction selector"));
 
+// Enable or disable an experimental optimization to split GEPs
+// and run a special GVN pass which does not examine loads, in
+// an effort to factor out redundancy implicit in complex GEPs.
+static cl::opt<bool> EnableSplitGEPGVN("split-gep-gvn", cl::Hidden,
+    cl::desc("Split GEPs and run no-load GVN"));
 
 LLVMTargetMachine::LLVMTargetMachine(const Target &T,
                                      const std::string &TargetTriple)
@@ -223,6 +230,12 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
                                                CodeGenOpt::Level OptLevel) {
   // Standard LLVM-Level Passes.
 
+  // Optionally, tun split-GEPs and no-load GVN.
+  if (EnableSplitGEPGVN) {
+    PM.add(createGEPSplitterPass());
+    PM.add(createGVNPass(/*NoPRE=*/false, /*NoLoads=*/true));
+  }
+
   // Run loop strength reduction before anything else.
   if (OptLevel != CodeGenOpt::None && !DisableLSR) {
     PM.add(createLoopStrengthReducePass(getTargetLowering()));
@@ -333,14 +346,16 @@ bool LLVMTargetMachine::addCommonCodeGenPasses(PassManagerBase &PM,
     printAndVerify(PM, "After BranchFolding");
   }
 
+  // Tail duplication.
+  if (OptLevel != CodeGenOpt::None && !DisableTailDuplicate) {
+    PM.add(createTailDuplicatePass());
+    printAndVerify(PM, "After TailDuplicate");
+  }
+
   PM.add(createGCMachineCodeAnalysisPass());
 
   if (PrintGCInfo)
     PM.add(createGCInfoPrinter(errs()));
-
-  // Fold redundant debug labels.
-  PM.add(createDebugLabelFoldingPass());
-  printAndVerify(PM, "After DebugLabelFolding");
 
   if (OptLevel != CodeGenOpt::None && !DisableCodePlace) {
     PM.add(createCodePlacementOptPass());

@@ -2163,8 +2163,8 @@ bool InstCombiner::WillNotOverflowSignedAdd(Value *LHS, Value *RHS) {
   
   // Add has the property that adding any two 2's complement numbers can only 
   // have one carry bit which can change a sign.  As such, if LHS and RHS each
-  // have at least two sign bits, we know that the addition of the two values will
-  // sign extend fine.
+  // have at least two sign bits, we know that the addition of the two values
+  // will sign extend fine.
   if (ComputeNumSignBits(LHS) > 1 && ComputeNumSignBits(RHS) > 1)
     return true;
   
@@ -2184,15 +2184,12 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
   bool Changed = SimplifyCommutative(I);
   Value *LHS = I.getOperand(0), *RHS = I.getOperand(1);
 
+  if (Value *V = SimplifyAddInst(LHS, RHS, I.hasNoSignedWrap(),
+                                 I.hasNoUnsignedWrap(), TD))
+    return ReplaceInstUsesWith(I, V);
+
+  
   if (Constant *RHSC = dyn_cast<Constant>(RHS)) {
-    // X + undef -> undef
-    if (isa<UndefValue>(RHS))
-      return ReplaceInstUsesWith(I, RHS);
-
-    // X + 0 --> X
-    if (RHSC->isNullValue())
-      return ReplaceInstUsesWith(I, LHS);
-
     if (ConstantInt *CI = dyn_cast<ConstantInt>(RHSC)) {
       // X + (signbit) --> X ^ signbit
       const APInt& Val = CI->getValue();
@@ -4070,6 +4067,21 @@ Value *InstCombiner::FoldLogicalPlusAnd(Value *LHS, Value *RHS,
 /// FoldAndOfICmps - Fold (icmp)&(icmp) if possible.
 Instruction *InstCombiner::FoldAndOfICmps(Instruction &I,
                                           ICmpInst *LHS, ICmpInst *RHS) {
+  // (icmp eq A, null) & (icmp eq B, null) -->
+  //     (icmp eq (ptrtoint(A)|ptrtoint(B)), 0)
+  if (TD &&
+      LHS->getPredicate() == ICmpInst::ICMP_EQ &&
+      RHS->getPredicate() == ICmpInst::ICMP_EQ &&
+      isa<ConstantPointerNull>(LHS->getOperand(1)) &&
+      isa<ConstantPointerNull>(RHS->getOperand(1))) {
+    const Type *IntPtrTy = TD->getIntPtrType(I.getContext());
+    Value *A = Builder->CreatePtrToInt(LHS->getOperand(0), IntPtrTy);
+    Value *B = Builder->CreatePtrToInt(RHS->getOperand(0), IntPtrTy);
+    Value *NewOr = Builder->CreateOr(A, B);
+    return new ICmpInst(ICmpInst::ICMP_EQ, NewOr,
+                        Constant::getNullValue(IntPtrTy));
+  }
+  
   Value *Val, *Val2;
   ConstantInt *LHSCst, *RHSCst;
   ICmpInst::Predicate LHSCC, RHSCC;
@@ -4081,12 +4093,20 @@ Instruction *InstCombiner::FoldAndOfICmps(Instruction &I,
                          m_ConstantInt(RHSCst))))
     return 0;
   
-  // (icmp ult A, C) & (icmp ult B, C) --> (icmp ult (A|B), C)
-  // where C is a power of 2
-  if (LHSCst == RHSCst && LHSCC == RHSCC && LHSCC == ICmpInst::ICMP_ULT &&
-      LHSCst->getValue().isPowerOf2()) {
-    Value *NewOr = Builder->CreateOr(Val, Val2);
-    return new ICmpInst(LHSCC, NewOr, LHSCst);
+  if (LHSCst == RHSCst && LHSCC == RHSCC) {
+    // (icmp ult A, C) & (icmp ult B, C) --> (icmp ult (A|B), C)
+    // where C is a power of 2
+    if (LHSCC == ICmpInst::ICMP_ULT &&
+        LHSCst->getValue().isPowerOf2()) {
+      Value *NewOr = Builder->CreateOr(Val, Val2);
+      return new ICmpInst(LHSCC, NewOr, LHSCst);
+    }
+    
+    // (icmp eq A, 0) & (icmp eq B, 0) --> (icmp eq (A|B), 0)
+    if (LHSCC == ICmpInst::ICMP_EQ && LHSCst->isZero()) {
+      Value *NewOr = Builder->CreateOr(Val, Val2);
+      return new ICmpInst(LHSCC, NewOr, LHSCst);
+    }
   }
   
   // From here on, we only handle:
@@ -4322,7 +4342,6 @@ Instruction *InstCombiner::visitAnd(BinaryOperator &I) {
 
   if (Value *V = SimplifyAndInst(Op0, Op1, TD))
     return ReplaceInstUsesWith(I, V);
-    
 
   // See if we can simplify any instructions used by the instruction whose sole 
   // purpose is to compute bits we don't care about.
@@ -4743,16 +4762,37 @@ static Instruction *MatchSelectFromAndOr(Value *A, Value *B,
 /// FoldOrOfICmps - Fold (icmp)|(icmp) if possible.
 Instruction *InstCombiner::FoldOrOfICmps(Instruction &I,
                                          ICmpInst *LHS, ICmpInst *RHS) {
+  // (icmp ne A, null) | (icmp ne B, null) -->
+  //     (icmp ne (ptrtoint(A)|ptrtoint(B)), 0)
+  if (TD &&
+      LHS->getPredicate() == ICmpInst::ICMP_NE &&
+      RHS->getPredicate() == ICmpInst::ICMP_NE &&
+      isa<ConstantPointerNull>(LHS->getOperand(1)) &&
+      isa<ConstantPointerNull>(RHS->getOperand(1))) {
+    const Type *IntPtrTy = TD->getIntPtrType(I.getContext());
+    Value *A = Builder->CreatePtrToInt(LHS->getOperand(0), IntPtrTy);
+    Value *B = Builder->CreatePtrToInt(RHS->getOperand(0), IntPtrTy);
+    Value *NewOr = Builder->CreateOr(A, B);
+    return new ICmpInst(ICmpInst::ICMP_NE, NewOr,
+                        Constant::getNullValue(IntPtrTy));
+  }
+  
   Value *Val, *Val2;
   ConstantInt *LHSCst, *RHSCst;
   ICmpInst::Predicate LHSCC, RHSCC;
   
   // This only handles icmp of constants: (icmp1 A, C1) | (icmp2 B, C2).
-  if (!match(LHS, m_ICmp(LHSCC, m_Value(Val),
-             m_ConstantInt(LHSCst))) ||
-      !match(RHS, m_ICmp(RHSCC, m_Value(Val2),
-             m_ConstantInt(RHSCst))))
+  if (!match(LHS, m_ICmp(LHSCC, m_Value(Val), m_ConstantInt(LHSCst))) ||
+      !match(RHS, m_ICmp(RHSCC, m_Value(Val2), m_ConstantInt(RHSCst))))
     return 0;
+
+  
+  // (icmp ne A, 0) | (icmp ne B, 0) --> (icmp ne (A|B), 0)
+  if (LHSCst == RHSCst && LHSCC == RHSCC &&
+      LHSCC == ICmpInst::ICMP_NE && LHSCst->isZero()) {
+    Value *NewOr = Builder->CreateOr(Val, Val2);
+    return new ICmpInst(LHSCC, NewOr, LHSCst);
+  }
   
   // From here on, we only handle:
   //    (icmp1 A, C1) | (icmp2 A, C2) --> something simpler.
@@ -8539,6 +8579,36 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
     }
   }
 
+  // icmp ne A, B is equal to xor A, B when A and B only really have one bit.
+  // It is also profitable to transform icmp eq into not(xor(A, B)) because that
+  // may lead to additional simplifications.
+  if (ICI->isEquality() && CI.getType() == ICI->getOperand(0)->getType()) {
+    if (const IntegerType *ITy = dyn_cast<IntegerType>(CI.getType())) {
+      uint32_t BitWidth = ITy->getBitWidth();
+      if (BitWidth > 1) {
+        Value *LHS = ICI->getOperand(0);
+        Value *RHS = ICI->getOperand(1);
+
+        APInt KnownZeroLHS(BitWidth, 0), KnownOneLHS(BitWidth, 0);
+        APInt KnownZeroRHS(BitWidth, 0), KnownOneRHS(BitWidth, 0);
+        APInt TypeMask(APInt::getHighBitsSet(BitWidth, BitWidth-1));
+        ComputeMaskedBits(LHS, TypeMask, KnownZeroLHS, KnownOneLHS);
+        ComputeMaskedBits(RHS, TypeMask, KnownZeroRHS, KnownOneRHS);
+
+        if (KnownZeroLHS.countLeadingOnes() == BitWidth-1 &&
+            KnownZeroRHS.countLeadingOnes() == BitWidth-1) {
+          if (!DoXform) return ICI;
+
+          Value *Xor = Builder->CreateXor(LHS, RHS);
+          if (ICI->getPredicate() == ICmpInst::ICMP_EQ)
+            Xor = Builder->CreateXor(Xor, ConstantInt::get(ITy, 1));
+          Xor->takeName(ICI);
+          return ReplaceInstUsesWith(CI, Xor);
+        }
+      }
+    }
+  }
+
   return 0;
 }
 
@@ -9841,6 +9911,126 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     if (IntrinsicInst *Operand = dyn_cast<IntrinsicInst>(II->getOperand(1)))
       if (Operand->getIntrinsicID() == Intrinsic::bswap)
         return ReplaceInstUsesWith(CI, Operand->getOperand(1));
+    break;
+  case Intrinsic::uadd_with_overflow: {
+    Value *LHS = II->getOperand(1), *RHS = II->getOperand(2);
+    const IntegerType *IT = cast<IntegerType>(II->getOperand(1)->getType());
+    uint32_t BitWidth = IT->getBitWidth();
+    APInt Mask = APInt::getSignBit(BitWidth);
+    APInt LHSKnownZero(BitWidth, 0);
+    APInt LHSKnownOne(BitWidth, 0);
+    ComputeMaskedBits(LHS, Mask, LHSKnownZero, LHSKnownOne);
+    bool LHSKnownNegative = LHSKnownOne[BitWidth - 1];
+    bool LHSKnownPositive = LHSKnownZero[BitWidth - 1];
+
+    if (LHSKnownNegative || LHSKnownPositive) {
+      APInt RHSKnownZero(BitWidth, 0);
+      APInt RHSKnownOne(BitWidth, 0);
+      ComputeMaskedBits(RHS, Mask, RHSKnownZero, RHSKnownOne);
+      bool RHSKnownNegative = RHSKnownOne[BitWidth - 1];
+      bool RHSKnownPositive = RHSKnownZero[BitWidth - 1];
+      if (LHSKnownNegative && RHSKnownNegative) {
+        // The sign bit is set in both cases: this MUST overflow.
+        // Create a simple add instruction, and insert it into the struct.
+        Instruction *Add = BinaryOperator::CreateAdd(LHS, RHS, "", &CI);
+        Worklist.Add(Add);
+        Constant *V[] = {
+          UndefValue::get(LHS->getType()), ConstantInt::getTrue(*Context)
+        };
+        Constant *Struct = ConstantStruct::get(*Context, V, 2, false);
+        return InsertValueInst::Create(Struct, Add, 0);
+      }
+      
+      if (LHSKnownPositive && RHSKnownPositive) {
+        // The sign bit is clear in both cases: this CANNOT overflow.
+        // Create a simple add instruction, and insert it into the struct.
+        Instruction *Add = BinaryOperator::CreateNUWAdd(LHS, RHS, "", &CI);
+        Worklist.Add(Add);
+        Constant *V[] = {
+          UndefValue::get(LHS->getType()), ConstantInt::getFalse(*Context)
+        };
+        Constant *Struct = ConstantStruct::get(*Context, V, 2, false);
+        return InsertValueInst::Create(Struct, Add, 0);
+      }
+    }
+  }
+  // FALL THROUGH uadd into sadd
+  case Intrinsic::sadd_with_overflow:
+    // Canonicalize constants into the RHS.
+    if (isa<Constant>(II->getOperand(1)) &&
+        !isa<Constant>(II->getOperand(2))) {
+      Value *LHS = II->getOperand(1);
+      II->setOperand(1, II->getOperand(2));
+      II->setOperand(2, LHS);
+      return II;
+    }
+
+    // X + undef -> undef
+    if (isa<UndefValue>(II->getOperand(2)))
+      return ReplaceInstUsesWith(CI, UndefValue::get(II->getType()));
+      
+    if (ConstantInt *RHS = dyn_cast<ConstantInt>(II->getOperand(2))) {
+      // X + 0 -> {X, false}
+      if (RHS->isZero()) {
+        Constant *V[] = {
+          UndefValue::get(II->getOperand(0)->getType()),
+          ConstantInt::getFalse(*Context)
+        };
+        Constant *Struct = ConstantStruct::get(*Context, V, 2, false);
+        return InsertValueInst::Create(Struct, II->getOperand(1), 0);
+      }
+    }
+    break;
+  case Intrinsic::usub_with_overflow:
+  case Intrinsic::ssub_with_overflow:
+    // undef - X -> undef
+    // X - undef -> undef
+    if (isa<UndefValue>(II->getOperand(1)) ||
+        isa<UndefValue>(II->getOperand(2)))
+      return ReplaceInstUsesWith(CI, UndefValue::get(II->getType()));
+      
+    if (ConstantInt *RHS = dyn_cast<ConstantInt>(II->getOperand(2))) {
+      // X - 0 -> {X, false}
+      if (RHS->isZero()) {
+        Constant *V[] = {
+          UndefValue::get(II->getOperand(1)->getType()),
+          ConstantInt::getFalse(*Context)
+        };
+        Constant *Struct = ConstantStruct::get(*Context, V, 2, false);
+        return InsertValueInst::Create(Struct, II->getOperand(1), 0);
+      }
+    }
+    break;
+  case Intrinsic::umul_with_overflow:
+  case Intrinsic::smul_with_overflow:
+    // Canonicalize constants into the RHS.
+    if (isa<Constant>(II->getOperand(1)) &&
+        !isa<Constant>(II->getOperand(2))) {
+      Value *LHS = II->getOperand(1);
+      II->setOperand(1, II->getOperand(2));
+      II->setOperand(2, LHS);
+      return II;
+    }
+
+    // X * undef -> undef
+    if (isa<UndefValue>(II->getOperand(2)))
+      return ReplaceInstUsesWith(CI, UndefValue::get(II->getType()));
+      
+    if (ConstantInt *RHSI = dyn_cast<ConstantInt>(II->getOperand(2))) {
+      // X*0 -> {0, false}
+      if (RHSI->isZero())
+        return ReplaceInstUsesWith(CI, Constant::getNullValue(II->getType()));
+      
+      // X * 1 -> {X, false}
+      if (RHSI->equalsInt(1)) {
+        Constant *V[] = {
+          UndefValue::get(II->getOperand(1)->getType()),
+          ConstantInt::getFalse(*Context)
+        };
+        Constant *Struct = ConstantStruct::get(*Context, V, 2, false);
+        return InsertValueInst::Create(Struct, II->getOperand(1), 0);
+      }
+    }
     break;
   case Intrinsic::ppc_altivec_lvx:
   case Intrinsic::ppc_altivec_lvxl:
@@ -11282,20 +11472,15 @@ Instruction *InstCombiner::visitPHINode(PHINode &PN) {
 }
 
 Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
+  SmallVector<Value*, 8> Ops(GEP.op_begin(), GEP.op_end());
+
+  if (Value *V = SimplifyGEPInst(&Ops[0], Ops.size(), TD))
+    return ReplaceInstUsesWith(GEP, V);
+
   Value *PtrOp = GEP.getOperand(0);
-  // Eliminate 'getelementptr %P, i32 0' and 'getelementptr %P', they are noops.
-  if (GEP.getNumOperands() == 1)
-    return ReplaceInstUsesWith(GEP, PtrOp);
 
   if (isa<UndefValue>(GEP.getOperand(0)))
     return ReplaceInstUsesWith(GEP, UndefValue::get(GEP.getType()));
-
-  bool HasZeroPointerIndex = false;
-  if (Constant *C = dyn_cast<Constant>(GEP.getOperand(1)))
-    HasZeroPointerIndex = C->isNullValue();
-
-  if (GEP.getNumOperands() == 2 && HasZeroPointerIndex)
-    return ReplaceInstUsesWith(GEP, PtrOp);
 
   // Eliminate unneeded casts for indices.
   if (TD) {
@@ -11400,6 +11585,10 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       Worklist.AddValue(PtrOp);
       return 0;
     }
+    
+    bool HasZeroPointerIndex = false;
+    if (ConstantInt *C = dyn_cast<ConstantInt>(GEP.getOperand(1)))
+      HasZeroPointerIndex = C->isZero();
     
     // Transform: GEP (bitcast [10 x i8]* X to [0 x i8]*), i32 0, ...
     // into     : GEP [10 x i8]* X, i32 0, ...
@@ -11952,12 +12141,6 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   Value *Val = SI.getOperand(0);
   Value *Ptr = SI.getOperand(1);
 
-  if (isa<UndefValue>(Ptr)) {     // store X, undef -> noop (even if volatile)
-    EraseInstFromFunction(SI);
-    ++NumCombined;
-    return 0;
-  }
-  
   // If the RHS is an alloca with a single use, zapify the store, making the
   // alloca dead.
   // If the RHS is an alloca with a two uses, the other one being a 
@@ -12920,7 +13103,7 @@ Instruction *InstCombiner::visitShuffleVectorInst(ShuffleVectorInst &SVI) {
       if (LHSMask.size() == Mask.size()) {
         std::vector<unsigned> NewMask;
         for (unsigned i = 0, e = Mask.size(); i != e; ++i)
-          if (Mask[i] >= 2*e)
+          if (Mask[i] >= e)
             NewMask.push_back(2*e);
           else
             NewMask.push_back(LHSMask[Mask[i]]);

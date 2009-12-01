@@ -514,6 +514,13 @@ public:
     return false;
   }
 
+  /// isPredicable - Return true if the specified instruction can be predicated.
+  /// By default, this returns true for every instruction with a
+  /// PredicateOperand.
+  virtual bool isPredicable(MachineInstr *MI) const {
+    return MI->getDesc().isPredicable();
+  }
+
   /// isSafeToMoveRegClassDefs - Return true if it's safe to move a machine
   /// instruction that defines the specified register class.
   virtual bool isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const {
@@ -536,13 +543,6 @@ public:
   /// length.
   virtual unsigned getInlineAsmLength(const char *Str,
                                       const MCAsmInfo &MAI) const;
-
-  /// TailDuplicationLimit - Returns the limit on the number of instructions
-  /// in basic block MBB beyond which it will not be tail-duplicated.
-  virtual unsigned TailDuplicationLimit(const MachineBasicBlock &MBB,
-                                        unsigned DefaultLimit) const {
-    return DefaultLimit;
-  }
 };
 
 /// TargetInstrInfoImpl - This is the default implementation of

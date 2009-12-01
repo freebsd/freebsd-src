@@ -1425,26 +1425,40 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   assert(UnavailablePred != 0 &&
          "Fully available value should be eliminated above!");
 
-  // If the loaded pointer is PHI node defined in this block, do PHI translation
-  // to get its value in the predecessor.
-  Value *LoadPtr = LI->getOperand(0)->DoPHITranslation(LoadBB, UnavailablePred);
-
-  // Make sure the value is live in the predecessor.  If it was defined by a
-  // non-PHI instruction in this block, we don't know how to recompute it above.
-  if (Instruction *LPInst = dyn_cast<Instruction>(LoadPtr))
-    if (!DT->dominates(LPInst->getParent(), UnavailablePred)) {
-      DEBUG(errs() << "COULDN'T PRE LOAD BECAUSE PTR IS UNAVAILABLE IN PRED: "
-                   << *LPInst << '\n' << *LI << "\n");
-      return false;
-    }
-
   // We don't currently handle critical edges :(
   if (UnavailablePred->getTerminator()->getNumSuccessors() != 1) {
     DEBUG(errs() << "COULD NOT PRE LOAD BECAUSE OF CRITICAL EDGE '"
                  << UnavailablePred->getName() << "': " << *LI << '\n');
     return false;
   }
-
+  
+  // Do PHI translation to get its value in the predecessor if necessary.  The
+  // returned pointer (if non-null) is guaranteed to dominate UnavailablePred.
+  //
+  // FIXME: This may insert a computation, but we don't tell scalar GVN
+  // optimization stuff about it.  How do we do this?
+  SmallVector<Instruction*, 8> NewInsts;
+  Value *LoadPtr = 0;
+  
+  // If all preds have a single successor, then we know it is safe to insert the
+  // load on the pred (?!?), so we can insert code to materialize the pointer if
+  // it is not available.
+  if (allSingleSucc) {
+    LoadPtr = MD->InsertPHITranslatedPointer(LI->getOperand(0), LoadBB,
+                                             UnavailablePred, TD, *DT,NewInsts);
+  } else {
+    LoadPtr = MD->GetAvailablePHITranslatedValue(LI->getOperand(0), LoadBB,
+                                                 UnavailablePred, TD, *DT);
+  }
+    
+  // If we couldn't find or insert a computation of this phi translated value,
+  // we fail PRE.
+  if (LoadPtr == 0) {
+    DEBUG(errs() << "COULDN'T INSERT PHI TRANSLATED VALUE OF: "
+                 << *LI->getOperand(0) << "\n");
+    return false;
+  }
+  
   // Make sure it is valid to move this load here.  We have to watch out for:
   //  @1 = getelementptr (i8* p, ...
   //  test p and branch if == 0
@@ -1455,14 +1469,20 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   // we do not have this case.  Otherwise, check that the load is safe to
   // put anywhere; this can be improved, but should be conservatively safe.
   if (!allSingleSucc &&
-      !isSafeToLoadUnconditionally(LoadPtr, UnavailablePred->getTerminator()))
+      // FIXME: REEVALUTE THIS.
+      !isSafeToLoadUnconditionally(LoadPtr, UnavailablePred->getTerminator())) {
+    assert(NewInsts.empty() && "Should not have inserted instructions");
     return false;
+  }
 
   // Okay, we can eliminate this load by inserting a reload in the predecessor
   // and using PHI construction to get the value in the other predecessors, do
   // it.
   DEBUG(errs() << "GVN REMOVING PRE LOAD: " << *LI << '\n');
-
+  DEBUG(if (!NewInsts.empty())
+          errs() << "INSERTED " << NewInsts.size() << " INSTS: "
+                 << *NewInsts.back() << '\n');
+  
   Value *NewLoad = new LoadInst(LoadPtr, LI->getName()+".pre", false,
                                 LI->getAlignment(),
                                 UnavailablePred->getTerminator());

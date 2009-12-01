@@ -142,10 +142,6 @@ XCoreTargetLowering::XCoreTargetLowering(XCoreTargetMachine &XTM)
   setOperationAction(ISD::STACKRESTORE, MVT::Other, Expand);
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
   
-  // Debug
-  setOperationAction(ISD::DBG_STOPPOINT, MVT::Other, Expand);
-  setOperationAction(ISD::DEBUG_LOC, MVT::Other, Expand);
-
   maxStoresPerMemset = 4;
   maxStoresPerMemmove = maxStoresPerMemcpy = 2;
 
@@ -295,7 +291,7 @@ LowerBlockAddress(SDValue Op, SelectionDAG &DAG)
   DebugLoc DL = Op.getDebugLoc();
 
   BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
-  SDValue Result = DAG.getBlockAddress(BA, DL, /*isTarget=*/true);
+  SDValue Result = DAG.getBlockAddress(BA, getPointerTy(), /*isTarget=*/true);
 
   return DAG.getNode(XCoreISD::PCRelativeWrapper, DL, getPointerTy(), Result);
 }

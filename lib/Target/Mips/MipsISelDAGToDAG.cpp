@@ -144,6 +144,7 @@ SelectAddr(SDValue Op, SDValue Addr, SDValue &Offset, SDValue &Base)
   // on PIC code Load GA
   if (TM.getRelocationModel() == Reloc::PIC_) {
     if ((Addr.getOpcode() == ISD::TargetGlobalAddress) || 
+        (Addr.getOpcode() == ISD::TargetConstantPool) || 
         (Addr.getOpcode() == ISD::TargetJumpTable)){
       Base   = CurDAG->getRegister(Mips::GP, MVT::i32);
       Offset = Addr;
@@ -174,23 +175,21 @@ SelectAddr(SDValue Op, SDValue Addr, SDValue &Offset, SDValue &Base)
     }
 
     // When loading from constant pools, load the lower address part in
-    // the instruction itself. Instead of:
+    // the instruction itself. Example, instead of:
     //  lui $2, %hi($CPI1_0)
     //  addiu $2, $2, %lo($CPI1_0)
     //  lwc1 $f0, 0($2)
     // Generate:
     //  lui $2, %hi($CPI1_0)
     //  lwc1 $f0, %lo($CPI1_0)($2)
-    if (Addr.getOperand(0).getOpcode() == MipsISD::Hi &&
+    if ((Addr.getOperand(0).getOpcode() == MipsISD::Hi || 
+         Addr.getOperand(0).getOpcode() == ISD::LOAD) &&
         Addr.getOperand(1).getOpcode() == MipsISD::Lo) {
       SDValue LoVal = Addr.getOperand(1); 
-      if (ConstantPoolSDNode *CP = dyn_cast<ConstantPoolSDNode>(
-          LoVal.getOperand(0))) {
-        if (!CP->getOffset()) {
-          Base = Addr.getOperand(0);
-          Offset = LoVal.getOperand(0);
-          return true;
-        }
+      if (dyn_cast<ConstantPoolSDNode>(LoVal.getOperand(0))) {
+        Base = Addr.getOperand(0);
+        Offset = LoVal.getOperand(0);
+        return true;
       }
     }
   }
@@ -234,6 +233,10 @@ SDNode *MipsDAGToDAGISel::SelectLoadFp64(SDValue N) {
                                             CP->getTargetFlags());
   else
     return NULL;
+
+  // Choose the offsets depending on the endianess
+  if (TM.getTargetData()->isBigEndian())
+    std::swap(Offset0, Offset1);
 
   // Instead of:
   //    ldc $f0, X($3)
@@ -295,6 +298,10 @@ SDNode *MipsDAGToDAGISel::SelectStoreFp64(SDValue N) {
     Offset1 = CurDAG->getTargetConstant(C->getSExtValue()+4, MVT::i32);
   else
     return NULL;
+
+  // Choose the offsets depending on the endianess
+  if (TM.getTargetData()->isBigEndian())
+    std::swap(Offset0, Offset1);
 
   // Instead of:
   //    sdc $f0, X($3)
