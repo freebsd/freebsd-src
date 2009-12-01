@@ -402,6 +402,21 @@ bool ARMBaseInstrInfo::DefinesPredicate(MachineInstr *MI,
   return Found;
 }
 
+/// isPredicable - Return true if the specified instruction can be predicated.
+/// By default, this returns true for every instruction with a
+/// PredicateOperand.
+bool ARMBaseInstrInfo::isPredicable(MachineInstr *MI) const {
+  const TargetInstrDesc &TID = MI->getDesc();
+  if (!TID.isPredicable())
+    return false;
+
+  if ((TID.TSFlags & ARMII::DomainMask) == ARMII::DomainNEON) {
+    ARMFunctionInfo *AFI =
+      MI->getParent()->getParent()->getInfo<ARMFunctionInfo>();
+    return AFI->isThumb2Function();
+  }
+  return true;
+}
 
 /// FIXME: Works around a gcc miscompilation with -fstrict-aliasing
 static unsigned getNumJTEntries(const std::vector<MachineJumpTableEntry> &JT,
@@ -647,11 +662,13 @@ ARMBaseInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
              SrcRC == ARM::DPR_VFP2RegisterClass ||
              SrcRC == ARM::DPR_8RegisterClass) {
     // Always use neon reg-reg move if source or dest is NEON-only regclass.
-    BuildMI(MBB, I, DL, get(ARM::VMOVDneon), DestReg).addReg(SrcReg);
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VMOVDneon),
+                           DestReg).addReg(SrcReg));
   } else if (DestRC == ARM::QPRRegisterClass ||
              DestRC == ARM::QPR_VFP2RegisterClass ||
              DestRC == ARM::QPR_8RegisterClass) {
-    BuildMI(MBB, I, DL, get(ARM::VMOVQ), DestReg).addReg(SrcReg);
+    AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VMOVQ),
+                           DestReg).addReg(SrcReg));
   } else {
     return false;
   }
@@ -695,13 +712,14 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     // FIXME: Neon instructions should support predicates
     if (Align >= 16
         && (getRegisterInfo().needsStackRealignment(MF))) {
-      BuildMI(MBB, I, DL, get(ARM::VST1q64))
-        .addFrameIndex(FI).addImm(0).addImm(0).addImm(128).addMemOperand(MMO)
-        .addReg(SrcReg, getKillRegState(isKill));
+      AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VST1q64))
+                     .addFrameIndex(FI).addImm(0).addImm(0).addImm(128)
+                     .addMemOperand(MMO)
+                     .addReg(SrcReg, getKillRegState(isKill)));
     } else {
-      BuildMI(MBB, I, DL, get(ARM::VSTRQ)).
-        addReg(SrcReg, getKillRegState(isKill))
-        .addFrameIndex(FI).addImm(0).addMemOperand(MMO);
+      AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTRQ)).
+                     addReg(SrcReg, getKillRegState(isKill))
+                     .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
     }
   }
 }
@@ -740,11 +758,12 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     // FIXME: Neon instructions should support predicates
     if (Align >= 16
         && (getRegisterInfo().needsStackRealignment(MF))) {
-      BuildMI(MBB, I, DL, get(ARM::VLD1q64), DestReg)
-        .addFrameIndex(FI).addImm(0).addImm(0).addImm(128).addMemOperand(MMO);
+      AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLD1q64), DestReg)
+                     .addFrameIndex(FI).addImm(0).addImm(0).addImm(128)
+                     .addMemOperand(MMO));
     } else {
-      BuildMI(MBB, I, DL, get(ARM::VLDRQ), DestReg).addFrameIndex(FI).addImm(0).
-        addMemOperand(MMO);
+      AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDRQ), DestReg)
+                     .addFrameIndex(FI).addImm(0).addMemOperand(MMO));
     }
   }
 }
@@ -978,7 +997,10 @@ bool ARMBaseInstrInfo::isIdentical(const MachineInstr *MI0,
                                   const MachineInstr *MI1,
                                   const MachineRegisterInfo *MRI) const {
   int Opcode = MI0->getOpcode();
-  if (Opcode == ARM::t2LDRpci_pic || Opcode == ARM::tLDRpci_pic) {
+  if (Opcode == ARM::t2LDRpci ||
+      Opcode == ARM::t2LDRpci_pic ||
+      Opcode == ARM::tLDRpci ||
+      Opcode == ARM::tLDRpci_pic) {
     if (MI1->getOpcode() != Opcode)
       return false;
     if (MI0->getNumOperands() != MI1->getNumOperands())
@@ -1003,16 +1025,6 @@ bool ARMBaseInstrInfo::isIdentical(const MachineInstr *MI0,
   }
 
   return TargetInstrInfoImpl::isIdentical(MI0, MI1, MRI);
-}
-
-unsigned ARMBaseInstrInfo::TailDuplicationLimit(const MachineBasicBlock &MBB,
-                                                unsigned DefaultLimit) const {
-  // If the target processor can predict indirect branches, it is highly
-  // desirable to duplicate them, since it can often make them predictable.
-  if (!MBB.empty() && isIndirectBranchOpcode(MBB.back().getOpcode()) &&
-      getSubtarget().hasBranchTargetBuffer())
-    return DefaultLimit + 2;
-  return DefaultLimit;
 }
 
 /// getInstrPredicate - If instruction is predicated, returns its predicate

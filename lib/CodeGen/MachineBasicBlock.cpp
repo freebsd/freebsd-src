@@ -172,6 +172,13 @@ static inline void OutputReg(raw_ostream &os, unsigned RegNo,
     os << " %reg" << RegNo;
 }
 
+StringRef MachineBasicBlock::getName() const {
+  if (const BasicBlock *LBB = getBasicBlock())
+    return LBB->getName();
+  else
+    return "(null)";
+}
+
 void MachineBasicBlock::print(raw_ostream &OS) const {
   const MachineFunction *MF = getParent();
   if (!MF) {
@@ -272,8 +279,9 @@ void MachineBasicBlock::updateTerminator() {
       // successors is its layout successor, rewrite it to a fallthrough
       // conditional branch.
       if (isLayoutSuccessor(TBB)) {
+        if (TII->ReverseBranchCondition(Cond))
+          return;
         TII->RemoveBranch(*this);
-        TII->ReverseBranchCondition(Cond);
         TII->InsertBranch(*this, FBB, 0, Cond);
       } else if (isLayoutSuccessor(FBB)) {
         TII->RemoveBranch(*this);
@@ -285,8 +293,13 @@ void MachineBasicBlock::updateTerminator() {
       MachineBasicBlock *MBBB = *next(succ_begin());
       if (MBBA == TBB) std::swap(MBBB, MBBA);
       if (isLayoutSuccessor(TBB)) {
+        if (TII->ReverseBranchCondition(Cond)) {
+          // We can't reverse the condition, add an unconditional branch.
+          Cond.clear();
+          TII->InsertBranch(*this, MBBA, 0, Cond);
+          return;
+        }
         TII->RemoveBranch(*this);
-        TII->ReverseBranchCondition(Cond);
         TII->InsertBranch(*this, MBBA, 0, Cond);
       } else if (!isLayoutSuccessor(MBBA)) {
         TII->RemoveBranch(*this);
@@ -347,6 +360,51 @@ bool MachineBasicBlock::isSuccessor(const MachineBasicBlock *MBB) const {
 bool MachineBasicBlock::isLayoutSuccessor(const MachineBasicBlock *MBB) const {
   MachineFunction::const_iterator I(this);
   return next(I) == MachineFunction::const_iterator(MBB);
+}
+
+bool MachineBasicBlock::canFallThrough() {
+  MachineBasicBlock *TBB = 0, *FBB = 0;
+  SmallVector<MachineOperand, 4> Cond;
+  const TargetInstrInfo *TII = getParent()->getTarget().getInstrInfo();
+  bool BranchUnAnalyzable = TII->AnalyzeBranch(*this, TBB, FBB, Cond, true);
+
+  MachineFunction::iterator Fallthrough = this;
+  ++Fallthrough;
+  // If FallthroughBlock is off the end of the function, it can't fall through.
+  if (Fallthrough == getParent()->end())
+    return false;
+
+  // If FallthroughBlock isn't a successor, no fallthrough is possible.
+  if (!isSuccessor(Fallthrough))
+    return false;
+
+  // If we couldn't analyze the branch, examine the last instruction.
+  // If the block doesn't end in a known control barrier, assume fallthrough
+  // is possible. The isPredicable check is needed because this code can be
+  // called during IfConversion, where an instruction which is normally a
+  // Barrier is predicated and thus no longer an actual control barrier. This
+  // is over-conservative though, because if an instruction isn't actually
+  // predicated we could still treat it like a barrier.
+  if (BranchUnAnalyzable)
+    return empty() || !back().getDesc().isBarrier() ||
+           back().getDesc().isPredicable();
+
+  // If there is no branch, control always falls through.
+  if (TBB == 0) return true;
+
+  // If there is some explicit branch to the fallthrough block, it can obviously
+  // reach, even though the branch should get folded to fall through implicitly.
+  if (MachineFunction::iterator(TBB) == Fallthrough ||
+      MachineFunction::iterator(FBB) == Fallthrough)
+    return true;
+
+  // If it's an unconditional branch to some block not the fall through, it
+  // doesn't fall through.
+  if (Cond.empty()) return false;
+
+  // Otherwise, if it is conditional and has no explicit false block, it falls
+  // through.
+  return FBB == 0;
 }
 
 /// removeFromParent - This method unlinks 'this' from the containing function,

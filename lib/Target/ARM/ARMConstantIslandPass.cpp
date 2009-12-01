@@ -162,6 +162,9 @@ namespace {
     /// the branch fix up pass.
     bool HasFarJump;
 
+    /// HasInlineAsm - True if the function contains inline assembly.
+    bool HasInlineAsm;
+
     const TargetInstrInfo *TII;
     const ARMSubtarget *STI;
     ARMFunctionInfo *AFI;
@@ -236,9 +239,18 @@ void ARMConstantIslands::verify(MachineFunction &MF) {
     if (!MBB->empty() &&
         MBB->begin()->getOpcode() == ARM::CONSTPOOL_ENTRY) {
       unsigned MBBId = MBB->getNumber();
-      assert((BBOffsets[MBBId]%4 == 0 && BBSizes[MBBId]%4 == 0) ||
+      assert(HasInlineAsm ||
+             (BBOffsets[MBBId]%4 == 0 && BBSizes[MBBId]%4 == 0) ||
              (BBOffsets[MBBId]%4 != 0 && BBSizes[MBBId]%4 != 0));
     }
+  }
+  for (unsigned i = 0, e = CPUsers.size(); i != e; ++i) {
+    CPUser &U = CPUsers[i];
+    unsigned UserOffset = GetOffsetOf(U.MI) + (isThumb ? 4 : 8);
+    unsigned CPEOffset  = GetOffsetOf(U.CPEMI);
+    unsigned Disp = UserOffset < CPEOffset ? CPEOffset - UserOffset :
+      UserOffset - CPEOffset;
+    assert(Disp <= U.MaxDisp || "Constant pool entry out of range!");
   }
 #endif
 }
@@ -269,6 +281,7 @@ bool ARMConstantIslands::runOnMachineFunction(MachineFunction &MF) {
   isThumb2 = AFI->isThumb2Function();
 
   HasFarJump = false;
+  HasInlineAsm = false;
 
   // Renumber all of the machine basic blocks in the function, guaranteeing that
   // the numbers agree with the position of the block in the function.
@@ -452,6 +465,19 @@ void ARMConstantIslands::JumpTableFunctionScan(MachineFunction &MF) {
 /// and finding all of the constant pool users.
 void ARMConstantIslands::InitialFunctionScan(MachineFunction &MF,
                                  const std::vector<MachineInstr*> &CPEMIs) {
+  // First thing, see if the function has any inline assembly in it. If so,
+  // we have to be conservative about alignment assumptions, as we don't
+  // know for sure the size of any instructions in the inline assembly.
+  for (MachineFunction::iterator MBBI = MF.begin(), E = MF.end();
+       MBBI != E; ++MBBI) {
+    MachineBasicBlock &MBB = *MBBI;
+    for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end();
+         I != E; ++I)
+      if (I->getOpcode() == ARM::INLINEASM)
+        HasInlineAsm = true;
+  }
+
+  // Now go back through the instructions and build up our data structures
   unsigned Offset = 0;
   for (MachineFunction::iterator MBBI = MF.begin(), E = MF.end();
        MBBI != E; ++MBBI) {
@@ -481,7 +507,7 @@ void ARMConstantIslands::InitialFunctionScan(MachineFunction &MF,
           // A Thumb1 table jump may involve padding; for the offsets to
           // be right, functions containing these must be 4-byte aligned.
           AFI->setAlign(2U);
-          if ((Offset+MBBSize)%4 != 0)
+          if ((Offset+MBBSize)%4 != 0 || HasInlineAsm)
             // FIXME: Add a pseudo ALIGN instruction instead.
             MBBSize += 2;           // padding
           continue;   // Does not get an entry in ImmBranches
@@ -550,7 +576,7 @@ void ARMConstantIslands::InitialFunctionScan(MachineFunction &MF,
           case ARM::LEApcrel:
             // This takes a SoImm, which is 8 bit immediate rotated. We'll
             // pretend the maximum offset is 255 * 4. Since each instruction
-            // 4 byte wide, this is always correct. We'llc heck for other
+            // 4 byte wide, this is always correct. We'll check for other
             // displacements that fits in a SoImm as well.
             Bits = 8;
             Scale = 4;
@@ -609,7 +635,7 @@ void ARMConstantIslands::InitialFunctionScan(MachineFunction &MF,
     if (isThumb &&
         !MBB.empty() &&
         MBB.begin()->getOpcode() == ARM::CONSTPOOL_ENTRY &&
-        (Offset%4) != 0)
+        ((Offset%4) != 0 || HasInlineAsm))
       MBBSize += 2;
 
     BBSizes.push_back(MBBSize);
@@ -633,7 +659,7 @@ unsigned ARMConstantIslands::GetOffsetOf(MachineInstr *MI) const {
   // alignment padding, and compensate if so.
   if (isThumb &&
       MI->getOpcode() == ARM::CONSTPOOL_ENTRY &&
-      Offset%4 != 0)
+      (Offset%4 != 0 || HasInlineAsm))
     Offset += 2;
 
   // Sum instructions before MI in MBB.
@@ -829,7 +855,7 @@ bool ARMConstantIslands::CPEIsInRange(MachineInstr *MI, unsigned UserOffset,
                                       MachineInstr *CPEMI, unsigned MaxDisp,
                                       bool NegOk, bool DoDump) {
   unsigned CPEOffset  = GetOffsetOf(CPEMI);
-  assert(CPEOffset%4 == 0 && "Misaligned CPE");
+  assert((CPEOffset%4 == 0 || HasInlineAsm) && "Misaligned CPE");
 
   if (DoDump) {
     DEBUG(errs() << "User of CPE#" << CPEMI->getOperand(0).getImm()
@@ -870,7 +896,7 @@ void ARMConstantIslands::AdjustBBOffsetsAfter(MachineBasicBlock *BB,
     if (!isThumb)
       continue;
     MachineBasicBlock *MBB = MBBI;
-    if (!MBB->empty()) {
+    if (!MBB->empty() && !HasInlineAsm) {
       // Constant pool entries require padding.
       if (MBB->begin()->getOpcode() == ARM::CONSTPOOL_ENTRY) {
         unsigned OldOffset = BBOffsets[i] - delta;
@@ -1226,7 +1252,7 @@ bool ARMConstantIslands::HandleConstantPoolUser(MachineFunction &MF,
 
   BBOffsets[NewIsland->getNumber()] = BBOffsets[NewMBB->getNumber()];
   // Compensate for .align 2 in thumb mode.
-  if (isThumb && BBOffsets[NewIsland->getNumber()]%4 != 0)
+  if (isThumb && (BBOffsets[NewIsland->getNumber()]%4 != 0 || HasInlineAsm))
     Size += 2;
   // Increase the size of the island block to account for the new entry.
   BBSizes[NewIsland->getNumber()] += Size;

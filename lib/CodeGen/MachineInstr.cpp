@@ -1148,10 +1148,11 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
     // TODO: print InlinedAtLoc information
 
     DebugLocTuple DLT = MF->getDebugLocTuple(debugLoc);
-    DICompileUnit CU(DLT.Scope);
-    if (!CU.isNull())
-      OS << " dbg:" << CU.getDirectory() << '/' << CU.getFilename() << ":"
-         << DLT.Line << ":" << DLT.Col;
+    DIScope Scope(DLT.Scope);
+    OS << " dbg:";
+    if (!Scope.isNull())
+      OS << Scope.getDirectory() << ':' << Scope.getFilename() << ':';
+    OS << DLT.Line << ":" << DLT.Col;
   }
 
   OS << "\n";

@@ -323,6 +323,15 @@ PPCJITInfo::getLazyResolverFunction(JITCompilerFn Fn) {
   return is64Bit ? PPC64CompilationCallback : PPC32CompilationCallback;
 }
 
+TargetJITInfo::StubLayout PPCJITInfo::getStubLayout() {
+  // The stub contains up to 10 4-byte instructions, aligned at 4 bytes: 3
+  // instructions to save the caller's address if this is a lazy-compilation
+  // stub, plus a 1-, 4-, or 7-instruction sequence to load an arbitrary address
+  // into a register and jump through it.
+  StubLayout Result = {10*4, 4};
+  return Result;
+}
+
 #if (defined(__POWERPC__) || defined (__ppc__) || defined(_POWER)) && \
 defined(__APPLE__)
 extern "C" void sys_icache_invalidate(const void *Addr, size_t len);
@@ -330,12 +339,12 @@ extern "C" void sys_icache_invalidate(const void *Addr, size_t len);
 
 void *PPCJITInfo::emitFunctionStub(const Function* F, void *Fn,
                                    JITCodeEmitter &JCE) {
+  MachineCodeEmitter::BufferState BS;
   // If this is just a call to an external function, emit a branch instead of a
   // call.  The code is the same except for one bit of the last instruction.
   if (Fn != (void*)(intptr_t)PPC32CompilationCallback && 
       Fn != (void*)(intptr_t)PPC64CompilationCallback) {
-    JCE.startGVStub(F, 7*4);
-    intptr_t Addr = (intptr_t)JCE.getCurrentPCValue();
+    void *Addr = (void*)JCE.getCurrentPCValue();
     JCE.emitWordBE(0);
     JCE.emitWordBE(0);
     JCE.emitWordBE(0);
@@ -343,13 +352,12 @@ void *PPCJITInfo::emitFunctionStub(const Function* F, void *Fn,
     JCE.emitWordBE(0);
     JCE.emitWordBE(0);
     JCE.emitWordBE(0);
-    EmitBranchToAt(Addr, (intptr_t)Fn, false, is64Bit);
-    sys::Memory::InvalidateInstructionCache((void*)Addr, 7*4);
-    return JCE.finishGVStub(F);
+    EmitBranchToAt((intptr_t)Addr, (intptr_t)Fn, false, is64Bit);
+    sys::Memory::InvalidateInstructionCache(Addr, 7*4);
+    return Addr;
   }
 
-  JCE.startGVStub(F, 10*4);
-  intptr_t Addr = (intptr_t)JCE.getCurrentPCValue();
+  void *Addr = (void*)JCE.getCurrentPCValue();
   if (is64Bit) {
     JCE.emitWordBE(0xf821ffb1);     // stdu r1,-80(r1)
     JCE.emitWordBE(0x7d6802a6);     // mflr r11
@@ -372,8 +380,8 @@ void *PPCJITInfo::emitFunctionStub(const Function* F, void *Fn,
   JCE.emitWordBE(0);
   JCE.emitWordBE(0);
   EmitBranchToAt(BranchAddr, (intptr_t)Fn, true, is64Bit);
-  sys::Memory::InvalidateInstructionCache((void*)Addr, 10*4);
-  return JCE.finishGVStub(F);
+  sys::Memory::InvalidateInstructionCache(Addr, 10*4);
+  return Addr;
 }
 
 

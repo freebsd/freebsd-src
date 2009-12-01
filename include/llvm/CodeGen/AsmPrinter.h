@@ -297,7 +297,7 @@ namespace llvm {
     /// EmitString - Emit a string with quotes and a null terminator.
     /// Special characters are emitted properly.
     /// @verbatim (Eg. '\t') @endverbatim
-    void EmitString(const std::string &String) const;
+    void EmitString(const StringRef String) const;
     void EmitString(const char *String, unsigned Size) const;
 
     /// EmitFile - Emit a .file directive.
@@ -345,9 +345,11 @@ namespace llvm {
     
     /// GetBlockAddressSymbol - Return the MCSymbol used to satisfy BlockAddress
     /// uses of the specified basic block.
-    MCSymbol *GetBlockAddressSymbol(const BlockAddress *BA) const;
+    MCSymbol *GetBlockAddressSymbol(const BlockAddress *BA,
+                                    const char *Suffix = "") const;
     MCSymbol *GetBlockAddressSymbol(const Function *F,
-                                    const BasicBlock *BB) const;
+                                    const BasicBlock *BB,
+                                    const char *Suffix = "") const;
 
     /// EmitBasicBlockStart - This method prints the label for the specified
     /// MachineBasicBlock, an alignment (if present) and a comment describing

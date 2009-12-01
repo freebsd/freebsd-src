@@ -291,6 +291,8 @@
             '<tt>llvm.trap</tt>' Intrinsic</a></li>
           <li><a href="#int_stackprotector">
             '<tt>llvm.stackprotector</tt>' Intrinsic</a></li>
+	  <li><a href="#int_objectsize">
+            '<tt>llvm.objectsize</tt>' Intrinsic</a></li>
         </ol>
       </li>
     </ol>
@@ -1440,11 +1442,6 @@ Classifications</a> </div>
   </tr>
 </table>
 
-<p>Note that the code generator does not yet support large integer types to be
-   used as function return types. The specific limit on how large a return type
-   the code generator can currently handle is target-dependent; currently it's
-   often 64 bits for 32-bit targets and 128 bits for 64-bit targets.</p>
-
 </div>
 
 <!-- _______________________________________________________________________ -->
@@ -1583,11 +1580,6 @@ Classifications</a> </div>
    length array type. An implementation of 'pascal style arrays' in LLVM could
    use the type "<tt>{ i32, [0 x float]}</tt>", for example.</p>
 
-<p>Note that the code generator does not yet support large aggregate types to be
-   used as function return types. The specific limit on how large an aggregate
-   return type the code generator can currently handle is target-dependent, and
-   also dependent on the aggregate element types.</p>
-
 </div>
 
 <!-- _______________________________________________________________________ -->
@@ -1680,11 +1672,6 @@ Classifications</a> </div>
   </tr>
 </table>
 
-<p>Note that the code generator does not yet support large aggregate types to be
-   used as function return types. The specific limit on how large an aggregate
-   return type the code generator can currently handle is target-dependent, and
-   also dependent on the aggregate element types.</p>
-
 </div>
 
 <!-- _______________________________________________________________________ -->
@@ -1775,8 +1762,7 @@ Classifications</a> </div>
 <p>A vector type is a simple derived type that represents a vector of elements.
    Vector types are used when multiple primitive data are operated in parallel
    using a single instruction (SIMD).  A vector type requires a size (number of
-   elements) and an underlying primitive data type.  Vectors must have a power
-   of two length (1, 2, 4, 8, 16 ...).  Vector types are considered
+   elements) and an underlying primitive data type.  Vector types are considered
    <a href="#t_firstclass">first class</a>.</p>
 
 <h5>Syntax:</h5>
@@ -1802,11 +1788,6 @@ Classifications</a> </div>
     <td class="left">Vector of 2 64-bit integer values.</td>
   </tr>
 </table>
-
-<p>Note that the code generator does not yet support large vector types to be
-   used as function return types. The specific limit on how large a vector
-   return type codegen can currently handle is target-dependent; currently it's
-   often a few times longer than a hardware vector register.</p>
 
 </div>
 
@@ -2599,14 +2580,6 @@ Instruction</a> </div>
   ret void                        <i>; Return from a void function</i>
   ret { i32, i8 } { i32 4, i8 2 } <i>; Return a struct of values 4 and 2</i>
 </pre>
-
-<p>Note that the code generator does not yet fully support large
-   return values. The specific sizes that are currently supported are
-   dependent on the target. For integers, on 32-bit targets the limit
-   is often 64 bits, and on 64-bit targets the limit is often 128 bits.
-   For aggregate types, the current limits are dependent on the element
-   types; for example targets are often limited to 2 total integer
-   elements and 2 total floating-point elements.</p>
 
 </div>
 <!-- _______________________________________________________________________ -->
@@ -7275,6 +7248,41 @@ LLVM</a>.</p>
 
 </div>
 
+<!-- _______________________________________________________________________ -->
+<div class="doc_subsubsection">
+  <a name="int_objectsize">'<tt>llvm.objectsize</tt>' Intrinsic</a>
+</div>
+
+<div class="doc_text">
+
+<h5>Syntax:</h5>
+<pre>
+  declare i32 @llvm.objectsize.i32( i8* &lt;ptr&gt;, i32 &lt;type&gt; )
+  declare i64 @llvm.objectsize.i64( i8* &lt;ptr&gt;, i32 &lt;type&gt; )
+</pre>
+
+<h5>Overview:</h5>
+<p>The <tt>llvm.objectsize</tt> intrinsic returns the constant number of bytes
+   from <tt>ptr</tt> to the end of the object <tt>ptr</tt> points to if it
+   can deduce this at compile time.  If there are any side-effects in evaluating
+   the argument or it cannot deduce which objects <tt>ptr</tt> points to at compile
+   time the intrinsic returns <tt>(size_t) -1</tt> for <tt>type</tt> 0
+   or 1 and <tt>(size_t) 0</tt> for <tt>type</tt> 2 or 3.</p>
+
+<h5>Arguments:</h5>
+<p>The <tt>llvm.objectsize</tt> intrinsic takes two arguments.  The first
+   argument is a pointer to the object <tt>ptr</tt> and an integer <tt>type</tt>.
+   <tt>type</tt> is an integer ranging from 0 to 3. The lsb corresponds to
+   a return value based on whole objects, the second bit whether or not we
+   return the maximum or minimum remaining bytes computed.</p>
+
+<h5>Semantics:</h5>
+<p>The <tt>llvm.objectsize</tt> intrinsic is lowered to either a constant
+   representing the size of the object concerned or <tt>(size_t) -1</tt> if
+   it cannot be determined at compile time.</p>
+
+</div>
+
 <!-- *********************************************************************** -->
 <hr>
 <address>
@@ -7285,7 +7293,7 @@ LLVM</a>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-11-09 20:01:53 +0100 (Mon, 09 Nov 2009) $
+  Last modified: $Date: 2009-11-30 09:03:53 +0100 (Mon, 30 Nov 2009) $
 </address>
 
 </body>

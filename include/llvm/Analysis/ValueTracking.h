@@ -19,6 +19,7 @@
 #include <string>
 
 namespace llvm {
+  template <typename T> class SmallVectorImpl;
   class Value;
   class Instruction;
   class APInt;
@@ -77,6 +78,26 @@ namespace llvm {
   ///
   bool CannotBeNegativeZero(const Value *V, unsigned Depth = 0);
 
+  /// DecomposeGEPExpression - If V is a symbolic pointer expression, decompose
+  /// it into a base pointer with a constant offset and a number of scaled
+  /// symbolic offsets.
+  ///
+  /// The scaled symbolic offsets (represented by pairs of a Value* and a scale
+  /// in the VarIndices vector) are Value*'s that are known to be scaled by the
+  /// specified amount, but which may have other unrepresented high bits. As
+  /// such, the gep cannot necessarily be reconstructed from its decomposed
+  /// form.
+  ///
+  /// When TargetData is around, this function is capable of analyzing
+  /// everything that Value::getUnderlyingObject() can look through.  When not,
+  /// it just looks through pointer casts.
+  ///
+  const Value *DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
+                 SmallVectorImpl<std::pair<const Value*, int64_t> > &VarIndices,
+                                      const TargetData *TD);
+    
+  
+  
   /// FindScalarValue - Given an aggregrate and an sequence of indices, see if
   /// the scalar value indexed is already around as a register, for example if
   /// it were inserted directly into the aggregrate.
@@ -86,16 +107,14 @@ namespace llvm {
   Value *FindInsertedValue(Value *V,
                            const unsigned *idx_begin,
                            const unsigned *idx_end,
-                           LLVMContext &Context,
                            Instruction *InsertBefore = 0);
 
   /// This is a convenience wrapper for finding values indexed by a single index
   /// only.
   inline Value *FindInsertedValue(Value *V, const unsigned Idx,
-                                  LLVMContext &Context,
                                   Instruction *InsertBefore = 0) {
     const unsigned Idxs[1] = { Idx };
-    return FindInsertedValue(V, &Idxs[0], &Idxs[1], Context, InsertBefore);
+    return FindInsertedValue(V, &Idxs[0], &Idxs[1], InsertBefore);
   }
   
   /// GetConstantStringInfo - This function computes the length of a

@@ -83,15 +83,15 @@ namespace {
   class JITResolverState {
   public:
     typedef ValueMap<Function*, void*, NoRAUWValueMapConfig<Function*> >
-      FunctionToStubMapTy;
+      FunctionToLazyStubMapTy;
     typedef std::map<void*, AssertingVH<Function> > CallSiteToFunctionMapTy;
     typedef ValueMap<Function *, SmallPtrSet<void*, 1>,
                      CallSiteValueMapConfig> FunctionToCallSitesMapTy;
     typedef std::map<AssertingVH<GlobalValue>, void*> GlobalToIndirectSymMapTy;
   private:
-    /// FunctionToStubMap - Keep track of the stub created for a particular
-    /// function so that we can reuse them if necessary.
-    FunctionToStubMapTy FunctionToStubMap;
+    /// FunctionToLazyStubMap - Keep track of the lazy stub created for a
+    /// particular function so that we can reuse them if necessary.
+    FunctionToLazyStubMapTy FunctionToLazyStubMap;
 
     /// CallSiteToFunctionMap - Keep track of the function that each lazy call
     /// site corresponds to, and vice versa.
@@ -103,12 +103,13 @@ namespace {
     GlobalToIndirectSymMapTy GlobalToIndirectSymMap;
 
   public:
-    JITResolverState() : FunctionToStubMap(this),
+    JITResolverState() : FunctionToLazyStubMap(this),
                          FunctionToCallSitesMap(this) {}
 
-    FunctionToStubMapTy& getFunctionToStubMap(const MutexGuard& locked) {
+    FunctionToLazyStubMapTy& getFunctionToLazyStubMap(
+      const MutexGuard& locked) {
       assert(locked.holds(TheJIT->lock));
-      return FunctionToStubMap;
+      return FunctionToLazyStubMap;
     }
 
     GlobalToIndirectSymMapTy& getGlobalToIndirectSymMap(const MutexGuard& locked) {
@@ -154,11 +155,11 @@ namespace {
 
       Function *const F = C2F_I->second;
 #ifndef NDEBUG
-      void *RealStub = FunctionToStubMap.lookup(F);
+      void *RealStub = FunctionToLazyStubMap.lookup(F);
       assert(RealStub == Stub &&
              "Call-site that wasn't a stub pass in to EraseStub");
 #endif
-      FunctionToStubMap.erase(F);
+      FunctionToLazyStubMap.erase(F);
       CallSiteToFunctionMap.erase(C2F_I);
 
       // Remove the stub from the function->call-sites map, and remove the whole
@@ -196,7 +197,7 @@ namespace {
   /// JITResolver - Keep track of, and resolve, call sites for functions that
   /// have not yet been compiled.
   class JITResolver {
-    typedef JITResolverState::FunctionToStubMapTy FunctionToStubMapTy;
+    typedef JITResolverState::FunctionToLazyStubMapTy FunctionToLazyStubMapTy;
     typedef JITResolverState::CallSiteToFunctionMapTy CallSiteToFunctionMapTy;
     typedef JITResolverState::GlobalToIndirectSymMapTy GlobalToIndirectSymMapTy;
 
@@ -206,8 +207,11 @@ namespace {
 
     JITResolverState state;
 
-    /// ExternalFnToStubMap - This is the equivalent of FunctionToStubMap for
-    /// external functions.
+    /// ExternalFnToStubMap - This is the equivalent of FunctionToLazyStubMap
+    /// for external functions.  TODO: Of course, external functions don't need
+    /// a lazy stub.  It's actually here to make it more likely that far calls
+    /// succeed, but no single stub can guarantee that.  I'll remove this in a
+    /// subsequent checkin when I actually fix far calls.
     std::map<void*, void*> ExternalFnToStubMap;
 
     /// revGOTMap - map addresses to indexes in the GOT
@@ -230,14 +234,13 @@ namespace {
       TheJITResolver = 0;
     }
 
-    /// getFunctionStubIfAvailable - This returns a pointer to a function stub
-    /// if it has already been created.
-    void *getFunctionStubIfAvailable(Function *F);
+    /// getLazyFunctionStubIfAvailable - This returns a pointer to a function's
+    /// lazy-compilation stub if it has already been created.
+    void *getLazyFunctionStubIfAvailable(Function *F);
 
-    /// getFunctionStub - This returns a pointer to a function stub, creating
-    /// one on demand as needed.  If empty is true, create a function stub
-    /// pointing at address 0, to be filled in later.
-    void *getFunctionStub(Function *F);
+    /// getLazyFunctionStub - This returns a pointer to a function's
+    /// lazy-compilation stub, creating one on demand as needed.
+    void *getLazyFunctionStub(Function *F);
 
     /// getExternalFunctionStub - Return a stub for the function at the
     /// specified address, created lazily on demand.
@@ -267,10 +270,6 @@ namespace {
   /// used to output functions to memory for execution.
   class JITEmitter : public JITCodeEmitter {
     JITMemoryManager *MemMgr;
-
-    // When outputting a function stub in the context of some other function, we
-    // save BufferBegin/BufferEnd/CurBufferPtr here.
-    uint8_t *SavedBufferBegin, *SavedBufferEnd, *SavedCurBufferPtr;
 
     // When reattempting to JIT a function after running out of space, we store
     // the estimated size of the function we're trying to JIT here, so we can
@@ -397,11 +396,11 @@ namespace {
     void initJumpTableInfo(MachineJumpTableInfo *MJTI);
     void emitJumpTableInfo(MachineJumpTableInfo *MJTI);
 
-    virtual void startGVStub(const GlobalValue* GV, unsigned StubSize,
-                                   unsigned Alignment = 1);
-    virtual void startGVStub(const GlobalValue* GV, void *Buffer,
+    virtual void startGVStub(BufferState &BS, const GlobalValue* GV,
+                             unsigned StubSize, unsigned Alignment = 1);
+    virtual void startGVStub(BufferState &BS, void *Buffer,
                              unsigned StubSize);
-    virtual void* finishGVStub(const GlobalValue *GV);
+    virtual void* finishGVStub(BufferState &BS);
 
     /// allocateSpace - Reserves space in the current block if any, or
     /// allocate a new one of the given size.
@@ -489,22 +488,22 @@ void CallSiteValueMapConfig::onDelete(JITResolverState *JRS, Function *F) {
   JRS->EraseAllCallSitesPrelocked(F);
 }
 
-/// getFunctionStubIfAvailable - This returns a pointer to a function stub
+/// getLazyFunctionStubIfAvailable - This returns a pointer to a function stub
 /// if it has already been created.
-void *JITResolver::getFunctionStubIfAvailable(Function *F) {
+void *JITResolver::getLazyFunctionStubIfAvailable(Function *F) {
   MutexGuard locked(TheJIT->lock);
 
   // If we already have a stub for this function, recycle it.
-  return state.getFunctionToStubMap(locked).lookup(F);
+  return state.getFunctionToLazyStubMap(locked).lookup(F);
 }
 
 /// getFunctionStub - This returns a pointer to a function stub, creating
 /// one on demand as needed.
-void *JITResolver::getFunctionStub(Function *F) {
+void *JITResolver::getLazyFunctionStub(Function *F) {
   MutexGuard locked(TheJIT->lock);
 
-  // If we already have a stub for this function, recycle it.
-  void *&Stub = state.getFunctionToStubMap(locked)[F];
+  // If we already have a lazy stub for this function, recycle it.
+  void *&Stub = state.getFunctionToLazyStubMap(locked)[F];
   if (Stub) return Stub;
 
   // Call the lazy resolver function if we are JIT'ing lazily.  Otherwise we
@@ -522,9 +521,13 @@ void *JITResolver::getFunctionStub(Function *F) {
     if (!Actual) return 0;
   }
 
+  MachineCodeEmitter::BufferState BS;
+  TargetJITInfo::StubLayout SL = TheJIT->getJITInfo().getStubLayout();
+  JE.startGVStub(BS, F, SL.Size, SL.Alignment);
   // Codegen a new stub, calling the lazy resolver or the actual address of the
   // external function, if it was resolved.
   Stub = TheJIT->getJITInfo().emitFunctionStub(F, Actual, JE);
+  JE.finishGVStub(BS);
 
   if (Actual != (void*)(intptr_t)LazyResolverFn) {
     // If we are getting the stub for an external function, we really want the
@@ -533,7 +536,7 @@ void *JITResolver::getFunctionStub(Function *F) {
     TheJIT->updateGlobalMapping(F, Stub);
   }
 
-  DEBUG(errs() << "JIT: Stub emitted at [" << Stub << "] for function '"
+  DEBUG(errs() << "JIT: Lazy stub emitted at [" << Stub << "] for function '"
         << F->getName() << "'\n");
 
   // Finally, keep track of the stub-to-Function mapping so that the
@@ -576,7 +579,11 @@ void *JITResolver::getExternalFunctionStub(void *FnAddr) {
   void *&Stub = ExternalFnToStubMap[FnAddr];
   if (Stub) return Stub;
 
+  MachineCodeEmitter::BufferState BS;
+  TargetJITInfo::StubLayout SL = TheJIT->getJITInfo().getStubLayout();
+  JE.startGVStub(BS, 0, SL.Size, SL.Alignment);
   Stub = TheJIT->getJITInfo().emitFunctionStub(0, FnAddr, JE);
+  JE.finishGVStub(BS);
 
   DEBUG(errs() << "JIT: Stub emitted at [" << Stub
                << "] for external function at '" << FnAddr << "'\n");
@@ -598,10 +605,10 @@ void JITResolver::getRelocatableGVs(SmallVectorImpl<GlobalValue*> &GVs,
                                     SmallVectorImpl<void*> &Ptrs) {
   MutexGuard locked(TheJIT->lock);
 
-  const FunctionToStubMapTy &FM = state.getFunctionToStubMap(locked);
+  const FunctionToLazyStubMapTy &FM = state.getFunctionToLazyStubMap(locked);
   GlobalToIndirectSymMapTy &GM = state.getGlobalToIndirectSymMap(locked);
 
-  for (FunctionToStubMapTy::const_iterator i = FM.begin(), e = FM.end();
+  for (FunctionToLazyStubMapTy::const_iterator i = FM.begin(), e = FM.end();
        i != e; ++i){
     Function *F = i->first;
     if (F->isDeclaration() && F->hasExternalLinkage()) {
@@ -727,32 +734,37 @@ void *JITEmitter::getPointerToGlobal(GlobalValue *V, void *Reference,
   // If we have already compiled the function, return a pointer to its body.
   Function *F = cast<Function>(V);
 
-  void *FnStub = Resolver.getFunctionStubIfAvailable(F);
+  void *FnStub = Resolver.getLazyFunctionStubIfAvailable(F);
   if (FnStub) {
-    // Return the function stub if it's already created.  We do this first
-    // so that we're returning the same address for the function as any
-    // previous call.
+    // Return the function stub if it's already created.  We do this first so
+    // that we're returning the same address for the function as any previous
+    // call.  TODO: Yes, this is wrong. The lazy stub isn't guaranteed to be
+    // close enough to call.
     AddStubToCurrentFunction(FnStub);
     return FnStub;
   }
 
-  // Otherwise if we have code, go ahead and return that.
-  void *ResultPtr = TheJIT->getPointerToGlobalIfAvailable(F);
-  if (ResultPtr) return ResultPtr;
+  // If we know the target can handle arbitrary-distance calls, try to
+  // return a direct pointer.
+  if (!MayNeedFarStub) {
+    // If we have code, go ahead and return that.
+    void *ResultPtr = TheJIT->getPointerToGlobalIfAvailable(F);
+    if (ResultPtr) return ResultPtr;
 
-  // If this is an external function pointer, we can force the JIT to
-  // 'compile' it, which really just adds it to the map.
-  if (F->isDeclaration() && !F->hasNotBeenReadFromBitcode() &&
-      !MayNeedFarStub)
-    return TheJIT->getPointerToFunction(F);
+    // If this is an external function pointer, we can force the JIT to
+    // 'compile' it, which really just adds it to the map.
+    if (F->isDeclaration() && !F->hasNotBeenReadFromBitcode())
+      return TheJIT->getPointerToFunction(F);
+  }
 
-  // Otherwise, we have to emit a stub.
-  void *StubAddr = Resolver.getFunctionStub(F);
+  // Otherwise, we may need a to emit a stub, and, conservatively, we
+  // always do so.
+  void *StubAddr = Resolver.getLazyFunctionStub(F);
 
   // Add the stub to the current function's list of referenced stubs, so we can
   // deallocate them if the current function is ever freed.  It's possible to
-  // return null from getFunctionStub in the case of a weak extern that fails
-  // to resolve.
+  // return null from getLazyFunctionStub in the case of a weak extern that
+  // fails to resolve.
   if (StubAddr)
     AddStubToCurrentFunction(StubAddr);
 
@@ -1203,9 +1215,8 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
 
   if (DwarfExceptionHandling || JITEmitDebugInfo) {
     uintptr_t ActualSize = 0;
-    SavedBufferBegin = BufferBegin;
-    SavedBufferEnd = BufferEnd;
-    SavedCurBufferPtr = CurBufferPtr;
+    BufferState BS;
+    SaveStateTo(BS);
 
     if (MemMgr->NeedsExactSize()) {
       ActualSize = DE->GetDwarfTableSizeInBytes(F, *this, FnStart, FnEnd);
@@ -1221,9 +1232,7 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
     MemMgr->endExceptionTable(F.getFunction(), BufferBegin, CurBufferPtr,
                               FrameRegister);
     uint8_t *EhEnd = CurBufferPtr;
-    BufferBegin = SavedBufferBegin;
-    BufferEnd = SavedBufferEnd;
-    CurBufferPtr = SavedCurBufferPtr;
+    RestoreStateFrom(BS);
 
     if (DwarfExceptionHandling) {
       TheJIT->RegisterTable(FrameRegister);
@@ -1429,32 +1438,27 @@ void JITEmitter::emitJumpTableInfo(MachineJumpTableInfo *MJTI) {
   }
 }
 
-void JITEmitter::startGVStub(const GlobalValue* GV, unsigned StubSize,
-                             unsigned Alignment) {
-  SavedBufferBegin = BufferBegin;
-  SavedBufferEnd = BufferEnd;
-  SavedCurBufferPtr = CurBufferPtr;
+void JITEmitter::startGVStub(BufferState &BS, const GlobalValue* GV,
+                             unsigned StubSize, unsigned Alignment) {
+  SaveStateTo(BS);
 
   BufferBegin = CurBufferPtr = MemMgr->allocateStub(GV, StubSize, Alignment);
   BufferEnd = BufferBegin+StubSize+1;
 }
 
-void JITEmitter::startGVStub(const GlobalValue* GV, void *Buffer,
-                             unsigned StubSize) {
-  SavedBufferBegin = BufferBegin;
-  SavedBufferEnd = BufferEnd;
-  SavedCurBufferPtr = CurBufferPtr;
+void JITEmitter::startGVStub(BufferState &BS, void *Buffer, unsigned StubSize) {
+  SaveStateTo(BS);
 
   BufferBegin = CurBufferPtr = (uint8_t *)Buffer;
   BufferEnd = BufferBegin+StubSize+1;
 }
 
-void *JITEmitter::finishGVStub(const GlobalValue* GV) {
+void *JITEmitter::finishGVStub(BufferState &BS) {
+  assert(CurBufferPtr != BufferEnd && "Stub overflowed allocated space.");
   NumBytes += getCurrentPCOffset();
-  std::swap(SavedBufferBegin, BufferBegin);
-  BufferEnd = SavedBufferEnd;
-  CurBufferPtr = SavedCurBufferPtr;
-  return SavedBufferBegin;
+  void *Result = BufferBegin;
+  RestoreStateFrom(BS);
+  return Result;
 }
 
 // getConstantPoolEntryAddress - Return the address of the 'ConstantNum' entry
@@ -1530,19 +1534,23 @@ void *JIT::getPointerToFunctionOrStub(Function *F) {
   // Get a stub if the target supports it.
   assert(isa<JITEmitter>(JCE) && "Unexpected MCE?");
   JITEmitter *JE = cast<JITEmitter>(getCodeEmitter());
-  return JE->getJITResolver().getFunctionStub(F);
+  return JE->getJITResolver().getLazyFunctionStub(F);
 }
 
 void JIT::updateFunctionStub(Function *F) {
   // Get the empty stub we generated earlier.
   assert(isa<JITEmitter>(JCE) && "Unexpected MCE?");
   JITEmitter *JE = cast<JITEmitter>(getCodeEmitter());
-  void *Stub = JE->getJITResolver().getFunctionStub(F);
+  void *Stub = JE->getJITResolver().getLazyFunctionStub(F);
+  void *Addr = getPointerToGlobalIfAvailable(F);
 
   // Tell the target jit info to rewrite the stub at the specified address,
   // rather than creating a new one.
-  void *Addr = getPointerToGlobalIfAvailable(F);
-  getJITInfo().emitFunctionStubAtAddr(F, Addr, Stub, *getCodeEmitter());
+  MachineCodeEmitter::BufferState BS;
+  TargetJITInfo::StubLayout layout = getJITInfo().getStubLayout();
+  JE->startGVStub(BS, Stub, layout.Size);
+  getJITInfo().emitFunctionStub(F, Addr, *getCodeEmitter());
+  JE->finishGVStub(BS);
 }
 
 /// freeMachineCodeForFunction - release machine code memory for given Function.

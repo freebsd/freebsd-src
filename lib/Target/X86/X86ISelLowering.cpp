@@ -373,13 +373,10 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::ATOMIC_SWAP, MVT::i64, Custom);
   }
 
-  // Use the default ISD::DBG_STOPPOINT.
-  setOperationAction(ISD::DBG_STOPPOINT, MVT::Other, Expand);
   // FIXME - use subtarget debug flags
   if (!Subtarget->isTargetDarwin() &&
       !Subtarget->isTargetELF() &&
       !Subtarget->isTargetCygMing()) {
-    setOperationAction(ISD::DBG_LABEL, MVT::Other, Expand);
     setOperationAction(ISD::EH_LABEL, MVT::Other, Expand);
   }
 
@@ -977,6 +974,19 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setTargetDAGCombine(ISD::MUL);
 
   computeRegisterProperties();
+
+  // Divide and reminder operations have no vector equivalent and can
+  // trap. Do a custom widening for these operations in which we never
+  // generate more divides/remainder than the original vector width.
+  for (unsigned VT = (unsigned)MVT::FIRST_VECTOR_VALUETYPE;
+       VT <= (unsigned)MVT::LAST_VECTOR_VALUETYPE; ++VT) {
+    if (!isTypeLegal((MVT::SimpleValueType)VT)) {
+      setOperationAction(ISD::SDIV, (MVT::SimpleValueType) VT, Custom);
+      setOperationAction(ISD::UDIV, (MVT::SimpleValueType) VT, Custom);
+      setOperationAction(ISD::SREM, (MVT::SimpleValueType) VT, Custom);
+      setOperationAction(ISD::UREM, (MVT::SimpleValueType) VT, Custom);
+    }
+  }
 
   // FIXME: These should be based on subtarget info. Plus, the values should
   // be smaller when we are in optimizing for size mode.
@@ -4722,18 +4732,27 @@ X86TargetLowering::LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) {
 
 SDValue
 X86TargetLowering::LowerBlockAddress(SDValue Op, SelectionDAG &DAG) {
-  unsigned WrapperKind = X86ISD::Wrapper;
+  // Create the TargetBlockAddressAddress node.
+  unsigned char OpFlags =
+    Subtarget->ClassifyBlockAddressReference();
   CodeModel::Model M = getTargetMachine().getCodeModel();
+  BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
+  DebugLoc dl = Op.getDebugLoc();
+  SDValue Result = DAG.getBlockAddress(BA, getPointerTy(),
+                                       /*isTarget=*/true, OpFlags);
+
   if (Subtarget->isPICStyleRIPRel() &&
       (M == CodeModel::Small || M == CodeModel::Kernel))
-    WrapperKind = X86ISD::WrapperRIP;
+    Result = DAG.getNode(X86ISD::WrapperRIP, dl, getPointerTy(), Result);
+  else
+    Result = DAG.getNode(X86ISD::Wrapper, dl, getPointerTy(), Result);
 
-  DebugLoc DL = Op.getDebugLoc();
-
-  BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
-  SDValue Result = DAG.getBlockAddress(BA, DL, /*isTarget=*/true);
-
-  Result = DAG.getNode(WrapperKind, DL, getPointerTy(), Result);
+  // With PIC, the address is actually $g + Offset.
+  if (isGlobalRelativeToPICBase(OpFlags)) {
+    Result = DAG.getNode(ISD::ADD, dl, getPointerTy(),
+                         DAG.getNode(X86ISD::GlobalBaseReg, dl, getPointerTy()),
+                         Result);
+  }
 
   return Result;
 }
@@ -7162,6 +7181,14 @@ void X86TargetLowering::ReplaceNodeResults(SDNode *N,
     SDValue Ops[] = { eax, edx };
     Results.push_back(DAG.getNode(ISD::BUILD_PAIR, dl, MVT::i64, Ops, 2));
     Results.push_back(edx.getValue(1));
+    return;
+  }
+  case ISD::SDIV:
+  case ISD::UDIV:
+  case ISD::SREM:
+  case ISD::UREM: {
+    EVT WidenVT = getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+    Results.push_back(DAG.UnrollVectorOp(N, WidenVT.getVectorNumElements()));
     return;
   }
   case ISD::ATOMIC_CMP_SWAP: {

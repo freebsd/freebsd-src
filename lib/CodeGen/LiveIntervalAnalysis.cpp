@@ -136,7 +136,8 @@ void LiveIntervals::printInstrs(raw_ostream &OS) const {
 
   for (MachineFunction::iterator mbbi = mf_->begin(), mbbe = mf_->end();
        mbbi != mbbe; ++mbbi) {
-    OS << ((Value*)mbbi->getBasicBlock())->getName() << ":\n";
+    OS << "BB#" << mbbi->getNumber()
+       << ":\t\t# derived from " << mbbi->getName() << "\n";
     for (MachineBasicBlock::iterator mii = mbbi->begin(),
            mie = mbbi->end(); mii != mie; ++mii) {
       OS << getInstructionIndex(mii) << '\t' << *mii;
@@ -658,7 +659,7 @@ void LiveIntervals::computeIntervals() {
     MachineBasicBlock *MBB = MBBI;
     // Track the index of the current machine instr.
     SlotIndex MIIndex = getMBBStartIdx(MBB);
-    DEBUG(errs() << ((Value*)MBB->getBasicBlock())->getName() << ":\n");
+    DEBUG(errs() << MBB->getName() << ":\n");
 
     MachineBasicBlock::iterator MI = MBB->begin(), miEnd = MBB->end();
 
@@ -1094,6 +1095,12 @@ rewriteInstructionForSpills(const LiveInterval &li, const VNInfo *VNI,
       NewVReg = mri_->createVirtualRegister(rc);
       vrm.grow();
       CreatedNewVReg = true;
+
+      // The new virtual register should get the same allocation hints as the
+      // old one.
+      std::pair<unsigned, unsigned> Hint = mri_->getRegAllocationHint(Reg);
+      if (Hint.first || Hint.second)
+        mri_->setRegAllocationHint(NewVReg, Hint.first, Hint.second);
     }
 
     if (!TryFold)

@@ -718,7 +718,6 @@ def TCRETURNri : I<0, Pseudo, (outs), (ins GR32:$dst, i32imm:$offset, variable_o
                  []>;
 
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
-
   def TAILJMPd : IBr<0xE9, (ins i32imm_pcrel:$dst), "jmp\t$dst  # TAILCALL",
                  []>;
 let isCall = 1, isTerminator = 1, isReturn = 1, isBarrier = 1 in
@@ -3504,16 +3503,6 @@ let AddedComplexity = 5, isCodeGenOnly = 1 in
 def FS_MOV32rm : I<0x8B, MRMSrcMem, (outs GR32:$dst), (ins i32mem:$src),
                    "movl\t%fs:$src, $dst",
                    [(set GR32:$dst, (fsload addr:$src))]>, SegFS;
-
-//===----------------------------------------------------------------------===//
-// DWARF Pseudo Instructions
-//
-
-def DWARF_LOC   : I<0, Pseudo, (outs),
-                    (ins i32imm:$line, i32imm:$col, i32imm:$file),
-                    ".loc\t$file $line $col",
-                    [(dwarf_loc (i32 imm:$line), (i32 imm:$col),
-                      (i32 imm:$file))]>;
 
 //===----------------------------------------------------------------------===//
 // EH Pseudo Instructions

@@ -335,7 +335,7 @@ getprogpath(char ret[PATH_MAX], const char *bin)
   free(pv);
   return (NULL);
 }
-#endif
+#endif // __FreeBSD__
 
 /// GetMainExecutable - Return the path to the main executable, given the
 /// value of argv[0] from program startup.
@@ -348,7 +348,8 @@ Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
   uint32_t size = sizeof(exe_path);
   if (_NSGetExecutablePath(exe_path, &size) == 0) {
     char link_path[MAXPATHLEN];
-    return Path(std::string(realpath(exe_path, link_path)));
+    if (realpath(exe_path, link_path))
+      return Path(std::string(link_path));
   }
 #elif defined(__FreeBSD__)
   char exe_path[PATH_MAX];
@@ -370,7 +371,8 @@ Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
   // If the filename is a symlink, we need to resolve and return the location of
   // the actual executable.
   char link_path[MAXPATHLEN];
-  return Path(std::string(realpath(DLInfo.dli_fname, link_path)));
+  if (realpath(DLInfo.dli_fname, link_path))
+    return Path(std::string(link_path));
 #endif
   return Path();
 }
@@ -451,6 +453,20 @@ Path::canRead() const {
 bool
 Path::canWrite() const {
   return 0 == access(path.c_str(), W_OK);
+}
+
+bool
+Path::isRegularFile() const {
+  // Get the status so we can determine if its a file or directory
+  struct stat buf;
+
+  if (0 != stat(path.c_str(), &buf))
+    return false;
+
+  if (S_ISREG(buf.st_mode))
+    return true;
+
+  return false;
 }
 
 bool
@@ -723,7 +739,7 @@ Path::createTemporaryFileOnDisk(bool reuse_current, std::string* ErrMsg) {
 
 bool
 Path::eraseFromDisk(bool remove_contents, std::string *ErrStr) const {
-  // Get the status so we can determin if its a file or directory
+  // Get the status so we can determine if its a file or directory
   struct stat buf;
   if (0 != stat(path.c_str(), &buf)) {
     MakeErrMsg(ErrStr, path + ": can't get status of file");

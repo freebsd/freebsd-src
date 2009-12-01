@@ -54,7 +54,7 @@ def vfp_f64imm : Operand<f64>,
 //  Load / store Instructions.
 //
 
-let canFoldAsLoad = 1 in {
+let canFoldAsLoad = 1, isReMaterializable = 1, mayHaveSideEffects = 1 in {
 def VLDRD : ADI5<0b1101, 0b01, (outs DPR:$dst), (ins addrmode5:$addr),
                  IIC_fpLoad64, "vldr", ".64\t$dst, $addr",
                  [(set DPR:$dst, (load addrmode5:$addr))]>;
@@ -437,7 +437,7 @@ def FMSTAT : VFPAI<(outs), (ins), VFPMiscFrm, IIC_fpSTAT, "vmrs",
 let isReMaterializable = 1 in {
 def FCONSTD : VFPAI<(outs DPR:$dst), (ins vfp_f64imm:$imm),
                     VFPMiscFrm, IIC_VMOVImm,
-                    "fconstd", "\t$dst, $imm",
+                    "vmov", ".f64\t$dst, $imm",
                     [(set DPR:$dst, vfp_f64imm:$imm)]>, Requires<[HasVFP3]> {
   let Inst{27-23} = 0b11101;
   let Inst{21-20} = 0b11;
@@ -448,7 +448,7 @@ def FCONSTD : VFPAI<(outs DPR:$dst), (ins vfp_f64imm:$imm),
 
 def FCONSTS : VFPAI<(outs SPR:$dst), (ins vfp_f32imm:$imm),
                     VFPMiscFrm, IIC_VMOVImm,
-                    "fconsts", "\t$dst, $imm",
+                    "vmov", ".f32\t$dst, $imm",
                     [(set SPR:$dst, vfp_f32imm:$imm)]>, Requires<[HasVFP3]> {
   let Inst{27-23} = 0b11101;
   let Inst{21-20} = 0b11;

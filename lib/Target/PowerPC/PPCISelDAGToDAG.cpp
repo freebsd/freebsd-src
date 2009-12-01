@@ -86,7 +86,7 @@ namespace {
 
     /// isRotateAndMask - Returns true if Mask and Shift can be folded into a
     /// rotate and mask opcode and mask operation.
-    static bool isRotateAndMask(SDNode *N, unsigned Mask, bool IsShiftMask,
+    static bool isRotateAndMask(SDNode *N, unsigned Mask, bool isShiftMask,
                                 unsigned &SH, unsigned &MB, unsigned &ME);
     
     /// getGlobalBaseReg - insert code into the entry mbb to materialize the PIC
@@ -358,7 +358,7 @@ bool PPCDAGToDAGISel::isRunOfOnes(unsigned Val, unsigned &MB, unsigned &ME) {
 }
 
 bool PPCDAGToDAGISel::isRotateAndMask(SDNode *N, unsigned Mask, 
-                                      bool IsShiftMask, unsigned &SH, 
+                                      bool isShiftMask, unsigned &SH, 
                                       unsigned &MB, unsigned &ME) {
   // Don't even go down this path for i64, since different logic will be
   // necessary for rldicl/rldicr/rldimi.
@@ -374,12 +374,12 @@ bool PPCDAGToDAGISel::isRotateAndMask(SDNode *N, unsigned Mask,
   
   if (Opcode == ISD::SHL) {
     // apply shift left to mask if it comes first
-    if (IsShiftMask) Mask = Mask << Shift;
+    if (isShiftMask) Mask = Mask << Shift;
     // determine which bits are made indeterminant by shift
     Indeterminant = ~(0xFFFFFFFFu << Shift);
   } else if (Opcode == ISD::SRL) { 
     // apply shift right to mask if it comes first
-    if (IsShiftMask) Mask = Mask >> Shift;
+    if (isShiftMask) Mask = Mask >> Shift;
     // determine which bits are made indeterminant by shift
     Indeterminant = ~(0xFFFFFFFFu >> Shift);
     // adjust for the left rotate
@@ -443,8 +443,7 @@ SDNode *PPCDAGToDAGISel::SelectBitfieldInsert(SDNode *N) {
     
     unsigned MB, ME;
     if (InsertMask && isRunOfOnes(InsertMask, MB, ME)) {
-      SDValue Tmp1, Tmp2, Tmp3;
-      bool DisjointMask = (TargetMask ^ InsertMask) == 0xFFFFFFFF;
+      SDValue Tmp1, Tmp2;
 
       if ((Op1Opc == ISD::SHL || Op1Opc == ISD::SRL) &&
           isInt32Immediate(Op1.getOperand(1), Value)) {
@@ -461,10 +460,9 @@ SDNode *PPCDAGToDAGISel::SelectBitfieldInsert(SDNode *N) {
           Op1 = Op1.getOperand(0);
         }
       }
-      
-      Tmp3 = (Op0Opc == ISD::AND && DisjointMask) ? Op0.getOperand(0) : Op0;
+
       SH &= 31;
-      SDValue Ops[] = { Tmp3, Op1, getI32Imm(SH), getI32Imm(MB),
+      SDValue Ops[] = { Op0, Op1, getI32Imm(SH), getI32Imm(MB),
                           getI32Imm(ME) };
       return CurDAG->getMachineNode(PPC::RLWIMI, dl, MVT::i32, Ops, 5);
     }

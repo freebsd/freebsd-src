@@ -188,6 +188,7 @@ private:
   SDValue BitConvertVectorToIntegerVector(SDValue Op);
   SDValue CreateStackStoreLoad(SDValue Op, EVT DestVT);
   bool CustomLowerNode(SDNode *N, EVT VT, bool LegalizeResult);
+  bool CustomWidenLowerNode(SDNode *N, EVT VT);
   SDValue GetVectorElementPointer(SDValue VecPtr, EVT EltVT, SDValue Index);
   SDValue JoinIntegers(SDValue Lo, SDValue Hi);
   SDValue LibCallify(RTLIB::Libcall LC, SDNode *N, bool isSigned);
@@ -196,7 +197,6 @@ private:
                       DebugLoc dl);
   SDValue PromoteTargetBoolean(SDValue Bool, EVT VT);
   void ReplaceValueWith(SDValue From, SDValue To);
-  void ReplaceValueWithHelper(SDValue From, SDValue To);
   void SplitInteger(SDValue Op, SDValue &Lo, SDValue &Hi);
   void SplitInteger(SDValue Op, EVT LoVT, EVT HiVT,
                     SDValue &Lo, SDValue &Hi);

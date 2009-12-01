@@ -30,46 +30,55 @@ using namespace llvm;
 namespace llvm {
 template<>
 struct DOTGraphTraits<DomTreeNode*> : public DefaultDOTGraphTraits {
-  static std::string getNodeLabel(DomTreeNode *Node, DomTreeNode *Graph,
-                                  bool ShortNames) {
+
+  DOTGraphTraits (bool isSimple=false)
+    : DefaultDOTGraphTraits(isSimple) {}
+
+  std::string getNodeLabel(DomTreeNode *Node, DomTreeNode *Graph) {
 
     BasicBlock *BB = Node->getBlock();
 
     if (!BB)
       return "Post dominance root node";
 
-    return DOTGraphTraits<const Function*>::getNodeLabel(BB, BB->getParent(),
-                                                         ShortNames);
+
+    if (isSimple())
+      return DOTGraphTraits<const Function*>
+	       ::getSimpleNodeLabel(BB, BB->getParent());
+    else
+      return DOTGraphTraits<const Function*>
+	       ::getCompleteNodeLabel(BB, BB->getParent());
   }
 };
 
 template<>
 struct DOTGraphTraits<DominatorTree*> : public DOTGraphTraits<DomTreeNode*> {
 
+  DOTGraphTraits (bool isSimple=false)
+    : DOTGraphTraits<DomTreeNode*>(isSimple) {}
+
   static std::string getGraphName(DominatorTree *DT) {
     return "Dominator tree";
   }
 
-  static std::string getNodeLabel(DomTreeNode *Node,
-                                  DominatorTree *G,
-                                  bool ShortNames) {
-    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node, G->getRootNode(),
-                                                      ShortNames);
+  std::string getNodeLabel(DomTreeNode *Node, DominatorTree *G) {
+    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node, G->getRootNode());
   }
 };
 
 template<>
 struct DOTGraphTraits<PostDominatorTree*>
   : public DOTGraphTraits<DomTreeNode*> {
+
+  DOTGraphTraits (bool isSimple=false)
+    : DOTGraphTraits<DomTreeNode*>(isSimple) {}
+
   static std::string getGraphName(PostDominatorTree *DT) {
     return "Post dominator tree";
   }
-  static std::string getNodeLabel(DomTreeNode *Node,
-                                  PostDominatorTree *G,
-                                  bool ShortNames) {
-    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node,
-                                                      G->getRootNode(),
-                                                      ShortNames);
+
+  std::string getNodeLabel(DomTreeNode *Node, PostDominatorTree *G ) {
+    return DOTGraphTraits<DomTreeNode*>::getNodeLabel(Node, G->getRootNode());
   }
 };
 }
@@ -85,9 +94,11 @@ struct GenericGraphViewer : public FunctionPass {
 
   virtual bool runOnFunction(Function &F) {
     Analysis *Graph;
-
+    std::string Title, GraphName;
     Graph = &getAnalysis<Analysis>();
-    ViewGraph(Graph, Name, OnlyBBS);
+    GraphName = DOTGraphTraits<Analysis*>::getGraphName(Graph);
+    Title = GraphName + " for '" + F.getNameStr() + "' function";
+    ViewGraph(Graph, Name, OnlyBBS, Title);
 
     return false;
   }
@@ -163,8 +174,12 @@ struct GenericGraphPrinter : public FunctionPass {
     raw_fd_ostream File(Filename.c_str(), ErrorInfo);
     Graph = &getAnalysis<Analysis>();
 
+    std::string Title, GraphName;
+    GraphName = DOTGraphTraits<Analysis*>::getGraphName(Graph);
+    Title = GraphName + " for '" + F.getNameStr() + "' function";
+
     if (ErrorInfo.empty())
-      WriteGraph(File, Graph, OnlyBBS);
+      WriteGraph(File, Graph, OnlyBBS, Name, Title);
     else
       errs() << "  error opening file for writing!";
     errs() << "\n";

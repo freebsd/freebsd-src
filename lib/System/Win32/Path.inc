@@ -357,6 +357,13 @@ Path::canExecute() const {
   return attr != INVALID_FILE_ATTRIBUTES;
 }
 
+bool
+Path::isRegularFile() const {
+  if (isDirectory())
+    return false;
+  return true;
+}
+
 std::string
 Path::getLast() const {
   // Find the last slash

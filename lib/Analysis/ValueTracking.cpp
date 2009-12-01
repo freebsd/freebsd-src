@@ -325,7 +325,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
       APInt Mask2(Mask.shl(ShiftAmt));
       ComputeMaskedBits(I->getOperand(0), Mask2, KnownZero,KnownOne, TD,
                         Depth+1);
-      assert((KnownZero & KnownOne) == 0&&"Bits known to be one AND zero?"); 
+      assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?"); 
       KnownZero = APIntOps::lshr(KnownZero, ShiftAmt);
       KnownOne  = APIntOps::lshr(KnownOne, ShiftAmt);
       // high bits known zero.
@@ -343,7 +343,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
       APInt Mask2(Mask.shl(ShiftAmt));
       ComputeMaskedBits(I->getOperand(0), Mask2, KnownZero, KnownOne, TD,
                         Depth+1);
-      assert((KnownZero & KnownOne) == 0&&"Bits known to be one AND zero?"); 
+      assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?"); 
       KnownZero = APIntOps::lshr(KnownZero, ShiftAmt);
       KnownOne  = APIntOps::lshr(KnownOne, ShiftAmt);
         
@@ -380,7 +380,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
   }
   // fall through
   case Instruction::Add: {
-    // If one of the operands has trailing zeros, than the bits that the
+    // If one of the operands has trailing zeros, then the bits that the
     // other operand has in those bit positions will be preserved in the
     // result. For an add, this works with either operand. For a subtract,
     // this only works if the known zeros are in the right operand.
@@ -436,7 +436,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
 
         KnownZero |= KnownZero2 & Mask;
 
-        assert((KnownZero & KnownOne) == 0&&"Bits known to be one AND zero?"); 
+        assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?"); 
       }
     }
     break;
@@ -449,7 +449,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
         KnownZero |= ~LowBits & Mask;
         ComputeMaskedBits(I->getOperand(0), Mask2, KnownZero, KnownOne, TD,
                           Depth+1);
-        assert((KnownZero & KnownOne) == 0&&"Bits known to be one AND zero?");
+        assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?");
         break;
       }
     }
@@ -833,14 +833,12 @@ bool llvm::ComputeMultiple(Value *V, unsigned Base, Value *&Multiple,
 
   switch (I->getOpcode()) {
   default: break;
-  case Instruction::SExt: {
+  case Instruction::SExt:
     if (!LookThroughSExt) return false;
     // otherwise fall through to ZExt
-  }
-  case Instruction::ZExt: {
+  case Instruction::ZExt:
     return ComputeMultiple(I->getOperand(0), Base, Multiple,
                            LookThroughSExt, Depth+1);
-  }
   case Instruction::Shl:
   case Instruction::Mul: {
     Value *Op0 = I->getOperand(0);
@@ -950,6 +948,195 @@ bool llvm::CannotBeNegativeZero(const Value *V, unsigned Depth) {
   return false;
 }
 
+
+/// GetLinearExpression - Analyze the specified value as a linear expression:
+/// "A*V + B", where A and B are constant integers.  Return the scale and offset
+/// values as APInts and return V as a Value*.  The incoming Value is known to
+/// have IntegerType.  Note that this looks through extends, so the high bits
+/// may not be represented in the result.
+static Value *GetLinearExpression(Value *V, APInt &Scale, APInt &Offset,
+                                  const TargetData *TD, unsigned Depth) {
+  assert(isa<IntegerType>(V->getType()) && "Not an integer value");
+
+  // Limit our recursion depth.
+  if (Depth == 6) {
+    Scale = 1;
+    Offset = 0;
+    return V;
+  }
+  
+  if (BinaryOperator *BOp = dyn_cast<BinaryOperator>(V)) {
+    if (ConstantInt *RHSC = dyn_cast<ConstantInt>(BOp->getOperand(1))) {
+      switch (BOp->getOpcode()) {
+      default: break;
+      case Instruction::Or:
+        // X|C == X+C if all the bits in C are unset in X.  Otherwise we can't
+        // analyze it.
+        if (!MaskedValueIsZero(BOp->getOperand(0), RHSC->getValue(), TD))
+          break;
+        // FALL THROUGH.
+      case Instruction::Add:
+        V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, TD, Depth+1);
+        Offset += RHSC->getValue();
+        return V;
+      case Instruction::Mul:
+        V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, TD, Depth+1);
+        Offset *= RHSC->getValue();
+        Scale *= RHSC->getValue();
+        return V;
+      case Instruction::Shl:
+        V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, TD, Depth+1);
+        Offset <<= RHSC->getValue().getLimitedValue();
+        Scale <<= RHSC->getValue().getLimitedValue();
+        return V;
+      }
+    }
+  }
+  
+  // Since clients don't care about the high bits of the value, just scales and
+  // offsets, we can look through extensions.
+  if (isa<SExtInst>(V) || isa<ZExtInst>(V)) {
+    Value *CastOp = cast<CastInst>(V)->getOperand(0);
+    unsigned OldWidth = Scale.getBitWidth();
+    unsigned SmallWidth = CastOp->getType()->getPrimitiveSizeInBits();
+    Scale.trunc(SmallWidth);
+    Offset.trunc(SmallWidth);
+    Value *Result = GetLinearExpression(CastOp, Scale, Offset, TD, Depth+1);
+    Scale.zext(OldWidth);
+    Offset.zext(OldWidth);
+    return Result;
+  }
+  
+  Scale = 1;
+  Offset = 0;
+  return V;
+}
+
+/// DecomposeGEPExpression - If V is a symbolic pointer expression, decompose it
+/// into a base pointer with a constant offset and a number of scaled symbolic
+/// offsets.
+///
+/// The scaled symbolic offsets (represented by pairs of a Value* and a scale in
+/// the VarIndices vector) are Value*'s that are known to be scaled by the
+/// specified amount, but which may have other unrepresented high bits. As such,
+/// the gep cannot necessarily be reconstructed from its decomposed form.
+///
+/// When TargetData is around, this function is capable of analyzing everything
+/// that Value::getUnderlyingObject() can look through.  When not, it just looks
+/// through pointer casts.
+///
+const Value *llvm::DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
+                 SmallVectorImpl<std::pair<const Value*, int64_t> > &VarIndices,
+                                          const TargetData *TD) {
+  // Limit recursion depth to limit compile time in crazy cases.
+  unsigned MaxLookup = 6;
+  
+  BaseOffs = 0;
+  do {
+    // See if this is a bitcast or GEP.
+    const Operator *Op = dyn_cast<Operator>(V);
+    if (Op == 0) {
+      // The only non-operator case we can handle are GlobalAliases.
+      if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
+        if (!GA->mayBeOverridden()) {
+          V = GA->getAliasee();
+          continue;
+        }
+      }
+      return V;
+    }
+    
+    if (Op->getOpcode() == Instruction::BitCast) {
+      V = Op->getOperand(0);
+      continue;
+    }
+    
+    const GEPOperator *GEPOp = dyn_cast<GEPOperator>(Op);
+    if (GEPOp == 0)
+      return V;
+    
+    // Don't attempt to analyze GEPs over unsized objects.
+    if (!cast<PointerType>(GEPOp->getOperand(0)->getType())
+        ->getElementType()->isSized())
+      return V;
+    
+    // If we are lacking TargetData information, we can't compute the offets of
+    // elements computed by GEPs.  However, we can handle bitcast equivalent
+    // GEPs.
+    if (!TD) {
+      if (!GEPOp->hasAllZeroIndices())
+        return V;
+      V = GEPOp->getOperand(0);
+      continue;
+    }
+    
+    // Walk the indices of the GEP, accumulating them into BaseOff/VarIndices.
+    gep_type_iterator GTI = gep_type_begin(GEPOp);
+    for (User::const_op_iterator I = GEPOp->op_begin()+1,
+         E = GEPOp->op_end(); I != E; ++I) {
+      Value *Index = *I;
+      // Compute the (potentially symbolic) offset in bytes for this index.
+      if (const StructType *STy = dyn_cast<StructType>(*GTI++)) {
+        // For a struct, add the member offset.
+        unsigned FieldNo = cast<ConstantInt>(Index)->getZExtValue();
+        if (FieldNo == 0) continue;
+        
+        BaseOffs += TD->getStructLayout(STy)->getElementOffset(FieldNo);
+        continue;
+      }
+      
+      // For an array/pointer, add the element offset, explicitly scaled.
+      if (ConstantInt *CIdx = dyn_cast<ConstantInt>(Index)) {
+        if (CIdx->isZero()) continue;
+        BaseOffs += TD->getTypeAllocSize(*GTI)*CIdx->getSExtValue();
+        continue;
+      }
+      
+      uint64_t Scale = TD->getTypeAllocSize(*GTI);
+      
+      // Use GetLinearExpression to decompose the index into a C1*V+C2 form.
+      unsigned Width = cast<IntegerType>(Index->getType())->getBitWidth();
+      APInt IndexScale(Width, 0), IndexOffset(Width, 0);
+      Index = GetLinearExpression(Index, IndexScale, IndexOffset, TD, 0);
+      
+      // The GEP index scale ("Scale") scales C1*V+C2, yielding (C1*V+C2)*Scale.
+      // This gives us an aggregate computation of (C1*Scale)*V + C2*Scale.
+      BaseOffs += IndexOffset.getZExtValue()*Scale;
+      Scale *= IndexScale.getZExtValue();
+      
+      
+      // If we already had an occurrance of this index variable, merge this
+      // scale into it.  For example, we want to handle:
+      //   A[x][x] -> x*16 + x*4 -> x*20
+      // This also ensures that 'x' only appears in the index list once.
+      for (unsigned i = 0, e = VarIndices.size(); i != e; ++i) {
+        if (VarIndices[i].first == Index) {
+          Scale += VarIndices[i].second;
+          VarIndices.erase(VarIndices.begin()+i);
+          break;
+        }
+      }
+      
+      // Make sure that we have a scale that makes sense for this target's
+      // pointer size.
+      if (unsigned ShiftBits = 64-TD->getPointerSizeInBits()) {
+        Scale <<= ShiftBits;
+        Scale >>= ShiftBits;
+      }
+      
+      if (Scale)
+        VarIndices.push_back(std::make_pair(Index, Scale));
+    }
+    
+    // Analyze the base pointer next.
+    V = GEPOp->getOperand(0);
+  } while (--MaxLookup);
+  
+  // If the chain of expressions is too deep, just return early.
+  return V;
+}
+
+
 // This is the recursive version of BuildSubAggregate. It takes a few different
 // arguments. Idxs is the index within the nested struct From that we are
 // looking at now (which is of type IndexedType). IdxSkip is the number of
@@ -959,7 +1146,6 @@ bool llvm::CannotBeNegativeZero(const Value *V, unsigned Depth) {
 static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
                                 SmallVector<unsigned, 10> &Idxs,
                                 unsigned IdxSkip,
-                                LLVMContext &Context,
                                 Instruction *InsertBefore) {
   const llvm::StructType *STy = llvm::dyn_cast<llvm::StructType>(IndexedType);
   if (STy) {
@@ -971,7 +1157,7 @@ static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
       Idxs.push_back(i);
       Value *PrevTo = To;
       To = BuildSubAggregate(From, To, STy->getElementType(i), Idxs, IdxSkip,
-                             Context, InsertBefore);
+                             InsertBefore);
       Idxs.pop_back();
       if (!To) {
         // Couldn't find any inserted value for this index? Cleanup
@@ -994,7 +1180,7 @@ static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
   // we might be able to find the complete struct somewhere.
   
   // Find the value that is at that particular spot
-  Value *V = FindInsertedValue(From, Idxs.begin(), Idxs.end(), Context);
+  Value *V = FindInsertedValue(From, Idxs.begin(), Idxs.end());
 
   if (!V)
     return NULL;
@@ -1017,7 +1203,7 @@ static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
 //
 // All inserted insertvalue instructions are inserted before InsertBefore
 static Value *BuildSubAggregate(Value *From, const unsigned *idx_begin,
-                                const unsigned *idx_end, LLVMContext &Context,
+                                const unsigned *idx_end,
                                 Instruction *InsertBefore) {
   assert(InsertBefore && "Must have someplace to insert!");
   const Type *IndexedType = ExtractValueInst::getIndexedType(From->getType(),
@@ -1027,8 +1213,7 @@ static Value *BuildSubAggregate(Value *From, const unsigned *idx_begin,
   SmallVector<unsigned, 10> Idxs(idx_begin, idx_end);
   unsigned IdxSkip = Idxs.size();
 
-  return BuildSubAggregate(From, To, IndexedType, Idxs, IdxSkip,
-                           Context, InsertBefore);
+  return BuildSubAggregate(From, To, IndexedType, Idxs, IdxSkip, InsertBefore);
 }
 
 /// FindInsertedValue - Given an aggregrate and an sequence of indices, see if
@@ -1038,8 +1223,7 @@ static Value *BuildSubAggregate(Value *From, const unsigned *idx_begin,
 /// If InsertBefore is not null, this function will duplicate (modified)
 /// insertvalues when a part of a nested struct is extracted.
 Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
-                         const unsigned *idx_end, LLVMContext &Context,
-                         Instruction *InsertBefore) {
+                         const unsigned *idx_end, Instruction *InsertBefore) {
   // Nothing to index? Just return V then (this is useful at the end of our
   // recursion)
   if (idx_begin == idx_end)
@@ -1063,7 +1247,7 @@ Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
     if (isa<ConstantArray>(C) || isa<ConstantStruct>(C))
       // Recursively process this constant
       return FindInsertedValue(C->getOperand(*idx_begin), idx_begin + 1,
-                               idx_end, Context, InsertBefore);
+                               idx_end, InsertBefore);
   } else if (InsertValueInst *I = dyn_cast<InsertValueInst>(V)) {
     // Loop the indices for the insertvalue instruction in parallel with the
     // requested indices
@@ -1082,8 +1266,7 @@ Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
           // %C = insertvalue {i32, i32 } %A, i32 11, 1
           // which allows the unused 0,0 element from the nested struct to be
           // removed.
-          return BuildSubAggregate(V, idx_begin, req_idx,
-                                   Context, InsertBefore);
+          return BuildSubAggregate(V, idx_begin, req_idx, InsertBefore);
         else
           // We can't handle this without inserting insertvalues
           return 0;
@@ -1094,13 +1277,13 @@ Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
       // looking for, then.
       if (*req_idx != *i)
         return FindInsertedValue(I->getAggregateOperand(), idx_begin, idx_end,
-                                 Context, InsertBefore);
+                                 InsertBefore);
     }
     // If we end up here, the indices of the insertvalue match with those
     // requested (though possibly only partially). Now we recursively look at
     // the inserted value, passing any remaining indices.
     return FindInsertedValue(I->getInsertedValueOperand(), req_idx, idx_end,
-                             Context, InsertBefore);
+                             InsertBefore);
   } else if (ExtractValueInst *I = dyn_cast<ExtractValueInst>(V)) {
     // If we're extracting a value from an aggregrate that was extracted from
     // something else, we can extract from that something else directly instead.
@@ -1124,7 +1307,7 @@ Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
            && "Number of indices added not correct?");
     
     return FindInsertedValue(I->getAggregateOperand(), Idxs.begin(), Idxs.end(),
-                             Context, InsertBefore);
+                             InsertBefore);
   }
   // Otherwise, we don't know (such as, extracting from a function return value
   // or load instruction)

@@ -279,6 +279,43 @@ void LiveVariables::HandlePhysRegUse(unsigned Reg, MachineInstr *MI) {
     PhysRegUse[SubReg] =  MI;
 }
 
+/// FindLastRefOrPartRef - Return the last reference or partial reference of
+/// the specified register.
+MachineInstr *LiveVariables::FindLastRefOrPartRef(unsigned Reg) {
+  MachineInstr *LastDef = PhysRegDef[Reg];
+  MachineInstr *LastUse = PhysRegUse[Reg];
+  if (!LastDef && !LastUse)
+    return false;
+
+  MachineInstr *LastRefOrPartRef = LastUse ? LastUse : LastDef;
+  unsigned LastRefOrPartRefDist = DistanceMap[LastRefOrPartRef];
+  MachineInstr *LastPartDef = 0;
+  unsigned LastPartDefDist = 0;
+  for (const unsigned *SubRegs = TRI->getSubRegisters(Reg);
+       unsigned SubReg = *SubRegs; ++SubRegs) {
+    MachineInstr *Def = PhysRegDef[SubReg];
+    if (Def && Def != LastDef) {
+      // There was a def of this sub-register in between. This is a partial
+      // def, keep track of the last one.
+      unsigned Dist = DistanceMap[Def];
+      if (Dist > LastPartDefDist) {
+        LastPartDefDist = Dist;
+        LastPartDef = Def;
+      }
+      continue;
+    }
+    if (MachineInstr *Use = PhysRegUse[SubReg]) {
+      unsigned Dist = DistanceMap[Use];
+      if (Dist > LastRefOrPartRefDist) {
+        LastRefOrPartRefDist = Dist;
+        LastRefOrPartRef = Use;
+      }
+    }
+  }
+
+  return LastRefOrPartRef;
+}
+
 bool LiveVariables::HandlePhysRegKill(unsigned Reg, MachineInstr *MI) {
   MachineInstr *LastDef = PhysRegDef[Reg];
   MachineInstr *LastUse = PhysRegUse[Reg];
@@ -373,7 +410,16 @@ bool LiveVariables::HandlePhysRegKill(unsigned Reg, MachineInstr *MI) {
       if (NeedDef)
         PhysRegDef[Reg]->addOperand(MachineOperand::CreateReg(SubReg,
                                                  true/*IsDef*/, true/*IsImp*/));
-      LastRefOrPartRef->addRegisterKilled(SubReg, TRI, true);
+      MachineInstr *LastSubRef = FindLastRefOrPartRef(SubReg);
+      if (LastSubRef)
+        LastSubRef->addRegisterKilled(SubReg, TRI, true);
+      else {
+        LastRefOrPartRef->addRegisterKilled(SubReg, TRI, true);
+        PhysRegUse[SubReg] = LastRefOrPartRef;
+        for (const unsigned *SSRegs = TRI->getSubRegisters(SubReg);
+             unsigned SSReg = *SSRegs; ++SSRegs)
+          PhysRegUse[SSReg] = LastRefOrPartRef;
+      }
       for (const unsigned *SS = TRI->getSubRegisters(SubReg); *SS; ++SS)
         PartUses.erase(*SS);
     }
@@ -656,35 +702,45 @@ void LiveVariables::analyzePHINodes(const MachineFunction& Fn) {
           .push_back(BBI->getOperand(i).getReg());
 }
 
+bool LiveVariables::VarInfo::isLiveIn(const MachineBasicBlock &MBB,
+                                      unsigned Reg,
+                                      MachineRegisterInfo &MRI) {
+  unsigned Num = MBB.getNumber();
+
+  // Reg is live-through.
+  if (AliveBlocks.test(Num))
+    return true;
+
+  // Registers defined in MBB cannot be live in.
+  const MachineInstr *Def = MRI.getVRegDef(Reg);
+  if (Def && Def->getParent() == &MBB)
+    return false;
+
+ // Reg was not defined in MBB, was it killed here?
+  return findKill(&MBB);
+}
+
 /// addNewBlock - Add a new basic block BB as an empty succcessor to DomBB. All
 /// variables that are live out of DomBB will be marked as passing live through
 /// BB.
 void LiveVariables::addNewBlock(MachineBasicBlock *BB,
-                                MachineBasicBlock *DomBB) {
+                                MachineBasicBlock *DomBB,
+                                MachineBasicBlock *SuccBB) {
   const unsigned NumNew = BB->getNumber();
-  const unsigned NumDom = DomBB->getNumber();
+
+  // All registers used by PHI nodes in SuccBB must be live through BB.
+  for (MachineBasicBlock::const_iterator BBI = SuccBB->begin(),
+         BBE = SuccBB->end();
+       BBI != BBE && BBI->getOpcode() == TargetInstrInfo::PHI; ++BBI)
+    for (unsigned i = 1, e = BBI->getNumOperands(); i != e; i += 2)
+      if (BBI->getOperand(i+1).getMBB() == BB)
+        getVarInfo(BBI->getOperand(i).getReg()).AliveBlocks.set(NumNew);
 
   // Update info for all live variables
   for (unsigned Reg = TargetRegisterInfo::FirstVirtualRegister,
          E = MRI->getLastVirtReg()+1; Reg != E; ++Reg) {
     VarInfo &VI = getVarInfo(Reg);
-
-    // Anything live through DomBB is also live through BB.
-    if (VI.AliveBlocks.test(NumDom)) {
+    if (!VI.AliveBlocks.test(NumNew) && VI.isLiveIn(*SuccBB, Reg, *MRI))
       VI.AliveBlocks.set(NumNew);
-      continue;
-    }
-
-    // Variables not defined in DomBB cannot be live out.
-    const MachineInstr *Def = MRI->getVRegDef(Reg);
-    if (!Def || Def->getParent() != DomBB)
-      continue;
-
-    // Killed by DomBB?
-    if (VI.findKill(DomBB))
-      continue;
-
-    // This register is defined in DomBB and live out
-    VI.AliveBlocks.set(NumNew);
   }
 }

@@ -465,7 +465,7 @@ public:
   virtual unsigned getSubReg(unsigned RegNo, unsigned Index) const = 0;
 
   /// getSubRegIndex - For a given register pair, return the sub-register index
-  /// if they are second register is a sub-register of the second. Return zero
+  /// if the are second register is a sub-register of the first. Return zero
   /// otherwise.
   virtual unsigned getSubRegIndex(unsigned RegNo, unsigned SubRegNo) const = 0;
 
@@ -656,7 +656,9 @@ public:
                                      MachineBasicBlock::iterator I,
                                      MachineBasicBlock::iterator &UseMI,
                                      const TargetRegisterClass *RC,
-                                     unsigned Reg) const {return false;}
+                                     unsigned Reg) const {
+    return false;
+  }
 
   /// eliminateFrameIndex - This method must be overriden to eliminate abstract
   /// frame indices from instructions which may use them.  The instruction
@@ -695,6 +697,18 @@ public:
   /// getFrameIndexOffset - Returns the displacement from the frame register to
   /// the stack frame of the specified index.
   virtual int getFrameIndexOffset(MachineFunction &MF, int FI) const;
+
+  /// getFrameIndexReference - This method should return the base register
+  /// and offset used to reference a frame index location. The offset is
+  /// returned directly, and the base register is returned via FrameReg.
+  virtual int getFrameIndexReference(MachineFunction &MF, int FI,
+                                     unsigned &FrameReg) const {
+    // By default, assume all frame indices are referenced via whatever
+    // getFrameRegister() says. The target can override this if it's doing
+    // something different.
+    FrameReg = getFrameRegister(MF);
+    return getFrameIndexOffset(MF, FI);
+  }
 
   /// getRARegister - This method should return the register where the return
   /// address can be found.
