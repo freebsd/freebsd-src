@@ -41,6 +41,7 @@ struct ata_cmd {
 #define		CAM_ATAIO_FPDMA		0x02	/* FPDMA command */
 #define		CAM_ATAIO_CONTROL	0x04	/* Control, not a command */
 #define		CAM_ATAIO_NEEDRESULT	0x08	/* Request requires result. */
+#define		CAM_ATAIO_DMA		0x10	/* DMA command */
 
 	u_int8_t	command;
 	u_int8_t	features;
