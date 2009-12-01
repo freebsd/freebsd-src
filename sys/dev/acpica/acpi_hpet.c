@@ -59,8 +59,6 @@ static void acpi_hpet_test(struct acpi_hpet_softc *sc);
 
 static char *hpet_ids[] = { "PNP0103", NULL };
 
-#define DEV_HPET(x)	(acpi_get_magic(x) == (uintptr_t)&acpi_hpet_devclass)
-
 struct timecounter hpet_timecounter = {
 	.tc_get_timecount =	hpet_get_timecount,
 	.tc_counter_mask =	~0u,
@@ -131,8 +129,6 @@ acpi_hpet_identify(driver_t *driver, device_t parent)
 		return;
 	}
 
-	/* Record a magic value so we can detect this device later. */
-	acpi_set_magic(child, (uintptr_t)&acpi_hpet_devclass);
 	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address,
 	    HPET_MEM_WIDTH);
 }
@@ -144,7 +140,7 @@ acpi_hpet_probe(device_t dev)
 
 	if (acpi_disabled("hpet"))
 		return (ENXIO);
-	if (!DEV_HPET(dev) &&
+	if (acpi_get_handle(dev) != NULL &&
 	    (ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL ||
 	    device_get_unit(dev) != 0))
 		return (ENXIO);
