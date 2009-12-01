@@ -72,14 +72,6 @@ Stmt::child_iterator CXXZeroInitValueExpr::child_end() {
   return child_iterator();
 }
 
-// CXXConditionDeclExpr
-Stmt::child_iterator CXXConditionDeclExpr::child_begin() {
-  return getVarDecl();
-}
-Stmt::child_iterator CXXConditionDeclExpr::child_end() {
-  return child_iterator();
-}
-
 // CXXNewExpr
 CXXNewExpr::CXXNewExpr(bool globalNew, FunctionDecl *operatorNew,
                        Expr **placementArgs, unsigned numPlaceArgs,
@@ -121,11 +113,45 @@ Stmt::child_iterator CXXPseudoDestructorExpr::child_end() {
   return &Base + 1;
 }
 
-// UnresolvedFunctionNameExpr
-Stmt::child_iterator UnresolvedFunctionNameExpr::child_begin() {
+// UnresolvedLookupExpr
+UnresolvedLookupExpr *
+UnresolvedLookupExpr::Create(ASTContext &C, bool Dependent,
+                             NestedNameSpecifier *Qualifier,
+                             SourceRange QualifierRange, DeclarationName Name,
+                             SourceLocation NameLoc, bool ADL,
+                             const TemplateArgumentListInfo &Args) 
+{
+  void *Mem = C.Allocate(sizeof(UnresolvedLookupExpr) + 
+                         ExplicitTemplateArgumentList::sizeFor(Args));
+  UnresolvedLookupExpr *ULE
+    = new (Mem) UnresolvedLookupExpr(Dependent ? C.DependentTy : C.OverloadTy,
+                                     Dependent, Qualifier, QualifierRange,
+                                     Name, NameLoc, ADL,
+                                     /*Overload*/ true,
+                                     /*ExplicitTemplateArgs*/ true);
+
+  reinterpret_cast<ExplicitTemplateArgumentList*>(ULE+1)->initializeFrom(Args);
+
+  return ULE;
+}
+
+bool UnresolvedLookupExpr::ComputeDependence(NamedDecl * const *Begin,
+                                             NamedDecl * const *End,
+                                       const TemplateArgumentListInfo *Args) {
+  for (NamedDecl * const *I = Begin; I != End; ++I)
+    if ((*I)->getDeclContext()->isDependentContext())
+      return true;
+
+  if (Args && TemplateSpecializationType::anyDependentTemplateArguments(*Args))
+    return true;
+
+  return false;
+}
+
+Stmt::child_iterator UnresolvedLookupExpr::child_begin() {
   return child_iterator();
 }
-Stmt::child_iterator UnresolvedFunctionNameExpr::child_end() {
+Stmt::child_iterator UnresolvedLookupExpr::child_end() {
   return child_iterator();
 }
 // UnaryTypeTraitExpr
@@ -136,72 +162,37 @@ Stmt::child_iterator UnaryTypeTraitExpr::child_end() {
   return child_iterator();
 }
 
-// UnresolvedDeclRefExpr
-StmtIterator UnresolvedDeclRefExpr::child_begin() {
+// DependentScopeDeclRefExpr
+DependentScopeDeclRefExpr *
+DependentScopeDeclRefExpr::Create(ASTContext &C,
+                                  NestedNameSpecifier *Qualifier,
+                                  SourceRange QualifierRange,
+                                  DeclarationName Name,
+                                  SourceLocation NameLoc,
+                                  const TemplateArgumentListInfo *Args) {
+  std::size_t size = sizeof(DependentScopeDeclRefExpr);
+  if (Args) size += ExplicitTemplateArgumentList::sizeFor(*Args);
+  void *Mem = C.Allocate(size);
+
+  DependentScopeDeclRefExpr *DRE
+    = new (Mem) DependentScopeDeclRefExpr(C.DependentTy,
+                                          Qualifier, QualifierRange,
+                                          Name, NameLoc,
+                                          Args != 0);
+
+  if (Args)
+    reinterpret_cast<ExplicitTemplateArgumentList*>(DRE+1)
+      ->initializeFrom(*Args);
+
+  return DRE;
+}
+
+StmtIterator DependentScopeDeclRefExpr::child_begin() {
   return child_iterator();
 }
 
-StmtIterator UnresolvedDeclRefExpr::child_end() {
+StmtIterator DependentScopeDeclRefExpr::child_end() {
   return child_iterator();
-}
-
-TemplateIdRefExpr::TemplateIdRefExpr(QualType T,
-                                     NestedNameSpecifier *Qualifier,
-                                     SourceRange QualifierRange,
-                                     TemplateName Template,
-                                     SourceLocation TemplateNameLoc,
-                                     SourceLocation LAngleLoc,
-                                     const TemplateArgumentLoc *TemplateArgs,
-                                     unsigned NumTemplateArgs,
-                                     SourceLocation RAngleLoc)
-  : Expr(TemplateIdRefExprClass, T,
-         (Template.isDependent() ||
-          TemplateSpecializationType::anyDependentTemplateArguments(
-                                              TemplateArgs, NumTemplateArgs)),
-         (Template.isDependent() ||
-          TemplateSpecializationType::anyDependentTemplateArguments(
-                                              TemplateArgs, NumTemplateArgs))),
-    Qualifier(Qualifier), QualifierRange(QualifierRange), Template(Template),
-    TemplateNameLoc(TemplateNameLoc), LAngleLoc(LAngleLoc),
-    RAngleLoc(RAngleLoc), NumTemplateArgs(NumTemplateArgs) {
-  TemplateArgumentLoc *StoredTemplateArgs
-    = reinterpret_cast<TemplateArgumentLoc *> (this+1);
-  for (unsigned I = 0; I != NumTemplateArgs; ++I)
-    new (StoredTemplateArgs + I) TemplateArgumentLoc(TemplateArgs[I]);
-}
-
-TemplateIdRefExpr *
-TemplateIdRefExpr::Create(ASTContext &Context, QualType T,
-                          NestedNameSpecifier *Qualifier,
-                          SourceRange QualifierRange,
-                          TemplateName Template, SourceLocation TemplateNameLoc,
-                          SourceLocation LAngleLoc,
-                          const TemplateArgumentLoc *TemplateArgs,
-                          unsigned NumTemplateArgs, SourceLocation RAngleLoc) {
-  void *Mem = Context.Allocate(sizeof(TemplateIdRefExpr) +
-                               sizeof(TemplateArgumentLoc) * NumTemplateArgs);
-  return new (Mem) TemplateIdRefExpr(T, Qualifier, QualifierRange, Template,
-                                     TemplateNameLoc, LAngleLoc, TemplateArgs,
-                                     NumTemplateArgs, RAngleLoc);
-}
-
-void TemplateIdRefExpr::DoDestroy(ASTContext &Context) {
-  const TemplateArgumentLoc *TemplateArgs = getTemplateArgs();
-  for (unsigned I = 0; I != NumTemplateArgs; ++I)
-    if (Expr *E = TemplateArgs[I].getArgument().getAsExpr())
-      E->Destroy(Context);
-  this->~TemplateIdRefExpr();
-  Context.Deallocate(this);
-}
-
-Stmt::child_iterator TemplateIdRefExpr::child_begin() {
-  // FIXME: Walk the expressions in the template arguments (?)
-  return Stmt::child_iterator();
-}
-
-Stmt::child_iterator TemplateIdRefExpr::child_end() {
-  // FIXME: Walk the expressions in the template arguments (?)
-  return Stmt::child_iterator();
 }
 
 bool UnaryTypeTraitExpr::EvaluateTrait(ASTContext& C) const {
@@ -526,7 +517,7 @@ Stmt::child_iterator CXXUnresolvedConstructExpr::child_end() {
   return child_iterator(reinterpret_cast<Stmt **>(this + 1) + NumArgs);
 }
 
-CXXUnresolvedMemberExpr::CXXUnresolvedMemberExpr(ASTContext &C,
+CXXDependentScopeMemberExpr::CXXDependentScopeMemberExpr(ASTContext &C,
                                                  Expr *Base, bool IsArrow,
                                                  SourceLocation OperatorLoc,
                                                  NestedNameSpecifier *Qualifier,
@@ -534,33 +525,20 @@ CXXUnresolvedMemberExpr::CXXUnresolvedMemberExpr(ASTContext &C,
                                           NamedDecl *FirstQualifierFoundInScope,
                                                  DeclarationName Member,
                                                  SourceLocation MemberLoc,
-                                                 bool HasExplicitTemplateArgs,
-                                                 SourceLocation LAngleLoc,
-                                       const TemplateArgumentLoc *TemplateArgs,
-                                                 unsigned NumTemplateArgs,
-                                                 SourceLocation RAngleLoc)
-  : Expr(CXXUnresolvedMemberExprClass, C.DependentTy, true, true),
+                                   const TemplateArgumentListInfo *TemplateArgs)
+  : Expr(CXXDependentScopeMemberExprClass, C.DependentTy, true, true),
     Base(Base), IsArrow(IsArrow),
-    HasExplicitTemplateArgumentList(HasExplicitTemplateArgs),
+    HasExplicitTemplateArgumentList(TemplateArgs),
     OperatorLoc(OperatorLoc),
     Qualifier(Qualifier), QualifierRange(QualifierRange),
     FirstQualifierFoundInScope(FirstQualifierFoundInScope),
     Member(Member), MemberLoc(MemberLoc) {
-  if (HasExplicitTemplateArgumentList) {
-    ExplicitTemplateArgumentList *ETemplateArgs
-      = getExplicitTemplateArgumentList();
-    ETemplateArgs->LAngleLoc = LAngleLoc;
-    ETemplateArgs->RAngleLoc = RAngleLoc;
-    ETemplateArgs->NumTemplateArgs = NumTemplateArgs;
-
-    TemplateArgumentLoc *SavedTemplateArgs = ETemplateArgs->getTemplateArgs();
-    for (unsigned I = 0; I < NumTemplateArgs; ++I)
-      new (SavedTemplateArgs + I) TemplateArgumentLoc(TemplateArgs[I]);
-  }
+  if (TemplateArgs)
+    getExplicitTemplateArgumentList()->initializeFrom(*TemplateArgs);
 }
 
-CXXUnresolvedMemberExpr *
-CXXUnresolvedMemberExpr::Create(ASTContext &C,
+CXXDependentScopeMemberExpr *
+CXXDependentScopeMemberExpr::Create(ASTContext &C,
                                 Expr *Base, bool IsArrow,
                                 SourceLocation OperatorLoc,
                                 NestedNameSpecifier *Qualifier,
@@ -568,37 +546,79 @@ CXXUnresolvedMemberExpr::Create(ASTContext &C,
                                 NamedDecl *FirstQualifierFoundInScope,
                                 DeclarationName Member,
                                 SourceLocation MemberLoc,
-                                bool HasExplicitTemplateArgs,
-                                SourceLocation LAngleLoc,
-                                const TemplateArgumentLoc *TemplateArgs,
-                                unsigned NumTemplateArgs,
-                                SourceLocation RAngleLoc) {
-  if (!HasExplicitTemplateArgs)
-    return new (C) CXXUnresolvedMemberExpr(C, Base, IsArrow, OperatorLoc,
+                                const TemplateArgumentListInfo *TemplateArgs) {
+  if (!TemplateArgs)
+    return new (C) CXXDependentScopeMemberExpr(C, Base, IsArrow, OperatorLoc,
                                            Qualifier, QualifierRange,
                                            FirstQualifierFoundInScope,
                                            Member, MemberLoc);
 
-  void *Mem = C.Allocate(sizeof(CXXUnresolvedMemberExpr) +
-                         sizeof(ExplicitTemplateArgumentList) +
-                         sizeof(TemplateArgumentLoc) * NumTemplateArgs,
-                         llvm::alignof<CXXUnresolvedMemberExpr>());
-  return new (Mem) CXXUnresolvedMemberExpr(C, Base, IsArrow, OperatorLoc,
+  std::size_t size = sizeof(CXXDependentScopeMemberExpr);
+  if (TemplateArgs)
+    size += ExplicitTemplateArgumentList::sizeFor(*TemplateArgs);
+
+  void *Mem = C.Allocate(size, llvm::alignof<CXXDependentScopeMemberExpr>());
+  return new (Mem) CXXDependentScopeMemberExpr(C, Base, IsArrow, OperatorLoc,
                                            Qualifier, QualifierRange,
                                            FirstQualifierFoundInScope,
                                            Member,
                                            MemberLoc,
-                                           HasExplicitTemplateArgs,
-                                           LAngleLoc,
-                                           TemplateArgs,
-                                           NumTemplateArgs,
-                                           RAngleLoc);
+                                           TemplateArgs);
 }
 
-Stmt::child_iterator CXXUnresolvedMemberExpr::child_begin() {
+Stmt::child_iterator CXXDependentScopeMemberExpr::child_begin() {
   return child_iterator(&Base);
 }
 
-Stmt::child_iterator CXXUnresolvedMemberExpr::child_end() {
+Stmt::child_iterator CXXDependentScopeMemberExpr::child_end() {
+  return child_iterator(&Base + 1);
+}
+
+UnresolvedMemberExpr::UnresolvedMemberExpr(QualType T, bool Dependent,
+                                           bool HasUnresolvedUsing,
+                                           Expr *Base, bool IsArrow,
+                                           SourceLocation OperatorLoc,
+                                           NestedNameSpecifier *Qualifier,
+                                           SourceRange QualifierRange,
+                                           DeclarationName MemberName,
+                                           SourceLocation MemberLoc,
+                                   const TemplateArgumentListInfo *TemplateArgs)
+  : Expr(UnresolvedMemberExprClass, T, Dependent, Dependent),
+    Base(Base), IsArrow(IsArrow), HasUnresolvedUsing(HasUnresolvedUsing),
+    HasExplicitTemplateArgs(TemplateArgs != 0),
+    OperatorLoc(OperatorLoc),
+    Qualifier(Qualifier), QualifierRange(QualifierRange),
+    MemberName(MemberName), MemberLoc(MemberLoc) {
+  if (TemplateArgs)
+    getExplicitTemplateArgs()->initializeFrom(*TemplateArgs);
+}
+
+UnresolvedMemberExpr *
+UnresolvedMemberExpr::Create(ASTContext &C, bool Dependent,
+                             bool HasUnresolvedUsing,
+                             Expr *Base, bool IsArrow,
+                             SourceLocation OperatorLoc,
+                             NestedNameSpecifier *Qualifier,
+                             SourceRange QualifierRange,
+                             DeclarationName Member,
+                             SourceLocation MemberLoc,
+                             const TemplateArgumentListInfo *TemplateArgs) {
+  std::size_t size = sizeof(UnresolvedMemberExpr);
+  if (TemplateArgs)
+    size += ExplicitTemplateArgumentList::sizeFor(*TemplateArgs);
+
+  void *Mem = C.Allocate(size, llvm::alignof<UnresolvedMemberExpr>());
+  return new (Mem) UnresolvedMemberExpr(
+                             Dependent ? C.DependentTy : C.OverloadTy,
+                             Dependent, HasUnresolvedUsing, Base, IsArrow,
+                             OperatorLoc, Qualifier, QualifierRange,
+                             Member, MemberLoc, TemplateArgs);
+}
+
+Stmt::child_iterator UnresolvedMemberExpr::child_begin() {
+  return child_iterator(&Base);
+}
+
+Stmt::child_iterator UnresolvedMemberExpr::child_end() {
   return child_iterator(&Base + 1);
 }

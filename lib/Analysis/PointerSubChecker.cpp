@@ -19,7 +19,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN PointerSubChecker 
+class PointerSubChecker 
   : public CheckerVisitor<PointerSubChecker> {
   BuiltinBug *BT;
 public:
@@ -61,7 +61,7 @@ void PointerSubChecker::PreVisitBinaryOperator(CheckerContext &C,
   if (isa<SymbolicRegion>(BaseLR) || isa<SymbolicRegion>(BaseRR))
     return;
 
-  if (ExplodedNode *N = C.GenerateNode(B)) {
+  if (ExplodedNode *N = C.GenerateNode()) {
     if (!BT)
       BT = new BuiltinBug("Pointer subtraction", 
                           "Subtraction of two pointers that do not point to "

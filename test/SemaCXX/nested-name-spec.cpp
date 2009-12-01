@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -std=c++98 -verify -fms-extensions=0 %s 
+// RUN: clang-cc -fsyntax-only -std=c++98 -verify %s 
 namespace A {
   struct C {
     static int cx;
@@ -87,7 +87,6 @@ void f3() {
   N::x = 0; // expected-error {{expected a class or namespace}}
   { int A;           A::ax = 0; }
   { typedef int A;   A::ax = 0; } // expected-error{{expected a class or namespace}}
-  { int A(); A::ax = 0; }
   { typedef A::C A;  A::ax = 0; } // expected-error {{no member named 'ax'}}
   { typedef A::C A;  A::cx = 0; }
 }

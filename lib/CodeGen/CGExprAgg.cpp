@@ -20,7 +20,6 @@
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
 #include "llvm/GlobalVariable.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Intrinsics.h"
 using namespace clang;
 using namespace CodeGen;
@@ -30,7 +29,7 @@ using namespace CodeGen;
 //===----------------------------------------------------------------------===//
 
 namespace  {
-class VISIBILITY_HIDDEN AggExprEmitter : public StmtVisitor<AggExprEmitter> {
+class AggExprEmitter : public StmtVisitor<AggExprEmitter> {
   CodeGenFunction &CGF;
   CGBuilderTy &Builder;
   llvm::Value *DestPtr;
@@ -223,6 +222,7 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
     break;
   }
 
+  case CastExpr::CK_DerivedToBaseMemberPointer:
   case CastExpr::CK_BaseToDerivedMemberPointer: {
     QualType SrcType = E->getSubExpr()->getType();
     
@@ -242,16 +242,22 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
     llvm::Value *DstAdj = Builder.CreateStructGEP(DestPtr, 1, "dst.adj");
     
     // Now See if we need to update the adjustment.
-    const CXXRecordDecl *SrcDecl = 
+    const CXXRecordDecl *BaseDecl = 
       cast<CXXRecordDecl>(SrcType->getAs<MemberPointerType>()->
                           getClass()->getAs<RecordType>()->getDecl());
-    const CXXRecordDecl *DstDecl = 
+    const CXXRecordDecl *DerivedDecl = 
       cast<CXXRecordDecl>(E->getType()->getAs<MemberPointerType>()->
                           getClass()->getAs<RecordType>()->getDecl());
-    
-    llvm::Constant *Adj = CGF.CGM.GetCXXBaseClassOffset(DstDecl, SrcDecl);
-    if (Adj)
-      SrcAdj = Builder.CreateAdd(SrcAdj, Adj, "adj");
+    if (E->getCastKind() == CastExpr::CK_DerivedToBaseMemberPointer)
+      std::swap(DerivedDecl, BaseDecl);
+
+    llvm::Constant *Adj = CGF.CGM.GetCXXBaseClassOffset(DerivedDecl, BaseDecl);
+    if (Adj) {
+      if (E->getCastKind() == CastExpr::CK_DerivedToBaseMemberPointer)
+        SrcAdj = Builder.CreateSub(SrcAdj, Adj, "adj");
+      else
+        SrcAdj = Builder.CreateAdd(SrcAdj, Adj, "adj");
+    }
     
     Builder.CreateStore(SrcAdj, DstAdj, VolatileDest);
     break;
@@ -389,21 +395,21 @@ void AggExprEmitter::VisitConditionalOperator(const ConditionalOperator *E) {
   llvm::Value *Cond = CGF.EvaluateExprAsBool(E->getCond());
   Builder.CreateCondBr(Cond, LHSBlock, RHSBlock);
 
-  CGF.PushConditionalTempDestruction();
+  CGF.StartConditionalBranch();
   CGF.EmitBlock(LHSBlock);
 
   // Handle the GNU extension for missing LHS.
   assert(E->getLHS() && "Must have LHS for aggregate value");
 
   Visit(E->getLHS());
-  CGF.PopConditionalTempDestruction();
+  CGF.FinishConditionalBranch();
   CGF.EmitBranch(ContBlock);
 
-  CGF.PushConditionalTempDestruction();
+  CGF.StartConditionalBranch();
   CGF.EmitBlock(RHSBlock);
 
   Visit(E->getRHS());
-  CGF.PopConditionalTempDestruction();
+  CGF.FinishConditionalBranch();
   CGF.EmitBranch(ContBlock);
 
   CGF.EmitBlock(ContBlock);

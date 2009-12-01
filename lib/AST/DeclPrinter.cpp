@@ -18,19 +18,18 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/PrettyPrinter.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 namespace {
-  class VISIBILITY_HIDDEN DeclPrinter : public DeclVisitor<DeclPrinter> {
+  class DeclPrinter : public DeclVisitor<DeclPrinter> {
     llvm::raw_ostream &Out;
     ASTContext &Context;
     PrintingPolicy Policy;
     unsigned Indentation;
 
-    llvm::raw_ostream& Indent();
+    llvm::raw_ostream& Indent() { return Indent(Indentation); }
+    llvm::raw_ostream& Indent(unsigned Indentation);
     void ProcessDeclGroup(llvm::SmallVectorImpl<Decl*>& Decls);
 
     void Print(AccessSpecifier AS);
@@ -154,8 +153,8 @@ void Decl::dump() const {
   print(llvm::errs());
 }
 
-llvm::raw_ostream& DeclPrinter::Indent() {
-  for (unsigned i = 0; i < Indentation; ++i)
+llvm::raw_ostream& DeclPrinter::Indent(unsigned Indentation) {
+  for (unsigned i = 0; i != Indentation; ++i)
     Out << "  ";
   return Out;
 }
@@ -205,6 +204,8 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
       AccessSpecifier AS = D->getAccess();
 
       if (AS != CurAS) {
+        if (Indent)
+          this->Indent(Indentation - Policy.Indentation);
         Print(AS);
         Out << ":\n";
         CurAS = AS;
@@ -502,7 +503,7 @@ void DeclPrinter::VisitUsingDirectiveDecl(UsingDirectiveDecl *D) {
   Out << "using namespace ";
   if (D->getQualifier())
     D->getQualifier()->print(Out, Policy);
-  Out << D->getNominatedNamespace()->getNameAsString();
+  Out << D->getNominatedNamespaceAsWritten()->getNameAsString();
 }
 
 void DeclPrinter::VisitNamespaceAliasDecl(NamespaceAliasDecl *D) {

@@ -19,7 +19,7 @@
 using namespace clang;
 
 namespace {
-class VISIBILITY_HIDDEN UndefinedArraySubscriptChecker
+class UndefinedArraySubscriptChecker
   : public CheckerVisitor<UndefinedArraySubscriptChecker> {
   BugType *BT;
 public:
@@ -41,7 +41,7 @@ void
 UndefinedArraySubscriptChecker::PreVisitArraySubscriptExpr(CheckerContext &C, 
                                                 const ArraySubscriptExpr *A) {
   if (C.getState()->getSVal(A->getIdx()).isUndef()) {
-    if (ExplodedNode *N = C.GenerateNode(A, true)) {
+    if (ExplodedNode *N = C.GenerateSink()) {
       if (!BT)
         BT = new BuiltinBug("Array subscript is undefined");
 

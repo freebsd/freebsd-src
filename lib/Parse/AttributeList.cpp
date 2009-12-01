@@ -17,11 +17,13 @@
 using namespace clang;
 
 AttributeList::AttributeList(IdentifierInfo *aName, SourceLocation aLoc,
+                             IdentifierInfo *sName, SourceLocation sLoc,
                              IdentifierInfo *pName, SourceLocation pLoc,
                              ActionBase::ExprTy **ExprList, unsigned numArgs,
-                             AttributeList *n, bool declspec)
-  : AttrName(aName), AttrLoc(aLoc), ParmName(pName), ParmLoc(pLoc),
-    NumArgs(numArgs), Next(n), DeclspecAttribute(declspec) {
+                             AttributeList *n, bool declspec, bool cxx0x)
+  : AttrName(aName), AttrLoc(aLoc), ScopeName(sName), ScopeLoc(sLoc),
+    ParmName(pName), ParmLoc(pLoc), NumArgs(numArgs), Next(n),
+    DeclspecAttribute(declspec), CXX0XAttribute(cxx0x) {
 
   if (numArgs == 0)
     Args = 0;
@@ -59,13 +61,16 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("mode", AT_mode)
     .Case("used", AT_used)
     .Case("alias", AT_alias)
+    .Case("align", AT_aligned)
+    .Case("final", AT_final)
     .Case("cdecl", AT_cdecl)
     .Case("const", AT_const)
-    .Case("packed", AT_packed)
-    .Case("malloc", AT_malloc)
-    .Case("format", AT_format)
-    .Case("unused", AT_unused)
     .Case("blocks", AT_blocks)
+    .Case("format", AT_format)
+    .Case("hiding", AT_hiding)
+    .Case("malloc", AT_malloc)
+    .Case("packed", AT_packed)
+    .Case("unused", AT_unused)
     .Case("aligned", AT_aligned)
     .Case("cleanup", AT_cleanup)
     .Case("nodebug", AT_nodebug)
@@ -76,15 +81,17 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("section", AT_section)
     .Case("stdcall", AT_stdcall)
     .Case("annotate", AT_annotate)
-    .Case("noreturn", AT_noreturn)
-    .Case("noinline", AT_noinline)
     .Case("fastcall", AT_fastcall)
     .Case("iboutlet", AT_IBOutlet)
+    .Case("noreturn", AT_noreturn)
+    .Case("noinline", AT_noinline)
+    .Case("override", AT_override)
     .Case("sentinel", AT_sentinel)
     .Case("NSObject", AT_nsobject)
     .Case("dllimport", AT_dllimport)
     .Case("dllexport", AT_dllexport)
     .Case("may_alias", IgnoredAttribute) // FIXME: TBAA
+    .Case("base_check", AT_base_check)
     .Case("deprecated", AT_deprecated)
     .Case("visibility", AT_visibility)
     .Case("destructor", AT_destructor)
@@ -103,6 +110,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("transparent_union", AT_transparent_union)
     .Case("analyzer_noreturn", AT_analyzer_noreturn)
     .Case("warn_unused_result", AT_warn_unused_result)
+    .Case("carries_dependency", AT_carries_dependency)
     .Case("ns_returns_retained", AT_ns_returns_retained)
     .Case("cf_returns_retained", AT_cf_returns_retained)
     .Case("reqd_work_group_size", AT_reqd_wg_size)

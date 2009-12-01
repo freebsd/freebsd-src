@@ -22,13 +22,12 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ParentMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Support/Compiler.h"
 
 using namespace clang;
 
 namespace {
 
-class VISIBILITY_HIDDEN DeadStoreObs : public LiveVariables::ObserverTy {
+class DeadStoreObs : public LiveVariables::ObserverTy {
   ASTContext &Ctx;
   BugReporter& BR;
   ParentMap& Parents;
@@ -77,7 +76,7 @@ public:
         break;
     }
 
-    BR.EmitBasicReport(BugType, "Dead store", msg.c_str(), L, R);
+    BR.EmitBasicReport(BugType, "Dead store", msg, L, R);
   }
 
   void CheckVarDecl(VarDecl* VD, Expr* Ex, Expr* Val,
@@ -134,16 +133,15 @@ public:
 
       if (DeclRefExpr* DR = dyn_cast<DeclRefExpr>(B->getLHS()))
         if (VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
-          Expr* RHS = B->getRHS()->IgnoreParenCasts();
-
           // Special case: check for assigning null to a pointer.
           //  This is a common form of defensive programming.
           if (VD->getType()->isPointerType()) {
-            if (IntegerLiteral* L = dyn_cast<IntegerLiteral>(RHS))
-              // FIXME: Probably should have an Expr::isNullPointerConstant.
-              if (L->getValue() == 0)
-                return;
+            if (B->getRHS()->isNullPointerConstant(Ctx,
+                                              Expr::NPC_ValueDependentIsNull))
+              return;
           }
+
+          Expr* RHS = B->getRHS()->IgnoreParenCasts();
           // Special case: self-assignments.  These are often used to shut up
           //  "unused variable" compiler warnings.
           if (DeclRefExpr* RhsDR = dyn_cast<DeclRefExpr>(RHS))
@@ -226,7 +224,7 @@ public:
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN FindEscaped : public CFGRecStmtDeclVisitor<FindEscaped>{
+class FindEscaped : public CFGRecStmtDeclVisitor<FindEscaped>{
   CFG *cfg;
 public:
   FindEscaped(CFG *c) : cfg(c) {}

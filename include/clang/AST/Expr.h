@@ -35,6 +35,7 @@ namespace clang {
   class CXXOperatorCallExpr;
   class CXXMemberCallExpr;
   class TemplateArgumentLoc;
+  class TemplateArgumentListInfo;
 
 /// Expr - This represents one expression.  Note that Expr's are subclasses of
 /// Stmt.  This allows an expression to be transparently used any place a Stmt
@@ -366,6 +367,10 @@ struct ExplicitTemplateArgumentList {
   const TemplateArgumentLoc *getTemplateArgs() const {
     return reinterpret_cast<const TemplateArgumentLoc *> (this + 1);
   }
+
+  void initializeFrom(const TemplateArgumentListInfo &List);
+  void copyInto(TemplateArgumentListInfo &List) const;
+  static std::size_t sizeFor(const TemplateArgumentListInfo &List);
 };
   
 /// DeclRefExpr - [C99 6.5.1p2] - A reference to a declared variable, function,
@@ -423,31 +428,24 @@ class DeclRefExpr : public Expr {
   
   DeclRefExpr(NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
               NamedDecl *D, SourceLocation NameLoc,
-              bool HasExplicitTemplateArgumentList,
-              SourceLocation LAngleLoc,
-              const TemplateArgumentLoc *ExplicitTemplateArgs,
-              unsigned NumExplicitTemplateArgs,
-              SourceLocation RAngleLoc,
-              QualType T, bool TD, bool VD);
+              const TemplateArgumentListInfo *TemplateArgs,
+              QualType T);
   
 protected:
-  // FIXME: Eventually, this constructor will go away and all subclasses
-  // will have to provide the type- and value-dependent flags.
-  DeclRefExpr(StmtClass SC, NamedDecl *d, QualType t, SourceLocation l) :
-    Expr(SC, t), DecoratedD(d, 0), Loc(l) {}
+  /// \brief Computes the type- and value-dependence flags for this
+  /// declaration reference expression.
+  void computeDependence();
 
-  DeclRefExpr(StmtClass SC, NamedDecl *d, QualType t, SourceLocation l, bool TD,
-              bool VD) :
-    Expr(SC, t, TD, VD), DecoratedD(d, 0), Loc(l) {}
+  DeclRefExpr(StmtClass SC, NamedDecl *d, QualType t, SourceLocation l) :
+    Expr(SC, t, false, false), DecoratedD(d, 0), Loc(l) {
+    computeDependence();
+  }
 
 public:
-  // FIXME: Eventually, this constructor will go away and all clients
-  // will have to provide the type- and value-dependent flags.
   DeclRefExpr(NamedDecl *d, QualType t, SourceLocation l) :
-    Expr(DeclRefExprClass, t), DecoratedD(d, 0), Loc(l) {}
-
-  DeclRefExpr(NamedDecl *d, QualType t, SourceLocation l, bool TD, bool VD) :
-    Expr(DeclRefExprClass, t, TD, VD), DecoratedD(d, 0), Loc(l) {}
+    Expr(DeclRefExprClass, t, false, false), DecoratedD(d, 0), Loc(l) {
+    computeDependence();
+  }
 
   /// \brief Construct an empty declaration reference expression.
   explicit DeclRefExpr(EmptyShell Empty)
@@ -458,19 +456,8 @@ public:
                              SourceRange QualifierRange,
                              NamedDecl *D,
                              SourceLocation NameLoc,
-                             QualType T, bool TD, bool VD);
-  
-  static DeclRefExpr *Create(ASTContext &Context,
-                             NestedNameSpecifier *Qualifier,
-                             SourceRange QualifierRange,
-                             NamedDecl *D,
-                             SourceLocation NameLoc,
-                             bool HasExplicitTemplateArgumentList,
-                             SourceLocation LAngleLoc,
-                             const TemplateArgumentLoc *ExplicitTemplateArgs,
-                             unsigned NumExplicitTemplateArgs,
-                             SourceLocation RAngleLoc,
-                             QualType T, bool TD, bool VD);
+                             QualType T,
+                             const TemplateArgumentListInfo *TemplateArgs = 0);
   
   NamedDecl *getDecl() { return DecoratedD.getPointer(); }
   const NamedDecl *getDecl() const { return DecoratedD.getPointer(); }
@@ -507,6 +494,13 @@ public:
   /// template argument list explicitly specified, e.g., x.f<int>.
   bool hasExplicitTemplateArgumentList() const {
     return DecoratedD.getInt() & HasExplicitTemplateArgumentListFlag;
+  }
+
+  /// \brief Copies the template arguments (if present) into the given
+  /// structure.
+  void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
+    if (hasExplicitTemplateArgumentList())
+      getExplicitTemplateArgumentList()->copyInto(List);
   }
   
   /// \brief Retrieve the location of the left angle bracket following the
@@ -546,8 +540,7 @@ public:
   }
   
   static bool classof(const Stmt *T) {
-    return T->getStmtClass() == DeclRefExprClass ||
-           T->getStmtClass() == CXXConditionDeclExprClass;
+    return T->getStmtClass() == DeclRefExprClass;
   }
   static bool classof(const DeclRefExpr *) { return true; }
 
@@ -1313,9 +1306,7 @@ class MemberExpr : public Expr {
 
   MemberExpr(Expr *base, bool isarrow, NestedNameSpecifier *qual,
              SourceRange qualrange, NamedDecl *memberdecl, SourceLocation l,
-             bool has_explicit, SourceLocation langle,
-             const TemplateArgumentLoc *targs, unsigned numtargs,
-             SourceLocation rangle, QualType ty);
+             const TemplateArgumentListInfo *targs, QualType ty);
 
 public:
   MemberExpr(Expr *base, bool isarrow, NamedDecl *memberdecl, SourceLocation l,
@@ -1334,11 +1325,7 @@ public:
                             NestedNameSpecifier *qual, SourceRange qualrange,
                             NamedDecl *memberdecl,
                             SourceLocation l,
-                            bool has_explicit,
-                            SourceLocation langle,
-                            const TemplateArgumentLoc *targs,
-                            unsigned numtargs,
-                            SourceLocation rangle,
+                            const TemplateArgumentListInfo *targs,
                             QualType ty);
 
   void setBase(Expr *E) { Base = E; }
@@ -1378,10 +1365,17 @@ public:
 
   /// \brief Determines whether this member expression actually had a C++
   /// template argument list explicitly specified, e.g., x.f<int>.
-  bool hasExplicitTemplateArgumentList() {
+  bool hasExplicitTemplateArgumentList() const {
     return HasExplicitTemplateArgumentList;
   }
 
+  /// \brief Copies the template arguments (if present) into the given
+  /// structure.
+  void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
+    if (hasExplicitTemplateArgumentList())
+      getExplicitTemplateArgumentList()->copyInto(List);
+  }
+  
   /// \brief Retrieve the location of the left angle bracket following the
   /// member name ('<'), if any.
   SourceLocation getLAngleLoc() const {
@@ -1579,7 +1573,11 @@ public:
     CK_FloatingToIntegral,
     
     /// CK_FloatingCast - Casting between floating types of different size.
-    CK_FloatingCast
+    CK_FloatingCast,
+    
+    /// CK_MemberPointerToBoolean - Member pointer to boolean
+    CK_MemberPointerToBoolean
+
   };
 
 private:

@@ -22,13 +22,14 @@
 #include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/Analysis/PathSensitive/SymbolManager.h"
 #include "clang/Analysis/PathSensitive/GRTransferFuncs.h"
+#include "clang/Analysis/PathSensitive/CheckerVisitor.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/StmtVisitor.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/ImmutableList.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/STLExtras.h"
 #include <stdarg.h>
 
@@ -168,7 +169,7 @@ ResolveToInterfaceMethodDecl(const ObjCMethodDecl *MD) {
 }
 
 namespace {
-class VISIBILITY_HIDDEN GenericNodeBuilder {
+class GenericNodeBuilder {
   GRStmtNodeBuilder *SNB;
   Stmt *S;
   const void *tag;
@@ -246,7 +247,7 @@ namespace {
 
 ///  RetEffect is used to summarize a function/method call's behavior with
 ///  respect to its return value.
-class VISIBILITY_HIDDEN RetEffect {
+class RetEffect {
 public:
   enum Kind { NoRet, Alias, OwnedSymbol, OwnedAllocatedSymbol,
               NotOwnedSymbol, GCNotOwnedSymbol, ReceiverAlias,
@@ -312,7 +313,7 @@ public:
 // Reference-counting logic (typestate + counts).
 //===----------------------------------------------------------------------===//
 
-class VISIBILITY_HIDDEN RefVal {
+class RefVal {
 public:
   enum Kind {
     Owned = 0, // Owning reference.
@@ -536,7 +537,7 @@ namespace clang {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN RetainSummary {
+class RetainSummary {
   /// Args - an ordered vector of (index, ArgEffect) pairs, where index
   ///  specifies the argument (starting from 0).  This can be sparsely
   ///  populated; arguments with no entry in Args use 'DefaultArgEffect'.
@@ -627,7 +628,7 @@ public:
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN ObjCSummaryKey {
+class ObjCSummaryKey {
   IdentifierInfo* II;
   Selector S;
 public:
@@ -682,7 +683,7 @@ template <> struct DenseMapInfo<ObjCSummaryKey> {
 } // end llvm namespace
 
 namespace {
-class VISIBILITY_HIDDEN ObjCSummaryCache {
+class ObjCSummaryCache {
   typedef llvm::DenseMap<ObjCSummaryKey, RetainSummary*> MapTy;
   MapTy M;
 public:
@@ -776,7 +777,7 @@ public:
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN RetainSummaryManager {
+class RetainSummaryManager {
 
   //==-----------------------------------------------------------------==//
   //  Typedefs.
@@ -1865,8 +1866,8 @@ typedef llvm::ImmutableList<SymbolRef> ARStack;
 static int AutoRCIndex = 0;
 static int AutoRBIndex = 0;
 
-namespace { class VISIBILITY_HIDDEN AutoreleasePoolContents {}; }
-namespace { class VISIBILITY_HIDDEN AutoreleaseStack {}; }
+namespace { class AutoreleasePoolContents {}; }
+namespace { class AutoreleaseStack {}; }
 
 namespace clang {
 template<> struct GRStateTrait<AutoreleaseStack>
@@ -1908,7 +1909,7 @@ static const GRState * SendAutorelease(const GRState *state,
 
 namespace {
 
-class VISIBILITY_HIDDEN CFRefCount : public GRTransferFuncs {
+class CFRefCount : public GRTransferFuncs {
 public:
   class BindingsPrinter : public GRState::Printer {
   public:
@@ -2093,11 +2094,11 @@ namespace {
   // Bug Descriptions. //
   //===-------------===//
 
-  class VISIBILITY_HIDDEN CFRefBug : public BugType {
+  class CFRefBug : public BugType {
   protected:
     CFRefCount& TF;
 
-    CFRefBug(CFRefCount* tf, const char* name)
+    CFRefBug(CFRefCount* tf, llvm::StringRef name)
     : BugType(name, "Memory (Core Foundation/Objective-C)"), TF(*tf) {}
   public:
 
@@ -2110,7 +2111,7 @@ namespace {
     virtual bool isLeak() const { return false; }
   };
 
-  class VISIBILITY_HIDDEN UseAfterRelease : public CFRefBug {
+  class UseAfterRelease : public CFRefBug {
   public:
     UseAfterRelease(CFRefCount* tf)
     : CFRefBug(tf, "Use-after-release") {}
@@ -2120,7 +2121,7 @@ namespace {
     }
   };
 
-  class VISIBILITY_HIDDEN BadRelease : public CFRefBug {
+  class BadRelease : public CFRefBug {
   public:
     BadRelease(CFRefCount* tf) : CFRefBug(tf, "Bad release") {}
 
@@ -2130,7 +2131,7 @@ namespace {
     }
   };
 
-  class VISIBILITY_HIDDEN DeallocGC : public CFRefBug {
+  class DeallocGC : public CFRefBug {
   public:
     DeallocGC(CFRefCount *tf)
       : CFRefBug(tf, "-dealloc called while using garbage collection") {}
@@ -2140,7 +2141,7 @@ namespace {
     }
   };
 
-  class VISIBILITY_HIDDEN DeallocNotOwned : public CFRefBug {
+  class DeallocNotOwned : public CFRefBug {
   public:
     DeallocNotOwned(CFRefCount *tf)
       : CFRefBug(tf, "-dealloc sent to non-exclusively owned object") {}
@@ -2150,7 +2151,7 @@ namespace {
     }
   };
 
-  class VISIBILITY_HIDDEN OverAutorelease : public CFRefBug {
+  class OverAutorelease : public CFRefBug {
   public:
     OverAutorelease(CFRefCount *tf) :
       CFRefBug(tf, "Object sent -autorelease too many times") {}
@@ -2160,7 +2161,7 @@ namespace {
     }
   };
 
-  class VISIBILITY_HIDDEN ReturnedNotOwnedForOwned : public CFRefBug {
+  class ReturnedNotOwnedForOwned : public CFRefBug {
   public:
     ReturnedNotOwnedForOwned(CFRefCount *tf) :
       CFRefBug(tf, "Method should return an owned object") {}
@@ -2171,10 +2172,10 @@ namespace {
     }
   };
 
-  class VISIBILITY_HIDDEN Leak : public CFRefBug {
+  class Leak : public CFRefBug {
     const bool isReturn;
   protected:
-    Leak(CFRefCount* tf, const char* name, bool isRet)
+    Leak(CFRefCount* tf, llvm::StringRef name, bool isRet)
     : CFRefBug(tf, name), isReturn(isRet) {}
   public:
 
@@ -2183,15 +2184,15 @@ namespace {
     bool isLeak() const { return true; }
   };
 
-  class VISIBILITY_HIDDEN LeakAtReturn : public Leak {
+  class LeakAtReturn : public Leak {
   public:
-    LeakAtReturn(CFRefCount* tf, const char* name)
+    LeakAtReturn(CFRefCount* tf, llvm::StringRef name)
     : Leak(tf, name, true) {}
   };
 
-  class VISIBILITY_HIDDEN LeakWithinFunction : public Leak {
+  class LeakWithinFunction : public Leak {
   public:
-    LeakWithinFunction(CFRefCount* tf, const char* name)
+    LeakWithinFunction(CFRefCount* tf, llvm::StringRef name)
     : Leak(tf, name, false) {}
   };
 
@@ -2199,7 +2200,7 @@ namespace {
   // Bug Reports.  //
   //===---------===//
 
-  class VISIBILITY_HIDDEN CFRefReport : public RangedBugReport {
+  class CFRefReport : public RangedBugReport {
   protected:
     SymbolRef Sym;
     const CFRefCount &TF;
@@ -2209,7 +2210,7 @@ namespace {
       : RangedBugReport(D, D.getDescription(), n), Sym(sym), TF(tf) {}
 
     CFRefReport(CFRefBug& D, const CFRefCount &tf,
-                ExplodedNode *n, SymbolRef sym, const char* endText)
+                ExplodedNode *n, SymbolRef sym, llvm::StringRef endText)
       : RangedBugReport(D, D.getDescription(), endText, n), Sym(sym), TF(tf) {}
 
     virtual ~CFRefReport() {}
@@ -2240,7 +2241,7 @@ namespace {
                                    BugReporterContext& BRC);
   };
 
-  class VISIBILITY_HIDDEN CFRefLeakReport : public CFRefReport {
+  class CFRefLeakReport : public CFRefReport {
     SourceLocation AllocSite;
     const MemRegion* AllocBinding;
   public:
@@ -2255,64 +2256,7 @@ namespace {
   };
 } // end anonymous namespace
 
-void CFRefCount::RegisterChecks(GRExprEngine& Eng) {
-  BugReporter &BR = Eng.getBugReporter();
-  
-  useAfterRelease = new UseAfterRelease(this);
-  BR.Register(useAfterRelease);
 
-  releaseNotOwned = new BadRelease(this);
-  BR.Register(releaseNotOwned);
-
-  deallocGC = new DeallocGC(this);
-  BR.Register(deallocGC);
-
-  deallocNotOwned = new DeallocNotOwned(this);
-  BR.Register(deallocNotOwned);
-
-  overAutorelease = new OverAutorelease(this);
-  BR.Register(overAutorelease);
-
-  returnNotOwnedForOwned = new ReturnedNotOwnedForOwned(this);
-  BR.Register(returnNotOwnedForOwned);
-
-  // First register "return" leaks.
-  const char* name = 0;
-
-  if (isGCEnabled())
-    name = "Leak of returned object when using garbage collection";
-  else if (getLangOptions().getGCMode() == LangOptions::HybridGC)
-    name = "Leak of returned object when not using garbage collection (GC) in "
-    "dual GC/non-GC code";
-  else {
-    assert(getLangOptions().getGCMode() == LangOptions::NonGC);
-    name = "Leak of returned object";
-  }
-
-  // Leaks should not be reported if they are post-dominated by a sink.
-  leakAtReturn = new LeakAtReturn(this, name);
-  leakAtReturn->setSuppressOnSink(true);
-  BR.Register(leakAtReturn);
-
-  // Second, register leaks within a function/method.
-  if (isGCEnabled())
-    name = "Leak of object when using garbage collection";
-  else if (getLangOptions().getGCMode() == LangOptions::HybridGC)
-    name = "Leak of object when not using garbage collection (GC) in "
-    "dual GC/non-GC code";
-  else {
-    assert(getLangOptions().getGCMode() == LangOptions::NonGC);
-    name = "Leak";
-  }
-
-  // Leaks should not be reported if they are post-dominated by sinks.
-  leakWithinFunction = new LeakWithinFunction(this, name);
-  leakWithinFunction->setSuppressOnSink(true);
-  BR.Register(leakWithinFunction);
-
-  // Save the reference to the BugReporter.
-  this->BR = &BR;
-}
 
 static const char* Msgs[] = {
   // GC only
@@ -2603,7 +2547,7 @@ PathDiagnosticPiece* CFRefReport::VisitNode(const ExplodedNode* N,
 }
 
 namespace {
-  class VISIBILITY_HIDDEN FindUniqueBinding :
+  class FindUniqueBinding :
   public StoreManager::BindingsHandler {
     SymbolRef Sym;
     const MemRegion* Binding;
@@ -3052,9 +2996,20 @@ void CFRefCount::EvalCall(ExplodedNodeSet& Dst,
                           GRStmtNodeBuilder& Builder,
                           CallExpr* CE, SVal L,
                           ExplodedNode* Pred) {
-  const FunctionDecl* FD = L.getAsFunctionDecl();
-  RetainSummary* Summ = !FD ? Summaries.getDefaultSummary()
-                        : Summaries.getSummary(const_cast<FunctionDecl*>(FD));
+
+  RetainSummary *Summ = 0;
+  
+  // FIXME: Better support for blocks.  For now we stop tracking anything
+  // that is passed to blocks.
+  // FIXME: Need to handle variables that are "captured" by the block.
+  if (dyn_cast_or_null<BlockDataRegion>(L.getAsRegion())) {
+    Summ = Summaries.getPersistentStopSummary();
+  }
+  else {
+    const FunctionDecl* FD = L.getAsFunctionDecl();
+    Summ = !FD ? Summaries.getDefaultSummary() :
+                 Summaries.getSummary(const_cast<FunctionDecl*>(FD));
+  }
 
   assert(Summ);
   EvalSummary(Dst, Eng, Builder, CE, 0, *Summ,
@@ -3066,6 +3021,16 @@ void CFRefCount::EvalObjCMessageExpr(ExplodedNodeSet& Dst,
                                      GRStmtNodeBuilder& Builder,
                                      ObjCMessageExpr* ME,
                                      ExplodedNode* Pred) {
+  // FIXME: Since we moved the nil check into a checker, we could get nil
+  // receiver here. Need a better way to check such case. 
+  if (Expr* Receiver = ME->getReceiver()) {
+    const GRState *state = Pred->getState();
+    DefinedOrUnknownSVal L=cast<DefinedOrUnknownSVal>(state->getSVal(Receiver));
+    if (!state->Assume(L, true)) {
+      Dst.Add(Pred);
+      return;
+    }
+  }
   
   RetainSummary *Summ =
     ME->getReceiver()
@@ -3079,7 +3044,7 @@ void CFRefCount::EvalObjCMessageExpr(ExplodedNodeSet& Dst,
 }
 
 namespace {
-class VISIBILITY_HIDDEN StopTrackingCallback : public SymbolVisitor {
+class StopTrackingCallback : public SymbolVisitor {
   const GRState *state;
 public:
   StopTrackingCallback(const GRState *st) : state(st) {}
@@ -3501,7 +3466,7 @@ CFRefCount::HandleAutoreleaseCounts(const GRState * state, GenericNodeBuilder Bd
 
     CFRefReport *report =
       new CFRefReport(*static_cast<CFRefBug*>(overAutorelease),
-                      *this, N, Sym, os.str().c_str());
+                      *this, N, Sym, os.str());
     BR->EmitReport(report);
   }
 
@@ -3670,8 +3635,113 @@ void CFRefCount::ProcessNonLeakError(ExplodedNodeSet& Dst,
 }
 
 //===----------------------------------------------------------------------===//
+// Pieces of the retain/release checker implemented using a CheckerVisitor.
+// More pieces of the retain/release checker will be migrated to this interface
+// (ideally, all of it some day).
+//===----------------------------------------------------------------------===//
+
+namespace {
+class RetainReleaseChecker
+  : public CheckerVisitor<RetainReleaseChecker> {
+  CFRefCount *TF;
+public:
+    RetainReleaseChecker(CFRefCount *tf) : TF(tf) {}
+    static void* getTag() { static int x = 0; return &x; }
+    
+    void PostVisitBlockExpr(CheckerContext &C, const BlockExpr *BE);
+};
+} // end anonymous namespace
+
+
+void RetainReleaseChecker::PostVisitBlockExpr(CheckerContext &C,
+                                              const BlockExpr *BE) {
+  
+  // Scan the BlockDecRefExprs for any object the retain/release checker
+  // may be tracking.  
+  if (!BE->hasBlockDeclRefExprs())
+    return;
+  
+  const GRState *state = C.getState();
+  const BlockDataRegion *R =
+    cast<BlockDataRegion>(state->getSVal(BE).getAsRegion());
+  
+  BlockDataRegion::referenced_vars_iterator I = R->referenced_vars_begin(),
+                                            E = R->referenced_vars_end();
+  
+  if (I == E)
+    return;
+  
+  state = state->scanReachableSymbols<StopTrackingCallback>(I, E).getState();
+  C.addTransition(state);
+}
+
+//===----------------------------------------------------------------------===//
 // Transfer function creation for external clients.
 //===----------------------------------------------------------------------===//
+
+void CFRefCount::RegisterChecks(GRExprEngine& Eng) {
+  BugReporter &BR = Eng.getBugReporter();
+  
+  useAfterRelease = new UseAfterRelease(this);
+  BR.Register(useAfterRelease);
+  
+  releaseNotOwned = new BadRelease(this);
+  BR.Register(releaseNotOwned);
+  
+  deallocGC = new DeallocGC(this);
+  BR.Register(deallocGC);
+  
+  deallocNotOwned = new DeallocNotOwned(this);
+  BR.Register(deallocNotOwned);
+  
+  overAutorelease = new OverAutorelease(this);
+  BR.Register(overAutorelease);
+  
+  returnNotOwnedForOwned = new ReturnedNotOwnedForOwned(this);
+  BR.Register(returnNotOwnedForOwned);
+  
+  // First register "return" leaks.
+  const char* name = 0;
+  
+  if (isGCEnabled())
+    name = "Leak of returned object when using garbage collection";
+  else if (getLangOptions().getGCMode() == LangOptions::HybridGC)
+    name = "Leak of returned object when not using garbage collection (GC) in "
+    "dual GC/non-GC code";
+  else {
+    assert(getLangOptions().getGCMode() == LangOptions::NonGC);
+    name = "Leak of returned object";
+  }
+  
+  // Leaks should not be reported if they are post-dominated by a sink.
+  leakAtReturn = new LeakAtReturn(this, name);
+  leakAtReturn->setSuppressOnSink(true);
+  BR.Register(leakAtReturn);
+  
+  // Second, register leaks within a function/method.
+  if (isGCEnabled())
+    name = "Leak of object when using garbage collection";
+  else if (getLangOptions().getGCMode() == LangOptions::HybridGC)
+    name = "Leak of object when not using garbage collection (GC) in "
+    "dual GC/non-GC code";
+  else {
+    assert(getLangOptions().getGCMode() == LangOptions::NonGC);
+    name = "Leak";
+  }
+  
+  // Leaks should not be reported if they are post-dominated by sinks.
+  leakWithinFunction = new LeakWithinFunction(this, name);
+  leakWithinFunction->setSuppressOnSink(true);
+  BR.Register(leakWithinFunction);
+  
+  // Save the reference to the BugReporter.
+  this->BR = &BR;
+  
+  // Register the RetainReleaseChecker with the GRExprEngine object.
+  // Functionality in CFRefCount will be migrated to RetainReleaseChecker
+  // over time.
+  Eng.registerCheck(new RetainReleaseChecker(this));
+}
 
 GRTransferFuncs* clang::MakeCFRefCountTF(ASTContext& Ctx, bool GCEnabled,
                                          const LangOptions& lopts) {

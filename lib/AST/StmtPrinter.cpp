@@ -16,7 +16,6 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/PrettyPrinter.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/Format.h"
 using namespace clang;
 
@@ -25,7 +24,7 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 
 namespace  {
-  class VISIBILITY_HIDDEN StmtPrinter : public StmtVisitor<StmtPrinter> {
+  class StmtPrinter : public StmtVisitor<StmtPrinter> {
     llvm::raw_ostream &OS;
     ASTContext &Context;
     unsigned IndentLevel;
@@ -483,19 +482,26 @@ void StmtPrinter::VisitDeclRefExpr(DeclRefExpr *Node) {
                                                     Policy);  
 }
 
-void StmtPrinter::VisitUnresolvedDeclRefExpr(UnresolvedDeclRefExpr *Node) {
+void StmtPrinter::VisitDependentScopeDeclRefExpr(
+                                           DependentScopeDeclRefExpr *Node) {
   Node->getQualifier()->print(OS, Policy);
   OS << Node->getDeclName().getAsString();
+  if (Node->hasExplicitTemplateArgs())
+    OS << TemplateSpecializationType::PrintTemplateArgumentList(
+                                                   Node->getTemplateArgs(),
+                                                   Node->getNumTemplateArgs(),
+                                                   Policy);
 }
 
-void StmtPrinter::VisitTemplateIdRefExpr(TemplateIdRefExpr *Node) {
+void StmtPrinter::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *Node) {
   if (Node->getQualifier())
     Node->getQualifier()->print(OS, Policy);
-  Node->getTemplateName().print(OS, Policy, true);
-  OS << TemplateSpecializationType::PrintTemplateArgumentList(
-                                                      Node->getTemplateArgs(),
+  OS << Node->getName().getAsString();
+  if (Node->hasExplicitTemplateArgs())
+    OS << TemplateSpecializationType::PrintTemplateArgumentList(
+                                                   Node->getTemplateArgs(),
                                                    Node->getNumTemplateArgs(),
-                                                              Policy);
+                                                   Policy);
 }
 
 void StmtPrinter::VisitObjCIvarRefExpr(ObjCIvarRefExpr *Node) {
@@ -1048,11 +1054,6 @@ void StmtPrinter::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *Node) {
   OS << Node->getType().getAsString() << "()";
 }
 
-void
-StmtPrinter::VisitCXXConditionDeclExpr(CXXConditionDeclExpr *E) {
-  PrintRawDecl(E->getVarDecl());
-}
-
 void StmtPrinter::VisitCXXNewExpr(CXXNewExpr *E) {
   if (E->isGlobalNew())
     OS << "::";
@@ -1118,10 +1119,6 @@ void StmtPrinter::VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E) {
   OS << TypeS;
 }
 
-void StmtPrinter::VisitUnresolvedFunctionNameExpr(UnresolvedFunctionNameExpr *E) {
-  OS << E->getName().getAsString();
-}
-
 void StmtPrinter::VisitCXXConstructExpr(CXXConstructExpr *E) {
   // Nothing to print.
 }
@@ -1146,7 +1143,8 @@ StmtPrinter::VisitCXXUnresolvedConstructExpr(
   OS << ")";
 }
 
-void StmtPrinter::VisitCXXUnresolvedMemberExpr(CXXUnresolvedMemberExpr *Node) {
+void StmtPrinter::VisitCXXDependentScopeMemberExpr(
+                                         CXXDependentScopeMemberExpr *Node) {
   PrintExpr(Node->getBase());
   OS << (Node->isArrow() ? "->" : ".");
   if (NestedNameSpecifier *Qualifier = Node->getQualifier())
@@ -1158,6 +1156,24 @@ void StmtPrinter::VisitCXXUnresolvedMemberExpr(CXXUnresolvedMemberExpr *Node) {
   OS << Node->getMember().getAsString();
 
   if (Node->hasExplicitTemplateArgumentList()) {
+    OS << TemplateSpecializationType::PrintTemplateArgumentList(
+                                                    Node->getTemplateArgs(),
+                                                    Node->getNumTemplateArgs(),
+                                                    Policy);
+  }
+}
+
+void StmtPrinter::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *Node) {
+  PrintExpr(Node->getBase());
+  OS << (Node->isArrow() ? "->" : ".");
+  if (NestedNameSpecifier *Qualifier = Node->getQualifier())
+    Qualifier->print(OS, Policy);
+
+  // FIXME: this might originally have been written with 'template'
+
+  OS << Node->getMemberName().getAsString();
+
+  if (Node->hasExplicitTemplateArgs()) {
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
                                                     Node->getTemplateArgs(),
                                                     Node->getNumTemplateArgs(),

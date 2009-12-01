@@ -232,7 +232,7 @@ const GRState* GRStateManager::addGDM(const GRState* St, void* Key, void* Data){
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN ScanReachableSymbols : public SubRegionMap::Visitor  {
+class ScanReachableSymbols : public SubRegionMap::Visitor  {
   typedef llvm::DenseSet<const MemRegion*> VisitedRegionsTy;
 
   VisitedRegionsTy visited;
@@ -306,6 +306,27 @@ bool ScanReachableSymbols::scan(const MemRegion *R) {
 bool GRState::scanReachableSymbols(SVal val, SymbolVisitor& visitor) const {
   ScanReachableSymbols S(this, visitor);
   return S.scan(val);
+}
+
+bool GRState::scanReachableSymbols(const SVal *I, const SVal *E,
+                                   SymbolVisitor &visitor) const {
+  ScanReachableSymbols S(this, visitor);
+  for ( ; I != E; ++I) {
+    if (S.scan(*I))
+      return true;
+  }
+  return false;  
+}
+
+bool GRState::scanReachableSymbols(const MemRegion * const *I,
+                                   const MemRegion * const *E,
+                                   SymbolVisitor &visitor) const {
+  ScanReachableSymbols S(this, visitor);
+  for ( ; I != E; ++I) {
+    if (S.scan(*I))
+      return true;
+  }
+  return false;
 }
 
 //===----------------------------------------------------------------------===//

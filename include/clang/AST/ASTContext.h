@@ -120,8 +120,7 @@ class ASTContext {
   QualType ObjCIdTypedefType;
 
   /// ObjCSelType - another pseudo built-in typedef type (set by Sema).
-  QualType ObjCSelType;
-  const RecordType *SelStructType;
+  QualType ObjCSelTypedefType;
 
   /// ObjCProtoType - another pseudo built-in typedef type (set by Sema).
   QualType ObjCProtoType;
@@ -244,6 +243,7 @@ public:
   // pseudo-builtins
   QualType ObjCIdRedefinitionType;
   QualType ObjCClassRedefinitionType;
+  QualType ObjCSelRedefinitionType;
 
   /// \brief Source ranges for all of the comments in the source file,
   /// sorted in order of appearance in the translation unit.
@@ -316,7 +316,7 @@ public:
   CanQualType OverloadTy;
   CanQualType DependentTy;
   CanQualType UndeducedAutoTy;
-  CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy;
+  CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy, ObjCBuiltinSelTy;
 
   ASTContext(const LangOptions& LOpts, SourceManager &SM, const TargetInfo &t,
              IdentifierTable &idents, SelectorTable &sels,
@@ -532,8 +532,7 @@ public:
                                          QualType Canon = QualType());
 
   QualType getTemplateSpecializationType(TemplateName T,
-                                         const TemplateArgumentLoc *Args,
-                                         unsigned NumArgs,
+                                         const TemplateArgumentListInfo &Args,
                                          QualType Canon = QualType());
 
   QualType getQualifiedNameType(NestedNameSpecifier *NNS,
@@ -696,7 +695,7 @@ public:
   void setObjCIdType(QualType T);
 
   void setObjCSelType(QualType T);
-  QualType getObjCSelType() const { return ObjCSelType; }
+  QualType getObjCSelType() const { return ObjCSelTypedefType; }
 
   void setObjCProtoType(QualType QT);
   QualType getObjCProtoType() const { return ObjCProtoType; }
@@ -733,6 +732,8 @@ public:
       return QualType(T, Qs.getFastQualifiers());
     return getExtQualType(T, Qs);
   }
+
+  DeclarationName getNameForTemplate(TemplateName Name);
 
   TemplateName getQualifiedTemplateName(NestedNameSpecifier *NNS,
                                         bool TemplateKeyword,
@@ -796,6 +797,20 @@ public:
     return getTypeInfo(T).first;
   }
 
+  /// getByteWidth - Return the size of a byte, in bits
+  uint64_t getByteSize() {
+    return getTypeSize(CharTy);
+  }
+  
+  /// getTypeSizeInBytes - Return the size of the specified type, in bytes.
+  /// This method does not work on incomplete types.
+  uint64_t getTypeSizeInBytes(QualType T) {
+    return getTypeSize(T) / getByteSize();
+  }
+  uint64_t getTypeSizeInBytes(const Type *T) {
+    return getTypeSize(T) / getByteSize();
+  }
+
   /// getTypeAlign - Return the ABI-specified alignment of a type, in bits.
   /// This method does not work on incomplete types.
   unsigned getTypeAlign(QualType T) {
@@ -811,10 +826,7 @@ public:
   /// a data type.
   unsigned getPreferredTypeAlign(const Type *T);
 
-  /// getDeclAlignInBytes - Return the alignment of the specified decl
-  /// that should be returned by __alignof().  Note that bitfields do
-  /// not have a valid alignment, so this method will assert on them.
-  unsigned getDeclAlignInBytes(const Decl *D);
+  unsigned getDeclAlignInBytes(const Decl *D, bool RefAsPointee = false);
 
   /// getASTRecordLayout - Get or compute information about the layout of the
   /// specified record (struct/union/class), which indicates its size and field
@@ -1023,8 +1035,7 @@ public:
     return T == ObjCClassTypedefType;
   }
   bool isObjCSelType(QualType T) const {
-    assert(SelStructType && "isObjCSelType used before 'SEL' type is built");
-    return T->getAsStructureType() == SelStructType;
+    return T == ObjCSelTypedefType;
   }
   bool QualifiedIdConformsQualifiedId(QualType LHS, QualType RHS);
   bool ObjCQualifiedIdTypesAreCompatible(QualType LHS, QualType RHS,

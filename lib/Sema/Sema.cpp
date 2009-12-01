@@ -299,17 +299,15 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
 
   // Built-in ObjC types may already be set by PCHReader (hence isNull checks).
   if (Context.getObjCSelType().isNull()) {
-    // Synthesize "typedef struct objc_selector *SEL;"
-    RecordDecl *SelTag = CreateStructDecl(Context, "objc_selector");
-    PushOnScopeChains(SelTag, TUScope);
-
-    QualType SelT = Context.getPointerType(Context.getTagDeclType(SelTag));
+    // Create the built-in typedef for 'SEL'.
+    QualType SelT = Context.getPointerType(Context.ObjCBuiltinSelTy);
     DeclaratorInfo *SelInfo = Context.getTrivialDeclaratorInfo(SelT);
     TypedefDecl *SelTypedef
       = TypedefDecl::Create(Context, CurContext, SourceLocation(),
                             &Context.Idents.get("SEL"), SelInfo);
     PushOnScopeChains(SelTypedef, TUScope);
     Context.setObjCSelType(Context.getTypeDeclType(SelTypedef));
+    Context.ObjCSelRedefinitionType = Context.getObjCSelType();
   }
 
   // Synthesize "@class Protocol;
@@ -354,7 +352,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
     ExternalSource(0), CodeCompleter(CodeCompleter), CurContext(0), 
     PreDeclaratorDC(0), CurBlock(0), PackContext(0), ParsingDeclDepth(0),
     IdResolver(pp.getLangOptions()), StdNamespace(0), StdBadAlloc(0),
-    GlobalNewDeleteDeclared(false), ExprEvalContext(PotentiallyEvaluated),
+    GlobalNewDeleteDeclared(false), 
     CompleteTranslationUnit(CompleteTranslationUnit),
     NumSFINAEErrors(0), NonInstantiationEntries(0), 
     CurrentInstantiationScope(0) 
@@ -365,6 +363,9 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
 
   // Tell diagnostics how to render things from the AST library.
   PP.getDiagnostics().SetArgToStringFn(ConvertArgToStringFn, &Context);
+
+  ExprEvalContexts.push_back(
+                  ExpressionEvaluationContextRecord(PotentiallyEvaluated, 0));
 }
 
 /// Retrieves the width and signedness of the given integer type,
@@ -594,7 +595,7 @@ static void DiagnoseImpCast(Sema &S, Expr *E, QualType T, unsigned diag) {
 /// Implements -Wconversion.
 static void CheckImplicitConversion(Sema &S, Expr *E, QualType T) {
   // Don't diagnose in unevaluated contexts.
-  if (S.ExprEvalContext == Sema::Unevaluated)
+  if (S.ExprEvalContexts.back().Context == Sema::Unevaluated)
     return;
 
   // Don't diagnose for value-dependent expressions.

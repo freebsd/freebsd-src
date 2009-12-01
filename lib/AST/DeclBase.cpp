@@ -55,8 +55,7 @@ const char *DeclContext::getDeclKindName() const {
 }
 
 bool Decl::CollectingStats(bool Enable) {
-  if (Enable)
-    StatSwitch = true;
+  if (Enable) StatSwitch = true;
   return StatSwitch;
 }
 
@@ -119,7 +118,7 @@ void PrettyStackTraceDecl::print(llvm::raw_ostream &OS) const {
 
   OS << Message;
 
-  if (NamedDecl *DN = dyn_cast_or_null<NamedDecl>(TheDecl))
+  if (const NamedDecl *DN = dyn_cast_or_null<NamedDecl>(TheDecl))
     OS << " '" << DN->getQualifiedNameAsString() << '\'';
   OS << '\n';
 }
@@ -130,9 +129,6 @@ void PrettyStackTraceDecl::print(llvm::raw_ostream &OS) const {
 
 // Out-of-line virtual method providing a home for Decl.
 Decl::~Decl() {
-  if (isOutOfSemaDC())
-    delete getMultipleDC();
-
   assert(!HasAttrs && "attributes should have been freed by Destroy");
 }
 
@@ -148,7 +144,7 @@ void Decl::setLexicalDeclContext(DeclContext *DC) {
     return;
 
   if (isInSemaDC()) {
-    MultipleDC *MDC = new MultipleDC();
+    MultipleDC *MDC = new (getASTContext()) MultipleDC();
     MDC->SemanticDC = getDeclContext();
     MDC->LexicalDC = DC;
     DeclCtx = MDC;
@@ -343,9 +339,12 @@ void Decl::Destroy(ASTContext &C) {
     N = Tmp;
   }
 
+  if (isOutOfSemaDC())
+    delete (C) getMultipleDC();
+  
   this->~Decl();
   C.Deallocate((void *)this);
-#endif
+#endif  
 }
 
 Decl *Decl::castFromDeclContext (const DeclContext *D) {

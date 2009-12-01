@@ -170,6 +170,7 @@ void PCHStmtWriter::VisitLabelStmt(LabelStmt *S) {
 
 void PCHStmtWriter::VisitIfStmt(IfStmt *S) {
   VisitStmt(S);
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getCond());
   Writer.WriteSubStmt(S->getThen());
   Writer.WriteSubStmt(S->getElse());
@@ -180,6 +181,7 @@ void PCHStmtWriter::VisitIfStmt(IfStmt *S) {
 
 void PCHStmtWriter::VisitSwitchStmt(SwitchStmt *S) {
   VisitStmt(S);
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getCond());
   Writer.WriteSubStmt(S->getBody());
   Writer.AddSourceLocation(S->getSwitchLoc(), Record);
@@ -191,6 +193,7 @@ void PCHStmtWriter::VisitSwitchStmt(SwitchStmt *S) {
 
 void PCHStmtWriter::VisitWhileStmt(WhileStmt *S) {
   VisitStmt(S);
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getCond());
   Writer.WriteSubStmt(S->getBody());
   Writer.AddSourceLocation(S->getWhileLoc(), Record);
@@ -211,6 +214,7 @@ void PCHStmtWriter::VisitForStmt(ForStmt *S) {
   VisitStmt(S);
   Writer.WriteSubStmt(S->getInit());
   Writer.WriteSubStmt(S->getCond());
+  Writer.AddDeclRef(S->getConditionVariable(), Record);
   Writer.WriteSubStmt(S->getInc());
   Writer.WriteSubStmt(S->getBody());
   Writer.AddSourceLocation(S->getForLoc(), Record);

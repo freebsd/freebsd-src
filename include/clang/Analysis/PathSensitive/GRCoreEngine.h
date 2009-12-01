@@ -215,7 +215,7 @@ public:
   void setAuditor(GRAuditor* A) { Auditor = A; }
 
   const GRState* GetState(ExplodedNode* Pred) const {
-    if ((ExplodedNode*) Pred == getBasePredecessor())
+    if (Pred == getBasePredecessor())
       return CleanedState;
     else
       return Pred->getState();
@@ -405,6 +405,8 @@ class GREndPathNodeBuilder {
   GRCoreEngine& Eng;
   CFGBlock& B;
   ExplodedNode* Pred;
+
+public:
   bool HasGeneratedNode;
 
 public:

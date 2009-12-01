@@ -208,6 +208,15 @@ public:
     return getResultKind() == Found;
   }
 
+  /// Determines if the results are overloaded.
+  bool isOverloadedResult() const {
+    return getResultKind() == FoundOverloaded;
+  }
+
+  bool isUnresolvableResult() const {
+    return getResultKind() == FoundUnresolvedValue;
+  }
+
   LookupResultKind getResultKind() const {
     sanity();
     return ResultKind;
@@ -279,6 +288,12 @@ public:
   /// This is deprecated; users should be written to handle
   /// ambiguous and overloaded lookups.
   NamedDecl *getAsSingleDecl(ASTContext &Context) const;
+
+  template <class DeclClass>
+  DeclClass *getAsSingle() const {
+    if (getResultKind() != Found) return 0;
+    return dyn_cast<DeclClass>(getFoundDecl());
+  }
 
   /// \brief Fetch the unique decl found by this lookup.  Asserts
   /// that one was found.
@@ -368,14 +383,14 @@ public:
   class Filter {
     LookupResult &Results;
     unsigned I;
-    bool ErasedAny;
+    bool Changed;
 #ifndef NDEBUG
     bool CalledDone;
 #endif
     
     friend class LookupResult;
     Filter(LookupResult &Results)
-      : Results(Results), I(0), ErasedAny(false)
+      : Results(Results), I(0), Changed(false)
 #ifndef NDEBUG
       , CalledDone(false)
 #endif
@@ -402,7 +417,12 @@ public:
     void erase() {
       Results.Decls[--I] = Results.Decls.back();
       Results.Decls.pop_back();
-      ErasedAny = true;
+      Changed = true;
+    }
+
+    void replace(NamedDecl *D) {
+      Results.Decls[I-1] = D;
+      Changed = true;
     }
 
     void done() {
@@ -411,7 +431,7 @@ public:
       CalledDone = true;
 #endif
 
-      if (ErasedAny)
+      if (Changed)
         Results.resolveKindAfterFilter();
     }
   };
@@ -438,13 +458,23 @@ private:
   void sanity() const {
     assert(ResultKind != NotFound || Decls.size() == 0);
     assert(ResultKind != Found || Decls.size() == 1);
-    assert(ResultKind == NotFound || ResultKind == Found ||
-           ResultKind == FoundUnresolvedValue ||
-           (ResultKind == Ambiguous && Ambiguity == AmbiguousBaseSubobjects)
-           || Decls.size() > 1);
+    assert(ResultKind != FoundOverloaded || Decls.size() > 1 ||
+           (Decls.size() == 1 &&
+            isa<FunctionTemplateDecl>(Decls[0]->getUnderlyingDecl())));
+    assert(ResultKind != FoundUnresolvedValue || sanityCheckUnresolved());
+    assert(ResultKind != Ambiguous || Decls.size() > 1 ||
+           (Decls.size() == 1 && Ambiguity == AmbiguousBaseSubobjects));
     assert((Paths != NULL) == (ResultKind == Ambiguous &&
                                (Ambiguity == AmbiguousBaseSubobjectTypes ||
                                 Ambiguity == AmbiguousBaseSubobjects)));
+  }
+
+  bool sanityCheckUnresolved() const {
+    for (DeclsTy::const_iterator I = Decls.begin(), E = Decls.end();
+           I != E; ++I)
+      if (isa<UnresolvedUsingValueDecl>(*I))
+        return true;
+    return false;
   }
 
   static void deletePaths(CXXBasePaths *);

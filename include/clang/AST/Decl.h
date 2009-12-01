@@ -54,6 +54,32 @@ public:
   TypeLoc getTypeLoc() const;
 };
 
+/// UnresolvedSet - A set of unresolved declarations.  This is needed
+/// in a lot of places, but isn't really worth breaking into its own
+/// header right now.
+class UnresolvedSet {
+  typedef llvm::SmallVector<NamedDecl*, 4> DeclsTy;
+  DeclsTy Decls;
+
+public:
+  void addDecl(NamedDecl *D) {
+    Decls.push_back(D);
+  }
+
+  bool replace(const NamedDecl* Old, NamedDecl *New) {
+    for (DeclsTy::iterator I = Decls.begin(), E = Decls.end(); I != E; ++I)
+      if (*I == Old)
+        return (*I = New, true);
+    return false;
+  }
+
+  unsigned size() const { return Decls.size(); }
+
+  typedef DeclsTy::const_iterator iterator;
+  iterator begin() const { return Decls.begin(); }
+  iterator end() const { return Decls.end(); }
+};
+
 /// TranslationUnitDecl - The top declaration context.
 class TranslationUnitDecl : public Decl, public DeclContext {
   ASTContext &Ctx;
@@ -171,6 +197,26 @@ public:
 
   /// \brief Determine whether this declaration has linkage.
   bool hasLinkage() const;
+
+  /// \brief Describes the different kinds of linkage 
+  /// (C++ [basic.link], C99 6.2.2) that an entity may have.
+  enum Linkage {
+    /// \brief No linkage, which means that the entity is unique and
+    /// can only be referred to from within its scope.
+    NoLinkage = 0,
+
+    /// \brief Internal linkage, which indicates that the entity can
+    /// be referred to from within the translation unit (but not other
+    /// translation units).
+    InternalLinkage,
+
+    /// \brief External linkage, which indicates that the entity can
+    /// be referred to from other translation units.
+    ExternalLinkage
+  };
+
+  /// \brief Determine what kind of linkage this entity has.
+  Linkage getLinkage() const;
 
   /// \brief Looks through UsingDecls and ObjCCompatibleAliasDecls for
   /// the underlying named decl.

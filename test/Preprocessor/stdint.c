@@ -403,8 +403,8 @@
 //
 // MSP430:SIG_ATOMIC_MIN_ (-2147483647L -1)
 // MSP430:SIG_ATOMIC_MAX_ 2147483647L
-// MSP430:WINT_MIN_ (-2147483647L -1)
-// MSP430:WINT_MAX_ 2147483647L
+// MSP430:WINT_MIN_ (-32767 -1)
+// MSP430:WINT_MAX_ 32767
 //
 // MSP430:WCHAR_MAX_ 32767
 // MSP430:WCHAR_MIN_ (-32767 -1)
@@ -503,8 +503,8 @@
 //
 // PIC16:SIG_ATOMIC_MIN_ (-2147483647L -1)
 // PIC16:SIG_ATOMIC_MAX_ 2147483647L
-// PIC16:WINT_MIN_ (-2147483647L -1)
-// PIC16:WINT_MAX_ 2147483647L
+// PIC16:WINT_MIN_ (-32767 -1)
+// PIC16:WINT_MAX_ 32767
 //
 // PIC16:WCHAR_MAX_ 32767
 // PIC16:WCHAR_MIN_ (-32767 -1)
@@ -1158,6 +1158,35 @@
 // X86_64:INTMAX_C_(0) 0L
 // X86_64:UINTMAX_C_(0) 0UL
 //
+//
+// stdint.h forms several macro definitions by pasting together identifiers
+// to form names (eg. int32_t is formed from int ## 32 ## _t). The following 
+// case tests that these joining operations are performed correctly even if
+// the identifiers used in the operations (int, uint, _t, INT, UINT, _MIN,
+// _MAX, and _C(v)) are themselves macros.
+//
+// RUN: clang-cc -E -ffreestanding -Dint=a -Duint=b -D_t=c -DINT=d -DUINT=e -D_MIN=f -D_MAX=g '-D_C(v)=h' -triple=i386-none-none %s | FileCheck -check-prefix JOIN %s
+// JOIN:typedef int32_t intptr_t;
+// JOIN:typedef uint32_t uintptr_t;
+// JOIN:typedef int64_t intmax_t;
+// JOIN:typedef uint64_t uintmax_t;
+// JOIN:INTPTR_MIN_ (-2147483647 -1)
+// JOIN:INTPTR_MAX_ 2147483647
+// JOIN:UINTPTR_MAX_ 4294967295U
+// JOIN:PTRDIFF_MIN_ (-2147483647 -1)
+// JOIN:PTRDIFF_MAX_ 2147483647
+// JOIN:SIZE_MAX_ 4294967295U
+// JOIN:INTMAX_MIN_ (-9223372036854775807LL -1)
+// JOIN:INTMAX_MAX_ 9223372036854775807LL
+// JOIN:UINTMAX_MAX_ 18446744073709551615ULL
+// JOIN:SIG_ATOMIC_MIN_ (-2147483647 -1)
+// JOIN:SIG_ATOMIC_MAX_ 2147483647
+// JOIN:WINT_MIN_ (-2147483647 -1)
+// JOIN:WINT_MAX_ 2147483647
+// JOIN:WCHAR_MAX_ 2147483647
+// JOIN:WCHAR_MIN_ (-2147483647 -1)
+// JOIN:INTMAX_C_(0) 0LL
+// JOIN:UINTMAX_C_(0) 0ULL
 
 #include <stdint.h>
 

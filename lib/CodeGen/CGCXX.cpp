@@ -151,8 +151,7 @@ CodeGenFunction::EmitStaticCXXBlockVarDeclInit(const VarDecl &D,
          "thread safe statics are currently not supported!");
 
   llvm::SmallString<256> GuardVName;
-  llvm::raw_svector_ostream GuardVOut(GuardVName);
-  mangleGuardVariable(CGM.getMangleContext(), &D, GuardVOut);
+  CGM.getMangleContext().mangleGuardVariable(&D, GuardVName);
 
   // Create the guard variable.
   llvm::GlobalValue *GuardV =
@@ -196,11 +195,6 @@ RValue CodeGenFunction::EmitCXXMemberCall(const CXXMethodDecl *MD,
                                           CallExpr::const_arg_iterator ArgEnd) {
   assert(MD->isInstance() &&
          "Trying to emit a member call expr on a static method!");
-
-  // A call to a trivial destructor requires no code generation.
-  if (const CXXDestructorDecl *Destructor = dyn_cast<CXXDestructorDecl>(MD))
-    if (Destructor->isTrivial())
-      return RValue::get(0);
 
   const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
 
@@ -275,6 +269,14 @@ RValue CodeGenFunction::EmitCXXMemberCallExpr(const CXXMemberCallExpr *CE) {
     This = BaseLV.getAddress();
   }
 
+  if (MD->isCopyAssignment() && MD->isTrivial()) {
+    // We don't like to generate the trivial copy assignment operator when
+    // it isn't necessary; just produce the proper effect here.
+    llvm::Value *RHS = EmitLValue(*CE->arg_begin()).getAddress();
+    EmitAggregateCopy(This, RHS, CE->getType());
+    return RValue::get(This);
+  }
+
   // C++ [class.virtual]p12:
   //   Explicit qualification with the scope operator (5.1) suppresses the
   //   virtual call mechanism.
@@ -284,6 +286,8 @@ RValue CodeGenFunction::EmitCXXMemberCallExpr(const CXXMemberCallExpr *CE) {
   llvm::Value *Callee;
   if (const CXXDestructorDecl *Destructor
              = dyn_cast<CXXDestructorDecl>(MD)) {
+    if (Destructor->isTrivial())
+      return RValue::get(0);
     if (MD->isVirtual() && !ME->hasQualifier() && 
         !canDevirtualizeMemberFunctionCalls(ME->getBase())) {
       Callee = BuildVirtualCall(Destructor, Dtor_Complete, This, Ty); 
@@ -464,26 +468,31 @@ llvm::Value *CodeGenFunction::LoadCXXThis() {
 /// It is assumed that all relevant checks have been made by the caller.
 void
 CodeGenFunction::EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
-                                            const ConstantArrayType *ArrayTy,
-                                            llvm::Value *ArrayPtr) {
+                                          const ConstantArrayType *ArrayTy,
+                                          llvm::Value *ArrayPtr,
+                                          CallExpr::const_arg_iterator ArgBeg,
+                                          CallExpr::const_arg_iterator ArgEnd) {
+
   const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
   llvm::Value * NumElements =
     llvm::ConstantInt::get(SizeTy, 
                            getContext().getConstantArrayElementCount(ArrayTy));
 
-  EmitCXXAggrConstructorCall(D, NumElements, ArrayPtr);
+  EmitCXXAggrConstructorCall(D, NumElements, ArrayPtr, ArgBeg, ArgEnd);
 }
 
 void
 CodeGenFunction::EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
-                                            llvm::Value *NumElements,
-                                            llvm::Value *ArrayPtr) {
+                                          llvm::Value *NumElements,
+                                          llvm::Value *ArrayPtr,
+                                          CallExpr::const_arg_iterator ArgBeg,
+                                          CallExpr::const_arg_iterator ArgEnd) {
   const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
 
   // Create a temporary for the loop index and initialize it with 0.
   llvm::Value *IndexPtr = CreateTempAlloca(SizeTy, "loop.index");
   llvm::Value *Zero = llvm::Constant::getNullValue(SizeTy);
-  Builder.CreateStore(Zero, IndexPtr, false);
+  Builder.CreateStore(Zero, IndexPtr);
 
   // Start the loop with a block that tests the condition.
   llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
@@ -507,15 +516,31 @@ CodeGenFunction::EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
   Counter = Builder.CreateLoad(IndexPtr);
   llvm::Value *Address = Builder.CreateInBoundsGEP(ArrayPtr, Counter, 
                                                    "arrayidx");
-  EmitCXXConstructorCall(D, Ctor_Complete, Address, 0, 0);
 
+  // C++ [class.temporary]p4: 
+  // There are two contexts in which temporaries are destroyed at a different
+  // point than the end of the full- expression. The first context is when a
+  // default constructor is called to initialize an element of an array. 
+  // If the constructor has one or more default arguments, the destruction of 
+  // every temporary created in a default argument expression is sequenced 
+  // before the construction of the next array element, if any.
+  
+  // Keep track of the current number of live temporaries.
+  unsigned OldNumLiveTemporaries = LiveTemporaries.size();
+
+  EmitCXXConstructorCall(D, Ctor_Complete, Address, ArgBeg, ArgEnd);
+
+  // Pop temporaries.
+  while (LiveTemporaries.size() > OldNumLiveTemporaries)
+    PopCXXTemporary();
+  
   EmitBlock(ContinueBlock);
 
   // Emit the increment of the loop counter.
   llvm::Value *NextVal = llvm::ConstantInt::get(SizeTy, 1);
   Counter = Builder.CreateLoad(IndexPtr);
   NextVal = Builder.CreateAdd(Counter, NextVal, "inc");
-  Builder.CreateStore(NextVal, IndexPtr, false);
+  Builder.CreateStore(NextVal, IndexPtr);
 
   // Finally, branch back up to the condition for the next iteration.
   EmitBranch(CondBlock);
@@ -551,7 +576,7 @@ CodeGenFunction::EmitCXXAggrDestructorCall(const CXXDestructorDecl *D,
   llvm::Value *IndexPtr = CreateTempAlloca(llvm::Type::getInt64Ty(VMContext),
                                            "loop.index");
   // Index = ElementCount;
-  Builder.CreateStore(UpperCount, IndexPtr, false);
+  Builder.CreateStore(UpperCount, IndexPtr);
 
   // Start the loop with a block that tests the condition.
   llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
@@ -578,23 +603,14 @@ CodeGenFunction::EmitCXXAggrDestructorCall(const CXXDestructorDecl *D,
   Counter = Builder.CreateLoad(IndexPtr);
   Counter = Builder.CreateSub(Counter, One);
   llvm::Value *Address = Builder.CreateInBoundsGEP(This, Counter, "arrayidx");
-  if (D->isVirtual()) {
-    const llvm::Type *Ty =
-      CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(D),
-                                     /*isVariadic=*/false);
-    
-    llvm::Value *Callee = BuildVirtualCall(D, Dtor_Deleting, Address, Ty);
-    EmitCXXMemberCall(D, Callee, Address, 0, 0);
-  }
-  else
-    EmitCXXDestructorCall(D, Dtor_Complete, Address);
+  EmitCXXDestructorCall(D, Dtor_Complete, Address);
 
   EmitBlock(ContinueBlock);
 
   // Emit the decrement of the loop counter.
   Counter = Builder.CreateLoad(IndexPtr);
   Counter = Builder.CreateSub(Counter, One, "dec");
-  Builder.CreateStore(Counter, IndexPtr, false);
+  Builder.CreateStore(Counter, IndexPtr);
 
   // Finally, branch back up to the condition for the next iteration.
   EmitBranch(CondBlock);
@@ -664,6 +680,10 @@ CodeGenFunction::EmitCXXConstructorCall(const CXXConstructorDecl *D,
       EmitAggregateCopy(This, Src, Ty);
       return;
     }
+  } else if (D->isTrivial()) {
+    // FIXME: Track down why we're trying to generate calls to the trivial
+    // default constructor!
+    return;
   }
 
   llvm::Value *Callee = CGM.GetAddrOfCXXConstructor(D, Type);
@@ -674,6 +694,15 @@ CodeGenFunction::EmitCXXConstructorCall(const CXXConstructorDecl *D,
 void CodeGenFunction::EmitCXXDestructorCall(const CXXDestructorDecl *D,
                                             CXXDtorType Type,
                                             llvm::Value *This) {
+  if (D->isVirtual()) {
+    const llvm::Type *Ty =
+      CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(D),
+                                     /*isVariadic=*/false);
+    
+    llvm::Value *Callee = BuildVirtualCall(D, Dtor_Deleting, This, Ty);
+    EmitCXXMemberCall(D, Callee, This, 0, 0);
+    return;
+  }
   llvm::Value *Callee = CGM.GetAddrOfCXXDestructor(D, Type);
 
   EmitCXXMemberCall(D, Callee, This, 0, 0);
@@ -715,7 +744,8 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
     BasePtr = llvm::PointerType::getUnqual(BasePtr);
     llvm::Value *BaseAddrPtr =
       Builder.CreateBitCast(Dest, BasePtr);
-    EmitCXXAggrConstructorCall(CD, Array, BaseAddrPtr);
+    EmitCXXAggrConstructorCall(CD, Array, BaseAddrPtr, 
+                               E->arg_begin(), E->arg_end());
   }
   else
     // Call the constructor.
@@ -744,7 +774,7 @@ CodeGenModule::GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
                                        CXXCtorType Type) {
   const FunctionProtoType *FPT = D->getType()->getAs<FunctionProtoType>();
   const llvm::FunctionType *FTy =
-    getTypes().GetFunctionType(getTypes().getFunctionInfo(D), 
+    getTypes().GetFunctionType(getTypes().getFunctionInfo(D, Type), 
                                FPT->isVariadic());
 
   const char *Name = getMangledCXXCtorName(D, Type);
@@ -755,8 +785,7 @@ CodeGenModule::GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
 const char *CodeGenModule::getMangledCXXCtorName(const CXXConstructorDecl *D,
                                                  CXXCtorType Type) {
   llvm::SmallString<256> Name;
-  llvm::raw_svector_ostream Out(Name);
-  mangleCXXCtor(getMangleContext(), D, Type, Out);
+  getMangleContext().mangleCXXCtor(D, Type, Name);
 
   Name += '\0';
   return UniqueMangledName(Name.begin(), Name.end());
@@ -764,9 +793,9 @@ const char *CodeGenModule::getMangledCXXCtorName(const CXXConstructorDecl *D,
 
 void CodeGenModule::EmitCXXDestructors(const CXXDestructorDecl *D) {
   if (D->isVirtual())
-    EmitCXXDestructor(D, Dtor_Deleting);
-  EmitCXXDestructor(D, Dtor_Complete);
-  EmitCXXDestructor(D, Dtor_Base);
+    EmitGlobalDefinition(GlobalDecl(D, Dtor_Deleting));
+  EmitGlobalDefinition(GlobalDecl(D, Dtor_Complete));
+  EmitGlobalDefinition(GlobalDecl(D, Dtor_Base));
 }
 
 void CodeGenModule::EmitCXXDestructor(const CXXDestructorDecl *D,
@@ -783,7 +812,7 @@ llvm::Function *
 CodeGenModule::GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
                                       CXXDtorType Type) {
   const llvm::FunctionType *FTy =
-    getTypes().GetFunctionType(getTypes().getFunctionInfo(D), false);
+    getTypes().GetFunctionType(getTypes().getFunctionInfo(D, Type), false);
 
   const char *Name = getMangledCXXDtorName(D, Type);
   return cast<llvm::Function>(
@@ -793,59 +822,61 @@ CodeGenModule::GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
 const char *CodeGenModule::getMangledCXXDtorName(const CXXDestructorDecl *D,
                                                  CXXDtorType Type) {
   llvm::SmallString<256> Name;
-  llvm::raw_svector_ostream Out(Name);
-  mangleCXXDtor(getMangleContext(), D, Type, Out);
+  getMangleContext().mangleCXXDtor(D, Type, Name);
 
   Name += '\0';
   return UniqueMangledName(Name.begin(), Name.end());
 }
 
-llvm::Constant *CodeGenFunction::GenerateThunk(llvm::Function *Fn,
-                                               const CXXMethodDecl *MD,
-                                               bool Extern, int64_t nv,
-                                               int64_t v) {
-  return GenerateCovariantThunk(Fn, MD, Extern, nv, v, 0, 0);
+llvm::Constant *
+CodeGenFunction::GenerateThunk(llvm::Function *Fn, const CXXMethodDecl *MD,
+                               bool Extern, 
+                               const ThunkAdjustment &ThisAdjustment) {
+  return GenerateCovariantThunk(Fn, MD, Extern, 
+                                CovariantThunkAdjustment(ThisAdjustment,
+                                                         ThunkAdjustment()));
 }
 
-llvm::Value *CodeGenFunction::DynamicTypeAdjust(llvm::Value *V, int64_t nv,
-                                                int64_t v) {
-  llvm::Type *Ptr8Ty = llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext),
-                                              0);
+llvm::Value *
+CodeGenFunction::DynamicTypeAdjust(llvm::Value *V, 
+                                   const ThunkAdjustment &Adjustment) {
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
+
   const llvm::Type *OrigTy = V->getType();
-  if (nv) {
+  if (Adjustment.NonVirtual) {
     // Do the non-virtual adjustment
-    V = Builder.CreateBitCast(V, Ptr8Ty);
-    V = Builder.CreateConstInBoundsGEP1_64(V, nv);
+    V = Builder.CreateBitCast(V, Int8PtrTy);
+    V = Builder.CreateConstInBoundsGEP1_64(V, Adjustment.NonVirtual);
     V = Builder.CreateBitCast(V, OrigTy);
   }
-  if (v) {
-    // Do the virtual this adjustment
-    const llvm::Type *PtrDiffTy = 
-      ConvertType(getContext().getPointerDiffType());
-    llvm::Type *PtrPtr8Ty, *PtrPtrDiffTy;
-    PtrPtr8Ty = llvm::PointerType::get(Ptr8Ty, 0);
-    PtrPtrDiffTy = llvm::PointerType::get(PtrDiffTy, 0);
-    llvm::Value *ThisVal = Builder.CreateBitCast(V, Ptr8Ty);
-    V = Builder.CreateBitCast(V, PtrPtrDiffTy->getPointerTo());
-    V = Builder.CreateLoad(V, "vtable");
-    llvm::Value *VTablePtr = V;
-    assert(v % (LLVMPointerWidth/8) == 0 && "vtable entry unaligned");
-    v /= LLVMPointerWidth/8;
-    V = Builder.CreateConstInBoundsGEP1_64(VTablePtr, v);
-    V = Builder.CreateLoad(V);
-    V = Builder.CreateGEP(ThisVal, V);
-    V = Builder.CreateBitCast(V, OrigTy);
-  }
-  return V;
+  
+  if (!Adjustment.Virtual)
+    return V;
+
+  assert(Adjustment.Virtual % (LLVMPointerWidth / 8) == 0 && 
+         "vtable entry unaligned");
+
+  // Do the virtual this adjustment
+  const llvm::Type *PtrDiffTy = ConvertType(getContext().getPointerDiffType());
+  const llvm::Type *PtrDiffPtrTy = PtrDiffTy->getPointerTo();
+  
+  llvm::Value *ThisVal = Builder.CreateBitCast(V, Int8PtrTy);
+  V = Builder.CreateBitCast(V, PtrDiffPtrTy->getPointerTo());
+  V = Builder.CreateLoad(V, "vtable");
+  
+  llvm::Value *VTablePtr = V;
+  uint64_t VirtualAdjustment = Adjustment.Virtual / (LLVMPointerWidth / 8);
+  V = Builder.CreateConstInBoundsGEP1_64(VTablePtr, VirtualAdjustment);
+  V = Builder.CreateLoad(V);
+  V = Builder.CreateGEP(ThisVal, V);
+  
+  return Builder.CreateBitCast(V, OrigTy);
 }
 
-llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
-                                                        const CXXMethodDecl *MD,
-                                                        bool Extern,
-                                                        int64_t nv_t,
-                                                        int64_t v_t,
-                                                        int64_t nv_r,
-                                                        int64_t v_r) {
+llvm::Constant *
+CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
+                                   const CXXMethodDecl *MD, bool Extern,
+                                   const CovariantThunkAdjustment &Adjustment) {
   QualType ResultType = MD->getType()->getAs<FunctionType>()->getResultType();
 
   FunctionArgList Args;
@@ -878,16 +909,23 @@ llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
   llvm::Value *Callee = CGM.GetAddrOfFunction(MD, Ty);
   CallArgList CallArgs;
 
+  bool ShouldAdjustReturnPointer = true;
   QualType ArgType = MD->getThisType(getContext());
   llvm::Value *Arg = Builder.CreateLoad(LocalDeclMap[ThisDecl], "this");
-  if (nv_t || v_t) {
+  if (!Adjustment.ThisAdjustment.isEmpty()) {
     // Do the this adjustment.
     const llvm::Type *OrigTy = Callee->getType();
-    Arg = DynamicTypeAdjust(Arg, nv_t, v_t);
-    if (nv_r || v_r) {
-      Callee = CGM.BuildCovariantThunk(MD, Extern, 0, 0, nv_r, v_r);
+    Arg = DynamicTypeAdjust(Arg, Adjustment.ThisAdjustment);
+    
+    if (!Adjustment.ReturnAdjustment.isEmpty()) {
+      const CovariantThunkAdjustment &ReturnAdjustment = 
+        CovariantThunkAdjustment(ThunkAdjustment(),
+                                 Adjustment.ReturnAdjustment);
+      
+      Callee = CGM.BuildCovariantThunk(MD, Extern, ReturnAdjustment);
+      
       Callee = Builder.CreateBitCast(Callee, OrigTy);
-      nv_r = v_r = 0;
+      ShouldAdjustReturnPointer = false;
     }
   }    
 
@@ -906,7 +944,7 @@ llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
 
   RValue RV = EmitCall(CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
                        Callee, CallArgs, MD);
-  if (nv_r || v_r) {
+  if (ShouldAdjustReturnPointer && !Adjustment.ReturnAdjustment.isEmpty()) {
     bool CanBeZero = !(ResultType->isReferenceType()
     // FIXME: attr nonnull can't be zero either
                        /* || ResultType->hasAttr<NonNullAttr>() */ );
@@ -921,7 +959,8 @@ llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
       Builder.CreateCondBr(Builder.CreateICmpNE(RV.getScalarVal(), Zero),
                            NonZeroBlock, ZeroBlock);
       EmitBlock(NonZeroBlock);
-      llvm::Value *NZ = DynamicTypeAdjust(RV.getScalarVal(), nv_r, v_r);
+      llvm::Value *NZ = 
+        DynamicTypeAdjust(RV.getScalarVal(), Adjustment.ReturnAdjustment);
       EmitBranch(ContBlock);
       EmitBlock(ZeroBlock);
       llvm::Value *Z = RV.getScalarVal();
@@ -932,7 +971,8 @@ llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
       RVOrZero->addIncoming(Z, ZeroBlock);
       RV = RValue::get(RVOrZero);
     } else
-      RV = RValue::get(DynamicTypeAdjust(RV.getScalarVal(), nv_r, v_r));
+      RV = RValue::get(DynamicTypeAdjust(RV.getScalarVal(), 
+                                         Adjustment.ReturnAdjustment));
   }
 
   if (!ResultType->isVoidType())
@@ -942,11 +982,13 @@ llvm::Constant *CodeGenFunction::GenerateCovariantThunk(llvm::Function *Fn,
   return Fn;
 }
 
-llvm::Constant *CodeGenModule::BuildThunk(const CXXMethodDecl *MD, bool Extern,
-                                          int64_t nv, int64_t v) {
+llvm::Constant *
+CodeGenModule::BuildThunk(const CXXMethodDecl *MD, bool Extern,
+                          const ThunkAdjustment &ThisAdjustment) {
+  
   llvm::SmallString<256> OutName;
-  llvm::raw_svector_ostream Out(OutName);
-  mangleThunk(getMangleContext(), MD, nv, v, Out);
+  getMangleContext().mangleThunk(MD, ThisAdjustment, OutName);
+  
   llvm::GlobalVariable::LinkageTypes linktype;
   linktype = llvm::GlobalValue::WeakAnyLinkage;
   if (!Extern)
@@ -957,20 +999,18 @@ llvm::Constant *CodeGenModule::BuildThunk(const CXXMethodDecl *MD, bool Extern,
     getTypes().GetFunctionType(getTypes().getFunctionInfo(MD),
                                FPT->isVariadic());
 
-  llvm::Function *Fn = llvm::Function::Create(FTy, linktype, Out.str(),
+  llvm::Function *Fn = llvm::Function::Create(FTy, linktype, OutName.str(),
                                               &getModule());
-  CodeGenFunction(*this).GenerateThunk(Fn, MD, Extern, nv, v);
+  CodeGenFunction(*this).GenerateThunk(Fn, MD, Extern, ThisAdjustment);
   llvm::Constant *m = llvm::ConstantExpr::getBitCast(Fn, Ptr8Ty);
   return m;
 }
 
-llvm::Constant *CodeGenModule::BuildCovariantThunk(const CXXMethodDecl *MD,
-                                                   bool Extern, int64_t nv_t,
-                                                   int64_t v_t, int64_t nv_r,
-                                                   int64_t v_r) {
+llvm::Constant *
+CodeGenModule::BuildCovariantThunk(const CXXMethodDecl *MD, bool Extern,
+                                   const CovariantThunkAdjustment &Adjustment) {
   llvm::SmallString<256> OutName;
-  llvm::raw_svector_ostream Out(OutName);
-  mangleCovariantThunk(getMangleContext(), MD, nv_t, v_t, nv_r, v_r, Out);
+  getMangleContext().mangleCovariantThunk(MD, Adjustment, OutName);
   llvm::GlobalVariable::LinkageTypes linktype;
   linktype = llvm::GlobalValue::WeakAnyLinkage;
   if (!Extern)
@@ -981,10 +1021,9 @@ llvm::Constant *CodeGenModule::BuildCovariantThunk(const CXXMethodDecl *MD,
     getTypes().GetFunctionType(getTypes().getFunctionInfo(MD),
                                FPT->isVariadic());
 
-  llvm::Function *Fn = llvm::Function::Create(FTy, linktype, Out.str(),
+  llvm::Function *Fn = llvm::Function::Create(FTy, linktype, OutName.str(),
                                               &getModule());
-  CodeGenFunction(*this).GenerateCovariantThunk(Fn, MD, Extern, nv_t, v_t, nv_r,
-                                               v_r);
+  CodeGenFunction(*this).GenerateCovariantThunk(Fn, MD, Extern, Adjustment);
   llvm::Constant *m = llvm::ConstantExpr::getBitCast(Fn, Ptr8Ty);
   return m;
 }
@@ -1016,7 +1055,7 @@ CodeGenFunction::GetVirtualCXXBaseClassOffset(llvm::Value *This,
   return VBaseOffset;
 }
 
-static llvm::Value *BuildVirtualCall(CodeGenFunction &CGF, int64_t VtableIndex, 
+static llvm::Value *BuildVirtualCall(CodeGenFunction &CGF, uint64_t VtableIndex, 
                                      llvm::Value *This, const llvm::Type *Ty) {
   Ty = Ty->getPointerTo()->getPointerTo()->getPointerTo();
   
@@ -1032,7 +1071,7 @@ llvm::Value *
 CodeGenFunction::BuildVirtualCall(const CXXMethodDecl *MD, llvm::Value *This,
                                   const llvm::Type *Ty) {
   MD = MD->getCanonicalDecl();
-  int64_t VtableIndex = CGM.getVtableInfo().getMethodVtableIndex(MD);
+  uint64_t VtableIndex = CGM.getVtableInfo().getMethodVtableIndex(MD);
   
   return ::BuildVirtualCall(*this, VtableIndex, This, Ty);
 }
@@ -1041,7 +1080,7 @@ llvm::Value *
 CodeGenFunction::BuildVirtualCall(const CXXDestructorDecl *DD, CXXDtorType Type, 
                                   llvm::Value *&This, const llvm::Type *Ty) {
   DD = cast<CXXDestructorDecl>(DD->getCanonicalDecl());
-  int64_t VtableIndex = 
+  uint64_t VtableIndex = 
     CGM.getVtableInfo().getMethodVtableIndex(GlobalDecl(DD, Type));
 
   return ::BuildVirtualCall(*this, VtableIndex, This, Ty);
@@ -1065,7 +1104,7 @@ void CodeGenFunction::EmitClassAggrMemberwiseCopy(llvm::Value *Dest,
                                            "loop.index");
   llvm::Value* zeroConstant =
     llvm::Constant::getNullValue(llvm::Type::getInt64Ty(VMContext));
-  Builder.CreateStore(zeroConstant, IndexPtr, false);
+  Builder.CreateStore(zeroConstant, IndexPtr);
   // Start the loop with a block that tests the condition.
   llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
   llvm::BasicBlock *AfterFor = createBasicBlock("for.end");
@@ -1115,7 +1154,7 @@ void CodeGenFunction::EmitClassAggrMemberwiseCopy(llvm::Value *Dest,
   llvm::Value *NextVal = llvm::ConstantInt::get(Counter->getType(), 1);
   Counter = Builder.CreateLoad(IndexPtr);
   NextVal = Builder.CreateAdd(Counter, NextVal, "inc");
-  Builder.CreateStore(NextVal, IndexPtr, false);
+  Builder.CreateStore(NextVal, IndexPtr);
 
   // Finally, branch back up to the condition for the next iteration.
   EmitBranch(CondBlock);
@@ -1142,7 +1181,7 @@ void CodeGenFunction::EmitClassAggrCopyAssignment(llvm::Value *Dest,
                                            "loop.index");
   llvm::Value* zeroConstant =
   llvm::Constant::getNullValue(llvm::Type::getInt64Ty(VMContext));
-  Builder.CreateStore(zeroConstant, IndexPtr, false);
+  Builder.CreateStore(zeroConstant, IndexPtr);
   // Start the loop with a block that tests the condition.
   llvm::BasicBlock *CondBlock = createBasicBlock("for.cond");
   llvm::BasicBlock *AfterFor = createBasicBlock("for.end");
@@ -1199,7 +1238,7 @@ void CodeGenFunction::EmitClassAggrCopyAssignment(llvm::Value *Dest,
   llvm::Value *NextVal = llvm::ConstantInt::get(Counter->getType(), 1);
   Counter = Builder.CreateLoad(IndexPtr);
   NextVal = Builder.CreateAdd(Counter, NextVal, "inc");
-  Builder.CreateStore(NextVal, IndexPtr, false);
+  Builder.CreateStore(NextVal, IndexPtr);
 
   // Finally, branch back up to the condition for the next iteration.
   EmitBranch(CondBlock);
@@ -1216,10 +1255,10 @@ void CodeGenFunction::EmitClassMemberwiseCopy(
                         const CXXRecordDecl *ClassDecl,
                         const CXXRecordDecl *BaseClassDecl, QualType Ty) {
   if (ClassDecl) {
-    Dest = GetAddressCXXOfBaseClass(Dest, ClassDecl, BaseClassDecl,
-                                    /*NullCheckValue=*/false);
-    Src = GetAddressCXXOfBaseClass(Src, ClassDecl, BaseClassDecl,
-                                   /*NullCheckValue=*/false);
+    Dest = GetAddressOfBaseClass(Dest, ClassDecl, BaseClassDecl,
+                                 /*NullCheckValue=*/false);
+    Src = GetAddressOfBaseClass(Src, ClassDecl, BaseClassDecl,
+                                /*NullCheckValue=*/false);
   }
   if (BaseClassDecl->hasTrivialCopyConstructor()) {
     EmitAggregateCopy(Dest, Src, Ty);
@@ -1255,10 +1294,10 @@ void CodeGenFunction::EmitClassCopyAssignment(
                                         const CXXRecordDecl *BaseClassDecl,
                                         QualType Ty) {
   if (ClassDecl) {
-    Dest = GetAddressCXXOfBaseClass(Dest, ClassDecl, BaseClassDecl,
-                                    /*NullCheckValue=*/false);
-    Src = GetAddressCXXOfBaseClass(Src, ClassDecl, BaseClassDecl,
-                                   /*NullCheckValue=*/false);
+    Dest = GetAddressOfBaseClass(Dest, ClassDecl, BaseClassDecl,
+                                 /*NullCheckValue=*/false);
+    Src = GetAddressOfBaseClass(Src, ClassDecl, BaseClassDecl,
+                                /*NullCheckValue=*/false);
   }
   if (BaseClassDecl->hasTrivialCopyAssignment()) {
     EmitAggregateCopy(Dest, Src, Ty);
@@ -1297,6 +1336,7 @@ CodeGenFunction::SynthesizeDefaultConstructor(const CXXConstructorDecl *Ctor,
                                               CXXCtorType Type,
                                               llvm::Function *Fn,
                                               const FunctionArgList &Args) {
+  assert(!Ctor->isTrivial() && "shouldn't need to generate trivial ctor");
   StartFunction(GlobalDecl(Ctor, Type), Ctor->getResultType(), Fn, Args, 
                 SourceLocation());
   EmitCtorPrologue(Ctor, Type);
@@ -1326,6 +1366,7 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
   const CXXRecordDecl *ClassDecl = Ctor->getParent();
   assert(!ClassDecl->hasUserDeclaredCopyConstructor() &&
       "SynthesizeCXXCopyConstructor - copy constructor has definition already");
+  assert(!Ctor->isTrivial() && "shouldn't need to generate trivial ctor");
   StartFunction(GlobalDecl(Ctor, Type), Ctor->getResultType(), Fn, Args, 
                 SourceLocation());
 
@@ -1349,10 +1390,11 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
                             Base->getType());
   }
 
-  for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
-       FieldEnd = ClassDecl->field_end();
-       Field != FieldEnd; ++Field) {
-    QualType FieldType = getContext().getCanonicalType((*Field)->getType());
+  for (CXXRecordDecl::field_iterator I = ClassDecl->field_begin(),
+       E = ClassDecl->field_end(); I != E; ++I) {
+    const FieldDecl *Field = *I;
+    
+    QualType FieldType = getContext().getCanonicalType(Field->getType());
     const ConstantArrayType *Array =
       getContext().getAsConstantArrayType(FieldType);
     if (Array)
@@ -1361,8 +1403,8 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
     if (const RecordType *FieldClassType = FieldType->getAs<RecordType>()) {
       CXXRecordDecl *FieldClassDecl
         = cast<CXXRecordDecl>(FieldClassType->getDecl());
-      LValue LHS = EmitLValueForField(LoadOfThis, *Field, false, 0);
-      LValue RHS = EmitLValueForField(LoadOfSrc, *Field, false, 0);
+      LValue LHS = EmitLValueForField(LoadOfThis, Field, false, 0);
+      LValue RHS = EmitLValueForField(LoadOfSrc, Field, false, 0);
       if (Array) {
         const llvm::Type *BasePtr = ConvertType(FieldType);
         BasePtr = llvm::PointerType::getUnqual(BasePtr);
@@ -1378,9 +1420,28 @@ CodeGenFunction::SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
                                 0 /*ClassDecl*/, FieldClassDecl, FieldType);
       continue;
     }
+    
+    if (Field->getType()->isReferenceType()) {
+      unsigned FieldIndex = CGM.getTypes().getLLVMFieldNo(Field);
+ 
+      llvm::Value *LHS = Builder.CreateStructGEP(LoadOfThis, FieldIndex,
+                                                 "lhs.ref");
+      
+      llvm::Value *RHS = Builder.CreateStructGEP(LoadOfThis, FieldIndex,
+                                                 "rhs.ref");
+
+      // Load the value in RHS.
+      RHS = Builder.CreateLoad(RHS);
+      
+      // And store it in the LHS
+      Builder.CreateStore(RHS, LHS);
+
+      continue;
+    }
     // Do a built-in assignment of scalar data members.
-    LValue LHS = EmitLValueForField(LoadOfThis, *Field, false, 0);
-    LValue RHS = EmitLValueForField(LoadOfSrc, *Field, false, 0);
+    LValue LHS = EmitLValueForField(LoadOfThis, Field, false, 0);
+    LValue RHS = EmitLValueForField(LoadOfSrc, Field, false, 0);
+
     if (!hasAggregateLLVMType(Field->getType())) {
       RValue RVRHS = EmitLoadOfLValue(RHS, Field->getType());
       EmitStoreThroughLValue(RVRHS, LHS, Field->getType());
@@ -1498,9 +1559,9 @@ static void EmitBaseInitializer(CodeGenFunction &CGF,
   const Type *BaseType = BaseInit->getBaseClass();
   CXXRecordDecl *BaseClassDecl =
     cast<CXXRecordDecl>(BaseType->getAs<RecordType>()->getDecl());
-  llvm::Value *V = CGF.GetAddressCXXOfBaseClass(ThisPtr, ClassDecl,
-                                                BaseClassDecl,
-                                                /*NullCheckValue=*/false);
+  llvm::Value *V = CGF.GetAddressOfBaseClass(ThisPtr, ClassDecl,
+                                             BaseClassDecl,
+                                             /*NullCheckValue=*/false);
   CGF.EmitCXXConstructorCall(BaseInit->getConstructor(),
                              CtorType, V,
                              BaseInit->const_arg_begin(),
@@ -1564,7 +1625,9 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
       llvm::Value *BaseAddrPtr =
         CGF.Builder.CreateBitCast(LHS.getAddress(), BasePtr);
       CGF.EmitCXXAggrConstructorCall(MemberInit->getConstructor(),
-                                     Array, BaseAddrPtr);
+                                     Array, BaseAddrPtr,
+                                     MemberInit->const_arg_begin(),
+                                     MemberInit->const_arg_end());
     }
     else
       CGF.EmitCXXConstructorCall(MemberInit->getConstructor(),
@@ -1714,12 +1777,12 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
     // Ignore trivial destructors.
     if (BaseClassDecl->hasTrivialDestructor())
       continue;
-
-    llvm::Value *V = GetAddressCXXOfBaseClass(LoadCXXThis(),
-                                              ClassDecl, BaseClassDecl, 
-                                              /*NullCheckValue=*/false);
-    EmitCXXDestructorCall(BaseClassDecl->getDestructor(getContext()),
-                          Dtor_Base, V);
+    const CXXDestructorDecl *D = BaseClassDecl->getDestructor(getContext());
+    
+    llvm::Value *V = GetAddressOfBaseClass(LoadCXXThis(),
+                                           ClassDecl, BaseClassDecl, 
+                                           /*NullCheckValue=*/false);
+    EmitCXXDestructorCall(D, Dtor_Base, V);
   }
 
   // If we're emitting a base destructor, we don't want to emit calls to the
@@ -1727,10 +1790,21 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
   if (DtorType == Dtor_Base)
     return;
   
-  // FIXME: Handle virtual bases.
+  // Handle virtual bases.
   for (CXXRecordDecl::reverse_base_class_const_iterator I = 
        ClassDecl->vbases_rbegin(), E = ClassDecl->vbases_rend(); I != E; ++I) {
-    assert(false && "FIXME: Handle virtual bases.");
+    const CXXBaseSpecifier &Base = *I;
+    CXXRecordDecl *BaseClassDecl
+    = cast<CXXRecordDecl>(Base.getType()->getAs<RecordType>()->getDecl());
+    
+    // Ignore trivial destructors.
+    if (BaseClassDecl->hasTrivialDestructor())
+      continue;
+    const CXXDestructorDecl *D = BaseClassDecl->getDestructor(getContext());
+    llvm::Value *V = GetAddressOfBaseClass(LoadCXXThis(),
+                                           ClassDecl, BaseClassDecl, 
+                                           /*NullCheckValue=*/false);
+    EmitCXXDestructorCall(D, Dtor_Base, V);
   }
     
   // If we have a deleting destructor, emit a call to the delete operator.
@@ -1751,10 +1825,4 @@ void CodeGenFunction::SynthesizeDefaultDestructor(const CXXDestructorDecl *Dtor,
 
   EmitDtorEpilogue(Dtor, DtorType);
   FinishFunction();
-}
-
-// FIXME: Move this to CGStmtCXX.cpp
-void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
-  // FIXME: We need to do more here.
-  EmitStmt(S.getTryBlock());
 }

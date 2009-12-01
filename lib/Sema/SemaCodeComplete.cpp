@@ -206,17 +206,6 @@ void ResultBuilder::MaybeAddResult(Result R, DeclContext *CurContext) {
     MaybeAddResult(Result(Using->getTargetDecl(), R.Rank, R.Qualifier),
                    CurContext);
   
-  // Handle each declaration in an overload set separately.
-  if (OverloadedFunctionDecl *Ovl 
-        = dyn_cast<OverloadedFunctionDecl>(R.Declaration)) {
-    for (OverloadedFunctionDecl::function_iterator F = Ovl->function_begin(),
-         FEnd = Ovl->function_end();
-         F != FEnd; ++F)
-      MaybeAddResult(Result(*F, R.Rank, R.Qualifier), CurContext);
-    
-    return;
-  }
-  
   Decl *CanonDecl = R.Declaration->getCanonicalDecl();
   unsigned IDNS = CanonDecl->getIdentifierNamespace();
   
@@ -704,7 +693,7 @@ static void AddFunctionParameterChunks(ASTContext &Context,
                                          Context.PrintingPolicy);
     
     // Add the placeholder string.
-    CCStr->AddPlaceholderChunk(PlaceholderStr.c_str());
+    CCStr->AddPlaceholderChunk(PlaceholderStr);
   }
   
   if (const FunctionProtoType *Proto 
@@ -778,7 +767,7 @@ static void AddTemplateParameterChunks(ASTContext &Context,
       CCStr->AddChunk(Chunk(CodeCompletionString::CK_Comma));
     
     // Add the placeholder string.
-    CCStr->AddPlaceholderChunk(PlaceholderStr.c_str());
+    CCStr->AddPlaceholderChunk(PlaceholderStr);
   }    
 }
 
@@ -797,9 +786,9 @@ void AddQualifierToCompletionString(CodeCompletionString *Result,
     Qualifier->print(OS, Context.PrintingPolicy);
   }
   if (QualifierIsInformative)
-    Result->AddInformativeChunk(PrintedNNS.c_str());
+    Result->AddInformativeChunk(PrintedNNS);
   else
-    Result->AddTextChunk(PrintedNNS.c_str());
+    Result->AddTextChunk(PrintedNNS);
 }
 
 /// \brief If possible, create a new code completion string for the given
@@ -812,17 +801,26 @@ CodeCompletionString *
 CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
   typedef CodeCompletionString::Chunk Chunk;
   
-  if (Kind == RK_Keyword)
-    return 0;
+  if (Kind == RK_Pattern)
+    return Pattern->Clone();
+  
+  CodeCompletionString *Result = new CodeCompletionString;
+
+  if (Kind == RK_Keyword) {
+    Result->AddTypedTextChunk(Keyword);
+    return Result;
+  }
   
   if (Kind == RK_Macro) {
     MacroInfo *MI = S.PP.getMacroInfo(Macro);
-    if (!MI || !MI->isFunctionLike())
-      return 0;
+    assert(MI && "Not a macro?");
+
+    Result->AddTypedTextChunk(Macro->getName());
+
+    if (!MI->isFunctionLike())
+      return Result;
     
     // Format a function-like macro with placeholders for the arguments.
-    CodeCompletionString *Result = new CodeCompletionString;
-    Result->AddTypedTextChunk(Macro->getName().str().c_str());
     Result->AddChunk(Chunk(CodeCompletionString::CK_LeftParen));
     for (MacroInfo::arg_iterator A = MI->arg_begin(), AEnd = MI->arg_end();
          A != AEnd; ++A) {
@@ -831,7 +829,7 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
       
       if (!MI->isVariadic() || A != AEnd - 1) {
         // Non-variadic argument.
-        Result->AddPlaceholderChunk((*A)->getName().str().c_str());
+        Result->AddPlaceholderChunk((*A)->getName());
         continue;
       }
       
@@ -843,7 +841,7 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
       else {
         std::string Arg = (*A)->getName();
         Arg += "...";
-        Result->AddPlaceholderChunk(Arg.c_str());
+        Result->AddPlaceholderChunk(Arg);
       }
     }
     Result->AddChunk(Chunk(CodeCompletionString::CK_RightParen));
@@ -854,17 +852,15 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
   NamedDecl *ND = Declaration;
   
   if (StartsNestedNameSpecifier) {
-    CodeCompletionString *Result = new CodeCompletionString;
-    Result->AddTypedTextChunk(ND->getNameAsString().c_str());
+    Result->AddTypedTextChunk(ND->getNameAsString());
     Result->AddTextChunk("::");
     return Result;
   }
   
   if (FunctionDecl *Function = dyn_cast<FunctionDecl>(ND)) {
-    CodeCompletionString *Result = new CodeCompletionString;
     AddQualifierToCompletionString(Result, Qualifier, QualifierIsInformative, 
                                    S.Context);
-    Result->AddTypedTextChunk(Function->getNameAsString().c_str());
+    Result->AddTypedTextChunk(Function->getNameAsString());
     Result->AddChunk(Chunk(CodeCompletionString::CK_LeftParen));
     AddFunctionParameterChunks(S.Context, Function, Result);
     Result->AddChunk(Chunk(CodeCompletionString::CK_RightParen));
@@ -872,11 +868,10 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
   }
   
   if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(ND)) {
-    CodeCompletionString *Result = new CodeCompletionString;
     AddQualifierToCompletionString(Result, Qualifier, QualifierIsInformative, 
                                    S.Context);
     FunctionDecl *Function = FunTmpl->getTemplatedDecl();
-    Result->AddTypedTextChunk(Function->getNameAsString().c_str());
+    Result->AddTypedTextChunk(Function->getNameAsString());
     
     // Figure out which template parameters are deduced (or have default
     // arguments).
@@ -926,10 +921,9 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
   }
   
   if (TemplateDecl *Template = dyn_cast<TemplateDecl>(ND)) {
-    CodeCompletionString *Result = new CodeCompletionString;
     AddQualifierToCompletionString(Result, Qualifier, QualifierIsInformative, 
                                    S.Context);
-    Result->AddTypedTextChunk(Template->getNameAsString().c_str());
+    Result->AddTypedTextChunk(Template->getNameAsString());
     Result->AddChunk(Chunk(CodeCompletionString::CK_LeftAngle));
     AddTemplateParameterChunks(S.Context, Template, Result);
     Result->AddChunk(Chunk(CodeCompletionString::CK_RightAngle));
@@ -937,7 +931,6 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
   }
   
   if (ObjCMethodDecl *Method = dyn_cast<ObjCMethodDecl>(ND)) {
-    CodeCompletionString *Result = new CodeCompletionString;
     Selector Sel = Method->getSelector();
     if (Sel.isUnarySelector()) {
       Result->AddTypedTextChunk(Sel.getIdentifierInfoForSlot(0)->getName());
@@ -993,15 +986,12 @@ CodeCompleteConsumer::Result::CreateCodeCompletionString(Sema &S) {
     return Result;
   }
 
-  if (Qualifier) {
-    CodeCompletionString *Result = new CodeCompletionString;
+  if (Qualifier)
     AddQualifierToCompletionString(Result, Qualifier, QualifierIsInformative, 
                                    S.Context);
-    Result->AddTypedTextChunk(ND->getNameAsString().c_str());
-    return Result;
-  }
-  
-  return 0;
+
+  Result->AddTypedTextChunk(ND->getNameAsString());
+  return Result;
 }
 
 CodeCompletionString *
@@ -1019,7 +1009,7 @@ CodeCompleteConsumer::OverloadCandidate::CreateSignatureString(
     // highlighted ellipsis.
     const FunctionType *FT = getFunctionType();
     Result->AddTextChunk(
-            FT->getResultType().getAsString(S.Context.PrintingPolicy).c_str());
+            FT->getResultType().getAsString(S.Context.PrintingPolicy));
     Result->AddChunk(Chunk(CodeCompletionString::CK_LeftParen));
     Result->AddChunk(Chunk(CodeCompletionString::CK_CurrentParameter, "..."));
     Result->AddChunk(Chunk(CodeCompletionString::CK_RightParen));
@@ -1027,10 +1017,10 @@ CodeCompleteConsumer::OverloadCandidate::CreateSignatureString(
   }
   
   if (FDecl)
-    Result->AddTextChunk(FDecl->getNameAsString().c_str());    
+    Result->AddTextChunk(FDecl->getNameAsString());
   else
     Result->AddTextChunk(
-         Proto->getResultType().getAsString(S.Context.PrintingPolicy).c_str());
+         Proto->getResultType().getAsString(S.Context.PrintingPolicy));
   
   Result->AddChunk(Chunk(CodeCompletionString::CK_LeftParen));
   unsigned NumParams = FDecl? FDecl->getNumParams() : Proto->getNumArgs();
@@ -1052,9 +1042,9 @@ CodeCompleteConsumer::OverloadCandidate::CreateSignatureString(
     
     if (I == CurrentArg)
       Result->AddChunk(Chunk(CodeCompletionString::CK_CurrentParameter, 
-                             ArgString.c_str()));
+                             ArgString));
     else
-      Result->AddTextChunk(ArgString.c_str());
+      Result->AddTextChunk(ArgString);
   }
   
   if (Proto && Proto->isVariadic()) {
@@ -1467,19 +1457,18 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
       Expr::hasAnyTypeDependentArguments(Args, NumArgs))
     return;
   
-  NamedDecl *Function;
+  llvm::SmallVector<NamedDecl*,8> Fns;
   DeclarationName UnqualifiedName;
   NestedNameSpecifier *Qualifier;
   SourceRange QualifierRange;
   bool ArgumentDependentLookup;
+  bool Overloaded;
   bool HasExplicitTemplateArgs;
-  const TemplateArgumentLoc *ExplicitTemplateArgs;
-  unsigned NumExplicitTemplateArgs;
+  TemplateArgumentListInfo ExplicitTemplateArgs;
   
-  DeconstructCallFunction(Fn,
-                          Function, UnqualifiedName, Qualifier, QualifierRange,
-                          ArgumentDependentLookup, HasExplicitTemplateArgs,
-                          ExplicitTemplateArgs, NumExplicitTemplateArgs);
+  DeconstructCallFunction(Fn, Fns, UnqualifiedName, Qualifier, QualifierRange,
+                          ArgumentDependentLookup, Overloaded,
+                          HasExplicitTemplateArgs, ExplicitTemplateArgs);
 
   
   // FIXME: What if we're calling something that isn't a function declaration?
@@ -1488,9 +1477,9 @@ void Sema::CodeCompleteCall(Scope *S, ExprTy *FnIn,
   
   // Build an overload candidate set based on the functions we find.
   OverloadCandidateSet CandidateSet;
-  AddOverloadedCallCandidates(Function, UnqualifiedName, 
-                              ArgumentDependentLookup, HasExplicitTemplateArgs,
-                              ExplicitTemplateArgs, NumExplicitTemplateArgs,
+  AddOverloadedCallCandidates(Fns, UnqualifiedName, 
+                              ArgumentDependentLookup,
+                       (HasExplicitTemplateArgs ? &ExplicitTemplateArgs : 0),
                               Args, NumArgs,
                               CandidateSet,
                               /*PartialOverloading=*/true);
@@ -1968,8 +1957,10 @@ void Sema::CodeCompleteObjCClassMessage(Scope *S, IdentifierInfo *FName,
   if (!CDecl && FName->isStr("super")) {
     // "super" may be the name of a variable, in which case we are
     // probably calling an instance method.
-    OwningExprResult Super = ActOnDeclarationNameExpr(S, FNameLoc, FName,
-                                                      false, 0, false);
+    CXXScopeSpec SS;
+    UnqualifiedId id;
+    id.setIdentifier(FName, FNameLoc);
+    OwningExprResult Super = ActOnIdExpression(S, SS, id, false, false);
     return CodeCompleteObjCInstanceMessage(S, (Expr *)Super.get(),
                                            SelIdents, NumSelIdents);
   }

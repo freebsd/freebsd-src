@@ -8,19 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/CC1Options.h"
-#include "clang/Driver/OptTable.h"
 #include "clang/Driver/Option.h"
-
+#include "clang/Driver/OptTable.h"
+using namespace clang;
 using namespace clang::driver;
 using namespace clang::driver::options;
 using namespace clang::driver::cc1options;
 
 static OptTable::Info CC1InfoTable[] = {
-  // The InputOption info
-  { "<input>", 0, 0, Option::InputClass, DriverOption, 0, OPT_INVALID, OPT_INVALID },
-  // The UnknownOption info
-  { "<unknown>", 0, 0, Option::UnknownClass, 0, 0, OPT_INVALID, OPT_INVALID },
-
 #define OPTION(NAME, ID, KIND, GROUP, ALIAS, FLAGS, PARAM, \
                HELPTEXT, METAVAR)   \
   { NAME, HELPTEXT, METAVAR, Option::KIND##Class, FLAGS, PARAM, \

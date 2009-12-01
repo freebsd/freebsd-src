@@ -16,7 +16,6 @@
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/Scope.h"
 #include "clang/Parse/Template.h"
-#include "llvm/Support/Compiler.h"
 using namespace clang;
 
 /// \brief Parse a template declaration, explicit instantiation, or
@@ -34,7 +33,7 @@ Parser::ParseDeclarationStartingWithTemplate(unsigned Context,
 
 /// \brief RAII class that manages the template parameter depth.
 namespace {
-  class VISIBILITY_HIDDEN TemplateParameterDepthCounter {
+  class TemplateParameterDepthCounter {
     unsigned &Depth;
     unsigned AddedLevels;
 
@@ -192,6 +191,10 @@ Parser::ParseSingleDeclarationAfterTemplate(
 
   // Parse the declaration specifiers.
   ParsingDeclSpec DS(*this);
+
+  if (getLang().CPlusPlus0x && isCXX0XAttributeSpecifier())
+    DS.AddAttributes(ParseCXX0XAttributes().AttrList);
+
   ParseDeclarationSpecifiers(DS, TemplateInfo, AS);
 
   if (Tok.is(tok::semi)) {
@@ -333,6 +336,40 @@ Parser::ParseTemplateParameterList(unsigned Depth,
   return true;
 }
 
+/// \brief Determine whether the parser is at the start of a template
+/// type parameter.
+bool Parser::isStartOfTemplateTypeParameter() {
+  if (Tok.is(tok::kw_class))
+    return true;
+
+  if (Tok.isNot(tok::kw_typename))
+    return false;
+
+  // C++ [temp.param]p2:
+  //   There is no semantic difference between class and typename in a
+  //   template-parameter. typename followed by an unqualified-id
+  //   names a template type parameter. typename followed by a
+  //   qualified-id denotes the type in a non-type
+  //   parameter-declaration.
+  Token Next = NextToken();
+
+  // If we have an identifier, skip over it.
+  if (Next.getKind() == tok::identifier)
+    Next = GetLookAheadToken(2);
+
+  switch (Next.getKind()) {
+  case tok::equal:
+  case tok::comma:
+  case tok::greater:
+  case tok::greatergreater:
+  case tok::ellipsis:
+    return true;
+
+  default:
+    return false;
+  }
+}
+
 /// ParseTemplateParameter - Parse a template-parameter (C++ [temp.param]).
 ///
 ///       template-parameter: [C++ temp.param]
@@ -348,12 +385,8 @@ Parser::ParseTemplateParameterList(unsigned Depth,
 ///         'template' '<' template-parameter-list '>' 'class' identifier[opt] = id-expression
 Parser::DeclPtrTy
 Parser::ParseTemplateParameter(unsigned Depth, unsigned Position) {
-  if (Tok.is(tok::kw_class) ||
-      (Tok.is(tok::kw_typename) &&
-       // FIXME: Next token has not been annotated!
-       NextToken().isNot(tok::annot_typename))) {
+  if (isStartOfTemplateTypeParameter())
     return ParseTypeParameter(Depth, Position);
-  }
 
   if (Tok.is(tok::kw_template))
     return ParseTemplateTemplateParameter(Depth, Position);
@@ -851,7 +884,8 @@ ParsedTemplateArgument Parser::ParseTemplateTemplateArgument() {
       if (isEndOfTemplateArgument(Tok)) {
         TemplateTy Template
         = Actions.ActOnDependentTemplateName(TemplateLoc, SS, Name, 
-                                             /*ObjectType=*/0);
+                                             /*ObjectType=*/0,
+                                             /*EnteringContext=*/false);
         if (Template.get())
           return ParsedTemplateArgument(SS, Template, Name.StartLocation);
       }

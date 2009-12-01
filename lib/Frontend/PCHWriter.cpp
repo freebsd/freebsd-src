@@ -33,7 +33,6 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/System/Path.h"
 #include <cstdio>
@@ -44,7 +43,7 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 
 namespace {
-  class VISIBILITY_HIDDEN PCHTypeWriter {
+  class PCHTypeWriter {
     PCHWriter &Writer;
     PCHWriter::RecordData &Record;
 
@@ -781,7 +780,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
 
 namespace {
 // Trait used for the on-disk hash table of stat cache results.
-class VISIBILITY_HIDDEN PCHStatCacheTrait {
+class PCHStatCacheTrait {
 public:
   typedef const char * key_type;
   typedef key_type key_type_ref;
@@ -1359,7 +1358,7 @@ uint64_t PCHWriter::WriteDeclContextVisibleBlock(ASTContext &Context,
 
 namespace {
 // Trait used for the on-disk hash table used in the method pool.
-class VISIBILITY_HIDDEN PCHMethodPoolTrait {
+class PCHMethodPoolTrait {
   PCHWriter &Writer;
 
 public:
@@ -1561,7 +1560,7 @@ void PCHWriter::WriteMethodPool(Sema &SemaRef) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-class VISIBILITY_HIDDEN PCHIdentifierTableTrait {
+class PCHIdentifierTableTrait {
   PCHWriter &Writer;
   Preprocessor &PP;
 
@@ -1764,6 +1763,9 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
       AddString(cast<AsmLabelAttr>(Attr)->getLabel(), Record);
       break;
 
+    case Attr::BaseCheck:
+      break;
+
     case Attr::Blocks:
       Record.push_back(cast<BlocksAttr>(Attr)->getType()); // FIXME: stable
       break;
@@ -1792,6 +1794,7 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
       break;
 
     case Attr::FastCall:
+    case Attr::Final:
       break;
 
     case Attr::Format: {
@@ -1816,6 +1819,7 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     }
 
     case Attr::GNUInline:
+    case Attr::Hiding:
     case Attr::IBOutletKind:
     case Attr::Malloc:
     case Attr::NoDebug:
@@ -1836,6 +1840,7 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     case Attr::CFReturnsRetained:
     case Attr::NSReturnsRetained:
     case Attr::Overloadable:
+    case Attr::Override:
       break;
 
     case Attr::PragmaPack:
@@ -1989,6 +1994,10 @@ void PCHWriter::WritePCH(Sema &SemaRef, MemorizeStatCalls *StatCalls,
   AddTypeRef(Context.getsigjmp_bufType(), Record);
   AddTypeRef(Context.ObjCIdRedefinitionType, Record);
   AddTypeRef(Context.ObjCClassRedefinitionType, Record);
+#if 0
+  // FIXME. Accommodate for this in several PCH/Indexer tests
+  AddTypeRef(Context.ObjCSelRedefinitionType, Record);
+#endif
   AddTypeRef(Context.getRawBlockdescriptorType(), Record);
   AddTypeRef(Context.getRawBlockdescriptorExtendedType(), Record);
   Stream.EmitRecord(pch::SPECIAL_TYPES, Record);
@@ -2204,6 +2213,7 @@ void PCHWriter::AddTypeRef(QualType T, RecordData &Record) {
     case BuiltinType::Dependent:  ID = pch::PREDEF_TYPE_DEPENDENT_ID;  break;
     case BuiltinType::ObjCId:     ID = pch::PREDEF_TYPE_OBJC_ID;       break;
     case BuiltinType::ObjCClass:  ID = pch::PREDEF_TYPE_OBJC_CLASS;    break;
+    case BuiltinType::ObjCSel:    ID = pch::PREDEF_TYPE_OBJC_SEL;      break;
     case BuiltinType::UndeducedAuto:
       assert(0 && "Should not see undeduced auto here");
       break;
@@ -2272,6 +2282,10 @@ void PCHWriter::AddDeclarationName(DeclarationName Name, RecordData &Record) {
 
   case DeclarationName::CXXOperatorName:
     Record.push_back(Name.getCXXOverloadedOperator());
+    break;
+
+  case DeclarationName::CXXLiteralOperatorName:
+    AddIdentifierRef(Name.getCXXLiteralIdentifier(), Record);
     break;
 
   case DeclarationName::CXXUsingDirective:

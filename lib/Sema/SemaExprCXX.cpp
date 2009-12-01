@@ -63,10 +63,11 @@ Sema::ActOnCXXTypeid(SourceLocation OpLoc, SourceLocation LParenLoc,
       }
     }
 
-    // If this is an unevaluated operand, clear out the set of declaration
-    // references we have been computing.
+    // If this is an unevaluated operand, clear out the set of
+    // declaration references we have been computing and eliminate any
+    // temporaries introduced in its computation.
     if (isUnevaluatedOperand)
-      PotentiallyReferencedDeclStack.back().clear();
+      ExprEvalContexts.back().Context = Unevaluated;
   }
 
   return Owned(new (Context) CXXTypeidExpr(isType, TyOrExpr,
@@ -326,7 +327,7 @@ Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
   QualType AllocType = GetTypeForDeclarator(D, /*Scope=*/0, &DInfo);
   if (D.isInvalidType())
     return ExprError();
-
+    
   return BuildCXXNew(StartLoc, UseGlobal,
                      PlacementLParen,
                      move(PlacementArgs),
@@ -394,7 +395,7 @@ Sema::BuildCXXNew(SourceLocation StartLoc, bool UseGlobal,
   FunctionDecl *OperatorDelete = 0;
   Expr **PlaceArgs = (Expr**)PlacementArgs.get();
   unsigned NumPlaceArgs = PlacementArgs.size();
-    
+  
   if (!AllocType->isDependentType() &&
       !Expr::hasAnyTypeDependentArguments(PlaceArgs, NumPlaceArgs) &&
       FindAllocationFunctions(StartLoc,
@@ -402,7 +403,24 @@ Sema::BuildCXXNew(SourceLocation StartLoc, bool UseGlobal,
                               UseGlobal, AllocType, ArraySize, PlaceArgs,
                               NumPlaceArgs, OperatorNew, OperatorDelete))
     return ExprError();
-
+  llvm::SmallVector<Expr *, 8> AllPlaceArgs;
+  if (OperatorNew) {
+    // Add default arguments, if any.
+    const FunctionProtoType *Proto = 
+      OperatorNew->getType()->getAs<FunctionProtoType>();
+    VariadicCallType CallType = 
+      Proto->isVariadic() ? VariadicFunction : VariadicDoesNotApply;
+    bool Invalid = GatherArgumentsForCall(PlacementLParen, OperatorNew,
+                                          Proto, 1, PlaceArgs, NumPlaceArgs, 
+                                          AllPlaceArgs, CallType);
+    if (Invalid)
+      return ExprError();
+    
+    NumPlaceArgs = AllPlaceArgs.size();
+    if (NumPlaceArgs > 0)
+      PlaceArgs = &AllPlaceArgs[0];
+  }
+  
   bool Init = ConstructorLParen.isValid();
   // --- Choosing a constructor ---
   // C++ 5.3.4p15
@@ -602,7 +620,9 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
     // The first argument is size_t, and the first parameter must be size_t,
     // too. This is checked on declaration and can be assumed. (It can't be
     // asserted on, though, since invalid decls are left in there.)
-    for (unsigned i = 0; i < NumArgs; ++i) {
+    // Whatch out for variadic allocator function.
+    unsigned NumArgsInFnDecl = FnDecl->getNumParams();
+    for (unsigned i = 0; (i < NumArgs && i < NumArgsInFnDecl); ++i) {
       // FIXME: Passing word to diagnostic.
       if (PerformCopyInitialization(Args[i],
                                     FnDecl->getParamDecl(i)->getType(),
@@ -827,18 +847,15 @@ Sema::ActOnCXXDelete(SourceLocation StartLoc, bool UseGlobal,
     if (const RecordType *Record = Type->getAs<RecordType>()) {
       llvm::SmallVector<CXXConversionDecl *, 4> ObjectPtrConversions;
       CXXRecordDecl *RD = cast<CXXRecordDecl>(Record->getDecl());
-      OverloadedFunctionDecl *Conversions = 
-        RD->getVisibleConversionFunctions();
+      const UnresolvedSet *Conversions = RD->getVisibleConversionFunctions();
       
-      for (OverloadedFunctionDecl::function_iterator
-             Func = Conversions->function_begin(),
-             FuncEnd = Conversions->function_end();
-           Func != FuncEnd; ++Func) {
+      for (UnresolvedSet::iterator I = Conversions->begin(),
+             E = Conversions->end(); I != E; ++I) {
         // Skip over templated conversion functions; they aren't considered.
-        if (isa<FunctionTemplateDecl>(*Func))
+        if (isa<FunctionTemplateDecl>(*I))
           continue;
         
-        CXXConversionDecl *Conv = cast<CXXConversionDecl>(*Func);
+        CXXConversionDecl *Conv = cast<CXXConversionDecl>(*I);
         
         QualType ConvType = Conv->getConversionType().getNonReferenceType();
         if (const PointerType *ConvPtrType = ConvType->getAs<PointerType>())
@@ -927,54 +944,25 @@ Sema::ActOnCXXDelete(SourceLocation StartLoc, bool UseGlobal,
                                            OperatorDelete, Ex, StartLoc));
 }
 
+/// \brief Check the use of the given variable as a C++ condition in an if,
+/// while, do-while, or switch statement.
+Action::OwningExprResult Sema::CheckConditionVariable(VarDecl *ConditionVar) {
+  QualType T = ConditionVar->getType();
+  
+  // C++ [stmt.select]p2:
+  //   The declarator shall not specify a function or an array.
+  if (T->isFunctionType())
+    return ExprError(Diag(ConditionVar->getLocation(), 
+                          diag::err_invalid_use_of_function_type)
+                       << ConditionVar->getSourceRange());
+  else if (T->isArrayType())
+    return ExprError(Diag(ConditionVar->getLocation(), 
+                          diag::err_invalid_use_of_array_type)
+                     << ConditionVar->getSourceRange());
 
-/// ActOnCXXConditionDeclarationExpr - Parsed a condition declaration of a
-/// C++ if/switch/while/for statement.
-/// e.g: "if (int x = f()) {...}"
-Action::OwningExprResult
-Sema::ActOnCXXConditionDeclarationExpr(Scope *S, SourceLocation StartLoc,
-                                       Declarator &D,
-                                       SourceLocation EqualLoc,
-                                       ExprArg AssignExprVal) {
-  assert(AssignExprVal.get() && "Null assignment expression");
-
-  // C++ 6.4p2:
-  // The declarator shall not specify a function or an array.
-  // The type-specifier-seq shall not contain typedef and shall not declare a
-  // new class or enumeration.
-
-  assert(D.getDeclSpec().getStorageClassSpec() != DeclSpec::SCS_typedef &&
-         "Parser allowed 'typedef' as storage class of condition decl.");
-
-  // FIXME: Store DeclaratorInfo in the expression.
-  DeclaratorInfo *DInfo = 0;
-  TagDecl *OwnedTag = 0;
-  QualType Ty = GetTypeForDeclarator(D, S, &DInfo, &OwnedTag);
-
-  if (Ty->isFunctionType()) { // The declarator shall not specify a function...
-    // We exit without creating a CXXConditionDeclExpr because a FunctionDecl
-    // would be created and CXXConditionDeclExpr wants a VarDecl.
-    return ExprError(Diag(StartLoc, diag::err_invalid_use_of_function_type)
-      << SourceRange(StartLoc, EqualLoc));
-  } else if (Ty->isArrayType()) { // ...or an array.
-    Diag(StartLoc, diag::err_invalid_use_of_array_type)
-      << SourceRange(StartLoc, EqualLoc);
-  } else if (OwnedTag && OwnedTag->isDefinition()) {
-    // The type-specifier-seq shall not declare a new class or enumeration.
-    Diag(OwnedTag->getLocation(), diag::err_type_defined_in_condition);
-  }
-
-  DeclPtrTy Dcl = ActOnDeclarator(S, D);
-  if (!Dcl)
-    return ExprError();
-  AddInitializerToDecl(Dcl, move(AssignExprVal), /*DirectInit=*/false);
-
-  // Mark this variable as one that is declared within a conditional.
-  // We know that the decl had to be a VarDecl because that is the only type of
-  // decl that can be assigned and the grammar requires an '='.
-  VarDecl *VD = cast<VarDecl>(Dcl.getAs<Decl>());
-  VD->setDeclaredInCondition(true);
-  return Owned(new (Context) CXXConditionDeclExpr(StartLoc, EqualLoc, VD));
+  return Owned(DeclRefExpr::Create(Context, 0, SourceRange(), ConditionVar,
+                                   ConditionVar->getLocation(), 
+                                ConditionVar->getType().getNonReferenceType()));
 }
 
 /// CheckCXXBooleanCondition - Returns true if a conversion to bool is invalid.
@@ -1128,11 +1116,12 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
                   dyn_cast<CXXConstructorDecl>(FD)) {
         CastKind = CastExpr::CK_ConstructorConversion;
         // Do no conversion if dealing with ... for the first conversion.
-        if (!ICS.UserDefined.EllipsisConversion)
+        if (!ICS.UserDefined.EllipsisConversion) {
           // If the user-defined conversion is specified by a constructor, the 
           // initial standard conversion sequence converts the source type to the
           // type required by the argument of the constructor
-          BeforeToType = Ctor->getParamDecl(0)->getType();
+          BeforeToType = Ctor->getParamDecl(0)->getType().getNonReferenceType();
+        }
       }    
       else
         assert(0 && "Unknown conversion function kind!");
@@ -1152,21 +1141,25 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
 
       if (CastArg.isInvalid())
         return true;
-    
+
+      From = CastArg.takeAs<Expr>();
+
+      // FIXME: This and the following if statement shouldn't be necessary, but
+      // there's some nasty stuff involving MaybeBindToTemporary going on here.
       if (ICS.UserDefined.After.Second == ICK_Derived_To_Base &&
           ICS.UserDefined.After.CopyConstructor) {
-        From = CastArg.takeAs<Expr>();
         return BuildCXXDerivedToBaseExpr(From, CastKind, ICS, Flavor);
       }
-    
-      if (ICS.UserDefined.After.Second == ICK_Pointer_Member &&
-          ToType.getNonReferenceType()->isMemberFunctionPointerType())
-        CastKind = CastExpr::CK_BaseToDerivedMemberPointer;
-      
-      From = new (Context) ImplicitCastExpr(ToType.getNonReferenceType(),
-                                            CastKind, CastArg.takeAs<Expr>(),
-                                            ToType->isLValueReferenceType());
-      return false;
+
+      if (ICS.UserDefined.After.CopyConstructor) {
+        From = new (Context) ImplicitCastExpr(ToType.getNonReferenceType(),
+                                              CastKind, From,
+                                              ToType->isLValueReferenceType());
+        return false;
+      }
+
+      return PerformImplicitConversion(From, ToType, ICS.UserDefined.After,
+                                       "converting", IgnoreBaseAccess);
   }
       
   case ImplicitConversionSequence::EllipsisConversion:
@@ -1333,9 +1326,14 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
     ImpCastExprToType(From, ToType, Kind);
     break;
   }
-  case ICK_Boolean_Conversion:
-    ImpCastExprToType(From, Context.BoolTy, CastExpr::CK_Unknown);
+  case ICK_Boolean_Conversion: {
+    CastExpr::CastKind Kind = CastExpr::CK_Unknown;
+    if (FromType->isMemberPointerType())
+      Kind = CastExpr::CK_MemberPointerToBoolean;
+    
+    ImpCastExprToType(From, Context.BoolTy, Kind);
     break;
+  }
 
   case ICK_Derived_To_Base:
     if (CheckDerivedToBaseConversion(From->getType(), 
@@ -2131,10 +2129,10 @@ Sema::ActOnStartCXXMemberReference(Scope *S, ExprArg Base, SourceLocation OpLoc,
         return ExprError();
       }
     }
-  }
 
-  if (BaseType->isPointerType())
-    BaseType = BaseType->getPointeeType();
+    if (BaseType->isPointerType())
+      BaseType = BaseType->getPointeeType();
+  }
 
   // We could end up with various non-record types here, such as extended
   // vector types or Objective-C interfaces. Just return early and let
@@ -2175,10 +2173,10 @@ CXXMemberCallExpr *Sema::BuildCXXMemberCallExpr(Expr *Exp,
   else
     ResultType = Method->getResultType().getNonReferenceType();
 
-    CXXMemberCallExpr *CE =
-      new (Context) CXXMemberCallExpr(Context, ME, 0, 0, 
-                                      ResultType,
-                                      Exp->getLocEnd());
+  MarkDeclarationReferenced(Exp->getLocStart(), Method);
+  CXXMemberCallExpr *CE =
+    new (Context) CXXMemberCallExpr(Context, ME, 0, 0, ResultType,
+                                    Exp->getLocEnd());
   return CE;
 }
 
@@ -2238,9 +2236,6 @@ Sema::OwningExprResult Sema::ActOnFinishFullExpr(ExprArg Arg) {
 ///
 /// FIXME: Should Objective-C also use this approach?
 ///
-/// \param SS if non-NULL, the C++ nested-name-specifier that precedes the 
-/// name of the declaration referenced.
-///
 /// \param D the declaration being referenced from the current scope.
 ///
 /// \param NameLoc the location of the name in the source.
@@ -2249,16 +2244,11 @@ Sema::OwningExprResult Sema::ActOnFinishFullExpr(ExprArg Arg) {
 /// access, will be set to the type of the "this" pointer to be used when
 /// building that implicit member access.
 ///
-/// \param MemberType if the reference to this declaration is an implicit
-/// member access, will be set to the type of the member being referenced
-/// (for use at the type of the resulting member access expression).
-///
 /// \returns true if this is an implicit member reference (in which case 
 /// \p ThisType and \p MemberType will be set), or false if it is not an
 /// implicit member reference.
-bool Sema::isImplicitMemberReference(const CXXScopeSpec *SS, NamedDecl *D,
-                                     SourceLocation NameLoc, QualType &ThisType,
-                                     QualType &MemberType) {
+bool Sema::isImplicitMemberReference(const LookupResult &R,
+                                     QualType &ThisType) {
   // If this isn't a C++ method, then it isn't an implicit member reference.
   CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(CurContext);
   if (!MD || MD->isStatic())
@@ -2271,30 +2261,21 @@ bool Sema::isImplicitMemberReference(const CXXScopeSpec *SS, NamedDecl *D,
   //   class member access expression (5.2.5) using (*this) (9.3.2)
   //   as the postfix-expression to the left of the '.' operator.
   DeclContext *Ctx = 0;
-  if (FieldDecl *FD = dyn_cast<FieldDecl>(D)) {
+  if (R.isUnresolvableResult()) {
+    // FIXME: this is just picking one at random
+    Ctx = R.getRepresentativeDecl()->getDeclContext();
+  } else if (FieldDecl *FD = R.getAsSingle<FieldDecl>()) {
     Ctx = FD->getDeclContext();
-    MemberType = FD->getType();
-    
-    if (const ReferenceType *RefType = MemberType->getAs<ReferenceType>())
-      MemberType = RefType->getPointeeType();
-    else if (!FD->isMutable())
-      MemberType
-        = Context.getQualifiedType(MemberType,
-                           Qualifiers::fromCVRMask(MD->getTypeQualifiers()));
   } else {
-    for (OverloadIterator Ovl(D), OvlEnd; Ovl != OvlEnd; ++Ovl) {
-      CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(*Ovl);
+    for (LookupResult::iterator I = R.begin(), E = R.end(); I != E; ++I) {
+      CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(*I);
       FunctionTemplateDecl *FunTmpl = 0;
-      if (!Method && (FunTmpl = dyn_cast<FunctionTemplateDecl>(*Ovl)))
+      if (!Method && (FunTmpl = dyn_cast<FunctionTemplateDecl>(*I)))
         Method = dyn_cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl());
       
       // FIXME: Do we have to know if there are explicit template arguments?
       if (Method && !Method->isStatic()) {
         Ctx = Method->getParent();
-        if (isa<CXXMethodDecl>(D) && !FunTmpl)
-          MemberType = Method->getType();
-        else
-          MemberType = Context.OverloadTy;
         break;
       }
     }
@@ -2306,11 +2287,8 @@ bool Sema::isImplicitMemberReference(const CXXScopeSpec *SS, NamedDecl *D,
   // Determine whether the declaration(s) we found are actually in a base 
   // class. If not, this isn't an implicit member reference.
   ThisType = MD->getThisType(Context);
-  
-  // If the type of "this" is dependent, we can't tell if the member is in a 
-  // base class or not, so treat this as a dependent implicit member reference.
-  if (ThisType->isDependentType())
-    return true;
+
+  // FIXME: this doesn't really work for overloaded lookups.
   
   QualType CtxType = Context.getTypeDeclType(cast<CXXRecordDecl>(Ctx));
   QualType ClassType

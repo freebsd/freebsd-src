@@ -66,31 +66,68 @@ Sema::DeclGroupPtrTy Sema::ConvertDeclToDeclGroup(DeclPtrTy Ptr) {
 /// and then return NULL.
 Sema::TypeTy *Sema::getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
                                 Scope *S, const CXXScopeSpec *SS,
-                                bool isClassName) {
-  // C++ [temp.res]p3:
-  //   A qualified-id that refers to a type and in which the
-  //   nested-name-specifier depends on a template-parameter (14.6.2)
-  //   shall be prefixed by the keyword typename to indicate that the
-  //   qualified-id denotes a type, forming an
-  //   elaborated-type-specifier (7.1.5.3).
-  //
-  // We therefore do not perform any name lookup if the result would
-  // refer to a member of an unknown specialization.
-  if (SS && isUnknownSpecialization(*SS)) {
-    if (!isClassName)
+                                bool isClassName,
+                                TypeTy *ObjectTypePtr) {
+  // Determine where we will perform name lookup.
+  DeclContext *LookupCtx = 0;
+  if (ObjectTypePtr) {
+    QualType ObjectType = QualType::getFromOpaquePtr(ObjectTypePtr);
+    if (ObjectType->isRecordType())
+      LookupCtx = computeDeclContext(ObjectType);
+  } else if (SS && SS->isSet()) {
+    LookupCtx = computeDeclContext(*SS, false);
+
+    if (!LookupCtx) {
+      if (isDependentScopeSpecifier(*SS)) {
+        // C++ [temp.res]p3:
+        //   A qualified-id that refers to a type and in which the
+        //   nested-name-specifier depends on a template-parameter (14.6.2)
+        //   shall be prefixed by the keyword typename to indicate that the
+        //   qualified-id denotes a type, forming an
+        //   elaborated-type-specifier (7.1.5.3).
+        //
+        // We therefore do not perform any name lookup if the result would
+        // refer to a member of an unknown specialization.
+        if (!isClassName)
+          return 0;
+        
+        // We know from the grammar that this name refers to a type, so build a
+        // TypenameType node to describe the type.
+        // FIXME: Record somewhere that this TypenameType node has no "typename"
+        // keyword associated with it.
+        return CheckTypenameType((NestedNameSpecifier *)SS->getScopeRep(),
+                                 II, SS->getRange()).getAsOpaquePtr();
+      }
+      
       return 0;
-
-    // We know from the grammar that this name refers to a type, so build a
-    // TypenameType node to describe the type.
-    // FIXME: Record somewhere that this TypenameType node has no "typename"
-    // keyword associated with it.
-    return CheckTypenameType((NestedNameSpecifier *)SS->getScopeRep(),
-                             II, SS->getRange()).getAsOpaquePtr();
+    }
+    
+    if (!LookupCtx->isDependentContext() && RequireCompleteDeclContext(*SS))
+      return 0;
   }
-
+      
   LookupResult Result(*this, &II, NameLoc, LookupOrdinaryName);
-  LookupParsedName(Result, S, SS, false);
+  if (LookupCtx) {
+    // Perform "qualified" name lookup into the declaration context we
+    // computed, which is either the type of the base of a member access
+    // expression or the declaration context associated with a prior
+    // nested-name-specifier.
+    LookupQualifiedName(Result, LookupCtx);
 
+    if (ObjectTypePtr && Result.empty()) {
+      // C++ [basic.lookup.classref]p3:
+      //   If the unqualified-id is ~type-name, the type-name is looked up
+      //   in the context of the entire postfix-expression. If the type T of 
+      //   the object expression is of a class type C, the type-name is also
+      //   looked up in the scope of class C. At least one of the lookups shall
+      //   find a name that refers to (possibly cv-qualified) T.
+      LookupName(Result, S);
+    }
+  } else {
+    // Perform unqualified name lookup.
+    LookupName(Result, S);
+  }
+  
   NamedDecl *IIDecl = 0;
   switch (Result.getResultKind()) {
   case LookupResult::NotFound:
@@ -364,37 +401,6 @@ void Sema::PushOnScopeChains(NamedDecl *D, Scope *S, bool AddToContext) {
 }
 
 bool Sema::isDeclInScope(NamedDecl *&D, DeclContext *Ctx, Scope *S) {
-  if (OverloadedFunctionDecl *Ovl = dyn_cast<OverloadedFunctionDecl>(D)) {
-    // Look inside the overload set to determine if any of the declarations
-    // are in scope. (Possibly) build a new overload set containing only
-    // those declarations that are in scope.
-    OverloadedFunctionDecl *NewOvl = 0;
-    bool FoundInScope = false;
-    for (OverloadedFunctionDecl::function_iterator F = Ovl->function_begin(),
-         FEnd = Ovl->function_end();
-         F != FEnd; ++F) {
-      NamedDecl *FD = F->get();
-      if (!isDeclInScope(FD, Ctx, S)) {
-        if (!NewOvl && F != Ovl->function_begin()) {
-          NewOvl = OverloadedFunctionDecl::Create(Context, 
-                                                  F->get()->getDeclContext(),
-                                                  F->get()->getDeclName());
-          D = NewOvl;
-          for (OverloadedFunctionDecl::function_iterator 
-               First = Ovl->function_begin();
-               First != F; ++First)
-            NewOvl->addOverload(*First);
-        }
-      } else {
-        FoundInScope = true;
-        if (NewOvl)
-          NewOvl->addOverload(*F);
-      }
-    }
-    
-    return FoundInScope;
-  }
-  
   return IdResolver.isDeclInScope(D, Ctx, Context, S);
 }
 
@@ -644,7 +650,9 @@ void Sema::MergeTypeDefDecl(TypedefDecl *New, LookupResult &OldDecls) {
     case 3:
       if (!TypeID->isStr("SEL"))
         break;
-      Context.setObjCSelType(Context.getTypeDeclType(New));
+      Context.ObjCSelRedefinitionType = New->getUnderlyingType();
+      // Install the built-in type for 'SEL', ignoring the current definition.
+      New->setTypeForDecl(Context.getObjCSelType().getTypePtr());
       return;
     case 8:
       if (!TypeID->isStr("Protocol"))
@@ -766,9 +774,6 @@ struct GNUCompatibleParamWarning {
 ///
 /// Returns true if there was an error, false otherwise.
 bool Sema::MergeFunctionDecl(FunctionDecl *New, Decl *OldD) {
-  assert(!isa<OverloadedFunctionDecl>(OldD) &&
-         "Cannot merge with an overloaded function declaration");
-
   // Verify the old decl was also a function.
   FunctionDecl *Old = 0;
   if (FunctionTemplateDecl *OldFunctionTemplate
@@ -1718,22 +1723,26 @@ DeclarationName Sema::GetNameForDeclarator(Declarator &D) {
 }
 
 /// \brief Retrieves the canonicalized name from a parsed unqualified-id.
-DeclarationName Sema::GetNameFromUnqualifiedId(UnqualifiedId &Name) {
+DeclarationName Sema::GetNameFromUnqualifiedId(const UnqualifiedId &Name) {
   switch (Name.getKind()) {
     case UnqualifiedId::IK_Identifier:
       return DeclarationName(Name.Identifier);
       
     case UnqualifiedId::IK_OperatorFunctionId:
       return Context.DeclarationNames.getCXXOperatorName(
-                                                         Name.OperatorFunctionId.Operator);
-      
+                                              Name.OperatorFunctionId.Operator);
+
+    case UnqualifiedId::IK_LiteralOperatorId:
+      return Context.DeclarationNames.getCXXLiteralOperatorName(
+                                                               Name.Identifier);
+
     case UnqualifiedId::IK_ConversionFunctionId: {
       QualType Ty = GetTypeFromParser(Name.ConversionFunctionId);
       if (Ty.isNull())
         return DeclarationName();
       
       return Context.DeclarationNames.getCXXConversionFunctionName(
-                                                                   Context.getCanonicalType(Ty));
+                                                  Context.getCanonicalType(Ty));
     }
       
     case UnqualifiedId::IK_ConstructorName: {
@@ -1742,7 +1751,7 @@ DeclarationName Sema::GetNameFromUnqualifiedId(UnqualifiedId &Name) {
         return DeclarationName();
       
       return Context.DeclarationNames.getCXXConstructorName(
-                                                            Context.getCanonicalType(Ty));
+                                                  Context.getCanonicalType(Ty));
     }
       
     case UnqualifiedId::IK_DestructorName: {
@@ -2194,8 +2203,6 @@ isOutOfScopePreviousDeclaration(NamedDecl *PrevDecl, DeclContext *DC,
   if (!PrevDecl)
     return 0;
 
-  // FIXME: PrevDecl could be an OverloadedFunctionDecl, in which
-  // case we need to check each of the overloaded functions.
   if (!PrevDecl->hasLinkage())
     return false;
 
@@ -2364,8 +2371,7 @@ Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   if (Expr *E = (Expr*) D.getAsmLabel()) {
     // The parser guarantees this is a string.
     StringLiteral *SE = cast<StringLiteral>(E);
-    NewVD->addAttr(::new (Context) AsmLabelAttr(std::string(SE->getStrData(),
-                                                        SE->getByteLength())));
+    NewVD->addAttr(::new (Context) AsmLabelAttr(SE->getString()));
   }
 
   // Don't consider existing declarations that are in a different
@@ -2548,10 +2554,22 @@ static bool FindOverriddenMethod(const CXXBaseSpecifier *Specifier,
                                  CXXBasePath &Path,
                                  void *UserData) {
   RecordDecl *BaseRecord = Specifier->getType()->getAs<RecordType>()->getDecl();
-  
+
   FindOverriddenMethodData *Data 
     = reinterpret_cast<FindOverriddenMethodData*>(UserData);
-  for (Path.Decls = BaseRecord->lookup(Data->Method->getDeclName());
+  
+  DeclarationName Name = Data->Method->getDeclName();
+  
+  // FIXME: Do we care about other names here too?
+  if (Name.getNameKind() == DeclarationName::CXXDestructorName) {
+    // We really want to find the base class constructor here.
+    QualType T = Data->S->Context.getTypeDeclType(BaseRecord);
+    CanQualType CT = Data->S->Context.getCanonicalType(T);
+    
+    Name = Data->S->Context.DeclarationNames.getCXXDestructorName(CT);
+  }    
+  
+  for (Path.Decls = BaseRecord->lookup(Name);
        Path.Decls.first != Path.Decls.second;
        ++Path.Decls.first) {
     if (CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(*Path.Decls.first)) {
@@ -2576,7 +2594,8 @@ void Sema::AddOverriddenMethods(CXXRecordDecl *DC, CXXMethodDecl *MD) {
          E = Paths.found_decls_end(); I != E; ++I) {
       if (CXXMethodDecl *OldMD = dyn_cast<CXXMethodDecl>(*I)) {
         if (!CheckOverridingFunctionReturnType(MD, OldMD) &&
-            !CheckOverridingFunctionExceptionSpec(MD, OldMD))
+            !CheckOverridingFunctionExceptionSpec(MD, OldMD) &&
+            !CheckOverridingFunctionAttributes(MD, OldMD))
           MD->addOverriddenMethod(OldMD);
       }
     }
@@ -2846,7 +2865,6 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     NewFD->setAccess(AS_public);
   }
 
-
   if (CXXMethodDecl *NewMD = dyn_cast<CXXMethodDecl>(NewFD))
     AddOverriddenMethods(cast<CXXRecordDecl>(DC), NewMD);
 
@@ -2869,8 +2887,7 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   if (Expr *E = (Expr*) D.getAsmLabel()) {
     // The parser guarantees this is a string.
     StringLiteral *SE = cast<StringLiteral>(E);
-    NewFD->addAttr(::new (Context) AsmLabelAttr(std::string(SE->getStrData(),
-                                                        SE->getByteLength())));
+    NewFD->addAttr(::new (Context) AsmLabelAttr(SE->getString()));
   }
 
   // Copy the parameter declarations from the declarator D to the function
@@ -2935,10 +2952,11 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   // If the declarator is a template-id, translate the parser's template 
   // argument list into our AST format.
   bool HasExplicitTemplateArgs = false;
-  llvm::SmallVector<TemplateArgumentLoc, 16> TemplateArgs;
-  SourceLocation LAngleLoc, RAngleLoc;
+  TemplateArgumentListInfo TemplateArgs;
   if (D.getName().getKind() == UnqualifiedId::IK_TemplateId) {
     TemplateIdAnnotation *TemplateId = D.getName().TemplateId;
+    TemplateArgs.setLAngleLoc(TemplateId->LAngleLoc);
+    TemplateArgs.setRAngleLoc(TemplateId->RAngleLoc);
     ASTTemplateArgsPtr TemplateArgsPtr(*this,
                                        TemplateId->getTemplateArgs(),
                                        TemplateId->NumArgs);
@@ -2947,8 +2965,6 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     TemplateArgsPtr.release();
     
     HasExplicitTemplateArgs = true;
-    LAngleLoc = TemplateId->LAngleLoc;
-    RAngleLoc = TemplateId->RAngleLoc;
     
     if (FunctionTemplate) {
       // FIXME: Diagnose function template with explicit template
@@ -2970,9 +2986,8 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   }
 
   if (isFunctionTemplateSpecialization) {
-      if (CheckFunctionTemplateSpecialization(NewFD, HasExplicitTemplateArgs,
-                                              LAngleLoc, TemplateArgs.data(),
-                                              TemplateArgs.size(), RAngleLoc,
+      if (CheckFunctionTemplateSpecialization(NewFD,
+                               (HasExplicitTemplateArgs ? &TemplateArgs : 0),
                                               Previous))
         NewFD->setInvalidDecl();
   } else if (isExplicitSpecialization && isa<CXXMethodDecl>(NewFD) &&
@@ -2987,6 +3002,16 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   assert((NewFD->isInvalidDecl() || !Redeclaration ||
           Previous.getResultKind() != LookupResult::FoundOverloaded) &&
          "previous declaration set still overloaded");
+
+  // If we have a function template, check the template parameter
+  // list. This will check and merge default template arguments.
+  if (FunctionTemplate) {
+    FunctionTemplateDecl *PrevTemplate = FunctionTemplate->getPreviousDeclaration();
+    CheckTemplateParameterList(FunctionTemplate->getTemplateParameters(),
+                      PrevTemplate? PrevTemplate->getTemplateParameters() : 0,
+             D.getDeclSpec().isFriendSpecified()? TPC_FriendFunctionTemplate
+                                                : TPC_FunctionTemplate);
+  }
 
   if (D.getCXXScopeSpec().isSet() && !NewFD->isInvalidDecl()) {
     // An out-of-line member function declaration must also be a

@@ -1,5 +1,5 @@
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify -fobjc-gc-only %s
-// RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -fobjc-gc-only -verify %s
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=basic -verify -fobjc-gc-only -fblocks %s
+// RUN: clang-cc -analyze -checker-cfref -analyzer-store=region -fobjc-gc-only -fblocks -verify %s
 
 //===----------------------------------------------------------------------===//
 // Header stuff.
@@ -93,6 +93,7 @@ typedef struct _NSZone NSZone;
 + (id)alloc;
 - (void)dealloc;
 - (void)release;
+- (id)copy;
 @end
 @interface NSObject (NSCoderMethods)
 - (id)awakeAfterUsingCoder:(NSCoder *)aDecoder;
@@ -330,6 +331,17 @@ void rdar_7174400(QCView *view, QCRenderer *renderer, CIContext *context,
 void rdar_6250216(void) {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     [pool release]; // expected-warning{{Use -drain instead of -release when using NSAutoreleasePool and garbage collection}}
+}
+
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7407273> Don't crash when analyzing messages sent to blocks
+//===----------------------------------------------------------------------===//
+
+@class RDar7407273;
+typedef void (^RDar7407273Block)(RDar7407273 *operation);
+void rdar7407273(RDar7407273Block b) {
+  [b copy];
 }
 
 //===----------------------------------------------------------------------===//

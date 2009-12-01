@@ -33,7 +33,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Allocator.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <functional>
@@ -264,8 +263,21 @@ public:
   const llvm::APSInt *getSymVal(SymbolRef sym);
 
   bool scanReachableSymbols(SVal val, SymbolVisitor& visitor) const;
+  
+  bool scanReachableSymbols(const SVal *I, const SVal *E,
+                            SymbolVisitor &visitor) const;
+  
+  bool scanReachableSymbols(const MemRegion * const *I, 
+                            const MemRegion * const *E,
+                            SymbolVisitor &visitor) const;
 
   template <typename CB> CB scanReachableSymbols(SVal val) const;
+  template <typename CB> CB scanReachableSymbols(const SVal *beg,
+                                                 const SVal *end) const;
+  
+  template <typename CB> CB
+  scanReachableSymbols(const MemRegion * const *beg,
+                       const MemRegion * const *end) const;
 
   //==---------------------------------------------------------------------==//
   // Accessing the Generic Data Map (GDM).
@@ -726,7 +738,21 @@ CB GRState::scanReachableSymbols(SVal val) const {
   scanReachableSymbols(val, cb);
   return cb;
 }
+  
+template <typename CB>
+CB GRState::scanReachableSymbols(const SVal *beg, const SVal *end) const {
+  CB cb(this);
+  scanReachableSymbols(beg, end, cb);
+  return cb;
+}
 
+template <typename CB>
+CB GRState::scanReachableSymbols(const MemRegion * const *beg,
+                                 const MemRegion * const *end) const {
+  CB cb(this);
+  scanReachableSymbols(beg, end, cb);
+  return cb;
+}
 } // end clang namespace
 
 #endif

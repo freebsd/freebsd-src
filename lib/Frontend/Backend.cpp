@@ -25,12 +25,9 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/StandardPasses.h"
 #include "llvm/Support/Timer.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Program.h"
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
@@ -39,10 +36,11 @@ using namespace clang;
 using namespace llvm;
 
 namespace {
-  class VISIBILITY_HIDDEN BackendConsumer : public ASTConsumer {
+  class BackendConsumer : public ASTConsumer {
     BackendAction Action;
-    CodeGenOptions CodeGenOpts;
-    TargetOptions TargetOpts;
+    const CodeGenOptions &CodeGenOpts;
+    const LangOptions &LangOpts;
+    const TargetOptions &TargetOpts;
     llvm::raw_ostream *AsmOutStream;
     llvm::formatted_raw_ostream FormattedOutStream;
     ASTContext *Context;
@@ -78,10 +76,12 @@ namespace {
   public:
     BackendConsumer(BackendAction action, Diagnostic &Diags,
                     const LangOptions &langopts, const CodeGenOptions &compopts,
-                    const TargetOptions &targetopts, const std::string &infile,
-                    llvm::raw_ostream* OS, LLVMContext& C) :
+                    const TargetOptions &targetopts, bool TimePasses,
+                    const std::string &infile, llvm::raw_ostream *OS,
+                    LLVMContext& C) :
       Action(action),
       CodeGenOpts(compopts),
+      LangOpts(langopts),
       TargetOpts(targetopts),
       AsmOutStream(OS),
       LLVMIRGeneration("LLVM IR Generation Time"),
@@ -94,8 +94,7 @@ namespace {
         FormattedOutStream.setStream(*AsmOutStream,
                                      formatted_raw_ostream::PRESERVE_STREAM);
 
-      // Enable -time-passes if -ftime-report is enabled.
-      llvm::TimePassesIsEnabled = CodeGenOpts.TimePasses;
+      llvm::TimePassesIsEnabled = TimePasses;
     }
 
     ~BackendConsumer() {
@@ -109,7 +108,7 @@ namespace {
     virtual void Initialize(ASTContext &Ctx) {
       Context = &Ctx;
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.startTimer();
 
       Gen->Initialize(Ctx);
@@ -118,7 +117,7 @@ namespace {
       ModuleProvider = new ExistingModuleProvider(TheModule);
       TheTargetData = new llvm::TargetData(Ctx.Target.getTargetDescription());
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.stopTimer();
     }
 
@@ -127,24 +126,24 @@ namespace {
                                      Context->getSourceManager(),
                                      "LLVM IR generation of declaration");
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.startTimer();
 
       Gen->HandleTopLevelDecl(D);
 
-      if (CodeGenOpts.TimePasses)
+      if (llvm::TimePassesIsEnabled)
         LLVMIRGeneration.stopTimer();
     }
 
     virtual void HandleTranslationUnit(ASTContext &C) {
       {
         PrettyStackTraceString CrashInfo("Per-file LLVM IR generation");
-        if (CodeGenOpts.TimePasses)
+        if (llvm::TimePassesIsEnabled)
           LLVMIRGeneration.startTimer();
 
         Gen->HandleTranslationUnit(C);
 
-        if (CodeGenOpts.TimePasses)
+        if (llvm::TimePassesIsEnabled)
           LLVMIRGeneration.stopTimer();
       }
 
@@ -215,11 +214,50 @@ bool BackendConsumer::AddEmitPasses(std::string &Error) {
       return false;
     }
 
+    // FIXME: Expose these capabilities via actual APIs!!!! Aside from just
+    // being gross, this is also totally broken if we ever care about
+    // concurrency.
+    std::vector<const char *> BackendArgs;
+    BackendArgs.push_back("clang"); // Fake program name.
+    if (CodeGenOpts.AsmVerbose)
+      BackendArgs.push_back("-asm-verbose");
+    if (!CodeGenOpts.CodeModel.empty()) {
+      BackendArgs.push_back("-code-model");
+      BackendArgs.push_back(CodeGenOpts.CodeModel.c_str());
+    }
+    if (!CodeGenOpts.DebugPass.empty()) {
+      BackendArgs.push_back("-debug-pass");
+      BackendArgs.push_back(CodeGenOpts.DebugPass.c_str());
+    }
+    if (CodeGenOpts.DisableFPElim)
+      BackendArgs.push_back("-disable-fp-elim");
+    if (!CodeGenOpts.FloatABI.empty()) {
+      BackendArgs.push_back("-float-abi");
+      BackendArgs.push_back(CodeGenOpts.FloatABI.c_str());
+    }
+    if (!CodeGenOpts.LimitFloatPrecision.empty()) {
+      BackendArgs.push_back("-limit-float-precision");
+      BackendArgs.push_back(CodeGenOpts.LimitFloatPrecision.c_str());
+    }
+    if (CodeGenOpts.NoZeroInitializedInBSS)
+      BackendArgs.push_back("-nozero-initialized-in-bss");
+    if (CodeGenOpts.SoftFloat)
+      BackendArgs.push_back("-soft-float");
+    BackendArgs.push_back("-relocation-model");
+    BackendArgs.push_back(CodeGenOpts.RelocationModel.c_str());
+    if (llvm::TimePassesIsEnabled)
+      BackendArgs.push_back("-time-passes");
+    if (CodeGenOpts.UnwindTables)
+      BackendArgs.push_back("-unwind-tables");
+    BackendArgs.push_back(0);
+    llvm::cl::ParseCommandLineOptions(BackendArgs.size() - 1,
+                                      (char**) &BackendArgs[0]);
+
     std::string FeaturesStr;
     if (TargetOpts.CPU.size() || TargetOpts.Features.size()) {
       SubtargetFeatures Features;
       Features.setCPU(TargetOpts.CPU);
-      for (std::vector<std::string>::iterator
+      for (std::vector<std::string>::const_iterator
              it = TargetOpts.Features.begin(),
              ie = TargetOpts.Features.end(); it != ie; ++it)
         Features.AddFeature(*it);
@@ -306,7 +344,7 @@ void BackendConsumer::CreatePasses() {
   llvm::createStandardModulePasses(PM, OptLevel, CodeGenOpts.OptimizeSize,
                                    CodeGenOpts.UnitAtATime,
                                    CodeGenOpts.UnrollLoops,
-                                   CodeGenOpts.SimplifyLibCalls,
+                                   /*SimplifyLibCalls=*/!LangOpts.NoBuiltin,
                                    /*HaveExceptions=*/true,
                                    InliningPass);
 }
@@ -318,7 +356,7 @@ void BackendConsumer::EmitAssembly() {
   if (!TheModule || !TheTargetData)
     return;
 
-  TimeRegion Region(CodeGenOpts.TimePasses ? &CodeGenerationTime : 0);
+  TimeRegion Region(llvm::TimePassesIsEnabled ? &CodeGenerationTime : 0);
 
   // Make sure IR generation is happy with the module. This is
   // released by the module provider.
@@ -375,9 +413,10 @@ ASTConsumer *clang::CreateBackendConsumer(BackendAction Action,
                                           const LangOptions &LangOpts,
                                           const CodeGenOptions &CodeGenOpts,
                                           const TargetOptions &TargetOpts,
+                                          bool TimePasses,
                                           const std::string& InFile,
                                           llvm::raw_ostream* OS,
                                           LLVMContext& C) {
   return new BackendConsumer(Action, Diags, LangOpts, CodeGenOpts,
-                             TargetOpts, InFile, OS, C);
+                             TargetOpts, TimePasses, InFile, OS, C);
 }

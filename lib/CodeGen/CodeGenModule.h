@@ -231,15 +231,16 @@ public:
   llvm::Constant *GenerateRttiRef(const CXXRecordDecl *RD);
   /// GenerateRttiNonClass - Generate the rtti information for the given
   /// non-class type.
-  llvm::Constant *GenerateRttiNonClass(QualType Ty);
+  llvm::Constant *GenerateRtti(QualType Ty);
 
-  /// BuildThunk - Build a thunk for the given method
-  llvm::Constant *BuildThunk(const CXXMethodDecl *MD, bool Extern, int64_t nv,
-                             int64_t v);
+  /// BuildThunk - Build a thunk for the given method.
+  llvm::Constant *BuildThunk(const CXXMethodDecl *MD, bool Extern, 
+                             const ThunkAdjustment &ThisAdjustment);
+
   /// BuildCoVariantThunk - Build a thunk for the given method
-  llvm::Constant *BuildCovariantThunk(const CXXMethodDecl *MD, bool Extern,
-                                      int64_t nv_t, int64_t v_t,
-                                      int64_t nv_r, int64_t v_r);
+  llvm::Constant *
+  BuildCovariantThunk(const CXXMethodDecl *MD, bool Extern,
+                      const CovariantThunkAdjustment &Adjustment);
 
   typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
   typedef llvm::DenseMap<const CXXRecordDecl *,
@@ -427,9 +428,6 @@ private:
   llvm::Constant *GetOrCreateLLVMGlobal(const char *MangledName,
                                         const llvm::PointerType *PTy,
                                         const VarDecl *D);
-  void DeferredCopyConstructorToEmit(GlobalDecl D);
-  void DeferredCopyAssignmentToEmit(GlobalDecl D);
-  void DeferredDestructorToEmit(GlobalDecl D);
 
   /// SetCommonAttributes - Set attributes which are common to any
   /// form of a global definition (alias, Objective-C method,

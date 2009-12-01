@@ -23,7 +23,7 @@
 #include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
-  class raw_ostream;
+  template<typename T> class SmallVectorImpl;
 }
 
 namespace clang {
@@ -34,50 +34,59 @@ namespace clang {
   class NamedDecl;
   class VarDecl;
 
-  class MangleContext {
-    ASTContext &Context;
-    
-    llvm::DenseMap<const TagDecl *, uint64_t> AnonStructIds;
+namespace CodeGen {
+  class CovariantThunkAdjustment;
+  class ThunkAdjustment;
+   
+/// MangleContext - Context for tracking state which persists across multiple
+/// calls to the C++ name mangler.
+class MangleContext {
+  ASTContext &Context;
 
-  public:
-    explicit MangleContext(ASTContext &Context)
+  llvm::DenseMap<const TagDecl *, uint64_t> AnonStructIds;
+
+public:
+  explicit MangleContext(ASTContext &Context)
     : Context(Context) { }
-    
-    ASTContext &getASTContext() const { return Context; }
-    
-    uint64_t getAnonymousStructId(const TagDecl *TD) {
-      std::pair<llvm::DenseMap<const TagDecl *, 
-                               uint64_t>::iterator, bool> Result =
-      AnonStructIds.insert(std::make_pair(TD, AnonStructIds.size()));
-      return Result.first->second;
-    }
-  };
 
-  bool mangleName(MangleContext &Context, const NamedDecl *D,
-                  llvm::raw_ostream &os);
-  void mangleThunk(MangleContext &Context, const FunctionDecl *FD, 
-                   int64_t n, int64_t vn, llvm::raw_ostream &os);
-  void mangleCovariantThunk(MangleContext &Context, const FunctionDecl *FD, 
-                            int64_t nv_t, int64_t v_t,
-                            int64_t nv_r, int64_t v_r,
-                            llvm::raw_ostream &os);
-  void mangleGuardVariable(MangleContext &Context, const VarDecl *D,
-                           llvm::raw_ostream &os);
-  void mangleCXXVtable(MangleContext &Context, const CXXRecordDecl *RD,
-                       llvm::raw_ostream &os);
-  void mangleCXXVTT(MangleContext &Context, const CXXRecordDecl *RD,
-                       llvm::raw_ostream &os);
-  void mangleCXXCtorVtable(MangleContext &Context, const CXXRecordDecl *RD,
-                           int64_t Offset, const CXXRecordDecl *Type,
-                       llvm::raw_ostream &os);
-  void mangleCXXRtti(MangleContext &Context, QualType T, 
-                     llvm::raw_ostream &os);
-  void mangleCXXRttiName(MangleContext &Context, QualType T, 
-                         llvm::raw_ostream &os);
-  void mangleCXXCtor(MangleContext &Context, const CXXConstructorDecl *D, 
-                     CXXCtorType Type, llvm::raw_ostream &os);
-  void mangleCXXDtor(MangleContext &Context, const CXXDestructorDecl *D, 
-                     CXXDtorType Type, llvm::raw_ostream &os);  
+  ASTContext &getASTContext() const { return Context; }
+
+  uint64_t getAnonymousStructId(const TagDecl *TD) {
+    std::pair<llvm::DenseMap<const TagDecl *,
+      uint64_t>::iterator, bool> Result =
+      AnonStructIds.insert(std::make_pair(TD, AnonStructIds.size()));
+    return Result.first->second;
+  }
+
+  /// @name Mangler Entry Points
+  /// @{
+
+  bool shouldMangleDeclName(const NamedDecl *D);
+
+  void mangleName(const NamedDecl *D, llvm::SmallVectorImpl<char> &);
+  void mangleThunk(const FunctionDecl *FD, 
+                   const ThunkAdjustment &ThisAdjustment,
+                   llvm::SmallVectorImpl<char> &);
+  void mangleCovariantThunk(const FunctionDecl *FD, 
+                            const CovariantThunkAdjustment& Adjustment,
+                            llvm::SmallVectorImpl<char> &);
+  void mangleGuardVariable(const VarDecl *D, llvm::SmallVectorImpl<char> &);
+  void mangleCXXVtable(const CXXRecordDecl *RD, llvm::SmallVectorImpl<char> &);
+  void mangleCXXVTT(const CXXRecordDecl *RD, llvm::SmallVectorImpl<char> &);
+  void mangleCXXCtorVtable(const CXXRecordDecl *RD, int64_t Offset,
+                           const CXXRecordDecl *Type,
+                           llvm::SmallVectorImpl<char> &);
+  void mangleCXXRtti(QualType T, llvm::SmallVectorImpl<char> &);
+  void mangleCXXRttiName(QualType T, llvm::SmallVectorImpl<char> &);
+  void mangleCXXCtor(const CXXConstructorDecl *D, CXXCtorType Type,
+                     llvm::SmallVectorImpl<char> &);
+  void mangleCXXDtor(const CXXDestructorDecl *D, CXXDtorType Type,
+                     llvm::SmallVectorImpl<char> &);
+
+  /// @}
+};
+  
+}
 }
 
 #endif

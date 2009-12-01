@@ -21,11 +21,18 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
+#include "clang/Driver/Arg.h"
+#include "clang/Driver/ArgList.h"
+#include "clang/Driver/CC1Options.h"
+#include "clang/Driver/DriverDiagnostic.h"
+#include "clang/Driver/OptTable.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
+#include "clang/Frontend/TextDiagnosticBuffer.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Frontend/VerifyDiagnosticsClient.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -39,6 +46,7 @@
 #include "llvm/System/Path.h"
 #include "llvm/System/Signals.h"
 #include "llvm/Target/TargetSelect.h"
+#include <cstdio>
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -72,11 +80,6 @@ static void LLVMErrorHandler(void *UserData, const std::string &Message) {
   // We cannot recover from llvm errors.
   exit(1);
 }
-
-/// ClangFrontendTimer - The front-end activities should charge time to it with
-/// TimeRegion.  The -ftime-report option controls whether this will do
-/// anything.
-llvm::Timer *ClangFrontendTimer = 0;
 
 static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
   using namespace clang::frontend;
@@ -139,17 +142,10 @@ static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
   }
 }
 
-static TargetInfo *
-ConstructCompilerInvocation(CompilerInvocation &Opts, Diagnostic &Diags,
-                            const char *Argv0, bool &IsAST) {
+static bool ConstructCompilerInvocation(CompilerInvocation &Opts,
+                                        Diagnostic &Diags, const char *Argv0) {
   // Initialize target options.
   InitializeTargetOptions(Opts.getTargetOpts());
-
-  // Get information about the target being compiled for.
-  llvm::OwningPtr<TargetInfo> Target(
-    TargetInfo::CreateTargetInfo(Diags, Opts.getTargetOpts()));
-  if (!Target)
-    return 0;
 
   // Initialize frontend options.
   InitializeFrontendOptions(Opts.getFrontendOpts());
@@ -160,7 +156,7 @@ ConstructCompilerInvocation(CompilerInvocation &Opts, Diagnostic &Diags,
     if (Opts.getFrontendOpts().Inputs[i].first != IK) {
       llvm::errs() << "error: cannot have multiple input files of distinct "
                    << "language kinds without -x\n";
-      return 0;
+      return false;
     }
   }
 
@@ -168,9 +164,8 @@ ConstructCompilerInvocation(CompilerInvocation &Opts, Diagnostic &Diags,
   //
   // FIXME: These aren't used during operations on ASTs. Split onto a separate
   // code path to make this obvious.
-  IsAST = (IK == FrontendOptions::IK_AST);
-  if (!IsAST)
-    InitializeLangOptions(Opts.getLangOpts(), IK, *Target);
+  if (IK != FrontendOptions::IK_AST)
+    InitializeLangOptions(Opts.getLangOpts(), IK);
 
   // Initialize the static analyzer options.
   InitializeAnalyzerOptions(Opts.getAnalyzerOpts());
@@ -188,12 +183,78 @@ ConstructCompilerInvocation(CompilerInvocation &Opts, Diagnostic &Diags,
   // Initialize the preprocessed output options.
   InitializePreprocessorOutputOptions(Opts.getPreprocessorOutputOpts());
 
-  // Initialize backend options, which may also be used to key some language
-  // options.
-  InitializeCodeGenOptions(Opts.getCodeGenOpts(), Opts.getLangOpts(),
-                           Opts.getFrontendOpts().ShowTimers);
+  // Initialize backend options.
+  InitializeCodeGenOptions(Opts.getCodeGenOpts(), Opts.getLangOpts());
 
-  return Target.take();
+  return true;
+}
+
+static int cc1_main(Diagnostic &Diags,
+                    const char **ArgBegin, const char **ArgEnd,
+                    const char *Argv0, void *MainAddr) {
+  using namespace clang::driver;
+
+  llvm::errs() << "cc1 argv:";
+  for (const char **i = ArgBegin; i != ArgEnd; ++i)
+    llvm::errs() << " \"" << *i << '"';
+  llvm::errs() << "\n";
+
+  // Parse the arguments.
+  OptTable *Opts = createCC1OptTable();
+  unsigned MissingArgIndex, MissingArgCount;
+  InputArgList *Args = Opts->ParseArgs(ArgBegin, ArgEnd,
+                                       MissingArgIndex, MissingArgCount);
+
+  // Check for missing argument error.
+  if (MissingArgCount)
+    Diags.Report(clang::diag::err_drv_missing_argument)
+      << Args->getArgString(MissingArgIndex) << MissingArgCount;
+
+  // Dump the parsed arguments.
+  llvm::errs() << "cc1 parsed options:\n";
+  for (ArgList::const_iterator it = Args->begin(), ie = Args->end();
+       it != ie; ++it)
+    (*it)->dump();
+
+  // Create a compiler invocation.
+  llvm::errs() << "cc1 creating invocation.\n";
+  CompilerInvocation Invocation;
+  CompilerInvocation::CreateFromArgs(Invocation, ArgBegin, ArgEnd,
+                                     Argv0, MainAddr, Diags);
+
+  // Convert the invocation back to argument strings.
+  std::vector<std::string> InvocationArgs;
+  Invocation.toArgs(InvocationArgs);
+
+  // Dump the converted arguments.
+  llvm::SmallVector<const char*, 32> Invocation2Args;
+  llvm::errs() << "invocation argv :";
+  for (unsigned i = 0, e = InvocationArgs.size(); i != e; ++i) {
+    Invocation2Args.push_back(InvocationArgs[i].c_str());
+    llvm::errs() << " \"" << InvocationArgs[i] << '"';
+  }
+  llvm::errs() << "\n";
+
+  // Convert those arguments to another invocation, and check that we got the
+  // same thing.
+  CompilerInvocation Invocation2;
+  CompilerInvocation::CreateFromArgs(Invocation2, Invocation2Args.begin(),
+                                     Invocation2Args.end(), Argv0, MainAddr,
+                                     Diags);
+
+  // FIXME: Implement CompilerInvocation comparison.
+  if (true) {
+    //llvm::errs() << "warning: Invocations differ!\n";
+
+    std::vector<std::string> Invocation2Args;
+    Invocation2.toArgs(Invocation2Args);
+    llvm::errs() << "invocation2 argv:";
+    for (unsigned i = 0, e = Invocation2Args.size(); i != e; ++i)
+      llvm::errs() << " \"" << Invocation2Args[i] << '"';
+    llvm::errs() << "\n";
+  }
+
+  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -201,10 +262,19 @@ int main(int argc, char **argv) {
   llvm::PrettyStackTraceProgram X(argc, argv);
   CompilerInstance Clang(&llvm::getGlobalContext(), false);
 
+  // Run clang -cc1 test.
+  if (argc > 1 && llvm::StringRef(argv[1]) == "-cc1") {
+    TextDiagnosticPrinter DiagClient(llvm::errs(), DiagnosticOptions());
+    Diagnostic Diags(&DiagClient);
+    return cc1_main(Diags, (const char**) argv + 2, (const char**) argv + argc,
+                    argv[0], (void*) (intptr_t) GetBuiltinIncludePath);
+  }
+
   // Initialize targets first, so that --version shows registered targets.
   llvm::InitializeAllTargets();
   llvm::InitializeAllAsmPrinters();
 
+#if 1
   llvm::cl::ParseCommandLineOptions(argc, argv,
                               "LLVM 'Clang' Compiler: http://clang.llvm.org\n");
 
@@ -225,12 +295,48 @@ int main(int argc, char **argv) {
   //
   // FIXME: We should move .ast inputs to taking a separate path, they are
   // really quite different.
-  bool IsAST = false;
-  Clang.setTarget(
-    ConstructCompilerInvocation(Clang.getInvocation(), Clang.getDiagnostics(),
-                                argv[0], IsAST));
+  if (!ConstructCompilerInvocation(Clang.getInvocation(),
+                                   Clang.getDiagnostics(), argv[0]))
+    return 1;
+#else
+  // Buffer diagnostics from argument parsing.
+  TextDiagnosticBuffer DiagsBuffer;
+  Diagnostic Diags(&DiagsBuffer);
+
+  CompilerInvocation::CreateFromArgs(Clang.getInvocation(),
+                                     (const char**) argv + 1,
+                                     (const char**) argv + argc, argv[0],
+                                     (void*)(intptr_t) GetBuiltinIncludePath,
+                                     Diags);
+
+  // Create the actual diagnostics engine.
+  Clang.createDiagnostics(argc, argv);
+  if (!Clang.hasDiagnostics())
+    return 1;
+
+  // Set an error handler, so that any LLVM backend diagnostics go through our
+  // error handler.
+  llvm::llvm_install_error_handler(LLVMErrorHandler,
+                                   static_cast<void*>(&Clang.getDiagnostics()));
+
+  DiagsBuffer.FlushDiagnostics(Clang.getDiagnostics());
+
+  // If there were any errors in processing arguments, exit now.
+  if (Clang.getDiagnostics().getNumErrors())
+    return 1;
+#endif
+
+  // Create the target instance.
+  Clang.setTarget(TargetInfo::CreateTargetInfo(Clang.getDiagnostics(),
+                                               Clang.getTargetOpts()));
   if (!Clang.hasTarget())
     return 1;
+
+  // Inform the target of the language options
+  //
+  // FIXME: We shouldn't need to do this, the target should be immutable once
+  // created. This complexity should be lifted elsewhere.
+  Clang.getTarget().setForcedLangOptions(Clang.getLangOpts());
 
   // Validate/process some options
   if (Clang.getHeaderSearchOpts().Verbose)
@@ -239,19 +345,15 @@ int main(int argc, char **argv) {
                  << " hosted on " << llvm::sys::getHostTriple() << "\n";
 
   if (Clang.getFrontendOpts().ShowTimers)
-    ClangFrontendTimer = new llvm::Timer("Clang front-end time");
-
-  // Enforce certain implications.
-  if (!Clang.getFrontendOpts().ViewClassInheritance.empty())
-    Clang.getFrontendOpts().ProgramAction = frontend::InheritanceView;
-  if (!Clang.getFrontendOpts().FixItLocations.empty())
-    Clang.getFrontendOpts().ProgramAction = frontend::FixIt;
+    Clang.createFrontendTimer();
 
   for (unsigned i = 0, e = Clang.getFrontendOpts().Inputs.size(); i != e; ++i) {
     const std::string &InFile = Clang.getFrontendOpts().Inputs[i].second;
 
     // If we aren't using an AST file, setup the file and source managers and
     // the preprocessor.
+    bool IsAST =
+      Clang.getFrontendOpts().Inputs[i].first == FrontendOptions::IK_AST;
     if (!IsAST) {
       if (!i) {
         // Create a file manager object to provide access to and cache the
@@ -273,7 +375,6 @@ int main(int argc, char **argv) {
     if (!Act)
       break;
 
-    Act->setCurrentTimer(ClangFrontendTimer);
     if (Act->BeginSourceFile(Clang, InFile, IsAST)) {
       Act->Execute();
       Act->EndSourceFile();
@@ -289,8 +390,6 @@ int main(int argc, char **argv) {
     Clang.getFileManager().PrintStats();
     fprintf(stderr, "\n");
   }
-
-  delete ClangFrontendTimer;
 
   // Return the appropriate status when verifying diagnostics.
   //

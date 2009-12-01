@@ -1,5 +1,5 @@
-// RUN: clang-cc -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region --verify -fblocks %s
-// RUN: clang-cc -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref --analyzer-store=region --verify -fblocks %s
+// RUN: clang-cc -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks %s
+// RUN: clang-cc -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks %s
 
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -468,5 +468,76 @@ int pr3135() {
   if (pr3135_bar(&y) && x) // no-warning
     return 1;
   return 0;
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7403269> - Test that we handle compound initializers with
+// partially unspecified array values. Previously this caused a crash.
+//===----------------------------------------------------------------------===//
+
+typedef struct RDar7403269 {
+  unsigned x[10];
+  unsigned y;
+} RDar7403269;
+
+void rdar7403269() {
+  RDar7403269 z = { .y = 0 };
+  if (z.x[4] == 0)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning  
+}
+
+typedef struct RDar7403269_b {
+  struct zorg { int w; int k; } x[10];
+  unsigned y;
+} RDar7403269_b;
+
+void rdar7403269_b() {
+  RDar7403269_b z = { .y = 0 };
+  if (z.x[5].w == 0)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning
+}
+
+void rdar7403269_b_pos() {
+  RDar7403269_b z = { .y = 0 };
+  if (z.x[5].w == 1)
+    return;
+  int *p = 0;
+  *p = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+}
+
+
+//===----------------------------------------------------------------------===//
+// Test that incrementing a non-null pointer results in a non-null pointer.
+// (<rdar://problem/7191542>)
+//===----------------------------------------------------------------------===//
+
+void test_increment_nonnull_rdar_7191542(const char *path) {
+  const char *alf = 0;
+  
+  for (;;) {
+    // When using basic-store, we get a null dereference here because we lose information
+    // about path after the pointer increment.
+    char c = *path++; // no-warning
+    if (c == 'a') {
+      alf = path;
+    }
+    
+    if (alf)
+      return;
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Test that the store (implicitly) tracks values for doubles/floats that are
+// uninitialized (<rdar://problem/6811085>)
+//===----------------------------------------------------------------------===//
+
+double rdar_6811085(void) {
+  double u;
+  return u + 10; // expected-warning{{The left operand of '+' is a garbage value}}
 }
 

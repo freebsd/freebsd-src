@@ -18,12 +18,11 @@
 #include "clang/AST/Expr.h"
 #include "clang/Basic/PrettyStackTrace.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/Compiler.h"
 
 using namespace clang;
 
 namespace {
-  class VISIBILITY_HIDDEN TemplateDeclInstantiator
+  class TemplateDeclInstantiator
     : public DeclVisitor<TemplateDeclInstantiator, Decl *> {
     Sema &SemaRef;
     DeclContext *Owner;
@@ -205,6 +204,7 @@ Decl *TemplateDeclInstantiator::VisitVarDecl(VarDecl *D) {
       // we don't want to redo all the checking, especially since the
       // initializer might have been wrapped by a CXXConstructExpr since we did
       // it the first time.
+      Var->setType(D->getType());
       Var->setInit(SemaRef.Context, Init.takeAs<Expr>());
     }
     else if (ParenListExpr *PLE = dyn_cast<ParenListExpr>((Expr *)Init.get())) {
@@ -1153,11 +1153,12 @@ TemplateDeclInstantiator::InstantiateClassTemplatePartialSpecialization(
     = PartialSpec->getTemplateArgsAsWritten();
   unsigned N = PartialSpec->getNumTemplateArgsAsWritten();
 
-  llvm::SmallVector<TemplateArgumentLoc, 4> InstTemplateArgs(N);
+  TemplateArgumentListInfo InstTemplateArgs; // no angle locations
   for (unsigned I = 0; I != N; ++I) {
-    if (SemaRef.Subst(PartialSpecTemplateArgs[I], InstTemplateArgs[I],
-                      TemplateArgs))
+    TemplateArgumentLoc Loc;
+    if (SemaRef.Subst(PartialSpecTemplateArgs[I], Loc, TemplateArgs))
       return true;
+    InstTemplateArgs.addArgument(Loc);
   }
   
 
@@ -1167,10 +1168,7 @@ TemplateDeclInstantiator::InstantiateClassTemplatePartialSpecialization(
                                         InstTemplateArgs.size());
   if (SemaRef.CheckTemplateArgumentList(ClassTemplate, 
                                         PartialSpec->getLocation(),
-                                        /*FIXME:*/PartialSpec->getLocation(),
-                                        InstTemplateArgs.data(), 
-                                        InstTemplateArgs.size(),
-                                        /*FIXME:*/PartialSpec->getLocation(), 
+                                        InstTemplateArgs, 
                                         false,
                                         Converted))
     return true;
@@ -1203,8 +1201,7 @@ TemplateDeclInstantiator::InstantiateClassTemplatePartialSpecialization(
   // template arguments in the specialization.
   QualType WrittenTy
     = SemaRef.Context.getTemplateSpecializationType(TemplateName(ClassTemplate),
-                                                    InstTemplateArgs.data(),
-                                                    InstTemplateArgs.size(),
+                                                    InstTemplateArgs,
                                                     CanonType);
   
   if (PrevDecl) {
@@ -1238,8 +1235,7 @@ TemplateDeclInstantiator::InstantiateClassTemplatePartialSpecialization(
                                                      InstParams,
                                                      ClassTemplate, 
                                                      Converted,
-                                                     InstTemplateArgs.data(),
-                                                     InstTemplateArgs.size(),
+                                                     InstTemplateArgs,
                                                      0);
   InstPartialSpec->setInstantiatedFromMember(PartialSpec);
   InstPartialSpec->setTypeAsWritten(WrittenTy);
@@ -1887,22 +1883,6 @@ DeclContext *Sema::FindInstantiatedContext(DeclContext* DC,
 /// this mapping from within the instantiation of X<int>.
 NamedDecl *Sema::FindInstantiatedDecl(NamedDecl *D,
                           const MultiLevelTemplateArgumentList &TemplateArgs) {
-  if (OverloadedFunctionDecl *Ovl = dyn_cast<OverloadedFunctionDecl>(D)) {
-    // Transform all of the elements of the overloaded function set.
-    OverloadedFunctionDecl *Result
-      = OverloadedFunctionDecl::Create(Context, CurContext, Ovl->getDeclName());
-
-    for (OverloadedFunctionDecl::function_iterator F = Ovl->function_begin(),
-                                                FEnd = Ovl->function_end();
-         F != FEnd; ++F) {
-      Result->addOverload(
-        AnyFunctionDecl::getFromNamedDecl(FindInstantiatedDecl(*F,
-                                                               TemplateArgs)));
-    }
-
-    return Result;
-  }
-
   DeclContext *ParentDC = D->getDeclContext();
   if (isa<ParmVarDecl>(D) || isa<NonTypeTemplateParmDecl>(D) ||
       isa<TemplateTypeParmDecl>(D) || isa<TemplateTypeParmDecl>(D) ||

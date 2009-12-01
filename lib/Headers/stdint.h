@@ -214,18 +214,20 @@ typedef __uint_least8_t uint_fast8_t;
 /* C99 7.18.1.4 Integer types capable of holding object pointers.
  */
 #define __stdint_join3(a,b,c) a ## b ## c
-#define __stdint_exjoin3(a,b,c) __stdint_join3(a,b,c)
+
+#define  __intn_t(n) __stdint_join3( int, n, _t)
+#define __uintn_t(n) __stdint_join3(uint, n, _t)
 
 #ifndef __intptr_t_defined
-typedef __stdint_exjoin3( int, __INTPTR_WIDTH__, _t) intptr_t;
+typedef  __intn_t(__INTPTR_WIDTH__)  intptr_t;
 #define __intptr_t_defined
 #endif
-typedef __stdint_exjoin3(uint, __INTPTR_WIDTH__, _t) uintptr_t;
+typedef __uintn_t(__INTPTR_WIDTH__) uintptr_t;
 
 /* C99 7.18.1.5 Greatest-width integer types.
  */
-typedef __stdint_exjoin3( int, __INTMAX_WIDTH__, _t) intmax_t;
-typedef __stdint_exjoin3(uint, __INTMAX_WIDTH__, _t) uintmax_t;
+typedef  __intn_t(__INTMAX_WIDTH__)  intmax_t;
+typedef __uintn_t(__INTMAX_WIDTH__) uintmax_t;
 
 /* C99 7.18.4 Macros for minimum-width integer constants.
  *
@@ -602,57 +604,44 @@ typedef __stdint_exjoin3(uint, __INTMAX_WIDTH__, _t) uintmax_t;
 
 /* C99 7.18.2.4 Limits of integer types capable of holding object pointers. */
 /* C99 7.18.3 Limits of other integer types. */
+#define  __INTN_MIN(n) __stdint_join3( INT, n, _MIN)
+#define  __INTN_MAX(n) __stdint_join3( INT, n, _MAX)
+#define __UINTN_MAX(n) __stdint_join3(UINT, n, _MAX)
 
-#define  INTPTR_MIN __stdint_exjoin3( INT, __INTPTR_WIDTH__, _MIN)
-#define  INTPTR_MAX __stdint_exjoin3( INT, __INTPTR_WIDTH__, _MAX)
-#define UINTPTR_MAX __stdint_exjoin3(UINT, __INTPTR_WIDTH__, _MAX)
-
-#if __POINTER_WIDTH__ == 64
-
-#define PTRDIFF_MIN  INT64_MIN
-#define PTRDIFF_MAX  INT64_MAX
-#define SIZE_MAX    UINT64_MAX
-
-#elif __POINTER_WIDTH__ == 32
-
-#define PTRDIFF_MIN  INT32_MIN
-#define PTRDIFF_MAX  INT32_MAX
-#define SIZE_MAX    UINT32_MAX
-
-#elif __POINTER_WIDTH__ == 16
-
-#define PTRDIFF_MIN  INT16_MIN
-#define PTRDIFF_MAX  INT16_MAX
-#define SIZE_MAX    UINT16_MAX
-
-#else
-#error "unknown or unset pointer width!"
-#endif
+#define  INTPTR_MIN  __INTN_MIN(__INTPTR_WIDTH__)
+#define  INTPTR_MAX  __INTN_MAX(__INTPTR_WIDTH__)
+#define UINTPTR_MAX __UINTN_MAX(__INTPTR_WIDTH__)
+#define PTRDIFF_MIN  __INTN_MIN(__PTRDIFF_WIDTH__)
+#define PTRDIFF_MAX  __INTN_MAX(__PTRDIFF_WIDTH__)
+#define    SIZE_MAX __UINTN_MAX(__SIZE_WIDTH__)
 
 /* C99 7.18.2.5 Limits of greatest-width integer types. */
-#define INTMAX_MIN  __stdint_exjoin3( INT, __INTMAX_WIDTH__, _MIN)
-#define INTMAX_MAX  __stdint_exjoin3( INT, __INTMAX_WIDTH__, _MAX)
-#define UINTMAX_MAX __stdint_exjoin3(UINT, __INTMAX_WIDTH__, _MAX)
+#define INTMAX_MIN   __INTN_MIN(__INTMAX_WIDTH__)
+#define INTMAX_MAX   __INTN_MAX(__INTMAX_WIDTH__)
+#define UINTMAX_MAX __UINTN_MAX(__INTMAX_WIDTH__)
 
 /* C99 7.18.3 Limits of other integer types. */
-#define SIG_ATOMIC_MIN INT32_MIN
-#define SIG_ATOMIC_MAX INT32_MAX
-#define WINT_MIN       INT32_MIN
-#define WINT_MAX       INT32_MAX
+#define SIG_ATOMIC_MIN __INTN_MIN(__SIG_ATOMIC_WIDTH__)
+#define SIG_ATOMIC_MAX __INTN_MAX(__SIG_ATOMIC_WIDTH__)
+#define WINT_MIN       __INTN_MIN(__WINT_WIDTH__)
+#define WINT_MAX       __INTN_MAX(__WINT_WIDTH__)
 
 /* FIXME: if we ever support a target with unsigned wchar_t, this should be
  * 0 .. Max.
  */
 #ifndef WCHAR_MAX
-#define WCHAR_MAX __WCHAR_MAX__
+#define WCHAR_MAX __INTN_MAX(__WCHAR_WIDTH__)
 #endif
 #ifndef WCHAR_MIN
-#define WCHAR_MIN (-__WCHAR_MAX__-1)
+#define WCHAR_MIN __INTN_MIN(__WCHAR_WIDTH__)
 #endif
 
 /* 7.18.4.2 Macros for greatest-width integer constants. */
-#define INTMAX_C(v)  __stdint_exjoin3( INT, __INTMAX_WIDTH__, _C(v))
-#define UINTMAX_C(v) __stdint_exjoin3(UINT, __INTMAX_WIDTH__, _C(v))
+#define  __INTN_C(n, v) __stdint_join3( INT, n, _C(v))
+#define __UINTN_C(n, v) __stdint_join3(UINT, n, _C(v))
+
+#define INTMAX_C(v)   __INTN_C(__INTMAX_WIDTH__, v)
+#define UINTMAX_C(v) __UINTN_C(__INTMAX_WIDTH__, v)
 
 #endif /* __STDC_HOSTED__ */
 #endif /* __CLANG_STDINT_H */

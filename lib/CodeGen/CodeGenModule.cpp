@@ -21,6 +21,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
@@ -160,19 +161,13 @@ const char *CodeGenModule::getMangledName(const GlobalDecl &GD) {
 /// the unmangled name.
 ///
 const char *CodeGenModule::getMangledName(const NamedDecl *ND) {
-  // In C, functions with no attributes never need to be mangled. Fastpath them.
-  if (!getLangOptions().CPlusPlus && !ND->hasAttrs()) {
+  if (!getMangleContext().shouldMangleDeclName(ND)) {
     assert(ND->getIdentifier() && "Attempt to mangle unnamed decl.");
     return ND->getNameAsCString();
   }
 
   llvm::SmallString<256> Name;
-  llvm::raw_svector_ostream Out(Name);
-  if (!mangleName(getMangleContext(), ND, Out)) {
-    assert(ND->getIdentifier() && "Attempt to mangle unnamed decl.");
-    return ND->getNameAsCString();
-  }
-
+  getMangleContext().mangleName(ND, Name);
   Name += '\0';
   return UniqueMangledName(Name.begin(), Name.end());
 }
@@ -353,8 +348,12 @@ void CodeGenModule::SetLLVMFunctionAttributesForDefinition(const Decl *D,
   else if (Features.getStackProtectorMode() == LangOptions::SSPReq)
     F->addFnAttr(llvm::Attribute::StackProtectReq);
   
-  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>())
-    F->setAlignment(AA->getAlignment()/8);
+  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>()) {
+    unsigned width = Context.Target.getCharWidth();
+    F->setAlignment(AA->getAlignment() / width);
+    while ((AA = AA->getNext<AlignedAttr>()))
+      F->setAlignment(std::max(F->getAlignment(), AA->getAlignment() / width));
+  }
   // C++ ABI requires 2-byte alignment for member functions.
   if (F->getAlignment() < 2 && isa<CXXMethodDecl>(D))
     F->setAlignment(2);
@@ -551,7 +550,7 @@ bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
   // cannot be.
   if (VD->isInAnonymousNamespace())
     return true;
-  if (VD->getStorageClass() == VarDecl::Static) {
+  if (VD->getLinkage() == VarDecl::InternalLinkage) {
     // Initializer has side effects?
     if (VD->getInit() && VD->getInit()->HasSideEffects(Context))
       return false;
@@ -616,16 +615,9 @@ void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
                                  Context.getSourceManager(),
                                  "Generating code for declaration");
   
-  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
-    const CXXRecordDecl *RD = MD->getParent();
-    // We have to convert it to have a record layout.
-    Types.ConvertTagDeclType(RD);
-    const CGRecordLayout &CGLayout = Types.getCGRecordLayout(RD);
-    // A definition of a KeyFunction, generates all the class data, such
-    // as vtable, rtti and the VTT.
-    if (CGLayout.getKeyFunction() == MD)
-      getVtableInfo().GenerateClassData(RD);
-  }
+  if (isa<CXXMethodDecl>(D))
+    getVtableInfo().MaybeEmitVtable(GD);
+  
   if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(D))
     EmitCXXConstructor(CD, GD.getCtorType());
   else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(D))
@@ -697,142 +689,19 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(const char *MangledName,
     // A called constructor which has no definition or declaration need be
     // synthesized.
     else if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
-      const CXXRecordDecl *ClassDecl =
-        cast<CXXRecordDecl>(CD->getDeclContext());
-      if (CD->isCopyConstructor(getContext()))
-        DeferredCopyConstructorToEmit(D);
-      else if (!ClassDecl->hasUserDeclaredConstructor())
+      if (CD->isImplicit())
+        DeferredDeclsToEmit.push_back(D);
+    } else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD)) {
+      if (DD->isImplicit())
+        DeferredDeclsToEmit.push_back(D);
+    } else if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
+      if (MD->isCopyAssignment() && MD->isImplicit())
         DeferredDeclsToEmit.push_back(D);
     }
-    else if (isa<CXXDestructorDecl>(FD))
-       DeferredDestructorToEmit(D);
-    else if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD))
-           if (MD->isCopyAssignment())
-             DeferredCopyAssignmentToEmit(D);
   }
 
   return F;
 }
-
-/// Defer definition of copy constructor(s) which need be implicitly defined.
-void CodeGenModule::DeferredCopyConstructorToEmit(GlobalDecl CopyCtorDecl) {
-  const CXXConstructorDecl *CD =
-    cast<CXXConstructorDecl>(CopyCtorDecl.getDecl());
-  const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(CD->getDeclContext());
-  if (ClassDecl->hasTrivialCopyConstructor() ||
-      ClassDecl->hasUserDeclaredCopyConstructor())
-    return;
-
-  // First make sure all direct base classes and virtual bases and non-static
-  // data mebers which need to have their copy constructors implicitly defined
-  // are defined. 12.8.p7
-  for (CXXRecordDecl::base_class_const_iterator Base = ClassDecl->bases_begin();
-       Base != ClassDecl->bases_end(); ++Base) {
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
-    if (CXXConstructorDecl *BaseCopyCtor =
-        BaseClassDecl->getCopyConstructor(Context, 0))
-      GetAddrOfCXXConstructor(BaseCopyCtor, Ctor_Complete);
-  }
-
-  for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
-       FieldEnd = ClassDecl->field_end();
-       Field != FieldEnd; ++Field) {
-    QualType FieldType = Context.getCanonicalType((*Field)->getType());
-    if (const ArrayType *Array = Context.getAsArrayType(FieldType))
-      FieldType = Array->getElementType();
-    if (const RecordType *FieldClassType = FieldType->getAs<RecordType>()) {
-      if ((*Field)->isAnonymousStructOrUnion())
-        continue;
-      CXXRecordDecl *FieldClassDecl
-        = cast<CXXRecordDecl>(FieldClassType->getDecl());
-      if (CXXConstructorDecl *FieldCopyCtor =
-          FieldClassDecl->getCopyConstructor(Context, 0))
-        GetAddrOfCXXConstructor(FieldCopyCtor, Ctor_Complete);
-    }
-  }
-  DeferredDeclsToEmit.push_back(CopyCtorDecl);
-}
-
-/// Defer definition of copy assignments which need be implicitly defined.
-void CodeGenModule::DeferredCopyAssignmentToEmit(GlobalDecl CopyAssignDecl) {
-  const CXXMethodDecl *CD = cast<CXXMethodDecl>(CopyAssignDecl.getDecl());
-  const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(CD->getDeclContext());
-
-  if (ClassDecl->hasTrivialCopyAssignment() ||
-      ClassDecl->hasUserDeclaredCopyAssignment())
-    return;
-
-  // First make sure all direct base classes and virtual bases and non-static
-  // data mebers which need to have their copy assignments implicitly defined
-  // are defined. 12.8.p12
-  for (CXXRecordDecl::base_class_const_iterator Base = ClassDecl->bases_begin();
-       Base != ClassDecl->bases_end(); ++Base) {
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
-    const CXXMethodDecl *MD = 0;
-    if (!BaseClassDecl->hasTrivialCopyAssignment() &&
-        !BaseClassDecl->hasUserDeclaredCopyAssignment() &&
-        BaseClassDecl->hasConstCopyAssignment(getContext(), MD))
-      GetAddrOfFunction(MD, 0);
-  }
-
-  for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
-       FieldEnd = ClassDecl->field_end();
-       Field != FieldEnd; ++Field) {
-    QualType FieldType = Context.getCanonicalType((*Field)->getType());
-    if (const ArrayType *Array = Context.getAsArrayType(FieldType))
-      FieldType = Array->getElementType();
-    if (const RecordType *FieldClassType = FieldType->getAs<RecordType>()) {
-      if ((*Field)->isAnonymousStructOrUnion())
-        continue;
-      CXXRecordDecl *FieldClassDecl
-        = cast<CXXRecordDecl>(FieldClassType->getDecl());
-      const CXXMethodDecl *MD = 0;
-      if (!FieldClassDecl->hasTrivialCopyAssignment() &&
-          !FieldClassDecl->hasUserDeclaredCopyAssignment() &&
-          FieldClassDecl->hasConstCopyAssignment(getContext(), MD))
-          GetAddrOfFunction(MD, 0);
-    }
-  }
-  DeferredDeclsToEmit.push_back(CopyAssignDecl);
-}
-
-void CodeGenModule::DeferredDestructorToEmit(GlobalDecl DtorDecl) {
-  const CXXDestructorDecl *DD = cast<CXXDestructorDecl>(DtorDecl.getDecl());
-  const CXXRecordDecl *ClassDecl = cast<CXXRecordDecl>(DD->getDeclContext());
-  if (ClassDecl->hasTrivialDestructor() ||
-      ClassDecl->hasUserDeclaredDestructor())
-    return;
-
-  for (CXXRecordDecl::base_class_const_iterator Base = ClassDecl->bases_begin();
-       Base != ClassDecl->bases_end(); ++Base) {
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
-    if (const CXXDestructorDecl *BaseDtor =
-          BaseClassDecl->getDestructor(Context))
-      GetAddrOfCXXDestructor(BaseDtor, Dtor_Complete);
-  }
-
-  for (CXXRecordDecl::field_iterator Field = ClassDecl->field_begin(),
-       FieldEnd = ClassDecl->field_end();
-       Field != FieldEnd; ++Field) {
-    QualType FieldType = Context.getCanonicalType((*Field)->getType());
-    if (const ArrayType *Array = Context.getAsArrayType(FieldType))
-      FieldType = Array->getElementType();
-    if (const RecordType *FieldClassType = FieldType->getAs<RecordType>()) {
-      if ((*Field)->isAnonymousStructOrUnion())
-        continue;
-      CXXRecordDecl *FieldClassDecl
-        = cast<CXXRecordDecl>(FieldClassType->getDecl());
-      if (const CXXDestructorDecl *FieldDtor =
-            FieldClassDecl->getDestructor(Context))
-        GetAddrOfCXXDestructor(FieldDtor, Dtor_Complete);
-    }
-  }
-  DeferredDeclsToEmit.push_back(DtorDecl);
-}
-
 
 /// GetAddrOfFunction - Return the address of the given function.  If Ty is
 /// non-null, then this function will use the specified type if it has to
@@ -982,9 +851,8 @@ GetLinkageForVariable(ASTContext &Context, const VarDecl *VD) {
       return CodeGenModule::GVA_TemplateInstantiation;
     }
   }
-  
-  // Static variables get internal linkage.
-  if (VD->getStorageClass() == VarDecl::Static)
+
+  if (VD->getLinkage() == VarDecl::InternalLinkage)
     return CodeGenModule::GVA_Internal;
 
   return CodeGenModule::GVA_StrongExternal;
@@ -1097,7 +965,7 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D) {
       GV->setLinkage(llvm::GlobalVariable::WeakAnyLinkage);
   } else if (Linkage == GVA_TemplateInstantiation)
     GV->setLinkage(llvm::GlobalVariable::WeakAnyLinkage);   
-  else if (!CodeGenOpts.NoCommon &&
+  else if (!getLangOptions().CPlusPlus && !CodeGenOpts.NoCommon &&
            !D->hasExternalStorage() && !D->getInit() &&
            !D->getAttr<SectionAttr>()) {
     GV->setLinkage(llvm::GlobalVariable::CommonLinkage);
@@ -1734,6 +1602,10 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
   case Decl::NamespaceAlias:
     break;
   case Decl::CXXConstructor:
+    // Skip function templates
+    if (cast<FunctionDecl>(D)->getDescribedFunctionTemplate())
+      return;
+      
     EmitCXXConstructors(cast<CXXConstructorDecl>(D));
     break;
   case Decl::CXXDestructor:

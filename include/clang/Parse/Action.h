@@ -203,11 +203,15 @@ public:
   /// this occurs when deriving from "std::vector<T>::allocator_type", where T
   /// is a template parameter.
   ///
+  /// \param ObjectType if we're checking whether an identifier is a type
+  /// within a C++ member access expression, this will be the type of the 
+  /// 
   /// \returns the type referred to by this identifier, or NULL if the type
   /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
                               Scope *S, const CXXScopeSpec *SS = 0,
-                              bool isClassName = false) = 0;
+                              bool isClassName = false,
+                              TypeTy *ObjectType = 0) = 0;
 
   /// isTagName() - This method is called *for error recovery purposes only*
   /// to determine if the specified name is a valid tag name ("struct foo").  If
@@ -668,6 +672,9 @@ public:
     return StmtEmpty();
   }
 
+  virtual void ActOnForEachDeclStmt(DeclGroupPtrTy Decl) {
+  }
+
   virtual OwningStmtResult ActOnExprStmt(FullExprArg Expr) {
     return OwningStmtResult(*this, Expr->release());
   }
@@ -698,14 +705,39 @@ public:
     return StmtEmpty();
   }
 
+  /// \brief Parsed an "if" statement.
+  ///
+  /// \param IfLoc the location of the "if" keyword.
+  ///
+  /// \param CondVal if the "if" condition was parsed as an expression, 
+  /// the expression itself.
+  ///
+  /// \param CondVar if the "if" condition was parsed as a condition variable,
+  /// the condition variable itself.
+  ///
+  /// \param ThenVal the "then" statement.
+  ///
+  /// \param ElseLoc the location of the "else" keyword.
+  ///
+  /// \param ElseVal the "else" statement.
   virtual OwningStmtResult ActOnIfStmt(SourceLocation IfLoc,
-                                       FullExprArg CondVal, StmtArg ThenVal,
+                                       FullExprArg CondVal, 
+                                       DeclPtrTy CondVar,
+                                       StmtArg ThenVal,
                                        SourceLocation ElseLoc,
                                        StmtArg ElseVal) {
     return StmtEmpty();
   }
 
-  virtual OwningStmtResult ActOnStartOfSwitchStmt(ExprArg Cond) {
+  /// \brief Parsed the start of a "switch" statement.
+  ///
+  /// \param Cond if the "switch" condition was parsed as an expression, 
+  /// the expression itself.
+  ///
+  /// \param CondVar if the "switch" condition was parsed as a condition 
+  /// variable, the condition variable itself.
+  virtual OwningStmtResult ActOnStartOfSwitchStmt(FullExprArg Cond,
+                                                  DeclPtrTy CondVar) {
     return StmtEmpty();
   }
 
@@ -714,8 +746,18 @@ public:
     return StmtEmpty();
   }
 
+  /// \brief Parsed a "while" statement.
+  ///
+  /// \param Cond if the "while" condition was parsed as an expression, 
+  /// the expression itself.
+  ///
+  /// \param CondVar if the "while" condition was parsed as a condition 
+  /// variable, the condition variable itself.
+  ///
+  /// \param Body the body of the "while" loop.
   virtual OwningStmtResult ActOnWhileStmt(SourceLocation WhileLoc,
-                                          FullExprArg Cond, StmtArg Body) {
+                                          FullExprArg Cond, DeclPtrTy CondVar,
+                                          StmtArg Body) {
     return StmtEmpty();
   }
   virtual OwningStmtResult ActOnDoStmt(SourceLocation DoLoc, StmtArg Body,
@@ -725,13 +767,36 @@ public:
                                        SourceLocation CondRParen) {
     return StmtEmpty();
   }
+
+  /// \brief Parsed a "for" statement.
+  ///
+  /// \param ForLoc the location of the "for" keyword.
+  ///
+  /// \param LParenLoc the location of the left parentheses.
+  ///
+  /// \param First the statement used to initialize the for loop.
+  ///
+  /// \param Second the condition to be checked during each iteration, if
+  /// that condition was parsed as an expression.
+  ///
+  /// \param SecondArg the condition variable to be checked during each 
+  /// iterator, if that condition was parsed as a variable declaration.
+  ///
+  /// \param Third the expression that will be evaluated to "increment" any
+  /// values prior to the next iteration.
+  ///
+  /// \param RParenLoc the location of the right parentheses.
+  ///
+  /// \param Body the body of the "body" loop.
   virtual OwningStmtResult ActOnForStmt(SourceLocation ForLoc,
                                         SourceLocation LParenLoc,
-                                        StmtArg First, ExprArg Second,
-                                        ExprArg Third, SourceLocation RParenLoc,
+                                        StmtArg First, FullExprArg Second,
+                                        DeclPtrTy SecondVar, FullExprArg Third, 
+                                        SourceLocation RParenLoc,
                                         StmtArg Body) {
     return StmtEmpty();
   }
+  
   virtual OwningStmtResult ActOnObjCForCollectionStmt(SourceLocation ForColLoc,
                                        SourceLocation LParenLoc,
                                        StmtArg First, ExprArg Second,
@@ -852,23 +917,12 @@ public:
   /// \brief The parser is entering a new expression evaluation context.
   ///
   /// \param NewContext is the new expression evaluation context.
-  ///
-  /// \returns the previous expression evaluation context.
-  virtual ExpressionEvaluationContext
-  PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext) {
-    return PotentiallyEvaluated;
-  }
-
-  /// \brief The parser is existing an expression evaluation context.
-  ///
-  /// \param OldContext the expression evaluation context that the parser is
-  /// leaving.
-  ///
-  /// \param NewContext the expression evaluation context that the parser is
-  /// returning to.
   virtual void
-  PopExpressionEvaluationContext(ExpressionEvaluationContext OldContext,
-                                 ExpressionEvaluationContext NewContext) { }
+  PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext) { }
+
+  /// \brief The parser is exiting an expression evaluation context.
+  virtual void
+  PopExpressionEvaluationContext() { }
 
   // Primary Expressions.
 
@@ -927,9 +981,10 @@ public:
     return move(Val);  // Default impl returns operand.
   }
 
-  virtual OwningExprResult ActOnParenListExpr(SourceLocation L,
+  virtual OwningExprResult ActOnParenOrParenListExpr(SourceLocation L,
                                               SourceLocation R,
-                                              MultiExprArg Val) {
+                                              MultiExprArg Val,
+                                              TypeTy *TypeOfCast=0) {
     return ExprEmpty();
   }
 
@@ -1039,6 +1094,10 @@ public:
                                          TypeTy *Ty, SourceLocation RParenLoc,
                                          ExprArg Op) {
     return ExprEmpty();
+  }
+
+  virtual bool TypeIsVectorType(TypeTy *Ty) {
+    return false;
   }
 
   virtual OwningExprResult ActOnBinOp(Scope *S, SourceLocation TokLoc,
@@ -1371,15 +1430,22 @@ public:
     return ExprEmpty();
   }
 
-  /// ActOnCXXConditionDeclarationExpr - Parsed a condition declaration of a
-  /// C++ if/switch/while/for statement.
-  /// e.g: "if (int x = f()) {...}"
-  virtual OwningExprResult ActOnCXXConditionDeclarationExpr(Scope *S,
-                                                      SourceLocation StartLoc,
-                                                      Declarator &D,
-                                                      SourceLocation EqualLoc,
-                                                      ExprArg AssignExprVal) {
-    return ExprEmpty();
+  /// \brief Parsed a condition declaration in a C++ if, switch, or while
+  /// statement.
+  /// 
+  /// This callback will be invoked after parsing the declaration of "x" in
+  ///
+  /// \code
+  /// if (int x = f()) {
+  ///   // ...
+  /// }
+  /// \endcode
+  ///
+  /// \param S the scope of the if, switch, or while statement.
+  ///
+  /// \param D the declarator that that describes the variable being declared.
+  virtual DeclResult ActOnCXXConditionDeclaration(Scope *S, Declarator &D) {
+    return DeclResult();
   }
 
   /// ActOnCXXNew - Parsed a C++ 'new' expression. UseGlobal is true if the
@@ -1470,6 +1536,7 @@ public:
                                  MultiTemplateParamsArg TemplateParameterLists,
                                              ExprTy *BitfieldWidth,
                                              ExprTy *Init,
+                                             bool IsDefinition,
                                              bool Deleted = false) {
     return DeclPtrTy();
   }
@@ -1678,10 +1745,14 @@ public:
   /// \param ObjectType if this dependent template name occurs in the
   /// context of a member access expression, the type of the object being
   /// accessed.
+  ///
+  /// \param EnteringContext whether we are entering the context of this
+  /// template.
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
                                                 const CXXScopeSpec &SS,
                                                 UnqualifiedId &Name,
-                                                TypeTy *ObjectType) {
+                                                TypeTy *ObjectType,
+                                                bool EnteringContext) {
     return TemplateTy();
   }
 
@@ -2515,7 +2586,8 @@ public:
   /// does not name an identifier.
   virtual TypeTy *getTypeName(IdentifierInfo &II, SourceLocation NameLoc,
                               Scope *S, const CXXScopeSpec *SS,
-                              bool isClassName = false);
+                              bool isClassName = false,
+                              TypeTy *ObjectType = 0);
 
   /// isCurrentClassName - Always returns false, because MinimalAction
   /// does not support C++ classes with constructors.
@@ -2578,21 +2650,15 @@ class EnterExpressionEvaluationContext {
   /// \brief The action object.
   Action &Actions;
 
-  /// \brief The previous expression evaluation context.
-  Action::ExpressionEvaluationContext PrevContext;
-
-  /// \brief The current expression evaluation context.
-  Action::ExpressionEvaluationContext CurContext;
-
 public:
   EnterExpressionEvaluationContext(Action &Actions,
                               Action::ExpressionEvaluationContext NewContext)
-    : Actions(Actions), CurContext(NewContext) {
-      PrevContext = Actions.PushExpressionEvaluationContext(NewContext);
+    : Actions(Actions) {
+    Actions.PushExpressionEvaluationContext(NewContext);
   }
 
   ~EnterExpressionEvaluationContext() {
-    Actions.PopExpressionEvaluationContext(CurContext, PrevContext);
+    Actions.PopExpressionEvaluationContext();
   }
 };
 

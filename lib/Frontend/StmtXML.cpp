@@ -17,7 +17,6 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/SourceManager.h"
-#include "llvm/Support/Compiler.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -25,7 +24,7 @@ using namespace clang;
 //===----------------------------------------------------------------------===//
 
 namespace  {
-  class VISIBILITY_HIDDEN StmtXML : public StmtVisitor<StmtXML> {
+  class StmtXML : public StmtVisitor<StmtXML> {
     DocumentXML&  Doc;
 
     //static const char *getOpcodeStr(UnaryOperator::Opcode Op);
@@ -61,8 +60,6 @@ namespace  {
             Doc.PrintDecl(*DI);
           }
         } else {
-          if (CXXConditionDeclExpr* CCDE = dyn_cast<CXXConditionDeclExpr>(S))
-            Doc.PrintDecl(CCDE->getVarDecl());
           for (Stmt::child_iterator i = S->child_begin(), e = S->child_end();
                i != e; ++i)
             DumpSubTree(*i);

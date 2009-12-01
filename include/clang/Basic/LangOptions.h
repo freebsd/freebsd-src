@@ -14,6 +14,8 @@
 #ifndef LLVM_CLANG_LANGOPTIONS_H
 #define LLVM_CLANG_LANGOPTIONS_H
 
+#include <string>
+
 namespace clang {
 
 /// LangOptions - This class keeps track of the various options that can be
@@ -101,15 +103,10 @@ private:
                                   // on making enums signed.  Set/Query this
                                   // value using accessors.
 
-  /// The user provided name for the "main file", if non-null. This is
-  /// useful in situations where the input file name does not match
-  /// the original input file, for example with -save-temps.
-  const char *MainFileName;
-
 public:
   unsigned InstantiationDepth;    // Maximum template instantiation depth.
 
-  const char *ObjCConstantStringClass;
+  std::string ObjCConstantStringClass;
 
   enum GCMode { NonGC, GCOnly, HybridGC };
   enum StackProtectorMode { SSPOff, SSPOn, SSPReq };
@@ -124,7 +121,6 @@ public:
     GNUMode = ImplicitInt = Digraphs = 0;
     HexFloats = 0;
     GC = ObjC1 = ObjC2 = ObjCNonFragileABI = 0;
-    ObjCConstantStringClass = 0;
     C99 = Microsoft = CPlusPlus = CPlusPlus0x = 0;
     CXXOperatorNames = PascalStrings = WritableStrings = 0;
     Exceptions = Freestanding = NoBuiltin = 0;
@@ -164,8 +160,6 @@ public:
 
     CharIsSigned = 1;
     ShortWChar = 0;
-
-    MainFileName = 0;
   }
 
   GCMode getGCMode() const { return (GCMode) GC; }
@@ -177,9 +171,6 @@ public:
   void setStackProtectorMode(StackProtectorMode m) {
     StackProtector = static_cast<unsigned>(m);
   }
-
-  const char *getMainFileName() const { return MainFileName; }
-  void setMainFileName(const char *Name) { MainFileName = Name; }
 
   VisibilityMode getVisibilityMode() const {
     return (VisibilityMode) SymbolVisibility;
