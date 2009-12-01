@@ -96,6 +96,8 @@ static int envVarsTotal = 0;
 
 /* Deinitialization of new environment. */
 static void __attribute__ ((destructor)) __clean_env_destructor(void);
+/* Resetting the environ pointer will affect the env functions. */
+static int __merge_environ(void);
 
 
 /*
@@ -189,6 +191,9 @@ static char *
 __findenv_environ(const char *name, size_t nameLen)
 {
 	int envNdx;
+
+	if (environ == NULL)
+		return (NULL);
 
 	/* Find variable within environ. */
 	for (envNdx = 0; environ[envNdx] != NULL; envNdx++)
@@ -328,6 +333,7 @@ __build_env(void)
 {
 	char **env;
 	int activeNdx;
+	int checking;
 	int envNdx;
 	int savedErrno;
 	size_t nameLen;
@@ -339,6 +345,23 @@ __build_env(void)
 	/* Count environment variables. */
 	for (env = environ, envVarsTotal = 0; *env != NULL; env++)
 		envVarsTotal++;
+	/* Remove any corrupt variable entries, but do not error out. */
+	checking = 0;
+	while (checking < envVarsTotal) {
+		if (strchr(environ[checking], '=') != NULL) {
+			checking++;
+		} else {
+			__env_warnx(CorruptEnvValueMsg,
+			    environ[checking], strlen(environ[checking]));
+			/*
+			 * Pull back all remaining entries from checking + 1
+			 * through envVarsTotal, including the NULL at the end.
+			 */
+			memmove(&environ[checking], &environ[checking + 1],
+			    sizeof(char *) * (envVarsTotal - checking));
+			envVarsTotal--;
+		}
+	}
 	envVarsSize = envVarsTotal * 2;
 
 	/* Create new environment. */
@@ -353,18 +376,8 @@ __build_env(void)
 		    strdup(environ[envVarsTotal - envNdx - 1]);
 		if (envVars[envNdx].name == NULL)
 			goto Failure;
-		envVars[envNdx].value = strchr(envVars[envNdx].name, '=');
-		if (envVars[envNdx].value != NULL) {
-			envVars[envNdx].value++;
-			envVars[envNdx].valueSize =
-			    strlen(envVars[envNdx].value);
-		} else {
-			__env_warnx(CorruptEnvValueMsg, envVars[envNdx].name,
-			    strlen(envVars[envNdx].name));
-			errno = EFAULT;
-			goto Failure;
-		}
-
+		envVars[envNdx].value = strchr(envVars[envNdx].name, '=') + 1;
+		envVars[envNdx].valueSize = strlen(envVars[envNdx].value);
 		/*
 		 * Find most current version of variable to make active.  This
 		 * will prevent multiple active variables from being created
@@ -426,22 +439,18 @@ getenv(const char *name)
 	}
 
 	/*
-	 * An empty environment (environ or its first value) regardless if
-	 * environ has been copied before will return a NULL.
-	 *
-	 * If the environment is not empty, find an environment variable via
-	 * environ if environ has not been copied via an *env() call or been
-	 * replaced by a running program, otherwise, use the rebuilt
-	 * environment.
+	 * If we have not already allocated memory by performing
+	 * write operations on the environment, avoid doing so now.
 	 */
-	if (environ == NULL || environ[0] == NULL)
-		return (NULL);
-	else if (envVars == NULL || environ != intEnviron)
+	if (envVars == NULL)
 		return (__findenv_environ(name, nameLen));
-	else {
-		envNdx = envVarsTotal - 1;
-		return (__findenv(name, nameLen, &envNdx, true));
-	}
+
+	/* Synchronize environment. */
+	if (__merge_environ() == -1)
+		return (NULL);
+
+	envNdx = envVarsTotal - 1;
+	return (__findenv(name, nameLen, &envNdx, true));
 }
 
 
@@ -559,8 +568,7 @@ __merge_environ(void)
 				if ((equals = strchr(*env, '=')) == NULL) {
 					__env_warnx(CorruptEnvValueMsg, *env,
 					    strlen(*env));
-					errno = EFAULT;
-					return (-1);
+					continue;
 				}
 				if (__setenv(*env, equals - *env, equals + 1,
 				    1) == -1)
