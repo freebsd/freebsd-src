@@ -102,10 +102,11 @@ static const char	*dev_console_filename;
 static void
 tty_watermarks(struct tty *tp)
 {
-	size_t bs;
+	size_t bs = 0;
 
 	/* Provide an input buffer for 0.2 seconds of data. */
-	bs = MIN(tp->t_termios.c_ispeed / 5, TTYBUF_MAX);
+	if (tp->t_termios.c_cflag & CREAD)
+		bs = MIN(tp->t_termios.c_ispeed / 5, TTYBUF_MAX);
 	ttyinq_setsize(&tp->t_inq, tp, bs);
 
 	/* Set low watermark at 10% (when 90% is available). */
@@ -890,6 +891,7 @@ ttydevsw_defparam(struct tty *tp, struct termios *t)
 		t->c_ospeed = B50;
 	else if (t->c_ospeed > B115200)
 		t->c_ospeed = B115200;
+	t->c_cflag |= CREAD;
 
 	return (0);
 }
