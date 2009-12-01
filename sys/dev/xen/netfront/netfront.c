@@ -155,6 +155,9 @@ static void netif_disconnect_backend(struct netfront_info *info);
 static int setup_device(device_t dev, struct netfront_info *info);
 static void end_access(int ref, void *page);
 
+static int  xn_ifmedia_upd(struct ifnet *ifp);
+static void xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
+
 /* Xenolinux helper functions */
 int network_connect(struct netfront_info *);
 
@@ -240,7 +243,9 @@ struct netfront_info {
 	/* Receive-ring batched refills. */
 #define RX_MIN_TARGET 32
 #define RX_MAX_TARGET NET_RX_RING_SIZE
-	int rx_min_target, rx_max_target, rx_target;
+	int rx_min_target;
+	int rx_max_target;
+	int rx_target;
 
 	/*
 	 * {tx,rx}_skbs store outstanding skbuffs. The first entry in each
@@ -253,19 +258,20 @@ struct netfront_info {
 	grant_ref_t grant_rx_ref[NET_TX_RING_SIZE + 1]; 
 
 #define TX_MAX_TARGET min(NET_RX_RING_SIZE, 256)
-	device_t xbdev;
-	int tx_ring_ref;
-	int rx_ring_ref;
-	uint8_t mac[ETHER_ADDR_LEN];
+	device_t		xbdev;
+	int			tx_ring_ref;
+	int			rx_ring_ref;
+	uint8_t			mac[ETHER_ADDR_LEN];
 	struct xn_chain_data	xn_cdata;	/* mbufs */
-	struct mbuf_head xn_rx_batch;	/* head of the batch queue */
+	struct mbuf_head	xn_rx_batch;	/* head of the batch queue */
 
 	int			xn_if_flags;
 	struct callout	        xn_stat_ch;
 
-	u_long rx_pfn_array[NET_RX_RING_SIZE];
-	multicall_entry_t rx_mcl[NET_RX_RING_SIZE+1];
-	mmu_update_t rx_mmu[NET_RX_RING_SIZE];
+	u_long			rx_pfn_array[NET_RX_RING_SIZE];
+	multicall_entry_t	rx_mcl[NET_RX_RING_SIZE+1];
+	mmu_update_t		rx_mmu[NET_RX_RING_SIZE];
+	struct ifmedia		sc_media;
 };
 
 #define rx_mbufs xn_cdata.xn_rx_chain
@@ -1622,6 +1628,7 @@ xn_ifinit_locked(struct netfront_info *sc)
 	
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if_link_state_change(ifp, LINK_STATE_UP);
 	
 	callout_reset(&sc->xn_stat_ch, hz, xn_tick, sc);
 
@@ -1761,7 +1768,7 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* FALLTHROUGH */
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		error = EINVAL;
+		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
@@ -1785,6 +1792,7 @@ xn_stop(struct netfront_info *sc)
 	xn_free_tx_ring(sc);
     
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_link_state_change(ifp, LINK_STATE_DOWN);
 }
 
 /* START of Xenolinux helper functions adapted to FreeBSD */
@@ -1903,6 +1911,11 @@ create_netdev(device_t dev)
 	np->xbdev         = dev;
     
 	XN_LOCK_INIT(np, xennetif);
+
+	ifmedia_init(&np->sc_media, 0, xn_ifmedia_upd, xn_ifmedia_sts);
+	ifmedia_add(&np->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
+	ifmedia_set(&np->sc_media, IFM_ETHER|IFM_MANUAL);
+
 	np->rx_target     = RX_MIN_TARGET;
 	np->rx_min_target = RX_MIN_TARGET;
 	np->rx_max_target = RX_MAX_TARGET;
@@ -1987,7 +2000,8 @@ out:
  * acknowledgement.
  */
 #if 0
-static void netfront_closing(device_t dev)
+static void
+netfront_closing(device_t dev)
 {
 #if 0
 	struct netfront_info *info = dev->dev_driver_data;
@@ -2000,7 +2014,8 @@ static void netfront_closing(device_t dev)
 }
 #endif
 
-static int netfront_detach(device_t dev)
+static int
+netfront_detach(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
 
@@ -2011,8 +2026,8 @@ static int netfront_detach(device_t dev)
 	return 0;
 }
 
-
-static void netif_free(struct netfront_info *info)
+static void
+netif_free(struct netfront_info *info)
 {
 	netif_disconnect_backend(info);
 #if 0
@@ -2020,7 +2035,8 @@ static void netif_free(struct netfront_info *info)
 #endif
 }
 
-static void netif_disconnect_backend(struct netfront_info *info)
+static void
+netif_disconnect_backend(struct netfront_info *info)
 {
 	XN_RX_LOCK(info);
 	XN_TX_LOCK(info);
@@ -2042,10 +2058,24 @@ static void netif_disconnect_backend(struct netfront_info *info)
 }
 
 
-static void end_access(int ref, void *page)
+static void
+end_access(int ref, void *page)
 {
 	if (ref != GRANT_INVALID_REF)
 		gnttab_end_foreign_access(ref, page);
+}
+
+static int
+xn_ifmedia_upd(struct ifnet *ifp)
+{
+	return (0);
+}
+
+static void
+xn_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+{
+	ifmr->ifm_status = IFM_AVALID|IFM_ACTIVE;
+	ifmr->ifm_active = IFM_ETHER|IFM_MANUAL;
 }
 
 /* ** Driver registration ** */
