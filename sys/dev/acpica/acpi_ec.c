@@ -129,9 +129,6 @@ struct acpi_ec_params {
     int		uid;
 };
 
-/* Indicate that this device has already been probed via ECDT. */
-#define DEV_ECDT(x)	(acpi_get_magic(x) == (uintptr_t)&acpi_ec_devclass)
-
 /*
  * Driver softc.
  */
@@ -332,7 +329,6 @@ acpi_ec_ecdt_probe(device_t parent)
     params->uid = ecdt->Uid;
     acpi_GetInteger(h, "_GLK", &params->glk);
     acpi_set_private(child, params);
-    acpi_set_magic(child, (uintptr_t)&acpi_ec_devclass);
 
     /* Finish the attach process. */
     if (device_probe_and_attach(child) != 0)
@@ -348,6 +344,7 @@ acpi_ec_probe(device_t dev)
     ACPI_STATUS status;
     device_t	peer;
     char	desc[64];
+    int		ecdt;
     int		ret;
     struct acpi_ec_params *params;
     static char *ec_ids[] = { "PNP0C09", NULL };
@@ -362,11 +359,12 @@ acpi_ec_probe(device_t dev)
      * duplicate probe.
      */
     ret = ENXIO;
-    params = NULL;
+    ecdt = 0;
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
-    if (DEV_ECDT(dev)) {
-	params = acpi_get_private(dev);
+    params = acpi_get_private(dev);
+    if (params != NULL) {
+	ecdt = 1;
 	ret = 0;
     } else if (!acpi_disabled("ec") &&
 	ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
@@ -439,7 +437,7 @@ out:
     if (ret == 0) {
 	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
 		 params->gpe_bit, (params->glk) ? ", GLK" : "",
-		 DEV_ECDT(dev) ? ", ECDT" : "");
+		 ecdt ? ", ECDT" : "");
 	device_set_desc_copy(dev, desc);
     }
 
