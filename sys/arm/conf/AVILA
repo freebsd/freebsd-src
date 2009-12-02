@@ -132,6 +132,7 @@ device		ath_rf5413
 device		ath_ar5416
 options 	AH_SUPPORT_AR5416
 device		ath_ar9160
+device		ath_ar9280
 
 device		usb
 #options 	USB_DEBUG
