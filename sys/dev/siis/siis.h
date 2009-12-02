@@ -346,6 +346,13 @@ struct siis_slot {
     struct callout              timeout;        /* Execution timeout */
 };
 
+struct siis_device {
+	int			revision;
+	int			mode;
+	u_int			bytecount;
+	u_int			tags;
+};
+
 /* structure describing an ATA channel */
 struct siis_channel {
 	device_t		dev;            /* Device handle */
@@ -357,13 +364,13 @@ struct siis_channel {
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	int			pm_level;	/* power management level */
-	int			sata_rev;	/* Maximum allowed SATA generation */
 
 	struct siis_slot	slot[SIIS_MAX_SLOTS];
 	union ccb		*hold[SIIS_MAX_SLOTS];
 	struct mtx		mtx;		/* state lock */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
+	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands */
 	uint32_t		eslots;		/* Slots in error */
@@ -374,8 +381,10 @@ struct siis_channel {
 	int			readlog;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			recovery;	/* Some slots are in error */
-	int			lastslot;	/* Last used slot */
 	union ccb		*frozen;	/* Frozen command */
+
+	struct siis_device	user[16];	/* User-specified settings */
+	struct siis_device	curr[16];	/* Current settings */
 };
 
 /* structure describing a SIIS controller */

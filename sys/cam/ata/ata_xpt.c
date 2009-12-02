@@ -275,7 +275,7 @@ probeschedule(struct cam_periph *periph)
 static void
 probestart(struct cam_periph *periph, union ccb *start_ccb)
 {
-	/* Probe the device that our peripheral driver points to */
+	struct ccb_trans_settings cts;
 	struct ccb_ataio *ataio;
 	struct ccb_scsiio *csio;
 	probe_softc *softc;
@@ -333,6 +333,55 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			ata_28bit_cmd(ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
 		break;
 	case PROBE_SETMODE:
+	{
+		int mode, wantmode;
+
+		mode = 0;
+		/* Fetch user modes from SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_USER_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (path->device->transport == XPORT_ATA) {
+			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_MODE)
+				mode = cts.xport_specific.ata.mode;
+		} else {
+			if (cts.xport_specific.sata.valid & CTS_SATA_VALID_MODE)
+				mode = cts.xport_specific.sata.mode;
+		}
+negotiate:
+		/* Honor device capabilities. */
+		wantmode = mode = ata_max_mode(ident_buf, mode);
+		/* Report modes to SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		if (path->device->transport == XPORT_ATA) {
+			cts.xport_specific.ata.mode = mode;
+			cts.xport_specific.ata.valid = CTS_ATA_VALID_MODE;
+		} else {
+			cts.xport_specific.sata.mode = mode;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_MODE;
+		}
+		xpt_action((union ccb *)&cts);
+		/* Fetch user modes from SIM. */
+		bzero(&cts, sizeof(cts));
+		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if (path->device->transport == XPORT_ATA) {
+			if (cts.xport_specific.ata.valid & CTS_ATA_VALID_MODE)
+				mode = cts.xport_specific.ata.mode;
+		} else {
+			if (cts.xport_specific.ata.valid & CTS_SATA_VALID_MODE)
+				mode = cts.xport_specific.sata.mode;
+		}
+		/* If SIM disagree - renegotiate. */
+		if (mode != wantmode)
+			goto negotiate;
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,
@@ -341,12 +390,11 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      30 * 1000);
-		ata_28bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
-		    ata_max_mode(ident_buf, ATA_UDMA6, ATA_UDMA6));
+		ata_28bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 		break;
+	}
 	case PROBE_SET_MULTI:
 	{
-		struct ccb_trans_settings cts;
 		u_int sectors;
 
 		sectors = max(1, min(ident_buf->sectors_intr & 0xff, 16));
@@ -564,6 +612,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 static void
 probedone(struct cam_periph *periph, union ccb *done_ccb)
 {
+	struct ccb_trans_settings cts;
 	struct ata_params *ident_buf;
 	probe_softc *softc;
 	struct cam_path *path;
@@ -619,9 +668,7 @@ noerror:
 			PROBE_SET_ACTION(softc, PROBE_IDENTIFY);
 		} else if (sign == 0x9669 &&
 		    done_ccb->ccb_h.target_id == 15) {
-			struct ccb_trans_settings cts;
-
-				/* Report SIM that PM is present. */
+			/* Report SIM that PM is present. */
 			bzero(&cts, sizeof(cts));
 			xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
 			cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
@@ -716,11 +763,17 @@ noerror:
 			    ATA_QUEUE_LEN(ident_buf->queue) + 1;
 		}
 		ata_find_quirk(path->device);
-		/* XXX: If not all tags allowed, we must to tell SIM which are. */
-		if (path->device->mintags < path->bus->sim->max_tagged_dev_openings)
-			path->device->mintags = path->device->maxtags = 0;
 		if (path->device->mintags != 0 &&
 		    path->bus->sim->max_tagged_dev_openings != 0) {
+			/* Report SIM which tags are allowed. */
+			bzero(&cts, sizeof(cts));
+			xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NORMAL);
+			cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+			cts.type = CTS_TYPE_CURRENT_SETTINGS;
+			cts.xport_specific.sata.tags = path->device->maxtags;
+			cts.xport_specific.sata.valid = CTS_SATA_VALID_TAGS;
+			xpt_action((union ccb *)&cts);
+			/* Reconfigure queues for tagged queueing. */
 			xpt_start_tags(path);
 		}
 		ata_device_transport(path);

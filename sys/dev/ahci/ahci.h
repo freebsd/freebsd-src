@@ -340,6 +340,13 @@ struct ahci_slot {
     struct callout              timeout;        /* Execution timeout */
 };
 
+struct ahci_device {
+	int			revision;
+	int			mode;
+	u_int			bytecount;
+	u_int			tags;
+};
+
 /* structure describing an ATA channel */
 struct ahci_channel {
 	device_t		dev;            /* Device handle */
@@ -355,13 +362,13 @@ struct ahci_channel {
 	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
-	int			sata_rev;	/* Maximum allowed SATA generation */
 
 	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	union ccb		*hold[AHCI_MAX_SLOTS];
 	struct mtx		mtx;		/* state lock */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
+	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands  */
 	int			numrslots;	/* Number of running slots */
@@ -372,6 +379,9 @@ struct ahci_channel {
 	int			taggedtarget;	/* Last tagged target */
 	union ccb		*frozen;	/* Frozen command */
 	struct callout		pm_timer;	/* Power management events */
+
+	struct ahci_device	user[16];	/* User-specified settings */
+	struct ahci_device	curr[16];	/* Current settings */
 };
 
 /* structure describing a AHCI controller */
