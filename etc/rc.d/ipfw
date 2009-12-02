@@ -17,6 +17,8 @@ start_precmd="ipfw_prestart"
 stop_cmd="ipfw_stop"
 required_modules="ipfw"
 
+set_rcvar_obsolete ipv6_firewall_enable
+
 ipfw_prestart()
 {
 	if checkyesno dummynet_enable; then
@@ -61,7 +63,13 @@ ipfw_start()
 	# Enable the firewall
 	#
 	if ! ${SYSCTL_W} net.inet.ip.fw.enable=1 1>/dev/null 2>&1; then
-		warn "failed to enable firewall"
+		warn "failed to enable IPv4 firewall"
+	fi
+	if afexists inet6; then
+		if ! ${SYSCTL_W} net.inet6.ip6.fw.enable=1 1>/dev/null 2>&1
+		then
+			warn "failed to enable IPv6 firewall"
+		fi
 	fi
 }
 
@@ -70,6 +78,9 @@ ipfw_stop()
 	# Disable the firewall
 	#
 	${SYSCTL_W} net.inet.ip.fw.enable=0
+	if afexists inet6; then
+		${SYSCTL_W} net.inet6.ip6.fw.enable=0
+	fi
 	if [ -f /etc/rc.d/natd ] ; then
 		/etc/rc.d/natd quietstop
 	fi

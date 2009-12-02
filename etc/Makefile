@@ -15,7 +15,7 @@ BIN1=	auth.conf \
 	inetd.conf libalias.conf login.access login.conf mac.conf motd \
 	netconfig network.subr networks newsyslog.conf nsswitch.conf \
 	phones profile protocols \
-	rc rc.bsdextended rc.firewall rc.firewall6 rc.initdiskless \
+	rc rc.bsdextended rc.firewall rc.initdiskless \
 	rc.sendmail rc.shutdown \
 	rc.subr remote rpc services shells \
 	sysctl.conf syslog.conf
