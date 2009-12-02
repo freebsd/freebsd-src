@@ -535,6 +535,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
 
+		case IP_FW3:	/* generic ipfw v.3 functions */
 		case IP_FW_ADD:	/* ADD actually returns the body... */
 		case IP_FW_GET:
 		case IP_FW_TABLE_GETSIZE:
@@ -547,6 +548,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = ENOPROTOOPT;
 			break;
 
+		case IP_DUMMYNET3:	/* generic dummynet v.3 functions */
 		case IP_DUMMYNET_GET:
 			if (ip_dn_ctl_ptr != NULL)
 				error = ip_dn_ctl_ptr(sopt);
@@ -592,6 +594,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 				inp->inp_flags &= ~INP_HDRINCL;
 			break;
 
+		case IP_FW3:	/* generic ipfw v.3 functions */
 		case IP_FW_ADD:
 		case IP_FW_DEL:
 		case IP_FW_FLUSH:
@@ -608,6 +611,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = ENOPROTOOPT;
 			break;
 
+		case IP_DUMMYNET3:	/* generic dummynet v.3 functions */
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:
 		case IP_DUMMYNET_FLUSH:
