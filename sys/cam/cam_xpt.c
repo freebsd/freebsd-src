@@ -3273,15 +3273,12 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 
 	devq->send_queue.qfrozen_cnt++;
 	while ((devq->send_queue.entries > 0)
-	    && (devq->send_openings > 0)) {
+	    && (devq->send_openings > 0)
+	    && (devq->send_queue.qfrozen_cnt <= 1)) {
 		struct	cam_ed_qinfo *qinfo;
 		struct	cam_ed *device;
 		union ccb *work_ccb;
 		struct	cam_sim *sim;
-
-	    	if (devq->send_queue.qfrozen_cnt > 1) {
-			break;
-		}
 
 		qinfo = (struct cam_ed_qinfo *)camq_remove(&devq->send_queue,
 							   CAMQ_HEAD);
@@ -3330,9 +3327,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 			}
 			mtx_unlock(&xsoftc.xpt_lock);
 		}
-		devq->active_dev = device;
 		cam_ccbq_remove_ccb(&device->ccbq, work_ccb);
-
 		cam_ccbq_send_ccb(&device->ccbq, work_ccb);
 
 		devq->send_openings--;
@@ -3370,8 +3365,6 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		 */
 		sim = work_ccb->ccb_h.path->bus->sim;
 		(*(sim->sim_action))(sim, work_ccb);
-
-		devq->active_dev = NULL;
 	}
 	devq->send_queue.qfrozen_cnt--;
 }
@@ -4102,45 +4095,18 @@ xpt_dev_async_default(u_int32_t async_code, struct cam_eb *bus,
 u_int32_t
 xpt_freeze_devq(struct cam_path *path, u_int count)
 {
-	struct ccb_hdr *ccbh;
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
-
 	path->device->ccbq.queue.qfrozen_cnt += count;
-
-	/*
-	 * Mark the last CCB in the queue as needing
-	 * to be requeued if the driver hasn't
-	 * changed it's state yet.  This fixes a race
-	 * where a ccb is just about to be queued to
-	 * a controller driver when it's interrupt routine
-	 * freezes the queue.  To completly close the
-	 * hole, controller drives must check to see
-	 * if a ccb's status is still CAM_REQ_INPROG
-	 * just before they queue
-	 * the CCB.  See ahc_action/ahc_freeze_devq for
-	 * an example.
-	 */
-	ccbh = TAILQ_LAST(&path->device->ccbq.active_ccbs, ccb_hdr_tailq);
-	if (ccbh && ccbh->status == CAM_REQ_INPROG)
-		ccbh->status = CAM_REQUEUE_REQ;
 	return (path->device->ccbq.queue.qfrozen_cnt);
 }
 
 u_int32_t
 xpt_freeze_simq(struct cam_sim *sim, u_int count)
 {
+
 	mtx_assert(sim->mtx, MA_OWNED);
-
 	sim->devq->send_queue.qfrozen_cnt += count;
-	if (sim->devq->active_dev != NULL) {
-		struct ccb_hdr *ccbh;
-
-		ccbh = TAILQ_LAST(&sim->devq->active_dev->ccbq.active_ccbs,
-				  ccb_hdr_tailq);
-		if (ccbh && ccbh->status == CAM_REQ_INPROG)
-			ccbh->status = CAM_REQUEUE_REQ;
-	}
 	return (sim->devq->send_queue.qfrozen_cnt);
 }
 
