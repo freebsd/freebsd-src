@@ -412,13 +412,13 @@ void *handlep;
      * Noone needs these entries anymore, then frees them.
      * Make sure all info in netconfig_info structure has been reinitialized.
      */
-    q = p = ni.head;
+    q = ni.head;
     ni.eof = ni.ref = 0;
     ni.head = NULL;
     ni.tail = NULL;
     mutex_unlock(&ni_lock);
 
-    while (q) {
+    while (q != NULL) {
 	p = q->next;
 	if (q->ncp->nc_lookups != NULL) free(q->ncp->nc_lookups);
 	free(q->ncp);
