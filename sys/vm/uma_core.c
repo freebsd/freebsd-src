@@ -1033,8 +1033,10 @@ page_free(void *mem, int size, u_int8_t flags)
 
 	if (flags & UMA_SLAB_KMEM)
 		map = kmem_map;
+	else if (flags & UMA_SLAB_KERNEL)
+		map = kernel_map;
 	else
-		panic("UMA: page_free used with invalid flags %d\n", flags);
+		panic("UMA: page_free used with invalid flags %d", flags);
 
 	kmem_free(map, (vm_offset_t)mem, size);
 }
@@ -1292,7 +1294,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 			printf("zone %s ipers %d rsize %d size %d\n",
 			    zone->uz_name, keg->uk_ipers, keg->uk_rsize,
 			    keg->uk_size);
-			panic("UMA slab won't fit.\n");
+			panic("UMA slab won't fit.");
 		}
 	}
 
