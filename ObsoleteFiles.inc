@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20091202: unify rc.firewall and rc.firewall6.
+OLD_FILES+=etc/rc.d/ip6fw
+OLD_FILES+=etc/rc.firewall6
 # 20091117: removal of rc.early(8) link
 OLD_FILES+=usr/share/man/man8/rc.early.8.gz
 # 20091027: pselect.3 implemented as syscall
