@@ -1140,12 +1140,19 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		if (sas->valid & CTS_SAS_VALID_SPEED)
 			speed = sas->bitrate;
 	}
+	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_ATA) {
+		struct	ccb_trans_settings_ata *ata =
+		    &cts.xport_specific.ata;
+
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			speed = ata_mode2speed(ata->mode);
+	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
 		struct	ccb_trans_settings_sata *sata =
 		    &cts.xport_specific.sata;
 
-		if (sata->valid & CTS_SATA_VALID_SPEED)
-			speed = sata->bitrate;
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			speed = ata_revision2speed(sata->revision);
 	}
 
 	mb = speed / 1000;
@@ -1195,15 +1202,25 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		struct ccb_trans_settings_ata *ata =
 		    &cts.xport_specific.ata;
 
+		printf(" (");
+		if (ata->valid & CTS_ATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(ata->mode));
 		if (ata->valid & CTS_ATA_VALID_BYTECOUNT)
-			printf(" (PIO size %dbytes)", ata->bytecount);
+			printf("PIO size %dbytes", ata->bytecount);
+		printf(")");
 	}
 	if (cts.ccb_h.status == CAM_REQ_CMP && cts.transport == XPORT_SATA) {
 		struct ccb_trans_settings_sata *sata =
 		    &cts.xport_specific.sata;
 
+		printf(" (");
+		if (sata->valid & CTS_SATA_VALID_REVISION)
+			printf("SATA %d.x, ", sata->revision);
+		if (sata->valid & CTS_SATA_VALID_MODE)
+			printf("%s, ", ata_mode2string(sata->mode));
 		if (sata->valid & CTS_SATA_VALID_BYTECOUNT)
-			printf(" (PIO size %dbytes)", sata->bytecount);
+			printf("PIO size %dbytes", sata->bytecount);
+		printf(")");
 	}
 	if (path->device->inq_flags & SID_CmdQue
 	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {

@@ -516,6 +516,7 @@ printf("PM RESET %d%s\n", softc->pm_step,
 static void
 pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 {
+	struct ccb_trans_settings cts;
 	struct pmp_softc *softc;
 	struct ccb_ataio *ataio;
 	union ccb *work_ccb;
@@ -635,6 +636,19 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		    done_ccb->ataio.res.sector_count;
 		if ((res & 0xf0f) == 0x103 && (res & 0x0f0) != 0) {
 			printf("PM status: %d - %08x\n", softc->pm_step, res);
+			/* Report device speed. */
+			if (xpt_create_path(&dpath, periph,
+			    xpt_path_path_id(periph->path),
+			    softc->pm_step, 0) == CAM_REQ_CMP) {
+				bzero(&cts, sizeof(cts));
+				xpt_setup_ccb(&cts.ccb_h, dpath, CAM_PRIORITY_NORMAL);
+				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+				cts.type = CTS_TYPE_CURRENT_SETTINGS;
+				cts.xport_specific.sata.revision = (res & 0x0f0) >> 4;
+				cts.xport_specific.sata.valid = CTS_SATA_VALID_REVISION;
+				xpt_action((union ccb *)&cts);
+				xpt_free_path(dpath);
+			}
 			softc->found |= (1 << softc->pm_step);
 			softc->pm_step++;
 		} else {
