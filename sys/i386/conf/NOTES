@@ -578,6 +578,8 @@ device		ath_hal		# pci/cardbus chip support
 #device		ath_rf5413
 #device		ath_ar5416	# AR5416 chips
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+#device		ath_ar9160	# AR9160 chips
+#device		ath_ar9280	# AR9160 chips
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ce
 device		cp
