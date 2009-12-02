@@ -570,7 +570,7 @@ compute_extra_bits(struct mbuf *pkt, struct dn_pipe *p)
 	if (!p->samples || p->samples_no == 0)
 		return 0;
 	index  = random() % p->samples_no;
-	extra_bits = ((dn_key)p->samples[index] * p->bandwidth) / 1000;
+	extra_bits = div64((dn_key)p->samples[index] * p->bandwidth, 1000);
 	if (index >= p->loss_level) {
 		struct dn_pkt_tag *dt = dn_tag_get(pkt);
 		if (dt)
@@ -696,11 +696,20 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	int p_was_empty = (p->head == NULL);
 	struct dn_heap *sch = &(p->scheduler_heap);
 	struct dn_heap *neh = &(p->not_eligible_heap);
+	int64_t p_numbytes = p->numbytes;
+
+	/*
+	 * p->numbytes is only 32bits in FBSD7, but we might need 64 bits.
+	 * Use a local variable for the computations, and write back the
+	 * results when done, saturating if needed.
+	 * The local variable has no impact on performance and helps
+	 * reducing diffs between the various branches.
+	 */
 
 	DUMMYNET_LOCK_ASSERT();
 
 	if (p->if_name[0] == 0)		/* tx clock is simulated */
-		p->numbytes += (curr_time - p->sched_time) * p->bandwidth;
+		p_numbytes += (curr_time - p->sched_time) * p->bandwidth;
 	else {	/*
 		 * tx clock is for real,
 		 * the ifq must be empty or this is a NOP.
@@ -717,7 +726,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	 * While we have backlogged traffic AND credit, we need to do
 	 * something on the queue.
 	 */
-	while (p->numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
+	while (p_numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
 		if (sch->elements > 0) {
 			/* Have some eligible pkts to send out. */
 			struct dn_flow_queue *q = sch->p[0].object;
@@ -727,10 +736,10 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 			int len_scaled = p->bandwidth ? len * 8 * hz : 0;
 
 			heap_extract(sch, NULL); /* Remove queue from heap. */
-			p->numbytes -= len_scaled;
+			p_numbytes -= len_scaled;
 			move_pkt(pkt, q, p, len);
 
-			p->V += (len << MY_M) / p->sum;	/* Update V. */
+			p->V += div64((len << MY_M), p->sum);	/* Update V. */
 			q->S = q->F;			/* Update start time. */
 			if (q->len == 0) {
 				/* Flow not backlogged any more. */
@@ -745,7 +754,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 				 * (we will fix this later).
 				 */
 				len = (q->head)->m_pkthdr.len;
-				q->F += (len << MY_M) / (uint64_t)fs->weight;
+				q->F += div64((len << MY_M), fs->weight);
 				if (DN_KEY_LEQ(q->S, p->V))
 					heap_insert(neh, q->S, q);
 				else
@@ -768,11 +777,11 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		}
 
 		if (p->if_name[0] != '\0') { /* Tx clock is from a real thing */
-			p->numbytes = -1;	/* Mark not ready for I/O. */
+			p_numbytes = -1;	/* Mark not ready for I/O. */
 			break;
 		}
 	}
-	if (sch->elements == 0 && neh->elements == 0 && p->numbytes >= 0) {
+	if (sch->elements == 0 && neh->elements == 0 && p_numbytes >= 0) {
 		p->idle_time = curr_time;
 		/*
 		 * No traffic and no events scheduled.
@@ -798,11 +807,11 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	 * If we are under credit, schedule the next ready event.
 	 * Also fix the delivery time of the last packet.
 	 */
-	if (p->if_name[0]==0 && p->numbytes < 0) { /* This implies bw > 0. */
+	if (p->if_name[0]==0 && p_numbytes < 0) { /* This implies bw > 0. */
 		dn_key t = 0;		/* Number of ticks i have to wait. */
 
 		if (p->bandwidth > 0)
-			t = (p->bandwidth - 1 - p->numbytes) / p->bandwidth;
+			t = div64(p->bandwidth - 1 - p_numbytes, p->bandwidth);
 		dn_tag_get(p->tail)->output_time += t;
 		p->sched_time = curr_time;
 		heap_insert(&wfq_ready_heap, curr_time + t, (void *)p);
@@ -811,6 +820,9 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		 * queue on error hoping next time we are luckier.
 		 */
 	}
+
+	/* Write back p_numbytes (adjust 64->32bit if necessary). */
+	p->numbytes = p_numbytes;
 
 	/*
 	 * If the delay line was empty call transmit_event() now.
@@ -938,12 +950,20 @@ dummynet_send(struct mbuf *m)
 	struct dn_pkt_tag *pkt;
 	struct mbuf *n;
 	struct ip *ip;
+	int dst;
 
 	for (; m != NULL; m = n) {
 		n = m->m_nextpkt;
 		m->m_nextpkt = NULL;
-		pkt = dn_tag_get(m);
-		switch (pkt->dn_dir) {
+		if (m_tag_first(m) == NULL) {
+			pkt = NULL; /* probably unnecessary */
+			dst = DN_TO_DROP;
+		} else {
+			pkt = dn_tag_get(m);
+			dst = pkt->dn_dir;
+		}
+
+		switch (dst) {
 		case DN_TO_IP_OUT:
 			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 			break ;
@@ -1218,7 +1238,8 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 		 * XXX check wraps...
 		 */
 		if (q->avg) {
-			u_int t = (curr_time - q->idle_time) / fs->lookup_step;
+			u_int t = div64(curr_time - q->idle_time,
+			    fs->lookup_step);
 
 			q->avg = (t < fs->lookup_depth) ?
 			    SCALE_MUL(q->avg, fs->w_q_lookup[t]) : 0;
@@ -1258,7 +1279,7 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 	}
 
 	if (fs->flags_fs & DN_QSIZE_IS_BYTES)
-		p_b = (p_b * len) / fs->max_pkt_size;
+		p_b = div64(p_b * len, fs->max_pkt_size);
 	if (++q->count == 0)
 		q->random = random() & 0xffff;
 	else {
@@ -1475,7 +1496,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 			heap_extract(&(pipe->idle_heap), q);
 			q->S = MAX64(q->F, pipe->V);
 		}
-		q->F = q->S + (len << MY_M) / (uint64_t)fs->weight;
+		q->F = q->S + div64(len << MY_M, fs->weight);
 
 		if (pipe->not_eligible_heap.elements == 0 &&
 		    pipe->scheduler_heap.elements == 0)
@@ -2245,8 +2266,10 @@ ip_dn_ctl(struct sockopt *sopt)
 	error = delete_pipe(p);
 	break ;
     }
+
     if (p != NULL)
 	free(p, M_TEMP);
+
     return error ;
 }
 
