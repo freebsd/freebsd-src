@@ -302,7 +302,7 @@ int	vers;
 	void *localhandle;
 	struct netconfig *nconf;
 	struct netconfig *tpconf;
-	struct key_call_private *kcp = key_call_private_main;
+	struct key_call_private *kcp;
 	struct timeval wait_time;
 	struct utsname u;
 	int main_thread;
