@@ -135,11 +135,8 @@ device		ath_rf5413
 #
 #device		ath_ar5416
 #options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
-#device		ath_rf2133
 #device		ath_ar9160
 #device		ath_ar9280
-#device		ath_rf9280
-#device		ath_ar9285
 
 # NB: 2 USB 2.0 ports standard
 device		usb
