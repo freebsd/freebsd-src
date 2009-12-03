@@ -52,6 +52,7 @@ struct ulog_utmpx {
 	char	*ut_user;	/* Username. */
 	char	*ut_line;	/* TTY device. */
 	char	*ut_host;	/* Remote hostname. */
+	short	 ut_type;	/* Type of entry. */
 	struct timeval ut_tv;	/* Timestamp. */
 };
 .Ed
@@ -67,6 +68,27 @@ directory.
 .It Fa ut_host
 An optional hostname of a remote system, if the login session is
 provided through a networked login service.
+.It Fa ut_type
+The
+.Fa ut_type
+field contains the type of the message, which may have one of the
+following values:
+.Bl -tag -width LOGIN_PROCESS
+.It Dv EMPTY
+No valid user accounting information.
+.It Dv OLD_TIME
+Identifies time when system clock changed.
+.It Dv NEW_TIME
+Identifies time after system clock changed.
+.It Dv LOGIN_PROCESS
+Identifies the session leader of a logged in user.
+.It Dv DEAD_PROCESS
+Identifies a session leader who has exited.
+.It Dv SHUTDOWN_TIME
+Identifies time when system was shut down.
+.It Dv REBOOT_TIME
+Identifies time when system was rebooted.
+.El
 .It Fa ut_tv
 Timestamp indicating when the entry was last modified.
 .El

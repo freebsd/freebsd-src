@@ -70,6 +70,21 @@ ulog_getutxent(void)
 	COPY_STRING(host);
 	utx.ut_tv.tv_sec = _time32_to_time(ut.ut_time);
 	utx.ut_tv.tv_usec = 0;
+#define	MATCH(field, value)	(strcmp(utx.ut_ ## field, (value)) == 0)
+	if (MATCH(user, "date") && MATCH(line, "|"))
+		utx.ut_type = OLD_TIME;
+	else if (MATCH(user, "date") && MATCH(line, "{"))
+		utx.ut_type = NEW_TIME;
+	else if (MATCH(user, "shutdown") && MATCH(line, "~"))
+		utx.ut_type = SHUTDOWN_TIME;
+	else if (MATCH(user, "reboot") && MATCH(line, "~"))
+		utx.ut_type = REBOOT_TIME;
+	else if (MATCH(user, "") && MATCH(host, ""))
+		utx.ut_type = DEAD_PROCESS;
+	else if (!MATCH(user, ""))
+		utx.ut_type = LOGIN_PROCESS;
+	else
+		utx.ut_type = EMPTY;
 	
 	return (&utx);
 }

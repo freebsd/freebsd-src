@@ -63,8 +63,23 @@ struct ulog_utmpx {
 	char		*ut_host;
 #if 0
 	pid_t		 ut_pid;
-	short		 ut_type;
 #endif
+	short		 ut_type;
+#define	EMPTY		0
+#if 0
+#define	BOOT_TIME	1
+#endif
+#define	OLD_TIME	2
+#define	NEW_TIME	3
+#if 0
+#define	USER_PROCESS	4
+#define	INIT_PROCESS	5
+#endif
+#define	LOGIN_PROCESS	6
+#define	DEAD_PROCESS	7
+
+#define	SHUTDOWN_TIME	8
+#define	REBOOT_TIME	9
 	struct timeval	 ut_tv;
 };
 
