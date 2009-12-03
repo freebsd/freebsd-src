@@ -2306,6 +2306,8 @@ ipfw_chk(struct ip_fw_args *args)
 	/* end of ipv6 variables */
 	int is_ipv4 = 0;
 
+	int done = 0;		/* flag to exit the outer loop */
+
 	if (m->m_flags & M_SKIP_FIREWALL || (! V_ipfw_vnet_ready))
 		return (IP_FW_PASS);	/* accept */
 
@@ -2573,7 +2575,14 @@ do {									\
 		 * Packet has already been tagged. Look for the next rule
 		 * to restart processing. Make sure that args->rule still
 		 * exists and not changed.
+		 * If fw_one_pass != 0 then just accept it.
+		 * XXX should not happen here, but optimized out in
+		 * the caller.
 		 */
+		if (fw_one_pass) {
+			IPFW_RUNLOCK(chain);
+			return (IP_FW_PASS);
+		}
 		if (chain->id != args->chain_id) {
 			for (f = chain->rules; f != NULL; f = f->next)
 				if (f == args->rule && f->id == args->rule_id)
@@ -2618,13 +2627,28 @@ do {									\
 
 	/*
 	 * Now scan the rules, and parse microinstructions for each rule.
+	 * We have two nested loops and an inner switch. Sometimes we
+	 * need to break out of one or both loops, or re-enter one of
+	 * the loops with updated variables. Loop variables are:
+	 *
+	 *	f (outer loop) points to the current rule.
+	 *		On output it points to the matching rule.
+	 *	done (outer loop) is used as a flag to break the loop.
+	 *	l (inner loop)	residual length of current rule.
+	 *		cmd points to the current microinstruction.
+	 *
+	 * We break the inner loop by setting l=0 and possibly
+	 * cmdlen=0 if we don't want to advance cmd.
+	 * We break the outer loop by setting done=1
+	 * We can restart the inner loop by setting l>0 and f, cmd
+	 * as needed.
 	 */
 	for (; f; f = f->next) {
 		ipfw_insn *cmd;
 		uint32_t tablearg = 0;
 		int l, cmdlen, skip_or; /* skip rest of OR block */
 
-again:
+/* again: */
 		if (V_set_disable & (1 << f->set) )
 			continue;
 
@@ -2639,7 +2663,7 @@ again:
 			 * the target rule.
 			 */
 
-check_body:
+/* check_body: */
 			cmdlen = F_LEN(cmd);
 			/*
 			 * An OR block (insn_1 || .. || insn_n) has the
@@ -3210,14 +3234,13 @@ check_body:
 			 *
 			 * In general, here we set retval and terminate the
 			 * outer loop (would be a 'break 3' in some language,
-			 * but we need to do a 'goto done').
+			 * but we need to set l=0, done=1)
 			 *
 			 * Exceptions:
 			 * O_COUNT and O_SKIPTO actions:
 			 *   instead of terminating, we jump to the next rule
-			 *   ('goto next_rule', equivalent to a 'break 2'),
-			 *   or to the SKIPTO target ('goto again' after
-			 *   having set f, cmd and l), respectively.
+			 *   (setting l=0), or to the SKIPTO target (by
+			 *   setting f, cmd and l as needed), respectively.
 			 *
 			 * O_TAG, O_LOG and O_ALTQ action parameters:
 			 *   perform some action and set match = 1;
@@ -3228,25 +3251,28 @@ check_body:
 			 *   These opcodes try to install an entry in the
 			 *   state tables; if successful, we continue with
 			 *   the next opcode (match=1; break;), otherwise
-			 *   the packet *   must be dropped
-			 *   ('goto done' after setting retval);
+			 *   the packet must be dropped (set retval,
+			 *   break loops with l=0, done=1)
 			 *
 			 * O_PROBE_STATE and O_CHECK_STATE: these opcodes
 			 *   cause a lookup of the state table, and a jump
 			 *   to the 'action' part of the parent rule
-			 *   ('goto check_body') if an entry is found, or
+			 *   if an entry is found, or
 			 *   (CHECK_STATE only) a jump to the next rule if
-			 *   the entry is not found ('goto next_rule').
-			 *   The result of the lookup is cached to make
-			 *   further instances of these opcodes are
-			 *   effectively NOPs.
+			 *   the entry is not found.
+			 *   The result of the lookup is cached so that
+			 *   further instances of these opcodes become NOPs.
+			 *   The jump to the next rule is done by setting
+			 *   l=0, cmdlen=0.
 			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
 				if (install_state(f,
 				    (ipfw_insn_limit *)cmd, args, tablearg)) {
+					/* error or limit violation */
 					retval = IP_FW_DENY;
-					goto done; /* error/limit violation */
+					l = 0;	/* exit inner loop */
+					done = 1; /* exit outer loop */
 				}
 				match = 1;
 				break;
@@ -3270,7 +3296,8 @@ check_body:
 					/*
 					 * Found dynamic entry, update stats
 					 * and jump to the 'action' part of
-					 * the parent rule.
+					 * the parent rule by setting
+					 * f, cmd, l and clearing cmdlen.
 					 */
 					q->pcnt++;
 					q->bcnt += pktlen;
@@ -3278,7 +3305,9 @@ check_body:
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
 					IPFW_DYN_UNLOCK();
-					goto check_body;
+					cmdlen = 0;
+					match = 1;
+					break;
 				}
 				/*
 				 * Dynamic entry not found. If CHECK_STATE,
@@ -3286,13 +3315,15 @@ check_body:
 				 * ignore and continue with next opcode.
 				 */
 				if (cmd->opcode == O_CHECK_STATE)
-					goto next_rule;
+					l = 0;	/* exit inner loop */
 				match = 1;
 				break;
 
 			case O_ACCEPT:
 				retval = 0;	/* accept */
-				goto done;
+				l = 0;		/* exit inner loop */
+				done = 1;	/* exit outer loop */
+				break;
 
 			case O_PIPE:
 			case O_QUEUE:
@@ -3304,43 +3335,45 @@ check_body:
 				else
 					args->cookie = cmd->arg1;
 				retval = IP_FW_DUMMYNET;
-				goto done;
+				l = 0;          /* exit inner loop */
+				done = 1;       /* exit outer loop */
+				break;
 
 			case O_DIVERT:
-			case O_TEE: {
-				struct divert_tag *dt;
-
+			case O_TEE:
 				if (args->eh) /* not on layer 2 */
-					break;
+				    break;
+				/* otherwise this is terminal */
+				l = 0;		/* exit inner loop */
+				done = 1;	/* exit outer loop */
 				mtag = m_tag_get(PACKET_TAG_DIVERT,
-						sizeof(struct divert_tag),
-						M_NOWAIT);
+					sizeof(struct divert_tag),
+					M_NOWAIT);
 				if (mtag == NULL) {
-					/* XXX statistic */
-					/* drop packet */
-					IPFW_RUNLOCK(chain);
-					if (ucred_cache != NULL)
-						crfree(ucred_cache);
-					return (IP_FW_DENY);
-				}
-				dt = (struct divert_tag *)(mtag+1);
-				dt->cookie = f->rulenum;
-				if (cmd->arg1 == IP_FW_TABLEARG)
+				    retval = IP_FW_DENY;
+				} else {
+				    struct divert_tag *dt;
+				    dt = (struct divert_tag *)(mtag+1);
+				    dt->cookie = f->rulenum;
+				    if (cmd->arg1 == IP_FW_TABLEARG)
 					dt->info = tablearg;
-				else
+				    else
 					dt->info = cmd->arg1;
-				m_tag_prepend(m, mtag);
-				retval = (cmd->opcode == O_DIVERT) ?
-				    IP_FW_DIVERT : IP_FW_TEE;
-				goto done;
-			}
+				    m_tag_prepend(m, mtag);
+				    retval = (cmd->opcode == O_DIVERT) ?
+					IP_FW_DIVERT : IP_FW_TEE;
+				}
+				break;
+
 			case O_COUNT:
 			case O_SKIPTO:
 				f->pcnt++;	/* update stats */
 				f->bcnt += pktlen;
 				f->timestamp = time_uptime;
-				if (cmd->opcode == O_COUNT)
-					goto next_rule;
+				if (cmd->opcode == O_COUNT) {
+					l = 0;		/* exit inner loop */
+					break;
+				}
 				/* handle skipto */
 				if (cmd->arg1 == IP_FW_TABLEARG) {
 					f = lookup_next_rule(f, tablearg);
@@ -3349,7 +3382,24 @@ check_body:
 						lookup_next_rule(f, 0);
 					f = f->next_rule;
 				}
-				goto again;
+				/*
+				 * Skip disabled rules, and
+				 * re-enter the inner loop
+				 * with the correct f, l and cmd.
+				 * Also clear cmdlen and skip_or
+				 */
+				while (f && (V_set_disable & (1 << f->set)))
+					f = f->next;
+				if (f) { /* found a valid rule */
+					l = f->cmd_len;
+					cmd = f->cmd;
+				} else {
+					l = 0;  /* exit inner loop */
+				}
+				match = 1;
+				cmdlen = 0;
+				skip_or = 0;
+				break;
 
 			case O_REJECT:
 				/*
@@ -3383,28 +3433,30 @@ check_body:
 #endif
 			case O_DENY:
 				retval = IP_FW_DENY;
-				goto done;
+				l = 0;		/* exit inner loop */
+				done = 1;	/* exit outer loop */
+				break;
 
-			case O_FORWARD_IP: {
-				struct sockaddr_in *sa;
-				sa = &(((ipfw_insn_sa *)cmd)->sa);
+			case O_FORWARD_IP:
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
 				if (!q || dyn_dir == MATCH_FORWARD) {
-					if (sa->sin_addr.s_addr == INADDR_ANY) {
-						bcopy(sa, &args->hopstore,
+				    struct sockaddr_in *sa;
+				    sa = &(((ipfw_insn_sa *)cmd)->sa);
+				    if (sa->sin_addr.s_addr == INADDR_ANY) {
+					bcopy(sa, &args->hopstore,
 							sizeof(*sa));
-						args->hopstore.sin_addr.s_addr =
+					args->hopstore.sin_addr.s_addr =
 						    htonl(tablearg);
-						args->next_hop =
-						    &args->hopstore;
-					} else {
-						args->next_hop = sa;
-					}
+					args->next_hop = &args->hopstore;
+				    } else {
+					args->next_hop = sa;
+				    }
 				}
 				retval = IP_FW_PASS;
-			    }
-			    goto done;
+				l = 0;          /* exit inner loop */
+				done = 1;       /* exit outer loop */
+				break;
 
 			case O_NETGRAPH:
 			case O_NGTEE:
@@ -3417,7 +3469,9 @@ check_body:
 					args->cookie = cmd->arg1;
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
-				goto done;
+				l = 0;          /* exit inner loop */
+				done = 1;       /* exit outer loop */
+				break;
 
 			case O_SETFIB:
 				f->pcnt++;	/* update stats */
@@ -3425,88 +3479,98 @@ check_body:
 				f->timestamp = time_uptime;
 				M_SETFIB(m, cmd->arg1);
 				args->f_id.fib = cmd->arg1;
-				goto next_rule;
+				l = 0;		/* exit inner loop */
+				break;
 
-			case O_NAT: {
-                        	struct cfg_nat *t;
-                        	int nat_id;
+			case O_NAT:
+ 				if (!IPFW_NAT_LOADED) {
+				    retval = IP_FW_DENY;
+				} else {
+				    struct cfg_nat *t;
+				    int nat_id;
 
- 				if (IPFW_NAT_LOADED) {
-					args->rule = f; /* Report matching rule. */
-					args->rule_id = f->id;
-					args->chain_id = chain->id;
-					t = ((ipfw_insn_nat *)cmd)->nat;
+				    args->rule = f; /* Report matching rule. */
+				    args->rule_id = f->id;
+				    args->chain_id = chain->id;
+				    t = ((ipfw_insn_nat *)cmd)->nat;
+				    if (t == NULL) {
+					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
+						tablearg : cmd->arg1;
+					LOOKUP_NAT(V_layer3_chain, nat_id, t);
 					if (t == NULL) {
-						nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
-						    tablearg : cmd->arg1;
-						LOOKUP_NAT(V_layer3_chain, nat_id, t);
-						if (t == NULL) {
-							retval = IP_FW_DENY;
-							goto done;
-						}
-						if (cmd->arg1 != IP_FW_TABLEARG)
-							((ipfw_insn_nat *)cmd)->nat = t;
+					    retval = IP_FW_DENY;
+					    l = 0;	/* exit inner loop */
+					    done = 1;	/* exit outer loop */
+					    break;
 					}
-					retval = ipfw_nat_ptr(args, t, m);
-				} else
-					retval = IP_FW_DENY;
-				goto done;
-			}
+					if (cmd->arg1 != IP_FW_TABLEARG)
+					    ((ipfw_insn_nat *)cmd)->nat = t;
+				    }
+				    retval = ipfw_nat_ptr(args, t, m);
+				}
+				l = 0;          /* exit inner loop */
+				done = 1;       /* exit outer loop */
+				break;
 
 			case O_REASS: {
 				int ip_off;
 
 				f->pcnt++;
 				f->bcnt += pktlen;
-				ip_off = (args->eh != NULL) ? ntohs(ip->ip_off) : ip->ip_off;
-				if (ip_off & (IP_MF | IP_OFFMASK)) {
-					/* 
-					 * ip_reass() expects len & off in host
-					 * byte order: fix them in case we come
-					 * from layer2.
-					 */
-					if (args->eh != NULL) {
-						ip->ip_len = ntohs(ip->ip_len);
-						ip->ip_off = ntohs(ip->ip_off);
-					}
+				l = 0;	/* in any case exit inner loop */
 
-					m = ip_reass(m);
-					args->m = m;
-					
-					/*
-					 * IP header checksum fixup after 
-					 * reassembly and leave header
-					 * in network byte order.
-					 */
-					if (m != NULL) {
-						int hlen;
-					
-						ip = mtod(m, struct ip *);
-						hlen = ip->ip_hl << 2;
-						/* revert len & off for layer2 pkts */
-						if (args->eh != NULL)
-							ip->ip_len = htons(ip->ip_len);
-						ip->ip_sum = 0;
-						if (hlen == sizeof(struct ip))
-							ip->ip_sum = in_cksum_hdr(ip);
-						else
-							ip->ip_sum = in_cksum(m, hlen);
-						retval = IP_FW_REASS;
-						args->rule = f;
-						args->rule_id = f->id;
-						args->chain_id = chain->id;
-						goto done;
-					} else {
-						retval = IP_FW_DENY;
-						goto done;
-					}
+				ip_off = (args->eh != NULL) ?
+					ntohs(ip->ip_off) : ip->ip_off;
+				/* if not fragmented, go to next rule */
+				if ((ip_off & (IP_MF | IP_OFFMASK)) == 0)
+				    break;
+				/* 
+				 * ip_reass() expects len & off in host
+				 * byte order: fix them in case we come
+				 * from layer2.
+				 */
+				if (args->eh != NULL) {
+				    ip->ip_len = ntohs(ip->ip_len);
+				    ip->ip_off = ntohs(ip->ip_off);
 				}
-				goto next_rule;
+
+				args->m = m = ip_reass(m);
+
+				/*
+				 * IP header checksum fixup after 
+				 * reassembly and leave header
+				 * in network byte order.
+				 */
+				if (m == NULL) { /* fragment got swallowed */
+				    retval = IP_FW_DENY;
+				} else { /* good, packet complete */
+				    int hlen;
+
+				    ip = mtod(m, struct ip *);
+				    hlen = ip->ip_hl << 2;
+				    /* revert len & off for layer2 pkts */
+				    if (args->eh != NULL)
+					ip->ip_len = htons(ip->ip_len);
+				    ip->ip_sum = 0;
+				    if (hlen == sizeof(struct ip))
+					ip->ip_sum = in_cksum_hdr(ip);
+				    else
+					ip->ip_sum = in_cksum(m, hlen);
+				    retval = IP_FW_REASS;
+				    args->rule = f;
+				    args->rule_id = f->id;
+				    args->chain_id = chain->id;
+				}
+				done = 1;	/* exit outer loop */
+				break;
 			}
 
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
 			} /* end of switch() on opcodes */
+			/*
+			 * if we get here with l=0, then match is irrelevant.
+			 */
 
 			if (cmd->len & F_NOT)
 				match = !match;
@@ -3519,22 +3583,24 @@ check_body:
 					break;		/* try next rule    */
 			}
 
-		}	/* end of inner for, scan opcodes */
+		}	/* end of inner loop, scan opcodes */
 
-next_rule:;		/* try next rule		*/
+		if (done)
+			break;
+
+/* next_rule:; */	/* try next rule		*/
 
 	}		/* end of outer for, scan rules */
-	printf("ipfw: ouch!, skip past end of rules, denying packet\n");
-	IPFW_RUNLOCK(chain);
-	if (ucred_cache != NULL)
-		crfree(ucred_cache);
-	return (IP_FW_DENY);
 
-done:
-	/* Update statistics */
-	f->pcnt++;
-	f->bcnt += pktlen;
-	f->timestamp = time_uptime;
+	if (done) {
+		/* Update statistics */
+		f->pcnt++;
+		f->bcnt += pktlen;
+		f->timestamp = time_uptime;
+	} else {
+		retval = IP_FW_DENY;
+		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
+	}
 	IPFW_RUNLOCK(chain);
 	if (ucred_cache != NULL)
 		crfree(ucred_cache);
