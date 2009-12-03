@@ -82,7 +82,7 @@ ulog_getutxent(void)
 	else if (MATCH(user, "") && MATCH(host, ""))
 		utx.ut_type = DEAD_PROCESS;
 	else if (!MATCH(user, ""))
-		utx.ut_type = LOGIN_PROCESS;
+		utx.ut_type = USER_PROCESS;
 	else
 		utx.ut_type = EMPTY;
 	
