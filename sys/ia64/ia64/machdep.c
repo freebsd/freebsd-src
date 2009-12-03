@@ -919,14 +919,14 @@ ia64_init(void)
 	return (ret);
 }
 
-__volatile void *
+void *
 ia64_ioport_address(u_int port)
 {
 	uint64_t addr;
 
 	addr = (port > 0xffff) ? IA64_PHYS_TO_RR6((uint64_t)port) :
 	    ia64_port_base | ((port & 0xfffc) << 10) | (port & 0xFFF);
-	return ((__volatile void *)addr);
+	return ((void *)addr);
 }
 
 uint64_t
