@@ -128,10 +128,8 @@ static vop_readlink_t	nfs_readlink;
 static vop_print_t	nfs_print;
 static vop_advlock_t	nfs_advlock;
 static vop_advlockasync_t nfs_advlockasync;
-#ifdef NFS4_ACL_EXTATTR_NAME
 static vop_getacl_t nfs_getacl;
 static vop_setacl_t nfs_setacl;
-#endif
 
 /*
  * Global vfs data structures for nfs
@@ -166,10 +164,8 @@ struct vop_vector newnfs_vnodeops = {
 	.vop_strategy =		nfs_strategy,
 	.vop_symlink =		nfs_symlink,
 	.vop_write =		ncl_write,
-#ifdef NFS4_ACL_EXTATTR_NAME
 	.vop_getacl =		nfs_getacl,
 	.vop_setacl =		nfs_setacl,
-#endif
 };
 
 struct vop_vector newnfs_fifoops = {
@@ -331,12 +327,9 @@ nfs_access(struct vop_access_args *ap)
 	 * unless the file is a socket, fifo, or a block or character
 	 * device resident on the filesystem.
 	 */
-	if ((ap->a_accmode & (VWRITE | VAPPEND
-#ifdef NFS4_ACL_EXTATTR_NAME
-	    | VWRITE_NAMED_ATTRS | VDELETE_CHILD | VWRITE_ATTRIBUTES |
-	    VDELETE | VWRITE_ACL | VWRITE_OWNER
-#endif
-	    )) != 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) != 0) {
+	if ((ap->a_accmode & (VWRITE | VAPPEND | VWRITE_NAMED_ATTRS |
+	    VDELETE_CHILD | VWRITE_ATTRIBUTES | VDELETE | VWRITE_ACL |
+	    VWRITE_OWNER)) != 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) != 0) {
 		switch (vp->v_type) {
 		case VREG:
 		case VDIR:
@@ -366,10 +359,8 @@ nfs_access(struct vop_access_args *ap)
 				mode |= NFSACCESS_EXTEND;
 			if (ap->a_accmode & VEXEC)
 				mode |= NFSACCESS_EXECUTE;
-#ifdef NFS4_ACL_EXTATTR_NAME
 			if (ap->a_accmode & VDELETE)
 				mode |= NFSACCESS_DELETE;
-#endif
 		} else {
 			if (ap->a_accmode & VWRITE)
 				mode |= (NFSACCESS_MODIFY | NFSACCESS_EXTEND);
@@ -377,12 +368,10 @@ nfs_access(struct vop_access_args *ap)
 				mode |= NFSACCESS_EXTEND;
 			if (ap->a_accmode & VEXEC)
 				mode |= NFSACCESS_LOOKUP;
-#ifdef NFS4_ACL_EXTATTR_NAME
 			if (ap->a_accmode & VDELETE)
 				mode |= NFSACCESS_DELETE;
 			if (ap->a_accmode & VDELETE_CHILD)
 				mode |= NFSACCESS_MODIFY;
-#endif
 		}
 		/* XXX safety belt, only make blanket request if caching */
 		if (nfsaccess_cache_timeout > 0) {
@@ -3136,7 +3125,6 @@ nfs_lock1(struct vop_lock1_args *ap)
 	    ap->a_line));
 }
 
-#ifdef NFS4_ACL_EXTATTR_NAME
 static int
 nfs_getacl(struct vop_getacl_args *ap)
 {
@@ -3168,5 +3156,3 @@ nfs_setacl(struct vop_setacl_args *ap)
 	}
 	return (error);
 }
-
-#endif	/* NFS4_ACL_EXTATTR_NAME */
