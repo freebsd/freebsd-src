@@ -754,6 +754,7 @@ re_diag(struct rl_softc *sc)
 
 	ifp->if_flags |= IFF_PROMISC;
 	sc->rl_testmode = 1;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	re_init_locked(sc);
 	sc->rl_flags |= RL_FLAG_LINK;
 	if (sc->rl_type == RL_8169)
@@ -2140,8 +2141,10 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		 * XXX check behaviour on receiver stalls.
 		 */
 
-		if (status & RL_ISR_SYSTEM_ERR)
+		if (status & RL_ISR_SYSTEM_ERR) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			re_init_locked(sc);
+		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -2216,8 +2219,10 @@ re_int_task(void *arg, int npending)
 	    RL_ISR_TX_ERR|RL_ISR_TX_DESC_UNAVAIL))
 		re_txeof(sc);
 
-	if (status & RL_ISR_SYSTEM_ERR)
+	if (status & RL_ISR_SYSTEM_ERR) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		re_init_locked(sc);
+	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
@@ -2533,6 +2538,9 @@ re_init_locked(struct rl_softc *sc)
 
 	mii = device_get_softc(sc->rl_miibus);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
@@ -2787,7 +2795,8 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		RL_LOCK(sc);
-		re_set_rxmode(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			re_set_rxmode(sc);
 		RL_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
@@ -2856,8 +2865,10 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if ((mask & IFCAP_WOL_MAGIC) != 0)
 				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		}
-		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			re_init(sc);
+		}
 		VLAN_CAPABILITIES(ifp);
 	    }
 		break;
@@ -2893,6 +2904,7 @@ re_watchdog(struct rl_softc *sc)
 	ifp->if_oerrors++;
 
 	re_rxeof(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	re_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
