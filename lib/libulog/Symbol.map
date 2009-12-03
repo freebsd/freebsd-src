@@ -1,0 +1,13 @@
+/*
+ * $FreeBSD$
+ */	
+
+FBSD_1.2 {
+	ulog_endutxent;
+	ulog_getutxent;
+	ulog_login;
+	ulog_login_pseudo;
+	ulog_logout;
+	ulog_logout_pseudo;
+	ulog_setutxent;
+};

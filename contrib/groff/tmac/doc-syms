@@ -777,6 +777,7 @@
 .ds doc-str-Lb-librt       \*[Px] \*[doc-str-Lb]Real-time Library (librt, \-lrt)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
 .ds doc-str-Lb-libusbhid   USB Human Interface Devices Library (libusbhid, \-lusbhid)
+.ds doc-str-Lb-libulog     User Login Record Library (libulog, \-lulog)
 .ds doc-str-Lb-libutil     System Utilities Library (libutil, \-lutil)
 .ds doc-str-Lb-libx86_64   x86_64 Architecture Library (libx86_64, \-lx86_64)
 .ds doc-str-Lb-libz        Compression Library (libz, \-lz)
