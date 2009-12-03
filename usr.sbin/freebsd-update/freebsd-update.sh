@@ -600,6 +600,7 @@ fetch_check_params () {
 		echo ${WORKDIR}
 		exit 1
 	fi
+	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
 
 	# Generate release number.  The s/SECURITY/RELEASE/ bit exists
