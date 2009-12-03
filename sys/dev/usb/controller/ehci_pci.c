@@ -193,6 +193,10 @@ ehci_pci_match(device_t self)
 		return "Intel 82801I (ICH9) USB 2.0 controller";
 	case 0x293c8086:
 		return "Intel 82801I (ICH9) USB 2.0 controller";
+	case 0x3a3a8086:
+		return "Intel 82801IJ (ICH10) USB 2.0 controller USB-A";
+	case 0x3a3c8086:
+		return "Intel 82801IJ (ICH10) USB 2.0 controller USB-B";
 
 	case 0x00e01033:
 		return ("NEC uPD 720100 USB 2.0 controller");
