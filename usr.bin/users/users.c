@@ -80,7 +80,7 @@ main(int argc, char **argv)
 
 	ulog_setutxent();
 	while ((ut = ulog_getutxent()) != NULL) {
-		if (ut->ut_type != LOGIN_PROCESS)
+		if (ut->ut_type != USER_PROCESS)
 			continue;
 		if (ncnt >= nmax) {
 			nmax += 32;
