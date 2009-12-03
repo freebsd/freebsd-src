@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20091203:	p1	FreeBSD-SA-09:15.ssl, FreeBSD-SA-09:16.rtld,
+			FreeBSD-SA-09:17.freebsd-update
+	Disable SSL renegotiation in order to protect against a serious
+	protocol flaw. [09:15]
+
+	Correctly handle failures from unsetenv resulting from a corrupt
+	environment in rtld-elf. [09:16]
+
+	Fix permissions in freebsd-update in order to prevent leakage of
+	sensitive files. [09:17]
+
 20091125:
 	8.0-RELEASE.
 
