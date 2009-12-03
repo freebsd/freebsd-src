@@ -1,6 +1,10 @@
 # $FreeBSD$
 
-MAN=	bm.4 \
+MAN=	adb.4 \
+	akbd.4 \
+	ams.4 \
+	bm.4 \
+	cuda.4 \
 	pmu.4 \
 	powermac_nvram.4 \
 	snd_ai2s.4 \
