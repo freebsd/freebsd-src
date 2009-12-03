@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
+#include <machine/cputypes.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -478,6 +479,8 @@ void
 mca_init(void)
 {
 	uint64_t mcg_cap;
+	uint64_t ctl;
+	int skip;
 	int i;
 
 	/* MCE is required. */
@@ -495,15 +498,26 @@ mca_init(void)
 			wrmsr(MSR_MCG_CTL, MCG_CTL_ENABLE);
 
 		for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
-			/*
-			 * Enable logging of all errors.  For P6
-			 * processors, MC0_CTL is always enabled.
-			 *
-			 * XXX: Better CPU test needed here?
-			 */
-			if (!(i == 0 && (cpu_id & 0xf00) == 0x600))
-				wrmsr(MSR_MC_CTL(i), 0xffffffffffffffffUL);
+			/* By default enable logging of all errors. */
+			ctl = 0xffffffffffffffffUL;
+			skip = 0;
 
+			if (cpu_vendor_id == CPU_VENDOR_INTEL) {
+				/*
+				 * For P6 models before Nehalem MC0_CTL is
+				 * always enabled and reserved.
+				 */
+				if (i == 0 && CPUID_TO_FAMILY(cpu_id) == 0x6
+				    && CPUID_TO_MODEL(cpu_id) < 0x1a)
+					skip = 1;
+			} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
+				/* BKDG for Family 10h: unset GartTblWkEn. */
+				if (i == 4 && CPUID_TO_FAMILY(cpu_id) >= 0xf)
+					ctl &= ~(1UL << 10);
+			}
+
+			if (!skip)
+				wrmsr(MSR_MC_CTL(i), ctl);
 			/* Clear all errors. */
 			wrmsr(MSR_MC_STATUS(i), 0);
 		}
