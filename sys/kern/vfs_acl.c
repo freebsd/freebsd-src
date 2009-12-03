@@ -173,7 +173,7 @@ acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
 
 /*
  * Convert "old" type - ACL_TYPE_{ACCESS,DEFAULT}_OLD - into its "new"
- * counterpart.  It's required for old (pre-NFS4 ACLs) libc to work
+ * counterpart.  It's required for old (pre-NFSv4 ACLs) libc to work
  * with new kernel.  Fixing 'type' for old binaries with new libc
  * is being done in lib/libc/posix1e/acl_support.c:_acl_type_unold().
  */
@@ -307,7 +307,8 @@ vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
 	error = acl_copyin(aclp, inkernelacl, type);
 	if (error != 0)
 		goto out;
-	error = VOP_ACLCHECK(vp, type, inkernelacl, td->td_ucred, td);
+	error = VOP_ACLCHECK(vp, acl_type_unold(type), inkernelacl,
+	    td->td_ucred, td);
 out:
 	acl_free(inkernelacl);
 	return (error);
