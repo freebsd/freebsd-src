@@ -68,12 +68,10 @@ main(int argc, char *argv[])
 		if (argc == 3)
 			host = argv[2];
 
-		if (ulog_login(line, pwd->pw_name, host) != 0)
-			return (EX_OSFILE);
+		ulog_login(line, pwd->pw_name, host);
 		return (EX_OK);
 	} else if (argc == 2 && strcmp(argv[1], "logout") == 0) {
-		if (ulog_logout(line) != 0)
-			return (EX_OSFILE);
+		ulog_logout(line);
 		return (EX_OK);
 	}
 
