@@ -1,0 +1,98 @@
+.\" Copyright (c) 2009 Ed Schouten <ed@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 2, 2009
+.Os
+.Dt ULOG_GETUTXENT 3
+.Sh NAME
+.Nm ulog_getutxent ,
+.Nm ulog_setutxent ,
+.Nm ulog_endutxent
+.Nd read user login records
+.Sh LIBRARY
+.Lb libulog
+.Sh SYNOPSIS
+.In ulog.h
+.Ft struct ulog_utmpx *
+.Fn ulog_getutxent "void"
+.Ft void
+.Fn ulog_setutxent "void"
+.Ft void
+.Fn ulog_endutxent "void"
+.Sh DESCRIPTION
+The
+.Fn ulog_getutxent
+function returns a pointer to an object, with the following structure,
+containing stored information of an active user login session.
+.Bd -literal
+struct ulog_utmpx {
+	char	*ut_user;	/* Username. */
+	char	*ut_line;	/* TTY device. */
+	char	*ut_host;	/* Remote hostname. */
+	struct timeval ut_tv;	/* Timestamp. */
+};
+.Ed
+.Pp
+The fields are as follows:
+.Bl -tag -width ut_user
+.It Fa ut_user
+The username of the logged in user.
+.It Fa ut_line
+The pathname of the TTY device, without the leading
+.Pa /dev/
+directory.
+.It Fa ut_host
+An optional hostname of a remote system, if the login session is
+provided through a networked login service.
+.It Fa ut_tv
+Timestamp indicating when the entry was last modified.
+.El
+.Pp
+The
+.Fn ulog_getutxent
+function reads the next entry from the utmp file, opening the file if
+necessary.
+The
+.Fn ulog_setutxent
+opens the file, closing it first if already opened.
+The
+.Fn ulog_endutxent
+function closes any open files.
+.Pp
+The
+.Fn ulog_getutxent
+function reads from the beginning of the file until and EOF is
+encountered.
+.Sh RETURN VALUES
+The
+.Fn ulog_getutxent
+function returns a null pointer on EOF or error.
+.Sh SEE ALSO
+.Xr ulog_login 3 ,
+.Xr utmp 5
+.Sh HISTORY
+These functions appeared in
+.Fx 9.0 .
