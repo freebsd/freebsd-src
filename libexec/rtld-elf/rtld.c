@@ -360,11 +360,12 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * future processes to honor the potentially un-safe variables.
      */
     if (!trust) {
-        unsetenv(LD_ "PRELOAD");
-        unsetenv(LD_ "LIBMAP");
-        unsetenv(LD_ "LIBRARY_PATH");
-        unsetenv(LD_ "LIBMAP_DISABLE");
-        unsetenv(LD_ "DEBUG");
+        if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "LIBMAP") ||
+	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBMAP_DISABLE") ||
+	    unsetenv(LD_ "DEBUG")) {
+		_rtld_error("environment corrupt; aborting");
+		die();
+	}
     }
     ld_debug = getenv(LD_ "DEBUG");
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;

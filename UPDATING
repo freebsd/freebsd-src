@@ -8,6 +8,17 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20091203:	p5	FreeBSD-SA-09:15.ssl, FreeBSD-SA-09:16.rtld,
+			FreeBSD-SA-09:17.freebsd-update
+	Disable SSL renegotiation in order to protect against a serious
+	protocol flaw. [09:15]
+
+	Correctly handle failures from unsetenv resulting from a corrupt
+	environment in rtld-elf. [09:16]
+
+	Fix permissions in freebsd-update in order to prevent leakage of
+	sensitive files. [09:17]
+
 20091002:	p4	FreeBSD-SA-09:14.devfs FreeBSD-EN-09:05.null
 	Fix devfs / VFS NULL pointer race condition. [SA-09:14]
 
