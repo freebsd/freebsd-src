@@ -71,11 +71,11 @@ struct ulog_utmpx {
 #endif
 #define	OLD_TIME	2
 #define	NEW_TIME	3
-#if 0
 #define	USER_PROCESS	4
+#if 0
 #define	INIT_PROCESS	5
-#endif
 #define	LOGIN_PROCESS	6
+#endif
 #define	DEAD_PROCESS	7
 
 #define	SHUTDOWN_TIME	8
