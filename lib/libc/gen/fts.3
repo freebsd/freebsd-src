@@ -28,7 +28,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2008
+.Dd November 25, 2009
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -198,10 +198,9 @@ A directory being visited in post-order.
 The contents of the
 .Vt FTSENT
 structure will be unchanged from when
-it was returned in pre-order, i.e., with the
+the directory was visited in pre-order, except for the
 .Fa fts_info
-field set to
-.Dv FTS_D .
+field.
 .It Dv FTS_ERR
 This is an error return, and the
 .Fa fts_errno
