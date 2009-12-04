@@ -2761,6 +2761,7 @@ DB_SHOW_COMMAND(vnode, db_show_vnode)
 DB_SHOW_COMMAND(mount, db_show_mount)
 {
 	struct mount *mp;
+	struct vfsopt *opt;
 	struct statfs *sp;
 	struct vnode *vp;
 	char buf[512];
@@ -2865,6 +2866,18 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 		    "0x%08x", flags);
 	}
 	db_printf("    mnt_kern_flag = %s\n", buf);
+
+	db_printf("    mnt_opt = ");
+	opt = TAILQ_FIRST(mp->mnt_opt);
+	if (opt != NULL) {
+		db_printf("%s", opt->name);
+		opt = TAILQ_NEXT(opt, link);
+		while (opt != NULL) {
+			db_printf(", %s", opt->name);
+			opt = TAILQ_NEXT(opt, link);
+		}
+	}
+	db_printf("\n");
 
 	sp = &mp->mnt_stat;
 	db_printf("    mnt_stat = { version=%u type=%u flags=0x%016jx "
