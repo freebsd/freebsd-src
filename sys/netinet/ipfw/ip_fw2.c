@@ -899,7 +899,11 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 
 	} else {
 		int len;
-		char src[48], dst[48];
+#ifdef INET6
+		char src[INET6_ADDRSTRLEN + 2], dst[INET6_ADDRSTRLEN + 2];
+#else
+		char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+#endif
 		struct icmphdr *icmp;
 		struct tcphdr *tcp;
 		struct udphdr *udp;
@@ -1054,7 +1058,11 @@ static __inline void
 unlink_dyn_rule_print(struct ipfw_flow_id *id)
 {
 	struct in_addr da;
-	char src[48], dst[48];
+#ifdef INET6
+	char src[INET6_ADDRSTRLEN], dst[INET6_ADDRSTRLEN];
+#else
+	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+#endif
 
 #ifdef INET6
 	if (IS_IP6_FLOW_ID(id)) {
@@ -1416,8 +1424,14 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	V_dyn_count++;
 	DEB({
 		struct in_addr da;
-		char src[48];
-		char dst[48];
+#ifdef INET6
+		char src[INET6_ADDRSTRLEN];
+		char dst[INET6_ADDRSTRLEN];
+#else
+		char src[INET_ADDRSTRLEN];
+		char dst[INET_ADDRSTRLEN];
+#endif
+
 #ifdef INET6
 		if (IS_IP6_FLOW_ID(&(r->id))) {
 			ip6_sprintf(src, &r->id.src_ip6);
@@ -1490,7 +1504,11 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 	static int last_log;
 	ipfw_dyn_rule *q;
 	struct in_addr da;
-	char src[48], dst[48];
+#ifdef INET6
+	char src[INET6_ADDRSTRLEN + 2], dst[INET6_ADDRSTRLEN + 2];
+#else
+	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
+#endif
 
 	src[0] = '\0';
 	dst[0] = '\0';
