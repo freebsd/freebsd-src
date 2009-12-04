@@ -295,7 +295,7 @@ main(int argc, char *argv[])
 		}
 		sock = RPC_ANYSOCK;
 		(void) pmap_unset(YPPROG, YPVERS);
-		(void) pmap_unset(YPPROG, 1);
+		(void) pmap_unset(YPPROG, YPOLDVERS);
 	}
 
 	/*
