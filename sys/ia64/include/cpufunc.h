@@ -54,8 +54,8 @@ breakpoint(void)
 #define	HAVE_INLINE_FFS
 #define	ffs(x)	__builtin_ffs(x)
 
-#define	__MEMIO_ADDR(x)		(__volatile void*)(IA64_PHYS_TO_RR6(x))
-extern __volatile void *ia64_ioport_address(u_int);
+#define	__MEMIO_ADDR(x)		(void*)(IA64_PHYS_TO_RR6(x))
+extern void *ia64_ioport_address(u_int);
 #define	__PIO_ADDR(x)		ia64_ioport_address(x)
 
 /*
