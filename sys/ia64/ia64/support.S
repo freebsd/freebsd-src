@@ -775,10 +775,8 @@ ENTRY(copyinstr, 4)
 	;;
 	br.call.sptk.few rp=copystr		// do the copy.
 	st8	[loc2]=r0			// kill the fault handler.
-	;;
 	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
-	;;
 	br.ret.sptk.few rp			// ret0 left over from copystr
 END(copyinstr)
 
@@ -889,10 +887,8 @@ ENTRY(copyin, 3)
 	;;
 	br.call.sptk.few rp=bcopy		// do the copy.
 	st8	[loc2]=r0			// kill the fault handler.
-	;;
 	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
-	;;
 	br.ret.sptk.few rp			// ret0 left over from bcopy
 END(copyin)
 
@@ -929,10 +925,8 @@ ENTRY(copyout, 3)
 	;;
 	br.call.sptk.few rp=bcopy		// do the copy.
 	st8	[loc2]=r0			// kill the fault handler.
-	;;
 	mov	ar.pfs=loc0			// restore ar.pfs
 	mov	rp=loc1				// restore ra.
-	;;
 	br.ret.sptk.few rp			// ret0 left over from bcopy
 END(copyout)
 
@@ -985,7 +979,6 @@ ENTRY_NOPROFILE(_mcount, 4)
 	;;
 2:
 	mov		ar.pfs = r14
-	;;
 	br.sptk		b6
 	;;
 END(_mcount)
