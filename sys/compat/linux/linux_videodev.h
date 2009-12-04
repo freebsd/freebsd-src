@@ -1,48 +1,41 @@
+/*
+ * This header comes from linux, but it has no license. The author
+ * (Alan Cox @ Redhat) gave explicit permissions to use it in FreeBSD.
+ * The freeBSD vendor branch for v4l gives a more detailed description
+ * about this.
+ *
+ * $FreeBSD$
+ */
+
 #ifndef __LINUX_VIDEODEV_H
 #define __LINUX_VIDEODEV_H
 
-#include <linux/types.h>
+#include <sys/types.h>
+typedef int32_t __s32;
+typedef uint32_t __u32;
+typedef uint16_t __u16;
+typedef uint8_t __u8;
 
+#if 0
 #define HAVE_V4L1 1
 
 #include <linux/videodev2.h>
+#endif 
 
-#ifdef __KERNEL__
-
-#include <linux/mm.h>
-
-extern struct video_device* video_devdata(struct file*);
-
-#define to_video_device(cd) container_of(cd, struct video_device, class_dev)
-static inline void
-video_device_create_file(struct video_device *vfd,
-			 struct class_device_attribute *attr)
-{
-	class_device_create_file(&vfd->class_dev, attr);
-}
-static inline void
-video_device_remove_file(struct video_device *vfd,
-			 struct class_device_attribute *attr)
-{
-	class_device_remove_file(&vfd->class_dev, attr);
-}
-
-#if OBSOLETE_OWNER /* to be removed in 2.6.15 */
-/* helper functions to access driver private data. */
-static inline void *video_get_drvdata(struct video_device *dev)
-{
-	return dev->priv;
-}
-
-static inline void video_set_drvdata(struct video_device *dev, void *data)
-{
-	dev->priv = data;
-}
-#endif
-
-extern int video_exclusive_open(struct inode *inode, struct file *file);
-extern int video_exclusive_release(struct inode *inode, struct file *file);
-#endif /* __KERNEL__ */
+#define VID_TYPE_CAPTURE	1	/* Can capture */
+#define VID_TYPE_TUNER		2	/* Can tune */
+#define VID_TYPE_TELETEXT	4	/* Does teletext */
+#define VID_TYPE_OVERLAY	8	/* Overlay onto frame buffer */
+#define VID_TYPE_CHROMAKEY	16	/* Overlay by chromakey */
+#define VID_TYPE_CLIPPING	32	/* Can clip */
+#define VID_TYPE_FRAMERAM	64	/* Uses the frame buffer memory */
+#define VID_TYPE_SCALES		128	/* Scalable */
+#define VID_TYPE_MONOCHROME	256	/* Monochrome only */
+#define VID_TYPE_SUBCAPTURE	512	/* Can capture subareas of the image */
+#define VID_TYPE_MPEG_DECODER	1024	/* Can decode MPEG streams */
+#define VID_TYPE_MPEG_ENCODER	2048	/* Can encode MPEG streams */
+#define VID_TYPE_MJPEG_DECODER	4096	/* Can decode MJPEG streams */
+#define VID_TYPE_MJPEG_ENCODER	8192	/* Can encode MJPEG streams */
 
 struct video_capability
 {
@@ -157,7 +150,7 @@ struct video_window
 	__u32	width,height;		/* Its size */
 	__u32	chromakey;
 	__u32	flags;
-	struct	video_clip __user *clips;	/* Set only */
+	struct	video_clip *clips;	/* Set only */
 	int	clipcount;
 #define VIDEO_WINDOW_INTERLACE	1
 #define VIDEO_WINDOW_CHROMAKEY	16	/* Overlay by chromakey */
@@ -196,6 +189,8 @@ struct video_key
 	__u8	key[8];
 	__u32	flags;
 };
+
+#define VIDEO_MAX_FRAME		32
 
 struct video_mbuf
 {
