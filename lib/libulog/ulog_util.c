@@ -22,39 +22,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _ULOG_INTERNAL_H_
-#define	_ULOG_INTERNAL_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <stdint.h>
+#include <string.h>
+#include <ttyent.h>
 
-#include "ulog.h"
+#include "ulog_internal.h"
 
-unsigned int ulog_ttyslot(const char *);
+unsigned int
+ulog_ttyslot(const char *name)
+{
+	struct ttyent *ty;
+	unsigned int slot;
 
-/*
- * On-disk format.
- */
-
-#define	_PATH_UTMP	"/var/run/utmp"
-#define	_PATH_WTMP	"/var/log/wtmp"
-
-struct futmp {
-	char	ut_line[8];
-	char	ut_user[16];
-	char	ut_host[16];
-	int32_t	ut_time;
-};
-
-#define	_PATH_LASTLOG	"/var/log/lastlog"
-
-struct flastlog {
-	int32_t	ll_time;
-	char	ll_line[8];
-	char	ll_host[16];
-};
-
-#endif /* !_ULOG_INTERNAL_H_ */
+	setttyent();
+	for (slot = 1; (ty = getttyent()) != NULL; ++slot)
+		if (strcmp(ty->ty_name, name) == 0) {
+			endttyent();
+			return (slot);
+		}
+	endttyent();
+	return (0);
+}
