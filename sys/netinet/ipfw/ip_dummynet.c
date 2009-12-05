@@ -1447,7 +1447,9 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 				q->numbytes += pipe->bandwidth;
 		}
 	} else {			/* WF2Q. */
-		if (pipe->idle_time < curr_time) {
+		if (pipe->idle_time < curr_time &&
+		    pipe->scheduler_heap.elements == 0 &&
+		    pipe->not_eligible_heap.elements == 0) {
 			/* Calculate available burst size. */
 			pipe->numbytes +=
 			    (curr_time - pipe->idle_time - 1) * pipe->bandwidth;
