@@ -132,7 +132,7 @@ monstartup(lowpc, highpc)
 }
 
 void
-_mcleanup()
+_mcleanup(void)
 {
 	int fd;
 	int fromindex;
