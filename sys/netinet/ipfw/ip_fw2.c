@@ -4924,15 +4924,16 @@ vnet_ipfw_init(const void *unused)
 	/*
 	 * Hook the sockopt handler, and the layer2 (V_ip_fw_chk_ptr)
 	 * and pfil hooks for ipv4 and ipv6. Even if the latter two fail
-	 * we still keep the module alive. ipfw[6]_hook return
-	 * either 0 or ENOENT in case of failure, so we can ignore the
-	 * exact return value and just set a flag.
+	 * we still keep the module alive because the sockopt and
+	 * layer2 paths are still useful.
+	 * ipfw[6]_hook return 0 on success, ENOENT on failure,
+	 * so we can ignore the exact return value and just set a flag.
 	 *
-	 * XXX 20091204 note that V_ether_ipfw is checked on each packet,
-	 * whereas V_fw_enable is only checked at vnet load time.
-	 * This must be fixed so that they act in the same way
-	 * (probably hooking the pfil unconditionally, and bypassing
-	 * the processing if V_fw_enable=0). Same for V_fw6_enable
+	 * Note that V_fw[6]_enable are manipulated by a SYSCTL_PROC so
+	 * changes in the underlying (per-vnet) variables trigger
+	 * immediate hook()/unhook() calls.
+	 * In layer2 we have the same behaviour, except that V_ether_ipfw
+	 * is checked on each packet because there are no pfil hooks.
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl;
 	V_ip_fw_chk_ptr = ipfw_chk;
