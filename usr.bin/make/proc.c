@@ -116,7 +116,7 @@ Proc_Exec(const ProcStuff *ps)
 		execvp(ps->argv[0], ps->argv);
 
 		write(STDERR_FILENO, ps->argv[0], strlen(ps->argv[0]));
-		write(STDERR_FILENO, ":", 1);
+		write(STDERR_FILENO, ": ", 2);
 		write(STDERR_FILENO, strerror(errno), strlen(strerror(errno)));
 		write(STDERR_FILENO, "\n", 1);
 	} else {
