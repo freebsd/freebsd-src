@@ -27,109 +27,48 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <fcntl.h>
-#include <inttypes.h>
+#include <sys/time.h>
 #include <paths.h>
-#include <pwd.h>
 #include <string.h>
-#include <unistd.h>
-#include <time.h>
-#include <timeconv.h>
-#include <ttyent.h>
 
 #include "ulog_internal.h"
 
 void
 ulog_login(const char *line, const char *user, const char *host)
 {
-	struct futmp fu;
-	struct flastlog fl;
-	int fd;
+	struct ulog_utmpx utx;
 
 	/* Remove /dev/ component. */
 	if (strncmp(line, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
 		line += sizeof _PATH_DEV - 1;
 
-	/* Prepare log entries. */
-	memset(&fu, 0, sizeof fu);
-	strlcpy(fu.ut_line, line, sizeof fu.ut_line);
-	strlcpy(fu.ut_user, user, sizeof fu.ut_user);
-	if (host != NULL)
-		strlcpy(fu.ut_host, host, sizeof fu.ut_host);
-	fu.ut_time = _time_to_time32(time(NULL));
+	memset(&utx, 0, sizeof utx);
 
-	fl.ll_time = fu.ut_time;
-	memcpy(fl.ll_line, fu.ut_line, sizeof fl.ll_line);
-	memcpy(fl.ll_host, fu.ut_host, sizeof fl.ll_host);
+	/* XXX: ut_id, ut_pid missing. */
+	utx.ut_type = USER_PROCESS;
+	strncpy(utx.ut_line, line, sizeof utx.ut_line);
+	strncpy(utx.ut_user, user, sizeof utx.ut_user);
+	strncpy(utx.ut_host, host, sizeof utx.ut_host);
+	gettimeofday(&utx.ut_tv, NULL);
 
-	/* Update utmp entry. */
-	if ((fd = open(_PATH_UTMP, O_WRONLY|O_CREAT, 0644)) >= 0) {
-		struct ttyent *ty;
-		int idx;
-
-		setttyent();
-		for (idx = 1; (ty = getttyent()) != NULL; ++idx) {
-			if (strcmp(ty->ty_name, line) != 0)
-				continue;
-			lseek(fd, (off_t)(idx * sizeof fu), L_SET);
-			write(fd, &fu, sizeof fu);
-			break;
-		}
-		endttyent();
-		close(fd);
-	}
-
-	/* Add wtmp entry. */
-	if ((fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) >= 0) {
-		write(fd, &fu, sizeof fu);
-		close(fd);
-	}
-
-	/* Update lastlog entry. */
-	if ((fd = open(_PATH_LASTLOG, O_WRONLY, 0)) >= 0) {
-		struct passwd *pw;
-
-		pw = getpwnam(user);
-		if (pw != NULL) {
-			lseek(fd, (off_t)(pw->pw_uid * sizeof fl), L_SET);
-			write(fd, &fl, sizeof fl);
-		}
-		close(fd);
-	}
+	ulog_pututxline(&utx);
 }
 
 void
 ulog_logout(const char *line)
 {
-	struct futmp ut;
-	int fd, found;
+	struct ulog_utmpx utx;
 
 	/* Remove /dev/ component. */
 	if (strncmp(line, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
 		line += sizeof _PATH_DEV - 1;
 
-	/* Mark entry in utmp as logged out. */
-	if ((fd = open(_PATH_UTMP, O_RDWR, 0)) < 0)
-		return;
-	found = 0;
-	while (read(fd, &ut, sizeof ut) == sizeof ut) {
-		if (ut.ut_user[0] == '\0' ||
-		    strncmp(ut.ut_line, line, sizeof ut.ut_line) != 0)
-			continue;
-		memset(ut.ut_user, 0, sizeof ut.ut_user);
-		memset(ut.ut_host, 0, sizeof ut.ut_host);
-		ut.ut_time = _time_to_time32(time(NULL));
-		lseek(fd, -(off_t)sizeof ut, L_INCR);
-		write(fd, &ut, sizeof ut);
-		found = 1;
-	}
-	close(fd);
-	if (!found)
-		return;
+	memset(&utx, 0, sizeof utx);
 
-	/* utmp entry found. Also add logout entry to wtmp. */
-	if ((fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) >= 0) {
-		write(fd, &ut, sizeof ut);
-		close(fd);
-	}
+	/* XXX: ut_id, ut_pid missing. ut_line not needed */
+	utx.ut_type = DEAD_PROCESS;
+	strncpy(utx.ut_line, line, sizeof utx.ut_line);
+	gettimeofday(&utx.ut_tv, NULL);
+
+	ulog_pututxline(&utx);
 }

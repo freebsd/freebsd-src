@@ -26,77 +26,69 @@
 .\"
 .Dd December 5, 2009
 .Os
-.Dt ULOG_LOGIN 3
+.Dt ULOG_SETUTXFILE 3
 .Sh NAME
-.Nm ulog_login ,
-.Nm ulog_login_pseudo ,
-.Nm ulog_logout ,
-.Nm ulog_logout_pseudo
-.Nd manage user login records
+.Nm ulog_setutxfile ,
+.Nm ulog_getutxuser
+.Nd additional user login records management
 .Sh LIBRARY
 .Lb libulog
 .Sh SYNOPSIS
 .In ulog.h
-.Ft void
-.Fn ulog_login "const char *line" "const char *user" "const char *host"
-.Ft void
-.Fn ulog_login_pseudo "int fd" "const char *host"
-.Ft void
-.Fn ulog_logout "const char *line"
-.Ft void
-.Fn ulog_logout_pseudo "int fd"
+.Ft int
+.Fn ulog_setutxfile "int type" "const char *file"
+.Ft struct ulog_utmpx *
+.Fn ulog_getutxuser "const char *user"
 .Sh DESCRIPTION
 The
-.Fn ulog_login
+.Fn ulog_setutxfile
 and
-.Fn ulog_login_pseudo
-functions register a login session on a TTY.
-The
-.Fn ulog_login
-function adds an entry for TTY
-.Fa line
-and username
-.Fa user .
-The
-.Fn ulog_login_pseudo
-function uses file descriptor to a pseudo-terminal master device
-.Fa fd
-to determine the TTY name, while using the username belonging to the
-real user ID of the calling process.
-The optional
-.Fa host
-argument denotes a remote hostname, in case the login session is
-provided by a network service.
+.Fn ulog_getutxuser
+functions are extensions to the standard
+.In ulog.h
+interface.
 .Pp
 The
-.Fn ulog_logout
-and
-.Fn ulog_logout_pseudo
-functions mark the previously registered login session as being
-terminated.
+.Fn ulog_setutxfile
+function is similar to
+.Fn ulog_setutxent ,
+but is capable of returning an error code and also gives access to other
+login record files by using one of the following values for
+.Fa type :
+.Bl -tag -width UTXF_LASTLOG
+.It Dv UTXF_UTMP
+Open the default
+.Nm utmp
+file, which is indexed by TTY device.
+.It Dv UTXF_WTMP
+Open the
+.Nm wtmp
+file, which is indexed by time.
+.It Dv UTXF_LASTLOG
+Open the
+.Nm lastlog
+file, which is indexed by user ID.
+.El
 .Pp
-Because the
-.Fa line
-and
+The
+.Fa file
+argument determines the file to be opened.
+If left null, implementation-defined default file is opened.
+.Pp
+The
+.Fn ulog_getutxuser
+searches the currently opened file until an entry is found whose
+.Fa ut_user
+is equal to the
 .Fa user
-arguments of
-.Fn ulog_login
-and
-.Fn ulog_logout
-cannot be trusted, these functions require administrative privileges.
-The
-.Fn ulog_login_pseudo
-and
-.Fn ulog_logout_pseudo
-functions spawn a privileged process to perform the actual logging.
+argument.
+.Sh RETURN VALUES
+If succesful,
+.Fn ulog_setutxfile 
+returns 0.
+It returns -1 on failure.
 .Sh SEE ALSO
-.Xr getuid 3 ,
-.Xr login 3 ,
-.Xr logout 3 ,
-.Xr posix_openpt 2 ,
-.Xr ptsname 3 ,
-.Xr ulog_getutxent 3 ,
-.Xr utmp 5
+.Xr ulog_getutxent 3
 .Sh HISTORY
 These functions appeared in
 .Fx 9.0 .
