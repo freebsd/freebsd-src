@@ -65,8 +65,9 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 #include <devstat.h>
 #include "systat.h"
 #include "extern.h"
@@ -141,7 +142,6 @@ static void putlongdouble(long double, int, int, int, int, int);
 static int ucount(void);
 
 static	int ncpu;
-static	int ut;
 static	char buf[26];
 static	time_t t;
 static	double etime;
@@ -150,16 +150,10 @@ static	long *intrloc;
 static	char **intrname;
 static	int nextintsrow;
 
-struct	utmp utmp;
-
-
 WINDOW *
 openkre(void)
 {
 
-	ut = open(_PATH_UTMP, O_RDONLY);
-	if (ut < 0)
-		error("No utmp");
 	return (stdscr);
 }
 
@@ -167,7 +161,6 @@ void
 closekre(WINDOW *w)
 {
 
-	(void) close(ut);
 	if (w == NULL)
 		return;
 	wclear(w);
@@ -634,14 +627,14 @@ static int
 ucount(void)
 {
 	int nusers = 0;
+	struct utmpx *ut;
 
-	if (ut < 0)
-		return (0);
-	while (read(ut, &utmp, sizeof(utmp)))
-		if (utmp.ut_name[0] != '\0')
+	setutxent();
+	while ((ut = getutxent()) != NULL)
+		if (ut->ut_type == USER_PROCESS)
 			nusers++;
+	endutxent();
 
-	lseek(ut, 0L, L_SET);
 	return (nusers);
 }
 
