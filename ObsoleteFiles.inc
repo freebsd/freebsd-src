@@ -17,8 +17,11 @@
 # 20091202: unify rc.firewall and rc.firewall6.
 OLD_FILES+=etc/rc.d/ip6fw
 OLD_FILES+=etc/rc.firewall6
+OLD_FILES+=usr/share/examples/etc/rc.firewall6
 # 20091117: removal of rc.early(8) link
 OLD_FILES+=usr/share/man/man8/rc.early.8.gz
+# 20091117: usr/share/zoneinfo/GMT link removed
+OLD_FILES+=usr/share/zoneinfo/GMT
 # 20091027: pselect.3 implemented as syscall
 OLD_FILES+=usr/share/man/man3/pselect.3.gz
 # 20091005: fusword.9 and susword.9 removed
