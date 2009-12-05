@@ -565,6 +565,9 @@ options 	COMPAT_SVR4	# build emulator statically
 options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
 
+# Linux-specific pseudo devices support
+device		lindev
+
 
 #####################################################################
 # VM OPTIONS
