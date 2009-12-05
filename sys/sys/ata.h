@@ -291,12 +291,21 @@ struct ata_params {
 #define ATA_READ_DMA_QUEUED48           0x26    /* read DMA QUEUED 48bit LBA */
 #define ATA_READ_NATIVE_MAX_ADDRESS48   0x27    /* read native max addr 48bit */
 #define ATA_READ_MUL48                  0x29    /* read multi 48bit LBA */
+#define ATA_READ_STREAM_DMA48           0x2a    /* read DMA stream 48bit LBA */
+#define ATA_READ_STREAM48               0x2b    /* read stream 48bit LBA */
 #define ATA_WRITE                       0x30    /* write */
 #define ATA_WRITE48                     0x34    /* write 48bit LBA */
 #define ATA_WRITE_DMA48                 0x35    /* write DMA 48bit LBA */
 #define ATA_WRITE_DMA_QUEUED48          0x36    /* write DMA QUEUED 48bit LBA*/
 #define ATA_SET_MAX_ADDRESS48           0x37    /* set max address 48bit */
 #define ATA_WRITE_MUL48                 0x39    /* write multi 48bit LBA */
+#define ATA_WRITE_STREAM_DMA48          0x3a
+#define ATA_WRITE_STREAM48              0x3b
+#define ATA_WRITE_DMA_FUA48             0x3d
+#define ATA_WRITE_DMA_QUEUED_FUA48      0x3e
+#define ATA_WRITE_LOG_EXT               0x3f
+#define ATA_READ_VERIFY                 0x40
+#define ATA_READ_VERIFY48               0x42
 #define ATA_READ_FPDMA_QUEUED           0x60    /* read DMA NCQ */
 #define ATA_WRITE_FPDMA_QUEUED          0x61    /* write DMA NCQ */
 #define ATA_SEEK                        0x70    /* seek */
@@ -312,6 +321,7 @@ struct ata_params {
 #define ATA_READ_DMA                    0xc8    /* read DMA */
 #define ATA_WRITE_DMA                   0xca    /* write DMA */
 #define ATA_WRITE_DMA_QUEUED            0xcc    /* write DMA QUEUED */
+#define ATA_WRITE_MUL_FUA48             0xce
 #define ATA_STANDBY_IMMEDIATE           0xe0    /* standby immediate */
 #define ATA_IDLE_IMMEDIATE              0xe1    /* idle immediate */
 #define ATA_STANDBY_CMD                 0xe2    /* standby */

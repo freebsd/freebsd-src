@@ -93,8 +93,8 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x39: return ("WRITE_MUL48");
 	case 0x3a: return ("WRITE_STREAM_DMA48");
 	case 0x3b: return ("WRITE_STREAM48");
-	case 0x3d: return ("WRITE_DMA_FUA");
-	case 0x3e: return ("WRITE_DMA_FUA48");
+	case 0x3d: return ("WRITE_DMA_FUA48");
+	case 0x3e: return ("WRITE_DMA_QUEUED_FUA48");
 	case 0x3f: return ("WRITE_LOG_EXT");
 	case 0x40: return ("READ_VERIFY");
 	case 0x42: return ("READ_VERIFY48");
@@ -119,7 +119,7 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xca: return ("WRITE_DMA");
 	case 0xcc: return ("WRITE_DMA_QUEUED");
 	case 0xcd: return ("CFA_WRITE_MULTIPLE_WITHOUT_ERASE");
-	case 0xce: return ("WRITE_MULTIPLE_FUA48");
+	case 0xce: return ("WRITE_MUL_FUA48");
 	case 0xd1: return ("CHECK_MEDIA_CARD_TYPE");
 	case 0xda: return ("GET_MEDIA_STATUS");
 	case 0xde: return ("MEDIA_LOCK");
@@ -309,6 +309,11 @@ ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));
 	ataio->cmd.flags = 0;
+	if (cmd == ATA_READ_DMA ||
+	    cmd == ATA_READ_DMA_QUEUED ||
+	    cmd == ATA_WRITE_DMA ||
+	    cmd == ATA_WRITE_DMA_QUEUED)
+		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
 	ataio->cmd.lba_low = lba;
@@ -324,6 +329,15 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));
 	ataio->cmd.flags = CAM_ATAIO_48BIT;
+	if (cmd == ATA_READ_DMA48 ||
+	    cmd == ATA_READ_DMA_QUEUED48 ||
+	    cmd == ATA_READ_STREAM_DMA48 ||
+	    cmd == ATA_WRITE_DMA48 ||
+	    cmd == ATA_WRITE_DMA_FUA48 ||
+	    cmd == ATA_WRITE_DMA_QUEUED48 ||
+	    cmd == ATA_WRITE_DMA_QUEUED_FUA48 ||
+	    cmd == ATA_WRITE_STREAM_DMA48)
+		ataio->cmd.flags |= CAM_ATAIO_DMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = features;
 	ataio->cmd.lba_low = lba;
