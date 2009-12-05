@@ -40,8 +40,7 @@ __weak_reference(__raise, raise);
 __weak_reference(__raise, _raise);
 
 int
-__raise(s)
-	int s;
+__raise(int s)
 {
 	return(kill(getpid(), s));
 }
