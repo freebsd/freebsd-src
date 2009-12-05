@@ -180,8 +180,11 @@ __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
 			break;
 		}
 	}
-	if (i == MAX_BRANDS)
+	if (i == MAX_BRANDS) {
+		printf("WARNING: %s: could not insert brandinfo entry: %p\n",
+			__func__, entry);
 		return (-1);
+	}
 	return (0);
 }
 
