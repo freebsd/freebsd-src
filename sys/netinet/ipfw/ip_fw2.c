@@ -185,6 +185,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
     "Make the default rule accept all packets.");
 TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
+
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
@@ -194,8 +195,9 @@ SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
 SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
     CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_deny_unknown_exthdrs), 0,
     "Deny packets with unknown IPv6 Extension Headers");
-#endif
-#endif
+#endif /* INET6 */
+
+#endif /* SYSCTL_NODE */
 
 /*
  * Description of dynamic rules.
@@ -2243,6 +2245,7 @@ ipfw_chk(struct ip_fw_args *args)
 		return (IP_FW_PASS);	/* accept */
 
 	dst_ip.s_addr = 0;		/* make sure it is initialized */
+	src_ip.s_addr = 0;		/* make sure it is initialized */
 	pktlen = m->m_pkthdr.len;
 	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
@@ -2254,15 +2257,15 @@ ipfw_chk(struct ip_fw_args *args)
  * pointer might become stale after other pullups (but we never use it
  * this way).
  */
-#define PULLUP_TO(len, p, T)						\
+#define PULLUP_TO(_len, p, T)						\
 do {									\
-	int x = (len) + sizeof(T);					\
+	int x = (_len) + sizeof(T);					\
 	if ((m)->m_len < x) {						\
 		args->m = m = m_pullup(m, x);				\
 		if (m == NULL)						\
 			goto pullup_failed;				\
 	}								\
-	p = (mtod(m, char *) + (len));					\
+	p = (mtod(m, char *) + (_len));					\
 } while (0)
 
 	/*
