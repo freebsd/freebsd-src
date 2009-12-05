@@ -68,7 +68,7 @@
 #include <opencrypto/deflate.h>
 #include <opencrypto/xform.h>
 
-VNET_DEFINE(int, ipcomp_enable) = 0;
+VNET_DEFINE(int, ipcomp_enable) = 1;
 VNET_DEFINE(struct ipcompstat, ipcompstat);
 
 SYSCTL_DECL(_net_inet_ipcomp);
