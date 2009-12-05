@@ -55,8 +55,7 @@ static char *skip(char *);
 static char *value(char *);
 
 struct ttyent *
-getttynam(tty)
-	const char *tty;
+getttynam(const char *tty)
 {
 	struct ttyent *t;
 
@@ -71,7 +70,7 @@ getttynam(tty)
 }
 
 struct ttyent *
-getttyent()
+getttyent(void)
 {
 	static struct ttyent tty;
 	static char devpts_name[] = "pts/4294967295";
@@ -178,8 +177,7 @@ getttyent()
  * the next field.
  */
 static char *
-skip(p)
-	char *p;
+skip(char *p)
 {
 	char *t;
 	int c, q;
@@ -212,15 +210,14 @@ skip(p)
 }
 
 static char *
-value(p)
-	char *p;
+value(char *p)
 {
 
 	return ((p = index(p, '=')) ? ++p : NULL);
 }
 
 int
-setttyent()
+setttyent(void)
 {
 	DIR *devpts_dir;
 
@@ -254,7 +251,7 @@ setttyent()
 }
 
 int
-endttyent()
+endttyent(void)
 {
 	int rval;
 
@@ -272,9 +269,7 @@ endttyent()
 }
 
 static int
-isttystat(tty, flag)
-	const char *tty;
-	int flag;
+isttystat(const char *tty, int flag)
 {
 	struct ttyent *t;
 
@@ -283,15 +278,14 @@ isttystat(tty, flag)
 
 
 int
-isdialuptty(tty)
-	const char *tty;
+isdialuptty(const char *tty)
 {
 
 	return isttystat(tty, TTY_DIALUP);
 }
 
-int isnettty(tty)
-	const char *tty;
+int
+isnettty(const char *tty)
 {
 
 	return isttystat(tty, TTY_NETWORK);
