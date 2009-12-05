@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define	_ULOG_POSIX_NAMES
 #include <ulog.h>
 #include <unistd.h>
 
@@ -66,7 +67,7 @@ main(int argc, char **argv)
 	int ncnt = 0;
 	int nmax = 0;
 	int cnt;
-	struct ulog_utmpx *ut;
+	struct utmpx *ut;
 	int ch;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
@@ -78,8 +79,8 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	ulog_setutxent();
-	while ((ut = ulog_getutxent()) != NULL) {
+	setutxent();
+	while ((ut = getutxent()) != NULL) {
 		if (ut->ut_type != USER_PROCESS)
 			continue;
 		if (ncnt >= nmax) {
@@ -93,7 +94,7 @@ main(int argc, char **argv)
 		(void)strlcpy(names[ncnt], ut->ut_user, sizeof(*names));
 		++ncnt;
 	}
-	ulog_endutxent();
+	endutxent();
 	if (ncnt > 0) {
 		qsort(names, ncnt, sizeof(namebuf), scmp);
 		(void)printf("%s", names[0]);
