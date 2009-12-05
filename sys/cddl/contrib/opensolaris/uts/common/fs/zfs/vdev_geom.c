@@ -293,7 +293,7 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	uint64_t psize;
 	off_t offset, size;
 	uint64_t guid;
-	int error, l, len;
+	int l, len;
 
 	g_topology_assert_not();
 
@@ -316,8 +316,7 @@ vdev_geom_read_guid(struct g_consumer *cp)
 		if ((offset % pp->sectorsize) != 0)
 			continue;
 
-		error = vdev_geom_io(cp, BIO_READ, label, offset, size);
-		if (error != 0)
+		if (vdev_geom_io(cp, BIO_READ, label, offset, size) != 0)
 			continue;
 		buf = label->vl_vdev_phys.vp_nvlist;
 
