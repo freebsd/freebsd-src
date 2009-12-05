@@ -293,11 +293,16 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	uint64_t psize;
 	off_t offset, size;
 	uint64_t guid;
-	int l, len;
+	int error, l, len, iszvol;
 
 	g_topology_assert_not();
 
 	pp = cp->provider;
+	ZFS_LOG(1, "Reading guid from %s...", pp->name);
+	if (g_getattr("ZFS::iszvol", cp, &iszvol) == 0 && iszvol) {
+		ZFS_LOG(1, "Skipping ZVOL-based provider %s.", pp->name);
+		return (0);
+	}
 
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
