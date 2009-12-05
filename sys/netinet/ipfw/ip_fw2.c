@@ -4915,43 +4915,38 @@ vnet_ipfw_init(const void *unused)
 
 	ip_fw_default_rule = V_layer3_chain.rules;
 
-	if (error) {
-		IPFW_LOCK_DESTROY(&V_layer3_chain);
-		printf("leaving ipfw_iattach (2) with error %d\n", error);
-		return (error);
-	}
-#ifdef VIMAGE  /* want a better way to do this */
+	/* curvnet is NULL in the !VIMAGE case */
 	callout_reset(&V_ipfw_timeout, hz, ipfw_tick, curvnet);	
-#else
-	callout_reset(&V_ipfw_timeout, hz, ipfw_tick, NULL);	
-#endif
 
 	/* First set up some values that are compile time options */
 	V_ipfw_vnet_ready = 1;		/* Open for business */
 
-	/* Hook up the raw inputs */
+	/*
+	 * Hook the sockopt handler, and the layer2 (V_ip_fw_chk_ptr)
+	 * and pfil hooks for ipv4 and ipv6. Even if the latter two fail
+	 * we still keep the module alive. ipfw[6]_hook return
+	 * either 0 or ENOENT in case of failure, so we can ignore the
+	 * exact return value and just set a flag.
+	 *
+	 * XXX 20091204 note that V_ether_ipfw is checked on each packet,
+	 * whereas V_fw_enable is only checked at vnet load time.
+	 * This must be fixed so that they act in the same way
+	 * (probably hooking the pfil unconditionally, and bypassing
+	 * the processing if V_fw_enable=0). Same for V_fw6_enable
+	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl;
 	V_ip_fw_chk_ptr = ipfw_chk;
-
-	/*
-	 * Hook us up to pfil.
-	 */
-	if (V_fw_enable) {
-		if ((error = ipfw_hook()) != 0) {
-			printf("ipfw_hook() error\n");
-			return (error);
-		}
+	if (V_fw_enable && ipfw_hook() != 0) {
+		error = ENOENT; /* see ip_fw_pfil.c::ipfw_hook() */
+		printf("ipfw_hook() error\n");
 	}
 #ifdef INET6
-	if (V_fw6_enable) {
-		if ((error = ipfw6_hook()) != 0) {
-			printf("ipfw6_hook() error\n");
-			/* XXX should we unhook everything else? */
-			return (error);
-		}
+	if (V_fw6_enable && ipfw6_hook() != 0) {
+		error = ENOENT;
+		printf("ipfw6_hook() error\n");
 	}
 #endif
-	return (0);
+	return (error);
 }
 
 /***********************
@@ -4963,17 +4958,23 @@ vnet_ipfw_uninit(const void *unused)
 	struct ip_fw *reap;
 
 	V_ipfw_vnet_ready = 0; /* tell new callers to go away */
+	/*
+	 * disconnect from ipv4, ipv6, layer2 and sockopt.
+	 * Then grab, release and grab again the WLOCK so we make
+	 * sure the update is propagated and nobody will be in.
+	 */
 	ipfw_unhook();
 #ifdef INET6
 	ipfw6_unhook();
 #endif
-	/* layer2 and other entrypoints still come in this way. */
 	V_ip_fw_chk_ptr = NULL;
 	V_ip_fw_ctl_ptr = NULL;
+
 	IPFW_WLOCK(&V_layer3_chain);
 	/* We wait on the wlock here until the last user leaves */
 	IPFW_WUNLOCK(&V_layer3_chain);
 	IPFW_WLOCK(&V_layer3_chain);
+
 	callout_drain(&V_ipfw_timeout);
 	flush_tables(&V_layer3_chain);
 	V_layer3_chain.reap = NULL;
