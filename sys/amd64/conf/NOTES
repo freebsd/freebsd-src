@@ -503,3 +503,6 @@ options 	VM_KMEM_SIZE_SCALE
 # Enable NDIS binary driver support
 options 	NDISAPI
 device		ndis
+
+# Linux-specific pseudo devices support
+device		lindev
