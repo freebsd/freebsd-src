@@ -1,7 +1,13 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	write
 BINMODE=2555
 BINGRP=	tty
+
+WARNS?=	6
+
+DPADD=	${LIBULOG}
+LDADD=	-lulog
 
 .include <bsd.prog.mk>
