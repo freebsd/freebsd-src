@@ -44,16 +44,17 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <timeconv.h>
+#define _ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 
 static void	heading(void);
-static void	process_utmp(FILE *);
-static void	quick(FILE *);
-static void	row(struct utmp *);
+static void	process_utmp(void);
+static void	quick(void);
+static void	row(struct utmpx *);
 static int	ttywidth(void);
 static void	usage(void);
-static void	whoami(FILE *);
+static void	whoami(void);
 
 static int	Hflag;			/* Write column headings */
 static int	mflag;			/* Show info about current terminal */
@@ -66,8 +67,6 @@ int
 main(int argc, char *argv[])
 {
 	int ch;
-	const char *file;
-	FILE *fp;
 
 	setlocale(LC_TIME, "");
 
@@ -109,27 +108,25 @@ main(int argc, char *argv[])
 	if (argc > 1)
 		usage();
 
-	if (*argv != NULL)
-		file = *argv;
-	else
-		file = _PATH_UTMP;
-	if ((fp = fopen(file, "r")) == NULL)
-		err(1, "%s", file);
+	if (*argv != NULL) {
+		if (ulog_setutxfile(UTXF_UTMP, *argv) != 0)
+			err(1, "%s", *argv);
+	}
 
 	if (qflag)
-		quick(fp);
+		quick();
 	else {
 		if (sflag)
 			Tflag = uflag = 0;
 		if (Hflag)
 			heading();
 		if (mflag)
-			whoami(fp);
+			whoami();
 		else
-			process_utmp(fp);
+			process_utmp();
 	}
 
-	fclose(fp);
+	endutxent();
 
 	exit(0);
 }
@@ -146,21 +143,19 @@ static void
 heading(void)
 {
 
-	printf("%-*s ", UT_NAMESIZE, "NAME");
+	printf("%-16s ", "NAME");
 	if (Tflag)
 		printf("S ");
-	printf("%-*s ", UT_LINESIZE, "LINE");
-	printf("%-*s ", 12, "TIME");
+	printf("%-8s %-12s ", "LINE", "TIME");
 	if (uflag)
 		printf("IDLE  ");
-	printf("%-*s", UT_HOSTSIZE, "FROM");
-	putchar('\n');
+	printf("%-16s\n", "FROM");
 }
 
 static void
-row(struct utmp *ut)
+row(struct utmpx *ut)
 {
-	char buf[80], tty[sizeof(_PATH_DEV) + UT_LINESIZE];
+	char buf[80], tty[PATH_MAX];
 	struct stat sb;
 	time_t idle, t;
 	static int d_first = -1;
@@ -173,8 +168,7 @@ row(struct utmp *ut)
 	state = '?';
 	idle = 0;
 	if (Tflag || uflag) {
-		snprintf(tty, sizeof(tty), "%s%.*s", _PATH_DEV,
-			UT_LINESIZE, ut->ut_line);
+		snprintf(tty, sizeof(tty), "%s%s", _PATH_DEV, ut->ut_line);
 		if (stat(tty, &sb) == 0) {
 			state = sb.st_mode & (S_IWOTH|S_IWGRP) ?
 			    '+' : '-';
@@ -182,11 +176,11 @@ row(struct utmp *ut)
 		}
 	}
 
-	printf("%-*.*s ", UT_NAMESIZE, UT_NAMESIZE, ut->ut_name);
+	printf("%-16s ", ut->ut_user);
 	if (Tflag)
 		printf("%c ", state);
-	printf("%-*.*s ", UT_LINESIZE, UT_LINESIZE, ut->ut_line);
-	t = _time32_to_time(ut->ut_time);
+	printf("%-8s ", ut->ut_line);
+	t = ut->ut_tv.tv_sec;
 	tm = localtime(&t);
 	strftime(buf, sizeof(buf), d_first ? "%e %b %R" : "%b %e %R", tm);
 	printf("%-*s ", 12, buf);
@@ -200,17 +194,17 @@ row(struct utmp *ut)
 			printf(" old  ");
 	}
 	if (*ut->ut_host != '\0')
-		printf("(%.*s)", UT_HOSTSIZE, ut->ut_host);
+		printf("(%s)", ut->ut_host);
 	putchar('\n');
 }
 
 static int
-ttystat(char *line, int sz)
+ttystat(char *line)
 {
 	struct stat sb;
 	char ttybuf[MAXPATHLEN];
 
-	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%.*s", _PATH_DEV, sz, line);
+	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%s", _PATH_DEV, line);
 	if (stat(ttybuf, &sb) == 0) {
 		return (0);
 	} else
@@ -218,32 +212,32 @@ ttystat(char *line, int sz)
 }
 
 static void
-process_utmp(FILE *fp)
+process_utmp(void)
 {
-	struct utmp ut;
+	struct utmpx *utx;
 
-	while (fread(&ut, sizeof(ut), 1, fp) == 1) {
-		if (*ut.ut_name == '\0')
+	while ((utx = getutxent()) != NULL) {
+		if (utx->ut_type != USER_PROCESS)
 			continue;
-		if (ttystat(ut.ut_line, UT_LINESIZE) != 0)
+		if (ttystat(utx->ut_line) != 0)
 			continue;
-		row(&ut);
+		row(utx);
 	}
 }
 
 static void
-quick(FILE *fp)
+quick(void)
 {
-	struct utmp ut;
+	struct utmpx *utx;
 	int col, ncols, num;
 
 	ncols = ttywidth();
 	col = num = 0;
-	while (fread(&ut, sizeof(ut), 1, fp) == 1) { 
-		if (*ut.ut_name == '\0')
+	while ((utx = getutxent()) != NULL) {
+		if (utx->ut_type != USER_PROCESS)
 			continue;
-		printf("%-*.*s", UT_NAMESIZE, UT_NAMESIZE, ut.ut_name);
-		if (++col < ncols / (UT_NAMESIZE + 1))
+		printf("%-16s", utx->ut_user);
+		if (++col < ncols / (16 + 1))
 			putchar(' ');
 		else {
 			col = 0;
@@ -258,24 +252,23 @@ quick(FILE *fp)
 }
 
 static void
-whoami(FILE *fp)
+whoami(void)
 {
-	struct utmp ut;
+	struct utmpx ut, *utx;
 	struct passwd *pwd;
-	const char *name, *p, *tty;
+	const char *name, *tty;
 
 	if ((tty = ttyname(STDIN_FILENO)) == NULL)
 		tty = "tty??";
-	else if ((p = strrchr(tty, '/')) != NULL)
-		tty = p + 1;
+	else if (strncmp(tty, _PATH_DEV, sizeof _PATH_DEV - 1) == 0)
+		tty += sizeof _PATH_DEV - 1;
+	strlcpy(ut.ut_line, tty, sizeof ut.ut_line);
 
 	/* Search utmp for our tty, dump first matching record. */
-	while (fread(&ut, sizeof(ut), 1, fp) == 1)
-		if (*ut.ut_name != '\0' && strncmp(ut.ut_line, tty,
-		    UT_LINESIZE) == 0) {
-			row(&ut);
-			return;
-		}
+	if ((utx = getutxline(&ut)) != NULL && utx->ut_type == USER_PROCESS) {
+		row(utx);
+		return;
+	}
 
 	/* Not found; fill the utmp structure with the information we have. */
 	memset(&ut, 0, sizeof(ut));
@@ -283,9 +276,8 @@ whoami(FILE *fp)
 		name = pwd->pw_name;
 	else
 		name = "?";
-	strncpy(ut.ut_name, name, UT_NAMESIZE);
-	strncpy(ut.ut_line, tty, UT_LINESIZE);
-	ut.ut_time = _time_to_time32(time(NULL));
+	strlcpy(ut.ut_user, name, sizeof ut.ut_user);
+	gettimeofday(&ut.ut_tv, NULL);
 	row(&ut);
 }
 
