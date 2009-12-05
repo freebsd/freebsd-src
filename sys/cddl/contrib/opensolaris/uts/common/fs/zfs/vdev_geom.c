@@ -453,7 +453,7 @@ vdev_geom_open_by_guid(vdev_t *vd)
 }
 
 static struct g_consumer *
-vdev_geom_open_by_path(vdev_t *vd)
+vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
@@ -465,7 +465,7 @@ vdev_geom_open_by_path(vdev_t *vd)
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
 		cp = vdev_geom_attach(pp, !!(spa_mode & FWRITE));
-		if (cp != NULL) {
+		if (cp != NULL && check_guid) {
 			g_topology_unlock();
 			guid = vdev_geom_read_guid(cp);
 			g_topology_lock();
@@ -506,7 +506,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	if ((owned = mtx_owned(&Giant)))
 		mtx_unlock(&Giant);
-	cp = vdev_geom_open_by_path(vd);
+	cp = vdev_geom_open_by_path(vd, 1);
 	if (cp == NULL) {
 		/*
 		 * The device at vd->vdev_path doesn't have the expected guid.
@@ -515,6 +515,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		 */
 		cp = vdev_geom_open_by_guid(vd);
 	}
+	if (cp == NULL)
+		cp = vdev_geom_open_by_path(vd, 0);
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
