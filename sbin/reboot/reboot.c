@@ -42,18 +42,20 @@ static char sccsid[] = "@(#)reboot.c	8.1 (Berkeley) 6/5/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/reboot.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <signal.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <libutil.h>
 #include <pwd.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define _ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
 
 static void usage(void);
@@ -64,6 +66,7 @@ int dohalt;
 int
 main(int argc, char *argv[])
 {
+	struct utmpx utx;
 	const struct passwd *pw;
 	int ch, howto, i, fd, lflag, nflag, qflag, sverrno;
 	u_int pageins;
@@ -140,7 +143,9 @@ main(int argc, char *argv[])
 			syslog(LOG_CRIT, "rebooted by %s", user);
 		}
 	}
-	logwtmp("~", "shutdown", "");
+	utx.ut_type = SHUTDOWN_TIME;
+	gettimeofday(&utx.ut_tv, NULL);
+	pututxline(&utx);
 
 	/*
 	 * Do a sync early on, so disks start transfers while we're off
