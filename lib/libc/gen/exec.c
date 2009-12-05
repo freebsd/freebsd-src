@@ -54,7 +54,7 @@ int
 execl(const char *name, const char *arg, ...)
 {
 	va_list ap;
-	char **argv;
+	const char **argv;
 	int n;
 
 	va_start(ap, arg);
@@ -69,18 +69,19 @@ execl(const char *name, const char *arg, ...)
 	}
 	va_start(ap, arg);
 	n = 1;
-	argv[0] = (char *)arg;
+	argv[0] = arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	va_end(ap);
-	return (_execve(name, argv, environ));
+	return (_execve(name, __DECONST(char **, argv), environ));
 }
 
 int
 execle(const char *name, const char *arg, ...)
 {
 	va_list ap;
-	char **argv, **envp;
+	const char **argv;
+	char **envp;
 	int n;
 
 	va_start(ap, arg);
@@ -95,19 +96,19 @@ execle(const char *name, const char *arg, ...)
 	}
 	va_start(ap, arg);
 	n = 1;
-	argv[0] = (char *)arg;
+	argv[0] = arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	envp = va_arg(ap, char **);
 	va_end(ap);
-	return (_execve(name, argv, envp));
+	return (_execve(name, __DECONST(char **, argv), envp));
 }
 
 int
 execlp(const char *name, const char *arg, ...)
 {
 	va_list ap;
-	char **argv;
+	const char **argv;
 	int n;
 
 	va_start(ap, arg);
@@ -122,11 +123,11 @@ execlp(const char *name, const char *arg, ...)
 	}
 	va_start(ap, arg);
 	n = 1;
-	argv[0] = (char *)arg;
+	argv[0] = arg;
 	while ((argv[n] = va_arg(ap, char *)) != NULL)
 		n++;
 	va_end(ap);
-	return (execvp(name, argv));
+	return (execvp(name, __DECONST(char **, argv)));
 }
 
 int
@@ -145,24 +146,21 @@ execvp(const char *name, char * const *argv)
 }
 
 static int
-execvPe(name, path, argv, envp)
-	const char *name;
-	const char *path;
-	char * const *argv;
-	char * const *envp;
+execvPe(const char *name, const char *path, char * const *argv,
+    char * const *envp)
 {
-	char **memp;
-	int cnt, lp, ln;
-	char *p;
+	const char **memp;
+	size_t cnt, lp, ln;
 	int eacces, save_errno;
-	char *bp, *cur, buf[MAXPATHLEN];
+	char *cur, buf[MAXPATHLEN];
+	const char *p, *bp;
 	struct stat sb;
 
 	eacces = 0;
 
 	/* If it's an absolute or relative path name, it's easy. */
 	if (index(name, '/')) {
-		bp = (char *)name;
+		bp = name;
 		cur = NULL;
 		goto retry;
 	}
@@ -228,7 +226,8 @@ retry:		(void)_execve(bp, argv, envp);
 			memp[0] = "sh";
 			memp[1] = bp;
 			bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
-			(void)_execve(_PATH_BSHELL, memp, envp);
+ 			(void)_execve(_PATH_BSHELL,
+			    __DECONST(char **, memp), envp);
 			goto done;
 		case ENOMEM:
 			goto done;
