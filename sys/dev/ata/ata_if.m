@@ -57,17 +57,24 @@ HEADER {
 };
 
 CODE {
-	static void ata_null_setmode(device_t parent, device_t dev)
+	static int ata_null_setmode(device_t dev, int target, int mode)
 	{
-	    struct ata_device *atadev = device_get_softc(dev);
 
-	    atadev->mode = ata_limit_mode(dev, atadev->mode, ATA_PIO_MAX);
+		if (mode > ATA_PIO_MAX)
+			return (ATA_PIO_MAX);
+		return (mode);
 	}
 };
-METHOD void setmode {
-    device_t    channel;
+METHOD int setmode {
     device_t    dev;
-}  DEFAULT ata_null_setmode;;
+    int		target;
+    int		mode;
+}  DEFAULT ata_null_setmode;
+
+METHOD int getrev {
+    device_t    dev;
+    int		target;
+};
 
 METHOD void reset {
     device_t    channel;

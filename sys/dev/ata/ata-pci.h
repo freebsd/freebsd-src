@@ -63,7 +63,8 @@ struct ata_pci_controller {
     int                 (*ch_resume)(device_t);
     int                 (*locking)(device_t, int);
     void                (*reset)(device_t);
-    void                (*setmode)(device_t, int);
+    int                 (*setmode)(device_t, int, int);
+    int                 (*getrev)(device_t, int);
     struct {
     void                (*function)(void *);
     void                *argument;
@@ -506,12 +507,12 @@ void ata_pci_dmafini(device_t dev);
 char *ata_pcivendor2str(device_t dev);
 int ata_legacy(device_t);
 void ata_generic_intr(void *data);
+int ata_generic_chipinit(device_t dev);
+int ata_generic_setmode(device_t dev, int target, int mode);
 int ata_setup_interrupt(device_t dev, void *intr_func);
 void ata_set_desc(device_t dev);
 struct ata_chip_id *ata_match_chip(device_t dev, struct ata_chip_id *index);
 struct ata_chip_id *ata_find_chip(device_t dev, struct ata_chip_id *index, int slot);
-void ata_print_cable(device_t dev, u_int8_t *who);
-int ata_check_80pin(device_t dev, int mode);
 int ata_mode2idx(int mode);
 
 /* global prototypes from chipsets/ata-*.c */
