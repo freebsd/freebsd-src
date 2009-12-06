@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2008 Sean C. Farley <scf@FreeBSD.org>
+ * Copyright (c) 2007-2009 Sean C. Farley <scf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -160,7 +160,7 @@ __findenv(const char *name, size_t nameLen, int *envNdx, bool onlyActive)
 
 	/*
 	 * Find environment variable from end of array (more likely to be
-	 * active).  A variable created by putenv is always active or it is not
+	 * active).  A variable created by putenv is always active, or it is not
 	 * tracked in the array.
 	 */
 	for (ndx = *envNdx; ndx >= 0; ndx--)
@@ -426,13 +426,14 @@ getenv(const char *name)
 	}
 
 	/*
-	 * An empty environment (environ or its first value) regardless if
-	 * environ has been copied before will return a NULL.
+	 * Variable search order:
+	 * 1. Check for an empty environ.  This allows an application to clear
+	 *    the environment.
+	 * 2. Search the external environ array.
+	 * 3. Search the internal environment.
 	 *
-	 * If the environment is not empty, find an environment variable via
-	 * environ if environ has not been copied via an *env() call or been
-	 * replaced by a running program, otherwise, use the rebuilt
-	 * environment.
+	 * Since malloc() depends upon getenv(), getenv() must never cause the
+	 * internal environment storage to be generated.
 	 */
 	if (environ == NULL || environ[0] == NULL)
 		return (NULL);
