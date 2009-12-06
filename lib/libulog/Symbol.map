@@ -14,4 +14,11 @@ FBSD_1.2 {
 	ulog_pututxline;
 	ulog_setutxent;
 	ulog_setutxfile;
+
+	addToUtmp;
+	removeFromUtmp;
+	removeLineFromUtmp;
+	utempter_add_record;
+	utempter_remove_added_record;
+	utempter_remove_record;
 };
