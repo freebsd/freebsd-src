@@ -4,7 +4,7 @@ nl='
 '
 list=' a b c'
 for s1 in "$nl" " "; do
-	for s2 in "$nl" ";"; do
+	for s2 in "$nl" ";" ";$nl"; do
 		for s3 in "$nl" " "; do
 			r=''
 			eval "for i${s1}in ${list}${s2}do${s3}r=\"\$r \$i\"; done"
@@ -13,7 +13,7 @@ for s1 in "$nl" " "; do
 	done
 done
 set -- $list
-for s2 in "$nl" " " ";"; do # s2=";" is an extension to POSIX
+for s2 in "$nl" " " ";" ";$nl"; do # s2=";" and ";$nl" are extensions to POSIX
 	for s3 in "$nl" " "; do
 		r=''
 		eval "for i${s2}do${s3}r=\"\$r \$i\"; done"
@@ -21,7 +21,7 @@ for s2 in "$nl" " " ";"; do # s2=";" is an extension to POSIX
 	done
 done
 for s1 in "$nl" " "; do
-	for s2 in "$nl" ";"; do
+	for s2 in "$nl" ";" ";$nl"; do
 		for s3 in "$nl" " "; do
 			eval "for i${s1}in${s2}do${s3}exit 1; done"
 		done
