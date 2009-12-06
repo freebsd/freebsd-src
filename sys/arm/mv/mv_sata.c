@@ -136,7 +136,7 @@ static int	sata_channel_detach(device_t dev);
 static int	sata_channel_begin_transaction(struct ata_request *request);
 static int	sata_channel_end_transaction(struct ata_request *request);
 static int	sata_channel_status(device_t dev);
-static void	sata_channel_setmode(device_t parent, device_t dev);
+static int	sata_channel_setmode(device_t dev, int target, int mode);
 static void	sata_channel_reset(device_t dev);
 static void	sata_channel_dmasetprd(void *xsc, bus_dma_segment_t *segs,
     int nsegs, int error);
@@ -748,19 +748,13 @@ sata_channel_reset(device_t dev)
 	SATA_OUTL(sc, SATA_EDMA_IEMR(ch->unit), 0xFFFFFFFF);
 }
 
-static void
-sata_channel_setmode(device_t parent, device_t dev)
+static int
+sata_channel_setmode(device_t parent, int target, int mode)
 {
-	struct ata_device *atadev;
-
-	atadev = device_get_softc(dev);
 
 	/* Disable EDMA before using legacy registers */
 	sata_edma_ctrl(parent, 0);
-
-	ata_sata_setmode(dev, ATA_PIO_MAX);
-	if (atadev->mode >= ATA_DMA)
-		ata_sata_setmode(dev, atadev->mode);
+	return (ata_sata_setmode(dev, mode));
 }
 
 static void

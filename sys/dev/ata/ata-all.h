@@ -425,6 +425,9 @@ struct ata_request {
     struct ata_composite        *composite;     /* for composite atomic ops */
     void                        *driver;        /* driver specific */
     TAILQ_ENTRY(ata_request)    chain;          /* list management */
+#ifdef ATA_CAM
+    union ccb			*ccb;
+#endif
 };
 
 /* define this for debugging request processing */
@@ -531,6 +534,14 @@ struct ata_resource {
     int                         offset;
 };
 
+#ifdef ATA_CAM
+struct ata_cam_device {
+	u_int			revision;
+	int			mode;
+	u_int			bytecount;
+};
+#endif
+
 /* structure describing an ATA channel */
 struct ata_channel {
     device_t                    dev;            /* device handle */
@@ -547,6 +558,9 @@ struct ata_channel {
 #define         ATA_ATAPI_DMA_RO        0x04
 #define         ATA_NO_48BIT_DMA        0x08
 #define         ATA_ALWAYS_DMASTAT      0x10
+#define         ATA_CHECKS_CABLE	0x20
+#define         ATA_NO_ATAPI_DMA	0x40
+#define         ATA_SATA		0x80
 
     int				pm_level;	/* power management level */
     int                         devices;        /* what is present */
@@ -567,6 +581,12 @@ struct ata_channel {
     struct ata_request          *freezepoint;   /* composite freezepoint */
     struct ata_request          *running;       /* currently running request */
     struct task			conntask;	/* PHY events handling task */
+#ifdef ATA_CAM
+	struct cam_sim		*sim;
+	struct cam_path		*path;
+	struct ata_cam_device	user[16];       /* User-specified settings */                             
+	struct ata_cam_device	curr[16];       /* Current settings */                                    
+#endif
 };
 
 /* disk bay/enclosure related */
@@ -600,12 +620,20 @@ void ata_default_registers(device_t dev);
 void ata_modify_if_48bit(struct ata_request *request);
 void ata_udelay(int interval);
 char *ata_unit2str(struct ata_device *atadev);
-char *ata_mode2str(int mode);
+const char *ata_mode2str(int mode);
+const char *ata_satarev2str(int rev);
 int ata_atapi(device_t dev);
 int ata_pmode(struct ata_params *ap);
 int ata_wmode(struct ata_params *ap);
 int ata_umode(struct ata_params *ap);
 int ata_limit_mode(device_t dev, int mode, int maxmode);
+void ata_setmode(device_t dev);
+void ata_print_cable(device_t dev, u_int8_t *who);
+int ata_check_80pin(device_t dev, int mode);
+#ifdef ATA_CAM
+void ata_cam_begin_transaction(device_t dev, union ccb *ccb);
+void ata_cam_end_transaction(device_t dev, struct ata_request *request);
+#endif
 
 /* ata-queue.c: */
 int ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature, u_int64_t lba, u_int16_t count);
@@ -635,7 +663,8 @@ void ata_sata_phy_check_events(device_t dev);
 int ata_sata_scr_read(struct ata_channel *ch, int port, int reg, uint32_t *val);
 int ata_sata_scr_write(struct ata_channel *ch, int port, int reg, uint32_t val);
 int ata_sata_phy_reset(device_t dev, int port, int quick);
-void ata_sata_setmode(device_t dev, int mode);
+int ata_sata_setmode(device_t dev, int target, int mode);
+int ata_sata_getrev(device_t dev, int target);
 int ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis);
 void ata_pm_identify(device_t dev);
 

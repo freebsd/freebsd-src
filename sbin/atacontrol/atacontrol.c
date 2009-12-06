@@ -42,7 +42,7 @@
 static const char *
 mode2str(int mode)
 {
-	switch (mode) {
+	switch (mode & 0xff) {
 	case ATA_PIO: return "BIOSPIO";
 	case ATA_PIO0: return "PIO0";
 	case ATA_PIO1: return "PIO1";
@@ -59,9 +59,19 @@ mode2str(int mode)
 	case ATA_UDMA4: return "UDMA66";
 	case ATA_UDMA5: return "UDMA100";
 	case ATA_UDMA6: return "UDMA133";
-	case ATA_SA150: return "SATA150";
-	case ATA_SA300: return "SATA300";
 	case ATA_DMA: return "BIOSDMA";
+	default: return "???";
+	}
+}
+
+static const char *
+satarev2str(int mode)
+{
+	switch ((mode & 0xff00) >> 8) {
+	case 0: return "";
+	case 1: return "SATA 1.5Gb/s";
+	case 2: return "SATA 3Gb/s";
+	case 3: return "SATA 6Gb/s";
 	default: return "???";
 	}
 }
@@ -79,7 +89,9 @@ str2mode(char *str)
 	if (!strcasecmp(str, "WDMA1")) return ATA_WDMA1;
 	if (!strcasecmp(str, "WDMA2")) return ATA_WDMA2;
 	if (!strcasecmp(str, "UDMA0")) return ATA_UDMA0;
+	if (!strcasecmp(str, "UDMA16")) return ATA_UDMA0;
 	if (!strcasecmp(str, "UDMA1")) return ATA_UDMA1;
+	if (!strcasecmp(str, "UDMA25")) return ATA_UDMA1;
 	if (!strcasecmp(str, "UDMA2")) return ATA_UDMA2;
 	if (!strcasecmp(str, "UDMA33")) return ATA_UDMA2;
 	if (!strcasecmp(str, "UDMA3")) return ATA_UDMA3;
@@ -90,8 +102,6 @@ str2mode(char *str)
 	if (!strcasecmp(str, "UDMA100")) return ATA_UDMA5;
 	if (!strcasecmp(str, "UDMA6")) return ATA_UDMA6;
 	if (!strcasecmp(str, "UDMA133")) return ATA_UDMA6;
-	if (!strcasecmp(str, "SATA150")) return ATA_SA150;
-	if (!strcasecmp(str, "SATA300")) return ATA_SA300;
 	if (!strcasecmp(str, "BIOSDMA")) return ATA_DMA;
 	return -1;
 }
@@ -382,7 +392,8 @@ main(int argc, char **argv)
 		if (argc == 3 || argc == 4) {
 			if (ioctl(fd, IOCATAGMODE, &mode) < 0)
 				err(1, "ioctl(IOCATAGMODE)");
-			printf("current mode = %s\n", mode2str(mode));
+			printf("current mode = %s %s\n",
+			    mode2str(mode), satarev2str(mode));
 		}
 		exit(EX_OK);
 	}

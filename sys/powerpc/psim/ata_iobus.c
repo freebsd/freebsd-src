@@ -210,7 +210,7 @@ ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
  */
 
 static  int  ata_iobus_sub_probe(device_t dev);
-static  void ata_iobus_sub_setmode(device_t parent, device_t dev);
+static  int  ata_iobus_sub_setmode(device_t dev, int target, int mode);
 
 static device_method_t ata_iobus_sub_methods[] = {
 	/* Device interface */
@@ -245,11 +245,9 @@ ata_iobus_sub_probe(device_t dev)
 	return ata_probe(dev);
 }
 
-static void
-ata_iobus_sub_setmode(device_t parent, device_t dev)
+static int
+ata_iobus_sub_setmode(device_t parent, int target, int mode);
 {
-	struct ata_device *atadev = device_get_softc(dev);
-
 	/* Only ever PIO mode here... */
-	atadev->mode = ATA_PIO;
+	return (ATA_PIO);
 }
