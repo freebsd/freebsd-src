@@ -41,16 +41,11 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
-#include <utmp.h>
 #include <login_cap.h>
 #include "pw.h"
 #include "bitmap.h"
 
-#if (MAXLOGNAME-1) > UT_NAMESIZE
-#define LOGNAMESIZE UT_NAMESIZE
-#else
 #define LOGNAMESIZE (MAXLOGNAME-1)
-#endif
 
 static		char locked_str[] = "*LOCKED*";
 
