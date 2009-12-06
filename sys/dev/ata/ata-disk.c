@@ -381,7 +381,7 @@ ad_init(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
 
     /* enable readahead caching */
     if (atadev->param.support.command1 & ATA_SUPPORT_LOOKAHEAD)
@@ -533,12 +533,13 @@ ad_describe(device_t dev)
 	strncpy(product, atadev->param.model, 40);
     }
 
-    device_printf(dev, "%juMB <%s%s %.8s> at ata%d-%s %s%s\n",
+    device_printf(dev, "%juMB <%s%s %.8s> at ata%d-%s %s%s %s\n",
 		  adp->total_secs / (1048576 / DEV_BSIZE),
 		  vendor, product, atadev->param.revision,
 		  device_get_unit(ch->dev), ata_unit2str(atadev),
 		  (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-		  ata_mode2str(atadev->mode));
+		  ata_mode2str(atadev->mode),
+		  ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     if (bootverbose) {
 	device_printf(dev, "%ju sectors [%juC/%dH/%dS] "
 		      "%d sectors/interrupt %d depth queue\n", adp->total_secs,

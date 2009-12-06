@@ -55,10 +55,6 @@ static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 /* misc defines */
 #define IOMASK                  0xfffffffc
 
-/* local prototypes */
-static int ata_generic_chipinit(device_t dev);
-static void ata_generic_setmode(device_t dev, int mode);
-
 /*
  * generic PCI ATA device probe
  */
@@ -374,18 +370,14 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	}
 }
     
-static void
-ata_generic_setmode(device_t dev, int mode)
+int
+ata_generic_setmode(device_t dev, int target, int mode)
 {
-    struct ata_device *atadev = device_get_softc(dev);
 
-    mode = ata_limit_mode(dev, mode, ATA_UDMA2);
-    mode = ata_check_80pin(dev, mode);
-    if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-	atadev->mode = mode;
+	return (min(mode, ATA_UDMA2));
 }
 
-static int
+int
 ata_generic_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
@@ -707,16 +699,26 @@ ata_pcichannel_reset(device_t dev)
 	ata_generic_reset(dev);
 }
 
-static void
-ata_pcichannel_setmode(device_t parent, device_t dev)
+static int
+ata_pcichannel_setmode(device_t dev, int target, int mode)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(GRANDPARENT(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int mode = atadev->mode;
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
 
-    ctlr->setmode(dev, ATA_PIO_MAX);
-    if (mode >= ATA_DMA)
-	ctlr->setmode(dev, mode);
+	if (ctlr->setmode)
+		return (ctlr->setmode(dev, target, mode));
+	else
+		return (ata_generic_setmode(dev, target, mode));
+}
+
+static int
+ata_pcichannel_getrev(device_t dev, int target)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+
+	if (ctlr->getrev)
+		return (ctlr->getrev(dev, target));
+	else
+		return (0);
 }
 
 static device_method_t ata_pcichannel_methods[] = {
@@ -730,6 +732,7 @@ static device_method_t ata_pcichannel_methods[] = {
 
     /* ATA methods */
     DEVMETHOD(ata_setmode,      ata_pcichannel_setmode),
+    DEVMETHOD(ata_getrev,       ata_pcichannel_getrev),
     DEVMETHOD(ata_locking,      ata_pcichannel_locking),
     DEVMETHOD(ata_reset,        ata_pcichannel_reset),
 
@@ -856,31 +859,6 @@ ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
     }
     free(children, M_TEMP);
     return (NULL);
-}
-
-void
-ata_print_cable(device_t dev, u_int8_t *who)
-{
-    device_printf(dev,
-                  "DMA limited to UDMA33, %s found non-ATA66 cable\n", who);
-}
-
-int
-ata_check_80pin(device_t dev, int mode)
-{
-    struct ata_device *atadev = device_get_softc(dev);
-
-    if (!ata_dma_check_80pin) {
-        if (bootverbose)
-            device_printf(dev, "Skipping 80pin cable check\n");
-        return mode;
-    }
-
-    if (mode > ATA_UDMA2 && !(atadev->param.hwres & ATA_CABLE_ID)) {
-        ata_print_cable(dev, "device");
-        mode = ATA_UDMA2;
-    }
-    return mode;
 }
 
 char *

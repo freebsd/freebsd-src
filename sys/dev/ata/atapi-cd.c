@@ -126,7 +126,7 @@ acd_attach(device_t dev)
     }
     cdp->block_size = 2048;
     device_set_ivars(dev, cdp);
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
     ata_controlcmd(dev, ATA_DEVICE_RESET, 0, 0, 0);
     acd_get_cap(dev);
     g_post_event(acd_geom_attach, dev, M_WAITOK, NULL);
@@ -163,7 +163,7 @@ acd_reinit(device_t dev)
     if (!(ch->devices & (ATA_ATAPI_MASTER << atadev->unit)))
 	return 1;
 
-    ATA_SETMODE(device_get_parent(dev), dev);
+    ata_setmode(dev);
     return 0;
 }
 
@@ -1724,7 +1724,8 @@ acd_describe(device_t dev)
 	    printf("%s %dKB buffer", comma ? "," : "", cdp->cap.buf_size);
 	    comma = 1;
 	}
-	printf("%s %s\n", comma ? "," : "", ata_mode2str(atadev->mode));
+	printf("%s %s %s\n", comma ? "," : "", ata_mode2str(atadev->mode),
+	    ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
 
 	device_printf(dev, "Reads:");
 	comma = 0;
@@ -1874,10 +1875,11 @@ acd_describe(device_t dev)
 			  "CDROM");
 	if (cdp->changer_info)
 	    printf("with %d CD changer ", cdp->changer_info->slots);
-	printf("<%.40s/%.8s> at ata%d-%s %s\n",
+	printf("<%.40s/%.8s> at ata%d-%s %s %s\n",
 	       atadev->param.model, atadev->param.revision,
 	       device_get_unit(ch->dev), ata_unit2str(atadev),
-	       ata_mode2str(atadev->mode) );
+	       ata_mode2str(atadev->mode),
+	       ata_satarev2str(ATA_GETREV(device_get_parent(dev), atadev->unit)));
     }
 }
 

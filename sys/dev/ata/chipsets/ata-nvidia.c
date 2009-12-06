@@ -56,7 +56,7 @@ static int ata_nvidia_chipinit(device_t dev);
 static int ata_nvidia_ch_attach(device_t dev);
 static int ata_nvidia_status(device_t dev);
 static void ata_nvidia_reset(device_t dev);
-static void ata_nvidia_setmode(device_t dev, int mode);
+static int ata_nvidia_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define NV4             0x01
@@ -231,6 +231,7 @@ ata_nvidia_chipinit(device_t dev)
 	    }
 	}
 	ctlr->setmode = ata_sata_setmode;
+	ctlr->getrev = ata_sata_getrev;
     }
     else {
 	/* disable prefetch, postwrite */
@@ -259,7 +260,7 @@ ata_nvidia_ch_attach(device_t dev)
 
     ch->hw.status = ata_nvidia_status;
     ch->flags |= ATA_NO_SLAVE;
-
+    ch->flags |= ATA_SATA;
     return 0;
 }
 
@@ -299,36 +300,29 @@ ata_nvidia_reset(device_t dev)
 	ata_generic_reset(dev);
 }
 
-static void
-ata_nvidia_setmode(device_t dev, int mode)
+static int
+ata_nvidia_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0x42, 0x22, 0x20,
-			   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-    int modes[7] = { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
-    int devno = (ch->unit << 1) + atadev->unit;
-    int reg = 0x63 - devno;
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int piomode;
+	u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
+        int modes[7] = { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
+	int reg = 0x63 - devno;
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
-    mode = ata_check_80pin(dev, mode);
+	mode = min(mode, ctlr->chip->max_dma);
 
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		      (error) ? "FAILURE " : "", ata_mode2str(mode),
-		      ctlr->chip->text);
-    if (!error) {
-	pci_write_config(gparent, reg - 0x08, timings[ata_mode2idx(mode)], 1);
-	if (mode >= ATA_UDMA0)
-	    pci_write_config(gparent, reg, modes[mode & ATA_MODE_MASK], 1);
-	else
-	    pci_write_config(gparent, reg, 0x8b, 1);
-	atadev->mode = mode;
-    }
+	if (mode >= ATA_UDMA0) {
+	    pci_write_config(parent, reg, modes[mode & ATA_MODE_MASK], 1);
+	    piomode = ATA_PIO4;
+	} else {
+	    pci_write_config(parent, reg, 0x8b, 1);
+	    piomode = mode;
+	}
+	pci_write_config(parent, reg - 0x08, timings[ata_mode2idx(piomode)], 1);
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_nvidia);
