@@ -1250,7 +1250,7 @@ static int ael2005_reset(struct cphy *phy, int wait)
 		return err;
 	phy->modtype = (u8)err;
 
-	if (err == phy_modtype_none || err == phy_modtype_unknown)
+	if (err == phy_modtype_none)
 		err = 0;
 	else if (err == phy_modtype_twinax || err == phy_modtype_twinax_long)
 		err = ael2005_setup_twinax_edc(phy, err);
