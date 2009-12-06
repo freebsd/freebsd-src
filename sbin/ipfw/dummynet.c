@@ -78,7 +78,7 @@ static struct _s_x dummynet_params[] = {
 };
 
 static int
-sort_q(const void *pa, const void *pb)
+sort_q(void *arg, const void *pa, const void *pb)
 {
 	int rev = (co.do_sort < 0);
 	int field = rev ? -co.do_sort : co.do_sort;
@@ -121,7 +121,7 @@ list_queues(struct dn_flow_set *fs, struct dn_flow_queue *q)
 		return;
 
 	if (co.do_sort != 0)
-		heapsort(q, fs->rq_elements, sizeof *q, sort_q);
+		qsort_r(q, fs->rq_elements, sizeof *q, NULL, sort_q);
 
 	/* Print IPv4 flows */
 	index_printed = 0;
@@ -486,7 +486,7 @@ is_valid_number(const char *s)
  * and return the numeric bandwidth value.
  * set clocking interface or bandwidth value
  */
-void
+static void
 read_bandwidth(char *arg, int *bandwidth, char *if_name, int namelen)
 {
 	if (*bandwidth != -1)
@@ -530,7 +530,7 @@ struct point {
 	double delay;
 };
 
-int
+static int
 compare_points(const void *vp1, const void *vp2)
 {
 	const struct point *p1 = vp1;
