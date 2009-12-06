@@ -50,6 +50,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 #include <ata_if.h>
 
+#ifdef ATA_CAM
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_xpt_periph.h>
+#include <cam/cam_debug.h>
+#endif
+
+#ifndef ATA_CAM
 /* device structure */
 static  d_ioctl_t       ata_ioctl;
 static struct cdevsw ata_cdevsw = {
@@ -58,14 +68,21 @@ static struct cdevsw ata_cdevsw = {
 	.d_ioctl =      ata_ioctl,
 	.d_name =       "ata",
 };
+#endif
 
 /* prototypes */
+#ifndef ATA_CAM
 static void ata_boot_attach(void);
 static device_t ata_add_child(device_t, struct ata_device *, int);
+#else
+static void ataaction(struct cam_sim *sim, union ccb *ccb);
+static void atapoll(struct cam_sim *sim);
+#endif
 static void ata_conn_event(void *, int);
 static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
+static void ata_interrupt_locked(void *data);
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
@@ -115,6 +132,10 @@ ata_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     int error, rid;
+#ifdef ATA_CAM
+    struct cam_devq *devq;
+    int i;
+#endif
 
     /* check that we have a virgin channel to attach */
     if (ch->r_irq)
@@ -129,11 +150,23 @@ ata_attach(device_t dev)
     mtx_init(&ch->queue_mtx, "ATA queue lock", NULL, MTX_DEF);
     TAILQ_INIT(&ch->ata_queue);
     TASK_INIT(&ch->conntask, 0, ata_conn_event, dev);
+#ifdef ATA_CAM
+	for (i = 0; i < 16; i++) {
+		ch->user[i].mode = 0;
+		if (ch->flags & ATA_SATA)
+			ch->user[i].bytecount = 8192;
+		else
+			ch->user[i].bytecount = MAXPHYS;
+		ch->curr[i] = ch->user[i];
+	}
+#endif
 
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
 	pause("ataatch", 1);
+#ifndef ATA_CAM
     ATA_RESET(dev);
+#endif
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
     /* allocate DMA resources if DMA HW present*/
@@ -154,18 +187,61 @@ ata_attach(device_t dev)
 	return error;
     }
 
+#ifndef ATA_CAM
     /* probe and attach devices on this channel unless we are in early boot */
     if (!ata_delayed_attach)
 	ata_identify(dev);
-    return 0;
+    return (0);
+#else
+	mtx_lock(&ch->state_mtx);
+	/* Create the device queue for our SIM. */
+	devq = cam_simq_alloc(1);
+	if (devq == NULL) {
+		device_printf(dev, "Unable to allocate simq\n");
+		error = ENOMEM;
+		goto err1;
+	}
+	/* Construct SIM entry */
+	ch->sim = cam_sim_alloc(ataaction, atapoll, "ata", ch,
+	    device_get_unit(dev), &ch->state_mtx, 1, 0, devq);
+	if (ch->sim == NULL) {
+		device_printf(dev, "unable to allocate sim\n");
+		error = ENOMEM;
+		goto err2;
+	}
+	if (xpt_bus_register(ch->sim, dev, 0) != CAM_SUCCESS) {
+		device_printf(dev, "unable to register xpt bus\n");
+		error = ENXIO;
+		goto err2;
+	}
+	if (xpt_create_path(&ch->path, /*periph*/NULL, cam_sim_path(ch->sim),
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		device_printf(dev, "unable to create path\n");
+		error = ENXIO;
+		goto err3;
+	}
+	mtx_unlock(&ch->state_mtx);
+	return (0);
+
+err3:
+	xpt_bus_deregister(cam_sim_path(ch->sim));
+err2:
+	cam_sim_free(ch->sim, /*free_devq*/TRUE);
+err1:
+	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
+	mtx_unlock(&ch->state_mtx);
+	return (error);
+#endif
 }
 
 int
 ata_detach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
+#ifndef ATA_CAM
     device_t *children;
     int nchildren, i;
+#endif
 
     /* check that we have a valid channel to detach */
     if (!ch->r_irq)
@@ -176,6 +252,7 @@ ata_detach(device_t dev)
     ch->state |= ATA_STALL_QUEUE;
     mtx_unlock(&ch->state_mtx);
 
+#ifndef ATA_CAM
     /* detach & delete all children */
     if (!device_get_children(dev, &children, &nchildren)) {
 	for (i = 0; i < nchildren; i++)
@@ -183,7 +260,17 @@ ata_detach(device_t dev)
 		device_delete_child(dev, children[i]);
 	free(children, M_TEMP);
     } 
+#endif
     taskqueue_drain(taskqueue_thread, &ch->conntask);
+
+#ifdef ATA_CAM
+	mtx_lock(&ch->state_mtx);
+	xpt_async(AC_LOST_DEVICE, ch->path, NULL);
+	xpt_free_path(ch->path);
+	xpt_bus_deregister(cam_sim_path(ch->sim));
+	cam_sim_free(ch->sim, /*free_devq*/TRUE);
+	mtx_unlock(&ch->state_mtx);
+#endif
 
     /* release resources */
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
@@ -203,8 +290,11 @@ static void
 ata_conn_event(void *context, int dummy)
 {
     device_t dev = (device_t)context;
+    struct ata_channel *ch = device_get_softc(dev);
 
+    mtx_lock(&ch->state_mtx);
     ata_reinit(dev);
+    mtx_unlock(&ch->state_mtx);
 }
 
 int
@@ -212,6 +302,7 @@ ata_reinit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_request *request;
+#ifndef ATA_CAM
     device_t *children;
     int nchildren, i;
 
@@ -298,7 +389,23 @@ ata_reinit(device_t dev)
 
     /* kick off requests on the queue */
     ata_start(dev);
-    return 0;
+#else
+	if ((request = ch->running)) {
+		ch->running = NULL;
+		if (ch->state == ATA_ACTIVE)
+		    ch->state = ATA_IDLE;
+		callout_stop(&request->callout);
+		if (ch->dma.unload)
+		    ch->dma.unload(request);
+		request->result = ERESTART;
+		ata_cam_end_transaction(dev, request);
+	}
+	/* reset the controller HW, the channel and device(s) */
+	ATA_RESET(dev);
+	/* Tell the XPT about the event */
+	xpt_async(AC_BUS_RESET, ch->path, NULL);
+#endif
+	return(0);
 }
 
 int
@@ -310,6 +417,7 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
+#ifndef ATA_CAM
     /* wait for the channel to be IDLE or detached before suspending */
     while (ch->r_irq) {
 	mtx_lock(&ch->state_mtx);
@@ -322,7 +430,8 @@ ata_suspend(device_t dev)
 	tsleep(ch, PRIBIO, "atasusp", hz/10);
     }
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
-    return 0;
+#endif
+    return(0);
 }
 
 int
@@ -337,18 +446,36 @@ ata_resume(device_t dev)
     /* reinit the devices, we dont know what mode/state they are in */
     error = ata_reinit(dev);
 
+#ifndef ATA_CAM
     /* kick off requests on the queue */
     ata_start(dev);
+#endif
     return error;
 }
 
 void
 ata_interrupt(void *data)
 {
+#ifdef ATA_CAM
+    struct ata_channel *ch = (struct ata_channel *)data;
+
+    mtx_lock(&ch->state_mtx);
+#endif
+    ata_interrupt_locked(data);
+#ifdef ATA_CAM
+    mtx_unlock(&ch->state_mtx);
+#endif
+}
+
+static void
+ata_interrupt_locked(void *data)
+{
     struct ata_channel *ch = (struct ata_channel *)data;
     struct ata_request *request;
 
+#ifndef ATA_CAM
     mtx_lock(&ch->state_mtx);
+#endif
     do {
 	/* ignore interrupt if its not for us */
 	if (ch->hw.status && !ch->hw.status(ch->dev))
@@ -374,18 +501,71 @@ ata_interrupt(void *data)
 	    ch->running = NULL;
 	    if (ch->state == ATA_ACTIVE)
 		ch->state = ATA_IDLE;
+#ifdef ATA_CAM
+	    ata_cam_end_transaction(ch->dev, request);
+#else
 	    mtx_unlock(&ch->state_mtx);
 	    ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	    ata_finish(request);
+#endif
 	    return;
 	}
     } while (0);
+#ifndef ATA_CAM
     mtx_unlock(&ch->state_mtx);
+#endif
+}
+
+void
+ata_print_cable(device_t dev, u_int8_t *who)
+{
+    device_printf(dev,
+                  "DMA limited to UDMA33, %s found non-ATA66 cable\n", who);
+}
+
+int
+ata_check_80pin(device_t dev, int mode)
+{
+    struct ata_device *atadev = device_get_softc(dev);
+
+    if (!ata_dma_check_80pin) {
+        if (bootverbose)
+            device_printf(dev, "Skipping 80pin cable check\n");
+        return mode;
+    }
+
+    if (mode > ATA_UDMA2 && !(atadev->param.hwres & ATA_CABLE_ID)) {
+        ata_print_cable(dev, "device");
+        mode = ATA_UDMA2;
+    }
+    return mode;
+}
+
+void
+ata_setmode(device_t dev)
+{
+	struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+	struct ata_device *atadev = device_get_softc(dev);
+	int error, mode, pmode;
+
+	mode = atadev->mode;
+	do {
+		pmode = mode = ata_limit_mode(dev, mode, ATA_DMA_MAX);
+		mode = ATA_SETMODE(device_get_parent(dev), atadev->unit, mode);
+		if ((ch->flags & (ATA_CHECKS_CABLE | ATA_SATA)) == 0)
+			mode = ata_check_80pin(dev, mode);
+	} while (pmode != mode); /* Interate till successfull negotiation. */
+	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
+	if (bootverbose)
+	        device_printf(dev, "%ssetting %s\n",
+		    (error) ? "FAILURE " : "", ata_mode2str(mode));
+	atadev->mode = mode;
 }
 
 /*
  * device related interfaces
  */
+#ifndef ATA_CAM
 static int
 ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	  int32_t flag, struct thread *td)
@@ -467,6 +647,7 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
     }
     return error;
 }
+#endif
 
 int
 ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
@@ -549,11 +730,12 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 	
     case IOCATASMODE:
 	atadev->mode = *mode;
-	ATA_SETMODE(device_get_parent(dev), dev);
+	ata_setmode(dev);
 	return 0;
 
     case IOCATAGMODE:
-	*mode = atadev->mode;
+	*mode = atadev->mode |
+	    (ATA_GETREV(device_get_parent(dev), atadev->unit) << 8);
 	return 0;
     case IOCATASSPINDOWN:
 	atadev->spindown = *mode;
@@ -566,6 +748,7 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
     }
 }
 
+#ifndef ATA_CAM
 static void
 ata_boot_attach(void)
 {
@@ -590,11 +773,12 @@ ata_boot_attach(void)
 
     mtx_unlock(&Giant);     /* newbus suckage dealt with, release Giant */
 }
-
+#endif
 
 /*
  * misc support functions
  */
+#ifndef ATA_CAM
 static device_t
 ata_add_child(device_t parent, struct ata_device *atadev, int unit)
 {
@@ -609,6 +793,7 @@ ata_add_child(device_t parent, struct ata_device *atadev, int unit)
     }
     return child;
 }
+#endif
 
 int
 ata_getparam(struct ata_device *atadev, int init)
@@ -705,6 +890,7 @@ ata_getparam(struct ata_device *atadev, int init)
     return error;
 }
 
+#ifndef ATA_CAM
 int
 ata_identify(device_t dev)
 {
@@ -778,6 +964,7 @@ ata_identify(device_t dev)
     mtx_unlock(&Giant);
     return 0;
 }
+#endif
 
 void
 ata_default_registers(device_t dev)
@@ -920,7 +1107,7 @@ ata_unit2str(struct ata_device *atadev)
     return str;
 }
 
-char *
+const char *
 ata_mode2str(int mode)
 {
     switch (mode) {
@@ -948,6 +1135,18 @@ ata_mode2str(int mode)
 	else
 	    return "BIOSPIO";
     }
+}
+
+const char *
+ata_satarev2str(int rev)
+{
+	switch (rev) {
+	case 0: return "";
+	case 1: return "SATA 1.5Gb/s";
+	case 2: return "SATA 3Gb/s";
+	case 3: return "SATA 6Gb/s";
+	default: return "???";
+	}
 }
 
 int
@@ -1081,6 +1280,358 @@ bpack(int8_t *src, int8_t *dst, int len)
 	dst[j] = 0x00;
 }
 
+#ifdef ATA_CAM
+void
+ata_cam_begin_transaction(device_t dev, union ccb *ccb)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	struct ata_request *request;
+
+	if (!(request = ata_alloc_request())) {
+		device_printf(dev, "FAILURE - out of memory in start\n");
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+	bzero(request, sizeof(*request));
+
+	/* setup request */
+	request->dev = NULL;
+	request->parent = dev;
+	request->unit = ccb->ccb_h.target_id;
+	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+		request->data = ccb->ataio.data_ptr;
+		request->bytecount = ccb->ataio.dxfer_len;
+		request->u.ata.command = ccb->ataio.cmd.command;
+		request->u.ata.feature = ((uint16_t)ccb->ataio.cmd.features_exp << 8) |
+					  (uint16_t)ccb->ataio.cmd.features;
+		request->u.ata.count = ((uint16_t)ccb->ataio.cmd.sector_count_exp << 8) |
+					(uint16_t)ccb->ataio.cmd.sector_count;
+		if (ccb->ataio.cmd.flags & CAM_ATAIO_48BIT) {
+			request->flags |= ATA_R_48BIT;
+			request->u.ata.lba =
+				     ((uint64_t)ccb->ataio.cmd.lba_high_exp << 40) |
+				     ((uint64_t)ccb->ataio.cmd.lba_mid_exp << 32) |
+				     ((uint64_t)ccb->ataio.cmd.lba_low_exp << 24);
+		} else {
+			request->u.ata.lba =
+				     ((uint64_t)(ccb->ataio.cmd.device & 0x0f) << 24);
+		}
+		request->u.ata.lba |= ((uint64_t)ccb->ataio.cmd.lba_high << 16) |
+				      ((uint64_t)ccb->ataio.cmd.lba_mid << 8) |
+				       (uint64_t)ccb->ataio.cmd.lba_low;
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
+		    ccb->ataio.cmd.flags & CAM_ATAIO_DMA)
+			request->flags |= ATA_R_DMA;
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
+			request->flags |= ATA_R_READ;
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
+			request->flags |= ATA_R_WRITE;
+	} else {
+		request->data = ccb->csio.data_ptr;
+		request->bytecount = ccb->csio.dxfer_len;
+		bcopy((ccb->ccb_h.flags & CAM_CDB_POINTER) ?
+		    ccb->csio.cdb_io.cdb_ptr : ccb->csio.cdb_io.cdb_bytes,
+		    request->u.atapi.ccb, ccb->csio.cdb_len);
+		request->flags |= ATA_R_ATAPI;
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
+		    ch->curr[ccb->ccb_h.target_id].mode >= ATA_DMA)
+			request->flags |= ATA_R_DMA;
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
+			request->flags |= ATA_R_READ;
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
+			request->flags |= ATA_R_WRITE;
+	}
+	request->transfersize = min(request->bytecount,
+	    ch->curr[ccb->ccb_h.target_id].bytecount);
+//	request->callback = ad_done;
+	request->retries = 0;
+	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
+	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
+	request->ccb = ccb;
+
+	ch->running = request;
+	ch->state = ATA_ACTIVE;
+	if (ch->hw.begin_transaction(request) == ATA_OP_FINISHED) {
+	    ch->running = NULL;
+	    ch->state = ATA_IDLE;
+	    ata_cam_end_transaction(dev, request);
+	    return;
+	}
+}
+
+void
+ata_cam_end_transaction(device_t dev, struct ata_request *request)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	union ccb *ccb = request->ccb;
+	int fatalerr = 0;
+
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	if (request->flags & ATA_R_TIMEOUT) {
+		xpt_freeze_simq(ch->sim, 1);
+		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		ccb->ccb_h.status |= CAM_CMD_TIMEOUT | CAM_RELEASE_SIMQ;
+		fatalerr = 1;
+	} else if (request->status & ATA_S_ERROR) {
+		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+			ccb->ccb_h.status |= CAM_ATA_STATUS_ERROR;
+		} else {
+			ccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
+			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
+		}
+	} else if (request->result == ERESTART)
+		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+	else if (request->result != 0)
+		ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
+	else
+		ccb->ccb_h.status |= CAM_REQ_CMP;
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP &&
+	    !(ccb->ccb_h.status & CAM_DEV_QFRZN)) {
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+	}
+	if (ccb->ccb_h.func_code == XPT_ATA_IO &&
+	    ((request->status & ATA_S_ERROR) ||
+	    (ccb->ataio.cmd.flags & CAM_ATAIO_NEEDRESULT))) {
+		struct ata_res *res = &ccb->ataio.res;
+		res->status = request->status;
+		res->error = request->error;
+		res->lba_low = request->u.ata.lba;
+		res->lba_mid = request->u.ata.lba >> 8;
+		res->lba_high = request->u.ata.lba >> 16;
+		res->device = request->u.ata.lba >> 24;
+		res->lba_low_exp = request->u.ata.lba >> 24;
+		res->lba_mid_exp = request->u.ata.lba >> 32;
+		res->lba_high_exp = request->u.ata.lba >> 40;
+		res->sector_count = request->u.ata.count;
+		res->sector_count_exp = request->u.ata.count >> 8;
+	}
+	ata_free_request(request);
+	xpt_done(ccb);
+	/* Do error recovery if needed. */
+	if (fatalerr)
+		ata_reinit(dev);
+}
+
+static void
+ataaction(struct cam_sim *sim, union ccb *ccb)
+{
+	device_t dev;
+	struct ata_channel *ch;
+
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ataaction func_code=%x\n",
+	    ccb->ccb_h.func_code));
+
+	ch = (struct ata_channel *)cam_sim_softc(sim);
+	dev = ch->dev;
+	switch (ccb->ccb_h.func_code) {
+	/* Common cases first */
+	case XPT_ATA_IO:	/* Execute the requested I/O operation */
+	case XPT_SCSI_IO:
+		if ((ch->devices & ((ATA_ATA_MASTER | ATA_ATAPI_MASTER)
+		    << ccb->ccb_h.target_id)) == 0) {
+			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+			xpt_done(ccb);
+			break;
+		}
+		if (ch->running)
+			device_printf(dev, "already running!\n");
+		if (ccb->ccb_h.func_code == XPT_ATA_IO &&
+		    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
+		    (ccb->ataio.cmd.control & ATA_A_RESET)) {
+			struct ata_res *res = &ccb->ataio.res;
+			
+			bzero(res, sizeof(*res));
+			if (ch->devices & (ATA_ATA_MASTER << ccb->ccb_h.target_id)) {
+				res->lba_high = 0;
+				res->lba_mid = 0;
+			} else {
+				res->lba_high = 0xeb;
+				res->lba_mid = 0x14;
+			}
+			ccb->ccb_h.status = CAM_REQ_CMP;
+			xpt_done(ccb);
+			break;
+		}
+		ata_cam_begin_transaction(dev, ccb);
+		break;
+	case XPT_EN_LUN:		/* Enable LUN as a target */
+	case XPT_TARGET_IO:		/* Execute target I/O request */
+	case XPT_ACCEPT_TARGET_IO:	/* Accept Host Target Mode CDB */
+	case XPT_CONT_TARGET_IO:	/* Continue Host Target I/O Connection*/
+	case XPT_ABORT:			/* Abort the specified CCB */
+		/* XXX Implement */
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	case XPT_SET_TRAN_SETTINGS:
+	{
+		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct	ata_cam_device *d; 
+
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
+		if ((ch->flags & ATA_SATA) && (ch->flags & ATA_NO_SLAVE)) {
+			if (cts->xport_specific.sata.valid & CTS_SATA_VALID_REVISION)
+				d->revision = cts->xport_specific.sata.revision;
+			if (cts->xport_specific.ata.valid & CTS_SATA_VALID_MODE) {
+				if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+					d->mode = ATA_SETMODE(ch->dev,
+					    ccb->ccb_h.target_id,
+					    cts->xport_specific.sata.mode);
+				} else
+					d->mode = cts->xport_specific.sata.mode;
+			}
+			if (cts->xport_specific.ata.valid & CTS_SATA_VALID_BYTECOUNT)
+				d->bytecount = min(8192, cts->xport_specific.sata.bytecount);
+		} else {
+			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_MODE) {
+				if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+					d->mode = ATA_SETMODE(ch->dev,
+					    ccb->ccb_h.target_id,
+					    cts->xport_specific.ata.mode);
+				} else
+					d->mode = cts->xport_specific.ata.mode;
+			}
+			if (cts->xport_specific.ata.valid & CTS_ATA_VALID_BYTECOUNT)
+				d->bytecount = cts->xport_specific.ata.bytecount;
+			if (ch->flags & ATA_SATA)
+				d->bytecount = min(8192, d->bytecount);
+		}
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+	case XPT_GET_TRAN_SETTINGS:
+	{
+		struct	ccb_trans_settings *cts = &ccb->cts;
+		struct  ata_cam_device *d;
+
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
+			d = &ch->curr[ccb->ccb_h.target_id];
+		else
+			d = &ch->user[ccb->ccb_h.target_id];
+		cts->protocol = PROTO_ATA;
+		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
+		if ((ch->flags & ATA_SATA) && (ch->flags & ATA_NO_SLAVE)) {
+			cts->transport = XPORT_SATA;
+			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+			cts->xport_specific.sata.mode = d->mode;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_MODE;
+			cts->xport_specific.sata.bytecount = d->bytecount;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_BYTECOUNT;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+				cts->xport_specific.sata.revision =
+				    ATA_GETREV(dev, ccb->ccb_h.target_id);
+			} else
+				cts->xport_specific.sata.revision = d->revision;
+			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
+		} else {
+			cts->transport = XPORT_ATA;
+			cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+			cts->xport_specific.ata.mode = d->mode;
+			cts->xport_specific.ata.valid |= CTS_ATA_VALID_MODE;
+			cts->xport_specific.ata.bytecount = d->bytecount;
+			cts->xport_specific.ata.valid |= CTS_ATA_VALID_BYTECOUNT;
+		}
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+#if 0
+	case XPT_CALC_GEOMETRY:
+	{
+		struct	  ccb_calc_geometry *ccg;
+		uint32_t size_mb;
+		uint32_t secs_per_cylinder;
+
+		ccg = &ccb->ccg;
+		size_mb = ccg->volume_size
+			/ ((1024L * 1024L) / ccg->block_size);
+		if (size_mb >= 1024 && (aha->extended_trans != 0)) {
+			if (size_mb >= 2048) {
+				ccg->heads = 255;
+				ccg->secs_per_track = 63;
+			} else {
+				ccg->heads = 128;
+				ccg->secs_per_track = 32;
+			}
+		} else {
+			ccg->heads = 64;
+			ccg->secs_per_track = 32;
+		}
+		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+#endif
+	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
+	case XPT_RESET_DEV:	/* Bus Device Reset the specified SCSI device */
+		ata_reinit(dev);
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	case XPT_TERM_IO:		/* Terminate the I/O process */
+		/* XXX Implement */
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	case XPT_PATH_INQ:		/* Path routing inquiry */
+	{
+		struct ccb_pathinq *cpi = &ccb->cpi;
+
+		cpi->version_num = 1; /* XXX??? */
+		cpi->hba_inquiry = PI_SDTR_ABLE;
+		cpi->target_sprt = 0;
+		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_eng_cnt = 0;
+		if (ch->flags & ATA_NO_SLAVE)
+			cpi->max_target = 0;
+		else
+			cpi->max_target = 1;
+		cpi->max_lun = 0;
+		cpi->initiator_id = 0;
+		cpi->bus_id = cam_sim_bus(sim);
+		if (ch->flags & ATA_SATA)
+			cpi->base_transfer_speed = 150000;
+		else
+			cpi->base_transfer_speed = 3300;
+		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strncpy(cpi->hba_vid, "ATA", HBA_IDLEN);
+		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		cpi->unit_number = cam_sim_unit(sim);
+		if ((ch->flags & ATA_SATA) && (ch->flags & ATA_NO_SLAVE))
+			cpi->transport = XPORT_SATA;
+		else
+			cpi->transport = XPORT_ATA;
+		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
+		cpi->protocol = PROTO_ATA;
+		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
+		cpi->maxio = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
+		cpi->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+	default:
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
+	}
+}
+
+static void
+atapoll(struct cam_sim *sim)
+{
+	struct ata_channel *ch = (struct ata_channel *)cam_sim_softc(sim);
+
+	ata_interrupt_locked(ch);
+}
+#endif
 
 /*
  * module handeling
@@ -1088,10 +1639,13 @@ bpack(int8_t *src, int8_t *dst, int len)
 static int
 ata_module_event_handler(module_t mod, int what, void *arg)
 {
+#ifndef ATA_CAM
     static struct cdev *atacdev;
+#endif
 
     switch (what) {
     case MOD_LOAD:
+#ifndef ATA_CAM
 	/* register controlling device */
 	atacdev = make_dev(&ata_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0600, "ata");
 
@@ -1109,11 +1663,14 @@ ata_module_event_handler(module_t mod, int what, void *arg)
 		free(ata_delayed_attach, M_TEMP);
 	    }
 	}
+#endif
 	return 0;
 
     case MOD_UNLOAD:
+#ifndef ATA_CAM
 	/* deregister controlling device */
 	destroy_dev(atacdev);
+#endif
 	return 0;
 
     default:

@@ -511,11 +511,18 @@ ata_timeout(struct ata_request *request)
      */
     if (ch->state == ATA_ACTIVE) {
 	request->flags |= ATA_R_TIMEOUT;
-	mtx_unlock(&ch->state_mtx);
-	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	if (ch->dma.unload)
 	    ch->dma.unload(request);
+#ifdef ATA_CAM
+	ch->running = NULL;
+	ch->state = ATA_IDLE;
+	ata_cam_end_transaction(ch->dev, request);
+#endif
+	mtx_unlock(&ch->state_mtx);
+	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
+#ifndef ATA_CAM
 	ata_finish(request);
+#endif
     }
     else {
 	mtx_unlock(&ch->state_mtx);
