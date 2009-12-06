@@ -1129,7 +1129,8 @@ ahci_notify_events(device_t dev, u_int32_t status)
 	struct cam_path *dpath;
 	int i;
 
-	ATA_OUTL(ch->r_mem, AHCI_P_SNTF, status);
+	if (ch->caps & AHCI_CAP_SSNTF)
+		ATA_OUTL(ch->r_mem, AHCI_P_SNTF, status);
 	if (bootverbose)
 		device_printf(dev, "SNTF 0x%04x\n", status);
 	for (i = 0; i < 16; i++) {
@@ -1188,8 +1189,16 @@ ahci_ch_intr(void *data)
 	/* Read command statuses. */
 	sstatus = ATA_INL(ch->r_mem, AHCI_P_SACT);
 	cstatus = ATA_INL(ch->r_mem, AHCI_P_CI);
-	if ((istatus & AHCI_P_IX_SDB) && (ch->caps & AHCI_CAP_SSNTF))
-		sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
+	if (istatus & AHCI_P_IX_SDB) {
+		if (ch->caps & AHCI_CAP_SSNTF)
+			sntf = ATA_INL(ch->r_mem, AHCI_P_SNTF);
+		else {
+			u_int8_t *fis = ch->dma.rfis + 0x58;
+
+			if (fis[1] & 0x80)
+				sntf = (1 << (fis[1] & 0x0f));
+		}
+	}
 	/* Process PHY events */
 	if (istatus & (AHCI_P_IX_PC | AHCI_P_IX_PRC | AHCI_P_IX_OF |
 	    AHCI_P_IX_IF | AHCI_P_IX_HBD | AHCI_P_IX_HBF | AHCI_P_IX_TFE)) {
