@@ -1040,6 +1040,9 @@ adashutdown(void * arg, int howto)
 	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
 		union ccb ccb;
 
+		/* If we paniced with lock held - not recurse here. */
+		if (cam_periph_owned(periph))
+			continue;
 		cam_periph_lock(periph);
 		softc = (struct ada_softc *)periph->softc;
 		/*
