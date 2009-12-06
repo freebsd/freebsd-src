@@ -246,7 +246,7 @@ ata_iobus_sub_probe(device_t dev)
 }
 
 static int
-ata_iobus_sub_setmode(device_t parent, int target, int mode);
+ata_iobus_sub_setmode(device_t parent, int target, int mode)
 {
 	/* Only ever PIO mode here... */
 	return (ATA_PIO);
