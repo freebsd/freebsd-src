@@ -1618,11 +1618,13 @@ bge_blockinit(struct bge_softc *sc)
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_NICADDR, rcb->bge_nicaddr);
 
 		/* Set up dummy disabled mini ring RCB */
-		rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
-		rcb->bge_maxlen_flags =
-		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
-		CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS,
-		    rcb->bge_maxlen_flags);
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
+			rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
+			rcb->bge_maxlen_flags =
+			    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
+			CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS,
+			    rcb->bge_maxlen_flags);
+		}
 	}
 
 	/*
@@ -1642,7 +1644,9 @@ bge_blockinit(struct bge_softc *sc)
 	else
 		val = BGE_STD_RX_RING_CNT / 8;
 	CSR_WRITE_4(sc, BGE_RBDI_STD_REPL_THRESH, val);
-	CSR_WRITE_4(sc, BGE_RBDI_JUMBO_REPL_THRESH, BGE_JUMBO_RX_RING_CNT/8);
+	if (BGE_IS_JUMBO_CAPABLE(sc))
+		CSR_WRITE_4(sc, BGE_RBDI_JUMBO_REPL_THRESH,
+		    BGE_JUMBO_RX_RING_CNT/8);
 
 	/*
 	 * Disable all unused send rings by setting the 'ring disabled'
@@ -1684,8 +1688,10 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Initialize RX ring indexes */
 	bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, 0);
-	bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, 0);
-	bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
+	if (BGE_IS_JUMBO_CAPABLE(sc))
+		bge_writembx(sc, BGE_MBX_RX_JUMBO_PROD_LO, 0);
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5700)
+		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
 
 	/*
 	 * Set up RX return ring 0
