@@ -363,6 +363,7 @@ struct siis_channel {
 	struct ata_dma		dma;            /* DMA data */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	int			quirks;
 	int			pm_level;	/* power management level */
 
 	struct siis_slot	slot[SIIS_MAX_SLOTS];
@@ -400,6 +401,7 @@ struct siis_controller {
 		void			*handle;
 		int			r_irq_rid;
 	} irq;
+	int			quirks;
 	int			channels;
 	struct {
 		void			(*function)(void *);
