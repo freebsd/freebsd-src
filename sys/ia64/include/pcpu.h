@@ -53,6 +53,7 @@ struct pcpu_stats {
 #define	PCPU_MD_FIELDS							\
 	struct pcb	pc_pcb;			/* Used by IPI_STOP */	\
 	struct pmap	*pc_current_pmap;	/* active pmap */	\
+	vm_offset_t	pc_vhpt;		/* Address of VHPT */	\
 	uint64_t	pc_lid;			/* local CPU ID */	\
 	uint64_t	pc_clock;		/* Clock counter. */	\
 	uint64_t	pc_clockadj;		/* Clock adjust. */	\
