@@ -28,7 +28,7 @@
 .\"     @(#)fcntl.2	8.2 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2008
+.Dd September 28, 2009
 .Dt FCNTL 2
 .Os
 .Sh NAME
@@ -241,6 +241,22 @@ will be interrupted if the signal handler has not specified the
 .Dv SA_RESTART
 (see
 .Xr sigaction 2 ) .
+.It Dv F_READAHEAD
+Set or clear the read ahead amount for sequential access to the third
+argument,
+.Fa arg ,
+which is rounded up to the nearest block size.
+A zero value in
+.Fa arg
+turns off read ahead.
+.It Dv F_RDAHEAD
+Equivalent to Darwin counterpart which sets read ahead amount of 128KB
+when the third argument,
+.Fa arg
+is non-zero.
+A zero value in
+.Fa arg
+turns off read ahead.
 .El
 .Pp
 When a shared lock has been set on a segment of a file,
