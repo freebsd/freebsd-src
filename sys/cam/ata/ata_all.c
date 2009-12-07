@@ -256,8 +256,10 @@ ata_print_ident(struct ata_params *ident_data)
 		   sizeof(product));
 	cam_strvis(revision, ident_data->revision, sizeof(ident_data->revision),
 		   sizeof(revision));
-	printf("<%s %s> ATA/ATAPI-%d",
-	    product, revision, ata_version(ident_data->version_major));
+	printf("<%s %s> %s-%d",
+	    product, revision,
+	    (ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA",
+	    ata_version(ident_data->version_major));
 	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
 		if (ident_data->satacapabilities & ATA_SATA_GEN3)
 			printf(" SATA 3.x");
