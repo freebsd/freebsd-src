@@ -1081,9 +1081,22 @@ static void
 mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 {
 
-	device_printf(sc->mfi_dev, "%d (%s/0x%04x/%s) - %s\n", detail->seq,
-	    format_timestamp(detail->time), detail->class.members.locale,
-	    format_class(detail->class.members.class), detail->description);
+	switch (detail->class.members.class) {
+	case MFI_EVT_CLASS_DEBUG:
+	case MFI_EVT_CLASS_PROGRESS:
+	case MFI_EVT_CLASS_INFO:
+#ifndef MFI_DEBUG
+		if (!bootverbose)
+			return;
+		/* FALLTHROUGH */
+#endif
+	default:
+		device_printf(sc->mfi_dev, "%d (%s/0x%04x/%s) - %s\n",
+		    detail->seq, format_timestamp(detail->time),
+		    detail->class.members.locale,
+		    format_class(detail->class.members.class),
+		    detail->description);
+	}
 }
 
 static int
