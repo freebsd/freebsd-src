@@ -426,7 +426,7 @@ pmap_bootstrap()
 		phys_avail[i] = base + size;
 
 	base = IA64_PHYS_TO_RR7(base);
-	PCPU_SET(vhpt, base);
+	PCPU_SET(md.vhpt, base);
 	if (bootverbose)
 		printf("VHPT: address=%#lx, size=%#lx\n", base, size);
 
@@ -455,7 +455,7 @@ pmap_bootstrap()
 		kernel_pmap->pm_rid[i] = 0;
 	kernel_pmap->pm_active = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-	PCPU_SET(current_pmap, kernel_pmap);
+	PCPU_SET(md.current_pmap, kernel_pmap);
 
 	/*
 	 * Region 5 is mapped via the vhpt.
@@ -543,13 +543,13 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	struct pcpu *pc;
 	u_int vhpt_ofs;
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("invalidating TLB for non-current pmap"));
 
-	vhpt_ofs = ia64_thash(va) - PCPU_GET(vhpt);
+	vhpt_ofs = ia64_thash(va) - PCPU_GET(md.vhpt);
 	critical_enter();
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		pte = (struct ia64_lpte *)(pc->pc_vhpt + vhpt_ofs);
+		pte = (struct ia64_lpte *)(pc->pc_md.vhpt + vhpt_ofs);
 		if (pte->tag == ia64_ttag(va))
 			pte->tag = 1UL << 63;
 	}
@@ -581,7 +581,7 @@ static void
 pmap_invalidate_all(pmap_t pmap)
 {
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("invalidating TLB for non-current pmap"));
 
 #ifdef SMP
@@ -1162,7 +1162,7 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	int error;
 	vm_page_t m;
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("removing pte for non-current pmap"));
 
 	/*
@@ -1330,7 +1330,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("removing page for non-current pmap"));
 
 	pte = pmap_find_vhpt(va);
@@ -2241,7 +2241,7 @@ pmap_switch(pmap_t pm)
 	int i;
 
 	critical_enter();
-	prevpm = PCPU_GET(current_pmap);
+	prevpm = PCPU_GET(md.current_pmap);
 	if (prevpm == pm)
 		goto out;
 	if (prevpm != NULL)
@@ -2258,7 +2258,7 @@ pmap_switch(pmap_t pm)
 		}
 		atomic_set_32(&pm->pm_active, PCPU_GET(cpumask));
 	}
-	PCPU_SET(current_pmap, pm);
+	PCPU_SET(md.current_pmap, pm);
 	ia64_srlz_d();
 
 out:

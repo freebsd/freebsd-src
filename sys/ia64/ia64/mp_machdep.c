@@ -121,7 +121,7 @@ ia64_ap_startup(void)
 	pcpup = ap_pcpu;
 	ia64_set_k4((intptr_t)pcpup);
 
-	vhpt = PCPU_GET(vhpt);
+	vhpt = PCPU_GET(md.vhpt);
 	map_vhpt(vhpt);
 	ia64_set_pta(vhpt + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
@@ -226,7 +226,7 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 		pc = pcpup;
 
 	pc->pc_acpi_id = acpiid;
-	pc->pc_lid = lid;
+	pc->pc_md.lid = lid;
 	all_cpus |= (1UL << cpuid);
 }
 
@@ -240,8 +240,8 @@ cpu_mp_announce()
 		pc = pcpu_find(i);
 		if (pc != NULL) {
 			printf("cpu%d: ACPI Id=%x, SAPIC Id=%x, SAPIC Eid=%x",
-			    i, pc->pc_acpi_id, LID_SAPIC_ID(pc->pc_lid),
-			    LID_SAPIC_EID(pc->pc_lid));
+			    i, pc->pc_acpi_id, LID_SAPIC_ID(pc->pc_md.lid),
+			    LID_SAPIC_EID(pc->pc_md.lid));
 			if (i == 0)
 				printf(" (BSP)\n");
 			else
@@ -258,12 +258,12 @@ cpu_mp_start()
 	ap_spin = 1;
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		pc->pc_current_pmap = kernel_pmap;
+		pc->pc_md.current_pmap = kernel_pmap;
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (pc->pc_cpuid > 0) {
 			ap_pcpu = pc;
-			pc->pc_vhpt = pmap_alloc_vhpt();
-			if (pc->pc_vhpt == 0) {
+			pc->pc_md.vhpt = pmap_alloc_vhpt();
+			if (pc->pc_md.vhpt == 0) {
 				printf("SMP: WARNING: unable to allocate VHPT"
 				    " for cpu%d", pc->pc_cpuid);
 				continue;
@@ -281,13 +281,13 @@ cpu_mp_start()
 			do {
 				DELAY(1000);
 			} while (--ap_delay > 0);
-			pc->pc_awake = ap_awake;
+			pc->pc_md.awake = ap_awake;
 
 			if (!ap_awake)
 				printf("SMP: WARNING: cpu%d did not wake up\n",
 				    pc->pc_cpuid);
 		} else
-			pc->pc_awake = 1;
+			pc->pc_md.awake = 1;
 	}
 }
 
@@ -304,7 +304,7 @@ cpu_mp_unleash(void *dummy)
 	smp_cpus = 0;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
-		if (pc->pc_awake) {
+		if (pc->pc_md.awake) {
 			kproc_create(ia64_store_mca_state,
 			    (void*)((uintptr_t)pc->pc_cpuid), NULL, 0, 0,
 			    "mca %u", pc->pc_cpuid);
@@ -367,7 +367,7 @@ ipi_send(struct pcpu *cpu, int ipi)
 	uint64_t vector;
 
 	pipi = __MEMIO_ADDR(ia64_lapic_address |
-	    ((cpu->pc_lid & LID_SAPIC_MASK) >> 12));
+	    ((cpu->pc_md.lid & LID_SAPIC_MASK) >> 12));
 	vector = (uint64_t)(ipi_vector[ipi] & 0xff);
 	KASSERT(vector != 0, ("IPI %d is not assigned a vector", ipi));
 	*pipi = vector;
