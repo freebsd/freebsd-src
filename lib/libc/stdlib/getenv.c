@@ -361,7 +361,8 @@ __build_env(void)
 		} else {
 			__env_warnx(CorruptEnvValueMsg, envVars[envNdx].name,
 			    strlen(envVars[envNdx].name));
-			continue;
+			errno = EFAULT;
+			goto Failure;
 		}
 
 		/*
@@ -376,7 +377,8 @@ __build_env(void)
 		    false) == NULL) {
 			__env_warnx(CorruptEnvFindMsg, envVars[envNdx].name,
 			    nameLen);
-			continue;
+			errno = EFAULT;
+			goto Failure;
 		}
 		envVars[activeNdx].active = true;
 	}
@@ -558,7 +560,8 @@ __merge_environ(void)
 				if ((equals = strchr(*env, '=')) == NULL) {
 					__env_warnx(CorruptEnvValueMsg, *env,
 					    strlen(*env));
-					continue;
+					errno = EFAULT;
+					return (-1);
 				}
 				if (__setenv(*env, equals - *env, equals + 1,
 				    1) == -1)
