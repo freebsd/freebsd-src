@@ -72,35 +72,61 @@ esac
 #	functions
 #	---------
 
+# set_rcvar [var] [defval] [desc]
 #
-# set_rcvar base_var
-#	Set the variable name enabling a specific service.
-#	FreeBSD uses ${service}_enable, while NetBSD uses
-#	just the name of the service. For example:
-#	FreeBSD: sendmail_enable="YES"
-#	NetBSD : sendmail="YES"
-#	$1 - if $name is not the base to work of off, specify
-#	     a different one
+#	Echo or define a rc.conf(5) variable name.  Global variable
+#	$rcvars is used.
+#
+#	If no argument is specified, echo "${name}_enable".
+#
+#	If only a var is specified, echo "${var}_enable".
+#
+#	If var and defval are specified, the ${var} is defined as
+#	rc.conf(5) variable and the default value is ${defvar}.  An
+#	optional argument $desc can also be specified to add a
+#	description for that.
 #
 set_rcvar()
 {
-	if [ -z "$1" ]; then
-		base_var=${name}
-	else
-		base_var="$1"
-	fi
-
-	case ${OSTYPE} in
-	FreeBSD)
-		echo ${base_var}_enable
+	case $# in
+	0)
+		echo ${name}_enable
 		;;
-	NetBSD)
-		echo ${base_var}
+	1)
+		echo ${1}_enable
 		;;
 	*)
-		echo 'XXX'
+		debug "rcvar_define: \$$1=$2 is added" \
+		    " as a rc.conf(5) variable."
+
+		local _var
+		_var=$1
+		rcvars="${rcvars# } $_var"
+		eval ${_var}_defval=\"$2\"
+		shift 2
+		# encode multiple lines of _desc
+		for l in "$@"; do
+			eval ${_var}_desc=\"\${${_var}_desc#^^}^^$l\"
+		done
+		eval ${_var}_desc=\"\${${_var}_desc#^^}\"
 		;;
 	esac
+}
+
+# set_rcvar_obsolete oldvar [newvar] [msg]
+#	Define obsolete variable.
+#	Global variable $rcvars_obsolete is used.
+#
+set_rcvar_obsolete()
+{
+	local _var
+	_var=$1
+	debug "rcvar_obsolete: \$$1(old) -> \$$2(new) is defined"
+
+	rcvars_obsolete="${rcvars_obsolete# } $1"
+	eval ${1}_newvar=\"$2\"
+	shift 2
+	eval ${_var}_obsolete_msg=\"$*\"
 }
 
 #
@@ -415,6 +441,8 @@ check_startmsgs()
 #	command_interpreter n	If not empty, command is interpreted, so
 #				call check_{pidfile,process}() appropriately.
 #
+#	desc		n	Description of script.
+#
 #	extra_commands	n	List of extra commands supported.
 #
 #	pidfile		n	If set, use check_pidfile $pidfile $command,
@@ -588,7 +616,7 @@ run_rc_command()
 	esac
 
 	eval _override_command=\$${name}_program
-	command=${_override_command:-$command}
+	command=${command:-${_override_command}}
 
 	_keywords="start stop restart rcvar $extra_commands"
 	rc_pid=
@@ -792,14 +820,49 @@ $command $rc_flags $command_args"
 			;;
 
 		rcvar)
-			echo "# $name"
-			if [ -n "$rcvar" ]; then
-				if checkyesno ${rcvar}; then
-					echo "${rcvar}=YES"
-				else
-					echo "${rcvar}=NO"
-				fi
+			echo -n "# $name"
+			if [ -n "$desc" ]; then
+				echo " : $desc"
+			else
+				echo ""
 			fi
+			echo "#"
+			# Get unique vars in $rcvar $rcvars
+			for _v in $rcvar $rcvars; do
+				case $v in
+				$_v\ *|\ *$_v|*\ $_v\ *) ;;
+				*)	v="${v# } $_v" ;;
+				esac
+			done
+
+			# Display variables.
+			for _v in $v; do
+				if [ -z "$_v" ]; then
+					continue
+				fi
+
+				eval _desc=\$${_v}_desc
+				eval _defval=\$${_v}_defval
+				_h="-"
+
+				eval echo \"$_v=\\\"\$$_v\\\"\"
+				# decode multiple lines of _desc
+				while [ -n "$_desc" ]; do
+					case $_desc in
+					*^^*)
+						echo "# $_h ${_desc%%^^*}"
+						_desc=${_desc#*^^}
+						_h=" "
+						;;
+					*)
+						echo "# $_h ${_desc}"
+						break
+						;;
+					esac
+				done
+				echo "#   (default: \"$_defval\")"
+			done
+			echo ""
 			;;
 
 		*)
@@ -910,7 +973,8 @@ run_rc_script()
 
 	unset	name command command_args command_interpreter \
 		extra_commands pidfile procname \
-		rcvar required_dirs required_files required_vars
+		rcvar rcvars rcvars_obsolete required_dirs required_files \
+		required_vars
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
 	case "$_file" in
@@ -941,6 +1005,7 @@ run_rc_script()
 #
 load_rc_config()
 {
+	local _name _var _defval _v _msg _new
 	_name=$1
 	if [ -z "$_name" ]; then
 		err 3 'USAGE: load_rc_config name'
@@ -967,6 +1032,36 @@ load_rc_config()
 	# Old variable names support
 	#
 	[ -n "$enable_quotas" ] && quota_enable="$enable_quotas"
+
+	# Set defaults if defined.
+	for _var in $rcvar $rcvars; do
+		_defval=`eval echo "\\\$${_var}_defval"`
+		if [ -n "$_defval" ]; then
+			eval : \${$_var:=\$${_var}_defval}
+		fi
+	done
+
+	# check obsolete rc.conf variables
+	for _var in $rcvars_obsolete; do
+		_v=`eval echo \\$$_var`
+		_msg=`eval echo \\$${_var}_obsolete_msg`
+		_new=`eval echo \\$${_var}_newvar`
+		case $_v in
+		"")
+			;;
+		*)
+			if [ -z "$_new" ]; then
+				_msg="Ignored."
+			else
+				eval $_new=\"\$$_var\"
+				if [ -z "$_msg" ]; then
+					_msg="Use \$$_new instead."
+				fi
+			fi
+			warn "\$$_var is obsolete.  $_msg"
+			;;
+		esac
+	done
 }
   
 #
