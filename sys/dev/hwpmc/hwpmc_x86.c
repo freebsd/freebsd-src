@@ -176,7 +176,8 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 	stackend = (uintptr_t) td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
 
 	if (PMC_IN_TRAP_HANDLER(pc) ||
-	    !PMC_IN_KERNEL(pc) || !PMC_IN_KERNEL(r) ||
+	    !PMC_IN_KERNEL(pc) ||
+	    !PMC_IN_KERNEL_STACK(r, stackstart, stackend) ||
 	    !PMC_IN_KERNEL_STACK(sp, stackstart, stackend) ||
 	    !PMC_IN_KERNEL_STACK(fp, stackstart, stackend))
 		return (1);
@@ -221,7 +222,7 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 
 		r = fp + sizeof(uintptr_t);
 		if (!PMC_IN_KERNEL_STACK(fp, stackstart, stackend) ||
-		    !PMC_IN_KERNEL(r))
+		    !PMC_IN_KERNEL_STACK(r, stackstart, stackend))
 			break;
 		pc = *(uintptr_t *) r;
 		fp = *(uintptr_t *) fp;
