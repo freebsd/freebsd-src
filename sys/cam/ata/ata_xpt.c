@@ -729,7 +729,8 @@ noerror:
 	{
 		int sign = (done_ccb->ataio.res.lba_high << 8) +
 		    done_ccb->ataio.res.lba_mid;
-		xpt_print(path, "SIGNATURE: %04x\n", sign);
+		if (bootverbose)
+			xpt_print(path, "SIGNATURE: %04x\n", sign);
 		if (sign == 0x0000 &&
 		    done_ccb->ccb_h.target_id != 15) {
 			path->device->protocol = PROTO_ATA;
@@ -921,7 +922,6 @@ noerror:
 		    (done_ccb->ataio.res.lba_low << 8) +
 		    done_ccb->ataio.res.sector_count;
 		((uint32_t *)ident_buf)[0] = softc->pm_pid;
-		printf("PM Product ID: %08x\n", softc->pm_pid);
 		snprintf(ident_buf->model, sizeof(ident_buf->model),
 		    "Port Multiplier %08x", softc->pm_pid);
 		PROBE_SET_ACTION(softc, PROBE_PM_PRV);
@@ -934,7 +934,6 @@ noerror:
 		    (done_ccb->ataio.res.lba_low << 8) +
 		    done_ccb->ataio.res.sector_count;
 		((uint32_t *)ident_buf)[1] = softc->pm_prv;
-		printf("PM Revision: %08x\n", softc->pm_prv);
 		snprintf(ident_buf->revision, sizeof(ident_buf->revision),
 		    "%04x", softc->pm_prv);
 		path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
