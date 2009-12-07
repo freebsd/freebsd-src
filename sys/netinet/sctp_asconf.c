@@ -881,7 +881,7 @@ send_reply:
 				/* we probably don't need these operations */
 				(void)sa6_recoverscope(from6);
 				sa6_embedscope(from6,
-				    MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
+				    MODULE_GLOBAL(ip6_use_defzone));
 
 				break;
 			}

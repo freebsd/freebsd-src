@@ -1497,7 +1497,11 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
 				rt->rt_ifp->if_index;
 			}
+			RT_ADDREF(rt);
+			RT_UNLOCK(rt);
 			rt_newaddrmsg(cmd, ifa, error, rt);
+			RT_LOCK(rt);
+			RT_REMREF(rt);
 			if (cmd == RTM_DELETE) {
 				/*
 				 * If we are deleting, and we found an entry,
