@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+SHLIBDIR?=/lib
+
 .include <bsd.own.mk>
 
 LIB=	ulog
