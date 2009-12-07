@@ -76,7 +76,6 @@ void ia64_ap_startup(void);
 /* Variables used by os_boot_rendez and ia64_ap_startup */
 struct pcpu *ap_pcpu;
 void *ap_stack;
-uint64_t ap_vhpt;
 volatile int ap_delay;
 volatile int ap_awake;
 volatile int ap_spin;
@@ -116,13 +115,15 @@ void
 ia64_ap_startup(void)
 {
 	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
+	uint64_t vhpt;
 	int vector;
 
 	pcpup = ap_pcpu;
 	ia64_set_k4((intptr_t)pcpup);
 
-	map_vhpt(ap_vhpt);
-	ia64_set_pta(ap_vhpt + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
+	vhpt = PCPU_GET(vhpt);
+	map_vhpt(vhpt);
+	ia64_set_pta(vhpt + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
 
 	ap_awake = 1;
@@ -261,9 +262,14 @@ cpu_mp_start()
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (pc->pc_cpuid > 0) {
 			ap_pcpu = pc;
+			pc->pc_vhpt = pmap_alloc_vhpt();
+			if (pc->pc_vhpt == 0) {
+				printf("SMP: WARNING: unable to allocate VHPT"
+				    " for cpu%d", pc->pc_cpuid);
+				continue;
+			}
 			ap_stack = malloc(KSTACK_PAGES * PAGE_SIZE, M_SMP,
 			    M_WAITOK);
-			ap_vhpt = pmap_vhpt_base[pc->pc_cpuid];
 			ap_delay = 2000;
 			ap_awake = 0;
 
