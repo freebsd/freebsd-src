@@ -143,6 +143,7 @@ siis_attach(device_t dev)
 	if (!(ctlr->r_gmem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_grid, RF_ACTIVE)))
 		return (ENXIO);
+	ctlr->gctl = ATA_INL(ctlr->r_gmem, SIIS_GCTL);
 	/* Channels memory */
 	ctlr->r_rid = PCIR_BAR(2);
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -221,7 +222,8 @@ siis_suspend(device_t dev)
 
 	bus_generic_suspend(dev);
 	/* Put controller into reset state. */
-	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, SIIS_GCTL_GRESET);
+	ctlr->gctl |= SIIS_GCTL_GRESET;
+	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, ctlr->gctl);
 	return 0;
 }
 
@@ -231,10 +233,13 @@ siis_resume(device_t dev)
 	struct siis_controller *ctlr = device_get_softc(dev);
 
 	/* Put controller into reset state. */
-	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, SIIS_GCTL_GRESET);
+	ctlr->gctl |= SIIS_GCTL_GRESET;
+	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, ctlr->gctl);
 	DELAY(10000);
 	/* Get controller out of reset state and enable port interrupts. */
-	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, 0x0000000f);
+	ctlr->gctl &= ~(SIIS_GCTL_GRESET | SIIS_GCTL_I2C_IE);
+	ctlr->gctl |= 0x0000000f;
+	ATA_OUTL(ctlr->r_gmem, SIIS_GCTL, ctlr->gctl);
 	return (bus_generic_resume(dev));
 }
 
@@ -287,6 +292,11 @@ siis_intr(void *data)
 		    (arg = ctlr->interrupt[unit].argument)) {
 			ctlr->interrupt[unit].function(arg);
 		}
+	}
+	/* Acknowledge interrupt, if MSI enabled. */
+	if (ctlr->irq.r_irq_rid) {
+		ATA_OUTL(ctlr->r_gmem, SIIS_GCTL,
+		    ctlr->gctl | SIIS_GCTL_MSIACK);
 	}
 }
 

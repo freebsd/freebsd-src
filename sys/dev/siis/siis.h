@@ -403,6 +403,7 @@ struct siis_controller {
 	} irq;
 	int			quirks;
 	int			channels;
+	uint32_t		gctl;
 	struct {
 		void			(*function)(void *);
 		void			*argument;
