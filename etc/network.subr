@@ -276,6 +276,37 @@ wpaif()
 	return 1
 }
 
+# afexists af
+#	Returns 0 if the address family is enabled in the kernel
+#	1 otherwise.
+afexists()
+{
+	local _af
+	_af=$1
+
+	case ${_af} in
+	inet)
+		${SYSCTL_N} net.inet > /dev/null 2>&1
+		;;
+	inet6)
+		${SYSCTL_N} net.inet6 > /dev/null 2>&1
+		;;
+	ipx)
+		${SYSCTL_N} net.ipx > /dev/null 2>&1
+		;;
+	atm)
+		if [ -x /sbin/atmconfig ]; then
+			/sbin/atmconfig diag list > /dev/null 2>&1
+		else
+			return 1
+		fi
+		;;
+	*)
+		err 1 "afexists(): Unsupported address family: $_af"
+		;;
+	esac
+}
+
 # ipv6if if
 #	Returns 0 if the interface should be configured for IPv6 and
 #	1 otherwise.
