@@ -102,7 +102,8 @@ main(void)
      */
     bios_getmem();
 
-#if defined(LOADER_BZIP2_SUPPORT) || defined(LOADER_FIREWIRE_SUPPORT) || defined(LOADER_GPT_SUPPORT) || defined(LOADER_ZFS_SUPPORT)
+#if defined(LOADER_BZIP2_SUPPORT) || defined(LOADER_FIREWIRE_SUPPORT) || \
+    defined(LOADER_GPT_SUPPORT) || defined(LOADER_ZFS_SUPPORT)
     heap_top = PTOV(memtop_copyin);
     memtop_copyin -= 0x300000;
     heap_bottom = PTOV(memtop_copyin);

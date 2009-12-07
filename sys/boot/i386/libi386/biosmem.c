@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "btxv86.h"
 
 vm_offset_t	memtop, memtop_copyin;
-u_int32_t	bios_basemem, bios_extmem;
+uint32_t	bios_basemem, bios_extmem;
 
 static struct bios_smap smap;
 
@@ -98,4 +98,3 @@ bios_getmem(void)
     memtop = memtop_copyin = 0x100000 + bios_extmem;
 
 }    
-
