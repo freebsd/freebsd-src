@@ -18,6 +18,7 @@ SRCS+=	af_link.c		# LLC support
 SRCS+=	af_inet.c		# IPv4 support
 SRCS+=	af_inet6.c		# IPv6 support
 SRCS+=	af_atalk.c		# AppleTalk support
+SRCS+=	af_nd6.c		# ND6 support
 
 SRCS+=	ifclone.c		# clone device support
 SRCS+=	ifmac.c			# MAC support
