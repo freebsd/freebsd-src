@@ -17,7 +17,7 @@ SUBDIR+=		efi
 SUBDIR+=		ofw
 .endif
 
-.if ${MK_ZFS} != "no"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386"
 SUBDIR+=		zfs
 .endif
 
