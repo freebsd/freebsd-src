@@ -35,14 +35,20 @@ __FBSDID("$FreeBSD$");
 #include "libi386.h"
 #include "btxv86.h"
 
-vm_offset_t	memtop, memtop_copyin;
-uint32_t	bios_basemem, bios_extmem;
+vm_offset_t	memtop, memtop_copyin, high_heap_base;
+uint32_t	bios_basemem, bios_extmem, high_heap_size;
 
 static struct bios_smap smap;
+
+/*
+ * The minimum amount of memory to reserve in bios_extmem for the heap.
+ */
+#define	HEAP_MIN	(3 * 1024 * 1024)
 
 void
 bios_getmem(void)
 {
+    uint64_t size;
 
     /* Parse system memory map */
     v86.ebx = 0;
@@ -64,6 +70,26 @@ bios_getmem(void)
 	/* look for the first segment in 'extended' memory */
 	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0x100000)) {
 	    bios_extmem = smap.length;
+	}
+
+	/*
+	 * Look for the largest segment in 'extended' memory beyond
+	 * 1MB but below 4GB.
+	 */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base > 0x100000) &&
+	    (smap.base < 0x100000000ull)) {
+	    size = smap.length;
+
+	    /*
+	     * If this segment crosses the 4GB boundary, truncate it.
+	     */
+	    if (smap.base + size > 0x100000000ull)
+		size = 0x100000000ull - smap.base;
+
+	    if (size > high_heap_size) {
+		high_heap_size = size;
+		high_heap_base = smap.base;
+	    }
 	}
     } while (v86.ebx != 0);
 
@@ -97,4 +123,13 @@ bios_getmem(void)
     /* Set memtop to actual top of memory */
     memtop = memtop_copyin = 0x100000 + bios_extmem;
 
+    /*
+     * If we have extended memory and did not find a suitable heap
+     * region in the SMAP, use the last 3MB of 'extended' memory as a
+     * high heap candidate.
+     */
+    if (bios_extmem >= HEAP_MIN && high_heap_size < HEAP_MIN) {
+	high_heap_size = HEAP_MIN;
+	high_heap_base = memtop - HEAP_MIN;
+    }
 }    
