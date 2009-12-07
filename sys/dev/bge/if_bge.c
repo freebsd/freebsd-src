@@ -4588,16 +4588,10 @@ static void
 bge_stop(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
-	struct ifmedia_entry *ifm;
-	struct mii_data *mii = NULL;
-	int mtmp, itmp;
 
 	BGE_LOCK_ASSERT(sc);
 
 	ifp = sc->bge_ifp;
-
-	if ((sc->bge_flags & BGE_FLAG_TBI) == 0)
-		mii = device_get_softc(sc->bge_miibus);
 
 	callout_stop(&sc->bge_stat_ch);
 
@@ -4671,27 +4665,6 @@ bge_stop(struct bge_softc *sc)
 
 	/* Free TX buffers. */
 	bge_free_tx_ring(sc);
-
-	/*
-	 * Isolate/power down the PHY, but leave the media selection
-	 * unchanged so that things will be put back to normal when
-	 * we bring the interface back up.
-	 */
-	if ((sc->bge_flags & BGE_FLAG_TBI) == 0) {
-		itmp = ifp->if_flags;
-		ifp->if_flags |= IFF_UP;
-		/*
-		 * If we are called from bge_detach(), mii is already NULL.
-		 */
-		if (mii != NULL) {
-			ifm = mii->mii_media.ifm_cur;
-			mtmp = ifm->ifm_media;
-			ifm->ifm_media = IFM_ETHER | IFM_NONE;
-			mii_mediachg(mii);
-			ifm->ifm_media = mtmp;
-		}
-		ifp->if_flags = itmp;
-	}
 
 	sc->bge_tx_saved_considx = BGE_TXCONS_UNSET;
 
