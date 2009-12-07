@@ -51,6 +51,7 @@ struct sctp_timer {
 	void *ep;
 	void *tcb;
 	void *net;
+	void *vnet;
 
 	/* for sanity checking */
 	void *self;

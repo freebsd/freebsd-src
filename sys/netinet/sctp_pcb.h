@@ -462,7 +462,7 @@ struct sctp_tcb {
  * goes with the base info. sctp_pcb.c has
  * the real definition.
  */
-extern struct sctp_base_info system_base_info;
+VNET_DECLARE(struct sctp_base_info, system_base_info);
 
 #ifdef INET6
 int SCTP6_ARE_ADDR_EQUAL(struct sockaddr_in6 *a, struct sockaddr_in6 *b);
