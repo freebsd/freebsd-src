@@ -1954,11 +1954,21 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 		core_iaf_npmc = cpuid[CORE_CPUID_EDX] & 0x1F;
 		core_iaf_width = (cpuid[CORE_CPUID_EDX] >> 5) & 0xFF;
 
-		iaf_initialize(md, maxcpu, core_iaf_npmc, core_iaf_width);
-
-		core_pmcmask |= ((1ULL << core_iaf_npmc) - 1) <<
-		    IAF_OFFSET;
-
+		if (core_iaf_npmc > 0) {
+			iaf_initialize(md, maxcpu, core_iaf_npmc,
+			    core_iaf_width);
+			core_pmcmask |= ((1ULL << core_iaf_npmc) - 1) <<
+			    IAF_OFFSET;
+		} else {
+			/*
+			 * Adjust the number of classes exported to
+			 * user space.
+			 */
+			md->pmd_nclass--;
+			KASSERT(md->pmd_nclass == 2,
+			    ("[core,%d] unexpected nclass %d", __LINE__,
+				md->pmd_nclass));
+		}
 	}
 
 	PMCDBG(MDP,INI,1,"core-init pmcmask=0x%jx iafri=%d", core_pmcmask,
