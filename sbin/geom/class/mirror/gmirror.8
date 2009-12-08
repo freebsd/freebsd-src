@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2006
+.Dd August 1, 2009
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -48,6 +48,12 @@
 .Op Fl b Ar balance
 .Op Fl s Ar slice
 .Ar name
+.Nm
+.Cm configure
+.Op Fl v
+.Fl p Ar priority
+.Ar name
+.Ar prov
 .Nm
 .Cm rebuild
 .Op Fl v
@@ -115,8 +121,8 @@ indicates an action to be performed:
 .It Cm label
 Create a mirror.
 The order of components is important, because a component's priority is based on its position
-(starting from 0).
-The component with the biggest priority is used by the
+(starting from 0 to 255).
+The component with the biggest priority (the lowest number) is used by the
 .Cm prefer
 balance algorithm
 and is also used as a master component when resynchronization is needed,
@@ -159,7 +165,7 @@ Clear metadata on the given providers.
 Configure the given device.
 .Pp
 Additional options include:
-.Bl -tag -width ".Fl b Ar balance"
+.Bl -tag -width ".Fl p Ar priority"
 .It Fl a
 Turn on autosynchronization of stale components.
 .It Fl b Ar balance
@@ -175,6 +181,9 @@ Assumes device is in consistent state.
 Hardcode providers' names in metadata.
 .It Fl n
 Turn off autosynchronization of stale components.
+.It Fl p Ar priority
+Specifies priority for the given component
+.Ar prov .
 .It Fl s Ar slice
 Specifies slice size for
 .Cm split
