@@ -21,11 +21,11 @@
 		.set MEM_BTX,0x1000		# Start of BTX memory
 		.set MEM_ESP0,0x1800		# Supervisor stack
 		.set MEM_BUF,0x1800		# Scratch buffer
-		.set MEM_ESP1,0x1e00		# Link stack
-		.set MEM_IDT,0x1e00		# IDT
-		.set MEM_TSS,0x1f98		# TSS
-		.set MEM_MAP,0x2000		# I/O bit map
-		.set MEM_TSS_END,0x3fff		# Page directory
+		.set MEM_ESPR,0x5e00		# Real mode stack
+		.set MEM_IDT,0x5e00		# IDT
+		.set MEM_TSS,0x5f98		# TSS
+		.set MEM_MAP,0x6000		# I/O bit map
+		.set MEM_TSS_END,0x7fff		# End of TSS
 		.set MEM_ORG,0x9000		# BTX code
 		.set MEM_USR,0xa000		# Start of user memory
 /*
@@ -33,6 +33,14 @@
  */
 		.set PAG_SIZ,0x1000		# Page size
 		.set PAG_CNT,0x1000		# Pages to map
+/*
+ * Fields in %eflags.
+ */
+		.set PSL_RESERVED_DEFAULT,0x00000002
+		.set PSL_T,0x00000100		# Trap flag
+		.set PSL_I,0x00000200		# Interrupt enable flag
+		.set PSL_VM,0x00020000		# Virtual 8086 mode flag
+		.set PSL_AC,0x00040000		# Alignment check flag
 /*
  * Segment selectors.
  */
@@ -48,7 +56,6 @@
  */
 		.set TSS_ESP0,0x4		# PL 0 ESP
 		.set TSS_SS0,0x8		# PL 0 SS
-		.set TSS_ESP1,0xc		# PL 1 ESP
 		.set TSS_MAP,0x66		# I/O bit map base
 /*
  * System calls.
@@ -56,10 +63,20 @@
 		.set SYS_EXIT,0x0		# Exit
 		.set SYS_EXEC,0x1		# Exec
 /*
- * V86 constants.
+ * Fields in V86 interface structure.
  */
-		.set V86_FLG,0x208eff		# V86 flag mask
-		.set V86_STK,0x400		# V86 stack allowance
+		.set V86_CTL,0x0		# Control flags
+		.set V86_ADDR,0x4		# Int number/address
+		.set V86_ES,0x8			# V86 ES
+		.set V86_DS,0xc			# V86 DS
+		.set V86_FS,0x10		# V86 FS
+		.set V86_GS,0x14		# V86 GS
+/*
+ * V86 control flags.
+ */
+		.set V86F_ADDR,0x10000		# Segment:offset address
+		.set V86F_CALLF,0x20000		# Emulate far call
+		.set V86F_FLAGS,0x40000		# Return flags
 /*
  * Dump format control bytes.
  */
@@ -77,13 +94,11 @@
  * BIOS Data Area locations.
  */
 		.set BDA_MEM,0x501		# Free memory
-		.set BDA_KEYFLAGS,0x53a		# Keyboard shift-state flags
 		.set BDA_POS,0x53e		# Cursor position
 /*
  * Derivations, for brevity.
  */
 		.set _ESP0H,MEM_ESP0>>0x8	# Byte 1 of ESP0
-		.set _ESP1H,MEM_ESP1>>0x8	# Byte 1 of ESP1
 		.set _TSSIO,MEM_MAP-MEM_TSS	# TSS I/O base
 		.set _TSSLM,MEM_TSS_END-MEM_TSS	# TSS limit
 		.set _IDTLM,MEM_TSS-MEM_IDT-1	# IDT limit
@@ -100,7 +115,7 @@ btx_hdr:	.byte 0xeb			# Machine ID
 		.byte 0xe			# Header size
 		.ascii "BTX"			# Magic
 		.byte 0x1			# Major version
-		.byte 0x1			# Minor version
+		.byte 0x2			# Minor version
 		.byte BTX_FLAGS			# Flags
 		.word PAG_CNT-MEM_ORG>>0xc	# Paging control
 		.word break-start		# Text size
@@ -121,13 +136,24 @@ init:		cli				# Disable interrupts
  */
 		mov $MEM_IDT,%di		# Memory to initialize
 		mov $(MEM_ORG-MEM_IDT)/2,%cx	# Words to zero
-		push %di			# Save
 		rep				# Zero-fill
 		stosw				#  memory
-		pop %di				# Restore
+/*
+ * Update real mode IDT for reflecting hardware interrupts.
+ */
+		mov $intr20,%bx			# Address first handler
+		mov $0x10,%cx			# Number of handlers
+		mov $0x20*4,%di			# First real mode IDT entry
+init.0:		mov %bx,(%di)			# Store IP
+		inc %di				# Address next
+		inc %di				#  entry
+		stosw				# Store CS
+		add $4,%bx			# Next handler
+		loop init.0			# Next IRQ
 /*
  * Create IDT.
  */
+		mov $MEM_IDT,%di
 		mov $idtctl,%si			# Control string
 init.1: 	lodsb				# Get entry
 		cbw				#  count
@@ -153,7 +179,6 @@ init.3: 	lea 0x8(%di),%di		# Next entry
  */
 init.4: 	movb $_ESP0H,TSS_ESP0+1(%di)	# Set ESP0
 		movb $SEL_SDATA,TSS_SS0(%di)	# Set SS0
-		movb $_ESP1H,TSS_ESP1+1(%di)	# Set ESP1
 		movb $_TSSIO,TSS_MAP(%di)	# Set I/O bit map base
 /*
  * Bring up the system.
@@ -253,8 +278,8 @@ exit.2: 	xor %ax,%ax			# Real mode segment
 exit.3:		jz exit.3			# No
 		movb $0xa0,%al
 		outb %al,$0x35
-		movb 0,%al
-		outb %al,$0xf0
+		movb $0x00,%al
+		outb %al,$0xf0			# reboot the machine
 exit.4:		jmp exit.4
 /*
  * Set IRQ offsets by reprogramming 8259A PICs.
@@ -285,10 +310,6 @@ setpic: 	in $0x02,%al			# Save master
 		retw				# To caller
 		.code32
 /*
- * Initiate return from V86 mode to user mode.
- */
-inthlt: 	hlt				# To supervisor mode
-/*
  * Exception jump table.
  */
 intx00: 	push $0x0			# Int 0x0: #DE
@@ -314,17 +335,11 @@ intx00: 	push $0x0			# Int 0x0: #DE
 		push $0xc			# Int 0xc: #SS
 		jmp except			# Stack segment fault
 		push $0xd			# Int 0xd: #GP
-		jmp ex_v86			# General protection
+		jmp except			# General protection
 		push $0xe			# Int 0xe: #PF
 		jmp except			# Page fault
 intx10: 	push $0x10			# Int 0x10: #MF
 		jmp ex_noc			# Floating-point error
-/*
- * Handle #GP exception.
- */
-ex_v86: 	testb $0x2,0x12(%esp,1) 	# V86 mode?
-		jz except			# No
-		jmp v86mon			# To monitor
 /*
  * Save a zero error code.
  */
@@ -337,24 +352,17 @@ except: 	cld				# String ops inc
 		pushl %ds			# Save
 		pushl %es			#  most
 		pusha				#  registers
-		movb $0x6,%al			# Push loop count
-		testb $0x2,0x3a(%esp,1) 	# V86 mode?
-		jnz except.1			# Yes
 		pushl %gs			# Set GS
 		pushl %fs			# Set FS
 		pushl %ds			# Set DS
 		pushl %es			# Set ES
-		movb $0x2,%al			# Push loop count
 		cmpw $SEL_SCODE,0x44(%esp,1)	# Supervisor mode?
 		jne except.1			# No
 		pushl %ss			# Set SS
-		leal 0x50(%esp,1),%eax		# Set
-		pushl %eax			#  ESP
 		jmp except.2			# Join common code
-except.1:	pushl 0x50(%esp,1)		# Set GS, FS, DS, ES
-		decb %al			#  (if V86 mode), and
-		jne except.1			#  SS, ESP
-except.2:	push $SEL_SDATA			# Set up
+except.1:	pushl 0x50(%esp,1)		# Set SS
+except.2:	pushl 0x50(%esp,1)		# Set ESP
+		push $SEL_SDATA			# Set up
 		popl %ds			#  to
 		pushl %ds			#  address
 		popl %es			#  data
@@ -363,14 +371,12 @@ except.2:	push $SEL_SDATA			# Set up
 		movl $MEM_BUF,%edi		# Buffer
 		pushl %eax
 		pushl %edx
-wait.1:
-		inb  $0x60,%al
+wait.1:		inb  $0x60,%al
 		testb $0x04,%al
 		jz   wait.1
 		movb $0xe0,%al
 		outb %al,$0x62
-wait.2:
-		inb  $0x60,%al
+wait.2:		inb  $0x60,%al
 		testb $0x01,%al
 		jz   wait.2
 		xorl %edx,%edx
@@ -399,237 +405,11 @@ wait.2:
 		je except.3			# Yes
 		cmpb $0x1,(%esp,1)		# Debug?
 		jne except.2a			# No
-		testl $0x100,0x10(%esp,1)	# Trap flag set?
+		testl $PSL_T,0x10(%esp,1)	# Trap flag set?
 		jnz except.3			# Yes
 except.2a:	jmp exit			# Exit
 except.3:	leal 0x8(%esp,1),%esp		# Discard err, int no
 		iret				# From interrupt
-/*
- * Return to user mode from V86 mode.
- */
-intrtn: 	cld				# String ops inc
-		pushl %ds			# Address
-		popl %es			#  data
-		leal 0x3c(%ebp),%edx		# V86 Segment registers
-		movl MEM_TSS+TSS_ESP1,%esi	# Link stack pointer
-		lodsl				# INT_V86 args pointer
-		movl %esi,%ebx			# Saved exception frame
-		testl %eax,%eax 		# INT_V86 args?
-		jz intrtn.2			# No
-		movl $MEM_USR,%edi		# User base
-		movl 0x1c(%esi),%ebx		# User ESP
-		movl %eax,(%edi,%ebx,1) 	# Restore to user stack
-		leal 0x8(%edi,%eax,1),%edi	# Arg segment registers
-		testb $0x4,-0x6(%edi)		# Return flags?
-		jz intrtn.1			# No
-		movl 0x30(%ebp),%eax		# Get V86 flags
-		movw %ax,0x18(%esi)		# Set user flags
-intrtn.1:	leal 0x10(%esi),%ebx		# Saved exception frame
-		xchgl %edx,%esi 		# Segment registers
-		movb $0x4,%cl			# Update seg regs
-		rep				#  in INT_V86
-		movsl				#  args
-intrtn.2:	xchgl %edx,%esi			# Segment registers
-		leal 0x28(%ebp),%edi		# Set up seg
-		movb $0x4,%cl			#  regs for
-		rep				#  later
-		movsl				#  pop
-		xchgl %ebx,%esi			# Restore exception
-		movb $0x5,%cl			#  frame to
-		rep				#  supervisor
-		movsl				#  stack
-		movl %esi,MEM_TSS+TSS_ESP1	# Link stack pointer
-		popa				# Restore
-		leal 0x8(%esp,1),%esp		# Discard err, int no
-		popl %es			# Restore
-		popl %ds			#  user
-		popl %fs			#  segment
-		popl %gs			#  registers
-		iret				# To user mode
-/*
- * V86 monitor.
- */
-v86mon: 	cld				# String ops inc
-		pushl $SEL_SDATA		# Set up for
-		popl %ds			#  flat addressing
-		pusha				# Save registers
-		movl %esp,%ebp			# Address stack frame
-		movzwl 0x2c(%ebp),%edi		# Load V86 CS
-		shll $0x4,%edi			# To linear
-		movl 0x28(%ebp),%esi		# Load V86 IP
-		addl %edi,%esi			# Code pointer
-		xorl %ecx,%ecx			# Zero
-		movb $0x2,%cl			# 16-bit operands
-		xorl %eax,%eax			# Zero
-v86mon.1:	lodsb				# Get opcode
-		cmpb $0x66,%al			# Operand size prefix?
-		jne v86mon.2			# No
-		movb $0x4,%cl			# 32-bit operands
-		jmp v86mon.1			# Continue
-v86mon.2:	cmpb $0xf4,%al			# HLT?
-		jne v86mon.3			# No
-		cmpl $inthlt+0x1,%esi		# Is inthlt?
-		jne v86mon.7			# No (ignore)
-		jmp intrtn			# Return to user mode
-v86mon.3:	cmpb $0xf,%al			# Prefixed instruction?
-		jne v86mon.4			# No
-		cmpb $0x09,(%esi)		# Is it a WBINVD?
-		je v86wbinvd			# Yes
-		cmpb $0x30,(%esi)		# Is it a WRMSR?
-		je v86wrmsr			# Yes
-		cmpb $0x32,(%esi)		# Is it a RDMSR?
-		je v86rdmsr			# Yes
-		cmpb $0x20,(%esi)		# Is this a MOV reg,CRx?
-		je v86mov			# Yes
-v86mon.4:	cmpb $0xfa,%al			# CLI?
-		je v86cli			# Yes
-		cmpb $0xfb,%al			# STI?
-		je v86sti			# Yes
-		movzwl 0x38(%ebp),%ebx		# Load V86 SS
-		shll $0x4,%ebx			# To offset
-		pushl %ebx			# Save
-		addl 0x34(%ebp),%ebx		# Add V86 SP
-		movl 0x30(%ebp),%edx		# Load V86 flags
-		cmpb $0x9c,%al			# PUSHF/PUSHFD?
-		je v86pushf			# Yes
-		cmpb $0x9d,%al			# POPF/POPFD?
-		je v86popf			# Yes
-		cmpb $0xcd,%al			# INT imm8?
-		je v86intn			# Yes
-		cmpb $0xcf,%al			# IRET/IRETD?
-		je v86iret			# Yes
-		popl %ebx			# Restore
-		popa				# Restore
-		jmp except			# Handle exception
-v86mon.5:	movl %edx,0x30(%ebp)		# Save V86 flags
-v86mon.6:	popl %edx			# V86 SS adjustment
-		subl %edx,%ebx			# Save V86
-		movl %ebx,0x34(%ebp)		#  SP
-v86mon.7:	subl %edi,%esi			# From linear
-		movl %esi,0x28(%ebp)		# Save V86 IP
-		popa				# Restore
-		leal 0x8(%esp,1),%esp		# Discard int no, error
-		iret				# To V86 mode
-/*
- * Emulate MOV reg,CRx.
- */
-v86mov: 	movb 0x1(%esi),%bl		# Fetch Mod R/M byte
-		testb $0x10,%bl			# Read CR2 or CR3?
-		jnz v86mov.1			# Yes
-		movl %cr0,%eax			# Read CR0
-		testb $0x20,%bl			# Read CR4 instead?
-		jz v86mov.2			# No
-		movl %cr4,%eax			# Read CR4
-		jmp v86mov.2
-v86mov.1:	movl %cr2,%eax			# Read CR2
-		testb $0x08,%bl			# Read CR3 instead?
-		jz v86mov.2			# No
-		movl %cr3,%eax			# Read CR3
-v86mov.2:	andl $0x7,%ebx			# Compute offset in
-		shl $2,%ebx			#  frame of destination
-		neg %ebx			#  register
-		movl %eax,0x1c(%ebp,%ebx,1)	# Store CR to reg
-		incl %esi			# Adjust IP
-/*
- * Return from emulating a 0x0f prefixed instruction
- */
-v86preret:	incl %esi			# Adjust IP
-		jmp v86mon.7			# Finish up
-/*
- * Emulate WBINVD
- */
-v86wbinvd:	wbinvd				# Write back and invalidate
-						#  cache
-		jmp v86preret			# Finish up
-/*
- * Emulate WRMSR
- */
-v86wrmsr:	movl 0x18(%ebp),%ecx		# Get user's %ecx (MSR to write)
-		movl 0x14(%ebp),%edx		# Load the value
-		movl 0x1c(%ebp),%eax		#  to write
-		wrmsr				# Write MSR
-		jmp v86preret			# Finish up
-/*
- * Emulate RDMSR
- */
-v86rdmsr:	movl 0x18(%ebp),%ecx		# MSR to read
-		rdmsr				# Read the MSR
-		movl %eax,0x1c(%ebp)		# Return the value of
-		movl %edx,0x14(%ebp)		#  the MSR to the user
-		jmp v86preret			# Finish up
-/*
- * Emulate CLI.
- */
-v86cli: 	andb $~0x2,0x31(%ebp)		# Clear IF
-		jmp v86mon.7			# Finish up
-/*
- * Emulate STI.
- */
-v86sti: 	orb $0x2,0x31(%ebp)		# Set IF
-		jmp v86mon.7			# Finish up
-/*
- * Emulate PUSHF/PUSHFD.
- */
-v86pushf:	subl %ecx,%ebx			# Adjust SP
-		cmpb $0x4,%cl			# 32-bit
-		je v86pushf.1			# Yes
-		data16				# 16-bit
-v86pushf.1:	movl %edx,(%ebx)		# Save flags
-		jmp v86mon.6			# Finish up
-/*
- * Emulate IRET/IRETD.
- */
-v86iret:	movzwl (%ebx),%esi		# Load V86 IP
-		movzwl 0x2(%ebx),%edi		# Load V86 CS
-		leal 0x4(%ebx),%ebx		# Adjust SP
-		movl %edi,0x2c(%ebp)		# Save V86 CS
-		xorl %edi,%edi			# No ESI adjustment
-/*
- * Emulate POPF/POPFD (and remainder of IRET/IRETD).
- */
-v86popf:	cmpb $0x4,%cl			# 32-bit?
-		je v86popf.1			# Yes
-		movl %edx,%eax			# Initialize
-		data16				# 16-bit
-v86popf.1:	movl (%ebx),%eax		# Load flags
-		addl %ecx,%ebx			# Adjust SP
-		andl $V86_FLG,%eax		# Merge
-		andl $~V86_FLG,%edx		#  the
-		orl %eax,%edx			#  flags
-		jmp v86mon.5			# Finish up
-/*
- * trap int 15, function 87
- * reads %es:%si from saved registers on stack to find a GDT containing
- * source and destination locations
- * reads count of words from saved %cx
- * returns success by setting %ah to 0
- */
-int15_87:	pushl %esi			# Save 
-		pushl %edi			#  registers
-		movl 0x3C(%ebp),%edi		# Load ES
-		movzwl 0x4(%ebp),%eax		# Load user's SI
-		shll $0x4,%edi			# EDI = (ES << 4) +
-		addl %eax,%edi			#   SI
-		movl 0x11(%edi),%eax		# Read base of
-		movb 0x17(%edi),%al		#  GDT entry
-		ror $8,%eax			#  for source
-		xchgl %eax,%esi			#  into %esi
-		movl 0x19(%edi),%eax		# Read base of
-		movb 0x1f(%edi),%al		#  GDT entry for
-		ror $8,%eax			#  destination
-		xchgl %eax,%edi			#  into %edi
-		pushl %ds			# Make:
-		popl %es			# es = ds
-		movzwl 0x18(%ebp),%ecx		# Get user's CX
-		shll $0x1,%ecx			# Convert count from words
-		rep				# repeat...
-		movsb				#  perform copy.
-		popl %edi			# Restore
-		popl %esi			#  registers
-		movb $0x0,0x1d(%ebp)		# set ah = 0 to indicate
-						#  success
-		andb $0xfe,%dl			# clear CF
-		jmp v86mon.5			# Finish up
 
 /*
  * Reboot the machine by setting the reboot flag and exiting
@@ -638,36 +418,7 @@ reboot:		orb $0x1,btx_hdr+0x7		# Set the reboot flag
 		jmp exit			# Terminate BTX and reboot
 
 /*
- * Emulate INT imm8... also make sure to check if it's int 15/87
- */
-v86intn:	lodsb				# Get int no
-		cmpb $0x19,%al			# is it int 19?
-		je reboot			#  yes, reboot the machine
-		cmpb $0x15,%al			# is it int 15?
-		jne v86intn.1			#  no, skip parse
-		cmpb $0x87,0x1d(%ebp)		# is it the memcpy subfunction?
-		je int15_87			#  yes
-		cmpw $0x4f53,0x1c(%ebp)		# is it the delete key callout?
-		jne v86intn.1			#  no, handle the int normally
-		movb BDA_KEYFLAGS,%ch		# get the shift key state
-		andb $0x18,%ch			# mask off just Ctrl and Alt
-		cmpb $0x18,%ch			# are both Ctrl and Alt down?
-		je reboot			# yes, reboot the machine
-v86intn.1:	subl %edi,%esi			# From
-		shrl $0x4,%edi			#  linear
-		movw %dx,-0x2(%ebx)		# Save flags
-		movw %di,-0x4(%ebx)		# Save CS
-		leal -0x6(%ebx),%ebx		# Adjust SP
-		movw %si,(%ebx) 		# Save IP
-		shll $0x2,%eax			# Scale
-		movzwl (%eax),%esi		# Load IP
-		movzwl 0x2(%eax),%edi		# Load CS
-		movl %edi,0x2c(%ebp)		# Save CS
-		xorl %edi,%edi			# No ESI adjustment
-		andb $~0x1,%dh			# Clear TF
-		jmp v86mon.5			# Finish up
-/*
- * Hardware interrupt jump table.
+ * Protected Mode Hardware interrupt jump table.
  */
 intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0x8
@@ -701,127 +452,267 @@ intx20: 	push $0x8			# Int 0x20: IRQ0
 		jmp int_hw			# V86 int 0x16
 		push $0x17			# Int 0x2f: IRQ15
 		jmp int_hw			# V86 int 0x17
+
 /*
- * Reflect hardware interrupts.
+ * Invoke real mode interrupt/function call from user mode with arguments.
  */
-int_hw: 	testb $0x2,0xe(%esp,1)		# V86 mode?
-		jz intusr			# No
-		pushl $SEL_SDATA		# Address
-		popl %ds			#  data
-		xchgl %eax,(%esp,1)		# Swap EAX, int no
-		pushl %ebp			# Address
-		movl %esp,%ebp			#  stack frame
-		pushl %ebx			# Save
-		shll $0x2,%eax			# Get int
-		movl (%eax),%eax		#  vector
-		subl $0x6,0x14(%ebp)		# Adjust V86 ESP
-		movzwl 0x18(%ebp),%ebx		# V86 SS
-		shll $0x4,%ebx			#  * 0x10
-		addl 0x14(%ebp),%ebx		#  + V86 ESP
-		xchgw %ax,0x8(%ebp)		# Swap V86 IP
-		rorl $0x10,%eax 		# Swap words
-		xchgw %ax,0xc(%ebp)		# Swap V86 CS
-		roll $0x10,%eax 		# Swap words
-		movl %eax,(%ebx)		# CS:IP for IRET
-		movl 0x10(%ebp),%eax		# V86 flags
-		movw %ax,0x4(%ebx)		# Flags for IRET
-		andb $~0x3,0x11(%ebp)		# Clear IF, TF
-		popl %ebx			# Restore
-		popl %ebp			#  saved
-		popl %eax			#  registers
-		iret				# To V86 mode
+intx31: 	pushl $-1			# Dummy int no for btx_v86
 /*
- * Invoke V86 interrupt from user mode, with arguments.
+ * Invoke real mode interrupt/function call from protected mode.
+ *
+ * We place a trampoline on the user stack that will return to rret_tramp
+ * which will reenter protected mode and then finally return to the user
+ * client.
+ *
+ * Kernel frame %esi points to:		Real mode stack frame at MEM_ESPR:
+ *
+ * -0x00 user %ss			-0x04 kernel %esp (with full frame)
+ * -0x04 user %esp			-0x08 btx_v86 pointer
+ * -0x08 user %eflags			-0x0c flags (only used if interrupt)
+ * -0x0c user %cs			-0x10 real mode CS:IP return trampoline
+ * -0x10 user %eip			-0x12 real mode flags
+ * -0x14 int no				-0x16 real mode CS:IP (target)
+ * -0x18 %eax
+ * -0x1c %ecx
+ * -0x20 %edx
+ * -0x24 %ebx
+ * -0x28 %esp
+ * -0x2c %ebp
+ * -0x30 %esi
+ * -0x34 %edi
+ * -0x38 %gs
+ * -0x3c %fs
+ * -0x40 %ds
+ * -0x44 %es
+ * -0x48 zero %eax (hardware int only)	
+ * -0x4c zero %ecx (hardware int only)
+ * -0x50 zero %edx (hardware int only)
+ * -0x54 zero %ebx (hardware int only)
+ * -0x58 zero %esp (hardware int only)
+ * -0x5c zero %ebp (hardware int only)
+ * -0x60 zero %esi (hardware int only)
+ * -0x64 zero %edi (hardware int only)
+ * -0x68 zero %gs (hardware int only)
+ * -0x6c zero %fs (hardware int only)
+ * -0x70 zero %ds (hardware int only)
+ * -0x74 zero %es (hardware int only)
  */
-intx31: 	stc				# Have btx_v86
-		pushl %eax			# Missing int no
-/*
- * Invoke V86 interrupt from user mode.
- */
-intusr: 	std				# String ops dec
-		pushl %eax			# Expand
-		pushl %eax			#  stack
-		pushl %eax			#  frame
-		pusha				# Save
+int_hw: 	cld				# String ops inc
+		pusha				# Save gp regs
 		pushl %gs			# Save
-		movl %esp,%eax			#  seg regs
-		pushl %fs			#  and
-		pushl %ds			#  point
-		pushl %es			#  to them
+		pushl %fs			#  seg
+		pushl %ds			#  regs
+		pushl %es
 		push $SEL_SDATA			# Set up
 		popl %ds			#  to
 		pushl %ds			#  address
 		popl %es			#  data
+		leal 0x44(%esp,1),%esi		# Base of frame
+		movl %esp,MEM_ESPR-0x04		# Save kernel stack pointer
+		movl -0x14(%esi),%eax		# Get Int no
+		cmpl $-1,%eax			# Hardware interrupt?
+		jne intusr.1			# Yes
+/*
+ * v86 calls save the btx_v86 pointer on the real mode stack and read
+ * the address and flags from the btx_v86 structure.  For interrupt
+ * handler invocations (VM86 INTx requests), disable interrupts,
+ * tracing, and alignment checking while the handler runs.
+ */
 		movl $MEM_USR,%ebx		# User base
 		movl %ebx,%edx			#  address
-		jc intusr.1			# If btx_v86
-		xorl %edx,%edx			# Control flags
-		xorl %ebp,%ebp			# btx_v86 pointer
-intusr.1:	leal 0x50(%esp,1),%esi		# Base of frame
-		pushl %esi			# Save
 		addl -0x4(%esi),%ebx		# User ESP
-		movl MEM_TSS+TSS_ESP1,%edi	# Link stack pointer
-		leal -0x4(%edi),%edi		# Adjust for push
-		xorl %ecx,%ecx			# Zero
-		movb $0x5,%cl			# Push exception
-		rep				#  frame on
-		movsl				#  link stack
-		xchgl %eax,%esi 		# Saved seg regs
-		movl 0x40(%esp,1),%eax		# Get int no
-		testl %edx,%edx 		# Have btx_v86?
-		jz intusr.2			# No
 		movl (%ebx),%ebp		# btx_v86 pointer
-		movb $0x4,%cl			# Count
-		addl %ecx,%ebx			# Adjust for pop
-		rep				# Push saved seg regs
-		movsl				#  on link stack
 		addl %ebp,%edx			# Flatten btx_v86 ptr
-		leal 0x14(%edx),%esi		# Seg regs pointer
-		movl 0x4(%edx),%eax		# Get int no/address
-		movzwl 0x2(%edx),%edx		# Get control flags
-intusr.2:	movl %ebp,(%edi)		# Push btx_v86 and
-		movl %edi,MEM_TSS+TSS_ESP1	#  save link stack ptr
-		popl %edi			# Base of frame
-		xchgl %eax,%ebp 		# Save intno/address
-		movl 0x48(%esp,1),%eax		# Get flags
-		testb $0x2,%dl			# Simulate CALLF?
-		jnz intusr.3			# Yes
-		decl %ebx			# Push flags
-		decl %ebx			#  on V86
-		movw %ax,(%ebx) 		#  stack
-intusr.3:	movb $0x4,%cl			# Count
-		subl %ecx,%ebx			# Push return address
-		movl $inthlt,(%ebx)		#  on V86 stack
-		rep				# Copy seg regs to
-		movsl				#  exception frame
-		xchgl %eax,%ecx 		# Save flags
-		movl %ebx,%eax			# User ESP
-		subl $V86_STK,%eax		# Less bytes
-		ja intusr.4			#  to
-		xorl %eax,%eax			#  keep
-intusr.4:	shrl $0x4,%eax			# Gives segment
-		stosl				# Set SS
-		shll $0x4,%eax			# To bytes
-		xchgl %eax,%ebx 		# Swap
-		subl %ebx,%eax			# Gives offset
-		stosl				# Set ESP
-		xchgl %eax,%ecx 		# Get flags
-		btsl $0x11,%eax 		# Set VM
-		andb $~0x1,%ah			# Clear TF
-		stosl				# Set EFL
-		xchgl %eax,%ebp 		# Get int no/address
-		testb $0x1,%dl			# Address?
-		jnz intusr.5			# Yes
-		shll $0x2,%eax			# Scale
+		movl %edx,MEM_ESPR-0x08		# Save btx_v86 ptr
+		movl V86_ADDR(%edx),%eax	# Get int no/address
+		movl V86_CTL(%edx),%edx		# Get control flags
+		movl -0x08(%esi),%ebx		# Save user flags in %ebx
+		testl $V86F_ADDR,%edx		# Segment:offset?
+		jnz intusr.4			# Yes
+		andl $~(PSL_I|PSL_T|PSL_AC),%ebx # Disable interrupts, tracing,
+						#  and alignment checking for
+						#  interrupt handler
+		jmp intusr.3			# Skip hardware interrupt
+/*
+ * Hardware interrupts store a NULL btx_v86 pointer and use the
+ * address (interrupt number) from the stack with empty flags.  Also,
+ * push a dummy frame of zeros onto the stack for all the general
+ * purpose and segment registers and clear %eflags.  This gives the
+ * hardware interrupt handler a clean slate.
+ */
+intusr.1:	xorl %edx,%edx			# Control flags
+		movl %edx,MEM_ESPR-0x08		# NULL btx_v86 ptr
+		movl $12,%ecx			# Frame is 12 dwords
+intusr.2:	pushl $0x0			# Fill frame
+		loop intusr.2			#  with zeros
+		movl $PSL_RESERVED_DEFAULT,%ebx # Set clean %eflags
+/*
+ * Look up real mode IDT entry for hardware interrupts and VM86 INTx
+ * requests.
+ */
+intusr.3:	shll $0x2,%eax			# Scale
 		movl (%eax),%eax		# Load int vector
-intusr.5:	movl %eax,%ecx			# Save
-		shrl $0x10,%eax 		# Gives segment
-		stosl				# Set CS
-		movw %cx,%ax			# Restore
-		stosl				# Set EIP
-		leal 0x10(%esp,1),%esp		# Discard seg regs
-		popa				# Restore
-		iret				# To V86 mode
+		jmp intusr.5			# Skip CALLF test
+/*
+ * Panic if V86F_CALLF isn't set with V86F_ADDR.
+ */
+intusr.4:	testl $V86F_CALLF,%edx		# Far call?
+		jnz intusr.5			# Ok
+		movl %edx,0x30(%esp,1)		# Place VM86 flags in int no
+		movl $badvm86,%esi		# Display bad
+		call putstr			#  VM86 call
+		popl %es			# Restore
+		popl %ds			#  seg
+		popl %fs			#  regs
+		popl %gs
+		popal				# Restore gp regs
+		jmp ex_noc			# Panic
+/*
+ * %eax now holds the segment:offset of the function.
+ * %ebx now holds the %eflags to pass to real mode.
+ * %edx now holds the V86F_* flags.
+ */
+intusr.5:	movw %bx,MEM_ESPR-0x12		# Pass user flags to real mode
+						#  target
+/*
+ * If this is a v86 call, copy the seg regs out of the btx_v86 structure.
+ */
+		movl MEM_ESPR-0x08,%ecx		# Get btx_v86 ptr
+		jecxz intusr.6			# Skip for hardware ints
+		leal -0x44(%esi),%edi		# %edi => kernel stack seg regs
+		pushl %esi			# Save
+		leal V86_ES(%ecx),%esi		# %esi => btx_v86 seg regs
+		movl $4,%ecx			# Copy seg regs
+		rep				#  from btx_v86
+		movsl				#  to kernel stack
+		popl %esi			# Restore
+intusr.6:	movl -0x08(%esi),%ebx		# Copy user flags to real
+		movl %ebx,MEM_ESPR-0x0c		#  mode return trampoline
+		movl $rret_tramp,%ebx		# Set return trampoline
+		movl %ebx,MEM_ESPR-0x10		#  CS:IP
+		movl %eax,MEM_ESPR-0x16		# Real mode target CS:IP
+		ljmpw $SEL_RCODE,$intusr.7	# Change to 16-bit segment
+		.code16
+intusr.7:	movl %cr0,%eax			# Leave
+		dec %al				#  protected
+		movl %eax,%cr0			#  mode
+		ljmpw $0x0,$intusr.8
+intusr.8:	xorw %ax,%ax			# Reset %ds
+		movw %ax,%ds			#  and
+		movw %ax,%ss			#  %ss
+		lidt ivtdesc	 		# Set IVT
+		popl %es			# Restore
+		popl %ds			#  seg
+		popl %fs			#  regs
+		popl %gs
+		popal				# Restore gp regs
+		movw $MEM_ESPR-0x16,%sp		# Switch to real mode stack
+		iret				# Call target routine
+/*
+ * For the return to real mode we setup a stack frame like this on the real
+ * mode stack.  Note that callf calls won't pop off the flags, but we just
+ * ignore that by repositioning %sp to be just above the btx_v86 pointer
+ * so it is aligned.  The stack is relative to MEM_ESPR.
+ *
+ * -0x04	kernel %esp
+ * -0x08	btx_v86
+ * -0x0c	%eax
+ * -0x10	%ecx
+ * -0x14	%edx
+ * -0x18	%ebx
+ * -0x1c	%esp
+ * -0x20	%ebp
+ * -0x24	%esi
+ * -0x28	%edi
+ * -0x2c	%gs
+ * -0x30	%fs
+ * -0x34	%ds
+ * -0x38	%es
+ * -0x3c	%eflags
+ */
+rret_tramp:	movw $MEM_ESPR-0x08,%sp		# Reset stack pointer
+		pushal				# Save gp regs
+		pushl %gs			# Save
+		pushl %fs			#  seg
+		pushl %ds			#  regs
+		pushl %es
+		pushfl				# Save %eflags
+		cli				# Disable interrupts
+		std				# String ops dec
+		xorw %ax,%ax			# Reset seg 
+		movw %ax,%ds			#  regs
+		movw %ax,%es			#  (%ss is already 0)
+		lidt idtdesc	 		# Set IDT
+		lgdt gdtdesc	 		# Set GDT
+		mov %cr0,%eax			# Switch to protected
+		inc %ax				#  mode
+		mov %eax,%cr0			#
+		ljmp $SEL_SCODE,$rret_tramp.1	# To 32-bit code
+		.code32
+rret_tramp.1:	xorl %ecx,%ecx			# Zero
+		movb $SEL_SDATA,%cl		# Setup
+		movw %cx,%ss			#  32-bit
+		movw %cx,%ds			#  seg
+		movw %cx,%es			#  regs
+		movl MEM_ESPR-0x04,%esp		# Switch to kernel stack
+		leal 0x44(%esp,1),%esi		# Base of frame
+		andb $~0x2,tss_desc+0x5		# Clear TSS busy
+		movb $SEL_TSS,%cl		# Set task
+		ltr %cx				#  register
+/*
+ * Now we are back in protected mode.  The kernel stack frame set up
+ * before entering real mode is still intact. For hardware interrupts,
+ * leave the frame unchanged.
+ */
+		cmpl $0,MEM_ESPR-0x08		# Leave saved regs unchanged
+		jz rret_tramp.3			#  for hardware ints
+/*
+ * For V86 calls, copy the registers off of the real mode stack onto
+ * the kernel stack as we want their updated values.  Also, initialize
+ * the segment registers on the kernel stack.
+ *
+ * Note that the %esp in the kernel stack after this is garbage, but popa
+ * ignores it, so we don't have to fix it up.
+ */
+		leal -0x18(%esi),%edi		# Kernel stack GP regs
+		pushl %esi			# Save
+		movl $MEM_ESPR-0x0c,%esi	# Real mode stack GP regs
+		movl $8,%ecx			# Copy GP regs from
+		rep				#  real mode stack
+		movsl				#  to kernel stack
+		movl $SEL_UDATA,%eax		# Selector for data seg regs
+		movl $4,%ecx			# Initialize %ds,
+		rep				#  %es, %fs, and
+		stosl				#  %gs
+/*
+ * For V86 calls, copy the saved seg regs on the real mode stack back
+ * over to the btx_v86 structure.  Also, conditionally update the
+ * saved eflags on the kernel stack based on the flags from the user.
+ */
+		movl MEM_ESPR-0x08,%ecx		# Get btx_v86 ptr
+		leal V86_GS(%ecx),%edi		# %edi => btx_v86 seg regs
+		leal MEM_ESPR-0x2c,%esi		# %esi => real mode seg regs
+		xchgl %ecx,%edx			# Save btx_v86 ptr
+		movl $4,%ecx			# Copy seg regs
+		rep				#  from real mode stack
+		movsl				#  to btx_v86
+		popl %esi			# Restore
+		movl V86_CTL(%edx),%edx		# Read V86 control flags
+		testl $V86F_FLAGS,%edx		# User wants flags?
+		jz rret_tramp.3			# No
+		movl MEM_ESPR-0x3c,%eax		# Read real mode flags
+		movw %ax,-0x08(%esi)		# Update user flags (low 16)
+/*
+ * Return to the user task
+ */
+rret_tramp.3:	popl %es			# Restore
+		popl %ds			#  seg
+		popl %fs			#  regs
+		popl %gs
+		popal				# Restore gp regs
+		addl $4,%esp			# Discard int no
+		iret				# Return to user mode
+
 /*
  * System Call.
  */
@@ -869,7 +760,7 @@ dump.1: 	testb $DMP_X32,%ch		# Dump long?
 dump.2: 	testb $DMP_MEM,%ch		# Dump memory?
 		jz dump.8			# No
 		pushl %ds			# Save
-		testb $0x2,0x52(%ebx)		# V86 mode?
+		testl $PSL_VM,0x50(%ebx)	# V86 mode?
 		jnz dump.3			# Yes
 		verr 0x4(%esi)	 		# Readable selector?
 		jnz dump.3			# No
@@ -1060,6 +951,61 @@ putchr.4:	movw %dx,(%ebx) 		# Update position
 		ret				# To caller
 #endif
 
+		.code16
+/*
+ * Real Mode Hardware interrupt jump table.
+ */
+intr20: 	push $0x8			# Int 0x20: IRQ0
+		jmp int_hwr			# V86 int 0x8
+		push $0x9			# Int 0x21: IRQ1
+		jmp int_hwr			# V86 int 0x9
+		push $0xa			# Int 0x22: IRQ2
+		jmp int_hwr			# V86 int 0xa
+		push $0xb			# Int 0x23: IRQ3
+		jmp int_hwr			# V86 int 0xb
+		push $0xc			# Int 0x24: IRQ4
+		jmp int_hwr			# V86 int 0xc
+		push $0xd			# Int 0x25: IRQ5
+		jmp int_hwr			# V86 int 0xd
+		push $0xe			# Int 0x26: IRQ6
+		jmp int_hwr			# V86 int 0xe
+		push $0xf			# Int 0x27: IRQ7
+		jmp int_hwr			# V86 int 0xf
+		push $0x10			# Int 0x28: IRQ8
+		jmp int_hwr			# V86 int 0x10
+		push $0x11			# Int 0x29: IRQ9
+		jmp int_hwr			# V86 int 0x11
+		push $0x12			# Int 0x2a: IRQ10
+		jmp int_hwr			# V86 int 0x12
+		push $0x13			# Int 0x2b: IRQ11
+		jmp int_hwr			# V86 int 0x13
+		push $0x14			# Int 0x2c: IRQ12
+		jmp int_hwr			# V86 int 0x14
+		push $0x15			# Int 0x2d: IRQ13
+		jmp int_hwr			# V86 int 0x15
+		push $0x16			# Int 0x2e: IRQ14
+		jmp int_hwr			# V86 int 0x16
+		push $0x17			# Int 0x2f: IRQ15
+		jmp int_hwr			# V86 int 0x17
+/*
+ * Reflect hardware interrupts in real mode.
+ */
+int_hwr: 	push %ax			# Save
+		push %ds			# Save
+		push %bp			# Save
+		mov %sp,%bp			# Address stack frame 
+		xchg %bx,6(%bp)			# Swap BX, int no
+		xor %ax,%ax			# Set %ds:%bx to
+		shl $2,%bx			#  point to
+		mov %ax,%ds			#  IDT entry
+		mov (%bx),%ax			# Load IP
+		mov 2(%bx),%bx			# Load CS
+		xchg %ax,4(%bp)			# Swap saved %ax,%bx with
+		xchg %bx,6(%bp)			#  CS:IP of handler
+		pop %bp				# Restore
+		pop %ds				# Restore
+		lret				# Jump to handler
+
 		.p2align 4
 /*
  * Global descriptor table.
@@ -1071,7 +1017,7 @@ gdt:		.word 0x0,0x0,0x0,0x0		# Null entry
 		.word 0xffff,0x0,0x9200,0x0	# SEL_RDATA
 		.word 0xffff,MEM_USR,0xfa00,0xcf# SEL_UCODE
 		.word 0xffff,MEM_USR,0xf200,0xcf# SEL_UDATA
-		.word _TSSLM,MEM_TSS,0x8900,0x0 # SEL_TSS
+tss_desc:	.word _TSSLM,MEM_TSS,0x8900,0x0 # SEL_TSS
 gdt.1:
 /*
  * Pseudo-descriptors.
@@ -1139,6 +1085,11 @@ dmpfmt: 	.byte '\n'			# "\n"
 		.ascii "ss:esp" 		# "ss:esp="
 		.byte 0x80|DMP_MEM|DMP_EOL,0x0	# "00 00 ... 00 00\n"
 		.asciz "BTX halted\n"		# End
+/*
+ * Bad VM86 call panic
+ */
+badvm86:	.asciz "Invalid VM86 Request\n"
+
 /*
  * End of BTX memory.
  */
