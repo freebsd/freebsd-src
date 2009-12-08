@@ -2237,6 +2237,22 @@ name server!).
 .Pq Vt str
 The IPv6 equivalent of
 .Va defaultrouter .
+.It Va static_arp_pairs
+.Pq Vt str
+Set to the list of static ARP pairs that are to be added at system
+boot time.
+For each whitespace separated
+.Ar element
+in the value, a
+.Va static_arp_ Ns Aq Ar element
+variable is assumed to exist whose contents will later be passed to a
+.Dq Nm arp Cm -S
+operation.
+For example
+.Bd -literal
+static_arp_pairs="gw"
+static_arp_gw="192.168.1.1 00:01:02:03:04:05"
+.Ed
 .It Va static_routes
 .Pq Vt str
 Set to the list of static routes that are to be added at system
