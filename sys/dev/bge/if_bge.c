@@ -483,29 +483,12 @@ DRIVER_MODULE(bge, pci, bge_driver, bge_devclass, 0, 0);
 DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
 static int bge_allow_asf = 1;
-/*
- * A common design characteristic for many Broadcom client controllers
- * is that they only support a single outstanding DMA read operation
- * on the PCIe bus. This means that it will take twice as long to fetch
- * a TX frame that is split into header and payload buffers as it does
- * to fetch a single, contiguous TX frame (2 reads vs. 1 read). For
- * these controllers, coalescing buffers to reduce the number of memory
- * reads is effective way to get maximum performance(about 940Mbps).
- * Without collapsing TX buffers the maximum TCP bulk transfer
- * performance is about 850Mbps. However forcing coalescing mbufs
- * consumes a lot of CPU cycles, so leave it off by default.
- */
-static int bge_forced_collapse = 0;
 
 TUNABLE_INT("hw.bge.allow_asf", &bge_allow_asf);
-TUNABLE_INT("hw.bge.forced_collapse", &bge_forced_collapse);
 
 SYSCTL_NODE(_hw, OID_AUTO, bge, CTLFLAG_RD, 0, "BGE driver parameters");
 SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RD, &bge_allow_asf, 0,
 	"Allow ASF mode if available");
-SYSCTL_INT(_hw_bge, OID_AUTO, forced_collapse, CTLFLAG_RD, &bge_forced_collapse,
-	0, "Number of fragmented TX buffers of a frame allowed before "
-	"forced collapsing");
 
 #define	SPARC64_BLADE_1500_MODEL	"SUNW,Sun-Blade-1500"
 #define	SPARC64_BLADE_1500_PATH_BGE	"/pci@1f,700000/network@2"
@@ -3937,17 +3920,17 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	}
 
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) == 0 &&
-	    bge_forced_collapse > 0 && (sc->bge_flags & BGE_FLAG_PCIE) != 0 &&
-	    m->m_next != NULL) {
+	    sc->bge_forced_collapse > 0 &&
+	    (sc->bge_flags & BGE_FLAG_PCIE) != 0 && m->m_next != NULL) {
 		/*
 		 * Forcedly collapse mbuf chains to overcome hardware
 		 * limitation which only support a single outstanding
 		 * DMA read operation.
 		 */
-		if (bge_forced_collapse == 1)
+		if (sc->bge_forced_collapse == 1)
 			m = m_defrag(m, M_DONTWAIT);
 		else
-			m = m_collapse(m, M_DONTWAIT, bge_forced_collapse);
+			m = m_collapse(m, M_DONTWAIT, sc->bge_forced_collapse);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -4874,6 +4857,26 @@ bge_add_sysctls(struct bge_softc *sc)
 	    "Memory Read");
 
 #endif
+
+	/*
+	 * A common design characteristic for many Broadcom client controllers
+	 * is that they only support a single outstanding DMA read operation
+	 * on the PCIe bus. This means that it will take twice as long to fetch
+	 * a TX frame that is split into header and payload buffers as it does
+	 * to fetch a single, contiguous TX frame (2 reads vs. 1 read). For
+	 * these controllers, coalescing buffers to reduce the number of memory
+	 * reads is effective way to get maximum performance(about 940Mbps).
+	 * Without collapsing TX buffers the maximum TCP bulk transfer
+	 * performance is about 850Mbps. However forcing coalescing mbufs
+	 * consumes a lot of CPU cycles, so leave it off by default.
+	 */
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "forced_collapse",
+	    CTLFLAG_RW, &sc->bge_forced_collapse, 0,
+	    "Number of fragmented TX buffers of a frame allowed before "
+	    "forced collapsing");
+	resource_int_value(device_get_name(sc->bge_dev),
+	    device_get_unit(sc->bge_dev), "forced_collapse",
+	    &sc->bge_forced_collapse);
 
 	if (BGE_IS_5705_PLUS(sc))
 		return;
