@@ -228,43 +228,42 @@ exception_save_restart:
 (p13)	dep		r20=r20,r21,0,9		// align dirty registers
 	;;
 }
-	// r20=bspstore, r22=iip, r23=ipsr
+	// r19=rnat, r20=bspstore, r22=iip, r23=ipsr
 {	.mmi
 	st8		[r31]=r23,16		// psr
 (p13)	mov		ar.bspstore=r20
 	nop		0
 	;;
 }
-{	.mmi
+{	.mmb
+(p13)	mov		ar.rnat=r19
 	mov		r18=ar.bsp
+	nop		0
 	;;
+}
+{	.mmi
 	mov		r19=cr.ifs
+	st8.spill	[r30]=gp,16		// gp
 	sub		r18=r18,r20
 	;;
 }
-{	.mmi
-	st8.spill	[r30]=gp,16		// gp
-	st8		[r31]=r18,16		// ndirty
-	nop		0
-	;;
-}
 	// r19=ifs, r22=iip
-{	.mmi
+{	.mmb
+	st8		[r31]=r18,16		// ndirty
 	st8		[r30]=r19,16		// cfm
-	st8		[r31]=r22,16		// iip
 	nop		0
 	;;
 }
 {	.mmi
-	st8		[r30]=r17		// ifa
 	mov		r18=cr.isr
+	st8		[r31]=r22,16		// iip
 	add		r29=16,r30
 	;;
 }
-{	.mmi
-	st8		[r31]=r18		// isr
-	add		r30=8,r29
-	add		r31=16,r29
+{	.mmb
+	st8		[r30]=r17,24		// ifa
+	st8		[r31]=r18,24		// isr
+	nop		0
 	;;
 }
 {	.mmi
