@@ -773,6 +773,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		INTOFF;
 		savelocalvars = localvars;
 		localvars = NULL;
+		reffunc(cmdentry.u.func);
 		INTON;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXSHELLPROC)
@@ -781,6 +782,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				freeparam(&shellparam);
 				shellparam = saveparam;
 			}
+			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
 			handler = savehandler;
@@ -792,11 +794,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			mklocal(sp->text);
 		funcnest++;
 		if (flags & EV_TESTED)
-			evaltree(cmdentry.u.func, EV_TESTED);
+			evaltree(getfuncnode(cmdentry.u.func), EV_TESTED);
 		else
-			evaltree(cmdentry.u.func, 0);
+			evaltree(getfuncnode(cmdentry.u.func), 0);
 		funcnest--;
 		INTOFF;
+		unreffunc(cmdentry.u.func);
 		poplocalvars();
 		localvars = savelocalvars;
 		freeparam(&shellparam);
