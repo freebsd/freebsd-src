@@ -26,6 +26,8 @@
  * DAMAGE.
  */
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -44,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/umtx.h>
 #include <sys/cpuset.h>
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #include <security/audit/audit.h>
 
@@ -497,6 +502,14 @@ thread_exit(void)
 			panic ("thread_exit: Last thread exiting on its own");
 		}
 	} 
+#ifdef	HWPMC_HOOKS
+	/*
+	 * If this thread is part of a process that is being tracked by hwpmc(4),
+	 * inform the module of the thread's impending exit.
+	 */
+	if (PMC_PROC_IS_USING_PMCS(td->td_proc))
+		PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
+#endif
 	PROC_UNLOCK(p);
 	thread_lock(td);
 	/* Save our tick information with both the thread and proc locked */
