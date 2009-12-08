@@ -529,7 +529,7 @@ int nfsvno_read(vnode_t, off_t, int, struct ucred *, NFSPROC_T *,
 int nfsvno_write(vnode_t, off_t, int, int, int, mbuf_t,
     char *, struct ucred *, NFSPROC_T *);
 int nfsvno_createsub(struct nfsrv_descript *, struct nameidata *,
-    vnode_t *, struct nfsvattr *, int *, u_char *, NFSDEV_T, NFSPROC_T *,
+    vnode_t *, struct nfsvattr *, int *, int32_t *, NFSDEV_T, NFSPROC_T *,
     struct nfsexstuff *);
 int nfsvno_mknod(struct nameidata *, struct nfsvattr *, struct ucred *,
     NFSPROC_T *);
@@ -552,7 +552,7 @@ int nfsvno_fsync(vnode_t, u_int64_t, int, struct ucred *, NFSPROC_T *);
 int nfsvno_statfs(vnode_t, struct statfs *);
 void nfsvno_getfs(struct nfsfsinfo *, int);
 void nfsvno_open(struct nfsrv_descript *, struct nameidata *, nfsquad_t,
-    nfsv4stateid_t *, struct nfsstate *, int *, struct nfsvattr *, u_char *,
+    nfsv4stateid_t *, struct nfsstate *, int *, struct nfsvattr *, int32_t *,
     int, NFSACL_T *, nfsattrbit_t *, struct ucred *, NFSPROC_T *,
     struct nfsexstuff *, vnode_t *);
 void nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct ucred *,
