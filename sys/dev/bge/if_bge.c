@@ -1618,13 +1618,11 @@ bge_blockinit(struct bge_softc *sc)
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_NICADDR, rcb->bge_nicaddr);
 
 		/* Set up dummy disabled mini ring RCB */
-		if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
-			rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
-			rcb->bge_maxlen_flags =
-			    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
-			CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS,
-			    rcb->bge_maxlen_flags);
-		}
+		rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
+		rcb->bge_maxlen_flags =
+		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
+		CSR_WRITE_4(sc, BGE_RX_MINI_RCB_MAXLEN_FLAGS,
+		    rcb->bge_maxlen_flags);
 	}
 
 	/*
