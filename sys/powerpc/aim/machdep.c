@@ -130,7 +130,6 @@ extern vm_offset_t ksym_start, ksym_end;
 
 int cold = 1;
 int cacheline_size = 32;
-int ppc64 = 0;
 int hw_direct_map = 1;
 
 struct pcpu __pcpu[MAXCPU];
@@ -256,6 +255,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
         char		*env;
 	uint32_t	msr, scratch;
 	uint8_t		*cache_check;
+	int		ppc64;
 
 	end = 0;
 	kmdp = NULL;
@@ -405,12 +405,15 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		mfsprg2 %1;"
 	    : "=r"(scratch), "=r"(ppc64));
 
+	if (ppc64)
+		cpu_features |= PPC_FEATURE_64;
+
 	/*
 	 * Now copy restorebridge into all the handlers, if necessary,
 	 * and set up the trap tables.
 	 */
 
-	if (ppc64) {
+	if (cpu_features & PPC_FEATURE_64) {
 		/* Patch the two instances of rfi -> rfid */
 		bcopy(&rfid_patch,&rfi_patch1,4);
 	#ifdef KDB
@@ -489,7 +492,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 * in case the platform module had a better idea of what we
 	 * should do.
 	 */
-	if (ppc64)
+	if (cpu_features & PPC_FEATURE_64)
 		pmap_mmu_install(MMU_TYPE_G5, BUS_PROBE_GENERIC);
 	else
 		pmap_mmu_install(MMU_TYPE_OEA, BUS_PROBE_GENERIC);
