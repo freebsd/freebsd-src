@@ -96,7 +96,7 @@ main(void)
      */
     bios_getmem();
 
-#ifdef LOADER_BZIP2_SUPPORT
+#if defined(LOADER_BZIP2_SUPPORT)
     heap_top = PTOV(memtop_copyin);
     memtop_copyin -= 0x300000;
     heap_bottom = PTOV(memtop_copyin);
