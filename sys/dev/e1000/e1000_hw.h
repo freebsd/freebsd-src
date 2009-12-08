@@ -100,6 +100,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_80003ES2LAN_SERDES_DPT   0x1098
 #define E1000_DEV_ID_80003ES2LAN_COPPER_SPT   0x10BA
 #define E1000_DEV_ID_80003ES2LAN_SERDES_SPT   0x10BB
+#define E1000_DEV_ID_ICH8_82567V_3            0x1501
 #define E1000_DEV_ID_ICH8_IGP_M_AMT           0x1049
 #define E1000_DEV_ID_ICH8_IGP_AMT             0x104A
 #define E1000_DEV_ID_ICH8_IGP_C               0x104B
@@ -130,11 +131,19 @@ struct e1000_hw;
 #define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
 #define E1000_DEV_ID_82576_NS                 0x150A
-#define E1000_DEV_ID_82576_SERDES_QUAD	      0x150D
+#define E1000_DEV_ID_82576_NS_SERDES          0x1518
+#define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
 #define E1000_DEV_ID_82575GB_QUAD_COPPER_PM   0x10E2
+#define E1000_DEV_ID_82580_COPPER             0x150E
+#define E1000_DEV_ID_82580_FIBER              0x150F
+#define E1000_DEV_ID_82580_SERDES             0x1510
+#define E1000_DEV_ID_82580_SGMII              0x1511
+#define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
+#define E1000_DEV_ID_82580_ER                 0x151D
+#define E1000_DEV_ID_82580_ER_DUAL            0x151E
 #define E1000_REVISION_0 0
 #define E1000_REVISION_1 1
 #define E1000_REVISION_2 2
@@ -143,9 +152,13 @@ struct e1000_hw;
 
 #define E1000_FUNC_0     0
 #define E1000_FUNC_1     1
+#define E1000_FUNC_2     2
+#define E1000_FUNC_3     3
 
 #define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
 #define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN2   6
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN3   9
 
 enum e1000_mac_type {
 	e1000_undefined = 0,
@@ -173,6 +186,8 @@ enum e1000_mac_type {
 	e1000_pchlan,
 	e1000_82575,
 	e1000_82576,
+	e1000_82580,
+	e1000_82580er,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
 };
 
@@ -213,6 +228,7 @@ enum e1000_phy_type {
 	e1000_phy_bm,
 	e1000_phy_82578,
 	e1000_phy_82577,
+	e1000_phy_82580,
 	e1000_phy_vf,
 };
 
@@ -615,11 +631,13 @@ struct e1000_phy_operations {
 	s32  (*get_cable_length)(struct e1000_hw *);
 	s32  (*get_info)(struct e1000_hw *);
 	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_reg_locked)(struct e1000_hw *, u32, u16 *);
 	void (*release)(struct e1000_hw *);
 	s32  (*reset)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_reg)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg_locked)(struct e1000_hw *, u32, u16);
 	void (*power_up)(struct e1000_hw *);
 	void (*power_down)(struct e1000_hw *);
 };
@@ -657,6 +675,7 @@ struct e1000_mac_info {
 	u16 ifs_ratio;
 	u16 ifs_step_size;
 	u16 mta_reg_count;
+	u16 uta_reg_count;
 
 	/* Maximum size of the MTA register table in all supported adapters */
 	#define MAX_MTA_REG 128
@@ -768,6 +787,10 @@ struct e1000_dev_spec_82571 {
 	u32 smb_counter;
 };
 
+struct e1000_dev_spec_80003es2lan {
+	bool  mdic_wa_enable;
+};
+
 struct e1000_shadow_ram {
 	u16  value;
 	bool modified;
@@ -778,6 +801,9 @@ struct e1000_shadow_ram {
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
 	struct e1000_shadow_ram shadow_ram[E1000_SHADOW_RAM_WORDS];
+	E1000_MUTEX nvm_mutex;
+	E1000_MUTEX swflag_mutex;
+	bool nvm_k1_enabled;
 };
 
 struct e1000_dev_spec_82575 {
@@ -810,6 +836,7 @@ struct e1000_hw {
 		struct e1000_dev_spec_82542	_82542;
 		struct e1000_dev_spec_82543	_82543;
 		struct e1000_dev_spec_82571	_82571;
+		struct e1000_dev_spec_80003es2lan _80003es2lan;
 		struct e1000_dev_spec_ich8lan	ich8lan;
 		struct e1000_dev_spec_82575	_82575;
 		struct e1000_dev_spec_vf	vf;
