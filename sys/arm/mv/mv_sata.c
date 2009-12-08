@@ -137,6 +137,7 @@ static int	sata_channel_begin_transaction(struct ata_request *request);
 static int	sata_channel_end_transaction(struct ata_request *request);
 static int	sata_channel_status(device_t dev);
 static int	sata_channel_setmode(device_t dev, int target, int mode);
+static int	sata_channel_getrev(device_t dev, int target);
 static void	sata_channel_reset(device_t dev);
 static void	sata_channel_dmasetprd(void *xsc, bus_dma_segment_t *segs,
     int nsegs, int error);
@@ -423,7 +424,7 @@ sata_channel_attach(device_t dev)
 
 	ch->dev = dev;
 	ch->unit = device_get_unit(dev);
-	ch->flags |= ATA_USE_16BIT | ATA_NO_SLAVE;
+	ch->flags |= ATA_USE_16BIT | ATA_NO_SLAVE | ATA_SATA;
 
 	/* Set legacy ATA resources. */
 	for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
@@ -754,7 +755,16 @@ sata_channel_setmode(device_t parent, int target, int mode)
 
 	/* Disable EDMA before using legacy registers */
 	sata_edma_ctrl(parent, 0);
-	return (ata_sata_setmode(dev, mode));
+	return (ata_sata_setmode(parent, target, mode));
+}
+
+static int
+sata_channel_getrev(device_t parent, int target)
+{
+
+	/* Disable EDMA before using legacy registers */
+	sata_edma_ctrl(parent, 0);
+	return (ata_sata_getrev(parent, target));
 }
 
 static void
@@ -843,6 +853,7 @@ static device_method_t sata_channel_methods[] = {
 	/* ATA channel interface */
 	DEVMETHOD(ata_reset,		sata_channel_reset),
 	DEVMETHOD(ata_setmode,		sata_channel_setmode),
+	DEVMETHOD(ata_getrev,		sata_channel_getrev),
 	{ 0, 0 }
 };
 
