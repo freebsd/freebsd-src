@@ -4231,7 +4231,6 @@ igb_rxeof(struct rx_ring *rxr, int count)
 				/* Get the RSS Hash */
 				sendmp->m_pkthdr.flowid =
 				    le32toh(cur->wb.lower.hi_dword.rss);
-				    curcpu;
 				sendmp->m_flags |= M_FLOWID;
 #endif
 			}
