@@ -437,7 +437,7 @@ static void          atp_detect_pspans(int *, u_int, u_int, atp_pspan *,
 
 /* movement detection */
 static boolean_t     atp_match_stroke_component(atp_stroke_component *,
-			 const atp_pspan *);
+                         const atp_pspan *, atp_stroke_type);
 static void          atp_match_strokes_against_pspans(struct atp_softc *,
 			 atp_axis, atp_pspan *, u_int, u_int);
 static boolean_t     atp_update_strokes(struct atp_softc *,
@@ -458,6 +458,7 @@ static boolean_t     atp_compute_stroke_movement(atp_stroke *);
 /* tap detection */
 static __inline void atp_setup_reap_time(struct atp_softc *, struct timeval *);
 static void          atp_reap_zombies(struct atp_softc *, u_int *, u_int *);
+static void          atp_convert_to_slide(struct atp_softc *, atp_stroke *);
 
 /* updating fifo */
 static void          atp_reset_buf(struct atp_softc *sc);
@@ -725,7 +726,7 @@ atp_interpret_sensor_data(const int8_t *sensor_data, u_int num, atp_axis axis,
 		for (i = 0, di = (axis == Y) ? 1 : 2; i < 8; di += 5, i++) {
 			arr[i] = sensor_data[di];
 			arr[i+8] = sensor_data[di+2];
-			if (axis == X && num > 16) 
+			if (axis == X && num > 16)
 				arr[i+16] = sensor_data[di+40];
 		}
 
@@ -879,23 +880,43 @@ atp_detect_pspans(int *p, u_int num_sensors,
  */
 static boolean_t
 atp_match_stroke_component(atp_stroke_component *component,
-    const atp_pspan *pspan)
+    const atp_pspan *pspan, atp_stroke_type stroke_type)
 {
-	int delta_mickeys = pspan->loc - component->loc;
+	int   delta_mickeys;
+	u_int min_pressure;
+
+	delta_mickeys = pspan->loc - component->loc;
 
 	if (abs(delta_mickeys) > atp_max_delta_mickeys)
 		return (FALSE); /* the finger span is too far out; no match */
 
 	component->loc          = pspan->loc;
+
+	/*
+	 * A sudden and significant increase in a pspan's cumulative
+	 * pressure indicates the incidence of a new finger
+	 * contact. This usually revises the pspan's
+	 * centre-of-gravity, and hence the location of any/all
+	 * matching stroke component(s). But such a change should
+	 * *not* be interpreted as a movement.
+	 */
+        if (pspan->cum > ((3 * component->cum_pressure) >> 1))
+		delta_mickeys = 0;
+
 	component->cum_pressure = pspan->cum;
 	if (pspan->cum > component->max_cum_pressure)
 		component->max_cum_pressure = pspan->cum;
 
 	/*
-	 * If the cumulative pressure drops below a quarter of the max,
-	 * then disregard the component's movement.
+	 * Disregard the component's movement if its cumulative
+	 * pressure drops below a fraction of the maximum; this
+	 * fraction is determined based on the stroke's type.
 	 */
-	if (component->cum_pressure < (component->max_cum_pressure >> 2))
+	if (stroke_type == ATP_STROKE_TOUCH)
+		min_pressure = (3 * component->max_cum_pressure) >> 2;
+	else
+		min_pressure = component->max_cum_pressure >> 2;
+	if (component->cum_pressure < min_pressure)
 		delta_mickeys = 0;
 
 	component->delta_mickeys = delta_mickeys;
@@ -930,7 +951,8 @@ atp_match_strokes_against_pspans(struct atp_softc *sc, atp_axis axis,
 				continue; /* skip matched pspans */
 
 			if (atp_match_stroke_component(
-				    &stroke->components[axis], &pspans[j])) {
+				    &stroke->components[axis], &pspans[j],
+				    stroke->type)) {
 				/* There is a match. */
 				stroke->components[axis].matched = TRUE;
 
@@ -1065,19 +1087,23 @@ atp_update_strokes(struct atp_softc *sc, atp_pspan *pspans_x,
 		for (i = 0; i < sc->sc_n_strokes; i++) {
 			atp_stroke *stroke = &sc->sc_strokes[i];
 
-			printf(" %s%clc:%u,dm:%d,pnd:%d,mv:%d%c"
-			    ",%clc:%u,dm:%d,pnd:%d,mv:%d%c",
+			printf(" %s%clc:%u,dm:%d,pnd:%d,cum:%d,max:%d,mv:%d%c"
+			    ",%clc:%u,dm:%d,pnd:%d,cum:%d,max:%d,mv:%d%c",
 			    (stroke->flags & ATSF_ZOMBIE) ? "zomb:" : "",
 			    (stroke->type == ATP_STROKE_TOUCH) ? '[' : '<',
 			    stroke->components[X].loc,
 			    stroke->components[X].delta_mickeys,
 			    stroke->components[X].pending,
+			    stroke->components[X].cum_pressure,
+			    stroke->components[X].max_cum_pressure,
 			    stroke->components[X].movement,
 			    (stroke->type == ATP_STROKE_TOUCH) ? ']' : '>',
 			    (stroke->type == ATP_STROKE_TOUCH) ? '[' : '<',
 			    stroke->components[Y].loc,
 			    stroke->components[Y].delta_mickeys,
 			    stroke->components[Y].pending,
+			    stroke->components[Y].cum_pressure,
+			    stroke->components[Y].max_cum_pressure,
 			    stroke->components[Y].movement,
 			    (stroke->type == ATP_STROKE_TOUCH) ? ']' : '>');
 		}
@@ -1218,48 +1244,91 @@ atp_advance_stroke_state(struct atp_softc *sc, atp_stroke *stroke,
 	if (atp_compute_stroke_movement(stroke))
 		*movement = TRUE;
 
+	if (stroke->type != ATP_STROKE_TOUCH)
+		return;
+
 	/* Convert touch strokes to slides upon detecting movement or age. */
-	if (stroke->type == ATP_STROKE_TOUCH) {
-		struct timeval tdiff;
+	if (stroke->cum_movement >= atp_slide_min_movement) {
+		atp_convert_to_slide(sc, stroke);
+	} else {
+		/* If a touch stroke is found to be older than the
+		 * touch-timeout threshold, it should be converted to
+		 * a slide; except if there is a co-incident sibling
+		 * with a later creation time.
+		 *
+		 * When multiple fingers make contact with the
+		 * touchpad, they are likely to be separated in their
+		 * times of incidence.  During a multi-finger tap,
+		 * therefore, the last finger to make
+		 * contact--i.e. the one with the latest
+		 * 'ctime'--should be used to determine how the
+		 * touch-siblings get treated; otherwise older
+		 * siblings may lapse the touch-timeout and get
+		 * converted into slides prematurely.  The following
+		 * loop determines if there exists another touch
+		 * stroke with a larger 'ctime' than the current
+		 * stroke (NOTE: zombies with a larger 'ctime' are
+		 * also considered) .
+		 */
 
-		/* Compute the stroke's age. */
-		getmicrotime(&tdiff);
-		if (timevalcmp(&tdiff, &stroke->ctime, >))
-			timevalsub(&tdiff, &stroke->ctime);
-		else {
-			/*
-			 * If we are here, it is because getmicrotime
-			 * reported the current time as being behind
-			 * the stroke's start time; getmicrotime can
-			 * be imprecise.
-			 */
-			tdiff.tv_sec  = 0;
-			tdiff.tv_usec = 0;
+		u_int i;
+		for (i = 0; i < sc->sc_n_strokes; i++) {
+			if ((&sc->sc_strokes[i] == stroke) ||
+			    (sc->sc_strokes[i].type != ATP_STROKE_TOUCH))
+				continue;
+
+			if (timevalcmp(&sc->sc_strokes[i].ctime,
+				&stroke->ctime, >))
+				break;
 		}
+		if (i == sc->sc_n_strokes) {
+			/* Found no other touch stroke with a larger 'ctime'. */
+			struct timeval tdiff;
 
-		if ((tdiff.tv_sec > (atp_touch_timeout / 1000000)) ||
-		    ((tdiff.tv_sec == (atp_touch_timeout / 1000000)) &&
-			(tdiff.tv_usec > atp_touch_timeout)) ||
-		    (stroke->cum_movement >= atp_slide_min_movement)) {
-			/* Switch this stroke to being a slide. */
-			stroke->type = ATP_STROKE_SLIDE;
-
-			/* Are we at the beginning of a double-click-n-drag? */
-			if ((sc->sc_n_strokes == 1) &&
-			    ((sc->sc_state & ATP_ZOMBIES_EXIST) == 0) &&
-			    timevalcmp(&stroke->ctime, &sc->sc_reap_time, >)) {
-				struct timeval delta;
-				struct timeval window = {
-					atp_double_tap_threshold / 1000000,
-					atp_double_tap_threshold % 1000000
-				};
-
-				delta = stroke->ctime;
-				timevalsub(&delta, &sc->sc_reap_time);
-				if (timevalcmp(&delta, &window, <=))
-					sc->sc_state |= ATP_DOUBLE_TAP_DRAG;
+			/* Compute the stroke's age. */
+			getmicrotime(&tdiff);
+			if (timevalcmp(&tdiff, &stroke->ctime, >))
+				timevalsub(&tdiff, &stroke->ctime);
+			else {
+				/*
+				 * If we are here, it is because getmicrotime
+				 * reported the current time as being behind
+				 * the stroke's start time; getmicrotime can
+				 * be imprecise.
+				 */
+				tdiff.tv_sec  = 0;
+				tdiff.tv_usec = 0;
 			}
+
+			if ((tdiff.tv_sec > (atp_touch_timeout / 1000000)) ||
+			    ((tdiff.tv_sec == (atp_touch_timeout / 1000000)) &&
+				(tdiff.tv_usec >=
+				    (atp_touch_timeout % 1000000))))
+				atp_convert_to_slide(sc, stroke);
 		}
+	}
+}
+
+/* Switch a given touch stroke to being a slide. */
+void
+atp_convert_to_slide(struct atp_softc *sc, atp_stroke *stroke)
+{
+	stroke->type = ATP_STROKE_SLIDE;
+
+	/* Are we at the beginning of a double-click-n-drag? */
+	if ((sc->sc_n_strokes == 1) &&
+	    ((sc->sc_state & ATP_ZOMBIES_EXIST) == 0) &&
+	    timevalcmp(&stroke->ctime, &sc->sc_reap_time, >)) {
+		struct timeval delta;
+		struct timeval window = {
+			atp_double_tap_threshold / 1000000,
+			atp_double_tap_threshold % 1000000
+		};
+
+		delta = stroke->ctime;
+		timevalsub(&delta, &sc->sc_reap_time);
+		if (timevalcmp(&delta, &window, <=))
+			sc->sc_state |= ATP_DOUBLE_TAP_DRAG;
 	}
 }
 
@@ -1723,7 +1792,7 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 		 */
 		status_bits = sc->sensor_data[sc->sc_params->data_len - 1];
 		if ((sc->sc_params->prot == ATP_PROT_GEYSER3 &&
-		    (status_bits & ATP_STATUS_BASE_UPDATE)) || 
+		    (status_bits & ATP_STATUS_BASE_UPDATE)) ||
 		    !(sc->sc_state & ATP_VALID)) {
 			memcpy(sc->base_x, sc->cur_x,
 			    sc->sc_params->n_xsensors * sizeof(*(sc->base_x)));
