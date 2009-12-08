@@ -212,7 +212,7 @@ restart:
 		accmode |= VREAD;
 	if (fmode & FEXEC)
 		accmode |= VEXEC;
-	if (fmode & O_APPEND)
+	if ((fmode & O_APPEND) && (fmode & FWRITE))
 		accmode |= VAPPEND;
 #ifdef MAC
 	error = mac_vnode_check_open(cred, vp, accmode);
