@@ -167,7 +167,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     local no
     log "create_includes_and_libraries2() for ${SRC}"
     if [ ${OSVERSION} -ge 600000 ] ; then
-	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R"
+	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITOUT_CDDL=1"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
@@ -587,8 +587,9 @@ find_progs() {	# programs
 	local i
 	u_progs="`find_progs_helper $*`"
 	local o=${o_objdir:-${_SHLIBDIRPREFIX}}
+	log "looking for libs for $u_progs in $_SHLIBDIRPREFIX"
 	[ -z "${u_progs}" ] && return 1	# not found, error
-	i="`ldd ${u_progs} | grep -v '^/' | awk '{print $1}' | sort | uniq`"
+	i="`LD_LIBRARY_PATH=$o/lib ldd ${u_progs} | grep -v '^/' | awk '{print $1}' | sort | uniq`"
 	u_libs="`find_progs_helper $i`"
 	return 0
 }
@@ -719,8 +720,7 @@ populate_mfs_tree() {
 	(cd ${dst}; chown -R root . )
     fi
 
-    # If we are building a shared 'crunch', take the libraries
-    # and the dynamic loader as well
+    log "for a shared 'crunch' take libraries and dynamic loader as well"
     find_progs ${dst}/stand/crunch
     if [ -n "${u_libs}" ] ; then
 	mkdir -p ${dst}/lib && cp -p ${u_libs} ${dst}/lib
