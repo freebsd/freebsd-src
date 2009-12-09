@@ -1539,18 +1539,18 @@ musbotg_clear_stall_sub(struct musbotg_softc *sc, uint16_t wMaxPacket,
 		/* Configure endpoint */
 		switch (ep_type) {
 		case UE_INTERRUPT:
-			MUSB2_WRITE_1(sc, MUSB2_REG_TXMAXP, wMaxPacket);
+			MUSB2_WRITE_2(sc, MUSB2_REG_TXMAXP, wMaxPacket);
 			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH,
 			    MUSB2_MASK_CSRH_TXMODE | temp);
 			break;
 		case UE_ISOCHRONOUS:
-			MUSB2_WRITE_1(sc, MUSB2_REG_TXMAXP, wMaxPacket);
+			MUSB2_WRITE_2(sc, MUSB2_REG_TXMAXP, wMaxPacket);
 			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH,
 			    MUSB2_MASK_CSRH_TXMODE |
 			    MUSB2_MASK_CSRH_TXISO | temp);
 			break;
 		case UE_BULK:
-			MUSB2_WRITE_1(sc, MUSB2_REG_TXMAXP, wMaxPacket);
+			MUSB2_WRITE_2(sc, MUSB2_REG_TXMAXP, wMaxPacket);
 			MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRH,
 			    MUSB2_MASK_CSRH_TXMODE | temp);
 			break;
@@ -1600,18 +1600,18 @@ musbotg_clear_stall_sub(struct musbotg_softc *sc, uint16_t wMaxPacket,
 		/* Configure endpoint */
 		switch (ep_type) {
 		case UE_INTERRUPT:
-			MUSB2_WRITE_1(sc, MUSB2_REG_RXMAXP, wMaxPacket);
+			MUSB2_WRITE_2(sc, MUSB2_REG_RXMAXP, wMaxPacket);
 			MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRH,
 			    MUSB2_MASK_CSRH_RXNYET | temp);
 			break;
 		case UE_ISOCHRONOUS:
-			MUSB2_WRITE_1(sc, MUSB2_REG_RXMAXP, wMaxPacket);
+			MUSB2_WRITE_2(sc, MUSB2_REG_RXMAXP, wMaxPacket);
 			MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRH,
 			    MUSB2_MASK_CSRH_RXNYET |
 			    MUSB2_MASK_CSRH_RXISO | temp);
 			break;
 		case UE_BULK:
-			MUSB2_WRITE_1(sc, MUSB2_REG_RXMAXP, wMaxPacket);
+			MUSB2_WRITE_2(sc, MUSB2_REG_RXMAXP, wMaxPacket);
 			MUSB2_WRITE_1(sc, MUSB2_REG_RXCSRH, temp);
 			break;
 		default:
@@ -1688,12 +1688,14 @@ usb_error_t
 musbotg_init(struct musbotg_softc *sc)
 {
 	struct usb_hw_ep_profile *pf;
+	uint16_t offset;
 	uint8_t nrx;
 	uint8_t ntx;
 	uint8_t temp;
 	uint8_t fsize;
 	uint8_t frx;
 	uint8_t ftx;
+	uint8_t dynfifo;
 
 	DPRINTFN(1, "start\n");
 
@@ -1776,10 +1778,19 @@ musbotg_init(struct musbotg_softc *sc)
 	DPRINTFN(2, "Config Data: 0x%02x\n",
 	    sc->sc_conf_data);
 
+	dynfifo = (sc->sc_conf_data & MUSB2_MASK_CD_DYNFIFOSZ) ? 1 : 0;
+
+	if (dynfifo) {
+		DPRINTFN(0, "Dynamic FIFO sizing detected! "
+		    "Assuming 16Kbytes of FIFO RAM\n");
+	}
+
 	DPRINTFN(2, "HW version: 0x%04x\n",
 	    MUSB2_READ_1(sc, MUSB2_REG_HWVERS));
 
 	/* initialise endpoint profiles */
+
+	offset = 0;
 
 	for (temp = 1; temp <= sc->sc_ep_max; temp++) {
 		pf = sc->sc_hw_ep_profile + temp;
@@ -1791,9 +1802,45 @@ musbotg_init(struct musbotg_softc *sc)
 		frx = (fsize & MUSB2_MASK_RX_FSIZE) / 16;;
 		ftx = (fsize & MUSB2_MASK_TX_FSIZE);
 
-		DPRINTF("Endpoint %u FIFO size: IN=%u, OUT=%u\n",
-		    temp, pf->max_in_frame_size,
-		    pf->max_out_frame_size);
+		DPRINTF("Endpoint %u FIFO size: IN=%u, OUT=%u, DYN=%d\n",
+		    temp, ftx, frx, dynfifo);
+
+		if (dynfifo) {
+			if (frx && (temp <= nrx)) {
+				if (temp < 8) {
+					frx = 10;	/* 1K */
+					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
+					    MUSB2_VAL_FIFOSZ_512 |
+					    MUSB2_MASK_FIFODB);
+				} else {
+					frx = 7;	/* 128 bytes */
+					MUSB2_WRITE_1(sc, MUSB2_REG_RXFIFOSZ, 
+					    MUSB2_VAL_FIFOSZ_128);
+				}
+
+				MUSB2_WRITE_2(sc, MUSB2_REG_RXFIFOADD,
+				    offset >> 3);
+
+				offset += (1 << frx);
+			}
+			if (ftx && (temp <= ntx)) {
+				if (temp < 8) {
+					ftx = 10;	/* 1K */
+					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
+	 				    MUSB2_VAL_FIFOSZ_512 |
+	 				    MUSB2_MASK_FIFODB);
+				} else {
+					ftx = 7;	/* 128 bytes */
+					MUSB2_WRITE_1(sc, MUSB2_REG_TXFIFOSZ,
+	 				    MUSB2_VAL_FIFOSZ_128);
+				}
+
+				MUSB2_WRITE_2(sc, MUSB2_REG_TXFIFOADD,
+				    offset >> 3);
+
+				offset += (1 << ftx);
+			}
+		}
 
 		if (frx && ftx && (temp <= nrx) && (temp <= ntx)) {
 			pf->max_in_frame_size = 1 << ftx;
@@ -1823,6 +1870,8 @@ musbotg_init(struct musbotg_softc *sc)
 			pf->support_in = 1;
 		}
 	}
+
+	DPRINTFN(2, "Dynamic FIFO size = %d bytes\n", offset);
 
 	/* turn on default interrupts */
 
