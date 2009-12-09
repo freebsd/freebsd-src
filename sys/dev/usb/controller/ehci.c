@@ -2140,7 +2140,7 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
 	    xfer, xfer->endpoint);
 
-	while (nframes--) {
+	while (nframes) {
 		if (td == NULL) {
 			panic("%s:%d: out of TD's\n",
 			    __FUNCTION__, __LINE__);
@@ -2162,21 +2162,26 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 
 		DPRINTFN(2, "status=0x%08x, len=%u\n", status, len);
 
-		if (*plen >= len) {
-			/*
-			 * The length is valid. NOTE: The complete
-			 * length is written back into the status
-			 * field, and not the remainder like with
-			 * other transfer descriptor types.
-			 */
-		} else {
-			/* Invalid length - truncate */
-			len = 0;
+		if (xfer->usb_smask & (1 << td_no)) {
+
+			if (*plen >= len) {
+				/*
+				 * The length is valid. NOTE: The
+				 * complete length is written back
+				 * into the status field, and not the
+				 * remainder like with other transfer
+				 * descriptor types.
+				 */
+			} else {
+				/* Invalid length - truncate */
+				len = 0;
+			}
+
+			*plen = len;
+			plen++;
+			nframes--;
 		}
 
-		*plen = len;
-
-		plen++;
 		td_no++;
 
 		if ((td_no == 8) || (nframes == 0)) {
@@ -2393,10 +2398,9 @@ static void
 ehci_device_intr_close(struct usb_xfer *xfer)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-	uint8_t slot;
 
-	slot = usb_intr_schedule_adjust
-	    (xfer->xroot->udev, -(xfer->max_frame_size), xfer->usb_uframe);
+	usb_intr_schedule_adjust(xfer->xroot->udev,
+	    -(xfer->max_frame_size), xfer->usb_uframe);
 
 	sc->sc_intr_stat[xfer->qh_pos]--;
 
@@ -2722,6 +2726,28 @@ ehci_device_isoc_hs_open(struct usb_xfer *xfer)
 	ehci_itd_t *td;
 	uint32_t temp;
 	uint8_t ds;
+	uint8_t slot;
+
+	slot = usb_intr_schedule_adjust(xfer->xroot->udev, xfer->max_frame_size,
+	    USB_HS_MICRO_FRAMES_MAX);
+
+	xfer->usb_uframe = slot;
+	xfer->usb_cmask = 0;
+
+	switch (usbd_xfer_get_fps_shift(xfer)) {
+	case 0:
+		xfer->usb_smask = 0xFF;
+		break;
+	case 1:
+		xfer->usb_smask = 0x55 << (slot & 1);
+		break;
+	case 2:
+		xfer->usb_smask = 0x11 << (slot & 3);
+		break;
+	default:
+		xfer->usb_smask = 0x01 << (slot & 7);
+		break;
+	}
 
 	/* initialize all TD's */
 
@@ -2765,6 +2791,10 @@ ehci_device_isoc_hs_open(struct usb_xfer *xfer)
 static void
 ehci_device_isoc_hs_close(struct usb_xfer *xfer)
 {
+
+	usb_intr_schedule_adjust(xfer->xroot->udev,
+	    -(xfer->max_frame_size), xfer->usb_uframe);
+
 	ehci_device_done(xfer, USB_ERR_CANCELLED);
 }
 
@@ -2854,7 +2884,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 
 	xfer->qh_pos = xfer->endpoint->isoc_next;
 
-	while (nframes--) {
+	while (nframes) {
 		if (td == NULL) {
 			panic("%s:%d: out of TD's\n",
 			    __FUNCTION__, __LINE__);
@@ -2874,13 +2904,21 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 #endif
 			*plen = xfer->max_frame_size;
 		}
-		status = (EHCI_ITD_SET_LEN(*plen) |
-		    EHCI_ITD_ACTIVE |
-		    EHCI_ITD_SET_PG(0));
-		td->itd_status[td_no] = htohc32(sc, status);
-		itd_offset[td_no] = buf_offset;
-		buf_offset += *plen;
-		plen++;
+
+		if (xfer->usb_smask & (1 << td_no)) {
+			status = (EHCI_ITD_SET_LEN(*plen) |
+			    EHCI_ITD_ACTIVE |
+			    EHCI_ITD_SET_PG(0));
+			td->itd_status[td_no] = htohc32(sc, status);
+			itd_offset[td_no] = buf_offset;
+			buf_offset += *plen;
+			plen++;
+			nframes --;
+		} else {
+			td->itd_status[td_no] = 0;	/* not active */
+			itd_offset[td_no] = buf_offset;
+		}
+
 		td_no++;
 
 		if ((td_no == 8) || (nframes == 0)) {
@@ -2937,7 +2975,7 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 			}
 			/* set IOC bit if we are complete */
 			if (nframes == 0) {
-				td->itd_status[7] |= htohc32(sc, EHCI_ITD_IOC);
+				td->itd_status[td_no - 1] |= htohc32(sc, EHCI_ITD_IOC);
 			}
 			usb_pc_cpu_flush(td->page_cache);
 #if USB_DEBUG
@@ -3583,7 +3621,8 @@ ehci_xfer_setup(struct usb_setup_params *parm)
 
 		usbd_transfer_setup_sub(parm);
 
-		nitd = (xfer->nframes + 7) / 8;
+		nitd = ((xfer->nframes + 7) / 8) <<
+		    usbd_xfer_get_fps_shift(xfer);
 
 	} else {
 
