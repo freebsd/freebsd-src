@@ -1049,8 +1049,8 @@ putchar(int c)
 static struct {
 	uint16_t len;
 	uint16_t count;
-	uint16_t seg;
 	uint16_t off;
+	uint16_t seg;
 	uint64_t lba;
 } packet;
 #endif
@@ -1065,8 +1065,8 @@ drvread(struct dsk *dsk, void *buf, daddr_t lba, unsigned nblk)
 	printf("%c\b", c = c << 8 | c >> 24);
     packet.len = 0x10;
     packet.count = nblk;
-    packet.seg = VTOPOFF(buf);
-    packet.off = VTOPSEG(buf);
+    packet.off = VTOPOFF(buf);
+    packet.seg = VTOPSEG(buf);
     packet.lba = lba + dsk->start;
     v86.ctl = V86_FLAGS;
     v86.addr = 0x13;
