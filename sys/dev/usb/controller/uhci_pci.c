@@ -88,8 +88,6 @@ __FBSDID("$FreeBSD$");
 
 /* PIIX4E has no separate stepping */
 
-#define	PCI_UHCI_BASE_REG               0x20
-
 static device_probe_t uhci_pci_probe;
 static device_attach_t uhci_pci_attach;
 static device_detach_t uhci_pci_detach;
