@@ -1098,7 +1098,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	sc->sc_ncm.dpt.dwSignature[0] = 'N';
 	sc->sc_ncm.dpt.dwSignature[1] = 'C';
 	sc->sc_ncm.dpt.dwSignature[2] = 'M';
-	sc->sc_ncm.dpt.dwSignature[3] = 'x';
+	sc->sc_ncm.dpt.dwSignature[3] = '0';
 	USETW(sc->sc_ncm.dpt.wNextNdpIndex, 0);		/* reserved */
 
 	usbd_copy_in(pc, 0, &(sc->sc_ncm.hdr), sizeof(sc->sc_ncm.hdr));
@@ -1182,7 +1182,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (actlen < (sizeof(sc->sc_ncm.hdr) +
 		    sizeof(sc->sc_ncm.dpt))) {
 			DPRINTFN(1, "frame too short\n");
-			goto tr_stall;
+			goto tr_setup;
 		}
 		usbd_copy_out(pc, 0, &(sc->sc_ncm.hdr),
 		    sizeof(sc->sc_ncm.hdr));
@@ -1191,7 +1191,12 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		    (sc->sc_ncm.hdr.dwSignature[1] != 'C') ||
 		    (sc->sc_ncm.hdr.dwSignature[2] != 'M') ||
 		    (sc->sc_ncm.hdr.dwSignature[3] != 'H')) {
-			DPRINTFN(1, "invalid HDR signature\n");
+			DPRINTFN(1, "invalid HDR signature: "
+			    "0x%02x:0x%02x:0x%02x:0x%02x\n",
+			    sc->sc_ncm.hdr.dwSignature[0],
+			    sc->sc_ncm.hdr.dwSignature[1],
+			    sc->sc_ncm.hdr.dwSignature[2],
+			    sc->sc_ncm.hdr.dwSignature[3]);
 			goto tr_stall;
 		}
 		temp = UGETW(sc->sc_ncm.hdr.wBlockLength);
@@ -1202,7 +1207,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 		temp = UGETW(sc->sc_ncm.hdr.wDptIndex);
 		if ((temp + sizeof(sc->sc_ncm.dpt)) > actlen) {
-			DPRINTFN(1, "invalid DPT index\n");
+			DPRINTFN(1, "invalid DPT index: 0x%04x\n", temp);
 			goto tr_stall;
 		}
 		usbd_copy_out(pc, temp, &(sc->sc_ncm.dpt),
@@ -1211,8 +1216,13 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if ((sc->sc_ncm.dpt.dwSignature[0] != 'N') ||
 		    (sc->sc_ncm.dpt.dwSignature[1] != 'C') ||
 		    (sc->sc_ncm.dpt.dwSignature[2] != 'M') ||
-		    (sc->sc_ncm.dpt.dwSignature[3] != 'x')) {
-			DPRINTFN(1, "invalid DPT signature\n");
+		    (sc->sc_ncm.dpt.dwSignature[3] != '0')) {
+			DPRINTFN(1, "invalid DPT signature"
+			    "0x%02x:0x%02x:0x%02x:0x%02x\n",
+			    sc->sc_ncm.dpt.dwSignature[0],
+			    sc->sc_ncm.dpt.dwSignature[1],
+			    sc->sc_ncm.dpt.dwSignature[2],
+			    sc->sc_ncm.dpt.dwSignature[3]);
 			goto tr_stall;
 		}
 		nframes = UGETW(sc->sc_ncm.dpt.wLength) / 4;
@@ -1284,6 +1294,7 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(1, "Efficiency: %u/%u bytes\n", sumdata, actlen);
 
 	case USB_ST_SETUP:
+tr_setup:
 		usbd_xfer_set_frame_len(xfer, 0, sc->sc_ncm.rx_max);
 		usbd_xfer_set_frames(xfer, 1);
 		usbd_transfer_submit(xfer);
