@@ -584,7 +584,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		 * Count the number of bounce pages
 		 * needed in order to complete this transfer
 		 */
-		vaddr = trunc_page((vm_offset_t)buf);
+		vaddr = (vm_offset_t)buf;
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
@@ -596,7 +596,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 			    run_filter(dmat, paddr) != 0) {
 				map->pagesneeded++;
 			}
-			vaddr += PAGE_SIZE;
+			vaddr += (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
