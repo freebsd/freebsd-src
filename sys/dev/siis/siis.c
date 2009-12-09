@@ -93,15 +93,17 @@ static struct {
 	uint32_t	id;
 	const char	*name;
 	int		ports;
+	int		quirks;
+#define SIIS_Q_SNTF	1
 } siis_ids[] = {
-	{0x31241095,	"SiI3124",	4},
-	{0x31248086,	"SiI3124",	4},
-	{0x31321095,	"SiI3132",	2},
-	{0x02421095,	"SiI3132",	2},
-	{0x02441095,	"SiI3132",	2},
-	{0x31311095,	"SiI3131",	1},
-	{0x35311095,	"SiI3531",	1},
-	{0,		NULL,		0}
+	{0x31241095,	"SiI3124",	4,	0},
+	{0x31248086,	"SiI3124",	4,	0},
+	{0x31321095,	"SiI3132",	2,	SIIS_Q_SNTF},
+	{0x02421095,	"SiI3132",	2,	SIIS_Q_SNTF},
+	{0x02441095,	"SiI3132",	2,	SIIS_Q_SNTF},
+	{0x31311095,	"SiI3131",	1,	SIIS_Q_SNTF},
+	{0x35311095,	"SiI3531",	1,	SIIS_Q_SNTF},
+	{0,		NULL,		0,	0}
 };
 
 static int
@@ -113,7 +115,7 @@ siis_probe(device_t dev)
 
 	for (i = 0; siis_ids[i].id != 0; i++) {
 		if (siis_ids[i].id == devid) {
-			snprintf(buf, sizeof(buf), "%s SATA2 controller",
+			snprintf(buf, sizeof(buf), "%s SATA controller",
 			    siis_ids[i].name);
 			device_set_desc_copy(dev, buf);
 			return (BUS_PROBE_VENDOR);
@@ -130,11 +132,12 @@ siis_attach(device_t dev)
 	device_t child;
 	int	error, i, unit;
 
+	ctlr->dev = dev;
 	for (i = 0; siis_ids[i].id != 0; i++) {
 		if (siis_ids[i].id == devid)
 			break;
 	}
-	ctlr->dev = dev;
+	ctlr->quirks = siis_ids[i].quirks;
 	/* Global memory */
 	ctlr->r_grid = PCIR_BAR(0);
 	if (!(ctlr->r_gmem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -413,12 +416,14 @@ siis_ch_probe(device_t dev)
 static int
 siis_ch_attach(device_t dev)
 {
+	struct siis_controller *ctlr = device_get_softc(device_get_parent(dev));
 	struct siis_channel *ch = device_get_softc(dev);
 	struct cam_devq *devq;
 	int rid, error, i, sata_rev = 0;
 
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
+	ch->quirks = ctlr->quirks;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	resource_int_value(device_get_name(dev),
@@ -680,8 +685,16 @@ siis_notify_events(device_t dev)
 	u_int32_t status;
 	int i;
 
-	status = ATA_INL(ch->r_mem, SIIS_P_SNTF);
-	ATA_OUTL(ch->r_mem, SIIS_P_SNTF, status);
+	if (ch->quirks & SIIS_Q_SNTF) {
+		status = ATA_INL(ch->r_mem, SIIS_P_SNTF);
+		ATA_OUTL(ch->r_mem, SIIS_P_SNTF, status);
+	} else {
+		/*
+		 * Without SNTF we have no idea which device sent notification.
+		 * If PMP is connected, assume it, else - device.
+		 */
+		status = (ch->pm_present) ? 0x8000 : 0x0001;
+	}
 	if (bootverbose)
 		device_printf(dev, "SNTF 0x%04x\n", status);
 	for (i = 0; i < 16; i++) {
