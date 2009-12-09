@@ -210,7 +210,7 @@ ugensa_attach(device_t dev)
 	}
 
 	if (cnt == 0) {
-		device_printf(dev, "No interfaces!\n");
+		device_printf(dev, "No interfaces\n");
 		goto detach;
 	}
 	for (x = 0; x < cnt; x++) {
@@ -229,7 +229,7 @@ ugensa_attach(device_t dev)
 
 		if (error) {
 			device_printf(dev, "allocating USB "
-			    "transfers failed!\n");
+			    "transfers failed\n");
 			goto detach;
 		}
 		/* clear stall at first run */

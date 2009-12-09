@@ -1781,8 +1781,8 @@ musbotg_init(struct musbotg_softc *sc)
 	dynfifo = (sc->sc_conf_data & MUSB2_MASK_CD_DYNFIFOSZ) ? 1 : 0;
 
 	if (dynfifo) {
-		DPRINTFN(0, "Dynamic FIFO sizing detected! "
-		    "Assuming 16Kbytes of FIFO RAM\n");
+		device_printf(sc->sc_bus.bdev, "Dynamic FIFO sizing detected, "
+		    "assuming 16Kbytes of FIFO RAM\n");
 	}
 
 	DPRINTFN(2, "HW version: 0x%04x\n",
