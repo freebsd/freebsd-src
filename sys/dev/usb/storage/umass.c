@@ -1669,6 +1669,7 @@ umass_detach(device_t dev)
 #if (__FreeBSD_version >= 700037)
 	mtx_unlock(&sc->sc_mtx);
 #endif
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);			/* success */
 }
