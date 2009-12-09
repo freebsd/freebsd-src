@@ -36,20 +36,16 @@ __RCSID("$FreeBSD$");
 __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #endif
 
-#include <sys/types.h>
 #include <err.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <timeconv.h>
-#include <utmp.h>
+#include <ulog.h>
 #include <unistd.h>
 
-static	const char *logfile = _PATH_LASTLOG;
-
 	int	main(int, char **);
-static	void	output(struct passwd *, struct lastlog *);
+static	void	output(struct ulog_utmpx *);
 static	void	usage(void);
 
 int
@@ -58,72 +54,51 @@ main(argc, argv)
 	char *argv[];
 {
 	int	ch, i;
-	FILE	*fp;
-	struct passwd	*passwd;
-	struct lastlog	last;
+	struct ulog_utmpx *u;
 
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		usage();
 	}
 
-	fp = fopen(logfile, "r");
-	if (fp == NULL)
-		err(1, "%s", logfile);
+	if (ulog_setutxfile(UTXF_LASTLOG, NULL) != 0)
+		errx(1, "failed to open lastlog database");
 
 	setpassent(1);	/* Keep passwd file pointers open */
 
 	/* Process usernames given on the command line. */
 	if (argc > 1) {
-		long offset;
 		for (i = 1; i < argc; ++i) {
-			if ((passwd = getpwnam(argv[i])) == NULL) {
+			if ((u = ulog_getutxuser(argv[i])) == NULL) {
 				warnx("user '%s' not found", argv[i]);
 				continue;
 			}
-			/* Calculate the offset into the lastlog file. */
-			offset = (long)(passwd->pw_uid * sizeof(last));
-			if (fseek(fp, offset, SEEK_SET)) {
-				warn("fseek error");
-				continue;
-			}
-			if (fread(&last, sizeof(last), 1, fp) != 1) {
-				warnx("fread error on '%s'", passwd->pw_name);
-				clearerr(fp);
-				continue;
-			}
-			output(passwd, &last);
+			output(u);
 		}
 	}
 	/* Read all lastlog entries, looking for active ones */
 	else {
-		for (i = 0; fread(&last, sizeof(last), 1, fp) == 1; i++) {
-			if (last.ll_time == 0)
+		while ((u = ulog_getutxent()) != NULL) {
+			if (u->ut_type != USER_PROCESS)
 				continue;
-			if ((passwd = getpwuid((uid_t)i)) != NULL)
-				output(passwd, &last);
+			output(u);
 		}
-		if (ferror(fp))
-			warnx("fread error");
 	}
 
 	setpassent(0);	/* Close passwd file pointers */
 
-	fclose(fp);
+	ulog_endutxent();
 	exit(0);
 }
 
 /* Duplicate the output of last(1) */
 static void
-output(p, l)
-	struct passwd *p;
-	struct lastlog *l;
+output(struct ulog_utmpx *u)
 {
-	time_t t = _int_to_time(l->ll_time);
-	printf("%-*.*s  %-*.*s %-*.*s   %s",
-		UT_NAMESIZE, UT_NAMESIZE, p->pw_name,
-		UT_LINESIZE, UT_LINESIZE, l->ll_line,
-		UT_HOSTSIZE, UT_HOSTSIZE, l->ll_host,
-		(l->ll_time) ? ctime(&t) : "Never logged in\n");
+	time_t t = u->ut_tv.tv_sec;
+
+	printf("%-16s  %-8s %-16s   %s",
+		u->ut_user, u->ut_line, u->ut_host,
+		(u->ut_type == USER_PROCESS) ? ctime(&t) : "Never logged in\n");
 }
 
 static void
