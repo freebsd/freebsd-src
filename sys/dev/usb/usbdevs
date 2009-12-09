@@ -909,6 +909,7 @@ product ASIX AX88772		0x7720	AX88772
 product ASUS WL167G		0x1707	WL-167g Wireless Adapter
 product ASUS WL159G		0x170c	WL-159g
 product ASUS A9T_WIFI		0x171b	A9T wireless
+product ASUS P5B_WIFI		0x171d	P5B wireless
 product ASUS RT2573_1		0x1723	RT2573
 product ASUS RT2573_2		0x1724	RT2573
 product ASUS LCM		0x1726	LCM display
@@ -976,6 +977,7 @@ product BELKIN F5D7051		0x7051	F5D7051 54g USB Network Adapter
 product BELKIN F5D7050A		0x705a	F5D7050A Wireless Adapter
 /* Also sold as 'Ativa 802.11g wireless card' */
 product BELKIN F5D7050_V4000	0x705c	F5D7050 v4000 Wireless Adapter
+product BELKIN F5D7050E		0x705e	F5D7050E Wireless Adapter
 product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 Wireless Adapter
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
 
@@ -1657,6 +1659,7 @@ product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless Adapter
 product LINKSYS2 USB200M	0x2226	USB 2.0 10/100 Ethernet
 product LINKSYS3 WUSB11v28	0x2233	WUSB11 v2.8 Wireless Adapter
 product LINKSYS4 USB1000	0x0039	USB1000
+product LINKSYS4 WUSB54GCV2	0x0073	WUSB54GC v2
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
@@ -1877,6 +1880,7 @@ product NETGEAR EA101X		0x1002	Ethernet
 product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 product NETGEAR WG111V2_2	0x4240	PrismGT USB 2.0 WLAN
+product NETGEAR WG111V3		0x4260	WG111v3
 product NETGEAR WG111U		0x4300	WG111U
 product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
 product NETGEAR WG111V2		0x6a00	WG111V2
@@ -2102,6 +2106,9 @@ product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
 /* Green House and CompUSA OEM this part */
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
 product REALTEK RTL8187		0x8187	RTL8187 Wireless Adapter
+product REALTEK RTL8187B_0	0x8189	RTL8187B Wireless Adapter
+product REALTEK RTL8187B_1	0x8197	RTL8187B Wireless Adapter
+product REALTEK RTL8187B_2	0x8198	RTL8187B Wireless Adapter
 
 /* Ricoh products */
 product RICOH VGPVCC2		0x1830	VGP-VCC2 Camera
@@ -2271,6 +2278,8 @@ product SITECOM SERIAL		0x2068	USB to serial cable (v2)
 product SITECOM2 WL022		0x182d	WL-022
 
 /* Sitecom Europe products */
+product SITECOMEU WL168V1	0x000d	WL-168 v1
+product SITECOMEU WL168V4	0x0028	WL-168 v4
 product SITECOMEU LN028		0x061c	LN-028
 product SITECOMEU WL113		0x9071	WL-113
 product SITECOMEU ZD1211B	0x9075	ZD1211B
@@ -2376,6 +2385,7 @@ product DIAMOND2 RIO600USB	0x5001	Rio 600 USB
 product DIAMOND2 RIO800USB	0x5002	Rio 800 USB
 
 /* Surecom Technology products */
+product SURECOM EP9001G2A	0x11f2	EP-9001-G rev 2A
 product SURECOM RT2570		0x11f3	RT2570
 product SURECOM RT2573		0x31f3	RT2573
 
