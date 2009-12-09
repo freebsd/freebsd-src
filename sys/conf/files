@@ -1669,6 +1669,7 @@ dev/usb/misc/udbp.c		optional udbp
 #
 # USB input drivers
 #
+dev/usb/input/atp.c		optional atp
 dev/usb/input/uhid.c		optional uhid
 dev/usb/input/ukbd.c		optional ukbd
 dev/usb/input/ums.c		optional ums
