@@ -35,7 +35,6 @@
  */
 
 #include "sysinstall.h"
-#include <utmp.h>
 #include <ctype.h>
 #include <sys/param.h>
 #include <sysexits.h>
@@ -47,7 +46,7 @@
 #define GNAME_FIELD_LEN 32
 #define GID_FIELD_LEN 11
 #define GMEMB_FIELD_LEN 64
-
+#define UNAME_FIELD_LEN MAXLOGNAME
 #define UID_FIELD_LEN 11
 #define UGROUP_FIELD_LEN GNAME_FIELD_LEN
 #define GECOS_FIELD_LEN 64
@@ -61,7 +60,7 @@
 static char gname[GNAME_FIELD_LEN],
 	gid[GID_FIELD_LEN],
 	gmemb[GMEMB_FIELD_LEN],
-	uname[UT_NAMESIZE + 1],
+	uname[UNAME_FIELD_LEN],
         passwd[PASSWD_FIELD_LEN],
         confpasswd[PASSWD_FIELD_LEN],
 	uid[UID_FIELD_LEN],
@@ -109,7 +108,7 @@ static Layout groupLayout[] = {
 /* The user configuration menu. */
 static Layout userLayout[] = {
 #define LAYOUT_UNAME		0
-    { 2, 6, UT_NAMESIZE, UT_NAMESIZE + 1,
+    { 2, 6, 16, UNAME_FIELD_LEN - 1,
       "Login ID:", "The login name of the new user (mandatory)",
       uname, STRINGOBJ, NULL },
 #define LAYOUT_UID		1
