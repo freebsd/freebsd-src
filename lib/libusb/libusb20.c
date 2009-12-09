@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2009 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -263,6 +263,10 @@ libusb20_tr_get_priv_sc1(struct libusb20_transfer *xfer)
 void
 libusb20_tr_stop(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	if (!xfer->is_pending) {
 		/* transfer not pending */
 		return;
@@ -280,6 +284,10 @@ libusb20_tr_stop(struct libusb20_transfer *xfer)
 void
 libusb20_tr_drain(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	/* make sure that we are cancelling */
 	libusb20_tr_stop(xfer);
 
@@ -415,9 +423,79 @@ libusb20_tr_setup_isoc(struct libusb20_transfer *xfer, void *pBuf, uint32_t leng
 	return;
 }
 
+uint8_t
+libusb20_tr_bulk_intr_sync(struct libusb20_transfer *xfer,
+    void *pbuf, uint32_t length, uint32_t *pactlen,
+    uint32_t timeout)
+{
+	struct libusb20_device *pdev = xfer->pdev;
+	uint32_t transfer_max;
+	uint32_t transfer_act;
+	uint8_t retval;
+
+	/* set some sensible default value */
+	if (pactlen != NULL)
+		*pactlen = 0;
+
+	/* check for error condition */
+	if (libusb20_tr_pending(xfer))
+		return (LIBUSB20_ERROR_OTHER);
+
+	do {
+		/* compute maximum transfer length */
+		transfer_max = 
+		    libusb20_tr_get_max_total_length(xfer);
+
+		if (transfer_max > length)
+			transfer_max = length;
+
+		/* setup bulk or interrupt transfer */
+		libusb20_tr_setup_bulk(xfer, pbuf, 
+		    transfer_max, timeout);
+
+		/* start the transfer */
+		libusb20_tr_start(xfer);
+
+		/* wait for transfer completion */
+		while (libusb20_dev_process(pdev) == 0) {
+
+			if (libusb20_tr_pending(xfer) == 0)
+				break;
+
+			libusb20_dev_wait_process(pdev, -1);
+		}
+
+		transfer_act = libusb20_tr_get_actual_length(xfer);
+
+		/* update actual length, if any */
+		if (pactlen != NULL)
+			pactlen[0] += transfer_act;
+
+		/* check transfer status */
+		retval = libusb20_tr_get_status(xfer);
+		if (retval)
+			break;
+
+		/* check for short transfer */
+		if (transfer_act != transfer_max)
+			break;
+
+		/* update buffer pointer and length */
+		pbuf = ((uint8_t *)pbuf) + transfer_max;
+		length = length - transfer_max;
+
+	} while (length != 0);
+
+	return (retval);
+}
+
 void
 libusb20_tr_submit(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	if (xfer->is_pending) {
 		/* should not happen */
 		return;
@@ -433,6 +511,10 @@ libusb20_tr_submit(struct libusb20_transfer *xfer)
 void
 libusb20_tr_start(struct libusb20_transfer *xfer)
 {
+	if (!xfer->is_opened) {
+		/* transfer is not opened */
+		return;
+	}
 	if (xfer->is_pending) {
 		if (xfer->is_cancel) {
 			/* cancelling - restart */
@@ -461,7 +543,14 @@ libusb20_dev_close(struct libusb20_device *pdev)
 	for (x = 0; x != pdev->nTransfer; x++) {
 		xfer = pdev->pTransfer + x;
 
+		if (!xfer->is_opened) {
+			/* transfer is not opened */
+			continue;
+		}
+
 		libusb20_tr_drain(xfer);
+
+		libusb20_tr_close(xfer);
 	}
 
 	if (pdev->pTransfer != NULL) {
