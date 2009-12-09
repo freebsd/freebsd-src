@@ -94,6 +94,7 @@ fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n????/??/??"]
+gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2009/12/07"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
 glebius [label="Gleb Smirnoff\nglebius@FreeBSD.org\n2004/07/14"]
 gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
@@ -254,6 +255,7 @@ dwmalone -> fanf
 dwmalone -> peadar
 dwmalone -> snb
 
+ed -> gavin
 ed -> jilles
 
 eivind -> des
