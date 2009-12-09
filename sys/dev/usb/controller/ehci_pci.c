@@ -318,13 +318,11 @@ ehci_pci_attach(device_t self)
 		device_printf(self, "pre-2.0 USB revision (ignored)\n");
 		/* fallthrough */
 	case PCI_USB_REV_2_0:
-		sc->sc_bus.usbrev = USB_REV_2_0;
 		break;
 	default:
 		/* Quirk for Parallels Desktop 4.0 */
 		device_printf(self, "USB revision is unknown. Assuming v2.0.\n");
-		sc->sc_bus.usbrev = USB_REV_2_0;
-                break;
+		break;
 	}
 
 	rid = PCI_CBMEM;
