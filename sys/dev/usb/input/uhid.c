@@ -633,7 +633,7 @@ uhid_probe(device_t dev)
 	if (usb_test_quirk(uaa, UQ_HID_IGNORE)) {
 		return (ENXIO);
 	}
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
