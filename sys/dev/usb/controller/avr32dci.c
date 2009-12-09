@@ -1160,7 +1160,7 @@ avr32dci_clear_stall_sub(struct avr32dci_softc *sc, uint8_t ep_no,
 	temp = AVR32_READ_4(sc, AVR32_EPTCFG(ep_no));
 
 	if (!(temp & AVR32_EPTCFG_EPT_MAPD)) {
-		DPRINTFN(0, "Chip rejected configuration\n");
+		device_printf(sc->sc_bus.bdev, "Chip rejected configuration\n");
 	} else {
 		AVR32_WRITE_4(sc, AVR32_EPTCTLENB(ep_no),
 		    AVR32_EPTCTL_EPT_ENABL);
@@ -1840,7 +1840,8 @@ tr_handle_clear_port_feature:
 		temp = AVR32_READ_4(sc, AVR32_EPTCFG(0));
 
 		if (!(temp & AVR32_EPTCFG_EPT_MAPD)) {
-			DPRINTFN(0, "Chip rejected configuration\n");
+			device_printf(sc->sc_bus.bdev,
+			    "Chip rejected configuration\n");
 		} else {
 			AVR32_WRITE_4(sc, AVR32_EPTCTLENB(0),
 			    AVR32_EPTCTL_EPT_ENABL);

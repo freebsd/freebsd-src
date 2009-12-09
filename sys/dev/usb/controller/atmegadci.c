@@ -1192,7 +1192,8 @@ atmegadci_clear_stall_sub(struct atmegadci_softc *sc, uint8_t ep_no,
 
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
 		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
-			DPRINTFN(0, "Chip rejected configuration\n");
+			device_printf(sc->sc_bus.bdev,
+			    "Chip rejected configuration\n");
 		}
 	} while (0);
 }
@@ -1914,7 +1915,8 @@ tr_handle_clear_port_feature:
 		/* check valid config */
 		temp = ATMEGA_READ_1(sc, ATMEGA_UESTA0X);
 		if (!(temp & ATMEGA_UESTA0X_CFGOK)) {
-			DPRINTFN(0, "Chip rejected EP0 configuration\n");
+			device_printf(sc->sc_bus.bdev,
+			    "Chip rejected EP0 configuration\n");
 		}
 		break;
 	case UHF_C_PORT_SUSPEND:

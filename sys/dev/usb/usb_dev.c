@@ -575,7 +575,7 @@ usb_fifo_free(struct usb_fifo *f)
 	    (f->udev->fifo[f->fifo_index] == f)) {
 		f->udev->fifo[f->fifo_index] = NULL;
 	} else {
-		DPRINTFN(0, "USB FIFO %p has not been linked!\n", f);
+		DPRINTFN(0, "USB FIFO %p has not been linked\n", f);
 	}
 
 	/* decrease refcount */
@@ -952,7 +952,7 @@ usb_dev_init_post(void *arg)
 	usb_dev = make_dev(&usb_static_devsw, 0, UID_ROOT, GID_OPERATOR,
 	    0644, USB_DEVICE_NAME);
 	if (usb_dev == NULL) {
-		DPRINTFN(0, "Could not create usb bus device!\n");
+		DPRINTFN(0, "Could not create usb bus device\n");
 	}
 }
 
