@@ -165,7 +165,7 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UFTDI_OBUFSIZE,
-		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.flags = {.pipe_bof = 1,},
 		.callback = &uftdi_write_callback,
 	},
 
