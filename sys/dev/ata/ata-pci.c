@@ -462,8 +462,7 @@ ata_pci_status(device_t dev)
 	 (ch->dma.flags & ATA_DMA_ACTIVE))) {
 	int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
-	if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
-	    ATA_BMSTAT_INTERRUPT)
+	if ((bmstat & ATA_BMSTAT_INTERRUPT) == 0)
 	    return 0;
 	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, bmstat & ~ATA_BMSTAT_ERROR);
 	DELAY(1);
