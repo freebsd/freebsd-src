@@ -27,6 +27,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
+#include <machine/pc/bios.h>
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -90,8 +91,6 @@ __FBSDID("$FreeBSD$");
 #define ARGS		0x900
 #define NOPT		14
 #define NDEV		3
-#define MEM_BASE	0x12
-#define MEM_EXT 	0x15
 #define V86_CY(x)	((x) & 1)
 #define V86_ZR(x)	((x) & 0x40)
 
@@ -149,6 +148,19 @@ static struct bootinfo bootinfo;
 static uint32_t bootdev;
 static uint8_t ioctrl = IO_KEYBOARD;
 
+vm_offset_t	high_heap_base;
+uint32_t	bios_basemem, bios_extmem, high_heap_size;
+
+static struct bios_smap smap;
+
+/*
+ * The minimum amount of memory to reserve in bios_extmem for the heap.
+ */
+#define	HEAP_MIN	(3 * 1024 * 1024)
+
+static char *heap_next;
+static char *heap_end;
+
 /* Buffers that must not span a 64k boundary. */
 #define READ_BUF_SIZE	8192
 struct dmadat {
@@ -162,7 +174,7 @@ static void load(void);
 static int parse(void);
 static void printf(const char *,...);
 static void putchar(int);
-static uint32_t memsize(void);
+static void bios_getmem(void);
 static int drvread(struct dsk *, void *, daddr_t, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
@@ -237,14 +249,6 @@ memset(void *p, char val, size_t n)
 static void *
 malloc(size_t n)
 {
-	static char *heap_next;
-	static char *heap_end;
-
-	if (!heap_next) {
-		heap_next = (char *) dmadat + sizeof(*dmadat);
-		heap_end = (char *) (640*1024);
-	}
-
 	char *p = heap_next;
 	if (p + n > heap_end) {
 		printf("malloc failure\n");
@@ -344,14 +348,91 @@ xfsread(const dnode_phys_t *dnode, off_t *offp, void *buf, size_t nbyte)
     return 0;
 }
 
-static inline uint32_t
-memsize(void)
+static void
+bios_getmem(void)
 {
-    v86.addr = MEM_EXT;
-    v86.eax = 0x8800;
-    v86int();
-    return v86.eax;
-}
+    uint64_t size;
+
+    /* Parse system memory map */
+    v86.ebx = 0;
+    do {
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x15;		/* int 0x15 function 0xe820*/
+	v86.eax = 0xe820;
+	v86.ecx = sizeof(struct bios_smap);
+	v86.edx = SMAP_SIG;
+	v86.es = VTOPSEG(&smap);
+	v86.edi = VTOPOFF(&smap);
+	v86int();
+	if ((v86.efl & 1) || (v86.eax != SMAP_SIG))
+	    break;
+	/* look for a low-memory segment that's large enough */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0) &&
+	    (smap.length >= (512 * 1024)))
+	    bios_basemem = smap.length;
+	/* look for the first segment in 'extended' memory */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base == 0x100000)) {
+	    bios_extmem = smap.length;
+	}
+
+	/*
+	 * Look for the largest segment in 'extended' memory beyond
+	 * 1MB but below 4GB.
+	 */
+	if ((smap.type == SMAP_TYPE_MEMORY) && (smap.base > 0x100000) &&
+	    (smap.base < 0x100000000ull)) {
+	    size = smap.length;
+
+	    /*
+	     * If this segment crosses the 4GB boundary, truncate it.
+	     */
+	    if (smap.base + size > 0x100000000ull)
+		size = 0x100000000ull - smap.base;
+
+	    if (size > high_heap_size) {
+		high_heap_size = size;
+		high_heap_base = smap.base;
+	    }
+	}
+    } while (v86.ebx != 0);
+
+    /* Fall back to the old compatibility function for base memory */
+    if (bios_basemem == 0) {
+	v86.ctl = 0;
+	v86.addr = 0x12;		/* int 0x12 */
+	v86int();
+	
+	bios_basemem = (v86.eax & 0xffff) * 1024;
+    }
+
+    /* Fall back through several compatibility functions for extended memory */
+    if (bios_extmem == 0) {
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x15;		/* int 0x15 function 0xe801*/
+	v86.eax = 0xe801;
+	v86int();
+	if (!(v86.efl & 1)) {
+	    bios_extmem = ((v86.ecx & 0xffff) + ((v86.edx & 0xffff) * 64)) * 1024;
+	}
+    }
+    if (bios_extmem == 0) {
+	v86.ctl = 0;
+	v86.addr = 0x15;		/* int 0x15 function 0x88*/
+	v86.eax = 0x8800;
+	v86int();
+	bios_extmem = (v86.eax & 0xffff) * 1024;
+    }
+
+    /*
+     * If we have extended memory and did not find a suitable heap
+     * region in the SMAP, use the last 3MB of 'extended' memory as a
+     * high heap candidate.
+     */
+    if (bios_extmem >= HEAP_MIN && high_heap_size < HEAP_MIN) {
+	high_heap_size = HEAP_MIN;
+	high_heap_base = bios_extmem + 0x100000 - HEAP_MIN;
+    }
+}    
 
 static inline void
 getstr(void)
@@ -536,6 +617,16 @@ main(void)
     off_t off;
     struct dsk *dsk;
 
+    bios_getmem();
+
+    if (high_heap_size > 0) {
+	heap_end = PTOV(high_heap_base + high_heap_size);
+	heap_next = PTOV(high_heap_base);
+    } else {
+	heap_next = (char *) dmadat + sizeof(*dmadat);
+	heap_end = (char *) PTOV(bios_basemem);
+    }
+
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
 
@@ -550,8 +641,8 @@ main(void)
 
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
-    bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
-    bootinfo.bi_extmem = memsize();
+    bootinfo.bi_basemem = bios_basemem / 1024;
+    bootinfo.bi_extmem = bios_extmem / 1024;
     bootinfo.bi_memsizes_valid++;
     bootinfo.bi_bios_dev = dsk->drive;
 
