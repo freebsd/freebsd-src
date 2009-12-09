@@ -2866,6 +2866,7 @@ resource_list_add(struct resource_list *rl, int type, int rid,
 		rle->type = type;
 		rle->rid = rid;
 		rle->res = NULL;
+		rle->flags = 0;
 	}
 
 	if (rle->res)
@@ -2875,6 +2876,31 @@ resource_list_add(struct resource_list *rl, int type, int rid,
 	rle->end = end;
 	rle->count = count;
 	return (rle);
+}
+
+/**
+ * @brief Determine if a resource entry is busy.
+ *
+ * Returns true if a resource entry is busy meaning that it has an
+ * associated resource that is not an unallocated "reserved" resource.
+ *
+ * @param rl		the resource list to search
+ * @param type		the resource entry type (e.g. SYS_RES_MEMORY)
+ * @param rid		the resource identifier
+ *
+ * @returns Non-zero if the entry is busy, zero otherwise.
+ */
+int
+resource_list_busy(struct resource_list *rl, int type, int rid)
+{
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	if (rle == NULL || rle->res == NULL)
+		return (0);
+	if ((rle->flags & (RLE_RESERVED | RLE_ALLOCATED)) == RLE_RESERVED)
+		return (0);
+	return (1);
 }
 
 /**
@@ -2917,6 +2943,66 @@ resource_list_delete(struct resource_list *rl, int type, int rid)
 		STAILQ_REMOVE(rl, rle, resource_list_entry, link);
 		free(rle, M_BUS);
 	}
+}
+
+/**
+ * @brief Allocate a reserved resource
+ *
+ * This can be used by busses to force the allocation of resources
+ * that are always active in the system even if they are not allocated
+ * by a driver (e.g. PCI BARs).  This function is usually called when
+ * adding a new child to the bus.  The resource is allocated from the
+ * parent bus when it is reserved.  The resource list entry is marked
+ * with RLE_RESERVED to note that it is a reserved resource.
+ *
+ * Subsequent attempts to allocate the resource with
+ * resource_list_alloc() will succeed the first time and will set
+ * RLE_ALLOCATED to note that it has been allocated.  When a reserved
+ * resource that has been allocated is released with
+ * resource_list_release() the resource RLE_ALLOCATED is cleared, but
+ * the actual resource remains allocated.  The resource can be released to
+ * the parent bus by calling resource_list_unreserve().
+ *
+ * @param rl		the resource list to allocate from
+ * @param bus		the parent device of @p child
+ * @param child		the device for which the resource is being reserved
+ * @param type		the type of resource to allocate
+ * @param rid		a pointer to the resource identifier
+ * @param start		hint at the start of the resource range - pass
+ *			@c 0UL for any start address
+ * @param end		hint at the end of the resource range - pass
+ *			@c ~0UL for any end address
+ * @param count		hint at the size of range required - pass @c 1
+ *			for any size
+ * @param flags		any extra flags to control the resource
+ *			allocation - see @c RF_XXX flags in
+ *			<sys/rman.h> for details
+ * 
+ * @returns		the resource which was allocated or @c NULL if no
+ *			resource could be allocated
+ */
+struct resource *
+resource_list_reserve(struct resource_list *rl, device_t bus, device_t child,
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource_list_entry *rle = NULL;
+	int passthrough = (device_get_parent(child) != bus);
+	struct resource *r;
+
+	if (passthrough)
+		panic(
+    "resource_list_reserve() should only be called for direct children");
+	if (flags & RF_ACTIVE)
+		panic(
+    "resource_list_reserve() should only reserve inactive resources");
+
+	r = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
+	    flags);
+	if (r != NULL) {
+		rle = resource_list_find(rl, type, *rid);
+		rle->flags |= RLE_RESERVED;
+	}
+	return (r);
 }
 
 /**
@@ -2970,8 +3056,19 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 	if (!rle)
 		return (NULL);		/* no resource of that type/rid */
 
-	if (rle->res)
+	if (rle->res) {
+		if (rle->flags & RLE_RESERVED) {
+			if (rle->flags & RLE_ALLOCATED)
+				return (NULL);
+			else if ((flags & RF_ACTIVE) &&
+			    bus_activate_resource(child, type, *rid,
+			    rle->res) != 0)
+				return (NULL);
+			else
+				return (rle->res);
+		}
 		panic("resource_list_alloc: resource entry is busy");
+	}
 
 	if (isdefault) {
 		start = rle->start;
@@ -3003,7 +3100,7 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
  * @param rl		the resource list which was allocated from
  * @param bus		the parent device of @p child
  * @param child		the device which is requesting a release
- * @param type		the type of resource to allocate
+ * @param type		the type of resource to release
  * @param rid		the resource identifier
  * @param res		the resource to release
  * 
@@ -3030,6 +3127,19 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 		panic("resource_list_release: can't find resource");
 	if (!rle->res)
 		panic("resource_list_release: resource entry is not busy");
+	if (rle->flags & RLE_RESERVED) {
+		if (rle->flags & RLE_ALLOCATED) {
+			if (rman_get_flags(res) & RF_ACTIVE) {
+				error = bus_deactivate_resource(child, type,
+				    rid, res);
+				if (error)
+					return (error);
+			}
+			rle->flags &= ~RLE_ALLOCATED;
+			return (0);
+		}
+		return (EINVAL);
+	}
 
 	error = BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
 	    type, rid, res);
@@ -3038,6 +3148,45 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 
 	rle->res = NULL;
 	return (0);
+}
+
+/**
+ * @brief Fully release a reserved resource
+ *
+ * Fully releases a resouce reserved via resource_list_reserve().
+ *
+ * @param rl		the resource list which was allocated from
+ * @param bus		the parent device of @p child
+ * @param child		the device whose reserved resource is being released
+ * @param type		the type of resource to release
+ * @param rid		the resource identifier
+ * @param res		the resource to release
+ * 
+ * @retval 0		success
+ * @retval non-zero	a standard unix error code indicating what
+ *			error condition prevented the operation
+ */
+int
+resource_list_unreserve(struct resource_list *rl, device_t bus, device_t child,
+    int type, int rid)
+{
+	struct resource_list_entry *rle = NULL;
+	int passthrough = (device_get_parent(child) != bus);
+
+	if (passthrough)
+		panic(
+    "resource_list_unreserve() should only be called for direct children");
+
+	rle = resource_list_find(rl, type, rid);
+
+	if (!rle)
+		panic("resource_list_unreserve: can't find resource");
+	if (!(rle->flags & RLE_RESERVED))
+		return (EINVAL);
+	if (rle->flags & RLE_ALLOCATED)
+		return (EBUSY);
+	rle->flags &= ~RLE_RESERVED;
+	return (resource_list_release(rl, bus, child, type, rid, rle->res));
 }
 
 /**
