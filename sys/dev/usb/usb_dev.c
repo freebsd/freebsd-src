@@ -85,6 +85,8 @@ static int usb_fifo_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
 SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW,
     &usb_fifo_debug, 0, "Debug Level");
+
+TUNABLE_INT("hw.usb.dev.debug", &usb_fifo_debug);
 #endif
 
 #if ((__FreeBSD_version >= 700001) || (__FreeBSD_version == 0) || \
