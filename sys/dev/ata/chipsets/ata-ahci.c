@@ -824,11 +824,10 @@ ata_ahci_hardreset(device_t dev, int port, uint32_t *signature)
 static u_int32_t
 ata_ahci_softreset(device_t dev, int port)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ch->unit << 7;
     struct ata_ahci_cmd_tab *ctp =
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
+    u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
     if (bootverbose)
 	device_printf(dev, "software reset port %d...\n", port);
@@ -865,7 +864,10 @@ ata_ahci_softreset(device_t dev, int port)
 	return (-1);
     }
 
-    return ATA_INL(ctlr->r_res2, ATA_AHCI_P_SIG + offset);
+    return (((u_int32_t)fis[6] << 24) |
+	    ((u_int32_t)fis[5] << 16) |
+	    ((u_int32_t)fis[4] << 8) |
+	     (u_int32_t)fis[12]);
 }
 
 static void
