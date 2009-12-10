@@ -2419,7 +2419,7 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 static inline void
 arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 {
-	unsigned diff, regind, elm, bit;
+	unsigned shift, diff, regind, elm, bit;
 
 	assert(run->magic == ARENA_RUN_MAGIC);
 
@@ -2428,31 +2428,16 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 	 * actual division here can reduce allocator throughput by over 20%!
 	 */
 	diff = (unsigned)((uintptr_t)ptr - (uintptr_t)run - bin->reg0_offset);
-	if ((size & (size - 1)) == 0) {
-		/*
-		 * log2_table allows fast division of a power of two in the
-		 * [1..128] range.
-		 *
-		 * (x / divisor) becomes (x >> log2_table[divisor - 1]).
-		 */
-		static const unsigned char log2_table[] = {
-		    0, 1, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4,
-		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
-		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
-		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7
-		};
 
-		if (size <= 128)
-			regind = (diff >> log2_table[size - 1]);
-		else if (size <= 32768)
-			regind = diff >> (8 + log2_table[(size >> 8) - 1]);
-		else
-			regind = diff / size;
-	} else if (size < qspace_max) {
+	/* Rescale (factor powers of 2 out of the numerator and denominator). */
+	shift = ffs(size) - 1;
+	diff >>= shift;
+	size >>= shift;
+
+	if (size == 1) {
+		/* The divisor was a power of 2. */
+		regind = diff;
+	} else {
 		/*
 		 * To divide by a number D that is not a power of two we
 		 * multiply by (2^21 / D) and then right shift by 21 positions.
@@ -2461,78 +2446,32 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 		 *
 		 * becomes
 		 *
-		 *   (X * qsize_invs[(D >> QUANTUM_2POW) - 3])
-		 *       >> SIZE_INV_SHIFT
+		 *   (X * size_invs[D - 3]) >> SIZE_INV_SHIFT
 		 *
 		 * We can omit the first three elements, because we never
-		 * divide by 0, and QUANTUM and 2*QUANTUM are both powers of
-		 * two, which are handled above.
+		 * divide by 0, and 1 and 2 are both powers of two, which are
+		 * handled above.
 		 */
 #define	SIZE_INV_SHIFT 21
-#define	QSIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << QUANTUM_2POW)) + 1)
-		static const unsigned qsize_invs[] = {
-		    QSIZE_INV(3),
-		    QSIZE_INV(4), QSIZE_INV(5), QSIZE_INV(6), QSIZE_INV(7)
-#if (QUANTUM_2POW < 4)
-		    ,
-		    QSIZE_INV(8), QSIZE_INV(9), QSIZE_INV(10), QSIZE_INV(11),
-		    QSIZE_INV(12),QSIZE_INV(13), QSIZE_INV(14), QSIZE_INV(15)
-#endif
+#define	SIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s)) + 1)
+		static const unsigned size_invs[] = {
+		    SIZE_INV(3),
+		    SIZE_INV(4), SIZE_INV(5), SIZE_INV(6), SIZE_INV(7),
+		    SIZE_INV(8), SIZE_INV(9), SIZE_INV(10), SIZE_INV(11),
+		    SIZE_INV(12), SIZE_INV(13), SIZE_INV(14), SIZE_INV(15),
+		    SIZE_INV(16), SIZE_INV(17), SIZE_INV(18), SIZE_INV(19),
+		    SIZE_INV(20), SIZE_INV(21), SIZE_INV(22), SIZE_INV(23),
+		    SIZE_INV(24), SIZE_INV(25), SIZE_INV(26), SIZE_INV(27),
+		    SIZE_INV(28), SIZE_INV(29), SIZE_INV(30), SIZE_INV(31)
 		};
-		assert(QUANTUM * (((sizeof(qsize_invs)) / sizeof(unsigned)) + 3)
-		    >= (1U << QSPACE_MAX_2POW_DEFAULT));
 
-		if (size <= (((sizeof(qsize_invs) / sizeof(unsigned)) + 2) <<
-		    QUANTUM_2POW)) {
-			regind = qsize_invs[(size >> QUANTUM_2POW) - 3] * diff;
-			regind >>= SIZE_INV_SHIFT;
-		} else
+		if (size <= ((sizeof(size_invs) / sizeof(unsigned)) + 2))
+			regind = (diff * size_invs[size - 3]) >> SIZE_INV_SHIFT;
+		else
 			regind = diff / size;
-#undef QSIZE_INV
-	} else if (size < cspace_max) {
-#define	CSIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << CACHELINE_2POW)) + 1)
-		static const unsigned csize_invs[] = {
-		    CSIZE_INV(3),
-		    CSIZE_INV(4), CSIZE_INV(5), CSIZE_INV(6), CSIZE_INV(7)
-		};
-		assert(CACHELINE * (((sizeof(csize_invs)) / sizeof(unsigned)) +
-		    3) >= (1U << CSPACE_MAX_2POW_DEFAULT));
-
-		if (size <= (((sizeof(csize_invs) / sizeof(unsigned)) + 2) <<
-		    CACHELINE_2POW)) {
-			regind = csize_invs[(size >> CACHELINE_2POW) - 3] *
-			    diff;
-			regind >>= SIZE_INV_SHIFT;
-		} else
-			regind = diff / size;
-#undef CSIZE_INV
-	} else {
-#define	SSIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << SUBPAGE_2POW)) + 1)
-		static const unsigned ssize_invs[] = {
-		    SSIZE_INV(3),
-		    SSIZE_INV(4), SSIZE_INV(5), SSIZE_INV(6), SSIZE_INV(7),
-		    SSIZE_INV(8), SSIZE_INV(9), SSIZE_INV(10), SSIZE_INV(11),
-		    SSIZE_INV(12), SSIZE_INV(13), SSIZE_INV(14), SSIZE_INV(15)
-#if (PAGE_SHIFT == 13)
-		    ,
-		    SSIZE_INV(16), SSIZE_INV(17), SSIZE_INV(18), SSIZE_INV(19),
-		    SSIZE_INV(20), SSIZE_INV(21), SSIZE_INV(22), SSIZE_INV(23),
-		    SSIZE_INV(24), SSIZE_INV(25), SSIZE_INV(26), SSIZE_INV(27),
-		    SSIZE_INV(28), SSIZE_INV(29), SSIZE_INV(29), SSIZE_INV(30)
-#endif
-		};
-		assert(SUBPAGE * (((sizeof(ssize_invs)) / sizeof(unsigned)) + 3)
-		    >= PAGE_SIZE);
-
-		if (size < (((sizeof(ssize_invs) / sizeof(unsigned)) + 2) <<
-		    SUBPAGE_2POW)) {
-			regind = ssize_invs[(size >> SUBPAGE_2POW) - 3] * diff;
-			regind >>= SIZE_INV_SHIFT;
-		} else
-			regind = diff / size;
-#undef SSIZE_INV
-	}
+#undef SIZE_INV
 #undef SIZE_INV_SHIFT
+	}
 	assert(diff == regind * size);
 	assert(regind < bin->nregs);
 
