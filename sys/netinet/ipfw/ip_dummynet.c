@@ -2165,7 +2165,7 @@ dummynet_get(struct sockopt *sopt)
 		 */
 		bcopy(pipe, bp, sizeof(*pipe));
 		pipe_bp->delay = (pipe_bp->delay * 1000) / hz;
-		pipe_bp->burst /= 8 * hz;
+		pipe_bp->burst = div64(pipe_bp->burst, 8 * hz);
 		/*
 		 * XXX the following is a hack based on ->next being the
 		 * first field in dn_pipe and dn_flow_set. The correct
