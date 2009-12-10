@@ -313,7 +313,23 @@ minidumpsys(struct dumperinfo *di)
 		}
 		if ((pd[j] & PG_V) == PG_V) {
 			pa = xpmap_mtop(pd[j] & PG_FRAME);
+#ifndef XEN
 			error = blk_write(di, 0, pa, PAGE_SIZE);
+#else
+			pt = pmap_kenter_temporary(pa, 0);
+			memcpy(fakept, pt, PAGE_SIZE);
+			for (i = 0; i < NPTEPG; i++) 
+				fakept[i] = xpmap_mtop(fakept[i]);
+			error = blk_write(di, (char *)&fakept, 0, PAGE_SIZE);
+			if (error)
+				goto fail;
+			/* flush, in case we reuse fakept in the same block */
+			error = blk_flush(di);
+			if (error)
+				goto fail;
+			bzero(fakept, sizeof(fakept));
+#endif			
+			
 			if (error)
 				goto fail;
 		} else {
