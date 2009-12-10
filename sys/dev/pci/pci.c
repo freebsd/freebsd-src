@@ -253,7 +253,7 @@ disable.  1 means conservatively place devices into D3 state.  2 means\n\
 agressively place devices into D3 state.  3 means put absolutely everything\n\
 in D3 state.");
 
-static int pci_do_power_resume = 1;
+int pci_do_power_resume = 1;
 TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
