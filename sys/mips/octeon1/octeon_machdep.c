@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
 extern int	*edata;
 extern int	*end;
 
+static void octeon_boot_params_init(register_t ptr);
+
 void
 platform_cpu_init()
 {
@@ -669,7 +671,7 @@ void ciu_enable_interrupts (int core_num, int intx, int enx, uint64_t set_these_
 
 void
 platform_start(__register_t a0, __register_t a1,
-    __register_t a2 __unused, __register_t a3 __unused)
+    __register_t a2 __unused, __register_t a3)
 {
 	uint64_t platform_counter_freq;
 	vm_offset_t kernend;
@@ -681,10 +683,11 @@ platform_start(__register_t a0, __register_t a1,
 	kernend = round_page((vm_offset_t)&end);
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
 
+	octeon_boot_params_init(a3);
+	/* XXX octeon boot decriptor has args in it... */
         octeon_ciu_reset();
     	octeon_uart_write_string(0, "Platform Starting\n");
 
-/* From here on down likely is bogus */
 	/*
 	 * Looking for mem=XXM argument
 	 */
@@ -702,9 +705,8 @@ platform_start(__register_t a0, __register_t a1,
 	else
 		realmem = btoc(32 << 20);
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 10; i++)
 		phys_avail[i] = 0;
-	}
 
 	/* phys_avail regions are in bytes */
 	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
@@ -712,31 +714,20 @@ platform_start(__register_t a0, __register_t a1,
 
 	physmem = realmem;
 
-	/* 
-	 * ns8250 uart code uses DELAY so ticker should be inititalized 
-	 * before cninit. And tick_init_params refers to hz, so * init_param1 
-	 * should be called first.
-	 */
+	pmap_bootstrap();
+	mips_proc0_init();
+
 	init_param1();
 	/* TODO: parse argc,argv */
 	platform_counter_freq = 330000000UL; /* XXX: from idt */
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
-	/* Panic here, after cninit */ 
-#if 0
-	if (mem == 0)
-		panic("No mem=XX parameter in arguments");
-#endif
-
 	printf("cmd line: ");
 	for (i=0; i < argc; i++)
 		printf("%s ", argv[i]);
 	printf("\n");
-
 	init_param2(physmem);
 	mips_cpu_init();
-	pmap_bootstrap();
-	mips_proc0_init();
 	mutex_init();
 #ifdef DDB
 	kdb_init();
@@ -773,73 +764,71 @@ platform_start(__register_t a0, __register_t a1,
 
 
 typedef struct {
-    /* Start of block referenced by assembly code - do not change! */
-    uint32_t desc_version;
-    uint32_t desc_size;
+	/* Start of block referenced by assembly code - do not change! */
+	uint32_t desc_version;
+	uint32_t desc_size;
 
-    uint64_t stack_top;
-    uint64_t heap_base;
-    uint64_t heap_end;
-    uint64_t entry_point;   /* Only used by bootloader */
-    uint64_t desc_vaddr;
-    /* End of This block referenced by assembly code - do not change! */
+	uint64_t stack_top;
+	uint64_t heap_base;
+	uint64_t heap_end;
+	uint64_t entry_point;   /* Only used by bootloader */
+	uint64_t desc_vaddr;
+	/* End of This block referenced by assembly code - do not change! */
 
-    uint32_t exception_base_addr;
-    uint32_t stack_size;
-    uint32_t heap_size;
-    uint32_t argc;  /* Argc count for application */
-    uint32_t argv[OCTEON_ARGV_MAX_ARGS];
-    uint32_t flags;
-    uint32_t core_mask;
-    uint32_t dram_size;  /**< DRAM size in megabyes */
-    uint32_t phy_mem_desc_addr;  /**< physical address of free memory descriptor block*/
-    uint32_t debugger_flags_base_addr;  /**< used to pass flags from app to debugger */
-    uint32_t eclock_hz;  /**< CPU clock speed, in hz */
-    uint32_t dclock_hz;  /**< DRAM clock speed, in hz */
-    uint32_t spi_clock_hz;  /**< SPI4 clock in hz */
-    uint16_t board_type;
-    uint8_t board_rev_major;
-    uint8_t board_rev_minor;
-    uint16_t chip_type;
-    uint8_t chip_rev_major;
-    uint8_t chip_rev_minor;
-    char board_serial_number[OCTOEN_SERIAL_LEN];
-    uint8_t mac_addr_base[6];
-    uint8_t mac_addr_count;
-    uint64_t cvmx_desc_vaddr;
-
+	uint32_t exception_base_addr;
+	uint32_t stack_size;
+	uint32_t heap_size;
+	uint32_t argc;  /* Argc count for application */
+	uint32_t argv[OCTEON_ARGV_MAX_ARGS];
+	uint32_t flags;
+	uint32_t core_mask;
+	uint32_t dram_size;  /**< DRAM size in megabyes */
+	uint32_t phy_mem_desc_addr;  /**< physical address of free memory descriptor block*/
+	uint32_t debugger_flags_base_addr;  /**< used to pass flags from app to debugger */
+	uint32_t eclock_hz;  /**< CPU clock speed, in hz */
+	uint32_t dclock_hz;  /**< DRAM clock speed, in hz */
+	uint32_t spi_clock_hz;  /**< SPI4 clock in hz */
+	uint16_t board_type;
+	uint8_t board_rev_major;
+	uint8_t board_rev_minor;
+	uint16_t chip_type;
+	uint8_t chip_rev_major;
+	uint8_t chip_rev_minor;
+	char board_serial_number[OCTOEN_SERIAL_LEN];
+	uint8_t mac_addr_base[6];
+	uint8_t mac_addr_count;
+	uint64_t cvmx_desc_vaddr;
 } octeon_boot_descriptor_t;
 
 
 typedef struct {
-    uint32_t major_version;
-    uint32_t minor_version;
+	uint32_t major_version;
+	uint32_t minor_version;
 
-    uint64_t stack_top;
-    uint64_t heap_base;
-    uint64_t heap_end;
-    uint64_t desc_vaddr;
+	uint64_t stack_top;
+	uint64_t heap_base;
+	uint64_t heap_end;
+	uint64_t desc_vaddr;
 
-    uint32_t exception_base_addr;
-    uint32_t stack_size;
-    uint32_t flags;
-    uint32_t core_mask;
-    uint32_t dram_size;  /**< DRAM size in megabyes */
-    uint32_t phy_mem_desc_addr;  /**< physical address of free memory descriptor block*/
-    uint32_t debugger_flags_base_addr;  /**< used to pass flags from app to debugger */
-    uint32_t eclock_hz;  /**< CPU clock speed, in hz */
-    uint32_t dclock_hz;  /**< DRAM clock speed, in hz */
-    uint32_t spi_clock_hz;  /**< SPI4 clock in hz */
-    uint16_t board_type;
-    uint8_t board_rev_major;
-    uint8_t board_rev_minor;
-    uint16_t chip_type;
-    uint8_t chip_rev_major;
-    uint8_t chip_rev_minor;
-    char board_serial_number[OCTOEN_SERIAL_LEN];
-    uint8_t mac_addr_base[6];
-    uint8_t mac_addr_count;
-
+	uint32_t exception_base_addr;
+	uint32_t stack_size;
+	uint32_t flags;
+	uint32_t core_mask;
+	uint32_t dram_size;  /**< DRAM size in megabyes */
+	uint32_t phy_mem_desc_addr;  /**< physical address of free memory descriptor block*/
+	uint32_t debugger_flags_base_addr;  /**< used to pass flags from app to debugger */
+	uint32_t eclock_hz;  /**< CPU clock speed, in hz */
+	uint32_t dclock_hz;  /**< DRAM clock speed, in hz */
+	uint32_t spi_clock_hz;  /**< SPI4 clock in hz */
+	uint16_t board_type;
+	uint8_t board_rev_major;
+	uint8_t board_rev_minor;
+	uint16_t chip_type;
+	uint8_t chip_rev_major;
+	uint8_t chip_rev_minor;
+	char board_serial_number[OCTOEN_SERIAL_LEN];
+	uint8_t mac_addr_base[6];
+	uint8_t mac_addr_count;
 } cvmx_bootinfo_t;
 
 uint32_t octeon_cpu_clock;
@@ -849,11 +838,7 @@ uint8_t octeon_mac_addr[6] = { 0 };
 int octeon_core_mask, octeon_mac_addr_count;
 int octeon_chip_rev_major = 0, octeon_chip_rev_minor = 0, octeon_chip_type = 0;
 
-#if defined(__mips_n64)
-extern uint64_t app_descriptor_addr;
-#else
-extern uint32_t app_descriptor_addr;
-#endif
+extern int32_t app_descriptor_addr;
 static octeon_boot_descriptor_t *app_desc_ptr;
 static cvmx_bootinfo_t *cvmx_desc_ptr;
 
@@ -867,47 +852,49 @@ static cvmx_bootinfo_t *cvmx_desc_ptr;
 #define OCTEON_DRAM_MAX	     3000
 
 
-int octeon_board_real (void)
+int
+octeon_board_real(void)
 {
-     if ((octeon_board_type == OCTEON_BOARD_TYPE_NONE) ||
-        (octeon_board_type == OCTEON_BOARD_TYPE_SIM) ||
-        !octeon_board_rev_major) {
-        return 0;
-     }
-     return 1;
+	if ((octeon_board_type == OCTEON_BOARD_TYPE_NONE) ||
+	    (octeon_board_type == OCTEON_BOARD_TYPE_SIM) ||
+	    !octeon_board_rev_major)
+		return 0;
+	return 1;
 }
 
-static void octeon_process_app_desc_ver_unknown (void)
+static void
+octeon_process_app_desc_ver_unknown(void)
 {
     	printf(" Unknown Boot-Descriptor: Using Defaults\n");
 
     	octeon_cpu_clock = OCTEON_CLOCK_DEFAULT;
         octeon_dram = OCTEON_DRAM_DEFAULT;
         octeon_board_rev_major = octeon_board_rev_minor = octeon_board_type = 0;
-
         octeon_core_mask = 1;
         octeon_cpu_clock  = OCTEON_CLOCK_DEFAULT;
         octeon_chip_type = octeon_chip_rev_major = octeon_chip_rev_minor = 0;
-
         octeon_mac_addr[0] = 0x00; octeon_mac_addr[1] = 0x0f;
         octeon_mac_addr[2] = 0xb7; octeon_mac_addr[3] = 0x10;
         octeon_mac_addr[4] = 0x09; octeon_mac_addr[5] = 0x06;
         octeon_mac_addr_count = 1;
 }
 
-static int octeon_process_app_desc_ver_6 (void)
+static int
+octeon_process_app_desc_ver_6(void)
 {
-    	cvmx_desc_ptr = (cvmx_bootinfo_t *) ((long) app_desc_ptr->cvmx_desc_vaddr);
-
-        if ((cvmx_desc_ptr == NULL) || (cvmx_desc_ptr == (cvmx_bootinfo_t *)0xffffffff)) {
+	/* XXX Why is 0x00000000ffffffffULL a bad value?  */
+	if (app_desc_ptr->cvmx_desc_vaddr == 0 ||
+	    app_desc_ptr->cvmx_desc_vaddr == 0xfffffffful) {
             	printf ("Bad cvmx_desc_ptr %p\n", cvmx_desc_ptr);
                 return 1;
-        }
-
-        cvmx_desc_ptr = (cvmx_bootinfo_t *) (((long) cvmx_desc_ptr) | MIPS_KSEG0_START);
+	}
+    	cvmx_desc_ptr =
+	    (cvmx_bootinfo_t *)(intptr_t)app_desc_ptr->cvmx_desc_vaddr;
+        cvmx_desc_ptr =
+	    (cvmx_bootinfo_t *) ((intptr_t)cvmx_desc_ptr | MIPS_KSEG0_START);
         octeon_cvmx_bd_ver = (cvmx_desc_ptr->major_version * 100) +
-                             cvmx_desc_ptr->minor_version;
-
+	    cvmx_desc_ptr->minor_version;
+	/* Too early for panic? */
         if (cvmx_desc_ptr->major_version != 1) {
             	printf("Incompatible CVMX descriptor from bootloader: %d.%d %p\n",
                        (int) cvmx_desc_ptr->major_version,
@@ -932,31 +919,28 @@ static int octeon_process_app_desc_ver_6 (void)
         octeon_mac_addr[5] = cvmx_desc_ptr->mac_addr_base[5];
         octeon_mac_addr_count = cvmx_desc_ptr->mac_addr_count;
 
-        if (app_desc_ptr->dram_size > 16*1024*1024) {
+        if (app_desc_ptr->dram_size > 16*1024*1024)
             	octeon_dram = (uint64_t)app_desc_ptr->dram_size;
-        } else {
-            	octeon_dram = (uint64_t)app_desc_ptr->dram_size * 1024 * 1024;
-        }
+	else
+            	octeon_dram = (uint64_t)app_desc_ptr->dram_size << 20;
         return 0;
 }
 
-static int octeon_process_app_desc_ver_3_4_5 (void)
+static int
+octeon_process_app_desc_ver_3_4_5(void)
 {
 
     	octeon_cvmx_bd_ver = octeon_bd_ver;
         octeon_core_mask = app_desc_ptr->core_mask;
 
-        if (app_desc_ptr->desc_version > 3) {
+        if (app_desc_ptr->desc_version > 3)
             	octeon_cpu_clock = app_desc_ptr->eclock_hz;
-        } else {
+	else
             	octeon_cpu_clock  = OCTEON_CLOCK_DEFAULT;
-        }
-
-        if (app_desc_ptr->dram_size > 16*1024*1024) {
+        if (app_desc_ptr->dram_size > 16*1024*1024)
             	octeon_dram = (uint64_t)app_desc_ptr->dram_size;
-        } else {
-            	octeon_dram = (uint64_t)app_desc_ptr->dram_size * 1024 * 1024;
-        }
+	else
+            	octeon_dram = (uint64_t)app_desc_ptr->dram_size << 20;
 
         if (app_desc_ptr->desc_version > 4) {
             	octeon_board_type = app_desc_ptr->board_type;
@@ -978,31 +962,21 @@ static int octeon_process_app_desc_ver_3_4_5 (void)
 }
 
 
-void mips_boot_params_init(void);
-
-void mips_boot_params_init (void)
+static void
+octeon_boot_params_init(register_t ptr)
 {
-    int descriptor_not_parsed = 1;
+	int bad_desc = 1;
 
-    	if ((app_descriptor_addr == 0) || (app_descriptor_addr >= MAX_APP_DESC_ADDR)) {
-	        
-        } else {
-
-	        app_desc_ptr = (octeon_boot_descriptor_t *) app_descriptor_addr;
+    	if (ptr != 0 && ptr < MAX_APP_DESC_ADDR) {
+	        app_desc_ptr = (octeon_boot_descriptor_t *)(intptr_t)ptr;
 		octeon_bd_ver = app_desc_ptr->desc_version;
-		
-                if ((octeon_bd_ver >= 3) && (octeon_bd_ver <= 5)) {
-		  descriptor_not_parsed = octeon_process_app_desc_ver_3_4_5();
-
-                } else if (app_desc_ptr->desc_version == 6) {
-                    	descriptor_not_parsed = octeon_process_app_desc_ver_6();
-                }
-
+                if ((octeon_bd_ver >= 3) && (octeon_bd_ver <= 5))
+			bad_desc = octeon_process_app_desc_ver_3_4_5();
+		else if (app_desc_ptr->desc_version == 6)
+			bad_desc = octeon_process_app_desc_ver_6();
         }
-
-        if (descriptor_not_parsed) {
+        if (bad_desc)
         	octeon_process_app_desc_ver_unknown();
-        }
 
         printf("Boot Descriptor Ver: %u -> %u/%u",
                octeon_bd_ver, octeon_cvmx_bd_ver/100, octeon_cvmx_bd_ver%100);
