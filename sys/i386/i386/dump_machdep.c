@@ -182,11 +182,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 		}
 		for (i = 0; i < chunk; i++) {
 			a = pa + i * PAGE_SIZE;
-#ifdef XEN
-			va = pmap_kenter_temporary(xpmap_ptom(trunc_page(a)), i);
-#else			
 			va = pmap_kenter_temporary(trunc_page(a), i);
-#endif			
 		}
 		error = dump_write(di, va, 0, dumplo, sz);
 		if (error)
