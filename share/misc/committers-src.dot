@@ -123,6 +123,7 @@ julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
+kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
@@ -257,6 +258,7 @@ dwmalone -> snb
 
 ed -> gavin
 ed -> jilles
+ed -> rdivacky
 
 eivind -> des
 eivind -> rwatson
@@ -347,7 +349,14 @@ julian -> archie
 julian -> adrian
 julian -> zec
 
+kan -> kib
+
+kib -> dchagin
 kib -> lulf
+kib -> pho
+kib -> rdivacky
+kib -> rmacklem
+kib -> stas
 
 kmacy -> lstewart
 
@@ -390,6 +399,7 @@ philip -> ed
 philip -> jls
 philip -> matteo
 
+pjd -> kib
 pjd -> lulf
 
 rgrimes -> markm
@@ -416,6 +426,7 @@ rwatson -> jh
 rwatson -> kensmith
 rwatson -> kmacy
 rwatson -> linimon
+rwatson -> rmacklem
 rwatson -> shafeeq
 rwatson -> tmm
 rwatson -> trasz
