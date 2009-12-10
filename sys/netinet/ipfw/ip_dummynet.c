@@ -461,6 +461,27 @@ heap_free(struct dn_heap *h)
  */
 
 /*
+ * Dispose a packet in dummynet. Use an inline functions so if we
+ * need to free extra state associated to a packet, this is a
+ * central point to do it.
+ */
+static __inline void *dn_free_pkt(struct mbuf *m)
+{
+	m_freem(m);
+	return NULL;
+}
+
+static __inline void dn_free_pkts(struct mbuf *mnext)
+{
+	struct mbuf *m;
+
+	while ((m = mnext) != NULL) {
+		mnext = m->m_nextpkt;
+		dn_free_pkt(m);
+	}
+}
+
+/*
  * Return the mbuf tag holding the dummynet state.  As an optimization
  * this is assumed to be the first tag on the list.  If this turns out
  * wrong we'll need to search the list.
@@ -1009,12 +1030,12 @@ dummynet_send(struct mbuf *m)
 
 		case DN_TO_DROP:
 			/* drop the packet after some time */
-			m_freem(m);
+			dn_free_pkt(m);
 			break;
 
 		default:
 			printf("dummynet: bad switch %d!\n", pkt->dn_dir);
-			m_freem(m);
+			dn_free_pkt(m);
 			break;
 		}
 	}
@@ -1553,18 +1574,9 @@ dropit:
 	if (q)
 		q->drops++;
 	DUMMYNET_UNLOCK();
-	m_freem(m);
-	*m0 = NULL;
+	*m0 = dn_free_pkt(m);
 	return ((fs && (fs->flags_fs & DN_NOERROR)) ? 0 : ENOBUFS);
 }
-
-/*
- * Below, the rt_unref is only needed when (pkt->dn_dir == DN_TO_IP_OUT)
- * Doing this would probably save us the initial bzero of dn_pkt
- */
-#define	DN_FREE_PKT(_m) do {				\
-	m_freem(_m);					\
-} while (0)
 
 /*
  * Dispose all packets and flow_queues on a flow_set.
@@ -1582,13 +1594,7 @@ purge_flow_set(struct dn_flow_set *fs, int all)
 
 	for (i = 0; i <= fs->rq_size; i++) {
 		for (q = fs->rq[i]; q != NULL; q = qn) {
-			struct mbuf *m, *mnext;
-
-			mnext = q->head;
-			while ((m = mnext) != NULL) {
-				mnext = m->m_nextpkt;
-				DN_FREE_PKT(m);
-			}
+			dn_free_pkts(q->head);
 			qn = q->next;
 			free(q, M_DUMMYNET);
 		}
@@ -1616,15 +1622,10 @@ purge_flow_set(struct dn_flow_set *fs, int all)
 static void
 purge_pipe(struct dn_pipe *pipe)
 {
-    struct mbuf *m, *mnext;
 
     purge_flow_set( &(pipe->fs), 1 );
 
-    mnext = pipe->head;
-    while ((m = mnext) != NULL) {
-	mnext = m->m_nextpkt;
-	DN_FREE_PKT(m);
-    }
+    dn_free_pkts(pipe->head);
 
     heap_free( &(pipe->scheduler_heap) );
     heap_free( &(pipe->not_eligible_heap) );
@@ -1974,7 +1975,6 @@ dummynet_drain(void)
 {
     struct dn_flow_set *fs;
     struct dn_pipe *pipe;
-    struct mbuf *m, *mnext;
     int i;
 
     DUMMYNET_LOCK_ASSERT();
@@ -1990,12 +1990,7 @@ dummynet_drain(void)
     for (i = 0; i < HASHSIZE; i++) {
 	SLIST_FOREACH(pipe, &pipehash[i], next) {
 		purge_flow_set(&(pipe->fs), 0);
-
-		mnext = pipe->head;
-		while ((m = mnext) != NULL) {
-			mnext = m->m_nextpkt;
-			DN_FREE_PKT(m);
-		}
+		dn_free_pkt(pipe->head);
 		pipe->head = pipe->tail = NULL;
 	}
     }
