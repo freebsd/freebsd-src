@@ -3101,9 +3101,10 @@ void *
 pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
+	vm_paddr_t ma = xpmap_ptom(pa);
 
 	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
-	PT_SET_MA(va, (pa & ~PAGE_MASK) | PG_V | pgeflag);
+	PT_SET_MA(va, (ma & ~PAGE_MASK) | PG_V | pgeflag);
 	invlpg(va);
 	return ((void *)crashdumpmap);
 }
