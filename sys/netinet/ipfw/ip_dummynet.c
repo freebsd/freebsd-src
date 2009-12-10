@@ -1990,7 +1990,7 @@ dummynet_drain(void)
     for (i = 0; i < HASHSIZE; i++) {
 	SLIST_FOREACH(pipe, &pipehash[i], next) {
 		purge_flow_set(&(pipe->fs), 0);
-		dn_free_pkt(pipe->head);
+		dn_free_pkts(pipe->head);
 		pipe->head = pipe->tail = NULL;
 	}
     }
