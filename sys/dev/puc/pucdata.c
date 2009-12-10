@@ -168,10 +168,10 @@ const struct puc_cfg puc_pci_devices[] = {
 
 	{   0x10e8, 0x818e, 0xffff, 0,
 	    "Applied Micro Circuits 8 Port UART",
-            DEFAULT_RCLK,
-            PUC_PORT_8S, 0x14, -1, -1,
+	    DEFAULT_RCLK,
+	    PUC_PORT_8S, 0x14, -1, -1,
 	    .config_function = puc_config_amc
-        },
+	},
 
 	{   0x11fe, 0x8010, 0xffff, 0,
 	    "Comtrol RocketPort 550/8 RJ11 part A",
@@ -771,6 +771,42 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "NetMos NM9845 Quad UART and 1284 Printer port",
 	    DEFAULT_RCLK,
 	    PUC_PORT_4S1P, 0x10, 4, 0,
+	},
+
+	{   0x9710, 0x9865, 0xa000, 0x3002,
+	    "NetMos NM9865 Dual UART",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x10, 4, 0,
+	},
+
+	{   0x9710, 0x9865, 0xa000, 0x3003,
+	    "NetMos NM9865 Triple UART",
+	    DEFAULT_RCLK,
+	    PUC_PORT_3S, 0x10, 4, 0,
+	},
+
+	{   0x9710, 0x9865, 0xa000, 0x3004,
+	    "NetMos NM9865 Quad UART",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x10, 4, 0,0
+	},
+
+	{   0x9710, 0x9865, 0xa000, 0x3011,
+	    "NetMos NM9865 Single UART and 1284 Printer port",
+	    DEFAULT_RCLK,
+	    PUC_PORT_1S1P, 0x10, 4, 0,
+	},
+
+	{   0x9710, 0x9865, 0xa000, 0x3012,
+	    "NetMos NM9865 Dual UART and 1284 Printer port",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S1P, 0x10, 4, 0,
+	},
+
+	{   0x9710, 0x9865, 0xa000, 0x3020,
+	    "NetMos NM9865 Dual 1284 Printer port",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2P, 0x10, 4, 0,
 	},
 
 	{   0xb00c, 0x021c, 0xffff, 0,
