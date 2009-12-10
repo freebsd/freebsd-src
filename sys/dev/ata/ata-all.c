@@ -1681,6 +1681,9 @@ ata_module_event_handler(module_t mod, int what, void *arg)
 static moduledata_t ata_moduledata = { "ata", ata_module_event_handler, NULL };
 DECLARE_MODULE(ata, ata_moduledata, SI_SUB_CONFIGURE, SI_ORDER_SECOND);
 MODULE_VERSION(ata, 1);
+#ifdef ATA_CAM
+MODULE_DEPEND(ata, cam, 1, 1, 1);
+#endif
 
 static void
 ata_init(void)
