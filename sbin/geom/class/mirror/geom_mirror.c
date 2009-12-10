@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_MIRROR_VERSION;
 
-static char label_balance[] = "split", configure_balance[] = "none";
+static char label_balance[] = "load", configure_balance[] = "none";
 static intmax_t label_slice = 4096, configure_slice = -1;
 static intmax_t insert_priority = 0, configure_priority = -1;
 
