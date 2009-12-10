@@ -154,7 +154,6 @@ extern char edata[], end[];
 u_int32_t bootdev;
 struct bootinfo bootinfo;
 
-
 static void
 cpu_startup(void *dummy)
 {
@@ -259,17 +258,11 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock, CTLFLAG_RW,
 void
 mips_proc0_init(void)
 {
-	proc_linkup(&proc0, &thread0);
+	proc_linkup0(&proc0, &thread0);
 
 	thread0.td_kstack = kstack0;
 	thread0.td_kstack_pages = KSTACK_PAGES - 1;
 	thread0.td_md.md_realstack = roundup2(thread0.td_kstack, PAGE_SIZE * 2);
-	/* Initialize pcpu info of cpu-zero */
-#ifdef SMP
-	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
-#else
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-#endif
 	/* 
 	 * Do not use cpu_thread_alloc to initialize these fields 
 	 * thread0 is the only thread that has kstack located in KSEG0 
@@ -278,6 +271,13 @@ mips_proc0_init(void)
 	thread0.td_pcb = (struct pcb *)(thread0.td_md.md_realstack +
 	    (thread0.td_kstack_pages - 1) * PAGE_SIZE) - 1;
 	thread0.td_frame = &thread0.td_pcb->pcb_regs;
+
+	/* Initialize pcpu info of cpu-zero */
+#ifdef SMP
+	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
+#else
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+#endif
 
 	/* Steal memory for the dynamic per-cpu area. */
 	dpcpu_init((void *)pmap_steal_memory(DPCPU_SIZE), 0);
@@ -295,7 +295,7 @@ mips_proc0_init(void)
 void
 cpu_initclocks(void)
 {
-  platform_initclocks();
+	platform_initclocks();
 }
 
 struct msgbuf *msgbufp=0;

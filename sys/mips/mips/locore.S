@@ -83,10 +83,6 @@ GLOBAL(cfe_handle)
 GLOBAL(cfe_vector)
 	.space 4
 #endif
-#if defined(TARGET_OCTEON)
-GLOBAL(app_descriptor_addr)
-	.space 8
-#endif
 GLOBAL(stackspace)
 	.space NBPG /* Smaller than it should be since it's temp. */
 	.align 8
@@ -190,10 +186,6 @@ VECTOR(_locore, unknown)
 	sw	a2, _C_LABEL(cfe_vector)/* Firmware entry vector */
 no_cfe:
 #endif
-#if defined(TARGET_OCTEON)
-	PTR_LA	a0, app_descriptor_addr
-	sw	a3, 0(a0)		/* Store app descriptor ptr */
-#endif
 
 	/*
 	 * The following needs to be done differently for each platform and
@@ -203,6 +195,7 @@ no_cfe:
 /*
  * Block all the slave CPUs
  */
+	/* XXX a0, a1, a2 shouldn't be used here */
 	/*
 	 * Read the cpu id from the cp0 config register
 	 * cpuid[9:4], thrid[3: 0]
