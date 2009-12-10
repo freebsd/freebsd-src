@@ -5340,6 +5340,7 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 				size = 1;
 			else {
 				result = NULL;
+				*memptr = NULL;
 				ret = 0;
 				goto RETURN;
 			}
