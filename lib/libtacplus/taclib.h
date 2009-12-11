@@ -103,6 +103,17 @@ struct tac_handle;
 #define TAC_AUTHOR_STATUS_FAIL          0x10
 #define TAC_AUTHOR_STATUS_ERROR         0x11
 
+/* Accounting actions */
+#define TAC_ACCT_MORE			0x1
+#define TAC_ACCT_START			0x2
+#define TAC_ACCT_STOP			0x4
+#define TAC_ACCT_WATCHDOG		0x8
+
+/* Accounting status */
+#define TAC_ACCT_STATUS_SUCCESS		0x1
+#define TAC_ACCT_STATUS_ERROR		0x2
+#define TAC_ACCT_STATUS_FOLLOW		0x21
+
 __BEGIN_DECLS
 int			 tac_add_server(struct tac_handle *,
 			    const char *, int, const char *, int, int);
@@ -127,6 +138,8 @@ int			 tac_set_av(struct tac_handle *, u_int, const char *);
 char			*tac_get_av(struct tac_handle *, u_int);
 char			*tac_get_av_value(struct tac_handle *, const char *);
 void			 tac_clear_avs(struct tac_handle *);
+int			 tac_create_acct(struct tac_handle *, int, int, int, int);
+int			 tac_send_acct(struct tac_handle *);
 __END_DECLS
 
 #endif /* _TACLIB_H_ */
