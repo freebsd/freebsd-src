@@ -1103,8 +1103,8 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libkrb5} \
 		lib/libkiconv lib/libkvm lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
-		lib/libradius lib/libsbuf lib/libtacplus lib/libutil \
-		${_lib_libypclnt} lib/libz lib/msun \
+		lib/libradius lib/libsbuf lib/libtacplus lib/libulog \
+		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl} lib/libdwarf lib/libproc
 
