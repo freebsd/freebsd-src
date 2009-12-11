@@ -28,6 +28,12 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 BOOT_COMCONSOLE_SPEED?=9600
 CFLAGS+=	-DCOMSPEED=${BOOT_COMCONSOLE_SPEED}
 
+# Set machine type to PC98_SYSTEM_PARAMETER
+CFLAGS+=	-DSET_MACHINE_TYPE
+
+# Initialize the bi_bios_geom using the BIOS geometry
+CFLAGS+=	-DGET_BIOSGEOM
+
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
 #CFLAGS+=	-DNAMEBLOCK
