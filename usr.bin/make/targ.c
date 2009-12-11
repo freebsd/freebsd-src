@@ -78,13 +78,11 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <stdio.h>
-#include <string.h>
 
 #include "dir.h"
 #include "globals.h"
 #include "GNode.h"
 #include "hash.h"
-#include "make.h"
 #include "suff.h"
 #include "targ.h"
 #include "util.h"
