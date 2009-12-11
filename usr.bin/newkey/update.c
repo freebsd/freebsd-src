@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #endif	/* YP */
 
-#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

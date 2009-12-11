@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <netatalk/at.h>
 #include <netatalk/ddp_var.h>
 
-#include <errno.h>
-#include <nlist.h>
 #include <netdb.h>
 #include <stdint.h>
 #include <stdio.h>

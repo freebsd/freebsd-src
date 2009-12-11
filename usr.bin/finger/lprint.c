@@ -310,7 +310,7 @@ show_text(const char *directory, const char *file_name, const char *header)
 		return(0);
 
 	/* If short enough, and no newlines, show it on a single line.*/
-	if (sb.st_size <= LINE_LEN - strlen(header) - 5) {
+	if (sb.st_size <= (int)(LINE_LEN - strlen(header) - 5)) {
 		nr = read(fd, tbuf, sizeof(tbuf));
 		if (nr <= 0) {
 			(void)close(fd);

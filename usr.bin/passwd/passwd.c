@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <syslog.h>
 #include <unistd.h>
 
 #include <security/pam_appl.h>
