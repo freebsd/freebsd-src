@@ -45,6 +45,7 @@ static const char sccsid[] = "@(#)get_names.c	8.1 (Berkeley) 6/6/93";
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "talk.h"
 
