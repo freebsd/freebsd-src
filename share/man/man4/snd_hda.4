@@ -298,7 +298,7 @@ All codec pins are reversible (could be configured either as input or output).
 .Pp
 So high codec uniformity and flexibility allow driver to configure it in many
 different ways, depending on requested pins usage decribed by pins configuration.
-Driver reports such default pin configuration when verbose messages enabled:
+The driver reports such default pin configuration when verbose messages enabled:
 .Bd -literal
 hdac0: nid 20 0x01014020 as  2 seq  0   Line-out  Jack jack 1 loc  1 color   Green misc 0
 hdac0: nid 21 0x99130110 as  1 seq  0    Speaker Fixed jack 3 loc 25 color Unknown misc 1
@@ -313,8 +313,8 @@ hdac0: nid 30 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Bla
 hdac0: nid 31 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Black misc 1
 .Ed
 .Pp
-Here we can see, that the nodes with ID (nid) 25 and 27 are front pannel
-connectors (Jack, loc 2), nids 20, 24 and 26 are rear pannel connectors
+Here we can see, that the nodes with ID (nid) 25 and 27 are front panel
+connectors (Jack, loc 2), nids 20, 24 and 26 are rear panel connectors
 (Jack, loc 1) and nid 21 is a built-in speaker (Fixed, loc 25).
 Pins with nids 22, 23, 28, 30 and 31 will be disabled by driver due to "None"
 connectivity. So the pin count and description matches to connectors that
