@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2009
+.Dd November 13, 2009
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@ driver that allows the generic audio driver,
 to be used with this hardware.
 Only audio functions are supported by
 .Nm .
-Modem, HDMI and other possible functions are not implemented.
+Modem and other possible functions are not implemented.
 .Pp
 The
 .Nm
@@ -500,6 +500,14 @@ nVidia MCP68
 .It
 nVidia MCP69
 .It
+nVidia MCP73
+.It
+nVidia MCP78
+.It
+nVidia MCP79
+.It
+nVidia MCP89
+.It
 SiS 966
 .It
 VIA VT8251/8237A
@@ -625,6 +633,12 @@ that cases can be solved by tuning loader.conf variables. But before
 trying to fix problem that way, make sure that problem is really exists
 and the PCM audio device you are using really corresponds to expected
 audio connector.
+.Pp
+Some vendors use non-standardized General Purpose I/O (GPIO) pins of codec
+to control external amplifiers. In some cases setting proper combination of
+GPIO bits may be needed to make sound work on specific device.
+.Pp
+HDMI and DisplayPort audio may also require support from video driver.
 .Pp
 Due to OSS limitation multichannel (not multidevice) playback is not
 supported.
