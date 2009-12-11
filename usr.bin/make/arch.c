@@ -103,7 +103,6 @@ __FBSDID("$FreeBSD$");
 
 #include "arch.h"
 #include "buf.h"
-#include "config.h"
 #include "dir.h"
 #include "globals.h"
 #include "GNode.h"
