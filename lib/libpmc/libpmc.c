@@ -609,22 +609,22 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 			pmc_config->pm_caps |= PMC_CAP_USER;
 		} else if (KWMATCH(p, IAP_KW_ANYTHREAD)) {
 			pmc_config->pm_md.pm_iap.pm_iap_config |= IAP_ANY;
-		} else if (KWMATCH(p, IAP_KW_CORE)) {
+		} else if (KWPREFIXMATCH(p, IAP_KW_CORE "=")) {
 			n = pmc_parse_mask(iap_core_mask, p, &evmask);
 			if (n != 1)
 				return (-1);
-		} else if (KWMATCH(p, IAP_KW_AGENT)) {
+		} else if (KWPREFIXMATCH(p, IAP_KW_AGENT "=")) {
 			n = pmc_parse_mask(iap_agent_mask, p, &evmask);
 			if (n != 1)
 				return (-1);
-		} else if (KWMATCH(p, IAP_KW_PREFETCH)) {
+		} else if (KWPREFIXMATCH(p, IAP_KW_PREFETCH "=")) {
 			n = pmc_parse_mask(iap_prefetch_mask, p, &evmask);
 			if (n != 1)
 				return (-1);
-		} else if (KWMATCH(p, IAP_KW_CACHESTATE)) {
+		} else if (KWPREFIXMATCH(p, IAP_KW_CACHESTATE "=")) {
 			n = pmc_parse_mask(iap_cachestate_mask, p, &cachestate);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_CORE &&
-		    KWMATCH(p, IAP_KW_TRANSITION)) {
+		    KWPREFIXMATCH(p, IAP_KW_TRANSITION "=")) {
 			n = pmc_parse_mask(iap_transition_mask, p, &evmask);
 			if (n != 1)
 				return (-1);
@@ -632,10 +632,10 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2 ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2EXTREME ||
 		    cpu_info.pm_cputype == PMC_CPU_INTEL_COREI7) {
-			if (KWMATCH(p, IAP_KW_SNOOPRESPONSE)) {
+			if (KWPREFIXMATCH(p, IAP_KW_SNOOPRESPONSE "=")) {
 				n = pmc_parse_mask(iap_snoopresponse_mask, p,
 				    &evmask);
-			} else if (KWMATCH(p, IAP_KW_SNOOPTYPE)) {
+			} else if (KWPREFIXMATCH(p, IAP_KW_SNOOPTYPE "=")) {
 				n = pmc_parse_mask(iap_snooptype_mask, p,
 				    &evmask);
 			} else
