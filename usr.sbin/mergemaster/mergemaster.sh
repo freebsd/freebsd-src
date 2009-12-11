@@ -263,7 +263,7 @@ fi
 
 # Assign the location of the mtree database
 #
-MTREEDB=${MTREEDB:-/var/db}
+MTREEDB=${MTREEDB:-${DESTDIR}/var/db}
 MTREEFILE="${MTREEDB}/mergemaster.mtree"
 
 # Check the command line options
@@ -351,9 +351,10 @@ fi
 case "${AUTO_UPGRADE}" in
 '') ;;	# If the option is not set no need to run the test or warn the user
 *)
-  if [ ! -s "${DESTDIR}${MTREEFILE}" ]; then
+  if [ ! -s "${MTREEFILE}" ]; then
     echo ''
-    echo "*** Unable to find mtree database. Skipping auto-upgrade on this run."
+    echo "*** Unable to find mtree database (${MTREEFILE})."
+    echo "    Skipping auto-upgrade on this run."
     echo "    It will be created for the next run when this one is complete."
     echo ''
     press_to_continue
@@ -463,9 +464,9 @@ MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
 # Check DESTDIR against the mergemaster mtree database to see what
 # files the user changed from the reference files.
 #
-if [ -n "${AUTO_UPGRADE}" -a -s "${DESTDIR}${MTREEFILE}" ]; then
+if [ -n "${AUTO_UPGRADE}" -a -s "${MTREEFILE}" ]; then
 	CHANGED=:
-	for file in `mtree -eqL -f ${DESTDIR}${MTREEFILE} -p ${DESTDIR}/ \
+	for file in `mtree -eqL -f ${MTREEFILE} -p ${DESTDIR}/ \
 		2>/dev/null | awk '($2 == "changed") {print $1}'`; do
 		if [ -f "${DESTDIR}/$file" ]; then
 			CHANGED="${CHANGED}${DESTDIR}/${file}:"
@@ -1061,8 +1062,8 @@ echo "*** Comparison complete"
 
 if [ -s "${MTREENEW}" ]; then
   echo "*** Saving mtree database for future upgrades"
-  test -e "${DESTDIR}${MTREEFILE}" && unlink ${DESTDIR}${MTREEFILE}
-  mv ${MTREENEW} ${DESTDIR}${MTREEFILE}
+  test -e "${MTREEFILE}" && unlink ${MTREEFILE}
+  mv ${MTREENEW} ${MTREEFILE}
 fi
 
 echo ''
