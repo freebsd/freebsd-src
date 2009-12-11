@@ -48,7 +48,8 @@ ulog_login(const char *line, const char *user, const char *host)
 	utx.ut_type = USER_PROCESS;
 	strncpy(utx.ut_line, line, sizeof utx.ut_line);
 	strncpy(utx.ut_user, user, sizeof utx.ut_user);
-	strncpy(utx.ut_host, host, sizeof utx.ut_host);
+	if (host != NULL)
+		strncpy(utx.ut_host, host, sizeof utx.ut_host);
 	gettimeofday(&utx.ut_tv, NULL);
 
 	ulog_pututxline(&utx);
