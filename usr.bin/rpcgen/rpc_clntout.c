@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
  * Copyright (C) 1987, Sun Microsytsems, Inc.
  */
 #include <stdio.h>
-#include <string.h>
 #include <rpc/types.h>
 #include "rpc_parse.h"
 #include "rpc_scan.h"

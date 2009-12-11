@@ -34,8 +34,6 @@
  * $FreeBSD$
  */
 
-#include <paths.h>
-
 #define	_PATH_HUSHLOGIN		".hushlogin"
 #define	_PATH_MOTDFILE		"/etc/motd"
 #define _PATH_FBTAB		"/etc/fbtab"

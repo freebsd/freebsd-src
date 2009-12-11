@@ -15,7 +15,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
 #include <ctype.h>
 
 /* The code at the top of get_date which figures out the offset of the

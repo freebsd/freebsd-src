@@ -50,7 +50,6 @@
 #include <usbhid.h>
 #include <syslog.h>
 #include <signal.h>
-#include <errno.h>
 #include <sys/stat.h>
 
 static int	verbose = 0;

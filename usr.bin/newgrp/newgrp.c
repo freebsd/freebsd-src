@@ -34,10 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <err.h>
-#include <errno.h>
 #include <grp.h>
 #include <libgen.h>
-#include <limits.h>
 #include <login_cap.h>
 #include <paths.h>
 #include <pwd.h>

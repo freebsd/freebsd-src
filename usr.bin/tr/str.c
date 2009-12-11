@@ -44,8 +44,6 @@ static const char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>

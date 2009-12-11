@@ -48,7 +48,6 @@ static const char sccsid[] = "@(#)ttymsg.c	8.2 (Berkeley) 11/16/93";
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 #include "ttymsg.h"

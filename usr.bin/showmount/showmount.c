@@ -55,7 +55,6 @@ static const char rcsid[] =
 #include <sys/socketvar.h>
 
 #include <err.h>
-#include <netdb.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>

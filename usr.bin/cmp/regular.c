@@ -45,12 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <err.h>
-#include <errno.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
