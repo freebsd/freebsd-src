@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
-#include <grp.h>
 #include <login_cap.h>
 #include <paths.h>
 #include <pwd.h>

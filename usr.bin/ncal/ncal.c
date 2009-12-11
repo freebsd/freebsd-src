@@ -30,7 +30,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <calendar.h>
-#include <ctype.h>
 #include <err.h>
 #include <langinfo.h>
 #include <locale.h>

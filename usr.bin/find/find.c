@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <fts.h>
 #include <regex.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "find.h"

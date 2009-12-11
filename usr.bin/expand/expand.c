@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <unistd.h>
 #include <wchar.h>
-#include <wctype.h>
 
 /*
  * expand - expand tabs to equivalent spaces

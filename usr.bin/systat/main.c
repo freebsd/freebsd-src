@@ -53,7 +53,6 @@ static const char copyright[] =
 #include <limits.h>
 #include <locale.h>
 #include <nlist.h>
-#include <paths.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>

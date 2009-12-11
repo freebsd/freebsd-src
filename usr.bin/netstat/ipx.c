@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #define	SANAMES
 #include <netipx/spx_debug.h>
 
-#include <nlist.h>
-#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>

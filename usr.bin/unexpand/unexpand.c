@@ -54,10 +54,8 @@ static const char sccsid[] = "@(#)unexpand.c	8.1 (Berkeley) 6/6/93";
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 #include <wchar.h>
-#include <wctype.h>
 
 int	all;
 int	nstops;

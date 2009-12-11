@@ -33,10 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
-#include <limits.h>
-#include <stdbool.h>
 #include <stdlib.h>
-#include <wchar.h>
 #include "cmap.h"
 
 static struct cmapnode *cmap_splay(struct cmapnode *, wint_t);
