@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 
-#include "pathnames.h"
 #include "calendar.h"
 
 struct tm		*tp;

@@ -42,7 +42,6 @@ static const char sccsid[] = "@(#)fetch.c	8.1 (Berkeley) 6/6/93";
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>

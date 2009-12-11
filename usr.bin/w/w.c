@@ -66,7 +66,6 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -82,11 +81,9 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <timeconv.h>
 #define	_ULOG_POSIX_NAMES
 #include <ulog.h>
 #include <unistd.h>
-#include <vis.h>
 
 #include "extern.h"
 

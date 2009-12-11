@@ -53,7 +53,6 @@ static const char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <err.h>
 
 #include "systat.h"
 #include "extern.h"

@@ -30,7 +30,6 @@
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
-#include <err.h>
 #include <stdio.h>
 #include <string.h>
 

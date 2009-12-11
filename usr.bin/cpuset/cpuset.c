@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <string.h>
 
 int cflag;
 int gflag;

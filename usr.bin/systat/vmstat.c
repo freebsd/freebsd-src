@@ -60,7 +60,6 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <errno.h>
 #include <langinfo.h>
 #include <nlist.h>
-#include <paths.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
