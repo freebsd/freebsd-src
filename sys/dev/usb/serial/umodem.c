@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR umodem_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
+#include <dev/usb/quirk/usb_quirk.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -349,16 +350,20 @@ umodem_attach(device_t dev)
 		}
 	}
 
-	if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
-		if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE) {
-
-			error = umodem_set_comm_feature
-			    (uaa->device, sc->sc_ctrl_iface_no,
-			    UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
-
-			/* ignore any errors */
-		}
+	if (usb_test_quirk(uaa, UQ_ASSUME_CM_OVER_DATA)) {
 		sc->sc_cm_over_data = 1;
+	} else {
+		if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
+			if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE) {
+
+				error = umodem_set_comm_feature
+				(uaa->device, sc->sc_ctrl_iface_no,
+				 UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
+
+				/* ignore any errors */
+			}
+			sc->sc_cm_over_data = 1;
+		}
 	}
 	error = usbd_transfer_setup(uaa->device,
 	    sc->sc_iface_index, sc->sc_xfer,
