@@ -1213,6 +1213,9 @@ product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Ter
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
 
+/* Eicon Networks */
+product EICON DIVA852		0x4905	Diva 852 ISDN TA
+
 /* EIZO products */
 product EIZO HUB		0x0000	hub
 product EIZO MONITOR		0x0001	monitor
@@ -1827,6 +1830,7 @@ product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
+product MOTOROLA2 T720C		0x2822	T720c
 product MOTOROLA2 A41XV32X	0x2a22	A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
 product MOTOROLA2 USBLAN	0x600c	USBLAN
