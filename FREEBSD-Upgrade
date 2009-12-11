@@ -9,9 +9,6 @@
 
 	svn co $REPO/vendor/bind9/dist
 
-	NOTE: For RELENG_6 (BIND 9.3.x) s/dist/dist-9.3/ throughout this file
-	      For RELENG_7 (BIND 9.4.x) s/dist/dist-9.4/ throughout this file
-
 3) Unpack the tarball in a suitable directory:
 
 	tar zxvf bind-9.<x.y>.tar.gz -X dist/FREEBSD-Xlist
@@ -51,7 +48,7 @@
 
 	NOTE: You may need 2 copies of head/contrib/bind9 at this point,
 	      one to do the work in steps 9 and 10 below, and a clean
-	      version to commit in step 13.
+	      version to commit in step 16.
 
 9) Remove any references to the {bin,lib}/tests and docutil
    directories from the configure and Makefile templates:
@@ -125,11 +122,11 @@
    Makefile.  Please strive to keep those lists in the same order and
    with line breaks in the same places to ease future comparisons.
 
-A) Build and test.
+14) Build and test.
 
-B) Lather, rinse, repeat.
+15) Lather, rinse, repeat.
 
-C) Commit when everything builds cleanly and works properly.
+16) Commit when everything builds cleanly and works properly.
 
 					-- des@FreeBSD.org
 					-- dougb@FreeBSD.org
