@@ -1,3 +1,9 @@
+	--- 9.4.3-P4 released ---
+
+2772.	[security]	When validating, track whether pending data was from
+			the additional section or not and only return it if
+			validates as secure. [RT #20438]
+
 	--- 9.4.3-P3 released ---
 
 2640.	[security]	A specially crafted update packet will cause named
