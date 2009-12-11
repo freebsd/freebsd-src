@@ -44,6 +44,8 @@
 .Fn tac_create_authen "struct tac_handle *h" "int action" "int type" "int service"
 .Ft int
 .Fn tac_create_author "struct tac_handle *h" "int method" "int type" "int service"
+.Ft int
+.Fn tac_create_acct "struct tac_handle *h" "int acct" "int action" "int type" "int service"
 .Ft char *
 .Fn tac_get_av "struct tac_handle *h" "u_int index"
 .Ft char *
@@ -58,6 +60,8 @@
 .Fn tac_send_authen "struct tac_handle *h"
 .Ft int
 .Fn tac_send_author "struct tac_handle *h"
+.Ft int
+.Fn tac_send_acct "struct tac_handle *h"
 .Ft int
 .Fn tac_set_av "struct tac_handle *h" "u_int index" "const char *av_pair"
 .Ft int
@@ -185,6 +189,20 @@ To begin constructing a new authorization request, call
 .Fn tac_create_author .
 The
 .Va method ,
+.Va type ,
+and
+.Va service
+arguments must be set to appropriate values as defined in the
+TACACS+ protocol specification.
+The
+.In taclib.h
+header file contains symbolic constants for these values.
+.Sh CREATING A TACACS+ ACCOUNTING REQUEST
+To begin constructing a new accounting request, call
+.Fn tac_create_acct .
+The
+.Va acct ,
+.Va action ,
 .Va type ,
 and
 .Va service
@@ -354,6 +372,29 @@ include:
 .Pp
 The number of AV pairs received is obtained using
 .Fn TAC_AUTHEN_AV_COUNT .
+.Sh SENDING THE ACCOUNTING REQUEST AND RECEIVING THE RESPONSE
+After the TACACS+ authorization request has been constructed, it
+is sent by means of
+.Fn tac_send_acct .
+This function connects to a server if not already connected, sends
+the request, and waits for a reply.
+On failure,
+.Fn tac_send_acct
+returns \-1.
+Otherwise, it returns the TACACS+ status code 
+Possible status codes, defined in
+.In taclib.h ,
+include:
+.Pp
+.Bl -item -compact -offset indent
+.It
+.Dv TAC_ACCT_STATUS_SUCCESS
+.It
+.Dv TAC_ACCT_STATUS_ERROR
+.It
+.Dv TAC_ACCT_STATUS_FOLLOW
+.El
+.Pp
 .Sh EXTRACTING INFORMATION FROM THE SERVER'S AUTHORIZATION RESPONSE
 Like an authentication response packet, an authorization
 response packet from the
@@ -418,9 +459,13 @@ which can be retrieved using
 .It
 .Fn tac_create_author
 .It
+.Fn tac_create_acct
+.It
 .Fn tac_send_authen
 .It
 .Fn tac_send_author
+.It
+.Fn tac_send_acct
 .It
 .Fn tac_set_av
 .It
