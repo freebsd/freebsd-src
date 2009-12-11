@@ -53,6 +53,7 @@ enum {	/* keep in sync with usb_quirk_str table */
 	UQ_CFG_INDEX_3,		/* select configuration index 3 by default */
 	UQ_CFG_INDEX_4,		/* select configuration index 4 by default */
 	UQ_CFG_INDEX_0,		/* select configuration index 0 by default */
+	UQ_ASSUME_CM_OVER_DATA,	/* modem device breaks on cm over data */
 	USB_QUIRK_MAX
 };
 
