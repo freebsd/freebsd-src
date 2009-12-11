@@ -38,7 +38,6 @@
  *     2) HDA Codecs support, which may include
  *        - HDA
  *        - Modem
- *        - HDMI
  *     3) Widget parser - the real magic of why this driver works on so
  *        many hardwares with minimal vendor specific quirk. The original
  *        parser was written using Ruby and can be found at
@@ -83,7 +82,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090624_0136"
+#define HDA_DRV_TEST_REV	"20090929_0137"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -619,6 +618,7 @@ static const struct {
 #define HDA_CODEC_ALC882	HDA_CODEC_CONSTRUCT(REALTEK, 0x0882)
 #define HDA_CODEC_ALC883	HDA_CODEC_CONSTRUCT(REALTEK, 0x0883)
 #define HDA_CODEC_ALC885	HDA_CODEC_CONSTRUCT(REALTEK, 0x0885)
+#define HDA_CODEC_ALC887	HDA_CODEC_CONSTRUCT(REALTEK, 0x0887)
 #define HDA_CODEC_ALC888	HDA_CODEC_CONSTRUCT(REALTEK, 0x0888)
 #define HDA_CODEC_ALC889	HDA_CODEC_CONSTRUCT(REALTEK, 0x0889)
 #define HDA_CODEC_ALCXXXX	HDA_CODEC_CONSTRUCT(REALTEK, 0xffff)
@@ -804,6 +804,7 @@ static const struct {
 	{ HDA_CODEC_ALC882,    "Realtek ALC882" },
 	{ HDA_CODEC_ALC883,    "Realtek ALC883" },
 	{ HDA_CODEC_ALC885,    "Realtek ALC885" },
+	{ HDA_CODEC_ALC887,    "Realtek ALC887" },
 	{ HDA_CODEC_ALC888,    "Realtek ALC888" },
 	{ HDA_CODEC_ALC889,    "Realtek ALC889" },
 	{ HDA_CODEC_AD1882,    "Analog Devices AD1882" },
@@ -3484,6 +3485,14 @@ hdac_stream_setup(struct hdac_chan *ch)
 		}
 		hdac_command(sc,
 		    HDA_CMD_SET_CONV_STREAM_CHAN(cad, ch->io[i], c), cad);
+#if 0
+		hdac_command(sc,
+		    HDA_CMD_SET_CONV_CHAN_COUNT(cad, ch->io[i], 1), cad);
+		hdac_command(sc,
+		    HDA_CMD_SET_HDMI_CHAN_SLOT(cad, ch->io[i], 0x00), cad);
+		hdac_command(sc,
+		    HDA_CMD_SET_HDMI_CHAN_SLOT(cad, ch->io[i], 0x11), cad);
+#endif
 		chn +=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap) ?
 		    2 : 1;
@@ -4491,7 +4500,7 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 	for (i = 0; i < max; i++) {
 		as[i].hpredir = -1;
 		as[i].chan = -1;
-		as[i].digital = 1;
+		as[i].digital = 0;
 	}
 
 	/* Scan associations skipping as=0. */
@@ -4546,8 +4555,14 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 				    __func__, w->nid, j);
 				as[cnt].enable = 0;
 			}
-			if (!HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap))
-				as[cnt].digital = 0;
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap)) {
+				if (HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap))
+					as[cnt].digital = 3;
+				else if (HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+					as[cnt].digital = 2;
+				else
+					as[cnt].digital = 1;
+			}
 			/* Headphones with seq=15 may mean redirection. */
 			if (type == HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT &&
 			    seq == 15)
@@ -6544,15 +6559,15 @@ hdac_create_pcms(struct hdac_devinfo *devinfo)
 		devinfo->function.audio.devs[i].devinfo = devinfo;
 		devinfo->function.audio.devs[i].play = -1;
 		devinfo->function.audio.devs[i].rec = -1;
-		devinfo->function.audio.devs[i].digital = 2;
+		devinfo->function.audio.devs[i].digital = 255;
 	}
 	for (i = 0; i < devinfo->function.audio.ascnt; i++) {
 		if (as[i].enable == 0)
 			continue;
 		for (j = 0; j < devinfo->function.audio.num_devs; j++) {
-			if (devinfo->function.audio.devs[j].digital != 2 &&
-			    devinfo->function.audio.devs[j].digital !=
-			    as[i].digital)
+			if (devinfo->function.audio.devs[j].digital != 255 &&
+			    (!devinfo->function.audio.devs[j].digital) !=
+			    (!as[i].digital))
 				continue;
 			if (as[i].dir == HDA_CTL_IN) {
 				if (devinfo->function.audio.devs[j].rec >= 0)
@@ -6728,6 +6743,8 @@ hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 		printf(" IN");
 	if (HDA_PARAM_PIN_CAP_BALANCED_IO_PINS(pincap))
 		printf(" BAL");
+	if (HDA_PARAM_PIN_CAP_HDMI(pincap))
+		printf(" HDMI");
 	if (HDA_PARAM_PIN_CAP_VREF_CTRL(pincap)) {
 		printf(" VREF[");
 		if (HDA_PARAM_PIN_CAP_VREF_CTRL_50(pincap))
@@ -6744,6 +6761,10 @@ hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 	}
 	if (HDA_PARAM_PIN_CAP_EAPD_CAP(pincap))
 		printf(" EAPD");
+	if (HDA_PARAM_PIN_CAP_DP(pincap))
+		printf(" DP");
+	if (HDA_PARAM_PIN_CAP_HBR(pincap))
+		printf(" HBR");
 	printf("\n");
 	device_printf(sc->dev, "     Pin config: 0x%08x\n",
 	    w->wclass.pin.config);
@@ -6851,8 +6872,11 @@ hdac_dump_nodes(struct hdac_devinfo *devinfo)
 			    printf(" PROC");
 			if (HDA_PARAM_AUDIO_WIDGET_CAP_STRIPE(w->param.widget_cap))
 			    printf(" STRIPE");
-			if (HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap))
+			j = HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap);
+			if (j == 1)
 			    printf(" STEREO");
+			else if (j > 1)
+			    printf(" %dCH", j + 1);
 			printf("\n");
 		}
 		if (w->bindas != -1) {
@@ -7957,7 +7981,9 @@ hdac_pcm_probe(device_t dev)
 	snprintf(buf, sizeof(buf), "HDA %s PCM #%d %s",
 	    hdac_codec_name(pdevinfo->devinfo->codec),
 	    pdevinfo->index,
-	    pdevinfo->digital?"Digital":"Analog");
+	    (pdevinfo->digital == 3)?"DisplayPort":
+	    ((pdevinfo->digital == 2)?"HDMI":
+	    ((pdevinfo->digital)?"Digital":"Analog")));
 	device_set_desc_copy(dev, buf);
 	return (0);
 }
