@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "arch.h"
 #include "dir.h"
@@ -98,7 +97,6 @@ __FBSDID("$FreeBSD$");
 #include "GNode.h"
 #include "hash.h"
 #include "lst.h"
-#include "make.h"
 #include "str.h"
 #include "targ.h"
 #include "util.h"
