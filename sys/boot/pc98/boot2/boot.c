@@ -85,12 +85,13 @@ boot(int drive)
 	unsigned char disk_equips;
 
 	/* Pick up the story from the Bios on geometry of disks */
-
+#ifdef GET_BIOSGEOM
 	for(ret = 0; ret < 2; ret ++) {
 		if (*(unsigned char*)V(0xA155d) & (1 << ret)) {
 			bootinfo.bi_bios_geom[ret] = get_diskinfo(ret + 0x80);
 		}
 	}
+#endif
 
 	bootinfo.bi_basemem = memsize(0);
 	bootinfo.bi_extmem = memsize(1);
@@ -98,8 +99,10 @@ boot(int drive)
 
 	gateA20();
 
+#ifdef SET_MACHINE_TYPE
 	/* set machine type to PC98_SYSTEM_PARAMETER */
 	machine_check();
+#endif
 
 	/*
 	 * The default boot device is the first partition in the

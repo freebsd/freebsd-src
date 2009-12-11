@@ -87,7 +87,6 @@ devopen(void)
 	di = get_diskinfo(dosdev_copy);
 	spc = (spt = SPT(di)) * HEADS(di);
 
-#ifndef RAWBOOT
 	if ((dosdev_copy & 0xf0) == 0x90)
 	{
 		boff = 0;
@@ -119,7 +118,7 @@ devopen(void)
 		boff = dl->d_partitions[part].p_offset -
 			dl->d_partitions[2].p_offset + sector;
 	}
-#endif /* RAWBOOT */
+
 	return 0;
 }
 
