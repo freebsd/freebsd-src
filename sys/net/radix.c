@@ -33,7 +33,6 @@
 /*
  * Routines to build and maintain radix trees for routing lookups.
  */
-#ifndef _RADIX_H_
 #include <sys/param.h>
 #ifdef	_KERNEL
 #include <sys/lock.h>
@@ -42,19 +41,21 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
-#else
-#include <stdlib.h>
-#endif
 #include <sys/syslog.h>
 #include <net/radix.h>
-#endif
-
 #include "opt_mpath.h"
-
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
-
+#else /* !_KERNEL */
+#include <stdio.h>
+#include <strings.h>
+#include <stdlib.h>
+#define log(x, arg...)  fprintf(stderr, ## arg)
+#define panic(x)        fprintf(stderr, "PANIC: %s", x), exit(1)
+#define min(a, b) ((a) < (b) ? (a) : (b) )
+#include <net/radix.h>
+#endif /* !_KERNEL */
 
 static int	rn_walktree_from(struct radix_node_head *h, void *a, void *m,
 		    walktree_f_t *f, void *w);
@@ -1188,3 +1189,19 @@ rn_init()
 	if (rn_inithead((void **)(void *)&mask_rnhead, 0) == 0)
 		panic("rn_init 2");
 }
+
+#ifndef _KERNEL
+/*
+ * A simple function to make the code usable from userland.
+ * A proper fix (maybe later) would be to change rn_init() so that it
+ * takes maxkeylen as an argument, and move the scan of
+ * domains into net/route.c::route_init().
+ */
+void rn_init2(int maxk);
+void
+rn_init2(int maxk)
+{
+	max_keylen = maxk;
+	rn_init();
+}
+#endif /* !_KERNEL */
