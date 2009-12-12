@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_amd_chipinit(device_t dev);
-static void ata_amd_setmode(device_t dev, int mode);
+static int ata_amd_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define AMD_BUG		0x01
@@ -104,46 +104,37 @@ ata_amd_chipinit(device_t dev)
     return 0;
 }
 
-static void
-ata_amd_setmode(device_t dev, int mode)
+static int
+ata_amd_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0x42, 0x22, 0x20,
-			   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-    int modes[7] = { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
-    int devno = (ch->unit << 1) + atadev->unit;
-    int reg = 0x53 - devno;
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+        int devno = (ch->unit << 1) + target;
+	int piomode;
+	u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
+	int modes[7] = { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
+	int reg = 0x53 - devno;
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
-
-    if (ctlr->chip->cfg1 & AMD_CABLE) {
-	if (mode > ATA_UDMA2 &&
-	    !(pci_read_config(gparent, 0x42, 1) & (1 << devno))) {
-	    ata_print_cable(dev, "controller");
-	    mode = ATA_UDMA2;
+	mode = min(mode, ctlr->chip->max_dma);
+	if (ctlr->chip->cfg1 & AMD_CABLE) {
+		if (mode > ATA_UDMA2 &&
+		    !(pci_read_config(parent, 0x42, 1) & (1 << devno))) {
+			ata_print_cable(dev, "controller");
+			mode = ATA_UDMA2;
+		}
 	}
-    }
-    else 
-	mode = ata_check_80pin(dev, mode);
-
-
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		      (error) ? "FAILURE " : "", ata_mode2str(mode),
-		      ctlr->chip->text);
-    if (!error) {
-	pci_write_config(gparent, reg - 0x08, timings[ata_mode2idx(mode)], 1);
-	if (mode >= ATA_UDMA0)
-	    pci_write_config(gparent, reg, modes[mode & ATA_MODE_MASK], 1);
-	else
-	    pci_write_config(gparent, reg, 0x8b, 1);
-	atadev->mode = mode;
-    }
+	/* Set UDMA timings. */
+	if (mode >= ATA_UDMA0) {
+	    pci_write_config(parent, reg, modes[mode & ATA_MODE_MASK], 1);
+	    piomode = ATA_PIO4;
+	} else {
+	    pci_write_config(parent, reg, 0x8b, 1);
+	    piomode = mode;
+	}
+	/* Set WDMA/PIO timings. */
+	pci_write_config(parent, reg - 0x08, timings[ata_mode2idx(piomode)], 1);
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_amd);

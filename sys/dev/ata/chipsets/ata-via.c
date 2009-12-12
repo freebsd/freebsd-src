@@ -56,9 +56,9 @@ static int ata_via_chipinit(device_t dev);
 static int ata_via_ch_attach(device_t dev);
 static int ata_via_ch_detach(device_t dev);
 static void ata_via_reset(device_t dev);
-static void ata_via_old_setmode(device_t dev, int mode);
+static int ata_via_old_setmode(device_t dev, int target, int mode);
 static void ata_via_southbridge_fixup(device_t dev);
-static void ata_via_new_setmode(device_t dev, int mode);
+static int ata_via_new_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define VIA33           0
@@ -152,9 +152,9 @@ ata_via_chipinit(device_t dev)
 	if (ctlr->chip->cfg2 & VIABAR) {
 	    ctlr->channels = 3;
 	    ctlr->setmode = ata_via_new_setmode;
-	}
-	else
+	} else
 	    ctlr->setmode = ata_sata_setmode;
+	ctlr->getrev = ata_sata_getrev;
 	return 0;
     }
 
@@ -233,6 +233,7 @@ ata_via_ch_attach(device_t dev)
     ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
     ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << ctlr->chip->cfg1);
     ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
 
     /* XXX SOS PHY hotplug handling missing in VIA chip ?? */
     /* XXX SOS unknown how to enable PHY state change interrupt */
@@ -277,75 +278,63 @@ ata_via_reset(device_t dev)
 	    ata_generic_reset(dev);
 }
 
-static void
-ata_via_new_setmode(device_t dev, int mode)
+static int
+ata_via_new_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
 
-    if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1)) {
-        u_int8_t pio_timings[] = { 0xa8, 0x65, 0x65, 0x32, 0x20,
-				   0x65, 0x32, 0x20,
-				   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-        u_int8_t dma_timings[] = { 0xee, 0xe8, 0xe6, 0xe4, 0xe2, 0xe1, 0xe0 };
+	if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1)) {
+	    int piomode;
+    	    u_int8_t pio_timings[] = { 0xa8, 0x65, 0x65, 0x32, 0x20 };
+	    u_int8_t dma_timings[] = { 0xee, 0xe8, 0xe6, 0xe4, 0xe2, 0xe1, 0xe0 };
 
-	mode = ata_check_80pin(dev, ata_limit_mode(dev, mode, ATA_UDMA6));
-	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-	if (bootverbose)
-	    device_printf(dev, "%ssetting %s on %s chip\n",
-			  (error) ? "FAILURE " : "", ata_mode2str(mode),
-			  ctlr->chip->text);
-	if (!error) {
-	    pci_write_config(gparent, 0xab, pio_timings[ata_mode2idx(mode)], 1);
-	    if (mode >= ATA_UDMA0)
-		pci_write_config(gparent, 0xb3,
+	    /* This chip can't do WDMA. */
+	    if (mode >= ATA_WDMA0 && mode < ATA_UDMA0)
+		mode = ATA_PIO4;
+	    if (mode >= ATA_UDMA0) {
+		pci_write_config(parent, 0xb3,
 				 dma_timings[mode & ATA_MODE_MASK], 1);
-	    atadev->mode = mode;
-	}
-    }
-    else
-	ata_sata_setmode(dev, mode);
+		piomode = ATA_PIO4;
+	    } else
+		piomode = mode;
+	    pci_write_config(parent, 0xab, pio_timings[ata_mode2idx(piomode)], 1);
+	} else
+		mode = ata_sata_setmode(dev, target, mode);
+	return (mode);
 }
 
-static void
-ata_via_old_setmode(device_t dev, int mode)
+static int
+ata_via_old_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0x42, 0x22, 0x20,
-			   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-    int modes[][7] = {
-	{ 0xc2, 0xc1, 0xc0, 0x00, 0x00, 0x00, 0x00 },   /* VIA ATA33 */
-	{ 0xee, 0xec, 0xea, 0xe9, 0xe8, 0x00, 0x00 },   /* VIA ATA66 */
-	{ 0xf7, 0xf6, 0xf4, 0xf2, 0xf1, 0xf0, 0x00 },   /* VIA ATA100 */
-	{ 0xf7, 0xf7, 0xf6, 0xf4, 0xf2, 0xf1, 0xf0 } }; /* VIA ATA133 */
-    int devno = (ch->unit << 1) + atadev->unit;
-    int reg = 0x53 - devno;
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int reg = 0x53 - devno;
+	int piomode;
+	uint8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
+	uint8_t modes[][7] = {
+	    { 0xc2, 0xc1, 0xc0, 0x00, 0x00, 0x00, 0x00 },   /* VIA ATA33 */
+	    { 0xee, 0xec, 0xea, 0xe9, 0xe8, 0x00, 0x00 },   /* VIA ATA66 */
+	    { 0xf7, 0xf6, 0xf4, 0xf2, 0xf1, 0xf0, 0x00 },   /* VIA ATA100 */
+	    { 0xf7, 0xf7, 0xf6, 0xf4, 0xf2, 0xf1, 0xf0 } }; /* VIA ATA133 */
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
-    mode = ata_check_80pin(dev, mode);
-
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		      (error) ? "FAILURE " : "", ata_mode2str(mode),
-		      ctlr->chip->text);
-    if (!error) {
-	if (ctlr->chip->cfg1 != VIA133)
-	    pci_write_config(gparent, reg - 0x08,timings[ata_mode2idx(mode)],1);
-	if (mode >= ATA_UDMA0)
-	    pci_write_config(gparent, reg,
+	mode = min(mode, ctlr->chip->max_dma);
+	/* Set UDMA timings */
+	if (mode >= ATA_UDMA0) {
+	    pci_write_config(parent, reg,
 			     modes[ctlr->chip->cfg1][mode & ATA_MODE_MASK], 1);
-	else
-	    pci_write_config(gparent, reg, 0x8b, 1);
-	atadev->mode = mode;
-    }
+	    piomode = ATA_PIO4;
+	} else {
+	    pci_write_config(parent, reg, 0x8b, 1);
+	    piomode = mode;
+	}
+	/* Set WDMA/PIO timings */
+	if (ctlr->chip->cfg1 != VIA133)
+	    pci_write_config(parent, reg - 0x08,timings[ata_mode2idx(piomode)], 1);
+	return (mode);
 }
 
 static void
