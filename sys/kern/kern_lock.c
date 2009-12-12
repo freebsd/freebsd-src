@@ -197,6 +197,8 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 	if (flags & LK_INTERLOCK)
 		class->lc_unlock(ilk);
+	if (queue == SQ_EXCLUSIVE_QUEUE && (flags & LK_SLEEPFAIL) != 0)
+		lk->lk_exslpfail++;
 	GIANT_SAVE();
 	sleepq_add(&lk->lock_object, NULL, wmesg, SLEEPQ_LK | (catch ?
 	    SLEEPQ_INTERRUPTIBLE : 0), queue);
@@ -225,6 +227,7 @@ static __inline int
 wakeupshlk(struct lock *lk, const char *file, int line)
 {
 	uintptr_t v, x;
+	u_int realexslp;
 	int queue, wakeup_swapper;
 
 	TD_LOCKS_DEC(curthread);
@@ -270,13 +273,34 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		/*
 		 * If the lock has exclusive waiters, give them preference in
 		 * order to avoid deadlock with shared runners up.
+		 * If interruptible sleeps left the exclusive queue empty
+		 * avoid a starvation for the threads sleeping on the shared
+		 * queue by giving them precedence and cleaning up the
+		 * exclusive waiters bit anyway.
 		 */
-		if (x & LK_EXCLUSIVE_WAITERS) {
-			queue = SQ_EXCLUSIVE_QUEUE;
-			v |= (x & LK_SHARED_WAITERS);
+		realexslp = sleepq_sleepcnt(&lk->lock_object,
+		    SQ_EXCLUSIVE_QUEUE);
+		if ((x & LK_EXCLUSIVE_WAITERS) != 0 && realexslp != 0) {
+			if (lk->lk_exslpfail < realexslp) {
+				lk->lk_exslpfail = 0;
+				queue = SQ_EXCLUSIVE_QUEUE;
+				v |= (x & LK_SHARED_WAITERS);
+			} else {
+				lk->lk_exslpfail = 0;
+				LOCK_LOG2(lk,
+				    "%s: %p has only LK_SLEEPFAIL sleepers",
+				    __func__, lk);
+				LOCK_LOG2(lk,
+			    "%s: %p waking up threads on the exclusive queue",
+				    __func__, lk);
+				wakeup_swapper =
+				    sleepq_broadcast(&lk->lock_object,
+				    SLEEPQ_LK, 0, SQ_EXCLUSIVE_QUEUE);
+				queue = SQ_SHARED_QUEUE;
+			}
+				
 		} else {
-			MPASS((x & ~LK_EXCLUSIVE_SPINNERS) ==
-			    LK_SHARED_WAITERS);
+			MPASS(lk->lk_exslpfail == 0);
 			queue = SQ_SHARED_QUEUE;
 		}
 
@@ -288,7 +312,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		LOCK_LOG3(lk, "%s: %p waking up threads on the %s queue",
 		    __func__, lk, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
-		wakeup_swapper = sleepq_broadcast(&lk->lock_object, SLEEPQ_LK,
+		wakeup_swapper |= sleepq_broadcast(&lk->lock_object, SLEEPQ_LK,
 		    0, queue);
 		sleepq_release(&lk->lock_object);
 		break;
@@ -353,6 +377,7 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 
 	lk->lk_lock = LK_UNLOCKED;
 	lk->lk_recurse = 0;
+	lk->lk_exslpfail = 0;
 	lk->lk_timo = timo;
 	lk->lk_pri = pri;
 	lock_init(&lk->lock_object, &lock_class_lockmgr, wmesg, NULL, iflags);
@@ -365,6 +390,7 @@ lockdestroy(struct lock *lk)
 
 	KASSERT(lk->lk_lock == LK_UNLOCKED, ("lockmgr still held"));
 	KASSERT(lk->lk_recurse == 0, ("lockmgr still recursed"));
+	KASSERT(lk->lk_exslpfail == 0, ("lockmgr still exclusive waiters"));
 	lock_destroy(&lk->lock_object);
 }
 
@@ -376,7 +402,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	struct lock_class *class;
 	const char *iwmesg;
 	uintptr_t tid, v, x;
-	u_int op;
+	u_int op, realexslp;
 	int error, ipri, itimo, queue, wakeup_swapper;
 #ifdef LOCK_PROFILING
 	uint64_t waittime = 0;
@@ -906,14 +932,34 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 	 * If the lock has exclusive waiters, give them
 			 * preference in order to avoid deadlock with
 			 * shared runners up.
+			 * If interruptible sleeps left the exclusive queue
+			 * empty avoid a starvation for the threads sleeping
+			 * on the shared queue by giving them precedence
+			 * and cleaning up the exclusive waiters bit anyway.
 			 */
 			MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
-			if (x & LK_EXCLUSIVE_WAITERS) {
-				queue = SQ_EXCLUSIVE_QUEUE;
-				v |= (x & LK_SHARED_WAITERS);
+			realexslp = sleepq_sleepcnt(&lk->lock_object,
+			    SQ_EXCLUSIVE_QUEUE);
+			if ((x & LK_EXCLUSIVE_WAITERS) != 0 && realexslp != 0) {
+				if (lk->lk_exslpfail < realexslp) {
+					lk->lk_exslpfail = 0;
+					queue = SQ_EXCLUSIVE_QUEUE;
+					v |= (x & LK_SHARED_WAITERS);
+				} else {
+					lk->lk_exslpfail = 0;
+					LOCK_LOG2(lk,
+					"%s: %p has only LK_SLEEPFAIL sleepers",
+					    __func__, lk);
+					LOCK_LOG2(lk,
+			"%s: %p waking up threads on the exclusive queue",
+					    __func__, lk);
+					wakeup_swapper =
+					    sleepq_broadcast(&lk->lock_object,
+					    SLEEPQ_LK, 0, SQ_EXCLUSIVE_QUEUE);
+					queue = SQ_SHARED_QUEUE;
+				}
 			} else {
-				MPASS((x & LK_ALL_WAITERS) ==
-				    LK_SHARED_WAITERS);
+				MPASS(lk->lk_exslpfail == 0);
 				queue = SQ_SHARED_QUEUE;
 			}
 
@@ -922,7 +968,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    __func__, lk, queue == SQ_SHARED_QUEUE ? "shared" :
 			    "exclusive");
 			atomic_store_rel_ptr(&lk->lk_lock, v);
-			wakeup_swapper = sleepq_broadcast(&lk->lock_object,
+			wakeup_swapper |= sleepq_broadcast(&lk->lock_object,
 			    SLEEPQ_LK, 0, queue);
 			sleepq_release(&lk->lock_object);
 			break;
@@ -979,13 +1025,46 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			v = x & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
 			if ((x & ~v) == LK_UNLOCKED) {
 				v = (x & ~LK_EXCLUSIVE_SPINNERS);
+
+				/*
+				 * If interruptible sleeps left the exclusive
+				 * queue empty avoid a starvation for the
+				 * threads sleeping on the shared queue by
+				 * giving them precedence and cleaning up the
+				 * exclusive waiters bit anyway.
+				 */
 				if (v & LK_EXCLUSIVE_WAITERS) {
 					queue = SQ_EXCLUSIVE_QUEUE;
 					v &= ~LK_EXCLUSIVE_WAITERS;
 				} else {
 					MPASS(v & LK_SHARED_WAITERS);
+					MPASS(lk->lk_exslpfail == 0);
 					queue = SQ_SHARED_QUEUE;
 					v &= ~LK_SHARED_WAITERS;
+				}
+				if (queue == SQ_EXCLUSIVE_QUEUE) {
+					realexslp =
+					    sleepq_sleepcnt(&lk->lock_object,
+					    SQ_EXCLUSIVE_QUEUE);
+					if (lk->lk_exslpfail >= realexslp) {
+						lk->lk_exslpfail = 0;
+						queue = SQ_SHARED_QUEUE;
+						v &= ~LK_SHARED_WAITERS;
+						if (realexslp != 0) {
+							LOCK_LOG2(lk,
+					"%s: %p has only LK_SLEEPFAIL sleepers",
+							    __func__, lk);
+							LOCK_LOG2(lk,
+			"%s: %p waking up threads on the exclusive queue",
+							    __func__, lk);
+							wakeup_swapper =
+							    sleepq_broadcast(
+							    &lk->lock_object,
+							    SLEEPQ_LK, 0,
+							    SQ_EXCLUSIVE_QUEUE);
+						}
+					} else
+						lk->lk_exslpfail = 0;
 				}
 				if (!atomic_cmpset_ptr(&lk->lk_lock, x, v)) {
 					sleepq_release(&lk->lock_object);
