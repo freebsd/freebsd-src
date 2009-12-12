@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 11, 2009
+.Dd December 12, 2009
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -198,11 +198,18 @@ A sleep queue used to implement
 .Xr pause 9 .
 .El
 .Pp
-There is currently only one optional flag:
+There are currently two optional flag:
 .Pp
 .Bl -tag -width ".Dv SLEEPQ_INTERRUPTIBLE" -compact
 .It Dv SLEEPQ_INTERRUPTIBLE
 The current thread is entering an interruptible sleep.
+.El
+.Bl -tag -width ".Dv SLEEPQ_STOP_ON_BDRY" -compact
+.It Dv SLEEPQ_STOP_ON_BDRY
+When thread is entering an interruptible sleep, do not stop it upon
+arrival of stop action, like
+.Dv SIGSTOP .
+Wake it up instead.
 .El
 .Pp
 A timeout on the sleep may be specified by calling
