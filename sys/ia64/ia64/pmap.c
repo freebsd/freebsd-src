@@ -217,8 +217,6 @@ int pmap_vhpt_nbuckets;
 SYSCTL_INT(_machdep_vhpt, OID_AUTO, nbuckets, CTLFLAG_RD,
     &pmap_vhpt_nbuckets, 0, "");
 
-uint64_t pmap_vhpt_base[MAXCPU];
-
 int pmap_vhpt_log2size = 0;
 TUNABLE_INT("machdep.vhpt.log2size", &pmap_vhpt_log2size);
 SYSCTL_INT(_machdep_vhpt, OID_AUTO, log2size, CTLFLAG_RD,
@@ -277,6 +275,40 @@ pmap_steal_memory(vm_size_t size)
 	return va;
 }
 
+static void
+pmap_initialize_vhpt(vm_offset_t vhpt)
+{
+	struct ia64_lpte *pte;
+	u_int i;
+
+	pte = (struct ia64_lpte *)vhpt;
+	for (i = 0; i < pmap_vhpt_nbuckets; i++) {
+		pte[i].pte = 0;
+		pte[i].itir = 0;
+		pte[i].tag = 1UL << 63; /* Invalid tag */
+		pte[i].chain = (uintptr_t)(pmap_vhpt_bucket + i);
+	}
+}
+
+#ifdef SMP
+MALLOC_DECLARE(M_SMP);
+
+vm_offset_t
+pmap_alloc_vhpt(void)
+{
+	vm_offset_t vhpt;
+	vm_size_t size;
+
+	size = 1UL << pmap_vhpt_log2size;
+	vhpt = (uintptr_t)contigmalloc(size, M_SMP, 0, 0UL, ~0UL, size, 0UL);
+	if (vhpt != 0) {
+		vhpt = IA64_PHYS_TO_RR7(ia64_tpa(vhpt));
+		pmap_initialize_vhpt(vhpt);
+	}
+	return (vhpt);
+}
+#endif
+
 /*
  *	Bootstrap the system enough to run with virtual memory.
  */
@@ -284,8 +316,7 @@ void
 pmap_bootstrap()
 {
 	struct ia64_pal_result res;
-	struct ia64_lpte *pte;
-	vm_offset_t base, limit;
+	vm_offset_t base;
 	size_t size;
 	int i, j, count, ridbits;
 
@@ -365,94 +396,52 @@ pmap_bootstrap()
 		;
 	count = i+2;
 
-	/*
-	 * Figure out a useful size for the VHPT, based on the size of
-	 * physical memory and try to locate a region which is large
-	 * enough to contain the VHPT (which must be a power of two in
-	 * size and aligned to a natural boundary).
-	 * We silently bump up the VHPT size to the minimum size if the
-	 * user has set the tunable too small. Likewise, the VHPT size
-	 * is silently capped to the maximum allowed.
-	 */
 	TUNABLE_INT_FETCH("machdep.vhpt.log2size", &pmap_vhpt_log2size);
-	if (pmap_vhpt_log2size == 0) {
+	if (pmap_vhpt_log2size == 0)
+		pmap_vhpt_log2size = 20;
+	else if (pmap_vhpt_log2size < 15)
 		pmap_vhpt_log2size = 15;
-		size = 1UL << pmap_vhpt_log2size;
-		while (size < Maxmem * 32) {
-			pmap_vhpt_log2size++;
-			size <<= 1;
-		}
-	} else if (pmap_vhpt_log2size < 15)
-		pmap_vhpt_log2size = 15;
-	if (pmap_vhpt_log2size > 61)
+	else if (pmap_vhpt_log2size > 61)
 		pmap_vhpt_log2size = 61;
 
-	pmap_vhpt_base[0] = 0;
-	base = limit = 0;
+	base = 0;
 	size = 1UL << pmap_vhpt_log2size;
-	while (pmap_vhpt_base[0] == 0) {
-		if (bootverbose)
-			printf("Trying VHPT size 0x%lx\n", size);
-		for (i = 0; i < count; i += 2) {
-			base = (phys_avail[i] + size - 1) & ~(size - 1);
-			limit = base + MAXCPU * size;
-			if (limit <= phys_avail[i+1])
-				/*
-				 * VHPT can fit in this region
-				 */
-				break;
-		}
-		if (!phys_avail[i]) {
-			/* Can't fit, try next smaller size. */
-			pmap_vhpt_log2size--;
-			size >>= 1;
-		} else
-			pmap_vhpt_base[0] = IA64_PHYS_TO_RR7(base);
+	for (i = 0; i < count; i += 2) {
+		base = (phys_avail[i] + size - 1) & ~(size - 1);
+		if (base + size <= phys_avail[i+1])
+			break;
 	}
-	if (pmap_vhpt_log2size < 15)
-		panic("Can't find space for VHPT");
-
-	if (bootverbose)
-		printf("Putting VHPT at 0x%lx\n", base);
+	if (!phys_avail[i])
+		panic("Unable to allocate VHPT");
 
 	if (base != phys_avail[i]) {
 		/* Split this region. */
-		if (bootverbose)
-			printf("Splitting [%p-%p]\n", (void *)phys_avail[i],
-			    (void *)phys_avail[i+1]);
 		for (j = count; j > i; j -= 2) {
 			phys_avail[j] = phys_avail[j-2];
 			phys_avail[j+1] = phys_avail[j-2+1];
 		}
 		phys_avail[i+1] = base;
-		phys_avail[i+2] = limit;
+		phys_avail[i+2] = base + size;
 	} else
-		phys_avail[i] = limit;
+		phys_avail[i] = base + size;
+
+	base = IA64_PHYS_TO_RR7(base);
+	PCPU_SET(md.vhpt, base);
+	if (bootverbose)
+		printf("VHPT: address=%#lx, size=%#lx\n", base, size);
 
 	pmap_vhpt_nbuckets = size / sizeof(struct ia64_lpte);
-
 	pmap_vhpt_bucket = (void *)pmap_steal_memory(pmap_vhpt_nbuckets *
 	    sizeof(struct ia64_bucket));
-	pte = (struct ia64_lpte *)pmap_vhpt_base[0];
 	for (i = 0; i < pmap_vhpt_nbuckets; i++) {
-		pte[i].pte = 0;
-		pte[i].itir = 0;
-		pte[i].tag = 1UL << 63;	/* Invalid tag */
-		pte[i].chain = (uintptr_t)(pmap_vhpt_bucket + i);
-		/* Stolen memory is zeroed! */
+		/* Stolen memory is zeroed. */
 		mtx_init(&pmap_vhpt_bucket[i].mutex, "VHPT bucket lock", NULL,
 		    MTX_NOWITNESS | MTX_SPIN);
 	}
 
-	for (i = 1; i < MAXCPU; i++) {
-		pmap_vhpt_base[i] = pmap_vhpt_base[i - 1] + size;
-		bcopy((void *)pmap_vhpt_base[i - 1], (void *)pmap_vhpt_base[i],
-		    size);
-	}
-
-	map_vhpt(pmap_vhpt_base[0]);
-	ia64_set_pta(pmap_vhpt_base[0] + (1 << 8) +
-	    (pmap_vhpt_log2size << 2) + 1);
+	pmap_initialize_vhpt(base);
+	map_vhpt(base);
+	ia64_set_pta(base + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
 
 	virtual_avail = VM_MIN_KERNEL_ADDRESS;
@@ -466,7 +455,7 @@ pmap_bootstrap()
 		kernel_pmap->pm_rid[i] = 0;
 	kernel_pmap->pm_active = 1;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
-	PCPU_SET(current_pmap, kernel_pmap);
+	PCPU_SET(md.current_pmap, kernel_pmap);
 
 	/*
 	 * Region 5 is mapped via the vhpt.
@@ -551,15 +540,16 @@ static void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 	struct ia64_lpte *pte;
-	int i, vhpt_ofs;
+	struct pcpu *pc;
+	u_int vhpt_ofs;
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("invalidating TLB for non-current pmap"));
 
-	vhpt_ofs = ia64_thash(va) - pmap_vhpt_base[PCPU_GET(cpuid)];
+	vhpt_ofs = ia64_thash(va) - PCPU_GET(md.vhpt);
 	critical_enter();
-	for (i = 0; i < MAXCPU; i++) {
-		pte = (struct ia64_lpte *)(pmap_vhpt_base[i] + vhpt_ofs);
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		pte = (struct ia64_lpte *)(pc->pc_md.vhpt + vhpt_ofs);
 		if (pte->tag == ia64_ttag(va))
 			pte->tag = 1UL << 63;
 	}
@@ -591,7 +581,7 @@ static void
 pmap_invalidate_all(pmap_t pmap)
 {
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("invalidating TLB for non-current pmap"));
 
 #ifdef SMP
@@ -1172,7 +1162,7 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	int error;
 	vm_page_t m;
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("removing pte for non-current pmap"));
 
 	/*
@@ -1340,7 +1330,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
 	struct ia64_lpte *pte;
 
-	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(current_pmap)),
+	KASSERT((pmap == kernel_pmap || pmap == PCPU_GET(md.current_pmap)),
 		("removing page for non-current pmap"));
 
 	pte = pmap_find_vhpt(va);
@@ -2251,7 +2241,7 @@ pmap_switch(pmap_t pm)
 	int i;
 
 	critical_enter();
-	prevpm = PCPU_GET(current_pmap);
+	prevpm = PCPU_GET(md.current_pmap);
 	if (prevpm == pm)
 		goto out;
 	if (prevpm != NULL)
@@ -2268,7 +2258,7 @@ pmap_switch(pmap_t pm)
 		}
 		atomic_set_32(&pm->pm_active, PCPU_GET(cpumask));
 	}
-	PCPU_SET(current_pmap, pm);
+	PCPU_SET(md.current_pmap, pm);
 	ia64_srlz_d();
 
 out:
