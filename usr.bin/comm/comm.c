@@ -163,7 +163,7 @@ main(int argc, char *argv[])
 		if (!comp) {
 			read1 = read2 = 1;
 			if (col3 != NULL)
-				(void)printf("%ls%ls", col3, line1);
+				(void)printf("%ls%ls\n", col3, line1);
 			continue;
 		}
 
@@ -172,12 +172,12 @@ main(int argc, char *argv[])
 			read1 = 1;
 			read2 = 0;
 			if (col1 != NULL)
-				(void)printf("%ls%ls", col1, line1);
+				(void)printf("%ls%ls\n", col1, line1);
 		} else {
 			read1 = 0;
 			read2 = 1;
 			if (col2 != NULL)
-				(void)printf("%ls%ls", col2, line2);
+				(void)printf("%ls%ls\n", col2, line2);
 		}
 	}
 	exit(0);
@@ -190,19 +190,16 @@ getline(wchar_t *buf, size_t *buflen, FILE *fp)
 	wint_t ch;
 
 	bufpos = 0;
-	do {
-		if ((ch = getwc(fp)) != WEOF) {
-			if (bufpos + 2 >= *buflen) {
-				*buflen = *buflen * 2;
-				buf = reallocf(buf, *buflen * sizeof(*buf));
-				if (buf == NULL)
-					return (NULL);
-			}
-			buf[bufpos++] = ch;
+	while ((ch = getwc(fp)) != WEOF && ch != '\n') {
+		if (bufpos + 1 >= *buflen) {
+			*buflen = *buflen * 2;
+			buf = reallocf(buf, *buflen * sizeof(*buf));
+			if (buf == NULL)
+				return (NULL);
 		}
-	} while (ch != WEOF && ch != '\n');
-	if (bufpos + 1 != *buflen)
-		buf[bufpos] = '\0';
+		buf[bufpos++] = ch;
+	}
+	buf[bufpos] = '\0';
 
 	return (bufpos != 0 || ch == '\n' ? buf : NULL);
 }
@@ -212,7 +209,7 @@ show(FILE *fp, const char *fn, const wchar_t *offset, wchar_t *buf, size_t *bufl
 {
 
 	do {
-		(void)printf("%ls%ls", offset, buf);
+		(void)printf("%ls%ls\n", offset, buf);
 	} while ((buf = getline(buf, buflen, fp)) != NULL);
 	if (ferror(fp))
 		err(1, "%s", fn);
