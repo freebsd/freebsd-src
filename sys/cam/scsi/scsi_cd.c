@@ -673,6 +673,7 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->quirks = CD_Q_NONE;
 
 	/* Check if the SIM does not want 6 byte commands */
+	bzero(&cpi, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
 	xpt_action((union ccb *)&cpi);
@@ -726,6 +727,12 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_name = "cd";
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_drv1 = periph;
+	if (cpi.maxio == 0)
+		softc->disk->d_maxsize = DFLTPHYS;	/* traditional default */
+	else if (cpi.maxio > MAXPHYS)
+		softc->disk->d_maxsize = MAXPHYS;	/* for safety */
+	else
+		softc->disk->d_maxsize = cpi.maxio;
 	softc->disk->d_flags = 0;
 	disk_create(softc->disk, DISK_VERSION);
 	cam_periph_lock(periph);
@@ -2768,7 +2775,6 @@ cdcheckmedia(struct cam_periph *periph)
 	softc = (struct cd_softc *)periph->softc;
 
 	cdprevent(periph, PR_PREVENT);
-	softc->disk->d_maxsize = DFLTPHYS;
 	softc->disk->d_sectorsize = 2048;
 	softc->disk->d_mediasize = 0;
 
@@ -2870,7 +2876,6 @@ cdcheckmedia(struct cam_periph *periph)
 	}
 
 	softc->flags |= CD_FLAG_VALID_TOC;
-	softc->disk->d_maxsize = DFLTPHYS;
 	softc->disk->d_sectorsize = softc->params.blksize;
 	softc->disk->d_mediasize =
 	    (off_t)softc->params.blksize * softc->params.disksize;

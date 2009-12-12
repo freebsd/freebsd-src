@@ -53,8 +53,9 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_ite_chipinit(device_t dev);
-static void ata_ite_821x_setmode(device_t dev, int mode);
-static void ata_ite_8213_setmode(device_t dev, int mode);
+static int ata_ite_ch_attach(device_t dev);
+static int ata_ite_821x_setmode(device_t dev, int target, int mode);
+static int ata_ite_8213_setmode(device_t dev, int target, int mode);
 
 
 /*
@@ -105,143 +106,125 @@ ata_ite_chipinit(device_t dev)
 
 	ctlr->setmode = ata_ite_821x_setmode;
     }
-
+    ctlr->ch_attach = ata_ite_ch_attach;
     return 0;
 }
- 
-static void
-ata_ite_821x_setmode(device_t dev, int mode)
+
+static int
+ata_ite_ch_attach(device_t dev)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    int devno = (ch->unit << 1) + atadev->unit;
-    int error;
-
-    /* correct the mode for what the HW supports */
-    mode = ata_limit_mode(dev, mode, ATA_UDMA6);
-
-    /* check the CBLID bits for 80 conductor cable detection */
-    if (mode > ATA_UDMA2 && (pci_read_config(gparent, 0x40, 2) &
-			     (ch->unit ? (1<<3) : (1<<2)))) {
-	ata_print_cable(dev, "controller");
-	mode = ATA_UDMA2;
-    }
-
-    /* set the wanted mode on the device */
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-
-    if (bootverbose)
-	device_printf(dev, "%s setting %s on ITE8212F chip\n",
-		      (error) ? "failed" : "success", ata_mode2str(mode));
-
-    /* if the device accepted the mode change, setup the HW accordingly */
-    if (!error) {
-	if (mode >= ATA_UDMA0) {
-	    u_int8_t udmatiming[] =
-		{ 0x44, 0x42, 0x31, 0x21, 0x11, 0xa2, 0x91 };
-
-	    /* enable UDMA mode */
-	    pci_write_config(gparent, 0x50,
-			     pci_read_config(gparent, 0x50, 1) &
-			     ~(1 << (devno + 3)), 1);
-
-	    /* set UDMA timing */
-	    pci_write_config(gparent,
-			     0x56 + (ch->unit << 2) + atadev->unit,
-			     udmatiming[mode & ATA_MODE_MASK], 1);
-	}
-	else {
-	    u_int8_t chtiming[] =
-		{ 0xaa, 0xa3, 0xa1, 0x33, 0x31, 0x88, 0x32, 0x31 };
-
-	    /* disable UDMA mode */
-	    pci_write_config(gparent, 0x50,
-			     pci_read_config(gparent, 0x50, 1) |
-			     (1 << (devno + 3)), 1);
-
-	    /* set active and recover timing (shared between master & slave) */
-	    if (pci_read_config(gparent, 0x54 + (ch->unit << 2), 1) <
-		chtiming[ata_mode2idx(mode)])
-		pci_write_config(gparent, 0x54 + (ch->unit << 2),
-				 chtiming[ata_mode2idx(mode)], 1);
-	}
-	atadev->mode = mode;
-    }
+	struct ata_channel *ch = device_get_softc(dev);
+	int error;
+ 
+	error = ata_pci_ch_attach(dev);
+	ch->flags |= ATA_CHECKS_CABLE;
+	return (error);
 }
 
-static void
-ata_ite_8213_setmode(device_t dev, int mode)
+static int
+ata_ite_821x_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_device *atadev = device_get_softc(dev);
-    u_int16_t reg40 = pci_read_config(gparent, 0x40, 2);
-    u_int8_t reg44 = pci_read_config(gparent, 0x44, 1);
-    u_int8_t reg48 = pci_read_config(gparent, 0x48, 1);
-    u_int16_t reg4a = pci_read_config(gparent, 0x4a, 2);
-    u_int16_t reg54 = pci_read_config(gparent, 0x54, 2);
-    u_int16_t mask40 = 0, new40 = 0;
-    u_int8_t mask44 = 0, new44 = 0;
-    int devno = atadev->unit;
-    int error;
-    u_int8_t timings[] = { 0x00, 0x00, 0x10, 0x21, 0x23, 0x10, 0x21, 0x23,
-			   0x23, 0x23, 0x23, 0x23, 0x23, 0x23 };
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int piomode;
+	u_int8_t udmatiming[] =
+		{ 0x44, 0x42, 0x31, 0x21, 0x11, 0xa2, 0x91 };
+	u_int8_t chtiming[] =
+		{ 0xaa, 0xa3, 0xa1, 0x33, 0x31, 0x88, 0x32, 0x31 };
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
-
-    if (mode > ATA_UDMA2 && !(reg54 & (0x10 << devno))) {
-	ata_print_cable(dev, "controller");
-	mode = ATA_UDMA2;
-    }
-
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		      (error) ? "FAILURE " : "",
-		      ata_mode2str(mode), ctlr->chip->text);
-    if (!error) {
+	mode = min(mode, ctlr->chip->max_dma);
+	/* check the CBLID bits for 80 conductor cable detection */
+	if (mode > ATA_UDMA2 && (pci_read_config(parent, 0x40, 2) &
+			     (ch->unit ? (1<<3) : (1<<2)))) {
+		ata_print_cable(dev, "controller");
+		mode = ATA_UDMA2;
+	}
 	if (mode >= ATA_UDMA0) {
-	    u_int8_t utimings[] = { 0x00, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10 };
+		/* enable UDMA mode */
+		pci_write_config(parent, 0x50,
+			     pci_read_config(parent, 0x50, 1) &
+			     ~(1 << (devno + 3)), 1);
+		/* set UDMA timing */
+		pci_write_config(parent,
+			     0x56 + (ch->unit << 2) + target,
+			     udmatiming[mode & ATA_MODE_MASK], 1);
+		piomode = ATA_PIO4;
+	} else {
+		/* disable UDMA mode */
+		pci_write_config(parent, 0x50,
+			     pci_read_config(parent, 0x50, 1) |
+			     (1 << (devno + 3)), 1);
+		piomode = mode;
+	}
+	/* set active and recover timing (shared between master & slave) */
+	if (pci_read_config(parent, 0x54 + (ch->unit << 2), 1) <
+	    chtiming[ata_mode2idx(piomode)])
+		pci_write_config(parent, 0x54 + (ch->unit << 2),
+				 chtiming[ata_mode2idx(piomode)], 1);
+	return (mode);
+}
 
-	    pci_write_config(gparent, 0x48, reg48 | (0x0001 << devno), 2);
-	    pci_write_config(gparent, 0x4a,
-			     (reg4a & ~(0x3 << (devno << 2))) |
-			     (utimings[mode & ATA_MODE_MASK] << (devno<<2)), 2);
+static int
+ata_ite_8213_setmode(device_t dev, int target, int mode)
+{
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	int piomode;
+	u_int16_t reg40 = pci_read_config(parent, 0x40, 2);
+	u_int8_t reg44 = pci_read_config(parent, 0x44, 1);
+	u_int8_t reg48 = pci_read_config(parent, 0x48, 1);
+	u_int16_t reg4a = pci_read_config(parent, 0x4a, 2);
+	u_int16_t reg54 = pci_read_config(parent, 0x54, 2);
+	u_int16_t mask40 = 0, new40 = 0;
+	u_int8_t mask44 = 0, new44 = 0;
+	u_int8_t timings[] = { 0x00, 0x00, 0x10, 0x21, 0x23, 0x00, 0x21, 0x23 };
+	u_int8_t utimings[] = { 0x00, 0x01, 0x02, 0x01, 0x02, 0x01, 0x02 };
+
+	mode = min(mode, ctlr->chip->max_dma);
+
+	if (mode > ATA_UDMA2 && !(reg54 & (0x10 << target))) {
+		ata_print_cable(dev, "controller");
+		mode = ATA_UDMA2;
 	}
-	else {
-	    pci_write_config(gparent, 0x48, reg48 & ~(0x0001 << devno), 2);
-	    pci_write_config(gparent, 0x4a, (reg4a & ~(0x3 << (devno << 2))),2);
+	/* Enable/disable UDMA and set timings. */
+	if (mode >= ATA_UDMA0) {
+	    pci_write_config(parent, 0x48, reg48 | (0x0001 << target), 2);
+	    pci_write_config(parent, 0x4a,
+			     (reg4a & ~(0x3 << (target << 2))) |
+			     (utimings[mode & ATA_MODE_MASK] << (target<<2)), 2);
+	    piomode = ATA_PIO4;
+	} else {
+	    pci_write_config(parent, 0x48, reg48 & ~(0x0001 << target), 2);
+	    pci_write_config(parent, 0x4a, (reg4a & ~(0x3 << (target << 2))),2);
+	    piomode = mode;
 	}
-	if (mode >= ATA_UDMA2)
-	    reg54 |= (0x1 << devno);
-	else
-	    reg54 &= ~(0x1 << devno);
+	/* Set UDMA reference clock (33/66/133MHz). */
+	reg54 &= ~(0x1001 << target);
 	if (mode >= ATA_UDMA5)
-	    reg54 |= (0x1000 << devno);
-	else 
-	    reg54 &= ~(0x1000 << devno);
-	pci_write_config(gparent, 0x54, reg54, 2);
-
+	    reg54 |= (0x1000 << target);
+	else if (mode >= ATA_UDMA3)
+	    reg54 |= (0x1 << target);
+	pci_write_config(parent, 0x54, reg54, 2);
+	/* Allow PIO/WDMA timing controls. */
 	reg40 &= 0xff00;
 	reg40 |= 0x4033;
-	if (atadev->unit == ATA_MASTER) {
+	/* Set PIO/WDMA timings. */
+	if (target == 0) {
 	    reg40 |= (ata_atapi(dev) ? 0x04 : 0x00);
 	    mask40 = 0x3300;
-	    new40 = timings[ata_mode2idx(mode)] << 8;
+	    new40 = timings[ata_mode2idx(piomode)] << 8;
 	}
 	else {
 	    reg40 |= (ata_atapi(dev) ? 0x40 : 0x00);
 	    mask44 = 0x0f;
-	    new44 = ((timings[ata_mode2idx(mode)] & 0x30) >> 2) |
-		    (timings[ata_mode2idx(mode)] & 0x03);
+	    new44 = ((timings[ata_mode2idx(piomode)] & 0x30) >> 2) |
+		    (timings[ata_mode2idx(piomode)] & 0x03);
 	}
-	pci_write_config(gparent, 0x40, (reg40 & ~mask40) | new40, 4);
-	pci_write_config(gparent, 0x44, (reg44 & ~mask44) | new44, 1);
-
-	atadev->mode = mode;
-    }
+	pci_write_config(parent, 0x40, (reg40 & ~mask40) | new40, 4);
+	pci_write_config(parent, 0x44, (reg44 & ~mask44) | new44, 1);
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_ite);

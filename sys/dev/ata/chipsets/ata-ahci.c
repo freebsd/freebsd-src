@@ -194,6 +194,7 @@ ata_ahci_chipinit(device_t dev)
     ctlr->ch_suspend = ata_ahci_ch_suspend;
     ctlr->ch_resume = ata_ahci_ch_resume;
     ctlr->setmode = ata_sata_setmode;
+    ctlr->getrev = ata_sata_getrev;
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
@@ -309,6 +310,8 @@ ata_ahci_ch_attach(device_t dev)
     ch->hw.softreset = ata_ahci_softreset;
     ch->hw.pm_read = ata_ahci_pm_read;
     ch->hw.pm_write = ata_ahci_pm_write;
+    ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
 
     ata_ahci_ch_resume(dev);
     return 0;

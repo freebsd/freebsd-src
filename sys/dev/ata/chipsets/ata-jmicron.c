@@ -53,7 +53,8 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_jmicron_chipinit(device_t dev);
-static void ata_jmicron_setmode(device_t dev, int mode);
+static int ata_jmicron_ch_attach(device_t dev);
+static int ata_jmicron_setmode(device_t dev, int target, int mode);
 
 /*
  * JMicron chipset support functions
@@ -79,13 +80,8 @@ ata_jmicron_probe(device_t dev)
     if (!(idx = ata_match_chip(dev, ids)))
         return ENXIO;
 
-    if ((pci_read_config(dev, 0xdf, 1) & 0x40) &&
-	(pci_get_function(dev) == (pci_read_config(dev, 0x40, 1) & 0x02 >> 1)))
-	sprintf(buffer, "JMicron %s %s controller",
-		idx->text, ata_mode2str(ATA_UDMA6));
-    else
-	sprintf(buffer, "JMicron %s %s controller",
-		idx->text, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "JMicron %s %s controller",
+	idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_jmicron_chipinit;
@@ -108,7 +104,7 @@ ata_jmicron_chipinit(device_t dev)
 	    return 0;
 
 	/* otherwise we are on the PATA part */
-	ctlr->ch_attach = ata_pci_ch_attach;
+	ctlr->ch_attach = ata_jmicron_ch_attach;
 	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->reset = ata_generic_reset;
 	ctlr->setmode = ata_jmicron_setmode;
@@ -126,7 +122,7 @@ ata_jmicron_chipinit(device_t dev)
 		    bus_generic_attach(dev);
 		}
 	}
-	ctlr->ch_attach = ata_pci_ch_attach;
+	ctlr->ch_attach = ata_jmicron_ch_attach;
 	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->reset = ata_generic_reset;
 	ctlr->setmode = ata_jmicron_setmode;
@@ -135,18 +131,30 @@ ata_jmicron_chipinit(device_t dev)
     return 0;
 }
 
-static void
-ata_jmicron_setmode(device_t dev, int mode)
+static int
+ata_jmicron_ch_attach(device_t dev)
 {
-	struct ata_device *atadev = device_get_softc(dev);
+	struct ata_channel *ch = device_get_softc(dev);
+	int error;
+ 
+	error = ata_pci_ch_attach(dev);
+	ch->flags |= ATA_CHECKS_CABLE;
+	return (error);
+}
 
+static int
+ata_jmicron_setmode(device_t dev, int target, int mode)
+{
+	struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+
+	mode = min(mode, ctlr->chip->max_dma);
 	/* check for 80pin cable present */
-	if (pci_read_config(dev, 0x40, 1) & 0x08)
-		mode = ata_limit_mode(dev, mode, ATA_UDMA2);
-	else
-		mode = ata_limit_mode(dev, mode, ATA_UDMA6);
-	if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-		atadev->mode = mode;
+	if (mode > ATA_UDMA2 && pci_read_config(dev, 0x40, 1) & 0x08) {
+		ata_print_cable(dev, "controller");
+		mode = ATA_UDMA2;
+	}
+	/* Nothing to do to setup mode, the controller snoop SET_FEATURE cmd. */
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_jmicron);
