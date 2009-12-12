@@ -4983,7 +4983,7 @@ struct vop_vector zfs_vnodeops = {
 
 struct vop_vector zfs_fifoops = {
 	.vop_default =		&fifo_specops,
-	.vop_fsync =		VOP_PANIC,
+	.vop_fsync =		zfs_freebsd_fsync,
 	.vop_access =		zfs_freebsd_access,
 	.vop_getattr =		zfs_freebsd_getattr,
 	.vop_inactive =		zfs_freebsd_inactive,
