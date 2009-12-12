@@ -345,6 +345,7 @@ done
 # Don't force the user to set this in the mergemaster rc file
 if [ -n "${PRESERVE_FILES}" -a -z "${PRESERVE_FILES_DIR}" ]; then
   PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
+  mkdir -p ${PRESERVE_FILES_DIR}
 fi
 
 # Check for the mtree database in DESTDIR
@@ -819,7 +820,8 @@ mm_install () {
 
   if [ -n "${DESTDIR}${INSTALL_DIR}" -a ! -d "${DESTDIR}${INSTALL_DIR}" ]; then
     DIR_MODE=`find_mode "${TEMPROOT}/${INSTALL_DIR}"`
-    install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}"
+    install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}" ||
+      install_error $1 ${DESTDIR}${INSTALL_DIR}
   fi
 
   FILE_MODE=`find_mode "${1}"`
@@ -967,6 +969,57 @@ cd "${TEMPROOT}"
 if [ -r "${MM_PRE_COMPARE_SCRIPT}" ]; then
   . "${MM_PRE_COMPARE_SCRIPT}"
 fi
+
+# Things that were files/directories/links in one version can sometimes
+# change to something else in a newer version.  So we need to explicitly
+# test for this, and warn the user if what we find does not match.
+#
+for COMPFILE in `find .` ; do
+  if [ -e "${DESTDIR}${COMPFILE#.}" ]; then
+    INSTALLED_TYPE=`stat -f '%HT' ${DESTDIR}${COMPFILE#.}`
+  else
+    continue
+  fi
+  TEMPROOT_TYPE=`stat -f '%HT' $COMPFILE`
+
+  if [ ! "$TEMPROOT_TYPE" = "$INSTALLED_TYPE" ]; then
+    [ "$COMPFILE" = '.' ] && continue
+    TEMPROOT_TYPE=`echo $TEMPROOT_TYPE | tr [:upper:] [:lower:]`
+    INSTALLED_TYPE=`echo $INSTALLED_TYPE | tr [:upper:] [:lower:]`
+
+    echo "*** The installed file ${DESTDIR}${COMPFILE#.} has the type \"$INSTALLED_TYPE\""
+    echo "    but the new version has the type \"$TEMPROOT_TYPE\""
+    echo ''
+    echo "    How would you like to handle this?"
+    echo ''
+    echo "    Use 'r' to remove ${DESTDIR}${COMPFILE#.}"
+    case "$TEMPROOT_TYPE" in
+    'symbolic link')
+	TARGET=`readlink $COMPFILE`
+	echo "    and create a link to $TARGET in its place" ;;
+    *)	echo "    You will be able to install it as a \"$TEMPROOT_TYPE\"" ;;
+    esac
+    echo ''
+    echo "    Use 'i' to ignore this"
+    echo ''
+    echo -n "    How to proceed? [i] "
+    read ANSWER
+    case "$ANSWER" in
+    [rR])	case "${PRESERVE_FILES}" in
+		[Yy][Ee][Ss])
+		mv ${DESTDIR}${COMPFILE#.} ${PRESERVE_FILES_DIR}/ || exit 1 ;;
+		*) rm -rf ${DESTDIR}${COMPFILE#.} ;;
+		esac
+		case "$TEMPROOT_TYPE" in
+		'symbolic link') ln -sf $TARGET ${DESTDIR}${COMPFILE#.} ;;
+		esac ;;
+    *)	echo ''
+        echo "*** See the man page about adding ${COMPFILE#.} to the list of IGNORE_FILES"
+        press_to_continue ;;
+    esac
+    echo ''
+  fi
+done
 
 for COMPFILE in `find . -type f`; do
 
@@ -1269,5 +1322,9 @@ case "${PRE_WORLD}" in
   ;;
 esac
 
-exit 0
+if [ -n "${PRESERVE_FILES}" ]; then
+  find -d $PRESERVE_FILES_DIR -type d -empty -delete 2>/dev/null
+  rmdir $PRESERVE_FILES_DIR 2>/dev/null
+fi
 
+exit 0
