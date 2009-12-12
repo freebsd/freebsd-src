@@ -101,6 +101,8 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/include/specialreg.h>
 
+SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
+
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;
 u_int64_t itc_frequency;
@@ -139,8 +141,6 @@ SYSCTL_STRING(_hw, OID_AUTO, family, CTLFLAG_RD, cpu_family, 0,
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
-static void cpu_startup(void *);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 struct msgbuf *msgbufp = NULL;
 
@@ -247,9 +247,11 @@ identifycpu(void)
 }
 
 static void
-cpu_startup(dummy)
-	void *dummy;
+cpu_startup(void *dummy)
 {
+	char nodename[16];
+	struct pcpu *pc;
+	struct pcpu_stats *pcs;
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -302,7 +304,68 @@ cpu_startup(dummy)
 	 */
 	ia64_probe_sapics();
 	ia64_mca_init();
+
+	/*
+	 * Create sysctl tree for per-CPU information.
+	 */
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		snprintf(nodename, sizeof(nodename), "%u", pc->pc_cpuid);
+		sysctl_ctx_init(&pc->pc_md.sysctl_ctx);
+		pc->pc_md.sysctl_tree = SYSCTL_ADD_NODE(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_STATIC_CHILDREN(_machdep_cpu), OID_AUTO, nodename,
+		    CTLFLAG_RD, NULL, "");
+		if (pc->pc_md.sysctl_tree == NULL)
+			continue;
+
+		pcs = &pc->pc_md.stats;
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nasts", CTLFLAG_RD, &pcs->pcs_nasts,
+		    "Number of IPI_AST interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nclks", CTLFLAG_RD, &pcs->pcs_nclks,
+		    "Number of clock interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nextints", CTLFLAG_RD, &pcs->pcs_nextints,
+		    "Number of ExtINT interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhighfps", CTLFLAG_RD, &pcs->pcs_nhighfps,
+		    "Number of IPI_HIGH_FP interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhwints", CTLFLAG_RD, &pcs->pcs_nhwints,
+		    "Number of hardware (device) interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "npreempts", CTLFLAG_RD, &pcs->pcs_npreempts,
+		    "Number of IPI_PREEMPT interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nrdvs", CTLFLAG_RD, &pcs->pcs_nrdvs,
+		    "Number of IPI_RENDEZVOUS interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nstops", CTLFLAG_RD, &pcs->pcs_nstops,
+		    "Number of IPI_STOP interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nstrays", CTLFLAG_RD, &pcs->pcs_nstrays,
+		    "Number of stray vectors");
+	}
 }
+SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 void
 cpu_boot(int howto)
