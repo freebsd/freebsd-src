@@ -378,7 +378,6 @@ vge_miibus_readreg(dev, phy, reg)
 	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
 		return(0);
 
-	VGE_LOCK_ASSERT(sc);
 	vge_miipoll_stop(sc);
 
 	/* Specify the register we want to read. */
@@ -417,7 +416,6 @@ vge_miibus_writereg(dev, phy, reg, data)
 	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
 		return(0);
 
-	VGE_LOCK_ASSERT(sc);
 	vge_miipoll_stop(sc);
 
 	/* Specify the register we want to write. */
