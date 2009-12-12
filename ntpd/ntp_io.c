@@ -94,7 +94,12 @@ extern const char *specific_interface;
 #define SIO_UDP_CONNRESET _WSAIOW(IOC_VENDOR,12) 
 #endif
 
-#endif
+/*
+ * Windows C runtime ioctl() can't deal properly with sockets, 
+ * map to ioctlsocket for this source file.
+ */
+#define ioctl(fd, opt, val)  ioctlsocket((fd), (opt), (u_long *)(val))
+#endif  /* SYS_WINNT */
 
 /*
  * We do asynchronous input using the SIGIO facility.  A number of
@@ -194,7 +199,7 @@ static	isc_boolean_t	socket_multicast_disable P((struct interface *, struct sock
 static void print_interface	P((struct interface *, char *, char *));
 #define DPRINT_INTERFACE(_LVL_, _ARGS_) do { if (debug >= (_LVL_)) { print_interface _ARGS_; } } while (0)
 #else
-#define DPRINT_INTERFACE(_LVL_, _ARGS_)
+#define DPRINT_INTERFACE(_LVL_, _ARGS_) do {} while (0)
 #endif
 
 typedef struct vsock vsock_t;
@@ -289,23 +294,29 @@ static inline int     read_refclock_packet	P((SOCKET, struct refclockio *, l_fp)
  * systems are not affected by this and work correctly.
  * See Microsoft Knowledge Base Article Q263823 for details of this.
  */
-isc_result_t
-connection_reset_fix(SOCKET fd) {
+void
+connection_reset_fix(
+	SOCKET fd,
+	struct sockaddr_storage *addr
+	)
+{
 	DWORD dwBytesReturned = 0;
 	BOOL  bNewBehavior = FALSE;
 	DWORD status;
 
-	if(isc_win32os_majorversion() < 5)
-		return (ISC_R_SUCCESS); /*  NT 4.0 has no problem */
-
-	/* disable bad behavior using IOCTL: SIO_UDP_CONNRESET */
-	status = WSAIoctl(fd, SIO_UDP_CONNRESET, &bNewBehavior,
-			  sizeof(bNewBehavior), NULL, 0,
-			  &dwBytesReturned, NULL, NULL);
-	if (status != SOCKET_ERROR)
-		return (ISC_R_SUCCESS);
-	else
-		return (ISC_R_UNEXPECTED);
+	/*
+	 * disable bad behavior using IOCTL: SIO_UDP_CONNRESET
+	 * NT 4.0 has no problem
+	 */
+	if (isc_win32os_majorversion() >= 5) {
+		status = WSAIoctl(fd, SIO_UDP_CONNRESET, &bNewBehavior,
+				  sizeof(bNewBehavior), NULL, 0,
+				  &dwBytesReturned, NULL, NULL);
+		if (SOCKET_ERROR == status)
+			netsyslog(LOG_ERR, "connection_reset_fix() "
+					   "failed for address %s: %m", 
+					   stoa(addr));
+	}
 }
 #endif
 
@@ -477,6 +488,8 @@ void
 init_io(void)
 {
 #ifdef SYS_WINNT
+	init_io_completion_port();
+
 	if (!Win32InitSockets())
 	{
 		netsyslog(LOG_ERR, "No useable winsock.dll: %m");
@@ -748,6 +761,24 @@ delete_interface(struct interface *interface)
 static void
 add_interface(struct interface *interface)
 {
+	static struct interface *listhead = NULL;
+
+	/*
+	 * For ntpd, the first few interfaces (wildcard, localhost)
+	 * will never be removed.  This means inter_list.head is
+	 * unchanging once initialized.  Take advantage of that to
+	 * watch for changes and catch corruption earlier.  This
+	 * helped track down corruption caused by using FD_SET with
+	 * a descriptor numerically larger than FD_SETSIZE.
+	 */
+	if (NULL == listhead)
+		listhead = inter_list.head;
+
+	if (listhead != inter_list.head) {
+		msyslog(LOG_ERR, "add_interface inter_list.head corrupted: was %p now %p",
+			listhead, inter_list.head);
+		exit(1);
+	}
 	/*
 	 * Calculate the address hash
 	 */
@@ -1184,7 +1215,7 @@ update_interfaces(
 		scan_ipv6 = ISC_TRUE;
 #if defined(DEBUG)
 	else
-		if(debug)
+		if (debug)
 			netsyslog(LOG_ERR, "no IPv6 interfaces found");
 #endif
 #endif
@@ -1192,7 +1223,7 @@ update_interfaces(
 		scan_ipv6 = ISC_TRUE;
 #if defined(ISC_PLATFORM_HAVEIPV6) && defined(DEBUG)
 	else
-		if(debug)
+		if (debug)
 			netsyslog(LOG_ERR, "no IPv6 interfaces found");
 #endif
 
@@ -1501,6 +1532,24 @@ create_interface(
 	return interface;
 }
 
+
+#ifdef SO_EXCLUSIVEADDRUSE
+static void
+set_excladdruse(int fd)
+{
+	int one = 1;
+	int failed;
+
+	failed = setsockopt(fd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+			    (char *)&one, sizeof(one));
+
+	if (failed)
+		netsyslog(LOG_ERR, 
+			  "setsockopt(%d, SO_EXCLUSIVEADDRUSE, on): %m", fd);
+}
+#endif  /* SO_EXCLUSIVEADDRUSE */
+
+
 /*
  * set_reuseaddr() - set/clear REUSEADDR on all sockets
  *			NB possible hole - should we be doing this on broadcast
@@ -1508,13 +1557,16 @@ create_interface(
  */
 static void
 set_reuseaddr(int flag) {
-        struct interface *interf;
+	struct interface *interf;
+
+#ifndef SO_EXCLUSIVEADDRUSE
 
 	for (interf = ISC_LIST_HEAD(inter_list);
 	     interf != NULL;
 	     interf = ISC_LIST_NEXT(interf, link)) {
-	        if (interf->flags & INT_WILDCARD)
-		        continue;
+
+		if (interf->flags & INT_WILDCARD)
+			continue;
 	  
 		/*
 		 * if interf->fd  is INVALID_SOCKET, we might have a adapter
@@ -1530,6 +1582,7 @@ set_reuseaddr(int flag) {
 			}
 		}
 	}
+#endif /* ! SO_EXCLUSIVEADDRUSE */
 }
 
 /*
@@ -1691,7 +1744,7 @@ enable_multicast_if(struct interface *iface, struct sockaddr_storage *maddr)
 	case AF_INET6:
 #ifdef INCLUDE_IPV6_MULTICAST_SUPPORT
 		if (setsockopt(iface->fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
-		    &iface->scopeid, sizeof(iface->scopeid)) == -1) {
+		    (char *) &iface->scopeid, sizeof(iface->scopeid)) == -1) {
 			netsyslog(LOG_ERR,
 			"setsockopt IPV6_MULTICAST_IF failure: %m on socket %d, addr %s, scope %d for multicast address %s",
 			iface->fd, stoa(&iface->sin), iface->scopeid,
@@ -1703,7 +1756,7 @@ enable_multicast_if(struct interface *iface, struct sockaddr_storage *maddr)
 		 * Don't send back to itself, but allow it to fail to set it
 		 */
 		if (setsockopt(iface->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP,
-		       &off, sizeof(off)) == -1) {
+		       (char *) &off, sizeof(off)) == -1) {
 			netsyslog(LOG_ERR,
 			"setsockopt IP_MULTICAST_LOOP failure: %m on socket %d, addr %s for multicast address %s",
 			iface->fd, stoa(&iface->sin), stoa(maddr));
@@ -1981,7 +2034,10 @@ io_multicast_add(
 	)
 {
 #ifdef MCAST
-        struct interface *interface, *iface;
+	struct interface *interface;
+#ifndef MULTICAST_NONEWSOCKET
+	struct interface *iface;
+#endif
 	int lscope = 0;
 	
 	/*
@@ -2058,7 +2114,7 @@ io_multicast_add(
 	}
 	else
 	{
-	        delete_interface(interface);  /* re-use existing interface */
+		delete_interface(interface);  /* re-use existing interface */
 		interface = NULL;
 		if (addr.ss_family == AF_INET)
 			interface = wildipv4;
@@ -2227,12 +2283,7 @@ static void init_nonblocking_io(SOCKET fd)
 #elif defined(FIONBIO)
 	{
 		int on = 1;
-# if defined(SYS_WINNT)
-
-		if (ioctlsocket(fd,FIONBIO,(u_long *) &on) == SOCKET_ERROR)
-# else
 		if (ioctl(fd,FIONBIO,&on) < 0)
-# endif
 		{
 			netsyslog(LOG_ERR, "ioctl(FIONBIO) fails on fd #%d: %m",
 				fd);
@@ -2267,8 +2318,13 @@ open_socket(
 {
 	int errval;
 	SOCKET fd;
-	int on = 1, off = 0;	/* int is OK for REUSEADR per */
-				/* http://www.kohala.com/start/mcast.api.txt */
+	/*
+	 * int is OK for REUSEADR per 
+	 * http://www.kohala.com/start/mcast.api.txt
+	 */
+	int on = 1;
+	int off = 0;
+
 #if defined(IPTOS_LOWDELAY) && defined(IPPROTO_IP) && defined(IP_TOS)
 	int tos;
 #endif /* IPTOS_LOWDELAY && IPPROTO_IP && IP_TOS */
@@ -2277,38 +2333,30 @@ open_socket(
 		return (INVALID_SOCKET);
 
 	/* create a datagram (UDP) socket */
+	fd = socket(addr->ss_family, SOCK_DGRAM, 0);
+	if (INVALID_SOCKET == fd) {
 #ifndef SYS_WINNT
-	if (  (fd = socket(addr->ss_family, SOCK_DGRAM, 0)) < 0) {
 		errval = errno;
 #else
-	if (  (fd = socket(addr->ss_family, SOCK_DGRAM, 0)) == INVALID_SOCKET) {
 		errval = WSAGetLastError();
 #endif
-		if(addr->ss_family == AF_INET)
-			netsyslog(LOG_ERR, "socket(AF_INET, SOCK_DGRAM, 0) failed on address %s: %m",
-				stoa(addr));
-		else if(addr->ss_family == AF_INET6)
-			netsyslog(LOG_ERR, "socket(AF_INET6, SOCK_DGRAM, 0) failed on address %s: %m",
-				stoa(addr));
-#ifndef SYS_WINNT
-		if (errval == EPROTONOSUPPORT || errval == EAFNOSUPPORT ||
+		netsyslog(LOG_ERR, 
+			  "socket(AF_INET%s, SOCK_DGRAM, 0) failed on address %s: %m",
+			  (addr->ss_family == AF_INET6) ? "6" : "",
+			  stoa(addr));
+
+		if (errval == EPROTONOSUPPORT || 
+		    errval == EAFNOSUPPORT ||
 		    errval == EPFNOSUPPORT)
-#else
-		if (errval == WSAEPROTONOSUPPORT || errval == WSAEAFNOSUPPORT ||
-		    errval == WSAEPFNOSUPPORT)
-#endif
 			return (INVALID_SOCKET);
 		msyslog(LOG_ERR, "unexpected error code %d (not PROTONOSUPPORT|AFNOSUPPORT|FPNOSUPPORT) - exiting", errval);
 		exit(1);
 		/*NOTREACHED*/
 	}
-#ifdef SYS_WINNT
-	if (connection_reset_fix(fd) != ISC_R_SUCCESS) {
-		netsyslog(LOG_ERR, "connection_reset_fix(fd) failed on address %s: %m",
-			stoa(addr));
-	}
-#endif /* SYS_WINNT */
 
+#ifdef SYS_WINNT
+	connection_reset_fix(fd, addr);
+#endif
 	/*
 	 * Fixup the file descriptor for some systems
 	 * See bug #530 for details of the issue.
@@ -2317,18 +2365,36 @@ open_socket(
 
 	/*
 	 * set SO_REUSEADDR since we will be binding the same port
-	 * number on each interface according to flag
+	 * number on each interface according to turn_off_reuse.
+	 * This is undesirable on Windows versions starting with
+	 * Windows XP (numeric version 5.1).
 	 */
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-		       turn_off_reuse ? (char *)&off : (char *)&on, sizeof(on)))
-	{
-		netsyslog(LOG_ERR, "setsockopt SO_REUSEADDR %s on fails on address %s: %m",
-			turn_off_reuse ? "off" : "on", stoa(addr));
+#ifdef SYS_WINNT
+	if (isc_win32os_versioncheck(5, 1, 0, 0) < 0)  /* before 5.1 */
+#endif
+		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+			       (char *)(turn_off_reuse 
+					? &off 
+					: &on), 
+			       sizeof(on))) {
 
-		closesocket(fd);
-
-		return INVALID_SOCKET;
-	}
+			netsyslog(LOG_ERR, "setsockopt SO_REUSEADDR %s"
+					   " fails for address %s: %m",
+					   turn_off_reuse 
+						? "off" 
+						: "on", 
+					   stoa(addr));
+			closesocket(fd);
+			return INVALID_SOCKET;
+		}
+#ifdef SO_EXCLUSIVEADDRUSE
+	/*
+	 * setting SO_EXCLUSIVEADDRUSE on the wildcard we open
+	 * first will cause more specific binds to fail.
+	 */
+	if (!(interf->flags & INT_WILDCARD))
+		set_excladdruse(fd);
+#endif
 
 	/*
 	 * IPv4 specific options go here
@@ -2406,22 +2472,24 @@ open_socket(
 			) {
 			if (addr->ss_family == AF_INET)
 				netsyslog(LOG_ERR,
-					  "bind() fd %d, family %d, port %d, addr %s, in_classd=%d flags=0x%x fails: %m",
-					  fd, addr->ss_family, (int)ntohs(((struct sockaddr_in*)addr)->sin_port),
+					  "bind() fd %d, family AF_INET, port %d, addr %s, in_classd=%d flags=0x%x fails: %m",
+					  fd, (int)ntohs(((struct sockaddr_in*)addr)->sin_port),
 					  stoa(addr),
-					  IN_CLASSD(ntohl(((struct sockaddr_in*)addr)->sin_addr.s_addr)), flags);
+					  IN_CLASSD(ntohl(((struct sockaddr_in*)addr)->sin_addr.s_addr)), 
+					  flags);
 #ifdef INCLUDE_IPV6_SUPPORT
 			else if (addr->ss_family == AF_INET6)
-		                netsyslog(LOG_ERR,
-					  "bind() fd %d, family %d, port %d, scope %d, addr %s, in6_is_addr_multicast=%d flags=0x%x fails: %m",
-					  fd, addr->ss_family, (int)ntohs(((struct sockaddr_in6*)addr)->sin6_port),
+				netsyslog(LOG_ERR,
+					  "bind() fd %d, family AF_INET6, port %d, scope %d, addr %s, mcast=%d flags=0x%x fails: %m",
+					  fd, (int)ntohs(((struct sockaddr_in6*)addr)->sin6_port),
 # ifdef ISC_PLATFORM_HAVESCOPEID
 					  ((struct sockaddr_in6*)addr)->sin6_scope_id
 # else
 					  -1
 # endif
 					  , stoa(addr),
-					  IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6*)addr)->sin6_addr), flags);
+					  IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6*)addr)->sin6_addr), 
+					  flags);
 #endif
 		}
 
@@ -2452,7 +2520,7 @@ open_socket(
 		   addr->ss_family,
 		   (int)ntohs(((struct sockaddr_in*)addr)->sin_port),
 		   stoa(addr),
-		    flags));
+		   interf->flags));
 
 	init_nonblocking_io(fd);
 	
@@ -2496,9 +2564,6 @@ sendpkt(
 	)
 {
 	int cc, slot;
-#ifdef SYS_WINNT
-	DWORD err;
-#endif /* SYS_WINNT */
 
 	/*
 	 * Send error caches. Empty slots have port == 0
@@ -2618,8 +2683,8 @@ sendpkt(
 #endif /* INCLUDE_IPV6_SUPPORT */
 
 #if defined(HAVE_IO_COMPLETION_PORT)
-        err = io_completion_port_sendto(inter, pkt, len, dest);
-	if (err != ERROR_SUCCESS)
+        cc = io_completion_port_sendto(inter, pkt, len, dest);
+	if (cc != ERROR_SUCCESS)
 #else
 #ifdef SIM
         cc = srvr_rply(&ntp_node,  dest, inter, pkt);
@@ -2632,9 +2697,9 @@ sendpkt(
 	{
 		inter->notsent++;
 		packets_notsent++;
+
 #if defined(HAVE_IO_COMPLETION_PORT)
-		err = WSAGetLastError();
-		if (err != WSAEWOULDBLOCK && err != WSAENOBUFS && slot < 0)
+		if (cc != WSAEWOULDBLOCK && cc != WSAENOBUFS && slot < 0)
 #else
 		if (errno != EWOULDBLOCK && errno != ENOBUFS && slot < 0)
 #endif
@@ -2659,13 +2724,13 @@ sendpkt(
 			case AF_INET6 :
 
 				for (slot = ERRORCACHESIZE; --slot >= 0; )
-        				if (badaddrs6[slot].port == 0)
-            				{
-                                    		badaddrs6[slot].port = SRCPORT(dest);
-                                    		badaddrs6[slot].addr = ((struct sockaddr_in6*)dest)->sin6_addr;
-                                    		break;
-                            		}
-                		break;
+					if (badaddrs6[slot].port == 0)
+					{
+						badaddrs6[slot].port = SRCPORT(dest);
+						badaddrs6[slot].addr = ((struct sockaddr_in6*)dest)->sin6_addr;
+						break;
+					}
+				break;
 #endif /* INCLUDE_IPV6_SUPPORT */
 			default:  /* don't care if not supported */
 				break;
@@ -3207,7 +3272,7 @@ findlocalinterface(
 	struct interface *iface;
 
 	DPRINTF(4, ("Finding interface for addr %s in list of addresses\n",
-		    stoa(addr));)
+		    stoa(addr)));
 
 	memset(&saddr, 0, sizeof(saddr));
 	saddr.ss_family = addr->ss_family;
@@ -3624,6 +3689,11 @@ add_fd_to_list(SOCKET fd, enum desc_type type) {
 	 * I/O Completion Ports don't care about the select and FD_SET
 	 */
 #ifndef HAVE_IO_COMPLETION_PORT
+	if (fd < 0 || fd >= FD_SETSIZE) {
+		msyslog(LOG_ERR, "Too many sockets in use, FD_SETSIZE %d exceeded",
+			FD_SETSIZE);
+		exit(1);
+	}
 	/*
 	 * keep activefds in sync
 	 */
