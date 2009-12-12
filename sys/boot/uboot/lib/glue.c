@@ -467,7 +467,7 @@ ub_stor_type(int type)
 	if (type & DT_STOR_USB)
 		return ("USB");
 
-	if (type & DT_STOR_MMC);
+	if (type & DT_STOR_MMC)
 		return ("MMC");
 
 	return ("Unknown");
@@ -581,11 +581,6 @@ ub_env_enum(const char *last)
 	if (!env)
 		/* no more env. variables to enumerate */
 		return (NULL);
-#if 0
-	if (last && strncmp(env, last, strlen(last)) == 0);
-		/* error, trying to enumerate non existing env. variable */
-		return NULL;
-#endif
 
 	/* next enumerated env var */
 	memset(env_name, 0, 256);
