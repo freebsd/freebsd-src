@@ -29,6 +29,7 @@
 #ifndef CMAP_H
 #define	CMAP_H
 
+#include <limits.h>
 #include <stdbool.h>
 #include <wchar.h>
 

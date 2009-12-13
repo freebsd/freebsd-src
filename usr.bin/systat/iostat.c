@@ -73,6 +73,7 @@ static const char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #include <devstat.h>
 #include <err.h>
 #include <nlist.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <string.h>
 

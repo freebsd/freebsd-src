@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>

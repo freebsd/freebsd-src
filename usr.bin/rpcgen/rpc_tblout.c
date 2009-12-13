@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 #include <err.h>
 #include <stdio.h>
+#include <string.h>
 #include "rpc_parse.h"
 #include "rpc_scan.h"
 #include "rpc_util.h"

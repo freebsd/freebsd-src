@@ -54,7 +54,9 @@ static char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
 
+#include <stdlib.h>
 #include <string.h>
+#include <paths.h>
 #include "systat.h"
 #include "extern.h"
 #include "mode.h"

@@ -33,7 +33,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <wchar.h>
+#include <wctype.h>
 #include "cset.h"
 
 static struct csnode *	cset_delete(struct csnode *, wchar_t);
