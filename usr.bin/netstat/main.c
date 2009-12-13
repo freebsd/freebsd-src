@@ -60,10 +60,12 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <kvm.h>
 #include <limits.h>
 #include <netdb.h>
 #include <nlist.h>
+#include <paths.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <termcap.h>
 #include <unistd.h>
 #include <wchar.h>
+#include <wctype.h>
 
 #define	IESC	'\033'
 #define	SO	'\016'

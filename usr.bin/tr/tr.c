@@ -47,12 +47,16 @@ static const char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 
 #include <sys/types.h>
 
+#include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #include "cmap.h"
 #include "cset.h"

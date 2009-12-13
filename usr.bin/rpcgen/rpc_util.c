@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
  * Copyright (C) 1989, Sun Microsystems, Inc.
  */
 #include <err.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

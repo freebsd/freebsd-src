@@ -30,6 +30,7 @@
 #define	CSET_H
 
 #include <stdbool.h>
+#include <wchar.h>
 #include <wctype.h>
 
 struct csnode {
