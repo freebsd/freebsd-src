@@ -41,8 +41,14 @@ static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #include <sys/types.h>
 
 #include <err.h>
+#include <limits.h>
 #include <regex.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "defs.h"
+#include "extern.h"
 
 /*
  * Return a string for a regular expression error passed.  This is overkill,

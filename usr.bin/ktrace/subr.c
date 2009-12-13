@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 
+#include <stdio.h>
+
 #include "ktrace.h"
 
 void timevaladd(struct timeval *, struct timeval *);

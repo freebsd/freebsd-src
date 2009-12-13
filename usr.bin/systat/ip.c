@@ -55,6 +55,10 @@ static const char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#include <stdlib.h>
+#include <string.h>
+#include <paths.h>
+
 #include "systat.h"
 #include "extern.h"
 #include "mode.h"

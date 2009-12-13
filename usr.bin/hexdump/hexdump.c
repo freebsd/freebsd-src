@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <locale.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "hexdump.h"
 

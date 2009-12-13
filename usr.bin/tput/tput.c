@@ -45,6 +45,8 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
 #endif
 
+#include <termios.h>
+
 #include <err.h>
 #include <termcap.h>
 #include <stdio.h>
