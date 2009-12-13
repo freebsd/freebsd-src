@@ -212,12 +212,12 @@ ata_ite_8213_setmode(device_t dev, int target, int mode)
 	reg40 |= 0x4033;
 	/* Set PIO/WDMA timings. */
 	if (target == 0) {
-	    reg40 |= (ata_atapi(dev) ? 0x04 : 0x00);
+	    reg40 |= (ata_atapi(dev, target) ? 0x04 : 0x00);
 	    mask40 = 0x3300;
 	    new40 = timings[ata_mode2idx(piomode)] << 8;
 	}
 	else {
-	    reg40 |= (ata_atapi(dev) ? 0x40 : 0x00);
+	    reg40 |= (ata_atapi(dev, target) ? 0x40 : 0x00);
 	    mask44 = 0x0f;
 	    new44 = ((timings[ata_mode2idx(piomode)] & 0x30) >> 2) |
 		    (timings[ata_mode2idx(piomode)] & 0x03);
