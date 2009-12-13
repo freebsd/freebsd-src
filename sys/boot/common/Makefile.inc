@@ -23,6 +23,11 @@ SRCS+=	dev_net.c
 SRCS+=  bcache.c
 .endif
 
+.if defined(MD_IMAGE_SIZE)
+CFLAGS+= -DMD_IMAGE_SIZE=${MD_IMAGE_SIZE}
+SRCS+=	md.c
+.endif
+
 # Machine-independant ISA PnP
 .if defined(HAVE_ISABUS)
 SRCS+=	isapnp.c
