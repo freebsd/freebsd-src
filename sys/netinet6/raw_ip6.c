@@ -184,7 +184,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
-		if (jailed(in6p->inp_cred)) {
+		if (jailed_without_vnet(in6p->inp_cred)) {
 			/*
 			 * Allow raw socket in jail to receive multicast;
 			 * assume process had PRIV_NETINET_RAW at attach,
