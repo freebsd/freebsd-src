@@ -40,25 +40,30 @@ __FBSDID("$FreeBSD$");
  * rpcgen.new, and later modified.
  */
 
+#include <sys/types.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
 #include "yp.h"
 #include <err.h>
 #include <errno.h>
 #include <memory.h>
 #include <stdio.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdlib.h> /* getenv, exit */
 #include <string.h> /* strcmp */
 #include <syslog.h>
 #include <unistd.h>
-#include <rpc/pmap_clnt.h> /* for pmap_unset */
 #ifdef __cplusplus
 #include <sysent.h> /* getdtablesize, open */
 #endif /* __cplusplus */
-#include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/wait.h>
+#include <netdb.h>
 #include "yp_extern.h"
+#include <netconfig.h>
 #include <rpc/rpc.h>
+#include <rpc/rpc_com.h>
 
 #ifndef SIG_PF
 #define	SIG_PF void(*)(int)
@@ -68,14 +73,17 @@ __FBSDID("$FreeBSD$");
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
 		 /* Whether Stream or Datagram ? */
+static int _rpcaf;
+static int _rpcfd;
+
 	/* States a server can be in wrt request */
 
 #define	_IDLE 0
 #define	_SERVED 1
 #define	_SERVING 2
 
-extern void ypprog_1(struct svc_req *, register SVCXPRT *);
-extern void ypprog_2(struct svc_req *, register SVCXPRT *);
+extern void ypprog_1(struct svc_req *, SVCXPRT *);
+extern void ypprog_2(struct svc_req *, SVCXPRT *);
 extern int _rpc_dtablesize(void);
 extern int _rpcsvcstate;	 /* Set when a request is serviced */
 char *progname = "ypserv";
@@ -84,26 +92,37 @@ char *yp_dir = _PATH_YP;
 int do_dns = 0;
 int resfd;
 
-struct socktype {
-	const char *st_name;
-	int	   st_type;
+struct socklistent {
+	int				sle_sock;
+	struct sockaddr_storage		sle_ss;
+	SLIST_ENTRY(socklistent)	sle_next;
 };
-static struct socktype stlist[] = {
-	{ "tcp", SOCK_STREAM },
-	{ "udp", SOCK_DGRAM },
-	{ NULL, 0 }
+static SLIST_HEAD(, socklistent) sle_head =
+	SLIST_HEAD_INITIALIZER(&sle_head);
+
+struct bindaddrlistent {
+	const char			*ble_hostname;
+	SLIST_ENTRY(bindaddrlistent)	ble_next;
 };
+static SLIST_HEAD(, bindaddrlistent) ble_head =
+	SLIST_HEAD_INITIALIZER(&ble_head);
+
+static char *servname = "0";
 
 static
-void _msgout(char* msg)
+void _msgout(char* msg, ...)
 {
+	va_list ap;
+
+	va_start(ap, msg);
 	if (debug) {
 		if (_rpcpmstart)
-			syslog(LOG_ERR, "%s", msg);
+			vsyslog(LOG_ERR, msg, ap);
 		else
-			warnx("%s", msg);
+			vwarnx(msg, ap);
 	} else
-		syslog(LOG_ERR, "%s", msg);
+		vsyslog(LOG_ERR, msg, ap);
+	va_end(ap);
 }
 
 pid_t	yp_pid;
@@ -162,8 +181,8 @@ yp_svc_run(void)
 static void
 unregister(void)
 {
-	(void) pmap_unset(YPPROG, YPVERS);
-	(void) pmap_unset(YPPROG, YPOLDVERS);
+	(void)svc_unreg(YPPROG, YPVERS);
+	(void)svc_unreg(YPPROG, YPOLDVERS);
 }
 
 static void
@@ -231,23 +250,221 @@ closedown(int sig)
 	(void) alarm(_RPCSVC_CLOSEDOWN/2);
 }
 
+static int
+create_service(const int sock, const struct netconfig *nconf,
+	const struct __rpc_sockinfo *si)
+{
+	int error;
+
+	SVCXPRT *transp;
+	struct addrinfo hints, *res, *res0;
+	struct socklistent *slep;
+	struct bindaddrlistent *blep;
+	struct netbuf svcaddr;
+
+	SLIST_INIT(&sle_head);
+	memset(&hints, 0, sizeof(hints));
+	memset(&svcaddr, 0, sizeof(svcaddr));
+
+	hints.ai_family = si->si_af;
+	hints.ai_socktype = si->si_socktype;
+	hints.ai_protocol = si->si_proto;
+
+	/*
+	 * Build socketlist from bindaddrlist.
+	 */
+	if (sock == RPC_ANYFD) {
+		SLIST_FOREACH(blep, &ble_head, ble_next) {
+			if (blep->ble_hostname == NULL)
+				hints.ai_flags = AI_PASSIVE;
+			else
+				hints.ai_flags = 0;
+			error = getaddrinfo(blep->ble_hostname, servname,
+				    &hints, &res0);
+			if (error) {
+				_msgout("getaddrinfo(): %s",
+				    gai_strerror(error));
+				return -1;
+			}
+			for (res = res0; res; res = res->ai_next) {
+				int s;
+
+				s = __rpc_nconf2fd(nconf);
+				if (s < 0) {
+					if (errno == EPROTONOSUPPORT)
+						_msgout("unsupported"
+						    " transport: %s",
+						    nconf->nc_netid);
+					else
+						_msgout("cannot create"
+						    " %s socket: %s",
+						    nconf->nc_netid,
+						    strerror(errno));
+					freeaddrinfo(res0);
+					return -1;
+				}
+				if (bind(s, res->ai_addr,
+				    res->ai_addrlen) == -1) {
+					_msgout("cannot bind %s socket: %s",
+					    nconf->nc_netid, strerror(errno));
+					freeaddrinfo(res0);
+					close(sock);
+					return -1;
+				}
+				if (nconf->nc_semantics != NC_TPI_CLTS)
+					listen(s, SOMAXCONN);
+
+				slep = malloc(sizeof(*slep));
+				if (slep == NULL) {
+					_msgout("malloc failed: %s",
+					    strerror(errno));
+					freeaddrinfo(res0);
+					close(s);
+					return -1;
+				}
+				memset(slep, 0, sizeof(*slep));
+				memcpy(&slep->sle_ss,
+				    (struct sockaddr *)(res->ai_addr),
+				    sizeof(res->ai_addr));
+				slep->sle_sock = s;
+				SLIST_INSERT_HEAD(&sle_head, slep, sle_next);
+
+				/*
+				 * If servname == "0", redefine it by using
+				 * the bound socket.
+				 */
+				if (strncmp("0", servname, 1) == 0) {
+					struct sockaddr *sap;
+					socklen_t slen;
+					char *sname;
+
+					sname = malloc(NI_MAXSERV);
+					if (sname == NULL) {
+						_msgout("malloc(): %s",
+						    strerror(errno));
+						freeaddrinfo(res0);
+						close(s);
+						return -1;
+					}
+					memset(sname, 0, NI_MAXSERV);
+
+					sap = (struct sockaddr *)&slep->sle_ss;
+					slen = sizeof(*sap);
+					error = getsockname(s, sap, &slen);
+					if (error) {
+						_msgout("getsockname(): %s",
+						    strerror(errno));
+						freeaddrinfo(res0);
+						close(s);
+						return -1;
+					}
+					error = getnameinfo(sap, slen,
+					    NULL, 0,
+					    sname, NI_MAXSERV,
+					    NI_NUMERICHOST | NI_NUMERICSERV);
+					if (error) {
+						_msgout("getnameinfo(): %s",
+						    strerror(errno));
+						freeaddrinfo(res0);
+						close(s);
+						return -1;
+					}
+					servname = sname;
+				}
+			}
+			freeaddrinfo(res0);
+		}
+	} else {
+		slep = malloc(sizeof(*slep));
+		if (slep == NULL) {
+			_msgout("malloc failed: %s", strerror(errno));
+			return -1;
+		}
+		memset(slep, 0, sizeof(*slep));
+		slep->sle_sock = sock;
+		SLIST_INSERT_HEAD(&sle_head, slep, sle_next);
+	}
+
+	/*
+	 * Traverse socketlist and create rpc service handles for each socket.
+	 */
+	SLIST_FOREACH(slep, &sle_head, sle_next) {
+		if (nconf->nc_semantics == NC_TPI_CLTS)
+			transp = svc_dg_create(slep->sle_sock, 0, 0);
+		else
+			transp = svc_vc_create(slep->sle_sock, RPC_MAXDATASIZE,
+			    RPC_MAXDATASIZE);
+		if (transp == NULL) {
+			_msgout("unable to create service: %s",
+			    nconf->nc_netid);
+			continue;
+		}
+		if (!svc_reg(transp, YPPROG, YPOLDVERS, ypprog_1, NULL)) {
+			svc_destroy(transp);
+			close(slep->sle_sock);
+			_msgout("unable to register (YPPROG, YPOLDVERS, %s):"
+			    " %s", nconf->nc_netid, strerror(errno));
+			continue;
+		}
+		if (!svc_reg(transp, YPPROG, YPVERS, ypprog_2, NULL)) {
+			svc_destroy(transp);
+			close(slep->sle_sock);
+			_msgout("unable to register (YPPROG, YPVERS, %s): %s",
+			    nconf->nc_netid, strerror(errno));
+			continue;
+		}
+	}
+	while(!(SLIST_EMPTY(&sle_head)))
+		SLIST_REMOVE_HEAD(&sle_head, sle_next);
+
+	/*
+	 * Register RPC service to rpcbind by using AI_PASSIVE address.
+	 */
+	hints.ai_flags = AI_PASSIVE;
+	error = getaddrinfo(NULL, servname, &hints, &res0);
+	if (error) {
+		_msgout("getaddrinfo(): %s", gai_strerror(error));
+		return -1;
+	}
+	svcaddr.buf = res0->ai_addr;
+	svcaddr.len = res0->ai_addrlen;
+
+	if (si->si_af == AF_INET) {
+		/* XXX: ignore error intentionally */
+		rpcb_set(YPPROG, YPOLDVERS, nconf, &svcaddr);
+	}
+	/* XXX: ignore error intentionally */
+	rpcb_set(YPPROG, YPVERS, nconf, &svcaddr);
+
+	freeaddrinfo(res0);
+	return 0;
+}
+
 int
 main(int argc, char *argv[])
 {
-	register SVCXPRT *transp = NULL;
-	int sock;
-	int proto = 0;
-	struct sockaddr_in saddr;
-	socklen_t asize = sizeof (saddr);
 	int ch;
-	in_port_t yp_port = 0;
-	char *errstr;
-	struct socktype *st;
+	int error;
+	
+	void *nc_handle;
+	struct netconfig *nconf;
+	struct __rpc_sockinfo si;
+	struct bindaddrlistent *blep;
 
-	while ((ch = getopt(argc, argv, "hdnp:P:")) != -1) {
+	memset(&si, 0, sizeof(si));
+	SLIST_INIT(&ble_head);
+
+	while ((ch = getopt(argc, argv, "dh:np:P:")) != -1) {
 		switch (ch) {
 		case 'd':
 			debug = ypdb_debug = 1;
+			break;
+		case 'h':
+			blep = malloc(sizeof(*blep));
+			if (blep == NULL)
+				err(1, "malloc() failed: -h %s", optarg);
+			blep->ble_hostname = optarg;
+			SLIST_INSERT_HEAD(&ble_head, blep, ble_next);
 			break;
 		case 'n':
 			do_dns = 1;
@@ -256,17 +473,21 @@ main(int argc, char *argv[])
 			yp_dir = optarg;
 			break;
 		case 'P':
-			yp_port = (in_port_t)strtonum(optarg, 1, 65535,
-			    (const char **)&errstr);
-			if (yp_port == 0 && errstr != NULL) {
-				_msgout("invalid port number provided");
-				exit(1);
-			}
+			servname = optarg;
 			break;
-		case 'h':
 		default:
 			usage();
 		}
+	}
+	/*
+	 * Add "anyaddr" entry if no -h is specified.
+	 */
+	if (SLIST_EMPTY(&ble_head)) {
+		blep = malloc(sizeof(*blep));
+		if (blep == NULL)
+			err(1, "malloc() failed");
+		memset(blep, 0, sizeof(*blep));
+		SLIST_INSERT_HEAD(&ble_head, blep, ble_next);
 	}
 
 	load_securenets();
@@ -274,103 +495,57 @@ main(int argc, char *argv[])
 #ifdef DB_CACHE
 	yp_init_dbs();
 #endif
-	if (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {
-		int ssize = sizeof (int);
-
-		if (saddr.sin_family != AF_INET)
-			exit(1);
-		if (getsockopt(0, SOL_SOCKET, SO_TYPE,
-				(char *)&_rpcfdtype, &ssize) == -1)
-			exit(1);
-		sock = 0;
+	nc_handle = setnetconfig();
+	if (nc_handle == NULL)
+		err(1, "cannot read %s", NETCONFIG);
+	if (__rpc_fd2sockinfo(0, &si) != 0) {
+		/* invoked from inetd */
 		_rpcpmstart = 1;
-		proto = 0;
+		_rpcfdtype = si.si_socktype;
+		_rpcaf = si.si_af;
+		_rpcfd = 0;
 		openlog("ypserv", LOG_PID, LOG_DAEMON);
 	} else {
+		/* standalone mode */
 		if (!debug) {
 			if (daemon(0,0)) {
 				err(1,"cannot fork");
 			}
 			openlog("ypserv", LOG_PID, LOG_DAEMON);
 		}
-		sock = RPC_ANYSOCK;
-		(void) pmap_unset(YPPROG, YPVERS);
-		(void) pmap_unset(YPPROG, YPOLDVERS);
+		_rpcpmstart = 0;
+		_rpcaf = AF_INET;
+		_rpcfd = RPC_ANYFD;
+		unregister();
 	}
 
 	/*
-	 * Initialize TCP/UDP sockets.
+	 * Create RPC service for each transport.
 	 */
-	memset((char *)&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	saddr.sin_port = htons(yp_port);
-	for (st = stlist; st->st_name != NULL; st++) {
-		/* Do not bind the socket if the user didn't specify a port */
-		if (yp_port == 0)
-			break;
-
-		sock = socket(AF_INET, st->st_type, 0);
-		if (sock == -1) {
-			if ((asprintf(&errstr, "cannot create a %s socket",
-			    st->st_name)) == -1)
-				err(1, "unexpected failure in asprintf()");
-			_msgout(errstr);
-			free((void *)errstr);
-			exit(1);
-		}
-		if (bind(sock, (struct sockaddr *) &saddr, sizeof(saddr))
-		    == -1) {
-			if ((asprintf(&errstr, "cannot bind %s socket",
-			    st->st_name)) == -1)
-				err(1, "unexpected failure in asprintf()");
-			_msgout(errstr);
-			free((void *)errstr);
-			exit(1);
-		}
-		errstr = NULL;
-	}
-
-	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_DGRAM)) {
-		transp = svcudp_create(sock);
-		if (transp == NULL) {
-			_msgout("cannot create udp service");
-			exit(1);
-		}
-		if (!_rpcpmstart)
-			proto = IPPROTO_UDP;
-		if (!svc_register(transp, YPPROG, YPOLDVERS, ypprog_1, proto)) {
-			_msgout("unable to register (YPPROG, YPOLDVERS, udp)");
-			exit(1);
-		}
-		if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, proto)) {
-			_msgout("unable to register (YPPROG, YPVERS, udp)");
-			exit(1);
+	while((nconf = getnetconfig(nc_handle))) {
+		if ((nconf->nc_flag & NC_VISIBLE)) {
+			if (__rpc_nconf2sockinfo(nconf, &si) == 0) {
+				_msgout("cannot get information for %s",
+				    nconf->nc_netid);
+				exit(1);
+			}
+			if (_rpcpmstart) {
+				if (si.si_socktype != _rpcfdtype ||
+				    si.si_af != _rpcaf)
+					continue;
+			} else if (si.si_af != _rpcaf)
+					continue;
+			error = create_service(_rpcfd, nconf, &si);
+			if (error) {
+				endnetconfig(nc_handle);
+				exit(1);
+			}
 		}
 	}
+	endnetconfig(nc_handle);
+	while(!(SLIST_EMPTY(&ble_head)))
+		SLIST_REMOVE_HEAD(&ble_head, ble_next);
 
-	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_STREAM)) {
-		transp = svctcp_create(sock, 0, 0);
-		if (transp == NULL) {
-			_msgout("cannot create tcp service");
-			exit(1);
-		}
-		if (!_rpcpmstart)
-			proto = IPPROTO_TCP;
-		if (!svc_register(transp, YPPROG, YPOLDVERS, ypprog_1, proto)) {
-			_msgout("unable to register (YPPROG, YPOLDVERS, tcp)");
-			exit(1);
-		}
-		if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, proto)) {
-			_msgout("unable to register (YPPROG, YPVERS, tcp)");
-			exit(1);
-		}
-	}
-
-	if (transp == (SVCXPRT *)NULL) {
-		_msgout("could not create a handle");
-		exit(1);
-	}
 	if (_rpcpmstart) {
 		(void) signal(SIGALRM, (SIG_PF) closedown);
 		(void) alarm(_RPCSVC_CLOSEDOWN/2);
