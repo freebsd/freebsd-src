@@ -141,11 +141,14 @@ ata_ali_chipinit(device_t dev)
 	/* use device interrupt as byte count end */
 	pci_write_config(dev, 0x4a, pci_read_config(dev, 0x4a, 1) | 0x20, 1);
 
-	/* enable cable detection and UDMA support on newer chips */
-	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x09, 1);
+	/* enable cable detection and UDMA support on revisions < 0xc7 */
+	if (ctlr->chip->chiprev < 0xc7)
+	    pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) |
+		0x09, 1);
 
-	/* enable ATAPI UDMA mode */
-	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x01, 1);
+	/* enable ATAPI UDMA mode (even if we are going to do PIO) */
+	pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) |
+	    (ctlr->chip->chiprev >= 0xc7 ? 0x03 : 0x01), 1);
 
 	/* only chips with revision > 0xc4 can do 48bit DMA */
 	if (ctlr->chip->chiprev <= 0xc4)
@@ -276,7 +279,7 @@ ata_ali_setmode(device_t dev, int target, int mode)
 
         mode = min(mode, ctlr->chip->max_dma);
 
-	if (ctlr->chip->cfg2 & ALI_NEW) {
+	if (ctlr->chip->cfg2 & ALI_NEW && ctlr->chip->chiprev < 0xc7) {
 		if (mode > ATA_UDMA2 &&
 		    pci_read_config(parent, 0x4a, 1) & (1 << ch->unit)) {
 			ata_print_cable(dev, "controller");
