@@ -86,16 +86,16 @@ int dobackup, docompare, dodir, dopreserve, dostrip, nommap, safecopy, verbose;
 mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 const char *suffix = BACKUP_SUFFIX;
 
-void	copy(int, const char *, int, const char *, off_t);
-int	compare(int, const char *, size_t, int, const char *, size_t);
-int	create_newfile(const char *, int, struct stat *);
-int	create_tempfile(const char *, char *, size_t);
-void	install(const char *, const char *, u_long, u_int);
-void	install_dir(char *);
-u_long	numeric_id(const char *, const char *);
-void	strip(const char *);
-int	trymmap(int);
-void	usage(void);
+static void	copy(int, const char *, int, const char *, off_t);
+static int	compare(int, const char *, size_t, int, const char *, size_t);
+static int	create_newfile(const char *, int, struct stat *);
+static int	create_tempfile(const char *, char *, size_t);
+static void	install(const char *, const char *, u_long, u_int);
+static void	install_dir(char *);
+static u_long	numeric_id(const char *, const char *);
+static void	strip(const char *);
+static int	trymmap(int);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -771,7 +771,7 @@ install_dir(char *path)
  *	print a usage message and die
  */
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 "usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
