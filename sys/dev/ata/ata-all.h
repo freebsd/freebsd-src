@@ -622,7 +622,7 @@ void ata_udelay(int interval);
 char *ata_unit2str(struct ata_device *atadev);
 const char *ata_mode2str(int mode);
 const char *ata_satarev2str(int rev);
-int ata_atapi(device_t dev);
+int ata_atapi(device_t dev, int target);
 int ata_pmode(struct ata_params *ap);
 int ata_wmode(struct ata_params *ap);
 int ata_umode(struct ata_params *ap);
