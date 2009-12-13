@@ -180,7 +180,8 @@ ata_ali_ch_attach(device_t dev)
     if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
-    ch->flags |= ATA_CHECKS_CABLE;
+    if (ctlr->chip->cfg2 & ALI_NEW && ctlr->chip->chiprev < 0xc7)
+	ch->flags |= ATA_CHECKS_CABLE;
     /* older chips can't do 48bit DMA transfers */
     if (ctlr->chip->chiprev <= 0xc4)
 	ch->flags |= ATA_NO_48BIT_DMA;
