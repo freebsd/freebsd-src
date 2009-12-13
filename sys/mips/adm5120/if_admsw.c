@@ -745,10 +745,11 @@ static void
 admsw_watchdog(void *arg)
 {
 	struct admsw_softc *sc = arg;
+	struct ifnet *ifp;
 	int vlan;
 
-	callout_reset(&sc->watchdog, hz, admsw_watchdog, sc);
-	if (sc->sc_timer == 0 || --sc->timer > 0)
+	callout_reset(&sc->sc_watchdog, hz, admsw_watchdog, sc);
+	if (sc->sc_timer == 0 || --sc->sc_timer > 0)
 		return;
 
 	/* Check if an interrupt was lost. */
@@ -774,6 +775,8 @@ admsw_watchdog(void *arg)
 	for (vlan = 0; vlan < SW_DEVS; vlan++)
 		admsw_stop(sc->sc_ifnet[vlan], 0);
 	admsw_init(sc);
+
+	ifp = sc->sc_ifnet[0];
 
 	/* Try to get more packets going. */
 	admsw_start(ifp);
