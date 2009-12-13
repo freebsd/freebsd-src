@@ -1150,12 +1150,11 @@ ata_satarev2str(int rev)
 }
 
 int
-ata_atapi(device_t dev)
+ata_atapi(device_t dev, int target)
 {
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(dev);
 
-    return (ch->devices & (ATA_ATAPI_MASTER << atadev->unit));
+    return (ch->devices & (ATA_ATAPI_MASTER << target));
 }
 
 int
