@@ -67,11 +67,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "zopen.h"
 
 #define	BITS		16		/* Default bits. */

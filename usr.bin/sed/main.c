@@ -51,10 +51,12 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
 #include <locale.h>
 #include <regex.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -43,6 +43,7 @@ static const char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
 #include <sys/time.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <wchar.h>
 
 #include "extern.h"

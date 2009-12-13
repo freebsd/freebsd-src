@@ -62,6 +62,7 @@ static const char rcsid[] =
 
 #include <signal.h>
 #include <fcntl.h>
+#include <ctype.h>
 #include <errno.h>
 #include <kvm.h>
 #include <limits.h>
@@ -70,6 +71,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <paths.h>
 #include <err.h>
 
 struct nlist nl[] = {

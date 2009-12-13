@@ -60,6 +60,8 @@
 
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+
 #include "systat.h"
 #include "extern.h"
 #include "mode.h"
