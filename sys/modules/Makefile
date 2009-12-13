@@ -155,6 +155,7 @@ SUBDIR=	${_3dfx} \
 	libiconv \
 	libmbpool \
 	libmchain \
+	${_lindev} \
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
@@ -413,6 +414,7 @@ _ie=		ie
 _if_ndis=	if_ndis
 _igb=		igb
 _io=		io
+_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -548,6 +550,7 @@ _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
 _ixgb=   	ixgb
+_lindev=	lindev
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux

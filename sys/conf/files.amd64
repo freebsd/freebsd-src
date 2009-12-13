@@ -187,6 +187,8 @@ dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/lindev/full.c		optional	lindev
+dev/lindev/lindev.c		optional	lindev
 dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
