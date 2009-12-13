@@ -75,13 +75,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <err.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "arch.h"
 #include "buf.h"
-#include "config.h"
 #include "dir.h"
 #include "globals.h"
 #include "GNode.h"

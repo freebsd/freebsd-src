@@ -904,6 +904,7 @@ product ASANTE EA		0x1427	Ethernet
 product ASIX AX88172		0x1720	10/100 Ethernet
 product ASIX AX88178		0x1780	AX88178
 product ASIX AX88772		0x7720	AX88772
+product ASIX AX88772A		0x772a	AX88772A USB 2.0 10/100 Ethernet
 
 /* ASUS products */
 product ASUS WL167G		0x1707	WL-167g Wireless Adapter
@@ -1212,6 +1213,9 @@ product DRESDENELEKTRONIK WIRELESSHANDHELDTERMINAL  0x0004 Wireless Handheld Ter
 /* Dynastream Innovations */
 product DYNASTREAM ANTDEVBOARD	0x1003	ANT dev board
 
+/* Eicon Networks */
+product EICON DIVA852		0x4905	Diva 852 ISDN TA
+
 /* EIZO products */
 product EIZO HUB		0x0000	hub
 product EIZO MONITOR		0x0001	monitor
@@ -1320,6 +1324,7 @@ product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 product FTDI SERIAL_8U232AM4	0x6004	8U232AM Serial
 product FTDI SERIAL_2232C	0x6010	FT2232C Dual port Serial
+product FTDI SERIAL_2232D	0x9e90	FT2232D Dual port Serial
 /* Gude Analog- und Digitalsysteme products also uses FTDI's id: */
 product FTDI TACTRIX_OPENPORT_13M 0xcc48 OpenPort 1.3 Mitsubishi
 product FTDI TACTRIX_OPENPORT_13S 0xcc49 OpenPort 1.3 Subaru
@@ -1825,6 +1830,7 @@ product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
+product MOTOROLA2 T720C		0x2822	T720c
 product MOTOROLA2 A41XV32X	0x2a22	A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
 product MOTOROLA2 USBLAN	0x600c	USBLAN

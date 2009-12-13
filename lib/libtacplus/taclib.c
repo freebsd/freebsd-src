@@ -211,6 +211,8 @@ protocol_version(int msg_type, int var, int type)
 	    }
         break;
 
+	case TAC_ACCT:
+
 	default:
 	    minor = 0;
         break;
@@ -967,6 +969,23 @@ tac_create_author(struct tac_handle *h, int method, int type, int service)
 	return 0;
 }
 
+int
+tac_create_acct(struct tac_handle *h, int acct, int action, int type, int service)
+{
+	struct tac_acct_start *as;
+
+	create_msg(h, TAC_ACCT, action, type);
+
+	as = &h->request.u.acct_start;
+	as->action = acct;
+	as->authen_action = action;
+	as->priv_lvl = TAC_PRIV_LVL_USER;
+	as->authen_type = type;
+	as->authen_service = service;
+
+	return 0;
+}
+
 static void
 create_msg(struct tac_handle *h, int msg_type, int var, int type)
 {
@@ -1158,6 +1177,49 @@ tac_send_author(struct tac_handle *h)
 }
 
 int
+tac_send_acct(struct tac_handle *h)
+{
+	register int i, current;
+	struct tac_acct_start *as = &h->request.u.acct_start;
+	struct tac_acct_reply *ar = &h->response.u.acct_reply;
+
+	/* start */
+	as = &h->request.u.acct_start;
+	h->request.length = htonl(offsetof(struct tac_acct_start, rest[0]));
+	for (as->av_cnt = 0, i = 0; i < MAXAVPAIRS; i++)
+		if (h->avs[i].len && h->avs[i].data)
+			as->av_cnt++;
+	h->request.length = ntohl(htonl(h->request.length) + as->av_cnt);
+
+	if (add_str_8(h, &as->user_len, &h->user) == -1 ||
+	    add_str_8(h, &as->port_len, &h->port) == -1 ||
+	    add_str_8(h, &as->rem_addr_len, &h->rem_addr) == -1)
+		return -1;
+
+	for (i = current = 0; i < MAXAVPAIRS; i++)
+		if (h->avs[i].len && h->avs[i].data)
+			if (add_str_8(h, &as->rest[current++], &(h->avs[i])) == -1)
+				return -1;
+
+	/* send */
+	if (send_msg(h) == -1 || recv_msg(h) == -1)
+		return -1;
+
+	/* reply */
+	h->srvr_pos = offsetof(struct tac_acct_reply, rest[0]);
+	if (get_srvr_str(h, "msg", &h->srvr_msg, ntohs(ar->msg_len)) == -1 ||
+	    get_srvr_str(h, "data", &h->srvr_data, ntohs(ar->data_len)) == -1 ||
+	    get_srvr_end(h) == -1)
+		return -1;
+
+	/* Sanity checks */
+	if (!h->single_connect)
+		close_connection(h);
+
+	return ar->status;
+}
+
+int
 tac_set_rem_addr(struct tac_handle *h, const char *addr)
 {
 	return save_str(h, &h->rem_addr, addr, addr != NULL ? strlen(addr) : 0);
@@ -1263,8 +1325,13 @@ tac_get_av_value(struct tac_handle *h, const char *attribute)
 			 *     h->srvr_avs[0] = "foobie=var1"
 			 *     h->srvr_avs[1] = "foo=var2"
 			 * is handled.
+			 *
+			 * Note that for empty string attribute values a
+			 * 0-length string is returned in order to distinguish
+			 * against unset values.
+			 * dump_str() will handle srvr.len == 0 correctly.
 			 */
-			if (found_seperator == 1 && ch != end) {
+			if (found_seperator == 1) {
 				srvr.len = end - ch;
 				srvr.data = ch;
 				return dup_str(h, &srvr, NULL);

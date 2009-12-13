@@ -584,6 +584,8 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	int retry;
 	const char *s;
 
+	CURVNET_SET(TD_TO_VNET(td));
+
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
@@ -960,6 +962,7 @@ gotreply:
 out:
 	soclose(so);
 out0:
+	CURVNET_RESTORE();
 	return error;
 }
 
@@ -973,6 +976,8 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	struct socket *so;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+
+	CURVNET_SET(TD_TO_VNET(td));
 
 	error = socreate(AF_INET, &ifctx->so, SOCK_DGRAM, 0, td->td_ucred, td);
 	if (error != 0)
@@ -1047,6 +1052,8 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 		panic("bootpc: Unable to find HW address for %s",
 		      ifctx->ireq.ifr_name);
 	ifctx->sdl = sdl;
+
+	CURVNET_RESTORE();
 
 	return error;
 }

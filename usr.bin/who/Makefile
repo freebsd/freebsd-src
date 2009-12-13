@@ -1,5 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	who
+
+WARNS=	6
+
+DPADD=	${LIBULOG}
+LDADD=	-lulog
 
 .include <bsd.prog.mk>

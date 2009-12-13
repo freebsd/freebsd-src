@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -121,6 +122,7 @@ static int snioctl(struct ifnet * ifp, u_long, caddr_t);
 
 static void snresume(struct ifnet *);
 
+static void snintr_locked(struct sn_softc *);
 static void sninit_locked(void *);
 static void snstart_locked(struct ifnet *);
 
@@ -128,7 +130,7 @@ static void sninit(void *);
 static void snread(struct ifnet *);
 static void snstart(struct ifnet *);
 static void snstop(struct sn_softc *);
-static void snwatchdog(struct ifnet *);
+static void snwatchdog(void *);
 
 static void sn_setmcast(struct sn_softc *);
 static int sn_getmcf(struct ifnet *ifp, u_char *mcf);
@@ -170,6 +172,7 @@ sn_attach(device_t dev)
 	}
 
 	SN_LOCK_INIT(sc);
+	callout_init_mtx(&sc->watchdog, &sc->sc_mtx, 0);
 	snstop(sc);
 	sc->pages_wanted = -1;
 
@@ -202,13 +205,11 @@ sn_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = snstart;
 	ifp->if_ioctl = snioctl;
-	ifp->if_watchdog = snwatchdog;
 	ifp->if_init = sninit;
 	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_timer = 0;
 
 	ether_ifattach(ifp, eaddr);
 
@@ -233,9 +234,11 @@ sn_detach(device_t dev)
 	struct sn_softc	*sc = device_get_softc(dev);
 	struct ifnet	*ifp = sc->ifp;
 
-	snstop(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING; 
 	ether_ifdetach(ifp);
+	SN_LOCK(sc);
+	snstop(sc);
+	SN_UNLOCK(sc);
+	callout_drain(&sc->watchdog);
 	sn_deactivate(dev);
 	if_free(ifp);
 	SN_LOCK_DESTROY(sc);
@@ -342,6 +345,7 @@ sninit_locked(void *xsc)
 	 */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	callout_reset(&sc->watchdog, hz, snwatchdog, sc);
 
 	/*
 	 * Attempt to push out any waiting packets.
@@ -463,7 +467,7 @@ startagain:
 		CSR_WRITE_1(sc, INTR_MASK_REG_B, mask);
 		sc->intr_mask = mask;
 
-		ifp->if_timer = 1;
+		sc->timer = 1;
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		sc->pages_wanted = numPages;
 		return;
@@ -548,7 +552,7 @@ startagain:
 	CSR_WRITE_2(sc, MMU_CMD_REG_W, MMUCR_ENQUEUE);
 
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	ifp->if_timer = 1;
+	sc->timer = 1;
 
 	BPF_MTAP(ifp, top);
 
@@ -657,7 +661,7 @@ snresume(struct ifnet *ifp)
 	packet_no = CSR_READ_1(sc, ALLOC_RESULT_REG_B);
 	if (packet_no & ARR_FAILED) {
 		if_printf(ifp, "Memory allocation failed.  Weird.\n");
-		ifp->if_timer = 1;
+		sc->timer = 1;
 		goto try_start;
 	}
 	/*
@@ -755,24 +759,32 @@ try_start:
 	 * Now pass control to snstart() to queue any additional packets
 	 */
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	snstart(ifp);
+	snstart_locked(ifp);
 
 	/*
 	 * We've sent something, so we're active.  Set a watchdog in case the
 	 * TX_EMPTY interrupt is lost.
 	 */
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	ifp->if_timer = 1;
+	sc->timer = 1;
 
 	return;
 }
 
-
 void
 sn_intr(void *arg)
 {
-	int             status, interrupts;
 	struct sn_softc *sc = (struct sn_softc *) arg;
+
+	SN_LOCK(sc);
+	snintr_locked(sc);
+	SN_UNLOCK(sc);
+}
+
+static void
+snintr_locked(struct sn_softc *sc)
+{
+	int             status, interrupts;
 	struct ifnet   *ifp = sc->ifp;
 
 	/*
@@ -783,12 +795,10 @@ sn_intr(void *arg)
 	uint16_t        tx_status;
 	uint16_t        card_stats;
 
-	SN_LOCK(sc);
-
 	/*
 	 * Clear the watchdog.
 	 */
-	ifp->if_timer = 0;
+	sc->timer = 0;
 
 	SMC_SELECT_BANK(sc, 2);
 
@@ -981,7 +991,6 @@ out:
 	mask |= CSR_READ_1(sc, INTR_MASK_REG_B);
 	CSR_WRITE_1(sc, INTR_MASK_REG_B, mask);
 	sc->intr_mask = mask;
-	SN_UNLOCK(sc);
 }
 
 static void
@@ -1136,7 +1145,6 @@ snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		SN_LOCK(sc);
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			snstop(sc);
 		} else {
 			/* reinitialize card on any parameter change */
@@ -1161,9 +1169,16 @@ snioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 static void
-snwatchdog(struct ifnet *ifp)
+snwatchdog(void *arg)
 {
-	sn_intr(ifp->if_softc);
+	struct sn_softc *sc;
+
+	sc = arg;
+	SN_ASSERT_LOCKED(sc);
+	callout_reset(&sc->watchdog, hz, snwatchdog, sc);
+	if (sc->timer == 0 || --sc->timer > 0)
+		return;
+	snintr_locked(sc);
 }
 
 
@@ -1193,7 +1208,9 @@ snstop(struct sn_softc *sc)
 	/*
 	 * Cancel watchdog.
 	 */
-	ifp->if_timer = 0;
+	sc->timer = 0;
+	callout_stop(&sc->watchdog);
+	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 }
 
 

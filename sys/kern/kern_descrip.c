@@ -718,14 +718,15 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			do {
 				new = old = fp->f_flag;
 				new |= FRDAHEAD;
-			} while (atomic_cmpset_rel_int(&fp->f_flag, old, new) == 0);
+			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
 readahead_vnlock_fail:
 			VFS_UNLOCK_GIANT(vfslocked);
+			vfslocked = 0;
 		} else {
 			do {
 				new = old = fp->f_flag;
 				new &= ~FRDAHEAD;
-			} while (atomic_cmpset_rel_int(&fp->f_flag, old, new) == 0);
+			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
 		}
 		fdrop(fp, td);
 		break;

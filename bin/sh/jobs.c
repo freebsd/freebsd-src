@@ -146,7 +146,7 @@ setjobctl(int on)
 		do { /* while we are in the background */
 			initialpgrp = tcgetpgrp(ttyfd);
 			if (initialpgrp < 0) {
-out:				out2str("sh: can't access tty; job control turned off\n");
+out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
 				mflag = 0;
 				return;
 			}
@@ -1046,7 +1046,7 @@ stoppedjobs(void)
 		if (jp->used == 0)
 			continue;
 		if (jp->state == JOBSTOPPED) {
-			out2str("You have stopped jobs.\n");
+			out2fmt_flush("You have stopped jobs.\n");
 			job_warning = 2;
 			return (1);
 		}

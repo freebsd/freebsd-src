@@ -92,7 +92,7 @@ histedit(void)
 			if (hist != NULL)
 				sethistsize(histsizeval());
 			else
-				out2str("sh: can't initialize history\n");
+				out2fmt_flush("sh: can't initialize history\n");
 		}
 		if (editing && !el && isatty(0)) { /* && isatty(2) ??? */
 			/*
@@ -114,7 +114,7 @@ histedit(void)
 				el_set(el, EL_PROMPT, getprompt);
 			} else {
 bad:
-				out2str("sh: can't initialize editing\n");
+				out2fmt_flush("sh: can't initialize editing\n");
 			}
 			INTON;
 		} else if (!editing && el) {
@@ -336,6 +336,7 @@ histcmd(int argc, char **argv)
 			if (sflg) {
 				if (displayhist) {
 					out2str(s);
+					flushout(out2);
 				}
 				evalstring(s, 0);
 				if (displayhist && hist) {

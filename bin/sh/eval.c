@@ -593,6 +593,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	char *savecmdname;
 	struct shparam saveparam;
 	struct localvar *savelocalvars;
+	struct parsefile *savetopfile;
 	volatile int e;
 	char *lastarg;
 	int realstatus;
@@ -781,7 +782,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		savelocalvars = localvars;
 		localvars = NULL;
 		reffunc(cmdentry.u.func);
-		INTON;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXSHELLPROC)
@@ -797,6 +797,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			longjmp(handler->loc, 1);
 		}
 		handler = &jmploc;
+		INTON;
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
 		funcnest++;
@@ -833,6 +834,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			mode |= REDIR_BACKQ;
 		}
 		savecmdname = commandname;
+		savetopfile = getcurrentfile();
 		cmdenviron = varlist.list;
 		e = -1;
 		savehandler = handler;
@@ -867,6 +869,7 @@ cmddone:
 			if ((e != EXERROR && e != EXEXEC)
 			    || cmdentry.special)
 				exraise(e);
+			popfilesupto(savetopfile);
 			FORCEINTON;
 		}
 		if (cmdentry.u.index != EXECCMD)
@@ -880,7 +883,6 @@ cmddone:
 #ifdef DEBUG
 		trputs("normal command:  ");  trargs(argv);
 #endif
-		clearredir();
 		redirect(cmd->ncmd.redirect, 0);
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			setvareq(sp->text, VEXPORT|VSTACK);

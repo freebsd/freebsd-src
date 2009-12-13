@@ -293,11 +293,16 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	uint64_t psize;
 	off_t offset, size;
 	uint64_t guid;
-	int error, l, len;
+	int error, l, len, iszvol;
 
 	g_topology_assert_not();
 
 	pp = cp->provider;
+	ZFS_LOG(1, "Reading guid from %s...", pp->name);
+	if (g_getattr("ZFS::iszvol", cp, &iszvol) == 0 && iszvol) {
+		ZFS_LOG(1, "Skipping ZVOL-based provider %s.", pp->name);
+		return (0);
+	}
 
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
@@ -316,8 +321,7 @@ vdev_geom_read_guid(struct g_consumer *cp)
 		if ((offset % pp->sectorsize) != 0)
 			continue;
 
-		error = vdev_geom_io(cp, BIO_READ, label, offset, size);
-		if (error != 0)
+		if (vdev_geom_io(cp, BIO_READ, label, offset, size) != 0)
 			continue;
 		buf = label->vl_vdev_phys.vp_nvlist;
 
@@ -502,7 +506,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	if ((owned = mtx_owned(&Giant)))
 		mtx_unlock(&Giant);
-	cp = vdev_geom_open_by_path(vd, 0);
+	cp = vdev_geom_open_by_path(vd, 1);
 	if (cp == NULL) {
 		/*
 		 * The device at vd->vdev_path doesn't have the expected guid.
@@ -512,7 +516,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		cp = vdev_geom_open_by_guid(vd);
 	}
 	if (cp == NULL)
-		cp = vdev_geom_open_by_path(vd, 1);
+		cp = vdev_geom_open_by_path(vd, 0);
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;

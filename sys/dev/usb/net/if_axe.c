@@ -141,6 +141,7 @@ static const struct usb_device_id axe_devs[] = {
 	{USB_VPI(USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88172, 0)},
 	{USB_VPI(USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88178, AXE_FLAG_178)},
 	{USB_VPI(USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88772, AXE_FLAG_772)},
+	{USB_VPI(USB_VENDOR_ASIX, USB_PRODUCT_ASIX_AX88772A, AXE_FLAG_772)},
 	{USB_VPI(USB_VENDOR_ATEN, USB_PRODUCT_ATEN_UC210T, 0)},
 	{USB_VPI(USB_VENDOR_BELKIN, USB_PRODUCT_BELKIN_F5D5055, AXE_FLAG_178)},
 	{USB_VPI(USB_VENDOR_BILLIONTON, USB_PRODUCT_BILLIONTON_USB2AR, 0)},
@@ -706,7 +707,7 @@ axe_attach(device_t dev)
 	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    axe_config, AXE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
 	}
 

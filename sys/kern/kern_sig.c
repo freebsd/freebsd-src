@@ -2492,7 +2492,7 @@ issignal(struct thread *td, int stop_allowed)
 	struct sigacts *ps;
 	struct sigqueue *queue;
 	sigset_t sigpending;
-	int sig, prop, newsig, signo;
+	int sig, prop, newsig;
 
 	p = td->td_proc;
 	ps = p->p_sigacts;
@@ -2545,8 +2545,7 @@ issignal(struct thread *td, int stop_allowed)
 				 */
 				if (sigqueue_get(queue, sig, &ksi) == 0) {
 					queue = &p->p_sigqueue;
-					signo = sigqueue_get(queue, sig, &ksi);
-					KASSERT(signo == sig, ("signo != sig"));
+					sigqueue_get(queue, sig, &ksi);
 				}
 
 				/*

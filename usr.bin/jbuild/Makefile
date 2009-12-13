@@ -11,6 +11,7 @@ SRCS=		arch.c buf.c cond.c dir.c for.c hash.c hash_tables.c job.c	\
 
 BINDIR?=	/usr/local/bin
 WARNS?=		6
+NO_WERROR=	
 NO_SHARED?=	YES
 NO_MAN=
 IGNORE_PRAGMA=	YES

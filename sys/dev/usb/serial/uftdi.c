@@ -165,7 +165,7 @@ static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = UFTDI_OBUFSIZE,
-		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.flags = {.pipe_bof = 1,},
 		.callback = &uftdi_write_callback,
 	},
 
@@ -221,6 +221,7 @@ static struct usb_device_id uftdi_devs[] = {
 	{USB_VPI(USB_VENDOR_DRESDENELEKTRONIK, USB_PRODUCT_DRESDENELEKTRONIK_WIRELESSHANDHELDTERMINAL, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL_8U100AX, UFTDI_TYPE_SIO)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL_2232C, UFTDI_TYPE_8U232AM)},
+	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL_2232D, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL_8U232AM, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SERIAL_8U232AM4, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_SEMC_DSS20, UFTDI_TYPE_8U232AM)},
@@ -307,7 +308,7 @@ uftdi_attach(device_t dev)
 
 	if (error) {
 		device_printf(dev, "allocating USB "
-		    "transfers failed!\n");
+		    "transfers failed\n");
 		goto detach;
 	}
 	sc->sc_ucom.sc_portno = FTDI_PIT_SIOA + uaa->info.bIfaceNum;

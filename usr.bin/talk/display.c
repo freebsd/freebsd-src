@@ -44,6 +44,7 @@ static const char sccsid[] = "@(#)display.c	8.1 (Berkeley) 6/6/93";
  * displaying of text
  */
 #include <ctype.h>
+#include <unistd.h>
 
 #include "talk.h"
 

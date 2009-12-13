@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: types.h,v 1.130.50.3 2009/01/29 22:40:35 jinmei Exp $ */
+/* $Id: types.h,v 1.130.50.3.12.1 2009/11/18 23:58:04 marka Exp $ */
 
 #ifndef DNS_TYPES_H
 #define DNS_TYPES_H 1
@@ -258,39 +258,51 @@ enum {
 	dns_trust_none = 0,
 #define dns_trust_none			((dns_trust_t)dns_trust_none)
 
-	/*% Subject to DNSSEC validation but has not yet been validated */
-	dns_trust_pending = 1,
-#define dns_trust_pending		((dns_trust_t)dns_trust_pending)
+	/*%
+	 * Subject to DNSSEC validation but has not yet been validated
+	 * dns_trust_pending_additional (from the additional section).
+	 */
+	dns_trust_pending_additional = 1,
+#define dns_trust_pending_additional \
+		 ((dns_trust_t)dns_trust_pending_additional)
+
+	dns_trust_pending_answer = 2,
+#define dns_trust_pending_answer	((dns_trust_t)dns_trust_pending_answer)
 
 	/*% Received in the additional section of a response. */
-	dns_trust_additional = 2,
+	dns_trust_additional = 3,
 #define dns_trust_additional		((dns_trust_t)dns_trust_additional)
 
 	/* Received in a referral response. */
-	dns_trust_glue = 3,
+	dns_trust_glue = 4,
 #define dns_trust_glue			((dns_trust_t)dns_trust_glue)
 
 	/* Answer from a non-authoritative server */
-	dns_trust_answer = 4,
+	dns_trust_answer = 5,
 #define dns_trust_answer		((dns_trust_t)dns_trust_answer)
 
 	/*  Received in the authority section as part of an
 	    authoritative response */
-	dns_trust_authauthority = 5,
+	dns_trust_authauthority = 6,
 #define dns_trust_authauthority		((dns_trust_t)dns_trust_authauthority)
 
 	/* Answer from an authoritative server */
-	dns_trust_authanswer = 6,
+	dns_trust_authanswer = 7,
 #define dns_trust_authanswer		((dns_trust_t)dns_trust_authanswer)
 
 	/* Successfully DNSSEC validated */
-	dns_trust_secure = 7,
+	dns_trust_secure = 8,
 #define dns_trust_secure		((dns_trust_t)dns_trust_secure)
 
 	/* This server is authoritative */
-	dns_trust_ultimate = 8
+	dns_trust_ultimate = 9
 #define dns_trust_ultimate		((dns_trust_t)dns_trust_ultimate)
 };
+
+#define DNS_TRUST_PENDING(x)		((x) == dns_trust_pending_answer || \
+					 (x) == dns_trust_pending_additional)
+#define DNS_TRUST_GLUE(x)		((x) == dns_trust_glue)
+
 
 /*%
  * Name checking severities.

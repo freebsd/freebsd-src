@@ -149,7 +149,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			if (ucred.cr_ngroups > KI_NGROUPS) {
 				kp->ki_ngroups = KI_NGROUPS;
 				kp->ki_cr_flags |= KI_CRF_GRP_OVERFLOW;
-			}
+			} else
 				kp->ki_ngroups = ucred.cr_ngroups;
 			kvm_read(kd, (u_long)ucred.cr_groups, kp->ki_groups,
 			    kp->ki_ngroups * sizeof(gid_t));

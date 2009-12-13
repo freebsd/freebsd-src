@@ -2740,9 +2740,11 @@ chkarg:
 
 		/*
 		 * In the kernel we assume AF_INET and use only
-		 * sin_port and sin_addr.
+		 * sin_port and sin_addr. Remember to set sin_len as
+		 * the routing code seems to use it too.
 		 */
 		p->sa.sin_family = AF_INET;
+		p->sa.sin_len = sizeof(struct sockaddr_in);
 		p->sa.sin_port = 0;
 		/*
 		 * locate the address-port separator (':' or ',')

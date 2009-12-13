@@ -173,7 +173,6 @@ MODULE_DEPEND(u3g, usb, 1, 1, 1);
 
 static const struct usb_device_id u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
-	U3G_DEV(CURITEL, UM175, 0),
 	/* OEM: Huawei */
 	U3G_DEV(HUAWEI, MOBILE, U3GFL_HUAWEI_INIT),
 	U3G_DEV(HUAWEI, E180V, U3GFL_HUAWEI_INIT),
@@ -250,8 +249,6 @@ u3g_sierra_init(struct usb_device *udev)
 {
 	struct usb_device_request req;
 
-	DPRINTFN(0, "\n");
-
 	req.bmRequestType = UT_VENDOR;
 	req.bRequest = UR_SET_INTERFACE;
 	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
@@ -269,8 +266,6 @@ static void
 u3g_huawei_init(struct usb_device *udev)
 {
 	struct usb_device_request req;
-
-	DPRINTFN(0, "\n");
 
 	req.bmRequestType = UT_WRITE_DEVICE;
 	req.bRequest = UR_SET_FEATURE;

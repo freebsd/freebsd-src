@@ -42,6 +42,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	Applications that require wireless scan results (e.g. ifconfig(8))
 	from net80211 need to be recompiled.
 
+	Applications such as wpa_supplicant(8) may require a full world
+	build without using NO_CLEAN in order to get synchronized with the
+	new structure.
+
 20091025:
 	The iwn(4) driver has been updated to support the 5000 and 5150 series.
 	There's one kernel module for each firmware. Adding "device iwnfw"

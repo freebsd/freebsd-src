@@ -169,37 +169,37 @@ bus_space_barrier(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs,
 static __inline uint8_t
 bus_space_read_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	return (*bsp);
+	return (ia64_ld1(bsp));
 }
 
 static __inline uint16_t
 bus_space_read_2(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	return (*bsp);
+	return (ia64_ld2(bsp));
 }
 
 static __inline uint32_t
 bus_space_read_4(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	return (*bsp);
+	return (ia64_ld4(bsp));
 }
 
 static __inline uint64_t
 bus_space_read_8(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	return (*bsp);
+	return (ia64_ld8(bsp));
 }
 
 
@@ -212,40 +212,40 @@ static __inline void
 bus_space_write_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs,
     uint8_t val)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	*bsp = val;
+	ia64_st1(bsp, val);
 }
 
 static __inline void
 bus_space_write_2(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs,
     uint16_t val)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	*bsp = val;
+	ia64_st2(bsp, val);
 }
 
 static __inline void
 bus_space_write_4(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs,
     uint32_t val)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	*bsp = val;
+	ia64_st4(bsp, val);
 }
 
 static __inline void
 bus_space_write_8(bus_space_tag_t bst, bus_space_handle_t bsh, bus_size_t ofs,
     uint64_t val)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
-	*bsp = val;
+	ia64_st8(bsp, val);
 }
 
 
@@ -258,44 +258,44 @@ static __inline void
 bus_space_read_multi_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t *bufp, size_t count)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld1(bsp);
 }
 
 static __inline void
 bus_space_read_multi_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t *bufp, size_t count)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld2(bsp);
 }
 
 static __inline void
 bus_space_read_multi_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t *bufp, size_t count)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld4(bsp);
 }
 
 static __inline void
 bus_space_read_multi_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t *bufp, size_t count)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld8(bsp);
 }
 
 
@@ -308,44 +308,44 @@ static __inline void
 bus_space_write_multi_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint8_t *bufp, size_t count)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = *bufp++;
+		ia64_st1(bsp, *bufp++);
 }
 
 static __inline void
 bus_space_write_multi_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint16_t *bufp, size_t count)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = *bufp++;
+		ia64_st2(bsp, *bufp++);
 }
 
 static __inline void
 bus_space_write_multi_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint32_t *bufp, size_t count)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = *bufp++;
+		ia64_st4(bsp, *bufp++);
 }
 
 static __inline void
 bus_space_write_multi_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint64_t *bufp, size_t count)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = *bufp++;
+		ia64_st8(bsp, *bufp++);
 }
 
 
@@ -359,11 +359,11 @@ static __inline void
 bus_space_read_region_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t *bufp, size_t count)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld1(bsp);
 		ofs += 1;
 	}
 }
@@ -372,11 +372,11 @@ static __inline void
 bus_space_read_region_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t *bufp, size_t count)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld2(bsp);
 		ofs += 2;
 	}
 }
@@ -385,11 +385,11 @@ static __inline void
 bus_space_read_region_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t *bufp, size_t count)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld4(bsp);
 		ofs += 4;
 	}
 }
@@ -398,11 +398,11 @@ static __inline void
 bus_space_read_region_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t *bufp, size_t count)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bufp++ = *bsp;
+		*bufp++ = ia64_ld8(bsp);
 		ofs += 8;
 	}
 }
@@ -418,11 +418,11 @@ static __inline void
 bus_space_write_region_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint8_t *bufp, size_t count)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = *bufp++;
+		ia64_st1(bsp, *bufp++);
 		ofs += 1;
 	}
 }
@@ -431,11 +431,11 @@ static __inline void
 bus_space_write_region_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint16_t *bufp, size_t count)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = *bufp++;
+		ia64_st2(bsp, *bufp++);
 		ofs += 2;
 	}
 }
@@ -444,11 +444,11 @@ static __inline void
 bus_space_write_region_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint32_t *bufp, size_t count)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = *bufp++;
+		ia64_st4(bsp, *bufp++);
 		ofs += 4;
 	}
 }
@@ -457,11 +457,11 @@ static __inline void
 bus_space_write_region_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint64_t *bufp, size_t count)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = *bufp++;
+		ia64_st8(bsp, *bufp++);
 		ofs += 8;
 	}
 }
@@ -476,44 +476,44 @@ static __inline void
 bus_space_set_multi_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t val, size_t count)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = val;
+		ia64_st1(bsp, val);
 }
 
 static __inline void
 bus_space_set_multi_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t val, size_t count)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = val;
+		ia64_st2(bsp, val);
 }
 
 static __inline void
 bus_space_set_multi_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t val, size_t count)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = val;
+		ia64_st4(bsp, val);
 }
 
 static __inline void
 bus_space_set_multi_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t val, size_t count)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 	    __MEMIO_ADDR(bsh + ofs);
 	while (count-- > 0)
-		*bsp = val;
+		ia64_st8(bsp, val);
 }
 
 
@@ -527,11 +527,11 @@ static __inline void
 bus_space_set_region_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t val, size_t count)
 {
-	uint8_t __volatile *bsp;
+	uint8_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = val;
+		ia64_st1(bsp, val);
 		ofs += 1;
 	}
 }
@@ -540,11 +540,11 @@ static __inline void
 bus_space_set_region_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t val, size_t count)
 {
-	uint16_t __volatile *bsp;
+	uint16_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = val;
+		ia64_st2(bsp, val);
 		ofs += 2;
 	}
 }
@@ -553,11 +553,11 @@ static __inline void
 bus_space_set_region_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t val, size_t count)
 {
-	uint32_t __volatile *bsp;
+	uint32_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = val;
+		ia64_st4(bsp, val);
 		ofs += 4;
 	}
 }
@@ -566,11 +566,11 @@ static __inline void
 bus_space_set_region_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t val, size_t count)
 {
-	uint64_t __volatile *bsp;
+	uint64_t *bsp;
 	while (count-- > 0) {
 		bsp = (bst == IA64_BUS_SPACE_IO) ? __PIO_ADDR(bsh + ofs) :
 		    __MEMIO_ADDR(bsh + ofs);
-		*bsp = val;
+		ia64_st8(bsp, val);
 		ofs += 8;
 	}
 }
@@ -588,7 +588,7 @@ bus_space_copy_region_1(bus_space_tag_t bst, bus_space_handle_t bsh1,
     bus_size_t ofs1, bus_space_handle_t bsh2, bus_size_t ofs2, size_t count)
 {
 	bus_addr_t dst, src;
-	uint8_t __volatile *dstp, *srcp;
+	uint8_t *dstp, *srcp;
 	src = bsh1 + ofs1;
 	dst = bsh2 + ofs2;
 	if (dst > src) {
@@ -602,7 +602,7 @@ bus_space_copy_region_1(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st1(dstp, ia64_ld1(srcp));
 			src -= 1;
 			dst -= 1;
 		}
@@ -615,7 +615,7 @@ bus_space_copy_region_1(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st1(dstp, ia64_ld1(srcp));
 			src += 1;
 			dst += 1;
 		}
@@ -627,7 +627,7 @@ bus_space_copy_region_2(bus_space_tag_t bst, bus_space_handle_t bsh1,
     bus_size_t ofs1, bus_space_handle_t bsh2, bus_size_t ofs2, size_t count)
 {
 	bus_addr_t dst, src;
-	uint16_t __volatile *dstp, *srcp;
+	uint16_t *dstp, *srcp;
 	src = bsh1 + ofs1;
 	dst = bsh2 + ofs2;
 	if (dst > src) {
@@ -641,7 +641,7 @@ bus_space_copy_region_2(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st2(dstp, ia64_ld2(srcp));
 			src -= 2;
 			dst -= 2;
 		}
@@ -654,7 +654,7 @@ bus_space_copy_region_2(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st2(dstp, ia64_ld2(srcp));
 			src += 2;
 			dst += 2;
 		}
@@ -666,7 +666,7 @@ bus_space_copy_region_4(bus_space_tag_t bst, bus_space_handle_t bsh1,
     bus_size_t ofs1, bus_space_handle_t bsh2, bus_size_t ofs2, size_t count)
 {
 	bus_addr_t dst, src;
-	uint32_t __volatile *dstp, *srcp;
+	uint32_t *dstp, *srcp;
 	src = bsh1 + ofs1;
 	dst = bsh2 + ofs2;
 	if (dst > src) {
@@ -680,7 +680,7 @@ bus_space_copy_region_4(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st4(dstp, ia64_ld4(srcp));
 			src -= 4;
 			dst -= 4;
 		}
@@ -693,7 +693,7 @@ bus_space_copy_region_4(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st4(dstp, ia64_ld4(srcp));
 			src += 4;
 			dst += 4;
 		}
@@ -705,7 +705,7 @@ bus_space_copy_region_8(bus_space_tag_t bst, bus_space_handle_t bsh1,
     bus_size_t ofs1, bus_space_handle_t bsh2, bus_size_t ofs2, size_t count)
 {
 	bus_addr_t dst, src;
-	uint64_t __volatile *dstp, *srcp;
+	uint64_t *dstp, *srcp;
 	src = bsh1 + ofs1;
 	dst = bsh2 + ofs2;
 	if (dst > src) {
@@ -719,7 +719,7 @@ bus_space_copy_region_8(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st8(dstp, ia64_ld8(srcp));
 			src -= 8;
 			dst -= 8;
 		}
@@ -732,7 +732,7 @@ bus_space_copy_region_8(bus_space_tag_t bst, bus_space_handle_t bsh1,
 				srcp = __MEMIO_ADDR(src);
 				dstp = __MEMIO_ADDR(dst);
 			}
-			*dstp = *srcp;
+			ia64_st8(dstp, ia64_ld8(srcp));
 			src += 8;
 			dst += 8;
 		}

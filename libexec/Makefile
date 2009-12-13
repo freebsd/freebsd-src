@@ -29,6 +29,7 @@ SUBDIR=	${_atrun} \
 	${_telnetd} \
 	tftpd \
 	${_tftp-proxy} \
+	ulog-helper \
 	${_ypxfr}
 
 .if ${MK_AT} != "no"

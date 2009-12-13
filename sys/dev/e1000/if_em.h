@@ -135,9 +135,9 @@
 #define EM_RADV                         64
 
 /*
- * This parameter controls the duration of transmit watchdog timer.
+ * This parameter controls the max duration of transmit watchdog.
  */
-#define EM_TX_TIMEOUT                   5
+#define EM_WATCHDOG                   (5 * hz)
 
 /*
  * This parameter controls when the driver calls the routine to reclaim
@@ -189,6 +189,7 @@
 #define ETHER_ALIGN                     2
 #define EM_FC_PAUSE_TIME		0x0680
 #define EM_EEPROM_APME			0x400;
+#define EM_82544_APME			0x0004;
 
 /* Code compatilbility between 6 and 7 */
 #ifndef ETHER_BPF_MTAP
@@ -308,7 +309,8 @@ struct adapter {
 	struct ifmedia	media;
 	struct callout	timer;
 	struct callout	tx_fifo_timer;
-	int		watchdog_timer;
+	bool		watchdog_check;
+	int		watchdog_time;
 	int		msi;
 	int		if_flags;
 	int		max_frame_size;
@@ -332,8 +334,9 @@ struct adapter {
 #endif
 
 	/* Management and WOL features */
-	int		wol;
-	int		has_manage;
+	u32		wol;
+	bool		has_manage;
+	bool		has_amt;
 
 	/* Info about the board itself */
 	uint8_t		link_active;

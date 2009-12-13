@@ -50,11 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 #include "buf.h"
-#include "dir.h"
 #include "for.h"
 #include "globals.h"
 #include "lst.h"
-#include "make.h"
 #include "parse.h"
 #include "str.h"
 #include "util.h"

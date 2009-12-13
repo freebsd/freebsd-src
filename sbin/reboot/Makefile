@@ -2,8 +2,8 @@
 # $FreeBSD$
 
 PROG=	reboot
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+DPADD=	${LIBULOG}
+LDADD=	-lulog
 MAN=	reboot.8 nextboot.8
 MLINKS=	reboot.8 halt.8 reboot.8 fastboot.8 reboot.8 fasthalt.8
 

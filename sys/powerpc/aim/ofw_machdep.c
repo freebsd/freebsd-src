@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/ofw_machdep.h>
@@ -336,7 +337,7 @@ openfirmware(void *args)
 		/*
 		 * Clear battable[] translations
 		 */
-		if (!ppc64) {
+		if (!(cpu_features & PPC_FEATURE_64)) {
 			__asm __volatile("mtdbatu 2, %0\n"
 					 "mtdbatu 3, %0" : : "r" (0));
 		}

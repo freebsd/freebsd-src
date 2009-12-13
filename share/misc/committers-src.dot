@@ -94,6 +94,7 @@ fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
 gad [label="Garance A. Drosehn\ngad@FreeBSD.org\n2000/10/27"]
 gallatin [label="Andrew Gallatin\ngallatin@FreeBSD.org\n????/??/??"]
+gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2009/12/07"]
 gibbs [label="Justin T. Gibbs\ngibbs@FreeBSD.org\n????/??/??"]
 glebius [label="Gleb Smirnoff\nglebius@FreeBSD.org\n2004/07/14"]
 gnn [label="George V. Neville-Neil\ngnn@FreeBSD.org\n2004/10/11"]
@@ -122,6 +123,7 @@ julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
+kib [label="Konstantin Belousov\nkib@FreeBSD.org\n2006/06/03"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
@@ -254,7 +256,9 @@ dwmalone -> fanf
 dwmalone -> peadar
 dwmalone -> snb
 
+ed -> gavin
 ed -> jilles
+ed -> rdivacky
 
 eivind -> des
 eivind -> rwatson
@@ -345,7 +349,14 @@ julian -> archie
 julian -> adrian
 julian -> zec
 
+kan -> kib
+
+kib -> dchagin
 kib -> lulf
+kib -> pho
+kib -> rdivacky
+kib -> rmacklem
+kib -> stas
 
 kmacy -> lstewart
 
@@ -384,9 +395,11 @@ peter -> asmodai
 peter -> jayanth
 peter -> ps
 
+philip -> ed
 philip -> jls
 philip -> matteo
 
+pjd -> kib
 pjd -> lulf
 
 rgrimes -> markm
@@ -413,6 +426,7 @@ rwatson -> jh
 rwatson -> kensmith
 rwatson -> kmacy
 rwatson -> linimon
+rwatson -> rmacklem
 rwatson -> shafeeq
 rwatson -> tmm
 rwatson -> trasz

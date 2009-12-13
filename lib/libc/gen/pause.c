@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
  * Backwards compatible pause.
  */
 int
-__pause()
+__pause(void)
 {
 	return sigpause(sigblock(0L));
 }

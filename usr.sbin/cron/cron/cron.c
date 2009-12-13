@@ -24,6 +24,7 @@ static const char rcsid[] =
 
 
 #include "cron.h"
+#include <sys/mman.h>
 #include <sys/signal.h>
 #if SYS_TIME_H
 # include <sys/time.h>
@@ -133,6 +134,9 @@ main(argc, argv)
 			exit(0);
 		}
 	}
+
+	if (madvise(NULL, 0, MADV_PROTECT) != 0)
+		log_it("CRON", getpid(), "WARNING", "madvise() failed");
 
 	pidfile_write(pfh);
 	database.head = NULL;

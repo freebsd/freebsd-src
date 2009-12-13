@@ -429,40 +429,11 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	struct reiserfs_super_block *rs;
 	struct cdev *dev = devvp->v_rdev;
 
-#if (__FreeBSD_version >= 600000)
 	struct g_consumer *cp;
 	struct bufobj *bo;
-#endif
 
 	//ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 
-#if (__FreeBSD_version < 600000)
-	/*
-	 * Disallow multiple mounts of the same device.
-	 * Disallow mounting of a device that is currently in use
-	 * (except for root, which might share swap device for miniroot).
-	 * Flush out any old buffers remaining from a previous use.
-	 */
-	if ((error = vfs_mountedon(devvp)) != 0)
-		return (error);
-	if (vcount(devvp) > 1)
-		return (EBUSY);
-
-	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
-	if (error) {
-		VOP_UNLOCK(devvp, 0);
-		return (error);
-	}
-
-	/*
-	 * Open the device in read-only, 'cause we don't support write
-	 * for now
-	 */
-	error = VOP_OPEN(devvp, FREAD, FSCRED, td, NULL);
-	VOP_UNLOCK(devvp, 0);
-	if (error)
-		return (error);
-#else
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "reiserfs", /* read-only */ 0);
@@ -475,7 +446,6 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	bo = &devvp->v_bufobj;
 	bo->bo_private = cp;
 	bo->bo_ops = g_vfs_bufops;
-#endif
 
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
@@ -500,10 +470,8 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	rmp->rm_mountp   = mp;
 	rmp->rm_devvp    = devvp;
 	rmp->rm_dev      = dev;
-#if (__FreeBSD_version >= 600000)
 	rmp->rm_bo       = &devvp->v_bufobj;
 	rmp->rm_cp       = cp;
-#endif
 
 	/* Set default values for options: non-aggressive tails */
 	REISERFS_SB(sbi)->s_mount_opt = (1 << REISERFS_SMALLTAIL);
@@ -630,9 +598,6 @@ out:
 		}
 	}
 
-#if (__FreeBSD_version < 600000)
-	(void)VOP_CLOSE(devvp, FREAD, NOCRED, td);
-#else
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
@@ -640,7 +605,6 @@ out:
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
-#endif
 
 	if (sbi)
 		free(sbi, M_REISERFSMNT);

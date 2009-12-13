@@ -194,6 +194,7 @@ ata_ahci_chipinit(device_t dev)
     ctlr->ch_suspend = ata_ahci_ch_suspend;
     ctlr->ch_resume = ata_ahci_ch_resume;
     ctlr->setmode = ata_sata_setmode;
+    ctlr->getrev = ata_sata_getrev;
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
@@ -309,6 +310,8 @@ ata_ahci_ch_attach(device_t dev)
     ch->hw.softreset = ata_ahci_softreset;
     ch->hw.pm_read = ata_ahci_pm_read;
     ch->hw.pm_write = ata_ahci_pm_write;
+    ch->flags |= ATA_NO_SLAVE;
+    ch->flags |= ATA_SATA;
 
     ata_ahci_ch_resume(dev);
     return 0;
@@ -824,11 +827,10 @@ ata_ahci_hardreset(device_t dev, int port, uint32_t *signature)
 static u_int32_t
 ata_ahci_softreset(device_t dev, int port)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ch->unit << 7;
     struct ata_ahci_cmd_tab *ctp =
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
+    u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
     if (bootverbose)
 	device_printf(dev, "software reset port %d...\n", port);
@@ -865,7 +867,10 @@ ata_ahci_softreset(device_t dev, int port)
 	return (-1);
     }
 
-    return ATA_INL(ctlr->r_res2, ATA_AHCI_P_SIG + offset);
+    return (((u_int32_t)fis[6] << 24) |
+	    ((u_int32_t)fis[5] << 16) |
+	    ((u_int32_t)fis[4] << 8) |
+	     (u_int32_t)fis[12]);
 }
 
 static void

@@ -141,8 +141,6 @@ an_pccard_attach(device_t dev)
 
 	an_alloc_irq(dev, sc->irq_rid, 0);
 
-	sc->an_bhandle = rman_get_bushandle(sc->port_res);
-	sc->an_btag = rman_get_bustag(sc->port_res);
 	sc->an_dev = dev;
 
 	error = an_attach(sc, flags);

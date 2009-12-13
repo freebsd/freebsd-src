@@ -154,7 +154,7 @@ main(int argc, char *argv[])
 	setstackmark(&smark);
 	procargs(argc, argv);
 	if (getpwd() == NULL && iflag)
-		out2str("sh: cannot determine working directory\n");
+		out2fmt_flush("sh: cannot determine working directory\n");
 	if (getpwd() != NULL)
 		setvar ("PWD", getpwd(), VEXPORT);
 	if (argv[0] && argv[0][0] == '-') {
@@ -223,7 +223,7 @@ cmdloop(int top)
 			if (!stoppedjobs()) {
 				if (!Iflag)
 					break;
-				out2str("\nUse \"exit\" to leave shell.\n");
+				out2fmt_flush("\nUse \"exit\" to leave shell.\n");
 			}
 			numeof++;
 		} else if (n != NULL && nflag == 0) {

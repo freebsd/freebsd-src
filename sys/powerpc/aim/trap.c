@@ -236,12 +236,6 @@ trap(struct trapframe *frame)
 		trap_fatal(frame);
 	}
 
-#ifdef	ALTIVEC
-	if (td != PCPU_GET(vecthread) ||
-	    td->td_pcb->pcb_veccpu != PCPU_GET(cpuid))
-		frame->srr1 &= ~PSL_VEC;
-#endif /* ALTIVEC */
-
 	if (sig != 0) {
 		if (p->p_sysent->sv_transtrap != NULL)
 			sig = (p->p_sysent->sv_transtrap)(sig, type);
@@ -497,9 +491,7 @@ trap_pfault(struct trapframe *frame, int user)
 		PROC_UNLOCK(p);
 
 		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype,
-		      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
-					      : VM_FAULT_NORMAL);
+		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 		PROC_LOCK(p);
 		--p->p_lock;

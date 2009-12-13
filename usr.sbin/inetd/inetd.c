@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -496,6 +497,9 @@ main(int argc, char **argv)
 			syslog(LOG_WARNING, "pidfile_write(): %m");
 		}
 	}
+
+	if (madvise(NULL, 0, MADV_PROTECT) != 0)
+		syslog(LOG_WARNING, "madvise() failed: %s", strerror(errno));
 
 	for (i = 0; i < PERIPSIZE; ++i)
 		LIST_INIT(&proctable[i]);

@@ -185,7 +185,7 @@ unlock_and_deallocate(struct faultstate *fs)
  *	      default objects are zero-fill, there is no real pager.
  */
 #define TRYPAGER	(fs.object->type != OBJT_DEFAULT && \
-			(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired))
+			((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 || wired))
 
 /*
  *	vm_fault:
@@ -238,31 +238,15 @@ RetryFault:;
 	result = vm_map_lookup(&fs.map, vaddr, fault_type, &fs.entry,
 	    &fs.first_object, &fs.first_pindex, &prot, &wired);
 	if (result != KERN_SUCCESS) {
-		if (result != KERN_PROTECTION_FAILURE ||
-		    (fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE) {
-			if (growstack && result == KERN_INVALID_ADDRESS &&
-			    map != kernel_map && curproc != NULL) {
-				result = vm_map_growstack(curproc, vaddr);
-				if (result != KERN_SUCCESS)
-					return (KERN_FAILURE);
-				growstack = FALSE;
-				goto RetryFault;
-			}
-			return (result);
+		if (growstack && result == KERN_INVALID_ADDRESS &&
+		    map != kernel_map) {
+			result = vm_map_growstack(curproc, vaddr);
+			if (result != KERN_SUCCESS)
+				return (KERN_FAILURE);
+			growstack = FALSE;
+			goto RetryFault;
 		}
-
-		/*
-   		 * If we are user-wiring a r/w segment, and it is COW, then
-   		 * we need to do the COW operation.  Note that we don't COW
-   		 * currently RO sections now, because it is NOT desirable
-   		 * to COW .text.  We simply keep .text from ever being COW'ed
-   		 * and take the heat that one cannot debug wired .text sections.
-   		 */
-		result = vm_map_lookup(&fs.map, vaddr,
-			VM_PROT_READ|VM_PROT_WRITE|VM_PROT_OVERRIDE_WRITE,
-			&fs.entry, &fs.first_object, &fs.first_pindex, &prot, &wired);
-		if (result != KERN_SUCCESS)
-			return (result);
+		return (result);
 	}
 
 	map_generation = fs.map->timestamp;
@@ -289,7 +273,7 @@ RetryFault:;
 	fs.lookup_still_valid = TRUE;
 
 	if (wired)
-		fault_type = prot;
+		fault_type = prot | (fault_type & VM_PROT_COPY);
 
 	fs.first_m = NULL;
 
@@ -718,7 +702,7 @@ vnode_locked:
 		/*
 		 * We only really need to copy if we want to write it.
 		 */
-		if (fault_type & VM_PROT_WRITE) {
+		if ((fault_type & (VM_PROT_COPY | VM_PROT_WRITE)) != 0) {
 			/*
 			 * This allows pages to be virtually copied from a 
 			 * backing_object into the first_object, where the 
@@ -775,8 +759,13 @@ vnode_locked:
 				 */
 				pmap_copy_page(fs.m, fs.first_m);
 				fs.first_m->valid = VM_PAGE_BITS_ALL;
-			}
-			if (fs.m) {
+				if (wired && (fault_flags &
+				    VM_FAULT_CHANGE_WIRING) == 0) {
+					vm_page_lock_queues();
+					vm_page_wire(fs.first_m);
+					vm_page_unwire(fs.m, FALSE);
+					vm_page_unlock_queues();
+				}
 				/*
 				 * We no longer need the old page or object.
 				 */
@@ -873,19 +862,12 @@ vnode_locked:
 		vm_object_set_writeable_dirty(fs.object);
 
 		/*
-		 * If the fault is a write, we know that this page is being
-		 * written NOW so dirty it explicitly to save on 
-		 * pmap_is_modified() calls later.
-		 *
 		 * If this is a NOSYNC mmap we do not want to set VPO_NOSYNC
 		 * if the page is already dirty to prevent data written with
 		 * the expectation of being synced from not being synced.
 		 * Likewise if this entry does not request NOSYNC then make
 		 * sure the page isn't marked NOSYNC.  Applications sharing
 		 * data should use the same flags to avoid ping ponging.
-		 *
-		 * Also tell the backing pager, if any, that it should remove
-		 * any swap backing since the page is now dirty.
 		 */
 		if (fs.entry->eflags & MAP_ENTRY_NOSYNC) {
 			if (fs.m->dirty == 0)
@@ -893,7 +875,17 @@ vnode_locked:
 		} else {
 			fs.m->oflags &= ~VPO_NOSYNC;
 		}
-		if (fault_flags & VM_FAULT_DIRTY) {
+
+		/*
+		 * If the fault is a write, we know that this page is being
+		 * written NOW so dirty it explicitly to save on 
+		 * pmap_is_modified() calls later.
+		 *
+		 * Also tell the backing pager, if any, that it should remove
+		 * any swap backing since the page is now dirty.
+		 */
+		if ((fault_type & VM_PROT_WRITE) != 0 &&
+		    (fault_flags & VM_FAULT_CHANGE_WIRING) == 0) {
 			vm_page_dirty(fs.m);
 			vm_pager_page_unswapped(fs.m);
 		}
@@ -919,9 +911,8 @@ vnode_locked:
 	 * won't find it (yet).
 	 */
 	pmap_enter(fs.map->pmap, vaddr, fault_type, fs.m, prot, wired);
-	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
+	if ((fault_flags & VM_FAULT_CHANGE_WIRING) == 0 && wired == 0)
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
-	}
 	VM_OBJECT_LOCK(fs.object);
 	vm_page_lock_queues();
 	vm_page_flag_set(fs.m, PG_REFERENCED);
@@ -930,7 +921,7 @@ vnode_locked:
 	 * If the page is not wired down, then put it where the pageout daemon
 	 * can find it.
 	 */
-	if (fault_flags & VM_FAULT_WIRE_MASK) {
+	if (fault_flags & VM_FAULT_CHANGE_WIRING) {
 		if (wired)
 			vm_page_wire(fs.m);
 		else
@@ -1048,7 +1039,7 @@ vm_fault_quick(caddr_t v, int prot)
  */
 int
 vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
-    boolean_t user_wire, boolean_t fictitious)
+    boolean_t fictitious)
 {
 	vm_offset_t va;
 	int rv;
@@ -1059,9 +1050,7 @@ vm_fault_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	 * read-only sections.
 	 */
 	for (va = start; va < end; va += PAGE_SIZE) {
-		rv = vm_fault(map, va,
-		    user_wire ? VM_PROT_READ : VM_PROT_READ | VM_PROT_WRITE,
-		    user_wire ? VM_FAULT_USER_WIRE : VM_FAULT_CHANGE_WIRING);
+		rv = vm_fault(map, va, VM_PROT_NONE, VM_FAULT_CHANGE_WIRING);
 		if (rv) {
 			if (va != start)
 				vm_fault_unwire(map, start, va, fictitious);
