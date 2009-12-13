@@ -651,7 +651,7 @@ route_output(struct mbuf *m, struct socket *so)
 		report:
 			RT_LOCK_ASSERT(rt);
 			if ((rt->rt_flags & RTF_HOST) == 0
-			    ? jailed(curthread->td_ucred)
+			    ? jailed_without_vnet(curthread->td_ucred)
 			    : prison_if(curthread->td_ucred,
 			    rt_key(rt)) != 0) {
 				RT_UNLOCK(rt);
@@ -1312,7 +1312,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
 	if ((rt->rt_flags & RTF_HOST) == 0
-	    ? jailed(w->w_req->td->td_ucred)
+	    ? jailed_without_vnet(w->w_req->td->td_ucred)
 	    : prison_if(w->w_req->td->td_ucred, rt_key(rt)) != 0)
 		return (0);
 	bzero((caddr_t)&info, sizeof(info));
