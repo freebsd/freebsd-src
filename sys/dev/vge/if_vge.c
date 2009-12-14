@@ -353,7 +353,7 @@ vge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
+	if (phy != sc->vge_phyaddr)
 		return (0);
 
 	vge_miipoll_stop(sc);
@@ -389,7 +389,7 @@ vge_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	sc = device_get_softc(dev);
 
-	if (phy != (CSR_READ_1(sc, VGE_MIICFG) & 0x1F))
+	if (phy != sc->vge_phyaddr)
 		return (0);
 
 	vge_miipoll_stop(sc);
@@ -954,7 +954,7 @@ vge_attach(device_t dev)
 	u_char eaddr[ETHER_ADDR_LEN];
 	struct vge_softc *sc;
 	struct ifnet *ifp;
-	int error = 0, rid;
+	int error = 0, cap, rid;
 
 	sc = device_get_softc(dev);
 	sc->vge_dev = dev;
@@ -978,6 +978,11 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+		sc->vge_flags |= VGE_FLAG_PCIE;
+		sc->vge_expcap = cap;
+	}
+
 	/* Allocate interrupt */
 	rid = 0;
 	sc->vge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -996,7 +1001,17 @@ vge_attach(device_t dev)
 	 * Get station address from the EEPROM.
 	 */
 	vge_read_eeprom(sc, (caddr_t)eaddr, VGE_EE_EADDR, 3, 0);
-
+	/*
+	 * Save configured PHY address.
+	 * It seems the PHY address of PCIe controllers just
+	 * reflects media jump strapping status so we assume the
+	 * internal PHY address of PCIe controller is at 1.
+	 */
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		sc->vge_phyaddr = 1;
+	else
+		sc->vge_phyaddr = CSR_READ_1(sc, VGE_MIICFG) &
+		    VGE_MIICFG_PHYADDR;
 	error = vge_dma_alloc(sc);
 	if (error)
 		goto fail;
