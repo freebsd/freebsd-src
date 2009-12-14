@@ -1596,8 +1596,11 @@ vge_txeof(sc)
 		    __func__));
 		m_freem(txd->tx_m);
 		txd->tx_m = NULL;
+		txd->tx_desc->vge_frag[0].vge_addrhi = 0;
 	}
-
+	bus_dmamap_sync(sc->vge_cdata.vge_tx_ring_tag,
+	    sc->vge_cdata.vge_tx_ring_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	sc->vge_cdata.vge_tx_considx = cons;
 	if (sc->vge_cdata.vge_tx_cnt == 0)
 		sc->vge_timer = 0;
