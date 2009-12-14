@@ -144,6 +144,7 @@ struct vge_softc {
 	int			vge_phyaddr;
 	int			vge_flags;
 #define	VGE_FLAG_PCIE		0x0001
+#define	VGE_FLAG_MSI		0x0002
 #define	VGE_FLAG_LINK		0x8000
 	int			vge_expcap;
 	int			vge_camidx;
