@@ -3299,24 +3299,11 @@ ndis_scan_results(struct ndis_softc *sc)
 			efrm = frm + wb->nwbx_ielen;
 			if (efrm - frm < 12)
 				goto done;
-			sp.tstamp = frm;
-			frm += 8;
-			sp.bintval = le16toh(*(uint16_t *)frm);
-			frm += 2;
-			sp.capinfo = le16toh(*(uint16_t *)frm);
-			frm += 2;
-
-			/* Grab variable length ies */
-			while (efrm - frm > 1) {
-				if (efrm - frm < frm[1] + 2)
-					break;
-				switch (*frm) {
-				case IEEE80211_ELEMID_RSN:
-					sp.rsn = frm;
-					break;
-				}
-				frm += frm[1] + 2;
-			}
+			sp.tstamp = frm;			frm += 8;
+			sp.bintval = le16toh(*(uint16_t *)frm);	frm += 2;
+			sp.capinfo = le16toh(*(uint16_t *)frm);	frm += 2;
+			sp.ies = frm;
+			sp.ies_len = efrm - frm;
 		}
 done:
 		DPRINTF(("scan: bssid %s chan %dMHz (%d/%d) rssi %d\n",
