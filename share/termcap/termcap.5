@@ -2003,13 +2003,16 @@ supports these capabilities.
 For the
 .Xr xterm 1
 terminal emulator the traditional behavior in
-FreeBSD when exiting a pager such as
+.Fx
+when exiting a pager such as
 .Xr less 1
 or
 .Xr more 1 ,
 or an editor such as
 .Xr vi 1
-is NOT to clear the screen after the program exits.
+is
+.Em NOT
+to clear the screen after the program exits.
 If you prefer to clear the screen there are a number of
 .Dq xterm-clear
 entries that add this capability in the
