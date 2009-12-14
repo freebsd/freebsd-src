@@ -368,7 +368,7 @@ AcpiInstallNotifyHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -555,7 +555,7 @@ AcpiRemoveNotifyHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (Device);
+    Node = AcpiNsValidateHandle (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;

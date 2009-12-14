@@ -251,7 +251,7 @@ AcpiNsRootInitialize (
                 /* Mark this as a very SPECIAL method */
 
                 ObjDesc->Method.MethodFlags = AML_METHOD_INTERNAL_ONLY;
-                ObjDesc->Method.Implementation = AcpiUtOsiImplementation;
+                ObjDesc->Method.Extra.Implementation = AcpiUtOsiImplementation;
 #endif
                 break;
 
