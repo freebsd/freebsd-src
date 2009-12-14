@@ -141,7 +141,8 @@ struct vge_softc {
 	device_t		vge_miibus;
 	uint8_t			vge_type;
 	int			vge_if_flags;
-	int			vge_link;
+	int			vge_flags;
+#define	VGE_FLAG_LINK		0x8000
 	int			vge_camidx;
 	struct mtx		vge_mtx;
 	struct callout		vge_watchdog;
