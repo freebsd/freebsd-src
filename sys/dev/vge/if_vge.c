@@ -2153,14 +2153,15 @@ vge_ifmedia_upd(struct ifnet *ifp)
 {
 	struct vge_softc *sc;
 	struct mii_data *mii;
+	int error;
 
 	sc = ifp->if_softc;
 	VGE_LOCK(sc);
 	mii = device_get_softc(sc->vge_miibus);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	VGE_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 /*
