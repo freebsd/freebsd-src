@@ -586,27 +586,12 @@ vge_reset(struct vge_softc *sc)
 	}
 
 	if (i == VGE_TIMEOUT) {
-		device_printf(sc->vge_dev, "soft reset timed out");
+		device_printf(sc->vge_dev, "soft reset timed out\n");
 		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_STOP_FORCE);
 		DELAY(2000);
 	}
 
 	DELAY(5000);
-
-	CSR_SETBIT_1(sc, VGE_EECSR, VGE_EECSR_RELOAD);
-
-	for (i = 0; i < VGE_TIMEOUT; i++) {
-		DELAY(5);
-		if ((CSR_READ_1(sc, VGE_EECSR) & VGE_EECSR_RELOAD) == 0)
-			break;
-	}
-
-	if (i == VGE_TIMEOUT) {
-		device_printf(sc->vge_dev, "EEPROM reload timed out\n");
-		return;
-	}
-
-	CSR_CLRBIT_1(sc, VGE_CHIPCFG0, VGE_CHIPCFG0_PACPI);
 }
 
 /*
@@ -958,7 +943,7 @@ vge_attach(device_t dev)
 	u_char eaddr[ETHER_ADDR_LEN];
 	struct vge_softc *sc;
 	struct ifnet *ifp;
-	int error = 0, cap, msic, rid;
+	int error = 0, cap, i, msic, rid;
 
 	sc = device_get_softc(dev);
 	sc->vge_dev = dev;
@@ -1012,6 +997,21 @@ vge_attach(device_t dev)
 
 	/* Reset the adapter. */
 	vge_reset(sc);
+	/* Reload EEPROM. */
+	CSR_WRITE_1(sc, VGE_EECSR, VGE_EECSR_RELOAD);
+	for (i = 0; i < VGE_TIMEOUT; i++) {
+		DELAY(5);
+		if ((CSR_READ_1(sc, VGE_EECSR) & VGE_EECSR_RELOAD) == 0)
+			break;
+	}
+	if (i == VGE_TIMEOUT)
+		device_printf(dev, "EEPROM reload timed out\n");
+	/*
+	 * Clear PACPI as EEPROM reload will set the bit. Otherwise
+	 * MAC will receive magic packet which in turn confuses
+	 * controller.
+	 */
+	CSR_CLRBIT_1(sc, VGE_CHIPCFG0, VGE_CHIPCFG0_PACPI);
 
 	/*
 	 * Get station address from the EEPROM.
