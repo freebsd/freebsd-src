@@ -1,4 +1,71 @@
 ----------------------------------------
+14 December 2009. Summary of changes for version 20091214:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+Enhanced automatic data type conversions for predefined name repairs. This 
+change expands the automatic repairs/conversions for predefined name return 
+values to make Integers, Strings, and Buffers fully interchangeable. Also, a 
+Buffer can be converted to a Package of Integers if necessary. The nsrepair.c 
+module was completely restructured. Lin Ming, Bob Moore.
+
+Implemented automatic removal of null package elements during predefined name 
+repairs. This change will automatically remove embedded and trailing NULL 
+package elements from returned package objects that are defined to contain a 
+variable number of sub-packages. The driver is then presented with a package 
+with no null elements to deal with. ACPICA BZ 819.
+
+Implemented a repair for the predefined _FDE and _GTM names. The expected 
+return value for both names is a Buffer of 5 DWORDs. This repair fixes two 
+possible problems (both seen in the field), where a package of integers is 
+returned, or a buffer of BYTEs is returned. With assistance from Jung-uk Kim.
+
+Implemented additional module-level code support. This change will properly 
+execute module-level code that is not at the root of the namespace (under a 
+Device object, etc.). Now executes the code within the current scope instead 
+of the root. ACPICA BZ 762. Lin Ming.
+
+Fixed possible mutex acquisition errors when running _REG methods. Fixes a 
+problem where mutex errors can occur when running a _REG method that is in 
+the same scope as a method-defined operation region or an operation region 
+under a module-level IF block. This type of code is rare, so the problem has 
+not been seen before. ACPICA BZ 826. Lin Ming, Bob Moore.
+
+Fixed a possible memory leak during module-level code execution. An object 
+could be leaked for each block of executed module-level code if the 
+interpreter slack mode is enabled This change deletes any implicitly returned 
+object from the module-level code block. Lin Ming.
+
+Removed messages for successful predefined repair(s). The repair mechanism 
+was considered too wordy. Now, messages are only unconditionally emitted if 
+the return object cannot be repaired. Existing messages for successful 
+repairs were converted to ACPI_DEBUG_PRINT messages for now. ACPICA BZ 827.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  86.6K Code, 18.2K Data, 104.8K Total
+    Debug Version:     162.7K Code, 50.8K Data, 213.5K Total
+  Current Release:
+    Non-Debug Version:  87.0K Code, 18.0K Data, 105.0K Total
+    Debug Version:     163.4K Code, 50.8K Data, 214.2K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a regression introduced in 20091112 where intermediate .SRC files 
+were no longer automatically removed at the termination of the compile.
+
+acpiexec: Implemented the -f option to specify default region fill value. 
+This option specifies the value used to initialize buffers that simulate 
+operation regions. Default value is zero. Useful for debugging problems that 
+depend on a specific initial value for a region or field.
+
+----------------------------------------
 12 November 2009. Summary of changes for version 20091112:
 
 This release is available at www.acpica.org/downloads

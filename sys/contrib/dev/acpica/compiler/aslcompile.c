@@ -895,20 +895,6 @@ CmCleanupAndExit (
                         10) / Gbl_NsLookupCount);
     }
 
-    /*
-     * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
-     */
-    if (!Gbl_SourceOutputFlag)
-    {
-        remove (Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
-    }
-
-    /* Delete AML file if there are errors */
-
-    if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors))
-    {
-        remove (Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
-    }
 
     if (Gbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
@@ -922,6 +908,27 @@ CmCleanupAndExit (
     for (i = 2; i < ASL_MAX_FILE_TYPE; i++)
     {
         FlCloseFile (i);
+    }
+
+    /* Delete AML file if there are errors */
+
+    if ((Gbl_ExceptionCount[ASL_ERROR] > 0) && (!Gbl_IgnoreErrors))
+    {
+        remove (Gbl_Files[ASL_FILE_AML_OUTPUT].Filename);
+    }
+
+    /*
+     * Delete intermediate ("combined") source file (if -ls flag not set)
+     *
+     * TBD: SourceOutput should be .TMP, then rename if we want to keep it?
+     */
+    if (!Gbl_SourceOutputFlag)
+    {
+        if (remove (Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename))
+        {
+            printf ("Could not remove SRC file, %s\n",
+                Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
+        }
     }
 }
 

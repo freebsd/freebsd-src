@@ -805,7 +805,7 @@ AcpiInstallGpeBlock (
         return (Status);
     }
 
-    Node = AcpiNsMapHandleToNode (GpeDevice);
+    Node = AcpiNsValidateHandle (GpeDevice);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -905,7 +905,7 @@ AcpiRemoveGpeBlock (
         return (Status);
     }
 
-    Node = AcpiNsMapHandleToNode (GpeDevice);
+    Node = AcpiNsValidateHandle (GpeDevice);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
