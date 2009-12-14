@@ -140,56 +140,52 @@ static struct vge_type vge_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int vge_probe		(device_t);
-static int vge_attach		(device_t);
-static int vge_detach		(device_t);
+static int	vge_attach(device_t);
+static int	vge_detach(device_t);
+static int	vge_probe(device_t);
+static int	vge_resume(device_t);
+static int	vge_shutdown(device_t);
+static int	vge_suspend(device_t);
 
-static int vge_encap		(struct vge_softc *, struct mbuf **);
-
-static void vge_dmamap_cb	(void *, bus_dma_segment_t *, int, int);
-static int vge_dma_alloc	(struct vge_softc *);
-static void vge_dma_free	(struct vge_softc *);
-static void vge_discard_rxbuf	(struct vge_softc *, int);
-static int vge_newbuf		(struct vge_softc *, int);
-static int vge_rx_list_init	(struct vge_softc *);
-static int vge_tx_list_init	(struct vge_softc *);
-static void vge_freebufs	(struct vge_softc *);
-#ifndef __NO_STRICT_ALIGNMENT
-static __inline void vge_fixup_rx
-				(struct mbuf *);
-#endif
-static int vge_rxeof		(struct vge_softc *, int);
-static void vge_txeof		(struct vge_softc *);
-static void vge_intr		(void *);
-static void vge_tick		(void *);
-static void vge_start		(struct ifnet *);
-static void vge_start_locked	(struct ifnet *);
-static int vge_ioctl		(struct ifnet *, u_long, caddr_t);
-static void vge_init		(void *);
-static void vge_init_locked	(struct vge_softc *);
-static void vge_stop		(struct vge_softc *);
-static void vge_watchdog	(void *);
-static int vge_suspend		(device_t);
-static int vge_resume		(device_t);
-static int vge_shutdown		(device_t);
-static int vge_ifmedia_upd	(struct ifnet *);
-static void vge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
-
+static void	vge_cam_clear(struct vge_softc *);
+static int	vge_cam_set(struct vge_softc *, uint8_t *);
+static void	vge_discard_rxbuf(struct vge_softc *, int);
+static int	vge_dma_alloc(struct vge_softc *);
+static void	vge_dma_free(struct vge_softc *);
+static void	vge_dmamap_cb(void *, bus_dma_segment_t *, int, int);
 #ifdef VGE_EEPROM
-static void vge_eeprom_getword	(struct vge_softc *, int, uint16_t *);
+static void	vge_eeprom_getword(struct vge_softc *, int, uint16_t *);
 #endif
-static void vge_read_eeprom	(struct vge_softc *, caddr_t, int, int, int);
-
-static void vge_miipoll_start	(struct vge_softc *);
-static void vge_miipoll_stop	(struct vge_softc *);
-static int vge_miibus_readreg	(device_t, int, int);
-static int vge_miibus_writereg	(device_t, int, int, int);
-static void vge_miibus_statchg	(device_t);
-
-static void vge_cam_clear	(struct vge_softc *);
-static int vge_cam_set		(struct vge_softc *, uint8_t *);
-static void vge_setmulti	(struct vge_softc *);
-static void vge_reset		(struct vge_softc *);
+static int	vge_encap(struct vge_softc *, struct mbuf **);
+#ifndef __NO_STRICT_ALIGNMENT
+static __inline void
+		vge_fixup_rx(struct mbuf *);
+#endif
+static void	vge_freebufs(struct vge_softc *);
+static void	vge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	vge_ifmedia_upd(struct ifnet *);
+static void	vge_init(void *);
+static void	vge_init_locked(struct vge_softc *);
+static void	vge_intr(void *);
+static int	vge_ioctl(struct ifnet *, u_long, caddr_t);
+static int	vge_miibus_readreg(device_t, int, int);
+static void	vge_miibus_statchg(device_t);
+static int	vge_miibus_writereg(device_t, int, int, int);
+static void	vge_miipoll_start(struct vge_softc *);
+static void	vge_miipoll_stop(struct vge_softc *);
+static int	vge_newbuf(struct vge_softc *, int);
+static void	vge_read_eeprom(struct vge_softc *, caddr_t, int, int, int);
+static void	vge_reset(struct vge_softc *);
+static int	vge_rx_list_init(struct vge_softc *);
+static int	vge_rxeof(struct vge_softc *, int);
+static void	vge_setmulti(struct vge_softc *);
+static void	vge_start(struct ifnet *);
+static void	vge_start_locked(struct ifnet *);
+static void	vge_stop(struct vge_softc *);
+static void	vge_tick(void *);
+static int	vge_tx_list_init(struct vge_softc *);
+static void	vge_txeof(struct vge_softc *);
+static void	vge_watchdog(void *);
 
 static device_method_t vge_methods[] = {
 	/* Device interface */
