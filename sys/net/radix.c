@@ -40,7 +40,6 @@
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/domain.h>
 #include <sys/syslog.h>
 #include <net/radix.h>
 #include "opt_mpath.h"
@@ -1163,16 +1162,11 @@ rn_inithead(head, off)
 }
 
 void
-rn_init()
+rn_init(int maxk)
 {
 	char *cp, *cplim;
-#ifdef _KERNEL
-	struct domain *dom;
 
-	for (dom = domains; dom; dom = dom->dom_next)
-		if (dom->dom_maxrtkey > max_keylen)
-			max_keylen = dom->dom_maxrtkey;
-#endif
+	max_keylen = maxk;
 	if (max_keylen == 0) {
 		log(LOG_ERR,
 		    "rn_init: radix functions require max_keylen be set\n");
@@ -1189,19 +1183,3 @@ rn_init()
 	if (rn_inithead((void **)(void *)&mask_rnhead, 0) == 0)
 		panic("rn_init 2");
 }
-
-#ifndef _KERNEL
-/*
- * A simple function to make the code usable from userland.
- * A proper fix (maybe later) would be to change rn_init() so that it
- * takes maxkeylen as an argument, and move the scan of
- * domains into net/route.c::route_init().
- */
-void rn_init2(int maxk);
-void
-rn_init2(int maxk)
-{
-	max_keylen = maxk;
-	rn_init();
-}
-#endif /* !_KERNEL */
