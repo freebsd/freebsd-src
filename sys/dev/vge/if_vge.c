@@ -2177,6 +2177,10 @@ vge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->vge_miibus);
 
 	VGE_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		VGE_UNLOCK(sc);
+		return;
+	}
 	mii_pollstat(mii);
 	VGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
