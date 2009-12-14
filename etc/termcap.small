@@ -312,11 +312,16 @@ xterm-basic|modern xterm common:\
 	:kD=\E[3~:kb=^H:ke=\E[?1l\E>:ks=\E[?1h\E=:le=^H:md=\E[1m:\
 	:me=\E[m:ml=\El:mr=\E[7m:mu=\Em:nd=\E[C:op=\E[39;49m:\
 	:rc=\E8:rs=\E[!p\E[?3;4l\E[4l\E>:sc=\E7:se=\E[27m:sf=^J:\
-	:so=\E[7m:sr=\EM:st=\EH:te=\E[?1049l:ti=\E[?1049h:\
+	:so=\E[7m:sr=\EM:st=\EH:\
 	:ue=\E[24m:up=\E[A:us=\E[4m:ve=\E[?12l\E[?25h:vi=\E[?25l:vs=\E[?12;25h:
 #
 # This is the only entry which you should have to customize, since "xterm"
 # is widely used for a variety of incompatible terminal emulations including
 # color_xterm and rxvt.
 xterm|X11 terminal emulator:\
+	:tc=xterm-new:
+#
+# Add the capability to "clear the screen" after exiting vi, more/less, etc.
+xterm-clear:\
+	:te=\E[?1049l:ti=\E[?1049h:\
 	:tc=xterm-new:
