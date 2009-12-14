@@ -127,6 +127,10 @@ MODULE_DEPEND(vge, miibus, 1, 1, 1);
 
 #define VGE_CSUM_FEATURES    (CSUM_IP | CSUM_TCP | CSUM_UDP)
 
+/* Tunables */
+static int msi_disable = 0;
+TUNABLE_INT("hw.vge.msi_disable", &msi_disable);
+
 /*
  * Various supported device vendors/types and their names.
  */
@@ -954,7 +958,7 @@ vge_attach(device_t dev)
 	u_char eaddr[ETHER_ADDR_LEN];
 	struct vge_softc *sc;
 	struct ifnet *ifp;
-	int error = 0, cap, rid;
+	int error = 0, cap, msic, rid;
 
 	sc = device_get_softc(dev);
 	sc->vge_dev = dev;
@@ -982,12 +986,24 @@ vge_attach(device_t dev)
 		sc->vge_flags |= VGE_FLAG_PCIE;
 		sc->vge_expcap = cap;
 	}
+	rid = 0;
+	msic = pci_msi_count(dev);
+	if (msi_disable == 0 && msic > 0) {
+		msic = 1;
+		if (pci_alloc_msi(dev, &msic) == 0) {
+			if (msic == 1) {
+				sc->vge_flags |= VGE_FLAG_MSI;
+				device_printf(dev, "Using %d MSI message\n",
+				    msic);
+				rid = 1;
+			} else
+				pci_release_msi(dev);
+		}
+	}
 
 	/* Allocate interrupt */
-	rid = 0;
 	sc->vge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-
+	    ((sc->vge_flags & VGE_FLAG_MSI) ? 0 : RF_SHAREABLE) | RF_ACTIVE);
 	if (sc->vge_irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
@@ -1108,7 +1124,10 @@ vge_detach(device_t dev)
 	if (sc->vge_intrhand)
 		bus_teardown_intr(dev, sc->vge_irq, sc->vge_intrhand);
 	if (sc->vge_irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vge_irq);
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    sc->vge_flags & VGE_FLAG_MSI ? 1 : 0, sc->vge_irq);
+	if (sc->vge_flags & VGE_FLAG_MSI)
+		pci_release_msi(dev);
 	if (sc->vge_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    PCIR_BAR(1), sc->vge_res);
