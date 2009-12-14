@@ -233,7 +233,7 @@ vge_eeprom_getword(sc, addr, dest)
 	int			addr;
 	u_int16_t		*dest;
 {
-	register int		i;
+	int			i;
 	u_int16_t		word = 0;
 
 	/*
@@ -602,7 +602,7 @@ static void
 vge_reset(sc)
 	struct vge_softc		*sc;
 {
-	register int		i;
+	int			i;
 
 	CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_SOFTRESET);
 
@@ -2261,7 +2261,7 @@ static void
 vge_stop(sc)
 	struct vge_softc		*sc;
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 
 	VGE_LOCK_ASSERT(sc);
