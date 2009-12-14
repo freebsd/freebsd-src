@@ -140,22 +140,21 @@ static int vge_probe		(device_t);
 static int vge_attach		(device_t);
 static int vge_detach		(device_t);
 
-static int vge_encap		(struct vge_softc *, struct mbuf *, int);
+static int vge_encap		(struct vge_softc *, struct mbuf **);
 
-static void vge_dma_map_addr	(void *, bus_dma_segment_t *, int, int);
-static void vge_dma_map_rx_desc	(void *, bus_dma_segment_t *, int,
-				    bus_size_t, int);
-static void vge_dma_map_tx_desc	(void *, bus_dma_segment_t *, int,
-				    bus_size_t, int);
-static int vge_allocmem		(device_t, struct vge_softc *);
-static int vge_newbuf		(struct vge_softc *, int, struct mbuf *);
+static void vge_dmamap_cb	(void *, bus_dma_segment_t *, int, int);
+static int vge_dma_alloc	(struct vge_softc *);
+static void vge_dma_free	(struct vge_softc *);
+static void vge_discard_rxbuf	(struct vge_softc *, int);
+static int vge_newbuf		(struct vge_softc *, int);
 static int vge_rx_list_init	(struct vge_softc *);
 static int vge_tx_list_init	(struct vge_softc *);
-#ifdef VGE_FIXUP_RX
+static void vge_freebufs	(struct vge_softc *);
+#ifndef __NO_STRICT_ALIGNMENT
 static __inline void vge_fixup_rx
 				(struct mbuf *);
 #endif
-static int vge_rxeof		(struct vge_softc *);
+static int vge_rxeof		(struct vge_softc *, int);
 static void vge_txeof		(struct vge_softc *);
 static void vge_intr		(void *);
 static void vge_tick		(void *);
@@ -547,6 +546,8 @@ vge_setmulti(sc)
 	struct ifmultiaddr	*ifma;
 	u_int32_t		h, hashes[2] = { 0, 0 };
 
+	VGE_LOCK_ASSERT(sc);
+
 	ifp = sc->vge_ifp;
 
 	/* First, zot all the multicast entries. */
@@ -662,249 +663,326 @@ vge_probe(dev)
 	return (ENXIO);
 }
 
-static void
-vge_dma_map_rx_desc(arg, segs, nseg, mapsize, error)
-	void			*arg;
-	bus_dma_segment_t	*segs;
-	int			nseg;
-	bus_size_t		mapsize;
-	int			error;
-{
-
-	struct vge_dmaload_arg	*ctx;
-	struct vge_rx_desc	*d = NULL;
-
-	if (error)
-		return;
-
-	ctx = arg;
-
-	/* Signal error to caller if there's too many segments */
-	if (nseg > ctx->vge_maxsegs) {
-		ctx->vge_maxsegs = 0;
-		return;
-	}
-
-	/*
-	 * Map the segment array into descriptors.
-	 */
-
-	d = &ctx->sc->vge_ldata.vge_rx_list[ctx->vge_idx];
-
-	/* If this descriptor is still owned by the chip, bail. */
-
-	if (le32toh(d->vge_sts) & VGE_RDSTS_OWN) {
-		device_printf(ctx->sc->vge_dev,
-		    "tried to map busy descriptor\n");
-		ctx->vge_maxsegs = 0;
-		return;
-	}
-
-	d->vge_buflen = htole16(VGE_BUFLEN(segs[0].ds_len) | VGE_RXDESC_I);
-	d->vge_addrlo = htole32(VGE_ADDR_LO(segs[0].ds_addr));
-	d->vge_addrhi = htole16(VGE_ADDR_HI(segs[0].ds_addr) & 0xFFFF);
-	d->vge_sts = 0;
-	d->vge_ctl = 0;
-
-	ctx->vge_maxsegs = 1;
-
-	return;
-}
-
-static void
-vge_dma_map_tx_desc(arg, segs, nseg, mapsize, error)
-	void			*arg;
-	bus_dma_segment_t	*segs;
-	int			nseg;
-	bus_size_t		mapsize;
-	int			error;
-{
-	struct vge_dmaload_arg	*ctx;
-	struct vge_tx_desc	*d = NULL;
-	struct vge_tx_frag	*f;
-	int			i = 0;
-
-	if (error)
-		return;
-
-	ctx = arg;
-
-	/* Signal error to caller if there's too many segments */
-	if (nseg > ctx->vge_maxsegs) {
-		ctx->vge_maxsegs = 0;
-		return;
-	}
-
-	/* Map the segment array into descriptors. */
-
-	d = &ctx->sc->vge_ldata.vge_tx_list[ctx->vge_idx];
-
-	/* If this descriptor is still owned by the chip, bail. */
-
-	if (le32toh(d->vge_sts) & VGE_TDSTS_OWN) {
-		ctx->vge_maxsegs = 0;
-		return;
-	}
-
-	for (i = 0; i < nseg; i++) {
-		f = &d->vge_frag[i];
-		f->vge_buflen = htole16(VGE_BUFLEN(segs[i].ds_len));
-		f->vge_addrlo = htole32(VGE_ADDR_LO(segs[i].ds_addr));
-		f->vge_addrhi = htole16(VGE_ADDR_HI(segs[i].ds_addr) & 0xFFFF);
-	}
-
-	/* Argh. This chip does not autopad short frames */
-
-	if (ctx->vge_m0->m_pkthdr.len < VGE_MIN_FRAMELEN) {
-		f = &d->vge_frag[i];
-		f->vge_buflen = htole16(VGE_BUFLEN(VGE_MIN_FRAMELEN -
-		    ctx->vge_m0->m_pkthdr.len));
-		f->vge_addrlo = htole32(VGE_ADDR_LO(segs[0].ds_addr));
-		f->vge_addrhi = htole16(VGE_ADDR_HI(segs[0].ds_addr) & 0xFFFF);
-		ctx->vge_m0->m_pkthdr.len = VGE_MIN_FRAMELEN;
-		i++;
-	}
-
-	/*
-	 * When telling the chip how many segments there are, we
-	 * must use nsegs + 1 instead of just nsegs. Darned if I
-	 * know why.
-	 */
-	i++;
-
-	d->vge_sts = ctx->vge_m0->m_pkthdr.len << 16;
-	d->vge_ctl = ctx->vge_flags|(i << 28)|VGE_TD_LS_NORM;
-
-	if (ctx->vge_m0->m_pkthdr.len > ETHERMTU + ETHER_HDR_LEN)
-		d->vge_ctl |= VGE_TDCTL_JUMBO;
-
-	ctx->vge_maxsegs = nseg;
-
-	return;
-}
-
 /*
  * Map a single buffer address.
  */
 
+struct vge_dmamap_arg {
+	bus_addr_t	vge_busaddr;
+};
+
 static void
-vge_dma_map_addr(arg, segs, nseg, error)
+vge_dmamap_cb(arg, segs, nsegs, error)
 	void			*arg;
 	bus_dma_segment_t	*segs;
-	int			nseg;
+	int			nsegs;
 	int			error;
 {
-	bus_addr_t		*addr;
+	struct vge_dmamap_arg	*ctx;
 
-	if (error)
+	if (error != 0)
 		return;
 
-	KASSERT(nseg == 1, ("too many DMA segments, %d should be 1", nseg));
-	addr = arg;
-	*addr = segs->ds_addr;
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
-	return;
+	ctx = (struct vge_dmamap_arg *)arg;
+	ctx->vge_busaddr = segs[0].ds_addr;
 }
 
 static int
-vge_allocmem(dev, sc)
-	device_t		dev;
-	struct vge_softc		*sc;
+vge_dma_alloc(sc)
+	struct vge_softc	*sc;
 {
-	int			error;
-	int			nseg;
+	struct vge_dmamap_arg	ctx;
+	struct vge_txdesc	*txd;
+	struct vge_rxdesc	*rxd;
+	bus_addr_t		lowaddr, tx_ring_end, rx_ring_end;
+	int			error, i;
+
+	lowaddr = BUS_SPACE_MAXADDR;
+
+again:
+	/* Create parent ring tag. */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->vge_dev),/* parent */
+	    1, 0,			/* algnmnt, boundary */
+	    lowaddr,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
+	    0,				/* nsegments */
+	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->vge_cdata.vge_ring_tag);
+	if (error != 0) {
+		device_printf(sc->vge_dev,
+		    "could not create parent DMA tag.\n");
+		goto fail;
+	}
+
+	/* Create tag for Tx ring. */
+	error = bus_dma_tag_create(sc->vge_cdata.vge_ring_tag,/* parent */
+	    VGE_TX_RING_ALIGN, 0,	/* algnmnt, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    VGE_TX_LIST_SZ,		/* maxsize */
+	    1,				/* nsegments */
+	    VGE_TX_LIST_SZ,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->vge_cdata.vge_tx_ring_tag);
+	if (error != 0) {
+		device_printf(sc->vge_dev,
+		    "could not allocate Tx ring DMA tag.\n");
+		goto fail;
+	}
+
+	/* Create tag for Rx ring. */
+	error = bus_dma_tag_create(sc->vge_cdata.vge_ring_tag,/* parent */
+	    VGE_RX_RING_ALIGN, 0,	/* algnmnt, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    VGE_RX_LIST_SZ,		/* maxsize */
+	    1,				/* nsegments */
+	    VGE_RX_LIST_SZ,		/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->vge_cdata.vge_rx_ring_tag);
+	if (error != 0) {
+		device_printf(sc->vge_dev,
+		    "could not allocate Rx ring DMA tag.\n");
+		goto fail;
+	}
+
+	/* Allocate DMA'able memory and load the DMA map for Tx ring. */
+	error = bus_dmamem_alloc(sc->vge_cdata.vge_tx_ring_tag,
+	    (void **)&sc->vge_rdata.vge_tx_ring,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &sc->vge_cdata.vge_tx_ring_map);
+	if (error != 0) {
+		device_printf(sc->vge_dev,
+		    "could not allocate DMA'able memory for Tx ring.\n");
+		goto fail;
+	}
+
+	ctx.vge_busaddr = 0;
+	error = bus_dmamap_load(sc->vge_cdata.vge_tx_ring_tag,
+	    sc->vge_cdata.vge_tx_ring_map, sc->vge_rdata.vge_tx_ring,
+	    VGE_TX_LIST_SZ, vge_dmamap_cb, &ctx, BUS_DMA_NOWAIT);
+	if (error != 0 || ctx.vge_busaddr == 0) {
+		device_printf(sc->vge_dev,
+		    "could not load DMA'able memory for Tx ring.\n");
+		goto fail;
+	}
+	sc->vge_rdata.vge_tx_ring_paddr = ctx.vge_busaddr;
+
+	/* Allocate DMA'able memory and load the DMA map for Rx ring. */
+	error = bus_dmamem_alloc(sc->vge_cdata.vge_rx_ring_tag,
+	    (void **)&sc->vge_rdata.vge_rx_ring,
+	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_COHERENT,
+	    &sc->vge_cdata.vge_rx_ring_map);
+	if (error != 0) {
+		device_printf(sc->vge_dev,
+		    "could not allocate DMA'able memory for Rx ring.\n");
+		goto fail;
+	}
+
+	ctx.vge_busaddr = 0;
+	error = bus_dmamap_load(sc->vge_cdata.vge_rx_ring_tag,
+	    sc->vge_cdata.vge_rx_ring_map, sc->vge_rdata.vge_rx_ring,
+	    VGE_RX_LIST_SZ, vge_dmamap_cb, &ctx, BUS_DMA_NOWAIT);
+	if (error != 0 || ctx.vge_busaddr == 0) {
+		device_printf(sc->vge_dev,
+		    "could not load DMA'able memory for Rx ring.\n");
+		goto fail;
+	}
+	sc->vge_rdata.vge_rx_ring_paddr = ctx.vge_busaddr;
+
+	/* Tx/Rx descriptor queue should reside within 4GB boundary. */
+	tx_ring_end = sc->vge_rdata.vge_tx_ring_paddr + VGE_TX_LIST_SZ;
+	rx_ring_end = sc->vge_rdata.vge_rx_ring_paddr + VGE_RX_LIST_SZ;
+	if ((VGE_ADDR_HI(tx_ring_end) !=
+	    VGE_ADDR_HI(sc->vge_rdata.vge_tx_ring_paddr)) ||
+	    (VGE_ADDR_HI(rx_ring_end) !=
+	    VGE_ADDR_HI(sc->vge_rdata.vge_rx_ring_paddr)) ||
+	    VGE_ADDR_HI(tx_ring_end) != VGE_ADDR_HI(rx_ring_end)) {
+		device_printf(sc->vge_dev, "4GB boundary crossed, "
+		    "switching to 32bit DMA address mode.\n");
+		vge_dma_free(sc);
+		/* Limit DMA address space to 32bit and try again. */
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
+		goto again;
+	}
+
+	/* Create parent buffer tag. */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->vge_dev),/* parent */
+	    1, 0,			/* algnmnt, boundary */
+	    VGE_BUF_DMA_MAXADDR,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
+	    0,				/* nsegments */
+	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->vge_cdata.vge_buffer_tag);
+	if (error != 0) {
+		device_printf(sc->vge_dev,
+		    "could not create parent buffer DMA tag.\n");
+		goto fail;
+	}
+
+	/* Create tag for Tx buffers. */
+	error = bus_dma_tag_create(sc->vge_cdata.vge_buffer_tag,/* parent */
+	    1, 0,			/* algnmnt, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES * VGE_MAXTXSEGS,	/* maxsize */
+	    VGE_MAXTXSEGS,		/* nsegments */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->vge_cdata.vge_tx_tag);
+	if (error != 0) {
+		device_printf(sc->vge_dev, "could not create Tx DMA tag.\n");
+		goto fail;
+	}
+
+	/* Create tag for Rx buffers. */
+	error = bus_dma_tag_create(sc->vge_cdata.vge_buffer_tag,/* parent */
+	    VGE_RX_BUF_ALIGN, 0,	/* algnmnt, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES,			/* maxsize */
+	    1,				/* nsegments */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->vge_cdata.vge_rx_tag);
+	if (error != 0) {
+		device_printf(sc->vge_dev, "could not create Rx DMA tag.\n");
+		goto fail;
+	}
+
+	/* Create DMA maps for Tx buffers. */
+	for (i = 0; i < VGE_TX_DESC_CNT; i++) {
+		txd = &sc->vge_cdata.vge_txdesc[i];
+		txd->tx_m = NULL;
+		txd->tx_dmamap = NULL;
+		error = bus_dmamap_create(sc->vge_cdata.vge_tx_tag, 0,
+		    &txd->tx_dmamap);
+		if (error != 0) {
+			device_printf(sc->vge_dev,
+			    "could not create Tx dmamap.\n");
+			goto fail;
+		}
+	}
+	/* Create DMA maps for Rx buffers. */
+	if ((error = bus_dmamap_create(sc->vge_cdata.vge_rx_tag, 0,
+	    &sc->vge_cdata.vge_rx_sparemap)) != 0) {
+		device_printf(sc->vge_dev,
+		    "could not create spare Rx dmamap.\n");
+		goto fail;
+	}
+	for (i = 0; i < VGE_RX_DESC_CNT; i++) {
+		rxd = &sc->vge_cdata.vge_rxdesc[i];
+		rxd->rx_m = NULL;
+		rxd->rx_dmamap = NULL;
+		error = bus_dmamap_create(sc->vge_cdata.vge_rx_tag, 0,
+		    &rxd->rx_dmamap);
+		if (error != 0) {
+			device_printf(sc->vge_dev,
+			    "could not create Rx dmamap.\n");
+			goto fail;
+		}
+	}
+
+fail:
+	return (error);
+}
+
+static void
+vge_dma_free(sc)
+	struct vge_softc	*sc;
+{
+	struct vge_txdesc	*txd;
+	struct vge_rxdesc	*rxd;
 	int			i;
 
-	/*
-	 * Allocate map for RX mbufs.
-	 */
-	nseg = 32;
-	error = bus_dma_tag_create(sc->vge_parent_tag, ETHER_ALIGN, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, MCLBYTES * nseg, nseg, MCLBYTES, BUS_DMA_ALLOCNOW,
-	    NULL, NULL, &sc->vge_ldata.vge_mtag);
-	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
-		return (ENOMEM);
+	/* Tx ring. */
+	if (sc->vge_cdata.vge_tx_ring_tag != NULL) {
+		if (sc->vge_cdata.vge_tx_ring_map)
+			bus_dmamap_unload(sc->vge_cdata.vge_tx_ring_tag,
+			    sc->vge_cdata.vge_tx_ring_map);
+		if (sc->vge_cdata.vge_tx_ring_map &&
+		    sc->vge_rdata.vge_tx_ring)
+			bus_dmamem_free(sc->vge_cdata.vge_tx_ring_tag,
+			    sc->vge_rdata.vge_tx_ring,
+			    sc->vge_cdata.vge_tx_ring_map);
+		sc->vge_rdata.vge_tx_ring = NULL;
+		sc->vge_cdata.vge_tx_ring_map = NULL;
+		bus_dma_tag_destroy(sc->vge_cdata.vge_tx_ring_tag);
+		sc->vge_cdata.vge_tx_ring_tag = NULL;
 	}
-
-	/*
-	 * Allocate map for TX descriptor list.
-	 */
-	error = bus_dma_tag_create(sc->vge_parent_tag, VGE_RING_ALIGN,
-	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, VGE_TX_LIST_SZ, 1, VGE_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
-	    NULL, NULL, &sc->vge_ldata.vge_tx_list_tag);
-	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
-		return (ENOMEM);
+	/* Rx ring. */
+	if (sc->vge_cdata.vge_rx_ring_tag != NULL) {
+		if (sc->vge_cdata.vge_rx_ring_map)
+			bus_dmamap_unload(sc->vge_cdata.vge_rx_ring_tag,
+			    sc->vge_cdata.vge_rx_ring_map);
+		if (sc->vge_cdata.vge_rx_ring_map &&
+		    sc->vge_rdata.vge_rx_ring)
+			bus_dmamem_free(sc->vge_cdata.vge_rx_ring_tag,
+			    sc->vge_rdata.vge_rx_ring,
+			    sc->vge_cdata.vge_rx_ring_map);
+		sc->vge_rdata.vge_rx_ring = NULL;
+		sc->vge_cdata.vge_rx_ring_map = NULL;
+		bus_dma_tag_destroy(sc->vge_cdata.vge_rx_ring_tag);
+		sc->vge_cdata.vge_rx_ring_tag = NULL;
 	}
-
-	/* Allocate DMA'able memory for the TX ring */
-
-	error = bus_dmamem_alloc(sc->vge_ldata.vge_tx_list_tag,
-	    (void **)&sc->vge_ldata.vge_tx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc->vge_ldata.vge_tx_list_map);
-	if (error)
-		return (ENOMEM);
-
-	/* Load the map for the TX ring. */
-
-	error = bus_dmamap_load(sc->vge_ldata.vge_tx_list_tag,
-	     sc->vge_ldata.vge_tx_list_map, sc->vge_ldata.vge_tx_list,
-	     VGE_TX_LIST_SZ, vge_dma_map_addr,
-	     &sc->vge_ldata.vge_tx_list_addr, BUS_DMA_NOWAIT);
-
-	/* Create DMA maps for TX buffers */
-
-	for (i = 0; i < VGE_TX_DESC_CNT; i++) {
-		error = bus_dmamap_create(sc->vge_ldata.vge_mtag, 0,
-			    &sc->vge_ldata.vge_tx_dmamap[i]);
-		if (error) {
-			device_printf(dev, "can't create DMA map for TX\n");
-			return (ENOMEM);
+	/* Tx buffers. */
+	if (sc->vge_cdata.vge_tx_tag != NULL) {
+		for (i = 0; i < VGE_TX_DESC_CNT; i++) {
+			txd = &sc->vge_cdata.vge_txdesc[i];
+			if (txd->tx_dmamap != NULL) {
+				bus_dmamap_destroy(sc->vge_cdata.vge_tx_tag,
+				    txd->tx_dmamap);
+				txd->tx_dmamap = NULL;
+			}
 		}
+		bus_dma_tag_destroy(sc->vge_cdata.vge_tx_tag);
+		sc->vge_cdata.vge_tx_tag = NULL;
 	}
-
-	/*
-	 * Allocate map for RX descriptor list.
-	 */
-	error = bus_dma_tag_create(sc->vge_parent_tag, VGE_RING_ALIGN,
-	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, VGE_TX_LIST_SZ, 1, VGE_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
-	    NULL, NULL, &sc->vge_ldata.vge_rx_list_tag);
-	if (error) {
-		device_printf(dev, "could not allocate dma tag\n");
-		return (ENOMEM);
-	}
-
-	/* Allocate DMA'able memory for the RX ring */
-
-	error = bus_dmamem_alloc(sc->vge_ldata.vge_rx_list_tag,
-	    (void **)&sc->vge_ldata.vge_rx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc->vge_ldata.vge_rx_list_map);
-	if (error)
-		return (ENOMEM);
-
-	/* Load the map for the RX ring. */
-
-	error = bus_dmamap_load(sc->vge_ldata.vge_rx_list_tag,
-	     sc->vge_ldata.vge_rx_list_map, sc->vge_ldata.vge_rx_list,
-	     VGE_TX_LIST_SZ, vge_dma_map_addr,
-	     &sc->vge_ldata.vge_rx_list_addr, BUS_DMA_NOWAIT);
-
-	/* Create DMA maps for RX buffers */
-
-	for (i = 0; i < VGE_RX_DESC_CNT; i++) {
-		error = bus_dmamap_create(sc->vge_ldata.vge_mtag, 0,
-			    &sc->vge_ldata.vge_rx_dmamap[i]);
-		if (error) {
-			device_printf(dev, "can't create DMA map for RX\n");
-			return (ENOMEM);
+	/* Rx buffers. */
+	if (sc->vge_cdata.vge_rx_tag != NULL) {
+		for (i = 0; i < VGE_RX_DESC_CNT; i++) {
+			rxd = &sc->vge_cdata.vge_rxdesc[i];
+			if (rxd->rx_dmamap != NULL) {
+				bus_dmamap_destroy(sc->vge_cdata.vge_rx_tag,
+				    rxd->rx_dmamap);
+				rxd->rx_dmamap = NULL;
+			}
 		}
+		if (sc->vge_cdata.vge_rx_sparemap != NULL) {
+			bus_dmamap_destroy(sc->vge_cdata.vge_rx_tag,
+			    sc->vge_cdata.vge_rx_sparemap);
+			sc->vge_cdata.vge_rx_sparemap = NULL;
+		}
+		bus_dma_tag_destroy(sc->vge_cdata.vge_rx_tag);
+		sc->vge_cdata.vge_rx_tag = NULL;
 	}
 
-	return (0);
+	if (sc->vge_cdata.vge_buffer_tag != NULL) {
+		bus_dma_tag_destroy(sc->vge_cdata.vge_buffer_tag);
+		sc->vge_cdata.vge_buffer_tag = NULL;
+	}
+	if (sc->vge_cdata.vge_ring_tag != NULL) {
+		bus_dma_tag_destroy(sc->vge_cdata.vge_ring_tag);
+		sc->vge_cdata.vge_ring_tag = NULL;
+	}
 }
 
 /*
@@ -961,25 +1039,7 @@ vge_attach(dev)
 	 */
 	vge_read_eeprom(sc, (caddr_t)eaddr, VGE_EE_EADDR, 3, 0);
 
-	/*
-	 * Allocate the parent bus DMA tag appropriate for PCI.
-	 */
-#define VGE_NSEG_NEW 32
-	error = bus_dma_tag_create(NULL,	/* parent */
-			1, 0,			/* alignment, boundary */
-			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-			BUS_SPACE_MAXADDR,	/* highaddr */
-			NULL, NULL,		/* filter, filterarg */
-			MAXBSIZE, VGE_NSEG_NEW,	/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-			BUS_DMA_ALLOCNOW,	/* flags */
-			NULL, NULL,		/* lockfunc, lockarg */
-			&sc->vge_parent_tag);
-	if (error)
-		goto fail;
-
-	error = vge_allocmem(dev, sc);
-
+	error = vge_dma_alloc(sc);
 	if (error)
 		goto fail;
 
@@ -1051,7 +1111,6 @@ vge_detach(dev)
 {
 	struct vge_softc		*sc;
 	struct ifnet		*ifp;
-	int			i;
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->vge_mtx), ("vge mutex not initialized"));
@@ -1084,97 +1143,93 @@ vge_detach(dev)
 	if (ifp)
 		if_free(ifp);
 
-	/* Unload and free the RX DMA ring memory and map */
-
-	if (sc->vge_ldata.vge_rx_list_tag) {
-		bus_dmamap_unload(sc->vge_ldata.vge_rx_list_tag,
-		    sc->vge_ldata.vge_rx_list_map);
-		bus_dmamem_free(sc->vge_ldata.vge_rx_list_tag,
-		    sc->vge_ldata.vge_rx_list,
-		    sc->vge_ldata.vge_rx_list_map);
-		bus_dma_tag_destroy(sc->vge_ldata.vge_rx_list_tag);
-	}
-
-	/* Unload and free the TX DMA ring memory and map */
-
-	if (sc->vge_ldata.vge_tx_list_tag) {
-		bus_dmamap_unload(sc->vge_ldata.vge_tx_list_tag,
-		    sc->vge_ldata.vge_tx_list_map);
-		bus_dmamem_free(sc->vge_ldata.vge_tx_list_tag,
-		    sc->vge_ldata.vge_tx_list,
-		    sc->vge_ldata.vge_tx_list_map);
-		bus_dma_tag_destroy(sc->vge_ldata.vge_tx_list_tag);
-	}
-
-	/* Destroy all the RX and TX buffer maps */
-
-	if (sc->vge_ldata.vge_mtag) {
-		for (i = 0; i < VGE_TX_DESC_CNT; i++)
-			bus_dmamap_destroy(sc->vge_ldata.vge_mtag,
-			    sc->vge_ldata.vge_tx_dmamap[i]);
-		for (i = 0; i < VGE_RX_DESC_CNT; i++)
-			bus_dmamap_destroy(sc->vge_ldata.vge_mtag,
-			    sc->vge_ldata.vge_rx_dmamap[i]);
-		bus_dma_tag_destroy(sc->vge_ldata.vge_mtag);
-	}
-
-	if (sc->vge_parent_tag)
-		bus_dma_tag_destroy(sc->vge_parent_tag);
-
+	vge_dma_free(sc);
 	mtx_destroy(&sc->vge_mtx);
 
 	return (0);
 }
 
-static int
-vge_newbuf(sc, idx, m)
+static void
+vge_discard_rxbuf(sc, prod)
 	struct vge_softc	*sc;
-	int			idx;
-	struct mbuf		*m;
+	int			prod;
 {
-	struct vge_dmaload_arg	arg;
-	struct mbuf		*n = NULL;
-	int			i, error;
+	struct vge_rxdesc	*rxd;
+	int			i;
 
-	if (m == NULL) {
-		n = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (n == NULL)
-			return (ENOBUFS);
-		m = n;
-	} else
-		m->m_data = m->m_ext.ext_buf;
+	rxd = &sc->vge_cdata.vge_rxdesc[prod];
+	rxd->rx_desc->vge_sts = 0;
+	rxd->rx_desc->vge_ctl = 0;
 
-
-#ifdef VGE_FIXUP_RX
 	/*
-	 * This is part of an evil trick to deal with non-x86 platforms.
-	 * The VIA chip requires RX buffers to be aligned on 32-bit
-	 * boundaries, but that will hose non-x86 machines. To get around
-	 * this, we leave some empty space at the start of each buffer
-	 * and for non-x86 hosts, we copy the buffer back two bytes
-	 * to achieve word alignment. This is slightly more efficient
-	 * than allocating a new buffer, copying the contents, and
-	 * discarding the old buffer.
+	 * Note: the manual fails to document the fact that for
+	 * proper opration, the driver needs to replentish the RX
+	 * DMA ring 4 descriptors at a time (rather than one at a
+	 * time, like most chips). We can allocate the new buffers
+	 * but we should not set the OWN bits until we're ready
+	 * to hand back 4 of them in one shot.
 	 */
-	m->m_len = m->m_pkthdr.len = MCLBYTES - VGE_ETHER_ALIGN;
-	m_adj(m, VGE_ETHER_ALIGN);
-#else
-	m->m_len = m->m_pkthdr.len = MCLBYTES;
-#endif
-
-	arg.sc = sc;
-	arg.vge_idx = idx;
-	arg.vge_maxsegs = 1;
-	arg.vge_flags = 0;
-
-	error = bus_dmamap_load_mbuf(sc->vge_ldata.vge_mtag,
-	    sc->vge_ldata.vge_rx_dmamap[idx], m, vge_dma_map_rx_desc,
-	    &arg, BUS_DMA_NOWAIT);
-	if (error || arg.vge_maxsegs != 1) {
-		if (n != NULL)
-			m_freem(n);
-		return (ENOMEM);
+	if ((prod % VGE_RXCHUNK) == (VGE_RXCHUNK - 1)) {
+		for (i = VGE_RXCHUNK; i > 0; i--) {
+			rxd->rx_desc->vge_sts = htole32(VGE_RDSTS_OWN);
+			rxd = rxd->rxd_prev;
+		}
+		sc->vge_cdata.vge_rx_commit += VGE_RXCHUNK;
 	}
+}
+
+static int
+vge_newbuf(sc, prod)
+	struct vge_softc	*sc;
+	int			prod;
+{
+	struct vge_rxdesc	*rxd;
+	struct mbuf		*m;
+	bus_dma_segment_t	segs[1];
+	bus_dmamap_t		map;
+	int			i, nsegs;
+
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (ENOBUFS);
+	/*
+	 * This is part of an evil trick to deal with strict-alignment
+	 * architectures. The VIA chip requires RX buffers to be aligned
+	 * on 32-bit boundaries, but that will hose strict-alignment
+	 * architectures. To get around this, we leave some empty space
+	 * at the start of each buffer and for non-strict-alignment hosts,
+	 * we copy the buffer back two bytes to achieve word alignment.
+	 * This is slightly more efficient than allocating a new buffer,
+	 * copying the contents, and discarding the old buffer.
+	 */
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
+	m_adj(m, VGE_RX_BUF_ALIGN);
+
+	if (bus_dmamap_load_mbuf_sg(sc->vge_cdata.vge_rx_tag,
+	    sc->vge_cdata.vge_rx_sparemap, m, segs, &nsegs, 0) != 0) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	rxd = &sc->vge_cdata.vge_rxdesc[prod];
+	if (rxd->rx_m != NULL) {
+		bus_dmamap_sync(sc->vge_cdata.vge_rx_tag, rxd->rx_dmamap,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->vge_cdata.vge_rx_tag, rxd->rx_dmamap);
+	}
+	map = rxd->rx_dmamap;
+	rxd->rx_dmamap = sc->vge_cdata.vge_rx_sparemap;
+	sc->vge_cdata.vge_rx_sparemap = map;
+	bus_dmamap_sync(sc->vge_cdata.vge_rx_tag, rxd->rx_dmamap,
+	    BUS_DMASYNC_PREREAD);
+	rxd->rx_m = m;
+
+	rxd->rx_desc->vge_sts = 0;
+	rxd->rx_desc->vge_ctl = 0;
+	rxd->rx_desc->vge_addrlo = htole32(VGE_ADDR_LO(segs[0].ds_addr));
+	rxd->rx_desc->vge_addrhi = htole32(VGE_ADDR_HI(segs[0].ds_addr) |
+	    (VGE_BUFLEN(segs[0].ds_len) << 16) | VGE_RXDESC_I);
 
 	/*
 	 * Note: the manual fails to document the fact that for
@@ -1184,73 +1239,127 @@ vge_newbuf(sc, idx, m)
 	 * but we should not set the OWN bits until we're ready
 	 * to hand back 4 of them in one shot.
 	 */
-
-#define VGE_RXCHUNK 4
-	sc->vge_rx_consumed++;
-	if (sc->vge_rx_consumed == VGE_RXCHUNK) {
-		for (i = idx; i != idx - sc->vge_rx_consumed; i--)
-			sc->vge_ldata.vge_rx_list[i].vge_sts |=
-			    htole32(VGE_RDSTS_OWN);
-		sc->vge_rx_consumed = 0;
+	if ((prod % VGE_RXCHUNK) == (VGE_RXCHUNK - 1)) {
+		for (i = VGE_RXCHUNK; i > 0; i--) {
+			rxd->rx_desc->vge_sts = htole32(VGE_RDSTS_OWN);
+			rxd = rxd->rxd_prev;
+		}
+		sc->vge_cdata.vge_rx_commit += VGE_RXCHUNK;
 	}
-
-	sc->vge_ldata.vge_rx_mbuf[idx] = m;
-
-	bus_dmamap_sync(sc->vge_ldata.vge_mtag,
-	    sc->vge_ldata.vge_rx_dmamap[idx],
-	    BUS_DMASYNC_PREREAD);
 
 	return (0);
 }
 
 static int
 vge_tx_list_init(sc)
-	struct vge_softc		*sc;
+	struct vge_softc	*sc;
 {
-	bzero ((char *)sc->vge_ldata.vge_tx_list, VGE_TX_LIST_SZ);
-	bzero ((char *)&sc->vge_ldata.vge_tx_mbuf,
-	    (VGE_TX_DESC_CNT * sizeof(struct mbuf *)));
+	struct vge_ring_data	*rd;
+	struct vge_txdesc	*txd;
+	int			i;
 
-	bus_dmamap_sync(sc->vge_ldata.vge_tx_list_tag,
-	    sc->vge_ldata.vge_tx_list_map, BUS_DMASYNC_PREWRITE);
-	sc->vge_ldata.vge_tx_prodidx = 0;
-	sc->vge_ldata.vge_tx_considx = 0;
-	sc->vge_ldata.vge_tx_free = VGE_TX_DESC_CNT;
+	VGE_LOCK_ASSERT(sc);
+
+	sc->vge_cdata.vge_tx_prodidx = 0;
+	sc->vge_cdata.vge_tx_considx = 0;
+	sc->vge_cdata.vge_tx_cnt = 0;
+
+	rd = &sc->vge_rdata;
+	bzero(rd->vge_tx_ring, VGE_TX_LIST_SZ);
+	for (i = 0; i < VGE_TX_DESC_CNT; i++) {
+		txd = &sc->vge_cdata.vge_txdesc[i];
+		txd->tx_m = NULL;
+		txd->tx_desc = &rd->vge_tx_ring[i];
+	}
+
+	bus_dmamap_sync(sc->vge_cdata.vge_tx_ring_tag,
+	    sc->vge_cdata.vge_tx_ring_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
 
 static int
 vge_rx_list_init(sc)
-	struct vge_softc		*sc;
+	struct vge_softc	*sc;
 {
+	struct vge_ring_data	*rd;
+	struct vge_rxdesc	*rxd;
 	int			i;
 
-	bzero ((char *)sc->vge_ldata.vge_rx_list, VGE_RX_LIST_SZ);
-	bzero ((char *)&sc->vge_ldata.vge_rx_mbuf,
-	    (VGE_RX_DESC_CNT * sizeof(struct mbuf *)));
+	VGE_LOCK_ASSERT(sc);
 
-	sc->vge_rx_consumed = 0;
+	sc->vge_cdata.vge_rx_prodidx = 0;
+	sc->vge_cdata.vge_head = NULL;
+	sc->vge_cdata.vge_tail = NULL;
+	sc->vge_cdata.vge_rx_commit = 0;
 
+	rd = &sc->vge_rdata;
+	bzero(rd->vge_rx_ring, VGE_RX_LIST_SZ);
 	for (i = 0; i < VGE_RX_DESC_CNT; i++) {
-		if (vge_newbuf(sc, i, NULL) == ENOBUFS)
+		rxd = &sc->vge_cdata.vge_rxdesc[i];
+		rxd->rx_m = NULL;
+		rxd->rx_desc = &rd->vge_rx_ring[i];
+		if (i == 0)
+			rxd->rxd_prev =
+			    &sc->vge_cdata.vge_rxdesc[VGE_RX_DESC_CNT - 1];
+		else
+			rxd->rxd_prev = &sc->vge_cdata.vge_rxdesc[i - 1];
+		if (vge_newbuf(sc, i) != 0)
 			return (ENOBUFS);
 	}
 
-	/* Flush the RX descriptors */
+	bus_dmamap_sync(sc->vge_cdata.vge_rx_ring_tag,
+	    sc->vge_cdata.vge_rx_ring_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	bus_dmamap_sync(sc->vge_ldata.vge_rx_list_tag,
-	    sc->vge_ldata.vge_rx_list_map,
-	    BUS_DMASYNC_PREWRITE|BUS_DMASYNC_PREREAD);
-
-	sc->vge_ldata.vge_rx_prodidx = 0;
-	sc->vge_rx_consumed = 0;
-	sc->vge_head = sc->vge_tail = NULL;
+	sc->vge_cdata.vge_rx_commit = 0;
 
 	return (0);
 }
 
-#ifdef VGE_FIXUP_RX
+static void
+vge_freebufs(sc)
+	struct vge_softc	*sc;
+{
+	struct vge_txdesc	*txd;
+	struct vge_rxdesc	*rxd;
+	struct ifnet		*ifp;
+	int			i;
+
+	VGE_LOCK_ASSERT(sc);
+
+	ifp = sc->vge_ifp;
+	/*
+	 * Free RX and TX mbufs still in the queues.
+	 */
+	for (i = 0; i < VGE_RX_DESC_CNT; i++) {
+		rxd = &sc->vge_cdata.vge_rxdesc[i];
+		if (rxd->rx_m != NULL) {
+			bus_dmamap_sync(sc->vge_cdata.vge_rx_tag,
+			    rxd->rx_dmamap, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(sc->vge_cdata.vge_rx_tag,
+			    rxd->rx_dmamap);
+			m_freem(rxd->rx_m);
+			rxd->rx_m = NULL;
+		}
+	}
+
+	for (i = 0; i < VGE_TX_DESC_CNT; i++) {
+		txd = &sc->vge_cdata.vge_txdesc[i];
+		if (txd->tx_m != NULL) {
+			bus_dmamap_sync(sc->vge_cdata.vge_tx_tag,
+			    txd->tx_dmamap, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->vge_cdata.vge_tx_tag,
+			    txd->tx_dmamap);
+			m_freem(txd->tx_m);
+			txd->tx_m = NULL;
+			ifp->if_oerrors++;
+		}
+	}
+}
+
+#ifndef	__NO_STRICT_ALIGNMENT
 static __inline void
 vge_fixup_rx(m)
 	struct mbuf		*m;
@@ -1265,8 +1374,6 @@ vge_fixup_rx(m)
 		*dst++ = *src++;
 
 	m->m_data -= ETHER_ALIGN;
-
-	return;
 }
 #endif
 
@@ -1275,49 +1382,39 @@ vge_fixup_rx(m)
  * been fragmented across multiple 2K mbuf cluster buffers.
  */
 static int
-vge_rxeof(sc)
+vge_rxeof(sc, count)
 	struct vge_softc	*sc;
+	int			count;
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp;
-	int			i, total_len;
-	int			lim = 0;
+	int			prod, prog, total_len;
+	struct vge_rxdesc	*rxd;
 	struct vge_rx_desc	*cur_rx;
-	u_int32_t		rxstat, rxctl;
+	uint32_t		rxstat, rxctl;
 
 	VGE_LOCK_ASSERT(sc);
+
 	ifp = sc->vge_ifp;
-	i = sc->vge_ldata.vge_rx_prodidx;
 
-	/* Invalidate the descriptor memory */
+	bus_dmamap_sync(sc->vge_cdata.vge_rx_ring_tag,
+	    sc->vge_cdata.vge_rx_ring_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	bus_dmamap_sync(sc->vge_ldata.vge_rx_list_tag,
-	    sc->vge_ldata.vge_rx_list_map,
-	    BUS_DMASYNC_POSTREAD);
-
-	while (!VGE_OWN(&sc->vge_ldata.vge_rx_list[i])) {
-
-#ifdef DEVICE_POLLING
-		if (ifp->if_capenable & IFCAP_POLLING) {
-			if (sc->rxcycles <= 0)
-				break;
-			sc->rxcycles--;
-		}
-#endif
-
-		cur_rx = &sc->vge_ldata.vge_rx_list[i];
-		m = sc->vge_ldata.vge_rx_mbuf[i];
-		total_len = VGE_RXBYTES(cur_rx);
+	prod = sc->vge_cdata.vge_rx_prodidx;
+	for (prog = 0; count > 0 &&
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	    VGE_RX_DESC_INC(prod)) {
+		cur_rx = &sc->vge_rdata.vge_rx_ring[prod];
 		rxstat = le32toh(cur_rx->vge_sts);
+		if ((rxstat & VGE_RDSTS_OWN) != 0)
+			break;
+		count--;
+		prog++;
 		rxctl = le32toh(cur_rx->vge_ctl);
-
-		/* Invalidate the RX mbuf and unload its map */
-
-		bus_dmamap_sync(sc->vge_ldata.vge_mtag,
-		    sc->vge_ldata.vge_rx_dmamap[i],
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(sc->vge_ldata.vge_mtag,
-		    sc->vge_ldata.vge_rx_dmamap[i]);
+		total_len = VGE_RXBYTES(rxstat);
+		rxd = &sc->vge_cdata.vge_rxdesc[prod];
+		m = rxd->rx_m;
 
 		/*
 		 * If the 'start of frame' bit is set, this indicates
@@ -1325,17 +1422,22 @@ vge_rxeof(sc)
 		 * or an intermediate fragment. Either way, we want to
 		 * accumulate the buffers.
 		 */
-		if (rxstat & VGE_RXPKT_SOF) {
-			m->m_len = MCLBYTES - VGE_ETHER_ALIGN;
-			if (sc->vge_head == NULL)
-				sc->vge_head = sc->vge_tail = m;
-			else {
-				m->m_flags &= ~M_PKTHDR;
-				sc->vge_tail->m_next = m;
-				sc->vge_tail = m;
+		if ((rxstat & VGE_RXPKT_SOF) != 0) {
+			if (vge_newbuf(sc, prod) != 0) {
+				ifp->if_iqdrops++;
+				VGE_CHAIN_RESET(sc);
+				vge_discard_rxbuf(sc, prod);
+				continue;
 			}
-			vge_newbuf(sc, i, NULL);
-			VGE_RX_DESC_INC(i);
+			m->m_len = MCLBYTES - VGE_RX_BUF_ALIGN;
+			if (sc->vge_cdata.vge_head == NULL) {
+				sc->vge_cdata.vge_head = m;
+				sc->vge_cdata.vge_tail = m;
+			} else {
+				m->m_flags &= ~M_PKTHDR;
+				sc->vge_cdata.vge_tail->m_next = m;
+				sc->vge_cdata.vge_tail = m;
+			}
 			continue;
 		}
 
@@ -1347,43 +1449,32 @@ vge_rxeof(sc)
 		 * a 'VLAN CAM filter miss' and clears the 'RXOK' bit.
 		 * We don't want to drop the frame though: our VLAN
 		 * filtering is done in software.
+		 * We also want to receive bad-checksummed frames and
+		 * and frames with bad-length.
 		 */
-		if (!(rxstat & VGE_RDSTS_RXOK) && !(rxstat & VGE_RDSTS_VIDM)
-		    && !(rxstat & VGE_RDSTS_CSUMERR)) {
+		if ((rxstat & VGE_RDSTS_RXOK) == 0 &&
+		    (rxstat & (VGE_RDSTS_VIDM | VGE_RDSTS_RLERR |
+		    VGE_RDSTS_CSUMERR)) == 0) {
 			ifp->if_ierrors++;
 			/*
 			 * If this is part of a multi-fragment packet,
 			 * discard all the pieces.
 			 */
-			if (sc->vge_head != NULL) {
-				m_freem(sc->vge_head);
-				sc->vge_head = sc->vge_tail = NULL;
-			}
-			vge_newbuf(sc, i, m);
-			VGE_RX_DESC_INC(i);
+			VGE_CHAIN_RESET(sc);
+			vge_discard_rxbuf(sc, prod);
 			continue;
 		}
 
-		/*
-		 * If allocating a replacement mbuf fails,
-		 * reload the current one.
-		 */
-
-		if (vge_newbuf(sc, i, NULL)) {
-			ifp->if_ierrors++;
-			if (sc->vge_head != NULL) {
-				m_freem(sc->vge_head);
-				sc->vge_head = sc->vge_tail = NULL;
-			}
-			vge_newbuf(sc, i, m);
-			VGE_RX_DESC_INC(i);
+		if (vge_newbuf(sc, prod) != 0) {
+			ifp->if_iqdrops++;
+			VGE_CHAIN_RESET(sc);
+			vge_discard_rxbuf(sc, prod);
 			continue;
 		}
 
-		VGE_RX_DESC_INC(i);
-
-		if (sc->vge_head != NULL) {
-			m->m_len = total_len % (MCLBYTES - VGE_ETHER_ALIGN);
+		/* Chain received mbufs. */
+		if (sc->vge_cdata.vge_head != NULL) {
+			m->m_len = total_len % (MCLBYTES - VGE_RX_BUF_ALIGN);
 			/*
 			 * Special case: if there's 4 bytes or less
 			 * in this buffer, the mbuf can be discarded:
@@ -1391,46 +1482,47 @@ vge_rxeof(sc)
 			 * care about anyway.
 			 */
 			if (m->m_len <= ETHER_CRC_LEN) {
-				sc->vge_tail->m_len -=
+				sc->vge_cdata.vge_tail->m_len -=
 				    (ETHER_CRC_LEN - m->m_len);
 				m_freem(m);
 			} else {
 				m->m_len -= ETHER_CRC_LEN;
 				m->m_flags &= ~M_PKTHDR;
-				sc->vge_tail->m_next = m;
+				sc->vge_cdata.vge_tail->m_next = m;
 			}
-			m = sc->vge_head;
-			sc->vge_head = sc->vge_tail = NULL;
+			m = sc->vge_cdata.vge_head;
+			m->m_flags |= M_PKTHDR;
 			m->m_pkthdr.len = total_len - ETHER_CRC_LEN;
-		} else
+		} else {
+			m->m_flags |= M_PKTHDR;
 			m->m_pkthdr.len = m->m_len =
 			    (total_len - ETHER_CRC_LEN);
+		}
 
-#ifdef VGE_FIXUP_RX
+#ifndef	__NO_STRICT_ALIGNMENT
 		vge_fixup_rx(m);
 #endif
-		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
 
 		/* Do RX checksumming if enabled */
-		if (ifp->if_capenable & IFCAP_RXCSUM) {
-
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+		    (rxctl & VGE_RDCTL_FRAG) == 0) {
 			/* Check IP header checksum */
-			if (rxctl & VGE_RDCTL_IPPKT)
+			if ((rxctl & VGE_RDCTL_IPPKT) != 0)
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-			if (rxctl & VGE_RDCTL_IPCSUMOK)
+			if ((rxctl & VGE_RDCTL_IPCSUMOK) != 0)
 				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
 
 			/* Check TCP/UDP checksum */
-			if (rxctl & (VGE_RDCTL_TCPPKT|VGE_RDCTL_UDPPKT) &&
+			if (rxctl & (VGE_RDCTL_TCPPKT | VGE_RDCTL_UDPPKT) &&
 			    rxctl & VGE_RDCTL_PROTOCSUMOK) {
 				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 		}
 
-		if (rxstat & VGE_RDSTS_VTAG) {
+		if ((rxstat & VGE_RDSTS_VTAG) != 0) {
 			/*
 			 * The 32-bit rxctl register is stored in little-endian.
 			 * However, the 16-bit vlan tag is stored in big-endian,
@@ -1444,83 +1536,83 @@ vge_rxeof(sc)
 		VGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		VGE_LOCK(sc);
-
-		lim++;
-		if (lim == VGE_RX_DESC_CNT)
-			break;
-
+		sc->vge_cdata.vge_head = NULL;
+		sc->vge_cdata.vge_tail = NULL;
 	}
 
-	/* Flush the RX DMA ring */
-
-	bus_dmamap_sync(sc->vge_ldata.vge_rx_list_tag,
-	    sc->vge_ldata.vge_rx_list_map,
-	    BUS_DMASYNC_PREWRITE|BUS_DMASYNC_PREREAD);
-
-	sc->vge_ldata.vge_rx_prodidx = i;
-	CSR_WRITE_2(sc, VGE_RXDESC_RESIDUECNT, lim);
-
-
-	return (lim);
+	if (prog > 0) {
+		sc->vge_cdata.vge_rx_prodidx = prod;
+		bus_dmamap_sync(sc->vge_cdata.vge_rx_ring_tag,
+		    sc->vge_cdata.vge_rx_ring_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		/* Update residue counter. */
+		if (sc->vge_cdata.vge_rx_commit != 0) {
+			CSR_WRITE_2(sc, VGE_RXDESC_RESIDUECNT,
+			    sc->vge_cdata.vge_rx_commit);
+			sc->vge_cdata.vge_rx_commit = 0;
+		}
+	}
+	return (prog);
 }
 
 static void
 vge_txeof(sc)
-	struct vge_softc		*sc;
+	struct vge_softc	*sc;
 {
 	struct ifnet		*ifp;
-	u_int32_t		txstat;
-	int			idx;
+	struct vge_tx_desc	*cur_tx;
+	struct vge_txdesc	*txd;
+	uint32_t		txstat;
+	int			cons, prod;
+
+	VGE_LOCK_ASSERT(sc);
 
 	ifp = sc->vge_ifp;
-	idx = sc->vge_ldata.vge_tx_considx;
 
-	/* Invalidate the TX descriptor list */
+	if (sc->vge_cdata.vge_tx_cnt == 0)
+		return;
 
-	bus_dmamap_sync(sc->vge_ldata.vge_tx_list_tag,
-	    sc->vge_ldata.vge_tx_list_map,
-	    BUS_DMASYNC_POSTREAD);
-
-	while (idx != sc->vge_ldata.vge_tx_prodidx) {
-
-		txstat = le32toh(sc->vge_ldata.vge_tx_list[idx].vge_sts);
-		if (txstat & VGE_TDSTS_OWN)
-			break;
-
-		m_freem(sc->vge_ldata.vge_tx_mbuf[idx]);
-		sc->vge_ldata.vge_tx_mbuf[idx] = NULL;
-		bus_dmamap_unload(sc->vge_ldata.vge_mtag,
-		    sc->vge_ldata.vge_tx_dmamap[idx]);
-		if (txstat & (VGE_TDSTS_EXCESSCOLL|VGE_TDSTS_COLL))
-			ifp->if_collisions++;
-		if (txstat & VGE_TDSTS_TXERR)
-			ifp->if_oerrors++;
-		else
-			ifp->if_opackets++;
-
-		sc->vge_ldata.vge_tx_free++;
-		VGE_TX_DESC_INC(idx);
-	}
-
-	/* No changes made to the TX ring, so no flush needed */
-
-	if (idx != sc->vge_ldata.vge_tx_considx) {
-		sc->vge_ldata.vge_tx_considx = idx;
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		sc->vge_timer = 0;
-	}
+	bus_dmamap_sync(sc->vge_cdata.vge_tx_ring_tag,
+	    sc->vge_cdata.vge_tx_ring_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	/*
-	 * If not all descriptors have been released reaped yet,
-	 * reload the timer so that we will eventually get another
-	 * interrupt that will cause us to re-enter this routine.
-	 * This is done in case the transmitter has gone idle.
+	 * Go through our tx list and free mbufs for those
+	 * frames that have been transmitted.
 	 */
-	if (sc->vge_ldata.vge_tx_free != VGE_TX_DESC_CNT) {
-		CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
+	cons = sc->vge_cdata.vge_tx_considx;
+	prod = sc->vge_cdata.vge_tx_prodidx;
+	for (; cons != prod; VGE_TX_DESC_INC(cons)) {
+		cur_tx = &sc->vge_rdata.vge_tx_ring[cons];
+		txstat = le32toh(cur_tx->vge_sts);
+		if ((txstat & VGE_TDSTS_OWN) != 0)
+			break;
+		sc->vge_cdata.vge_tx_cnt--;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+		txd = &sc->vge_cdata.vge_txdesc[cons];
+		bus_dmamap_sync(sc->vge_cdata.vge_tx_tag, txd->tx_dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->vge_cdata.vge_tx_tag, txd->tx_dmamap);
+
+		KASSERT(txd->tx_m != NULL, ("%s: freeing NULL mbuf!\n",
+		    __func__));
+		m_freem(txd->tx_m);
+		txd->tx_m = NULL;
 	}
 
-	return;
+	sc->vge_cdata.vge_tx_considx = cons;
+	if (sc->vge_cdata.vge_tx_cnt == 0)
+		sc->vge_timer = 0;
+	else {
+		/*
+		 * If not all descriptors have been released reaped yet,
+		 * reload the timer so that we will eventually get another
+		 * interrupt that will cause us to re-enter this routine.
+		 * This is done in case the transmitter has gone idle.
+		 */
+		CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
+	}
 }
 
 static void
@@ -1568,8 +1660,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		goto done;
 
-	sc->rxcycles = count;
-	rx_npkts = vge_rxeof(sc);
+	rx_npkts = vge_rxeof(sc, count);
 	vge_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1588,11 +1679,13 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 		 */
 
 		if (status & VGE_ISR_TXDMA_STALL ||
-		    status & VGE_ISR_RXDMA_STALL)
+		    status & VGE_ISR_RXDMA_STALL) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			vge_init_locked(sc);
+		}
 
 		if (status & (VGE_ISR_RXOFLOW|VGE_ISR_RXNODESC)) {
-			vge_rxeof(sc);
+			vge_rxeof(sc, count);
 			ifp->if_ierrors++;
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_RUN);
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_WAK);
@@ -1650,10 +1743,10 @@ vge_intr(arg)
 			break;
 
 		if (status & (VGE_ISR_RXOK|VGE_ISR_RXOK_HIPRIO))
-			vge_rxeof(sc);
+			vge_rxeof(sc, VGE_RX_DESC_CNT);
 
 		if (status & (VGE_ISR_RXOFLOW|VGE_ISR_RXNODESC)) {
-			vge_rxeof(sc);
+			vge_rxeof(sc, VGE_RX_DESC_CNT);
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_RUN);
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_WAK);
 		}
@@ -1661,8 +1754,10 @@ vge_intr(arg)
 		if (status & (VGE_ISR_TXOK0|VGE_ISR_TIMER0))
 			vge_txeof(sc);
 
-		if (status & (VGE_ISR_TXDMA_STALL|VGE_ISR_RXDMA_STALL))
+		if (status & (VGE_ISR_TXDMA_STALL|VGE_ISR_RXDMA_STALL)) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			vge_init_locked(sc);
+		}
 
 		if (status & VGE_ISR_LINKSTS)
 			vge_tick(sc);
@@ -1680,77 +1775,126 @@ vge_intr(arg)
 }
 
 static int
-vge_encap(sc, m_head, idx)
+vge_encap(sc, m_head)
 	struct vge_softc	*sc;
-	struct mbuf		*m_head;
-	int			idx;
+	struct mbuf		**m_head;
 {
-	struct mbuf		*m_new = NULL;
-	struct vge_dmaload_arg	arg;
-	bus_dmamap_t		map;
-	int			error;
+	struct vge_txdesc	*txd;
+	struct vge_tx_frag	*frag;
+	struct mbuf		*m;
+	bus_dma_segment_t	txsegs[VGE_MAXTXSEGS];
+	int			error, i, nsegs, padlen;
+	uint32_t		cflags;
 
-	if (sc->vge_ldata.vge_tx_free <= 2)
-		return (EFBIG);
+	VGE_LOCK_ASSERT(sc);
 
-	arg.vge_flags = 0;
+	M_ASSERTPKTHDR((*m_head));
 
-	if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-		arg.vge_flags |= VGE_TDCTL_IPCSUM;
-	if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
-		arg.vge_flags |= VGE_TDCTL_TCPCSUM;
-	if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
-		arg.vge_flags |= VGE_TDCTL_UDPCSUM;
-
-	arg.sc = sc;
-	arg.vge_idx = idx;
-	arg.vge_m0 = m_head;
-	arg.vge_maxsegs = VGE_TX_FRAGS;
-
-	map = sc->vge_ldata.vge_tx_dmamap[idx];
-	error = bus_dmamap_load_mbuf(sc->vge_ldata.vge_mtag, map,
-	    m_head, vge_dma_map_tx_desc, &arg, BUS_DMA_NOWAIT);
-
-	if (error && error != EFBIG) {
-		if_printf(sc->vge_ifp, "can't map mbuf (error %d)\n", error);
-		return (ENOBUFS);
-	}
-
-	/* Too many segments to map, coalesce into a single mbuf */
-
-	if (error || arg.vge_maxsegs == 0) {
-		m_new = m_defrag(m_head, M_DONTWAIT);
-		if (m_new == NULL)
-			return (1);
-		else
-			m_head = m_new;
-
-		arg.sc = sc;
-		arg.vge_m0 = m_head;
-		arg.vge_idx = idx;
-		arg.vge_maxsegs = 1;
-
-		error = bus_dmamap_load_mbuf(sc->vge_ldata.vge_mtag, map,
-		    m_head, vge_dma_map_tx_desc, &arg, BUS_DMA_NOWAIT);
-		if (error) {
-			if_printf(sc->vge_ifp, "can't map mbuf (error %d)\n",
-			    error);
-			return (EFBIG);
+	/* Argh. This chip does not autopad short frames. */
+	if ((*m_head)->m_pkthdr.len < VGE_MIN_FRAMELEN) {
+		m = *m_head;
+		padlen = VGE_MIN_FRAMELEN - m->m_pkthdr.len;
+		if (M_WRITABLE(m) == 0) {
+			/* Get a writable copy. */
+			m = m_dup(*m_head, M_DONTWAIT);
+			m_freem(*m_head);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			*m_head = m;
 		}
+		if (M_TRAILINGSPACE(m) < padlen) {
+			m = m_defrag(m, M_DONTWAIT);
+			if (m == NULL) {
+				m_freem(*m_head);
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		/*
+		 * Manually pad short frames, and zero the pad space
+		 * to avoid leaking data.
+		 */
+		bzero(mtod(m, char *) + m->m_pkthdr.len, padlen);
+		m->m_pkthdr.len += padlen;
+		m->m_len = m->m_pkthdr.len;
+		*m_head = m;
 	}
 
-	sc->vge_ldata.vge_tx_mbuf[idx] = m_head;
-	sc->vge_ldata.vge_tx_free--;
+	txd = &sc->vge_cdata.vge_txdesc[sc->vge_cdata.vge_tx_prodidx];
+
+	error = bus_dmamap_load_mbuf_sg(sc->vge_cdata.vge_tx_tag,
+	    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
+	if (error == EFBIG) {
+		m = m_collapse(*m_head, M_DONTWAIT, VGE_MAXTXSEGS);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOMEM);
+		}
+		*m_head = m;
+		error = bus_dmamap_load_mbuf_sg(sc->vge_cdata.vge_tx_tag,
+		    txd->tx_dmamap, *m_head, txsegs, &nsegs, 0);
+		if (error != 0) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (error);
+		}
+	} else if (error != 0)
+		return (error);
+	bus_dmamap_sync(sc->vge_cdata.vge_tx_tag, txd->tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
+
+	m = *m_head;
+	cflags = 0;
+
+	/* Configure checksum offload. */
+	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+		cflags |= VGE_TDCTL_IPCSUM;
+	if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+		cflags |= VGE_TDCTL_TCPCSUM;
+	if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+		cflags |= VGE_TDCTL_UDPCSUM;
+
+	/* Configure VLAN. */
+	if ((m->m_flags & M_VLANTAG) != 0)
+		cflags |= m->m_pkthdr.ether_vtag | VGE_TDCTL_VTAG;
+	txd->tx_desc->vge_sts = htole32(m->m_pkthdr.len << 16);
+	/*
+	 * XXX
+	 * Velocity family seems to support TSO but no information
+	 * for MSS configuration is available. Also the number of
+	 * fragments supported by a descriptor is too small to hold
+	 * entire 64KB TCP/IP segment. Maybe VGE_TD_LS_MOF,
+	 * VGE_TD_LS_SOF and VGE_TD_LS_EOF could be used to build
+	 * longer chain of buffers but no additional information is
+	 * available.
+	 *
+	 * When telling the chip how many segments there are, we
+	 * must use nsegs + 1 instead of just nsegs. Darned if I
+	 * know why. This also means we can't use the last fragment
+	 * field of Tx descriptor.
+	 */
+	txd->tx_desc->vge_ctl = htole32(cflags | ((nsegs + 1) << 28) |
+	    VGE_TD_LS_NORM);
+	for (i = 0; i < nsegs; i++) {
+		frag = &txd->tx_desc->vge_frag[i];
+		frag->vge_addrlo = htole32(VGE_ADDR_LO(txsegs[i].ds_addr));
+		frag->vge_addrhi = htole32(VGE_ADDR_HI(txsegs[i].ds_addr) |
+		    (VGE_BUFLEN(txsegs[i].ds_len) << 16));
+	}
+
+	sc->vge_cdata.vge_tx_cnt++;
+	VGE_TX_DESC_INC(sc->vge_cdata.vge_tx_prodidx);
 
 	/*
-	 * Set up hardware VLAN tagging.
+	 * Finally request interrupt and give the first descriptor
+	 * ownership to hardware.
 	 */
-
-	if (m_head->m_flags & M_VLANTAG)
-		sc->vge_ldata.vge_tx_list[idx].vge_ctl |=
-		    htole32(m_head->m_pkthdr.ether_vtag | VGE_TDCTL_VTAG);
-
-	sc->vge_ldata.vge_tx_list[idx].vge_sts |= htole32(VGE_TDSTS_OWN);
+	txd->tx_desc->vge_ctl |= htole32(VGE_TDCTL_TIC);
+	txd->tx_desc->vge_sts |= htole32(VGE_TDSTS_OWN);
+	txd->tx_m = m;
 
 	return (0);
 }
@@ -1771,47 +1915,50 @@ vge_start(ifp)
 	VGE_UNLOCK(sc);
 }
 
+
 static void
 vge_start_locked(ifp)
 	struct ifnet		*ifp;
 {
 	struct vge_softc	*sc;
-	struct mbuf		*m_head = NULL;
-	int			idx, pidx = 0;
+	struct vge_txdesc	*txd;
+	struct mbuf		*m_head;
+	int			enq, idx;
 
 	sc = ifp->if_softc;
+
 	VGE_LOCK_ASSERT(sc);
 
-	if (!sc->vge_link || ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if (sc->vge_link == 0 ||
+	    (ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
-	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		return;
-
-	idx = sc->vge_ldata.vge_tx_prodidx;
-
-	pidx = idx - 1;
-	if (pidx < 0)
-		pidx = VGE_TX_DESC_CNT - 1;
-
-
-	while (sc->vge_ldata.vge_tx_mbuf[idx] == NULL) {
+	idx = sc->vge_cdata.vge_tx_prodidx;
+	VGE_TX_DESC_DEC(idx);
+	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    sc->vge_cdata.vge_tx_cnt < VGE_TX_DESC_CNT - 1; ) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
-
-		if (vge_encap(sc, m_head, idx)) {
+		/*
+		 * Pack the data into the transmit ring. If we
+		 * don't have room, set the OACTIVE flag and wait
+		 * for the NIC to drain the ring.
+		 */
+		if (vge_encap(sc, &m_head)) {
+			if (m_head == NULL)
+				break;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
-		sc->vge_ldata.vge_tx_list[pidx].vge_frag[0].vge_buflen |=
-		    htole16(VGE_TXDESC_Q);
-
-		pidx = idx;
+		txd = &sc->vge_cdata.vge_txdesc[idx];
+		txd->tx_desc->vge_frag[0].vge_addrhi |= htole32(VGE_TXDESC_Q);
 		VGE_TX_DESC_INC(idx);
 
+		enq++;
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
@@ -1819,37 +1966,28 @@ vge_start_locked(ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (idx == sc->vge_ldata.vge_tx_prodidx)
-		return;
+	if (enq > 0) {
+		bus_dmamap_sync(sc->vge_cdata.vge_tx_ring_tag,
+		    sc->vge_cdata.vge_tx_ring_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		/* Issue a transmit command. */
+		CSR_WRITE_2(sc, VGE_TXQCSRS, VGE_TXQCSR_WAK0);
+		/*
+		 * Use the countdown timer for interrupt moderation.
+		 * 'TX done' interrupts are disabled. Instead, we reset the
+		 * countdown timer, which will begin counting until it hits
+		 * the value in the SSTIMER register, and then trigger an
+		 * interrupt. Each time we set the TIMER0_ENABLE bit, the
+		 * the timer count is reloaded. Only when the transmitter
+		 * is idle will the timer hit 0 and an interrupt fire.
+		 */
+		CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
 
-	/* Flush the TX descriptors */
-
-	bus_dmamap_sync(sc->vge_ldata.vge_tx_list_tag,
-	    sc->vge_ldata.vge_tx_list_map,
-	    BUS_DMASYNC_PREWRITE|BUS_DMASYNC_PREREAD);
-
-	/* Issue a transmit command. */
-	CSR_WRITE_2(sc, VGE_TXQCSRS, VGE_TXQCSR_WAK0);
-
-	sc->vge_ldata.vge_tx_prodidx = idx;
-
-	/*
-	 * Use the countdown timer for interrupt moderation.
-	 * 'TX done' interrupts are disabled. Instead, we reset the
-	 * countdown timer, which will begin counting until it hits
-	 * the value in the SSTIMER register, and then trigger an
-	 * interrupt. Each time we set the TIMER0_ENABLE bit, the
-	 * the timer count is reloaded. Only when the transmitter
-	 * is idle will the timer hit 0 and an interrupt fire.
-	 */
-	CSR_WRITE_1(sc, VGE_CRS1, VGE_CR1_TIMER0_ENABLE);
-
-	/*
-	 * Set a timeout in case the chip goes out to lunch.
-	 */
-	sc->vge_timer = 5;
-
-	return;
+		/*
+		 * Set a timeout in case the chip goes out to lunch.
+		 */
+		sc->vge_timer = 5;
+	}
 }
 
 static void
@@ -1868,10 +2006,13 @@ vge_init_locked(struct vge_softc *sc)
 {
 	struct ifnet		*ifp = sc->vge_ifp;
 	struct mii_data		*mii;
-	int			i;
+	int			error, i;
 
 	VGE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->vge_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1883,7 +2024,11 @@ vge_init_locked(struct vge_softc *sc)
 	 * Initialize the RX and TX descriptors and mbufs.
 	 */
 
-	vge_rx_list_init(sc);
+	error = vge_rx_list_init(sc);
+	if (error != 0) {
+                device_printf(sc->vge_dev, "no memory for Rx buffers.\n");
+                return;
+	}
 	vge_tx_list_init(sc);
 
 	/* Set our station address */
@@ -1916,12 +2061,14 @@ vge_init_locked(struct vge_softc *sc)
 	 * Note that we only use one transmit queue.
 	 */
 
+	CSR_WRITE_4(sc, VGE_TXDESC_HIADDR,
+	    VGE_ADDR_HI(sc->vge_rdata.vge_tx_ring_paddr));
 	CSR_WRITE_4(sc, VGE_TXDESC_ADDR_LO0,
-	    VGE_ADDR_LO(sc->vge_ldata.vge_tx_list_addr));
+	    VGE_ADDR_LO(sc->vge_rdata.vge_tx_ring_paddr));
 	CSR_WRITE_2(sc, VGE_TXDESCNUM, VGE_TX_DESC_CNT - 1);
 
 	CSR_WRITE_4(sc, VGE_RXDESC_ADDR_LO,
-	    VGE_ADDR_LO(sc->vge_ldata.vge_rx_list_addr));
+	    VGE_ADDR_LO(sc->vge_rdata.vge_rx_ring_paddr));
 	CSR_WRITE_2(sc, VGE_RXDESCNUM, VGE_RX_DESC_CNT - 1);
 	CSR_WRITE_2(sc, VGE_RXDESC_RESIDUECNT, VGE_RX_DESC_CNT);
 
@@ -2028,10 +2175,7 @@ vge_init_locked(struct vge_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	callout_reset(&sc->vge_watchdog, hz, vge_watchdog, sc);
 
-	sc->vge_if_flags = 0;
 	sc->vge_link = 0;
-
-	return;
 }
 
 /*
@@ -2170,7 +2314,8 @@ vge_ioctl(ifp, command, data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		VGE_LOCK(sc);
-		vge_setmulti(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			vge_setmulti(sc);
 		VGE_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
@@ -2245,8 +2390,9 @@ vge_watchdog(void *arg)
 	ifp->if_oerrors++;
 
 	vge_txeof(sc);
-	vge_rxeof(sc);
+	vge_rxeof(sc, VGE_RX_DESC_CNT);
 
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vge_init_locked(sc);
 
 	return;
@@ -2260,7 +2406,6 @@ static void
 vge_stop(sc)
 	struct vge_softc		*sc;
 {
-	int			i;
 	struct ifnet		*ifp;
 
 	VGE_LOCK_ASSERT(sc);
@@ -2277,34 +2422,9 @@ vge_stop(sc)
 	CSR_WRITE_1(sc, VGE_RXQCSRC, 0xFF);
 	CSR_WRITE_4(sc, VGE_RXDESC_ADDR_LO, 0);
 
-	if (sc->vge_head != NULL) {
-		m_freem(sc->vge_head);
-		sc->vge_head = sc->vge_tail = NULL;
-	}
-
-	/* Free the TX list buffers. */
-
-	for (i = 0; i < VGE_TX_DESC_CNT; i++) {
-		if (sc->vge_ldata.vge_tx_mbuf[i] != NULL) {
-			bus_dmamap_unload(sc->vge_ldata.vge_mtag,
-			    sc->vge_ldata.vge_tx_dmamap[i]);
-			m_freem(sc->vge_ldata.vge_tx_mbuf[i]);
-			sc->vge_ldata.vge_tx_mbuf[i] = NULL;
-		}
-	}
-
-	/* Free the RX list buffers. */
-
-	for (i = 0; i < VGE_RX_DESC_CNT; i++) {
-		if (sc->vge_ldata.vge_rx_mbuf[i] != NULL) {
-			bus_dmamap_unload(sc->vge_ldata.vge_mtag,
-			    sc->vge_ldata.vge_rx_dmamap[i]);
-			m_freem(sc->vge_ldata.vge_rx_mbuf[i]);
-			sc->vge_ldata.vge_rx_mbuf[i] = NULL;
-		}
-	}
-
-	return;
+	VGE_CHAIN_RESET(sc);
+	vge_txeof(sc);
+	vge_freebufs(sc);
 }
 
 /*
@@ -2350,9 +2470,10 @@ vge_resume(dev)
 
 	/* reinitialize interface if necessary */
 	VGE_LOCK(sc);
-	if (ifp->if_flags & IFF_UP)
+	if (ifp->if_flags & IFF_UP) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vge_init_locked(sc);
-
+	}
 	sc->suspended = 0;
 	VGE_UNLOCK(sc);
 
