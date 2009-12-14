@@ -536,7 +536,7 @@ fail:
 /*
  * Program the multicast filter. We use the 64-entry CAM filter
  * for perfect filtering. If there's more than 64 multicast addresses,
- * we use the hash filter insted.
+ * we use the hash filter instead.
  */
 static void
 vge_setmulti(sc)
@@ -1178,7 +1178,7 @@ vge_newbuf(sc, idx, m)
 
 	/*
 	 * Note: the manual fails to document the fact that for
-	 * proper opration, the driver needs to replentish the RX
+	 * proper operation, the driver needs to replenish the RX
 	 * DMA ring 4 descriptors at a time (rather than one at a
 	 * time, like most chips). We can allocate the new buffers
 	 * but we should not set the OWN bits until we're ready
@@ -1970,7 +1970,7 @@ vge_init_locked(struct vge_softc *sc)
 
 	/*
 	 * Configure one-shot timer for microsecond
-	 * resulution and load it for 500 usecs.
+	 * resolution and load it for 500 usecs.
 	 */
 	CSR_SETBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_TIMER0_RES);
 	CSR_WRITE_2(sc, VGE_SSTIMER, 400);
