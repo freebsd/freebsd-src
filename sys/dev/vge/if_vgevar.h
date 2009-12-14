@@ -141,8 +141,11 @@ struct vge_softc {
 	device_t		vge_miibus;
 	uint8_t			vge_type;
 	int			vge_if_flags;
+	int			vge_phyaddr;
 	int			vge_flags;
+#define	VGE_FLAG_PCIE		0x0001
 #define	VGE_FLAG_LINK		0x8000
+	int			vge_expcap;
 	int			vge_camidx;
 	struct mtx		vge_mtx;
 	struct callout		vge_watchdog;
