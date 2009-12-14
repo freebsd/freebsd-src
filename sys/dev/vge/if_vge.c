@@ -933,8 +933,8 @@ vge_attach(dev)
 	pci_enable_busmaster(dev);
 
 	rid = VGE_PCI_LOMEM;
-	sc->vge_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
-	    0, ~0, 1, RF_ACTIVE);
+	sc->vge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 
 	if (sc->vge_res == NULL) {
 		device_printf(dev, "couldn't map ports/memory\n");
@@ -944,8 +944,8 @@ vge_attach(dev)
 
 	/* Allocate interrupt */
 	rid = 0;
-	sc->vge_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-	    0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	sc->vge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->vge_irq == NULL) {
 		device_printf(dev, "couldn't map interrupt\n");
