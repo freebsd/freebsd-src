@@ -918,10 +918,9 @@ vge_attach(dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct vge_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 	sc->vge_dev = dev;
 
 	mtx_init(&sc->vge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -938,7 +937,7 @@ vge_attach(dev)
 	    0, ~0, 1, RF_ACTIVE);
 
 	if (sc->vge_res == NULL) {
-		printf ("vge%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -949,7 +948,7 @@ vge_attach(dev)
 	    0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->vge_irq == NULL) {
-		printf("vge%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -1027,7 +1026,7 @@ vge_attach(dev)
 	    NULL, vge_intr, sc, &sc->vge_intrhand);
 
 	if (error) {
-		printf("vge%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		goto fail;
 	}
