@@ -845,7 +845,7 @@ AcpiEvInstallHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     if (!Node)
     {
         return (AE_BAD_PARAMETER);
@@ -1243,7 +1243,7 @@ AcpiEvRegRun (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     if (!Node)
     {
         return (AE_BAD_PARAMETER);

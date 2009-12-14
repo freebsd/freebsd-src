@@ -490,6 +490,15 @@ AcpiExReleaseMutex (
         return_ACPI_STATUS (AE_AML_MUTEX_NOT_ACQUIRED);
     }
 
+    /* Must have a valid thread ID */
+
+    if (!WalkState->Thread)
+    {
+        ACPI_ERROR ((AE_INFO, "Cannot release Mutex [%4.4s], null thread info",
+            AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
+        return_ACPI_STATUS (AE_AML_INTERNAL);
+    }
+
     /*
      * The Mutex is owned, but this thread must be the owner.
      * Special case for Global Lock, any thread can release
@@ -503,15 +512,6 @@ AcpiExReleaseMutex (
             AcpiUtGetNodeName (ObjDesc->Mutex.Node),
             ACPI_CAST_PTR (void, ObjDesc->Mutex.OwnerThread->ThreadId)));
         return_ACPI_STATUS (AE_AML_NOT_OWNER);
-    }
-
-    /* Must have a valid thread ID */
-
-    if (!WalkState->Thread)
-    {
-        ACPI_ERROR ((AE_INFO, "Cannot release Mutex [%4.4s], null thread info",
-            AcpiUtGetNodeName (ObjDesc->Mutex.Node)));
-        return_ACPI_STATUS (AE_AML_INTERNAL);
     }
 
     /*

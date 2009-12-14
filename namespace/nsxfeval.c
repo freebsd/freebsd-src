@@ -281,7 +281,7 @@ AcpiEvaluateObject (
 
     /* Convert and validate the device handle */
 
-    Info->PrefixNode = AcpiNsMapHandleToNode (Handle);
+    Info->PrefixNode = AcpiNsValidateHandle (Handle);
     if (!Info->PrefixNode)
     {
         Status = AE_BAD_PARAMETER;
@@ -676,7 +676,7 @@ AcpiNsGetDeviceCallback (
         return (Status);
     }
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     Status = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
@@ -888,7 +888,7 @@ AcpiAttachData (
 
     /* Convert and validate the handle */
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -943,7 +943,7 @@ AcpiDetachData (
 
     /* Convert and validate the handle */
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -1001,7 +1001,7 @@ AcpiGetData (
 
     /* Convert and validate the handle */
 
-    Node = AcpiNsMapHandleToNode (ObjHandle);
+    Node = AcpiNsValidateHandle (ObjHandle);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;

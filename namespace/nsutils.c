@@ -857,25 +857,26 @@ AcpiNsExternalizeName (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiNsMapHandleToNode
+ * FUNCTION:    AcpiNsValidateHandle
  *
- * PARAMETERS:  Handle          - Handle to be converted to an Node
+ * PARAMETERS:  Handle          - Handle to be validated and typecast to a
+ *                                namespace node.
  *
- * RETURN:      A Name table entry pointer
+ * RETURN:      A pointer to a namespace node
  *
- * DESCRIPTION: Convert a namespace handle to a real Node
+ * DESCRIPTION: Convert a namespace handle to a namespace node. Handles special
+ *              cases for the root node.
  *
- * Note: Real integer handles would allow for more verification
+ * NOTE: Real integer handles would allow for more verification
  *       and keep all pointers within this subsystem - however this introduces
- *       more (and perhaps unnecessary) overhead.
- *
- * The current implemenation is basically a placeholder until such time comes
- * that it is needed.
+ *       more overhead and has not been necessary to this point. Drivers
+ *       holding handles are typically notified before a node becomes invalid
+ *       due to a table unload.
  *
  ******************************************************************************/
 
 ACPI_NAMESPACE_NODE *
-AcpiNsMapHandleToNode (
+AcpiNsValidateHandle (
     ACPI_HANDLE             Handle)
 {
 
@@ -897,48 +898,6 @@ AcpiNsMapHandleToNode (
     }
 
     return (ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Handle));
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsConvertEntryToHandle
- *
- * PARAMETERS:  Node          - Node to be converted to a Handle
- *
- * RETURN:      A user handle
- *
- * DESCRIPTION: Convert a real Node to a namespace handle
- *
- ******************************************************************************/
-
-ACPI_HANDLE
-AcpiNsConvertEntryToHandle (
-    ACPI_NAMESPACE_NODE         *Node)
-{
-
-
-    /*
-     * Simple implementation for now;
-     */
-    return ((ACPI_HANDLE) Node);
-
-
-/* Example future implementation ---------------------
-
-    if (!Node)
-    {
-        return (NULL);
-    }
-
-    if (Node == AcpiGbl_RootNode)
-    {
-        return (ACPI_ROOT_OBJECT);
-    }
-
-
-    return ((ACPI_HANDLE) Node);
-------------------------------------------------------*/
 }
 
 

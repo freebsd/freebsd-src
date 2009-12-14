@@ -160,7 +160,6 @@ AcpiDmBlockType (
     ACPI_PARSE_OBJECT       *Op);
 
 
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDmDisassemble

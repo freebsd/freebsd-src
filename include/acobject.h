@@ -288,7 +288,12 @@ typedef struct acpi_object_method
     UINT8                           SyncLevel;
     union acpi_operand_object       *Mutex;
     UINT8                           *AmlStart;
-    ACPI_INTERNAL_METHOD            Implementation;
+    union
+    {
+        ACPI_INTERNAL_METHOD            Implementation;
+        union acpi_operand_object       *Handler;
+    } Extra;
+
     UINT32                          AmlLength;
     UINT8                           ThreadCount;
     ACPI_OWNER_ID                   OwnerId;

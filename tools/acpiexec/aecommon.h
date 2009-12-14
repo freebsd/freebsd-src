@@ -135,8 +135,9 @@
 #include "acinterp.h"
 #include "acapps.h"
 
-extern FILE                     *AcpiGbl_DebugFile;
-extern BOOLEAN                  AcpiGbl_IgnoreErrors;
+extern FILE                 *AcpiGbl_DebugFile;
+extern BOOLEAN              AcpiGbl_IgnoreErrors;
+extern UINT8                AcpiGbl_RegionFillValue;
 
 
 typedef struct ae_table_desc
