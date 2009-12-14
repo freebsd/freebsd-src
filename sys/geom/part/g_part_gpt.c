@@ -149,6 +149,16 @@ static struct uuid gpt_uuid_linux_data = GPT_ENT_TYPE_LINUX_DATA;
 static struct uuid gpt_uuid_linux_lvm = GPT_ENT_TYPE_LINUX_LVM;
 static struct uuid gpt_uuid_linux_raid = GPT_ENT_TYPE_LINUX_RAID;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
+static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
+static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
+static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
+static struct uuid gpt_uuid_ms_ldm_metadata = GPT_ENT_TYPE_MS_LDM_METADATA;
+static struct uuid gpt_uuid_netbsd_ccd = GPT_ENT_TYPE_NETBSD_CCD;
+static struct uuid gpt_uuid_netbsd_cgd = GPT_ENT_TYPE_NETBSD_CGD;
+static struct uuid gpt_uuid_netbsd_ffs = GPT_ENT_TYPE_NETBSD_FFS;
+static struct uuid gpt_uuid_netbsd_lfs = GPT_ENT_TYPE_NETBSD_LFS;
+static struct uuid gpt_uuid_netbsd_raid = GPT_ENT_TYPE_NETBSD_RAID;
+static struct uuid gpt_uuid_netbsd_swap = GPT_ENT_TYPE_NETBSD_SWAP;
 static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 
@@ -175,6 +185,17 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_linux_raid,		G_PART_ALIAS_LINUX_RAID },
 	{ &gpt_uuid_linux_swap,		G_PART_ALIAS_LINUX_SWAP },
 	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR },
+	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA },
+	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA },
+	{ &gpt_uuid_ms_ldm_metadata,	G_PART_ALIAS_MS_LDM_METADATA },
+	{ &gpt_uuid_ms_reserved,	G_PART_ALIAS_MS_RESERVED },
+	{ &gpt_uuid_netbsd_ccd,		G_PART_ALIAS_NETBSD_CCD },
+	{ &gpt_uuid_netbsd_cgd,		G_PART_ALIAS_NETBSD_CGD },
+	{ &gpt_uuid_netbsd_ffs,		G_PART_ALIAS_NETBSD_FFS },
+	{ &gpt_uuid_netbsd_lfs,		G_PART_ALIAS_NETBSD_LFS },
+	{ &gpt_uuid_netbsd_raid,	G_PART_ALIAS_NETBSD_RAID },
+	{ &gpt_uuid_netbsd_swap,	G_PART_ALIAS_NETBSD_SWAP },
+
 	{ NULL, 0 }
 };
 
