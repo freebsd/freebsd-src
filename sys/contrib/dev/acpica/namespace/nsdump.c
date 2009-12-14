@@ -286,7 +286,7 @@ AcpiNsDumpOneObject (
         return (AE_OK);
     }
 
-    ThisNode = AcpiNsMapHandleToNode (ObjHandle);
+    ThisNode = AcpiNsValidateHandle (ObjHandle);
     if (!ThisNode)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Invalid object handle %p\n",

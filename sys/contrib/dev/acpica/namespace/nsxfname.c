@@ -178,7 +178,7 @@ AcpiGetHandle (
 
     if (Parent)
     {
-        PrefixNode = AcpiNsMapHandleToNode (Parent);
+        PrefixNode = AcpiNsValidateHandle (Parent);
         if (!PrefixNode)
         {
             return (AE_BAD_PARAMETER);
@@ -200,7 +200,7 @@ AcpiGetHandle (
 
         if (!ACPI_STRCMP (Pathname, ACPI_NS_ROOT_PATH))
         {
-            *RetHandle = AcpiNsConvertEntryToHandle (AcpiGbl_RootNode);
+            *RetHandle = ACPI_CAST_PTR (ACPI_HANDLE, AcpiGbl_RootNode);
             return (AE_OK);
         }
     }
@@ -216,7 +216,7 @@ AcpiGetHandle (
     Status = AcpiNsGetNode (PrefixNode, Pathname, ACPI_NS_NO_UPSEARCH, &Node);
     if (ACPI_SUCCESS (Status))
     {
-        *RetHandle = AcpiNsConvertEntryToHandle (Node);
+        *RetHandle = ACPI_CAST_PTR (ACPI_HANDLE, Node);
     }
 
     return (Status);
@@ -282,7 +282,7 @@ AcpiGetName (
         return (Status);
     }
 
-    Node = AcpiNsMapHandleToNode (Handle);
+    Node = AcpiNsValidateHandle (Handle);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -399,7 +399,7 @@ AcpiGetObjectInfo (
         goto Cleanup;
     }
 
-    Node = AcpiNsMapHandleToNode (Handle);
+    Node = AcpiNsValidateHandle (Handle);
     if (!Node)
     {
         (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);

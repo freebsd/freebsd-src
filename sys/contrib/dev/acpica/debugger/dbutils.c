@@ -275,6 +275,10 @@ AcpiDbDumpExternalObject (
         AcpiOsPrintf ("[Buffer] Length %.2X = ", ObjDesc->Buffer.Length);
         if (ObjDesc->Buffer.Length)
         {
+            if (ObjDesc->Buffer.Length > 16)
+            {
+                AcpiOsPrintf ("\n");
+            }
             AcpiUtDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
                     ObjDesc->Buffer.Length, DB_DWORD_DISPLAY, _COMPONENT);
         }

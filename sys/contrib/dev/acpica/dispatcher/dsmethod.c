@@ -519,7 +519,7 @@ AcpiDsCallControlMethod (
 
     if (ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
     {
-        Status = ObjDesc->Method.Implementation (NextWalkState);
+        Status = ObjDesc->Method.Extra.Implementation (NextWalkState);
         if (Status == AE_OK)
         {
             Status = AE_CTRL_TERMINATE;
