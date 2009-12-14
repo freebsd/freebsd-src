@@ -187,9 +187,6 @@ static int vge_cam_set		(struct vge_softc *, uint8_t *);
 static void vge_setmulti	(struct vge_softc *);
 static void vge_reset		(struct vge_softc *);
 
-#define VGE_PCI_LOIO             0x10
-#define VGE_PCI_LOMEM            0x14
-
 static device_method_t vge_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		vge_probe),
@@ -1010,7 +1007,7 @@ vge_attach(dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = VGE_PCI_LOMEM;
+	rid = PCIR_BAR(1);
 	sc->vge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 
@@ -1139,7 +1136,7 @@ vge_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vge_irq);
 	if (sc->vge_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    VGE_PCI_LOMEM, sc->vge_res);
+		    PCIR_BAR(1), sc->vge_res);
 	if (ifp)
 		if_free(ifp);
 
