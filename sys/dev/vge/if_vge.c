@@ -172,7 +172,7 @@ static int vge_ifmedia_upd	(struct ifnet *);
 static void vge_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
 #ifdef VGE_EEPROM
-static void vge_eeprom_getword	(struct vge_softc *, int, u_int16_t *);
+static void vge_eeprom_getword	(struct vge_softc *, int, uint16_t *);
 #endif
 static void vge_read_eeprom	(struct vge_softc *, caddr_t, int, int, int);
 
@@ -224,10 +224,10 @@ DRIVER_MODULE(miibus, vge, miibus_driver, miibus_devclass, 0, 0);
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
 static void
-vge_eeprom_getword(struct vge_softc *sc, int addr, u_int16_t *dest)
+vge_eeprom_getword(struct vge_softc *sc, int addr, uint16_t *dest)
 {
 	int			i;
-	u_int16_t		word = 0;
+	uint16_t		word = 0;
 
 	/*
 	 * Enter EEPROM embedded programming mode. In order to
@@ -274,11 +274,11 @@ vge_read_eeprom(struct vge_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
 	int			i;
 #ifdef VGE_EEPROM
-	u_int16_t		word = 0, *ptr;
+	uint16_t		word = 0, *ptr;
 
 	for (i = 0; i < cnt; i++) {
 		vge_eeprom_getword(sc, off + i, &word);
-		ptr = (u_int16_t *)(dest + (i * 2));
+		ptr = (uint16_t *)(dest + (i * 2));
 		if (swap)
 			*ptr = ntohs(word);
 		else
@@ -349,7 +349,7 @@ vge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct vge_softc	*sc;
 	int			i;
-	u_int16_t		rval = 0;
+	uint16_t		rval = 0;
 
 	sc = device_get_softc(dev);
 
@@ -515,7 +515,7 @@ vge_setmulti(struct vge_softc *sc)
 	struct ifnet		*ifp;
 	int			error = 0/*, h = 0*/;
 	struct ifmultiaddr	*ifma;
-	u_int32_t		h, hashes[2] = { 0, 0 };
+	uint32_t		h, hashes[2] = { 0, 0 };
 
 	VGE_LOCK_ASSERT(sc);
 
@@ -1613,7 +1613,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 		vge_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
-		u_int32_t       status;
+		uint32_t       status;
 		status = CSR_READ_4(sc, VGE_ISR);
 		if (status == 0xFFFFFFFF)
 			goto done;
@@ -1648,7 +1648,7 @@ vge_intr(void *arg)
 {
 	struct vge_softc	*sc;
 	struct ifnet		*ifp;
-	u_int32_t		status;
+	uint32_t		status;
 
 	sc = arg;
 
