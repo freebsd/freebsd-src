@@ -1577,16 +1577,16 @@ vge_tick(void *xsc)
 	mii = device_get_softc(sc->vge_miibus);
 
 	mii_tick(mii);
-	if (sc->vge_link) {
+	if ((sc->vge_flags & VGE_FLAG_LINK) != 0) {
 		if (!(mii->mii_media_status & IFM_ACTIVE)) {
-			sc->vge_link = 0;
+			sc->vge_flags &= ~VGE_FLAG_LINK;
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_DOWN);
 		}
 	} else {
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->vge_link = 1;
+			sc->vge_flags |= VGE_FLAG_LINK;
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_UP);
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1868,7 +1868,7 @@ vge_start_locked(struct ifnet *ifp)
 
 	VGE_LOCK_ASSERT(sc);
 
-	if (sc->vge_link == 0 ||
+	if ((sc->vge_flags & VGE_FLAG_LINK) == 0 ||
 	    (ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING)
 		return;
@@ -2107,13 +2107,12 @@ vge_init_locked(struct vge_softc *sc)
 		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 	}
 
+	sc->vge_flags &= ~VGE_FLAG_LINK;
 	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	callout_reset(&sc->vge_watchdog, hz, vge_watchdog, sc);
-
-	sc->vge_link = 0;
 }
 
 /*
