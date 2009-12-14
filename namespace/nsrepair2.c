@@ -119,6 +119,7 @@
 #include "acpi.h"
 #include "accommon.h"
 #include "acnamesp.h"
+#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsrepair2")
@@ -153,6 +154,11 @@ AcpiNsRepair_ALR (
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 static ACPI_STATUS
+AcpiNsRepair_FDE (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
+
+static ACPI_STATUS
 AcpiNsRepair_PSS (
     ACPI_PREDEFINED_DATA    *Data,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
@@ -172,10 +178,6 @@ AcpiNsCheckSortedList (
     char                    *SortKeyName);
 
 static ACPI_STATUS
-AcpiNsRemoveNullElements (
-    ACPI_OPERAND_OBJECT     *Package);
-
-static ACPI_STATUS
 AcpiNsSortList (
     ACPI_OPERAND_OBJECT     **Elements,
     UINT32                  Count,
@@ -192,17 +194,28 @@ AcpiNsSortList (
  * This table contains the names of the predefined methods for which we can
  * perform more complex repairs.
  *
- * _ALR: Sort the list ascending by AmbientIlluminance if necessary
- * _PSS: Sort the list descending by Power if necessary
- * _TSS: Sort the list descending by Power if necessary
+ * As necessary:
+ *
+ * _ALR: Sort the list ascending by AmbientIlluminance
+ * _FDE: Convert Buffer of BYTEs to a Buffer of DWORDs
+ * _GTM: Convert Buffer of BYTEs to a Buffer of DWORDs
+ * _PSS: Sort the list descending by Power
+ * _TSS: Sort the list descending by Power
  */
 static const ACPI_REPAIR_INFO       AcpiNsRepairableNames[] =
 {
     {"_ALR", AcpiNsRepair_ALR},
+    {"_FDE", AcpiNsRepair_FDE},
+    {"_GTM", AcpiNsRepair_FDE},     /* _GTM has same repair as _FDE */
     {"_PSS", AcpiNsRepair_PSS},
     {"_TSS", AcpiNsRepair_TSS},
-    {{0,0,0,0}, NULL}             /* Table terminator */
+    {{0,0,0,0}, NULL}               /* Table terminator */
 };
+
+
+#define ACPI_FDE_FIELD_COUNT        5
+#define ACPI_FDE_BYTE_BUFFER_SIZE   5
+#define ACPI_FDE_DWORD_BUFFER_SIZE  (ACPI_FDE_FIELD_COUNT * sizeof (UINT32))
 
 
 /******************************************************************************
@@ -215,7 +228,7 @@ static const ACPI_REPAIR_INFO       AcpiNsRepairableNames[] =
  *              ReturnObjectPtr     - Pointer to the object returned from the
  *                                    evaluation of a method or object
  *
- * RETURN:      Status. AE_OK if repair was successful. If name is not 
+ * RETURN:      Status. AE_OK if repair was successful. If name is not
  *              matched, ValidateStatus is returned.
  *
  * DESCRIPTION: Attempt to repair/convert a return object of a type that was
@@ -310,6 +323,99 @@ AcpiNsRepair_ALR (
                 ACPI_SORT_ASCENDING, "AmbientIlluminance");
 
     return (Status);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiNsRepair_FDE
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              ReturnObjectPtr     - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if object is OK or was repaired successfully
+ *
+ * DESCRIPTION: Repair for the _FDE and _GTM objects. The expected return
+ *              value is a Buffer of 5 DWORDs. This function repairs a common
+ *              problem where the return value is a Buffer of BYTEs, not
+ *              DWORDs.
+ *
+ *****************************************************************************/
+
+static ACPI_STATUS
+AcpiNsRepair_FDE (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
+{
+    ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
+    ACPI_OPERAND_OBJECT     *BufferObject;
+    UINT8                   *ByteBuffer;
+    UINT32                  *DwordBuffer;
+    UINT32                  i;
+
+
+    ACPI_FUNCTION_NAME (NsRepair_FDE);
+
+
+    switch (ReturnObject->Common.Type)
+    {
+    case ACPI_TYPE_BUFFER:
+
+        /* This is the expected type. Length should be (at least) 5 DWORDs */
+
+        if (ReturnObject->Buffer.Length >= ACPI_FDE_DWORD_BUFFER_SIZE)
+        {
+            return (AE_OK);
+        }
+
+        /* We can only repair if we have exactly 5 BYTEs */
+
+        if (ReturnObject->Buffer.Length != ACPI_FDE_BYTE_BUFFER_SIZE)
+        {
+            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+                "Incorrect return buffer length %u, expected %u",
+                ReturnObject->Buffer.Length, ACPI_FDE_DWORD_BUFFER_SIZE));
+
+            return (AE_AML_OPERAND_TYPE);
+        }
+
+        /* Create the new (larger) buffer object */
+
+        BufferObject = AcpiUtCreateBufferObject (ACPI_FDE_DWORD_BUFFER_SIZE);
+        if (!BufferObject)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        /* Expand each byte to a DWORD */
+
+        ByteBuffer = ReturnObject->Buffer.Pointer;
+        DwordBuffer = ACPI_CAST_PTR (UINT32, BufferObject->Buffer.Pointer);
+
+        for (i = 0; i < ACPI_FDE_FIELD_COUNT; i++)
+        {
+            *DwordBuffer = (UINT32) *ByteBuffer;
+            DwordBuffer++;
+            ByteBuffer++;
+        }
+
+        ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
+            "%s Expanded Byte Buffer to expected DWord Buffer\n",
+            Data->Pathname));
+        break;
+
+    default:
+        return (AE_AML_OPERAND_TYPE);
+    }
+
+    /* Delete the original return object, return the new buffer object */
+
+    AcpiUtRemoveReference (ReturnObject);
+    *ReturnObjectPtr = BufferObject;
+
+    Data->Flags |= ACPI_OBJECT_REPAIRED;
+    return (AE_OK);
 }
 
 
@@ -454,6 +560,9 @@ AcpiNsCheckSortedList (
     ACPI_STATUS             Status;
 
 
+    ACPI_FUNCTION_NAME (NsCheckSortedList);
+
+
     /* The top-level object must be a package */
 
     if (ReturnObject->Common.Type != ACPI_TYPE_PACKAGE)
@@ -462,26 +571,10 @@ AcpiNsCheckSortedList (
     }
 
     /*
-     * Detect any NULL package elements and remove them from the
-     * package.
-     *
-     * TBD: We may want to do this for all predefined names that
-     * return a variable-length package of packages.
+     * NOTE: assumes list of sub-packages contains no NULL elements.
+     * Any NULL elements should have been removed by earlier call
+     * to AcpiNsRemoveNullElements.
      */
-    Status = AcpiNsRemoveNullElements (ReturnObject);
-    if (Status == AE_NULL_ENTRY)
-    {
-        ACPI_INFO_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
-            "NULL elements removed from package"));
-
-        /* Exit if package is now zero length */
-
-        if (!ReturnObject->Package.Count)
-        {
-            return (AE_NULL_ENTRY);
-        }
-    }
-
     OuterElements = ReturnObject->Package.Elements;
     OuterElementCount = ReturnObject->Package.Count;
     if (!OuterElementCount)
@@ -539,8 +632,9 @@ AcpiNsCheckSortedList (
 
             Data->Flags |= ACPI_OBJECT_REPAIRED;
 
-            ACPI_INFO_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
-                "Repaired unsorted list - now sorted by %s", SortKeyName));
+            ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
+                "%s: Repaired unsorted list - now sorted by %s\n",
+                Data->Pathname, SortKeyName));
             return (AE_OK);
         }
 
@@ -556,26 +650,56 @@ AcpiNsCheckSortedList (
  *
  * FUNCTION:    AcpiNsRemoveNullElements
  *
- * PARAMETERS:  ObjDesc             - A Package object
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              PackageType         - An AcpiReturnPackageTypes value
+ *              ObjDesc             - A Package object
  *
- * RETURN:      Status. AE_NULL_ENTRY means that one or more elements were
- *              removed.
+ * RETURN:      None.
  *
- * DESCRIPTION: Remove all NULL package elements and update the package count.
+ * DESCRIPTION: Remove all NULL package elements from packages that contain
+ *              a variable number of sub-packages.
  *
  *****************************************************************************/
 
-static ACPI_STATUS
+void
 AcpiNsRemoveNullElements (
+    ACPI_PREDEFINED_DATA    *Data,
+    UINT8                   PackageType,
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
     ACPI_OPERAND_OBJECT     **Source;
     ACPI_OPERAND_OBJECT     **Dest;
-    ACPI_STATUS             Status = AE_OK;
     UINT32                  Count;
     UINT32                  NewCount;
     UINT32                  i;
 
+
+    ACPI_FUNCTION_NAME (NsRemoveNullElements);
+
+
+    /*
+     * PTYPE1 packages contain no subpackages.
+     * PTYPE2 packages contain a variable number of sub-packages. We can
+     * safely remove all NULL elements from the PTYPE2 packages.
+     */
+    switch (PackageType)
+    {
+    case ACPI_PTYPE1_FIXED:
+    case ACPI_PTYPE1_VAR:
+    case ACPI_PTYPE1_OPTION:
+        return;
+
+    case ACPI_PTYPE2:
+    case ACPI_PTYPE2_COUNT:
+    case ACPI_PTYPE2_PKG_COUNT:
+    case ACPI_PTYPE2_FIXED:
+    case ACPI_PTYPE2_MIN:
+    case ACPI_PTYPE2_REV_FIXED:
+        break;
+
+    default:
+        return;
+    }
 
     Count = ObjDesc->Package.Count;
     NewCount = Count;
@@ -583,13 +707,12 @@ AcpiNsRemoveNullElements (
     Source = ObjDesc->Package.Elements;
     Dest = Source;
 
-    /* Examine all elements of the package object */
+    /* Examine all elements of the package object, remove nulls */
 
     for (i = 0; i < Count; i++)
     {
         if (!*Source)
         {
-            Status = AE_NULL_ENTRY;
             NewCount--;
         }
         else
@@ -600,15 +723,19 @@ AcpiNsRemoveNullElements (
         Source++;
     }
 
-    if (Status == AE_NULL_ENTRY)
+    /* Update parent package if any null elements were removed */
+
+    if (NewCount < Count)
     {
+        ACPI_DEBUG_PRINT ((ACPI_DB_REPAIR,
+            "%s: Found and removed %u NULL elements\n",
+            Data->Pathname, (Count - NewCount)));
+
         /* NULL terminate list and update the package count */
 
         *Dest = NULL;
         ObjDesc->Package.Count = NewCount;
     }
-
-    return (Status);
 }
 
 

@@ -877,7 +877,10 @@ AeRegionHandler (
             return AE_NO_MEMORY;
         }
 
-        ACPI_MEMSET (RegionElement->Buffer, 0, Length);
+        /* Initialize the region with the default fill value */
+
+        ACPI_MEMSET (RegionElement->Buffer, AcpiGbl_RegionFillValue, Length);
+
         RegionElement->Address      = BaseAddress;
         RegionElement->Length       = Length;
         RegionElement->SpaceId      = SpaceId;

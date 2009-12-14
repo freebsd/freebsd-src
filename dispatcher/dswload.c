@@ -296,18 +296,19 @@ AcpiDsLoad1BeginOp (
         case ACPI_TYPE_BUFFER:
 
             /*
-             * These types we will allow, but we will change the type. This
-             * enables some existing code of the form:
+             * These types we will allow, but we will change the type.
+             * This enables some existing code of the form:
              *
              *  Name (DEB, 0)
              *  Scope (DEB) { ... }
              *
-             * Note: silently change the type here. On the second pass, we will report
-             * a warning
+             * Note: silently change the type here. On the second pass,
+             * we will report a warning
              */
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-                "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n",
-                Path, AcpiUtGetTypeName (Node->Type)));
+                "Type override - [%4.4s] had invalid type (%s) "
+                "for Scope operator, changed to type ANY\n",
+                AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type)));
 
             Node->Type = ACPI_TYPE_ANY;
             WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
@@ -318,8 +319,9 @@ AcpiDsLoad1BeginOp (
             /* All other types are an error */
 
             ACPI_ERROR ((AE_INFO,
-                "Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)",
-                AcpiUtGetTypeName (Node->Type), Path));
+                "Invalid type (%s) for target of "
+                "Scope operator [%4.4s] (Cannot override)",
+                AcpiUtGetTypeName (Node->Type), AcpiUtGetNodeName (Node)));
 
             return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
         }
@@ -794,15 +796,16 @@ AcpiDsLoad2BeginOp (
         case ACPI_TYPE_BUFFER:
 
             /*
-             * These types we will allow, but we will change the type. This
-             * enables some existing code of the form:
+             * These types we will allow, but we will change the type.
+             * This enables some existing code of the form:
              *
              *  Name (DEB, 0)
              *  Scope (DEB) { ... }
              */
             ACPI_WARNING ((AE_INFO,
-                "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)",
-                BufferPtr, AcpiUtGetTypeName (Node->Type)));
+                "Type override - [%4.4s] had invalid type (%s) "
+                "for Scope operator, changed to type ANY\n",
+                AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type)));
 
             Node->Type = ACPI_TYPE_ANY;
             WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
@@ -813,8 +816,9 @@ AcpiDsLoad2BeginOp (
             /* All other types are an error */
 
             ACPI_ERROR ((AE_INFO,
-                "Invalid type (%s) for target of Scope operator [%4.4s]",
-                AcpiUtGetTypeName (Node->Type), BufferPtr));
+                "Invalid type (%s) for target of "
+                "Scope operator [%4.4s] (Cannot override)",
+                AcpiUtGetTypeName (Node->Type), AcpiUtGetNodeName (Node)));
 
             return (AE_AML_OPERAND_TYPE);
         }
@@ -1154,33 +1158,40 @@ AcpiDsLoad2EndOp (
             }
 
             /*
-             * If we are executing a method, initialize the region
+             * The OpRegion is not fully parsed at this time. The only valid
+             * argument is the SpaceId. (We must save the address of the
+             * AML of the address and length operands)
+             *
+             * If we have a valid region, initialize it. The namespace is
+             * unlocked at this point.
+             *
+             * Need to unlock interpreter if it is locked (if we are running
+             * a control method), in order to allow _REG methods to be run
+             * during AcpiEvInitializeRegion.
              */
             if (WalkState->MethodNode)
             {
+                /*
+                 * Executing a method: initialize the region and unlock
+                 * the interpreter
+                 */
                 Status = AcpiExCreateRegion (Op->Named.Data, Op->Named.Length,
                             RegionSpace, WalkState);
                 if (ACPI_FAILURE (Status))
                 {
                     return (Status);
                 }
+
+                AcpiExExitInterpreter ();
             }
 
-            /*
-             * The OpRegion is not fully parsed at this time. Only valid
-             * argument is the SpaceId. (We must save the address of the
-             * AML of the address and length operands)
-             */
-
-            /*
-             * If we have a valid region, initialize it
-             * Namespace is NOT locked at this point.
-             *
-             * TBD: need to unlock interpreter if it is locked, in order
-             * to allow _REG methods to be run.
-             */
             Status = AcpiEvInitializeRegion (AcpiNsGetAttachedObject (Node),
                         FALSE);
+            if (WalkState->MethodNode)
+            {
+                AcpiExEnterInterpreter ();
+            }
+
             if (ACPI_FAILURE (Status))
             {
                 /*

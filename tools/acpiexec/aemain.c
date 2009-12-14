@@ -123,6 +123,7 @@
         ACPI_MODULE_NAME    ("aemain")
 
 UINT8           AcpiGbl_BatchMode = 0;
+UINT8           AcpiGbl_RegionFillValue = 0;
 BOOLEAN         AcpiGbl_IgnoreErrors = FALSE;
 BOOLEAN         AcpiGbl_DbOpt_NoRegionSupport = FALSE;
 BOOLEAN         AcpiGbl_DebugTimeout = FALSE;
@@ -134,8 +135,7 @@ char                    *FileList[ASL_MAX_FILES];
 int                     FileCount;
 
 
-
-#define AE_SUPPORTED_OPTIONS    "?ab:de^ghimo:rstvx:z"
+#define AE_SUPPORTED_OPTIONS    "?ab:de^f:ghimo:rstvx:z"
 
 
 /******************************************************************************
@@ -160,6 +160,7 @@ usage (void)
     printf ("   -a                  Do not abort methods on error\n");
     printf ("   -b <CommandLine>    Batch mode command execution\n");
     printf ("   -e [Method]         Batch mode method execution\n");
+    printf ("   -f <Value>          Specify OpRegion initialization fill value\n");
     printf ("   -i                  Do not run STA/INI methods during init\n");
     printf ("   -m                  Display final memory use statistics\n");
     printf ("   -o <OutputFile>     Send output to this file\n");
@@ -495,6 +496,10 @@ main (
             strcpy (BatchBuffer, AcpiGbl_Optarg);
             break;
         }
+        break;
+
+    case 'f':
+        AcpiGbl_RegionFillValue = (UINT8) strtoul (AcpiGbl_Optarg, NULL, 0);
         break;
 
     case 'g':
