@@ -36,7 +36,13 @@
 #define	G_PART_PROBE_PRI_HIGH	0
 
 enum g_part_alias {
-	G_PART_ALIAS_APPLE_HFS,		/* An HFS file system entry. */
+	G_PART_ALIAS_APPLE_BOOT,	/* An Apple boot partition entry. */
+	G_PART_ALIAS_APPLE_HFS,		/* An HFS+ file system entry. */
+	G_PART_ALIAS_APPLE_LABEL,	/* An Apple label partition entry. */
+	G_PART_ALIAS_APPLE_RAID,	/* An Apple RAID partition entry. */
+	G_PART_ALIAS_APPLE_RAID_OFFLINE,/* An Apple RAID (offline) part entry.*/
+	G_PART_ALIAS_APPLE_TV_RECOVERY,	/* An Apple TV recovery part entry. */
+	G_PART_ALIAS_APPLE_UFS,		/* An Apple UFS partition entry. */
 	G_PART_ALIAS_EFI,		/* A EFI system partition entry. */
 	G_PART_ALIAS_FREEBSD,		/* A BSD labeled partition entry. */
 	G_PART_ALIAS_FREEBSD_BOOT,	/* A FreeBSD boot partition entry. */
@@ -45,6 +51,10 @@ enum g_part_alias {
 	G_PART_ALIAS_FREEBSD_VINUM,	/* A Vinum partition entry. */
 	G_PART_ALIAS_FREEBSD_ZFS,	/* A ZFS file system entry. */
 	G_PART_ALIAS_MBR,		/* A MBR (extended) partition entry. */
+	G_PART_ALIAS_LINUX_DATA,	/* A Linux data partition entry. */
+	G_PART_ALIAS_LINUX_LVM,		/* A Linux LVM partition entry. */
+	G_PART_ALIAS_LINUX_RAID,	/* A Linux RAID partition entry. */
+	G_PART_ALIAS_LINUX_SWAP,	/* A Linux swap partition entry. */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };
