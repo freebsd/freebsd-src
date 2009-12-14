@@ -150,5 +150,6 @@ const char *const sys_errlist[] = {
 	"Multihop attempted",			/* 90 - EMULTIHOP */
 	"Link has been severed",		/* 91 - ENOLINK */
 	"Protocol error",			/* 92 - EPROTO */
+	"Capabilities insufficient",		/* 93 - ENOTCAPABLE */
 };
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
