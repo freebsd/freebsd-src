@@ -168,6 +168,7 @@ static void	vge_init(void *);
 static void	vge_init_locked(struct vge_softc *);
 static void	vge_intr(void *);
 static int	vge_ioctl(struct ifnet *, u_long, caddr_t);
+static void	vge_link_statchg(void *);
 static int	vge_miibus_readreg(device_t, int, int);
 static void	vge_miibus_statchg(device_t);
 static int	vge_miibus_writereg(device_t, int, int, int);
@@ -182,7 +183,6 @@ static void	vge_setmulti(struct vge_softc *);
 static void	vge_start(struct ifnet *);
 static void	vge_start_locked(struct ifnet *);
 static void	vge_stop(struct vge_softc *);
-static void	vge_tick(void *);
 static int	vge_tx_list_init(struct vge_softc *);
 static void	vge_txeof(struct vge_softc *);
 static void	vge_watchdog(void *);
@@ -1595,7 +1595,7 @@ vge_txeof(struct vge_softc *sc)
 }
 
 static void
-vge_tick(void *xsc)
+vge_link_statchg(void *xsc)
 {
 	struct vge_softc *sc;
 	struct ifnet *ifp;
@@ -1606,7 +1606,7 @@ vge_tick(void *xsc)
 	VGE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->vge_miibus);
 
-	mii_tick(mii);
+	mii_pollstat(mii);
 	if ((sc->vge_flags & VGE_FLAG_LINK) != 0) {
 		if (!(mii->mii_media_status & IFM_ACTIVE)) {
 			sc->vge_flags &= ~VGE_FLAG_LINK;
@@ -1735,7 +1735,7 @@ vge_intr(void *arg)
 		}
 
 		if (status & VGE_ISR_LINKSTS)
-			vge_tick(sc);
+			vge_link_statchg(sc);
 	}
 
 	/* Re-enable interrupts */
