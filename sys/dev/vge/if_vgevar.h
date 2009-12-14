@@ -34,8 +34,6 @@
 
 #define VGE_JUMBO_MTU	9000
 
-#define VGE_IFQ_MAXLEN 64
-
 #define VGE_TX_DESC_CNT		256
 #define VGE_RX_DESC_CNT		252	/* Must be a multiple of 4!! */
 #define VGE_TX_RING_ALIGN	64

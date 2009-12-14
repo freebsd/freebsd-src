@@ -1061,8 +1061,8 @@ vge_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 	ifp->if_init = vge_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, VGE_IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = VGE_IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, VGE_TX_DESC_CNT - 1);
+	ifp->if_snd.ifq_drv_maxlen = VGE_TX_DESC_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
