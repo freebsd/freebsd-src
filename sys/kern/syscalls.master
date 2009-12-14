@@ -911,5 +911,13 @@
 512	AUE_SHMCTL	NOSTD	{ int shmctl(int shmid, int cmd, \
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	STD	{ int lpathconf(char *path, int name); }
+514	AUE_CAP_NEW	UNIMPL	cap_new
+515	AUE_CAP_GETRIGHTS	UNIMPL	cap_getrights
+516	AUE_CAP_ENTER	UNIMPL	cap_enter
+517	AUE_CAP_GETMODE	UNIMPL	cap_getmode
+518	AUE_PDFORK	UNIMPL	pdfork
+519	AUE_PDKILL	UNIMPL	pdkill
+520	AUE_PDGETPID	UNIMPL	pdgetpid
+521	AUE_PDWAIT	UNIMPL	pdwait
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
