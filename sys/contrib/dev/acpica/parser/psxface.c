@@ -403,7 +403,7 @@ AcpiPsExecuteMethod (
 
     if (Info->ObjDesc->Method.MethodFlags & AML_METHOD_INTERNAL_ONLY)
     {
-        Status = Info->ObjDesc->Method.Implementation (WalkState);
+        Status = Info->ObjDesc->Method.Extra.Implementation (WalkState);
         Info->ReturnObject = WalkState->ReturnDesc;
 
         /* Cleanup states */

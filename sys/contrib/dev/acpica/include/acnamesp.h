@@ -456,6 +456,11 @@ AcpiNsComplexRepairs (
     ACPI_STATUS             ValidateStatus,
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
+void
+AcpiNsRemoveNullElements (
+    ACPI_PREDEFINED_DATA    *Data,
+    UINT8                   PackageType,
+    ACPI_OPERAND_OBJECT     *ObjDesc);
 
 /*
  * nssearch - Namespace searching and entry
@@ -542,12 +547,8 @@ AcpiNsExternalizeName (
     char                    **ConvertedName);
 
 ACPI_NAMESPACE_NODE *
-AcpiNsMapHandleToNode (
+AcpiNsValidateHandle (
     ACPI_HANDLE             Handle);
-
-ACPI_HANDLE
-AcpiNsConvertEntryToHandle(
-    ACPI_NAMESPACE_NODE     *Node);
 
 void
 AcpiNsTerminate (
