@@ -297,7 +297,7 @@ CLEANFILES += cs-*.h option*
 
 #-----------------------------------------------------------------------
 #
-# Build additional static libgcc_eh[_p].a librarries.
+# Build symbol version map
 #
 SHLIB_MKMAP      = ${GCCDIR}/mkmap-symver.awk
 SHLIB_MKMAP_OPTS =
@@ -316,7 +316,7 @@ CLEANFILES +=	libgcc.map
 
 #-----------------------------------------------------------------------
 #
-# Build additional static libgcc_eh[_p].a librarries.
+# Build additional static libgcc_eh[_p].a libraries.
 #
 lib${LIB}_eh.a:	${EH_OBJS_T}
 	@${ECHO} building static ${LIB}_eh library
