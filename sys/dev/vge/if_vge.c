@@ -263,8 +263,6 @@ vge_eeprom_getword(struct vge_softc *sc, int addr, u_int16_t *dest)
 	CSR_CLRBIT_1(sc, VGE_CHIPCFG2, VGE_CHIPCFG2_EELOAD);
 
 	*dest = word;
-
-	return;
 }
 #endif
 
@@ -307,8 +305,6 @@ vge_miipoll_stop(struct vge_softc *sc)
 
 	if (i == VGE_TIMEOUT)
 		device_printf(sc->vge_dev, "failed to idle MII autopoll\n");
-
-	return;
 }
 
 static void
@@ -346,8 +342,6 @@ vge_miipoll_start(struct vge_softc *sc)
 
 	if (i == VGE_TIMEOUT)
 		device_printf(sc->vge_dev, "failed to start MII autopoll\n");
-
-	return;
 }
 
 static int
@@ -454,8 +448,6 @@ vge_cam_clear(struct vge_softc *sc)
 	CSR_SETBIT_1(sc, VGE_CAMCTL, VGE_PAGESEL_MAR);
 
 	sc->vge_camidx = 0;
-
-	return;
 }
 
 static int
@@ -574,8 +566,6 @@ vge_setmulti(struct vge_softc *sc)
 		CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
 	}
 	if_maddr_runlock(ifp);
-
-	return;
 }
 
 static void
@@ -613,8 +603,6 @@ vge_reset(struct vge_softc *sc)
 	}
 
 	CSR_CLRBIT_1(sc, VGE_CHIPCFG0, VGE_CHIPCFG0_PACPI);
-
-	return;
 }
 
 /*
@@ -1605,8 +1593,6 @@ vge_tick(void *xsc)
 				vge_start_locked(ifp);
 		}
 	}
-
-	return;
 }
 
 #ifdef DEVICE_POLLING
@@ -1729,8 +1715,6 @@ vge_intr(void *arg)
 		vge_start_locked(ifp);
 
 	VGE_UNLOCK(sc);
-
-	return;
 }
 
 static int
@@ -2167,8 +2151,6 @@ vge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	VGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
-
-	return;
 }
 
 static void
@@ -2216,8 +2198,6 @@ vge_miibus_statchg(device_t dev)
 		    IFM_SUBTYPE(ife->ifm_media));
 		break;
 	}
-
-	return;
 }
 
 static int
@@ -2341,8 +2321,6 @@ vge_watchdog(void *arg)
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vge_init_locked(sc);
-
-	return;
 }
 
 /*
