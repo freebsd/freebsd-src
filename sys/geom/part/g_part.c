@@ -87,6 +87,16 @@ struct g_part_alias_list {
 	{ "linux-lvm", G_PART_ALIAS_LINUX_LVM },
 	{ "linux-raid", G_PART_ALIAS_LINUX_RAID },
 	{ "linux-swap", G_PART_ALIAS_LINUX_SWAP },
+	{ "ms-basic-data", G_PART_ALIAS_MS_BASIC_DATA },
+	{ "ms-ldm-data", G_PART_ALIAS_MS_LDM_DATA },
+	{ "ms-ldm-metadata", G_PART_ALIAS_MS_LDM_METADATA },
+	{ "ms-reserved", G_PART_ALIAS_MS_RESERVED },
+	{ "netbsd-ccd", G_PART_ALIAS_NETBSD_CCD },
+	{ "netbsd-cgd", G_PART_ALIAS_NETBSD_CGD },
+	{ "netbsd-ffs", G_PART_ALIAS_NETBSD_FFS },
+	{ "netbsd-lfs", G_PART_ALIAS_NETBSD_LFS },
+	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
+	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
 	{ "mbr", G_PART_ALIAS_MBR }
 };
 
