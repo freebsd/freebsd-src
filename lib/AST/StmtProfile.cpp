@@ -554,18 +554,24 @@ StmtProfiler::VisitCXXUnresolvedConstructExpr(CXXUnresolvedConstructExpr *S) {
 
 void
 StmtProfiler::VisitCXXDependentScopeMemberExpr(CXXDependentScopeMemberExpr *S) {
-  VisitExpr(S);
-  ID.AddBoolean(S->isArrow());
+  ID.AddBoolean(S->isImplicitAccess());
+  if (!S->isImplicitAccess()) {
+    VisitExpr(S);
+    ID.AddBoolean(S->isArrow());
+  }
   VisitNestedNameSpecifier(S->getQualifier());
   VisitName(S->getMember());
-  ID.AddBoolean(S->hasExplicitTemplateArgumentList());
-  if (S->hasExplicitTemplateArgumentList())
+  ID.AddBoolean(S->hasExplicitTemplateArgs());
+  if (S->hasExplicitTemplateArgs())
     VisitTemplateArguments(S->getTemplateArgs(), S->getNumTemplateArgs());
 }
 
 void StmtProfiler::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *S) {
-  VisitExpr(S);
-  ID.AddBoolean(S->isArrow());
+  ID.AddBoolean(S->isImplicitAccess());
+  if (!S->isImplicitAccess()) {
+    VisitExpr(S);
+    ID.AddBoolean(S->isArrow());
+  }
   VisitNestedNameSpecifier(S->getQualifier());
   VisitName(S->getMemberName());
   ID.AddBoolean(S->hasExplicitTemplateArgs());
@@ -651,13 +657,6 @@ void StmtProfiler::VisitDecl(Decl *D) {
     if (TemplateTemplateParmDecl *TTP = dyn_cast<TemplateTemplateParmDecl>(D)) {
       ID.AddInteger(TTP->getDepth());
       ID.AddInteger(TTP->getIndex());
-      return;
-    }
-
-    if (OverloadedFunctionDecl *Ovl = dyn_cast<OverloadedFunctionDecl>(D)) {
-      // The Itanium C++ ABI mangles references to a set of overloaded
-      // functions using just the function name, so we do the same here.
-      VisitName(Ovl->getDeclName());
       return;
     }
   }

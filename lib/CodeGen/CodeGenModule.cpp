@@ -56,7 +56,7 @@ CodeGenModule::CodeGenModule(ASTContext &C, const CodeGenOptions &CGO,
     Runtime = CreateMacObjCRuntime(*this);
 
   // If debug info generation is enabled, create the CGDebugInfo object.
-  DebugInfo = CodeGenOpts.DebugInfo ? new CGDebugInfo(this) : 0;
+  DebugInfo = CodeGenOpts.DebugInfo ? new CGDebugInfo(*this) : 0;
 }
 
 CodeGenModule::~CodeGenModule() {
@@ -256,9 +256,18 @@ GetLinkageForFunction(ASTContext &Context, const FunctionDecl *FD,
   // The kind of external linkage this function will have, if it is not
   // inline or static.
   CodeGenModule::GVALinkage External = CodeGenModule::GVA_StrongExternal;
-  if (Context.getLangOptions().CPlusPlus &&
-      FD->getTemplateSpecializationKind() == TSK_ImplicitInstantiation)
-    External = CodeGenModule::GVA_TemplateInstantiation;
+  if (Context.getLangOptions().CPlusPlus) {
+    TemplateSpecializationKind TSK = FD->getTemplateSpecializationKind();
+    
+    if (TSK == TSK_ExplicitInstantiationDefinition) {
+      // If a function has been explicitly instantiated, then it should
+      // always have strong external linkage.
+      return CodeGenModule::GVA_StrongExternal;
+    } 
+    
+    if (TSK == TSK_ImplicitInstantiation)
+      External = CodeGenModule::GVA_TemplateInstantiation;
+  }
 
   if (!FD->isInlined())
     return External;
@@ -522,6 +531,16 @@ bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
         FD->hasAttr<DestructorAttr>())
       return false;
 
+    // The key function for a class must never be deferred.
+    if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(Global)) {
+      const CXXRecordDecl *RD = MD->getParent();
+      if (MD->isOutOfLine() && RD->isDynamicClass()) {
+        const CXXMethodDecl *KeyFunction = getContext().getKeyFunction(RD);
+        if (KeyFunction == MD->getCanonicalDecl())
+          return false;
+      }
+    }
+
     GVALinkage Linkage = GetLinkageForFunction(getContext(), FD, Features);
 
     // static, static inline, always_inline, and extern inline functions can
@@ -576,11 +595,17 @@ void CodeGenModule::EmitGlobal(GlobalDecl GD) {
     const VarDecl *VD = cast<VarDecl>(Global);
     assert(VD->isFileVarDecl() && "Cannot emit local var decl as global.");
 
-    // In C++, if this is marked "extern", defer code generation.
-    if (getLangOptions().CPlusPlus && !VD->getInit() &&
-        (VD->getStorageClass() == VarDecl::Extern ||
-         VD->isExternC()))
-      return;
+    if (getLangOptions().CPlusPlus && !VD->getInit()) {
+      // In C++, if this is marked "extern", defer code generation.
+      if (VD->getStorageClass() == VarDecl::Extern || VD->isExternC())
+        return;
+
+      // If this is a declaration of an explicit specialization of a static
+      // data member in a class template, don't emit it.
+      if (VD->isStaticDataMember() && 
+          VD->getTemplateSpecializationKind() == TSK_ExplicitSpecialization)
+        return;
+    }
 
     // In C, if this isn't a definition, defer code generation.
     if (!getLangOptions().CPlusPlus && !VD->getInit())
@@ -615,8 +640,19 @@ void CodeGenModule::EmitGlobalDefinition(GlobalDecl GD) {
                                  Context.getSourceManager(),
                                  "Generating code for declaration");
   
-  if (isa<CXXMethodDecl>(D))
+  if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(D)) {
     getVtableInfo().MaybeEmitVtable(GD);
+    if (MD->isVirtual() && MD->isOutOfLine() &&
+        (!isa<CXXDestructorDecl>(D) || GD.getDtorType() != Dtor_Base)) {
+      if (isa<CXXDestructorDecl>(D)) {
+        GlobalDecl CanonGD(cast<CXXDestructorDecl>(D->getCanonicalDecl()),
+                           GD.getDtorType());
+        BuildThunksForVirtual(CanonGD);
+      } else {
+        BuildThunksForVirtual(MD->getCanonicalDecl());
+      }
+    }
+  }
   
   if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(D))
     EmitCXXConstructor(CD, GD.getCtorType());
@@ -724,6 +760,17 @@ CodeGenModule::CreateRuntimeFunction(const llvm::FunctionType *FTy,
   return GetOrCreateLLVMFunction(Name, FTy, GlobalDecl());
 }
 
+static bool DeclIsConstantGlobal(ASTContext &Context, const VarDecl *D) {
+  if (!D->getType().isConstant(Context))
+    return false;
+  if (Context.getLangOptions().CPlusPlus &&
+      Context.getBaseElementType(D->getType())->getAs<RecordType>()) {
+    // FIXME: We should do something fancier here!
+    return false;
+  }
+  return true;
+}
+
 /// GetOrCreateLLVMGlobal - If the specified mangled name is not in the module,
 /// create and return an llvm GlobalVariable with the specified type.  If there
 /// is something in the module with the specified name, return it potentially
@@ -767,7 +814,7 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMGlobal(const char *MangledName,
   if (D) {
     // FIXME: This code is overly simple and should be merged with other global
     // handling.
-    GV->setConstant(D->getType().isConstant(Context));
+    GV->setConstant(DeclIsConstantGlobal(Context, D));
 
     // FIXME: Merge with other attribute handling code.
     if (D->getStorageClass() == VarDecl::PrivateExtern)
@@ -844,7 +891,7 @@ GetLinkageForVariable(ASTContext &Context, const VarDecl *VD) {
       return CodeGenModule::GVA_StrongExternal;
       
     case TSK_ExplicitInstantiationDeclaration:
-      llvm::llvm_unreachable("Variable should not be instantiated");
+      llvm_unreachable("Variable should not be instantiated");
       // Fall through to treat this like any other instantiation.
         
     case TSK_ImplicitInstantiation:
@@ -942,11 +989,8 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D) {
 
   // If it is safe to mark the global 'constant', do so now.
   GV->setConstant(false);
-  if (D->getType().isConstant(Context)) {
-    // FIXME: In C++, if the variable has a non-trivial ctor/dtor or any mutable
-    // members, it cannot be declared "LLVM const".
+  if (DeclIsConstantGlobal(Context, D))
     GV->setConstant(true);
-  }
 
   GV->setAlignment(getContext().getDeclAlignInBytes(D));
 
@@ -1226,13 +1270,8 @@ llvm::Value *CodeGenModule::getBuiltinLibFunction(const FunctionDecl *FD,
   if (Context.BuiltinInfo.isLibFunction(BuiltinID))
     Name += 10;
 
-  // Get the type for the builtin.
-  ASTContext::GetBuiltinTypeError Error;
-  QualType Type = Context.GetBuiltinType(BuiltinID, Error);
-  assert(Error == ASTContext::GE_None && "Can't get builtin type");
-
   const llvm::FunctionType *Ty =
-    cast<llvm::FunctionType>(getTypes().ConvertType(Type));
+    cast<llvm::FunctionType>(getTypes().ConvertType(FD->getType()));
 
   // Unique the name through the identifier table.
   Name = getContext().Idents.get(Name).getNameStart();
@@ -1658,14 +1697,13 @@ void CodeGenModule::EmitTopLevelDecl(Decl *D) {
 
   case Decl::FileScopeAsm: {
     FileScopeAsmDecl *AD = cast<FileScopeAsmDecl>(D);
-    std::string AsmString(AD->getAsmString()->getStrData(),
-                          AD->getAsmString()->getByteLength());
+    llvm::StringRef AsmString = AD->getAsmString()->getString();
 
     const std::string &S = getModule().getModuleInlineAsm();
     if (S.empty())
       getModule().setModuleInlineAsm(AsmString);
     else
-      getModule().setModuleInlineAsm(S + '\n' + AsmString);
+      getModule().setModuleInlineAsm(S + '\n' + AsmString.str());
     break;
   }
 

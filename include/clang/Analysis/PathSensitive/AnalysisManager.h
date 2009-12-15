@@ -56,8 +56,7 @@ public:
                   const LangOptions &lang, PathDiagnosticClient *pd,
                   StoreManagerCreator storemgr,
                   ConstraintManagerCreator constraintmgr,
-                  bool displayProgress, bool vizdot, bool vizubi,
-                  bool purge, bool eager, bool trim)
+                  bool vizdot, bool vizubi, bool purge, bool eager, bool trim)
 
     : Ctx(ctx), Diags(diags), LangInfo(lang), PD(pd),
       CreateStoreMgr(storemgr), CreateConstraintMgr(constraintmgr),
@@ -132,7 +131,7 @@ public:
   }
 
   // Get the top level stack frame.
-  StackFrameContext *getStackFrame(Decl const *D) {
+  const StackFrameContext *getStackFrame(Decl const *D) {
     return LocCtxMgr.getStackFrame(AnaCtxMgr.getContext(D), 0, 0);
   }
 

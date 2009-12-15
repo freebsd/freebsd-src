@@ -561,6 +561,9 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
     const ABIArgInfo &AI = it->info;
     unsigned Attributes = 0;
 
+    if (ParamType.isRestrictQualified())
+      Attributes |= llvm::Attribute::NoAlias;
+
     switch (AI.getKind()) {
     case ABIArgInfo::Coerce:
       break;
@@ -764,7 +767,7 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
         ComplexPairTy RT = LoadComplexFromAddr(ReturnValue, false);
         StoreComplexToAddr(RT, CurFn->arg_begin(), false);
       } else if (CodeGenFunction::hasAggregateLLVMType(RetTy)) {
-        EmitAggregateCopy(CurFn->arg_begin(), ReturnValue, RetTy);
+        // Do nothing; aggregrates get evaluated directly into the destination.
       } else {
         EmitStoreOfScalar(Builder.CreateLoad(ReturnValue), CurFn->arg_begin(),
                           false, RetTy);

@@ -68,14 +68,14 @@ public:
   }
 
   const GRState *BindCompoundLiteral(const GRState *state,
-                                     const CompoundLiteralExpr* cl,
+                                     const CompoundLiteralExpr*,
+                                     const LocationContext*,
                                      SVal val) {
     return state;
   }
 
   SVal getLValueVar(const VarDecl *VD, const LocationContext *LC);
   SVal getLValueString(const StringLiteral *S);
-  SVal getLValueCompoundLiteral(const CompoundLiteralExpr *CL);
   SVal getLValueIvar(const ObjCIvarDecl* D, SVal Base);
   SVal getLValueField(const FieldDecl *D, SVal Base);
   SVal getLValueElement(QualType elementType, SVal Offset, SVal Base);
@@ -128,10 +128,6 @@ SVal BasicStoreManager::getLValueVar(const VarDecl* VD,
 
 SVal BasicStoreManager::getLValueString(const StringLiteral* S) {
   return ValMgr.makeLoc(MRMgr.getStringRegion(S));
-}
-
-SVal BasicStoreManager::getLValueCompoundLiteral(const CompoundLiteralExpr* CL){
-  return ValMgr.makeLoc(MRMgr.getCompoundLiteralRegion(CL));
 }
 
 SVal BasicStoreManager::getLValueIvar(const ObjCIvarDecl* D, SVal Base) {
@@ -368,7 +364,7 @@ BasicStoreManager::RemoveDeadBindings(GRState &state, Stmt* Loc,
   // Iterate over the variable bindings.
   for (BindingsTy::iterator I=B.begin(), E=B.end(); I!=E ; ++I) {
     if (const VarRegion *VR = dyn_cast<VarRegion>(I.getKey())) {
-      if (SymReaper.isLive(Loc, VR->getDecl()))
+      if (SymReaper.isLive(Loc, VR))
         RegionRoots.push_back(VR);
       else
         continue;

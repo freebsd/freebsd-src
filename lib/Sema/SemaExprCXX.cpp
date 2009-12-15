@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema.h"
+#include "SemaInit.h"
 #include "Lookup.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CXXInheritance.h"
@@ -37,8 +38,7 @@ Sema::ActOnCXXTypeid(SourceLocation OpLoc, SourceLocation LParenLoc,
   IdentifierInfo *TypeInfoII = &PP.getIdentifierTable().get("type_info");
   LookupResult R(*this, TypeInfoII, SourceLocation(), LookupTagName);
   LookupQualifiedName(R, StdNamespace);
-  Decl *TypeInfoDecl = R.getAsSingleDecl(Context);
-  RecordDecl *TypeInfoRecordDecl = dyn_cast_or_null<RecordDecl>(TypeInfoDecl);
+  RecordDecl *TypeInfoRecordDecl = R.getAsSingle<RecordDecl>();
   if (!TypeInfoRecordDecl)
     return ExprError(Diag(OpLoc, diag::err_need_header_before_typeid));
 
@@ -226,7 +226,9 @@ Sema::ActOnCXXTypeConstructExpr(SourceRange TypeRange, TypeTy *TypeRep,
                                              SourceRange(TypeRange.getBegin(),
                                                          RParenLoc),
                                              DeclarationName(),
-                                             IK_Direct,
+                         InitializationKind::CreateDirect(TypeRange.getBegin(), 
+                                                          LParenLoc, 
+                                                          RParenLoc),
                                              ConstructorArgs);
 
       if (!Constructor)
@@ -322,9 +324,9 @@ Sema::ActOnCXXNew(SourceLocation StartLoc, bool UseGlobal,
     }
   }
 
-  //FIXME: Store DeclaratorInfo in CXXNew expression.
-  DeclaratorInfo *DInfo = 0;
-  QualType AllocType = GetTypeForDeclarator(D, /*Scope=*/0, &DInfo);
+  //FIXME: Store TypeSourceInfo in CXXNew expression.
+  TypeSourceInfo *TInfo = 0;
+  QualType AllocType = GetTypeForDeclarator(D, /*Scope=*/0, &TInfo);
   if (D.isInvalidType())
     return ExprError();
     
@@ -450,12 +452,17 @@ Sema::BuildCXXNew(SourceLocation StartLoc, bool UseGlobal,
     // Skip all the checks.
   } else if ((RT = AllocType->getAs<RecordType>()) &&
              !AllocType->isAggregateType()) {
+    InitializationKind InitKind = InitializationKind::CreateDefault(TypeLoc);
+    if (NumConsArgs > 0)
+      InitKind = InitializationKind::CreateDirect(TypeLoc,
+                                                  PlacementLParen, 
+                                                  PlacementRParen);
     Constructor = PerformInitializationByConstructor(
                       AllocType, move(ConstructorArgs),
                       TypeLoc,
                       SourceRange(TypeLoc, ConstructorRParen),
                       RT->getDecl()->getDeclName(),
-                      NumConsArgs != 0 ? IK_Direct : IK_Default,
+                      InitKind,
                       ConvertedConstructorArgs);
     if (!Constructor)
       return ExprError();
@@ -602,7 +609,8 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
        Alloc != AllocEnd; ++Alloc) {
     // Even member operator new/delete are implicitly treated as
     // static, so don't use AddMemberCandidate.
-    if (FunctionDecl *Fn = dyn_cast<FunctionDecl>(*Alloc)) {
+    if (FunctionDecl *Fn = 
+          dyn_cast<FunctionDecl>((*Alloc)->getUnderlyingDecl())) {
       AddOverloadCandidate(Fn, Args, NumArgs, Candidates,
                            /*SuppressUserConversions=*/false);
       continue;
@@ -761,10 +769,10 @@ void Sema::DeclareGlobalAllocationFunction(DeclarationName Name,
                                             &BadAllocType);
   FunctionDecl *Alloc =
     FunctionDecl::Create(Context, GlobalCtx, SourceLocation(), Name,
-                         FnType, /*DInfo=*/0, FunctionDecl::None, false, true);
+                         FnType, /*TInfo=*/0, FunctionDecl::None, false, true);
   Alloc->setImplicit();
   ParmVarDecl *Param = ParmVarDecl::Create(Context, Alloc, SourceLocation(),
-                                           0, Argument, /*DInfo=*/0,
+                                           0, Argument, /*TInfo=*/0,
                                            VarDecl::None, 0);
   Alloc->setParams(Context, &Param, 1);
 
@@ -1270,6 +1278,16 @@ Sema::PerformImplicitConversion(Expr *&From, QualType ToType,
     // Nothing else to do.
     break;
 
+  case ICK_NoReturn_Adjustment:
+    // If both sides are functions (or pointers/references to them), there could
+    // be incompatible exception declarations.
+    if (CheckExceptionSpecCompatibility(From, ToType))
+      return true;      
+      
+    ImpCastExprToType(From, Context.getNoReturnType(From->getType(), false),
+                      CastExpr::CK_NoOp);
+    break;
+      
   case ICK_Integral_Promotion:
   case ICK_Integral_Conversion:
     ImpCastExprToType(From, ToType, CastExpr::CK_IntegralCast);
@@ -1574,7 +1592,7 @@ static bool FindConditionalOverload(Sema &Self, Expr *&LHS, Expr *&RHS,
 
   OverloadCandidateSet::iterator Best;
   switch (Self.BestViableFunction(CandidateSet, Loc, Best)) {
-    case Sema::OR_Success:
+    case OR_Success:
       // We found a match. Perform the conversions on the arguments and move on.
       if (Self.PerformImplicitConversion(LHS, Best->BuiltinTypes.ParamTypes[0],
                                          Best->Conversions[0], "converting") ||
@@ -1583,13 +1601,13 @@ static bool FindConditionalOverload(Sema &Self, Expr *&LHS, Expr *&RHS,
         break;
       return false;
 
-    case Sema::OR_No_Viable_Function:
+    case OR_No_Viable_Function:
       Self.Diag(Loc, diag::err_typecheck_cond_incompatible_operands)
         << LHS->getType() << RHS->getType()
         << LHS->getSourceRange() << RHS->getSourceRange();
       return true;
 
-    case Sema::OR_Ambiguous:
+    case OR_Ambiguous:
       Self.Diag(Loc, diag::err_conditional_ambiguous_ovl)
         << LHS->getType() << RHS->getType()
         << LHS->getSourceRange() << RHS->getSourceRange();
@@ -1597,7 +1615,7 @@ static bool FindConditionalOverload(Sema &Self, Expr *&LHS, Expr *&RHS,
       // the viable candidates.
       break;
 
-    case Sema::OR_Deleted:
+    case OR_Deleted:
       assert(false && "Conditional operator has only built-in overloads");
       break;
   }
@@ -1788,6 +1806,11 @@ QualType Sema::CXXCheckConditionalOperands(Expr *&Cond, Expr *&LHS, Expr *&RHS,
   QualType Composite = FindCompositePointerType(LHS, RHS);
   if (!Composite.isNull())
     return Composite;
+  
+  // Similarly, attempt to find composite type of twp objective-c pointers.
+  Composite = FindCompositeObjCPointerType(LHS, RHS, QuestionLoc);
+  if (!Composite.isNull())
+    return Composite;
 
   // Fourth bullet is same for pointers-to-member. However, the possible
   // conversions are far more limited: we have null-to-pointer, upcast of
@@ -1882,8 +1905,8 @@ QualType Sema::FindCompositePointerType(Expr *&E1, Expr *&E2) {
   assert(getLangOptions().CPlusPlus && "This function assumes C++");
   QualType T1 = E1->getType(), T2 = E2->getType();
 
-  if (!T1->isPointerType() && !T1->isMemberPointerType() &&
-      !T2->isPointerType() && !T2->isMemberPointerType())
+  if (!T1->isAnyPointerType() && !T1->isMemberPointerType() &&
+      !T2->isAnyPointerType() && !T2->isMemberPointerType())
    return QualType();
 
   // C++0x 5.9p2
@@ -2070,14 +2093,17 @@ Expr *Sema::MaybeCreateCXXExprWithTemporaries(Expr *SubExpr,
                                               bool ShouldDestroyTemps) {
   assert(SubExpr && "sub expression can't be null!");
 
-  if (ExprTemporaries.empty())
+  unsigned FirstTemporary = ExprEvalContexts.back().NumTemporaries;
+  assert(ExprTemporaries.size() >= FirstTemporary);
+  if (ExprTemporaries.size() == FirstTemporary)
     return SubExpr;
 
   Expr *E = CXXExprWithTemporaries::Create(Context, SubExpr,
-                                           &ExprTemporaries[0],
-                                           ExprTemporaries.size(),
+                                           &ExprTemporaries[FirstTemporary],
+                                    ExprTemporaries.size() - FirstTemporary,
                                            ShouldDestroyTemps);
-  ExprTemporaries.clear();
+  ExprTemporaries.erase(ExprTemporaries.begin() + FirstTemporary,
+                        ExprTemporaries.end());
 
   return E;
 }
@@ -2164,15 +2190,13 @@ Sema::ActOnStartCXXMemberReference(Scope *S, ExprArg Base, SourceLocation OpLoc,
 
 CXXMemberCallExpr *Sema::BuildCXXMemberCallExpr(Expr *Exp, 
                                                 CXXMethodDecl *Method) {
+  if (PerformObjectArgumentInitialization(Exp, Method))
+    assert(0 && "Calling BuildCXXMemberCallExpr with invalid call?");
+
   MemberExpr *ME = 
       new (Context) MemberExpr(Exp, /*IsArrow=*/false, Method, 
                                SourceLocation(), Method->getType());
-  QualType ResultType;
-  if (const CXXConversionDecl *Conv = dyn_cast<CXXConversionDecl>(Method))
-    ResultType = Conv->getConversionType().getNonReferenceType();
-  else
-    ResultType = Method->getResultType().getNonReferenceType();
-
+  QualType ResultType = Method->getResultType().getNonReferenceType();
   MarkDeclarationReferenced(Exp->getLocStart(), Method);
   CXXMemberCallExpr *CE =
     new (Context) CXXMemberCallExpr(Context, ME, 0, 0, ResultType,
@@ -2208,11 +2232,7 @@ Sema::OwningExprResult Sema::BuildCXXCastArgument(SourceLocation CastLoc,
 
   case CastExpr::CK_UserDefinedConversion: {
     assert(!From->getType()->isPointerType() && "Arg can't have pointer type!");
-  
-    // Cast to base if needed.
-    if (PerformObjectArgumentInitialization(From, Method))
-      return ExprError();
-    
+
     // Create an implicit call expr that calls it.
     CXXMemberCallExpr *CE = BuildCXXMemberCallExpr(From, Method);
     return MaybeBindToTemporary(CE);

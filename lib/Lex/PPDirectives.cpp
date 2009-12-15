@@ -481,11 +481,11 @@ void Preprocessor::HandleDirective(Token &Result) {
   CurPPLexer->ParsingPreprocessorDirective = true;
 
   ++NumDirectives;
-
+  
   // We are about to read a token.  For the multiple-include optimization FA to
   // work, we have to remember if we had read any tokens *before* this
   // pp-directive.
-  bool ReadAnyTokensBeforeDirective = CurPPLexer->MIOpt.getHasReadAnyTokensVal();
+  bool ReadAnyTokensBeforeDirective =CurPPLexer->MIOpt.getHasReadAnyTokensVal();
 
   // Save the '#' token in case we need to return it later.
   Token SavedHash = Result;
@@ -1112,9 +1112,10 @@ void Preprocessor::HandleIncludeDirective(Token &IncludeTok,
   }
 
   // Finally, if all is good, enter the new file!
-  if (EnterSourceFile(FID, CurDir))
+  std::string ErrorStr;
+  if (EnterSourceFile(FID, CurDir, ErrorStr))
     Diag(FilenameTok, diag::err_pp_error_opening_file)
-      << std::string(SourceMgr.getFileEntryForID(FID)->getName());
+      << std::string(SourceMgr.getFileEntryForID(FID)->getName()) << ErrorStr;
 }
 
 /// HandleIncludeNextDirective - Implements #include_next.
@@ -1548,8 +1549,9 @@ void Preprocessor::HandleIfdefDirective(Token &Result, bool isIfndef,
   // Should we include the stuff contained by this directive?
   if (!MI == isIfndef) {
     // Yes, remember that we are inside a conditional, then lex the next token.
-    CurPPLexer->pushConditionalLevel(DirectiveTok.getLocation(), /*wasskip*/false,
-                                   /*foundnonskip*/true, /*foundelse*/false);
+    CurPPLexer->pushConditionalLevel(DirectiveTok.getLocation(),
+                                     /*wasskip*/false, /*foundnonskip*/true,
+                                     /*foundelse*/false);
   } else {
     // No, skip the contents of this block and return the first token after it.
     SkipExcludedConditionalBlock(DirectiveTok.getLocation(),

@@ -77,11 +77,17 @@ def RenderSeparate : OptionFlag;
 // lines that use it.
 def Unsupported : OptionFlag;
 
+// HelpHidden - The option should not be displayed in --help, even if it has
+// help text. Clients *can* use this in conjuction with the OptTable::PrintHelp
+// arguments to implement hidden help groups.
+def HelpHidden : OptionFlag;
+
 // Define the option group class.
 
 class OptionGroup<string name> {
   string EnumName = ?; // Uses the def name if undefined.
   string Name = name;
+  string HelpText = ?;
   OptionGroup Group = ?;
 }
 

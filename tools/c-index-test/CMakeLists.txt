@@ -5,8 +5,8 @@ set( LLVM_USED_LIBS
   clangIndex
   clangFrontend
   clangDriver
-  clangAnalysis
   clangSema
+  clangAnalysis
   clangAST
   clangParse
   clangLex
@@ -16,6 +16,7 @@ set( LLVM_USED_LIBS
 set( LLVM_LINK_COMPONENTS
   bitreader
   mc
+  core
   )
 
 add_clang_executable(c-index-test

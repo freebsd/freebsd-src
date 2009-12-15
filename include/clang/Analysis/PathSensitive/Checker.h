@@ -39,7 +39,7 @@ class CheckerContext {
   SaveAndRestore<const void*> OldTag;
   SaveAndRestore<ProgramPoint::Kind> OldPointKind;
   SaveOr OldHasGen;
-  const GRState *state;
+  const GRState *ST;
   const Stmt *statement;
   const unsigned size;
   bool DoneEvaluating; // FIXME: This is not a permanent API change.
@@ -53,22 +53,14 @@ public:
       OldTag(B.Tag, tag),
       OldPointKind(B.PointKind, K),
       OldHasGen(B.HasGeneratedNode),
-      state(st), statement(stmt), size(Dst.size()),
-      DoneEvaluating(false) {}
+      ST(st), statement(stmt), size(Dst.size()) {}
 
   ~CheckerContext();
-  
-  // FIXME: This were added to support CallAndMessageChecker to indicating
-  // to GRExprEngine to "stop evaluating" a message expression under certain
-  // cases.  This is *not* meant to be a permanent API change, and was added
-  // to aid in the transition of removing logic for checks from GRExprEngine.  
-  void setDoneEvaluating() {
-    DoneEvaluating = true;
+
+  GRExprEngine &getEngine() {
+    return Eng;
   }
-  bool isDoneEvaluating() const {
-    return DoneEvaluating;
-  }
-  
+
   ConstraintManager &getConstraintManager() {
       return Eng.getConstraintManager();
   }
@@ -80,7 +72,7 @@ public:
   ExplodedNodeSet &getNodeSet() { return Dst; }
   GRStmtNodeBuilder &getNodeBuilder() { return B; }
   ExplodedNode *&getPredecessor() { return Pred; }
-  const GRState *getState() { return state ? state : B.GetState(Pred); }
+  const GRState *getState() { return ST ? ST : B.GetState(Pred); }
 
   ASTContext &getASTContext() {
     return Eng.getContext();
@@ -98,6 +90,10 @@ public:
     return Eng.getValueManager();
   }
 
+  SValuator &getSValuator() {
+    return Eng.getSValuator();
+  }
+
   ExplodedNode *GenerateNode(bool autoTransition = true) {
     assert(statement && "Only transitions with statements currently supported");
     ExplodedNode *N = GenerateNodeImpl(statement, getState(), false);
@@ -110,6 +106,15 @@ public:
                              bool autoTransition = true) {
     assert(state);
     ExplodedNode *N = GenerateNodeImpl(stmt, state, false);
+    if (N && autoTransition)
+      addTransition(N);
+    return N;
+  }
+
+  ExplodedNode *GenerateNode(const GRState *state, ExplodedNode *pred,
+                             bool autoTransition = true) {
+   assert(statement && "Only transitions with statements currently supported");
+    ExplodedNode *N = GenerateNodeImpl(statement, state, pred, false);
     if (N && autoTransition)
       addTransition(N);
     return N;
@@ -138,8 +143,7 @@ public:
   
   void addTransition(const GRState *state) {
     assert(state);
-    if (state != getState() || 
-        (state && state != B.GetState(Pred)))
+    if (state != getState() || (ST && ST != B.GetState(Pred)))
       GenerateNode(state, true);
     else
       Dst.Add(Pred);
@@ -157,7 +161,14 @@ private:
       node->markAsSink();
     return node;
   }
-  
+
+  ExplodedNode *GenerateNodeImpl(const Stmt* stmt, const GRState *state,
+                                 ExplodedNode *pred, bool markAsSink) {
+   ExplodedNode *node = B.generateNode(stmt, state, pred);
+    if (markAsSink && node)
+      node->markAsSink();
+    return node;
+  }
 };
 
 class Checker {
@@ -165,7 +176,7 @@ private:
   friend class GRExprEngine;
 
   // FIXME: Remove the 'tag' option.
-  bool GR_Visit(ExplodedNodeSet &Dst,
+  void GR_Visit(ExplodedNodeSet &Dst,
                 GRStmtNodeBuilder &Builder,
                 GRExprEngine &Eng,
                 const Stmt *S,
@@ -177,7 +188,22 @@ private:
       _PreVisit(C, S);
     else
       _PostVisit(C, S);
-    return C.isDoneEvaluating();
+  }
+
+  bool GR_EvalNilReceiver(ExplodedNodeSet &Dst, GRStmtNodeBuilder &Builder,
+                          GRExprEngine &Eng, const ObjCMessageExpr *ME,
+                          ExplodedNode *Pred, const GRState *state, void *tag) {
+    CheckerContext C(Dst, Builder, Eng, Pred, tag, ProgramPoint::PostStmtKind,
+                     ME, state);
+    return EvalNilReceiver(C, ME);
+  }
+
+  bool GR_EvalCallExpr(ExplodedNodeSet &Dst, GRStmtNodeBuilder &Builder,
+                       GRExprEngine &Eng, const CallExpr *CE,
+                       ExplodedNode *Pred, void *tag) {
+    CheckerContext C(Dst, Builder, Eng, Pred, tag, ProgramPoint::PostStmtKind,
+                     CE);
+    return EvalCallExpr(C, CE);
   }
 
   // FIXME: Remove the 'tag' option.
@@ -231,6 +257,14 @@ public:
   virtual void VisitBranchCondition(GRBranchNodeBuilder &Builder,
                                     GRExprEngine &Eng,
                                     Stmt *Condition, void *tag) {}
+
+  virtual bool EvalNilReceiver(CheckerContext &C, const ObjCMessageExpr *ME) {
+    return false;
+  }
+
+  virtual bool EvalCallExpr(CheckerContext &C, const CallExpr *CE) {
+    return false;
+  }
 };
 } // end clang namespace
 

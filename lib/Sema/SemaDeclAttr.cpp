@@ -195,95 +195,10 @@ static void HandleExtVectorTypeAttr(Scope *scope, Decl *d,
   QualType T = S.BuildExtVectorType(curType, S.Owned(sizeExpr), Attr.getLoc());
   if (!T.isNull()) {
     // FIXME: preserve the old source info.
-    tDecl->setTypeDeclaratorInfo(S.Context.getTrivialDeclaratorInfo(T));
+    tDecl->setTypeSourceInfo(S.Context.getTrivialTypeSourceInfo(T));
 
     // Remember this typedef decl, we will need it later for diagnostics.
     S.ExtVectorDecls.push_back(tDecl);
-  }
-}
-
-
-/// HandleVectorSizeAttribute - this attribute is only applicable to integral
-/// and float scalars, although arrays, pointers, and function return values are
-/// allowed in conjunction with this construct. Aggregates with this attribute
-/// are invalid, even if they are of the same size as a corresponding scalar.
-/// The raw attribute should contain precisely 1 argument, the vector size for
-/// the variable, measured in bytes. If curType and rawAttr are well formed,
-/// this routine will return a new vector type.
-static void HandleVectorSizeAttr(Decl *D, const AttributeList &Attr, Sema &S) {
-  QualType CurType;
-  if (ValueDecl *VD = dyn_cast<ValueDecl>(D))
-    CurType = VD->getType();
-  else if (TypedefDecl *TD = dyn_cast<TypedefDecl>(D))
-    CurType = TD->getUnderlyingType();
-  else {
-    S.Diag(D->getLocation(), diag::err_attr_wrong_decl)
-      << "vector_size" << SourceRange(Attr.getLoc(), Attr.getLoc());
-    return;
-  }
-
-  // Check the attribute arugments.
-  if (Attr.getNumArgs() != 1) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 1;
-    return;
-  }
-  Expr *sizeExpr = static_cast<Expr *>(Attr.getArg(0));
-  llvm::APSInt vecSize(32);
-  if (!sizeExpr->isIntegerConstantExpr(vecSize, S.Context)) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_argument_not_int)
-      << "vector_size" << sizeExpr->getSourceRange();
-    return;
-  }
-  // navigate to the base type - we need to provide for vector pointers, vector
-  // arrays, and functions returning vectors.
-  if (CurType->isPointerType() || CurType->isArrayType() ||
-      CurType->isFunctionType()) {
-    S.Diag(Attr.getLoc(), diag::err_unsupported_vector_size) << CurType;
-    return;
-    /* FIXME: rebuild the type from the inside out, vectorizing the inner type.
-     do {
-     if (PointerType *PT = dyn_cast<PointerType>(canonType))
-     canonType = PT->getPointeeType().getTypePtr();
-     else if (ArrayType *AT = dyn_cast<ArrayType>(canonType))
-     canonType = AT->getElementType().getTypePtr();
-     else if (FunctionType *FT = dyn_cast<FunctionType>(canonType))
-     canonType = FT->getResultType().getTypePtr();
-     } while (canonType->isPointerType() || canonType->isArrayType() ||
-     canonType->isFunctionType());
-     */
-  }
-  // the base type must be integer or float, and can't already be a vector.
-  if (CurType->isVectorType() ||
-      (!CurType->isIntegerType() && !CurType->isRealFloatingType())) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_invalid_vector_type) << CurType;
-    return;
-  }
-  unsigned typeSize = static_cast<unsigned>(S.Context.getTypeSize(CurType));
-  // vecSize is specified in bytes - convert to bits.
-  unsigned vectorSize = static_cast<unsigned>(vecSize.getZExtValue() * 8);
-
-  // the vector size needs to be an integral multiple of the type size.
-  if (vectorSize % typeSize) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_invalid_size)
-      << sizeExpr->getSourceRange();
-    return;
-  }
-  if (vectorSize == 0) {
-    S.Diag(Attr.getLoc(), diag::err_attribute_zero_size)
-      << sizeExpr->getSourceRange();
-    return;
-  }
-
-  // Success! Instantiate the vector type, the number of elements is > 0, and
-  // not required to be a power of 2, unlike GCC.
-  CurType = S.Context.getVectorType(CurType, vectorSize/typeSize);
-
-  if (ValueDecl *VD = dyn_cast<ValueDecl>(D))
-    VD->setType(CurType);
-  else {
-    // FIXME: preserve existing source info.
-    DeclaratorInfo *DInfo = S.Context.getTrivialDeclaratorInfo(CurType);
-    cast<TypedefDecl>(D)->setTypeDeclaratorInfo(DInfo);
   }
 }
 
@@ -461,7 +376,8 @@ static bool HandleCommonNoReturnAttr(Decl *d, const AttributeList &Attr,
 
   if (!isFunctionOrMethod(d) && !isa<BlockDecl>(d)) {
     ValueDecl *VD = dyn_cast<ValueDecl>(d);
-    if (VD == 0 || !VD->getType()->isBlockPointerType()) {
+    if (VD == 0 || (!VD->getType()->isBlockPointerType()
+                    && !VD->getType()->isFunctionPointerType())) {
       S.Diag(Attr.getLoc(),
              Attr.isCXX0XAttribute() ? diag::err_attribute_wrong_decl_type
                                      : diag::warn_attribute_wrong_decl_type)
@@ -1143,10 +1059,6 @@ static void HandlePureAttr(Decl *d, const AttributeList &Attr, Sema &S) {
 }
 
 static void HandleCleanupAttr(Decl *d, const AttributeList &Attr, Sema &S) {
-  // Match gcc which ignores cleanup attrs when compiling C++.
-  if (S.getLangOptions().CPlusPlus)
-    return;
-
   if (!Attr.getParameterName()) {
     S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments) << 1;
     return;
@@ -1709,7 +1621,7 @@ static void HandleModeAttr(Decl *D, const AttributeList &Attr, Sema &S) {
   // Install the new type.
   if (TypedefDecl *TD = dyn_cast<TypedefDecl>(D)) {
     // FIXME: preserve existing source info.
-    TD->setTypeDeclaratorInfo(S.Context.getTrivialDeclaratorInfo(NewTy));
+    TD->setTypeSourceInfo(S.Context.getTrivialTypeSourceInfo(NewTy));
   } else
     cast<ValueDecl>(D)->setType(NewTy);
 }
@@ -1964,6 +1876,7 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_IBOutlet:    HandleIBOutletAttr  (D, Attr, S); break;
   case AttributeList::AT_address_space:
   case AttributeList::AT_objc_gc:
+  case AttributeList::AT_vector_size:
     // Ignore these, these are type attributes, handled by
     // ProcessTypeAttributes.
     break;
@@ -2013,7 +1926,6 @@ static void ProcessDeclAttribute(Scope *scope, Decl *D,
   case AttributeList::AT_unavailable: HandleUnavailableAttr (D, Attr, S); break;
   case AttributeList::AT_unused:      HandleUnusedAttr      (D, Attr, S); break;
   case AttributeList::AT_used:        HandleUsedAttr        (D, Attr, S); break;
-  case AttributeList::AT_vector_size: HandleVectorSizeAttr  (D, Attr, S); break;
   case AttributeList::AT_visibility:  HandleVisibilityAttr  (D, Attr, S); break;
   case AttributeList::AT_warn_unused_result: HandleWarnUnusedResult(D,Attr,S);
     break;
@@ -2062,11 +1974,11 @@ NamedDecl * Sema::DeclClonePragmaWeak(NamedDecl *ND, IdentifierInfo *II) {
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(ND)) {
     NewD = FunctionDecl::Create(FD->getASTContext(), FD->getDeclContext(),
                                 FD->getLocation(), DeclarationName(II),
-                                FD->getType(), FD->getDeclaratorInfo());
+                                FD->getType(), FD->getTypeSourceInfo());
   } else if (VarDecl *VD = dyn_cast<VarDecl>(ND)) {
     NewD = VarDecl::Create(VD->getASTContext(), VD->getDeclContext(),
                            VD->getLocation(), II,
-                           VD->getType(), VD->getDeclaratorInfo(),
+                           VD->getType(), VD->getTypeSourceInfo(),
                            VD->getStorageClass());
   }
   return NewD;

@@ -35,7 +35,9 @@ namespace clang {
     TypeAlignmentInBits = 3,
     TypeAlignment = 1 << TypeAlignmentInBits
   };
-  class Type; class ExtQuals;
+  class Type;
+  class ExtQuals;
+  class QualType;
 }
 
 namespace llvm {
@@ -59,6 +61,9 @@ namespace llvm {
     }
     enum { NumLowBitsAvailable = clang::TypeAlignmentInBits };
   };
+
+  template <>
+  struct isPodLike<clang::QualType> { static const bool value = true; };
 }
 
 namespace clang {
@@ -76,6 +81,7 @@ namespace clang {
   class ObjCInterfaceDecl;
   class ObjCProtocolDecl;
   class ObjCMethodDecl;
+  class UnresolvedUsingTypenameDecl;
   class Expr;
   class Stmt;
   class SourceLocation;
@@ -791,6 +797,10 @@ public:
   /// isPODType - Return true if this is a plain-old-data type (C++ 3.9p10).
   bool isPODType() const;
 
+  /// isLiteralType - Return true if this is a literal type
+  /// (C++0x [basic.types]p10)
+  bool isLiteralType() const;
+
   /// isVariablyModifiedType (C99 6.7.5.2p2) - Return true for variable array
   /// types that have a non-constant expression. This does not include "[]".
   bool isVariablyModifiedType() const;
@@ -808,8 +818,9 @@ public:
   bool isBooleanType() const;
   bool isCharType() const;
   bool isWideCharType() const;
+  bool isAnyCharacterType() const;
   bool isIntegralType() const;
-
+  
   /// Floating point categories.
   bool isRealFloatingType() const; // C99 6.2.5p10 (float, double, long double)
   /// isComplexType() does *not* include complex integers (a GCC extension).
@@ -1856,6 +1867,38 @@ public:
                       bool hasExceptionSpec, bool anyExceptionSpec,
                       unsigned NumExceptions, exception_iterator Exs,
                       bool NoReturn);
+};
+
+
+/// \brief Represents the dependent type named by a dependently-scoped
+/// typename using declaration, e.g.
+///   using typename Base<T>::foo;
+/// Template instantiation turns these into the underlying type.
+class UnresolvedUsingType : public Type {
+  UnresolvedUsingTypenameDecl *Decl;
+
+  UnresolvedUsingType(UnresolvedUsingTypenameDecl *D)
+    : Type(UnresolvedUsing, QualType(), true), Decl(D) {}
+  friend class ASTContext; // ASTContext creates these.
+public:
+
+  UnresolvedUsingTypenameDecl *getDecl() const { return Decl; }
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == UnresolvedUsing;
+  }
+  static bool classof(const UnresolvedUsingType *) { return true; }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    return Profile(ID, Decl);
+  }
+  static void Profile(llvm::FoldingSetNodeID &ID,
+                      UnresolvedUsingTypenameDecl *D) {
+    ID.AddPointer(D);
+  }
 };
 
 

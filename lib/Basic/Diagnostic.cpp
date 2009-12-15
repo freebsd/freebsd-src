@@ -163,7 +163,7 @@ namespace clang {
         return DiagInfo[DiagID-DIAG_UPPER_LIMIT].first;
       }
 
-      unsigned getOrCreateDiagID(Diagnostic::Level L, const char *Message,
+      unsigned getOrCreateDiagID(Diagnostic::Level L, llvm::StringRef Message,
                                  Diagnostic &Diags) {
         DiagDesc D(L, Message);
         // Check to see if it already exists.
@@ -210,7 +210,7 @@ Diagnostic::Diagnostic(DiagnosticClient *client) : Client(client) {
   ErrorOccurred = false;
   FatalErrorOccurred = false;
   NumDiagnostics = 0;
-
+  
   NumErrors = 0;
   CustomDiagInfo = 0;
   CurDiagID = ~0U;
@@ -246,7 +246,7 @@ bool Diagnostic::popMappings() {
 /// getCustomDiagID - Return an ID for a diagnostic with the specified message
 /// and level.  If this is the first request for this diagnosic, it is
 /// registered and created, otherwise the existing ID is returned.
-unsigned Diagnostic::getCustomDiagID(Level L, const char *Message) {
+unsigned Diagnostic::getCustomDiagID(Level L, llvm::StringRef Message) {
   if (CustomDiagInfo == 0)
     CustomDiagInfo = new diag::CustomDiagInfo();
   return CustomDiagInfo->getOrCreateDiagID(L, Message, *this);

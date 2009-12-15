@@ -530,7 +530,8 @@ public:
   /// \brief Retrieve the name of the original source file name
   /// directly from the PCH file, without actually loading the PCH
   /// file.
-  static std::string getOriginalSourceFile(const std::string &PCHFileName);
+  static std::string getOriginalSourceFile(const std::string &PCHFileName,
+                                           Diagnostic &Diags);
 
   /// \brief Returns the suggested contents of the predefines buffer,
   /// which contains a (typically-empty) subset of the predefines
@@ -552,7 +553,7 @@ public:
                              const RecordData &Record, unsigned &Idx);
 
   /// \brief Reads a declarator info from the given record.
-  virtual DeclaratorInfo *GetDeclaratorInfo(const RecordData &Record,
+  virtual TypeSourceInfo *GetTypeSourceInfo(const RecordData &Record,
                                             unsigned &Idx);
 
   /// \brief Resolve a type ID into a type, potentially building a new
@@ -624,6 +625,9 @@ public:
   /// being used to perform semantic analysis on the abstract syntax
   /// tree.
   virtual void InitializeSema(Sema &S);
+
+  /// \brief Inform the semantic consumer that Sema is no longer available.
+  virtual void ForgetSema() { SemaObj = 0; }
 
   /// \brief Retrieve the IdentifierInfo for the named identifier.
   ///

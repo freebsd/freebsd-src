@@ -222,7 +222,7 @@ public:
   void setDiagnostics(Diagnostic *Value);
 
   DiagnosticClient &getDiagnosticClient() const {
-    assert(Target && "Compiler instance has no diagnostic client!");
+    assert(DiagClient && "Compiler instance has no diagnostic client!");
     return *DiagClient;
   }
 
@@ -419,8 +419,12 @@ public:
   /// logging information.
   ///
   /// Note that this creates an unowned DiagnosticClient, if using directly the
-  /// caller is responsible for releaseing the returned Diagnostic's client
+  /// caller is responsible for releasing the returned Diagnostic's client
   /// eventually.
+  ///
+  /// \param Opts - The diagnostic options; note that the created text
+  /// diagnostic object contains a reference to these options and its lifetime
+  /// must extend past that of the diagnostic engine.
   ///
   /// \return The new object on success, or null on failure.
   static Diagnostic *createDiagnostics(const DiagnosticOptions &Opts,
@@ -482,12 +486,16 @@ public:
 
   /// Create the default output file (from the invocation's options) and add it
   /// to the list of tracked output files.
+  ///
+  /// \return - Null on error.
   llvm::raw_fd_ostream *
   createDefaultOutputFile(bool Binary = true, llvm::StringRef BaseInput = "",
                           llvm::StringRef Extension = "");
 
   /// Create a new output file and add it to the list of tracked output files,
   /// optionally deriving the output path name.
+  ///
+  /// \return - Null on error.
   llvm::raw_fd_ostream *
   createOutputFile(llvm::StringRef OutputPath, bool Binary = true,
                    llvm::StringRef BaseInput = "",

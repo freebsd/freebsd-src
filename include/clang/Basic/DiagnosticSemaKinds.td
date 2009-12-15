@@ -105,7 +105,11 @@ def err_using_typename_non_type : Error<
   "'typename' keyword used on a non-type">;
 def err_using_dependent_value_is_type : Error<
   "dependent using declaration resolved to type without 'typename'">;
-def err_using_decl_nested_name_specifier_is_not_a_base_class : Error<
+def err_using_decl_nested_name_specifier_is_not_class : Error<
+  "using declaration in class refers into '%0', which is not a class">;
+def err_using_decl_nested_name_specifier_is_current_class : Error<
+  "using declaration refers to its own class">;
+def err_using_decl_nested_name_specifier_is_not_base_class : Error<
   "using declaration refers into '%0', which is not a base class of %1">;
 def err_using_decl_can_not_refer_to_class_member : Error<
   "using declaration can not refer to class member">;
@@ -117,8 +121,17 @@ def err_using_decl_destructor : Error<
   "using declaration can not refer to a destructor">;
 def err_using_decl_template_id : Error<
   "using declaration can not refer to a template specialization">;
-def note_using_decl_target : Note<
-  "target of using declaration">;
+def note_using_decl_target : Note<"target of using declaration">;
+def note_using_decl_conflict : Note<"conflicting declaration">;
+def err_using_decl_redeclaration : Error<"redeclaration of using decl">;
+def err_using_decl_conflict : Error<
+  "target of using declaration conflicts with declaration already in scope">;
+def err_using_decl_conflict_reverse : Error<
+  "declaration conflicts with target of using declaration already in scope">;
+def note_using_decl : Note<"%select{|previous }0using declaration">;
+
+def warn_access_decl_deprecated : Warning<
+  "access declarations are deprecated; use using declarations instead">;
 
 def err_invalid_thread : Error<
   "'__thread' is only allowed on variable declarations">;
@@ -186,7 +199,6 @@ def warn_pragma_pack_invalid_alignment : Warning<
   "expected #pragma pack parameter to be '1', '2', '4', '8', or '16'">;
 // Follow the MSVC implementation.
 def warn_pragma_pack_show : Warning<"value of #pragma pack(show) == %0">;
-// FIXME: Dehardcode.
 def warn_pragma_pack_pop_identifer_and_alignment : Warning<
   "specifying both a name and alignment to 'pop' is undefined">;
 def warn_pragma_pack_pop_failed : Warning<"#pragma pack(pop, ...) failed: %0">;
@@ -441,7 +453,8 @@ def err_implicit_object_parameter_init : Error<
   "of type %1">;
 
 def note_field_decl : Note<"member is declared here">;
-def note_previous_class_decl : Note<
+def note_bitfield_decl : Note<"bit-field is declared here">;
+def note_previous_decl : Note<
   "%0 declared here">;
 def note_member_synthesized_at : Note<
   "implicit default %select{constructor|copy constructor|"
@@ -521,14 +534,35 @@ def err_lvalue_to_rvalue_ambig_ref : Error<"rvalue reference cannot bind to lval
 def err_not_reference_to_const_init : Error<
   "non-const lvalue reference to type %0 cannot be initialized "
   "with a %1 of type %2">;
+def err_lvalue_reference_bind_to_temporary : Error<
+  "non-const lvalue reference to type %0 cannot bind to a temporary of type "
+  "%1">;
+def err_lvalue_reference_bind_to_unrelated : Error<
+  "non-const lvalue reference to type %0 cannot bind to a value of unrelated "
+  "type %1">;
+def err_reference_bind_drops_quals : Error<
+  "binding of reference to type %0 to a value of type %1 drops qualifiers">;
+def err_reference_bind_failed : Error<
+  "reference to type %0 could not bind to an %select{rvalue|lvalue}1 of type "
+  "%2">;
+def err_reference_bind_init_list : Error<
+  "reference to type %0 cannot bind to an initializer list">;
+def err_init_list_bad_dest_type : Error<
+  "%select{|non-aggregate }0type %1 cannot be initialized with an initializer "
+  "list">;
+
 // FIXME: passing in an English string as %1!
 def err_reference_init_drops_quals : Error<
   "initialization of reference to type %0 with a %1 of type %2 drops "
   "qualifiers">;
+def err_reference_bind_to_bitfield : Error<
+  "%select{non-const|volatile}0 reference cannot bind to bit-field %1">;
 def err_reference_var_requires_init : Error<
   "declaration of reference variable %0 requires an initializer">;
 def err_const_var_requires_init : Error<
   "declaration of const variable '%0' requires an initializer">;
+def err_reference_has_multiple_inits : Error<
+  "reference cannot be initialized with multiple values">;
 def err_init_non_aggr_init_list : Error<
   "initialization of non-aggregate type %0 with an initializer list">;
 def err_init_reference_member_uninitialized : Error<
@@ -934,6 +968,11 @@ def err_template_variable_noparams : Error<
   "extraneous 'template<>' in declaration of variable %0">;
 def err_template_tag_noparams : Error<
   "extraneous 'template<>' in declaration of %0 %1">;
+def err_template_decl_ref : Error<
+  "cannot refer to class template %0 without a template argument list">;
+
+def err_typedef_in_def_scope : Error<
+  "cannot use typedef %0 in scope specifier for out-of-line declaration">;
 
 // C++ Template Argument Lists
 def err_template_arg_list_different_arity : Error<
@@ -1261,7 +1300,10 @@ def warn_missing_prototype : Warning<
   "no previous prototype for function %0">,
   InGroup<DiagGroup<"missing-prototypes">>, DefaultIgnore;
 def err_redefinition : Error<"redefinition of %0">;
-
+def err_definition_of_implicitly_declared_member : Error<
+  "definition of implicitly declared %select{constructor|copy constructor|"
+  "copy assignment operator|destructor}1">;
+  
 def warn_redefinition_of_typedef : Warning<
   "redefinition of typedef %0 is invalid in C">,
   InGroup<DiagGroup<"typedef-redefinition"> >, DefaultError;
@@ -1515,6 +1557,8 @@ def err_typecheck_member_reference_ivar : Error<
   "%0 does not have a member named %1">;
 def err_typecheck_member_reference_arrow : Error<
   "member reference type %0 is not a pointer">;
+def err_typecheck_member_reference_suggestion : Error<
+  "member reference type %0 is %select{a|not a}1 pointer; maybe you meant to use '%select{->|.}1'?">;
 def err_typecheck_member_reference_type : Error<
   "cannot refer to type member %0 with '%select{.|->}1'">;
 def err_typecheck_member_reference_unknown : Error<
@@ -1564,6 +1608,9 @@ def warn_tentative_incomplete_array : Warning<
 def err_typecheck_incomplete_array_needs_initializer : Error<
   "definition of variable with array type needs an explicit size "
   "or an initializer">;
+def err_array_init_not_init_list : Error<
+  "array initializater must be an initializer "
+  "list%select{| or string literal}0">;
 
 def err_realimag_invalid_type : Error<"invalid type %0 to %1 operator">;
 def err_typecheck_sclass_fscope : Error<
@@ -1649,6 +1696,7 @@ def warn_printf_nonliteral : Warning<
 
 def err_unexpected_interface : Error<
   "unexpected interface name %0: expected expression">;
+def err_ref_non_value : Error<"%0 does not refer to a value">;
 def err_property_not_found : Error<
   "property %0 not found on object of type %1">;
 def ext_gnu_void_ptr : Extension<
@@ -1849,7 +1897,10 @@ def err_typecheck_bool_condition : Error<
 def err_typecheck_ambiguous_condition : Error<
   "conversion from %0 to %1 is ambiguous">;
 def err_typecheck_nonviable_condition : Error<
-  "no viable conversion from %0 to %1 is possible">;
+  "no viable conversion from %0 to %1">;
+def err_typecheck_deleted_function : Error<
+  "conversion function from %0 to %1 invokes a deleted function">;
+  
 def err_expected_class_or_namespace : Error<"expected a class or namespace">;
 def err_invalid_declarator_scope : Error<
   "definition or redeclaration of %0 not in a namespace enclosing %1">;
@@ -1963,7 +2014,8 @@ def err_cannot_pass_objc_interface_to_vararg : Error<
 
 def warn_cannot_pass_non_pod_arg_to_vararg : Warning<
   "cannot pass object of non-POD type %0 through variadic "
-  "%select{function|block|method|constructor}1; call will abort at runtime">;
+  "%select{function|block|method|constructor}1; call will abort at runtime">,
+  InGroup<DiagGroup<"non-pod-varargs">>, DefaultError;
 
 def err_typecheck_call_invalid_ordered_compare : Error<
   "ordered compare requires two args of floating point type (%0 and %1)">;
@@ -2046,12 +2098,6 @@ def err_overload_expr_requires_non_zero_constant : Error<
   "overload requires a non-zero constant expression as first argument">;
 def err_overload_incorrect_fntype : Error<
   "argument is not a function, or has wrong number of parameters">;
-
-// FIXME: PASSING TYPES AS STRING.
-def err_overload_no_match : Error<
-  "no matching overload found for arguments of type '%0'">;
-def err_overload_multiple_match : Error<
-  "more than one matching function found in __builtin_overload">;
 
 // C++ member initializers.
 def err_only_constructors_take_base_inits : Error<
@@ -2176,10 +2222,6 @@ def err_operator_overload_needs_class_or_enum : Error<
 def err_operator_overload_variadic : Error<"overloaded %0 cannot be variadic">;
 def err_operator_overload_static : Error<
   "overloaded %0 cannot be a static member function">;
-def err_operator_new_param_type : Error<
-  "%0 takes type size_t (%1) as first parameter">;
-def err_operator_new_result_type : Error<
-  "%0 must return type %1">;
 def err_operator_overload_default_arg : Error<
   "parameter of overloaded %0 cannot have a default argument">;
 def err_operator_overload_must_be : Error<
@@ -2192,6 +2234,31 @@ def err_operator_overload_post_incdec_must_be_int : Error<
   "parameter of overloaded post-%select{increment|decrement}1 operator must "
   "have type 'int' (not %0)">;
 
+// C++ allocation and deallocation functions.
+def err_operator_new_delete_declared_in_namespace : Error<
+  "%0 cannot be declared inside a namespace">;
+def err_operator_new_delete_declared_static : Error<
+  "%0 cannot be declared static in global scope">;
+def err_operator_new_delete_invalid_result_type : Error<
+  "%0 must return type %1">;
+def err_operator_new_delete_dependent_result_type : Error<
+  "%0 cannot have a dependent return type; use %1 instead">;
+def err_operator_new_delete_too_few_parameters : Error<
+  "%0 must have at least one parameter.">;
+def err_operator_new_delete_template_too_few_parameters : Error<
+  "%0 template must have at least two parameters.">;
+
+def err_operator_new_dependent_param_type : Error<
+  "%0 cannot take a dependent type as first parameter; "
+  "use size_t (%1) instead">;
+def err_operator_new_param_type : Error<
+  "%0 takes type size_t (%1) as first parameter">;
+def err_operator_new_default_arg: Error<
+  "parameter of %0 cannot have a default argument">;
+def err_operator_delete_dependent_param_type : Error<
+  "%0 cannot take a dependent type as first parameter; use %1 instead">;
+def err_operator_delete_param_type : Error<
+  "%0 takes type %1 as first parameter">;
 
 // C++ conversion functions
 def err_conv_function_not_member : Error<
@@ -2371,7 +2438,9 @@ def err_altivec_empty_initializer : Error<"expected initializer">;
 def err_stack_const_level : Error<
   "level argument for a stack address builtin must be constant">;
 
-def err_prefetch_invalid_argument : Error<
+def err_prefetch_invalid_arg_type : Error<
+  "argument to __builtin_prefetch must be of integer type">;
+def err_prefetch_invalid_arg_ice : Error<
   "argument to __builtin_prefetch must be a constant integer">;
 def err_argument_invalid_range : Error<
   "argument should be a value from %0 to %1">;

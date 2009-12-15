@@ -15,13 +15,8 @@
 using namespace clang;
 using namespace CodeGen;
 
-static uint64_t CalculateCookiePadding(ASTContext &Ctx, const CXXNewExpr *E) {
-  if (!E->isArray())
-    return 0;
-  
-  QualType T = E->getAllocatedType();
-  
-  const RecordType *RT = T->getAs<RecordType>();
+static uint64_t CalculateCookiePadding(ASTContext &Ctx, QualType ElementType) {
+  const RecordType *RT = ElementType->getAs<RecordType>();
   if (!RT)
     return 0;
   
@@ -31,13 +26,59 @@ static uint64_t CalculateCookiePadding(ASTContext &Ctx, const CXXNewExpr *E) {
   
   // Check if the class has a trivial destructor.
   if (RD->hasTrivialDestructor()) {
-    // FIXME: Check for a two-argument delete.
-    return 0;
-  }
+    // Check if the usual deallocation function takes two arguments.
+    const CXXMethodDecl *UsualDeallocationFunction = 0;
+    
+    DeclarationName OpName =
+      Ctx.DeclarationNames.getCXXOperatorName(OO_Array_Delete);
+    DeclContext::lookup_const_iterator Op, OpEnd;
+    for (llvm::tie(Op, OpEnd) = RD->lookup(OpName);
+         Op != OpEnd; ++Op) {
+      const CXXMethodDecl *Delete = cast<CXXMethodDecl>(*Op);
+
+      if (Delete->isUsualDeallocationFunction()) {
+        UsualDeallocationFunction = Delete;
+        break;
+      }
+    }
+    
+    // No usual deallocation function, we don't need a cookie.
+    if (!UsualDeallocationFunction)
+      return 0;
+    
+    // The usual deallocation function doesn't take a size_t argument, so we
+    // don't need a cookie.
+    if (UsualDeallocationFunction->getNumParams() == 1)
+      return 0;
+        
+    assert(UsualDeallocationFunction->getNumParams() == 2 && 
+           "Unexpected deallocation function type!");
+  }  
   
-  // Padding is the maximum of sizeof(size_t) and alignof(T)
+  // Padding is the maximum of sizeof(size_t) and alignof(ElementType)
   return std::max(Ctx.getTypeSize(Ctx.getSizeType()),
-                  static_cast<uint64_t>(Ctx.getTypeAlign(T))) / 8;
+                  static_cast<uint64_t>(Ctx.getTypeAlign(ElementType))) / 8;
+}
+
+static uint64_t CalculateCookiePadding(ASTContext &Ctx, const CXXNewExpr *E) {
+  if (!E->isArray())
+    return 0;
+
+  // No cookie is required if the new operator being used is 
+  // ::operator new[](size_t, void*).
+  const FunctionDecl *OperatorNew = E->getOperatorNew();
+  if (OperatorNew->getDeclContext()->getLookupContext()->isFileContext()) {
+    if (OperatorNew->getNumParams() == 2) {
+      CanQualType ParamType = 
+        Ctx.getCanonicalType(OperatorNew->getParamDecl(1)->getType());
+      
+      if (ParamType == Ctx.VoidPtrTy)
+        return 0;
+    }
+  }
+      
+  return CalculateCookiePadding(Ctx, E->getAllocatedType());
+  QualType T = E->getAllocatedType();
 }
 
 static llvm::Value *EmitCXXNewAllocSize(CodeGenFunction &CGF, 
@@ -237,6 +278,39 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
   return NewPtr;
 }
 
+static std::pair<llvm::Value *, llvm::Value *>
+GetAllocatedObjectPtrAndNumElements(CodeGenFunction &CGF,
+                                    llvm::Value *Ptr, QualType DeleteTy) {
+  QualType SizeTy = CGF.getContext().getSizeType();
+  const llvm::Type *SizeLTy = CGF.ConvertType(SizeTy);
+  
+  uint64_t DeleteTypeAlign = CGF.getContext().getTypeAlign(DeleteTy);
+  uint64_t CookiePadding = std::max(CGF.getContext().getTypeSize(SizeTy),
+                                    DeleteTypeAlign) / 8;
+  assert(CookiePadding && "CookiePadding should not be 0.");
+
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
+  uint64_t CookieOffset = 
+    CookiePadding - CGF.getContext().getTypeSize(SizeTy) / 8;
+
+  llvm::Value *AllocatedObjectPtr = CGF.Builder.CreateBitCast(Ptr, Int8PtrTy);
+  AllocatedObjectPtr = 
+    CGF.Builder.CreateConstInBoundsGEP1_64(AllocatedObjectPtr,
+                                           -CookiePadding);
+
+  llvm::Value *NumElementsPtr =
+    CGF.Builder.CreateConstInBoundsGEP1_64(AllocatedObjectPtr, 
+                                           CookieOffset);
+  NumElementsPtr = 
+    CGF.Builder.CreateBitCast(NumElementsPtr, SizeLTy->getPointerTo());
+  
+  llvm::Value *NumElements = CGF.Builder.CreateLoad(NumElementsPtr);
+  NumElements = 
+    CGF.Builder.CreateIntCast(NumElements, SizeLTy, /*isSigned=*/false);
+  
+  return std::make_pair(AllocatedObjectPtr, NumElements);
+}
+
 void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
                                      llvm::Value *Ptr,
                                      QualType DeleteTy) {
@@ -245,17 +319,37 @@ void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
 
   CallArgList DeleteArgs;
 
+  // Check if we need to pass the size to the delete operator.
+  llvm::Value *Size = 0;
+  QualType SizeTy;
+  if (DeleteFTy->getNumArgs() == 2) {
+    SizeTy = DeleteFTy->getArgType(1);
+    uint64_t DeleteTypeSize = getContext().getTypeSize(DeleteTy) / 8;
+    Size = llvm::ConstantInt::get(ConvertType(SizeTy), DeleteTypeSize);
+  }
+  
+  if (DeleteFD->getOverloadedOperator() == OO_Array_Delete &&
+      
+      CalculateCookiePadding(getContext(), DeleteTy)) {
+    // We need to get the number of elements in the array from the cookie.
+    llvm::Value *AllocatedObjectPtr;
+    llvm::Value *NumElements;
+    llvm::tie(AllocatedObjectPtr, NumElements) =
+      GetAllocatedObjectPtrAndNumElements(*this, Ptr, DeleteTy);
+    
+    // Multiply the size with the number of elements.
+    if (Size)
+      Size = Builder.CreateMul(NumElements, Size);
+    
+    Ptr = AllocatedObjectPtr;
+  }
+  
   QualType ArgTy = DeleteFTy->getArgType(0);
   llvm::Value *DeletePtr = Builder.CreateBitCast(Ptr, ConvertType(ArgTy));
   DeleteArgs.push_back(std::make_pair(RValue::get(DeletePtr), ArgTy));
 
-  if (DeleteFTy->getNumArgs() == 2) {
-    QualType SizeTy = DeleteFTy->getArgType(1);
-    uint64_t SizeVal = getContext().getTypeSize(DeleteTy) / 8;
-    llvm::Constant *Size = llvm::ConstantInt::get(ConvertType(SizeTy),
-                                                  SizeVal);
+  if (Size)
     DeleteArgs.push_back(std::make_pair(RValue::get(Size), SizeTy));
-  }
 
   // Emit the call to delete.
   EmitCall(CGM.getTypes().getFunctionInfo(DeleteFTy->getResultType(),
@@ -300,34 +394,13 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
       if (!RD->hasTrivialDestructor()) {
         const CXXDestructorDecl *Dtor = RD->getDestructor(getContext());
         if (E->isArrayForm()) {
-          QualType SizeTy = getContext().getSizeType();
-          uint64_t CookiePadding = std::max(getContext().getTypeSize(SizeTy),
-                static_cast<uint64_t>(getContext().getTypeAlign(DeleteTy))) / 8;
-          if (CookiePadding) {
-            llvm::Type *Ptr8Ty = 
-              llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext), 0);
-            uint64_t CookieOffset =
-              CookiePadding - getContext().getTypeSize(SizeTy) / 8;
-            llvm::Value *AllocatedObjectPtr = 
-              Builder.CreateConstInBoundsGEP1_64(
-                            Builder.CreateBitCast(Ptr, Ptr8Ty), -CookiePadding);
-            llvm::Value *NumElementsPtr =
-              Builder.CreateConstInBoundsGEP1_64(AllocatedObjectPtr, 
-                                                 CookieOffset);
-            NumElementsPtr = Builder.CreateBitCast(NumElementsPtr,
-                                          ConvertType(SizeTy)->getPointerTo());
-            
-            llvm::Value *NumElements = 
-              Builder.CreateLoad(NumElementsPtr);
-            NumElements = 
-              Builder.CreateIntCast(NumElements, 
-                                    llvm::Type::getInt64Ty(VMContext), false, 
-                                    "count.tmp");
-            EmitCXXAggrDestructorCall(Dtor, NumElements, Ptr);
-            Ptr = AllocatedObjectPtr;
-          }
-        }
-        else if (Dtor->isVirtual()) {
+          llvm::Value *AllocatedObjectPtr;
+          llvm::Value *NumElements;
+          llvm::tie(AllocatedObjectPtr, NumElements) =
+            GetAllocatedObjectPtrAndNumElements(*this, Ptr, DeleteTy);
+          
+          EmitCXXAggrDestructorCall(Dtor, NumElements, Ptr);
+        } else if (Dtor->isVirtual()) {
           const llvm::Type *Ty =
             CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(Dtor),
                                            /*isVariadic=*/false);
@@ -352,18 +425,10 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
 llvm::Value * CodeGenFunction::EmitCXXTypeidExpr(const CXXTypeidExpr *E) {
   QualType Ty = E->getType();
   const llvm::Type *LTy = ConvertType(Ty)->getPointerTo();
-  if (E->isTypeOperand()) {
-    Ty = E->getTypeOperand();
-    CanQualType CanTy = CGM.getContext().getCanonicalType(Ty);
-    Ty = CanTy.getUnqualifiedType().getNonReferenceType();
-    if (const RecordType *RT = Ty->getAs<RecordType>()) {
-      const CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
-      if (RD->isPolymorphic())
-        return Builder.CreateBitCast(CGM.GenerateRttiRef(RD), LTy);
-      return Builder.CreateBitCast(CGM.GenerateRtti(RD), LTy);
-    }
-    return Builder.CreateBitCast(CGM.GenerateRtti(Ty), LTy);
-  }
+  
+  if (E->isTypeOperand())
+    return Builder.CreateBitCast(CGM.GetAddrOfRTTI(E->getTypeOperand()), LTy);
+
   Expr *subE = E->getExprOperand();
   Ty = subE->getType();
   CanQualType CanTy = CGM.getContext().getCanonicalType(Ty);
@@ -404,9 +469,9 @@ llvm::Value * CodeGenFunction::EmitCXXTypeidExpr(const CXXTypeidExpr *E) {
       V = Builder.CreateLoad(V);
       return V;
     }      
-    return Builder.CreateBitCast(CGM.GenerateRtti(RD), LTy);
+    return Builder.CreateBitCast(CGM.GenerateRTTI(RD), LTy);
   }
-  return Builder.CreateBitCast(CGM.GenerateRtti(Ty), LTy);
+  return Builder.CreateBitCast(CGM.GenerateRTTI(Ty), LTy);
 }
 
 llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
@@ -485,8 +550,8 @@ llvm::Value *CodeGenFunction::EmitDynamicCast(llvm::Value *V,
 
     // FIXME: Calculate better hint.
     llvm::Value *hint = llvm::ConstantInt::get(PtrDiffTy, -1ULL);
-    llvm::Value *SrcArg = CGM.GenerateRttiRef(SrcTy);
-    llvm::Value *DstArg = CGM.GenerateRttiRef(DstTy);
+    llvm::Value *SrcArg = CGM.GenerateRTTIRef(SrcTy);
+    llvm::Value *DstArg = CGM.GenerateRTTIRef(DstTy);
     V = Builder.CreateBitCast(V, PtrToInt8Ty);
     V = Builder.CreateCall4(CGM.CreateRuntimeFunction(FTy, "__dynamic_cast"),
                             V, SrcArg, DstArg, hint);

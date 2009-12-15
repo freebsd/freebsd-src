@@ -14,13 +14,13 @@ using namespace clang;
 using namespace clang::frontend;
 
 #define LANGSTANDARD(id, name, desc, features) \
-  static LangStandard Lang_##id = { name, desc, features };
+  static const LangStandard Lang_##id = { name, desc, features };
 #include "clang/Frontend/LangStandards.def"
 
 const LangStandard &LangStandard::getLangStandardForKind(Kind K) {
   switch (K) {
   default:
-    llvm::llvm_unreachable("Invalid language kind!");
+    llvm_unreachable("Invalid language kind!");
   case lang_unspecified:
     llvm::llvm_report_error("getLangStandardForKind() on unspecified kind");
 #define LANGSTANDARD(id, name, desc, features) \

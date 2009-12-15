@@ -91,7 +91,7 @@ public:
     IDNS_Ordinary = 0x8,
     IDNS_ObjCProtocol = 0x10,
     IDNS_ObjCImplementation = 0x20,
-    IDNS_ObjCCategoryImpl = 0x40,
+    IDNS_ObjCCategoryName = 0x40,
     IDNS_OrdinaryFriend = 0x80,
     IDNS_TagFriend = 0x100,
     IDNS_Using = 0x200
@@ -916,6 +916,9 @@ public:
   /// only happens with friends.
   void addHiddenDecl(Decl *D);
 
+  /// @brief Removes a declaration from this context.
+  void removeDecl(Decl *D);
+
   /// lookup_iterator - An iterator that provides access to the results
   /// of looking up a name within this context.
   typedef NamedDecl **lookup_iterator;
@@ -1002,6 +1005,8 @@ public:
 #define DECL_CONTEXT(Name) \
   static bool classof(const Name##Decl *D) { return true; }
 #include "clang/AST/DeclNodes.def"
+
+  void dumpDeclContext() const;
 
 private:
   void LoadLexicalDeclsFromExternalStorage() const;

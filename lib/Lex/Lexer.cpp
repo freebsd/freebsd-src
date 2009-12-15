@@ -33,7 +33,7 @@
 #include <cctype>
 using namespace clang;
 
-static void InitCharacterInfo();
+static void InitCharacterInfo(LangOptions);
 
 //===----------------------------------------------------------------------===//
 // Token Class Implementation
@@ -59,7 +59,7 @@ tok::ObjCKeywordKind Token::getObjCKeywordID() const {
 
 void Lexer::InitLexer(const char *BufStart, const char *BufPtr,
                       const char *BufEnd) {
-  InitCharacterInfo();
+  InitCharacterInfo(Features);
 
   BufferStart = BufStart;
   BufferPtr = BufPtr;
@@ -70,7 +70,7 @@ void Lexer::InitLexer(const char *BufStart, const char *BufPtr,
          " to simplify lexing!");
 
   Is_PragmaLexer = false;
-  IsEofCodeCompletion = false;
+  IsInConflictMarker = false;
   
   // Start of the file is a start of line.
   IsAtStartOfLine = true;
@@ -105,10 +105,6 @@ Lexer::Lexer(FileID FID, const llvm::MemoryBuffer *InputFile, Preprocessor &PP)
 
   // Default to keeping comments if the preprocessor wants them.
   SetCommentRetentionState(PP.getCommentRetentionState());
-      
-  // If the input file is truncated, the EOF is a code-completion token.
-  if (PP.getSourceManager().isTruncatedFile(FID))
-    IsEofCodeCompletion = true;
 }
 
 /// Lexer constructor - Create a new raw lexer object.  This object is only
@@ -258,7 +254,7 @@ enum {
 
 // Statically initialize CharInfo table based on ASCII character set
 // Reference: FreeBSD 7.2 /usr/share/misc/ascii
-static const unsigned char CharInfo[256] =
+static unsigned char CharInfo[256] =
 {
 // 0 NUL         1 SOH         2 STX         3 ETX
 // 4 EOT         5 ENQ         6 ACK         7 BEL
@@ -326,7 +322,7 @@ static const unsigned char CharInfo[256] =
    0           , 0           , 0           , 0
 };
 
-static void InitCharacterInfo() {
+static void InitCharacterInfo(LangOptions Features) {
   static bool isInited = false;
   if (isInited) return;
   // check the statically-initialized CharInfo table
@@ -344,6 +340,11 @@ static void InitCharacterInfo() {
   }
   for (unsigned i = '0'; i <= '9'; ++i)
     assert(CHAR_NUMBER == CharInfo[i]);
+    
+  if (Features.Microsoft)
+    // Hack to treat DOS & CP/M EOF (^Z) as horizontal whitespace.
+    CharInfo[26/*sub*/] = CHAR_HORZ_WS;  
+
   isInited = true;
 }
 
@@ -1326,24 +1327,16 @@ bool Lexer::LexEndOfFile(Token &Result, const char *CurPtr) {
   // Otherwise, check if we are code-completing, then issue diagnostics for 
   // unterminated #if and missing newline.
 
-  if (IsEofCodeCompletion) {
-    bool isIntendedFile = true;
-    if (PP && FileLoc.isFileID()) {
-      SourceManager &SM = PP->getSourceManager();
-      isIntendedFile = SM.isTruncatedFile(SM.getFileID(FileLoc));
-    }
+  if (PP && PP->isCodeCompletionFile(FileLoc)) {
+    // We're at the end of the file, but we've been asked to consider the
+    // end of the file to be a code-completion token. Return the
+    // code-completion token.
+    Result.startToken();
+    FormTokenWithChars(Result, CurPtr, tok::code_completion);
     
-    if (isIntendedFile) {
-      // We're at the end of the file, but we've been asked to consider the
-      // end of the file to be a code-completion token. Return the
-      // code-completion token.
-      Result.startToken();
-      FormTokenWithChars(Result, CurPtr, tok::code_completion);
-      
-      // Only do the eof -> code_completion translation once.
-      IsEofCodeCompletion = false;
-      return true;
-    }
+    // Only do the eof -> code_completion translation once.
+    PP->SetCodeCompletionPoint(0, 0, 0);
+    return true;
   }
   
   // If we are in a #if directive, emit an error.
@@ -1396,6 +1389,105 @@ unsigned Lexer::isNextPPTokenLParen() {
   if (Tok.is(tok::eof))
     return 2;
   return Tok.is(tok::l_paren);
+}
+
+/// FindConflictEnd - Find the end of a version control conflict marker.
+static const char *FindConflictEnd(const char *CurPtr, const char *BufferEnd) {
+  llvm::StringRef RestOfBuffer(CurPtr+7, BufferEnd-CurPtr-7);
+  size_t Pos = RestOfBuffer.find(">>>>>>>");
+  while (Pos != llvm::StringRef::npos) {
+    // Must occur at start of line.
+    if (RestOfBuffer[Pos-1] != '\r' &&
+        RestOfBuffer[Pos-1] != '\n') {
+      RestOfBuffer = RestOfBuffer.substr(Pos+7);
+      continue;
+    }
+    return RestOfBuffer.data()+Pos;
+  }
+  return 0;
+}
+
+/// IsStartOfConflictMarker - If the specified pointer is the start of a version
+/// control conflict marker like '<<<<<<<', recognize it as such, emit an error
+/// and recover nicely.  This returns true if it is a conflict marker and false
+/// if not.
+bool Lexer::IsStartOfConflictMarker(const char *CurPtr) {
+  // Only a conflict marker if it starts at the beginning of a line.
+  if (CurPtr != BufferStart &&
+      CurPtr[-1] != '\n' && CurPtr[-1] != '\r')
+    return false;
+  
+  // Check to see if we have <<<<<<<.
+  if (BufferEnd-CurPtr < 8 ||
+      llvm::StringRef(CurPtr, 7) != "<<<<<<<")
+    return false;
+
+  // If we have a situation where we don't care about conflict markers, ignore
+  // it.
+  if (IsInConflictMarker || isLexingRawMode())
+    return false;
+  
+  // Check to see if there is a >>>>>>> somewhere in the buffer at the start of
+  // a line to terminate this conflict marker.
+  if (FindConflictEnd(CurPtr+7, BufferEnd)) {
+    // We found a match.  We are really in a conflict marker.
+    // Diagnose this, and ignore to the end of line.
+    Diag(CurPtr, diag::err_conflict_marker);
+    IsInConflictMarker = true;
+    
+    // Skip ahead to the end of line.  We know this exists because the
+    // end-of-conflict marker starts with \r or \n.
+    while (*CurPtr != '\r' && *CurPtr != '\n') {
+      assert(CurPtr != BufferEnd && "Didn't find end of line");
+      ++CurPtr;
+    }
+    BufferPtr = CurPtr;
+    return true;
+  }
+  
+  // No end of conflict marker found.
+  return false;
+}
+
+
+/// HandleEndOfConflictMarker - If this is a '=======' or '|||||||' or '>>>>>>>'
+/// marker, then it is the end of a conflict marker.  Handle it by ignoring up
+/// until the end of the line.  This returns true if it is a conflict marker and
+/// false if not.
+bool Lexer::HandleEndOfConflictMarker(const char *CurPtr) {
+  // Only a conflict marker if it starts at the beginning of a line.
+  if (CurPtr != BufferStart &&
+      CurPtr[-1] != '\n' && CurPtr[-1] != '\r')
+    return false;
+  
+  // If we have a situation where we don't care about conflict markers, ignore
+  // it.
+  if (!IsInConflictMarker || isLexingRawMode())
+    return false;
+  
+  // Check to see if we have the marker (7 characters in a row).
+  for (unsigned i = 1; i != 7; ++i)
+    if (CurPtr[i] != CurPtr[0])
+      return false;
+  
+  // If we do have it, search for the end of the conflict marker.  This could
+  // fail if it got skipped with a '#if 0' or something.  Note that CurPtr might
+  // be the end of conflict marker.
+  if (const char *End = FindConflictEnd(CurPtr, BufferEnd)) {
+    CurPtr = End;
+    
+    // Skip ahead to the end of line.
+    while (CurPtr != BufferEnd && *CurPtr != '\r' && *CurPtr != '\n')
+      ++CurPtr;
+    
+    BufferPtr = CurPtr;
+    
+    // No longer in the conflict marker.
+    IsInConflictMarker = false;
+    return true;
+  }
+  
+  return false;
 }
 
 
@@ -1764,14 +1856,20 @@ LexNextToken:
     Char = getCharAndSize(CurPtr, SizeTmp);
     if (ParsingFilename) {
       return LexAngledStringLiteral(Result, CurPtr);
-    } else if (Char == '<' &&
-               getCharAndSize(CurPtr+SizeTmp, SizeTmp2) == '=') {
-      Kind = tok::lesslessequal;
-      CurPtr = ConsumeChar(ConsumeChar(CurPtr, SizeTmp, Result),
-                           SizeTmp2, Result);
     } else if (Char == '<') {
-      CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
-      Kind = tok::lessless;
+      char After = getCharAndSize(CurPtr+SizeTmp, SizeTmp2);
+      if (After == '=') {
+        Kind = tok::lesslessequal;
+        CurPtr = ConsumeChar(ConsumeChar(CurPtr, SizeTmp, Result),
+                             SizeTmp2, Result);
+      } else if (After == '<' && IsStartOfConflictMarker(CurPtr-1)) {
+        // If this is actually a '<<<<<<<' version control conflict marker,
+        // recognize it as such and recover nicely.
+        goto LexNextToken;
+      } else {
+        CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
+        Kind = tok::lessless;
+      }
     } else if (Char == '=') {
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
       Kind = tok::lessequal;
@@ -1790,14 +1888,20 @@ LexNextToken:
     if (Char == '=') {
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
       Kind = tok::greaterequal;
-    } else if (Char == '>' &&
-               getCharAndSize(CurPtr+SizeTmp, SizeTmp2) == '=') {
-      CurPtr = ConsumeChar(ConsumeChar(CurPtr, SizeTmp, Result),
-                           SizeTmp2, Result);
-      Kind = tok::greatergreaterequal;
     } else if (Char == '>') {
-      CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
-      Kind = tok::greatergreater;
+      char After = getCharAndSize(CurPtr+SizeTmp, SizeTmp2);
+      if (After == '=') {
+        CurPtr = ConsumeChar(ConsumeChar(CurPtr, SizeTmp, Result),
+                             SizeTmp2, Result);
+        Kind = tok::greatergreaterequal;
+      } else if (After == '>' && HandleEndOfConflictMarker(CurPtr-1)) {
+        // If this is '>>>>>>>' and we're in a conflict marker, ignore it.
+        goto LexNextToken;
+      } else {
+        CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
+        Kind = tok::greatergreater;
+      }
+      
     } else {
       Kind = tok::greater;
     }
@@ -1817,6 +1921,9 @@ LexNextToken:
       Kind = tok::pipeequal;
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
     } else if (Char == '|') {
+      // If this is '|||||||' and we're in a conflict marker, ignore it.
+      if (CurPtr[1] == '|' && HandleEndOfConflictMarker(CurPtr-1))
+        goto LexNextToken;
       Kind = tok::pipepipe;
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
     } else {
@@ -1841,6 +1948,10 @@ LexNextToken:
   case '=':
     Char = getCharAndSize(CurPtr, SizeTmp);
     if (Char == '=') {
+      // If this is '=======' and we're in a conflict marker, ignore it.
+      if (CurPtr[1] == '=' && HandleEndOfConflictMarker(CurPtr-1))
+        goto LexNextToken;
+      
       Kind = tok::equalequal;
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
     } else {

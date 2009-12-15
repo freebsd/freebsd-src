@@ -10,10 +10,10 @@ add_clang_library(clangAnalysis
   BasicValueFactory.cpp
   BugReporter.cpp
   BugReporterVisitors.cpp
+  BuiltinFunctionChecker.cpp
   CFG.cpp
   CFRefCount.cpp
   CallAndMessageChecker.cpp
-  CallGraph.cpp
   CallInliner.cpp
   CastToStructChecker.cpp
   CheckDeadStores.cpp
@@ -37,8 +37,10 @@ add_clang_library(clangAnalysis
   MallocChecker.cpp
   ManagerRegistry.cpp
   MemRegion.cpp
+  NoReturnFunctionChecker.cpp
   NSAutoreleasePoolChecker.cpp
   NSErrorChecker.cpp
+  OSAtomicChecker.cpp
   PathDiagnostic.cpp
   PointerArithChecker.cpp
   PointerSubChecker.cpp

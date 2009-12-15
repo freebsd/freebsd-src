@@ -13,17 +13,23 @@
 
 #include "clang/Frontend/Utils.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/PreprocessorOptions.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/System/Path.h"
 using namespace clang;
 
 // Append a #define line to Buf for Macro.  Macro should be of the form XXX,
 // in which case we emit "#define XXX 1" or "XXX=Y z W" in which case we emit
 // "#define XXX Y z W".  To get a #define with no value, use "XXX=".
-static void DefineBuiltinMacro(std::vector<char> &Buf, const char *Macro) {
+static void DefineBuiltinMacro(std::vector<char> &Buf, const char *Macro,
+                               Diagnostic *Diags = 0) {
   const char *Command = "#define ";
   Buf.insert(Buf.end(), Command, Command+strlen(Command));
   if (const char *Equal = strchr(Macro, '=')) {
@@ -34,9 +40,9 @@ static void DefineBuiltinMacro(std::vector<char> &Buf, const char *Macro) {
     // Per GCC -D semantics, the macro ends at \n if it exists.
     const char *End = strpbrk(Equal, "\n\r");
     if (End) {
-      fprintf(stderr, "warning: macro '%s' contains embedded newline, text "
-              "after the newline is ignored.\n",
-              std::string(Macro, Equal).c_str());
+      assert(Diags && "Unexpected macro with embedded newline!");
+      Diags->Report(diag::warn_fe_macro_contains_embedded_newline)
+        << std::string(Macro, Equal);
     } else {
       End = Equal+strlen(Equal);
     }
@@ -118,11 +124,9 @@ static void AddImplicitIncludePTH(std::vector<char> &Buf, Preprocessor &PP,
   const char *OriginalFile = P->getOriginalSourceFile();
 
   if (!OriginalFile) {
-    assert(!ImplicitIncludePTH.empty());
-    fprintf(stderr, "error: PTH file '%s' does not designate an original "
-            "source header file for -include-pth\n",
-            ImplicitIncludePTH.c_str());
-    exit (1);
+    PP.getDiagnostics().Report(diag::err_fe_pth_file_has_no_source_header)
+      << ImplicitIncludePTH;
+    return;
   }
 
   AddImplicitInclude(Buf, OriginalFile);
@@ -358,6 +362,9 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     DefineBuiltinMacro(Buf, "__int16=__INT16_TYPE__");
     DefineBuiltinMacro(Buf, "__int32=__INT32_TYPE__");
     DefineBuiltinMacro(Buf, "__int64=__INT64_TYPE__");
+    // Both __PRETTY_FUNCTION__ and __FUNCTION__ are GCC extensions, however
+    // VC++ appears to only like __FUNCTION__.
+    DefineBuiltinMacro(Buf, "__PRETTY_FUNCTION__=__FUNCTION__");
     // Work around some issues with Visual C++ headerws.
     if (LangOpts.CPlusPlus) {
       // Since we define wchar_t in C++ mode.
@@ -478,6 +485,52 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   TI.getTargetDefines(LangOpts, Buf);
 }
 
+// Initialize the remapping of files to alternative contents, e.g.,
+// those specified through other files.
+static void InitializeFileRemapping(Diagnostic &Diags,
+                                    SourceManager &SourceMgr,
+                                    FileManager &FileMgr,
+                                    const PreprocessorOptions &InitOpts) {
+  // Remap files in the source manager.
+  for (PreprocessorOptions::remapped_file_iterator
+         Remap = InitOpts.remapped_file_begin(),
+         RemapEnd = InitOpts.remapped_file_end();
+       Remap != RemapEnd;
+       ++Remap) {
+    // Find the file that we're mapping to.
+    const FileEntry *ToFile = FileMgr.getFile(Remap->second);
+    if (!ToFile) {
+      Diags.Report(diag::err_fe_remap_missing_to_file)
+        << Remap->first << Remap->second;
+      continue;
+    }
+
+    // Create the file entry for the file that we're mapping from.
+    const FileEntry *FromFile = FileMgr.getVirtualFile(Remap->first,
+                                                       ToFile->getSize(),
+                                                       0);
+    if (!FromFile) {
+      Diags.Report(diag::err_fe_remap_missing_from_file)
+        << Remap->first;
+      continue;
+    }
+
+    // Load the contents of the file we're mapping to.
+    std::string ErrorStr;
+    const llvm::MemoryBuffer *Buffer
+      = llvm::MemoryBuffer::getFile(ToFile->getName(), &ErrorStr);
+    if (!Buffer) {
+      Diags.Report(diag::err_fe_error_opening)
+        << Remap->second << ErrorStr;
+      continue;
+    }
+
+    // Override the contents of the "from" file with the contents of
+    // the "to" file.
+    SourceMgr.overrideFileContents(FromFile, Buffer);
+  }
+}
+
 /// InitializePreprocessor - Initialize the preprocessor getting it and the
 /// environment ready to process a single file. This returns true on error.
 ///
@@ -485,6 +538,9 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const PreprocessorOptions &InitOpts,
                                    const HeaderSearchOptions &HSOpts) {
   std::vector<char> PredefineBuffer;
+
+  InitializeFileRemapping(PP.getDiagnostics(), PP.getSourceManager(),
+                          PP.getFileManager(), InitOpts);
 
   const char *LineDirective = "# 1 \"<built-in>\" 3\n";
   PredefineBuffer.insert(PredefineBuffer.end(),
@@ -506,7 +562,8 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     if (InitOpts.Macros[i].second)  // isUndef
       UndefineBuiltinMacro(PredefineBuffer, InitOpts.Macros[i].first.c_str());
     else
-      DefineBuiltinMacro(PredefineBuffer, InitOpts.Macros[i].first.c_str());
+      DefineBuiltinMacro(PredefineBuffer, InitOpts.Macros[i].first.c_str(),
+                         &PP.getDiagnostics());
   }
 
   // If -imacros are specified, include them now.  These are processed before
@@ -522,6 +579,11 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     else
       AddImplicitInclude(PredefineBuffer, Path);
   }
+
+  // Exit the command line and go back to <built-in> (2 is LC_LEAVE).
+  LineDirective = "# 1 \"<built-in>\" 2\n";
+  PredefineBuffer.insert(PredefineBuffer.end(),
+                         LineDirective, LineDirective+strlen(LineDirective));
 
   // Null terminate PredefinedBuffer and add it.
   PredefineBuffer.push_back(0);

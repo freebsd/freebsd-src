@@ -92,7 +92,7 @@ enum PromotesToInt {
 };
 
 enum PromotesToUnsignedInt {
-  PromotesToUnsignedIntValue = 1u
+  PromotesToUnsignedIntValue = __INT_MAX__ * 2U
 };
 
 int* o(int);
@@ -290,4 +290,14 @@ void f(SR) { }
 
 void g(opt o) {
   f(o);
+}
+
+
+namespace PR5756 {
+  int &a(void*, int);
+  float &a(void*, float);
+  void b() { 
+    int &ir = a(0,0);
+    (void)ir;
+  }
 }

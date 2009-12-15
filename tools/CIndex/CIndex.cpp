@@ -12,24 +12,26 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang-c/Index.h"
-#include "clang/Index/Program.h"
-#include "clang/Index/Indexer.h"
-#include "clang/Index/ASTLocation.h"
-#include "clang/Index/Utils.h"
-#include "clang/Sema/CodeCompleteConsumer.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/StmtVisitor.h"
-#include "clang/AST/Decl.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/ASTUnit.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Index/ASTLocation.h"
+#include "clang/Index/Indexer.h"
+#include "clang/Index/Program.h"
+#include "clang/Index/Utils.h"
+#include "clang/Sema/CodeCompleteConsumer.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/System/Program.h"
-#include "llvm/Support/raw_ostream.h"
 
 #include <cstdio>
 #include <vector>
@@ -291,10 +293,25 @@ public:
 };
 
 class CIndexer : public Indexer {
+  DiagnosticOptions DiagOpts;
+  IgnoreDiagnosticsClient IgnoreDiagClient;
+  llvm::OwningPtr<Diagnostic> TextDiags;
+  Diagnostic IgnoreDiags;
+  bool UseExternalASTGeneration;
+  bool OnlyLocalDecls;
+  bool DisplayDiagnostics;
+
+  llvm::sys::Path ClangPath;
+
 public:
   explicit CIndexer(Program *prog) : Indexer(*prog),
+                                     IgnoreDiags(&IgnoreDiagClient),
+                                     UseExternalASTGeneration(false),
                                      OnlyLocalDecls(false),
-                                     DisplayDiagnostics(false) {}
+                                     DisplayDiagnostics(false) {
+    TextDiags.reset(
+      CompilerInstance::createDiagnostics(DiagOpts, 0, 0));
+  }
 
   virtual ~CIndexer() { delete &getProgram(); }
 
@@ -304,18 +321,25 @@ public:
   bool getOnlyLocalDecls() const { return OnlyLocalDecls; }
   void setOnlyLocalDecls(bool Local = true) { OnlyLocalDecls = Local; }
 
+  bool getDisplayDiagnostics() const { return DisplayDiagnostics; }
   void setDisplayDiagnostics(bool Display = true) {
     DisplayDiagnostics = Display;
   }
-  bool getDisplayDiagnostics() const { return DisplayDiagnostics; }
+
+  bool getUseExternalASTGeneration() const { return UseExternalASTGeneration; }
+  void setUseExternalASTGeneration(bool Value) {
+    UseExternalASTGeneration = Value;
+  }
+
+  Diagnostic &getDiags() {
+    return DisplayDiagnostics ? *TextDiags : IgnoreDiags;
+  }
 
   /// \brief Get the path of the clang binary.
   const llvm::sys::Path& getClangPath();
-private:
-  bool OnlyLocalDecls;
-  bool DisplayDiagnostics;
 
-  llvm::sys::Path ClangPath;
+  /// \brief Get the path of the clang resource files.
+  std::string getClangResourcesPath();
 };
 
 const llvm::sys::Path& CIndexer::getClangPath() {
@@ -355,6 +379,22 @@ const llvm::sys::Path& CIndexer::getClangPath() {
   // Cache our result.
   ClangPath = CIndexPath;
   return ClangPath;
+}
+
+std::string CIndexer::getClangResourcesPath() {
+  llvm::sys::Path P = getClangPath();
+
+  if (!P.empty()) {
+    P.eraseComponent();  // Remove /clang from foo/bin/clang
+    P.eraseComponent();  // Remove /bin   from foo/bin
+
+    // Get foo/lib/clang/<version>/include
+    P.appendComponent("lib");
+    P.appendComponent("clang");
+    P.appendComponent(CLANG_VERSION_STRING);
+  }
+
+  return P.str();
 }
 
 }
@@ -452,25 +492,21 @@ void clang_disposeIndex(CXIndex CIdx) {
   delete static_cast<CIndexer *>(CIdx);
 }
 
+void clang_setUseExternalASTGeneration(CXIndex CIdx, int value) {
+  assert(CIdx && "Passed null CXIndex");
+  CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
+  CXXIdx->setUseExternalASTGeneration(value);
+}
+
 // FIXME: need to pass back error info.
 CXTranslationUnit clang_createTranslationUnit(CXIndex CIdx,
                                               const char *ast_filename) {
   assert(CIdx && "Passed null CXIndex");
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
-  std::string astName(ast_filename);
-  std::string ErrMsg;
 
-  CXTranslationUnit TU =
-    ASTUnit::LoadFromPCHFile(astName, &ErrMsg,
-                             CXXIdx->getDisplayDiagnostics() ?
-                             NULL : new IgnoreDiagnosticsClient(),
-                             CXXIdx->getOnlyLocalDecls(),
-                             /* UseBumpAllocator = */ true);
-
-  if (CXXIdx->getDisplayDiagnostics() && !ErrMsg.empty())
-    llvm::errs() << "clang_createTranslationUnit: " << ErrMsg  << '\n';
-
-  return TU;
+  return ASTUnit::LoadFromPCHFile(ast_filename, CXXIdx->getDiags(),
+                                  CXXIdx->getOnlyLocalDecls(),
+                                  /* UseBumpAllocator = */ true);
 }
 
 CXTranslationUnit
@@ -480,6 +516,33 @@ clang_createTranslationUnitFromSourceFile(CXIndex CIdx,
                                           const char **command_line_args) {
   assert(CIdx && "Passed null CXIndex");
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
+
+  if (!CXXIdx->getUseExternalASTGeneration()) {
+    llvm::SmallVector<const char *, 16> Args;
+
+    // The 'source_filename' argument is optional.  If the caller does not
+    // specify it then it is assumed that the source file is specified
+    // in the actual argument list.
+    if (source_filename)
+      Args.push_back(source_filename);
+    Args.insert(Args.end(), command_line_args,
+                command_line_args + num_command_line_args);
+
+    unsigned NumErrors = CXXIdx->getDiags().getNumErrors();
+    llvm::OwningPtr<ASTUnit> Unit(
+      ASTUnit::LoadFromCommandLine(Args.data(), Args.data() + Args.size(),
+                                   CXXIdx->getDiags(),
+                                   CXXIdx->getClangResourcesPath(),
+                                   CXXIdx->getOnlyLocalDecls(),
+                                   /* UseBumpAllocator = */ true));
+
+    // FIXME: Until we have broader testing, just drop the entire AST if we
+    // encountered an error.
+    if (NumErrors != CXXIdx->getDiags().getNumErrors())
+      return 0;
+
+    return Unit.take();
+  }
 
   // Build up the arguments for invoking 'clang'.
   std::vector<const char *> argv;
@@ -568,9 +631,29 @@ void clang_loadTranslationUnit(CXTranslationUnit CTUnit,
   ASTUnit *CXXUnit = static_cast<ASTUnit *>(CTUnit);
   ASTContext &Ctx = CXXUnit->getASTContext();
 
-  TUVisitor DVisit(CTUnit, callback, CData,
-                   CXXUnit->getOnlyLocalDecls()? 1 : Decl::MaxPCHLevel);
-  DVisit.Visit(Ctx.getTranslationUnitDecl());
+  unsigned PCHLevel = Decl::MaxPCHLevel;
+
+  // Set the PCHLevel to filter out unwanted decls if requested.
+  if (CXXUnit->getOnlyLocalDecls()) {
+    PCHLevel = 0;
+
+    // If the main input was an AST, bump the level.
+    if (CXXUnit->isMainFileAST())
+      ++PCHLevel;
+  }
+
+  TUVisitor DVisit(CTUnit, callback, CData, PCHLevel);
+
+  // If using a non-AST based ASTUnit, iterate over the stored list of top-level
+  // decls.
+  if (!CXXUnit->isMainFileAST() && CXXUnit->getOnlyLocalDecls()) {
+    const std::vector<Decl*> &TLDs = CXXUnit->getTopLevelDecls();
+    for (std::vector<Decl*>::const_iterator it = TLDs.begin(),
+           ie = TLDs.end(); it != ie; ++it) {
+      DVisit.Visit(*it);
+    }
+  } else
+    DVisit.Visit(Ctx.getTranslationUnitDecl());
 }
 
 void clang_loadDeclaration(CXDecl Dcl,
@@ -1082,7 +1165,7 @@ const char *clang_getCompletionChunkText(CXCompletionString completion_string,
 
   case CodeCompletionString::CK_Optional:
     // Note: treated as an empty text block.
-    return 0;
+    return "";
   }
 
   // Should be unreachable, but let's be careful.
@@ -1141,6 +1224,8 @@ void clang_codeComplete(CXIndex CIdx,
                         const char *source_filename,
                         int num_command_line_args,
                         const char **command_line_args,
+                        unsigned num_unsaved_files,
+                        struct CXUnsavedFile *unsaved_files,
                         const char *complete_filename,
                         unsigned complete_line,
                         unsigned complete_column,
@@ -1148,6 +1233,9 @@ void clang_codeComplete(CXIndex CIdx,
                         CXClientData client_data)  {
   // The indexer, which is mainly used to determine where diagnostics go.
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
+
+  // The set of temporary files that we've built.
+  std::vector<llvm::sys::Path> TemporaryFiles;
 
   // Build up the arguments for invoking 'clang'.
   std::vector<const char *> argv;
@@ -1163,16 +1251,52 @@ void clang_codeComplete(CXIndex CIdx,
   // Add the appropriate '-code-completion-at=file:line:column' argument
   // to perform code completion, with an "-Xclang" preceding it.
   std::string code_complete_at;
-  code_complete_at += "-code-completion-at=";
   code_complete_at += complete_filename;
   code_complete_at += ":";
   code_complete_at += llvm::utostr(complete_line);
   code_complete_at += ":";
   code_complete_at += llvm::utostr(complete_column);
   argv.push_back("-Xclang");
+  argv.push_back("-code-completion-at");
+  argv.push_back("-Xclang");
   argv.push_back(code_complete_at.c_str());
   argv.push_back("-Xclang");
   argv.push_back("-no-code-completion-debug-printer");
+
+  std::vector<std::string> RemapArgs;
+  for (unsigned i = 0; i != num_unsaved_files; ++i) {
+    char tmpFile[L_tmpnam];
+    char *tmpFileName = tmpnam(tmpFile);
+
+    // Write the contents of this unsaved file into the temporary file.
+    llvm::sys::Path SavedFile(tmpFileName);
+    std::string ErrorInfo;
+    llvm::raw_fd_ostream OS(SavedFile.c_str(), ErrorInfo);
+    if (!ErrorInfo.empty())
+      continue;
+    
+    OS.write(unsaved_files[i].Contents, unsaved_files[i].Length);
+    OS.close();
+    if (OS.has_error()) {
+      SavedFile.eraseFromDisk();
+      continue;
+    }
+
+    // Remap the file.
+    std::string RemapArg = unsaved_files[i].Filename;
+    RemapArg += ';';
+    RemapArg += tmpFileName;
+    RemapArgs.push_back("-Xclang");
+    RemapArgs.push_back("-remap-file");
+    RemapArgs.push_back("-Xclang");
+    RemapArgs.push_back(RemapArg);
+    TemporaryFiles.push_back(SavedFile);
+  }
+
+  // The pointers into the elements of RemapArgs are stable because we
+  // won't be adding anything to RemapArgs after this point.
+  for (unsigned i = 0, e = RemapArgs.size(); i != e; ++i)
+    argv.push_back(RemapArgs[i].c_str());
 
   // Add the source file name (FIXME: later, we'll want to build temporary
   // file from the buffer, or just feed the source text via standard input).
@@ -1203,6 +1327,7 @@ void clang_codeComplete(CXIndex CIdx,
   char tmpFile[L_tmpnam];
   char *tmpFileName = tmpnam(tmpFile);
   llvm::sys::Path ResultsFile(tmpFileName);
+  TemporaryFiles.push_back(ResultsFile);
 
   // Invoke 'clang'.
   llvm::sys::Path DevNull; // leave empty, causes redirection to /dev/null
@@ -1255,7 +1380,8 @@ void clang_codeComplete(CXIndex CIdx,
     delete F;
   }
 
-  ResultsFile.eraseFromDisk();
+  for (unsigned i = 0, e = TemporaryFiles.size(); i != e; ++i)
+    TemporaryFiles[i].eraseFromDisk();
 }
 
 } // end extern "C"

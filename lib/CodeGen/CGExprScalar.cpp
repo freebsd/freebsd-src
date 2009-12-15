@@ -167,6 +167,12 @@ public:
     return CGF.EmitObjCMessageExpr(E).getScalarVal();
   }
 
+  Value *VisitObjCIsaExpr(ObjCIsaExpr *E) {
+    LValue LV = CGF.EmitObjCIsaExpr(E);
+    Value *V = CGF.EmitLoadOfLValue(LV, E->getType()).getScalarVal();
+    return V;
+  }
+
   Value *VisitArraySubscriptExpr(ArraySubscriptExpr *E);
   Value *VisitShuffleVectorExpr(ShuffleVectorExpr *E);
   Value *VisitMemberExpr(MemberExpr *E);
@@ -256,6 +262,10 @@ public:
   Value *VisitCXXDeleteExpr(const CXXDeleteExpr *E) {
     CGF.EmitCXXDeleteExpr(E);
     return 0;
+  }
+  Value *VisitUnaryTypeTraitExpr(const UnaryTypeTraitExpr *E) {
+    return llvm::ConstantInt::get(Builder.getInt1Ty(),
+                                  E->EvaluateTrait(CGF.getContext()));
   }
 
   Value *VisitCXXPseudoDestructorExpr(const CXXPseudoDestructorExpr *E) {
@@ -798,6 +808,8 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
     //assert(0 && "Unknown cast kind!");
     break;
 
+  case CastExpr::CK_AnyPointerToObjCPointerCast:
+  case CastExpr::CK_AnyPointerToBlockPointerCast:
   case CastExpr::CK_BitCast: {
     Value *Src = Visit(const_cast<Expr*>(E));
     return Builder.CreateBitCast(Src, ConvertType(DestTy));
@@ -943,34 +955,8 @@ Value *ScalarExprEmitter::EmitCastExpr(CastExpr *CE) {
   case CastExpr::CK_FloatingCast:
     return EmitScalarConversion(Visit(E), E->getType(), DestTy);
 
-  case CastExpr::CK_MemberPointerToBoolean: {
-    const MemberPointerType* T = E->getType()->getAs<MemberPointerType>();
-    
-    if (T->getPointeeType()->isFunctionType()) {
-      // We have a member function pointer.
-      llvm::Value *Ptr = CGF.CreateTempAlloca(ConvertType(E->getType()));
-      
-      CGF.EmitAggExpr(E, Ptr, /*VolatileDest=*/false);
-      
-      // Get the pointer.
-      llvm::Value *FuncPtr = Builder.CreateStructGEP(Ptr, 0, "src.ptr");
-      FuncPtr = Builder.CreateLoad(FuncPtr);
-      
-      llvm::Value *IsNotNull = 
-        Builder.CreateICmpNE(FuncPtr,
-                             llvm::Constant::getNullValue(FuncPtr->getType()),
-                             "tobool");
-      
-      return IsNotNull;
-    }
-   
-    // We have a regular member pointer.
-    Value *Ptr = Visit(const_cast<Expr*>(E));
-    llvm::Value *IsNotNull = 
-      Builder.CreateICmpNE(Ptr, CGF.CGM.EmitNullConstant(E->getType()),
-                           "tobool");
-    return IsNotNull;
-  }
+  case CastExpr::CK_MemberPointerToBoolean:
+    return CGF.EvaluateExprAsBool(E);
   }
 
   // Handle cases where the source is an non-complex type.
@@ -1540,6 +1526,16 @@ Value *ScalarExprEmitter::EmitShl(const BinOpInfo &Ops) {
   if (Ops.LHS->getType() != RHS->getType())
     RHS = Builder.CreateIntCast(RHS, Ops.LHS->getType(), false, "sh_prom");
 
+  if (CGF.CatchUndefined 
+      && isa<llvm::IntegerType>(Ops.LHS->getType())) {
+    unsigned Width = cast<llvm::IntegerType>(Ops.LHS->getType())->getBitWidth();
+    llvm::BasicBlock *Cont = CGF.createBasicBlock("cont");
+    CGF.Builder.CreateCondBr(Builder.CreateICmpULT(RHS,
+                                 llvm::ConstantInt::get(RHS->getType(), Width)),
+                             Cont, CGF.getTrapBB());
+    CGF.EmitBlock(Cont);
+  }
+
   return Builder.CreateShl(Ops.LHS, RHS, "shl");
 }
 
@@ -1549,6 +1545,16 @@ Value *ScalarExprEmitter::EmitShr(const BinOpInfo &Ops) {
   Value *RHS = Ops.RHS;
   if (Ops.LHS->getType() != RHS->getType())
     RHS = Builder.CreateIntCast(RHS, Ops.LHS->getType(), false, "sh_prom");
+
+  if (CGF.CatchUndefined 
+      && isa<llvm::IntegerType>(Ops.LHS->getType())) {
+    unsigned Width = cast<llvm::IntegerType>(Ops.LHS->getType())->getBitWidth();
+    llvm::BasicBlock *Cont = CGF.createBasicBlock("cont");
+    CGF.Builder.CreateCondBr(Builder.CreateICmpULT(RHS,
+                                 llvm::ConstantInt::get(RHS->getType(), Width)),
+                             Cont, CGF.getTrapBB());
+    CGF.EmitBlock(Cont);
+  }
 
   if (Ops.Ty->isUnsignedIntegerType())
     return Builder.CreateLShr(Ops.LHS, RHS, "shr");
@@ -1560,7 +1566,34 @@ Value *ScalarExprEmitter::EmitCompare(const BinaryOperator *E,unsigned UICmpOpc,
   TestAndClearIgnoreResultAssign();
   Value *Result;
   QualType LHSTy = E->getLHS()->getType();
-  if (!LHSTy->isAnyComplexType()) {
+  if (LHSTy->isMemberFunctionPointerType()) {
+    Value *LHSPtr = CGF.EmitAnyExprToTemp(E->getLHS()).getAggregateAddr();
+    Value *RHSPtr = CGF.EmitAnyExprToTemp(E->getRHS()).getAggregateAddr();
+    llvm::Value *LHSFunc = Builder.CreateStructGEP(LHSPtr, 0);
+    LHSFunc = Builder.CreateLoad(LHSFunc);
+    llvm::Value *RHSFunc = Builder.CreateStructGEP(RHSPtr, 0);
+    RHSFunc = Builder.CreateLoad(RHSFunc);
+    Value *ResultF = Builder.CreateICmp((llvm::ICmpInst::Predicate)UICmpOpc,
+                                        LHSFunc, RHSFunc, "cmp.func");
+    Value *NullPtr = llvm::Constant::getNullValue(LHSFunc->getType());
+    Value *ResultNull = Builder.CreateICmp((llvm::ICmpInst::Predicate)UICmpOpc,
+                                           LHSFunc, NullPtr, "cmp.null");
+    llvm::Value *LHSAdj = Builder.CreateStructGEP(LHSPtr, 1);
+    LHSAdj = Builder.CreateLoad(LHSAdj);
+    llvm::Value *RHSAdj = Builder.CreateStructGEP(RHSPtr, 1);
+    RHSAdj = Builder.CreateLoad(RHSAdj);
+    Value *ResultA = Builder.CreateICmp((llvm::ICmpInst::Predicate)UICmpOpc,
+                                        LHSAdj, RHSAdj, "cmp.adj");
+    if (E->getOpcode() == BinaryOperator::EQ) {
+      Result = Builder.CreateOr(ResultNull, ResultA, "or.na");
+      Result = Builder.CreateAnd(Result, ResultF, "and.f");
+    } else {
+      assert(E->getOpcode() == BinaryOperator::NE &&
+             "Member pointer comparison other than == or != ?");
+      Result = Builder.CreateAnd(ResultNull, ResultA, "and.na");
+      Result = Builder.CreateOr(Result, ResultF, "or.f");
+    }
+  } else if (!LHSTy->isAnyComplexType()) {
     Value *LHS = Visit(E->getLHS());
     Value *RHS = Visit(E->getRHS());
 
@@ -1868,10 +1901,11 @@ VisitConditionalOperator(const ConditionalOperator *E) {
 
   CGF.EmitBlock(ContBlock);
 
-  if (!LHS || !RHS) {
-    assert(E->getType()->isVoidType() && "Non-void value should have a value");
-    return 0;
-  }
+  // If the LHS or RHS is a throw expression, it will be legitimately null.
+  if (!LHS)
+    return RHS;
+  if (!RHS)
+    return LHS;
 
   // Create a PHI node for the real part.
   llvm::PHINode *PN = Builder.CreatePHI(LHS->getType(), "cond");
@@ -1976,3 +2010,22 @@ llvm::Value *CodeGenFunction::EmitVector(llvm::Value * const *Vals,
 
   return Vec;
 }
+
+LValue CodeGenFunction::EmitObjCIsaExpr(const ObjCIsaExpr *E) {
+  llvm::Value *V;
+  // object->isa or (*object).isa
+  // Generate code as for: *(Class*)object
+  Expr *BaseExpr = E->getBase();
+  if (E->isArrow())
+    V = ScalarExprEmitter(*this).EmitLoadOfLValue(BaseExpr);
+  else
+    V  = EmitLValue(BaseExpr).getAddress();
+  
+  // build Class* type
+  const llvm::Type *ClassPtrTy = ConvertType(E->getType());
+  ClassPtrTy = ClassPtrTy->getPointerTo();
+  V = Builder.CreateBitCast(V, ClassPtrTy);
+  LValue LV = LValue::MakeAddr(V, MakeQualifiers(E->getType()));
+  return LV;
+}
+

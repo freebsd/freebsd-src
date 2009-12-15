@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sema.h"
+#include "SemaInit.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CXXInheritance.h"
@@ -539,6 +540,16 @@ static TryCastResult TryStaticCast(Sema &Self, Expr *&SrcExpr,
           return TC_Success;
         }
       }
+      else if (CStyle && DestType->isObjCObjectPointerType()) {
+        // allow c-style cast of objective-c pointers as they are pervasive.
+        Kind = CastExpr::CK_AnyPointerToObjCPointerCast;
+        return TC_Success;
+      }
+      else if (CStyle && DestType->isBlockPointerType()) {
+        // allow c-style cast of void * to block pointers.
+        Kind = CastExpr::CK_AnyPointerToBlockPointerCast;
+        return TC_Success;
+      }
     }
   }
 
@@ -859,7 +870,9 @@ TryStaticImplicitCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
     if (CXXConstructorDecl *Constructor
           = Self.TryInitializationByConstructor(DestType, &SrcExpr, 1,
                                                 OpRange.getBegin(),
-                                                Sema::IK_Direct)) {
+              InitializationKind::CreateDirect(OpRange.getBegin(),
+                                               OpRange.getBegin(), 
+                                               OpRange.getEnd()))) {
       ConversionDecl = Constructor;
       Kind = CastExpr::CK_ConstructorConversion;
       return TC_Success;
@@ -1053,8 +1066,10 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     return TC_Failed;
   }
   
-  bool destIsPtr = DestType->isPointerType();
-  bool srcIsPtr = SrcType->isPointerType();
+  bool destIsPtr = 
+    CStyle? DestType->isAnyPointerType() : DestType->isPointerType();
+  bool srcIsPtr = 
+    CStyle ? SrcType->isAnyPointerType() : SrcType->isPointerType();
   if (!destIsPtr && !srcIsPtr) {
     // Except for std::nullptr_t->integer and lvalue->reference, which are
     // handled above, at least one of the two arguments must be a pointer.
@@ -1106,7 +1121,11 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     msg = diag::err_bad_cxx_cast_const_away;
     return TC_Failed;
   }
-
+  if (CStyle && DestType->isObjCObjectPointerType()) {
+    Kind = CastExpr::CK_AnyPointerToObjCPointerCast;
+    return TC_Success;
+  }
+  
   // Not casting away constness, so the only remaining check is for compatible
   // pointer categories.
   Kind = CastExpr::CK_BitCast;
@@ -1141,7 +1160,6 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
   // Void pointers are not specified, but supported by every compiler out there.
   // So we finish by allowing everything that remains - it's got to be two
   // object pointers.
-  Kind = CastExpr::CK_BitCast;
   return TC_Success;
 }
 

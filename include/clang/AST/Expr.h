@@ -309,6 +309,15 @@ public:
   /// ParenExpr or CastExprs, returning their operand.
   Expr *IgnoreParenNoopCasts(ASTContext &Ctx);
 
+  /// \brief Determine whether this expression is a default function argument.
+  ///
+  /// Default arguments are implicitly generated in the abstract syntax tree
+  /// by semantic analysis for function calls, object constructions, etc. in 
+  /// C++. Default arguments are represented by \c CXXDefaultArgExpr nodes;
+  /// this routine also looks through any implicit casts to determine whether
+  /// the expression is a default argument.
+  bool isDefaultArgument() const;
+  
   const Expr* IgnoreParens() const {
     return const_cast<Expr*>(this)->IgnoreParens();
   }
@@ -389,7 +398,7 @@ class DeclRefExpr : public Expr {
   // indicate whether (1) the declaration's name was explicitly qualified and
   // (2) the declaration's name was followed by an explicit template 
   // argument list.
-  llvm::PointerIntPair<NamedDecl *, 2> DecoratedD;
+  llvm::PointerIntPair<ValueDecl *, 2> DecoratedD;
   
   // Loc - The location of the declaration name itself.
   SourceLocation Loc;
@@ -427,7 +436,7 @@ class DeclRefExpr : public Expr {
   }
   
   DeclRefExpr(NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
-              NamedDecl *D, SourceLocation NameLoc,
+              ValueDecl *D, SourceLocation NameLoc,
               const TemplateArgumentListInfo *TemplateArgs,
               QualType T);
   
@@ -436,13 +445,13 @@ protected:
   /// declaration reference expression.
   void computeDependence();
 
-  DeclRefExpr(StmtClass SC, NamedDecl *d, QualType t, SourceLocation l) :
+  DeclRefExpr(StmtClass SC, ValueDecl *d, QualType t, SourceLocation l) :
     Expr(SC, t, false, false), DecoratedD(d, 0), Loc(l) {
     computeDependence();
   }
 
 public:
-  DeclRefExpr(NamedDecl *d, QualType t, SourceLocation l) :
+  DeclRefExpr(ValueDecl *d, QualType t, SourceLocation l) :
     Expr(DeclRefExprClass, t, false, false), DecoratedD(d, 0), Loc(l) {
     computeDependence();
   }
@@ -454,14 +463,14 @@ public:
   static DeclRefExpr *Create(ASTContext &Context,
                              NestedNameSpecifier *Qualifier,
                              SourceRange QualifierRange,
-                             NamedDecl *D,
+                             ValueDecl *D,
                              SourceLocation NameLoc,
                              QualType T,
                              const TemplateArgumentListInfo *TemplateArgs = 0);
   
-  NamedDecl *getDecl() { return DecoratedD.getPointer(); }
-  const NamedDecl *getDecl() const { return DecoratedD.getPointer(); }
-  void setDecl(NamedDecl *NewD) { DecoratedD.setPointer(NewD); }
+  ValueDecl *getDecl() { return DecoratedD.getPointer(); }
+  const ValueDecl *getDecl() const { return DecoratedD.getPointer(); }
+  void setDecl(ValueDecl *NewD) { DecoratedD.setPointer(NewD); }
 
   SourceLocation getLocation() const { return Loc; }
   void setLocation(SourceLocation L) { Loc = L; }
@@ -685,11 +694,6 @@ public:
 
   SourceLocation getLocation() const { return Loc; }
   void setLocation(SourceLocation L) { Loc = L; }
-
-  // FIXME: The logic for computing the value of a predefined expr should go
-  // into a method here that takes the inner-most code decl (a block, function
-  // or objc method) that the expr lives in.  This would allow sema and codegen
-  // to be consistent for things like sizeof(__func__) etc.
 
   virtual SourceRange getSourceRange() const { return SourceRange(Loc); }
 
@@ -975,7 +979,7 @@ class SizeOfAlignOfExpr : public Expr {
   bool isSizeof : 1;  // true if sizeof, false if alignof.
   bool isType : 1;    // true if operand is a type, false if an expression
   union {
-    DeclaratorInfo *Ty;
+    TypeSourceInfo *Ty;
     Stmt *Ex;
   } Argument;
   SourceLocation OpLoc, RParenLoc;
@@ -984,15 +988,15 @@ protected:
   virtual void DoDestroy(ASTContext& C);
 
 public:
-  SizeOfAlignOfExpr(bool issizeof, DeclaratorInfo *DInfo,
+  SizeOfAlignOfExpr(bool issizeof, TypeSourceInfo *TInfo,
                     QualType resultType, SourceLocation op,
                     SourceLocation rp) :
       Expr(SizeOfAlignOfExprClass, resultType,
            false, // Never type-dependent (C++ [temp.dep.expr]p3).
            // Value-dependent if the argument is type-dependent.
-           DInfo->getType()->isDependentType()),
+           TInfo->getType()->isDependentType()),
       isSizeof(issizeof), isType(true), OpLoc(op), RParenLoc(rp) {
-    Argument.Ty = DInfo;
+    Argument.Ty = TInfo;
   }
 
   SizeOfAlignOfExpr(bool issizeof, Expr *E,
@@ -1017,7 +1021,7 @@ public:
   QualType getArgumentType() const {
     return getArgumentTypeInfo()->getType();
   }
-  DeclaratorInfo *getArgumentTypeInfo() const {
+  TypeSourceInfo *getArgumentTypeInfo() const {
     assert(isArgumentType() && "calling getArgumentType() when arg is expr");
     return Argument.Ty;
   }
@@ -1030,8 +1034,8 @@ public:
   }
 
   void setArgument(Expr *E) { Argument.Ex = E; isType = false; }
-  void setArgument(DeclaratorInfo *DInfo) {
-    Argument.Ty = DInfo;
+  void setArgument(TypeSourceInfo *TInfo) {
+    Argument.Ty = TInfo;
     isType = true;
   }
 
@@ -1252,7 +1256,7 @@ class MemberExpr : public Expr {
 
   /// MemberDecl - This is the decl being referenced by the field/member name.
   /// In X.F, this is the decl referenced by F.
-  NamedDecl *MemberDecl;
+  ValueDecl *MemberDecl;
 
   /// MemberLoc - This is the location of the member name.
   SourceLocation MemberLoc;
@@ -1305,12 +1309,12 @@ class MemberExpr : public Expr {
   }
 
   MemberExpr(Expr *base, bool isarrow, NestedNameSpecifier *qual,
-             SourceRange qualrange, NamedDecl *memberdecl, SourceLocation l,
+             SourceRange qualrange, ValueDecl *memberdecl, SourceLocation l,
              const TemplateArgumentListInfo *targs, QualType ty);
 
 public:
-  MemberExpr(Expr *base, bool isarrow, NamedDecl *memberdecl, SourceLocation l,
-             QualType ty)
+  MemberExpr(Expr *base, bool isarrow, ValueDecl *memberdecl,
+             SourceLocation l, QualType ty)
     : Expr(MemberExprClass, ty,
            base->isTypeDependent(), base->isValueDependent()),
       Base(base), MemberDecl(memberdecl), MemberLoc(l), IsArrow(isarrow),
@@ -1323,7 +1327,7 @@ public:
 
   static MemberExpr *Create(ASTContext &C, Expr *base, bool isarrow,
                             NestedNameSpecifier *qual, SourceRange qualrange,
-                            NamedDecl *memberdecl,
+                            ValueDecl *memberdecl,
                             SourceLocation l,
                             const TemplateArgumentListInfo *targs,
                             QualType ty);
@@ -1335,8 +1339,8 @@ public:
   ///
   /// The returned declaration will either be a FieldDecl or (in C++)
   /// a CXXMethodDecl.
-  NamedDecl *getMemberDecl() const { return MemberDecl; }
-  void setMemberDecl(NamedDecl *D) { MemberDecl = D; }
+  ValueDecl *getMemberDecl() const { return MemberDecl; }
+  void setMemberDecl(ValueDecl *D) { MemberDecl = D; }
 
   /// \brief Determines whether this member expression actually had
   /// a C++ nested-name-specifier prior to the name of the member, e.g.,
@@ -1576,7 +1580,14 @@ public:
     CK_FloatingCast,
     
     /// CK_MemberPointerToBoolean - Member pointer to boolean
-    CK_MemberPointerToBoolean
+    CK_MemberPointerToBoolean,
+
+    /// CK_AnyPointerToObjCPointerCast - Casting any pointer to objective-c 
+    /// pointer
+    CK_AnyPointerToObjCPointerCast,
+    /// CK_AnyPointerToBlockPointerCast - Casting any pointer to block 
+    /// pointer
+    CK_AnyPointerToBlockPointerCast
 
   };
 
@@ -1607,6 +1618,14 @@ public:
   const Expr *getSubExpr() const { return cast<Expr>(Op); }
   void setSubExpr(Expr *E) { Op = E; }
 
+  /// \brief Retrieve the cast subexpression as it was written in the source
+  /// code, looking through any implicit casts or other intermediate nodes
+  /// introduced by semantic analysis.
+  Expr *getSubExprAsWritten();
+  const Expr *getSubExprAsWritten() const {
+    return const_cast<CastExpr *>(this)->getSubExprAsWritten();
+  }
+    
   static bool classof(const Stmt *T) {
     StmtClass SC = T->getStmtClass();
     if (SC >= CXXNamedCastExprClass && SC <= CXXFunctionalCastExprClass)

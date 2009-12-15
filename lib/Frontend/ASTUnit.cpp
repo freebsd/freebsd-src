@@ -17,27 +17,29 @@
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Driver/Compilation.h"
+#include "clang/Driver/Driver.h"
+#include "clang/Driver/Job.h"
+#include "clang/Driver/Tool.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendActions.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Diagnostic.h"
-#include "llvm/LLVMContext.h"
+#include "llvm/System/Host.h"
 #include "llvm/System/Path.h"
 using namespace clang;
 
-ASTUnit::ASTUnit(DiagnosticClient *diagClient) : tempFile(false) {
-  Diags.setClient(diagClient ? diagClient : new TextDiagnosticBuffer());
+ASTUnit::ASTUnit(bool _MainFileIsAST)
+  : tempFile(false), MainFileIsAST(_MainFileIsAST) {
 }
 ASTUnit::~ASTUnit() {
   if (tempFile)
     llvm::sys::Path(getPCHFileName()).eraseFromDisk();
-
-  //  The ASTUnit object owns the DiagnosticClient.
-  delete Diags.getClient();
 }
 
 namespace {
@@ -90,19 +92,19 @@ public:
 } // anonymous namespace
 
 const std::string &ASTUnit::getOriginalSourceFileName() {
-  return dyn_cast<PCHReader>(Ctx->getExternalSource())->getOriginalSourceFile();
+  return OriginalSourceFile;
 }
 
 const std::string &ASTUnit::getPCHFileName() {
+  assert(isMainFileAST() && "Not an ASTUnit from a PCH file!");
   return dyn_cast<PCHReader>(Ctx->getExternalSource())->getFileName();
 }
 
 ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
-                                  std::string *ErrMsg,
-                                  DiagnosticClient *diagClient,
+                                  Diagnostic &Diags,
                                   bool OnlyLocalDecls,
                                   bool UseBumpAllocator) {
-  llvm::OwningPtr<ASTUnit> AST(new ASTUnit(diagClient));
+  llvm::OwningPtr<ASTUnit> AST(new ASTUnit(true));
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->HeaderInfo.reset(new HeaderSearch(AST->getFileManager()));
 
@@ -118,7 +120,7 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
   llvm::OwningPtr<ExternalASTSource> Source;
 
   Reader.reset(new PCHReader(AST->getSourceManager(), AST->getFileManager(),
-                             AST->Diags));
+                             Diags));
   Reader->setListener(new PCHInfoCollector(LangInfo, HeaderInfo, TargetTriple,
                                            Predefines, Counter));
 
@@ -128,10 +130,11 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
 
   case PCHReader::Failure:
   case PCHReader::IgnorePCH:
-    if (ErrMsg)
-      *ErrMsg = "Could not load PCH file";
+    Diags.Report(diag::err_fe_unable_to_load_pch);
     return NULL;
   }
+
+  AST->OriginalSourceFile = Reader->getOriginalSourceFile();
 
   // PCH loaded successfully. Now create the preprocessor.
 
@@ -143,8 +146,8 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
   TargetOpts.CPU = "";
   TargetOpts.Features.clear();
   TargetOpts.Triple = TargetTriple;
-  AST->Target.reset(TargetInfo::CreateTargetInfo(AST->Diags, TargetOpts));
-  AST->PP.reset(new Preprocessor(AST->Diags, LangInfo, *AST->Target.get(),
+  AST->Target.reset(TargetInfo::CreateTargetInfo(Diags, TargetOpts));
+  AST->PP.reset(new Preprocessor(Diags, LangInfo, *AST->Target.get(),
                                  AST->getSourceManager(), HeaderInfo));
   Preprocessor &PP = *AST->PP.get();
 
@@ -177,13 +180,30 @@ ASTUnit *ASTUnit::LoadFromPCHFile(const std::string &Filename,
 
 namespace {
 
-class NullAction : public ASTFrontendAction {
+class TopLevelDeclTrackerConsumer : public ASTConsumer {
+  ASTUnit &Unit;
+
+public:
+  TopLevelDeclTrackerConsumer(ASTUnit &_Unit) : Unit(_Unit) {}
+
+  void HandleTopLevelDecl(DeclGroupRef D) {
+    for (DeclGroupRef::iterator it = D.begin(), ie = D.end(); it != ie; ++it)
+      Unit.getTopLevelDecls().push_back(*it);
+  }
+};
+
+class TopLevelDeclTrackerAction : public ASTFrontendAction {
+public:
+  ASTUnit &Unit;
+
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
                                          llvm::StringRef InFile) {
-    return new ASTConsumer();
+    return new TopLevelDeclTrackerConsumer(Unit);
   }
 
 public:
+  TopLevelDeclTrackerAction(ASTUnit &_Unit) : Unit(_Unit) {}
+
   virtual bool hasCodeCompletionSupport() const { return false; }
 };
 
@@ -191,12 +211,11 @@ public:
 
 ASTUnit *ASTUnit::LoadFromCompilerInvocation(const CompilerInvocation &CI,
                                              Diagnostic &Diags,
-                                             bool OnlyLocalDecls,
-                                             bool UseBumpAllocator) {
+                                             bool OnlyLocalDecls) {
   // Create the compiler instance to use for building the AST.
-  CompilerInstance Clang(&llvm::getGlobalContext(), false);
+  CompilerInstance Clang;
   llvm::OwningPtr<ASTUnit> AST;
-  NullAction Act;
+  llvm::OwningPtr<TopLevelDeclTrackerAction> Act;
 
   Clang.getInvocation() = CI;
 
@@ -221,9 +240,10 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(const CompilerInvocation &CI,
          "FIXME: AST inputs not yet supported here!");
 
   // Create the AST unit.
-  //
-  // FIXME: Use the provided diagnostic client.
-  AST.reset(new ASTUnit());
+  AST.reset(new ASTUnit(false));
+
+  AST->OnlyLocalDecls = OnlyLocalDecls;
+  AST->OriginalSourceFile = Clang.getFrontendOpts().Inputs[0].second;
 
   // Create a file manager object to provide access to and cache the filesystem.
   Clang.setFileManager(&AST->getFileManager());
@@ -234,20 +254,22 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocation(const CompilerInvocation &CI,
   // Create the preprocessor.
   Clang.createPreprocessor();
 
-  if (!Act.BeginSourceFile(Clang, Clang.getFrontendOpts().Inputs[0].second,
+  Act.reset(new TopLevelDeclTrackerAction(*AST));
+  if (!Act->BeginSourceFile(Clang, Clang.getFrontendOpts().Inputs[0].second,
                            /*IsAST=*/false))
     goto error;
 
-  Act.Execute();
+  Act->Execute();
 
-  // Steal the created context and preprocessor, and take back the source and
-  // file managers.
+  // Steal the created target, context, and preprocessor, and take back the
+  // source and file managers.
   AST->Ctx.reset(Clang.takeASTContext());
   AST->PP.reset(Clang.takePreprocessor());
   Clang.takeSourceManager();
   Clang.takeFileManager();
+  AST->Target.reset(Clang.takeTarget());
 
-  Act.EndSourceFile();
+  Act->EndSourceFile();
 
   Clang.takeDiagnosticClient();
   Clang.takeDiagnostics();
@@ -260,4 +282,54 @@ error:
   Clang.takeDiagnosticClient();
   Clang.takeDiagnostics();
   return 0;
+}
+
+ASTUnit *ASTUnit::LoadFromCommandLine(const char **ArgBegin,
+                                      const char **ArgEnd,
+                                      Diagnostic &Diags,
+                                      llvm::StringRef ResourceFilesPath,
+                                      bool OnlyLocalDecls,
+                                      bool UseBumpAllocator) {
+  llvm::SmallVector<const char *, 16> Args;
+  Args.push_back("<clang>"); // FIXME: Remove dummy argument.
+  Args.insert(Args.end(), ArgBegin, ArgEnd);
+
+  // FIXME: Find a cleaner way to force the driver into restricted modes. We
+  // also want to force it to use clang.
+  Args.push_back("-fsyntax-only");
+
+  // FIXME: We shouldn't have to pass in the path info.
+  driver::Driver TheDriver("clang", "/", llvm::sys::getHostTriple(),
+                           "a.out", false, Diags);
+  llvm::OwningPtr<driver::Compilation> C(
+    TheDriver.BuildCompilation(Args.size(), Args.data()));
+
+  // We expect to get back exactly one command job, if we didn't something
+  // failed.
+  const driver::JobList &Jobs = C->getJobs();
+  if (Jobs.size() != 1 || !isa<driver::Command>(Jobs.begin())) {
+    llvm::SmallString<256> Msg;
+    llvm::raw_svector_ostream OS(Msg);
+    C->PrintJob(OS, C->getJobs(), "; ", true);
+    Diags.Report(diag::err_fe_expected_compiler_job) << OS.str();
+    return 0;
+  }
+
+  const driver::Command *Cmd = cast<driver::Command>(*Jobs.begin());
+  if (llvm::StringRef(Cmd->getCreator().getName()) != "clang") {
+    Diags.Report(diag::err_fe_expected_clang_command);
+    return 0;
+  }
+
+  const driver::ArgStringList &CCArgs = Cmd->getArguments();
+  CompilerInvocation CI;
+  CompilerInvocation::CreateFromArgs(CI, (const char**) CCArgs.data(),
+                                     (const char**) CCArgs.data()+CCArgs.size(),
+                                     Diags);
+
+  // Override the resources path.
+  CI.getHeaderSearchOpts().ResourceDir = ResourceFilesPath;
+
+  CI.getFrontendOpts().DisableFree = UseBumpAllocator;
+  return LoadFromCompilerInvocation(CI, Diags, OnlyLocalDecls);
 }

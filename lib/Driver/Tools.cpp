@@ -9,6 +9,7 @@
 
 #include "Tools.h"
 
+#include "clang/Basic/Version.h"
 #include "clang/Driver/Action.h"
 #include "clang/Driver/Arg.h"
 #include "clang/Driver/ArgList.h"
@@ -419,14 +420,17 @@ void Clang::AddARMTargetArgs(const ArgList &Args,
     //
     // FIXME: This changes CPP defines, we need -target-soft-float.
     CmdArgs.push_back("-msoft-float");
-    CmdArgs.push_back("-mfloat-abi=soft");
+    CmdArgs.push_back("-mfloat-abi");
+    CmdArgs.push_back("soft");
   } else if (FloatABI == "softfp") {
     // Floating point operations are hard, but argument passing is soft.
-    CmdArgs.push_back("-mfloat-abi=soft");
+    CmdArgs.push_back("-mfloat-abi");
+    CmdArgs.push_back("soft");
   } else {
     // Floating point operations and argument passing are hard.
     assert(FloatABI == "hard" && "Invalid float abi!");
-    CmdArgs.push_back("-mfloat-abi=hard");
+    CmdArgs.push_back("-mfloat-abi");
+    CmdArgs.push_back("hard");
   }
 }
 
@@ -590,6 +594,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   assert(Inputs.size() == 1 && "Unable to handle multiple inputs.");
 
+  // Invoke ourselves in -cc1 mode.
+  //
+  // FIXME: Implement custom jobs for internal actions.
+  CmdArgs.push_back("-cc1");
+
   // Add the "effective" target triple.
   CmdArgs.push_back("-triple");
   std::string TripleStr = getEffectiveClangTriple(D, getToolChain(), Args);
@@ -646,6 +655,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (isa<AnalyzeJobAction>(JA)) {
     // Enable region store model by default.
     CmdArgs.push_back("-analyzer-store=region");
+
+    // Treat blocks as analysis entry points.
+    CmdArgs.push_back("-analyzer-opt-analyze-nested-blocks");
 
     // Add default argument set.
     if (!Args.hasArg(options::OPT__analyzer_no_default_checks)) {
@@ -787,7 +799,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Arg *Unsupported;
   if ((Unsupported = Args.getLastArg(options::OPT_MG)) ||
       (Unsupported = Args.getLastArg(options::OPT_MQ)) ||
-      (Unsupported = Args.getLastArg(options::OPT_iframework)))
+      (Unsupported = Args.getLastArg(options::OPT_iframework)) ||
+      (Unsupported = Args.getLastArg(options::OPT_fshort_enums)))
     D.Diag(clang::diag::err_drv_clang_unsupported)
       << Unsupported->getOption().getName();
 
@@ -803,7 +816,16 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_nostdinc);
   Args.AddLastArg(CmdArgs, options::OPT_nobuiltininc);
 
-  Args.AddLastArg(CmdArgs, options::OPT_isysroot);
+  // Pass the path to compiler resource files.
+  //
+  // FIXME: Get this from a configuration object.
+  llvm::sys::Path P(D.Dir);
+  P.eraseComponent(); // Remove /bin from foo/bin
+  P.appendComponent("lib");
+  P.appendComponent("clang");
+  P.appendComponent(CLANG_VERSION_STRING);
+  CmdArgs.push_back("-resource-dir");
+  CmdArgs.push_back(Args.MakeArgString(P.str()));
 
   // Add preprocessing options like -I, -D, etc. if we are using the
   // preprocessor.
@@ -877,7 +899,13 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(Args.MakeArgString(llvm::Twine(N)));
   }
 
-  // Forward -f options which we can pass directly.
+  if (const Arg *A = Args.getLastArg(options::OPT_fvisibility_EQ)) {
+    CmdArgs.push_back("-fvisibility");
+    CmdArgs.push_back(A->getValue(Args));
+  }
+
+  // Forward -f (flag) options which we can pass directly.
+  Args.AddLastArg(CmdArgs, options::OPT_fcatch_undefined_behavior);
   Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);
   Args.AddLastArg(CmdArgs, options::OPT_ffreestanding);
   Args.AddLastArg(CmdArgs, options::OPT_fheinous_gnu_extensions);
@@ -890,7 +918,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_fdiagnostics_print_source_range_info);
   Args.AddLastArg(CmdArgs, options::OPT_ftime_report);
   Args.AddLastArg(CmdArgs, options::OPT_ftrapv);
-  Args.AddLastArg(CmdArgs, options::OPT_fvisibility_EQ);
   Args.AddLastArg(CmdArgs, options::OPT_fwritable_strings);
 
   Args.AddLastArg(CmdArgs, options::OPT_pthread);
@@ -1027,7 +1054,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Default to -fno-builtin-str{cat,cpy} on Darwin for ARM.
   //
-  // FIXME: This is disabled until clang-cc supports -fno-builtin-foo. PR4941.
+  // FIXME: This is disabled until clang -cc1 supports -fno-builtin-foo. PR4941.
 #if 0
   if (getToolChain().getTriple().getOS() == llvm::Triple::Darwin &&
       (getToolChain().getTriple().getArch() == llvm::Triple::arm ||
@@ -1077,8 +1104,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddAllArgs(CmdArgs, options::OPT_undef);
 
   const char *Exec =
-    Args.MakeArgString(getToolChain().GetProgramPath(C, "clang-cc"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+    Args.MakeArgString(getToolChain().GetProgramPath(C, "clang"));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 
   // Explicitly warn that these options are unsupported, even though
   // we are allowing compilation to continue.
@@ -1200,7 +1227,7 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
     getToolChain().getHost().getDriver().CCCGenericGCCName.c_str();
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, GCCName));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void gcc::Preprocess::RenderExtraToolArgs(ArgStringList &CmdArgs) const {
@@ -1589,7 +1616,7 @@ void darwin::Preprocess::ConstructJob(Compilation &C, const JobAction &JA,
   const char *CC1Name = getCC1Name(Inputs[0].getType());
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, CC1Name));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void darwin::Compile::ConstructJob(Compilation &C, const JobAction &JA,
@@ -1683,7 +1710,7 @@ void darwin::Compile::ConstructJob(Compilation &C, const JobAction &JA,
   const char *CC1Name = getCC1Name(Inputs[0].getType());
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, CC1Name));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void darwin::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
@@ -1738,7 +1765,7 @@ void darwin::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 /// Helper routine for seeing if we should use dsymutil; this is a
@@ -2152,7 +2179,7 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 
   // Find the first non-empty base input (we want to ignore linker
   // inputs).
@@ -2182,7 +2209,7 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
         Args.MakeArgString(getToolChain().GetProgramPath(C, "dsymutil"));
       ArgStringList CmdArgs;
       CmdArgs.push_back(Output.getFilename());
-      C.getJobs().addCommand(new Command(JA, Exec, CmdArgs));
+      C.getJobs().addCommand(new Command(JA, *this, Exec, CmdArgs));
     }
   }
 }
@@ -2208,7 +2235,7 @@ void darwin::Lipo::ConstructJob(Compilation &C, const JobAction &JA,
   }
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "lipo"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void auroraux::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2238,7 +2265,7 @@ void auroraux::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "gas"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2339,7 +2366,7 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void openbsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2369,7 +2396,7 @@ void openbsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void openbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2469,7 +2496,7 @@ void openbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void freebsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2504,7 +2531,7 @@ void freebsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2617,7 +2644,7 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 /// DragonFly Tools
@@ -2656,7 +2683,7 @@ void dragonfly::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "as"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }
 
 void dragonfly::Link::ConstructJob(Compilation &C, const JobAction &JA,
@@ -2780,5 +2807,5 @@ void dragonfly::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "ld"));
-  Dest.addCommand(new Command(JA, Exec, CmdArgs));
+  Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 }

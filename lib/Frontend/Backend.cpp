@@ -15,6 +15,7 @@
 #include "clang/Basic/TargetOptions.h"
 #include "clang/CodeGen/CodeGenOptions.h"
 #include "clang/CodeGen/ModuleBuilder.h"
+#include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
 #include "llvm/PassManager.h"
@@ -31,12 +32,14 @@
 #include "llvm/Target/SubtargetFeature.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegistry.h"
 using namespace clang;
 using namespace llvm;
 
 namespace {
   class BackendConsumer : public ASTConsumer {
+    Diagnostic &Diags;
     BackendAction Action;
     const CodeGenOptions &CodeGenOpts;
     const LangOptions &LangOpts;
@@ -64,21 +67,20 @@ namespace {
 
     void CreatePasses();
 
-    /// AddEmitPasses - Add passes necessary to emit assembly or LLVM
-    /// IR.
+    /// AddEmitPasses - Add passes necessary to emit assembly or LLVM IR.
     ///
-    /// \return True on success. On failure \arg Error will be set to
-    /// a user readable error message.
-    bool AddEmitPasses(std::string &Error);
+    /// \return True on success.
+    bool AddEmitPasses();
 
     void EmitAssembly();
 
   public:
-    BackendConsumer(BackendAction action, Diagnostic &Diags,
+    BackendConsumer(BackendAction action, Diagnostic &_Diags,
                     const LangOptions &langopts, const CodeGenOptions &compopts,
                     const TargetOptions &targetopts, bool TimePasses,
                     const std::string &infile, llvm::raw_ostream *OS,
                     LLVMContext& C) :
+      Diags(_Diags),
       Action(action),
       CodeGenOpts(compopts),
       LangOpts(langopts),
@@ -195,7 +197,7 @@ FunctionPassManager *BackendConsumer::getPerFunctionPasses() const {
   return PerFunctionPasses;
 }
 
-bool BackendConsumer::AddEmitPasses(std::string &Error) {
+bool BackendConsumer::AddEmitPasses() {
   if (Action == Backend_EmitNothing)
     return true;
 
@@ -207,48 +209,68 @@ bool BackendConsumer::AddEmitPasses(std::string &Error) {
     bool Fast = CodeGenOpts.OptimizationLevel == 0;
 
     // Create the TargetMachine for generating code.
+    std::string Error;
     std::string Triple = TheModule->getTargetTriple();
     const llvm::Target *TheTarget = TargetRegistry::lookupTarget(Triple, Error);
     if (!TheTarget) {
-      Error = std::string("Unable to get target machine: ") + Error;
+      Diags.Report(diag::err_fe_unable_to_create_target) << Error;
       return false;
     }
 
     // FIXME: Expose these capabilities via actual APIs!!!! Aside from just
     // being gross, this is also totally broken if we ever care about
     // concurrency.
+    llvm::NoFramePointerElim = CodeGenOpts.DisableFPElim;
+    if (CodeGenOpts.FloatABI == "soft")
+      llvm::FloatABIType = llvm::FloatABI::Soft;
+    else if (CodeGenOpts.FloatABI == "hard")
+      llvm::FloatABIType = llvm::FloatABI::Hard;
+    else {
+      assert(CodeGenOpts.FloatABI.empty() && "Invalid float abi!");
+      llvm::FloatABIType = llvm::FloatABI::Default;
+    }
+    NoZerosInBSS = CodeGenOpts.NoZeroInitializedInBSS;
+    llvm::UseSoftFloat = CodeGenOpts.SoftFloat;
+    UnwindTablesMandatory = CodeGenOpts.UnwindTables;
+
+    TargetMachine::setAsmVerbosityDefault(CodeGenOpts.AsmVerbose);
+
+    // FIXME: Parse this earlier.
+    if (CodeGenOpts.RelocationModel == "static") {
+      TargetMachine::setRelocationModel(llvm::Reloc::Static);
+    } else if (CodeGenOpts.RelocationModel == "pic") {
+      TargetMachine::setRelocationModel(llvm::Reloc::PIC_);
+    } else {
+      assert(CodeGenOpts.RelocationModel == "dynamic-no-pic" &&
+             "Invalid PIC model!");
+      TargetMachine::setRelocationModel(llvm::Reloc::DynamicNoPIC);
+    }
+    // FIXME: Parse this earlier.
+    if (CodeGenOpts.CodeModel == "small") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Small);
+    } else if (CodeGenOpts.CodeModel == "kernel") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Kernel);
+    } else if (CodeGenOpts.CodeModel == "medium") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Medium);
+    } else if (CodeGenOpts.CodeModel == "large") {
+      TargetMachine::setCodeModel(llvm::CodeModel::Large);
+    } else {
+      assert(CodeGenOpts.CodeModel.empty() && "Invalid code model!");
+      TargetMachine::setCodeModel(llvm::CodeModel::Default);
+    }
+
     std::vector<const char *> BackendArgs;
     BackendArgs.push_back("clang"); // Fake program name.
-    if (CodeGenOpts.AsmVerbose)
-      BackendArgs.push_back("-asm-verbose");
-    if (!CodeGenOpts.CodeModel.empty()) {
-      BackendArgs.push_back("-code-model");
-      BackendArgs.push_back(CodeGenOpts.CodeModel.c_str());
-    }
     if (!CodeGenOpts.DebugPass.empty()) {
       BackendArgs.push_back("-debug-pass");
       BackendArgs.push_back(CodeGenOpts.DebugPass.c_str());
-    }
-    if (CodeGenOpts.DisableFPElim)
-      BackendArgs.push_back("-disable-fp-elim");
-    if (!CodeGenOpts.FloatABI.empty()) {
-      BackendArgs.push_back("-float-abi");
-      BackendArgs.push_back(CodeGenOpts.FloatABI.c_str());
     }
     if (!CodeGenOpts.LimitFloatPrecision.empty()) {
       BackendArgs.push_back("-limit-float-precision");
       BackendArgs.push_back(CodeGenOpts.LimitFloatPrecision.c_str());
     }
-    if (CodeGenOpts.NoZeroInitializedInBSS)
-      BackendArgs.push_back("-nozero-initialized-in-bss");
-    if (CodeGenOpts.SoftFloat)
-      BackendArgs.push_back("-soft-float");
-    BackendArgs.push_back("-relocation-model");
-    BackendArgs.push_back(CodeGenOpts.RelocationModel.c_str());
     if (llvm::TimePassesIsEnabled)
       BackendArgs.push_back("-time-passes");
-    if (CodeGenOpts.UnwindTables)
-      BackendArgs.push_back("-unwind-tables");
     BackendArgs.push_back(0);
     llvm::cl::ParseCommandLineOptions(BackendArgs.size() - 1,
                                       (char**) &BackendArgs[0]);
@@ -290,7 +312,7 @@ bool BackendConsumer::AddEmitPasses(std::string &Error) {
                                     TargetMachine::AssemblyFile, OptLevel)) {
     default:
     case FileModel::Error:
-      Error = "Unable to interface with target machine!\n";
+      Diags.Report(diag::err_fe_unable_to_interface_with_target);
       return false;
     case FileModel::AsmFile:
       break;
@@ -298,7 +320,7 @@ bool BackendConsumer::AddEmitPasses(std::string &Error) {
 
     if (TM->addPassesToEmitFileFinish(*CodeGenPasses, (MachineCodeEmitter *)0,
                                       OptLevel)) {
-      Error = "Unable to interface with target machine!\n";
+      Diags.Report(diag::err_fe_unable_to_interface_with_target);
       return false;
     }
   }
@@ -329,8 +351,14 @@ void BackendConsumer::CreatePasses() {
   switch (Inlining) {
   case CodeGenOptions::NoInlining: break;
   case CodeGenOptions::NormalInlining: {
-    // Inline small functions
-    unsigned Threshold = (CodeGenOpts.OptimizeSize || OptLevel < 3) ? 50 : 200;
+    // Set the inline threshold following llvm-gcc.
+    //
+    // FIXME: Derive these constants in a principled fashion.
+    unsigned Threshold = 200;
+    if (CodeGenOpts.OptimizeSize)
+      Threshold = 50;
+    else if (OptLevel > 2)
+      Threshold = 250;
     InliningPass = createFunctionInliningPass(Threshold);
     break;
   }
@@ -372,13 +400,8 @@ void BackendConsumer::EmitAssembly() {
   assert(TheModule == M && "Unexpected module change during IR generation");
 
   CreatePasses();
-
-  std::string Error;
-  if (!AddEmitPasses(Error)) {
-    // FIXME: Don't fail this way.
-    llvm::errs() << "ERROR: " << Error << "\n";
-    ::exit(1);
-  }
+  if (!AddEmitPasses())
+    return;
 
   // Run passes. For now we do all passes at once, but eventually we
   // would like to have the option of streaming code generation.

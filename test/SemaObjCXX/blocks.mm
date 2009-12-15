@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -fblocks %s
+// RUN: clang -cc1 -fsyntax-only -verify -fblocks %s
 @protocol NSObject;
 
 void bar(id(^)(void));
@@ -44,3 +44,9 @@ namespace N {
     foo(N::X()); // okay
 }
 @end
+
+typedef signed char BOOL;
+void foo6(void *block) {  
+	void (^vb)(id obj, int idx, BOOL *stop) = (void (^)(id, int, BOOL *))block;
+    BOOL (^bb)(id obj, int idx, BOOL *stop) = (BOOL (^)(id, int, BOOL *))block;
+}

@@ -36,22 +36,23 @@ static void PrintMacroDefinition(const IdentifierInfo &II, const MacroInfo &MI,
 
   if (MI.isFunctionLike()) {
     OS << '(';
-    if (MI.arg_empty())
-      ;
-    else if (MI.getNumArgs() == 1)
-      OS << (*MI.arg_begin())->getName();
-    else {
+    if (!MI.arg_empty()) {
       MacroInfo::arg_iterator AI = MI.arg_begin(), E = MI.arg_end();
-      OS << (*AI++)->getName();
-      while (AI != E)
-        OS << ',' << (*AI++)->getName();
+      for (; AI+1 != E; ++AI) {
+        OS << (*AI)->getName();
+        OS << ',';
+      }
+
+      // Last argument.
+      if ((*AI)->getName() == "__VA_ARGS__")
+        OS << "...";
+      else
+        OS << (*AI)->getName();
     }
 
-    if (MI.isVariadic()) {
-      if (!MI.arg_empty())
-        OS << ',';
-      OS << "...";
-    }
+    if (MI.isGNUVarargs())
+      OS << "...";  // #define foo(x...)
+    
     OS << ')';
   }
 
@@ -94,6 +95,7 @@ private:
   bool Initialized;
   bool DisableLineMarkers;
   bool DumpDefines;
+  bool UseLineDirective;
 public:
   PrintPPOutputPPCallbacks(Preprocessor &pp, llvm::raw_ostream &os,
                            bool lineMarkers, bool defines)
@@ -105,6 +107,9 @@ public:
     EmittedMacroOnThisLine = false;
     FileType = SrcMgr::C_User;
     Initialized = false;
+         
+    // If we're in microsoft mode, use normal #line instead of line markers.
+    UseLineDirective = PP.getLangOptions().Microsoft;
   }
 
   void SetEmittedTokensOnThisLine() { EmittedTokensOnThisLine = true; }
@@ -141,17 +146,24 @@ void PrintPPOutputPPCallbacks::WriteLineInfo(unsigned LineNo,
     EmittedMacroOnThisLine = false;
   }
 
-  OS << '#' << ' ' << LineNo << ' ' << '"';
-  OS.write(&CurFilename[0], CurFilename.size());
-  OS << '"';
+  // Emit #line directives or GNU line markers depending on what mode we're in.
+  if (UseLineDirective) {
+    OS << "#line" << ' ' << LineNo << ' ' << '"';
+    OS.write(&CurFilename[0], CurFilename.size());
+    OS << '"';
+  } else {
+    OS << '#' << ' ' << LineNo << ' ' << '"';
+    OS.write(&CurFilename[0], CurFilename.size());
+    OS << '"';
+    
+    if (ExtraLen)
+      OS.write(Extra, ExtraLen);
 
-  if (ExtraLen)
-    OS.write(Extra, ExtraLen);
-
-  if (FileType == SrcMgr::C_System)
-    OS.write(" 3", 2);
-  else if (FileType == SrcMgr::C_ExternCSystem)
-    OS.write(" 3 4", 4);
+    if (FileType == SrcMgr::C_System)
+      OS.write(" 3", 2);
+    else if (FileType == SrcMgr::C_ExternCSystem)
+      OS.write(" 3 4", 4);
+  }
   OS << '\n';
 }
 

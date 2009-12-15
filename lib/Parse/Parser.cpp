@@ -17,7 +17,7 @@
 #include "clang/Parse/Scope.h"
 #include "clang/Parse/Template.h"
 #include "llvm/Support/raw_ostream.h"
-#include "ExtensionRAIIObject.h"
+#include "RAIIObjectsForParser.h"
 #include "ParsePragma.h"
 using namespace clang;
 
@@ -36,7 +36,8 @@ public:
 
 Parser::Parser(Preprocessor &pp, Action &actions)
   : CrashInfo(*this), PP(pp), Actions(actions), Diags(PP.getDiagnostics()),
-    GreaterThanIsOperator(true), TemplateParameterDepth(0) {
+    GreaterThanIsOperator(true), ColonIsSacred(false),
+    TemplateParameterDepth(0) {
   Tok.setKind(tok::eof);
   CurScope = 0;
   NumCachedScopes = 0;
@@ -405,7 +406,7 @@ Parser::DeclGroupPtrTy Parser::ParseExternalDeclaration(CXX0XAttributeList Attr)
   case tok::semi:
     if (!getLang().CPlusPlus0x)
       Diag(Tok, diag::ext_top_level_semi)
-        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
+        << CodeModificationHint::CreateRemoval(Tok.getLocation());
 
     ConsumeToken();
     // TODO: Invoke action for top-level semicolon.
@@ -507,12 +508,13 @@ bool Parser::isDeclarationAfterDeclarator() {
 /// \brief Determine whether the current token, if it occurs after a
 /// declarator, indicates the start of a function definition.
 bool Parser::isStartOfFunctionDefinition() {
-  return Tok.is(tok::l_brace) ||    // int X() {}
-    (!getLang().CPlusPlus &&
-     isDeclarationSpecifier()) ||   // int X(f) int f; {}
-    (getLang().CPlusPlus &&
-     (Tok.is(tok::colon) ||         // X() : Base() {} (used for ctors)
-      Tok.is(tok::kw_try)));        // X() try { ... }
+  if (Tok.is(tok::l_brace))   // int X() {}
+    return true;
+  
+  if (!getLang().CPlusPlus)
+    return isDeclarationSpecifier();   // int X(f) int f; {}
+  return Tok.is(tok::colon) ||         // X() : Base() {} (used for ctors)
+         Tok.is(tok::kw_try);          // X() try { ... }
 }
 
 /// ParseDeclarationOrFunctionDefinition - Parse either a function-definition or
@@ -532,10 +534,10 @@ bool Parser::isStartOfFunctionDefinition() {
 /// [OMP]   threadprivate-directive                              [TODO]
 ///
 Parser::DeclGroupPtrTy
-Parser::ParseDeclarationOrFunctionDefinition(AttributeList *Attr,
+Parser::ParseDeclarationOrFunctionDefinition(ParsingDeclSpec &DS,
+                                             AttributeList *Attr,
                                              AccessSpecifier AS) {
   // Parse the common declaration-specifiers piece.
-  ParsingDeclSpec DS(*this);
   if (Attr)
     DS.AddAttributes(Attr);
 
@@ -584,11 +586,18 @@ Parser::ParseDeclarationOrFunctionDefinition(AttributeList *Attr,
       DS.getStorageClassSpec() == DeclSpec::SCS_extern &&
       DS.getParsedSpecifiers() == DeclSpec::PQ_StorageClassSpecifier) {
     DS.abort();
-    DeclPtrTy TheDecl = ParseLinkage(Declarator::FileContext);
+    DeclPtrTy TheDecl = ParseLinkage(DS, Declarator::FileContext);
     return Actions.ConvertDeclToDeclGroup(TheDecl);
   }
 
   return ParseDeclGroup(DS, Declarator::FileContext, true);
+}
+
+Parser::DeclGroupPtrTy
+Parser::ParseDeclarationOrFunctionDefinition(AttributeList *Attr,
+                                             AccessSpecifier AS) {
+  ParsingDeclSpec DS(*this);
+  return ParseDeclarationOrFunctionDefinition(DS, Attr, AS);
 }
 
 /// ParseFunctionDefinition - We parsed and verified that the specified
@@ -1029,7 +1038,9 @@ bool Parser::TryAnnotateCXXScopeToken(bool EnteringContext) {
 
   CXXScopeSpec SS;
   if (!ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, EnteringContext))
-    return Tok.is(tok::annot_template_id);
+    // If the token left behind is not an identifier, we either had an error or
+    // successfully turned it into an annotation token.
+    return Tok.isNot(tok::identifier);
 
   // Push the current token back into the token stream (or revert it if it is
   // cached) and use an annotation scope token for current token.

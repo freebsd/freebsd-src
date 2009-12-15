@@ -59,17 +59,41 @@ class TypeLocBuilder {
       grow(Requested);
   }
 
-  /// Pushes space for a new TypeLoc onto the given type.  Invalidates
+  /// Pushes space for a typespec TypeLoc.  Invalidates any TypeLocs
+  /// previously retrieved from this builder.
+  TypeSpecTypeLoc pushTypeSpec(QualType T) {
+    size_t LocalSize = TypeSpecTypeLoc::LocalDataSize;
+    return cast<TypeSpecTypeLoc>(pushImpl(T, LocalSize));
+  }
+  
+
+  /// Pushes space for a new TypeLoc of the given type.  Invalidates
   /// any TypeLocs previously retrieved from this builder.
   template <class TyLocType> TyLocType push(QualType T) {
+    size_t LocalSize = cast<TyLocType>(TypeLoc(T, 0)).getLocalDataSize();
+    return cast<TyLocType>(pushImpl(T, LocalSize));
+  }
+
+  /// Creates a TypeSourceInfo for the given type.
+  TypeSourceInfo *getTypeSourceInfo(ASTContext& Context, QualType T) {
+#ifndef NDEBUG
+    assert(T == LastTy && "type doesn't match last type pushed!");
+#endif
+
+    size_t FullDataSize = Capacity - Index;
+    TypeSourceInfo *DI = Context.CreateTypeSourceInfo(T, FullDataSize);
+    memcpy(DI->getTypeLoc().getOpaqueData(), &Buffer[Index], FullDataSize);
+    return DI;
+  }
+
+private:
+  TypeLoc pushImpl(QualType T, size_t LocalSize) {
 #ifndef NDEBUG
     QualType TLast = TypeLoc(T, 0).getNextTypeLoc().getType();
     assert(TLast == LastTy &&
            "mismatch between last type and new type's inner type");
     LastTy = T;
 #endif
-
-    size_t LocalSize = cast<TyLocType>(TypeLoc(T, 0)).getLocalDataSize();
 
     // If we need to grow, grow by a factor of 2.
     if (LocalSize > Index) {
@@ -82,22 +106,9 @@ class TypeLocBuilder {
 
     Index -= LocalSize;
 
-    return cast<TyLocType>(TypeLoc(T, &Buffer[Index]));
+    return TypeLoc(T, &Buffer[Index]);
   }
 
-  /// Creates a DeclaratorInfo for the given type.
-  DeclaratorInfo *getDeclaratorInfo(ASTContext& Context, QualType T) {
-#ifndef NDEBUG
-    assert(T == LastTy && "type doesn't match last type pushed!");
-#endif
-
-    size_t FullDataSize = Capacity - Index;
-    DeclaratorInfo *DI = Context.CreateDeclaratorInfo(T, FullDataSize);
-    memcpy(DI->getTypeLoc().getOpaqueData(), &Buffer[Index], FullDataSize);
-    return DI;
-  }
-
- private:
   /// Grow to the given capacity.
   void grow(size_t NewCapacity) {
     assert(NewCapacity > Capacity);

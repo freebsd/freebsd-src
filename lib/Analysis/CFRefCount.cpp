@@ -675,11 +675,9 @@ template <> struct DenseMapInfo<ObjCSummaryKey> {
                                            RHS.getSelector());
   }
 
-  static bool isPod() {
-    return DenseMapInfo<ObjCInterfaceDecl*>::isPod() &&
-           DenseMapInfo<Selector>::isPod();
-  }
 };
+template <>
+struct isPodLike<ObjCSummaryKey> { static const bool value = true; };
 } // end llvm namespace
 
 namespace {
@@ -1984,8 +1982,9 @@ public:
                    Expr* Ex,
                    Expr* Receiver,
                    const RetainSummary& Summ,
+                   const MemRegion *Callee,
                    ExprIterator arg_beg, ExprIterator arg_end,
-                   ExplodedNode* Pred);
+                   ExplodedNode* Pred, const GRState *state);
 
   virtual void EvalCall(ExplodedNodeSet& Dst,
                         GRExprEngine& Eng,
@@ -1998,7 +1997,8 @@ public:
                                    GRExprEngine& Engine,
                                    GRStmtNodeBuilder& Builder,
                                    ObjCMessageExpr* ME,
-                                   ExplodedNode* Pred);
+                                   ExplodedNode* Pred,
+                                   const GRState *state);
 
   bool EvalObjCMessageExprAux(ExplodedNodeSet& Dst,
                               GRExprEngine& Engine,
@@ -2776,11 +2776,9 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
                              Expr* Ex,
                              Expr* Receiver,
                              const RetainSummary& Summ,
+                             const MemRegion *Callee,
                              ExprIterator arg_beg, ExprIterator arg_end,
-                             ExplodedNode* Pred) {
-
-  // Get the state.
-  const GRState *state = Builder.GetState(Pred);
+                             ExplodedNode* Pred, const GRState *state) {
 
   // Evaluate the effect of the arguments.
   RefVal::Kind hasErr = (RefVal::Kind) 0;
@@ -2788,6 +2786,8 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
   Expr* ErrorExpr = NULL;
   SymbolRef ErrorSym = 0;
 
+  llvm::SmallVector<const MemRegion*, 10> RegionsToInvalidate;
+  
   for (ExprIterator I = arg_beg; I != arg_end; ++I, ++idx) {
     SVal V = state->getSValAsScalarOrLoc(*I);
     SymbolRef Sym = V.getAsLocSymbol();
@@ -2810,16 +2810,8 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
           continue;
 
         // Invalidate the value of the variable passed by reference.
-
-        // FIXME: We can have collisions on the conjured symbol if the
-        //  expression *I also creates conjured symbols.  We probably want
-        //  to identify conjured symbols by an expression pair: the enclosing
-        //  expression (the context) and the expression itself.  This should
-        //  disambiguate conjured symbols.
-        unsigned Count = Builder.getCurrentBlockCount();
-        StoreManager& StoreMgr = Eng.getStateManager().getStoreManager();
-
         const MemRegion *R = MR->getRegion();
+
         // Are we dealing with an ElementRegion?  If the element type is
         // a basic integer type (e.g., char, int) and the underying region
         // is a variable region then strip off the ElementRegion.
@@ -2843,14 +2835,11 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
           }
           // FIXME: What about layers of ElementRegions?
         }
-
-        StoreManager::InvalidatedSymbols IS;
-        state = StoreMgr.InvalidateRegion(state, R, *I, Count, &IS);
-        for (StoreManager::InvalidatedSymbols::iterator I = IS.begin(),
-             E = IS.end(); I!=E; ++I) {
-          // Remove any existing reference-count binding.
-          state = state->remove<RefBindings>(*I);
-        }
+        
+        // Mark this region for invalidation.  We batch invalidate regions
+        // below for efficiency.
+        RegionsToInvalidate.push_back(R);
+        continue;
       }
       else {
         // Nuke all other arguments passed by reference.
@@ -2864,6 +2853,36 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
       // invalidate the values referred by the location.
       V = cast<nonloc::LocAsInteger>(V).getLoc();
       goto tryAgain;
+    }
+  }
+  
+  // Block calls result in all captured values passed-via-reference to be
+  // invalidated.
+  if (const BlockDataRegion *BR = dyn_cast_or_null<BlockDataRegion>(Callee)) {
+    RegionsToInvalidate.push_back(BR);
+  }
+  
+  // Invalidate regions we designed for invalidation use the batch invalidation
+  // API.
+  if (!RegionsToInvalidate.empty()) {    
+    // FIXME: We can have collisions on the conjured symbol if the
+    //  expression *I also creates conjured symbols.  We probably want
+    //  to identify conjured symbols by an expression pair: the enclosing
+    //  expression (the context) and the expression itself.  This should
+    //  disambiguate conjured symbols.
+    unsigned Count = Builder.getCurrentBlockCount();
+    StoreManager& StoreMgr = Eng.getStateManager().getStoreManager();
+
+    
+    StoreManager::InvalidatedSymbols IS;
+    state = StoreMgr.InvalidateRegions(state, RegionsToInvalidate.data(),
+                                       RegionsToInvalidate.data() +
+                                       RegionsToInvalidate.size(),
+                                       Ex, Count, &IS);
+    for (StoreManager::InvalidatedSymbols::iterator I = IS.begin(),
+         E = IS.end(); I!=E; ++I) {
+        // Remove any existing reference-count binding.
+      state = state->remove<RefBindings>(*I);
     }
   }
 
@@ -3012,35 +3031,24 @@ void CFRefCount::EvalCall(ExplodedNodeSet& Dst,
   }
 
   assert(Summ);
-  EvalSummary(Dst, Eng, Builder, CE, 0, *Summ,
-              CE->arg_begin(), CE->arg_end(), Pred);
+  EvalSummary(Dst, Eng, Builder, CE, 0, *Summ, L.getAsRegion(),
+              CE->arg_begin(), CE->arg_end(), Pred, Builder.GetState(Pred));
 }
 
 void CFRefCount::EvalObjCMessageExpr(ExplodedNodeSet& Dst,
                                      GRExprEngine& Eng,
                                      GRStmtNodeBuilder& Builder,
                                      ObjCMessageExpr* ME,
-                                     ExplodedNode* Pred) {
-  // FIXME: Since we moved the nil check into a checker, we could get nil
-  // receiver here. Need a better way to check such case. 
-  if (Expr* Receiver = ME->getReceiver()) {
-    const GRState *state = Pred->getState();
-    DefinedOrUnknownSVal L=cast<DefinedOrUnknownSVal>(state->getSVal(Receiver));
-    if (!state->Assume(L, true)) {
-      Dst.Add(Pred);
-      return;
-    }
-  }
-  
+                                     ExplodedNode* Pred,
+                                     const GRState *state) {
   RetainSummary *Summ =
     ME->getReceiver()
-      ? Summaries.getInstanceMethodSummary(ME, Builder.GetState(Pred),
-                                           Pred->getLocationContext())
+      ? Summaries.getInstanceMethodSummary(ME, state,Pred->getLocationContext())
       : Summaries.getClassMethodSummary(ME);
 
   assert(Summ && "RetainSummary is null");
-  EvalSummary(Dst, Eng, Builder, ME, ME->getReceiver(), *Summ,
-              ME->arg_begin(), ME->arg_end(), Pred);
+  EvalSummary(Dst, Eng, Builder, ME, ME->getReceiver(), *Summ, NULL,
+              ME->arg_begin(), ME->arg_end(), Pred, state);
 }
 
 namespace {
@@ -3671,7 +3679,24 @@ void RetainReleaseChecker::PostVisitBlockExpr(CheckerContext &C,
   if (I == E)
     return;
   
-  state = state->scanReachableSymbols<StopTrackingCallback>(I, E).getState();
+  // FIXME: For now we invalidate the tracking of all symbols passed to blocks
+  // via captured variables, even though captured variables result in a copy
+  // and in implicit increment/decrement of a retain count.
+  llvm::SmallVector<const MemRegion*, 10> Regions;
+  const LocationContext *LC = C.getPredecessor()->getLocationContext();
+  MemRegionManager &MemMgr = C.getValueManager().getRegionManager();
+  
+  for ( ; I != E; ++I) {
+    const VarRegion *VR = *I;
+    if (VR->getSuperRegion() == R) {
+      VR = MemMgr.getVarRegion(VR->getDecl(), LC);
+    }
+    Regions.push_back(VR);
+  }
+  
+  state =
+    state->scanReachableSymbols<StopTrackingCallback>(Regions.data(),
+                                    Regions.data() + Regions.size()).getState();
   C.addTransition(state);
 }
 

@@ -41,64 +41,42 @@ unsigned ContentCache::getSizeBytesMapped() const {
 /// getSize - Returns the size of the content encapsulated by this ContentCache.
 ///  This can be the size of the source file or the size of an arbitrary
 ///  scratch buffer.  If the ContentCache encapsulates a source file, that
-///  file is not lazily brought in from disk to satisfy this query unless it
-///  needs to be truncated due to a truncateAt() call.
+///  file is not lazily brought in from disk to satisfy this query.
 unsigned ContentCache::getSize() const {
   return Buffer ? Buffer->getBufferSize() : Entry->getSize();
 }
 
-const llvm::MemoryBuffer *ContentCache::getBuffer() const {
-  // Lazily create the Buffer for ContentCaches that wrap files.
-  if (!Buffer && Entry) {
-    // FIXME: Should we support a way to not have to do this check over
-    //   and over if we cannot open the file?
-    Buffer = MemoryBuffer::getFile(Entry->getName(), 0, Entry->getSize());
-    if (isTruncated())
-      const_cast<ContentCache *>(this)->truncateAt(TruncateAtLine, 
-                                                   TruncateAtColumn);
-  }
-  return Buffer;
+void ContentCache::replaceBuffer(const llvm::MemoryBuffer *B) {
+  assert(B != Buffer);
+  
+  delete Buffer;
+  Buffer = B;
 }
 
-void ContentCache::truncateAt(unsigned Line, unsigned Column) {
-  TruncateAtLine = Line;
-  TruncateAtColumn = Column;
-  
-  if (!isTruncated() || !Buffer)
-    return;
-  
-  // Find the byte position of the truncation point.
-  const char *Position = Buffer->getBufferStart();
-  for (unsigned Line = 1; Line < TruncateAtLine; ++Line) {
-    for (; *Position; ++Position) {
-      if (*Position != '\r' && *Position != '\n')
-        continue;
-      
-      // Eat \r\n or \n\r as a single line.
-      if ((Position[1] == '\r' || Position[1] == '\n') &&
-          Position[0] != Position[1])
-        ++Position;
-      ++Position;
-      break;
+const llvm::MemoryBuffer *ContentCache::getBuffer(std::string *ErrorStr) const {
+  // Lazily create the Buffer for ContentCaches that wrap files.
+  if (!Buffer && Entry) {
+    Buffer = MemoryBuffer::getFile(Entry->getName(), ErrorStr,Entry->getSize());
+
+    // If we were unable to open the file, then we are in an inconsistent
+    // situation where the content cache referenced a file which no longer
+    // exists. Most likely, we were using a stat cache with an invalid entry but
+    // the file could also have been removed during processing. Since we can't
+    // really deal with this situation, just create an empty buffer.
+    //
+    // FIXME: This is definitely not ideal, but our immediate clients can't
+    // currently handle returning a null entry here. Ideally we should detect
+    // that we are in an inconsistent situation and error out as quickly as
+    // possible.
+    if (!Buffer) {
+      const llvm::StringRef FillStr("<<<MISSING SOURCE FILE>>>\n");
+      Buffer = MemoryBuffer::getNewMemBuffer(Entry->getSize(), "<invalid>");
+      char *Ptr = const_cast<char*>(Buffer->getBufferStart());
+      for (unsigned i = 0, e = Entry->getSize(); i != e; ++i)
+        Ptr[i] = FillStr[i % FillStr.size()];
     }
   }
-  
-  for (unsigned Column = 1; Column < TruncateAtColumn; ++Column, ++Position) {
-    if (!*Position)
-      break;
-    
-    if (*Position == '\t')
-      Column += 7;
-  }
-  
-  // Truncate the buffer.
-  if (Position != Buffer->getBufferEnd()) {
-    MemoryBuffer *TruncatedBuffer 
-      = MemoryBuffer::getMemBufferCopy(Buffer->getBufferStart(), Position, 
-                                       Buffer->getBufferIdentifier());
-    delete Buffer;
-    Buffer = TruncatedBuffer;
-  }
+  return Buffer;
 }
 
 unsigned LineTableInfo::getLineTableFilenameID(const char *Ptr, unsigned Len) {
@@ -332,16 +310,6 @@ SourceManager::getOrCreateContentCache(const FileEntry *FileEnt) {
   EntryAlign = std::max(8U, EntryAlign);
   Entry = ContentCacheAlloc.Allocate<ContentCache>(1, EntryAlign);
   new (Entry) ContentCache(FileEnt);
-  
-  if (FileEnt == TruncateFile) {
-    // If we had queued up a file truncation request, perform the truncation
-    // now.
-    Entry->truncateAt(TruncateAtLine, TruncateAtColumn);
-    TruncateFile = 0;
-    TruncateAtLine = 0;
-    TruncateAtColumn = 0;
-  }
-  
   return Entry;
 }
 
@@ -413,8 +381,6 @@ FileID SourceManager::createFileID(const ContentCache *File,
       = SLocEntry::get(Offset, FileInfo::get(IncludePos, File, FileCharacter));
     SLocEntryLoaded[PreallocatedID] = true;
     FileID FID = FileID::get(PreallocatedID);
-    if (File->FirstFID.isInvalid())
-      File->FirstFID = FID;
     return LastFileIDLookup = FID;
   }
 
@@ -428,8 +394,6 @@ FileID SourceManager::createFileID(const ContentCache *File,
   // Set LastFileIDLookup to the newly created file.  The next getFileID call is
   // almost guaranteed to be from that file.
   FileID FID = FileID::get(SLocEntryTable.size()-1);
-  if (File->FirstFID.isInvalid())
-    File->FirstFID = FID;
   return LastFileIDLookup = FID;
 }
 
@@ -459,6 +423,25 @@ SourceLocation SourceManager::createInstantiationLoc(SourceLocation SpellingLoc,
   assert(NextOffset+TokLength+1 > NextOffset && "Ran out of source locations!");
   NextOffset += TokLength+1;
   return SourceLocation::getMacroLoc(NextOffset-(TokLength+1));
+}
+
+const llvm::MemoryBuffer *
+SourceManager::getMemoryBufferForFile(const FileEntry *File) {
+  const SrcMgr::ContentCache *IR = getOrCreateContentCache(File);
+  if (IR == 0)
+    return 0;
+
+  return IR->getBuffer();
+}
+
+bool SourceManager::overrideFileContents(const FileEntry *SourceFile,
+                                         const llvm::MemoryBuffer *Buffer) {
+  const SrcMgr::ContentCache *IR = getOrCreateContentCache(SourceFile);
+  if (IR == 0)
+    return true;
+
+  const_cast<SrcMgr::ContentCache *>(IR)->replaceBuffer(Buffer);
+  return false;
 }
 
 /// getBufferData - Return a pointer to the start and end of the source buffer
@@ -1007,8 +990,33 @@ SourceLocation SourceManager::getLocation(const FileEntry *SourceFile,
   if (i < Col-1)
     return SourceLocation();
 
-  return getLocForStartOfFile(Content->FirstFID).
-            getFileLocWithOffset(FilePos + Col - 1);
+  // Find the first file ID that corresponds to the given file.
+  FileID FirstFID;
+
+  // First, check the main file ID, since it is common to look for a
+  // location in the main file.
+  if (!MainFileID.isInvalid()) {
+    const SLocEntry &MainSLoc = getSLocEntry(MainFileID);
+    if (MainSLoc.isFile() && MainSLoc.getFile().getContentCache() == Content)
+      FirstFID = MainFileID;
+  }
+
+  if (FirstFID.isInvalid()) {
+    // The location we're looking for isn't in the main file; look
+    // through all of the source locations.
+    for (unsigned I = 0, N = sloc_entry_size(); I != N; ++I) {
+      const SLocEntry &SLoc = getSLocEntry(I);
+      if (SLoc.isFile() && SLoc.getFile().getContentCache() == Content) {
+        FirstFID = FileID::get(I);
+        break;
+      }
+    }
+  }
+    
+  if (FirstFID.isInvalid())
+    return SourceLocation();
+
+  return getLocForStartOfFile(FirstFID).getFileLocWithOffset(FilePos + Col - 1);
 }
 
 /// \brief Determines the order of 2 source locations in the translation unit.
@@ -1087,52 +1095,20 @@ bool SourceManager::isBeforeInTranslationUnit(SourceLocation LHS,
       return LastResForBeforeTUCheck = LOffs.second < I->second;
   }
 
-  // No common ancestor.
-  // Now we are getting into murky waters. Most probably this is because one
-  // location is in the predefines buffer.
+  // There is no common ancestor, most probably because one location is in the
+  // predefines buffer.
+  //
+  // FIXME: We should rearrange the external interface so this simply never
+  // happens; it can't conceptually happen. Also see PR5662.
 
-  const FileEntry *LEntry =
-    getSLocEntry(LOffs.first).getFile().getContentCache()->Entry;
-  const FileEntry *REntry =
-    getSLocEntry(ROffs.first).getFile().getContentCache()->Entry;
+  // If exactly one location is a memory buffer, assume it preceeds the other.
+  bool LIsMB = !getSLocEntry(LOffs.first).getFile().getContentCache()->Entry;
+  bool RIsMB = !getSLocEntry(ROffs.first).getFile().getContentCache()->Entry;
+  if (LIsMB != RIsMB)
+    return LastResForBeforeTUCheck = LIsMB;
 
-  // If the locations are in two memory buffers we give up, we can't answer
-  // which one should be considered first.
-  // FIXME: Should there be a way to "include" memory buffers in the translation
-  // unit ?
-  assert((LEntry != 0 || REntry != 0) && "Locations in memory buffers.");
-  (void) REntry;
-
-  // Consider the memory buffer as coming before the file in the translation
-  // unit.
-  if (LEntry == 0)
-    return LastResForBeforeTUCheck = true;
-  else {
-    assert(REntry == 0 && "Locations in not #included files ?");
-    return LastResForBeforeTUCheck = false;
-  }
-}
-
-void SourceManager::truncateFileAt(const FileEntry *Entry, unsigned Line, 
-                                   unsigned Column) {
-  llvm::DenseMap<const FileEntry*, SrcMgr::ContentCache*>::iterator FI
-     = FileInfos.find(Entry);
-  if (FI != FileInfos.end()) {
-    FI->second->truncateAt(Line, Column);
-    return;
-  }
-  
-  // We cannot perform the truncation until we actually see the file, so
-  // save the truncation information.
-  assert(TruncateFile == 0 && "Can't queue up multiple file truncations!");
-  TruncateFile = Entry;
-  TruncateAtLine = Line;
-  TruncateAtColumn = Column;
-}
-
-/// \brief Determine whether this file was truncated.
-bool SourceManager::isTruncatedFile(FileID FID) const {
-  return getSLocEntry(FID).getFile().getContentCache()->isTruncated();
+  // Otherwise, just assume FileIDs were created in order.
+  return LastResForBeforeTUCheck = (LOffs.first < ROffs.first);
 }
 
 /// PrintStats - Print statistics to stderr.

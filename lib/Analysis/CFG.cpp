@@ -87,7 +87,6 @@ private:
   CFGBlock *VisitAddrLabelExpr(AddrLabelExpr *A, bool alwaysAdd);
   CFGBlock *VisitBinaryOperator(BinaryOperator *B, bool alwaysAdd);
   CFGBlock *VisitBlockExpr(BlockExpr* E, bool alwaysAdd);
-  CFGBlock *VisitBlockDeclRefExpr(BlockDeclRefExpr* E, bool alwaysAdd);
   CFGBlock *VisitBreakStmt(BreakStmt *B);
   CFGBlock *VisitCallExpr(CallExpr *C, bool alwaysAdd);
   CFGBlock *VisitCaseStmt(CaseStmt *C);
@@ -95,7 +94,9 @@ private:
   CFGBlock *VisitCompoundStmt(CompoundStmt *C);
   CFGBlock *VisitConditionalOperator(ConditionalOperator *C);
   CFGBlock *VisitContinueStmt(ContinueStmt *C);
+  CFGBlock *VisitCXXCatchStmt(CXXCatchStmt *S) { return NYS(); }
   CFGBlock *VisitCXXThrowExpr(CXXThrowExpr *T);
+  CFGBlock *VisitCXXTryStmt(CXXTryStmt *S) { return NYS(); }  
   CFGBlock *VisitDeclStmt(DeclStmt *DS);
   CFGBlock *VisitDeclSubExpr(Decl* D);
   CFGBlock *VisitDefaultStmt(DefaultStmt *D);
@@ -292,9 +293,6 @@ tryAgain:
     case Stmt::BlockExprClass:
       return VisitBlockExpr(cast<BlockExpr>(S), alwaysAdd);
 
-    case Stmt::BlockDeclRefExprClass:
-      return VisitBlockDeclRefExpr(cast<BlockDeclRefExpr>(S), alwaysAdd);
-
     case Stmt::BreakStmtClass:
       return VisitBreakStmt(cast<BreakStmt>(S));
 
@@ -466,12 +464,6 @@ CFGBlock *CFGBuilder::VisitBlockExpr(BlockExpr *E, bool alwaysAdd) {
     AppendStmt(Block, E);
   }
   return Block;
-}
-
-CFGBlock *CFGBuilder::VisitBlockDeclRefExpr(BlockDeclRefExpr* E,
-                                            bool alwaysAdd) {
-  // FIXME
-  return NYS();
 }
 
 CFGBlock *CFGBuilder::VisitBreakStmt(BreakStmt *B) {

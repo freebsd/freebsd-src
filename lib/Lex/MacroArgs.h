@@ -30,6 +30,13 @@ class MacroArgs {
   /// concatenated together, with 'EOF' markers at the end of each argument.
   unsigned NumUnexpArgTokens;
 
+  /// VarargsElided - True if this is a C99 style varargs macro invocation and
+  /// there was no argument specified for the "..." argument.  If the argument
+  /// was specified (even empty) or this isn't a C99 style varargs function, or
+  /// if in strict mode and the C99 varargs macro had only a ... argument, this
+  /// is false.
+  bool VarargsElided;
+  
   /// PreExpArgTokens - Pre-expanded tokens for arguments that need them.  Empty
   /// if not yet computed.  This includes the EOF marker at the end of the
   /// stream.
@@ -39,26 +46,24 @@ class MacroArgs {
   /// stringified form of an argument has not yet been computed, this is empty.
   std::vector<Token> StringifiedArgs;
 
-  /// VarargsElided - True if this is a C99 style varargs macro invocation and
-  /// there was no argument specified for the "..." argument.  If the argument
-  /// was specified (even empty) or this isn't a C99 style varargs function, or
-  /// if in strict mode and the C99 varargs macro had only a ... argument, this
-  /// is false.
-  bool VarargsElided;
-
+  /// ArgCache - This is a linked list of MacroArgs objects that the
+  /// Preprocessor owns which we use to avoid thrashing malloc/free.
+  MacroArgs *ArgCache;
+  
   MacroArgs(unsigned NumToks, bool varargsElided)
-    : NumUnexpArgTokens(NumToks), VarargsElided(varargsElided) {}
+    : NumUnexpArgTokens(NumToks), VarargsElided(varargsElided), ArgCache(0) {}
   ~MacroArgs() {}
 public:
   /// MacroArgs ctor function - Create a new MacroArgs object with the specified
   /// macro and argument info.
   static MacroArgs *create(const MacroInfo *MI,
                            const Token *UnexpArgTokens,
-                           unsigned NumArgTokens, bool VarargsElided);
+                           unsigned NumArgTokens, bool VarargsElided,
+                           Preprocessor &PP);
 
   /// destroy - Destroy and deallocate the memory for this object.
   ///
-  void destroy();
+  void destroy(Preprocessor &PP);
 
   /// ArgNeedsPreexpansion - If we can prove that the argument won't be affected
   /// by pre-expansion, return false.  Otherwise, conservatively return true.
@@ -102,6 +107,11 @@ public:
   ///
   static Token StringifyArgument(const Token *ArgToks,
                                  Preprocessor &PP, bool Charify = false);
+  
+  
+  /// deallocate - This should only be called by the Preprocessor when managing
+  /// its freelist.
+  MacroArgs *deallocate();
 };
 
 }  // end namespace clang

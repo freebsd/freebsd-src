@@ -110,7 +110,7 @@ void DeclRefExpr::computeDependence() {
 
 DeclRefExpr::DeclRefExpr(NestedNameSpecifier *Qualifier, 
                          SourceRange QualifierRange,
-                         NamedDecl *D, SourceLocation NameLoc,
+                         ValueDecl *D, SourceLocation NameLoc,
                          const TemplateArgumentListInfo *TemplateArgs,
                          QualType T)
   : Expr(DeclRefExprClass, T, false, false),
@@ -118,7 +118,6 @@ DeclRefExpr::DeclRefExpr(NestedNameSpecifier *Qualifier,
                (Qualifier? HasQualifierFlag : 0) |
                (TemplateArgs ? HasExplicitTemplateArgumentListFlag : 0)),
     Loc(NameLoc) {
-  assert(!isa<OverloadedFunctionDecl>(D));
   if (Qualifier) {
     NameQualifier *NQ = getNameQualifier();
     NQ->NNS = Qualifier;
@@ -134,7 +133,7 @@ DeclRefExpr::DeclRefExpr(NestedNameSpecifier *Qualifier,
 DeclRefExpr *DeclRefExpr::Create(ASTContext &Context,
                                  NestedNameSpecifier *Qualifier,
                                  SourceRange QualifierRange,
-                                 NamedDecl *D,
+                                 ValueDecl *D,
                                  SourceLocation NameLoc,
                                  QualType T,
                                  const TemplateArgumentListInfo *TemplateArgs) {
@@ -204,7 +203,8 @@ std::string PredefinedExpr::ComputeName(ASTContext &Context, IdentType IT,
     }
     Proto += ")";
 
-    AFT->getResultType().getAsStringInternal(Proto, Policy);
+    if (!isa<CXXConstructorDecl>(FD) && !isa<CXXDestructorDecl>(FD))
+      AFT->getResultType().getAsStringInternal(Proto, Policy);
 
     Out << Proto;
 
@@ -471,7 +471,7 @@ QualType CallExpr::getCallReturnType() const {
 }
 
 MemberExpr::MemberExpr(Expr *base, bool isarrow, NestedNameSpecifier *qual,
-                       SourceRange qualrange, NamedDecl *memberdecl,
+                       SourceRange qualrange, ValueDecl *memberdecl,
                        SourceLocation l, const TemplateArgumentListInfo *targs,
                        QualType ty)
   : Expr(MemberExprClass, ty,
@@ -494,7 +494,7 @@ MemberExpr::MemberExpr(Expr *base, bool isarrow, NestedNameSpecifier *qual,
 MemberExpr *MemberExpr::Create(ASTContext &C, Expr *base, bool isarrow,
                                NestedNameSpecifier *qual,
                                SourceRange qualrange,
-                               NamedDecl *memberdecl,
+                               ValueDecl *memberdecl,
                                SourceLocation l,
                                const TemplateArgumentListInfo *targs,
                                QualType ty) {
@@ -558,10 +558,38 @@ const char *CastExpr::getCastKindName() const {
     return "FloatingCast";
   case CastExpr::CK_MemberPointerToBoolean:
     return "MemberPointerToBoolean";
+  case CastExpr::CK_AnyPointerToObjCPointerCast:
+    return "AnyPointerToObjCPointerCast";
+  case CastExpr::CK_AnyPointerToBlockPointerCast:
+    return "AnyPointerToBlockPointerCast";
   }
 
   assert(0 && "Unhandled cast kind!");
   return 0;
+}
+
+Expr *CastExpr::getSubExprAsWritten() {
+  Expr *SubExpr = 0;
+  CastExpr *E = this;
+  do {
+    SubExpr = E->getSubExpr();
+    
+    // Skip any temporary bindings; they're implicit.
+    if (CXXBindTemporaryExpr *Binder = dyn_cast<CXXBindTemporaryExpr>(SubExpr))
+      SubExpr = Binder->getSubExpr();
+    
+    // Conversions by constructor and conversion functions have a
+    // subexpression describing the call; strip it off.
+    if (E->getCastKind() == CastExpr::CK_ConstructorConversion)
+      SubExpr = cast<CXXConstructExpr>(SubExpr)->getArg(0);
+    else if (E->getCastKind() == CastExpr::CK_UserDefinedConversion)
+      SubExpr = cast<CXXMemberCallExpr>(SubExpr)->getImplicitObjectArgument();
+    
+    // If the subexpression we're left with is an implicit cast, look
+    // through that, too.
+  } while ((E = dyn_cast<ImplicitCastExpr>(SubExpr)));  
+  
+  return SubExpr;
 }
 
 /// getOpcodeStr - Turn an Opcode enum value into the punctuation char it
@@ -944,8 +972,7 @@ static bool DeclCanBeLvalue(const NamedDecl *Decl, ASTContext &Ctx) {
   return isa<VarDecl>(Decl) || isa<FieldDecl>(Decl) ||
     // C++ 3.10p2: An lvalue refers to an object or function.
     (Ctx.getLangOptions().CPlusPlus &&
-     (isa<FunctionDecl>(Decl) || isa<OverloadedFunctionDecl>(Decl) ||
-      isa<FunctionTemplateDecl>(Decl)));
+     (isa<FunctionDecl>(Decl) || isa<FunctionTemplateDecl>(Decl)));
 }
 
 /// isLvalue - C99 6.3.2.1: an lvalue is an expression with an object type or an
@@ -982,6 +1009,7 @@ Expr::isLvalueResult Expr::isLvalue(ASTContext &Ctx) const {
 // Check whether the expression can be sanely treated like an l-value
 Expr::isLvalueResult Expr::isLvalueInternal(ASTContext &Ctx) const {
   switch (getStmtClass()) {
+  case ObjCIsaExprClass:
   case StringLiteralClass:  // C99 6.5.1p4
   case ObjCEncodeExprClass: // @encode behaves like its string in every way.
     return LV_Valid;
@@ -1343,6 +1371,13 @@ Expr *Expr::IgnoreParenNoopCasts(ASTContext &Ctx) {
   }
 }
 
+bool Expr::isDefaultArgument() const {
+  const Expr *E = this;
+  while (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E))
+    E = ICE->getSubExprAsWritten();
+  
+  return isa<CXXDefaultArgExpr>(E);
+}
 
 /// hasAnyTypeDependentArguments - Determines if any of the expressions
 /// in Exprs is type-dependent.
@@ -1598,13 +1633,18 @@ static ICEDiag CheckICE(const Expr* E, ASTContext &Ctx) {
           //   constant expression (5.19). In that case, the member can appear
           //   in integral constant expressions.
           if (Def->isOutOfLine()) {
-            Dcl->setInitKnownICE(Ctx, false);
+            Dcl->setInitKnownICE(false);
             return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());
           }
-          
+
+          if (Dcl->isCheckingICE()) {
+            return ICEDiag(2, cast<DeclRefExpr>(E)->getLocation());
+          }
+
+          Dcl->setCheckingICE();
           ICEDiag Result = CheckICE(Init, Ctx);
           // Cache the result of the ICE test.
-          Dcl->setInitKnownICE(Ctx, Result.Val == 0);
+          Dcl->setInitKnownICE(Result.Val == 0);
           return Result;
         }
       }
@@ -1804,7 +1844,7 @@ bool Expr::isIntegerConstantExpr(llvm::APSInt &Result, ASTContext &Ctx,
   }
   EvalResult EvalResult;
   if (!Evaluate(EvalResult, Ctx))
-    llvm::llvm_unreachable("ICE cannot be evaluated!");
+    llvm_unreachable("ICE cannot be evaluated!");
   assert(!EvalResult.HasSideEffects && "ICE with side effects!");
   assert(EvalResult.Val.isInt() && "ICE that isn't integer!");
   Result = EvalResult.Val.getInt();

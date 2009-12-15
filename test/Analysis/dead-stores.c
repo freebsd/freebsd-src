@@ -1,8 +1,8 @@
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -warn-dead-stores -fblocks -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -warn-dead-stores -fblocks -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=range -warn-dead-stores -fblocks -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=basic -warn-dead-stores -fblocks -verify %s
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=range -warn-dead-stores -fblocks -verify %s
+// RUN: clang -cc1 -analyze -analyzer-experimental-internal-checks -warn-dead-stores -fblocks -verify %s
+// RUN: clang -cc1 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=basic -warn-dead-stores -fblocks -verify %s
+// RUN: clang -cc1 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=basic -analyzer-constraints=range -warn-dead-stores -fblocks -verify %s
+// RUN: clang -cc1 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=basic -warn-dead-stores -fblocks -verify %s
+// RUN: clang -cc1 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=range -warn-dead-stores -fblocks -verify %s
 
 void f1() {
   int k, y;
@@ -370,3 +370,60 @@ void f23_pos(int argc, char **argv) {
      f23_aux("I did too use it!\n");
   }();  
 }
+
+void f24_A(int y) {
+  // FIXME: One day this should be reported as dead since 'z = x + y' is dead.
+  int x = (y > 2); // no-warning
+  ^ {
+    int z = x + y; // FIXME: Eventually this should be reported as a dead store.
+  }();  
+}
+
+void f24_B(int y) {
+  // FIXME: One day this should be reported as dead since 'x' is just overwritten.
+  __block int x = (y > 2); // no-warning
+  ^{
+    // FIXME: This should eventually be a dead store since it is never read either.
+    x = 5; // no-warning
+  }();
+}
+
+int f24_C(int y) {
+  // FIXME: One day this should be reported as dead since 'x' is just overwritten.
+  __block int x = (y > 2); // no-warning
+  ^{ 
+    x = 5; // no-warning
+  }();
+  return x;
+}
+
+int f24_D(int y) {
+  __block int x = (y > 2); // no-warning
+  ^{ 
+    if (y > 4)
+      x = 5; // no-warning
+  }();
+  return x;
+}
+
+// This example shows that writing to a variable captured by a block means that it might
+// not be dead.
+int f25(int y) {
+  __block int x = (y > 2);
+  __block int z = 0;
+  void (^foo)() = ^{ z = x + y; };
+  x = 4; // no-warning
+  foo();
+  return z; 
+}
+
+// This test is mostly the same as 'f25', but shows that the heuristic of pruning out dead
+// stores for variables that are just marked '__block' is overly conservative.
+int f25_b(int y) {
+  // FIXME: we should eventually report a dead store here.
+  __block int x = (y > 2);
+  __block int z = 0;
+  x = 4; // no-warning
+  return z; 
+}
+

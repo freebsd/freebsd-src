@@ -21,10 +21,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/Config/config.h"
-#include <cstdio>
 #ifdef _MSC_VER
   #define WIN32_LEAN_AND_MEAN 1
   #include <windows.h>
@@ -50,27 +50,27 @@ public:
     : Headers(HS), Verbose(verbose), isysroot(iSysroot) {}
 
   /// AddPath - Add the specified path to the specified group list.
-  void AddPath(const llvm::StringRef &Path, IncludeDirGroup Group,
+  void AddPath(const llvm::Twine &Path, IncludeDirGroup Group,
                bool isCXXAware, bool isUserSupplied,
                bool isFramework, bool IgnoreSysRoot = false);
 
   /// AddGnuCPlusPlusIncludePaths - Add the necessary paths to suport a gnu
   ///  libstdc++.
-  void AddGnuCPlusPlusIncludePaths(const std::string &Base,
-                                   const char *ArchDir,
-                                   const char *Dir32,
-                                   const char *Dir64,
+  void AddGnuCPlusPlusIncludePaths(llvm::StringRef Base,
+                                   llvm::StringRef ArchDir,
+                                   llvm::StringRef Dir32,
+                                   llvm::StringRef Dir64,
                                    const llvm::Triple &triple);
 
   /// AddMinGWCPlusPlusIncludePaths - Add the necessary paths to suport a MinGW
   ///  libstdc++.
-  void AddMinGWCPlusPlusIncludePaths(const std::string &Base,
-                                     const char *Arch,
-                                     const char *Version);
+  void AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
+                                     llvm::StringRef Arch,
+                                     llvm::StringRef Version);
 
   /// AddDelimitedPaths - Add a list of paths delimited by the system PATH
   /// separator. The processing follows that of the CPATH variable for gcc.
-  void AddDelimitedPaths(const char *String);
+  void AddDelimitedPaths(llvm::StringRef String);
 
   // AddDefaultCIncludePaths - Add paths that should always be searched.
   void AddDefaultCIncludePaths(const llvm::Triple &triple);
@@ -91,25 +91,26 @@ public:
 
 }
 
-void InitHeaderSearch::AddPath(const llvm::StringRef &Path,
+void InitHeaderSearch::AddPath(const llvm::Twine &Path,
                                IncludeDirGroup Group, bool isCXXAware,
                                bool isUserSupplied, bool isFramework,
                                bool IgnoreSysRoot) {
-  assert(!Path.empty() && "can't handle empty path here");
+  assert(!Path.isTriviallyEmpty() && "can't handle empty path here");
   FileManager &FM = Headers.getFileMgr();
 
   // Compute the actual path, taking into consideration -isysroot.
-  llvm::SmallString<256> MappedPath;
+  llvm::SmallString<256> MappedPathStr;
+  llvm::raw_svector_ostream MappedPath(MappedPathStr);
 
   // Handle isysroot.
   if (Group == System && !IgnoreSysRoot) {
     // FIXME: Portability.  This should be a sys::Path interface, this doesn't
     // handle things like C:\ right, nor win32 \\network\device\blah.
     if (isysroot.size() != 1 || isysroot[0] != '/') // Add isysroot if present.
-      MappedPath.append(isysroot.begin(), isysroot.end());
+      MappedPath << isysroot;
   }
 
-  MappedPath.append(Path.begin(), Path.end());
+  Path.print(MappedPath);
 
   // Compute the DirectoryLookup type.
   SrcMgr::CharacteristicKind Type;
@@ -146,29 +147,29 @@ void InitHeaderSearch::AddPath(const llvm::StringRef &Path,
 }
 
 
-void InitHeaderSearch::AddDelimitedPaths(const char *at) {
-  if (*at == 0) // Empty string should not add '.' path.
+void InitHeaderSearch::AddDelimitedPaths(llvm::StringRef at) {
+  if (at.empty()) // Empty string should not add '.' path.
     return;
 
-  const char* delim = strchr(at, llvm::sys::PathSeparator);
-  while (delim != 0) {
-    if (delim-at == 0)
+  llvm::StringRef::size_type delim;
+  while ((delim = at.find(llvm::sys::PathSeparator)) != llvm::StringRef::npos) {
+    if (delim == 0)
       AddPath(".", Angled, false, true, false);
     else
-      AddPath(llvm::StringRef(at, delim-at), Angled, false, true, false);
-    at = delim + 1;
-    delim = strchr(at, llvm::sys::PathSeparator);
+      AddPath(at.substr(0, delim), Angled, false, true, false);
+    at = at.substr(delim + 1);
   }
-  if (*at == 0)
+
+  if (at.empty())
     AddPath(".", Angled, false, true, false);
   else
     AddPath(at, Angled, false, true, false);
 }
 
-void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(const std::string &Base,
-                                                   const char *ArchDir,
-                                                   const char *Dir32,
-                                                   const char *Dir64,
+void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(llvm::StringRef Base,
+                                                   llvm::StringRef ArchDir,
+                                                   llvm::StringRef Dir32,
+                                                   llvm::StringRef Dir64,
                                                    const llvm::Triple &triple) {
   // Add the base dir
   AddPath(Base, System, true, false, false);
@@ -185,10 +186,10 @@ void InitHeaderSearch::AddGnuCPlusPlusIncludePaths(const std::string &Base,
   AddPath(Base + "/backward", System, true, false, false);
 }
 
-void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(const std::string &Base,
-                                                     const char *Arch,
-                                                     const char *Version) {
-  std::string localBase = Base + "/" + Arch + "/" + Version + "/include";
+void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
+                                                     llvm::StringRef Arch,
+                                                     llvm::StringRef Version) {
+  llvm::Twine localBase = Base + "/" + Arch + "/" + Version + "/include";
   AddPath(localBase, System, true, false, false);
   AddPath(localBase + "/c++", System, true, false, false);
   AddPath(localBase + "/c++/backward", System, true, false, false);
@@ -500,6 +501,10 @@ void InitHeaderSearch::AddDefaultCPlusPlusIncludePaths(const llvm::Triple &tripl
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.1",
                                 "i586-redhat-linux","", "", triple);
 
+    // Fedora 12
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.4.2",
+                                "i686-redhat-linux","", "", triple);
+
     // openSUSE 11.1 32 bit
     AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.3",
                                 "i586-suse-linux", "", "", triple);
@@ -643,11 +648,11 @@ static void RemoveDuplicates(std::vector<DirectoryLookup> &SearchList,
     }
 
     if (Verbose) {
-      fprintf(stderr, "ignoring duplicate directory \"%s\"\n",
-              CurEntry.getName());
+      llvm::errs() << "ignoring duplicate directory \""
+                   << CurEntry.getName() << "\"\n";
       if (DirToRemove != i)
-        fprintf(stderr, "  as it is a non-system directory that duplicates"
-                " a system directory\n");
+        llvm::errs() << "  as it is a non-system directory that duplicates "
+                     << "a system directory\n";
     }
 
     // This is reached if the current entry is a duplicate.  Remove the
@@ -680,11 +685,11 @@ void InitHeaderSearch::Realize() {
 
   // If verbose, print the list of directories that will be searched.
   if (Verbose) {
-    fprintf(stderr, "#include \"...\" search starts here:\n");
+    llvm::errs() << "#include \"...\" search starts here:\n";
     unsigned QuotedIdx = IncludeGroup[Quoted].size();
     for (unsigned i = 0, e = SearchList.size(); i != e; ++i) {
       if (i == QuotedIdx)
-        fprintf(stderr, "#include <...> search starts here:\n");
+        llvm::errs() << "#include <...> search starts here:\n";
       const char *Name = SearchList[i].getName();
       const char *Suffix;
       if (SearchList[i].isNormalDir())
@@ -695,9 +700,9 @@ void InitHeaderSearch::Realize() {
         assert(SearchList[i].isHeaderMap() && "Unknown DirectoryLookup");
         Suffix = " (headermap)";
       }
-      fprintf(stderr, " %s%s\n", Name, Suffix);
+      llvm::errs() << " " << Name << Suffix << "\n";
     }
-    fprintf(stderr, "End of search list.\n");
+    llvm::errs() << "End of search list.\n";
   }
 }
 
@@ -715,21 +720,22 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   }
 
   // Add entries from CPATH and friends.
-  Init.AddDelimitedPaths(HSOpts.EnvIncPath.c_str());
+  Init.AddDelimitedPaths(HSOpts.EnvIncPath);
   if (Lang.CPlusPlus && Lang.ObjC1)
-    Init.AddDelimitedPaths(HSOpts.ObjCXXEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.ObjCXXEnvIncPath);
   else if (Lang.CPlusPlus)
-    Init.AddDelimitedPaths(HSOpts.CXXEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.CXXEnvIncPath);
   else if (Lang.ObjC1)
-    Init.AddDelimitedPaths(HSOpts.ObjCEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.ObjCEnvIncPath);
   else
-    Init.AddDelimitedPaths(HSOpts.CEnvIncPath.c_str());
+    Init.AddDelimitedPaths(HSOpts.CEnvIncPath);
 
-  if (!HSOpts.BuiltinIncludePath.empty()) {
+  if (HSOpts.UseBuiltinIncludes) {
     // Ignore the sys root, we *always* look for clang headers relative to
     // supplied path.
-    Init.AddPath(HSOpts.BuiltinIncludePath, System,
-                 false, false, false, /*IgnoreSysRoot=*/ true);
+    llvm::sys::Path P(HSOpts.ResourceDir);
+    P.appendComponent("include");
+    Init.AddPath(P.str(), System, false, false, false, /*IgnoreSysRoot=*/ true);
   }
 
   if (HSOpts.UseStandardIncludes)

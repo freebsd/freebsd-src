@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Parse/Parser.h"
-#include "ExtensionRAIIObject.h"
+#include "RAIIObjectsForParser.h"
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/Scope.h"
 #include "clang/Basic/Diagnostic.h"
@@ -279,6 +279,11 @@ Parser::OwningStmtResult Parser::ParseCaseStatement(AttributeList *Attr) {
       ConsumeToken();
     }
     
+    /// We don't want to treat 'case x : y' as a potential typo for 'case x::y'.
+    /// Disable this form of error recovery while we're parsing the case
+    /// expression.
+    ColonProtectionRAIIObject ColonProtection(*this);
+    
     OwningExprResult LHS(ParseConstantExpression());
     if (LHS.isInvalid()) {
       SkipUntil(tok::colon);
@@ -298,6 +303,8 @@ Parser::OwningStmtResult Parser::ParseCaseStatement(AttributeList *Attr) {
         return StmtError();
       }
     }
+    
+    ColonProtection.restore();
 
     if (Tok.isNot(tok::colon)) {
       Diag(Tok, diag::err_expected_colon_after) << "'case'";
@@ -1162,7 +1169,20 @@ Parser::OwningStmtResult Parser::FuzzyParseMicrosoftAsmStatement() {
              Tok.isNot(tok::r_brace) && Tok.isNot(tok::semi) &&
              Tok.isNot(tok::eof));
   }
-  return Actions.ActOnNullStmt(Tok.getLocation());
+  llvm::SmallVector<std::string, 4> Names;
+  Token t;
+  t.setKind(tok::string_literal);
+  t.setLiteralData("\"FIXME: not done\"");
+  t.clearFlag(Token::NeedsCleaning);
+  t.setLength(17);
+  OwningExprResult AsmString(Actions.ActOnStringLiteral(&t, 1));
+  ExprVector Constraints(Actions);
+  ExprVector Exprs(Actions);
+  ExprVector Clobbers(Actions);
+  return Actions.ActOnAsmStmt(Tok.getLocation(), true, true, 0, 0, Names.data(),
+                              move_arg(Constraints), move_arg(Exprs),
+                              move(AsmString), move_arg(Clobbers),
+                              Tok.getLocation());
 }
 
 /// ParseAsmStatement - Parse a GNU extended asm statement.

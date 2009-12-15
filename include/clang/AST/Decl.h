@@ -35,17 +35,17 @@ class TypeLoc;
 ///
 /// A client can read the relevant info using TypeLoc wrappers, e.g:
 /// @code
-/// TypeLoc TL = DeclaratorInfo->getTypeLoc();
+/// TypeLoc TL = TypeSourceInfo->getTypeLoc();
 /// if (PointerLoc *PL = dyn_cast<PointerLoc>(&TL))
 ///   PL->getStarLoc().print(OS, SrcMgr);
 /// @endcode
 ///
-class DeclaratorInfo {
+class TypeSourceInfo {
   QualType Ty;
   // Contains a memory block after the class, used for type source information,
   // allocated by ASTContext.
   friend class ASTContext;
-  DeclaratorInfo(QualType ty) : Ty(ty) { }
+  TypeSourceInfo(QualType ty) : Ty(ty) { }
 public:
   /// \brief Return the type wrapped by this type source info.
   QualType getType() const { return Ty; }
@@ -322,18 +322,18 @@ public:
 };
 
 /// \brief Represents a ValueDecl that came out of a declarator.
-/// Contains type source information through DeclaratorInfo.
+/// Contains type source information through TypeSourceInfo.
 class DeclaratorDecl : public ValueDecl {
-  DeclaratorInfo *DeclInfo;
+  TypeSourceInfo *DeclInfo;
 
 protected:
   DeclaratorDecl(Kind DK, DeclContext *DC, SourceLocation L,
-                 DeclarationName N, QualType T, DeclaratorInfo *DInfo)
-    : ValueDecl(DK, DC, L, N, T), DeclInfo(DInfo) {}
+                 DeclarationName N, QualType T, TypeSourceInfo *TInfo)
+    : ValueDecl(DK, DC, L, N, T), DeclInfo(TInfo) {}
 
 public:
-  DeclaratorInfo *getDeclaratorInfo() const { return DeclInfo; }
-  void setDeclaratorInfo(DeclaratorInfo *DInfo) { DeclInfo = DInfo; }
+  TypeSourceInfo *getTypeSourceInfo() const { return DeclInfo; }
+  void setTypeSourceInfo(TypeSourceInfo *TInfo) { DeclInfo = TInfo; }
 
   SourceLocation getTypeSpecStartLoc() const;
 
@@ -348,14 +348,22 @@ public:
 /// which it was evaluated (if any), and whether or not the statement
 /// is an integral constant expression (if known).
 struct EvaluatedStmt {
-  EvaluatedStmt() : WasEvaluated(false), CheckedICE(false), IsICE(false) { }
+  EvaluatedStmt() : WasEvaluated(false), IsEvaluating(false), CheckedICE(false),
+                    CheckingICE(false), IsICE(false) { }
 
   /// \brief Whether this statement was already evaluated.
   bool WasEvaluated : 1;
 
+  /// \brief Whether this statement is being evaluated.
+  bool IsEvaluating : 1;
+
   /// \brief Whether we already checked whether this statement was an
   /// integral constant expression.
   bool CheckedICE : 1;
+
+  /// \brief Whether we are checking whether this statement is an
+  /// integral constant expression.
+  bool CheckingICE : 1;
 
   /// \brief Whether this statement is an integral constant
   /// expression. Only valid if CheckedICE is true.
@@ -432,8 +440,8 @@ private:
   friend class StmtIteratorBase;
 protected:
   VarDecl(Kind DK, DeclContext *DC, SourceLocation L, IdentifierInfo *Id,
-          QualType T, DeclaratorInfo *DInfo, StorageClass SC)
-    : DeclaratorDecl(DK, DC, L, Id, T, DInfo), Init(),
+          QualType T, TypeSourceInfo *TInfo, StorageClass SC)
+    : DeclaratorDecl(DK, DC, L, Id, T, TInfo), Init(),
       ThreadSpecified(false), HasCXXDirectInit(false),
       DeclaredInCondition(false) {
     SClass = SC;
@@ -453,7 +461,7 @@ public:
 
   static VarDecl *Create(ASTContext &C, DeclContext *DC,
                          SourceLocation L, IdentifierInfo *Id,
-                         QualType T, DeclaratorInfo *DInfo, StorageClass S);
+                         QualType T, TypeSourceInfo *TInfo, StorageClass S);
 
   virtual ~VarDecl();
   virtual void Destroy(ASTContext& C);
@@ -504,23 +512,45 @@ public:
 
   void setInit(ASTContext &C, Expr *I);
 
-  /// \brief Note that constant evaluation has computed the given
-  /// value for this variable's initializer.
-  void setEvaluatedValue(ASTContext &C, const APValue &Value) const {
+  EvaluatedStmt *EnsureEvaluatedStmt() const {
     EvaluatedStmt *Eval = Init.dyn_cast<EvaluatedStmt *>();
     if (!Eval) {
       Stmt *S = Init.get<Stmt *>();
-      Eval = new (C) EvaluatedStmt;
+      Eval = new (getASTContext()) EvaluatedStmt;
       Eval->Value = S;
       Init = Eval;
     }
+    return Eval;
+  }
 
+  /// \brief Check whether we are in the process of checking whether the
+  /// initializer can be evaluated.
+  bool isEvaluatingValue() const {
+    if (EvaluatedStmt *Eval = Init.dyn_cast<EvaluatedStmt *>())
+      return Eval->IsEvaluating;
+
+    return false;
+  }
+
+  /// \brief Note that we now are checking whether the initializer can be
+  /// evaluated.
+  void setEvaluatingValue() const {
+    EvaluatedStmt *Eval = EnsureEvaluatedStmt();
+    Eval->IsEvaluating = true;
+  }
+
+  /// \brief Note that constant evaluation has computed the given
+  /// value for this variable's initializer.
+  void setEvaluatedValue(const APValue &Value) const {
+    EvaluatedStmt *Eval = EnsureEvaluatedStmt();
+    Eval->IsEvaluating = false;
     Eval->WasEvaluated = true;
     Eval->Evaluated = Value;
   }
 
   /// \brief Return the already-evaluated value of this variable's
-  /// initializer, or NULL if the value is not yet known.
+  /// initializer, or NULL if the value is not yet known. Returns pointer
+  /// to untyped APValue if the value could not be evaluated.
   APValue *getEvaluatedValue() const {
     if (EvaluatedStmt *Eval = Init.dyn_cast<EvaluatedStmt *>())
       if (Eval->WasEvaluated)
@@ -548,17 +578,27 @@ public:
     return Init.get<EvaluatedStmt *>()->IsICE;
   }
 
+  /// \brief Check whether we are in the process of checking the initializer
+  /// is an integral constant expression.
+  bool isCheckingICE() const {
+    if (EvaluatedStmt *Eval = Init.dyn_cast<EvaluatedStmt *>())
+      return Eval->CheckingICE;
+
+    return false;
+  }
+
+  /// \brief Note that we now are checking whether the initializer is an
+  /// integral constant expression.
+  void setCheckingICE() const {
+    EvaluatedStmt *Eval = EnsureEvaluatedStmt();
+    Eval->CheckingICE = true;
+  }
+
   /// \brief Note that we now know whether the initializer is an
   /// integral constant expression.
-  void setInitKnownICE(ASTContext &C, bool IsICE) const {
-    EvaluatedStmt *Eval = Init.dyn_cast<EvaluatedStmt *>();
-    if (!Eval) {
-      Stmt *S = Init.get<Stmt *>();
-      Eval = new (C) EvaluatedStmt;
-      Eval->Value = S;
-      Init = Eval;
-    }
-
+  void setInitKnownICE(bool IsICE) const {
+    EvaluatedStmt *Eval = EnsureEvaluatedStmt();
+    Eval->CheckingICE = false;
     Eval->CheckedICE = true;
     Eval->IsICE = IsICE;
   }
@@ -712,7 +752,7 @@ class ImplicitParamDecl : public VarDecl {
 protected:
   ImplicitParamDecl(Kind DK, DeclContext *DC, SourceLocation L,
                     IdentifierInfo *Id, QualType Tw)
-    : VarDecl(DK, DC, L, Id, Tw, /*DInfo=*/0, VarDecl::None) {}
+    : VarDecl(DK, DC, L, Id, Tw, /*TInfo=*/0, VarDecl::None) {}
 public:
   static ImplicitParamDecl *Create(ASTContext &C, DeclContext *DC,
                                    SourceLocation L, IdentifierInfo *Id,
@@ -739,16 +779,16 @@ class ParmVarDecl : public VarDecl {
 
 protected:
   ParmVarDecl(Kind DK, DeclContext *DC, SourceLocation L,
-              IdentifierInfo *Id, QualType T, DeclaratorInfo *DInfo,
+              IdentifierInfo *Id, QualType T, TypeSourceInfo *TInfo,
               StorageClass S, Expr *DefArg)
-  : VarDecl(DK, DC, L, Id, T, DInfo, S), objcDeclQualifier(OBJC_TQ_None) {
+  : VarDecl(DK, DC, L, Id, T, TInfo, S), objcDeclQualifier(OBJC_TQ_None) {
     setDefaultArg(DefArg);
   }
 
 public:
   static ParmVarDecl *Create(ASTContext &C, DeclContext *DC,
                              SourceLocation L,IdentifierInfo *Id,
-                             QualType T, DeclaratorInfo *DInfo,
+                             QualType T, TypeSourceInfo *TInfo,
                              StorageClass S, Expr *DefArg);
 
   ObjCDeclQualifier getObjCDeclQualifier() const {
@@ -822,8 +862,8 @@ public:
   }
 
   QualType getOriginalType() const {
-    if (getDeclaratorInfo())
-      return getDeclaratorInfo()->getType();
+    if (getTypeSourceInfo())
+      return getTypeSourceInfo()->getType();
     return getType();
   }
 
@@ -907,9 +947,9 @@ private:
 
 protected:
   FunctionDecl(Kind DK, DeclContext *DC, SourceLocation L,
-               DeclarationName N, QualType T, DeclaratorInfo *DInfo,
+               DeclarationName N, QualType T, TypeSourceInfo *TInfo,
                StorageClass S, bool isInline)
-    : DeclaratorDecl(DK, DC, L, N, T, DInfo),
+    : DeclaratorDecl(DK, DC, L, N, T, TInfo),
       DeclContext(DK),
       ParamInfo(0), Body(),
       SClass(S), IsInline(isInline), 
@@ -936,7 +976,7 @@ public:
 
   static FunctionDecl *Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                               DeclarationName N, QualType T,
-                              DeclaratorInfo *DInfo,
+                              TypeSourceInfo *TInfo,
                               StorageClass S = None, bool isInline = false,
                               bool hasWrittenPrototype = true);
 
@@ -1272,15 +1312,15 @@ class FieldDecl : public DeclaratorDecl {
   Expr *BitWidth;
 protected:
   FieldDecl(Kind DK, DeclContext *DC, SourceLocation L,
-            IdentifierInfo *Id, QualType T, DeclaratorInfo *DInfo,
+            IdentifierInfo *Id, QualType T, TypeSourceInfo *TInfo,
             Expr *BW, bool Mutable)
-    : DeclaratorDecl(DK, DC, L, Id, T, DInfo), Mutable(Mutable), BitWidth(BW) {
+    : DeclaratorDecl(DK, DC, L, Id, T, TInfo), Mutable(Mutable), BitWidth(BW) {
   }
 
 public:
   static FieldDecl *Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                            IdentifierInfo *Id, QualType T,
-                           DeclaratorInfo *DInfo, Expr *BW, bool Mutable);
+                           TypeSourceInfo *TInfo, Expr *BW, bool Mutable);
 
   /// isMutable - Determines whether this field is mutable (C++ only).
   bool isMutable() const { return Mutable; }
@@ -1383,28 +1423,28 @@ public:
 
 class TypedefDecl : public TypeDecl {
   /// UnderlyingType - This is the type the typedef is set to.
-  DeclaratorInfo *DInfo;
+  TypeSourceInfo *TInfo;
 
   TypedefDecl(DeclContext *DC, SourceLocation L,
-              IdentifierInfo *Id, DeclaratorInfo *DInfo)
-    : TypeDecl(Typedef, DC, L, Id), DInfo(DInfo) {}
+              IdentifierInfo *Id, TypeSourceInfo *TInfo)
+    : TypeDecl(Typedef, DC, L, Id), TInfo(TInfo) {}
 
   virtual ~TypedefDecl() {}
 public:
 
   static TypedefDecl *Create(ASTContext &C, DeclContext *DC,
                              SourceLocation L, IdentifierInfo *Id,
-                             DeclaratorInfo *DInfo);
+                             TypeSourceInfo *TInfo);
 
-  DeclaratorInfo *getTypeDeclaratorInfo() const {
-    return DInfo;
+  TypeSourceInfo *getTypeSourceInfo() const {
+    return TInfo;
   }
 
   QualType getUnderlyingType() const {
-    return DInfo->getType();
+    return TInfo->getType();
   }
-  void setTypeDeclaratorInfo(DeclaratorInfo *newType) {
-    DInfo = newType;
+  void setTypeSourceInfo(TypeSourceInfo *newType) {
+    TInfo = newType;
   }
 
   // Implement isa/cast/dyncast/etc.
@@ -1554,6 +1594,12 @@ class EnumDecl : public TagDecl {
   /// have a different type than this does.
   QualType IntegerType;
 
+  /// PromotionType - The integer type that values of this type should
+  /// promote to.  In C, enumerators are generally of an integer type
+  /// directly, but gcc-style large enumerators (and all enumerators
+  /// in C++) are of the enum type instead.
+  QualType PromotionType;
+
   /// \brief If the enumeration was instantiated from an enumeration
   /// within a class or function template, this pointer refers to the
   /// enumeration declared within the template.
@@ -1583,7 +1629,8 @@ public:
   /// declaration as being defined; it's enumerators have already been
   /// added (via DeclContext::addDecl). NewType is the new underlying
   /// type of the enumeration type.
-  void completeDefinition(ASTContext &C, QualType NewType);
+  void completeDefinition(ASTContext &C, QualType NewType,
+                          QualType PromotionType);
 
   // enumerator_iterator - Iterates through the enumerators of this
   // enumeration.
@@ -1596,6 +1643,13 @@ public:
   enumerator_iterator enumerator_end() const {
     return enumerator_iterator(this->decls_end());
   }
+
+  /// getPromotionType - Return the integer type that enumerators
+  /// should promote to.
+  QualType getPromotionType() const { return PromotionType; }
+
+  /// \brief Set the promotion type.
+  void setPromotionType(QualType T) { PromotionType = T; }
 
   /// getIntegerType - Return the integer type this enum decl corresponds to.
   /// This returns a null qualtype for an enum forward definition.

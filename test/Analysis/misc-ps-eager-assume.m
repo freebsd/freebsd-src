@@ -1,4 +1,4 @@
-// RUN: clang-cc -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify -fblocks %s -analyzer-eagerly-assume
+// RUN: clang -cc1 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -analyzer-constraints=range -verify -fblocks %s -analyzer-eagerly-assume
 
 // Delta-reduced header stuff (needed for test cases).
 typedef signed char BOOL;
@@ -120,3 +120,26 @@ void rdar7342806() {
     // be true when Pointer is not NULL.
     rdar7342806_aux(*Pointer); // no-warning
 }
+
+//===---------------------------------------------------------------------===//
+// PR 5627 - http://llvm.org/bugs/show_bug.cgi?id=5627
+//  This test case depends on using -analyzer-eagerly-assume and
+//  -analyzer-store=region.  The '-analyzer-eagerly-assume' causes the path
+//  to bifurcate when evaluating the function call argument, and a state
+//  caching bug in GRExprEngine::CheckerVisit (and friends) caused the store
+//  to 'p' to not be evaluated along one path, but then an autotransition caused
+//  the path to keep on propagating with 'p' still set to an undefined value.
+//  We would then get a bogus report of returning uninitialized memory.
+//  Note: CheckerVisit mistakenly cleared an existing node, and the cleared
+//  node was resurrected by GRStmtNodeBuilder::~GRStmtNodeBuilder(), where
+//  'p' was not assigned.
+//===---------------------------------------------------------------------===//
+
+float *pr5627_f(int y);
+
+float *pr5627_g(int x) {
+  float *p;
+  p = pr5627_f(!x);
+  return p; // no-warning
+}
+

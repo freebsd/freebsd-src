@@ -279,13 +279,14 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
   assert(!Loc.isInvalid() && "must have a valid source location here");
 
   // If this is a macro ID, first emit information about where this was
-  // instantiated (recursively) then emit information about where. the token was
+  // instantiated (recursively) then emit information about where the token was
   // spelled from.
   if (!Loc.isFileID()) {
     SourceLocation OneLevelUp = SM.getImmediateInstantiationRange(Loc).first;
     // FIXME: Map ranges?
     EmitCaretDiagnostic(OneLevelUp, Ranges, NumRanges, SM, 0, 0, Columns);
 
+    // Map the location.
     Loc = SM.getImmediateSpellingLoc(Loc);
 
     // Map the ranges.
@@ -295,15 +296,22 @@ void TextDiagnosticPrinter::EmitCaretDiagnostic(SourceLocation Loc,
       if (E.isMacroID()) E = SM.getImmediateSpellingLoc(E);
       Ranges[i] = SourceRange(S, E);
     }
+    
+    // Get the pretty name, according to #line directives etc.
+    PresumedLoc PLoc = SM.getPresumedLoc(Loc);
+    
+    // If this diagnostic is not in the main file, print out the "included from"
+    // lines.
+    if (LastWarningLoc != PLoc.getIncludeLoc()) {
+      LastWarningLoc = PLoc.getIncludeLoc();
+      PrintIncludeStack(LastWarningLoc, SM);
+    }
 
     if (DiagOpts->ShowLocation) {
-      std::pair<FileID, unsigned> IInfo = SM.getDecomposedInstantiationLoc(Loc);
-
       // Emit the file/line/column that this expansion came from.
-      OS << SM.getBuffer(IInfo.first)->getBufferIdentifier() << ':'
-         << SM.getLineNumber(IInfo.first, IInfo.second) << ':';
+      OS << PLoc.getFilename() << ':' << PLoc.getLine() << ':';
       if (DiagOpts->ShowColumn)
-        OS << SM.getColumnNumber(IInfo.first, IInfo.second) << ':';
+        OS << PLoc.getColumn() << ':';
       OS << ' ';
     }
     OS << "note: instantiated from:\n";
@@ -489,11 +497,16 @@ static inline char findMatchingPunctuation(char c) {
 ///
 /// \returns the index pointing one character past the end of the
 /// word.
-unsigned findEndOfWord(unsigned Start,
-                       const llvm::SmallVectorImpl<char> &Str,
-                       unsigned Length, unsigned Column,
-                       unsigned Columns) {
+static unsigned findEndOfWord(unsigned Start,
+                              const llvm::SmallVectorImpl<char> &Str,
+                              unsigned Length, unsigned Column,
+                              unsigned Columns) {
+  assert(Start < Str.size() && "Invalid start position!");
   unsigned End = Start + 1;
+
+  // If we are already at the end of the string, take that as the word.
+  if (End == Str.size())
+    return End;
 
   // Determine if the start of the string is actually opening
   // punctuation, e.g., a quote or parentheses.
@@ -645,11 +658,17 @@ void TextDiagnosticPrinter::HandleDiagnostic(Diagnostic::Level Level,
     if (DiagOpts->ShowLocation) {
       if (DiagOpts->ShowColors)
         OS.changeColor(savedColor, true);
-      OS << PLoc.getFilename() << ':' << LineNo << ':';
-      if (DiagOpts->ShowColumn)
-        if (unsigned ColNo = PLoc.getColumn())
-          OS << ColNo << ':';
-
+      
+      // Emit a Visual Studio compatible line number syntax.
+      if (LangOpts && LangOpts->Microsoft) {
+        OS << PLoc.getFilename() << '(' << LineNo << ')';
+        OS << " : ";
+      } else {
+        OS << PLoc.getFilename() << ':' << LineNo << ':';
+        if (DiagOpts->ShowColumn)
+          if (unsigned ColNo = PLoc.getColumn())
+            OS << ColNo << ':';
+      }
       if (DiagOpts->ShowSourceRanges && Info.getNumRanges()) {
         FileID CaretFileID =
           SM.getFileID(SM.getInstantiationLoc(Info.getLocation()));

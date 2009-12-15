@@ -28,8 +28,6 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
-#include <cstdio>
-
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -405,8 +403,13 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "<objc property> " << OPD->getNameAsString() << "\n";
       break;
     }
+    case Decl::FunctionTemplate: {
+      FunctionTemplateDecl* FTD = cast<FunctionTemplateDecl>(*I);
+      Out << "<function template> " << FTD->getNameAsString() << "\n";
+      break;
+    }
     default:
-      fprintf(stderr, "DeclKind: %d \"%s\"\n", DK, I->getDeclKindName());
+      Out << "DeclKind: " << DK << '"' << I->getDeclKindName() << "\"\n";
       assert(0 && "decl unhandled");
     }
   }

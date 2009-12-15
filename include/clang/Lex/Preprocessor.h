@@ -91,11 +91,13 @@ class Preprocessor {
   bool KeepMacroComments : 1;
 
   // State that changes while the preprocessor runs:
-  bool DisableMacroExpansion : 1;  // True if macro expansion is disabled.
   bool InMacroArgs : 1;            // True if parsing fn macro invocation args.
 
   /// Whether the preprocessor owns the header search object.
   bool OwnsHeaderSearch : 1;
+
+  /// DisableMacroExpansion - True if macro expansion is disabled.
+  bool DisableMacroExpansion : 1;
 
   /// Identifiers - This is mapping/lookup information for all identifiers in
   /// the program, including program keywords.
@@ -121,6 +123,9 @@ class Preprocessor {
   /// with this preprocessor.
   std::vector<CommentHandler *> CommentHandlers;
 
+  /// \brief The file that we're performing code-completion for, if any.
+  const FileEntry *CodeCompletionFile;
+
   /// CurLexer - This is the current top of the stack that we're lexing from if
   /// not expanding a macro and we are lexing directly from source code.
   ///  Only one of CurLexer, CurPTHLexer, or CurTokenLexer will be non-null.
@@ -134,7 +139,7 @@ class Preprocessor {
   /// CurPPLexer - This is the current top of the stack what we're lexing from
   ///  if not expanding a macro.  This is an alias for either CurLexer or
   ///  CurPTHLexer.
-  PreprocessorLexer* CurPPLexer;
+  PreprocessorLexer *CurPPLexer;
 
   /// CurLookup - The DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable.  This allows us to
@@ -171,8 +176,14 @@ class Preprocessor {
   llvm::DenseMap<IdentifierInfo*, MacroInfo*> Macros;
 
   /// MICache - A "freelist" of MacroInfo objects that can be reused for quick
-  ///  allocation.
+  /// allocation.
+  /// FIXME: why not use a singly linked list?
   std::vector<MacroInfo*> MICache;
+  
+  /// MacroArgCache - This is a "freelist" of MacroArg objects that can be
+  /// reused for quick allocation.
+  MacroArgs *MacroArgCache;
+  friend class MacroArgs;
 
   // Various statistics we track for performance analysis.
   unsigned NumDirectives, NumIncluded, NumDefined, NumUndefined, NumPragma;
@@ -330,8 +341,9 @@ public:
 
   /// EnterSourceFile - Add a source file to the top of the include stack and
   /// start lexing tokens from it instead of the current buffer.  Return true
-  /// on failure.
-  bool EnterSourceFile(FileID CurFileID, const DirectoryLookup *Dir);
+  /// and fill in ErrorStr with the error information on failure.
+  bool EnterSourceFile(FileID CurFileID, const DirectoryLookup *Dir,
+                       std::string &ErrorStr);
 
   /// EnterMacro - Add a Macro to the top of the include stack and start lexing
   /// tokens from it instead of the current buffer.  Args specifies the
@@ -483,6 +495,27 @@ public:
     if (CachedLexPos != 0 && isBacktrackEnabled())
       CachedTokens[CachedLexPos-1] = Tok;
   }
+
+  /// \brief Specify the point at which code-completion will be performed.
+  ///
+  /// \param File the file in which code completion should occur. If
+  /// this file is included multiple times, code-completion will
+  /// perform completion the first time it is included. If NULL, this
+  /// function clears out the code-completion point.
+  ///
+  /// \param Line the line at which code completion should occur
+  /// (1-based).
+  ///
+  /// \param Column the column at which code completion should occur
+  /// (1-based).
+  ///
+  /// \returns true if an error occurred, false otherwise.
+  bool SetCodeCompletionPoint(const FileEntry *File, 
+                              unsigned Line, unsigned Column);
+
+  /// \brief Determine if this source location refers into the file
+  /// for which we are performing code completion.
+  bool isCodeCompletionFile(SourceLocation FileLoc) const;
 
   /// Diag - Forwarding function for diagnostics.  This emits a diagnostic at
   /// the specified Token's location, translating the token's start

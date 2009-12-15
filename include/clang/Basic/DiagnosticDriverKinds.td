@@ -60,6 +60,8 @@ def err_drv_I_dash_not_supported : Error<
 def err_drv_unknown_argument : Error<"unknown argument: '%0'">;
 def err_drv_invalid_value : Error<"invalid value '%1' in '%0'">;
 def err_drv_invalid_int_value : Error<"invalid integral value '%1' in '%0'">;
+def err_drv_invalid_remap_file : Error<
+    "invalid option '%0' not of the form <from-file>;<to-file>">;
 
 def warn_drv_input_file_unused : Warning<
   "%0: '%1' input unused when '%2' is present">;
@@ -70,7 +72,7 @@ def warn_drv_unused_argument : Warning<
 def warn_drv_pipe_ignored_with_save_temps : Warning<
   "-pipe ignored because -save-temps specified">;
 def warn_drv_not_using_clang_cpp : Warning<
-  "not using the clang prepreprocessor due to user override">;
+  "not using the clang preprocessor due to user override">;
 def warn_drv_not_using_clang_cxx : Warning<
   "not using the clang compiler for C++ inputs">;
 def warn_drv_not_using_clang_arch : Warning<

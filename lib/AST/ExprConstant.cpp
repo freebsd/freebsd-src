@@ -848,16 +848,8 @@ static bool EvaluateInteger(const Expr* E, APSInt &Result, EvalInfo &Info) {
 
 bool IntExprEvaluator::CheckReferencedDecl(const Expr* E, const Decl* D) {
   // Enums are integer constant exprs.
-  if (const EnumConstantDecl *ECD = dyn_cast<EnumConstantDecl>(D)) {
-    // FIXME: This is an ugly hack around the fact that enums don't set their
-    // signedness consistently; see PR3173.
-    APSInt SI = ECD->getInitVal();
-    SI.setIsUnsigned(!E->getType()->isSignedIntegerType());
-    // FIXME: This is an ugly hack around the fact that enums don't
-    // set their width (!?!) consistently; see PR3173.
-    SI.extOrTrunc(Info.Ctx.getIntWidth(E->getType()));
-    return Success(SI, E);
-  }
+  if (const EnumConstantDecl *ECD = dyn_cast<EnumConstantDecl>(D))
+    return Success(ECD->getInitVal(), E);
 
   // In C++, const, non-volatile integers initialized with ICEs are ICEs.
   // In C, they can also be folded, although they are not ICEs.
@@ -866,15 +858,24 @@ bool IntExprEvaluator::CheckReferencedDecl(const Expr* E, const Decl* D) {
     if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
       const VarDecl *Def = 0;
       if (const Expr *Init = VD->getDefinition(Def)) {
-        if (APValue *V = VD->getEvaluatedValue())
-          return Success(V->getInt(), E);
-          
+        if (APValue *V = VD->getEvaluatedValue()) {
+          if (V->isInt())
+            return Success(V->getInt(), E);
+          return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
+        }
+
+        if (VD->isEvaluatingValue())
+          return Error(E->getLocStart(), diag::note_invalid_subexpr_in_ice, E);
+
+        VD->setEvaluatingValue();
+
         if (Visit(const_cast<Expr*>(Init))) {
           // Cache the evaluated value in the variable declaration.
-          VD->setEvaluatedValue(Info.Ctx, Result);
+          VD->setEvaluatedValue(Result);
           return true;
         }
 
+        VD->setEvaluatedValue(APValue());
         return false;
       }
     }
@@ -1506,6 +1507,7 @@ public:
   bool VisitFloatingLiteral(const FloatingLiteral *E);
   bool VisitCastExpr(CastExpr *E);
   bool VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E);
+  bool VisitConditionalOperator(ConditionalOperator *E);
 
   bool VisitChooseExpr(const ChooseExpr *E)
     { return Visit(E->getChosenSubExpr(Info.Ctx)); }
@@ -1513,8 +1515,7 @@ public:
     { return Visit(E->getSubExpr()); }
 
   // FIXME: Missing: __real__/__imag__, array subscript of vector,
-  //                 member of vector, ImplicitValueInitExpr,
-  //                 conditional ?:
+  //                 member of vector, ImplicitValueInitExpr
 };
 } // end anonymous namespace
 
@@ -1547,16 +1548,10 @@ bool FloatExprEvaluator::VisitCallExpr(const CallExpr *E) {
       if (!S->isWide()) {
         const llvm::fltSemantics &Sem =
           Info.Ctx.getFloatTypeSemantics(E->getType());
-        llvm::SmallString<16> s;
-        s.append(S->getStrData(), S->getStrData() + S->getByteLength());
-        s += '\0';
-        long l;
-        char *endp;
-        l = strtol(&s[0], &endp, 0);
-        if (endp != s.end()-1)
+        unsigned Type = 0;
+        if (!S->getString().empty() && S->getString().getAsInteger(0, Type))
           return false;
-        unsigned type = (unsigned int)l;;
-        Result = llvm::APFloat::getNaN(Sem, false, type);
+        Result = llvm::APFloat::getNaN(Sem, false, Type);
         return true;
       }
     }
@@ -1671,6 +1666,14 @@ bool FloatExprEvaluator::VisitCastExpr(CastExpr *E) {
 bool FloatExprEvaluator::VisitCXXZeroInitValueExpr(CXXZeroInitValueExpr *E) {
   Result = APFloat::getZero(Info.Ctx.getFloatTypeSemantics(E->getType()));
   return true;
+}
+
+bool FloatExprEvaluator::VisitConditionalOperator(ConditionalOperator *E) {
+  bool Cond;
+  if (!HandleConversionToBool(E->getCond(), Cond, Info))
+    return false;
+
+  return Visit(Cond ? E->getTrueExpr() : E->getFalseExpr());
 }
 
 //===----------------------------------------------------------------------===//

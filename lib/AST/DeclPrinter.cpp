@@ -52,7 +52,6 @@ namespace {
     void VisitVarDecl(VarDecl *D);
     void VisitParmVarDecl(ParmVarDecl *D);
     void VisitFileScopeAsmDecl(FileScopeAsmDecl *D);
-    void VisitOverloadedFunctionDecl(OverloadedFunctionDecl *D);
     void VisitNamespaceDecl(NamespaceDecl *D);
     void VisitUsingDirectiveDecl(UsingDirectiveDecl *D);
     void VisitNamespaceAliasDecl(NamespaceAliasDecl *D);
@@ -147,6 +146,17 @@ void Decl::printGroup(Decl** Begin, unsigned NumDecls,
 
     (*Begin)->print(Out, SubPolicy, Indentation);
   }
+}
+
+void DeclContext::dumpDeclContext() const {
+  // Get the translation unit
+  const DeclContext *DC = this;
+  while (!DC->isTranslationUnit())
+    DC = DC->getParent();
+  
+  ASTContext &Ctx = cast<TranslationUnitDecl>(DC)->getASTContext();
+  DeclPrinter Printer(llvm::errs(), Ctx, Ctx.PrintingPolicy, 0);
+  Printer.VisitDeclContext(const_cast<DeclContext *>(this), /*Indent=*/false);
 }
 
 void Decl::dump() const {
@@ -362,6 +372,24 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     }
 
     Proto += ")";
+    
+    if (FT && FT->hasExceptionSpec()) {
+      Proto += " throw(";
+      if (FT->hasAnyExceptionSpec())
+        Proto += "...";
+      else 
+        for (unsigned I = 0, N = FT->getNumExceptions(); I != N; ++I) {
+          if (I)
+            Proto += ", ";
+          
+          
+          std::string ExceptionType;
+          FT->getExceptionType(I).getAsStringInternal(ExceptionType, SubPolicy);
+          Proto += ExceptionType;
+        }
+      Proto += ")";
+    }
+
     if (D->hasAttr<NoReturnAttr>())
       Proto += " __attribute((noreturn))";
     if (CXXConstructorDecl *CDecl = dyn_cast<CXXConstructorDecl>(D)) {
@@ -488,11 +516,6 @@ void DeclPrinter::VisitFileScopeAsmDecl(FileScopeAsmDecl *D) {
 //----------------------------------------------------------------------------
 // C++ declarations
 //----------------------------------------------------------------------------
-void DeclPrinter::VisitOverloadedFunctionDecl(OverloadedFunctionDecl *D) {
-  assert(false &&
-         "OverloadedFunctionDecls aren't really decls and are never printed");
-}
-
 void DeclPrinter::VisitNamespaceDecl(NamespaceDecl *D) {
   Out << "namespace " << D->getNameAsString() << " {\n";
   VisitDeclContext(D);

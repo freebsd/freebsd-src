@@ -139,13 +139,17 @@ public:
       return;
       
     declDisplayed = true;
-    // FIXME: Is getCodeDecl() always a named decl?
+    SourceManager &SM = Mgr->getASTContext().getSourceManager();
+    PresumedLoc Loc = SM.getPresumedLoc(D->getLocation());
+    llvm::errs() << "ANALYZE: " << Loc.getFilename();
+
     if (isa<FunctionDecl>(D) || isa<ObjCMethodDecl>(D)) {
       const NamedDecl *ND = cast<NamedDecl>(D);
-      SourceManager &SM = Mgr->getASTContext().getSourceManager();
-      llvm::errs() << "ANALYZE: "
-        << SM.getPresumedLoc(ND->getLocation()).getFilename()
-        << ' ' << ND->getNameAsString() << '\n';
+      llvm::errs() << ' ' << ND->getNameAsString() << '\n';
+    }
+    else if (isa<BlockDecl>(D)) {
+      llvm::errs() << ' ' << "block(line:" << Loc.getLine() << ",col:"
+                   << Loc.getColumn() << '\n';
     }
   }
 
@@ -167,7 +171,6 @@ public:
     Mgr.reset(new AnalysisManager(*Ctx, PP.getDiagnostics(),
                                   PP.getLangOptions(), PD,
                                   CreateStoreMgr, CreateConstraintMgr,
-                                  Opts.AnalyzerDisplayProgress,
                                   Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
                                   Opts.PurgeDead, Opts.EagerlyAssume,
                                   Opts.TrimGraph));
@@ -265,8 +268,19 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
 
   // Explicitly destroy the PathDiagnosticClient.  This will flush its output.
   // FIXME: This should be replaced with something that doesn't rely on
-  // side-effects in PathDiagnosticClient's destructor.
+  // side-effects in PathDiagnosticClient's destructor. This is required when
+  // used with option -disable-free.
   Mgr.reset(NULL);
+}
+
+static void FindBlocks(DeclContext *D, llvm::SmallVectorImpl<Decl*> &WL) {
+  if (BlockDecl *BD = dyn_cast<BlockDecl>(D))
+    WL.push_back(BD);
+  
+  for (DeclContext::decl_iterator I = D->decls_begin(), E = D->decls_end();
+       I!=E; ++I)
+    if (DeclContext *DC = dyn_cast<DeclContext>(*I))
+      FindBlocks(DC, WL);
 }
 
 void AnalysisConsumer::HandleCode(Decl *D, Stmt* Body, Actions& actions) {
@@ -285,8 +299,16 @@ void AnalysisConsumer::HandleCode(Decl *D, Stmt* Body, Actions& actions) {
   Mgr->ClearContexts();
   
   // Dispatch on the actions.
+  llvm::SmallVector<Decl*, 10> WL;
+  WL.push_back(D);
+  
+  if (Body && Opts.AnalyzeNestedBlocks)
+    FindBlocks(cast<DeclContext>(D), WL);
+  
   for (Actions::iterator I = actions.begin(), E = actions.end(); I != E; ++I)
-    (*I)(*this, *Mgr, D);  
+    for (llvm::SmallVectorImpl<Decl*>::iterator WI=WL.begin(), WE=WL.end();
+         WI != WE; ++WI)
+      (*I)(*this, *Mgr, *WI);
 }
 
 //===----------------------------------------------------------------------===//

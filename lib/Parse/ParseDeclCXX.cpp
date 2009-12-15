@@ -17,7 +17,7 @@
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/Scope.h"
 #include "clang/Parse/Template.h"
-#include "ExtensionRAIIObject.h"
+#include "RAIIObjectsForParser.h"
 using namespace clang;
 
 /// ParseNamespace - We know that the current token is a namespace keyword. This
@@ -161,7 +161,8 @@ Parser::DeclPtrTy Parser::ParseNamespaceAlias(SourceLocation NamespaceLoc,
 ///         'extern' string-literal '{' declaration-seq[opt] '}'
 ///         'extern' string-literal declaration
 ///
-Parser::DeclPtrTy Parser::ParseLinkage(unsigned Context) {
+Parser::DeclPtrTy Parser::ParseLinkage(ParsingDeclSpec &DS,
+                                       unsigned Context) {
   assert(Tok.is(tok::string_literal) && "Not a string literal!");
   llvm::SmallVector<char, 8> LangBuffer;
   // LangBuffer is guaranteed to be big enough.
@@ -185,7 +186,7 @@ Parser::DeclPtrTy Parser::ParseLinkage(unsigned Context) {
   }
   
   if (Tok.isNot(tok::l_brace)) {
-    ParseDeclarationOrFunctionDefinition(Attr.AttrList);
+    ParseDeclarationOrFunctionDefinition(DS, Attr.AttrList);
     return Actions.ActOnFinishLinkageSpecification(CurScope, LinkageSpec,
                                                    SourceLocation());
   }
@@ -356,7 +357,7 @@ Parser::DeclPtrTy Parser::ParseUsingDeclaration(unsigned Context,
                    AttrList ? "attributes list" : "using declaration", 
                    tok::semi);
 
-  return Actions.ActOnUsingDeclaration(CurScope, AS, UsingLoc, SS, Name,
+  return Actions.ActOnUsingDeclaration(CurScope, AS, true, UsingLoc, SS, Name,
                                        AttrList, IsTypeName, TypenameLoc);
 }
 
@@ -599,11 +600,15 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
   }
 
   // Parse the (optional) nested-name-specifier.
-  CXXScopeSpec SS;
-  if (getLang().CPlusPlus &&
-      ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true))
-    if (Tok.isNot(tok::identifier) && Tok.isNot(tok::annot_template_id))
-      Diag(Tok, diag::err_expected_ident);
+  CXXScopeSpec &SS = DS.getTypeSpecScope();
+  if (getLang().CPlusPlus) {
+    // "FOO : BAR" is not a potential typo for "FOO::BAR".
+    ColonProtectionRAIIObject X(*this);
+    
+    if (ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true))
+      if (Tok.isNot(tok::identifier) && Tok.isNot(tok::annot_template_id))
+        Diag(Tok, diag::err_expected_ident);
+  }
 
   TemplateParameterLists *TemplateParams = TemplateInfo.TemplateParams;
 
@@ -954,7 +959,7 @@ Parser::BaseResult Parser::ParseBaseSpecifier(DeclPtrTy ClassDecl) {
     if (IsVirtual) {
       // Complain about duplicate 'virtual'
       Diag(VirtualLoc, diag::err_dup_virtual)
-        << CodeModificationHint::CreateRemoval(SourceRange(VirtualLoc));
+        << CodeModificationHint::CreateRemoval(VirtualLoc);
     }
 
     IsVirtual = true;
@@ -1060,6 +1065,46 @@ void Parser::HandleMemberFunctionDefaultArgs(Declarator& DeclaratorInfo,
 ///
 void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
                                        const ParsedTemplateInfo &TemplateInfo) {
+  // Access declarations.
+  if (!TemplateInfo.Kind &&
+      (Tok.is(tok::identifier) || Tok.is(tok::coloncolon)) &&
+      TryAnnotateCXXScopeToken() &&
+      Tok.is(tok::annot_cxxscope)) {
+    bool isAccessDecl = false;
+    if (NextToken().is(tok::identifier))
+      isAccessDecl = GetLookAheadToken(2).is(tok::semi);
+    else
+      isAccessDecl = NextToken().is(tok::kw_operator);
+
+    if (isAccessDecl) {
+      // Collect the scope specifier token we annotated earlier.
+      CXXScopeSpec SS;
+      ParseOptionalCXXScopeSpecifier(SS, /*ObjectType*/ 0, false);
+
+      // Try to parse an unqualified-id.
+      UnqualifiedId Name;
+      if (ParseUnqualifiedId(SS, false, true, true, /*ObjectType*/ 0, Name)) {
+        SkipUntil(tok::semi);
+        return;
+      }
+
+      // TODO: recover from mistakenly-qualified operator declarations.
+      if (ExpectAndConsume(tok::semi,
+                           diag::err_expected_semi_after,
+                           "access declaration",
+                           tok::semi))
+        return;
+
+      Actions.ActOnUsingDeclaration(CurScope, AS,
+                                    false, SourceLocation(),
+                                    SS, Name,
+                                    /* AttrList */ 0,
+                                    /* IsTypeName */ false,
+                                    SourceLocation());
+      return;
+    }
+  }
+
   // static_assert-declaration
   if (Tok.is(tok::kw_static_assert)) {
     // FIXME: Check for templates
@@ -1085,11 +1130,13 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
     return ParseCXXClassMemberDeclaration(AS, TemplateInfo);
   }
 
+  // Don't parse FOO:BAR as if it were a typo for FOO::BAR.
+  ColonProtectionRAIIObject X(*this);
+  
   CXX0XAttributeList AttrList;
   // Optional C++0x attribute-specifier
-  if (getLang().CPlusPlus0x && isCXX0XAttributeSpecifier()) {
+  if (getLang().CPlusPlus0x && isCXX0XAttributeSpecifier())
     AttrList = ParseCXX0XAttributes();
-  }
 
   if (Tok.is(tok::kw_using)) {
     // FIXME: Check for template aliases
@@ -1133,6 +1180,9 @@ void Parser::ParseCXXClassMemberDeclaration(AccessSpecifier AS,
   ParsingDeclarator DeclaratorInfo(*this, DS, Declarator::MemberContext);
 
   if (Tok.isNot(tok::colon)) {
+    // Don't parse FOO:BAR as if it were a typo for FOO::BAR.
+    ColonProtectionRAIIObject X(*this);
+
     // Parse the first declarator.
     ParseDeclarator(DeclaratorInfo);
     // Error parsing the declarator?
@@ -1349,7 +1399,7 @@ void Parser::ParseCXXMemberSpecification(SourceLocation RecordLoc,
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
       Diag(Tok, diag::ext_extra_struct_semi)
-        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
+        << CodeModificationHint::CreateRemoval(Tok.getLocation());
       ConsumeToken();
       continue;
     }
