@@ -235,7 +235,12 @@ main(int argc, char **argv)
     int test_signal = 1;
     int test_vnode = 1;
     int test_timer = 1;
+#ifdef __FreeBSD__
     int test_user = 1;
+#else
+    /* XXX-FIXME temporary */
+    int test_user = 0;
+#endif
 
     while (argc) {
         if (strcmp(argv[0], "--no-proc") == 0)

@@ -1,5 +1,6 @@
 /* AUTOMATICALLY GENERATED -- DO NOT EDIT */
 /* $FreeBSD$ */
+#define HAVE_ERR_H
 #define HAVE_SYS_EVENT_H
 #define HAVE_EV_DISPATCH 1
 #define HAVE_EV_RECEIPT 1
