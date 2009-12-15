@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "5.2.1-RELEASE">
+<!ENTITY release.bugfix "8.0-RELEASE">
 ]>
 
 <article>
@@ -40,12 +40,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <year>2003</year>
-      <year>2004</year>
-      <year>2005</year>
+      <year>2009</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -130,51 +125,59 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-<![ %release.type.release [
-    <para>No advisories.</para>
-]]>
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
-<![ %release.type.current [
-    <para>No advisories.</para>
-]]>
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
 
-<![ %release.type.snapshot [
-    <para>No advisories.</para>
-]]>
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:17.freebsd-update.asc"
+		>SA-09:17.freebsd-update</ulink></entry>
+	    <entry>03&nbsp;December&nbsp;2009</entry>
+	    <entry><para>Inappropriate directory permissions in freebsd-update(8)</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:16.rtld.asc"
+		>SA-09:16.rtld</ulink></entry>
+	    <entry>03&nbsp;December&nbsp;2009</entry>
+	    <entry><para>Improper environment sanitization in rtld(1)</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-09:15.ssl.asc"
+		>SA-09:15.ssl</ulink></entry>
+	    <entry>03&nbsp;December&nbsp;2009</entry>
+	    <entry><para>SSL protocol flaw</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
 
   </sect1>
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.current [
     <para>No open issues.</para>
-]]>
-
-<![ %release.type.release [
-    <para>No open issues.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No open issues.</para>
-]]>
 
   </sect1>
 
   <sect1 id="late-news">
-    <title>Late-Breaking News</title>
+    <title>Late-Breaking News and Corrections</title>
 
-<![ %release.type.current [
     <para>No news.</para>
-]]>
-
-<![ %release.type.release [
-    <para>No news.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No news.</para>
-]]>
   </sect1>
 
 </article>
