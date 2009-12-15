@@ -118,15 +118,14 @@ static driver_t dpms_driver = {
 
 static devclass_t dpms_devclass;
 
-DRIVER_MODULE(dpms, vgapci, dpms_driver, dpms_devclass, NULL, NULL);
+DRIVER_MODULE(dpms, vgapm, dpms_driver, dpms_devclass, NULL, NULL);
 MODULE_DEPEND(dpms, x86bios, 1, 1, 1);
 
 static void
 dpms_identify(driver_t *driver, device_t parent)
 {
 
-	if (device_get_flags(parent) != 0 &&
-	    x86bios_match_device(0xc0000, parent))
+	if (x86bios_match_device(0xc0000, device_get_parent(parent)))
 		device_add_child(parent, "dpms", 0);
 }
 
