@@ -3122,10 +3122,10 @@ bge_rxeof(struct bge_softc *sc)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_return_ring_tag,
 	    sc->bge_cdata.bge_rx_return_ring_map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
-	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTREAD);
+	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTWRITE);
 	if (BGE_IS_JUMBO_CAPABLE(sc))
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
-		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTREAD);
+		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTWRITE);
 
 	while (rx_cons != rx_prod) {
 		struct bge_rx_bd	*cur_rx;
@@ -3251,6 +3251,8 @@ bge_rxeof(struct bge_softc *sc)
 			return (rx_npkts);
 	}
 
+	bus_dmamap_sync(sc->bge_cdata.bge_rx_return_ring_tag,
+	    sc->bge_cdata.bge_rx_return_ring_map, BUS_DMASYNC_PREREAD);
 	if (stdcnt > 0)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 		    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
@@ -3423,8 +3425,6 @@ bge_intr(void *xsc)
 	/* Make sure the descriptor ring indexes are coherent. */
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_POSTREAD);
-	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
-	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
 
 	if ((sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5700_B2) ||
@@ -3444,6 +3444,9 @@ bge_intr(void *xsc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
+
+	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
+	    sc->bge_cdata.bge_status_map, BUS_DMASYNC_PREREAD);
 
 	BGE_UNLOCK(sc);
 }
