@@ -522,8 +522,9 @@ nfsrvd_sentcache(struct nfsrvcache *rp, struct socket *so, int err)
 	if (!(rp->rc_flag & RC_LOCKED))
 		panic("nfsrvd_sentcache not locked");
 	if (!err) {
-		if (so->so_proto->pr_domain->dom_family != AF_INET ||
-		    so->so_proto->pr_protocol != IPPROTO_TCP)
+		if ((so->so_proto->pr_domain->dom_family != AF_INET &&
+		     so->so_proto->pr_domain->dom_family != AF_INET6) ||
+		     so->so_proto->pr_protocol != IPPROTO_TCP)
 			panic("nfs sent cache");
 		if (nfsrv_getsockseqnum(so, &rp->rc_tcpseq))
 			rp->rc_flag |= RC_TCPSEQ;
