@@ -134,6 +134,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_dummynet.h>
 
 /*
