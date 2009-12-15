@@ -224,6 +224,15 @@ static struct _s_x rule_action_params[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
+/*
+ * The 'lookup' instruction accepts one of the following arguments.
+ * -1 is a terminator for the list.
+ * Arguments are passed as v[1] in O_DST_LOOKUP options.
+ */
+static int lookup_key[] = {
+	TOK_DSTIP, TOK_SRCIP, TOK_DSTPORT, TOK_SRCPORT,
+	TOK_UID, TOK_JAIL, -1 };
+
 static struct _s_x rule_options[] = {
 	{ "tagged",		TOK_TAGGED },
 	{ "uid",		TOK_UID },
@@ -290,6 +299,7 @@ static struct _s_x rule_options[] = {
 	{ "dst-ip6",		TOK_DSTIP6},
 	{ "src-ipv6",		TOK_SRCIP6},
 	{ "src-ip6",		TOK_SRCIP6},
+	{ "lookup",		TOK_LOOKUP},
 	{ "//",			TOK_COMMENT },
 
 	{ "not",		TOK_NOT },		/* pseudo option */
@@ -742,6 +752,16 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
 	int len = F_LEN((ipfw_insn *)cmd);
 	uint32_t *a = ((ipfw_insn_u32 *)cmd)->d;
 
+	if (cmd->o.opcode == O_IP_DST_LOOKUP && len > F_INSN_SIZE(ipfw_insn_u32)) {
+		uint32_t d = a[1];
+		const char *arg = "<invalid>";
+
+		if (d < sizeof(lookup_key)/sizeof(lookup_key[0]))
+			arg = match_value(rule_options, lookup_key[d]);
+		printf("%s lookup %s %d", cmd->o.len & F_NOT ? " not": "",
+			arg, cmd->o.arg1);
+		return;
+	}
 	printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
 
 	if (cmd->o.opcode == O_IP_SRC_ME || cmd->o.opcode == O_IP_DST_ME) {
@@ -3477,6 +3497,31 @@ read_options:
 			NEED1("fib requires fib number");
 			fill_cmd(cmd, O_FIB, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
+			break;
+
+		case TOK_LOOKUP: {
+			ipfw_insn_u32 *c = (ipfw_insn_u32 *)cmd;
+			char *p;
+			int j;
+
+			if (ac < 2)
+				errx(EX_USAGE, "format: lookup argument tablenum");
+			cmd->opcode = O_IP_DST_LOOKUP;
+			cmd->len |= F_INSN_SIZE(ipfw_insn) + 2;
+			i = match_token(rule_options, *av);
+			for (j = 0; lookup_key[j] >= 0 ; j++) {
+				if (i == lookup_key[j])
+					break;
+			}
+			if (lookup_key[j] <= 0)
+				errx(EX_USAGE, "format: cannot lookup on %s", *av);
+			c->d[1] = j; // i converted to option
+			ac--; av++;
+			cmd->arg1 = strtoul(*av, &p, 0);
+			if (p && *p)
+				errx(EX_USAGE, "format: lookup argument tablenum");
+			ac--; av++;
+		    }
 			break;
 
 		default:

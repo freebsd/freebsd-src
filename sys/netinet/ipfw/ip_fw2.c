@@ -2819,6 +2819,36 @@ do {									\
 					    dst_ip.s_addr : src_ip.s_addr;
 				    uint32_t v = 0;
 
+				    if (cmdlen > F_INSN_SIZE(ipfw_insn_u32)) {
+					/* generic lookup */
+					v = ((ipfw_insn_u32 *)cmd)->d[1];
+					if (v == 0)
+					    a = dst_ip.s_addr;
+					else if (v == 1)
+					    a = src_ip.s_addr;
+					else if (offset != 0)
+					    break;
+					else if (proto != IPPROTO_TCP &&
+						proto != IPPROTO_UDP)
+					    break;
+					else if (v == 2)
+					    a = dst_port;
+					else if (v == 3)
+					    a = src_port;
+					else if (v == 4 || v == 5) {
+					    check_uidgid(
+						(ipfw_insn_u32 *)cmd,
+						proto, oif,
+						dst_ip, dst_port,
+						src_ip, src_port, &ucred_cache,
+						&ucred_lookup, args->inp);
+					    if (v == 4 /* O_UID */)
+						a = ucred_cache->cr_uid;
+					    else if (v == 5 /* O_JAIL */)
+						a = ucred_cache->cr_prison->pr_id;
+					} else
+					    break;
+				    }
 				    match = lookup_table(chain, cmd->arg1, a,
 					&v);
 				    if (!match)
@@ -4160,6 +4190,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				return (EINVAL);
 			}
 			if (cmdlen != F_INSN_SIZE(ipfw_insn) &&
+			    cmdlen != F_INSN_SIZE(ipfw_insn_u32) + 1 &&
 			    cmdlen != F_INSN_SIZE(ipfw_insn_u32))
 				goto bad_size;
 			break;
