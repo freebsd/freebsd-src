@@ -1002,6 +1002,7 @@ The second format
 with multiple addresses) is provided for convenience only and
 its use is discouraged.
 .It Ar addr : Oo Cm not Oc Bro
+.Bl -tag -width indent
 .Cm any | me | me6 |
 .Cm table Ns Pq Ar number Ns Op , Ns Ar value
 .Ar | addr-list | addr-set
@@ -1023,6 +1024,7 @@ is also specified, an entry will match only if it has this value.
 See the
 .Sx LOOKUP TABLES
 section below for more information on lookup tables.
+.El
 .It Ar addr-list : ip-addr Ns Op Ns , Ns Ar addr-list
 .It Ar ip-addr :
 A host or subnet address specified in one of the following ways:
