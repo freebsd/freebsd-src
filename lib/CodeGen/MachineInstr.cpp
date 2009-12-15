@@ -1058,6 +1058,22 @@ bool MachineInstr::isInvariantLoad(AliasAnalysis *AA) const {
   return true;
 }
 
+/// isConstantValuePHI - If the specified instruction is a PHI that always
+/// merges together the same virtual register, return the register, otherwise
+/// return 0.
+unsigned MachineInstr::isConstantValuePHI() const {
+  if (getOpcode() != TargetInstrInfo::PHI)
+    return 0;
+  assert(getNumOperands() >= 3 &&
+         "It's illegal to have a PHI without source operands");
+
+  unsigned Reg = getOperand(1).getReg();
+  for (unsigned i = 3, e = getNumOperands(); i < e; i += 2)
+    if (getOperand(i).getReg() != Reg)
+      return 0;
+  return Reg;
+}
+
 void MachineInstr::dump() const {
   errs() << "  " << *this;
 }
@@ -1150,9 +1166,14 @@ void MachineInstr::print(raw_ostream &OS, const TargetMachine *TM) const {
     DebugLocTuple DLT = MF->getDebugLocTuple(debugLoc);
     DIScope Scope(DLT.Scope);
     OS << " dbg:";
+    // Omit the directory, since it's usually long and uninteresting.
     if (!Scope.isNull())
-      OS << Scope.getDirectory() << ':' << Scope.getFilename() << ':';
-    OS << DLT.Line << ":" << DLT.Col;
+      OS << Scope.getFilename();
+    else
+      OS << "<unknown>";
+    OS << ':' << DLT.Line;
+    if (DLT.Col != 0)
+      OS << ':' << DLT.Col;
   }
 
   OS << "\n";

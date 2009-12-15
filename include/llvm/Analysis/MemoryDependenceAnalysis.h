@@ -16,6 +16,7 @@
 
 #include "llvm/BasicBlock.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/ValueHandle.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -31,6 +32,7 @@ namespace llvm {
   class MemoryDependenceAnalysis;
   class PredIteratorCache;
   class DominatorTree;
+  class PHITransAddr;
   
   /// MemDepResult - A memory dependence query can return one of three different
   /// answers, described below.
@@ -60,9 +62,9 @@ namespace llvm {
       ///      this case, the load is loading an undef value or a store is the
       ///      first store to (that part of) the allocation.
       ///   3. Dependence queries on calls return Def only when they are
-      ///      readonly calls with identical callees and no intervening
-      ///      clobbers.  No validation is done that the operands to the calls
-      ///      are the same.
+      ///      readonly calls or memory use intrinsics with identical callees
+      ///      and no intervening clobbers.  No validation is done that the
+      ///      operands to the calls are the same.
       Def,
       
       /// NonLocal - This marker indicates that the query has no dependency in
@@ -130,6 +132,45 @@ namespace llvm {
     }
   };
 
+  /// NonLocalDepEntry - This is an entry in the NonLocalDepInfo cache, and an
+  /// entry in the results set for a non-local query.  For each BasicBlock (the
+  /// BB entry) it keeps a MemDepResult and the (potentially phi translated)
+  /// address that was live in the block.
+  class NonLocalDepEntry {
+    BasicBlock *BB;
+    MemDepResult Result;
+    WeakVH Address;
+  public:
+    NonLocalDepEntry(BasicBlock *bb, MemDepResult result, Value *address)
+      : BB(bb), Result(result), Address(address) {}
+
+    // This is used for searches.
+    NonLocalDepEntry(BasicBlock *bb) : BB(bb) {}
+
+    // BB is the sort key, it can't be changed.
+    BasicBlock *getBB() const { return BB; }
+    
+    void setResult(const MemDepResult &R, Value *Addr) {
+      Result = R;
+      Address = Addr;
+    }
+
+    const MemDepResult &getResult() const { return Result; }
+    
+    /// getAddress - Return the address of this pointer in this block.  This can
+    /// be different than the address queried for the non-local result because
+    /// of phi translation.  This returns null if the address was not available
+    /// in a block (i.e. because phi translation failed) or if this is a cached
+    /// result and that address was deleted.
+    ///
+    /// The address is always null for a non-local 'call' dependence.
+    Value *getAddress() const { return Address; }
+
+    bool operator<(const NonLocalDepEntry &RHS) const {
+      return BB < RHS.BB;
+    }
+  };
+  
   /// MemoryDependenceAnalysis - This is an analysis that determines, for a
   /// given memory operation, what preceding memory operations it depends on.
   /// It builds on alias analysis information, and tries to provide a lazy,
@@ -151,7 +192,6 @@ namespace llvm {
     LocalDepMapType LocalDeps;
 
   public:
-    typedef std::pair<BasicBlock*, MemDepResult> NonLocalDepEntry;
     typedef std::vector<NonLocalDepEntry> NonLocalDepInfo;
   private:
     /// ValueIsLoadPair - This is a pair<Value*, bool> where the bool is true if
@@ -245,29 +285,6 @@ namespace llvm {
                                       BasicBlock *BB,
                                      SmallVectorImpl<NonLocalDepEntry> &Result);
     
-    /// GetPHITranslatedValue - Find an available version of the specified value
-    /// PHI translated across the specified edge.  If MemDep isn't able to
-    /// satisfy this request, it returns null.
-    Value *GetPHITranslatedValue(Value *V,
-                                 BasicBlock *CurBB, BasicBlock *PredBB,
-                                 const TargetData *TD) const;
-
-    /// GetAvailablePHITranslatedValue - Return the value computed by
-    /// PHITranslatePointer if it dominates PredBB, otherwise return null.
-    Value *GetAvailablePHITranslatedValue(Value *V,
-                                          BasicBlock *CurBB, BasicBlock *PredBB,
-                                          const TargetData *TD,
-                                          const DominatorTree &DT) const;
-    
-    /// InsertPHITranslatedPointer - Insert a computation of the PHI translated
-    /// version of 'V' for the edge PredBB->CurBB into the end of the PredBB
-    /// block.  All newly created instructions are added to the NewInsts list.
-    Value *InsertPHITranslatedPointer(Value *V,
-                                      BasicBlock *CurBB, BasicBlock *PredBB,
-                                      const TargetData *TD,
-                                      const DominatorTree &DT,
-                                 SmallVectorImpl<Instruction*> &NewInsts) const;
-    
     /// removeInstruction - Remove an instruction from the dependence analysis,
     /// updating the dependence of instructions that previously depended on it.
     void removeInstruction(Instruction *InstToRemove);
@@ -288,7 +305,7 @@ namespace llvm {
     MemDepResult getCallSiteDependencyFrom(CallSite C, bool isReadOnlyCall,
                                            BasicBlock::iterator ScanIt,
                                            BasicBlock *BB);
-    bool getNonLocalPointerDepFromBB(Value *Pointer, uint64_t Size,
+    bool getNonLocalPointerDepFromBB(const PHITransAddr &Pointer, uint64_t Size,
                                      bool isLoad, BasicBlock *BB,
                                      SmallVectorImpl<NonLocalDepEntry> &Result,
                                      DenseMap<BasicBlock*, Value*> &Visited,

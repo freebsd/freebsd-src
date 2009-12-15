@@ -27,6 +27,9 @@ namespace llvm {
       /// Return with a flag operand. Operand 0 is the chain operand.
       RET_FLAG,
 
+      /// Same as RET_FLAG, but used for returning from ISRs.
+      RETI_FLAG,
+
       /// Y = R{R,L}A X, rotate right (left) arithmetically
       RRA, RLA,
 
@@ -44,7 +47,7 @@ namespace llvm {
       /// CMP - Compare instruction.
       CMP,
 
-      /// SetCC. Operand 0 is condition code, and operand 1 is the flag
+      /// SetCC - Operand 0 is condition code, and operand 1 is the flag
       /// operand produced by a CMP instruction.
       SETCC,
 
@@ -54,9 +57,12 @@ namespace llvm {
       /// instruction.
       BR_CC,
 
-      /// SELECT_CC. Operand 0 and operand 1 are selection variable, operand 3
+      /// SELECT_CC - Operand 0 and operand 1 are selection variable, operand 3
       /// is condition code and operand 4 is flag operand.
-      SELECT_CC
+      SELECT_CC,
+
+      /// SHL, SRA, SRL - Non-constant shifts.
+      SHL, SRA, SRL
     };
   }
 
@@ -81,8 +87,12 @@ namespace llvm {
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG);
     SDValue LowerExternalSymbol(SDValue Op, SelectionDAG &DAG);
     SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG);
     SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG);
     SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG);
+    SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG);
+    SDValue getReturnAddressFrameIndex(SelectionDAG &DAG);
 
     TargetLowering::ConstraintType
     getConstraintType(const std::string &Constraint) const;
@@ -91,6 +101,9 @@ namespace llvm {
 
     MachineBasicBlock* EmitInstrWithCustomInserter(MachineInstr *MI,
                                                    MachineBasicBlock *BB,
+                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
+    MachineBasicBlock* EmitShiftInstr(MachineInstr *MI,
+                                      MachineBasicBlock *BB,
                     DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const;
 
   private:
@@ -144,6 +157,7 @@ namespace llvm {
 
     const MSP430Subtarget &Subtarget;
     const MSP430TargetMachine &TM;
+    const TargetData *TD;
   };
 } // namespace llvm
 

@@ -53,7 +53,7 @@ static bool containsAddRecFromDifferentLoop(const SCEV *S, Loop *L) {
       if (newLoop == L)
         return false;
       // if newLoop is an outer loop of L, this is OK.
-      if (!LoopInfo::isNotAlreadyContainedIn(L, newLoop))
+      if (newLoop->contains(L->getHeader()))
         return false;
     }
     return true;
@@ -307,6 +307,7 @@ bool IVUsers::runOnLoop(Loop *l, LPPassManager &LPM) {
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ++I)
     AddUsersIfInteresting(I);
 
+  Processed.clear();
   return false;
 }
 
@@ -369,7 +370,7 @@ void IVUsers::dump() const {
 void IVUsers::releaseMemory() {
   IVUsesByStride.clear();
   StrideOrder.clear();
-  Processed.clear();
+  IVUses.clear();
 }
 
 void IVStrideUse::deleted() {

@@ -373,7 +373,8 @@ void SchedulePostRATDList::FinishBlock() {
 ///
 void SchedulePostRATDList::StartBlockForKills(MachineBasicBlock *BB) {
   // Initialize the indices to indicate that no registers are live.
-  std::fill(KillIndices, array_endof(KillIndices), ~0u);
+  for (unsigned i = 0; i < TRI->getNumRegs(); ++i)
+    KillIndices[i] = ~0u;
 
   // Determine the live-out physregs for this block.
   if (!BB->empty() && BB->back().getDesc().isReturn()) {
@@ -510,12 +511,9 @@ void SchedulePostRATDList::FixupKills(MachineBasicBlock *MBB) {
       }
       
       if (MO.isKill() != kill) {
-        bool removed = ToggleKillFlag(MI, MO);
-        if (removed) {
-          DEBUG(errs() << "Fixed <removed> in ");
-        } else {
-          DEBUG(errs() << "Fixed " << MO << " in ");
-        }
+        DEBUG(errs() << "Fixing " << MO << " in ");
+        // Warning: ToggleKillFlag may invalidate MO.
+        ToggleKillFlag(MI, MO);
         DEBUG(MI->dump());
       }
       

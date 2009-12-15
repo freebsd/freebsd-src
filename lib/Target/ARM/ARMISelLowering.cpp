@@ -42,6 +42,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
 #include <sstream>
 using namespace llvm;
 
@@ -377,7 +378,7 @@ ARMTargetLowering::ARMTargetLowering(TargetMachine &TM)
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Custom);
   else
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
-  setOperationAction(ISD::MEMBARRIER,         MVT::Other, Expand);
+  setOperationAction(ISD::MEMBARRIER,         MVT::Other, Custom);
 
   if (!Subtarget->hasV6Ops() && !Subtarget->isThumb2()) {
     setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
@@ -499,6 +500,9 @@ const char *ARMTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case ARMISD::THREAD_POINTER:return "ARMISD::THREAD_POINTER";
 
   case ARMISD::DYN_ALLOC:     return "ARMISD::DYN_ALLOC";
+
+  case ARMISD::MEMBARRIER:    return "ARMISD::MEMBARRIER";
+  case ARMISD::SYNCBARRIER:   return "ARMISD::SYNCBARRIER";
 
   case ARMISD::VCEQ:          return "ARMISD::VCEQ";
   case ARMISD::VCGE:          return "ARMISD::VCGE";
@@ -1468,6 +1472,28 @@ ARMTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) {
   case Intrinsic::eh_sjlj_setjmp:
     return DAG.getNode(ARMISD::EH_SJLJ_SETJMP, dl, MVT::i32, Op.getOperand(1));
   }
+}
+
+static SDValue LowerMEMBARRIER(SDValue Op, SelectionDAG &DAG,
+                          const ARMSubtarget *Subtarget) {
+  DebugLoc dl = Op.getDebugLoc();
+  SDValue Op5 = Op.getOperand(5);
+  SDValue Res;
+  unsigned isDeviceBarrier = cast<ConstantSDNode>(Op5)->getZExtValue();
+  if (isDeviceBarrier) {
+    if (Subtarget->hasV7Ops())
+      Res = DAG.getNode(ARMISD::SYNCBARRIER, dl, MVT::Other, Op.getOperand(0));
+    else
+      Res = DAG.getNode(ARMISD::SYNCBARRIER, dl, MVT::Other, Op.getOperand(0),
+                        DAG.getConstant(0, MVT::i32));
+  } else {
+    if (Subtarget->hasV7Ops())
+      Res = DAG.getNode(ARMISD::MEMBARRIER, dl, MVT::Other, Op.getOperand(0));
+    else
+      Res = DAG.getNode(ARMISD::MEMBARRIER, dl, MVT::Other, Op.getOperand(0),
+                        DAG.getConstant(0, MVT::i32));
+  }
+  return Res;
 }
 
 static SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG,
@@ -2528,6 +2554,25 @@ static bool isVTRNMask(const SmallVectorImpl<int> &M, EVT VT,
   return true;
 }
 
+/// isVTRN_v_undef_Mask - Special case of isVTRNMask for canonical form of
+/// "vector_shuffle v, v", i.e., "vector_shuffle v, undef".
+/// Mask is e.g., <0, 0, 2, 2> instead of <0, 4, 2, 6>.
+static bool isVTRN_v_undef_Mask(const SmallVectorImpl<int> &M, EVT VT,
+                                unsigned &WhichResult) {
+  unsigned EltSz = VT.getVectorElementType().getSizeInBits();
+  if (EltSz == 64)
+    return false;
+
+  unsigned NumElts = VT.getVectorNumElements();
+  WhichResult = (M[0] == 0 ? 0 : 1);
+  for (unsigned i = 0; i < NumElts; i += 2) {
+    if ((unsigned) M[i] != i + WhichResult ||
+        (unsigned) M[i+1] != i + WhichResult)
+      return false;
+  }
+  return true;
+}
+
 static bool isVUZPMask(const SmallVectorImpl<int> &M, EVT VT,
                        unsigned &WhichResult) {
   unsigned EltSz = VT.getVectorElementType().getSizeInBits();
@@ -2539,6 +2584,33 @@ static bool isVUZPMask(const SmallVectorImpl<int> &M, EVT VT,
   for (unsigned i = 0; i != NumElts; ++i) {
     if ((unsigned) M[i] != 2 * i + WhichResult)
       return false;
+  }
+
+  // VUZP.32 for 64-bit vectors is a pseudo-instruction alias for VTRN.32.
+  if (VT.is64BitVector() && EltSz == 32)
+    return false;
+
+  return true;
+}
+
+/// isVUZP_v_undef_Mask - Special case of isVUZPMask for canonical form of
+/// "vector_shuffle v, v", i.e., "vector_shuffle v, undef".
+/// Mask is e.g., <0, 2, 0, 2> instead of <0, 2, 4, 6>,
+static bool isVUZP_v_undef_Mask(const SmallVectorImpl<int> &M, EVT VT,
+                                unsigned &WhichResult) {
+  unsigned EltSz = VT.getVectorElementType().getSizeInBits();
+  if (EltSz == 64)
+    return false;
+
+  unsigned Half = VT.getVectorNumElements() / 2;
+  WhichResult = (M[0] == 0 ? 0 : 1);
+  for (unsigned j = 0; j != 2; ++j) {
+    unsigned Idx = WhichResult;
+    for (unsigned i = 0; i != Half; ++i) {
+      if ((unsigned) M[i + j * Half] != Idx)
+        return false;
+      Idx += 2;
+    }
   }
 
   // VUZP.32 for 64-bit vectors is a pseudo-instruction alias for VTRN.32.
@@ -2570,6 +2642,33 @@ static bool isVZIPMask(const SmallVectorImpl<int> &M, EVT VT,
 
   return true;
 }
+
+/// isVZIP_v_undef_Mask - Special case of isVZIPMask for canonical form of
+/// "vector_shuffle v, v", i.e., "vector_shuffle v, undef".
+/// Mask is e.g., <0, 0, 1, 1> instead of <0, 4, 1, 5>.
+static bool isVZIP_v_undef_Mask(const SmallVectorImpl<int> &M, EVT VT,
+                                unsigned &WhichResult) {
+  unsigned EltSz = VT.getVectorElementType().getSizeInBits();
+  if (EltSz == 64)
+    return false;
+
+  unsigned NumElts = VT.getVectorNumElements();
+  WhichResult = (M[0] == 0 ? 0 : 1);
+  unsigned Idx = WhichResult * NumElts / 2;
+  for (unsigned i = 0; i != NumElts; i += 2) {
+    if ((unsigned) M[i] != Idx ||
+        (unsigned) M[i+1] != Idx)
+      return false;
+    Idx += 1;
+  }
+
+  // VZIP.32 for 64-bit vectors is a pseudo-instruction alias for VTRN.32.
+  if (VT.is64BitVector() && EltSz == 32)
+    return false;
+
+  return true;
+}
+
 
 static SDValue BuildSplat(SDValue Val, EVT VT, SelectionDAG &DAG, DebugLoc dl) {
   // Canonicalize all-zeros and all-ones vectors.
@@ -2683,7 +2782,10 @@ ARMTargetLowering::isShuffleMaskLegal(const SmallVectorImpl<int> &M,
           isVEXTMask(M, VT, ReverseVEXT, Imm) ||
           isVTRNMask(M, VT, WhichResult) ||
           isVUZPMask(M, VT, WhichResult) ||
-          isVZIPMask(M, VT, WhichResult));
+          isVZIPMask(M, VT, WhichResult) ||
+          isVTRN_v_undef_Mask(M, VT, WhichResult) ||
+          isVUZP_v_undef_Mask(M, VT, WhichResult) ||
+          isVZIP_v_undef_Mask(M, VT, WhichResult));
 }
 
 /// GeneratePerfectShuffle - Given an entry in the perfect-shuffle table, emit
@@ -2815,6 +2917,16 @@ static SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) {
     return DAG.getNode(ARMISD::VZIP, dl, DAG.getVTList(VT, VT),
                        V1, V2).getValue(WhichResult);
 
+  if (isVTRN_v_undef_Mask(ShuffleMask, VT, WhichResult))
+    return DAG.getNode(ARMISD::VTRN, dl, DAG.getVTList(VT, VT),
+                       V1, V1).getValue(WhichResult);
+  if (isVUZP_v_undef_Mask(ShuffleMask, VT, WhichResult))
+    return DAG.getNode(ARMISD::VUZP, dl, DAG.getVTList(VT, VT),
+                       V1, V1).getValue(WhichResult);
+  if (isVZIP_v_undef_Mask(ShuffleMask, VT, WhichResult))
+    return DAG.getNode(ARMISD::VZIP, dl, DAG.getVTList(VT, VT),
+                       V1, V1).getValue(WhichResult);
+
   // If the shuffle is not directly supported and it has 4 elements, use
   // the PerfectShuffle-generated table to synthesize it from other shuffles.
   if (VT.getVectorNumElements() == 4 &&
@@ -2886,6 +2998,7 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) {
   case ISD::BR_JT:         return LowerBR_JT(Op, DAG);
   case ISD::DYNAMIC_STACKALLOC: return LowerDYNAMIC_STACKALLOC(Op, DAG);
   case ISD::VASTART:       return LowerVASTART(Op, DAG, VarArgsFrameIndex);
+  case ISD::MEMBARRIER:    return LowerMEMBARRIER(Op, DAG, Subtarget);
   case ISD::SINT_TO_FP:
   case ISD::UINT_TO_FP:    return LowerINT_TO_FP(Op, DAG);
   case ISD::FP_TO_SINT:
@@ -2938,14 +3051,233 @@ void ARMTargetLowering::ReplaceNodeResults(SDNode *N,
 //===----------------------------------------------------------------------===//
 
 MachineBasicBlock *
+ARMTargetLowering::EmitAtomicCmpSwap(MachineInstr *MI,
+                                     MachineBasicBlock *BB,
+                                     unsigned Size) const {
+  unsigned dest    = MI->getOperand(0).getReg();
+  unsigned ptr     = MI->getOperand(1).getReg();
+  unsigned oldval  = MI->getOperand(2).getReg();
+  unsigned newval  = MI->getOperand(3).getReg();
+  unsigned scratch = BB->getParent()->getRegInfo()
+    .createVirtualRegister(ARM::GPRRegisterClass);
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+  DebugLoc dl = MI->getDebugLoc();
+  bool isThumb2 = Subtarget->isThumb2();
+
+  unsigned ldrOpc, strOpc;
+  switch (Size) {
+  default: llvm_unreachable("unsupported size for AtomicCmpSwap!");
+  case 1:
+    ldrOpc = isThumb2 ? ARM::t2LDREXB : ARM::LDREXB;
+    strOpc = isThumb2 ? ARM::t2LDREXB : ARM::STREXB;
+    break;
+  case 2:
+    ldrOpc = isThumb2 ? ARM::t2LDREXH : ARM::LDREXH;
+    strOpc = isThumb2 ? ARM::t2STREXH : ARM::STREXH;
+    break;
+  case 4:
+    ldrOpc = isThumb2 ? ARM::t2LDREX : ARM::LDREX;
+    strOpc = isThumb2 ? ARM::t2STREX : ARM::STREX;
+    break;
+  }
+
+  MachineFunction *MF = BB->getParent();
+  const BasicBlock *LLVM_BB = BB->getBasicBlock();
+  MachineFunction::iterator It = BB;
+  ++It; // insert the new blocks after the current block
+
+  MachineBasicBlock *loop1MBB = MF->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *loop2MBB = MF->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *exitMBB = MF->CreateMachineBasicBlock(LLVM_BB);
+  MF->insert(It, loop1MBB);
+  MF->insert(It, loop2MBB);
+  MF->insert(It, exitMBB);
+  exitMBB->transferSuccessors(BB);
+
+  //  thisMBB:
+  //   ...
+  //   fallthrough --> loop1MBB
+  BB->addSuccessor(loop1MBB);
+
+  // loop1MBB:
+  //   ldrex dest, [ptr]
+  //   cmp dest, oldval
+  //   bne exitMBB
+  BB = loop1MBB;
+  AddDefaultPred(BuildMI(BB, dl, TII->get(ldrOpc), dest).addReg(ptr));
+  AddDefaultPred(BuildMI(BB, dl, TII->get(isThumb2 ? ARM::t2CMPrr : ARM::CMPrr))
+                 .addReg(dest).addReg(oldval));
+  BuildMI(BB, dl, TII->get(isThumb2 ? ARM::t2Bcc : ARM::Bcc))
+    .addMBB(exitMBB).addImm(ARMCC::NE).addReg(ARM::CPSR);
+  BB->addSuccessor(loop2MBB);
+  BB->addSuccessor(exitMBB);
+
+  // loop2MBB:
+  //   strex scratch, newval, [ptr]
+  //   cmp scratch, #0
+  //   bne loop1MBB
+  BB = loop2MBB;
+  AddDefaultPred(BuildMI(BB, dl, TII->get(strOpc), scratch).addReg(newval)
+                 .addReg(ptr));
+  AddDefaultPred(BuildMI(BB, dl, TII->get(isThumb2 ? ARM::t2CMPri : ARM::CMPri))
+                 .addReg(scratch).addImm(0));
+  BuildMI(BB, dl, TII->get(isThumb2 ? ARM::t2Bcc : ARM::Bcc))
+    .addMBB(loop1MBB).addImm(ARMCC::NE).addReg(ARM::CPSR);
+  BB->addSuccessor(loop1MBB);
+  BB->addSuccessor(exitMBB);
+
+  //  exitMBB:
+  //   ...
+  BB = exitMBB;
+  return BB;
+}
+
+MachineBasicBlock *
+ARMTargetLowering::EmitAtomicBinary(MachineInstr *MI, MachineBasicBlock *BB,
+                                    unsigned Size, unsigned BinOpcode) const {
+  // This also handles ATOMIC_SWAP, indicated by BinOpcode==0.
+  const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
+
+  const BasicBlock *LLVM_BB = BB->getBasicBlock();
+  MachineFunction *F = BB->getParent();
+  MachineFunction::iterator It = BB;
+  ++It;
+
+  unsigned dest = MI->getOperand(0).getReg();
+  unsigned ptr = MI->getOperand(1).getReg();
+  unsigned incr = MI->getOperand(2).getReg();
+  DebugLoc dl = MI->getDebugLoc();
+  bool isThumb2 = Subtarget->isThumb2();
+  unsigned ldrOpc, strOpc;
+  switch (Size) {
+  default: llvm_unreachable("unsupported size for AtomicCmpSwap!");
+  case 1:
+    ldrOpc = isThumb2 ? ARM::t2LDREXB : ARM::LDREXB;
+    strOpc = isThumb2 ? ARM::t2LDREXB : ARM::STREXB;
+    break;
+  case 2:
+    ldrOpc = isThumb2 ? ARM::t2LDREXH : ARM::LDREXH;
+    strOpc = isThumb2 ? ARM::t2STREXH : ARM::STREXH;
+    break;
+  case 4:
+    ldrOpc = isThumb2 ? ARM::t2LDREX : ARM::LDREX;
+    strOpc = isThumb2 ? ARM::t2STREX : ARM::STREX;
+    break;
+  }
+
+  MachineBasicBlock *loopMBB = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *exitMBB = F->CreateMachineBasicBlock(LLVM_BB);
+  F->insert(It, loopMBB);
+  F->insert(It, exitMBB);
+  exitMBB->transferSuccessors(BB);
+
+  MachineRegisterInfo &RegInfo = F->getRegInfo();
+  unsigned scratch = RegInfo.createVirtualRegister(ARM::GPRRegisterClass);
+  unsigned scratch2 = (!BinOpcode) ? incr :
+    RegInfo.createVirtualRegister(ARM::GPRRegisterClass);
+
+  //  thisMBB:
+  //   ...
+  //   fallthrough --> loopMBB
+  BB->addSuccessor(loopMBB);
+
+  //  loopMBB:
+  //   ldrex dest, ptr
+  //   <binop> scratch2, dest, incr
+  //   strex scratch, scratch2, ptr
+  //   cmp scratch, #0
+  //   bne- loopMBB
+  //   fallthrough --> exitMBB
+  BB = loopMBB;
+  AddDefaultPred(BuildMI(BB, dl, TII->get(ldrOpc), dest).addReg(ptr));
+  if (BinOpcode) {
+    // operand order needs to go the other way for NAND
+    if (BinOpcode == ARM::BICrr || BinOpcode == ARM::t2BICrr)
+      AddDefaultPred(BuildMI(BB, dl, TII->get(BinOpcode), scratch2).
+                     addReg(incr).addReg(dest)).addReg(0);
+    else
+      AddDefaultPred(BuildMI(BB, dl, TII->get(BinOpcode), scratch2).
+                     addReg(dest).addReg(incr)).addReg(0);
+  }
+
+  AddDefaultPred(BuildMI(BB, dl, TII->get(strOpc), scratch).addReg(scratch2)
+                 .addReg(ptr));
+  AddDefaultPred(BuildMI(BB, dl, TII->get(isThumb2 ? ARM::t2CMPri : ARM::CMPri))
+                 .addReg(scratch).addImm(0));
+  BuildMI(BB, dl, TII->get(isThumb2 ? ARM::t2Bcc : ARM::Bcc))
+    .addMBB(loopMBB).addImm(ARMCC::NE).addReg(ARM::CPSR);
+
+  BB->addSuccessor(loopMBB);
+  BB->addSuccessor(exitMBB);
+
+  //  exitMBB:
+  //   ...
+  BB = exitMBB;
+  return BB;
+}
+
+MachineBasicBlock *
 ARMTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
                                                MachineBasicBlock *BB,
                    DenseMap<MachineBasicBlock*, MachineBasicBlock*> *EM) const {
   const TargetInstrInfo *TII = getTargetMachine().getInstrInfo();
   DebugLoc dl = MI->getDebugLoc();
+  bool isThumb2 = Subtarget->isThumb2();
   switch (MI->getOpcode()) {
   default:
+    MI->dump();
     llvm_unreachable("Unexpected instr type to insert");
+
+  case ARM::ATOMIC_LOAD_ADD_I8:
+     return EmitAtomicBinary(MI, BB, 1, isThumb2 ? ARM::t2ADDrr : ARM::ADDrr);
+  case ARM::ATOMIC_LOAD_ADD_I16:
+     return EmitAtomicBinary(MI, BB, 2, isThumb2 ? ARM::t2ADDrr : ARM::ADDrr);
+  case ARM::ATOMIC_LOAD_ADD_I32:
+     return EmitAtomicBinary(MI, BB, 4, isThumb2 ? ARM::t2ADDrr : ARM::ADDrr);
+
+  case ARM::ATOMIC_LOAD_AND_I8:
+     return EmitAtomicBinary(MI, BB, 1, isThumb2 ? ARM::t2ANDrr : ARM::ANDrr);
+  case ARM::ATOMIC_LOAD_AND_I16:
+     return EmitAtomicBinary(MI, BB, 2, isThumb2 ? ARM::t2ANDrr : ARM::ANDrr);
+  case ARM::ATOMIC_LOAD_AND_I32:
+     return EmitAtomicBinary(MI, BB, 4, isThumb2 ? ARM::t2ANDrr : ARM::ANDrr);
+
+  case ARM::ATOMIC_LOAD_OR_I8:
+     return EmitAtomicBinary(MI, BB, 1, isThumb2 ? ARM::t2ORRrr : ARM::ORRrr);
+  case ARM::ATOMIC_LOAD_OR_I16:
+     return EmitAtomicBinary(MI, BB, 2, isThumb2 ? ARM::t2ORRrr : ARM::ORRrr);
+  case ARM::ATOMIC_LOAD_OR_I32:
+     return EmitAtomicBinary(MI, BB, 4, isThumb2 ? ARM::t2ORRrr : ARM::ORRrr);
+
+  case ARM::ATOMIC_LOAD_XOR_I8:
+     return EmitAtomicBinary(MI, BB, 1, isThumb2 ? ARM::t2EORrr : ARM::EORrr);
+  case ARM::ATOMIC_LOAD_XOR_I16:
+     return EmitAtomicBinary(MI, BB, 2, isThumb2 ? ARM::t2EORrr : ARM::EORrr);
+  case ARM::ATOMIC_LOAD_XOR_I32:
+     return EmitAtomicBinary(MI, BB, 4, isThumb2 ? ARM::t2EORrr : ARM::EORrr);
+
+  case ARM::ATOMIC_LOAD_NAND_I8:
+     return EmitAtomicBinary(MI, BB, 1, isThumb2 ? ARM::t2BICrr : ARM::BICrr);
+  case ARM::ATOMIC_LOAD_NAND_I16:
+     return EmitAtomicBinary(MI, BB, 2, isThumb2 ? ARM::t2BICrr : ARM::BICrr);
+  case ARM::ATOMIC_LOAD_NAND_I32:
+     return EmitAtomicBinary(MI, BB, 4, isThumb2 ? ARM::t2BICrr : ARM::BICrr);
+
+  case ARM::ATOMIC_LOAD_SUB_I8:
+     return EmitAtomicBinary(MI, BB, 1, isThumb2 ? ARM::t2SUBrr : ARM::SUBrr);
+  case ARM::ATOMIC_LOAD_SUB_I16:
+     return EmitAtomicBinary(MI, BB, 2, isThumb2 ? ARM::t2SUBrr : ARM::SUBrr);
+  case ARM::ATOMIC_LOAD_SUB_I32:
+     return EmitAtomicBinary(MI, BB, 4, isThumb2 ? ARM::t2SUBrr : ARM::SUBrr);
+
+  case ARM::ATOMIC_SWAP_I8:  return EmitAtomicBinary(MI, BB, 1, 0);
+  case ARM::ATOMIC_SWAP_I16: return EmitAtomicBinary(MI, BB, 2, 0);
+  case ARM::ATOMIC_SWAP_I32: return EmitAtomicBinary(MI, BB, 4, 0);
+
+  case ARM::ATOMIC_CMP_SWAP_I8:  return EmitAtomicCmpSwap(MI, BB, 1);
+  case ARM::ATOMIC_CMP_SWAP_I16: return EmitAtomicCmpSwap(MI, BB, 2);
+  case ARM::ATOMIC_CMP_SWAP_I32: return EmitAtomicCmpSwap(MI, BB, 4);
+
   case ARM::tMOVCCr_pseudo: {
     // To "insert" a SELECT_CC instruction, we actually have to insert the
     // diamond control-flow pattern.  The incoming instruction knows the
@@ -3935,6 +4267,8 @@ ARMTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
         return std::make_pair(0U, ARM::SPRRegisterClass);
       if (VT == MVT::f64)
         return std::make_pair(0U, ARM::DPRRegisterClass);
+      if (VT.getSizeInBits() == 128)
+        return std::make_pair(0U, ARM::QPRRegisterClass);
       break;
     }
   }
@@ -3973,6 +4307,9 @@ getRegClassForInlineAsmConstraint(const std::string &Constraint,
                                    ARM::D4, ARM::D5, ARM::D6, ARM::D7,
                                    ARM::D8, ARM::D9, ARM::D10,ARM::D11,
                                    ARM::D12,ARM::D13,ARM::D14,ARM::D15, 0);
+    if (VT.getSizeInBits() == 128)
+      return make_vector<unsigned>(ARM::Q0, ARM::Q1, ARM::Q2, ARM::Q3,
+                                   ARM::Q4, ARM::Q5, ARM::Q6, ARM::Q7, 0);
       break;
   }
 

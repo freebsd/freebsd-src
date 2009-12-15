@@ -105,7 +105,7 @@ namespace {
     void isSafeUseOfAllocation(Instruction *User, AllocaInst *AI,
                                AllocaInfo &Info);
     void isSafeElementUse(Value *Ptr, bool isFirstElt, AllocaInst *AI,
-                         AllocaInfo &Info);
+                          AllocaInfo &Info);
     void isSafeMemIntrinsicOnAllocation(MemIntrinsic *MI, AllocaInst *AI,
                                         unsigned OpNo, AllocaInfo &Info);
     void isSafeUseOfBitCastedAllocation(BitCastInst *User, AllocaInst *AI,
@@ -362,7 +362,6 @@ void SROA::DoScalarReplacement(AllocaInst *AI,
 
   // Now that we have created the alloca instructions that we want to use,
   // expand the getelementptr instructions to use them.
-  //
   while (!AI->use_empty()) {
     Instruction *User = cast<Instruction>(AI->use_back());
     if (BitCastInst *BCInst = dyn_cast<BitCastInst>(User)) {
@@ -450,11 +449,9 @@ void SROA::DoScalarReplacement(AllocaInst *AI,
   NumReplaced++;
 }
 
-
 /// isSafeElementUse - Check to see if this use is an allowed use for a
 /// getelementptr instruction of an array aggregate allocation.  isFirstElt
 /// indicates whether Ptr is known to the start of the aggregate.
-///
 void SROA::isSafeElementUse(Value *Ptr, bool isFirstElt, AllocaInst *AI,
                             AllocaInfo &Info) {
   for (Value::use_iterator I = Ptr->use_begin(), E = Ptr->use_end();
@@ -503,7 +500,6 @@ void SROA::isSafeElementUse(Value *Ptr, bool isFirstElt, AllocaInst *AI,
         }
       }
       
-      
       isSafeElementUse(GEP, AreAllZeroIndices, AI, Info);
       if (Info.isUnsafe) return;
       break;
@@ -543,9 +539,8 @@ static bool AllUsersAreLoads(Value *Ptr) {
   return true;
 }
 
-/// isSafeUseOfAllocation - Check to see if this user is an allowed use for an
+/// isSafeUseOfAllocation - Check if this user is an allowed use for an
 /// aggregate allocation.
-///
 void SROA::isSafeUseOfAllocation(Instruction *User, AllocaInst *AI,
                                  AllocaInfo &Info) {
   if (BitCastInst *C = dyn_cast<BitCastInst>(User))
@@ -614,7 +609,7 @@ void SROA::isSafeUseOfAllocation(Instruction *User, AllocaInst *AI,
       // integer. Specifically, consider A[0][i]. We cannot know that the user
       // isn't doing invalid things like allowing i to index an out-of-range
       // subscript that accesses A[1].  Because of this, we have to reject SROA
-      // of any accesses into structs where any of the components are variables. 
+      // of any accesses into structs where any of the components are variables.
       if (IdxVal->getZExtValue() >= AT->getNumElements())
         return MarkUnsafe(Info);
     } else if (const VectorType *VT = dyn_cast<VectorType>(*I)) {
@@ -628,7 +623,7 @@ void SROA::isSafeUseOfAllocation(Instruction *User, AllocaInst *AI,
   return isSafeElementUse(GEPI, IsAllZeroIndices, AI, Info);
 }
 
-/// isSafeMemIntrinsicOnAllocation - Return true if the specified memory
+/// isSafeMemIntrinsicOnAllocation - Check if the specified memory
 /// intrinsic can be promoted by SROA.  At this point, we know that the operand
 /// of the memintrinsic is a pointer to the beginning of the allocation.
 void SROA::isSafeMemIntrinsicOnAllocation(MemIntrinsic *MI, AllocaInst *AI,
@@ -656,8 +651,8 @@ void SROA::isSafeMemIntrinsicOnAllocation(MemIntrinsic *MI, AllocaInst *AI,
   }
 }
 
-/// isSafeUseOfBitCastedAllocation - Return true if all users of this bitcast
-/// are 
+/// isSafeUseOfBitCastedAllocation - Check if all users of this bitcast
+/// from an alloca are safe for SROA of that alloca.
 void SROA::isSafeUseOfBitCastedAllocation(BitCastInst *BC, AllocaInst *AI,
                                           AllocaInfo &Info) {
   for (Value::use_iterator UI = BC->use_begin(), E = BC->use_end();
@@ -773,6 +768,10 @@ void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *BCInst,
       OtherPtr = MTI->getRawDest();
     }
   }
+
+  // Keep track of the other intrinsic argument, so it can be removed if it
+  // is dead when the intrinsic is replaced.
+  Value *PossiblyDead = OtherPtr;
   
   // If there is an other pointer, we want to convert it to the same pointer
   // type as AI has, so we can GEP through it safely.
@@ -926,9 +925,11 @@ void SROA::RewriteMemIntrinUserOfAlloca(MemIntrinsic *MI, Instruction *BCInst,
     }
   }
   MI->eraseFromParent();
+  if (PossiblyDead)
+    RecursivelyDeleteTriviallyDeadInstructions(PossiblyDead);
 }
 
-/// RewriteStoreUserOfWholeAlloca - We found an store of an integer that
+/// RewriteStoreUserOfWholeAlloca - We found a store of an integer that
 /// overwrites the entire allocation.  Extract out the pieces of the stored
 /// integer and store them individually.
 void SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
@@ -1052,7 +1053,7 @@ void SROA::RewriteStoreUserOfWholeAlloca(StoreInst *SI, AllocaInst *AI,
   SI->eraseFromParent();
 }
 
-/// RewriteLoadUserOfWholeAlloca - We found an load of the entire allocation to
+/// RewriteLoadUserOfWholeAlloca - We found a load of the entire allocation to
 /// an integer.  Load the individual pieces to form the aggregate value.
 void SROA::RewriteLoadUserOfWholeAlloca(LoadInst *LI, AllocaInst *AI,
                                         SmallVector<AllocaInst*, 32> &NewElts) {
@@ -1186,7 +1187,6 @@ static bool HasPadding(const Type *Ty, const TargetData &TD) {
 /// isSafeStructAllocaToScalarRepl - Check to see if the specified allocation of
 /// an aggregate can be broken down into elements.  Return 0 if not, 3 if safe,
 /// or 1 if safe after canonicalization has been performed.
-///
 int SROA::isSafeAllocaToScalarRepl(AllocaInst *AI) {
   // Loop over the use list of the alloca.  We can only transform it if all of
   // the users are safe to transform.
@@ -1215,7 +1215,7 @@ int SROA::isSafeAllocaToScalarRepl(AllocaInst *AI) {
   return Info.needsCleanup ? 1 : 3;
 }
 
-/// CleanupGEP - GEP is used by an Alloca, which can be prompted after the GEP
+/// CleanupGEP - GEP is used by an Alloca, which can be promoted after the GEP
 /// is canonicalized here.
 void SROA::CleanupGEP(GetElementPtrInst *GEPI) {
   gep_type_iterator I = gep_type_begin(GEPI);
@@ -1347,7 +1347,7 @@ static void MergeInType(const Type *In, uint64_t Offset, const Type *&VecTy,
 }
 
 /// CanConvertToScalar - V is a pointer.  If we can convert the pointee and all
-/// its accesses to use a to single vector type, return true, and set VecTy to
+/// its accesses to a single vector type, return true and set VecTy to
 /// the new type.  If we could convert the alloca into a single promotable
 /// integer, return true but set VecTy to VoidTy.  Further, if the use is not a
 /// completely trivial use that mem2reg could promote, set IsNotTrivial.  Offset
@@ -1355,7 +1355,6 @@ static void MergeInType(const Type *In, uint64_t Offset, const Type *&VecTy,
 ///
 /// If we see at least one access to the value that is as a vector type, set the
 /// SawVec flag.
-///
 bool SROA::CanConvertToScalar(Value *V, bool &IsNotTrivial, const Type *&VecTy,
                               bool &SawVec, uint64_t Offset,
                               unsigned AllocaSize) {
@@ -1438,7 +1437,6 @@ bool SROA::CanConvertToScalar(Value *V, bool &IsNotTrivial, const Type *&VecTy,
   return true;
 }
 
-
 /// ConvertUsesToScalar - Convert all of the users of Ptr to use the new alloca
 /// directly.  This happens when we are converting an "integer union" to a
 /// single integer scalar, or when we are converting a "vector union" to a
@@ -1481,7 +1479,8 @@ void SROA::ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI, uint64_t Offset) {
     if (StoreInst *SI = dyn_cast<StoreInst>(User)) {
       assert(SI->getOperand(0) != Ptr && "Consistency error!");
       // FIXME: Remove once builder has Twine API.
-      Value *Old = Builder.CreateLoad(NewAI, (NewAI->getName()+".in").str().c_str());
+      Value *Old = Builder.CreateLoad(NewAI,
+                                      (NewAI->getName()+".in").str().c_str());
       Value *New = ConvertScalar_InsertValue(SI->getOperand(0), Old, Offset,
                                              Builder);
       Builder.CreateStore(New, NewAI);
@@ -1506,7 +1505,8 @@ void SROA::ConvertUsesToScalar(Value *Ptr, AllocaInst *NewAI, uint64_t Offset) {
             APVal |= APVal << 8;
         
         // FIXME: Remove once builder has Twine API.
-        Value *Old = Builder.CreateLoad(NewAI, (NewAI->getName()+".in").str().c_str());
+        Value *Old = Builder.CreateLoad(NewAI,
+                                        (NewAI->getName()+".in").str().c_str());
         Value *New = ConvertScalar_InsertValue(
                                     ConstantInt::get(User->getContext(), APVal),
                                                Old, Offset, Builder);
@@ -1678,7 +1678,6 @@ Value *SROA::ConvertScalar_ExtractValue(Value *FromVal, const Type *ToType,
   assert(FromVal->getType() == ToType && "Didn't convert right?");
   return FromVal;
 }
-
 
 /// ConvertScalar_InsertValue - Insert the value "SV" into the existing integer
 /// or vector value "Old" at the offset specified by Offset.

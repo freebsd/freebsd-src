@@ -38,12 +38,22 @@ def OptList : OptionList<[
     (help "Compile and assemble, but do not link")),
  (switch_option "pthread",
     (help "Enable threads")),
+ (switch_option "m32",
+    (help "Generate code for a 32-bit environment"), (hidden)),
+ (switch_option "m64",
+    (help "Generate code for a 64-bit environment"), (hidden)),
  (switch_option "fPIC",
     (help "Relocation model: PIC"), (hidden)),
  (switch_option "mdynamic-no-pic",
     (help "Relocation model: dynamic-no-pic"), (hidden)),
  (parameter_option "linker",
     (help "Choose linker (possible values: gcc, g++)")),
+ (parameter_option "mtune",
+    (help "Target a specific CPU type"), (hidden)),
+ (parameter_option "march",
+    (help "A synonym for -mtune"), (hidden)),
+ (parameter_option "mcpu",
+    (help "A deprecated synonym for -mtune"), (hidden)),
  (parameter_option "MF",
     (help "Specify a file to write dependencies to"), (hidden)),
  (parameter_option "MT",
@@ -61,9 +71,9 @@ def OptList : OptionList<[
     (help "Add a directory to include path")),
  (prefix_list_option "D",
     (help "Define a macro")),
- (prefix_list_option "Wa,",
+ (prefix_list_option "Wa,", (comma_separated),
     (help "Pass options to assembler")),
- (prefix_list_option "Wllc,",
+ (prefix_list_option "Wllc,", (comma_separated),
     (help "Pass options to llc")),
  (prefix_list_option "L",
     (help "Add a directory to link path")),
@@ -71,8 +81,11 @@ def OptList : OptionList<[
     (help "Search a library when linking")),
  (prefix_list_option "Wl,",
     (help "Pass options to linker")),
- (prefix_list_option "Wo,",
-    (help "Pass options to opt"))
+ (prefix_list_option "Wo,", (comma_separated),
+    (help "Pass options to opt")),
+ (prefix_list_option "m",
+     (help "Enable or disable various extensions (-mmmx, -msse, etc.)"),
+     (hidden))
 ]>;
 
 // Option preprocessor.
@@ -119,6 +132,12 @@ class llvm_gcc_based <string cmd_prefix, string in_lang, string E_ext> : Tool<
          (not_empty "I"), (forward "I"),
          (not_empty "F"), (forward "F"),
          (not_empty "D"), (forward "D"),
+         (not_empty "march"), (forward "march"),
+         (not_empty "mtune"), (forward "mtune"),
+         (not_empty "mcpu"), (forward "mcpu"),
+         (not_empty "m"), (forward "m"),
+         (switch_on "m32"), (forward "m32"),
+         (switch_on "m64"), (forward "m64"),
          (switch_on "O1"), (forward "O1"),
          (switch_on "O2"), (forward "O2"),
          (switch_on "O3"), (forward "O3"),
@@ -140,7 +159,7 @@ def opt : Tool<
 [(in_language "llvm-bitcode"),
  (out_language "llvm-bitcode"),
  (output_suffix "bc"),
- (actions (case (not_empty "Wo,"), (unpack_values "Wo,"),
+ (actions (case (not_empty "Wo,"), (forward_value "Wo,"),
                 (switch_on "O1"), (forward "O1"),
                 (switch_on "O2"), (forward "O2"),
                 (switch_on "O3"), (forward "O3"))),
@@ -162,7 +181,7 @@ def llvm_gcc_assembler : Tool<
  (cmd_line "@LLVMGCCCOMMAND@ -c -x assembler $INFILE -o $OUTFILE"),
  (actions (case
           (switch_on "c"), (stop_compilation),
-          (not_empty "Wa,"), (unpack_values "Wa,")))
+          (not_empty "Wa,"), (forward_value "Wa,")))
 ]>;
 
 def llc : Tool<
@@ -179,7 +198,11 @@ def llc : Tool<
           (switch_on "fPIC"), (append_cmd "-relocation-model=pic"),
           (switch_on "mdynamic-no-pic"),
                      (append_cmd "-relocation-model=dynamic-no-pic"),
-          (not_empty "Wllc,"), (unpack_values "Wllc,")))
+          (not_empty "march"), (forward "mcpu"),
+          (not_empty "mtune"), (forward "mcpu"),
+          (not_empty "mcpu"), (forward "mcpu"),
+          (not_empty "m"), (forward_transformed_value "m", "ConvertToMAttr"),
+          (not_empty "Wllc,"), (forward_value "Wllc,")))
 ]>;
 
 // Base class for linkers
@@ -195,6 +218,8 @@ class llvm_gcc_based_linker <string cmd_prefix> : Tool<
           (not_empty "F"), (forward "F"),
           (not_empty "framework"), (forward "framework"),
           (not_empty "weak_framework"), (forward "weak_framework"),
+          (switch_on "m32"), (forward "m32"),
+          (switch_on "m64"), (forward "m64"),
           (not_empty "l"), (forward "l"),
           (not_empty "Wl,"), (forward "Wl,")))
 ]>;

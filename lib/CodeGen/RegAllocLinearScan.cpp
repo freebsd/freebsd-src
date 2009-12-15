@@ -16,6 +16,7 @@
 #include "VirtRegRewriter.h"
 #include "Spiller.h"
 #include "llvm/Function.h"
+#include "llvm/CodeGen/CalcSpillWeights.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/LiveStackAnalysis.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -57,6 +58,11 @@ NewHeuristic("new-spilling-heuristic",
 static cl::opt<bool>
 PreSplitIntervals("pre-alloc-split",
                   cl::desc("Pre-register allocation live interval splitting"),
+                  cl::init(false), cl::Hidden);
+
+static cl::opt<bool>
+TrivCoalesceEnds("trivial-coalesce-ends",
+                  cl::desc("Attempt trivial coalescing of interval ends"),
                   cl::init(false), cl::Hidden);
 
 static RegisterRegAlloc
@@ -182,6 +188,7 @@ namespace {
       // Make sure PassManager knows which analyses to make available
       // to coalescing and which analyses coalescing invalidates.
       AU.addRequiredTransitive<RegisterCoalescer>();
+      AU.addRequired<CalculateSpillWeights>();
       if (PreSplitIntervals)
         AU.addRequiredID(PreAllocSplittingID);
       AU.addRequired<LiveStacks>();
@@ -390,66 +397,71 @@ void RALinScan::ComputeRelatedRegClasses() {
         RelatedRegClasses.unionSets(I->second, OneClassForEachPhysReg[*AS]);
 }
 
-/// attemptTrivialCoalescing - If a simple interval is defined by a copy,
-/// try allocate the definition the same register as the source register
-/// if the register is not defined during live time of the interval. This
-/// eliminate a copy. This is used to coalesce copies which were not
-/// coalesced away before allocation either due to dest and src being in
-/// different register classes or because the coalescer was overly
-/// conservative.
+/// attemptTrivialCoalescing - If a simple interval is defined by a copy, try
+/// allocate the definition the same register as the source register if the
+/// register is not defined during live time of the interval. If the interval is
+/// killed by a copy, try to use the destination register. This eliminates a
+/// copy. This is used to coalesce copies which were not coalesced away before
+/// allocation either due to dest and src being in different register classes or
+/// because the coalescer was overly conservative.
 unsigned RALinScan::attemptTrivialCoalescing(LiveInterval &cur, unsigned Reg) {
   unsigned Preference = vrm_->getRegAllocPref(cur.reg);
   if ((Preference && Preference == Reg) || !cur.containsOneValue())
     return Reg;
 
-  VNInfo *vni = cur.begin()->valno;
-  if ((vni->def == SlotIndex()) ||
-      vni->isUnused() || !vni->isDefAccurate())
+  // We cannot handle complicated live ranges. Simple linear stuff only.
+  if (cur.ranges.size() != 1)
     return Reg;
-  MachineInstr *CopyMI = li_->getInstructionFromIndex(vni->def);
-  unsigned SrcReg, DstReg, SrcSubReg, DstSubReg, PhysReg;
-  if (!CopyMI ||
-      !tii_->isMoveInstr(*CopyMI, SrcReg, DstReg, SrcSubReg, DstSubReg))
+
+  const LiveRange &range = cur.ranges.front();
+
+  VNInfo *vni = range.valno;
+  if (vni->isUnused())
     return Reg;
-  PhysReg = SrcReg;
-  if (TargetRegisterInfo::isVirtualRegister(SrcReg)) {
-    if (!vrm_->isAssignedReg(SrcReg))
+
+  unsigned CandReg;
+  {
+    MachineInstr *CopyMI;
+    unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
+    if (vni->def != SlotIndex() && vni->isDefAccurate() &&
+        (CopyMI = li_->getInstructionFromIndex(vni->def)) &&
+        tii_->isMoveInstr(*CopyMI, SrcReg, DstReg, SrcSubReg, DstSubReg))
+      // Defined by a copy, try to extend SrcReg forward
+      CandReg = SrcReg;
+    else if (TrivCoalesceEnds &&
+             (CopyMI =
+              li_->getInstructionFromIndex(range.end.getBaseIndex())) &&
+             tii_->isMoveInstr(*CopyMI, SrcReg, DstReg, SrcSubReg, DstSubReg) &&
+             cur.reg == SrcReg)
+      // Only used by a copy, try to extend DstReg backwards
+      CandReg = DstReg;
+    else
       return Reg;
-    PhysReg = vrm_->getPhys(SrcReg);
   }
-  if (Reg == PhysReg)
+
+  if (TargetRegisterInfo::isVirtualRegister(CandReg)) {
+    if (!vrm_->isAssignedReg(CandReg))
+      return Reg;
+    CandReg = vrm_->getPhys(CandReg);
+  }
+  if (Reg == CandReg)
     return Reg;
 
   const TargetRegisterClass *RC = mri_->getRegClass(cur.reg);
-  if (!RC->contains(PhysReg))
+  if (!RC->contains(CandReg))
+    return Reg;
+
+  if (li_->conflictsWithPhysReg(cur, *vrm_, CandReg))
     return Reg;
 
   // Try to coalesce.
-  if (!li_->conflictsWithPhysRegDef(cur, *vrm_, PhysReg)) {
-    DEBUG(errs() << "Coalescing: " << cur << " -> " << tri_->getName(PhysReg)
-                 << '\n');
-    vrm_->clearVirt(cur.reg);
-    vrm_->assignVirt2Phys(cur.reg, PhysReg);
+  DEBUG(errs() << "Coalescing: " << cur << " -> " << tri_->getName(CandReg)
+        << '\n');
+  vrm_->clearVirt(cur.reg);
+  vrm_->assignVirt2Phys(cur.reg, CandReg);
 
-    // Remove unnecessary kills since a copy does not clobber the register.
-    if (li_->hasInterval(SrcReg)) {
-      LiveInterval &SrcLI = li_->getInterval(SrcReg);
-      for (MachineRegisterInfo::use_iterator I = mri_->use_begin(cur.reg),
-             E = mri_->use_end(); I != E; ++I) {
-        MachineOperand &O = I.getOperand();
-        if (!O.isKill())
-          continue;
-        MachineInstr *MI = &*I;
-        if (SrcLI.liveAt(li_->getInstructionIndex(MI).getDefIndex()))
-          O.setIsKill(false);
-      }
-    }
-
-    ++NumCoalesce;
-    return PhysReg;
-  }
-
-  return Reg;
+  ++NumCoalesce;
+  return CandReg;
 }
 
 bool RALinScan::runOnMachineFunction(MachineFunction &fn) {
@@ -1261,9 +1273,9 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
 
   // The earliest start of a Spilled interval indicates up to where
   // in handled we need to roll back
+  assert(!spillIs.empty() && "No spill intervals?"); 
+  SlotIndex earliestStart = spillIs[0]->beginIndex();
   
-  LiveInterval *earliestStartInterval = cur;
-
   // Spill live intervals of virtual regs mapped to the physical register we
   // want to clear (and its aliases).  We only spill those that overlap with the
   // current interval as the rest do not affect its allocation. we also keep
@@ -1274,18 +1286,15 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
     LiveInterval *sli = spillIs.back();
     spillIs.pop_back();
     DEBUG(errs() << "\t\t\tspilling(a): " << *sli << '\n');
-    earliestStartInterval =
-      (earliestStartInterval->beginIndex() < sli->beginIndex()) ?
-         earliestStartInterval : sli;
+    if (sli->beginIndex() < earliestStart)
+      earliestStart = sli->beginIndex();
        
     std::vector<LiveInterval*> newIs;
-    newIs = spiller_->spill(sli, spillIs);
+    newIs = spiller_->spill(sli, spillIs, &earliestStart);
     addStackInterval(sli, ls_, li_, mri_, *vrm_);
     std::copy(newIs.begin(), newIs.end(), std::back_inserter(added));
     spilled.insert(sli->reg);
   }
-
-  SlotIndex earliestStart = earliestStartInterval->beginIndex();
 
   DEBUG(errs() << "\t\trolling back to: " << earliestStart << '\n');
 
@@ -1295,7 +1304,7 @@ void RALinScan::assignRegOrStackSlotAtInterval(LiveInterval* cur) {
   while (!handled_.empty()) {
     LiveInterval* i = handled_.back();
     // If this interval starts before t we are done.
-    if (i->beginIndex() < earliestStart)
+    if (!i->empty() && i->beginIndex() < earliestStart)
       break;
     DEBUG(errs() << "\t\t\tundo changes for: " << *i << '\n');
     handled_.pop_back();

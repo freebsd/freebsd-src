@@ -42,9 +42,10 @@ def hidden;
 def init;
 def multi_val;
 def one_or_more;
+def optional;
 def really_hidden;
 def required;
-def zero_or_one;
+def comma_separated;
 
 // The 'case' construct.
 def case;
@@ -77,6 +78,8 @@ def any_empty;
 def append_cmd;
 def forward;
 def forward_as;
+def forward_value;
+def forward_transformed_value;
 def stop_compilation;
 def unpack_values;
 def warning;

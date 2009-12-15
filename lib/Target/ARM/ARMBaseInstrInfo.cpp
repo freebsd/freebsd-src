@@ -418,11 +418,13 @@ bool ARMBaseInstrInfo::isPredicable(MachineInstr *MI) const {
   return true;
 }
 
-/// FIXME: Works around a gcc miscompilation with -fstrict-aliasing
+/// FIXME: Works around a gcc miscompilation with -fstrict-aliasing.
+DISABLE_INLINE
 static unsigned getNumJTEntries(const std::vector<MachineJumpTableEntry> &JT,
-                                unsigned JTI) DISABLE_INLINE;
+                                unsigned JTI);
 static unsigned getNumJTEntries(const std::vector<MachineJumpTableEntry> &JT,
                                 unsigned JTI) {
+  assert(JTI < JT.size());
   return JT[JTI].MBBs.size();
 }
 
@@ -467,6 +469,8 @@ unsigned ARMBaseInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
       return MI->getOperand(2).getImm();
     case ARM::Int_eh_sjlj_setjmp:
       return 24;
+    case ARM::tInt_eh_sjlj_setjmp:
+      return 22;
     case ARM::t2Int_eh_sjlj_setjmp:
       return 22;
     case ARM::BR_JTr:
@@ -755,7 +759,6 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     assert((RC == ARM::QPRRegisterClass ||
             RC == ARM::QPR_VFP2RegisterClass ||
             RC == ARM::QPR_8RegisterClass) && "Unknown regclass!");
-    // FIXME: Neon instructions should support predicates
     if (Align >= 16
         && (getRegisterInfo().needsStackRealignment(MF))) {
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLD1q64), DestReg)

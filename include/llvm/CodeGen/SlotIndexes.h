@@ -343,8 +343,10 @@ namespace llvm {
     static inline bool isEqual(const SlotIndex &LHS, const SlotIndex &RHS) {
       return (LHS == RHS);
     }
-    static inline bool isPod() { return false; }
   };
+  
+  template <> struct isPodLike<SlotIndex> { static const bool value = true; };
+
 
   inline raw_ostream& operator<<(raw_ostream &os, SlotIndex li) {
     li.print(os);

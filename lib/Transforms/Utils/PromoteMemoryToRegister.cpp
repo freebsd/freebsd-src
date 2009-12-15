@@ -55,7 +55,6 @@ struct DenseMapInfo<std::pair<BasicBlock*, unsigned> > {
   static bool isEqual(const EltTy &LHS, const EltTy &RHS) {
     return LHS == RHS;
   }
-  static bool isPod() { return true; }
 };
 }
 
@@ -102,7 +101,7 @@ namespace {
   public:
     typedef std::vector<Value *> ValVector;
     
-    RenamePassData() {}
+    RenamePassData() : BB(NULL), Pred(NULL), Values() {}
     RenamePassData(BasicBlock *B, BasicBlock *P,
                    const ValVector &V) : BB(B), Pred(P), Values(V) {}
     BasicBlock *BB;

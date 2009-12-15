@@ -290,7 +290,7 @@ void MachineBasicBlock::updateTerminator() {
     } else {
       // The block has a fallthrough conditional branch.
       MachineBasicBlock *MBBA = *succ_begin();
-      MachineBasicBlock *MBBB = *next(succ_begin());
+      MachineBasicBlock *MBBB = *llvm::next(succ_begin());
       if (MBBA == TBB) std::swap(MBBB, MBBA);
       if (isLayoutSuccessor(TBB)) {
         if (TII->ReverseBranchCondition(Cond)) {
@@ -359,15 +359,10 @@ bool MachineBasicBlock::isSuccessor(const MachineBasicBlock *MBB) const {
 
 bool MachineBasicBlock::isLayoutSuccessor(const MachineBasicBlock *MBB) const {
   MachineFunction::const_iterator I(this);
-  return next(I) == MachineFunction::const_iterator(MBB);
+  return llvm::next(I) == MachineFunction::const_iterator(MBB);
 }
 
 bool MachineBasicBlock::canFallThrough() {
-  MachineBasicBlock *TBB = 0, *FBB = 0;
-  SmallVector<MachineOperand, 4> Cond;
-  const TargetInstrInfo *TII = getParent()->getTarget().getInstrInfo();
-  bool BranchUnAnalyzable = TII->AnalyzeBranch(*this, TBB, FBB, Cond, true);
-
   MachineFunction::iterator Fallthrough = this;
   ++Fallthrough;
   // If FallthroughBlock is off the end of the function, it can't fall through.
@@ -378,16 +373,21 @@ bool MachineBasicBlock::canFallThrough() {
   if (!isSuccessor(Fallthrough))
     return false;
 
-  // If we couldn't analyze the branch, examine the last instruction.
-  // If the block doesn't end in a known control barrier, assume fallthrough
-  // is possible. The isPredicable check is needed because this code can be
-  // called during IfConversion, where an instruction which is normally a
-  // Barrier is predicated and thus no longer an actual control barrier. This
-  // is over-conservative though, because if an instruction isn't actually
-  // predicated we could still treat it like a barrier.
-  if (BranchUnAnalyzable)
+  // Analyze the branches, if any, at the end of the block.
+  MachineBasicBlock *TBB = 0, *FBB = 0;
+  SmallVector<MachineOperand, 4> Cond;
+  const TargetInstrInfo *TII = getParent()->getTarget().getInstrInfo();
+  if (TII->AnalyzeBranch(*this, TBB, FBB, Cond, true)) {
+    // If we couldn't analyze the branch, examine the last instruction.
+    // If the block doesn't end in a known control barrier, assume fallthrough
+    // is possible. The isPredicable check is needed because this code can be
+    // called during IfConversion, where an instruction which is normally a
+    // Barrier is predicated and thus no longer an actual control barrier. This
+    // is over-conservative though, because if an instruction isn't actually
+    // predicated we could still treat it like a barrier.
     return empty() || !back().getDesc().isBarrier() ||
            back().getDesc().isPredicable();
+  }
 
   // If there is no branch, control always falls through.
   if (TBB == 0) return true;
@@ -461,18 +461,19 @@ bool MachineBasicBlock::CorrectExtraCFGEdges(MachineBasicBlock *DestA,
   bool MadeChange = false;
   bool AddedFallThrough = false;
 
-  MachineFunction::iterator FallThru = next(MachineFunction::iterator(this));
+  MachineFunction::iterator FallThru =
+    llvm::next(MachineFunction::iterator(this));
   
-  // If this block ends with a conditional branch that falls through to its
-  // successor, set DestB as the successor.
   if (isCond) {
+    // If this block ends with a conditional branch that falls through to its
+    // successor, set DestB as the successor.
     if (DestB == 0 && FallThru != getParent()->end()) {
       DestB = FallThru;
       AddedFallThrough = true;
     }
   } else {
     // If this is an unconditional branch with no explicit dest, it must just be
-    // a fallthrough into DestB.
+    // a fallthrough into DestA.
     if (DestA == 0 && FallThru != getParent()->end()) {
       DestA = FallThru;
       AddedFallThrough = true;

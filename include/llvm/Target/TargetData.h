@@ -30,7 +30,6 @@ class Type;
 class IntegerType;
 class StructType;
 class StructLayout;
-class StructLayoutMap;
 class GlobalVariable;
 class LLVMContext;
 
@@ -60,8 +59,6 @@ struct TargetAlignElem {
                              unsigned char pref_align, uint32_t bit_width);
   /// Equality predicate
   bool operator==(const TargetAlignElem &rhs) const;
-  /// output stream operator
-  std::ostream &dump(std::ostream &os) const;
 };
 
 class TargetData : public ImmutablePass {
@@ -86,7 +83,7 @@ private:
   static const TargetAlignElem InvalidAlignmentElem;
 
   // The StructType -> StructLayout map.
-  mutable StructLayoutMap *LayoutMap;
+  mutable void *LayoutMap;
 
   //! Set/initialize target alignments
   void setAlignment(AlignTypeEnum align_type, unsigned char abi_align,
@@ -153,7 +150,7 @@ public:
   /// The width is specified in bits.
   ///
   bool isLegalInteger(unsigned Width) const {
-    for (unsigned i = 0, e = LegalIntWidths.size(); i != e; ++i)
+    for (unsigned i = 0, e = (unsigned)LegalIntWidths.size(); i != e; ++i)
       if (LegalIntWidths[i] == Width)
         return true;
     return false;

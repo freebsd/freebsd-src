@@ -738,9 +738,15 @@ void PMDataManager::removeNotPreservedAnalysis(Pass *P) {
       std::map<AnalysisID, Pass *>::iterator Info = I++;
       if (!dynamic_cast<ImmutablePass*>(Info->second) &&
           std::find(PreservedSet.begin(), PreservedSet.end(), Info->first) == 
-             PreservedSet.end())
+             PreservedSet.end()) {
         // Remove this analysis
+        if (PassDebugging >= Details) {
+          Pass *S = Info->second;
+          errs() << " -- '" <<  P->getPassName() << "' is not preserving '";
+          errs() << S->getPassName() << "'\n";
+        }
         InheritedAnalysis[Index]->erase(Info);
+      }
     }
   }
 }
@@ -1391,8 +1397,7 @@ MPPassManager::runOnModule(Module &M) {
   for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
     ModulePass *MP = getContainedPass(Index);
 
-    dumpPassInfo(MP, EXECUTION_MSG, ON_MODULE_MSG,
-                 M.getModuleIdentifier().c_str());
+    dumpPassInfo(MP, EXECUTION_MSG, ON_MODULE_MSG, M.getModuleIdentifier());
     dumpRequiredSet(MP);
 
     initializeAnalysisImpl(MP);
@@ -1406,13 +1411,13 @@ MPPassManager::runOnModule(Module &M) {
 
     if (Changed) 
       dumpPassInfo(MP, MODIFICATION_MSG, ON_MODULE_MSG,
-                   M.getModuleIdentifier().c_str());
+                   M.getModuleIdentifier());
     dumpPreservedSet(MP);
     
     verifyPreservedAnalysis(MP);
     removeNotPreservedAnalysis(MP);
     recordAvailableAnalysis(MP);
-    removeDeadPasses(MP, M.getModuleIdentifier().c_str(), ON_MODULE_MSG);
+    removeDeadPasses(MP, M.getModuleIdentifier(), ON_MODULE_MSG);
   }
 
   // Finalize on-the-fly passes

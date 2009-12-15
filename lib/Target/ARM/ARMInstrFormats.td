@@ -33,6 +33,8 @@ def LdMiscFrm     : Format<8>;
 def StMiscFrm     : Format<9>;
 def LdStMulFrm    : Format<10>;
 
+def LdStExFrm     : Format<28>;
+
 def ArithMiscFrm  : Format<11>;
 def ExtFrm        : Format<12>;
 
@@ -199,6 +201,19 @@ class I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
   let Pattern = pattern;
   list<Predicate> Predicates = [IsARM];
 }
+// A few are not predicable
+class InoP<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
+        IndexMode im, Format f, InstrItinClass itin, 
+        string opc, string asm, string cstr,
+        list<dag> pattern>
+  : InstARM<am, sz, im, f, GenericDomain, cstr, itin> {
+  let OutOperandList = oops;
+  let InOperandList = iops;
+  let AsmString   = !strconcat(opc, asm);
+  let Pattern = pattern;
+  let isPredicable = 0;
+  list<Predicate> Predicates = [IsARM];
+}
 
 // Same as I except it can optionally modify CPSR. Note it's modeled as
 // an input operand since by default it's a zero register. It will
@@ -239,6 +254,10 @@ class AXI<dag oops, dag iops, Format f, InstrItinClass itin,
           string asm, list<dag> pattern>
   : XI<oops, iops, AddrModeNone, Size4Bytes, IndexModeNone, f, itin,
        asm, "", pattern>;
+class AInoP<dag oops, dag iops, Format f, InstrItinClass itin,
+         string opc, string asm, list<dag> pattern>
+  : InoP<oops, iops, AddrModeNone, Size4Bytes, IndexModeNone, f, itin,
+      opc, asm, "", pattern>;
 
 // Ctrl flow instructions
 class ABI<bits<4> opcod, dag oops, dag iops, InstrItinClass itin,
@@ -263,6 +282,28 @@ class JTI<dag oops, dag iops, InstrItinClass itin,
           string asm, list<dag> pattern>
   : XI<oops, iops, AddrModeNone, SizeSpecial, IndexModeNone, BrMiscFrm, itin,
        asm, "", pattern>;
+
+
+// Atomic load/store instructions
+
+class AIldrex<bits<2> opcod, dag oops, dag iops, InstrItinClass itin,
+              string opc, string asm, list<dag> pattern>
+  : I<oops, iops, AddrModeNone, Size4Bytes, IndexModeNone, LdStExFrm, itin,
+      opc, asm, "", pattern> {
+  let Inst{27-23} = 0b00011;
+  let Inst{22-21} = opcod;
+  let Inst{20} = 1;
+  let Inst{11-0}  = 0b111110011111;
+}
+class AIstrex<bits<2> opcod, dag oops, dag iops, InstrItinClass itin,
+              string opc, string asm, list<dag> pattern>
+  : I<oops, iops, AddrModeNone, Size4Bytes, IndexModeNone, LdStExFrm, itin,
+      opc, asm, "", pattern> {
+  let Inst{27-23} = 0b00011;
+  let Inst{22-21} = opcod;
+  let Inst{20} = 0;
+  let Inst{11-4}  = 0b11111001;
+}
 
 // addrmode1 instructions
 class AI1<bits<4> opcod, dag oops, dag iops, Format f, InstrItinClass itin,
@@ -965,6 +1006,17 @@ class Thumb2XI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
   let AsmString   = asm;
   let Pattern = pattern;
   list<Predicate> Predicates = [IsThumb2];
+}
+
+class ThumbXI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
+               InstrItinClass itin,
+               string asm, string cstr, list<dag> pattern>
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, GenericDomain, cstr, itin> {
+  let OutOperandList = oops;
+  let InOperandList = iops;
+  let AsmString   = asm;
+  let Pattern = pattern;
+  list<Predicate> Predicates = [IsThumb1Only];
 }
 
 class T2I<dag oops, dag iops, InstrItinClass itin,
