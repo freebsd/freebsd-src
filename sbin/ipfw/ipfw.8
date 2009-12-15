@@ -1391,6 +1391,20 @@ of source and destination addresses and ports can be
 specified.
 Currently,
 only IPv4 flows are supported.
+.It Cm lookup Bro Cm dst-ip | dst-port | src-ip | src-port | uid | jail Brc Ar N
+Search an entry in lookup table
+.Ar N
+that matches the field specified as argument.
+If not found, the match fails.
+Otherwise, the match succeeds and
+.Cm tablearg
+is set to the value extracted from the table.
+.Br
+This option can be useful to quickly dispatch traffic based on
+certain packet fields.
+See the
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
 .It Cm { MAC | mac } Ar dst-mac src-mac
 Match packets with a given
 .Ar dst-mac
