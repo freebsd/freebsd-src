@@ -2430,6 +2430,8 @@ netinet/ipfw/ip_fw2.c		optional inet ipfirewall \
 netinet/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_log.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_pfil.c	optional inet ipfirewall
+netinet/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
+netinet/ipfw/ip_fw_table.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
