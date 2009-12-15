@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 
 #include <contrib/x86emu/x86emu.h>
 #include <contrib/x86emu/x86emu_regs.h>
@@ -79,6 +80,16 @@ static void *x86bios_seg;
 static vm_offset_t *x86bios_map;
 
 static vm_paddr_t x86bios_seg_phys;
+
+SYSCTL_NODE(_debug, OID_AUTO, x86bios, CTLFLAG_RD, NULL, "x86bios debugging");
+static int x86bios_trace_call;
+TUNABLE_INT("debug.x86bios.call", &x86bios_trace_call);
+SYSCTL_INT(_debug_x86bios, OID_AUTO, call, CTLFLAG_RW, &x86bios_trace_call, 0,
+    "Trace far function calls");
+static int x86bios_trace_int;
+TUNABLE_INT("debug.x86bios.int", &x86bios_trace_int);
+SYSCTL_INT(_debug_x86bios, OID_AUTO, int, CTLFLAG_RW, &x86bios_trace_int, 0,
+    "Trace software interrupt handlers");
 
 static void *
 x86bios_get_pages(uint32_t offset, size_t size)
@@ -312,7 +323,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	if (x86bios_map == NULL)
 		return;
 
-	if (bootverbose)
+	if (x86bios_trace_call)
 		printf("Calling 0x%05x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
@@ -324,7 +335,7 @@ x86bios_call(struct x86regs *regs, uint16_t seg, uint16_t off)
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock_spin(&x86bios_lock);
 
-	if (bootverbose)
+	if (x86bios_trace_call)
 		printf("Exiting 0x%05x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    (seg << 4) + off, regs->R_AX, regs->R_BX, regs->R_CX,
@@ -351,7 +362,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 	if (x86bios_map == NULL)
 		return;
 
-	if (bootverbose)
+	if (x86bios_trace_int)
 		printf("Calling int 0x%x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
@@ -363,7 +374,7 @@ x86bios_intr(struct x86regs *regs, int intno)
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 	mtx_unlock_spin(&x86bios_lock);
 
-	if (bootverbose)
+	if (x86bios_trace_int)
 		printf("Exiting int 0x%x (ax=0x%04x bx=0x%04x "
 		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
 		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
