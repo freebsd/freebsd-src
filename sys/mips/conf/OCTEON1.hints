@@ -1,0 +1,13 @@
+# /*
+#  *    This product includes software developed by the University of
+
+#  *    California, Berkeley and its contributors."
+# */
+# device.hints
+hw.uart.console="io:0x1"
+hint.obio.0.at="nexus"
+hint.obio.0.maddr="0x1"
+hint.obio.0.flags="0x1"
+hint.uart.0.at="obio"
+hint.uart.0.maddr="0x1"
+hint.uart.0.flags="0x1"
