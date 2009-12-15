@@ -46,10 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/ucred.h>
 
+#define        IPFW_INTERNAL   /* Access to protected data structures in ip_fw.h. */
+
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
-
-#define	IPFW_INTERNAL	/* Access to protected data structures in ip_fw.h. */
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -65,8 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp_var.h>
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
-
-MALLOC_DECLARE(M_IPFW);
 
 static VNET_DEFINE(eventhandler_tag, ifaddr_event_tag);
 #define	V_ifaddr_event_tag	VNET(ifaddr_event_tag)
@@ -403,6 +402,23 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	return (IP_FW_NAT);
 }
 
+#define LOOKUP_NAT(head, i, p) do {			\
+		LIST_FOREACH((p), head, _next) {	\
+			if ((p)->id == (i)) {		\
+				break;			\
+			}				\
+		}					\
+	} while (0)
+
+static struct cfg_nat *
+lookup_nat(struct nat_list *l, int nat_id)
+{
+	struct cfg_nat *res;
+
+	LOOKUP_NAT(l, nat_id, res);
+	return res;
+}
+
 static int 
 ipfw_nat_cfg(struct sockopt *sopt)
 {
@@ -418,7 +434,7 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	 * Find/create nat rule.
 	 */
 	IPFW_WLOCK(&V_layer3_chain);
-	LOOKUP_NAT(V_layer3_chain, ser_n->id, ptr);
+	LOOKUP_NAT(&V_layer3_chain.nat, ser_n->id, ptr);
 	if (ptr == NULL) {
 		/* New rule: allocate and init new instance. */
 		ptr = malloc(sizeof(struct cfg_nat), 
@@ -481,7 +497,7 @@ ipfw_nat_del(struct sockopt *sopt)
 		
 	sooptcopyin(sopt, &i, sizeof i, sizeof i);
 	IPFW_WLOCK(&V_layer3_chain);
-	LOOKUP_NAT(V_layer3_chain, i, ptr);
+	LOOKUP_NAT(&V_layer3_chain.nat, i, ptr);
 	if (ptr == NULL) {
 		IPFW_WUNLOCK(&V_layer3_chain);
 		return (EINVAL);
@@ -590,6 +606,7 @@ ipfw_nat_init(void)
 	IPFW_WLOCK(&V_layer3_chain);
 	/* init ipfw hooks */
 	ipfw_nat_ptr = ipfw_nat;
+	lookup_nat_ptr = lookup_nat;
 	ipfw_nat_cfg_ptr = ipfw_nat_cfg;
 	ipfw_nat_del_ptr = ipfw_nat_del;
 	ipfw_nat_get_cfg_ptr = ipfw_nat_get_cfg;
@@ -621,6 +638,11 @@ ipfw_nat_destroy(void)
 	}
 	/* deregister ipfw_nat */
 	ipfw_nat_ptr = NULL;
+	lookup_nat_ptr = NULL;
+	ipfw_nat_cfg_ptr = NULL;
+	ipfw_nat_del_ptr = NULL;
+	ipfw_nat_get_cfg_ptr = NULL;
+	ipfw_nat_get_log_ptr = NULL;
 	IPFW_WUNLOCK(&V_layer3_chain);
 }
 
