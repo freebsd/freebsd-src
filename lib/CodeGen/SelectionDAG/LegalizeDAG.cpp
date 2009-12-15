@@ -232,7 +232,7 @@ void SelectionDAGLegalize::LegalizeDAG() {
   // node is only legalized after all of its operands are legalized.
   DAG.AssignTopologicalOrder();
   for (SelectionDAG::allnodes_iterator I = DAG.allnodes_begin(),
-       E = prior(DAG.allnodes_end()); I != next(E); ++I)
+       E = prior(DAG.allnodes_end()); I != llvm::next(E); ++I)
     LegalizeOp(SDValue(I, 0));
 
   // Finally, it's possible the root changed.  Get the new root.
@@ -2294,9 +2294,15 @@ void SelectionDAGLegalize::ExpandNode(SDNode *Node,
     // NOTE: we could fall back on load/store here too for targets without
     // SAR.  However, it is doubtful that any exist.
     EVT ExtraVT = cast<VTSDNode>(Node->getOperand(1))->getVT();
-    unsigned BitsDiff = Node->getValueType(0).getSizeInBits() -
+    EVT VT = Node->getValueType(0);
+    EVT ShiftAmountTy = TLI.getShiftAmountTy();
+    if (VT.isVector()) {
+      ShiftAmountTy = VT;
+      VT = VT.getVectorElementType();
+    }
+    unsigned BitsDiff = VT.getSizeInBits() -
                         ExtraVT.getSizeInBits();
-    SDValue ShiftCst = DAG.getConstant(BitsDiff, TLI.getShiftAmountTy());
+    SDValue ShiftCst = DAG.getConstant(BitsDiff, ShiftAmountTy);
     Tmp1 = DAG.getNode(ISD::SHL, dl, Node->getValueType(0),
                        Node->getOperand(0), ShiftCst);
     Tmp1 = DAG.getNode(ISD::SRA, dl, Node->getValueType(0), Tmp1, ShiftCst);
@@ -3059,8 +3065,7 @@ void SelectionDAGLegalize::PromoteNode(SDNode *Node,
 
 // SelectionDAG::Legalize - This is the entry point for the file.
 //
-void SelectionDAG::Legalize(bool TypesNeedLegalizing,
-                            CodeGenOpt::Level OptLevel) {
+void SelectionDAG::Legalize(CodeGenOpt::Level OptLevel) {
   /// run - This is the main entry point to this class.
   ///
   SelectionDAGLegalize(*this, OptLevel).LegalizeDAG();

@@ -423,21 +423,6 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 // Stack Frame Processing methods
 //===----------------------------------------------------------------------===//
 
-static unsigned calculateMaxStackAlignment(const MachineFrameInfo *FFI) {
-  unsigned MaxAlign = 0;
-
-  for (int i = FFI->getObjectIndexBegin(),
-         e = FFI->getObjectIndexEnd(); i != e; ++i) {
-    if (FFI->isDeadObjectIndex(i))
-      continue;
-
-    unsigned Align = FFI->getObjectAlignment(i);
-    MaxAlign = std::max(MaxAlign, Align);
-  }
-
-  return MaxAlign;
-}
-
 /// hasFP - Return true if the specified function should have a dedicated frame
 /// pointer register.  This is true if the function has variable sized allocas
 /// or if frame pointer elimination is disabled.
@@ -638,10 +623,7 @@ X86RegisterInfo::processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
 
   // Calculate and set max stack object alignment early, so we can decide
   // whether we will need stack realignment (and thus FP).
-  unsigned MaxAlign = std::max(MFI->getMaxAlignment(),
-                               calculateMaxStackAlignment(MFI));
-
-  MFI->setMaxAlignment(MaxAlign);
+  MFI->calculateMaxStackAlignment();
 
   X86MachineFunctionInfo *X86FI = MF.getInfo<X86MachineFunctionInfo>();
   int32_t TailCallReturnAddrDelta = X86FI->getTCReturnAddrDelta();
@@ -741,7 +723,7 @@ void mergeSPUpdatesDown(MachineBasicBlock &MBB,
 
   if (MBBI == MBB.end()) return;
 
-  MachineBasicBlock::iterator NI = next(MBBI);
+  MachineBasicBlock::iterator NI = llvm::next(MBBI);
   if (NI == MBB.end()) return;
 
   unsigned Opc = NI->getOpcode();
@@ -775,7 +757,7 @@ static int mergeSPUpdates(MachineBasicBlock &MBB,
     return 0;
 
   MachineBasicBlock::iterator PI = doMergeWithPrevious ? prior(MBBI) : MBBI;
-  MachineBasicBlock::iterator NI = doMergeWithPrevious ? 0 : next(MBBI);
+  MachineBasicBlock::iterator NI = doMergeWithPrevious ? 0 : llvm::next(MBBI);
   unsigned Opc = PI->getOpcode();
   int Offset = 0;
 
@@ -1001,7 +983,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
     }
 
     // Mark the FramePtr as live-in in every block except the entry.
-    for (MachineFunction::iterator I = next(MF.begin()), E = MF.end();
+    for (MachineFunction::iterator I = llvm::next(MF.begin()), E = MF.end();
          I != E; ++I)
       I->addLiveIn(FramePtr);
 
@@ -1482,45 +1464,3 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
 }
 
 #include "X86GenRegisterInfo.inc"
-
-namespace {
-  struct MSAC : public MachineFunctionPass {
-    static char ID;
-    MSAC() : MachineFunctionPass(&ID) {}
-
-    virtual bool runOnMachineFunction(MachineFunction &MF) {
-      MachineFrameInfo *FFI = MF.getFrameInfo();
-      MachineRegisterInfo &RI = MF.getRegInfo();
-
-      // Calculate max stack alignment of all already allocated stack objects.
-      unsigned MaxAlign = calculateMaxStackAlignment(FFI);
-
-      // Be over-conservative: scan over all vreg defs and find, whether vector
-      // registers are used. If yes - there is probability, that vector register
-      // will be spilled and thus stack needs to be aligned properly.
-      for (unsigned RegNum = TargetRegisterInfo::FirstVirtualRegister;
-           RegNum < RI.getLastVirtReg(); ++RegNum)
-        MaxAlign = std::max(MaxAlign, RI.getRegClass(RegNum)->getAlignment());
-
-      if (FFI->getMaxAlignment() == MaxAlign)
-        return false;
-
-      FFI->setMaxAlignment(MaxAlign);
-      return true;
-    }
-
-    virtual const char *getPassName() const {
-      return "X86 Maximal Stack Alignment Calculator";
-    }
-
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.setPreservesCFG();
-      MachineFunctionPass::getAnalysisUsage(AU);
-    }
-  };
-
-  char MSAC::ID = 0;
-}
-
-FunctionPass*
-llvm::createX86MaxStackAlignmentCalculatorPass() { return new MSAC(); }

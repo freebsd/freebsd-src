@@ -154,12 +154,14 @@ class DwarfDebug : public Dwarf {
   /// (at the end of the module) as DW_AT_inline.
   SmallPtrSet<DIE *, 4> InlinedSubprogramDIEs;
 
+  DenseMap<DIE *, WeakVH> ContainingTypeMap;
+
   /// AbstractSubprogramDIEs - Collection of abstruct subprogram DIEs.
   SmallPtrSet<DIE *, 4> AbstractSubprogramDIEs;
 
-  /// ScopedGVs - Tracks global variables that are not at file scope.
-  /// For example void f() { static int b = 42; }
-  SmallVector<WeakVH, 4> ScopedGVs;
+  /// TopLevelDIEs - Collection of top level DIEs. 
+  SmallPtrSet<DIE *, 4> TopLevelDIEs;
+  SmallVector<DIE *, 4> TopLevelDIEsVector;
 
   typedef SmallVector<DbgScope *, 2> ScopeVector;
   typedef DenseMap<const MachineInstr *, ScopeVector>
@@ -307,53 +309,52 @@ class DwarfDebug : public Dwarf {
   void addBlockByrefAddress(DbgVariable *&DV, DIE *Die, unsigned Attribute,
                             const MachineLocation &Location);
 
+  /// addToContextOwner - Add Die into the list of its context owner's children.
+  void addToContextOwner(DIE *Die, DIDescriptor Context);
+
   /// addType - Add a new type attribute to the specified entity.
-  void addType(CompileUnit *DW_Unit, DIE *Entity, DIType Ty);
+  void addType(DIE *Entity, DIType Ty);
+
+  /// getOrCreateTypeDIE - Find existing DIE or create new DIE for the
+  /// given DIType.
+  DIE *getOrCreateTypeDIE(DIType Ty);
 
   void addPubTypes(DISubprogram SP);
 
   /// constructTypeDIE - Construct basic type die from DIBasicType.
-  void constructTypeDIE(CompileUnit *DW_Unit, DIE &Buffer,
+  void constructTypeDIE(DIE &Buffer,
                         DIBasicType BTy);
 
   /// constructTypeDIE - Construct derived type die from DIDerivedType.
-  void constructTypeDIE(CompileUnit *DW_Unit, DIE &Buffer,
+  void constructTypeDIE(DIE &Buffer,
                         DIDerivedType DTy);
 
   /// constructTypeDIE - Construct type DIE from DICompositeType.
-  void constructTypeDIE(CompileUnit *DW_Unit, DIE &Buffer,
+  void constructTypeDIE(DIE &Buffer,
                         DICompositeType CTy);
 
   /// constructSubrangeDIE - Construct subrange DIE from DISubrange.
   void constructSubrangeDIE(DIE &Buffer, DISubrange SR, DIE *IndexTy);
 
   /// constructArrayTypeDIE - Construct array type DIE from DICompositeType.
-  void constructArrayTypeDIE(CompileUnit *DW_Unit, DIE &Buffer, 
+  void constructArrayTypeDIE(DIE &Buffer, 
                              DICompositeType *CTy);
 
   /// constructEnumTypeDIE - Construct enum type DIE from DIEnumerator.
-  DIE *constructEnumTypeDIE(CompileUnit *DW_Unit, DIEnumerator *ETy);
+  DIE *constructEnumTypeDIE(DIEnumerator *ETy);
 
   /// createGlobalVariableDIE - Create new DIE using GV.
-  DIE *createGlobalVariableDIE(CompileUnit *DW_Unit,
-                               const DIGlobalVariable &GV);
+  DIE *createGlobalVariableDIE(const DIGlobalVariable &GV);
 
   /// createMemberDIE - Create new member DIE.
-  DIE *createMemberDIE(CompileUnit *DW_Unit, const DIDerivedType &DT);
+  DIE *createMemberDIE(const DIDerivedType &DT);
 
   /// createSubprogramDIE - Create new DIE using SP.
-  DIE *createSubprogramDIE(CompileUnit *DW_Unit,
-                           const DISubprogram &SP,
-                           bool IsConstructor = false,
-                           bool IsInlined = false);
+  DIE *createSubprogramDIE(const DISubprogram &SP, bool MakeDecl = false);
 
   /// findCompileUnit - Get the compile unit for the given descriptor. 
   ///
-  CompileUnit &findCompileUnit(DICompileUnit Unit) const;
-
-  /// createDbgScopeVariable - Create a new scope variable.
-  ///
-  DIE *createDbgScopeVariable(DbgVariable *DV, CompileUnit *Unit);
+  CompileUnit *findCompileUnit(DICompileUnit Unit);
 
   /// getUpdatedDbgScope - Find or create DbgScope assicated with 
   /// the instruction. Initialize scope and update scope hierarchy.
@@ -384,7 +385,7 @@ class DwarfDebug : public Dwarf {
   DIE *constructInlinedScopeDIE(DbgScope *Scope);
 
   /// constructVariableDIE - Construct a DIE for the given DbgVariable.
-  DIE *constructVariableDIE(DbgVariable *DV, DbgScope *S, CompileUnit *Unit);
+  DIE *constructVariableDIE(DbgVariable *DV, DbgScope *S);
 
   /// constructScopeDIE - Construct a DIE for this scope.
   DIE *constructScopeDIE(DbgScope *Scope);
@@ -405,10 +406,8 @@ class DwarfDebug : public Dwarf {
   ///
   void computeSizeAndOffsets();
 
-  /// EmitDebugInfo / emitDebugInfoPerCU - Emit the debug info section.
+  /// EmitDebugInfo - Emit the debug info section.
   ///
-  void emitDebugInfoPerCU(CompileUnit *Unit);
-
   void emitDebugInfo();
 
   /// emitAbbreviations - Emit the abbreviation section.
@@ -431,8 +430,6 @@ class DwarfDebug : public Dwarf {
   /// emitFunctionDebugFrame - Emit per function frame info into a debug frame
   /// section.
   void emitFunctionDebugFrame(const FunctionDebugFrameInfo &DebugFrameInfo);
-
-  void emitDebugPubNamesPerCU(CompileUnit *Unit);
 
   /// emitDebugPubNames - Emit visible names into a debug pubnames section.
   ///
@@ -488,7 +485,7 @@ class DwarfDebug : public Dwarf {
   /// as well.
   unsigned GetOrCreateSourceID(StringRef DirName, StringRef FileName);
 
-  void constructCompileUnit(MDNode *N);
+  CompileUnit *constructCompileUnit(MDNode *N);
 
   void constructGlobalVariableDIE(MDNode *N);
 

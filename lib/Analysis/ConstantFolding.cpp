@@ -432,7 +432,7 @@ Constant *llvm::ConstantFoldLoadFromConstPtr(Constant *C,
   // Instead of loading constant c string, use corresponding integer value
   // directly if string length is small enough.
   std::string Str;
-  if (TD && GetConstantStringInfo(CE->getOperand(0), Str) && !Str.empty()) {
+  if (TD && GetConstantStringInfo(CE, Str) && !Str.empty()) {
     unsigned StrLen = Str.length();
     const Type *Ty = cast<PointerType>(CE->getType())->getElementType();
     unsigned NumBits = Ty->getPrimitiveSizeInBits();
@@ -569,9 +569,16 @@ static Constant *SymbolicallyEvaluateGEP(Constant *const *Ops, unsigned NumOps,
   SmallVector<Constant*, 32> NewIdxs;
   do {
     if (const SequentialType *ATy = dyn_cast<SequentialType>(Ty)) {
-      // The only pointer indexing we'll do is on the first index of the GEP.
-      if (isa<PointerType>(ATy) && !NewIdxs.empty())
-        break;
+      if (isa<PointerType>(ATy)) {
+        // The only pointer indexing we'll do is on the first index of the GEP.
+        if (!NewIdxs.empty())
+          break;
+       
+        // Only handle pointers to sized types, not pointers to functions.
+        if (!ATy->getElementType()->isSized())
+          return 0;
+      }
+        
       // Determine which element of the array the offset points into.
       APInt ElemSize(BitWidth, TD->getTypeAllocSize(ATy->getElementType()));
       if (ElemSize == 0)

@@ -891,8 +891,9 @@ template<> struct DenseMapInfo<SDValue> {
   static bool isEqual(const SDValue &LHS, const SDValue &RHS) {
     return LHS == RHS;
   }
-  static bool isPod() { return true; }
 };
+template <> struct isPodLike<SDValue> { static const bool value = true; };
+
 
 /// simplify_type specializations - Allow casting operators to work directly on
 /// SDValues as if they were SDNode*'s.
@@ -1095,7 +1096,7 @@ public:
   /// hasOneUse - Return true if there is exactly one use of this node.
   ///
   bool hasOneUse() const {
-    return !use_empty() && next(use_begin()) == use_end();
+    return !use_empty() && llvm::next(use_begin()) == use_end();
   }
 
   /// use_size - Return the number of uses of this node. This method takes
@@ -2396,6 +2397,11 @@ public:
   }
   SDNodeIterator operator++(int) { // Postincrement
     SDNodeIterator tmp = *this; ++*this; return tmp;
+  }
+  size_t operator-(SDNodeIterator Other) const {
+    assert(Node == Other.Node &&
+           "Cannot compare iterators of two different nodes!");
+    return Operand - Other.Operand;
   }
 
   static SDNodeIterator begin(SDNode *N) { return SDNodeIterator(N, 0); }

@@ -19,7 +19,6 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
-#include "llvm/LLVMContext.h"
 #include "llvm/Operator.h"
 #include "llvm/Value.h"
 #include "llvm/ADT/DenseMap.h"
@@ -155,8 +154,10 @@ template <> struct DenseMapInfo<Expression> {
   static bool isEqual(const Expression &LHS, const Expression &RHS) {
     return LHS == RHS;
   }
-  static bool isPod() { return true; }
 };
+template <>
+struct isPodLike<Expression> { static const bool value = true; };
+
 }
 
 //===----------------------------------------------------------------------===//

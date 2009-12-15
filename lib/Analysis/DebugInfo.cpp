@@ -866,7 +866,9 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
                                          DICompileUnit CompileUnit,
                                          unsigned LineNo, DIType Type,
                                          bool isLocalToUnit,
-                                         bool isDefinition) {
+                                         bool isDefinition,
+                                         unsigned VK, unsigned VIndex,
+                                         DIType ContainingType) {
 
   Value *Elts[] = {
     GetTagConstant(dwarf::DW_TAG_subprogram),
@@ -879,9 +881,38 @@ DISubprogram DIFactory::CreateSubprogram(DIDescriptor Context,
     ConstantInt::get(Type::getInt32Ty(VMContext), LineNo),
     Type.getNode(),
     ConstantInt::get(Type::getInt1Ty(VMContext), isLocalToUnit),
-    ConstantInt::get(Type::getInt1Ty(VMContext), isDefinition)
+    ConstantInt::get(Type::getInt1Ty(VMContext), isDefinition),
+    ConstantInt::get(Type::getInt32Ty(VMContext), (unsigned)VK),
+    ConstantInt::get(Type::getInt32Ty(VMContext), VIndex),
+    ContainingType.getNode()
   };
-  return DISubprogram(MDNode::get(VMContext, &Elts[0], 11));
+  return DISubprogram(MDNode::get(VMContext, &Elts[0], 14));
+}
+
+/// CreateSubprogramDefinition - Create new subprogram descriptor for the
+/// given declaration. 
+DISubprogram DIFactory::CreateSubprogramDefinition(DISubprogram &SPDeclaration) {
+  if (SPDeclaration.isDefinition())
+    return DISubprogram(SPDeclaration.getNode());
+
+  MDNode *DeclNode = SPDeclaration.getNode();
+  Value *Elts[] = {
+    GetTagConstant(dwarf::DW_TAG_subprogram),
+    llvm::Constant::getNullValue(Type::getInt32Ty(VMContext)),
+    DeclNode->getElement(2), // Context
+    DeclNode->getElement(3), // Name
+    DeclNode->getElement(4), // DisplayName
+    DeclNode->getElement(5), // LinkageName
+    DeclNode->getElement(6), // CompileUnit
+    DeclNode->getElement(7), // LineNo
+    DeclNode->getElement(8), // Type
+    DeclNode->getElement(9), // isLocalToUnit
+    ConstantInt::get(Type::getInt1Ty(VMContext), true),
+    DeclNode->getElement(11), // Virtuality
+    DeclNode->getElement(12), // VIndex
+    DeclNode->getElement(13)  // Containting Type
+  };
+  return DISubprogram(MDNode::get(VMContext, &Elts[0], 14));
 }
 
 /// CreateGlobalVariable - Create a new descriptor for the specified global.
@@ -1019,6 +1050,37 @@ Instruction *DIFactory::InsertDeclare(Value *Storage, DIVariable D,
   return CallInst::Create(DeclareFn, Args, Args+2, "", InsertAtEnd);
 }
 
+/// InsertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
+Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, Value *Offset,
+                                                DIVariable D,
+                                                Instruction *InsertBefore) {
+  assert(V && "no value passed to dbg.value");
+  assert(Offset->getType() == Type::getInt64Ty(V->getContext()) &&
+         "offset must be i64");
+  if (!ValueFn)
+    ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
+
+  Value *Elts[] = { V };
+  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1), Offset,
+                    D.getNode() };
+  return CallInst::Create(ValueFn, Args, Args+3, "", InsertBefore);
+}
+
+/// InsertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
+Instruction *DIFactory::InsertDbgValueIntrinsic(Value *V, Value *Offset,
+                                                DIVariable D,
+                                                BasicBlock *InsertAtEnd) {
+  assert(V && "no value passed to dbg.value");
+  assert(Offset->getType() == Type::getInt64Ty(V->getContext()) &&
+         "offset must be i64");
+  if (!ValueFn)
+    ValueFn = Intrinsic::getDeclaration(&M, Intrinsic::dbg_value);
+
+  Value *Elts[] = { V };
+  Value *Args[] = { MDNode::get(V->getContext(), Elts, 1), Offset,
+                    D.getNode() };
+  return CallInst::Create(ValueFn, Args, Args+3, "", InsertAtEnd);
+}
 
 //===----------------------------------------------------------------------===//
 // DebugInfoFinder implementations.

@@ -357,7 +357,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
   // without the other.
   SplitAddRecs(Ops, Ty, SE);
 
-  // Decend down the pointer's type and attempt to convert the other
+  // Descend down the pointer's type and attempt to convert the other
   // operands into GEP indices, at each level. The first index in a GEP
   // indexes into the array implied by the pointer operand; the rest of
   // the indices index into the element or field type selected by the
@@ -628,7 +628,7 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
     BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
     BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
     BasicBlock::iterator NewInsertPt =
-      next(BasicBlock::iterator(cast<Instruction>(V)));
+      llvm::next(BasicBlock::iterator(cast<Instruction>(V)));
     while (isa<PHINode>(NewInsertPt)) ++NewInsertPt;
     V = expandCodeFor(SE.getTruncateExpr(SE.getUnknown(V), Ty), 0,
                       NewInsertPt);
@@ -844,7 +844,7 @@ Value *SCEVExpander::expand(const SCEV *S) {
       if (L && S->hasComputableLoopEvolution(L))
         InsertPt = L->getHeader()->getFirstNonPHI();
       while (isInsertedInstruction(InsertPt))
-        InsertPt = next(BasicBlock::iterator(InsertPt));
+        InsertPt = llvm::next(BasicBlock::iterator(InsertPt));
       break;
     }
 

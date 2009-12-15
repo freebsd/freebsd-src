@@ -1374,6 +1374,7 @@ void AsmPrinter::processDebugLoc(const MachineInstr *MI,
       unsigned L = DW->RecordSourceLine(CurDLT.Line, CurDLT.Col,
                                         CurDLT.Scope);
       printLabel(L);
+      O << '\n';
       DW->BeginScope(MI, L);
       PrevDLT = CurDLT;
     }
@@ -1837,15 +1838,16 @@ void AsmPrinter::EmitComments(const MachineInstr &MI) const {
 
     // Print source line info.
     O.PadToColumn(MAI->getCommentColumn());
-    O << MAI->getCommentString() << " SrcLine ";
-    if (DLT.Scope) {
-      DICompileUnit CU(DLT.Scope);
-      if (!CU.isNull())
-        O << CU.getFilename() << " ";
-    }
-    O << DLT.Line;
+    O << MAI->getCommentString() << ' ';
+    DIScope Scope(DLT.Scope);
+    // Omit the directory, because it's likely to be long and uninteresting.
+    if (!Scope.isNull())
+      O << Scope.getFilename();
+    else
+      O << "<unknown>";
+    O << ':' << DLT.Line;
     if (DLT.Col != 0)
-      O << ":" << DLT.Col;
+      O << ':' << DLT.Col;
     Newline = true;
   }
 
@@ -1857,35 +1859,40 @@ void AsmPrinter::EmitComments(const MachineInstr &MI) const {
 
   // We assume a single instruction only has a spill or reload, not
   // both.
+  const MachineMemOperand *MMO;
   if (TM.getInstrInfo()->isLoadFromStackSlotPostFE(&MI, FI)) {
     if (FrameInfo->isSpillSlotObjectIndex(FI)) {
+      MMO = *MI.memoperands_begin();
       if (Newline) O << '\n';
       O.PadToColumn(MAI->getCommentColumn());
-      O << MAI->getCommentString() << " Reload";
+      O << MAI->getCommentString() << ' ' << MMO->getSize() << "-byte Reload";
       Newline = true;
     }
   }
-  else if (TM.getInstrInfo()->hasLoadFromStackSlot(&MI, FI)) {
+  else if (TM.getInstrInfo()->hasLoadFromStackSlot(&MI, MMO, FI)) {
     if (FrameInfo->isSpillSlotObjectIndex(FI)) {
       if (Newline) O << '\n';
       O.PadToColumn(MAI->getCommentColumn());
-      O << MAI->getCommentString() << " Folded Reload";
+      O << MAI->getCommentString() << ' '
+        << MMO->getSize() << "-byte Folded Reload";
       Newline = true;
     }
   }
   else if (TM.getInstrInfo()->isStoreToStackSlotPostFE(&MI, FI)) {
     if (FrameInfo->isSpillSlotObjectIndex(FI)) {
+      MMO = *MI.memoperands_begin();
       if (Newline) O << '\n';
       O.PadToColumn(MAI->getCommentColumn());
-      O << MAI->getCommentString() << " Spill";
+      O << MAI->getCommentString() << ' ' << MMO->getSize() << "-byte Spill";
       Newline = true;
     }
   }
-  else if (TM.getInstrInfo()->hasStoreToStackSlot(&MI, FI)) {
+  else if (TM.getInstrInfo()->hasStoreToStackSlot(&MI, MMO, FI)) {
     if (FrameInfo->isSpillSlotObjectIndex(FI)) {
       if (Newline) O << '\n';
       O.PadToColumn(MAI->getCommentColumn());
-      O << MAI->getCommentString() << " Folded Spill";
+      O << MAI->getCommentString() << ' '
+        << MMO->getSize() << "-byte Folded Spill";
       Newline = true;
     }
   }

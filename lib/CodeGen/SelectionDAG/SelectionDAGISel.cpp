@@ -60,8 +60,6 @@
 using namespace llvm;
 
 static cl::opt<bool>
-DisableLegalizeTypes("disable-legalize-types", cl::Hidden);
-static cl::opt<bool>
 EnableFastISelVerbose("fast-isel-verbose", cl::Hidden,
           cl::desc("Enable verbose messages in the \"fast\" "
                    "instruction selector"));
@@ -362,6 +360,39 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   return true;
 }
 
+/// SetDebugLoc - Update MF's and SDB's DebugLocs if debug information is
+/// attached with this instruction.
+static void SetDebugLoc(unsigned MDDbgKind,
+                        MetadataContext &TheMetadata,
+                        Instruction *I,
+                        SelectionDAGBuilder *SDB,
+                        FastISel *FastIS,
+                        MachineFunction *MF) {
+  if (!isa<DbgInfoIntrinsic>(I)) 
+    if (MDNode *Dbg = TheMetadata.getMD(MDDbgKind, I)) {
+      DILocation DILoc(Dbg);
+      DebugLoc Loc = ExtractDebugLocation(DILoc, MF->getDebugLocInfo());
+
+      SDB->setCurDebugLoc(Loc);
+
+      if (FastIS)
+        FastIS->setCurDebugLoc(Loc);
+
+      // If the function doesn't have a default debug location yet, set
+      // it. This is kind of a hack.
+      if (MF->getDefaultDebugLoc().isUnknown())
+        MF->setDefaultDebugLoc(Loc);
+    }
+}
+
+/// ResetDebugLoc - Set MF's and SDB's DebugLocs to Unknown.
+static void ResetDebugLoc(SelectionDAGBuilder *SDB,
+                          FastISel *FastIS) {
+  SDB->setCurDebugLoc(DebugLoc::getUnknownLoc());
+  if (FastIS)
+    FastIS->setCurDebugLoc(DebugLoc::getUnknownLoc());
+}
+
 void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
                                         BasicBlock::iterator Begin,
                                         BasicBlock::iterator End,
@@ -373,20 +404,16 @@ void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
   // Lower all of the non-terminator instructions. If a call is emitted
   // as a tail call, cease emitting nodes for this block.
   for (BasicBlock::iterator I = Begin; I != End && !SDB->HasTailCall; ++I) {
-    if (MDDbgKind) {
-      // Update DebugLoc if debug information is attached with this
-      // instruction.
-      if (!isa<DbgInfoIntrinsic>(I)) 
-        if (MDNode *Dbg = TheMetadata.getMD(MDDbgKind, I)) {
-          DILocation DILoc(Dbg);
-          DebugLoc Loc = ExtractDebugLocation(DILoc, MF->getDebugLocInfo());
-          SDB->setCurDebugLoc(Loc);
-          if (MF->getDefaultDebugLoc().isUnknown())
-            MF->setDefaultDebugLoc(Loc);
-        }
-    }
-    if (!isa<TerminatorInst>(I))
+    if (MDDbgKind)
+      SetDebugLoc(MDDbgKind, TheMetadata, I, SDB, 0, MF);
+
+    if (!isa<TerminatorInst>(I)) {
       SDB->visit(*I);
+
+      // Set the current debug location back to "unknown" so that it doesn't
+      // spuriously apply to subsequent instructions.
+      ResetDebugLoc(SDB, 0);
+    }
   }
 
   if (!SDB->HasTailCall) {
@@ -401,7 +428,9 @@ void SelectionDAGISel::SelectBasicBlock(BasicBlock *LLVMBB,
       HandlePHINodesInSuccessorBlocks(LLVMBB);
 
       // Lower the terminator after the copies are emitted.
+      SetDebugLoc(MDDbgKind, TheMetadata, LLVMBB->getTerminator(), SDB, 0, MF);
       SDB->visit(*LLVMBB->getTerminator());
+      ResetDebugLoc(SDB, 0);
     }
   }
 
@@ -498,75 +527,73 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 
   // Second step, hack on the DAG until it only uses operations and types that
   // the target supports.
-  if (!DisableLegalizeTypes) {
-    if (ViewLegalizeTypesDAGs) CurDAG->viewGraph("legalize-types input for " +
-                                                 BlockName);
+  if (ViewLegalizeTypesDAGs) CurDAG->viewGraph("legalize-types input for " +
+                                               BlockName);
 
-    bool Changed;
+  bool Changed;
+  if (TimePassesIsEnabled) {
+    NamedRegionTimer T("Type Legalization", GroupName);
+    Changed = CurDAG->LegalizeTypes();
+  } else {
+    Changed = CurDAG->LegalizeTypes();
+  }
+
+  DEBUG(errs() << "Type-legalized selection DAG:\n");
+  DEBUG(CurDAG->dump());
+
+  if (Changed) {
+    if (ViewDAGCombineLT)
+      CurDAG->viewGraph("dag-combine-lt input for " + BlockName);
+
+    // Run the DAG combiner in post-type-legalize mode.
     if (TimePassesIsEnabled) {
-      NamedRegionTimer T("Type Legalization", GroupName);
-      Changed = CurDAG->LegalizeTypes();
+      NamedRegionTimer T("DAG Combining after legalize types", GroupName);
+      CurDAG->Combine(NoIllegalTypes, *AA, OptLevel);
     } else {
-      Changed = CurDAG->LegalizeTypes();
+      CurDAG->Combine(NoIllegalTypes, *AA, OptLevel);
     }
 
-    DEBUG(errs() << "Type-legalized selection DAG:\n");
+    DEBUG(errs() << "Optimized type-legalized selection DAG:\n");
     DEBUG(CurDAG->dump());
+  }
 
-    if (Changed) {
-      if (ViewDAGCombineLT)
-        CurDAG->viewGraph("dag-combine-lt input for " + BlockName);
+  if (TimePassesIsEnabled) {
+    NamedRegionTimer T("Vector Legalization", GroupName);
+    Changed = CurDAG->LegalizeVectors();
+  } else {
+    Changed = CurDAG->LegalizeVectors();
+  }
 
-      // Run the DAG combiner in post-type-legalize mode.
-      if (TimePassesIsEnabled) {
-        NamedRegionTimer T("DAG Combining after legalize types", GroupName);
-        CurDAG->Combine(NoIllegalTypes, *AA, OptLevel);
-      } else {
-        CurDAG->Combine(NoIllegalTypes, *AA, OptLevel);
-      }
-
-      DEBUG(errs() << "Optimized type-legalized selection DAG:\n");
-      DEBUG(CurDAG->dump());
-    }
-
+  if (Changed) {
     if (TimePassesIsEnabled) {
-      NamedRegionTimer T("Vector Legalization", GroupName);
-      Changed = CurDAG->LegalizeVectors();
+      NamedRegionTimer T("Type Legalization 2", GroupName);
+      Changed = CurDAG->LegalizeTypes();
     } else {
-      Changed = CurDAG->LegalizeVectors();
+      Changed = CurDAG->LegalizeTypes();
     }
 
-    if (Changed) {
-      if (TimePassesIsEnabled) {
-        NamedRegionTimer T("Type Legalization 2", GroupName);
-        Changed = CurDAG->LegalizeTypes();
-      } else {
-        Changed = CurDAG->LegalizeTypes();
-      }
+    if (ViewDAGCombineLT)
+      CurDAG->viewGraph("dag-combine-lv input for " + BlockName);
 
-      if (ViewDAGCombineLT)
-        CurDAG->viewGraph("dag-combine-lv input for " + BlockName);
-
-      // Run the DAG combiner in post-type-legalize mode.
-      if (TimePassesIsEnabled) {
-        NamedRegionTimer T("DAG Combining after legalize vectors", GroupName);
-        CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
-      } else {
-        CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
-      }
-
-      DEBUG(errs() << "Optimized vector-legalized selection DAG:\n");
-      DEBUG(CurDAG->dump());
+    // Run the DAG combiner in post-type-legalize mode.
+    if (TimePassesIsEnabled) {
+      NamedRegionTimer T("DAG Combining after legalize vectors", GroupName);
+      CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
+    } else {
+      CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
     }
+
+    DEBUG(errs() << "Optimized vector-legalized selection DAG:\n");
+    DEBUG(CurDAG->dump());
   }
 
   if (ViewLegalizeDAGs) CurDAG->viewGraph("legalize input for " + BlockName);
 
   if (TimePassesIsEnabled) {
     NamedRegionTimer T("DAG Legalization", GroupName);
-    CurDAG->Legalize(DisableLegalizeTypes, OptLevel);
+    CurDAG->Legalize(OptLevel);
   } else {
-    CurDAG->Legalize(DisableLegalizeTypes, OptLevel);
+    CurDAG->Legalize(OptLevel);
   }
 
   DEBUG(errs() << "Legalized selection DAG:\n");
@@ -738,24 +765,11 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
       FastIS->startNewBlock(BB);
       // Do FastISel on as many instructions as possible.
       for (; BI != End; ++BI) {
-        if (MDDbgKind) {
-          // Update DebugLoc if debug information is attached with this
-          // instruction.
-          if (!isa<DbgInfoIntrinsic>(BI)) 
-            if (MDNode *Dbg = TheMetadata.getMD(MDDbgKind, BI)) {
-              DILocation DILoc(Dbg);
-              DebugLoc Loc = ExtractDebugLocation(DILoc,
-                                                  MF.getDebugLocInfo());
-              FastIS->setCurDebugLoc(Loc);
-              if (MF.getDefaultDebugLoc().isUnknown())
-                MF.setDefaultDebugLoc(Loc);
-            }
-        }
-
         // Just before the terminator instruction, insert instructions to
         // feed PHI nodes in successor blocks.
         if (isa<TerminatorInst>(BI))
           if (!HandlePHINodesInSuccessorBlocksFast(LLVMBB, FastIS)) {
+            ResetDebugLoc(SDB, FastIS);
             if (EnableFastISelVerbose || EnableFastISelAbort) {
               errs() << "FastISel miss: ";
               BI->dump();
@@ -765,13 +779,18 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
             break;
           }
 
-        // First try normal tablegen-generated "fast" selection.
-        if (FastIS->SelectInstruction(BI))
-          continue;
+        if (MDDbgKind)
+          SetDebugLoc(MDDbgKind, TheMetadata, BI, SDB, FastIS, &MF);
 
-        // Next, try calling the target to attempt to handle the instruction.
-        if (FastIS->TargetSelectInstruction(BI))
+        // First try normal tablegen-generated "fast" selection.
+        if (FastIS->SelectInstruction(BI)) {
+          ResetDebugLoc(SDB, FastIS);
           continue;
+        }
+
+        // Clear out the debug location so that it doesn't carry over to
+        // unrelated instructions.
+        ResetDebugLoc(SDB, FastIS);
 
         // Then handle certain instructions as single-LLVM-Instruction blocks.
         if (isa<CallInst>(BI)) {
@@ -786,10 +805,8 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
               R = FuncInfo->CreateRegForValue(BI);
           }
 
-          SDB->setCurDebugLoc(FastIS->getCurDebugLoc());
-
           bool HadTailCall = false;
-          SelectBasicBlock(LLVMBB, BI, next(BI), HadTailCall);
+          SelectBasicBlock(LLVMBB, BI, llvm::next(BI), HadTailCall);
 
           // If the call was emitted as a tail call, we're done with the block.
           if (HadTailCall) {
@@ -823,9 +840,6 @@ void SelectionDAGISel::SelectAllBasicBlocks(Function &Fn,
     // not handled by FastISel. If FastISel is not run, this is the entire
     // block.
     if (BI != End) {
-      // If FastISel is run and it has known DebugLoc then use it.
-      if (FastIS && !FastIS->getCurDebugLoc().isUnknown())
-        SDB->setCurDebugLoc(FastIS->getCurDebugLoc());
       bool HadTailCall;
       SelectBasicBlock(LLVMBB, BI, End, HadTailCall);
     }
@@ -1311,14 +1325,6 @@ SDNode *SelectionDAGISel::Select_INLINEASM(SDValue N) {
 SDNode *SelectionDAGISel::Select_UNDEF(const SDValue &N) {
   return CurDAG->SelectNodeTo(N.getNode(), TargetInstrInfo::IMPLICIT_DEF,
                               N.getValueType());
-}
-
-SDNode *SelectionDAGISel::Select_DBG_LABEL(const SDValue &N) {
-  SDValue Chain = N.getOperand(0);
-  unsigned C = cast<LabelSDNode>(N)->getLabelID();
-  SDValue Tmp = CurDAG->getTargetConstant(C, MVT::i32);
-  return CurDAG->SelectNodeTo(N.getNode(), TargetInstrInfo::DBG_LABEL,
-                              MVT::Other, Tmp, Chain);
 }
 
 SDNode *SelectionDAGISel::Select_EH_LABEL(const SDValue &N) {

@@ -149,44 +149,69 @@ void LiveIntervals::dumpInstrs() const {
   printInstrs(errs());
 }
 
-/// conflictsWithPhysRegDef - Returns true if the specified register
-/// is defined during the duration of the specified interval.
-bool LiveIntervals::conflictsWithPhysRegDef(const LiveInterval &li,
-                                            VirtRegMap &vrm, unsigned reg) {
-  for (LiveInterval::Ranges::const_iterator
-         I = li.ranges.begin(), E = li.ranges.end(); I != E; ++I) {
-    for (SlotIndex index = I->start.getBaseIndex(),
-           end = I->end.getPrevSlot().getBaseIndex().getNextIndex();
-           index != end;
-           index = index.getNextIndex()) {
-      // skip deleted instructions
-      while (index != end && !getInstructionFromIndex(index))
-        index = index.getNextIndex();
-      if (index == end) break;
+bool LiveIntervals::conflictsWithPhysReg(const LiveInterval &li,
+                                         VirtRegMap &vrm, unsigned reg) {
+  // We don't handle fancy stuff crossing basic block boundaries
+  if (li.ranges.size() != 1)
+    return true;
+  const LiveRange &range = li.ranges.front();
+  SlotIndex idx = range.start.getBaseIndex();
+  SlotIndex end = range.end.getPrevSlot().getBaseIndex().getNextIndex();
 
-      MachineInstr *MI = getInstructionFromIndex(index);
-      unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
-      if (tii_->isMoveInstr(*MI, SrcReg, DstReg, SrcSubReg, DstSubReg))
-        if (SrcReg == li.reg || DstReg == li.reg)
+  // Skip deleted instructions
+  MachineInstr *firstMI = getInstructionFromIndex(idx);
+  while (!firstMI && idx != end) {
+    idx = idx.getNextIndex();
+    firstMI = getInstructionFromIndex(idx);
+  }
+  if (!firstMI)
+    return false;
+
+  // Find last instruction in range
+  SlotIndex lastIdx = end.getPrevIndex();
+  MachineInstr *lastMI = getInstructionFromIndex(lastIdx);
+  while (!lastMI && lastIdx != idx) {
+    lastIdx = lastIdx.getPrevIndex();
+    lastMI = getInstructionFromIndex(lastIdx);
+  }
+  if (!lastMI)
+    return false;
+
+  // Range cannot cross basic block boundaries or terminators
+  MachineBasicBlock *MBB = firstMI->getParent();
+  if (MBB != lastMI->getParent() || lastMI->getDesc().isTerminator())
+    return true;
+
+  MachineBasicBlock::const_iterator E = lastMI;
+  ++E;
+  for (MachineBasicBlock::const_iterator I = firstMI; I != E; ++I) {
+    const MachineInstr &MI = *I;
+
+    // Allow copies to and from li.reg
+    unsigned SrcReg, DstReg, SrcSubReg, DstSubReg;
+    if (tii_->isMoveInstr(MI, SrcReg, DstReg, SrcSubReg, DstSubReg))
+      if (SrcReg == li.reg || DstReg == li.reg)
+        continue;
+
+    // Check for operands using reg
+    for (unsigned i = 0, e = MI.getNumOperands(); i != e;  ++i) {
+      const MachineOperand& mop = MI.getOperand(i);
+      if (!mop.isReg())
+        continue;
+      unsigned PhysReg = mop.getReg();
+      if (PhysReg == 0 || PhysReg == li.reg)
+        continue;
+      if (TargetRegisterInfo::isVirtualRegister(PhysReg)) {
+        if (!vrm.hasPhys(PhysReg))
           continue;
-      for (unsigned i = 0; i != MI->getNumOperands(); ++i) {
-        MachineOperand& mop = MI->getOperand(i);
-        if (!mop.isReg())
-          continue;
-        unsigned PhysReg = mop.getReg();
-        if (PhysReg == 0 || PhysReg == li.reg)
-          continue;
-        if (TargetRegisterInfo::isVirtualRegister(PhysReg)) {
-          if (!vrm.hasPhys(PhysReg))
-            continue;
-          PhysReg = vrm.getPhys(PhysReg);
-        }
-        if (PhysReg && tri_->regsOverlap(PhysReg, reg))
-          return true;
+        PhysReg = vrm.getPhys(PhysReg);
       }
+      if (PhysReg && tri_->regsOverlap(PhysReg, reg))
+        return true;
     }
   }
 
+  // No conflicts found.
   return false;
 }
 
@@ -201,15 +226,9 @@ bool LiveIntervals::conflictsWithPhysRegRef(LiveInterval &li,
            end = I->end.getPrevSlot().getBaseIndex().getNextIndex();
            index != end;
            index = index.getNextIndex()) {
-      // Skip deleted instructions.
-      MachineInstr *MI = 0;
-      while (index != end) {
-        MI = getInstructionFromIndex(index);
-        if (MI)
-          break;
-        index = index.getNextIndex();
-      }
-      if (index == end) break;
+      MachineInstr *MI = getInstructionFromIndex(index);
+      if (!MI)
+        continue;               // skip deleted instructions
 
       if (JoinedCopies.count(MI))
         continue;
@@ -374,8 +393,6 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
       // Value#0 is now defined by the 2-addr instruction.
       OldValNo->def  = RedefIndex;
       OldValNo->setCopy(0);
-      if (MO.isEarlyClobber())
-        OldValNo->setHasRedefByEC(true);
       
       // Add the new live interval which replaces the range for the input copy.
       LiveRange LR(DefIndex, RedefIndex, ValNo);
@@ -411,7 +428,7 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
         interval.removeRange(Start, End);        
         assert(interval.ranges.size() == 1 &&
                "Newly discovered PHI interval has >1 ranges.");
-        MachineBasicBlock *killMBB = getMBBFromIndex(interval.endIndex());
+        MachineBasicBlock *killMBB = getMBBFromIndex(VNI->def);
         VNI->addKill(indexes_->getTerminatorGap(killMBB));
         VNI->setHasPHIKill(true);
         DEBUG({
@@ -422,7 +439,7 @@ void LiveIntervals::handleVirtualRegisterDef(MachineBasicBlock *mbb,
         // Replace the interval with one of a NEW value number.  Note that this
         // value number isn't actually defined by an instruction, weird huh? :)
         LiveRange LR(Start, End,
-                     interval.getNextValue(SlotIndex(getMBBStartIdx(mbb), true),
+                     interval.getNextValue(SlotIndex(getMBBStartIdx(Killer->getParent()), true),
                        0, false, VNInfoAllocator));
         LR.valno->setIsPHIDef(true);
         DEBUG(errs() << " replace range with " << LR);
@@ -513,8 +530,6 @@ void LiveIntervals::handlePhysicalRegisterDef(MachineBasicBlock *MBB,
         if (mi->isRegTiedToUseOperand(DefIdx)) {
           // Two-address instruction.
           end = baseIndex.getDefIndex();
-          assert(!mi->getOperand(DefIdx).isEarlyClobber() &&
-                 "Two address instruction is an early clobber?"); 
         } else {
           // Another instruction redefines the register before it is ever read.
           // Then the register is essentially dead at the instruction that defines
@@ -730,8 +745,16 @@ unsigned LiveIntervals::getVNInfoSourceReg(const VNInfo *VNI) const {
   if (VNI->getCopy()->getOpcode() == TargetInstrInfo::EXTRACT_SUBREG) {
     // If it's extracting out of a physical register, return the sub-register.
     unsigned Reg = VNI->getCopy()->getOperand(1).getReg();
-    if (TargetRegisterInfo::isPhysicalRegister(Reg))
+    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      unsigned SrcSubReg = VNI->getCopy()->getOperand(2).getImm();
+      unsigned DstSubReg = VNI->getCopy()->getOperand(0).getSubReg();
+      if (SrcSubReg == DstSubReg)
+        // %reg1034:3<def> = EXTRACT_SUBREG %EDX, 3
+        // reg1034 can still be coalesced to EDX.
+        return Reg;
+      assert(DstSubReg == 0);
       Reg = tri_->getSubReg(Reg, VNI->getCopy()->getOperand(2).getImm());
+    }
     return Reg;
   } else if (VNI->getCopy()->getOpcode() == TargetInstrInfo::INSERT_SUBREG ||
              VNI->getCopy()->getOpcode() == TargetInstrInfo::SUBREG_TO_REG)

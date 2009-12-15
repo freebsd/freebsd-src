@@ -1,6 +1,7 @@
 add_llvm_library(LLVMCodeGen
   AggressiveAntiDepBreaker.cpp
   BranchFolding.cpp
+  CalcSpillWeights.cpp
   CodePlacementOpt.cpp
   CriticalAntiDepBreaker.cpp
   DeadMachineInstructionElim.cpp
@@ -35,7 +36,9 @@ add_llvm_library(LLVMCodeGen
   MachinePassRegistry.cpp
   MachineRegisterInfo.cpp
   MachineSink.cpp
+  MachineSSAUpdater.cpp
   MachineVerifier.cpp
+  MaxStackAlignment.cpp
   ObjectCodeEmitter.cpp
   OcamlGC.cpp
   PHIElimination.cpp

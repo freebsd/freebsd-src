@@ -79,7 +79,7 @@ bool VectorLegalizer::Run() {
   // node is only legalized after all of its operands are legalized.
   DAG.AssignTopologicalOrder();
   for (SelectionDAG::allnodes_iterator I = DAG.allnodes_begin(),
-       E = prior(DAG.allnodes_end()); I != next(E); ++I)
+       E = prior(DAG.allnodes_end()); I != llvm::next(E); ++I)
     LegalizeOp(SDValue(I, 0));
 
   // Finally, it's possible the root changed.  Get the new root.
@@ -179,6 +179,7 @@ SDValue VectorLegalizer::LegalizeOp(SDValue Op) {
   case ISD::FRINT:
   case ISD::FNEARBYINT:
   case ISD::FFLOOR:
+  case ISD::SIGN_EXTEND_INREG:
     QueryType = Node->getValueType(0);
     break;
   case ISD::SINT_TO_FP:

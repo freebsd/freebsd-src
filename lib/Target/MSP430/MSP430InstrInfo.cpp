@@ -219,17 +219,6 @@ ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   return false;
 }
 
-bool MSP430InstrInfo::BlockHasNoFallThrough(const MachineBasicBlock &MBB)const{
-  if (MBB.empty()) return false;
-
-  switch (MBB.back().getOpcode()) {
-  case MSP430::RET:   // Return.
-  case MSP430::JMP:   // Uncond branch.
-    return true;
-  default: return false;
-  }
-}
-
 bool MSP430InstrInfo::isUnpredicatedTerminator(const MachineInstr *MI) const {
   const TargetInstrDesc &TID = MI->getDesc();
   if (!TID.isTerminator()) return false;
@@ -270,8 +259,8 @@ bool MSP430InstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
       }
 
       // If the block has any instructions after a JMP, delete them.
-      while (next(I) != MBB.end())
-        next(I)->eraseFromParent();
+      while (llvm::next(I) != MBB.end())
+        llvm::next(I)->eraseFromParent();
       Cond.clear();
       FBB = 0;
 

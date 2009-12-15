@@ -813,6 +813,11 @@ void SlotTracker::CreateFunctionSlot(const Value *V) {
 void SlotTracker::CreateMetadataSlot(const MDNode *N) {
   assert(N && "Can't insert a null Value into SlotTracker!");
 
+  // Don't insert if N contains an instruction.
+  for (unsigned i = 0, e = N->getNumElements(); i != e; ++i)
+    if (N->getElement(i) && isa<Instruction>(N->getElement(i)))
+      return;
+
   ValueMap::iterator I = mdnMap.find(N);
   if (I != mdnMap.end())
     return;
@@ -1227,6 +1232,25 @@ static void WriteAsOperandInternal(raw_ostream &Out, const Value *V,
   }
 
   if (const MDNode *N = dyn_cast<MDNode>(V)) {
+    if (Machine->getMetadataSlot(N) == -1) {
+      // Print metadata inline, not via slot reference number.
+      Out << "!{";
+      for (unsigned mi = 0, me = N->getNumElements(); mi != me; ++mi) {
+        const Value *Val = N->getElement(mi);
+        if (!Val)
+          Out << "null";
+        else {
+          TypePrinter->print(N->getElement(0)->getType(), Out);
+          Out << ' ';
+          WriteAsOperandInternal(Out, N->getElement(0), TypePrinter, Machine);
+        }
+        if (mi + 1 != me)
+          Out << ", ";
+      }
+      Out << '}';
+      return;
+    }
+  
     Out << '!' << Machine->getMetadataSlot(N);
     return;
   }
@@ -1636,6 +1660,7 @@ void AssemblyWriter::printFunction(const Function *F) {
   case CallingConv::ARM_APCS:     Out << "arm_apcscc "; break;
   case CallingConv::ARM_AAPCS:    Out << "arm_aapcscc "; break;
   case CallingConv::ARM_AAPCS_VFP:Out << "arm_aapcs_vfpcc "; break;
+  case CallingConv::MSP430_INTR:  Out << "msp430_intrcc "; break;
   default: Out << "cc" << F->getCallingConv() << " "; break;
   }
 
@@ -1903,6 +1928,7 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     case CallingConv::ARM_APCS:     Out << " arm_apcscc "; break;
     case CallingConv::ARM_AAPCS:    Out << " arm_aapcscc "; break;
     case CallingConv::ARM_AAPCS_VFP:Out << " arm_aapcs_vfpcc "; break;
+    case CallingConv::MSP430_INTR:  Out << " msp430_intrcc "; break;
     default: Out << " cc" << CI->getCallingConv(); break;
     }
 
@@ -1953,6 +1979,7 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     case CallingConv::ARM_APCS:     Out << " arm_apcscc "; break;
     case CallingConv::ARM_AAPCS:    Out << " arm_aapcscc "; break;
     case CallingConv::ARM_AAPCS_VFP:Out << " arm_aapcs_vfpcc "; break;
+    case CallingConv::MSP430_INTR:  Out << " msp430_intrcc "; break;
     default: Out << " cc" << II->getCallingConv(); break;
     }
 

@@ -72,6 +72,9 @@ namespace llvm {
 
       DYN_ALLOC,    // Dynamic allocation on the stack.
 
+      MEMBARRIER,   // Memory barrier
+      SYNCBARRIER,  // Memory sync barrier
+
       VCEQ,         // Vector compare equal.
       VCGE,         // Vector compare greater than or equal.
       VCGEU,        // Vector compare unsigned greater than or equal.
@@ -328,6 +331,15 @@ namespace llvm {
 
     SDValue getARMCmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
                       SDValue &ARMCC, SelectionDAG &DAG, DebugLoc dl);
+
+    MachineBasicBlock *EmitAtomicCmpSwap(MachineInstr *MI,
+                                         MachineBasicBlock *BB,
+                                         unsigned Size) const;
+    MachineBasicBlock *EmitAtomicBinary(MachineInstr *MI,
+                                        MachineBasicBlock *BB,
+                                        unsigned Size,
+                                        unsigned BinOpcode) const;
+
   };
 }
 

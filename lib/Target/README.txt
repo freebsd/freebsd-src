@@ -801,8 +801,21 @@ void bar(unsigned n) {
     true();
 }
 
-I think this basically amounts to a dag combine to simplify comparisons against
-multiply hi's into a comparison against the mullo.
+This is equivalent to the following, where 2863311531 is the multiplicative
+inverse of 3, and 1431655766 is ((2^32)-1)/3+1:
+void bar(unsigned n) {
+  if (n * 2863311531U < 1431655766U)
+    true();
+}
+
+The same transformation can work with an even modulo with the addition of a
+rotate: rotate the result of the multiply to the right by the number of bits
+which need to be zero for the condition to be true, and shrink the compare RHS
+by the same amount.  Unless the target supports rotates, though, that
+transformation probably isn't worthwhile.
+
+The transformation can also easily be made to work with non-zero equality
+comparisons: just transform, for example, "n % 3 == 1" to "(n-1) % 3 == 0".
 
 //===---------------------------------------------------------------------===//
 
@@ -819,20 +832,6 @@ int main() {
     test t;
     std::scanf("%d", &t.val);
     std::printf("%d\n", t.val);
-}
-
-//===---------------------------------------------------------------------===//
-
-Instcombine will merge comparisons like (x >= 10) && (x < 20) by producing (x -
-10) u< 10, but only when the comparisons have matching sign.
-
-This could be converted with a similiar technique. (PR1941)
-
-define i1 @test(i8 %x) {
-  %A = icmp uge i8 %x, 5
-  %B = icmp slt i8 %x, 20
-  %C = and i1 %A, %B
-  ret i1 %C
 }
 
 //===---------------------------------------------------------------------===//
@@ -884,18 +883,6 @@ The expression should optimize to something like
 
 //===---------------------------------------------------------------------===//
 
-From GCC Bug 15241:
-unsigned int
-foo (unsigned int a, unsigned int b)
-{
- if (a <= 7 && b <= 7)
-   baz ();
-}
-Should combine to "(a|b) <= 7".  Currently not optimized with "clang
--emit-llvm-bc | opt -std-compile-opts".
-
-//===---------------------------------------------------------------------===//
-
 From GCC Bug 3756:
 int
 pn (int n)
@@ -903,19 +890,6 @@ pn (int n)
  return (n >= 0 ? 1 : -1);
 }
 Should combine to (n >> 31) | 1.  Currently not optimized with "clang
--emit-llvm-bc | opt -std-compile-opts | llc".
-
-//===---------------------------------------------------------------------===//
-
-From GCC Bug 28685:
-int test(int a, int b)
-{
- int lt = a < b;
- int eq = a == b;
-
- return (lt || eq);
-}
-Should combine to "a <= b".  Currently not optimized with "clang
 -emit-llvm-bc | opt -std-compile-opts | llc".
 
 //===---------------------------------------------------------------------===//
@@ -993,12 +967,6 @@ Should combine to 0.  Currently not optimized with "clang
 
 //===---------------------------------------------------------------------===//
 
-int a(unsigned char* b) {return *b > 99;}
-There's an unnecessary zext in the generated code with "clang
--emit-llvm-bc | opt -std-compile-opts".
-
-//===---------------------------------------------------------------------===//
-
 int a(unsigned b) {return ((b << 31) | (b << 30)) >> 31;}
 Should be combined to  "((b >> 1) | b) & 1".  Currently not optimized
 with "clang -emit-llvm-bc | opt -std-compile-opts".
@@ -1007,12 +975,6 @@ with "clang -emit-llvm-bc | opt -std-compile-opts".
 
 unsigned a(unsigned x, unsigned y) { return x | (y & 1) | (y & 2);}
 Should combine to "x | (y & 3)".  Currently not optimized with "clang
--emit-llvm-bc | opt -std-compile-opts".
-
-//===---------------------------------------------------------------------===//
-
-unsigned a(unsigned a) {return ((a | 1) & 3) | (a & -4);}
-Should combine to "a | 1".  Currently not optimized with "clang
 -emit-llvm-bc | opt -std-compile-opts".
 
 //===---------------------------------------------------------------------===//
@@ -1704,3 +1666,50 @@ need all but the bottom two bits from %A, and if we gave that mask to SDB it
 would delete the or instruction for us.
 
 //===---------------------------------------------------------------------===//
+
+FunctionAttrs is not marking this function as readnone (just readonly):
+$ clang t.c -emit-llvm -S -o - -O0 | opt -mem2reg -S -functionattrs
+
+int t(int a, int b, int c) {
+ int *p;
+ if (a)
+   p = &a;
+ else
+   p = &c;
+ return *p;
+}
+
+This is because we codegen this to:
+
+define i32 @t(i32 %a, i32 %b, i32 %c) nounwind readonly ssp {
+entry:
+  %a.addr = alloca i32                            ; <i32*> [#uses=3]
+  %c.addr = alloca i32                            ; <i32*> [#uses=2]
+...
+
+if.end:
+  %p.0 = phi i32* [ %a.addr, %if.then ], [ %c.addr, %if.else ]
+  %tmp2 = load i32* %p.0                          ; <i32> [#uses=1]
+  ret i32 %tmp2
+}
+
+And functionattrs doesn't realize that the p.0 load points to function local
+memory.
+
+Also, functionattrs doesn't know about memcpy/memset.  This function should be
+marked readnone, since it only twiddles local memory, but functionattrs doesn't
+handle memset/memcpy/memmove aggressively:
+
+struct X { int *p; int *q; };
+int foo() {
+ int i = 0, j = 1;
+ struct X x, y;
+ int **p;
+ y.p = &i;
+ x.q = &j;
+ p = __builtin_memcpy (&x, &y, sizeof (int *));
+ return **p;
+}
+
+//===---------------------------------------------------------------------===//
+

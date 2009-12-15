@@ -26,6 +26,7 @@ class LiveVariables;
 class CalleeSavedInfo;
 class SDNode;
 class SelectionDAG;
+class MachineMemOperand;
 
 template<class T> class SmallVectorImpl;
 
@@ -182,11 +183,13 @@ public:
 
   /// hasLoadFromStackSlot - If the specified machine instruction has
   /// a load from a stack slot, return true along with the FrameIndex
-  /// of the loaded stack slot.  If not, return false.  Unlike
+  /// of the loaded stack slot and the machine mem operand containing
+  /// the reference.  If not, return false.  Unlike
   /// isLoadFromStackSlot, this returns true for any instructions that
   /// loads from the stack.  This is just a hint, as some cases may be
   /// missed.
   virtual bool hasLoadFromStackSlot(const MachineInstr *MI,
+                                    const MachineMemOperand *&MMO,
                                     int &FrameIndex) const {
     return 0;
   }
@@ -205,17 +208,18 @@ public:
   /// stack locations as well.  This uses a heuristic so it isn't
   /// reliable for correctness.
   virtual unsigned isStoreToStackSlotPostFE(const MachineInstr *MI,
-                                      int &FrameIndex) const {
+                                            int &FrameIndex) const {
     return 0;
   }
 
   /// hasStoreToStackSlot - If the specified machine instruction has a
   /// store to a stack slot, return true along with the FrameIndex of
-  /// the loaded stack slot.  If not, return false.  Unlike
-  /// isStoreToStackSlot, this returns true for any instructions that
-  /// loads from the stack.  This is just a hint, as some cases may be
-  /// missed.
+  /// the loaded stack slot and the machine mem operand containing the
+  /// reference.  If not, return false.  Unlike isStoreToStackSlot,
+  /// this returns true for any instructions that loads from the
+  /// stack.  This is just a hint, as some cases may be missed.
   virtual bool hasStoreToStackSlot(const MachineInstr *MI,
+                                   const MachineMemOperand *&MMO,
                                    int &FrameIndex) const {
     return 0;
   }
@@ -282,11 +286,10 @@ public:
   ///    just return false, leaving TBB/FBB null.
   /// 2. If this block ends with only an unconditional branch, it sets TBB to be
   ///    the destination block.
-  /// 3. If this block ends with an conditional branch and it falls through to
-  ///    a successor block, it sets TBB to be the branch destination block and
-  ///    a list of operands that evaluate the condition. These
-  ///    operands can be passed to other TargetInstrInfo methods to create new
-  ///    branches.
+  /// 3. If this block ends with a conditional branch and it falls through to a
+  ///    successor block, it sets TBB to be the branch destination block and a
+  ///    list of operands that evaluate the condition. These operands can be
+  ///    passed to other TargetInstrInfo methods to create new branches.
   /// 4. If this block ends with a conditional branch followed by an
   ///    unconditional branch, it returns the 'true' destination in TBB, the
   ///    'false' destination in FBB, and a list of operands that evaluate the
@@ -459,14 +462,6 @@ public:
                                       bool UnfoldLoad, bool UnfoldStore,
                                       unsigned *LoadRegIndex = 0) const {
     return 0;
-  }
-  
-  /// BlockHasNoFallThrough - Return true if the specified block does not
-  /// fall-through into its successor block.  This is primarily used when a
-  /// branch is unanalyzable.  It is useful for things like unconditional
-  /// indirect branches (jump tables).
-  virtual bool BlockHasNoFallThrough(const MachineBasicBlock &MBB) const {
-    return false;
   }
   
   /// ReverseBranchCondition - Reverses the branch condition of the specified

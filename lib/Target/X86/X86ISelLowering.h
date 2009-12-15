@@ -118,6 +118,10 @@ namespace llvm {
       /// operand produced by a CMP instruction.
       SETCC,
 
+      // Same as SETCC except it's materialized with a sbb and the value is all
+      // one's or all zero's.
+      SETCC_CARRY,
+
       /// X86 conditional moves. Operand 0 and operand 1 are the two values
       /// to select from. Operand 2 is the condition code, and operand 3 is the
       /// flag operand produced by a CMP or TEST instruction. It also writes a
@@ -626,7 +630,9 @@ namespace llvm {
 
     std::pair<SDValue,SDValue> FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG,
                                                bool isSigned);
-    
+
+    SDValue LowerAsSplatVectorLoad(SDValue SrcOp, EVT VT, DebugLoc dl,
+                                   SelectionDAG &DAG);
     SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG);
     SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG);
     SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG);

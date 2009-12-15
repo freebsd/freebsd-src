@@ -197,7 +197,8 @@ namespace llvm {
       FlagProtected        = 1 << 1,
       FlagFwdDecl          = 1 << 2,
       FlagAppleBlock       = 1 << 3,
-      FlagBlockByrefStruct = 1 << 4
+      FlagBlockByrefStruct = 1 << 4,
+      FlagVirtual          = 1 << 5
     };
 
   protected:
@@ -241,6 +242,9 @@ namespace llvm {
     }
     bool isBlockByrefStruct() const {
       return (getFlags() & FlagBlockByrefStruct) != 0;
+    }
+    bool isVirtual() const {
+      return (getFlags() & FlagVirtual) != 0;
     }
 
     /// dump - print type.
@@ -366,6 +370,24 @@ namespace llvm {
     /// compile unit, like 'static' in C.
     unsigned isLocalToUnit() const     { return getUnsignedField(9); }
     unsigned isDefinition() const      { return getUnsignedField(10); }
+
+    unsigned getVirtuality() const {
+      if (DbgNode->getNumElements() < 14)
+        return 0;
+      return getUnsignedField(11);
+    }
+
+    unsigned getVirtualIndex() const { 
+      if (DbgNode->getNumElements() < 14)
+        return 0;
+      return getUnsignedField(12);
+    }
+
+    DICompositeType getContainingType() const {
+      assert (DbgNode->getNumElements() >= 14 && "Invalid type!");
+      return getFieldAs<DICompositeType>(13);
+    }
+
     StringRef getFilename() const    { return getCompileUnit().getFilename();}
     StringRef getDirectory() const   { return getCompileUnit().getDirectory();}
 
@@ -470,6 +492,7 @@ namespace llvm {
 
     const Type *EmptyStructPtr; // "{}*".
     Function *DeclareFn;     // llvm.dbg.declare
+    Function *ValueFn;       // llvm.dbg.value
 
     DIFactory(const DIFactory &);     // DO NOT IMPLEMENT
     void operator=(const DIFactory&); // DO NOT IMPLEMENT
@@ -565,7 +588,14 @@ namespace llvm {
                                   StringRef LinkageName,
                                   DICompileUnit CompileUnit, unsigned LineNo,
                                   DIType Type, bool isLocalToUnit,
-                                  bool isDefinition);
+                                  bool isDefinition,
+                                  unsigned VK = 0,
+                                  unsigned VIndex = 0,
+                                  DIType = DIType());
+
+    /// CreateSubprogramDefinition - Create new subprogram descriptor for the
+    /// given declaration. 
+    DISubprogram CreateSubprogramDefinition(DISubprogram &SPDeclaration);
 
     /// CreateGlobalVariable - Create a new descriptor for the specified global.
     DIGlobalVariable
@@ -610,6 +640,13 @@ namespace llvm {
     Instruction *InsertDeclare(llvm::Value *Storage, DIVariable D,
                                Instruction *InsertBefore);
 
+    /// InsertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
+    Instruction *InsertDbgValueIntrinsic(llvm::Value *V, llvm::Value *Offset,
+                                         DIVariable D, BasicBlock *InsertAtEnd);
+
+    /// InsertDbgValueIntrinsic - Insert a new llvm.dbg.value intrinsic call.
+    Instruction *InsertDbgValueIntrinsic(llvm::Value *V, llvm::Value *Offset,
+                                       DIVariable D, Instruction *InsertBefore);
   private:
     Constant *GetTagConstant(unsigned TAG);
   };

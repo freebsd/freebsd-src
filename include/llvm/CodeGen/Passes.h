@@ -131,7 +131,7 @@ namespace llvm {
 
   /// TailDuplicate Pass - Duplicate blocks with unconditional branches
   /// into tails of their predecessors.
-  FunctionPass *createTailDuplicatePass();
+  FunctionPass *createTailDuplicatePass(bool PreRegAlloc = false);
 
   /// IfConverter Pass - This pass performs machine code if conversion.
   FunctionPass *createIfConverterPass();
@@ -190,6 +190,10 @@ namespace llvm {
   /// createSjLjEHPass - This pass adapts exception handling code to use
   /// the GCC-style builtin setjmp/longjmp (sjlj) to handling EH control flow.
   FunctionPass *createSjLjEHPass(const TargetLowering *tli);
+
+  /// createMaxStackAlignmentCalculatorPass() - Determine the maximum required
+  /// alignment for a function.
+  FunctionPass* createMaxStackAlignmentCalculatorPass();
 
 } // End llvm namespace
 

@@ -269,6 +269,27 @@ public:
     return Insert(IndirectBrInst::Create(Addr, NumDests));
   }
 
+  InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
+                           BasicBlock *UnwindDest, const Twine &Name = "") {
+    Value *Args[] = { 0 };
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
+                                     Args), Name);
+  }
+  InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
+                           BasicBlock *UnwindDest, Value *Arg1,
+                           const Twine &Name = "") {
+    Value *Args[] = { Arg1 };
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
+                                     Args+1), Name);
+  }
+  InvokeInst *CreateInvoke3(Value *Callee, BasicBlock *NormalDest,
+                            BasicBlock *UnwindDest, Value *Arg1,
+                            Value *Arg2, Value *Arg3,
+                            const Twine &Name = "") {
+    Value *Args[] = { Arg1, Arg2, Arg3 };
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
+                                     Args+3), Name);
+  }
   /// CreateInvoke - Create an invoke instruction.
   template<typename InputIterator>
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
@@ -386,18 +407,39 @@ public:
         return Folder.CreateShl(LC, RC);
     return Insert(BinaryOperator::CreateShl(LHS, RHS), Name);
   }
+  Value *CreateShl(Value *LHS, uint64_t RHS, const Twine &Name = "") {
+    Constant *RHSC = ConstantInt::get(LHS->getType(), RHS);
+    if (Constant *LC = dyn_cast<Constant>(LHS))
+      return Folder.CreateShl(LC, RHSC);
+    return Insert(BinaryOperator::CreateShl(LHS, RHSC), Name);
+  }
+
   Value *CreateLShr(Value *LHS, Value *RHS, const Twine &Name = "") {
     if (Constant *LC = dyn_cast<Constant>(LHS))
       if (Constant *RC = dyn_cast<Constant>(RHS))
         return Folder.CreateLShr(LC, RC);
     return Insert(BinaryOperator::CreateLShr(LHS, RHS), Name);
   }
+  Value *CreateLShr(Value *LHS, uint64_t RHS, const Twine &Name = "") {
+    Constant *RHSC = ConstantInt::get(LHS->getType(), RHS);
+    if (Constant *LC = dyn_cast<Constant>(LHS))
+      return Folder.CreateLShr(LC, RHSC);
+    return Insert(BinaryOperator::CreateLShr(LHS, RHSC), Name);
+  }
+  
   Value *CreateAShr(Value *LHS, Value *RHS, const Twine &Name = "") {
     if (Constant *LC = dyn_cast<Constant>(LHS))
       if (Constant *RC = dyn_cast<Constant>(RHS))
         return Folder.CreateAShr(LC, RC);
     return Insert(BinaryOperator::CreateAShr(LHS, RHS), Name);
   }
+  Value *CreateAShr(Value *LHS, uint64_t RHS, const Twine &Name = "") {
+    Constant *RHSC = ConstantInt::get(LHS->getType(), RHS);
+    if (Constant *LC = dyn_cast<Constant>(LHS))
+      return Folder.CreateSShr(LC, RHSC);
+    return Insert(BinaryOperator::CreateAShr(LHS, RHSC), Name);
+  }
+
   Value *CreateAnd(Value *LHS, Value *RHS, const Twine &Name = "") {
     if (Constant *RC = dyn_cast<Constant>(RHS)) {
       if (isa<ConstantInt>(RC) && cast<ConstantInt>(RC)->isAllOnesValue())

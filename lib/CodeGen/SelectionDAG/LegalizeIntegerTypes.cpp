@@ -1167,55 +1167,62 @@ ExpandShiftWithUnknownAmountBit(SDNode *N, SDValue &Lo, SDValue &Hi) {
   GetExpandedInteger(N->getOperand(0), InL, InH);
 
   SDValue NVBitsNode = DAG.getConstant(NVTBits, ShTy);
-  SDValue Amt2 = DAG.getNode(ISD::SUB, dl, ShTy, NVBitsNode, Amt);
-  SDValue Cmp = DAG.getSetCC(dl, TLI.getSetCCResultType(ShTy),
-                             Amt, NVBitsNode, ISD::SETULT);
+  SDValue AmtExcess = DAG.getNode(ISD::SUB, dl, ShTy, Amt, NVBitsNode);
+  SDValue AmtLack = DAG.getNode(ISD::SUB, dl, ShTy, NVBitsNode, Amt);
+  SDValue isShort = DAG.getSetCC(dl, TLI.getSetCCResultType(ShTy),
+                                 Amt, NVBitsNode, ISD::SETULT);
 
-  SDValue Lo1, Hi1, Lo2, Hi2;
+  SDValue LoS, HiS, LoL, HiL;
   switch (N->getOpcode()) {
   default: llvm_unreachable("Unknown shift");
   case ISD::SHL:
-    // ShAmt < NVTBits
-    Lo1 = DAG.getConstant(0, NVT);                  // Low part is zero.
-    Hi1 = DAG.getNode(ISD::SHL, dl, NVT, InL, Amt); // High part from Lo part.
-
-    // ShAmt >= NVTBits
-    Lo2 = DAG.getNode(ISD::SHL, dl, NVT, InL, Amt);
-    Hi2 = DAG.getNode(ISD::OR, dl, NVT,
+    // Short: ShAmt < NVTBits
+    LoS = DAG.getNode(ISD::SHL, dl, NVT, InL, Amt);
+    HiS = DAG.getNode(ISD::OR, dl, NVT,
                       DAG.getNode(ISD::SHL, dl, NVT, InH, Amt),
-                      DAG.getNode(ISD::SRL, dl, NVT, InL, Amt2));
+    // FIXME: If Amt is zero, the following shift generates an undefined result
+    // on some architectures.
+                      DAG.getNode(ISD::SRL, dl, NVT, InL, AmtLack));
 
-    Lo = DAG.getNode(ISD::SELECT, dl, NVT, Cmp, Lo1, Lo2);
-    Hi = DAG.getNode(ISD::SELECT, dl, NVT, Cmp, Hi1, Hi2);
+    // Long: ShAmt >= NVTBits
+    LoL = DAG.getConstant(0, NVT);                        // Lo part is zero.
+    HiL = DAG.getNode(ISD::SHL, dl, NVT, InL, AmtExcess); // Hi from Lo part.
+
+    Lo = DAG.getNode(ISD::SELECT, dl, NVT, isShort, LoS, LoL);
+    Hi = DAG.getNode(ISD::SELECT, dl, NVT, isShort, HiS, HiL);
     return true;
   case ISD::SRL:
-    // ShAmt < NVTBits
-    Hi1 = DAG.getConstant(0, NVT);                  // Hi part is zero.
-    Lo1 = DAG.getNode(ISD::SRL, dl, NVT, InH, Amt); // Lo part from Hi part.
+    // Short: ShAmt < NVTBits
+    HiS = DAG.getNode(ISD::SRL, dl, NVT, InH, Amt);
+    LoS = DAG.getNode(ISD::OR, dl, NVT,
+                      DAG.getNode(ISD::SRL, dl, NVT, InL, Amt),
+    // FIXME: If Amt is zero, the following shift generates an undefined result
+    // on some architectures.
+                      DAG.getNode(ISD::SHL, dl, NVT, InH, AmtLack));
 
-    // ShAmt >= NVTBits
-    Hi2 = DAG.getNode(ISD::SRL, dl, NVT, InH, Amt);
-    Lo2 = DAG.getNode(ISD::OR, dl, NVT,
-                     DAG.getNode(ISD::SRL, dl, NVT, InL, Amt),
-                     DAG.getNode(ISD::SHL, dl, NVT, InH, Amt2));
+    // Long: ShAmt >= NVTBits
+    HiL = DAG.getConstant(0, NVT);                        // Hi part is zero.
+    LoL = DAG.getNode(ISD::SRL, dl, NVT, InH, AmtExcess); // Lo from Hi part.
 
-    Lo = DAG.getNode(ISD::SELECT, dl, NVT, Cmp, Lo1, Lo2);
-    Hi = DAG.getNode(ISD::SELECT, dl, NVT, Cmp, Hi1, Hi2);
+    Lo = DAG.getNode(ISD::SELECT, dl, NVT, isShort, LoS, LoL);
+    Hi = DAG.getNode(ISD::SELECT, dl, NVT, isShort, HiS, HiL);
     return true;
   case ISD::SRA:
-    // ShAmt < NVTBits
-    Hi1 = DAG.getNode(ISD::SRA, dl, NVT, InH,       // Sign extend high part.
-                       DAG.getConstant(NVTBits-1, ShTy));
-    Lo1 = DAG.getNode(ISD::SRA, dl, NVT, InH, Amt); // Lo part from Hi part.
-
-    // ShAmt >= NVTBits
-    Hi2 = DAG.getNode(ISD::SRA, dl, NVT, InH, Amt);
-    Lo2 = DAG.getNode(ISD::OR, dl, NVT,
+    // Short: ShAmt < NVTBits
+    HiS = DAG.getNode(ISD::SRA, dl, NVT, InH, Amt);
+    LoS = DAG.getNode(ISD::OR, dl, NVT,
                       DAG.getNode(ISD::SRL, dl, NVT, InL, Amt),
-                      DAG.getNode(ISD::SHL, dl, NVT, InH, Amt2));
+    // FIXME: If Amt is zero, the following shift generates an undefined result
+    // on some architectures.
+                      DAG.getNode(ISD::SHL, dl, NVT, InH, AmtLack));
 
-    Lo = DAG.getNode(ISD::SELECT, dl, NVT, Cmp, Lo1, Lo2);
-    Hi = DAG.getNode(ISD::SELECT, dl, NVT, Cmp, Hi1, Hi2);
+    // Long: ShAmt >= NVTBits
+    HiL = DAG.getNode(ISD::SRA, dl, NVT, InH,             // Sign of Hi part.
+                      DAG.getConstant(NVTBits-1, ShTy));
+    LoL = DAG.getNode(ISD::SRA, dl, NVT, InH, AmtExcess); // Lo from Hi part.
+
+    Lo = DAG.getNode(ISD::SELECT, dl, NVT, isShort, LoS, LoL);
+    Hi = DAG.getNode(ISD::SELECT, dl, NVT, isShort, HiS, HiL);
     return true;
   }
 
@@ -1989,7 +1996,9 @@ bool DAGTypeLegalizer::ExpandIntegerOperand(SDNode *N, unsigned OpNo) {
   case ISD::SRA:
   case ISD::SRL:
   case ISD::ROTL:
-  case ISD::ROTR: Res = ExpandIntOp_Shift(N); break;
+  case ISD::ROTR:              Res = ExpandIntOp_Shift(N); break;
+  case ISD::RETURNADDR:
+  case ISD::FRAMEADDR:         Res = ExpandIntOp_RETURNADDR(N); break;
   }
 
   // If the result is null, the sub-method took care of registering results etc.
@@ -2171,6 +2180,15 @@ SDValue DAGTypeLegalizer::ExpandIntOp_Shift(SDNode *N) {
   SDValue Lo, Hi;
   GetExpandedInteger(N->getOperand(1), Lo, Hi);
   return DAG.UpdateNodeOperands(SDValue(N, 0), N->getOperand(0), Lo);
+}
+
+SDValue DAGTypeLegalizer::ExpandIntOp_RETURNADDR(SDNode *N) {
+  // The argument of RETURNADDR / FRAMEADDR builtin is 32 bit contant.  This
+  // surely makes pretty nice problems on 8/16 bit targets. Just truncate this
+  // constant to valid type.
+  SDValue Lo, Hi;
+  GetExpandedInteger(N->getOperand(0), Lo, Hi);
+  return DAG.UpdateNodeOperands(SDValue(N, 0), Lo);
 }
 
 SDValue DAGTypeLegalizer::ExpandIntOp_SINT_TO_FP(SDNode *N) {
