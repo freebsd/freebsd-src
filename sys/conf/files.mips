@@ -5,10 +5,6 @@
 # All rights reserved.
 # JNPR: files.mips,v 1.11 2007/08/09 12:25:35 katta
 #
-# The long compile-with and dependency lines are required because of
-# limitations in config: backslash-newline doesn't work in strings, and
-# dependency lines other than the first are silently ignored.
-#
 # ----------------------------------------------------------------------
 # Phase 2
 # ----------------------------------------------------------------------
@@ -19,10 +15,6 @@
 # All rights reserved.
 # JNPR: files.mips,v 1.11 2007/08/09 12:25:35 katta
 # $FreeBSD$
-#
-# The long compile-with and dependency lines are required because of
-# limitations in config: backslash-newline doesn't work in strings, and
-# dependency lines other than the first are silently ignored.
 #
 # ----------------------------------------------------------------------
 # Phase 2
