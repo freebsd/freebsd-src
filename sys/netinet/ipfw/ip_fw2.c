@@ -70,8 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <net/pf_mtag.h>
 #include <net/vnet.h>
 
-#define	IPFW_INTERNAL	/* Access to protected data structures in ip_fw.h. */
-
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
@@ -79,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_carp.h>
@@ -114,13 +113,9 @@ static VNET_DEFINE(int, ipfw_vnet_ready) = 0;
  * Rules in set RESVD_SET can only be deleted explicitly.
  */
 static VNET_DEFINE(u_int32_t, set_disable);
-static VNET_DEFINE(int, fw_verbose);
-static VNET_DEFINE(struct callout, ipfw_timeout);
-static VNET_DEFINE(int, verbose_limit);
+VNET_DEFINE(int, fw_verbose);
 
 #define	V_set_disable			VNET(set_disable)
-#define	V_fw_verbose			VNET(fw_verbose)
-#define	V_ipfw_timeout			VNET(ipfw_timeout)
 #define	V_verbose_limit			VNET(verbose_limit)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
@@ -128,7 +123,6 @@ static int default_to_accept = 1;
 #else
 static int default_to_accept;
 #endif
-static uma_zone_t ipfw_dyn_rule_zone;
 
 struct ip_fw *ip_fw_default_rule;
 
@@ -141,6 +135,7 @@ MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
 #define IPFW_NAT_LOADED (ipfw_nat_ptr != NULL)
 ipfw_nat_t *ipfw_nat_ptr = NULL;
+struct cfg_nat *(*lookup_nat_ptr)(struct nat_list *, int);
 ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
 ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
@@ -157,6 +152,10 @@ static VNET_DEFINE(int, autoinc_step);
 static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
 #define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
+static VNET_DEFINE(u_int32_t, static_count);	/* # of static rules */
+static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
+#define	V_static_count			VNET(static_count)
+#define	V_static_len			VNET(static_len)
 extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 #ifdef SYSCTL_NODE
@@ -198,145 +197,11 @@ SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
     "Deny packets with unknown IPv6 Extension Headers");
 #endif /* INET6 */
 
-#endif /* SYSCTL_NODE */
-
-/*
- * Description of dynamic rules.
- *
- * Dynamic rules are stored in lists accessed through a hash table
- * (ipfw_dyn_v) whose size is curr_dyn_buckets. This value can
- * be modified through the sysctl variable dyn_buckets which is
- * updated when the table becomes empty.
- *
- * XXX currently there is only one list, ipfw_dyn.
- *
- * When a packet is received, its address fields are first masked
- * with the mask defined for the rule, then hashed, then matched
- * against the entries in the corresponding list.
- * Dynamic rules can be used for different purposes:
- *  + stateful rules;
- *  + enforcing limits on the number of sessions;
- *  + in-kernel NAT (not implemented yet)
- *
- * The lifetime of dynamic rules is regulated by dyn_*_lifetime,
- * measured in seconds and depending on the flags.
- *
- * The total number of dynamic rules is stored in dyn_count.
- * The max number of dynamic rules is dyn_max. When we reach
- * the maximum number of rules we do not create anymore. This is
- * done to avoid consuming too much memory, but also too much
- * time when searching on each packet (ideally, we should try instead
- * to put a limit on the length of the list on each bucket...).
- *
- * Each dynamic rule holds a pointer to the parent ipfw rule so
- * we know what action to perform. Dynamic rules are removed when
- * the parent rule is deleted. XXX we should make them survive.
- *
- * There are some limitations with dynamic rules -- we do not
- * obey the 'randomized match', and we do not do multiple
- * passes through the firewall. XXX check the latter!!!
- */
-static VNET_DEFINE(ipfw_dyn_rule **, ipfw_dyn_v);
-static VNET_DEFINE(u_int32_t, dyn_buckets);
-static VNET_DEFINE(u_int32_t, curr_dyn_buckets);
-
-#define	V_ipfw_dyn_v			VNET(ipfw_dyn_v)
-#define	V_dyn_buckets			VNET(dyn_buckets)
-#define	V_curr_dyn_buckets		VNET(curr_dyn_buckets)
-
-static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
-#define	IPFW_DYN_LOCK_INIT() \
-	mtx_init(&ipfw_dyn_mtx, "IPFW dynamic rules", NULL, MTX_DEF)
-#define	IPFW_DYN_LOCK_DESTROY()	mtx_destroy(&ipfw_dyn_mtx)
-#define	IPFW_DYN_LOCK()		mtx_lock(&ipfw_dyn_mtx)
-#define	IPFW_DYN_UNLOCK()	mtx_unlock(&ipfw_dyn_mtx)
-#define	IPFW_DYN_LOCK_ASSERT()	mtx_assert(&ipfw_dyn_mtx, MA_OWNED)
-
-static struct mbuf *send_pkt(struct mbuf *, struct ipfw_flow_id *,
-    u_int32_t, u_int32_t, int);
-
-
-/*
- * Timeouts for various events in handing dynamic rules.
- */
-static VNET_DEFINE(u_int32_t, dyn_ack_lifetime);
-static VNET_DEFINE(u_int32_t, dyn_syn_lifetime);
-static VNET_DEFINE(u_int32_t, dyn_fin_lifetime);
-static VNET_DEFINE(u_int32_t, dyn_rst_lifetime);
-static VNET_DEFINE(u_int32_t, dyn_udp_lifetime);
-static VNET_DEFINE(u_int32_t, dyn_short_lifetime);
-
-#define	V_dyn_ack_lifetime		VNET(dyn_ack_lifetime)
-#define	V_dyn_syn_lifetime		VNET(dyn_syn_lifetime)
-#define	V_dyn_fin_lifetime		VNET(dyn_fin_lifetime)
-#define	V_dyn_rst_lifetime		VNET(dyn_rst_lifetime)
-#define	V_dyn_udp_lifetime		VNET(dyn_udp_lifetime)
-#define	V_dyn_short_lifetime		VNET(dyn_short_lifetime)
-
-/*
- * Keepalives are sent if dyn_keepalive is set. They are sent every
- * dyn_keepalive_period seconds, in the last dyn_keepalive_interval
- * seconds of lifetime of a rule.
- * dyn_rst_lifetime and dyn_fin_lifetime should be strictly lower
- * than dyn_keepalive_period.
- */
-
-static VNET_DEFINE(u_int32_t, dyn_keepalive_interval);
-static VNET_DEFINE(u_int32_t, dyn_keepalive_period);
-static VNET_DEFINE(u_int32_t, dyn_keepalive);
-
-#define	V_dyn_keepalive_interval	VNET(dyn_keepalive_interval)
-#define	V_dyn_keepalive_period		VNET(dyn_keepalive_period)
-#define	V_dyn_keepalive			VNET(dyn_keepalive)
-
-static VNET_DEFINE(u_int32_t, static_count);	/* # of static rules */
-static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
-static VNET_DEFINE(u_int32_t, dyn_count);	/* # of dynamic rules */
-static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
-
-#define	V_static_count			VNET(static_count)
-#define	V_static_len			VNET(static_len)
-#define	V_dyn_count			VNET(dyn_count)
-#define	V_dyn_max			VNET(dyn_max)
-
-#ifdef SYSCTL_NODE
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
-    CTLFLAG_RW, &VNET_NAME(dyn_buckets), 0,
-    "Number of dyn. buckets");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
-    CTLFLAG_RD, &VNET_NAME(curr_dyn_buckets), 0,
-    "Current Number of dyn. buckets");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_count,
-    CTLFLAG_RD, &VNET_NAME(dyn_count), 0,
-    "Number of dyn. rules");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_max,
-    CTLFLAG_RW, &VNET_NAME(dyn_max), 0,
-    "Max number of dyn. rules");
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
     CTLFLAG_RD, &VNET_NAME(static_count), 0,
     "Number of static rules");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_ack_lifetime), 0,
-    "Lifetime of dyn. rules for acks");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_syn_lifetime), 0,
-    "Lifetime of dyn. rules for syn");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_fin_lifetime), 0,
-    "Lifetime of dyn. rules for fin");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_rst_lifetime), 0,
-    "Lifetime of dyn. rules for rst");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_udp_lifetime), 0,
-    "Lifetime of dyn. rules for UDP");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_short_lifetime), 0,
-    "Lifetime of dyn. rules for other situations");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
-    CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
-    "Enable keepalives for dyn. rules");
 #endif /* SYSCTL_NODE */
+
 
 /*
  * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
@@ -681,18 +546,6 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp)
 	return 1;
 
 }
-static __inline int
-hash_packet6(struct ipfw_flow_id *id)
-{
-	u_int32_t i;
-	i = (id->dst_ip6.__u6_addr.__u6_addr32[2]) ^
-	    (id->dst_ip6.__u6_addr.__u6_addr32[3]) ^
-	    (id->src_ip6.__u6_addr.__u6_addr32[2]) ^
-	    (id->src_ip6.__u6_addr.__u6_addr32[3]) ^
-	    (id->dst_port) ^ (id->src_port);
-	return i;
-}
-
 static int
 is_icmp6_query(int icmp6_type)
 {
@@ -749,1072 +602,6 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 
 #endif /* INET6 */
 
-/* counter for ipfw_log(NULL...) */
-static VNET_DEFINE(u_int64_t, norule_counter);
-#define	V_norule_counter		VNET(norule_counter)
-
-#define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
-#define SNP(buf) buf, sizeof(buf)
-
-/*
- * We enter here when we have a rule with O_LOG.
- * XXX this function alone takes about 2Kbytes of code!
- */
-static void
-ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
-    struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
-    struct ip *ip)
-{
-	struct ether_header *eh = args->eh;
-	char *action;
-	int limit_reached = 0;
-	char action2[40], proto[128], fragment[32];
-
-	fragment[0] = '\0';
-	proto[0] = '\0';
-
-	if (f == NULL) {	/* bogus pkt */
-		if (V_verbose_limit != 0 && V_norule_counter >= V_verbose_limit)
-			return;
-		V_norule_counter++;
-		if (V_norule_counter == V_verbose_limit)
-			limit_reached = V_verbose_limit;
-		action = "Refuse";
-	} else {	/* O_LOG is the first action, find the real one */
-		ipfw_insn *cmd = ACTION_PTR(f);
-		ipfw_insn_log *l = (ipfw_insn_log *)cmd;
-
-		if (l->max_log != 0 && l->log_left == 0)
-			return;
-		l->log_left--;
-		if (l->log_left == 0)
-			limit_reached = l->max_log;
-		cmd += F_LEN(cmd);	/* point to first action */
-		if (cmd->opcode == O_ALTQ) {
-			ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
-
-			snprintf(SNPARGS(action2, 0), "Altq %d",
-				altq->qid);
-			cmd += F_LEN(cmd);
-		}
-		if (cmd->opcode == O_PROB)
-			cmd += F_LEN(cmd);
-
-		if (cmd->opcode == O_TAG)
-			cmd += F_LEN(cmd);
-
-		action = action2;
-		switch (cmd->opcode) {
-		case O_DENY:
-			action = "Deny";
-			break;
-
-		case O_REJECT:
-			if (cmd->arg1==ICMP_REJECT_RST)
-				action = "Reset";
-			else if (cmd->arg1==ICMP_UNREACH_HOST)
-				action = "Reject";
-			else
-				snprintf(SNPARGS(action2, 0), "Unreach %d",
-					cmd->arg1);
-			break;
-
-		case O_UNREACH6:
-			if (cmd->arg1==ICMP6_UNREACH_RST)
-				action = "Reset";
-			else
-				snprintf(SNPARGS(action2, 0), "Unreach %d",
-					cmd->arg1);
-			break;
-
-		case O_ACCEPT:
-			action = "Accept";
-			break;
-		case O_COUNT:
-			action = "Count";
-			break;
-		case O_DIVERT:
-			snprintf(SNPARGS(action2, 0), "Divert %d",
-				cmd->arg1);
-			break;
-		case O_TEE:
-			snprintf(SNPARGS(action2, 0), "Tee %d",
-				cmd->arg1);
-			break;
-		case O_SETFIB:
-			snprintf(SNPARGS(action2, 0), "SetFib %d",
-				cmd->arg1);
-			break;
-		case O_SKIPTO:
-			snprintf(SNPARGS(action2, 0), "SkipTo %d",
-				cmd->arg1);
-			break;
-		case O_PIPE:
-			snprintf(SNPARGS(action2, 0), "Pipe %d",
-				cmd->arg1);
-			break;
-		case O_QUEUE:
-			snprintf(SNPARGS(action2, 0), "Queue %d",
-				cmd->arg1);
-			break;
-		case O_FORWARD_IP: {
-			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;
-			int len;
-			struct in_addr dummyaddr;
-			if (sa->sa.sin_addr.s_addr == INADDR_ANY)
-				dummyaddr.s_addr = htonl(tablearg);
-			else
-				dummyaddr.s_addr = sa->sa.sin_addr.s_addr;
-
-			len = snprintf(SNPARGS(action2, 0), "Forward to %s",
-				inet_ntoa(dummyaddr));
-
-			if (sa->sa.sin_port)
-				snprintf(SNPARGS(action2, len), ":%d",
-				    sa->sa.sin_port);
-			}
-			break;
-		case O_NETGRAPH:
-			snprintf(SNPARGS(action2, 0), "Netgraph %d",
-				cmd->arg1);
-			break;
-		case O_NGTEE:
-			snprintf(SNPARGS(action2, 0), "Ngtee %d",
-				cmd->arg1);
-			break;
-		case O_NAT:
-			action = "Nat";
- 			break;
-		case O_REASS:
-			action = "Reass";
-			break;
-		default:
-			action = "UNKNOWN";
-			break;
-		}
-	}
-
-	if (hlen == 0) {	/* non-ip */
-		snprintf(SNPARGS(proto, 0), "MAC");
-
-	} else {
-		int len;
-#ifdef INET6
-		char src[INET6_ADDRSTRLEN + 2], dst[INET6_ADDRSTRLEN + 2];
-#else
-		char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
-#endif
-		struct icmphdr *icmp;
-		struct tcphdr *tcp;
-		struct udphdr *udp;
-#ifdef INET6
-		struct ip6_hdr *ip6 = NULL;
-		struct icmp6_hdr *icmp6;
-#endif
-		src[0] = '\0';
-		dst[0] = '\0';
-#ifdef INET6
-		if (IS_IP6_FLOW_ID(&(args->f_id))) {
-			char ip6buf[INET6_ADDRSTRLEN];
-			snprintf(src, sizeof(src), "[%s]",
-			    ip6_sprintf(ip6buf, &args->f_id.src_ip6));
-			snprintf(dst, sizeof(dst), "[%s]",
-			    ip6_sprintf(ip6buf, &args->f_id.dst_ip6));
-
-			ip6 = (struct ip6_hdr *)ip;
-			tcp = (struct tcphdr *)(((char *)ip) + hlen);
-			udp = (struct udphdr *)(((char *)ip) + hlen);
-		} else
-#endif
-		{
-			tcp = L3HDR(struct tcphdr, ip);
-			udp = L3HDR(struct udphdr, ip);
-
-			inet_ntoa_r(ip->ip_src, src);
-			inet_ntoa_r(ip->ip_dst, dst);
-		}
-
-		switch (args->f_id.proto) {
-		case IPPROTO_TCP:
-			len = snprintf(SNPARGS(proto, 0), "TCP %s", src);
-			if (offset == 0)
-				snprintf(SNPARGS(proto, len), ":%d %s:%d",
-				    ntohs(tcp->th_sport),
-				    dst,
-				    ntohs(tcp->th_dport));
-			else
-				snprintf(SNPARGS(proto, len), " %s", dst);
-			break;
-
-		case IPPROTO_UDP:
-			len = snprintf(SNPARGS(proto, 0), "UDP %s", src);
-			if (offset == 0)
-				snprintf(SNPARGS(proto, len), ":%d %s:%d",
-				    ntohs(udp->uh_sport),
-				    dst,
-				    ntohs(udp->uh_dport));
-			else
-				snprintf(SNPARGS(proto, len), " %s", dst);
-			break;
-
-		case IPPROTO_ICMP:
-			icmp = L3HDR(struct icmphdr, ip);
-			if (offset == 0)
-				len = snprintf(SNPARGS(proto, 0),
-				    "ICMP:%u.%u ",
-				    icmp->icmp_type, icmp->icmp_code);
-			else
-				len = snprintf(SNPARGS(proto, 0), "ICMP ");
-			len += snprintf(SNPARGS(proto, len), "%s", src);
-			snprintf(SNPARGS(proto, len), " %s", dst);
-			break;
-#ifdef INET6
-		case IPPROTO_ICMPV6:
-			icmp6 = (struct icmp6_hdr *)(((char *)ip) + hlen);
-			if (offset == 0)
-				len = snprintf(SNPARGS(proto, 0),
-				    "ICMPv6:%u.%u ",
-				    icmp6->icmp6_type, icmp6->icmp6_code);
-			else
-				len = snprintf(SNPARGS(proto, 0), "ICMPv6 ");
-			len += snprintf(SNPARGS(proto, len), "%s", src);
-			snprintf(SNPARGS(proto, len), " %s", dst);
-			break;
-#endif
-		default:
-			len = snprintf(SNPARGS(proto, 0), "P:%d %s",
-			    args->f_id.proto, src);
-			snprintf(SNPARGS(proto, len), " %s", dst);
-			break;
-		}
-
-#ifdef INET6
-		if (IS_IP6_FLOW_ID(&(args->f_id))) {
-			if (offset & (IP6F_OFF_MASK | IP6F_MORE_FRAG))
-				snprintf(SNPARGS(fragment, 0),
-				    " (frag %08x:%d@%d%s)",
-				    args->f_id.frag_id6,
-				    ntohs(ip6->ip6_plen) - hlen,
-				    ntohs(offset & IP6F_OFF_MASK) << 3,
-				    (offset & IP6F_MORE_FRAG) ? "+" : "");
-		} else
-#endif
-		{
-			int ip_off, ip_len;
-			if (eh != NULL) { /* layer 2 packets are as on the wire */
-				ip_off = ntohs(ip->ip_off);
-				ip_len = ntohs(ip->ip_len);
-			} else {
-				ip_off = ip->ip_off;
-				ip_len = ip->ip_len;
-			}
-			if (ip_off & (IP_MF | IP_OFFMASK))
-				snprintf(SNPARGS(fragment, 0),
-				    " (frag %d:%d@%d%s)",
-				    ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
-				    offset << 3,
-				    (ip_off & IP_MF) ? "+" : "");
-		}
-	}
-	if (oif || m->m_pkthdr.rcvif)
-		log(LOG_SECURITY | LOG_INFO,
-		    "ipfw: %d %s %s %s via %s%s\n",
-		    f ? f->rulenum : -1,
-		    action, proto, oif ? "out" : "in",
-		    oif ? oif->if_xname : m->m_pkthdr.rcvif->if_xname,
-		    fragment);
-	else
-		log(LOG_SECURITY | LOG_INFO,
-		    "ipfw: %d %s %s [no if info]%s\n",
-		    f ? f->rulenum : -1,
-		    action, proto, fragment);
-	if (limit_reached)
-		log(LOG_SECURITY | LOG_NOTICE,
-		    "ipfw: limit %d reached on entry %d\n",
-		    limit_reached, f ? f->rulenum : -1);
-}
-
-/*
- * IMPORTANT: the hash function for dynamic rules must be commutative
- * in source and destination (ip,port), because rules are bidirectional
- * and we want to find both in the same bucket.
- */
-static __inline int
-hash_packet(struct ipfw_flow_id *id)
-{
-	u_int32_t i;
-
-#ifdef INET6
-	if (IS_IP6_FLOW_ID(id)) 
-		i = hash_packet6(id);
-	else
-#endif /* INET6 */
-	i = (id->dst_ip) ^ (id->src_ip) ^ (id->dst_port) ^ (id->src_port);
-	i &= (V_curr_dyn_buckets - 1);
-	return i;
-}
-
-static __inline void
-unlink_dyn_rule_print(struct ipfw_flow_id *id)
-{
-	struct in_addr da;
-#ifdef INET6
-	char src[INET6_ADDRSTRLEN], dst[INET6_ADDRSTRLEN];
-#else
-	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
-#endif
-
-#ifdef INET6
-	if (IS_IP6_FLOW_ID(id)) {
-		ip6_sprintf(src, &id->src_ip6);
-		ip6_sprintf(dst, &id->dst_ip6);
-	} else
-#endif
-	{
-		da.s_addr = htonl(id->src_ip);
-		inet_ntoa_r(da, src);
-		da.s_addr = htonl(id->dst_ip);
-		inet_ntoa_r(da, dst);
-	}
-	printf("ipfw: unlink entry %s %d -> %s %d, %d left\n",
-	    src, id->src_port, dst, id->dst_port, V_dyn_count - 1);
-}
-
-/**
- * unlink a dynamic rule from a chain. prev is a pointer to
- * the previous one, q is a pointer to the rule to delete,
- * head is a pointer to the head of the queue.
- * Modifies q and potentially also head.
- */
-#define UNLINK_DYN_RULE(prev, head, q) {				\
-	ipfw_dyn_rule *old_q = q;					\
-									\
-	/* remove a refcount to the parent */				\
-	if (q->dyn_type == O_LIMIT)					\
-		q->parent->count--;					\
-	DEB(unlink_dyn_rule_print(&q->id);)				\
-	if (prev != NULL)						\
-		prev->next = q = q->next;				\
-	else								\
-		head = q = q->next;					\
-	V_dyn_count--;							\
-	uma_zfree(ipfw_dyn_rule_zone, old_q); }
-
-#define TIME_LEQ(a,b)       ((int)((a)-(b)) <= 0)
-
-/**
- * Remove dynamic rules pointing to "rule", or all of them if rule == NULL.
- *
- * If keep_me == NULL, rules are deleted even if not expired,
- * otherwise only expired rules are removed.
- *
- * The value of the second parameter is also used to point to identify
- * a rule we absolutely do not want to remove (e.g. because we are
- * holding a reference to it -- this is the case with O_LIMIT_PARENT
- * rules). The pointer is only used for comparison, so any non-null
- * value will do.
- */
-static void
-remove_dyn_rule(struct ip_fw *rule, ipfw_dyn_rule *keep_me)
-{
-	static u_int32_t last_remove = 0;
-
-#define FORCE (keep_me == NULL)
-
-	ipfw_dyn_rule *prev, *q;
-	int i, pass = 0, max_pass = 0;
-
-	IPFW_DYN_LOCK_ASSERT();
-
-	if (V_ipfw_dyn_v == NULL || V_dyn_count == 0)
-		return;
-	/* do not expire more than once per second, it is useless */
-	if (!FORCE && last_remove == time_uptime)
-		return;
-	last_remove = time_uptime;
-
-	/*
-	 * because O_LIMIT refer to parent rules, during the first pass only
-	 * remove child and mark any pending LIMIT_PARENT, and remove
-	 * them in a second pass.
-	 */
-next_pass:
-	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
-		for (prev=NULL, q = V_ipfw_dyn_v[i] ; q ; ) {
-			/*
-			 * Logic can become complex here, so we split tests.
-			 */
-			if (q == keep_me)
-				goto next;
-			if (rule != NULL && rule != q->rule)
-				goto next; /* not the one we are looking for */
-			if (q->dyn_type == O_LIMIT_PARENT) {
-				/*
-				 * handle parent in the second pass,
-				 * record we need one.
-				 */
-				max_pass = 1;
-				if (pass == 0)
-					goto next;
-				if (FORCE && q->count != 0 ) {
-					/* XXX should not happen! */
-					printf("ipfw: OUCH! cannot remove rule,"
-					     " count %d\n", q->count);
-				}
-			} else {
-				if (!FORCE &&
-				    !TIME_LEQ( q->expire, time_uptime ))
-					goto next;
-			}
-             if (q->dyn_type != O_LIMIT_PARENT || !q->count) {
-                     UNLINK_DYN_RULE(prev, V_ipfw_dyn_v[i], q);
-                     continue;
-             }
-next:
-			prev=q;
-			q=q->next;
-		}
-	}
-	if (pass++ < max_pass)
-		goto next_pass;
-}
-
-
-/**
- * lookup a dynamic rule.
- */
-static ipfw_dyn_rule *
-lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
-    struct tcphdr *tcp)
-{
-	/*
-	 * stateful ipfw extensions.
-	 * Lookup into dynamic session queue
-	 */
-#define MATCH_REVERSE	0
-#define MATCH_FORWARD	1
-#define MATCH_NONE	2
-#define MATCH_UNKNOWN	3
-	int i, dir = MATCH_NONE;
-	ipfw_dyn_rule *prev, *q=NULL;
-
-	IPFW_DYN_LOCK_ASSERT();
-
-	if (V_ipfw_dyn_v == NULL)
-		goto done;	/* not found */
-	i = hash_packet( pkt );
-	for (prev=NULL, q = V_ipfw_dyn_v[i] ; q != NULL ; ) {
-		if (q->dyn_type == O_LIMIT_PARENT && q->count)
-			goto next;
-		if (TIME_LEQ( q->expire, time_uptime)) { /* expire entry */
-			UNLINK_DYN_RULE(prev, V_ipfw_dyn_v[i], q);
-			continue;
-		}
-		if (pkt->proto == q->id.proto &&
-		    q->dyn_type != O_LIMIT_PARENT) {
-			if (IS_IP6_FLOW_ID(pkt)) {
-			    if (IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
-				&(q->id.src_ip6)) &&
-			    IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
-				&(q->id.dst_ip6)) &&
-			    pkt->src_port == q->id.src_port &&
-			    pkt->dst_port == q->id.dst_port ) {
-				dir = MATCH_FORWARD;
-				break;
-			    }
-			    if (IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
-				    &(q->id.dst_ip6)) &&
-				IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
-				    &(q->id.src_ip6)) &&
-				pkt->src_port == q->id.dst_port &&
-				pkt->dst_port == q->id.src_port ) {
-				    dir = MATCH_REVERSE;
-				    break;
-			    }
-			} else {
-			    if (pkt->src_ip == q->id.src_ip &&
-				pkt->dst_ip == q->id.dst_ip &&
-				pkt->src_port == q->id.src_port &&
-				pkt->dst_port == q->id.dst_port ) {
-				    dir = MATCH_FORWARD;
-				    break;
-			    }
-			    if (pkt->src_ip == q->id.dst_ip &&
-				pkt->dst_ip == q->id.src_ip &&
-				pkt->src_port == q->id.dst_port &&
-				pkt->dst_port == q->id.src_port ) {
-				    dir = MATCH_REVERSE;
-				    break;
-			    }
-			}
-		}
-next:
-		prev = q;
-		q = q->next;
-	}
-	if (q == NULL)
-		goto done; /* q = NULL, not found */
-
-	if ( prev != NULL) { /* found and not in front */
-		prev->next = q->next;
-		q->next = V_ipfw_dyn_v[i];
-		V_ipfw_dyn_v[i] = q;
-	}
-	if (pkt->proto == IPPROTO_TCP) { /* update state according to flags */
-		u_char flags = pkt->flags & (TH_FIN|TH_SYN|TH_RST);
-
-#define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
-#define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
-		q->state |= (dir == MATCH_FORWARD ) ? flags : (flags << 8);
-		switch (q->state) {
-		case TH_SYN:				/* opening */
-			q->expire = time_uptime + V_dyn_syn_lifetime;
-			break;
-
-		case BOTH_SYN:			/* move to established */
-		case BOTH_SYN | TH_FIN :	/* one side tries to close */
-		case BOTH_SYN | (TH_FIN << 8) :
- 			if (tcp) {
-#define _SEQ_GE(a,b) ((int)(a) - (int)(b) >= 0)
-			    u_int32_t ack = ntohl(tcp->th_ack);
-			    if (dir == MATCH_FORWARD) {
-				if (q->ack_fwd == 0 || _SEQ_GE(ack, q->ack_fwd))
-				    q->ack_fwd = ack;
-				else { /* ignore out-of-sequence */
-				    break;
-				}
-			    } else {
-				if (q->ack_rev == 0 || _SEQ_GE(ack, q->ack_rev))
-				    q->ack_rev = ack;
-				else { /* ignore out-of-sequence */
-				    break;
-				}
-			    }
-			}
-			q->expire = time_uptime + V_dyn_ack_lifetime;
-			break;
-
-		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
-			if (V_dyn_fin_lifetime >= V_dyn_keepalive_period)
-				V_dyn_fin_lifetime = V_dyn_keepalive_period - 1;
-			q->expire = time_uptime + V_dyn_fin_lifetime;
-			break;
-
-		default:
-#if 0
-			/*
-			 * reset or some invalid combination, but can also
-			 * occur if we use keep-state the wrong way.
-			 */
-			if ( (q->state & ((TH_RST << 8)|TH_RST)) == 0)
-				printf("invalid state: 0x%x\n", q->state);
-#endif
-			if (V_dyn_rst_lifetime >= V_dyn_keepalive_period)
-				V_dyn_rst_lifetime = V_dyn_keepalive_period - 1;
-			q->expire = time_uptime + V_dyn_rst_lifetime;
-			break;
-		}
-	} else if (pkt->proto == IPPROTO_UDP) {
-		q->expire = time_uptime + V_dyn_udp_lifetime;
-	} else {
-		/* other protocols */
-		q->expire = time_uptime + V_dyn_short_lifetime;
-	}
-done:
-	if (match_direction)
-		*match_direction = dir;
-	return q;
-}
-
-static ipfw_dyn_rule *
-lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
-    struct tcphdr *tcp)
-{
-	ipfw_dyn_rule *q;
-
-	IPFW_DYN_LOCK();
-	q = lookup_dyn_rule_locked(pkt, match_direction, tcp);
-	if (q == NULL)
-		IPFW_DYN_UNLOCK();
-	/* NB: return table locked when q is not NULL */
-	return q;
-}
-
-static void
-realloc_dynamic_table(void)
-{
-	IPFW_DYN_LOCK_ASSERT();
-
-	/*
-	 * Try reallocation, make sure we have a power of 2 and do
-	 * not allow more than 64k entries. In case of overflow,
-	 * default to 1024.
-	 */
-
-	if (V_dyn_buckets > 65536)
-		V_dyn_buckets = 1024;
-	if ((V_dyn_buckets & (V_dyn_buckets-1)) != 0) { /* not a power of 2 */
-		V_dyn_buckets = V_curr_dyn_buckets; /* reset */
-		return;
-	}
-	V_curr_dyn_buckets = V_dyn_buckets;
-	if (V_ipfw_dyn_v != NULL)
-		free(V_ipfw_dyn_v, M_IPFW);
-	for (;;) {
-		V_ipfw_dyn_v = malloc(V_curr_dyn_buckets * sizeof(ipfw_dyn_rule *),
-		       M_IPFW, M_NOWAIT | M_ZERO);
-		if (V_ipfw_dyn_v != NULL || V_curr_dyn_buckets <= 2)
-			break;
-		V_curr_dyn_buckets /= 2;
-	}
-}
-
-/**
- * Install state of type 'type' for a dynamic session.
- * The hash table contains two type of rules:
- * - regular rules (O_KEEP_STATE)
- * - rules for sessions with limited number of sess per user
- *   (O_LIMIT). When they are created, the parent is
- *   increased by 1, and decreased on delete. In this case,
- *   the third parameter is the parent rule and not the chain.
- * - "parent" rules for the above (O_LIMIT_PARENT).
- */
-static ipfw_dyn_rule *
-add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
-{
-	ipfw_dyn_rule *r;
-	int i;
-
-	IPFW_DYN_LOCK_ASSERT();
-
-	if (V_ipfw_dyn_v == NULL ||
-	    (V_dyn_count == 0 && V_dyn_buckets != V_curr_dyn_buckets)) {
-		realloc_dynamic_table();
-		if (V_ipfw_dyn_v == NULL)
-			return NULL; /* failed ! */
-	}
-	i = hash_packet(id);
-
-	r = uma_zalloc(ipfw_dyn_rule_zone, M_NOWAIT | M_ZERO);
-	if (r == NULL) {
-		printf ("ipfw: sorry cannot allocate state\n");
-		return NULL;
-	}
-
-	/* increase refcount on parent, and set pointer */
-	if (dyn_type == O_LIMIT) {
-		ipfw_dyn_rule *parent = (ipfw_dyn_rule *)rule;
-		if ( parent->dyn_type != O_LIMIT_PARENT)
-			panic("invalid parent");
-		parent->count++;
-		r->parent = parent;
-		rule = parent->rule;
-	}
-
-	r->id = *id;
-	r->expire = time_uptime + V_dyn_syn_lifetime;
-	r->rule = rule;
-	r->dyn_type = dyn_type;
-	r->pcnt = r->bcnt = 0;
-	r->count = 0;
-
-	r->bucket = i;
-	r->next = V_ipfw_dyn_v[i];
-	V_ipfw_dyn_v[i] = r;
-	V_dyn_count++;
-	DEB({
-		struct in_addr da;
-#ifdef INET6
-		char src[INET6_ADDRSTRLEN];
-		char dst[INET6_ADDRSTRLEN];
-#else
-		char src[INET_ADDRSTRLEN];
-		char dst[INET_ADDRSTRLEN];
-#endif
-
-#ifdef INET6
-		if (IS_IP6_FLOW_ID(&(r->id))) {
-			ip6_sprintf(src, &r->id.src_ip6);
-			ip6_sprintf(dst, &r->id.dst_ip6);
-		} else
-#endif
-		{
-			da.s_addr = htonl(r->id.src_ip);
-			inet_ntoa_r(da, src);
-			da.s_addr = htonl(r->id.dst_ip);
-			inet_ntoa_r(da, dst);
-		}
-		printf("ipfw: add dyn entry ty %d %s %d -> %s %d, total %d\n",
-		    dyn_type, src, r->id.src_port, dst, r->id.dst_port,
-		    V_dyn_count);
-	})
-	return r;
-}
-
-/**
- * lookup dynamic parent rule using pkt and rule as search keys.
- * If the lookup fails, then install one.
- */
-static ipfw_dyn_rule *
-lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
-{
-	ipfw_dyn_rule *q;
-	int i;
-
-	IPFW_DYN_LOCK_ASSERT();
-
-	if (V_ipfw_dyn_v) {
-		int is_v6 = IS_IP6_FLOW_ID(pkt);
-		i = hash_packet( pkt );
-		for (q = V_ipfw_dyn_v[i] ; q != NULL ; q=q->next)
-			if (q->dyn_type == O_LIMIT_PARENT &&
-			    rule== q->rule &&
-			    pkt->proto == q->id.proto &&
-			    pkt->src_port == q->id.src_port &&
-			    pkt->dst_port == q->id.dst_port &&
-			    (
-				(is_v6 &&
-				 IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
-					&(q->id.src_ip6)) &&
-				 IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
-					&(q->id.dst_ip6))) ||
-				(!is_v6 &&
-				 pkt->src_ip == q->id.src_ip &&
-				 pkt->dst_ip == q->id.dst_ip)
-			    )
-			) {
-				q->expire = time_uptime + V_dyn_short_lifetime;
-				DEB(printf("ipfw: lookup_dyn_parent found 0x%p\n",q);)
-				return q;
-			}
-	}
-	return add_dyn_rule(pkt, O_LIMIT_PARENT, rule);
-}
-
-/**
- * Install dynamic state for rule type cmd->o.opcode
- *
- * Returns 1 (failure) if state is not installed because of errors or because
- * session limitations are enforced.
- */
-static int
-install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
-    struct ip_fw_args *args, uint32_t tablearg)
-{
-	static int last_log;
-	ipfw_dyn_rule *q;
-	struct in_addr da;
-#ifdef INET6
-	char src[INET6_ADDRSTRLEN + 2], dst[INET6_ADDRSTRLEN + 2];
-#else
-	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
-#endif
-
-	src[0] = '\0';
-	dst[0] = '\0';
-
-	IPFW_DYN_LOCK();
-
-	DEB(
-#ifdef INET6
-	if (IS_IP6_FLOW_ID(&(args->f_id))) {
-		ip6_sprintf(src, &args->f_id.src_ip6);
-		ip6_sprintf(dst, &args->f_id.dst_ip6);
-	} else
-#endif
-	{
-		da.s_addr = htonl(args->f_id.src_ip);
-		inet_ntoa_r(da, src);
-		da.s_addr = htonl(args->f_id.dst_ip);
-		inet_ntoa_r(da, dst);
-	}
-	printf("ipfw: %s: type %d %s %u -> %s %u\n",
-	    __func__, cmd->o.opcode, src, args->f_id.src_port,
-	    dst, args->f_id.dst_port);
-	src[0] = '\0';
-	dst[0] = '\0';
-	)
-
-	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
-
-	if (q != NULL) {	/* should never occur */
-		if (last_log != time_uptime) {
-			last_log = time_uptime;
-			printf("ipfw: %s: entry already present, done\n",
-			    __func__);
-		}
-		IPFW_DYN_UNLOCK();
-		return (0);
-	}
-
-	if (V_dyn_count >= V_dyn_max)
-		/* Run out of slots, try to remove any expired rule. */
-		remove_dyn_rule(NULL, (ipfw_dyn_rule *)1);
-
-	if (V_dyn_count >= V_dyn_max) {
-		if (last_log != time_uptime) {
-			last_log = time_uptime;
-			printf("ipfw: %s: Too many dynamic rules\n", __func__);
-		}
-		IPFW_DYN_UNLOCK();
-		return (1);	/* cannot install, notify caller */
-	}
-
-	switch (cmd->o.opcode) {
-	case O_KEEP_STATE:	/* bidir rule */
-		add_dyn_rule(&args->f_id, O_KEEP_STATE, rule);
-		break;
-
-	case O_LIMIT: {		/* limit number of sessions */
-		struct ipfw_flow_id id;
-		ipfw_dyn_rule *parent;
-		uint32_t conn_limit;
-		uint16_t limit_mask = cmd->limit_mask;
-
-		conn_limit = (cmd->conn_limit == IP_FW_TABLEARG) ?
-		    tablearg : cmd->conn_limit;
-		  
-		DEB(
-		if (cmd->conn_limit == IP_FW_TABLEARG)
-			printf("ipfw: %s: O_LIMIT rule, conn_limit: %u "
-			    "(tablearg)\n", __func__, conn_limit);
-		else
-			printf("ipfw: %s: O_LIMIT rule, conn_limit: %u\n",
-			    __func__, conn_limit);
-		)
-
-		id.dst_ip = id.src_ip = id.dst_port = id.src_port = 0;
-		id.proto = args->f_id.proto;
-		id.addr_type = args->f_id.addr_type;
-		id.fib = M_GETFIB(args->m);
-
-		if (IS_IP6_FLOW_ID (&(args->f_id))) {
-			if (limit_mask & DYN_SRC_ADDR)
-				id.src_ip6 = args->f_id.src_ip6;
-			if (limit_mask & DYN_DST_ADDR)
-				id.dst_ip6 = args->f_id.dst_ip6;
-		} else {
-			if (limit_mask & DYN_SRC_ADDR)
-				id.src_ip = args->f_id.src_ip;
-			if (limit_mask & DYN_DST_ADDR)
-				id.dst_ip = args->f_id.dst_ip;
-		}
-		if (limit_mask & DYN_SRC_PORT)
-			id.src_port = args->f_id.src_port;
-		if (limit_mask & DYN_DST_PORT)
-			id.dst_port = args->f_id.dst_port;
-		if ((parent = lookup_dyn_parent(&id, rule)) == NULL) {
-			printf("ipfw: %s: add parent failed\n", __func__);
-			IPFW_DYN_UNLOCK();
-			return (1);
-		}
-
-		if (parent->count >= conn_limit) {
-			/* See if we can remove some expired rule. */
-			remove_dyn_rule(rule, parent);
-			if (parent->count >= conn_limit) {
-				if (V_fw_verbose && last_log != time_uptime) {
-					last_log = time_uptime;
-#ifdef INET6
-					/*
-					 * XXX IPv6 flows are not
-					 * supported yet.
-					 */
-					if (IS_IP6_FLOW_ID(&(args->f_id))) {
-						char ip6buf[INET6_ADDRSTRLEN];
-						snprintf(src, sizeof(src),
-						    "[%s]", ip6_sprintf(ip6buf,
-							&args->f_id.src_ip6));
-						snprintf(dst, sizeof(dst),
-						    "[%s]", ip6_sprintf(ip6buf,
-							&args->f_id.dst_ip6));
-					} else
-#endif
-					{
-						da.s_addr =
-						    htonl(args->f_id.src_ip);
-						inet_ntoa_r(da, src);
-						da.s_addr =
-						    htonl(args->f_id.dst_ip);
-						inet_ntoa_r(da, dst);
-					}
-					log(LOG_SECURITY | LOG_DEBUG,
-					    "ipfw: %d %s %s:%u -> %s:%u, %s\n",
-					    parent->rule->rulenum,
-					    "drop session",
-					    src, (args->f_id.src_port),
-					    dst, (args->f_id.dst_port),
-					    "too many entries");
-				}
-				IPFW_DYN_UNLOCK();
-				return (1);
-			}
-		}
-		add_dyn_rule(&args->f_id, O_LIMIT, (struct ip_fw *)parent);
-		break;
-	}
-	default:
-		printf("ipfw: %s: unknown dynamic rule type %u\n",
-		    __func__, cmd->o.opcode);
-		IPFW_DYN_UNLOCK();
-		return (1);
-	}
-
-	/* XXX just set lifetime */
-	lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
-
-	IPFW_DYN_UNLOCK();
-	return (0);
-}
-
-/*
- * Generate a TCP packet, containing either a RST or a keepalive.
- * When flags & TH_RST, we are sending a RST packet, because of a
- * "reset" action matched the packet.
- * Otherwise we are sending a keepalive, and flags & TH_
- * The 'replyto' mbuf is the mbuf being replied to, if any, and is required
- * so that MAC can label the reply appropriately.
- */
-static struct mbuf *
-send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
-    u_int32_t ack, int flags)
-{
-	struct mbuf *m;
-	int len, dir;
-	struct ip *h = NULL;		/* stupid compiler */
-#ifdef INET6
-	struct ip6_hdr *h6 = NULL;
-#endif
-	struct tcphdr *th = NULL;
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == NULL)
-		return (NULL);
-
-	M_SETFIB(m, id->fib);
-#ifdef MAC
-	if (replyto != NULL)
-		mac_netinet_firewall_reply(replyto, m);
-	else
-		mac_netinet_firewall_send(m);
-#else
-	(void)replyto;		/* don't warn about unused arg */
-#endif
-
-	switch (id->addr_type) {
-	case 4:
-		len = sizeof(struct ip) + sizeof(struct tcphdr);
-		break;
-#ifdef INET6
-	case 6:
-		len = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
-		break;
-#endif
-	default:
-		/* XXX: log me?!? */
-		m_freem(m);
-		return (NULL);
-	}
-	dir = ((flags & (TH_SYN | TH_RST)) == TH_SYN);
-
-	m->m_data += max_linkhdr;
-	m->m_flags |= M_SKIP_FIREWALL;
-	m->m_pkthdr.len = m->m_len = len;
-	m->m_pkthdr.rcvif = NULL;
-	bzero(m->m_data, len);
-
-	switch (id->addr_type) {
-	case 4:
-		h = mtod(m, struct ip *);
-
-		/* prepare for checksum */
-		h->ip_p = IPPROTO_TCP;
-		h->ip_len = htons(sizeof(struct tcphdr));
-		if (dir) {
-			h->ip_src.s_addr = htonl(id->src_ip);
-			h->ip_dst.s_addr = htonl(id->dst_ip);
-		} else {
-			h->ip_src.s_addr = htonl(id->dst_ip);
-			h->ip_dst.s_addr = htonl(id->src_ip);
-		}
-
-		th = (struct tcphdr *)(h + 1);
-		break;
-#ifdef INET6
-	case 6:
-		h6 = mtod(m, struct ip6_hdr *);
-
-		/* prepare for checksum */
-		h6->ip6_nxt = IPPROTO_TCP;
-		h6->ip6_plen = htons(sizeof(struct tcphdr));
-		if (dir) {
-			h6->ip6_src = id->src_ip6;
-			h6->ip6_dst = id->dst_ip6;
-		} else {
-			h6->ip6_src = id->dst_ip6;
-			h6->ip6_dst = id->src_ip6;
-		}
-
-		th = (struct tcphdr *)(h6 + 1);
-		break;
-#endif
-	}
-
-	if (dir) {
-		th->th_sport = htons(id->src_port);
-		th->th_dport = htons(id->dst_port);
-	} else {
-		th->th_sport = htons(id->dst_port);
-		th->th_dport = htons(id->src_port);
-	}
-	th->th_off = sizeof(struct tcphdr) >> 2;
-
-	if (flags & TH_RST) {
-		if (flags & TH_ACK) {
-			th->th_seq = htonl(ack);
-			th->th_flags = TH_RST;
-		} else {
-			if (flags & TH_SYN)
-				seq++;
-			th->th_ack = htonl(seq);
-			th->th_flags = TH_RST | TH_ACK;
-		}
-	} else {
-		/*
-		 * Keepalive - use caller provided sequence numbers
-		 */
-		th->th_seq = htonl(seq);
-		th->th_ack = htonl(ack);
-		th->th_flags = TH_ACK;
-	}
-
-	switch (id->addr_type) {
-	case 4:
-		th->th_sum = in_cksum(m, len);
-
-		/* finish the ip header */
-		h->ip_v = 4;
-		h->ip_hl = sizeof(*h) >> 2;
-		h->ip_tos = IPTOS_LOWDELAY;
-		h->ip_off = 0;
-		h->ip_len = len;
-		h->ip_ttl = V_ip_defttl;
-		h->ip_sum = 0;
-		break;
-#ifdef INET6
-	case 6:
-		th->th_sum = in6_cksum(m, IPPROTO_TCP, sizeof(*h6),
-		    sizeof(struct tcphdr));
-
-		/* finish the ip6 header */
-		h6->ip6_vfc |= IPV6_VERSION;
-		h6->ip6_hlim = IPV6_DEFHLIM;
-		break;
-#endif
-	}
-
-	return (m);
-}
 
 /*
  * sends a reject message, consuming the mbuf passed as an argument.
@@ -3352,7 +2139,7 @@ do {									\
 					f = q->rule;
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
-					IPFW_DYN_UNLOCK();
+					ipfw_dyn_unlock();
 					cmdlen = 0;
 					match = 1;
 					break;
@@ -3544,7 +2331,8 @@ do {									\
 				    if (t == NULL) {
 					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
 						tablearg : cmd->arg1;
-					LOOKUP_NAT(V_layer3_chain, nat_id, t);
+					t = (*lookup_nat_ptr)(&V_layer3_chain.nat, nat_id);
+
 					if (t == NULL) {
 					    retval = IP_FW_DENY;
 					    l = 0;	/* exit inner loop */
@@ -3779,9 +2567,7 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 	IPFW_WLOCK_ASSERT(chain);
 
 	n = rule->next;
-	IPFW_DYN_LOCK();
-	remove_dyn_rule(rule, NULL /* force removal */);
-	IPFW_DYN_UNLOCK();
+	remove_dyn_children(rule);
 	if (prev == NULL)
 		chain->rules = n;
 	else
@@ -4392,44 +3178,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		}
 	}
 	IPFW_RUNLOCK(chain);
-	if (V_ipfw_dyn_v) {
-		ipfw_dyn_rule *p, *last = NULL;
-
-		IPFW_DYN_LOCK();
-		for (i = 0 ; i < V_curr_dyn_buckets; i++)
-			for (p = V_ipfw_dyn_v[i] ; p != NULL; p = p->next) {
-				if (bp + sizeof *p <= ep) {
-					ipfw_dyn_rule *dst =
-						(ipfw_dyn_rule *)bp;
-					bcopy(p, dst, sizeof *p);
-					bcopy(&(p->rule->rulenum), &(dst->rule),
-					    sizeof(p->rule->rulenum));
-					/*
-					 * store set number into high word of
-					 * dst->rule pointer.
-					 */
-					bcopy(&(p->rule->set),
-					    (char *)&dst->rule +
-					    sizeof(p->rule->rulenum),
-					    sizeof(p->rule->set));
-					/*
-					 * store a non-null value in "next".
-					 * The userland code will interpret a
-					 * NULL here as a marker
-					 * for the last dynamic rule.
-					 */
-					bcopy(&dst, &dst->next, sizeof(dst));
-					last = dst;
-					dst->expire =
-					    TIME_LEQ(dst->expire, time_uptime) ?
-						0 : dst->expire - time_uptime ;
-					bp += sizeof(ipfw_dyn_rule);
-				}
-			}
-		IPFW_DYN_UNLOCK();
-		if (last != NULL) /* mark last dynamic rule */
-			bzero(&last->next, sizeof(last));
-	}
+	ipfw_get_dynamic(&bp, ep);
 	return (bp - (char *)buf);
 }
 
@@ -4477,8 +3226,7 @@ ipfw_ctl(struct sockopt *sopt)
 		 * data in which case we'll just return what fits.
 		 */
 		size = V_static_len;	/* size of static rules */
-		if (V_ipfw_dyn_v)		/* add size of dyn.rules */
-			size += (V_dyn_count * sizeof(ipfw_dyn_rule));
+		size += ipfw_dyn_len();
 
 		if (size >= sopt->sopt_valsize)
 			break;
@@ -4704,107 +3452,6 @@ ipfw_ctl(struct sockopt *sopt)
 #undef RULE_MAXSIZE
 }
 
-
-/*
- * This procedure is only used to handle keepalives. It is invoked
- * every dyn_keepalive_period
- */
-static void
-ipfw_tick(void * vnetx) 
-{
-	struct mbuf *m0, *m, *mnext, **mtailp;
-#ifdef INET6
-	struct mbuf *m6, **m6_tailp;
-#endif
-	int i;
-	ipfw_dyn_rule *q;
-#ifdef VIMAGE
-	struct vnet *vp = vnetx;
-#endif
-
-	CURVNET_SET(vp);
-	if (V_dyn_keepalive == 0 || V_ipfw_dyn_v == NULL || V_dyn_count == 0)
-		goto done;
-
-	/*
-	 * We make a chain of packets to go out here -- not deferring
-	 * until after we drop the IPFW dynamic rule lock would result
-	 * in a lock order reversal with the normal packet input -> ipfw
-	 * call stack.
-	 */
-	m0 = NULL;
-	mtailp = &m0;
-#ifdef INET6
-	m6 = NULL;
-	m6_tailp = &m6;
-#endif
-	IPFW_DYN_LOCK();
-	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
-		for (q = V_ipfw_dyn_v[i] ; q ; q = q->next ) {
-			if (q->dyn_type == O_LIMIT_PARENT)
-				continue;
-			if (q->id.proto != IPPROTO_TCP)
-				continue;
-			if ( (q->state & BOTH_SYN) != BOTH_SYN)
-				continue;
-			if (TIME_LEQ(time_uptime + V_dyn_keepalive_interval,
-			    q->expire))
-				continue;	/* too early */
-			if (TIME_LEQ(q->expire, time_uptime))
-				continue;	/* too late, rule expired */
-
-			m = send_pkt(NULL, &(q->id), q->ack_rev - 1,
-				q->ack_fwd, TH_SYN);
-			mnext = send_pkt(NULL, &(q->id), q->ack_fwd - 1,
-				q->ack_rev, 0);
-
-			switch (q->id.addr_type) {
-			case 4:
-				if (m != NULL) {
-					*mtailp = m;
-					mtailp = &(*mtailp)->m_nextpkt;
-				}
-				if (mnext != NULL) {
-					*mtailp = mnext;
-					mtailp = &(*mtailp)->m_nextpkt;
-				}
-				break;
-#ifdef INET6
-			case 6:
-				if (m != NULL) {
-					*m6_tailp = m;
-					m6_tailp = &(*m6_tailp)->m_nextpkt;
-				}
-				if (mnext != NULL) {
-					*m6_tailp = mnext;
-					m6_tailp = &(*m6_tailp)->m_nextpkt;
-				}
-				break;
-#endif
-			}
-
-			m = mnext = NULL;
-		}
-	}
-	IPFW_DYN_UNLOCK();
-	for (m = mnext = m0; m != NULL; m = mnext) {
-		mnext = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		ip_output(m, NULL, NULL, 0, NULL, NULL);
-	}
-#ifdef INET6
-	for (m = mnext = m6; m != NULL; m = mnext) {
-		mnext = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
-	}
-#endif
-done:
-	callout_reset(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
-		      ipfw_tick, vnetx);
-	CURVNET_RESTORE();
-}
-
 /****************
  * Stuff that must be initialised only on boot or module load
  */
@@ -4813,11 +3460,7 @@ ipfw_init(void)
 {
 	int error = 0;
 
-	ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule",
-	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
-
-	IPFW_DYN_LOCK_INIT();
+	ipfw_dyn_attach();
 	/*
  	 * Only print out this stuff the first time around,
 	 * when called from the sysinit code.
@@ -4871,8 +3514,7 @@ static void
 ipfw_destroy(void)
 {
 
-	uma_zdestroy(ipfw_dyn_rule_zone);
-	IPFW_DYN_LOCK_DESTROY();
+	ipfw_dyn_detach();
 	printf("IP firewall unloaded\n");
 }
 
@@ -4904,28 +3546,11 @@ vnet_ipfw_init(const void *unused)
 
 	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
 
-	V_ipfw_dyn_v = NULL;
-	V_dyn_buckets = 256;	/* must be power of 2 */
-	V_curr_dyn_buckets = 256; /* must be power of 2 */
-
-	V_dyn_ack_lifetime = 300;
-	V_dyn_syn_lifetime = 20;
-	V_dyn_fin_lifetime = 1;
-	V_dyn_rst_lifetime = 1;
-	V_dyn_udp_lifetime = 10;
-	V_dyn_short_lifetime = 5;
-
-	V_dyn_keepalive_interval = 20;
-	V_dyn_keepalive_period = 5;
-	V_dyn_keepalive = 1;	/* do send keepalives */
-
-	V_dyn_max = 4096;	/* max # of dynamic rules */
 
 	V_fw_deny_unknown_exthdrs = 1;
 
 	V_layer3_chain.rules = NULL;
 	IPFW_LOCK_INIT(&V_layer3_chain);
-	callout_init(&V_ipfw_timeout, CALLOUT_MPSAFE);
 
 	bzero(&default_rule, sizeof default_rule);
 	default_rule.act_ofs = 0;
@@ -4946,8 +3571,7 @@ vnet_ipfw_init(const void *unused)
 
 	ip_fw_default_rule = V_layer3_chain.rules;
 
-	/* curvnet is NULL in the !VIMAGE case */
-	callout_reset(&V_ipfw_timeout, hz, ipfw_tick, curvnet);	
+	ipfw_dyn_init();
 
 	/* First set up some values that are compile time options */
 	V_ipfw_vnet_ready = 1;		/* Open for business */
@@ -5007,7 +3631,7 @@ vnet_ipfw_uninit(const void *unused)
 	IPFW_WUNLOCK(&V_layer3_chain);
 	IPFW_WLOCK(&V_layer3_chain);
 
-	callout_drain(&V_ipfw_timeout);
+	ipfw_dyn_uninit(0);	/* run the callout_drain */
 	flush_tables(&V_layer3_chain);
 	V_layer3_chain.reap = NULL;
 	free_chain(&V_layer3_chain, 1 /* kill default rule */);
@@ -5017,8 +3641,7 @@ vnet_ipfw_uninit(const void *unused)
 	if (reap != NULL)
 		reap_rules(reap);
 	IPFW_LOCK_DESTROY(&V_layer3_chain);
-	if (V_ipfw_dyn_v != NULL)
-		free(V_ipfw_dyn_v, M_IPFW);
+	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	return 0;
 }
 
