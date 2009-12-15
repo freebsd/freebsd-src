@@ -242,12 +242,13 @@ void TypePrinter::PrintDependentSizedExtVector(
 void TypePrinter::PrintVector(const VectorType *T, std::string &S) { 
   // FIXME: We prefer to print the size directly here, but have no way
   // to get the size of the type.
-  S += " __attribute__((__vector_size__(";
-  S += llvm::utostr_32(T->getNumElements()); // convert back to bytes.
+  Print(T->getElementType(), S);
+  std::string V = "__attribute__((__vector_size__(";
+  V += llvm::utostr_32(T->getNumElements()); // convert back to bytes.
   std::string ET;
   Print(T->getElementType(), ET);
-  S += " * sizeof(" + ET + "))))";
-  Print(T->getElementType(), S);
+  V += " * sizeof(" + ET + ")))) ";
+  S = V + S;
 }
 
 void TypePrinter::PrintExtVector(const ExtVectorType *T, std::string &S) { 
@@ -284,6 +285,23 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
   }
   
   S += ")";
+
+  if (T->hasExceptionSpec()) {
+    S += " throw(";
+    if (T->hasAnyExceptionSpec())
+      S += "...";
+    else 
+      for (unsigned I = 0, N = T->getNumExceptions(); I != N; ++I) {
+        if (I)
+          S += ", ";
+
+        std::string ExceptionType;
+        Print(T->getExceptionType(I), ExceptionType);
+        S += ExceptionType;
+      }
+    S += ")";
+  }
+
   if (T->getNoReturnAttr())
     S += " __attribute__((noreturn))";
   Print(T->getResultType(), S);
@@ -300,6 +318,15 @@ void TypePrinter::PrintFunctionNoProto(const FunctionNoProtoType *T,
   if (T->getNoReturnAttr())
     S += " __attribute__((noreturn))";
   Print(T->getResultType(), S);
+}
+
+void TypePrinter::PrintUnresolvedUsing(const UnresolvedUsingType *T,
+                                       std::string &S) {
+  IdentifierInfo *II = T->getDecl()->getIdentifier();
+  if (S.empty())
+    S = II->getName().str();
+  else
+    S = II->getName().str() + ' ' + S;
 }
 
 void TypePrinter::PrintTypedef(const TypedefType *T, std::string &S) { 
@@ -683,9 +710,8 @@ void QualType::dump(const char *msg) const {
   LangOptions LO;
   getAsStringInternal(R, PrintingPolicy(LO));
   if (msg)
-    fprintf(stderr, "%s: %s\n", msg, R.c_str());
-  else
-    fprintf(stderr, "%s\n", R.c_str());
+    llvm::errs() << msg << ": ";
+  llvm::errs() << R << "\n";
 }
 void QualType::dump() const {
   dump("");

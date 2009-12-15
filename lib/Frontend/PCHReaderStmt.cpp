@@ -349,7 +349,7 @@ unsigned PCHStmtReader::VisitPredefinedExpr(PredefinedExpr *E) {
 
 unsigned PCHStmtReader::VisitDeclRefExpr(DeclRefExpr *E) {
   VisitExpr(E);
-  E->setDecl(cast<NamedDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setDecl(cast<ValueDecl>(Reader.GetDecl(Record[Idx++])));
   E->setLocation(SourceLocation::getFromRawEncoding(Record[Idx++]));
   // FIXME: read qualifier
   // FIXME: read explicit template arguments
@@ -428,7 +428,7 @@ unsigned PCHStmtReader::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
     E->setArgument(cast<Expr>(StmtStack.back()));
     ++Idx;
   } else {
-    E->setArgument(Reader.GetDeclaratorInfo(Record, Idx));
+    E->setArgument(Reader.GetTypeSourceInfo(Record, Idx));
   }
   E->setOperatorLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   E->setRParenLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
@@ -456,7 +456,7 @@ unsigned PCHStmtReader::VisitCallExpr(CallExpr *E) {
 unsigned PCHStmtReader::VisitMemberExpr(MemberExpr *E) {
   VisitExpr(E);
   E->setBase(cast<Expr>(StmtStack.back()));
-  E->setMemberDecl(cast<NamedDecl>(Reader.GetDecl(Record[Idx++])));
+  E->setMemberDecl(cast<ValueDecl>(Reader.GetDecl(Record[Idx++])));
   E->setMemberLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
   E->setArrow(Record[Idx++]);
   return 1;

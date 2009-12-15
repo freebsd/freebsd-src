@@ -204,7 +204,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   // expansion stack, only to take it right back off.
   if (MI->getNumTokens() == 0) {
     // No need for arg info.
-    if (Args) Args->destroy();
+    if (Args) Args->destroy(*this);
 
     // Ignore this macro use, just return the next token in the current
     // buffer.
@@ -232,7 +232,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     // "#define VAL 42".
 
     // No need for arg info.
-    if (Args) Args->destroy();
+    if (Args) Args->destroy(*this);
 
     // Propagate the isAtStartOfLine/hasLeadingSpace markers of the macro
     // identifier to the expanded token.
@@ -446,7 +446,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
   }
 
   return MacroArgs::create(MI, ArgTokens.data(), ArgTokens.size(),
-                           isVarargsElided);
+                           isVarargsElided, *this);
 }
 
 /// ComputeDATE_TIME - Compute the current time, enter it into the specified
@@ -486,6 +486,12 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
   case 6:
     if (II->isStr("blocks")) return LangOpts.Blocks;
     return false;
+  case 8:
+    if (II->isStr("cxx_rtti")) return LangOpts.RTTI;
+    return false;
+  case 14:
+    if (II->isStr("cxx_exceptions")) return LangOpts.Exceptions;
+    return false;      
   case 19:
     if (II->isStr("objc_nonfragile_abi")) return LangOpts.ObjCNonFragileABI;
     return false;
@@ -667,7 +673,6 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     // __BASE_FILE__ is a GNU extension that returns the top of the presumed
     // #include stack instead of the current file.
     if (II == Ident__BASE_FILE__) {
-      Diag(Tok, diag::ext_pp_base_file);
       SourceLocation NextLoc = PLoc.getIncludeLoc();
       while (NextLoc.isValid()) {
         PLoc = SourceMgr.getPresumedLoc(NextLoc);
@@ -697,8 +702,6 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
                                                      Tok.getLocation(),
                                                      Tok.getLength()));
   } else if (II == Ident__INCLUDE_LEVEL__) {
-    Diag(Tok, diag::ext_pp_include_level);
-
     // Compute the presumed include depth of this token.  This can be affected
     // by GNU line markers.
     unsigned Depth = 0;
@@ -715,7 +718,6 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
   } else if (II == Ident__TIMESTAMP__) {
     // MSVC, ICC, GCC, VisualAge C++ extension.  The generated string should be
     // of the form "Ddd Mmm dd hh::mm::ss yyyy", which is returned by asctime.
-    Diag(Tok, diag::ext_pp_timestamp);
 
     // Get the file that we are lexing out of.  If we're currently lexing from
     // a macro, dig into the include stack.
@@ -725,7 +727,6 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     if (TheLexer)
       CurFile = SourceMgr.getFileEntryForID(TheLexer->getFileID());
 
-    // If this file is older than the file it depends on, emit a diagnostic.
     const char *Result;
     if (CurFile) {
       time_t TT = CurFile->getModificationTime();
@@ -741,8 +742,6 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     Tok.setKind(tok::string_literal);
     CreateString(TmpBuffer, Len+1, Tok, Tok.getLocation());
   } else if (II == Ident__COUNTER__) {
-    Diag(Tok, diag::ext_pp_counter);
-
     // __COUNTER__ expands to a simple numeric value.
     sprintf(TmpBuffer, "%u", CounterValue++);
     Tok.setKind(tok::numeric_constant);

@@ -23,56 +23,81 @@ static llvm::Constant *getAllocateExceptionFn(CodeGenFunction &CGF) {
   // void *__cxa_allocate_exception(size_t thrown_size);
   const llvm::Type *SizeTy = CGF.ConvertType(CGF.getContext().getSizeType());
   std::vector<const llvm::Type*> Args(1, SizeTy);
-  
-  const llvm::FunctionType *FTy = 
+
+  const llvm::FunctionType *FTy =
   llvm::FunctionType::get(llvm::Type::getInt8PtrTy(CGF.getLLVMContext()),
                           Args, false);
-  
+
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_allocate_exception");
 }
 
+static llvm::Constant *getFreeExceptionFn(CodeGenFunction &CGF) {
+  // void __cxa_free_exception(void *thrown_exception);
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
+  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
+
+  const llvm::FunctionType *FTy =
+  llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()),
+                          Args, false);
+
+  return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_free_exception");
+}
+
 static llvm::Constant *getThrowFn(CodeGenFunction &CGF) {
-  // void __cxa_throw (void *thrown_exception, std::type_info *tinfo, 
-  //                   void (*dest) (void *) );
+  // void __cxa_throw(void *thrown_exception, std::type_info *tinfo,
+  //                  void (*dest) (void *));
 
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
   std::vector<const llvm::Type*> Args(3, Int8PtrTy);
-  
-  const llvm::FunctionType *FTy = 
+
+  const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()),
                             Args, false);
-  
+
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_throw");
 }
 
 static llvm::Constant *getReThrowFn(CodeGenFunction &CGF) {
-  // void __cxa_rethrow ();
+  // void __cxa_rethrow();
 
-  const llvm::FunctionType *FTy = 
+  const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), false);
-  
+
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_rethrow");
 }
 
 static llvm::Constant *getBeginCatchFn(CodeGenFunction &CGF) {
-  // void* __cxa_begin_catch ();
+  // void* __cxa_begin_catch();
 
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
   std::vector<const llvm::Type*> Args(1, Int8PtrTy);
-  
-  const llvm::FunctionType *FTy = 
+
+  const llvm::FunctionType *FTy =
     llvm::FunctionType::get(Int8PtrTy, Args, false);
-  
+
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_begin_catch");
 }
 
 static llvm::Constant *getEndCatchFn(CodeGenFunction &CGF) {
-  // void __cxa_end_catch ();
+  // void __cxa_end_catch();
 
-  const llvm::FunctionType *FTy = 
+  const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), false);
-  
+
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_end_catch");
+}
+
+static llvm::Constant *getUnexpectedFn(CodeGenFunction &CGF) {
+  // void __cxa_call_unexepcted(void *thrown_exception);
+
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
+  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
+
+  const llvm::FunctionType *FTy =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()),
+                            Args, false);
+
+  return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_call_unexpected");
 }
 
 // FIXME: Eventually this will all go into the backend.  Set from the target for
@@ -82,38 +107,64 @@ static int using_sjlj_exceptions = 0;
 static llvm::Constant *getUnwindResumeOrRethrowFn(CodeGenFunction &CGF) {
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
   std::vector<const llvm::Type*> Args(1, Int8PtrTy);
-  
-  const llvm::FunctionType *FTy = 
+
+  const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), Args,
                             false);
-  
+
   if (using_sjlj_exceptions)
     return CGF.CGM.CreateRuntimeFunction(FTy, "_Unwind_SjLj_Resume");
   return CGF.CGM.CreateRuntimeFunction(FTy, "_Unwind_Resume_or_Rethrow");
 }
 
+static llvm::Constant *getTerminateFn(CodeGenFunction &CGF) {
+  // void __terminate();
+
+  const llvm::FunctionType *FTy =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), false);
+
+  return CGF.CGM.CreateRuntimeFunction(FTy, "_ZSt9terminatev");
+}
+
 // CopyObject - Utility to copy an object.  Calls copy constructor as necessary.
-// N is casted to the right type.
-static void CopyObject(CodeGenFunction &CGF, const Expr *E, llvm::Value *N) {
+// DestPtr is casted to the right type.
+static void CopyObject(CodeGenFunction &CGF, const Expr *E, 
+                       llvm::Value *DestPtr, llvm::Value *ExceptionPtrPtr) {
   QualType ObjectType = E->getType();
 
   // Store the throw exception in the exception object.
   if (!CGF.hasAggregateLLVMType(ObjectType)) {
     llvm::Value *Value = CGF.EmitScalarExpr(E);
-    const llvm::Type *ValuePtrTy = Value->getType()->getPointerTo(0);
-    
-    CGF.Builder.CreateStore(Value, CGF.Builder.CreateBitCast(N, ValuePtrTy));
+    const llvm::Type *ValuePtrTy = Value->getType()->getPointerTo();
+
+    CGF.Builder.CreateStore(Value, 
+                            CGF.Builder.CreateBitCast(DestPtr, ValuePtrTy));
   } else {
-    const llvm::Type *Ty = CGF.ConvertType(ObjectType)->getPointerTo(0);
-    const CXXRecordDecl *RD;
-    RD = cast<CXXRecordDecl>(ObjectType->getAs<RecordType>()->getDecl());
-    llvm::Value *This = CGF.Builder.CreateBitCast(N, Ty);
+    const llvm::Type *Ty = CGF.ConvertType(ObjectType)->getPointerTo();
+    const CXXRecordDecl *RD =
+      cast<CXXRecordDecl>(ObjectType->getAs<RecordType>()->getDecl());
+    
+    llvm::Value *This = CGF.Builder.CreateBitCast(DestPtr, Ty);
     if (RD->hasTrivialCopyConstructor()) {
       CGF.EmitAggExpr(E, This, false);
     } else if (CXXConstructorDecl *CopyCtor
                = RD->getCopyConstructor(CGF.getContext(), 0)) {
-      // FIXME: region management
+      llvm::BasicBlock *PrevLandingPad = CGF.getInvokeDest();
+      if (CGF.Exceptions) {
+        CodeGenFunction::EHCleanupBlock Cleanup(CGF);
+        llvm::Constant *FreeExceptionFn = getFreeExceptionFn(CGF);
+        
+        // Load the exception pointer.
+        llvm::Value *ExceptionPtr = CGF.Builder.CreateLoad(ExceptionPtrPtr);
+        CGF.Builder.CreateCall(FreeExceptionFn, ExceptionPtr);
+      }
+
       llvm::Value *Src = CGF.EmitLValue(E).getAddress();
+      CGF.setInvokeDest(PrevLandingPad);
+
+      llvm::BasicBlock *TerminateHandler = CGF.getTerminateHandler();
+      PrevLandingPad = CGF.getInvokeDest();
+      CGF.setInvokeDest(TerminateHandler);
 
       // Stolen from EmitClassAggrMemberwiseCopy
       llvm::Value *Callee = CGF.CGM.GetAddrOfCXXConstructor(CopyCtor,
@@ -129,21 +180,22 @@ static void CopyObject(CodeGenFunction &CGF, const Expr *E, llvm::Value *N) {
         CopyCtor->getType()->getAs<FunctionType>()->getResultType();
       CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
                    Callee, CallArgs, CopyCtor);
-      // FIXME: region management
+      CGF.setInvokeDest(PrevLandingPad);
     } else
-      CGF.ErrorUnsupported(E, "uncopyable object");
+      llvm_unreachable("uncopyable object");
   }
 }
 
 // CopyObject - Utility to copy an object.  Calls copy constructor as necessary.
 // N is casted to the right type.
 static void CopyObject(CodeGenFunction &CGF, QualType ObjectType,
-                       llvm::Value *E, llvm::Value *N) {
+                       bool WasPointer, llvm::Value *E, llvm::Value *N) {
   // Store the throw exception in the exception object.
-  if (!CGF.hasAggregateLLVMType(ObjectType)) {
+  if (WasPointer || !CGF.hasAggregateLLVMType(ObjectType)) {
     llvm::Value *Value = E;
+    if (!WasPointer)
+      Value = CGF.Builder.CreateLoad(Value);
     const llvm::Type *ValuePtrTy = Value->getType()->getPointerTo(0);
-    
     CGF.Builder.CreateStore(Value, CGF.Builder.CreateBitCast(N, ValuePtrTy));
   } else {
     const llvm::Type *Ty = CGF.ConvertType(ObjectType)->getPointerTo(0);
@@ -154,7 +206,6 @@ static void CopyObject(CodeGenFunction &CGF, QualType ObjectType,
       CGF.EmitAggregateCopy(This, E, ObjectType);
     } else if (CXXConstructorDecl *CopyCtor
                = RD->getCopyConstructor(CGF.getContext(), 0)) {
-      // FIXME: region management 
       llvm::Value *Src = E;
 
       // Stolen from EmitClassAggrMemberwiseCopy
@@ -171,98 +222,96 @@ static void CopyObject(CodeGenFunction &CGF, QualType ObjectType,
         CopyCtor->getType()->getAs<FunctionType>()->getResultType();
       CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
                    Callee, CallArgs, CopyCtor);
-      // FIXME: region management
     } else
-      llvm::llvm_unreachable("uncopyable object");
+      llvm_unreachable("uncopyable object");
   }
 }
 
 void CodeGenFunction::EmitCXXThrowExpr(const CXXThrowExpr *E) {
   if (!E->getSubExpr()) {
-    Builder.CreateCall(getReThrowFn(*this))->setDoesNotReturn();
+    if (getInvokeDest()) {
+      llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
+      Builder.CreateInvoke(getReThrowFn(*this), Cont, getInvokeDest())
+        ->setDoesNotReturn();
+      EmitBlock(Cont);
+    } else
+      Builder.CreateCall(getReThrowFn(*this))->setDoesNotReturn();
     Builder.CreateUnreachable();
 
     // Clear the insertion point to indicate we are in unreachable code.
     Builder.ClearInsertionPoint();
     return;
   }
-  
+
   QualType ThrowType = E->getSubExpr()->getType();
-  // FIXME: Handle cleanup.
-  if (!CleanupEntries.empty()){
-    ErrorUnsupported(E, "throw expression with cleanup entries");
-    return;
-  }
-  
+
   // Now allocate the exception object.
   const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
   uint64_t TypeSize = getContext().getTypeSize(ThrowType) / 8;
-  
+
   llvm::Constant *AllocExceptionFn = getAllocateExceptionFn(*this);
-  llvm::Value *ExceptionPtr = 
-    Builder.CreateCall(AllocExceptionFn, 
+  llvm::Value *ExceptionPtr =
+    Builder.CreateCall(AllocExceptionFn,
                        llvm::ConstantInt::get(SizeTy, TypeSize),
                        "exception");
-
-  CopyObject(*this, E->getSubExpr(), ExceptionPtr);
   
+  llvm::Value *ExceptionPtrPtr = 
+    CreateTempAlloca(ExceptionPtr->getType(), "exception.ptr");
+  Builder.CreateStore(ExceptionPtr, ExceptionPtrPtr);
+
+
+  CopyObject(*this, E->getSubExpr(), ExceptionPtr, ExceptionPtrPtr);
+
   // Now throw the exception.
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(getLLVMContext());
-  llvm::Constant *TypeInfo = CGM.GenerateRtti(ThrowType);
+  llvm::Constant *TypeInfo = CGM.GenerateRTTI(ThrowType);
   llvm::Constant *Dtor = llvm::Constant::getNullValue(Int8PtrTy);
-  
-  llvm::CallInst *ThrowCall = 
-    Builder.CreateCall3(getThrowFn(*this), ExceptionPtr, TypeInfo, Dtor);
-  ThrowCall->setDoesNotReturn();
+
+  if (getInvokeDest()) {
+    llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
+    llvm::InvokeInst *ThrowCall =
+      Builder.CreateInvoke3(getThrowFn(*this), Cont, getInvokeDest(),
+                            ExceptionPtr, TypeInfo, Dtor);
+    ThrowCall->setDoesNotReturn();
+    EmitBlock(Cont);
+  } else {
+    llvm::CallInst *ThrowCall =
+      Builder.CreateCall3(getThrowFn(*this), ExceptionPtr, TypeInfo, Dtor);
+    ThrowCall->setDoesNotReturn();
+  }
   Builder.CreateUnreachable();
-  
+
   // Clear the insertion point to indicate we are in unreachable code.
   Builder.ClearInsertionPoint();
+
+  // FIXME: For now, emit a dummy basic block because expr emitters in generally
+  // are not ready to handle emitting expressions at unreachable points.
+  EnsureInsertPoint();
 }
 
-void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
-#if 1
-  EmitStmt(S.getTryBlock());
-  if (0) {
-    getBeginCatchFn(*this);
-    getEndCatchFn(*this);
-    getUnwindResumeOrRethrowFn(*this);
-    CopyObject(*this, QualType(), 0, 0);
-  }
-#else
-  // FIXME: The below is still just a sketch of the code we need.
-  // Pointer to the personality function
+void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
+  const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
+  if (FD == 0)
+    return;
+  const FunctionProtoType *Proto = FD->getType()->getAs<FunctionProtoType>();
+  if (Proto == 0)
+    return;
+
+  assert(!Proto->hasAnyExceptionSpec() && "function with parameter pack");
+
+  if (!Proto->hasExceptionSpec())
+    return;
+
   llvm::Constant *Personality =
     CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
                                                       (VMContext),
                                                       true),
                               "__gxx_personality_v0");
   Personality = llvm::ConstantExpr::getBitCast(Personality, PtrToInt8Ty);
-
-  llvm::BasicBlock *PrevLandingPad = getInvokeDest();
-  llvm::BasicBlock *TryHandler = createBasicBlock("try.handler");
-#if 0
-  llvm::BasicBlock *FinallyBlock = createBasicBlock("finally");
-#endif
-  llvm::BasicBlock *FinallyRethrow = createBasicBlock("finally.throw");
-  llvm::BasicBlock *FinallyEnd = createBasicBlock("finally.end");
-
-#if 0
-  // Push an EH context entry, used for handling rethrows.
-  PushCleanupBlock(FinallyBlock);
-#endif
-
-  // Emit the statements in the try {} block
-  setInvokeDest(TryHandler);
-
-  EmitStmt(S.getTryBlock());
-
-  // Jump to end if there is no exception
-  EmitBranchThroughCleanup(FinallyEnd);
-
-  // Emit the handlers
-  EmitBlock(TryHandler);
-  
+  llvm::Value *llvm_eh_exception =
+    CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
+  llvm::Value *llvm_eh_selector =
+    CGM.getIntrinsic(llvm::Intrinsic::eh_selector);
   const llvm::IntegerType *Int8Ty;
   const llvm::PointerType *PtrToInt8Ty;
   Int8Ty = llvm::Type::getInt8Ty(VMContext);
@@ -270,16 +319,166 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
   PtrToInt8Ty = llvm::PointerType::getUnqual(Int8Ty);
   llvm::Constant *Null = llvm::ConstantPointerNull::get(PtrToInt8Ty);
   llvm::SmallVector<llvm::Value*, 8> SelectorArgs;
+
+  llvm::BasicBlock *PrevLandingPad = getInvokeDest();
+  llvm::BasicBlock *EHSpecHandler = createBasicBlock("ehspec.handler");
+  llvm::BasicBlock *Match = createBasicBlock("match");
+  llvm::BasicBlock *Unwind = 0;
+
+  assert(PrevLandingPad == 0 && "EHSpec has invoke context");
+  (void)PrevLandingPad;
+
+  llvm::BasicBlock *Cont = createBasicBlock("cont");
+
+  EmitBranchThroughCleanup(Cont);
+
+  // Emit the statements in the try {} block
+  setInvokeDest(EHSpecHandler);
+
+  EmitBlock(EHSpecHandler);
+  // Exception object
+  llvm::Value *Exc = Builder.CreateCall(llvm_eh_exception, "exc");
+  llvm::Value *RethrowPtr = CreateTempAlloca(Exc->getType(), "_rethrow");
+
+  SelectorArgs.push_back(Exc);
+  SelectorArgs.push_back(Personality);
+  SelectorArgs.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
+                                                Proto->getNumExceptions()+1));
+
+  for (unsigned i = 0; i < Proto->getNumExceptions(); ++i) {
+    QualType Ty = Proto->getExceptionType(i);
+    llvm::Value *EHType
+      = CGM.GenerateRTTI(Ty.getNonReferenceType());
+    SelectorArgs.push_back(EHType);
+  }
+  if (Proto->getNumExceptions())
+    SelectorArgs.push_back(Null);
+
+  // Find which handler was matched.
+  llvm::Value *Selector
+    = Builder.CreateCall(llvm_eh_selector, SelectorArgs.begin(),
+                         SelectorArgs.end(), "selector");
+  if (Proto->getNumExceptions()) {
+    Unwind = createBasicBlock("Unwind");
+
+    Builder.CreateStore(Exc, RethrowPtr);
+    Builder.CreateCondBr(Builder.CreateICmpSLT(Selector,
+                                               llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
+                                                                      0)),
+                         Match, Unwind);
+
+    EmitBlock(Match);
+  }
+  Builder.CreateCall(getUnexpectedFn(*this), Exc)->setDoesNotReturn();
+  Builder.CreateUnreachable();
+
+  if (Proto->getNumExceptions()) {
+    EmitBlock(Unwind);
+    Builder.CreateCall(getUnwindResumeOrRethrowFn(*this),
+                       Builder.CreateLoad(RethrowPtr));
+    Builder.CreateUnreachable();
+  }
+
+  EmitBlock(Cont);
+}
+
+void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
+  const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
+  if (FD == 0)
+    return;
+  const FunctionProtoType *Proto = FD->getType()->getAs<FunctionProtoType>();
+  if (Proto == 0)
+    return;
+
+  if (!Proto->hasExceptionSpec())
+    return;
+
+  setInvokeDest(0);
+}
+
+void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
+  // Pointer to the personality function
+  llvm::Constant *Personality =
+    CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
+                                                      (VMContext),
+                                                      true),
+                              "__gxx_personality_v0");
+  Personality = llvm::ConstantExpr::getBitCast(Personality, PtrToInt8Ty);
   llvm::Value *llvm_eh_exception =
     CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
   llvm::Value *llvm_eh_selector =
     CGM.getIntrinsic(llvm::Intrinsic::eh_selector);
+
+  llvm::BasicBlock *PrevLandingPad = getInvokeDest();
+  llvm::BasicBlock *TryHandler = createBasicBlock("try.handler");
+  llvm::BasicBlock *FinallyBlock = createBasicBlock("finally");
+  llvm::BasicBlock *FinallyRethrow = createBasicBlock("finally.throw");
+  llvm::BasicBlock *FinallyEnd = createBasicBlock("finally.end");
+
+  // Push an EH context entry, used for handling rethrows.
+  PushCleanupBlock(FinallyBlock);
+
+  // Emit the statements in the try {} block
+  setInvokeDest(TryHandler);
+
+  // FIXME: We should not have to do this here.  The AST should have the member
+  // initializers under the CXXTryStmt's TryBlock.
+  if (OuterTryBlock == &S) {
+    GlobalDecl GD = CurGD;
+    const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
+
+    if (const CXXConstructorDecl *CD = dyn_cast<CXXConstructorDecl>(FD)) {
+      size_t OldCleanupStackSize = CleanupEntries.size();
+      EmitCtorPrologue(CD, CurGD.getCtorType());
+      EmitStmt(S.getTryBlock());
+
+      // If any of the member initializers are temporaries bound to references
+      // make sure to emit their destructors.
+      EmitCleanupBlocks(OldCleanupStackSize);
+    } else if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(FD)) {
+      llvm::BasicBlock *DtorEpilogue  = createBasicBlock("dtor.epilogue");
+      PushCleanupBlock(DtorEpilogue);
+
+      EmitStmt(S.getTryBlock());
+
+      CleanupBlockInfo Info = PopCleanupBlock();
+
+      assert(Info.CleanupBlock == DtorEpilogue && "Block mismatch!");
+      EmitBlock(DtorEpilogue);
+      EmitDtorEpilogue(DD, GD.getDtorType());
+
+      if (Info.SwitchBlock)
+        EmitBlock(Info.SwitchBlock);
+      if (Info.EndBlock)
+        EmitBlock(Info.EndBlock);
+    } else
+      EmitStmt(S.getTryBlock());
+  } else
+    EmitStmt(S.getTryBlock());
+
+  // Jump to end if there is no exception
+  EmitBranchThroughCleanup(FinallyEnd);
+
+  llvm::BasicBlock *TerminateHandler = getTerminateHandler();
+
+  // Emit the handlers
+  EmitBlock(TryHandler);
+
+  const llvm::IntegerType *Int8Ty;
+  const llvm::PointerType *PtrToInt8Ty;
+  Int8Ty = llvm::Type::getInt8Ty(VMContext);
+  // C string type.  Used in lots of places.
+  PtrToInt8Ty = llvm::PointerType::getUnqual(Int8Ty);
+  llvm::Constant *Null = llvm::ConstantPointerNull::get(PtrToInt8Ty);
+  llvm::SmallVector<llvm::Value*, 8> SelectorArgs;
   llvm::Value *llvm_eh_typeid_for =
     CGM.getIntrinsic(llvm::Intrinsic::eh_typeid_for);
   // Exception object
   llvm::Value *Exc = Builder.CreateCall(llvm_eh_exception, "exc");
   llvm::Value *RethrowPtr = CreateTempAlloca(Exc->getType(), "_rethrow");
 
+  llvm::SmallVector<llvm::Value*, 8> Args;
+  Args.clear();
   SelectorArgs.push_back(Exc);
   SelectorArgs.push_back(Personality);
 
@@ -288,7 +487,8 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
     const CXXCatchStmt *C = S.getHandler(i);
     VarDecl *CatchParam = C->getExceptionDecl();
     if (CatchParam) {
-      llvm::Value *EHType = CGM.GenerateRtti(C->getCaughtType().getNonReferenceType());
+      llvm::Value *EHType
+        = CGM.GenerateRTTI(C->getCaughtType().getNonReferenceType());
       SelectorArgs.push_back(EHType);
     } else {
       // null indicates catch all
@@ -334,27 +534,31 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
 
     llvm::Value *ExcObject = Builder.CreateCall(getBeginCatchFn(*this), Exc);
 
-    // Bind the catch parameter if it exists.
-    if (CatchParam) {
-      QualType CatchType = CatchParam->getType().getNonReferenceType();
-      if (!CatchType.getTypePtr()->isPointerType())
-        CatchType = getContext().getPointerType(CatchType);
-      ExcObject =
-        Builder.CreateBitCast(ExcObject, ConvertType(CatchType));
-        // CatchParam is a ParmVarDecl because of the grammar
-        // construction used to handle this, but for codegen purposes
-        // we treat this as a local decl.
-      EmitLocalBlockVarDecl(*CatchParam);
-#if 0
-      // FIXME: objects with ctors, references
-      Builder.CreateStore(ExcObject, GetAddrOfLocalVar(CatchParam));
-#else
-      CopyObject(*this, CatchParam->getType().getNonReferenceType(),
-                 ExcObject, GetAddrOfLocalVar(CatchParam));
-#endif
+    {
+      CleanupScope CatchScope(*this);
+      // Bind the catch parameter if it exists.
+      if (CatchParam) {
+        QualType CatchType = CatchParam->getType().getNonReferenceType();
+        setInvokeDest(TerminateHandler);
+        bool WasPointer = true;
+        if (!CatchType.getTypePtr()->isPointerType()) {
+          if (!isa<ReferenceType>(CatchParam->getType()))
+            WasPointer = false;
+          CatchType = getContext().getPointerType(CatchType);
+        }
+        ExcObject = Builder.CreateBitCast(ExcObject, ConvertType(CatchType));
+        EmitLocalBlockVarDecl(*CatchParam);
+        // FIXME: we need to do this sooner so that the EH region for the
+        // cleanup doesn't start until after the ctor completes, use a decl
+        // init?
+        CopyObject(*this, CatchParam->getType().getNonReferenceType(),
+                   WasPointer, ExcObject, GetAddrOfLocalVar(CatchParam));
+        setInvokeDest(MatchHandler);
+      }
+
+      EmitStmt(CatchBody);
     }
 
-    EmitStmt(CatchBody);
     EmitBranchThroughCleanup(FinallyEnd);
 
     EmitBlock(MatchHandler);
@@ -362,7 +566,7 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
     llvm::Value *Exc = Builder.CreateCall(llvm_eh_exception, "exc");
     // We are required to emit this call to satisfy LLVM, even
     // though we don't use the result.
-    llvm::SmallVector<llvm::Value*, 8> Args;
+    Args.clear();
     Args.push_back(Exc);
     Args.push_back(Personality);
     Args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
@@ -375,45 +579,32 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
 
     EmitBlock(MatchEnd);
 
-    // Unfortunately, we also have to generate another EH frame here
-    // in case this throws.
-    llvm::BasicBlock *MatchEndHandler =
-      createBasicBlock("match.end.handler");
-    llvm::BasicBlock *Cont = createBasicBlock("myinvoke.cont");
+    llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
     Builder.CreateInvoke(getEndCatchFn(*this),
-                         Cont, MatchEndHandler,
+                         Cont, TerminateHandler,
                          Args.begin(), Args.begin());
-
     EmitBlock(Cont);
     if (Info.SwitchBlock)
       EmitBlock(Info.SwitchBlock);
     if (Info.EndBlock)
       EmitBlock(Info.EndBlock);
 
-    EmitBlock(MatchEndHandler);
     Exc = Builder.CreateCall(llvm_eh_exception, "exc");
-    // We are required to emit this call to satisfy LLVM, even
-    // though we don't use the result.
-    Args.clear();
-    Args.push_back(Exc);
-    Args.push_back(Personality);
-    Args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
-                                          0));
-    Builder.CreateCall(llvm_eh_selector, Args.begin(), Args.end());
     Builder.CreateStore(Exc, RethrowPtr);
     EmitBranchThroughCleanup(FinallyRethrow);
 
     if (Next)
       EmitBlock(Next);
   }
-  if (!HasCatchAll)
+  if (!HasCatchAll) {
+    Builder.CreateStore(Exc, RethrowPtr);
     EmitBranchThroughCleanup(FinallyRethrow);
+  }
 
   CodeGenFunction::CleanupBlockInfo Info = PopCleanupBlock();
 
   setInvokeDest(PrevLandingPad);
 
-#if 0
   EmitBlock(FinallyBlock);
 
   if (Info.SwitchBlock)
@@ -423,13 +614,122 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
 
   // Branch around the rethrow code.
   EmitBranch(FinallyEnd);
-#endif
 
   EmitBlock(FinallyRethrow);
-  Builder.CreateCall(getUnwindResumeOrRethrowFn(*this),
-                     Builder.CreateLoad(RethrowPtr));
+  // FIXME: Eventually we can chain the handlers together and just do a call
+  // here.
+  if (getInvokeDest()) {
+    llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
+    Builder.CreateInvoke(getUnwindResumeOrRethrowFn(*this), Cont,
+                         getInvokeDest(),
+                         Builder.CreateLoad(RethrowPtr));
+    EmitBlock(Cont);
+  } else
+    Builder.CreateCall(getUnwindResumeOrRethrowFn(*this),
+                       Builder.CreateLoad(RethrowPtr));
+
   Builder.CreateUnreachable();
 
   EmitBlock(FinallyEnd);
-#endif
+}
+
+CodeGenFunction::EHCleanupBlock::~EHCleanupBlock() {
+  llvm::BasicBlock *Cont1 = CGF.createBasicBlock("cont");
+  CGF.EmitBranch(Cont1);
+  CGF.setInvokeDest(PreviousInvokeDest);
+
+
+  CGF.EmitBlock(CleanupHandler);
+
+  llvm::Constant *Personality =
+    CGF.CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
+                                                          (CGF.VMContext),
+                                                          true),
+                                  "__gxx_personality_v0");
+  Personality = llvm::ConstantExpr::getBitCast(Personality, CGF.PtrToInt8Ty);
+  llvm::Value *llvm_eh_exception =
+    CGF.CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
+  llvm::Value *llvm_eh_selector =
+    CGF.CGM.getIntrinsic(llvm::Intrinsic::eh_selector);
+
+  llvm::Value *Exc = CGF.Builder.CreateCall(llvm_eh_exception, "exc");
+  const llvm::IntegerType *Int8Ty;
+  const llvm::PointerType *PtrToInt8Ty;
+  Int8Ty = llvm::Type::getInt8Ty(CGF.VMContext);
+  // C string type.  Used in lots of places.
+  PtrToInt8Ty = llvm::PointerType::getUnqual(Int8Ty);
+  llvm::Constant *Null = llvm::ConstantPointerNull::get(PtrToInt8Ty);
+  llvm::SmallVector<llvm::Value*, 8> Args;
+  Args.clear();
+  Args.push_back(Exc);
+  Args.push_back(Personality);
+  Args.push_back(Null);
+  CGF.Builder.CreateCall(llvm_eh_selector, Args.begin(), Args.end());
+
+  CGF.EmitBlock(CleanupEntryBB);
+
+  CGF.EmitBlock(Cont1);
+
+  if (CGF.getInvokeDest()) {
+    llvm::BasicBlock *Cont = CGF.createBasicBlock("invoke.cont");
+    CGF.Builder.CreateInvoke(getUnwindResumeOrRethrowFn(CGF), Cont,
+                             CGF.getInvokeDest(), Exc);
+    CGF.EmitBlock(Cont);
+  } else
+    CGF.Builder.CreateCall(getUnwindResumeOrRethrowFn(CGF), Exc);
+
+  CGF.Builder.CreateUnreachable();
+
+  CGF.EmitBlock(Cont);
+  if (CGF.Exceptions)
+    CGF.setInvokeDest(CleanupHandler);
+}
+
+llvm::BasicBlock *CodeGenFunction::getTerminateHandler() {
+  if (TerminateHandler)
+    return TerminateHandler;
+
+  llvm::BasicBlock *Cont = 0;
+
+  if (HaveInsertPoint()) {
+    Cont = createBasicBlock("cont");
+    EmitBranch(Cont);
+  }
+
+  llvm::Constant *Personality =
+    CGM.CreateRuntimeFunction(llvm::FunctionType::get(llvm::Type::getInt32Ty
+                                                      (VMContext),
+                                                      true),
+                              "__gxx_personality_v0");
+  Personality = llvm::ConstantExpr::getBitCast(Personality, PtrToInt8Ty);
+  llvm::Value *llvm_eh_exception =
+    CGM.getIntrinsic(llvm::Intrinsic::eh_exception);
+  llvm::Value *llvm_eh_selector =
+    CGM.getIntrinsic(llvm::Intrinsic::eh_selector);
+
+  // Set up terminate handler
+  TerminateHandler = createBasicBlock("terminate.handler");
+  EmitBlock(TerminateHandler);
+  llvm::Value *Exc = Builder.CreateCall(llvm_eh_exception, "exc");
+  // We are required to emit this call to satisfy LLVM, even
+  // though we don't use the result.
+  llvm::SmallVector<llvm::Value*, 8> Args;
+  Args.push_back(Exc);
+  Args.push_back(Personality);
+  Args.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
+                                        1));
+  Builder.CreateCall(llvm_eh_selector, Args.begin(), Args.end());
+  llvm::CallInst *TerminateCall =
+    Builder.CreateCall(getTerminateFn(*this));
+  TerminateCall->setDoesNotReturn();
+  TerminateCall->setDoesNotThrow();
+  Builder.CreateUnreachable();
+
+  // Clear the insertion point to indicate we are in unreachable code.
+  Builder.ClearInsertionPoint();
+
+  if (Cont)
+    EmitBlock(Cont);
+
+  return TerminateHandler;
 }

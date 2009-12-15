@@ -96,6 +96,18 @@ template struct Delete0<int*>;
 template struct Delete0<X*>;
 template struct Delete0<int>; // expected-note{{instantiation}}
 
+namespace PR5755 {
+  template <class T>
+  void Foo() {
+    char* p = 0;
+    delete[] p;
+  }
+  
+  void Test() {
+    Foo<int>();
+  }
+}
+
 // ---------------------------------------------------------------------
 // throw expressions
 // ---------------------------------------------------------------------
@@ -185,7 +197,7 @@ template struct InitList2<APair, int*, double*>; // expected-note{{instantiation
 template<typename T, typename Result>
 struct DotMemRef0 {
   void f(T t) {
-    Result result = t.m; // expected-error{{cannot be initialized}}
+    Result result = t.m; // expected-error{{non-const lvalue reference to type}}
   }
 };
 
@@ -207,7 +219,7 @@ template struct DotMemRef0<MemInt, float&>; // expected-note{{instantiation}}
 template<typename T, typename Result>
 struct ArrowMemRef0 {
   void f(T t) {
-    Result result = t->m; // expected-error 2{{cannot be initialized}}
+    Result result = t->m; // expected-error 2{{non-const lvalue reference}}
   }
 };
 
@@ -269,7 +281,7 @@ template struct ThisMemberFuncCall0<int&>;
 template<typename T>
 struct NonDepMemberCall0 {
   void foo(HasMemFunc0<int&> x) {
-    T result = x.f(); // expected-error{{initialized}}
+    T result = x.f(); // expected-error{{non-const lvalue reference}}
   }
 };
 

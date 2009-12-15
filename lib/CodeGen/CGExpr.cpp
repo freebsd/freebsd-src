@@ -17,6 +17,8 @@
 #include "CGObjCRuntime.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
+#include "llvm/Intrinsics.h"
+#include "clang/CodeGen/CodeGenOptions.h"
 #include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
@@ -38,6 +40,21 @@ llvm::AllocaInst *CodeGenFunction::CreateTempAlloca(const llvm::Type *Ty,
 /// expression and compare the result against zero, returning an Int1Ty value.
 llvm::Value *CodeGenFunction::EvaluateExprAsBool(const Expr *E) {
   QualType BoolTy = getContext().BoolTy;
+  if (E->getType()->isMemberFunctionPointerType()) {
+    llvm::Value *Ptr = CreateTempAlloca(ConvertType(E->getType()));
+    EmitAggExpr(E, Ptr, /*VolatileDest=*/false);
+
+    // Get the pointer.
+    llvm::Value *FuncPtr = Builder.CreateStructGEP(Ptr, 0, "src.ptr");
+    FuncPtr = Builder.CreateLoad(FuncPtr);
+
+    llvm::Value *IsNotNull = 
+      Builder.CreateICmpNE(FuncPtr,
+                            llvm::Constant::getNullValue(FuncPtr->getType()),
+                            "tobool");
+
+    return IsNotNull;
+  }
   if (!E->getType()->isAnyComplexType())
     return EmitScalarConversion(EmitScalarExpr(E), E->getType(), BoolTy);
 
@@ -137,8 +154,19 @@ RValue CodeGenFunction::EmitReferenceBindingToExpr(const Expr* E,
             const CXXDestructorDecl *Dtor =
               ClassDecl->getDestructor(getContext());
 
-            DelayedCleanupBlock scope(*this);
-            EmitCXXDestructorCall(Dtor, Dtor_Complete, Val.getAggregateAddr());
+            {
+              DelayedCleanupBlock Scope(*this);
+              EmitCXXDestructorCall(Dtor, Dtor_Complete,
+                                    Val.getAggregateAddr());
+              
+              // Make sure to jump to the exit block.
+              EmitBranch(Scope.getCleanupExitBlock());
+            }
+            if (Exceptions) {
+              EHCleanupBlock Cleanup(*this);
+              EmitCXXDestructorCall(Dtor, Dtor_Complete,
+                                    Val.getAggregateAddr());
+            }
           }
         }
       }
@@ -237,6 +265,8 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
   switch (E->getStmtClass()) {
   default: return EmitUnsupportedLValue(E, "l-value expression");
 
+  case Expr::ObjCIsaExprClass:
+    return EmitObjCIsaExpr(cast<ObjCIsaExpr>(E));
   case Expr::BinaryOperatorClass:
     return EmitBinaryOperatorLValue(cast<BinaryOperator>(E));
   case Expr::CallExprClass:
@@ -330,13 +360,8 @@ void CodeGenFunction::EmitStoreOfScalar(llvm::Value *Value, llvm::Value *Addr,
 
   if (Ty->isBooleanType()) {
     // Bool can have different representation in memory than in registers.
-    const llvm::Type *SrcTy = Value->getType();
     const llvm::PointerType *DstPtr = cast<llvm::PointerType>(Addr->getType());
-    if (DstPtr->getElementType() != SrcTy) {
-      const llvm::Type *MemTy =
-        llvm::PointerType::get(SrcTy, DstPtr->getAddressSpace());
-      Addr = Builder.CreateBitCast(Addr, MemTy, "storetmp");
-    }
+    Value = Builder.CreateIntCast(Value, DstPtr->getElementType(), false);
   }
   Builder.CreateStore(Value, Addr, Volatile);
 }
@@ -408,8 +433,7 @@ RValue CodeGenFunction::EmitLoadOfBitfieldLValue(LValue LV,
 
   // Shift to proper location.
   if (StartBit)
-    Val = Builder.CreateLShr(Val, llvm::ConstantInt::get(EltTy, StartBit),
-                             "bf.lo");
+    Val = Builder.CreateLShr(Val, StartBit, "bf.lo");
 
   // Mask off unused bits.
   llvm::Constant *LowMask = llvm::ConstantInt::get(VMContext,
@@ -431,8 +455,7 @@ RValue CodeGenFunction::EmitLoadOfBitfieldLValue(LValue LV,
     HighVal = Builder.CreateAnd(HighVal, HighMask, "bf.lo.cleared");
 
     // Shift to proper location and or in to bitfield value.
-    HighVal = Builder.CreateShl(HighVal,
-                                llvm::ConstantInt::get(EltTy, LowBits));
+    HighVal = Builder.CreateShl(HighVal, LowBits);
     Val = Builder.CreateOr(Val, HighVal, "bf.val");
   }
 
@@ -618,8 +641,7 @@ void CodeGenFunction::EmitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
   //   LowVal = (LowVal & InvMask) | (NewVal << StartBit),
   // with the shift of NewVal implicitly stripping the high bits.
   llvm::Value *NewLowVal =
-    Builder.CreateShl(NewVal, llvm::ConstantInt::get(EltTy, StartBit),
-                      "bf.value.lo");
+    Builder.CreateShl(NewVal, StartBit, "bf.value.lo");
   LowVal = Builder.CreateAnd(LowVal, InvMask, "bf.prev.lo.cleared");
   LowVal = Builder.CreateOr(LowVal, NewLowVal, "bf.new.lo");
 
@@ -645,8 +667,7 @@ void CodeGenFunction::EmitStoreThroughBitfieldLValue(RValue Src, LValue Dst,
     // where the high bits of NewVal have already been cleared and the
     // shift stripping the low bits.
     llvm::Value *NewHighVal =
-      Builder.CreateLShr(NewVal, llvm::ConstantInt::get(EltTy, LowBits),
-                        "bf.value.high");
+      Builder.CreateLShr(NewVal, LowBits, "bf.value.high");
     HighVal = Builder.CreateAnd(HighVal, InvMask, "bf.prev.hi.cleared");
     HighVal = Builder.CreateOr(HighVal, NewHighVal, "bf.new.hi");
 
@@ -993,6 +1014,36 @@ LValue CodeGenFunction::EmitPredefinedLValue(const PredefinedExpr *E) {
   }
 }
 
+llvm::BasicBlock *CodeGenFunction::getTrapBB() {
+  const CodeGenOptions &GCO = CGM.getCodeGenOpts();
+
+  // If we are not optimzing, don't collapse all calls to trap in the function
+  // to the same call, that way, in the debugger they can see which operation
+  // did in fact fail.  If we are optimizing, we collpase all call to trap down
+  // to just one per function to save on codesize.
+  if (GCO.OptimizationLevel
+      && TrapBB)
+    return TrapBB;
+
+  llvm::BasicBlock *Cont = 0;
+  if (HaveInsertPoint()) {
+    Cont = createBasicBlock("cont");
+    EmitBranch(Cont);
+  }
+  TrapBB = createBasicBlock("trap");
+  EmitBlock(TrapBB);
+
+  llvm::Value *F = CGM.getIntrinsic(llvm::Intrinsic::trap, 0, 0);
+  llvm::CallInst *TrapCall = Builder.CreateCall(F);
+  TrapCall->setDoesNotReturn();
+  TrapCall->setDoesNotThrow();
+  Builder.CreateUnreachable();
+
+  if (Cont)
+    EmitBlock(Cont);
+  return TrapBB;
+}
+
 LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E) {
   // The index must always be an integer, which is not an aggregate.  Emit it.
   llvm::Value *Idx = EmitScalarExpr(E->getIdx());
@@ -1020,6 +1071,24 @@ LValue CodeGenFunction::EmitArraySubscriptExpr(const ArraySubscriptExpr *E) {
     Idx = Builder.CreateIntCast(Idx,
                             llvm::IntegerType::get(VMContext, LLVMPointerWidth),
                                 IdxSigned, "idxprom");
+
+  if (CatchUndefined) {
+    if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E->getBase())) {
+      if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ICE->getSubExpr())) {
+        if (ICE->getCastKind() == CastExpr::CK_ArrayToPointerDecay) {
+          if (const ConstantArrayType *CAT
+              = getContext().getAsConstantArrayType(DRE->getType())) {
+            llvm::APInt Size = CAT->getSize();
+            llvm::BasicBlock *Cont = createBasicBlock("cont");
+            Builder.CreateCondBr(Builder.CreateICmpULE(Idx,
+                                  llvm::ConstantInt::get(Idx->getType(), Size)),
+                                 Cont, getTrapBB());
+            EmitBlock(Cont);
+          }
+        }
+      }
+    }
+  }
 
   // We know that the pointer points to a type of the correct size, unless the
   // size is a VLA or Objective-C interface.
@@ -1417,7 +1486,7 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E) {
     if (const CXXMethodDecl *MD = dyn_cast_or_null<CXXMethodDecl>(TargetDecl))
       return EmitCXXOperatorMemberCallExpr(CE, MD);
 
-  if (isa<CXXPseudoDestructorExpr>(E->getCallee())) {
+  if (isa<CXXPseudoDestructorExpr>(E->getCallee()->IgnoreParens())) {
     // C++ [expr.pseudo]p1:
     //   The result shall only be used as the operand for the function call
     //   operator (), and the result of such a call has type void. The only
@@ -1436,6 +1505,7 @@ LValue CodeGenFunction::EmitBinaryOperatorLValue(const BinaryOperator *E) {
   // Comma expressions just emit their LHS then their RHS as an l-value.
   if (E->getOpcode() == BinaryOperator::Comma) {
     EmitAnyExpr(E->getLHS());
+    EnsureInsertPoint();
     return EmitLValue(E->getRHS());
   }
 

@@ -95,7 +95,7 @@ static void SetUpBuildDumpLog(const DiagnosticOptions &DiagOpts,
     return;
   }
 
-  (*OS) << "clang-cc command line arguments: ";
+  (*OS) << "clang -cc1 command line arguments: ";
   for (unsigned i = 0; i != argc; ++i)
     (*OS) << argv[i] << ' ';
   (*OS) << '\n';
@@ -171,10 +171,6 @@ CompilerInstance::createPreprocessor(Diagnostic &Diags,
   PTHManager *PTHMgr = 0;
   if (!PPOpts.TokenCache.empty())
     PTHMgr = PTHManager::Create(PPOpts.TokenCache, Diags);
-
-  // FIXME: Don't fail like this.
-  if (Diags.hasErrorOccurred())
-    exit(1);
 
   // Create the Preprocessor.
   HeaderSearch *HeaderInfo = new HeaderSearch(FileMgr);
@@ -287,7 +283,7 @@ CompilerInstance::createCodeCompletionConsumer(Preprocessor &PP,
   }
 
   // Truncate the named file at the given line/column.
-  PP.getSourceManager().truncateFileAt(Entry, Line, Column);
+  PP.SetCodeCompletionPoint(Entry, Line, Column);
 
   // Set up the creation routine for code-completion.
   if (UseDebugPrinter)
@@ -332,9 +328,9 @@ CompilerInstance::createOutputFile(llvm::StringRef OutputPath,
                                               InFile, Extension,
                                               &OutputPathName);
   if (!OS) {
-    // FIXME: Don't fail this way.
-    llvm::errs() << "error: " << Error << "\n";
-    ::exit(1);
+    getDiagnostics().Report(diag::err_fe_unable_to_open_output)
+      << OutputPath << Error;
+    return 0;
   }
 
   // Add the output file -- but don't try to remove "-", since this means we are

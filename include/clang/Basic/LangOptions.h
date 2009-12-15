@@ -46,7 +46,7 @@ public:
   unsigned LaxVectorConversions : 1;
   unsigned AltiVec           : 1;  // Support AltiVec-style vector initializers.
   unsigned Exceptions        : 1;  // Support exception handling.
-  unsigned Rtti              : 1;  // Support rtti information.
+  unsigned RTTI              : 1;  // Support RTTI information.
 
   unsigned NeXTRuntime       : 1; // Use NeXT runtime.
   unsigned Freestanding      : 1; // Freestanding implementation
@@ -92,6 +92,7 @@ public:
 
   unsigned ElideConstructors : 1; // Whether C++ copy constructors should be
                                   // elided if possible.
+  unsigned CatchUndefined     :1; // Generate code to check for undefined ops.
 private:
   unsigned GC : 2;                // Objective-C Garbage Collection modes.  We
                                   // declare this enum as unsigned because MSVC
@@ -125,7 +126,7 @@ public:
     CXXOperatorNames = PascalStrings = WritableStrings = 0;
     Exceptions = Freestanding = NoBuiltin = 0;
     NeXTRuntime = 1;
-    Rtti = 1;
+    RTTI = 1;
     LaxVectorConversions = 1;
     HeinousExtensions = 0;
     AltiVec = OpenCL = StackProtector = 0;
@@ -160,6 +161,7 @@ public:
 
     CharIsSigned = 1;
     ShortWChar = 0;
+    CatchUndefined = 0;
   }
 
   GCMode getGCMode() const { return (GCMode) GC; }

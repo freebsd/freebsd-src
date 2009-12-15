@@ -269,7 +269,15 @@ public:
 
   const GRState *InvalidateRegion(const GRState *state, const MemRegion *R,
                                   const Expr *E, unsigned Count,
-                                  InvalidatedSymbols *IS);
+                                  InvalidatedSymbols *IS) {
+    return RegionStoreManager::InvalidateRegions(state, &R, &R+1, E, Count, IS);
+  }
+  
+  const GRState *InvalidateRegions(const GRState *state,
+                                   const MemRegion * const *Begin,
+                                   const MemRegion * const *End,
+                                   const Expr *E, unsigned Count,
+                                   InvalidatedSymbols *IS);
 
 private:
   void RemoveSubRegionBindings(RegionBindings &B, const MemRegion *R,
@@ -279,7 +287,9 @@ public:
   const GRState *Bind(const GRState *state, Loc LV, SVal V);
 
   const GRState *BindCompoundLiteral(const GRState *state,
-                                     const CompoundLiteralExpr* CL, SVal V);
+                                     const CompoundLiteralExpr* CL,
+                                     const LocationContext *LC,
+                                     SVal V);
 
   const GRState *BindDecl(const GRState *ST, const VarRegion *VR,
                           SVal InitVal);
@@ -460,15 +470,13 @@ void RegionStoreManager::RemoveSubRegionBindings(RegionBindings &B,
   B = RBFactory.Remove(B, R);
 }
 
-const GRState *RegionStoreManager::InvalidateRegion(const GRState *state,
-                                                    const MemRegion *R,
-                                                    const Expr *Ex,
-                                                    unsigned Count,
-                                                    InvalidatedSymbols *IS) {
+const GRState *RegionStoreManager::InvalidateRegions(const GRState *state,
+                                                     const MemRegion * const *I,
+                                                     const MemRegion * const *E,
+                                                     const Expr *Ex,
+                                                     unsigned Count,
+                                                     InvalidatedSymbols *IS) {
   ASTContext& Ctx = StateMgr.getContext();
-
-  // Strip away casts.
-  R = R->StripCasts();
 
   // Get the mapping of regions -> subregions.
   llvm::OwningPtr<RegionStoreSubRegionMap>
@@ -478,10 +486,14 @@ const GRState *RegionStoreManager::InvalidateRegion(const GRState *state,
 
   llvm::DenseMap<const MemRegion *, unsigned> Visited;
   llvm::SmallVector<const MemRegion *, 10> WorkList;
-  WorkList.push_back(R);
+  
+  for ( ; I != E; ++I) {
+    // Strip away casts.
+    WorkList.push_back((*I)->StripCasts());
+  }
   
   while (!WorkList.empty()) {
-    R = WorkList.back();
+    const MemRegion *R = WorkList.back();
     WorkList.pop_back();
     
     // Have we visited this region before?
@@ -511,6 +523,19 @@ const GRState *RegionStoreManager::InvalidateRegion(const GRState *state,
     if (IS) {
       if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(R))
         IS->insert(SR->getSymbol());
+    }
+    
+    // BlockDataRegion?  If so, invalidate captured variables that are passed
+    // by reference.
+    if (const BlockDataRegion *BR = dyn_cast<BlockDataRegion>(R)) {
+      for (BlockDataRegion::referenced_vars_iterator
+            I = BR->referenced_vars_begin(), E = BR->referenced_vars_end() ;
+           I != E; ++I) {
+        const VarRegion *VR = *I;
+        if (VR->getDecl()->getAttr<BlocksAttr>())
+          WorkList.push_back(VR);
+      }
+      continue;
     }
 
     // Handle the region itself.
@@ -590,15 +615,6 @@ SVal RegionStoreManager::getLValueString(const StringLiteral* S) {
 SVal RegionStoreManager::getLValueVar(const VarDecl *VD, 
                                       const LocationContext *LC) {
   return loc::MemRegionVal(MRMgr.getVarRegion(VD, LC));
-}
-
-/// getLValueCompoundLiteral - Returns an SVal representing the lvalue
-///   of a compound literal.  Within RegionStore a compound literal
-///   has an associated region, and the lvalue of the compound literal
-///   is the lvalue of that region.
-SVal 
-RegionStoreManager::getLValueCompoundLiteral(const CompoundLiteralExpr* CL) {
-  return loc::MemRegionVal(MRMgr.getCompoundLiteralRegion(CL));
 }
 
 SVal RegionStoreManager::getLValueIvar(const ObjCIvarDecl* D, SVal Base) {
@@ -707,7 +723,12 @@ DefinedOrUnknownSVal RegionStoreManager::getSizeInElements(const GRState *state,
                                                            const MemRegion *R) {
 
   switch (R->getKind()) {
-    case MemRegion::MemSpaceRegionKind:
+    case MemRegion::GenericMemSpaceRegionKind:
+    case MemRegion::StackLocalsSpaceRegionKind:
+    case MemRegion::StackArgumentsSpaceRegionKind:
+    case MemRegion::HeapSpaceRegionKind:
+    case MemRegion::GlobalsSpaceRegionKind:
+    case MemRegion::UnknownSpaceRegionKind:
       assert(0 && "Cannot index into a MemSpace");
       return UnknownVal();
 
@@ -752,13 +773,6 @@ DefinedOrUnknownSVal RegionStoreManager::getSizeInElements(const GRState *state,
       // essentially are arrays of size 1.
       return ValMgr.makeIntVal(1, false);
     }
-
-    case MemRegion::BEG_DECL_REGIONS:
-    case MemRegion::END_DECL_REGIONS:
-    case MemRegion::BEG_TYPED_REGIONS:
-    case MemRegion::END_TYPED_REGIONS:
-      assert(0 && "Infeasible region");
-      return UnknownVal();
   }
 
   assert(0 && "Unreachable");
@@ -797,9 +811,8 @@ SVal RegionStoreManager::ArrayToPointer(Loc Array) {
   T = AT->getElementType();
 
   SVal ZeroIdx = ValMgr.makeZeroArrayIndex();
-  ElementRegion* ER = MRMgr.getElementRegion(T, ZeroIdx, ArrayR, getContext());
-
-  return loc::MemRegionVal(ER);
+  return loc::MemRegionVal(MRMgr.getElementRegion(T, ZeroIdx, ArrayR,
+                                                  getContext()));
 }
 
 //===----------------------------------------------------------------------===//
@@ -864,15 +877,13 @@ SVal RegionStoreManager::EvalBinOp(const GRState *state,
       // Technically this can happen if people do funny things with casts.
       return UnknownVal();
 
-    case MemRegion::MemSpaceRegionKind:
+    case MemRegion::GenericMemSpaceRegionKind:
+    case MemRegion::StackLocalsSpaceRegionKind:
+    case MemRegion::StackArgumentsSpaceRegionKind:
+    case MemRegion::HeapSpaceRegionKind:
+    case MemRegion::GlobalsSpaceRegionKind:
+    case MemRegion::UnknownSpaceRegionKind:
       assert(0 && "Cannot perform pointer arithmetic on a MemSpace");
-      return UnknownVal();
-
-    case MemRegion::BEG_DECL_REGIONS:
-    case MemRegion::END_DECL_REGIONS:
-    case MemRegion::BEG_TYPED_REGIONS:
-    case MemRegion::END_TYPED_REGIONS:
-      assert(0 && "Infeasible region");
       return UnknownVal();
   }
 
@@ -1283,7 +1294,8 @@ SVal RegionStoreManager::RetrieveVar(const GRState *state,
   // Lazily derive a value for the VarRegion.
   const VarDecl *VD = R->getDecl();
 
-  if (R->hasGlobalsOrParametersStorage())
+  if (R->hasGlobalsOrParametersStorage() ||
+      isa<UnknownSpaceRegion>(R->getMemorySpace()))
     return ValMgr.getRegionValueSymbolValOrUnknown(R, VD->getType());
 
   return UndefinedVal();
@@ -1440,11 +1452,11 @@ const GRState *RegionStoreManager::BindDecl(const GRState *ST,
 // FIXME: this method should be merged into Bind().
 const GRState *
 RegionStoreManager::BindCompoundLiteral(const GRState *state,
-                                        const CompoundLiteralExpr* CL,
+                                        const CompoundLiteralExpr *CL,
+                                        const LocationContext *LC,
                                         SVal V) {
-
-  CompoundLiteralRegion* R = MRMgr.getCompoundLiteralRegion(CL);
-  return Bind(state, loc::MemRegionVal(R), V);
+  return Bind(state, loc::MemRegionVal(MRMgr.getCompoundLiteralRegion(CL, LC)),
+              V);
 }
 
 const GRState *RegionStoreManager::setImplicitDefaultValue(const GRState *state,
@@ -1497,8 +1509,8 @@ const GRState *RegionStoreManager::BindArray(const GRState *state,
         break;
 
       SVal Idx = ValMgr.makeArrayIndex(i);
-      ElementRegion* ER = MRMgr.getElementRegion(ElementTy, Idx, R,
-                                                 getContext());
+      const ElementRegion* ER = MRMgr.getElementRegion(ElementTy, Idx, R,
+                                                       getContext());
 
       SVal V = ValMgr.makeIntVal(str[j], sizeof(char)*8, true);
       state = Bind(state, loc::MemRegionVal(ER), V);
@@ -1526,7 +1538,7 @@ const GRState *RegionStoreManager::BindArray(const GRState *state,
       break;
 
     SVal Idx = ValMgr.makeArrayIndex(i);
-    ElementRegion* ER = MRMgr.getElementRegion(ElementTy, Idx, R, getContext());
+    const ElementRegion *ER = MRMgr.getElementRegion(ElementTy, Idx, R, getContext());
 
     if (CAT->getElementType()->isStructureType())
       state = BindStruct(state, ER, *VI);
@@ -1677,7 +1689,7 @@ void RegionStoreManager::RemoveDeadBindings(GRState &state, Stmt* Loc,
     IntermediateVisited.insert(R);
     
     if (const VarRegion* VR = dyn_cast<VarRegion>(R)) {
-      if (SymReaper.isLive(Loc, VR->getDecl()))
+      if (SymReaper.isLive(Loc, VR))
         WorkList.push_back(std::make_pair(&state, VR));
       continue;
     }
@@ -1753,14 +1765,16 @@ tryAgain:
     if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(R))
       SymReaper.markLive(SymR->getSymbol());
     
-    // For BlockDataRegions, enqueue all VarRegions for that are referenced
+    // For BlockDataRegions, enqueue the VarRegions for variables marked
+    // with __block (passed-by-reference).
     // via BlockDeclRefExprs.
     if (const BlockDataRegion *BD = dyn_cast<BlockDataRegion>(R)) {
       for (BlockDataRegion::referenced_vars_iterator
             RI = BD->referenced_vars_begin(), RE = BD->referenced_vars_end();
-           RI != RE; ++RI)
-        WorkList.push_back(std::make_pair(state_N, *RI));
-
+           RI != RE; ++RI) {
+        if ((*RI)->getDecl()->getAttr<BlocksAttr>())
+          WorkList.push_back(std::make_pair(state_N, *RI));
+      }
       // No possible data bindings on a BlockDataRegion.  Continue to the
       // next region in the worklist.
       continue;
@@ -1846,8 +1860,7 @@ GRState const *RegionStoreManager::EnterStackFrame(GRState const *state,
   // Copy the arg expression value to the arg variables.
   for (; AI != AE; ++AI, ++PI) {
     SVal ArgVal = state->getSVal(*AI);
-    MemRegion *R = MRMgr.getVarRegion(*PI, frame);
-    state = Bind(state, ValMgr.makeLoc(R), ArgVal);
+    state = Bind(state, ValMgr.makeLoc(MRMgr.getVarRegion(*PI, frame)), ArgVal);
   }
 
   return state;

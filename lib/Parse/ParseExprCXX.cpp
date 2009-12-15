@@ -214,11 +214,29 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
     //   namespace-name '::'
     //   nested-name-specifier identifier '::'
     Token Next = NextToken();
+    
+    // If we get foo:bar, this is almost certainly a typo for foo::bar.  Recover
+    // and emit a fixit hint for it.
+    if (Next.is(tok::colon) && !ColonIsSacred &&
+        Actions.IsInvalidUnlessNestedName(CurScope, SS, II, ObjectType,
+                                          EnteringContext) &&
+        // If the token after the colon isn't an identifier, it's still an
+        // error, but they probably meant something else strange so don't
+        // recover like this.
+        PP.LookAhead(1).is(tok::identifier)) {
+      Diag(Next, diag::err_unexected_colon_in_nested_name_spec)
+        << CodeModificationHint::CreateReplacement(Next.getLocation(), "::");
+      
+      // Recover as if the user wrote '::'.
+      Next.setKind(tok::coloncolon);
+    }
+    
     if (Next.is(tok::coloncolon)) {
       // We have an identifier followed by a '::'. Lookup this name
       // as the name in a nested-name-specifier.
       SourceLocation IdLoc = ConsumeToken();
-      assert(Tok.is(tok::coloncolon) && "NextToken() not working properly!");
+      assert((Tok.is(tok::coloncolon) || Tok.is(tok::colon)) &&
+             "NextToken() not working properly!");
       SourceLocation CCLoc = ConsumeToken();
 
       if (!HasScopeSpecifier) {
@@ -1459,6 +1477,7 @@ static UnaryTypeTrait UnaryTypeTraitFromTokKind(tok::TokenKind kind) {
   case tok::kw___is_pod:                  return UTT_IsPOD;
   case tok::kw___is_polymorphic:          return UTT_IsPolymorphic;
   case tok::kw___is_union:                return UTT_IsUnion;
+  case tok::kw___is_literal:              return UTT_IsLiteral;
   }
 }
 

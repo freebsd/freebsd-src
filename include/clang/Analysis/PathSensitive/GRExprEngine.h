@@ -209,8 +209,17 @@ public:
 protected:
   /// CheckerVisit - Dispatcher for performing checker-specific logic
   ///  at specific statements.
-  bool CheckerVisit(Stmt *S, ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
+  void CheckerVisit(Stmt *S, ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
                     bool isPrevisit);
+
+  bool CheckerEvalCall(const CallExpr *CE, 
+                       ExplodedNodeSet &Dst, 
+                       ExplodedNode *Pred);
+
+  void CheckerEvalNilReceiver(const ObjCMessageExpr *ME, 
+                              ExplodedNodeSet &Dst,
+                              const GRState *state,
+                              ExplodedNode *Pred);
   
   void CheckerVisitBind(const Stmt *AssignE, const Stmt *StoreE,
                         ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
@@ -272,6 +281,13 @@ protected:
   void VisitDeclRefExpr(DeclRefExpr* DR, ExplodedNode* Pred,
                         ExplodedNodeSet& Dst, bool asLValue);
 
+  /// VisitBlockDeclRefExpr - Transfer function logic for BlockDeclRefExprs.
+  void VisitBlockDeclRefExpr(BlockDeclRefExpr* DR, ExplodedNode* Pred,
+                             ExplodedNodeSet& Dst, bool asLValue);
+  
+  void VisitCommonDeclRefExpr(Expr* DR, const NamedDecl *D,ExplodedNode* Pred,
+                             ExplodedNodeSet& Dst, bool asLValue);  
+  
   /// VisitDeclStmt - Transfer function logic for DeclStmts.
   void VisitDeclStmt(DeclStmt* DS, ExplodedNode* Pred, ExplodedNodeSet& Dst);
 
@@ -358,9 +374,10 @@ public:
   }
   
 protected:
-  void EvalObjCMessageExpr(ExplodedNodeSet& Dst, ObjCMessageExpr* ME, ExplodedNode* Pred) {
+  void EvalObjCMessageExpr(ExplodedNodeSet& Dst, ObjCMessageExpr* ME, 
+                           ExplodedNode* Pred, const GRState *state) {
     assert (Builder && "GRStmtNodeBuilder must be defined.");
-    getTF().EvalObjCMessageExpr(Dst, *this, *Builder, ME, Pred);
+    getTF().EvalObjCMessageExpr(Dst, *this, *Builder, ME, Pred, state);
   }
 
   const GRState* MarkBranch(const GRState* St, Stmt* Terminator,

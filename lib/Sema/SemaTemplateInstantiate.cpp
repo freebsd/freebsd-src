@@ -544,7 +544,7 @@ namespace {
     /// \brief Rebuild the exception declaration and register the declaration
     /// as an instantiated local.
     VarDecl *RebuildExceptionDecl(VarDecl *ExceptionDecl, QualType T,
-                                  DeclaratorInfo *Declarator,
+                                  TypeSourceInfo *Declarator,
                                   IdentifierInfo *Name,
                                   SourceLocation Loc, SourceRange TypeRange);
 
@@ -552,13 +552,10 @@ namespace {
     /// elaborated type.
     QualType RebuildElaboratedType(QualType T, ElaboratedType::TagKind Tag);
 
-    Sema::OwningExprResult TransformPredefinedExpr(PredefinedExpr *E,
-                                                   bool isAddressOfOperand);
-    Sema::OwningExprResult TransformDeclRefExpr(DeclRefExpr *E,
-                                                bool isAddressOfOperand);
+    Sema::OwningExprResult TransformPredefinedExpr(PredefinedExpr *E);
+    Sema::OwningExprResult TransformDeclRefExpr(DeclRefExpr *E);
 
-    Sema::OwningExprResult TransformCXXDefaultArgExpr(CXXDefaultArgExpr *E,
-                                                      bool isAddressOfOperand);
+    Sema::OwningExprResult TransformCXXDefaultArgExpr(CXXDefaultArgExpr *E);
 
     /// \brief Transforms a template type parameter type by performing
     /// substitution of the corresponding template type argument.
@@ -632,7 +629,7 @@ TemplateInstantiator::TransformFirstQualifierInScope(NamedDecl *D,
 VarDecl *
 TemplateInstantiator::RebuildExceptionDecl(VarDecl *ExceptionDecl,
                                            QualType T,
-                                           DeclaratorInfo *Declarator,
+                                           TypeSourceInfo *Declarator,
                                            IdentifierInfo *Name,
                                            SourceLocation Loc,
                                            SourceRange TypeRange) {
@@ -670,8 +667,7 @@ TemplateInstantiator::RebuildElaboratedType(QualType T,
 }
 
 Sema::OwningExprResult 
-TemplateInstantiator::TransformPredefinedExpr(PredefinedExpr *E,
-                                              bool isAddressOfOperand) {
+TemplateInstantiator::TransformPredefinedExpr(PredefinedExpr *E) {
   if (!E->isTypeDependent())
     return SemaRef.Owned(E->Retain());
 
@@ -694,8 +690,7 @@ TemplateInstantiator::TransformPredefinedExpr(PredefinedExpr *E,
 }
 
 Sema::OwningExprResult
-TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E,
-                                           bool isAddressOfOperand) {
+TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E) {
   // FIXME: Clean this up a bit
   NamedDecl *D = E->getDecl();
   if (NonTypeTemplateParmDecl *NTTP = dyn_cast<NonTypeTemplateParmDecl>(D)) {
@@ -782,29 +777,11 @@ TemplateInstantiator::TransformDeclRefExpr(DeclRefExpr *E,
     // FindInstantiatedDecl will find it in the local instantiation scope.
   }
 
-  NamedDecl *InstD = SemaRef.FindInstantiatedDecl(D, TemplateArgs);
-  if (!InstD)
-    return SemaRef.ExprError();
-
-  assert(!isa<UsingDecl>(InstD) && "decl ref instantiated to UsingDecl");
-
-  CXXScopeSpec SS;
-  NestedNameSpecifier *Qualifier = 0;
-  if (E->getQualifier()) {
-    Qualifier = TransformNestedNameSpecifier(E->getQualifier(),
-                                             E->getQualifierRange());
-    if (!Qualifier)
-      return SemaRef.ExprError();
-    
-    SS.setScopeRep(Qualifier);
-    SS.setRange(E->getQualifierRange());
-  }
-  
-  return SemaRef.BuildDeclarationNameExpr(SS, E->getLocation(), InstD);
+  return TreeTransform<TemplateInstantiator>::TransformDeclRefExpr(E);
 }
 
 Sema::OwningExprResult TemplateInstantiator::TransformCXXDefaultArgExpr(
-    CXXDefaultArgExpr *E, bool isAddressOfOperand) {
+    CXXDefaultArgExpr *E) {
   assert(!cast<FunctionDecl>(E->getParam()->getDeclContext())->
              getDescribedFunctionTemplate() &&
          "Default arg expressions are never formed in dependent cases.");
@@ -889,7 +866,7 @@ TemplateInstantiator::TransformTemplateTypeParmType(TypeLocBuilder &TLB,
 ///
 /// \returns If the instantiation succeeds, the instantiated
 /// type. Otherwise, produces diagnostics and returns a NULL type.
-DeclaratorInfo *Sema::SubstType(DeclaratorInfo *T,
+TypeSourceInfo *Sema::SubstType(TypeSourceInfo *T,
                                 const MultiLevelTemplateArgumentList &Args,
                                 SourceLocation Loc,
                                 DeclarationName Entity) {
@@ -936,6 +913,13 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
          Base = Pattern->bases_begin(), BaseEnd = Pattern->bases_end();
        Base != BaseEnd; ++Base) {
     if (!Base->getType()->isDependentType()) {
+      const CXXRecordDecl *BaseDecl =
+        cast<CXXRecordDecl>(Base->getType()->getAs<RecordType>()->getDecl());
+      
+      // Make sure to set the attributes from the base.
+      SetClassDeclAttributesFromBase(Instantiation, BaseDecl, 
+                                     Base->isVirtual());
+      
       InstantiatedBases.push_back(new (Context) CXXBaseSpecifier(*Base));
       continue;
     }
@@ -1053,12 +1037,10 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
        Member != MemberEnd; ++Member) {
     Decl *NewMember = SubstDecl(*Member, Instantiation, TemplateArgs);
     if (NewMember) {
-      if (NewMember->isInvalidDecl()) {
-        Invalid = true;
-      } else if (FieldDecl *Field = dyn_cast<FieldDecl>(NewMember))
+      if (FieldDecl *Field = dyn_cast<FieldDecl>(NewMember))
         Fields.push_back(DeclPtrTy::make(Field));
-      else if (UsingDecl *UD = dyn_cast<UsingDecl>(NewMember))
-        Instantiation->addDecl(UD);
+      else if (NewMember->isInvalidDecl())
+        Invalid = true;
     } else {
       // FIXME: Eventually, a NULL return will mean that one of the
       // instantiations was a semantic disaster, and we'll want to set Invalid =
@@ -1070,13 +1052,10 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
   ActOnFields(0, Instantiation->getLocation(), DeclPtrTy::make(Instantiation),
               Fields.data(), Fields.size(), SourceLocation(), SourceLocation(),
               0);
+  CheckCompletedCXXClass(Instantiation);
   if (Instantiation->isInvalidDecl())
     Invalid = true;
   
-  // Add any implicitly-declared members that we might need.
-  if (!Invalid)
-    AddImplicitlyDeclaredMembersToClass(Instantiation);
-
   // Exit the scope of this instantiation.
   CurContext = PreviousContext;
 

@@ -77,11 +77,12 @@ const MemRegion *StoreManager::CastRegion(const MemRegion *R, QualType CastToTy)
 
   // Process region cast according to the kind of the region being cast.
   switch (R->getKind()) {
-    case MemRegion::BEG_TYPED_REGIONS:
-    case MemRegion::MemSpaceRegionKind:
-    case MemRegion::BEG_DECL_REGIONS:
-    case MemRegion::END_DECL_REGIONS:
-    case MemRegion::END_TYPED_REGIONS: {
+    case MemRegion::GenericMemSpaceRegionKind:
+    case MemRegion::StackLocalsSpaceRegionKind:
+    case MemRegion::StackArgumentsSpaceRegionKind:
+    case MemRegion::HeapSpaceRegionKind:
+    case MemRegion::UnknownSpaceRegionKind:
+    case MemRegion::GlobalsSpaceRegionKind: {
       assert(0 && "Invalid region cast");
       break;
     }
@@ -199,9 +200,33 @@ SVal  StoreManager::CastRetrievedVal(SVal V, const TypedRegion *R,
                                      QualType castTy) {
   if (castTy.isNull())
     return V;
-  
+
   assert(ValMgr.getContext().hasSameUnqualifiedType(castTy,
                                          R->getValueType(ValMgr.getContext())));
   return V;
 }
 
+const GRState *StoreManager::InvalidateRegions(const GRState *state,
+                                               const MemRegion * const *I,
+                                               const MemRegion * const *End,
+                                               const Expr *E,
+                                               unsigned Count,
+                                               InvalidatedSymbols *IS) {
+  for ( ; I != End ; ++I)
+    state = InvalidateRegion(state, *I, E, Count, IS);
+  
+  return state;
+}
+
+//===----------------------------------------------------------------------===//
+// Common getLValueXXX methods.
+//===----------------------------------------------------------------------===//
+
+/// getLValueCompoundLiteral - Returns an SVal representing the lvalue
+///   of a compound literal.  Within RegionStore a compound literal
+///   has an associated region, and the lvalue of the compound literal
+///   is the lvalue of that region.
+SVal StoreManager::getLValueCompoundLiteral(const CompoundLiteralExpr* CL,
+                                            const LocationContext *LC) {
+  return loc::MemRegionVal(MRMgr.getCompoundLiteralRegion(CL, LC));
+}

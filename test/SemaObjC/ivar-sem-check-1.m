@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: clang -cc1 -fsyntax-only -verify %s
 
 struct S; // expected-note{{forward declaration of 'struct S'}}
 typedef int FOO();
@@ -9,7 +9,8 @@ typedef int FOO();
 	int arr[];  // expected-error {{field has incomplete type}}
 	struct S IC;  // expected-error {{field has incomplete type}}
 	struct T { // expected-note {{previous definition is here}}
-	  struct T {} X;  // expected-error {{nested redefinition of 'T'}}
+	  struct T {} X;  // expected-error {{nested redefinition of 'T'}} \
+	                  // expected-error {{field has incomplete type}}
 	}YYY; 
 	FOO    BADFUNC;  // expected-error {{field 'BADFUNC' declared as a function}}
 	int kaka;	// expected-note {{previous declaration is here}}

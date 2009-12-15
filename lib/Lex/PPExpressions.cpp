@@ -72,8 +72,8 @@ struct DefinedTracker {
 };
 
 /// EvaluateDefined - Process a 'defined(sym)' expression.
-static bool EvaluateDefined(PPValue &Result, Token &PeekTok,
-        DefinedTracker &DT, bool ValueLive, Preprocessor &PP) {
+static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
+                            bool ValueLive, Preprocessor &PP) {
   IdentifierInfo *II;
   Result.setBegin(PeekTok.getLocation());
 
@@ -142,22 +142,21 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   // 'defined' or if it is a macro.  Note that we check here because many
   // keywords are pp-identifiers, so we can't check the kind.
   if (IdentifierInfo *II = PeekTok.getIdentifierInfo()) {
-    if (II->isStr("defined")) {
-      // Handle "defined X" and "defined(X)".
+    // Handle "defined X" and "defined(X)".
+    if (II->isStr("defined"))
       return(EvaluateDefined(Result, PeekTok, DT, ValueLive, PP));
-    } else {
-      // If this identifier isn't 'defined' or one of the special
-      // preprocessor keywords and it wasn't macro expanded, it turns
-      // into a simple 0, unless it is the C++ keyword "true", in which case it
-      // turns into "1".
-      if (ValueLive)
-        PP.Diag(PeekTok, diag::warn_pp_undef_identifier) << II;
-      Result.Val = II->getTokenID() == tok::kw_true;
-      Result.Val.setIsUnsigned(false);  // "0" is signed intmax_t 0.
-      Result.setRange(PeekTok.getLocation());
-      PP.LexNonComment(PeekTok);
-      return false;
-    }
+    
+    // If this identifier isn't 'defined' or one of the special
+    // preprocessor keywords and it wasn't macro expanded, it turns
+    // into a simple 0, unless it is the C++ keyword "true", in which case it
+    // turns into "1".
+    if (ValueLive)
+      PP.Diag(PeekTok, diag::warn_pp_undef_identifier) << II;
+    Result.Val = II->getTokenID() == tok::kw_true;
+    Result.Val.setIsUnsigned(false);  // "0" is signed intmax_t 0.
+    Result.setRange(PeekTok.getLocation());
+    PP.LexNonComment(PeekTok);
+    return false;
   }
 
   switch (PeekTok.getKind()) {
@@ -677,6 +676,15 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
 /// to "!defined(X)" return X in IfNDefMacro.
 bool Preprocessor::
 EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
+  // Save the current state of 'DisableMacroExpansion' and reset it to false. If
+  // 'DisableMacroExpansion' is true, then we must be in a macro argument list
+  // in which case a directive is undefined behavior.  We want macros to be able
+  // to recursively expand in order to get more gcc-list behavior, so we force
+  // DisableMacroExpansion to false and restore it when we're done parsing the
+  // expression.
+  bool DisableMacroExpansionAtStartOfDirective = DisableMacroExpansion;
+  DisableMacroExpansion = false;
+  
   // Peek ahead one token.
   Token Tok;
   Lex(Tok);
@@ -690,6 +698,9 @@ EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
     // Parse error, skip the rest of the macro line.
     if (Tok.isNot(tok::eom))
       DiscardUntilEndOfDirective();
+    
+    // Restore 'DisableMacroExpansion'.
+    DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
     return false;
   }
 
@@ -702,6 +713,8 @@ EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
     if (DT.State == DefinedTracker::NotDefinedMacro)
       IfNDefMacro = DT.TheMacro;
 
+    // Restore 'DisableMacroExpansion'.
+    DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
     return ResVal.Val != 0;
   }
 
@@ -712,6 +725,9 @@ EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
     // Parse error, skip the rest of the macro line.
     if (Tok.isNot(tok::eom))
       DiscardUntilEndOfDirective();
+    
+    // Restore 'DisableMacroExpansion'.
+    DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
     return false;
   }
 
@@ -722,6 +738,8 @@ EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
     DiscardUntilEndOfDirective();
   }
 
+  // Restore 'DisableMacroExpansion'.
+  DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
   return ResVal.Val != 0;
 }
 

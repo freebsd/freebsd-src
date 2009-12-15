@@ -52,8 +52,8 @@ public:
   
   void VisitDeclaratorDecl(DeclaratorDecl *D) {
     BaseDeclVisitor::VisitDeclaratorDecl(D);
-    if (DeclaratorInfo *DInfo = D->getDeclaratorInfo())
-      Visit(DInfo->getTypeLoc());
+    if (TypeSourceInfo *TInfo = D->getTypeSourceInfo())
+      Visit(TInfo->getTypeLoc());
   }
 
   void VisitFunctionDecl(FunctionDecl *D) {
@@ -104,7 +104,7 @@ public:
   }
 
   void VisitBlockExpr(BlockExpr *Node) {
-    Visit(Node->getBlockDecl());
+    // The BlockDecl is also visited by 'VisitDeclContext()'.  No need to visit it twice.
   }
 
   void VisitStmt(Stmt *Node) {

@@ -104,6 +104,34 @@ enum CXCursorKind {
  CXCursor_LastInvalid                   = 72
 };
 
+/**
+ * \brief Provides the contents of a file that has not yet been saved to disk.
+ *
+ * Each CXUnsavedFile instance provides the name of a file on the
+ * system along with the current contents of that file that have not
+ * yet been saved to disk.
+ */
+struct CXUnsavedFile {
+  /** 
+   * \brief The file whose contents have not yet been saved. 
+   *
+   * This file must already exist in the file system.
+   */
+  const char *Filename;
+
+  /** 
+   * \brief A null-terminated buffer containing the unsaved contents
+   * of this file.
+   */
+  const char *Contents;
+
+  /**
+   * \brief The length of the unsaved contents of this buffer, not
+   * counting the NULL at the end of the buffer.
+   */
+  unsigned long Length;
+};
+
 /* A cursor into the CXTranslationUnit. */
 
 typedef struct {
@@ -174,8 +202,22 @@ CINDEX_LINKAGE void clang_disposeString(CXString string);
  */
 CINDEX_LINKAGE CXIndex clang_createIndex(int excludeDeclarationsFromPCH,
                           int displayDiagnostics);
-CINDEX_LINKAGE void clang_disposeIndex(CXIndex);
-CINDEX_LINKAGE CXString clang_getTranslationUnitSpelling(CXTranslationUnit CTUnit);
+CINDEX_LINKAGE void clang_disposeIndex(CXIndex index);
+CINDEX_LINKAGE CXString
+clang_getTranslationUnitSpelling(CXTranslationUnit CTUnit);
+
+/* 
+ * \brief Request that AST's be generated external for API calls which parse
+ * source code on the fly, e.g. \see createTranslationUnitFromSourceFile.
+ *
+ * Note: This is for debugging purposes only, and may be removed at a later
+ * date.
+ *
+ * \param index - The index to update.
+ * \param value - The new flag value.
+ */
+CINDEX_LINKAGE void clang_setUseExternalASTGeneration(CXIndex index,
+                                                      int value);
 
 /* 
  * \brief Create a translation unit from an AST file (-emit-ast).
@@ -183,6 +225,7 @@ CINDEX_LINKAGE CXString clang_getTranslationUnitSpelling(CXTranslationUnit CTUni
 CINDEX_LINKAGE CXTranslationUnit clang_createTranslationUnit(
   CXIndex, const char *ast_filename
 );
+
 /**
  * \brief Destroy the specified CXTranslationUnit object.
  */ 
@@ -192,20 +235,25 @@ CINDEX_LINKAGE void clang_disposeTranslationUnit(CXTranslationUnit);
  * \brief Return the CXTranslationUnit for a given source file and the provided
  * command line arguments one would pass to the compiler.
  *
- * Note: The 'source_filename' argument is optional.  If the caller provides a NULL pointer,
- *  the name of the source file is expected to reside in the specified command line arguments.
+ * Note: The 'source_filename' argument is optional.  If the caller provides a
+ * NULL pointer, the name of the source file is expected to reside in the
+ * specified command line arguments.
  *
- * Note: When encountered in 'clang_command_line_args', the following options are ignored:
+ * Note: When encountered in 'clang_command_line_args', the following options
+ * are ignored:
  *
  *   '-c'
  *   '-emit-ast'
  *   '-fsyntax-only'
  *   '-o <output file>'  (both '-o' and '<output file>' are ignored)
  *
+ *
+ * \param source_filename - The name of the source file to load, or NULL if the
+ * source file is included in clang_command_line_args.
  */
 CINDEX_LINKAGE CXTranslationUnit clang_createTranslationUnitFromSourceFile(
-  CXIndex CIdx, 
-  const char *source_filename /* specify NULL if the source file is in clang_command_line_args */,
+  CXIndex CIdx,
+  const char *source_filename,
   int num_clang_command_line_args, 
   const char **clang_command_line_args
 );
@@ -225,13 +273,14 @@ CINDEX_LINKAGE CXTranslationUnit clang_createTranslationUnitFromSourceFile(
    }
    static void usage {
      clang_loadTranslationUnit(CXTranslationUnit, printObjCInterfaceNames);
-   }
+  }
 */
 typedef void *CXClientData;
 typedef void (*CXTranslationUnitIterator)(CXTranslationUnit, CXCursor, 
                                           CXClientData);
-CINDEX_LINKAGE void clang_loadTranslationUnit(CXTranslationUnit, CXTranslationUnitIterator,
-                               CXClientData);
+CINDEX_LINKAGE void clang_loadTranslationUnit(CXTranslationUnit,
+                                              CXTranslationUnitIterator,
+                                              CXClientData);
 
 /*
    Usage: clang_loadDeclaration(). Will load the declaration, issuing a 
@@ -292,8 +341,9 @@ CINDEX_LINKAGE CXFile clang_getDeclSourceFile(CXDecl);
    Usage: clang_getCursor() will translate a source/line/column position
    into an AST cursor (to derive semantic information from the source code).
  */
-CINDEX_LINKAGE CXCursor clang_getCursor(CXTranslationUnit, const char *source_name, 
-                         unsigned line, unsigned column);
+CINDEX_LINKAGE CXCursor clang_getCursor(CXTranslationUnit,
+                                        const char *source_name, 
+                                        unsigned line, unsigned column);
                          
 CINDEX_LINKAGE CXCursor clang_getNullCursor(void);
 
@@ -606,11 +656,11 @@ clang_getNumCompletionChunks(CXCompletionString completion_string);
  * \param CIdx the \c CXIndex instance that will be used to perform code
  * completion.
  *
- * \param source_filename the name of the source file that should be parsed
- * to perform code-completion. This source file must be the same as or
- * include the filename described by \p complete_filename, or no code-completion
- * results will be produced.  NOTE: One can also specify NULL for this argument if
- * the source file is included in command_line_args.
+ * \param source_filename the name of the source file that should be parsed to
+ * perform code-completion. This source file must be the same as or include the
+ * filename described by \p complete_filename, or no code-completion results
+ * will be produced.  NOTE: One can also specify NULL for this argument if the
+ * source file is included in command_line_args.
  *
  * \param num_command_line_args the number of command-line arguments stored in
  * \p command_line_args.
@@ -620,6 +670,13 @@ clang_getNumCompletionChunks(CXCompletionString completion_string);
  * necessary include paths, language-dialect switches, precompiled header
  * includes, etc., but should not include any information specific to 
  * code completion.
+ *
+ * \param num_unsaved_files the number of unsaved file entries in \p
+ * unsaved_files.
+ *
+ * \param unsaved_files the files that have not yet been saved to disk
+ * but may be required for code completion, including the contents of
+ * those files.
  *
  * \param complete_filename the name of the source file where code completion
  * should be performed. In many cases, this name will be the same as the
@@ -643,6 +700,8 @@ CINDEX_LINKAGE void clang_codeComplete(CXIndex CIdx,
                                        const char *source_filename,
                                        int num_command_line_args, 
                                        const char **command_line_args,
+                                       unsigned num_unsaved_files,
+                                       struct CXUnsavedFile *unsaved_files,
                                        const char *complete_filename,
                                        unsigned complete_line,
                                        unsigned complete_column,

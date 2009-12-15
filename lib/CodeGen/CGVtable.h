@@ -15,11 +15,9 @@
 #define CLANG_CODEGEN_CGVTABLE_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/GlobalVariable.h"
 #include "GlobalDecl.h"
-
-namespace llvm {
-  class Constant;
-}
 
 namespace clang {
   class CXXRecordDecl;
@@ -64,6 +62,11 @@ public:
 };
 
 class CGVtableInfo {
+public:
+  typedef std::vector<std::pair<GlobalDecl, ThunkAdjustment> >
+      AdjustmentVectorTy;
+
+private:
   CodeGenModule &CGM;
 
   /// MethodVtableIndices - Contains the index (relative to the vtable address
@@ -79,11 +82,16 @@ class CGVtableInfo {
   typedef llvm::DenseMap<ClassPairTy, int64_t> VirtualBaseClassIndiciesTy;
   VirtualBaseClassIndiciesTy VirtualBaseClassIndicies;
 
-  llvm::DenseMap<const CXXRecordDecl *, llvm::Constant *> Vtables;
+  /// Vtables - All the vtables which have been defined.
+  llvm::DenseMap<const CXXRecordDecl *, llvm::GlobalVariable *> Vtables;
   
   /// NumVirtualFunctionPointers - Contains the number of virtual function 
   /// pointers in the vtable for a given record decl.
   llvm::DenseMap<const CXXRecordDecl *, uint64_t> NumVirtualFunctionPointers;
+
+  typedef llvm::DenseMap<GlobalDecl, AdjustmentVectorTy> SavedAdjustmentsTy;
+  SavedAdjustmentsTy SavedAdjustments;
+  llvm::DenseSet<const CXXRecordDecl*> SavedAdjustmentRecords;
 
   /// getNumVirtualFunctionPointers - Return the number of virtual function
   /// pointers in the vtable for a given record decl.
@@ -94,8 +102,19 @@ class CGVtableInfo {
   /// GenerateClassData - Generate all the class data requires to be generated
   /// upon definition of a KeyFunction.  This includes the vtable, the
   /// rtti data structure and the VTT.
-  void GenerateClassData(const CXXRecordDecl *RD);
-  
+  /// 
+  /// \param Linkage - The desired linkage of the vtable, the RTTI and the VTT.
+  void GenerateClassData(llvm::GlobalVariable::LinkageTypes Linkage,
+                         const CXXRecordDecl *RD);
+ 
+  llvm::GlobalVariable *
+  GenerateVtable(llvm::GlobalVariable::LinkageTypes Linkage,
+                 bool GenerateDefinition, const CXXRecordDecl *LayoutClass, 
+                 const CXXRecordDecl *RD, uint64_t Offset);
+
+  llvm::GlobalVariable *GenerateVTT(llvm::GlobalVariable::LinkageTypes Linkage,
+                                    const CXXRecordDecl *RD);
+
 public:
   CGVtableInfo(CodeGenModule &CGM)
     : CGM(CGM) { }
@@ -113,9 +132,17 @@ public:
   int64_t getVirtualBaseOffsetIndex(const CXXRecordDecl *RD,
                                     const CXXRecordDecl *VBase);
 
-  llvm::Constant *getVtable(const CXXRecordDecl *RD);
-  llvm::Constant *getCtorVtable(const CXXRecordDecl *RD,
-                                const CXXRecordDecl *Class, uint64_t Offset);
+  AdjustmentVectorTy *getAdjustments(GlobalDecl GD);
+
+  /// getVtableAddressPoint - returns the address point of the vtable for the
+  /// given record decl.
+  /// FIXME: This should return a list of address points.
+  uint64_t getVtableAddressPoint(const CXXRecordDecl *RD);
+  
+  llvm::GlobalVariable *getVtable(const CXXRecordDecl *RD);
+  llvm::GlobalVariable *getCtorVtable(const CXXRecordDecl *RD,
+                                      const CXXRecordDecl *Class, 
+                                      uint64_t Offset);
   
   
   void MaybeEmitVtable(GlobalDecl GD);

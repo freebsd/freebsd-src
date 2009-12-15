@@ -663,31 +663,6 @@ void ASTRecordLayoutBuilder::UpdateAlignment(unsigned NewAlignment) {
   Alignment = NewAlignment;
 }
 
-static const CXXMethodDecl *GetKeyFunction(const CXXRecordDecl *RD) {
-  if (!RD->isDynamicClass())
-    return 0;
-  
-  for (CXXRecordDecl::method_iterator I = RD->method_begin(), 
-       E = RD->method_end(); I != E; ++I) {
-    const CXXMethodDecl *MD = *I;
-    
-    if (!MD->isVirtual())
-      continue;
-    
-    if (MD->isPure())
-      continue;
-    
-    const FunctionDecl *fn;
-    if (MD->getBody(fn) && !fn->isOutOfLine())
-      continue;
-    
-    // We found it.
-    return MD;
-  }
-  
-  return 0;
-}
-
 const ASTRecordLayout *
 ASTRecordLayoutBuilder::ComputeLayout(ASTContext &Ctx,
                                       const RecordDecl *D) {
@@ -711,8 +686,6 @@ ASTRecordLayoutBuilder::ComputeLayout(ASTContext &Ctx,
   uint64_t NonVirtualSize =
     IsPODForThePurposeOfLayout ? DataSize : Builder.NonVirtualSize;
 
-  const CXXMethodDecl *KeyFunction = GetKeyFunction(cast<CXXRecordDecl>(D));
-  
   return new ASTRecordLayout(Builder.Size, Builder.Alignment, DataSize,
                              Builder.FieldOffsets.data(),
                              Builder.FieldOffsets.size(),
@@ -722,8 +695,7 @@ ASTRecordLayoutBuilder::ComputeLayout(ASTContext &Ctx,
                              Builder.Bases.data(),
                              Builder.Bases.size(),
                              Builder.VBases.data(),
-                             Builder.VBases.size(),
-                             KeyFunction);
+                             Builder.VBases.size());
 }
 
 const ASTRecordLayout *
@@ -739,3 +711,51 @@ ASTRecordLayoutBuilder::ComputeLayout(ASTContext &Ctx,
                              Builder.FieldOffsets.data(),
                              Builder.FieldOffsets.size());
 }
+
+const CXXMethodDecl *
+ASTRecordLayoutBuilder::ComputeKeyFunction(const CXXRecordDecl *RD) {
+  assert(RD->isDynamicClass() && "Class does not have any virtual methods!");
+
+  // If a class isnt' polymorphic it doesn't have a key function.
+  if (!RD->isPolymorphic())
+    return 0;
+  
+  // A class template specialization or instantation does not have a key
+  // function.
+  if (RD->getTemplateSpecializationKind() != TSK_Undeclared)
+    return 0;
+
+  // A class inside an anonymous namespace doesn't have a key function.  (Or
+  // at least, there's no point to assigning a key function to such a class;
+  // this doesn't affect the ABI.)
+  if (RD->isInAnonymousNamespace())
+    return 0;
+
+  for (CXXRecordDecl::method_iterator I = RD->method_begin(), 
+       E = RD->method_end(); I != E; ++I) {
+    const CXXMethodDecl *MD = *I;
+    
+    if (!MD->isVirtual())
+      continue;
+    
+    if (MD->isPure())
+      continue;
+
+    if (MD->isInlineSpecified())
+      continue;
+    
+    // Ignore implicit member functions, they are always marked as inline, but
+    // they don't have a body until they're defined.
+    if (MD->isImplicit())
+      continue;
+
+    if (MD->hasInlineBody())
+      continue;
+    
+    // We found it.
+    return MD;
+  }
+  
+  return 0;
+}
+

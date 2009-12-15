@@ -260,24 +260,40 @@ ASTContext::setInstantiatedFromStaticDataMember(VarDecl *Inst, VarDecl *Tmpl,
 }
 
 NamedDecl *
-ASTContext::getInstantiatedFromUnresolvedUsingDecl(UsingDecl *UUD) {
+ASTContext::getInstantiatedFromUsingDecl(UsingDecl *UUD) {
   llvm::DenseMap<UsingDecl *, NamedDecl *>::const_iterator Pos
-    = InstantiatedFromUnresolvedUsingDecl.find(UUD);
-  if (Pos == InstantiatedFromUnresolvedUsingDecl.end())
+    = InstantiatedFromUsingDecl.find(UUD);
+  if (Pos == InstantiatedFromUsingDecl.end())
     return 0;
 
   return Pos->second;
 }
 
 void
-ASTContext::setInstantiatedFromUnresolvedUsingDecl(UsingDecl *UD,
-                                                   NamedDecl *UUD) {
-  assert((isa<UnresolvedUsingValueDecl>(UUD) ||
-          isa<UnresolvedUsingTypenameDecl>(UUD)) && 
-         "original declaration is not an unresolved using decl");
-  assert(!InstantiatedFromUnresolvedUsingDecl[UD] &&
-         "Already noted what using decl what instantiated from");
-  InstantiatedFromUnresolvedUsingDecl[UD] = UUD;
+ASTContext::setInstantiatedFromUsingDecl(UsingDecl *Inst, NamedDecl *Pattern) {
+  assert((isa<UsingDecl>(Pattern) ||
+          isa<UnresolvedUsingValueDecl>(Pattern) ||
+          isa<UnresolvedUsingTypenameDecl>(Pattern)) && 
+         "pattern decl is not a using decl");
+  assert(!InstantiatedFromUsingDecl[Inst] && "pattern already exists");
+  InstantiatedFromUsingDecl[Inst] = Pattern;
+}
+
+UsingShadowDecl *
+ASTContext::getInstantiatedFromUsingShadowDecl(UsingShadowDecl *Inst) {
+  llvm::DenseMap<UsingShadowDecl*, UsingShadowDecl*>::const_iterator Pos
+    = InstantiatedFromUsingShadowDecl.find(Inst);
+  if (Pos == InstantiatedFromUsingShadowDecl.end())
+    return 0;
+
+  return Pos->second;
+}
+
+void
+ASTContext::setInstantiatedFromUsingShadowDecl(UsingShadowDecl *Inst,
+                                               UsingShadowDecl *Pattern) {
+  assert(!InstantiatedFromUsingShadowDecl[Inst] && "pattern already exists");
+  InstantiatedFromUsingShadowDecl[Inst] = Pattern;
 }
 
 FieldDecl *ASTContext::getInstantiatedFromUnnamedFieldDecl(FieldDecl *Field) {
@@ -711,10 +727,6 @@ ASTContext::getTypeInfo(const Type *T) {
     break;
   }
   case Type::MemberPointer: {
-    // FIXME: This is ABI dependent. We use the Itanium C++ ABI.
-    // http://www.codesourcery.com/public/cxx-abi/abi.html#member-pointers
-    // If we ever want to support other ABIs this needs to be abstracted.
-
     QualType Pointee = cast<MemberPointerType>(T)->getPointeeType();
     std::pair<uint64_t, unsigned> PtrDiffInfo =
       getTypeInfo(getPointerDiffType());
@@ -997,31 +1009,31 @@ void ASTContext::setObjCImplementation(ObjCCategoryDecl *CatD,
   ObjCImpls[CatD] = ImplD;
 }
 
-/// \brief Allocate an uninitialized DeclaratorInfo.
+/// \brief Allocate an uninitialized TypeSourceInfo.
 ///
-/// The caller should initialize the memory held by DeclaratorInfo using
+/// The caller should initialize the memory held by TypeSourceInfo using
 /// the TypeLoc wrappers.
 ///
 /// \param T the type that will be the basis for type source info. This type
 /// should refer to how the declarator was written in source code, not to
 /// what type semantic analysis resolved the declarator to.
-DeclaratorInfo *ASTContext::CreateDeclaratorInfo(QualType T,
+TypeSourceInfo *ASTContext::CreateTypeSourceInfo(QualType T,
                                                  unsigned DataSize) {
   if (!DataSize)
     DataSize = TypeLoc::getFullDataSizeForType(T);
   else
     assert(DataSize == TypeLoc::getFullDataSizeForType(T) &&
-           "incorrect data size provided to CreateDeclaratorInfo!");
+           "incorrect data size provided to CreateTypeSourceInfo!");
 
-  DeclaratorInfo *DInfo =
-    (DeclaratorInfo*)BumpAlloc.Allocate(sizeof(DeclaratorInfo) + DataSize, 8);
-  new (DInfo) DeclaratorInfo(T);
-  return DInfo;
+  TypeSourceInfo *TInfo =
+    (TypeSourceInfo*)BumpAlloc.Allocate(sizeof(TypeSourceInfo) + DataSize, 8);
+  new (TInfo) TypeSourceInfo(T);
+  return TInfo;
 }
 
-DeclaratorInfo *ASTContext::getTrivialDeclaratorInfo(QualType T,
+TypeSourceInfo *ASTContext::getTrivialTypeSourceInfo(QualType T,
                                                      SourceLocation L) {
-  DeclaratorInfo *DI = CreateDeclaratorInfo(T);
+  TypeSourceInfo *DI = CreateTypeSourceInfo(T);
   DI->getTypeLoc().initialize(L);
   return DI;
 }
@@ -1090,6 +1102,20 @@ const ASTRecordLayout &ASTContext::getASTRecordLayout(const RecordDecl *D) {
   ASTRecordLayouts[D] = NewEntry;
 
   return *NewEntry;
+}
+
+const CXXMethodDecl *ASTContext::getKeyFunction(const CXXRecordDecl *RD) {
+  RD = cast<CXXRecordDecl>(RD->getDefinition(*this));
+  assert(RD && "Cannot get key function for forward declarations!");
+  
+  const CXXMethodDecl *&Entry = KeyFunctions[RD];
+  if (!Entry) 
+    Entry = ASTRecordLayoutBuilder::ComputeKeyFunction(RD);
+  else
+    assert(Entry == ASTRecordLayoutBuilder::ComputeKeyFunction(RD) &&
+           "Key function changed!");
+  
+  return Entry;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1174,32 +1200,42 @@ QualType ASTContext::getObjCGCQualType(QualType T,
   return getExtQualType(TypeNode, Quals);
 }
 
-QualType ASTContext::getNoReturnType(QualType T) {
+QualType ASTContext::getNoReturnType(QualType T, bool AddNoReturn) {
   QualType ResultType;
-  if (T->isPointerType()) {
-    QualType Pointee = T->getAs<PointerType>()->getPointeeType();
-    ResultType = getNoReturnType(Pointee);
+  if (const PointerType *Pointer = T->getAs<PointerType>()) {
+    QualType Pointee = Pointer->getPointeeType();
+    ResultType = getNoReturnType(Pointee, AddNoReturn);
+    if (ResultType == Pointee)
+      return T;
+    
     ResultType = getPointerType(ResultType);
-  } else if (T->isBlockPointerType()) {
-    QualType Pointee = T->getAs<BlockPointerType>()->getPointeeType();
-    ResultType = getNoReturnType(Pointee);
+  } else if (const BlockPointerType *BlockPointer
+                                              = T->getAs<BlockPointerType>()) {
+    QualType Pointee = BlockPointer->getPointeeType();
+    ResultType = getNoReturnType(Pointee, AddNoReturn);
+    if (ResultType == Pointee)
+      return T;
+    
     ResultType = getBlockPointerType(ResultType);
-  } else {
-    assert (T->isFunctionType()
-            && "can't noreturn qualify non-pointer to function or block type");
-
-    if (const FunctionNoProtoType *FNPT = T->getAs<FunctionNoProtoType>()) {
-      ResultType = getFunctionNoProtoType(FNPT->getResultType(), true);
+  } else if (const FunctionType *F = T->getAs<FunctionType>()) {
+    if (F->getNoReturnAttr() == AddNoReturn)
+      return T;
+    
+    if (const FunctionNoProtoType *FNPT = dyn_cast<FunctionNoProtoType>(F)) {
+      ResultType = getFunctionNoProtoType(FNPT->getResultType(), AddNoReturn);
     } else {
-      const FunctionProtoType *F = T->getAs<FunctionProtoType>();
+      const FunctionProtoType *FPT = cast<FunctionProtoType>(F);
       ResultType
-        = getFunctionType(F->getResultType(), F->arg_type_begin(),
-                          F->getNumArgs(), F->isVariadic(), F->getTypeQuals(),
-                          F->hasExceptionSpec(), F->hasAnyExceptionSpec(),
-                          F->getNumExceptions(), F->exception_begin(), true);
+        = getFunctionType(FPT->getResultType(), FPT->arg_type_begin(),
+                          FPT->getNumArgs(), FPT->isVariadic(), 
+                          FPT->getTypeQuals(),
+                          FPT->hasExceptionSpec(), FPT->hasAnyExceptionSpec(),
+                          FPT->getNumExceptions(), FPT->exception_begin(), 
+                          AddNoReturn);
     }
-  }
-
+  } else
+    return T;
+  
   return getQualifiedType(ResultType, T.getLocalQualifiers());
 }
 
@@ -1766,6 +1802,9 @@ QualType ASTContext::getTypeDeclType(TypeDecl *Decl, TypeDecl* PrevDecl) {
       Decl->TypeForDecl = PrevDecl->TypeForDecl;
     else
       Decl->TypeForDecl = new (*this, TypeAlignment) EnumType(Enum);
+  } else if (UnresolvedUsingTypenameDecl *Using =
+               dyn_cast<UnresolvedUsingTypenameDecl>(Decl)) {
+    Decl->TypeForDecl = new (*this, TypeAlignment) UnresolvedUsingType(Using);
   } else
     assert(false && "TypeDecl without a type?");
 
@@ -2238,7 +2277,7 @@ QualType ASTContext::getTagDeclType(const TagDecl *Decl) {
 /// getSizeType - Return the unique type for "size_t" (C99 7.17), the result
 /// of the sizeof operator (C99 6.5.3.4p4). The value is target dependent and
 /// needs to agree with the definition in <stddef.h>.
-QualType ASTContext::getSizeType() const {
+CanQualType ASTContext::getSizeType() const {
   return getFromTargetType(Target.getSizeType());
 }
 
@@ -2354,8 +2393,9 @@ DeclarationName ASTContext::getNameForTemplate(TemplateName Name) {
     }
   }
 
-  assert(Name.getAsOverloadedFunctionDecl());
-  return Name.getAsOverloadedFunctionDecl()->getDeclName();
+  OverloadedTemplateStorage *Storage = Name.getAsOverloadedTemplate();
+  assert(Storage);
+  return (*Storage->begin())->getDeclName();
 }
 
 TemplateName ASTContext::getCanonicalTemplateName(TemplateName Name) {
@@ -2364,27 +2404,7 @@ TemplateName ASTContext::getCanonicalTemplateName(TemplateName Name) {
   if (TemplateDecl *Template = Name.getAsTemplateDecl())
     return TemplateName(cast<TemplateDecl>(Template->getCanonicalDecl()));
 
-  // If this template name refers to a set of overloaded function templates,
-  /// the canonical template name merely stores the set of function templates.
-  if (OverloadedFunctionDecl *Ovl = Name.getAsOverloadedFunctionDecl()) {
-    OverloadedFunctionDecl *CanonOvl = 0;
-    for (OverloadedFunctionDecl::function_iterator F = Ovl->function_begin(),
-                                                FEnd = Ovl->function_end();
-         F != FEnd; ++F) {
-      Decl *Canon = F->get()->getCanonicalDecl();
-      if (CanonOvl || Canon != F->get()) {
-        if (!CanonOvl)
-          CanonOvl = OverloadedFunctionDecl::Create(*this,
-                                                    Ovl->getDeclContext(),
-                                                    Ovl->getDeclName());
-
-        CanonOvl->addOverload(
-                    AnyFunctionDecl::getFromNamedDecl(cast<NamedDecl>(Canon)));
-      }
-    }
-
-    return TemplateName(CanonOvl? CanonOvl : Ovl);
-  }
+  assert(!Name.getAsOverloadedTemplate());
 
   DependentTemplateName *DTN = Name.getAsDependentTemplateName();
   assert(DTN && "Non-dependent template names must refer to template decls.");
@@ -2651,7 +2671,7 @@ int ASTContext::getFloatingTypeOrder(QualType LHS, QualType RHS) {
 unsigned ASTContext::getIntegerRank(Type *T) {
   assert(T->isCanonicalUnqualified() && "T should be canonicalized");
   if (EnumType* ET = dyn_cast<EnumType>(T))
-    T = ET->getDecl()->getIntegerType().getTypePtr();
+    T = ET->getDecl()->getPromotionType().getTypePtr();
 
   if (T->isSpecificBuiltinType(BuiltinType::WChar))
     T = getFromTargetType(Target.getWCharType()).getTypePtr();
@@ -2732,6 +2752,8 @@ QualType ASTContext::isPromotableBitField(Expr *E) {
 QualType ASTContext::getPromotedIntegerType(QualType Promotable) {
   assert(!Promotable.isNull());
   assert(Promotable->isPromotableIntegerType());
+  if (const EnumType *ET = Promotable->getAs<EnumType>())
+    return ET->getDecl()->getPromotionType();
   if (Promotable->isSignedIntegerType())
     return IntTy;
   uint64_t PromotableSize = getTypeSize(Promotable);
@@ -2812,7 +2834,7 @@ QualType ASTContext::getCFConstantStringType() {
     for (unsigned i = 0; i < 4; ++i) {
       FieldDecl *Field = FieldDecl::Create(*this, CFConstantStringTypeDecl,
                                            SourceLocation(), 0,
-                                           FieldTypes[i], /*DInfo=*/0,
+                                           FieldTypes[i], /*TInfo=*/0,
                                            /*BitWidth=*/0,
                                            /*Mutable=*/false);
       CFConstantStringTypeDecl->addDecl(Field);
@@ -2848,7 +2870,7 @@ QualType ASTContext::getObjCFastEnumerationStateType() {
       FieldDecl *Field = FieldDecl::Create(*this,
                                            ObjCFastEnumerationStateTypeDecl,
                                            SourceLocation(), 0,
-                                           FieldTypes[i], /*DInfo=*/0,
+                                           FieldTypes[i], /*TInfo=*/0,
                                            /*BitWidth=*/0,
                                            /*Mutable=*/false);
       ObjCFastEnumerationStateTypeDecl->addDecl(Field);
@@ -2884,7 +2906,7 @@ QualType ASTContext::getBlockDescriptorType() {
                                          T,
                                          SourceLocation(),
                                          &Idents.get(FieldNames[i]),
-                                         FieldTypes[i], /*DInfo=*/0,
+                                         FieldTypes[i], /*TInfo=*/0,
                                          /*BitWidth=*/0,
                                          /*Mutable=*/false);
     T->addDecl(Field);
@@ -2931,7 +2953,7 @@ QualType ASTContext::getBlockDescriptorExtendedType() {
                                          T,
                                          SourceLocation(),
                                          &Idents.get(FieldNames[i]),
-                                         FieldTypes[i], /*DInfo=*/0,
+                                         FieldTypes[i], /*TInfo=*/0,
                                          /*BitWidth=*/0,
                                          /*Mutable=*/false);
     T->addDecl(Field);
@@ -3009,7 +3031,7 @@ QualType ASTContext::BuildByRefType(const char *DeclName, QualType Ty) {
       continue;
     FieldDecl *Field = FieldDecl::Create(*this, T, SourceLocation(),
                                          &Idents.get(FieldNames[i]),
-                                         FieldTypes[i], /*DInfo=*/0,
+                                         FieldTypes[i], /*TInfo=*/0,
                                          /*BitWidth=*/0, /*Mutable=*/false);
     T->addDecl(Field);
   }
@@ -3052,7 +3074,7 @@ QualType ASTContext::getBlockParmType(
   for (size_t i = 0; i < 5; ++i) {
     FieldDecl *Field = FieldDecl::Create(*this, T, SourceLocation(),
                                          &Idents.get(FieldNames[i]),
-                                         FieldTypes[i], /*DInfo=*/0,
+                                         FieldTypes[i], /*TInfo=*/0,
                                          /*BitWidth=*/0, /*Mutable=*/false);
     T->addDecl(Field);
   }
@@ -3072,7 +3094,7 @@ QualType ASTContext::getBlockParmType(
                                  FieldType);
 
     FieldDecl *Field = FieldDecl::Create(*this, T, SourceLocation(),
-                                         Name, FieldType, /*DInfo=*/0,
+                                         Name, FieldType, /*TInfo=*/0,
                                          /*BitWidth=*/0, /*Mutable=*/false);
     T->addDecl(Field);
   }
@@ -3690,6 +3712,29 @@ void ASTContext::setObjCConstantStringInterface(ObjCInterfaceDecl *Decl) {
   ObjCConstantStringType = getObjCInterfaceType(Decl);
 }
 
+/// \brief Retrieve the template name that corresponds to a non-empty
+/// lookup.
+TemplateName ASTContext::getOverloadedTemplateName(NamedDecl * const *Begin,
+                                                   NamedDecl * const *End) {
+  unsigned size = End - Begin;
+  assert(size > 1 && "set is not overloaded!");
+
+  void *memory = Allocate(sizeof(OverloadedTemplateStorage) +
+                          size * sizeof(FunctionTemplateDecl*));
+  OverloadedTemplateStorage *OT = new(memory) OverloadedTemplateStorage(size);
+
+  NamedDecl **Storage = OT->getStorage();
+  for (NamedDecl * const *I = Begin; I != End; ++I) {
+    NamedDecl *D = *I;
+    assert(isa<FunctionTemplateDecl>(D) ||
+           (isa<UsingShadowDecl>(D) &&
+            isa<FunctionTemplateDecl>(D->getUnderlyingDecl())));
+    *Storage++ = D;
+  }
+
+  return TemplateName(OT);
+}
+
 /// \brief Retrieve the template name that represents a qualified
 /// template name such as \c std::vector.
 TemplateName ASTContext::getQualifiedTemplateName(NestedNameSpecifier *NNS,
@@ -3701,25 +3746,6 @@ TemplateName ASTContext::getQualifiedTemplateName(NestedNameSpecifier *NNS,
   void *InsertPos = 0;
   QualifiedTemplateName *QTN =
     QualifiedTemplateNames.FindNodeOrInsertPos(ID, InsertPos);
-  if (!QTN) {
-    QTN = new (*this,4) QualifiedTemplateName(NNS, TemplateKeyword, Template);
-    QualifiedTemplateNames.InsertNode(QTN, InsertPos);
-  }
-
-  return TemplateName(QTN);
-}
-
-/// \brief Retrieve the template name that represents a qualified
-/// template name such as \c std::vector.
-TemplateName ASTContext::getQualifiedTemplateName(NestedNameSpecifier *NNS,
-                                                  bool TemplateKeyword,
-                                            OverloadedFunctionDecl *Template) {
-  llvm::FoldingSetNodeID ID;
-  QualifiedTemplateName::Profile(ID, NNS, TemplateKeyword, Template);
-
-  void *InsertPos = 0;
-  QualifiedTemplateName *QTN =
-  QualifiedTemplateNames.FindNodeOrInsertPos(ID, InsertPos);
   if (!QTN) {
     QTN = new (*this,4) QualifiedTemplateName(NNS, TemplateKeyword, Template);
     QualifiedTemplateNames.InsertNode(QTN, InsertPos);
@@ -4334,6 +4360,8 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
   if (LHSClass != RHSClass) {
     // C99 6.7.2.2p4: Each enumerated type shall be compatible with char,
     // a signed integer type, or an unsigned integer type.
+    // Compatibility is based on the underlying type, not the promotion
+    // type.
     if (const EnumType* ETy = LHS->getAs<EnumType>()) {
       if (ETy->getDecl()->getIntegerType() == RHSCan.getUnqualifiedType())
         return RHS;
@@ -4493,6 +4521,8 @@ unsigned ASTContext::getIntWidth(QualType T) {
   if (FixedWidthIntType *FWIT = dyn_cast<FixedWidthIntType>(T)) {
     return FWIT->getWidth();
   }
+  if (EnumType *ET = dyn_cast<EnumType>(T))
+    T = ET->getDecl()->getIntegerType();
   // For builtin types, just use the standard type sizing method
   return (unsigned)getTypeSize(T);
 }

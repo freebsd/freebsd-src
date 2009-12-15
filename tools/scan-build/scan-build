@@ -26,7 +26,6 @@ my $Verbose = 0;       # Verbose output from this script.
 my $Prog = "scan-build";
 my $BuildName;
 my $BuildDate;
-my $CXX;  # Leave undefined initially.
 
 my $TERM = $ENV{'TERM'};
 my $UseColor = (defined $TERM and $TERM eq 'xterm-color' and -t STDOUT
@@ -81,43 +80,26 @@ sub DieDiag {
 # Some initial preprocessing of Clang options.
 ##----------------------------------------------------------------------------##
 
-# First, look for 'clang-cc' in libexec.
-my $ClangCCSB = Cwd::realpath("$RealBin/libexec/clang-cc");
-# Second, look for 'clang-cc' in the same directory as scan-build.
-if (!defined $ClangCCSB || ! -x $ClangCCSB) {
-  $ClangCCSB = Cwd::realpath("$RealBin/clang-cc");
-}
-# Third, look for 'clang-cc' in ../libexec
-if (!defined $ClangCCSB || ! -x $ClangCCSB) {
-  $ClangCCSB = Cwd::realpath("$RealBin/../libexec/clang-cc");
-}
-# Finally, default to looking for 'clang-cc' in the path.
-if (!defined $ClangCCSB || ! -x $ClangCCSB) {
-  $ClangCCSB = "clang-cc";
-}
-my $ClangCC = $ClangCCSB;
-
-# Now find 'clang'
+# Find 'clang'
 my $ClangSB = Cwd::realpath("$RealBin/bin/clang");
+my $ClangCXXSB;
 if (!defined $ClangSB || ! -x $ClangSB) {
   $ClangSB = Cwd::realpath("$RealBin/clang");
-}
-# Third, look for 'clang' in ../bin
-if (!defined $ClangSB || ! -x $ClangSB) {
-  $ClangSB = Cwd::realpath("$RealBin/../bin/clang");
-}
-# Finally, default to looking for 'clang-cc' in the path.
-if (!defined $ClangSB || ! -x $ClangSB) {
-  $ClangSB = "clang";
+  if (defined $ClangSB) { $ClangCXXSB = $ClangSB . "++"; }
 }
 my $Clang = $ClangSB;
-
+my $ClangCXX = $ClangCXXSB;
+# Default to looking for 'clang' in the path.
+if (!defined $Clang || ! -x $Clang) {
+  $Clang = "clang";
+  $ClangCXX = "clang++";
+}
 
 my %AvailableAnalyses;
 
 # Query clang for analysis options.
-open(PIPE, "-|", $ClangCC, "--help") or
-  DieDiag("Cannot execute '$ClangCC'\n");
+open(PIPE, "-|", $Clang, "-cc1", "--help") or
+  DieDiag("Cannot execute '$Clang'\n");
 
 my $FoundAnalysis = 0;
 
@@ -128,17 +110,14 @@ while(<PIPE>) {
     }
     next;
   }
-    
   if (/^\s\s\s\s([^\s]+)\s(.+)$/) {
     next if ($1 =~ /-dump/ or $1 =~ /-view/ 
-             or $1 =~ /-warn-uninit/);
-             
+             or $1 =~ /-warn-uninit/);             
     $AvailableAnalyses{$1} = $2;
     next;
   }  
   last;
 }
-
 close (PIPE);
 
 my %AnalysesDefaultEnabled = (
@@ -156,10 +135,8 @@ my %AnalysesDefaultEnabled = (
 ##----------------------------------------------------------------------------##
 
 sub GetHTMLRunDir {  
-
   die "Not enough arguments." if (@_ == 0);  
-  my $Dir = shift @_;
-    
+  my $Dir = shift @_;    
   my $TmpMode = 0;
   if (!defined $Dir) {
     if (`uname` =~ /Darwin/) {
@@ -168,8 +145,7 @@ sub GetHTMLRunDir {
     }
     else {
       $Dir = "/tmp";
-    }
-    
+    }    
     $TmpMode = 1;
   }
   
@@ -177,42 +153,32 @@ sub GetHTMLRunDir {
   while ($Dir =~ /\/$/) { chop $Dir; }
 
   # Get current date and time.
-  
-  my @CurrentTime = localtime();
-  
+  my @CurrentTime = localtime();  
   my $year  = $CurrentTime[5] + 1900;
   my $day   = $CurrentTime[3];
   my $month = $CurrentTime[4] + 1;
-  
   my $DateString = sprintf("%d-%02d-%02d", $year, $month, $day);
   
-  # Determine the run number.
-  
+  # Determine the run number.  
   my $RunNumber;
   
-  if (-d $Dir) {
-    
+  if (-d $Dir) {    
     if (! -r $Dir) {
       DieDiag("directory '$Dir' exists but is not readable.\n");
-    }
-    
-    # Iterate over all files in the specified directory.
-    
-    my $max = 0;
-    
+    }    
+    # Iterate over all files in the specified directory.    
+    my $max = 0;    
     opendir(DIR, $Dir);
     my @FILES = grep { -d "$Dir/$_" } readdir(DIR);
     closedir(DIR);
-    
-    foreach my $f (@FILES) {
 
+    foreach my $f (@FILES) {
       # Strip the prefix '$Prog-' if we are dumping files to /tmp.
       if ($TmpMode) {
         next if (!($f =~ /^$Prog-(.+)/));
         $f = $1;
       }
 
-      
       my @x = split/-/, $f;
       next if (scalar(@x) != 4);
       next if ($x[0] != $year);
@@ -836,14 +802,26 @@ sub RunBuildCommand {
       $Cmd =~ /(.*\/?ccc-analyzer[^\/]*$)/) {
 
     if (!($Cmd =~ /ccc-analyzer/) and !defined $ENV{"CCC_CC"}) {
-      $ENV{"CCC_CC"} = $1;
+      $ENV{"CCC_CC"} = $1;      
     }
         
     shift @$Args;
     unshift @$Args, $CCAnalyzer;
   }
+  elsif ($Cmd =~ /(.*\/?g\+\+[^\/]*$)/ or 
+        $Cmd =~ /(.*\/?c\+\+[^\/]*$)/ or
+        $Cmd =~ /(.*\/?llvm-g\+\+[^\/]*$)/ or
+        $Cmd =~ /(.*\/?c\+\+-analyzer[^\/]*$)/) {
+    if (!($Cmd =~ /c\+\+-analyzer/) and !defined $ENV{"CCC_CXX"}) {
+      $ENV{"CCC_CXX"} = $1;      
+    }        
+    shift @$Args;
+    unshift @$Args, $CCAnalyzer;
+  }
   elsif ($IgnoreErrors) {
     if ($Cmd eq "make" or $Cmd eq "gmake") {
+      AddIfNotPresent($Args, "CC=$CCAnalyzer");
+      AddIfNotPresent($Args, "CXX=$CCAnalyzer");
       AddIfNotPresent($Args,"-k");
       AddIfNotPresent($Args,"-i");
     }
@@ -860,6 +838,7 @@ sub RunBuildCommand {
         if ($Args->[$i] eq "-sdk" && $i + 1 < scalar(@$Args)) {
           if (@$Args[$i+1] =~ /^iphonesimulator3/) {
             $ENV{"CCC_CC"} = "gcc-4.2";
+            $ENV{"CCC_CXX"} = "g++-4.2";            
           }
         }
       }
@@ -874,10 +853,10 @@ sub RunBuildCommand {
     # When 'CC' is set, xcodebuild uses it to do all linking, even if we are
     # linking C++ object files.  Set 'LDPLUSPLUS' so that xcodebuild uses 'g++'
     # when linking such files.
-    die if (!defined $CXX);
-    my $LDPLUSPLUS = `which $CXX`;
-    $LDPLUSPLUS =~ s/\015?\012//;  # strip newlines
-    $ENV{'LDPLUSPLUS'} = $LDPLUSPLUS;    
+    if (!defined $ENV{'CCC_CXX'}) {
+      $ENV{'CCC_CXX'} = 'g++';      
+    }
+    $ENV{'LDPLUSPLUS'} = $ENV{'CCC_CXX'};
   }
   
   return (system(@$Args) >> 8);
@@ -1125,16 +1104,19 @@ while (@ARGV) {
   
   if ($arg =~ /^--use-c\+\+(=(.+))?$/) {
     shift @ARGV;
+    my $cxx;    
     
     if (!defined $2 || $2 eq "") {
       if (!@ARGV) {
         DieDiag("'--use-c++' option requires a compiler executable name.\n");
       }
-      $CXX = shift @ARGV;
+      $cxx = shift @ARGV;
     }
     else {
-      $CXX = $2;
+      $cxx = $2;
     }
+    
+    $ENV{"CCC_CXX"} = $cxx;
     next;
   }
   
@@ -1206,32 +1188,28 @@ $HtmlDir = GetHTMLRunDir($HtmlDir);
 # Set the appropriate environment variables.
 SetHtmlEnv(\@ARGV, $HtmlDir);
 
-my $Cmd = Cwd::realpath("$RealBin/libexec/ccc-analyzer");
+my $AbsRealBin = Cwd::realpath($RealBin);
+my $Cmd = "$AbsRealBin/libexec/ccc-analyzer";
+my $CmdCXX = "$AbsRealBin/libexec/c++-analyzer";
+
 if (!defined $Cmd || ! -x $Cmd) {
-  $Cmd = Cwd::realpath("$RealBin/ccc-analyzer");
+  $Cmd = "$AbsRealBin/ccc-analyzer";
   DieDiag("Executable 'ccc-analyzer' does not exist at '$Cmd'\n") if(! -x $Cmd);
 }
-
-if (!defined $ClangCCSB || ! -x $ClangCCSB) {
-  Diag("'clang-cc' executable not found in '$RealBin/libexec'.\n");
-  Diag("Using 'clang-cc' from path.\n");
+if (!defined $CmdCXX || ! -x $CmdCXX) {
+  $CmdCXX = "$AbsRealBin/c++-analyzer";
+  DieDiag("Executable 'c++-analyzer' does not exist at '$CmdCXX'\n") if(! -x $CmdCXX);
 }
+
 if (!defined $ClangSB || ! -x $ClangSB) {
   Diag("'clang' executable not found in '$RealBin/bin'.\n");
   Diag("Using 'clang' from path.\n");
 }
 
-if (defined $CXX) {
-  $ENV{'CXX'} = $CXX;
-}
-else {
-  $CXX = 'g++';  # This variable is used by other parts of scan-build
-                 # that need to know a default C++ compiler to fall back to.
-}
-  
 $ENV{'CC'} = $Cmd;
-$ENV{'CLANG_CC'} = $ClangCC;
+$ENV{'CXX'} = $CmdCXX;
 $ENV{'CLANG'} = $Clang;
+$ENV{'CLANG_CXX'} = $ClangCXX;
 
 if ($Verbose >= 2) {
   $ENV{'CCC_ANALYZER_VERBOSE'} = 1;

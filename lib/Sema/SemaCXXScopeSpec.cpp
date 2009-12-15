@@ -313,7 +313,10 @@ NamedDecl *Sema::FindFirstQualifierInScope(Scope *S, NestedNameSpecifier *NNS) {
   LookupName(Found, S);
   assert(!Found.isAmbiguous() && "Cannot handle ambiguities here yet");
 
-  NamedDecl *Result = Found.getAsSingleDecl(Context);
+  if (!Found.isSingleResult())
+    return 0;
+
+  NamedDecl *Result = Found.getFoundDecl();
   if (isAcceptableNestedNameSpecifier(Result))
     return Result;
 
@@ -327,6 +330,12 @@ NamedDecl *Sema::FindFirstQualifierInScope(Scope *S, NestedNameSpecifier *NNS) {
 /// that it contains an extra parameter \p ScopeLookupResult, which provides
 /// the result of name lookup within the scope of the nested-name-specifier
 /// that was computed at template definitino time.
+///
+/// If ErrorRecoveryLookup is true, then this call is used to improve error
+/// recovery.  This means that it should not emit diagnostics, it should
+/// just return null on failure.  It also means it should only return a valid
+/// scope if it *knows* that the result is correct.  It should not return in a
+/// dependent context, for example.
 Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
                                                     const CXXScopeSpec &SS,
                                                     SourceLocation IdLoc,
@@ -334,7 +343,8 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
                                                     IdentifierInfo &II,
                                                     QualType ObjectType,
                                                   NamedDecl *ScopeLookupResult,
-                                                    bool EnteringContext) {
+                                                    bool EnteringContext,
+                                                    bool ErrorRecoveryLookup) {
   NestedNameSpecifier *Prefix
     = static_cast<NestedNameSpecifier *>(SS.getScopeRep());
 
@@ -400,6 +410,10 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
       ObjectTypeSearchedInScope = true;
     }
   } else if (isDependent) {
+    // Don't speculate if we're just trying to improve error recovery.
+    if (ErrorRecoveryLookup)
+      return 0;
+    
     // We were not able to compute the declaration context for a dependent
     // base object type or prior nested-name-specifier, so this
     // nested-name-specifier refers to an unknown specialization. Just build
@@ -414,7 +428,7 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
   }
 
   // FIXME: Deal with ambiguities cleanly.
-  NamedDecl *SD = Found.getAsSingleDecl(Context);
+  NamedDecl *SD = Found.getAsSingle<NamedDecl>();
   if (isAcceptableNestedNameSpecifier(SD)) {
     if (!ObjectType.isNull() && !ObjectTypeSearchedInScope) {
       // C++ [basic.lookup.classref]p4:
@@ -429,7 +443,7 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
       if (S) {
         LookupResult FoundOuter(*this, &II, IdLoc, LookupNestedNameSpecifierName);
         LookupName(FoundOuter, S);
-        OuterDecl = FoundOuter.getAsSingleDecl(Context);
+        OuterDecl = FoundOuter.getAsSingle<NamedDecl>();
       } else
         OuterDecl = ScopeLookupResult;
 
@@ -439,14 +453,17 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
            !Context.hasSameType(
                             Context.getTypeDeclType(cast<TypeDecl>(OuterDecl)),
                                Context.getTypeDeclType(cast<TypeDecl>(SD))))) {
+             if (ErrorRecoveryLookup)
+               return 0;
+             
              Diag(IdLoc, diag::err_nested_name_member_ref_lookup_ambiguous)
                << &II;
              Diag(SD->getLocation(), diag::note_ambig_member_ref_object_type)
                << ObjectType;
              Diag(OuterDecl->getLocation(), diag::note_ambig_member_ref_scope);
 
-             // Fall through so that we'll pick the name we found in the object type,
-             // since that's probably what the user wanted anyway.
+             // Fall through so that we'll pick the name we found in the object
+             // type, since that's probably what the user wanted anyway.
            }
     }
 
@@ -466,17 +483,21 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
                                        T.getTypePtr());
   }
 
+  // Otherwise, we have an error case.  If we don't want diagnostics, just
+  // return an error now.
+  if (ErrorRecoveryLookup)
+    return 0;
+
   // If we didn't find anything during our lookup, try again with
   // ordinary name lookup, which can help us produce better error
   // messages.
-  if (!SD) {
+  if (Found.empty()) {
     Found.clear(LookupOrdinaryName);
     LookupName(Found, S);
-    SD = Found.getAsSingleDecl(Context);
   }
 
   unsigned DiagID;
-  if (SD)
+  if (!Found.empty())
     DiagID = diag::err_expected_class_or_namespace;
   else if (SS.isSet()) {
     Diag(IdLoc, diag::err_no_member) << &II << LookupCtx << SS.getRange();
@@ -507,7 +528,23 @@ Sema::CXXScopeTy *Sema::ActOnCXXNestedNameSpecifier(Scope *S,
                                                     bool EnteringContext) {
   return BuildCXXNestedNameSpecifier(S, SS, IdLoc, CCLoc, II,
                                      QualType::getFromOpaquePtr(ObjectTypePtr),
-                                     /*ScopeLookupResult=*/0, EnteringContext);
+                                     /*ScopeLookupResult=*/0, EnteringContext,
+                                     false);
+}
+
+/// IsInvalidUnlessNestedName - This method is used for error recovery
+/// purposes to determine whether the specified identifier is only valid as
+/// a nested name specifier, for example a namespace name.  It is
+/// conservatively correct to always return false from this method.
+///
+/// The arguments are the same as those passed to ActOnCXXNestedNameSpecifier.
+bool Sema::IsInvalidUnlessNestedName(Scope *S, const CXXScopeSpec &SS,
+                                     IdentifierInfo &II, TypeTy *ObjectType,
+                                     bool EnteringContext) {
+  return BuildCXXNestedNameSpecifier(S, SS, SourceLocation(), SourceLocation(),
+                                     II, QualType::getFromOpaquePtr(ObjectType),
+                                     /*ScopeLookupResult=*/0, EnteringContext,
+                                     true);
 }
 
 Sema::CXXScopeTy *Sema::ActOnCXXNestedNameSpecifier(Scope *S,
@@ -520,6 +557,44 @@ Sema::CXXScopeTy *Sema::ActOnCXXNestedNameSpecifier(Scope *S,
   QualType T = GetTypeFromParser(Ty);
   return NestedNameSpecifier::Create(Context, Prefix, /*FIXME:*/false,
                                      T.getTypePtr());
+}
+
+bool Sema::ShouldEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
+  assert(SS.isSet() && "Parser passed invalid CXXScopeSpec.");
+
+  NestedNameSpecifier *Qualifier =
+    static_cast<NestedNameSpecifier*>(SS.getScopeRep());
+
+  // There are only two places a well-formed program may qualify a
+  // declarator: first, when defining a namespace or class member
+  // out-of-line, and second, when naming an explicitly-qualified
+  // friend function.  The latter case is governed by
+  // C++03 [basic.lookup.unqual]p10:
+  //   In a friend declaration naming a member function, a name used
+  //   in the function declarator and not part of a template-argument
+  //   in a template-id is first looked up in the scope of the member
+  //   function's class. If it is not found, or if the name is part of
+  //   a template-argument in a template-id, the look up is as
+  //   described for unqualified names in the definition of the class
+  //   granting friendship.
+  // i.e. we don't push a scope unless it's a class member.
+
+  switch (Qualifier->getKind()) {
+  case NestedNameSpecifier::Global:
+  case NestedNameSpecifier::Namespace:
+    // These are always namespace scopes.  We never want to enter a
+    // namespace scope from anything but a file context.
+    return CurContext->getLookupContext()->isFileContext();
+
+  case NestedNameSpecifier::Identifier:
+  case NestedNameSpecifier::TypeSpec:
+  case NestedNameSpecifier::TypeSpecWithTemplate:
+    // These are never namespace scopes.
+    return true;
+  }
+
+  // Silence bogus warning.
+  return false;
 }
 
 /// ActOnCXXEnterDeclaratorScope - Called when a C++ scope specifier (global

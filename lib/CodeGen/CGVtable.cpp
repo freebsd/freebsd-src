@@ -26,12 +26,23 @@ class VtableBuilder {
 public:
   /// Index_t - Vtable index type.
   typedef uint64_t Index_t;
+  typedef std::vector<std::pair<GlobalDecl,
+                                std::pair<GlobalDecl, ThunkAdjustment> > >
+      SavedAdjustmentsVectorTy;
 private:
-  std::vector<llvm::Constant *> &methods;
-  std::vector<llvm::Constant *> submethods;
+  
+  // VtableComponents - The components of the vtable being built.
+  typedef llvm::SmallVector<llvm::Constant *, 64> VtableComponentsVectorTy;
+  VtableComponentsVectorTy VtableComponents;
+  
+  const bool BuildVtable;
+
   llvm::Type *Ptr8Ty;
-  /// Class - The most derived class that this vtable is being built for.
-  const CXXRecordDecl *Class;
+  
+  /// MostDerivedClass - The most derived class that this vtable is being 
+  /// built for.
+  const CXXRecordDecl *MostDerivedClass;
+  
   /// LayoutClass - The most derived class used for virtual base layout
   /// information.
   const CXXRecordDecl *LayoutClass;
@@ -45,9 +56,7 @@ private:
   llvm::Constant *rtti;
   llvm::LLVMContext &VMContext;
   CodeGenModule &CGM;  // Per-module state.
-  /// Index - Maps a method decl into a vtable index.  Useful for virtual
-  /// dispatch codegen.
-  llvm::DenseMap<GlobalDecl, Index_t> Index;
+  
   llvm::DenseMap<GlobalDecl, Index_t> VCall;
   llvm::DenseMap<GlobalDecl, Index_t> VCallOffset;
   // This is the offset to the nearest virtual base
@@ -57,54 +66,93 @@ private:
   /// PureVirtualFunction - Points to __cxa_pure_virtual.
   llvm::Constant *PureVirtualFn;
   
-  /// Thunk - Represents a single thunk.
-  struct Thunk {
-    Thunk()
-      : Index(0) { }
-    
-    Thunk(uint64_t Index, const ThunkAdjustment &Adjustment)
-      : Index(Index), Adjustment(Adjustment) { }
-    
-    /// Index - The index in the vtable.
-    uint64_t Index;
-    
-    /// Adjustment - The thunk adjustment.
-    ThunkAdjustment Adjustment;
-  };
+  /// VtableMethods - A data structure for keeping track of methods in a vtable.
+  /// Can add methods, override methods and iterate in vtable order.
+  class VtableMethods {
+    // MethodToIndexMap - Maps from a global decl to the index it has in the
+    // Methods vector.
+    llvm::DenseMap<GlobalDecl, uint64_t> MethodToIndexMap;
 
-  /// Thunks - The thunks in a vtable.
-  typedef llvm::DenseMap<GlobalDecl, Thunk> ThunksMapTy;
-  ThunksMapTy Thunks;
+    /// Methods - The methods, in vtable order.
+    typedef llvm::SmallVector<GlobalDecl, 16> MethodsVectorTy;
+    MethodsVectorTy Methods;
+    MethodsVectorTy OrigMethods;
 
-  /// CovariantThunk - Represents a single covariant thunk.
-  struct CovariantThunk {
-    CovariantThunk()
-      : Index(0) { }
+  public:
+    /// AddMethod - Add a method to the vtable methods.
+    void AddMethod(GlobalDecl GD) {
+      assert(!MethodToIndexMap.count(GD) && 
+             "Method has already been added!");
+      
+      MethodToIndexMap[GD] = Methods.size();
+      Methods.push_back(GD);
+      OrigMethods.push_back(GD);
+    }
     
-    CovariantThunk(uint64_t Index, const ThunkAdjustment &ThisAdjustment,
-                   const ThunkAdjustment &ReturnAdjustment, 
-                   CanQualType ReturnType) 
-      : Index(Index), Adjustment(ThisAdjustment, ReturnAdjustment), 
-      ReturnType(ReturnType) { }
+    /// OverrideMethod - Replace a method with another.
+    void OverrideMethod(GlobalDecl OverriddenGD, GlobalDecl GD) {
+      llvm::DenseMap<GlobalDecl, uint64_t>::iterator i 
+        = MethodToIndexMap.find(OverriddenGD);
+      assert(i != MethodToIndexMap.end() && "Did not find entry!");
+
+      // Get the index of the old decl.
+      uint64_t Index = i->second;
+      
+      // Replace the old decl with the new decl.
+      Methods[Index] = GD;
+
+      // And add the new.
+      MethodToIndexMap[GD] = Index;
+    }
+
+    /// getIndex - Gives the index of a passed in GlobalDecl. Returns false if
+    /// the index couldn't be found.
+    bool getIndex(GlobalDecl GD, uint64_t &Index) const {
+      llvm::DenseMap<GlobalDecl, uint64_t>::const_iterator i 
+        = MethodToIndexMap.find(GD);
+
+      if (i == MethodToIndexMap.end())
+        return false;
+      
+      Index = i->second;
+      return true;
+    }
+
+    GlobalDecl getOrigMethod(uint64_t Index) const {
+      return OrigMethods[Index];
+    }
+
+    MethodsVectorTy::size_type size() const {
+      return Methods.size();
+    }
+
+    void clear() {
+      MethodToIndexMap.clear();
+      Methods.clear();
+      OrigMethods.clear();
+    }
     
-    // Index - The index in the vtable.
-    uint64_t Index;
-    
-    /// Adjustment - The covariant thunk adjustment.
-    CovariantThunkAdjustment Adjustment;
-    
-    /// ReturnType - The return type of the function.
-    CanQualType ReturnType;
+    GlobalDecl operator[](uint64_t Index) const {
+      return Methods[Index];
+    }
   };
   
-  /// CovariantThunks - The covariant thunks in a vtable.
-  typedef llvm::DenseMap<GlobalDecl, CovariantThunk> CovariantThunksMapTy;
-  CovariantThunksMapTy CovariantThunks;
+  /// Methods - The vtable methods we're currently building.
+  VtableMethods Methods;
   
-  /// PureVirtualMethods - Pure virtual methods.
-  typedef llvm::DenseSet<GlobalDecl> PureVirtualMethodsSetTy;
-  PureVirtualMethodsSetTy PureVirtualMethods;
+  /// ThisAdjustments - For a given index in the vtable, contains the 'this'
+  /// pointer adjustment needed for a method.
+  typedef llvm::DenseMap<uint64_t, ThunkAdjustment> ThisAdjustmentsMapTy;
+  ThisAdjustmentsMapTy ThisAdjustments;
 
+  SavedAdjustmentsVectorTy SavedAdjustments;
+
+  /// BaseReturnTypes - Contains the base return types of methods who have been
+  /// overridden with methods whose return types require adjustment. Used for
+  /// generating covariant thunk information.
+  typedef llvm::DenseMap<uint64_t, CanQualType> BaseReturnTypesMapTy;
+  BaseReturnTypesMapTy BaseReturnTypes;
+  
   std::vector<Index_t> VCalls;
 
   typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
@@ -143,20 +191,31 @@ private:
   }
   
 public:
-  VtableBuilder(std::vector<llvm::Constant *> &meth, const CXXRecordDecl *c,
-                const CXXRecordDecl *l, uint64_t lo, CodeGenModule &cgm)
-    : methods(meth), Class(c), LayoutClass(l), LayoutOffset(lo),
-      BLayout(cgm.getContext().getASTRecordLayout(l)),
-      rtti(cgm.GenerateRttiRef(c)), VMContext(cgm.getModule().getContext()),
-      CGM(cgm), PureVirtualFn(0),subAddressPoints(AllocAddressPoint(cgm, l, c)),
+  VtableBuilder(const CXXRecordDecl *MostDerivedClass,
+                const CXXRecordDecl *l, uint64_t lo, CodeGenModule &cgm,
+                bool build)
+    : BuildVtable(build), MostDerivedClass(MostDerivedClass), LayoutClass(l),
+      LayoutOffset(lo), BLayout(cgm.getContext().getASTRecordLayout(l)),
+      rtti(0), VMContext(cgm.getModule().getContext()),CGM(cgm),
+      PureVirtualFn(0),
+      subAddressPoints(AllocAddressPoint(cgm, l, MostDerivedClass)),
       Extern(!l->isInAnonymousNamespace()),
-    LLVMPointerWidth(cgm.getContext().Target.getPointerWidth(0)) {
+      LLVMPointerWidth(cgm.getContext().Target.getPointerWidth(0)) {
     Ptr8Ty = llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext), 0);
+    if (BuildVtable)
+      rtti = CGM.GetAddrOfRTTI(MostDerivedClass);
   }
 
-  llvm::DenseMap<GlobalDecl, Index_t> &getIndex() { return Index; }
+  // getVtableComponents - Returns a reference to the vtable components.
+  const VtableComponentsVectorTy &getVtableComponents() const {
+    return VtableComponents;
+  }
+  
   llvm::DenseMap<const CXXRecordDecl *, Index_t> &getVBIndex()
     { return VBIndex; }
+
+  SavedAdjustmentsVectorTy &getSavedAdjustments()
+    { return SavedAdjustments; }
 
   llvm::Constant *wrap(Index_t i) {
     llvm::Constant *m;
@@ -168,8 +227,8 @@ public:
     return llvm::ConstantExpr::getBitCast(m, Ptr8Ty);
   }
 
-//#define D1(x)
-#define D1(X) do { if (getenv("DEBUG")) { X; } } while (0)
+#define D1(x)
+//#define D1(X) do { if (getenv("DEBUG")) { X; } } while (0)
 
   void GenerateVBaseOffsets(const CXXRecordDecl *RD, uint64_t Offset,
                             bool updateVBIndex, Index_t current_vbindex) {
@@ -249,7 +308,7 @@ public:
     qB = qB->getPointeeType();
     CXXRecordDecl *D = cast<CXXRecordDecl>(qD->getAs<RecordType>()->getDecl());
     CXXRecordDecl *B = cast<CXXRecordDecl>(qB->getAs<RecordType>()->getDecl());
-    if (D != Class)
+    if (D != MostDerivedClass)
       return CGM.getVtableInfo().getVirtualBaseOffsetIndex(D, B);
     llvm::DenseMap<const CXXRecordDecl *, Index_t>::iterator i;
     i = VBIndex.find(B);
@@ -260,166 +319,19 @@ public:
     return 0;
   }
 
-  bool OverrideMethod(GlobalDecl GD, llvm::Constant *m,
-                      bool MorallyVirtual, Index_t OverrideOffset,
-                      Index_t Offset, int64_t CurrentVBaseOffset) {
-    const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
+  bool OverrideMethod(GlobalDecl GD, bool MorallyVirtual,
+                      Index_t OverrideOffset, Index_t Offset,
+                      int64_t CurrentVBaseOffset);
 
-    const bool isPure = MD->isPure();
-    typedef CXXMethodDecl::method_iterator meth_iter;
-    // FIXME: Should OverrideOffset's be Offset?
-
-    // FIXME: Don't like the nested loops.  For very large inheritance
-    // heirarchies we could have a table on the side with the final overridder
-    // and just replace each instance of an overridden method once.  Would be
-    // nice to measure the cost/benefit on real code.
-
-    for (meth_iter mi = MD->begin_overridden_methods(),
-           e = MD->end_overridden_methods();
-         mi != e; ++mi) {
-      GlobalDecl OGD;
-      
-      const CXXMethodDecl *OMD = *mi;
-      if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(OMD))
-        OGD = GlobalDecl(DD, GD.getDtorType());
-      else
-        OGD = OMD;
-      
-      llvm::Constant *om;
-      om = WrapAddrOf(OGD);
-      om = llvm::ConstantExpr::getBitCast(om, Ptr8Ty);
-
-      for (Index_t i = 0, e = submethods.size();
-           i != e; ++i) {
-        // FIXME: begin_overridden_methods might be too lax, covariance */
-        if (submethods[i] != om)
-          continue;
-        QualType nc_oret = OMD->getType()->getAs<FunctionType>()->getResultType();
-        CanQualType oret = CGM.getContext().getCanonicalType(nc_oret);
-        QualType nc_ret = MD->getType()->getAs<FunctionType>()->getResultType();
-        CanQualType ret = CGM.getContext().getCanonicalType(nc_ret);
-        ThunkAdjustment ReturnAdjustment;
-        if (oret != ret) {
-          // FIXME: calculate offsets for covariance
-          CovariantThunksMapTy::iterator i = CovariantThunks.find(OMD);
-          if (i != CovariantThunks.end()) {
-            oret = i->second.ReturnType;
-            CovariantThunks.erase(i);
-          }
-          // FIXME: Double check oret
-          Index_t nv = getNVOffset(oret, ret)/8;
-          ReturnAdjustment = ThunkAdjustment(nv, getVbaseOffset(oret, ret));
-        }
-        Index[GD] = i;
-        submethods[i] = m;
-        if (isPure)
-          PureVirtualMethods.insert(GD);
-        PureVirtualMethods.erase(OGD);
-        Thunks.erase(OGD);
-        if (MorallyVirtual || VCall.count(OGD)) {
-          Index_t &idx = VCall[OGD];
-          if (idx == 0) {
-            NonVirtualOffset[GD] = -OverrideOffset/8 + CurrentVBaseOffset/8;
-            VCallOffset[GD] = OverrideOffset/8;
-            idx = VCalls.size()+1;
-            VCalls.push_back(0);
-            D1(printf("  vcall for %s at %d with delta %d most derived %s\n",
-                      MD->getNameAsString().c_str(), (int)-idx-3,
-                      (int)VCalls[idx-1], Class->getNameAsCString()));
-          } else {
-            NonVirtualOffset[GD] = NonVirtualOffset[OGD];
-            VCallOffset[GD] = VCallOffset[OGD];
-            VCalls[idx-1] = -VCallOffset[OGD] + OverrideOffset/8;
-            D1(printf("  vcall patch for %s at %d with delta %d most derived %s\n",
-                      MD->getNameAsString().c_str(), (int)-idx-3,
-                      (int)VCalls[idx-1], Class->getNameAsCString()));
-          }
-          VCall[GD] = idx;
-          int64_t NonVirtualAdjustment = NonVirtualOffset[GD];
-          int64_t VirtualAdjustment = 
-            -((idx + extra + 2) * LLVMPointerWidth / 8);
-          
-          // Optimize out virtual adjustments of 0.
-          if (VCalls[idx-1] == 0)
-            VirtualAdjustment = 0;
-          
-          ThunkAdjustment ThisAdjustment(NonVirtualAdjustment,
-                                         VirtualAdjustment);
-
-          // FIXME: Do we always have to build a covariant thunk to save oret,
-          // which is the containing virtual base class?
-          if (!ReturnAdjustment.isEmpty()) {
-            CovariantThunks[GD] = 
-              CovariantThunk(i, ThisAdjustment, ReturnAdjustment, oret);
-          } else if (!isPure && !ThisAdjustment.isEmpty())
-            Thunks[GD] = Thunk(i, ThisAdjustment);
-          return true;
-        }
-
-        // FIXME: finish off
-        int64_t NonVirtualAdjustment = VCallOffset[OGD] - OverrideOffset/8;
-
-        if (NonVirtualAdjustment || !ReturnAdjustment.isEmpty()) {
-          ThunkAdjustment ThisAdjustment(NonVirtualAdjustment, 0);
-          
-          if (!ReturnAdjustment.isEmpty()) {
-            CovariantThunks[GD] = 
-              CovariantThunk(i, ThisAdjustment, ReturnAdjustment, oret);
-          } else if (!isPure)
-            Thunks[GD] = Thunk(i, ThisAdjustment);
-        }
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  void InstallThunks() {
-    for (ThunksMapTy::const_iterator i = Thunks.begin(), e = Thunks.end();
-         i != e; ++i) {
-      GlobalDecl GD = i->first;
-      const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-      assert(!MD->isPure() && "Can't thunk pure virtual methods!");
-      
-      const Thunk& Thunk = i->second;
-      assert(Thunk.Index == Index[GD] && "Thunk index mismatch!");
-             
-      submethods[Thunk.Index] = CGM.BuildThunk(MD, Extern, Thunk.Adjustment);
-    }
-    Thunks.clear();
-
-    for (CovariantThunksMapTy::const_iterator i = CovariantThunks.begin(),
-         e = CovariantThunks.end(); i != e; ++i) {
-      GlobalDecl GD = i->first;
-      const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-      if (MD->isPure())
-        continue;
-      
-      const CovariantThunk &Thunk = i->second;
-      assert(Thunk.Index == Index[GD] && "Thunk index mismatch!");
-      submethods[Thunk.Index] = 
-        CGM.BuildCovariantThunk(MD, Extern, Thunk.Adjustment);
-    }
-    CovariantThunks.clear();
-
-    for (PureVirtualMethodsSetTy::iterator i = PureVirtualMethods.begin(),
-         e = PureVirtualMethods.end(); i != e; ++i) {
-      GlobalDecl GD = *i;
-      submethods[Index[GD]] = getPureVirtualFn();
-    }
-    PureVirtualMethods.clear();
-  }
-
+  /// AppendMethods - Append the current methods to the vtable.
+  void AppendMethodsToVtable();
+  
   llvm::Constant *WrapAddrOf(GlobalDecl GD) {
     const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
 
-    if (const CXXDestructorDecl *Dtor = dyn_cast<CXXDestructorDecl>(MD))
-      return wrap(CGM.GetAddrOfCXXDestructor(Dtor, GD.getDtorType()));
-
     const llvm::Type *Ty = CGM.getTypes().GetFunctionTypeForVtable(MD);
 
-    return wrap(CGM.GetAddrOfFunction(MD, Ty));
+    return wrap(CGM.GetAddrOfFunction(GD, Ty));
   }
 
   void OverrideMethods(Path_t *Path, bool MorallyVirtual, int64_t Offset,
@@ -438,15 +350,15 @@ public:
         if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(MD)) {
           // Override both the complete and the deleting destructor.
           GlobalDecl CompDtor(DD, Dtor_Complete);
-          OverrideMethod(CompDtor, WrapAddrOf(CompDtor), MorallyVirtual, 
-                         OverrideOffset, Offset, CurrentVBaseOffset);
-          
+          OverrideMethod(CompDtor, MorallyVirtual, OverrideOffset, Offset,
+                         CurrentVBaseOffset);
+
           GlobalDecl DeletingDtor(DD, Dtor_Deleting);
-          OverrideMethod(DeletingDtor, WrapAddrOf(DeletingDtor), MorallyVirtual, 
-                         OverrideOffset, Offset, CurrentVBaseOffset);
+          OverrideMethod(DeletingDtor, MorallyVirtual, OverrideOffset, Offset,
+                         CurrentVBaseOffset);
         } else {
-          OverrideMethod(MD, WrapAddrOf(MD), MorallyVirtual, OverrideOffset, 
-                         Offset, CurrentVBaseOffset);
+          OverrideMethod(MD, MorallyVirtual, OverrideOffset, Offset,
+                         CurrentVBaseOffset);
         }
       }
     }
@@ -454,24 +366,20 @@ public:
 
   void AddMethod(const GlobalDecl GD, bool MorallyVirtual, Index_t Offset,
                  int64_t CurrentVBaseOffset) {
-    llvm::Constant *m = WrapAddrOf(GD);
-
     // If we can find a previously allocated slot for this, reuse it.
-    if (OverrideMethod(GD, m, MorallyVirtual, Offset, Offset,
+    if (OverrideMethod(GD, MorallyVirtual, Offset, Offset,
                        CurrentVBaseOffset))
       return;
 
-    const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-    
-    // else allocate a new slot.
-    Index[GD] = submethods.size();
-    submethods.push_back(m);
+    // We didn't find an entry in the vtable that we could use, add a new
+    // entry.
+    Methods.AddMethod(GD);
+
     D1(printf("  vfn for %s at %d\n", MD->getNameAsString().c_str(),
               (int)Index[GD]));
-    if (MD->isPure())
-      PureVirtualMethods.insert(GD);
+
+    VCallOffset[GD] = Offset/8;
     if (MorallyVirtual) {
-      VCallOffset[GD] = Offset/8;
       Index_t &idx = VCall[GD];
       // Allocate the first one, after that, we reuse the previous one.
       if (idx == 0) {
@@ -530,16 +438,19 @@ public:
 #define D(X)
 
   void insertVCalls(int InsertionPoint) {
-    llvm::Constant *e = 0;
     D1(printf("============= combining vbase/vcall\n"));
     D(VCalls.insert(VCalls.begin(), 673));
     D(VCalls.push_back(672));
-    methods.insert(methods.begin() + InsertionPoint, VCalls.size(), e);
-    // The vcalls come first...
-    for (std::vector<Index_t>::reverse_iterator i = VCalls.rbegin(),
-           e = VCalls.rend();
-         i != e; ++i)
-      methods[InsertionPoint++] = wrap((0?600:0) + *i);
+
+    VtableComponents.insert(VtableComponents.begin() + InsertionPoint, 
+                            VCalls.size(), 0);
+    if (BuildVtable) {
+      // The vcalls come first...
+      for (std::vector<Index_t>::reverse_iterator i = VCalls.rbegin(),
+             e = VCalls.rend();
+           i != e; ++i)
+        VtableComponents[InsertionPoint++] = wrap((0?600:0) + *i);
+    }
     VCalls.clear();
     VCall.clear();
   }
@@ -570,11 +481,13 @@ public:
   }
 
 
-  Index_t end(const CXXRecordDecl *RD, const ASTRecordLayout &Layout,
-              const CXXRecordDecl *PrimaryBase, bool PrimaryBaseWasVirtual,
-              bool MorallyVirtual, int64_t Offset, bool ForVirtualBase,
-              int64_t CurrentVBaseOffset,
-              Path_t *Path) {
+  Index_t FinishGenerateVtable(const CXXRecordDecl *RD,
+                               const ASTRecordLayout &Layout,
+                               const CXXRecordDecl *PrimaryBase,
+                               bool PrimaryBaseWasVirtual,
+                               bool MorallyVirtual, int64_t Offset,
+                               bool ForVirtualBase, int64_t CurrentVBaseOffset,
+                               Path_t *Path) {
     bool alloc = false;
     if (Path == 0) {
       alloc = true;
@@ -584,21 +497,22 @@ public:
     StartNewTable();
     extra = 0;
     bool DeferVCalls = MorallyVirtual || ForVirtualBase;
-    int VCallInsertionPoint = methods.size();
+    int VCallInsertionPoint = VtableComponents.size();
     if (!DeferVCalls) {
       insertVCalls(VCallInsertionPoint);
     } else
       // FIXME: just for extra, or for all uses of VCalls.size post this?
       extra = -VCalls.size();
 
-    methods.push_back(wrap(-((Offset-LayoutOffset)/8)));
-    methods.push_back(rtti);
-    Index_t AddressPoint = methods.size();
+    // Add the offset to top.
+    VtableComponents.push_back(BuildVtable ? wrap(-((Offset-LayoutOffset)/8)) : 0);
+    
+    // Add the RTTI information.
+    VtableComponents.push_back(rtti);
+    
+    Index_t AddressPoint = VtableComponents.size();
 
-    InstallThunks();
-    D1(printf("============= combining methods\n"));
-    methods.insert(methods.end(), submethods.begin(), submethods.end());
-    submethods.clear();
+    AppendMethodsToVtable();
 
     // and then the non-virtual bases.
     NonVirtualBases(RD, Layout, PrimaryBase, PrimaryBaseWasVirtual,
@@ -635,17 +549,11 @@ public:
     const bool PrimaryBaseWasVirtual = Layout.getPrimaryBaseWasVirtual();
 
     // vtables are composed from the chain of primaries.
-    if (PrimaryBase) {
+    if (PrimaryBase && !PrimaryBaseWasVirtual) {
       D1(printf(" doing primaries for %s most derived %s\n",
                 RD->getNameAsCString(), Class->getNameAsCString()));
-      
-      int BaseCurrentVBaseOffset = CurrentVBaseOffset;
-      if (PrimaryBaseWasVirtual)
-        BaseCurrentVBaseOffset = BLayout.getVBaseClassOffset(PrimaryBase);
-        
-      if (!PrimaryBaseWasVirtual)
-        Primaries(PrimaryBase, PrimaryBaseWasVirtual|MorallyVirtual, Offset,
-                  updateVBIndex, current_vbindex, BaseCurrentVBaseOffset);
+      Primaries(PrimaryBase, PrimaryBaseWasVirtual|MorallyVirtual, Offset,
+                updateVBIndex, current_vbindex, CurrentVBaseOffset);
     }
 
     D1(printf(" doing vcall entries for %s most derived %s\n",
@@ -702,7 +610,8 @@ public:
 
     // Construction vtable don't need parts that have no virtual bases and
     // aren't morally virtual.
-    if ((LayoutClass != Class) && RD->getNumVBases() == 0 && !MorallyVirtual)
+    if ((LayoutClass != MostDerivedClass) && 
+        RD->getNumVBases() == 0 && !MorallyVirtual)
       return 0;
 
     const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
@@ -722,8 +631,9 @@ public:
     if (Path)
       OverrideMethods(Path, MorallyVirtual, Offset, CurrentVBaseOffset);
 
-    return end(RD, Layout, PrimaryBase, PrimaryBaseWasVirtual, MorallyVirtual,
-               Offset, ForVirtualBase, CurrentVBaseOffset, Path);
+    return FinishGenerateVtable(RD, Layout, PrimaryBase, PrimaryBaseWasVirtual,
+                                MorallyVirtual, Offset, ForVirtualBase,
+                                CurrentVBaseOffset, Path);
   }
 
   void GenerateVtableForVBases(const CXXRecordDecl *RD,
@@ -770,8 +680,7 @@ public:
       delete Path;
   }
 };
-
-}
+} // end anonymous namespace
 
 /// TypeConversionRequiresAdjustment - Returns whether conversion from a 
 /// derived type to a base type requires adjustment.
@@ -790,18 +699,18 @@ TypeConversionRequiresAdjustment(ASTContext &Ctx,
   // If we found a virtual base we always want to require adjustment.
   if (Paths.getDetectedVirtual())
     return true;
-
+  
   const CXXBasePath &Path = Paths.front();
   
   for (size_t Start = 0, End = Path.size(); Start != End; ++Start) {
     const CXXBasePathElement &Element = Path[Start];
-
+    
     // Check the base class offset.
     const ASTRecordLayout &Layout = Ctx.getASTRecordLayout(Element.Class);
     
     const RecordType *BaseType = Element.Base->getType()->getAs<RecordType>();
     const CXXRecordDecl *Base = cast<CXXRecordDecl>(BaseType->getDecl());
-
+    
     if (Layout.getBaseClassOffset(Base) != 0) {
       // This requires an adjustment.
       return true;
@@ -825,7 +734,7 @@ TypeConversionRequiresAdjustment(ASTContext &Ctx,
     // No adjustment needed.
     return false;
   }
-
+  
   if (const ReferenceType *RT = dyn_cast<ReferenceType>(CanDerivedType)) {
     CanDerivedType = RT->getPointeeType();
     CanBaseType = cast<ReferenceType>(CanBaseType)->getPointeeType();
@@ -835,19 +744,188 @@ TypeConversionRequiresAdjustment(ASTContext &Ctx,
   } else {
     assert(false && "Unexpected return type!");
   }
-
+  
   if (CanDerivedType == CanBaseType) {
     // No adjustment needed.
     return false;
   }
   
   const CXXRecordDecl *DerivedDecl = 
-    cast<CXXRecordDecl>(cast<RecordType>(CanDerivedType)->getDecl());
-
+  cast<CXXRecordDecl>(cast<RecordType>(CanDerivedType)->getDecl());
+  
   const CXXRecordDecl *BaseDecl = 
-    cast<CXXRecordDecl>(cast<RecordType>(CanBaseType)->getDecl());
-
+  cast<CXXRecordDecl>(cast<RecordType>(CanBaseType)->getDecl());
+  
   return TypeConversionRequiresAdjustment(Ctx, DerivedDecl, BaseDecl);
+}
+
+bool VtableBuilder::OverrideMethod(GlobalDecl GD, bool MorallyVirtual,
+                                   Index_t OverrideOffset, Index_t Offset,
+                                   int64_t CurrentVBaseOffset) {
+  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
+
+  const bool isPure = MD->isPure();
+  
+  // FIXME: Should OverrideOffset's be Offset?
+
+  for (CXXMethodDecl::method_iterator mi = MD->begin_overridden_methods(),
+       e = MD->end_overridden_methods(); mi != e; ++mi) {
+    GlobalDecl OGD;
+    
+    const CXXMethodDecl *OMD = *mi;
+    if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(OMD))
+      OGD = GlobalDecl(DD, GD.getDtorType());
+    else
+      OGD = OMD;
+
+    // Check whether this is the method being overridden in this section of
+    // the vtable.
+    uint64_t Index;
+    if (!Methods.getIndex(OGD, Index))
+      continue;
+
+    // Get the original method, which we should be computing thunks, etc,
+    // against.
+    OGD = Methods.getOrigMethod(Index);
+    OMD = cast<CXXMethodDecl>(OGD.getDecl());
+
+    QualType ReturnType = 
+      MD->getType()->getAs<FunctionType>()->getResultType();
+    QualType OverriddenReturnType = 
+      OMD->getType()->getAs<FunctionType>()->getResultType();
+    
+    // Check if we need a return type adjustment.
+    if (TypeConversionRequiresAdjustment(CGM.getContext(), ReturnType, 
+                                          OverriddenReturnType)) {
+      CanQualType &BaseReturnType = BaseReturnTypes[Index];
+
+      // Insert the base return type.
+      if (BaseReturnType.isNull())
+        BaseReturnType =
+          CGM.getContext().getCanonicalType(OverriddenReturnType);
+    }
+
+    Methods.OverrideMethod(OGD, GD);
+
+    ThisAdjustments.erase(Index);
+    if (MorallyVirtual || VCall.count(OGD)) {
+      Index_t &idx = VCall[OGD];
+      if (idx == 0) {
+        NonVirtualOffset[GD] = -OverrideOffset/8 + CurrentVBaseOffset/8;
+        VCallOffset[GD] = OverrideOffset/8;
+        idx = VCalls.size()+1;
+        VCalls.push_back(0);
+        D1(printf("  vcall for %s at %d with delta %d most derived %s\n",
+                  MD->getNameAsString().c_str(), (int)-idx-3,
+                  (int)VCalls[idx-1], Class->getNameAsCString()));
+      } else {
+        NonVirtualOffset[GD] = NonVirtualOffset[OGD];
+        VCallOffset[GD] = VCallOffset[OGD];
+        VCalls[idx-1] = -VCallOffset[OGD] + OverrideOffset/8;
+        D1(printf("  vcall patch for %s at %d with delta %d most derived %s\n",
+                  MD->getNameAsString().c_str(), (int)-idx-3,
+                  (int)VCalls[idx-1], Class->getNameAsCString()));
+      }
+      VCall[GD] = idx;
+      int64_t NonVirtualAdjustment = NonVirtualOffset[GD];
+      int64_t VirtualAdjustment = 
+        -((idx + extra + 2) * LLVMPointerWidth / 8);
+      
+      // Optimize out virtual adjustments of 0.
+      if (VCalls[idx-1] == 0)
+        VirtualAdjustment = 0;
+      
+      ThunkAdjustment ThisAdjustment(NonVirtualAdjustment,
+                                      VirtualAdjustment);
+
+      if (!isPure && !ThisAdjustment.isEmpty()) {
+        ThisAdjustments[Index] = ThisAdjustment;
+        SavedAdjustments.push_back(
+            std::make_pair(GD, std::make_pair(OGD, ThisAdjustment)));
+      }
+      return true;
+    }
+
+    int64_t NonVirtualAdjustment = -VCallOffset[OGD] + OverrideOffset/8;
+
+    if (NonVirtualAdjustment) {
+      ThunkAdjustment ThisAdjustment(NonVirtualAdjustment, 0);
+      
+      if (!isPure) {
+        ThisAdjustments[Index] = ThisAdjustment;
+        SavedAdjustments.push_back(
+            std::make_pair(GD, std::make_pair(OGD, ThisAdjustment)));
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+void VtableBuilder::AppendMethodsToVtable() {
+  if (!BuildVtable) {
+    VtableComponents.insert(VtableComponents.end(), Methods.size(), 
+                            (llvm::Constant *)0);
+    ThisAdjustments.clear();
+    BaseReturnTypes.clear();
+    Methods.clear();
+    return;
+  }
+
+  // Reserve room in the vtable for our new methods.
+  VtableComponents.reserve(VtableComponents.size() + Methods.size());
+
+  for (unsigned i = 0, e = Methods.size(); i != e; ++i) {
+    GlobalDecl GD = Methods[i];
+    const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
+  
+    // Get the 'this' pointer adjustment.
+    ThunkAdjustment ThisAdjustment = ThisAdjustments.lookup(i);
+  
+    // Construct the return type adjustment.
+    ThunkAdjustment ReturnAdjustment;
+
+    QualType BaseReturnType = BaseReturnTypes.lookup(i);
+    if (!BaseReturnType.isNull() && !MD->isPure()) {
+      QualType DerivedType = 
+        MD->getType()->getAs<FunctionType>()->getResultType();
+      
+      int64_t NonVirtualAdjustment = 
+      getNVOffset(BaseReturnType, DerivedType) / 8;
+      
+      int64_t VirtualAdjustment = 
+      getVbaseOffset(BaseReturnType, DerivedType);
+      
+      ReturnAdjustment = ThunkAdjustment(NonVirtualAdjustment, 
+                                         VirtualAdjustment);
+    }
+
+    llvm::Constant *Method = 0;
+    if (!ReturnAdjustment.isEmpty()) {
+      // Build a covariant thunk.
+      CovariantThunkAdjustment Adjustment(ThisAdjustment, ReturnAdjustment);
+      Method = wrap(CGM.GetAddrOfCovariantThunk(GD, Adjustment));
+    } else if (!ThisAdjustment.isEmpty()) {
+      // Build a "regular" thunk.
+      Method = wrap(CGM.GetAddrOfThunk(GD, ThisAdjustment));
+    } else if (MD->isPure()) {
+      // We have a pure virtual method.
+      Method = getPureVirtualFn();
+    } else {
+      // We have a good old regular method.
+      Method = WrapAddrOf(GD);
+    }
+
+    // Add the method to the vtable.
+    VtableComponents.push_back(Method);
+  }
+  
+  
+  ThisAdjustments.clear();
+  BaseReturnTypes.clear();
+  
+  Methods.clear();
 }
 
 void CGVtableInfo::ComputeMethodVtableIndices(const CXXRecordDecl *RD) {
@@ -874,7 +952,15 @@ void CGVtableInfo::ComputeMethodVtableIndices(const CXXRecordDecl *RD) {
     // we need to start counting at the end of the primary base's vtable.
     CurrentIndex = getNumVirtualFunctionPointers(PrimaryBase);
   }
-  
+
+  // Collect all the primary bases, so we can check whether methods override
+  // a method from the base.
+  llvm::SmallPtrSet<const CXXRecordDecl *, 5> PrimaryBases;
+  for (ASTRecordLayout::primary_base_info_iterator
+       I = Layout.primary_base_begin(), E = Layout.primary_base_end();
+       I != E; ++I)
+    PrimaryBases.insert((*I).getBase());
+
   const CXXDestructorDecl *ImplicitVirtualDtor = 0;
   
   for (CXXRecordDecl::method_iterator i = RD->method_begin(),
@@ -895,7 +981,7 @@ void CGVtableInfo::ComputeMethodVtableIndices(const CXXRecordDecl *RD) {
       assert(OverriddenMD->isCanonicalDecl() &&
              "Should have the canonical decl of the overridden RD!");
       
-      if (OverriddenRD == PrimaryBase) {
+      if (PrimaryBases.count(OverriddenRD)) {
         // Check if converting from the return type of the method to the 
         // return type of the overridden method requires conversion.
         QualType ReturnType = 
@@ -993,6 +1079,33 @@ uint64_t CGVtableInfo::getMethodVtableIndex(GlobalDecl GD) {
   return I->second;
 }
 
+CGVtableInfo::AdjustmentVectorTy*
+CGVtableInfo::getAdjustments(GlobalDecl GD) {
+  SavedAdjustmentsTy::iterator I = SavedAdjustments.find(GD);
+  if (I != SavedAdjustments.end())
+    return &I->second;
+
+  const CXXRecordDecl *RD = cast<CXXRecordDecl>(GD.getDecl()->getDeclContext());
+  if (!SavedAdjustmentRecords.insert(RD).second)
+    return 0;
+
+  VtableBuilder b(RD, RD, 0, CGM, false);
+  D1(printf("vtable %s\n", RD->getNameAsCString()));
+  b.GenerateVtableForBase(RD);
+  b.GenerateVtableForVBases(RD);
+
+  for (VtableBuilder::SavedAdjustmentsVectorTy::iterator
+       i = b.getSavedAdjustments().begin(),
+       e = b.getSavedAdjustments().end(); i != e; i++)
+    SavedAdjustments[i->first].push_back(i->second);
+
+  I = SavedAdjustments.find(GD);
+  if (I != SavedAdjustments.end())
+    return &I->second;
+
+  return 0;
+}
+
 int64_t CGVtableInfo::getVirtualBaseOffsetIndex(const CXXRecordDecl *RD, 
                                                 const CXXRecordDecl *VBase) {
   ClassPairTy ClassPair(RD, VBase);
@@ -1002,10 +1115,9 @@ int64_t CGVtableInfo::getVirtualBaseOffsetIndex(const CXXRecordDecl *RD,
   if (I != VirtualBaseClassIndicies.end())
     return I->second;
   
-  std::vector<llvm::Constant *> methods;
   // FIXME: This seems expensive.  Can we do a partial job to get
   // just this data.
-  VtableBuilder b(methods, RD, RD, 0, CGM);
+  VtableBuilder b(RD, RD, 0, CGM, false);
   D1(printf("vtable %s\n", RD->getNameAsCString()));
   b.GenerateVtableForBase(RD);
   b.GenerateVtableForVBases(RD);
@@ -1024,30 +1136,38 @@ int64_t CGVtableInfo::getVirtualBaseOffsetIndex(const CXXRecordDecl *RD,
   return I->second;
 }
 
-llvm::Constant *CodeGenModule::GenerateVtable(const CXXRecordDecl *LayoutClass,
-                                              const CXXRecordDecl *RD,
-                                              uint64_t Offset) {
+uint64_t CGVtableInfo::getVtableAddressPoint(const CXXRecordDecl *RD) {
+  uint64_t AddressPoint = 
+    (*(*(CGM.AddressPoints[RD]))[RD])[std::make_pair(RD, 0)];
+  
+  return AddressPoint;
+}
+
+llvm::GlobalVariable *
+CGVtableInfo::GenerateVtable(llvm::GlobalVariable::LinkageTypes Linkage,
+                             bool GenerateDefinition,
+                             const CXXRecordDecl *LayoutClass,
+                             const CXXRecordDecl *RD, uint64_t Offset) {
   llvm::SmallString<256> OutName;
   if (LayoutClass != RD)
-    getMangleContext().mangleCXXCtorVtable(LayoutClass, Offset/8, RD, OutName);
+    CGM.getMangleContext().mangleCXXCtorVtable(LayoutClass, Offset / 8, 
+                                               RD, OutName);
   else
-    getMangleContext().mangleCXXVtable(RD, OutName);
+    CGM.getMangleContext().mangleCXXVtable(RD, OutName);
   llvm::StringRef Name = OutName.str();
 
-  std::vector<llvm::Constant *> methods;
-  llvm::Type *Ptr8Ty=llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext),0);
   int64_t AddressPoint;
 
-  llvm::GlobalVariable *GV = getModule().getGlobalVariable(Name);
-  if (GV && AddressPoints[LayoutClass] && !GV->isDeclaration()) {
-    AddressPoint=(*(*(AddressPoints[LayoutClass]))[RD])[std::make_pair(RD,
+  llvm::GlobalVariable *GV = CGM.getModule().getGlobalVariable(Name);
+  if (GV && CGM.AddressPoints[LayoutClass] && !GV->isDeclaration()) {
+    AddressPoint=(*(*(CGM.AddressPoints[LayoutClass]))[RD])[std::make_pair(RD,
                                                                        Offset)];
     // FIXME: We can never have 0 address point.  Do this for now so gepping
     // retains the same structure.  Later, we'll just assert.
     if (AddressPoint == 0)
       AddressPoint = 1;
   } else {
-    VtableBuilder b(methods, RD, LayoutClass, Offset, *this);
+    VtableBuilder b(RD, LayoutClass, Offset, CGM, GenerateDefinition);
 
     D1(printf("vtable %s\n", RD->getNameAsCString()));
     // First comes the vtables for all the non-virtual bases...
@@ -1056,59 +1176,34 @@ llvm::Constant *CodeGenModule::GenerateVtable(const CXXRecordDecl *LayoutClass,
     // then the vtables for all the virtual bases.
     b.GenerateVtableForVBases(RD, Offset);
 
-    bool CreateDefinition = true;
-    if (LayoutClass != RD)
-      CreateDefinition = true;
-    else {
-      const ASTRecordLayout &Layout = 
-        getContext().getASTRecordLayout(LayoutClass);
-      
-      if (const CXXMethodDecl *KeyFunction = Layout.getKeyFunction()) {
-        if (!KeyFunction->getBody()) {
-          // If there is a KeyFunction, and it isn't defined, just build a
-          // reference to the vtable.
-          CreateDefinition = false;
-        }
-      }
-    }
+    llvm::Constant *Init = 0;
+    const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
+    llvm::ArrayType *ArrayType = 
+      llvm::ArrayType::get(Int8PtrTy, b.getVtableComponents().size());
 
-    llvm::Constant *C = 0;
-    llvm::Type *type = Ptr8Ty;
-    llvm::GlobalVariable::LinkageTypes linktype
-      = llvm::GlobalValue::ExternalLinkage;
-    if (CreateDefinition) {
-      llvm::ArrayType *ntype = llvm::ArrayType::get(Ptr8Ty, methods.size());
-      C = llvm::ConstantArray::get(ntype, methods);
-      linktype = llvm::GlobalValue::LinkOnceODRLinkage;
-      if (LayoutClass->isInAnonymousNamespace())
-        linktype = llvm::GlobalValue::InternalLinkage;
-      type = ntype;
-    }
+    if (GenerateDefinition)
+      Init = llvm::ConstantArray::get(ArrayType, &b.getVtableComponents()[0], 
+                                      b.getVtableComponents().size());
+
     llvm::GlobalVariable *OGV = GV;
-    GV = new llvm::GlobalVariable(getModule(), type, true, linktype, C, Name);
+    
+    GV = new llvm::GlobalVariable(CGM.getModule(), ArrayType, 
+                                  /*isConstant=*/true, Linkage, Init, Name);
+    CGM.setGlobalVisibility(GV, RD);
+  
     if (OGV) {
       GV->takeName(OGV);
-      llvm::Constant *NewPtr = llvm::ConstantExpr::getBitCast(GV,
-                                                              OGV->getType());
+      llvm::Constant *NewPtr = 
+        llvm::ConstantExpr::getBitCast(GV, OGV->getType());
       OGV->replaceAllUsesWith(NewPtr);
       OGV->eraseFromParent();
     }
-    bool Hidden = getDeclVisibilityMode(RD) == LangOptions::Hidden;
-    if (Hidden)
-      GV->setVisibility(llvm::GlobalVariable::HiddenVisibility);
   }
-  llvm::Constant *vtable = llvm::ConstantExpr::getBitCast(GV, Ptr8Ty);
-  llvm::Constant *AddressPointC;
-  uint32_t LLVMPointerWidth = getContext().Target.getPointerWidth(0);
-  AddressPointC = llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                         AddressPoint*LLVMPointerWidth/8);
-  vtable = llvm::ConstantExpr::getInBoundsGetElementPtr(vtable, &AddressPointC,
-                                                        1);
-
-  assert(vtable->getType() == Ptr8Ty);
-  return vtable;
+  
+  return GV;
 }
 
+namespace {
 class VTTBuilder {
   /// Inits - The list of values built for the VTT.
   std::vector<llvm::Constant *> &Inits;
@@ -1125,12 +1220,13 @@ class VTTBuilder {
   llvm::LLVMContext &VMContext;
 
   /// BuildVtablePtr - Build up a referene to the given secondary vtable
-  llvm::Constant *BuildVtablePtr(llvm::Constant *vtbl,
-                                 const CXXRecordDecl *VtblClass,
+  llvm::Constant *BuildVtablePtr(llvm::Constant *Vtable,
+                                 const CXXRecordDecl *VtableClass,
                                  const CXXRecordDecl *RD,
                                  uint64_t Offset) {
-    int64_t AddressPoint;
-    AddressPoint = (*AddressPoints[VtblClass])[std::make_pair(RD, Offset)];    
+    int64_t AddressPoint = 
+      (*AddressPoints[VtableClass])[std::make_pair(RD, Offset)];
+    
     // FIXME: We can never have 0 address point.  Do this for now so gepping
     // retains the same structure.  Later we'll just assert.
     if (AddressPoint == 0)
@@ -1138,12 +1234,17 @@ class VTTBuilder {
     D1(printf("XXX address point for %s in %s layout %s at offset %d was %d\n",
               RD->getNameAsCString(), VtblClass->getNameAsCString(),
               Class->getNameAsCString(), (int)Offset, (int)AddressPoint));
-    uint32_t LLVMPointerWidth = CGM.getContext().Target.getPointerWidth(0);
-    llvm::Constant *init;
-    init = llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext),
-                                  AddressPoint*LLVMPointerWidth/8);
-    init = llvm::ConstantExpr::getInBoundsGetElementPtr(vtbl, &init, 1);
-    return init;
+
+    llvm::Value *Idxs[] = {
+      llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext), 0),
+      llvm::ConstantInt::get(llvm::Type::getInt64Ty(VMContext), AddressPoint)
+    };
+    
+    llvm::Constant *Init = 
+      llvm::ConstantExpr::getInBoundsGetElementPtr(Vtable, Idxs, 2);
+
+    const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
+    return llvm::ConstantExpr::getBitCast(Init, Int8PtrTy);
   }
 
   /// Secondary - Add the secondary vtable pointers to Inits.  Offset is the
@@ -1180,8 +1281,11 @@ class VTTBuilder {
           init = BuildVtablePtr(vtbl, VtblClass, RD, Offset);
         else {
           init = CGM.getVtableInfo().getCtorVtable(Class, Base, BaseOffset);
-          subvtbl = dyn_cast<llvm::Constant>(init->getOperand(0));
+          
+          subvtbl = init;
           subVtblClass = Base;
+          
+          init = BuildVtablePtr(init, Class, Base, BaseOffset);
         }
         Inits.push_back(init);
       }
@@ -1195,25 +1299,26 @@ class VTTBuilder {
     if (RD->getNumVBases() == 0 && !MorallyVirtual)
       return;
 
-    llvm::Constant *init;
-    const CXXRecordDecl *VtblClass;
+    llvm::Constant *Vtable;
+    const CXXRecordDecl *VtableClass;
 
     // First comes the primary virtual table pointer...
     if (MorallyVirtual) {
-      init = BuildVtablePtr(ClassVtbl, Class, RD, Offset);
-      VtblClass = Class;
+      Vtable = ClassVtbl;
+      VtableClass = Class;
     } else {
-      init = CGM.getVtableInfo().getCtorVtable(Class, RD, Offset);
-      VtblClass = RD;
+      Vtable = CGM.getVtableInfo().getCtorVtable(Class, RD, Offset);
+      VtableClass = RD;
     }
-    llvm::Constant *vtbl = dyn_cast<llvm::Constant>(init->getOperand(0));
-    Inits.push_back(init);
+    
+    llvm::Constant *Init = BuildVtablePtr(Vtable, VtableClass, RD, Offset);
+    Inits.push_back(Init);
 
     // then the secondary VTTs....
     SecondaryVTTs(RD, Offset, MorallyVirtual);
 
     // and last the secondary vtable pointers.
-    Secondary(RD, vtbl, VtblClass, Offset, MorallyVirtual);
+    Secondary(RD, Vtable, VtableClass, Offset, MorallyVirtual);
   }
 
   /// SecondaryVTTs - Add the secondary VTTs to Inits.  The secondary VTTs are
@@ -1248,6 +1353,7 @@ class VTTBuilder {
       VirtualVTTs(Base);
     }
   }
+
 public:
   VTTBuilder(std::vector<llvm::Constant *> &inits, const CXXRecordDecl *c,
              CodeGenModule &cgm)
@@ -1258,8 +1364,7 @@ public:
     
     // First comes the primary virtual table pointer for the complete class...
     ClassVtbl = CGM.getVtableInfo().getVtable(Class);
-    Inits.push_back(ClassVtbl);
-    ClassVtbl = dyn_cast<llvm::Constant>(ClassVtbl->getOperand(0));
+    Inits.push_back(BuildVtablePtr(ClassVtbl, Class, Class, 0));
     
     // then the secondary VTTs...
     SecondaryVTTs(Class);
@@ -1271,98 +1376,116 @@ public:
     VirtualVTTs(Class);
   }
 };
+}
 
-llvm::Constant *CodeGenModule::GenerateVTT(const CXXRecordDecl *RD) {
+llvm::GlobalVariable *
+CGVtableInfo::GenerateVTT(llvm::GlobalVariable::LinkageTypes Linkage,
+                          const CXXRecordDecl *RD) {
   // Only classes that have virtual bases need a VTT.
   if (RD->getNumVBases() == 0)
     return 0;
 
   llvm::SmallString<256> OutName;
-  getMangleContext().mangleCXXVTT(RD, OutName);
+  CGM.getMangleContext().mangleCXXVTT(RD, OutName);
   llvm::StringRef Name = OutName.str();
 
-  llvm::GlobalVariable::LinkageTypes linktype;
-  linktype = llvm::GlobalValue::LinkOnceODRLinkage;
-  if (RD->isInAnonymousNamespace())
-    linktype = llvm::GlobalValue::InternalLinkage;
-  std::vector<llvm::Constant *> inits;
-  llvm::Type *Ptr8Ty=llvm::PointerType::get(llvm::Type::getInt8Ty(VMContext),0);
 
   D1(printf("vtt %s\n", RD->getNameAsCString()));
 
-  VTTBuilder b(inits, RD, *this);
+  std::vector<llvm::Constant *> inits;
+  VTTBuilder b(inits, RD, CGM);
 
-  llvm::Constant *C;
-  llvm::ArrayType *type = llvm::ArrayType::get(Ptr8Ty, inits.size());
-  C = llvm::ConstantArray::get(type, inits);
-  llvm::GlobalVariable *vtt = new llvm::GlobalVariable(getModule(), type, true,
-                                                       linktype, C, Name);
-  bool Hidden = getDeclVisibilityMode(RD) == LangOptions::Hidden;
-  if (Hidden)
-    vtt->setVisibility(llvm::GlobalVariable::HiddenVisibility);
-  return llvm::ConstantExpr::getBitCast(vtt, Ptr8Ty);
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
+  const llvm::ArrayType *Type = llvm::ArrayType::get(Int8PtrTy, inits.size());
+  
+  llvm::Constant *Init = llvm::ConstantArray::get(Type, inits);
+  
+  llvm::GlobalVariable *VTT = 
+    new llvm::GlobalVariable(CGM.getModule(), Type, /*isConstant=*/true, 
+                             Linkage, Init, Name);
+  CGM.setGlobalVisibility(VTT, RD);
+  
+  return VTT;
 }
 
-void CGVtableInfo::GenerateClassData(const CXXRecordDecl *RD) {
-  Vtables[RD] = CGM.GenerateVtable(RD, RD);
-  CGM.GenerateRtti(RD);
-  CGM.GenerateVTT(RD);  
-}
-
-llvm::Constant *CGVtableInfo::getVtable(const CXXRecordDecl *RD) {
-  llvm::Constant *&vtbl = Vtables[RD];
-  if (vtbl)
-    return vtbl;
-  vtbl = CGM.GenerateVtable(RD, RD);
-
-  bool CreateDefinition = true;
-
-  const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
-  if (const CXXMethodDecl *KeyFunction = Layout.getKeyFunction()) {
-    if (!KeyFunction->getBody()) {
-      // If there is a KeyFunction, and it isn't defined, just build a
-      // reference to the vtable.
-      CreateDefinition = false;
-    }
+void CGVtableInfo::GenerateClassData(llvm::GlobalVariable::LinkageTypes Linkage,
+                                     const CXXRecordDecl *RD) {
+  llvm::GlobalVariable *&Vtable = Vtables[RD];
+  if (Vtable) {
+    assert(Vtable->getInitializer() && "Vtable doesn't have a definition!");
+    return;
   }
-
-  if (CreateDefinition) {
-    CGM.GenerateRtti(RD);
-    CGM.GenerateVTT(RD);
-  }
-  return vtbl;
+  
+  Vtable = GenerateVtable(Linkage, /*GenerateDefinition=*/true, RD, RD, 0);
+  GenerateVTT(Linkage, RD);  
 }
 
-llvm::Constant *CGVtableInfo::getCtorVtable(const CXXRecordDecl *LayoutClass,
-                                            const CXXRecordDecl *RD,
-                                            uint64_t Offset) {
-  return CGM.GenerateVtable(LayoutClass, RD, Offset);
+llvm::GlobalVariable *CGVtableInfo::getVtable(const CXXRecordDecl *RD) {
+  llvm::GlobalVariable *Vtable = Vtables.lookup(RD);
+  
+  if (!Vtable)
+    Vtable = GenerateVtable(llvm::GlobalValue::ExternalLinkage, 
+                            /*GenerateDefinition=*/false, RD, RD, 0);
+
+  return Vtable;
+}
+
+llvm::GlobalVariable *
+CGVtableInfo::getCtorVtable(const CXXRecordDecl *LayoutClass,
+                            const CXXRecordDecl *RD, uint64_t Offset) {
+  return GenerateVtable(llvm::GlobalValue::InternalLinkage, 
+                        /*GenerateDefinition=*/true,
+                        LayoutClass, RD, Offset);
 }
 
 void CGVtableInfo::MaybeEmitVtable(GlobalDecl GD) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
   const CXXRecordDecl *RD = MD->getParent();
 
-  const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
+  // If the class doesn't have a vtable we don't need to emit one.
+  if (!RD->isDynamicClass())
+    return;
   
   // Get the key function.
-  const CXXMethodDecl *KeyFunction = Layout.getKeyFunction();
+  const CXXMethodDecl *KeyFunction = CGM.getContext().getKeyFunction(RD);
   
-  if (!KeyFunction) {
-    // If there's no key function, we don't want to emit the vtable here.
-    return;
+  if (KeyFunction) {
+    // We don't have the right key function.
+    if (KeyFunction->getCanonicalDecl() != MD->getCanonicalDecl())
+      return;
+    
+    // If the key function is a destructor, we only want to emit the vtable 
+    // once, so do it for the complete destructor.
+    if (isa<CXXDestructorDecl>(MD) && GD.getDtorType() != Dtor_Complete)
+      return;
+  } else {
+    // If there is no key function, we only want to emit the vtable if we are
+    // emitting a constructor.
+    if (!isa<CXXConstructorDecl>(MD) || GD.getCtorType() != Ctor_Complete)
+      return;
   }
 
-  // Check if we have the key function.
-  if (KeyFunction->getCanonicalDecl() != MD->getCanonicalDecl())
-    return;
+  llvm::GlobalVariable::LinkageTypes Linkage;
+  if (RD->isInAnonymousNamespace() || !RD->hasLinkage())
+    Linkage = llvm::GlobalVariable::InternalLinkage;
+  else if (KeyFunction && !MD->isInlined())
+    Linkage = llvm::GlobalVariable::ExternalLinkage;
+  else
+    Linkage = llvm::GlobalVariable::WeakODRLinkage;
   
-  // If the key function is a destructor, we only want to emit the vtable once,
-  // so do it for the complete destructor.
-  if (isa<CXXDestructorDecl>(MD) && GD.getDtorType() != Dtor_Complete)
-    return;
-
   // Emit the data.
-  GenerateClassData(RD);
+  GenerateClassData(Linkage, RD);
+
+  for (CXXRecordDecl::method_iterator i = RD->method_begin(),
+       e = RD->method_end(); i != e; ++i) {
+    if ((*i)->isVirtual() && ((*i)->hasInlineBody() || (*i)->isImplicit())) {
+      if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(*i)) {
+        CGM.BuildThunksForVirtual(GlobalDecl(DD, Dtor_Complete));
+        CGM.BuildThunksForVirtual(GlobalDecl(DD, Dtor_Deleting));
+      } else {
+        CGM.BuildThunksForVirtual(GlobalDecl(*i));
+      }
+    }
+  }
 }
 

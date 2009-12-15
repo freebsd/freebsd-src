@@ -278,20 +278,20 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   PushDeclContext(S, Context.getTranslationUnitDecl());
 
   if (PP.getTargetInfo().getPointerWidth(0) >= 64) {
-    DeclaratorInfo *DInfo;
+    TypeSourceInfo *TInfo;
 
     // Install [u]int128_t for 64-bit targets.
-    DInfo = Context.getTrivialDeclaratorInfo(Context.Int128Ty);
+    TInfo = Context.getTrivialTypeSourceInfo(Context.Int128Ty);
     PushOnScopeChains(TypedefDecl::Create(Context, CurContext,
                                           SourceLocation(),
                                           &Context.Idents.get("__int128_t"),
-                                          DInfo), TUScope);
+                                          TInfo), TUScope);
 
-    DInfo = Context.getTrivialDeclaratorInfo(Context.UnsignedInt128Ty);
+    TInfo = Context.getTrivialTypeSourceInfo(Context.UnsignedInt128Ty);
     PushOnScopeChains(TypedefDecl::Create(Context, CurContext,
                                           SourceLocation(),
                                           &Context.Idents.get("__uint128_t"),
-                                          DInfo), TUScope);
+                                          TInfo), TUScope);
   }
 
 
@@ -301,7 +301,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   if (Context.getObjCSelType().isNull()) {
     // Create the built-in typedef for 'SEL'.
     QualType SelT = Context.getPointerType(Context.ObjCBuiltinSelTy);
-    DeclaratorInfo *SelInfo = Context.getTrivialDeclaratorInfo(SelT);
+    TypeSourceInfo *SelInfo = Context.getTrivialTypeSourceInfo(SelT);
     TypedefDecl *SelTypedef
       = TypedefDecl::Create(Context, CurContext, SourceLocation(),
                             &Context.Idents.get("SEL"), SelInfo);
@@ -322,7 +322,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   // Create the built-in typedef for 'id'.
   if (Context.getObjCIdType().isNull()) {
     QualType IdT = Context.getObjCObjectPointerType(Context.ObjCBuiltinIdTy);
-    DeclaratorInfo *IdInfo = Context.getTrivialDeclaratorInfo(IdT);
+    TypeSourceInfo *IdInfo = Context.getTrivialTypeSourceInfo(IdT);
     TypedefDecl *IdTypedef
       = TypedefDecl::Create(Context, CurContext, SourceLocation(),
                             &Context.Idents.get("id"), IdInfo);
@@ -334,7 +334,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
   if (Context.getObjCClassType().isNull()) {
     QualType ClassType
       = Context.getObjCObjectPointerType(Context.ObjCBuiltinClassTy);
-    DeclaratorInfo *ClassInfo = Context.getTrivialDeclaratorInfo(ClassType);
+    TypeSourceInfo *ClassInfo = Context.getTrivialTypeSourceInfo(ClassType);
     TypedefDecl *ClassTypedef
       = TypedefDecl::Create(Context, CurContext, SourceLocation(),
                             &Context.Idents.get("Class"), ClassInfo);
@@ -728,18 +728,27 @@ void Sema::DeleteStmt(StmtTy *S) {
 /// translation unit when EOF is reached and all but the top-level scope is
 /// popped.
 void Sema::ActOnEndOfTranslationUnit() {
-  // C++: Perform implicit template instantiations.
-  //
-  // FIXME: When we perform these implicit instantiations, we do not carefully
-  // keep track of the point of instantiation (C++ [temp.point]). This means
-  // that name lookup that occurs within the template instantiation will
-  // always happen at the end of the translation unit, so it will find
-  // some names that should not be found. Although this is common behavior
-  // for C++ compilers, it is technically wrong. In the future, we either need
-  // to be able to filter the results of name lookup or we need to perform
-  // template instantiations earlier.
-  PerformPendingImplicitInstantiations();
-
+  
+  while (1) {
+    // C++: Perform implicit template instantiations.
+    //
+    // FIXME: When we perform these implicit instantiations, we do not carefully
+    // keep track of the point of instantiation (C++ [temp.point]). This means
+    // that name lookup that occurs within the template instantiation will
+    // always happen at the end of the translation unit, so it will find
+    // some names that should not be found. Although this is common behavior
+    // for C++ compilers, it is technically wrong. In the future, we either need
+    // to be able to filter the results of name lookup or we need to perform
+    // template instantiations earlier.
+    PerformPendingImplicitInstantiations();
+    
+    /// If ProcessPendingClassesWithUnmarkedVirtualMembers ends up marking 
+    /// any virtual member functions it might lead to more pending template
+    /// instantiations, which is why we need to loop here.
+    if (!ProcessPendingClassesWithUnmarkedVirtualMembers())
+      break;
+  }
+  
   // Check for #pragma weak identifiers that were never declared
   // FIXME: This will cause diagnostics to be emitted in a non-determinstic
   // order!  Iterating over a densemap like this is bad.

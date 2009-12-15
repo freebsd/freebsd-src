@@ -26,6 +26,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
+#include "MacroArgs.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/Pragma.h"
@@ -50,7 +51,8 @@ Preprocessor::Preprocessor(Diagnostic &diags, const LangOptions &opts,
                            bool OwnsHeaders)
   : Diags(&diags), Features(opts), Target(target),FileMgr(Headers.getFileMgr()),
     SourceMgr(SM), HeaderInfo(Headers), Identifiers(opts, IILookup),
-    BuiltinInfo(Target), CurPPLexer(0), CurDirLookup(0), Callbacks(0) {
+    BuiltinInfo(Target), CodeCompletionFile(0), CurPPLexer(0), CurDirLookup(0),
+    Callbacks(0), MacroArgCache(0) {
   ScratchBuf = new ScratchBuffer(SourceMgr);
   CounterValue = 0; // __COUNTER__ starts at 0.
   OwnsHeaderSearch = OwnsHeaders;
@@ -101,7 +103,7 @@ Preprocessor::~Preprocessor() {
        Macros.begin(), E = Macros.end(); I != E; ++I) {
     // We don't need to free the MacroInfo objects directly.  These
     // will be released when the BumpPtrAllocator 'BP' object gets
-    // destroyed. We still need to run the dstor, however, to free
+    // destroyed.  We still need to run the dtor, however, to free
     // memory alocated by MacroInfo.
     I->second->Destroy(BP);
     I->first->setHasMacroDefinition(false);
@@ -110,6 +112,10 @@ Preprocessor::~Preprocessor() {
   // Free any cached macro expanders.
   for (unsigned i = 0, e = NumCachedTokenLexers; i != e; ++i)
     delete TokenLexerCache[i];
+  
+  // Free any cached MacroArgs.
+  for (MacroArgs *ArgList = MacroArgCache; ArgList; )
+    ArgList = ArgList->deallocate();
 
   // Release pragma information.
   delete PragmaHandlers;
@@ -186,6 +192,57 @@ void Preprocessor::PrintStats() {
   llvm::errs() << (NumFastTokenPaste+NumTokenPaste)
              << " token paste (##) operations performed, "
              << NumFastTokenPaste << " on the fast path.\n";
+}
+
+bool Preprocessor::SetCodeCompletionPoint(const FileEntry *File, 
+                                          unsigned TruncateAtLine, 
+                                          unsigned TruncateAtColumn) {
+  using llvm::MemoryBuffer;
+
+  CodeCompletionFile = File;
+
+  // Okay to clear out the code-completion point by passing NULL.
+  if (!CodeCompletionFile)
+    return false;
+
+  // Load the actual file's contents.
+  const MemoryBuffer *Buffer = SourceMgr.getMemoryBufferForFile(File);
+  if (!Buffer)
+    return true;
+
+  // Find the byte position of the truncation point.
+  const char *Position = Buffer->getBufferStart();
+  for (unsigned Line = 1; Line < TruncateAtLine; ++Line) {
+    for (; *Position; ++Position) {
+      if (*Position != '\r' && *Position != '\n')
+        continue;
+      
+      // Eat \r\n or \n\r as a single line.
+      if ((Position[1] == '\r' || Position[1] == '\n') &&
+          Position[0] != Position[1])
+        ++Position;
+      ++Position;
+      break;
+    }
+  }
+  
+  Position += TruncateAtColumn - 1;
+  
+  // Truncate the buffer.
+  if (Position < Buffer->getBufferEnd()) {
+    MemoryBuffer *TruncatedBuffer 
+      = MemoryBuffer::getMemBufferCopy(Buffer->getBufferStart(), Position, 
+                                       Buffer->getBufferIdentifier());
+    SourceMgr.overrideFileContents(File, TruncatedBuffer);
+  }
+
+  return false;
+}
+
+bool Preprocessor::isCodeCompletionFile(SourceLocation FileLoc) const {
+  return CodeCompletionFile && FileLoc.isFileID() &&
+    SourceMgr.getFileEntryForID(SourceMgr.getFileID(FileLoc))
+      == CodeCompletionFile;
 }
 
 //===----------------------------------------------------------------------===//
@@ -380,7 +437,9 @@ void Preprocessor::EnterMainSourceFile() {
   FileID MainFileID = SourceMgr.getMainFileID();
 
   // Enter the main file source buffer.
-  EnterSourceFile(MainFileID, 0);
+  std::string ErrorStr;
+  bool Res = EnterSourceFile(MainFileID, 0, ErrorStr);
+  assert(!Res && "Entering main file should not fail!");
 
   // Tell the header info that the main file was entered.  If the file is later
   // #imported, it won't be re-entered.
@@ -406,7 +465,8 @@ void Preprocessor::EnterMainSourceFile() {
   assert(!FID.isInvalid() && "Could not create FileID for predefines?");
 
   // Start parsing the predefines.
-  EnterSourceFile(FID, 0);
+  Res = EnterSourceFile(FID, 0, ErrorStr);
+  assert(!Res && "Entering predefines should not fail!");
 }
 
 

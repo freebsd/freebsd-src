@@ -88,11 +88,17 @@ public:
   QualType FnRetTy;
   llvm::Function *CurFn;
 
+  /// CurGD - The GlobalDecl for the current function being compiled.
+  GlobalDecl CurGD;
+  /// OuterTryBlock - This is the address of the outter most try block, 0
+  /// otherwise.
+  const Stmt *OuterTryBlock;
+
   /// ReturnBlock - Unified return block.
   llvm::BasicBlock *ReturnBlock;
   /// ReturnValue - The temporary alloca to hold the return value. This is null
   /// iff the function has no return value.
-  llvm::Instruction *ReturnValue;
+  llvm::Value *ReturnValue;
 
   /// AllocaInsertPoint - This is an instruction in the entry block before which
   /// we prefer to insert allocas.
@@ -101,6 +107,8 @@ public:
   const llvm::Type *LLVMIntTy;
   uint32_t LLVMPointerWidth;
 
+  bool Exceptions;
+  bool CatchUndefined;
 public:
   /// ObjCEHValueStack - Stack of Objective-C exception values, used for
   /// rethrows.
@@ -109,7 +117,12 @@ public:
   /// PushCleanupBlock - Push a new cleanup entry on the stack and set the
   /// passed in block as the cleanup block.
   void PushCleanupBlock(llvm::BasicBlock *CleanupEntryBlock,
-                        llvm::BasicBlock *CleanupExitBlock = 0);
+                        llvm::BasicBlock *CleanupExitBlock,
+                        llvm::BasicBlock *PreviousInvokeDest,
+                        bool EHOnly = false);
+  void PushCleanupBlock(llvm::BasicBlock *CleanupEntryBlock) {
+    PushCleanupBlock(CleanupEntryBlock, 0, getInvokeDest(), false);
+  }
 
   /// CleanupBlockInfo - A struct representing a popped cleanup block.
   struct CleanupBlockInfo {
@@ -123,14 +136,43 @@ public:
     /// EndBlock - the default destination for the switch instruction.
     llvm::BasicBlock *EndBlock;
 
+    /// EHOnly - True iff this cleanup should only be performed on the
+    /// exceptional edge.
+    bool EHOnly;
+
     CleanupBlockInfo(llvm::BasicBlock *cb, llvm::BasicBlock *sb,
-                     llvm::BasicBlock *eb)
-      : CleanupBlock(cb), SwitchBlock(sb), EndBlock(eb) {}
+                     llvm::BasicBlock *eb, bool ehonly = false)
+      : CleanupBlock(cb), SwitchBlock(sb), EndBlock(eb), EHOnly(ehonly) {}
+  };
+
+  /// EHCleanupBlock - RAII object that will create a cleanup block for the
+  /// exceptional edge and set the insert point to that block.  When destroyed,
+  /// it creates the cleanup edge and sets the insert point to the previous
+  /// block.
+  class EHCleanupBlock {
+    CodeGenFunction& CGF;
+    llvm::BasicBlock *Cont;
+    llvm::BasicBlock *CleanupHandler;
+    llvm::BasicBlock *CleanupEntryBB;
+    llvm::BasicBlock *PreviousInvokeDest;
+  public:
+    EHCleanupBlock(CodeGenFunction &cgf) 
+      : CGF(cgf), Cont(CGF.createBasicBlock("cont")),
+        CleanupHandler(CGF.createBasicBlock("ehcleanup")),
+        CleanupEntryBB(CGF.createBasicBlock("ehcleanup.rest")),
+        PreviousInvokeDest(CGF.getInvokeDest()) {
+      CGF.EmitBranch(Cont);
+      llvm::BasicBlock *TerminateHandler = CGF.getTerminateHandler();
+      CGF.Builder.SetInsertPoint(CleanupEntryBB);
+      CGF.setInvokeDest(TerminateHandler);
+    }
+    ~EHCleanupBlock();
   };
 
   /// PopCleanupBlock - Will pop the cleanup entry on the stack, process all
   /// branch fixups and return a block info struct with the switch block and end
-  /// block.
+  /// block.  This will also reset the invoke handler to the previous value
+  /// from when the cleanup block was created.
   CleanupBlockInfo PopCleanupBlock();
 
   /// DelayedCleanupBlock - RAII object that will create a cleanup block and set
@@ -141,11 +183,15 @@ public:
     llvm::BasicBlock *CurBB;
     llvm::BasicBlock *CleanupEntryBB;
     llvm::BasicBlock *CleanupExitBB;
+    llvm::BasicBlock *CurInvokeDest;
+    bool EHOnly;
     
   public:
-    DelayedCleanupBlock(CodeGenFunction &cgf)
+    DelayedCleanupBlock(CodeGenFunction &cgf, bool ehonly = false)
       : CGF(cgf), CurBB(CGF.Builder.GetInsertBlock()),
-      CleanupEntryBB(CGF.createBasicBlock("cleanup")), CleanupExitBB(0) {
+        CleanupEntryBB(CGF.createBasicBlock("cleanup")), CleanupExitBB(0),
+        CurInvokeDest(CGF.getInvokeDest()),
+        EHOnly(ehonly) {
       CGF.Builder.SetInsertPoint(CleanupEntryBB);
     }
 
@@ -156,7 +202,8 @@ public:
     }
     
     ~DelayedCleanupBlock() {
-      CGF.PushCleanupBlock(CleanupEntryBB, CleanupExitBB);
+      CGF.PushCleanupBlock(CleanupEntryBB, CleanupExitBB, CurInvokeDest,
+                           EHOnly);
       // FIXME: This is silly, move this into the builder.
       if (CurBB)
         CGF.Builder.SetInsertPoint(CurBB);
@@ -303,10 +350,21 @@ private:
     /// inserted into the current function yet.
     std::vector<llvm::BranchInst *> BranchFixups;
 
+    /// PreviousInvokeDest - The invoke handler from the start of the cleanup
+    /// region.
+    llvm::BasicBlock *PreviousInvokeDest;
+
+    /// EHOnly - Perform this only on the exceptional edge, not the main edge.
+    bool EHOnly;
+
     explicit CleanupEntry(llvm::BasicBlock *CleanupEntryBlock,
-                          llvm::BasicBlock *CleanupExitBlock)
-      : CleanupEntryBlock(CleanupEntryBlock), 
-      CleanupExitBlock(CleanupExitBlock) {}
+                          llvm::BasicBlock *CleanupExitBlock,
+                          llvm::BasicBlock *PreviousInvokeDest,
+                          bool ehonly)
+      : CleanupEntryBlock(CleanupEntryBlock),
+        CleanupExitBlock(CleanupExitBlock),
+        PreviousInvokeDest(PreviousInvokeDest),
+        EHOnly(ehonly) {}
   };
 
   /// CleanupEntries - Stack of cleanup entries.
@@ -365,7 +423,11 @@ private:
   /// getByrefValueFieldNumber - Given a declaration, returns the LLVM field
   /// number that holds the value.
   unsigned getByRefValueLLVMField(const ValueDecl *VD) const;
-  
+
+  llvm::BasicBlock *TerminateHandler;
+  llvm::BasicBlock *TrapBB;
+
+  int UniqueAggrDestructorCount;
 public:
   CodeGenFunction(CodeGenModule &cgm);
 
@@ -441,15 +503,17 @@ public:
                                  const ThunkAdjustment &Adjustment);
 
   /// GenerateThunk - Generate a thunk for the given method
-  llvm::Constant *GenerateThunk(llvm::Function *Fn, const CXXMethodDecl *MD,
+  llvm::Constant *GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
                                 bool Extern, 
                                 const ThunkAdjustment &ThisAdjustment);
   llvm::Constant *
-  GenerateCovariantThunk(llvm::Function *Fn, const CXXMethodDecl *MD, 
+  GenerateCovariantThunk(llvm::Function *Fn, GlobalDecl GD,
                          bool Extern,
                          const CovariantThunkAdjustment &Adjustment);
 
   void EmitCtorPrologue(const CXXConstructorDecl *CD, CXXCtorType Type);
+
+  void InitializeVtablePtrs(const CXXRecordDecl *ClassDecl);
 
   void SynthesizeCXXCopyConstructor(const CXXConstructorDecl *Ctor,
                                     CXXCtorType Type,
@@ -486,6 +550,15 @@ public:
   /// EmitFunctionEpilog - Emit the target specific LLVM code to return the
   /// given temporary.
   void EmitFunctionEpilog(const CGFunctionInfo &FI, llvm::Value *ReturnValue);
+
+  /// EmitStartEHSpec - Emit the start of the exception spec.
+  void EmitStartEHSpec(const Decl *D);
+
+  /// EmitEndEHSpec - Emit the end of the exception spec.
+  void EmitEndEHSpec(const Decl *D);
+
+  /// getTerminateHandler - Return a handler that just calls terminate.
+  llvm::BasicBlock *getTerminateHandler();
 
   const llvm::Type *ConvertTypeForMem(QualType T);
   const llvm::Type *ConvertType(QualType T);
@@ -903,6 +976,7 @@ public:
   LValue EmitArraySubscriptExpr(const ArraySubscriptExpr *E);
   LValue EmitExtVectorElementExpr(const ExtVectorElementExpr *E);
   LValue EmitMemberExpr(const MemberExpr *E);
+  LValue EmitObjCIsaExpr(const ObjCIsaExpr *E);
   LValue EmitCompoundLiteralLValue(const CompoundLiteralExpr *E);
   LValue EmitConditionalOperatorLValue(const ConditionalOperator *E);
   LValue EmitCastLValue(const CastExpr *E);
@@ -1059,9 +1133,18 @@ public:
 
   /// CreateStaticBlockVarDecl - Create a zero-initialized LLVM global for a
   /// static block var decl.
-  llvm::GlobalVariable * CreateStaticBlockVarDecl(const VarDecl &D,
-                                                  const char *Separator,
+  llvm::GlobalVariable *CreateStaticBlockVarDecl(const VarDecl &D,
+                                                 const char *Separator,
                                        llvm::GlobalValue::LinkageTypes Linkage);
+  
+  /// AddInitializerToGlobalBlockVarDecl - Add the initializer for 'D' to the
+  /// global variable that has already been created for it.  If the initializer
+  /// has a different type than GV does, this may free GV and return a different
+  /// one.  Otherwise it just returns GV.
+  llvm::GlobalVariable *
+  AddInitializerToGlobalBlockVarDecl(const VarDecl &D,
+                                     llvm::GlobalVariable *GV);
+  
 
   /// EmitStaticCXXBlockVarDeclInit - Create the initializer for a C++ runtime
   /// initialized static block var decl.
@@ -1112,6 +1195,10 @@ public:
   /// try to simplify the codegen of the conditional based on the branch.
   void EmitBranchOnBoolExpr(const Expr *Cond, llvm::BasicBlock *TrueBlock,
                             llvm::BasicBlock *FalseBlock);
+
+  /// getTrapBB - Create a basic block that will call the trap intrinsic.  We'll
+  /// generate a branch around the created basic block as necessary.
+  llvm::BasicBlock* getTrapBB();
 private:
 
   void EmitReturnOfRValue(RValue RV, QualType Ty);

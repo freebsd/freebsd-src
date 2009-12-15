@@ -35,6 +35,7 @@ namespace clang {
 class MemRegionManager;
 class MemSpaceRegion;
 class LocationContext;
+class StackFrameContext;
 class VarRegion;
 
 //===----------------------------------------------------------------------===//
@@ -45,22 +46,37 @@ class VarRegion;
 class MemRegion : public llvm::FoldingSetNode {
   friend class MemRegionManager;
 public:
-  enum Kind { MemSpaceRegionKind,
-              SymbolicRegionKind,
-              AllocaRegionKind,
-              // Typed regions.
-              BEG_TYPED_REGIONS,
-               FunctionTextRegionKind,
-               BlockTextRegionKind,
-               BlockDataRegionKind,
-               CompoundLiteralRegionKind,
-               StringRegionKind, ElementRegionKind,
-               // Decl Regions.
-                 BEG_DECL_REGIONS,
-                  VarRegionKind, FieldRegionKind,
-                  ObjCIvarRegionKind, ObjCObjectRegionKind,
-                 END_DECL_REGIONS,
-              END_TYPED_REGIONS };
+  enum Kind {
+    // Memory spaces.
+    BEG_MEMSPACES,
+    GenericMemSpaceRegionKind = BEG_MEMSPACES,
+    StackLocalsSpaceRegionKind,
+    StackArgumentsSpaceRegionKind,
+    HeapSpaceRegionKind,
+    UnknownSpaceRegionKind,
+    GlobalsSpaceRegionKind,
+    END_MEMSPACES = GlobalsSpaceRegionKind,
+    // Untyped regions.
+    SymbolicRegionKind,
+    AllocaRegionKind,
+    // Typed regions.
+    BEG_TYPED_REGIONS,
+    FunctionTextRegionKind = BEG_TYPED_REGIONS,
+    BlockTextRegionKind,
+    BlockDataRegionKind,
+    CompoundLiteralRegionKind,
+    StringRegionKind,
+    ElementRegionKind,
+    // Decl Regions.
+    BEG_DECL_REGIONS,
+    VarRegionKind = BEG_DECL_REGIONS,
+    FieldRegionKind,
+    ObjCIvarRegionKind,
+    ObjCObjectRegionKind,
+    END_DECL_REGIONS = ObjCObjectRegionKind,
+    END_TYPED_REGIONS = END_DECL_REGIONS
+  };
+    
 private:
   const Kind kind;
 
@@ -111,25 +127,102 @@ public:
 /// MemSpaceRegion - A memory region that represents and "memory space";
 ///  for example, the set of global variables, the stack frame, etc.
 class MemSpaceRegion : public MemRegion {
-  friend class MemRegionManager;
-
 protected:
+  friend class MemRegionManager;
+  
   MemRegionManager *Mgr;
 
-  MemSpaceRegion(MemRegionManager *mgr) : MemRegion(MemSpaceRegionKind),
-                                          Mgr(mgr) {}
-
-  MemRegionManager* getMemRegionManager() const {
-    return Mgr;
+  MemSpaceRegion(MemRegionManager *mgr, Kind k = GenericMemSpaceRegionKind)
+    : MemRegion(k), Mgr(mgr) {
+    assert(classof(this));
   }
 
+  MemRegionManager* getMemRegionManager() const { return Mgr; }
+
 public:
-  void Profile(llvm::FoldingSetNodeID& ID) const;
-
   bool isBoundable() const { return false; }
+  
+  void Profile(llvm::FoldingSetNodeID &ID) const;
 
-  static bool classof(const MemRegion* R) {
-    return R->getKind() == MemSpaceRegionKind;
+  static bool classof(const MemRegion *R) {
+    Kind k = R->getKind();
+    return k >= BEG_MEMSPACES && k <= END_MEMSPACES;
+  }
+};
+  
+class GlobalsSpaceRegion : public MemSpaceRegion {
+  friend class MemRegionManager;
+
+  GlobalsSpaceRegion(MemRegionManager *mgr)
+    : MemSpaceRegion(mgr, GlobalsSpaceRegionKind) {}
+public:
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == GlobalsSpaceRegionKind;
+  }
+};
+  
+class HeapSpaceRegion : public MemSpaceRegion {
+  friend class MemRegionManager;
+  
+  HeapSpaceRegion(MemRegionManager *mgr)
+    : MemSpaceRegion(mgr, HeapSpaceRegionKind) {}
+public:
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == HeapSpaceRegionKind;
+  }
+};
+  
+class UnknownSpaceRegion : public MemSpaceRegion {
+  friend class MemRegionManager;
+  UnknownSpaceRegion(MemRegionManager *mgr)
+    : MemSpaceRegion(mgr, UnknownSpaceRegionKind) {}
+public:
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == UnknownSpaceRegionKind;
+  }
+};
+  
+class StackSpaceRegion : public MemSpaceRegion {
+private:
+  const StackFrameContext *SFC;
+
+protected:
+  StackSpaceRegion(MemRegionManager *mgr, Kind k, const StackFrameContext *sfc)
+    : MemSpaceRegion(mgr, k), SFC(sfc) {
+    assert(classof(this));
+  }
+
+public:  
+  const StackFrameContext *getStackFrame() const { return SFC; }
+  
+  void Profile(llvm::FoldingSetNodeID &ID) const;
+
+  static bool classof(const MemRegion *R) {
+    Kind k = R->getKind();
+    return k >= StackLocalsSpaceRegionKind &&
+           k <= StackArgumentsSpaceRegionKind;
+  }  
+};
+  
+class StackLocalsSpaceRegion : public StackSpaceRegion {
+private:
+  friend class MemRegionManager;
+  StackLocalsSpaceRegion(MemRegionManager *mgr, const StackFrameContext *sfc)
+    : StackSpaceRegion(mgr, StackLocalsSpaceRegionKind, sfc) {}
+public:
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == StackLocalsSpaceRegionKind;
+  }
+};
+
+class StackArgumentsSpaceRegion : public StackSpaceRegion {
+private:
+  friend class MemRegionManager;
+  StackArgumentsSpaceRegion(MemRegionManager *mgr, const StackFrameContext *sfc)
+    : StackSpaceRegion(mgr, StackArgumentsSpaceRegionKind, sfc) {}
+public:
+  static bool classof(const MemRegion *R) {
+    return R->getKind() == StackArgumentsSpaceRegionKind;
   }
 };
 
@@ -149,7 +242,7 @@ public:
   bool isSubRegionOf(const MemRegion* R) const;
 
   static bool classof(const MemRegion* R) {
-    return R->getKind() > MemSpaceRegionKind;
+    return R->getKind() > END_MEMSPACES;
   }
 };
 
@@ -237,7 +330,7 @@ public:
 
   static bool classof(const MemRegion* R) {
     unsigned k = R->getKind();
-    return k > BEG_TYPED_REGIONS && k < END_TYPED_REGIONS;
+    return k >= BEG_TYPED_REGIONS && k <= END_TYPED_REGIONS;
   }
 };
 
@@ -295,12 +388,17 @@ public:
 ///  like a closure a block captures the values of externally referenced
 ///  variables.
 class BlockTextRegion : public CodeTextRegion {
+  friend class MemRegionManager;
+
   const BlockDecl *BD;
+  AnalysisContext *AC;
   CanQualType locTy;
-public:  
-  BlockTextRegion(const BlockDecl *bd, CanQualType lTy, const MemRegion* sreg)
-    : CodeTextRegion(sreg, BlockTextRegionKind), BD(bd), locTy(lTy) {}
-  
+
+  BlockTextRegion(const BlockDecl *bd, CanQualType lTy,
+                  AnalysisContext *ac, const MemRegion* sreg)
+    : CodeTextRegion(sreg, BlockTextRegionKind), BD(bd), AC(ac), locTy(lTy) {}
+
+public:
   QualType getLocationType(ASTContext &C) const {
     return locTy;
   }
@@ -308,13 +406,16 @@ public:
   const BlockDecl *getDecl() const {
     return BD;
   }
+
+  AnalysisContext *getAnalysisContext() const { return AC; }
     
   virtual void dumpToStream(llvm::raw_ostream& os) const;
   
   void Profile(llvm::FoldingSetNodeID& ID) const;
   
   static void ProfileRegion(llvm::FoldingSetNodeID& ID, const BlockDecl *BD,
-                            CanQualType, const MemRegion*);
+                            CanQualType, const AnalysisContext*,
+                            const MemRegion*);
   
   static bool classof(const MemRegion* R) {
     return R->getKind() == BlockTextRegionKind;
@@ -329,18 +430,45 @@ public:
 ///  variables.
 /// BlockDataRegion - A region that represents code texts of blocks (closures).
 class BlockDataRegion : public SubRegion {
+  friend class MemRegionManager;
   const BlockTextRegion *BC;
-  const LocationContext *LC;
+  const LocationContext *LC; // Can be null */
   void *ReferencedVars;
-public:  
-  BlockDataRegion(const BlockTextRegion *bc, 
-                  const LocationContext *lc,
+
+  BlockDataRegion(const BlockTextRegion *bc, const LocationContext *lc,
                   const MemRegion *sreg)
   : SubRegion(sreg, BlockDataRegionKind), BC(bc), LC(lc), ReferencedVars(0) {}
 
+public:  
   const BlockTextRegion *getCodeRegion() const { return BC; }
   
-  typedef const MemRegion * const * referenced_vars_iterator;
+  const BlockDecl *getDecl() const { return BC->getDecl(); }
+  
+  class referenced_vars_iterator {
+    const MemRegion * const *R;
+  public:
+    explicit referenced_vars_iterator(const MemRegion * const *r) : R(r) {}
+    
+    operator const MemRegion * const *() const {
+      return R;
+    }
+    
+    const VarRegion* operator*() const {
+      return cast<VarRegion>(*R);
+    }
+    
+    bool operator==(const referenced_vars_iterator &I) const {
+      return I.R == R;
+    }
+    bool operator!=(const referenced_vars_iterator &I) const {
+      return I.R != R;
+    }
+    referenced_vars_iterator& operator++() {
+      ++R;
+      return *this;
+    }
+  };
+      
   referenced_vars_iterator referenced_vars_begin() const;
   referenced_vars_iterator referenced_vars_end() const;  
     
@@ -348,9 +476,8 @@ public:
     
   void Profile(llvm::FoldingSetNodeID& ID) const;
     
-  static void ProfileRegion(llvm::FoldingSetNodeID& ID,
-                            const BlockTextRegion *BC,
-                            const LocationContext *LC, const MemRegion *);
+  static void ProfileRegion(llvm::FoldingSetNodeID&, const BlockTextRegion *,
+                            const LocationContext *, const MemRegion *);
     
   static bool classof(const MemRegion* R) {
     return R->getKind() == BlockDataRegionKind;
@@ -473,25 +600,20 @@ public:
 
   static bool classof(const MemRegion* R) {
     unsigned k = R->getKind();
-    return k > BEG_DECL_REGIONS && k < END_DECL_REGIONS;
+    return k >= BEG_DECL_REGIONS && k <= END_DECL_REGIONS;
   }
 };
 
 class VarRegion : public DeclRegion {
   friend class MemRegionManager;
 
-  // Data.
-  const LocationContext *LC;
-
   // Constructors and private methods.
-  VarRegion(const VarDecl* vd, const LocationContext *lC, const MemRegion* sReg)
-    : DeclRegion(vd, sReg, VarRegionKind), LC(lC) {}
+  VarRegion(const VarDecl* vd, const MemRegion* sReg)
+    : DeclRegion(vd, sReg, VarRegionKind) {}
 
   static void ProfileRegion(llvm::FoldingSetNodeID& ID, const VarDecl* VD,
-                            const LocationContext *LC,
                             const MemRegion *superRegion) {
     DeclRegion::ProfileRegion(ID, VD, superRegion, VarRegionKind);
-    ID.AddPointer(LC);
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) const;
@@ -499,8 +621,8 @@ class VarRegion : public DeclRegion {
 public:
   const VarDecl *getDecl() const { return cast<VarDecl>(D); }
 
-  const LocationContext *getLocationContext() const { return LC; }
-
+  const StackFrameContext *getStackFrame() const;
+  
   QualType getValueType(ASTContext& C) const {
     // FIXME: We can cache this if needed.
     return C.getCanonicalType(getDecl()->getType());
@@ -647,17 +769,24 @@ class MemRegionManager {
   llvm::BumpPtrAllocator& A;
   llvm::FoldingSet<MemRegion> Regions;
 
-  MemSpaceRegion *globals;
-  MemSpaceRegion *stack;
-  MemSpaceRegion *stackArguments;
-  MemSpaceRegion *heap;
-  MemSpaceRegion *unknown;
+  GlobalsSpaceRegion *globals;
+  
+  const StackFrameContext *cachedStackLocalsFrame;
+  StackLocalsSpaceRegion *cachedStackLocalsRegion;
+  
+  const StackFrameContext *cachedStackArgumentsFrame;
+  StackArgumentsSpaceRegion *cachedStackArgumentsRegion;
+
+  HeapSpaceRegion *heap;
+  UnknownSpaceRegion *unknown;
   MemSpaceRegion *code;
 
 public:
   MemRegionManager(ASTContext &c, llvm::BumpPtrAllocator& a)
-    : C(c), A(a), globals(0), stack(0), stackArguments(0), heap(0),
-      unknown(0), code(0) {}
+    : C(c), A(a), globals(0),
+      cachedStackLocalsFrame(0), cachedStackLocalsRegion(0),
+      cachedStackArgumentsFrame(0), cachedStackArgumentsRegion(0),
+      heap(0), unknown(0), code(0) {}
 
   ~MemRegionManager();
 
@@ -665,52 +794,60 @@ public:
   
   llvm::BumpPtrAllocator &getAllocator() { return A; }
 
-  /// getStackRegion - Retrieve the memory region associated with the
-  ///  current stack frame.
-  MemSpaceRegion *getStackRegion();
+  /// getStackLocalsRegion - Retrieve the memory region associated with the
+  ///  specified stack frame.
+  const StackLocalsSpaceRegion *
+  getStackLocalsRegion(const StackFrameContext *STC);
 
   /// getStackArgumentsRegion - Retrieve the memory region associated with
-  ///  function/method arguments of the current stack frame.
-  MemSpaceRegion *getStackArgumentsRegion();
+  ///  function/method arguments of the specified stack frame.
+  const StackArgumentsSpaceRegion *
+  getStackArgumentsRegion(const StackFrameContext *STC);
 
   /// getGlobalsRegion - Retrieve the memory region associated with
   ///  all global variables.
-  MemSpaceRegion *getGlobalsRegion();
+  const GlobalsSpaceRegion *getGlobalsRegion();
 
   /// getHeapRegion - Retrieve the memory region associated with the
   ///  generic "heap".
-  MemSpaceRegion *getHeapRegion();
+  const HeapSpaceRegion *getHeapRegion();
 
   /// getUnknownRegion - Retrieve the memory region associated with unknown
   /// memory space.
-  MemSpaceRegion *getUnknownRegion();
+  const MemSpaceRegion *getUnknownRegion();
 
-  MemSpaceRegion *getCodeRegion();
+  const MemSpaceRegion *getCodeRegion();
 
   /// getAllocaRegion - Retrieve a region associated with a call to alloca().
-  AllocaRegion *getAllocaRegion(const Expr* Ex, unsigned Cnt);
+  const AllocaRegion *getAllocaRegion(const Expr* Ex, unsigned Cnt,
+                                      const LocationContext *LC);
 
   /// getCompoundLiteralRegion - Retrieve the region associated with a
   ///  given CompoundLiteral.
-  CompoundLiteralRegion*
-  getCompoundLiteralRegion(const CompoundLiteralExpr* CL);
+  const CompoundLiteralRegion*
+  getCompoundLiteralRegion(const CompoundLiteralExpr* CL,
+                           const LocationContext *LC);
 
   /// getSymbolicRegion - Retrieve or create a "symbolic" memory region.
-  SymbolicRegion* getSymbolicRegion(SymbolRef sym);
+  const SymbolicRegion* getSymbolicRegion(SymbolRef sym);
 
-  StringRegion* getStringRegion(const StringLiteral* Str);
+  const StringRegion* getStringRegion(const StringLiteral* Str);
 
   /// getVarRegion - Retrieve or create the memory region associated with
   ///  a specified VarDecl and LocationContext.
-  VarRegion* getVarRegion(const VarDecl *D, const LocationContext *LC);
+  const VarRegion* getVarRegion(const VarDecl *D, const LocationContext *LC);
 
+  /// getVarRegion - Retrieve or create the memory region associated with
+  ///  a specified VarDecl and super region.
+  const VarRegion* getVarRegion(const VarDecl *D, const MemRegion *superR);
+  
   /// getElementRegion - Retrieve the memory region associated with the
   ///  associated element type, index, and super region.
-  ElementRegion *getElementRegion(QualType elementType, SVal Idx,
+  const ElementRegion *getElementRegion(QualType elementType, SVal Idx,
                                   const MemRegion *superRegion,
                                   ASTContext &Ctx);
 
-  ElementRegion *getElementRegionWithSuper(const ElementRegion *ER,
+  const ElementRegion *getElementRegionWithSuper(const ElementRegion *ER,
                                            const MemRegion *superRegion) {
     return getElementRegion(ER->getElementType(), ER->getIndex(),
                             superRegion, ER->getContext());
@@ -720,31 +857,44 @@ public:
   ///  a specified FieldDecl.  'superRegion' corresponds to the containing
   ///  memory region (which typically represents the memory representing
   ///  a structure or class).
-  FieldRegion *getFieldRegion(const FieldDecl* fd,
-                              const MemRegion* superRegion);
+  const FieldRegion *getFieldRegion(const FieldDecl* fd,
+                                    const MemRegion* superRegion);
 
-  FieldRegion *getFieldRegionWithSuper(const FieldRegion *FR,
-                                       const MemRegion *superRegion) {
+  const FieldRegion *getFieldRegionWithSuper(const FieldRegion *FR,
+                                             const MemRegion *superRegion) {
     return getFieldRegion(FR->getDecl(), superRegion);
   }
 
   /// getObjCObjectRegion - Retrieve or create the memory region associated with
   ///  the instance of a specified Objective-C class.
-  ObjCObjectRegion* getObjCObjectRegion(const ObjCInterfaceDecl* ID,
-                                  const MemRegion* superRegion);
+  const ObjCObjectRegion* getObjCObjectRegion(const ObjCInterfaceDecl* ID,
+                                              const MemRegion* superRegion);
 
   /// getObjCIvarRegion - Retrieve or create the memory region associated with
   ///   a specified Objective-c instance variable.  'superRegion' corresponds
   ///   to the containing region (which typically represents the Objective-C
   ///   object).
-  ObjCIvarRegion *getObjCIvarRegion(const ObjCIvarDecl* ivd,
-                                    const MemRegion* superRegion);
+  const ObjCIvarRegion *getObjCIvarRegion(const ObjCIvarDecl* ivd,
+                                          const MemRegion* superRegion);
 
-  FunctionTextRegion *getFunctionTextRegion(const FunctionDecl *FD);
-  BlockTextRegion *getBlockTextRegion(const BlockDecl *BD, CanQualType locTy);
-  BlockDataRegion *getBlockDataRegion(const BlockTextRegion *bc,
-                                      const LocationContext *lc);
+  const FunctionTextRegion *getFunctionTextRegion(const FunctionDecl *FD);
+  const BlockTextRegion *getBlockTextRegion(const BlockDecl *BD,
+                                            CanQualType locTy,
+                                            AnalysisContext *AC);
+  
+  /// getBlockDataRegion - Get the memory region associated with an instance
+  ///  of a block.  Unlike many other MemRegions, the LocationContext*
+  ///  argument is allowed to be NULL for cases where we have no known
+  ///  context.
+  const BlockDataRegion *getBlockDataRegion(const BlockTextRegion *bc,
+                                            const LocationContext *lc = NULL);
 
+  bool isGlobalsRegion(const MemRegion* R) {
+    assert(R);
+    return R == globals;
+  }
+  
+private:
   template <typename RegionTy, typename A1>
   RegionTy* getRegion(const A1 a1);
 
@@ -758,13 +908,15 @@ public:
   RegionTy* getSubRegion(const A1 a1, const A2 a2,
                          const MemRegion* superRegion);
 
-  bool isGlobalsRegion(const MemRegion* R) {
-    assert(R);
-    return R == globals;
-  }
-
-private:
-  MemSpaceRegion* LazyAllocate(MemSpaceRegion*& region);
+  template <typename RegionTy, typename A1, typename A2, typename A3>
+  RegionTy* getSubRegion(const A1 a1, const A2 a2, const A3 a3,
+                         const MemRegion* superRegion);
+  
+  template <typename REG>
+  const REG* LazyAllocate(REG*& region);
+  
+  template <typename REG, typename ARG>
+  const REG* LazyAllocate(REG*& region, ARG a);
 };
 
 //===----------------------------------------------------------------------===//
@@ -774,157 +926,6 @@ private:
 inline ASTContext& MemRegion::getContext() const {
   return getMemRegionManager()->getContext();
 }
-
-template<typename RegionTy> struct MemRegionManagerTrait;
-
-template <typename RegionTy, typename A1>
-RegionTy* MemRegionManager::getRegion(const A1 a1) {
-
-  const typename MemRegionManagerTrait<RegionTy>::SuperRegionTy *superRegion =
-    MemRegionManagerTrait<RegionTy>::getSuperRegion(*this, a1);
-
-  llvm::FoldingSetNodeID ID;
-  RegionTy::ProfileRegion(ID, a1, superRegion);
-  void* InsertPos;
-  RegionTy* R = cast_or_null<RegionTy>(Regions.FindNodeOrInsertPos(ID,
-                                                                   InsertPos));
-
-  if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
-    new (R) RegionTy(a1, superRegion);
-    Regions.InsertNode(R, InsertPos);
-  }
-
-  return R;
-}
-
-template <typename RegionTy, typename A1>
-RegionTy* MemRegionManager::getSubRegion(const A1 a1,
-                                         const MemRegion *superRegion) {
-  llvm::FoldingSetNodeID ID;
-  RegionTy::ProfileRegion(ID, a1, superRegion);
-  void* InsertPos;
-  RegionTy* R = cast_or_null<RegionTy>(Regions.FindNodeOrInsertPos(ID,
-                                                                   InsertPos));
-
-  if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
-    new (R) RegionTy(a1, superRegion);
-    Regions.InsertNode(R, InsertPos);
-  }
-
-  return R;
-}
-
-template <typename RegionTy, typename A1, typename A2>
-RegionTy* MemRegionManager::getRegion(const A1 a1, const A2 a2) {
-
-  const typename MemRegionManagerTrait<RegionTy>::SuperRegionTy *superRegion =
-    MemRegionManagerTrait<RegionTy>::getSuperRegion(*this, a1, a2);
-
-  llvm::FoldingSetNodeID ID;
-  RegionTy::ProfileRegion(ID, a1, a2, superRegion);
-  void* InsertPos;
-  RegionTy* R = cast_or_null<RegionTy>(Regions.FindNodeOrInsertPos(ID,
-                                                                   InsertPos));
-
-  if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
-    new (R) RegionTy(a1, a2, superRegion);
-    Regions.InsertNode(R, InsertPos);
-  }
-
-  return R;
-}
-  
-template <typename RegionTy, typename A1, typename A2>
-RegionTy* MemRegionManager::getSubRegion(const A1 a1, const A2 a2,
-                                         const MemRegion *superRegion) {
-  
-  llvm::FoldingSetNodeID ID;
-  RegionTy::ProfileRegion(ID, a1, a2, superRegion);
-  void* InsertPos;
-  RegionTy* R = cast_or_null<RegionTy>(Regions.FindNodeOrInsertPos(ID,
-                                                                   InsertPos));
-  
-  if (!R) {
-    R = (RegionTy*) A.Allocate<RegionTy>();
-    new (R) RegionTy(a1, a2, superRegion);
-    Regions.InsertNode(R, InsertPos);
-  }
-  
-  return R;
-}
-
-//===----------------------------------------------------------------------===//
-// Traits for constructing regions.
-//===----------------------------------------------------------------------===//
-
-template <> struct MemRegionManagerTrait<AllocaRegion> {
-  typedef MemRegion SuperRegionTy;
-  static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
-                                             const Expr *, unsigned) {
-    return MRMgr.getStackRegion();
-  }
-};
-
-template <> struct MemRegionManagerTrait<CompoundLiteralRegion> {
-  typedef MemRegion SuperRegionTy;
-  static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
-                                             const CompoundLiteralExpr *CL) {
-
-    return CL->isFileScope() ? MRMgr.getGlobalsRegion()
-                             : MRMgr.getStackRegion();
-  }
-};
-
-template <> struct MemRegionManagerTrait<StringRegion> {
-  typedef MemSpaceRegion SuperRegionTy;
-  static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
-                                             const StringLiteral*) {
-    return MRMgr.getGlobalsRegion();
-  }
-};
-
-template <> struct MemRegionManagerTrait<VarRegion> {
-  typedef MemRegion SuperRegionTy;
-  static const SuperRegionTy* getSuperRegion(MemRegionManager &MRMgr,
-                                             const VarDecl *D,
-                                             const LocationContext *LC) {
-
-    // FIXME: Make stack regions have a location context?
-
-    if (D->hasLocalStorage()) {
-      return isa<ParmVarDecl>(D) || isa<ImplicitParamDecl>(D)
-             ? MRMgr.getStackArgumentsRegion() : MRMgr.getStackRegion();
-    }
-
-    return MRMgr.getGlobalsRegion();
-  }
-};
-
-template <> struct MemRegionManagerTrait<SymbolicRegion> {
-  typedef MemRegion SuperRegionTy;
-  static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
-                                             SymbolRef) {
-    return MRMgr.getUnknownRegion();
-  }
-};
-
-template<> struct MemRegionManagerTrait<FunctionTextRegion> {
-  typedef MemSpaceRegion SuperRegionTy;
-  static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
-                                             const FunctionDecl*) {
-    return MRMgr.getCodeRegion();
-  }
-};
-template<> struct MemRegionManagerTrait<BlockTextRegion> {
-  typedef MemSpaceRegion SuperRegionTy;
-  static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
-                                             const BlockDecl*, CanQualType) {
-    return MRMgr.getCodeRegion();
-  }
-};
   
 } // end clang namespace
 

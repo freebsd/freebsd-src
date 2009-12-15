@@ -15,8 +15,8 @@ def err_fe_error_reading_stdin : Error<"error reading stdin">;
 def err_fe_error_backend : Error<"error in backend: %0">, DefaultFatal;
 def err_fe_invalid_ast_file : Error<"invalid AST file: '%0'">, DefaultFatal;
 def err_fe_invalid_ast_action : Error<"invalid action for AST input">, DefaultFatal;
-def err_fe_invalid_code_complete_file
-  : Error<"cannot locate code-completion file %0">, DefaultFatal;
+def err_fe_invalid_code_complete_file : Error<
+    "cannot locate code-completion file %0">, DefaultFatal;
 def err_fe_stdout_binary : Error<"unable to change standard output to binary">,
   DefaultFatal;
 def err_fe_dependency_file_requires_MT : Error<
@@ -29,6 +29,36 @@ def err_fe_unable_to_find_fixit_file : Error<
     "FIX-IT could not find file '%0'">;
 def err_fe_invalid_plugin_name : Error<
     "unable to find plugin '%0'">;
+def err_fe_expected_compiler_job : Error<
+    "unable to handle compilation, expected exactly one compiler job in '%0'">;
+def err_fe_expected_clang_command : Error<
+    "expected a clang compiler command">;
+def err_fe_remap_missing_to_file : Error<
+    "could not remap file '%0' to the contents of file '%1'">, DefaultFatal;
+def err_fe_remap_missing_from_file : Error<
+    "could not remap from missing file '%0'">, DefaultFatal;
+def err_fe_unable_to_load_pch : Error<
+    "unable to load PCH file">;
+def err_fe_unable_to_load_plugin : Error<
+    "unable to load plugin '%0': '%1'">;
+def err_fe_unable_to_create_target : Error<
+    "unable to create target: '%0'">;
+def err_fe_unable_to_interface_with_target : Error<
+    "unable to interface with target machine">;
+def err_fe_unable_to_read_pch_file : Error<
+    "unable to read PCH file: '%0'">;
+def err_fe_not_a_pch_file : Error<
+    "input is not a PCH file: '%0'">;
+def err_fe_pch_malformed_block : Error<
+    "malformed block record in PCH file: '%0'">;
+def err_fe_pch_error_at_end_block : Error<
+    "error at end of module block in PCH file: '%0'">;
+def err_fe_unable_to_open_output : Error<
+    "unable to open output file '%0': '%1'">;
+def err_fe_pth_file_has_no_source_header : Error<
+    "PTH file '%0' does not designate an original source header file for -include-pth">;
+def warn_fe_macro_contains_embedded_newline : Warning<
+    "macro '%0' contains embedded newline, text after the newline is ignored.">;
 
 def err_verify_bogus_characters : Error<
     "bogus characters before '{{' in expected string">;
@@ -45,6 +75,8 @@ def note_fixit_in_macro : Note<
 def note_fixit_failed : Note<
     "FIX-IT unable to apply suggested code changes">;
 def note_fixit_unfixed_error : Note<"FIX-IT detected an error it cannot fix">;
+def note_fixit_main_file_unchanged : Note<
+    "main file unchanged">;
 def warn_fixit_no_changes : Note<
     "FIX-IT detected errors it could not fix; no output will be generated">;
 

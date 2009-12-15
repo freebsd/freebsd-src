@@ -61,6 +61,55 @@ def clang_ignored_m_Group : OptionGroup<"<clang ignored m group>">,
 //   = => _EQ
 //   C++ => CXX
 
+// Developer Driver Options
+
+def ccc_Group : OptionGroup<"<clang internal options>">;
+def ccc_driver_Group : OptionGroup<"<clang driver internal options>">,
+  Group<ccc_Group>, HelpText<"DRIVER OPTIONS">;
+def ccc_debug_Group : OptionGroup<"<clang debug/development internal options>">,
+  Group<ccc_Group>, HelpText<"DEBUG/DEVELOPMENT OPTIONS">;
+
+class CCCDriverOpt : Group<ccc_driver_Group>, Flags<[DriverOption, HelpHidden]>;
+def ccc_cxx : Flag<"-ccc-cxx">, CCCDriverOpt,
+  HelpText<"Act as a C++ driver">;
+def ccc_echo : Flag<"-ccc-echo">, CCCDriverOpt,
+  HelpText<"Echo commands before running them">;
+def ccc_gcc_name : Separate<"-ccc-gcc-name">, CCCDriverOpt,
+  HelpText<"Name for native GCC compiler">,
+  MetaVarName<"<gcc-path>">;
+def ccc_clang_cxx : Flag<"-ccc-clang-cxx">, CCCDriverOpt,
+  HelpText<"Enable the clang compiler for C++">;
+def ccc_no_clang_cxx : Flag<"-ccc-no-clang-cxx">, CCCDriverOpt,
+  HelpText<"Disable the clang compiler for C++">;
+def ccc_no_clang : Flag<"-ccc-no-clang">, CCCDriverOpt,
+  HelpText<"Disable the clang compiler">;
+def ccc_no_clang_cpp : Flag<"-ccc-no-clang-cpp">, CCCDriverOpt,
+  HelpText<"Disable the clang preprocessor">;
+def ccc_clang_archs : Separate<"-ccc-clang-archs">, CCCDriverOpt,
+  HelpText<"Comma separate list of architectures to use the clang compiler for">,
+  MetaVarName<"<arch-list>">;
+def ccc_pch_is_pch : Flag<"-ccc-pch-is-pch">, CCCDriverOpt,
+  HelpText<"Use lazy PCH for precompiled headers">;
+def ccc_pch_is_pth : Flag<"-ccc-pch-is-pth">, CCCDriverOpt,
+  HelpText<"Use pretokenized headers for precompiled headers">;
+
+class CCCDebugOpt : Group<ccc_debug_Group>, Flags<[DriverOption, HelpHidden]>;
+def ccc_host_triple : Separate<"-ccc-host-triple">, CCCDebugOpt,
+  HelpText<"Simulate running on the given target">;
+def ccc_install_dir : Separate<"-ccc-install-dir">, CCCDebugOpt,
+  HelpText<"Simulate installation in the given directory">;
+def ccc_print_options : Flag<"-ccc-print-options">, CCCDebugOpt,
+  HelpText<"Dump parsed command line arguments">;
+def ccc_print_phases : Flag<"-ccc-print-phases">, CCCDebugOpt,
+  HelpText<"Dump list of actions to perform">;
+def ccc_print_bindings : Flag<"-ccc-print-bindings">, CCCDebugOpt,
+  HelpText<"Show bindings of tools to actions">;
+
+// Make sure all other -ccc- options are rejected.
+def ccc_ : Joined<"-ccc-">, Group<ccc_Group>, Flags<[Unsupported]>;
+
+// Standard Options
+
 def _HASH_HASH_HASH : Flag<"-###">, Flags<[DriverOption]>,
     HelpText<"Print the commands to run for this compilation">;
 def A : JoinedOrSeparate<"-A">;
@@ -187,6 +236,8 @@ def fbootclasspath_EQ : Joined<"-fbootclasspath=">, Group<f_Group>;
 def fbuiltin_strcat : Flag<"-fbuiltin-strcat">, Group<f_Group>;
 def fbuiltin_strcpy : Flag<"-fbuiltin-strcpy">, Group<f_Group>;
 def fbuiltin : Flag<"-fbuiltin">, Group<f_Group>;
+def fcatch_undefined_behavior : Flag<"-fcatch-undefined-behavior">,
+    Group<f_Group>, HelpText<"Generate runtime checks for undefined behavior.">;
 def fclasspath_EQ : Joined<"-fclasspath=">, Group<f_Group>;
 def fcolor_diagnostics : Flag<"-fcolor-diagnostics">, Group<f_Group>;
 def fcommon : Flag<"-fcommon">, Group<f_Group>;
@@ -277,6 +328,9 @@ def fprofile_arcs : Flag<"-fprofile-arcs">, Group<f_Group>;
 def fprofile_generate : Flag<"-fprofile-generate">, Group<f_Group>;
 def framework : Separate<"-framework">, Flags<[LinkerInput]>;
 def frtti : Flag<"-frtti">, Group<f_Group>;
+def fsched_interblock : Flag<"-fsched-interblock">, Group<clang_ignored_f_Group>;
+def fshort_enums : Flag<"-fshort-enums">, Group<clang_ignored_f_Group>;
+def freorder_blocks : Flag<"-freorder-blocks">, Group<clang_ignored_f_Group>;
 def fshort_wchar : Flag<"-fshort-wchar">, Group<f_Group>;
 def fshow_source_location : Flag<"-fshow-source-location">, Group<f_Group>;
 def fsigned_bitfields : Flag<"-fsigned-bitfields">, Group<f_Group>;
@@ -315,7 +369,7 @@ def init : Separate<"-init">;
 def install__name : Separate<"-install_name">;
 def iprefix : JoinedOrSeparate<"-iprefix">, Group<clang_i_Group>;
 def iquote : JoinedOrSeparate<"-iquote">, Group<clang_i_Group>;
-def isysroot : JoinedOrSeparate<"-isysroot">, Group<i_Group>;
+def isysroot : JoinedOrSeparate<"-isysroot">, Group<clang_i_Group>;
 def isystem : JoinedOrSeparate<"-isystem">, Group<clang_i_Group>;
 def iwithprefixbefore : JoinedOrSeparate<"-iwithprefixbefore">, Group<clang_i_Group>;
 def iwithprefix : JoinedOrSeparate<"-iwithprefix">, Group<clang_i_Group>;
@@ -373,6 +427,8 @@ def multiply__defined : Separate<"-multiply_defined">;
 def mwarn_nonportable_cfstrings : Flag<"-mwarn-nonportable-cfstrings">, Group<m_Group>;
 def m_Separate : Separate<"-m">, Group<m_Group>;
 def m_Joined : Joined<"-m">, Group<m_Group>;
+def no_canonical_prefixes : Flag<"-no-canonical-prefixes">, Flags<[DriverOption, HelpHidden]>,
+  HelpText<"Use relative instead of canonical paths">;
 def no_cpp_precomp : Flag<"-no-cpp-precomp">;
 def no_integrated_cpp : Flag<"-no-integrated-cpp">, Flags<[DriverOption]>;
 def no__dead__strip__inits__and__terms : Flag<"-no_dead_strip_inits_and_terms">;

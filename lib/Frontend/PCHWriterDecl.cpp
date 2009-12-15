@@ -14,9 +14,9 @@
 #include "clang/Frontend/PCHWriter.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/Expr.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
-#include <cstdio>
-
+#include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -106,7 +106,7 @@ void PCHDeclWriter::VisitTypeDecl(TypeDecl *D) {
 
 void PCHDeclWriter::VisitTypedefDecl(TypedefDecl *D) {
   VisitTypeDecl(D);
-  Writer.AddDeclaratorInfo(D->getTypeDeclaratorInfo(), Record);
+  Writer.AddTypeSourceInfo(D->getTypeSourceInfo(), Record);
   Code = pch::DECL_TYPEDEF;
 }
 
@@ -123,6 +123,7 @@ void PCHDeclWriter::VisitTagDecl(TagDecl *D) {
 void PCHDeclWriter::VisitEnumDecl(EnumDecl *D) {
   VisitTagDecl(D);
   Writer.AddTypeRef(D->getIntegerType(), Record);
+  Writer.AddTypeRef(D->getPromotionType(), Record);
   // FIXME: C++ InstantiatedFrom
   Code = pch::DECL_ENUM;
 }
@@ -151,7 +152,7 @@ void PCHDeclWriter::VisitEnumConstantDecl(EnumConstantDecl *D) {
 
 void PCHDeclWriter::VisitDeclaratorDecl(DeclaratorDecl *D) {
   VisitValueDecl(D);
-  Writer.AddDeclaratorInfo(D->getDeclaratorInfo(), Record);
+  Writer.AddTypeSourceInfo(D->getTypeSourceInfo(), Record);
 }
 
 void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
@@ -370,7 +371,7 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   // If the assumptions about the DECL_PARM_VAR abbrev are true, use it.  Here
   // we dynamically check for the properties that we optimize for, but don't
   // know are true of all PARM_VAR_DECLs.
-  if (!D->getDeclaratorInfo() &&
+  if (!D->getTypeSourceInfo() &&
       !D->hasAttrs() &&
       !D->isImplicit() &&
       !D->isUsed() &&
@@ -568,12 +569,9 @@ void PCHWriter::WriteDecl(ASTContext &Context, Decl *D) {
   W.Visit(D);
   if (DC) W.VisitDeclContext(DC, LexicalOffset, VisibleOffset);
 
-  if (!W.Code) {
-    fprintf(stderr, "Cannot serialize declaration of kind %s\n",
-            D->getDeclKindName());
-    assert(false && "Unhandled declaration kind while generating PCH");
-    exit(-1);
-  }
+  if (!W.Code)
+    llvm::llvm_report_error(llvm::StringRef("unexpected declaration kind '") +
+                            D->getDeclKindName() + "'");
   Stream.EmitRecord(W.Code, Record, W.AbbrevToUse);
 
   // If the declaration had any attributes, write them now.

@@ -1,31 +1,38 @@
-// RUN: clang-cc -E -dM %s -o %t
+// RUN: clang-cc -E -dM %s -o - | FileCheck %s -strict-whitespace
 
-// Space even without expansion tokens
-// RUN: grep "#define A(x) " %t
+// Space at end even without expansion tokens
+// CHECK: #define A(x) 
 #define A(x)
 
 // Space before expansion list.
-// RUN: grep "#define B(x,y) x y" %t
+// CHECK: #define B(x,y) x y
 #define B(x,y)x y
 
-// No space in expansion list.
-// RUN: grep "#define C(x,y) x y" %t
+// No space in argument list.
+// CHECK: #define C(x,y) x y
 #define C(x, y) x y
 
 // No paste avoidance.
-// RUN: grep "#define X() .." %t
-#define X() ..
+// CHECK: #define D() ..
+#define D() ..
 
 // Simple test.
-// RUN: grep "#define Y ." %t
-// RUN: grep "#define Z X()Y" %t
-#define Y .
-#define Z X()Y
+// CHECK: #define E .
+// CHECK: #define F X()Y
+#define E .
+#define F X()Y
 
 // gcc prints macros at end of translation unit, so last one wins.
-// RUN: grep "#define foo 2" %t
-// RUN: not grep "#define foo 1" %t
-#define foo 1
-#undef foo
-#define foo 2
+// CHECK: #define G 2
+#define G 1
+#undef G
+#define G 2
 
+// Variadic macros of various sorts. PR5699
+
+// CHECK: H(x,...) __VA_ARGS__
+#define H(x, ...) __VA_ARGS__
+// CHECK: I(...) __VA_ARGS__
+#define I(...) __VA_ARGS__
+// CHECK: J(x...) __VA_ARGS__
+#define J(x ...) __VA_ARGS__

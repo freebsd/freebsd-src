@@ -116,6 +116,7 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
                           diag::warn_pch_stack_protector);
   PARSE_LANGOPT_BENIGN(InstantiationDepth);
   PARSE_LANGOPT_IMPORTANT(OpenCL, diag::warn_pch_opencl);
+  PARSE_LANGOPT_BENIGN(CatchUndefined);
   PARSE_LANGOPT_IMPORTANT(ElideConstructors, diag::warn_pch_elide_constructors);
 #undef PARSE_LANGOPT_IRRELEVANT
 #undef PARSE_LANGOPT_BENIGN
@@ -1569,13 +1570,14 @@ void PCHReader::InitializeContext(ASTContext &Ctx) {
 /// \brief Retrieve the name of the original source file name
 /// directly from the PCH file, without actually loading the PCH
 /// file.
-std::string PCHReader::getOriginalSourceFile(const std::string &PCHFileName) {
+std::string PCHReader::getOriginalSourceFile(const std::string &PCHFileName,
+                                             Diagnostic &Diags) {
   // Open the PCH file.
   std::string ErrStr;
   llvm::OwningPtr<llvm::MemoryBuffer> Buffer;
   Buffer.reset(llvm::MemoryBuffer::getFile(PCHFileName.c_str(), &ErrStr));
   if (!Buffer) {
-    fprintf(stderr, "error: %s\n", ErrStr.c_str());
+    Diags.Report(diag::err_fe_unable_to_read_pch_file) << ErrStr;
     return std::string();
   }
 
@@ -1591,9 +1593,7 @@ std::string PCHReader::getOriginalSourceFile(const std::string &PCHFileName) {
       Stream.Read(8) != 'P' ||
       Stream.Read(8) != 'C' ||
       Stream.Read(8) != 'H') {
-    fprintf(stderr,
-            "error: '%s' does not appear to be a precompiled header file\n",
-            PCHFileName.c_str());
+    Diags.Report(diag::err_fe_not_a_pch_file) << PCHFileName;
     return std::string();
   }
 
@@ -1608,14 +1608,14 @@ std::string PCHReader::getOriginalSourceFile(const std::string &PCHFileName) {
       switch (BlockID) {
       case pch::PCH_BLOCK_ID:
         if (Stream.EnterSubBlock(pch::PCH_BLOCK_ID)) {
-          fprintf(stderr, "error: malformed block record in PCH file\n");
+          Diags.Report(diag::err_fe_pch_malformed_block) << PCHFileName;
           return std::string();
         }
         break;
 
       default:
         if (Stream.SkipBlock()) {
-          fprintf(stderr, "error: malformed block record in PCH file\n");
+          Diags.Report(diag::err_fe_pch_malformed_block) << PCHFileName;
           return std::string();
         }
         break;
@@ -1625,7 +1625,7 @@ std::string PCHReader::getOriginalSourceFile(const std::string &PCHFileName) {
 
     if (Code == llvm::bitc::END_BLOCK) {
       if (Stream.ReadBlockEnd()) {
-        fprintf(stderr, "error: error at end of module block in PCH file\n");
+        Diags.Report(diag::err_fe_pch_error_at_end_block) << PCHFileName;
         return std::string();
       }
       continue;
@@ -1720,6 +1720,8 @@ bool PCHReader::ParseLanguageOptions(
     ++Idx;
     PARSE_LANGOPT(InstantiationDepth);
     PARSE_LANGOPT(OpenCL);
+    PARSE_LANGOPT(CatchUndefined);
+    // FIXME: Missing ElideConstructors?!
   #undef PARSE_LANGOPT
 
     return Listener->ReadLanguageOptions(LangOpts);
@@ -1880,6 +1882,10 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
                                     hasAnyExceptionSpec, NumExceptions,
                                     Exceptions.data());
   }
+
+  case pch::TYPE_UNRESOLVED_USING:
+    return Context->getTypeDeclType(
+             cast<UnresolvedUsingTypenameDecl>(GetDecl(Record[0])));
 
   case pch::TYPE_TYPEDEF:
     assert(Record.size() == 1 && "incorrect encoding of typedef type");
@@ -2045,6 +2051,9 @@ void TypeLocReader::VisitFunctionProtoTypeLoc(FunctionProtoTypeLoc TL) {
 void TypeLocReader::VisitFunctionNoProtoTypeLoc(FunctionNoProtoTypeLoc TL) {
   VisitFunctionTypeLoc(TL);
 }
+void TypeLocReader::VisitUnresolvedUsingTypeLoc(UnresolvedUsingTypeLoc TL) {
+  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
+}
 void TypeLocReader::VisitTypedefTypeLoc(TypedefTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
@@ -2107,17 +2116,17 @@ void TypeLocReader::VisitObjCObjectPointerTypeLoc(ObjCObjectPointerTypeLoc TL) {
       TL.setProtocolLoc(i, SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
 
-DeclaratorInfo *PCHReader::GetDeclaratorInfo(const RecordData &Record,
+TypeSourceInfo *PCHReader::GetTypeSourceInfo(const RecordData &Record,
                                              unsigned &Idx) {
   QualType InfoTy = GetType(Record[Idx++]);
   if (InfoTy.isNull())
     return 0;
 
-  DeclaratorInfo *DInfo = getContext()->CreateDeclaratorInfo(InfoTy);
+  TypeSourceInfo *TInfo = getContext()->CreateTypeSourceInfo(InfoTy);
   TypeLocReader TLR(*this, Record, Idx);
-  for (TypeLoc TL = DInfo->getTypeLoc(); !TL.isNull(); TL = TL.getNextTypeLoc())
+  for (TypeLoc TL = TInfo->getTypeLoc(); !TL.isNull(); TL = TL.getNextTypeLoc())
     TLR.Visit(TL);
-  return DInfo;
+  return TInfo;
 }
 
 QualType PCHReader::GetType(pch::TypeID ID) {
@@ -2183,7 +2192,7 @@ PCHReader::GetTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
   case TemplateArgument::Expression:
     return ReadDeclExpr();
   case TemplateArgument::Type:
-    return GetDeclaratorInfo(Record, Index);
+    return GetTypeSourceInfo(Record, Index);
   case TemplateArgument::Template: {
     SourceLocation 
       QualStart = SourceLocation::getFromRawEncoding(Record[Index++]),
@@ -2198,7 +2207,7 @@ PCHReader::GetTemplateArgumentLocInfo(TemplateArgument::ArgKind Kind,
   case TemplateArgument::Pack:
     return TemplateArgumentLocInfo();
   }
-  llvm::llvm_unreachable("unexpected template argument loc");
+  llvm_unreachable("unexpected template argument loc");
   return TemplateArgumentLocInfo();
 }
 

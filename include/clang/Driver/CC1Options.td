@@ -55,7 +55,7 @@ def analysis_CheckerCFRef : Flag<"-checker-cfref">,
 def analysis_WarnSizeofPointer : Flag<"-warn-sizeof-pointer">,
   HelpText<"Warn about unintended use of sizeof() on pointer expressions">;
 def analysis_InlineCall : Flag<"-inline-call">,
-  HelpText<"Experimental transfer function inling callees when its definition is available.">;
+  HelpText<"Experimental transfer function inlining callees when its definition is available.">;
 
 def analyzer_store : Separate<"-analyzer-store">,
   HelpText<"Source Code Analysis - Abstract Memory Store Models">;
@@ -73,6 +73,8 @@ def analyzer_output_EQ : Joined<"-analyzer-output=">,
 
 def analyzer_opt_analyze_headers : Flag<"-analyzer-opt-analyze-headers">,
   HelpText<"Force the static analyzer to analyze functions defined in header files">;
+def analyzer_opt_analyze_nested_blocks : Flag<"-analyzer-opt-analyze-nested-blocks">,
+  HelpText<"Analyze the definitions of blocks in addition to functions">;  
 def analyzer_display_progress : Flag<"-analyzer-display-progress">,
   HelpText<"Emit verbose output about the analyzer's progress">;
 def analyzer_experimental_checks : Flag<"-analyzer-experimental-checks">,
@@ -103,6 +105,8 @@ def disable_llvm_optzns : Flag<"-disable-llvm-optzns">,
 def disable_red_zone : Flag<"-disable-red-zone">,
   HelpText<"Do not emit code that uses the red zone.">;
 def g : Flag<"-g">, HelpText<"Generate source level debug information">;
+def fcatch_undefined_behavior : Flag<"-fcatch-undefined-behavior">,
+    HelpText<"Generate runtime checks for undefined behavior.">;
 def fno_common : Flag<"-fno-common">,
   HelpText<"Compile common globals like normal definitions">;
 def no_implicit_float : Flag<"-no-implicit-float">,
@@ -117,13 +121,13 @@ def mdebug_pass : Separate<"-mdebug-pass">,
   HelpText<"Enable additional debug output">;
 def mdisable_fp_elim : Flag<"-mdisable-fp-elim">,
   HelpText<"Disable frame pointer elimination optimization">;
-def mfloat_abi : Flag<"-mfloat-abi">,
+def mfloat_abi : Separate<"-mfloat-abi">,
   HelpText<"The float ABI to use">;
 def mlimit_float_precision : Separate<"-mlimit-float-precision">,
   HelpText<"Limit float precision to the given value">;
 def mno_zero_initialized_in_bss : Flag<"-mno-zero-initialized-in-bss">,
   HelpText<"Do not put zero initialized data in the BSS">;
-def msoft_float : Separate<"-msoft-float">,
+def msoft_float : Flag<"-msoft-float">,
   HelpText<"Use software floating point">;
 def mrelocation_model : Separate<"-mrelocation-model">,
   HelpText<"The relocation model to use">;
@@ -149,7 +153,7 @@ def MP : Flag<"-MP">,
 //===----------------------------------------------------------------------===//
 
 def dump_build_information : Separate<"-dump-build-information">,
-  MetaVarName<"filename">,
+  MetaVarName<"<filename>">,
   HelpText<"output a dump of some build information to a file">;
 def fno_show_column : Flag<"-fno-show-column">,
   HelpText<"Do not include column number on diagnostics">;
@@ -172,7 +176,7 @@ def fdiagnostics_print_source_range_info : Flag<"-fdiagnostics-print-source-rang
   HelpText<"Print source range spans in numeric form">;
 def fdiagnostics_show_option : Flag<"-fdiagnostics-show-option">,
   HelpText<"Print diagnostic name with mappable diagnostics">;
-def fmessage_length : Separate<"-fmessage-length">, MetaVarName<"N">,
+def fmessage_length : Separate<"-fmessage-length">, MetaVarName<"<N>">,
   HelpText<"Format message diagnostics so that they fit within N columns or fewer, when possible.">;
 def fcolor_diagnostics : Flag<"-fcolor-diagnostics">,
   HelpText<"Use colors in diagnostics">;
@@ -185,28 +189,45 @@ def verify : Flag<"-verify">,
 // Frontend Options
 //===----------------------------------------------------------------------===//
 
+// This isn't normally used, it is just here so we can parse a
+// CompilerInvocation out of a driver-derived argument vector.
+def cc1 : Flag<"-cc1">;
+
 def code_completion_at : Separate<"-code-completion-at">,
-  MetaVarName<"file:line:column">,
+  MetaVarName<"<file>:<line>:<column>">,
   HelpText<"Dump code-completion information at a location">;
+def remap_file : Separate<"-remap-file">,
+  MetaVarName<"<from>;<to>">,
+  HelpText<"Replace the contents of the <from> file with the contents of the <to> file">;
 def code_completion_at_EQ : Joined<"-code-completion-at=">,
   Alias<code_completion_at>;
 def no_code_completion_debug_printer : Flag<"-no-code-completion-debug-printer">,
-  HelpText<"Don't the \"debug\" code-completion print">;
+  HelpText<"Don't use the \"debug\" code-completion print">;
 def code_completion_macros : Flag<"-code-completion-macros">,
   HelpText<"Include macros in code-completion results">;
 def disable_free : Flag<"-disable-free">,
   HelpText<"Disable freeing of memory on exit">;
 def empty_input_only : Flag<"-empty-input-only">,
   HelpText<"Force running on an empty input file">;
+def help : Flag<"-help">,
+  HelpText<"Print this help text">;
+def _help : Flag<"--help">, Alias<help>;
 def x : Separate<"-x">, HelpText<"Input language type">;
 def cxx_inheritance_view : Separate<"-cxx-inheritance-view">,
-  MetaVarName<"class name">,
+  MetaVarName<"<class name>">,
   HelpText<"View C++ inheritance for a specified class">;
-def fixit_at : Separate<"-fixit-at">, MetaVarName<"source-location">,
+def fixit_at : Separate<"-fixit-at">, MetaVarName<"<source location>">,
   HelpText<"Perform Fix-It modifications at the given source location">;
-def o : Separate<"-o">, MetaVarName<"path">, HelpText<"Specify output file">;
+def o : Separate<"-o">, MetaVarName<"<path>">, HelpText<"Specify output file">;
+def load : Separate<"-load">, MetaVarName<"<dsopath>">,
+  HelpText<"Load the named plugin (dynamic shared object)">;
 def plugin : Separate<"-plugin">,
   HelpText<"Use the named plugin action (use \"help\" to list available options)">;
+def resource_dir : Separate<"-resource-dir">,
+  HelpText<"The directory which holds the compiler resource files">;
+def version : Flag<"-version">,
+  HelpText<"Print the compiler version">;
+def _version : Flag<"--version">, Alias<version>;
 
 def Action_Group : OptionGroup<"<action group>">;
 let Group = Action_Group in {
@@ -313,7 +334,7 @@ def fno_signed_char : Flag<"-fno-signed-char">,
 def fno_operator_names : Flag<"-fno-operator-names">,
   HelpText<"Do not treat C++ operator name keywords as synonyms for operators">;
 def fconstant_string_class : Separate<"-fconstant-string-class">,
-  MetaVarName<"class name">,
+  MetaVarName<"<class name>">,
   HelpText<"Specify the class to use for constant Objective-C string objects.">;
 def fobjc_gc : Flag<"-fobjc-gc">,
   HelpText<"Enable Objective-C garbage collection">;
@@ -326,7 +347,7 @@ def fobjc_nonfragile_abi : Flag<"-fobjc-nonfragile-abi">,
 def ftrapv : Flag<"-ftrapv">,
   HelpText<"Trap on integer overflow">;
 def pic_level : Separate<"-pic-level">,
-  HelpText<"-Value for __PIC__">;
+  HelpText<"Value for __PIC__">;
 def pthread : Flag<"-pthread">,
   HelpText<"Support POSIX threads in generated code">;
 def fpascal_strings : Flag<"-fpascal-strings">,
@@ -356,23 +377,24 @@ def nostdinc : Flag<"-nostdinc">,
   HelpText<"Disable standard #include directories">;
 def nobuiltininc : Flag<"-nobuiltininc">,
   HelpText<"Disable builtin #include directories">;
-def F : JoinedOrSeparate<"-F">, MetaVarName<"directory">,
+def F : JoinedOrSeparate<"-F">, MetaVarName<"<directory>">,
   HelpText<"Add directory to framework include search path">;
-def I : JoinedOrSeparate<"-I">, MetaVarName<"directory">,
+def I : JoinedOrSeparate<"-I">, MetaVarName<"<directory>">,
   HelpText<"Add directory to include search path">;
-def idirafter : Separate<"-idirafter">, MetaVarName<"directory">,
+def idirafter : JoinedOrSeparate<"-idirafter">, MetaVarName<"<directory>">,
   HelpText<"Add directory to AFTER include search path">;
-def iquote : Separate<"-iquote">, MetaVarName<"directory">,
+def iquote : JoinedOrSeparate<"-iquote">, MetaVarName<"<directory>">,
   HelpText<"Add directory to QUOTE include search path">;
-def isystem : Separate<"-isystem">, MetaVarName<"directory">,
+def isystem : JoinedOrSeparate<"-isystem">, MetaVarName<"<directory>">,
   HelpText<"Add directory to SYSTEM include search path">;
-def iprefix : Separate<"-iprefix">, MetaVarName<"prefix">,
+def iprefix : JoinedOrSeparate<"-iprefix">, MetaVarName<"<prefix>">,
   HelpText<"Set the -iwithprefix/-iwithprefixbefore prefix">;
-def iwithprefix : Separate<"-iwithprefix">, MetaVarName<"dir">,
+def iwithprefix : JoinedOrSeparate<"-iwithprefix">, MetaVarName<"<dir>">,
   HelpText<"Set directory to SYSTEM include search path with prefix">;
-def iwithprefixbefore : Separate<"-iwithprefixbefore">, MetaVarName<"dir">,
+def iwithprefixbefore : JoinedOrSeparate<"-iwithprefixbefore">,
+  MetaVarName<"<dir>">,
   HelpText<"Set directory to include search path with prefix">;
-def isysroot : Separate<"-isysroot">, MetaVarName<"dir">,
+def isysroot : JoinedOrSeparate<"-isysroot">, MetaVarName<"<dir>">,
   HelpText<"Set the system root directory (usually /)">;
 def v : Flag<"-v">, HelpText<"Enable verbose output">;
 
@@ -380,21 +402,21 @@ def v : Flag<"-v">, HelpText<"Enable verbose output">;
 // Preprocessor Options
 //===----------------------------------------------------------------------===//
 
-def D : JoinedOrSeparate<"-D">, MetaVarName<"macro">,
+def D : JoinedOrSeparate<"-D">, MetaVarName<"<macro>">,
   HelpText<"Predefine the specified macro">;
-def include_ : Separate<"-include">, MetaVarName<"file">, EnumName<"include">,
+def include_ : JoinedOrSeparate<"-include">, MetaVarName<"<file>">, EnumName<"include">,
   HelpText<"Include file before parsing">;
-def imacros : Separate<"-imacros">, MetaVarName<"file">,
+def imacros : JoinedOrSeparate<"-imacros">, MetaVarName<"<file>">,
   HelpText<"Include macros from file before parsing">;
-def include_pch : Separate<"-include-pch">, MetaVarName<"file">,
+def include_pch : Separate<"-include-pch">, MetaVarName<"<file>">,
   HelpText<"Include precompiled header file">;
-def include_pth : Separate<"-include-pth">, MetaVarName<"file">,
+def include_pth : Separate<"-include-pth">, MetaVarName<"<file>">,
   HelpText<"Include file before parsing">;
-def token_cache : Separate<"-token-cache">, MetaVarName<"path">,
+def token_cache : Separate<"-token-cache">, MetaVarName<"<path>">,
   HelpText<"Use specified token cache file">;
-def U : JoinedOrSeparate<"-U">, MetaVarName<"macro">,
+def U : JoinedOrSeparate<"-U">, MetaVarName<"<macro>">,
   HelpText<"Undefine the specified macro">;
-def undef : Flag<"-undef">, MetaVarName<"macro">,
+def undef : Flag<"-undef">, MetaVarName<"<macro>">,
   HelpText<"undef all system defines">;
 
 //===----------------------------------------------------------------------===//

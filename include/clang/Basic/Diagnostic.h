@@ -238,7 +238,6 @@ public:
   DiagnosticClient *getClient() { return Client; }
   const DiagnosticClient *getClient() const { return Client; }
 
-
   /// pushMappings - Copies the current DiagMappings and pushes the new copy
   /// onto the top of the stack.
   void pushMappings();
@@ -319,7 +318,7 @@ public:
   /// getCustomDiagID - Return an ID for a diagnostic with the specified message
   /// and level.  If this is the first request for this diagnosic, it is
   /// registered and created, otherwise the existing ID is returned.
-  unsigned getCustomDiagID(Level L, const char *Message);
+  unsigned getCustomDiagID(Level L, llvm::StringRef Message);
 
 
   /// ConvertArgToString - This method converts a diagnostic argument (as an

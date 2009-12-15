@@ -15,6 +15,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -438,6 +439,18 @@ void CXXRecordDecl::addConversionFunction(FunctionTemplateDecl *ConvDecl) {
   Conversions.addDecl(ConvDecl);
 }
 
+
+void CXXRecordDecl::setMethodAsVirtual(FunctionDecl *Method) {
+  Method->setVirtualAsWritten(true);
+  setAggregate(false);
+  setPOD(false);
+  setEmpty(false);
+  setPolymorphic(true);
+  setHasTrivialConstructor(false);
+  setHasTrivialCopyConstructor(false);
+  setHasTrivialCopyAssignment(false);
+}
+
 CXXRecordDecl *CXXRecordDecl::getInstantiatedFromMemberClass() const {
   if (MemberSpecializationInfo *MSInfo = getMemberSpecializationInfo())
     return cast<CXXRecordDecl>(MSInfo->getInstantiatedFrom());
@@ -459,8 +472,8 @@ CXXRecordDecl::setInstantiationOfMemberClass(CXXRecordDecl *RD,
     = new (getASTContext()) MemberSpecializationInfo(RD, TSK);
 }
 
-TemplateSpecializationKind CXXRecordDecl::getTemplateSpecializationKind() {
-  if (ClassTemplateSpecializationDecl *Spec
+TemplateSpecializationKind CXXRecordDecl::getTemplateSpecializationKind() const{
+  if (const ClassTemplateSpecializationDecl *Spec
         = dyn_cast<ClassTemplateSpecializationDecl>(this))
     return Spec->getSpecializationKind();
   
@@ -507,8 +520,7 @@ CXXRecordDecl::getDefaultConstructor(ASTContext &Context) {
   return 0;
 }
 
-const CXXDestructorDecl *
-CXXRecordDecl::getDestructor(ASTContext &Context) {
+CXXDestructorDecl *CXXRecordDecl::getDestructor(ASTContext &Context) {
   QualType ClassType = Context.getTypeDeclType(this);
 
   DeclarationName Name
@@ -519,7 +531,7 @@ CXXRecordDecl::getDestructor(ASTContext &Context) {
   llvm::tie(I, E) = lookup(Name);
   assert(I != E && "Did not find a destructor!");
 
-  const CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(*I);
+  CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(*I);
   assert(++I == E && "Found more than one destructor!");
 
   return Dtor;
@@ -528,9 +540,9 @@ CXXRecordDecl::getDestructor(ASTContext &Context) {
 CXXMethodDecl *
 CXXMethodDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                       SourceLocation L, DeclarationName N,
-                      QualType T, DeclaratorInfo *DInfo,
+                      QualType T, TypeSourceInfo *TInfo,
                       bool isStatic, bool isInline) {
-  return new (C) CXXMethodDecl(CXXMethod, RD, L, N, T, DInfo,
+  return new (C) CXXMethodDecl(CXXMethod, RD, L, N, T, TInfo,
                                isStatic, isInline);
 }
 
@@ -577,6 +589,8 @@ typedef llvm::DenseMap<const CXXMethodDecl*,
 static OverriddenMethodsMapTy *OverriddenMethods = 0;
 
 void CXXMethodDecl::addOverriddenMethod(const CXXMethodDecl *MD) {
+  assert(MD->isCanonicalDecl() && "Method is not canonical!");
+  
   // FIXME: The CXXMethodDecl dtor needs to remove and free the entry.
 
   if (!OverriddenMethods)
@@ -630,55 +644,107 @@ QualType CXXMethodDecl::getThisType(ASTContext &C) const {
   return C.getPointerType(ClassTy);
 }
 
-CXXBaseOrMemberInitializer::
-CXXBaseOrMemberInitializer(QualType BaseType, Expr **Args, unsigned NumArgs,
-                           CXXConstructorDecl *C,
-                           SourceLocation L, SourceLocation R)
-  : Args(0), NumArgs(0), CtorOrAnonUnion(), IdLoc(L), RParenLoc(R) {
-  BaseOrMember = reinterpret_cast<uintptr_t>(BaseType.getTypePtr());
-  assert((BaseOrMember & 0x01) == 0 && "Invalid base class type pointer");
-  BaseOrMember |= 0x01;
+static bool MethodHasBody(const CXXMethodDecl *MD, const FunctionDecl *&fn) {
+  // Simple case: function has a body
+  if (MD->getBody(fn))
+    return true;
 
-  if (NumArgs > 0) {
-    this->NumArgs = NumArgs;
-    // FIXME. Allocation via Context
-    this->Args = new Stmt*[NumArgs];
-    for (unsigned Idx = 0; Idx < NumArgs; ++Idx)
-      this->Args[Idx] = Args[Idx];
-  }
-  CtorOrAnonUnion = C;
+  // Complex case: function is an instantiation of a function which has a
+  // body, but the definition hasn't been instantiated.
+  const FunctionDecl *PatternDecl = MD->getTemplateInstantiationPattern();
+  if (PatternDecl && PatternDecl->getBody(fn))
+    return true;
+
+  return false;
+}
+
+bool CXXMethodDecl::hasInlineBody() const {
+  const FunctionDecl *fn;
+  return MethodHasBody(this, fn) && !fn->isOutOfLine();
 }
 
 CXXBaseOrMemberInitializer::
-CXXBaseOrMemberInitializer(FieldDecl *Member, Expr **Args, unsigned NumArgs,
-                           CXXConstructorDecl *C,
-                           SourceLocation L, SourceLocation R)
-  : Args(0), NumArgs(0), CtorOrAnonUnion(), IdLoc(L), RParenLoc(R) {
-  BaseOrMember = reinterpret_cast<uintptr_t>(Member);
-  assert((BaseOrMember & 0x01) == 0 && "Invalid member pointer");
-
+CXXBaseOrMemberInitializer(ASTContext &Context,
+                           TypeSourceInfo *TInfo, CXXConstructorDecl *C,
+                           SourceLocation L, 
+                           Expr **Args, unsigned NumArgs,
+                           SourceLocation R)
+  : BaseOrMember(TInfo), Args(0), NumArgs(0), CtorOrAnonUnion(C), 
+    LParenLoc(L), RParenLoc(R) 
+{
   if (NumArgs > 0) {
     this->NumArgs = NumArgs;
-    this->Args = new Stmt*[NumArgs];
+    this->Args = new (Context) Stmt*[NumArgs];
     for (unsigned Idx = 0; Idx < NumArgs; ++Idx)
       this->Args[Idx] = Args[Idx];
   }
-  CtorOrAnonUnion = C;
 }
 
-CXXBaseOrMemberInitializer::~CXXBaseOrMemberInitializer() {
-  delete [] Args;
+CXXBaseOrMemberInitializer::
+CXXBaseOrMemberInitializer(ASTContext &Context,
+                           FieldDecl *Member, SourceLocation MemberLoc,
+                           CXXConstructorDecl *C, SourceLocation L,
+                           Expr **Args, unsigned NumArgs,
+                           SourceLocation R)
+  : BaseOrMember(Member), MemberLocation(MemberLoc), Args(0), NumArgs(0), 
+    CtorOrAnonUnion(C), LParenLoc(L), RParenLoc(R) 
+{
+  if (NumArgs > 0) {
+    this->NumArgs = NumArgs;
+    this->Args = new (Context) Stmt*[NumArgs];
+    for (unsigned Idx = 0; Idx < NumArgs; ++Idx)
+      this->Args[Idx] = Args[Idx];
+  }
+}
+
+void CXXBaseOrMemberInitializer::Destroy(ASTContext &Context) {
+  for (unsigned I = 0; I != NumArgs; ++I)
+    Args[I]->Destroy(Context);
+  Context.Deallocate(Args);
+  this->~CXXBaseOrMemberInitializer();
+}
+
+TypeLoc CXXBaseOrMemberInitializer::getBaseClassLoc() const {
+  if (isBaseInitializer())
+    return BaseOrMember.get<TypeSourceInfo*>()->getTypeLoc();
+  else
+    return TypeLoc();
+}
+
+Type *CXXBaseOrMemberInitializer::getBaseClass() {
+  if (isBaseInitializer())
+    return BaseOrMember.get<TypeSourceInfo*>()->getType().getTypePtr();
+  else
+    return 0;
+}
+
+const Type *CXXBaseOrMemberInitializer::getBaseClass() const {
+  if (isBaseInitializer())
+    return BaseOrMember.get<TypeSourceInfo*>()->getType().getTypePtr();
+  else
+    return 0;
+}
+
+SourceLocation CXXBaseOrMemberInitializer::getSourceLocation() const {
+  if (isMemberInitializer())
+    return getMemberLocation();
+  
+  return getBaseClassLoc().getSourceRange().getBegin();
+}
+
+SourceRange CXXBaseOrMemberInitializer::getSourceRange() const {
+  return SourceRange(getSourceLocation(), getRParenLoc());
 }
 
 CXXConstructorDecl *
 CXXConstructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                            SourceLocation L, DeclarationName N,
-                           QualType T, DeclaratorInfo *DInfo,
+                           QualType T, TypeSourceInfo *TInfo,
                            bool isExplicit,
                            bool isInline, bool isImplicitlyDeclared) {
   assert(N.getNameKind() == DeclarationName::CXXConstructorName &&
          "Name must refer to a constructor");
-  return new (C) CXXConstructorDecl(RD, L, N, T, DInfo, isExplicit, isInline,
+  return new (C) CXXConstructorDecl(RD, L, N, T, TInfo, isExplicit, isInline,
                                       isImplicitlyDeclared);
 }
 
@@ -790,69 +856,11 @@ CXXConstructorDecl::Destroy(ASTContext& C) {
 CXXConversionDecl *
 CXXConversionDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                           SourceLocation L, DeclarationName N,
-                          QualType T, DeclaratorInfo *DInfo,
+                          QualType T, TypeSourceInfo *TInfo,
                           bool isInline, bool isExplicit) {
   assert(N.getNameKind() == DeclarationName::CXXConversionFunctionName &&
          "Name must refer to a conversion function");
-  return new (C) CXXConversionDecl(RD, L, N, T, DInfo, isInline, isExplicit);
-}
-
-OverloadedFunctionDecl *
-OverloadedFunctionDecl::Create(ASTContext &C, DeclContext *DC,
-                               DeclarationName N) {
-  return new (C) OverloadedFunctionDecl(DC, N);
-}
-
-OverloadIterator::OverloadIterator(NamedDecl *ND) : D(0) {
-  if (!ND)
-    return;
-
-  if (isa<FunctionDecl>(ND) || isa<FunctionTemplateDecl>(ND))
-    D = ND;
-  else if (OverloadedFunctionDecl *Ovl = dyn_cast<OverloadedFunctionDecl>(ND)) {
-    if (Ovl->size() != 0) {
-      D = ND;
-      Iter = Ovl->function_begin();
-    }
-  }
-}
-
-void OverloadedFunctionDecl::addOverload(AnyFunctionDecl F) {
-  Functions.push_back(F);
-  this->setLocation(F.get()->getLocation());
-}
-
-OverloadIterator::reference OverloadIterator::operator*() const {
-  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
-    return FD;
-
-  if (FunctionTemplateDecl *FTD = dyn_cast<FunctionTemplateDecl>(D))
-    return FTD;
-
-  assert(isa<OverloadedFunctionDecl>(D));
-  return *Iter;
-}
-
-OverloadIterator &OverloadIterator::operator++() {
-  if (isa<FunctionDecl>(D) || isa<FunctionTemplateDecl>(D)) {
-    D = 0;
-    return *this;
-  }
-
-  if (++Iter == cast<OverloadedFunctionDecl>(D)->function_end())
-    D = 0;
-
-  return *this;
-}
-
-bool OverloadIterator::Equals(const OverloadIterator &Other) const {
-  if (!D || !Other.D)
-    return D == Other.D;
-
-  if (D != Other.D)
-    return false;
-
-  return !isa<OverloadedFunctionDecl>(D) || Iter == Other.Iter;
+  return new (C) CXXConversionDecl(RD, L, N, T, TInfo, isInline, isExplicit);
 }
 
 FriendDecl *FriendDecl::Create(ASTContext &C, DeclContext *DC,

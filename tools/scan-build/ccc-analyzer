@@ -14,14 +14,38 @@
 
 use strict;
 use warnings;
+use FindBin;
 use Cwd qw/ getcwd abs_path /;
 use File::Temp qw/ tempfile /;
 use File::Path qw / mkpath /;
 use File::Basename;
 use Text::ParseWords;
 
-my $CC = $ENV{'CCC_CC'};
-if (!defined $CC) { $CC = "gcc"; }
+##===----------------------------------------------------------------------===##
+# Compiler command setup.
+##===----------------------------------------------------------------------===##
+
+my $Compiler;
+my $Clang;
+
+if ($FindBin::Script =~ /c\+\+-analyzer/) {
+  $Compiler = $ENV{'CCC_CXX'};
+  if (!defined $Compiler) { $Compiler = "g++"; }
+  
+  $Clang = $ENV{'CLANG_CXX'};
+  if (!defined $Clang) { $Clang = 'clang++'; }
+}
+else {
+  $Compiler = $ENV{'CCC_CC'};
+  if (!defined $Compiler) { $Compiler = "gcc"; }
+
+  $Clang = $ENV{'CLANG'};
+  if (!defined $Clang) { $Clang = 'clang'; }
+}
+
+##===----------------------------------------------------------------------===##
+# Cleanup.
+##===----------------------------------------------------------------------===##
 
 my $ReportFailures = $ENV{'CCC_REPORT_FAILURES'};
 if (!defined $ReportFailures) { $ReportFailures = 1; }
@@ -53,7 +77,7 @@ my $ParserRejects = "Parser Rejects";
 my $AttributeIgnored = "Attribute Ignored";
 
 sub ProcessClangFailure {
-  my ($ClangCC, $Lang, $file, $Args, $HtmlDir, $ErrorType, $ofile) = @_;
+  my ($Clang, $Lang, $file, $Args, $HtmlDir, $ErrorType, $ofile) = @_;
   my $Dir = "$HtmlDir/failures";
   mkpath $Dir;
   
@@ -69,7 +93,7 @@ sub ProcessClangFailure {
   my ($PPH, $PPFile) = tempfile( $prefix . "_XXXXXX",
                                  SUFFIX => GetPPExt($Lang),
                                  DIR => $Dir);
-  system $ClangCC, @$Args, "-E", "-o", $PPFile;
+  system $Clang, @$Args, "-E", "-o", $PPFile;
   close ($PPH);
   
   # Create the info file.
@@ -79,7 +103,7 @@ sub ProcessClangFailure {
   print OUT "@$Args\n";
   close OUT;
   `uname -a >> $PPFile.info.txt 2>&1`;
-  `$CC -v >> $PPFile.info.txt 2>&1`;
+  `$Compiler -v >> $PPFile.info.txt 2>&1`;
   system 'mv',$ofile,"$PPFile.stderr.txt";
   return (basename $PPFile);
 }
@@ -87,10 +111,6 @@ sub ProcessClangFailure {
 ##----------------------------------------------------------------------------##
 #  Running the analyzer.
 ##----------------------------------------------------------------------------##
-
-# Determine what clang executable to use.
-my $Clang = $ENV{'CLANG'};
-if (!defined $Clang) { $Clang = 'clang'; }
 
 sub GetCCArgs {
   my $Args = shift;
@@ -106,14 +126,14 @@ sub GetCCArgs {
   close(TO_PARENT);
   my $line;
   while (<FROM_CHILD>) {
-    next if (!/clang-cc/);
+    next if (!/-cc1/);
     $line = $_;
   }
 
   waitpid($pid,0);
   close(FROM_CHILD);
   
-  die "could not find clang-cc line\n" if (!defined $line);
+  die "could not find clang line\n" if (!defined $line);
   # Strip the newline and initial whitspace
   chomp $line;  
   $line =~ s/^\s+//;
@@ -124,18 +144,15 @@ sub GetCCArgs {
     $items[$i] =~ s/\"$//;
   }
   my $cmd = shift @items;
-  die "cannot find 'clang-cc' in 'clang' command\n" if (!($cmd =~ /clang-cc/));
+  die "cannot find 'clang' in 'clang' command\n" if (!($cmd =~ /clang/));
   return \@items;
 }
 
 sub Analyze {
-  my ($ClangCC, $Args, $AnalyzeArgs, $Lang, $Output, $Verbose, $HtmlDir,
+  my ($Clang, $Args, $AnalyzeArgs, $Lang, $Output, $Verbose, $HtmlDir,
       $file, $Analyses) = @_;
   
   $Args = GetCCArgs($Args);
-
-  # Skip anything related to C++.
-  return if ($Lang =~ /c[+][+]/);
 
   my $RunAnalyzer = 0;
   my $Cmd;
@@ -152,13 +169,15 @@ sub Analyze {
     @CmdArgsSansAnalyses = @CmdArgs;    
   }
   else {
-    $Cmd = $ClangCC;
+    $Cmd = $Clang;
+    push @CmdArgs, "-cc1";
     push @CmdArgs,'-DIBOutlet=__attribute__((iboutlet))';
-    push @CmdArgs,@$Args;
+    push @CmdArgs, @$Args;
     @CmdArgsSansAnalyses = @CmdArgs;
     push @CmdArgs,'-analyze';
     push @CmdArgs,"-analyzer-display-progress";
     push @CmdArgs,"-analyzer-eagerly-assume";
+    push @CmdArgs,"-analyzer-opt-analyze-nested-blocks";
     push @CmdArgs,(split /\s/,$Analyses);
     
     if (defined $ENV{"CCC_EXPERIMENTAL_CHECKS"}) {
@@ -236,13 +255,13 @@ sub Analyze {
 
   # Did the command die because of a signal?
   if ($ReportFailures) {
-    if ($Result & 127 and $Cmd eq $ClangCC and defined $HtmlDir) {
-      ProcessClangFailure($ClangCC, $Lang, $file, \@CmdArgsSansAnalyses,
+    if ($Result & 127 and $Cmd eq $Clang and defined $HtmlDir) {
+      ProcessClangFailure($Clang, $Lang, $file, \@CmdArgsSansAnalyses,
                           $HtmlDir, "Crash", $ofile);
     }
     elsif ($Result) {
       if ($IncludeParserRejects && !($file =~/conftest/)) {
-        ProcessClangFailure($ClangCC, $Lang, $file, \@CmdArgsSansAnalyses,
+        ProcessClangFailure($Clang, $Lang, $file, \@CmdArgsSansAnalyses,
                             $HtmlDir, $ParserRejects, $ofile);
       }
     }
@@ -274,7 +293,7 @@ sub Analyze {
           # Add this file to the list of files that contained this attribute.
           # Generate a preprocessed file if we haven't already.
           if (!(defined $ppfile)) {
-            $ppfile = ProcessClangFailure($ClangCC, $Lang, $file,
+            $ppfile = ProcessClangFailure($Clang, $Lang, $file,
                                           \@CmdArgsSansAnalyses,
                                           $HtmlDir, $AttributeIgnored, $ofile);
           }
@@ -359,7 +378,9 @@ my %UniqueOptions = (
 
 my %LangsAccepted = (
   "objective-c" => 1,
-  "c" => 1
+  "c" => 1,
+  "c++" => 1,
+  "objective-c++" => 1
 );
 
 ##----------------------------------------------------------------------------##
@@ -375,7 +396,7 @@ my $Output;
 my %Uniqued;
 
 # Forward arguments to gcc.
-my $Status = system($CC,@ARGV);
+my $Status = system($Compiler,@ARGV);
 if ($Status) { exit($Status >> 8); }
 
 # Get the analysis options.
@@ -398,10 +419,6 @@ if (!defined $OutputFormat) { $OutputFormat = "html"; }
 my $Verbose = 0;
 if (defined $ENV{CCC_ANALYZER_VERBOSE}) { $Verbose = 1; }
 if (defined $ENV{CCC_ANALYZER_LOG}) { $Verbose = 2; }
-
-# Determine what clang-cc executable to use.
-my $ClangCC = $ENV{'CLANG_CC'};
-if (!defined $ClangCC) { $ClangCC = 'clang-cc'; }
 
 # Get the HTML output directory.
 my $HtmlDir = $ENV{'CCC_ANALYZER_HTML'};
@@ -617,12 +634,12 @@ if ($Action eq 'compile' or $Action eq 'link') {
         push @NewArgs, '-arch';
         push @NewArgs, $arch;
         push @NewArgs, @CmdArgs;
-        Analyze($ClangCC, \@NewArgs, \@AnalyzeArgs, $FileLang, $Output,
+        Analyze($Clang, \@NewArgs, \@AnalyzeArgs, $FileLang, $Output,
                 $Verbose, $HtmlDir, $file, $Analyses);
       }
     }
     else {
-      Analyze($ClangCC, \@CmdArgs, \@AnalyzeArgs, $FileLang, $Output,
+      Analyze($Clang, \@CmdArgs, \@AnalyzeArgs, $FileLang, $Output,
               $Verbose, $HtmlDir, $file, $Analyses);
     }
   }

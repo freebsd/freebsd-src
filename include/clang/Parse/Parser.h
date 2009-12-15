@@ -30,6 +30,7 @@ namespace clang {
   class DiagnosticBuilder;
   class Parser;
   class PragmaUnusedHandler;
+  class ColonProtectionRAIIObject;
 
 /// PrettyStackTraceParserEntry - If a crash happens while the parser is active,
 /// an entry is printed for it.
@@ -47,6 +48,7 @@ public:
 ///
 class Parser {
   friend class PragmaUnusedHandler;
+  friend class ColonProtectionRAIIObject;
   PrettyStackTraceParserEntry CrashInfo;
 
   Preprocessor &PP;
@@ -90,25 +92,15 @@ class Parser {
   /// template argument list, where the '>' closes the template
   /// argument list.
   bool GreaterThanIsOperator;
+  
+  /// ColonIsSacred - When this is false, we aggressively try to recover from
+  /// code like "foo : bar" as if it were a typo for "foo :: bar".  This is not
+  /// safe in case statements and a few other things.  This is managed by the
+  /// ColonProtectionRAIIObject RAII object.
+  bool ColonIsSacred;
 
   /// The "depth" of the template parameters currently being parsed.
   unsigned TemplateParameterDepth;
-
-  /// \brief RAII object that makes '>' behave either as an operator
-  /// or as the closing angle bracket for a template argument list.
-  struct GreaterThanIsOperatorScope {
-    bool &GreaterThanIsOperator;
-    bool OldGreaterThanIsOperator;
-
-    GreaterThanIsOperatorScope(bool &GTIO, bool Val)
-      : GreaterThanIsOperator(GTIO), OldGreaterThanIsOperator(GTIO) {
-      GreaterThanIsOperator = Val;
-    }
-
-    ~GreaterThanIsOperatorScope() {
-      GreaterThanIsOperator = OldGreaterThanIsOperator;
-    }
-  };
 
 public:
   Parser(Preprocessor &PP, Action &Actions);
@@ -759,7 +751,10 @@ private:
   bool isStartOfFunctionDefinition();
   DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(AttributeList *Attr,
             AccessSpecifier AS = AS_none);
-
+  DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(ParsingDeclSpec &DS,
+                                                  AttributeList *Attr,
+                                                  AccessSpecifier AS = AS_none);
+  
   DeclPtrTy ParseFunctionDefinition(ParsingDeclarator &D,
                  const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo());
   void ParseKNRParamDeclarations(Declarator &D);
@@ -1087,6 +1082,7 @@ private:
   private:
     virtual void _anchor();
   };
+  struct ObjCPropertyCallback;
 
   void ParseStructDeclaration(DeclSpec &DS, FieldCallback &Callback);
 
@@ -1288,7 +1284,7 @@ private:
                                  tok::TokenKind *After = 0);
   
   DeclPtrTy ParseNamespace(unsigned Context, SourceLocation &DeclEnd);
-  DeclPtrTy ParseLinkage(unsigned Context);
+  DeclPtrTy ParseLinkage(ParsingDeclSpec &DS, unsigned Context);
   DeclPtrTy ParseUsingDirectiveOrDeclaration(unsigned Context,
                                              SourceLocation &DeclEnd,
                                              CXX0XAttributeList Attrs);

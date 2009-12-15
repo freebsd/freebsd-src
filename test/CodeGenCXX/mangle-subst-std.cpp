@@ -32,8 +32,26 @@ namespace std {
 void f(std::string) { }
 
 namespace std {
+  template<typename, typename> struct basic_istream { };
   template<typename, typename> struct basic_ostream { };
+  template<typename, typename> struct basic_iostream { };
 }
+
+// CHECK: _Z1fSi
+void f(std::basic_istream<char, std::char_traits<char> >) { }
 
 // CHECK: _Z1fSo
 void f(std::basic_ostream<char, std::char_traits<char> >) { }
+
+// CHECK: _Z1fSd
+void f(std::basic_iostream<char, std::char_traits<char> >) { }
+
+extern "C++" {
+namespace std
+{
+  typedef void (*terminate_handler) ();
+  
+  // CHECK: _ZSt13set_terminatePFvvE
+  terminate_handler set_terminate(terminate_handler) { return 0; }
+}
+}

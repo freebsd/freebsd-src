@@ -1,5 +1,5 @@
-// RUN: clang-cc -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks %s
-// RUN: clang-cc -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks %s
+// RUN: clang -cc1 -triple i386-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks %s
+// RUN: clang -cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-experimental-internal-checks -checker-cfref -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks %s
 
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -539,5 +539,100 @@ void test_increment_nonnull_rdar_7191542(const char *path) {
 double rdar_6811085(void) {
   double u;
   return u + 10; // expected-warning{{The left operand of '+' is a garbage value}}
+}
+
+//===----------------------------------------------------------------------===//
+// Path-sensitive tests for blocks.
+//===----------------------------------------------------------------------===//
+
+void indirect_block_call(void (^f)());
+
+int blocks_1(int *p, int z) {
+  __block int *q = 0;
+  void (^bar)() = ^{ q = p; };
+  
+  if (z == 1) {
+    // The call to 'bar' might cause 'q' to be invalidated.
+    bar();
+    *q = 0x1; // no-warning
+  }
+  else if (z == 2) {
+    // The function 'indirect_block_call' might invoke bar, thus causing
+    // 'q' to possibly be invalidated.
+    indirect_block_call(bar);
+    *q = 0x1; // no-warning
+  }
+  else {
+    *q = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+  }
+  return z;
+}
+
+int blocks_2(int *p, int z) {
+  int *q = 0;
+  void (^bar)(int **) = ^(int **r){ *r = p; };
+  
+  if (z) {
+    // The call to 'bar' might cause 'q' to be invalidated.
+    bar(&q);
+    *q = 0x1; // no-warning
+  }
+  else {
+    *q = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+  }
+  return z;
+}
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7462324> - Test that variables passed using __blocks
+//  are not treated as being uninitialized.
+//===----------------------------------------------------------------------===//
+
+typedef void (^RDar_7462324_Callback)(id obj);
+
+@interface RDar7462324
+- (void) foo:(id)target;
+- (void) foo_positive:(id)target;
+
+@end
+
+@implementation RDar7462324
+- (void) foo:(id)target {
+  __block RDar_7462324_Callback builder = ((void*) 0);
+  builder = ^(id object) {
+    if (object) {
+      builder(self); // no-warning
+    }
+  };
+  builder(target);
+}
+- (void) foo_positive:(id)target {
+  __block RDar_7462324_Callback builder = ((void*) 0);
+  builder = ^(id object) {
+    id x;
+    if (object) {
+      builder(x); // expected-warning{{Pass-by-value argument in function call is undefined}}
+    }
+  };
+  builder(target);
+}
+@end
+
+//===----------------------------------------------------------------------===//
+// <rdar://problem/7468209> - Scanning for live variables within a block should
+//  not crash on variables passed by reference via __block.
+//===----------------------------------------------------------------------===//
+
+int rdar7468209_aux();
+void rdar7468209_aux2();
+
+void rdar7468209() {
+  __block int x = 0;
+  ^{
+    x = rdar7468209_aux();
+    // We need a second statement so that 'x' would be removed from the store if it wasn't
+    // passed by reference.
+    rdar7468209_aux_2();
+  }();
 }
 

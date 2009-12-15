@@ -166,6 +166,14 @@ void PCHTypeWriter::VisitFunctionProtoType(const FunctionProtoType *T) {
   Code = pch::TYPE_FUNCTION_PROTO;
 }
 
+#if 0
+// For when we want it....
+void PCHTypeWriter::VisitUnresolvedUsingType(const UnresolvedUsingType *T) {
+  Writer.AddDeclRef(T->getDecl(), Record);
+  Code = pch::TYPE_UNRESOLVED_USING;
+}
+#endif
+
 void PCHTypeWriter::VisitTypedefType(const TypedefType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
   Code = pch::TYPE_TYPEDEF;
@@ -336,6 +344,9 @@ void TypeLocWriter::VisitFunctionProtoTypeLoc(FunctionProtoTypeLoc TL) {
 }
 void TypeLocWriter::VisitFunctionNoProtoTypeLoc(FunctionNoProtoTypeLoc TL) {
   VisitFunctionTypeLoc(TL);
+}
+void TypeLocWriter::VisitUnresolvedUsingTypeLoc(UnresolvedUsingTypeLoc TL) {
+  Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
 void TypeLocWriter::VisitTypedefTypeLoc(TypedefTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
@@ -770,6 +781,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
   Record.push_back(LangOpts.getStackProtectorMode());
   Record.push_back(LangOpts.InstantiationDepth);
   Record.push_back(LangOpts.OpenCL);
+  Record.push_back(LangOpts.CatchUndefined);
   Record.push_back(LangOpts.ElideConstructors);
   Stream.EmitRecord(pch::LANGUAGE_OPTIONS, Record);
 }
@@ -2129,7 +2141,7 @@ void PCHWriter::AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
     AddStmt(Arg.getLocInfo().getAsExpr());
     break;
   case TemplateArgument::Type:
-    AddDeclaratorInfo(Arg.getLocInfo().getAsDeclaratorInfo(), Record);
+    AddTypeSourceInfo(Arg.getLocInfo().getAsTypeSourceInfo(), Record);
     break;
   case TemplateArgument::Template:
     Record.push_back(
@@ -2145,15 +2157,15 @@ void PCHWriter::AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
   }
 }
 
-void PCHWriter::AddDeclaratorInfo(DeclaratorInfo *DInfo, RecordData &Record) {
-  if (DInfo == 0) {
+void PCHWriter::AddTypeSourceInfo(TypeSourceInfo *TInfo, RecordData &Record) {
+  if (TInfo == 0) {
     AddTypeRef(QualType(), Record);
     return;
   }
 
-  AddTypeRef(DInfo->getType(), Record);
+  AddTypeRef(TInfo->getType(), Record);
   TypeLocWriter TLW(*this, Record);
-  for (TypeLoc TL = DInfo->getTypeLoc(); !TL.isNull(); TL = TL.getNextTypeLoc())
+  for (TypeLoc TL = TInfo->getTypeLoc(); !TL.isNull(); TL = TL.getNextTypeLoc())
     TLW.Visit(TL);  
 }
 

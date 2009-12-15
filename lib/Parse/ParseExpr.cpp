@@ -23,7 +23,7 @@
 #include "clang/Parse/DeclSpec.h"
 #include "clang/Parse/Scope.h"
 #include "clang/Basic/PrettyStackTrace.h"
-#include "ExtensionRAIIObject.h"
+#include "RAIIObjectsForParser.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SmallString.h"
 using namespace clang;
@@ -317,6 +317,9 @@ Parser::ParseRHSOfBinaryExpression(OwningExprResult LHS, unsigned MinPrec) {
     OwningExprResult TernaryMiddle(Actions, true);
     if (NextTokPrec == prec::Conditional) {
       if (Tok.isNot(tok::colon)) {
+        // Don't parse FOO:BAR as if it were a typo for FOO::BAR.
+        ColonProtectionRAIIObject X(*this);
+
         // Handle this production specially:
         //   logical-OR-expression '?' expression ':' conditional-expression
         // In particular, the RHS of the '?' is 'expression', not
@@ -562,9 +565,15 @@ Parser::OwningExprResult Parser::ParseCastExpression(bool isUnaryExpression,
     TypeTy *CastTy;
     SourceLocation LParenLoc = Tok.getLocation();
     SourceLocation RParenLoc;
-    Res = ParseParenExpression(ParenExprType, false/*stopIfCastExr*/,
-                               TypeOfCast, CastTy, RParenLoc);
-    if (Res.isInvalid()) return move(Res);
+    
+    {
+      // The inside of the parens don't need to be a colon protected scope.
+      ColonProtectionRAIIObject X(*this, false);
+    
+      Res = ParseParenExpression(ParenExprType, false/*stopIfCastExr*/,
+                                 TypeOfCast, CastTy, RParenLoc);
+      if (Res.isInvalid()) return move(Res);
+    }
 
     switch (ParenExprType) {
     case SimpleExpr:   break;    // Nothing else to do.
@@ -826,6 +835,7 @@ Parser::OwningExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::kw___is_empty:
   case tok::kw___is_polymorphic:
   case tok::kw___is_abstract:
+  case tok::kw___is_literal:
   case tok::kw___has_trivial_constructor:
   case tok::kw___has_trivial_copy:
   case tok::kw___has_trivial_assign:

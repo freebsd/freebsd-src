@@ -19,6 +19,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/StmtCXX.h"
 #include "llvm/Target/TargetData.h"
 using namespace clang;
 using namespace CodeGen;
@@ -30,9 +31,12 @@ CodeGenFunction::CodeGenFunction(CodeGenModule &cgm)
     DebugInfo(0), IndirectBranch(0),
     SwitchInsn(0), CaseRangeBlock(0), InvokeDest(0),
     CXXThisDecl(0), CXXVTTDecl(0),
-    ConditionalBranchLevel(0) {
+    ConditionalBranchLevel(0), TerminateHandler(0), TrapBB(0),
+    UniqueAggrDestructorCount(0) {
   LLVMIntTy = ConvertType(getContext().IntTy);
   LLVMPointerWidth = Target.getPointerWidth(0);
+  Exceptions = getContext().getLangOptions().Exceptions;
+  CatchUndefined = getContext().getLangOptions().CatchUndefined;
 }
 
 ASTContext &CodeGenFunction::getContext() const {
@@ -130,6 +134,7 @@ void CodeGenFunction::FinishFunction(SourceLocation EndLoc) {
   }
 
   EmitFunctionEpilog(*CurFnInfo, ReturnValue);
+  EmitEndEHSpec(CurCodeDecl);
 
   // If someone did an indirect goto, emit the indirect goto block at the end of
   // the function.
@@ -179,9 +184,6 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
     AllocaInsertPt->setName("allocapt");
 
   ReturnBlock = createBasicBlock("return");
-  ReturnValue = 0;
-  if (!RetTy->isVoidType())
-    ReturnValue = CreateTempAlloca(ConvertType(RetTy), "retval");
 
   Builder.SetInsertPoint(EntryBB);
 
@@ -195,15 +197,26 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
       DI->EmitFunctionStart(CGM.getMangledName(GD), FnType, CurFn, Builder);
     } else {
       // Just use LLVM function name.
-
-      // FIXME: Remove unnecessary conversion to std::string when API settles.
-      DI->EmitFunctionStart(std::string(Fn->getName()).c_str(),
-                            FnType, CurFn, Builder);
+      DI->EmitFunctionStart(Fn->getName(), FnType, CurFn, Builder);
     }
   }
 
   // FIXME: Leaked.
   CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args);
+
+  if (RetTy->isVoidType()) {
+    // Void type; nothing to return.
+    ReturnValue = 0;
+  } else if (CurFnInfo->getReturnInfo().getKind() == ABIArgInfo::Indirect &&
+             hasAggregateLLVMType(CurFnInfo->getReturnType())) {
+    // Indirect aggregate return; emit returned value directly into sret slot.
+    // This reduces code size, and is also affects correctness in C++.
+    ReturnValue = CurFn->arg_begin();
+  } else {
+    ReturnValue = CreateTempAlloca(ConvertType(RetTy), "retval");
+  }
+
+  EmitStartEHSpec(CurCodeDecl);
   EmitFunctionProlog(*CurFnInfo, CurFn, Args);
 
   // If any of the arguments have a variably modified type, make sure to
@@ -245,6 +258,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
 
   FunctionArgList Args;
 
+  CurGD = GD;
+  OuterTryBlock = 0;
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD)) {
     if (MD->isInstance()) {
       // Create the implicit 'this' decl.
@@ -276,7 +291,6 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
                                     FProto->getArgType(i)));
   }
 
-  // FIXME: Support CXXTryStmt here, too.
   if (const CompoundStmt *S = FD->getCompoundBody()) {
     StartFunction(GD, FD->getResultType(), Fn, Args, S->getLBracLoc());
 
@@ -340,6 +354,13 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD,
       SynthesizeCXXCopyAssignment(MD, Fn, Args);
     } else {
       assert(false && "Cannot synthesize unknown implicit function");
+    }
+  } else if (const Stmt *S = FD->getBody()) {
+    if (const CXXTryStmt *TS = dyn_cast<CXXTryStmt>(S)) {
+      OuterTryBlock = TS;
+      StartFunction(GD, FD->getResultType(), Fn, Args, TS->getTryLoc());
+      EmitStmt(TS);
+      FinishFunction(TS->getEndLoc());
     }
   }
 
@@ -606,8 +627,11 @@ llvm::Value* CodeGenFunction::EmitVAListRef(const Expr* E) {
 }
 
 void CodeGenFunction::PushCleanupBlock(llvm::BasicBlock *CleanupEntryBlock,
-                                       llvm::BasicBlock *CleanupExitBlock) {
-  CleanupEntries.push_back(CleanupEntry(CleanupEntryBlock, CleanupExitBlock));
+                                       llvm::BasicBlock *CleanupExitBlock,
+                                       llvm::BasicBlock *PreviousInvokeDest,
+                                       bool EHOnly) {
+  CleanupEntries.push_back(CleanupEntry(CleanupEntryBlock, CleanupExitBlock,
+                                        PreviousInvokeDest, EHOnly));
 }
 
 void CodeGenFunction::EmitCleanupBlocks(size_t OldCleanupStackSize) {
@@ -628,6 +652,10 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
 
   std::vector<llvm::BranchInst *> BranchFixups;
   std::swap(BranchFixups, CE.BranchFixups);
+
+  bool EHOnly = CE.EHOnly;
+
+  setInvokeDest(CE.PreviousInvokeDest);
 
   CleanupEntries.pop_back();
 
@@ -663,8 +691,9 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
 
     Builder.SetInsertPoint(SwitchBlock);
 
-    llvm::Value *DestCodePtr = CreateTempAlloca(llvm::Type::getInt32Ty(VMContext),
-                                                "cleanup.dst");
+    llvm::Value *DestCodePtr
+      = CreateTempAlloca(llvm::Type::getInt32Ty(VMContext),
+                         "cleanup.dst");
     llvm::Value *DestCode = Builder.CreateLoad(DestCodePtr, "tmp");
 
     // Create a switch instruction to determine where to jump next.
@@ -710,15 +739,16 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
         new llvm::StoreInst(ID, DestCodePtr, BI);
       } else {
         // We need to jump through another cleanup block. Create a pad block
-        // with a branch instruction that jumps to the final destination and
-        // add it as a branch fixup to the current cleanup scope.
+        // with a branch instruction that jumps to the final destination and add
+        // it as a branch fixup to the current cleanup scope.
 
         // Create the pad block.
         llvm::BasicBlock *CleanupPad = createBasicBlock("cleanup.pad", CurFn);
 
         // Create a unique case ID.
-        llvm::ConstantInt *ID = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
-                                                       SI->getNumSuccessors());
+        llvm::ConstantInt *ID
+          = llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext),
+                                   SI->getNumSuccessors());
 
         // Store the jump destination before the branch instruction.
         new llvm::StoreInst(ID, DestCodePtr, BI);
@@ -744,11 +774,18 @@ CodeGenFunction::CleanupBlockInfo CodeGenFunction::PopCleanupBlock() {
     BlockScopes.erase(Blocks[i]);
   }
 
-  return CleanupBlockInfo(CleanupEntryBlock, SwitchBlock, EndBlock);
+  return CleanupBlockInfo(CleanupEntryBlock, SwitchBlock, EndBlock, EHOnly);
 }
 
 void CodeGenFunction::EmitCleanupBlock() {
   CleanupBlockInfo Info = PopCleanupBlock();
+
+  if (Info.EHOnly) {
+    // FIXME: Add this to the exceptional edge
+    if (Info.CleanupBlock->getNumUses() == 0)
+      delete Info.CleanupBlock;
+    return;
+  }
 
   llvm::BasicBlock *CurBB = Builder.GetInsertBlock();
   if (CurBB && !CurBB->getTerminator() &&

@@ -1349,10 +1349,10 @@ ObjCMethodDecl *Sema::LookupInstanceMethodInGlobalPool(Selector Sel,
   }
   if (issueWarning && (MethList.Method && MethList.Next)) {
     Diag(R.getBegin(), diag::warn_multiple_method_decl) << Sel << R;
-    Diag(MethList.Method->getLocStart(), diag::note_using_decl)
+    Diag(MethList.Method->getLocStart(), diag::note_using)
       << MethList.Method->getSourceRange();
     for (ObjCMethodList *Next = MethList.Next; Next; Next = Next->Next)
-      Diag(Next->Method->getLocStart(), diag::note_also_found_decl)
+      Diag(Next->Method->getLocStart(), diag::note_also_found)
         << Next->Method->getSourceRange();
   }
   return MethList.Method;
@@ -1413,10 +1413,10 @@ ObjCMethodDecl *Sema::LookupFactoryMethodInGlobalPool(Selector Sel,
   }
   if (issueWarning && (MethList.Method && MethList.Next)) {
     Diag(R.getBegin(), diag::warn_multiple_method_decl) << Sel << R;
-    Diag(MethList.Method->getLocStart(), diag::note_using_decl)
+    Diag(MethList.Method->getLocStart(), diag::note_using)
       << MethList.Method->getSourceRange();
     for (ObjCMethodList *Next = MethList.Next; Next; Next = Next->Next)
-      Diag(Next->Method->getLocStart(), diag::note_also_found_decl)
+      Diag(Next->Method->getLocStart(), diag::note_also_found)
         << Next->Method->getSourceRange();
   }
   return MethList.Method;
@@ -1495,7 +1495,7 @@ void Sema::ProcessPropertyDecl(ObjCPropertyDecl *property,
                                                   property->getLocation(),
                                                   property->getIdentifier(),
                                                   property->getType(),
-                                                  /*DInfo=*/0,
+                                                  /*TInfo=*/0,
                                                   VarDecl::None,
                                                   0);
       SetterMethod->setMethodParams(Context, &Argument, 1);
@@ -1765,7 +1765,7 @@ Sema::DeclPtrTy Sema::ActOnMethodDeclaration(
 
   for (unsigned i = 0, e = Sel.getNumArgs(); i != e; ++i) {
     QualType ArgType;
-    DeclaratorInfo *DI;
+    TypeSourceInfo *DI;
 
     if (ArgInfo[i].Type == 0) {
       ArgType = Context.getObjCIdType();

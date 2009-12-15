@@ -88,108 +88,6 @@ namespace llvm {
 
 namespace clang {
 
-/// OverloadedFunctionDecl - An instance of this class represents a
-/// set of overloaded functions. All of the functions have the same
-/// name and occur within the same scope.
-///
-/// An OverloadedFunctionDecl has no ownership over the FunctionDecl
-/// nodes it contains. Rather, the FunctionDecls are owned by the
-/// enclosing scope (which also owns the OverloadedFunctionDecl
-/// node). OverloadedFunctionDecl is used primarily to store a set of
-/// overloaded functions for name lookup.
-class OverloadedFunctionDecl : public NamedDecl {
-protected:
-  OverloadedFunctionDecl(DeclContext *DC, DeclarationName N)
-    : NamedDecl(OverloadedFunction, DC, SourceLocation(), N) { }
-
-  /// Functions - the set of overloaded functions contained in this
-  /// overload set.
-  llvm::SmallVector<AnyFunctionDecl, 4> Functions;
-
-  // FIXME: This should go away when we stop using
-  // OverloadedFunctionDecl to store conversions in CXXRecordDecl.
-  friend class CXXRecordDecl;
-
-public:
-  typedef llvm::SmallVector<AnyFunctionDecl, 4>::iterator function_iterator;
-  typedef llvm::SmallVector<AnyFunctionDecl, 4>::const_iterator
-    function_const_iterator;
-
-  static OverloadedFunctionDecl *Create(ASTContext &C, DeclContext *DC,
-                                        DeclarationName N);
-
-  /// \brief Add a new overloaded function or function template to the set
-  /// of overloaded function templates.
-  void addOverload(AnyFunctionDecl F);
-
-  function_iterator function_begin() { return Functions.begin(); }
-  function_iterator function_end() { return Functions.end(); }
-  function_const_iterator function_begin() const { return Functions.begin(); }
-  function_const_iterator function_end() const { return Functions.end(); }
-
-  /// \brief Returns the number of overloaded functions stored in
-  /// this set.
-  unsigned size() const { return Functions.size(); }
-
-  // Implement isa/cast/dyncast/etc.
-  static bool classof(const Decl *D) {
-    return D->getKind() == OverloadedFunction;
-  }
-  static bool classof(const OverloadedFunctionDecl *D) { return true; }
-};
-
-/// \brief Provides uniform iteration syntax for an overload set, function,
-/// or function template.
-class OverloadIterator {
-  /// \brief An overloaded function set, function declaration, or
-  /// function template declaration.
-  NamedDecl *D;
-
-  /// \brief If the declaration is an overloaded function set, this is the
-  /// iterator pointing to the current position within that overloaded
-  /// function set.
-  OverloadedFunctionDecl::function_iterator Iter;
-
-public:
-  typedef AnyFunctionDecl value_type;
-  typedef value_type      reference;
-  typedef NamedDecl      *pointer;
-  typedef int             difference_type;
-  typedef std::forward_iterator_tag iterator_category;
-
-  OverloadIterator() : D(0) { }
-
-  OverloadIterator(FunctionDecl *FD) : D(FD) { }
-  OverloadIterator(FunctionTemplateDecl *FTD)
-    : D(reinterpret_cast<NamedDecl*>(FTD)) { }
-  OverloadIterator(OverloadedFunctionDecl *Ovl)
-    : D(Ovl), Iter(Ovl->function_begin()) { }
-
-  OverloadIterator(NamedDecl *ND);
-
-  reference operator*() const;
-
-  pointer operator->() const { return (**this).get(); }
-
-  OverloadIterator &operator++();
-
-  OverloadIterator operator++(int) {
-    OverloadIterator Temp(*this);
-    ++(*this);
-    return Temp;
-  }
-
-  bool Equals(const OverloadIterator &Other) const;
-};
-
-inline bool operator==(const OverloadIterator &X, const OverloadIterator &Y) {
-  return X.Equals(Y);
-}
-
-inline bool operator!=(const OverloadIterator &X, const OverloadIterator &Y) {
-  return !(X == Y);
-}
-
 /// CXXBaseSpecifier - A base class of a C++ class.
 ///
 /// Each CXXBaseSpecifier represents a single, direct base class (or
@@ -210,6 +108,7 @@ class CXXBaseSpecifier {
   /// Range - The source code range that covers the full base
   /// specifier, including the "virtual" (if present) and access
   /// specifier (if present).
+  // FIXME: Move over to a TypeLoc!
   SourceRange Range;
 
   /// Virtual - Whether this is a virtual base class or not.
@@ -635,6 +534,10 @@ public:
   /// [dcl.init.aggr]).
   void setAggregate(bool Agg) { Aggregate = Agg; }
 
+  /// setMethodAsVirtual - Make input method virtual and set the necesssary 
+  /// special function bits and other bits accordingly.
+  void setMethodAsVirtual(FunctionDecl *Method);
+
   /// isPOD - Whether this class is a POD-type (C++ [class]p4), which is a class
   /// that is an aggregate that has no non-static non-POD data members, no
   /// reference data members, no user-defined copy assignment operator and no
@@ -753,7 +656,7 @@ public:
   /// \brief Determine whether this particular class is a specialization or
   /// instantiation of a class template or member class of a class template,
   /// and how it was instantiated or specialized.
-  TemplateSpecializationKind getTemplateSpecializationKind();
+  TemplateSpecializationKind getTemplateSpecializationKind() const;
   
   /// \brief Set the kind of specialization or template instantiation this is.
   void setTemplateSpecializationKind(TemplateSpecializationKind TSK);
@@ -762,7 +665,7 @@ public:
   CXXConstructorDecl *getDefaultConstructor(ASTContext &Context);
 
   /// getDestructor - Returns the destructor decl for this class.
-  const CXXDestructorDecl *getDestructor(ASTContext &Context);
+  CXXDestructorDecl *getDestructor(ASTContext &Context);
 
   /// isLocalClass - If the class is a local class [class.local], returns
   /// the enclosing function declaration.
@@ -802,6 +705,30 @@ public:
   /// \todo add a separate paramaeter to configure IsDerivedFrom, rather than 
   /// tangling input and output in \p Paths  
   bool isDerivedFrom(CXXRecordDecl *Base, CXXBasePaths &Paths) const;
+
+  /// \brief Determine whether this class is provably not derived from
+  /// the type \p Base.
+  bool isProvablyNotDerivedFrom(const CXXRecordDecl *Base) const;
+
+  /// \brief Function type used by forallBases() as a callback.
+  ///
+  /// \param Base the definition of the base class
+  ///
+  /// \returns true if this base matched the search criteria
+  typedef bool ForallBasesCallback(const CXXRecordDecl *BaseDefinition,
+                                   void *UserData);
+
+  /// \brief Determines if the given callback holds for all the direct
+  /// or indirect base classes of this type.
+  ///
+  /// The class itself does not count as a base class.  This routine
+  /// returns false if the class has non-computable base classes.
+  /// 
+  /// \param AllowShortCircuit if false, forces the callback to be called
+  /// for every base class, even if a dependent or non-matching base was
+  /// found.
+  bool forallBases(ForallBasesCallback *BaseMatches, void *UserData,
+                   bool AllowShortCircuit = true) const;
   
   /// \brief Function type used by lookupInBases() to determine whether a 
   /// specific base class subobject matches the lookup criteria.
@@ -902,15 +829,15 @@ public:
 class CXXMethodDecl : public FunctionDecl {
 protected:
   CXXMethodDecl(Kind DK, CXXRecordDecl *RD, SourceLocation L,
-                DeclarationName N, QualType T, DeclaratorInfo *DInfo,
+                DeclarationName N, QualType T, TypeSourceInfo *TInfo,
                 bool isStatic, bool isInline)
-    : FunctionDecl(DK, RD, L, N, T, DInfo, (isStatic ? Static : None),
+    : FunctionDecl(DK, RD, L, N, T, TInfo, (isStatic ? Static : None),
                    isInline) {}
 
 public:
   static CXXMethodDecl *Create(ASTContext &C, CXXRecordDecl *RD,
                               SourceLocation L, DeclarationName N,
-                              QualType T, DeclaratorInfo *DInfo,
+                              QualType T, TypeSourceInfo *TInfo,
                               bool isStatic = false,
                               bool isInline = false);
 
@@ -968,6 +895,8 @@ public:
     return getType()->getAs<FunctionProtoType>()->getTypeQuals();
   }
 
+  bool hasInlineBody() const;
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {
     return D->getKind() >= CXXMethod && D->getKind() <= CXXConversion;
@@ -990,12 +919,13 @@ public:
 /// };
 /// @endcode
 class CXXBaseOrMemberInitializer {
-  /// BaseOrMember - This points to the entity being initialized,
-  /// which is either a base class (a Type) or a non-static data
-  /// member. When the low bit is 1, it's a base
-  /// class; when the low bit is 0, it's a member.
-  uintptr_t BaseOrMember;
-
+  /// \brief Either the base class name (stored as a TypeSourceInfo*) or the
+  /// field being initialized.
+  llvm::PointerUnion<TypeSourceInfo *, FieldDecl *> BaseOrMember;
+  
+  /// \brief The source location for the field name.
+  SourceLocation MemberLocation;
+  
   /// Args - The arguments used to initialize the base or member.
   Stmt **Args;
   unsigned NumArgs;
@@ -1020,8 +950,8 @@ class CXXBaseOrMemberInitializer {
   /// and AnonUnionMember holds field decl for au_i1.
   llvm::PointerUnion<CXXConstructorDecl *, FieldDecl *> CtorOrAnonUnion;
 
-  /// IdLoc - Location of the id in ctor-initializer list.
-  SourceLocation IdLoc;
+  /// LParenLoc - Location of the left paren of the ctor-initializer.
+  SourceLocation LParenLoc;
 
   /// RParenLoc - Location of the right paren of the ctor-initializer.
   SourceLocation RParenLoc;
@@ -1029,18 +959,22 @@ class CXXBaseOrMemberInitializer {
 public:
   /// CXXBaseOrMemberInitializer - Creates a new base-class initializer.
   explicit
-  CXXBaseOrMemberInitializer(QualType BaseType, Expr **Args, unsigned NumArgs,
-                             CXXConstructorDecl *C,
-                             SourceLocation L, SourceLocation R);
+  CXXBaseOrMemberInitializer(ASTContext &Context,
+                             TypeSourceInfo *TInfo, CXXConstructorDecl *C,
+                             SourceLocation L, 
+                             Expr **Args, unsigned NumArgs,
+                             SourceLocation R);
 
   /// CXXBaseOrMemberInitializer - Creates a new member initializer.
   explicit
-  CXXBaseOrMemberInitializer(FieldDecl *Member, Expr **Args, unsigned NumArgs,
-                             CXXConstructorDecl *C,
-                             SourceLocation L, SourceLocation R);
+  CXXBaseOrMemberInitializer(ASTContext &Context,
+                             FieldDecl *Member, SourceLocation MemberLoc,
+                             CXXConstructorDecl *C, SourceLocation L,
+                             Expr **Args, unsigned NumArgs,
+                             SourceLocation R);
 
-  /// ~CXXBaseOrMemberInitializer - Destroy the base or member initializer.
-  ~CXXBaseOrMemberInitializer();
+  /// \brief Destroy the base or member initializer.
+  void Destroy(ASTContext &Context);
 
   /// arg_iterator - Iterates through the member initialization
   /// arguments.
@@ -1050,54 +984,54 @@ public:
   /// arguments.
   typedef ConstExprIterator const_arg_iterator;
 
-  /// getBaseOrMember - get the generic 'member' representing either the field
-  /// or a base class.
-  void* getBaseOrMember() const { return reinterpret_cast<void*>(BaseOrMember); }
-
   /// isBaseInitializer - Returns true when this initializer is
   /// initializing a base class.
-  bool isBaseInitializer() const { return (BaseOrMember & 0x1) != 0; }
+  bool isBaseInitializer() const { return BaseOrMember.is<TypeSourceInfo*>(); }
 
   /// isMemberInitializer - Returns true when this initializer is
   /// initializing a non-static data member.
-  bool isMemberInitializer() const { return (BaseOrMember & 0x1) == 0; }
+  bool isMemberInitializer() const { return BaseOrMember.is<FieldDecl*>(); }
 
-  /// getBaseClass - If this is a base class initializer, returns the
-  /// type used to specify the initializer. The resulting type will be
-  /// a class type or a typedef of a class type. If this is not a base
-  /// class initializer, returns NULL.
-  Type *getBaseClass() {
-    if (isBaseInitializer())
-      return reinterpret_cast<Type*>(BaseOrMember & ~0x01);
-    else
-      return 0;
+  /// If this is a base class initializer, returns the type of the 
+  /// base class with location information. Otherwise, returns an NULL
+  /// type location.
+  TypeLoc getBaseClassLoc() const;
+
+  /// If this is a base class initializer, returns the type of the base class.
+  /// Otherwise, returns NULL.
+  const Type *getBaseClass() const;
+  Type *getBaseClass();
+  
+  /// \brief Returns the declarator information for a base class initializer.
+  TypeSourceInfo *getBaseClassInfo() const {
+    return BaseOrMember.dyn_cast<TypeSourceInfo *>();
   }
-
-  /// getBaseClass - If this is a base class initializer, returns the
-  /// type used to specify the initializer. The resulting type will be
-  /// a class type or a typedef of a class type. If this is not a base
-  /// class initializer, returns NULL.
-  const Type *getBaseClass() const {
-    if (isBaseInitializer())
-      return reinterpret_cast<const Type*>(BaseOrMember & ~0x01);
-    else
-      return 0;
-  }
-
+  
   /// getMember - If this is a member initializer, returns the
   /// declaration of the non-static data member being
   /// initialized. Otherwise, returns NULL.
   FieldDecl *getMember() {
     if (isMemberInitializer())
-      return reinterpret_cast<FieldDecl *>(BaseOrMember);
+      return BaseOrMember.get<FieldDecl*>();
     else
       return 0;
   }
 
-  void setMember(FieldDecl * anonUnionField) {
-    BaseOrMember = reinterpret_cast<uintptr_t>(anonUnionField);
+  SourceLocation getMemberLocation() const { 
+    return MemberLocation;
   }
 
+  void setMember(FieldDecl *Member) {
+    assert(isMemberInitializer());
+    BaseOrMember = Member;
+  }
+  
+  /// \brief Determine the source location of the initializer.
+  SourceLocation getSourceLocation() const;
+  
+  /// \brief Determine the source range covering the entire initializer.
+  SourceRange getSourceRange() const;
+  
   FieldDecl *getAnonUnionMember() const {
     return CtorOrAnonUnion.dyn_cast<FieldDecl *>();
   }
@@ -1109,7 +1043,7 @@ public:
     return CtorOrAnonUnion.dyn_cast<CXXConstructorDecl *>();
   }
 
-  SourceLocation getSourceLocation() const { return IdLoc; }
+  SourceLocation getLParenLoc() const { return LParenLoc; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
 
   /// arg_begin() - Retrieve an iterator to the first initializer argument.
@@ -1155,9 +1089,9 @@ class CXXConstructorDecl : public CXXMethodDecl {
   unsigned NumBaseOrMemberInitializers;
 
   CXXConstructorDecl(CXXRecordDecl *RD, SourceLocation L,
-                     DeclarationName N, QualType T, DeclaratorInfo *DInfo,
+                     DeclarationName N, QualType T, TypeSourceInfo *TInfo,
                      bool isExplicit, bool isInline, bool isImplicitlyDeclared)
-    : CXXMethodDecl(CXXConstructor, RD, L, N, T, DInfo, false, isInline),
+    : CXXMethodDecl(CXXConstructor, RD, L, N, T, TInfo, false, isInline),
       Explicit(isExplicit), ImplicitlyDefined(false),
       BaseOrMemberInitializers(0), NumBaseOrMemberInitializers(0) {
     setImplicit(isImplicitlyDeclared);
@@ -1167,7 +1101,7 @@ class CXXConstructorDecl : public CXXMethodDecl {
 public:
   static CXXConstructorDecl *Create(ASTContext &C, CXXRecordDecl *RD,
                                     SourceLocation L, DeclarationName N,
-                                    QualType T, DeclaratorInfo *DInfo,
+                                    QualType T, TypeSourceInfo *TInfo,
                                     bool isExplicit,
                                     bool isInline, bool isImplicitlyDeclared);
 
@@ -1294,7 +1228,7 @@ class CXXDestructorDecl : public CXXMethodDecl {
   CXXDestructorDecl(CXXRecordDecl *RD, SourceLocation L,
                     DeclarationName N, QualType T,
                     bool isInline, bool isImplicitlyDeclared)
-    : CXXMethodDecl(CXXDestructor, RD, L, N, T, /*DInfo=*/0, false, isInline),
+    : CXXMethodDecl(CXXDestructor, RD, L, N, T, /*TInfo=*/0, false, isInline),
       ImplicitlyDefined(false), OperatorDelete(0) {
     setImplicit(isImplicitlyDeclared);
   }
@@ -1349,15 +1283,15 @@ class CXXConversionDecl : public CXXMethodDecl {
   bool Explicit : 1;
 
   CXXConversionDecl(CXXRecordDecl *RD, SourceLocation L,
-                    DeclarationName N, QualType T, DeclaratorInfo *DInfo,
+                    DeclarationName N, QualType T, TypeSourceInfo *TInfo,
                     bool isInline, bool isExplicit)
-    : CXXMethodDecl(CXXConversion, RD, L, N, T, DInfo, false, isInline),
+    : CXXMethodDecl(CXXConversion, RD, L, N, T, TInfo, false, isInline),
       Explicit(isExplicit) { }
 
 public:
   static CXXConversionDecl *Create(ASTContext &C, CXXRecordDecl *RD,
                                    SourceLocation L, DeclarationName N,
-                                   QualType T, DeclaratorInfo *DInfo,
+                                   QualType T, TypeSourceInfo *TInfo,
                                    bool isInline, bool isExplicit);
 
   /// isExplicit - Whether this is an explicit conversion operator

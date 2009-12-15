@@ -334,6 +334,20 @@ public:
                                                   bool EnteringContext) {
     return 0;
   }
+  
+  /// IsInvalidUnlessNestedName - This method is used for error recovery
+  /// purposes to determine whether the specified identifier is only valid as
+  /// a nested name specifier, for example a namespace name.  It is
+  /// conservatively correct to always return false from this method.
+  ///
+  /// The arguments are the same as those passed to ActOnCXXNestedNameSpecifier.
+  virtual bool IsInvalidUnlessNestedName(Scope *S,
+                                         const CXXScopeSpec &SS,
+                                         IdentifierInfo &II,
+                                         TypeTy *ObjectType,
+                                         bool EnteringContext) {
+    return false;
+  }
 
   /// ActOnCXXNestedNameSpecifier - Called during parsing of a
   /// nested-name-specifier that involves a template-id, e.g.,
@@ -351,8 +365,19 @@ public:
     return 0;
   }
 
+  /// ShouldEnterDeclaratorScope - Called when a C++ scope specifier
+  /// is parsed as part of a declarator-id to determine whether a scope
+  /// should be entered.
+  ///
+  /// \param S the current scope
+  /// \param SS the scope being entered
+  /// \param isFriendDeclaration whether this is a friend declaration
+  virtual bool ShouldEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
+    return false;
+  }
+
   /// ActOnCXXEnterDeclaratorScope - Called when a C++ scope specifier (global
-  /// scope or nested-name-specifier) is parsed, part of a declarator-id.
+  /// scope or nested-name-specifier) is parsed as part of a declarator-id.
   /// After this method is called, according to [C++ 3.4.3p3], names should be
   /// looked up in the declarator-id's scope, until the declarator is parsed and
   /// ActOnCXXExitDeclaratorScope is called.
@@ -1250,6 +1275,10 @@ public:
   ///
   /// \param AS the currently-active access specifier.
   ///
+  /// \param HasUsingKeyword true if this was declared with an
+  ///   explicit 'using' keyword (i.e. if this is technically a using
+  ///   declaration, not an access declaration)
+  ///
   /// \param UsingLoc the location of the 'using' keyword.
   ///
   /// \param SS the nested-name-specifier that precedes the name.
@@ -1267,6 +1296,7 @@ public:
   /// \returns a representation of the using declaration.
   virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
                                           AccessSpecifier AS,
+                                          bool HasUsingKeyword,
                                           SourceLocation UsingLoc,
                                           const CXXScopeSpec &SS,
                                           UnqualifiedId &Name,
@@ -2393,6 +2423,24 @@ public:
   ///
   /// \param S the scope in which the operator keyword occurs.
   virtual void CodeCompleteOperatorName(Scope *S) { }
+
+  /// \brief Code completion after the '@' at the top level.
+  ///
+  /// \param S the scope in which the '@' occurs.
+  ///
+  /// \param ObjCImpDecl the Objective-C implementation or category 
+  /// implementation.
+  ///
+  /// \param InInterface whether we are in an Objective-C interface or
+  /// protocol.
+  virtual void CodeCompleteObjCAtDirective(Scope *S, DeclPtrTy ObjCImpDecl,
+                                           bool InInterface) { }
+
+  /// \brief Code completion after the '@' in a statement.
+  virtual void CodeCompleteObjCAtStatement(Scope *S) { }
+
+  /// \brief Code completion after the '@' in an expression.
+  virtual void CodeCompleteObjCAtExpression(Scope *S) { }
 
   /// \brief Code completion for an ObjC property decl.
   ///

@@ -1,4 +1,3 @@
-
 //===--- ParseDecl.cpp - Declaration Parsing ------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
@@ -16,7 +15,7 @@
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Scope.h"
 #include "clang/Parse/Template.h"
-#include "ExtensionRAIIObject.h"
+#include "RAIIObjectsForParser.h"
 #include "llvm/ADT/SmallSet.h"
 using namespace clang;
 
@@ -825,14 +824,18 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       if (DS.hasTypeSpecifier())
         goto DoneWithDeclSpec;
 
+      CXXScopeSpec SS;
+      SS.setScopeRep(Tok.getAnnotationValue());
+      SS.setRange(Tok.getAnnotationRange());
+
       // We are looking for a qualified typename.
       Token Next = NextToken();
       if (Next.is(tok::annot_template_id) &&
           static_cast<TemplateIdAnnotation *>(Next.getAnnotationValue())
             ->Kind == TNK_Type_template) {
         // We have a qualified template-id, e.g., N::A<int>
-        CXXScopeSpec SS;
-        ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/0, true);
+        DS.getTypeSpecScope() = SS;
+        ConsumeToken(); // The C++ scope.
         assert(Tok.is(tok::annot_template_id) &&
                "ParseOptionalCXXScopeSpecifier not working");
         AnnotateTemplateIdTokenAsType(&SS);
@@ -840,8 +843,8 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       }
 
       if (Next.is(tok::annot_typename)) {
-        // FIXME: is this scope-specifier getting dropped?
-        ConsumeToken(); // the scope-specifier
+        DS.getTypeSpecScope() = SS;
+        ConsumeToken(); // The C++ scope.
         if (Tok.getAnnotationValue())
           isInvalid = DS.SetTypeSpecType(DeclSpec::TST_typename, Loc, 
                                          PrevSpec, DiagID, 
@@ -854,10 +857,6 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
 
       if (Next.isNot(tok::identifier))
         goto DoneWithDeclSpec;
-
-      CXXScopeSpec SS;
-      SS.setScopeRep(Tok.getAnnotationValue());
-      SS.setRange(Tok.getAnnotationRange());
 
       // If the next token is the name of the class type that the C++ scope
       // denotes, followed by a '(', then this is a constructor declaration.
@@ -880,6 +879,7 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
         goto DoneWithDeclSpec;
       }
 
+      DS.getTypeSpecScope() = SS;
       ConsumeToken(); // The C++ scope.
 
       isInvalid = DS.SetTypeSpecType(DeclSpec::TST_typename, Loc, PrevSpec,
@@ -1545,8 +1545,11 @@ ParseStructDeclaration(DeclSpec &DS, FieldCallback &Fields) {
 
     /// struct-declarator: declarator
     /// struct-declarator: declarator[opt] ':' constant-expression
-    if (Tok.isNot(tok::colon))
+    if (Tok.isNot(tok::colon)) {
+      // Don't parse FOO:BAR as if it were a typo for FOO::BAR.
+      ColonProtectionRAIIObject X(*this);
       ParseDeclarator(DeclaratorInfo.D);
+    }
 
     if (Tok.is(tok::colon)) {
       ConsumeToken();
@@ -1616,7 +1619,7 @@ void Parser::ParseStructUnionBody(SourceLocation RecordLoc,
     // Check for extraneous top-level semicolon.
     if (Tok.is(tok::semi)) {
       Diag(Tok, diag::ext_extra_struct_semi)
-        << CodeModificationHint::CreateRemoval(SourceRange(Tok.getLocation()));
+        << CodeModificationHint::CreateRemoval(Tok.getLocation());
       ConsumeToken();
       continue;
     }
@@ -1841,7 +1844,7 @@ void Parser::ParseEnumBody(SourceLocation StartLoc, DeclPtrTy EnumDecl) {
         !(getLang().C99 || getLang().CPlusPlus0x))
       Diag(CommaLoc, diag::ext_enumerator_list_comma)
         << getLang().CPlusPlus
-        << CodeModificationHint::CreateRemoval((SourceRange(CommaLoc)));
+        << CodeModificationHint::CreateRemoval(CommaLoc);
   }
 
   // Eat the }.
@@ -2333,9 +2336,10 @@ void Parser::ParseDirectDeclarator(Declarator &D) {
       ParseOptionalCXXScopeSpecifier(D.getCXXScopeSpec(), /*ObjectType=*/0,
                                      true);
     if (afterCXXScope) {
-      // Change the declaration context for name lookup, until this function
-      // is exited (and the declarator has been parsed).
-      DeclScopeObj.EnterDeclaratorScope();
+      if (Actions.ShouldEnterDeclaratorScope(CurScope, D.getCXXScopeSpec()))
+        // Change the declaration context for name lookup, until this function
+        // is exited (and the declarator has been parsed).
+        DeclScopeObj.EnterDeclaratorScope();
     } 
     
     if (Tok.is(tok::identifier) || Tok.is(tok::kw_operator) ||

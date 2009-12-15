@@ -107,7 +107,7 @@ void PCHDeclReader::VisitTypedefDecl(TypedefDecl *TD) {
   // the type associated with the TypedefDecl.
   VisitNamedDecl(TD);
   uint64_t TypeData = Record[Idx++];
-  TD->setTypeDeclaratorInfo(Reader.GetDeclaratorInfo(Record, Idx));
+  TD->setTypeSourceInfo(Reader.GetTypeSourceInfo(Record, Idx));
   TD->setTypeForDecl(Reader.GetType(TypeData).getTypePtr());
 }
 
@@ -126,6 +126,7 @@ void PCHDeclReader::VisitTagDecl(TagDecl *TD) {
 void PCHDeclReader::VisitEnumDecl(EnumDecl *ED) {
   VisitTagDecl(ED);
   ED->setIntegerType(Reader.GetType(Record[Idx++]));
+  ED->setPromotionType(Reader.GetType(Record[Idx++]));
   // FIXME: C++ InstantiatedFrom
 }
 
@@ -150,9 +151,9 @@ void PCHDeclReader::VisitEnumConstantDecl(EnumConstantDecl *ECD) {
 
 void PCHDeclReader::VisitDeclaratorDecl(DeclaratorDecl *DD) {
   VisitValueDecl(DD);
-  DeclaratorInfo *DInfo = Reader.GetDeclaratorInfo(Record, Idx);
-  if (DInfo)
-    DD->setDeclaratorInfo(DInfo);
+  TypeSourceInfo *TInfo = Reader.GetTypeSourceInfo(Record, Idx);
+  if (TInfo)
+    DD->setTypeSourceInfo(TInfo);
 }
 
 void PCHDeclReader::VisitFunctionDecl(FunctionDecl *FD) {

@@ -212,34 +212,38 @@ public:
   llvm::Constant *GetAddrOfFunction(GlobalDecl GD,
                                     const llvm::Type *Ty = 0);
 
-  /// GenerateVtable - Generate the vtable for the given type.  LayoutClass is
-  /// the class to use for the virtual base layout information.  For
-  /// non-construction vtables, this is always the same as RD.  Offset is the
-  /// offset in bits for the RD object in the LayoutClass, if we're generating a
-  /// construction vtable, otherwise 0.
-  llvm::Constant *GenerateVtable(const CXXRecordDecl *LayoutClass,
-                                 const CXXRecordDecl *RD,
-                                 uint64_t Offset=0);
+  /// GetAddrOfRTTI - Get the address of the RTTI structure for the given type.
+  llvm::Constant *GetAddrOfRTTI(QualType Ty);
 
-  /// GenerateVTT - Generate the VTT for the given type.
-  llvm::Constant *GenerateVTT(const CXXRecordDecl *RD);
+  /// GetAddrOfRTTI - Get the address of the RTTI structure for the given record
+  /// decl.
+  llvm::Constant *GetAddrOfRTTI(const CXXRecordDecl *RD);
 
-  /// GenerateRtti - Generate the rtti information for the given type.
-  llvm::Constant *GenerateRtti(const CXXRecordDecl *RD);
-  /// GenerateRttiRef - Generate a reference to the rtti information for the
+  /// GenerateRTTI - Generate the rtti information for the given type.
+  llvm::Constant *GenerateRTTI(const CXXRecordDecl *RD);
+  
+  /// GenerateRTTIRef - Generate a reference to the rtti information for the
   /// given type.
-  llvm::Constant *GenerateRttiRef(const CXXRecordDecl *RD);
-  /// GenerateRttiNonClass - Generate the rtti information for the given
+  llvm::Constant *GenerateRTTIRef(const CXXRecordDecl *RD);
+  
+  /// GenerateRTTI - Generate the rtti information for the given
   /// non-class type.
-  llvm::Constant *GenerateRtti(QualType Ty);
+  llvm::Constant *GenerateRTTI(QualType Ty);
+  
+  llvm::Constant *GetAddrOfThunk(GlobalDecl GD,
+                                 const ThunkAdjustment &ThisAdjustment);
+  llvm::Constant *GetAddrOfCovariantThunk(GlobalDecl GD,
+                                const CovariantThunkAdjustment &ThisAdjustment);
+  void BuildThunksForVirtual(GlobalDecl GD);
+  void BuildThunksForVirtualRecursive(GlobalDecl GD, GlobalDecl BaseOGD);
 
   /// BuildThunk - Build a thunk for the given method.
-  llvm::Constant *BuildThunk(const CXXMethodDecl *MD, bool Extern, 
+  llvm::Constant *BuildThunk(GlobalDecl GD, bool Extern, 
                              const ThunkAdjustment &ThisAdjustment);
 
   /// BuildCoVariantThunk - Build a thunk for the given method
   llvm::Constant *
-  BuildCovariantThunk(const CXXMethodDecl *MD, bool Extern,
+  BuildCovariantThunk(const GlobalDecl &GD, bool Extern,
                       const CovariantThunkAdjustment &Adjustment);
 
   typedef std::pair<const CXXRecordDecl *, uint64_t> CtorVtable_t;
@@ -252,6 +256,11 @@ public:
   llvm::Constant *GetCXXBaseClassOffset(const CXXRecordDecl *ClassDecl,
                                         const CXXRecordDecl *BaseClassDecl);
 
+  /// ComputeThunkAdjustment - Returns the two parts required to compute the
+  /// offset for an object.
+  ThunkAdjustment ComputeThunkAdjustment(const CXXRecordDecl *ClassDecl,
+                                         const CXXRecordDecl *BaseClassDecl);
+  
   /// GetStringForStringLiteral - Return the appropriate bytes for a string
   /// literal, properly padded to match the literal type. If only the address of
   /// a constant is needed consider using GetAddrOfConstantStringLiteral.

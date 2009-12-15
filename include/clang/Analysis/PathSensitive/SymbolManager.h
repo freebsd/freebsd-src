@@ -28,10 +28,12 @@ namespace llvm {
 }
 
 namespace clang {
-  class MemRegion;
-  class TypedRegion;
   class ASTContext;
   class BasicValueFactory;
+  class MemRegion;
+  class TypedRegion;
+  class VarRegion;
+  class StackFrameContext;
 }
 
 namespace clang {
@@ -332,10 +334,13 @@ class SymbolReaper {
   SetTy TheDead;
   LiveVariables& Liveness;
   SymbolManager& SymMgr;
+  const StackFrameContext *CurrentStackFrame;
 
 public:
-  SymbolReaper(LiveVariables& liveness, SymbolManager& symmgr)
-    : Liveness(liveness), SymMgr(symmgr) {}
+  SymbolReaper(LiveVariables& liveness, SymbolManager& symmgr,
+               const StackFrameContext *currentStackFrame)
+    : Liveness(liveness), SymMgr(symmgr), CurrentStackFrame(currentStackFrame)
+      {}
 
   ~SymbolReaper() {}
 
@@ -345,10 +350,8 @@ public:
     return Liveness.isLive(Loc, ExprVal);
   }
 
-  bool isLive(const Stmt* Loc, const VarDecl* VD) const {
-    return Liveness.isLive(Loc, VD);
-  }
-
+  bool isLive(const Stmt* Loc, const VarRegion *VR) const;
+  
   void markLive(SymbolRef sym);
   bool maybeDead(SymbolRef sym);
 
