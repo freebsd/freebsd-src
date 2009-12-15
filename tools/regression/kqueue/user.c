@@ -45,12 +45,15 @@ event_wait(void)
 
     test_begin(test_id);
 
+    test_no_kevents();
+
     /* Add the event, and then trigger it */
-    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ADD, 0, 0, NULL);    
+    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ADD | EV_CLEAR, 0, 0, NULL);    
     kevent_add(kqfd, &kev, 1, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);    
 
     kev.fflags &= ~NOTE_FFCTRLMASK;
     kev.fflags &= ~NOTE_TRIGGER;
+    kev.flags = EV_CLEAR;
     kevent_cmp(&kev, kevent_get(kqfd));
 
     test_no_kevents();
@@ -66,6 +69,8 @@ disable_and_enable(void)
 
     test_begin(test_id);
 
+    test_no_kevents();
+
     kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ADD, 0, 0, NULL); 
     kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_DISABLE, 0, 0, NULL); 
 
@@ -76,7 +81,7 @@ disable_and_enable(void)
     kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ENABLE, 0, 0, NULL); 
     kevent_add(kqfd, &kev, 1, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL); 
 
-    kev.flags = 0;
+    kev.flags = EV_CLEAR;
     kev.fflags &= ~NOTE_FFCTRLMASK;
     kev.fflags &= ~NOTE_TRIGGER;
     kevent_cmp(&kev, kevent_get(kqfd));
@@ -92,25 +97,17 @@ oneshot(void)
 
     test_begin(test_id);
 
-    kevent_add(kqfd, &kev, 1, EVFILT_USER, EV_ADD | EV_ONESHOT, 0, 0, NULL);    
+    test_no_kevents();
+
+    kevent_add(kqfd, &kev, 2, EVFILT_USER, EV_ADD | EV_ONESHOT, 0, 0, NULL);
 
     puts("  -- event 1");
-    kevent_add(kqfd, &kev, 1, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);    
+    kevent_add(kqfd, &kev, 2, EVFILT_USER, 0, NOTE_TRIGGER, 0, NULL);    
 
-    kev.flags = 0;
+    kev.flags = EV_ONESHOT;
     kev.fflags &= ~NOTE_FFCTRLMASK;
     kev.fflags &= ~NOTE_TRIGGER;
     kevent_cmp(&kev, kevent_get(kqfd));
-
-    /* Try to trigger the event again. It is deleted, so that
-       should be an error. However, on FreeBSD 8 it is not an error,
-       so the event is ignored.
-     */
-    puts("  -- triggering an event that will be ignored");
-    kev.flags = 0; 
-    kev.fflags |= NOTE_TRIGGER;
-    if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-        err(1, "%s", test_id);
 
     test_no_kevents();
 
