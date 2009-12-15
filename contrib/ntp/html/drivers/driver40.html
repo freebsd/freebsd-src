@@ -5,7 +5,10 @@
 	<head>
 		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
 		<meta name="generator" content="HTML Tidy, see www.w3.org">
+		<meta http-equiv="Content-Script-Type" content="text/javascript">
 		<title>JJY Receivers</title>
+		<link rev="made" href="http://www.bea.hi-ho.ne.jp/abetakao/">
+		<link rel="start" href="http://www.eecis.udel.edu/~mills/ntp/html/refclock.html">
 		<link href="scripts/style.css" type="text/css" rel="stylesheet">
 	</head>
 
@@ -13,118 +16,170 @@
 		<h3>JJY Receivers</h3>
 		<hr>
 		<h4>Synopsis</h4>
-		Address: 127.127.40.<i>u</i><br>
-		Reference ID: <tt>JJY</tt><br>
-		Driver ID: <tt>JJY</tt><br>
-		Serial Port: <tt>/dev/jjy<i>u</i></tt>; 9600 baud, 8-bits, no parity, 1 stop bit
+		Address: 127.127.40.<em>u</em><br>
+		Reference ID: <code>JJY</code><br>
+		Driver ID: <code>JJY</code><br>
+		Serial Port: <code>/dev/jjy<em>u</em></code>; 9600|4800(See corresponding receiver) baud, 8-bits, no parity, 1 stop bit
 		<h4>Description</h4>
 		<p>This driver supports the following JJY receivers sold in Japan.</p>
 		<ul>
 			<li>Tristate Ltd. JJY01 <a href="http://www.tristate.ne.jp/">http://www.tristate.ne.jp/</a> (Japanese only)<br>
 				<dl>
-					<dt>Time code format
-					<dd><br>
-						<table>
-							<tr>
-								<td>Command</td>
-								<td>&nbsp;</td>
-								<td>Reply</td>
-							</tr>
-							<tr>
-								<td><tt>date&lt;CR&gt;&lt;LF&gt;</tt></td>
-								<td>&nbsp;</td>
-								<td><tt>YYYY/MM/DD WWW&lt;CR&gt;&lt;LF&gt;</tt></td>
-							</tr>
-							<tr>
-								<td><tt>stim&lt;CR&gt;&lt;LF&gt;</tt></td>
-								<td>&nbsp;</td>
-								<td><tt>HH:MM:SS&lt;CR&gt;&lt;LF&gt;</tt></td>
-							</tr>
-						</table>
-						<br>
-					<dt>NTP configuration ( ntp.conf )
+					<dt>NTP configuration ( ntp.conf )</dt>
 					<dd>
 						<p>server &nbsp; 127.127.40.X &nbsp; mode 1</p>
 						<br>
-				</dl>
-			<li>C-DEX Co.,Ltd. JST2000 <a href="http://www.c-dex.co.jp/">http://www.c-dex.co.jp/</a> (Japanese only)<br>
-				<dl>
-					<dt>Time code format
-					<dd><br>
-						<table>
-							<tr>
-								<td>Command</td>
-								<td>&nbsp;</td>
-								<td>Reply</td>
-							</tr>
-							<tr>
-								<td><tt>&lt;ENQ&gt;1J&lt;ETX&gt;</tt></td>
-								<td>&nbsp;</td>
-								<td><tt>&lt;STX&gt;JYYMMDD HHMMSSS&lt;ETX&gt;</tt></td>
-							</tr>
-						</table>
-						<br>
-					<dt>NTP configuration ( ntp.conf )
+					</dd>
+					<dt>RS-232C</dt>
 					<dd>
-						<p>server &nbsp; 127.127.40.X &nbsp; mode 2</p>
+						<p>9600 Baud</p>
 						<br>
-				</dl>
-			<li>
-				<p>Echo Keisokuki Co.,Ltd. LT-2000 <a href="http://www.clock.co.jp/">http://www.clock.co.jp/</a> (Japanese only)</p>
-				<dl>
-					<dt>Time code format
+					</dd>
+					<dt>Time code format</dt>
 					<dd><br>
 						<table summary="CommandAndReply">
 							<tr>
 								<td>Command</td>
-								<td>&nbsp;</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>Reply</td>
+							</tr>
+							<tr>
+								<td><code>date&lt;CR&gt;&lt;LF&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>YYYY/MM/DD WWW&lt;CR&gt;&lt;LF&gt;</code></td>
+							</tr>
+							<tr>
+								<td><code>stim&lt;CR&gt;&lt;LF&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>HH:MM:SS&lt;CR&gt;&lt;LF&gt;</code></td>
+							</tr>
+						</table>
+						<br>
+					</dd>
+				</dl>
+			<li>C-DEX Co.,Ltd. JST2000 <a href="http://www.c-dex.co.jp/">http://www.c-dex.co.jp/</a> (Japanese only)<br>
+				<dl>
+					<dt>NTP configuration ( ntp.conf )</dt>
+					<dd>
+						<p>server &nbsp; 127.127.40.X &nbsp; mode 2</p>
+						<br>
+					</dd>
+					<dt>RS-232C</dt>
+					<dd>
+						<p>9600 Baud</p>
+						<br>
+					</dd>
+					<dt>Time code format</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>Command</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>Reply</td>
+							</tr>
+							<tr>
+								<td><code>&lt;ENQ&gt;1J&lt;ETX&gt;</code></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td><code>&lt;STX&gt;JYYMMDD HHMMSSS&lt;ETX&gt;</code></td>
+							</tr>
+						</table>
+						<br>
+					</dd>
+				</dl>
+			<li>
+				<p>Echo Keisokuki Co.,Ltd. LT-2000 <a href="http://www.clock.co.jp/">http://www.clock.co.jp/</a> (Japanese only)</p>
+				<dl>
+					<dt>NTP configuration ( ntp.conf )</dt>
+					<dd>
+						<p>server &nbsp; 127.127.40.X &nbsp; mode 3</p>
+						<br>
+					</dd>
+					<dt>RS-232C</dt>
+					<dd>
+						<p>9600 Baud</p>
+						<br>
+					</dd>
+					<dt>Time code format</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>Command</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
 								<td>Reply</td>
 							</tr>
 							<tr>
 								<td><code>C</code></td>
-								<td></td>
+								<td>&nbsp;--&gt;&nbsp;</td>
 								<td>( Mode 2 : Continuous )</td>
 							</tr>
 							<tr>
-								<td></td>
+								<td>( Every second before 0.5 second )</td>
 								<td></td>
 								<td><code>YYMMDDWHHMMSS&lt;ST1&gt;&lt;ST2&gt;&lt;ST3&gt;&lt;ST4&gt;&lt;CR&gt;</code></td>
 							</tr>
 							<tr>
 								<td><code>#</code></td>
-								<td></td>
-								<td>( Mode 1 : Request&Send )</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>( Mode 1 : Request&amp;Send )</td>
 							</tr>
 						</table>
 						<br>
-					<dt>NTP configuration ( ntp.conf )
+					</dd>
+				</dl>
+			<li>
+				<p>CITIZEN T.I.C. CO.,LTD. JJY-200 <a href="http://www.tic-citizen.co.jp/">http://www.tic-citizen.co.jp/</a> (Japanese only)</p>
+				<dl>
+					<dt>NTP configuration ( ntp.conf )</dt>
 					<dd>
-						<p>server &nbsp; 127.127.40.X &nbsp; mode 3</p>
+						<p>server &nbsp; 127.127.40.X &nbsp; mode 4</p>
+						<br>
+					</dd>
+					<dt>RS-232C</dt>
+					<dd>
+						<p>4800 Baud</p>
+						<br>
+					</dd>
+					<dt>Time code format</dt>
+					<dd><br>
+						<table summary="CommandAndReply">
+							<tr>
+								<td>Command</td>
+								<td>&nbsp;--&gt;&nbsp;</td>
+								<td>Reply</td>
+							</tr>
+							<tr>
+								<td>( Every second )</td>
+								<td></td>
+								<td><code>'XX YY/MM/DD W HH:MM:SS&lt;CR&gt;</code></td>
+							</tr>
+						</table>
+						<br>
+					</dd>
 				</dl>
 		</ul>
 		<p>JJY is the radio station which transmites the JST (Japan Standard Time) in long wave radio. The station JJY is operated by the National Institute of Information and Communications Technology. An operating announcement and some information are avaiable from <a href="http://www.nict.go.jp/">http://www.nict.go.jp/</a> (English and Japanese) and <a href="http://jjy.nict.go.jp/">http://jjy.nict.go.jp/</a> (English and Japanese)</p>
 		<p>The user is expected to provide a symbolic link to an available serial port device. This is typically performed by a command such as:</p>
-		<p><tt>ln -s /dev/ttyS0 /dev/jjy0</tt></p>
-		<p>Windows NT does not support symbolic links to device files. COM<i>X</i>: is the unit used by the driver, based on the refclock unit number, where unit 1 corresponds to COM1: and unit 3 corresponds to COM3:</p>
+		<p><code>ln -s /dev/ttyS0 /dev/jjy0</code></p>
+		<p>Windows NT does not support symbolic links to device files. COM<em>X</em>: is the unit used by the driver, based on the refclock unit number, where unit 1 corresponds to COM1: and unit 3 corresponds to COM3:</p>
 		<h4>Monitor Data</h4>
-		<p>The driver writes each timecode as received to the <tt>clockstats</tt> file.</p>
+		<p>The driver writes each timecode as received to the <code>clockstats</code> file.</p>
 		<h4>Fudge Factors</h4>
 		<dl>
-			<dt><tt>time1 <i>time</i></tt>
+			<dt><code>time1 <em>time</em></code>
 			<dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.0.
-			<dt><tt>time2 <i>time</i></tt>
+			<dt><code>time2 <em>time</em></code>
 			<dd>Not used by this driver.
-			<dt><tt>stratum <i>number</i></tt>
+			<dt><code>stratum <em>number</em></code>
 			<dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.
-			<dt><tt>refid <i>string</i></tt>
-			<dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <tt>JJY</tt>.
-			<dt><tt>flag1 0 | 1</tt>
+			<dt><code>refid <em>string</em></code>
+			<dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <code>JJY</code>.
+			<dt><code>flag1 0 | 1</code>
 			<dd>Not used by this driver.
-			<dt><tt>flag2 0 | 1</tt>
+			<dt><code>flag2 0 | 1</code>
 			<dd>Not used by this driver.
-			<dt><tt>flag3 0 | 1</tt>
+			<dt><code>flag3 0 | 1</code>
 			<dd>Not used by this driver.
-			<dt><tt>flag4 0 | 1</tt>
+			<dt><code>flag4 0 | 1</code>
 			<dd>Not used by this driver.
 		</dl>
 		<hr>
