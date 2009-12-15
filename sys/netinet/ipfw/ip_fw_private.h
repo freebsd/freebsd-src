@@ -102,7 +102,6 @@ MALLOC_DECLARE(M_IPFW);
 int ipfw_check_in(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
 int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
 
-int ipfw_chk(struct ip_fw_args *);
 
 int ipfw_hook(void);
 int ipfw6_hook(void);
@@ -161,11 +160,13 @@ VNET_DECLARE(int, fw_one_pass);
 VNET_DECLARE(int, fw_enable);
 VNET_DECLARE(int, fw_verbose);
 VNET_DECLARE(struct ip_fw_chain, layer3_chain);
+VNET_DECLARE(u_int32_t, set_disable);
 
 #define	V_fw_one_pass		VNET(fw_one_pass)
 #define	V_fw_enable		VNET(fw_enable)
 #define	V_fw_verbose		VNET(fw_enable)
 #define	V_layer3_chain		VNET(layer3_chain)
+#define	V_set_disable		VNET(set_disable)
 
 #ifdef INET6
 VNET_DECLARE(int, fw6_enable);
@@ -198,11 +199,43 @@ struct sockopt;	/* used by tcp_var.h */
 #define IPFW_WLOCK(p) rw_wlock(&(p)->rwmtx)
 #define IPFW_WUNLOCK(p) rw_wunlock(&(p)->rwmtx)
 
+/* In ip_fw_sockopt.c */
+int ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule);
+int ipfw_ctl(struct sockopt *sopt);
+int ipfw_chk(struct ip_fw_args *args);
+void ipfw_reap_rules(struct ip_fw *head);
+void ipfw_free_chain(struct ip_fw_chain *chain, int kill_default);
+
+/* In ip_fw_table.c */
+struct radix_node;
+int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
+    uint32_t *val);
+int ipfw_init_tables(struct ip_fw_chain *ch);
+int ipfw_flush_table(struct ip_fw_chain *ch, uint16_t tbl);
+void ipfw_flush_tables(struct ip_fw_chain *ch);
+int ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
+    uint8_t mlen, uint32_t value);
+int ipfw_dump_table_entry(struct radix_node *rn, void *arg);
+int ipfw_del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
+    uint8_t mlen);
+int ipfw_count_table(struct ip_fw_chain *ch, uint32_t tbl, uint32_t *cnt);
+int ipfw_dump_table(struct ip_fw_chain *ch, ipfw_table *tbl);
+
 /* In ip_fw_nat.c */
+
 extern struct cfg_nat *(*lookup_nat_ptr)(struct nat_list *, int);
 
 typedef int ipfw_nat_t(struct ip_fw_args *, struct cfg_nat *, struct mbuf *);
 typedef int ipfw_nat_cfg_t(struct sockopt *);
+
+extern ipfw_nat_t *ipfw_nat_ptr;
+#define IPFW_NAT_LOADED (ipfw_nat_ptr != NULL)
+
+extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
+extern ipfw_nat_cfg_t *ipfw_nat_del_ptr;
+extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
+extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
+
 
 #endif /* _KERNEL */
 #endif /* _IPFW2_PRIVATE_H */
