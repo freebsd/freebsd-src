@@ -6,7 +6,7 @@
 # 
 # EDIT THIS FILE WITH CAUTION  (sntp-opts.texi)
 # 
-# It has been AutoGen-ed  Sunday August 17, 2008 at 05:27:25 AM EDT
+# It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:51 AM EST
 # From the definitions    sntp-opts.def
 # and the template file   aginfo.tpl
 @end ignore
@@ -46,7 +46,59 @@ This is the automatically generated usage text for sntp:
 
 @exampleindent 0
 @example
-sntp is unavailable - no --help
+sntp - standard SNTP program - Ver. 4.2.5p247-RC
+USAGE:  sntp [ -<flag> [<val>] | --<name>[@{=| @}<val>] ]... ...
+  Flg Arg Option-Name    Description
+   -4 no  ipv4           Force IPv4 DNS name resolution
+                                - prohibits these options:
+                                ipv6
+   -6 no  ipv6           Force IPv6 DNS name resolution
+                                - prohibits these options:
+                                ipv4
+   -d no  normalverbose  Normal verbose
+   -K Str kod            KoD history filename
+   -p no  syslog         Logging with syslog
+                                - prohibits these options:
+                                filelog
+   -l Str filelog        Logging to specified logfile
+                                - prohibits these options:
+                                syslog
+   -s no  settod         Set (step) the time with settimeofday()
+                                - prohibits these options:
+                                adjtime
+   -j no  adjtime        Set (slew) the time with adjtime()
+                                - prohibits these options:
+                                settod
+   -b Str broadcast      Use broadcasts to the address specified for synchronisation
+   -t Num timeout        Specify the number of seconds to wait for broadcasts
+   -a Num authentication Enable authentication with the key keyno. This option is used as -a keyno
+   -k Str keyfile        Specify a keyfile. SNTP will look in this file for the key specified with -a
+      opt version        Output version information and exit
+   -? no  help           Display extended usage information and exit
+   -! no  more-help      Extended usage information passed thru pager
+   -> opt save-opts      Save the option state to a config file
+   -< Str load-opts      Load options from a config file
+                                - disabled as --no-load-opts
+                                - may appear multiple times
+
+Options are specified by doubled hyphens and their name
+or by a single hyphen and the flag character.
+
+The following option preset mechanisms are supported:
+ - reading file /users/stenn/.ntprc
+ - reading file /deacon/backroom/snaps/ntp-stable/sntp/.ntprc
+ - examining environment variables named SNTP_*
+
+.I sntp
+can be used as a SNTP client to query a NTP or SNTP server and either display
+the time or set the local system's time (given suitable privilege).  It can be
+run as an interactive command or in a
+.I cron
+job.
+NTP is the Network Time Protocol (RFC 1305) and SNTP is the
+Simple Network Time Protocol (RFC 2030, which supersedes RFC 1769).
+
+please send bug reports to:  http://bugs.ntp.org, bugs@@ntp.org
 @end example
 @exampleindent 4
 
