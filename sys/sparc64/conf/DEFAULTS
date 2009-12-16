@@ -19,3 +19,10 @@ options 	GEOM_PART_VTOC8
 
 # Let sunkbd emulate an AT keyboard by default.
 options 	SUNKBD_EMULATE_ATKBD
+ 
+# Store the plain version of the configuration file in the kernel itself.
+# To store the entire file, including comments, put this in /etc/src.conf:
+# CONFIGARGS=	-C
+# See config(8) for more details.
+#
+options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
