@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 2002 .........
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,11 +26,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define        DEB(x)
-#define        DDB(x) x
-
 /*
- * Sockopt support for ipfw
+ * Lookup table support for ipfw
+ *
+ * Lookup tables are implemented (at the moment) using the radix
+ * tree used for routing tables. Tables store key-value entries, where
+ * keys are network prefixes (addr/masklen), and values are integers.
+ * As a degenerate case we can interpret keys as 32-bit integers
+ * (with a /32 mask).
  */
 
 #if !defined(KLD_MODULE)
@@ -259,3 +262,4 @@ ipfw_dump_table(struct ip_fw_chain *ch, ipfw_table *tbl)
 	rnh->rnh_walktree(rnh, dump_table_entry, tbl);
 	return (0);
 }
+/* end of file */
