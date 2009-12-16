@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define ID_82801H			0x283e8086
 #define ID_82801I			0x29308086
 #define ID_82801JI			0x3a308086
+#define ID_PCH				0x3b308086
 #define ID_6300ESB			0x25a48086
 #define	ID_631xESB			0x269b8086
 
@@ -163,6 +164,9 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_82801JI:
 		device_set_desc(dev, "Intel 82801JI (ICH10) SMBus controller");
+		break;
+	case ID_PCH:
+		device_set_desc(dev, "Intel PCH SMBus controller");
 		break;
 	case ID_6300ESB:
 		device_set_desc(dev, "Intel 6300ESB (ICH) SMBus controller");
