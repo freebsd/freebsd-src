@@ -345,9 +345,10 @@ If set, the build target
 .Cm buildkernel
 defaults to setting 
 .Va NO_KERNELCLEAN ,
-.Va NO_KERNELCONFIG
+.Va NO_KERNELCONFIG ,
+.Va NO_KERNELDEPEND 
 and
-.Va NO_KERNELDEPEND .
+.Va NO_KERNELOBJ .
 When set to a value other than
 .Cm 1
 then 
@@ -441,6 +442,12 @@ target.
 .It Va NO_KERNELDEPEND
 If set, the build process does not run
 .Dq make depend
+as part of the
+.Cm buildkernel
+target.
+.It Va NO_KERNELOBJ
+If set, the build process does not run
+.Dq make obj
 as part of the
 .Cm buildkernel
 target.
