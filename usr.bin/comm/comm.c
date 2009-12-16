@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <limits.h>
 #include <locale.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
-#define	MAXLINELEN	(LINE_MAX + 1)
+#define	INITLINELEN	(LINE_MAX + 1)
+#define	MAXLINELEN	((SIZE_MAX / sizeof(wchar_t)) / 2)
 
 const wchar_t *tabs[] = { L"", L"\t", L"\t\t" };
 
@@ -83,8 +85,8 @@ main(int argc, char *argv[])
 	flag1 = flag2 = flag3 = 1;
 	iflag = 0;
 
- 	line1len = MAXLINELEN;
- 	line2len = MAXLINELEN;
+ 	line1len = INITLINELEN;
+ 	line2len = INITLINELEN;
  	line1 = malloc(line1len * sizeof(*line1));
  	line2 = malloc(line2len * sizeof(*line2));
 	if (line1 == NULL || line2 == NULL)
@@ -193,9 +195,13 @@ getline(wchar_t *buf, size_t *buflen, FILE *fp)
 	while ((ch = getwc(fp)) != WEOF && ch != '\n') {
 		if (bufpos + 1 >= *buflen) {
 			*buflen = *buflen * 2;
+			if (*buflen > MAXLINELEN)
+				errx(1,
+				    "Maximum line buffer length (%zu) exceeded",
+				    MAXLINELEN);
 			buf = reallocf(buf, *buflen * sizeof(*buf));
 			if (buf == NULL)
-				return (NULL);
+				err(1, "reallocf");
 		}
 		buf[bufpos++] = ch;
 	}
@@ -251,13 +257,13 @@ wcsicoll(const wchar_t *s1, const wchar_t *s2)
 	new_l2_buflen = wcsicoll_l2_buflen;
 	while (new_l1_buflen < l1) {
 		if (new_l1_buflen == 0)
-			new_l1_buflen = MAXLINELEN;
+			new_l1_buflen = INITLINELEN;
 		else
 			new_l1_buflen *= 2;
 	}
 	while (new_l2_buflen < l2) {
 		if (new_l2_buflen == 0)
-			new_l2_buflen = MAXLINELEN;
+			new_l2_buflen = INITLINELEN;
 		else
 			new_l2_buflen *= 2;
 	}
