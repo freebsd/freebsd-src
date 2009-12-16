@@ -180,6 +180,7 @@ static void	vge_reset(struct vge_softc *);
 static int	vge_rx_list_init(struct vge_softc *);
 static int	vge_rxeof(struct vge_softc *, int);
 static void	vge_setmulti(struct vge_softc *);
+static void	vge_setvlan(struct vge_softc *);
 static void	vge_start(struct ifnet *);
 static void	vge_start_locked(struct ifnet *);
 static void	vge_stop(struct vge_softc *);
@@ -502,6 +503,23 @@ fail:
 	CSR_SETBIT_1(sc, VGE_CAMCTL, VGE_PAGESEL_MAR);
 
 	return (error);
+}
+
+static void
+vge_setvlan(struct vge_softc *sc)
+{
+	struct ifnet *ifp;
+	uint8_t cfg;
+
+	VGE_LOCK_ASSERT(sc);
+
+	ifp = sc->vge_ifp;
+	cfg = CSR_READ_1(sc, VGE_RXCFG);
+	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
+		cfg |= VGE_VTAG_OPT2;
+	else
+		cfg &= ~VGE_VTAG_OPT2;
+	CSR_WRITE_1(sc, VGE_RXCFG, cfg);
 }
 
 /*
@@ -1050,7 +1068,8 @@ vge_attach(device_t dev)
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_start = vge_start;
 	ifp->if_hwassist = VGE_CSUM_FEATURES;
-	ifp->if_capabilities |= IFCAP_HWCSUM|IFCAP_VLAN_HWTAGGING;
+	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM |
+	    IFCAP_VLAN_HWTAGGING;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -2010,7 +2029,7 @@ vge_init_locked(struct vge_softc *sc)
 	 * reception of VLAN tagged frames.
 	 */
 	CSR_CLRBIT_1(sc, VGE_RXCFG, VGE_RXCFG_FIFO_THR|VGE_RXCFG_VTAGOPT);
-	CSR_SETBIT_1(sc, VGE_RXCFG, VGE_RXFIFOTHR_128BYTES|VGE_VTAG_OPT2);
+	CSR_SETBIT_1(sc, VGE_RXCFG, VGE_RXFIFOTHR_128BYTES);
 
 	/* Set DMA burst length */
 	CSR_CLRBIT_1(sc, VGE_DMACFG0, VGE_DMACFG0_BURSTLEN);
@@ -2072,6 +2091,7 @@ vge_init_locked(struct vge_softc *sc)
 
 	/* Init the multicast filter. */
 	vge_setmulti(sc);
+	vge_setvlan(sc);
 
 	/* Enable flow control */
 
@@ -2242,7 +2262,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct vge_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int error = 0;
+	int error = 0, mask;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -2287,8 +2307,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-	    {
-		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
@@ -2325,8 +2344,16 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_RXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			vge_setvlan(sc);
+		}
 		VGE_UNLOCK(sc);
-	    }
+		VLAN_CAPABILITIES(ifp);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
