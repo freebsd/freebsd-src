@@ -179,7 +179,7 @@ static void	vge_read_eeprom(struct vge_softc *, caddr_t, int, int, int);
 static void	vge_reset(struct vge_softc *);
 static int	vge_rx_list_init(struct vge_softc *);
 static int	vge_rxeof(struct vge_softc *, int);
-static void	vge_setmulti(struct vge_softc *);
+static void	vge_rxfilter(struct vge_softc *);
 static void	vge_setvlan(struct vge_softc *);
 static void	vge_start(struct ifnet *);
 static void	vge_start_locked(struct ifnet *);
@@ -528,32 +528,43 @@ vge_setvlan(struct vge_softc *sc)
  * we use the hash filter instead.
  */
 static void
-vge_setmulti(struct vge_softc *sc)
+vge_rxfilter(struct vge_softc *sc)
 {
 	struct ifnet *ifp;
-	int error = 0/*, h = 0*/;
 	struct ifmultiaddr *ifma;
-	uint32_t h, hashes[2] = { 0, 0 };
+	uint32_t h, hashes[2];
+	uint8_t rxcfg;
+	int error = 0;
 
 	VGE_LOCK_ASSERT(sc);
 
-	ifp = sc->vge_ifp;
-
 	/* First, zot all the multicast entries. */
-	vge_cam_clear(sc);
-	CSR_WRITE_4(sc, VGE_MAR0, 0);
-	CSR_WRITE_4(sc, VGE_MAR1, 0);
+	hashes[0] = 0;
+	hashes[1] = 0;
 
+	rxcfg = CSR_READ_1(sc, VGE_RXCTL);
+	rxcfg &= ~(VGE_RXCTL_RX_MCAST | VGE_RXCTL_RX_BCAST |
+	    VGE_RXCTL_RX_PROMISC);
 	/*
-	 * If the user wants allmulti or promisc mode, enable reception
-	 * of all multicast frames.
+	 * Always allow VLAN oversized frames and frames for
+	 * this host.
 	 */
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		CSR_WRITE_4(sc, VGE_MAR0, 0xFFFFFFFF);
-		CSR_WRITE_4(sc, VGE_MAR1, 0xFFFFFFFF);
-		return;
+	rxcfg |= VGE_RXCTL_RX_GIANT | VGE_RXCTL_RX_UCAST;
+
+	ifp = sc->vge_ifp;
+	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+		rxcfg |= VGE_RXCTL_RX_BCAST;
+	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
+		if ((ifp->if_flags & IFF_PROMISC) != 0)
+			rxcfg |= VGE_RXCTL_RX_PROMISC;
+		if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+			hashes[0] = 0xFFFFFFFF;
+			hashes[1] = 0xFFFFFFFF;
+		}
+		goto done;
 	}
 
+	vge_cam_clear(sc);
 	/* Now program new ones */
 	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
@@ -579,11 +590,15 @@ vge_setmulti(struct vge_softc *sc)
 			else
 				hashes[1] |= (1 << (h - 32));
 		}
-
-		CSR_WRITE_4(sc, VGE_MAR0, hashes[0]);
-		CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
 	}
 	if_maddr_runlock(ifp);
+
+done:
+	if (hashes[0] != 0 || hashes[1] != 0)
+		rxcfg |= VGE_RXCTL_RX_MCAST;
+	CSR_WRITE_4(sc, VGE_MAR0, hashes[0]);
+	CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
+	CSR_WRITE_1(sc, VGE_RXCTL, rxcfg);
 }
 
 static void
@@ -2068,29 +2083,11 @@ vge_init_locked(struct vge_softc *sc)
 	/* Enable the TX descriptor queue */
 	CSR_WRITE_2(sc, VGE_TXQCSRS, VGE_TXQCSR_RUN0);
 
-	/* Set up the receive filter -- allow large frames for VLANs. */
-	CSR_WRITE_1(sc, VGE_RXCTL, VGE_RXCTL_RX_UCAST|VGE_RXCTL_RX_GIANT);
-
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		CSR_SETBIT_1(sc, VGE_RXCTL, VGE_RXCTL_RX_PROMISC);
-	}
-
-	/* Set capture broadcast bit to capture broadcast frames. */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		CSR_SETBIT_1(sc, VGE_RXCTL, VGE_RXCTL_RX_BCAST);
-	}
-
-	/* Set multicast bit to capture multicast frames. */
-	if (ifp->if_flags & IFF_MULTICAST) {
-		CSR_SETBIT_1(sc, VGE_RXCTL, VGE_RXCTL_RX_MCAST);
-	}
-
 	/* Init the cam filter. */
 	vge_cam_clear(sc);
 
-	/* Init the multicast filter. */
-	vge_setmulti(sc);
+	/* Set up receiver filter. */
+	vge_rxfilter(sc);
 	vge_setvlan(sc);
 
 	/* Enable flow control */
@@ -2272,25 +2269,15 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFFLAGS:
 		VGE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->vge_if_flags & IFF_PROMISC)) {
-				CSR_SETBIT_1(sc, VGE_RXCTL,
-				    VGE_RXCTL_RX_PROMISC);
-				vge_setmulti(sc);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->vge_if_flags & IFF_PROMISC) {
-				CSR_CLRBIT_1(sc, VGE_RXCTL,
-				    VGE_RXCTL_RX_PROMISC);
-				vge_setmulti(sc);
-                        } else
+		if ((ifp->if_flags & IFF_UP) != 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc->vge_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				vge_rxfilter(sc);
+			else
 				vge_init_locked(sc);
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				vge_stop(sc);
-		}
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			vge_stop(sc);
 		sc->vge_if_flags = ifp->if_flags;
 		VGE_UNLOCK(sc);
 		break;
@@ -2298,7 +2285,7 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCDELMULTI:
 		VGE_LOCK(sc);
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			vge_setmulti(sc);
+			vge_rxfilter(sc);
 		VGE_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
