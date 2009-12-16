@@ -81,15 +81,13 @@ MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
  */
 
 static VNET_DEFINE(u_int32_t, static_count);	/* # of static rules */
-static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
 #define	V_static_count			VNET(static_count)
+
+static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
 #define	V_static_len			VNET(static_len)
 
 #ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet_ip_fw);
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
-    CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
-    "Rule number auto-increment step");
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
     CTLFLAG_RD, &VNET_NAME(static_count), 0,
     "Number of static rules");
