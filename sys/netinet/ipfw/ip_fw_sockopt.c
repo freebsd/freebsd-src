@@ -30,7 +30,8 @@ __FBSDID("$FreeBSD$");
 #define        DDB(x) x
 
 /*
- * Sockopt support for ipfw
+ * Sockopt support for ipfw. The routines here implement
+ * the upper half of the ipfw code.
  */
 
 #if !defined(KLD_MODULE)
@@ -72,8 +73,11 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif
 
-static VNET_DEFINE(int, autoinc_step);
-#define	V_autoinc_step			VNET(autoinc_step)
+MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
+
+/*
+ * static variables followed by global ones
+ */
 
 static VNET_DEFINE(u_int32_t, static_count);	/* # of static rules */
 static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
@@ -210,7 +214,7 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 	IPFW_WLOCK_ASSERT(chain);
 
 	n = rule->next;
-	remove_dyn_children(rule);
+	ipfw_remove_dyn_children(rule);
 	if (prev == NULL)
 		chain->rules = n;
 	else
@@ -474,7 +478,7 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 
 /*
  * Check validity of the structure before insert.
- * Fortunately rules are simple, so this mostly need to check rule sizes.
+ * Rules are simple, so this mostly need to check rule sizes.
  */
 static int
 check_ipfw_struct(struct ip_fw *rule, int size)
@@ -821,7 +825,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		}
 	}
 	IPFW_RUNLOCK(chain);
-	ipfw_get_dynamic(&bp, ep);
+	ipfw_get_dynamic(&bp, ep); /* protected by the dynamic lock */
 	return (bp - (char *)buf);
 }
 
@@ -1094,3 +1098,4 @@ ipfw_ctl(struct sockopt *sopt)
 	return (error);
 #undef RULE_MAXSIZE
 }
+/* end of file */

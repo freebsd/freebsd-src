@@ -99,12 +99,12 @@ MALLOC_DECLARE(M_IPFW);
 
 /* Firewall hooks */
 
-int ipfw_check_in(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
-int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int, struct inpcb *inp);
+int ipfw_check_in(void *, struct mbuf **, struct ifnet *,
+	int, struct inpcb *inp);
+int ipfw_check_out(void *, struct mbuf **, struct ifnet *,
+	int, struct inpcb *inp);
 
-
-int ipfw_hook(void);
-int ipfw6_hook(void);
+int ipfw_attach_hooks(void);
 int ipfw_unhook(void);
 int ipfw6_unhook(void);
 #ifdef NOTYET
@@ -138,15 +138,13 @@ enum { /* result for matching dynamic rules */
 void ipfw_dyn_unlock(void);
 
 struct tcphdr;
-struct mbuf *send_pkt(struct mbuf *, struct ipfw_flow_id *,
+struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
     u_int32_t, u_int32_t, int);
-int install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
+int ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
     struct ip_fw_args *args, uint32_t tablearg);
-ipfw_dyn_rule * lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
-    struct tcphdr *tcp);
-ipfw_dyn_rule * lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
-    struct tcphdr *tcp);
-void remove_dyn_children(struct ip_fw *rule);
+ipfw_dyn_rule *ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt,
+	int *match_direction, struct tcphdr *tcp);
+void ipfw_remove_dyn_children(struct ip_fw *rule);
 void ipfw_get_dynamic(char **bp, const char *ep);
 
 void ipfw_dyn_attach(void);	/* uma_zcreate .... */
@@ -157,25 +155,24 @@ int ipfw_dyn_len(void);
 
 /* common variables */
 VNET_DECLARE(int, fw_one_pass);
-VNET_DECLARE(int, fw_enable);
-VNET_DECLARE(int, fw_verbose);
-VNET_DECLARE(struct ip_fw_chain, layer3_chain);
-VNET_DECLARE(u_int32_t, set_disable);
-
 #define	V_fw_one_pass		VNET(fw_one_pass)
-#define	V_fw_enable		VNET(fw_enable)
-#define	V_fw_verbose		VNET(fw_enable)
+
+VNET_DECLARE(int, fw_verbose);
+#define	V_fw_verbose		VNET(fw_verbose)
+
+VNET_DECLARE(struct ip_fw_chain, layer3_chain);
 #define	V_layer3_chain		VNET(layer3_chain)
+
+VNET_DECLARE(u_int32_t, set_disable);
 #define	V_set_disable		VNET(set_disable)
 
-#ifdef INET6
-VNET_DECLARE(int, fw6_enable);
-#define	V_fw6_enable		VNET(fw6_enable)
-#endif
+VNET_DECLARE(int, autoinc_step);
+#define V_autoinc_step		VNET(autoinc_step)
 
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
+	struct ip_fw	*default_rule;
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
 	struct rwlock	rwmtx;
@@ -235,7 +232,6 @@ extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
-
 
 #endif /* _KERNEL */
 #endif /* _IPFW2_PRIVATE_H */
