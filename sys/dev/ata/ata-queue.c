@@ -52,17 +52,25 @@ void
 ata_queue_request(struct ata_request *request)
 {
     struct ata_channel *ch;
+    struct ata_device *atadev = device_get_softc(request->dev);
 
     /* treat request as virgin (this might be an ATA_R_REQUEUE) */
     request->result = request->status = request->error = 0;
 
-    /* check that the device is still valid */
+    /* Prepare paramers required by low-level code. */
+    request->unit = atadev->unit;
     if (!(request->parent = device_get_parent(request->dev))) {
 	request->result = ENXIO;
 	if (request->callback)
 	    (request->callback)(request);
 	return;
     }
+    if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_16)
+	request->flags |= ATA_R_ATAPI16;
+    if ((atadev->param.config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
+	request->flags |= ATA_R_ATAPI_INTR;
+    if ((request->flags & ATA_R_ATAPI) == 0)
+	ata_modify_if_48bit(request);
     ch = device_get_softc(request->parent);
     callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
     if (!request->callback && !(request->flags & ATA_R_REQUEUE))
@@ -133,9 +141,9 @@ ata_controlcmd(device_t dev, u_int8_t command, u_int16_t feature,
 	if (atadev->spindown_state) {
 	    device_printf(dev, "request while spun down, starting.\n");
 	    atadev->spindown_state = 0;
-	    request->timeout = 31;
+	    request->timeout = MAX(ATA_REQUEST_TIMEOUT, 31);
 	} else {
-	    request->timeout = 5;
+	    request->timeout = ATA_REQUEST_TIMEOUT;
 	}
 	request->retries = 0;
 	ata_queue_request(request);
@@ -150,15 +158,11 @@ ata_atapicmd(device_t dev, u_int8_t *ccb, caddr_t data,
 	     int count, int flags, int timeout)
 {
     struct ata_request *request = ata_alloc_request();
-    struct ata_device *atadev = device_get_softc(dev);
     int error = ENOMEM;
 
     if (request) {
 	request->dev = dev;
-	if ((atadev->param.config & ATA_PROTO_MASK) == ATA_PROTO_ATAPI_12)
-	    bcopy(ccb, request->u.atapi.ccb, 12);
-	else
-	    bcopy(ccb, request->u.atapi.ccb, 16);
+	bcopy(ccb, request->u.atapi.ccb, 16);
 	request->data = data;
 	request->bytecount = count;
 	request->transfersize = min(request->bytecount, 65534);
@@ -393,7 +397,7 @@ ata_completed(void *context, int dummy)
 	    request->bytecount = sizeof(struct atapi_sense);
 	    request->donecount = 0;
 	    request->transfersize = sizeof(struct atapi_sense);
-	    request->timeout = 5;
+	    request->timeout = ATA_REQUEST_TIMEOUT;
 	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET | ATA_R_DEBUG);
 	    request->flags |= (ATA_R_READ | ATA_R_AT_HEAD | ATA_R_REQUEUE);
 	    ATA_DEBUG_RQ(request, "autoissue request sense");
@@ -507,11 +511,18 @@ ata_timeout(struct ata_request *request)
      */
     if (ch->state == ATA_ACTIVE) {
 	request->flags |= ATA_R_TIMEOUT;
-	mtx_unlock(&ch->state_mtx);
-	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
 	if (ch->dma.unload)
 	    ch->dma.unload(request);
+#ifdef ATA_CAM
+	ch->running = NULL;
+	ch->state = ATA_IDLE;
+	ata_cam_end_transaction(ch->dev, request);
+#endif
+	mtx_unlock(&ch->state_mtx);
+	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
+#ifndef ATA_CAM
 	ata_finish(request);
+#endif
     }
     else {
 	mtx_unlock(&ch->state_mtx);

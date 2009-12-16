@@ -54,18 +54,17 @@
 	.data				/* So we can modify it */
 
 	ALIGN_TEXT
-wakeup_start:
 	.code16
+wakeup_start:
 	/*
 	 * Set up segment registers for real mode, a small stack for
 	 * any calls we make, and clear any flags.
 	 */
 	cli				/* make sure no interrupts */
-	cld
 	mov	%cs, %ax		/* copy %cs to %ds.  Remember these */
 	mov	%ax, %ds		/* are offsets rather than selectors */
 	mov	%ax, %ss
-	movw	$PAGE_SIZE - 8, %sp
+	movw	$PAGE_SIZE, %sp
 	xorw	%ax, %ax
 	pushw	%ax
 	popfw
@@ -88,6 +87,11 @@ wakeup_start:
 	jz	1f
 	movb	$0, reset_video - wakeup_start
 	lcall	$0xc000, $3
+
+	/* When we reach here, int 0x10 should be ready.  Hide cursor. */
+	movb	$0x01, %ah
+	movb	$0x20, %ch
+	int	$0x10
 
 	/* Re-start in case the previous BIOS call clobbers them. */
 	jmp	wakeup_start
@@ -129,6 +133,7 @@ wakeup_sw32:
 	/*
 	 * At this point, we are running in 32 bit legacy protected mode.
 	 */
+	ALIGN_TEXT
 	.code32
 wakeup_32:
 

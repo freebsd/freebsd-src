@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
@@ -350,11 +351,18 @@ device_sysctl_fini(device_t dev)
  * tested since 3.4 or 2.2.8!
  */
 
+/* Deprecated way to adjust queue length */
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-static int devctl_disable = 0;
-TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
+/* XXX Need to support old-style tunable hw.bus.devctl_disable" */
 SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable");
+    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
+
+#define DEVCTL_DEFAULT_QUEUE_LEN 1000
+static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
+static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
+    0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -385,6 +393,7 @@ static struct dev_softc
 {
 	int	inuse;
 	int	nonblock;
+	int	queued;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
@@ -423,7 +432,7 @@ devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	mtx_lock(&devsoftc.mtx);
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
-
+	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -458,6 +467,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	n1 = TAILQ_FIRST(&devsoftc.devq);
 	TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued--;
 	mtx_unlock(&devsoftc.mtx);
 	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
 	free(n1->dei_data, M_BUS);
@@ -531,21 +541,33 @@ devctl_process_running(void)
 void
 devctl_queue_data(char *data)
 {
-	struct dev_event_info *n1 = NULL;
+	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
 
-	/*
-	 * Do not allow empty strings to be queued, as they
-	 * cause devd to exit prematurely.
-	 */
 	if (strlen(data) == 0)
+		return;
+	if (devctl_queue_length == 0)
 		return;
 	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
 	if (n1 == NULL)
 		return;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
+	if (devctl_queue_length == 0) {
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		return;
+	}
+	/* Leave at least one spot in the queue... */
+	while (devsoftc.queued > devctl_queue_length - 1) {
+		n2 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n2, dei_link);
+		free(n2->dei_data, M_BUS);
+		free(n2, M_BUS);
+		devsoftc.queued--;
+	}
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
@@ -614,7 +636,7 @@ devaddq(const char *type, const char *what, device_t dev)
 	char *pnp = NULL;
 	const char *parstr;
 
-	if (devctl_disable)
+	if (!devctl_queue_length)/* Rare race, but lost races safely discard */
 		return;
 	data = malloc(1024, M_BUS, M_NOWAIT);
 	if (data == NULL)
@@ -731,12 +753,11 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 	struct dev_event_info *n1;
 	int dis, error;
 
-	dis = devctl_disable;
+	dis = devctl_queue_length == 0;
 	error = sysctl_handle_int(oidp, &dis, 0, req);
 	if (error || !req->newptr)
 		return (error);
 	mtx_lock(&devsoftc.mtx);
-	devctl_disable = dis;
 	if (dis) {
 		while (!TAILQ_EMPTY(&devsoftc.devq)) {
 			n1 = TAILQ_FIRST(&devsoftc.devq);
@@ -744,6 +765,35 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 			free(n1->dei_data, M_BUS);
 			free(n1, M_BUS);
 		}
+		devsoftc.queued = 0;
+		devctl_queue_length = 0;
+	} else {
+		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+	}
+	mtx_unlock(&devsoftc.mtx);
+	return (0);
+}
+
+static int
+sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
+{
+	struct dev_event_info *n1;
+	int q, error;
+
+	q = devctl_queue_length;
+	error = sysctl_handle_int(oidp, &q, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (q < 0)
+		return (EINVAL);
+	mtx_lock(&devsoftc.mtx);
+	devctl_queue_length = q;
+	while (devsoftc.queued > devctl_queue_length) {
+		n1 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		devsoftc.queued--;
 	}
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
@@ -886,7 +936,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	if (create && !dc) {
 		PDEBUG(("creating %s", classname));
 		dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
-		    M_BUS, M_NOWAIT|M_ZERO);
+		    M_BUS, M_NOWAIT | M_ZERO);
 		if (!dc)
 			return (NULL);
 		dc->parent = NULL;
@@ -968,7 +1018,7 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
 	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
 	 */
 	for (i = 0; i < dc->maxunit; i++)
-		if (dc->devices[i])
+		if (dc->devices[i] && device_is_attached(dc->devices[i]))
 			BUS_DRIVER_ADDED(dc->devices[i], driver);
 
 	/*
@@ -1000,9 +1050,10 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
  * @param driver	the driver to register
  */
 static int
-devclass_add_driver(devclass_t dc, driver_t *driver, int pass)
+devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 {
 	driverlink_t dl;
+	const char *parentname;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
 
@@ -1023,9 +1074,17 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass)
 	kobj_class_compile((kobj_class_t) driver);
 
 	/*
-	 * Make sure the devclass which the driver is implementing exists.
+	 * If the driver has any base classes, make the
+	 * devclass inherit from the devclass of the driver's
+	 * first base class. This will allow the system to
+	 * search for drivers in both devclasses for children
+	 * of a device using this driver.
 	 */
-	devclass_find_internal(driver->name, NULL, TRUE);
+	if (driver->baseclasses)
+		parentname = driver->baseclasses[0]->name;
+	else
+		parentname = NULL;
+	*dcp = devclass_find_internal(driver->name, parentname, TRUE);
 
 	dl->driver = driver;
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
@@ -1526,7 +1585,7 @@ devclass_add_device(devclass_t dc, device_t dev)
 
 	PDEBUG(("%s in devclass %s", DEVICENAME(dev), DEVCLANAME(dc)));
 
-	buflen = snprintf(NULL, 0, "%s%d$", dc->name, dev->unit);
+	buflen = snprintf(NULL, 0, "%s%d$", dc->name, INT_MAX);
 	if (buflen < 0)
 		return (ENOMEM);
 	dev->nameunit = malloc(buflen, M_BUS, M_NOWAIT|M_ZERO);
@@ -2807,6 +2866,7 @@ resource_list_add(struct resource_list *rl, int type, int rid,
 		rle->type = type;
 		rle->rid = rid;
 		rle->res = NULL;
+		rle->flags = 0;
 	}
 
 	if (rle->res)
@@ -2816,6 +2876,31 @@ resource_list_add(struct resource_list *rl, int type, int rid,
 	rle->end = end;
 	rle->count = count;
 	return (rle);
+}
+
+/**
+ * @brief Determine if a resource entry is busy.
+ *
+ * Returns true if a resource entry is busy meaning that it has an
+ * associated resource that is not an unallocated "reserved" resource.
+ *
+ * @param rl		the resource list to search
+ * @param type		the resource entry type (e.g. SYS_RES_MEMORY)
+ * @param rid		the resource identifier
+ *
+ * @returns Non-zero if the entry is busy, zero otherwise.
+ */
+int
+resource_list_busy(struct resource_list *rl, int type, int rid)
+{
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	if (rle == NULL || rle->res == NULL)
+		return (0);
+	if ((rle->flags & (RLE_RESERVED | RLE_ALLOCATED)) == RLE_RESERVED)
+		return (0);
+	return (1);
 }
 
 /**
@@ -2858,6 +2943,66 @@ resource_list_delete(struct resource_list *rl, int type, int rid)
 		STAILQ_REMOVE(rl, rle, resource_list_entry, link);
 		free(rle, M_BUS);
 	}
+}
+
+/**
+ * @brief Allocate a reserved resource
+ *
+ * This can be used by busses to force the allocation of resources
+ * that are always active in the system even if they are not allocated
+ * by a driver (e.g. PCI BARs).  This function is usually called when
+ * adding a new child to the bus.  The resource is allocated from the
+ * parent bus when it is reserved.  The resource list entry is marked
+ * with RLE_RESERVED to note that it is a reserved resource.
+ *
+ * Subsequent attempts to allocate the resource with
+ * resource_list_alloc() will succeed the first time and will set
+ * RLE_ALLOCATED to note that it has been allocated.  When a reserved
+ * resource that has been allocated is released with
+ * resource_list_release() the resource RLE_ALLOCATED is cleared, but
+ * the actual resource remains allocated.  The resource can be released to
+ * the parent bus by calling resource_list_unreserve().
+ *
+ * @param rl		the resource list to allocate from
+ * @param bus		the parent device of @p child
+ * @param child		the device for which the resource is being reserved
+ * @param type		the type of resource to allocate
+ * @param rid		a pointer to the resource identifier
+ * @param start		hint at the start of the resource range - pass
+ *			@c 0UL for any start address
+ * @param end		hint at the end of the resource range - pass
+ *			@c ~0UL for any end address
+ * @param count		hint at the size of range required - pass @c 1
+ *			for any size
+ * @param flags		any extra flags to control the resource
+ *			allocation - see @c RF_XXX flags in
+ *			<sys/rman.h> for details
+ * 
+ * @returns		the resource which was allocated or @c NULL if no
+ *			resource could be allocated
+ */
+struct resource *
+resource_list_reserve(struct resource_list *rl, device_t bus, device_t child,
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource_list_entry *rle = NULL;
+	int passthrough = (device_get_parent(child) != bus);
+	struct resource *r;
+
+	if (passthrough)
+		panic(
+    "resource_list_reserve() should only be called for direct children");
+	if (flags & RF_ACTIVE)
+		panic(
+    "resource_list_reserve() should only reserve inactive resources");
+
+	r = resource_list_alloc(rl, bus, child, type, rid, start, end, count,
+	    flags);
+	if (r != NULL) {
+		rle = resource_list_find(rl, type, *rid);
+		rle->flags |= RLE_RESERVED;
+	}
+	return (r);
 }
 
 /**
@@ -2911,8 +3056,19 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 	if (!rle)
 		return (NULL);		/* no resource of that type/rid */
 
-	if (rle->res)
+	if (rle->res) {
+		if (rle->flags & RLE_RESERVED) {
+			if (rle->flags & RLE_ALLOCATED)
+				return (NULL);
+			else if ((flags & RF_ACTIVE) &&
+			    bus_activate_resource(child, type, *rid,
+			    rle->res) != 0)
+				return (NULL);
+			else
+				return (rle->res);
+		}
 		panic("resource_list_alloc: resource entry is busy");
+	}
 
 	if (isdefault) {
 		start = rle->start;
@@ -2944,7 +3100,7 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
  * @param rl		the resource list which was allocated from
  * @param bus		the parent device of @p child
  * @param child		the device which is requesting a release
- * @param type		the type of resource to allocate
+ * @param type		the type of resource to release
  * @param rid		the resource identifier
  * @param res		the resource to release
  * 
@@ -2971,6 +3127,19 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 		panic("resource_list_release: can't find resource");
 	if (!rle->res)
 		panic("resource_list_release: resource entry is not busy");
+	if (rle->flags & RLE_RESERVED) {
+		if (rle->flags & RLE_ALLOCATED) {
+			if (rman_get_flags(res) & RF_ACTIVE) {
+				error = bus_deactivate_resource(child, type,
+				    rid, res);
+				if (error)
+					return (error);
+			}
+			rle->flags &= ~RLE_ALLOCATED;
+			return (0);
+		}
+		return (EINVAL);
+	}
 
 	error = BUS_RELEASE_RESOURCE(device_get_parent(bus), child,
 	    type, rid, res);
@@ -2979,6 +3148,45 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
 
 	rle->res = NULL;
 	return (0);
+}
+
+/**
+ * @brief Fully release a reserved resource
+ *
+ * Fully releases a resouce reserved via resource_list_reserve().
+ *
+ * @param rl		the resource list which was allocated from
+ * @param bus		the parent device of @p child
+ * @param child		the device whose reserved resource is being released
+ * @param type		the type of resource to release
+ * @param rid		the resource identifier
+ * @param res		the resource to release
+ * 
+ * @retval 0		success
+ * @retval non-zero	a standard unix error code indicating what
+ *			error condition prevented the operation
+ */
+int
+resource_list_unreserve(struct resource_list *rl, device_t bus, device_t child,
+    int type, int rid)
+{
+	struct resource_list_entry *rle = NULL;
+	int passthrough = (device_get_parent(child) != bus);
+
+	if (passthrough)
+		panic(
+    "resource_list_unreserve() should only be called for direct children");
+
+	rle = resource_list_find(rl, type, rid);
+
+	if (!rle)
+		panic("resource_list_unreserve: can't find resource");
+	if (!(rle->flags & RLE_RESERVED))
+		return (EINVAL);
+	if (rle->flags & RLE_ALLOCATED)
+		return (EBUSY);
+	rle->flags &= ~RLE_RESERVED;
+	return (resource_list_release(rl, bus, child, type, rid, rle->res));
 }
 
 /**
@@ -3471,6 +3679,24 @@ bus_generic_config_intr(device_t dev, int irq, enum intr_trigger trig,
 }
 
 /**
+ * @brief Helper function for implementing BUS_DESCRIBE_INTR().
+ *
+ * This simple implementation of BUS_DESCRIBE_INTR() simply calls the
+ * BUS_DESCRIBE_INTR() method of the parent of @p dev.
+ */
+int
+bus_generic_describe_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie, const char *descr)
+{
+
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_DESCRIBE_INTR(dev->parent, child, irq, cookie,
+		    descr));
+	return (EINVAL);
+}
+
+/**
  * @brief Helper function for implementing BUS_GET_DMA_TAG().
  *
  * This simple implementation of BUS_GET_DMA_TAG() simply calls the
@@ -3775,6 +4001,28 @@ bus_bind_intr(device_t dev, struct resource *r, int cpu)
 }
 
 /**
+ * @brief Wrapper function for BUS_DESCRIBE_INTR().
+ *
+ * This function first formats the requested description into a
+ * temporary buffer and then calls the BUS_DESCRIBE_INTR() method of
+ * the parent of @p dev.
+ */
+int
+bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
+    const char *fmt, ...)
+{
+	va_list ap;
+	char descr[MAXCOMLEN + 1];
+
+	if (dev->parent == NULL)
+		return (EINVAL);
+	va_start(ap, fmt);
+	vsnprintf(descr, sizeof(descr), fmt, ap);
+	va_end(ap);
+	return (BUS_DESCRIBE_INTR(dev->parent, dev, irq, cookie, descr));
+}
+
+/**
  * @brief Wrapper function for BUS_SET_RESOURCE().
  *
  * This function simply calls the BUS_SET_RESOURCE() method of the
@@ -4068,27 +4316,8 @@ driver_module_handler(module_t mod, int what, void *arg)
 		driver = dmd->dmd_driver;
 		PDEBUG(("Loading module: driver %s on bus %s (pass %d)",
 		    DRIVERNAME(driver), dmd->dmd_busname, pass));
-		error = devclass_add_driver(bus_devclass, driver, pass);
-		if (error)
-			break;
-
-		/*
-		 * If the driver has any base classes, make the
-		 * devclass inherit from the devclass of the driver's
-		 * first base class. This will allow the system to
-		 * search for drivers in both devclasses for children
-		 * of a device using this driver.
-		 */
-		if (driver->baseclasses) {
-			const char *parentname;
-			parentname = driver->baseclasses[0]->name;
-			*dmd->dmd_devclass =
-				devclass_find_internal(driver->name,
-				    parentname, TRUE);
-		} else {
-			*dmd->dmd_devclass =
-				devclass_find_internal(driver->name, NULL, TRUE);
-		}
+		error = devclass_add_driver(bus_devclass, driver, pass,
+		    dmd->dmd_devclass);
 		break;
 
 	case MOD_UNLOAD:

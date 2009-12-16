@@ -409,14 +409,19 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	else
 		sorf = AU_PRS_SUCCESS;
 
+	/*
+	 * syscalls.master sometimes contains a prototype event number, which
+	 * we will transform into a more specific event number now that we
+	 * have more complete information gathered during the system call.
+	 */
 	switch(ar->k_ar.ar_event) {
 	case AUE_OPEN_RWTC:
-		/*
-		 * The open syscall always writes a AUE_OPEN_RWTC event;
-		 * change it to the proper type of event based on the flags
-		 * and the error value.
-		 */
 		ar->k_ar.ar_event = audit_flags_and_error_to_openevent(
+		    ar->k_ar.ar_arg_fflags, error);
+		break;
+
+	case AUE_OPENAT_RWTC:
+		ar->k_ar.ar_event = audit_flags_and_error_to_openatevent(
 		    ar->k_ar.ar_arg_fflags, error);
 		break;
 

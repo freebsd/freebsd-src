@@ -161,7 +161,7 @@ acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
 		break;
 
 	default:
-		if (fuword((char *)user_acl +
+		if (fuword32((char *)user_acl +
 		    offsetof(struct acl, acl_maxcnt)) != ACL_MAX_ENTRIES)
 			return (EINVAL);
 
@@ -173,7 +173,7 @@ acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
 
 /*
  * Convert "old" type - ACL_TYPE_{ACCESS,DEFAULT}_OLD - into its "new"
- * counterpart.  It's required for old (pre-NFS4 ACLs) libc to work
+ * counterpart.  It's required for old (pre-NFSv4 ACLs) libc to work
  * with new kernel.  Fixing 'type' for old binaries with new libc
  * is being done in lib/libc/posix1e/acl_support.c:_acl_type_unold().
  */
@@ -213,7 +213,7 @@ vacl_set_acl(struct thread *td, struct vnode *vp, acl_type_t type,
 
 	inkernelacl = acl_alloc(M_WAITOK);
 	error = acl_copyin(aclp, inkernelacl, type);
-	if (error)
+	if (error != 0)
 		goto out;
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
@@ -233,7 +233,7 @@ out_unlock:
 	vn_finished_write(mp);
 out:
 	acl_free(inkernelacl);
-	return(error);
+	return (error);
 }
 
 /*
@@ -276,12 +276,12 @@ vacl_delete(struct thread *td, struct vnode *vp, acl_type_t type)
 	int error;
 
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
-	if (error)
+	if (error != 0)
 		return (error);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
 	error = mac_vnode_check_deleteacl(td->td_ucred, vp, type);
-	if (error)
+	if (error != 0)
 		goto out;
 #endif
 	error = VOP_SETACL(vp, acl_type_unold(type), 0, td->td_ucred, td);
@@ -305,9 +305,10 @@ vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
 
 	inkernelacl = acl_alloc(M_WAITOK);
 	error = acl_copyin(aclp, inkernelacl, type);
-	if (error)
+	if (error != 0)
 		goto out;
-	error = VOP_ACLCHECK(vp, type, inkernelacl, td->td_ucred, td);
+	error = VOP_ACLCHECK(vp, acl_type_unold(type), inkernelacl,
+	    td->td_ucred, td);
 out:
 	acl_free(inkernelacl);
 	return (error);
@@ -501,7 +502,7 @@ __acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 int
 __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 {
-	struct nameidata	nd;
+	struct nameidata nd;
 	int vfslocked, error;
 
 	NDINIT(&nd, LOOKUP, MPSAFE|FOLLOW, UIO_USERSPACE, uap->path, td);
@@ -521,7 +522,7 @@ __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 int
 __acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
 {
-	struct nameidata	nd;
+	struct nameidata nd;
 	int vfslocked, error;
 
 	NDINIT(&nd, LOOKUP, MPSAFE|NOFOLLOW, UIO_USERSPACE, uap->path, td);

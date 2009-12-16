@@ -234,6 +234,16 @@ alc_miibus_readreg(device_t dev, int phy, int reg)
 	if (phy != sc->alc_phyaddr)
 		return (0);
 
+	/*
+	 * For AR8132 fast ethernet controller, do not report 1000baseT
+	 * capability to mii(4). Even though AR8132 uses the same
+	 * model/revision number of F1 gigabit PHY, the PHY has no
+	 * ability to establish 1000baseT link.
+	 */
+	if ((sc->alc_flags & ALC_FLAG_FASTETHER) != 0 &&
+	    reg == MII_EXTSR)
+		return (0);
+
 	CSR_WRITE_4(sc, ALC_MDIO, MDIO_OP_EXECUTE | MDIO_OP_READ |
 	    MDIO_SUP_PREAMBLE | MDIO_CLK_25_4 | MDIO_REG_ADDR(reg));
 	for (i = ALC_PHY_TIMEOUT; i > 0; i--) {
@@ -858,7 +868,8 @@ alc_detach(device_t dev)
 			sc->alc_intrhand[i] = NULL;
 		}
 	}
-	alc_phy_down(sc);
+	if (sc->alc_res[0] != NULL)
+		alc_phy_down(sc);
 	bus_release_resources(dev, sc->alc_irq_spec, sc->alc_irq);
 	if ((sc->alc_flags & (ALC_FLAG_MSI | ALC_FLAG_MSIX)) != 0)
 		pci_release_msi(dev);
@@ -1500,6 +1511,21 @@ alc_dma_free(struct alc_softc *sc)
 		sc->alc_cdata.alc_tx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_tx_ring_tag);
 		sc->alc_cdata.alc_tx_ring_tag = NULL;
+	}
+	/* Rx ring. */
+	if (sc->alc_cdata.alc_rx_ring_tag != NULL) {
+		if (sc->alc_cdata.alc_rx_ring_map != NULL)
+			bus_dmamap_unload(sc->alc_cdata.alc_rx_ring_tag,
+			    sc->alc_cdata.alc_rx_ring_map);
+		if (sc->alc_cdata.alc_rx_ring_map != NULL &&
+		    sc->alc_rdata.alc_rx_ring != NULL)
+			bus_dmamem_free(sc->alc_cdata.alc_rx_ring_tag,
+			    sc->alc_rdata.alc_rx_ring,
+			    sc->alc_cdata.alc_rx_ring_map);
+		sc->alc_rdata.alc_rx_ring = NULL;
+		sc->alc_cdata.alc_rx_ring_map = NULL;
+		bus_dma_tag_destroy(sc->alc_cdata.alc_rx_ring_tag);
+		sc->alc_cdata.alc_rx_ring_tag = NULL;
 	}
 	/* Rx return ring. */
 	if (sc->alc_cdata.alc_rr_ring_tag != NULL) {
@@ -3450,7 +3476,7 @@ alc_rxfilter(struct alc_softc *sc)
 	TAILQ_FOREACH(ifma, &sc->alc_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		crc = ether_crc32_le(LLADDR((struct sockaddr_dl *)
+		crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
 		    ifma->ifma_addr), ETHER_ADDR_LEN);
 		mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
 	}

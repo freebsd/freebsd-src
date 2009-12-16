@@ -117,6 +117,48 @@ sc_alloc_cut_buffer(scr_stat *scp, int wait)
 }
 #endif /* SC_NO_CUTPASTE */
 
+static void
+sc_mouse_input_button(scr_stat *scp, int button)
+{
+	char mouseb[6] = "\x1B[M";
+
+	mouseb[3] = ' ' + button;
+	mouseb[4] = '!' + scp->mouse_pos % scp->xsize;
+	mouseb[5] = '!' + scp->mouse_pos / scp->xsize;
+	sc_respond(scp, mouseb, sizeof mouseb, 1);
+}
+
+static void
+sc_mouse_input(scr_stat *scp, mouse_info_t *mouse)
+{
+
+	switch (mouse->operation) {
+	case MOUSE_BUTTON_EVENT:
+		if (mouse->u.event.value > 0) {
+			/* Mouse button pressed. */
+			if (mouse->u.event.id & MOUSE_BUTTON1DOWN)
+				sc_mouse_input_button(scp, 0);
+			if (mouse->u.event.id & MOUSE_BUTTON2DOWN)
+				sc_mouse_input_button(scp, 1);
+			if (mouse->u.event.id & MOUSE_BUTTON3DOWN)
+				sc_mouse_input_button(scp, 2);
+		} else {
+			/* Mouse button released. */
+			sc_mouse_input_button(scp, 3);
+		}
+		break;
+	case MOUSE_MOTION_EVENT:
+		if (mouse->u.data.z < 0) {
+			/* Scroll up. */
+			sc_mouse_input_button(scp, 64);
+		} else if (mouse->u.data.z > 0) {
+			/* Scroll down. */
+			sc_mouse_input_button(scp, 65);
+		}
+		break;
+	}
+}
+
 /* move mouse */
 void
 sc_mouse_move(scr_stat *scp, int x, int y)
@@ -755,6 +797,11 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 
 	    cur_scp->status &= ~MOUSE_HIDDEN;
 
+	    if (cur_scp->mouse_level > 0) {
+	    	sc_mouse_input(scp, mouse);
+		break;
+	    }
+
 	    if (cur_scp->mouse_signal && cur_scp->mouse_proc) {
     		/* has controlling process died? */
 		if (cur_scp->mouse_proc != (p1 = pfind(cur_scp->mouse_pid))) {
@@ -810,6 +857,11 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		sc_touch_scrn_saver();
 
 	    cur_scp->status &= ~MOUSE_HIDDEN;
+
+	    if (cur_scp->mouse_level > 0) {
+	    	sc_mouse_input(scp, mouse);
+		break;
+	    }
 
 	    if (cur_scp->mouse_signal && cur_scp->mouse_proc) {
 		if (cur_scp->mouse_proc != (p1 = pfind(cur_scp->mouse_pid))){

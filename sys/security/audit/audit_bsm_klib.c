@@ -75,6 +75,43 @@ static struct evclass_list	evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
 #define	EVCLASS_WLOCK()		rw_wlock(&evclass_lock)
 #define	EVCLASS_WUNLOCK()	rw_wunlock(&evclass_lock)
 
+struct aue_open_event {
+	int		aoe_flags;
+	au_event_t	aoe_event;
+};
+
+static const struct aue_open_event aue_open[] = {
+	{ O_RDONLY,					AUE_OPEN_R },
+	{ (O_RDONLY | O_CREAT),				AUE_OPEN_RC },
+	{ (O_RDONLY | O_CREAT | O_TRUNC),		AUE_OPEN_RTC },
+	{ (O_RDONLY | O_TRUNC),				AUE_OPEN_RT },
+	{ O_RDWR,					AUE_OPEN_RW },
+	{ (O_RDWR | O_CREAT),				AUE_OPEN_RWC },
+	{ (O_RDWR | O_CREAT | O_TRUNC),			AUE_OPEN_RWTC },
+	{ (O_RDWR | O_TRUNC),				AUE_OPEN_RWT },
+	{ O_WRONLY,					AUE_OPEN_W },
+	{ (O_WRONLY | O_CREAT),				AUE_OPEN_WC },
+	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPEN_WTC },
+	{ (O_WRONLY | O_TRUNC),				AUE_OPEN_WT },
+};
+static const int aue_open_count = sizeof(aue_open) / sizeof(aue_open[0]);
+
+static const struct aue_open_event aue_openat[] = {
+	{ O_RDONLY,					AUE_OPENAT_R },
+	{ (O_RDONLY | O_CREAT),				AUE_OPENAT_RC },
+	{ (O_RDONLY | O_CREAT | O_TRUNC),		AUE_OPENAT_RTC },
+	{ (O_RDONLY | O_TRUNC),				AUE_OPENAT_RT },
+	{ O_RDWR,					AUE_OPENAT_RW },
+	{ (O_RDWR | O_CREAT),				AUE_OPENAT_RWC },
+	{ (O_RDWR | O_CREAT | O_TRUNC),			AUE_OPENAT_RWTC },
+	{ (O_RDWR | O_TRUNC),				AUE_OPENAT_RWT },
+	{ O_WRONLY,					AUE_OPENAT_W },
+	{ (O_WRONLY | O_CREAT),				AUE_OPENAT_WC },
+	{ (O_WRONLY | O_CREAT | O_TRUNC),		AUE_OPENAT_WTC },
+	{ (O_WRONLY | O_TRUNC),				AUE_OPENAT_WT },
+};
+static const int aue_openat_count = sizeof(aue_openat) / sizeof(aue_openat[0]);
+
 /*
  * Look up the class for an audit event in the class mapping table.
  */
@@ -253,94 +290,33 @@ audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 au_event_t
 audit_flags_and_error_to_openevent(int oflags, int error)
 {
-	au_event_t aevent;
+	int i;
 
 	/*
 	 * Need to check only those flags we care about.
 	 */
 	oflags = oflags & (O_RDONLY | O_CREAT | O_TRUNC | O_RDWR | O_WRONLY);
+	for (i = 0; i < aue_open_count; i++) {
+		if (aue_open[i].aoe_flags == oflags)
+			return (aue_open[i].aoe_event);
+	}
+	return (AUE_OPEN);
+}
+
+au_event_t
+audit_flags_and_error_to_openatevent(int oflags, int error)
+{
+	int i;
 
 	/*
-	 * These checks determine what flags are on with the condition that
-	 * ONLY that combination is on, and no other flags are on.
+	 * Need to check only those flags we care about.
 	 */
-	switch (oflags) {
-	case O_RDONLY:
-		aevent = AUE_OPEN_R;
-		break;
-
-	case (O_RDONLY | O_CREAT):
-		aevent = AUE_OPEN_RC;
-		break;
-
-	case (O_RDONLY | O_CREAT | O_TRUNC):
-		aevent = AUE_OPEN_RTC;
-		break;
-
-	case (O_RDONLY | O_TRUNC):
-		aevent = AUE_OPEN_RT;
-		break;
-
-	case O_RDWR:
-		aevent = AUE_OPEN_RW;
-		break;
-
-	case (O_RDWR | O_CREAT):
-		aevent = AUE_OPEN_RWC;
-		break;
-
-	case (O_RDWR | O_CREAT | O_TRUNC):
-		aevent = AUE_OPEN_RWTC;
-		break;
-
-	case (O_RDWR | O_TRUNC):
-		aevent = AUE_OPEN_RWT;
-		break;
-
-	case O_WRONLY:
-		aevent = AUE_OPEN_W;
-		break;
-
-	case (O_WRONLY | O_CREAT):
-		aevent = AUE_OPEN_WC;
-		break;
-
-	case (O_WRONLY | O_CREAT | O_TRUNC):
-		aevent = AUE_OPEN_WTC;
-		break;
-
-	case (O_WRONLY | O_TRUNC):
-		aevent = AUE_OPEN_WT;
-		break;
-
-	default:
-		aevent = AUE_OPEN;
-		break;
+	oflags = oflags & (O_RDONLY | O_CREAT | O_TRUNC | O_RDWR | O_WRONLY);
+	for (i = 0; i < aue_openat_count; i++) {
+		if (aue_openat[i].aoe_flags == oflags)
+			return (aue_openat[i].aoe_event);
 	}
-
-#if 0
-	/*
-	 * Convert chatty errors to better matching events.  Failures to
-	 * find a file are really just attribute events -- so recast them as
-	 * such.
-	 *
-	 * XXXAUDIT: Solaris defines that AUE_OPEN will never be returned, it
-	 * is just a placeholder.  However, in Darwin we return that in
-	 * preference to other events.  For now, comment this out as we don't
-	 * have a BSM conversion routine for AUE_OPEN.
-	 */
-	switch (aevent) {
-	case AUE_OPEN_R:
-	case AUE_OPEN_RT:
-	case AUE_OPEN_RW:
-	case AUE_OPEN_RWT:
-	case AUE_OPEN_W:
-	case AUE_OPEN_WT:
-		if (error == ENOENT)
-			aevent = AUE_OPEN;
-	}
-#endif
-	return (aevent);
+	return (AUE_OPENAT);
 }
 
 /*

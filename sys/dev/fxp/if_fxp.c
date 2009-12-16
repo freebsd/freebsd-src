@@ -631,8 +631,11 @@ fxp_attach(device_t dev)
 	}
 
 	/* For 82559 or later chips, Rx checksum offload is supported. */
-	if (sc->revision >= FXP_REV_82559_A0)
-		sc->flags |= FXP_FLAG_82559_RXCSUM;
+	if (sc->revision >= FXP_REV_82559_A0) {
+		/* 82559ER does not support Rx checksum offloading. */
+		if (sc->ident->devid != 0x1209)
+			sc->flags |= FXP_FLAG_82559_RXCSUM;
+	}
 	/*
 	 * Enable use of extended RFDs and TCBs for 82550
 	 * and later chips. Note: we need extended TXCB support

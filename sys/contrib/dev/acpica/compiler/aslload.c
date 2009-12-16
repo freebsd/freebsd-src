@@ -353,6 +353,7 @@ LdLoadResourceElements (
 
     Node->Value = (UINT32) Op->Asl.Value.Integer;
     Node->Op = Op;
+    Op->Asl.Node = Node;
 
     /*
      * Now enter the predefined fields, for easy lookup when referenced
@@ -574,7 +575,9 @@ LdNamespace1Begin (
                 goto FinishNode;
             }
 
-            AslCoreSubsystemError (Op, Status, "Failure from lookup\n", FALSE);
+            AslCoreSubsystemError (Op, Status,
+                "Failure from namespace lookup", FALSE);
+
             goto Exit;
         }
 
@@ -717,7 +720,7 @@ LdNamespace1Begin (
         else
         {
             AslCoreSubsystemError (Op, Status,
-                "Failure from lookup %s\n", FALSE);
+                "Failure from namespace lookup", FALSE);
             goto Exit;
         }
     }
@@ -884,7 +887,8 @@ LdNamespace2Begin (
                 return (AE_OK);
             }
 
-            AslCoreSubsystemError (Op, Status, "Failure from lookup\n", FALSE);
+            AslCoreSubsystemError (Op, Status,
+                "Failure from namespace lookup", FALSE);
             return (AE_OK);
         }
 

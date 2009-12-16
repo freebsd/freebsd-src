@@ -1332,7 +1332,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			tl = nfsm_dissect_nonblock(u_int32_t *,
 			    NFSX_V3CREATEVERF);
 			/* Unique bytes, endianness is not important. */
-			cverf.tv_sec  = tl[0];
+			cverf.tv_sec  = (int32_t)tl[0];
 			cverf.tv_nsec = tl[1];
 			exclusive_flag = 1;
 			break;
@@ -1686,7 +1686,7 @@ out:
 	if (dirp) {
 		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
-		VOP_UNLOCK(dirp, 0);
+		vput(dirp);
 	}
 ereply:
 	nfsm_reply(NFSX_SRVFH(1) + NFSX_POSTOPATTR(1) + NFSX_WCCDATA(1));
@@ -1810,10 +1810,9 @@ out:
 	}
 ereply:
 	nfsm_reply(NFSX_WCCDATA(v3));
-	if (v3) {
+	if (v3)
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
-		error = 0;
-	}
+	error = 0;
 nfsmout:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
@@ -2187,8 +2186,8 @@ ereply:
 	if (v3) {
 		nfsm_srvpostop_attr(getret, &at);
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
-		error = 0;
 	}
+	error = 0;
 	/* fall through */
 
 nfsmout:
@@ -3825,7 +3824,7 @@ nfsmout:
  *     what the heck.
  *
  * The exception to rule 2 is EPERM. If a file is IMMUTABLE, VOP_ACCESS()
- * will return EPERM instead of EACCESS. EPERM is always an error.
+ * will return EPERM instead of EACCES. EPERM is always an error.
  */
 static int
 nfsrv_access(struct vnode *vp, accmode_t accmode, struct ucred *cred,

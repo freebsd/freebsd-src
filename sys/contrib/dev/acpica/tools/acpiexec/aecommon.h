@@ -135,8 +135,17 @@
 #include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/acapps.h>
 
-extern FILE                     *AcpiGbl_DebugFile;
-extern BOOLEAN                  AcpiGbl_IgnoreErrors;
+extern FILE                 *AcpiGbl_DebugFile;
+extern BOOLEAN              AcpiGbl_IgnoreErrors;
+extern UINT8                AcpiGbl_RegionFillValue;
+
+
+typedef struct ae_table_desc
+{
+    ACPI_TABLE_HEADER       *Table;
+    struct ae_table_desc    *Next;
+
+} AE_TABLE_DESC;
 
 /*
  * Debug Regions
@@ -170,7 +179,8 @@ AeCtrlCHandler (
 
 ACPI_STATUS
 AeBuildLocalTables (
-    ACPI_TABLE_HEADER       *UserTable);
+    UINT32                  TableCount,
+    AE_TABLE_DESC           *TableList);
 
 ACPI_STATUS
 AeInstallTables (

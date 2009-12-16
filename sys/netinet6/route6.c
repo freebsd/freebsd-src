@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 

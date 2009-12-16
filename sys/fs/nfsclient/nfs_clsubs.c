@@ -87,6 +87,10 @@ extern struct nfsstats newnfsstats;
 int
 ncl_uninit(struct vfsconf *vfsp)
 {
+	/*
+	 * XXX: Unloading of nfscl module is unsupported.
+	 */
+#if 0
 	int i;
 
 	/*
@@ -104,6 +108,9 @@ ncl_uninit(struct vfsconf *vfsp)
 	mtx_unlock(&ncl_iod_mutex);
 	ncl_nhuninit();
 	return (0);
+#else
+	return (EOPNOTSUPP);
+#endif
 }
 
 void 
@@ -129,28 +136,25 @@ int
 ncl_upgrade_vnlock(struct vnode *vp)
 {
 	int old_lock;
-	
- 	if ((old_lock = VOP_ISLOCKED(vp)) != LK_EXCLUSIVE) {
- 		if (old_lock == LK_SHARED) {
- 			/* Upgrade to exclusive lock, this might block */
- 			vn_lock(vp, LK_UPGRADE | LK_RETRY);
- 		} else {
- 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
- 		}
+
+	ASSERT_VOP_LOCKED(vp, "ncl_upgrade_vnlock");
+	old_lock = VOP_ISLOCKED(vp);
+	if (old_lock != LK_EXCLUSIVE) {
+		KASSERT(old_lock == LK_SHARED,
+		    ("ncl_upgrade_vnlock: wrong old_lock %d", old_lock));
+		/* Upgrade to exclusive lock, this might block */
+		vn_lock(vp, LK_UPGRADE | LK_RETRY);
   	}
-	return old_lock;
+	return (old_lock);
 }
 
 void
 ncl_downgrade_vnlock(struct vnode *vp, int old_lock)
 {
 	if (old_lock != LK_EXCLUSIVE) {
- 		if (old_lock == LK_SHARED) {
- 			/* Downgrade from exclusive lock, this might block */
- 			vn_lock(vp, LK_DOWNGRADE);
- 		} else {
- 			VOP_UNLOCK(vp, 0);
- 		}
+		KASSERT(old_lock == LK_SHARED, ("wrong old_lock %d", old_lock));
+		/* Downgrade from exclusive lock. */
+		vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
   	}
 }
 

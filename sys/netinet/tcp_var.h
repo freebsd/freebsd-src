@@ -474,8 +474,19 @@ struct	tcpstat {
 };
 
 #ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	TCPSTAT_ADD(name, val)	V_tcpstat.name += (val)
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_tcpstat_inc(int statnum);
+#define	KMOD_TCPSTAT_INC(name)						\
+	kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(u_long))
 #endif
 
 /*
@@ -484,11 +495,20 @@ struct	tcpstat {
  * included.  Not all of our clients do.
  */
 #if defined(_NETINET_IN_PCB_H_) && defined(_SYS_SOCKETVAR_H_)
+struct xtcp_timer {
+	int tt_rexmt;	/* retransmit timer */
+	int tt_persist;	/* retransmit persistence */
+	int tt_keep;	/* keepalive */
+	int tt_2msl;	/* 2*msl TIME_WAIT timer */
+	int tt_delack;	/* delayed ACK timer */
+	int t_rcvtime; 	/* Time since last packet received */
+};
 struct	xtcpcb {
 	size_t	xt_len;
 	struct	inpcb	xt_inp;
 	struct	tcpcb	xt_tp;
 	struct	xsocket	xt_socket;
+	struct	xtcp_timer xt_timer;
 	u_quad_t	xt_alignment_hack;
 };
 #endif

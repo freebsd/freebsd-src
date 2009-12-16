@@ -176,6 +176,21 @@
 #define AHCI_PI                     0x0c
 #define AHCI_VS                     0x10
 
+#define AHCI_CCCC                   0x14
+#define		AHCI_CCCC_TV_MASK	0xffff0000
+#define		AHCI_CCCC_TV_SHIFT	16
+#define		AHCI_CCCC_CC_MASK	0x0000ff00
+#define		AHCI_CCCC_CC_SHIFT	8
+#define		AHCI_CCCC_INT_MASK	0x000000f8
+#define		AHCI_CCCC_INT_SHIFT	3
+#define		AHCI_CCCC_EN		0x00000001
+#define AHCI_CCCP                   0x18
+
+#define AHCI_CAP2                   0x24
+#define		AHCI_CAP2_BOH	0x00000001
+#define		AHCI_CAP2_NVMP	0x00000002
+#define		AHCI_CAP2_APST	0x00000004
+
 #define AHCI_OFFSET                 0x100
 #define AHCI_STEP                   0x80
 
@@ -313,7 +328,7 @@ enum ahci_slot_states {
 	AHCI_SLOT_EMPTY,
 	AHCI_SLOT_LOADING,
 	AHCI_SLOT_RUNNING,
-	AHCI_SLOT_WAITING
+	AHCI_SLOT_EXECUTING
 };
 
 struct ahci_slot {
@@ -323,6 +338,13 @@ struct ahci_slot {
     union ccb			*ccb;		/* CCB occupying slot */
     struct ata_dmaslot          dma;            /* DMA data of this slot */
     struct callout              timeout;        /* Execution timeout */
+};
+
+struct ahci_device {
+	int			revision;
+	int			mode;
+	u_int			bytecount;
+	u_int			tags;
 };
 
 /* structure describing an ATA channel */
@@ -336,23 +358,30 @@ struct ahci_channel {
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	uint32_t		caps;		/* Controller capabilities */
+	uint32_t		caps2;		/* Controller capabilities */
+	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
-	int			sata_rev;	/* Maximum allowed SATA generation */
 
 	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	union ccb		*hold[AHCI_MAX_SLOTS];
 	struct mtx		mtx;		/* state lock */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
+	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands  */
 	int			numrslots;	/* Number of running slots */
 	int			numtslots;	/* Number of tagged slots */
 	int			readlog;	/* Our READ LOG active */
+	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
 	union ccb		*frozen;	/* Frozen command */
+	struct callout		pm_timer;	/* Power management events */
+
+	struct ahci_device	user[16];	/* User-specified settings */
+	struct ahci_device	curr[16];	/* Current settings */
 };
 
 /* structure describing a AHCI controller */
@@ -371,9 +400,14 @@ struct ahci_controller {
 #define	AHCI_IRQ_MODE_AFTER	1
 #define	AHCI_IRQ_MODE_ONE	2
 	} irqs[16];
+	uint32_t		caps;		/* Controller capabilities */
+	uint32_t		caps2;		/* Controller capabilities */
+	int			quirks;
 	int			numirqs;
 	int			channels;
 	int			ichannels;
+	int			ccc;		/* CCC timeout */
+	int			cccv;		/* CCC vector */
 	struct {
 		void			(*function)(void *);
 		void			*argument;

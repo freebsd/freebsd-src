@@ -126,6 +126,10 @@ new socket.
 For some applications, performance may be enhanced by using an
 .Xr accept_filter 9
 to pre-process incoming connections.
+.Pp
+Portable programs should not rely on the
+.Dv O_NONBLOCK
+property being inherited.
 .Sh RETURN VALUES
 The call returns \-1 on error.
 If it succeeds, it returns a non-negative

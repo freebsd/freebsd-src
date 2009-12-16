@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
+
 #include <netinet/in.h>
 
 #include <rpc/rpc.h>
@@ -463,9 +465,11 @@ nfs_mountroot(struct mount *mp)
 			break;
 	}
 #endif
+
 	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, td);
 	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
+
 	if ((cp = getenv("boot.netif.mtu")) != NULL) {
 		ir.ifr_mtu = strtol(cp, NULL, 10);
 		bcopy(nd->myif.ifra_name, ir.ifr_name, IFNAMSIZ);
@@ -823,6 +827,8 @@ nfs_mount(struct mount *mp)
 	has_fh_opt = 0;
 	has_hostname_opt = 0;
 
+	CURVNET_SET(CRED_TO_VNET(curthread->td_ucred));
+
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
 		goto out;
@@ -1122,6 +1128,7 @@ out:
 		mp->mnt_kern_flag |= (MNTK_MPSAFE|MNTK_LOOKUP_SHARED);
 		MNT_IUNLOCK(mp);
 	}
+	CURVNET_RESTORE();
 	return (error);
 }
 

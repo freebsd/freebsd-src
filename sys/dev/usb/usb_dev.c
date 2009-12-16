@@ -85,6 +85,8 @@ static int usb_fifo_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
 SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW,
     &usb_fifo_debug, 0, "Debug Level");
+
+TUNABLE_INT("hw.usb.dev.debug", &usb_fifo_debug);
 #endif
 
 #if ((__FreeBSD_version >= 700001) || (__FreeBSD_version == 0) || \
@@ -217,7 +219,7 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		 * We need to grab the sx-lock before grabbing the
 		 * FIFO refs to avoid deadlock at detach!
 		 */
-		sx_xlock(cpd->udev->default_sx + 1);
+		usbd_enum_lock(cpd->udev);
 
 		mtx_lock(&usb_ref_lock);
 
@@ -275,14 +277,12 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 	}
 	mtx_unlock(&usb_ref_lock);
 
-	if (crd->is_uref) {
-		mtx_lock(&Giant);	/* XXX */
-	}
 	return (0);
 
 error:
 	if (crd->is_uref) {
-		sx_unlock(cpd->udev->default_sx + 1);
+		usbd_enum_unlock(cpd->udev);
+
 		if (--(cpd->udev->refcount) == 0) {
 			cv_signal(cpd->udev->default_cv + 1);
 		}
@@ -334,10 +334,9 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 
 	DPRINTFN(2, "cpd=%p is_uref=%d\n", cpd, crd->is_uref);
 
-	if (crd->is_uref) {
-		mtx_unlock(&Giant);	/* XXX */
-		sx_unlock(cpd->udev->default_sx + 1);
-	}
+	if (crd->is_uref)
+		usbd_enum_unlock(cpd->udev);
+
 	mtx_lock(&usb_ref_lock);
 	if (crd->is_read) {
 		if (--(crd->rxfifo->refcount) == 0) {
@@ -576,7 +575,7 @@ usb_fifo_free(struct usb_fifo *f)
 	    (f->udev->fifo[f->fifo_index] == f)) {
 		f->udev->fifo[f->fifo_index] = NULL;
 	} else {
-		DPRINTFN(0, "USB FIFO %p has not been linked!\n", f);
+		DPRINTFN(0, "USB FIFO %p has not been linked\n", f);
 	}
 
 	/* decrease refcount */
@@ -740,6 +739,8 @@ usb_fifo_reset(struct usb_fifo *f)
 			break;
 		}
 	}
+	/* reset have fragment flag */
+	f->flag_have_fragment = 0;
 }
 
 /*------------------------------------------------------------------------*
@@ -782,6 +783,16 @@ usb_fifo_close(struct usb_fifo *f, int fflags)
 
 			/* set flushing flag */
 			f->flag_flushing = 1;
+
+			/* get the last packet in */
+			if (f->flag_have_fragment) {
+				struct usb_mbuf *m;
+				f->flag_have_fragment = 0;
+				USB_IF_DEQUEUE(&f->free_q, m);
+				if (m) {
+					USB_IF_ENQUEUE(&f->used_q, m);
+				}
+			}
 
 			/* start write transfer, if not already started */
 			(f->methods->f_start_write) (f);
@@ -941,7 +952,7 @@ usb_dev_init_post(void *arg)
 	usb_dev = make_dev(&usb_static_devsw, 0, UID_ROOT, GID_OPERATOR,
 	    0644, USB_DEVICE_NAME);
 	if (usb_dev == NULL) {
-		DPRINTFN(0, "Could not create usb bus device!\n");
+		DPRINTFN(0, "Could not create usb bus device\n");
 	}
 }
 
@@ -1030,9 +1041,9 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 	 * reference if we need it!
 	 */
 	err = usb_ref_device(cpd, &refs, 0 /* no uref */ );
-	if (err) {
+	if (err)
 		return (ENXIO);
-	}
+
 	fflags = cpd->fflags;
 
 	f = NULL;			/* set default value */
@@ -1303,6 +1314,7 @@ usb_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct usb_cdev_privdata* cpd;
 	struct usb_fifo *f;
 	struct usb_mbuf *m;
+	uint8_t *pdata;
 	int fflags;
 	int resid;
 	int io_len;
@@ -1373,33 +1385,59 @@ usb_write(struct cdev *dev, struct uio *uio, int ioflag)
 		}
 		tr_data = 1;
 
-		USB_MBUF_RESET(m);
-
-		io_len = MIN(m->cur_data_len, uio->uio_resid);
-
-		m->cur_data_len = io_len;
+		if (f->flag_have_fragment == 0) {
+			USB_MBUF_RESET(m);
+			io_len = m->cur_data_len;
+			pdata = m->cur_data_ptr;
+			if (io_len > uio->uio_resid)
+				io_len = uio->uio_resid;
+			m->cur_data_len = io_len;
+		} else {
+			io_len = m->max_data_len - m->cur_data_len;
+			pdata = m->cur_data_ptr + m->cur_data_len;
+			if (io_len > uio->uio_resid)
+				io_len = uio->uio_resid;
+			m->cur_data_len += io_len;
+		}
 
 		DPRINTFN(2, "transfer %d bytes to %p\n",
-		    io_len, m->cur_data_ptr);
+		    io_len, pdata);
 
-		err = usb_fifo_uiomove(f,
-		    m->cur_data_ptr, io_len, uio);
+		err = usb_fifo_uiomove(f, pdata, io_len, uio);
 
 		if (err) {
+			f->flag_have_fragment = 0;
 			USB_IF_ENQUEUE(&f->free_q, m);
 			break;
 		}
-		if (f->methods->f_filter_write) {
-			/*
-			 * Sometimes it is convenient to process data at the
-			 * expense of a userland process instead of a kernel
-			 * process.
-			 */
-			(f->methods->f_filter_write) (f, m);
-		}
-		USB_IF_ENQUEUE(&f->used_q, m);
 
-		(f->methods->f_start_write) (f);
+		/* check if the buffer is ready to be transmitted */
+
+		if ((f->flag_write_defrag == 0) ||
+		    (m->cur_data_len == m->max_data_len)) {
+			f->flag_have_fragment = 0;
+
+			/*
+			 * Check for write filter:
+			 *
+			 * Sometimes it is convenient to process data
+			 * at the expense of a userland process
+			 * instead of a kernel process.
+			 */
+			if (f->methods->f_filter_write) {
+				(f->methods->f_filter_write) (f, m);
+			}
+
+			/* Put USB mbuf in the used queue */
+			USB_IF_ENQUEUE(&f->used_q, m);
+
+			/* Start writing data, if not already started */
+			(f->methods->f_start_write) (f);
+		} else {
+			/* Wait for more data or close */
+			f->flag_have_fragment = 1;
+			USB_IF_PREPEND(&f->free_q, m);
+		}
 
 	} while (uio->uio_resid > 0);
 done:
@@ -2218,6 +2256,18 @@ usb_fifo_set_close_zlp(struct usb_fifo *f, uint8_t onoff)
 
 	/* send a Zero Length Packet, ZLP, before close */
 	f->flag_short = onoff;
+}
+
+void
+usb_fifo_set_write_defrag(struct usb_fifo *f, uint8_t onoff)
+{
+	if (f == NULL)
+		return;
+
+	/* defrag written data */
+	f->flag_write_defrag = onoff;
+	/* reset defrag state */
+	f->flag_have_fragment = 0;
 }
 
 void *

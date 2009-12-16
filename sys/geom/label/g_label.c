@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
-#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <geom/geom.h>
@@ -271,6 +270,10 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	G_LABEL_DEBUG(2, "Tasting %s.", pp->name);
 
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
+
 	if (strcmp(pp->geom->class->name, mp->name) == 0)
 		return (NULL);
 
@@ -312,6 +315,8 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	for (i = 0; g_labels[i] != NULL; i++) {
 		char label[64];
 
+		if (g_labels[i]->ld_enabled == 0)
+			continue;
 		g_topology_unlock();
 		g_labels[i]->ld_taste(cp, label, sizeof(label));
 		g_topology_lock();

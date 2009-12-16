@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -170,6 +169,20 @@ icmp_init(void)
 	V_icmp_rfi = 0;
 	V_icmp_quotelen = 8;
 	V_icmpbmcastecho = 0;
+}
+
+/*
+ * Kernel module interface for updating icmpstat.  The argument is an index
+ * into icmpstat treated as an array of u_long.  While this encodes the
+ * general layout of icmpstat into the caller, it doesn't encode its
+ * location, so that future changes to add, for example, per-CPU stats
+ * support won't cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_icmpstat_inc(int statnum)
+{
+
+	(*((u_long *)&V_icmpstat + statnum))++;
 }
 
 /*
@@ -354,7 +367,7 @@ icmp_input(struct mbuf *m, int off)
 		goto freeit;
 	}
 	i = hlen + min(icmplen, ICMP_ADVLENMIN);
-	if (m->m_len < i && (m = m_pullup(m, i)) == 0)  {
+	if (m->m_len < i && (m = m_pullup(m, i)) == NULL)  {
 		ICMPSTAT_INC(icps_tooshort);
 		return;
 	}

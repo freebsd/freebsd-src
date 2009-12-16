@@ -108,7 +108,8 @@ procfs_attr(PFS_ATTR_ARGS)
 	else if (strcmp(pn->pn_name, "mem") == 0 ||
 	    strcmp(pn->pn_name, "regs") == 0 ||
 	    strcmp(pn->pn_name, "dbregs") == 0 ||
-	    strcmp(pn->pn_name, "fpregs") == 0)
+	    strcmp(pn->pn_name, "fpregs") == 0 ||
+	    strcmp(pn->pn_name, "osrel") == 0)
 		vap->va_mode = 0600;
 
 	if (p != NULL) {
@@ -186,6 +187,8 @@ procfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", procfs_doprocstatus,
 	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "osrel", procfs_doosrel,
+	    procfs_attr, procfs_candebug, NULL, PFS_RDWR);
 
 	pfs_create_link(dir, "file", procfs_doprocfile,
 	    NULL, procfs_notsystem, NULL, 0);

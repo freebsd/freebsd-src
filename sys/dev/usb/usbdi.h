@@ -130,13 +130,22 @@ struct usb_endpoint {
 	struct usb_pipe_methods *methods;	/* set by HC driver */
 
 	uint16_t isoc_next;
-	uint16_t refcount;
 
 	uint8_t	toggle_next:1;		/* next data toggle value */
 	uint8_t	is_stalled:1;		/* set if endpoint is stalled */
 	uint8_t	is_synced:1;		/* set if we a synchronised */
 	uint8_t	unused:5;
 	uint8_t	iface_index;		/* not used by "default endpoint" */
+
+	uint8_t refcount_alloc;		/* allocation refcount */
+	uint8_t refcount_bw;		/* bandwidth refcount */
+#define	USB_EP_REF_MAX 0x3f
+
+	/* High-Speed resource allocation (valid if "refcount_bw" > 0) */
+
+	uint8_t	usb_smask;		/* USB start mask */
+	uint8_t	usb_cmask;		/* USB complete mask */
+	uint8_t	usb_uframe;		/* USB microframe */
 };
 
 /*
@@ -478,6 +487,7 @@ void	usbd_xfer_set_frame_offset(struct usb_xfer *xfer, usb_frlength_t offset,
 usb_frlength_t usbd_xfer_max_len(struct usb_xfer *xfer);
 usb_frlength_t usbd_xfer_max_framelen(struct usb_xfer *xfer);
 usb_frcount_t usbd_xfer_max_frames(struct usb_xfer *xfer);
+uint8_t	usbd_xfer_get_fps_shift(struct usb_xfer *xfer);
 usb_frlength_t usbd_xfer_frame_len(struct usb_xfer *xfer,
 	    usb_frcount_t frindex);
 void	usbd_xfer_set_frame_len(struct usb_xfer *xfer, usb_frcount_t frindex,
@@ -531,5 +541,8 @@ void	usb_fifo_reset(struct usb_fifo *f);
 void	usb_fifo_wakeup(struct usb_fifo *f);
 void	usb_fifo_get_data_error(struct usb_fifo *fifo);
 void	*usb_fifo_softc(struct usb_fifo *fifo);
+void	usb_fifo_set_close_zlp(struct usb_fifo *, uint8_t);
+void	usb_fifo_set_write_defrag(struct usb_fifo *, uint8_t);
+void	usb_fifo_free(struct usb_fifo *f);
 #endif /* _KERNEL */
 #endif /* _USB_USBDI_H_ */

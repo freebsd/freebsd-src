@@ -2556,6 +2556,7 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, int timo)
 	uint32_t flags;
 	int32_t state, oldstate;
 	int32_t blocked_writers;
+	int32_t blocked_readers;
 	int error;
 
 	uq = td->td_umtxq;
@@ -2564,6 +2565,7 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, int timo)
 	if (error != 0)
 		return (error);
 
+	blocked_readers = 0;
 	for (;;) {
 		state = fuword32(__DEVOLATILE(int32_t *, &rwlock->rw_state));
 		while (!(state & URWLOCK_WRITE_OWNER) && URWLOCK_READER_COUNT(state) == 0) {
@@ -2575,8 +2577,18 @@ do_rw_wrlock(struct thread *td, struct urwlock *rwlock, int timo)
 			state = oldstate;
 		}
 
-		if (error)
+		if (error) {
+			if (!(state & (URWLOCK_WRITE_OWNER|URWLOCK_WRITE_WAITERS)) &&
+			    blocked_readers != 0) {
+				umtxq_lock(&uq->uq_key);
+				umtxq_busy(&uq->uq_key);
+				umtxq_signal_queue(&uq->uq_key, INT_MAX, UMTX_SHARED_QUEUE);
+				umtxq_unbusy(&uq->uq_key);
+				umtxq_unlock(&uq->uq_key);
+			}
+
 			break;
+		}
 
 		/* grab monitor lock */
 		umtxq_lock(&uq->uq_key);
@@ -2627,7 +2639,9 @@ sleep:
 					break;
 				state = oldstate;
 			}
-		}
+			blocked_readers = fuword32(&rwlock->rw_blocked_readers);
+		} else
+			blocked_readers = 0;
 
 		umtxq_lock(&uq->uq_key);
 		umtxq_unbusy(&uq->uq_key);

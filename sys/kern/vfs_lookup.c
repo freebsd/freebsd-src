@@ -164,9 +164,9 @@ namei(struct nameidata *ndp)
 
 	/* If we are auditing the kernel pathname, save the user pathname. */
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH1);
+		AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
 	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH2);
+		AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
 
 	/*
 	 * Don't allow empty pathnames.
@@ -203,8 +203,13 @@ namei(struct nameidata *ndp)
 		if (ndp->ni_startdir != NULL) {
 			dp = ndp->ni_startdir;
 			error = 0;
-		} else if (ndp->ni_dirfd != AT_FDCWD)
+		} else if (ndp->ni_dirfd != AT_FDCWD) {
+			if (cnp->cn_flags & AUDITVNODE1)
+				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
+			if (cnp->cn_flags & AUDITVNODE2)
+				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			error = fgetvp(td, ndp->ni_dirfd, &dp);
+		}
 		if (error != 0 || dp != NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			if (error == 0 && dp->v_type != VDIR) {
@@ -547,6 +552,12 @@ dirloop:
 	else
 		cnp->cn_flags &= ~ISLASTCN;
 
+	if ((cnp->cn_flags & ISLASTCN) != 0 &&
+	    cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.' &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)) {
+		error = EINVAL;
+		goto bad;
+	}
 
 	/*
 	 * Check for degenerate name (e.g. / or "")
@@ -569,9 +580,9 @@ dirloop:
 		ndp->ni_vp = dp;
 
 		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG_VNODE(dp, ARG_VNODE1);
+			AUDIT_ARG_VNODE1(dp);
 		else if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG_VNODE(dp, ARG_VNODE2);
+			AUDIT_ARG_VNODE2(dp);
 
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
 			VOP_UNLOCK(dp, 0);
@@ -854,9 +865,9 @@ nextname:
 		VOP_UNLOCK(ndp->ni_dvp, 0);
 
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_VNODE(dp, ARG_VNODE1);
+		AUDIT_ARG_VNODE1(dp);
 	else if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_VNODE(dp, ARG_VNODE2);
+		AUDIT_ARG_VNODE2(dp);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0);

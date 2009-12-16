@@ -59,7 +59,6 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
-#include <sys/vimage.h>
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
@@ -97,8 +96,6 @@ struct ifindex_entry {
 	struct  ifnet *ife_ifnet;
 };
 
-static int slowtimo_started;
-
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
@@ -125,10 +122,9 @@ static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_init(void *);
-static void	if_check(void *);
+static void	if_grow(void);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
-static void	if_slowtimo(void *);
 static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
@@ -155,21 +151,35 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 VNET_DEFINE(int, if_index);
 static VNET_DEFINE(int, if_indexlim) = 8;
 
-/* Table of ifnet by index.  Locked with ifnet_lock. */
+/* Table of ifnet by index. */
 static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
 
 int	ifqmaxlen = IFQ_MAXLEN;
-struct rwlock ifnet_lock;
-static	if_com_alloc_t *if_com_alloc[256];
-static	if_com_free_t *if_com_free[256];
 
 /*
- * System initialization
+ * The global network interface list (V_ifnet) and related state (such as
+ * if_index, if_indexlim, and ifindex_table) are protected by an sxlock and
+ * an rwlock.  Either may be acquired shared to stablize the list, but both
+ * must be acquired writable to modify the list.  This model allows us to
+ * both stablize the interface list during interrupt thread processing, but
+ * also to stablize it over long-running ioctls, without introducing priority
+ * inversions and deadlocks.
  */
-SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL);
+struct rwlock ifnet_rwlock;
+struct sx ifnet_sxlock;
+
+/*
+ * The allocation of network interfaces is a rather non-atomic affair; we
+ * need to select an index before we are ready to expose the interface for
+ * use, so will use this pointer value to indicate reservation.
+ */
+#define	IFNET_HOLD	(void *)(uintptr_t)(-1)
+
+static	if_com_alloc_t *if_com_alloc[256];
+static	if_com_free_t *if_com_free[256];
 
 MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
@@ -181,6 +191,8 @@ ifnet_byindex_locked(u_short idx)
 
 	if (idx > V_if_index)
 		return (NULL);
+	if (V_ifindex_table[idx].ife_ifnet == IFNET_HOLD)
+		return (NULL);
 	return (V_ifindex_table[idx].ife_ifnet);
 }
 
@@ -189,9 +201,9 @@ ifnet_byindex(u_short idx)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	ifp = ifnet_byindex_locked(idx);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
@@ -200,19 +212,71 @@ ifnet_byindex_ref(u_short idx)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	ifp = ifnet_byindex_locked(idx);
 	if (ifp == NULL || (ifp->if_flags & IFF_DYING)) {
-		IFNET_RUNLOCK();
+		IFNET_RUNLOCK_NOSLEEP();
 		return (NULL);
 	}
 	if_ref(ifp);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
+/*
+ * Allocate an ifindex array entry; return 0 on success or an error on
+ * failure.
+ */
+static int
+ifindex_alloc_locked(u_short *idxp)
+{
+	u_short idx;
+
+	IFNET_WLOCK_ASSERT();
+
+	/*
+	 * Try to find an empty slot below V_if_index.  If we fail, take the
+	 * next slot.
+	 */
+	for (idx = 1; idx <= V_if_index; idx++) {
+		if (V_ifindex_table[idx].ife_ifnet == NULL)
+			break;
+	}
+
+	/* Catch if_index overflow. */
+	if (idx < 1)
+		return (ENOSPC);
+	if (idx > V_if_index)
+		V_if_index = idx;
+	if (V_if_index >= V_if_indexlim)
+		if_grow();
+	*idxp = idx;
+	return (0);
+}
+
 static void
-ifnet_setbyindex(u_short idx, struct ifnet *ifp)
+ifindex_free_locked(u_short idx)
+{
+
+	IFNET_WLOCK_ASSERT();
+
+	V_ifindex_table[idx].ife_ifnet = NULL;
+	while (V_if_index > 0 &&
+	    V_ifindex_table[V_if_index].ife_ifnet == NULL)
+		V_if_index--;
+}
+
+static void
+ifindex_free(u_short idx)
+{
+
+	IFNET_WLOCK();
+	ifindex_free_locked(idx);
+	IFNET_WUNLOCK();
+}
+
+static void
+ifnet_setbyindex_locked(u_short idx, struct ifnet *ifp)
 {
 
 	IFNET_WLOCK_ASSERT();
@@ -220,16 +284,25 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 	V_ifindex_table[idx].ife_ifnet = ifp;
 }
 
+static void
+ifnet_setbyindex(u_short idx, struct ifnet *ifp)
+{
+
+	IFNET_WLOCK();
+	ifnet_setbyindex_locked(idx, ifp);
+	IFNET_WUNLOCK();
+}
+
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	ifa = ifnet_byindex_locked(idx)->if_addr;
 	if (ifa != NULL)
 		ifa_ref(ifa);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -277,7 +350,7 @@ VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     vnet_if_uninit, NULL);
 #endif
 
-void
+static void
 if_grow(void)
 {
 	u_int n;
@@ -293,18 +366,6 @@ if_grow(void)
 	V_ifindex_table = e;
 }
 
-static void
-if_check(void *dummy __unused)
-{
-
-	/*
-	 * If at least one interface added during boot uses
-	 * if_watchdog then start the timer.
-	 */
-	if (slowtimo_started)
-		if_slowtimo(0);
-}
-
 /*
  * Allocate a struct ifnet and an index for an interface.  A layer 2
  * common structure will also be allocated if an allocation routine is
@@ -314,36 +375,25 @@ struct ifnet *
 if_alloc(u_char type)
 {
 	struct ifnet *ifp;
+	u_short idx;
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
-
-	/*
-	 * Try to find an empty slot below if_index.  If we fail, take
-	 * the next slot.
-	 *
-	 * XXX: should be locked!
-	 */
-	for (ifp->if_index = 1; ifp->if_index <= V_if_index; ifp->if_index++) {
-		if (ifnet_byindex(ifp->if_index) == NULL)
-			break;
-	}
-	/* Catch if_index overflow. */
-	if (ifp->if_index < 1) {
+	IFNET_WLOCK();
+	if (ifindex_alloc_locked(&idx) != 0) {
+		IFNET_WUNLOCK();
 		free(ifp, M_IFNET);
 		return (NULL);
 	}
-	if (ifp->if_index > V_if_index)
-		V_if_index = ifp->if_index;
-	if (V_if_index >= V_if_indexlim)
-		if_grow();
-
+	ifnet_setbyindex_locked(idx, IFNET_HOLD);
+	IFNET_WUNLOCK();
+	ifp->if_index = idx;
 	ifp->if_type = type;
 	ifp->if_alloctype = type;
-
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
 		if (ifp->if_l2com == NULL) {
 			free(ifp, M_IFNET);
+			ifindex_free(idx);
 			return (NULL);
 		}
 	}
@@ -362,9 +412,7 @@ if_alloc(u_char type)
 	ifq_init(&ifp->if_snd, ifp);
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
-	IFNET_WLOCK();
 	ifnet_setbyindex(ifp->if_index, ifp);
-	IFNET_WUNLOCK();
 	return (ifp);
 }
 
@@ -384,9 +432,7 @@ if_free_internal(struct ifnet *ifp)
 	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
 
-	ifnet_setbyindex(ifp->if_index, NULL);
-	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
-		V_if_index--;
+	ifindex_free_locked(ifp->if_index);
 	IFNET_WUNLOCK();
 
 	if (if_com_free[ifp->if_alloctype] != NULL)
@@ -571,6 +617,21 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
 	}
+#ifdef VIMAGE
+	else {
+		/*
+		 * Update the interface index in the link layer address
+		 * of the interface.
+		 */
+		for (ifa = ifp->if_addr; ifa != NULL;
+		    ifa = TAILQ_NEXT(ifa, ifa_link)) {
+			if (ifa->ifa_addr->sa_family == AF_LINK) {
+				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+				sdl->sdl_index = ifp->if_index;
+			}
+		}
+	}
+#endif
 
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
@@ -588,18 +649,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
-
-	if (!vmove && ifp->if_watchdog != NULL) {
-		if_printf(ifp,
-		    "WARNING: using obsoleted if_watchdog interface\n");
-
-		/*
-		 * Note that we need if_slowtimo().  If this happens after
-		 * boot, then call if_slowtimo() directly.
-		 */
-		if (atomic_cmpset_int(&slowtimo_started, 0, 1) && !cold)
-			if_slowtimo(0);
-	}
 }
 
 static void
@@ -848,6 +897,7 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
+	u_short idx;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -856,43 +906,119 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	if_detach_internal(ifp, 1);
 
 	/*
-	 * Unlink the ifnet from ifindex_table[] in current vnet,
-	 * and shrink the if_index for that vnet if possible.
+	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
+	 * the if_index for that vnet if possible.
+	 *
+	 * NOTE: IFNET_WLOCK/IFNET_WUNLOCK() are assumed to be unvirtualized,
+	 * or we'd lock on one vnet and unlock on another.
 	 */
 	IFNET_WLOCK();
-	ifnet_setbyindex(ifp->if_index, NULL);
-	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
-		V_if_index--;
-	IFNET_WUNLOCK();
+	ifindex_free_locked(ifp->if_index);
 
 	/*
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
 
-	/*
-	 * Try to find an empty slot below if_index.  If we fail, take 
-	 * the next slot.
-	 */
-	IFNET_WLOCK();
-	for (ifp->if_index = 1; ifp->if_index <= V_if_index; ifp->if_index++) {
-		if (ifnet_byindex_locked(ifp->if_index) == NULL)
-			break;
-	}
-	/* Catch if_index overflow. */
-	if (ifp->if_index < 1)
+	if (ifindex_alloc_locked(&idx) != 0) {
+		IFNET_WUNLOCK();
 		panic("if_index overflow");
-
-	if (ifp->if_index > V_if_index)
-		V_if_index = ifp->if_index;
-	if (V_if_index >= V_if_indexlim)
-		if_grow();
-	ifnet_setbyindex(ifp->if_index, ifp);
+	}
+	ifp->if_index = idx;
+	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
 	if_attach_internal(ifp, 1);
 
 	CURVNET_RESTORE();
+}
+
+/*
+ * Move an ifnet to or from another child prison/vnet, specified by the jail id.
+ */
+static int
+if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
+{
+	struct prison *pr;
+	struct ifnet *difp;
+
+	/* Try to find the prison within our visibility. */
+	sx_slock(&allprison_lock);
+	pr = prison_find_child(td->td_ucred->cr_prison, jid);
+	sx_sunlock(&allprison_lock);
+	if (pr == NULL)
+		return (ENXIO);
+	prison_hold_locked(pr);
+	mtx_unlock(&pr->pr_mtx);
+
+	/* Do not try to move the iface from and to the same prison. */
+	if (pr->pr_vnet == ifp->if_vnet) {
+		prison_free(pr);
+		return (EEXIST);
+	}
+
+	/* Make sure the named iface does not exists in the dst. prison/vnet. */
+	/* XXX Lock interfaces to avoid races. */
+	CURVNET_SET_QUIET(pr->pr_vnet);
+	difp = ifunit(ifname);
+	CURVNET_RESTORE();
+	if (difp != NULL) {
+		prison_free(pr);
+		return (EEXIST);
+	}
+
+	/* Move the interface into the child jail/vnet. */
+	if_vmove(ifp, pr->pr_vnet);
+
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
+
+	prison_free(pr);
+	return (0);
+}
+
+static int
+if_vmove_reclaim(struct thread *td, char *ifname, int jid)
+{
+	struct prison *pr;
+	struct vnet *vnet_dst;
+	struct ifnet *ifp;
+
+	/* Try to find the prison within our visibility. */
+	sx_slock(&allprison_lock);
+	pr = prison_find_child(td->td_ucred->cr_prison, jid);
+	sx_sunlock(&allprison_lock);
+	if (pr == NULL)
+		return (ENXIO);
+	prison_hold_locked(pr);
+	mtx_unlock(&pr->pr_mtx);
+
+	/* Make sure the named iface exists in the source prison/vnet. */
+	CURVNET_SET(pr->pr_vnet);
+	ifp = ifunit(ifname);		/* XXX Lock to avoid races. */
+	if (ifp == NULL) {
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (ENXIO);
+	}
+
+	/* Do not try to move the iface from and to the same prison. */
+	vnet_dst = TD_TO_VNET(td);
+	if (vnet_dst == ifp->if_vnet) {
+		CURVNET_RESTORE();
+		prison_free(pr);
+		return (EEXIST);
+	}
+
+	/* Get interface back from child jail/vnet. */
+	if_vmove(ifp, vnet_dst);
+	CURVNET_RESTORE();
+
+	/* Report the new if_xname back to the userland. */
+	sprintf(ifname, "%s", ifp->if_xname);
+
+	prison_free(pr);
+	return (0);
 }
 #endif /* VIMAGE */
 
@@ -1255,6 +1381,59 @@ ifa_free(struct ifaddr *ifa)
 	}
 }
 
+int
+ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+{
+	int error = 0;
+	struct rtentry *rt = NULL;
+	struct rt_addrinfo info;
+	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+
+	bzero(&info, sizeof(info));
+	info.rti_ifp = V_loif;
+	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
+	info.rti_info[RTAX_DST] = ia;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+	error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+
+	if (error == 0 && rt != NULL) {
+		RT_LOCK(rt);
+		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
+			ifa->ifa_ifp->if_type;
+		((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+			ifa->ifa_ifp->if_index;
+		RT_REMREF(rt);
+		RT_UNLOCK(rt);
+	} else if (error != 0)
+		log(LOG_INFO, "ifa_add_loopback_route: insertion failed\n");
+
+	return (error);
+}
+
+int
+ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+{
+	int error = 0;
+	struct rt_addrinfo info;
+	struct sockaddr_dl null_sdl;
+
+	bzero(&null_sdl, sizeof(null_sdl));
+	null_sdl.sdl_len = sizeof(null_sdl);
+	null_sdl.sdl_family = AF_LINK;
+	null_sdl.sdl_type = ifa->ifa_ifp->if_type;
+	null_sdl.sdl_index = ifa->ifa_ifp->if_index;
+	bzero(&info, sizeof(info));
+	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
+	info.rti_info[RTAX_DST] = ia;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+
+	if (error != 0)
+		log(LOG_INFO, "ifa_del_loopback_route: deletion failed\n");
+
+	return (error);
+}
+
 /*
  * XXX: Because sockaddr_dl has deeper structure than the sockaddr
  * structs used to represent other address families, it is necessary
@@ -1281,7 +1460,7 @@ ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1308,7 +1487,7 @@ ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
 	}
 	ifa = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -1336,7 +1515,7 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1355,7 +1534,7 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 	}
 	ifa = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -1369,7 +1548,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			continue;
@@ -1388,7 +1567,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	}
 	ifa = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -1421,7 +1600,7 @@ ifa_ifwithnet(struct sockaddr *addr)
 	 * we find one, as we release the IF_ADDR_LOCK() that kept it stable
 	 * when we move onto the next interface.
 	 */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1497,7 +1676,7 @@ next:				continue;
 	ifa = ifa_maybe;
 	ifa_maybe = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	if (ifa_maybe != NULL)
 		ifa_free(ifa_maybe);
 	return (ifa);
@@ -1761,39 +1940,6 @@ if_qflush(struct ifnet *ifp)
 }
 
 /*
- * Handle interface watchdog timer routines.  Called
- * from softclock, we decrement timers (if set) and
- * call the appropriate interface routine on expiration.
- *
- * XXXRW: Note that because timeouts run with Giant, if_watchdog() is called
- * holding Giant.
- */
-static void
-if_slowtimo(void *arg)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct ifnet *ifp;
-	int s = splimp();
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	IFNET_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			if (ifp->if_timer == 0 || --ifp->if_timer)
-				continue;
-			if (ifp->if_watchdog)
-				(*ifp->if_watchdog)(ifp);
-		}
-		CURVNET_RESTORE();
-	}
-	IFNET_RUNLOCK();
-	VNET_LIST_RUNLOCK_NOSLEEP();
-	splx(s);
-	timeout(if_slowtimo, (void *)0, hz / IFNET_SLOWHZ);
-}
-
-/*
  * Map interface name to interface structure pointer, with or without
  * returning a reference.
  */
@@ -1802,7 +1948,7 @@ ifunit_ref(const char *name)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0 &&
 		    !(ifp->if_flags & IFF_DYING))
@@ -1810,7 +1956,7 @@ ifunit_ref(const char *name)
 	}
 	if (ifp != NULL)
 		if_ref(ifp);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
@@ -1819,12 +1965,12 @@ ifunit(const char *name)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0)
 			break;
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
@@ -1990,7 +2136,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFVNET);
 		if (error)
 			return (error);
-		error = vi_if_move(td, ifp, ifr->ifr_name, ifr->ifr_jid);
+		error = if_vmove_loan(td, ifp, ifr->ifr_name, ifr->ifr_jid);
 		break;
 #endif
 
@@ -2184,7 +2330,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFVNET);
 		if (error)
 			return (error);
-		return (vi_if_move(td, NULL, ifr->ifr_name, ifr->ifr_jid));
+		return (if_vmove_reclaim(td, ifr->ifr_name, ifr->ifr_jid));
 #endif
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:
@@ -2434,7 +2580,7 @@ again:
 	max_len = 0;
 	valid_len = 0;
 
-	IFNET_RLOCK();		/* could sleep XXX */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs;
 
@@ -2759,13 +2905,13 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 #ifdef INVARIANTS
 	struct ifnet *oifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(oifp, &V_ifnet, if_link)
 		if (ifp == oifp)
 			break;
 	if (ifp != oifp)
 		ifp = NULL;
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	KASSERT(ifp != NULL, ("%s: ifnet went away", __func__));
 #endif
@@ -2808,7 +2954,7 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 	} else {
 		struct ifnet *oifp;
 
-		IFNET_RLOCK();
+		IFNET_RLOCK_NOSLEEP();
 		TAILQ_FOREACH(oifp, &V_ifnet, if_link)
 			if (ifp == oifp)
 				break;
@@ -2816,7 +2962,7 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 			printf("%s: ifnet %p disappeared\n", __func__, ifp);
 			ifp = NULL;
 		}
-		IFNET_RUNLOCK();
+		IFNET_RUNLOCK_NOSLEEP();
 	}
 #endif
 	/*

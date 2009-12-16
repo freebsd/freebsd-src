@@ -78,7 +78,6 @@
 #include <sys/priv.h>
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
-#include <sys/vimage.h>
 #include <fs/fifofs/fifo.h>
 #include <net/if.h>
 #include <net/radix.h>
@@ -126,11 +125,7 @@
 #define	NFSPROC_T	struct thread
 #define	NFSDEV_T	dev_t
 #define	NFSSVCARGS	nfssvc_args
-#ifdef NFS4_ACL_EXTATTR_NAME
 #define	NFSACL_T	struct acl
-#else
-#define	NFSACL_T	void
-#endif
 
 /*
  * These should be defined as the types used for the corresponding VOP's

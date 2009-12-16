@@ -49,10 +49,6 @@ opensolaris_load(void *dummy)
 {
 	int i;
 
-	printf("This module (opensolaris) contains code covered by the\n");
-	printf("Common Development and Distribution License (CDDL)\n");
-	printf("see http://opensolaris.org/os/licensing/opensolaris_license/\n");
-
 	/*
 	 * "Enable" all CPUs even though they may not exist just so
 	 * that the asserts work. On FreeBSD, if a CPU exists, it is

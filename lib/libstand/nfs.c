@@ -3,7 +3,7 @@
 /*-
  *  Copyright (c) 1993 John Brezak
  *  All rights reserved.
- * 
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
@@ -14,7 +14,7 @@
  *     documentation and/or other materials provided with the distribution.
  *  3. The name of the author may not be used to endorse or promote products
  *     derived from this software without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR `AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -147,10 +147,7 @@ struct fs_ops nfs_fsops = {
  * Return zero or error number.
  */
 int
-nfs_getrootfh(d, path, fhp)
-	struct iodesc *d;
-	char *path;
-	u_char *fhp;
+nfs_getrootfh(struct iodesc *d, char *path, u_char *fhp)
 {
 	int len;
 	struct args {
@@ -170,7 +167,7 @@ nfs_getrootfh(d, path, fhp)
 		struct repl d;
 	} rdata;
 	size_t cc;
-	
+
 #ifdef NFS_DEBUG
 	if (debug)
 		printf("nfs_getrootfh: %s\n", path);
@@ -206,10 +203,7 @@ nfs_getrootfh(d, path, fhp)
  * Return zero or error number.
  */
 int
-nfs_lookupfh(d, name, newfd)
-	struct nfs_iodesc *d;
-	const char *name;
-	struct nfs_iodesc *newfd;
+nfs_lookupfh(struct nfs_iodesc *d, const char *name, struct nfs_iodesc *newfd)
 {
 	int len, rlen;
 	struct args {
@@ -231,7 +225,7 @@ nfs_lookupfh(d, name, newfd)
 		struct repl d;
 	} rdata;
 	ssize_t cc;
-	
+
 #ifdef NFS_DEBUG
 	if (debug)
 		printf("lookupfh: called\n");
@@ -272,9 +266,7 @@ nfs_lookupfh(d, name, newfd)
  * Get the destination of a symbolic link.
  */
 int
-nfs_readlink(d, buf)
-	struct nfs_iodesc *d;
-	char *buf;
+nfs_readlink(struct nfs_iodesc *d, char *buf)
 {
 	struct {
 		n_long	h[RPC_HEADER_WORDS];
@@ -300,7 +292,7 @@ nfs_readlink(d, buf)
 
 	if (cc < 4)
 		return (EIO);
-	
+
 	if (rdata.d.errno)
 		return (ntohl(rdata.d.errno));
 
@@ -319,11 +311,7 @@ nfs_readlink(d, buf)
  * Return transfer count or -1 (and set errno)
  */
 ssize_t
-nfs_readdata(d, off, addr, len)
-	struct nfs_iodesc *d;
-	off_t off;
-	void *addr;
-	size_t len;
+nfs_readdata(struct nfs_iodesc *d, off_t off, void *addr, size_t len)
 {
 	struct nfs_read_args *args;
 	struct nfs_read_repl *repl;
@@ -381,9 +369,7 @@ nfs_readdata(d, off, addr, len)
  * return zero or error number
  */
 int
-nfs_open(upath, f)
-	const char *upath;
-	struct open_file *f;
+nfs_open(const char *upath, struct open_file *f)
 {
 	struct iodesc *desc;
 	struct nfs_iodesc *currfd;
@@ -475,18 +461,18 @@ nfs_open(upath, f)
 			error = ENOTDIR;
 			goto out;
 		}
-		
+
 		/* allocate file system specific data structure */
 		newfd = malloc(sizeof(*newfd));
 		newfd->iodesc = currfd->iodesc;
 		newfd->off = 0;
-	
+
 		/*
 		 * Get next component of path name.
 		 */
 		{
 			int len = 0;
-			
+
 			ncp = cp;
 			while ((c = *cp) != '\0' && c != '/') {
 				if (++len > NFS_MAXNAMLEN) {
@@ -497,19 +483,19 @@ nfs_open(upath, f)
 			}
 			*cp = '\0';
 		}
-		
+
 		/* lookup a file handle */
 		error = nfs_lookupfh(currfd, ncp, newfd);
 		*cp = c;
 		if (error)
 			goto out;
-		
+
 		/*
 		 * Check for symbolic link
 		 */
 		if (newfd->fa.fa_type == htonl(NFLNK)) {
 			int link_len, len;
-			
+
 			error = nfs_readlink(newfd, linkbuf);
 			if (error)
 				goto out;
@@ -525,7 +511,7 @@ nfs_open(upath, f)
 
 			bcopy(cp, &namebuf[link_len], len + 1);
 			bcopy(linkbuf, namebuf, link_len);
-			
+
 			/*
 			 * If absolute pathname, restart at root.
 			 * If relative pathname, restart at parent directory.
@@ -539,10 +525,10 @@ nfs_open(upath, f)
 
 			free(newfd);
 			newfd = 0;
-			
+
 			continue;
 		}
-		
+
 		if (currfd != &nfs_root_node)
 			free(currfd);
 		currfd = newfd;
@@ -568,7 +554,7 @@ out:
 		f->f_fsdata = (void *)currfd;
 		return (0);
 	}
-		
+
 #ifdef NFS_DEBUG
 	if (debug)
 		printf("nfs_open: %s lookupfh failed: %s\n",
@@ -583,8 +569,7 @@ out:
 }
 
 int
-nfs_close(f)
-	struct open_file *f;
+nfs_close(struct open_file *f)
 {
 	struct nfs_iodesc *fp = (struct nfs_iodesc *)f->f_fsdata;
 
@@ -596,7 +581,7 @@ nfs_close(f)
 	if (fp != &nfs_root_node && fp)
 		free(fp);
 	f->f_fsdata = (void *)0;
-	
+
 	return (0);
 }
 
@@ -604,16 +589,12 @@ nfs_close(f)
  * read a portion of a file
  */
 int
-nfs_read(f, buf, size, resid)
-	struct open_file *f;
-	void *buf;
-	size_t size;
-	size_t *resid;	/* out */
+nfs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 {
 	struct nfs_iodesc *fp = (struct nfs_iodesc *)f->f_fsdata;
 	ssize_t cc;
 	char *addr = buf;
-	
+
 #ifdef NFS_DEBUG
 	if (debug)
 		printf("nfs_read: size=%lu off=%d\n", (u_long)size,
@@ -652,20 +633,13 @@ ret:
  * Not implemented.
  */
 int
-nfs_write(f, buf, size, resid)
-	struct open_file *f;
-	void *buf;
-	size_t size;
-	size_t *resid;	/* out */
+nfs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
 {
 	return (EROFS);
 }
 
 off_t
-nfs_seek(f, offset, where)
-	struct open_file *f;
-	off_t offset;
-	int where;
+nfs_seek(struct open_file *f, off_t offset, int where)
 {
 	struct nfs_iodesc *d = (struct nfs_iodesc *)f->f_fsdata;
 	n_long size = ntohl(d->fa.fa_size);
@@ -693,9 +667,7 @@ int nfs_stat_types[8] = {
 	0, S_IFREG, S_IFDIR, S_IFBLK, S_IFCHR, S_IFLNK, 0 };
 
 int
-nfs_stat(f, sb)
-	struct open_file *f;
-	struct stat *sb;
+nfs_stat(struct open_file *f, struct stat *sb)
 {
 	struct nfs_iodesc *fp = (struct nfs_iodesc *)f->f_fsdata;
 	n_long ftype, mode;
@@ -724,7 +696,7 @@ nfs_readdir(struct open_file *f, struct dirent *d)
 	static n_long cookie = 0;
 	size_t cc;
 	n_long eof;
-	
+
 	struct {
 		n_long h[RPC_HEADER_WORDS];
 		struct nfs_readdir_args d;
@@ -742,7 +714,7 @@ nfs_readdir(struct open_file *f, struct dirent *d)
 		bcopy(fp->fh, args->fh, NFS_FHSIZE);
 		args->cookie = htonl(cookie);
 		args->count  = htonl(NFS_READDIRSIZE);
-		
+
 		cc = rpc_call(fp->iodesc, NFS_PROG, NFS_VER2, NFSPROC_READDIR,
 			      args, sizeof(*args),
 			      rdata.d, sizeof(rdata.d));

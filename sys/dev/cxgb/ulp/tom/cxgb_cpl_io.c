@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/priv.h>
 
-#if __FreeBSD_version >= 800044
-#include <sys/vimage.h>
-#else
+#if __FreeBSD_version < 800044
 #define V_tcp_do_autosndbuf tcp_do_autosndbuf
 #define V_tcp_autosndbuf_max tcp_autosndbuf_max
 #define V_tcp_do_rfc1323 tcp_do_rfc1323
@@ -3823,7 +3821,7 @@ socket_act_establish(struct socket *so, struct mbuf *m)
 #endif
 
 	toep->tp_state = tp->t_state;
-	TCPSTAT_INC(tcps_connects);
+	KMOD_TCPSTAT_INC(tcps_connects);
 				
 }
 

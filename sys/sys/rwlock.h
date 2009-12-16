@@ -55,13 +55,6 @@
  *
  * When the lock is not locked by any thread, it is encoded as a read lock
  * with zero waiters.
- *
- * A note about memory barriers.  Write locks need to use the same memory
- * barriers as mutexes: _acq when acquiring a write lock and _rel when
- * releasing a write lock.  Read locks also need to use an _acq barrier when
- * acquiring a read lock.  However, since read locks do not update any
- * locked data (modulo bugs of course), no memory barrier is needed when
- * releasing a read lock.
  */
 
 #define	RW_LOCK_READ		0x01

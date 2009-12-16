@@ -306,7 +306,7 @@ fe_pccard_xircom_mac(const struct pccard_tuple *tuple, void *argp)
  * Probe and initialization for TDK/CONTEC PCMCIA Ethernet interface.
  * by MASUI Kenji <masui@cs.titech.ac.jp>
  *
- * (Contec uses TDK Ethenet chip -- hosokawa)
+ * (Contec uses TDK Ethernet chip -- hosokawa)
  *
  * This version of fe_probe_tdk has been rewrote to handle
  * *generic* PC Card implementation of Fujitsu MB8696x family.  The

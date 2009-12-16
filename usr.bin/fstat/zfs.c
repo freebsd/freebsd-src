@@ -114,7 +114,7 @@ zfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 		warnx("can't read mount at %p", (void *)mountptr);
 		goto bad;
 	}
-	vn->vn_fsid = (long)mount.mnt_stat.f_fsid.val[0];
+	vn->vn_fsid = mount.mnt_stat.f_fsid.val[0];
 	vn->vn_fileid = *zid;
 	/*
 	 * XXX: Shows up wrong in output, but UFS has this error too. Could

@@ -476,9 +476,15 @@
 #define	PRIV_C4B_TRACE		651	/* Unrestricted CAPI message tracing. */
 
 /*
+ * OpenAFS privileges.
+ */
+#define	PRIV_AFS_ADMIN		660	/* Can change AFS client settings. */
+#define	PRIV_AFS_DAEMON		661	/* Can become the AFS daemon. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		652
+#define	_PRIV_HIGHEST		662
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

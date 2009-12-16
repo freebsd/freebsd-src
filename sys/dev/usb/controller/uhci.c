@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/uhci.h>
+#include <dev/usb/controller/uhcireg.h>
 
 #define	alt_next next
 #define	UHCI_BUS2SC(bus) \
@@ -90,6 +91,10 @@ SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW,
     &uhcidebug, 0, "uhci debug level");
 SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW,
     &uhcinoloop, 0, "uhci noloop");
+
+TUNABLE_INT("hw.usb.uhci.debug", &uhcidebug);
+TUNABLE_INT("hw.usb.uhci.loop", &uhcinoloop);
+
 static void uhci_dumpregs(uhci_softc_t *sc);
 static void uhci_dump_tds(uhci_td_t *td);
 
@@ -3251,4 +3256,5 @@ struct usb_bus_methods uhci_bus_methods =
 	.device_suspend = uhci_device_suspend,
 	.set_hw_power = uhci_set_hw_power,
 	.roothub_exec = uhci_roothub_exec,
+	.xfer_poll = uhci_do_poll,
 };

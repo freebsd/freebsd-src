@@ -36,7 +36,6 @@
 #include <sys/random.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/vimage.h>
 
 #include <sys/md5.h>
 
@@ -44,6 +43,7 @@
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>

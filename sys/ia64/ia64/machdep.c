@@ -101,6 +101,8 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/include/specialreg.h>
 
+SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
+
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;
 u_int64_t itc_frequency;
@@ -139,8 +141,6 @@ SYSCTL_STRING(_hw, OID_AUTO, family, CTLFLAG_RD, cpu_family, 0,
 extern vm_offset_t ksym_start, ksym_end;
 #endif
 
-static void cpu_startup(void *);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 struct msgbuf *msgbufp = NULL;
 
@@ -247,9 +247,11 @@ identifycpu(void)
 }
 
 static void
-cpu_startup(dummy)
-	void *dummy;
+cpu_startup(void *dummy)
 {
+	char nodename[16];
+	struct pcpu *pc;
+	struct pcpu_stats *pcs;
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -302,7 +304,68 @@ cpu_startup(dummy)
 	 */
 	ia64_probe_sapics();
 	ia64_mca_init();
+
+	/*
+	 * Create sysctl tree for per-CPU information.
+	 */
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		snprintf(nodename, sizeof(nodename), "%u", pc->pc_cpuid);
+		sysctl_ctx_init(&pc->pc_md.sysctl_ctx);
+		pc->pc_md.sysctl_tree = SYSCTL_ADD_NODE(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_STATIC_CHILDREN(_machdep_cpu), OID_AUTO, nodename,
+		    CTLFLAG_RD, NULL, "");
+		if (pc->pc_md.sysctl_tree == NULL)
+			continue;
+
+		pcs = &pc->pc_md.stats;
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nasts", CTLFLAG_RD, &pcs->pcs_nasts,
+		    "Number of IPI_AST interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nclks", CTLFLAG_RD, &pcs->pcs_nclks,
+		    "Number of clock interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nextints", CTLFLAG_RD, &pcs->pcs_nextints,
+		    "Number of ExtINT interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhighfps", CTLFLAG_RD, &pcs->pcs_nhighfps,
+		    "Number of IPI_HIGH_FP interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nhwints", CTLFLAG_RD, &pcs->pcs_nhwints,
+		    "Number of hardware (device) interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "npreempts", CTLFLAG_RD, &pcs->pcs_npreempts,
+		    "Number of IPI_PREEMPT interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nrdvs", CTLFLAG_RD, &pcs->pcs_nrdvs,
+		    "Number of IPI_RENDEZVOUS interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nstops", CTLFLAG_RD, &pcs->pcs_nstops,
+		    "Number of IPI_STOP interrupts");
+
+		SYSCTL_ADD_ULONG(&pc->pc_md.sysctl_ctx,
+		    SYSCTL_CHILDREN(pc->pc_md.sysctl_tree), OID_AUTO,
+		    "nstrays", CTLFLAG_RD, &pcs->pcs_nstrays,
+		    "Number of stray vectors");
+	}
 }
+SYSINIT(cpu_startup, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 void
 cpu_boot(int howto)
@@ -424,7 +487,11 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 
-	pcpu->pc_acpi_id = cpuid;
+	/*
+	 * Set pc_acpi_id to "uninitialized".
+	 * See sys/dev/acpica/acpi_cpu.c
+	 */
+	pcpu->pc_acpi_id = 0xffffffff;
 }
 
 void
@@ -855,14 +922,14 @@ ia64_init(void)
 	return (ret);
 }
 
-__volatile void *
+void *
 ia64_ioport_address(u_int port)
 {
 	uint64_t addr;
 
 	addr = (port > 0xffff) ? IA64_PHYS_TO_RR6((uint64_t)port) :
 	    ia64_port_base | ((port & 0xfffc) << 10) | (port & 0xFFF);
-	return ((__volatile void *)addr);
+	return ((void *)addr);
 }
 
 uint64_t
@@ -1052,11 +1119,9 @@ sigreturn(struct thread *td,
 {
 	ucontext_t uc;
 	struct trapframe *tf;
-	struct proc *p;
 	struct pcb *pcb;
 
 	tf = td->td_frame;
-	p = td->td_proc;
 	pcb = td->td_pcb;
 
 	/*
@@ -1068,17 +1133,13 @@ sigreturn(struct thread *td,
 
 	set_mcontext(td, &uc.uc_mcontext);
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (sigonstack(tf->tf_special.sp))
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
 }
@@ -1461,81 +1522,6 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	restore_callee_saved_fp(&fpregs->fpr_preserved);
 	pcb->pcb_high_fp = fpregs->fpr_high;
 	return (0);
-}
-
-/*
- * High FP register functions.
- */
-
-int
-ia64_highfp_drop(struct thread *td)
-{
-	struct pcb *pcb;
-	struct pcpu *cpu;
-	struct thread *thr;
-
-	mtx_lock_spin(&td->td_md.md_highfp_mtx);
-	pcb = td->td_pcb;
-	cpu = pcb->pcb_fpcpu;
-	if (cpu == NULL) {
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		return (0);
-	}
-	pcb->pcb_fpcpu = NULL;
-	thr = cpu->pc_fpcurthread;
-	cpu->pc_fpcurthread = NULL;
-	mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-
-	/* Post-mortem sanity checking. */
-	KASSERT(thr == td, ("Inconsistent high FP state"));
-	return (1);
-}
-
-int
-ia64_highfp_save(struct thread *td)
-{
-	struct pcb *pcb;
-	struct pcpu *cpu;
-	struct thread *thr;
-
-	/* Don't save if the high FP registers weren't modified. */
-	if ((td->td_frame->tf_special.psr & IA64_PSR_MFH) == 0)
-		return (ia64_highfp_drop(td));
-
-	mtx_lock_spin(&td->td_md.md_highfp_mtx);
-	pcb = td->td_pcb;
-	cpu = pcb->pcb_fpcpu;
-	if (cpu == NULL) {
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		return (0);
-	}
-#ifdef SMP
-	if (td == curthread)
-		sched_pin();
-	if (cpu != pcpup) {
-		mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-		ipi_send(cpu, IPI_HIGH_FP);
-		if (td == curthread)
-			sched_unpin();
-		while (pcb->pcb_fpcpu == cpu)
-			DELAY(100);
-		return (1);
-	} else {
-		save_high_fp(&pcb->pcb_high_fp);
-		if (td == curthread)
-			sched_unpin();
-	}
-#else
-	save_high_fp(&pcb->pcb_high_fp);
-#endif
-	pcb->pcb_fpcpu = NULL;
-	thr = cpu->pc_fpcurthread;
-	cpu->pc_fpcurthread = NULL;
-	mtx_unlock_spin(&td->td_md.md_highfp_mtx);
-
-	/* Post-mortem sanity cxhecking. */
-	KASSERT(thr == td, ("Inconsistent high FP state"));
-	return (1);
 }
 
 void

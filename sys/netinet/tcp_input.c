@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
@@ -58,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #define TCPSTATES		/* for logging */
 
@@ -180,26 +180,6 @@ int	tcp_read_locking = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, read_locking, CTLFLAG_RW,
     &tcp_read_locking, 0, "Enable read locking strategy");
 
-int	tcp_rlock_atfirst;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, rlock_atfirst, CTLFLAG_RD,
-    &tcp_rlock_atfirst, 0, "");
-
-int	tcp_wlock_atfirst;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_wlock_atfirst, CTLFLAG_RD,
-    &tcp_wlock_atfirst, 0, "");
-
-int	tcp_wlock_upgraded;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_upgraded, CTLFLAG_RD,
-    &tcp_wlock_upgraded, 0, "");
-
-int	tcp_wlock_relocked;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_relocked, CTLFLAG_RD,
-    &tcp_wlock_relocked, 0, "");
-
-int	tcp_wlock_looped;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, wlock_looped, CTLFLAG_RD,
-    &tcp_wlock_looped, 0, "");
-
 VNET_DEFINE(struct inpcbhead, tcb);
 VNET_DEFINE(struct inpcbinfo, tcbinfo);
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
@@ -216,6 +196,20 @@ static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 static void inline
 		 tcp_congestion_exp(struct tcpcb *);
+
+/*
+ * Kernel module interface for updating tcpstat.  The argument is an index
+ * into tcpstat treated as an array of u_long.  While this encodes the
+ * general layout of tcpstat into the caller, it doesn't encode its location,
+ * so that future changes to add, for example, per-CPU stats support won't
+ * cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_tcpstat_inc(int statnum)
+{
+
+	(*((u_long *)&V_tcpstat + statnum))++;
+}
 
 static void inline
 tcp_congestion_exp(struct tcpcb *tp)
@@ -491,11 +485,9 @@ tcp_input(struct mbuf *m, int off0)
 	    tcp_read_locking == 0) {
 		INP_INFO_WLOCK(&V_tcbinfo);
 		ti_locked = TI_WLOCKED;
-		tcp_wlock_atfirst++;
 	} else {
 		INP_INFO_RLOCK(&V_tcbinfo);
 		ti_locked = TI_RLOCKED;
-		tcp_rlock_atfirst++;
 	}
 
 findpcb:
@@ -634,6 +626,7 @@ findpcb:
 	 * tried to free the inpcb, in which case we need to loop back and
 	 * try to find a new inpcb to deliver to.
 	 */
+relocked:
 	if (inp->inp_flags & INP_TIMEWAIT) {
 		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
 		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
@@ -647,15 +640,11 @@ findpcb:
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
 				if (in_pcbrele(inp)) {
-					tcp_wlock_looped++;
 					inp = NULL;
 					goto findpcb;
 				}
-				tcp_wlock_relocked++;
-			} else {
+			} else
 				ti_locked = TI_WLOCKED;
-				tcp_wlock_upgraded++;
-			}
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 
@@ -684,7 +673,8 @@ findpcb:
 	 * We've identified a valid inpcb, but it could be that we need an
 	 * inpcbinfo write lock and have only a read lock.  In this case,
 	 * attempt to upgrade/relock using the same strategy as the TIMEWAIT
-	 * case above.
+	 * case above.  If we relock, we have to jump back to 'relocked' as
+	 * the connection might now be in TIMEWAIT.
 	 */
 	if (tp->t_state != TCPS_ESTABLISHED ||
 	    (thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
@@ -701,15 +691,12 @@ findpcb:
 				ti_locked = TI_WLOCKED;
 				INP_WLOCK(inp);
 				if (in_pcbrele(inp)) {
-					tcp_wlock_looped++;
 					inp = NULL;
 					goto findpcb;
 				}
-				tcp_wlock_relocked++;
-			} else {
+				goto relocked;
+			} else
 				ti_locked = TI_WLOCKED;
-				tcp_wlock_upgraded++;
-			}
 		}
 		INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	}
@@ -758,6 +745,7 @@ findpcb:
 		}
 		inc.inc_fport = th->th_sport;
 		inc.inc_lport = th->th_dport;
+		inc.inc_fibnum = so->so_fibnum;
 
 		/*
 		 * Check for an existing connection attempt in syncache if

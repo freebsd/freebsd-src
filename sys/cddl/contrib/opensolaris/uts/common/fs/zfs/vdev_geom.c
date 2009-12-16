@@ -194,6 +194,10 @@ vdev_geom_worker(void *arg)
 	zio_t *zio;
 	struct bio *bp;
 
+	thread_lock(curthread);
+	sched_prio(curthread, PRIBIO);
+	thread_unlock(curthread);
+
 	ctx = arg;
 	for (;;) {
 		mtx_lock(&ctx->gc_queue_mtx);
@@ -203,7 +207,7 @@ vdev_geom_worker(void *arg)
 				ctx->gc_state = 2;
 				wakeup_one(&ctx->gc_state);
 				mtx_unlock(&ctx->gc_queue_mtx);
-				kproc_exit(0);
+				kthread_exit();
 			}
 			msleep(&ctx->gc_queue, &ctx->gc_queue_mtx,
 			    PRIBIO | PDROP, "vgeom:io", 0);
@@ -289,11 +293,16 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	uint64_t psize;
 	off_t offset, size;
 	uint64_t guid;
-	int error, l, len;
+	int error, l, len, iszvol;
 
 	g_topology_assert_not();
 
 	pp = cp->provider;
+	ZFS_LOG(1, "Reading guid from %s...", pp->name);
+	if (g_getattr("ZFS::iszvol", cp, &iszvol) == 0 && iszvol) {
+		ZFS_LOG(1, "Skipping ZVOL-based provider %s.", pp->name);
+		return (0);
+	}
 
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
@@ -312,8 +321,7 @@ vdev_geom_read_guid(struct g_consumer *cp)
 		if ((offset % pp->sectorsize) != 0)
 			continue;
 
-		error = vdev_geom_io(cp, BIO_READ, label, offset, size);
-		if (error != 0)
+		if (vdev_geom_io(cp, BIO_READ, label, offset, size) != 0)
 			continue;
 		buf = label->vl_vdev_phys.vp_nvlist;
 
@@ -429,7 +437,7 @@ vdev_geom_open_by_guid(vdev_t *vd)
 	if (cp != NULL) {
 		len = strlen(cp->provider->name) + strlen("/dev/") + 1;
 		buf = kmem_alloc(len, KM_SLEEP);
-	
+
 		snprintf(buf, len, "/dev/%s", cp->provider->name);
 		spa_strfree(vd->vdev_path);
 		vd->vdev_path = buf;
@@ -498,7 +506,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 
 	if ((owned = mtx_owned(&Giant)))
 		mtx_unlock(&Giant);
-	cp = vdev_geom_open_by_path(vd, 0);
+	cp = vdev_geom_open_by_path(vd, 1);
 	if (cp == NULL) {
 		/*
 		 * The device at vd->vdev_path doesn't have the expected guid.
@@ -508,7 +516,7 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		cp = vdev_geom_open_by_guid(vd);
 	}
 	if (cp == NULL)
-		cp = vdev_geom_open_by_path(vd, 1);
+		cp = vdev_geom_open_by_path(vd, 0);
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
@@ -530,8 +538,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	vd->vdev_tsd = ctx;
 	pp = cp->provider;
 
-	kproc_create(vdev_geom_worker, ctx, NULL, 0, 0, "vdev:worker %s",
-	    pp->name);
+	kproc_kthread_add(vdev_geom_worker, ctx, &zfsproc, NULL, 0, 0,
+	    "zfskern", "vdev %s", pp->name);
 
 	/*
 	 * Determine the actual size of the device.
@@ -658,26 +666,6 @@ sendreq:
 static void
 vdev_geom_io_done(zio_t *zio)
 {
-
-	/*																						    
-	 * If the device returned ENXIO, then attempt we should verify if GEOM														
-	 * provider has been removed. If this is the case, then we trigger an														 
-	 * asynchronous removal of the device.																		
-	 */																						   
-	if (zio->io_error == ENXIO) {
-		vdev_t *vd = zio->io_vd;
-		vdev_geom_ctx_t *ctx;
-		struct g_provider *pp = NULL;
-
-		ctx = vd->vdev_tsd;
-		if (ctx != NULL && ctx->gc_consumer != NULL)
-			pp = ctx->gc_consumer->provider;
-
-		if (pp == NULL || (pp->flags & G_PF_ORPHAN)) {
-			vd->vdev_remove_wanted = B_TRUE;
-			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
-		}
-	}
 }
 
 vdev_ops_t vdev_geom_ops = {

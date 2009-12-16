@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>		/* ip_len, ip_off */
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_dummynet.h>
 #include <netinet/ip_var.h>	/* ip_output(), IP_FORWARDING */
 
@@ -242,6 +243,17 @@ static void	dummynet_flush(void);
 static void	dummynet_send(struct mbuf *);
 void		dummynet_drain(void);
 static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
+
+/*
+ * Flow queue is idle if:
+ *   1) it's empty for at least 1 tick
+ *   2) it has invalid timestamp (WF2Q case)
+ *   3) parent pipe has no 'exhausted' burst.
+ */
+#define QUEUE_IS_IDLE(q) ((q)->head == NULL && (q)->S == (q)->F + 1 && \
+	curr_time > (q)->idle_time + 1 && \
+	((q)->numbytes + (curr_time - (q)->idle_time - 1) * \
+	(q)->fs->pipe->bandwidth >= (q)->fs->pipe->burst))
 
 /*
  * Heap management functions.
@@ -450,6 +462,27 @@ heap_free(struct dn_heap *h)
  */
 
 /*
+ * Dispose a packet in dummynet. Use an inline functions so if we
+ * need to free extra state associated to a packet, this is a
+ * central point to do it.
+ */
+static __inline void *dn_free_pkt(struct mbuf *m)
+{
+	m_freem(m);
+	return NULL;
+}
+
+static __inline void dn_free_pkts(struct mbuf *mnext)
+{
+	struct mbuf *m;
+
+	while ((m = mnext) != NULL) {
+		mnext = m->m_nextpkt;
+		dn_free_pkt(m);
+	}
+}
+
+/*
  * Return the mbuf tag holding the dummynet state.  As an optimization
  * this is assumed to be the first tag on the list.  If this turns out
  * wrong we'll need to search the list.
@@ -559,7 +592,7 @@ compute_extra_bits(struct mbuf *pkt, struct dn_pipe *p)
 	if (!p->samples || p->samples_no == 0)
 		return 0;
 	index  = random() % p->samples_no;
-	extra_bits = ((dn_key)p->samples[index] * p->bandwidth) / 1000;
+	extra_bits = div64((dn_key)p->samples[index] * p->bandwidth, 1000);
 	if (index >= p->loss_level) {
 		struct dn_pkt_tag *dt = dn_tag_get(pkt);
 		if (dt)
@@ -685,11 +718,20 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	int p_was_empty = (p->head == NULL);
 	struct dn_heap *sch = &(p->scheduler_heap);
 	struct dn_heap *neh = &(p->not_eligible_heap);
+	int64_t p_numbytes = p->numbytes;
+
+	/*
+	 * p->numbytes is only 32bits in FBSD7, but we might need 64 bits.
+	 * Use a local variable for the computations, and write back the
+	 * results when done, saturating if needed.
+	 * The local variable has no impact on performance and helps
+	 * reducing diffs between the various branches.
+	 */
 
 	DUMMYNET_LOCK_ASSERT();
 
 	if (p->if_name[0] == 0)		/* tx clock is simulated */
-		p->numbytes += (curr_time - p->sched_time) * p->bandwidth;
+		p_numbytes += (curr_time - p->sched_time) * p->bandwidth;
 	else {	/*
 		 * tx clock is for real,
 		 * the ifq must be empty or this is a NOP.
@@ -706,7 +748,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	 * While we have backlogged traffic AND credit, we need to do
 	 * something on the queue.
 	 */
-	while (p->numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
+	while (p_numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
 		if (sch->elements > 0) {
 			/* Have some eligible pkts to send out. */
 			struct dn_flow_queue *q = sch->p[0].object;
@@ -716,10 +758,10 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 			int len_scaled = p->bandwidth ? len * 8 * hz : 0;
 
 			heap_extract(sch, NULL); /* Remove queue from heap. */
-			p->numbytes -= len_scaled;
+			p_numbytes -= len_scaled;
 			move_pkt(pkt, q, p, len);
 
-			p->V += (len << MY_M) / p->sum;	/* Update V. */
+			p->V += div64((len << MY_M), p->sum);	/* Update V. */
 			q->S = q->F;			/* Update start time. */
 			if (q->len == 0) {
 				/* Flow not backlogged any more. */
@@ -734,7 +776,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 				 * (we will fix this later).
 				 */
 				len = (q->head)->m_pkthdr.len;
-				q->F += (len << MY_M) / (uint64_t)fs->weight;
+				q->F += div64((len << MY_M), fs->weight);
 				if (DN_KEY_LEQ(q->S, p->V))
 					heap_insert(neh, q->S, q);
 				else
@@ -757,11 +799,11 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		}
 
 		if (p->if_name[0] != '\0') { /* Tx clock is from a real thing */
-			p->numbytes = -1;	/* Mark not ready for I/O. */
+			p_numbytes = -1;	/* Mark not ready for I/O. */
 			break;
 		}
 	}
-	if (sch->elements == 0 && neh->elements == 0 && p->numbytes >= 0) {
+	if (sch->elements == 0 && neh->elements == 0 && p_numbytes >= 0) {
 		p->idle_time = curr_time;
 		/*
 		 * No traffic and no events scheduled.
@@ -787,11 +829,11 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	 * If we are under credit, schedule the next ready event.
 	 * Also fix the delivery time of the last packet.
 	 */
-	if (p->if_name[0]==0 && p->numbytes < 0) { /* This implies bw > 0. */
+	if (p->if_name[0]==0 && p_numbytes < 0) { /* This implies bw > 0. */
 		dn_key t = 0;		/* Number of ticks i have to wait. */
 
 		if (p->bandwidth > 0)
-			t = (p->bandwidth - 1 - p->numbytes) / p->bandwidth;
+			t = div64(p->bandwidth - 1 - p_numbytes, p->bandwidth);
 		dn_tag_get(p->tail)->output_time += t;
 		p->sched_time = curr_time;
 		heap_insert(&wfq_ready_heap, curr_time + t, (void *)p);
@@ -800,6 +842,9 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		 * queue on error hoping next time we are luckier.
 		 */
 	}
+
+	/* Write back p_numbytes (adjust 64->32bit if necessary). */
+	p->numbytes = p_numbytes;
 
 	/*
 	 * If the delay line was empty call transmit_event() now.
@@ -927,12 +972,20 @@ dummynet_send(struct mbuf *m)
 	struct dn_pkt_tag *pkt;
 	struct mbuf *n;
 	struct ip *ip;
+	int dst;
 
 	for (; m != NULL; m = n) {
 		n = m->m_nextpkt;
 		m->m_nextpkt = NULL;
-		pkt = dn_tag_get(m);
-		switch (pkt->dn_dir) {
+		if (m_tag_first(m) == NULL) {
+			pkt = NULL; /* probably unnecessary */
+			dst = DN_TO_DROP;
+		} else {
+			pkt = dn_tag_get(m);
+			dst = pkt->dn_dir;
+		}
+
+		switch (dst) {
 		case DN_TO_IP_OUT:
 			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 			break ;
@@ -978,12 +1031,12 @@ dummynet_send(struct mbuf *m)
 
 		case DN_TO_DROP:
 			/* drop the packet after some time */
-			m_freem(m);
+			dn_free_pkt(m);
 			break;
 
 		default:
 			printf("dummynet: bad switch %d!\n", pkt->dn_dir);
-			m_freem(m);
+			dn_free_pkt(m);
 			break;
 		}
 	}
@@ -1004,7 +1057,7 @@ expire_queues(struct dn_flow_set *fs)
     fs->last_expired = time_uptime ;
     for (i = 0 ; i <= fs->rq_size ; i++) /* last one is overflow */
 	for (prev=NULL, q = fs->rq[i] ; q != NULL ; )
-	    if (q->head != NULL || q->S != q->F+1) {
+	    if (!QUEUE_IS_IDLE(q)) {
   		prev = q ;
   	        q = q->next ;
   	    } else { /* entry is idle, expire it */
@@ -1134,7 +1187,7 @@ find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
 		break ; /* found */
 
 	    /* No match. Check if we can expire the entry */
-	    if (pipe_expire && q->head == NULL && q->S == q->F+1 ) {
+	    if (pipe_expire && QUEUE_IS_IDLE(q)) {
 		/* entry is idle and not in any heap, expire it */
 		struct dn_flow_queue *old_q = q ;
 
@@ -1207,7 +1260,8 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 		 * XXX check wraps...
 		 */
 		if (q->avg) {
-			u_int t = (curr_time - q->idle_time) / fs->lookup_step;
+			u_int t = div64(curr_time - q->idle_time,
+			    fs->lookup_step);
 
 			q->avg = (t < fs->lookup_depth) ?
 			    SCALE_MUL(q->avg, fs->w_q_lookup[t]) : 0;
@@ -1247,7 +1301,7 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 	}
 
 	if (fs->flags_fs & DN_QSIZE_IS_BYTES)
-		p_b = (p_b * len) / fs->max_pkt_size;
+		p_b = div64(p_b * len, fs->max_pkt_size);
 	if (++q->count == 0)
 		q->random = random() & 0xffff;
 	else {
@@ -1408,18 +1462,20 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 		if (q->idle_time < curr_time) {
 			/* Calculate available burst size. */
 			q->numbytes +=
-			    (curr_time - q->idle_time) * pipe->bandwidth;
+			    (curr_time - q->idle_time - 1) * pipe->bandwidth;
 			if (q->numbytes > pipe->burst)
 				q->numbytes = pipe->burst;
 			if (io_fast)
 				q->numbytes += pipe->bandwidth;
 		}
 	} else {			/* WF2Q. */
-		if (pipe->idle_time < curr_time) {
+		if (pipe->idle_time < curr_time &&
+		    pipe->scheduler_heap.elements == 0 &&
+		    pipe->not_eligible_heap.elements == 0) {
 			/* Calculate available burst size. */
 			pipe->numbytes +=
-			    (curr_time - pipe->idle_time) * pipe->bandwidth;
-			if (pipe->numbytes > pipe->burst)
+			    (curr_time - pipe->idle_time - 1) * pipe->bandwidth;
+			if (pipe->numbytes > 0 && pipe->numbytes > pipe->burst)
 				pipe->numbytes = pipe->burst;
 			if (io_fast)
 				pipe->numbytes += pipe->bandwidth;
@@ -1464,7 +1520,7 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 			heap_extract(&(pipe->idle_heap), q);
 			q->S = MAX64(q->F, pipe->V);
 		}
-		q->F = q->S + (len << MY_M) / (uint64_t)fs->weight;
+		q->F = q->S + div64(len << MY_M, fs->weight);
 
 		if (pipe->not_eligible_heap.elements == 0 &&
 		    pipe->scheduler_heap.elements == 0)
@@ -1519,18 +1575,9 @@ dropit:
 	if (q)
 		q->drops++;
 	DUMMYNET_UNLOCK();
-	m_freem(m);
-	*m0 = NULL;
+	*m0 = dn_free_pkt(m);
 	return ((fs && (fs->flags_fs & DN_NOERROR)) ? 0 : ENOBUFS);
 }
-
-/*
- * Below, the rt_unref is only needed when (pkt->dn_dir == DN_TO_IP_OUT)
- * Doing this would probably save us the initial bzero of dn_pkt
- */
-#define	DN_FREE_PKT(_m) do {				\
-	m_freem(_m);					\
-} while (0)
 
 /*
  * Dispose all packets and flow_queues on a flow_set.
@@ -1548,13 +1595,7 @@ purge_flow_set(struct dn_flow_set *fs, int all)
 
 	for (i = 0; i <= fs->rq_size; i++) {
 		for (q = fs->rq[i]; q != NULL; q = qn) {
-			struct mbuf *m, *mnext;
-
-			mnext = q->head;
-			while ((m = mnext) != NULL) {
-				mnext = m->m_nextpkt;
-				DN_FREE_PKT(m);
-			}
+			dn_free_pkts(q->head);
 			qn = q->next;
 			free(q, M_DUMMYNET);
 		}
@@ -1582,15 +1623,10 @@ purge_flow_set(struct dn_flow_set *fs, int all)
 static void
 purge_pipe(struct dn_pipe *pipe)
 {
-    struct mbuf *m, *mnext;
 
     purge_flow_set( &(pipe->fs), 1 );
 
-    mnext = pipe->head;
-    while ((m = mnext) != NULL) {
-	mnext = m->m_nextpkt;
-	DN_FREE_PKT(m);
-    }
+    dn_free_pkts(pipe->head);
 
     heap_free( &(pipe->scheduler_heap) );
     heap_free( &(pipe->not_eligible_heap) );
@@ -1940,7 +1976,6 @@ dummynet_drain(void)
 {
     struct dn_flow_set *fs;
     struct dn_pipe *pipe;
-    struct mbuf *m, *mnext;
     int i;
 
     DUMMYNET_LOCK_ASSERT();
@@ -1956,12 +1991,7 @@ dummynet_drain(void)
     for (i = 0; i < HASHSIZE; i++) {
 	SLIST_FOREACH(pipe, &pipehash[i], next) {
 		purge_flow_set(&(pipe->fs), 0);
-
-		mnext = pipe->head;
-		while ((m = mnext) != NULL) {
-			mnext = m->m_nextpkt;
-			DN_FREE_PKT(m);
-		}
+		dn_free_pkts(pipe->head);
 		pipe->head = pipe->tail = NULL;
 	}
     }
@@ -2136,7 +2166,7 @@ dummynet_get(struct sockopt *sopt)
 		 */
 		bcopy(pipe, bp, sizeof(*pipe));
 		pipe_bp->delay = (pipe_bp->delay * 1000) / hz;
-		pipe_bp->burst /= 8 * hz;
+		pipe_bp->burst = div64(pipe_bp->burst, 8 * hz);
 		/*
 		 * XXX the following is a hack based on ->next being the
 		 * first field in dn_pipe and dn_flow_set. The correct
@@ -2234,8 +2264,10 @@ ip_dn_ctl(struct sockopt *sopt)
 	error = delete_pipe(p);
 	break ;
     }
+
     if (p != NULL)
 	free(p, M_TEMP);
+
     return error ;
 }
 

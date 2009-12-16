@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -82,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -150,6 +150,20 @@ icmp6_init(void)
 {
 
 	V_icmp6errpps_count = 0;
+}
+
+/*
+ * Kernel module interface for updating icmp6stat.  The argument is an index
+ * into icmp6stat treated as an array of u_quad_t.  While this encodes the
+ * general layout of icmp6stat into the caller, it doesn't encode its
+ * location, so that future changes to add, for example, per-CPU stats
+ * support won't cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_icmp6stat_inc(int statnum)
+{
+
+	(*((u_quad_t *)&V_icmp6stat + statnum))++;
 }
 
 static void
@@ -856,7 +870,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			break;
 		}
 	deliver:
-		if (icmp6_notify_error(&m, off, icmp6len, code)) {
+		if (icmp6_notify_error(&m, off, icmp6len, code) != 0) {
 			/* In this case, m should've been freed. */
 			return (IPPROTO_DONE);
 		}
@@ -1691,7 +1705,7 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 		}
 	}
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
 		addrsofif = 0;
 		IF_ADDR_LOCK(ifp);
@@ -1748,13 +1762,13 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 		IF_ADDR_UNLOCK(ifp);
 		if (iffound) {
 			*ifpp = ifp;
-			IFNET_RUNLOCK();
+			IFNET_RUNLOCK_NOSLEEP();
 			return (addrsofif);
 		}
 
 		addrs += addrsofif;
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	return (addrs);
 }
@@ -1775,7 +1789,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 	if (ifp0 == NULL && !(niflags & NI_NODEADDR_FLAG_ALL))
 		return (0);	/* needless to copy */
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
   again:
 
 	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
@@ -1840,7 +1854,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 				 * Set the truncate flag and return.
 				 */
 				nni6->ni_flags |= NI_NODEADDR_FLAG_TRUNCATE;
-				IFNET_RUNLOCK();
+				IFNET_RUNLOCK_NOSLEEP();
 				return (copied);
 			}
 
@@ -1893,7 +1907,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 		goto again;
 	}
 
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	return (copied);
 }
@@ -2155,6 +2169,10 @@ icmp6_reflect(struct mbuf *m, size_t off)
 			}
 		}
 	}
+
+	if ((srcp != NULL) && 
+	    (in6_addrscope(srcp) != in6_addrscope(&ip6->ip6_src)))
+		srcp = NULL;
 
 	if (srcp == NULL) {
 		int e;

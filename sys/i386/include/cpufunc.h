@@ -49,8 +49,8 @@ extern u_int xen_rcr2(void);
 extern void xen_load_cr3(u_int data);
 extern void xen_tlb_flush(void);
 extern void xen_invlpg(u_int addr);
-extern int xen_save_and_cli(void);
-extern void xen_restore_flags(u_int eflags);
+extern void write_eflags(u_int eflags);
+extern u_int read_eflags(void);
 #endif
 
 struct region_descriptor;
@@ -90,6 +90,13 @@ bsrl(u_int mask)
 }
 
 static __inline void
+clflush(u_long addr)
+{
+
+	__asm __volatile("clflush %0" : : "m" (*(char *)addr));
+}
+
+static __inline void
 disable_intr(void)
 {
 #ifdef XEN
@@ -125,17 +132,24 @@ enable_intr(void)
 #endif
 }
 
-static inline void
+static __inline void
 cpu_monitor(const void *addr, int extensions, int hints)
 {
 	__asm __volatile("monitor;"
 	    : :"a" (addr), "c" (extensions), "d"(hints));
 }
 
-static inline void
+static __inline void
 cpu_mwait(int extensions, int hints)
 {
 	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
+}
+
+static __inline void
+mfence(void)
+{
+
+	__asm __volatile("mfence" : : : "memory");
 }
 
 #ifdef _KERNEL
@@ -279,7 +293,11 @@ ia32_pause(void)
 }
 
 static __inline u_int
+#ifdef XEN
+_read_eflags(void)
+#else	
 read_eflags(void)
+#endif
 {
 	u_int	ef;
 
@@ -321,7 +339,11 @@ wbinvd(void)
 }
 
 static __inline void
+#ifdef XEN
+_write_eflags(u_int ef)
+#else
 write_eflags(u_int ef)
+#endif
 {
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
@@ -639,23 +661,15 @@ intr_disable(void)
 {
 	register_t eflags;
 
-#ifdef XEN
-	eflags = xen_save_and_cli();
-#else 	
 	eflags = read_eflags();
 	disable_intr();
-#endif	
 	return (eflags);
 }
 
 static __inline void
 intr_restore(register_t eflags)
 {
-#ifdef XEN
-	xen_restore_flags(eflags);
-#else
 	write_eflags(eflags);
-#endif
 }
 
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */

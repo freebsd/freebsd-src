@@ -204,6 +204,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	vm_page_unlock_queues();
 	vm_page_insert(page, object, offset);
 	m[reqpage] = page;
+	page->valid = VM_PAGE_BITS_ALL;
 
 	return (VM_PAGER_OK);
 }

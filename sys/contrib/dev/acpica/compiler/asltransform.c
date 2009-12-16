@@ -468,6 +468,8 @@ TrDoSwitch (
     ACPI_PARSE_OBJECT       *NewOp;
     ACPI_PARSE_OBJECT       *NewOp2;
     ACPI_PARSE_OBJECT       *MethodOp;
+    ACPI_PARSE_OBJECT       *StoreOp;
+    ACPI_PARSE_OBJECT       *BreakOp;
     char                    *PredicateValueName;
     UINT16                  Index;
     UINT32                  Btype;
@@ -638,11 +640,7 @@ TrDoSwitch (
              */
             if (CurrentParentNode == StartNode)
             {
-                Conditional->Asl.Parent = CurrentParentNode->Asl.Parent;
-
-                /* Link IF into the peer list */
-
-                TrAmlInsertPeer (CurrentParentNode, Conditional);
+                Conditional->Asl.Next = NULL;
             }
             else
             {
@@ -695,6 +693,7 @@ TrDoSwitch (
             {
                 return;
             }
+
             TrAmlInitNode (DefaultOp, PARSEOP_ELSE);
             DefaultOp->Asl.Parent = Conditional->Asl.Parent;
 
@@ -799,22 +798,44 @@ TrDoSwitch (
     TrAmlSetSubtreeParent (NewOp2, NewOp);
 
     /*
-     * Transform the Switch() into a Store() node which will be used to save the
+     * Transform the Switch() into a While(One)-Break node.
+     * And create a Store() node which will be used to save the
      * Switch() value.  The store is of the form: Store (Value, _T_x)
      * where _T_x is the temp variable.
      */
-    TrAmlInitNode (StartNode, PARSEOP_STORE);
-    StartNode->Asl.Child = NULL;
+    TrAmlInitNode (StartNode, PARSEOP_WHILE);
+    NewOp = TrCreateLeafNode (PARSEOP_ONE);
+    NewOp->Asl.Next = Predicate->Asl.Next;
+    NewOp->Asl.Parent = StartNode;
+    StartNode->Asl.Child = NewOp;
+
+    /* Create a Store() node */
+
+    StoreOp = TrCreateLeafNode (PARSEOP_STORE);
+    StoreOp->Asl.Parent = StartNode;
+    TrAmlInsertPeer (NewOp, StoreOp);
 
     /* Complete the Store subtree */
 
-    StartNode->Asl.Child = Predicate;
-    Predicate->Asl.Parent = StartNode;
+    StoreOp->Asl.Child = Predicate;
+    Predicate->Asl.Parent = StoreOp;
 
     NewOp = TrCreateValuedLeafNode (PARSEOP_NAMESEG,
                 (ACPI_INTEGER) ACPI_TO_INTEGER (PredicateValueName));
-    NewOp->Asl.Parent    = StartNode;
+    NewOp->Asl.Parent    = StoreOp;
     Predicate->Asl.Next  = NewOp;
+
+    /* Create a Break() node and insert it into the end of While() */
+
+    Conditional = StartNode->Asl.Child;
+    while (Conditional->Asl.Next)
+    {
+        Conditional = Conditional->Asl.Next;
+    }
+
+    BreakOp = TrCreateLeafNode (PARSEOP_BREAK);
+    BreakOp->Asl.Parent = StartNode;
+    TrAmlInsertPeer (Conditional, BreakOp);
 }
 
 

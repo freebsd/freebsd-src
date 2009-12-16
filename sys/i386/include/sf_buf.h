@@ -58,4 +58,6 @@ sf_buf_page(struct sf_buf *sf)
 	return (sf->m);
 }
 
+boolean_t sf_buf_invalidate_cache(vm_page_t m);
+
 #endif /* !_MACHINE_SF_BUF_H_ */

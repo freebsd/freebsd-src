@@ -480,14 +480,14 @@ kue_attach(device_t dev)
 	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, kue_config, KUE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
-		device_printf(dev, "allocating USB transfers failed!\n");
+		device_printf(dev, "allocating USB transfers failed\n");
 		goto detach;
 	}
 
 	sc->sc_mcfilters = malloc(KUE_MCFILTCNT(sc) * ETHER_ADDR_LEN,
 	    M_USBDEV, M_WAITOK);
 	if (sc->sc_mcfilters == NULL) {
-		device_printf(dev, "failed allocating USB memory!\n");
+		device_printf(dev, "failed allocating USB memory\n");
 		goto detach;
 	}
 

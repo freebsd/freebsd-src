@@ -76,7 +76,6 @@ void ia64_ap_startup(void);
 /* Variables used by os_boot_rendez and ia64_ap_startup */
 struct pcpu *ap_pcpu;
 void *ap_stack;
-uint64_t ap_vhpt;
 volatile int ap_delay;
 volatile int ap_awake;
 volatile int ap_spin;
@@ -116,13 +115,15 @@ void
 ia64_ap_startup(void)
 {
 	volatile struct ia64_interrupt_block *ib = IA64_INTERRUPT_BLOCK;
+	uint64_t vhpt;
 	int vector;
 
 	pcpup = ap_pcpu;
 	ia64_set_k4((intptr_t)pcpup);
 
-	map_vhpt(ap_vhpt);
-	ia64_set_pta(ap_vhpt + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
+	vhpt = PCPU_GET(md.vhpt);
+	map_vhpt(vhpt);
+	ia64_set_pta(vhpt + (1 << 8) + (pmap_vhpt_log2size << 2) + 1);
 	ia64_srlz_i();
 
 	ap_awake = 1;
@@ -208,31 +209,25 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 	struct pcpu *pc;
 	u_int64_t lid;
 	void *dpcpu;
-
-	/* Ignore any processor numbers outside our range */
-	if (acpiid > mp_maxid)
-		return;
-
-	KASSERT((all_cpus & (1UL << acpiid)) == 0,
-	    ("%s: cpu%d already in CPU map", __func__, acpiid));
+	u_int cpuid;
 
 	lid = LID_SAPIC_SET(apicid, apiceid);
+	cpuid = ((ia64_get_lid() & LID_SAPIC_MASK) == lid) ? 0 : smp_cpus++;
 
-	if ((ia64_get_lid() & LID_SAPIC_MASK) == lid) {
-		KASSERT(acpiid == 0,
-		    ("%s: the BSP must be cpu0", __func__));
-	}
+	KASSERT((all_cpus & (1UL << cpuid)) == 0,
+	    ("%s: cpu%d already in CPU map", __func__, acpiid));
 
-	if (acpiid != 0) {
+	if (cpuid != 0) {
 		pc = (struct pcpu *)malloc(sizeof(*pc), M_SMP, M_WAITOK);
+		pcpu_init(pc, cpuid, sizeof(*pc));
 		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
-		pcpu_init(pc, acpiid, sizeof(*pc));
-		dpcpu_init(dpcpu, acpiid);
+		dpcpu_init(dpcpu, cpuid);
 	} else
 		pc = pcpup;
 
-	pc->pc_lid = lid;
-	all_cpus |= (1UL << acpiid);
+	pc->pc_acpi_id = acpiid;
+	pc->pc_md.lid = lid;
+	all_cpus |= (1UL << cpuid);
 }
 
 void
@@ -244,9 +239,9 @@ cpu_mp_announce()
 	for (i = 0; i <= mp_maxid; i++) {
 		pc = pcpu_find(i);
 		if (pc != NULL) {
-			printf("cpu%d: SAPIC Id=%x, SAPIC Eid=%x", i,
-			    LID_SAPIC_ID(pc->pc_lid),
-			    LID_SAPIC_EID(pc->pc_lid));
+			printf("cpu%d: ACPI Id=%x, SAPIC Id=%x, SAPIC Eid=%x",
+			    i, pc->pc_acpi_id, LID_SAPIC_ID(pc->pc_md.lid),
+			    LID_SAPIC_EID(pc->pc_md.lid));
 			if (i == 0)
 				printf(" (BSP)\n");
 			else
@@ -263,13 +258,18 @@ cpu_mp_start()
 	ap_spin = 1;
 
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		pc->pc_current_pmap = kernel_pmap;
+		pc->pc_md.current_pmap = kernel_pmap;
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (pc->pc_cpuid > 0) {
 			ap_pcpu = pc;
+			pc->pc_md.vhpt = pmap_alloc_vhpt();
+			if (pc->pc_md.vhpt == 0) {
+				printf("SMP: WARNING: unable to allocate VHPT"
+				    " for cpu%d", pc->pc_cpuid);
+				continue;
+			}
 			ap_stack = malloc(KSTACK_PAGES * PAGE_SIZE, M_SMP,
 			    M_WAITOK);
-			ap_vhpt = pmap_vhpt_base[pc->pc_cpuid];
 			ap_delay = 2000;
 			ap_awake = 0;
 
@@ -281,13 +281,13 @@ cpu_mp_start()
 			do {
 				DELAY(1000);
 			} while (--ap_delay > 0);
-			pc->pc_awake = ap_awake;
+			pc->pc_md.awake = ap_awake;
 
 			if (!ap_awake)
 				printf("SMP: WARNING: cpu%d did not wake up\n",
 				    pc->pc_cpuid);
 		} else
-			pc->pc_awake = 1;
+			pc->pc_md.awake = 1;
 	}
 }
 
@@ -304,8 +304,10 @@ cpu_mp_unleash(void *dummy)
 	smp_cpus = 0;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
-		if (pc->pc_awake) {
-			kproc_create(ia64_store_mca_state, (void*)((uintptr_t)pc->pc_cpuid), NULL, 0, 0, "mca %u", pc->pc_cpuid);
+		if (pc->pc_md.awake) {
+			kproc_create(ia64_store_mca_state,
+			    (void*)((uintptr_t)pc->pc_cpuid), NULL, 0, 0,
+			    "mca %u", pc->pc_cpuid);
 			smp_cpus++;
 		}
 	}
@@ -365,7 +367,7 @@ ipi_send(struct pcpu *cpu, int ipi)
 	uint64_t vector;
 
 	pipi = __MEMIO_ADDR(ia64_lapic_address |
-	    ((cpu->pc_lid & LID_SAPIC_MASK) >> 12));
+	    ((cpu->pc_md.lid & LID_SAPIC_MASK) >> 12));
 	vector = (uint64_t)(ipi_vector[ipi] & 0xff);
 	KASSERT(vector != 0, ("IPI %d is not assigned a vector", ipi));
 	*pipi = vector;

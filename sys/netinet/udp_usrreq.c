@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
@@ -202,6 +201,20 @@ udp_init(void)
 
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
+}
+
+/*
+ * Kernel module interface for updating udpstat.  The argument is an index
+ * into udpstat treated as an array of u_long.  While this encodes the
+ * general layout of udpstat into the caller, it doesn't encode its location,
+ * so that future changes to add, for example, per-CPU stats support won't
+ * cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_udpstat_inc(int statnum)
+{
+
+	(*((u_long *)&V_udpstat + statnum))++;
 }
 
 int

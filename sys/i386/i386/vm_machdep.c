@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
+#include <sys/sysent.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sched.h>
@@ -270,11 +271,7 @@ cpu_fork(td1, p2, td2, flags)
 	/*
 	 * XXX XEN need to check on PSL_USER is handled
 	 */
-#ifdef XEN
-	td2->td_md.md_saved_flags = 0;
-#else	
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
-#endif
 	/*
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
@@ -384,6 +381,41 @@ cpu_thread_free(struct thread *td)
 	cpu_thread_clean(td);
 }
 
+void
+cpu_set_syscall_retval(struct thread *td, int error)
+{
+
+	switch (error) {
+	case 0:
+		td->td_frame->tf_eax = td->td_retval[0];
+		td->td_frame->tf_edx = td->td_retval[1];
+		td->td_frame->tf_eflags &= ~PSL_C;
+		break;
+
+	case ERESTART:
+		/*
+		 * Reconstruct pc, assuming lcall $X,y is 7 bytes, int
+		 * 0x80 is 2 bytes. We saved this in tf_err.
+		 */
+		td->td_frame->tf_eip -= td->td_frame->tf_err;
+		break;
+
+	case EJUSTRETURN:
+		break;
+
+	default:
+		if (td->td_proc->p_sysent->sv_errsize) {
+			if (error >= td->td_proc->p_sysent->sv_errsize)
+				error = -1;	/* XXX */
+			else
+				error = td->td_proc->p_sysent->sv_errtbl[error];
+		}
+		td->td_frame->tf_eax = error;
+		td->td_frame->tf_eflags |= PSL_C;
+		break;
+	}
+}
+
 /*
  * Initialize machine state (pcb and trap frame) for a new thread about to
  * upcall. Put enough state in the new thread's PCB to get it to go back 
@@ -446,11 +478,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-#ifdef XEN	
-	td->td_md.md_saved_flags = 0;	
-#else
 	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
-#endif
 }
 
 /*
@@ -720,6 +748,39 @@ sf_buf_init(void *arg)
 }
 
 /*
+ * Invalidate the cache lines that may belong to the page, if
+ * (possibly old) mapping of the page by sf buffer exists.  Returns
+ * TRUE when mapping was found and cache invalidated.
+ */
+boolean_t
+sf_buf_invalidate_cache(vm_page_t m)
+{
+	struct sf_head *hash_list;
+	struct sf_buf *sf;
+	boolean_t ret;
+
+	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
+	ret = FALSE;
+	mtx_lock(&sf_buf_lock);
+	LIST_FOREACH(sf, hash_list, list_entry) {
+		if (sf->m == m) {
+			/*
+			 * Use pmap_qenter to update the pte for
+			 * existing mapping, in particular, the PAT
+			 * settings are recalculated.
+			 */
+			pmap_qenter(sf->kva, &m, 1);
+			pmap_invalidate_cache_range(sf->kva, sf->kva +
+			    PAGE_SIZE);
+			ret = TRUE;
+			break;
+		}
+	}
+	mtx_unlock(&sf_buf_lock);
+	return (ret);
+}
+
+/*
  * Get an sf_buf from the freelist.  May block if none are available.
  */
 struct sf_buf *
@@ -787,9 +848,10 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	opte = *ptep;
 #ifdef XEN
        PT_SET_MA(sf->kva, xpmap_ptom(VM_PAGE_TO_PHYS(m)) | pgeflag
-	   | PG_RW | PG_V);
+	   | PG_RW | PG_V | pmap_cache_bits(m->md.pat_mode, 0));
 #else
-	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V |
+	    pmap_cache_bits(m->md.pat_mode, 0);
 #endif
 
 	/*

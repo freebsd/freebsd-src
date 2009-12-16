@@ -261,6 +261,7 @@ struct mxge_softc {
 	int fw_multicast_support;
 	int link_width;
 	int max_mtu;
+	int throttle;
 	int tx_defrag;
 	int media_flags;
 	int need_media_probe;
@@ -269,10 +270,13 @@ struct mxge_softc {
 	int dying;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
+	struct taskqueue *tq;
+	struct task watchdog_task;
 	struct sysctl_oid *slice_sysctl_tree;
 	struct sysctl_ctx_list slice_sysctl_ctx;
 	char *mac_addr_string;
 	uint8_t	mac_addr[6];		/* eeprom mac address */
+	uint16_t pectl;			/* save PCIe CTL state */
 	char product_code_string[64];
 	char serial_number_string[64];
 	char cmd_mtx_name[16];
@@ -286,6 +290,8 @@ struct mxge_softc {
 #define MXGE_PCI_REV_Z8ES	1
 #define MXGE_XFP_COMPLIANCE_BYTE	131
 #define MXGE_SFP_COMPLIANCE_BYTE	  3
+#define MXGE_MIN_THROTTLE	416
+#define MXGE_MAX_THROTTLE	4096
 
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)

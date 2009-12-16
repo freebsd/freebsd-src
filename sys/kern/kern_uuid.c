@@ -36,8 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/uuid.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -94,7 +94,8 @@ uuid_node(uint16_t *node)
 	struct sockaddr_dl *sdl;
 	int i;
 
-	IFNET_RLOCK();
+	CURVNET_SET(TD_TO_VNET(curthread));
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/* Walk the address list */
 		IF_ADDR_LOCK(ifp);
@@ -105,17 +106,19 @@ uuid_node(uint16_t *node)
 				/* Got a MAC address. */
 				bcopy(LLADDR(sdl), node, UUID_NODE_LEN);
 				IF_ADDR_UNLOCK(ifp);
-				IFNET_RUNLOCK();
+				IFNET_RUNLOCK_NOSLEEP();
+				CURVNET_RESTORE();
 				return;
 			}
 		}
 		IF_ADDR_UNLOCK(ifp);
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	for (i = 0; i < (UUID_NODE_LEN>>1); i++)
 		node[i] = (uint16_t)arc4random();
 	*((uint8_t*)node) |= 0x01;
+	CURVNET_RESTORE();
 }
 
 /*

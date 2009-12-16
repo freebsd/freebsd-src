@@ -45,47 +45,39 @@
 /*
  * register space access macros
  */
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->an_btag, sc->an_bhandle, reg, val)
+#define CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->port_res, reg, val)
 
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->an_btag, sc->an_bhandle, reg)
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->port_res, reg)
 
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->an_btag, sc->an_bhandle, reg, val)
+#define CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->port_res, reg, val)
 
-#define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->an_btag, sc->an_bhandle, reg)
+#define CSR_READ_1(sc, reg)		bus_read_1(sc->port_res, reg)
 
 /*
  * memory space access macros
  */
-#define CSR_MEM_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->an_mem_btag, sc->an_mem_bhandle, reg, val)
+#define CSR_MEM_WRITE_2(sc, reg, val)	bus_write_2(sc->mem_res, reg, val)
 
-#define CSR_MEM_READ_2(sc, reg)		\
-	bus_space_read_2(sc->an_mem_btag, sc->an_mem_bhandle, reg)
+#define CSR_MEM_READ_2(sc, reg)		bus_read_2(sc->mem_res, reg)
 
-#define CSR_MEM_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->an_mem_btag, sc->an_mem_bhandle, reg, val)
+#define CSR_MEM_WRITE_1(sc, reg, val)	bus_write_1(sc->mem_res, reg, val)
 
-#define CSR_MEM_READ_1(sc, reg)		\
-	bus_space_read_1(sc->an_mem_btag, sc->an_mem_bhandle, reg)
+#define CSR_MEM_READ_1(sc, reg)		bus_read_1(sc->mem_res, reg)
 
 /*
  * aux. memory space access macros
  */
 #define CSR_MEM_AUX_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg, val)
+	bus_write_4(sc->mem_aux_res, reg, val)
 
 #define CSR_MEM_AUX_READ_4(sc, reg)		\
-	bus_space_read_4(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg)
+	bus_read_4(sc->mem_aux_res, reg)
 
 #define CSR_MEM_AUX_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg, val)
+	bus_write_1(sc->mem_aux_res, reg, val)
 
 #define CSR_MEM_AUX_READ_1(sc, reg)		\
-	bus_space_read_1(sc->an_mem_aux_btag, sc->an_mem_aux_bhandle, reg)
+	bus_read_1(sc->mem_aux_res, reg)
 
 /*
  * Size of Aironet I/O space.
@@ -394,13 +386,18 @@ struct an_txframe_802_3 {
 #define AN_PAYLOADTYPE_ETHER	0x0000
 #define AN_PAYLOADTYPE_LLC	0x0010
 
-#define AN_TXCTL_80211	\
-	(AN_TXCTL_TXOK_INTR|AN_TXCTL_TXERR_INTR|AN_HEADERTYPE_80211|	\
-	AN_PAYLOADTYPE_LLC|AN_TXCTL_NORELEASE)
+#define AN_TXCTL_80211		(AN_HEADERTYPE_80211|AN_PAYLOADTYPE_LLC)
 
-#define AN_TXCTL_8023	\
-	(AN_TXCTL_TXOK_INTR|AN_TXCTL_TXERR_INTR|AN_HEADERTYPE_8023|	\
-	AN_PAYLOADTYPE_ETHER|AN_TXCTL_NORELEASE)
+#define AN_TXCTL_8023		(AN_HEADERTYPE_8023|AN_PAYLOADTYPE_ETHER)
+
+/*
+ * Additions to transmit control bits for MPI350
+ */
+#define	AN_TXCTL_HW(x)	\
+	( x ? (AN_TXCTL_NORELEASE) \
+	  : \
+	      (AN_TXCTL_TXOK_INTR|AN_TXCTL_TXERR_INTR|AN_TXCTL_NORELEASE) \
+	      )
 
 #define AN_TXGAP_80211		0
 #define AN_TXGAP_8023		0
@@ -442,8 +439,6 @@ struct an_tx_ring_data {
 struct an_softc	{
 	struct ifnet		*an_ifp;
 
-        int                     an_unit;
-
 	int	port_rid;	/* resource id for port range */
 	struct resource* port_res; /* resource for port range */
 	int     mem_rid;	/* resource id for memory range */
@@ -456,11 +451,6 @@ struct an_softc	{
 	void*	irq_handle;	/* handle for irq handler */
 	struct resource* irq_res; /* resource for irq */
 
-	bus_space_handle_t	an_bhandle_p;
-	bus_space_handle_t	an_bhandle;
-	bus_space_tag_t		an_btag;
-	bus_space_handle_t	an_mem_bhandle;
-	bus_space_tag_t		an_mem_btag;
 	bus_space_handle_t	an_mem_aux_bhandle;
 	bus_space_tag_t		an_mem_aux_btag;
 	bus_dma_tag_t		an_dtag;
@@ -491,6 +481,7 @@ struct an_softc	{
 	struct ifmedia		an_ifmedia;
 	int		        an_monitor;
 	int		        an_was_monitor;
+	int			an_timer;
 	u_char			buf_802_11[MCLBYTES];
 	struct an_req		areq;
 	unsigned short*		an_flash_buffer;
@@ -513,7 +504,7 @@ int	an_pci_probe	(device_t);
 int	an_probe	(device_t);
 int	an_shutdown	(device_t);
 void	an_resume	(device_t);
-int	an_attach		(struct an_softc *, int, int);
+int	an_attach		(struct an_softc *, int);
 int	an_detach	(device_t);
 void    an_stop		(struct an_softc *);
 

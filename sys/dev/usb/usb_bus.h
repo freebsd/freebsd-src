@@ -98,10 +98,14 @@ struct usb_bus {
 	uint8_t	devices_max;		/* maximum number of USB devices */
 	uint8_t	do_probe;		/* set if USB BUS should be re-probed */
 
+	/* 
+	 * The scratch area can only be used inside the explore thread
+	 * belonging to the give serial bus.
+	 */
 	union {
 		struct usb_hw_ep_scratch hw_ep_scratch[1];
 		struct usb_temp_setup temp_setup[1];
-		uint8_t	data[128];
+		uint8_t	data[255];
 	}	scratch[1];
 };
 

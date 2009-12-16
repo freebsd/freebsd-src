@@ -50,13 +50,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -150,39 +150,42 @@ struct protosw inetsw[] = {
 },
 #ifdef SCTP
 { 
-	.pr_type = 	SOCK_DGRAM,
-	.pr_domain =  	&inetdomain,
-        .pr_protocol = 	IPPROTO_SCTP,
-        .pr_flags = 	PR_WANTRCVD,
-        .pr_input = 	sctp_input,
-        .pr_ctlinput =  sctp_ctlinput,	
-        .pr_ctloutput = sctp_ctloutput,
-        .pr_init = 	sctp_init,	
-        .pr_drain = 	sctp_drain,
-        .pr_usrreqs = 	&sctp_usrreqs
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_SCTP,
+	.pr_flags =		PR_WANTRCVD,
+	.pr_input =		sctp_input,
+	.pr_ctlinput =		sctp_ctlinput,
+	.pr_ctloutput =		sctp_ctloutput,
+	.pr_init =		sctp_init,
+#ifdef VIMAGE
+	.pr_destroy =		sctp_finish,
+#endif
+	.pr_drain =		sctp_drain,
+	.pr_usrreqs =		&sctp_usrreqs
 },
 {
-	.pr_type = 	SOCK_SEQPACKET,
-	.pr_domain =  	&inetdomain,
-        .pr_protocol = 	IPPROTO_SCTP,
-        .pr_flags = 	PR_WANTRCVD,
-        .pr_input = 	sctp_input,
-        .pr_ctlinput =  sctp_ctlinput,	
-        .pr_ctloutput = sctp_ctloutput,
-        .pr_drain = 	sctp_drain,
-        .pr_usrreqs = 	&sctp_usrreqs
+	.pr_type =		SOCK_SEQPACKET,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_SCTP,
+	.pr_flags =		PR_WANTRCVD,
+	.pr_input =		sctp_input,
+	.pr_ctlinput =		sctp_ctlinput,
+	.pr_ctloutput =		sctp_ctloutput,
+	.pr_drain =		sctp_drain,
+	.pr_usrreqs =		&sctp_usrreqs
 },
 
 { 
-	.pr_type = 	SOCK_STREAM,
-	.pr_domain =  	&inetdomain,
-        .pr_protocol = 	IPPROTO_SCTP,
-        .pr_flags = 	PR_WANTRCVD,
-        .pr_input = 	sctp_input,
-        .pr_ctlinput =  sctp_ctlinput,	
-        .pr_ctloutput = sctp_ctloutput,
-        .pr_drain = 	sctp_drain,
-        .pr_usrreqs = 	&sctp_usrreqs
+	.pr_type =		SOCK_STREAM,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_SCTP,
+	.pr_flags =		PR_WANTRCVD,
+	.pr_input =		sctp_input,
+	.pr_ctlinput =		sctp_ctlinput,
+	.pr_ctloutput =		sctp_ctloutput,
+	.pr_drain =		sctp_drain,
+	.pr_usrreqs =		&sctp_usrreqs
 },
 #endif /* SCTP */
 {

@@ -36,17 +36,22 @@ Sanitize_Bios_Geom(struct disk *disk)
 
 	if (disk->bios_cyl >= 65536)
 		sane = 0;
+#ifdef PC98
+	if (disk->bios_hd >= 256)
+		sane = 0;
+	if (disk->bios_sect >= 256)
+		sane = 0;
+#else
 	if (disk->bios_hd > 256)
 		sane = 0;
-#ifdef PC98
-	if (disk->bios_sect >= 256)
-#else
 	if (disk->bios_sect > 63)
-#endif
 		sane = 0;
+#endif
+#if 0	/* Disable a check on a disk size.  It's too strict. */
 	if (disk->bios_cyl * disk->bios_hd * disk->bios_sect !=
 	    disk->chunks->size)
 		sane = 0;
+#endif
 	if (sane)
 		return;
 

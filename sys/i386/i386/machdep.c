@@ -257,7 +257,12 @@ cpu_startup(dummy)
 	 */
 	sysenv = getenv("smbios.system.product");
 	if (sysenv != NULL) {
-		if (strncmp(sysenv, "MacBook", 7) == 0) {
+		if (strncmp(sysenv, "MacBook1,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBook3,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,1", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,2", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro3,1", 13) == 0 ||
+		    strncmp(sysenv, "Macmini1,1", 10) == 0) {
 			if (bootverbose)
 				printf("Disabling LEGACY_USB_EN bit on "
 				    "Intel ICH.\n");
@@ -275,19 +280,21 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
+	realmem = Maxmem;
+
+	/*
+	 * Display physical memory if SMBIOS reports reasonable amount.
+	 */
+	memsize = 0;
 	sysenv = getenv("smbios.memory.enabled");
 	if (sysenv != NULL) {
-		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10);
+		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10) << 10;
 		freeenv(sysenv);
-	} else
-		memsize = 0;
-	if (memsize > 0)
-		printf("real memory  = %ju (%ju MB)\n", memsize << 10,
-		    memsize >> 10);
-	else
-		printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
-		    ptoa((uintmax_t)Maxmem) / 1048576);
-	realmem = Maxmem;
+	}
+	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
+		memsize = ptoa((uintmax_t)Maxmem);
+	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -749,7 +756,6 @@ osigreturn(td, uap)
 	struct osigcontext sc;
 	struct trapframe *regs;
 	struct osigcontext *scp;
-	struct proc *p = td->td_proc;
 	int eflags, error;
 	ksiginfo_t ksi;
 
@@ -849,17 +855,14 @@ osigreturn(td, uap)
 	regs->tf_eip = scp->sc_pc;
 	regs->tf_eflags = eflags;
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (scp->sc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-	SIGSETOLD(td->td_sigmask, scp->sc_mask);
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, (sigset_t *)&scp->sc_mask, NULL,
+	    SIGPROCMASK_OLD);
 	return (EJUSTRETURN);
 }
 #endif /* COMPAT_43 */
@@ -876,9 +879,8 @@ freebsd4_sigreturn(td, uap)
 	} */ *uap;
 {
 	struct ucontext4 uc;
-	struct proc *p = td->td_proc;
 	struct trapframe *regs;
-	const struct ucontext4 *ucp;
+	struct ucontext4 *ucp;
 	int cs, eflags, error;
 	ksiginfo_t ksi;
 
@@ -966,18 +968,13 @@ freebsd4_sigreturn(td, uap)
 		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
 	}
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 	return (EJUSTRETURN);
 }
 #endif	/* COMPAT_FREEBSD4 */
@@ -993,9 +990,8 @@ sigreturn(td, uap)
 	} */ *uap;
 {
 	ucontext_t uc;
-	struct proc *p = td->td_proc;
 	struct trapframe *regs;
-	const ucontext_t *ucp;
+	ucontext_t *ucp;
 	int cs, eflags, error, ret;
 	ksiginfo_t ksi;
 
@@ -1087,7 +1083,6 @@ sigreturn(td, uap)
 		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
 	}
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -1095,10 +1090,7 @@ sigreturn(td, uap)
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 	return (EJUSTRETURN);
 }
 
@@ -1939,7 +1931,7 @@ sdtossd(sd, ssd)
 static int
 add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 {
-	int i, physmap_idx;
+	int i, insert_idx, physmap_idx;
 
 	physmap_idx = *physmap_idxp;
 	
@@ -1961,17 +1953,34 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	}
 #endif
 
+	/*
+	 * Find insertion point while checking for overlap.  Start off by
+	 * assuming the new entry will be added to the end.
+	 */
+	insert_idx = physmap_idx + 2;
 	for (i = 0; i <= physmap_idx; i += 2) {
 		if (smap->base < physmap[i + 1]) {
+			if (smap->base + smap->length <= physmap[i]) {
+				insert_idx = i;
+				break;
+			}
 			if (boothowto & RB_VERBOSE)
 				printf(
-	"Overlapping or non-monotonic memory region, ignoring second region\n");
+		    "Overlapping memory regions, ignoring second region\n");
 			return (1);
 		}
 	}
 
-	if (smap->base == physmap[physmap_idx + 1]) {
-		physmap[physmap_idx + 1] += smap->length;
+	/* See if we can prepend to the next entry. */
+	if (insert_idx <= physmap_idx &&
+	    smap->base + smap->length == physmap[insert_idx]) {
+		physmap[insert_idx] = smap->base;
+		return (1);
+	}
+
+	/* See if we can append to the previous entry. */
+	if (insert_idx > 0 && smap->base == physmap[insert_idx - 1]) {
+		physmap[insert_idx - 1] += smap->length;
 		return (1);
 	}
 
@@ -1982,8 +1991,19 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 		"Too many segments in the physical address map, giving up\n");
 		return (0);
 	}
-	physmap[physmap_idx] = smap->base;
-	physmap[physmap_idx + 1] = smap->base + smap->length;
+
+	/*
+	 * Move the last 'N' entries down to make room for the new
+	 * entry if needed.
+	 */
+	for (i = physmap_idx; i > insert_idx; i -= 2) {
+		physmap[i] = physmap[i - 2];
+		physmap[i + 1] = physmap[i - 1];
+	}
+
+	/* Insert the new entry. */
+	physmap[insert_idx] = smap->base;
+	physmap[insert_idx + 1] = smap->base + smap->length;
 	return (1);
 }
 
@@ -2412,6 +2432,9 @@ do_next:
 #else
 	phys_avail[0] = physfree;
 	phys_avail[1] = xen_start_info->nr_pages*PAGE_SIZE;
+	dump_avail[0] = 0;	
+	dump_avail[1] = xen_start_info->nr_pages*PAGE_SIZE;
+	
 #endif
 	
 	/*
@@ -2563,7 +2586,7 @@ init386(first)
 	default_proc_ldt.ldt_base = (caddr_t)ldt;
 	default_proc_ldt.ldt_len = 6;
 	_default_ldt = (int)&default_proc_ldt;
-	PCPU_SET(currentldt, _default_ldt)
+	PCPU_SET(currentldt, _default_ldt);
 	PT_SET_MA(ldt, *vtopte((unsigned long)ldt) & ~PG_RW);
 	xen_set_ldt((unsigned long) ldt, (sizeof ldt_segs / sizeof ldt_segs[0]));
 	

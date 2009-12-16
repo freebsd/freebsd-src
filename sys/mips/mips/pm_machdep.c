@@ -213,13 +213,11 @@ int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	struct trapframe *regs;
-	const ucontext_t *ucp;
-	struct proc *p;
+	ucontext_t *ucp;
 	ucontext_t uc;
 	int error;
 
 	ucp = &uc;
-	p = td->td_proc;
 
 	error = copyin(uap->sigcntxp, &uc, sizeof(uc));
 	if (error != 0)
@@ -229,7 +227,7 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 
 /* #ifdef DEBUG */
 	if (ucp->uc_mcontext.mc_regs[ZERO] != UCONTEXT_MAGIC) {
-		printf("sigreturn: pid %d, ucp %p\n", p->p_pid, ucp);
+		printf("sigreturn: pid %d, ucp %p\n", td->td_proc->p_pid, ucp);
 		printf("  old sp %x ra %x pc %x\n",
 		    regs->sp, regs->ra, regs->pc);
 		printf("  new sp %x ra %x pc %x z %x\n",
@@ -253,11 +251,8 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 	regs->mullo = ucp->uc_mcontext.mullo;
 	regs->mulhi = ucp->uc_mcontext.mulhi;
 
-	PROC_LOCK(p);
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
+
 	return(EJUSTRETURN);
 }
 

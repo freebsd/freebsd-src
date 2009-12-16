@@ -35,10 +35,10 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -369,7 +369,6 @@ ng_eiface_constructor(node_p node)
 	ifp->if_output = ether_output;
 	ifp->if_start = ng_eiface_start;
 	ifp->if_ioctl = ng_eiface_ioctl;
-	ifp->if_watchdog = NULL;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 

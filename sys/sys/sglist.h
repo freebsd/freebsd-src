@@ -91,7 +91,7 @@ int	sglist_append_user(struct sglist *sg, void *buf, size_t len,
 	    struct thread *td);
 struct sglist *sglist_build(void *buf, size_t len, int mflags);
 struct sglist *sglist_clone(struct sglist *sg, int mflags);
-int	sglist_consume_uio(struct sglist *sg, struct uio *uio, int resid);
+int	sglist_consume_uio(struct sglist *sg, struct uio *uio, size_t resid);
 int	sglist_count(void *buf, size_t len);
 void	sglist_free(struct sglist *sg);
 int	sglist_join(struct sglist *first, struct sglist *second);

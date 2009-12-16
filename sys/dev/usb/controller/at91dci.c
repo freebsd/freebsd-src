@@ -894,6 +894,7 @@ at91dci_setup_standard_chain(struct usb_xfer *xfer)
 
 	/* setup temp */
 
+	temp.pc = NULL;
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
@@ -2326,4 +2327,5 @@ struct usb_bus_methods at91dci_bus_methods =
 	.set_stall = &at91dci_set_stall,
 	.clear_stall = &at91dci_clear_stall,
 	.roothub_exec = &at91dci_roothub_exec,
+	.xfer_poll = &at91dci_do_poll,
 };

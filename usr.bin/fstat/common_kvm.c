@@ -123,7 +123,7 @@ devfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 		    (void *)getvnodemount(vp));
 		return (1);
 	}
-	vn->vn_fsid = (long)mount.mnt_stat.f_fsid.val[0];
+	vn->vn_fsid = mount.mnt_stat.f_fsid.val[0];
 	vn->vn_fileid = devfs_dirent.de_inode;
 	vn->vn_mode = (devfs_dirent.de_mode & ~S_IFMT) | S_IFCHR;
 	vn->vn_size = 0;

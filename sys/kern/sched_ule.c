@@ -103,6 +103,7 @@ struct td_sched {
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
 	u_int		ts_runtime;	/* Number of ticks we were running */
 	int		ts_ltick;	/* Last tick that we were running on */
+	int		ts_incrtick;	/* Last tick that we incremented on */
 	int		ts_ftick;	/* First tick that we were running on */
 	int		ts_ticks;	/* Tick count */
 #ifdef KTR
@@ -495,7 +496,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	tdq->tdq_load++;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -514,7 +515,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	    ("tdq_load_rem: Removing with 0 load on queue %d", TDQ_ID(tdq)));
 
 	tdq->tdq_load--;
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 }
@@ -1406,7 +1407,7 @@ sched_priority(struct thread *td)
 	 * score.  Negative nice values make it easier for a thread to be
 	 * considered interactive.
 	 */
-	score = imax(0, sched_interact_score(td) - td->td_proc->p_nice);
+	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
 		pri = PRI_MIN_REALTIME;
 		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
@@ -1749,19 +1750,19 @@ sched_switch_migrate(struct tdq *tdq, struct thread *td, int flags)
 	 */
 	spinlock_enter();
 	thread_block_switch(td);	/* This releases the lock on tdq. */
-	TDQ_LOCK(tdn);
+
+	/*
+	 * Acquire both run-queue locks before placing the thread on the new
+	 * run-queue to avoid deadlocks created by placing a thread with a
+	 * blocked lock on the run-queue of a remote processor.  The deadlock
+	 * occurs when a third processor attempts to lock the two queues in
+	 * question while the target processor is spinning with its own
+	 * run-queue lock held while waiting for the blocked lock to clear.
+	 */
+	tdq_lock_pair(tdn, tdq);
 	tdq_add(tdn, td, flags);
 	tdq_notify(tdn, td);
-	/*
-	 * After we unlock tdn the new cpu still can't switch into this
-	 * thread until we've unblocked it in cpu_switch().  The lock
-	 * pointers may match in the case of HTT cores.  Don't unlock here
-	 * or we can deadlock when the other CPU runs the IPI handler.
-	 */
-	if (TDQ_LOCKPTR(tdn) != TDQ_LOCKPTR(tdq)) {
-		TDQ_UNLOCK(tdn);
-		TDQ_LOCK(tdq);
-	}
+	TDQ_UNLOCK(tdn);
 	spinlock_exit();
 #endif
 	return (TDQ_LOCKPTR(tdn));
@@ -1991,6 +1992,7 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
+	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
 	child->td_user_pri = td->td_user_pri;
 	child->td_base_user_pri = td->td_base_user_pri;
@@ -2182,11 +2184,12 @@ sched_tick(void)
 	 * Ticks is updated asynchronously on a single cpu.  Check here to
 	 * avoid incrementing ts_ticks multiple times in a single tick.
 	 */
-	if (ts->ts_ltick == ticks)
+	if (ts->ts_incrtick == ticks)
 		return;
 	/* Adjust ticks for pctcpu */
 	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
+	ts->ts_incrtick = ticks;
 	/*
 	 * Update if we've exceeded our desired tick threshhold by over one
 	 * second.

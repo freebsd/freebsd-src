@@ -379,7 +379,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 #ifdef AUDIT
-	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(vp);
 #endif
 	mp = vp->v_mount;
 	if (mp)
@@ -752,7 +752,7 @@ fchdir(td, uap)
 	fdrop(fp, td);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(vp);
 	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		int tvfslocked;
@@ -1307,10 +1307,8 @@ restart:
 		return (EEXIST);
 	} else {
 		VATTR_NULL(&vattr);
-		FILEDESC_SLOCK(td->td_proc->p_fd);
 		vattr.va_mode = (mode & ALLPERMS) &
 		    ~td->td_proc->p_fd->fd_cmask;
-		FILEDESC_SUNLOCK(td->td_proc->p_fd);
 		vattr.va_rdev = dev;
 		whiteout = 0;
 
@@ -1442,9 +1440,7 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VFIFO;
-	FILEDESC_SLOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ALLPERMS) & ~td->td_proc->p_fd->fd_cmask;
-	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -1705,9 +1701,7 @@ restart:
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
-	FILEDESC_SLOCK(td->td_proc->p_fd);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	vattr.va_type = VLNK;
 	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
@@ -2779,7 +2773,7 @@ fchflags(td, uap)
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(fp->f_vnode);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfflags(td, fp->f_vnode, uap->flags);
@@ -2940,7 +2934,7 @@ fchmod(td, uap)
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(fp->f_vnode);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfmode(td, fp->f_vnode, uap->mode);
@@ -3117,7 +3111,7 @@ fchown(td, uap)
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(fp->f_vnode);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfown(td, fp->f_vnode, uap->uid, uap->gid);
@@ -3140,8 +3134,7 @@ getutimes(usrtvp, tvpseg, tsp)
 	int error;
 
 	if (usrtvp == NULL) {
-		microtime(&tv[0]);
-		TIMEVAL_TO_TIMESPEC(&tv[0], &tsp[0]);
+		vfs_timestamp(&tsp[0]);
 		tsp[1] = tsp[0];
 	} else {
 		if (tvpseg == UIO_SYSSPACE) {
@@ -3353,7 +3346,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(fp->f_vnode);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setutimes(td, fp->f_vnode, ts, 2, tptr == NULL);
@@ -3513,7 +3506,7 @@ fsync(td, uap)
 		lock_flags = LK_EXCLUSIVE;
 	}
 	vn_lock(vp, lock_flags | LK_RETRY);
-	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(vp);
 	if (vp->v_object != NULL) {
 		VM_OBJECT_LOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
@@ -3773,9 +3766,7 @@ restart:
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_type = VDIR;
-	FILEDESC_SLOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
-	FILEDESC_SUNLOCK(td->td_proc->p_fd);
 #ifdef MAC
 	error = mac_vnode_check_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
 	    &vattr);
@@ -4103,7 +4094,7 @@ unionread:
 	auio.uio_td = td;
 	auio.uio_resid = count;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE1(vp);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
 	error = mac_vnode_check_readdir(td->td_ucred, vp);
@@ -4435,7 +4426,7 @@ fhopen(td, uap)
 	}
 	if (fmode & FREAD)
 		accmode |= VREAD;
-	if (fmode & O_APPEND)
+	if ((fmode & O_APPEND) && (fmode & FWRITE))
 		accmode |= VAPPEND;
 #ifdef MAC
 	error = mac_vnode_check_open(td->td_ucred, vp, accmode);
@@ -4448,12 +4439,15 @@ fhopen(td, uap)
 			goto bad;
 	}
 	if (fmode & O_TRUNC) {
+		vfs_ref(mp);
 		VOP_UNLOCK(vp, 0);				/* XXX */
 		if ((error = vn_start_write(NULL, &mp, V_WAIT | PCATCH)) != 0) {
 			vrele(vp);
+			vfs_rel(mp);
 			goto out;
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);	/* XXX */
+		vfs_rel(mp);
 #ifdef MAC
 		/*
 		 * We don't yet have fp->f_cred, so use td->td_ucred, which
@@ -4525,7 +4519,6 @@ fhopen(td, uap)
 
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
-	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	td->td_retval[0] = indx;
 	return (0);

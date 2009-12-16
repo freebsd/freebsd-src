@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
@@ -536,6 +536,15 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				hostIsNew = 0;
 		}
 		if (ifra->ifra_mask.sin_len) {
+			/* 
+			 * QL: XXX
+			 * Need to scrub the prefix here in case
+			 * the issued command is SIOCAIFADDR with
+			 * the same address, but with a different
+			 * prefix length. And if the prefix length
+			 * is the same as before, then the call is 
+			 * un-necessarily executed here.
+			 */
 			in_ifscrub(ifp, ia);
 			ia->ia_sockmask = ifra->ifra_mask;
 			ia->ia_sockmask.sin_family = AF_INET;
@@ -818,9 +827,6 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
-	struct rtentry *rt = NULL;
-	struct rt_addrinfo info;
-	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 	int s = splimp(), flags = RTF_UP, error = 0;
 
 	oldaddr = ia->ia_addr;
@@ -918,25 +924,9 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	/*
 	 * add a loopback route to self
 	 */
-	if (!(ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
-		bzero(&info, sizeof(info));
-		info.rti_ifp = V_loif;
-		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-		error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
-
-		if (error == 0 && rt != NULL) {
-			RT_LOCK(rt);
-			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-				rt->rt_ifp->if_type;
-			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-				rt->rt_ifp->if_index;
-			RT_REMREF(rt);
-			RT_UNLOCK(rt);
-		} else if (error != 0)
-			log(LOG_INFO, "in_ifinit: insertion failed\n");
-	}
+	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK))
+		error = ifa_add_loopback_route((struct ifaddr *)ia, 
+				       (struct sockaddr *)&ia->ia_addr);
 
 	return (error);
 }
@@ -991,6 +981,40 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
+				struct route pfx_ro;
+				struct sockaddr_in *pfx_addr;
+				struct rtentry msg_rt;
+
+				/* QL: XXX
+				 * This is a bit questionable because there is no
+				 * additional route entry added for an address alias.
+				 * Therefore this route report is inaccurate. Perhaps
+				 * it's better to supply a empty rtentry as how it
+				 * is done in in_scrubprefix().
+				 */
+				bzero(&pfx_ro, sizeof(pfx_ro));
+				pfx_addr = (struct sockaddr_in *)(&pfx_ro.ro_dst);
+				pfx_addr->sin_len = sizeof(*pfx_addr);
+				pfx_addr->sin_family = AF_INET;
+				pfx_addr->sin_addr = prefix;
+				rtalloc_ign_fib(&pfx_ro, 0, 0);
+				if (pfx_ro.ro_rt != NULL) {
+					msg_rt = *pfx_ro.ro_rt;
+					/* QL: XXX
+					 * Point the gateway to the given interface
+					 * address as if a new prefix route entry has 
+					 * been added through the new address alias. 
+					 * All other parts of the rtentry is accurate, 
+					 * e.g., rt_key, rt_mask, rt_ifp etc.
+					 */
+					msg_rt.rt_gateway = 
+						(struct sockaddr *)&ia->ia_addr;
+					rt_newaddrmsg(RTM_ADD, 
+						      (struct ifaddr *)target,
+						      0, &msg_rt);
+					RTFREE(pfx_ro.ro_rt);
+				}
+
 				IN_IFADDR_RUNLOCK();
 				return (0);
 			}
@@ -1021,27 +1045,37 @@ in_scrubprefix(struct in_ifaddr *target)
 	struct in_addr prefix, mask, p;
 	int error;
 	struct sockaddr_in prefix0, mask0;
-	struct rt_addrinfo info;
-	struct sockaddr_dl null_sdl;
 
-	if ((target->ia_flags & IFA_ROUTE) == 0)
-		return (0);
-
+	/*
+	 * Remove the loopback route to the interface address.
+	 * The "useloopback" setting is not consulted because if the
+	 * user configures an interface address, turns off this
+	 * setting, and then tries to delete that interface address,
+	 * checking the current setting of "useloopback" would leave
+	 * that interface address loopback route untouched, which
+	 * would be wrong. Therefore the interface address loopback route
+	 * deletion is unconditional.
+	 */
 	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
-	    !(target->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
-		bzero(&null_sdl, sizeof(null_sdl));
-		null_sdl.sdl_len = sizeof(null_sdl);
-		null_sdl.sdl_family = AF_LINK;
-		null_sdl.sdl_type = V_loif->if_type;
-		null_sdl.sdl_index = V_loif->if_index;
-		bzero(&info, sizeof(info));
-		info.rti_flags = target->ia_flags | RTF_HOST | RTF_STATIC;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&target->ia_addr;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-		error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+	    !(target->ia_ifp->if_flags & IFF_LOOPBACK)) {
+		error = ifa_del_loopback_route((struct ifaddr *)target,
+				       (struct sockaddr *)&target->ia_addr);
+		/* remove arp cache */
+		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
+	}
 
-		if (error != 0)
-			log(LOG_INFO, "in_scrubprefix: deletion failed\n");
+	if ((target->ia_flags & IFA_ROUTE) == 0) {
+		struct rtentry rt;
+
+		/* QL: XXX
+		 * Report a blank rtentry when a route has not been
+		 * installed for the given interface address.
+		 */
+		bzero(&rt, sizeof(rt));
+		rt_newaddrmsg(RTM_DELETE, 
+			      (struct ifaddr *)target,
+			      0, &rt);
+		return (0);
 	}
 
 	if (rtinitflags(target))
@@ -1050,8 +1084,6 @@ in_scrubprefix(struct in_ifaddr *target)
 		prefix = target->ia_addr.sin_addr;
 		mask = target->ia_sockmask.sin_addr;
 		prefix.s_addr &= mask.s_addr;
-		/* remove arp cache */
-		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
 
 	IN_IFADDR_RLOCK();
@@ -1295,8 +1327,10 @@ in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
 	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
+#ifdef DIAGNOSTIC
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
+#endif
 		if (rt != NULL)
 			RTFREE_LOCKED(rt);
 		return (EINVAL);
@@ -1332,7 +1366,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			break;
 	}
 	if (lle == NULL) {
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 		if (flags & LLE_DELETE)
 			log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);	
 #endif
@@ -1365,8 +1399,9 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
 			lle->la_flags = LLE_DELETED;
+			EVENTHANDLER_INVOKE(arp_update_event, lle);
 			LLE_WUNLOCK(lle);
-#ifdef DIAGNOSTICS
+#ifdef DIAGNOSTIC
 			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
 #endif
 		}
@@ -1397,12 +1432,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	} arpc;
 	int error, i;
 
-	/* XXXXX
-	 * current IFNET_RLOCK() is mapped to IFNET_WLOCK()
-	 * so it is okay to use this ASSERT, change it when
-	 * IFNET lock is finalized
-	 */
-	IFNET_WLOCK_ASSERT();
+	LLTABLE_LOCK_ASSERT();
 
 	error = 0;
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
@@ -1410,7 +1440,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			struct sockaddr_dl *sdl;
 			
 			/* skip deleted entries */
-			if ((lle->la_flags & (LLE_DELETED|LLE_VALID)) != LLE_VALID)
+			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
 				continue;
 			/* Skip if jailed and not a valid IP of the prison. */
 			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
@@ -1442,10 +1472,15 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			sdl = &arpc.sdl;
 			sdl->sdl_family = AF_LINK;
 			sdl->sdl_len = sizeof(*sdl);
-			sdl->sdl_alen = ifp->if_addrlen;
 			sdl->sdl_index = ifp->if_index;
 			sdl->sdl_type = ifp->if_type;
-			bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+			if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
+				sdl->sdl_alen = ifp->if_addrlen;
+				bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+			} else {
+				sdl->sdl_alen = 0;
+				bzero(LLADDR(sdl), ifp->if_addrlen);
+			}
 
 			arpc.rtm.rtm_rmx.rmx_expire =
 			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;

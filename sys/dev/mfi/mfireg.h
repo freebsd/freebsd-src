@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 #define MFI_ODCR0	0xa0 		/* outbound doorbell clear register0  */
 #define MFI_OSP0	0xb0 		/* outbound scratch pad0  */
 #define MFI_1078_EIM	0x80000004 	/* 1078 enable intrrupt mask  */
-#define MFI_RMI		0x2 		/* reply message interrupt  */
+#define MFI_RMI		0x2 		/* reply message interrupt  */       
 #define MFI_1078_RM	0x80000000 	/* reply 1078 message interrupt  */
 #define MFI_ODC		0x4 		/* outbound doorbell change interrupt */
 
@@ -151,15 +151,41 @@ typedef enum {
 	MFI_DCMD_CTRL_EVENT_GETINFO =	0x01040100,
 	MFI_DCMD_CTRL_EVENT_GET =	0x01040300,
 	MFI_DCMD_CTRL_EVENT_WAIT =	0x01040500,
+	MFI_DCMD_PR_GET_STATUS =	0x01070100,
+	MFI_DCMD_PR_GET_PROPERTIES =	0x01070200,
+	MFI_DCMD_PR_SET_PROPERTIES =	0x01070300,
+	MFI_DCMD_PR_START =		0x01070400,
+	MFI_DCMD_PR_STOP =		0x01070500,
+	MFI_DCMD_TIME_SECS_GET =	0x01080201,
+	MFI_DCMD_FLASH_FW_OPEN =	0x010f0100,
+	MFI_DCMD_FLASH_FW_DOWNLOAD =	0x010f0200,
+	MFI_DCMD_FLASH_FW_FLASH =	0x010f0300,
+	MFI_DCMD_FLASH_FW_CLOSE =	0x010f0400,
+	MFI_DCMD_PD_GET_LIST =		0x02010000,
+	MFI_DCMD_PD_GET_INFO = 		0x02020000,
+	MFI_DCMD_PD_STATE_SET =		0x02030100,
+	MFI_DCMD_PD_REBUILD_START =	0x02040100,
+	MFI_DCMD_PD_REBUILD_ABORT =	0x02040200,
+	MFI_DCMD_PD_CLEAR_START =	0x02050100,
+	MFI_DCMD_PD_CLEAR_ABORT =	0x02050200,
+	MFI_DCMD_PD_GET_PROGRESS =	0x02060000,
+	MFI_DCMD_PD_LOCATE_START =	0x02070100,
+	MFI_DCMD_PD_LOCATE_STOP =	0x02070200,
 	MFI_DCMD_LD_GET_LIST =		0x03010000,
 	MFI_DCMD_LD_GET_INFO =		0x03020000,
 	MFI_DCMD_LD_GET_PROP =		0x03030000,
 	MFI_DCMD_LD_SET_PROP =		0x03040000,
+	MFI_DCMD_LD_INIT_START =	0x03060100,
 	MFI_DCMD_LD_DELETE =		0x03090000,
 	MFI_DCMD_CFG_READ =		0x04010000,
 	MFI_DCMD_CFG_ADD =		0x04020000,
 	MFI_DCMD_CFG_CLEAR =		0x04030000,
+	MFI_DCMD_CFG_MAKE_SPARE =	0x04040000,
+	MFI_DCMD_CFG_REMOVE_SPARE =	0x04050000,	
 	MFI_DCMD_CFG_FOREIGN_IMPORT =	0x04060400,
+	MFI_DCMD_BBU_GET_STATUS =	0x05010000,
+	MFI_DCMD_BBU_GET_CAPACITY_INFO =0x05020000,
+	MFI_DCMD_BBU_GET_DESIGN_INFO =	0x05030000,
 	MFI_DCMD_CLUSTER =		0x08000000,
 	MFI_DCMD_CLUSTER_RESET_ALL =	0x08010100,
 	MFI_DCMD_CLUSTER_RESET_LD =	0x08010200
@@ -245,6 +271,9 @@ typedef enum {
 	MFI_STAT_RESERVATION_IN_PROGRESS,
 	MFI_STAT_I2C_ERRORS_DETECTED,
 	MFI_STAT_PCI_ERRORS_DETECTED,
+	MFI_STAT_DIAG_FAILED,
+	MFI_STAT_BOOT_MSG_PENDING,
+	MFI_STAT_FOREIGN_CONFIG_INCOMPLETE,
 	MFI_STAT_INVALID_STATUS =	0xFF
 } mfi_status_t;
 
@@ -303,6 +332,17 @@ typedef enum {
 	MR_LD_CACHE_ALLOW_WRITE_CACHE =	0x20,
 	MR_LD_CACHE_ALLOW_READ_CACHE =	0x40
 } mfi_ld_cache;
+#define	MR_LD_CACHE_MASK	0x7f
+
+#define	MR_LD_CACHE_POLICY_READ_AHEAD_NONE		0
+#define	MR_LD_CACHE_POLICY_READ_AHEAD_ALWAYS		MR_LD_CACHE_READ_AHEAD
+#define	MR_LD_CACHE_POLICY_READ_AHEAD_ADAPTIVE		\
+	(MR_LD_CACHE_READ_AHEAD | MR_LD_CACHE_READ_ADAPTIVE)
+#define	MR_LD_CACHE_POLICY_WRITE_THROUGH		0
+#define	MR_LD_CACHE_POLICY_WRITE_BACK			MR_LD_CACHE_WRITE_BACK
+#define	MR_LD_CACHE_POLICY_IO_CACHED			\
+	(MR_LD_CACHE_ALLOW_WRITE_CACHE | MR_LD_CACHE_ALLOW_READ_CACHE)
+#define	MR_LD_CACHE_POLICY_IO_DIRECT			0
 
 typedef enum {
 	MR_PD_CACHE_UNCHANGED  =	0,
@@ -320,6 +360,7 @@ typedef enum {
 #define MFI_DEFAULT_ID		-1
 #define MFI_MAX_LUN		8
 #define MFI_MAX_LD		64
+#define	MFI_MAX_PD		256
 
 #define MFI_FRAME_SIZE		64
 #define MFI_MBOX_SIZE		12
@@ -866,12 +907,10 @@ union mfi_pd_ddf_type {
 } __packed;
 
 struct mfi_pd_progress {
-	struct {
-		uint32_t		rbld	: 1;
-		uint32_t		patrol	: 1;
-		uint32_t		clear	: 1;
-		uint32_t		reserved: 29;
-	} active;
+	uint32_t			active;
+#define	MFI_PD_PROGRESS_REBUILD	(1<<0)
+#define	MFI_PD_PROGRESS_PATROL	(1<<1)
+#define	MFI_PD_PROGRESS_CLEAR	(1<<2)
 	struct mfi_progress		rbld;
 	struct mfi_progress		patrol;
 	struct mfi_progress		clear;
@@ -890,8 +929,8 @@ struct mfi_pd_info {
 	uint32_t			other_err_count;
 	uint32_t			pred_fail_count;
 	uint32_t			last_pred_fail_event_seq_num;
-	uint16_t			fw_state;
-	uint8_t				disable_for_removal;
+	uint16_t			fw_state;	/* MFI_PD_STATE_* */
+	uint8_t				disabled_for_removal;
 	uint8_t				link_speed;
 	union mfi_pd_ddf_type		state;
 	struct {
@@ -918,7 +957,7 @@ struct mfi_pd_address {
 	uint16_t		encl_device_id;
 	uint8_t			encl_index;
 	uint8_t			slot_number;
-	uint8_t			scsi_dev_type;
+	uint8_t			scsi_dev_type;	/* 0 = disk */
 	uint8_t			connect_port_bitmap;
 	uint64_t		sas_addr[2];
 } __packed;
@@ -926,11 +965,18 @@ struct mfi_pd_address {
 struct mfi_pd_list {
 	uint32_t		size;
 	uint32_t		count;
-	uint8_t			data;
-	/*
-	struct mfi_pd_address	addr[];
-	*/
+	struct mfi_pd_address	addr[0];
 } __packed;
+
+enum mfi_pd_state {
+	MFI_PD_STATE_UNCONFIGURED_GOOD = 0x00,
+	MFI_PD_STATE_UNCONFIGURED_BAD = 0x01,
+	MFI_PD_STATE_HOT_SPARE = 0x02,
+	MFI_PD_STATE_OFFLINE = 0x10,
+	MFI_PD_STATE_FAILED = 0x11,
+	MFI_PD_STATE_REBUILD = 0x14,
+	MFI_PD_STATE_ONLINE = 0x18
+};
 
 union mfi_ld_ref {
 	struct {
@@ -986,6 +1032,9 @@ struct mfi_ld_params {
 	uint8_t			span_depth;
 	uint8_t			state;
 	uint8_t			init_state;
+#define	MFI_LD_PARAMS_INIT_NO		0
+#define	MFI_LD_PARAMS_INIT_QUICK	1
+#define	MFI_LD_PARAMS_INIT_FULL		2
 	uint8_t			is_consistent;
 	uint8_t			reserved[23];
 } __packed;
@@ -995,7 +1044,7 @@ struct mfi_ld_progress {
 #define	MFI_LD_PROGRESS_CC	(1<<0)
 #define	MFI_LD_PROGRESS_BGI	(1<<1)
 #define	MFI_LD_PROGRESS_FGI	(1<<2)
-#define	MFI_LD_PORGRESS_RECON	(1<<3)
+#define	MFI_LD_PROGRESS_RECON	(1<<3)
 	struct mfi_progress	cc;
 	struct mfi_progress	bgi;
 	struct mfi_progress	fgi;
@@ -1028,26 +1077,18 @@ struct mfi_ld_info {
 	uint8_t			reserved2[16];
 } __packed;
 
-union mfi_spare_type {
-	struct {
-		uint8_t		is_dedicate		:1;
-		uint8_t		is_revertable		:1;
-		uint8_t		is_encl_affinity	:1;
-		uint8_t		reserved		:5;
-	} v;
-	uint8_t		type;
-} __packed;
-
 #define MAX_ARRAYS 16
 struct mfi_spare {
 	union mfi_pd_ref	ref;
-	union mfi_spare_type	spare_type;
+	uint8_t			spare_type;
+#define	MFI_SPARE_DEDICATED	(1 << 0)
+#define	MFI_SPARE_REVERTIBLE	(1 << 1)
+#define	MFI_SPARE_ENCL_AFFINITY	(1 << 2)
 	uint8_t			reserved[2];
 	uint8_t			array_count;
-	uint16_t		array_refd[MAX_ARRAYS];
+	uint16_t		array_ref[MAX_ARRAYS];
 } __packed;
 
-#define MAX_ROW_SIZE 32
 struct mfi_array {
 	uint64_t			size;
 	uint8_t				num_drives;
@@ -1055,13 +1096,13 @@ struct mfi_array {
 	uint16_t			array_ref;
 	uint8_t				pad[20];
 	struct {
-		union mfi_pd_ref	ref;
-		uint16_t		fw_state;
+		union mfi_pd_ref	ref;	/* 0xffff == missing drive */
+		uint16_t		fw_state;	/* MFI_PD_STATE_* */
 		struct {
 			uint8_t		pd;
 			uint8_t		slot;
 		} encl;
-	} pd[MAX_ROW_SIZE];
+	} pd[0];
 } __packed;
 
 struct mfi_config_data {
@@ -1073,13 +1114,117 @@ struct mfi_config_data {
 	uint16_t		spares_count;
 	uint16_t		spares_size;
 	uint8_t			reserved[16];
-	uint8_t			data;
-	/*
-	struct mfi_array	array[];
-	struct mfi_ld_config	ld[];
-	struct mfi_spare	spare[];
-	*/
+	struct mfi_array	array[0];
+	struct mfi_ld_config	ld[0];
+	struct mfi_spare	spare[0];
 } __packed;
+
+struct mfi_bbu_capacity_info {
+	uint16_t		relative_charge;
+	uint16_t		absolute_charge;
+	uint16_t		remaining_capacity;
+	uint16_t		full_charge_capacity;
+	uint16_t		run_time_to_empty;
+	uint16_t		average_time_to_empty;
+	uint16_t		average_time_to_full;
+	uint16_t		cycle_count;
+	uint16_t		max_error;
+	uint16_t		remaining_capacity_alarm;
+	uint16_t		remaining_time_alarm;
+	uint8_t			reserved[26];
+} __packed;
+
+struct mfi_bbu_design_info {
+	uint32_t		mfg_date;
+	uint16_t		design_capacity;
+	uint16_t		design_voltage;
+	uint16_t		spec_info;
+	uint16_t		serial_number;
+	uint16_t		pack_stat_config;
+	uint8_t			mfg_name[12];
+	uint8_t			device_name[8];
+	uint8_t			device_chemistry[8];
+	uint8_t			mfg_data[8];
+	uint8_t			reserved[17];
+} __packed;
+
+struct mfi_ibbu_state {
+	uint16_t		gas_guage_status;
+	uint16_t		relative_charge;
+	uint16_t		charger_system_state;
+	uint16_t		charger_system_ctrl;
+	uint16_t		charging_current;
+	uint16_t		absolute_charge;
+	uint16_t		max_error;
+	uint8_t			reserved[18];
+} __packed;
+
+struct mfi_bbu_state {
+	uint16_t		gas_guage_status;
+	uint16_t		relative_charge;
+	uint16_t		charger_status;
+	uint16_t		remaining_capacity;
+	uint16_t		full_charge_capacity;
+	uint8_t			is_SOH_good;
+	uint8_t			reserved[21];
+} __packed;
+
+union mfi_bbu_status_detail {
+	struct mfi_ibbu_state	ibbu;
+	struct mfi_bbu_state	bbu;
+};
+
+struct mfi_bbu_status {
+	uint8_t			battery_type;
+#define	MFI_BBU_TYPE_NONE	0
+#define	MFI_BBU_TYPE_IBBU	1
+#define	MFI_BBU_TYPE_BBU	2	
+	uint8_t			reserved;
+	uint16_t		voltage;
+	int16_t			current;
+	uint16_t		temperature;
+	uint32_t		fw_status;
+#define	MFI_BBU_STATE_PACK_MISSING	(1 << 0)
+#define	MFI_BBU_STATE_VOLTAGE_LOW	(1 << 1)
+#define	MFI_BBU_STATE_TEMPERATURE_HIGH	(1 << 2)
+#define	MFI_BBU_STATE_CHARGE_ACTIVE	(1 << 0)
+#define	MFI_BBU_STATE_DISCHARGE_ACTIVE	(1 << 0)
+	uint8_t			pad[20];
+	union mfi_bbu_status_detail detail;
+} __packed;
+
+enum mfi_pr_state {
+	MFI_PR_STATE_STOPPED = 0,
+	MFI_PR_STATE_READY = 1,
+	MFI_PR_STATE_ACTIVE = 2,
+	MFI_PR_STATE_ABORTED = 0xff
+};
+
+struct mfi_pr_status {
+	uint32_t		num_iteration;
+	uint8_t			state;
+	uint8_t			num_pd_done;
+	uint8_t			reserved[10];
+};
+
+enum mfi_pr_opmode {
+	MFI_PR_OPMODE_AUTO = 0,
+	MFI_PR_OPMODE_MANUAL = 1,
+	MFI_PR_OPMODE_DISABLED = 2
+};
+
+struct mfi_pr_properties {
+	uint8_t			op_mode;
+	uint8_t			max_pd;
+	uint8_t			reserved;
+	uint8_t			exclude_ld_count;
+	uint16_t		excluded_ld[MFI_MAX_LD];
+	uint8_t			cur_pd_map[MFI_MAX_PD / 8];
+	uint8_t			last_pd_map[MFI_MAX_PD / 8];
+	uint32_t		next_exec;
+	uint32_t		exec_freq;
+	uint32_t		clear_freq;
+};
 
 #define MFI_SCSI_MAX_TARGETS	128
 #define MFI_SCSI_MAX_LUNS	8

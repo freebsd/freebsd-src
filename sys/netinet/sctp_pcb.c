@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 
 
-struct sctp_base_info system_base_info;
+VNET_DEFINE(struct sctp_base_info, system_base_info);
 
 /* FIX: we don't handle multiple link local scopes */
 /* "scopeless" replacement IN6_ARE_ADDR_EQUAL */
@@ -59,11 +59,11 @@ SCTP6_ARE_ADDR_EQUAL(struct sockaddr_in6 *a, struct sockaddr_in6 *b)
 	struct sockaddr_in6 tmp_a, tmp_b;
 
 	memcpy(&tmp_a, a, sizeof(struct sockaddr_in6));
-	if (sa6_embedscope(&tmp_a, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
+	if (sa6_embedscope(&tmp_a, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 		return 0;
 	}
 	memcpy(&tmp_b, b, sizeof(struct sockaddr_in6));
-	if (sa6_embedscope(&tmp_b, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
+	if (sa6_embedscope(&tmp_b, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 		return 0;
 	}
 	return (IN6_ARE_ADDR_EQUAL(&tmp_a.sin6_addr, &tmp_b.sin6_addr));
@@ -452,7 +452,7 @@ sctp_remove_ifa_from_ifn(struct sctp_ifa *sctp_ifap)
 			sctp_ifap->ifn_p->num_v4--;
 
 		ifn_index = sctp_ifap->ifn_p->ifn_index;
-		if (SCTP_LIST_EMPTY(&sctp_ifap->ifn_p->ifalist)) {
+		if (LIST_EMPTY(&sctp_ifap->ifn_p->ifalist)) {
 			/* remove the ifn, possibly freeing it */
 			sctp_delete_ifn(sctp_ifap->ifn_p, SCTP_ADDR_LOCKED);
 		} else {
@@ -2008,7 +2008,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 			/* Get the scopes in properly to the sin6 addr's */
 			/* we probably don't need these operations */
 			(void)sa6_recoverscope(from6);
-			sa6_embedscope(from6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
+			sa6_embedscope(from6, MODULE_GLOBAL(ip6_use_defzone));
 			break;
 		}
 #endif
@@ -2049,7 +2049,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 			/* Get the scopes in properly to the sin6 addr's */
 			/* we probably don't need these operations */
 			(void)sa6_recoverscope(to6);
-			sa6_embedscope(to6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
+			sa6_embedscope(to6, MODULE_GLOBAL(ip6_use_defzone));
 			break;
 		}
 #endif
@@ -2316,7 +2316,7 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	}
 #endif				/* IPSEC */
 	SCTP_INCR_EP_COUNT();
-	inp->ip_inp.inp.inp_ip_ttl = MODULE_GLOBAL(MOD_INET, ip_defttl);
+	inp->ip_inp.inp.inp_ip_ttl = MODULE_GLOBAL(ip_defttl);
 	SCTP_INP_INFO_WUNLOCK();
 
 	so->so_pcb = (caddr_t)inp;
@@ -2688,7 +2688,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					bindall = 0;
 					/* KAME hack: embed scopeid */
-					if (sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
+					if (sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone)) != 0) {
 						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 						return (EINVAL);
 					}
@@ -2814,8 +2814,8 @@ continue_anyway:
 		int done;
 
 		if (ip_inp->inp_flags & INP_HIGHPORT) {
-			first = MODULE_GLOBAL(MOD_INET, ipport_hifirstauto);
-			last = MODULE_GLOBAL(MOD_INET, ipport_hilastauto);
+			first = MODULE_GLOBAL(ipport_hifirstauto);
+			last = MODULE_GLOBAL(ipport_hilastauto);
 		} else if (ip_inp->inp_flags & INP_LOWPORT) {
 			if (p && (error =
 			    priv_check(p, PRIV_NETINET_RESERVEDPORT)
@@ -2826,11 +2826,11 @@ continue_anyway:
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, error);
 				return (error);
 			}
-			first = MODULE_GLOBAL(MOD_INET, ipport_lowfirstauto);
-			last = MODULE_GLOBAL(MOD_INET, ipport_lowlastauto);
+			first = MODULE_GLOBAL(ipport_lowfirstauto);
+			last = MODULE_GLOBAL(ipport_lowlastauto);
 		} else {
-			first = MODULE_GLOBAL(MOD_INET, ipport_firstauto);
-			last = MODULE_GLOBAL(MOD_INET, ipport_lastauto);
+			first = MODULE_GLOBAL(ipport_firstauto);
+			last = MODULE_GLOBAL(ipport_lastauto);
 		}
 		if (first > last) {
 			uint16_t temp;
@@ -3756,7 +3756,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		struct sockaddr_in6 *sin6;
 
 		sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
-		(void)sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
+		(void)sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone));
 		sin6->sin6_scope_id = 0;
 	}
 #endif
@@ -3926,12 +3926,20 @@ sctp_aloc_a_assoc_id(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	struct sctpasochead *head;
 	struct sctp_tcb *lstcb;
 
+	SCTP_INP_WLOCK(inp);
 try_again:
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* TSNH */
+		SCTP_INP_WUNLOCK(inp);
 		return (0);
 	}
-	SCTP_INP_WLOCK(inp);
+	/*
+	 * We don't allow assoc id to be 0, this is needed otherwise if the
+	 * id were to wrap we would have issues with some socket options.
+	 */
+	if (inp->sctp_associd_counter == 0) {
+		inp->sctp_associd_counter++;
+	}
 	id = inp->sctp_associd_counter;
 	inp->sctp_associd_counter++;
 	lstcb = sctp_findasoc_ep_asocid_locked(inp, (sctp_assoc_t) id, 0);
@@ -4254,7 +4262,7 @@ sctp_delete_from_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 	int i;
 
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
 				if ((twait_block->vtag_block[i].v_tag == tag) &&
@@ -4284,7 +4292,7 @@ sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 
 	SCTP_INP_INFO_WLOCK();
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
 				if ((twait_block->vtag_block[i].v_tag == tag) &&
@@ -4318,7 +4326,7 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t 
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	set = 0;
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		/* Block(s) present, lets find space, and expire on the fly */
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
@@ -4547,8 +4555,11 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 
 						stcb->asoc.control_pdapi = sq;
 						strseq = (sq->sinfo_stream << 16) | sq->sinfo_ssn;
-						sctp_notify_partial_delivery_indication(stcb,
-						    SCTP_PARTIAL_DELIVERY_ABORTED, 1, strseq);
+						sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
+						    stcb,
+						    SCTP_PARTIAL_DELIVERY_ABORTED,
+						    (void *)&strseq,
+						    SCTP_SO_LOCKED);
 						stcb->asoc.control_pdapi = NULL;
 					}
 				}
@@ -4942,7 +4953,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		sctp_free_remote_addr(net);
 	}
 
-	while (!SCTP_LIST_EMPTY(&asoc->sctp_restricted_addrs)) {
+	while (!LIST_EMPTY(&asoc->sctp_restricted_addrs)) {
 		/* sa_ignore FREED_MEMORY */
 		laddr = LIST_FIRST(&asoc->sctp_restricted_addrs);
 		sctp_remove_laddr(laddr);
@@ -5547,36 +5558,54 @@ sctp_pcb_finish(void)
 	struct sctp_ifa *ifa;
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block, *prev_twait_block;
+	struct sctp_laddr *wi;
+	struct sctp_iterator *it;
 	int i;
+
+#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
+	SCTP_BASE_INFO(threads_must_exit) = 1;
+	/* Wake the thread up so it will exit now */
+	sctp_wakeup_iterator();
+
+#endif
+	SCTP_OS_TIMER_STOP(&SCTP_BASE_INFO(addr_wq_timer.timer));
+	SCTP_IPI_ITERATOR_WQ_LOCK();
+	while ((wi = LIST_FIRST(&SCTP_BASE_INFO(addr_wq))) != NULL) {
+		LIST_REMOVE(wi, sctp_nxt_addr);
+		SCTP_DECR_LADDR_COUNT();
+		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), wi);
+	}
+	SCTP_IPI_ITERATOR_WQ_UNLOCK();
+	while ((it = TAILQ_FIRST(&SCTP_BASE_INFO(iteratorhead))) != NULL) {
+		if (it->function_atend != NULL) {
+			(*it->function_atend) (it->pointer, it->val);
+		}
+		TAILQ_REMOVE(&SCTP_BASE_INFO(iteratorhead), it, sctp_nxt_itr);
+		SCTP_FREE(it, SCTP_M_ITER);
+	}
 
 	/*
 	 * free the vrf/ifn/ifa lists and hashes (be sure address monitor is
 	 * destroyed first).
 	 */
 	vrf_bucket = &SCTP_BASE_INFO(sctp_vrfhash)[(SCTP_DEFAULT_VRFID & SCTP_BASE_INFO(hashvrfmark))];
-	vrf = LIST_FIRST(vrf_bucket);
-	while (vrf) {
-		ifn = LIST_FIRST(&vrf->ifnlist);
-		while (ifn) {
-			ifa = LIST_FIRST(&ifn->ifalist);
-			while (ifa) {
+	while ((vrf = LIST_FIRST(vrf_bucket)) != NULL) {
+		while ((ifn = LIST_FIRST(&vrf->ifnlist)) != NULL) {
+			while ((ifa = LIST_FIRST(&ifn->ifalist)) != NULL) {
 				/* free the ifa */
 				LIST_REMOVE(ifa, next_bucket);
 				LIST_REMOVE(ifa, next_ifa);
 				SCTP_FREE(ifa, SCTP_M_IFA);
-				ifa = LIST_FIRST(&ifn->ifalist);
 			}
 			/* free the ifn */
 			LIST_REMOVE(ifn, next_bucket);
 			LIST_REMOVE(ifn, next_ifn);
 			SCTP_FREE(ifn, SCTP_M_IFN);
-			ifn = LIST_FIRST(&vrf->ifnlist);
 		}
 		SCTP_HASH_FREE(vrf->vrf_addr_hash, vrf->vrf_addr_hashmark);
 		/* free the vrf */
 		LIST_REMOVE(vrf, next_vrf);
 		SCTP_FREE(vrf, SCTP_M_VRF);
-		vrf = LIST_FIRST(vrf_bucket);
 	}
 	/* free the vrf hashes */
 	SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_vrfhash), SCTP_BASE_INFO(hashvrfmark));
@@ -5588,7 +5617,7 @@ sctp_pcb_finish(void)
 	 */
 	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		chain = &SCTP_BASE_INFO(vtag_timewait)[i];
-		if (!SCTP_LIST_EMPTY(chain)) {
+		if (!LIST_EMPTY(chain)) {
 			prev_twait_block = NULL;
 			LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 				if (prev_twait_block) {
@@ -5603,9 +5632,7 @@ sctp_pcb_finish(void)
 	/* free the locks and mutexes */
 #ifdef SCTP_PACKET_LOGGING
 	SCTP_IP_PKTLOG_DESTROY();
-
 #endif
-	SCTP_IPI_ITERATOR_WQ_DESTROY();
 	SCTP_IPI_ADDR_DESTROY();
 	SCTP_ITERATOR_LOCK_DESTROY();
 	SCTP_STATLOG_DESTROY();
@@ -6360,7 +6387,7 @@ skip_vtag_check:
 
 	chain = &SCTP_BASE_INFO(vtag_timewait[(tag % SCTP_STACK_VTAG_HASH_SIZE))];
 	/* Now what about timed wait ? */
-	if (!SCTP_LIST_EMPTY(chain)) {
+	if (!LIST_EMPTY(chain)) {
 		/*
 		 * Block(s) are present, lets see if we have this tag in the
 		 * list
@@ -6411,10 +6438,6 @@ sctp_drain_mbufs(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 
 	/* We look for anything larger than the cum-ack + 1 */
 
-	SCTP_STAT_INCR(sctps_protocol_drain_calls);
-	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
-		return;
-	}
 	asoc = &stcb->asoc;
 	if (asoc->cumulative_tsn == asoc->highest_tsn_inside_map) {
 		/* none we can reneg on. */
@@ -6577,22 +6600,37 @@ sctp_drain()
 	 * is LOW on MBUF's and needs help. This is where reneging will
 	 * occur. We really hope this does NOT happen!
 	 */
-	struct sctp_inpcb *inp;
-	struct sctp_tcb *stcb;
+	VNET_ITERATOR_DECL(vnet_iter);
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		struct sctp_inpcb *inp;
+		struct sctp_tcb *stcb;
 
-	SCTP_INP_INFO_RLOCK();
-	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
-		/* For each endpoint */
-		SCTP_INP_RLOCK(inp);
-		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
-			/* For each association */
-			SCTP_TCB_LOCK(stcb);
-			sctp_drain_mbufs(inp, stcb);
-			SCTP_TCB_UNLOCK(stcb);
+		SCTP_STAT_INCR(sctps_protocol_drain_calls);
+		if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
+#ifdef VIMAGE
+			continue;
+#else
+			return;
+#endif
 		}
-		SCTP_INP_RUNLOCK(inp);
+		SCTP_INP_INFO_RLOCK();
+		LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
+			/* For each endpoint */
+			SCTP_INP_RLOCK(inp);
+			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+				/* For each association */
+				SCTP_TCB_LOCK(stcb);
+				sctp_drain_mbufs(inp, stcb);
+				SCTP_TCB_UNLOCK(stcb);
+			}
+			SCTP_INP_RUNLOCK(inp);
+		}
+		SCTP_INP_INFO_RUNLOCK();
+		CURVNET_RESTORE();
 	}
-	SCTP_INP_INFO_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*

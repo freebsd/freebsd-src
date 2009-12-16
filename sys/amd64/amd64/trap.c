@@ -239,13 +239,11 @@ trap(struct trapframe *frame)
 	type = frame->tf_trapno;
 
 #ifdef SMP
-#ifdef STOP_NMI
 	/* Handler for NMI IPIs used for stopping CPUs. */
 	if (type == T_NMI) {
 	         if (ipi_nmi_handler() == 0)
 	                   goto out;
 	}
-#endif /* STOP_NMI */
 #endif /* SMP */
 
 #ifdef KDB
@@ -254,6 +252,11 @@ trap(struct trapframe *frame)
 		goto out;
 	}
 #endif
+
+	if (type == T_RESERVED) {
+		trap_fatal(frame, 0);
+		goto out;
+	}
 
 #ifdef	HWPMC_HOOKS
 	/*
@@ -411,7 +414,9 @@ trap(struct trapframe *frame)
 					 * This check also covers the images
 					 * without the ABI-tag ELF note.
 					 */
-					if (p->p_osrel >= 700004) {
+					if (SV_CURPROC_ABI() ==
+					    SV_ABI_FREEBSD &&
+					    p->p_osrel >= 700004) {
 						i = SIGSEGV;
 						ucode = SEGV_ACCERR;
 					} else {
@@ -500,8 +505,11 @@ trap(struct trapframe *frame)
 			 * XXX this should be fatal unless the kernel has
 			 * registered such use.
 			 */
-			fpudna();
 			printf("fpudna in kernel mode!\n");
+#ifdef KDB
+			kdb_backtrace();
+#endif
+			fpudna();
 			goto out;
 
 		case T_STKFLT:		/* stack fault */
@@ -742,9 +750,7 @@ trap_pfault(frame, usermode)
 		PROC_UNLOCK(p);
 
 		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype,
-			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
-						      : VM_FAULT_NORMAL);
+		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 
 		PROC_LOCK(p);
 		--p->p_lock;
@@ -999,39 +1005,7 @@ syscall(struct trapframe *frame)
 #endif
 	}
 
-	switch (error) {
-	case 0:
-		frame->tf_rax = td->td_retval[0];
-		frame->tf_rdx = td->td_retval[1];
-		frame->tf_rflags &= ~PSL_C;
-		break;
-
-	case ERESTART:
-		/*
-		 * Reconstruct pc, we know that 'syscall' is 2 bytes.
-		 * We have to do a full context restore so that %r10
-		 * (which was holding the value of %rcx) is restored for
-		 * the next iteration.
-		 */
-		frame->tf_rip -= frame->tf_err;
-		frame->tf_r10 = frame->tf_rcx;
-		td->td_pcb->pcb_flags |= PCB_FULLCTX;
-		break;
-
-	case EJUSTRETURN:
-		break;
-
-	default:
- 		if (p->p_sysent->sv_errsize) {
- 			if (error >= p->p_sysent->sv_errsize)
-  				error = -1;	/* XXX */
-   			else
-  				error = p->p_sysent->sv_errtbl[error];
-		}
-		frame->tf_rax = error;
-		frame->tf_rflags |= PSL_C;
-		break;
-	}
+	cpu_set_syscall_retval(td, error);
 
 	/*
 	 * Traced syscall.

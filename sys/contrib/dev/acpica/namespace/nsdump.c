@@ -286,7 +286,7 @@ AcpiNsDumpOneObject (
         return (AE_OK);
     }
 
-    ThisNode = AcpiNsMapHandleToNode (ObjHandle);
+    ThisNode = AcpiNsValidateHandle (ObjHandle);
     if (!ThisNode)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Invalid object handle %p\n",
@@ -736,7 +736,7 @@ AcpiNsDumpObjects (
 
     (void) AcpiNsWalkNamespace (Type, StartHandle, MaxDepth,
                 ACPI_NS_WALK_NO_UNLOCK | ACPI_NS_WALK_TEMP_NODES,
-                AcpiNsDumpOneObject, (void *) &Info, NULL);
+                AcpiNsDumpOneObject, NULL, (void *) &Info, NULL);
 }
 
 

@@ -391,7 +391,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 	ifp->if_start = ieee80211_start;
 	ifp->if_ioctl = ieee80211_ioctl;
-	ifp->if_watchdog = NULL;		/* NB: no watchdog routine */
 	ifp->if_init = ieee80211_init;
 	/* NB: input+output filled in by ether_ifattach */
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -573,10 +572,12 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 
 	/*
 	 * Flush any deferred vap tasks.
-	 * NB: must be before ether_ifdetach() and removal from ic_vaps list
 	 */
 	ieee80211_draintask(ic, &vap->iv_nstate_task);
 	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
+
+	/* XXX band-aid until ifnet handles this for us */
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 
 	IEEE80211_LOCK(ic);
 	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
@@ -638,7 +639,8 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 			 */
 			if (flag == IFF_PROMISC &&
 			    !(vap->iv_opmode == IEEE80211_M_MONITOR ||
-			      vap->iv_opmode == IEEE80211_M_AHDEMO))
+			      (vap->iv_opmode == IEEE80211_M_AHDEMO &&
+			       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
 				continue;
 			bit = 1;
 			break;

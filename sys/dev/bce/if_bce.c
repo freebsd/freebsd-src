@@ -293,12 +293,12 @@ static void bce_dump_enet           (struct bce_softc *, struct mbuf *);
 static void bce_dump_mbuf 			(struct bce_softc *, struct mbuf *);
 static void bce_dump_tx_mbuf_chain	(struct bce_softc *, u16, int);
 static void bce_dump_rx_mbuf_chain	(struct bce_softc *, u16, int);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pg_mbuf_chain	(struct bce_softc *, u16, int);
 #endif
 static void bce_dump_txbd			(struct bce_softc *, int, struct tx_bd *);
 static void bce_dump_rxbd			(struct bce_softc *, int, struct rx_bd *);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pgbd			(struct bce_softc *, int, struct rx_bd *);
 #endif
 static void bce_dump_l2fhdr			(struct bce_softc *, int, struct l2_fhdr *);
@@ -306,7 +306,7 @@ static void bce_dump_ctx			(struct bce_softc *, u16);
 static void bce_dump_ftqs			(struct bce_softc *);
 static void bce_dump_tx_chain		(struct bce_softc *, u16, int);
 static void bce_dump_rx_chain		(struct bce_softc *, u16, int);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static void bce_dump_pg_chain		(struct bce_softc *, u16, int);
 #endif
 static void bce_dump_status_block	(struct bce_softc *);
@@ -393,7 +393,7 @@ static int  bce_init_rx_chain		(struct bce_softc *);
 static void bce_fill_rx_chain		(struct bce_softc *);
 static void bce_free_rx_chain		(struct bce_softc *);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 static int  bce_get_pg_buf			(struct bce_softc *, struct mbuf *, u16 *, u16 *);
 static int  bce_init_pg_chain		(struct bce_softc *);
 static void bce_fill_pg_chain		(struct bce_softc *);
@@ -602,7 +602,7 @@ bce_print_adapter_info(struct bce_softc *sc)
 	/* Firmware version and device features. */
 	printf("B/C (%s); Flags (", sc->bce_bc_ver);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	printf("SPLT ");
     i++;
 #endif
@@ -1066,7 +1066,7 @@ bce_attach(device_t dev)
 	 * This may change later if the MTU size is set to
 	 * something other than 1500.
 	 */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	sc->rx_bd_mbuf_alloc_size = MHLEN;
 	/* Make sure offset is 16 byte aligned for hardware. */
 	sc->rx_bd_mbuf_align_pad  = roundup2((MSIZE - MHLEN), 16) -
@@ -2835,7 +2835,7 @@ bce_dma_free(struct bce_softc *sc)
 	}
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* Free, unmap and destroy all page buffer descriptor chain pages. */
 	for (i = 0; i < PG_PAGES; i++ ) {
 		if (sc->pg_bd_chain[i] != NULL) {
@@ -2899,7 +2899,7 @@ bce_dma_free(struct bce_softc *sc)
 		sc->rx_mbuf_tag = NULL;
 	}
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* Unload and destroy the page mbuf maps. */
 	for (i = 0; i < TOTAL_PG_BD; i++) {
 		if (sc->pg_mbuf_map[i] != NULL) {
@@ -3345,7 +3345,7 @@ bce_dma_alloc(device_t dev)
 	/*
 	 * Create a DMA tag for RX mbufs.
 	 */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	max_size = max_seg_size = ((sc->rx_bd_mbuf_alloc_size < MCLBYTES) ?
 		MCLBYTES : sc->rx_bd_mbuf_alloc_size);
 #else
@@ -3386,7 +3386,7 @@ bce_dma_alloc(device_t dev)
 		}
 	}
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/*
 	 * Create a DMA tag for the page buffer descriptor chain,
 	 * allocate and clear the memory, and fetch the physical
@@ -4473,7 +4473,7 @@ bce_stop(struct bce_softc *sc)
 	bce_disable_intr(sc);
 
 	/* Free RX buffers. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	bce_free_pg_chain(sc);
 #endif
 	bce_free_rx_chain(sc);
@@ -4910,7 +4910,7 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 			goto bce_get_rx_buf_exit);
 
 		/* This is a new mbuf allocation. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 #else
 		if (sc->rx_bd_mbuf_alloc_size <= MCLBYTES)
@@ -4991,7 +4991,7 @@ bce_get_rx_buf_exit:
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Encapsulate an mbuf cluster into the page chain.                        */
 /*                                                                          */
@@ -5100,7 +5100,7 @@ bce_get_pg_buf_exit:
 
 	return(rc);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* BCE_JUMBO_HDRSPLIT */
 
 /****************************************************************************/
 /* Initialize the TX context memory.                                        */
@@ -5456,7 +5456,7 @@ bce_free_rx_chain(struct bce_softc *sc)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Allocate memory and initialize the page data structures.                 */
 /* Assumes that bce_init_rx_chain() has not already been called.            */
@@ -5620,7 +5620,7 @@ bce_free_pg_chain(struct bce_softc *sc)
 
 	DBEXIT(BCE_VERBOSE_RESET | BCE_VERBOSE_RECV | BCE_VERBOSE_UNLOAD);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* BCE_JUMBO_HDRSPLIT */
 
 
 /****************************************************************************/
@@ -5793,7 +5793,7 @@ bce_rx_intr(struct bce_softc *sc)
 	unsigned int pkt_len;
 	u16 sw_rx_cons, sw_rx_cons_idx, hw_rx_cons;
 	u32 status;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	unsigned int rem_len;
 	u16 sw_pg_cons, sw_pg_cons_idx;
 #endif
@@ -5809,7 +5809,7 @@ bce_rx_intr(struct bce_softc *sc)
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], BUS_DMASYNC_POSTREAD);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	/* Prepare the page chain pages to be accessed by the host CPU. */
 	for (int i = 0; i < PG_PAGES; i++)
 		bus_dmamap_sync(sc->pg_bd_chain_tag,
@@ -5821,7 +5821,7 @@ bce_rx_intr(struct bce_softc *sc)
 
 	/* Get working copies of the driver's view of the consumer indices. */
 	sw_rx_cons = sc->rx_cons;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	sw_pg_cons = sc->pg_cons;
 #endif
 
@@ -5882,7 +5882,7 @@ bce_rx_intr(struct bce_softc *sc)
 		 */
 		m_adj(m0, sizeof(struct l2_fhdr) + ETHER_ALIGN);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 		/*
 		 * Check whether the received frame fits in a single
 		 * mbuf or not (i.e. packet data + FCS <=
@@ -6056,7 +6056,7 @@ bce_rx_int_next_rx:
 		if (m0) {
 			/* Make sure we don't lose our place when we release the lock. */
 			sc->rx_cons = sw_rx_cons;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 			sc->pg_cons = sw_pg_cons;
 #endif
 
@@ -6066,7 +6066,7 @@ bce_rx_int_next_rx:
 
 			/* Recover our place. */
 			sw_rx_cons = sc->rx_cons;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 			sw_pg_cons = sc->pg_cons;
 #endif
 		}
@@ -6077,7 +6077,7 @@ bce_rx_int_next_rx:
 	}
 
 	/* No new packets to process.  Refill the RX and page chains and exit. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	sc->pg_cons = sw_pg_cons;
 	bce_fill_pg_chain(sc);
 #endif
@@ -6090,7 +6090,7 @@ bce_rx_int_next_rx:
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], BUS_DMASYNC_PREWRITE);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	for (int i = 0; i < PG_PAGES; i++)
 		bus_dmamap_sync(sc->pg_bd_chain_tag,
 		    sc->pg_bd_chain_map[i], BUS_DMASYNC_PREWRITE);
@@ -6336,7 +6336,7 @@ bce_init_locked(struct bce_softc *sc)
 	 * Calculate and program the hardware Ethernet MTU
 	 * size. Be generous on the receive if we have room.
 	 */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	if (ifp->if_mtu <= (sc->rx_bd_mbuf_data_len + sc->pg_bd_mbuf_alloc_size))
 		ether_mtu = sc->rx_bd_mbuf_data_len + sc->pg_bd_mbuf_alloc_size;
 #else
@@ -6368,7 +6368,7 @@ bce_init_locked(struct bce_softc *sc)
 	/* Program appropriate promiscuous/multicast filtering. */
 	bce_set_rx_mode(sc);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	DBPRINT(sc, BCE_INFO_LOAD, "%s(): pg_bd_mbuf_alloc_size = %d\n",
 		__FUNCTION__, sc->pg_bd_mbuf_alloc_size);
 
@@ -6881,7 +6881,7 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			BCE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 			/* No buffer allocation size changes are necessary. */
 #else
 			/* Recalculate our buffer allocation sizes. */
@@ -7584,7 +7584,7 @@ bce_tick(void *xsc)
 	bce_stats_update(sc);
 
 	/* Top off the receive and page chains. */
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	bce_fill_pg_chain(sc);
 #endif
 	bce_fill_rx_chain(sc);
@@ -7764,7 +7764,7 @@ bce_sysctl_dump_tx_chain(SYSCTL_HANDLER_ARGS)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Provides a sysctl interface to allow dumping the page chain.             */
 /*                                                                          */
@@ -8392,7 +8392,7 @@ bce_add_sysctls(struct bce_softc *sc)
 		(void *)sc, 0,
 		bce_sysctl_dump_tx_chain, "I", "Dump tx_bd chain");
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
 		"dump_pg_chain", CTLTYPE_INT | CTLFLAG_RW,
 		(void *)sc, 0,
@@ -8687,7 +8687,7 @@ bce_dump_rx_mbuf_chain(struct bce_softc *sc, u16 chain_prod, int count)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Prints out the mbufs in the mbuf page chain.                             */
 /*                                                                          */
@@ -8811,7 +8811,7 @@ bce_dump_rxbd(struct bce_softc *sc, int idx, struct rx_bd *rxbd)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Prints out a rx_bd structure in the page chain.                          */
 /*                                                                          */
@@ -9298,7 +9298,7 @@ bce_dump_rx_chain(struct bce_softc *sc, u16 rx_prod, int count)
 }
 
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 /****************************************************************************/
 /* Prints out the page chain.                                               */
 /*                                                                          */
@@ -9779,7 +9779,7 @@ bce_dump_driver_state(struct bce_softc *sc)
 		"0x%08X:%08X - (sc->rx_bd_chain) rx_bd chain virtual address\n",
 		val_hi, val_lo);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	val_hi = BCE_ADDR_HI(sc->pg_bd_chain);
 	val_lo = BCE_ADDR_LO(sc->pg_bd_chain);
 	BCE_PRINTF(
@@ -9799,7 +9799,7 @@ bce_dump_driver_state(struct bce_softc *sc)
 		"0x%08X:%08X - (sc->rx_mbuf_ptr) rx mbuf chain virtual address\n",
 		val_hi, val_lo);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	val_hi = BCE_ADDR_HI(sc->pg_mbuf_ptr);
 	val_lo = BCE_ADDR_LO(sc->pg_mbuf_ptr);
 	BCE_PRINTF(
@@ -9852,7 +9852,7 @@ bce_dump_driver_state(struct bce_softc *sc)
 	BCE_PRINTF("         0x%08X - (sc->free_rx_bd) free rx_bd's\n",
 		sc->free_rx_bd);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 	BCE_PRINTF("     0x%04X(0x%04X) - (sc->pg_prod) page producer index\n",
 		sc->pg_prod, (u16) PG_CHAIN_IDX(sc->pg_prod));
 
@@ -10358,7 +10358,7 @@ bce_breakpoint(struct bce_softc *sc)
 		bce_dump_tpat_state(sc, 0);
 		bce_dump_cp_state(sc, 0);
 		bce_dump_com_state(sc, 0);
-#ifdef ZERO_COPY_SOCKETS
+#ifdef BCE_JUMBO_HDRSPLIT
 		bce_dump_pgbd(sc, 0, NULL);
 		bce_dump_pg_mbuf_chain(sc, 0, USABLE_PG_BD);
 		bce_dump_pg_chain(sc, 0, USABLE_PG_BD);

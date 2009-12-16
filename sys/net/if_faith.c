@@ -54,7 +54,6 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -62,6 +61,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #ifdef	INET
 #include <netinet/in.h>

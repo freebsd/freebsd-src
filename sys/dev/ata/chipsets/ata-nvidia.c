@@ -56,7 +56,7 @@ static int ata_nvidia_chipinit(device_t dev);
 static int ata_nvidia_ch_attach(device_t dev);
 static int ata_nvidia_status(device_t dev);
 static void ata_nvidia_reset(device_t dev);
-static void ata_nvidia_setmode(device_t dev, int mode);
+static int ata_nvidia_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define NV4             0x01
@@ -97,6 +97,14 @@ ata_nvidia_probe(device_t dev)
      { ATA_NFORCE_MCP61_S2, 0, NV4|NVQ, 0, ATA_SA300, "nForce MCP61" },
      { ATA_NFORCE_MCP61_S3, 0, NV4|NVQ, 0, ATA_SA300, "nForce MCP61" },
      { ATA_NFORCE_MCP65,    0, 0,       0, ATA_UDMA6, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A2, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A3, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A4, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A5, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A6, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
+     { ATA_NFORCE_MCP65_A7, 0, NVAHCI,  0, ATA_SA300, "nForce MCP65" },
      { ATA_NFORCE_MCP67,    0, 0,       0, ATA_UDMA6, "nForce MCP67" },
      { ATA_NFORCE_MCP67_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
      { ATA_NFORCE_MCP67_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
@@ -125,6 +133,42 @@ ata_nvidia_probe(device_t dev)
      { ATA_NFORCE_MCP73_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
      { ATA_NFORCE_MCP73_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
      { ATA_NFORCE_MCP77,    0, 0,       0, ATA_UDMA6, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A2, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A3, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A4, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A5, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A6, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A7, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A8, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_A9, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP77_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP77" },
+     { ATA_NFORCE_MCP79_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A2, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A3, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A4, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A5, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A6, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A7, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A8, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_A9, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP79_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP79" },
+     { ATA_NFORCE_MCP89_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A2, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A3, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A4, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A5, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A6, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A7, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A8, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_A9, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
+     { ATA_NFORCE_MCP89_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP89" },
      { 0, 0, 0, 0, 0, 0}} ;
 
     if (pci_get_vendor(dev) != ATA_NVIDIA_ID)
@@ -165,7 +209,8 @@ ata_nvidia_chipinit(device_t dev)
 
 	    /* enable control access */
 	    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) | 0x04,1);
-
+	    /* MCP55 seems to need some time to allow r_res2 read. */
+	    DELAY(10);
 	    if (ctlr->chip->cfg1 & NVQ) {
 		/* clear interrupt status */
 		ATA_OUTL(ctlr->r_res2, offset, 0x00ff00ff);
@@ -186,6 +231,7 @@ ata_nvidia_chipinit(device_t dev)
 	    }
 	}
 	ctlr->setmode = ata_sata_setmode;
+	ctlr->getrev = ata_sata_getrev;
     }
     else {
 	/* disable prefetch, postwrite */
@@ -214,7 +260,7 @@ ata_nvidia_ch_attach(device_t dev)
 
     ch->hw.status = ata_nvidia_status;
     ch->flags |= ATA_NO_SLAVE;
-
+    ch->flags |= ATA_SATA;
     return 0;
 }
 
@@ -254,36 +300,29 @@ ata_nvidia_reset(device_t dev)
 	ata_generic_reset(dev);
 }
 
-static void
-ata_nvidia_setmode(device_t dev, int mode)
+static int
+ata_nvidia_setmode(device_t dev, int target, int mode)
 {
-    device_t gparent = GRANDPARENT(dev);
-    struct ata_pci_controller *ctlr = device_get_softc(gparent);
-    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
-    struct ata_device *atadev = device_get_softc(dev);
-    u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0x42, 0x22, 0x20,
-			   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
-    int modes[7] = { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
-    int devno = (ch->unit << 1) + atadev->unit;
-    int reg = 0x63 - devno;
-    int error;
+	device_t parent = device_get_parent(dev);
+	struct ata_pci_controller *ctlr = device_get_softc(parent);
+	struct ata_channel *ch = device_get_softc(dev);
+	int devno = (ch->unit << 1) + target;
+	int piomode;
+	u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0xa8, 0x22, 0x20 };
+        int modes[7] = { 0xc2, 0xc1, 0xc0, 0xc4, 0xc5, 0xc6, 0xc7 };
+	int reg = 0x63 - devno;
 
-    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
-    mode = ata_check_80pin(dev, mode);
+	mode = min(mode, ctlr->chip->max_dma);
 
-    error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
-    if (bootverbose)
-	device_printf(dev, "%ssetting %s on %s chip\n",
-		      (error) ? "FAILURE " : "", ata_mode2str(mode),
-		      ctlr->chip->text);
-    if (!error) {
-	pci_write_config(gparent, reg - 0x08, timings[ata_mode2idx(mode)], 1);
-	if (mode >= ATA_UDMA0)
-	    pci_write_config(gparent, reg, modes[mode & ATA_MODE_MASK], 1);
-	else
-	    pci_write_config(gparent, reg, 0x8b, 1);
-	atadev->mode = mode;
-    }
+	if (mode >= ATA_UDMA0) {
+	    pci_write_config(parent, reg, modes[mode & ATA_MODE_MASK], 1);
+	    piomode = ATA_PIO4;
+	} else {
+	    pci_write_config(parent, reg, 0x8b, 1);
+	    piomode = mode;
+	}
+	pci_write_config(parent, reg - 0x08, timings[ata_mode2idx(piomode)], 1);
+	return (mode);
 }
 
 ATA_DECLARE_DRIVER(ata_nvidia);

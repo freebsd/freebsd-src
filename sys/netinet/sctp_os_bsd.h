@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/limits.h>
 #include <sys/queue.h>
-#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -134,31 +133,26 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTP_CTR6 CTR6
 #endif
 
-#define SCTP_BASE_INFO(__m) system_base_info.sctppcbinfo.__m
-#define SCTP_BASE_STATS system_base_info.sctpstat
-#define SCTP_BASE_STAT(__m)     system_base_info.sctpstat.__m
-#define SCTP_BASE_SYSCTL(__m) system_base_info.sctpsysctl.__m
-#define SCTP_BASE_VAR(__m) system_base_info.__m
-
 /*
  * Macros to expand out globals defined by various modules
  * to either a real global or a virtualized instance of one,
  * depending on whether VIMAGE is defined.
  */
-/* first define modules that supply us information */
-#define MOD_NET net
-#define MOD_INET inet
-#define MOD_INET6 inet6
-#define MOD_IPSEC ipsec
-
 /* then define the macro(s) that hook into the vimage macros */
-#define MODULE_GLOBAL(__MODULE, __SYMBOL) V_ ## __SYMBOL
+#define MODULE_GLOBAL(__SYMBOL) V_##__SYMBOL
+
+#define V_system_base_info VNET(system_base_info)
+#define SCTP_BASE_INFO(__m) V_system_base_info.sctppcbinfo.__m
+#define SCTP_BASE_STATS V_system_base_info.sctpstat
+#define SCTP_BASE_STATS_SYSCTL VNET_NAME(system_base_info.sctpstat)
+#define SCTP_BASE_STAT(__m)     V_system_base_info.sctpstat.__m
+#define SCTP_BASE_SYSCTL(__m) VNET_NAME(system_base_info.sctpsysctl.__m)
+#define SCTP_BASE_VAR(__m) V_system_base_info.__m
 
 /*
  *
  */
 #define USER_ADDR_NULL	(NULL)	/* FIX ME: temp */
-#define SCTP_LIST_EMPTY(list)	LIST_EMPTY(list)
 
 #if defined(SCTP_DEBUG)
 #define SCTPDBG(level, params...)					\
@@ -260,10 +254,9 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 /* SCTP_ZONE_INIT: initialize the zone */
 typedef struct uma_zone *sctp_zone_t;
 
-#define UMA_ZFLAG_FULL	0x0020
 #define SCTP_ZONE_INIT(zone, name, size, number) { \
 	zone = uma_zcreate(name, size, NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,\
-		UMA_ZFLAG_FULL); \
+		0); \
 	uma_zone_set_max(zone, number); \
 }
 

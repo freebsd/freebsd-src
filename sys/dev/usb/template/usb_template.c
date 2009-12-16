@@ -727,7 +727,7 @@ handle_endpoint_desc:
 				if ((pf->max_in_frame_size < wMaxPacketSize) ||
 				    (pf->max_out_frame_size < wMaxPacketSize)) {
 					DPRINTFN(0, "Endpoint profile %u "
-					    "has too small buffer!\n", ep_no);
+					    "has too small buffer\n", ep_no);
 					return (1);
 				}
 			} else if (ed->bEndpointAddress & UE_DIR_IN) {
@@ -735,7 +735,7 @@ handle_endpoint_desc:
 				    (1 << (ep_no % 8));
 				if (pf->max_in_frame_size < wMaxPacketSize) {
 					DPRINTFN(0, "Endpoint profile %u "
-					    "has too small buffer!\n", ep_no);
+					    "has too small buffer\n", ep_no);
 					return (1);
 				}
 			} else {
@@ -743,7 +743,7 @@ handle_endpoint_desc:
 				    (1 << (ep_no % 8));
 				if (pf->max_out_frame_size < wMaxPacketSize) {
 					DPRINTFN(0, "Endpoint profile %u "
-					    "has too small buffer!\n", ep_no);
+					    "has too small buffer\n", ep_no);
 					return (1);
 				}
 			}

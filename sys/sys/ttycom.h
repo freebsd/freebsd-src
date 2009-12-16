@@ -57,10 +57,9 @@ struct winsize {
 };
 
 						/* 0-2 compat */
-						/* 3-4 obsolete */
-						/* 5-7 obsolete or unused */
+						/* 3-7 unused */
 						/* 8-10 compat */
-						/* 11-12 obsolete or unused */
+						/* 11-12 unused */
 #define	TIOCEXCL	 _IO('t', 13)		/* set exclusive use of tty */
 #define	TIOCNXCL	 _IO('t', 14)		/* reset exclusive use of tty */
 #define	TIOCGPTN	_IOR('t', 15, int)	/* Get pts number. */
@@ -70,34 +69,34 @@ struct winsize {
 #define	TIOCSETA	_IOW('t', 20, struct termios) /* set termios struct */
 #define	TIOCSETAW	_IOW('t', 21, struct termios) /* drain output, set */
 #define	TIOCSETAF	_IOW('t', 22, struct termios) /* drn out, fls in, set */
-						/* 23-25 obsolete or unused */
+						/* 23-25 unused */
 #define	TIOCGETD	_IOR('t', 26, int)	/* get line discipline */
 #define	TIOCSETD	_IOW('t', 27, int)	/* set line discipline */
 #define	TIOCPTMASTER	 _IO('t', 28)		/* pts master validation */
-						/* 29-69 free */
-						/* 80-84 slip */
+						/* 29-85 unused */
 #define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
 #define	TIOCSDRAINWAIT	_IOW('t', 87, int)	/* set ttywait timeout */
-						/* 88 slip, ppp; conflicts */
+						/* 88 unused */
+						/* 89-91 conflicts: tun and tap */
 #define	TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* enable/get timestamp
 						 * of last input event */
-						/* 70-90 ppp; many conflicts */
 #define	TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
 #define	TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */
-						/* 90-92 tap; some conflicts */
+						/* 92-93 tun and tap */
+						/* 94-97 conflicts: tun and tap */
 #define	TIOCDRAIN	 _IO('t', 94)		/* wait till output drained */
 #define	TIOCSIG		_IOWINT('t', 95)	/* pty: generate signal */
 #define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
-						/* 90-97 tun; some conflicts */
 #define	TIOCSCTTY	 _IO('t', 97)		/* become controlling tty */
 #define	TIOCCONS	_IOW('t', 98, int)	/* become virtual console */
 #define	TIOCGSID	_IOR('t', 99, int)	/* get session id */
-						/* 100 see consio.h */
+						/* 100 unused */
 #define	TIOCSTAT	 _IO('t', 101)		/* simulate ^T status message */
 #define	TIOCUCNTL	_IOW('t', 102, int)	/* pty: set/clr usr cntl mode */
 #define		UIOCCMD(n)	_IO('u', n)	/* usr cntl op "n" */
 #define	TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
 #define	TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
+						/* 105 unused */
 #define	TIOCMGET	_IOR('t', 106, int)	/* get all modem bits */
 #define		TIOCM_LE	0001		/* line enable */
 #define		TIOCM_DTR	0002		/* data terminal ready */

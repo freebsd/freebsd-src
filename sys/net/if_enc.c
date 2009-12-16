@@ -38,7 +38,6 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -244,9 +243,9 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	}
 
 	/* Skip pfil(9) if no filters are loaded */
-	if (!(PFIL_HOOKED(&inet_pfil_hook)
+	if (!(PFIL_HOOKED(&V_inet_pfil_hook)
 #ifdef INET6
-	    || PFIL_HOOKED(&inet6_pfil_hook)
+	    || PFIL_HOOKED(&V_inet6_pfil_hook)
 #endif
 	    )) {
 		return (0);
@@ -272,7 +271,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 			ip->ip_len = ntohs(ip->ip_len);
 			ip->ip_off = ntohs(ip->ip_off);
 
-			error = pfil_run_hooks(&inet_pfil_hook, mp,
+			error = pfil_run_hooks(&V_inet_pfil_hook, mp,
 			    encif, dir, NULL);
 
 			if (*mp == NULL || error != 0)
@@ -286,7 +285,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 
 #ifdef INET6
 		case 6:
-			error = pfil_run_hooks(&inet6_pfil_hook, mp,
+			error = pfil_run_hooks(&V_inet6_pfil_hook, mp,
 			    encif, dir, NULL);
 			break;
 #endif

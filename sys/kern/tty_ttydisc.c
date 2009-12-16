@@ -624,15 +624,21 @@ ttydisc_echo_force(struct tty *tp, char c, int quote)
 		/*
 		 * Only use ^X notation when ECHOCTL is turned on and
 		 * we've got an quoted control character.
+		 *
+		 * Print backspaces when echoing an end-of-file.
 		 */
-		char ob[2] = { '^', '?' };
+		char ob[4] = "^?\b\b";
 
 		/* Print ^X notation. */
 		if (c != 0x7f)
 			ob[1] = c + 'A' - 1;
 
-		tp->t_column += 2;
-		return ttyoutq_write_nofrag(&tp->t_outq, ob, 2);
+		if (!quote && CMP_CC(VEOF, c)) {
+			return ttyoutq_write_nofrag(&tp->t_outq, ob, 4);
+		} else {
+			tp->t_column += 2;
+			return ttyoutq_write_nofrag(&tp->t_outq, ob, 2);
+		}
 	} else {
 		/* Can just be printed. */
 		tp->t_column++;
@@ -1045,6 +1051,22 @@ print:
 }
 
 size_t
+ttydisc_rint_simple(struct tty *tp, const void *buf, size_t len)
+{
+	const char *cbuf;
+
+	if (ttydisc_can_bypass(tp))
+		return (ttydisc_rint_bypass(tp, buf, len));
+
+	for (cbuf = buf; len-- > 0; cbuf++) {
+		if (ttydisc_rint(tp, *cbuf, 0) != 0)
+			break;
+	}
+
+	return (cbuf - (const char *)buf);
+}
+
+size_t
 ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 {
 	size_t ret;
@@ -1060,6 +1082,8 @@ ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 
 	ret = ttyinq_write(&tp->t_inq, buf, len, 0);
 	ttyinq_canonicalize(&tp->t_inq);
+	if (ret < len)
+		tty_hiwat_in_block(tp);
 
 	return (ret);
 }

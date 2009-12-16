@@ -191,8 +191,8 @@ struct libusb20_device {
 	/* private backend data */
 	void   *privBeData;
 
-	/* libUSB v0.1 compat data */
-	void   *priv01Data;
+	/* libUSB v0.1 and v1.0 compat data */
+	void   *privLuData;
 
 	/* claimed interface */
 	uint8_t claimed_interface;

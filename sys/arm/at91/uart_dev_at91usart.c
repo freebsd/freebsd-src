@@ -307,6 +307,10 @@ static kobj_method_t at91_usart_methods[] = {
 int
 at91_usart_bus_probe(struct uart_softc *sc)
 {
+
+	sc->sc_txfifosz = USART_BUFFER_SIZE;
+	sc->sc_rxfifosz = USART_BUFFER_SIZE;
+	sc->sc_hwiflow = 0;
 	return (0);
 }
 
@@ -343,10 +347,6 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	if (RD4(&sc->sc_bas, USART_IMR) & USART_CSR_TIMEOUT)
 		atsc->flags |= HAS_TIMEOUT;
 	WR4(&sc->sc_bas, USART_IDR, 0xffffffff);
-
-	sc->sc_txfifosz = USART_BUFFER_SIZE;
-	sc->sc_rxfifosz = USART_BUFFER_SIZE;
-	sc->sc_hwiflow = 0;
 
 #ifndef SKYEYE_WORKAROUNDS
 	/*

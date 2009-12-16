@@ -50,6 +50,7 @@
 #define	NETISR_ETHER	9		/* ethernet input */
 #define	NETISR_IPV6	10
 #define	NETISR_NATM	11
+#define	NETISR_EPAIR	12		/* if_epair(4) */
 
 /*-
  * Protocols express ordering constraints and affinity preferences by

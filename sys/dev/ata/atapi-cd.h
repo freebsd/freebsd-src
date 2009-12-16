@@ -112,34 +112,34 @@ struct cappage {
     u_int8_t    param_len;
 
     u_int16_t   media;
-#define MST_READ_CDR            0x0001
-#define MST_READ_CDRW           0x0002
-#define MST_READ_PACKET         0x0004
-#define MST_READ_DVDROM         0x0008
-#define MST_READ_DVDR           0x0010
-#define MST_READ_DVDRAM         0x0020
-#define MST_WRITE_CDR           0x0100
-#define MST_WRITE_CDRW          0x0200
-#define MST_WRITE_TEST          0x0400
-#define MST_WRITE_DVDR          0x1000
-#define MST_WRITE_DVDRAM        0x2000
+#define MST_READ_CDR            0x0100
+#define MST_READ_CDRW           0x0200
+#define MST_READ_PACKET         0x0400
+#define MST_READ_DVDROM         0x0800
+#define MST_READ_DVDR           0x1000
+#define MST_READ_DVDRAM         0x2000
+#define MST_WRITE_CDR           0x0001
+#define MST_WRITE_CDRW          0x0002
+#define MST_WRITE_TEST          0x0004
+#define MST_WRITE_DVDR          0x0010
+#define MST_WRITE_DVDRAM        0x0020
 
     u_int16_t   capabilities;
-#define MST_AUDIO_PLAY          0x0001
-#define MST_COMPOSITE           0x0002
-#define MST_AUDIO_P1            0x0004
-#define MST_AUDIO_P2            0x0008
-#define MST_MODE2_f1            0x0010
-#define MST_MODE2_f2            0x0020
-#define MST_MULTISESSION        0x0040
-#define MST_BURNPROOF           0x0080
-#define MST_READ_CDDA           0x0100
-#define MST_CDDA_STREAM         0x0200
-#define MST_COMBINED_RW         0x0400
-#define MST_CORRECTED_RW        0x0800
-#define MST_SUPPORT_C2          0x1000
-#define MST_ISRC                0x2000
-#define MST_UPC                 0x4000
+#define MST_AUDIO_PLAY          0x0100
+#define MST_COMPOSITE           0x0200
+#define MST_AUDIO_P1            0x0400
+#define MST_AUDIO_P2            0x0800
+#define MST_MODE2_f1            0x1000
+#define MST_MODE2_f2            0x2000
+#define MST_MULTISESSION        0x4000
+#define MST_BURNPROOF           0x8000
+#define MST_READ_CDDA           0x0001
+#define MST_CDDA_STREAM         0x0002
+#define MST_COMBINED_RW         0x0004
+#define MST_CORRECTED_RW        0x0008
+#define MST_SUPPORT_C2          0x0010
+#define MST_ISRC                0x0020
+#define MST_UPC                 0x0040
 
     u_int8_t    mechanism;
 #define MST_LOCKABLE            0x01

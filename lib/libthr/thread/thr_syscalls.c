@@ -104,6 +104,8 @@ extern int	__sys_accept(int, struct sockaddr *, socklen_t *);
 extern int	__sys_connect(int, const struct sockaddr *, socklen_t);
 extern int	__sys_fsync(int);
 extern int	__sys_msync(void *, size_t, int);
+extern int	__sys_pselect(int, fd_set *, fd_set *, fd_set *,
+			const struct timespec *, const sigset_t *);
 extern int	__sys_poll(struct pollfd *, unsigned, int);
 extern ssize_t	__sys_recv(int, void *, size_t, int);
 extern ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
@@ -139,6 +141,7 @@ int	__fsync(int);
 int	__msync(void *, size_t, int);
 int	__nanosleep(const struct timespec *, struct timespec *);
 int	__open(const char *, int,...);
+int	__openat(int, const char *, int,...);
 int	__poll(struct pollfd *, unsigned int, int);
 ssize_t	__read(int, void *buf, size_t);
 ssize_t	__readv(int, const struct iovec *, int);
@@ -341,6 +344,33 @@ __open(const char *path, int flags,...)
 	return ret;
 }
 
+__weak_reference(__openat, openat);
+
+int
+__openat(int fd, const char *path, int flags, ...)
+{
+	struct pthread *curthread = _get_curthread();
+	int	ret;
+	int	mode = 0;
+	va_list	ap;
+
+	_thr_cancel_enter(curthread);
+	
+	/* Check if the file is being created: */
+	if (flags & O_CREAT) {
+		/* Get the creation mode: */
+		va_start(ap, flags);
+		mode = va_arg(ap, int);
+		va_end(ap);
+	}
+	
+	ret = __sys_openat(fd, path, flags, mode);
+
+	_thr_cancel_leave(curthread);
+
+	return ret;
+}
+
 __weak_reference(__poll, poll);
 
 int
@@ -366,7 +396,7 @@ ___pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 	int ret;
 
 	_thr_cancel_enter(curthread);
-	ret = __pselect(count, rfds, wfds, efds, timo, mask);
+	ret = __sys_pselect(count, rfds, wfds, efds, timo, mask);
 	_thr_cancel_leave(curthread);
 
 	return (ret);

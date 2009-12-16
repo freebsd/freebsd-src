@@ -39,25 +39,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <machine/apicreg.h>
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 #include <machine/pmc_mdep.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-
-extern volatile lapic_t *lapic;
-
-void
-pmc_x86_lapic_enable_pmc_interrupt(void)
-{
-	uint32_t value;
-
-	value =  lapic->lvt_pcint;
-	value &= ~APIC_LVT_M;
-	lapic->lvt_pcint = value;
-}
 
 /*
  * Attempt to walk a user call stack using a too-simple algorithm.
@@ -112,7 +101,7 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 		if (copyin((void *) sp, &pc, sizeof(pc)) != 0)
 			return (n);
 	} else if (copyin((void *) r, &pc, sizeof(pc)) != 0 ||
-	    copyin((void *) fp, &fp, sizeof(fp) != 0))
+	    copyin((void *) fp, &fp, sizeof(fp)) != 0)
 		return (n);
 
 	for (; n < nframes;) {
@@ -187,7 +176,8 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 	stackend = (uintptr_t) td->td_kstack + td->td_kstack_pages * PAGE_SIZE;
 
 	if (PMC_IN_TRAP_HANDLER(pc) ||
-	    !PMC_IN_KERNEL(pc) || !PMC_IN_KERNEL(r) ||
+	    !PMC_IN_KERNEL(pc) ||
+	    !PMC_IN_KERNEL_STACK(r, stackstart, stackend) ||
 	    !PMC_IN_KERNEL_STACK(sp, stackstart, stackend) ||
 	    !PMC_IN_KERNEL_STACK(fp, stackstart, stackend))
 		return (1);
@@ -232,7 +222,7 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 
 		r = fp + sizeof(uintptr_t);
 		if (!PMC_IN_KERNEL_STACK(fp, stackstart, stackend) ||
-		    !PMC_IN_KERNEL(r))
+		    !PMC_IN_KERNEL_STACK(r, stackstart, stackend))
 			break;
 		pc = *(uintptr_t *) r;
 		fp = *(uintptr_t *) fp;
@@ -252,16 +242,15 @@ pmc_md_initialize()
 	struct pmc_mdep *md;
 
 	/* determine the CPU kind */
-	md = NULL;
 	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		md = pmc_amd_initialize();
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		md = pmc_intel_initialize();
 	else
-		KASSERT(0, ("[x86,%d] Unknown vendor", __LINE__));
+		return (NULL);
 
 	/* disallow sampling if we do not have an LAPIC */
-	if (md != NULL && lapic == NULL)
+	if (!lapic_enable_pmc())
 		for (i = 1; i < md->pmd_nclass; i++)
 			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
 
@@ -271,6 +260,8 @@ pmc_md_initialize()
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
+
+	lapic_disable_pmc();
 	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		pmc_amd_finalize(md);
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)

@@ -410,13 +410,13 @@ g_part_ebr_probe(struct g_part_table *table, struct g_consumer *cp)
 		goto out;
 
 	/*
-	 * The sector is all zeroes, except for the partition entries
-	 * and some signatures or disk serial number. Those can be
-	 * found in the 9 bytes immediately in front of the partition
-	 * table.
+	 * The sector is all zeroes, except for the partition entries,
+	 * pseudo boot code and some signatures or disk serial number.
+	 * The latter can be found in the 9 bytes immediately in front
+	 * of the partition table.
 	 */
 	sum = 0;
-	for (index = 0; index < DOSPARTOFF - 9; index++)
+	for (index = 96; index < DOSPARTOFF - 9; index++)
 		sum += buf[index];
 	if (sum != 0)
 		goto out;

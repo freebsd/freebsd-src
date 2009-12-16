@@ -858,6 +858,7 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 
 	/* setup temp */
 
+	temp.pc = NULL;
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
@@ -2360,4 +2361,5 @@ struct usb_bus_methods uss820dci_bus_methods =
 	.set_stall = &uss820dci_set_stall,
 	.clear_stall = &uss820dci_clear_stall,
 	.roothub_exec = &uss820dci_roothub_exec,
+	.xfer_poll = &uss820dci_do_poll,
 };

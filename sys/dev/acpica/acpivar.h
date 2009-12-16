@@ -88,7 +88,6 @@ struct acpi_softc {
 struct acpi_device {
     /* ACPI ivars */
     ACPI_HANDLE			ad_handle;
-    uintptr_t			ad_magic;
     void			*ad_private;
     int				ad_flags;
 
@@ -224,7 +223,7 @@ extern int	acpi_quirks;
  * attach to ACPI.
  */
 #define ACPI_IVAR_HANDLE	0x100
-#define ACPI_IVAR_MAGIC		0x101
+#define ACPI_IVAR_UNUSED	0x101	/* Unused/reserved. */
 #define ACPI_IVAR_PRIVATE	0x102
 #define ACPI_IVAR_FLAGS		0x103
 
@@ -250,11 +249,10 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)	\
 }
 
 __ACPI_BUS_ACCESSOR(acpi, handle, ACPI, HANDLE, ACPI_HANDLE)
-__ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, uintptr_t)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 __ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
 
-void acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data);
+void acpi_fake_objhandler(ACPI_HANDLE h, void *data);
 static __inline device_t
 acpi_get_device(ACPI_HANDLE handle)
 {
@@ -307,6 +305,9 @@ void		acpi_EnterDebugger(void);
 	ACPI_DEVINFO_PRESENT(x, ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL | \
 	    ACPI_STA_BATT_PRESENT)
 
+/* Callback function type for walking subtables within a table. */
+typedef void acpi_subtable_handler(ACPI_SUBTABLE_HEADER *, void *);
+
 BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
 ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
@@ -340,6 +341,8 @@ void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
 		    ACPI_GENERIC_ADDRESS *gas, struct resource **res,
 		    u_int flags);
+void		acpi_walk_subtables(void *first, void *end,
+		    acpi_subtable_handler *handler, void *arg);
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);

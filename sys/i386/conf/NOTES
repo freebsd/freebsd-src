@@ -49,7 +49,6 @@ options 	MP_WATCHDOG
 
 # Debugging options.
 #
-options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
 options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
 
@@ -362,6 +361,9 @@ options 	VESA_DEBUG
 
 device		dpms		# DPMS suspend & resume via VESA BIOS
 
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+options		X86BIOS
+
 #
 # The Numeric Processing eXtension driver.  This is non-optional.
 device		npx
@@ -445,6 +447,9 @@ options 	VGA_WIDTH90		# support 90 column modes
 # Debugging.
 options 	VGA_DEBUG
 
+# Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
+device		s3pci
+
 # 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
 # the /dev/3dfx0 device to work with glide implementations.  This should get
 # linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
@@ -464,9 +469,6 @@ device		tdfx_linux		# Enable Linuxulator support
 # kernel environment variables to select initial debugging levels for the
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
-#
-# Note that building ACPI into the kernel is deprecated; the module is
-# normally loaded automatically by the loader.
 
 device		acpi
 options 	ACPI_DEBUG
@@ -573,6 +575,8 @@ device		ath_hal		# pci/cardbus chip support
 #device		ath_rf5413
 #device		ath_ar5416	# AR5416 chips
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+#device		ath_ar9160	# AR9160 chips
+#device		ath_ar9280	# AR9280 chips
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ce
 device		cp
@@ -780,15 +784,19 @@ hint.pcf.0.irq="5"
 # Hardware watchdog timers:
 #
 # ichwd: Intel ICH watchdog timer
+# amdsbwd: AMD SB7xx watchdog timer
 #
 device		ichwd
+device		amdsbwd
 
 #
 # Temperature sensors:
 #
 # coretemp: on-die sensor on Intel Core and newer CPUs
+# amdtemp: on-die sensor on AMD K8/K10/K11 CPUs
 #
 device		coretemp
+device		amdtemp
 
 #
 # CPU control pseudo-device. Provides access to MSRs, CPUID info and
@@ -874,6 +882,9 @@ device		streams		# STREAMS network driver (required for svr4).
 # Enable NDIS binary driver support
 options 	NDISAPI
 device		ndis
+
+# Linux-specific pseudo devices support
+device		lindev
 
 
 #####################################################################

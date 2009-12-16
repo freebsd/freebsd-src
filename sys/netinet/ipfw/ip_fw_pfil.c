@@ -49,17 +49,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
 #include <net/pfil.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 
@@ -442,7 +443,7 @@ nodivert:
 	return 1;
 }
 
-static int
+int
 ipfw_hook(void)
 {
 	struct pfil_head *pfh_inet;
@@ -459,7 +460,7 @@ ipfw_hook(void)
 	return 0;
 }
 
-static int
+int
 ipfw_unhook(void)
 {
 	struct pfil_head *pfh_inet;
@@ -477,7 +478,7 @@ ipfw_unhook(void)
 }
 
 #ifdef INET6
-static int
+int
 ipfw6_hook(void)
 {
 	struct pfil_head *pfh_inet6;
@@ -494,7 +495,7 @@ ipfw6_hook(void)
 	return 0;
 }
 
-static int
+int
 ipfw6_unhook(void)
 {
 	struct pfil_head *pfh_inet6;
@@ -515,85 +516,54 @@ ipfw6_unhook(void)
 int
 ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 {
-	int enable = *(int *)arg1;
+	int enable;
+	int oldenable;
 	int error;
 
+	if (arg1 == &VNET_NAME(fw_enable)) {
+		enable = V_fw_enable;
+	}
+#ifdef INET6
+	else if (arg1 == &VNET_NAME(fw6_enable)) {
+		enable = V_fw6_enable;
+	}
+#endif
+	else 
+		return (EINVAL);
+
+	oldenable = enable;
+
 	error = sysctl_handle_int(oidp, &enable, 0, req);
+
 	if (error)
 		return (error);
 
 	enable = (enable) ? 1 : 0;
 
-	if (enable == *(int *)arg1)
+	if (enable == oldenable)
 		return (0);
 
-	if (arg1 == &V_fw_enable) {
+	if (arg1 == &VNET_NAME(fw_enable)) {
 		if (enable)
 			error = ipfw_hook();
 		else
 			error = ipfw_unhook();
+		if (error)
+			return (error);
+		V_fw_enable = enable;
 	}
 #ifdef INET6
-	if (arg1 == &V_fw6_enable) {
+	else if (arg1 == &VNET_NAME(fw6_enable)) {
 		if (enable)
 			error = ipfw6_hook();
 		else
 			error = ipfw6_unhook();
+		if (error)
+			return (error);
+		V_fw6_enable = enable;
 	}
 #endif
-
-	if (error)
-		return (error);
-
-	*(int *)arg1 = enable;
 
 	return (0);
 }
 
-static int
-ipfw_modevent(module_t mod, int type, void *unused)
-{
-	int err = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		if ((err = ipfw_init()) != 0) {
-			printf("ipfw_init() error\n");
-			break;
-		}
-		if ((err = ipfw_hook()) != 0) {
-			printf("ipfw_hook() error\n");
-			break;
-		}
-#ifdef INET6
-		if ((err = ipfw6_hook()) != 0) {
-			printf("ipfw_hook() error\n");
-			break;
-		}
-#endif
-		break;
-
-	case MOD_UNLOAD:
-		if ((err = ipfw_unhook()) > 0)
-			break;
-#ifdef INET6
-		if ((err = ipfw6_unhook()) > 0)
-			break;
-#endif
-		ipfw_destroy();
-		break;
-
-	default:
-		return EOPNOTSUPP;
-		break;
-	}
-	return err;
-}
-
-static moduledata_t ipfwmod = {
-	"ipfw",
-	ipfw_modevent,
-	0
-};
-DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 256);
-MODULE_VERSION(ipfw, 2);

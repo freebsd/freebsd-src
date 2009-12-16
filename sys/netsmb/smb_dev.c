@@ -352,7 +352,6 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 		}
 		clone_setup(&nsmb_clones);
 		nsmb_dev_tag = EVENTHANDLER_REGISTER(dev_clone, nsmb_dev_clone, 0, 1000);
-		printf("netsmb_dev: loaded\n");
 		break;
 	    case MOD_UNLOAD:
 		smb_iod_done();
@@ -363,7 +362,6 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 		drain_dev_clone_events();
 		clone_cleanup(&nsmb_clones);
 		destroy_dev_drain(&nsmb_cdevsw);
-		printf("netsmb_dev: unloaded\n");
 		break;
 	    default:
 		error = EINVAL;

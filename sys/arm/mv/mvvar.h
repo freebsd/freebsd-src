@@ -41,6 +41,10 @@
 #define _MVVAR_H_
 
 #include <sys/rman.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/pmap.h>
+#include <machine/vm.h>
 
 #define	MV_TYPE_PCI		0
 #define	MV_TYPE_PCIE		1
@@ -104,6 +108,7 @@ struct decode_win {
 	int		remap;
 };
 
+extern const struct pmap_devmap pmap_devmap[];
 extern const struct obio_pci mv_pci_info[];
 extern const struct gpio_config mv_gpio_config[];
 extern bus_space_tag_t obio_tag;
@@ -124,13 +129,13 @@ int mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask);
 void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
 uint8_t mv_gpio_in(uint32_t pin);
 
-int platform_pmap_init(void);
 void platform_mpp_init(void);
 int soc_decode_win(void);
 void soc_id(uint32_t *dev, uint32_t *rev);
 void soc_identify(void);
 void soc_dump_decode_win(void);
 uint32_t soc_power_ctrl_get(uint32_t mask);
+void soc_power_ctrl_set(uint32_t mask);
 
 int decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
     int remap);

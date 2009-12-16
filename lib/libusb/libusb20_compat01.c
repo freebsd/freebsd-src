@@ -835,7 +835,7 @@ usb_find_devices(void)
 	/* close all opened devices, if any */
 
 	while ((pdev = libusb20_be_device_foreach(usb_backend, NULL))) {
-		udev = pdev->priv01Data;
+		udev = pdev->privLuData;
 		libusb20_be_dequeue_device(usb_backend, pdev);
 		libusb20_dev_free(pdev);
 		if (udev != NULL) {
@@ -893,7 +893,7 @@ usb_find_devices(void)
 		}
 		/* link together the two structures */
 		udev->dev = pdev;
-		pdev->priv01Data = udev;
+		pdev->privLuData = udev;
 
 		err = libusb20_dev_open(pdev, 0);
 		if (err == 0) {
@@ -914,7 +914,7 @@ usb_device(usb_dev_handle * dev)
 
 	pdev = (void *)dev;
 
-	return (pdev->priv01Data);
+	return (pdev->privLuData);
 }
 
 struct usb_bus *

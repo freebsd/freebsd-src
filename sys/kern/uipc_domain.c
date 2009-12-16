@@ -43,7 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
+
+#include <net/vnet.h>
+
 #include <vm/uma.h>
 
 /*
@@ -334,6 +336,7 @@ found:
 int
 pf_proto_register(int family, struct protosw *npr)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct domain *dp;
 	struct protosw *pr, *fpr;
 
@@ -389,7 +392,13 @@ found:
 	mtx_unlock(&dom_mtx);
 
 	/* Initialize and activate the protocol. */
-	protosw_init(fpr);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET_QUIET(vnet_iter);
+		protosw_init(fpr);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
 
 	return (0);
 }

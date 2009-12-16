@@ -129,7 +129,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/jail.h>
-#include <sys/vimage.h>
+
+#include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -150,12 +151,21 @@ static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_solisten(struct knote *kn, long hint);
 
-static struct filterops solisten_filtops =
-	{ 1, NULL, filt_sordetach, filt_solisten };
-static struct filterops soread_filtops =
-	{ 1, NULL, filt_sordetach, filt_soread };
-static struct filterops sowrite_filtops =
-	{ 1, NULL, filt_sowdetach, filt_sowrite };
+static struct filterops solisten_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sordetach,
+	.f_event = filt_solisten,
+};
+static struct filterops soread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sordetach,
+	.f_event = filt_soread,
+};
+static struct filterops sowrite_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sowdetach,
+	.f_event = filt_sowrite,
+};
 
 uma_zone_t socket_zone;
 so_gen_t	so_gencnt;	/* generation count for sockets */
@@ -438,6 +448,7 @@ sonewconn(struct socket *head, int connstatus)
 	so->so_options = head->so_options &~ SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
 	so->so_state = head->so_state | SS_NOFDREF;
+	so->so_fibnum = head->so_fibnum;
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
 #ifdef MAC
@@ -959,9 +970,6 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	 * must use a signed comparison of space and resid.  On the other
 	 * hand, a negative resid causes us to loop sending 0-length
 	 * segments to the protocol.
-	 *
-	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
-	 * type sockets since that's an error.
 	 */
 	if (resid < 0) {
 		error = EINVAL;
@@ -1859,6 +1867,7 @@ release:
 /*
  * Optimized version of soreceive() for stream (TCP) sockets.
  */
+#ifdef TCP_SORECEIVE_STREAM
 int
 soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
@@ -2051,6 +2060,7 @@ out:
 	sbunlock(sb);
 	return (error);
 }
+#endif /* TCP_SORECEIVE_STREAM */
 
 /*
  * Optimized version of soreceive() for simple datagram cases from userspace.

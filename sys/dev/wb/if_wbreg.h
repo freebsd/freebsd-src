@@ -365,8 +365,6 @@ struct wb_softc {
 	struct ifnet		*wb_ifp;	/* interface info */
 	device_t		wb_dev;
 	device_t		wb_miibus;
-	bus_space_handle_t	wb_bhandle;
-	bus_space_tag_t		wb_btag;
 	struct resource		*wb_res;
 	struct resource		*wb_irq;
 	void			*wb_intrhand;
@@ -374,6 +372,7 @@ struct wb_softc {
 	u_int8_t		wb_type;
 	u_int16_t		wb_txthresh;
 	int			wb_cachesize;
+	int			wb_timer;
 	caddr_t			wb_ldata_ptr;
 	struct wb_list_data	*wb_ldata;
 	struct wb_chain_data	wb_cdata;
@@ -388,19 +387,13 @@ struct wb_softc {
 /*
  * register space access macros
  */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->wb_btag, sc->wb_bhandle, reg, val)
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->wb_btag, sc->wb_bhandle, reg, val)
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->wb_btag, sc->wb_bhandle, reg, val)
+#define CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->wb_res, reg, val)
+#define CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->wb_res, reg, val)
+#define CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->wb_res, reg, val)
 
-#define CSR_READ_4(sc, reg)	\
-	bus_space_read_4(sc->wb_btag, sc->wb_bhandle, reg)
-#define CSR_READ_2(sc, reg)	\
-	bus_space_read_2(sc->wb_btag, sc->wb_bhandle, reg)
-#define CSR_READ_1(sc, reg)	\
-	bus_space_read_1(sc->wb_btag, sc->wb_bhandle, reg)
+#define CSR_READ_4(sc, reg)		bus_read_4(sc->wb_res, reg)
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->wb_res, reg)
+#define CSR_READ_1(sc, reg)		bus_read_1(sc->wb_res, reg)
 
 #define WB_TIMEOUT		1000
 

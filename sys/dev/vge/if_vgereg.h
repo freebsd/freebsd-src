@@ -339,19 +339,19 @@
 #define VGE_TXQCSR_RUN0		0x0001	/* Enable TX queue 0 */
 #define VGE_TXQCSR_ACT0		0x0002	/* queue 0 active indicator */
 #define VGE_TXQCSR_WAK0		0x0004	/* Wake up (poll) queue 0 */
-#define VGE_TXQCST_DEAD0	0x0008	/* queue 0 dead indicator */
+#define VGE_TXQCSR_DEAD0	0x0008	/* queue 0 dead indicator */
 #define VGE_TXQCSR_RUN1		0x0010	/* Enable TX queue 1 */
 #define VGE_TXQCSR_ACT1		0x0020	/* queue 1 active indicator */
 #define VGE_TXQCSR_WAK1		0x0040	/* Wake up (poll) queue 1 */
-#define VGE_TXQCST_DEAD1	0x0080	/* queue 1 dead indicator */
+#define VGE_TXQCSR_DEAD1	0x0080	/* queue 1 dead indicator */
 #define VGE_TXQCSR_RUN2		0x0100	/* Enable TX queue 2 */
 #define VGE_TXQCSR_ACT2		0x0200	/* queue 2 active indicator */
 #define VGE_TXQCSR_WAK2		0x0400	/* Wake up (poll) queue 2 */
-#define VGE_TXQCST_DEAD2	0x0800	/* queue 2 dead indicator */
+#define VGE_TXQCSR_DEAD2	0x0800	/* queue 2 dead indicator */
 #define VGE_TXQCSR_RUN3		0x1000	/* Enable TX queue 3 */
 #define VGE_TXQCSR_ACT3		0x2000	/* queue 3 active indicator */
 #define VGE_TXQCSR_WAK3		0x4000	/* Wake up (poll) queue 3 */
-#define VGE_TXQCST_DEAD3	0x8000	/* queue 3 dead indicator */
+#define VGE_TXQCSR_DEAD3	0x8000	/* queue 3 dead indicator */
 
 /* RX descriptor queue control/status register */
 
@@ -587,8 +587,7 @@
 
 struct vge_tx_frag {
 	uint32_t		vge_addrlo;
-	uint16_t		vge_addrhi;
-	uint16_t		vge_buflen;
+	uint32_t		vge_addrhi;
 };
 
 /*
@@ -600,7 +599,7 @@ struct vge_tx_frag {
  * to obtain this behavior, the special 'queue' bit must be set.
  */
 
-#define VGE_TXDESC_Q		0x8000
+#define VGE_TXDESC_Q		0x80000000
 
 struct vge_tx_desc {
 	uint32_t		vge_sts;
@@ -645,11 +644,10 @@ struct vge_tx_desc {
 /* Receive DMA descriptors have a single fragment pointer. */
 
 struct vge_rx_desc {
-	volatile uint32_t	vge_sts;
-	volatile uint32_t	vge_ctl;
-	volatile uint32_t	vge_addrlo;
-	volatile uint16_t	vge_addrhi;
-	volatile uint16_t	vge_buflen;
+	uint32_t	vge_sts;
+	uint32_t	vge_ctl;
+	uint32_t	vge_addrlo;
+	uint32_t	vge_addrhi;
 };
 
 /*
@@ -658,7 +656,7 @@ struct vge_rx_desc {
  * not interrupts are generated for this descriptor.
  */
 
-#define VGE_RXDESC_I		0x8000
+#define VGE_RXDESC_I		0x80000000
 
 #define VGE_RDSTS_VIDM		0x00000001	/* VLAN tag filter miss */
 #define VGE_RDSTS_CRCERR	0x00000002	/* bad CRC error */

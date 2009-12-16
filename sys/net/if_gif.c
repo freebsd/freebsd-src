@@ -49,7 +49,6 @@
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
-#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -58,6 +57,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -507,7 +507,7 @@ gif_input(m, af, ifp)
 	struct ifnet *ifp;
 {
 	int isr, n;
-	struct gif_softc *sc = ifp->if_softc;
+	struct gif_softc *sc;
 	struct etherip_header *eip;
 	struct ether_header *eh;
 	struct ifnet *oldifp;
@@ -517,7 +517,7 @@ gif_input(m, af, ifp)
 		m_freem(m);
 		return;
 	}
-
+	sc = ifp->if_softc;
 	m->m_pkthdr.rcvif = ifp;
 
 #ifdef MAC

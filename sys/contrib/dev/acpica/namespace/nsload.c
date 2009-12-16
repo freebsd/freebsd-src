@@ -376,8 +376,7 @@ AcpiNsDeleteSubtree (
 
     /* Now delete the starting object, and we are done */
 
-    AcpiNsDeleteNode (ChildHandle);
-
+    AcpiNsRemoveNode (ChildHandle);
     return_ACPI_STATUS (AE_OK);
 }
 

@@ -256,7 +256,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	}
 
 	/* Initialize our new td  */
-	newtd = thread_alloc();
+	newtd = thread_alloc(pages);
 	if (newtd == NULL)
 		return (ENOMEM);
 
@@ -282,9 +282,6 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 
 	newtd->td_pflags |= TDP_KTHREAD;
 	newtd->td_ucred = crhold(p->p_ucred);
-	/* Allocate and switch to an alternate kstack if specified. */
-	if (pages != 0)
-		vm_thread_new_altkstack(newtd, pages);
 
 	/* this code almost the same as create_thread() in kern_thr.c */
 	PROC_LOCK(p);

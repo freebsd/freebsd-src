@@ -62,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include <dev/usb/controller/ehcireg.h>
+#include <dev/usb/controller/ohcireg.h>
+#include <dev/usb/controller/uhcireg.h>
+
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -249,7 +253,7 @@ disable.  1 means conservatively place devices into D3 state.  2 means\n\
 agressively place devices into D3 state.  3 means put absolutely everything\n\
 in D3 state.");
 
-static int pci_do_power_resume = 1;
+int pci_do_power_resume = 1;
 TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
@@ -269,6 +273,17 @@ static int pci_honor_msi_blacklist = 1;
 TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
 SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
     &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI");
+
+#if defined(__i386__) || defined(__amd64__)
+static int pci_usb_takeover = 1;
+#else
+static int pci_usb_takeover = 0;
+#endif
+TUNABLE_INT("hw.pci.usb_early_takeover", &pci_usb_takeover);
+SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RD | CTLFLAG_TUN,
+    &pci_usb_takeover, 1, "Enable early takeover of USB controllers.\n\
+Disable this if you depend on BIOS emulation of USB devices, that is\n\
+you use USB devices (like keyboard or mouse) but do not load USB drivers");
 
 /* Find a device_t by bus/slot/function in domain 0 */
 
@@ -2149,62 +2164,38 @@ pci_disable_busmaster_method(device_t dev, device_t child)
 int
 pci_enable_io_method(device_t dev, device_t child, int space)
 {
-	uint16_t command;
 	uint16_t bit;
-	char *error;
-
-	bit = 0;
-	error = NULL;
 
 	switch(space) {
 	case SYS_RES_IOPORT:
 		bit = PCIM_CMD_PORTEN;
-		error = "port";
 		break;
 	case SYS_RES_MEMORY:
 		bit = PCIM_CMD_MEMEN;
-		error = "memory";
 		break;
 	default:
 		return (EINVAL);
 	}
 	pci_set_command_bit(dev, child, bit);
-	/* Some devices seem to need a brief stall here, what do to? */
-	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
-	if (command & bit)
-		return (0);
-	device_printf(child, "failed to enable %s mapping!\n", error);
-	return (ENXIO);
+	return (0);
 }
 
 int
 pci_disable_io_method(device_t dev, device_t child, int space)
 {
-	uint16_t command;
 	uint16_t bit;
-	char *error;
-
-	bit = 0;
-	error = NULL;
 
 	switch(space) {
 	case SYS_RES_IOPORT:
 		bit = PCIM_CMD_PORTEN;
-		error = "port";
 		break;
 	case SYS_RES_MEMORY:
 		bit = PCIM_CMD_MEMEN;
-		error = "memory";
 		break;
 	default:
 		return (EINVAL);
 	}
 	pci_clear_command_bit(dev, child, bit);
-	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
-	if (command & bit) {
-		device_printf(child, "failed to disable %s mapping!\n", error);
-		return (ENXIO);
-	}
 	return (0);
 }
 
@@ -2460,7 +2451,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * driver for this device will later inherit this resource in
 	 * pci_alloc_resource().
 	 */
-	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
+	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
 	if (res == NULL) {
 		/*
@@ -2471,10 +2462,8 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		 */
 		resource_list_delete(rl, type, reg);
 		start = 0;
-	} else {
+	} else
 		start = rman_get_start(res);
-		rman_set_device(res, bus);
-	}
 	pci_write_bar(dev, reg, start);
 	return (barlen);
 }
@@ -2513,14 +2502,12 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(0);
 		resource_list_add(rl, type, rid, 0x1f0, 0x1f7, 8);
-		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x1f0, 0x1f7,
-		    8, 0);
-		rman_set_device(r, bus);
+		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x1f0,
+		    0x1f7, 8, 0);
 		rid = PCIR_BAR(1);
 		resource_list_add(rl, type, rid, 0x3f6, 0x3f6, 1);
-		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x3f6, 0x3f6,
-		    1, 0);
-		rman_set_device(r, bus);
+		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x3f6,
+		    0x3f6, 1, 0);
 	}
 	if (progif & PCIP_STORAGE_IDE_MODESEC) {
 		pci_add_map(bus, dev, PCIR_BAR(2), rl, force,
@@ -2530,14 +2517,12 @@ pci_ata_maps(device_t bus, device_t dev, struct resource_list *rl, int force,
 	} else {
 		rid = PCIR_BAR(2);
 		resource_list_add(rl, type, rid, 0x170, 0x177, 8);
-		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x170, 0x177,
-		    8, 0);
-		rman_set_device(r, bus);
+		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x170,
+		    0x177, 8, 0);
 		rid = PCIR_BAR(3);
 		resource_list_add(rl, type, rid, 0x376, 0x376, 1);
-		r = resource_list_alloc(rl, bus, dev, type, &rid, 0x376, 0x376,
-		    1, 0);
-		rman_set_device(r, bus);
+		r = resource_list_reserve(rl, bus, dev, type, &rid, 0x376,
+		    0x376, 1, 0);
 	}
 	pci_add_map(bus, dev, PCIR_BAR(4), rl, force,
 	    prefetchmask & (1 << 4));
@@ -2593,6 +2578,123 @@ pci_assign_interrupt(device_t bus, device_t dev, int force_route)
 	resource_list_add(&dinfo->resources, SYS_RES_IRQ, 0, irq, irq, 1);
 }
 
+/* Perform early OHCI takeover from SMM. */
+static void
+ohci_early_takeover(device_t self)
+{
+	struct resource *res;
+	uint32_t ctl;
+	int rid;
+	int i;
+
+	rid = PCIR_BAR(0);
+	res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL)
+		return;
+
+	ctl = bus_read_4(res, OHCI_CONTROL);
+	if (ctl & OHCI_IR) {
+		if (bootverbose)
+			printf("ohci early: "
+			    "SMM active, request owner change\n");
+		bus_write_4(res, OHCI_COMMAND_STATUS, OHCI_OCR);
+		for (i = 0; (i < 100) && (ctl & OHCI_IR); i++) {
+			DELAY(1000);
+			ctl = bus_read_4(res, OHCI_CONTROL);
+		}
+		if (ctl & OHCI_IR) {
+			if (bootverbose)
+				printf("ohci early: "
+				    "SMM does not respond, resetting\n");
+			bus_write_4(res, OHCI_CONTROL, OHCI_HCFS_RESET);
+		}
+		/* Disable interrupts */
+		bus_write_4(res, OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+	}
+
+	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
+}
+
+/* Perform early UHCI takeover from SMM. */
+static void
+uhci_early_takeover(device_t self)
+{
+	struct resource *res;
+	int rid;
+
+	/*
+	 * Set the PIRQD enable bit and switch off all the others. We don't
+	 * want legacy support to interfere with us XXX Does this also mean
+	 * that the BIOS won't touch the keyboard anymore if it is connected
+	 * to the ports of the root hub?
+	 */
+	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
+
+	/* Disable interrupts */
+	rid = PCI_UHCI_BASE_REG;
+	res = bus_alloc_resource_any(self, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	if (res != NULL) {
+		bus_write_2(res, UHCI_INTR, 0);
+		bus_release_resource(self, SYS_RES_IOPORT, rid, res);
+	}
+}
+
+/* Perform early EHCI takeover from SMM. */
+static void
+ehci_early_takeover(device_t self)
+{
+	struct resource *res;
+	uint32_t cparams;
+	uint32_t eec;
+	uint8_t eecp;
+	uint8_t bios_sem;
+	uint8_t offs;
+	int rid;
+	int i;
+
+	rid = PCIR_BAR(0);
+	res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	if (res == NULL)
+		return;
+
+	cparams = bus_read_4(res, EHCI_HCCPARAMS);
+
+	/* Synchronise with the BIOS if it owns the controller. */
+	for (eecp = EHCI_HCC_EECP(cparams); eecp != 0;
+	    eecp = EHCI_EECP_NEXT(eec)) {
+		eec = pci_read_config(self, eecp, 4);
+		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP) {
+			continue;
+		}
+		bios_sem = pci_read_config(self, eecp +
+		    EHCI_LEGSUP_BIOS_SEM, 1);
+		if (bios_sem == 0) {
+			continue;
+		}
+		if (bootverbose)
+			printf("ehci early: "
+			    "SMM active, request owner change\n");
+
+		pci_write_config(self, eecp + EHCI_LEGSUP_OS_SEM, 1, 1);
+
+		for (i = 0; (i < 100) && (bios_sem != 0); i++) {
+			DELAY(1000);
+			bios_sem = pci_read_config(self, eecp +
+			    EHCI_LEGSUP_BIOS_SEM, 1);
+		}
+
+		if (bios_sem != 0) {
+			if (bootverbose)
+				printf("ehci early: "
+				    "SMM does not respond\n");
+		}
+		/* Disable interrupts */
+		offs = bus_read_1(res, EHCI_CAPLENGTH);
+		bus_write_4(res, offs + EHCI_USBINTR, 0);
+	}
+	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
+}
+
 void
 pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 {
@@ -2635,6 +2737,16 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 #else
 		pci_assign_interrupt(bus, dev, 0);
 #endif
+	}
+
+	if (pci_usb_takeover && pci_get_class(dev) == PCIC_SERIALBUS &&
+	    pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
+		if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_EHCI)
+			ehci_early_takeover(dev);
+		else if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_OHCI)
+			ohci_early_takeover(dev);
+		else if (pci_get_progif(dev) == PCIP_SERIALBUS_USB_UHCI)
+			uhci_early_takeover(dev);
 	}
 }
 
@@ -3446,7 +3558,7 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 #endif /* DDB */
 
 static struct resource *
-pci_alloc_map(device_t dev, device_t child, int type, int *rid,
+pci_reserve_map(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
@@ -3516,15 +3628,15 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 		    count, *rid, type, start, end);
 		goto out;
 	}
-	rman_set_device(res, dev);
 	resource_list_add(rl, type, *rid, start, end, count);
 	rle = resource_list_find(rl, type, *rid);
 	if (rle == NULL)
-		panic("pci_alloc_map: unexpectedly can't find resource.");
+		panic("pci_reserve_map: unexpectedly can't find resource.");
 	rle->res = res;
 	rle->start = rman_get_start(res);
 	rle->end = rman_get_end(res);
 	rle->count = count;
+	rle->flags = RLE_RESERVED;
 	if (bootverbose)
 		device_printf(child,
 		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
@@ -3574,34 +3686,13 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_IOPORT:
 	case SYS_RES_MEMORY:
-		/* Allocate resources for this BAR if needed. */
+		/* Reserve resources for this BAR if needed. */
 		rle = resource_list_find(rl, type, *rid);
 		if (rle == NULL) {
-			res = pci_alloc_map(dev, child, type, rid, start, end,
+			res = pci_reserve_map(dev, child, type, rid, start, end,
 			    count, flags);
 			if (res == NULL)
 				return (NULL);
-			rle = resource_list_find(rl, type, *rid);
-		}
-
-		/*
-		 * If the resource belongs to the bus, then give it to
-		 * the child.  We need to activate it if requested
-		 * since the bus always allocates inactive resources.
-		 */
-		if (rle != NULL && rle->res != NULL &&
-		    rman_get_device(rle->res) == dev) {
-			if (bootverbose)
-				device_printf(child,
-			    "Reserved %#lx bytes for rid %#x type %d at %#lx\n",
-				    rman_get_size(rle->res), *rid, type,
-				    rman_get_start(rle->res));
-			rman_set_device(rle->res, child);
-			if ((flags & RF_ACTIVE) &&
-			    bus_activate_resource(child, type, *rid,
-			    rle->res) != 0)
-				return (NULL);
-			return (rle->res);
 		}
 	}
 	return (resource_list_alloc(rl, dev, child, type, rid,
@@ -3612,7 +3703,6 @@ int
 pci_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	int error;
 
 	if (device_get_parent(child) != dev)
 		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
@@ -3621,21 +3711,10 @@ pci_release_resource(device_t dev, device_t child, int type, int rid,
 	/*
 	 * For BARs we don't actually want to release the resource.
 	 * Instead, we deactivate the resource if needed and then give
-	 * ownership of the BAR back to the bus.
+	 * ownership of the BAR back to the bus.  This is handled for us
+	 * in resource_list_release() since we use resource_list_reserve()
+	 * for BARs.
 	 */
-	switch (type) {
-	case SYS_RES_IOPORT:
-	case SYS_RES_MEMORY:
-		if (rman_get_device(r) != child)
-			return (EINVAL);
-		if (rman_get_flags(r) & RF_ACTIVE) {
-			error = bus_deactivate_resource(child, type, rid, r);
-			if (error)
-				return (error);
-		}
-		rman_set_device(r, dev);
-		return (0);
-	}
 	return (bus_generic_rl_release_resource(dev, child, type, rid, r));
 }
 
@@ -3678,13 +3757,12 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 		return;
 
 	if (rle->res) {
-		if (rman_get_device(rle->res) != dev ||
-		    rman_get_flags(rle->res) & RF_ACTIVE) {
+		if (rman_get_flags(rle->res) & RF_ACTIVE ||
+		    resource_list_busy(rl, type, rid)) {
 			device_printf(dev, "delete_resource: "
 			    "Resource still owned by child, oops. "
 			    "(type=%d, rid=%d, addr=%lx)\n",
-			    rle->type, rle->rid,
-			    rman_get_start(rle->res));
+			    type, rid, rman_get_start(rle->res));
 			return;
 		}
 
@@ -3700,7 +3778,7 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			break;
 		}
 #endif
-		bus_release_resource(dev, type, rid, rle->res);
+		resource_list_unreserve(rl, dev, child, type, rid);
 	}
 	resource_list_delete(rl, type, rid);
 }

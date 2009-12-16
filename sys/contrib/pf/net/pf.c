@@ -91,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
-#include <sys/vimage.h>
 #else
 #include <sys/rwlock.h>
 #endif
@@ -972,6 +971,9 @@ void
 pf_purge_thread(void *v)
 {
 	int nloops = 0, s;
+#ifdef __FreeBSD__
+	int locked;
+#endif
 
 	for (;;) {
 		tsleep(pf_purge_thread, PWAIT, "pftm", 1 * hz);
@@ -979,14 +981,19 @@ pf_purge_thread(void *v)
 #ifdef __FreeBSD__
 		sx_slock(&pf_consistency_lock);
 		PF_LOCK();
+		locked = 0;
 
 		if (pf_end_threads) {
-			pf_purge_expired_states(pf_status.states);
+			PF_UNLOCK();
+			sx_sunlock(&pf_consistency_lock);
+			sx_xlock(&pf_consistency_lock);
+			PF_LOCK();
+			pf_purge_expired_states(pf_status.states, 1);
 			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes(0);
+			pf_purge_expired_src_nodes(1);
 			pf_end_threads++;
 
-			sx_sunlock(&pf_consistency_lock);
+			sx_xunlock(&pf_consistency_lock);
 			PF_UNLOCK();
 			wakeup(pf_purge_thread);
 			kproc_exit(0);
@@ -995,20 +1002,44 @@ pf_purge_thread(void *v)
 		s = splsoftnet();
 
 		/* process a fraction of the state table every second */
+#ifdef __FreeBSD__
+		if(!pf_purge_expired_states(1 + (pf_status.states
+		    / pf_default_rule.timeout[PFTM_INTERVAL]), 0)) {
+			PF_UNLOCK();
+			sx_sunlock(&pf_consistency_lock);
+			sx_xlock(&pf_consistency_lock);
+			PF_LOCK();
+			locked = 1;
+
+			pf_purge_expired_states(1 + (pf_status.states
+			    / pf_default_rule.timeout[PFTM_INTERVAL]), 1);
+		}
+#else
 		pf_purge_expired_states(1 + (pf_status.states
 		    / pf_default_rule.timeout[PFTM_INTERVAL]));
+#endif
 
 		/* purge other expired types every PFTM_INTERVAL seconds */
 		if (++nloops >= pf_default_rule.timeout[PFTM_INTERVAL]) {
 			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes(0);
+			if (!pf_purge_expired_src_nodes(locked)) {
+				PF_UNLOCK();
+				sx_sunlock(&pf_consistency_lock);
+				sx_xlock(&pf_consistency_lock);
+				PF_LOCK();
+				locked = 1;
+				pf_purge_expired_src_nodes(1);
+			}
 			nloops = 0;
 		}
 
 		splx(s);
 #ifdef __FreeBSD__
 		PF_UNLOCK();
-		sx_sunlock(&pf_consistency_lock);
+		if (locked)
+			sx_xunlock(&pf_consistency_lock);
+		else
+			sx_sunlock(&pf_consistency_lock);
 #endif
 	}
 }
@@ -1057,8 +1088,13 @@ pf_state_expires(const struct pf_state *state)
 	return (state->expire + timeout);
 }
 
+#ifdef __FreeBSD__
+int
+pf_purge_expired_src_nodes(int waslocked)
+#else
 void
 pf_purge_expired_src_nodes(int waslocked)
+#endif
 {
 	 struct pf_src_node		*cur, *next;
 	 int				 locked = waslocked;
@@ -1069,12 +1105,8 @@ pf_purge_expired_src_nodes(int waslocked)
 		 if (cur->states <= 0 && cur->expire <= time_second) {
 			 if (! locked) {
 #ifdef __FreeBSD__
-				 if (!sx_try_upgrade(&pf_consistency_lock)) {
-					 PF_UNLOCK();
-					 sx_sunlock(&pf_consistency_lock);
-					 sx_xlock(&pf_consistency_lock);
-					 PF_LOCK();
-				 }
+				 if (!sx_try_upgrade(&pf_consistency_lock))
+				 	return (0);
 #else
 				 rw_enter_write(&pf_consistency_lock);
 #endif
@@ -1100,6 +1132,10 @@ pf_purge_expired_src_nodes(int waslocked)
 		sx_downgrade(&pf_consistency_lock);
 #else
 		rw_exit_write(&pf_consistency_lock);
+#endif
+
+#ifdef __FreeBSD__
+	return (1);
 #endif
 }
 
@@ -1203,12 +1239,21 @@ pf_free_state(struct pf_state *cur)
 	pf_status.states--;
 }
 
+#ifdef __FreeBSD__
+int
+pf_purge_expired_states(u_int32_t maxcheck, int waslocked)
+#else
 void
 pf_purge_expired_states(u_int32_t maxcheck)
+#endif
 {
 	static struct pf_state	*cur = NULL;
 	struct pf_state		*next;
+#ifdef __FreeBSD__
+	int 			 locked = waslocked;
+#else
 	int 			 locked = 0;
+#endif
 
 	while (maxcheck--) {
 		/* wrap to start of list when we hit the end */
@@ -1225,12 +1270,8 @@ pf_purge_expired_states(u_int32_t maxcheck)
 			/* free unlinked state */
 			if (! locked) {
 #ifdef __FreeBSD__
-				 if (!sx_try_upgrade(&pf_consistency_lock)) {
-					 PF_UNLOCK();
-					 sx_sunlock(&pf_consistency_lock);
-					 sx_xlock(&pf_consistency_lock);
-					 PF_LOCK();
-				 }
+				 if (!sx_try_upgrade(&pf_consistency_lock))
+				 	return (0);
 #else
 				rw_enter_write(&pf_consistency_lock);
 #endif
@@ -1242,12 +1283,8 @@ pf_purge_expired_states(u_int32_t maxcheck)
 			pf_unlink_state(cur);
 			if (! locked) {
 #ifdef __FreeBSD__
-				 if (!sx_try_upgrade(&pf_consistency_lock)) {
-					 PF_UNLOCK();
-					 sx_sunlock(&pf_consistency_lock);
-					 sx_xlock(&pf_consistency_lock);
-					 PF_LOCK();
-				 }
+				 if (!sx_try_upgrade(&pf_consistency_lock))
+				 	return (0);
 #else
 				rw_enter_write(&pf_consistency_lock);
 #endif
@@ -1258,10 +1295,13 @@ pf_purge_expired_states(u_int32_t maxcheck)
 		cur = next;
 	}
 
-	if (locked)
 #ifdef __FreeBSD__
+	if (!waslocked && locked)
 		sx_downgrade(&pf_consistency_lock);
+
+	return (1);
 #else
+	if (locked)
 		rw_exit_write(&pf_consistency_lock);
 #endif
 }
@@ -6142,7 +6182,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (r->rt == PF_FASTROUTE) {
 		in_rtalloc(ro, 0);
 		if (ro->ro_rt == 0) {
-			IPSTAT_INC(ips_noroute);
+			KMOD_IPSTAT_INC(ips_noroute);
 			goto bad;
 		}
 
@@ -6273,16 +6313,16 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if ((ifp->if_capabilities & IFCAP_CSUM_IPv4) &&
 		    ifp->if_bridge == NULL) {
 			m0->m_pkthdr.csum_flags |= M_IPV4_CSUM_OUT;
-			IPSTAT_INC(ips_outhwcsum);
+			KMOD_IPSTAT_INC(ips_outhwcsum);
 		} else {
 			ip->ip_sum = 0;
 			ip->ip_sum = in_cksum(m0, ip->ip_hl << 2);
 		}
 		/* Update relevant hardware checksum stats for TCP/UDP */
 		if (m0->m_pkthdr.csum_flags & M_TCPV4_CSUM_OUT)
-			TCPSTAT_INC(tcpstat.tcps_outhwcsum);
+			KMOD_TCPSTAT_INC(tcps_outhwcsum);
 		else if (m0->m_pkthdr.csum_flags & M_UDPV4_CSUM_OUT)
-			UDPSTAT_INC(udps_outhwcsum);
+			KMOD_UDPSTAT_INC(udps_outhwcsum);
 		error = (*ifp->if_output)(ifp, m0, sintosa(dst), NULL);
 		goto done;
 	}
@@ -6292,7 +6332,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	 * Must be able to put at least 8 bytes per fragment.
 	 */
 	if (ip->ip_off & htons(IP_DF)) {
-		IPSTAT_INC(ips_cantfrag);
+		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (r->rt != PF_DUPTO) {
 #ifdef __FreeBSD__
 			/* icmp_error() expects host byte ordering */
@@ -6349,7 +6389,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	}
 
 	if (error == 0)
-		IPSTAT_INC(ips_fragmented);
+		KMOD_IPSTAT_INC(ips_fragmented);
 
 done:
 	if (r->rt != PF_DUPTO)
@@ -6623,23 +6663,23 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 		switch (p) {
 		case IPPROTO_TCP:
 		    {
-			TCPSTAT_INC(tcps_rcvbadsum);
+			KMOD_TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		    }
 		case IPPROTO_UDP:
 		    {
-			UDPSTAT_INC(udps_badsum);
+			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
 		    }
 		case IPPROTO_ICMP:
 		    {
-			ICMPSTAT_INC(icps_checksum);
+			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
 		    }
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 		    {
-			ICMP6STAT_INC(icp6s_checksum);
+			KMOD_ICMP6STAT_INC(icp6s_checksum);
 			break;
 		    }
 #endif /* INET6 */
@@ -6726,17 +6766,17 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 		m->m_pkthdr.csum_flags |= flag_bad;
 		switch (p) {
 		case IPPROTO_TCP:
-			TCPSTAT_INC(tcps_rcvbadsum);
+			KMOD_TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		case IPPROTO_UDP:
-			UDPSTAT_INC(udps_badsum);
+			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
 		case IPPROTO_ICMP:
-			ICMPSTAT_INC(icps_checksum);
+			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
 #ifdef INET6
 		case IPPROTO_ICMPV6:
-			ICMP6STAT_INC(icp6s_checksum);
+			KMOD_ICMP6STAT_INC(icp6s_checksum);
 			break;
 #endif /* INET6 */
 		}

@@ -124,6 +124,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_device.h>
 #include "usbdevs.h"
 
 #include <cam/cam.h>
@@ -174,6 +175,8 @@ static int umass_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
     &umass_debug, 0, "umass debug level");
+
+TUNABLE_INT("hw.usb.umass.debug", &umass_debug);
 #else
 #define	DIF(...) do { } while (0)
 #define	DPRINTF(...) do { } while (0)
@@ -411,6 +414,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 	{USB_VENDOR_AIPTEK2, USB_PRODUCT_AIPTEK2_SUNPLUS_TECH, RID_WILDCARD,
 		UMASS_PROTO_DEFAULT,
 		NO_SYNCHRONIZE_CACHE
+	},
+	{USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_SDCR_6335, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		NO_TEST_UNIT_READY | NO_SYNCHRONIZE_CACHE
 	},
 	{USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_AU6390, RID_WILDCARD,
 		UMASS_PROTO_DEFAULT,
@@ -674,7 +681,7 @@ static const struct umass_devdescr umass_devdescr[] = {
 		WRONG_CSWSIG
 	},
 	{USB_VENDOR_OLYMPUS, USB_PRODUCT_OLYMPUS_C700, RID_WILDCARD,
-		UMASS_PROTO_SCSI,
+		UMASS_PROTO_DEFAULT,
 		NO_GETMAXLUN
 	},
 	{USB_VENDOR_ONSPEC, USB_PRODUCT_ONSPEC_SDS_HOTFIND_D, RID_WILDCARD,
@@ -733,6 +740,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_UFI,
 		NO_QUIRKS
 	},
+	{ USB_VENDOR_PHILIPS, USB_PRODUCT_PHILIPS_SPE3030CC, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		NO_SYNCHRONIZE_CACHE
+	},
 	{USB_VENDOR_PLEXTOR, USB_PRODUCT_PLEXTOR_40_12_40U, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_TEST_UNIT_READY
@@ -740,10 +751,6 @@ static const struct umass_devdescr umass_devdescr[] = {
 	{USB_VENDOR_PNY, USB_PRODUCT_PNY_ATTACHE2, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		IGNORE_RESIDUE | NO_START_STOP
-	},
-	{USB_VENDOR_SAMSUNG, USB_PRODUCT_SAMSUNG_YP_U2, RID_WILDCARD,
-		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
-		SHUTTLE_INIT | NO_GETMAXLUN
 	},
 	{USB_VENDOR_SAMSUNG_TECHWIN, USB_PRODUCT_SAMSUNG_TECHWIN_DIGIMAX_410, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
@@ -893,6 +900,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_UFI | UMASS_PROTO_CBI,
 		NO_QUIRKS
 	},
+	{USB_VENDOR_TECLAST, USB_PRODUCT_TECLAST_TLC300, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		NO_TEST_UNIT_READY | NO_SYNCHRONIZE_CACHE
+	},
 	{USB_VENDOR_TREK, USB_PRODUCT_TREK_MEMKEY, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_INQUIRY
@@ -937,6 +948,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_INQUIRY_EVPD
 	},
+	{USB_VENDOR_WESTERN, USB_PRODUCT_WESTERN_MYPASSWORD, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		FORCE_SHORT_INQUIRY
+	},
 	{USB_VENDOR_WINMAXGROUP, USB_PRODUCT_WINMAXGROUP_FLASH64MC, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_INQUIRY
@@ -963,6 +978,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 	},
 	{USB_VENDOR_ACTIONS, USB_PRODUCT_ACTIONS_MP4, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+		NO_SYNCHRONIZE_CACHE
+	},
+	{USB_VENDOR_ASUS, USB_PRODUCT_ASUS_GMSC, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
 		NO_SYNCHRONIZE_CACHE
 	},
 	{VID_EOT, PID_EOT, RID_EOT, 0, 0}
@@ -1652,6 +1671,7 @@ umass_detach(device_t dev)
 #if (__FreeBSD_version >= 700037)
 	mtx_unlock(&sc->sc_mtx);
 #endif
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);			/* success */
 }
@@ -2827,7 +2847,7 @@ umass_cam_detach_sim(struct umass_softc *sc)
 			sc->sc_sim->softc = UMASS_GONE;
 			cam_sim_free(sc->sc_sim, /* free_devq */ TRUE);
 		} else {
-			panic("%s: CAM layer is busy!\n",
+			panic("%s: CAM layer is busy\n",
 			    sc->sc_name);
 		}
 		sc->sc_sim = NULL;
@@ -2843,8 +2863,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct umass_softc *sc = (struct umass_softc *)sim->softc;
 
-	if (sc == UMASS_GONE) {
-		ccb->ccb_h.status = CAM_TID_INVALID;
+	if (sc == UMASS_GONE ||
+	    (sc != NULL && !usbd_device_attached(sc->sc_udev))) {
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
 	}
@@ -2960,6 +2981,28 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			if (umass_std_transform(sc, ccb, cmd, ccb->csio.cdb_len)) {
 
 				if (sc->sc_transfer.cmd_data[0] == INQUIRY) {
+
+					/*
+					 * Umass devices don't generally report their serial numbers
+					 * in the usual SCSI way.  Emulate it here.
+					 */
+					if ((sc->sc_transfer.cmd_data[1] & SI_EVPD) &&
+					    sc->sc_transfer.cmd_data[2] == SVPD_UNIT_SERIAL_NUMBER &&
+					    sc->sc_udev != NULL &&
+					    sc->sc_udev->serial != NULL &&
+					    sc->sc_udev->serial[0] != '\0') {
+						struct scsi_vpd_unit_serial_number *vpd_serial;
+
+						vpd_serial = (struct scsi_vpd_unit_serial_number *)ccb->csio.data_ptr;
+						vpd_serial->length = strlen(sc->sc_udev->serial);
+						if (vpd_serial->length > sizeof(vpd_serial->serial_num))
+							vpd_serial->length = sizeof(vpd_serial->serial_num);
+						memcpy(vpd_serial->serial_num, sc->sc_udev->serial, vpd_serial->length);
+						ccb->csio.scsi_status = SCSI_STATUS_OK;
+						ccb->ccb_h.status = CAM_REQ_CMP;
+						xpt_done(ccb);
+						goto done;
+					}
 
 					/*
 					 * Handle EVPD inquiry for broken devices first
@@ -3176,6 +3219,29 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 			rcap = (void *)(ccb->csio.data_ptr);
 			maxsector = scsi_4btoul(rcap->addr) - 1;
 			scsi_ulto4b(maxsector, rcap->addr);
+		}
+		/*
+		 * We have to add SVPD_UNIT_SERIAL_NUMBER to the list
+		 * of pages supported by the device - otherwise, CAM
+		 * will never ask us for the serial number if the
+		 * device cannot handle that by itself.
+		 */
+		if (ccb->ccb_h.func_code == XPT_SCSI_IO &&
+		    sc->sc_transfer.cmd_data[0] == INQUIRY &&
+		    (sc->sc_transfer.cmd_data[1] & SI_EVPD) &&
+		    sc->sc_transfer.cmd_data[2] == SVPD_SUPPORTED_PAGE_LIST &&
+		    sc->sc_udev != NULL &&
+		    sc->sc_udev->serial != NULL &&
+		    sc->sc_udev->serial[0] != '\0') {
+			struct ccb_scsiio *csio;
+			struct scsi_vpd_supported_page_list *page_list;
+
+			csio = &ccb->csio;
+			page_list = (struct scsi_vpd_supported_page_list *)csio->data_ptr;
+			if (page_list->length + 1 < SVPD_SUPPORTED_PAGES_SIZE) {
+				page_list->list[page_list->length] = SVPD_UNIT_SERIAL_NUMBER;
+				page_list->length++;
+			}
 		}
 		xpt_done(ccb);
 		break;

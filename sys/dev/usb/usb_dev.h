@@ -130,6 +130,8 @@ struct usb_fifo {
 	uint8_t	flag_short;		/* set if short_ok or force_short
 					 * transfer flags should be set */
 	uint8_t	flag_stall;		/* set if clear stall should be run */
+	uint8_t	flag_write_defrag;	/* set to defrag written data */
+	uint8_t	flag_have_fragment;	/* set if defragging */
 	uint8_t	iface_index;		/* set to the interface we belong to */
 	uint8_t	fifo_index;		/* set to the FIFO index in "struct
 					 * usb_device" */
@@ -144,11 +146,9 @@ extern struct cdevsw usb_devsw;
 int	usb_fifo_wait(struct usb_fifo *fifo);
 void	usb_fifo_signal(struct usb_fifo *fifo);
 uint8_t	usb_fifo_opened(struct usb_fifo *fifo);
-void	usb_fifo_free(struct usb_fifo *f);
 struct usb_symlink *usb_alloc_symlink(const char *target);
 void	usb_free_symlink(struct usb_symlink *ps);
 int	usb_read_symlink(uint8_t *user_ptr, uint32_t startentry,
 	    uint32_t user_len);
-void	usb_fifo_set_close_zlp(struct usb_fifo *, uint8_t);
 
 #endif					/* _USB_DEV_H_ */

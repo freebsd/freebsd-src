@@ -210,6 +210,7 @@ static void	umoscom_start_read(struct ucom_softc *);
 static void	umoscom_stop_read(struct ucom_softc *);
 static void	umoscom_start_write(struct ucom_softc *);
 static void	umoscom_stop_write(struct ucom_softc *);
+static void	umoscom_poll(struct ucom_softc *ucom);
 
 static const struct usb_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
 
@@ -257,6 +258,7 @@ static const struct ucom_callback umoscom_callback = {
 	.ucom_stop_read = &umoscom_stop_read,
 	.ucom_start_write = &umoscom_start_write,
 	.ucom_stop_write = &umoscom_stop_write,
+	.ucom_poll = &umoscom_poll,
 };
 
 static device_method_t umoscom_methods[] = {
@@ -693,4 +695,11 @@ tr_setup:
 		}
 		return;
 	}
+}
+
+static void
+umoscom_poll(struct ucom_softc *ucom)
+{
+	struct umoscom_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UMOSCOM_N_TRANSFER);
 }

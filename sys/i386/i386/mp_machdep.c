@@ -155,12 +155,6 @@ vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
 
-#ifdef STOP_NMI
-static volatile cpumask_t ipi_nmi_pending;
-
-static void	ipi_nmi_selected(cpumask_t cpus);
-#endif 
-
 #ifdef COUNT_IPIS
 /* Interrupt counts. */
 static u_long *ipi_preempt_counts[MAXCPU];
@@ -177,21 +171,8 @@ u_long *ipi_lazypmap_counts[MAXCPU];
  * Local data and functions.
  */
 
-#ifdef STOP_NMI
-/* 
- * Provide an alternate method of stopping other CPUs. If another CPU has
- * disabled interrupts the conventional STOP IPI will be blocked. This 
- * NMI-based stop should get through in that case.
- */
-static int stop_cpus_with_nmi = 1;
-SYSCTL_INT(_debug, OID_AUTO, stop_cpus_with_nmi, CTLTYPE_INT | CTLFLAG_RW,
-    &stop_cpus_with_nmi, 0, "");
-TUNABLE_INT("debug.stop_cpus_with_nmi", &stop_cpus_with_nmi);
-#else
-#define	stop_cpus_with_nmi	0
-#endif
-
 static u_int logical_cpus;
+static volatile cpumask_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
 static struct mtx ap_boot_mtx;
@@ -1318,12 +1299,14 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 		ipi = IPI_BITMAP_VECTOR;
 	}
 
-#ifdef STOP_NMI
-	if (ipi == IPI_STOP && stop_cpus_with_nmi) {
-		ipi_nmi_selected(cpus);
-		return;
-	}
-#endif
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, cpus);
+
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
@@ -1354,63 +1337,41 @@ void
 ipi_all_but_self(u_int ipi)
 {
 
-	if (IPI_IS_BITMAPED(ipi) || (ipi == IPI_STOP && stop_cpus_with_nmi)) {
+	if (IPI_IS_BITMAPED(ipi)) {
 		ipi_selected(PCPU_GET(other_cpus), ipi);
 		return;
 	}
+
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, PCPU_GET(other_cpus));
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
-#ifdef STOP_NMI
-/*
- * send NMI IPI to selected CPUs
- */
-
-#define	BEFORE_SPIN	1000000
-
-void
-ipi_nmi_selected(cpumask_t cpus)
-{
-	int cpu;
-	register_t icrlo;
-
-	icrlo = APIC_DELMODE_NMI | APIC_DESTMODE_PHY | APIC_LEVEL_ASSERT 
-		| APIC_TRIGMOD_EDGE; 
-	
-	CTR2(KTR_SMP, "%s: cpus: %x nmi", __func__, cpus);
-
-	atomic_set_int(&ipi_nmi_pending, cpus);
-
-	while ((cpu = ffs(cpus)) != 0) {
-		cpu--;
-		cpus &= ~(1 << cpu);
-
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI NMI to non-existent CPU %d", cpu));
-		
-		/* Wait for an earlier IPI to finish. */
-		if (!lapic_ipi_wait(BEFORE_SPIN))
-			panic("ipi_nmi_selected: previous IPI has not cleared");
-
-		lapic_ipi_raw(icrlo, cpu_apic_ids[cpu]);
-	}
-}
-
 int
-ipi_nmi_handler(void)
+ipi_nmi_handler()
 {
-	int cpumask = PCPU_GET(cpumask);
+	cpumask_t cpumask;
 
-	if (!(ipi_nmi_pending & cpumask))
-		return 1;
+	/*
+	 * As long as there is not a simple way to know about a NMI's
+	 * source, if the bitmask for the current CPU is present in
+	 * the global pending bitword an IPI_STOP_HARD has been issued
+	 * and should be handled.
+	 */
+	cpumask = PCPU_GET(cpumask);
+	if ((ipi_nmi_pending & cpumask) == 0)
+		return (1);
 
 	atomic_clear_int(&ipi_nmi_pending, cpumask);
 	cpustop_handler();
-	return 0;
+	return (0);
 }
-
-#endif /* STOP_NMI */
 
 /*
  * Handle an IPI_STOP by saving our current context and spinning until we

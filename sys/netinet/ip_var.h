@@ -131,10 +131,24 @@ struct	ipstat {
 
 #include <net/vnet.h>
 
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	IPSTAT_ADD(name, val)	V_ipstat.name += (val)
 #define	IPSTAT_SUB(name, val)	V_ipstat.name -= (val)
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
 #define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_ipstat_inc(int statnum);
+#define	KMOD_IPSTAT_INC(name)						\
+	kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(u_long))
+void	kmod_ipstat_dec(int statnum);
+#define	KMOD_IPSTAT_DEC(name)						\
+	kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(u_long))
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
@@ -230,14 +244,20 @@ extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
 extern void	(*ip_rsvp_force_done)(struct socket *);
 extern void	(*rsvp_input_p)(struct mbuf *m, int off);
 
-extern	struct pfil_head inet_pfil_hook;	/* packet filter hooks */
+VNET_DECLARE(struct pfil_head, inet_pfil_hook);	/* packet filter hooks */
+#define	V_inet_pfil_hook	VNET(inet_pfil_hook)
 
 void	in_delayed_cksum(struct mbuf *m);
 
 /* ipfw and dummynet hooks. Most are declared in raw_ip.c */
 struct ip_fw_args;
-extern int	(*ip_fw_chk_ptr)(struct ip_fw_args *args);
-extern int	(*ip_fw_ctl_ptr)(struct sockopt *);
+typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);
+typedef int	(*ip_fw_ctl_ptr_t)(struct sockopt *);
+VNET_DECLARE(ip_fw_chk_ptr_t, ip_fw_chk_ptr);
+VNET_DECLARE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr);
+#define	V_ip_fw_chk_ptr		VNET(ip_fw_chk_ptr)
+#define	V_ip_fw_ctl_ptr		VNET(ip_fw_ctl_ptr)
+
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa);
 extern void	(*ip_dn_ruledel_ptr)(void *);		/* in ip_fw2.c */

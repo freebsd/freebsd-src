@@ -34,6 +34,9 @@
 #include <dev/hptrr/os_bsd.h>
 #include <dev/hptrr/hptintf.h>
 
+static int attach_generic = 1;
+TUNABLE_INT("hw.hptrr.attach_generic", &attach_generic);
+
 static int hpt_probe(device_t dev)
 {
 	PCI_ID pci_id;
@@ -41,6 +44,9 @@ static int hpt_probe(device_t dev)
 	int i;
 	PHBA hba;
 
+	/* Some of supported chips are used not only by HPT. */
+	if (pci_get_vendor(dev) != 0x1103 && !attach_generic)
+		return (ENXIO);
 	for (him = him_list; him; him = him->next) {
 		for (i=0; him->get_supported_device_id(i, &pci_id); i++) {
 			if ((pci_get_vendor(dev) == pci_id.vid) &&
@@ -814,6 +820,10 @@ static void hpt_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "HPT   ", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		cpi->transport = XPORT_SPI;
+		cpi->transport_version = 2;
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

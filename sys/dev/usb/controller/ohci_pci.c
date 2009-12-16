@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ohci.h>
+#include <dev/usb/controller/ohcireg.h>
 
 #define	PCI_OHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_OHCI_VENDORID_AMD		0x1022
@@ -171,6 +172,9 @@ ohci_pci_match(device_t self)
 
 	case 0x00d710de:
 		return ("nVidia nForce3 USB Controller");
+
+	case 0x03f110de:
+		return ("nVidia nForce MCP61 USB Controller");
 
 	case 0x70011039:
 		return ("SiS 5571 USB controller");

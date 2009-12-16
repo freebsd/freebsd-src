@@ -708,7 +708,7 @@ enum {
 	IEEE80211_ELEMID_VENDOR		= 221,	/* vendor private */
 
 	/*
-	 * 802.11s IEs based on D3.0 spec and were not assigned by
+	 * 802.11s IEs based on D3.03 spec and were not assigned by
 	 * ANA. Beware changing them because some of them are being
 	 * kept compatible with Linux.
 	 */
@@ -726,10 +726,9 @@ enum {
 	IEEE80211_ELEMID_MESHPREQ	= 68,
 	IEEE80211_ELEMID_MESHPREP	= 69,
 	IEEE80211_ELEMID_MESHPERR	= 70,
-	IEEE80211_ELEMID_MESHPU		= 53,
-	IEEE80211_ELEMID_MESHPUC	= 54,
+	IEEE80211_ELEMID_MESHPXU	= 53,
+	IEEE80211_ELEMID_MESHPXUC	= 54,
 	IEEE80211_ELEMID_MESHAH		= 60, /* Abbreviated Handshake */
-	IEEE80211_ELEMID_MESHPEERVER	= 80, /* Peering Protocol Version */
 };
 
 struct ieee80211_tim_ie {
@@ -925,6 +924,9 @@ enum {
 	IEEE80211_REASON_MESH_INVALID_GTK	= 8,	/* 11s */
 	IEEE80211_REASON_MESH_INCONS_PARAMS	= 9,	/* 11s */
 	IEEE80211_REASON_MESH_INVALID_SECURITY	= 10,	/* 11s */
+	IEEE80211_REASON_MESH_PERR_UNSPEC	= 11,	/* 11s */
+	IEEE80211_REASON_MESH_PERR_NO_FI	= 12,	/* 11s */
+	IEEE80211_REASON_MESH_PERR_DEST_UNREACH	= 13,	/* 11s */
 
 	IEEE80211_STATUS_SUCCESS		= 0,
 	IEEE80211_STATUS_UNSPECIFIED		= 1,

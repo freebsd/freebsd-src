@@ -194,6 +194,7 @@ static void	ubsa_start_write(struct ucom_softc *);
 static void	ubsa_stop_write(struct ucom_softc *);
 static void	ubsa_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
+static void	ubsa_poll(struct ucom_softc *ucom);
 
 static const struct usb_config ubsa_config[UBSA_N_TRANSFER] = {
 
@@ -236,6 +237,7 @@ static const struct ucom_callback ubsa_callback = {
 	.ucom_stop_read = &ubsa_stop_read,
 	.ucom_start_write = &ubsa_start_write,
 	.ucom_stop_write = &ubsa_stop_write,
+	.ucom_poll = &ubsa_poll,
 };
 
 static const struct usb_device_id ubsa_devs[] = {
@@ -658,4 +660,12 @@ tr_setup:
 		return;
 
 	}
+}
+
+static void
+ubsa_poll(struct ucom_softc *ucom)
+{
+	struct ubsa_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UBSA_N_TRANSFER);
+
 }

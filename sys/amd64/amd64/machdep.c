@@ -213,7 +213,12 @@ cpu_startup(dummy)
 	 */
 	sysenv = getenv("smbios.system.product");
 	if (sysenv != NULL) {
-		if (strncmp(sysenv, "MacBook", 7) == 0) {
+		if (strncmp(sysenv, "MacBook1,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBook3,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,1", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,2", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro3,1", 13) == 0 ||
+		    strncmp(sysenv, "Macmini1,1", 10) == 0) {
 			if (bootverbose)
 				printf("Disabling LEGACY_USB_EN bit on "
 				    "Intel ICH.\n");
@@ -231,19 +236,21 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
+	realmem = Maxmem;
+
+	/*
+	 * Display physical memory if SMBIOS reports reasonable amount.
+	 */
+	memsize = 0;
 	sysenv = getenv("smbios.memory.enabled");
 	if (sysenv != NULL) {
-		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10);
+		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10) << 10;
 		freeenv(sysenv);
-	} else
-		memsize = 0;
-	if (memsize > 0)
-		printf("real memory  = %ju (%ju MB)\n", memsize << 10,
-		    memsize >> 10);
-	else
-		printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
-		    ptoa((uintmax_t)Maxmem) / 1048576);
-	realmem = Maxmem;
+	}
+	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
+		memsize = ptoa((uintmax_t)Maxmem);
+	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -408,7 +415,7 @@ sigreturn(td, uap)
 	ucontext_t uc;
 	struct proc *p = td->td_proc;
 	struct trapframe *regs;
-	const ucontext_t *ucp;
+	ucontext_t *ucp;
 	long rflags;
 	int cs, error, ret;
 	ksiginfo_t ksi;
@@ -471,7 +478,6 @@ sigreturn(td, uap)
 	td->td_pcb->pcb_fsbase = ucp->uc_mcontext.mc_fsbase;
 	td->td_pcb->pcb_gsbase = ucp->uc_mcontext.mc_gsbase;
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -479,10 +485,7 @@ sigreturn(td, uap)
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
@@ -1185,6 +1188,77 @@ isa_irq_pending(void)
 
 u_int basemem;
 
+static int
+add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
+{
+	int i, insert_idx, physmap_idx;
+
+	physmap_idx = *physmap_idxp;
+
+	if (boothowto & RB_VERBOSE)
+		printf("SMAP type=%02x base=%016lx len=%016lx\n",
+		    smap->type, smap->base, smap->length);
+
+	if (smap->type != SMAP_TYPE_MEMORY)
+		return (1);
+
+	if (smap->length == 0)
+		return (0);
+
+	/*
+	 * Find insertion point while checking for overlap.  Start off by
+	 * assuming the new entry will be added to the end.
+	 */
+	insert_idx = physmap_idx + 2;
+	for (i = 0; i <= physmap_idx; i += 2) {
+		if (smap->base < physmap[i + 1]) {
+			if (smap->base + smap->length <= physmap[i]) {
+				insert_idx = i;
+				break;
+			}
+			if (boothowto & RB_VERBOSE)
+				printf(
+		    "Overlapping memory regions, ignoring second region\n");
+			return (1);
+		}
+	}
+
+	/* See if we can prepend to the next entry. */
+	if (insert_idx <= physmap_idx &&
+	    smap->base + smap->length == physmap[insert_idx]) {
+		physmap[insert_idx] = smap->base;
+		return (1);
+	}
+
+	/* See if we can append to the previous entry. */
+	if (insert_idx > 0 && smap->base == physmap[insert_idx - 1]) {
+		physmap[insert_idx - 1] += smap->length;
+		return (1);
+	}
+
+	physmap_idx += 2;
+	*physmap_idxp = physmap_idx;
+	if (physmap_idx == PHYSMAP_SIZE) {
+		printf(
+		"Too many segments in the physical address map, giving up\n");
+		return (0);
+	}
+
+	/*
+	 * Move the last 'N' entries down to make room for the new
+	 * entry if needed.
+	 */
+	for (i = physmap_idx; i > insert_idx; i -= 2) {
+		physmap[i] = physmap[i - 2];
+		physmap[i + 1] = physmap[i - 1];
+	}
+
+	/* Insert the new entry. */
+	physmap[insert_idx] = smap->base;
+	physmap[insert_idx + 1] = smap->base + smap->length;
+	return (1);
+}
+
 /*
  * Populate the (physmap) array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
@@ -1228,40 +1302,9 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	smapsize = *((u_int32_t *)smapbase - 1);
 	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
 
-	for (smap = smapbase; smap < smapend; smap++) {
-		if (boothowto & RB_VERBOSE)
-			printf("SMAP type=%02x base=%016lx len=%016lx\n",
-			    smap->type, smap->base, smap->length);
-
-		if (smap->type != SMAP_TYPE_MEMORY)
-			continue;
-
-		if (smap->length == 0)
-			continue;
-
-		for (i = 0; i <= physmap_idx; i += 2) {
-			if (smap->base < physmap[i + 1]) {
-				if (boothowto & RB_VERBOSE)
-					printf(
-	"Overlapping or non-monotonic memory region, ignoring second region\n");
-				continue;
-			}
-		}
-
-		if (smap->base == physmap[physmap_idx + 1]) {
-			physmap[physmap_idx + 1] += smap->length;
-			continue;
-		}
-
-		physmap_idx += 2;
-		if (physmap_idx == PHYSMAP_SIZE) {
-			printf(
-		"Too many segments in the physical address map, giving up\n");
+	for (smap = smapbase; smap < smapend; smap++)
+		if (!add_smap_entry(smap, physmap, &physmap_idx))
 			break;
-		}
-		physmap[physmap_idx] = smap->base;
-		physmap[physmap_idx + 1] = smap->base + smap->length;
-	}
 
 	/*
 	 * Find the 'base memory' segment for SMP
@@ -1620,6 +1663,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	identify_cpu();		/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
+	initializecpucache();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss[0].tss_rsp0 = thread0.td_kstack + \

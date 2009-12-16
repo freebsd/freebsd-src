@@ -151,6 +151,7 @@ dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
 dev/agp/agp_intel.c		optional	agp
 dev/agp/agp_via.c		optional	agp
+dev/amdsbwd/amdsbwd.c		optional	amdsbwd
 dev/amdtemp/amdtemp.c		optional	amdtemp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/asmc/asmc.c			optional	asmc isa
@@ -162,6 +163,7 @@ dev/atkbdc/atkbdc_subr.c	optional	atkbdc
 dev/atkbdc/psm.c		optional	psm atkbdc
 dev/coretemp/coretemp.c		optional	coretemp
 dev/cpuctl/cpuctl.c		optional	cpuctl
+dev/dpms/dpms.c			optional	dpms
 # There are no systems with isa slots, so all ed isa entries should go..
 dev/ed/if_ed_3c503.c		optional	ed isa ed_3c503
 dev/ed/if_ed_isa.c		optional	ed isa
@@ -169,6 +171,8 @@ dev/ed/if_ed_wd80x3.c		optional	ed isa
 dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional	ed isa ed_sic
 dev/fb/fb.c			optional	fb | vga
+dev/fb/s3_pci.c			optional	s3pci
+dev/fb/vesa.c			optional	vga vesa
 dev/fb/vga.c			optional	vga
 dev/ichwd/ichwd.c		optional	ichwd
 dev/if_ndis/if_ndis.c		optional	ndis
@@ -205,6 +209,8 @@ dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
+dev/lindev/full.c		optional	lindev
+dev/lindev/lindev.c		optional	lindev
 dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
@@ -217,12 +223,13 @@ dev/sio/sio_puc.c		optional	sio puc
 dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/scterm-teken.c	optional	sc
+dev/syscons/scvesactl.c		optional	sc vga vesa
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_amd64.c	optional	uart
 dev/wpi/if_wpi.c		optional	wpi
 isa/atrtc.c			standard
+isa/orm.c			optional	isa
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/link_elf_obj.c		standard
@@ -291,3 +298,8 @@ i386/cpufreq/p4tcc.c		optional	cpufreq
 #
 libkern/memmove.c		standard
 libkern/memset.c		standard
+#
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+#
+compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa

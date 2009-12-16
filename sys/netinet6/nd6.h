@@ -84,6 +84,7 @@ struct nd_ifinfo {
 				     * DAD failure.  (XXX: not ND-specific)
 				     */
 #define ND6_IFF_DONT_SET_IFROUTE	0x10
+#define ND6_IFF_AUTO_LINKLOCAL	0x20
 
 #define	ND6_CREATE		LLE_CREATE
 #define	ND6_EXCLUSIVE		LLE_EXCLUSIVE

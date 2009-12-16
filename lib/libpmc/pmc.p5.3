@@ -156,14 +156,14 @@ This event is only allocated on counter 0.
 .It Li p5-code-cache-miss
 .Pq Event 0EH
 The number of instruction reads that miss the internal code cache.
-Both cacheable and uncacheable misses are counted.
+Both cacheable and un-cacheable misses are counted.
 .It Li p5-code-read
 .Pq Event 0CH
-The number of instruction reads to both cacheable and uncacheable regions.
+The number of instruction reads to both cacheable and un-cacheable regions.
 .It Li p5-code-tlb-miss
 .Pq Event 0DH
 The number of instruction reads that miss the instruction TLB.
-Both cacheable and uncacheable unreads are counted.
+Both cacheable and un-cacheable unreads are counted.
 .It Li p5-d1-starvation-and-fifo-is-empty
 .Pq Event 33H , Tn Pentium MMX
 The number of times the D1 stage cannot issue any instructions because
@@ -193,13 +193,13 @@ Split cycle reads are counted individually.
 .It Li p5-data-read-miss
 .Pq Event 03H
 The number of memory read accesses that miss the data cache, counting
-both cacheable and uncacheable accesses.
+both cacheable and un-cacheable accesses.
 Data accesses that are part of TLB miss processing are not included.
 I/O accesses are not included.
 .It Li p5-data-read-miss-or-write-miss
 .Pq Event 29H
 The number of data reads and writes that miss the internal data cache,
-counting uncacheable accesses.
+counting un-cacheable accesses.
 Data accesses due to TLB miss processing are not counted.
 .It Li p5-data-read-or-write
 .Pq Event 28H
@@ -208,7 +208,7 @@ and misses.
 Data reads due to TLB miss processing are not counted.
 .It Li p5-data-tlb-miss
 .Pq Event 02H
-The number of misses to the data cache translation lookaside buffer.
+The number of misses to the data cache translation look aside buffer.
 .It Li p5-data-write
 .Pq Event 01H
 The number of memory data writes, counting internal data cache hits
@@ -217,7 +217,7 @@ I/O is not included and split cycle writes are counted individually.
 .It Li p5-data-write-miss
 .Pq Event 04H
 The number of memory write accesses that miss the data cache, counting
-both cacheable and uncacheable accesses.
+both cacheable and un-cacheable accesses.
 I/O accesses are not counted.
 .It Li p5-emms-instructions-executed
 .Pq Event 2DH , Tn Pentium MMX

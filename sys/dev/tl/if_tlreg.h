@@ -112,8 +112,6 @@ struct tl_softc {
 	struct ifnet		*tl_ifp;
 	device_t		tl_dev;
 	struct ifmedia		ifmedia;	/* media info */
-	bus_space_handle_t	tl_bhandle;
-	bus_space_tag_t		tl_btag;
 	void			*tl_intrhand;
 	struct resource		*tl_irq;
 	struct resource		*tl_res;
@@ -127,6 +125,7 @@ struct tl_softc {
 	int			tl_if_flags;
 	struct callout		tl_stat_callout;
 	struct mtx		tl_mtx;
+	int			tl_timer;
 };
 
 #define	TL_LOCK(_sc)		mtx_lock(&(_sc)->tl_mtx)
@@ -493,19 +492,13 @@ struct tl_stats {
 /*
  * register space access macros
  */
-#define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->tl_btag, sc->tl_bhandle, reg, val)
-#define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->tl_btag, sc->tl_bhandle, reg, val)
-#define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->tl_btag, sc->tl_bhandle, reg, val)
+#define CSR_WRITE_4(sc, reg, val)	bus_write_4(sc->tl_res, reg, val)
+#define CSR_WRITE_2(sc, reg, val)	bus_write_2(sc->tl_res, reg, val)
+#define CSR_WRITE_1(sc, reg, val)	bus_write_1(sc->tl_res, reg, val)
 
-#define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->tl_btag, sc->tl_bhandle, reg)
-#define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->tl_btag, sc->tl_bhandle, reg)
-#define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->tl_btag, sc->tl_bhandle, reg)
+#define CSR_READ_4(sc, reg)		bus_read_4(sc->tl_res, reg)
+#define CSR_READ_2(sc, reg)		bus_read_2(sc->tl_res, reg)
+#define CSR_READ_1(sc, reg)		bus_read_1(sc->tl_res, reg)
 
 #define CMD_PUT(sc, x) CSR_WRITE_4(sc, TL_HOSTCMD, x)
 #define CMD_SET(sc, x)	\

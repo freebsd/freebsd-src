@@ -180,6 +180,7 @@ static const struct usb_device_id uath_devs[] = {
 	UATH_DEV(DLINK,			DWLAG122),
 	UATH_DEV(DLINK,			DWLAG132),
 	UATH_DEV(DLINK,			DWLG132),
+	UATH_DEV(DLINK2,		DWA120),
 	UATH_DEV(GIGASET,		AR5523),
 	UATH_DEV(GIGASET,		SMCWUSBTG),
 	UATH_DEV(GLOBALSUN,		AR5523_1),
@@ -2761,6 +2762,9 @@ setup:
 			m = NULL;
 			desc = NULL;
 		}
+		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+		    !IFQ_IS_EMPTY(&ifp->if_snd))
+			uath_start(ifp);
 		UATH_LOCK(sc);
 		break;
 	default:

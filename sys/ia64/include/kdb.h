@@ -33,7 +33,7 @@
 #include <machine/frame.h>
 #include <machine/ia64_cpu.h>
 
-#define	KDB_STOPPEDPCB(pc)	(&(pc)->pc_pcb)
+#define	KDB_STOPPEDPCB(pc)	(&(pc)->pc_md.pcb)
 
 static __inline void
 kdb_cpu_clear_singlestep(void)

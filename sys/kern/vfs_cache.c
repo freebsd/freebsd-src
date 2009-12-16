@@ -416,7 +416,8 @@ retry_wlocked:
 				if (dvp->v_cache_dd->nc_flag & NCF_ISDOTDOT)
 					cache_zap(dvp->v_cache_dd);
 				dvp->v_cache_dd = NULL;
-				goto unlock;
+				CACHE_WUNLOCK();
+				return (0);
 			}
 			if (dvp->v_cache_dd->nc_flag & NCF_ISDOTDOT)
 				*vpp = dvp->v_cache_dd->nc_vp;

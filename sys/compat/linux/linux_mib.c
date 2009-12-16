@@ -237,12 +237,14 @@ linux_prison_create(void *obj, void *data)
 {
 	struct prison *pr = obj;
 	struct vfsoptlist *opts = data;
+	int jsys;
 
-	if (vfs_flagopt(opts, "nolinux", NULL, 0))
+	if (vfs_copyopt(opts, "linux", &jsys, sizeof(jsys)) == 0 &&
+	    jsys == JAIL_SYS_INHERIT)
 		return (0);
 	/*
 	 * Inherit a prison's initial values from its parent
-	 * (different from NULL which also inherits changes).
+	 * (different from JAIL_SYS_INHERIT which also inherits changes).
 	 */
 	return linux_alloc_prison(pr, NULL);
 }
@@ -252,11 +254,16 @@ linux_prison_check(void *obj __unused, void *data)
 {
 	struct vfsoptlist *opts = data;
 	char *osname, *osrelease;
-	int error, len, osrel, oss_version;
+	int error, jsys, len, osrel, oss_version;
 
 	/* Check that the parameters are correct. */
-	(void)vfs_flagopt(opts, "linux", NULL, 0);
-	(void)vfs_flagopt(opts, "nolinux", NULL, 0);
+	error = vfs_copyopt(opts, "linux", &jsys, sizeof(jsys));
+	if (error != ENOENT) {
+		if (error != 0)
+			return (error);
+		if (jsys != JAIL_SYS_NEW && jsys != JAIL_SYS_INHERIT)
+			return (EINVAL);
+	}
 	error = vfs_getopt(opts, "linux.osname", (void **)&osname, &len);
 	if (error != ENOENT) {
 		if (error != 0)
@@ -296,33 +303,40 @@ linux_prison_set(void *obj, void *data)
 	struct prison *pr = obj;
 	struct vfsoptlist *opts = data;
 	char *osname, *osrelease;
-	int error, gotversion, len, nolinux, oss_version, yeslinux;
+	int error, gotversion, jsys, len, oss_version;
 
 	/* Set the parameters, which should be correct. */
-	yeslinux = vfs_flagopt(opts, "linux", NULL, 0);
-	nolinux = vfs_flagopt(opts, "nolinux", NULL, 0);
+	error = vfs_copyopt(opts, "linux", &jsys, sizeof(jsys));
+	if (error == ENOENT)
+		jsys = -1;
 	error = vfs_getopt(opts, "linux.osname", (void **)&osname, &len);
 	if (error == ENOENT)
 		osname = NULL;
 	else
-		yeslinux = 1;
+		jsys = JAIL_SYS_NEW;
 	error = vfs_getopt(opts, "linux.osrelease", (void **)&osrelease, &len);
 	if (error == ENOENT)
 		osrelease = NULL;
 	else
-		yeslinux = 1;
+		jsys = JAIL_SYS_NEW;
 	error = vfs_copyopt(opts, "linux.oss_version", &oss_version,
 	    sizeof(oss_version));
-	gotversion = (error == 0);
-	yeslinux |= gotversion;
-	if (nolinux) {
-		/* "nolinux": inherit the parent's Linux info. */
+	if (error == ENOENT)
+		gotversion = 0;
+	else {
+		gotversion = 1;
+		jsys = JAIL_SYS_NEW;
+	}
+	switch (jsys) {
+	case JAIL_SYS_INHERIT:
+		/* "linux=inherit": inherit the parent's Linux info. */
 		mtx_lock(&pr->pr_mtx);
 		osd_jail_del(pr, linux_osd_jail_slot);
 		mtx_unlock(&pr->pr_mtx);
-	} else if (yeslinux) {
+		break;
+	case JAIL_SYS_NEW:
 		/*
-		 * "linux" or "linux.*":
+		 * "linux=new" or "linux.*":
 		 * the prison gets its own Linux info.
 		 */
 		error = linux_alloc_prison(pr, &lpr);
@@ -348,9 +362,7 @@ linux_prison_set(void *obj, void *data)
 	return (0);
 }
 
-SYSCTL_JAIL_PARAM_NODE(linux, "Jail Linux parameters");
-SYSCTL_JAIL_PARAM(, nolinux, CTLTYPE_INT | CTLFLAG_RW,
-    "BN", "Jail w/ no Linux parameters");
+SYSCTL_JAIL_PARAM_SYS_NODE(linux, CTLFLAG_RW, "Jail Linux parameters");
 SYSCTL_JAIL_PARAM_STRING(_linux, osname, CTLFLAG_RW, LINUX_MAX_UTSNAME,
     "Jail Linux kernel OS name");
 SYSCTL_JAIL_PARAM_STRING(_linux, osrelease, CTLFLAG_RW, LINUX_MAX_UTSNAME,
@@ -371,15 +383,22 @@ linux_prison_get(void *obj, void *data)
 
 	/* See if this prison is the one with the Linux info. */
 	lpr = linux_find_prison(pr, &ppr);
-	i = (ppr == pr);
+	i = (ppr == pr) ? JAIL_SYS_NEW : JAIL_SYS_INHERIT;
 	error = vfs_setopt(opts, "linux", &i, sizeof(i));
 	if (error != 0 && error != ENOENT)
 		goto done;
-	i = !i;
-	error = vfs_setopt(opts, "nolinux", &i, sizeof(i));
-	if (error != 0 && error != ENOENT)
-		goto done;
 	if (i) {
+		error = vfs_setopts(opts, "linux.osname", lpr->pr_osname);
+		if (error != 0 && error != ENOENT)
+			goto done;
+		error = vfs_setopts(opts, "linux.osrelease", lpr->pr_osrelease);
+		if (error != 0 && error != ENOENT)
+			goto done;
+		error = vfs_setopt(opts, "linux.oss_version",
+		    &lpr->pr_oss_version, sizeof(lpr->pr_oss_version));
+		if (error != 0 && error != ENOENT)
+			goto done;
+	} else {
 		/*
 		 * If this prison is inheriting its Linux info, report
 		 * empty/zero parameters.
@@ -392,17 +411,6 @@ linux_prison_get(void *obj, void *data)
 			goto done;
 		error = vfs_setopt(opts, "linux.oss_version", &version0,
 		    sizeof(lpr->pr_oss_version));
-		if (error != 0 && error != ENOENT)
-			goto done;
-	} else {
-		error = vfs_setopts(opts, "linux.osname", lpr->pr_osname);
-		if (error != 0 && error != ENOENT)
-			goto done;
-		error = vfs_setopts(opts, "linux.osrelease", lpr->pr_osrelease);
-		if (error != 0 && error != ENOENT)
-			goto done;
-		error = vfs_setopt(opts, "linux.oss_version",
-		    &lpr->pr_oss_version, sizeof(lpr->pr_oss_version));
 		if (error != 0 && error != ENOENT)
 			goto done;
 	}

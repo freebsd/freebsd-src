@@ -321,6 +321,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     return ENODEV;
 #else
     video_info_t info;
+    ksiginfo_t ksi;
     u_char *font;
     int prev_ysize;
     int error;
@@ -391,6 +392,10 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	    (info.vi_depth != 15) && (info.vi_depth != 16) &&
 	    (info.vi_depth != 24) && (info.vi_depth != 32))
 	    return ENODEV;
+    } else if (info.vi_mem_model == V_INFO_MM_PACKED) {
+	if (!(info.vi_flags & V_INFO_LINEAR) &&
+	    (info.vi_depth != 8))
+	    return ENODEV;
     } else
 	return ENODEV;
 
@@ -454,8 +459,11 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	tp->t_winsize.ws_col = scp->xsize;
 	tp->t_winsize.ws_row = scp->ysize;
 	if (tp->t_pgrp != NULL) {
+	    ksiginfo_init(&ksi);
+	    ksi.ksi_signo = SIGWINCH;
+	    ksi.ksi_code = SI_KERNEL;
 	    PGRP_LOCK(tp->t_pgrp);
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	    pgsignal(tp->t_pgrp, SIGWINCH, 1, &ksi);
 	    PGRP_UNLOCK(tp->t_pgrp);
 	}
     }

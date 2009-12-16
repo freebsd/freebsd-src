@@ -61,7 +61,6 @@
 #include <sys/syslog.h>
 #include <sys/refcount.h>
 #include <sys/proc.h>
-#include <sys/vimage.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
 #include <sys/smp.h>

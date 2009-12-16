@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/syslog.h>
 #include <sys/queue.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -127,7 +126,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 	/* If I'm not a router, ignore it. */
-	if (V_ip6_accept_rtadv != 0 || V_ip6_forwarding != 1)
+	if (!V_ip6_forwarding)
 		goto freeit;
 
 	/* Sanity checks */
@@ -213,12 +212,10 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 
 	/*
 	 * We only accept RAs only when
-	 * the system-wide variable allows the acceptance, and
+	 * the node is not a router and
 	 * per-interface variable allows RAs on the receiving interface.
 	 */
-	if (V_ip6_accept_rtadv == 0)
-		goto freeit;
-	if (!(ndi->flags & ND6_IFF_ACCEPT_RTADV))
+	if (V_ip6_forwarding || !(ndi->flags & ND6_IFF_ACCEPT_RTADV))
 		goto freeit;
 
 	if (ip6->ip6_hlim != 255) {
@@ -558,7 +555,7 @@ defrtrlist_del(struct nd_defrouter *dr)
 	 * Flush all the routing table entries that use the router
 	 * as a next hop.
 	 */
-	if (!V_ip6_forwarding && V_ip6_accept_rtadv) /* XXX: better condition? */
+	if (!V_ip6_forwarding)
 		rt6_flush(&dr->rtaddr, dr->ifp);
 
 	if (dr->installed) {
@@ -622,10 +619,10 @@ defrouter_select(void)
 	 * if the node is not an autoconfigured host, we explicitly exclude
 	 * such cases here for safety.
 	 */
-	if (V_ip6_forwarding || !V_ip6_accept_rtadv) {
+	if (V_ip6_forwarding) {
 		nd6log((LOG_WARNING,
-		    "defrouter_select: called unexpectedly (forwarding=%d, "
-		    "accept_rtadv=%d)\n", V_ip6_forwarding, V_ip6_accept_rtadv));
+		    "defrouter_select: called unexpectedly (forwarding=%d)\n",
+		    V_ip6_forwarding));
 		splx(s);
 		return;
 	}
@@ -1416,6 +1413,9 @@ pfxlist_onlink_check()
 			if (pr->ndpr_raf_onlink == 0)
 				continue;
 
+			if (pr->ndpr_raf_auto == 0)
+				continue;
+
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) == 0 &&
 			    find_pfxlist_reachable_router(pr) == NULL)
 				pr->ndpr_stateflags |= NDPRF_DETACHED;
@@ -1430,6 +1430,9 @@ pfxlist_onlink_check()
 				continue;
 
 			if (pr->ndpr_raf_onlink == 0)
+				continue;
+
+			if (pr->ndpr_raf_auto == 0)
 				continue;
 
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0)
@@ -1453,6 +1456,9 @@ pfxlist_onlink_check()
 			continue;
 
 		if (pr->ndpr_raf_onlink == 0)
+			continue;
+
+		if (pr->ndpr_raf_auto == 0)
 			continue;
 
 		if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&

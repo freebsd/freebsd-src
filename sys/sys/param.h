@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 800106	/* Master, propagated to newvers */
+#define __FreeBSD_version 900005	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
@@ -112,8 +112,6 @@
 #include <sys/limits.h>
 #endif
 
-#ifndef _NO_NAMESPACE_POLLUTION
-
 #ifndef DEV_BSHIFT
 #define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #endif
@@ -146,7 +144,14 @@
 
 #define MCLBYTES	(1 << MCLSHIFT)	/* size of an mbuf cluster */
 
-#define	MJUMPAGESIZE	PAGE_SIZE	/* jumbo cluster 4k */
+#if PAGE_SIZE < 2048
+#define	MJUMPAGESIZE	MCLBYTES
+#elif PAGE_SIZE <= 8192
+#define	MJUMPAGESIZE	PAGE_SIZE
+#else
+#define	MJUMPAGESIZE	(8 * 1024)
+#endif
+
 #define	MJUM9BYTES	(9 * 1024)	/* jumbo cluster 9k */
 #define	MJUM16BYTES	(16 * 1024)	/* jumbo cluster 16k */
 
@@ -181,8 +186,6 @@
 #define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
 	((off_t)(db) << DEV_BSHIFT)
 #endif
-
-#endif /* _NO_NAMESPACE_POLLUTION */
 
 #define	PRIMASK	0x0ff
 #define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */

@@ -174,8 +174,8 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
 	    "RealTek 8101E/8102E/8102EL PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
-	    "RealTek 8168/8168B/8168C/8168CP/8168D/8111B/8111C/8111CP PCIe "
-	    "Gigabit Ethernet" },
+	    "RealTek 8168/8168B/8168C/8168CP/8168D/8168DP/"
+	    "8111B/8111C/8111CP/8111DP PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
@@ -217,7 +217,8 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C"},
 	{ RL_HWREV_8168C_SPIN2, RL_8169, "8168C/8111C"},
 	{ RL_HWREV_8168CP, RL_8169, "8168CP/8111CP"},
-	{ RL_HWREV_8168D, RL_8169, "8168D"},
+	{ RL_HWREV_8168D, RL_8169, "8168D/8111D"},
+	{ RL_HWREV_8168DP, RL_8169, "8168DP/8111DP"},
 	{ 0, 0, NULL }
 };
 
@@ -752,6 +753,7 @@ re_diag(struct rl_softc *sc)
 
 	ifp->if_flags |= IFF_PROMISC;
 	sc->rl_testmode = 1;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	re_init_locked(sc);
 	sc->rl_flags |= RL_FLAG_LINK;
 	if (sc->rl_type == RL_8169)
@@ -1282,6 +1284,7 @@ re_attach(device_t dev)
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
+	case RL_HWREV_8168DP:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD;
@@ -1815,6 +1818,8 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 
 	for (i = sc->rl_ldata.rl_rx_prodidx; maxpkt > 0;
 	    i = RL_RX_DESC_NXT(sc, i)) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 		cur_rx = &sc->rl_ldata.rl_rx_list[i];
 		rxstat = le32toh(cur_rx->rl_cmdstat);
 		if ((rxstat & RL_RDESC_STAT_OWN) != 0)
@@ -2141,8 +2146,10 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		 * XXX check behaviour on receiver stalls.
 		 */
 
-		if (status & RL_ISR_SYSTEM_ERR)
+		if (status & RL_ISR_SYSTEM_ERR) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			re_init_locked(sc);
+		}
 	}
 	return (rx_npkts);
 }
@@ -2218,8 +2225,10 @@ re_int_task(void *arg, int npending)
 	    RL_ISR_TX_ERR|RL_ISR_TX_DESC_UNAVAIL))
 		re_txeof(sc);
 
-	if (status & RL_ISR_SYSTEM_ERR)
+	if (status & RL_ISR_SYSTEM_ERR) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		re_init_locked(sc);
+	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
@@ -2535,6 +2544,9 @@ re_init_locked(struct rl_softc *sc)
 
 	mii = device_get_softc(sc->rl_miibus);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
@@ -2789,7 +2801,8 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		RL_LOCK(sc);
-		re_set_rxmode(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			re_set_rxmode(sc);
 		RL_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
@@ -2858,8 +2871,10 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if ((mask & IFCAP_WOL_MAGIC) != 0)
 				ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		}
-		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			re_init(sc);
+		}
 		VLAN_CAPABILITIES(ifp);
 	    }
 		break;
@@ -2895,6 +2910,7 @@ re_watchdog(struct rl_softc *sc)
 	ifp->if_oerrors++;
 
 	re_rxeof(sc, NULL);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	re_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
@@ -3007,15 +3023,16 @@ re_resume(device_t dev)
 			    CSR_READ_1(sc, RL_GPIO) | 0x01);
 	}
 
-	/* reinitialize interface if necessary */
-	if (ifp->if_flags & IFF_UP)
-		re_init_locked(sc);
-
 	/*
 	 * Clear WOL matching such that normal Rx filtering
 	 * wouldn't interfere with WOL patterns.
 	 */
 	re_clrwol(sc);
+
+	/* reinitialize interface if necessary */
+	if (ifp->if_flags & IFF_UP)
+		re_init_locked(sc);
+
 	sc->suspended = 0;
 	RL_UNLOCK(sc);
 

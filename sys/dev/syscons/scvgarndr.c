@@ -193,6 +193,8 @@ static u_short mouse_or_mask[16] = {
 		case 15:						\
 			writew(pos, vga_palette15[color]);		\
 			break;						\
+		case 8:							\
+			writeb(pos, (uint8_t)color);			\
 		}
 	
 static uint32_t vga_palette32[16] = {
@@ -215,6 +217,7 @@ static uint16_t vga_palette15[16] = {
 #ifndef SC_NO_CUTPASTE
 static uint32_t mouse_buf32[256];
 static uint16_t mouse_buf16[256];
+static uint8_t  mouse_buf8[256];
 #endif
 #endif
 
@@ -498,7 +501,9 @@ vga_rndrinit(scr_stat *scp)
 		scp->rndr->draw_cursor = vga_pxlcursor_planar;
 		scp->rndr->blink_cursor = vga_pxlblink_planar;
 		scp->rndr->draw_mouse = vga_pxlmouse_planar;
-	} else if (scp->sc->adp->va_info.vi_mem_model == V_INFO_MM_DIRECT) {
+	} else
+	if (scp->sc->adp->va_info.vi_mem_model == V_INFO_MM_DIRECT ||
+	    scp->sc->adp->va_info.vi_mem_model == V_INFO_MM_PACKED) {
 		scp->rndr->clear = vga_pxlclear_direct;
 		scp->rndr->draw_border = vga_pxlborder_direct;
 		scp->rndr->draw = vga_vgadraw_direct;
@@ -1148,6 +1153,7 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 	int i, j;
 	uint32_t *u32;
 	uint16_t *u16;
+	uint8_t  *u8;
 	int bpp;
 
 	if (!on)
@@ -1178,6 +1184,10 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 			case 15:
 				u16 = (uint16_t*)(p + j * pixel_size);
 				writew(u16, mouse_buf16[i * 16 + j]);
+				break;
+			case 8:
+				u8 = (uint8_t*)(p + j * pixel_size);
+				writeb(u8, mouse_buf8[i * 16 + j]);
 				break;
 			}
 		}
@@ -1213,6 +1223,14 @@ vga_pxlmouse_direct(scr_stat *scp, int x, int y, int on)
 					writew(u16, vga_palette15[15]);
 				else if (mouse_and_mask[i] & (1 << (15 - j)))
 					writew(u16, 0);
+				break;
+			case 8:
+				u8 = (uint8_t*)(p + j * pixel_size);
+				mouse_buf8[i * 16 + j] = *u8;
+				if (mouse_or_mask[i] & (1 << (15 - j)))
+					writeb(u8, 15);
+				else if (mouse_and_mask[i] & (1 << (15 - j)))
+					writeb(u8, 0);
 				break;
 			}
 		}

@@ -224,8 +224,6 @@ struct psycho_dma_sync {
  * providing two PCI buses.
  */
 
-#define	OFW_PCI_TYPE		"pci"
-
 struct psycho_desc {
 	const char	*pd_string;
 	int		pd_mode;
@@ -275,7 +273,7 @@ psycho_probe(device_t dev)
 	const char *dtype;
 
 	dtype = ofw_bus_get_type(dev);
-	if (dtype != NULL && strcmp(dtype, OFW_PCI_TYPE) == 0 &&
+	if (dtype != NULL && strcmp(dtype, OFW_TYPE_PCI) == 0 &&
 	    psycho_get_desc(dev) != NULL) {
 		device_set_desc(dev, "U2P UPA-PCI bridge");
 		return (0);

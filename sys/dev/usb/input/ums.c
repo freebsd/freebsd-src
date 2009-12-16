@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/sbuf.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -140,6 +141,8 @@ struct ums_softc {
 
 	struct usb_xfer *sc_xfer[UMS_N_TRANSFER];
 
+	int sc_pollrate;
+
 	uint8_t	sc_buttons;
 	uint8_t	sc_iid;
 	uint8_t	sc_temp[64];
@@ -159,7 +162,9 @@ static usb_fifo_open_t ums_open;
 static usb_fifo_close_t ums_close;
 static usb_fifo_ioctl_t ums_ioctl;
 
-static void ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy, int32_t dz, int32_t dt, int32_t buttons);
+static void	ums_put_queue(struct ums_softc *, int32_t, int32_t,
+		    int32_t, int32_t, int32_t);
+static int	ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS);
 
 static struct usb_fifo_methods ums_fifo_methods = {
 	.f_open = &ums_open,
@@ -188,6 +193,7 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc;
 	uint8_t *buf = sc->sc_temp;
 	int32_t buttons = 0;
+	int32_t buttons_found = 0;
 	int32_t dw = 0;
 	int32_t dx = 0;
 	int32_t dy = 0;
@@ -263,15 +269,23 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			dt -= hid_get_data(buf, len, &info->sc_loc_t);
 
 		for (i = 0; i < info->sc_buttons; i++) {
+			uint32_t mask;
+			mask = 1UL << UMS_BUT(i);
+			/* check for correct button ID */
 			if (id != info->sc_iid_btn[i])
 				continue;
-			if (hid_get_data(buf, len, &info->sc_loc_btn[i])) {
-				buttons |= (1 << UMS_BUT(i));
-			}
+			/* check for button pressed */
+			if (hid_get_data(buf, len, &info->sc_loc_btn[i]))
+				buttons |= mask;
+			/* register button mask */
+			buttons_found |= mask;
 		}
 
 		if (++info != &sc->sc_info[UMS_INFO_MAX])
 			goto repeat;
+
+		/* keep old button value(s) for non-detected buttons */
+		buttons |= sc->sc_status.button & ~buttons_found;
 
 		if (dx || dy || dz || dt || dw ||
 		    (buttons != sc->sc_status.button)) {
@@ -361,7 +375,7 @@ ums_probe(device_t dev)
 
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
 	    (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))
-		return (0);
+		return (BUS_PROBE_GENERIC);
 
 	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
@@ -371,7 +385,7 @@ ums_probe(device_t dev)
 
 	if (hid_is_collection(d_ptr, d_len,
 	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
-		error = 0;
+		error = BUS_PROBE_GENERIC;
 	else
 		error = ENXIO;
 
@@ -514,6 +528,8 @@ ums_attach(device_t dev)
 		DPRINTF("error=%s\n", usbd_errstr(err));
 		goto detach;
 	}
+
+	/* Get HID descriptor */
 	err = usbd_req_get_hid_desc(uaa->device, NULL, &d_ptr,
 	    &d_len, M_TEMP, uaa->info.bIfaceIndex);
 
@@ -531,6 +547,9 @@ ums_attach(device_t dev)
 	 * it has two addional buttons and a tilt wheel.
 	 */
 	if (usb_test_quirk(uaa, UQ_MS_BAD_CLASS)) {
+
+		sc->sc_iid = 0;
+
 		info = &sc->sc_info[0];
 		info->sc_flags = (UMS_FLAG_X_AXIS |
 		    UMS_FLAG_Y_AXIS |
@@ -540,11 +559,17 @@ ums_attach(device_t dev)
 		isize = 5;
 		/* 1st byte of descriptor report contains garbage */
 		info->sc_loc_x.pos = 16;
+		info->sc_loc_x.size = 8;
 		info->sc_loc_y.pos = 24;
+		info->sc_loc_y.size = 8;
 		info->sc_loc_z.pos = 32;
+		info->sc_loc_z.size = 8;
 		info->sc_loc_btn[0].pos = 8;
+		info->sc_loc_btn[0].size = 1;
 		info->sc_loc_btn[1].pos = 9;
+		info->sc_loc_btn[1].size = 1;
 		info->sc_loc_btn[2].pos = 10;
+		info->sc_loc_btn[2].size = 1;
 
 		/* Announce device */
 		device_printf(dev, "3 buttons and [XYZ] "
@@ -621,6 +646,12 @@ ums_attach(device_t dev)
 	if (err) {
 		goto detach;
 	}
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "parseinfo", CTLTYPE_STRING|CTLFLAG_RD,
+	    sc, 0, ums_sysctl_handler_parseinfo,
+	    "", "Dump UMS report parsing information");
+
 	return (0);
 
 detach:
@@ -653,6 +684,23 @@ static void
 ums_start_read(struct usb_fifo *fifo)
 {
 	struct ums_softc *sc = usb_fifo_softc(fifo);
+	int rate;
+
+	/* Check if we should override the default polling interval */
+	rate = sc->sc_pollrate;
+	/* Range check rate */
+	if (rate > 1000)
+		rate = 1000;
+	/* Check for set rate */
+	if ((rate > 0) && (sc->sc_xfer[UMS_INTR_DT] != NULL)) {
+		DPRINTF("Setting pollrate = %d\n", rate);
+		/* Stop current transfer, if any */
+		usbd_transfer_stop(sc->sc_xfer[UMS_INTR_DT]);
+		/* Set new interval */
+		usbd_xfer_set_interval(sc->sc_xfer[UMS_INTR_DT], 1000 / rate);
+		/* Only set pollrate once */
+		sc->sc_pollrate = 0;
+	}
 
 	usbd_transfer_start(sc->sc_xfer[UMS_INTR_DT]);
 }
@@ -791,6 +839,9 @@ ums_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 			sc->sc_mode.level = mode.level;
 		}
 
+		/* store polling rate */
+		sc->sc_pollrate = mode.rate;
+
 		if (sc->sc_mode.level == 0) {
 			if (sc->sc_buttons > MOUSE_MSC_MAXBUTTON)
 				sc->sc_hw.buttons = MOUSE_MSC_MAXBUTTON;
@@ -872,6 +923,67 @@ ums_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 done:
 	mtx_unlock(&sc->sc_mtx);
 	return (error);
+}
+
+static int
+ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
+{
+	struct ums_softc *sc = arg1;
+	struct ums_info *info;
+	struct sbuf *sb;
+	int i, j, err;
+
+	sb = sbuf_new_auto();
+	for (i = 0; i < UMS_INFO_MAX; i++) {
+		info = &sc->sc_info[i];
+
+		/* Don't emit empty info */
+		if ((info->sc_flags &
+		    (UMS_FLAG_X_AXIS | UMS_FLAG_Y_AXIS | UMS_FLAG_Z_AXIS |
+		     UMS_FLAG_T_AXIS | UMS_FLAG_W_AXIS)) == 0 &&
+		    info->sc_buttons == 0)
+			continue;
+
+		sbuf_printf(sb, "i%d:", i + 1);
+		if (info->sc_flags & UMS_FLAG_X_AXIS)
+			sbuf_printf(sb, " X:r%d, p%d, s%d;",
+			    (int)info->sc_iid_x,
+			    (int)info->sc_loc_x.pos,
+			    (int)info->sc_loc_x.size);
+		if (info->sc_flags & UMS_FLAG_Y_AXIS)
+			sbuf_printf(sb, " Y:r%d, p%d, s%d;",
+			    (int)info->sc_iid_y,
+			    (int)info->sc_loc_y.pos,
+			    (int)info->sc_loc_y.size);
+		if (info->sc_flags & UMS_FLAG_Z_AXIS)
+			sbuf_printf(sb, " Z:r%d, p%d, s%d;",
+			    (int)info->sc_iid_z,
+			    (int)info->sc_loc_z.pos,
+			    (int)info->sc_loc_z.size);
+		if (info->sc_flags & UMS_FLAG_T_AXIS)
+			sbuf_printf(sb, " T:r%d, p%d, s%d;",
+			    (int)info->sc_iid_t,
+			    (int)info->sc_loc_t.pos,
+			    (int)info->sc_loc_t.size);
+		if (info->sc_flags & UMS_FLAG_W_AXIS)
+			sbuf_printf(sb, " W:r%d, p%d, s%d;",
+			    (int)info->sc_iid_w,
+			    (int)info->sc_loc_w.pos,
+			    (int)info->sc_loc_w.size);
+
+		for (j = 0; j < info->sc_buttons; j++) {
+			sbuf_printf(sb, " B%d:r%d, p%d, s%d;", j + 1,
+			    (int)info->sc_iid_btn[j],
+			    (int)info->sc_loc_btn[j].pos,
+			    (int)info->sc_loc_btn[j].size);
+		}
+		sbuf_printf(sb, "\n");
+	}
+	sbuf_finish(sb);
+	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	sbuf_delete(sb);
+
+	return (err);
 }
 
 static devclass_t ums_devclass;

@@ -63,12 +63,6 @@
 
 #include <machine/vm.h>
 
-/*
- * The exact set of memory attributes is machine dependent.  However, every
- * machine is required to define VM_MEMATTR_DEFAULT.
- */
-typedef	char vm_memattr_t;	/* memory attribute codes */
-
 typedef char vm_inherit_t;	/* inheritance codes */
 
 #define	VM_INHERIT_SHARE	((vm_inherit_t) 0)
@@ -82,7 +76,7 @@ typedef u_char vm_prot_t;	/* protection codes */
 #define	VM_PROT_READ		((vm_prot_t) 0x01)
 #define	VM_PROT_WRITE		((vm_prot_t) 0x02)
 #define	VM_PROT_EXECUTE		((vm_prot_t) 0x04)
-#define	VM_PROT_OVERRIDE_WRITE	((vm_prot_t) 0x08)	/* copy-on-write */
+#define	VM_PROT_COPY		((vm_prot_t) 0x08)	/* copy-on-read */
 
 #define	VM_PROT_ALL		(VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE)
 #define VM_PROT_RW		(VM_PROT_READ|VM_PROT_WRITE)
@@ -113,6 +107,12 @@ typedef struct vm_object *vm_object_t;
  * genassym).
  */
 typedef int boolean_t;
+
+/*
+ * The exact set of memory attributes is machine dependent.  However, every
+ * machine is required to define VM_MEMATTR_DEFAULT.
+ */
+typedef	char vm_memattr_t;	/* memory attribute codes */
 
 /*
  * This is defined in <sys/types.h> for the kernel so that vnode_if.h

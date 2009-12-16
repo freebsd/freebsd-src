@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #define LOG_RDPRI	(PZERO + 1)
 
 #define LOG_ASYNC	0x04
-#define LOG_RDWAIT	0x08
 
 static	d_open_t	logopen;
 static	d_close_t	logclose;
@@ -65,7 +64,6 @@ static	void logtimeout(void *arg);
 
 static struct cdevsw log_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	logopen,
 	.d_close =	logclose,
 	.d_read =	logread,
@@ -81,7 +79,10 @@ static struct logsoftc {
 	struct	callout sc_callout;	/* callout to wakeup syslog  */
 } logsoftc;
 
-int	log_open;			/* also used in log() */
+int			log_open;	/* also used in log() */
+static struct cv	log_wakeup;
+struct mtx		msgbuf_lock;
+MTX_SYSINIT(msgbuf_lock, &msgbuf_lock, "msgbuf lock", MTX_DEF);
 
 /* Times per second to check for a pending syslog wakeup. */
 static int	log_wakeups_per_second = 5;
@@ -92,17 +93,23 @@ SYSCTL_INT(_kern, OID_AUTO, log_wakeups_per_second, CTLFLAG_RW,
 static	int
 logopen(struct cdev *dev, int flags, int mode, struct thread *td)
 {
-	if (log_open)
-		return (EBUSY);
-	log_open = 1;
-	callout_init(&logsoftc.sc_callout, 0);
-	fsetown(td->td_proc->p_pid, &logsoftc.sc_sigio);	/* signal process only */
+
 	if (log_wakeups_per_second < 1) {
 		printf("syslog wakeup is less than one.  Adjusting to 1.\n");
 		log_wakeups_per_second = 1;
 	}
+
+	mtx_lock(&msgbuf_lock);
+	if (log_open) {
+		mtx_unlock(&msgbuf_lock);
+		return (EBUSY);
+	}
+	log_open = 1;
 	callout_reset(&logsoftc.sc_callout, hz / log_wakeups_per_second,
 	    logtimeout, NULL);
+	mtx_unlock(&msgbuf_lock);
+
+	fsetown(td->td_proc->p_pid, &logsoftc.sc_sigio);	/* signal process only */
 	return (0);
 }
 
@@ -111,10 +118,14 @@ static	int
 logclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 
-	log_open = 0;
+	funsetown(&logsoftc.sc_sigio);
+
+	mtx_lock(&msgbuf_lock);
 	callout_stop(&logsoftc.sc_callout);
 	logsoftc.sc_state = 0;
-	funsetown(&logsoftc.sc_sigio);
+	log_open = 0;
+	mtx_unlock(&msgbuf_lock);
+
 	return (0);
 }
 
@@ -124,32 +135,32 @@ logread(struct cdev *dev, struct uio *uio, int flag)
 {
 	char buf[128];
 	struct msgbuf *mbp = msgbufp;
-	int error = 0, l, s;
+	int error = 0, l;
 
-	s = splhigh();
+	mtx_lock(&msgbuf_lock);
 	while (msgbuf_getcount(mbp) == 0) {
 		if (flag & IO_NDELAY) {
-			splx(s);
+			mtx_unlock(&msgbuf_lock);
 			return (EWOULDBLOCK);
 		}
-		logsoftc.sc_state |= LOG_RDWAIT;
-		if ((error = tsleep(mbp, LOG_RDPRI | PCATCH, "klog", 0))) {
-			splx(s);
+		if ((error = cv_wait_sig(&log_wakeup, &msgbuf_lock)) != 0) {
+			mtx_unlock(&msgbuf_lock);
 			return (error);
 		}
 	}
-	splx(s);
-	logsoftc.sc_state &= ~LOG_RDWAIT;
 
 	while (uio->uio_resid > 0) {
 		l = imin(sizeof(buf), uio->uio_resid);
 		l = msgbuf_getbytes(mbp, buf, l);
 		if (l == 0)
 			break;
+		mtx_unlock(&msgbuf_lock);
 		error = uiomove(buf, l, uio);
-		if (error)
-			break;
+		if (error || uio->uio_resid == 0)
+			return (error);
+		mtx_lock(&msgbuf_lock);
 	}
+	mtx_unlock(&msgbuf_lock);
 	return (error);
 }
 
@@ -157,18 +168,16 @@ logread(struct cdev *dev, struct uio *uio, int flag)
 static	int
 logpoll(struct cdev *dev, int events, struct thread *td)
 {
-	int s;
 	int revents = 0;
 
-	s = splhigh();
-
 	if (events & (POLLIN | POLLRDNORM)) {
+		mtx_lock(&msgbuf_lock);
 		if (msgbuf_getcount(msgbufp) > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &logsoftc.sc_selp);
+		mtx_unlock(&msgbuf_lock);
 	}
-	splx(s);
 	return (revents);
 }
 
@@ -183,20 +192,16 @@ logtimeout(void *arg)
 		log_wakeups_per_second = 1;
 	}
 	if (msgbuftrigger == 0) {
-		callout_reset(&logsoftc.sc_callout,
-		    hz / log_wakeups_per_second, logtimeout, NULL);
+		callout_schedule(&logsoftc.sc_callout,
+		    hz / log_wakeups_per_second);
 		return;
 	}
 	msgbuftrigger = 0;
 	selwakeuppri(&logsoftc.sc_selp, LOG_RDPRI);
 	if ((logsoftc.sc_state & LOG_ASYNC) && logsoftc.sc_sigio != NULL)
 		pgsigio(&logsoftc.sc_sigio, SIGIO, 0);
-	if (logsoftc.sc_state & LOG_RDWAIT) {
-		wakeup(msgbufp);
-		logsoftc.sc_state &= ~LOG_RDWAIT;
-	}
-	callout_reset(&logsoftc.sc_callout, hz / log_wakeups_per_second,
-	    logtimeout, NULL);
+	cv_broadcastpri(&log_wakeup, LOG_RDPRI);
+	callout_schedule(&logsoftc.sc_callout, hz / log_wakeups_per_second);
 }
 
 /*ARGSUSED*/
@@ -215,10 +220,12 @@ logioctl(struct cdev *dev, u_long com, caddr_t data, int flag, struct thread *td
 		break;
 
 	case FIOASYNC:
+		mtx_lock(&msgbuf_lock);
 		if (*(int *)data)
 			logsoftc.sc_state |= LOG_ASYNC;
 		else
 			logsoftc.sc_state &= ~LOG_ASYNC;
+		mtx_unlock(&msgbuf_lock);
 		break;
 
 	case FIOSETOWN:
@@ -247,6 +254,8 @@ static void
 log_drvinit(void *unused)
 {
 
+	cv_init(&log_wakeup, "klog");
+	callout_init_mtx(&logsoftc.sc_callout, &msgbuf_lock, 0);
 	make_dev(&log_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "klog");
 }
 

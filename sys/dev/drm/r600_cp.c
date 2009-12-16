@@ -318,7 +318,8 @@ static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 		pfp = RV670_pfp_microcode;
 		break;
 	case CHIP_RS780:
-		DRM_INFO("Loading RS780 Microcode\n");
+	case CHIP_RS880:
+		DRM_INFO("Loading RS780/RS880 Microcode\n");
 		cp  = RS780_cp_microcode;
 		pfp = RS780_pfp_microcode;
 		break;
@@ -722,6 +723,7 @@ static void r600_gfx_init(struct drm_device *dev,
 		break;
 	case CHIP_RV610:
 	case CHIP_RS780:
+	case CHIP_RS880:
 	case CHIP_RV620:
 		dev_priv->r600_max_pipes = 1;
 		dev_priv->r600_max_tile_pipes = 1;
@@ -856,7 +858,8 @@ static void r600_gfx_init(struct drm_device *dev,
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV630) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780))
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880))
 		RADEON_WRITE(R600_DB_DEBUG, R600_PREZ_MUST_WAIT_FOR_POSTZ_DONE);
 	else
 		RADEON_WRITE(R600_DB_DEBUG, 0);
@@ -874,7 +877,8 @@ static void r600_gfx_init(struct drm_device *dev,
 	sq_ms_fifo_sizes = RADEON_READ(R600_SQ_MS_FIFO_SIZES);
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780)) {
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880)) {
 		sq_ms_fifo_sizes = (R600_CACHE_FIFO_SIZE(0xa) |
 				    R600_FETCH_FIFO_HIWATER(0xa) |
 				    R600_DONE_FIFO_HIWATER(0xe0) |
@@ -917,7 +921,8 @@ static void r600_gfx_init(struct drm_device *dev,
 					    R600_NUM_ES_STACK_ENTRIES(0));
 	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780)) {
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880)) {
 		/* no vertex cache */
 		sq_config &= ~R600_VC_ENABLE;
 
@@ -974,7 +979,8 @@ static void r600_gfx_init(struct drm_device *dev,
 
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780))
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880))
 		RADEON_WRITE(R600_VGT_CACHE_INVALIDATION, R600_CACHE_INVALIDATION(R600_TC_ONLY));
 	else
 		RADEON_WRITE(R600_VGT_CACHE_INVALIDATION, R600_CACHE_INVALIDATION(R600_VC_AND_TC));
@@ -1017,6 +1023,7 @@ static void r600_gfx_init(struct drm_device *dev,
 		break;
 	case CHIP_RV610:
 	case CHIP_RS780:
+	case CHIP_RS880:
 	case CHIP_RV620:
 		gs_prim_buffer_depth = 32;
 		break;
@@ -1062,6 +1069,7 @@ static void r600_gfx_init(struct drm_device *dev,
 	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
 	case CHIP_RV610:
 	case CHIP_RS780:
+	case CHIP_RS880:
 	case CHIP_RV620:
 		tc_cntl = R600_TC_L2_SIZE(8);
 		break;
@@ -1835,6 +1843,7 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	 */
 	dev_priv->vblank_crtc = DRM_RADEON_VBLANK_CRTC1;
 
+	dev_priv->do_boxes = 0;
 	dev_priv->cp_mode = init->cp_mode;
 
 	/* We don't support anything other than bus-mastering ring mode,
@@ -2092,6 +2101,8 @@ int r600_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	r600_do_engine_reset(dev);
 	r600_test_writeback(dev_priv);
 
+	r600_cs_init(dev);
+
 	return 0;
 }
 
@@ -2221,6 +2232,138 @@ int r600_cp_dispatch_indirect(struct drm_device *dev,
 		OUT_RING(dwords);
 		ADVANCE_RING();
 	}
+
+	return 0;
+}
+
+void r600_cp_dispatch_swap(struct drm_device * dev)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;
+	int nbox = sarea_priv->nbox;
+	struct drm_clip_rect *pbox = sarea_priv->boxes;
+	int i, cpp, src_pitch, dst_pitch;
+	uint64_t src, dst;
+	RING_LOCALS;
+	DRM_DEBUG("\n");
+
+	if (dev_priv->color_fmt == RADEON_COLOR_FORMAT_ARGB8888)
+		cpp = 4;
+	else
+		cpp = 2;
+
+	if (dev_priv->sarea_priv->pfCurrentPage == 0) {
+		src_pitch = dev_priv->back_pitch;
+		dst_pitch = dev_priv->front_pitch;
+		src = dev_priv->back_offset + dev_priv->fb_location;
+		dst = dev_priv->front_offset + dev_priv->fb_location;
+	} else {
+		src_pitch = dev_priv->front_pitch;
+		dst_pitch = dev_priv->back_pitch;
+		src = dev_priv->front_offset + dev_priv->fb_location;
+		dst = dev_priv->back_offset + dev_priv->fb_location;
+	}
+
+	if (r600_prepare_blit_copy(dev)) {
+		DRM_ERROR("unable to allocate vertex buffer for swap buffer\n");
+		return;
+	}
+	for (i = 0; i < nbox; i++) {
+		int x = pbox[i].x1;
+		int y = pbox[i].y1;
+		int w = pbox[i].x2 - x;
+		int h = pbox[i].y2 - y;
+
+		DRM_DEBUG("%d,%d-%d,%d\n", x, y, w, h);
+
+		r600_blit_swap(dev,
+			       src, dst,
+			       x, y, x, y, w, h,
+			       src_pitch, dst_pitch, cpp);
+	}
+	r600_done_blit_copy(dev);
+
+	/* Increment the frame counter.  The client-side 3D driver must
+	 * throttle the framerate by waiting for this value before
+	 * performing the swapbuffer ioctl.
+	 */
+	dev_priv->sarea_priv->last_frame++;
+
+	BEGIN_RING(3);
+	R600_FRAME_AGE(dev_priv->sarea_priv->last_frame);
+	ADVANCE_RING();
+}
+
+int r600_cp_dispatch_texture(struct drm_device * dev,
+			     struct drm_file *file_priv,
+			     drm_radeon_texture_t * tex,
+			     drm_radeon_tex_image_t * image)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+	struct drm_buf *buf;
+	u32 *buffer;
+	const u8 __user *data;
+	int size, pass_size;
+	u64 src_offset, dst_offset;
+
+	if (!radeon_check_offset(dev_priv, tex->offset)) {
+		DRM_ERROR("Invalid destination offset\n");
+		return -EINVAL;
+	}
+
+	/* this might fail for zero-sized uploads - are those illegal? */
+	if (!radeon_check_offset(dev_priv, tex->offset + tex->height * tex->pitch - 1)) {
+		DRM_ERROR("Invalid final destination offset\n");
+		return -EINVAL;
+	}
+
+	size = tex->height * tex->pitch;
+
+	if (size == 0)
+		return 0;
+
+	dst_offset = tex->offset;
+
+	r600_prepare_blit_copy(dev);
+	do {
+		data = (const u8 __user *)image->data;
+		pass_size = size;
+
+		buf = radeon_freelist_get(dev);
+		if (!buf) {
+			DRM_DEBUG("EAGAIN\n");
+			if (DRM_COPY_TO_USER(tex->image, image, sizeof(*image)))
+				return -EFAULT;
+			return -EAGAIN;
+		}
+
+		if (pass_size > buf->total)
+			pass_size = buf->total;
+
+		/* Dispatch the indirect buffer.
+		 */
+		buffer =
+		    (u32 *) ((char *)dev->agp_buffer_map->handle + buf->offset);
+
+		if (DRM_COPY_FROM_USER(buffer, data, pass_size)) {
+			DRM_ERROR("EFAULT on pad, %d bytes\n", pass_size);
+			return -EFAULT;
+		}
+
+		buf->file_priv = file_priv;
+		buf->used = pass_size;
+		src_offset = dev_priv->gart_buffers_offset + buf->offset;
+
+		r600_blit_copy(dev, src_offset, dst_offset, pass_size);
+
+		radeon_cp_discard_buffer(dev, buf);
+
+		/* Update the input parameters for next time */
+		image->data = (const u8 __user *)image->data + pass_size;
+		dst_offset += pass_size;
+		size -= pass_size;
+	} while (size > 0);
+	r600_done_blit_copy(dev);
 
 	return 0;
 }

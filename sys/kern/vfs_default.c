@@ -83,12 +83,17 @@ static int	dirent_exists(struct vnode *vp, const char *dirname,
  *
  * If there is no specific entry here, we will return EOPNOTSUPP.
  *
+ * Note that every filesystem has to implement either vop_access
+ * or vop_accessx; failing to do so will result in immediate crash
+ * due to stack overflow, as vop_stdaccess() calls vop_stdaccessx(),
+ * which calls vop_stdaccess() etc.
  */
 
 struct vop_vector default_vnodeops = {
 	.vop_default =		NULL,
 	.vop_bypass =		VOP_EOPNOTSUPP,
 
+	.vop_access =		vop_stdaccess,
 	.vop_accessx =		vop_stdaccessx,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
@@ -323,6 +328,16 @@ dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
 out:
 	free(dirbuf, M_TEMP);
 	return (found);
+}
+
+int
+vop_stdaccess(struct vop_access_args *ap)
+{
+
+	KASSERT((ap->a_accmode & ~(VEXEC | VWRITE | VREAD | VADMIN |
+	    VAPPEND)) == 0, ("invalid bit in accmode"));
+
+	return (VOP_ACCESSX(ap->a_vp, ap->a_accmode, ap->a_cred, ap->a_td));
 }
 
 int

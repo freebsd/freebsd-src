@@ -35,6 +35,7 @@
 #define	IPI_PREEMPT		1
 #define	IPI_RENDEZVOUS		2
 #define	IPI_STOP		3
+#define	IPI_STOP_HARD		3
 
 #ifndef LOCORE
 
@@ -47,7 +48,8 @@ struct cpuref {
 };
 
 void	pmap_cpu_bootstrap(int);
-uint32_t cpudep_ap_bootstrap(void);
+uintptr_t cpudep_ap_bootstrap(void);
+void	cpudep_ap_setup(void);
 void	machdep_ap_bootstrap(void);
 
 #endif /* !LOCORE */

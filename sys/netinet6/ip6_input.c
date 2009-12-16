@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -153,7 +152,7 @@ VNET_DECLARE(int, udp6_recvspace);
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
 
-struct pfil_head inet6_pfil_hook;
+VNET_DEFINE (struct pfil_head, inet6_pfil_hook);
 
 static void ip6_init2(void *);
 static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
@@ -176,7 +175,7 @@ ip6_init(void)
 #ifdef IP6_AUTO_LINKLOCAL
 	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
 #else
-	V_ip6_auto_linklocal = 1;	/* enable by default */
+	V_ip6_auto_linklocal = 1;	/* enabled by default */
 #endif
 	TUNABLE_INT_FETCH("net.inet6.ip6.auto_linklocal",
 	    &V_ip6_auto_linklocal);
@@ -197,7 +196,7 @@ ip6_init(void)
 	V_ip6_sendredirects = IPV6_SENDREDIRECTS;
 	V_ip6_defhlim = IPV6_DEFHLIM;
 	V_ip6_defmcasthlim = IPV6_DEFAULT_MULTICAST_HOPS;
-	V_ip6_accept_rtadv = 0;	 /* "IPV6FORWARDING ? 0 : 1" is dangerous */
+	V_ip6_accept_rtadv = 0;
 	V_ip6_log_interval = 5;
 	V_ip6_hdrnestlimit = 15; /* How many header options will we process? */
 	V_ip6_dad_count = 1;	 /* DupAddrDetectionTransmits */
@@ -248,6 +247,13 @@ ip6_init(void)
 
 	V_ip6_desync_factor = arc4random() % MAX_TEMP_DESYNC_FACTOR;
 
+	/* Initialize packet filter hooks. */
+	V_inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
+	V_inet6_pfil_hook.ph_af = AF_INET6;
+	if ((i = pfil_head_register(&V_inet6_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to register pfil hook, "
+			"error %d\n", __func__, i);
+
 	/* Skip global initialization stuff for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
@@ -275,13 +281,6 @@ ip6_init(void)
 			if (pr->pr_protocol < IPPROTO_MAX)
 				ip6_protox[pr->pr_protocol] = pr - inet6sw;
 		}
-
-	/* Initialize packet filter hooks. */
-	inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
-	inet6_pfil_hook.ph_af = AF_INET6;
-	if ((i = pfil_head_register(&inet6_pfil_hook)) != 0)
-		printf("%s: WARNING: unable to register pfil hook, "
-			"error %d\n", __func__, i);
 
 	netisr_register(&ip6_nh);
 }
@@ -516,10 +515,11 @@ ip6_input(struct mbuf *m)
 	odst = ip6->ip6_dst;
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&inet6_pfil_hook))
+	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto passin;
 
-	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL))
+	if (pfil_run_hooks(&V_inet6_pfil_hook, &m,
+	    m->m_pkthdr.rcvif, PFIL_IN, NULL))
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
@@ -629,8 +629,27 @@ passin:
 	    &rt6_key(rin6.ro_rt)->sin6_addr)
 #endif
 	    rin6.ro_rt->rt_ifp->if_type == IFT_LOOP) {
-		struct in6_ifaddr *ia6 =
-			(struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
+		int free_ia6 = 0;
+		struct in6_ifaddr *ia6;
+
+		/*
+		 * found the loopback route to the interface address
+		 */
+		if (rin6.ro_rt->rt_gateway->sa_family == AF_LINK) {
+			struct sockaddr_in6 dest6;
+
+			bzero(&dest6, sizeof(dest6));
+			dest6.sin6_family = AF_INET6;
+			dest6.sin6_len = sizeof(dest6);
+			dest6.sin6_addr = ip6->ip6_dst;
+			ia6 = (struct in6_ifaddr *)
+			    ifa_ifwithaddr((struct sockaddr *)&dest6);
+			if (ia6 == NULL)
+				goto bad;
+			free_ia6 = 1;
+		}
+		else
+			ia6 = (struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
 
 		/*
 		 * record address information into m_tag.
@@ -648,6 +667,8 @@ passin:
 			/* Count the packet in the ip address stats */
 			ia6->ia_ifa.if_ipackets++;
 			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+			if (ia6 != NULL && free_ia6 != 0)
+				ifa_free(&ia6->ia_ifa);
 			goto hbhcheck;
 		} else {
 			char ip6bufs[INET6_ADDRSTRLEN];
@@ -658,6 +679,8 @@ passin:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 
+			if (ia6 != NULL && free_ia6 != 0)
+				ifa_free(&ia6->ia_ifa);
 			goto bad;
 		}
 	}

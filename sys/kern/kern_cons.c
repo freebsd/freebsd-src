@@ -124,9 +124,10 @@ cninit(void)
 	SET_FOREACH(list, cons_set) {
 		cn = *list;
 		cnremove(cn);
-		if (cn->cn_probe == NULL)
+		/* Skip cons_consdev. */
+		if (cn->cn_ops == NULL)
 			continue;
-		cn->cn_probe(cn);
+		cn->cn_ops->cn_probe(cn);
 		if (cn->cn_pri == CN_DEAD)
 			continue;
 		if (best_cn == NULL || cn->cn_pri > best_cn->cn_pri)
@@ -135,14 +136,14 @@ cninit(void)
 			/*
 			 * Initialize console, and attach to it.
 			 */
-			cn->cn_init(cn);
+			cn->cn_ops->cn_init(cn);
 			cnadd(cn);
 		}
 	}
 	if (best_cn == NULL)
 		return;
 	if ((boothowto & RB_MULTIPLE) == 0) {
-		best_cn->cn_init(best_cn);
+		best_cn->cn_ops->cn_init(best_cn);
 		cnadd(best_cn);
 	}
 	if (boothowto & RB_PAUSE)
@@ -218,7 +219,7 @@ cnremove(struct consdev *cn)
 		 * freed after the system has initialized.
 		 */
 		if (cn->cn_term != NULL)
-			cn->cn_term(cn);
+			cn->cn_ops->cn_term(cn);
 #endif
 		return;
 	}
@@ -371,13 +372,9 @@ cncheckc(void)
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		cn = cnd->cnd_cn;
 		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
-			if (cn->cn_checkc != NULL)
-				c = cn->cn_checkc(cn);
-			else
-				c = cn->cn_getc(cn);
-			if (c != -1) {
+			c = cn->cn_ops->cn_getc(cn);
+			if (c != -1)
 				return (c);
-			}
 		}
 	}
 	return (-1);
@@ -396,8 +393,8 @@ cnputc(int c)
 		cn = cnd->cnd_cn;
 		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG)) {
 			if (c == '\n')
-				cn->cn_putc(cn, '\r');
-			cn->cn_putc(cn, c);
+				cn->cn_ops->cn_putc(cn, '\r');
+			cn->cn_ops->cn_putc(cn, c);
 		}
 	}
 	if (console_pausing && c == '\n' && !kdb_active) {

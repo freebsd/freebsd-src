@@ -217,7 +217,7 @@ struct usb_iso_packet_descriptor {
 					 * packets are usually back to back) */
 	uint16_t length;		/* expected length */
 	uint16_t actual_length;
-	uint16_t status;
+	 int16_t status;		/* transfer status */
 };
 
 /*
@@ -262,6 +262,7 @@ struct urb {
 	uint8_t	setup_dma;		/* (in) not used on FreeBSD */
 	uint8_t	transfer_dma;		/* (in) not used on FreeBSD */
 	uint8_t	bsd_isread;
+	uint8_t kill_count;		/* FreeBSD specific */
 
 	struct usb_iso_packet_descriptor iso_frame_desc[];	/* (in) ISO ONLY */
 };
@@ -297,6 +298,11 @@ void	usb_kill_urb(struct urb *urb);
 void	usb_set_intfdata(struct usb_interface *intf, void *data);
 void	usb_linux_register(void *arg);
 void	usb_linux_deregister(void *arg);
+
+void	usb_fill_bulk_urb(struct urb *, struct usb_device *,
+	    struct usb_host_endpoint *, void *, int, usb_complete_t, void *);
+int	usb_bulk_msg(struct usb_device *, struct usb_host_endpoint *,
+	    void *, int, uint16_t *, usb_timeout_t);
 
 #define	interface_to_usbdev(intf) (intf)->linux_udev
 #define	interface_to_bsddev(intf) (intf)->linux_udev

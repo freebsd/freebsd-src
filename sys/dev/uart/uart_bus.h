@@ -96,6 +96,7 @@ struct uart_softc {
 	int		sc_opened:1;	/* This UART is open for business. */
 	int		sc_polled:1;	/* This UART has no interrupts. */
 	int		sc_txbusy:1;	/* This UART is transmitting. */
+	int		sc_isquelch:1;	/* This UART has input squelched. */
 
 	struct uart_devinfo *sc_sysdev;	/* System device (or NULL). */
 
@@ -141,6 +142,8 @@ int uart_bus_ipend(device_t dev);
 int uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan);
 int uart_bus_sysdev(device_t dev);
 
+void uart_sched_softih(struct uart_softc *, uint32_t);
+
 int uart_tty_attach(struct uart_softc *);
 int uart_tty_detach(struct uart_softc *);
 void uart_tty_intr(void *arg);
@@ -172,6 +175,28 @@ uart_rx_get(struct uart_softc *sc)
 	xc = sc->sc_rxbuf[ptr++];
 	sc->sc_rxget = (ptr < sc->sc_rxbufsz) ? ptr : 0;
 	return (xc);
+}
+
+static __inline int
+uart_rx_next(struct uart_softc *sc)
+{
+	int ptr;
+
+	ptr = sc->sc_rxget;
+	if (ptr == sc->sc_rxput)
+		return (-1);
+	ptr += 1;
+	sc->sc_rxget = (ptr < sc->sc_rxbufsz) ? ptr : 0;
+	return (0);
+}
+
+static __inline int
+uart_rx_peek(struct uart_softc *sc)
+{
+	int ptr;
+
+	ptr = sc->sc_rxget;
+	return ((ptr == sc->sc_rxput) ? -1 : sc->sc_rxbuf[ptr]);
 }
 
 static __inline int

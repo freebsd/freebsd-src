@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
-#include <sys/vimage.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -61,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -1015,9 +1015,6 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in_getsockaddr,
-#if 0
-	.pru_soreceive =	soreceive_stream,
-#endif
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
@@ -1039,9 +1036,6 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
-#if 0
-	.pru_soreceive =	soreceive_stream,
-#endif
  	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };

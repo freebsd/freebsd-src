@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>
+#include <sys/jail.h>
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -64,11 +65,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+
+#include <net/vnet.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -2014,7 +2016,7 @@ retry_space:
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
-		while(space > loopbytes) {
+		while (space > loopbytes) {
 			vm_pindex_t pindex;
 			vm_offset_t pgoff;
 			struct mbuf *m0;
@@ -2035,18 +2037,10 @@ retry_space:
 				rem = obj->un_pager.vnp.vnp_size -
 				    uap->offset - fsbytes - loopbytes;
 			xfsize = omin(rem, xfsize);
+			xfsize = omin(space - loopbytes, xfsize);
 			if (xfsize <= 0) {
 				VM_OBJECT_UNLOCK(obj);
 				done = 1;		/* all data sent */
-				break;
-			}
-			/*
-			 * Don't overflow the send buffer.
-			 * Stop here and send out what we've
-			 * already got.
-			 */
-			if (space < loopbytes + xfsize) {
-				VM_OBJECT_UNLOCK(obj);
 				break;
 			}
 
@@ -2084,9 +2078,11 @@ retry_space:
 				/*
 				 * Get the page from backing store.
 				 */
-				bsize = vp->v_mount->mnt_stat.f_iosize;
 				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_SHARED | LK_RETRY);
+				error = vn_lock(vp, LK_SHARED);
+				if (error != 0)
+					goto after_read;
+				bsize = vp->v_mount->mnt_stat.f_iosize;
 
 				/*
 				 * XXXMAC: Because we don't have fp->f_cred
@@ -2099,6 +2095,7 @@ retry_space:
 				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
+			after_read:
 				VFS_UNLOCK_GIANT(vfslocked);
 				VM_OBJECT_LOCK(obj);
 				vm_page_io_finish(pg);
@@ -2315,6 +2312,7 @@ sctp_peeloff(td, uap)
 		goto done;
 	td->td_retval[0] = fd;
 
+	CURVNET_SET(head->so_vnet);
 	so = sonewconn(head, SS_ISCONNECTED);
 	if (so == NULL) 
 		goto noconnection;
@@ -2354,6 +2352,7 @@ noconnection:
 	/*
 	 * Release explicitly held references before returning.
 	 */
+	CURVNET_RESTORE();
 done:
 	if (nfp != NULL)
 		fdrop(nfp, td);
@@ -2432,9 +2431,11 @@ sctp_generic_sendmsg (td, uap)
 	auio.uio_offset = 0;			/* XXX */
 	auio.uio_resid = 0;
 	len = auio.uio_resid = uap->mlen;
+	CURVNET_SET(so->so_vnet);
 	error = sctp_lower_sosend(so, to, &auio,
 		    (struct mbuf *)NULL, (struct mbuf *)NULL,
 		    uap->flags, use_rcvinfo, u_sinfo, td);
+	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -2542,9 +2543,11 @@ sctp_generic_sendmsg_iov(td, uap)
 		}
 	}
 	len = auio.uio_resid;
+	CURVNET_SET(so->so_vnet);
 	error = sctp_lower_sosend(so, to, &auio,
 		    (struct mbuf *)NULL, (struct mbuf *)NULL,
 		    uap->flags, use_rcvinfo, u_sinfo, td);
+	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -2664,9 +2667,11 @@ sctp_generic_recvmsg(td, uap)
 	if (KTRPOINT(td, KTR_GENIO))
 		ktruio = cloneuio(&auio);
 #endif /* KTRACE */
+	CURVNET_SET(so->so_vnet);
 	error = sctp_sorecvmsg(so, &auio, (struct mbuf **)NULL,
 		    fromsa, fromlen, &msg_flags,
 		    (struct sctp_sndrcvinfo *)&sinfo, 1);
+	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != (int)len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))

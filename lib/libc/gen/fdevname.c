@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <stdlib.h>
 #include "un-namespace.h"
 
 char *

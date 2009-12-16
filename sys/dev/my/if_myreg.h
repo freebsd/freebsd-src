@@ -371,8 +371,10 @@ struct my_softc {
         struct my_chain_data    my_cdata;
 	device_t		my_miibus;
 /* Add by Surfer 2001/12/2 */
-	struct mtx		my_mtx;	
-
+	struct mtx		my_mtx;
+	struct callout		my_autoneg_timer;
+	struct callout		my_watchdog;
+	int			my_timer;
 };
 
 /* Add by Surfer 2001/12/2 */

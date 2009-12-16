@@ -33,6 +33,11 @@
  * $FreeBSD$
  */
 
+#include <machine/_align.h>
+
+#ifndef _I386_INCLUDE_PARAM_H_
+#define	_I386_INCLUDE_PARAM_H_
+
 /*
  * Machine dependent constants for Intel 386.
  */
@@ -49,13 +54,9 @@
 #define _ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 #endif
 
-#ifndef _NO_NAMESPACE_POLLUTION
 
 #define __HAVE_ACPI
 #define __PCI_REROUTE_INTERRUPT
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
 #define MACHINE		"i386"
@@ -109,6 +110,8 @@
 #define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
 #define PDRMASK		(NBPDR-1)
 
+#define	MAXPAGESIZES	2	/* maximum number of supported page sizes */
+
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef KSTACK_PAGES
@@ -149,5 +152,4 @@
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
-#endif /* !_MACHINE_PARAM_H_ */
-#endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_I386_INCLUDE_PARAM_H_ */

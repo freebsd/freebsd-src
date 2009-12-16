@@ -29,10 +29,6 @@ device		apic			# I/O apic
 #
 options 	MP_WATCHDOG
 
-# Debugging options.
-#
-options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
-
 
 
 #####################################################################
@@ -389,7 +385,6 @@ hint.mse.0.irq="13"
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # snc:	National Semiconductor DP8393X SONIC Ethernet adapter driver
-# ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 
 # Order for ISA/EISA devices is important here
@@ -423,7 +418,6 @@ hint.snc.0.at="isa"
 hint.snc.0.port="0x888"
 hint.snc.0.irq="6"
 hint.snc.0.maddr="0xc0000"
-device		ural
 
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# pci/cardbus chip support
@@ -438,6 +432,8 @@ device		ath_hal		# pci/cardbus chip support
 #device		ath_rf5413
 #device		ath_ar5416	# AR5416 chips
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+#device		ath_ar9160	# AR9160 chips
+#device		ath_ar9280	# AR9280 chips
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
 #
@@ -568,6 +564,9 @@ options 	LINSYSFS
 options 	COMPAT_SVR4	# build emulator statically
 options 	DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
+
+# Linux-specific pseudo devices support
+device		lindev
 
 
 #####################################################################

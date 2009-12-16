@@ -122,6 +122,11 @@ u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
     &ps_arg_cache_limit, 0, "");
 
+static int map_at_zero = 0;
+TUNABLE_INT("security.bsd.map_at_zero", &map_at_zero);
+SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RW, &map_at_zero, 0,
+    "Permit processes to map an object at virtual address 0.");
+
 static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
@@ -321,7 +326,7 @@ do_execve(td, args, mac_p)
 	struct ucred *newcred = NULL, *oldcred;
 	struct uidinfo *euip;
 	register_t *stack_base;
-	int error, len = 0, i;
+	int error, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
 	int (*img_first)(struct image_params *);
@@ -419,7 +424,7 @@ interpret:
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
-		AUDIT_ARG_VNODE(binvp, ARG_VNODE1);
+		AUDIT_ARG_VNODE1(binvp);
 		imgp->vp = binvp;
 	}
 
@@ -597,18 +602,12 @@ interpret:
 	execsigs(p);
 
 	/* name this process - nameiexec(p, ndp) */
-	if (args->fname) {
-		len = min(nd.ni_cnd.cn_namelen,MAXCOMLEN);
-		bcopy(nd.ni_cnd.cn_nameptr, p->p_comm, len);
-	} else {
-		if (vn_commname(binvp, p->p_comm, MAXCOMLEN + 1) == 0)
-			len = MAXCOMLEN;
-		else {
-			len = sizeof(fexecv_proc_title);
-			bcopy(fexecv_proc_title, p->p_comm, len);
-		}
-	}
-	p->p_comm[len] = 0;
+	bzero(p->p_comm, sizeof(p->p_comm));
+	if (args->fname)
+		bcopy(nd.ni_cnd.cn_nameptr, p->p_comm,
+		    min(nd.ni_cnd.cn_namelen, MAXCOMLEN));
+	else if (vn_commname(binvp, p->p_comm, sizeof(p->p_comm)) != 0)
+		bcopy(fexecv_proc_title, p->p_comm, sizeof(fexecv_proc_title));
 	bcopy(p->p_comm, td->td_name, sizeof(td->td_name));
 
 	/*
@@ -673,8 +672,8 @@ interpret:
 		 * allocate memory, so temporarily drop the process lock.
 		 */
 		PROC_UNLOCK(p);
-		setugidsafety(td);
 		VOP_UNLOCK(imgp->vp, 0);
+		setugidsafety(td);
 		error = fdcheckstd(td);
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0)
@@ -786,10 +785,12 @@ interpret:
 	 */
 	if (PMC_SYSTEM_SAMPLING_ACTIVE() || PMC_PROC_IS_USING_PMCS(p)) {
 		PROC_UNLOCK(p);
+		VOP_UNLOCK(imgp->vp, 0);
 		pe.pm_credentialschanged = credential_changing;
 		pe.pm_entryaddr = imgp->entry_addr;
 
 		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
+		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 	} else
 		PROC_UNLOCK(p);
 #else  /* !HWPMC_HOOKS */
@@ -997,7 +998,7 @@ exec_new_vmspace(imgp, sv)
 	int error;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
-	vm_offset_t stack_addr;
+	vm_offset_t sv_minuser, stack_addr;
 	vm_map_t map;
 	u_long ssiz;
 
@@ -1013,13 +1014,17 @@ exec_new_vmspace(imgp, sv)
 	 * not disrupted
 	 */
 	map = &vmspace->vm_map;
-	if (vmspace->vm_refcnt == 1 && vm_map_min(map) == sv->sv_minuser &&
+	if (map_at_zero)
+		sv_minuser = sv->sv_minuser;
+	else
+		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
+	if (vmspace->vm_refcnt == 1 && vm_map_min(map) == sv_minuser &&
 	    vm_map_max(map) == sv->sv_maxuser) {
 		shmexit(vmspace);
 		pmap_remove_pages(vmspace_pmap(vmspace));
 		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
 	} else {
-		error = vmspace_exec(p, sv->sv_minuser, sv->sv_maxuser);
+		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
 		if (error)
 			return (error);
 		vmspace = p->p_vmspace;

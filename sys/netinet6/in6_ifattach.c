@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/md5.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -398,7 +398,7 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 	}
 
 	/* next, try to get it from some other hardware interface */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	for (ifp = V_ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next) {
 		if (ifp == ifp0)
 			continue;
@@ -413,11 +413,11 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 			nd6log((LOG_DEBUG,
 			    "%s: borrow interface identifier from %s\n",
 			    if_name(ifp0), if_name(ifp)));
-			IFNET_RUNLOCK();
+			IFNET_RUNLOCK_NOSLEEP();
 			goto success;
 		}
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	/* last resort: get from random number source */
 	if (get_rand_ifid(ifp, in6) == 0) {
@@ -750,14 +750,20 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	/*
 	 * assign a link-local address, if there's none.
 	 */
-	if (V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) {
+	if (ifp->if_type != IFT_BRIDGE &&
+	    !(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
+	    ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) {
+		int error;
+
 		ia = in6ifa_ifpforlinklocal(ifp, 0);
 		if (ia == NULL) {
-			if (in6_ifattach_linklocal(ifp, altifp) == 0) {
-				/* linklocal address assigned */
-			} else {
-				/* failed to assign linklocal address. bark? */
-			}
+			error = in6_ifattach_linklocal(ifp, altifp);
+#if 0
+			if (error)
+				log(LOG_NOTICE, "in6_ifattach_linklocal: "
+				    "failed to add a link-local addr to %s\n",
+				    if_name(ifp));
+#endif
 		} else
 			ifa_free(&ia->ia_ifa);
 	}

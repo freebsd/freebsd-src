@@ -600,8 +600,19 @@ struct icmp6stat {
 };
 
 #ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	ICMP6STAT_ADD(name, val)	V_icmp6stat.name += (val)
 #define	ICMP6STAT_INC(name)		ICMP6STAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_icmp6stat_inc(int statnum);
+#define	KMOD_ICMP6STAT_INC(name)					\
+	kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(u_quad_t))
 #endif
 
 /*

@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <utmp.h>
 
 #include "acl_support.h"
 
@@ -58,7 +57,7 @@ _posix1e_acl_to_text(acl_t acl, ssize_t *len_p, int flags)
 {
 	struct acl	*acl_int;
 	char		*buf, *tmpbuf;
-	char		 name_buf[UT_NAMESIZE+1];
+	char		 name_buf[MAXLOGNAME];
 	char		 perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1],
 			 effective_perm_buf[_POSIX1E_ACL_STRING_PERM_MAXSIZE+1];
 	int		 i, error, len;
@@ -69,11 +68,6 @@ _posix1e_acl_to_text(acl_t acl, ssize_t *len_p, int flags)
 	buf = strdup("");
 	if (buf == NULL)
 		return(NULL);
-
-	if (acl == NULL) {
-		errno = EINVAL;
-		return(NULL);
-	}
 
 	acl_int = &acl->ats_acl;
 
@@ -108,7 +102,7 @@ _posix1e_acl_to_text(acl_t acl, ssize_t *len_p, int flags)
 				goto error_label;
 
 			error = _posix1e_acl_id_to_name(ae_tag, ae_id,
-			    UT_NAMESIZE+1, name_buf, flags);
+			    MAXLOGNAME, name_buf, flags);
 			if (error)
 				goto error_label;
 
@@ -168,7 +162,7 @@ _posix1e_acl_to_text(acl_t acl, ssize_t *len_p, int flags)
 				goto error_label;
 
 			error = _posix1e_acl_id_to_name(ae_tag, ae_id,
-			    UT_NAMESIZE+1, name_buf, flags);
+			    MAXLOGNAME, name_buf, flags);
 			if (error)
 				goto error_label;
 
@@ -242,6 +236,11 @@ error_label:
 char *
 acl_to_text_np(acl_t acl, ssize_t *len_p, int flags)
 {
+
+	if (acl == NULL) {
+		errno = EINVAL;
+		return(NULL);
+	}
 
 	switch (_acl_brand(acl)) {
 	case ACL_BRAND_POSIX:
