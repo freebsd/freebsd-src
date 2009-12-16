@@ -70,12 +70,6 @@ __FBSDID("$FreeBSD$");
 static VNET_DEFINE(eventhandler_tag, ifaddr_event_tag);
 #define	V_ifaddr_event_tag	VNET(ifaddr_event_tag)
 
-extern ipfw_nat_t *ipfw_nat_ptr;
-extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
-extern ipfw_nat_cfg_t *ipfw_nat_del_ptr;
-extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
-extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
-
 static void 
 ifaddr_change(void *arg __unused, struct ifnet *ifp)
 {
