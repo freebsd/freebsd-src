@@ -130,6 +130,42 @@ struct vge_ring_data {
 	bus_addr_t		vge_rx_ring_paddr;
 };
 
+struct vge_hw_stats {
+	uint32_t		rx_frames;
+	uint32_t		rx_good_frames;
+	uint32_t		rx_fifo_oflows;
+	uint32_t		rx_runts;
+	uint32_t		rx_runts_errs;
+	uint32_t		rx_pkts_64;
+	uint32_t		rx_pkts_65_127;
+	uint32_t		rx_pkts_128_255;
+	uint32_t		rx_pkts_256_511;
+	uint32_t		rx_pkts_512_1023;
+	uint32_t		rx_pkts_1024_1518;
+	uint32_t		rx_pkts_1519_max;
+	uint32_t		rx_pkts_1519_max_errs;
+	uint32_t		rx_jumbos;
+	uint32_t		rx_crcerrs;
+	uint32_t		rx_pause_frames;
+	uint32_t		rx_alignerrs;
+	uint32_t		rx_nobufs;
+	uint32_t		rx_symerrs;
+	uint32_t		rx_lenerrs;
+
+	uint32_t		tx_good_frames;
+	uint32_t		tx_pkts_64;
+	uint32_t		tx_pkts_65_127;
+	uint32_t		tx_pkts_128_255;
+	uint32_t		tx_pkts_256_511;
+	uint32_t		tx_pkts_512_1023;
+	uint32_t		tx_pkts_1024_1518;
+	uint32_t		tx_jumbos;
+	uint32_t		tx_colls;
+	uint32_t		tx_pause;
+	uint32_t		tx_sqeerrs;
+	uint32_t		tx_latecolls;
+};
+
 struct vge_softc {
 	struct ifnet		*vge_ifp;	/* interface info */
 	device_t		vge_dev;
@@ -152,6 +188,7 @@ struct vge_softc {
 
 	struct vge_chain_data	vge_cdata;
 	struct vge_ring_data	vge_rdata;
+	struct vge_hw_stats	vge_stats;
 
 	int			suspended;	/* 0 = normal  1 = suspended */
 };
