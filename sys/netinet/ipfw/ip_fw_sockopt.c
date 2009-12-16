@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>	/* struct m_tag used by nested headers */
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/priv.h>
