@@ -144,7 +144,7 @@ TUNABLE_INT("hw.vge.msi_disable", &msi_disable);
  */
 static struct vge_type vge_devs[] = {
 	{ VIA_VENDORID, VIA_DEVICEID_61XX,
-		"VIA Networking Gigabit Ethernet" },
+		"VIA Networking Velocity Gigabit Ethernet" },
 	{ 0, 0, NULL }
 };
 
