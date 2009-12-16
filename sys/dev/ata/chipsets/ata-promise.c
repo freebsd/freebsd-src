@@ -957,6 +957,7 @@ ata_promise_mio_dmainit(device_t dev)
     ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_promise_mio_setprd;
+    ch->dma.max_iosize = 65536;
 }
 
 
