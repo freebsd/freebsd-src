@@ -369,6 +369,12 @@ It defaults to
 .It Va MODULES_OVERRIDE
 .Pq Vt str
 Set to a list of modules to build instead of all of them.
+.It Va NO_KERNELCLEAN
+.Pq Vt bool
+Set this to skip running
+.Dq Li "${MAKE} clean"
+during
+.Dq Li "${MAKE} buildkernel" .
 .It Va NO_KERNELCONFIG
 .Pq Vt bool
 Set this to skip running
@@ -379,6 +385,12 @@ during
 .Pq Vt bool
 Set this to skip running
 .Dq Li "${MAKE} depend"
+during
+.Dq Li "${MAKE} buildkernel" .
+.It Va NO_KERNELOBJ
+.Pq Vt bool
+Set this to skip running
+.Dq Li "${MAKE} obj"
 during
 .Dq Li "${MAKE} buildkernel" .
 .It Va NO_MODULES
