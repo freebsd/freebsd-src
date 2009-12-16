@@ -2242,13 +2242,8 @@ int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 #endif /* COMPAT_FREEBSD4 */
 
 
-#ifdef COMPAT_FREEBSD6
-
-
-#endif /* COMPAT_FREEBSD6 */
-
-
-#ifdef COMPAT_FREEBSD7
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 
 struct freebsd7___semctl_args {
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
@@ -2270,7 +2265,7 @@ int	freebsd7___semctl(struct thread *, struct freebsd7___semctl_args *);
 int	freebsd7_msgctl(struct thread *, struct freebsd7_msgctl_args *);
 int	freebsd7_shmctl(struct thread *, struct freebsd7_shmctl_args *);
 
-#endif /* COMPAT_FREEBSD7 */
+#endif
 
 #define	SYS_AUE_syscall	AUE_NULL
 #define	SYS_AUE_exit	AUE_EXIT
