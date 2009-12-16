@@ -692,8 +692,7 @@ int	freebsd6_freebsd32_ftruncate(struct thread *, struct freebsd6_freebsd32_ftru
 #endif /* COMPAT_FREEBSD6 */
 
 
-#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
-    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+#ifdef COMPAT_FREEBSD7
 
 struct freebsd7_freebsd32_semctl_args {
 	char semid_l_[PADL_(int)]; int semid; char semid_r_[PADR_(int)];
@@ -715,7 +714,7 @@ int	freebsd7_freebsd32_semctl(struct thread *, struct freebsd7_freebsd32_semctl_
 int	freebsd7_freebsd32_msgctl(struct thread *, struct freebsd7_freebsd32_msgctl_args *);
 int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_args *);
 
-#endif
+#endif /* COMPAT_FREEBSD7 */
 
 #define	FREEBSD32_SYS_AUE_freebsd32_wait4	AUE_WAIT4
 #define	FREEBSD32_SYS_AUE_freebsd4_freebsd32_getfsstat	AUE_GETFSSTAT
