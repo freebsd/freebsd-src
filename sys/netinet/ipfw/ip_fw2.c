@@ -26,11 +26,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define        DEB(x)
-#define        DDB(x) x
-
 /*
- * Implement IP packet firewall (new version)
+ * The FreeBSD IP packet firewall, main file
  */
 
 #if !defined(KLD_MODULE)
@@ -101,21 +98,17 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif
 
+/*
+ * static variables followed by global ones.
+ * All ipfw global variables are here.
+ */
+
+/* ipfw_vnet_ready controls when we are open for business */
 static VNET_DEFINE(int, ipfw_vnet_ready) = 0;
 #define	V_ipfw_vnet_ready	VNET(ipfw_vnet_ready)
-/*
- * set_disable contains one bit per set value (0..31).
- * If the bit is set, all rules with the corresponding set
- * are disabled. Set RESVD_SET(31) is reserved for the default rule
- * and rules that are not deleted by the flush command,
- * and CANNOT be disabled.
- * Rules in set RESVD_SET can only be deleted explicitly.
- */
-VNET_DEFINE(u_int32_t, set_disable);
-VNET_DEFINE(int, fw_verbose);
 
-#define	V_set_disable			VNET(set_disable)
-#define	V_verbose_limit			VNET(verbose_limit)
+static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
+#define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 static int default_to_accept = 1;
@@ -123,14 +116,30 @@ static int default_to_accept = 1;
 static int default_to_accept;
 #endif
 
-struct ip_fw *ip_fw_default_rule;
+VNET_DEFINE(int, autoinc_step);
 
 /*
- * list of rules for layer 3
+ * Each rule belongs to one of 32 different sets (0..31).
+ * The variable set_disable contains one bit per set.
+ * If the bit is set, all rules in the corresponding set
+ * are disabled. Set RESVD_SET(31) is reserved for the default rule
+ * and rules that are not deleted by the flush command,
+ * and CANNOT be disabled.
+ * Rules in set RESVD_SET can only be deleted individually.
  */
+VNET_DEFINE(u_int32_t, set_disable);
+#define	V_set_disable			VNET(set_disable)
+
+VNET_DEFINE(int, fw_verbose);
+//#define	V_verbose_limit			VNET(verbose_limit)
+/* counter for ipfw_log(NULL...) */
+VNET_DEFINE(u_int64_t, norule_counter);
+VNET_DEFINE(int, verbose_limit);
+
+
+/* layer3_chain contains the list of rules for layer 3 */
 VNET_DEFINE(struct ip_fw_chain, layer3_chain);
 
-MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 ipfw_nat_t *ipfw_nat_ptr = NULL;
 struct cfg_nat *(*lookup_nat_ptr)(struct nat_list *, int);
 ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
@@ -138,30 +147,16 @@ ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
-struct table_entry {
-	struct radix_node	rn[2];
-	struct sockaddr_in	addr, mask;
-	u_int32_t		value;
-};
-
-static VNET_DEFINE(int, autoinc_step);
-#define	V_autoinc_step			VNET(autoinc_step)
-static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
-#define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
-
 extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_enable), 0,
-    ipfw_chg_hook, "I", "Enable ipfw");
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
-    CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
-    "Rule number auto-increment step");
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
     CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_one_pass), 0,
     "Only do a single pass through ipfw when using dummynet(4)");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
+    CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
+    "Rule number auto-increment step");
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, verbose,
     CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_verbose), 0,
     "Log matches to ipfw rules");
@@ -182,9 +177,6 @@ TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw6_enable), 0,
-    ipfw_chg_hook, "I", "Enable ipfw+6");
 SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
     CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_deny_unknown_exthdrs), 0,
     "Deny packets with unknown IPv6 Extension Headers");
@@ -194,6 +186,7 @@ SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
 
 
 /*
+ * Some macros used in the various matching options.
  * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
  * Other macros just cast void * into the appropriate type
  */
@@ -379,19 +372,20 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
  * 
  * The 'verrevpath' option checks that the interface that an IP packet
  * arrives on is the same interface that traffic destined for the
- * packet's source address would be routed out of.  The 'versrcreach'
- * option just checks that the source address is reachable via any route
- * (except default) in the routing table.  These two are a measure to block
- * forged packets.  This is also commonly known as "anti-spoofing" or Unicast
- * Reverse Path Forwarding (Unicast RFP) in Cisco-ese. The name of the knobs
+ * packet's source address would be routed out of.
+ * The 'versrcreach' option just checks that the source address is
+ * reachable via any route (except default) in the routing table.
+ * These two are a measure to block forged packets. This is also
+ * commonly known as "anti-spoofing" or Unicast Reverse Path
+ * Forwarding (Unicast RFP) in Cisco-ese. The name of the knobs
  * is purposely reminiscent of the Cisco IOS command,
  *
  *   ip verify unicast reverse-path
  *   ip verify unicast source reachable-via any
  *
- * which implements the same functionality. But note that syntax is
- * misleading. The check may be performed on all IP packets whether unicast,
- * multicast, or broadcast.
+ * which implements the same functionality. But note that the syntax
+ * is misleading, and the check may be performed on all IP packets
+ * whether unicast, multicast, or broadcast.
  */
 static int
 verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
@@ -536,6 +530,7 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp)
 	return 1;
 
 }
+
 static int
 is_icmp6_query(int icmp6_type)
 {
@@ -562,7 +557,7 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 
 		if ((tcp->th_flags & TH_RST) == 0) {
 			struct mbuf *m0;
-			m0 = send_pkt(args->m, &(args->f_id),
+			m0 = ipfw_send_pkt(args->m, &(args->f_id),
 			    ntohl(tcp->th_seq), ntohl(tcp->th_ack),
 			    tcp->th_flags | TH_RST);
 			if (m0 != NULL)
@@ -622,7 +617,7 @@ send_reject(struct ip_fw_args *args, int code, int ip_len, struct ip *ip)
 		    L3HDR(struct tcphdr, mtod(args->m, struct ip *));
 		if ( (tcp->th_flags & TH_RST) == 0) {
 			struct mbuf *m;
-			m = send_pkt(args->m, &(args->f_id),
+			m = ipfw_send_pkt(args->m, &(args->f_id),
 				ntohl(tcp->th_seq), ntohl(tcp->th_ack),
 				tcp->th_flags | TH_RST);
 			if (m != NULL)
@@ -635,18 +630,18 @@ send_reject(struct ip_fw_args *args, int code, int ip_len, struct ip *ip)
 }
 
 /**
- *
  * Given an ip_fw *, lookup_next_rule will return a pointer
  * to the next rule, which can be either the jump
  * target (for skipto instructions) or the next one in the list (in
  * all other cases including a missing jump target).
  * The result is also written in the "next_rule" field of the rule.
- * Backward jumps are not allowed, so start looking from the next
- * rule...
+ * Backward jumps are not allowed, so we start the search from the
+ * rule following the current one.
  *
- * This never returns NULL -- in case we do not have an exact match,
- * the next rule is returned. When the ruleset is changed,
- * pointers are flushed so we are always correct.
+ * The function never returns NULL: if the requested rule is not
+ * present, it returns the next rule in the chain.
+ * As a side effect, the rule pointer is also set so next time
+ * the jump will not require a scan of the list.
  */
 
 static struct ip_fw *
@@ -676,12 +671,22 @@ lookup_next_rule(struct ip_fw *me, u_int32_t tablearg)
 			}
 		}
 	}
-	if (rule == NULL)			/* failure or not a skipto */
+	if (rule == NULL)	/* failure or not a skipto */
 		rule = me->next;
 	me->next_rule = rule;
 	return rule;
 }
 
+/*
+ * Support for uid/gid/jail lookup. These tests are expensive
+ * (because we may need to look into the list of active sockets)
+ * so we cache the results. ugid_lookupp is 0 if we have not
+ * yet done a lookup, 1 if we succeeded, and -1 if we tried
+ * and failed. The function always returns the match value.
+ * We could actually spare the variable and use *uc, setting
+ * it to '(void *)check_uidgid if we have no info, NULL if
+ * we tried and failed, or any other value if successful.
+ */
 static int
 check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
     struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
@@ -740,10 +745,8 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 		INP_INFO_RUNLOCK(pi);
 		if (*ugid_lookupp == 0) {
 			/*
-			 * If the lookup did not yield any results, there
-			 * is no sense in coming back and trying again. So
-			 * we can set lookup to -1 and ensure that we wont
-			 * bother the pcb system again.
+			 * We tried and failed, set the variable to -1
+			 * so we will not try again on this packet.
 			 */
 			*ugid_lookupp = -1;
 			return (0);
@@ -768,10 +771,10 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
  *
  *	args->m	(in/out) The packet; we set to NULL when/if we nuke it.
  *		Starts with the IP header.
- *	args->eh (in)	Mac header if present, or NULL for layer3 packet.
+ *	args->eh (in)	Mac header if present, NULL for layer3 packet.
  *	args->L3offset	Number of bytes bypassed if we came from L2.
  *			e.g. often sizeof(eh)  ** NOTYET **
- *	args->oif	Outgoing interface, or NULL if packet is incoming.
+ *	args->oif	Outgoing interface, NULL if packet is incoming.
  *		The incoming interface is in the mbuf. (in)
  *	args->divert_rule (in/out)
  *		Skip up to the first rule past this rule number;
@@ -797,7 +800,7 @@ ipfw_chk(struct ip_fw_args *args)
 {
 
 	/*
-	 * Local variables holding state during the processing of a packet:
+	 * Local variables holding state while processing a packet:
 	 *
 	 * IMPORTANT NOTE: to speed up the processing of rules, there
 	 * are some assumption on the values of the variables, which
@@ -932,15 +935,15 @@ ipfw_chk(struct ip_fw_args *args)
  * pointer might become stale after other pullups (but we never use it
  * this way).
  */
-#define PULLUP_TO(_len, p, T)						\
-do {									\
-	int x = (_len) + sizeof(T);					\
-	if ((m)->m_len < x) {						\
-		args->m = m = m_pullup(m, x);				\
-		if (m == NULL)						\
-			goto pullup_failed;				\
-	}								\
-	p = (mtod(m, char *) + (_len));					\
+#define PULLUP_TO(_len, p, T)					\
+do {								\
+	int x = (_len) + sizeof(T);				\
+	if ((m)->m_len < x) {					\
+		args->m = m = m_pullup(m, x);			\
+		if (m == NULL)					\
+			goto pullup_failed;			\
+	}							\
+	p = (mtod(m, char *) + (_len));				\
 } while (0)
 
 	/*
@@ -1199,7 +1202,7 @@ do {									\
 			if (f != NULL)
 				f = f->next_rule;
 			else
-				f = ip_fw_default_rule;
+				f = V_layer3_chain.default_rule;
 		} else 
 			f = args->rule->next_rule;
 
@@ -1905,7 +1908,7 @@ do {									\
 			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
-				if (install_state(f,
+				if (ipfw_install_state(f,
 				    (ipfw_insn_limit *)cmd, args, tablearg)) {
 					/* error or limit violation */
 					retval = IP_FW_DENY;
@@ -1927,7 +1930,7 @@ do {									\
 				 * to be run first).
 				 */
 				if (dyn_dir == MATCH_UNKNOWN &&
-				    (q = lookup_dyn_rule(&args->f_id,
+				    (q = ipfw_lookup_dyn_rule(&args->f_id,
 				     &dyn_dir, proto == IPPROTO_TCP ?
 					TCP(ulp) : NULL))
 					!= NULL) {
@@ -2251,7 +2254,11 @@ pullup_failed:
 	return (IP_FW_DENY);
 }
 
-/****************
+/*
+ * Module and VNET glue
+ */
+
+/*
  * Stuff that must be initialised only on boot or module load
  */
 static int
@@ -2306,7 +2313,7 @@ ipfw_init(void)
 	return (error);
 }
 
-/**********************
+/*
  * Called for the removal of the last instance only on module unload.
  */
 static void
@@ -2317,7 +2324,7 @@ ipfw_destroy(void)
 	printf("IP firewall unloaded\n");
 }
 
-/****************
+/*
  * Stuff that must be initialized for every instance
  * (including the first of course).
  */
@@ -2345,7 +2352,6 @@ vnet_ipfw_init(const void *unused)
 
 	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
 
-
 	V_fw_deny_unknown_exthdrs = 1;
 
 	V_layer3_chain.rules = NULL;
@@ -2368,7 +2374,7 @@ vnet_ipfw_init(const void *unused)
 		return (error);
 	}
 
-	ip_fw_default_rule = V_layer3_chain.rules;
+	V_layer3_chain.default_rule = V_layer3_chain.rules;
 
 	ipfw_dyn_init();
 
@@ -2391,20 +2397,11 @@ vnet_ipfw_init(const void *unused)
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl;
 	V_ip_fw_chk_ptr = ipfw_chk;
-	if (V_fw_enable && ipfw_hook() != 0) {
-		error = ENOENT; /* see ip_fw_pfil.c::ipfw_hook() */
-		printf("ipfw_hook() error\n");
-	}
-#ifdef INET6
-	if (V_fw6_enable && ipfw6_hook() != 0) {
-		error = ENOENT;
-		printf("ipfw6_hook() error\n");
-	}
-#endif
+	error = ipfw_attach_hooks();
 	return (error);
 }
 
-/***********************
+/*
  * Called for the removal of each instance.
  */
 static int
@@ -2514,4 +2511,4 @@ SYSUNINIT(ipfw_destroy, IPFW_SI_SUB_FIREWALL, IPFW_MODULE_ORDER,
 	    ipfw_destroy, NULL);
 VNET_SYSUNINIT(vnet_ipfw_uninit, IPFW_SI_SUB_FIREWALL, IPFW_VNET_ORDER,
 	    vnet_ipfw_uninit, NULL);
-
+/* end of file */

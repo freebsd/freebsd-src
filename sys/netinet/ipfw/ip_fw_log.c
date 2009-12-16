@@ -85,10 +85,6 @@ __FBSDID("$FreeBSD$");
 #define	ICMP(p)		((struct icmphdr *)(p))
 #define	ICMP6(p)	((struct icmp6_hdr *)(p))
 
-/* counter for ipfw_log(NULL...) */
-VNET_DEFINE(u_int64_t, norule_counter);
-VNET_DEFINE(int, verbose_limit);
-
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
 
@@ -369,3 +365,4 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		    "ipfw: limit %d reached on entry %d\n",
 		    limit_reached, f ? f->rulenum : -1);
 }
+/* end of file */
