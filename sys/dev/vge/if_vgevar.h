@@ -179,6 +179,7 @@ struct vge_softc {
 	int			vge_flags;
 #define	VGE_FLAG_PCIE		0x0001
 #define	VGE_FLAG_MSI		0x0002
+#define	VGE_FLAG_SUSPENDED	0x4000
 #define	VGE_FLAG_LINK		0x8000
 	int			vge_expcap;
 	int			vge_camidx;
@@ -189,8 +190,6 @@ struct vge_softc {
 	struct vge_chain_data	vge_cdata;
 	struct vge_ring_data	vge_rdata;
 	struct vge_hw_stats	vge_stats;
-
-	int			suspended;	/* 0 = normal  1 = suspended */
 };
 
 #define	VGE_LOCK(_sc)		mtx_lock(&(_sc)->vge_mtx)

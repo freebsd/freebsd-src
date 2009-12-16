@@ -1728,15 +1728,11 @@ vge_intr(void *arg)
 	uint32_t status;
 
 	sc = arg;
-
-	if (sc->suspended) {
-		return;
-	}
-
 	VGE_LOCK(sc);
-	ifp = sc->vge_ifp;
 
-	if (!(ifp->if_flags & IFF_UP)) {
+	ifp = sc->vge_ifp;
+	if ((sc->vge_flags & VGE_FLAG_SUSPENDED) != 0 ||
+	    (ifp->if_flags & IFF_UP) == 0) {
 		VGE_UNLOCK(sc);
 		return;
 	}
@@ -2430,7 +2426,7 @@ vge_suspend(device_t dev)
 	VGE_LOCK(sc);
 	vge_stop(sc);
 
-	sc->suspended = 1;
+	sc->vge_flags |= VGE_FLAG_SUSPENDED;
 	VGE_UNLOCK(sc);
 
 	return (0);
@@ -2460,7 +2456,7 @@ vge_resume(device_t dev)
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vge_init_locked(sc);
 	}
-	sc->suspended = 0;
+	sc->vge_flags &= ~VGE_FLAG_SUSPENDED;
 	VGE_UNLOCK(sc);
 
 	return (0);
