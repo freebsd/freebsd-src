@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -130,6 +131,13 @@ MODULE_DEPEND(vge, miibus, 1, 1, 1);
 /* Tunables */
 static int msi_disable = 0;
 TUNABLE_INT("hw.vge.msi_disable", &msi_disable);
+
+/*
+ * The SQE error counter of MIB seems to report bogus value.
+ * Vendor's workaround does not seem to work on PCIe based
+ * controllers. Disable it until we find better workaround.
+ */
+#undef VGE_ENABLE_SQEERR
 
 /*
  * Various supported device vendors/types and their names.
@@ -183,7 +191,10 @@ static void	vge_rxfilter(struct vge_softc *);
 static void	vge_setvlan(struct vge_softc *);
 static void	vge_start(struct ifnet *);
 static void	vge_start_locked(struct ifnet *);
+static void	vge_stats_clear(struct vge_softc *);
+static void	vge_stats_update(struct vge_softc *);
 static void	vge_stop(struct vge_softc *);
+static void	vge_sysctl_node(struct vge_softc *);
 static int	vge_tx_list_init(struct vge_softc *);
 static void	vge_txeof(struct vge_softc *);
 static void	vge_watchdog(void *);
@@ -1057,6 +1068,7 @@ vge_attach(device_t dev)
 	else
 		sc->vge_phyaddr = CSR_READ_1(sc, VGE_MIICFG) &
 		    VGE_MIICFG_PHYADDR;
+	vge_sysctl_node(sc);
 	error = vge_dma_alloc(sc);
 	if (error)
 		goto fail;
@@ -1698,7 +1710,6 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & (VGE_ISR_RXOFLOW|VGE_ISR_RXNODESC)) {
 			vge_rxeof(sc, count);
-			ifp->if_ierrors++;
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_RUN);
 			CSR_WRITE_1(sc, VGE_RXQCSRS, VGE_RXQCSR_WAK);
 		}
@@ -2034,7 +2045,8 @@ vge_init_locked(struct vge_softc *sc)
                 return;
 	}
 	vge_tx_list_init(sc);
-
+	/* Clear MAC statistics. */
+	vge_stats_clear(sc);
 	/* Set our station address */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, VGE_PAR0 + i, IF_LLADDR(sc->vge_ifp)[i]);
@@ -2358,6 +2370,7 @@ vge_watchdog(void *arg)
 
 	sc = arg;
 	VGE_LOCK_ASSERT(sc);
+	vge_stats_update(sc);
 	callout_reset(&sc->vge_watchdog, hz, vge_watchdog, sc);
 	if (sc->vge_timer == 0 || --sc->vge_timer > 0)
 		return;
@@ -2396,6 +2409,7 @@ vge_stop(struct vge_softc *sc)
 	CSR_WRITE_1(sc, VGE_RXQCSRC, 0xFF);
 	CSR_WRITE_4(sc, VGE_RXDESC_ADDR_LO, 0);
 
+	vge_stats_update(sc);
 	VGE_CHAIN_RESET(sc);
 	vge_txeof(sc);
 	vge_freebufs(sc);
@@ -2468,4 +2482,224 @@ vge_shutdown(device_t dev)
 	VGE_UNLOCK(sc);
 
 	return (0);
+}
+
+#define	VGE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+
+static void
+vge_sysctl_node(struct vge_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child, *parent;
+	struct sysctl_oid *tree;
+	struct vge_hw_stats *stats;
+
+	stats = &sc->vge_stats;
+	ctx = device_get_sysctl_ctx(sc->vge_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->vge_dev));
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "VGE statistics");
+	parent = SYSCTL_CHILDREN(tree);
+
+	/* Rx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "RX MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames",
+	    &stats->rx_frames, "frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->rx_good_frames, "Good frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "fifo_oflows",
+	    &stats->rx_fifo_oflows, "FIFO overflows");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "runts",
+	    &stats->rx_runts, "Too short frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "runts_errs",
+	    &stats->rx_runts_errs, "Too short frames with errors");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_64",
+	    &stats->rx_pkts_64, "64 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_65_127",
+	    &stats->rx_pkts_65_127, "65 to 127 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_128_255",
+	    &stats->rx_pkts_128_255, "128 to 255 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_256_511",
+	    &stats->rx_pkts_256_511, "256 to 511 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_512_1023",
+	    &stats->rx_pkts_512_1023, "512 to 1023 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_1024_1518",
+	    &stats->rx_pkts_1024_1518, "1024 to 1518 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_1519_max",
+	    &stats->rx_pkts_1519_max, "1519 to max frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_1519_max_errs",
+	    &stats->rx_pkts_1519_max_errs, "1519 to max frames with error");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_jumbo",
+	    &stats->rx_jumbos, "Jumbo frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "crcerrs",
+	    &stats->rx_crcerrs, "CRC errors");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "pause_frames",
+	    &stats->rx_pause_frames, "CRC errors");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "align_errs",
+	    &stats->rx_alignerrs, "Alignment errors");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "nobufs",
+	    &stats->rx_nobufs, "Frames with no buffer event");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "sym_errs",
+	    &stats->rx_symerrs, "Frames with symbol errors");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "len_errs",
+	    &stats->rx_lenerrs, "Frames with length mismatched");
+
+	/* Tx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "TX MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->tx_good_frames, "Good frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_64",
+	    &stats->tx_pkts_64, "64 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_65_127",
+	    &stats->tx_pkts_65_127, "65 to 127 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_128_255",
+	    &stats->tx_pkts_128_255, "128 to 255 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_256_511",
+	    &stats->tx_pkts_256_511, "256 to 511 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_512_1023",
+	    &stats->tx_pkts_512_1023, "512 to 1023 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_1024_1518",
+	    &stats->tx_pkts_1024_1518, "1024 to 1518 bytes frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "frames_jumbo",
+	    &stats->tx_jumbos, "Jumbo frames");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "colls",
+	    &stats->tx_colls, "Collisions");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "late_colls",
+	    &stats->tx_latecolls, "Late collisions");
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "pause_frames",
+	    &stats->tx_pause, "Pause frames");
+#ifdef VGE_ENABLE_SQEERR
+	VGE_SYSCTL_STAT_ADD32(ctx, child, "sqeerrs",
+	    &stats->tx_sqeerrs, "SQE errors");
+#endif
+	/* Clear MAC statistics. */
+	vge_stats_clear(sc);
+}
+
+#undef	VGE_SYSCTL_STAT_ADD32
+
+static void
+vge_stats_clear(struct vge_softc *sc)
+{
+	int i;
+
+	VGE_LOCK_ASSERT(sc);
+
+	CSR_WRITE_1(sc, VGE_MIBCSR,
+	    CSR_READ_1(sc, VGE_MIBCSR) | VGE_MIBCSR_FREEZE);
+	CSR_WRITE_1(sc, VGE_MIBCSR,
+	    CSR_READ_1(sc, VGE_MIBCSR) | VGE_MIBCSR_CLR);
+	for (i = VGE_TIMEOUT; i > 0; i--) {
+		DELAY(1);
+		if ((CSR_READ_1(sc, VGE_MIBCSR) & VGE_MIBCSR_CLR) == 0)
+			break;
+	}
+	if (i == 0)
+		device_printf(sc->vge_dev, "MIB clear timed out!\n");
+	CSR_WRITE_1(sc, VGE_MIBCSR, CSR_READ_1(sc, VGE_MIBCSR) &
+	    ~VGE_MIBCSR_FREEZE);
+}
+
+static void
+vge_stats_update(struct vge_softc *sc)
+{
+	struct vge_hw_stats *stats;
+	struct ifnet *ifp;
+	uint32_t mib[VGE_MIB_CNT], val;
+	int i;
+
+	VGE_LOCK_ASSERT(sc);
+
+	stats = &sc->vge_stats;
+	ifp = sc->vge_ifp;
+
+	CSR_WRITE_1(sc, VGE_MIBCSR,
+	    CSR_READ_1(sc, VGE_MIBCSR) | VGE_MIBCSR_FLUSH);
+	for (i = VGE_TIMEOUT; i > 0; i--) {
+		DELAY(1);
+		if ((CSR_READ_1(sc, VGE_MIBCSR) & VGE_MIBCSR_FLUSH) == 0)
+			break;
+	}
+	if (i == 0) {
+		device_printf(sc->vge_dev, "MIB counter dump timed out!\n");
+		vge_stats_clear(sc);
+		return;
+	}
+
+	bzero(mib, sizeof(mib));
+reset_idx:
+	/* Set MIB read index to 0. */
+	CSR_WRITE_1(sc, VGE_MIBCSR,
+	    CSR_READ_1(sc, VGE_MIBCSR) | VGE_MIBCSR_RINI);
+	for (i = 0; i < VGE_MIB_CNT; i++) {
+		val = CSR_READ_4(sc, VGE_MIBDATA);
+		if (i != VGE_MIB_DATA_IDX(val)) {
+			/* Reading interrupted. */
+			goto reset_idx;
+		}
+		mib[i] = val & VGE_MIB_DATA_MASK;
+	}
+
+	/* Rx stats. */
+	stats->rx_frames += mib[VGE_MIB_RX_FRAMES];
+	stats->rx_good_frames += mib[VGE_MIB_RX_GOOD_FRAMES];
+	stats->rx_fifo_oflows += mib[VGE_MIB_RX_FIFO_OVERRUNS];
+	stats->rx_runts += mib[VGE_MIB_RX_RUNTS];
+	stats->rx_runts_errs += mib[VGE_MIB_RX_RUNTS_ERRS];
+	stats->rx_pkts_64 += mib[VGE_MIB_RX_PKTS_64];
+	stats->rx_pkts_65_127 += mib[VGE_MIB_RX_PKTS_65_127];
+	stats->rx_pkts_128_255 += mib[VGE_MIB_RX_PKTS_128_255];
+	stats->rx_pkts_256_511 += mib[VGE_MIB_RX_PKTS_256_511];
+	stats->rx_pkts_512_1023 += mib[VGE_MIB_RX_PKTS_512_1023];
+	stats->rx_pkts_1024_1518 += mib[VGE_MIB_RX_PKTS_1024_1518];
+	stats->rx_pkts_1519_max += mib[VGE_MIB_RX_PKTS_1519_MAX];
+	stats->rx_pkts_1519_max_errs += mib[VGE_MIB_RX_PKTS_1519_MAX_ERRS];
+	stats->rx_jumbos += mib[VGE_MIB_RX_JUMBOS];
+	stats->rx_crcerrs += mib[VGE_MIB_RX_CRCERRS];
+	stats->rx_pause_frames += mib[VGE_MIB_RX_PAUSE];
+	stats->rx_alignerrs += mib[VGE_MIB_RX_ALIGNERRS];
+	stats->rx_nobufs += mib[VGE_MIB_RX_NOBUFS];
+	stats->rx_symerrs += mib[VGE_MIB_RX_SYMERRS];
+	stats->rx_lenerrs += mib[VGE_MIB_RX_LENERRS];
+
+	/* Tx stats. */
+	stats->tx_good_frames += mib[VGE_MIB_TX_GOOD_FRAMES];
+	stats->tx_pkts_64 += mib[VGE_MIB_TX_PKTS_64];
+	stats->tx_pkts_65_127 += mib[VGE_MIB_TX_PKTS_65_127];
+	stats->tx_pkts_128_255 += mib[VGE_MIB_TX_PKTS_128_255];
+	stats->tx_pkts_256_511 += mib[VGE_MIB_TX_PKTS_256_511];
+	stats->tx_pkts_512_1023 += mib[VGE_MIB_TX_PKTS_512_1023];
+	stats->tx_pkts_1024_1518 += mib[VGE_MIB_TX_PKTS_1024_1518];
+	stats->tx_jumbos += mib[VGE_MIB_TX_JUMBOS];
+	stats->tx_colls += mib[VGE_MIB_TX_COLLS];
+	stats->tx_pause += mib[VGE_MIB_TX_PAUSE];
+#ifdef VGE_ENABLE_SQEERR
+	stats->tx_sqeerrs += mib[VGE_MIB_TX_SQEERRS];
+#endif
+	stats->tx_latecolls += mib[VGE_MIB_TX_LATECOLLS];
+
+	/* Update counters in ifnet. */
+	ifp->if_opackets += mib[VGE_MIB_TX_GOOD_FRAMES];
+
+	ifp->if_collisions += mib[VGE_MIB_TX_COLLS] +
+	    mib[VGE_MIB_TX_LATECOLLS];
+
+	ifp->if_oerrors += mib[VGE_MIB_TX_COLLS] +
+	    mib[VGE_MIB_TX_LATECOLLS];
+
+	ifp->if_ipackets += mib[VGE_MIB_RX_GOOD_FRAMES];
+
+	ifp->if_ierrors += mib[VGE_MIB_RX_FIFO_OVERRUNS] +
+	    mib[VGE_MIB_RX_RUNTS] +
+	    mib[VGE_MIB_RX_RUNTS_ERRS] +
+	    mib[VGE_MIB_RX_CRCERRS] +
+	    mib[VGE_MIB_RX_ALIGNERRS] +
+	    mib[VGE_MIB_RX_NOBUFS] +
+	    mib[VGE_MIB_RX_SYMERRS] +
+	    mib[VGE_MIB_RX_LENERRS];
 }
