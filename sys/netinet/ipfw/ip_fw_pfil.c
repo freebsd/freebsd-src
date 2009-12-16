@@ -68,9 +68,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-VNET_DEFINE(int, fw_enable) = 1;
+static VNET_DEFINE(int, fw_enable) = 1;
+#define V_fw_enable	VNET(fw_enable)
+
 #ifdef INET6
-VNET_DEFINE(int, fw6_enable) = 1;
+static VNET_DEFINE(int, fw6_enable) = 1;
+#define V_fw6_enable	VNET(fw6_enable)
 #endif
 
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
@@ -85,6 +88,19 @@ ng_ipfw_input_t *ng_ipfw_input_p = NULL;
 static int	ipfw_divert(struct mbuf **, int, int);
 #define	DIV_DIR_IN	1
 #define	DIV_DIR_OUT	0
+
+#ifdef SYSCTL_NODE
+SYSCTL_DECL(_net_inet_ip_fw);
+SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, enable,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_enable), 0,
+    ipfw_chg_hook, "I", "Enable ipfw");
+#ifdef INET6
+SYSCTL_DECL(_net_inet6_ip6_fw);
+SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw6_enable), 0,
+    ipfw_chg_hook, "I", "Enable ipfw+6");
+#endif /* INET6 */
+#endif /* SYSCTL_NODE */
 
 int
 ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
@@ -443,7 +459,7 @@ nodivert:
 	return 1;
 }
 
-int
+static int
 ipfw_hook(void)
 {
 	struct pfil_head *pfh_inet;
@@ -478,7 +494,7 @@ ipfw_unhook(void)
 }
 
 #ifdef INET6
-int
+static int
 ipfw6_hook(void)
 {
 	struct pfil_head *pfh_inet6;
@@ -512,6 +528,24 @@ ipfw6_unhook(void)
 	return 0;
 }
 #endif /* INET6 */
+
+int
+ipfw_attach_hooks(void)
+{
+	int error = 0;
+
+        if (V_fw_enable && ipfw_hook() != 0) {
+                error = ENOENT; /* see ip_fw_pfil.c::ipfw_hook() */
+                printf("ipfw_hook() error\n");
+        }
+#ifdef INET6
+        if (V_fw6_enable && ipfw6_hook() != 0) {
+                error = ENOENT;
+                printf("ipfw6_hook() error\n");
+        }
+#endif
+	return error;
+}
 
 int
 ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
@@ -566,4 +600,4 @@ ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-
+/* end of file */

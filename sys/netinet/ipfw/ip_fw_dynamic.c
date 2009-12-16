@@ -114,6 +114,10 @@ __FBSDID("$FreeBSD$");
  * obey the 'randomized match', and we do not do multiple
  * passes through the firewall. XXX check the latter!!!
  */
+
+/*
+ * Static variables followed by global ones
+ */
 static VNET_DEFINE(ipfw_dyn_rule **, ipfw_dyn_v);
 static VNET_DEFINE(u_int32_t, dyn_buckets);
 static VNET_DEFINE(u_int32_t, curr_dyn_buckets);
@@ -374,7 +378,7 @@ next:
 }
 
 void
-remove_dyn_children(struct ip_fw *rule)
+ipfw_remove_dyn_children(struct ip_fw *rule)
 {
 	IPFW_DYN_LOCK();
 	remove_dyn_rule(rule, NULL /* force removal */);
@@ -382,9 +386,9 @@ remove_dyn_children(struct ip_fw *rule)
 }
 
 /**
- * lookup a dynamic rule.
+ * lookup a dynamic rule, locked version
  */
-ipfw_dyn_rule *
+static ipfw_dyn_rule *
 lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
     struct tcphdr *tcp)
 {
@@ -528,7 +532,7 @@ done:
 }
 
 ipfw_dyn_rule *
-lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
+ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
     struct tcphdr *tcp)
 {
 	ipfw_dyn_rule *q;
@@ -699,7 +703,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
  * session limitations are enforced.
  */
 int
-install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
+ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
     struct ip_fw_args *args, uint32_t tablearg)
 {
 	static int last_log;
@@ -877,7 +881,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
  * so that MAC can label the reply appropriately.
  */
 struct mbuf *
-send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
+ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
     u_int32_t ack, int flags)
 {
 	struct mbuf *m;
@@ -1065,9 +1069,9 @@ ipfw_tick(void * vnetx)
 			if (TIME_LEQ(q->expire, time_uptime))
 				continue;	/* too late, rule expired */
 
-			m = send_pkt(NULL, &(q->id), q->ack_rev - 1,
+			m = ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1,
 				q->ack_fwd, TH_SYN);
-			mnext = send_pkt(NULL, &(q->id), q->ack_fwd - 1,
+			mnext = ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1,
 				q->ack_rev, 0);
 
 			switch (q->id.addr_type) {
@@ -1222,3 +1226,4 @@ ipfw_get_dynamic(char **pbp, const char *ep)
 		bzero(&last->next, sizeof(last));
 	*pbp = bp;
 }
+/* end of file */
