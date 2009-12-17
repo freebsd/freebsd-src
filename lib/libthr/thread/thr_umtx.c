@@ -112,10 +112,13 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 int
 __thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 {
+#ifndef __ia64__
+	/* XXX this logic has a race-condition on ia64. */
 	if ((mtx->m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0) {
 		atomic_cmpset_rel_32(&mtx->m_owner, id | UMUTEX_CONTESTED, UMUTEX_CONTESTED);
 		return _umtx_op_err(mtx, UMTX_OP_MUTEX_WAKE, 0, 0, 0);
 	}
+#endif /* __ia64__ */
 	return _umtx_op_err(mtx, UMTX_OP_MUTEX_UNLOCK, 0, 0, 0);
 }
 
