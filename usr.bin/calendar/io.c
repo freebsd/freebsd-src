@@ -467,7 +467,7 @@ closecal(FILE *fp)
 	if (!doall)
 		return;
 
-	(void)rewind(fp);
+	rewind(fp);
 	if (fstat(fileno(fp), &sbuf) || !sbuf.st_size)
 		goto done;
 	if (pipe(pdes) < 0)
