@@ -57,7 +57,6 @@ static usb_handle_req_t usb_temp_get_desc_w;
 static usb_temp_setup_by_index_t usb_temp_setup_by_index_w;
 static usb_temp_unsetup_t usb_temp_unsetup_w;
 static usb_test_quirk_t usb_test_quirk_w;
-static usb_test_huawei_autoinst_t usb_test_huawei_autoinst_w;
 static usb_quirk_ioctl_t usb_quirk_ioctl_w;
 
 /* global variables */
@@ -65,7 +64,6 @@ usb_handle_req_t *usb_temp_get_desc_p = &usb_temp_get_desc_w;
 usb_temp_setup_by_index_t *usb_temp_setup_by_index_p = &usb_temp_setup_by_index_w;
 usb_temp_unsetup_t *usb_temp_unsetup_p = &usb_temp_unsetup_w;
 usb_test_quirk_t *usb_test_quirk_p = &usb_test_quirk_w;
-usb_test_huawei_autoinst_t *usb_test_huawei_autoinst_p = &usb_test_huawei_autoinst_w;
 usb_quirk_ioctl_t *usb_quirk_ioctl_p = &usb_quirk_ioctl_w;
 devclass_t usb_devclass_ptr = NULL;
 
@@ -103,13 +101,6 @@ usb_temp_unsetup_w(struct usb_device *udev)
 
 		udev->usb_template_ptr = NULL;
 	}
-}
-
-static usb_error_t
-usb_test_huawei_autoinst_w(struct usb_device *udev,
-    struct usb_attach_arg *uaa)
-{
-	return (USB_ERR_INVAL);
 }
 
 void
@@ -155,18 +146,4 @@ usb_bus_unload(void *arg)
 	/* XXX this is a tradeoff */
 
 	pause("WAIT", hz);
-}
-
-void
-usb_test_huawei_unload(void *arg)
-{
-	/* reset function pointers */
-
-	usb_test_huawei_autoinst_p = &usb_test_huawei_autoinst_w;
-
-	/* wait for CPU to exit the loaded functions, if any */
-
-	/* XXX this is a tradeoff */
-
-	pause("WAIT", 16*hz);
 }
