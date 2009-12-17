@@ -181,7 +181,6 @@ struct vge_softc {
 	struct resource		*vge_irq;
 	void			*vge_intrhand;
 	device_t		vge_miibus;
-	uint8_t			vge_type;
 	int			vge_if_flags;
 	int			vge_phyaddr;
 	int			vge_flags;
