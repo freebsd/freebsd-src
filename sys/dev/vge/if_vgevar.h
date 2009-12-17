@@ -65,12 +65,6 @@
 #define VGE_RXBYTES(x)		(((x) & VGE_RDSTS_BUFSIZ) >> 16)
 #define VGE_MIN_FRAMELEN	60
 
-#ifdef VGE_FIXUP_RX
-#define VGE_ETHER_ALIGN		sizeof(uint32_t)
-#else
-#define VGE_ETHER_ALIGN		0
-#endif
-
 struct vge_type {
 	uint16_t		vge_vid;
 	uint16_t		vge_did;
