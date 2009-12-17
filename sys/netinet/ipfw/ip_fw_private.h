@@ -113,6 +113,7 @@ void ipfw_nat_destroy(void);
 
 /* In ip_fw_log.c */
 struct ip;
+void ipfw_log_bpf(int);
 void ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 	struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
 	struct ip *ip);
