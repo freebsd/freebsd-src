@@ -224,8 +224,10 @@
 #endif
 
 #if __GNUC_PREREQ__(2, 96)
+#define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
 #else
+#define	__malloc_like
 #define	__pure
 #endif
 
