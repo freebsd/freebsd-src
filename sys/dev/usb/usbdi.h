@@ -29,6 +29,7 @@
 struct usb_fifo;
 struct usb_xfer;
 struct usb_device;
+struct usb_attach_arg;
 struct usb_interface;
 struct usb_endpoint;
 struct usb_page_cache;
@@ -97,6 +98,13 @@ typedef void (usb_fifo_close_t)(struct usb_fifo *fifo, int fflags);
 typedef int (usb_fifo_ioctl_t)(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags);
 typedef void (usb_fifo_cmd_t)(struct usb_fifo *fifo);
 typedef void (usb_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
+
+
+/* USB events */
+#include <sys/eventhandler.h>
+typedef void (*usb_dev_configured_t)(void *, struct usb_device *,
+    struct usb_attach_arg *);
+EVENTHANDLER_DECLARE(usb_dev_configured, usb_dev_configured_t);
 
 /*
  * The following macros are used used to convert milliseconds into
@@ -338,6 +346,10 @@ struct usb_attach_arg {
 	enum usb_hc_mode usb_mode;	/* host or device mode */
 	uint8_t	port;
 	uint8_t	use_generic;		/* hint for generic drivers */
+	uint8_t dev_state;
+#define UAA_DEV_READY		0
+#define UAA_DEV_DISABLED	1
+#define UAA_DEV_EJECTING	2
 };
 
 /*
