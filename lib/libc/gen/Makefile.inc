@@ -5,7 +5,8 @@
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/gen ${.CURDIR}/gen
 
 SRCS+=  __getosreldate.c __xuname.c \
-	_pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
+	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
+	_thread_init.c \
 	alarm.c arc4random.c assert.c basename.c check_utility_compat.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
