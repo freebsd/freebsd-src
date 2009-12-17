@@ -2100,7 +2100,7 @@ vge_init_locked(struct vge_softc *sc)
 	 * Enable interrupts.
 	 */
 		CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS);
-		CSR_WRITE_4(sc, VGE_ISR, 0);
+		CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
 		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 	}
 
