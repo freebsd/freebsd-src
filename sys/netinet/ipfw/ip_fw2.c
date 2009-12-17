@@ -1651,8 +1651,7 @@ do {								\
 			}
 
 			case O_LOG:
-				if (V_fw_verbose)
-					ipfw_log(f, hlen, args, m,
+				ipfw_log(f, hlen, args, m,
 					    oif, offset, tablearg, ip);
 				match = 1;
 				break;
@@ -2287,6 +2286,7 @@ ipfw_init(void)
 		printf("limited to %d packets/entry by default\n",
 		    V_verbose_limit);
 
+	ipfw_log_bpf(1); /* init */
 	return (error);
 }
 
@@ -2297,6 +2297,7 @@ static void
 ipfw_destroy(void)
 {
 
+	ipfw_log_bpf(0); /* uninit */
 	ipfw_dyn_detach();
 	printf("IP firewall unloaded\n");
 }
