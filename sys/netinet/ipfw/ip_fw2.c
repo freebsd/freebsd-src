@@ -1183,31 +1183,29 @@ do {								\
 	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
 	if (args->rule) {
 		/*
-		 * Packet has already been tagged. Look for the next rule
-		 * to restart processing. Make sure that args->rule still
-		 * exists and not changed.
-		 * If fw_one_pass != 0 then just accept it.
-		 * XXX should not happen here, but optimized out in
-		 * the caller.
+		 * Packet has already been tagged as a result of a previous
+		 * match on rule args->rule aka args->rule_id (PIPE, QUEUE,
+		 * REASS, NETGRAPH and similar, never a skipto).
+		 * Validate the pointer and continue from args->rule->next
+		 * if still present, otherwise use the default rule.
+		 * XXX If fw_one_pass != 0 then just accept it, though
+		 * the caller should never pass us such packets.
 		 */
 		if (V_fw_one_pass) {
 			IPFW_RUNLOCK(chain);
 			return (IP_FW_PASS);
 		}
-		if (chain->id != args->chain_id) {
+		if (chain->id == args->chain_id) { /* pointer still valid */
+			f = args->rule->next;
+		} else { /* must revalidate the pointer */
 			for (f = chain->rules; f != NULL; f = f->next)
-				if (f == args->rule && f->id == args->rule_id)
+				if (f == args->rule && f->id == args->rule_id) {
+					f = args->rule->next;
 					break;
-
-			if (f != NULL)
-				f = f->next_rule;
-			else
-				f = V_layer3_chain.default_rule;
-		} else 
-			f = args->rule->next_rule;
-
-		if (f == NULL)
-			f = lookup_next_rule(args->rule, 0);
+				}
+		}
+		if (f == NULL) /* in case of errors, use default; */
+			f = chain->default_rule;
 	} else {
 		/*
 		 * Find the starting rule. It can be either the first
