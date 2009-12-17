@@ -178,6 +178,8 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
 		ep->ee_priority = EHE_DEAD_PRIORITY;
 	}
     }
+    while (list->el_runcount > 0)
+	    mtx_sleep(list, &list->el_lock, 0, "evhrm", 0);
     EHL_UNLOCK(list);
 }
 
@@ -225,16 +227,17 @@ void
 eventhandler_prune_list(struct eventhandler_list *list)
 {
     struct eventhandler_entry *ep, *en;
+    int pruned = 0;
 
     CTR2(KTR_EVH, "%s: pruning list \"%s\"", __func__, list->el_name);
     EHL_LOCK_ASSERT(list, MA_OWNED);
-    ep = TAILQ_FIRST(&list->el_entries);
-    while (ep != NULL) {
-	en = TAILQ_NEXT(ep, ee_link);
+    TAILQ_FOREACH_SAFE(ep, &list->el_entries, ee_link, en) {
 	if (ep->ee_priority == EHE_DEAD_PRIORITY) {
 	    TAILQ_REMOVE(&list->el_entries, ep, ee_link);
 	    free(ep, M_EVENTHANDLER);
+	    pruned++;
 	}
-	ep = en;
     }
+    if (pruned > 0)
+	    wakeup(list);
 }
