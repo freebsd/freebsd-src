@@ -73,6 +73,13 @@
 
 #define ALIGNBYTES	_ALIGNBYTES
 #define ALIGN(p)	_ALIGN(p)
+/*
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ */
+#define	ALIGNED_POINTER(p, t)	1
 
 #define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
 #define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
