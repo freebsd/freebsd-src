@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2007
+.Dd December 17, 2009
 .Dt VGE 4
 .Os
 .Sh NAME
@@ -172,6 +172,38 @@ VIA Networking LAN-on-motherboard Gigabit Ethernet
 ZyXEL GN650-T 64-bit PCI Gigabit Ethernet NIC (ZX1701)
 .It
 ZyXEL GN670-T 32-bit PCI Gigabit Ethernet NIC (ZX1702)
+.El
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.vge.msi_disable
+This tunable disables MSI support on the Ethernet hardware.
+The default value is 0.
+.El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.vge.%d.int_holdoff
+Maximum number of time to delay interrupts.
+The valid range is 0 to 5100 in units of 1us, the default is
+150 (150us).
+The resolution of of timer is about 20us so finer tuning than
+20us wouldn't be available.
+The interface should be brought down and up again before a change
+takes effect.
+.It Va dev.vge.%d.rx_coal_pkt
+Maximum number of packets to fire Rx completion interrupt.
+The valid range is 1 to 255, the default is 64.
+.It Va dev.vge.%d.tx_coal_pkt
+Maximum number of packets to fire Tx completion interrupt.
+The valid range is 1 to 255, the default is 128.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
