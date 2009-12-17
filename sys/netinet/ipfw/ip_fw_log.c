@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
 #include <net/vnet.h>
+#include <net/if_types.h>	/* for IFT_ETHER */
+#include <net/bpf.h>		/* for BPF */
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -88,6 +90,48 @@ __FBSDID("$FreeBSD$");
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
 
+static struct ifnet *log_if;	/* hook to attach to bpf */
+
+/* we use this dummy function for all ifnet callbacks */
+static int
+log_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
+{
+	return EINVAL;
+}
+
+void
+ipfw_log_bpf(int onoff)
+{
+	struct ifnet *ifp;
+
+	if (onoff) {
+		if (log_if)
+			return;
+		ifp = if_alloc(IFT_ETHER);
+		if (ifp == NULL)
+			return;
+		if_initname(ifp, "ipfw", 0);
+		ifp->if_mtu = 65536;
+		ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
+		ifp->if_init = (void *)log_dummy;
+		ifp->if_ioctl = log_dummy;
+		ifp->if_start = (void *)log_dummy;
+		ifp->if_output = (void *)log_dummy;
+		ifp->if_addrlen = 6;
+		ifp->if_hdrlen = 14;
+		if_attach(ifp);
+		ifp->if_baudrate = IF_Mbps(10);
+		bpfattach(ifp, DLT_EN10MB, 14);
+		log_if = ifp;
+	} else {
+		if (log_if) {
+			ether_ifdetach(log_if);
+			if_free(log_if);
+		}
+		log_if = NULL;
+	}
+}
+
 /*
  * We enter here when we have a rule with O_LOG.
  * XXX this function alone takes about 2Kbytes of code!
@@ -102,6 +146,36 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 	int limit_reached = 0;
 	char action2[40], proto[128], fragment[32];
 
+	if (V_fw_verbose == 0) {
+		struct m_hdr mh;
+
+		if (log_if == NULL || log_if->if_bpf == NULL)
+			return;
+		/* BPF treats the "mbuf" as read-only */
+		mh.mh_next = m;
+		mh.mh_len = ETHER_HDR_LEN;
+		if (args->eh) { /* layer2, use orig hdr */
+			mh.mh_data = (char *)args->eh;
+		} else {
+			/* add fake header. Later we will store
+			 * more info in the header
+			 */
+			mh.mh_data = "DDDDDDSSSSSS\x08\x00";
+			if (args->f_id.addr_type == 4) {
+				/* restore wire format */
+				ip->ip_off = ntohs(ip->ip_off);
+				ip->ip_len = ntohs(ip->ip_len);
+			}
+		}
+		BPF_MTAP(log_if, (struct mbuf *)&mh);
+		if (args->eh == NULL && args->f_id.addr_type == 4) {
+			/* restore host format */
+			ip->ip_off = htons(ip->ip_off);
+			ip->ip_len = htons(ip->ip_len);
+		}
+		return;
+	}
+	/* the old 'log' function */
 	fragment[0] = '\0';
 	proto[0] = '\0';
 
