@@ -568,17 +568,16 @@ ub_env_enum(const char *last)
 	const char *env, *str;
 	int i;
 
-	env = NULL;
-
 	/*
 	 * It's OK to pass only the name piece as last (and not the whole
 	 * 'name=val' string), since the API_ENUM_ENV call uses envmatch()
 	 * internally, which handles such case
 	 */
-	if (!syscall(API_ENV_ENUM, NULL, (uint32_t)last, (uint32_t)&env))
+	env = NULL;
+	if (syscall(API_ENV_ENUM, NULL, (uint32_t)last, (uint32_t)&env) != 0)
 		return (NULL);
 
-	if (!env)
+	if (env == NULL)
 		/* no more env. variables to enumerate */
 		return (NULL);
 
