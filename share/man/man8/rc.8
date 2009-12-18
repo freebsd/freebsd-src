@@ -35,7 +35,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2007
+.Dd November 17, 2009
 .Dt RC 8
 .Os
 .Sh NAME
@@ -392,20 +392,6 @@ If
 .Cm autoboot
 is not set, when going from single-user to multi-user mode for example,
 the script does not do anything.
-.Pp
-The
-.Nm rc.early
-script is run very early in the startup process, immediately before the
-file system check.
-The
-.Nm rc.early
-script is deprecated.
-Any commands in this
-file should be separated out into
-.Nm rc.d/
-style scripts and integrated into the
-.Nm
-system.
 .Pp
 The
 .Pa /etc/rc.d/local
