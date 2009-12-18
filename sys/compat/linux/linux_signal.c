@@ -565,7 +565,7 @@ linux_do_tkill(struct thread *td, l_int tgid, l_int pid, l_int signum)
 
 	AUDIT_ARG_PROCESS(p);
 	error = p_cansignal(td, p, signum);
-	if (error)
+	if (error != 0 || signum == 0)
 		goto out;
 
 	error = ESRCH;
