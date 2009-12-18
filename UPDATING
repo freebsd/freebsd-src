@@ -22,6 +22,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20091202:
+	The rc.firewall and rc.firewall6 were unified, and
+	rc.firewall6 and rc.d/ip6fw were removed.
+	According to the removal of rc.d/ip6fw, ipv6_firewall_* rc
+	variables are obsoleted.  Instead, the following new rc
+	variables are added to rc.d/ipfw:
+
+		firewall_client_net_ipv6, firewall_simple_iif_ipv6,
+		firewall_simple_inet_ipv6, firewall_simple_oif_ipv6,
+		firewall_simple_onet_ipv6, firewall_trusted_ipv6
+
+	The meanings correspond to the relevant IPv4 variables.
+
 20091113:
 	The default terminal emulation for syscons(4) has been changed
 	from cons25 to xterm on all platforms except pc98.  This means
