@@ -2219,10 +2219,9 @@ out:
 	}
 ereply:
 	nfsm_reply(NFSX_WCCDATA(v3));
-	if (v3) {
+	if (v3)
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
-		error = 0;
-	}
+	error = 0;
 nfsmout:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_dvp) {
@@ -2596,8 +2595,8 @@ ereply:
 	if (v3) {
 		nfsm_srvpostop_attr(getret, &at);
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
-		error = 0;
 	}
+	error = 0;
 	/* fall through */
 
 nfsmout:
