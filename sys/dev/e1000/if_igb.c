@@ -2121,9 +2121,10 @@ igb_allocate_msix(struct adapter *adapter)
 		    igb_msix_tx, txr, &txr->tag);
 		if (error) {
 			txr->res = NULL;
-			device_printf(dev, "Failed to register TX handler");
+			device_printf(dev, "Failed to register TX handler\n");
 			return (error);
 		}
+		bus_describe_intr(dev, txr->res, txr->tag, "tx %d", i);
 		txr->msix = vector;
 		if (adapter->hw.mac.type == e1000_82575)
 			txr->eims = E1000_EICR_TX_QUEUE0 << i;
@@ -2159,9 +2160,10 @@ igb_allocate_msix(struct adapter *adapter)
 		    igb_msix_rx, rxr, &rxr->tag);
 		if (error) {
 			rxr->res = NULL;
-			device_printf(dev, "Failed to register RX handler");
+			device_printf(dev, "Failed to register RX handler\n");
 			return (error);
 		}
+		bus_describe_intr(dev, rxr->res, rxr->tag, "rx %d", i);
 		rxr->msix = vector;
 		if (adapter->hw.mac.type == e1000_82575)
 			rxr->eims = E1000_EICR_RX_QUEUE0 << i;
@@ -2200,9 +2202,10 @@ igb_allocate_msix(struct adapter *adapter)
 	if ((error = bus_setup_intr(dev, adapter->res,
 	    INTR_TYPE_NET | INTR_MPSAFE, NULL,
 	    igb_msix_link, adapter, &adapter->tag)) != 0) {
-		device_printf(dev, "Failed to register Link handler");
+		device_printf(dev, "Failed to register Link handler\n");
 		return (error);
 	}
+	bus_describe_intr(dev, adapter->res, adapter->tag, "link");
 	adapter->linkvec = vector;
 
 	return (0);
