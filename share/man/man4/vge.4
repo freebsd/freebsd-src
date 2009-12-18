@@ -30,12 +30,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2009
+.Dd December 18, 2009
 .Dt VGE 4
 .Os
 .Sh NAME
 .Nm vge
-.Nd "VIA Networking Technologies VT6122 PCI Gigabit Ethernet adapter driver"
+.Nd "VIA Networking Technologies Velocity Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -55,22 +55,23 @@ if_vge_load="YES"
 The
 .Nm
 driver provides support for various NICs and embedded Ethernet interfaces
-based on the VIA Networking Technologies VT6122 Gigabit Ethernet
-controller chips.
+based on the VIA Technologies VT6120, VT6122, VT6130 and VT6132 Velocity
+Family Gigabit Ethernet controller chips.
 .Pp
-The VT6122 is a 33/66Mhz 64-bit PCI device which combines a tri-speed MAC with
-an integrated 10/100/1000 copper PHY.
+The VT6120/VT6122 is a 33/66Mhz 64-bit PCI device which combines a tri-speed
+MAC with an integrated 10/100/1000 copper PHY.
 (Some older cards use an external PHY.)
+The VT6130/VT6132 is the PCI express version of Velocity family.
 The MAC supports TCP/IP hardware
 checksums (IPv4 only), TCP large send, VLAN tag insertion and stripping,
 as well as VLAN filtering, a 64-entry CAM filter and a 64-entry VLAN filter,
 64-bit multicast hash filter, 4 separate transmit DMA queues, flow control
 and jumbo frames up to 16K in size.
-The VT6122 has a 16K receive FIFO and 48K transmit FIFO.
+The Velocity family controllers have a 16K receive FIFO and 48K transmit FIFO.
 .Pp
 The
 .Nm
-driver takes advantage of the VT6122's checksum offload and VLAN
+driver takes advantage of the controller's checksum offload and VLAN
 tagging features, as well as the jumbo frame and CAM filter support.
 The CAM filter is used for multicast address filtering to provide
 64 perfect multicast address filter support.
@@ -162,7 +163,7 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports VIA Networking VT3119 and VT6122 based
+driver supports VIA Networking VT6120, VT6122, VT6130 and VT6132 based
 Gigabit Ethernet adapters including:
 .Pp
 .Bl -bullet -compact
