@@ -588,11 +588,14 @@ ipmi_polled_enqueue_request(struct ipmi_softc *sc, struct ipmi_request *req)
  * Watchdog event handler.
  */
 
-static void
-ipmi_set_watchdog(struct ipmi_softc *sc, int sec)
+static int
+ipmi_set_watchdog(struct ipmi_softc *sc, unsigned int sec)
 {
 	struct ipmi_request *req;
 	int error;
+
+	if (sec > 0xffff / 10)
+		return (EINVAL);
 
 	req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
 	    IPMI_SET_WDOG, 6, 0);
@@ -604,7 +607,7 @@ ipmi_set_watchdog(struct ipmi_softc *sc, int sec)
 		req->ir_request[2] = 0;
 		req->ir_request[3] = 0;	/* Timer use */
 		req->ir_request[4] = (sec * 10) & 0xff;
-		req->ir_request[5] = (sec * 10) / 2550;
+		req->ir_request[5] = (sec * 10) >> 8;
 	} else {
 		req->ir_request[0] = IPMI_SET_WD_TIMER_SMS_OS;
 		req->ir_request[1] = 0;
@@ -617,8 +620,7 @@ ipmi_set_watchdog(struct ipmi_softc *sc, int sec)
 	error = ipmi_submit_driver_request(sc, req, 0);
 	if (error)
 		device_printf(sc->ipmi_dev, "Failed to set watchdog\n");
-
-	if (error == 0 && sec) {
+	else if (sec) {
 		ipmi_free_request(req);
 
 		req = ipmi_alloc_driver_request(IPMI_ADDR(IPMI_APP_REQUEST, 0),
@@ -631,6 +633,7 @@ ipmi_set_watchdog(struct ipmi_softc *sc, int sec)
 	}
 
 	ipmi_free_request(req);
+	return (error);
 	/*
 	dump_watchdog(sc);
 	*/
@@ -641,14 +644,22 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 {
 	struct ipmi_softc *sc = arg;
 	unsigned int timeout;
+	int e;
 
 	cmd &= WD_INTERVAL;
 	if (cmd > 0 && cmd <= 63) {
-		timeout = ((uint64_t)1 << cmd) / 1800000000;
-		ipmi_set_watchdog(sc, timeout);
-		*error = 0;
+		timeout = ((uint64_t)1 << cmd) / 1000000000;
+		if (timeout == 0)
+			timeout = 1;
+		e = ipmi_set_watchdog(sc, timeout);
+		if (e == 0)
+			*error = 0;
+		else
+			(void)ipmi_set_watchdog(sc, 0);
 	} else {
-		ipmi_set_watchdog(sc, 0);
+		e = ipmi_set_watchdog(sc, 0);
+		if (e != 0 && cmd == 0)
+			*error = EOPNOTSUPP;
 	}
 }
 
