@@ -125,10 +125,8 @@ biosacpi_search_rsdp(char *base, int length)
 	    sum = 0;
 	    for (idx = 0; idx < RSDP_CHECKSUM_LENGTH; idx++)
 		sum += *(cp + idx);
-	    if (sum != 0) {
-		printf("acpi: bad RSDP checksum (%d)\n", sum);
+	    if (sum != 0)
 		continue;
-	    }
 	    return(rsdp);
 	}
     }
