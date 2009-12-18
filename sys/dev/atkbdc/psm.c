@@ -343,6 +343,9 @@ static devclass_t psm_devclass;
 #define	PSM_FLAGS_FINGERDOWN	0x0001	/* VersaPad finger down */
 
 /* Tunables */
+static int tap_enabled = -1;
+TUNABLE_INT("hw.psm.tap_enabled", &tap_enabled);
+
 static int synaptics_support = 0;
 TUNABLE_INT("hw.psm.synaptics_support", &synaptics_support);
 
@@ -898,6 +901,36 @@ doopen(struct psm_softc *sc, int command_byte)
 			VLOG(5, (LOG_DEBUG, "psm%d: Synaptis Absolute Mode "
 			    "hopefully restored\n",
 			    sc->unit));
+		}
+	}
+
+	/*
+	 * A user may want to disable tap and drag gestures on a Synaptics
+	 * TouchPad when it operates in Relative Mode.
+	 */
+	if (sc->hw.model == MOUSE_MODEL_GENERIC) {
+		if (tap_enabled > 0) {
+			/*
+			 * Enable tap & drag gestures. We use a Mode Byte
+			 * and clear the DisGest bit (see §2.5 of Synaptics
+			 * TouchPad Interfacing Guide).
+			 */
+			VLOG(2, (LOG_DEBUG,
+			    "psm%d: enable tap and drag gestures\n",
+			    sc->unit));
+			mouse_ext_command(sc->kbdc, 0x00);
+			set_mouse_sampling_rate(sc->kbdc, 20);
+		} else if (tap_enabled == 0) {
+			/*
+			 * Disable tap & drag gestures. We use a Mode Byte
+			 * and set the DisGest bit (see §2.5 of Synaptics
+			 * TouchPad Interfacing Guide).
+			 */
+			VLOG(2, (LOG_DEBUG,
+			    "psm%d: disable tap and drag gestures\n",
+			    sc->unit));
+			mouse_ext_command(sc->kbdc, 0x04);
+			set_mouse_sampling_rate(sc->kbdc, 20);
 		}
 	}
 
@@ -2261,6 +2294,8 @@ static int pkterrthresh = 2;
 SYSCTL_INT(_debug_psm, OID_AUTO, pkterrthresh, CTLFLAG_RW, &pkterrthresh, 0,
     "Number of error packets allowed before reinitializing the mouse");
 
+SYSCTL_INT(_hw_psm, OID_AUTO, tap_enabled, CTLFLAG_RW, &tap_enabled, 0,
+    "Enable tap and drag gestures");
 static int tap_threshold = PSM_TAP_THRESHOLD;
 SYSCTL_INT(_hw_psm, OID_AUTO, tap_threshold, CTLFLAG_RW, &tap_threshold, 0,
     "Button tap threshold");
