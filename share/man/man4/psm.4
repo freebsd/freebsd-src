@@ -359,6 +359,18 @@ at boot-time.
 This will enable
 .Nm
 to handle packets from guest devices (sticks) and extra buttons.
+.Pp
+Tap and drag gestures can be disabled by setting
+.Va hw.psm.tap_enabled
+to
+.Em 0
+at boot-time.
+Currently, this is only supported on Synaptics touchpads with Extended
+support disabled. The behaviour may be changed after boot by setting
+the sysctl with the same name and by restarting
+.Xr moused 8
+using
+.Pa /etc/rc.d/moused .
 .Sh IOCTLS
 There are a few
 .Xr ioctl 2
