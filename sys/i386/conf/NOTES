@@ -533,7 +533,6 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
-# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -555,29 +554,12 @@ hint.mse.0.irq="5"
 # iwn:	Intel Wireless WiFi Link 4965AGN 802.11 network adapters
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
-# ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
 
 # Order for ISA/EISA devices is important here
 
-device		ath		# Atheros pci/cardbus NIC's
-device		ath_hal		# pci/cardbus chip support
-#device		ath_ar5210	# AR5210 chips
-#device		ath_ar5211	# AR5211 chips
-#device		ath_ar5212	# AR5212 chips
-#device		ath_rf2413
-#device		ath_rf2417
-#device		ath_rf2425
-#device		ath_rf5111
-#device		ath_rf5112
-#device		ath_rf5413
-#device		ath_ar5416	# AR5416 chips
-options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
-#device		ath_ar9160	# AR9160 chips
-#device		ath_ar9280	# AR9280 chips
-device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ce
 device		cp
 device		cs
@@ -612,7 +594,6 @@ hint.le.0.irq="10"
 hint.le.0.drq="0"
 device		nfe		# nVidia nForce MCP on-board Ethernet Networking
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
-device		ral
 device		sbni
 hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
