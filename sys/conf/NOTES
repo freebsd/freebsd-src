@@ -1862,6 +1862,7 @@ device		xmphy		# XaQti XMAC II
 #       L1 PCI express gigabit ethernet controllers.
 # alc:  Support for Atheros AR8131/AR8132 PCIe ethernet controllers.
 # ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
+# ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
 #       adapters.
 # bfe:	Broadcom BCM4401 Ethernet adapter.
@@ -1920,6 +1921,7 @@ device		xmphy		# XaQti XMAC II
 #	pcn(4) driver is left out of the kernel. The le(4) driver does not
 #	support the additional features like the MII bus and burst mode of
 #	the PCnet-FAST and greater chipsets though.
+# ral:	Ralink Technology IEEE 802.11 wireless adapter
 # re:   RealTek 8139C+/8169/816xS/811xS/8101E PCI/PCIe Ethernet adapter
 # rl:   Support for PCI fast ethernet adapters based on the RealTek 8129/8139
 #       chipset.  Note that the RealTek driver defaults to using programmed
@@ -2039,7 +2041,6 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		bwi		# Broadcom BCM430* BCM431*
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
@@ -2057,6 +2058,26 @@ device		fpa
 
 # PCI WAN adapters.
 device		lmc
+
+# PCI IEEE 802.11 Wireless NICs
+device		ath		# Atheros pci/cardbus NIC's
+device		ath_hal		# pci/cardbus chip support
+#device		ath_ar5210	# AR5210 chips
+#device		ath_ar5211	# AR5211 chips
+#device		ath_ar5212	# AR5212 chips
+#device		ath_rf2413
+#device		ath_rf2417
+#device		ath_rf2425
+#device		ath_rf5111
+#device		ath_rf5112
+#device		ath_rf5413
+#device		ath_ar5416	# AR5416 chips
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+#device		ath_ar9160	# AR9160 chips
+#device		ath_ar9280	# AR9280 chips
+device		ath_rate_sample	# SampleRate tx rate control for ath
+device		bwi		# Broadcom BCM430* BCM431*
+device		ral		# Ralink Technology RT2500 wireless NICs.
 
 # Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
 # This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
