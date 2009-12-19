@@ -358,6 +358,7 @@ enterpgrp(p, pgid, pgrp, sess)
 		sess->s_sid = p->p_pid;
 		refcount_init(&sess->s_count, 1);
 		sess->s_ttyvp = NULL;
+		sess->s_ttydp = NULL;
 		sess->s_ttyp = NULL;
 		bcopy(p->p_session->s_login, sess->s_login,
 			    sizeof(sess->s_login));
