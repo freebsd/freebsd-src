@@ -16,6 +16,8 @@
 
 # 20091218: removal of rc.early(8) link
 OLD_FILES+=usr/share/man/man8/rc.early.8.gz
+# 20091027: pselect.3 implemented as syscall
+OLD_FILES+=usr/share/man/man3/pselect.3.gz
 # 20090904: remove lukemftpd
 OLD_FILES+=usr/libexec/lukemftpd
 OLD_FILES+=usr/share/man/man5/ftpd.conf.5.gz
