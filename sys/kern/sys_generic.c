@@ -751,6 +751,58 @@ poll_no_poll(int events)
 	return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
 }
 
+int
+pselect(struct thread *td, struct pselect_args *uap)
+{
+	struct timespec ts;
+	struct timeval tv, *tvp;
+	sigset_t set, *uset;
+	int error;
+
+	if (uap->ts != NULL) {
+		error = copyin(uap->ts, &ts, sizeof(ts));
+		if (error != 0)
+		    return (error);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts);
+		tvp = &tv;
+	} else
+		tvp = NULL;
+	if (uap->sm != NULL) {
+		error = copyin(uap->sm, &set, sizeof(set));
+		if (error != 0)
+			return (error);
+		uset = &set;
+	} else
+		uset = NULL;
+	return (kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
+	    uset, NFDBITS));
+}
+
+int
+kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
+    struct timeval *tvp, sigset_t *uset, int abi_nfdbits)
+{
+	int error;
+
+	if (uset != NULL) {
+		error = kern_sigprocmask(td, SIG_SETMASK, uset,
+		    &td->td_oldsigmask, 0);
+		if (error != 0)
+			return (error);
+		td->td_pflags |= TDP_OLDMASK;
+		/*
+		 * Make sure that ast() is called on return to
+		 * usermode and TDP_OLDMASK is cleared, restoring old
+		 * sigmask.
+		 */
+		thread_lock(td);
+		td->td_flags |= TDF_ASTPENDING;
+		thread_unlock(td);
+	}
+	error = kern_select(td, nd, in, ou, ex, tvp, abi_nfdbits);
+	return (error);
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct select_args {
 	int	nd;
@@ -759,9 +811,7 @@ struct select_args {
 };
 #endif
 int
-select(td, uap)
-	register struct thread *td;
-	register struct select_args *uap;
+select(struct thread *td, struct select_args *uap)
 {
 	struct timeval tv, *tvp;
 	int error;

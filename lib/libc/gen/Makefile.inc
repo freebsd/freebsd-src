@@ -22,7 +22,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c nftw.c nice.c \
 	nlist.c nrand48.c opendir.c \
-	pause.c pmadvise.c popen.c posix_spawn.c pselect.c \
+	pause.c pmadvise.c popen.c posix_spawn.c \
 	psignal.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c sem.c semctl.c \
@@ -63,7 +63,7 @@ MAN+=	alarm.3 arc4random.3 \
 	posix_spawnattr_getpgroup.3 posix_spawnattr_getschedparam.3 \
 	posix_spawnattr_getschedpolicy.3 posix_spawnattr_init.3 \
 	posix_spawnattr_getsigdefault.3 posix_spawnattr_getsigmask.3 \
-	pselect.3 psignal.3 pwcache.3 \
+	psignal.3 pwcache.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 sem_destroy.3 sem_getvalue.3 sem_init.3 \
 	sem_open.3 sem_post.3 sem_timedwait.3 sem_wait.3 \

@@ -913,3 +913,7 @@
 519	AUE_PDKILL	UNIMPL	pdkill
 520	AUE_PDGETPID	UNIMPL	pdgetpid
 521	AUE_PDWAIT	UNIMPL	pdwait
+522	AUE_SELECT	STD	{ int freebsd32_pselect(int nd, fd_set *in, \
+				    fd_set *ou, fd_set *ex, \
+				    const struct timespec32 *ts, \
+				    const sigset_t *sm); }
