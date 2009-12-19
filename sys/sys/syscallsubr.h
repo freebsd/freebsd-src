@@ -148,6 +148,8 @@ int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
 	    int name, u_long flags);
 int	kern_pipe(struct thread *td, int fildes[2]);
 int	kern_preadv(struct thread *td, int fd, struct uio *auio, off_t offset);
+int	kern_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou,
+	    fd_set *ex, struct timeval *tvp, sigset_t *uset, int abi_nfdbits);
 int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,
 	    int data);
 int	kern_pwritev(struct thread *td, int fd, struct uio *auio, off_t offset);

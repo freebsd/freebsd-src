@@ -223,7 +223,6 @@ FBSD_1.0 {
 	posix_madvise;
 	popen;
 	pclose;
-	pselect;
 	psignal;
 	raise;
 	readdir;
@@ -453,7 +452,6 @@ FBSDprivate_1.0 {
 	__opendir2;
 	__pause;
 	_pause;
-	__pselect;
 	__pw_scan;	/* Used by (at least) libutil */
 	__raise;
 	_raise;

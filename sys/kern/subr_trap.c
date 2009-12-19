@@ -245,6 +245,11 @@ ast(struct trapframe *framep)
 		PROC_UNLOCK(p);
 	}
 
+	if (td->td_pflags & TDP_OLDMASK) {
+		td->td_pflags &= ~TDP_OLDMASK;
+		kern_sigprocmask(td, SIG_SETMASK, &td->td_oldsigmask, NULL, 0);
+	}
+
 	userret(td, framep);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
