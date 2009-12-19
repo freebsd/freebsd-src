@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ichsmb/ichsmb_reg.h>
 
 /* PCI unique identifiers */
+#define VENDORID_INTEL			0x8086
 #define ID_82801AA			0x24138086
 #define ID_82801AB			0x24238086
 #define ID_82801BA			0x24438086
@@ -175,10 +176,11 @@ ichsmb_pci_probe(device_t dev)
 		device_set_desc(dev, "Intel 631xESB/6321ESB (ESB2) SMBus controller");
 		break;
 	default:
-		if (pci_get_class(dev) == PCIC_SERIALBUS
+		if (pci_get_vendor(dev) == VENDORID_INTEL
+		    && pci_get_class(dev) == PCIC_SERIALBUS
 		    && pci_get_subclass(dev) == PCIS_SERIALBUS_SMBUS
 		    && pci_get_progif(dev) == PCIS_SERIALBUS_SMBUS_PROGIF) {
-			device_set_desc(dev, "SMBus controller");
+			device_set_desc(dev, "Intel SMBus controller");
 			return (BUS_PROBE_DEFAULT); /* XXX */
 		}
 		return (ENXIO);
