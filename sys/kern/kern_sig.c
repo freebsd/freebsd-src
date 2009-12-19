@@ -99,7 +99,8 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 
 static int	coredump(struct thread *);
 static char	*expand_name(const char *, uid_t, pid_t);
-static int	killpg1(struct thread *td, int sig, int pgid, int all);
+static int	killpg1(struct thread *td, int sig, int pgid, int all,
+		    ksiginfo_t *ksi);
 static int	issignal(struct thread *td, int stop_allowed);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
@@ -377,7 +378,8 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		ksi->ksi_sigq = sq;
 	}
 
-	if ((si->ksi_flags & KSI_TRAP) != 0) {
+	if ((si->ksi_flags & KSI_TRAP) != 0 ||
+	    (si->ksi_flags & KSI_SIGQ) == 0) {
 		if (ret != 0)
 			SIGADDSET(sq->sq_kill, signo);
 		ret = 0;
@@ -1607,11 +1609,9 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
  * cp is calling process.
  */
 static int
-killpg1(td, sig, pgid, all)
-	register struct thread *td;
-	int sig, pgid, all;
+killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 {
-	register struct proc *p;
+	struct proc *p;
 	struct pgrp *pgrp;
 	int nfound = 0;
 
@@ -1630,7 +1630,7 @@ killpg1(td, sig, pgid, all)
 			if (p_cansignal(td, p, sig) == 0) {
 				nfound++;
 				if (sig)
-					psignal(p, sig);
+					pksignal(p, sig, ksi);
 			}
 			PROC_UNLOCK(p);
 		}
@@ -1661,7 +1661,7 @@ killpg1(td, sig, pgid, all)
 			if (p_cansignal(td, p, sig) == 0) {
 				nfound++;
 				if (sig)
-					psignal(p, sig);
+					pksignal(p, sig, ksi);
 			}
 			PROC_UNLOCK(p);
 		}
@@ -1678,17 +1678,22 @@ struct kill_args {
 #endif
 /* ARGSUSED */
 int
-kill(td, uap)
-	register struct thread *td;
-	register struct kill_args *uap;
+kill(struct thread *td, struct kill_args *uap)
 {
-	register struct proc *p;
+	ksiginfo_t ksi;
+	struct proc *p;
 	int error;
 
 	AUDIT_ARG_SIGNUM(uap->signum);
 	AUDIT_ARG_PID(uap->pid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = uap->signum;
+	ksi.ksi_code = SI_USER;
+	ksi.ksi_pid = td->td_proc->p_pid;
+	ksi.ksi_uid = td->td_ucred->cr_ruid;
 
 	if (uap->pid > 0) {
 		/* kill single process */
@@ -1699,17 +1704,17 @@ kill(td, uap)
 		AUDIT_ARG_PROCESS(p);
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
-			psignal(p, uap->signum);
+			pksignal(p, uap->signum, &ksi);
 		PROC_UNLOCK(p);
 		return (error);
 	}
 	switch (uap->pid) {
 	case -1:		/* broadcast signal */
-		return (killpg1(td, uap->signum, 0, 1));
+		return (killpg1(td, uap->signum, 0, 1, &ksi));
 	case 0:			/* signal own process group */
-		return (killpg1(td, uap->signum, 0, 0));
+		return (killpg1(td, uap->signum, 0, 0, &ksi));
 	default:		/* negative explicit process group */
-		return (killpg1(td, uap->signum, -uap->pid, 0));
+		return (killpg1(td, uap->signum, -uap->pid, 0, &ksi));
 	}
 	/* NOTREACHED */
 }
@@ -1723,17 +1728,21 @@ struct okillpg_args {
 #endif
 /* ARGSUSED */
 int
-okillpg(td, uap)
-	struct thread *td;
-	register struct okillpg_args *uap;
+okillpg(struct thread *td, struct okillpg_args *uap)
 {
+	ksiginfo_t ksi;
 
 	AUDIT_ARG_SIGNUM(uap->signum);
 	AUDIT_ARG_PID(uap->pgid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
-	return (killpg1(td, uap->signum, uap->pgid, 0));
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = uap->signum;
+	ksi.ksi_code = SI_USER;
+	ksi.ksi_pid = td->td_proc->p_pid;
+	ksi.ksi_uid = td->td_ucred->cr_ruid;
+	return (killpg1(td, uap->signum, uap->pgid, 0, &ksi));
 }
 #endif /* COMPAT_43 */
 
@@ -1768,6 +1777,7 @@ sigqueue(struct thread *td, struct sigqueue_args *uap)
 	error = p_cansignal(td, p, uap->signum);
 	if (error == 0 && uap->signum != 0) {
 		ksiginfo_init(&ksi);
+		ksi.ksi_flags = KSI_SIGQ;
 		ksi.ksi_signo = uap->signum;
 		ksi.ksi_code = SI_QUEUE;
 		ksi.ksi_pid = td->td_proc->p_pid;
@@ -1783,8 +1793,7 @@ sigqueue(struct thread *td, struct sigqueue_args *uap)
  * Send a signal to a process group.
  */
 void
-gsignal(pgid, sig)
-	int pgid, sig;
+gsignal(int pgid, int sig, ksiginfo_t *ksi)
 {
 	struct pgrp *pgrp;
 
@@ -1793,7 +1802,7 @@ gsignal(pgid, sig)
 		pgrp = pgfind(pgid);
 		sx_sunlock(&proctree_lock);
 		if (pgrp != NULL) {
-			pgsignal(pgrp, sig, 0);
+			pgsignal(pgrp, sig, 0, ksi);
 			PGRP_UNLOCK(pgrp);
 		}
 	}
@@ -1804,18 +1813,16 @@ gsignal(pgid, sig)
  * limit to members which have a controlling terminal.
  */
 void
-pgsignal(pgrp, sig, checkctty)
-	struct pgrp *pgrp;
-	int sig, checkctty;
+pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi)
 {
-	register struct proc *p;
+	struct proc *p;
 
 	if (pgrp) {
 		PGRP_LOCK_ASSERT(pgrp, MA_OWNED);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
 			if (checkctty == 0 || p->p_flag & P_CONTROLT)
-				psignal(p, sig);
+				pksignal(p, sig, ksi);
 			PROC_UNLOCK(p);
 		}
 	}
@@ -1936,7 +1943,19 @@ sigtd(struct proc *p, int sig, int prop)
 void
 psignal(struct proc *p, int sig)
 {
-	(void) tdsignal(p, NULL, sig, NULL);
+	ksiginfo_t ksi;
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = SI_KERNEL;
+	(void) tdsignal(p, NULL, sig, &ksi);
+}
+
+void
+pksignal(struct proc *p, int sig, ksiginfo_t *ksi)
+{
+
+	(void) tdsignal(p, NULL, sig, ksi);
 }
 
 int
@@ -3138,7 +3157,12 @@ pgsigio(sigiop, sig, checkctty)
 	struct sigio **sigiop;
 	int sig, checkctty;
 {
+	ksiginfo_t ksi;
 	struct sigio *sigio;
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = sig;
+	ksi.ksi_code = SI_KERNEL;
 
 	SIGIO_LOCK();
 	sigio = *sigiop;

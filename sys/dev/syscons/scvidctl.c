@@ -321,6 +321,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     return ENODEV;
 #else
     video_info_t info;
+    ksiginfo_t ksi;
     u_char *font;
     int prev_ysize;
     int error;
@@ -454,8 +455,11 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	tp->t_winsize.ws_col = scp->xsize;
 	tp->t_winsize.ws_row = scp->ysize;
 	if (tp->t_pgrp != NULL) {
+	    ksiginfo_init(&ksi);
+	    ksi.ksi_signo = SIGWINCH;
+	    ksi.ksi_code = SI_KERNEL;
 	    PGRP_LOCK(tp->t_pgrp);
-	    pgsignal(tp->t_pgrp, SIGWINCH, 1);
+	    pgsignal(tp->t_pgrp, SIGWINCH, 1, &ksi);
 	    PGRP_UNLOCK(tp->t_pgrp);
 	}
     }
