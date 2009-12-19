@@ -974,7 +974,7 @@ fi
 # change to something else in a newer version.  So we need to explicitly
 # test for this, and warn the user if what we find does not match.
 #
-for COMPFILE in `find .` ; do
+for COMPFILE in `find . | sort` ; do
   if [ -e "${DESTDIR}${COMPFILE#.}" ]; then
     INSTALLED_TYPE=`stat -f '%HT' ${DESTDIR}${COMPFILE#.}`
   else
@@ -1021,7 +1021,7 @@ for COMPFILE in `find .` ; do
   fi
 done
 
-for COMPFILE in `find . -type f`; do
+for COMPFILE in `find . -type f | sort`; do
 
   # First, check to see if the file exists in DESTDIR.  If not, the
   # diff_loop function knows how to handle it.
@@ -1124,7 +1124,7 @@ echo ''
 TEST_FOR_FILES=`find ${TEMPROOT} -type f -size +0 2>/dev/null`
 if [ -n "${TEST_FOR_FILES}" ]; then
   echo "*** Files that remain for you to merge by hand:"
-  find "${TEMPROOT}" -type f -size +0
+  find "${TEMPROOT}" -type f -size +0 | sort
   echo ''
 fi
 
