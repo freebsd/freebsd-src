@@ -197,15 +197,8 @@ DELAY(int n)
 {
 	u_quad_t start, end, now;
 
-#define USECS_IN_SEC	1000000ULL
-
-	if (n > USECS_IN_SEC) {
-		printf("WARNING: %s(%d) called from %p", __func__, n,
-		    __builtin_return_address(0));
-	}
-
 	start = mftb();
-	end = start + (u_quad_t)ticks_per_sec / (USECS_IN_SEC / n);
+	end = start + (u_quad_t)ticks_per_sec / (1000000ULL / n);
 	do {
 		now = mftb();
 	} while (now < end || (now > start && end < start));
