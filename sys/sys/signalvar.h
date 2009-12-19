@@ -316,6 +316,10 @@ extern int kern_logsigexit;	/* Sysctl variable kern.logsigexit */
 #define	SIG_STOP_ALLOWED	100
 #define	SIG_STOP_NOT_ALLOWED	101
 
+/* flags for kern_sigprocmask */
+#define	SIGPROCMASK_OLD		0x0001
+#define	SIGPROCMASK_PROC_LOCKED	0x0002
+
 /*
  * Machine-independent functions:
  */
@@ -325,7 +329,7 @@ void	gsignal(int pgid, int sig);
 void	killproc(struct proc *p, char *why);
 void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
-void	postsig(int sig);
+int	postsig(int sig);
 void	psignal(struct proc *p, int sig);
 int	psignal_event(struct proc *p, struct sigevent *, ksiginfo_t *);
 struct sigacts *sigacts_alloc(void);
@@ -359,7 +363,8 @@ void	sigqueue_delete_stopmask_proc(struct proc *);
 void	sigqueue_take(ksiginfo_t *ksi);
 int	kern_sigtimedwait(struct thread *, sigset_t,
 		ksiginfo_t *, struct timespec *);
-
+int	kern_sigprocmask(struct thread *td, int how,
+	    sigset_t *set, sigset_t *oset, int flags);
 /*
  * Machine-dependent functions:
  */
