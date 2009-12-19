@@ -89,8 +89,8 @@
 #define VGE_RXQCSRC		0x36	/* RX queue ctl/status clear */
 #define VGE_RXDESC_ADDR_LO	0x38	/* RX desc base addr (lo 32 bits) */
 #define VGE_RXDESC_CONSIDX	0x3C	/* Current RX descriptor index */
-#define VGE_RXQTIMER		0x3E	/* RX queue timer pend register */
-#define VGE_TXQTIMER		0x3F	/* TX queue timer pend register */
+#define VGE_TXQTIMER		0x3E	/* TX queue timer pend register */
+#define VGE_RXQTIMER		0x3F	/* RX queue timer pend register */
 #define VGE_TXDESC_ADDR_LO0	0x40	/* TX desc0 base addr (lo 32 bits) */
 #define VGE_TXDESC_ADDR_LO1	0x44	/* TX desc1 base addr (lo 32 bits) */
 #define VGE_TXDESC_ADDR_LO2	0x48	/* TX desc2 base addr (lo 32 bits) */
