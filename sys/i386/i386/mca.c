@@ -117,48 +117,6 @@ sysctl_mca_records(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, &record, sizeof(record)));
 }
 
-static struct mca_record *
-mca_record_entry(int bank)
-{
-	struct mca_internal *rec;
-	uint64_t status;
-	u_int p[4];
-
-	status = rdmsr(MSR_MC_STATUS(bank));
-	if (!(status & MC_STATUS_VAL))
-		return (NULL);
-
-	rec = malloc(sizeof(*rec), M_MCA, M_NOWAIT | M_ZERO);
-	if (rec == NULL) {
-		printf("MCA: Unable to allocate space for an event.\n");
-		return (NULL);
-	}
-
-	/* Save exception information. */
-	rec->rec.mr_status = status;
-	if (status & MC_STATUS_ADDRV)
-		rec->rec.mr_addr = rdmsr(MSR_MC_ADDR(bank));
-	if (status & MC_STATUS_MISCV)
-		rec->rec.mr_misc = rdmsr(MSR_MC_MISC(bank));
-	rec->rec.mr_tsc = rdtsc();
-	rec->rec.mr_apic_id = PCPU_GET(apic_id);
-
-	/*
-	 * Clear machine check.  Don't do this for uncorrectable
-	 * errors so that the BIOS can see them.
-	 */
-	if (!(rec->rec.mr_status & (MC_STATUS_PCC | MC_STATUS_UC))) {
-		wrmsr(MSR_MC_STATUS(bank), 0);
-		do_cpuid(0, p);
-	}
-
-	mtx_lock_spin(&mca_lock);
-	STAILQ_INSERT_TAIL(&mca_records, rec, link);
-	mca_count++;
-	mtx_unlock_spin(&mca_lock);
-	return (&rec->rec);
-}
-
 static const char *
 mca_error_ttype(uint16_t mca_error)
 {
@@ -219,11 +177,13 @@ mca_error_request(uint16_t mca_error)
 }
 
 /* Dump details about a single machine check. */
-static void
-mca_log(struct mca_record *rec)
+static void __nonnull(1)
+mca_log(const struct mca_record *rec)
 {
 	uint16_t mca_error;
 
+	printf("MCA: bank %d, status 0x%016llx\n", rec->mr_bank,
+	    (long long)rec->mr_status);
 	printf("MCA: CPU %d ", rec->mr_apic_id);
 	if (rec->mr_status & MC_STATUS_UC)
 		printf("UNCOR ");
@@ -329,6 +289,59 @@ mca_log(struct mca_record *rec)
 		printf("MCA: Address 0x%llx\n", (long long)rec->mr_addr);
 }
 
+static int __nonnull(2)
+mca_check_status(int bank, struct mca_record *rec)
+{
+	uint64_t status;
+	u_int p[4];
+
+	status = rdmsr(MSR_MC_STATUS(bank));
+	if (!(status & MC_STATUS_VAL))
+		return (0);
+
+	/* Save exception information. */
+	rec->mr_status = status;
+	rec->mr_bank = bank;
+	rec->mr_addr = 0;
+	if (status & MC_STATUS_ADDRV)
+		rec->mr_addr = rdmsr(MSR_MC_ADDR(bank));
+	rec->mr_misc = 0;
+	if (status & MC_STATUS_MISCV)
+		rec->mr_misc = rdmsr(MSR_MC_MISC(bank));
+	rec->mr_tsc = rdtsc();
+	rec->mr_apic_id = PCPU_GET(apic_id);
+
+	/*
+	 * Clear machine check.  Don't do this for uncorrectable
+	 * errors so that the BIOS can see them.
+	 */
+	if (!(rec->mr_status & (MC_STATUS_PCC | MC_STATUS_UC))) {
+		wrmsr(MSR_MC_STATUS(bank), 0);
+		do_cpuid(0, p);
+	}
+	return (1);
+}
+
+static void __nonnull(1)
+mca_record_entry(const struct mca_record *record)
+{
+	struct mca_internal *rec;
+
+	rec = malloc(sizeof(*rec), M_MCA, M_NOWAIT);
+	if (rec == NULL) {
+		printf("MCA: Unable to allocate space for an event.\n");
+		mca_log(record);
+		return;
+	}
+
+	rec->rec = *record;
+	rec->logged = 0;
+	mtx_lock_spin(&mca_lock);
+	STAILQ_INSERT_TAIL(&mca_records, rec, link);
+	mca_count++;
+	mtx_unlock_spin(&mca_lock);
+}
+
 /*
  * This scans all the machine check banks of the current CPU to see if
  * there are any machine checks.  Any non-recoverable errors are
@@ -341,7 +354,7 @@ mca_log(struct mca_record *rec)
 static int
 mca_scan(int mcip)
 {
-	struct mca_record *rec;
+	struct mca_record rec;
 	uint64_t mcg_cap, ucmask;
 	int count, i, recoverable;
 
@@ -354,13 +367,13 @@ mca_scan(int mcip)
 		ucmask |= MC_STATUS_OVER;
 	mcg_cap = rdmsr(MSR_MCG_CAP);
 	for (i = 0; i < (mcg_cap & MCG_CAP_COUNT); i++) {
-		rec = mca_record_entry(i);
-		if (rec != NULL) {
+		if (mca_check_status(i, &rec)) {
 			count++;
-			if (rec->mr_status & ucmask) {
+			if (rec.mr_status & ucmask) {
 				recoverable = 0;
-				mca_log(rec);
+				mca_log(&rec);
 			}
+			mca_record_entry(&rec);
 		}
 	}
 	return (mcip ? recoverable : count);
