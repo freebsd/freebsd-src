@@ -16,14 +16,6 @@
 
 # 20091218: removal of rc.early(8) link
 OLD_FILES+=usr/share/man/man8/rc.early.8.gz
-# 20091027: pselect.3 implemented as syscall
-OLD_FILES+=usr/share/man/man3/pselect.3.gz
-# 20091005: fusword.9 and susword.9 removed
-OLD_FILES+=usr/share/man/man9/fusword.9.gz
-OLD_FILES+=usr/share/man/man9/susword.9.gz
-# 20090909: vesa and dpms promoted to be i386/amd64 common
-OLD_FILES+=usr/include/machine/pc/vesa.h
-OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
 # 20090904: remove lukemftpd
 OLD_FILES+=usr/libexec/lukemftpd
 OLD_FILES+=usr/share/man/man5/ftpd.conf.5.gz
