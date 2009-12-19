@@ -5,10 +5,6 @@ INTERNALPROG=
 NO_MAN=
 SRCS=	btx.S
 
-.if defined(PAGING)
-CFLAGS+=-DPAGING
-.endif
-
 .if defined(BOOT_BTX_NOHANG)
 BOOT_BTX_FLAGS=0x1
 .else
