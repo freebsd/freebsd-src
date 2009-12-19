@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -237,7 +237,7 @@ uint64_t dmu_object_alloc(objset_t *os, dmu_object_type_t ot,
 int dmu_object_claim(objset_t *os, uint64_t object, dmu_object_type_t ot,
     int blocksize, dmu_object_type_t bonus_type, int bonus_len, dmu_tx_t *tx);
 int dmu_object_reclaim(objset_t *os, uint64_t object, dmu_object_type_t ot,
-    int blocksize, dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
+    int blocksize, dmu_object_type_t bonustype, int bonuslen);
 
 /*
  * Free an object from this objset.
