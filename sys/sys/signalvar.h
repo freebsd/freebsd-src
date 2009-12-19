@@ -319,6 +319,7 @@ extern int kern_logsigexit;	/* Sysctl variable kern.logsigexit */
 /* flags for kern_sigprocmask */
 #define	SIGPROCMASK_OLD		0x0001
 #define	SIGPROCMASK_PROC_LOCKED	0x0002
+#define	SIGPROCMASK_PS_LOCKED	0x0004
 
 /*
  * Machine-independent functions:

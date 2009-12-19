@@ -2482,7 +2482,7 @@ ofreebsd32_sigprocmask(struct thread *td,
 	int error;
 
 	OSIG2SIG(uap->mask, set);
-	error = kern_sigprocmask(td, uap->how, &set, &oset, 1);
+	error = kern_sigprocmask(td, uap->how, &set, &oset, SIGPROCMASK_OLD);
 	SIG2OSIG(oset, td->td_retval[0]);
 	return (error);
 }
@@ -2546,15 +2546,11 @@ int
 ofreebsd32_sigblock(struct thread *td,
 			    struct ofreebsd32_sigblock_args *uap)
 {
-	struct proc *p = td->td_proc;
-	sigset_t set;
+	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
-	SIG_CANTMASK(set);
-	PROC_LOCK(p);
-	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
-	SIGSETOR(td->td_sigmask, set);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_BLOCK, &set, &oset, 0);
+	SIG2OSIG(oset, td->td_retval[0]);
 	return (0);
 }
 
@@ -2562,16 +2558,11 @@ int
 ofreebsd32_sigsetmask(struct thread *td,
 			      struct ofreebsd32_sigsetmask_args *uap)
 {
-	struct proc *p = td->td_proc;
-	sigset_t set;
+	sigset_t set, oset;
 
 	OSIG2SIG(uap->mask, set);
-	SIG_CANTMASK(set);
-	PROC_LOCK(p);
-	SIG2OSIG(td->td_sigmask, td->td_retval[0]);
-	SIGSETLO(td->td_sigmask, set);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &set, &oset, 0);
+	SIG2OSIG(oset, td->td_retval[0]);
 	return (0);
 }
 
