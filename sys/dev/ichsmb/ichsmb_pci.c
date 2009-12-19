@@ -175,12 +175,6 @@ ichsmb_pci_probe(device_t dev)
 		device_set_desc(dev, "Intel 631xESB/6321ESB (ESB2) SMBus controller");
 		break;
 	default:
-		if (pci_get_class(dev) == PCIC_SERIALBUS
-		    && pci_get_subclass(dev) == PCIS_SERIALBUS_SMBUS
-		    && pci_get_progif(dev) == PCIS_SERIALBUS_SMBUS_PROGIF) {
-			device_set_desc(dev, "SMBus controller");
-			return (BUS_PROBE_DEFAULT); /* XXX */
-		}
 		return (ENXIO);
 	}
 
