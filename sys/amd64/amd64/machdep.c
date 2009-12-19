@@ -415,7 +415,7 @@ sigreturn(td, uap)
 	ucontext_t uc;
 	struct proc *p = td->td_proc;
 	struct trapframe *regs;
-	const ucontext_t *ucp;
+	ucontext_t *ucp;
 	long rflags;
 	int cs, error, ret;
 	ksiginfo_t ksi;
@@ -478,7 +478,6 @@ sigreturn(td, uap)
 	td->td_pcb->pcb_fsbase = ucp->uc_mcontext.mc_fsbase;
 	td->td_pcb->pcb_gsbase = ucp->uc_mcontext.mc_gsbase;
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
@@ -486,10 +485,7 @@ sigreturn(td, uap)
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	td->td_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);

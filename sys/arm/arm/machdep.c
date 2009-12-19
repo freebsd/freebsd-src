@@ -605,7 +605,6 @@ sigreturn(td, uap)
 		const struct __ucontext *sigcntxp;
 	} */ *uap;
 {
-	struct proc *p = td->td_proc;
 	struct sigframe sf;
 	struct trapframe *tf;
 	int spsr;
@@ -627,11 +626,7 @@ sigreturn(td, uap)
 	set_mcontext(td, &sf.sf_uc.uc_mcontext);
 
 	/* Restore signal mask. */
-	PROC_LOCK(p);
-	td->td_sigmask = sf.sf_uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &sf.sf_uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
 }

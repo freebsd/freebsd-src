@@ -1119,11 +1119,9 @@ sigreturn(struct thread *td,
 {
 	ucontext_t uc;
 	struct trapframe *tf;
-	struct proc *p;
 	struct pcb *pcb;
 
 	tf = td->td_frame;
-	p = td->td_proc;
 	pcb = td->td_pcb;
 
 	/*
@@ -1135,17 +1133,13 @@ sigreturn(struct thread *td,
 
 	set_mcontext(td, &uc.uc_mcontext);
 
-	PROC_LOCK(p);
 #if defined(COMPAT_43)
 	if (sigonstack(tf->tf_special.sp))
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-	td->td_sigmask = uc.uc_sigmask;
-	SIG_CANTMASK(td->td_sigmask);
-	signotify(td);
-	PROC_UNLOCK(p);
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	return (EJUSTRETURN);
 }
