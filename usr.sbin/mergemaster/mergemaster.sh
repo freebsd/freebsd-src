@@ -840,32 +840,32 @@ mm_install () {
       DONT_INSTALL=yes
       ;;
     /.cshrc | /.profile)
-    case "${AUTO_INSTALL}" in
-    '')
-      case "${LINK_EXPLAINED}" in
+      case "${AUTO_INSTALL}" in
       '')
-        echo "   *** Historically BSD derived systems have had a"
-        echo "       hard link from /.cshrc and /.profile to"
-        echo "       their namesakes in /root.  Please indicate"
-        echo "       your preference below for bringing your"
-        echo "       installed files up to date."
+        case "${LINK_EXPLAINED}" in
+        '')
+          echo "   *** Historically BSD derived systems have had a"
+          echo "       hard link from /.cshrc and /.profile to"
+          echo "       their namesakes in /root.  Please indicate"
+          echo "       your preference below for bringing your"
+          echo "       installed files up to date."
+          echo ''
+          LINK_EXPLAINED=yes
+          ;;
+        esac
+
+        echo "   Use 'd' to delete the temporary ${COMPFILE}"
+        echo "   Use 'l' to delete the existing ${DESTDIR}${COMPFILE#.} and create the link"
         echo ''
-        LINK_EXPLAINED=yes
+        echo "   Default is to leave the temporary file to deal with by hand"
+        echo ''
+        echo -n "  How should I handle ${COMPFILE}? [Leave it to install later] "
+        read HANDLE_LINK
+        ;;
+      *)  # Part of AUTO_INSTALL
+        HANDLE_LINK=l
         ;;
       esac
-
-      echo "   Use 'd' to delete the temporary ${COMPFILE}"
-      echo "   Use 'l' to delete the existing ${DESTDIR}${COMPFILE#.} and create the link"
-      echo ''
-      echo "   Default is to leave the temporary file to deal with by hand"
-      echo ''
-      echo -n "  How should I handle ${COMPFILE}? [Leave it to install later] "
-      read HANDLE_LINK
-      ;;
-    *)  # Part of AUTO_INSTALL
-      HANDLE_LINK=l
-      ;;
-    esac
 
       case "${HANDLE_LINK}" in
       [dD]*)
