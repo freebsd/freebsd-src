@@ -355,6 +355,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
 	struct pgrp *pg;
+	ksiginfo_t ksi;
 	int error;
 
 	MPASS(sig == SIGTTIN || sig == SIGTTOU);
@@ -396,8 +397,14 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		 * Send the signal and sleep until we're the new
 		 * foreground process group.
 		 */
+		if (sig != 0) {
+			ksiginfo_init(&ksi);
+			ksi.ksi_code = SI_KERNEL;
+			ksi.ksi_signo = sig;
+			sig = 0;
+		}
 		PGRP_LOCK(pg);
-		pgsignal(pg, sig, 1);
+		pgsignal(pg, ksi.ksi_signo, 1, &ksi);
 		PGRP_UNLOCK(pg);
 
 		error = tty_wait(tp, &tp->t_bgwait);
@@ -1223,6 +1230,8 @@ tty_signal_sessleader(struct tty *tp, int sig)
 void
 tty_signal_pgrp(struct tty *tp, int sig)
 {
+	ksiginfo_t ksi;
+
 	tty_lock_assert(tp, MA_OWNED);
 	MPASS(sig >= 1 && sig < NSIG);
 
@@ -1232,8 +1241,11 @@ tty_signal_pgrp(struct tty *tp, int sig)
 	if (sig == SIGINFO && !(tp->t_termios.c_lflag & NOKERNINFO))
 		tty_info(tp);
 	if (tp->t_pgrp != NULL) {
+		ksiginfo_init(&ksi);
+		ksi.ksi_signo = sig;
+		ksi.ksi_code = SI_KERNEL;
 		PGRP_LOCK(tp->t_pgrp);
-		pgsignal(tp->t_pgrp, sig, 1);
+		pgsignal(tp->t_pgrp, sig, 1, &ksi);
 		PGRP_UNLOCK(tp->t_pgrp);
 	}
 }
