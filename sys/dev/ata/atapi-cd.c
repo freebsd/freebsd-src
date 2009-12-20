@@ -1211,6 +1211,7 @@ acd_read_track_info(device_t dev, int32_t lba, struct acd_track_info *info)
     if ((error = ata_atapicmd(dev, ccb, (caddr_t)info, sizeof(*info),
 			      ATA_R_READ, 30)))
 	return error;
+    info->data_length = ntohs(info->data_length);
     info->track_start_addr = ntohl(info->track_start_addr);
     info->next_writeable_addr = ntohl(info->next_writeable_addr);
     info->free_blocks = ntohl(info->free_blocks);
@@ -1649,12 +1650,17 @@ acd_get_cap(device_t dev)
     for (count = 0 ; count < 5 ; count++) {
 	if (!ata_atapicmd(dev, ccb, (caddr_t)&cdp->cap, sizeof(cdp->cap),
 			  ATA_R_READ | ATA_R_QUIET, 5)) {
+	    cdp->cap.data_length = ntohs(cdp->cap.data_length);
+	    cdp->cap.blk_desc_len = ntohs(cdp->cap.blk_desc_len);
+	    cdp->cap.media = ntohs(cdp->cap.media);
+	    cdp->cap.capabilities = ntohs(cdp->cap.capabilities);
 	    cdp->cap.max_read_speed = ntohs(cdp->cap.max_read_speed);
+	    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
+	    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
 	    cdp->cap.cur_read_speed = ntohs(cdp->cap.cur_read_speed);
 	    cdp->cap.max_write_speed = ntohs(cdp->cap.max_write_speed);
 	    cdp->cap.cur_write_speed = max(ntohs(cdp->cap.cur_write_speed),177);
-	    cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
-	    cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
+	    cdp->cap.copy_protect_rev = ntohs(cdp->cap.copy_protect_rev);
 	}
     }
 }
