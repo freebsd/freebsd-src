@@ -761,8 +761,8 @@ struct vge_rx_desc {
 #define VGE_RDSTS_OWN		0x80000000	/* own bit. */
 
 #define VGE_RXPKT_ONEFRAG	0x00000000	/* only one fragment */
-#define VGE_RXPKT_EOF		0x00000100	/* first frag in frame */
-#define VGE_RXPKT_SOF		0x00000200	/* last frag in frame */
+#define VGE_RXPKT_EOF		0x00000100	/* last frag in frame */
+#define VGE_RXPKT_SOF		0x00000200	/* first frag in frame */
 #define VGE_RXPKT_MOF		0x00000300	/* intermediate frag */
 
 #define VGE_RDCTL_VLANID	0x0000FFFF	/* VLAN ID info */
