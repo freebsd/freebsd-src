@@ -379,8 +379,6 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	if ((i = libusb_get_device_list(ctx, &devs)) < 0)
 		return (NULL);
 
-	pdev = NULL;
-
 	for (j = 0; j < i; j++) {
 		pdev = devs[j]->os_priv;
 		pdesc = libusb20_dev_get_device_desc(pdev);
@@ -396,6 +394,8 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 			break;
 		}
 	}
+	if (j == i)
+		pdev = NULL;
 
 	libusb_free_device_list(devs, 1);
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid leave");
