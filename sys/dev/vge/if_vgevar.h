@@ -39,7 +39,7 @@
 #define VGE_TX_RING_ALIGN	64
 #define VGE_RX_RING_ALIGN	64
 #define VGE_MAXTXSEGS		6
-#define VGE_RX_BUF_ALIGN	sizeof(uint32_t)
+#define VGE_RX_BUF_ALIGN	sizeof(uint64_t)
 
 /*
  * VIA Velocity allows 64bit DMA addressing but high 16bits
