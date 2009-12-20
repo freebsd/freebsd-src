@@ -1013,7 +1013,8 @@ vge_attach(device_t dev)
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PCIE;
 		sc->vge_expcap = cap;
-	}
+	} else
+		sc->vge_flags |= VGE_FLAG_JUMBO;
 	if (pci_find_extcap(dev, PCIY_PMG, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PMCAP;
 		sc->vge_pmcap = cap;
@@ -2221,9 +2222,17 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu > VGE_JUMBO_MTU)
+		VGE_LOCK(sc);
+		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > VGE_JUMBO_MTU)
 			error = EINVAL;
-		ifp->if_mtu = ifr->ifr_mtu;
+		else if (ifp->if_mtu != ifr->ifr_mtu) {
+			if (ifr->ifr_mtu > ETHERMTU &&
+			    (sc->vge_flags & VGE_FLAG_JUMBO) == 0)
+				error = EINVAL;
+			else
+				ifp->if_mtu = ifr->ifr_mtu;
+		}
+		VGE_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		VGE_LOCK(sc);
