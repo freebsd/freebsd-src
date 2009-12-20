@@ -119,7 +119,7 @@ iodi_setup_intr(device_t dev, device_t child,
 		xlr_write_reg(mmio, PIC_IRT_1_UART_0, ((1 << 31) | (level << 30) | (1 << 6) | (PIC_UART_0_IRQ)));
 		if (rmi_spin_mutex_safe)
 			mtx_unlock_spin(&xlr_pic_lock);
-		cpu_establish_hardintr("uart", NULL,
+		cpu_establish_hardintr("uart", filt,
 		    (driver_intr_t *) intr, (void *)arg, PIC_UART_0_IRQ, flags, cookiep);
 
 	} else if (strcmp(device_get_name(child), "rge") == 0) {
@@ -133,7 +133,7 @@ iodi_setup_intr(device_t dev, device_t child,
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + irq - PIC_IRQ_BASE, reg | (1 << 6) | (1 << 30) | (1 << 31));
 		if (rmi_spin_mutex_safe)
 			mtx_unlock_spin(&xlr_pic_lock);
-		cpu_establish_hardintr("rge", NULL, (driver_intr_t *) intr, (void *)arg, irq, flags, cookiep);
+		cpu_establish_hardintr("rge", filt, (driver_intr_t *) intr, (void *)arg, irq, flags, cookiep);
 
 	} else if (strcmp(device_get_name(child), "ehci") == 0) {
 		if (rmi_spin_mutex_safe)
@@ -142,7 +142,7 @@ iodi_setup_intr(device_t dev, device_t child,
 		xlr_write_reg(mmio, PIC_IRT_1_BASE + PIC_USB_IRQ - PIC_IRQ_BASE, reg | (1 << 6) | (1 << 30) | (1 << 31));
 		if (rmi_spin_mutex_safe)
 			mtx_unlock_spin(&xlr_pic_lock);
-		cpu_establish_hardintr("ehci", NULL, (driver_intr_t *) intr, (void *)arg, PIC_USB_IRQ, flags, cookiep);
+		cpu_establish_hardintr("ehci", filt, (driver_intr_t *) intr, (void *)arg, PIC_USB_IRQ, flags, cookiep);
 	}
 	/*
 	 * This causes a panic and looks recursive to me (RRS).
