@@ -482,6 +482,11 @@ struct ata_pci_controller {
 #define ATA_VIA6410             0x31641106
 #define ATA_VIA6420             0x31491106
 #define ATA_VIA6421             0x32491106
+#define ATA_VIACX700IDE         0x05811106
+#define ATA_VIACX700            0x83241106
+#define ATA_VIASATAIDE          0x53241106
+#define ATA_VIAVX800            0x83531106
+#define ATA_VIAVX855            0x84091106
 
 /* global prototypes ata-pci.c */
 int ata_pci_probe(device_t dev);
