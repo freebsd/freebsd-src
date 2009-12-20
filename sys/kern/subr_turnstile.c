@@ -686,7 +686,7 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 	 */
 	tc = TC_LOOKUP(ts->ts_lockobj);
 	if (ts == td->td_turnstile) {
-	mtx_assert(&tc->tc_lock, MA_OWNED);
+		mtx_assert(&tc->tc_lock, MA_OWNED);
 #ifdef TURNSTILE_PROFILING
 		tc->tc_depth++;
 		if (tc->tc_depth > tc->tc_max_depth) {
