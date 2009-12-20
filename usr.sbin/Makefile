@@ -167,6 +167,7 @@ SUBDIR=	${_ac} \
 	${_sa} \
 	${_sade} \
 	${_sendmail} \
+	service \
 	setfib \
 	setfmac \
 	setpmac \
