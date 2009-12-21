@@ -238,6 +238,7 @@ struct et_softc {
 	struct arpcom		arpcom;
 	int			sc_if_flags;
 	uint32_t		sc_flags;	/* ET_FLAG_ */
+	int			sc_expcap;
 
 	int			sc_mem_rid;
 
@@ -277,7 +278,9 @@ struct et_softc {
 #define ET_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define ET_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 
-#define ET_FLAG_TXRX_ENABLED	0x1
-#define ET_FLAG_JUMBO		0x2
+#define ET_FLAG_PCIE		0x0001
+#define ET_FLAG_MSI		0x0002
+#define ET_FLAG_TXRX_ENABLED	0x0100
+#define ET_FLAG_JUMBO		0x0200
 
 #endif	/* !_IF_ETVAR_H */
