@@ -183,7 +183,9 @@ enum g_raid3_zones {
 
 static __inline enum g_raid3_zones
 g_raid3_zone(size_t nbytes) {
-	if (nbytes > 16384)
+	if (nbytes > 65536)
+		return (G_RAID3_NUM_ZONES);
+	else if (nbytes > 16384)
 		return (G_RAID3_ZONE_64K);
 	else if (nbytes > 4096)
 		return (G_RAID3_ZONE_16K);
