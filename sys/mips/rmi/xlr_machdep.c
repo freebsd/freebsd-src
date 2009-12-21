@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -49,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <sys/cons.h>		/* cinit() */
+#include <sys/kdb.h>
 #include <sys/reboot.h>
 #include <sys/queue.h>
 #include <sys/smp.h>
@@ -363,7 +366,7 @@ mips_init(void)
 #endif				/* SMP */
 	kdb_init();
 	if (boothowto & RB_KDB) {
-		kdb_enter("Boot flags requested debugger");
+		kdb_enter("Boot flags requested debugger", NULL);
 	}
 #endif
 }
