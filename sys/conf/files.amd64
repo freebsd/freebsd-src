@@ -135,6 +135,7 @@ crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
+dev/amdsbwd/amdsbwd.c		optional	amdsbwd
 dev/amdtemp/amdtemp.c		optional	amdtemp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
