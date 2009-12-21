@@ -127,6 +127,7 @@ dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
 dev/aic/aic_isa.c		optional aic isa
+dev/amdsbwd/amdsbwd.c		optional amdsbwd
 dev/amdtemp/amdtemp.c		optional amdtemp
 dev/arcmsr/arcmsr.c		optional arcmsr pci
 dev/asmc/asmc.c			optional asmc isa
