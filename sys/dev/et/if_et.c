@@ -222,10 +222,10 @@ et_probe(device_t dev)
 	for (d = et_devices; d->desc != NULL; ++d) {
 		if (vid == d->vid && did == d->did) {
 			device_set_desc(dev, d->desc);
-			return 0;
+			return (0);
 		}
 	}
-	return ENXIO;
+	return (ENXIO);
 }
 
 static int
@@ -267,7 +267,7 @@ et_attach(device_t dev)
 						&sc->sc_mem_rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "can't allocate IO memory\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 	sc->sc_mem_bt = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_mem_bh = rman_get_bushandle(sc->sc_mem_res);
@@ -361,10 +361,10 @@ et_attach(device_t dev)
 
 	et_add_sysctls(sc);
 
-	return 0;
+	return (0);
 fail:
 	et_detach(dev);
-	return error;
+	return (error);
 }
 
 static int
@@ -406,7 +406,7 @@ et_detach(device_t dev)
 
 	mtx_destroy(&sc->sc_mtx);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -417,7 +417,7 @@ et_shutdown(device_t dev)
 	ET_LOCK(sc);
 	et_stop(sc);
 	ET_UNLOCK(sc);
-	return 0;
+	return (0);
 }
 
 static int
@@ -460,7 +460,7 @@ et_miibus_readreg(device_t dev, int phy, int reg)
 back:
 	/* Make sure that the current operation is stopped */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
-	return ret;
+	return (ret);
 }
 
 static int
@@ -499,7 +499,7 @@ et_miibus_writereg(device_t dev, int phy, int reg, int val0)
 
 	/* Make sure that the current operation is stopped */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
-	return 0;
+	return (0);
 }
 
 static void
@@ -522,7 +522,7 @@ et_ifmedia_upd_locked(struct ifnet *ifp)
 	}
 	mii_mediachg(mii);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -535,7 +535,7 @@ et_ifmedia_upd(struct ifnet *ifp)
 	res = et_ifmedia_upd_locked(ifp);
 	ET_UNLOCK(sc);
 
-	return res;
+	return (res);
 }
 
 static void
@@ -590,7 +590,7 @@ et_bus_config(device_t dev)
 	val = pci_read_config(dev, ET_PCIR_EEPROM_STATUS, 1);
 	if (val & ET_PCIM_EEPROM_STATUS_ERROR) {
 		device_printf(dev, "EEPROM status error 0x%02x\n", val);
-		return ENXIO;
+		return (ENXIO);
 	}
 
 	/* TODO: LED */
@@ -644,7 +644,7 @@ et_bus_config(device_t dev)
 	val |= ET_PCIV_DEVICE_CTRL_RRSZ_2K;
 	pci_write_config(dev, ET_PCIR_DEVICE_CTRL, val, 2);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -716,7 +716,7 @@ et_dma_alloc(device_t dev)
 				   0, NULL, NULL, &sc->sc_dtag);
 	if (error) {
 		device_printf(dev, "can't create DMA tag\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -727,7 +727,7 @@ et_dma_alloc(device_t dev)
 				  &tx_ring->tr_paddr, &tx_ring->tr_dmap);
 	if (error) {
 		device_printf(dev, "can't create TX ring DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -738,7 +738,7 @@ et_dma_alloc(device_t dev)
 				  &txsd->txsd_paddr, &txsd->txsd_dmap);
 	if (error) {
 		device_printf(dev, "can't create TX status DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -758,7 +758,7 @@ et_dma_alloc(device_t dev)
 		if (error) {
 			device_printf(dev, "can't create DMA stuffs for "
 				      "the %d RX ring\n", i);
-			return error;
+			return (error);
 		}
 		rx_ring->rr_posreg = rx_ring_posreg[i];
 	}
@@ -772,7 +772,7 @@ et_dma_alloc(device_t dev)
 				  &rxst_ring->rsr_paddr, &rxst_ring->rsr_dmap);
 	if (error) {
 		device_printf(dev, "can't create RX stat ring DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -784,7 +784,7 @@ et_dma_alloc(device_t dev)
 				  &rxsd->rxsd_paddr, &rxsd->rxsd_dmap);
 	if (error) {
 		device_printf(dev, "can't create RX status DMA stuffs\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -792,9 +792,9 @@ et_dma_alloc(device_t dev)
 	 */
 	error = et_dma_mbuf_create(dev);
 	if (error)
-		return error;
+		return (error);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -873,7 +873,7 @@ et_dma_mbuf_create(device_t dev)
 				   BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_mbuf_dtag);
 	if (error) {
 		device_printf(dev, "can't create mbuf DMA tag\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -884,7 +884,7 @@ et_dma_mbuf_create(device_t dev)
 		device_printf(dev, "can't create spare mbuf DMA map\n");
 		bus_dma_tag_destroy(sc->sc_mbuf_dtag);
 		sc->sc_mbuf_dtag = NULL;
-		return error;
+		return (error);
 	}
 
 	/*
@@ -903,7 +903,7 @@ et_dma_mbuf_create(device_t dev)
 					      "for %d RX ring\n", j, i);
 				rx_done[i] = j;
 				et_dma_mbuf_destroy(dev, 0, rx_done);
-				return error;
+				return (error);
 			}
 		}
 		rx_done[i] = ET_RX_NDESC;
@@ -922,11 +922,11 @@ et_dma_mbuf_create(device_t dev)
 			device_printf(dev, "can't create %d TX mbuf "
 				      "DMA map\n", i);
 			et_dma_mbuf_destroy(dev, i, rx_done);
-			return error;
+			return (error);
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -991,7 +991,7 @@ et_dma_mem_create(device_t dev, bus_size_t size, bus_dma_tag_t *dtag,
 				   0, NULL, NULL, dtag);
 	if (error) {
 		device_printf(dev, "can't create DMA tag\n");
-		return error;
+		return (error);
 	}
 
 	error = bus_dmamem_alloc(*dtag, addr, BUS_DMA_WAITOK | BUS_DMA_ZERO,
@@ -1000,7 +1000,7 @@ et_dma_mem_create(device_t dev, bus_size_t size, bus_dma_tag_t *dtag,
 		device_printf(dev, "can't allocate DMA mem\n");
 		bus_dma_tag_destroy(*dtag);
 		*dtag = NULL;
-		return error;
+		return (error);
 	}
 
 	error = bus_dmamap_load(*dtag, *dmap, *addr, size,
@@ -1010,9 +1010,9 @@ et_dma_mem_create(device_t dev, bus_size_t size, bus_dma_tag_t *dtag,
 		bus_dmamem_free(*dtag, *addr, *dmap);
 		bus_dma_tag_destroy(*dtag);
 		*dtag = NULL;
-		return error;
+		return (error);
 	}
-	return 0;
+	return (0);
 }
 
 static void
@@ -1230,7 +1230,7 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-	return error;
+	return (error);
 }
 
 static void
@@ -1309,9 +1309,9 @@ et_stop_rxdma(struct et_softc *sc)
 	DELAY(5);
 	if ((CSR_READ_4(sc, ET_RXDMA_CTRL) & ET_RXDMA_CTRL_HALTED) == 0) {
 		if_printf(sc->ifp, "can't stop RX DMA engine\n");
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -1319,7 +1319,7 @@ et_stop_txdma(struct et_softc *sc)
 {
 	CSR_WRITE_4(sc, ET_TXDMA_CTRL,
 		    ET_TXDMA_CTRL_HALT | ET_TXDMA_CTRL_SINGLE_EPKT);
-	return 0;
+	return (0);
 }
 
 static void
@@ -1358,7 +1358,7 @@ et_free_rx_ring(struct et_softc *sc)
 			struct et_rxbuf *rb = &rbd->rbd_buf[i];
 
 			if (rb->rb_mbuf != NULL) {
-				bus_dmamap_unload(sc->sc_mbuf_dtag, 
+				bus_dmamap_unload(sc->sc_mbuf_dtag,
 			  	    rb->rb_dmap);
 				m_freem(rb->rb_mbuf);
 				rb->rb_mbuf = NULL;
@@ -1484,14 +1484,14 @@ et_chip_init(struct et_softc *sc)
 	/* Initialize RX DMA engine */
 	error = et_init_rxdma(sc);
 	if (error)
-		return error;
+		return (error);
 
 	/* Initialize TX DMA engine */
 	error = et_init_txdma(sc);
 	if (error)
-		return error;
+		return (error);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1512,7 +1512,7 @@ et_init_tx_ring(struct et_softc *sc)
 	bzero(txsd->txsd_status, sizeof(uint32_t));
 	bus_dmamap_sync(txsd->txsd_dtag, txsd->txsd_dmap,
 			BUS_DMASYNC_PREWRITE);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1531,7 +1531,7 @@ et_init_rx_ring(struct et_softc *sc)
 			if (error) {
 				if_printf(sc->ifp, "%d ring %d buf, "
 					  "newbuf failed: %d\n", n, i, error);
-				return error;
+				return (error);
 			}
 		}
 	}
@@ -1544,7 +1544,7 @@ et_init_rx_ring(struct et_softc *sc)
 	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
 			BUS_DMASYNC_PREWRITE);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -1578,7 +1578,7 @@ et_init_rxdma(struct et_softc *sc)
 	error = et_stop_rxdma(sc);
 	if (error) {
 		if_printf(sc->ifp, "can't init RX DMA engine\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -1634,7 +1634,7 @@ et_init_rxdma(struct et_softc *sc)
 	CSR_WRITE_4(sc, ET_RX_INTR_NPKTS, sc->sc_rx_intr_npkts);
 	CSR_WRITE_4(sc, ET_RX_INTR_DELAY, sc->sc_rx_intr_delay);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1647,7 +1647,7 @@ et_init_txdma(struct et_softc *sc)
 	error = et_stop_txdma(sc);
 	if (error) {
 		if_printf(sc->ifp, "can't init TX DMA engine\n");
-		return error;
+		return (error);
 	}
 
 	/*
@@ -1669,7 +1669,7 @@ et_init_txdma(struct et_softc *sc)
 	tx_ring->tr_ready_index = 0;
 	tx_ring->tr_ready_wrap = 0;
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -1839,16 +1839,16 @@ et_start_rxdma(struct et_softc *sc)
 
 	if (CSR_READ_4(sc, ET_RXDMA_CTRL) & ET_RXDMA_CTRL_HALTED) {
 		if_printf(sc->ifp, "can't start RX DMA engine\n");
-		return ETIMEDOUT;
+		return (ETIMEDOUT);
 	}
-	return 0;
+	return (0);
 }
 
 static int
 et_start_txdma(struct et_softc *sc)
 {
 	CSR_WRITE_4(sc, ET_TXDMA_CTRL, ET_TXDMA_CTRL_SINGLE_EPKT);
-	return 0;
+	return (0);
 }
 
 static int
@@ -1881,7 +1881,7 @@ et_enable_txrx(struct et_softc *sc, int media_upd)
 	}
 	if (i == NRETRY) {
 		if_printf(ifp, "can't enable RX/TX\n");
-		return 0;
+		return (0);
 	}
 	sc->sc_flags |= ET_FLAG_TXRX_ENABLED;
 
@@ -1892,13 +1892,13 @@ et_enable_txrx(struct et_softc *sc, int media_upd)
 	 */
 	error = et_start_rxdma(sc);
 	if (error)
-		return error;
+		return (error);
 
 	error = et_start_txdma(sc);
 	if (error)
-		return error;
+		return (error);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -2130,7 +2130,7 @@ back:
 		m_freem(m);
 		*m0 = NULL;
 	}
-	return error;
+	return (error);
 }
 
 static void
@@ -2218,13 +2218,13 @@ et_tick(void *xsc)
 static int
 et_newbuf_cluster(struct et_rxbuf_data *rbd, int buf_idx, int init)
 {
-	return et_newbuf(rbd, buf_idx, init, MCLBYTES);
+	return (et_newbuf(rbd, buf_idx, init, MCLBYTES));
 }
 
 static int
 et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx, int init)
 {
-	return et_newbuf(rbd, buf_idx, init, MHLEN);
+	return (et_newbuf(rbd, buf_idx, init, MHLEN));
 }
 
 static int
@@ -2248,7 +2248,7 @@ et_newbuf(struct et_rxbuf_data *rbd, int buf_idx, int init, int len0)
 		if (init) {
 			if_printf(sc->ifp,
 				  "m_getl failed, size %d\n", len0);
-			return error;
+			return (error);
 		} else {
 			goto back;
 		}
@@ -2275,7 +2275,7 @@ et_newbuf(struct et_rxbuf_data *rbd, int buf_idx, int init, int len0)
 
 		if (init) {
 			if_printf(sc->ifp, "can't load RX mbuf\n");
-			return error;
+			return (error);
 		} else {
 			goto back;
 		}
@@ -2299,7 +2299,7 @@ et_newbuf(struct et_rxbuf_data *rbd, int buf_idx, int init, int len0)
 	error = 0;
 back:
 	et_setup_rxdesc(rbd, buf_idx, rb->rb_paddr);
-	return error;
+	return (error);
 }
 
 /*
@@ -2349,7 +2349,7 @@ et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS)
 		sc->sc_rx_intr_npkts = v;
 	}
 back:
-	return error;
+	return (error);
 }
 
 static int
@@ -2374,7 +2374,7 @@ et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS)
 		sc->sc_rx_intr_delay = v;
 	}
 back:
-	return error;
+	return (error);
 }
 
 static void
