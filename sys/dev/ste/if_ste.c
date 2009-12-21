@@ -194,7 +194,7 @@ SYSCTL_INT(_hw_ste, OID_AUTO, rxsyncs, CTLFLAG_RW, &ste_rxsyncs, 0, "");
 
 
 #define MII_SET(x)		STE_SETBIT1(sc, STE_PHYCTL, x)
-#define MII_CLR(x)		STE_CLRBIT1(sc, STE_PHYCTL, x) 
+#define MII_CLR(x)		STE_CLRBIT1(sc, STE_PHYCTL, x)
 
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
@@ -252,7 +252,7 @@ ste_mii_readreg(struct ste_softc *sc, struct ste_mii_frame *frame)
 	frame->mii_opcode = STE_MII_READOP;
 	frame->mii_turnaround = 0;
 	frame->mii_data = 0;
-	
+
 	CSR_WRITE_2(sc, STE_PHYCTL, 0);
 	/*
  	 * Turn on data xmit.
@@ -337,7 +337,7 @@ ste_mii_writereg(struct ste_softc *sc, struct ste_mii_frame *frame)
 	frame->mii_stdelim = STE_MII_STARTDELIM;
 	frame->mii_opcode = STE_MII_WRITEOP;
 	frame->mii_turnaround = STE_MII_TURNAROUND;
-	
+
 	/*
  	 * Turn on data output.
 	 */
@@ -420,7 +420,7 @@ ste_miibus_statchg(device_t dev)
 		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
 	}
 }
- 
+
 static int
 ste_ifmedia_upd(struct ifnet *ifp)
 {
@@ -431,7 +431,7 @@ ste_ifmedia_upd(struct ifnet *ifp)
 	ste_ifmedia_upd_locked(ifp);
 	STE_UNLOCK(sc);
 
-	return(0);	
+	return(0);
 }
 
 static void
@@ -531,7 +531,7 @@ ste_read_eeprom(struct ste_softc *sc, caddr_t dest, int off, int cnt, int swap)
 		if (swap)
 			*ptr = ntohs(word);
 		else
-			*ptr = word;	
+			*ptr = word;
 	}
 
 	return(err ? 1 : 0);
@@ -783,7 +783,7 @@ ste_rxeof(struct ste_softc *sc)
 			continue;
 		}
 
-		/* No errors; receive the packet. */	
+		/* No errors; receive the packet. */
 		m = cur_rx->ste_mbuf;
 		total_len = cur_rx->ste_ptr->ste_status & STE_RXSTAT_FRAMELEN;
 
@@ -1334,7 +1334,7 @@ ste_init_locked(struct ste_softc *sc)
 	/* Disable interrupts if we are polling. */
 	if (ifp->if_capenable & IFCAP_POLLING)
 		CSR_WRITE_2(sc, STE_IMR, 0);
-	else   
+	else
 #endif
 	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
@@ -1369,8 +1369,8 @@ ste_stop(struct ste_softc *sc)
 	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
 	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
 	ste_wait(sc);
-	/* 
-	 * Try really hard to stop the RX engine or under heavy RX 
+	/*
+	 * Try really hard to stop the RX engine or under heavy RX
 	 * data chip will write into de-allocated memory.
 	 */
 	ste_reset(sc);
@@ -1442,7 +1442,7 @@ ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    sc->ste_if_flags & IFF_PROMISC) {
 				STE_CLRBIT1(sc, STE_RX_MODE,
 				    STE_RXMODE_PROMISC);
-			} 
+			}
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    (ifp->if_flags ^ sc->ste_if_flags) & IFF_ALLMULTI)
 				ste_setmulti(sc);
@@ -1483,7 +1483,7 @@ ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable |= IFCAP_POLLING;
 			STE_UNLOCK(sc);
 			return (error);
-			
+
 		}
 		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
 		    ifp->if_capenable & IFCAP_POLLING) {
@@ -1615,7 +1615,7 @@ ste_start_locked(struct ifnet *ifp)
 
 			/* Set TX polling interval to start TX engine */
 			CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 64);
-		  
+
 			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 			ste_wait(sc);
 		}else{
