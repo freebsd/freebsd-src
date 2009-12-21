@@ -117,7 +117,7 @@ static void ste_ifmedia_upd_locked(struct ifnet *);
 static void ste_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static void ste_mii_sync(struct ste_softc *);
-static void ste_mii_send(struct ste_softc *, u_int32_t, int);
+static void ste_mii_send(struct ste_softc *, uint32_t, int);
 static int ste_mii_readreg(struct ste_softc *, struct ste_mii_frame *);
 static int ste_mii_writereg(struct ste_softc *, struct ste_mii_frame *);
 static int ste_miibus_readreg(device_t, int, int);
@@ -218,7 +218,7 @@ ste_mii_sync(struct ste_softc *sc)
  * Clock a series of bits through the MII.
  */
 static void
-ste_mii_send(struct ste_softc *sc, u_int32_t bits, int cnt)
+ste_mii_send(struct ste_softc *sc, uint32_t bits, int cnt)
 {
 	int			i;
 
@@ -516,7 +516,7 @@ static int
 ste_read_eeprom(struct ste_softc *sc, caddr_t dest, int off, int cnt, int swap)
 {
 	int			err = 0, i;
-	u_int16_t		word = 0, *ptr;
+	uint16_t		word = 0, *ptr;
 
 	if (ste_eeprom_wait(sc))
 		return(1);
@@ -527,7 +527,7 @@ ste_read_eeprom(struct ste_softc *sc, caddr_t dest, int off, int cnt, int swap)
 		if (err)
 			break;
 		word = CSR_READ_2(sc, STE_EEPROM_DATA);
-		ptr = (u_int16_t *)(dest + (i * 2));
+		ptr = (uint16_t *)(dest + (i * 2));
 		if (swap)
 			*ptr = ntohs(word);
 		else
@@ -542,7 +542,7 @@ ste_setmulti(struct ste_softc *sc)
 {
 	struct ifnet		*ifp;
 	int			h = 0;
-	u_int32_t		hashes[2] = { 0, 0 };
+	uint32_t		hashes[2] = { 0, 0 };
 	struct ifmultiaddr	*ifma;
 
 	ifp = sc->ste_ifp;
@@ -613,7 +613,7 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		ste_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
-		u_int16_t status;
+		uint16_t status;
 
 		status = CSR_READ_2(sc, STE_ISR_ACK);
 
@@ -642,7 +642,7 @@ ste_intr(void *xsc)
 {
 	struct ste_softc	*sc;
 	struct ifnet		*ifp;
-	u_int16_t		status;
+	uint16_t		status;
 
 	sc = xsc;
 	STE_LOCK(sc);
@@ -736,7 +736,7 @@ ste_rxeof(struct ste_softc *sc)
         struct ifnet		*ifp;
 	struct ste_chain_onefrag	*cur_rx;
 	int			total_len = 0, count=0, rx_npkts = 0;
-	u_int32_t		rxstat;
+	uint32_t		rxstat;
 
 	STE_LOCK_ASSERT(sc);
 
@@ -819,7 +819,7 @@ ste_rxeof(struct ste_softc *sc)
 static void
 ste_txeoc(struct ste_softc *sc)
 {
-	u_int8_t		txstat;
+	uint8_t			txstat;
 	struct ifnet		*ifp;
 
 	ifp = sc->ste_ifp;
