@@ -1779,7 +1779,18 @@ set_swpid(struct sigwork_entry *swork, const struct conf_entry *ent)
 
 	f = fopen(ent->pid_file, "r");
 	if (f == NULL) {
-		warn("can't open pid file: %s", ent->pid_file);
+		if (errno == ENOENT) {
+			/*
+			 * Warn if the PID file doesn't exist, but do
+			 * not consider it an error.  Most likely it
+			 * means the process has been terminated,
+			 * so it should be safe to rotate any log
+			 * files that the process would have been using.
+			 */
+			swork->sw_pidok = 1;
+			warnx("pid file doesn't exist: %s", ent->pid_file);
+		} else
+			warn("can't open pid file: %s", ent->pid_file);
 		return;
 	}
 
