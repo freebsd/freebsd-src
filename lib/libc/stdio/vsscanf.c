@@ -45,20 +45,15 @@ eofread(void *, char *, int);
 
 /* ARGSUSED */
 static int
-eofread(cookie, buf, len)
-	void *cookie;
-	char *buf;
-	int len;
+eofread(void *cookie, char *buf, int len)
 {
 
 	return (0);
 }
 
 int
-vsscanf(str, fmt, ap)
-	const char * __restrict str;
-	const char * __restrict fmt;
-	__va_list ap;
+vsscanf(const char * __restrict str, const char * __restrict fmt,
+	__va_list ap)
 {
 	FILE f;
 
