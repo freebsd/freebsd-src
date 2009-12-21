@@ -95,7 +95,7 @@ main(int argc, char *argv[])
 
 	if (is_daemon) {
 		if (watchdog_onoff(1) == -1)
-			exit(EX_SOFTWARE);
+			err(EX_OSERR, "patting the dog");
 
 		pfh = pidfile_open(pidfile, 0600, &otherpid);
 		if (pfh == NULL) {
