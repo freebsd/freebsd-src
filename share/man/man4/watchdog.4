@@ -80,13 +80,13 @@ still be armed!
 The ioctl returns zero on success and non-zero on failure.
 .Bl -tag -width Er
 .It Bq Er EOPNOTSUPP
-No watchdog present in the kernel (timeout value other than 0).
+No watchdog present in the kernel or
+none of the watchdogs supports the requested timeout value
+(timeout value other than 0).
 .It Bq Er EOPNOTSUPP
 Watchdog could not be disabled (timeout value of 0).
 .It Bq Er EINVAL
 Invalid flag combination passed.
-.It Bq Er EINVAL
-None of the watchdogs supports the requested timeout value.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
