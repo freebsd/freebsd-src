@@ -106,11 +106,11 @@ else
 	exit 1
 fi
 
+cd /
 for dir in /etc/rc.d $local_startup; do
 	if [ -x "$dir/$script" ]; then
 		[ -n "$VERBOSE" ] && echo "$script is located in $dir"
-		$dir/$script $*
-		exit $?
+		exec env -i HOME=/ PATH=/sbin:/bin:/usr/sbin:/usr/bin $dir/$script $*
 	fi
 done
 
