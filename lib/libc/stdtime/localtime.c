@@ -237,6 +237,9 @@ static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
 static pthread_once_t	gmt_once = PTHREAD_ONCE_INIT;
 static pthread_rwlock_t	lcl_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_once_t	localtime_once = PTHREAD_ONCE_INIT;
+static pthread_key_t	localtime_key;
+static int		localtime_key_error;
 
 char *			tzname[2] = {
 	wildabbr,
@@ -1406,27 +1409,24 @@ struct tm * const	tmp;
 	return result;
 }
 
+static void
+localtime_key_init(void)
+{
+
+	localtime_key_error = _pthread_key_create(&localtime_key, free);
+}
+
 struct tm *
 localtime(timep)
 const time_t * const	timep;
 {
-	static pthread_mutex_t localtime_mutex = PTHREAD_MUTEX_INITIALIZER;
-	static pthread_key_t localtime_key = -1;
 	struct tm *p_tm;
-	int r;
 
 	if (__isthreaded != 0) {
-		if (localtime_key < 0) {
-			_pthread_mutex_lock(&localtime_mutex);
-			if (localtime_key < 0) {
-				if ((r = _pthread_key_create(&localtime_key,
-				    free)) != 0) {
-					_pthread_mutex_unlock(&localtime_mutex);
-					errno = r;
-					return(NULL);
-				}
-			}
-			_pthread_mutex_unlock(&localtime_mutex);
+		_once(&localtime_once, localtime_key_init);
+		if (localtime_key_error != 0) {
+			errno = localtime_key_error;
+			return(NULL);
 		}
 		p_tm = _pthread_getspecific(localtime_key);
 		if (p_tm == NULL) {
