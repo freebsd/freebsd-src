@@ -106,11 +106,11 @@ struct et_txdesc {
 	uint32_t	td_ctrl2;	/* ET_TDCTRL2_ */
 } __packed;
 
-#define ET_TDCTRL1_LEN		__BITS(15, 0)
+#define ET_TDCTRL1_LEN_MASK	0x0000FFFF
 
-#define ET_TDCTRL2_LAST_FRAG	__BIT(0)
-#define ET_TDCTRL2_FIRST_FRAG	__BIT(1)
-#define ET_TDCTRL2_INTR		__BIT(2)
+#define ET_TDCTRL2_LAST_FRAG	0x00000001
+#define ET_TDCTRL2_FIRST_FRAG	0x00000002
+#define ET_TDCTRL2_INTR		0x00000004
 
 struct et_rxdesc {
 	uint32_t	rd_addr_lo;
@@ -118,24 +118,28 @@ struct et_rxdesc {
 	uint32_t	rd_ctrl;	/* ET_RDCTRL_ */
 } __packed;
 
-#define ET_RDCTRL_BUFIDX	__BITS(9, 0)
+#define ET_RDCTRL_BUFIDX_MASK	0x000003FF
 
 struct et_rxstat {
 	uint32_t	rxst_info1;
 	uint32_t	rxst_info2;	/* ET_RXST_INFO2_ */
 } __packed;
 
-#define ET_RXST_INFO2_LEN	__BITS(15, 0)
-#define ET_RXST_INFO2_BUFIDX	__BITS(25, 16)
-#define ET_RXST_INFO2_RINGIDX	__BITS(27, 26)
+#define ET_RXST_INFO2_LEN_MASK	0x0000FFFF
+#define ET_RXST_INFO2_LEN_SHIFT	0
+#define ET_RXST_INFO2_BUFIDX_MASK	0x03FF0000
+#define ET_RXST_INFO2_BUFIDX_SHIFT	16
+#define ET_RXST_INFO2_RINGIDX_MASK	0x0C000000
+#define ET_RXST_INFO2_RINGIDX_SHIFT	26
 
 struct et_rxstatus {
 	uint32_t	rxs_ring;
 	uint32_t	rxs_stat_ring;	/* ET_RXS_STATRING_ */
 } __packed;
 
-#define ET_RXS_STATRING_INDEX	__BITS(27, 16)
-#define ET_RXS_STATRING_WRAP	__BIT(28)
+#define ET_RXS_STATRING_INDEX_MASK	0x0FFF0000
+#define ET_RXS_STATRING_INDEX_SHIFT	16
+#define ET_RXS_STATRING_WRAP	0x10000000
 
 struct et_dmamap_ctx {
 	int		nsegs;
