@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  *
  * $DragonFly: src/sys/dev/netif/et/if_et.c,v 1.10 2008/05/18 07:47:14 sephe Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -78,7 +80,9 @@ MODULE_DEPEND(et, miibus, 1, 1, 1);
 
 /* Tunables. */
 static int msi_disable = 0;
-TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+TUNABLE_INT("hw.et.msi_disable", &msi_disable);
+
+#define	ET_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 static int	et_probe(device_t);
 static int	et_attach(device_t);
@@ -276,7 +280,7 @@ et_attach(device_t dev)
 		sc->sc_flags |= ET_FLAG_PCIE;
 		msic = pci_msi_count(dev);
 		if (bootverbose)
-			device_printf(dev, "MSI count : %d\n", msic);
+			device_printf(dev, "MSI count: %d\n", msic);
 	}
 	if (msic > 0 && msi_disable == 0) {
 		msic = 1;
@@ -332,7 +336,7 @@ et_attach(device_t dev)
 	ifp->if_ioctl = et_ioctl;
 	ifp->if_start = et_start;
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
+	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -1175,7 +1179,7 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct et_softc *sc = ifp->if_softc;
 	struct mii_data *mii = device_get_softc(sc->sc_miibus);
 	struct ifreq *ifr = (struct ifreq *)data;
-	int error = 0, max_framelen;
+	int error = 0, mask, max_framelen;
 
 /* XXX LOCKSUSED */
 	switch (cmd) {
@@ -1230,6 +1234,20 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			et_init(sc);
 		}
+		break;
+
+	case SIOCSIFCAP:
+		ET_LOCK(sc);
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
+				ifp->if_hwassist |= ET_CSUM_FEATURES;
+			else
+				ifp->if_hwassist &= ~ET_CSUM_FEATURES;
+		}
+		ET_UNLOCK(sc);
 		break;
 
 	default:
@@ -1913,7 +1931,7 @@ et_rxeof(struct et_softc *sc)
 	struct ifnet *ifp;
 	struct et_rxstatus_data *rxsd;
 	struct et_rxstat_ring *rxst_ring;
-	uint32_t rxs_stat_ring;
+	uint32_t rxs_stat_ring, rxst_info2;
 	int rxst_wrap, rxst_index;
 
 	ET_LOCK_ASSERT(sc);
@@ -1929,7 +1947,7 @@ et_rxeof(struct et_softc *sc)
 	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
 			BUS_DMASYNC_POSTREAD);
 
-	rxs_stat_ring = rxsd->rxsd_status->rxs_stat_ring;
+	rxs_stat_ring = le32toh(rxsd->rxsd_status->rxs_stat_ring);
 	rxst_wrap = (rxs_stat_ring & ET_RXS_STATRING_WRAP) ? 1 : 0;
 	rxst_index = (rxs_stat_ring & ET_RXS_STATRING_INDEX_MASK) >>
 	    ET_RXS_STATRING_INDEX_SHIFT;
@@ -1945,12 +1963,12 @@ et_rxeof(struct et_softc *sc)
 
 		MPASS(rxst_ring->rsr_index < ET_RX_NSTAT);
 		st = &rxst_ring->rsr_stat[rxst_ring->rsr_index];
-
-		buflen = (st->rxst_info2 & ET_RXST_INFO2_LEN_MASK) >>
+		rxst_info2 = le32toh(st->rxst_info2);
+		buflen = (rxst_info2 & ET_RXST_INFO2_LEN_MASK) >>
 		    ET_RXST_INFO2_LEN_SHIFT;
-		buf_idx = (st->rxst_info2 & ET_RXST_INFO2_BUFIDX_MASK) >>
+		buf_idx = (rxst_info2 & ET_RXST_INFO2_BUFIDX_MASK) >>
 		    ET_RXST_INFO2_BUFIDX_SHIFT;
-		ring_idx = (st->rxst_info2 & ET_RXST_INFO2_RINGIDX_MASK) >>
+		ring_idx = (rxst_info2 & ET_RXST_INFO2_RINGIDX_MASK) >>
 		    ET_RXST_INFO2_RINGIDX_SHIFT;
 
 		if (++rxst_ring->rsr_index == ET_RX_NSTAT) {
@@ -1982,11 +2000,9 @@ et_rxeof(struct et_softc *sc)
 				m = NULL;
 				ifp->if_ierrors++;
 			} else {
-				m->m_pkthdr.len = m->m_len = buflen;
+				m->m_pkthdr.len = m->m_len =
+				    buflen - ETHER_CRC_LEN;
 				m->m_pkthdr.rcvif = ifp;
-
-				m_adj(m, -ETHER_CRC_LEN);
-
 				ifp->if_ipackets++;
 				ET_UNLOCK(sc);
 				ifp->if_input(ifp, m);
@@ -2028,7 +2044,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	struct et_txdesc *td;
 	bus_dmamap_t map;
 	int error, maxsegs, first_idx, last_idx, i;
-	uint32_t tx_ready_pos, last_td_ctrl2;
+	uint32_t csum_flags, tx_ready_pos, last_td_ctrl2;
 
 	maxsegs = ET_TX_NDESC - tbd->tbd_used;
 	if (maxsegs > ET_NSEG_MAX)
@@ -2090,20 +2106,29 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		last_td_ctrl2 |= ET_TDCTRL2_INTR;
 	}
 
+	csum_flags = 0;
+	if ((m->m_pkthdr.csum_flags & ET_CSUM_FEATURES) != 0) {
+		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_IP;
+		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_UDP;
+		else if ((m->m_pkthdr.csum_flags & CSUM_TCP) != 0)
+			csum_flags |= ET_TDCTRL2_CSUM_TCP;
+	}
 	last_idx = -1;
 	for (i = 0; i < ctx.nsegs; ++i) {
 		int idx;
 
 		idx = (first_idx + i) % ET_TX_NDESC;
 		td = &tx_ring->tr_desc[idx];
-		td->td_addr_hi = ET_ADDR_HI(segs[i].ds_addr);
-		td->td_addr_lo = ET_ADDR_LO(segs[i].ds_addr);
-		td->td_ctrl1 =  segs[i].ds_len & ET_TDCTRL1_LEN_MASK;
-
+		td->td_addr_hi = htole32(ET_ADDR_HI(segs[i].ds_addr));
+		td->td_addr_lo = htole32(ET_ADDR_LO(segs[i].ds_addr));
+		td->td_ctrl1 =  htole32(segs[i].ds_len & ET_TDCTRL1_LEN_MASK);
 		if (i == ctx.nsegs - 1) {	/* Last frag */
-			td->td_ctrl2 = last_td_ctrl2;
+			td->td_ctrl2 = htole32(last_td_ctrl2 | csum_flags);
 			last_idx = idx;
-		}
+		} else
+			td->td_ctrl2 = htole32(csum_flags);
 
 		MPASS(tx_ring->tr_ready_index < ET_TX_NDESC);
 		if (++tx_ring->tr_ready_index == ET_TX_NDESC) {
@@ -2112,7 +2137,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		}
 	}
 	td = &tx_ring->tr_desc[first_idx];
-	td->td_ctrl2 |= ET_TDCTRL2_FIRST_FRAG;	/* First frag */
+	td->td_ctrl2 |= htole32(ET_TDCTRL2_FIRST_FRAG);	/* First frag */
 
 	MPASS(last_idx >= 0);
 	tbd->tbd_buf[first_idx].tb_dmap = tbd->tbd_buf[last_idx].tb_dmap;
@@ -2424,9 +2449,9 @@ et_setup_rxdesc(struct et_rxbuf_data *rbd, int buf_idx, bus_addr_t paddr)
 	MPASS(buf_idx < ET_RX_NDESC);
 	desc = &rx_ring->rr_desc[buf_idx];
 
-	desc->rd_addr_hi = ET_ADDR_HI(paddr);
-	desc->rd_addr_lo = ET_ADDR_LO(paddr);
-	desc->rd_ctrl = buf_idx & ET_RDCTRL_BUFIDX_MASK;
+	desc->rd_addr_hi = htole32(ET_ADDR_HI(paddr));
+	desc->rd_addr_lo = htole32(ET_ADDR_LO(paddr));
+	desc->rd_ctrl = htole32(buf_idx & ET_RDCTRL_BUFIDX_MASK);
 
 	bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
 			BUS_DMASYNC_PREWRITE);
