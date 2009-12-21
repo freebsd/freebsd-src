@@ -373,6 +373,7 @@ net:	for (p = nargv; *p;) {
 		    printf("\n");
 	}
 
+	free(used);
 	if (entries == 0)
 		return;
 
