@@ -104,26 +104,38 @@ struct et_txdesc {
 	uint32_t	td_addr_lo;
 	uint32_t	td_ctrl1;	/* ET_TDCTRL1_ */
 	uint32_t	td_ctrl2;	/* ET_TDCTRL2_ */
-} __packed;
+};
 
 #define ET_TDCTRL1_LEN_MASK	0x0000FFFF
 
 #define ET_TDCTRL2_LAST_FRAG	0x00000001
 #define ET_TDCTRL2_FIRST_FRAG	0x00000002
 #define ET_TDCTRL2_INTR		0x00000004
+#define ET_TDCTRL2_CTRL_WORD	0x00000008
+#define ET_TDCTRL2_HDX_BACKP	0x00000010
+#define ET_TDCTRL2_XMIT_PAUSE	0x00000020
+#define ET_TDCTRL2_FRAME_ERR	0x00000040
+#define ET_TDCTRL2_NO_CRC	0x00000080
+#define ET_TDCTRL2_MAC_OVRRD	0x00000100
+#define ET_TDCTRL2_PAD_PACKET	0x00000200
+#define ET_TDCTRL2_JUMBO_PACKET	0x00000400
+#define ET_TDCTRL2_INS_VLAN	0x00000800
+#define ET_TDCTRL2_CSUM_IP	0x00001000
+#define ET_TDCTRL2_CSUM_TCP	0x00002000
+#define ET_TDCTRL2_CSUM_UDP	0x00004000
 
 struct et_rxdesc {
 	uint32_t	rd_addr_lo;
 	uint32_t	rd_addr_hi;
 	uint32_t	rd_ctrl;	/* ET_RDCTRL_ */
-} __packed;
+};
 
 #define ET_RDCTRL_BUFIDX_MASK	0x000003FF
 
 struct et_rxstat {
 	uint32_t	rxst_info1;
 	uint32_t	rxst_info2;	/* ET_RXST_INFO2_ */
-} __packed;
+};
 
 #define ET_RXST_INFO2_LEN_MASK	0x0000FFFF
 #define ET_RXST_INFO2_LEN_SHIFT	0
@@ -135,7 +147,7 @@ struct et_rxstat {
 struct et_rxstatus {
 	uint32_t	rxs_ring;
 	uint32_t	rxs_stat_ring;	/* ET_RXS_STATRING_ */
-} __packed;
+};
 
 #define ET_RXS_STATRING_INDEX_MASK	0x0FFF0000
 #define ET_RXS_STATRING_INDEX_SHIFT	16
