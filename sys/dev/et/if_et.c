@@ -142,7 +142,7 @@ static int	et_stop_rxdma(struct et_softc *);
 static int	et_stop_txdma(struct et_softc *);
 static int	et_enable_txrx(struct et_softc *, int);
 static void	et_reset(struct et_softc *);
-static int	et_bus_config(device_t);
+static int	et_bus_config(struct et_softc *);
 static void	et_get_eaddr(device_t, uint8_t[]);
 static void	et_setmulti(struct et_softc *);
 static void	et_tick(void *);
@@ -269,8 +269,6 @@ et_attach(device_t dev)
 		device_printf(dev, "can't allocate IO memory\n");
 		return (ENXIO);
 	}
-	sc->sc_mem_bt = rman_get_bustag(sc->sc_mem_res);
-	sc->sc_mem_bh = rman_get_bushandle(sc->sc_mem_res);
 
 	msic = 0;
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
@@ -310,7 +308,7 @@ et_attach(device_t dev)
 		goto fail;
 	}
 
-	error = et_bus_config(dev);
+	error = et_bus_config(sc);
 	if (error)
 		goto fail;
 
@@ -577,7 +575,7 @@ et_stop(struct et_softc *sc)
 }
 
 static int
-et_bus_config(device_t dev)
+et_bus_config(struct et_softc *sc)
 {
 	uint32_t val, max_plsz;
 	uint16_t ack_latency, replay_timer;
@@ -586,21 +584,25 @@ et_bus_config(device_t dev)
 	 * Test whether EEPROM is valid
 	 * NOTE: Read twice to get the correct value
 	 */
-	pci_read_config(dev, ET_PCIR_EEPROM_STATUS, 1);
-	val = pci_read_config(dev, ET_PCIR_EEPROM_STATUS, 1);
+	pci_read_config(sc->dev, ET_PCIR_EEPROM_STATUS, 1);
+	val = pci_read_config(sc->dev, ET_PCIR_EEPROM_STATUS, 1);
 	if (val & ET_PCIM_EEPROM_STATUS_ERROR) {
-		device_printf(dev, "EEPROM status error 0x%02x\n", val);
+		device_printf(sc->dev, "EEPROM status error 0x%02x\n", val);
 		return (ENXIO);
 	}
 
 	/* TODO: LED */
 
+	if ((sc->sc_flags & ET_FLAG_PCIE) == 0)
+		return (0);
+
 	/*
 	 * Configure ACK latency and replay timer according to
 	 * max playload size
 	 */
-	val = pci_read_config(dev, ET_PCIR_DEVICE_CAPS, 4);
-	max_plsz = val & ET_PCIM_DEVICE_CAPS_MAX_PLSZ;
+	val = pci_read_config(sc->dev,
+	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CAP, 4);
+	max_plsz = val & PCIM_EXP_CAP_MAX_PAYLOAD;
 
 	switch (max_plsz) {
 	case ET_PCIV_DEVICE_CAPS_PLSZ_128:
@@ -614,35 +616,39 @@ et_bus_config(device_t dev)
 		break;
 
 	default:
-		ack_latency = pci_read_config(dev, ET_PCIR_ACK_LATENCY, 2);
-		replay_timer = pci_read_config(dev, ET_PCIR_REPLAY_TIMER, 2);
-		device_printf(dev, "ack latency %u, replay timer %u\n",
+		ack_latency = pci_read_config(sc->dev, ET_PCIR_ACK_LATENCY, 2);
+		replay_timer = pci_read_config(sc->dev,
+		    ET_PCIR_REPLAY_TIMER, 2);
+		device_printf(sc->dev, "ack latency %u, replay timer %u\n",
 			      ack_latency, replay_timer);
 		break;
 	}
 	if (ack_latency != 0) {
-		pci_write_config(dev, ET_PCIR_ACK_LATENCY, ack_latency, 2);
-		pci_write_config(dev, ET_PCIR_REPLAY_TIMER, replay_timer, 2);
+		pci_write_config(sc->dev, ET_PCIR_ACK_LATENCY, ack_latency, 2);
+		pci_write_config(sc->dev, ET_PCIR_REPLAY_TIMER, replay_timer,
+		    2);
 	}
 
 	/*
 	 * Set L0s and L1 latency timer to 2us
 	 */
-	val = pci_read_config(dev, ET_PCIR_L0S_L1_LATENCY, 4);
+	val = pci_read_config(sc->dev, ET_PCIR_L0S_L1_LATENCY, 4);
 	val &= ~(PCIM_LINK_CAP_L0S_EXIT | PCIM_LINK_CAP_L1_EXIT);
 	/* L0s exit latency : 2us */
 	val |= 0x00005000;
 	/* L1 exit latency : 2us */
 	val |= 0x00028000;
-	pci_write_config(dev, ET_PCIR_L0S_L1_LATENCY, val, 4);
+	pci_write_config(sc->dev, ET_PCIR_L0S_L1_LATENCY, val, 4);
 
 	/*
 	 * Set max read request size to 2048 bytes
 	 */
-	val = pci_read_config(dev, ET_PCIR_DEVICE_CTRL, 2);
-	val &= ~ET_PCIM_DEVICE_CTRL_MAX_RRSZ;
+	val = pci_read_config(sc->dev,
+	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
 	val |= ET_PCIV_DEVICE_CTRL_RRSZ_2K;
-	pci_write_config(dev, ET_PCIR_DEVICE_CTRL, val, 2);
+	pci_write_config(sc->dev,
+	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
 
 	return (0);
 }
