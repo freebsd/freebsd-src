@@ -202,7 +202,7 @@ SYSCTL_INT(_hw_ste, OID_AUTO, rxsyncs, CTLFLAG_RW, &ste_rxsyncs, 0, "");
 static void
 ste_mii_sync(struct ste_softc *sc)
 {
-	register int		i;
+	int		i;
 
 	MII_SET(STE_PHYCTL_MDIR|STE_PHYCTL_MDATA);
 
@@ -212,8 +212,6 @@ ste_mii_sync(struct ste_softc *sc)
 		MII_CLR(STE_PHYCTL_MCLK);
 		DELAY(1);
 	}
-
-	return;
 }
 
 /*
@@ -421,8 +419,6 @@ ste_miibus_statchg(device_t dev)
 	} else {
 		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
 	}
-
-	return;
 }
  
 static int
@@ -470,14 +466,12 @@ ste_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 	STE_UNLOCK(sc);
-
-	return;
 }
 
 static void
 ste_wait(struct ste_softc *sc)
 {
-	register int		i;
+	int		i;
 
 	for (i = 0; i < STE_TIMEOUT; i++) {
 		if (!(CSR_READ_4(sc, STE_DMACTL) & STE_DMACTL_DMA_HALTINPROG))
@@ -486,8 +480,6 @@ ste_wait(struct ste_softc *sc)
 
 	if (i == STE_TIMEOUT)
 		device_printf(sc->ste_dev, "command never completed!\n");
-
-	return;
 }
 
 /*
@@ -586,8 +578,6 @@ ste_setmulti(struct ste_softc *sc)
 	CSR_WRITE_2(sc, STE_MAR3, (hashes[1] >> 16) & 0xFFFF);
 	STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_ALLMULTI);
 	STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_MULTIHASH);
-
-	return;
 }
 
 #ifdef DEVICE_POLLING
@@ -710,8 +700,6 @@ ste_intr(void *xsc)
 		ste_start_locked(ifp);
 
 	STE_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -863,8 +851,6 @@ ste_txeoc(struct ste_softc *sc)
 		ste_init_locked(sc);
 		CSR_WRITE_2(sc, STE_TX_STATUS, txstat);
 	}
-
-	return;
 }
 
 static void
@@ -931,8 +917,6 @@ ste_stats_update(void *xsc)
 	if (sc->ste_timer > 0 && --sc->ste_timer == 0)
 		ste_watchdog(sc);
 	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
-
-	return;
 }
 
 
@@ -1243,8 +1227,6 @@ ste_init_tx_list(struct ste_softc *sc)
 
 	cd->ste_tx_prod = 0;
 	cd->ste_tx_cons = 0;
-
-	return;
 }
 
 static void
@@ -1366,8 +1348,6 @@ ste_init_locked(struct ste_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
-
-	return;
 }
 
 static void
@@ -1412,8 +1392,6 @@ ste_stop(struct ste_softc *sc)
 	}
 
 	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
-
-	return;
 }
 
 static void
@@ -1437,8 +1415,6 @@ ste_reset(struct ste_softc *sc)
 
 	if (i == STE_TIMEOUT)
 		device_printf(sc->ste_dev, "global reset never completed\n");
-
-	return;
 }
 
 static int
@@ -1660,8 +1636,6 @@ ste_start_locked(struct ifnet *ifp)
 		sc->ste_timer = 5;
 	}
 	sc->ste_cdata.ste_tx_prod = idx;
-
-	return;
 }
 
 static void
@@ -1684,8 +1658,6 @@ ste_watchdog(struct ste_softc *sc)
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start_locked(ifp);
-
-	return;
 }
 
 static int
