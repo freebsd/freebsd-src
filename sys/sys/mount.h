@@ -239,6 +239,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_NOATIME	0x10000000	/* disable update of file access time */
 #define	MNT_NOCLUSTERR	0x40000000	/* disable cluster read */
 #define	MNT_NOCLUSTERW	0x80000000	/* disable cluster write */
+#define	MNT_NFS4ACLS	0x00000010
 
 /*
  * NFS export related mount flags.
@@ -274,7 +275,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
-			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS)
+			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS | MNT_NFS4ACLS)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \
@@ -282,7 +283,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 			MNT_NOATIME | \
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| \
 			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR	| \
-			MNT_ACLS	| MNT_USER)
+			MNT_ACLS	| MNT_USER | MNT_NFS4ACLS)
 
 /*
  * External filesystem command modifier flags.
@@ -299,10 +300,6 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_BYFSID	0x08000000	/* specify filesystem by ID. */
 #define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
 			MNT_FORCE	| MNT_SNAPSHOT	| MNT_BYFSID)
-/*
- * Still available.
- */
-#define	MNT_SPARE_0x00000010	0x00000010
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
