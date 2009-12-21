@@ -76,6 +76,10 @@ MODULE_DEPEND(et, pci, 1, 1, 1);
 MODULE_DEPEND(et, ether, 1, 1, 1);
 MODULE_DEPEND(et, miibus, 1, 1, 1);
 
+/* Tunables. */
+static int msi_disable = 0;
+TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+
 static int	et_probe(device_t);
 static int	et_attach(device_t);
 static int	et_detach(device_t);
@@ -230,7 +234,7 @@ et_attach(device_t dev)
 	struct et_softc *sc;
 	struct ifnet *ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];
-	int error;
+	int cap, error, msic;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -268,13 +272,38 @@ et_attach(device_t dev)
 	sc->sc_mem_bt = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_mem_bh = rman_get_bushandle(sc->sc_mem_res);
 
+	msic = 0;
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+		sc->sc_expcap = cap;
+		sc->sc_flags |= ET_FLAG_PCIE;
+		msic = pci_msi_count(dev);
+		if (bootverbose)
+			device_printf(dev, "MSI count : %d\n", msic);
+	}
+	if (msic > 0 && msi_disable == 0) {
+		msic = 1;
+		if (pci_alloc_msi(dev, &msic) == 0) {
+			if (msic == 1) {
+				device_printf(dev, "Using %d MSI message\n",
+				    msic);
+				sc->sc_flags |= ET_FLAG_MSI;
+			} else
+				pci_release_msi(dev);
+		}
+	}
+
 	/*
 	 * Allocate IRQ
 	 */
-	sc->sc_irq_rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-						&sc->sc_irq_rid,
-						RF_SHAREABLE | RF_ACTIVE);
+	if ((sc->sc_flags & ET_FLAG_MSI) == 0) {
+		sc->sc_irq_rid = 0;
+		sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &sc->sc_irq_rid, RF_SHAREABLE | RF_ACTIVE);
+	} else {
+		sc->sc_irq_rid = 1;
+		sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
+		    &sc->sc_irq_rid, RF_ACTIVE);
+	}
 	if (sc->sc_irq_res == NULL) {
 		device_printf(dev, "can't allocate irq\n");
 		error = ENXIO;
@@ -322,14 +351,8 @@ et_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
 
-#if __FreeBSD_version > 700030
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-			       NULL, et_intr, sc, &sc->sc_irq_handle);
-#else
-	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-			       et_intr, sc, &sc->sc_irq_handle);
-#endif
-
+	    NULL, et_intr, sc, &sc->sc_irq_handle);
 	if (error) {
 		ether_ifdetach(ifp);
 		device_printf(dev, "can't setup intr\n");
@@ -368,6 +391,8 @@ et_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
 				     sc->sc_irq_res);
 	}
+	if ((sc->sc_flags & ET_FLAG_MSI) != 0)
+		pci_release_msi(dev);
 
 	if (sc->sc_mem_res != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
@@ -378,7 +403,8 @@ et_detach(device_t dev)
 		if_free(sc->ifp);
 
 	et_dma_free(dev);
-	/* XXX Destroy lock here */
+
+	mtx_destroy(&sc->sc_mtx);
 
 	return 0;
 }
@@ -1437,7 +1463,8 @@ et_chip_init(struct et_softc *sc)
 	CSR_WRITE_4(sc, ET_LOOPBACK, 0);
 
 	/* Clear MSI configure */
-	CSR_WRITE_4(sc, ET_MSI_CFG, 0);
+	if ((sc->sc_flags & ET_FLAG_MSI) == 0)
+		CSR_WRITE_4(sc, ET_MSI_CFG, 0);
 
 	/* Disable timer */
 	CSR_WRITE_4(sc, ET_TIMER, 0);
