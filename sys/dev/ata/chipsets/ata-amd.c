@@ -52,13 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
+static int ata_amd_ch_attach(device_t dev);
 static int ata_amd_chipinit(device_t dev);
 static int ata_amd_setmode(device_t dev, int target, int mode);
 
 /* misc defines */
 #define AMD_BUG		0x01
 #define AMD_CABLE	0x02
-
 
 /*
  * American Micro Devices (AMD) chipset support functions
@@ -100,6 +100,7 @@ ata_amd_chipinit(device_t dev)
     else
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
 
+    ctlr->ch_attach = ata_amd_ch_attach;
     ctlr->setmode = ata_amd_setmode;
     return 0;
 }
@@ -135,6 +136,21 @@ ata_amd_setmode(device_t dev, int target, int mode)
 	/* Set WDMA/PIO timings. */
 	pci_write_config(parent, reg - 0x08, timings[ata_mode2idx(piomode)], 1);
 	return (mode);
+}
+
+static int
+ata_amd_ch_attach(device_t dev)
+{
+	struct ata_pci_controller *ctlr;
+	struct ata_channel *ch;
+	int error;
+
+	ctlr = device_get_softc(device_get_parent(dev));
+	ch = device_get_softc(dev);
+	error = ata_pci_ch_attach(dev);
+	if (ctlr->chip->cfg1 & AMD_CABLE)
+		ch->flags |= ATA_CHECKS_CABLE;
+	return (error);
 }
 
 ATA_DECLARE_DRIVER(ata_amd);
