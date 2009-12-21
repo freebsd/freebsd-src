@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2003
+.Dd December 21, 2009
 .Dt WATCHDOG 4
 .Os
 .Sh NAME
@@ -62,8 +62,10 @@ The
 .Xr ioctl 2
 call will return success if just one of the available
 .Xr watchdog 9
-implementations supports setting the timeout to the specified timeout. This
-means that at least one watchdog is armed. If the call fails, for instance if
+implementations supports setting the timeout to the specified timeout.
+This
+means that at least one watchdog is armed.
+If the call fails, for instance if
 none of
 .Xr watchdog 9
 implementations support the timeout length, all watchdogs are disabled and must
@@ -71,7 +73,8 @@ be explicitly re-enabled.
 .Pp
 To disable the watchdogs pass
 .Dv WD_TO_NEVER .
-If disarming the watchdog(s) failed an error is returned. The watchdog might
+If disarming the watchdog(s) failed an error is returned.
+The watchdog might
 still be armed!
 .Sh RETURN VALUES
 The ioctl returns zero on success and non-zero on failure.
@@ -80,9 +83,9 @@ The ioctl returns zero on success and non-zero on failure.
 No watchdog present in the kernel (timeout value other than 0).
 .It Bq Er EOPNOTSUPP
 Watchdog could not be disabled (timeout value of 0).
-.It Bq Er EINVALID
+.It Bq Er EINVAL
 Invalid flag combination passed.
-.It Bq Er EINVALID
+.It Bq Er EINVAL
 None of the watchdogs supports the requested timeout value.
 .El
 .Sh EXAMPLES
@@ -94,7 +97,7 @@ None of the watchdogs supports the requested timeout value.
 int wdfd = -1;
 
 static void
-wd_init(void) 
+wd_init(void)
 {
 	wdfd = open(WDPATH, O_RDWR);
 	if (wdfd == -1)
@@ -116,9 +119,7 @@ wd_reset(WD_TO_NEVER);
 .Pp
 Enables a watchdog to recover from a potentially freezing piece of code.
 .Pp
-.Bd -literal -offset indent
-options SW_WATCHDOG
-.Ed
+.Dl "options SW_WATCHDOG"
 .Pp
 in your kernel config adds a software watchdog in the kernel, dropping to KDB
 or panic-ing when firing.
@@ -130,10 +131,6 @@ The
 .Nm
 code first appeared in
 .Fx 5.1 .
-.Sh BUGS
-The
-.Dv WD_PASSIVE
-option has not yet been implemented.
 .Sh AUTHORS
 .An -nosplit
 The
@@ -144,3 +141,7 @@ The software watchdog code and this manual page were written by
 .An Sean Kelly Aq smkelly@FreeBSD.org .
 Some contributions were made by
 .An Jeff Roberson Aq jeff@FreeBSD.org .
+.Sh BUGS
+The
+.Dv WD_PASSIVE
+option has not yet been implemented.
