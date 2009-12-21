@@ -251,6 +251,7 @@ i386/bios/smapi_bios.S		optional smapi
 i386/bios/smbios.c		optional smbios
 i386/bios/vpd.c			optional vpd
 i386/cpufreq/est.c		optional cpufreq
+i386/cpufreq/hwpstate.c		optional cpufreq
 i386/cpufreq/p4tcc.c		optional cpufreq
 i386/cpufreq/powernow.c		optional cpufreq
 i386/cpufreq/smist.c		optional cpufreq
