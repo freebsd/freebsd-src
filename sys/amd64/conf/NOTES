@@ -449,8 +449,10 @@ device		xrpu
 # Hardware watchdog timers:
 #
 # ichwd: Intel ICH watchdog timer
+# amdsbwd: AMD SB7xx watchdog timer
 #
 device		ichwd
+device		amdsbwd
 
 #
 # Temperature sensors:
