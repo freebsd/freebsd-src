@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2009
+.Dd December 20, 2009
 .Dt service 8
 .Os
 .Sh NAME
@@ -44,7 +44,10 @@ The
 .Nm
 command is an easy interface to the rc.d system.
 Its primary purpose is to start and stop services provided
-by the rc.d scripts, however it can also be used to list
+by the rc.d scripts.
+When used for this purpose it will set the same restricted
+environment that is in use at boot time (see below).
+It can also be used to list
 the scripts using various criteria.
 .Pp
 The options are as follows:
@@ -78,6 +81,20 @@ above, but list all of the files, not just what is enabled.
 .It Fl v
 Be slightly more verbose
 .El
+.Sh ENVIRONMENT
+When used to run rc.d scripts the
+.Nm
+command sets
+.Ev HOME
+to
+.Pa /
+and
+.Ev PATH
+to
+.Pa /sbin:/bin:/usr/sbin:/usr/bin
+which is how they are set in
+.Pa /etc/rc
+at boot time.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
