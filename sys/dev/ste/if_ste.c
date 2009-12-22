@@ -124,8 +124,9 @@ static int	ste_rxeof(struct ste_softc *, int);
 static void	ste_setmulti(struct ste_softc *);
 static void	ste_start(struct ifnet *);
 static void	ste_start_locked(struct ifnet *);
-static void	ste_stats_update(void *);
+static void	ste_stats_update(struct ste_softc *);
 static void	ste_stop(struct ste_softc *);
+static void	ste_tick(void *);
 static void	ste_txeoc(struct ste_softc *);
 static void	ste_txeof(struct ste_softc *);
 static void	ste_wait(struct ste_softc *);
@@ -404,15 +405,49 @@ ste_miibus_statchg(device_t dev)
 {
 	struct ste_softc *sc;
 	struct mii_data *mii;
+	struct ifnet *ifp;
+	uint16_t cfg;
 
 	sc = device_get_softc(dev);
 
 	mii = device_get_softc(sc->ste_miibus);
+	ifp = sc->ste_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
-		STE_SETBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
-	} else {
-		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+	sc->ste_flags &= ~STE_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+		case IFM_100_FX:
+		case IFM_100_T4:
+			sc->ste_flags |= STE_FLAG_LINK;
+		default:
+			break;
+		}
+	}
+
+	/* Program MACs with resolved speed/duplex/flow-control. */
+	if ((sc->ste_flags & STE_FLAG_LINK) != 0) {
+		cfg = CSR_READ_2(sc, STE_MACCTL0);
+		cfg &= ~(STE_MACCTL0_FLOWCTL_ENABLE | STE_MACCTL0_FULLDUPLEX);
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+			/*
+			 * ST201 data sheet says driver should enable receiving
+			 * MAC control frames bit of receive mode register to
+			 * receive flow-control frames but the register has no
+			 * such bits. In addition the controller has no ability
+			 * to send pause frames so it should be handled in
+			 * driver. Implementing pause timer handling in driver
+			 * layer is not trivial, so don't enable flow-control
+			 * here.
+			 */
+			cfg |= STE_MACCTL0_FULLDUPLEX;
+		}
+		CSR_WRITE_2(sc, STE_MACCTL0, cfg);
 	}
 }
 
@@ -613,13 +648,8 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (status & STE_ISR_TX_DONE)
 			ste_txeoc(sc);
 
-		if (status & STE_ISR_STATS_OFLOW) {
-			callout_stop(&sc->ste_stat_callout);
+		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
-		}
-
-		if (status & STE_ISR_LINKEVENT)
-			mii_pollstat(device_get_softc(sc->ste_miibus));
 
 		if (status & STE_ISR_HOSTERR) {
 			ste_reset(sc);
@@ -669,14 +699,8 @@ ste_intr(void *xsc)
 		if (status & STE_ISR_TX_DONE)
 			ste_txeoc(sc);
 
-		if (status & STE_ISR_STATS_OFLOW) {
-			callout_stop(&sc->ste_stat_callout);
+		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
-		}
-
-		if (status & STE_ISR_LINKEVENT)
-			mii_pollstat(device_get_softc(sc->ste_miibus));
-
 
 		if (status & STE_ISR_HOSTERR) {
 			ste_reset(sc);
@@ -813,6 +837,30 @@ ste_txeoc(struct ste_softc *sc)
 }
 
 static void
+ste_tick(void *arg)
+{
+	struct ste_softc *sc;
+	struct mii_data *mii;
+
+	sc = (struct ste_softc *)arg;
+
+	STE_LOCK_ASSERT(sc);
+
+	mii = device_get_softc(sc->ste_miibus);
+	mii_tick(mii);
+	/*
+	 * ukphy(4) does not seem to generate CB that reports
+	 * resolved link state so if we know we lost a link,
+	 * explicitly check the link state.
+	 */
+	if ((sc->ste_flags & STE_FLAG_LINK) == 0)
+		ste_miibus_statchg(sc->ste_dev);
+	ste_stats_update(sc);
+	ste_watchdog(sc);
+	callout_reset(&sc->ste_callout, hz, ste_tick, sc);
+}
+
+static void
 ste_txeof(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
@@ -855,42 +903,17 @@ ste_txeof(struct ste_softc *sc)
 }
 
 static void
-ste_stats_update(void *xsc)
+ste_stats_update(struct ste_softc *sc)
 {
-	struct ste_softc *sc;
 	struct ifnet *ifp;
-	struct mii_data *mii;
 
-	sc = xsc;
 	STE_LOCK_ASSERT(sc);
 
 	ifp = sc->ste_ifp;
-	mii = device_get_softc(sc->ste_miibus);
-
 	ifp->if_collisions += CSR_READ_1(sc, STE_LATE_COLLS)
 	    + CSR_READ_1(sc, STE_MULTI_COLLS)
 	    + CSR_READ_1(sc, STE_SINGLE_COLLS);
-
-	if ((sc->ste_flags & STE_FLAG_LINK) ==0) {
-		mii_pollstat(mii);
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->ste_flags |= STE_FLAG_LINK;
-			/*
-			* we don't get a call-back on re-init so do it
-			* otherwise we get stuck in the wrong link state
-			*/
-			ste_miibus_statchg(sc->ste_dev);
-			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-				ste_start_locked(ifp);
-		}
-	}
-
-	if (sc->ste_timer > 0 && --sc->ste_timer == 0)
-		ste_watchdog(sc);
-	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
 }
-
 
 /*
  * Probe for a Sundance ST201 chip. Check the PCI vendor and device
@@ -970,7 +993,7 @@ ste_attach(device_t dev)
 		goto fail;
 	}
 
-	callout_init_mtx(&sc->ste_stat_callout, &sc->ste_mtx, 0);
+	callout_init_mtx(&sc->ste_callout, &sc->ste_mtx, 0);
 
 	/* Reset the adapter. */
 	ste_reset(sc);
@@ -1076,7 +1099,7 @@ ste_detach(device_t dev)
 		STE_LOCK(sc);
 		ste_stop(sc);
 		STE_UNLOCK(sc);
-		callout_drain(&sc->ste_stat_callout);
+		callout_drain(&sc->ste_callout);
 	}
 	if (sc->ste_miibus)
 		device_delete_child(dev, sc->ste_miibus);
@@ -1601,7 +1624,7 @@ ste_init_locked(struct ste_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	callout_reset(&sc->ste_stat_callout, hz, ste_stats_update, sc);
+	callout_reset(&sc->ste_callout, hz, ste_tick, sc);
 }
 
 static void
@@ -1615,7 +1638,8 @@ ste_stop(struct ste_softc *sc)
 	STE_LOCK_ASSERT(sc);
 	ifp = sc->ste_ifp;
 
-	callout_stop(&sc->ste_stat_callout);
+	callout_stop(&sc->ste_callout);
+	sc->ste_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 
 	CSR_WRITE_2(sc, STE_IMR, 0);
@@ -1913,6 +1937,9 @@ ste_watchdog(struct ste_softc *sc)
 
 	ifp = sc->ste_ifp;
 	STE_LOCK_ASSERT(sc);
+
+	if (sc->ste_timer == 0 || --sc->ste_timer)
+		return;
 
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
