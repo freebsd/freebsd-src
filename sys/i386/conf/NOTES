@@ -463,9 +463,6 @@ device		tdfx_linux		# Enable Linuxulator support
 # kernel environment variables to select initial debugging levels for the
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
-#
-# Note that building ACPI into the kernel is deprecated; the module is
-# normally loaded automatically by the loader.
 
 device		acpi
 options 	ACPI_DEBUG
