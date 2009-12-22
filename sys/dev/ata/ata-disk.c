@@ -136,10 +136,10 @@ ad_attach(device_t dev)
     adp->disk->d_fwheads = adp->heads;
     adp->disk->d_unit = device_get_unit(dev);
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-	adp->disk->d_flags = DISKFLAG_CANFLUSHCACHE;
+	adp->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
     if ((atadev->param.support.command2 & ATA_SUPPORT_CFA) ||
 	atadev->param.config == ATA_PROTO_CFA)
-	adp->disk->d_flags = DISKFLAG_CANDELETE;
+	adp->disk->d_flags |= DISKFLAG_CANDELETE;
     strlcpy(adp->disk->d_ident, atadev->param.serial,
 	sizeof(adp->disk->d_ident));
     disk_create(adp->disk, DISK_VERSION);
