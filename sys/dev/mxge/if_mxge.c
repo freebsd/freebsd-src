@@ -3956,9 +3956,7 @@ mxge_tick(void *arg)
 	uint16_t cmd;
 
 	ticks = mxge_ticks;
-	mtx_lock(&sc->driver_mtx);
 	running = sc->ifp->if_drv_flags & IFF_DRV_RUNNING;
-	mtx_unlock(&sc->driver_mtx);
 	if (running) {
 		/* aggregate stats from different slices */
 		pkts = mxge_update_stats(sc);
