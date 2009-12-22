@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
  * keys are network prefixes (addr/masklen), and values are integers.
  * As a degenerate case we can interpret keys as 32-bit integers
  * (with a /32 mask).
+ *
+ * The table is protected by the IPFW lock even for manipulation coming
+ * from userland, because operations are typically fast.
  */
 
 #if !defined(KLD_MODULE)

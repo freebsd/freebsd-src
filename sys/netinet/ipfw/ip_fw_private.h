@@ -78,9 +78,11 @@ struct ip_fw_args {
 	struct mbuf	*m;		/* the mbuf chain		*/
 	struct ifnet	*oif;		/* output interface		*/
 	struct sockaddr_in *next_hop;	/* forward address		*/
+
 	struct ip_fw	*rule;		/* matching rule		*/
-	uint32_t	rule_id;	/* matching rule id */
-	uint32_t	chain_id;	/* ruleset id */
+	uint32_t	rule_id;	/* matching rule id		*/
+	uint32_t	chain_id;	/* ruleset id			*/
+
 	struct ether_header *eh;	/* for bridged packets		*/
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
@@ -174,6 +176,8 @@ struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
 	struct ip_fw	*default_rule;
+	int		n_rules;	/* number of static rules */
+	int		static_len;	/* total len of static rules */
 	LIST_HEAD(nat_list, cfg_nat) nat;       /* list of nat entries */
 	struct radix_node_head *tables[IPFW_TABLES_MAX];
 	struct rwlock	rwmtx;
