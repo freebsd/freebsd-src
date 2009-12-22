@@ -78,6 +78,9 @@ MODULE_DEPEND(ste, pci, 1, 1, 1);
 MODULE_DEPEND(ste, ether, 1, 1, 1);
 MODULE_DEPEND(ste, miibus, 1, 1, 1);
 
+/* Define to show Tx error status. */
+#define	STE_SHOW_TXERRORS
+
 /*
  * Various supported device vendors/types and their names.
  */
@@ -118,6 +121,7 @@ static int	ste_miibus_writereg(device_t, int, int, int);
 static int	ste_newbuf(struct ste_softc *, struct ste_chain_onefrag *);
 static int	ste_read_eeprom(struct ste_softc *, caddr_t, int, int, int);
 static void	ste_reset(struct ste_softc *);
+static void	ste_restart_tx(struct ste_softc *);
 static int	ste_rxeof(struct ste_softc *, int);
 static void	ste_setmulti(struct ste_softc *);
 static void	ste_start(struct ifnet *);
@@ -627,6 +631,7 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 	rx_npkts = ste_rxeof(sc, count);
 	ste_txeof(sc);
+	ste_txeoc(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		ste_start_locked(ifp);
 
@@ -634,9 +639,6 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		uint16_t status;
 
 		status = CSR_READ_2(sc, STE_ISR_ACK);
-
-		if (status & STE_ISR_TX_DONE)
-			ste_txeoc(sc);
 
 		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
@@ -788,35 +790,63 @@ ste_rxeof(struct ste_softc *sc, int count)
 static void
 ste_txeoc(struct ste_softc *sc)
 {
+	uint16_t txstat;
 	struct ifnet *ifp;
-	uint8_t txstat;
+
+	STE_LOCK_ASSERT(sc);
 
 	ifp = sc->ste_ifp;
 
-	while ((txstat = CSR_READ_1(sc, STE_TX_STATUS)) &
-	    STE_TXSTATUS_TXDONE) {
-		if (txstat & STE_TXSTATUS_UNDERRUN ||
-		    txstat & STE_TXSTATUS_EXCESSCOLLS ||
-		    txstat & STE_TXSTATUS_RECLAIMERR) {
+	/*
+	 * STE_TX_STATUS register implements a queue of up to 31
+	 * transmit status byte. Writing an arbitrary value to the
+	 * register will advance the queue to the next transmit
+	 * status byte. This means if driver does not read
+	 * STE_TX_STATUS register after completing sending more
+	 * than 31 frames the controller would be stalled so driver
+	 * should re-wake the Tx MAC. This is the most severe
+	 * limitation of ST201 based controller.
+	 */
+	for (;;) {
+		txstat = CSR_READ_2(sc, STE_TX_STATUS);
+		if ((txstat & STE_TXSTATUS_TXDONE) == 0)
+			break;
+		if ((txstat & (STE_TXSTATUS_UNDERRUN |
+		    STE_TXSTATUS_EXCESSCOLLS | STE_TXSTATUS_RECLAIMERR |
+		    STE_TXSTATUS_STATSOFLOW)) != 0) {
 			ifp->if_oerrors++;
-			device_printf(sc->ste_dev,
-			    "transmission error: %x\n", txstat);
-
-			ste_init_locked(sc);
-
-			if (txstat & STE_TXSTATUS_UNDERRUN &&
+#ifdef	STE_SHOW_TXERRORS
+			device_printf(sc->ste_dev, "TX error : 0x%b\n",
+			    txstat & 0xFF, STE_ERR_BITS);
+#endif
+			if ((txstat & STE_TXSTATUS_UNDERRUN) != 0 &&
 			    sc->ste_tx_thresh < STE_PACKET_SIZE) {
 				sc->ste_tx_thresh += STE_MIN_FRAMELEN;
+				if (sc->ste_tx_thresh > STE_PACKET_SIZE)
+					sc->ste_tx_thresh = STE_PACKET_SIZE;
 				device_printf(sc->ste_dev,
-				    "tx underrun, increasing tx"
+				    "TX underrun, increasing TX"
 				    " start threshold to %d bytes\n",
 				    sc->ste_tx_thresh);
+				/* Make sure to disable active DMA cycles. */
+				STE_SETBIT4(sc, STE_DMACTL,
+				    STE_DMACTL_TXDMA_STALL);
+				ste_wait(sc);
+				ste_init_locked(sc);
+				break;
 			}
-			CSR_WRITE_2(sc, STE_TX_STARTTHRESH, sc->ste_tx_thresh);
-			CSR_WRITE_2(sc, STE_TX_RECLAIM_THRESH,
-			    (STE_PACKET_SIZE >> 4));
+			/* Restart Tx. */
+			ste_restart_tx(sc);
 		}
-		ste_init_locked(sc);
+		/*
+		 * Advance to next status and ACK TxComplete
+		 * interrupt. ST201 data sheet was wrong here, to
+		 * get next Tx status, we have to write both
+		 * STE_TX_STATUS and STE_TX_FRAMEID register.
+		 * Otherwise controller returns the same status
+		 * as well as not acknowledge Tx completion
+		 * interrupt.
+		 */
 		CSR_WRITE_2(sc, STE_TX_STATUS, txstat);
 	}
 }
@@ -1713,6 +1743,26 @@ ste_reset(struct ste_softc *sc)
 		device_printf(sc->ste_dev, "global reset never completed\n");
 }
 
+static void
+ste_restart_tx(struct ste_softc *sc)
+{
+	uint16_t mac;
+	int i;
+
+	for (i = 0; i < STE_TIMEOUT; i++) {
+		mac = CSR_READ_2(sc, STE_MACCTL1);
+		mac |= STE_MACCTL1_TX_ENABLE;
+		CSR_WRITE_2(sc, STE_MACCTL1, mac);
+		mac = CSR_READ_2(sc, STE_MACCTL1);
+		if ((mac & STE_MACCTL1_TX_ENABLED) != 0)
+			break;
+		DELAY(10);
+	}
+
+	if (i == STE_TIMEOUT)
+		device_printf(sc->ste_dev, "starting Tx failed");
+}
+
 static int
 ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
@@ -1952,8 +2002,8 @@ ste_watchdog(struct ste_softc *sc)
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
-	ste_txeoc(sc);
 	ste_txeof(sc);
+	ste_txeoc(sc);
 	ste_rxeof(sc, -1);
 	ste_init_locked(sc);
 
