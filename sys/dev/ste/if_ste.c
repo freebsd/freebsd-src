@@ -369,7 +369,7 @@ ste_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if ( sc->ste_one_phy && phy != 0 )
+	if ((sc->ste_flags & STE_FLAG_ONE_PHY) != 0 && phy != 0)
 		return (0);
 
 	bzero((char *)&frame, sizeof(frame));
@@ -438,7 +438,7 @@ ste_ifmedia_upd_locked(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	STE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->ste_miibus);
-	sc->ste_link = 0;
+	sc->ste_flags &= ~STE_FLAG_LINK;
 	if (mii->mii_instance) {
 		struct mii_softc	*miisc;
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
@@ -871,11 +871,11 @@ ste_stats_update(void *xsc)
 	    + CSR_READ_1(sc, STE_MULTI_COLLS)
 	    + CSR_READ_1(sc, STE_SINGLE_COLLS);
 
-	if (!sc->ste_link) {
+	if ((sc->ste_flags & STE_FLAG_LINK) ==0) {
 		mii_pollstat(mii);
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->ste_link++;
+			sc->ste_flags |= STE_FLAG_LINK;
 			/*
 			* we don't get a call-back on re-init so do it
 			* otherwise we get stuck in the wrong link state
@@ -938,7 +938,7 @@ ste_attach(device_t dev)
 	if (pci_get_vendor(dev) == DL_VENDORID &&
 	    pci_get_device(dev) == DL_DEVICEID_DL10050 &&
 	    pci_get_revid(dev) == 0x12 )
-		sc->ste_one_phy = 1;
+		sc->ste_flags |= STE_FLAG_ONE_PHY;
 
 	mtx_init(&sc->ste_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1631,7 +1631,7 @@ ste_stop(struct ste_softc *sc)
 	 */
 	ste_reset(sc);
 
-	sc->ste_link = 0;
+	sc->ste_flags &= ~STE_FLAG_LINK;
 
 	for (i = 0; i < STE_RX_LIST_CNT; i++) {
 		cur_rx = &sc->ste_cdata.ste_rx_chain[i];
@@ -1850,10 +1850,8 @@ ste_start_locked(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	STE_LOCK_ASSERT(sc);
 
-	if (!sc->ste_link)
-		return;
-
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || (sc->ste_flags & STE_FLAG_LINK) == 0)
 		return;
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd);) {
