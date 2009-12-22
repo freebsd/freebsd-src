@@ -99,12 +99,12 @@ int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
 #if __XSI_VISIBLE
 int	killpg(__pid_t, int);
 int	sigaltstack(const stack_t * __restrict, stack_t * __restrict); 
-int	sighold(int sig);
-int	sigignore(int sig);
-int	sigpause(int sigmask);
-int	sigrelse(int sig);
-void	(*sigset(int sig, void (*disp)(int)))(int);
-int	xsi_sigpause(int sig);
+int	sighold(int);
+int	sigignore(int);
+int	sigpause(int);
+int	sigrelse(int);
+void	(*sigset(int, void (*)(int)))(int);
+int	xsi_sigpause(int);
 #endif
 
 #if __XSI_VISIBLE >= 600
