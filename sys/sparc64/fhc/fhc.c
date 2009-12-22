@@ -119,9 +119,11 @@ static driver_t fhc_driver = {
 
 static devclass_t fhc_devclass;
 
-DRIVER_MODULE(fhc, central, fhc_driver, fhc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(fhc, central, fhc_driver, fhc_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_DEPEND(fhc, central, 1, 1, 1);
-DRIVER_MODULE(fhc, nexus, fhc_driver, fhc_devclass, 0, 0);
+EARLY_DRIVER_MODULE(fhc, nexus, fhc_driver, fhc_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_DEPEND(fhc, nexus, 1, 1, 1);
 MODULE_VERSION(fhc, 1);
 
