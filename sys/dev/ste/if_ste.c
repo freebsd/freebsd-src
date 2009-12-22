@@ -651,10 +651,8 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
 
-		if (status & STE_ISR_HOSTERR) {
-			ste_reset(sc);
+		if (status & STE_ISR_HOSTERR)
 			ste_init_locked(sc);
-		}
 	}
 	return (rx_npkts);
 }
@@ -702,10 +700,8 @@ ste_intr(void *xsc)
 		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
 
-		if (status & STE_ISR_HOSTERR) {
-			ste_reset(sc);
+		if (status & STE_ISR_HOSTERR)
 			ste_init_locked(sc);
-		}
 	}
 
 	/* Re-enable interrupts */
@@ -816,7 +812,6 @@ ste_txeoc(struct ste_softc *sc)
 			device_printf(sc->ste_dev,
 			    "transmission error: %x\n", txstat);
 
-			ste_reset(sc);
 			ste_init_locked(sc);
 
 			if (txstat & STE_TXSTATUS_UNDERRUN &&
@@ -1528,6 +1523,8 @@ ste_init_locked(struct ste_softc *sc)
 	ifp = sc->ste_ifp;
 
 	ste_stop(sc);
+	/* Reset the chip to a known state. */
+	ste_reset(sc);
 
 	/* Init our MAC address */
 	for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
@@ -1633,6 +1630,7 @@ ste_stop(struct ste_softc *sc)
 	struct ifnet *ifp;
 	struct ste_chain_onefrag *cur_rx;
 	struct ste_chain *cur_tx;
+	uint32_t val;
 	int i;
 
 	STE_LOCK_ASSERT(sc);
@@ -1643,19 +1641,33 @@ ste_stop(struct ste_softc *sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 
 	CSR_WRITE_2(sc, STE_IMR, 0);
-	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_DISABLE);
-	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_RX_DISABLE);
-	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_STATS_DISABLE);
-	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_TXDMA_STALL);
-	STE_SETBIT2(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
+	/* Stop pending DMA. */
+	val = CSR_READ_4(sc, STE_DMACTL);
+	val |= STE_DMACTL_TXDMA_STALL | STE_DMACTL_RXDMA_STALL;
+	CSR_WRITE_4(sc, STE_DMACTL, val);
 	ste_wait(sc);
-	/*
-	 * Try really hard to stop the RX engine or under heavy RX
-	 * data chip will write into de-allocated memory.
-	 */
-	ste_reset(sc);
-
-	sc->ste_flags &= ~STE_FLAG_LINK;
+	/* Disable auto-polling. */
+	CSR_WRITE_1(sc, STE_RX_DMAPOLL_PERIOD, 0);
+	CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 0);
+	/* Nullify DMA address to stop any further DMA. */
+	CSR_WRITE_4(sc, STE_RX_DMALIST_PTR, 0);
+	CSR_WRITE_4(sc, STE_TX_DMALIST_PTR, 0);
+	/* Stop TX/RX MAC. */
+	val = CSR_READ_2(sc, STE_MACCTL1);
+	val |= STE_MACCTL1_TX_DISABLE | STE_MACCTL1_RX_DISABLE |
+	    STE_MACCTL1_STATS_DISABLE;
+	CSR_WRITE_2(sc, STE_MACCTL1, val);
+	for (i = 0; i < STE_TIMEOUT; i++) {
+		DELAY(10);
+		if ((CSR_READ_2(sc, STE_MACCTL1) & (STE_MACCTL1_TX_DISABLE |
+		    STE_MACCTL1_RX_DISABLE | STE_MACCTL1_STATS_DISABLE)) == 0)
+			break;
+	}
+	if (i == STE_TIMEOUT)
+		device_printf(sc->ste_dev, "Stopping MAC timed out\n");
+	/* Acknowledge any pending interrupts. */
+	CSR_READ_2(sc, STE_ISR_ACK);
+	ste_stats_update(sc);
 
 	for (i = 0; i < STE_RX_LIST_CNT; i++) {
 		cur_rx = &sc->ste_cdata.ste_rx_chain[i];
@@ -1947,7 +1959,6 @@ ste_watchdog(struct ste_softc *sc)
 	ste_txeoc(sc);
 	ste_txeof(sc);
 	ste_rxeof(sc, -1);
-	ste_reset(sc);
 	ste_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
