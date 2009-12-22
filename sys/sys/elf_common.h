@@ -398,6 +398,11 @@ typedef struct {
 				   executable contains code using a static
 				   thread-local storage scheme. */
 
+/* Values for DT_FLAGS_1 */
+#define	DF_1_BIND_NOW	0x00000001	/* Same as DF_BIND_NOW */
+#define	DF_1_GLOBAL	0x00000002	/* Set the RTLD_GLOBAL for object */
+#define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
+
 /* Values for n_type.  Used in core files. */
 #define NT_PRSTATUS	1	/* Process status. */
 #define NT_FPREGSET	2	/* Floating point registers. */
