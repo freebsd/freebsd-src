@@ -1367,19 +1367,10 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	struct dn_pipe *pipe;
 	uint64_t len = m->m_pkthdr.len;
 	struct dn_flow_queue *q = NULL;
-	int is_pipe;
-	ipfw_insn *cmd = ACTION_PTR(fwa->rule);
+	int is_pipe = fwa->cookie & 0x8000000 ? 0 : 1;
 
 	KASSERT(m->m_nextpkt == NULL,
 	    ("dummynet_io: mbuf queue passed to dummynet"));
-
-	if (cmd->opcode == O_LOG)
-		cmd += F_LEN(cmd);
-	if (cmd->opcode == O_ALTQ)
-		cmd += F_LEN(cmd);
-	if (cmd->opcode == O_TAG)
-		cmd += F_LEN(cmd);
-	is_pipe = (cmd->opcode == O_PIPE);
 
 	DUMMYNET_LOCK();
 	io_pkt++;
@@ -1390,11 +1381,11 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	 * below can be simplified.
 	 */
 	if (is_pipe) {
-		pipe = locate_pipe(fwa->cookie);
+		pipe = locate_pipe(fwa->cookie & 0xffff);
 		if (pipe != NULL)
 			fs = &(pipe->fs);
 	} else
-		fs = locate_flowset(fwa->cookie);
+		fs = locate_flowset(fwa->cookie & 0xffff);
 
 	if (fs == NULL)
 		goto dropit;	/* This queue/pipe does not exist! */
@@ -1440,7 +1431,8 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	 * Ok, i can handle the pkt now...
 	 * Build and enqueue packet + parameters.
 	 */
-	pkt->rule = fwa->rule;
+	pkt->slot = fwa->slot;
+	pkt->rulenum = fwa->rulenum;
 	pkt->rule_id = fwa->rule_id;
 	pkt->chain_id = fwa->chain_id;
 	pkt->dn_dir = dir;

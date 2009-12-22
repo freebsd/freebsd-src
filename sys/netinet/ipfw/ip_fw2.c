@@ -628,31 +628,6 @@ send_reject(struct ip_fw_args *args, int code, int ip_len, struct ip *ip)
 	args->m = NULL;
 }
 
-/**
- * Return the pointer to the skipto target.
- *
- * IMPORTANT: this should only be called on SKIPTO rules, and the
- * jump target is taken from the 'rulenum' argument, which may come
- * from the rule itself (direct skipto) or not (tablearg)
- *
- * The function never returns NULL: if the requested rule is not
- * present, it returns the next rule in the chain.
- * This also happens in case of a bogus argument > 65535
- */
-static struct ip_fw *
-lookup_next_rule(struct ip_fw *me, uint32_t rulenum)
-{
-	struct ip_fw *rule;
-
-	for (rule = me->next; rule ; rule = rule->next) {
-		if (rule->rulenum >= rulenum)
-			break;
-	}
-	if (rule == NULL)	/* failure or not a skipto */
-		rule = me->next ? me->next : me;
-	return rule;
-}
-
 /*
  * Support for uid/gid/jail lookup. These tests are expensive
  * (because we may need to look into the list of active sockets)
@@ -741,11 +716,13 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
  * Helper function to write the matching rule into args
  */
 static inline void
-set_match(struct ip_fw_args *args, struct ip_fw *f, struct ip_fw_chain *chain)
+set_match(struct ip_fw_args *args, int slot,
+	struct ip_fw_chain *chain)
 {
-	args->rule = f;
-	args->rule_id = f->id;
 	args->chain_id = chain->id;
+	args->slot = slot + 1; /* we use 0 as a marker */
+	args->rule_id = chain->map[slot]->id;
+	args->rulenum = chain->map[slot]->rulenum;
 }
 
 /*
@@ -839,7 +816,7 @@ ipfw_chk(struct ip_fw_args *args)
 	 */
 	struct ifnet *oif = args->oif;
 
-	struct ip_fw *f = NULL;		/* matching rule */
+	int f_pos = 0;		/* index of current rule in the array */
 	int retval = 0;
 
 	/*
@@ -1168,31 +1145,21 @@ do {								\
 		return (IP_FW_PASS);	/* accept */
 	}
 	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
-	if (args->rule) {
+	if (args->slot) {
 		/*
 		 * Packet has already been tagged as a result of a previous
 		 * match on rule args->rule aka args->rule_id (PIPE, QUEUE,
 		 * REASS, NETGRAPH and similar, never a skipto).
-		 * Validate the pointer and continue from args->rule->next
-		 * if still present, otherwise use the default rule.
-		 * XXX If fw_one_pass != 0 then just accept it, though
-		 * the caller should never pass us such packets.
+		 * Validate the slot and continue from the next one
+		 * if still present, otherwise do a lookup.
 		 */
 		if (V_fw_one_pass) {
 			IPFW_RUNLOCK(chain);
 			return (IP_FW_PASS);
 		}
-		if (chain->id == args->chain_id) { /* pointer still valid */
-			f = args->rule->next;
-		} else { /* must revalidate the pointer */
-			for (f = chain->rules; f != NULL; f = f->next)
-				if (f == args->rule && f->id == args->rule_id) {
-					f = args->rule->next;
-					break;
-				}
-		}
-		if (f == NULL) /* in case of errors, use default; */
-			f = chain->default_rule;
+		f_pos = (args->chain_id == chain->id) ?
+		    args->slot /* already incremented */ :
+		    ipfw_find_rule(chain, args->rulenum, args->rule_id+1);
 	} else {
 		/*
 		 * Find the starting rule. It can be either the first
@@ -1200,18 +1167,13 @@ do {								\
 		 */
 		int skipto = mtag ? divert_cookie(mtag) : 0;
 
-		f = chain->rules;
+		f_pos = 0;
 		if (args->eh == NULL && skipto != 0) {
 			if (skipto >= IPFW_DEFAULT_RULE) {
 				IPFW_RUNLOCK(chain);
 				return (IP_FW_DENY); /* invalid */
 			}
-			while (f && f->rulenum <= skipto)
-				f = f->next;
-			if (f == NULL) {	/* drop packet */
-				IPFW_RUNLOCK(chain);
-				return (IP_FW_DENY);
-			}
+			f_pos = ipfw_find_rule(chain, skipto, 0);
 		}
 	}
 	/* reset divert rule to avoid confusion later */
@@ -1227,7 +1189,7 @@ do {								\
 	 * need to break out of one or both loops, or re-enter one of
 	 * the loops with updated variables. Loop variables are:
 	 *
-	 *	f (outer loop) points to the current rule.
+	 *	f_pos (outer loop) points to the current rule.
 	 *		On output it points to the matching rule.
 	 *	done (outer loop) is used as a flag to break the loop.
 	 *	l (inner loop)	residual length of current rule.
@@ -1236,15 +1198,16 @@ do {								\
 	 * We break the inner loop by setting l=0 and possibly
 	 * cmdlen=0 if we don't want to advance cmd.
 	 * We break the outer loop by setting done=1
-	 * We can restart the inner loop by setting l>0 and f, cmd
+	 * We can restart the inner loop by setting l>0 and f_pos, f, cmd
 	 * as needed.
 	 */
-	for (; f; f = f->next) {
+	for (; f_pos < chain->n_rules; f_pos++) {
 		ipfw_insn *cmd;
 		uint32_t tablearg = 0;
 		int l, cmdlen, skip_or; /* skip rest of OR block */
+		struct ip_fw *f;
 
-/* again: */
+		f = chain->map[f_pos];
 		if (V_set_disable & (1 << f->set) )
 			continue;
 
@@ -1864,8 +1827,8 @@ do {								\
 			 * Exceptions:
 			 * O_COUNT and O_SKIPTO actions:
 			 *   instead of terminating, we jump to the next rule
-			 *   (setting l=0), or to the SKIPTO target (by
-			 *   setting f, cmd and l as needed), respectively.
+			 *   (setting l=0), or to the SKIPTO target (setting
+			 *   f/f_len, cmd and l as needed), respectively.
 			 *
 			 * O_TAG, O_LOG and O_ALTQ action parameters:
 			 *   perform some action and set match = 1;
@@ -1926,7 +1889,14 @@ do {								\
 					 */
 					q->pcnt++;
 					q->bcnt += pktlen;
+					/* XXX we would like to have f_pos
+					 * readily accessible in the dynamic
+				         * rule, instead of having to
+					 * lookup q->rule.
+					 */
 					f = q->rule;
+					f_pos = ipfw_find_rule(chain,
+						f->rulenum, f->id);
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
 					ipfw_dyn_unlock();
@@ -1952,9 +1922,11 @@ do {								\
 
 			case O_PIPE:
 			case O_QUEUE:
-				set_match(args, f, chain);
+				set_match(args, f_pos, chain);
 				args->cookie = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
+				if (cmd->opcode == O_QUEUE)
+					args->cookie |= 0x80000000;
 				retval = IP_FW_DUMMYNET;
 				l = 0;          /* exit inner loop */
 				done = 1;       /* exit outer loop */
@@ -1987,38 +1959,53 @@ do {								\
 				break;
 
 			case O_COUNT:
-			case O_SKIPTO:
 				f->pcnt++;	/* update stats */
 				f->bcnt += pktlen;
 				f->timestamp = time_uptime;
-				if (cmd->opcode == O_COUNT) {
 					l = 0;		/* exit inner loop */
 					break;
-				}
-				/* skipto: */
-				if (cmd->arg1 == IP_FW_TABLEARG) {
-				    f = lookup_next_rule(f, tablearg);
-				} else { /* direct skipto */
-				    /* update f->next_rule if not set */
-				    if (f->next_rule == NULL)
+
+			case O_SKIPTO:
+			    f->pcnt++;	/* update stats */
+			    f->bcnt += pktlen;
+			    f->timestamp = time_uptime;
+			    /* If possible use cached f_pos (in f->next_rule),
+			     * whose version is written in f->next_rule
+			     * (horrible hacks to avoid changing the ABI).
+			     */
+			    if (cmd->arg1 != IP_FW_TABLEARG &&
+				    (uint32_t)f->x_next == chain->id) {
+				f_pos = (uint32_t)f->next_rule;
+			    } else {
+				int i = (cmd->arg1 == IP_FW_TABLEARG) ?
+					tablearg : cmd->arg1;
+				/* make sure we do not jump backward */
+				if (i <= f->rulenum)
+				    i = f->rulenum + 1;
+				f_pos = ipfw_find_rule(chain, i, 0);
+				/* update the cache */
+				if (cmd->arg1 != IP_FW_TABLEARG) {
 					f->next_rule =
-					    lookup_next_rule(f, cmd->arg1);
-				    f = f->next_rule;
+					(void *)(uintptr_t)f_pos;
+				    f->x_next =
+					(void *)(uintptr_t)chain->id;
+				}
 				}
 				/*
-				 * Skip disabled rules, and
-				 * re-enter the inner loop
-				 * with the correct f, l and cmd.
+			     * Skip disabled rules, and re-enter
+			     * the inner loop with the correct
+			     * f_pos, f, l and cmd.
 				 * Also clear cmdlen and skip_or
 				 */
-				while (f && (V_set_disable & (1 << f->set)))
-					f = f->next;
-				if (f) { /* found a valid rule */
+			    for (; f_pos < chain->n_rules - 1 &&
+				    (V_set_disable &
+				     (1 << chain->map[f_pos]->set));
+				    f_pos++)
+				;
+			    /* prepare to enter the inner loop */
+			    f = chain->map[f_pos];
 					l = f->cmd_len;
 					cmd = f->cmd;
-				} else { /* should not happen */
-					l = 0;  /* exit inner loop */
-				}
 				match = 1;
 				cmdlen = 0;
 				skip_or = 0;
@@ -2083,7 +2070,7 @@ do {								\
 
 			case O_NETGRAPH:
 			case O_NGTEE:
-				set_match(args, f, chain);
+				set_match(args, f_pos, chain);
 				args->cookie = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
 				retval = (cmd->opcode == O_NETGRAPH) ?
@@ -2108,7 +2095,7 @@ do {								\
 				    struct cfg_nat *t;
 				    int nat_id;
 
-				    set_match(args, f, chain);
+				    set_match(args, f_pos, chain);
 				    t = ((ipfw_insn_nat *)cmd)->nat;
 				    if (t == NULL) {
 					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
@@ -2175,7 +2162,7 @@ do {								\
 				    else
 					ip->ip_sum = in_cksum(m, hlen);
 				    retval = IP_FW_REASS;
-				    set_match(args, f, chain);
+				    set_match(args, f_pos, chain);
 				}
 				done = 1;	/* exit outer loop */
 				break;
@@ -2209,10 +2196,11 @@ do {								\
 	}		/* end of outer for, scan rules */
 
 	if (done) {
+		struct ip_fw *rule = chain->map[f_pos];
 		/* Update statistics */
-		f->pcnt++;
-		f->bcnt += pktlen;
-		f->timestamp = time_uptime;
+		rule->pcnt++;
+		rule->bcnt += pktlen;
+		rule->timestamp = time_uptime;
 	} else {
 		retval = IP_FW_DENY;
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
@@ -2308,7 +2296,7 @@ static int
 vnet_ipfw_init(const void *unused)
 {
 	int error;
-	struct ip_fw default_rule;
+	struct ip_fw *rule = NULL;
 	struct ip_fw_chain *chain;
 
 	chain = &V_layer3_chain;
@@ -2322,38 +2310,39 @@ vnet_ipfw_init(const void *unused)
 #ifdef IPFIREWALL_VERBOSE_LIMIT
 	V_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #endif
-
-	error = ipfw_init_tables(chain);
-	if (error) {
-		panic("init_tables"); /* XXX Marko fix this ! */
-	}
 #ifdef IPFIREWALL_NAT
 	LIST_INIT(&chain->nat);
 #endif
 
-
-	chain->rules = NULL;
-	IPFW_LOCK_INIT(chain);
-
-	bzero(&default_rule, sizeof default_rule);
-	default_rule.act_ofs = 0;
-	default_rule.rulenum = IPFW_DEFAULT_RULE;
-	default_rule.cmd_len = 1;
-	default_rule.set = RESVD_SET;
-	default_rule.cmd[0].len = 1;
-	default_rule.cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
-	error = ipfw_add_rule(chain, &default_rule);
-
-	if (error != 0) {
-		printf("ipfw2: error %u initializing default rule "
-			"(support disabled)\n", error);
-		IPFW_LOCK_DESTROY(chain);
-		printf("leaving ipfw_iattach (1) with error %d\n", error);
-		return (error);
+	/* insert the default rule and create the initial map */
+	chain->n_rules = 1;
+	chain->static_len = sizeof(struct ip_fw);
+	chain->map = malloc(sizeof(struct ip_fw *), M_IPFW, M_NOWAIT | M_ZERO);
+	if (chain->map)
+		rule = malloc(chain->static_len, M_IPFW, M_NOWAIT | M_ZERO);
+	if (rule == NULL) {
+		if (chain->map)
+			free(chain->map, M_IPFW);
+		printf("ipfw2: ENOSPC initializing default rule "
+			"(support disabled)\n");
+		return (ENOSPC);
+	}
+	error = ipfw_init_tables(chain);
+	if (error) {
+		panic("init_tables"); /* XXX Marko fix this ! */
 	}
 
-	chain->default_rule = chain->rules;
+	/* fill and insert the default rule */
+	rule->act_ofs = 0;
+	rule->rulenum = IPFW_DEFAULT_RULE;
+	rule->cmd_len = 1;
+	rule->set = RESVD_SET;
+	rule->cmd[0].len = 1;
+	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
+	chain->rules = chain->default_rule = chain->map[0] = rule;
+	chain->id = rule->id = 1;
 
+	IPFW_LOCK_INIT(chain);
 	ipfw_dyn_init();
 
 	/* First set up some values that are compile time options */
@@ -2385,8 +2374,9 @@ vnet_ipfw_init(const void *unused)
 static int
 vnet_ipfw_uninit(const void *unused)
 {
-	struct ip_fw *reap;
+	struct ip_fw *reap, *rule;
 	struct ip_fw_chain *chain = &V_layer3_chain;
+	int i;
 
 	V_ipfw_vnet_ready = 0; /* tell new callers to go away */
 	/*
@@ -2400,19 +2390,26 @@ vnet_ipfw_uninit(const void *unused)
 #endif
 	V_ip_fw_chk_ptr = NULL;
 	V_ip_fw_ctl_ptr = NULL;
+	IPFW_UH_WLOCK(chain);
+	IPFW_UH_WUNLOCK(chain);
+	IPFW_UH_WLOCK(chain);
 
 	IPFW_WLOCK(chain);
-	/* We wait on the wlock here until the last user leaves */
 	IPFW_WUNLOCK(chain);
 	IPFW_WLOCK(chain);
 
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
 	ipfw_flush_tables(chain);
-	chain->reap = NULL;
-	ipfw_free_chain(chain, 1 /* kill default rule */);
-	reap = chain->reap;
-	chain->reap = NULL;
+	reap = NULL;
+	for (i = 0; i < chain->n_rules; i++) {
+		rule = chain->map[i];
+		rule->x_next = reap;
+		reap = rule;
+	}
+	if (chain->map)
+		free(chain->map, M_IPFW);
 	IPFW_WUNLOCK(chain);
+	IPFW_UH_WUNLOCK(chain);
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
 	IPFW_LOCK_DESTROY(chain);
