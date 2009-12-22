@@ -65,6 +65,9 @@ struct image_params {
 	size_t auxarg_size;
 	struct image_args *args;	/* system call arguments */
 	struct sysentvec *sysent;	/* system entry vector */
+	char *execpath;
+	unsigned long execpathp;
+	char *freepath;
 };
 
 #ifdef _KERNEL
