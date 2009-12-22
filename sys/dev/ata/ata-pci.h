@@ -204,6 +204,7 @@ struct ata_pci_controller {
 #define ATA_I82801JI_R1         0x3a258086
 #define ATA_I82801JI_S2         0x3a268086
 #define ATA_I31244              0x32008086
+#define ATA_ISCH                0x811a8086
 
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8211F             0x82111283
