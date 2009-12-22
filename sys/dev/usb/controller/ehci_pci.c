@@ -197,6 +197,10 @@ ehci_pci_match(device_t self)
 		return "Intel 82801JI (ICH10) USB 2.0 controller USB-A";
 	case 0x3a3c8086:
 		return "Intel 82801JI (ICH10) USB 2.0 controller USB-B";
+	case 0x3b348086:
+		return ("Intel PCH USB 2.0 controller USB-A");
+	case 0x3b3c8086:
+		return ("Intel PCH USB 2.0 controller USB-B");
 
 	case 0x00e01033:
 		return ("NEC uPD 720100 USB 2.0 controller");
@@ -213,6 +217,12 @@ ehci_pci_match(device_t self)
 		return "NVIDIA nForce4 USB 2.0 controller";
 	case 0x03f210de:
 		return "NVIDIA nForce MCP61 USB 2.0 controller";
+	case 0x0aa610de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aa910de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
+	case 0x0aaa10de:
+		return "NVIDIA nForce MCP79 USB 2.0 controller";
 
 	case 0x15621131:
 		return "Philips ISP156x USB 2.0 controller";
