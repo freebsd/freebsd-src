@@ -39,6 +39,10 @@
 #ifndef _MACHINE_BUS_COMMON_H_
 #define	_MACHINE_BUS_COMMON_H_
 
+#define	INTCLR_PENDING		0x000000003ULL	/* Interrupt queued to CPU */
+#define	INTCLR_RECEIVED		0x000000001ULL	/* Interrupt received */
+#define	INTCLR_IDLE		0x000000000ULL	/* Interrupt idle */
+
 #define	INTMAP_V		0x080000000ULL	/* Interrupt valid (enabled) */
 #define	INTMAP_TID_MASK		0x07c000000ULL	/* UPA target ID */
 #define	INTMAP_TID_SHIFT	26
@@ -60,9 +64,9 @@
 	(INTMAP_TID((mr), (mid)) | INTMAP_V)
 #define	INTMAP_TID(mr, mid)						\
 	(((mr) & ~INTMAP_TID_MASK) | ((mid) << INTMAP_TID_SHIFT))
-#define	INTMAP_VEC(ign, inr)						\
+#define	INTMAP_VEC(ign, ino)						\
 	((((ign) << INTMAP_IGN_SHIFT) & INTMAP_IGN_MASK) |		\
-	((inr) & INTMAP_INR_MASK))
+	((ino) & INTMAP_INO_MASK))
 
 /* counter-timer support. */
 void sparc64_counter_init(const char *name, bus_space_tag_t tag,
