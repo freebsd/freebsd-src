@@ -151,7 +151,7 @@ static device_method_t upa_methods[] = {
 static devclass_t upa_devclass;
 
 DEFINE_CLASS_0(upa, upa_driver, upa_methods, sizeof(struct upa_softc));
-DRIVER_MODULE(upa, nexus, upa_driver, upa_devclass, 0, 0);
+EARLY_DRIVER_MODULE(upa, nexus, upa_driver, upa_devclass, 0, 0, BUS_PASS_BUS);
 
 static const struct intr_controller upa_ic = {
 	upa_intr_enable,

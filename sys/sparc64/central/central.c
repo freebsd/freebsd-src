@@ -105,7 +105,8 @@ static driver_t central_driver = {
 
 static devclass_t central_devclass;
 
-DRIVER_MODULE(central, nexus, central_driver, central_devclass, 0, 0);
+EARLY_DRIVER_MODULE(central, nexus, central_driver, central_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_DEPEND(fhc, nexus, 1, 1, 1);
 MODULE_VERSION(central, 1);
 

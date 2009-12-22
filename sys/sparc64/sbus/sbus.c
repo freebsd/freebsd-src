@@ -247,7 +247,8 @@ static driver_t sbus_driver = {
 
 static devclass_t sbus_devclass;
 
-DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0,
+    BUS_PASS_BUS);
 MODULE_DEPEND(sbus, nexus, 1, 1, 1);
 MODULE_VERSION(sbus, 1);
 
