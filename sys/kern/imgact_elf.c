@@ -943,9 +943,6 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	base = (Elf_Addr *)*stack_base;
 	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
-	if (args->trace) {
-		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
-	}
 	if (args->execfd != -1) {
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
 	}

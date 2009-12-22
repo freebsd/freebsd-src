@@ -70,10 +70,6 @@ __ElfType(Auxinfo);
 #define AT_BASE         7       /* Interpreter's base address. */
 #define AT_FLAGS        8       /* Flags (unused). */
 #define AT_ENTRY        9       /* Where interpreter should transfer control. */
-
-#define AT_BRK          10      /* Starting point for sbrk and brk. */
-#define AT_DEBUG        11      /* Debugging level. */
-
 #define AT_NOTELF       10      /* Program is not ELF ?? */
 #define AT_UID          11      /* Real uid. */
 #define AT_EUID         12      /* Effective uid. */
