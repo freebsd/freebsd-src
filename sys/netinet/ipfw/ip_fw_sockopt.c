@@ -77,22 +77,8 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 
 /*
- * static variables followed by global ones
+ * static variables followed by global ones (none in this file)
  */
-
-static VNET_DEFINE(u_int32_t, static_count);	/* # of static rules */
-#define	V_static_count			VNET(static_count)
-
-static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
-#define	V_static_len			VNET(static_len)
-
-#ifdef SYSCTL_NODE
-SYSCTL_DECL(_net_inet_ip_fw);
-SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
-    CTLFLAG_RD, &VNET_NAME(static_count), 0,
-    "Number of static rules");
-
-#endif /* SYSCTL_NODE */
 
 /*
  * When a rule is added/deleted, clear the next_rule pointers in all rules.
@@ -187,11 +173,9 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 	/* chain->id incremented inside flush_rule_ptrs() */
 	rule->id = chain->id;
 done:
-	V_static_count++;
-	V_static_len += l;
+	chain->n_rules++;
+	chain->static_len += l;
 	IPFW_WUNLOCK(chain);
-	DEB(printf("ipfw: installed rule %d, static count now %d\n",
-		rule->rulenum, V_static_count);)
 	return (0);
 }
 
@@ -218,8 +202,8 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 		chain->rules = n;
 	else
 		prev->next = n;
-	V_static_count--;
-	V_static_len -= l;
+	chain->n_rules--;
+	chain->static_len -= l;
 
 	rule->next = chain->reap;
 	chain->reap = rule;
@@ -839,6 +823,7 @@ ipfw_ctl(struct sockopt *sopt)
 	int error;
 	size_t size;
 	struct ip_fw *buf, *rule;
+	struct ip_fw_chain *chain;
 	u_int32_t rulenum[2];
 
 	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
@@ -856,6 +841,7 @@ ipfw_ctl(struct sockopt *sopt)
 			return (error);
 	}
 
+	chain = &V_layer3_chain;
 	error = 0;
 
 	switch (sopt->sopt_name) {
@@ -871,7 +857,7 @@ ipfw_ctl(struct sockopt *sopt)
 		 * change between calculating the size and returning the
 		 * data in which case we'll just return what fits.
 		 */
-		size = V_static_len;	/* size of static rules */
+		size = chain->static_len;	/* size of static rules */
 		size += ipfw_dyn_len();
 
 		if (size >= sopt->sopt_valsize)
@@ -883,7 +869,7 @@ ipfw_ctl(struct sockopt *sopt)
 		 */
 		buf = malloc(size, M_TEMP, M_WAITOK);
 		error = sooptcopyout(sopt, buf,
-				ipfw_getrules(&V_layer3_chain, buf, size));
+				ipfw_getrules(chain, buf, size));
 		free(buf, M_TEMP);
 		break;
 
@@ -901,10 +887,10 @@ ipfw_ctl(struct sockopt *sopt)
 		 * the old list without the need for a lock.
 		 */
 
-		IPFW_WLOCK(&V_layer3_chain);
-		ipfw_free_chain(&V_layer3_chain, 0 /* keep default rule */);
-		rule = V_layer3_chain.reap;
-		IPFW_WUNLOCK(&V_layer3_chain);
+		IPFW_WLOCK(chain);
+		ipfw_free_chain(chain, 0 /* keep default rule */);
+		rule = chain->reap;
+		IPFW_WUNLOCK(chain);
 		ipfw_reap_rules(rule);
 		break;
 
@@ -915,7 +901,7 @@ ipfw_ctl(struct sockopt *sopt)
 		if (error == 0)
 			error = check_ipfw_struct(rule, sopt->sopt_valsize);
 		if (error == 0) {
-			error = ipfw_add_rule(&V_layer3_chain, rule);
+			error = ipfw_add_rule(chain, rule);
 			size = RULESIZE(rule);
 			if (!error && sopt->sopt_dir == SOPT_GET)
 				error = sooptcopyout(sopt, rule, size);
@@ -941,13 +927,14 @@ ipfw_ctl(struct sockopt *sopt)
 		if (error)
 			break;
 		size = sopt->sopt_valsize;
-		if (size == sizeof(u_int32_t))	/* delete or reassign */
-			error = del_entry(&V_layer3_chain, rulenum[0]);
-		else if (size == 2*sizeof(u_int32_t)) /* set enable/disable */
+		if (size == sizeof(u_int32_t) && rulenum[0] != 0) {
+			/* delete or reassign, locking done in del_entry() */
+			error = del_entry(chain, rulenum[0]);
+		} else if (size == 2*sizeof(u_int32_t)) { /* set enable/disable */
 			V_set_disable =
 			    (V_set_disable | rulenum[0]) & ~rulenum[1] &
 			    ~(1<<RESVD_SET); /* set RESVD_SET always enabled */
-		else
+		} else
 			error = EINVAL;
 		break;
 
@@ -960,10 +947,11 @@ ipfw_ctl(struct sockopt *sopt)
 		    if (error)
 			break;
 		}
-		error = zero_entry(&V_layer3_chain, rulenum[0],
+		error = zero_entry(chain, rulenum[0],
 			sopt->sopt_name == IP_FW_RESETLOG);
 		break;
 
+	/*--- TABLE manipulations are protected by the IPFW_LOCK ---*/
 	case IP_FW_TABLE_ADD:
 		{
 			ipfw_table_entry ent;
@@ -972,7 +960,7 @@ ipfw_ctl(struct sockopt *sopt)
 			    sizeof(ent), sizeof(ent));
 			if (error)
 				break;
-			error = ipfw_add_table_entry(&V_layer3_chain, ent.tbl,
+			error = ipfw_add_table_entry(chain, ent.tbl,
 			    ent.addr, ent.masklen, ent.value);
 		}
 		break;
@@ -985,7 +973,7 @@ ipfw_ctl(struct sockopt *sopt)
 			    sizeof(ent), sizeof(ent));
 			if (error)
 				break;
-			error = ipfw_del_table_entry(&V_layer3_chain, ent.tbl,
+			error = ipfw_del_table_entry(chain, ent.tbl,
 			    ent.addr, ent.masklen);
 		}
 		break;
@@ -998,9 +986,9 @@ ipfw_ctl(struct sockopt *sopt)
 			    sizeof(tbl), sizeof(tbl));
 			if (error)
 				break;
-			IPFW_WLOCK(&V_layer3_chain);
-			error = ipfw_flush_table(&V_layer3_chain, tbl);
-			IPFW_WUNLOCK(&V_layer3_chain);
+			IPFW_WLOCK(chain);
+			error = ipfw_flush_table(chain, tbl);
+			IPFW_WUNLOCK(chain);
 		}
 		break;
 
@@ -1011,9 +999,9 @@ ipfw_ctl(struct sockopt *sopt)
 			if ((error = sooptcopyin(sopt, &tbl, sizeof(tbl),
 			    sizeof(tbl))))
 				break;
-			IPFW_RLOCK(&V_layer3_chain);
-			error = ipfw_count_table(&V_layer3_chain, tbl, &cnt);
-			IPFW_RUNLOCK(&V_layer3_chain);
+			IPFW_RLOCK(chain);
+			error = ipfw_count_table(chain, tbl, &cnt);
+			IPFW_RUNLOCK(chain);
 			if (error)
 				break;
 			error = sooptcopyout(sopt, &cnt, sizeof(cnt));
@@ -1037,9 +1025,9 @@ ipfw_ctl(struct sockopt *sopt)
 			}
 			tbl->size = (size - sizeof(*tbl)) /
 			    sizeof(ipfw_table_entry);
-			IPFW_RLOCK(&V_layer3_chain);
-			error = ipfw_dump_table(&V_layer3_chain, tbl);
-			IPFW_RUNLOCK(&V_layer3_chain);
+			IPFW_RLOCK(chain);
+			error = ipfw_dump_table(chain, tbl);
+			IPFW_RUNLOCK(chain);
 			if (error) {
 				free(tbl, M_TEMP);
 				break;
@@ -1049,6 +1037,7 @@ ipfw_ctl(struct sockopt *sopt)
 		}
 		break;
 
+	/*--- NAT operations are protected by the IPFW_LOCK ---*/
 	case IP_FW_NAT_CFG:
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_cfg_ptr(sopt);

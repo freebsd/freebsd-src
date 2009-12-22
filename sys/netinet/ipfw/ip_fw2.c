@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -131,11 +131,9 @@ VNET_DEFINE(u_int32_t, set_disable);
 #define	V_set_disable			VNET(set_disable)
 
 VNET_DEFINE(int, fw_verbose);
-//#define	V_verbose_limit			VNET(verbose_limit)
 /* counter for ipfw_log(NULL...) */
 VNET_DEFINE(u_int64_t, norule_counter);
 VNET_DEFINE(int, verbose_limit);
-
 
 /* layer3_chain contains the list of rules for layer 3 */
 VNET_DEFINE(struct ip_fw_chain, layer3_chain);
@@ -146,8 +144,6 @@ ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
 ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
-
-extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
@@ -173,6 +169,9 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
     &default_to_accept, 0,
     "Make the default rule accept all packets.");
 TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
+    CTLFLAG_RD, &VNET_NAME(layer3_chain.n_rules), 0,
+    "Number of static rules");
 
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6);
@@ -736,6 +735,17 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	else if (insn->o.opcode == O_JAIL)
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return match;
+}
+
+/*
+ * Helper function to write the matching rule into args
+ */
+static inline void
+set_match(struct ip_fw_args *args, struct ip_fw *f, struct ip_fw_chain *chain)
+{
+	args->rule = f;
+	args->rule_id = f->id;
+	args->chain_id = chain->id;
 }
 
 /*
@@ -1942,13 +1952,9 @@ do {								\
 
 			case O_PIPE:
 			case O_QUEUE:
-				args->rule = f; /* report matching rule */
-				args->rule_id = f->id;
-				args->chain_id = chain->id;
-				if (cmd->arg1 == IP_FW_TABLEARG)
-					args->cookie = tablearg;
-				else
-					args->cookie = cmd->arg1;
+				set_match(args, f, chain);
+				args->cookie = (cmd->arg1 == IP_FW_TABLEARG) ?
+					tablearg : cmd->arg1;
 				retval = IP_FW_DUMMYNET;
 				l = 0;          /* exit inner loop */
 				done = 1;       /* exit outer loop */
@@ -2077,13 +2083,9 @@ do {								\
 
 			case O_NETGRAPH:
 			case O_NGTEE:
-				args->rule = f;	/* report matching rule */
-				args->rule_id = f->id;
-				args->chain_id = chain->id;
-				if (cmd->arg1 == IP_FW_TABLEARG)
-					args->cookie = tablearg;
-				else
-					args->cookie = cmd->arg1;
+				set_match(args, f, chain);
+				args->cookie = (cmd->arg1 == IP_FW_TABLEARG) ?
+					tablearg : cmd->arg1;
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				l = 0;          /* exit inner loop */
@@ -2106,14 +2108,12 @@ do {								\
 				    struct cfg_nat *t;
 				    int nat_id;
 
-				    args->rule = f; /* Report matching rule. */
-				    args->rule_id = f->id;
-				    args->chain_id = chain->id;
+				    set_match(args, f, chain);
 				    t = ((ipfw_insn_nat *)cmd)->nat;
 				    if (t == NULL) {
 					nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
 						tablearg : cmd->arg1;
-					t = (*lookup_nat_ptr)(&V_layer3_chain.nat, nat_id);
+					t = (*lookup_nat_ptr)(&chain->nat, nat_id);
 
 					if (t == NULL) {
 					    retval = IP_FW_DENY;
@@ -2175,9 +2175,7 @@ do {								\
 				    else
 					ip->ip_sum = in_cksum(m, hlen);
 				    retval = IP_FW_REASS;
-				    args->rule = f;
-				    args->rule_id = f->id;
-				    args->chain_id = chain->id;
+				    set_match(args, f, chain);
 				}
 				done = 1;	/* exit outer loop */
 				break;
@@ -2311,8 +2309,13 @@ vnet_ipfw_init(const void *unused)
 {
 	int error;
 	struct ip_fw default_rule;
+	struct ip_fw_chain *chain;
+
+	chain = &V_layer3_chain;
 
 	/* First set up some values that are compile time options */
+	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
+	V_fw_deny_unknown_exthdrs = 1;
 #ifdef IPFIREWALL_VERBOSE
 	V_fw_verbose = 1;
 #endif
@@ -2320,20 +2323,17 @@ vnet_ipfw_init(const void *unused)
 	V_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #endif
 
-	error = ipfw_init_tables(&V_layer3_chain);
+	error = ipfw_init_tables(chain);
 	if (error) {
 		panic("init_tables"); /* XXX Marko fix this ! */
 	}
 #ifdef IPFIREWALL_NAT
-	LIST_INIT(&V_layer3_chain.nat);
+	LIST_INIT(&chain->nat);
 #endif
 
-	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
 
-	V_fw_deny_unknown_exthdrs = 1;
-
-	V_layer3_chain.rules = NULL;
-	IPFW_LOCK_INIT(&V_layer3_chain);
+	chain->rules = NULL;
+	IPFW_LOCK_INIT(chain);
 
 	bzero(&default_rule, sizeof default_rule);
 	default_rule.act_ofs = 0;
@@ -2342,17 +2342,17 @@ vnet_ipfw_init(const void *unused)
 	default_rule.set = RESVD_SET;
 	default_rule.cmd[0].len = 1;
 	default_rule.cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
-	error = ipfw_add_rule(&V_layer3_chain, &default_rule);
+	error = ipfw_add_rule(chain, &default_rule);
 
 	if (error != 0) {
 		printf("ipfw2: error %u initializing default rule "
 			"(support disabled)\n", error);
-		IPFW_LOCK_DESTROY(&V_layer3_chain);
+		IPFW_LOCK_DESTROY(chain);
 		printf("leaving ipfw_iattach (1) with error %d\n", error);
 		return (error);
 	}
 
-	V_layer3_chain.default_rule = V_layer3_chain.rules;
+	chain->default_rule = chain->rules;
 
 	ipfw_dyn_init();
 
@@ -2386,6 +2386,7 @@ static int
 vnet_ipfw_uninit(const void *unused)
 {
 	struct ip_fw *reap;
+	struct ip_fw_chain *chain = &V_layer3_chain;
 
 	V_ipfw_vnet_ready = 0; /* tell new callers to go away */
 	/*
@@ -2400,21 +2401,21 @@ vnet_ipfw_uninit(const void *unused)
 	V_ip_fw_chk_ptr = NULL;
 	V_ip_fw_ctl_ptr = NULL;
 
-	IPFW_WLOCK(&V_layer3_chain);
+	IPFW_WLOCK(chain);
 	/* We wait on the wlock here until the last user leaves */
-	IPFW_WUNLOCK(&V_layer3_chain);
-	IPFW_WLOCK(&V_layer3_chain);
+	IPFW_WUNLOCK(chain);
+	IPFW_WLOCK(chain);
 
 	ipfw_dyn_uninit(0);	/* run the callout_drain */
-	ipfw_flush_tables(&V_layer3_chain);
-	V_layer3_chain.reap = NULL;
-	ipfw_free_chain(&V_layer3_chain, 1 /* kill default rule */);
-	reap = V_layer3_chain.reap;
-	V_layer3_chain.reap = NULL;
-	IPFW_WUNLOCK(&V_layer3_chain);
+	ipfw_flush_tables(chain);
+	chain->reap = NULL;
+	ipfw_free_chain(chain, 1 /* kill default rule */);
+	reap = chain->reap;
+	chain->reap = NULL;
+	IPFW_WUNLOCK(chain);
 	if (reap != NULL)
 		ipfw_reap_rules(reap);
-	IPFW_LOCK_DESTROY(&V_layer3_chain);
+	IPFW_LOCK_DESTROY(chain);
 	ipfw_dyn_uninit(1);	/* free the remaining parts */
 	return 0;
 }
