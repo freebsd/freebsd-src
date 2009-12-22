@@ -471,15 +471,17 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 
 	dn_tag = ip_dn_claim_tag(*m0);
 
-	if (dn_tag != NULL) {
-		if (dn_tag->rule != NULL && V_fw_one_pass)
+	if (dn_tag == NULL) {
+		args.slot = 0;
+	} else {
+		if (dn_tag->slot != 0 && V_fw_one_pass)
 			/* dummynet packet, already partially processed */
 			return (1);
-		args.rule = dn_tag->rule;	/* matching rule to restart */
+		args.slot = dn_tag->slot;	/* matching rule to restart */
+		args.rulenum = dn_tag->rulenum;
 		args.rule_id = dn_tag->rule_id;
 		args.chain_id = dn_tag->chain_id;
-	} else
-		args.rule = NULL;
+	}
 
 	/*
 	 * I need some amt of data to be contiguous, and in case others need
