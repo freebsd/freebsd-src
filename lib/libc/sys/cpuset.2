@@ -96,7 +96,7 @@ The
 .Fa which
 argument may have the following values:
 .Bl -column CPU_WHICH_CPUSET -offset indent
-.It Dv CPU_WHICH_TID Ta "id is lpwid_t (thread id)"
+.It Dv CPU_WHICH_TID Ta "id is lwpid_t (thread id)"
 .It Dv CPU_WHICH_PID Ta "id is pid_t (process id)"
 .It Dv CPU_WHICH_CPUSET Ta "id is a cpusetid_t (cpuset id)"
 .It Dv CPU_WHICH_IRQ Ta "id is an irq number"
@@ -209,7 +209,7 @@ The calling process did not have the credentials required to complete the
 operation.
 .It Bq Er ENFILE
 There was no free
-.Fn cpusetid_t
+.Ft cpusetid_t
 for allocation.
 .El
 .Sh SEE ALSO
