@@ -39,18 +39,18 @@
 #ifndef _MACHINE_BUS_COMMON_H_
 #define	_MACHINE_BUS_COMMON_H_
 
-#define	INTMAP_V		0x080000000LL	/* Interrupt valid (enabled) */
-#define	INTMAP_TID_MASK		0x07c000000LL	/* UPA target ID */
+#define	INTMAP_V		0x080000000ULL	/* Interrupt valid (enabled) */
+#define	INTMAP_TID_MASK		0x07c000000ULL	/* UPA target ID */
 #define	INTMAP_TID_SHIFT	26
-#define	INTMAP_IGN_MASK		0x0000007c0LL	/* Interrupt group no. */
+#define	INTMAP_IGN_MASK		0x0000007c0ULL	/* Interrupt group no. */
 #define	INTMAP_IGN_SHIFT	6
-#define	INTMAP_INO_MASK		0x00000003fLL	/* Interrupt number */
+#define	INTMAP_INO_MASK		0x00000003fULL	/* Interrupt number */
 #define	INTMAP_INR_MASK		(INTMAP_IGN_MASK | INTMAP_INO_MASK)
-#define	INTMAP_SBUSSLOT_MASK	0x000000018LL	/* SBus slot # */
-#define	INTMAP_PCIBUS_MASK	0x000000010LL	/* PCI bus number (A or B) */
-#define	INTMAP_PCISLOT_MASK	0x00000000cLL	/* PCI slot # */
-#define	INTMAP_PCIINT_MASK	0x000000003LL	/* PCI interrupt #A,#B,#C,#D */
-#define	INTMAP_OBIO_MASK	0x000000020LL	/* Onboard device */
+#define	INTMAP_SBUSSLOT_MASK	0x000000018ULL	/* SBus slot # */
+#define	INTMAP_PCIBUS_MASK	0x000000010ULL	/* PCI bus number (A or B) */
+#define	INTMAP_PCISLOT_MASK	0x00000000cULL	/* PCI slot # */
+#define	INTMAP_PCIINT_MASK	0x000000003ULL	/* PCI interrupt #A,#B,#C,#D */
+#define	INTMAP_OBIO_MASK	0x000000020ULL	/* Onboard device */
 #define	INTIGN(x)		(((x) & INTMAP_IGN_MASK) >> INTMAP_IGN_SHIFT)
 #define	INTVEC(x)		((x) & INTMAP_INR_MASK)
 #define	INTSLOT(x)		(((x) >> 3) & 0x7)
