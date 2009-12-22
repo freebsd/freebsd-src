@@ -1271,7 +1271,6 @@ MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usbd_xfer_set_timeout.9 \
 	usbdi.9 usbd_xfer_softc.9 \
 	usbdi.9 usbd_xfer_state.9 \
-	usbdi.9 usbd_xfer_state.9 \
 	usbdi.9 usbd_xfer_status.9 \
 	usbdi.9 usb_fifo_alloc_buffer.9 \
 	usbdi.9 usb_fifo_attach.9 \
