@@ -222,8 +222,6 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);  
     
-	if (args->trace)
-		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
 	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
