@@ -360,6 +360,8 @@ do_execve(td, args, mac_p)
 	imgp->ps_strings = 0;
 	imgp->auxarg_size = 0;
 	imgp->args = args;
+	imgp->execpath = imgp->freepath = NULL;
+	imgp->execpathp = 0;
 
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
@@ -486,6 +488,10 @@ interpret:
 	 * of the sv_copyout_strings/sv_fixup operations require the vnode.
 	 */
 	VOP_UNLOCK(imgp->vp, 0, td);
+
+	if (imgp->auxargs != NULL)
+		vn_fullpath(td, imgp->vp, &imgp->execpath, &imgp->freepath);
+
 	/*
 	 * Copy out strings (args and env) and initialize stack base
 	 */
@@ -814,6 +820,8 @@ exec_fail_dealloc:
 	if (imgp->object != NULL)
 		vm_object_deallocate(imgp->object);
 
+	free(imgp->freepath, M_TEMP);
+
 	if (error == 0) {
 		/*
 		 * Stop the process here if its stop event mask has
@@ -1125,18 +1133,24 @@ exec_copyout_strings(imgp)
 	register_t *stack_base;
 	struct ps_strings *arginfo;
 	struct proc *p;
+	size_t execpath_len;
 	int szsigcode;
 
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+		execpath_len = strlen(imgp->execpath) + 1;
+	else
+		execpath_len = 0;
 	p = imgp->proc;
 	szsigcode = 0;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 	if (p->p_sysent->sv_szsigcode != NULL)
 		szsigcode = *(p->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
+	    roundup(execpath_len, sizeof(char *)) -
 	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
@@ -1145,6 +1159,15 @@ exec_copyout_strings(imgp)
 	if (szsigcode)
 		copyout(p->p_sysent->sv_sigcode, ((caddr_t)arginfo -
 		    szsigcode), szsigcode);
+
+	/*
+	 * Copy the image path for the rtld.
+	 */
+	if (execpath_len != 0) {
+		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
+		copyout(imgp->execpath, (void *)imgp->execpathp,
+		    execpath_len);
+	}
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -1163,9 +1186,8 @@ exec_copyout_strings(imgp)
 		 * for argument of Runtime loader.
 		 */
 		vectp = (char **)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size) *
+		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
 		    sizeof(char *));
-
 	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
