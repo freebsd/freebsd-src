@@ -412,6 +412,14 @@ struct ste_frag {
 #define STE_FRAG_LAST		0x80000000
 #define STE_FRAG_LEN		0x00001FFF
 
+/*
+ * A TFD is 16 to 512 bytes in length which means it can have up to 126
+ * fragments for a single Tx frame. Since most frames used in stack have
+ * 3-4 fragments supporting 8 fragments would be enough for normal
+ * operation. If we encounter more than 8 fragments we'll collapse them
+ * into a frame that has less than or equal to 8 fragments. Each buffer
+ * address of a fragment has no alignment limitation.
+ */
 #define STE_MAXFRAGS	8
 
 struct ste_desc {
@@ -420,6 +428,12 @@ struct ste_desc {
 	struct ste_frag		ste_frags[STE_MAXFRAGS];
 };
 
+/*
+ * A RFD has the same structure of TFD which in turn means hardware
+ * supports scatter operation in Rx buffer. Since we just allocate Rx
+ * buffer with m_getcl(9) there is no fragmentation at all so use
+ * single fragment for RFD.
+ */
 struct ste_desc_onefrag {
 	uint32_t		ste_next;
 	uint32_t		ste_status;
@@ -427,6 +441,7 @@ struct ste_desc_onefrag {
 };
 
 #define STE_TXCTL_WORDALIGN	0x00000003
+#define STE_TXCTL_ALIGN_DIS	0x00000001
 #define STE_TXCTL_FRAMEID	0x000003FC
 #define STE_TXCTL_NOCRC		0x00002000
 #define STE_TXCTL_TXINTR	0x00008000
@@ -445,6 +460,8 @@ struct ste_desc_onefrag {
 #define STE_RXSTAT_DMA_OFLOW	0x01000000
 #define STE_RXATAT_ONEBUF	0x10000000
 
+#define STE_RX_BYTES(x)		((x) & STE_RXSTAT_FRAMELEN)
+
 /*
  * register space access macros
  */
@@ -462,13 +479,22 @@ struct ste_desc_onefrag {
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->ste_btag, sc->ste_bhandle, reg)
 
+#define	STE_DESC_ALIGN		8
+#define STE_RX_LIST_CNT		128
+#define STE_TX_LIST_CNT		128
+#define	STE_RX_LIST_SZ		\
+	(sizeof(struct ste_desc_onefrag) * STE_RX_LIST_CNT)
+#define	STE_TX_LIST_SZ		\
+	(sizeof(struct ste_desc) * STE_TX_LIST_CNT)
+#define	STE_ADDR_LO(x)		((uint64_t)(x) & 0xFFFFFFFF)
+#define	STE_ADDR_HI(x)		((uint64_t)(x) >> 32)
+
+#define	STE_TX_TIMEOUT		5
 #define STE_TIMEOUT		1000
 #define STE_MIN_FRAMELEN	60
 #define STE_PACKET_SIZE		1536
-#define ETHER_ALIGN		2
-#define STE_RX_LIST_CNT		64
-#define STE_TX_LIST_CNT		128
 #define STE_INC(x, y)		(x) = (x + 1) % y
+#define STE_DEC(x, y)		(x) = ((x) + ((y) - 1)) % (y)
 #define STE_NEXT(x, y)		(x + 1) % y
 
 struct ste_type {
@@ -478,8 +504,10 @@ struct ste_type {
 };
 
 struct ste_list_data {
-	struct ste_desc_onefrag	ste_rx_list[STE_RX_LIST_CNT];
-	struct ste_desc		ste_tx_list[STE_TX_LIST_CNT];
+	struct ste_desc_onefrag	*ste_rx_list;
+	bus_addr_t		ste_rx_list_paddr;
+	struct ste_desc		*ste_tx_list;
+	bus_addr_t		ste_tx_list_paddr;
 };
 
 struct ste_chain {
@@ -487,21 +515,32 @@ struct ste_chain {
 	struct mbuf		*ste_mbuf;
 	struct ste_chain	*ste_next;
 	uint32_t		ste_phys;
+	bus_dmamap_t		ste_map;
 };
 
 struct ste_chain_onefrag {
 	struct ste_desc_onefrag	*ste_ptr;
 	struct mbuf		*ste_mbuf;
 	struct ste_chain_onefrag	*ste_next;
+	bus_dmamap_t		ste_map;
 };
 
 struct ste_chain_data {
+	bus_dma_tag_t		ste_parent_tag;
+	bus_dma_tag_t		ste_rx_tag;
+	bus_dma_tag_t		ste_tx_tag;
+	bus_dma_tag_t		ste_rx_list_tag;
+	bus_dmamap_t		ste_rx_list_map;
+	bus_dma_tag_t		ste_tx_list_tag;
+	bus_dmamap_t		ste_tx_list_map;
+	bus_dmamap_t		ste_rx_sparemap;
 	struct ste_chain_onefrag ste_rx_chain[STE_RX_LIST_CNT];
-	struct ste_chain	 ste_tx_chain[STE_TX_LIST_CNT];
+	struct ste_chain	ste_tx_chain[STE_TX_LIST_CNT];
 	struct ste_chain_onefrag *ste_rx_head;
-
+	struct ste_chain	*ste_last_tx;
 	int			ste_tx_prod;
 	int			ste_tx_cons;
+	int			ste_tx_cnt;
 };
 
 struct ste_softc {
@@ -518,15 +557,11 @@ struct ste_softc {
 	uint8_t			ste_link;
 	int			ste_if_flags;
 	int			ste_timer;
-	struct ste_chain	*ste_tx_prev;
-	struct ste_list_data	*ste_ldata;
+	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout		ste_stat_callout;
 	struct mtx		ste_mtx;
 	uint8_t			ste_one_phy;
-#ifdef DEVICE_POLLING
-	int			rxcycles;
-#endif
 };
 
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
