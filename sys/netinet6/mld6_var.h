@@ -55,6 +55,7 @@ struct mld_ifinfo {
 	struct ifqueue	 mli_gq;	/* queue of general query responses */
 };
 #define MLIF_SILENT	0x00000001	/* Do not use MLD on this ifp */
+#define MLIF_USEALLOW	0x00000002	/* Use ALLOW/BLOCK for joins/leaves */
 
 #define MLD_RANDOM_DELAY(X)		(arc4random() % (X) + 1)
 #define MLD_MAX_STATE_CHANGES		24 /* Max pending changes per group */

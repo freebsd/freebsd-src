@@ -132,7 +132,8 @@ static struct mbuf *
 static int	mld_v2_enqueue_filter_change(struct ifqueue *,
 		    struct in6_multi *);
 static int	mld_v2_enqueue_group_record(struct ifqueue *,
-		    struct in6_multi *, const int, const int, const int);
+		    struct in6_multi *, const int, const int, const int,
+		    const int);
 static int	mld_v2_input_query(struct ifnet *, const struct ip6_hdr *,
 		    struct mbuf *, const int, const int);
 static int	mld_v2_merge_state_changes(struct in6_multi *,
@@ -235,6 +236,11 @@ static int	mld_v1enable = 1;
 SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RW,
     &mld_v1enable, 0, "Enable fallback to MLDv1");
 TUNABLE_INT("net.inet6.mld.v1enable", &mld_v1enable);
+
+static int	mld_use_allow = 1;
+SYSCTL_INT(_net_inet6_mld, OID_AUTO, use_allow, CTLFLAG_RW,
+    &mld_use_allow, 0, "Use ALLOW/BLOCK for RFC 4604 SSM joins/leaves");
+TUNABLE_INT("net.inet6.mld.use_allow", &mld_use_allow);
 
 /*
  * Packed Router Alert option structure declaration.
@@ -461,6 +467,8 @@ mld_domifattach(struct ifnet *ifp)
 	mli = mli_alloc_locked(ifp);
 	if (!(ifp->if_flags & IFF_MULTICAST))
 		mli->mli_flags |= MLIF_SILENT;
+	if (mld_use_allow)
+		mli->mli_flags |= MLIF_USEALLOW;
 
 	MLD_UNLOCK();
 
@@ -1550,7 +1558,8 @@ mld_v2_process_group_timers(struct mld_ifinfo *mli,
 			int retval;
 
 			retval = mld_v2_enqueue_group_record(qrq, inm, 0, 1,
-			    (inm->in6m_state == MLD_SG_QUERY_PENDING_MEMBER));
+			    (inm->in6m_state == MLD_SG_QUERY_PENDING_MEMBER),
+			    0);
 			CTR2(KTR_MLD, "%s: enqueue record = %d",
 			    __func__, retval);
 			inm->in6m_state = MLD_REPORTING_MEMBER;
@@ -2025,7 +2034,7 @@ mld_initial_join(struct in6_multi *inm, struct mld_ifinfo *mli,
 			ifq = &inm->in6m_scq;
 			_IF_DRAIN(ifq);
 			retval = mld_v2_enqueue_group_record(ifq, inm, 1,
-			    0, 0);
+			    0, 0, (mli->mli_flags & MLIF_USEALLOW));
 			CTR2(KTR_MLD, "%s: enqueue record = %d",
 			    __func__, retval);
 			if (retval <= 0) {
@@ -2118,7 +2127,8 @@ mld_handle_state_change(struct in6_multi *inm, struct mld_ifinfo *mli)
 
 	_IF_DRAIN(&inm->in6m_scq);
 
-	retval = mld_v2_enqueue_group_record(&inm->in6m_scq, inm, 1, 0, 0);
+	retval = mld_v2_enqueue_group_record(&inm->in6m_scq, inm, 1, 0, 0,
+	    (mli->mli_flags & MLIF_USEALLOW));
 	CTR2(KTR_MLD, "%s: enqueue record = %d", __func__, retval);
 	if (retval <= 0)
 		return (-retval);
@@ -2203,7 +2213,8 @@ mld_final_leave(struct in6_multi *inm, struct mld_ifinfo *mli)
 				in6m_acquire_locked(inm);
 
 				retval = mld_v2_enqueue_group_record(
-				    &inm->in6m_scq, inm, 1, 0, 0);
+				    &inm->in6m_scq, inm, 1, 0, 0,
+				    (mli->mli_flags & MLIF_USEALLOW));
 				KASSERT(retval != 0,
 				    ("%s: enqueue record = %d", __func__,
 				     retval));
@@ -2250,6 +2261,10 @@ mld_final_leave(struct in6_multi *inm, struct mld_ifinfo *mli)
  * it was recorded for a Group-Source query, and will be omitted if
  * it is not both in-mode and recorded.
  *
+ * If use_block_allow is non-zero, state change reports for initial join
+ * and final leave, on an inclusive mode group with a source list, will be
+ * rewritten to use the ALLOW_NEW and BLOCK_OLD record types, respectively.
+ *
  * The function will attempt to allocate leading space in the packet
  * for the IPv6+ICMP headers to be prepended without fragmenting the chain.
  *
@@ -2260,7 +2275,7 @@ mld_final_leave(struct in6_multi *inm, struct mld_ifinfo *mli)
 static int
 mld_v2_enqueue_group_record(struct ifqueue *ifq, struct in6_multi *inm,
     const int is_state_change, const int is_group_query,
-    const int is_source_query)
+    const int is_source_query, const int use_block_allow)
 {
 	struct mldv2_record	 mr;
 	struct mldv2_record	*pmr;
@@ -2308,10 +2323,16 @@ mld_v2_enqueue_group_record(struct ifqueue *ifq, struct in6_multi *inm,
 		 * If the mode did not change, and there are non-ASM
 		 * listeners or source filters present,
 		 * we potentially need to issue two records for the group.
-		 * If we are transitioning to MCAST_UNDEFINED, we need
-		 * not send any sources.
 		 * If there are ASM listeners, and there was no filter
 		 * mode transition of any kind, do nothing.
+		 *
+		 * If we are transitioning to MCAST_UNDEFINED, we need
+		 * not send any sources. A transition to/from this state is
+		 * considered inclusive with some special treatment.
+		 *
+		 * If we are rewriting initial joins/leaves to use
+		 * ALLOW/BLOCK, and the group's membership is inclusive,
+		 * we need to send sources in all cases.
 		 */
 		if (mode != inm->in6m_st[0].iss_fmode) {
 			if (mode == MCAST_EXCLUDE) {
@@ -2321,9 +2342,26 @@ mld_v2_enqueue_group_record(struct ifqueue *ifq, struct in6_multi *inm,
 			} else {
 				CTR1(KTR_MLD, "%s: change to INCLUDE",
 				    __func__);
-				type = MLD_CHANGE_TO_INCLUDE_MODE;
-				if (mode == MCAST_UNDEFINED)
-					record_has_sources = 0;
+				if (use_block_allow) {
+					/*
+					 * XXX
+					 * Here we're interested in state
+					 * edges either direction between
+					 * MCAST_UNDEFINED and MCAST_INCLUDE.
+					 * Perhaps we should just check
+					 * the group state, rather than
+					 * the filter mode.
+					 */
+					if (mode == MCAST_UNDEFINED) {
+						type = MLD_BLOCK_OLD_SOURCES;
+					} else {
+						type = MLD_ALLOW_NEW_SOURCES;
+					}
+				} else {
+					type = MLD_CHANGE_TO_INCLUDE_MODE;
+					if (mode == MCAST_UNDEFINED)
+						record_has_sources = 0;
+				}
 			}
 		} else {
 			if (record_has_sources) {
@@ -2436,9 +2474,12 @@ mld_v2_enqueue_group_record(struct ifqueue *ifq, struct in6_multi *inm,
 	 * If we are appending to an existing packet, we need to obtain
 	 * a pointer to the group record after m_append(), in case a new
 	 * mbuf was allocated.
+	 *
 	 * Only append sources which are in-mode at t1. If we are
-	 * transitioning to MCAST_UNDEFINED state on the group, do not
-	 * include source entries.
+	 * transitioning to MCAST_UNDEFINED state on the group, and
+	 * use_block_allow is zero, do not include source entries.
+	 * Otherwise, we need to include this source in the report.
+	 *
 	 * Only report recorded sources in our filter set when responding
 	 * to a group-source query.
 	 */
@@ -2460,7 +2501,8 @@ mld_v2_enqueue_group_record(struct ifqueue *ifq, struct in6_multi *inm,
 			now = im6s_get_mode(inm, ims, 1);
 			CTR2(KTR_MLD, "%s: node is %d", __func__, now);
 			if ((now != mode) ||
-			    (now == mode && mode == MCAST_UNDEFINED)) {
+			    (now == mode &&
+			     (!use_block_allow && mode == MCAST_UNDEFINED))) {
 				CTR1(KTR_MLD, "%s: skip node", __func__);
 				continue;
 			}
@@ -2550,7 +2592,8 @@ mld_v2_enqueue_group_record(struct ifqueue *ifq, struct in6_multi *inm,
 			    __func__, ip6_sprintf(ip6tbuf, &ims->im6s_addr));
 			now = im6s_get_mode(inm, ims, 1);
 			if ((now != mode) ||
-			    (now == mode && mode == MCAST_UNDEFINED)) {
+			    (now == mode &&
+			     (!use_block_allow && mode == MCAST_UNDEFINED))) {
 				CTR1(KTR_MLD, "%s: skip node", __func__);
 				continue;
 			}
@@ -2961,7 +3004,7 @@ mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 		case MLD_AWAKENING_MEMBER:
 			inm->in6m_state = MLD_REPORTING_MEMBER;
 			retval = mld_v2_enqueue_group_record(&mli->mli_gq,
-			    inm, 0, 0, 0);
+			    inm, 0, 0, 0, 0);
 			CTR2(KTR_MLD, "%s: enqueue record = %d",
 			    __func__, retval);
 			break;
