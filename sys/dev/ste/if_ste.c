@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#define STE_USEIOSPACE
-
 MODULE_DEPEND(ste, pci, 1, 1, 1);
 MODULE_DEPEND(ste, ether, 1, 1, 1);
 MODULE_DEPEND(ste, miibus, 1, 1, 1);
@@ -131,14 +129,6 @@ static void	ste_txeoc(struct ste_softc *);
 static void	ste_txeof(struct ste_softc *);
 static void	ste_wait(struct ste_softc *);
 static void	ste_watchdog(struct ste_softc *);
-
-#ifdef STE_USEIOSPACE
-#define STE_RES			SYS_RES_IOPORT
-#define STE_RID			STE_PCI_LOIO
-#else
-#define STE_RES			SYS_RES_MEMORY
-#define STE_RID			STE_PCI_LOMEM
-#endif
 
 static device_method_t ste_methods[] = {
 	/* Device interface */
@@ -965,9 +955,17 @@ ste_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = STE_RID;
-	sc->ste_res = bus_alloc_resource_any(dev, STE_RES, &rid, RF_ACTIVE);
-
+	/* Prefer memory space register mapping over IO space. */
+	sc->ste_res_id = PCIR_BAR(1);
+	sc->ste_res_type = SYS_RES_MEMORY;
+	sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
+	    &sc->ste_res_id, RF_ACTIVE);
+	if (sc->ste_res == NULL) {
+		sc->ste_res_id = PCIR_BAR(0);
+		sc->ste_res_type = SYS_RES_IOPORT;
+		sc->ste_res = bus_alloc_resource_any(dev, sc->ste_res_type,
+		    &sc->ste_res_id, RF_ACTIVE);
+	}
 	if (sc->ste_res == NULL) {
 		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
@@ -1105,7 +1103,8 @@ ste_detach(device_t dev)
 	if (sc->ste_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
 	if (sc->ste_res)
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
+		bus_release_resource(dev, sc->ste_res_type, sc->ste_res_id,
+		    sc->ste_res);
 
 	if (ifp)
 		if_free(ifp);

@@ -547,6 +547,8 @@ struct ste_softc {
 	bus_space_tag_t		ste_btag;
 	bus_space_handle_t	ste_bhandle;
 	struct resource		*ste_res;
+	int			ste_res_id;
+	int			ste_res_type;
 	struct resource		*ste_irq;
 	void			*ste_intrhand;
 	struct ste_type		*ste_info;
