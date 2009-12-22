@@ -276,10 +276,9 @@
 #define STE_IMR_TX_DMADONE		0x0200
 #define STE_IMR_RX_DMADONE		0x0400
 
-#define STE_INTRS					\
+#define STE_INTRS				\
 	(STE_IMR_RX_DMADONE|STE_IMR_TX_DMADONE|	\
-	STE_IMR_TX_DONE|STE_IMR_HOSTERR| \
-        STE_IMR_LINKEVENT)
+	STE_IMR_TX_DONE|STE_IMR_HOSTERR)
 
 #define STE_ISR_INTLATCH		0x0001
 #define STE_ISR_HOSTERR			0x0002
@@ -561,7 +560,7 @@ struct ste_softc {
 	int			ste_timer;
 	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
-	struct callout		ste_stat_callout;
+	struct callout		ste_callout;
 	struct mtx		ste_mtx;
 };
 
