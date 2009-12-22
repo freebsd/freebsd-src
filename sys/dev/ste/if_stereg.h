@@ -554,14 +554,15 @@ struct ste_softc {
 	device_t		ste_miibus;
 	device_t		ste_dev;
 	int			ste_tx_thresh;
-	uint8_t			ste_link;
+	int			ste_flags;
+#define	STE_FLAG_ONE_PHY	0x0001
+#define	STE_FLAG_LINK		0x8000
 	int			ste_if_flags;
 	int			ste_timer;
 	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout		ste_stat_callout;
 	struct mtx		ste_mtx;
-	uint8_t			ste_one_phy;
 };
 
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
