@@ -26,9 +26,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define        DEB(x)
-#define        DDB(x) x
-
 /*
  * Logging support for ipfw
  */

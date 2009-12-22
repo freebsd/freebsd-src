@@ -293,7 +293,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 			m_freem(m);
 			return (ENOMEM);
 		}
-		ngit->rule = fwa->rule;
+		ngit->slot = fwa->slot;
+		ngit->rulenum = fwa->rulenum;
 		ngit->rule_id = fwa->rule_id;
 		ngit->chain_id = fwa->chain_id;
 		ngit->dir = dir;

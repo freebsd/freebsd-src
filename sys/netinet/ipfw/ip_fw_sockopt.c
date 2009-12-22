@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2002 Luigi Rizzo, Universita` di Pisa
+ * Copyright (c) 2002-2009 Luigi Rizzo, Universita` di Pisa
+ *
+ * Supported by: Valeria Paoli
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,9 +27,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-#define        DEB(x)
-#define        DDB(x) x
 
 /*
  * Sockopt support for ipfw. The routines here implement
@@ -81,134 +80,141 @@ MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
  */
 
 /*
- * When a rule is added/deleted, clear the next_rule pointers in all rules.
- * These will be reconstructed on the fly as packets are matched.
+ * Find the smallest rule >= key, id.
+ * We could use bsearch but it is so simple that we code it directly
  */
-static void
-flush_rule_ptrs(struct ip_fw_chain *chain)
+int
+ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id)
 {
-	struct ip_fw *rule;
+	int i, lo, hi;
+	struct ip_fw *r;
 
-	IPFW_WLOCK_ASSERT(chain);
+  	for (lo = 0, hi = chain->n_rules - 1; lo < hi;) {
+		i = (lo + hi) / 2;
+		r = chain->map[i];
+		if (r->rulenum < key)
+			lo = i + 1;	/* continue from the next one */
+		else if (r->rulenum > key)
+			hi = i;		/* this might be good */
+		else if (r->id < id)
+			lo = i + 1;	/* continue from the next one */
+		else /* r->id >= id */
+			hi = i;		/* this might be good */
+	};
+	return hi;
+}
 
+/*
+ * allocate a new map, returns the chain locked. extra is the number
+ * of entries to add or delete.
+ */
+static struct ip_fw **
+get_map(struct ip_fw_chain *chain, int extra, int locked)
+{
+
+	for (;;) {
+		struct ip_fw **map;
+		int i;
+
+		i = chain->n_rules + extra;
+		map = malloc(i * sizeof(struct ip_fw *), M_IPFW, M_WAITOK);
+		if (map == NULL) {
+			printf("%s: cannot allocate map\n", __FUNCTION__);
+			return NULL;
+		}
+		if (!locked)
+			IPFW_UH_WLOCK(chain);
+		if (i >= chain->n_rules + extra) /* good */
+			return map;
+		/* otherwise we lost the race, free and retry */
+		if (!locked)
+			IPFW_UH_WUNLOCK(chain);
+		free(map, M_IPFW);
+	}
+}
+
+/*
+ * swap the maps. It is supposed to be called with IPFW_UH_WLOCK
+ */
+static struct ip_fw **
+swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
+{
+	struct ip_fw **old_map;
+
+	IPFW_WLOCK(chain);
 	chain->id++;
-
-	for (rule = chain->rules; rule; rule = rule->next)
-		rule->next_rule = NULL;
+	chain->n_rules = new_len;
+	old_map = chain->map;
+	chain->map = new_map;
+	IPFW_WUNLOCK(chain);
+	return old_map;
 }
 
 /*
  * Add a new rule to the list. Copy the rule into a malloc'ed area, then
  * possibly create a rule number and add the rule to the list.
  * Update the rule_number in the input struct so the caller knows it as well.
+ * XXX DO NOT USE FOR THE DEFAULT RULE.
+ * Must be called without IPFW_UH held
  */
 int
 ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 {
-	struct ip_fw *rule, *f, *prev;
-	int l = RULESIZE(input_rule);
+	struct ip_fw *rule;
+	int i, l, insert_before;
+	struct ip_fw **map;	/* the new array of pointers */
 
-	if (chain->rules == NULL && input_rule->rulenum != IPFW_DEFAULT_RULE)
+	if (chain->rules == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE-1)
 		return (EINVAL);
 
-	rule = malloc(l, M_IPFW, M_NOWAIT | M_ZERO);
+	l = RULESIZE(input_rule);
+	rule = malloc(l, M_IPFW, M_WAITOK | M_ZERO);
 	if (rule == NULL)
 		return (ENOSPC);
+	/* get_map returns with IPFW_UH_WLOCK if successful */
+	map = get_map(chain, 1, 0 /* not locked */);
+	if (map == NULL) {
+		free(rule, M_IPFW);
+		return ENOSPC;
+	}
 
 	bcopy(input_rule, rule, l);
-
-	rule->next = NULL;
+	/* clear fields not settable from userland */
+	rule->x_next = NULL;
 	rule->next_rule = NULL;
-
 	rule->pcnt = 0;
 	rule->bcnt = 0;
 	rule->timestamp = 0;
 
-	IPFW_WLOCK(chain);
-
-	if (chain->rules == NULL) {	/* default rule */
-		chain->rules = rule;
-		rule->id = ++chain->id;
-		goto done;
-        }
-
-	/*
-	 * If rulenum is 0, find highest numbered rule before the
-	 * default rule, and add autoinc_step
-	 */
 	if (V_autoinc_step < 1)
 		V_autoinc_step = 1;
 	else if (V_autoinc_step > 1000)
 		V_autoinc_step = 1000;
+	/* find the insertion point, we will insert before */
+	insert_before = rule->rulenum ? rule->rulenum + 1 : IPFW_DEFAULT_RULE;
+	i = ipfw_find_rule(chain, insert_before, 0);
+	/* duplicate first part */
+	if (i > 0)
+		bcopy(chain->map, map, i * sizeof(struct ip_fw *));
+	map[i] = rule;
+	/* duplicate remaining part, we always have the default rule */
+	bcopy(chain->map + i, map + i + 1,
+		sizeof(struct ip_fw *) *(chain->n_rules - i));
 	if (rule->rulenum == 0) {
-		/*
-		 * locate the highest numbered rule before default
-		 */
-		for (f = chain->rules; f; f = f->next) {
-			if (f->rulenum == IPFW_DEFAULT_RULE)
-				break;
-			rule->rulenum = f->rulenum;
-		}
+		/* write back the number */
+		rule->rulenum = i > 0 ? map[i-1]->rulenum : 0;
 		if (rule->rulenum < IPFW_DEFAULT_RULE - V_autoinc_step)
 			rule->rulenum += V_autoinc_step;
 		input_rule->rulenum = rule->rulenum;
 	}
 
-	/*
-	 * Now insert the new rule in the right place in the sorted list.
-	 */
-	for (prev = NULL, f = chain->rules; f; prev = f, f = f->next) {
-		if (f->rulenum > rule->rulenum) { /* found the location */
-			if (prev) {
-				rule->next = f;
-				prev->next = rule;
-			} else { /* head insert */
-				rule->next = chain->rules;
-				chain->rules = rule;
-			}
-			break;
-		}
-	}
-	flush_rule_ptrs(chain);
-	/* chain->id incremented inside flush_rule_ptrs() */
-	rule->id = chain->id;
-done:
-	chain->n_rules++;
+	rule->id = chain->id + 1;
+	map = swap_map(chain, map, chain->n_rules + 1);
 	chain->static_len += l;
-	IPFW_WUNLOCK(chain);
+	IPFW_UH_WUNLOCK(chain);
+	if (map)
+		free(map, M_IPFW);
 	return (0);
-}
-
-/**
- * Remove a static rule (including derived * dynamic rules)
- * and place it on the ``reap list'' for later reclamation.
- * The caller is in charge of clearing rule pointers to avoid
- * dangling pointers.
- * @return a pointer to the next entry.
- * Arguments are not checked, so they better be correct.
- */
-static struct ip_fw *
-remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
-    struct ip_fw *prev)
-{
-	struct ip_fw *n;
-	int l = RULESIZE(rule);
-
-	IPFW_WLOCK_ASSERT(chain);
-
-	n = rule->next;
-	ipfw_remove_dyn_children(rule);
-	if (prev == NULL)
-		chain->rules = n;
-	else
-		prev->next = n;
-	chain->n_rules--;
-	chain->static_len -= l;
-
-	rule->next = chain->reap;
-	chain->reap = rule;
-
-	return n;
 }
 
 /*
@@ -222,32 +228,9 @@ ipfw_reap_rules(struct ip_fw *head)
 	struct ip_fw *rule;
 
 	while ((rule = head) != NULL) {
-		head = head->next;
+		head = head->x_next;
 		free(rule, M_IPFW);
 	}
-}
-
-/*
- * Remove all rules from a chain (except rules in set RESVD_SET
- * unless kill_default = 1).  The caller is responsible for
- * reclaiming storage for the rules left in chain->reap.
- */
-void
-ipfw_free_chain(struct ip_fw_chain *chain, int kill_default)
-{
-	struct ip_fw *prev, *rule;
-
-	IPFW_WLOCK_ASSERT(chain);
-
-	chain->reap = NULL;
-	flush_rule_ptrs(chain); /* more efficient to do outside the loop */
-	for (prev = NULL, rule = chain->rules; rule ; )
-		if (kill_default || rule->set != RESVD_SET)
-			rule = remove_rule(chain, rule, prev);
-		else {
-			prev = rule;
-			rule = rule->next;
-		}
 }
 
 /**
@@ -267,9 +250,12 @@ ipfw_free_chain(struct ip_fw_chain *chain, int kill_default)
 static int
 del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 {
-	struct ip_fw *prev = NULL, *rule;
-	u_int16_t rulenum;	/* rule or old_set */
-	u_int8_t cmd, new_set;
+	struct ip_fw *rule;
+	uint32_t rulenum;	/* rule or old_set */
+	uint8_t cmd, new_set;
+	int start, end = 0, i, ofs, n;
+	struct ip_fw **map = NULL;
+	int error = 0;
 
 	rulenum = arg & 0xffff;
 	cmd = (arg >> 24) & 0xff;
@@ -285,96 +271,122 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			return EINVAL;
 	}
 
-	IPFW_WLOCK(chain);
-	rule = chain->rules;	/* common starting point */
+	IPFW_UH_WLOCK(chain); /* prevent conflicts among the writers */
 	chain->reap = NULL;	/* prepare for deletions */
+
 	switch (cmd) {
-	case 0:	/* delete rules with given number */
-		/*
-		 * locate first rule to delete
+	case 0:	/* delete rules with given number (0 is special means all) */
+	case 1:	/* delete all rules with given set number, rule->set == rulenum */
+	case 5: /* delete rules with given number and with given set number.
+		 * rulenum - given rule number;
+		 * new_set - given set number.
 		 */
-		for (; rule->rulenum < rulenum; prev = rule, rule = rule->next)
-			;
-		if (rule->rulenum != rulenum) {
-			IPFW_WUNLOCK(chain);
-			return EINVAL;
+		/* locate first rule to delete (start), the one after the
+		 * last one (end), and count how many rules to delete (n)
+		 */
+		n = 0;
+		if (cmd == 1) { /* look for a specific set, must scan all */
+			for (start = -1, i = 0; i < chain->n_rules; i++) {
+				if (chain->map[start]->set != rulenum)
+					continue;
+				if (start < 0)
+					start = i;
+				end = i;
+				n++;
+			}
+			end++;	/* first non-matching */
+		} else {
+			start = ipfw_find_rule(chain, rulenum, 0);
+			for (end = start; end < chain->n_rules; end++) {
+				rule = chain->map[end];
+				if (rulenum > 0 && rule->rulenum != rulenum)
+					break;
+				if (rule->set != RESVD_SET &&
+				    (cmd == 0 || rule->set == new_set) )
+					n++;
+			}
 		}
-
-		/*
-		 * flush pointers outside the loop, then delete all matching
-		 * rules. prev remains the same throughout the cycle.
-		 */
-		flush_rule_ptrs(chain);
-		while (rule->rulenum == rulenum)
-			rule = remove_rule(chain, rule, prev);
+		/* allocate the map, if needed */
+		if (n > 0)
+			map = get_map(chain, -n, 1 /* locked */);
+		if (n == 0 || map == NULL) {
+			error = EINVAL;
 		break;
+		}
+		/* copy the initial part of the map */
+		if (start > 0)
+			bcopy(chain->map, map, start * sizeof(struct ip_fw *));
+		/* copy active rules between start and end */
+		for (i = ofs = start; i < end; i++) {
+			rule = chain->map[i];
+			if (!(rule->set != RESVD_SET &&
+			    (cmd == 0 || rule->set == new_set) ))
+				map[ofs++] = chain->map[i];
+		}
+		/* finally the tail */
+		bcopy(chain->map + end, map + ofs,
+			(chain->n_rules - end) * sizeof(struct ip_fw *));
+		map = swap_map(chain, map, chain->n_rules - n);
+		/* now remove the rules deleted */
+		for (i = start; i < end; i++) {
+			rule = map[i];
+			if (rule->set != RESVD_SET &&
+			    (cmd == 0 || rule->set == new_set) ) {
+				int l = RULESIZE(rule);
 
-	case 1:	/* delete all rules with given set number */
-		flush_rule_ptrs(chain);
-		while (rule->rulenum < IPFW_DEFAULT_RULE) {
-			if (rule->set == rulenum)
-				rule = remove_rule(chain, rule, prev);
-			else {
-				prev = rule;
-				rule = rule->next;
+				chain->static_len -= l;
+				ipfw_remove_dyn_children(rule);
+				rule->x_next = chain->reap;
+				chain->reap = rule;
 			}
 		}
 		break;
 
 	case 2:	/* move rules with given number to new set */
-		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
+		IPFW_UH_WLOCK(chain);
+		for (i = 0; i < chain->n_rules; i++) {
+			rule = chain->map[i];
 			if (rule->rulenum == rulenum)
 				rule->set = new_set;
+		}
+		IPFW_UH_WUNLOCK(chain);
 		break;
 
 	case 3: /* move rules with given set number to new set */
-		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
+		IPFW_UH_WLOCK(chain);
+		for (i = 0; i < chain->n_rules; i++) {
+			rule = chain->map[i];
 			if (rule->set == rulenum)
 				rule->set = new_set;
+		}
+		IPFW_UH_WUNLOCK(chain);
 		break;
 
 	case 4: /* swap two sets */
-		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
+		IPFW_UH_WLOCK(chain);
+		for (i = 0; i < chain->n_rules; i++) {
+			rule = chain->map[i];
 			if (rule->set == rulenum)
 				rule->set = new_set;
 			else if (rule->set == new_set)
 				rule->set = rulenum;
+		}
+		IPFW_UH_WUNLOCK(chain);
 		break;
-
-	case 5: /* delete rules with given number and with given set number.
-		 * rulenum - given rule number;
-		 * new_set - given set number.
-		 */
-		for (; rule->rulenum < rulenum; prev = rule, rule = rule->next)
-			;
-		if (rule->rulenum != rulenum) {
-			IPFW_WUNLOCK(chain);
-			return (EINVAL);
-		}
-		flush_rule_ptrs(chain);
-		while (rule->rulenum == rulenum) {
-			if (rule->set == new_set)
-				rule = remove_rule(chain, rule, prev);
-			else {
-				prev = rule;
-				rule = rule->next;
-			}
-		}
 	}
-	/*
-	 * Look for rules to reclaim.  We grab the list before
-	 * releasing the lock then reclaim them w/o the lock to
-	 * avoid a LOR with dummynet.
-	 */
 	rule = chain->reap;
-	IPFW_WUNLOCK(chain);
+	chain->reap = NULL;
+	IPFW_UH_WUNLOCK(chain);
 	ipfw_reap_rules(rule);
-	return 0;
+	if (map)
+		free(map, M_IPFW);
+	return error;
 }
 
 /*
  * Clear counters for a specific rule.
- * The enclosing "table" is assumed locked.
+ * Normally run under IPFW_UH_RLOCK, but these are idempotent ops
+ * so we only care that rules do not disappear.
  */
 static void
 clear_counters(struct ip_fw *rule, int log_only)
@@ -403,6 +415,7 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 {
 	struct ip_fw *rule;
 	char *msg;
+	int i;
 
 	uint16_t rulenum = arg & 0xffff;
 	uint8_t set = (arg >> 16) & 0xff;
@@ -413,11 +426,12 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 	if (cmd == 1 && set > RESVD_SET)
 		return (EINVAL);
 
-	IPFW_WLOCK(chain);
+	IPFW_UH_RLOCK(chain);
 	if (rulenum == 0) {
 		V_norule_counter = 0;
-		for (rule = chain->rules; rule; rule = rule->next) {
-			/* Skip rules from another set. */
+		for (i = 0; i < chain->n_rules; i++) {
+			rule = chain->map[i];
+			/* Skip rules not in our set. */
 			if (cmd == 1 && rule->set != set)
 				continue;
 			clear_counters(rule, log_only);
@@ -426,18 +440,14 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 		    "Accounting cleared";
 	} else {
 		int cleared = 0;
-		/*
-		 * We can have multiple rules with the same number, so we
-		 * need to clear them all.
-		 */
-		for (rule = chain->rules; rule; rule = rule->next)
+		for (i = 0; i < chain->n_rules; i++) {
+			rule = chain->map[i];
 			if (rule->rulenum == rulenum) {
-				while (rule && rule->rulenum == rulenum) {
 					if (cmd == 0 || rule->set == set)
 						clear_counters(rule, log_only);
-					rule = rule->next;
-				}
 				cleared = 1;
+			}
+			if (rule->rulenum > rulenum)
 				break;
 			}
 		if (!cleared) {	/* we did not find any matching rules */
@@ -446,7 +456,7 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 		}
 		msg = log_only ? "logging count reset" : "cleared";
 	}
-	IPFW_WUNLOCK(chain);
+	IPFW_UH_RUNLOCK(chain);
 
 	if (V_fw_verbose) {
 		int lev = LOG_SECURITY | LOG_NOTICE;
@@ -497,7 +507,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			    cmd->opcode);
 			return EINVAL;
 		}
-		DEB(printf("ipfw: opcode %d\n", cmd->opcode);)
 		switch (cmd->opcode) {
 		case O_PROBE_STATE:
 		case O_KEEP_STATE:
@@ -771,43 +780,37 @@ bad_size:
 /*
  * Copy the static and dynamic rules to the supplied buffer
  * and return the amount of space actually used.
+ * Must be run under IPFW_UH_RLOCK
  */
 static size_t
 ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 {
 	char *bp = buf;
 	char *ep = bp + space;
-	struct ip_fw *rule;
-	int i;
+	struct ip_fw *rule, *dst;
+	int l, i;
 	time_t	boot_seconds;
 
         boot_seconds = boottime.tv_sec;
-	/* XXX this can take a long time and locking will block packet flow */
-	IPFW_RLOCK(chain);
-	for (rule = chain->rules; rule ; rule = rule->next) {
-		/*
-		 * Verify the entry fits in the buffer in case the
-		 * rules changed between calculating buffer space and
-		 * now.  This would be better done using a generation
-		 * number but should suffice for now.
-		 */
-		i = RULESIZE(rule);
-		if (bp + i <= ep) {
-			bcopy(rule, bp, i);
+	for (i = 0; i < chain->n_rules; i++) {
+		rule = chain->map[i];
+		l = RULESIZE(rule);
+		if (bp + l > ep) { /* should not happen */
+			printf("overflow dumping static rules\n");
+			break;
+		}
+		dst = (struct ip_fw *)bp;
+		bcopy(rule, dst, l);
 			/*
 			 * XXX HACK. Store the disable mask in the "next"
 			 * pointer in a wild attempt to keep the ABI the same.
 			 * Why do we do this on EVERY rule?
 			 */
-			bcopy(&V_set_disable,
-			    &(((struct ip_fw *)bp)->next_rule),
-			    sizeof(V_set_disable));
-			if (((struct ip_fw *)bp)->timestamp)
-				((struct ip_fw *)bp)->timestamp += boot_seconds;
-			bp += i;
+		bcopy(&V_set_disable, &dst->next_rule, sizeof(V_set_disable));
+		if (dst->timestamp)
+			dst->timestamp += boot_seconds;
+		bp += l;
 		}
-	}
-	IPFW_RUNLOCK(chain);
 	ipfw_get_dynamic(&bp, ep); /* protected by the dynamic lock */
 	return (bp - (char *)buf);
 }
@@ -857,41 +860,33 @@ ipfw_ctl(struct sockopt *sopt)
 		 * change between calculating the size and returning the
 		 * data in which case we'll just return what fits.
 		 */
-		size = chain->static_len;	/* size of static rules */
-		size += ipfw_dyn_len();
+		for (;;) {
+			int len = 0, want;
 
+			size = chain->static_len;
+			size += ipfw_dyn_len();
 		if (size >= sopt->sopt_valsize)
 			break;
-		/*
-		 * XXX todo: if the user passes a short length just to know
-		 * how much room is needed, do not bother filling up the
-		 * buffer, just jump to the sooptcopyout.
-		 */
 		buf = malloc(size, M_TEMP, M_WAITOK);
-		error = sooptcopyout(sopt, buf,
-				ipfw_getrules(chain, buf, size));
+			if (buf == NULL)
+				break;
+			IPFW_UH_RLOCK(chain);
+			/* check again how much space we need */
+			want = chain->static_len + ipfw_dyn_len();
+			if (size >= want)
+				len = ipfw_getrules(chain, buf, size);
+			IPFW_UH_RUNLOCK(chain);
+			if (size >= want)
+				error = sooptcopyout(sopt, buf, len);
 		free(buf, M_TEMP);
+			if (size >= want)
+				break;
+		}
 		break;
 
 	case IP_FW_FLUSH:
-		/*
-		 * Normally we cannot release the lock on each iteration.
-		 * We could do it here only because we start from the head all
-		 * the times so there is no risk of missing some entries.
-		 * On the other hand, the risk is that we end up with
-		 * a very inconsistent ruleset, so better keep the lock
-		 * around the whole cycle.
-		 *
-		 * XXX this code can be improved by resetting the head of
-		 * the list to point to the default rule, and then freeing
-		 * the old list without the need for a lock.
-		 */
-
-		IPFW_WLOCK(chain);
-		ipfw_free_chain(chain, 0 /* keep default rule */);
-		rule = chain->reap;
-		IPFW_WUNLOCK(chain);
-		ipfw_reap_rules(rule);
+		/* locking is done within del_entry() */
+		error = del_entry(chain, 0); /* special case, rule=0, cmd=0 means all */
 		break;
 
 	case IP_FW_ADD:
@@ -901,6 +896,7 @@ ipfw_ctl(struct sockopt *sopt)
 		if (error == 0)
 			error = check_ipfw_struct(rule, sopt->sopt_valsize);
 		if (error == 0) {
+			/* locking is done within ipfw_add_rule() */
 			error = ipfw_add_rule(chain, rule);
 			size = RULESIZE(rule);
 			if (!error && sopt->sopt_dir == SOPT_GET)
@@ -931,9 +927,11 @@ ipfw_ctl(struct sockopt *sopt)
 			/* delete or reassign, locking done in del_entry() */
 			error = del_entry(chain, rulenum[0]);
 		} else if (size == 2*sizeof(u_int32_t)) { /* set enable/disable */
+			IPFW_UH_WLOCK(chain);
 			V_set_disable =
 			    (V_set_disable | rulenum[0]) & ~rulenum[1] &
 			    ~(1<<RESVD_SET); /* set RESVD_SET always enabled */
+			IPFW_UH_WUNLOCK(chain);
 		} else
 			error = EINVAL;
 		break;

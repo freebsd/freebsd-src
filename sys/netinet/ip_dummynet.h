@@ -112,7 +112,8 @@ struct dn_heap {
  * processing requirements.
  */
 struct dn_pkt_tag {
-    struct ip_fw *rule;		/* matching rule */
+    uint32_t slot;		/* slot of next rule to use */
+    uint32_t rulenum;		/* matching rule number */
     uint32_t rule_id;		/* matching rule id */
     uint32_t chain_id;		/* ruleset id */
     int dn_dir;			/* action when packet comes out. */
