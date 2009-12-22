@@ -190,7 +190,7 @@ typedef struct Struct_Obj_Entry {
     const Elf_Hashelt *chains;	/* Hash table chain array */
     unsigned long nchains;	/* Number of chains */
 
-    const char *rpath;		/* Search path specified in object */
+    char *rpath;		/* Search path specified in object */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
 
     STAILQ_HEAD(, Struct_Name_Entry) names; /* List of names for this object we
@@ -211,6 +211,7 @@ typedef struct Struct_Obj_Entry {
     bool init_done : 1;		/* Already have added object to init list */
     bool tls_done : 1;		/* Already allocated offset for static TLS */
     bool phdr_alloc : 1;	/* Phdr is allocated and needs to be freed. */
+    bool z_origin : 1;		/* Process rpath and soname tokens */
 
     struct link_map linkmap;	/* for GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
