@@ -394,14 +394,14 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_set.9 \
 	atomic.9 atomic_store.9 \
 	atomic.9 atomic_subtract.9
-MLINKS+=bpf.9 bpf_filter.9 \
+MLINKS+=bpf.9 bpfattach.9 \
+	bpf.9 bpfattach2.9 \
+	bpf.9 bpfdetach.9 \
+	bpf.9 bpf_filter.9 \
 	bpf.9 bpf_mtap.9 \
 	bpf.9 bpf_mtap2.9 \
 	bpf.9 bpf_tap.9 \
-	bpf.9 bpf_validate.9 \
-	bpf.9 bpfattach.9 \
-	bpf.9 bpfattach2.9 \
-	bpf.9 bpfdetach.9
+	bpf.9 bpf_validate.9
 MLINKS+=buf.9 bp.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
 MLINKS+=bus_alloc_resource.9 bus_alloc_resource_any.9
@@ -563,11 +563,11 @@ MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_unblock.9 \
 	crypto.9 crypto_unregister.9 \
 	crypto.9 crypto_unregister_all.9
-MLINKS+=DB_COMMAND.9 DB_SHOW_COMMAND.9 \
-	DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9
+MLINKS+=DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9 \
+	DB_COMMAND.9 DB_SHOW_COMMAND.9
 MLINKS+=dev_clone.9 drain_dev_clone_events.9
-MLINKS+=devfs_set_cdevpriv.9 devfs_get_cdevpriv.9 \
-	devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9
+MLINKS+=devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9 \
+	devfs_set_cdevpriv.9 devfs_get_cdevpriv.9
 MLINKS+=device_add_child.9 device_add_child_ordered.9
 MLINKS+=device_enable.9 device_disable.9 \
 	device_enable.9 device_is_enabled.9
@@ -591,8 +591,8 @@ MLINKS+=devstat.9 devicestat.9 \
 	devstat.9 devstat_start_transaction.9
 MLINKS+=disk.9 disk_alloc.9 \
 	disk.9 disk_create.9 \
-	disk.9 disk_gone.9 \
-	disk.9 disk_destroy.9
+	disk.9 disk_destroy.9 \
+	disk.9 disk_gone.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 net_add_domain.9 \
 	domain.9 pfctlinput.9 \
@@ -642,60 +642,60 @@ MLINKS+=hashinit.9 hashdestroy.9 \
 	hashinit.9 phashinit.9
 MLINKS+=ieee80211.9 ieee80211_ifattach.9 \
 	ieee80211.9 ieee80211_ifdetach.9
-MLINKS+=ieee80211_amrr.9 ieee80211_amrr_init.9 \
-	ieee80211_amrr.9 ieee80211_amrr_cleanup.9 \
-	ieee80211_amrr.9 ieee80211_amrr_setinterval.9 \
+MLINKS+=ieee80211_amrr.9 ieee80211_amrr_cleanup.9 \
+	ieee80211_amrr.9 ieee80211_amrr_init.9 \
 	ieee80211_amrr.9 ieee80211_amrr_node_init.9 \
+	ieee80211_amrr.9 ieee80211_amrr_setinterval.9 \
 	ieee80211_amrr.9 ieee80211_amrr_tx_complete.9 \
 	ieee80211_amrr.9 ieee80211_amrr_tx_update.9
 MLINKS+=ieee80211_beacon.9 ieee80211_beacon_alloc.9 \
-	ieee80211_beacon.9 ieee80211_beacon_update.9 \
-	ieee80211_beacon.9 ieee80211_beacon_notify.9
+	ieee80211_beacon.9 ieee80211_beacon_notify.9 \
+	ieee80211_beacon.9 ieee80211_beacon_update.9
 MLINKS+=ieee80211_bmiss.9 ieee80211_beacon_miss.9
-MLINKS+=ieee80211_crypto.9 ieee80211_key_update_begin.9 \
-	ieee80211_crypto.9 ieee80211_key_update_end.9 \
-	ieee80211_crypto.9 ieee80211_crypto_newkey.9 \
-	ieee80211_crypto.9 ieee80211_crypto_setkey.9 \
-	ieee80211_crypto.9 ieee80211_crypto_delglobalkeys.9 \
-	ieee80211_crypto.9 ieee80211_crypto_reload_keys.9 \
+MLINKS+=ieee80211_crypto.9 ieee80211_crypto_available.9 \
 	ieee80211_crypto.9 ieee80211_crypto_decap.9 \
-	ieee80211_crypto.9 ieee80211_crypto_encap.9 \
+	ieee80211_crypto.9 ieee80211_crypto_delglobalkeys.9 \
 	ieee80211_crypto.9 ieee80211_crypto_demic.9 \
+	ieee80211_crypto.9 ieee80211_crypto_encap.9 \
 	ieee80211_crypto.9 ieee80211_crypto_enmic.9 \
-	ieee80211_crypto.9 ieee80211_notify_michael_failure.9 \
-	ieee80211_crypto.9 ieee80211_notify_replay_failure.9 \
+	ieee80211_crypto.9 ieee80211_crypto_newkey.9 \
 	ieee80211_crypto.9 ieee80211_crypto_register.9 \
+	ieee80211_crypto.9 ieee80211_crypto_reload_keys.9 \
+	ieee80211_crypto.9 ieee80211_crypto_setkey.9 \
 	ieee80211_crypto.9 ieee80211_crypto_unregister.9 \
-	ieee80211_crypto.9 ieee80211_crypto_available.9
+	ieee80211_crypto.9 ieee80211_key_update_begin.9 \
+	ieee80211_crypto.9 ieee80211_key_update_end.9 \
+	ieee80211_crypto.9 ieee80211_notify_michael_failure.9 \
+	ieee80211_crypto.9 ieee80211_notify_replay_failure.9
 MLINKS+=ieee80211_input.9 ieee80211_input_all.9
-MLINKS+=ieee80211_node.9 ieee80211_find_rxnode.9 \
+MLINKS+=ieee80211_node.9 ieee80211_dump_node.9 \
+	ieee80211_node.9 ieee80211_dump_nodes.9 \
+	ieee80211_node.9 ieee80211_find_rxnode.9 \
 	ieee80211_node.9 ieee80211_find_rxnode_withkey.9 \
-	ieee80211_node.9 ieee80211_ref_node.9 \
-	ieee80211_node.9 ieee80211_unref_node.9 \
 	ieee80211_node.9 ieee80211_free_node.9 \
 	ieee80211_node.9 ieee80211_iterate_nodes.9 \
-	ieee80211_node.9 ieee80211_dump_node.9 \
-	ieee80211_node.9 ieee80211_dump_nodes.9
-MLINKS+=ieee80211_output.9 M_WME_GETAC.9 \
+	ieee80211_node.9 ieee80211_ref_node.9 \
+	ieee80211_node.9 ieee80211_unref_node.9
+MLINKS+=ieee80211_output.9 ieee80211_process_callback.9 \
 	ieee80211_output.9 M_SEQNO_GET.9 \
-	ieee80211_output.9 ieee80211_process_callback.9
+	ieee80211_output.9 M_WME_GETAC.9
 MLINKS+=ieee80211_proto.9 ieee80211_new_state.9 \
+	ieee80211_proto.9 ieee80211_resume_all.9 \
 	ieee80211_proto.9 ieee80211_start_all.9 \
 	ieee80211_proto.9 ieee80211_stop_all.9 \
 	ieee80211_proto.9 ieee80211_suspend_all.9 \
-	ieee80211_proto.9 ieee80211_resume_all.9 \
 	ieee80211_proto.9 ieee80211_waitfor_parent.9
-MLINKS+=ieee80211_radiotap.9 radiotap.9 \
-	ieee80211_radiotap.9 ieee80211_radiotap_attach.9 \
+MLINKS+=ieee80211_radiotap.9 ieee80211_radiotap_active.9 \
 	ieee80211_radiotap.9 ieee80211_radiotap_active_vap.9 \
-	ieee80211_radiotap.9 ieee80211_radiotap_active.9 \
-	ieee80211_radiotap.9 ieee80211_radiotap_tx.9
-MLINKS+=ieee80211_regdomain.9 ieee80211_init_channels.9 \
-	ieee80211_regdomain.9 ieee80211_sort_channels.9 \
-	ieee80211_regdomain.9 ieee80211_alloc_countryie.9
-MLINKS+=ieee80211_vap.9 ieee80211_vap_setup.9 \
-	ieee80211_vap.9 ieee80211_vap_attach.9 \
-	ieee80211_vap.9 ieee80211_vap_detach.9
+	ieee80211_radiotap.9 ieee80211_radiotap_attach.9 \
+	ieee80211_radiotap.9 ieee80211_radiotap_tx.9 \
+	ieee80211_radiotap.9 radiotap.9
+MLINKS+=ieee80211_regdomain.9 ieee80211_alloc_countryie.9 \
+	ieee80211_regdomain.9 ieee80211_init_channels.9 \
+	ieee80211_regdomain.9 ieee80211_sort_channels.9
+MLINKS+=ieee80211_vap.9 ieee80211_vap_attach.9 \
+	ieee80211_vap.9 ieee80211_vap_detach.9 \
+	ieee80211_vap.9 ieee80211_vap_setup.9
 MLINKS+=ifnet.9 ifaddr.9 \
 	ifnet.9 if_data.9 \
 	ifnet.9 ifqueue.9
@@ -720,13 +720,13 @@ MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_delete.9 \
 	kobj.9 kobj_init.9
 MLINKS+=kproc.9 kproc_create.9 \
-	kproc.9 kthread_create.9 \
 	kproc.9 kproc_exit.9 \
 	kproc.9 kproc_resume.9 \
 	kproc.9 kproc_shutdown.9 \
 	kproc.9 kproc_start.9 \
 	kproc.9 kproc_suspend.9 \
-	kproc.9 kproc_suspend_check.9
+	kproc.9 kproc_suspend_check.9 \
+	kproc.9 kthread_create.9
 MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 knlist_clear.9 \
 	kqueue.9 knlist_delete.9 \
@@ -1237,23 +1237,7 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihashinit.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9
-MLINKS+=usbdi.9 usb_fifo_alloc_buffer.9 \
-	usbdi.9 usb_fifo_attach.9 \
-	usbdi.9 usb_fifo_detach.9 \
-	usbdi.9 usb_fifo_free_buffer.9 \
-	usbdi.9 usb_fifo_get_data.9 \
-	usbdi.9 usb_fifo_get_data_buffer.9 \
-	usbdi.9 usb_fifo_get_data_error.9 \
-	usbdi.9 usb_fifo_get_data_linear.9 \
-	usbdi.9 usb_fifo_put_bytes_max.9 \
-	usbdi.9 usb_fifo_put_data.9 \
-	usbdi.9 usb_fifo_put_data_buffer.9 \
-	usbdi.9 usb_fifo_put_data_error.9 \
-	usbdi.9 usb_fifo_put_data_linear.9 \
-	usbdi.9 usb_fifo_reset.9 \
-	usbdi.9 usb_fifo_softc.9 \
-	usbdi.9 usb_fifo_wakeup.9 \
-	usbdi.9 usbd_do_request.9 \
+MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usbd_do_request_flags.9 \
 	usbdi.9 usbd_errstr.9 \
 	usbdi.9 usbd_lookup_id_by_info.9 \
@@ -1288,7 +1272,23 @@ MLINKS+=usbdi.9 usb_fifo_alloc_buffer.9 \
 	usbdi.9 usbd_xfer_softc.9 \
 	usbdi.9 usbd_xfer_state.9 \
 	usbdi.9 usbd_xfer_state.9 \
-	usbdi.9 usbd_xfer_status.9
+	usbdi.9 usbd_xfer_status.9 \
+	usbdi.9 usb_fifo_alloc_buffer.9 \
+	usbdi.9 usb_fifo_attach.9 \
+	usbdi.9 usb_fifo_detach.9 \
+	usbdi.9 usb_fifo_free_buffer.9 \
+	usbdi.9 usb_fifo_get_data.9 \
+	usbdi.9 usb_fifo_get_data_buffer.9 \
+	usbdi.9 usb_fifo_get_data_error.9 \
+	usbdi.9 usb_fifo_get_data_linear.9 \
+	usbdi.9 usb_fifo_put_bytes_max.9 \
+	usbdi.9 usb_fifo_put_data.9 \
+	usbdi.9 usb_fifo_put_data_buffer.9 \
+	usbdi.9 usb_fifo_put_data_error.9 \
+	usbdi.9 usb_fifo_put_data_linear.9 \
+	usbdi.9 usb_fifo_reset.9 \
+	usbdi.9 usb_fifo_softc.9 \
+	usbdi.9 usb_fifo_wakeup.9
 MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
@@ -1304,8 +1304,8 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9 \
-	vhold.9	vholdl.9 \
-	vhold.9 vdropl.9
+	vhold.9 vdropl.9 \
+	vhold.9 vholdl.9
 MLINKS+=vm_map_lock.9 vm_map_lock_downgrade.9 \
 	vm_map_lock.9 vm_map_lock_read.9 \
 	vm_map_lock.9 vm_map_lock_upgrade.9 \
