@@ -465,18 +465,18 @@ struct ste_desc_onefrag {
  * register space access macros
  */
 #define CSR_WRITE_4(sc, reg, val)	\
-	bus_space_write_4(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_4((sc)->ste_res, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_2((sc)->ste_res, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
-	bus_space_write_1(sc->ste_btag, sc->ste_bhandle, reg, val)
+	bus_write_1((sc)->ste_res, reg, val)
 
 #define CSR_READ_4(sc, reg)		\
-	bus_space_read_4(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_4((sc)->ste_res, reg)
 #define CSR_READ_2(sc, reg)		\
-	bus_space_read_2(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_2((sc)->ste_res, reg)
 #define CSR_READ_1(sc, reg)		\
-	bus_space_read_1(sc->ste_btag, sc->ste_bhandle, reg)
+	bus_read_1((sc)->ste_res, reg)
 
 #define	STE_DESC_ALIGN		8
 #define STE_RX_LIST_CNT		128
@@ -544,8 +544,6 @@ struct ste_chain_data {
 
 struct ste_softc {
 	struct ifnet		*ste_ifp;
-	bus_space_tag_t		ste_btag;
-	bus_space_handle_t	ste_bhandle;
 	struct resource		*ste_res;
 	int			ste_res_id;
 	int			ste_res_type;
