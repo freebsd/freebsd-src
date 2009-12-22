@@ -351,6 +351,8 @@ obj_free(Obj_Entry *obj)
 	free(obj->vertab);
     if (obj->origin_path)
 	free(obj->origin_path);
+    if (obj->z_origin)
+	free(obj->rpath);
     if (obj->priv)
 	free(obj->priv);
     if (obj->path)

@@ -41,6 +41,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/utsname.h>
 #include <sys/ktrace.h>
 
 #include <dlfcn.h>
@@ -118,6 +119,7 @@ static void objlist_remove_unref(Objlist *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *);
 static int rtld_dirname(const char *, char *);
+static int rtld_dirname_abs(const char *, char *);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static const void **get_program_var_addr(const char *);
@@ -134,6 +136,9 @@ static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
+static int origin_subst_one(char **res, const char *real, const char *kw,
+  const char *subst, char *may_free);
+static char *origin_subst(const char *real, const char *origin_path);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
@@ -419,7 +424,25 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    die();
     }
 
-    obj_main->path = xstrdup(argv0);
+    if (aux_info[AT_EXECPATH] != 0) {
+	    char *kexecpath;
+	    char buf[MAXPATHLEN];
+
+	    kexecpath = aux_info[AT_EXECPATH]->a_un.a_ptr;
+	    dbg("AT_EXECPATH %p %s", kexecpath, kexecpath);
+	    if (kexecpath[0] == '/')
+		    obj_main->path = kexecpath;
+	    else if (getcwd(buf, sizeof(buf)) == NULL ||
+		     strlcat(buf, "/", sizeof(buf)) >= sizeof(buf) ||
+		     strlcat(buf, kexecpath, sizeof(buf)) >= sizeof(buf))
+		    obj_main->path = xstrdup(argv0);
+	    else
+		    obj_main->path = xstrdup(buf);
+    } else {
+	    dbg("No AT_EXECPATH");
+	    obj_main->path = xstrdup(argv0);
+    }
+    dbg("obj_main path %s", obj_main->path);
     obj_main->mainprog = true;
 
     /*
@@ -621,6 +644,83 @@ basename(const char *name)
     return p != NULL ? p + 1 : name;
 }
 
+static struct utsname uts;
+
+static int
+origin_subst_one(char **res, const char *real, const char *kw, const char *subst,
+    char *may_free)
+{
+    const char *p, *p1;
+    char *res1;
+    int subst_len;
+    int kw_len;
+
+    res1 = *res = NULL;
+    p = real;
+    subst_len = kw_len = 0;
+    for (;;) {
+	 p1 = strstr(p, kw);
+	 if (p1 != NULL) {
+	     if (subst_len == 0) {
+		 subst_len = strlen(subst);
+		 kw_len = strlen(kw);
+	     }
+	     if (*res == NULL) {
+		 *res = xmalloc(PATH_MAX);
+		 res1 = *res;
+	     }
+	     if ((res1 - *res) + subst_len + (p1 - p) >= PATH_MAX) {
+		 _rtld_error("Substitution of %s in %s cannot be performed",
+		     kw, real);
+		 if (may_free != NULL)
+		     free(may_free);
+		 free(res);
+		 return (false);
+	     }
+	     memcpy(res1, p, p1 - p);
+	     res1 += p1 - p;
+	     memcpy(res1, subst, subst_len);
+	     res1 += subst_len;
+	     p = p1 + kw_len;
+	 } else {
+	    if (*res == NULL) {
+		if (may_free != NULL)
+		    *res = may_free;
+		else
+		    *res = xstrdup(real);
+		return (true);
+	    }
+	    *res1 = '\0';
+	    if (may_free != NULL)
+		free(may_free);
+	    if (strlcat(res1, p, PATH_MAX - (res1 - *res)) >= PATH_MAX) {
+		free(res);
+		return (false);
+	    }
+	    return (true);
+	 }
+    }
+}
+
+static char *
+origin_subst(const char *real, const char *origin_path)
+{
+    char *res1, *res2, *res3, *res4;
+
+    if (uts.sysname[0] == '\0') {
+	if (uname(&uts) != 0) {
+	    _rtld_error("utsname failed: %d", errno);
+	    return (NULL);
+	}
+    }
+    if (!origin_subst_one(&res1, real, "$ORIGIN", origin_path, NULL) ||
+	!origin_subst_one(&res2, res1, "$OSNAME", uts.sysname, res1) ||
+	!origin_subst_one(&res3, res2, "$OSREL", uts.release, res2) ||
+	!origin_subst_one(&res4, res3, "$PLATFORM", uts.machine, res3))
+	    return (NULL);
+    return (res4);
+}
+
 static void
 die(void)
 {
@@ -790,11 +890,8 @@ digest_dynamic(Obj_Entry *obj, int early)
 	    break;
 
 	case DT_FLAGS:
-		if (dynp->d_un.d_val & DF_ORIGIN) {
-		    obj->origin_path = xmalloc(PATH_MAX);
-		    if (rtld_dirname(obj->path, obj->origin_path) == -1)
-			die();
-		}
+		if ((dynp->d_un.d_val & DF_ORIGIN) && trust)
+		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_SYMBOLIC)
 		    obj->symbolic = true;
 		if (dynp->d_un.d_val & DF_TEXTREL)
@@ -803,6 +900,15 @@ digest_dynamic(Obj_Entry *obj, int early)
 		    obj->bind_now = true;
 		if (dynp->d_un.d_val & DF_STATIC_TLS)
 		    ;
+	    break;
+
+	case DT_FLAGS_1:
+		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		    obj->z_origin = true;
+		if (dynp->d_un.d_val & DF_1_GLOBAL)
+			/* XXX */;
+		if (dynp->d_un.d_val & DF_1_BIND_NOW)
+		    obj->bind_now = true;
 	    break;
 
 	default:
@@ -823,8 +929,17 @@ digest_dynamic(Obj_Entry *obj, int early)
 	obj->pltrelsize = 0;
     }
 
-    if (dyn_rpath != NULL)
-	obj->rpath = obj->strtab + dyn_rpath->d_un.d_val;
+    if (obj->z_origin && obj->origin_path == NULL) {
+	obj->origin_path = xmalloc(PATH_MAX);
+	if (rtld_dirname_abs(obj->path, obj->origin_path) == -1)
+	    die();
+    }
+
+    if (dyn_rpath != NULL) {
+	obj->rpath = (char *)obj->strtab + dyn_rpath->d_un.d_val;
+	if (obj->z_origin)
+	    obj->rpath = origin_subst(obj->rpath, obj->origin_path);
+    }
 
     if (dyn_soname != NULL)
 	object_add_name(obj, obj->strtab + dyn_soname->d_un.d_val);
@@ -982,7 +1097,10 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	      xname);
 	    return NULL;
 	}
-	return xstrdup(xname);
+	if (refobj != NULL && refobj->z_origin)
+	    return origin_subst(xname, refobj->origin_path);
+	else
+	    return xstrdup(xname);
     }
 
     if (libmap_disable || (refobj == NULL) ||
@@ -2293,6 +2411,23 @@ rtld_dirname(const char *path, char *bname)
     strncpy(bname, path, endp - path + 1);
     bname[endp - path + 1] = '\0';
     return (0);
+}
+
+static int
+rtld_dirname_abs(const char *path, char *base)
+{
+	char base_rel[PATH_MAX];
+
+	if (rtld_dirname(path, base) == -1)
+		return (-1);
+	if (base[0] == '/')
+		return (0);
+	if (getcwd(base_rel, sizeof(base_rel)) == NULL ||
+	    strlcat(base_rel, "/", sizeof(base_rel)) >= sizeof(base_rel) ||
+	    strlcat(base_rel, base, sizeof(base_rel)) >= sizeof(base_rel))
+		return (-1);
+	strcpy(base, base_rel);
+	return (0);
 }
 
 static void
