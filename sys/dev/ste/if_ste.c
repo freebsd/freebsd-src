@@ -471,6 +471,7 @@ ste_wait(struct ste_softc *sc)
 	for (i = 0; i < STE_TIMEOUT; i++) {
 		if (!(CSR_READ_4(sc, STE_DMACTL) & STE_DMACTL_DMA_HALTINPROG))
 			break;
+		DELAY(1);
 	}
 
 	if (i == STE_TIMEOUT)
