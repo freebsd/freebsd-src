@@ -972,9 +972,6 @@ ste_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->ste_btag = rman_get_bustag(sc->ste_res);
-	sc->ste_bhandle = rman_get_bushandle(sc->ste_res);
-
 	/* Allocate interrupt */
 	rid = 0;
 	sc->ste_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
