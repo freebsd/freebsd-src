@@ -461,7 +461,7 @@ typedef struct _ipfw_insn_icmp6 {
  */
 
 struct ip_fw {
-	struct ip_fw	*next;		/* linked list of rules		*/
+	struct ip_fw	*x_next;	/* linked list of rules		*/
 	struct ip_fw	*next_rule;	/* ptr to next [skipto] rule	*/
 	/* 'next_rule' is used to pass up 'set_disable' status		*/
 

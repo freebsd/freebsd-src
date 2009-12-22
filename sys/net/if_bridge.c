@@ -3039,20 +3039,23 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
+	/* XXX this section is also in if_ethersubr.c */
 	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
 		struct dn_pkt_tag *dn_tag;
 
 		error = -1;
 		dn_tag = ip_dn_claim_tag(*mp);
-		if (dn_tag != NULL) {
-			if (dn_tag->rule != NULL && V_fw_one_pass)
+		if (dn_tag == NULL) {
+			args.slot = 0;
+		} else {
+			if (dn_tag->slot != 0 && V_fw_one_pass)
 				/* packet already partially processed */
 				goto ipfwpass;
-			args.rule = dn_tag->rule; /* matching rule to restart */
-			args.rule_id = dn_tag->rule_id;
+			args.slot = dn_tag->slot; /* next rule to use */
 			args.chain_id = dn_tag->chain_id;
-		} else
-			args.rule = NULL;
+			args.rulenum = dn_tag->rulenum;
+			args.rule_id = dn_tag->rule_id;
+		}
 
 		args.m = *mp;
 		args.oif = ifp;
