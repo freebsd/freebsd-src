@@ -2347,6 +2347,7 @@ product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
 
 /* RATOC Systems products */
 product RATOC REXUSB60		0xb000	REX-USB60
+product RATOC REXUSB60F		0xb020	REX-USB60F
 
 /* Sagem products */
 product SAGEM USBSERIAL		0x0027	USB-Serial Controller
