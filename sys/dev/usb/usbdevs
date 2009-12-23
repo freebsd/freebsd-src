@@ -328,6 +328,7 @@ vendor AVISION		0x0638	Avision
 vendor TEAC		0x0644	TEAC
 vendor SGI		0x065e	Silicon Graphics
 vendor SANWASUPPLY	0x0663	Sanwa Supply
+vendor MEGATEC		0x0665	Megatec
 vendor LINKSYS		0x066b	Linksys
 vendor ACERSA		0x066e	Acer Semiconductor America
 vendor SIGMATEL		0x066f	Sigmatel
@@ -666,6 +667,7 @@ vendor SITECOM		0x6189	Sitecom
 vendor ARKMICRO		0x6547	Arkmicro Technologies Inc.
 vendor 3COM2		0x6891	3Com
 vendor INTEL		0x8086	Intel
+vendor INTEL2		0x8087	Intel
 vendor SITECOM2		0x9016	Sitecom
 vendor MOSCHIP		0x9710	MosChip Semiconductor
 vendor MARVELL		0x9e88	Marvell Technology Group Ltd.
@@ -1062,6 +1064,7 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 
 /* Chicony products */
 product CHICONY KB8933		0x0001	KB-8933 keyboard
+product CHICONY CNF7129		0xb071	Notebook Web Camera
 product CHICONY2 TWINKLECAM	0x600d	TwinkleCam USB camera
 
 /* CH Products */
@@ -1629,6 +1632,7 @@ product INSYSTEM STORAGE_V2	0x5701	USB Storage Adapter V2
 /* Intel products */
 product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
+product INTEL2 IRMH        	0x0020	Integrated Rate Matching Hub
 
 /* Intersil products */
 product INTERSIL PRISM_GT	0x1000	PrismGT USB 2.0 WLAN
@@ -2137,7 +2141,10 @@ product PHILIPS UM10016		0x1552	ISP 1581 Hi-Speed USB MPEG2 Encoder Reference Ki
 product PHILIPS DIVAUSB		0x1801	DIVA USB mp3 player
 
 /* Philips Semiconductor products */
-product PHILIPSSEMI HUB1122	0x1122	hub
+product PHILIPSSEMI HUB1122	0x1122	HUB
+
+/* Megatec */
+product MEGATEC UPS		0x5161	Protocol based UPS
 
 /* P.I. Engineering products */
 product PIENGINEERING PS2USB	0x020b	PS2 to Mac USB Adapter
