@@ -643,8 +643,10 @@ ste_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
 
-		if (status & STE_ISR_HOSTERR)
+		if (status & STE_ISR_HOSTERR) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ste_init_locked(sc);
+		}
 	}
 	return (rx_npkts);
 }
@@ -692,8 +694,10 @@ ste_intr(void *xsc)
 		if (status & STE_ISR_STATS_OFLOW)
 			ste_stats_update(sc);
 
-		if (status & STE_ISR_HOSTERR)
+		if (status & STE_ISR_HOSTERR) {
 			ste_init_locked(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		}
 	}
 
 	/* Re-enable interrupts */
@@ -832,6 +836,7 @@ ste_txeoc(struct ste_softc *sc)
 				STE_SETBIT4(sc, STE_DMACTL,
 				    STE_DMACTL_TXDMA_STALL);
 				ste_wait(sc);
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				ste_init_locked(sc);
 				break;
 			}
@@ -1548,6 +1553,9 @@ ste_init_locked(struct ste_softc *sc)
 	STE_LOCK_ASSERT(sc);
 	ifp = sc->ste_ifp;
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	ste_stop(sc);
 	/* Reset the chip to a known state. */
 	ste_reset(sc);
@@ -2005,6 +2013,7 @@ ste_watchdog(struct ste_softc *sc)
 	ste_txeof(sc);
 	ste_txeoc(sc);
 	ste_rxeof(sc, -1);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ste_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
