@@ -125,8 +125,10 @@ static int	ste_rxeof(struct ste_softc *, int);
 static void	ste_rxfilter(struct ste_softc *);
 static void	ste_start(struct ifnet *);
 static void	ste_start_locked(struct ifnet *);
+static void	ste_stats_clear(struct ste_softc *);
 static void	ste_stats_update(struct ste_softc *);
 static void	ste_stop(struct ste_softc *);
+static void	ste_sysctl_node(struct ste_softc *);
 static void	ste_tick(void *);
 static void	ste_txeoc(struct ste_softc *);
 static void	ste_txeof(struct ste_softc *);
@@ -923,16 +925,74 @@ ste_txeof(struct ste_softc *sc)
 }
 
 static void
+ste_stats_clear(struct ste_softc *sc)
+{
+
+	STE_LOCK_ASSERT(sc);
+
+	/* Rx stats. */
+	CSR_READ_2(sc, STE_STAT_RX_OCTETS_LO);
+	CSR_READ_2(sc, STE_STAT_RX_OCTETS_HI);
+	CSR_READ_2(sc, STE_STAT_RX_FRAMES);
+	CSR_READ_1(sc, STE_STAT_RX_BCAST);
+	CSR_READ_1(sc, STE_STAT_RX_MCAST);
+	CSR_READ_1(sc, STE_STAT_RX_LOST);
+	/* Tx stats. */
+	CSR_READ_2(sc, STE_STAT_TX_OCTETS_LO);
+	CSR_READ_2(sc, STE_STAT_TX_OCTETS_HI);
+	CSR_READ_2(sc, STE_STAT_TX_FRAMES);
+	CSR_READ_1(sc, STE_STAT_TX_BCAST);
+	CSR_READ_1(sc, STE_STAT_TX_MCAST);
+	CSR_READ_1(sc, STE_STAT_CARRIER_ERR);
+	CSR_READ_1(sc, STE_STAT_SINGLE_COLLS);
+	CSR_READ_1(sc, STE_STAT_MULTI_COLLS);
+	CSR_READ_1(sc, STE_STAT_LATE_COLLS);
+	CSR_READ_1(sc, STE_STAT_TX_DEFER);
+	CSR_READ_1(sc, STE_STAT_TX_EXDEFER);
+	CSR_READ_1(sc, STE_STAT_TX_ABORT);
+}
+
+static void
 ste_stats_update(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
+	struct ste_hw_stats *stats;
+	uint32_t val;
 
 	STE_LOCK_ASSERT(sc);
 
 	ifp = sc->ste_ifp;
-	ifp->if_collisions += CSR_READ_1(sc, STE_LATE_COLLS)
-	    + CSR_READ_1(sc, STE_MULTI_COLLS)
-	    + CSR_READ_1(sc, STE_SINGLE_COLLS);
+	stats = &sc->ste_stats;
+	/* Rx stats. */
+	val = (uint32_t)CSR_READ_2(sc, STE_STAT_RX_OCTETS_LO) |
+	    ((uint32_t)CSR_READ_2(sc, STE_STAT_RX_OCTETS_HI)) << 16;
+	val &= 0x000FFFFF;
+	stats->rx_bytes += val;
+	stats->rx_frames += CSR_READ_2(sc, STE_STAT_RX_FRAMES);
+	stats->rx_bcast_frames += CSR_READ_1(sc, STE_STAT_RX_BCAST);
+	stats->rx_mcast_frames += CSR_READ_1(sc, STE_STAT_RX_MCAST);
+	stats->rx_lost_frames += CSR_READ_1(sc, STE_STAT_RX_LOST);
+	/* Tx stats. */
+	val = (uint32_t)CSR_READ_2(sc, STE_STAT_TX_OCTETS_LO) |
+	    ((uint32_t)CSR_READ_2(sc, STE_STAT_TX_OCTETS_HI)) << 16;
+	val &= 0x000FFFFF;
+	stats->tx_bytes += val;
+	stats->tx_frames += CSR_READ_2(sc, STE_STAT_TX_FRAMES);
+	stats->tx_bcast_frames += CSR_READ_1(sc, STE_STAT_TX_BCAST);
+	stats->tx_mcast_frames += CSR_READ_1(sc, STE_STAT_TX_MCAST);
+	stats->tx_carrsense_errs += CSR_READ_1(sc, STE_STAT_CARRIER_ERR);
+	val = CSR_READ_1(sc, STE_STAT_SINGLE_COLLS);
+	stats->tx_single_colls += val;
+	ifp->if_collisions += val;
+	val = CSR_READ_1(sc, STE_STAT_MULTI_COLLS);
+	stats->tx_multi_colls += val;
+	ifp->if_collisions += val;
+	val += CSR_READ_1(sc, STE_STAT_LATE_COLLS);
+	stats->tx_late_colls += val;
+	ifp->if_collisions += val;
+	stats->tx_frames_defered += CSR_READ_1(sc, STE_STAT_TX_DEFER);
+	stats->tx_excess_defers += CSR_READ_1(sc, STE_STAT_TX_EXDEFER);
+	stats->tx_abort += CSR_READ_1(sc, STE_STAT_TX_ABORT);
 }
 
 /*
@@ -1032,6 +1092,7 @@ ste_attach(device_t dev)
 		error = ENXIO;;
 		goto fail;
 	}
+	ste_sysctl_node(sc);
 
 	if ((error = ste_dma_alloc(sc)) != 0)
 		goto fail;
@@ -1625,6 +1686,8 @@ ste_init_locked(struct ste_softc *sc)
 
 	/* Enable stats counters. */
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_STATS_ENABLE);
+	/* Clear stats counters. */
+	ste_stats_clear(sc);
 
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
 #ifdef DEVICE_POLLING
@@ -2013,3 +2076,70 @@ ste_shutdown(device_t dev)
 
 	return (0);
 }
+
+#define	STE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+#define	STE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+
+static void
+ste_sysctl_node(struct ste_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child, *parent;
+	struct sysctl_oid *tree;
+	struct ste_hw_stats *stats;
+
+	stats = &sc->ste_stats;
+	ctx = device_get_sysctl_ctx(sc->ste_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ste_dev));
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "STE statistics");
+	parent = SYSCTL_CHILDREN(tree);
+
+	/* Rx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "Rx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	STE_SYSCTL_STAT_ADD64(ctx, child, "good_octets",
+	    &stats->rx_bytes, "Good octets");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->rx_frames, "Good frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_bcast_frames",
+	    &stats->rx_bcast_frames, "Good broadcast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_mcast_frames",
+	    &stats->rx_mcast_frames, "Good multicast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "lost_frames",
+	    &stats->rx_lost_frames, "Lost frames");
+
+	/* Tx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "Tx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	STE_SYSCTL_STAT_ADD64(ctx, child, "good_octets",
+	    &stats->tx_bytes, "Good octets");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->tx_frames, "Good frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_bcast_frames",
+	    &stats->tx_bcast_frames, "Good broadcast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "good_mcast_frames",
+	    &stats->tx_mcast_frames, "Good multicast frames");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "carrier_errs",
+	    &stats->tx_carrsense_errs, "Carrier sense errors");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "single_colls",
+	    &stats->tx_single_colls, "Single collisions");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "multi_colls",
+	    &stats->tx_multi_colls, "Multiple collisions");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "late_colls",
+	    &stats->tx_late_colls, "Late collisions");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "defers",
+	    &stats->tx_frames_defered, "Frames with deferrals");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "excess_defers",
+	    &stats->tx_excess_defers, "Frames with excessive derferrals");
+	STE_SYSCTL_STAT_ADD32(ctx, child, "abort",
+	    &stats->tx_abort, "Aborted frames due to Excessive collisions");
+}
+
+#undef STE_SYSCTL_STAT_ADD32
+#undef STE_SYSCTL_STAT_ADD64
