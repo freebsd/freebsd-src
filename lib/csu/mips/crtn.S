@@ -9,6 +9,9 @@ __FBSDID("$FreeBSD$");
 
 	.section .fini,"ax",%progbits
 	lw	ra, 28(sp)
+#if defined(__mips_n64) || defined(__mips_n32)
+	lw	gp, 16(sp)
+#endif
 	.set	noreorder
 	j	ra
 	addu	sp, sp, 32
