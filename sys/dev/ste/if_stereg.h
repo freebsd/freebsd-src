@@ -63,6 +63,7 @@
 #define STE_RX_DMABURST_THRESH	0x14
 #define STE_RX_DMAURG_THRESH	0x15
 #define STE_RX_DMAPOLL_PERIOD	0x16
+#define	STE_COUNTDOWN		0x18
 #define STE_DEBUGCTL		0x1A
 #define STE_ASICCTL		0x30
 #define STE_EEPROM_DATA		0x34
@@ -75,7 +76,6 @@
 #define STE_WAKE_EVENT		0x45
 #define STE_TX_STATUS		0x46
 #define STE_TX_FRAMEID		0x47
-#define STE_COUNTDOWN		0x48
 #define STE_ISR_ACK		0x4A
 #define STE_IMR			0x4C
 #define STE_ISR			0x4E
