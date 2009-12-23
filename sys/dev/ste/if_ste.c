@@ -123,7 +123,7 @@ static int	ste_read_eeprom(struct ste_softc *, caddr_t, int, int, int);
 static void	ste_reset(struct ste_softc *);
 static void	ste_restart_tx(struct ste_softc *);
 static int	ste_rxeof(struct ste_softc *, int);
-static void	ste_setmulti(struct ste_softc *);
+static void	ste_rxfilter(struct ste_softc *);
 static void	ste_start(struct ifnet *);
 static void	ste_start_locked(struct ifnet *);
 static void	ste_stats_update(struct ste_softc *);
@@ -563,27 +563,33 @@ ste_read_eeprom(struct ste_softc *sc, caddr_t dest, int off, int cnt, int swap)
 }
 
 static void
-ste_setmulti(struct ste_softc *sc)
+ste_rxfilter(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	uint32_t hashes[2] = { 0, 0 };
+	uint8_t rxcfg;
 	int h;
 
+	STE_LOCK_ASSERT(sc);
+
 	ifp = sc->ste_ifp;
-	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_ALLMULTI);
-		STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_MULTIHASH);
-		return;
+	rxcfg = CSR_READ_1(sc, STE_RX_MODE);
+	rxcfg |= STE_RXMODE_UNICAST;
+	rxcfg &= ~(STE_RXMODE_ALLMULTI | STE_RXMODE_MULTIHASH |
+	    STE_RXMODE_BROADCAST | STE_RXMODE_PROMISC);
+	if (ifp->if_flags & IFF_BROADCAST)
+		rxcfg |= STE_RXMODE_BROADCAST;
+	if ((ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) != 0) {
+		if ((ifp->if_flags & IFF_ALLMULTI) != 0)
+			rxcfg |= STE_RXMODE_ALLMULTI;
+		if ((ifp->if_flags & IFF_PROMISC) != 0)
+			rxcfg |= STE_RXMODE_PROMISC;
+		goto chipit;
 	}
 
-	/* first, zot all the existing hash bits */
-	CSR_WRITE_2(sc, STE_MAR0, 0);
-	CSR_WRITE_2(sc, STE_MAR1, 0);
-	CSR_WRITE_2(sc, STE_MAR2, 0);
-	CSR_WRITE_2(sc, STE_MAR3, 0);
-
-	/* now program new ones */
+	rxcfg |= STE_RXMODE_MULTIHASH;
+	/* Now program new ones. */
 	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -597,12 +603,13 @@ ste_setmulti(struct ste_softc *sc)
 	}
 	if_maddr_runlock(ifp);
 
+chipit:
 	CSR_WRITE_2(sc, STE_MAR0, hashes[0] & 0xFFFF);
 	CSR_WRITE_2(sc, STE_MAR1, (hashes[0] >> 16) & 0xFFFF);
 	CSR_WRITE_2(sc, STE_MAR2, hashes[1] & 0xFFFF);
 	CSR_WRITE_2(sc, STE_MAR3, (hashes[1] >> 16) & 0xFFFF);
-	STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_ALLMULTI);
-	STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_MULTIHASH);
+	CSR_WRITE_1(sc, STE_RX_MODE, rxcfg);
+	CSR_READ_1(sc, STE_RX_MODE);
 }
 
 #ifdef DEVICE_POLLING
@@ -1590,24 +1597,11 @@ ste_init_locked(struct ste_softc *sc)
 	/* Set the TX reclaim threshold. */
 	CSR_WRITE_1(sc, STE_TX_RECLAIM_THRESH, (STE_PACKET_SIZE >> 4));
 
+	/* Accept VLAN length packets */
+	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
+
 	/* Set up the RX filter. */
-	CSR_WRITE_1(sc, STE_RX_MODE, STE_RXMODE_UNICAST);
-
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_PROMISC);
-	} else {
-		STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_PROMISC);
-	}
-
-	/* Set capture broadcast bit to accept broadcast frames. */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		STE_SETBIT1(sc, STE_RX_MODE, STE_RXMODE_BROADCAST);
-	} else {
-		STE_CLRBIT1(sc, STE_RX_MODE, STE_RXMODE_BROADCAST);
-	}
-
-	ste_setmulti(sc);
+	ste_rxfilter(sc);
 
 	/* Load the address of the RX list. */
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_RXDMA_STALL);
@@ -1646,9 +1640,6 @@ ste_init_locked(struct ste_softc *sc)
 #endif
 	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
-
-	/* Accept VLAN length packets */
-	CSR_WRITE_2(sc, STE_MAX_FRAMELEN, ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN);
 
 	ste_ifmedia_upd_locked(ifp);
 
@@ -1792,39 +1783,24 @@ ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		STE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->ste_if_flags & IFF_PROMISC)) {
-				STE_SETBIT1(sc, STE_RX_MODE,
-				    STE_RXMODE_PROMISC);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->ste_if_flags & IFF_PROMISC) {
-				STE_CLRBIT1(sc, STE_RX_MODE,
-				    STE_RXMODE_PROMISC);
-			}
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    (ifp->if_flags ^ sc->ste_if_flags) & IFF_ALLMULTI)
-				ste_setmulti(sc);
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				sc->ste_tx_thresh = STE_TXSTART_THRESH;
+		if ((ifp->if_flags & IFF_UP) != 0) {
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc->ste_if_flags) &
+			     (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				ste_rxfilter(sc);
+			else
 				ste_init_locked(sc);
-			}
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				ste_stop(sc);
-		}
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			ste_stop(sc);
 		sc->ste_if_flags = ifp->if_flags;
 		STE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		STE_LOCK(sc);
-		ste_setmulti(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			ste_rxfilter(sc);
 		STE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
