@@ -32,13 +32,13 @@ __FBSDID("$FreeBSD$");
  * dispatched) and asynchronous (deferred dispatch) processing of packets by
  * registered protocol handlers.  Callers pass a protocol identifier and
  * packet to netisr, along with a direct dispatch hint, and work will either
- * be immediately processed with the registered handler, or passed to a
- * kernel software interrupt (SWI) thread for deferred dispatch.  Callers
- * will generally select one or the other based on:
+ * be immediately processed by the registered handler, or passed to a
+ * software interrupt (SWI) thread for deferred dispatch.  Callers will
+ * generally select one or the other based on:
  *
- * - Might directly dispatching a netisr handler lead to code reentrance or
+ * - Whether directly dispatching a netisr handler lead to code reentrance or
  *   lock recursion, such as entering the socket code from the socket code.
- * - Might directly dispatching a netisr handler lead to recursive
+ * - Whether directly dispatching a netisr handler lead to recursive
  *   processing, such as when decapsulating several wrapped layers of tunnel
  *   information (IPSEC within IPSEC within ...).
  *
@@ -54,9 +54,9 @@ __FBSDID("$FreeBSD$");
  * more than one flow.
  *
  * netisr supports several policy variations, represented by the
- * NETISR_POLICY_* constants, allowing protocols to play a varying role in
+ * NETISR_POLICY_* constants, allowing protocols to play various roles in
  * identifying flows, assigning work to CPUs, etc.  These are described in
- * detail in netisr.h.
+ * netisr.h.
  */
 
 #include "opt_ddb.h"
@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
  *
  * Note: the NETISR_LOCKING define controls whether read locks are acquired
  * in packet processing paths requiring netisr registration stability.  This
- * is disabled by default as it can lead to a measurable performance
+ * is disabled by default as it can lead to measurable performance
  * degradation even with rmlocks (3%-6% for loopback ping-pong traffic), and
  * because netisr registration and unregistration is extremely rare at
  * runtime.  If it becomes more common, this decision should be revisited.
@@ -166,8 +166,9 @@ SYSCTL_INT(_net_isr, OID_AUTO, bindthreads, CTLFLAG_RD,
     &netisr_bindthreads, 0, "Bind netisr threads to CPUs.");
 
 /*
- * Limit per-workstream queues to at most net.isr.maxqlimit, both for initial
- * configuration and later modification using netisr_setqlimit().
+ * Limit per-workstream mbuf queue limits s to at most net.isr.maxqlimit,
+ * both for initial configuration and later modification using
+ * netisr_setqlimit().
  */
 #define	NETISR_DEFAULT_MAXQLIMIT	10240
 static u_int	netisr_maxqlimit = NETISR_DEFAULT_MAXQLIMIT;
@@ -177,9 +178,9 @@ SYSCTL_INT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RD,
     "Maximum netisr per-protocol, per-CPU queue depth.");
 
 /*
- * The default per-workstream queue limit for protocols that don't initialize
- * the nh_qlimit field of their struct netisr_handler.  If this is set above
- * netisr_maxqlimit, we truncate it to the maximum during boot.
+ * The default per-workstream mbuf queue limit for protocols that don't
+ * initialize the nh_qlimit field of their struct netisr_handler.  If this is
+ * set above netisr_maxqlimit, we truncate it to the maximum during boot.
  */
 #define	NETISR_DEFAULT_DEFAULTQLIMIT	256
 static u_int	netisr_defaultqlimit = NETISR_DEFAULT_DEFAULTQLIMIT;
@@ -237,12 +238,14 @@ struct netisr_work {
 };
 
 /*
- * Workstreams hold a set of ordered work across each protocol, and are
+ * Workstreams hold a queue of ordered work across each protocol, and are
  * described by netisr_workstream.  Each workstream is associated with a
  * worker thread, which in turn is pinned to a CPU.  Work associated with a
  * workstream can be processd in other threads during direct dispatch;
  * concurrent processing is prevented by the NWS_RUNNING flag, which
- * indicates that a thread is already processing the work queue.
+ * indicates that a thread is already processing the work queue.  It is
+ * important to prevent a directly dispatched packet from "skipping ahead" of
+ * work already in the workstream queue.
  */
 struct netisr_workstream {
 	struct intr_event *nws_intr_event;	/* Handler for stream. */
@@ -317,7 +320,7 @@ netisr_get_cpuid(u_int cpunumber)
 }
 
 /*
- * The default implementation of -> CPU ID mapping.
+ * The default implementation of flow -> CPU ID mapping.
  *
  * Non-static so that protocols can use it to map their own work to specific
  * CPUs in a manner consistent to netisr for affinity purposes.
@@ -437,7 +440,7 @@ netisr_clearqdrops(const struct netisr_handler *nhp)
 }
 
 /*
- * Query the current drop counters across all workstreams for a protocol.
+ * Query current drop counters across all workstreams for a protocol.
  */
 void
 netisr_getqdrops(const struct netisr_handler *nhp, u_int64_t *qdropp)
@@ -472,7 +475,7 @@ netisr_getqdrops(const struct netisr_handler *nhp, u_int64_t *qdropp)
 }
 
 /*
- * Query the current queue limit for per-workstream queues for a protocol.
+ * Query current per-workstream queue limit for a protocol.
  */
 void
 netisr_getqlimit(const struct netisr_handler *nhp, u_int *qlimitp)
@@ -726,7 +729,7 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 }
 
 /*
- * SWI handler for netisr -- processes prackets in a set of workstreams that
+ * SWI handler for netisr -- processes packets in a set of workstreams that
  * it owns, woken up by calls to NWS_SIGNAL().  If this workstream is already
  * being direct dispatched, go back to sleep and wait for the dispatching
  * thread to wake us up again.
@@ -794,6 +797,11 @@ netisr_queue_workstream(struct netisr_workstream *nwsp, u_int proto,
 		npwp->nw_len++;
 		if (npwp->nw_len > npwp->nw_watermark)
 			npwp->nw_watermark = npwp->nw_len;
+
+		/*
+		 * We must set the bit regardless of NWS_RUNNING, so that
+		 * swi_net() keeps calling netisr_process_workstream_proto().
+		 */
 		nwsp->nws_pendingbits |= (1 << proto);
 		if (!(nwsp->nws_flags & 
 		    (NWS_RUNNING | NWS_DISPATCHING | NWS_SCHEDULED))) {
@@ -874,7 +882,7 @@ netisr_queue(u_int proto, struct mbuf *m)
 }
 
 /*
- * Dispatch a packet for netisr processing, direct dispatch permitted by
+ * Dispatch a packet for netisr processing; direct dispatch is permitted by
  * calling context.
  */
 int
