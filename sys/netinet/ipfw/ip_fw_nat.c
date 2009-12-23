@@ -32,19 +32,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/jail.h>
 #include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/sysctl.h>
-#include <sys/syslog.h>
-#include <sys/ucred.h>
 
 #define        IPFW_INTERNAL   /* Access to protected data structures in ip_fw.h. */
 
@@ -55,15 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/tcp.h>
-#include <netinet/tcp_timer.h>
-#include <netinet/tcp_var.h>
-#include <netinet/tcpip.h>
 #include <netinet/udp.h>
-#include <netinet/udp_var.h>
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
@@ -75,10 +63,12 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 {
 	struct cfg_nat *ptr;
 	struct ifaddr *ifa;
+	struct ip_fw_chain *chain;
 
-	IPFW_WLOCK(&V_layer3_chain);			
+	chain = &V_layer3_chain;
+	IPFW_WLOCK(chain);			
 	/* Check every nat entry... */
-	LIST_FOREACH(ptr, &V_layer3_chain.nat, _next) {
+	LIST_FOREACH(ptr, &chain->nat, _next) {
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
 		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) == 0) {
 			if_addr_rlock(ifp);
@@ -94,41 +84,25 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 			if_addr_runlock(ifp);
 		}
 	}
-	IPFW_WUNLOCK(&V_layer3_chain);	
+	IPFW_WUNLOCK(chain);	
 }
 
+/*
+ * delete the pointers for nat entry ix, or all of them if ix < 0
+ */
 static void
-flush_nat_ptrs(const int i)
+flush_nat_ptrs(struct ip_fw_chain *chain, const int ix)
 {
-	struct ip_fw *rule;
+	int i;
 
-	IPFW_WLOCK_ASSERT(&V_layer3_chain);
-	for (rule = V_layer3_chain.rules; rule; rule = rule->next) {
-		ipfw_insn_nat *cmd = (ipfw_insn_nat *)ACTION_PTR(rule);
-		if (cmd->o.opcode != O_NAT)
-			continue;
-		if (cmd->nat != NULL && cmd->nat->id == i)
+	IPFW_WLOCK_ASSERT(chain);
+	for (i = 0; i < chain->n_rules; i++) {
+		ipfw_insn_nat *cmd = (ipfw_insn_nat *)ACTION_PTR(chain->map[i]);
+		if (cmd->o.opcode == O_NAT && cmd->nat != NULL &&
+			    (ix < 0 || cmd->nat->id == ix))
 			cmd->nat = NULL;
 	}
 }
-
-#define HOOK_NAT(b, p) do {				\
-		IPFW_WLOCK_ASSERT(&V_layer3_chain);	\
-		LIST_INSERT_HEAD(b, p, _next);		\
-	} while (0)
-
-#define UNHOOK_NAT(p) do {				\
-		IPFW_WLOCK_ASSERT(&V_layer3_chain);	\
-		LIST_REMOVE(p, _next);			\
-	} while (0)
-
-#define HOOK_REDIR(b, p) do {			\
-		LIST_INSERT_HEAD(b, p, _next);	\
-	} while (0)
-
-#define HOOK_SPOOL(b, p) do {			\
-		LIST_INSERT_HEAD(b, p, _next);	\
-	} while (0)
 
 static void
 del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head)
@@ -223,10 +197,10 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 				    s->addr, htons(s->port));
 				off += SOF_SPOOL;
 				/* Hook spool entry. */
-				HOOK_SPOOL(&r->spool_chain, s);
+				LIST_INSERT_HEAD(&r->spool_chain, s, _next);
 			}
 		/* And finally hook this redir entry. */
-		HOOK_REDIR(&ptr->redir_chain, r);
+		LIST_INSERT_HEAD(&ptr->redir_chain, r, _next);
 	}
 	return (1);
 bad:
@@ -418,29 +392,31 @@ ipfw_nat_cfg(struct sockopt *sopt)
 {
 	struct cfg_nat *ptr, *ser_n;
 	char *buf;
+	struct ip_fw_chain *chain = &V_layer3_chain;
 
 	buf = malloc(NAT_BUF_LEN, M_IPFW, M_WAITOK | M_ZERO);
 	sooptcopyin(sopt, buf, NAT_BUF_LEN, 
 	    sizeof(struct cfg_nat));
 	ser_n = (struct cfg_nat *)buf;
 
+	/* check valid parameter ser_n->id > 0 ? */
 	/* 
 	 * Find/create nat rule.
 	 */
-	IPFW_WLOCK(&V_layer3_chain);
-	LOOKUP_NAT(&V_layer3_chain.nat, ser_n->id, ptr);
+	IPFW_WLOCK(chain);
+	LOOKUP_NAT(&chain->nat, ser_n->id, ptr);
 	if (ptr == NULL) {
 		/* New rule: allocate and init new instance. */
 		ptr = malloc(sizeof(struct cfg_nat), 
 		    M_IPFW, M_NOWAIT | M_ZERO);
 		if (ptr == NULL) {
-			IPFW_WUNLOCK(&V_layer3_chain);				
+			IPFW_WUNLOCK(chain);				
 			free(buf, M_IPFW);
 			return (ENOSPC);
 		}
 		ptr->lib = LibAliasInit(NULL);
 		if (ptr->lib == NULL) {
-			IPFW_WUNLOCK(&V_layer3_chain);
+			IPFW_WUNLOCK(chain);
 			free(ptr, M_IPFW);
 			free(buf, M_IPFW);
 			return (EINVAL);
@@ -448,10 +424,10 @@ ipfw_nat_cfg(struct sockopt *sopt)
 		LIST_INIT(&ptr->redir_chain);
 	} else {
 		/* Entry already present: temporarly unhook it. */
-		UNHOOK_NAT(ptr);
-		flush_nat_ptrs(ser_n->id);
+		LIST_REMOVE(ptr, _next);
+		flush_nat_ptrs(chain, ser_n->id);
 	}
-	IPFW_WUNLOCK(&V_layer3_chain);
+	IPFW_WUNLOCK(chain);
 
 	/* 
 	 * Basic nat configuration.
@@ -477,9 +453,9 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	/* Add new entries. */
 	add_redir_spool_cfg(&buf[(sizeof(struct cfg_nat))], ptr);
 	free(buf, M_IPFW);
-	IPFW_WLOCK(&V_layer3_chain);
-	HOOK_NAT(&V_layer3_chain.nat, ptr);
-	IPFW_WUNLOCK(&V_layer3_chain);
+	IPFW_WLOCK(chain);
+	LIST_INSERT_HEAD(&chain->nat, ptr, _next);
+	IPFW_WUNLOCK(chain);
 	return (0);
 }
 
@@ -487,18 +463,19 @@ static int
 ipfw_nat_del(struct sockopt *sopt)
 {
 	struct cfg_nat *ptr;
+	struct ip_fw_chain *chain = &V_layer3_chain;
 	int i;
 		
 	sooptcopyin(sopt, &i, sizeof i, sizeof i);
-	IPFW_WLOCK(&V_layer3_chain);
-	LOOKUP_NAT(&V_layer3_chain.nat, i, ptr);
+	IPFW_WLOCK(chain);
+	LOOKUP_NAT(&chain->nat, i, ptr);
 	if (ptr == NULL) {
-		IPFW_WUNLOCK(&V_layer3_chain);
+		IPFW_WUNLOCK(chain);
 		return (EINVAL);
 	}
-	UNHOOK_NAT(ptr);
-	flush_nat_ptrs(i);
-	IPFW_WUNLOCK(&V_layer3_chain);
+	LIST_REMOVE(ptr, _next);
+	flush_nat_ptrs(chain, i);
+	IPFW_WUNLOCK(chain);
 	del_redir_spool_cfg(ptr, &ptr->redir_chain);
 	LibAliasUninit(ptr->lib);
 	free(ptr, M_IPFW);
@@ -513,14 +490,16 @@ ipfw_nat_get_cfg(struct sockopt *sopt)
 	struct cfg_redir *r;
 	struct cfg_spool *s;
 	int nat_cnt, off;
-		
+	struct ip_fw_chain *chain;
+
+	chain = &V_layer3_chain;
 	nat_cnt = 0;
 	off = sizeof(nat_cnt);
 
 	data = malloc(NAT_BUF_LEN, M_IPFW, M_WAITOK | M_ZERO);
-	IPFW_RLOCK(&V_layer3_chain);
+	IPFW_RLOCK(chain);
 	/* Serialize all the data. */
-	LIST_FOREACH(n, &V_layer3_chain.nat, _next) {
+	LIST_FOREACH(n, &chain->nat, _next) {
 		nat_cnt++;
 		if (off + SOF_NAT < NAT_BUF_LEN) {
 			bcopy(n, &data[off], SOF_NAT);
@@ -547,12 +526,12 @@ ipfw_nat_get_cfg(struct sockopt *sopt)
 			goto nospace;
 	}
 	bcopy(&nat_cnt, data, sizeof(nat_cnt));
-	IPFW_RUNLOCK(&V_layer3_chain);
+	IPFW_RUNLOCK(chain);
 	sooptcopyout(sopt, data, NAT_BUF_LEN);
 	free(data, M_IPFW);
 	return (0);
 nospace:
-	IPFW_RUNLOCK(&V_layer3_chain);
+	IPFW_RUNLOCK(chain);
 	printf("serialized data buffer not big enough:"
 	    "please increase NAT_BUF_LEN\n");
 	free(data, M_IPFW);
@@ -565,21 +544,23 @@ ipfw_nat_get_log(struct sockopt *sopt)
 	uint8_t *data;
 	struct cfg_nat *ptr;
 	int i, size, cnt, sof;
+	struct ip_fw_chain *chain;
 
+	chain = &V_layer3_chain;
 	data = NULL;
 	sof = LIBALIAS_BUF_SIZE;
 	cnt = 0;
 
-	IPFW_RLOCK(&V_layer3_chain);
+	IPFW_RLOCK(chain);
 	size = i = 0;
-	LIST_FOREACH(ptr, &V_layer3_chain.nat, _next) {
+	LIST_FOREACH(ptr, &chain->nat, _next) {
 		if (ptr->lib->logDesc == NULL) 
 			continue;
 		cnt++;
 		size = cnt * (sof + sizeof(int));
 		data = realloc(data, size, M_IPFW, M_NOWAIT | M_ZERO);
 		if (data == NULL) {
-			IPFW_RUNLOCK(&V_layer3_chain);
+			IPFW_RUNLOCK(chain);
 			return (ENOSPC);
 		}
 		bcopy(&ptr->id, &data[i], sizeof(int));
@@ -587,7 +568,7 @@ ipfw_nat_get_log(struct sockopt *sopt)
 		bcopy(ptr->lib->logDesc, &data[i], sof);
 		i += sof;
 	}
-	IPFW_RUNLOCK(&V_layer3_chain);
+	IPFW_RUNLOCK(chain);
 	sooptcopyout(sopt, data, size);
 	free(data, M_IPFW);
 	return(0);
@@ -613,23 +594,19 @@ ipfw_nat_init(void)
 static void
 ipfw_nat_destroy(void)
 {
-	struct ip_fw *rule;
 	struct cfg_nat *ptr, *ptr_temp;
-	
-	IPFW_WLOCK(&V_layer3_chain);
-	LIST_FOREACH_SAFE(ptr, &V_layer3_chain.nat, _next, ptr_temp) {
+	struct ip_fw_chain *chain;
+
+	chain = &V_layer3_chain;
+	IPFW_WLOCK(chain);
+	LIST_FOREACH_SAFE(ptr, &chain->nat, _next, ptr_temp) {
 		LIST_REMOVE(ptr, _next);
 		del_redir_spool_cfg(ptr, &ptr->redir_chain);
 		LibAliasUninit(ptr->lib);
 		free(ptr, M_IPFW);
 	}
 	EVENTHANDLER_DEREGISTER(ifaddr_event, V_ifaddr_event_tag);
-	/* flush all nat ptrs */
-	for (rule = V_layer3_chain.rules; rule; rule = rule->next) {
-		ipfw_insn_nat *cmd = (ipfw_insn_nat *)ACTION_PTR(rule);
-		if (cmd->o.opcode == O_NAT)
-			cmd->nat = NULL;
-	}
+	flush_nat_ptrs(chain, -1 /* flush all */);
 	/* deregister ipfw_nat */
 	ipfw_nat_ptr = NULL;
 	lookup_nat_ptr = NULL;
@@ -637,7 +614,7 @@ ipfw_nat_destroy(void)
 	ipfw_nat_del_ptr = NULL;
 	ipfw_nat_get_cfg_ptr = NULL;
 	ipfw_nat_get_log_ptr = NULL;
-	IPFW_WUNLOCK(&V_layer3_chain);
+	IPFW_WUNLOCK(chain);
 }
 
 static int
