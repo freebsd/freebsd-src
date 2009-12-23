@@ -1731,20 +1731,27 @@ ste_stop(struct ste_softc *sc)
 static void
 ste_reset(struct ste_softc *sc)
 {
+	uint32_t ctl;
 	int i;
 
-	STE_SETBIT4(sc, STE_ASICCTL,
-	    STE_ASICCTL_GLOBAL_RESET|STE_ASICCTL_RX_RESET|
-	    STE_ASICCTL_TX_RESET|STE_ASICCTL_DMA_RESET|
-	    STE_ASICCTL_FIFO_RESET|STE_ASICCTL_NETWORK_RESET|
-	    STE_ASICCTL_AUTOINIT_RESET|STE_ASICCTL_HOST_RESET|
-	    STE_ASICCTL_EXTRESET_RESET);
-
-	DELAY(100000);
+	ctl = CSR_READ_4(sc, STE_ASICCTL);
+	ctl |= STE_ASICCTL_GLOBAL_RESET | STE_ASICCTL_RX_RESET |
+	    STE_ASICCTL_TX_RESET | STE_ASICCTL_DMA_RESET |
+	    STE_ASICCTL_FIFO_RESET | STE_ASICCTL_NETWORK_RESET |
+	    STE_ASICCTL_AUTOINIT_RESET |STE_ASICCTL_HOST_RESET |
+	    STE_ASICCTL_EXTRESET_RESET;
+	CSR_WRITE_4(sc, STE_ASICCTL, ctl);
+	CSR_READ_4(sc, STE_ASICCTL);
+	/*
+	 * Due to the need of accessing EEPROM controller can take
+	 * up to 1ms to complete the global reset.
+	 */
+	DELAY(1000);
 
 	for (i = 0; i < STE_TIMEOUT; i++) {
 		if (!(CSR_READ_4(sc, STE_ASICCTL) & STE_ASICCTL_RESET_BUSY))
 			break;
+		DELAY(10);
 	}
 
 	if (i == STE_TIMEOUT)
