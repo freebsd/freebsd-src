@@ -494,6 +494,12 @@ struct ste_desc_onefrag {
 #define	STE_ADDR_LO(x)		((uint64_t)(x) & 0xFFFFFFFF)
 #define	STE_ADDR_HI(x)		((uint64_t)(x) >> 32)
 
+/*
+ * Since Tx status can hold up to 31 status bytes we should
+ * check Tx status before controller fills it up. Otherwise
+ * Tx MAC stalls.
+ */
+#define	STE_TX_INTR_FRAMES	16
 #define	STE_TX_TIMEOUT		5
 #define STE_TIMEOUT		1000
 #define STE_MIN_FRAMELEN	60

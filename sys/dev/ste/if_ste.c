@@ -877,6 +877,13 @@ ste_tick(void *arg)
 	 */
 	if ((sc->ste_flags & STE_FLAG_LINK) == 0)
 		ste_miibus_statchg(sc->ste_dev);
+	/*
+	 * Because we are not generating Tx completion
+	 * interrupt for every frame, reclaim transmitted
+	 * buffers here.
+	 */
+	ste_txeof(sc);
+	ste_txeoc(sc);
 	ste_stats_update(sc);
 	ste_watchdog(sc);
 	callout_reset(&sc->ste_callout, hz, ste_tick, sc);
@@ -1953,7 +1960,11 @@ ste_encap(struct ste_softc *sc, struct mbuf **m_head, struct ste_chain *txc)
 	 * Tx descriptors here. Otherwise we race with controller.
 	 */
 	desc->ste_next = 0;
-	desc->ste_ctl = htole32(STE_TXCTL_ALIGN_DIS | STE_TXCTL_DMAINTR);
+	if ((sc->ste_cdata.ste_tx_prod % STE_TX_INTR_FRAMES) == 0)
+		desc->ste_ctl = htole32(STE_TXCTL_ALIGN_DIS |
+		    STE_TXCTL_DMAINTR);
+	else
+		desc->ste_ctl = htole32(STE_TXCTL_ALIGN_DIS);
 	txc->ste_mbuf = *m_head;
 	STE_INC(sc->ste_cdata.ste_tx_prod, STE_TX_LIST_CNT);
 	sc->ste_cdata.ste_tx_cnt++;
