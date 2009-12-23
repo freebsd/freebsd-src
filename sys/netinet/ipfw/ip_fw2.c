@@ -1962,8 +1962,8 @@ do {								\
 				f->pcnt++;	/* update stats */
 				f->bcnt += pktlen;
 				f->timestamp = time_uptime;
-					l = 0;		/* exit inner loop */
-					break;
+				l = 0;		/* exit inner loop */
+				break;
 
 			case O_SKIPTO:
 			    f->pcnt++;	/* update stats */
@@ -1974,8 +1974,8 @@ do {								\
 			     * (horrible hacks to avoid changing the ABI).
 			     */
 			    if (cmd->arg1 != IP_FW_TABLEARG &&
-				    (uint32_t)f->x_next == chain->id) {
-				f_pos = (uint32_t)f->next_rule;
+				    (uintptr_t)f->x_next == chain->id) {
+				f_pos = (uintptr_t)f->next_rule;
 			    } else {
 				int i = (cmd->arg1 == IP_FW_TABLEARG) ?
 					tablearg : cmd->arg1;
@@ -1985,18 +1985,18 @@ do {								\
 				f_pos = ipfw_find_rule(chain, i, 0);
 				/* update the cache */
 				if (cmd->arg1 != IP_FW_TABLEARG) {
-					f->next_rule =
+				    f->next_rule =
 					(void *)(uintptr_t)f_pos;
 				    f->x_next =
 					(void *)(uintptr_t)chain->id;
 				}
-				}
-				/*
+			    }
+			    /*
 			     * Skip disabled rules, and re-enter
 			     * the inner loop with the correct
 			     * f_pos, f, l and cmd.
-				 * Also clear cmdlen and skip_or
-				 */
+			     * Also clear cmdlen and skip_or
+			     */
 			    for (; f_pos < chain->n_rules - 1 &&
 				    (V_set_disable &
 				     (1 << chain->map[f_pos]->set));
@@ -2004,12 +2004,12 @@ do {								\
 				;
 			    /* prepare to enter the inner loop */
 			    f = chain->map[f_pos];
-					l = f->cmd_len;
-					cmd = f->cmd;
-				match = 1;
-				cmdlen = 0;
-				skip_or = 0;
-				break;
+			    l = f->cmd_len;
+			    cmd = f->cmd;
+			    match = 1;
+			    cmdlen = 0;
+			    skip_or = 0;
+			    break;
 
 			case O_REJECT:
 				/*
