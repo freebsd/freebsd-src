@@ -101,11 +101,21 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/include/specialreg.h>
 
+SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
 SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
 
-u_int64_t processor_frequency;
-u_int64_t bus_frequency;
-u_int64_t itc_frequency;
+static u_int bus_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, bus, CTLFLAG_RD, &bus_freq, 0,
+    "Bus clock frequency");
+
+static u_int cpu_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, cpu, CTLFLAG_RD, &cpu_freq, 0,
+    "CPU clock frequency");
+
+static u_int itc_freq;
+SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
+    "ITC frequency");
+
 int cold = 1;
 
 u_int64_t pa_bootinfo;
@@ -203,9 +213,7 @@ identifycpu(void)
 			 * (i.e. the clock frequency) to identify those.
 			 * Allow for roughly 1% error margin.
 			 */
-			tmp = processor_frequency >> 7;
-			if ((processor_frequency - tmp) < 1*Ghz &&
-			    (processor_frequency + tmp) >= 1*Ghz)
+			if (cpu_freq > 990 && cpu_freq < 1010)
 				model_name = "Deerfield";
 			else
 				model_name = "Madison";
@@ -232,11 +240,8 @@ identifycpu(void)
 	features = ia64_get_cpuid(4);
 
 	printf("CPU: %s (", model_name);
-	if (processor_frequency) {
-		printf("%ld.%02ld-Mhz ",
-		    (processor_frequency + 4999) / Mhz,
-		    ((processor_frequency + 4999) / (Mhz/100)) % 100);
-	}
+	if (cpu_freq)
+		printf("%u Mhz ", cpu_freq);
 	printf("%s)\n", family_name);
 	printf("  Origin = \"%s\"  Revision = %d\n", vendor, revision);
 	printf("  Features = 0x%b\n", (u_int32_t) features,
@@ -396,7 +401,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
-	*rate = processor_frequency;
+	*rate = (u_long)cpu_freq * 1000000ul;
 	return (0);
 }
 
@@ -600,6 +605,15 @@ map_gateway_page(void)
 	ia64_set_k5(VM_MAX_ADDRESS);
 }
 
+static u_int
+freq_ratio(u_long base, u_long ratio)
+{
+	u_long f;
+
+	f = (base * (ratio >> 32)) / (ratio & 0xfffffffful);
+	return ((f + 500000) / 1000000);
+}
+
 static void
 calculate_frequencies(void)
 {
@@ -622,15 +636,9 @@ calculate_frequencies(void)
 			       pal.pal_result[2] >> 32,
 			       pal.pal_result[2] & ((1L << 32) - 1));
 		}
-		processor_frequency =
-			sal.sal_result[0] * (pal.pal_result[0] >> 32)
-			/ (pal.pal_result[0] & ((1L << 32) - 1));
-		bus_frequency =
-			sal.sal_result[0] * (pal.pal_result[1] >> 32)
-			/ (pal.pal_result[1] & ((1L << 32) - 1));
-		itc_frequency =
-			sal.sal_result[0] * (pal.pal_result[2] >> 32)
-			/ (pal.pal_result[2] & ((1L << 32) - 1));
+		cpu_freq = freq_ratio(sal.sal_result[0], pal.pal_result[0]);
+		bus_freq = freq_ratio(sal.sal_result[0], pal.pal_result[1]);
+		itc_freq = freq_ratio(sal.sal_result[0], pal.pal_result[2]);
 	}
 }
 
@@ -971,6 +979,13 @@ bzero(void *buf, size_t len)
 	}
 }
 
+u_int
+ia64_itc_freq(void)
+{
+
+	return (itc_freq);
+}
+
 void
 DELAY(int n)
 {
@@ -979,7 +994,7 @@ DELAY(int n)
 	sched_pin();
 
 	start = ia64_get_itc();
-	end = start + (itc_frequency * n) / 1000000;
+	end = start + itc_freq * n;
 	/* printf("DELAY from 0x%lx to 0x%lx\n", start, end); */
 	do {
 		now = ia64_get_itc();
