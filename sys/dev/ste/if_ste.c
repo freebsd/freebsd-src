@@ -486,6 +486,10 @@ ste_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->ste_miibus);
 
 	STE_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		STE_UNLOCK(sc);
+		return;
+	}
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
