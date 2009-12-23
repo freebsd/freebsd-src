@@ -92,11 +92,25 @@
 #define STE_MAR1		0x62
 #define STE_MAR2		0x64
 #define STE_MAR3		0x66
-#define STE_STATS		0x68
 
-#define STE_LATE_COLLS  0x75
-#define STE_MULTI_COLLS	0x76
-#define STE_SINGLE_COLLS 0x77
+#define	STE_STAT_RX_OCTETS_LO	0x68
+#define	STE_STAT_RX_OCTETS_HI	0x6A
+#define	STE_STAT_TX_OCTETS_LO	0x6C
+#define	STE_STAT_TX_OCTETS_HI	0x6E
+#define	STE_STAT_TX_FRAMES	0x70
+#define	STE_STAT_RX_FRAMES	0x72
+#define	STE_STAT_CARRIER_ERR	0x74
+#define	STE_STAT_LATE_COLLS	0x75
+#define	STE_STAT_MULTI_COLLS	0x76
+#define	STE_STAT_SINGLE_COLLS	0x77
+#define	STE_STAT_TX_DEFER	0x78
+#define	STE_STAT_RX_LOST	0x79
+#define	STE_STAT_TX_EXDEFER	0x7A
+#define	STE_STAT_TX_ABORT	0x7B
+#define	STE_STAT_TX_BCAST	0x7C
+#define	STE_STAT_RX_BCAST	0x7D
+#define	STE_STAT_TX_MCAST	0x7E
+#define	STE_STAT_RX_MCAST	0x7F
 
 #define STE_DMACTL_RXDMA_STOPPED	0x00000001
 #define STE_DMACTL_TXDMA_CMPREQ		0x00000002
@@ -388,24 +402,23 @@
 #define STE_PME_EN			0x0010
 #define STE_PME_STATUS			0x8000
 
-
-struct ste_stats {
-	uint32_t		ste_rx_bytes;
-	uint32_t		ste_tx_bytes;
-	uint16_t		ste_tx_frames;
-	uint16_t		ste_rx_frames;
-	uint8_t			ste_carrsense_errs;
-	uint8_t			ste_late_colls;
-	uint8_t			ste_multi_colls;
-	uint8_t			ste_single_colls;
-	uint8_t			ste_tx_frames_defered;
-	uint8_t			ste_rx_lost_frames;
-	uint8_t			ste_tx_excess_defers;
-	uint8_t			ste_tx_abort_excess_colls;
-	uint8_t			ste_tx_bcast_frames;
-	uint8_t			ste_rx_bcast_frames;
-	uint8_t			ste_tx_mcast_frames;
-	uint8_t			ste_rx_mcast_frames;
+struct ste_hw_stats {
+	uint64_t		rx_bytes;
+	uint32_t		rx_frames;
+	uint32_t		rx_bcast_frames;
+	uint32_t		rx_mcast_frames;
+	uint32_t		rx_lost_frames;
+	uint64_t		tx_bytes;
+	uint32_t		tx_frames;
+	uint32_t		tx_bcast_frames;
+	uint32_t		tx_mcast_frames;
+	uint32_t		tx_carrsense_errs;
+	uint32_t		tx_single_colls;
+	uint32_t		tx_multi_colls;
+	uint32_t		tx_late_colls;
+	uint32_t		tx_frames_defered;
+	uint32_t		tx_excess_defers;
+	uint32_t		tx_abort;
 };
 
 struct ste_frag {
@@ -566,6 +579,7 @@ struct ste_softc {
 	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout		ste_callout;
+	struct ste_hw_stats	ste_stats;
 	struct mtx		ste_mtx;
 };
 
