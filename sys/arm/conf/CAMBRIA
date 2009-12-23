@@ -58,6 +58,10 @@ options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=npe0
 options 	BOOTP_COMPAT
 
+# Hardware performance counters
+options 	HWPMC_HOOKS
+device		hwpmc
+
 #options 	VERBOSE_SYSINIT
 options 	VERBOSE_INIT_ARM
 

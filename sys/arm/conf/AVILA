@@ -61,6 +61,10 @@ options 	BOOTP_COMPAT
 #options 	PREEMPTION
 #options 	VERBOSE_SYSINIT
 
+# Hardware performance counters
+options 	HWPMC_HOOKS
+device		hwpmc
+
 #device		saarm
 
 device		pci
