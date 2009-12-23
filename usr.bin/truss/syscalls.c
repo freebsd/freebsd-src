@@ -258,6 +258,8 @@ struct syscall syscalls[] = {
 	  .args = { { Name , 0 } , { Name, 1 } } },
 	{ .name = "symlink", .ret_type = 1, .nargs = 2,
 	  .args = { { Name , 0 } , { Name, 1 } } },
+	{ .name = "posix_openpt", .ret_type = 1, .nargs = 1,
+	  .args = { { Open, 0 } } },
 	{ .name = 0 },
 };
 
