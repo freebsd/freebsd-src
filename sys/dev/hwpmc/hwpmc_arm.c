@@ -30,19 +30,28 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/pmc.h>
+#include <sys/systm.h>
 
 #include <machine/pmc_mdep.h>
+#include <machine/md_var.h>
 
 struct pmc_mdep *
 pmc_md_initialize()
 {
-	return NULL;
+	if (cpu_class == CPU_CLASS_XSCALE)
+		return pmc_xscale_initialize();
+	else
+		return NULL;
 }
 
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
-	(void) md;
+	if (cpu_class == CPU_CLASS_XSCALE)
+		pmc_xscale_finalize(md);
+	else
+		KASSERT(0, ("[arm,%d] Unknown CPU Class 0x%x", __LINE__,
+		    cpu_class));
 }
 
 int
