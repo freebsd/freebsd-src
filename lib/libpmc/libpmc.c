@@ -69,6 +69,10 @@ static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
 static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
+#if defined(__XSCALE__)
+static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
+#endif
 
 #define PMC_CALL(cmd, params)				\
 	syscall(pmc_syscall, PMC_OP_##cmd, (params))
@@ -132,6 +136,7 @@ PMC_CLASSDEP_TABLE(k8, K8);
 PMC_CLASSDEP_TABLE(p4, P4);
 PMC_CLASSDEP_TABLE(p5, P5);
 PMC_CLASSDEP_TABLE(p6, P6);
+PMC_CLASSDEP_TABLE(xscale, XSCALE);
 
 #undef	__PMC_EV_ALIAS
 #define	__PMC_EV_ALIAS(N,CODE) 	{ N, PMC_EV_##CODE },
@@ -176,6 +181,7 @@ PMC_MDEP_TABLE(k8, K8, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p4, P4, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p5, P5, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_XSCALE);
 
 static const struct pmc_event_descr tsc_event_table[] =
 {
@@ -215,6 +221,9 @@ PMC_CLASS_TABLE_DESC(p6, P6, p6, p6);
 #endif
 #if	defined(__i386__) || defined(__amd64__)
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
+#endif
+#if	defined(__XSCALE__)
+PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 #endif
 
 #undef	PMC_CLASS_TABLE_DESC
@@ -2008,6 +2017,29 @@ tsc_allocate_pmc(enum pmc_event pe, char *ctrspec,
 }
 #endif
 
+#if	defined(__XSCALE__)
+
+static struct pmc_event_alias xscale_aliases[] = {
+	EV_ALIAS("branches",		"BRANCH_RETIRED"),
+	EV_ALIAS("branch-mispredicts",	"BRANCH_MISPRED"),
+	EV_ALIAS("dc-misses",		"DC_MISS"),
+	EV_ALIAS("ic-misses",		"IC_MISS"),
+	EV_ALIAS("instructions",	"INSTR_RETIRED"),
+	EV_ALIAS(NULL, NULL)
+};
+static int
+xscale_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+    struct pmc_op_pmcallocate *pmc_config __unused)
+{
+	switch (pe) {
+	default:
+		break;
+	}
+
+	return (0);
+}
+#endif
+
 /*
  * Match an event name `name' with its canonical form.
  *
@@ -2335,6 +2367,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = p6_event_table;
 		count = PMC_EVENT_TABLE_SIZE(p6);
 		break;
+	case PMC_CLASS_XSCALE:
+		ev = xscale_event_table;
+		count = PMC_EVENT_TABLE_SIZE(xscale);
+		break;
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -2520,6 +2556,12 @@ pmc_init(void)
 		pmc_class_table[n] = &p4_class_table_descr;
 		break;
 #endif
+#if defined(__XSCALE__)
+	case PMC_CPU_INTEL_XSCALE:
+		PMC_MDEP_INIT(xscale);
+		pmc_class_table[n] = &xscale_class_table_descr;
+		break;
+#endif
 
 
 	default:
@@ -2635,6 +2677,9 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_P6_FIRST && pe <= PMC_EV_P6_LAST) {
 		ev = p6_event_table;
 		evfence = p6_event_table + PMC_EVENT_TABLE_SIZE(p6);
+	} else if (pe >= PMC_EV_XSCALE_FIRST && pe <= PMC_EV_XSCALE_LAST) {
+		ev = xscale_event_table;
+		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;
 		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);
