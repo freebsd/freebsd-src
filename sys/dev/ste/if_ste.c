@@ -103,7 +103,6 @@ static int 	ste_eeprom_wait(struct ste_softc *);
 static int	ste_encap(struct ste_softc *, struct mbuf **,
 		    struct ste_chain *);
 static int	ste_ifmedia_upd(struct ifnet *);
-static void	ste_ifmedia_upd_locked(struct ifnet *);
 static void	ste_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void	ste_init(void *);
 static void	ste_init_locked(struct ste_softc *);
@@ -449,31 +448,21 @@ static int
 ste_ifmedia_upd(struct ifnet *ifp)
 {
 	struct ste_softc *sc;
+	struct mii_data	*mii;
+	struct mii_softc *miisc;
+	int error;
 
 	sc = ifp->if_softc;
 	STE_LOCK(sc);
-	ste_ifmedia_upd_locked(ifp);
-	STE_UNLOCK(sc);
-
-	return (0);
-}
-
-static void
-ste_ifmedia_upd_locked(struct ifnet *ifp)
-{
-	struct ste_softc *sc;
-	struct mii_data *mii;
-
-	sc = ifp->if_softc;
-	STE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->ste_miibus);
-	sc->ste_flags &= ~STE_FLAG_LINK;
 	if (mii->mii_instance) {
-		struct mii_softc	*miisc;
 		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
+	STE_UNLOCK(sc);
+
+	return (error);
 }
 
 static void
@@ -1559,10 +1548,12 @@ static void
 ste_init_locked(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
+	struct mii_data *mii;
 	int i;
 
 	STE_LOCK_ASSERT(sc);
 	ifp = sc->ste_ifp;
+	mii = device_get_softc(sc->ste_miibus);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
@@ -1645,7 +1636,9 @@ ste_init_locked(struct ste_softc *sc)
 	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
-	ste_ifmedia_upd_locked(ifp);
+	sc->ste_flags &= ~STE_FLAG_LINK;
+	/* Switch to the current media. */
+	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
