@@ -1076,12 +1076,12 @@ netisr_init(void *arg)
 	if (netisr_maxthreads < 1)
 		netisr_maxthreads = 1;
 	if (netisr_maxthreads > mp_ncpus) {
-		printf("netisr2: forcing maxthreads from %d to %d\n",
+		printf("netisr_init: forcing maxthreads from %d to %d\n",
 		    netisr_maxthreads, mp_ncpus);
 		netisr_maxthreads = mp_ncpus;
 	}
 	if (netisr_defaultqlimit > netisr_maxqlimit) {
-		printf("netisr2: forcing defaultqlimit from %d to %d\n",
+		printf("netisr_init: forcing defaultqlimit from %d to %d\n",
 		    netisr_defaultqlimit, netisr_maxqlimit);
 		netisr_defaultqlimit = netisr_maxqlimit;
 	}
@@ -1092,8 +1092,8 @@ netisr_init(void *arg)
 	 * polling disables parallel netisr workers.
 	 */
 	if (netisr_maxthreads != 1 || netisr_bindthreads != 0) {
-		printf("netisr2: forcing maxthreads to 1 and bindthreads to "
-		    "0 for device polling\n");
+		printf("netisr_init: forcing maxthreads to 1 and "
+		    "bindthreads to 0 for device polling\n");
 		netisr_maxthreads = 1;
 		netisr_bindthreads = 0;
 	}
