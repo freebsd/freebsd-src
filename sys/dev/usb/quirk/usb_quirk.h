@@ -30,6 +30,11 @@
 /* NOTE: UQ_NONE is not a valid quirk */
 enum {	/* keep in sync with usb_quirk_str table */
 	UQ_NONE,
+
+	UQ_MATCH_VENDOR_ONLY,
+
+	/* Various quirks */
+
 	UQ_AUDIO_SWAP_LR,	/* left and right sound channels are swapped */
 	UQ_AU_INP_ASYNC,	/* input is async despite claim of adaptive */
 	UQ_AU_NO_FRAC,		/* don't adjust for fractional samples */
@@ -54,6 +59,31 @@ enum {	/* keep in sync with usb_quirk_str table */
 	UQ_CFG_INDEX_4,		/* select configuration index 4 by default */
 	UQ_CFG_INDEX_0,		/* select configuration index 0 by default */
 	UQ_ASSUME_CM_OVER_DATA,	/* modem device breaks on cm over data */
+
+	/* USB Mass Storage Quirks. See "storage/umass.c" for a detailed description. */
+	UQ_MSC_NO_TEST_UNIT_READY,
+	UQ_MSC_NO_RS_CLEAR_UA,
+	UQ_MSC_NO_START_STOP,
+	UQ_MSC_NO_GETMAXLUN,
+	UQ_MSC_NO_INQUIRY,
+	UQ_MSC_NO_INQUIRY_EVPD,
+	UQ_MSC_NO_SYNC_CACHE,
+	UQ_MSC_SHUTTLE_INIT,
+	UQ_MSC_ALT_IFACE_1,
+	UQ_MSC_FLOPPY_SPEED,
+	UQ_MSC_IGNORE_RESIDUE,
+	UQ_MSC_WRONG_CSWSIG,
+	UQ_MSC_RBC_PAD_TO_12,
+	UQ_MSC_READ_CAP_OFFBY1,
+	UQ_MSC_FORCE_SHORT_INQ,
+	UQ_MSC_FORCE_WIRE_BBB,
+	UQ_MSC_FORCE_WIRE_CBI,
+	UQ_MSC_FORCE_WIRE_CBI_I,
+	UQ_MSC_FORCE_PROTO_SCSI,
+	UQ_MSC_FORCE_PROTO_ATAPI,
+	UQ_MSC_FORCE_PROTO_UFI,
+	UQ_MSC_FORCE_PROTO_RBC,
+
 	USB_QUIRK_MAX
 };
 
