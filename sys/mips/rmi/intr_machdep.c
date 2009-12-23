@@ -50,8 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <mips/rmi/pic.h>
 
 /*#include <machine/intrcnt.h>*/
-
+static mips_intrcnt_t mips_intr_counters[XLR_MAX_INTR];
 struct mips_intrhand mips_intr_handlers[XLR_MAX_INTR];
+static int intrcnt_index;
 
 static void
 mips_mask_hard_irq(void *source)
@@ -112,8 +113,6 @@ cpu_establish_softintr(const char *name, driver_filter_t * filt,
 	/* we don't separate them into soft/hard like other mips */
 	cpu_establish_hardintr(name, filt, handler, arg, irq, flags, cookiep);
 }
-
-
 
 void
 cpu_intr(struct trapframe *tf)
@@ -179,4 +178,40 @@ cpu_intr(struct trapframe *tf)
 		pic_delayed_ack(i);
 	}
 	critical_exit();
+}
+
+void
+mips_intrcnt_setname(mips_intrcnt_t counter, const char *name)
+{
+	int idx = counter - intrcnt;
+
+	KASSERT(counter != NULL, ("mips_intrcnt_setname: NULL counter"));
+
+	snprintf(intrnames + (MAXCOMLEN + 1) * idx,
+	    MAXCOMLEN + 1, "%-*s", MAXCOMLEN, name);
+}
+
+mips_intrcnt_t
+mips_intrcnt_create(const char* name)
+{
+	mips_intrcnt_t counter = &intrcnt[intrcnt_index++];
+
+	mips_intrcnt_setname(counter, name);
+	return counter;
+}
+
+void
+cpu_init_interrupts()
+{
+	int i;
+	char name[MAXCOMLEN + 1];
+
+	/*
+	 * Initialize all available vectors so spare IRQ
+	 * would show up in systat output 
+	 */
+	for (i = 0; i < XLR_MAX_INTR; i++) {
+		snprintf(name, MAXCOMLEN + 1, "int%d:", i);
+		mips_intr_counters[i] = mips_intrcnt_create(name);
+	}
 }
