@@ -3,6 +3,7 @@
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
  * Copyright (c) 2003, Thomas Moestl <tmm@FreeBSD.org>
+ * Copyright (c) 2005 - 2009 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -194,6 +195,22 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 #endif
 
 	/*
+	 * Ensure that ALi M5229 report the actual content of PCIR_PROGIF
+	 * and that IDE I/O is force enabled.  The former is done in order
+	 * to have unique behavior across revisions as some default to
+	 * hiding bits 4-6 for compliance with PCI 2.3.  The latter is done
+	 * as at least revision 0xc8 requires the PCIM_CMD_PORTEN bypass
+	 * to be always enabled as otherwise even enabling PCIM_CMD_PORTEN
+	 * results in an instant data access trap on Fire-based machines.
+	 * Thus these quirks have to be handled before pci(4) adds the maps.
+	 * Note that for older revisions bit 0 of register 0x50 enables the
+	 * internal IDE function instead of force enabling IDE I/O.
+	 */
+	if ((CS_READ(PCIR_VENDOR, 2) == 0x10b9 &&
+	    CS_READ(PCIR_DEVICE, 2) == 0x5229))
+		CS_WRITE(0x50, CS_READ(0x50, 1) | 0x3, 1);
+
+	/*
 	 * The preset in the intline register is usually wrong.  Reset
 	 * it to 255, so that the PCI code will reroute the interrupt if
 	 * needed.
@@ -222,9 +239,14 @@ ofw_pcibus_attach(device_t dev)
 		    domain, busno);
 	node = ofw_bus_get_node(dev);
 
-#ifndef SUN4V
-	/* Add the PCI side of the HOST-PCI bridge itself to the bus. */
+	/*
+	 * Add the PCI side of the host-PCI bridge itself to the bus.
+	 * Note that we exclude the host-PCIe bridges here as these
+	 * have no configuration space implemented themselves.
+	 */
 	if (strcmp(device_get_name(device_get_parent(pcib)), "nexus") == 0 &&
+	    ofw_bus_get_type(pcib) != NULL &&
+	    strcmp(ofw_bus_get_type(pcib), OFW_TYPE_PCIE) != 0 &&
 	    (dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
 	    domain, busno, 0, 0, sizeof(*dinfo))) != NULL) {
 		if (ofw_bus_gen_setup_devinfo(&dinfo->opd_obdinfo, node) != 0)
@@ -232,7 +254,6 @@ ofw_pcibus_attach(device_t dev)
 		else
 			pci_add_child(dev, (struct pci_devinfo *)dinfo);
 	}
-#endif
 
 	if (OF_getprop(ofw_bus_get_node(pcib), "clock-frequency", &clock,
 	    sizeof(clock)) == -1)
