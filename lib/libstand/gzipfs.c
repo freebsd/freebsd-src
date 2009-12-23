@@ -212,10 +212,9 @@ zf_open(const char *fname, struct open_file *f)
     bzero(zf, sizeof(struct z_file));
     zf->zf_rawfd = rawfd;
 
-    /* Verify that the file is gzipped (XXX why do this afterwards?) */
+    /* Verify that the file is gzipped */
     if (check_header(zf)) {
 	close(zf->zf_rawfd);
-	inflateEnd(&(zf->zf_zstream));
 	free(zf);
 	return(EFTYPE);
     }
@@ -261,7 +260,7 @@ zf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	if (zf->zf_zstream.avail_in == 0) {		/* oops, unexpected EOF */
 	    printf("zf_read: unexpected EOF\n");
 	    if (zf->zf_zstream.avail_out == size)
-		return (EIO);
+		return(EIO);
 	    break;
 	}
 
@@ -286,12 +285,13 @@ zf_rewind(struct open_file *f)
     struct z_file	*zf = (struct z_file *)f->f_fsdata;
 
     if (lseek(zf->zf_rawfd, zf->zf_dataoffset, SEEK_SET) == -1)
-	return -1;
+	return(-1);
     zf->zf_zstream.avail_in = 0;
     zf->zf_zstream.next_in = NULL;
+    zf->zf_endseen = 0;
     (void)inflateReset(&zf->zf_zstream);
 
-    return 0;
+    return(0);
 }
 
 static off_t
@@ -312,12 +312,12 @@ zf_seek(struct open_file *f, off_t offset, int where)
 	target = -1;
     default:
 	errno = EINVAL;
-	return (-1);
+	return(-1);
     }
 
     /* rewind if required */
     if (target < zf->zf_zstream.total_out && zf_rewind(f) != 0)
-	return -1;
+	return(-1);
 
     /* skip forwards if required */
     while (target > zf->zf_zstream.total_out) {
@@ -327,7 +327,7 @@ zf_seek(struct open_file *f, off_t offset, int where)
 	    return(-1);
     }
     /* This is where we are (be honest if we overshot) */
-    return (zf->zf_zstream.total_out);
+    return(zf->zf_zstream.total_out);
 }
 
 
