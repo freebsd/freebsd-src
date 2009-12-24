@@ -2036,6 +2036,15 @@ g_mirror_launch_provider(struct g_mirror_softc *sc)
 	pp = g_new_providerf(sc->sc_geom, "mirror/%s", sc->sc_name);
 	pp->mediasize = sc->sc_mediasize;
 	pp->sectorsize = sc->sc_sectorsize;
+	pp->stripesize = 0;
+	pp->stripeoffset = 0;
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_consumer && disk->d_consumer->provider &&
+		    disk->d_consumer->provider->stripesize > pp->stripesize) {
+			pp->stripesize = disk->d_consumer->provider->stripesize;
+			pp->stripeoffset = disk->d_consumer->provider->stripeoffset;
+		}
+	}
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
