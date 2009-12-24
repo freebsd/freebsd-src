@@ -105,8 +105,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 
 #include "pathnames.h"
 #include "ttymsg.h"
@@ -171,7 +172,7 @@ struct filed {
 #define PRI_GT	0x4
 	char	*f_program;		/* program this applies to */
 	union {
-		char	f_uname[MAXUNAMES][UT_NAMESIZE+1];
+		char	f_uname[MAXUNAMES][MAXLOGNAME];
 		struct {
 			char	f_hname[MAXHOSTNAMELEN];
 			struct addrinfo *f_addr;
@@ -1342,29 +1343,20 @@ static void
 wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 {
 	static int reenter;			/* avoid calling ourselves */
-	FILE *uf;
-	struct utmp ut;
+	struct utmpx *ut;
 	int i;
 	const char *p;
-	char line[sizeof(ut.ut_line) + 1];
 
 	if (reenter++)
 		return;
-	if ((uf = fopen(_PATH_UTMP, "r")) == NULL) {
-		logerror(_PATH_UTMP);
-		reenter = 0;
-		return;
-	}
+	setutxent();
 	/* NOSTRICT */
-	while (fread((char *)&ut, sizeof(ut), 1, uf) == 1) {
-		if (ut.ut_name[0] == '\0')
+	while ((ut = getutxent()) != NULL) {
+		if (ut->ut_type != USER_PROCESS)
 			continue;
-		/* We must use strncpy since ut_* may not be NUL terminated. */
-		strncpy(line, ut.ut_line, sizeof(line) - 1);
-		line[sizeof(line) - 1] = '\0';
 		if (f->f_type == F_WALL) {
-			if ((p = ttymsg(iov, iovlen, line, TTYMSGTIME)) !=
-			    NULL) {
+			if ((p = ttymsg(iov, iovlen, ut->ut_line,
+			    TTYMSGTIME)) != NULL) {
 				errno = 0;	/* already in msg */
 				logerror(p);
 			}
@@ -1374,10 +1366,9 @@ wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 		for (i = 0; i < MAXUNAMES; i++) {
 			if (!f->f_un.f_uname[i][0])
 				break;
-			if (!strncmp(f->f_un.f_uname[i], ut.ut_name,
-			    UT_NAMESIZE)) {
-				if ((p = ttymsg(iov, iovlen, line, TTYMSGTIME))
-				    != NULL) {
+			if (!strcmp(f->f_un.f_uname[i], ut->ut_user)) {
+				if ((p = ttymsg(iov, iovlen, ut->ut_line,
+				    TTYMSGTIME)) != NULL) {
 					errno = 0;	/* already in msg */
 					logerror(p);
 				}
@@ -1385,7 +1376,7 @@ wallmsg(struct filed *f, struct iovec *iov, const int iovlen)
 			}
 		}
 	}
-	(void)fclose(uf);
+	endutxent();
 	reenter = 0;
 }
 
@@ -2002,9 +1993,9 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 		for (i = 0; i < MAXUNAMES && *p; i++) {
 			for (q = p; *q && *q != ','; )
 				q++;
-			(void)strncpy(f->f_un.f_uname[i], p, UT_NAMESIZE);
-			if ((q - p) > UT_NAMESIZE)
-				f->f_un.f_uname[i][UT_NAMESIZE] = '\0';
+			(void)strncpy(f->f_un.f_uname[i], p, MAXLOGNAME - 1);
+			if ((q - p) >= MAXLOGNAME)
+				f->f_un.f_uname[i][MAXLOGNAME - 1] = '\0';
 			else
 				f->f_un.f_uname[i][q - p] = '\0';
 			while (*q == ',' || *q == ' ')
