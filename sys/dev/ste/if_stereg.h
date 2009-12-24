@@ -285,7 +285,8 @@
 
 #define STE_INTRS				\
 	(STE_IMR_RX_DMADONE|STE_IMR_TX_DMADONE|	\
-	STE_IMR_TX_DONE|STE_IMR_HOSTERR)
+	STE_IMR_TX_DONE|STE_IMR_SOFTINTR|	\
+	STE_IMR_HOSTERR)
 
 #define STE_ISR_INTLATCH		0x0001
 #define STE_ISR_HOSTERR			0x0002
@@ -348,6 +349,13 @@
 #define STE_PHYCTL_DUPLEXSTAT		0x20
 #define STE_PHYCTL_SPEEDSTAT		0x40
 #define STE_PHYCTL_LINKSTAT		0x80
+
+#define	STE_TIMER_TICKS			32
+#define	STE_TIMER_USECS(x)		((x * 10) / STE_TIMER_TICKS)
+
+#define	STE_IM_RX_TIMER_MIN		0
+#define	STE_IM_RX_TIMER_MAX		209712
+#define	STE_IM_RX_TIMER_DEFAULT		150
 
 /*
  * EEPROM offsets.
@@ -570,6 +578,8 @@ struct ste_softc {
 #define	STE_FLAG_LINK		0x8000
 	int			ste_if_flags;
 	int			ste_timer;
+	int			ste_int_rx_act;
+	int			ste_int_rx_mod;
 	struct ste_list_data	ste_ldata;
 	struct ste_chain_data	ste_cdata;
 	struct callout		ste_callout;

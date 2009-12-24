@@ -659,7 +659,7 @@ ste_intr(void *xsc)
 {
 	struct ste_softc *sc;
 	struct ifnet *ifp;
-	uint16_t status;
+	uint16_t intrs, status;
 
 	sc = xsc;
 	STE_LOCK(sc);
@@ -671,43 +671,67 @@ ste_intr(void *xsc)
 		return;
 	}
 #endif
-
-	/* See if this is really our interrupt. */
-	if (!(CSR_READ_2(sc, STE_ISR) & STE_ISR_INTLATCH)) {
+	/* Reading STE_ISR_ACK clears STE_IMR register. */
+	status = CSR_READ_2(sc, STE_ISR_ACK);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		STE_UNLOCK(sc);
 		return;
 	}
 
-	for (;;) {
-		status = CSR_READ_2(sc, STE_ISR_ACK);
+	intrs = STE_INTRS;
+	if (status == 0xFFFF || (status & intrs) == 0)
+		goto done;
 
-		if (!(status & STE_INTRS))
-			break;
-
-		if (status & STE_ISR_RX_DMADONE)
-			ste_rxeof(sc, -1);
-
-		if (status & STE_ISR_TX_DMADONE)
-			ste_txeof(sc);
-
-		if (status & STE_ISR_TX_DONE)
-			ste_txeoc(sc);
-
-		if (status & STE_ISR_STATS_OFLOW)
-			ste_stats_update(sc);
-
-		if (status & STE_ISR_HOSTERR) {
-			ste_init_locked(sc);
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		}
+	if (sc->ste_int_rx_act > 0) {
+		status &= ~STE_ISR_RX_DMADONE;
+		intrs &= ~STE_IMR_RX_DMADONE;
 	}
 
-	/* Re-enable interrupts */
-	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
-
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		ste_start_locked(ifp);
-
+	if ((status & (STE_ISR_SOFTINTR | STE_ISR_RX_DMADONE)) != 0) {
+		ste_rxeof(sc, -1);
+		/*
+		 * The controller has no ability to Rx interrupt
+		 * moderation feature. Receiving 64 bytes frames
+		 * from wire generates too many interrupts which in
+		 * turn make system useless to process other useful
+		 * things. Fortunately ST201 supports single shot
+		 * timer so use the timer to implement Rx interrupt
+		 * moderation in driver. This adds more register
+		 * access but it greatly reduces number of Rx
+		 * interrupts under high network load.
+		 */
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+		    (sc->ste_int_rx_mod != 0)) {
+			if ((status & STE_ISR_RX_DMADONE) != 0) {
+				CSR_WRITE_2(sc, STE_COUNTDOWN,
+				    STE_TIMER_USECS(sc->ste_int_rx_mod));
+				intrs &= ~STE_IMR_RX_DMADONE;
+				sc->ste_int_rx_act = 1;
+			} else {
+				intrs |= STE_IMR_RX_DMADONE;
+				sc->ste_int_rx_act = 0;
+			}
+		}
+	}
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		if ((status & STE_ISR_TX_DMADONE) != 0)
+			ste_txeof(sc);
+		if ((status & STE_ISR_TX_DONE) != 0)
+			ste_txeoc(sc);
+		if ((status & STE_ISR_STATS_OFLOW) != 0)
+			ste_stats_update(sc);
+		if ((status & STE_ISR_HOSTERR) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			ste_init_locked(sc);
+			STE_UNLOCK(sc);
+			return;
+		}
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			ste_start_locked(ifp);
+done:
+		/* Re-enable interrupts */
+		CSR_WRITE_2(sc, STE_IMR, intrs);
+	}
 	STE_UNLOCK(sc);
 }
 
@@ -1538,6 +1562,7 @@ ste_init_rx_list(struct ste_softc *sc)
 	struct ste_list_data *ld;
 	int error, i;
 
+	sc->ste_int_rx_act = 0;
 	cd = &sc->ste_cdata;
 	ld = &sc->ste_ldata;
 	bzero(ld->ste_rx_list, STE_RX_LIST_SZ);
@@ -1684,6 +1709,9 @@ ste_init_locked(struct ste_softc *sc)
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 	ste_wait(sc);
+	/* Select 3.2us timer. */
+	STE_CLRBIT4(sc, STE_DMACTL, STE_DMACTL_COUNTDOWN_SPEED |
+	    STE_DMACTL_COUNTDOWN_MODE);
 
 	/* Enable receiver and transmitter */
 	CSR_WRITE_2(sc, STE_MACCTL0, 0);
@@ -1696,6 +1724,7 @@ ste_init_locked(struct ste_softc *sc)
 	/* Clear stats counters. */
 	ste_stats_clear(sc);
 
+	CSR_WRITE_2(sc, STE_COUNTDOWN, 0);
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
@@ -1733,6 +1762,7 @@ ste_stop(struct ste_softc *sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING|IFF_DRV_OACTIVE);
 
 	CSR_WRITE_2(sc, STE_IMR, 0);
+	CSR_WRITE_2(sc, STE_COUNTDOWN, 0);
 	/* Stop pending DMA. */
 	val = CSR_READ_4(sc, STE_DMACTL);
 	val |= STE_DMACTL_TXDMA_STALL | STE_DMACTL_RXDMA_STALL;
@@ -2104,6 +2134,13 @@ ste_sysctl_node(struct ste_softc *sc)
 	stats = &sc->ste_stats;
 	ctx = device_get_sysctl_ctx(sc->ste_dev);
 	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->ste_dev));
+
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "int_rx_mod",
+	    CTLFLAG_RW, &sc->ste_int_rx_mod, 0, "ste RX interrupt moderation");
+	/* Pull in device tunables. */
+	sc->ste_int_rx_mod = STE_IM_RX_TIMER_DEFAULT;
+	resource_int_value(device_get_name(sc->ste_dev),
+	    device_get_unit(sc->ste_dev), "int_rx_mod", &sc->ste_int_rx_mod);
 
 	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "STE statistics");
