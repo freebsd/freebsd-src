@@ -314,7 +314,7 @@ doformat(struct output *dest, const char *f, va_list ap)
  */
 
 int
-xwrite(int fd, char *buf, int nbytes)
+xwrite(int fd, const char *buf, int nbytes)
 {
 	int ntry;
 	int i;

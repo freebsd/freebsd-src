@@ -122,9 +122,9 @@ STATIC const struct varinit varinit[] = {
 
 STATIC struct var *vartab[VTABSIZE];
 
-STATIC struct var **hashvar(char *);
-STATIC int varequal(char *, char *);
-STATIC int localevar(char *);
+STATIC struct var **hashvar(const char *);
+STATIC int varequal(const char *, const char *);
+STATIC int localevar(const char *);
 
 /*
  * Initialize the variable symbol tables and import the environment.
@@ -190,7 +190,7 @@ initvar(void)
  */
 
 int
-setvarsafe(char *name, char *val, int flags)
+setvarsafe(const char *name, const char *val, int flags)
 {
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
@@ -215,9 +215,9 @@ setvarsafe(char *name, char *val, int flags)
  */
 
 void
-setvar(char *name, char *val, int flags)
+setvar(const char *name, const char *val, int flags)
 {
-	char *p, *q;
+	const char *p;
 	int len;
 	int namelen;
 	char *nameeq;
@@ -245,19 +245,18 @@ setvar(char *name, char *val, int flags)
 	} else {
 		len += strlen(val);
 	}
-	p = nameeq = ckmalloc(len);
-	q = name;
-	while (--namelen >= 0)
-		*p++ = *q++;
-	*p++ = '=';
-	*p = '\0';
+	nameeq = ckmalloc(len);
+	memcpy(nameeq, name, namelen);
+	nameeq[namelen] = '=';
 	if (val)
-		scopy(val, p);
+		scopy(val, nameeq + namelen + 1);
+	else
+		nameeq[namelen + 1] = '\0';
 	setvareq(nameeq, flags);
 }
 
 STATIC int
-localevar(char *s)
+localevar(const char *s)
 {
 	static char *lnames[7] = {
 		"ALL", "COLLATE", "CTYPE", "MONETARY",
@@ -283,7 +282,7 @@ localevar(char *s)
  * pointer into environ where the string should not be manipulated.
  */
 static void
-change_env(char *s, int set)
+change_env(const char *s, int set)
 {
 	char *eqp;
 	char *ss;
@@ -389,7 +388,7 @@ listsetvar(struct strlist *list)
  */
 
 char *
-lookupvar(char *name)
+lookupvar(const char *name)
 {
 	struct var *v;
 
@@ -412,7 +411,7 @@ lookupvar(char *name)
  */
 
 char *
-bltinlookup(char *name, int doall)
+bltinlookup(const char *name, int doall)
 {
 	struct strlist *sp;
 	struct var *v;
@@ -796,7 +795,7 @@ unsetcmd(int argc __unused, char **argv __unused)
  */
 
 int
-unsetvar(char *s)
+unsetvar(const char *s)
 {
 	struct var **vpp;
 	struct var *vp;
@@ -836,7 +835,7 @@ unsetvar(char *s)
  */
 
 STATIC struct var **
-hashvar(char *p)
+hashvar(const char *p)
 {
 	unsigned int hashval;
 
@@ -855,7 +854,7 @@ hashvar(char *p)
  */
 
 STATIC int
-varequal(char *p, char *q)
+varequal(const char *p, const char *q)
 {
 	while (*p == *q++) {
 		if (*p++ == '=')

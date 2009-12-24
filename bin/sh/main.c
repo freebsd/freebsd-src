@@ -269,7 +269,7 @@ read_profile(char *name)
  */
 
 void
-readcmdfile(char *name)
+readcmdfile(const char *name)
 {
 	int fd;
 
@@ -296,7 +296,7 @@ find_dot_file(char *basename)
 {
 	static char localname[FILENAME_MAX+1];
 	char *fullname;
-	char *path = pathval();
+	const char *path = pathval();
 	struct stat statb;
 
 	/* don't try this for absolute or relative paths */

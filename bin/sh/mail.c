@@ -72,7 +72,7 @@ void
 chkmail(int silent)
 {
 	int i;
-	char *mpath;
+	const char *mpath;
 	char *p;
 	char *q;
 	struct stackmark smark;
