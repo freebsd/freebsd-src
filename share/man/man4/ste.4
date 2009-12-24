@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd December 24, 2009
 .Dt STE 4
 .Os
 .Sh NAME
@@ -126,6 +126,23 @@ D-Link DFE-550TX
 .It
 D-Link DFE-580TX
 .El
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width "xxxxxx"
+.It Va dev.ste.%d.int_rx_mod
+Maximum number of time to delay RX interrupts.
+The valid range is 0 to 209712 in units of 1us, the default is
+150 (150us).
+The value 0 effectively disables the RX interrupt moderation.
+The resolution of of timer is about 3.2us so finer tuning than
+3.2us wouldn't be available.
+The interface does not need to be brought down and up again before
+a change takes effect.
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ste%d: couldn't map ports/memory"
@@ -171,6 +188,7 @@ the card should be configured correctly.
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
+.Xr vlan 4 ,
 .Xr ifconfig 8
 .Rs
 .%T Sundance ST201 data sheet
