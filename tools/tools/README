@@ -48,6 +48,7 @@ mfc		Merge a directory from HEAD to a branch where it does not
 mid	 	Create a Message-ID database for mailing lists.
 mwl		Tools specific to the Marvell 88W8363 support
 ncpus		Count the number of processors
+notescheck	Check for missing devices and options in NOTES files.
 npe		Tools specific to the Intel IXP4XXX NPE device
 nxge		A diagnostic tool for the nxge(4) driver
 pciid		Generate src/share/misc/pci_vendors.
