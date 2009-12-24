@@ -76,7 +76,9 @@ __FBSDID("$FreeBSD$");
 #include "dev_net.h"
 #include "bootstrap.h"
 
+#ifdef	NETIF_DEBUG
 int debug = 0;
+#endif
 
 static int netdev_sock = -1;
 static int netdev_opens;
@@ -100,7 +102,7 @@ struct devsw netdev = {
 	net_print
 };
 
-int
+static int
 net_init(void)
 {
 
@@ -112,7 +114,7 @@ net_init(void)
  * This opens the low-level device and sets f->f_devdata.
  * This is declared with variable arguments...
  */
-int
+static int
 net_open(struct open_file *f, ...)
 {
 	va_list args;
@@ -132,8 +134,10 @@ net_open(struct open_file *f, ...)
 				printf("net_open: netif_open() failed\n");
 				return (ENXIO);
 			}
+#ifdef	NETIF_DEBUG
 			if (debug)
-			printf("net_open: netif_open() succeeded\n");
+				printf("net_open: netif_open() succeeded\n");
+#endif
 		}
 		if (rootip.s_addr == 0) {
 			/* Get root IP address, and path, etc. */
@@ -154,7 +158,7 @@ net_open(struct open_file *f, ...)
 	return (error);
 }
 
-int
+static int
 net_close(struct open_file *f)
 {
 #ifdef	NETIF_DEBUG
@@ -173,15 +177,17 @@ net_close(struct open_file *f)
 		return(0);
 	rootip.s_addr = 0;
 	if (netdev_sock >= 0) {
+#ifdef	NETIF_DEBUG
 		if (debug)
 			printf("net_close: calling netif_close()\n");
+#endif
 		netif_close(netdev_sock);
 		netdev_sock = -1;
 	}
 	return (0);
 }
 
-int
+static int
 net_strategy()
 {
 
@@ -227,8 +233,10 @@ net_getparams(int sock)
 		bootp(sock, BOOTP_NONE);
 	if (myip.s_addr != 0)
 		goto exit;
+#ifdef	NETIF_DEBUG
 	if (debug)
 		printf("net_open: BOOTP failed, trying RARP/RPC...\n");
+#endif
 #endif
 
 	/*
@@ -246,8 +254,10 @@ net_getparams(int sock)
 		printf("net_open: bootparam/whoami RPC failed\n");
 		return (EIO);
 	}
+#ifdef	NETIF_DEBUG
 	if (debug)
 		printf("net_open: client name: %s\n", hostname);
+#endif
 
 	/*
 	 * Ignore the gateway from whoami (unreliable).
@@ -261,11 +271,15 @@ net_getparams(int sock)
 	}
 	if (smask) {
 		netmask = smask;
+#ifdef	NETIF_DEBUG
 		if (debug)
-		printf("net_open: subnet mask: %s\n", intoa(netmask));
+			printf("net_open: subnet mask: %s\n", intoa(netmask));
+#endif
 	}
+#ifdef	NETIF_DEBUG
 	if (gateip.s_addr && debug)
 		printf("net_open: net gateway: %s\n", inet_ntoa(gateip));
+#endif
 
 	/* Get the root server and pathname. */
 	if (bp_getfile(sock, "root", &rootip, rootpath)) {
@@ -288,10 +302,12 @@ exit:
 		bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
 		bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
 	}
+#ifdef	NETIF_DEBUG
 	if (debug) {
 		printf("net_open: server addr: %s\n", inet_ntoa(rootip));
 		printf("net_open: server path: %s\n", rootpath);
 	}
+#endif
 
 	d = socktodesc(sock);
 	sprintf(temp, "%6D", d->myea, ":");
