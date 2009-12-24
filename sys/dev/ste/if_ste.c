@@ -94,7 +94,9 @@ static struct ste_type ste_devs[] = {
 static int	ste_attach(device_t);
 static int	ste_detach(device_t);
 static int	ste_probe(device_t);
+static int	ste_resume(device_t);
 static int	ste_shutdown(device_t);
+static int	ste_suspend(device_t);
 
 static int	ste_dma_alloc(struct ste_softc *);
 static void	ste_dma_free(struct ste_softc *);
@@ -123,6 +125,7 @@ static void	ste_reset(struct ste_softc *);
 static void	ste_restart_tx(struct ste_softc *);
 static int	ste_rxeof(struct ste_softc *, int);
 static void	ste_rxfilter(struct ste_softc *);
+static void	ste_setwol(struct ste_softc *);
 static void	ste_start(struct ifnet *);
 static void	ste_start_locked(struct ifnet *);
 static void	ste_stats_clear(struct ste_softc *);
@@ -141,6 +144,8 @@ static device_method_t ste_methods[] = {
 	DEVMETHOD(device_attach,	ste_attach),
 	DEVMETHOD(device_detach,	ste_detach),
 	DEVMETHOD(device_shutdown,	ste_shutdown),
+	DEVMETHOD(device_suspend,	ste_suspend),
+	DEVMETHOD(device_resume,	ste_resume),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -1059,7 +1064,7 @@ ste_attach(device_t dev)
 	struct ste_softc *sc;
 	struct ifnet *ifp;
 	u_char eaddr[6];
-	int error = 0, rid;
+	int error = 0, pmc, rid;
 
 	sc = device_get_softc(dev);
 	sc->ste_dev = dev;
@@ -1166,6 +1171,8 @@ ste_attach(device_t dev)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -1642,6 +1649,7 @@ ste_init_locked(struct ste_softc *sc)
 {
 	struct ifnet *ifp;
 	struct mii_data *mii;
+	uint8_t val;
 	int i;
 
 	STE_LOCK_ASSERT(sc);
@@ -1675,6 +1683,12 @@ ste_init_locked(struct ste_softc *sc)
 
 	/* Init TX descriptors */
 	ste_init_tx_list(sc);
+
+	/* Clear and disable WOL. */
+	val = CSR_READ_1(sc, STE_WAKE_EVENT);
+	val &= ~(STE_WAKEEVENT_WAKEPKT_ENB | STE_WAKEEVENT_MAGICPKT_ENB |
+	    STE_WAKEEVENT_LINKEVT_ENB | STE_WAKEEVENT_WAKEONLAN_ENB);
+	CSR_WRITE_1(sc, STE_WAKE_EVENT, val);
 
 	/* Set the TX freethresh value */
 	CSR_WRITE_1(sc, STE_TX_DMABURST_THRESH, STE_PACKET_SIZE >> 8);
@@ -1872,7 +1886,7 @@ ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ste_softc *sc;
 	struct ifreq *ifr;
 	struct mii_data *mii;
-	int error = 0;
+	int error = 0, mask;
 
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
@@ -1905,31 +1919,31 @@ ste_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
+		STE_LOCK(sc);
+		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
-		if (ifr->ifr_reqcap & IFCAP_POLLING &&
-		    !(ifp->if_capenable & IFCAP_POLLING)) {
-			error = ether_poll_register(ste_poll, ifp);
-			if (error)
-				return (error);
-			STE_LOCK(sc);
-			/* Disable interrupts */
-			CSR_WRITE_2(sc, STE_IMR, 0);
-			ifp->if_capenable |= IFCAP_POLLING;
-			STE_UNLOCK(sc);
-			return (error);
-
-		}
-		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
-		    ifp->if_capenable & IFCAP_POLLING) {
-			error = ether_poll_deregister(ifp);
-			/* Enable interrupts. */
-			STE_LOCK(sc);
-			CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
-			ifp->if_capenable &= ~IFCAP_POLLING;
-			STE_UNLOCK(sc);
-			return (error);
+		if ((mask & IFCAP_POLLING) != 0 &&
+		    (IFCAP_POLLING & ifp->if_capabilities) != 0) {
+			ifp->if_capenable ^= IFCAP_POLLING;
+			if ((IFCAP_POLLING & ifp->if_capenable) != 0) {
+				error = ether_poll_register(ste_poll, ifp);
+				if (error != 0) {
+					STE_UNLOCK(sc);
+					break;
+				}
+				/* Disable interrupts. */
+				CSR_WRITE_2(sc, STE_IMR, 0);
+			} else {
+				error = ether_poll_deregister(ifp);
+				/* Enable interrupts. */
+				CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
+			}
 		}
 #endif /* DEVICE_POLLING */
+		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
+		STE_UNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2107,12 +2121,50 @@ ste_watchdog(struct ste_softc *sc)
 static int
 ste_shutdown(device_t dev)
 {
+
+	return (ste_suspend(dev));
+}
+
+static int
+ste_suspend(device_t dev)
+{
 	struct ste_softc *sc;
 
 	sc = device_get_softc(dev);
 
 	STE_LOCK(sc);
 	ste_stop(sc);
+	ste_setwol(sc);
+	STE_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+ste_resume(device_t dev)
+{
+	struct ste_softc *sc;
+	struct ifnet *ifp;
+	int pmc;
+	uint16_t pmstat;
+
+	sc = device_get_softc(dev);
+	STE_LOCK(sc);
+	if (pci_find_extcap(sc->ste_dev, PCIY_PMG, &pmc) == 0) {
+		/* Disable PME and clear PME status. */
+		pmstat = pci_read_config(sc->ste_dev,
+		    pmc + PCIR_POWER_STATUS, 2);
+		if ((pmstat & PCIM_PSTAT_PMEENABLE) != 0) {
+			pmstat &= ~PCIM_PSTAT_PMEENABLE;
+			pci_write_config(sc->ste_dev,
+			    pmc + PCIR_POWER_STATUS, pmstat, 2);
+		}
+	}
+	ifp = sc->ste_ifp;
+	if ((ifp->if_flags & IFF_UP) != 0) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		ste_init_locked(sc);
+	}
 	STE_UNLOCK(sc);
 
 	return (0);
@@ -2191,3 +2243,35 @@ ste_sysctl_node(struct ste_softc *sc)
 
 #undef STE_SYSCTL_STAT_ADD32
 #undef STE_SYSCTL_STAT_ADD64
+
+static void
+ste_setwol(struct ste_softc *sc)
+{
+	struct ifnet *ifp;
+	uint16_t pmstat;
+	uint8_t val;
+	int pmc;
+
+	STE_LOCK_ASSERT(sc);
+
+	if (pci_find_extcap(sc->ste_dev, PCIY_PMG, &pmc) != 0) {
+		/* Disable WOL. */
+		CSR_READ_1(sc, STE_WAKE_EVENT);
+		CSR_WRITE_1(sc, STE_WAKE_EVENT, 0);
+		return;
+	}
+
+	ifp = sc->ste_ifp;
+	val = CSR_READ_1(sc, STE_WAKE_EVENT);
+	val &= ~(STE_WAKEEVENT_WAKEPKT_ENB | STE_WAKEEVENT_MAGICPKT_ENB |
+	    STE_WAKEEVENT_LINKEVT_ENB | STE_WAKEEVENT_WAKEONLAN_ENB);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		val |= STE_WAKEEVENT_MAGICPKT_ENB | STE_WAKEEVENT_WAKEONLAN_ENB;
+	CSR_WRITE_1(sc, STE_WAKE_EVENT, val);
+	/* Request PME. */
+	pmstat = pci_read_config(sc->ste_dev, pmc + PCIR_POWER_STATUS, 2);
+	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
+		pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+	pci_write_config(sc->ste_dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+}
