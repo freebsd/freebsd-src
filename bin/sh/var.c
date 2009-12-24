@@ -607,7 +607,6 @@ exportcmd(int argc, char **argv)
 
 	if (values && argc != 0)
 		error("-p requires no arguments");
-	listsetvar(cmdenviron);
 	if (argc != 0) {
 		while ((name = *argv++) != NULL) {
 			if ((p = strchr(name, '=')) != NULL) {
