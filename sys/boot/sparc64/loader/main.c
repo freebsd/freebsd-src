@@ -261,7 +261,6 @@ static int
 sparc64_autoload(void)
 {
 
-	setenv("hw.ata.atapi_dma", "0", 0);
 	return (0);
 }
 
