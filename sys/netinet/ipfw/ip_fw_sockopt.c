@@ -311,7 +311,7 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			map = get_map(chain, -n, 1 /* locked */);
 		if (n == 0 || map == NULL) {
 			error = EINVAL;
-		break;
+			break;
 		}
 		/* copy the initial part of the map */
 		if (start > 0)
@@ -443,13 +443,13 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 		for (i = 0; i < chain->n_rules; i++) {
 			rule = chain->map[i];
 			if (rule->rulenum == rulenum) {
-					if (cmd == 0 || rule->set == set)
-						clear_counters(rule, log_only);
+				if (cmd == 0 || rule->set == set)
+					clear_counters(rule, log_only);
 				cleared = 1;
 			}
 			if (rule->rulenum > rulenum)
 				break;
-			}
+		}
 		if (!cleared) {	/* we did not find any matching rules */
 			IPFW_WUNLOCK(chain);
 			return (EINVAL);
@@ -801,16 +801,16 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		}
 		dst = (struct ip_fw *)bp;
 		bcopy(rule, dst, l);
-			/*
-			 * XXX HACK. Store the disable mask in the "next"
-			 * pointer in a wild attempt to keep the ABI the same.
-			 * Why do we do this on EVERY rule?
-			 */
+		/*
+		 * XXX HACK. Store the disable mask in the "next"
+		 * pointer in a wild attempt to keep the ABI the same.
+		 * Why do we do this on EVERY rule?
+		 */
 		bcopy(&V_set_disable, &dst->next_rule, sizeof(V_set_disable));
 		if (dst->timestamp)
 			dst->timestamp += boot_seconds;
 		bp += l;
-		}
+	}
 	ipfw_get_dynamic(&bp, ep); /* protected by the dynamic lock */
 	return (bp - (char *)buf);
 }
@@ -865,9 +865,9 @@ ipfw_ctl(struct sockopt *sopt)
 
 			size = chain->static_len;
 			size += ipfw_dyn_len();
-		if (size >= sopt->sopt_valsize)
-			break;
-		buf = malloc(size, M_TEMP, M_WAITOK);
+			if (size >= sopt->sopt_valsize)
+				break;
+			buf = malloc(size, M_TEMP, M_WAITOK);
 			if (buf == NULL)
 				break;
 			IPFW_UH_RLOCK(chain);
@@ -878,7 +878,7 @@ ipfw_ctl(struct sockopt *sopt)
 			IPFW_UH_RUNLOCK(chain);
 			if (size >= want)
 				error = sooptcopyout(sopt, buf, len);
-		free(buf, M_TEMP);
+			free(buf, M_TEMP);
 			if (size >= want)
 				break;
 		}
