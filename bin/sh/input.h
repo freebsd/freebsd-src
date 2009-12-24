@@ -54,7 +54,7 @@ int preadateof(void);
 void pungetc(void);
 void pushstring(char *, int, void *);
 void popstring(void);
-void setinputfile(char *, int);
+void setinputfile(const char *, int);
 void setinputfd(int, int);
 void setinputstring(char *, int);
 void popfile(void);

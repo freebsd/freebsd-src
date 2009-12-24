@@ -307,7 +307,7 @@ sh_trace(const char *fmt, ...)
 
 
 void
-trputs(char *s)
+trputs(const char *s)
 {
 	if (tracefile == NULL)
 		return;

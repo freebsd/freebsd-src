@@ -1510,9 +1510,9 @@ noexpand(char *text)
  */
 
 int
-goodname(char *name)
+goodname(const char *name)
 {
-	char *p;
+	const char *p;
 
 	p = name;
 	if (! is_name(*p))

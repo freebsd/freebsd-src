@@ -77,5 +77,5 @@ extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
 
 union node *parsecmd(int);
 void fixredir(union node *, const char *, int);
-int goodname(char *);
+int goodname(const char *);
 char *getprompt(void *);
