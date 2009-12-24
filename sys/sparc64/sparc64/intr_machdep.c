@@ -450,13 +450,19 @@ int
 intr_bind(int vec, u_char cpu)
 {
 	struct intr_vector *iv;
+	int error;
 
 	if (vec < 0 || vec >= IV_MAX)
 		return (EINVAL);
+	sx_xlock(&intr_table_lock);
 	iv = &intr_vectors[vec];
-	if (iv == NULL)
+	if (iv == NULL) {
+		sx_xunlock(&intr_table_lock);
 		return (EINVAL);
-	return (intr_event_bind(iv->iv_event, cpu));
+	}
+	error = intr_event_bind(iv->iv_event, cpu);
+	sx_xunlock(&intr_table_lock);
+	return (error);
 }
 
 /*
