@@ -113,6 +113,7 @@ static bus_alloc_resource_t schizo_alloc_resource;
 static bus_activate_resource_t schizo_activate_resource;
 static bus_deactivate_resource_t schizo_deactivate_resource;
 static bus_release_resource_t schizo_release_resource;
+static bus_describe_intr_t schizo_describe_intr;
 static bus_get_dma_tag_t schizo_get_dma_tag;
 static pcib_maxslots_t schizo_maxslots;
 static pcib_read_config_t schizo_read_config;
@@ -137,6 +138,7 @@ static device_method_t schizo_methods[] = {
 	DEVMETHOD(bus_activate_resource,	schizo_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	schizo_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	schizo_release_resource),
+	DEVMETHOD(bus_describe_intr,	schizo_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	schizo_get_dma_tag),
 
 	/* pcib interface */
@@ -1255,6 +1257,18 @@ schizo_teardown_intr(device_t dev, device_t child, struct resource *vec,
 		return (error);
 	}
 	return (bus_generic_teardown_intr(dev, child, vec, cookie));
+}
+
+static int
+schizo_describe_intr(device_t dev, device_t child, struct resource *vec,
+    void *cookie, const char *descr)
+{
+	struct schizo_softc *sc;
+
+	sc = device_get_softc(dev);
+	if ((sc->sc_flags & SCHIZO_FLAGS_CDMA) != 0)
+		cookie = ((struct schizo_dma_sync *)cookie)->sds_cookie;
+	return (bus_generic_describe_intr(dev, child, vec, cookie, descr));
 }
 
 static struct resource *

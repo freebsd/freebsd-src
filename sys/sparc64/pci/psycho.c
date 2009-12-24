@@ -115,6 +115,7 @@ static bus_alloc_resource_t psycho_alloc_resource;
 static bus_activate_resource_t psycho_activate_resource;
 static bus_deactivate_resource_t psycho_deactivate_resource;
 static bus_release_resource_t psycho_release_resource;
+static bus_describe_intr_t psycho_describe_intr;
 static bus_get_dma_tag_t psycho_get_dma_tag;
 static pcib_maxslots_t psycho_maxslots;
 static pcib_read_config_t psycho_read_config;
@@ -139,6 +140,7 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(bus_activate_resource,	psycho_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	psycho_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	psycho_release_resource),
+	DEVMETHOD(bus_describe_intr,	psycho_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	psycho_get_dma_tag),
 
 	/* pcib interface */
@@ -1244,6 +1246,18 @@ psycho_teardown_intr(device_t dev, device_t child, struct resource *vec,
 		return (error);
 	}
 	return (bus_generic_teardown_intr(dev, child, vec, cookie));
+}
+
+static int
+psycho_describe_intr(device_t dev, device_t child, struct resource *vec,
+    void *cookie, const char *descr)
+{
+	struct psycho_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->sc_mode == PSYCHO_MODE_SABRE)
+		cookie = ((struct psycho_dma_sync *)cookie)->pds_cookie;
+	return (bus_generic_describe_intr(dev, child, vec, cookie, descr));
 }
 
 static struct resource *
