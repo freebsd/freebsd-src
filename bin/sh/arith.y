@@ -265,7 +265,7 @@ expr:
 #define YYPARSE_PARAM_TYPE arith_t *
 #define YYPARSE_PARAM result
 
-char *arith_buf, *arith_startbuf;
+const char *arith_buf, *arith_startbuf;
 
 int yylex(void);
 int yyparse(YYPARSE_PARAM_TYPE);
@@ -284,7 +284,7 @@ arith_assign(char *name, arith_t value)
 }
 
 arith_t
-arith(char *s)
+arith(const char *s)
 {
 	arith_t result;
 
@@ -299,7 +299,7 @@ arith(char *s)
 }
 
 static void
-yyerror(char *s)
+yyerror(const char *s)
 {
 
 	yyerrok;
@@ -354,7 +354,7 @@ main(int argc, char *argv[])
 	printf("%d\n", exp(argv[1]));
 }
 
-error(char *s)
+error(const char *s)
 {
 	fprintf(stderr, "exp: %s\n", s);
 	exit(1);

@@ -111,5 +111,5 @@ void freeparam(struct shparam *);
 int shiftcmd(int, char **);
 int setcmd(int, char **);
 int getoptscmd(int, char **);
-int nextopt(char *);
+int nextopt(const char *);
 void getoptsreset(const char *);

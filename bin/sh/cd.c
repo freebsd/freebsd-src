@@ -80,7 +80,7 @@ int
 cdcmd(int argc, char **argv)
 {
 	char *dest;
-	char *path;
+	const char *path;
 	char *p;
 	struct stat statb;
 	int ch, phys, print = 0;
