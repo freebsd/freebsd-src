@@ -798,7 +798,7 @@ ste_rxeof(struct ste_softc *sc, int count)
 		 * can do in this situation.
 		 */
 		if (ste_newbuf(sc, cur_rx) != 0) {
-			ifp->if_ierrors++;
+			ifp->if_iqdrops++;
 			cur_rx->ste_ptr->ste_status = 0;
 			continue;
 		}
