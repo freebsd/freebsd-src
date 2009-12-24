@@ -78,10 +78,10 @@ extern volatile sig_atomic_t intpending;
 #define CLEAR_PENDING_INT intpending = 0
 #define int_pending() intpending
 
-void exraise(int);
+void exraise(int) __dead2;
 void onint(void);
-void error(const char *, ...) __printf0like(1, 2);
-void exerror(int, const char *, ...) __printf0like(2, 3);
+void error(const char *, ...) __printf0like(1, 2) __dead2;
+void exerror(int, const char *, ...) __printf0like(2, 3) __dead2;
 
 
 /*
