@@ -9,8 +9,8 @@ PROG=	syslogd
 MAN=	syslog.conf.5 syslogd.8
 SRCS=	syslogd.c ttymsg.c
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+DPADD=	${LIBULOG} ${LIBUTIL}
+LDADD=	-lulog -lutil
 
 WARNS?=	3
 
