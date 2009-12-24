@@ -554,9 +554,10 @@ out:
  */
 
 int
-nextopt(char *optstring)
+nextopt(const char *optstring)
 {
-	char *p, *q;
+	char *p;
+	const char *q;
 	char c;
 
 	if ((p = optptr) == NULL || *p == '\0') {

@@ -101,12 +101,12 @@ extern struct var vhistsize;
 #define mpathset()	((vmpath.flags & VUNSET) == 0)
 
 void initvar(void);
-void setvar(char *, char *, int);
+void setvar(const char *, const char *, int);
 void setvareq(char *, int);
 struct strlist;
 void listsetvar(struct strlist *);
-char *lookupvar(char *);
-char *bltinlookup(char *, int);
+char *lookupvar(const char *);
+char *bltinlookup(const char *, int);
 char **environment(void);
 void shprocvar(void);
 int showvarscmd(int, char **);
@@ -116,5 +116,5 @@ void mklocal(char *);
 void poplocalvars(void);
 int setvarcmd(int, char **);
 int unsetcmd(int, char **);
-int unsetvar(char *);
-int setvarsafe(char *, char *, int);
+int unsetvar(const char *);
+int setvarsafe(const char *, const char *, int);

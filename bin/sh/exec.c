@@ -98,7 +98,7 @@ int exerrno = 0;			/* Last exec error */
 
 STATIC void tryexec(char *, char **, char **);
 STATIC void printentry(struct tblentry *, int);
-STATIC struct tblentry *cmdlookup(char *, int);
+STATIC struct tblentry *cmdlookup(const char *, int);
 STATIC void delete_cmd_entry(void);
 
 
@@ -109,7 +109,7 @@ STATIC void delete_cmd_entry(void);
  */
 
 void
-shellexec(char **argv, char **envp, char *path, int index)
+shellexec(char **argv, char **envp, const char *path, int index)
 {
 	char *cmdname;
 	int e;
@@ -175,13 +175,13 @@ tryexec(char *cmd, char **argv, char **envp)
  * NULL.
  */
 
-char *pathopt;
+const char *pathopt;
 
 char *
-padvance(char **path, char *name)
+padvance(const char **path, const char *name)
 {
-	char *p, *q;
-	char *start;
+	const char *p, *start;
+	char *q;
 	int len;
 
 	if (*path == NULL)
@@ -269,7 +269,7 @@ STATIC void
 printentry(struct tblentry *cmdp, int verbose)
 {
 	int index;
-	char *path;
+	const char *path;
 	char *name;
 
 	if (cmdp->cmdtype == CMDNORMAL) {
@@ -310,7 +310,8 @@ printentry(struct tblentry *cmdp, int verbose)
  */
 
 void
-find_command(char *name, struct cmdentry *entry, int printerr, char *path)
+find_command(const char *name, struct cmdentry *entry, int printerr,
+    const char *path)
 {
 	struct tblentry *cmdp;
 	int index;
@@ -446,7 +447,7 @@ success:
  */
 
 int
-find_builtin(char *name, int *special)
+find_builtin(const char *name, int *special)
 {
 	const struct builtincmd *bp;
 
@@ -608,10 +609,10 @@ STATIC struct tblentry **lastcmdentry;
 
 
 STATIC struct tblentry *
-cmdlookup(char *name, int add)
+cmdlookup(const char *name, int add)
 {
 	int hashval;
-	char *p;
+	const char *p;
 	struct tblentry *cmdp;
 	struct tblentry **pp;
 
@@ -664,7 +665,7 @@ delete_cmd_entry(void)
  */
 
 void
-addcmdentry(char *name, struct cmdentry *entry)
+addcmdentry(const char *name, struct cmdentry *entry)
 {
 	struct tblentry *cmdp;
 
@@ -684,7 +685,7 @@ addcmdentry(char *name, struct cmdentry *entry)
  */
 
 void
-defun(char *name, union node *func)
+defun(const char *name, union node *func)
 {
 	struct cmdentry entry;
 
@@ -701,7 +702,7 @@ defun(char *name, union node *func)
  */
 
 int
-unsetfunc(char *name)
+unsetfunc(const char *name)
 {
 	struct tblentry *cmdp;
 
@@ -767,7 +768,8 @@ typecmd_impl(int argc, char **argv, int cmd)
 		switch (entry.cmdtype) {
 		case CMDNORMAL: {
 			if (strchr(argv[i], '/') == NULL) {
-				char *path = pathval(), *name;
+				const char *path = pathval();
+				char *name;
 				int j = entry.u.index;
 				do {
 					name = padvance(&path, argv[i]);
