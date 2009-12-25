@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/watchdog.h>
 
 #include <machine/bus.h>
@@ -175,8 +176,16 @@ mk48txx_gettime(device_t dev, struct timespec *ts)
 	ct.min = FROMBCD(FROMREG(MK48TXX_IMIN, MK48TXX_MIN_MASK));
 	ct.hour = FROMBCD(FROMREG(MK48TXX_IHOUR, MK48TXX_HOUR_MASK));
 	ct.day = FROMBCD(FROMREG(MK48TXX_IDAY, MK48TXX_DAY_MASK));
+#if 0
 	/* Map dow from 1 - 7 to 0 - 6; FROMBCD() isn't necessary here. */
 	ct.dow = FROMREG(MK48TXX_IWDAY, MK48TXX_WDAY_MASK) - 1;
+#else
+	/*
+	 * Set dow = -1 because some drivers (for example the NetBSD and
+	 * OpenBSD mk48txx(4)) don't set it correctly.
+	 */
+	ct.dow = - 1;
+#endif
 	ct.mon = FROMBCD(FROMREG(MK48TXX_IMON, MK48TXX_MON_MASK));
 	year = FROMBCD(FROMREG(MK48TXX_IYEAR, MK48TXX_YEAR_MASK));
 	year += sc->sc_year0;
@@ -266,7 +275,7 @@ mk48txx_def_nvrd(device_t dev, int off)
 	struct mk48txx_softc *sc;
 
 	sc = device_get_softc(dev);
-	return (bus_space_read_1(sc->sc_bst, sc->sc_bsh, off));
+	return (bus_read_1(sc->sc_res, off));
 }
 
 static void
@@ -275,7 +284,7 @@ mk48txx_def_nvwr(device_t dev, int off, uint8_t v)
 	struct mk48txx_softc *sc;
 
 	sc = device_get_softc(dev);
-	bus_space_write_1(sc->sc_bst, sc->sc_bsh, off, v);
+	bus_write_1(sc->sc_res, off, v);
 }
 
 static void

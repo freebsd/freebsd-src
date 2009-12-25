@@ -107,7 +107,7 @@ DRIVER_MODULE(eeprom, sbus, eeprom_driver, eeprom_devclass, 0, 0);
 static int
 eeprom_probe(device_t dev)
 {
- 
+
 	if (strcmp("eeprom", ofw_bus_get_name(dev)) == 0) {
 		device_set_desc(dev, "EEPROM/clock");
 		return (0);
@@ -134,8 +134,6 @@ eeprom_attach(device_t dev)
 		error = ENXIO;
 		goto fail_mtx;
 	}
-	sc->sc_bst = rman_get_bustag(res);
-	sc->sc_bsh = rman_get_bushandle(res);
 
 	if ((sc->sc_model = ofw_bus_get_model(dev)) == NULL) {
 		device_printf(dev, "cannot determine model\n");
