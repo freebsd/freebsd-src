@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <timeconv.h>
 #include <unistd.h>
-#include <utmp.h>
 
 DIR	*dirp;
 
@@ -172,7 +171,7 @@ main(int argc, char *argv[])
 		(void)sprintf(buf, "%s:%-.*s", mp->myhost,
 		   sizeof(mp->myutmp.out_line), mp->myutmp.out_line);
 		printf("%-*.*s %-*s %s",
-		   UT_NAMESIZE, sizeof(mp->myutmp.out_name),
+		   sizeof(mp->myutmp.out_name), sizeof(mp->myutmp.out_name),
 		   mp->myutmp.out_name,
 		   width,
 		   buf,
