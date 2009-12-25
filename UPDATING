@@ -161,7 +161,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 20090712: 
 	Padding has been added to struct tcpcb, sackhint and tcpstat in
 	<netinet/tcp_var.h> to facilitate future MFCs and bug fixes whilst
-	maintainig the ABI. However, this change breaks the ABI, so bump
+	maintaining the ABI. However, this change breaks the ABI, so bump
 	__FreeBSD_version to 800102. User space tools that rely on the size of
 	any of these structs (e.g. sockstat) need to be recompiled.
 
@@ -895,7 +895,7 @@ COMMON ITEMS:
 	-------------
 	Avoid using make -j when upgrading.  While generally safe, there are
 	sometimes problems using -j to upgrade.  If your upgrade fails with
-	-j, please try again wtihout -j.  From time to time in the past there
+	-j, please try again without -j.  From time to time in the past there
 	have been problems using -j with buildworld and/or installworld.  This
 	is especially true when upgrading between "distant" versions (eg one
 	that cross a major release boundary or several minor releases, or when
