@@ -126,7 +126,7 @@ ulog_write_utmp_slow(const struct futmp *ut)
 		    strncmp(utf.ut_line, ut->ut_line, sizeof utf.ut_line) != 0)
 			continue;
 		lseek(fd, -(off_t)sizeof utf, SEEK_CUR);
-		write(fd, &ut, sizeof ut);
+		write(fd, ut, sizeof *ut);
 		found = 1;
 	}
 	close(fd);
