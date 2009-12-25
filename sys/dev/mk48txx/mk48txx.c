@@ -40,7 +40,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Mostek MK48T02, MK48T08, MK48T18, MK48T59 time-of-day chip subroutines.
+ * Mostek MK48T02, MK48T08, MK48T18, MK48T59 time-of-day chip subroutines
  */
 
 #include <sys/param.h>
@@ -59,17 +59,17 @@ __FBSDID("$FreeBSD$");
 
 #include "clock_if.h"
 
-static uint8_t	mk48txx_def_nvrd(device_t, int);
-static void	mk48txx_def_nvwr(device_t, int, uint8_t);
-static void	mk48txx_watchdog(void *, u_int, int *);
+static uint8_t	mk48txx_def_nvrd(device_t dev, int off);
+static void	mk48txx_def_nvwr(device_t dev, int off, uint8_t v);
+static void	mk48txx_watchdog(void *arg, u_int cmd, int *error);
 
-struct {
+static const struct {
 	const char *name;
 	bus_size_t nvramsz;
 	bus_size_t clkoff;
-	int flags;
-#define MK48TXX_EXT_REGISTERS	1	/* Has extended register set */
-} mk48txx_models[] = {
+	u_int flags;
+#define	MK48TXX_EXT_REGISTERS	1	/* Has extended register set. */
+} const mk48txx_models[] = {
 	{ "mk48t02", MK48T02_CLKSZ, MK48T02_CLKOFF, 0 },
 	{ "mk48t08", MK48T08_CLKSZ, MK48T08_CLKOFF, 0 },
 	{ "mk48t18", MK48T18_CLKSZ, MK48T18_CLKOFF, 0 },
@@ -112,7 +112,7 @@ mk48txx_attach(device_t dev)
 
 	if (mk48txx_models[i].flags & MK48TXX_EXT_REGISTERS) {
 		mtx_lock(&sc->sc_mtx);
-	    	if ((*sc->sc_nvrd)(dev, sc->sc_clkoffset + MK48TXX_FLAGS) &
+		if ((*sc->sc_nvrd)(dev, sc->sc_clkoffset + MK48TXX_FLAGS) &
 		    MK48TXX_FLAGS_BL) {
 			mtx_unlock(&sc->sc_mtx);
 			device_printf(dev, "%s: battery low\n", __func__);
@@ -140,7 +140,7 @@ mk48txx_attach(device_t dev)
 		}
 	}
 
-	clock_register(dev, 1000000);	/* 1 second resolution. */
+	clock_register(dev, 1000000);	/* 1 second resolution */
 
 	if ((sc->sc_flag & MK48TXX_WDOG_REGISTER) &&
 	    (mk48txx_models[i].flags & MK48TXX_EXT_REGISTERS)) {
