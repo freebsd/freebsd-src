@@ -331,8 +331,6 @@ int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
     int *, int *, NFSPROC_T *);
 int nfsrv_buildacl(struct nfsrv_descript *, NFSACL_T *, enum vtype,
     NFSPROC_T *);
-int nfsrv_aclaccess(vnode_t, accmode_t, u_int32_t, struct ucred *,
-    NFSPROC_T *);
 int nfsrv_setacl(vnode_t, NFSACL_T *, struct ucred *,
     NFSPROC_T *);
 int nfsrv_compareacl(NFSACL_T *, NFSACL_T *);
@@ -514,8 +512,8 @@ int nfsvno_getattr(vnode_t, struct nfsvattr *, struct ucred *,
 int nfsvno_setattr(vnode_t, struct nfsvattr *, struct ucred *,
     NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_getfh(vnode_t, fhandle_t *, NFSPROC_T *);
-int nfsvno_accchk(vnode_t, u_int32_t, struct ucred *,
-    struct nfsexstuff *, NFSPROC_T *, int, int);
+int nfsvno_accchk(vnode_t, accmode_t, struct ucred *,
+    struct nfsexstuff *, NFSPROC_T *, int, int, u_int32_t *);
 int nfsvno_namei(struct nfsrv_descript *, struct nameidata *,
     vnode_t, int, struct nfsexstuff *, NFSPROC_T *, vnode_t *);
 void nfsvno_setpathbuf(struct nameidata *, char **, u_long **);
