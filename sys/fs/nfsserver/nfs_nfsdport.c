@@ -131,32 +131,20 @@ nfsvno_getfh(struct vnode *vp, fhandle_t *fhp, struct thread *p)
 /*
  * Perform access checking for vnodes obtained from file handles that would
  * refer to files already opened by a Unix client. You cannot just use
- * vn_writechk() and VOP_ACCESS() for two reasons.
- * 1 - You must check for exported rdonly as well as MNT_RDONLY for the write case
+ * vn_writechk() and VOP_ACCESSX() for two reasons.
+ * 1 - You must check for exported rdonly as well as MNT_RDONLY for the write
+ *     case.
  * 2 - The owner is to be given access irrespective of mode bits for some
  *     operations, so that processes that chmod after opening a file don't
  *     break.
  */
 int
-nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
-    struct nfsexstuff *exp, struct thread *p, int override, int vpislocked)
+nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
+    struct nfsexstuff *exp, struct thread *p, int override, int vpislocked,
+    u_int32_t *supportedtypep)
 {
 	struct vattr vattr;
 	int error = 0, getret = 0;
-	accmode_t accmode;
-
-	/*
-	 * Convert accessbits to Vxxx flags.
-	 */
-	if (accessbits & (NFSV4ACE_WRITEDATA | NFSV4ACE_APPENDDATA |
-	    NFSV4ACE_ADDFILE | NFSV4ACE_ADDSUBDIRECTORY |
-	    NFSV4ACE_DELETECHILD | NFSV4ACE_WRITEATTRIBUTES |
-	    NFSV4ACE_DELETE | NFSV4ACE_WRITEACL | NFSV4ACE_WRITEOWNER))
-		accmode = VWRITE;
-	else if (accessbits & (NFSV4ACE_EXECUTE | NFSV4ACE_SEARCH))
-		accmode = VEXEC;
-	else
-		accmode = VREAD;
 
 	if (accmode & VWRITE) {
 		/* Just vn_writechk() changed to check rdonly */
@@ -166,7 +154,7 @@ nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
 		 * device resident on the file system.
 		 */
 		if (NFSVNO_EXRDONLY(exp) ||
-			(vp->v_mount->mnt_flag & MNT_RDONLY)) {
+		    (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 			switch (vp->v_type) {
 			case VREG:
 			case VDIR:
@@ -187,22 +175,26 @@ nfsvno_accchk(struct vnode *vp, u_int32_t accessbits, struct ucred *cred,
 	if (vpislocked == 0)
 		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
-#if defined(NFS4_ACL_EXTATTR_NAME) && defined(notyet)
-	/*
-	 * This function should be called once FFS has NFSv4 ACL support
-	 * in it.
-	 */
 	/*
 	 * Should the override still be applied when ACLs are enabled?
 	 */
-	if (nfsrv_useacl != 0 && NFSHASNFS4ACL(vp->v_mount))
-		error = nfsrv_aclaccess(vp, accmode, accessbits, cred, p);
-	else
-#endif
-	if (accessbits == NFSV4ACE_READATTRIBUTES)
-		error = 0;
-	else
-		error = VOP_ACCESS(vp, accmode, cred, p);
+	error = VOP_ACCESSX(vp, accmode, cred, p);
+	if (error != 0 && (accmode & (VDELETE | VDELETE_CHILD))) {
+		/*
+		 * Try again with VEXPLICIT_DENY, to see if the test for
+		 * deletion is supported.
+		 */
+		error = VOP_ACCESSX(vp, accmode | VEXPLICIT_DENY, cred, p);
+		if (error == 0) {
+			if (vp->v_type == VDIR) {
+				accmode &= ~(VDELETE | VDELETE_CHILD);
+				accmode |= VWRITE;
+				error = VOP_ACCESSX(vp, accmode, cred, p);
+			} else if (supportedtypep != NULL) {
+				*supportedtypep &= ~NFSACCESS_DELETE;
+			}
+		}
+	}
 
 	/*
 	 * Allow certain operations for the owner (reads and writes
@@ -790,9 +782,9 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 		else
 			vput(ndp->ni_dvp);
 		if (!error && nvap->na_size != VNOVAL) {
-			error = nfsvno_accchk(*vpp, NFSV4ACE_ADDFILE,
+			error = nfsvno_accchk(*vpp, VWRITE,
 			    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
-			    NFSACCCHK_VPISLOCKED);
+			    NFSACCCHK_VPISLOCKED, NULL);
 			if (!error) {
 				tempsize = nvap->na_size;
 				NFSVNO_ATTRINIT(nvap);
@@ -1334,8 +1326,9 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				else
 					NFSVNO_EXINIT(&nes);
 				nd->nd_repstat = nfsvno_accchk(vp, 
-				    NFSV4ACE_ADDFILE, cred, &nes, p,
-				    NFSACCCHK_NOOVERRIDE,NFSACCCHK_VPISLOCKED);
+				    VWRITE, cred, &nes, p,
+				    NFSACCCHK_NOOVERRIDE,
+				    NFSACCCHK_VPISLOCKED, NULL);
 				nd->nd_repstat = nfsrv_opencheck(clientid,
 				    stateidp, stp, vp, nd, p, nd->nd_repstat);
 				if (!nd->nd_repstat) {
@@ -1481,9 +1474,9 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 #endif
 	}
 	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_SEARCH,
+		nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
 		    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
-		    NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_VPISLOCKED, NULL);
 	if (nd->nd_repstat) {
 		vput(vp);
 		if (nd->nd_flag & ND_NFSV3)
@@ -1752,9 +1745,9 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat && cnt == 0)
 		nd->nd_repstat = NFSERR_TOOSMALL;
 	if (!nd->nd_repstat)
-		nd->nd_repstat = nfsvno_accchk(vp, NFSV4ACE_SEARCH,
+		nd->nd_repstat = nfsvno_accchk(vp, VEXEC,
 		    nd->nd_cred, exp, p, NFSACCCHK_NOOVERRIDE,
-		    NFSACCCHK_VPISLOCKED);
+		    NFSACCCHK_VPISLOCKED, NULL);
 	if (nd->nd_repstat) {
 		vput(vp);
 		if (nd->nd_flag & ND_NFSV3)
