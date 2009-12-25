@@ -1464,8 +1464,6 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		} else {
 			bioq_remove(&softc->bio_queue, bp);
 
-			devstat_start_transaction_bio(softc->disk->d_devstat, bp);
-
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/cd_retry_count,
 					/* cbfcnp */ cddone,
