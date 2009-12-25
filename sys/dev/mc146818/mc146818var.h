@@ -38,29 +38,30 @@ struct mc146818_softc {
 	u_char sc_regb;				/* register B */
 
 	u_int sc_year0;				/* year counter offset */
+
 	u_int sc_flag;				/* MD flags */
-#define MC146818_NO_CENT_ADJUST	0x0001		/* don't adjust century */
-#define MC146818_BCD		0x0002		/* use BCD mode */
-#define MC146818_12HR		0x0004		/* use AM/PM mode */
+#define	MC146818_NO_CENT_ADJUST	0x0001		/* don't adjust century */
+#define	MC146818_BCD		0x0002		/* use BCD mode */
+#define	MC146818_12HR		0x0004		/* use AM/PM mode */
 
 	/* MD chip register read/write functions */
-	u_int (*sc_mcread)(device_t, u_int);
-	void (*sc_mcwrite)(device_t, u_int, u_int);
+	u_int (*sc_mcread)(device_t dev, u_int reg);
+	void (*sc_mcwrite)(device_t dev, u_int reg, u_int val);
 	/* MD century get/set functions */
-	u_int (*sc_getcent)(device_t);
-	void (*sc_setcent)(device_t, u_int);
+	u_int (*sc_getcent)(device_t dev);
+	void (*sc_setcent)(device_t dev, u_int cent);
 };
 
 /* Default read/write functions */
-u_int mc146818_def_read(device_t, u_int);
-void mc146818_def_write(device_t, u_int, u_int);
+u_int mc146818_def_read(device_t dev, u_int reg);
+void mc146818_def_write(device_t dev, u_int reg, u_int val);
 
 /* Chip attach function */
 int mc146818_attach(device_t);
 
 /* Methods for the clock interface */
 #ifdef notyet
-int mc146818_getsecs(device_t, int *);
+int mc146818_getsecs(device_t dev, int *secp);
 #endif
-int mc146818_gettime(device_t, struct timespec *);
-int mc146818_settime(device_t, struct timespec *);
+int mc146818_gettime(device_t dev, struct timespec *ts);
+int mc146818_settime(device_t dev, struct timespec *ts);
