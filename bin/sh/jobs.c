@@ -757,6 +757,7 @@ forkshell(struct job *jp, union node *n, int mode)
 		TRACE(("Child shell %d\n", (int)getpid()));
 		wasroot = rootshell;
 		rootshell = 0;
+		handler = &main_handler;
 		closescript();
 		INTON;
 		clear_traps();
