@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2009
+.Dd December 25, 2009
 .Os
 .Dt KILLALL 1
 .Sh NAME
@@ -145,6 +145,17 @@ command appeared in
 It has been modeled after the
 .Nm
 command as available on other platforms.
+.Sh IMPLEMENTATION NOTES
+This
+.Fx
+implementation of
+.Nm
+have completely different semantics as compared to the traditional
+.Ux
+System V behavior of
+.Nm ,
+which will kill all processes that the current user is able to
+kill, and is intended to be used by the system shutdown process only.
 .Sh AUTHORS
 .An -nosplit
 The
