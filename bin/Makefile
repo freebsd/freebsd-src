@@ -26,6 +26,7 @@ SUBDIR= cat \
 	mv \
 	pax \
 	ps \
+	pwait \
 	pwd \
 	${_rcp} \
 	realpath \
