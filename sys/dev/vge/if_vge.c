@@ -2573,8 +2573,6 @@ vge_stats_clear(struct vge_softc *sc)
 {
 	int i;
 
-	VGE_LOCK_ASSERT(sc);
-
 	CSR_WRITE_1(sc, VGE_MIBCSR,
 	    CSR_READ_1(sc, VGE_MIBCSR) | VGE_MIBCSR_FREEZE);
 	CSR_WRITE_1(sc, VGE_MIBCSR,
