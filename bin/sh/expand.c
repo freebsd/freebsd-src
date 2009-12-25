@@ -271,8 +271,13 @@ exptilde(char *p, int flag)
 
 	while ((c = *p) != '\0') {
 		switch(c) {
-		case CTLESC:
-			return (startp);
+		case CTLESC: /* This means CTL* are always considered quoted. */
+		case CTLVAR:
+		case CTLENDVAR:
+		case CTLBACKQ:
+		case CTLBACKQ | CTLQUOTE:
+		case CTLARI:
+		case CTLENDARI:
 		case CTLQUOTEMARK:
 			return (startp);
 		case ':':
