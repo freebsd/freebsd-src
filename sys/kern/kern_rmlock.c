@@ -128,9 +128,9 @@ static struct mtx rm_spinlock;
 MTX_SYSINIT(rm_spinlock, &rm_spinlock, "rm_spinlock", MTX_SPIN);
 
 /*
- * Add or remove tracker from per cpu list.
+ * Add or remove tracker from per-cpu list.
  *
- * The per cpu list can be traversed at any time in forward direction from an
+ * The per-cpu list can be traversed at any time in forward direction from an
  * interrupt on the *local* cpu.
  */
 static void inline
@@ -257,7 +257,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 		return;
 	}
 
-	/* Remove our tracker from the per cpu list. */
+	/* Remove our tracker from the per-cpu list. */
 	rm_tracker_remove(pc, tracker);
 
 	/* Check to see if the IPI granted us the lock after all. */
@@ -274,8 +274,8 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 	 */
 	if ((rm->lock_object.lo_flags & LO_RECURSABLE) != 0) {
 		/*
-		 * Just grand the lock if this thread already have a tracker
-		 * for this lock on the per cpu queue.
+		 * Just grant the lock if this thread already has a tracker
+		 * for this lock on the per-cpu queue.
 		 */
 		for (queue = pc->pc_rm_queue.rmq_next;
 		    queue !=  &pc->pc_rm_queue; queue = queue->rmq_next) {
