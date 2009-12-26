@@ -60,7 +60,7 @@ main(argc, argv)
 		usage();
 	}
 
-	if (ulog_setutxfile(UTXF_LASTLOG, NULL) != 0)
+	if (ulog_setutxfile(UTXI_USER, NULL) != 0)
 		errx(1, "failed to open lastlog database");
 
 	setpassent(1);	/* Keep passwd file pointers open */

@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "ulog_internal.h"
 
 static FILE *ufile;
-static int ufiletype = -1;
+static int ufileindex = -1;
 
 void
 ulog_endutxent(void)
@@ -61,11 +61,8 @@ ulog_futmp_to_utmpx(const struct futmp *ut, struct ulog_utmpx *utx)
 	strncpy(utx->ut_ ## field, ut->ut_ ## field,			\
 	    MIN(sizeof utx->ut_ ## field - 1, sizeof ut->ut_ ## field));\
 } while (0)
-	COPY_STRING(user);
-	COPY_STRING(line);
-	COPY_STRING(host);
-#undef COPY_STRING
-#define	MATCH(field, value)	(strcmp(utx->ut_ ## field, (value)) == 0)
+#define	MATCH(field, value)	(strncmp(ut->ut_ ## field, (value), \
+					sizeof(ut->ut_ ## field)) == 0)
 	if (MATCH(user, "reboot") && MATCH(line, "~"))
 		utx->ut_type = BOOT_TIME;
 	else if (MATCH(user, "date") && MATCH(line, "|"))
@@ -74,12 +71,23 @@ ulog_futmp_to_utmpx(const struct futmp *ut, struct ulog_utmpx *utx)
 		utx->ut_type = NEW_TIME;
 	else if (MATCH(user, "shutdown") && MATCH(line, "~"))
 		utx->ut_type = SHUTDOWN_TIME;
-	else if (MATCH(user, "") && MATCH(host, ""))
+	else if (MATCH(user, "") && MATCH(host, "")) {
 		utx->ut_type = DEAD_PROCESS;
-	else if (!MATCH(user, "") && !MATCH(line, "") && ut->ut_time != 0)
+		/* XXX: ut_id and ut_pid missing. ut_line not needed. */
+		COPY_STRING(line);
+	} else if (!MATCH(user, "") && !MATCH(line, "") && ut->ut_time != 0) {
 		utx->ut_type = USER_PROCESS;
-	else
+		/* XXX: ut_id and ut_pid missing. */
+		COPY_STRING(user);
+		COPY_STRING(line);
+		COPY_STRING(host);
+	} else {
+		/* Only set ut_type for EMPTY. */
 		utx->ut_type = EMPTY;
+		return;
+	}
+#undef COPY_STRING
+#undef MATCH
 	utx->ut_tv.tv_sec = _time32_to_time(ut->ut_time);
 	utx->ut_tv.tv_usec = 0;
 }
@@ -93,13 +101,20 @@ ulog_flastlog_to_utmpx(const struct flastlog *ll, struct ulog_utmpx *utx)
 	strncpy(utx->ut_ ## field, ll->ll_ ## field,			\
 	    MIN(sizeof utx->ut_ ## field - 1, sizeof ll->ll_ ## field));\
 } while (0)
-	COPY_STRING(line);
-	COPY_STRING(host);
-#undef COPY_STRING
-	if (!MATCH(line, "") && ll->ll_time != 0)
+#define	MATCH(field, value)	(strncmp(ll->ll_ ## field, (value), \
+					sizeof(ll->ll_ ## field)) == 0)
+	if (!MATCH(line, "") && ll->ll_time != 0) {
 		utx->ut_type = USER_PROCESS;
-	else
+		/* XXX: ut_id and ut_pid missing. */
+		COPY_STRING(line);
+		COPY_STRING(host);
+	} else {
+		/* Only set ut_type for EMPTY. */
 		utx->ut_type = EMPTY;
+		return;
+	}
+#undef COPY_STRING
+#undef MATCH
 	utx->ut_tv.tv_sec = _time32_to_time(ll->ll_time);
 	utx->ut_tv.tv_usec = 0;
 }
@@ -112,7 +127,7 @@ static inline off_t
 ulog_tell(void)
 {
 
-	if (ufiletype == UTXF_LASTLOG)
+	if (ufileindex == UTXI_USER)
 		return (ftello(ufile) / sizeof(struct flastlog));
 	else
 		return (ftello(ufile) / sizeof(struct futmp));
@@ -132,7 +147,7 @@ ulog_read(off_t off, int whence, int resolve_user)
 	if (whence == SEEK_SET && ulog_tell() > off)
 		return (NULL);
 
-	if (ufiletype == UTXF_LASTLOG) {
+	if (ufileindex == UTXI_USER) {
 		struct flastlog ll;
 		struct passwd *pw = NULL;
 		uid_t uid;
@@ -192,7 +207,7 @@ ulog_getutxline(const struct ulog_utmpx *line)
 	if (ufile == NULL)
 		return (NULL);
 
-	if (ufiletype == UTXF_UTMP) {
+	if (ufileindex == UTXI_TTY) {
 		unsigned int slot;
 
 		slot = ulog_ttyslot(line->ut_line);
@@ -228,7 +243,7 @@ ulog_getutxuser(const char *user)
 {
 	struct ulog_utmpx *utx;
 
-	if (ufiletype == UTXF_LASTLOG) {
+	if (ufileindex == UTXI_USER) {
 		struct passwd *pw;
 
 		pw = getpwnam(user);
@@ -258,20 +273,20 @@ ulog_getutxuser(const char *user)
  */
 
 int
-ulog_setutxfile(int type, const char *file)
+ulog_setutxfile(int uidx, const char *file)
 {
 
 	/* Supply default files. */
-	switch (type) {
-	case UTXF_UTMP:
+	switch (uidx) {
+	case UTXI_TTY:
 		if (file == NULL)
 			file = _PATH_UTMP;
 		break;
-	case UTXF_WTMP:
+	case UTXI_TIME:
 		if (file == NULL)
 			file = _PATH_WTMP;
 		break;
-	case UTXF_LASTLOG:
+	case UTXI_USER:
 		if (file == NULL)
 			file = _PATH_LASTLOG;
 		break;
@@ -282,7 +297,7 @@ ulog_setutxfile(int type, const char *file)
 	if (ufile != NULL)
 		fclose(ufile);
 	ufile = fopen(file, "r");
-	ufiletype = type;
+	ufileindex = uidx;
 	if (ufile == NULL)
 		return (-1);
 	return (0);
@@ -298,5 +313,5 @@ void
 ulog_setutxent(void)
 {
 
-	ulog_setutxfile(UTXF_UTMP, NULL);
+	ulog_setutxfile(UTXI_TTY, NULL);
 }
