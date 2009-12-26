@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 		usage();
 
 	if (*argv != NULL) {
-		if (ulog_setutxfile(UTXF_UTMP, *argv) != 0)
+		if (ulog_setutxfile(UTXI_TTY, *argv) != 0)
 			err(1, "%s", *argv);
 	}
 

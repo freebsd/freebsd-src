@@ -85,9 +85,9 @@ void	ulog_setutxent(void);
 /* Extensions. */
 struct ulog_utmpx *ulog_getutxuser(const char *);
 int	ulog_setutxfile(int, const char *);
-#define	UTXF_UTMP	0
-#define	UTXF_WTMP	1
-#define	UTXF_LASTLOG	2
+#define	UTXI_TTY	0
+#define	UTXI_TIME	1
+#define	UTXI_USER	2
 
 /* Login/logout utility functions. */
 void	ulog_login(const char *, const char *, const char *);

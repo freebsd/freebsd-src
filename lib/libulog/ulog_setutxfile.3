@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .In ulog.h
 .Ft int
-.Fn ulog_setutxfile "int type" "const char *file"
+.Fn ulog_setutxfile "int index" "const char *file"
 .Ft struct ulog_utmpx *
 .Fn ulog_getutxuser "const char *user"
 .Sh DESCRIPTION
@@ -54,17 +54,17 @@ function is similar to
 .Fn ulog_setutxent ,
 but is capable of returning an error code and also gives access to other
 login record files by using one of the following values for
-.Fa type :
-.Bl -tag -width UTXF_LASTLOG
-.It Dv UTXF_UTMP
+.Fa index :
+.Bl -tag -width UTXI_TIME
+.It Dv UTXI_TTY
 Open the default
 .Nm utmp
 file, which is indexed by TTY device.
-.It Dv UTXF_WTMP
+.It Dv UTXI_TIME
 Open the
 .Nm wtmp
 file, which is indexed by time.
-.It Dv UTXF_LASTLOG
+.It Dv UTXI_USER
 Open the
 .Nm lastlog
 file, which is indexed by user ID.
@@ -73,7 +73,7 @@ file, which is indexed by user ID.
 The
 .Fa file
 argument determines the file to be opened.
-If left null, implementation-defined default file is opened.
+If left null, an implementation-defined default file is opened.
 .Pp
 The
 .Fn ulog_getutxuser
