@@ -43,3 +43,26 @@ zmalloc(size_t size)
 		err(1, "calloc() failed");
 	return (ptr);
 }
+
+const char *
+brand_name(int brand)
+{
+	switch (brand) {
+	case ACL_BRAND_NFS4:
+		return "NFSv4";
+	case ACL_BRAND_POSIX:
+		return "POSIX.1e";
+	default:
+		return "unknown";
+	}
+}
+
+int
+branding_mismatch(int brand1, int brand2)
+{
+	if (brand1 == ACL_BRAND_UNKNOWN || brand2 == ACL_BRAND_UNKNOWN)
+		return (0);
+	if (brand1 != brand2)
+		return (1);
+	return (1);
+}
