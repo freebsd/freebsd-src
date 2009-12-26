@@ -91,7 +91,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	}
 
 	if ((flags & PAM_SILENT) == 0) {
-		if (ulog_setutxfile(UTXF_LASTLOG, NULL) != 0) {
+		if (ulog_setutxfile(UTXI_USER, NULL) != 0) {
 			PAM_LOG("Failed to open lastlog database");
 		} else {
 			utx = ulog_getutxuser(user);
