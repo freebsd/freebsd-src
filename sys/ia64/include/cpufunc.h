@@ -64,11 +64,10 @@ extern void *ia64_ioport_address(u_int);
 static __inline uint8_t
 inb(unsigned int port)
 {
-	__volatile uint8_t *p;
 	uint8_t v;
-	p = __PIO_ADDR(port);
+
 	ia64_mf();
-	v = *p;
+	v = ia64_ld1(__PIO_ADDR(port));
 	ia64_mf_a();
 	ia64_mf();
 	return (v);
@@ -77,11 +76,10 @@ inb(unsigned int port)
 static __inline uint16_t
 inw(unsigned int port)
 {
-	__volatile uint16_t *p;
 	uint16_t v;
-	p = __PIO_ADDR(port);
+
 	ia64_mf();
-	v = *p;
+	v = ia64_ld2(__PIO_ADDR(port));
 	ia64_mf_a();
 	ia64_mf();
 	return (v);
@@ -90,11 +88,10 @@ inw(unsigned int port)
 static __inline uint32_t
 inl(unsigned int port)
 {
-	volatile uint32_t *p;
 	uint32_t v;
-	p = __PIO_ADDR(port);
+
 	ia64_mf();
-	v = *p;
+	v = ia64_ld4(__PIO_ADDR(port));
 	ia64_mf_a();
 	ia64_mf();
 	return (v);
@@ -127,10 +124,9 @@ insl(unsigned int port, void *addr, size_t count)
 static __inline void
 outb(unsigned int port, uint8_t data)
 {
-	volatile uint8_t *p;
-	p = __PIO_ADDR(port);
+
 	ia64_mf();
-	*p = data;
+	ia64_st1(__PIO_ADDR(port), data);
 	ia64_mf_a();
 	ia64_mf();
 }
@@ -138,10 +134,9 @@ outb(unsigned int port, uint8_t data)
 static __inline void
 outw(unsigned int port, uint16_t data)
 {
-	volatile uint16_t *p;
-	p = __PIO_ADDR(port);
+
 	ia64_mf();
-	*p = data;
+	ia64_st2(__PIO_ADDR(port), data);
 	ia64_mf_a();
 	ia64_mf();
 }
@@ -149,10 +144,9 @@ outw(unsigned int port, uint16_t data)
 static __inline void
 outl(unsigned int port, uint32_t data)
 {
-	volatile uint32_t *p;
-	p = __PIO_ADDR(port);
+
 	ia64_mf();
-	*p = data;
+	ia64_st4(__PIO_ADDR(port), data);
 	ia64_mf_a();
 	ia64_mf();
 }
