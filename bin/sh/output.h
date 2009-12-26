@@ -52,7 +52,6 @@ extern struct output memout;
 extern struct output *out1;
 extern struct output *out2;
 
-void open_mem(char *, int, struct output *);
 void out1str(const char *);
 void out1qstr(const char *);
 void out2str(const char *);
