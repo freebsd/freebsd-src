@@ -155,8 +155,8 @@ do_announce(CTL_MSG *mp, CTL_RESPONSE *rp)
 		rp->answer = result;
 		return;
 	}
-#define	satosin(sa)	((struct sockaddr_in *)(sa))
-	hp = gethostbyaddr((char *)&satosin(&mp->ctl_addr)->sin_addr,
+#define	satosin(sa)	((struct sockaddr_in *)(void *)(sa))
+	hp = gethostbyaddr(&satosin(&mp->ctl_addr)->sin_addr,
 		sizeof (struct in_addr), AF_INET);
 	if (hp == (struct hostent *)0) {
 		rp->answer = MACHINE_UNKNOWN;
