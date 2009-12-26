@@ -62,7 +62,7 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "usage: wake interface lladdr...\n");
+	(void)fprintf(stderr, "usage: wake interface lladdr [lladdr ...]\n");
 	exit(1);
 }
 
