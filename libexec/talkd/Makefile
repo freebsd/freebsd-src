@@ -6,7 +6,8 @@ SRCS=	talkd.c announce.c process.c table.c print.c ttymsg.c
 .PATH:  ${.CURDIR}/../../usr.bin/wall
 MAN=	talkd.8
 CFLAGS+=-I${.CURDIR}/../../usr.bin/wall
-WFORMAT=0
+
+WARNS?=	6
 
 DPADD=	${LIBULOG}
 LDADD=	-lulog
