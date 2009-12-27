@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <libutil.h>
 #include <stdlib.h>
-#include <utmp.h>
 
 #include "telnetd.h"
 #include "pathnames.h"
@@ -54,19 +53,6 @@ __FBSDID("$FreeBSD$");
 
 int cleanopen(char *);
 void scrub_env(void);
-
-struct	utmp wtmp;
-
-#ifdef _PATH_WTMP
-char    wtmpf[] = _PATH_WTMP;
-#else
-char	wtmpf[]	= "/var/log/wtmp";
-#endif
-#ifdef _PATH_UTMP
-char    utmpf[] = _PATH_UTMP;
-#else
-char	utmpf[] = "/var/run/utmp";
-#endif
 
 char	*envinit[3];
 extern char **environ;
