@@ -1173,7 +1173,7 @@ do {								\
 				IPFW_RUNLOCK(chain);
 				return (IP_FW_DENY); /* invalid */
 			}
-			f_pos = ipfw_find_rule(chain, skipto, 0);
+			f_pos = ipfw_find_rule(chain, skipto+1, 0);
 		}
 	}
 	/* reset divert rule to avoid confusion later */
