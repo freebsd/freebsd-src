@@ -167,7 +167,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     local no
     log "create_includes_and_libraries2() for ${SRC}"
     if [ ${OSVERSION} -ge 600000 ] ; then
-	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITOUT_CDDL=1"
+	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
