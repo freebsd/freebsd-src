@@ -118,6 +118,8 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 	struct stat st;
 	int qcmd, serrno;
 
+	if (strcmp(fs->fs_vfstype, "ufs"))
+		return (NULL);
 	if ((qf = calloc(1, sizeof(*qf))) == NULL)
 		return (NULL);
 	qf->fd = -1;
@@ -176,8 +178,11 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 	dqh.dqh_version = htobe32(Q_DQHDR64_VERSION);
 	dqh.dqh_hdrlen = htobe32(sizeof(struct dqhdr64));
 	dqh.dqh_reclen = htobe32(sizeof(struct dqblk64));
-	if (write(qf->fd, &dqh, sizeof(dqh)) != sizeof(dqh))
+	if (write(qf->fd, &dqh, sizeof(dqh)) != sizeof(dqh)) {
+		/* it was one we created ourselves */
+		unlink(qf->qfname);
 		goto error;
+	}
 	grp = getgrnam(QUOTAGROUP);
 	fchown(qf->fd, 0, grp ? grp->gr_gid : 0);
 	fchmod(qf->fd, 0640);
@@ -185,12 +190,8 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 error:
 	serrno = errno;
 	/* did we have an open file? */
-	if (qf->fd != -1) {
-		/* was it one we created ourselves? */
-		if ((openflags & O_CREAT) == O_CREAT)
-			unlink(qf->qfname);
+	if (qf->fd != -1)
 		close(qf->fd);
-	}
 	free(qf);
 	errno = serrno;
 	return (NULL);
