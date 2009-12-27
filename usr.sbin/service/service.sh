@@ -33,7 +33,7 @@ usage () {
 	echo ''
 	echo 'Usage:'
 	echo "${0##*/} -e"
-	echo "${0##*/} [-v] -l|r"
+	echo "${0##*/} [-v] -l | -r"
 	echo "${0##*/} [-v] <rc.d script> start|stop|etc."
 	echo "${0##*/} -h"
 	echo ''
