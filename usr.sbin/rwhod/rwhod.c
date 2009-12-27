@@ -67,8 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <syslog.h>
 #include <timeconv.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 #include <pwd.h>
 #include <grp.h>
 
@@ -146,7 +147,7 @@ struct	neighbor {
 struct	neighbor *neighbors;
 struct	whod mywd;
 struct	servent *sp;
-int	s, utmpf;
+int	s;
 
 #define	WHDRSIZE	(int)(sizeof(mywd) - sizeof(mywd.wd_we))
 
@@ -231,11 +232,6 @@ main(int argc, char *argv[])
 		*cp = '\0';
 	strncpy(mywd.wd_hostname, myname, sizeof(mywd.wd_hostname) - 1);
 	mywd.wd_hostname[sizeof(mywd.wd_hostname) - 1] = '\0';
-	utmpf = open(_PATH_UTMP, O_RDONLY|O_CREAT, 0644);
-	if (utmpf < 0) {
-		syslog(LOG_ERR, "%s: %m", _PATH_UTMP);
-		exit(1);
-	}
 	getboottime(0);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		syslog(LOG_ERR, "socket: %m");
@@ -383,73 +379,43 @@ verify(name, maxlen)
 	return (size > 0);
 }
 
-int	utmptime;
-int	utmpent;
-int	utmpsize = 0;
-struct	utmp *utmp;
-int	alarmcount;
-
 void
-onalrm(signo)
-	int signo __unused;
+onalrm(int signo __unused)
 {
-	register struct neighbor *np;
-	register struct whoent *we = mywd.wd_we, *wlast;
-	register int i;
+	struct neighbor *np;
+	struct whoent *we = mywd.wd_we, *wend;
 	struct stat stb;
+	struct utmpx *ut;
+	static int alarmcount = 0;
 	double avenrun[3];
 	time_t now;
-	int cc;
+	int i, cc;
 
 	now = time(NULL);
 	if (alarmcount % 10 == 0)
 		getboottime(0);
 	alarmcount++;
-	(void) fstat(utmpf, &stb);
-	if ((stb.st_mtime != utmptime) || (stb.st_size > utmpsize)) {
-		utmptime = stb.st_mtime;
-		if (stb.st_size > utmpsize) {
-			utmpsize = stb.st_size + 10 * sizeof(struct utmp);
-			utmp = (struct utmp *)reallocf(utmp, utmpsize);
-			if (utmp == NULL) {
-				syslog(LOG_WARNING, "malloc failed");
-				utmpsize = 0;
-				goto done;
-			}
-		}
-		(void) lseek(utmpf, (off_t)0, L_SET);
-		cc = read(utmpf, (char *)utmp, stb.st_size);
-		if (cc < 0) {
-			syslog(LOG_ERR, "read(%s): %m", _PATH_UTMP);
-			goto done;
-		}
-		wlast = &mywd.wd_we[1024 / sizeof(struct whoent) - 1];
-		utmpent = cc / sizeof(struct utmp);
-		for (i = 0; i < utmpent; i++)
-			if (utmp[i].ut_name[0]) {
-				memcpy(we->we_utmp.out_line, utmp[i].ut_line,
-				   sizeof(utmp[i].ut_line));
-				memcpy(we->we_utmp.out_name, utmp[i].ut_name,
-				   sizeof(utmp[i].ut_name));
-				we->we_utmp.out_time = htonl(utmp[i].ut_time);
-				if (we >= wlast)
-					break;
-				we++;
-			}
-		utmpent = we - mywd.wd_we;
+	wend = &mywd.wd_we[1024 / sizeof(struct whoent)];
+	setutxent();
+	while ((ut = getutxent()) != NULL && we < wend) {
+		if (ut->ut_type != USER_PROCESS)
+			continue;
+		strncpy(we->we_utmp.out_line, ut->ut_line,
+		   sizeof(we->we_utmp.out_line));
+		strncpy(we->we_utmp.out_name, ut->ut_user,
+		   sizeof(we->we_utmp.out_name));
+		we->we_utmp.out_time =
+		    htonl(_time_to_time32(ut->ut_tv.tv_sec));
+		we++;
 	}
+	endutxent();
 
-	/*
-	 * The test on utmpent looks silly---after all, if no one is
-	 * logged on, why worry about efficiency?---but is useful on
-	 * (e.g.) compute servers.
-	 */
-	if (utmpent && chdir(_PATH_DEV)) {
+	if (chdir(_PATH_DEV)) {
 		syslog(LOG_ERR, "chdir(%s): %m", _PATH_DEV);
 		exit(1);
 	}
-	we = mywd.wd_we;
-	for (i = 0; i < utmpent; i++) {
+	wend = we;
+	for (we = mywd.wd_we; we < wend; we++) {
 		if (stat(we->we_utmp.out_line, &stb) >= 0)
 			we->we_idle = htonl(now - stb.st_atime);
 		we++;
@@ -457,7 +423,7 @@ onalrm(signo)
 	(void)getloadavg(avenrun, sizeof(avenrun)/sizeof(avenrun[0]));
 	for (i = 0; i < 3; i++)
 		mywd.wd_loadav[i] = htonl((u_long)(avenrun[i] * 100));
-	cc = (char *)we - (char *)&mywd;
+	cc = (char *)wend - (char *)&mywd;
 	mywd.wd_sendtime = htonl(_time_to_time32(time(NULL)));
 	mywd.wd_vers = WHODVERSION;
 	mywd.wd_type = WHODTYPE_STATUS;
@@ -485,11 +451,10 @@ onalrm(signo)
 		} else (void) sendto(s, (char *)&mywd, cc, 0,
 					np->n_addr, np->n_addrlen);
 	}
-	if (utmpent && chdir(_PATH_RWHODIR)) {
+	if (chdir(_PATH_RWHODIR)) {
 		syslog(LOG_ERR, "chdir(%s): %m", _PATH_RWHODIR);
 		exit(1);
 	}
-done:
 	(void) alarm(AL_INTERVAL);
 }
 
