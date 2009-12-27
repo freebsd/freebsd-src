@@ -855,7 +855,6 @@ varvalue(char *name, int quoted, int subtype, int flag)
 	int num;
 	char *p;
 	int i;
-	extern int oexitstatus;
 	char sep;
 	char **ap;
 	char const *syntax;
@@ -979,7 +978,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 	char *start;
 	char *p;
 	char *q;
-	char *ifs;
+	const char *ifs;
 	const char *ifsspc;
 	int had_param_ch = 0;
 
