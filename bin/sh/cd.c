@@ -79,7 +79,7 @@ STATIC char *cdcomppath;
 int
 cdcmd(int argc, char **argv)
 {
-	char *dest;
+	const char *dest;
 	const char *path;
 	char *p;
 	struct stat statb;
