@@ -71,7 +71,7 @@ ulog_futmp_to_utmpx(const struct futmp *ut, struct ulog_utmpx *utx)
 		utx->ut_type = NEW_TIME;
 	else if (MATCH(user, "shutdown") && MATCH(line, "~"))
 		utx->ut_type = SHUTDOWN_TIME;
-	else if (MATCH(user, "") && MATCH(host, "")) {
+	else if (MATCH(user, "") && MATCH(host, "") && !MATCH(line, "")) {
 		utx->ut_type = DEAD_PROCESS;
 		/* XXX: ut_id and ut_pid missing. ut_line not needed. */
 		COPY_STRING(line);
