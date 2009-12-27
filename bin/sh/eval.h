@@ -35,6 +35,7 @@
 
 extern char *commandname;	/* currently executing command */
 extern int exitstatus;		/* exit status of last command */
+extern int oexitstatus;		/* saved exit status */
 extern struct strlist *cmdenviron;  /* environment for builtin command */
 
 
