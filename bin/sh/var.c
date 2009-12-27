@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 struct varinit {
 	struct var *var;
 	int flags;
-	char *text;
+	const char *text;
 	void (*func)(const char *);
 };
 
@@ -94,27 +94,27 @@ STATIC struct var voptind;
 
 STATIC const struct varinit varinit[] = {
 #ifndef NO_HISTORY
-	{ &vhistsize,	VSTRFIXED|VTEXTFIXED|VUNSET,	"HISTSIZE=",
+	{ &vhistsize,	VUNSET,				"HISTSIZE=",
 	  sethistsize },
 #endif
-	{ &vifs,	VSTRFIXED|VTEXTFIXED,		"IFS= \t\n",
+	{ &vifs,	0,				"IFS= \t\n",
 	  NULL },
-	{ &vmail,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL=",
+	{ &vmail,	VUNSET,				"MAIL=",
 	  NULL },
-	{ &vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH=",
+	{ &vmpath,	VUNSET,				"MAILPATH=",
 	  NULL },
-	{ &vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=" _PATH_DEFPATH,
+	{ &vpath,	0,				"PATH=" _PATH_DEFPATH,
 	  changepath },
-	{ &vppid,	VSTRFIXED|VTEXTFIXED|VUNSET,	"PPID=",
+	{ &vppid,	VUNSET,				"PPID=",
 	  NULL },
 	/*
 	 * vps1 depends on uid
 	 */
-	{ &vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
+	{ &vps2,	0,				"PS2=> ",
 	  NULL },
-	{ &vps4,	VSTRFIXED|VTEXTFIXED,		"PS4=+ ",
+	{ &vps4,	0,				"PS4=+ ",
 	  NULL },
-	{ &voptind,	VSTRFIXED|VTEXTFIXED,		"OPTIND=1",
+	{ &voptind,	0,				"OPTIND=1",
 	  getoptsreset },
 	{ NULL,	0,				NULL,
 	  NULL }
@@ -164,8 +164,8 @@ initvar(void)
 			vpp = hashvar(ip->text);
 			vp->next = *vpp;
 			*vpp = vp;
-			vp->text = ip->text;
-			vp->flags = ip->flags;
+			vp->text = __DECONST(char *, ip->text);
+			vp->flags = ip->flags | VSTRFIXED | VTEXTFIXED;
 			vp->func = ip->func;
 		}
 	}
@@ -176,7 +176,7 @@ initvar(void)
 		vpp = hashvar("PS1=");
 		vps1.next = *vpp;
 		*vpp = &vps1;
-		vps1.text = geteuid() ? "PS1=$ " : "PS1=# ";
+		vps1.text = __DECONST(char *, geteuid() ? "PS1=$ " : "PS1=# ");
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
 	if ((vppid.flags & VEXPORT) == 0) {
