@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-MKINIT int evalskip;		/* set if we are skipping commands */
+int evalskip;			/* set if we are skipping commands */
 STATIC int skipcount;		/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
@@ -407,8 +407,7 @@ evalsubshell(union node *n, int flags)
 			flags &=~ EV_TESTED;
 		redirect(n->nredir.redirect, 0);
 		evaltree(n->nredir.n, flags | EV_EXIT);	/* never returns */
-	}
-	if (! backgnd) {
+	} else if (! backgnd) {
 		INTOFF;
 		exitstatus = waitforjob(jp, (int *)NULL);
 		INTON;
@@ -849,7 +848,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			listsetvar(cmdenviron);
 		commandname = argv[0];
 		argptr = argv + 1;
-		optptr = NULL;			/* initialize nextopt */
+		nextopt_optptr = NULL;		/* initialize nextopt */
 		builtin_flags = flags;
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();

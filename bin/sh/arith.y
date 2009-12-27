@@ -314,7 +314,7 @@ yyerror(const char *s)
 int
 expcmd(int argc, char **argv)
 {
-	char *p;
+	const char *p;
 	char *concat;
 	char **ap;
 	arith_t i;
