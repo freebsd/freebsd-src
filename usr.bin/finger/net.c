@@ -54,8 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 #include "finger.h"
 
 static void cleanup(int sig);

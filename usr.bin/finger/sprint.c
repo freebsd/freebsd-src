@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)sprint.c	8.3 (Berkeley) 4/28/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <db.h>
@@ -52,7 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <utmp.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include "finger.h"
 
 static void	  stimeprint(WHERE *);
@@ -88,7 +90,7 @@ sflag_print(void)
 	 */
 #define	MAXREALNAME	16
 #define MAXHOSTNAME     17      /* in reality, hosts are never longer than 16 */
-	(void)printf("%-*s %-*s%s %s\n", UT_NAMESIZE, "Login", MAXREALNAME,
+	(void)printf("%-*s %-*s%s %s\n", MAXLOGNAME, "Login", MAXREALNAME,
 	    "Name", " TTY      Idle  Login  Time  ", (gflag) ? "" :
 	    oflag ? "Office  Phone" : "Where");
 
@@ -105,7 +107,7 @@ sflag_print(void)
 			namelen = MAXREALNAME;
 			if (w->info == LOGGEDIN && !w->writable)
 				--namelen;	/* leave space before `*' */
-			(void)printf("%-*.*s %-*.*s", UT_NAMESIZE, UT_NAMESIZE,
+			(void)printf("%-*.*s %-*.*s", MAXLOGNAME, MAXLOGNAME,
 				pn->name, MAXREALNAME, namelen,
 				pn->realname ? pn->realname : "");
 			if (!w->loginat) {
