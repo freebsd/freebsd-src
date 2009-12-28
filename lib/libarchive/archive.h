@@ -713,6 +713,7 @@ __LA_DECL void		 archive_set_error(struct archive *, int _err,
 			    const char *fmt, ...);
 __LA_DECL void		 archive_copy_error(struct archive *dest,
 			    struct archive *src);
+__LA_DECL int		 archive_file_count(struct archive *);
 
 #ifdef __cplusplus
 }
