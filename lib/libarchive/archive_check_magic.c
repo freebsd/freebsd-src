@@ -50,7 +50,16 @@ __FBSDID("$FreeBSD$");
 static void
 errmsg(const char *m)
 {
-	write(2, m, strlen(m));
+	size_t s = strlen(m);
+	ssize_t written;
+
+	while (s > 0) {
+		written = write(2, m, strlen(m));
+		if (written <= 0)
+			return;
+		m += written;
+		s -= written;
+	}
 }
 
 static void
@@ -60,8 +69,7 @@ diediedie(void)
 	/* Cause a breakpoint exception  */
 	DebugBreak();
 #endif
-	*(char *)0 = 1;	/* Deliberately segfault and force a coredump. */
-	_exit(1);	/* If that didn't work, just exit with an error. */
+	abort();        /* Terminate the program abnormally. */
 }
 
 static const char *
@@ -85,7 +93,7 @@ write_all_states(unsigned int states)
 	unsigned int lowbit;
 
 	/* A trick for computing the lowest set bit. */
-	while ((lowbit = states & (-states)) != 0) {
+	while ((lowbit = states & (1 + ~states)) != 0) {
 		states &= ~lowbit;		/* Clear the low bit. */
 		errmsg(state_name(lowbit));
 		if (states != 0)
