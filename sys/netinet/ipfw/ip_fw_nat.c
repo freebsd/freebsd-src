@@ -29,14 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/condvar.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
 #include <sys/rwlock.h>
 
 #define        IPFW_INTERNAL   /* Access to protected data structures in ip_fw.h. */
@@ -223,8 +220,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	}
 	ip = mtod(mcl, struct ip *);
 	if (args->eh == NULL) {
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
+		SET_NET_IPLEN(ip);
 	}
 
 	/*
@@ -302,11 +298,11 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		struct udphdr 	*uh;
 		u_short cksum;
 
-		ip->ip_len = ntohs(ip->ip_len);
+		/* XXX check if ip_len can stay in net format */
 		cksum = in_pseudo(
 		    ip->ip_src.s_addr,
 		    ip->ip_dst.s_addr,
-		    htons(ip->ip_p + ip->ip_len - (ip->ip_hl << 2))
+		    htons(ip->ip_p + ntohs(ip->ip_len) - (ip->ip_hl << 2))
 		);
 
 		switch (ip->ip_p) {
@@ -333,14 +329,10 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 			in_delayed_cksum(mcl);
 			mcl->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 		}
-		ip->ip_len = htons(ip->ip_len);
 	}
-
 	if (args->eh == NULL) {
-		ip->ip_len = ntohs(ip->ip_len);
-		ip->ip_off = ntohs(ip->ip_off);
+		SET_HOST_IPLEN(ip);
 	}
-
 	args->m = mcl;
 	return (IP_FW_NAT);
 }

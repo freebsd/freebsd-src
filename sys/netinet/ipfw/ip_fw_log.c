@@ -87,6 +87,12 @@ __FBSDID("$FreeBSD$");
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
 
+#ifdef WITHOUT_BPF
+void
+ipfw_log_bpf(int onoff)
+{
+}
+#else /* !WITHOUT_BPF */
 static struct ifnet *log_if;	/* hook to attach to bpf */
 
 /* we use this dummy function for all ifnet callbacks */
@@ -128,6 +134,7 @@ ipfw_log_bpf(int onoff)
 		log_if = NULL;
 	}
 }
+#endif /* !WITHOUT_BPF */
 
 /*
  * We enter here when we have a rule with O_LOG.
@@ -138,12 +145,12 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
     struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
     struct ip *ip)
 {
-	struct ether_header *eh = args->eh;
 	char *action;
 	int limit_reached = 0;
 	char action2[40], proto[128], fragment[32];
 
 	if (V_fw_verbose == 0) {
+#ifndef WITHOUT_BPF
 		struct m_hdr mh;
 
 		if (log_if == NULL || log_if->if_bpf == NULL)
@@ -160,16 +167,15 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			mh.mh_data = "DDDDDDSSSSSS\x08\x00";
 			if (args->f_id.addr_type == 4) {
 				/* restore wire format */
-				ip->ip_off = ntohs(ip->ip_off);
-				ip->ip_len = ntohs(ip->ip_len);
+				SET_NET_IPLEN(ip);
 			}
 		}
 		BPF_MTAP(log_if, (struct mbuf *)&mh);
 		if (args->eh == NULL && args->f_id.addr_type == 4) {
 			/* restore host format */
-			ip->ip_off = htons(ip->ip_off);
-			ip->ip_len = htons(ip->ip_len);
+			SET_HOST_IPLEN(ip);
 		}
+#endif /* !WITHOUT_BPF */
 		return;
 	}
 	/* the old 'log' function */
@@ -404,12 +410,15 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 #endif
 		{
 			int ip_off, ip_len;
-			if (eh != NULL) { /* layer 2 packets are as on the wire */
-				ip_off = ntohs(ip->ip_off);
-				ip_len = ntohs(ip->ip_len);
-			} else {
+#ifndef HAVE_NET_IPLEN
+			if (args->eh == NULL) {
 				ip_off = ip->ip_off;
 				ip_len = ip->ip_len;
+			} else
+#endif /* !HAVE_NET_IPLEN */
+			{
+				ip_off = ntohs(ip->ip_off);
+				ip_len = ntohs(ip->ip_len);
 			}
 			if (ip_off & (IP_MF | IP_OFFMASK))
 				snprintf(SNPARGS(fragment, 0),
