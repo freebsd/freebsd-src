@@ -568,10 +568,17 @@ do_links() {	# rootdir varname
 # find_progs is a helper function to locate the named programs
 # or libraries in ${o_objdir} or ${_SHLIBDIRPREFIX},
 # and return the full pathnames.
-# Sets ${u_progs} to the list of programs, and ${u_libs}
+# Called as "find_progs [-L libpath] [-P binpath] prog1 prog2 ... "
+# On return it sets ${u_progs} to the list of programs, and ${u_libs}
 # to the list of shared libraries used.
+# 
+# '-L path' can be used to specify a search path for libraries
+#    (which searches in $path/lib:$path/usr/lib:$path/usr/local/lib
+# '-P binpath' can be used to specify a search path for programs
+#    (which searches in a lot of places in the subtree)
+# -L must be the first, followed by -P
 #
-# You can use it e.g. in a local configuration file by writing
+# You can use it e.g. in a local confign file by writing
 #
 #  do_copyfiles_user() {
 #	local dst=$1
@@ -580,41 +587,60 @@ do_links() {	# rootdir varname
 #	cp -p ${u_libs} ${dst}/lib
 #	mkdir -p ${dst}/libexec
 #	find_progs ld-elf.so.1
-#	cp -p ${u_progs} ${dst}/libexec
+#	cp -p ${u_progs} ${dst}/libexec # ignore errors
 #  }
 
 find_progs() {	# programs
 	local i
+	local oo=${o_objdir:-${_SHLIBDIRPREFIX}} # default objdir
+	local lp=$oo/lib			# default lib.prefix
+	local o=""				# additional objdir
+	if [ x"$1" = "x-L" -a -d "$2" ] ; then # set lib search path
+		o=$2; shift; shift
+		lp="$lp:$o/lib:$o/usr/lib:$o/usr/local/lib"
+		o="-P $o"
+	fi
 	u_progs="`find_progs_helper $*`"
-	local o=${o_objdir:-${_SHLIBDIRPREFIX}}
-	log "looking for libs for $u_progs in $_SHLIBDIRPREFIX"
+	log "looking for libs for <$u_progs> in $lp"
 	[ -z "${u_progs}" ] && return 1	# not found, error
-	i="`LD_LIBRARY_PATH=$o/lib ldd ${u_progs} | grep -v '^/' | awk '{print $1}' | sort | uniq`"
-	u_libs="`find_progs_helper $i`"
+	i="`( LD_LIBRARY_PATH=$lp ldd ${u_progs} ) | \
+		grep -v '^/' | awk '{print $1}' | sort | uniq`"
+	u_libs="`find_progs_helper $o $i`"
 	return 0
 }
 
 find_progs_helper() {	# programs
+	local dir=${o_objdir:-${_SHLIBDIRPREFIX}/..}
+	local ldir=""
+	if [ x"$1" = "x-P" -a -d "$2" ] ; then # set path
+		ldir=$2; shift; shift
+	fi
 	local progs="$*"
-	local i o places names
-	local subdirs="bin sbin usr.bin usr.sbin libexec lib \
+	local subdirs=". local/bin local/sbin local/lib local/libexec \
+		bin sbin usr.bin usr.sbin libexec lib \
 		gnu/usr.bin gnu/lib \
 		secure/usr.bin secure/usr.sbin secure/libexec secure/lib"
-	names=""	# files to search
-	o=""
+	local names=""	# files to search
+	local o=""
+	local i
 	for i in $progs ; do
-		# plain programs come out verbatim
+		# full pathnames are just listed
 		[ -f "$i" ] && echo $i && continue
 		names="${names} ${o} -name $i"
 		o="-o"
 	done
 	[ -z "${names}" ] && return 0
-	places=""				# places to search
-	o=${o_objdir:-${_SHLIBDIRPREFIX}/..}
+	local places=""				# places to search
 	for i in $subdirs ; do
-		[ -d "${o}/${i}" ] && places="${places} ${o}/${i}"
+		[ -d "${dir}/${i}" ] && places="${places} ${dir}/${i}"
 	done
-	find ${places} -type f \( ${names} \)
+	if [ -n "${ldir}" ] ; then
+	    for i in $subdirs ; do
+		[ -d "${ldir}/${i}" ] && places="${places} ${ldir}/${i}"
+	    done
+	fi
+	# use maxdepth 3 because some libs are way down
+	find ${places} -maxdepth 3 -type f \( ${names} \)
 }
 
 # Populate the memory filesystem with binaries and non-variable
