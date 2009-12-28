@@ -84,12 +84,6 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#define print_ip(x, a, y)	 printf("%s %d.%d.%d.%d%s",\
-				x, (ntohl(a.s_addr)>>24)&0xFF,\
-				  (ntohl(a.s_addr)>>16)&0xFF,\
-				  (ntohl(a.s_addr)>>8)&0xFF,\
-				  (ntohl(a.s_addr))&0xFF, y);
-
 VNET_DEFINE(u_short, ip_id);
 
 #ifdef MBUF_STRESS_TEST
@@ -108,6 +102,7 @@ extern	struct protosw inetsw[];
 /*
  * IP output.  The packet in mbuf chain m contains a skeletal IP
  * header (with len, off, ttl, proto, tos, src, dst).
+ * ip_len and ip_off are in host format.
  * The mbuf chain containing the packet will be freed.
  * The mbuf opt, if present, will not be freed.
  * In the IP forwarding case, the packet will arrive with options already
@@ -118,13 +113,14 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
 	struct ip *ip;
-	struct ifnet *ifp = NULL;	/* keep compiler happy */
+	struct ifnet *ifp;
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
 	int mtu;
-	int len, error = 0;
+	int n;	/* scratchpad */
+	int error = 0;
 	int nortfree = 0;
-	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
+	struct sockaddr_in *dst;
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 	struct route iproute;
@@ -163,10 +159,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	}
 
 	if (opt) {
-		len = 0;
+		int len = 0;
 		m = ip_insertoptions(m, opt, &len);
 		if (len != 0)
-			hlen = len;
+			hlen = len; /* ip->ip_hl is updated above */
 	}
 	ip = mtod(m, struct ip *);
 
@@ -187,6 +183,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		ip->ip_id = ip_newid();
 		IPSTAT_INC(ips_localout);
 	} else {
+		/* Header already set, fetch hlen from there */
 		hlen = ip->ip_hl << 2;
 	}
 
@@ -425,18 +422,15 @@ again:
 	 * packet or packet fragments, unless ALTQ is enabled on the given
 	 * interface in which case packetdrop should be done by queueing.
 	 */
+	n = ip->ip_len / mtu + 1; /* how many fragments ? */
+	if (
 #ifdef ALTQ
-	if ((!ALTQ_IS_ENABLED(&ifp->if_snd)) &&
-	    ((ifp->if_snd.ifq_len + ip->ip_len / mtu + 1) >=
-	    ifp->if_snd.ifq_maxlen))
-#else
-	if ((ifp->if_snd.ifq_len + ip->ip_len / mtu + 1) >=
-	    ifp->if_snd.ifq_maxlen)
+	    (!ALTQ_IS_ENABLED(&ifp->if_snd)) &&
 #endif /* ALTQ */
-	{
+	    (ifp->if_snd.ifq_len + n) >= ifp->if_snd.ifq_maxlen ) {
 		error = ENOBUFS;
 		IPSTAT_INC(ips_odropped);
-		ifp->if_snd.ifq_drops += (ip->ip_len / ifp->if_mtu + 1);
+		ifp->if_snd.ifq_drops += n;
 		goto bad;
 	}
 
