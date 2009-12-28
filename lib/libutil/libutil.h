@@ -154,6 +154,7 @@ int quota_check_path(const struct quotafile *, const char *path);
 int quota_read(struct quotafile *, struct dqblk *, int);
 int quota_write_limits(struct quotafile *, struct dqblk *, int);
 int quota_write_usage(struct quotafile *, struct dqblk *, int);
+int quota_convert(struct quotafile *, int);
 #endif
 
 __END_DECLS
