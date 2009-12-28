@@ -34,6 +34,7 @@ SRCS=	archive_check_magic.c				\
 	archive_entry_stat.c				\
 	archive_entry_strmode.c				\
 	archive_entry_link_resolver.c			\
+	archive_entry_xattr.c				\
 	archive_read.c					\
 	archive_read_data_into_fd.c			\
 	archive_read_disk.c				\
