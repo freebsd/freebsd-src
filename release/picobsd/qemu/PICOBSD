@@ -6,8 +6,8 @@
 #
 # Line starting with #PicoBSD contains PicoBSD build parameters
 #marker         def_sz  init    MFS_inodes      floppy_inodes
-#PicoBSD	8000	init	8192		32768
-options MD_ROOT_SIZE=8000      # same as def_sz
+#PicoBSD	18000	init	8192		32768
+options MD_ROOT_SIZE=18000      # same as def_sz
 
 hints	"PICOBSD.hints"
 
