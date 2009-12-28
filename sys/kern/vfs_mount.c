@@ -1354,7 +1354,7 @@ struct root_hold_token {
 };
 
 static LIST_HEAD(, root_hold_token)	root_holds =
-    LIST_HEAD_INITIALIZER(&root_holds);
+    LIST_HEAD_INITIALIZER(root_holds);
 
 static int root_mount_complete;
 
