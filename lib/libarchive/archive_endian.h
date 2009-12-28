@@ -28,6 +28,10 @@
  * Borrowed from FreeBSD's <sys/endian.h>
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 /* Note:  This is a purely internal header! */
 /* Do not use this outside of libarchive internal code! */
 
@@ -41,7 +45,7 @@
  * - SGI MIPSpro
  * - Microsoft Visual C++ 6.0 (supposedly newer versions too)
  */
-#if defined(__WATCOMC__) || defined(__sgi)
+#if defined(__WATCOMC__) || defined(__sgi) || defined(__hpux) || defined(__BORLANDC__)
 #define	inline
 #elif defined(_MSC_VER)
 #define inline __inline
