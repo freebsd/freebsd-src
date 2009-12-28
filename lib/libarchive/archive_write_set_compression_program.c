@@ -230,11 +230,9 @@ static int
 archive_compressor_program_write(struct archive_write *a, const void *buff,
     size_t length)
 {
-	struct private_data *state;
 	ssize_t ret;
 	const char *buf;
 
-	state = (struct private_data *)a->compressor.data;
 	if (a->client_writer == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
