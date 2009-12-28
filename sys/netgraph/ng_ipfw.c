@@ -234,7 +234,7 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 	};
 
 	switch (ngit->dir) {
-	case NG_IPFW_OUT:
+	case DIR_OUT:
 	    {
 		struct ip *ip;
 
@@ -249,7 +249,7 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 
 		return ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 	    }
-	case NG_IPFW_IN:
+	case DIR_IN:
 		ip_input(m);
 		return (0);
 	default:
@@ -298,7 +298,7 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 		ngit->rule_id = fwa->rule_id;
 		ngit->chain_id = fwa->chain_id;
 		ngit->dir = dir;
-		ngit->ifp = fwa->oif;
+//		ngit->ifp = fwa->oif; /* XXX do we use it ? */
 		m_tag_prepend(m, &ngit->mt);
 
 	} else

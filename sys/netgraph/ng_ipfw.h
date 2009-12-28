@@ -26,27 +26,7 @@
  * $FreeBSD$
  */
 
+#ifndef _NG_IPFW_H
+#define _NG_IPFW_H
 #define NG_IPFW_NODE_TYPE    "ipfw"
-#define NGM_IPFW_COOKIE      1105988990
-
-#ifdef _KERNEL
-
-typedef int ng_ipfw_input_t(struct mbuf **, int, struct ip_fw_args *, int);
-extern	ng_ipfw_input_t	*ng_ipfw_input_p;
-#define	NG_IPFW_LOADED	(ng_ipfw_input_p != NULL)
-
-struct ng_ipfw_tag {
-	struct m_tag	mt;		/* tag header */
-	uint32_t	slot;		/* slot for next rule */
-	uint32_t	rulenum;	/* matching rule number */
-	uint32_t	rule_id;	/* matching rule id */
-	uint32_t	chain_id;	/* ruleset id */
-	struct ifnet	*ifp;		/* interface, for ip_output */
-	int		dir;
-#define	NG_IPFW_OUT	0
-#define	NG_IPFW_IN	1
-};
-
-#define	TAGSIZ	(sizeof(struct ng_ipfw_tag) - sizeof(struct m_tag))
-
-#endif /* _KERNEL */
+#endif /* _NG_IPFW_H */
