@@ -229,8 +229,8 @@ compress_bidder_init(struct archive_read_filter *self)
 
 	/* XXX MOVE THE FOLLOWING OUT OF INIT() XXX */
 
-	code = getbits(self, 8); /* Skip first signature byte. */
-	code = getbits(self, 8); /* Skip second signature byte. */
+	(void)getbits(self, 8); /* Skip first signature byte. */
+	(void)getbits(self, 8); /* Skip second signature byte. */
 
 	code = getbits(self, 8);
 	state->maxcode_bits = code & 0x1f;
