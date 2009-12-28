@@ -29,4 +29,5 @@
 #ifndef _NG_IPFW_H
 #define _NG_IPFW_H
 #define NG_IPFW_NODE_TYPE    "ipfw"
+#define NGM_IPFW_COOKIE      1105988990
 #endif /* _NG_IPFW_H */

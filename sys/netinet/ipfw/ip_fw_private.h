@@ -272,7 +272,6 @@ extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 
 /* netgraph prototypes */
-#define NGM_IPFW_COOKIE      1105988990
 
 typedef int ng_ipfw_input_t(struct mbuf **, int, struct ip_fw_args *, int);
 extern  ng_ipfw_input_t *ng_ipfw_input_p;
