@@ -56,8 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 #include "finger.h"
 #include "pathnames.h"
 
@@ -109,29 +110,18 @@ void
 enter_lastlog(PERSON *pn)
 {
 	WHERE *w;
-	static int opened, fd;
-	struct lastlog ll;
+	struct ulog_utmpx *ut;
 	char doit = 0;
 
-	/* some systems may not maintain lastlog, don't report errors. */
-	if (!opened) {
-		fd = open(_PATH_LASTLOG, O_RDONLY, 0);
-		opened = 1;
-	}
-	if (fd == -1 ||
-	    lseek(fd, (long)pn->uid * sizeof(ll), SEEK_SET) !=
-	    (long)pn->uid * sizeof(ll) ||
-	    read(fd, (char *)&ll, sizeof(ll)) != sizeof(ll)) {
-			/* as if never logged in */
-			ll.ll_line[0] = ll.ll_host[0] = '\0';
-			ll.ll_time = 0;
-		}
+	ulog_setutxfile(UTXI_USER, NULL);
+	ut = ulog_getutxuser(pn->name);
 	if ((w = pn->whead) == NULL)
 		doit = 1;
-	else if (ll.ll_time != 0) {
+	else if (ut != NULL && ut->ut_type == USER_PROCESS) {
 		/* if last login is earlier than some current login */
 		for (; !doit && w != NULL; w = w->next)
-			if (w->info == LOGGEDIN && w->loginat < ll.ll_time)
+			if (w->info == LOGGEDIN &&
+			    w->loginat < ut->ut_tv.tv_sec)
 				doit = 1;
 		/*
 		 * and if it's not any of the current logins
@@ -140,32 +130,29 @@ enter_lastlog(PERSON *pn)
 		 */
 		for (w = pn->whead; doit && w != NULL; w = w->next)
 			if (w->info == LOGGEDIN &&
-			    strncmp(w->tty, ll.ll_line, UT_LINESIZE) == 0)
+			    strcmp(w->tty, ut->ut_line) == 0)
 				doit = 0;
 	}
-	if (doit) {
+	if (ut != NULL && doit) {
 		w = walloc(pn);
 		w->info = LASTLOG;
-		bcopy(ll.ll_line, w->tty, UT_LINESIZE);
-		w->tty[UT_LINESIZE] = 0;
-		bcopy(ll.ll_host, w->host, UT_HOSTSIZE);
-		w->host[UT_HOSTSIZE] = 0;
-		w->loginat = ll.ll_time;
+		strcpy(w->tty, ut->ut_line);
+		strcpy(w->host, ut->ut_host);
+		w->loginat = ut->ut_tv.tv_sec;
 	}
+	ulog_endutxent();
 }
 
 void
-enter_where(struct utmp *ut, PERSON *pn)
+enter_where(struct utmpx *ut, PERSON *pn)
 {
 	WHERE *w;
 
 	w = walloc(pn);
 	w->info = LOGGEDIN;
-	bcopy(ut->ut_line, w->tty, UT_LINESIZE);
-	w->tty[UT_LINESIZE] = 0;
-	bcopy(ut->ut_host, w->host, UT_HOSTSIZE);
-	w->host[UT_HOSTSIZE] = 0;
-	w->loginat = (time_t)ut->ut_time;
+	strcpy(w->tty, ut->ut_line);
+	strcpy(w->host, ut->ut_host);
+	w->loginat = ut->ut_tv.tv_sec;
 	find_idle_and_ttywrite(w);
 }
 
@@ -205,14 +192,12 @@ enter_person(struct passwd *pw)
 }
 
 PERSON *
-find_person(const char *name)
+find_person(char *name)
 {
 	struct passwd *pw;
 
-	int cnt;
 	DBT data, key;
 	PERSON *p;
-	char buf[UT_NAMESIZE + 1];
 
 	if (!db)
 		return(NULL);
@@ -220,12 +205,8 @@ find_person(const char *name)
 	if ((pw = getpwnam(name)) && hide(pw))
 		return(NULL);
 
-	/* Name may be only UT_NAMESIZE long and not NUL terminated. */
-	for (cnt = 0; cnt < UT_NAMESIZE && *name; ++name, ++cnt)
-		buf[cnt] = *name;
-	buf[cnt] = '\0';
-	key.data = buf;
-	key.size = cnt;
+	key.data = name;
+	key.size = strlen(name);
 
 	if ((*db->get)(db, &key, &data, 0))
 		return (NULL);
