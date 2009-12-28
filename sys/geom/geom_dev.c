@@ -299,8 +299,8 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		}
 		while (length > 0) { 
 			chunk = length;
-			if (chunk > 1024 * cp->provider->sectorsize)
-				chunk = 1024 * cp->provider->sectorsize;
+			if (chunk > 65536 * cp->provider->sectorsize)
+				chunk = 65536 * cp->provider->sectorsize;
 			error = g_delete_data(cp, offset, chunk);
 			length -= chunk;
 			offset += chunk;
