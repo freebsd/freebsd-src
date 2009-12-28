@@ -83,18 +83,20 @@ typedef char ut_line_t[UT_LINESIZE+1];
 typedef char ut_name_t[UT_NAMESIZE+1];
 typedef char ut_host_t[UT_HOSTSIZE+1];
 
-utmpidle utmp_idle[MAXUSERS];
-rutmp old_utmp[MAXUSERS];
-ut_line_t line[MAXUSERS];
-ut_name_t name[MAXUSERS];
-ut_host_t host[MAXUSERS];
+static utmpidle utmp_idle[MAXUSERS];
+static rutmp old_utmp[MAXUSERS];
+static ut_line_t line[MAXUSERS];
+static ut_name_t name[MAXUSERS];
+static ut_host_t host[MAXUSERS];
 
 extern int from_inetd;
 
-FILE *ufp;
+void rusers_service(struct svc_req *, SVCXPRT *);
+
+static FILE *ufp;
 
 #ifdef XIDLE
-Display *dpy;
+static Display *dpy;
 
 static jmp_buf openAbort;
 
@@ -106,210 +108,212 @@ abortOpen(void)
 
 XqueryIdle(char *display)
 {
-        int first_event, first_error;
-        Time IdleTime;
+	int first_event, first_error;
+	Time IdleTime;
 
-        (void) signal (SIGALRM, abortOpen);
-        (void) alarm ((unsigned) 10);
-        if (!setjmp (openAbort)) {
-                if (!(dpy= XOpenDisplay(display))) {
-                        syslog(LOG_ERR, "Cannot open display %s", display);
-                        return(-1);
-                }
-                if (XidleQueryExtension(dpy, &first_event, &first_error)) {
-                        if (!XGetIdleTime(dpy, &IdleTime)) {
-                                syslog(LOG_ERR, "%s: unable to get idle time", display);
-                                return(-1);
-                        }
-                }
-                else {
-                        syslog(LOG_ERR, "%s: Xidle extension not loaded", display);
-                        return(-1);
-                }
-                XCloseDisplay(dpy);
-        }
-        else {
-                syslog(LOG_ERR, "%s: server grabbed for over 10 seconds", display);
-                return(-1);
-        }
-        (void) signal (SIGALRM, SIG_DFL);
-        (void) alarm ((unsigned) 0);
+	(void) signal (SIGALRM, abortOpen);
+	(void) alarm ((unsigned) 10);
+	if (!setjmp (openAbort)) {
+		if (!(dpy= XOpenDisplay(display))) {
+			syslog(LOG_ERR, "Cannot open display %s", display);
+			return(-1);
+		}
+		if (XidleQueryExtension(dpy, &first_event, &first_error)) {
+			if (!XGetIdleTime(dpy, &IdleTime)) {
+				syslog(LOG_ERR, "%s: unable to get idle time", display);
+				return(-1);
+			}
+		} else {
+			syslog(LOG_ERR, "%s: Xidle extension not loaded", display);
+			return(-1);
+		}
+		XCloseDisplay(dpy);
+	} else {
+		syslog(LOG_ERR, "%s: server grabbed for over 10 seconds", display);
+		return(-1);
+	}
+	(void) signal (SIGALRM, SIG_DFL);
+	(void) alarm ((unsigned) 0);
 
-        IdleTime /= 1000;
-        return((IdleTime + 30) / 60);
+	IdleTime /= 1000;
+	return((IdleTime + 30) / 60);
 }
 #endif
 
 static u_int
-getidle(char *tty, char *display)
+getidle(const char *tty, const char *display __unused)
 {
-        struct stat st;
-        char devname[PATH_MAX];
-        time_t now;
-        u_long idle;
+	struct stat st;
+	char ttyname[PATH_MAX];
+	time_t now;
+	u_long idle;
 
-        /*
-         * If this is an X terminal or console, then try the
-         * XIdle extension
-         */
+	/*
+	 * If this is an X terminal or console, then try the
+	 * XIdle extension
+	 */
 #ifdef XIDLE
-        if (display && *display && (idle = XqueryIdle(display)) >= 0)
-                return(idle);
+	if (display && *display && (idle = XqueryIdle(display)) >= 0)
+		return(idle);
 #endif
-        idle = 0;
-        if (*tty == 'X') {
-                u_long kbd_idle, mouse_idle;
+	idle = 0;
+	if (*tty == 'X') {
+		u_long kbd_idle, mouse_idle;
 #if	!defined(__FreeBSD__)
-                kbd_idle = getidle("kbd", NULL);
+		kbd_idle = getidle("kbd", NULL);
 #else
-                kbd_idle = getidle("vga", NULL);
+		kbd_idle = getidle("vga", NULL);
 #endif
-                mouse_idle = getidle("mouse", NULL);
-                idle = (kbd_idle < mouse_idle)?kbd_idle:mouse_idle;
-        }
-        else {
-                sprintf(devname, "%s/%s", _PATH_DEV, tty);
-                if (stat(devname, &st) < 0) {
+		mouse_idle = getidle("mouse", NULL);
+		idle = (kbd_idle < mouse_idle)?kbd_idle:mouse_idle;
+	} else {
+		sprintf(ttyname, "%s/%s", _PATH_DEV, tty);
+		if (stat(ttyname, &st) < 0) {
 #ifdef DEBUG
-                        printf("%s: %s\n", devname, strerror(errno));
+			printf("%s: %s\n", ttyname, strerror(errno));
 #endif
-                        return(-1);
-                }
-                time(&now);
+			return(-1);
+		}
+		time(&now);
 #ifdef DEBUG
-                printf("%s: now=%d atime=%d\n", devname, now,
-                       st.st_atime);
+		printf("%s: now=%d atime=%d\n", ttyname, now,
+		       st.st_atime);
 #endif
-                idle = now - st.st_atime;
-                idle = (idle + 30) / 60; /* secs->mins */
-        }
-        if (idle < 0) idle = 0;
+		idle = now - st.st_atime;
+		idle = (idle + 30) / 60; /* secs->mins */
+	}
 
-        return(idle);
+	return(idle);
 }
 
 static utmpidlearr *
-do_names_2(int all)
+do_names_2(void)
 {
-        static utmpidlearr ut;
+	static utmpidlearr ut;
 	struct utmp usr;
-        int nusers = 0;
+	int nusers = 0;
 
-        bzero((char *)&ut, sizeof(ut));
-        ut.utmpidlearr_val = &utmp_idle[0];
+	bzero((char *)&ut, sizeof(ut));
+	ut.utmpidlearr_val = &utmp_idle[0];
 
 	ufp = fopen(_PATH_UTMP, "r");
-        if (!ufp) {
-                syslog(LOG_ERR, "%m");
-                return(&ut);
-        }
+	if (!ufp) {
+		syslog(LOG_ERR, "%m");
+		return(&ut);
+	}
 
-        /* only entries with both name and line fields */
-        while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1 &&
-               nusers < MAXUSERS)
-                if (*usr.ut_name && *usr.ut_line &&
+	/* only entries with both name and line fields */
+	while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1 &&
+	       nusers < MAXUSERS)
+		if (*usr.ut_name && *usr.ut_line &&
 		    strncmp(usr.ut_name, IGNOREUSER,
-                            sizeof(usr.ut_name))
+			    sizeof(usr.ut_name))
 #ifdef OSF
-                    && usr.ut_type == USER_PROCESS
+		    && usr.ut_type == USER_PROCESS
 #endif
-                    ) {
-                        utmp_idle[nusers].ui_utmp.ut_time =
-                                usr.ut_time;
-                        utmp_idle[nusers].ui_idle =
-                                getidle(usr.ut_line, usr.ut_host);
-                        utmp_idle[nusers].ui_utmp.ut_line = line[nusers];
-                        strncpy(line[nusers], usr.ut_line, UT_LINESIZE);
-                        utmp_idle[nusers].ui_utmp.ut_name = name[nusers];
-                        strncpy(name[nusers], usr.ut_name, UT_NAMESIZE);
-                        utmp_idle[nusers].ui_utmp.ut_host = host[nusers];
-                        strncpy(host[nusers], usr.ut_host, UT_HOSTSIZE);
+		    ) {
+			utmp_idle[nusers].ui_utmp.ut_time =
+				usr.ut_time;
+			utmp_idle[nusers].ui_idle =
+				getidle(usr.ut_line, usr.ut_host);
+			utmp_idle[nusers].ui_utmp.ut_line = line[nusers];
+			strncpy(line[nusers], usr.ut_line, UT_LINESIZE);
+			utmp_idle[nusers].ui_utmp.ut_name = name[nusers];
+			strncpy(name[nusers], usr.ut_name, UT_NAMESIZE);
+			utmp_idle[nusers].ui_utmp.ut_host = host[nusers];
+			strncpy(host[nusers], usr.ut_host, UT_HOSTSIZE);
 
 			/* Make sure entries are NUL terminated */
 			line[nusers][UT_LINESIZE] =
 			name[nusers][UT_NAMESIZE] =
 			host[nusers][UT_HOSTSIZE] = '\0';
-                        nusers++;
-                }
+			nusers++;
+		}
 
-        ut.utmpidlearr_len = nusers;
-        fclose(ufp);
-        return(&ut);
+	ut.utmpidlearr_len = nusers;
+	fclose(ufp);
+	return(&ut);
 }
 
-int *
-rusers_num(void)
+static int *
+rusers_num(void *argp __unused, struct svc_req *rqstp __unused)
 {
-        static int num_users = 0;
+	static int num_users = 0;
 	struct utmp usr;
 
-        ufp = fopen(_PATH_UTMP, "r");
-        if (!ufp) {
-                syslog(LOG_ERR, "%m");
-                return(NULL);
-        }
+	ufp = fopen(_PATH_UTMP, "r");
+	if (!ufp) {
+		syslog(LOG_ERR, "%m");
+		return(NULL);
+	}
 
-        /* only entries with both name and line fields */
-        while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1)
-                if (*usr.ut_name && *usr.ut_line &&
+	/* only entries with both name and line fields */
+	while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1)
+		if (*usr.ut_name && *usr.ut_line &&
 		    strncmp(usr.ut_name, IGNOREUSER,
-                            sizeof(usr.ut_name))
+			    sizeof(usr.ut_name))
 #ifdef OSF
-                    && usr.ut_type == USER_PROCESS
+		    && usr.ut_type == USER_PROCESS
 #endif
-                    ) {
-                        num_users++;
-                }
+		    ) {
+			num_users++;
+		}
 
-        fclose(ufp);
-        return(&num_users);
+	fclose(ufp);
+	return(&num_users);
 }
 
 static utmparr *
-do_names_1(int all)
+do_names_1(void)
 {
-        utmpidlearr *utidle;
-        static utmparr ut;
-        int i;
+	utmpidlearr *utidle;
+	static utmparr ut;
+	unsigned int i;
 
-        bzero((char *)&ut, sizeof(ut));
+	bzero((char *)&ut, sizeof(ut));
 
-        utidle = do_names_2(all);
-        if (utidle) {
-                ut.utmparr_len = utidle->utmpidlearr_len;
-                ut.utmparr_val = &old_utmp[0];
-                for (i = 0; i < ut.utmparr_len; i++)
-                        bcopy(&utmp_idle[i].ui_utmp, &old_utmp[i],
-                              sizeof(old_utmp[0]));
+	utidle = do_names_2();
+	if (utidle) {
+		ut.utmparr_len = utidle->utmpidlearr_len;
+		ut.utmparr_val = &old_utmp[0];
+		for (i = 0; i < ut.utmparr_len; i++)
+			bcopy(&utmp_idle[i].ui_utmp, &old_utmp[i],
+			      sizeof(old_utmp[0]));
 
-        }
+	}
 
-        return(&ut);
+	return(&ut);
 }
 
 utmpidlearr *
-rusersproc_names_2_svc(void *argp, struct svc_req *rqstp)
+rusersproc_names_2_svc(void *argp __unused, struct svc_req *rqstp __unused)
 {
-        return(do_names_2(0));
+
+	return (do_names_2());
 }
 
 utmpidlearr *
-rusersproc_allnames_2_svc(void *argp, struct svc_req *rqstp)
+rusersproc_allnames_2_svc(void *argp __unused, struct svc_req *rqstp __unused)
 {
-        return(do_names_2(1));
+
+	return (do_names_2());
 }
 
 utmparr *
-rusersproc_names_1_svc(void *argp, struct svc_req *rqstp)
+rusersproc_names_1_svc(void *argp __unused, struct svc_req *rqstp __unused)
 {
-	return(do_names_1(0));
+
+	return (do_names_1());
 }
 
 utmparr *
-rusersproc_allnames_1_svc(void *argp, struct svc_req *rqstp)
+rusersproc_allnames_1_svc(void *argp __unused, struct svc_req *rqstp __unused)
 {
-        return(do_names_1(1));
+
+	return (do_names_1());
 }
+
+typedef void *(*rusersproc_t)(void *, struct svc_req *);
 
 void
 rusers_service(struct svc_req *rqstp, SVCXPRT *transp)
@@ -318,8 +322,8 @@ rusers_service(struct svc_req *rqstp, SVCXPRT *transp)
 		int fill;
 	} argument;
 	char *result;
-	bool_t (*xdr_argument)(), (*xdr_result)();
-	char *(*local)();
+	xdrproc_t xdr_argument, xdr_result;
+	rusersproc_t local;
 
 	switch (rqstp->rq_proc) {
 	case NULLPROC:
@@ -327,43 +331,43 @@ rusers_service(struct svc_req *rqstp, SVCXPRT *transp)
 		goto leave;
 
 	case RUSERSPROC_NUM:
-		xdr_argument = xdr_void;
-		xdr_result = xdr_int;
-                local = (char *(*)()) rusers_num;
+		xdr_argument = (xdrproc_t)xdr_void;
+		xdr_result = (xdrproc_t)xdr_int;
+		local = (rusersproc_t)rusers_num;
 		break;
 
 	case RUSERSPROC_NAMES:
-		xdr_argument = xdr_void;
-		xdr_result = xdr_utmpidlearr;
-                switch (rqstp->rq_vers) {
-                case RUSERSVERS_ORIG:
-                        local = (char *(*)()) rusersproc_names_1_svc;
-                        break;
-                case RUSERSVERS_IDLE:
-                        local = (char *(*)()) rusersproc_names_2_svc;
-                        break;
-                default:
-                        svcerr_progvers(transp, RUSERSVERS_ORIG, RUSERSVERS_IDLE);
-                        goto leave;
-                        /*NOTREACHED*/
-                }
+		xdr_argument = (xdrproc_t)xdr_void;
+		xdr_result = (xdrproc_t)xdr_utmpidlearr;
+		switch (rqstp->rq_vers) {
+		case RUSERSVERS_ORIG:
+			local = (rusersproc_t)rusersproc_names_1_svc;
+			break;
+		case RUSERSVERS_IDLE:
+			local = (rusersproc_t)rusersproc_names_2_svc;
+			break;
+		default:
+			svcerr_progvers(transp, RUSERSVERS_ORIG, RUSERSVERS_IDLE);
+			goto leave;
+			/*NOTREACHED*/
+		}
 		break;
 
 	case RUSERSPROC_ALLNAMES:
-		xdr_argument = xdr_void;
-		xdr_result = xdr_utmpidlearr;
-                switch (rqstp->rq_vers) {
-                case RUSERSVERS_ORIG:
-                        local = (char *(*)()) rusersproc_allnames_1_svc;
-                        break;
-                case RUSERSVERS_IDLE:
-                        local = (char *(*)()) rusersproc_allnames_2_svc;
-                        break;
-                default:
-                        svcerr_progvers(transp, RUSERSVERS_ORIG, RUSERSVERS_IDLE);
-                        goto leave;
-                        /*NOTREACHED*/
-                }
+		xdr_argument = (xdrproc_t)xdr_void;
+		xdr_result = (xdrproc_t)xdr_utmpidlearr;
+		switch (rqstp->rq_vers) {
+		case RUSERSVERS_ORIG:
+			local = (rusersproc_t)rusersproc_allnames_1_svc;
+			break;
+		case RUSERSVERS_IDLE:
+			local = (rusersproc_t)rusersproc_allnames_2_svc;
+			break;
+		default:
+			svcerr_progvers(transp, RUSERSVERS_ORIG, RUSERSVERS_IDLE);
+			goto leave;
+			/*NOTREACHED*/
+		}
 		break;
 
 	default:
@@ -385,6 +389,6 @@ rusers_service(struct svc_req *rqstp, SVCXPRT *transp)
 		exit(1);
 	}
 leave:
-        if (from_inetd)
-                exit(0);
+	if (from_inetd)
+		exit(0);
 }
