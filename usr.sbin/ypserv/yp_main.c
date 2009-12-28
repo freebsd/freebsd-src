@@ -98,14 +98,14 @@ struct socklistent {
 	SLIST_ENTRY(socklistent)	sle_next;
 };
 static SLIST_HEAD(, socklistent) sle_head =
-	SLIST_HEAD_INITIALIZER(&sle_head);
+	SLIST_HEAD_INITIALIZER(sle_head);
 
 struct bindaddrlistent {
 	const char			*ble_hostname;
 	SLIST_ENTRY(bindaddrlistent)	ble_next;
 };
 static SLIST_HEAD(, bindaddrlistent) ble_head =
-	SLIST_HEAD_INITIALIZER(&ble_head);
+	SLIST_HEAD_INITIALIZER(ble_head);
 
 static char *servname = "0";
 
