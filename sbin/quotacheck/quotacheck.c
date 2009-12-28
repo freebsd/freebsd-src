@@ -110,6 +110,7 @@ struct fileusage {
 struct fileusage *fuhead[MAXQUOTAS][FUHASH];
 
 int	aflag;			/* all file systems */
+int	cflag;			/* convert format to 32 or 64 bit size */
 int	gflag;			/* check group quotas */
 int	uflag;			/* check user quotas */
 int	vflag;			/* verbose */
@@ -143,10 +144,15 @@ main(int argc, char *argv[])
 	char *name;
 
 	errs = maxrun = 0;
-	while ((ch = getopt(argc, argv, "aguvl:")) != -1) {
+	while ((ch = getopt(argc, argv, "ac:guvl:")) != -1) {
 		switch(ch) {
 		case 'a':
 			aflag++;
+			break;
+		case 'c':
+			if (cflag)
+				usage();
+			cflag = atoi(optarg);
 			break;
 		case 'g':
 			gflag++;
@@ -167,6 +173,8 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	if ((argc == 0 && !aflag) || (argc > 0 && aflag))
+		usage();
+	if (cflag && cflag != 32 && cflag != 64)
 		usage();
 	if (!gflag && !uflag) {
 		gflag++;
@@ -227,8 +235,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: quotacheck [-guv] [-l maxrun] -a",
-		"       quotacheck [-guv] filesystem ...");
+		"usage: quotacheck [-guv] [-c 32 | 64] [-l maxrun] -a",
+		"       quotacheck [-guv] [-c 32 | 64] filesystem ...");
 	exit(1);
 }
 
@@ -257,7 +265,31 @@ chkquota(char *specname, struct quotafile *qfu, struct quotafile *qfg)
 	else if (qfg != NULL)
 		mntpt = quota_fsname(qfg);
 	else
-		err(1, "null quotafile information passed to chkquota()\n");
+		errx(1, "null quotafile information passed to chkquota()\n");
+	if (cflag) {
+		if (vflag && qfu != NULL)
+			printf("%s: convert user quota to %d bits\n",
+			    mntpt, cflag);
+		if (qfu != NULL && quota_convert(qfu, cflag) < 0) {
+			if (errno == EBADF)
+				errx(1,
+				    "%s: cannot convert an active quota file",
+				    mntpt);
+			err(1, "user quota conversion to size %d failed",
+			    cflag);
+		}
+		if (vflag && qfg != NULL)
+			printf("%s: convert group quota to %d bits\n",
+			    mntpt, cflag);
+		if (qfg != NULL && quota_convert(qfg, cflag) < 0) {
+			if (errno == EBADF)
+				errx(1,
+				    "%s: cannot convert an active quota file",
+				    mntpt);
+			err(1, "group quota conversion to size %d failed",
+			    cflag);
+		}
+	}
 	if ((fi = open(specname, O_RDONLY, 0)) < 0) {
 		warn("%s", specname);
 		return (1);
@@ -407,6 +439,7 @@ update(const char *fsname, struct quotafile *qf, int type)
 	struct fileusage *fup;
 	u_long id, lastid, highid = 0;
 	struct dqblk dqbuf;
+	struct stat sb;
 	static struct dqblk zerodqbuf;
 	static struct fileusage zerofileusage;
 
@@ -459,7 +492,14 @@ update(const char *fsname, struct quotafile *qf, int type)
 			fup->fu_curblocks = 0;
 		}
 	}
-	if (highid < lastid)
+	/*
+	 * If this is old format file, then size may be smaller,
+	 * so ensure that we only truncate when it will make things
+	 * smaller, and not if it will grow an old format file.
+	 */
+	if (highid < lastid &&
+	    stat(quota_qfname(qf), &sb) == 0 &&
+	    sb.st_size > (((off_t)highid + 2) * sizeof(struct dqblk)))
 		truncate(quota_qfname(qf),
 		    (((off_t)highid + 2) * sizeof(struct dqblk)));
 	return (0);
