@@ -249,7 +249,7 @@ find_entry(struct archive_entry_linkresolver *res,
 	struct links_entry	*le;
 	int			 hash, bucket;
 	dev_t			 dev;
-	ino_t			 ino;
+	int64_t			 ino;
 
 	/* Free a held entry. */
 	if (res->spare != NULL) {
@@ -264,15 +264,15 @@ find_entry(struct archive_entry_linkresolver *res,
 		return (NULL);
 
 	dev = archive_entry_dev(entry);
-	ino = archive_entry_ino(entry);
-	hash = dev ^ ino;
+	ino = archive_entry_ino64(entry);
+	hash = (int)(dev ^ ino);
 
 	/* Try to locate this entry in the links cache. */
 	bucket = hash % res->number_buckets;
 	for (le = res->buckets[bucket]; le != NULL; le = le->next) {
 		if (le->hash == hash
 		    && dev == archive_entry_dev(le->canonical)
-		    && ino == archive_entry_ino(le->canonical)) {
+		    && ino == archive_entry_ino64(le->canonical)) {
 			/*
 			 * Decrement link count each time and release
 			 * the entry if it hits zero.  This saves
@@ -350,7 +350,7 @@ insert_entry(struct archive_entry_linkresolver *res,
 	if (res->number_entries > res->number_buckets * 2)
 		grow_hash(res);
 
-	hash = archive_entry_dev(entry) ^ archive_entry_ino(entry);
+	hash = archive_entry_dev(entry) ^ archive_entry_ino64(entry);
 	bucket = hash % res->number_buckets;
 
 	/* If we could allocate the entry, record it. */
