@@ -88,47 +88,6 @@ The remainder of this man page is concerned
 with describing details of using and controlling terminal devices
 at a low level, such as that possibly required by a program wishing
 to provide features similar to those provided by the system.
-.Ss Line disciplines
-A terminal file is used like any other file in the system in that
-it can be opened, read, and written to using standard system
-calls.
-For each existing terminal file, there is a software processing module
-called a
-.Em "line discipline"
-is associated with it.
-The
-.Em "line discipline"
-essentially glues the low level device driver code with the high
-level generic interface routines (such as
-.Xr read 2
-and
-.Xr write 2 ) ,
-and is responsible for implementing the semantics associated
-with the device.
-When a terminal file is first opened by a program, the default
-.Em "line discipline"
-called the
-.Dv termios
-line discipline is associated with the file.
-This is the primary
-line discipline that is used in most cases and provides the semantics
-that users normally associate with a terminal.
-When the
-.Dv termios
-line discipline is in effect, the terminal file behaves and is
-operated according to the rules described in
-.Xr termios 4 .
-Please refer to that man page for a full description of the terminal
-semantics.
-The operations described here
-generally represent features common
-across all
-.Em "line disciplines" ,
-however some of these calls may not
-make sense in conjunction with a line discipline other than
-.Dv termios ,
-and some may not be supported by the underlying
-hardware (or lack thereof, as in the case of ptys).
 .Ss Terminal File Operations
 All of the following operations are invoked using the
 .Xr ioctl 2
@@ -154,39 +113,24 @@ parameter (if any)
 are listed.
 For example, the first entry says
 .Pp
-.D1 Em "TIOCSETD int *ldisc"
+.D1 Em "TIOCSPGRP int *tpgrp"
 .Pp
 and would be called on the terminal associated with
 file descriptor zero by the following code fragment:
 .Bd -literal
-	int ldisc;
+	int pgrp;
 
-	ldisc = TTYDISC;
-	ioctl(0, TIOCSETD, &ldisc);
+	pgrp = getpgrp();
+	ioctl(0, TIOCSPGRP, &pgrp);
 .Ed
 .Ss Terminal File Request Descriptions
 .Bl -tag -width TIOCGWINSZ
 .It Dv TIOCSETD Fa int *ldisc
-Change to the new line discipline pointed to by
+This call is obsolete but left for compatibility.
+Before
+.Fx 8.0 ,
+it would change to the new line discipline pointed to by
 .Fa ldisc .
-The available line disciplines are listed in
-.In sys/ttycom.h
-and currently are:
-.Pp
-.Bl -tag -width NETGRAPHDISC -compact
-.It TTYDISC
-Termios interactive line discipline.
-.It TABLDISC
-Tablet line discipline.
-.It SLIPDISC
-Serial IP line discipline.
-.It PPPDISC
-PPP line discipline.
-.It NETGRAPHDISC
-Netgraph
-.Xr ng_tty 4
-line discipline.
-.El
 .Pp
 .It Dv TIOCGETD Fa int *ldisc
 Return the current line discipline in the integer pointed to by
