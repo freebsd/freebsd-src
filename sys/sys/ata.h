@@ -101,7 +101,9 @@ struct ata_params {
 /*066*/ u_int16_t       mwdmarec;               /* rec. M/W DMA time ns */
 /*067*/ u_int16_t       pioblind;               /* min. PIO cycle w/o flow */
 /*068*/ u_int16_t       pioiordy;               /* min. PIO cycle IORDY flow */
-	u_int16_t       reserved69;
+/*069*/ u_int16_t       support3;
+#define ATA_SUPPORT_RZAT                0x0020
+#define ATA_SUPPORT_DRAT                0x4000
 	u_int16_t       reserved70;
 /*071*/ u_int16_t       rlsovlap;               /* rel time (us) for overlap */
 /*072*/ u_int16_t       rlsservice;             /* rel time (us) for service */
@@ -204,7 +206,8 @@ struct ata_params {
 	u_int16_t       lba_size48_2;
 	u_int16_t       lba_size48_3;
 	u_int16_t       lba_size48_4;
-	u_int16_t       reserved104[2];
+	u_int16_t       reserved104;
+/*105*/	u_int16_t       max_dsm_blocks;
 /*106*/	u_int16_t       pss;
 #define ATA_PSS_LSPPS			0x000F
 #define ATA_PSS_LSSABOVE512		0x1000
@@ -230,7 +233,10 @@ struct ata_params {
 /*162*/ u_int16_t       cfa_kms_support;
 /*163*/ u_int16_t       cfa_trueide_modes;
 /*164*/ u_int16_t       cfa_memory_modes;
-	u_int16_t       reserved165[11];
+	u_int16_t       reserved165[4];
+/*169*/	u_int16_t       support_dsm;
+#define ATA_SUPPORT_DSM_TRIM		0x0001
+	u_int16_t       reserved170[6];
 /*176*/ u_int8_t        media_serial[60];
 /*206*/ u_int16_t       sct;
 	u_int16_t       reserved206[2];
@@ -284,6 +290,8 @@ struct ata_params {
 #define ATA_NOP                         0x00    /* NOP */
 #define         ATA_NF_FLUSHQUEUE       0x00    /* flush queued cmd's */
 #define         ATA_NF_AUTOPOLL         0x01    /* start autopoll function */
+#define ATA_DATA_SET_MANAGEMENT		0x06
+#define 	ATA_DSM_TRIM		0x01
 #define ATA_DEVICE_RESET                0x08    /* reset device */
 #define ATA_READ                        0x20    /* read */
 #define ATA_READ48                      0x24    /* read 48bit LBA */

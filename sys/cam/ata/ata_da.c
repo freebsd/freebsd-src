@@ -74,8 +74,10 @@ typedef enum {
 	ADA_FLAG_CAN_DMA	= 0x010,
 	ADA_FLAG_NEED_OTAG	= 0x020,
 	ADA_FLAG_WENT_IDLE	= 0x040,
+	ADA_FLAG_CAN_TRIM	= 0x080,
 	ADA_FLAG_OPEN		= 0x100,
-	ADA_FLAG_SCTX_INIT	= 0x200
+	ADA_FLAG_SCTX_INIT	= 0x200,
+	ADA_FLAG_CAN_CFA        = 0x400
 } ada_flags;
 
 typedef enum {
@@ -86,6 +88,7 @@ typedef enum {
 	ADA_CCB_BUFFER_IO	= 0x03,
 	ADA_CCB_WAITING		= 0x04,
 	ADA_CCB_DUMP		= 0x05,
+	ADA_CCB_TRIM		= 0x06,
 	ADA_CCB_TYPE_MASK	= 0x0F,
 } ada_ccb_state;
 
@@ -101,13 +104,23 @@ struct disk_params {
 	u_int64_t sectors;	/* Total number sectors */
 };
 
+#define TRIM_MAX_BLOCKS	4
+#define TRIM_MAX_RANGES	TRIM_MAX_BLOCKS * 64
+struct trim_request {
+	uint8_t		data[TRIM_MAX_RANGES * 8];
+	struct bio	*bps[TRIM_MAX_RANGES];
+};
+
 struct ada_softc {
 	struct	 bio_queue_head bio_queue;
+	struct	 bio_queue_head trim_queue;
 	ada_state state;
 	ada_flags flags;	
 	ada_quirks quirks;
 	int	 ordered_tag_count;
 	int	 outstanding_cmds;
+	int	 trim_max_ranges;
+	int	 trim_running;
 	struct	 disk_params params;
 	struct	 disk *disk;
 	union	 ccb saved_ccb;
@@ -115,6 +128,7 @@ struct ada_softc {
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 	struct callout		sendordered_c;
+	struct trim_request	trim_req;
 };
 
 struct ada_quirk_entry {
@@ -309,6 +323,18 @@ adaclose(struct disk *dp)
 	return (0);	
 }
 
+static void
+adaschedule(struct cam_periph *periph)
+{
+	struct ada_softc *softc = (struct ada_softc *)periph->softc;
+
+	if (bioq_first(&softc->bio_queue) ||
+	    (!softc->trim_running && bioq_first(&softc->trim_queue))) {
+		/* Have more work to do, so ensure we stay scheduled */
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
+	}
+}
+
 /*
  * Actually translate the requested transfer into one the physical driver
  * can understand.  The transfer is described by a buf and will include
@@ -341,12 +367,16 @@ adastrategy(struct bio *bp)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	bioq_disksort(&softc->bio_queue, bp);
+	if (bp->bio_cmd == BIO_DELETE &&
+	    (softc->flags & ADA_FLAG_CAN_TRIM))
+		bioq_disksort(&softc->trim_queue, bp);
+	else
+		bioq_disksort(&softc->bio_queue, bp);
 
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
-	xpt_schedule(periph, CAM_PRIORITY_NORMAL);
+	adaschedule(periph);
 	cam_periph_unlock(periph);
 
 	return;
@@ -485,6 +515,7 @@ adaoninvalidate(struct cam_periph *periph)
 	 *     with XPT_ABORT_CCB.
 	 */
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
+	bioq_flush(&softc->trim_queue, NULL, ENXIO);
 
 	disk_gone(softc->disk);
 	xpt_print(periph->path, "lost device\n");
@@ -618,6 +649,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	}
 
 	bioq_init(&softc->bio_queue);
+	bioq_init(&softc->trim_queue);
 
 	if (cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA)
 		softc->flags |= ADA_FLAG_CAN_DMA;
@@ -628,6 +660,17 @@ adaregister(struct cam_periph *periph, void *arg)
 	if (cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ &&
 	    cgd->inq_flags & SID_CmdQue)
 		softc->flags |= ADA_FLAG_CAN_NCQ;
+	if (cgd->ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) {
+		softc->flags |= ADA_FLAG_CAN_TRIM;
+		softc->trim_max_ranges = TRIM_MAX_RANGES;
+		if (cgd->ident_data.max_dsm_blocks != 0) {
+			softc->trim_max_ranges =
+			    min(cgd->ident_data.max_dsm_blocks * 64,
+				softc->trim_max_ranges);
+		}
+	}
+	if (cgd->ident_data.support.command2 & ATA_SUPPORT_CFA)
+		softc->flags |= ADA_FLAG_CAN_CFA;
 	softc->state = ADA_STATE_NORMAL;
 
 	periph->softc = softc;
@@ -672,7 +715,7 @@ adaregister(struct cam_periph *periph, void *arg)
 		maxio = DFLTPHYS;	/* traditional default */
 	else if (maxio > MAXPHYS)
 		maxio = MAXPHYS;	/* for safety */
-	if (cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48)
+	if (softc->flags & ADA_FLAG_CAN_48BIT)
 		maxio = min(maxio, 65536 * softc->params.secsize);
 	else					/* 28bit ATA command limit */
 		maxio = min(maxio, 256 * softc->params.secsize);
@@ -681,6 +724,10 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	if ((softc->flags & ADA_FLAG_CAN_TRIM) ||
+	    ((softc->flags & ADA_FLAG_CAN_CFA) &&
+	    !(softc->flags & ADA_FLAG_CAN_48BIT)))
+		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 	strlcpy(softc->disk->d_ident, cgd->serial_num,
 	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
 
@@ -743,13 +790,10 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 	switch (softc->state) {
 	case ADA_STATE_NORMAL:
 	{
-		/* Pull a buffer from the queue and get going on it */		
 		struct bio *bp;
+		u_int8_t tag_code;
 
-		/*
-		 * See if there is a buf with work for us to do..
-		 */
-		bp = bioq_first(&softc->bio_queue);
+		/* Execute immediate CCB if waiting. */
 		if (periph->immediate_priority <= periph->pinfo.priority) {
 			CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
 					("queuing for immediate ccb\n"));
@@ -758,115 +802,188 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 					  periph_links.sle);
 			periph->immediate_priority = CAM_PRIORITY_NONE;
 			wakeup(&periph->ccb_list);
-		} else if (bp == NULL) {
+			/* Have more work to do, so ensure we stay scheduled */
+			adaschedule(periph);
+			break;
+		}
+		/* Run TRIM if not running yet. */
+		if (!softc->trim_running &&
+		    (bp = bioq_first(&softc->trim_queue)) != 0) {
+			struct trim_request *req = &softc->trim_req;
+			struct bio *bp1;
+			int bps = 0, ranges = 0;
+
+			softc->trim_running = 1;
+			bzero(req, sizeof(*req));
+			bp1 = bp;
+			do {
+				uint64_t lba = bp1->bio_pblkno;
+				int count = bp1->bio_bcount /
+				    softc->params.secsize;
+
+				bioq_remove(&softc->trim_queue, bp1);
+				while (count > 0) {
+					int c = min(count, 0xffff);
+					int off = ranges * 8;
+
+					req->data[off + 0] = lba & 0xff;
+					req->data[off + 1] = (lba >> 8) & 0xff;
+					req->data[off + 2] = (lba >> 16) & 0xff;
+					req->data[off + 3] = (lba >> 24) & 0xff;
+					req->data[off + 4] = (lba >> 32) & 0xff;
+					req->data[off + 5] = (lba >> 40) & 0xff;
+					req->data[off + 6] = c & 0xff;
+					req->data[off + 7] = (c >> 8) & 0xff;
+					lba += c;
+					count -= c;
+					ranges++;
+				}
+				req->bps[bps++] = bp1;
+				bp1 = bioq_first(&softc->trim_queue);
+				if (bp1 == NULL ||
+				    bp1->bio_bcount / softc->params.secsize >
+				    (softc->trim_max_ranges - ranges) * 0xffff)
+					break;
+			} while (1);
+			cam_fill_ataio(ataio,
+			    ada_retry_count,
+			    adadone,
+			    CAM_DIR_OUT,
+			    0,
+			    req->data,
+			    ((ranges + 63) / 64) * 512,
+			    ada_default_timeout * 1000);
+			ata_48bit_cmd(ataio, ATA_DATA_SET_MANAGEMENT,
+			    ATA_DSM_TRIM, 0, (ranges + 63) / 64);
+			start_ccb->ccb_h.ccb_state = ADA_CCB_TRIM;
+			goto out;
+		}
+		/* Run regular command. */
+		bp = bioq_first(&softc->bio_queue);
+		if (bp == NULL) {
 			xpt_release_ccb(start_ccb);
+			break;
+		}
+		bioq_remove(&softc->bio_queue, bp);
+
+		if ((softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
+			softc->flags &= ~ADA_FLAG_NEED_OTAG;
+			softc->ordered_tag_count++;
+			tag_code = 0;
 		} else {
-			u_int8_t tag_code;
+			tag_code = 1;
+		}
+		switch (bp->bio_cmd) {
+		case BIO_READ:
+		case BIO_WRITE:
+		{
+			uint64_t lba = bp->bio_pblkno;
+			uint16_t count = bp->bio_bcount / softc->params.secsize;
 
-			bioq_remove(&softc->bio_queue, bp);
+			cam_fill_ataio(ataio,
+			    ada_retry_count,
+			    adadone,
+			    bp->bio_cmd == BIO_READ ?
+			        CAM_DIR_IN : CAM_DIR_OUT,
+			    tag_code,
+			    bp->bio_data,
+			    bp->bio_bcount,
+			    ada_default_timeout*1000);
 
-			if ((softc->flags & ADA_FLAG_NEED_OTAG) != 0) {
-				softc->flags &= ~ADA_FLAG_NEED_OTAG;
-				softc->ordered_tag_count++;
-				tag_code = 0;
-			} else {
-				tag_code = 1;
-			}
-			switch (bp->bio_cmd) {
-			case BIO_READ:
-			case BIO_WRITE:
-			{
-				uint64_t lba = bp->bio_pblkno;
-				uint16_t count = bp->bio_bcount / softc->params.secsize;
-
-				cam_fill_ataio(ataio,
-				    ada_retry_count,
-				    adadone,
-				    bp->bio_cmd == BIO_READ ?
-				        CAM_DIR_IN : CAM_DIR_OUT,
-				    tag_code,
-				    bp->bio_data,
-				    bp->bio_bcount,
-				    ada_default_timeout*1000);
-
-				if ((softc->flags & ADA_FLAG_CAN_NCQ) && tag_code) {
+			if ((softc->flags & ADA_FLAG_CAN_NCQ) && tag_code) {
+				if (bp->bio_cmd == BIO_READ) {
+					ata_ncq_cmd(ataio, ATA_READ_FPDMA_QUEUED,
+					    lba, count);
+				} else {
+					ata_ncq_cmd(ataio, ATA_WRITE_FPDMA_QUEUED,
+					    lba, count);
+				}
+			} else if ((softc->flags & ADA_FLAG_CAN_48BIT) &&
+			    (lba + count >= ATA_MAX_28BIT_LBA ||
+			    count > 256)) {
+				if (softc->flags & ADA_FLAG_CAN_DMA) {
 					if (bp->bio_cmd == BIO_READ) {
-						ata_ncq_cmd(ataio, ATA_READ_FPDMA_QUEUED,
-						    lba, count);
+						ata_48bit_cmd(ataio, ATA_READ_DMA48,
+						    0, lba, count);
 					} else {
-						ata_ncq_cmd(ataio, ATA_WRITE_FPDMA_QUEUED,
-						    lba, count);
-					}
-				} else if ((softc->flags & ADA_FLAG_CAN_48BIT) &&
-				    (lba + count >= ATA_MAX_28BIT_LBA ||
-				    count > 256)) {
-					if (softc->flags & ADA_FLAG_CAN_DMA) {
-						if (bp->bio_cmd == BIO_READ) {
-							ata_48bit_cmd(ataio, ATA_READ_DMA48,
-							    0, lba, count);
-						} else {
-							ata_48bit_cmd(ataio, ATA_WRITE_DMA48,
-							    0, lba, count);
-						}
-					} else {
-						if (bp->bio_cmd == BIO_READ) {
-							ata_48bit_cmd(ataio, ATA_READ_MUL48,
-							    0, lba, count);
-						} else {
-							ata_48bit_cmd(ataio, ATA_WRITE_MUL48,
-							    0, lba, count);
-						}
+						ata_48bit_cmd(ataio, ATA_WRITE_DMA48,
+						    0, lba, count);
 					}
 				} else {
-					if (count == 256)
-						count = 0;
-					if (softc->flags & ADA_FLAG_CAN_DMA) {
-						if (bp->bio_cmd == BIO_READ) {
-							ata_28bit_cmd(ataio, ATA_READ_DMA,
-							    0, lba, count);
-						} else {
-							ata_28bit_cmd(ataio, ATA_WRITE_DMA,
-							    0, lba, count);
-						}
+					if (bp->bio_cmd == BIO_READ) {
+						ata_48bit_cmd(ataio, ATA_READ_MUL48,
+						    0, lba, count);
 					} else {
-						if (bp->bio_cmd == BIO_READ) {
-							ata_28bit_cmd(ataio, ATA_READ_MUL,
-							    0, lba, count);
-						} else {
-							ata_28bit_cmd(ataio, ATA_WRITE_MUL,
-							    0, lba, count);
-						}
+						ata_48bit_cmd(ataio, ATA_WRITE_MUL48,
+						    0, lba, count);
+					}
+				}
+			} else {
+				if (count == 256)
+					count = 0;
+				if (softc->flags & ADA_FLAG_CAN_DMA) {
+					if (bp->bio_cmd == BIO_READ) {
+						ata_28bit_cmd(ataio, ATA_READ_DMA,
+						    0, lba, count);
+					} else {
+						ata_28bit_cmd(ataio, ATA_WRITE_DMA,
+						    0, lba, count);
+					}
+				} else {
+					if (bp->bio_cmd == BIO_READ) {
+						ata_28bit_cmd(ataio, ATA_READ_MUL,
+						    0, lba, count);
+					} else {
+						ata_28bit_cmd(ataio, ATA_WRITE_MUL,
+						    0, lba, count);
 					}
 				}
 			}
-				break;
-			case BIO_FLUSH:
-				cam_fill_ataio(ataio,
-				    1,
-				    adadone,
-				    CAM_DIR_NONE,
-				    0,
-				    NULL,
-				    0,
-				    ada_default_timeout*1000);
+			break;
+		}
+		case BIO_DELETE:
+		{
+			uint64_t lba = bp->bio_pblkno;
+			uint16_t count = bp->bio_bcount / softc->params.secsize;
 
-				if (softc->flags & ADA_FLAG_CAN_48BIT)
-					ata_48bit_cmd(ataio, ATA_FLUSHCACHE48, 0, 0, 0);
-				else
-					ata_28bit_cmd(ataio, ATA_FLUSHCACHE, 0, 0, 0);
-				break;
-			}
-			start_ccb->ccb_h.ccb_state = ADA_CCB_BUFFER_IO;
-			start_ccb->ccb_h.ccb_bp = bp;
-			softc->outstanding_cmds++;
-			xpt_action(start_ccb);
-			bp = bioq_first(&softc->bio_queue);
+			cam_fill_ataio(ataio,
+			    ada_retry_count,
+			    adadone,
+			    CAM_DIR_NONE,
+			    0,
+			    NULL,
+			    0,
+			    ada_default_timeout*1000);
+
+			if (count >= 256)
+				count = 0;
+			ata_28bit_cmd(ataio, ATA_CFA_ERASE, 0, lba, count);
+			break;
 		}
-		
-		if (bp != NULL) {
-			/* Have more work to do, so ensure we stay scheduled */
-			xpt_schedule(periph, CAM_PRIORITY_NORMAL);
+		case BIO_FLUSH:
+			cam_fill_ataio(ataio,
+			    1,
+			    adadone,
+			    CAM_DIR_NONE,
+			    0,
+			    NULL,
+			    0,
+			    ada_default_timeout*1000);
+
+			if (softc->flags & ADA_FLAG_CAN_48BIT)
+				ata_48bit_cmd(ataio, ATA_FLUSHCACHE48, 0, 0, 0);
+			else
+				ata_28bit_cmd(ataio, ATA_FLUSHCACHE, 0, 0, 0);
+			break;
 		}
+		start_ccb->ccb_h.ccb_state = ADA_CCB_BUFFER_IO;
+out:
+		start_ccb->ccb_h.ccb_bp = bp;
+		softc->outstanding_cmds++;
+		xpt_action(start_ccb);
+
+		/* May have more work to do, so ensure we stay scheduled */
+		adaschedule(periph);
 		break;
 	}
 	}
@@ -882,6 +999,7 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 	ataio = &done_ccb->ataio;
 	switch (ataio->ccb_h.ccb_state & ADA_CCB_TYPE_MASK) {
 	case ADA_CCB_BUFFER_IO:
+	case ADA_CCB_TRIM:
 	{
 		struct bio *bp;
 
@@ -908,13 +1026,6 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 					    "Invalidating pack\n");
 					softc->flags |= ADA_FLAG_PACK_INVALID;
 				}
-
-				/*
-				 * return all queued I/O with EIO, so that
-				 * the client can retry these I/Os in the
-				 * proper order should it attempt to recover.
-				 */
-				bioq_flush(&softc->bio_queue, NULL, EIO);
 				bp->bio_error = error;
 				bp->bio_resid = bp->bio_bcount;
 				bp->bio_flags |= BIO_ERROR;
@@ -940,8 +1051,27 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		softc->outstanding_cmds--;
 		if (softc->outstanding_cmds == 0)
 			softc->flags |= ADA_FLAG_WENT_IDLE;
+		if ((ataio->ccb_h.ccb_state & ADA_CCB_TYPE_MASK) ==
+		    ADA_CCB_TRIM) {
+			struct trim_request *req =
+			    (struct trim_request *)ataio->data_ptr;
+			int i;
 
-		biodone(bp);
+			for (i = 1; i < softc->trim_max_ranges &&
+			    req->bps[i]; i++) {
+				struct bio *bp1 = req->bps[i];
+				
+				bp1->bio_resid = bp->bio_resid;
+				bp1->bio_error = bp->bio_error;
+				if (bp->bio_flags & BIO_ERROR)
+					bp1->bio_flags |= BIO_ERROR;
+				biodone(bp1);
+			}
+			softc->trim_running = 0;
+			biodone(bp);
+			adaschedule(periph);
+		} else
+			biodone(bp);
 		break;
 	}
 	case ADA_CCB_WAITING:
