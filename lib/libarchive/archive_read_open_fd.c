@@ -32,6 +32,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+#ifdef HAVE_IO_H
+#include <io.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -95,6 +101,9 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		mine->can_skip = 1;
 	} else
 		mine->can_skip = 0;
+#if defined(__CYGWIN__) || defined(_WIN32)
+	setmode(mine->fd, O_BINARY);
+#endif
 
 	return (archive_read_open2(a, mine,
 		NULL, file_read, file_skip, file_close));
