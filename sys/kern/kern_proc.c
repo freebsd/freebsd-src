@@ -96,7 +96,6 @@ struct sx proctree_lock;
 struct mtx pargs_ref_lock;
 struct mtx ppeers_lock;
 uma_zone_t proc_zone;
-uma_zone_t ithread_zone;
 
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
