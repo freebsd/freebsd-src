@@ -124,6 +124,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
 	struct route iproute;
+	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
@@ -196,18 +197,19 @@ again:
 	 * The address family should also be checked in case of sharing the
 	 * cache with IPv6.
 	 */
-	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
+	rte = ro->ro_rt;
+	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
 		if (!nortfree)
-			RTFREE(ro->ro_rt);
-		ro->ro_rt = (struct rtentry *)NULL;
+			RTFREE(rte);
+		rte = ro->ro_rt = (struct rtentry *)NULL;
 		ro->ro_lle = (struct llentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
-	if (ro->ro_rt == NULL && fwd_tag == NULL) {
+	if (rte == NULL && fwd_tag == NULL) {
 #else
-	if (ro->ro_rt == NULL) {
+	if (rte == NULL) {
 #endif
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
@@ -257,7 +259,7 @@ again:
 		 * as this is probably required in all cases for correct
 		 * operation (as it is for ARP).
 		 */
-		if (ro->ro_rt == NULL)
+		if (rte == NULL) {
 #ifdef RADIX_MPATH
 			rtalloc_mpath_fib(ro,
 			    ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr),
@@ -266,7 +268,9 @@ again:
 			in_rtalloc_ign(ro, 0,
 			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 #endif
-		if (ro->ro_rt == NULL) {
+			rte = ro->ro_rt;
+		}
+		if (rte == NULL) {
 #ifdef IPSEC
 			/*
 			 * There is no route for this packet, but it is
@@ -280,14 +284,14 @@ again:
 			error = EHOSTUNREACH;
 			goto bad;
 		}
-		ia = ifatoia(ro->ro_rt->rt_ifa);
+		ia = ifatoia(rte->rt_ifa);
 		ifa_ref(&ia->ia_ifa);
-		ifp = ro->ro_rt->rt_ifp;
-		ro->ro_rt->rt_rmx.rmx_pksent++;
-		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
-			dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
-		if (ro->ro_rt->rt_flags & RTF_HOST)
-			isbroadcast = (ro->ro_rt->rt_flags & RTF_BROADCAST);
+		ifp = rte->rt_ifp;
+		rte->rt_rmx.rmx_pksent++;
+		if (rte->rt_flags & RTF_GATEWAY)
+			dst = (struct sockaddr_in *)rte->rt_gateway;
+		if (rte->rt_flags & RTF_HOST)
+			isbroadcast = (rte->rt_flags & RTF_BROADCAST);
 		else
 			isbroadcast = in_broadcast(dst->sin_addr, ifp);
 	}
@@ -295,7 +299,7 @@ again:
 	 * Calculate MTU.  If we have a route that is up, use that,
 	 * otherwise use the interface's MTU.
 	 */
-	if (ro->ro_rt != NULL && (ro->ro_rt->rt_flags & (RTF_UP|RTF_HOST))) {
+	if (rte != NULL && (rte->rt_flags & (RTF_UP|RTF_HOST))) {
 		/*
 		 * This case can happen if the user changed the MTU
 		 * of an interface after enabling IP on it.  Because
@@ -303,9 +307,9 @@ again:
 		 * them, there is no way for one to update all its
 		 * routes when the MTU is changed.
 		 */
-		if (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)
-			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
-		mtu = ro->ro_rt->rt_rmx.rmx_mtu;
+		if (rte->rt_rmx.rmx_mtu > ifp->if_mtu)
+			rte->rt_rmx.rmx_mtu = ifp->if_mtu;
+		mtu = rte->rt_rmx.rmx_mtu;
 	} else {
 		mtu = ifp->if_mtu;
 	}
