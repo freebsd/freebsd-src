@@ -63,7 +63,7 @@ static struct cdev *make_dev_credv(int flags,
 static struct cdev_priv_list cdevp_free_list =
     TAILQ_HEAD_INITIALIZER(cdevp_free_list);
 static SLIST_HEAD(free_cdevsw, cdevsw) cdevsw_gt_post_list =
-    SLIST_HEAD_INITIALIZER();
+    SLIST_HEAD_INITIALIZER(cdevsw_gt_post_list);
 
 void
 dev_lock(void)

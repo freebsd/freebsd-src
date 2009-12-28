@@ -103,7 +103,7 @@ static void encap_fillarg(struct mbuf *, const struct encaptab *);
  */
 static struct mtx encapmtx;
 MTX_SYSINIT(encapmtx, &encapmtx, "encapmtx", MTX_DEF);
-LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(&encaptab);
+LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(encaptab);
 
 /*
  * We currently keey encap_init() for source code compatibility reasons --

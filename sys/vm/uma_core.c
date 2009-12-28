@@ -122,14 +122,14 @@ static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 static int bucketdisable = 1;
 
 /* Linked list of all kegs in the system */
-static LIST_HEAD(,uma_keg) uma_kegs = LIST_HEAD_INITIALIZER(&uma_kegs);
+static LIST_HEAD(,uma_keg) uma_kegs = LIST_HEAD_INITIALIZER(uma_kegs);
 
 /* This mutex protects the keg list */
 static struct mtx uma_mtx;
 
 /* Linked list of boot time pages */
 static LIST_HEAD(,uma_slab) uma_boot_pages =
-    LIST_HEAD_INITIALIZER(&uma_boot_pages);
+    LIST_HEAD_INITIALIZER(uma_boot_pages);
 
 /* This mutex protects the boot time pages list */
 static struct mtx uma_boot_pages_mtx;
