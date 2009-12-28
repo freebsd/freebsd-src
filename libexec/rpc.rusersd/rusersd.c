@@ -49,42 +49,42 @@ extern void rusers_service(struct svc_req *, SVCXPRT *);
 
 int from_inetd = 1;
 
-void
+static void
 cleanup(int sig __unused)
 {
-        (void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
-        (void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
-        exit(0);
+	(void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
+	(void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
+	exit(0);
 }
 
 int
-main(int argc, char *argv[])
+main(int argc __unused, char *argv[] __unused)
 {
-	SVCXPRT *transp;
+	SVCXPRT *transp = NULL; /* Keep compiler happy. */
 	int ok;
 	struct sockaddr_storage from;
 	socklen_t fromlen;
 
-        /*
-         * See if inetd started us
-         */
+	/*
+	 * See if inetd started us
+	 */
 	fromlen = sizeof(from);
-        if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
-                from_inetd = 0;
-        }
+	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
+		from_inetd = 0;
+	}
 
-        if (!from_inetd) {
-                daemon(0, 0);
+	if (!from_inetd) {
+		daemon(0, 0);
 
-                (void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
-                (void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
+		(void) rpcb_unset(RUSERSPROG, RUSERSVERS_IDLE, NULL);
+		(void) rpcb_unset(RUSERSPROG, RUSERSVERS_ORIG, NULL);
 
 		(void) signal(SIGINT, cleanup);
 		(void) signal(SIGTERM, cleanup);
 		(void) signal(SIGHUP, cleanup);
-        }
+	}
 
-        openlog("rpc.rusersd", LOG_CONS|LOG_PID, LOG_DAEMON);
+	openlog("rpc.rusersd", LOG_CONS|LOG_PID, LOG_DAEMON);
 
 	if (from_inetd) {
 		transp = svc_tli_create(0, NULL, NULL, 0, 0);
@@ -112,7 +112,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-        svc_run();
+	svc_run();
 	syslog(LOG_ERR, "svc_run returned");
 	exit(1);
 }
