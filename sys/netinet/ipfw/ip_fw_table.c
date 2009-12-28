@@ -79,6 +79,18 @@ struct table_entry {
 	u_int32_t		value;
 };
 
+/*
+ * The radix code expects addr and mask to be array of bytes,
+ * with the first byte being the length of the array. rn_inithead
+ * is called with the offset in bits of the lookup key within the
+ * array. If we use a sockaddr_in as the underlying type,
+ * sin_len is conveniently located at offset 0, sin_addr is at
+ * offset 4 and normally aligned.
+ * But for portability, let's avoid assumption and make the code explicit
+ */
+#define KEY_LEN(v)	*((uint8_t *)&(v))
+#define KEY_OFS		(8*offsetof(struct sockaddr_in, sin_addr))
+
 int
 ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
     uint8_t mlen, uint32_t value)
@@ -94,7 +106,7 @@ ipfw_add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	if (ent == NULL)
 		return (ENOMEM);
 	ent->value = value;
-	ent->addr.sin_len = ent->mask.sin_len = 8;
+	KEY_LEN(ent->addr) = KEY_LEN(ent->mask) = 8;
 	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
 	IPFW_WLOCK(ch);
@@ -119,7 +131,7 @@ ipfw_del_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	if (tbl >= IPFW_TABLES_MAX)
 		return (EINVAL);
 	rnh = ch->tables[tbl];
-	sa.sin_len = mask.sin_len = 8;
+	KEY_LEN(sa) = KEY_LEN(mask) = 8;
 	mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	sa.sin_addr.s_addr = addr & mask.sin_addr.s_addr;
 	IPFW_WLOCK(ch);
@@ -179,7 +191,7 @@ ipfw_init_tables(struct ip_fw_chain *ch)
 	uint16_t j;
 
 	for (i = 0; i < IPFW_TABLES_MAX; i++) {
-		if (!rn_inithead((void **)&ch->tables[i], 32)) {
+		if (!rn_inithead((void **)&ch->tables[i], KEY_OFS)) {
 			for (j = 0; j < i; j++) {
 				(void) ipfw_flush_table(ch, j);
 			}
@@ -200,7 +212,7 @@ ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	if (tbl >= IPFW_TABLES_MAX)
 		return (0);
 	rnh = ch->tables[tbl];
-	sa.sin_len = 8;
+	KEY_LEN(sa) = 8;
 	sa.sin_addr.s_addr = addr;
 	ent = (struct table_entry *)(rnh->rnh_lookup(&sa, NULL, rnh));
 	if (ent != NULL) {
