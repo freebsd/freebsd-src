@@ -774,7 +774,7 @@ sched_balance_group(struct cpu_group *cg)
 }
 
 static void
-sched_balance()
+sched_balance(void)
 {
 	struct tdq *tdq;
 
