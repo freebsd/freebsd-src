@@ -76,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_hub.h>
 #include <netgraph/ng_iface.h>
 #include <netgraph/ng_ip_input.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ip_fw_private.h> /* the NGM cookie is here */
 #include <netgraph/ng_ipfw.h>
 #include <netgraph/ng_ksocket.h>
 #include <netgraph/ng_l2tp.h>
