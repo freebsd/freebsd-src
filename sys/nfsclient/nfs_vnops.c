@@ -1555,14 +1555,21 @@ nfs_create(struct vop_create_args *ap)
 	struct vattr vattr;
 	int v3 = NFS_ISV3(dvp);
 
+	CURVNET_SET(CRED_TO_VNET(curthread->td_ucred));
+
 	/*
 	 * Oops, not for me..
 	 */
-	if (vap->va_type == VSOCK)
-		return (nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap));
-
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
+	if (vap->va_type == VSOCK) {
+		error = nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap);
+		CURVNET_RESTORE();
 		return (error);
+	}
+
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0) {
+		CURVNET_RESTORE();
+		return (error);
+	}
 	if (vap->va_vaflags & VA_EXCLUSIVE)
 		fmode |= O_EXCL;
 again:
@@ -1658,6 +1665,7 @@ nfsmout:
 		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(dvp);
 	}
 	mtx_unlock(&(VTONFS(dvp))->n_mtx);
+	CURVNET_RESTORE();
 	return (error);
 }
 
