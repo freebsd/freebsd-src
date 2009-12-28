@@ -75,7 +75,7 @@ char   **makevfslist (const char *);
 size_t	 mntinfo (struct statfs **);
 int	 namematch (struct addrinfo *);
 int	 parsehexfsid(const char *hex, fsid_t *fsid);
-int	 sacmp (struct sockaddr *, struct sockaddr *);
+int	 sacmp (void *, void *);
 int	 umountall (char **);
 int	 checkname (char *, char **);
 int	 umountfs(struct statfs *sfs);
@@ -225,7 +225,7 @@ umountall(char **typelist)
  * Do magic checks on mountpoint/device/fsid, and then call unmount(2).
  */
 int
-checkname(char *name, char **typelist)
+checkname(char *mntname, char **typelist)
 {
 	char buf[MAXPATHLEN];
 	struct statfs sfsbuf;
@@ -238,25 +238,25 @@ checkname(char *name, char **typelist)
 	/*
 	 * 1. Check if the name exists in the mounttable.
 	 */
-	sfs = checkmntlist(name);
+	sfs = checkmntlist(mntname);
 	/*
 	 * 2. Remove trailing slashes if there are any. After that
 	 * we look up the name in the mounttable again.
 	 */
 	if (sfs == NULL) {
-		len = strlen(name);
-		while (len > 1 && name[len - 1] == '/')
-			name[--len] = '\0';
-		sfs = checkmntlist(name);
+		len = strlen(mntname);
+		while (len > 1 && mntname[len - 1] == '/')
+			mntname[--len] = '\0';
+		sfs = checkmntlist(mntname);
 	}
 	/*
 	 * 3. Check if the deprecated NFS syntax with an '@' has been used
 	 * and translate it to the ':' syntax. Look up the name in the
 	 * mount table again.
 	 */
-	if (sfs == NULL && (delimp = strrchr(name, '@')) != NULL) {
-		snprintf(buf, sizeof(buf), "%s:%.*s", delimp + 1, delimp - name,
-		    name);
+	if (sfs == NULL && (delimp = strrchr(mntname, '@')) != NULL) {
+		snprintf(buf, sizeof(buf), "%s:%.*s", delimp + 1,
+		    (int)(delimp - mntname), mntname);
 		len = strlen(buf);
 		while (len > 1 && buf[len - 1] == '/')
 			buf[--len] = '\0';
@@ -271,28 +271,28 @@ checkname(char *name, char **typelist)
 	 * mount list and reality.
 	 * We also do this if an ambiguous mount point was specified.
 	 */
-	if (sfs == NULL || (getmntentry(NULL, name, NULL, FIND) != NULL &&
-	    getmntentry(NULL, name, NULL, CHECKUNIQUE) == NULL)) {
-		if (statfs(name, &sfsbuf) != 0) {
-			warn("%s: statfs", name);
-		} else if (stat(name, &sb) != 0) {
-			warn("%s: stat", name);
+	if (sfs == NULL || (getmntentry(NULL, mntname, NULL, FIND) != NULL &&
+	    getmntentry(NULL, mntname, NULL, CHECKUNIQUE) == NULL)) {
+		if (statfs(mntname, &sfsbuf) != 0) {
+			warn("%s: statfs", mntname);
+		} else if (stat(mntname, &sb) != 0) {
+			warn("%s: stat", mntname);
 		} else if (S_ISDIR(sb.st_mode)) {
-			/* Check that `name' is the root directory. */
+			/* Check that `mntname' is the root directory. */
 			dev = sb.st_dev;
-			snprintf(buf, sizeof(buf), "%s/..", name);
+			snprintf(buf, sizeof(buf), "%s/..", mntname);
 			if (stat(buf, &sb) != 0) {
 				warn("%s: stat", buf);
 			} else if (sb.st_dev == dev) {
 				warnx("%s: not a file system root directory",
-				    name);
+				    mntname);
 				return (1);
 			} else
 				sfs = &sfsbuf;
 		}
 	}
 	if (sfs == NULL) {
-		warnx("%s: unknown file system", name);
+		warnx("%s: unknown file system", mntname);
 		return (1);
 	}
 	if (checkvfsname(sfs->f_fstypename, typelist))
@@ -469,15 +469,16 @@ getmntentry(const char *fromname, const char *onname, fsid_t *fsid, dowhat what)
 }
 
 int
-sacmp(struct sockaddr *sa1, struct sockaddr *sa2)
+sacmp(void *sa1, void *sa2)
 {
 	void *p1, *p2;
 	int len;
 
-	if (sa1->sa_family != sa2->sa_family)
+	if (((struct sockaddr *)sa1)->sa_family !=
+	    ((struct sockaddr *)sa2)->sa_family)
 		return (1);
 
-	switch (sa1->sa_family) {
+	switch (((struct sockaddr *)sa1)->sa_family) {
 	case AF_INET:
 		p1 = &((struct sockaddr_in *)sa1)->sin_addr;
 		p2 = &((struct sockaddr_in *)sa2)->sin_addr;
@@ -520,18 +521,18 @@ namematch(struct addrinfo *ai)
 }
 
 struct statfs *
-checkmntlist(char *name)
+checkmntlist(char *mntname)
 {
 	struct statfs *sfs;
 	fsid_t fsid;
 
 	sfs = NULL;
-	if (parsehexfsid(name, &fsid) == 0)
+	if (parsehexfsid(mntname, &fsid) == 0)
 		sfs = getmntentry(NULL, NULL, &fsid, FIND);
 	if (sfs == NULL)
-		sfs = getmntentry(NULL, name, NULL, FIND);
+		sfs = getmntentry(NULL, mntname, NULL, FIND);
 	if (sfs == NULL)
-		sfs = getmntentry(name, NULL, NULL, FIND);
+		sfs = getmntentry(mntname, NULL, NULL, FIND);
 	return (sfs);
 }
 
