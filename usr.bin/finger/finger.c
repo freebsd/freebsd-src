@@ -82,8 +82,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #include <unistd.h>
-#include <utmp.h>
 #include <locale.h>
 
 #include "finger.h"
@@ -233,29 +234,26 @@ loginlist(void)
 	PERSON *pn;
 	DBT data, key;
 	struct passwd *pw;
-	struct utmp user;
+	struct utmpx *user;
 	int r, sflag1;
-	char name[UT_NAMESIZE + 1];
 
 	if (kflag)
 		errx(1, "can't list logins without reading utmp");
 
-	if (!freopen(_PATH_UTMP, "r", stdin))
-		err(1, "%s", _PATH_UTMP);
-	name[UT_NAMESIZE] = '\0';
-	while (fread((char *)&user, sizeof(user), 1, stdin) == 1) {
-		if (!user.ut_name[0])
+	setutxent();
+	while ((user = getutxent()) != NULL) {
+		if (user->ut_type != USER_PROCESS)
 			continue;
-		if ((pn = find_person(user.ut_name)) == NULL) {
-			bcopy(user.ut_name, name, UT_NAMESIZE);
-			if ((pw = getpwnam(name)) == NULL)
+		if ((pn = find_person(user->ut_user)) == NULL) {
+			if ((pw = getpwnam(user->ut_user)) == NULL)
 				continue;
 			if (hide(pw))
 				continue;
 			pn = enter_person(pw);
 		}
-		enter_where(&user, pn);
+		enter_where(user, pn);
 	}
+	endutxent();
 	if (db && lflag)
 		for (sflag1 = R_FIRST;; sflag1 = R_NEXT) {
 			PERSON *tmp;
@@ -275,7 +273,7 @@ userlist(int argc, char **argv)
 {
 	PERSON *pn;
 	DBT data, key;
-	struct utmp user;
+	struct utmpx *user;
 	struct passwd *pw;
 	int r, sflag1, *used, *ip;
 	char **ap, **nargv, **np, **p;
@@ -384,15 +382,15 @@ net:	for (p = nargv; *p;) {
 	 * Scan thru the list of users currently logged in, saving
 	 * appropriate data whenever a match occurs.
 	 */
-	if (!freopen(_PATH_UTMP, "r", stdin))
-		err(1, "%s", _PATH_UTMP);
-	while (fread((char *)&user, sizeof(user), 1, stdin) == 1) {
-		if (!user.ut_name[0])
+	setutxent();
+	while ((user = getutxent()) != NULL) {
+		if (user->ut_type != USER_PROCESS)
 			continue;
-		if ((pn = find_person(user.ut_name)) == NULL)
+		if ((pn = find_person(user->ut_user)) == NULL)
 			continue;
-		enter_where(&user, pn);
+		enter_where(user, pn);
 	}
+	endutxent();
 	if (db)
 		for (sflag1 = R_FIRST;; sflag1 = R_NEXT) {
 			PERSON *tmp;
