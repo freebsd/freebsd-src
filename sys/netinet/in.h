@@ -734,6 +734,32 @@ void	 in_ifdetach(struct ifnet *);
 #define	sintosa(sin)	((struct sockaddr *)(sin))
 #define	ifatoia(ifa)	((struct in_ifaddr *)(ifa))
 
+/*
+ * Historically, BSD keeps ip_len and ip_off in host format
+ * when doing layer 3 processing, and this often requires
+ * to translate the format back and forth.
+ * To make the process explicit, we define a couple of macros
+ * that also take into account the fact that at some point
+ * we may want to keep those fields always in net format.
+ */
+
+#if (BYTE_ORDER == BIG_ENDIAN) || defined(HAVE_NET_IPLEN)
+#define SET_NET_IPLEN(p)	do {} while (0)
+#define SET_HOST_IPLEN(p)	do {} while (0)
+#else
+#define SET_NET_IPLEN(p)	do {		\
+	struct ip *h_ip = (p);			\
+	h_ip->ip_len = htons(h_ip->ip_len);	\
+	h_ip->ip_off = htons(h_ip->ip_off);	\
+	} while (0)
+
+#define SET_HOST_IPLEN(p)	do {		\
+	struct ip *h_ip = (p);			\
+	h_ip->ip_len = ntohs(h_ip->ip_len);	\
+	h_ip->ip_off = ntohs(h_ip->ip_off);	\
+	} while (0)
+#endif /* !HAVE_NET_IPLEN */
+
 #endif /* _KERNEL */
 
 /* INET6 stuff */

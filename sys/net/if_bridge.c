@@ -3041,13 +3041,17 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 
 	/* XXX this section is also in if_ethersubr.c */
 	if (V_ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
-		struct dn_pkt_tag *dn_tag;
+		struct m_tag *mtag;
 
 		error = -1;
-		dn_tag = ip_dn_claim_tag(*mp);
-		if (dn_tag == NULL) {
+		mtag = m_tag_find(*mp, PACKET_TAG_DUMMYNET, NULL);
+		if (mtag == NULL) {
 			args.slot = 0;
 		} else {
+			struct dn_pkt_tag *dn_tag;
+
+			mtag->m_tag_id = PACKET_TAG_NONE;
+			dn_tag = (struct dn_pkt_tag *)(mtag + 1);
 			if (dn_tag->slot != 0 && V_fw_one_pass)
 				/* packet already partially processed */
 				goto ipfwpass;
@@ -3081,7 +3085,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			 * packet will return to us via bridge_dummynet().
 			 */
 			args.oif = ifp;
-			ip_dn_io_ptr(mp, DN_TO_IFB_FWD, &args);
+			ip_dn_io_ptr(mp, DIR_FWD | PROTO_IFB, &args);
 			return (error);
 		}
 

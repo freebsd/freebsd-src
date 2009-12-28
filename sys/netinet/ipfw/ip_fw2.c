@@ -75,15 +75,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_fw.h>
 #include <netinet/ipfw/ip_fw_private.h>
 #include <netinet/ip_divert.h>
-#include <netinet/ip_dummynet.h>
 #include <netinet/ip_carp.h>
 #include <netinet/pim.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
-
-#include <netgraph/ng_ipfw.h>
 
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
@@ -591,7 +588,7 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
  * sends a reject message, consuming the mbuf passed as an argument.
  */
 static void
-send_reject(struct ip_fw_args *args, int code, int ip_len, struct ip *ip)
+send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
 {
 
 #if 0
@@ -607,8 +604,7 @@ send_reject(struct ip_fw_args *args, int code, int ip_len, struct ip *ip)
 	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
 		/* We need the IP header in host order for icmp_error(). */
 		if (args->eh != NULL) {
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
+			SET_HOST_IPLEN(ip);
 		}
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
 	} else if (args->f_id.proto == IPPROTO_TCP) {
@@ -851,12 +847,12 @@ ipfw_chk(struct ip_fw_args *args)
 	 * src_ip, dst_ip	ip addresses, in NETWORK format.
 	 *	Only valid for IPv4 packets.
 	 */
-	u_int8_t proto;
-	u_int16_t src_port = 0, dst_port = 0;	/* NOTE: host format	*/
+	uint8_t proto;
+	uint16_t src_port = 0, dst_port = 0;	/* NOTE: host format	*/
 	struct in_addr src_ip, dst_ip;		/* NOTE: network format	*/
-	u_int16_t ip_len=0;
+	uint16_t iplen=0;
 	int pktlen;
-	u_int16_t	etype = 0;	/* Host order stored ether type */
+	uint16_t	etype = 0;	/* Host order stored ether type */
 
 	/*
 	 * dyn_dir = MATCH_UNKNOWN when rules unchecked,
@@ -1094,14 +1090,17 @@ do {								\
 		proto = ip->ip_p;
 		src_ip = ip->ip_src;
 		dst_ip = ip->ip_dst;
-		if (args->eh != NULL) { /* layer 2 packets are as on the wire */
-			offset = ntohs(ip->ip_off) & IP_OFFMASK;
-			ip_len = ntohs(ip->ip_len);
-		} else {
+#ifndef HAVE_NET_IPLEN
+		if (args->eh == NULL) { /* on l3 these are in host format */
 			offset = ip->ip_off & IP_OFFMASK;
-			ip_len = ip->ip_len;
+			iplen = ip->ip_len;
+		} else
+#endif /* !HAVE_NET_IPLEN */
+		{	/* otherwise they are in net format */
+			offset = ntohs(ip->ip_off) & IP_OFFMASK;
+			iplen = ntohs(ip->ip_len);
 		}
-		pktlen = ip_len < pktlen ? ip_len : pktlen;
+		pktlen = iplen < pktlen ? iplen : pktlen;
 
 		if (offset == 0) {
 			switch (proto) {
@@ -1144,6 +1143,7 @@ do {								\
 		IPFW_RUNLOCK(chain);
 		return (IP_FW_PASS);	/* accept */
 	}
+	/* XXX divert should be handled same as other tags */
 	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
 	if (args->slot) {
 		/*
@@ -1355,27 +1355,29 @@ do {								\
 			case O_IP_SRC_LOOKUP:
 			case O_IP_DST_LOOKUP:
 				if (is_ipv4) {
-				    uint32_t a =
+				    uint32_t key =
 					(cmd->opcode == O_IP_DST_LOOKUP) ?
 					    dst_ip.s_addr : src_ip.s_addr;
 				    uint32_t v = 0;
 
 				    if (cmdlen > F_INSN_SIZE(ipfw_insn_u32)) {
-					/* generic lookup */
+					/* generic lookup. The key must be
+					 * in 32bit big-endian format.
+					 */
 					v = ((ipfw_insn_u32 *)cmd)->d[1];
 					if (v == 0)
-					    a = dst_ip.s_addr;
+					    key = dst_ip.s_addr;
 					else if (v == 1)
-					    a = src_ip.s_addr;
+					    key = src_ip.s_addr;
 					else if (offset != 0)
 					    break;
 					else if (proto != IPPROTO_TCP &&
 						proto != IPPROTO_UDP)
 					    break;
 					else if (v == 2)
-					    a = dst_port;
+					    key = htonl(dst_port);
 					else if (v == 3)
-					    a = src_port;
+					    key = htons(src_port);
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
 						(ipfw_insn_u32 *)cmd,
@@ -1384,14 +1386,15 @@ do {								\
 						src_ip, src_port, &ucred_cache,
 						&ucred_lookup, args->inp);
 					    if (v == 4 /* O_UID */)
-						a = ucred_cache->cr_uid;
+						key = ucred_cache->cr_uid;
 					    else if (v == 5 /* O_JAIL */)
-						a = ucred_cache->cr_prison->pr_id;
+						key = ucred_cache->cr_prison->pr_id;
+					    key = htonl(key);
 					} else
 					    break;
 				    }
-				    match = ipfw_lookup_table(chain, cmd->arg1, a,
-					&v);
+				    match = ipfw_lookup_table(chain,
+					cmd->arg1, key, &v);
 				    if (!match)
 					break;
 				    if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
@@ -1514,7 +1517,7 @@ do {								\
 				    int i;
 
 				    if (cmd->opcode == O_IPLEN)
-					x = ip_len;
+					x = iplen;
 				    else if (cmd->opcode == O_IPTTL)
 					x = ip->ip_ttl;
 				    else /* must be IPID */
@@ -1549,7 +1552,7 @@ do {								\
 				    int i;
 
 				    tcp = TCP(ulp);
-				    x = ip_len -
+				    x = iplen -
 					((ip->ip_hl + tcp->th_off) << 2);
 				    if (cmdlen == 1) {
 					match = (cmd->arg1 == x);
@@ -2022,7 +2025,7 @@ do {								\
 				     is_icmp_query(ICMP(ulp))) &&
 				    !(m->m_flags & (M_BCAST|M_MCAST)) &&
 				    !IN_MULTICAST(ntohl(dst_ip.s_addr))) {
-					send_reject(args, cmd->arg1, ip_len, ip);
+					send_reject(args, cmd->arg1, iplen, ip);
 					m = args->m;
 				}
 				/* FALLTHROUGH */
@@ -2124,8 +2127,13 @@ do {								\
 				f->bcnt += pktlen;
 				l = 0;	/* in any case exit inner loop */
 
-				ip_off = (args->eh != NULL) ?
-					ntohs(ip->ip_off) : ip->ip_off;
+#ifndef HAVE_NET_IPLEN
+				if (args->eh == NULL)
+					ip_off = ip->ip_off;
+				else
+#endif /* !HAVE_NET_IPLEN */
+				ip_off = ntohs(ip->ip_off);
+
 				/* if not fragmented, go to next rule */
 				if ((ip_off & (IP_MF | IP_OFFMASK)) == 0)
 				    break;
@@ -2135,8 +2143,7 @@ do {								\
 				 * from layer2.
 				 */
 				if (args->eh != NULL) {
-				    ip->ip_len = ntohs(ip->ip_len);
-				    ip->ip_off = ntohs(ip->ip_off);
+					SET_HOST_IPLEN(ip);
 				}
 
 				args->m = m = ip_reass(m);
@@ -2153,9 +2160,10 @@ do {								\
 
 				    ip = mtod(m, struct ip *);
 				    hlen = ip->ip_hl << 2;
-				    /* revert len & off for layer2 pkts */
-				    if (args->eh != NULL)
-					ip->ip_len = htons(ip->ip_len);
+				    /* revert len. & off to net format if needed */
+				    if (args->eh != NULL) {
+					SET_NET_IPLEN(ip);
+				    }
 				    ip->ip_sum = 0;
 				    if (hlen == sizeof(struct ip))
 					ip->ip_sum = in_cksum_hdr(ip);
@@ -2364,7 +2372,7 @@ vnet_ipfw_init(const void *unused)
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl;
 	V_ip_fw_chk_ptr = ipfw_chk;
-	error = ipfw_attach_hooks();
+	error = ipfw_attach_hooks(1);
 	return (error);
 }
 
@@ -2384,10 +2392,7 @@ vnet_ipfw_uninit(const void *unused)
 	 * Then grab, release and grab again the WLOCK so we make
 	 * sure the update is propagated and nobody will be in.
 	 */
-	ipfw_unhook();
-#ifdef INET6
-	ipfw6_unhook();
-#endif
+	(void)ipfw_attach_hooks(0 /* detach */);
 	V_ip_fw_chk_ptr = NULL;
 	V_ip_fw_ctl_ptr = NULL;
 	IPFW_UH_WLOCK(chain);
