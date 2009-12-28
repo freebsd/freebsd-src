@@ -551,7 +551,6 @@ transmit_event(struct dn_pipe *pipe, struct mbuf **head, struct mbuf **tail)
 }
 
 #define div64(a, b)	((int64_t)(a) / (int64_t)(b))
-#define DN_TO_DROP	0xffff
 /*
  * Compute how many ticks we have to wait before being able to send
  * a packet. This is computed as the "wire time" for the packet
@@ -589,7 +588,7 @@ compute_extra_bits(struct mbuf *pkt, struct dn_pipe *p)
 	if (index >= p->loss_level) {
 		struct dn_pkt_tag *dt = dn_tag_get(pkt);
 		if (dt)
-			dt->dn_dir = DN_TO_DROP;
+			dt->dn_dir = DIR_DROP;
 	}
 	return extra_bits;
 }
@@ -964,49 +963,48 @@ dummynet_task(void *context, int pending)
 static void
 dummynet_send(struct mbuf *m)
 {
-	struct dn_pkt_tag *pkt;
 	struct mbuf *n;
-	struct ip *ip;
-	int dst;
 
 	for (; m != NULL; m = n) {
+		struct ifnet *ifp;
+		int dst;
+
 		n = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		if (m_tag_first(m) == NULL) {
-			pkt = NULL; /* probably unnecessary */
-			dst = DN_TO_DROP;
+			dst = DIR_DROP;
 		} else {
-			pkt = dn_tag_get(m);
+			struct dn_pkt_tag *pkt = dn_tag_get(m);
 			dst = pkt->dn_dir;
+			ifp = pkt->ifp;
 		}
 
 		switch (dst) {
-		case DN_TO_IP_OUT:
+		case DIR_OUT:
 			ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL);
 			break ;
-		case DN_TO_IP_IN :
-			ip = mtod(m, struct ip *);
-			ip->ip_len = htons(ip->ip_len);
-			ip->ip_off = htons(ip->ip_off);
+		case DIR_IN :
+			/* put header in network format for ip_input() */
+			SET_NET_IPLEN(mtod(m, struct ip *));
 			netisr_dispatch(NETISR_IP, m);
 			break;
 #ifdef INET6
-		case DN_TO_IP6_IN:
+		case DIR_IN | PROTO_IPV6:
 			netisr_dispatch(NETISR_IPV6, m);
 			break;
 
-		case DN_TO_IP6_OUT:
+		case DIR_OUT | PROTO_IPV6:
 			ip6_output(m, NULL, NULL, IPV6_FORWARDING, NULL, NULL, NULL);
 			break;
 #endif
-		case DN_TO_IFB_FWD:
+		case DIR_FWD | PROTO_IFB: /* DN_TO_IFB_FWD: */
 			if (bridge_dn_p != NULL)
-				((*bridge_dn_p)(m, pkt->ifp));
+				((*bridge_dn_p)(m, ifp));
 			else
 				printf("dummynet: if_bridge not loaded\n");
 
 			break;
-		case DN_TO_ETH_DEMUX:
+		case DIR_IN | PROTO_LAYER2: /* DN_TO_ETH_DEMUX: */
 			/*
 			 * The Ethernet code assumes the Ethernet header is
 			 * contiguous in the first mbuf header.
@@ -1020,17 +1018,17 @@ dummynet_send(struct mbuf *m)
 			}
 			ether_demux(m->m_pkthdr.rcvif, m);
 			break;
-		case DN_TO_ETH_OUT:
-			ether_output_frame(pkt->ifp, m);
+		case DIR_OUT | PROTO_LAYER2: /* N_TO_ETH_OUT: */
+			ether_output_frame(ifp, m);
 			break;
 
-		case DN_TO_DROP:
+		case DIR_DROP:
 			/* drop the packet after some time */
 			dn_free_pkt(m);
 			break;
 
 		default:
-			printf("dummynet: bad switch %d!\n", pkt->dn_dir);
+			printf("dummynet: bad switch %d!\n", dst);
 			dn_free_pkt(m);
 			break;
 		}
@@ -1545,8 +1543,8 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 		}
 	}
 done:
-	if (head == m && dir != DN_TO_IFB_FWD && dir != DN_TO_ETH_DEMUX &&
-	    dir != DN_TO_ETH_OUT) {	/* Fast io. */
+	if (head == m && (dir & PROTO_LAYER2) == 0 ) {
+		/* Fast io. */
 		io_pkt_fast++;
 		if (m->m_nextpkt != NULL)
 			printf("dummynet: fast io: pkt chain detected!\n");
@@ -1810,13 +1808,15 @@ config_pipe(struct dn_pipe *p)
 			pipe->idle_heap.size = pipe->idle_heap.elements = 0;
 			pipe->idle_heap.offset =
 			    offsetof(struct dn_flow_queue, heap_pos);
-		} else
+		} else {
 			/* Flush accumulated credit for all queues. */
-			for (i = 0; i <= pipe->fs.rq_size; i++)
+			for (i = 0; i <= pipe->fs.rq_size; i++) {
 				for (q = pipe->fs.rq[i]; q; q = q->next) {
 					q->numbytes = p->burst +
 					    (io_fast ? p->bandwidth : 0);
 				}
+			}
+		}
 
 		pipe->bandwidth = p->bandwidth;
 		pipe->burst = p->burst;

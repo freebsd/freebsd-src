@@ -110,21 +110,19 @@ struct dn_heap {
  * them that carries their dummynet state.  This is used within
  * the dummynet code as well as outside when checking for special
  * processing requirements.
+ * Note that the first part is the reinject info and is common to
+ * other forms of packet reinjection.
  */
 struct dn_pkt_tag {
+    /* first part, reinject info */
     uint32_t slot;		/* slot of next rule to use */
     uint32_t rulenum;		/* matching rule number */
     uint32_t rule_id;		/* matching rule id */
     uint32_t chain_id;		/* ruleset id */
+
+    /* second part, dummynet specific */
     int dn_dir;			/* action when packet comes out. */
-#define DN_TO_IP_OUT	1
-#define DN_TO_IP_IN	2
-/* Obsolete: #define DN_TO_BDG_FWD	3 */
-#define DN_TO_ETH_DEMUX	4
-#define DN_TO_ETH_OUT	5
-#define DN_TO_IP6_IN	6
-#define DN_TO_IP6_OUT	7
-#define DN_TO_IFB_FWD	8
+				/* see ip_fw_private.h */
 
     dn_key output_time;		/* when the pkt is due for delivery	*/
     struct ifnet *ifp;		/* interface, for ip_output		*/
@@ -377,21 +375,4 @@ struct dn_pipe_max {
 
 SLIST_HEAD(dn_pipe_head, dn_pipe);
 
-#ifdef _KERNEL
-
-/*
- * Return the dummynet tag; if any.
- * Make sure that the dummynet tag is not reused by lower layers.
- */
-static __inline struct dn_pkt_tag *
-ip_dn_claim_tag(struct mbuf *m)
-{
-	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DUMMYNET, NULL);
-	if (mtag != NULL) {
-		mtag->m_tag_id = PACKET_TAG_NONE;
-		return ((struct dn_pkt_tag *)(mtag + 1));
-	} else
-		return (NULL);
-}
-#endif
 #endif /* _IP_DUMMYNET_H */

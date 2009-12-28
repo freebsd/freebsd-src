@@ -101,19 +101,33 @@ struct ip_fw_args {
 MALLOC_DECLARE(M_IPFW);
 
 /*
+ * Hooks sometime need to know the direction of the packet
+ * (divert, dummynet, netgraph, ...)
+ * We use a generic definition here, with bit0-1 indicating the
+ * direction, bit 2 indicating layer2 or 3, bit 3-4 indicating the
+ * specific protocol
+ * indicating the protocol (if necessary)
+ */
+enum {
+	DIR_MASK =	0x3,
+	DIR_OUT =	0,
+	DIR_IN =	1,
+	DIR_FWD =	2,
+	DIR_DROP =	3,
+	PROTO_LAYER2 =	0x4, /* set for layer 2 */
+	/* PROTO_DEFAULT = 0, */
+	PROTO_IPV4 =	0x08,
+	PROTO_IPV6 =	0x10,
+	PROTO_IFB =	0x0c, /* layer2 + ifbridge */
+   /*	PROTO_OLDBDG =	0x14, unused, old bridge */
+};
+
+/*
  * Function definitions.
  */
 
-/* Firewall hooks */
-
-int ipfw_check_in(void *, struct mbuf **, struct ifnet *,
-	int, struct inpcb *inp);
-int ipfw_check_out(void *, struct mbuf **, struct ifnet *,
-	int, struct inpcb *inp);
-
-int ipfw_attach_hooks(void);
-int ipfw_unhook(void);
-int ipfw6_unhook(void);
+/* attach (arg = 1) or detach (arg = 0) hooks */
+int ipfw_attach_hooks(int);
 #ifdef NOTYET
 void ipfw_nat_destroy(void);
 #endif
@@ -256,6 +270,28 @@ extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
+
+/* netgraph prototypes */
+#define NGM_IPFW_COOKIE      1105988990
+
+typedef int ng_ipfw_input_t(struct mbuf **, int, struct ip_fw_args *, int);
+extern  ng_ipfw_input_t *ng_ipfw_input_p;
+#define NG_IPFW_LOADED  (ng_ipfw_input_p != NULL)
+
+struct ng_ipfw_tag {
+        struct m_tag    mt;             /* tag header */
+	/* reinject info */
+        uint32_t        slot;           /* slot for next rule */
+        uint32_t        rulenum;        /* matching rule number */
+        uint32_t        rule_id;        /* matching rule id */
+        uint32_t        chain_id;       /* ruleset id */
+        int             dir;
+
+//        struct ifnet    *ifp;           /* interface, for ip_output */
+};
+
+#define TAGSIZ  (sizeof(struct ng_ipfw_tag) - sizeof(struct m_tag))
+
 
 #endif /* _KERNEL */
 #endif /* _IPFW2_PRIVATE_H */
