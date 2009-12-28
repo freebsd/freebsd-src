@@ -87,7 +87,7 @@ struct prison prison0 = {
 	.pr_securelevel	= -1,
 	.pr_childmax	= JAIL_MAX,
 	.pr_hostuuid	= DEFAULT_HOSTUUID,
-	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
+	.pr_children	= LIST_HEAD_INITIALIZER(prison0.pr_children),
 #ifdef VIMAGE
 	.pr_flags	= PR_HOST|PR_VNET,
 #else
