@@ -600,6 +600,7 @@ find_progs() {	# programs
 		lp="$lp:$o/lib:$o/usr/lib:$o/usr/local/lib"
 		o="-P $o"
 	fi
+	u_libs=""
 	u_progs="`find_progs_helper $*`"
 	log "looking for libs for <$u_progs> in $lp"
 	[ -z "${u_progs}" ] && return 1	# not found, error
