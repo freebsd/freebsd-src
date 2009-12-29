@@ -1000,13 +1000,29 @@ siis_execute_transaction(struct siis_slot *slot)
 	ctp->protocol_override = 0;
 	ctp->transfer_count = 0;
 	/* Special handling for Soft Reset command. */
-	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
-	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL)) {
-		ctp->control |= htole16(SIIS_PRB_SOFT_RESET);
+	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+		if (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) {
+			ctp->control |= htole16(SIIS_PRB_SOFT_RESET);
+		} else {
+			ctp->control |= htole16(SIIS_PRB_PROTOCOL_OVERRIDE);
+			if (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) {
+				ctp->protocol_override |=
+				    htole16(SIIS_PRB_PROTO_NCQ);
+			}
+			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+				ctp->protocol_override |=
+				    htole16(SIIS_PRB_PROTO_READ);
+			} else
+			if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT) {
+				ctp->protocol_override |=
+				    htole16(SIIS_PRB_PROTO_WRITE);
+			}
+		}
 	} else if (ccb->ccb_h.func_code == XPT_SCSI_IO) {
-		if (ccb->ccb_h.flags & CAM_DIR_IN)
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			ctp->control |= htole16(SIIS_PRB_PACKET_READ);
-		if (ccb->ccb_h.flags & CAM_DIR_OUT)
+		else
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			ctp->control |= htole16(SIIS_PRB_PACKET_WRITE);
 	}
 	/* Setup the FIS for this request */
