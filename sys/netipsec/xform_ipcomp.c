@@ -345,6 +345,17 @@ ipcomp_output(
 	ipcompx = sav->tdb_compalgxform;
 	IPSEC_ASSERT(ipcompx != NULL, ("null compression xform"));
 
+	/*
+	 * Do not touch the packet in case our payload to compress
+	 * is lower than the minimal threshold of the compression
+	 * alogrithm.  We will just send out the data uncompressed.
+	 * See RFC 3173, 2.2. Non-Expansion Policy.
+	 */
+	if (m->m_pkthdr.len <= ipcompx->minlen) {
+		/* XXX-BZ V_ipcompstat.threshold++; */
+		return ipsec_process_done(m, isr);
+	}
+
 	ralen = m->m_pkthdr.len - skip;	/* Raw payload length before comp. */
 	hlen = IPCOMP_HLENGTH;
 
