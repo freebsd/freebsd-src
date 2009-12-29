@@ -278,9 +278,11 @@ isavga_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread 
 }
 
 static int
-isavga_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+isavga_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
-	return (vga_mmap(dev, VGA_SOFTC(VGA_UNIT(dev)), offset, paddr, prot));
+	return (vga_mmap(dev, VGA_SOFTC(VGA_UNIT(dev)), offset, paddr, prot,
+	    memattr));
 }
 
 #endif /* FB_INSTALL_CDEV */

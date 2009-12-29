@@ -395,12 +395,13 @@ gdcioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 }
 
 static int
-gdcmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+gdcmmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
     gdc_softc_t *sc;
 
     sc = GDC_SOFTC(GDC_UNIT(dev));
-    return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot);
+    return genfbmmap(&sc->gensc, sc->adp, offset, paddr, prot, memattr);
 }
 
 #endif /* FB_INSTALL_CDEV */
@@ -1337,8 +1338,8 @@ gdc_blank_display(video_adapter_t *adp, int mode)
  * Mmap frame buffer.
  */
 static int
-gdc_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr,
-	     int prot)
+gdc_mmap_buf(video_adapter_t *adp, vm_ooffset_t offset, vm_offset_t *paddr,
+	     int prot, vm_memattr_t *memattr)
 {
     /* FIXME: is this correct? XXX */
     if (offset > VIDEO_BUF_SIZE - PAGE_SIZE)

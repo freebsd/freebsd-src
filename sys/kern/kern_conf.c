@@ -302,7 +302,7 @@ static struct cdevsw dead_cdevsw = {
 #define no_read		(d_read_t *)enodev
 #define no_write	(d_write_t *)enodev
 #define no_ioctl	(d_ioctl_t *)enodev
-#define no_mmap		(d_mmap2_t *)enodev
+#define no_mmap		(d_mmap_t *)enodev
 #define no_kqfilter	(d_kqfilter_t *)enodev
 #define no_mmap_single	(d_mmap_single_t *)enodev
 
@@ -469,7 +469,7 @@ giant_kqfilter(struct cdev *dev, struct knote *kn)
 }
 
 static int
-giant_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot,
+giant_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
     vm_memattr_t *memattr)
 {
 	struct cdevsw *dsw;
@@ -479,11 +479,8 @@ giant_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot,
 	if (dsw == NULL)
 		return (ENXIO);
 	mtx_lock(&Giant);
-	if (dsw->d_gianttrick->d_flags & D_MMAP2)
-		retval = dsw->d_gianttrick->d_mmap2(dev, offset, paddr, nprot,
-		    memattr);
-	else
-		retval = dsw->d_gianttrick->d_mmap(dev, offset, paddr, nprot);
+	retval = dsw->d_gianttrick->d_mmap(dev, offset, paddr, nprot,
+	    memattr);
 	mtx_unlock(&Giant);
 	dev_relthread(dev);
 	return (retval);
@@ -595,8 +592,7 @@ prep_cdevsw(struct cdevsw *devsw)
 		return;
 	}
 
-	if (devsw->d_version != D_VERSION_01 &&
-	    devsw->d_version != D_VERSION_02) {
+	if (devsw->d_version != D_VERSION_03) {
 		printf(
 		    "WARNING: Device driver \"%s\" has wrong version %s\n",
 		    devsw->d_name == NULL ? "???" : devsw->d_name,
@@ -608,18 +604,16 @@ prep_cdevsw(struct cdevsw *devsw)
 		devsw->d_ioctl = dead_ioctl;
 		devsw->d_poll = dead_poll;
 		devsw->d_mmap = dead_mmap;
+		devsw->d_mmap_single = dead_mmap_single;
 		devsw->d_strategy = dead_strategy;
 		devsw->d_dump = dead_dump;
 		devsw->d_kqfilter = dead_kqfilter;
 	}
-	if (devsw->d_version == D_VERSION_01)
-		devsw->d_mmap_single = NULL;
 	
 	if (devsw->d_flags & D_NEEDGIANT) {
 		if (devsw->d_gianttrick == NULL) {
 			memcpy(dsw2, devsw, sizeof *dsw2);
 			devsw->d_gianttrick = dsw2;
-			devsw->d_flags |= D_MMAP2;
 			dsw2 = NULL;
 		}
 	}
@@ -640,7 +634,7 @@ prep_cdevsw(struct cdevsw *devsw)
 	FIXUP(d_write,		no_write,	giant_write);
 	FIXUP(d_ioctl,		no_ioctl,	giant_ioctl);
 	FIXUP(d_poll,		no_poll,	giant_poll);
-	FIXUP(d_mmap2,		no_mmap,	giant_mmap);
+	FIXUP(d_mmap,		no_mmap,	giant_mmap);
 	FIXUP(d_strategy,	no_strategy,	giant_strategy);
 	FIXUP(d_kqfilter,	no_kqfilter,	giant_kqfilter);
 	FIXUP(d_mmap_single,	no_mmap_single,	giant_mmap_single);

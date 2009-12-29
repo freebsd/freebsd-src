@@ -794,7 +794,8 @@ bktr_ioctl( struct cdev *dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct thr
  * 
  */
 static int
-bktr_mmap( struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot )
+bktr_mmap( struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr )
 {
 	int		unit;
 	bktr_ptr_t	bktr;
