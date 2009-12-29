@@ -150,6 +150,7 @@ struct if_data {
 #define	IFF_MONITOR	0x40000		/* (n) user-requested monitor mode */
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
+#define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
 
 /*
  * Old names for driver flags so that user space tools can continue to use
