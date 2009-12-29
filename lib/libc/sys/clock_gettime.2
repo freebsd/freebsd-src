@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2006
+.Dd December 29, 2009
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -70,10 +70,13 @@ which starts at zero when the kernel boots and increments
 monotonically in SI seconds while the machine is running,
 .Dv CLOCK_VIRTUAL
 for time that increments only when
-the CPU is running in user mode on behalf of the calling process, or
+the CPU is running in user mode on behalf of the calling process,
 .Dv CLOCK_PROF
 for time that increments when the CPU is running in user or
-kernel mode.
+kernel mode, or
+.Dv CLOCK_SECOND
+which returns the current second without performing a full time counter
+query, using in-kernel cached value of current second.
 .Pp
 The structure pointed to by
 .Fa tp
