@@ -25,6 +25,10 @@
  * $FreeBSD$
  */
 
+#ifndef __LIBARCHIVE_BUILD
+#error This header is only to be used internally to libarchive.
+#endif
+
 #ifndef ARCHIVE_WRITE_PRIVATE_H_INCLUDED
 #define	ARCHIVE_WRITE_PRIVATE_H_INCLUDED
 
@@ -37,7 +41,7 @@ struct archive_write {
 
 	/* Dev/ino of the archive being written. */
 	dev_t		  skip_file_dev;
-	ino_t		  skip_file_ino;
+	int64_t		  skip_file_ino;
 
 	/* Utility:  Pointer to a block of nulls. */
 	const unsigned char	*nulls;
