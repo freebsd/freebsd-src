@@ -3431,14 +3431,15 @@ next_code:
 }
 
 static int
-sctty_mmap(struct tty *tp, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+sctty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
     scr_stat *scp;
 
     scp = sc_get_stat(tp);
     if (scp != scp->sc->cur_scp)
 	return -1;
-    return vidd_mmap(scp->sc->adp, offset, paddr, nprot);
+    return vidd_mmap(scp->sc->adp, offset, paddr, nprot, memattr);
 }
 
 static int

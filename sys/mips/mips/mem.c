@@ -173,7 +173,8 @@ memrw(dev, uio, flags)
 
 /*ARGSUSED*/
 int
-memmmap(struct cdev *dev, vm_offset_t off, vm_paddr_t *paddr, int prot)
+memmmap(struct cdev *dev, vm_ooffset_t off, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 
 	return (EOPNOTSUPP);

@@ -603,7 +603,8 @@ ttydev_poll(struct cdev *dev, int events, struct thread *td)
 }
 
 static int
-ttydev_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+ttydev_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	struct tty *tp = dev->si_drv1;
 	int error;
@@ -613,7 +614,7 @@ ttydev_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	error = ttydev_enter(tp);
 	if (error)
 		return (-1);
-	error = ttydevsw_mmap(tp, offset, paddr, nprot);
+	error = ttydevsw_mmap(tp, offset, paddr, nprot, memattr);
 	tty_unlock(tp);
 
 	return (error);
@@ -905,8 +906,8 @@ ttydevsw_defmodem(struct tty *tp, int sigon, int sigoff)
 }
 
 static int
-ttydevsw_defmmap(struct tty *tp, vm_offset_t offset, vm_paddr_t *paddr,
-    int nprot)
+ttydevsw_defmmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 
 	return (-1);

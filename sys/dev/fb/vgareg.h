@@ -88,8 +88,8 @@ int		vga_read(struct cdev *dev, vga_softc_t *sc, struct uio *uio, int flag);
 int		vga_write(struct cdev *dev, vga_softc_t *sc, struct uio *uio, int flag);
 int		vga_ioctl(struct cdev *dev, vga_softc_t *sc, u_long cmd, caddr_t arg,
 			  int flag, struct thread *td);
-int		vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset,
-			 vm_offset_t *paddr, int prot);
+int		vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_ooffset_t offset,
+			 vm_offset_t *paddr, int prot, vm_memattr_t *memattr);
 #endif
 
 extern int	(*vga_sub_configure)(int flags);
