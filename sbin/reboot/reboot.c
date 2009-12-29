@@ -231,7 +231,7 @@ usage(void)
 }
 
 static u_int
-get_pageins()
+get_pageins(void)
 {
 	u_int pageins;
 	size_t len;
