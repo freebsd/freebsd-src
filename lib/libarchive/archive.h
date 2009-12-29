@@ -538,6 +538,7 @@ __LA_DECL int		 archive_write_set_format_pax_restricted(struct archive *);
 __LA_DECL int		 archive_write_set_format_shar(struct archive *);
 __LA_DECL int		 archive_write_set_format_shar_dump(struct archive *);
 __LA_DECL int		 archive_write_set_format_ustar(struct archive *);
+__LA_DECL int		 archive_write_set_format_zip(struct archive *);
 __LA_DECL int		 archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,
 		     archive_close_callback *);
