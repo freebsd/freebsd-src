@@ -543,7 +543,7 @@ swcr_compdec(struct cryptodesc *crd, struct swcr_data *sw,
 	sw->sw_size = result;
 	/* Check the compressed size when doing compression */
 	if (crd->crd_flags & CRD_F_COMP) {
-		if (result > crd->crd_len) {
+		if (result >= crd->crd_len) {
 			/* Compression was useless, we lost time */
 			FREE(out, M_CRYPTO_DATA);
 			return 0;
