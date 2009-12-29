@@ -28,3 +28,10 @@ options 	GEOM_PART_MBR
 # enable support for native hardware
 options 	NATIVE
 device		atpic
+ 
+# Store the plain version of the configuration file in the kernel itself.
+# To store the entire file, including comments, put this in /etc/src.conf:
+# CONFIGARGS=	-C
+# See config(8) for more details.
+#
+options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
