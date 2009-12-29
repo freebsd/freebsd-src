@@ -960,7 +960,7 @@ blkif_queue_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 		/* install a grant reference. */
 		ref = gnttab_claim_grant_reference(&cm->gref_head);
-		KASSERT( ref != ENOSPC, ("grant_reference failed") );
+		KASSERT( ref >= 0, ("grant_reference failed") );
 
 		gnttab_grant_foreign_access_ref(
 			ref,
