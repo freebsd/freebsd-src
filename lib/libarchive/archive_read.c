@@ -354,6 +354,7 @@ build_stream(struct archive_read *a)
 	int number_bidders, i, bid, best_bid;
 	struct archive_read_filter_bidder *bidder, *best_bidder;
 	struct archive_read_filter *filter;
+	ssize_t avail;
 	int r;
 
 	for (;;) {
@@ -391,6 +392,13 @@ build_stream(struct archive_read *a)
 		if (r != ARCHIVE_OK) {
 			free(filter);
 			return (r);
+		}
+		/* Verify the filter by asking it for some data. */
+		__archive_read_filter_ahead(filter, 1, &avail);
+		if (avail < 0) {
+			/* If the read failed, bail out now. */
+			free(filter);
+			return (avail);
 		}
 		a->filter = filter;
 	}
