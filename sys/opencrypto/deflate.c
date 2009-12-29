@@ -148,6 +148,12 @@ deflate_global(data, size, decomp, out)
 			    zbuf.state->dummy, zbuf.total_out);
 			goto bad;
 		}
+		SDT_PROBE5(opencrypto, deflate, deflate_global, iter,
+		    decomp, error, __LINE__,
+		    zbuf.avail_in, zbuf.avail_out);
+		SDT_PROBE5(opencrypto, deflate, deflate_global, iter,
+		    decomp, error, __LINE__,
+		    zbuf.state->dummy, zbuf.total_out);
 		if (decomp && zbuf.avail_in == 0 && error == Z_STREAM_END) {
 			/* Done. */
 			break;
