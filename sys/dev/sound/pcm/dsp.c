@@ -2179,7 +2179,8 @@ dsp_poll(struct cdev *i_dev, int events, struct thread *td)
 }
 
 static int
-dsp_mmap(struct cdev *i_dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+dsp_mmap(struct cdev *i_dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	struct snddev_info *d;
 	struct pcm_channel *wrch, *rdch, *c;

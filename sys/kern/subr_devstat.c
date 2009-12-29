@@ -449,7 +449,8 @@ static TAILQ_HEAD(, statspage)	pagelist = TAILQ_HEAD_INITIALIZER(pagelist);
 static MALLOC_DEFINE(M_DEVSTAT, "devstat", "Device statistics");
 
 static int
-devstat_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
+devstat_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int nprot, vm_memattr_t *memattr)
 {
 	struct statspage *spp;
 

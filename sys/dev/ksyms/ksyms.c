@@ -589,8 +589,8 @@ ksyms_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int32_t flag __unused,
 
 /* ARGUSED */
 static int
-ksyms_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
-		int prot __unused)
+ksyms_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
+		int prot __unused, vm_memattr_t *memattr __unused)
 {
     	struct ksyms_softc *sc;
 	int error;
