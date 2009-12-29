@@ -12,10 +12,9 @@
 name="named"
 rcvar=named_enable
 
-command="/usr/sbin/named"
 extra_commands="reload"
 
-start_precmd="named_precmd"
+start_precmd="named_prestart"
 start_postcmd="named_poststart"
 reload_cmd="named_reload"
 stop_cmd="named_stop"
@@ -155,8 +154,17 @@ create_file () {
 	chmod 644 $1
 }
 
-named_precmd()
+named_prestart()
 {
+	command_args="-u ${named_uid:=root}"
+
+	if [ ! "$named_conf" = '/etc/namedb/named.conf' ]; then
+		case "$named_flags" in
+		-c*|*' -c'*) ;;		# No need to add it
+		*) command_args="-c $named_conf $command_args" ;;
+		esac
+	fi
+
 	local line nsip firstns
 
 	# Is the user using a sandbox?
@@ -170,11 +178,11 @@ named_precmd()
 
 	# Create an rndc.key file for the user if none exists
 	#
-	if [ -s "${named_chrootdir}/etc/namedb/rndc.conf" ]; then
-		return 0
-	fi
 	confgen_command="${command%/named}/rndc-confgen -a -b256 -u $named_uid \
 	    -c ${named_chrootdir}/etc/namedb/rndc.key"
+	if [ -s "${named_chrootdir}/etc/namedb/rndc.conf" ]; then
+		unset confgen_command
+	fi
 	if [ -s "${named_chrootdir}/etc/namedb/rndc.key" ]; then
 		case `stat -f%Su ${named_chrootdir}/etc/namedb/rndc.key` in
 		root|$named_uid) ;;
@@ -260,10 +268,11 @@ named_precmd()
 }
 
 load_rc_config $name
+
 # Updating the following variables requires that rc.conf be loaded first
 #
 required_dirs="$named_chrootdir"	# if it is set, it must exist
+required_files="${named_conf:=/etc/namedb/named.conf}"
 pidfile="${named_pidfile:-/var/run/named/pid}"
-command_args="-u ${named_uid:=root}"
 
 run_rc_command "$1"
