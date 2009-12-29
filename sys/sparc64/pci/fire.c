@@ -290,7 +290,7 @@ fire_attach(device_t dev)
 	uint64_t ino_bitmap, val;
 	phandle_t node;
 	uint32_t prop, prop_array[2];
-	int i, j, mode, nrange;
+	int i, j, mode;
 	u_int lw;
 	uint16_t mps;
 
@@ -725,13 +725,12 @@ fire_attach(device_t dev)
 	    rman_manage_region(&sc->sc_pci_mem_rman, 0, FO_MEM_SIZE) != 0)
 		panic("%s: failed to set up memory rman", __func__);
 
-	nrange = OF_getprop_alloc(node, "ranges", sizeof(*range),
-	    (void **)&range);
+	i = OF_getprop_alloc(node, "ranges", sizeof(*range), (void **)&range);
 	/*
 	 * Make sure that the expected ranges are present.  The
 	 * OFW_PCI_CS_MEM64 one is not currently used though.
 	 */
-	if (nrange != FIRE_NRANGE)
+	if (i != FIRE_NRANGE)
 		panic("%s: unsupported number of ranges", __func__);
 	/*
 	 * Find the addresses of the various bus spaces.
@@ -743,7 +742,7 @@ fire_attach(device_t dev)
 		j = OFW_PCI_RANGE_CS(&range[i]);
 		if (sc->sc_pci_bh[j] != 0)
 			panic("%s: duplicate range for space %d",
-				__func__, j);
+			    __func__, j);
 		sc->sc_pci_bh[j] = OFW_PCI_RANGE_PHYS(&range[i]);
 	}
 	free(range, M_OFWPROP);
@@ -2101,7 +2100,7 @@ fire_alloc_bus_tag(struct fire_softc *sc, int type)
 {
 	bus_space_tag_t bt;
 
-	bt = (bus_space_tag_t)malloc(sizeof(struct bus_space_tag), M_DEVBUF,
+	bt = malloc(sizeof(struct bus_space_tag), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (bt == NULL)
 		panic("%s: out of memory", __func__);
