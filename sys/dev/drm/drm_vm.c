@@ -31,8 +31,8 @@ __FBSDID("$FreeBSD$");
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
 
-int drm_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr,
-    int prot)
+int drm_mmap(struct cdev *kdev, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct drm_device *dev = drm_get_device_from_kdev(kdev);
 	struct drm_file *file_priv = NULL;
