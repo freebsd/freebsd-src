@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 nCircle Network Security, Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson for the TrustedBSD
@@ -27,6 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/cdefs.h>
@@ -37,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -57,6 +60,14 @@ SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
     &suser_enabled, 0, "processes with uid 0 have privilege");
 TUNABLE_INT("security.bsd.suser_enabled", &suser_enabled);
 
+SDT_PROVIDER_DEFINE(priv);
+
+SDT_PROBE_DEFINE(priv, kernel, priv_check, priv_ok);
+SDT_PROBE_ARGTYPE(priv, kernel, priv_check, priv_ok, 0, "int");
+
+SDT_PROBE_DEFINE(priv, kernel, priv_check, priv_err);
+SDT_PROBE_ARGTYPE(priv, kernel, priv_check, priv_err, 0, "int");
+
 /*
  * Check a credential for privilege.  Lots of good reasons to deny privilege;
  * only a few to grant it.
@@ -76,7 +87,7 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 #ifdef MAC
 	error = mac_priv_check(cred, priv);
 	if (error)
-		return (error);
+		goto out;
 #endif
 
 	/*
@@ -85,7 +96,7 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	 */
 	error = prison_priv_check(cred, priv);
 	if (error)
-		return (error);
+		goto out;
 
 	/*
 	 * Having determined if privilege is restricted by various policies,
@@ -103,13 +114,17 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 		case PRIV_MAXFILES:
 		case PRIV_MAXPROC:
 		case PRIV_PROC_LIMIT:
-			if (cred->cr_ruid == 0)
-				return (0);
+			if (cred->cr_ruid == 0) {
+				error = 0;
+				goto out;
+			}
 			break;
 
 		default:
-			if (cred->cr_uid == 0)
-				return (0);
+			if (cred->cr_uid == 0) {
+				error = 0;
+				goto out;
+			}
 			break;
 		}
 	}
@@ -119,10 +134,26 @@ priv_check_cred(struct ucred *cred, int priv, int flags)
 	 * privilege.
 	 */
 #ifdef MAC
-	if (mac_priv_grant(cred, priv) == 0)
-		return (0);
+	if (mac_priv_grant(cred, priv) == 0) {
+		error = 0;
+		goto out;
+	}
 #endif
-	return (EPERM);
+
+	/*
+	 * The default is deny, so if no policies have granted it, reject
+	 * with a privilege error here.
+	 */
+	error = EPERM;
+out:
+	if (error) {
+		SDT_PROBE(priv, kernel, priv_check, priv_err, priv, 0, 0, 0,
+		    0);
+	} else {
+		SDT_PROBE(priv, kernel, priv_check, priv_ok, priv, 0, 0, 0,
+		    0);
+	}
+	return (error);
 }
 
 int
