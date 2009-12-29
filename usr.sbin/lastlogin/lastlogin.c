@@ -49,9 +49,7 @@ static	void	output(struct ulog_utmpx *);
 static	void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int	ch, i;
 	struct ulog_utmpx *u;
@@ -102,7 +100,7 @@ output(struct ulog_utmpx *u)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: lastlogin [user ...]\n");
 	exit(1);

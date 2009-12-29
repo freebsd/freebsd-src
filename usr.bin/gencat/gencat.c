@@ -130,7 +130,7 @@ void	usage(void);
 int	main(int, char **);
 
 void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: %s catfile msgfile ...\n", getprogname());
 	exit(1);

@@ -229,8 +229,7 @@ main(int argc, char **argv)
 }
 
 gid_t
-a_gid(s)
-	char *s;
+a_gid(char *s)
 {
 	struct group *gr;
 	char *gname;
@@ -249,8 +248,7 @@ a_gid(s)
 }
 
 uid_t
-a_uid(s)
-	char *s;
+a_uid(char *s)
 {
 	struct passwd *pw;
 	char *uname;
@@ -269,8 +267,7 @@ a_uid(s)
 }
 
 mode_t
-a_mask(s)
-	char *s;
+a_mask(char *s)
 {
 	int done, rv;
 	char *ep;
@@ -287,7 +284,7 @@ a_mask(s)
 }
 
 void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
 	"usage: mount_msdosfs [-9ls] [-D DOS_codepage] [-g gid] [-L locale]",

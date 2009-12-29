@@ -97,7 +97,7 @@ v1_to_v2(DBT *key, DBT *data)
 
 /* Copy usrdb_file to in-memory usracct_db. */
 int
-usracct_init()
+usracct_init(void)
 {
 	BTREEINFO bti;
 
@@ -109,7 +109,7 @@ usracct_init()
 }
 
 void
-usracct_destroy()
+usracct_destroy(void)
 {
 	db_destroy(usracct_db, "user accounting");
 }
@@ -166,7 +166,7 @@ usracct_add(const struct cmdinfo *ci)
 
 /* Copy in-memory usracct_db to usrdb_file. */
 int
-usracct_update()
+usracct_update(void)
 {
 	BTREEINFO bti;
 
@@ -178,7 +178,7 @@ usracct_update()
 }
 
 void
-usracct_print()
+usracct_print(void)
 {
 	DBT key, data;
 	struct userinfo uistore, *ui = &uistore;
