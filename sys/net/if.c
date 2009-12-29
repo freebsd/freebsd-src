@@ -2095,6 +2095,14 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (EINVAL);
 		if (ifunit(new_name) != NULL)
 			return (EEXIST);
+
+		/*
+		 * XXX: Locking.  Nothing else seems to lock if_flags,
+		 * and there are numerous other races with the
+		 * ifunit() checks not being atomic with namespace
+		 * changes (renames, vmoves, if_attach, etc).
+		 */
+		ifp->if_flags |= IFF_RENAMING;
 		
 		/* Announce the departure of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_DEPARTURE);
@@ -2129,6 +2137,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		EVENTHANDLER_INVOKE(ifnet_arrival_event, ifp);
 		/* Announce the return of the interface. */
 		rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
+
+		ifp->if_flags &= ~IFF_RENAMING;
 		break;
 
 #ifdef VIMAGE
