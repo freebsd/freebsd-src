@@ -1377,7 +1377,7 @@ do {								\
 					else if (v == 2)
 					    key = htonl(dst_port);
 					else if (v == 3)
-					    key = htons(src_port);
+					    key = htonl(src_port);
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
 						(ipfw_insn_u32 *)cmd,
