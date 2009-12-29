@@ -182,9 +182,9 @@ struct schizo_dma_sync {
 	void			*sds_cookie;
 	uint64_t		sds_syncval;
 	device_t		sds_ppb;	/* farest PCI-PCI bridge */
-	uint8_t			sds_bus;	/* bus of farest PCI device */
-	uint8_t			sds_slot;	/* slot of farest PCI device */
-	uint8_t			sds_func;	/* func. of farest PCI device */
+	uint8_t			sds_bus;	/* bus of farest PCI dev. */
+	uint8_t			sds_slot;	/* slot of farest PCI dev. */
+	uint8_t			sds_func;	/* func. of farest PCI dev. */
 };
 
 #define	SCHIZO_PERF_CNT_QLTY	100
@@ -262,7 +262,7 @@ schizo_attach(device_t dev)
 	uint64_t ino_bitmap, reg;
 	phandle_t node;
 	uint32_t prop, prop_array[2];
-	int i, mode, n, nrange, rid, tsbsize;
+	int i, j, mode, rid, tsbsize;
 
 	sc = device_get_softc(dev);
 	node = ofw_bus_get_node(dev);
@@ -291,18 +291,18 @@ schizo_attach(device_t dev)
 	 */
 	sc->sc_half = (bus_get_resource_start(dev, SYS_RES_MEMORY, STX_PCI) >>
 	    20) & 1;
-	for (n = 0; n < (mode == SCHIZO_MODE_SCZ ? SCZ_NREG : TOM_NREG);
-	    n++) {
-		rid = n;
-		sc->sc_mem_res[n] = bus_alloc_resource_any(dev,
+	for (i = 0; i < (mode == SCHIZO_MODE_SCZ ? SCZ_NREG : TOM_NREG);
+	    i++) {
+		rid = i;
+		sc->sc_mem_res[i] = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid,
 		    (((mode == SCHIZO_MODE_SCZ && ((sc->sc_half == 1 &&
-		    n == STX_PCI) || n == STX_CTRL)) ||
+		    i == STX_PCI) || i == STX_CTRL)) ||
 		    (mode == SCHIZO_MODE_TOM && sc->sc_half == 0 &&
-		    n == STX_CTRL)) ? RF_SHAREABLE : 0) | RF_ACTIVE);
-		if (sc->sc_mem_res[n] == NULL)
+		    i == STX_CTRL)) ? RF_SHAREABLE : 0) | RF_ACTIVE);
+		if (sc->sc_mem_res[i] == NULL)
 			panic("%s: could not allocate register bank %d",
-			    __func__, n);
+			    __func__, i);
 	}
 
 	/*
@@ -335,7 +335,8 @@ schizo_attach(device_t dev)
 
 	if (OF_getprop(node, "portid", &sc->sc_ign, sizeof(sc->sc_ign)) == -1)
 		panic("%s: could not determine IGN", __func__);
-	if (OF_getprop(node, "version#", &sc->sc_ver, sizeof(sc->sc_ver)) == -1)
+	if (OF_getprop(node, "version#", &sc->sc_ver, sizeof(sc->sc_ver)) ==
+	    -1)
 		panic("%s: could not determine version", __func__);
 	if (OF_getprop(node, "clock-frequency", &prop, sizeof(prop)) == -1)
 		prop = 33000000;
@@ -399,21 +400,21 @@ schizo_attach(device_t dev)
 	 * This is complicated by the fact that a pair of Schizo PBMs
 	 * shares one IGN.
 	 */
-	n = OF_getprop(node, "ino-bitmap", (void *)prop_array,
+	i = OF_getprop(node, "ino-bitmap", (void *)prop_array,
 	    sizeof(prop_array));
-	if (n == -1)
+	if (i == -1)
 		panic("%s: could not get ino-bitmap", __func__);
 	ino_bitmap = ((uint64_t)prop_array[1] << 32) | prop_array[0];
-	for (n = 0; n <= STX_MAX_INO; n++) {
-		if ((ino_bitmap & (1ULL << n)) == 0)
+	for (i = 0; i <= STX_MAX_INO; i++) {
+		if ((ino_bitmap & (1ULL << i)) == 0)
 			continue;
-		if (n == STX_FB0_INO || n == STX_FB1_INO)
+		if (i == STX_FB0_INO || i == STX_FB1_INO)
 			/* Leave for upa(4). */
 			continue;
-		i = schizo_intr_register(sc, n);
-		if (i != 0)
+		j = schizo_intr_register(sc, i);
+		if (j != 0)
 			device_printf(dev, "could not register interrupt "
-			    "controller for INO %d (%d)\n", n, i);
+			    "controller for INO %d (%d)\n", i, j);
 	}
 
 	/*
@@ -466,9 +467,9 @@ schizo_attach(device_t dev)
 		tsbsize = (x);						\
 		break;							\
 
-	n = OF_getprop(node, "virtual-dma", (void *)prop_array,
+	i = OF_getprop(node, "virtual-dma", (void *)prop_array,
 	    sizeof(prop_array));
-	if (n == -1 || n != sizeof(prop_array))
+	if (i == -1 || i != sizeof(prop_array))
 		schizo_iommu_init(sc, 7, -1);
 	else {
 		switch (prop_array[1]) {
@@ -502,13 +503,12 @@ schizo_attach(device_t dev)
 	    rman_manage_region(&sc->sc_pci_mem_rman, 0, STX_MEM_SIZE) != 0)
 		panic("%s: failed to set up memory rman", __func__);
 
-	nrange = OF_getprop_alloc(node, "ranges", sizeof(*range),
-	    (void **)&range);
+	i = OF_getprop_alloc(node, "ranges", sizeof(*range), (void **)&range);
 	/*
 	 * Make sure that the expected ranges are present.  The
 	 * OFW_PCI_CS_MEM64 one is not currently used though.
 	 */
-	if (nrange != STX_NRANGE)
+	if (i != STX_NRANGE)
 		panic("%s: unsupported number of ranges", __func__);
 	/*
 	 * Find the addresses of the various bus spaces.
@@ -516,11 +516,12 @@ schizo_attach(device_t dev)
 	 * The physical start addresses of the ranges are the configuration,
 	 * memory and I/O handles.
 	 */
-	for (n = 0; n < STX_NRANGE; n++) {
-		i = OFW_PCI_RANGE_CS(&range[n]);
-		if (sc->sc_pci_bh[i] != 0)
-			panic("%s: duplicate range for space %d", __func__, i);
-		sc->sc_pci_bh[i] = OFW_PCI_RANGE_PHYS(&range[n]);
+	for (i = 0; i < STX_NRANGE; i++) {
+		j = OFW_PCI_RANGE_CS(&range[i]);
+		if (sc->sc_pci_bh[j] != 0)
+			panic("%s: duplicate range for space %d",
+			    __func__, j);
+		sc->sc_pci_bh[j] = OFW_PCI_RANGE_PHYS(&range[i]);
 	}
 	free(range, M_OFWPROP);
 
@@ -543,12 +544,12 @@ schizo_attach(device_t dev)
 	 * Get the bus range from the firmware.
 	 * NB: Tomatillos don't support PCI bus reenumeration.
 	 */
-	n = OF_getprop(node, "bus-range", (void *)prop_array,
+	i = OF_getprop(node, "bus-range", (void *)prop_array,
 	    sizeof(prop_array));
-	if (n == -1)
+	if (i == -1)
 		panic("%s: could not get bus-range", __func__);
-	if (n != sizeof(prop_array))
-		panic("%s: broken bus-range (%d)", __func__, n);
+	if (i != sizeof(prop_array))
+		panic("%s: broken bus-range (%d)", __func__, i);
 	if (bootverbose)
 		device_printf(dev, "bus range %u to %u; PCI bus %d\n",
 		    prop_array[0], prop_array[1], prop_array[0]);
@@ -636,7 +637,8 @@ schizo_attach(device_t dev)
 	 * a block store after a write to TOMXMS_PCI_DMA_SYNC_PEND though.
 	 */
 	if ((sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 5) ||
-	    sc->sc_mode == SCHIZO_MODE_TOM || sc->sc_mode == SCHIZO_MODE_XMS) {
+	    sc->sc_mode == SCHIZO_MODE_TOM ||
+	    sc->sc_mode == SCHIZO_MODE_XMS) {
 		sc->sc_flags |= SCHIZO_FLAGS_CDMA;
 		if (sc->sc_mode == SCHIZO_MODE_SCZ) {
 			sc->sc_cdma_state = SCHIZO_CDMA_STATE_DONE;
@@ -645,26 +647,26 @@ schizo_attach(device_t dev)
 			 * at RID 4 but most don't.  With the latter we add
 			 * it ourselves at the spare RID 5.
 			 */
-			n = INTINO(bus_get_resource_start(dev, SYS_RES_IRQ,
+			i = INTINO(bus_get_resource_start(dev, SYS_RES_IRQ,
 			    4));
-			if (n == STX_CDMA_A_INO || n == STX_CDMA_B_INO) {
-				(void)schizo_get_intrmap(sc, n, NULL,
+			if (i == STX_CDMA_A_INO || i == STX_CDMA_B_INO) {
+				(void)schizo_get_intrmap(sc, i, NULL,
 				   &sc->sc_cdma_clr);
-				schizo_set_intr(sc, 4, n, schizo_cdma);
+				schizo_set_intr(sc, 4, i, schizo_cdma);
 			} else {
-				n = STX_CDMA_A_INO + sc->sc_half;
+				i = STX_CDMA_A_INO + sc->sc_half;
 				if (bus_set_resource(dev, SYS_RES_IRQ, 5,
-				    INTMAP_VEC(sc->sc_ign, n), 1) != 0)
+				    INTMAP_VEC(sc->sc_ign, i), 1) != 0)
 					panic("%s: failed to add CDMA "
 					    "interrupt", __func__);
-				i = schizo_intr_register(sc, n);
-				if (i != 0)
+				j = schizo_intr_register(sc, i);
+				if (j != 0)
 					panic("%s: could not register "
 					    "interrupt controller for CDMA "
-					    "(%d)", __func__, i);
-				(void)schizo_get_intrmap(sc, n, NULL,
+					    "(%d)", __func__, j);
+				(void)schizo_get_intrmap(sc, i, NULL,
 				   &sc->sc_cdma_clr);
-				schizo_set_intr(sc, 5, n, schizo_cdma);
+				schizo_set_intr(sc, 5, i, schizo_cdma);
 			}
 		}
 		if (sc->sc_mode == SCHIZO_MODE_TOM && sc->sc_ver <= 4)
@@ -692,11 +694,11 @@ schizo_set_intr(struct schizo_softc *sc, u_int index, u_int ino,
 	int rid;
 
 	rid = index;
-	sc->sc_irq_res[index] = bus_alloc_resource_any(sc->sc_dev, SYS_RES_IRQ,
-	    &rid, RF_ACTIVE);
+	sc->sc_irq_res[index] = bus_alloc_resource_any(sc->sc_dev,
+	    SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (sc->sc_irq_res[index] == NULL ||
-	    INTIGN(vec = rman_get_start(sc->sc_irq_res[index])) != sc->sc_ign ||
-	    INTINO(vec) != ino ||
+	    INTINO(vec = rman_get_start(sc->sc_irq_res[index])) != ino ||
+	    INTIGN(vec) != sc->sc_ign ||
 	    intr_vectors[vec].iv_ic != &schizo_ic ||
 	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
 	    INTR_TYPE_MISC | INTR_FAST, handler, NULL, sc,
@@ -732,8 +734,8 @@ schizo_intr_register(struct schizo_softc *sc, u_int ino)
 }
 
 static int
-schizo_get_intrmap(struct schizo_softc *sc, u_int ino, bus_addr_t *intrmapptr,
-    bus_addr_t *intrclrptr)
+schizo_get_intrmap(struct schizo_softc *sc, u_int ino,
+    bus_addr_t *intrmapptr, bus_addr_t *intrclrptr)
 {
 	bus_addr_t intrclr, intrmap;
 	uint64_t mr;
@@ -967,8 +969,8 @@ schizo_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 }
 
 static void
-schizo_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
-    uint32_t val, int width)
+schizo_write_config(device_t dev, u_int bus, u_int slot, u_int func,
+    u_int reg, uint32_t val, int width)
 {
 	struct schizo_softc *sc;
 	bus_space_handle_t bh;
@@ -1003,8 +1005,9 @@ schizo_route_interrupt(device_t bridge, device_t dev, int pin)
 
 	sc = device_get_softc(bridge);
 	pintr = pin;
-	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
-	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr), maskbuf))
+	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
+	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
+	    maskbuf))
 		return (mintr);
 
 	device_printf(bridge, "could not route pin %d for device %d.%d\n",
@@ -1039,8 +1042,8 @@ schizo_dma_sync_stub(void *arg)
 
 	(void)PCIB_READ_CONFIG(sds->sds_ppb, sds->sds_bus, sds->sds_slot,
 	    sds->sds_func, PCIR_VENDOR, 2);
-	for (; atomic_cmpset_acq_32(&sc->sc_cdma_state, SCHIZO_CDMA_STATE_DONE,
-	    SCHIZO_CDMA_STATE_PENDING) == 0;)
+	for (; atomic_cmpset_acq_32(&sc->sc_cdma_state,
+	    SCHIZO_CDMA_STATE_DONE, SCHIZO_CDMA_STATE_PENDING) == 0;)
 		;
 	SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, 1);
 	microuptime(&cur);
@@ -1309,8 +1312,8 @@ schizo_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (start != end)
 			panic("%s: XXX: interrupt range", __func__);
 		start = end = INTMAP_VEC(sc->sc_ign, end);
-		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type,
-		    rid, start, end, count, flags));
+		return (BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
+		    type, rid, start, end, count, flags));
 	}
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -1425,7 +1428,7 @@ schizo_alloc_bus_tag(struct schizo_softc *sc, int type)
 {
 	bus_space_tag_t bt;
 
-	bt = (bus_space_tag_t)malloc(sizeof(struct bus_space_tag), M_DEVBUF,
+	bt = malloc(sizeof(struct bus_space_tag), M_DEVBUF,
 	    M_NOWAIT | M_ZERO);
 	if (bt == NULL)
 		panic("%s: out of memory", __func__);
