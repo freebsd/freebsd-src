@@ -61,12 +61,8 @@ SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
 TUNABLE_INT("security.bsd.suser_enabled", &suser_enabled);
 
 SDT_PROVIDER_DEFINE(priv);
-
-SDT_PROBE_DEFINE(priv, kernel, priv_check, priv_ok);
-SDT_PROBE_ARGTYPE(priv, kernel, priv_check, priv_ok, 0, "int");
-
-SDT_PROBE_DEFINE(priv, kernel, priv_check, priv_err);
-SDT_PROBE_ARGTYPE(priv, kernel, priv_check, priv_err, 0, "int");
+SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv_ok, "int");
+SDT_PROBE_DEFINE1(priv, kernel, priv_check, priv_err, "int");
 
 /*
  * Check a credential for privilege.  Lots of good reasons to deny privilege;
