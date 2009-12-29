@@ -41,9 +41,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <signal.h>
 #include <syslog.h>
-#define utmp rutmp
 #include <rpcsvc/rnusers.h>
-#undef utmp
 
 extern void rusers_service(struct svc_req *, SVCXPRT *);
 

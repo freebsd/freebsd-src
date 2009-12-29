@@ -45,55 +45,26 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <syslog.h>
-#include <utmp.h>
+#define	_ULOG_POSIX_NAMES
+#include <ulog.h>
 #ifdef XIDLE
 #include <setjmp.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/xidle.h>
 #endif
-#define utmp rutmp
 #include <rpcsvc/rnusers.h>
-#undef utmp
-
-#define	IGNOREUSER	"sleeper"
-
-#ifdef OSF
-#define _PATH_UTMP UTMP_FILE
-#endif
-
-#ifndef _PATH_UTMP
-#define _PATH_UTMP "/etc/utmp"
-#endif
 
 #ifndef _PATH_DEV
 #define _PATH_DEV "/dev"
 #endif
 
-#ifndef UT_LINESIZE
-#define UT_LINESIZE sizeof(((struct utmp *)0)->ut_line)
-#endif
-#ifndef UT_NAMESIZE
-#define UT_NAMESIZE sizeof(((struct utmp *)0)->ut_name)
-#endif
-#ifndef UT_HOSTSIZE
-#define UT_HOSTSIZE sizeof(((struct utmp *)0)->ut_host)
-#endif
-
-typedef char ut_line_t[UT_LINESIZE+1];
-typedef char ut_name_t[UT_NAMESIZE+1];
-typedef char ut_host_t[UT_HOSTSIZE+1];
-
 static utmpidle utmp_idle[MAXUSERS];
-static rutmp old_utmp[MAXUSERS];
-static ut_line_t line[MAXUSERS];
-static ut_name_t name[MAXUSERS];
-static ut_host_t host[MAXUSERS];
+static utmp old_utmp[MAXUSERS];
+static struct utmpx utmp_list[MAXUSERS];
 
 extern int from_inetd;
 
 void rusers_service(struct svc_req *, SVCXPRT *);
-
-static FILE *ufp;
 
 #ifdef XIDLE
 static Display *dpy;
@@ -190,48 +161,33 @@ static utmpidlearr *
 do_names_2(void)
 {
 	static utmpidlearr ut;
-	struct utmp usr;
+	struct utmpx *usr;
 	int nusers = 0;
 
-	bzero((char *)&ut, sizeof(ut));
+	memset(&ut, 0, sizeof(ut));
 	ut.utmpidlearr_val = &utmp_idle[0];
 
-	ufp = fopen(_PATH_UTMP, "r");
-	if (!ufp) {
-		syslog(LOG_ERR, "%m");
-		return(&ut);
+	setutxent();
+	while ((usr = getutxent()) != NULL && nusers < MAXUSERS) {
+		if (usr->ut_type != USER_PROCESS)
+			continue;
+
+		memcpy(&utmp_list[nusers], usr, sizeof(*usr));
+		utmp_idle[nusers].ui_utmp.ut_time = usr->ut_tv.tv_sec;
+		utmp_idle[nusers].ui_idle =
+		    getidle(usr->ut_line, usr->ut_host);
+		utmp_idle[nusers].ui_utmp.ut_line =
+		    utmp_list[nusers].ut_line;
+		utmp_idle[nusers].ui_utmp.ut_name =
+		    utmp_list[nusers].ut_user;
+		utmp_idle[nusers].ui_utmp.ut_host =
+		    utmp_list[nusers].ut_host;
+
+		nusers++;
 	}
-
-	/* only entries with both name and line fields */
-	while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1 &&
-	       nusers < MAXUSERS)
-		if (*usr.ut_name && *usr.ut_line &&
-		    strncmp(usr.ut_name, IGNOREUSER,
-			    sizeof(usr.ut_name))
-#ifdef OSF
-		    && usr.ut_type == USER_PROCESS
-#endif
-		    ) {
-			utmp_idle[nusers].ui_utmp.ut_time =
-				usr.ut_time;
-			utmp_idle[nusers].ui_idle =
-				getidle(usr.ut_line, usr.ut_host);
-			utmp_idle[nusers].ui_utmp.ut_line = line[nusers];
-			strncpy(line[nusers], usr.ut_line, UT_LINESIZE);
-			utmp_idle[nusers].ui_utmp.ut_name = name[nusers];
-			strncpy(name[nusers], usr.ut_name, UT_NAMESIZE);
-			utmp_idle[nusers].ui_utmp.ut_host = host[nusers];
-			strncpy(host[nusers], usr.ut_host, UT_HOSTSIZE);
-
-			/* Make sure entries are NUL terminated */
-			line[nusers][UT_LINESIZE] =
-			name[nusers][UT_NAMESIZE] =
-			host[nusers][UT_HOSTSIZE] = '\0';
-			nusers++;
-		}
+	endutxent();
 
 	ut.utmpidlearr_len = nusers;
-	fclose(ufp);
 	return(&ut);
 }
 
@@ -239,27 +195,16 @@ static int *
 rusers_num(void *argp __unused, struct svc_req *rqstp __unused)
 {
 	static int num_users = 0;
-	struct utmp usr;
-
-	ufp = fopen(_PATH_UTMP, "r");
-	if (!ufp) {
-		syslog(LOG_ERR, "%m");
-		return(NULL);
+	struct utmpx *usr;
+ 
+	setutxent();
+	while ((usr = getutxent()) != NULL) {
+		if (usr->ut_type != USER_PROCESS)
+			continue;
+		num_users++;
 	}
-
-	/* only entries with both name and line fields */
-	while (fread((char *)&usr, sizeof(usr), 1, ufp) == 1)
-		if (*usr.ut_name && *usr.ut_line &&
-		    strncmp(usr.ut_name, IGNOREUSER,
-			    sizeof(usr.ut_name))
-#ifdef OSF
-		    && usr.ut_type == USER_PROCESS
-#endif
-		    ) {
-			num_users++;
-		}
-
-	fclose(ufp);
+	endutxent();
+ 
 	return(&num_users);
 }
 

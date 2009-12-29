@@ -6,8 +6,8 @@ MAN =	rpc.rusersd.8
 
 WARNS?=	6
 
-DPADD=	${LIBRPCSVC} ${LIBUTIL}
-LDADD=	-lrpcsvc -lutil
+DPADD=	${LIBRPCSVC} ${LIBULOG} ${LIBUTIL}
+LDADD=	-lrpcsvc -lulog -lutil
 
 #.if exists(/usr/X11R6/include/X11/extensions/xidle.h)
 #CFLAGS+= -DXIDLE
