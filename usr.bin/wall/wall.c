@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: wall [-g group] [file]\n");
 	exit(1);
