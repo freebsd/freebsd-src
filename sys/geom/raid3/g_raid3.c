@@ -183,15 +183,17 @@ static void *
 g_raid3_alloc(struct g_raid3_softc *sc, size_t size, int flags)
 {
 	void *ptr;
+	enum g_raid3_zones zone;
 
-	if (g_raid3_use_malloc)
+	if (g_raid3_use_malloc ||
+	    (zone = g_raid3_zone(size)) == G_RAID3_NUM_ZONES)
 		ptr = malloc(size, M_RAID3, flags);
 	else {
-		ptr = uma_zalloc_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
-		   &sc->sc_zones[g_raid3_zone(size)], flags);
-		sc->sc_zones[g_raid3_zone(size)].sz_requested++;
+		ptr = uma_zalloc_arg(sc->sc_zones[zone].sz_zone,
+		   &sc->sc_zones[zone], flags);
+		sc->sc_zones[zone].sz_requested++;
 		if (ptr == NULL)
-			sc->sc_zones[g_raid3_zone(size)].sz_failed++;
+			sc->sc_zones[zone].sz_failed++;
 	}
 	return (ptr);
 }
@@ -199,12 +201,14 @@ g_raid3_alloc(struct g_raid3_softc *sc, size_t size, int flags)
 static void
 g_raid3_free(struct g_raid3_softc *sc, void *ptr, size_t size)
 {
+	enum g_raid3_zones zone;
 
-	if (g_raid3_use_malloc)
+	if (g_raid3_use_malloc ||
+	    (zone = g_raid3_zone(size)) == G_RAID3_NUM_ZONES)
 		free(ptr, M_RAID3);
 	else {
-		uma_zfree_arg(sc->sc_zones[g_raid3_zone(size)].sz_zone,
-		    ptr, &sc->sc_zones[g_raid3_zone(size)]);
+		uma_zfree_arg(sc->sc_zones[zone].sz_zone,
+		    ptr, &sc->sc_zones[zone]);
 	}
 }
 
