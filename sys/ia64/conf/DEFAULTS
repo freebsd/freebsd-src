@@ -20,3 +20,10 @@ options 	GEOM_PART_MBR
 
 # KSE support went from being default to a kernel option
 options 	KSE
+ 
+# Store the plain version of the configuration file in the kernel itself.
+# To store the entire file, including comments, put this in /etc/src.conf:
+# CONFIGARGS=	-C
+# See config(8) for more details.
+#
+options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
