@@ -170,7 +170,7 @@ ENCODING			{ return(ENCODING); }
 
 #if	!defined(yywrap)
 int
-yywrap()
+yywrap(void)
 {
 	return(1);
 }
