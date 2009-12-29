@@ -1036,7 +1036,7 @@ childif_destroy()
 	local cfg child child_vlans child_wlans ifn
 	cfg=1
 
-	child_wlans="`get_if_var $ifn wlans_IF` `get_if_var $ifn vaps_IF`"
+	child_wlans=`get_if_var $ifn wlans_IF`
 	for child in ${child_wlans}; do
 		if ! ifexists $child; then
 			continue
