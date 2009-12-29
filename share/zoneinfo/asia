@@ -1,4 +1,4 @@
-# @(#)asia	8.44
+# @(#)asia	8.48
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -363,6 +363,69 @@ Zone	Asia/Urumqi	5:50:20	-	LMT	1928 # or Urumchi
 # West Xinjiang, including Aksu, Atushi, Yining, Hetian, Cele, Luopu, Nileke,
 # Zhaosu, Tekesi, Gongliu, Chabuchaer, Huocheng, Bole, Pishan, Suiding,
 # and Yarkand.
+
+# From Luther Ma (2009-10-17):
+# Almost all (>99.9%) ethnic Chinese (properly ethnic Han) living in
+# Xinjiang use Chinese Standard Time. Some are aware of Xinjiang time,
+# but have no need of it. All planes, trains, and schools function on
+# what is called "Beijing time." When Han make an appointment in Chinese
+# they implicitly use Beijing time.
+#
+# On the other hand, ethnic Uyghurs, who make up about half the
+# population of Xinjiang, typically use "Xinjiang time" which is two
+# hours behind Beijing time, or UTC +0600. The government of the Xinjiang
+# Uyghur Autonomous Region, (XAUR, or just Xinjiang for short) as well as
+# local governments such as the Urumqi city government use both times in
+# publications, referring to what is popularly called Xinjiang time as
+# "Urumqi time." When Uyghurs make an appointment in the Uyghur language
+# they almost invariably use Xinjiang time.
+#
+# (Their ethnic Han compatriots would typically have no clue of its
+# widespread use, however, because so extremely few of them are fluent in
+# Uyghur, comparable to the number of Anglo-Americans fluent in Navajo.)
+#
+# (...As with the rest of China there was a brief interval ending in 1990
+# or 1991 when summer time was in use.  The confusion was severe, with
+# the province not having dual times but four times in use at the same
+# time. Some areas remained on standard Xinjiang time or Beijing time and
+# others moving their clocks ahead.)
+#
+# ...an example of an official website using of Urumqi time.
+#
+# The first few lines of the Google translation of
+# <a href="http://www.fjysgl.gov.cn/show.aspx?id=2379&cid=39">
+# http://www.fjysgl.gov.cn/show.aspx?id=2379&cid=39
+# </a>
+# (retrieved 2009-10-13)
+# > Urumqi fire seven people are missing the alleged losses of at least
+# > 500 million yuan
+# >
+# > (Reporter Dong Liu) the day before 20:20 or so (Urumqi Time 18:20),
+# > Urumqi City Department of International Plaza Luther Qiantang River
+# > burst fire. As of yesterday, 18:30, Urumqi City Fire officers and men
+# > have worked continuously for 22 hours...
+
+# From Luther Ma (2009-11-19):
+# With the risk of being redundant to previous answers these are the most common
+# English "transliterations" (w/o using non-English symbols):
+#
+# 1. Wulumuqi...
+# 2. Kashi...
+# 3. Urumqi...
+# 4. Kashgar...
+# ...
+# 5. It seems that Uyghurs in Urumqi has been using Xinjiang since at least the
+# 1960's. I know of one Han, now over 50, who grew up in the surrounding
+# countryside and used Xinjiang time as a child.
+#
+# 6. Likewise for Kashgar and the rest of south Xinjiang I don't know of any
+# start date for Xinjiang time.
+#
+# Without having access to local historical records, nor the ability to legally
+# publish them, I would go with October 1, 1949, when Xinjiang became the Uyghur
+# Autonomous Region under the PRC. (Before that Uyghurs, of course, would also
+# not be using Beijing time, but some local time.)
+
 Zone	Asia/Kashgar	5:03:56	-	LMT	1928 # or Kashi or Kaxgar
 			5:30	-	KAST	1940	 # Kashgar Time
 			5:00	-	KAST	1980 May
@@ -370,8 +433,8 @@ Zone	Asia/Kashgar	5:03:56	-	LMT	1928 # or Kashi or Kaxgar
 
 
 # From Lee Yiu Chung (2009-10-24):
-# I found there are some mistakes for the historial DST rule for Hong
-# Kong. Accoring to the DST record from Hong Kong Observatory (actually,
+# I found there are some mistakes for the...DST rule for Hong
+# Kong. [According] to the DST record from Hong Kong Observatory (actually,
 # it is not [an] observatory, but the official meteorological agency of HK,
 # and also serves as the official timing agency), there are some missing
 # and incorrect rules. Although the exact switch over time is missing, I
