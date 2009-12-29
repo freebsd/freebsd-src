@@ -79,64 +79,59 @@ deflate_global(data, size, decomp, out)
 	z_stream zbuf;
 	u_int8_t *output;
 	u_int32_t count, result;
-	int error, i = 0, j;
-	struct deflate_buf buf[ZBUF];
+	int error, i;
+	struct deflate_buf *bufh, *bufp;
 
 	SDT_PROBE2(opencrypto, deflate, deflate_global, entry, decomp, size);
 
-	bzero(&zbuf, sizeof(z_stream));
-	for (j = 0; j < ZBUF; j++)
-		buf[j].flag = 0;
-
-	zbuf.next_in = data;	/* data that is going to be processed */
-	zbuf.zalloc = z_alloc;
-	zbuf.zfree = z_free;
-	zbuf.opaque = Z_NULL;
-	zbuf.avail_in = size;	/* Total length of data to be processed */
-
+	bufh = bufp = NULL;
 	if (!decomp) {
-		buf[i].out = malloc((u_long) size, M_CRYPTO_DATA, 
-		    M_NOWAIT);
-		if (buf[i].out == NULL) {
-			SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
-			    decomp, 0, __LINE__);
-			goto bad;
-		}
-		buf[i].size = size;
-		buf[i].flag = 1;
-		i++;
+		i = 1;
 	} else {
 		/*
 	 	 * Choose a buffer with 4x the size of the input buffer
 	 	 * for the size of the output buffer in the case of
 	 	 * decompression. If it's not sufficient, it will need to be
-	 	 * updated while the decompression is going on
+	 	 * updated while the decompression is going on.
 	 	 */
-
-		buf[i].out = malloc((u_long) (size * 4), 
-		    M_CRYPTO_DATA, M_NOWAIT);
-		if (buf[i].out == NULL) {
-			SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
-			    decomp, 0, __LINE__);
-			goto bad;
-		}
-		buf[i].size = size * 4;
-		buf[i].flag = 1;
-		i++;
+		i = 4;
 	}
+	/*
+	 * Make sure we do have enough output space.  Repeated calls to
+	 * deflate need at least 6 bytes of output buffer space to avoid
+	 * repeated markers.  We will always provide at least 16 bytes.
+	 */
+	while ((size * i) < 16)
+		i++;
 
-	zbuf.next_out = buf[0].out;
-	zbuf.avail_out = buf[0].size;
+	bufh = bufp = malloc(sizeof(*bufp) + (size_t)(size * i),
+	    M_CRYPTO_DATA, M_NOWAIT);
+	if (bufp == NULL) {
+		SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
+		    decomp, 0, __LINE__);
+		goto bad2;
+	}
+	bufp->next = NULL;
+	bufp->size = size * i;
+
+	bzero(&zbuf, sizeof(z_stream));
+	zbuf.zalloc = z_alloc;
+	zbuf.zfree = z_free;
+	zbuf.opaque = Z_NULL;
+	zbuf.next_in = data;	/* Data that is going to be processed. */
+	zbuf.avail_in = size;	/* Total length of data to be processed. */
+	zbuf.next_out = bufp->data;
+	zbuf.avail_out = bufp->size;
 
 	error = decomp ? inflateInit2(&zbuf, window_inflate) :
 	    deflateInit2(&zbuf, Z_DEFAULT_COMPRESSION, Z_METHOD,
 		    window_deflate, Z_MEMLEVEL, Z_DEFAULT_STRATEGY);
-
 	if (error != Z_OK) {
 		SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
 		    decomp, error, __LINE__);
 		goto bad;
 	}
+
 	for (;;) {
 		error = decomp ? inflate(&zbuf, Z_SYNC_FLUSH) :
 				 deflate(&zbuf, Z_FINISH);
@@ -160,19 +155,22 @@ deflate_global(data, size, decomp, out)
 			/* Done. */
 			break;
 		} else if (zbuf.avail_out == 0) {
-			/* we need more output space, allocate size */
-			buf[i].out = malloc((u_long) size,
+			struct deflate_buf *p;
+
+			/* We need more output space for another iteration. */
+			p = malloc(sizeof(*p) + (size_t)(size * i),
 			    M_CRYPTO_DATA, M_NOWAIT);
-			if (buf[i].out == NULL) {
+			if (p == NULL) {
 				SDT_PROBE3(opencrypto, deflate, deflate_global,
 				    bad, decomp, 0, __LINE__);
 				goto bad;
 			}
-			zbuf.next_out = buf[i].out;
-			buf[i].size = size;
-			buf[i].flag = 1;
-			zbuf.avail_out = buf[i].size;
-			i++;
+			p->next = NULL;
+			p->size = size * i;
+			bufp->next = p;
+			bufp = p;
+			zbuf.next_out = bufp->data;
+			zbuf.avail_out = bufp->size;
 		} else {
 			/* Unexpect result. */
 			/*
@@ -191,7 +189,7 @@ deflate_global(data, size, decomp, out)
 
 	result = count = zbuf.total_out;
 
-	*out = malloc((u_long) result, M_CRYPTO_DATA, M_NOWAIT);
+	*out = malloc(result, M_CRYPTO_DATA, M_NOWAIT);
 	if (*out == NULL) {
 		SDT_PROBE3(opencrypto, deflate, deflate_global, bad,
 		    decomp, 0, __LINE__);
@@ -202,17 +200,22 @@ deflate_global(data, size, decomp, out)
 	else
 		deflateEnd(&zbuf);
 	output = *out;
-	for (j = 0; buf[j].flag != 0; j++) {
-		if (count > buf[j].size) {
-			bcopy(buf[j].out, *out, buf[j].size);
-			*out += buf[j].size;
-			free(buf[j].out, M_CRYPTO_DATA);
-			count -= buf[j].size;
+	for (bufp = bufh; bufp != NULL; ) {
+		if (count > bufp->size) {
+			struct deflate_buf *p;
+
+			bcopy(bufp->data, *out, bufp->size);
+			*out += bufp->size;
+			count -= bufp->size;
+			p = bufp;
+			bufp = bufp->next;
+			free(p, M_CRYPTO_DATA);
 		} else {
-			/* it should be the last buffer */
-			bcopy(buf[j].out, *out, count);
+			/* It should be the last buffer. */
+			bcopy(bufp->data, *out, count);
 			*out += count;
-			free(buf[j].out, M_CRYPTO_DATA);
+			free(bufp, M_CRYPTO_DATA);
+			bufp = NULL;
 			count = 0;
 		}
 	}
@@ -221,13 +224,19 @@ deflate_global(data, size, decomp, out)
 	return result;
 
 bad:
-	*out = NULL;
-	for (j = 0; buf[j].flag != 0; j++)
-		free(buf[j].out, M_CRYPTO_DATA);
 	if (decomp)
 		inflateEnd(&zbuf);
 	else
 		deflateEnd(&zbuf);
+	for (bufp = bufh; bufp != NULL; ) {
+		struct deflate_buf *p;
+
+		p = bufp;
+		bufp = bufp->next;
+		free(p, M_CRYPTO_DATA);
+	}
+bad2:
+	*out = NULL;
 	return 0;
 }
 
