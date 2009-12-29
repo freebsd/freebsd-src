@@ -265,8 +265,6 @@
             ..
             ppp
             ..
-            pppd
-            ..
             printing
             ..
             scsi_target
@@ -283,15 +281,9 @@
                 srcs
                 ..
             ..
-            slattach
-            ..
-            sliplogin
-            ..
             smbfs
                 print
                 ..
-            ..
-            startslip
             ..
             sunrpc
                 dir
