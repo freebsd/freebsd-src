@@ -347,7 +347,7 @@ ipcomp_output(
 	 * See RFC 3173, 2.2. Non-Expansion Policy.
 	 */
 	if (m->m_pkthdr.len <= ipcompx->minlen) {
-		/* XXX-BZ V_ipcompstat.threshold++; */
+		ipcompstat.ipcomps_threshold++;
 		return ipsec_process_done(m, isr);
 	}
 
@@ -571,8 +571,10 @@ ipcomp_output_cb(struct cryptop *crp)
 			goto bad;
 		}
 	} else {
-		/* compression was useless, we have lost time */
-		/* XXX add statistic */
+		/* Compression was useless, we have lost time. */
+		ipcompstat.ipcomps_uncompr++;
+		DPRINTF(("%s: compressions was useless %d - %d <= %d\n",
+		    __func__, crp->crp_ilen, skip, crp->crp_olen));
 		/* XXX remember state to not compress the next couple
 		 *     of packets, RFC 3173, 2.2. Non-Expansion Policy */
 	}
@@ -606,6 +608,8 @@ static struct xformsw ipcomp_xformsw = {
 static void
 ipcomp_attach(void)
 {
+
+	ipcompstat.version = IPCOMPSTAT_VERSION;
 	xform_register(&ipcomp_xformsw);
 }
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);
