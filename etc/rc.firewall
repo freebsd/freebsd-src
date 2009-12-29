@@ -230,18 +230,30 @@ case ${firewall_type} in
 
 	# Allow setup of incoming email
 	${fwcmd} add pass tcp from any to me 25 setup
+	if [ -n "$net6" ]; then
+		${fwcmd} add pass tcp from any to me6 25 setup
+	fi
 
 	# Allow setup of outgoing TCP connections only
 	${fwcmd} add pass tcp from me to any setup
+	if [ -n "$net6" ]; then
+		${fwcmd} add pass tcp from me6 to any setup
+	fi
 
 	# Disallow setup of all other TCP connections
 	${fwcmd} add deny tcp from any to any setup
 
 	# Allow DNS queries out in the world
 	${fwcmd} add pass udp from me to any 53 keep-state
+	if [ -n "$net6" ]; then
+		${fwcmd} add pass udp from me6 to any 53 keep-state
+	fi
 
 	# Allow NTP queries out in the world
 	${fwcmd} add pass udp from me to any 123 keep-state
+	if [ -n "$net6" ]; then
+		${fwcmd} add pass udp from me6 to any 123 keep-state
+	fi
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
@@ -388,14 +400,25 @@ case ${firewall_type} in
 
 	# Allow setup of incoming email
 	${fwcmd} add pass tcp from any to me 25 setup
+	if [ -n "$inet6" ]; then
+		${fwcmd} add pass tcp from any to me6 25 setup
+	fi
 
 	# Allow access to our DNS
 	${fwcmd} add pass tcp from any to me 53 setup
 	${fwcmd} add pass udp from any to me 53
 	${fwcmd} add pass udp from me 53 to any
+	if [ -n "$inet6" ]; then
+		${fwcmd} add pass tcp from any to me6 53 setup
+		${fwcmd} add pass udp from any to me6 53
+		${fwcmd} add pass udp from me6 53 to any
+	fi
 
 	# Allow access to our WWW
 	${fwcmd} add pass tcp from any to me 80 setup
+	if [ -n "$inet6" ]; then
+		${fwcmd} add pass tcp from any to me6 80 setup
+	fi
 
 	# Reject&Log all setup of incoming connections from the outside
 	${fwcmd} add deny log ip4 from any to any in via ${oif} setup proto tcp
@@ -409,9 +432,15 @@ case ${firewall_type} in
 
 	# Allow DNS queries out in the world
 	${fwcmd} add pass udp from me to any 53 keep-state
+	if [ -n "$inet6" ]; then
+		${fwcmd} add pass udp from me6 to any 53 keep-state
+	fi
 
 	# Allow NTP queries out in the world
 	${fwcmd} add pass udp from me to any 123 keep-state
+	if [ -n "$inet6" ]; then
+		${fwcmd} add pass udp from me6 to any 123 keep-state
+	fi
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
