@@ -149,7 +149,7 @@ sighandler(int signum)
  * Open the watchdog device.
  */
 static int
-watchdog_init()
+watchdog_init(void)
 {
 
 	fd = open("/dev/" _PATH_WATCHDOG, O_RDWR);
@@ -220,7 +220,7 @@ watchdog_onoff(int onoff)
  * Tell user how to use the program.
  */
 static void
-usage()
+usage(void)
 {
 	if (is_daemon)
 		fprintf(stderr, "usage: watchdogd [-d] [-e cmd] [-I file] [-s sleep] [-t timeout]\n");

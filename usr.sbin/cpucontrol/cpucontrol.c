@@ -102,7 +102,7 @@ static int	do_update(const char *dev);
 static void	datadir_add(const char *path);
 
 static void __dead2
-usage()
+usage(void)
 {
 	const char *name;
 

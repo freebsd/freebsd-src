@@ -146,7 +146,7 @@ action(char *line)
 }
 
 static void
-dump_config()
+dump_config(void)
 {
 
 	ofwo_dump();
