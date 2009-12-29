@@ -50,5 +50,7 @@ archive_read_support_compression_all(struct archive *a)
 	 * "as much as possible."  Clients who need specific
 	 * compression should enable those individually so they can
 	 * verify the level of support. */
+	/* Clear any warning messages set by the above functions. */
+	archive_clear_error(a);
 	return (ARCHIVE_OK);
 }
