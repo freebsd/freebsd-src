@@ -430,9 +430,6 @@ cardbus_read_tuple_finish(device_t cbdev, device_t child, int rid,
 {
 	if (res != CIS_CONFIG_SPACE) {
 		bus_release_resource(child, SYS_RES_MEMORY, rid, res);
-		if (rid == PCIM_CIS_ASI_ROM)
-			pci_write_config(child, rid, pci_read_config(child,
-			    rid, 4) & ~PCIR_BIOS, 4);
 	}
 }
 
@@ -477,9 +474,6 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		return (NULL);
 	}
 	DEVPRINTF((cbdev, "CIS Mapped to %#lx\n", rman_get_start(res)));
-	if (*rid == PCIR_BIOS)
-		pci_write_config(child, *rid,
-		    rman_get_start(res) | PCIM_BIOS_ENABLE, 4);
 
 	/* Flip to the right ROM image if CIS is in ROM */
 	if (space == PCIM_CIS_ASI_ROM) {
