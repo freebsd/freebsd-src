@@ -3700,25 +3700,6 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 }
 
 int
-pci_release_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
-{
-
-	if (device_get_parent(child) != dev)
-		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, r));
-
-	/*
-	 * For BARs we don't actually want to release the resource.
-	 * Instead, we deactivate the resource if needed and then give
-	 * ownership of the BAR back to the bus.  This is handled for us
-	 * in resource_list_release() since we use resource_list_reserve()
-	 * for BARs.
-	 */
-	return (bus_generic_rl_release_resource(dev, child, type, rid, r));
-}
-
-int
 pci_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
