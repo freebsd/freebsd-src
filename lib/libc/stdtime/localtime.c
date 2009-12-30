@@ -237,6 +237,9 @@ static char		lcl_TZname[TZ_STRLEN_MAX + 1];
 static int		lcl_is_set;
 static pthread_once_t	gmt_once = PTHREAD_ONCE_INIT;
 static pthread_rwlock_t	lcl_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_once_t	gmtime_once = PTHREAD_ONCE_INIT;
+static pthread_key_t	gmtime_key;
+static int		gmtime_key_error;
 static pthread_once_t	localtime_once = PTHREAD_ONCE_INIT;
 static pthread_key_t	localtime_key;
 static int		localtime_key_error;
@@ -1510,27 +1513,24 @@ struct tm * const	tmp;
 	return result;
 }
 
+static void
+gmtime_key_init(void)
+{
+
+	gmtime_key_error = _pthread_key_create(&gmtime_key, free);
+}
+
 struct tm *
 gmtime(timep)
 const time_t * const	timep;
 {
-	static pthread_mutex_t gmtime_mutex = PTHREAD_MUTEX_INITIALIZER;
-	static pthread_key_t gmtime_key = -1;
 	struct tm *p_tm;
-	int r;
 
 	if (__isthreaded != 0) {
-		if (gmtime_key < 0) {
-			_pthread_mutex_lock(&gmtime_mutex);
-			if (gmtime_key < 0) {
-				if ((r = _pthread_key_create(&gmtime_key,
-				    free)) != 0) {
-					_pthread_mutex_unlock(&gmtime_mutex);
-					errno = r;
-					return(NULL);
-				}
-			}
-			_pthread_mutex_unlock(&gmtime_mutex);
+		_once(&gmtime_once, gmtime_key_init);
+		if (gmtime_key_error != 0) {
+			errno = gmtime_key_error;
+			return(NULL);
 		}
 		/*
 		 * Changed to follow POSIX.1 threads standard, which
