@@ -60,6 +60,7 @@
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/if_ether.h>
 #ifdef INET6
 #include <netinet6/scope6_var.h>
 #endif
@@ -622,6 +623,27 @@ route_output(struct mbuf *m, struct socket *so)
 			}
 		}
 #endif
+		/*
+		 * If performing proxied L2 entry insertion, and
+		 * the actual PPP host entry is found, perform
+		 * another search to retrieve the prefix route of
+		 * the local end point of the PPP link.
+		 */
+		if ((rtm->rtm_flags & RTF_ANNOUNCE) &&
+		    (rt->rt_ifp->if_flags & IFF_POINTOPOINT)) {
+			struct sockaddr laddr;
+			rt_maskedcopy(rt->rt_ifa->ifa_addr,
+				      &laddr,
+				      rt->rt_ifa->ifa_netmask);
+			/* 
+			 * refactor rt and no lock operation necessary
+			 */
+			rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr, rnh);
+			if (rt == NULL) {
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				senderr(ESRCH);
+			}
+		} 
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
 		RADIX_NODE_HEAD_RUNLOCK(rnh);

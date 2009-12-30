@@ -326,7 +326,6 @@ set(int argc, char **argv)
 			doing_proxy = 1;
 			if (argc && strncmp(argv[1], "only", 3) == 0) {
 				proxy_only = 1;
-				dst->sin_other = SIN_PROXY;
 				argc--; argv++;
 			}
 		} else if (strncmp(argv[0], "blackhole", 9) == 0) {
@@ -365,33 +364,30 @@ set(int argc, char **argv)
 			sdl_m.sdl_alen = ETHER_ADDR_LEN;
 		}
 	}
-	for (;;) {	/* try at most twice */
-		rtm = rtmsg(RTM_GET, dst, &sdl_m);
-		if (rtm == NULL) {
-			warn("%s", host);
-			return (1);
-		}
-		addr = (struct sockaddr_inarp *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
-		if (addr->sin_addr.s_addr != dst->sin_addr.s_addr)	
-			break;
-		if (sdl->sdl_family == AF_LINK &&
-		    !(rtm->rtm_flags & RTF_GATEWAY) &&
-		    valid_type(sdl->sdl_type) )
-			break;
-		if (doing_proxy == 0) {
-			printf("set: can only proxy for %s\n", host);
-			return (1);
-		}
-		if (dst->sin_other & SIN_PROXY) {
-			printf("set: proxy entry exists for non 802 device\n");
-			return (1);
-		}
-		dst->sin_other = SIN_PROXY;
-		proxy_only = 1;
+
+	/*
+	 * In the case a proxy-arp entry is being added for
+	 * a remote end point, the RTF_ANNOUNCE flag in the 
+	 * RTM_GET command is an indication to the kernel
+	 * routing code that the interface associated with
+	 * the prefix route covering the local end of the
+	 * PPP link should be returned, on which ARP applies.
+	 */
+	rtm = rtmsg(RTM_GET, dst, &sdl_m);
+	if (rtm == NULL) {
+		warn("%s", host);
+		return (1);
+	}
+	addr = (struct sockaddr_inarp *)(rtm + 1);
+	sdl = (struct sockaddr_dl *)(SA_SIZE(addr) + (char *)addr);
+	if (addr->sin_addr.s_addr == dst->sin_addr.s_addr) {
+		printf("set: proxy entry exists for non 802 device\n");
+		return (1);
 	}
 
-	if (sdl->sdl_family != AF_LINK) {
+	if ((sdl->sdl_family != AF_LINK) ||
+	    (rtm->rtm_flags & RTF_GATEWAY) ||
+	    !valid_type(sdl->sdl_type)) {
 		printf("cannot intuit interface index and type for %s\n", host);
 		return (1);
 	}
@@ -436,7 +432,11 @@ delete(char *host, int do_proxy)
 	dst = getaddr(host);
 	if (dst == NULL)
 		return (1);
-	dst->sin_other = do_proxy;
+
+	/*
+	 * Perform a regular entry delete first.
+	 */
+	flags &= ~RTF_ANNOUNCE;
 
 	/*
 	 * setup the data structure to notify the kernel
@@ -471,11 +471,16 @@ delete(char *host, int do_proxy)
 			break;
 		}
 
-		if (dst->sin_other & SIN_PROXY) {
+		/*
+		 * Regualar entry delete failed, now check if there
+		 * is a proxy-arp entry to remove.
+		 */
+		if (flags & RTF_ANNOUNCE) {
 			fprintf(stderr, "delete: cannot locate %s\n",host);
 			return (1);
 		}
-		dst->sin_other = SIN_PROXY;
+
+		flags |= RTF_ANNOUNCE;
 	}
 	rtm->rtm_flags |= RTF_LLDATA;
 	if (rtmsg(RTM_DELETE, dst, NULL) != NULL) {
@@ -484,6 +489,7 @@ delete(char *host, int do_proxy)
 	}
 	return (1);
 }
+
 
 /*
  * Search the arp table and do some action on matching entries
