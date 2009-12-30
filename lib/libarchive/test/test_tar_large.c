@@ -190,7 +190,7 @@ memory_read_skip(struct archive *a, void *_private, off_t skip)
 	}
 	if (private->filebytes > 0) {
 		if (private->filebytes < skip)
-			skip = private->filebytes;
+			skip = (off_t)private->filebytes;
 		private->filebytes -= skip;
 	} else {
 		skip = 0;
