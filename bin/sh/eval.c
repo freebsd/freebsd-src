@@ -792,20 +792,20 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
+			funcnest--;
 			handler = savehandler;
 			longjmp(handler->loc, 1);
 		}
 		handler = &jmploc;
+		funcnest++;
 		INTON;
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
-		funcnest++;
 		exitstatus = oexitstatus;
 		if (flags & EV_TESTED)
 			evaltree(getfuncnode(cmdentry.u.func), EV_TESTED);
 		else
 			evaltree(getfuncnode(cmdentry.u.func), 0);
-		funcnest--;
 		INTOFF;
 		unreffunc(cmdentry.u.func);
 		poplocalvars();
@@ -813,6 +813,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		freeparam(&shellparam);
 		shellparam = saveparam;
 		handler = savehandler;
+		funcnest--;
 		popredir();
 		INTON;
 		if (evalskip == SKIPFUNC) {
