@@ -52,7 +52,8 @@ static void badline(const char *field, const char *bad);
  * so the client can notify the NFS server even after reboot.
  */
 int
-add_mtab(char *hostp, char *dirp) {
+add_mtab(char *hostp, char *dirp)
+{
 	FILE *mtabfile;
 
 	if ((mtabfile = fopen(PATH_MOUNTTAB, "a")) == NULL)
@@ -69,7 +70,8 @@ add_mtab(char *hostp, char *dirp) {
  * Read mounttab line for line and return struct mtablist.
  */
 int
-read_mtab(void) {
+read_mtab(void)
+{
 	struct mtablist **mtabpp, *mtabp;
 	char *hostp, *dirp, *cp;
 	char str[STRSIZ];
@@ -137,7 +139,8 @@ read_mtab(void) {
  * Unlink PATH_MOUNTAB if no entry is left.
  */
 int
-write_mtab(int verbose) {
+write_mtab(int verbose)
+{
 	struct mtablist *mtabp, *mp;
 	FILE *mtabfile;
 	int line;
@@ -180,7 +183,8 @@ write_mtab(int verbose) {
  * Mark the entries as clean where RPC calls have been done successfully.
  */
 void
-clean_mtab(char *hostp, char *dirp, int verbose) {
+clean_mtab(char *hostp, char *dirp, int verbose)
+{
 	struct mtablist *mtabp;
 	char *host;
 
@@ -205,7 +209,8 @@ clean_mtab(char *hostp, char *dirp, int verbose) {
  * Free struct mtablist mtab.
  */
 void
-free_mtab() {
+free_mtab(void)
+{
 	struct mtablist *mtabp;
 
 	while ((mtabp = mtabhead) != NULL) {
@@ -218,7 +223,8 @@ free_mtab() {
  * Print bad lines to syslog.
  */
 static void
-badline(const char *field, const char *bad) {
+badline(const char *field, const char *bad)
+{
 	syslog(LOG_ERR, "bad mounttab %s field '%s'", field,
 	    (bad == NULL) ? "<null>" : bad);
 }
