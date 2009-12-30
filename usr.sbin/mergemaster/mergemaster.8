@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2009
+.Dd December 30, 2009
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -320,44 +320,44 @@ with all values commented out:
 # These are options for mergemaster, with their default values listed
 # The following options have command line overrides
 #
-# The target architecture (unset by default)
+# The target architecture (-A, unset by default)
 #ARCHSTRING='TARGET_ARCH=<foo>'
 #
-# Sourcedir is the directory to do the 'make' in (where the new files are)
+# Sourcedir is the directory to do the 'make' in (-m)
 #SOURCEDIR='/usr/src'
 #
-# Directory to install the temporary root environment into
+# Directory to install the temporary root environment into (-t)
 #TEMPROOT='/var/tmp/temproot'
 #
-# Specify the destination directory for the installed files
+# Specify the destination directory for the installed files (-D)
 #DESTDIR=
 #
-# Strict comparison skips the VCS Id test and compares every file
+# Strict comparison skips the VCS Id test and compares every file (-s)
 #STRICT=no
 #
-# Type of diff, such as unified, context, etc.
+# Type of diff, such as unified, context, etc. (-c)
 #DIFF_FLAG='-u'
 #
-# Install the new file if it differs only by VCS Id ($FreeBSD)
+# Install the new file if it differs only by VCS Id ($FreeBSD, -F)
 #FREEBSD_ID=
 #
-# Verbose mode includes more details and additional checks
+# Verbose mode includes more details and additional checks (-v)
 #VERBOSE=
 #
-# Automatically install files that do not exist on the system already
+# Automatically install files that do not exist on the system already (-i)
 #AUTO_INSTALL=
 #
-# Automatically upgrade files that have not been user modified
+# Automatically upgrade files that have not been user modified (-U)
 #AUTO_UPGRADE=
 #
-# Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf
-#COMP_CONFS=yes
+# Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf (-C)
+#COMP_CONFS=
 #
-# Preserve files that you replace
-#PRESERVE_FILES=yes
+# Preserve files that you replace (-P)
+#PRESERVE_FILES=
 #PRESERVE_FILES_DIR=/var/tmp/mergemaster/preserved-files-`date +%y%m%d-%H%M%S`
 #
-# The umask for mergemaster to compare the default file's modes to
+# The umask for mergemaster to compare the default file's modes to (-u)
 #NEW_UMASK=022
 #
 # The following options have no command line overrides
@@ -376,6 +376,9 @@ with all values commented out:
 #
 # If you set 'yes' above, make sure to include the PATH to your pager
 #PATH=/bin:/usr/bin:/usr/sbin
+#
+# Delete stale files in /etc/rc.d without prompting
+#DELETE_STALE_RC_FILES=
 #
 # Specify the path to scripts to run before the comparison starts,
 # and/or after the script has finished its work
