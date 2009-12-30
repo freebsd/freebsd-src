@@ -358,7 +358,11 @@ case "${AUTO_UPGRADE}" in
     echo "    Skipping auto-upgrade on this run."
     echo "    It will be created for the next run when this one is complete."
     echo ''
-    press_to_continue
+    case "${AUTO_RUN}" in
+    '')
+      press_to_continue
+      ;;
+    esac
     unset AUTO_UPGRADE
   fi
   ;;
@@ -665,31 +669,32 @@ case "${RERUN}" in
   for file in ${IGNORE_FILES}; do
     test -e ${TEMPROOT}/${file} && unlink ${TEMPROOT}/${file}
   done
+
+  # We really don't want to have to deal with files like login.conf.db, pwd.db,
+  # or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
+  # Prompt the user to do so below, as needed.
+  #
+  rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
+
+  # We only need to compare things like freebsd.cf once
+  find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
+
+  # Delete stuff we do not need to keep the mtree database small,
+  # and to make the actual comparison faster.
+  find ${TEMPROOT}/usr -type l -delete 2>/dev/null
+  find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
+  find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
+
+  # Build the mtree database in a temporary location.
+  MTREENEW=`mktemp -t mergemaster.mtree`
+  case "${PRE_WORLD}" in
+  '') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
+      ;;
+  *) # We don't want to mess with the mtree database on a pre-world run or
+     # when re-scanning a previously-built tree.
+     ;;
+  esac
   ;; # End of the "RERUN" test
-esac
-
-# We really don't want to have to deal with files like login.conf.db, pwd.db,
-# or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
-# Prompt the user to do so below, as needed.
-#
-rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
-
-# We only need to compare things like freebsd.cf once
-find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
-
-# Delete stuff we do not need to keep the mtree database small,
-# and to make the actual comparison faster.
-find ${TEMPROOT}/usr -type l -delete 2>/dev/null
-find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
-find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
-
-# Build the mtree database in a temporary location.
-MTREENEW=`mktemp -t mergemaster.mtree`
-case "${PRE_WORLD}" in
-'') mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
-    ;;
-*) # We don't want to mess with the mtree database on a pre-world run.
-   ;;
 esac
 
 # Get ready to start comparing files
@@ -965,6 +970,12 @@ if [ -z "${PRE_WORLD}" -a -z "${RERUN}" ]; then
       esac
       sleep 2
       ;;
+    *)
+      if [ -n "${DELETE_STALE_RC_FILES}" ]; then
+        echo '      *** Deleting ... '
+        rm ${STALE_RC_FILES}
+        echo '                       done.'
+      fi
     esac
     ;;
   esac
@@ -1093,7 +1104,7 @@ for COMPFILE in `find . -type f | sort`; do
       # If the user chose the -F option, test for that before proceeding
       #
       if [ -n "$FREEBSD_ID" ]; then
-        if diff -q -I'[$]FreeBSD:.*$' "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > \
+        if diff -q -I'[$]FreeBSD.*[$]' "${DESTDIR}${COMPFILE#.}" "${COMPFILE}" > \
             /dev/null 2>&1; then
           if mm_install "${COMPFILE}"; then
             echo "*** Updated revision control Id for ${DESTDIR}${COMPFILE#.}"
