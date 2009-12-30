@@ -588,7 +588,7 @@ xdr_dir(XDR *xdrsp, char *dirp)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
