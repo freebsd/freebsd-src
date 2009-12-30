@@ -66,7 +66,7 @@
 #include <opencrypto/deflate.h>
 #include <opencrypto/xform.h>
 
-int	ipcomp_enable = 0;
+int	ipcomp_enable = 1;
 struct	ipcompstat ipcompstat;
 
 SYSCTL_DECL(_net_inet_ipcomp);
