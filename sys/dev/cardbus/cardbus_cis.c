@@ -530,8 +530,8 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) != 0) {
 				device_printf(cbdev, "Cannot find CIS in "
 				    "Option ROM\n");
-				bus_release_resource(child, SYS_RES_MEMORY,
-				    *rid, res);
+				cardbus_read_tuple_finish(cbdev, child, *rid,
+				    res);
 				*rid = 0;
 				return (NULL);
 			}
