@@ -430,6 +430,7 @@ cardbus_read_tuple_finish(device_t cbdev, device_t child, int rid,
 {
 	if (res != CIS_CONFIG_SPACE) {
 		bus_release_resource(child, SYS_RES_MEMORY, rid, res);
+		bus_delete_resource(child, SYS_RES_MEMORY, rid);
 	}
 }
 
@@ -492,8 +493,8 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 				device_printf(cbdev, "Bad header in rom %d: "
 				    "[%x] %04x\n", romnum, imagebase +
 				    CARDBUS_EXROM_SIGNATURE, romsig);
-				bus_release_resource(child, SYS_RES_MEMORY,
-				    *rid, res);
+				cardbus_read_tuple_finish(cbdev, child, *rid,
+				    res);
 				*rid = 0;
 				return (NULL);
 			}
