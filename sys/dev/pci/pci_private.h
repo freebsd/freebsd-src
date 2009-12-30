@@ -82,8 +82,6 @@ int		pci_msix_count_method(device_t dev, device_t child);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
 		    int type, int *rid, u_long start, u_long end, u_long count,
 		    u_int flags);
-int		pci_release_resource(device_t dev, device_t child, int type,
-		    int rid, struct resource *r);
 int		pci_activate_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 void		pci_delete_resource(device_t dev, device_t child, 
