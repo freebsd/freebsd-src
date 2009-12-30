@@ -50,9 +50,9 @@ DEFINE_TEST(test_compat_solaris_tar_acl)
 
 	/* Archive has 1 entry with some ACLs set on it. */
 	assertA(0 == archive_read_next_header(a, &ae));
-	failure("Basic ACLs should set mode to 0640, not %04o",
+	failure("Basic ACLs should set mode to 0644, not %04o",
 	    archive_entry_mode(ae)&0777);
-	assertEqualInt((archive_entry_mode(ae) & 0777), 0640);
+	assertEqualInt((archive_entry_mode(ae) & 0777), 0644);
 	assertEqualInt(7, archive_entry_acl_reset(ae,
 		ARCHIVE_ENTRY_ACL_TYPE_ACCESS));
 	assertEqualInt(ARCHIVE_OK, archive_entry_acl_next(ae,
@@ -77,7 +77,7 @@ DEFINE_TEST(test_compat_solaris_tar_acl)
 		ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
 		&type, &permset, &tag, &qual, &name));
 	assertEqualInt(ARCHIVE_ENTRY_ACL_TYPE_ACCESS, type);
-	assertEqualInt(000, permset);
+	assertEqualInt(004, permset);
 	assertEqualInt(ARCHIVE_ENTRY_ACL_OTHER, tag);
 	assertEqualInt(-1, qual);
 	assert(name == NULL);
