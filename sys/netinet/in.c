@@ -950,6 +950,49 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 #define rtinitflags(x) \
 	((((x)->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) != 0) \
 	    ? RTF_HOST : 0)
+
+/*
+ * Generate a routing message when inserting or deleting 
+ * an interface address alias.
+ */
+static void in_addralias_rtmsg(int cmd, struct in_addr *prefix, 
+    struct in_ifaddr *target)
+{
+	struct route pfx_ro;
+	struct sockaddr_in *pfx_addr;
+	struct rtentry msg_rt;
+
+	/* QL: XXX
+	 * This is a bit questionable because there is no
+	 * additional route entry added/deleted for an address
+	 * alias. Therefore this route report is inaccurate.
+	 */
+	bzero(&pfx_ro, sizeof(pfx_ro));
+	pfx_addr = (struct sockaddr_in *)(&pfx_ro.ro_dst);
+	pfx_addr->sin_len = sizeof(*pfx_addr);
+	pfx_addr->sin_family = AF_INET;
+	pfx_addr->sin_addr = *prefix;
+	rtalloc_ign_fib(&pfx_ro, 0, 0);
+	if (pfx_ro.ro_rt != NULL) {
+		msg_rt = *pfx_ro.ro_rt;
+
+		/* QL: XXX
+		 * Point the gateway to the new interface
+		 * address as if a new prefix route entry has 
+		 * been added through the new address alias. 
+		 * All other parts of the rtentry is accurate, 
+		 * e.g., rt_key, rt_mask, rt_ifp etc.
+		 */
+		msg_rt.rt_gateway = 
+			(struct sockaddr *)&target->ia_addr;
+		rt_newaddrmsg(cmd, 
+			      (struct ifaddr *)target,
+			      0, &msg_rt);
+		RTFREE(pfx_ro.ro_rt);
+	}
+	return;
+}
+
 /*
  * Check if we have a route for the given prefix already or add one accordingly.
  */
@@ -997,40 +1040,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
-				struct route pfx_ro;
-				struct sockaddr_in *pfx_addr;
-				struct rtentry msg_rt;
-
-				/* QL: XXX
-				 * This is a bit questionable because there is no
-				 * additional route entry added for an address alias.
-				 * Therefore this route report is inaccurate. Perhaps
-				 * it's better to supply a empty rtentry as how it
-				 * is done in in_scrubprefix().
-				 */
-				bzero(&pfx_ro, sizeof(pfx_ro));
-				pfx_addr = (struct sockaddr_in *)(&pfx_ro.ro_dst);
-				pfx_addr->sin_len = sizeof(*pfx_addr);
-				pfx_addr->sin_family = AF_INET;
-				pfx_addr->sin_addr = prefix;
-				rtalloc_ign_fib(&pfx_ro, 0, 0);
-				if (pfx_ro.ro_rt != NULL) {
-					msg_rt = *pfx_ro.ro_rt;
-					/* QL: XXX
-					 * Point the gateway to the given interface
-					 * address as if a new prefix route entry has 
-					 * been added through the new address alias. 
-					 * All other parts of the rtentry is accurate, 
-					 * e.g., rt_key, rt_mask, rt_ifp etc.
-					 */
-					msg_rt.rt_gateway = 
-						(struct sockaddr *)&ia->ia_addr;
-					rt_newaddrmsg(RTM_ADD, 
-						      (struct ifaddr *)target,
-						      0, &msg_rt);
-					RTFREE(pfx_ro.ro_rt);
-				}
-
+				in_addralias_rtmsg(RTM_ADD, &prefix, target);
 				IN_IFADDR_RUNLOCK();
 				return (0);
 			}
@@ -1099,26 +1109,17 @@ in_scrubprefix(struct in_ifaddr *target)
 		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
 
-	if ((target->ia_flags & IFA_ROUTE) == 0) {
-		struct rtentry rt;
-
-		/* QL: XXX
-		 * Report a blank rtentry when a route has not been
-		 * installed for the given interface address.
-		 */
-		bzero(&rt, sizeof(rt));
-		rt_newaddrmsg(RTM_DELETE, 
-			      (struct ifaddr *)target,
-			      0, &rt);
-		return (0);
-	}
-
 	if (rtinitflags(target))
 		prefix = target->ia_dstaddr.sin_addr;
 	else {
 		prefix = target->ia_addr.sin_addr;
 		mask = target->ia_sockmask.sin_addr;
 		prefix.s_addr &= mask.s_addr;
+	}
+
+	if ((target->ia_flags & IFA_ROUTE) == 0) {
+		in_addralias_rtmsg(RTM_DELETE, &prefix, target);
+		return (0);
 	}
 
 	IN_IFADDR_RLOCK();
