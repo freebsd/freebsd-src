@@ -1311,11 +1311,16 @@ parsebackq: {
 	int savelen;
 	int saveprompt;
 	const int bq_startlinno = plinno;
+	char *volatile ostr = NULL;
+	struct parsefile *const savetopfile = getcurrentfile();
 
 	str = NULL;
 	if (setjmp(jmploc.loc)) {
+		popfilesupto(savetopfile);
 		if (str)
 			ckfree(str);
+		if (ostr)
+			ckfree(ostr);
 		handler = savehandler;
 		if (exception == EXERROR) {
 			startlinno = bq_startlinno;
@@ -1335,13 +1340,12 @@ parsebackq: {
                 /* We must read until the closing backquote, giving special
                    treatment to some slashes, and then push the string and
                    reread it as input, interpreting it normally.  */
-                char *out;
+                char *oout;
                 int c;
-                int savelen;
-                char *str;
+                int olen;
 
 
-                STARTSTACKSTR(out);
+                STARTSTACKSTR(oout);
 		for (;;) {
 			if (needprompt) {
 				setprompt(2);
@@ -1368,7 +1372,7 @@ parsebackq: {
 				}
                                 if (c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
-                                        STPUTC('\\', out);
+                                        STPUTC('\\', oout);
 				break;
 
 			case '\n':
@@ -1384,16 +1388,16 @@ parsebackq: {
 			default:
 				break;
 			}
-			STPUTC(c, out);
+			STPUTC(c, oout);
                 }
 done:
-                STPUTC('\0', out);
-                savelen = out - stackblock();
-                if (savelen > 0) {
-                        str = ckmalloc(savelen);
-                        memcpy(str, stackblock(), savelen);
-			setinputstring(str, 1);
-                }
+                STPUTC('\0', oout);
+                olen = oout - stackblock();
+		INTOFF;
+		ostr = ckmalloc(olen);
+		memcpy(ostr, stackblock(), olen);
+		setinputstring(ostr, 1);
+		INTON;
         }
 	nlpp = &bqlist;
 	while (*nlpp)
@@ -1433,6 +1437,12 @@ done:
 		INTOFF;
 		ckfree(str);
 		str = NULL;
+		INTON;
+	}
+	if (ostr) {
+		INTOFF;
+		ckfree(ostr);
+		ostr = NULL;
 		INTON;
 	}
 	handler = savehandler;
