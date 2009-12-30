@@ -98,8 +98,6 @@ VNET_DEFINE(struct rtstat, rtstat);
 #define	V_rttrash	VNET(rttrash)
 #define	V_rtstat	VNET(rtstat)
 
-static void rt_maskedcopy(struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *);
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -1322,7 +1320,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	return (0);
 }
 
-static void
+void
 rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netmask)
 {
 	register u_char *cp1 = (u_char *)src;
