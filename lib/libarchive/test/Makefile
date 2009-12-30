@@ -78,6 +78,7 @@ TESTS= \
 	test_read_pax_truncated.c		\
 	test_read_position.c			\
 	test_read_truncated.c			\
+	test_read_uu.c				\
 	test_tar_filenames.c			\
 	test_tar_large.c			\
 	test_ustar_filenames.c			\
