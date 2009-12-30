@@ -85,9 +85,9 @@ expr:
 	ARITH_LPAREN expr ARITH_RPAREN
 		{ $$ = $2; } |
 	expr ARITH_OR expr
-		{ $$ = $1 ? $1 : $3 ? $3 : 0; } |
+		{ $$ = $1 || $3; } |
 	expr ARITH_AND expr
-		{ $$ = $1 ? ( $3 ? $3 : 0 ) : 0; } |
+		{ $$ = $1 && $3; } |
 	expr ARITH_BOR expr
 		{ $$ = $1 | $3; } |
 	expr ARITH_BXOR expr
