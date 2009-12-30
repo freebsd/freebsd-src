@@ -3063,12 +3063,12 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 		if (rle->flags & RLE_RESERVED) {
 			if (rle->flags & RLE_ALLOCATED)
 				return (NULL);
-			else if ((flags & RF_ACTIVE) &&
+			if ((flags & RF_ACTIVE) &&
 			    bus_activate_resource(child, type, *rid,
 			    rle->res) != 0)
 				return (NULL);
-			else
-				return (rle->res);
+			rle->flags |= RLE_ALLOCATED;
+			return (rle->res);
 		}
 		panic("resource_list_alloc: resource entry is busy");
 	}
