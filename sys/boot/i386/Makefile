@@ -1,5 +1,4 @@
 # $FreeBSD$
-.include <bsd.own.mk>
 
 .include <bsd.own.mk>
 
