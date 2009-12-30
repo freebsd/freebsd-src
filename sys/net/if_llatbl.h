@@ -159,7 +159,7 @@ struct lltable {
 				    const struct sockaddr *mask);
 	struct llentry *	(*llt_lookup)(struct lltable *, u_int flags,
 				    const struct sockaddr *l3addr);
-	int			(*llt_rtcheck)(struct ifnet *,
+	int			(*llt_rtcheck)(struct ifnet *, u_int flags,
 				    const struct sockaddr *);
 	int			(*llt_dump)(struct lltable *,
 				     struct sysctl_req *);
