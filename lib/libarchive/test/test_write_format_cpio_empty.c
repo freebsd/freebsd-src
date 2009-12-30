@@ -71,5 +71,5 @@ DEFINE_TEST(test_write_format_cpio_empty)
 	failure("Empty cpio archive should be exactly 87 bytes, was %d.", used);
 	assert(used == 87);
 	failure("Empty cpio archive is incorrectly formatted.");
-	assert(memcmp(buff, ref, 87) == 0);
+	assertEqualMem(buff, ref, 87);
 }
