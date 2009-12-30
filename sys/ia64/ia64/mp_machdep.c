@@ -366,7 +366,7 @@ ipi_send(struct pcpu *cpu, int ipi)
 	volatile uint64_t *pipi;
 	uint64_t vector;
 
-	pipi = __MEMIO_ADDR(ia64_lapic_address |
+	pipi = (void *)IA64_PHYS_TO_RR6(ia64_lapic_address |
 	    ((cpu->pc_md.lid & LID_SAPIC_MASK) >> 12));
 	vector = (uint64_t)(ipi_vector[ipi] & 0xff);
 	KASSERT(vector != 0, ("IPI %d is not assigned a vector", ipi));
