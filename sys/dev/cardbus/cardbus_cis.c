@@ -402,16 +402,11 @@ static int
 cardbus_read_tuple_mem(device_t cbdev, struct resource *res, uint32_t start,
     uint32_t *off, int *tupleid, int *len, uint8_t *tupledata)
 {
-	bus_space_tag_t bt;
-	bus_space_handle_t bh;
 	int ret;
 
-	bt = rman_get_bustag(res);
-	bh = rman_get_bushandle(res);
-
-	*tupleid = bus_space_read_1(bt, bh, start + *off);
-	*len = bus_space_read_1(bt, bh, start + *off + 1);
-	bus_space_read_region_1(bt, bh, *off + start + 2, tupledata, *len);
+	*tupleid = bus_read_1(res, start + *off);
+	*len = bus_read_1(res, start + *off + 1);
+	bus_read_region_1(res, *off + start + 2, tupledata, *len);
 	ret = 0;
 	*off += *len + 2;
 	return (ret);
@@ -488,8 +483,6 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 
 	/* Flip to the right ROM image if CIS is in ROM */
 	if (space == PCIM_CIS_ASI_ROM) {
-		bus_space_tag_t bt;
-		bus_space_handle_t bh;
 		uint32_t imagesize;
 		uint32_t imagebase = 0;
 		uint32_t pcidata;
@@ -497,12 +490,9 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 		int romnum = 0;
 		int imagenum;
 
-		bt = rman_get_bustag(res);
-		bh = rman_get_bushandle(res);
-
 		imagenum = (*start & PCIM_CIS_ROM_MASK) >> 28;
 		for (romnum = 0;; romnum++) {
-			romsig = bus_space_read_2(bt, bh,
+			romsig = bus_read_2(res,
 			    imagebase + CARDBUS_EXROM_SIGNATURE);
 			if (romsig != 0xaa55) {
 				device_printf(cbdev, "Bad header in rom %d: "
@@ -522,9 +512,9 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 				break;
 
 			/* Find out where the next Option ROM image is */
-			pcidata = imagebase + bus_space_read_2(bt, bh,
+			pcidata = imagebase + bus_read_2(res,
 			    imagebase + CARDBUS_EXROM_DATA_PTR);
-			imagesize = bus_space_read_2(bt, bh,
+			imagesize = bus_read_2(res,
 			    pcidata + CARDBUS_EXROM_DATA_IMAGE_LENGTH);
 
 			if (imagesize == 0) {
@@ -541,7 +531,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 			/* Image size is in 512 byte units */
 			imagesize <<= 9;
 
-			if ((bus_space_read_1(bt, bh, pcidata +
+			if ((bus_read_1(res, pcidata +
 			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) != 0) {
 				device_printf(cbdev, "Cannot find CIS in "
 				    "Option ROM\n");
