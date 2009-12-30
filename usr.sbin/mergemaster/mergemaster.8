@@ -61,10 +61,10 @@ down, populating that environment with the various
 files.
 You can specify a different source directory
 with the
-.Op Fl m
+.Fl m
 command line option, or specify the destination
 directory with the
-.Op Fl D
+.Fl D
 option.
 It then compares each file in that environment
 to its installed counterpart.
@@ -91,10 +91,10 @@ compares the files themselves.
 You can
 also specify that the script ignore the Id strings and
 compare every file with the
-.Op Fl s
+.Fl s
 option.
 Using the
-.Op Fl F
+.Fl F
 option
 .Nm
 will install the new file for you if they differ only by
@@ -126,7 +126,7 @@ installing an updated version of this file you should
 probably run
 .Xr pwd_mkdb 8
 with the
-.Op Fl p
+.Fl p
 option to rebuild your password databases
 and recreate
 .Pa /etc/passwd .
@@ -198,11 +198,13 @@ If the
 directory exists, it creates a new one in a previously
 non-existent directory.
 This option unsets the verbose flag,
-but is compatible with all other options.
+but other than
+.Fl U
+it is compatible with all other options.
 Setting
-.Op Fl a
+.Fl a
 makes
-.Op Fl w
+.Fl w
 superfluous.
 .It Fl h
 Display usage and help information.
@@ -253,7 +255,7 @@ instead of the default
 Add the date and time to the name of the temporary
 root directory.
 If
-.Op Fl t
+.Fl t
 is specified, this option must
 follow it if you want the date added too.
 .It Fl u Ar N
