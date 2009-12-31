@@ -838,5 +838,5 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 int
 typecmd(int argc, char **argv)
 {
-	return typecmd_impl(argc, argv, TYPECMD_TYPE, pathval());
+	return typecmd_impl(argc, argv, TYPECMD_TYPE, bltinlookup("PATH", 1));
 }
