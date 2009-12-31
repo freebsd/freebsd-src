@@ -554,6 +554,7 @@ vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor SILABS		0x10c4	Silicon Labs
 vendor ACTIONS		0x10d6  Actions
+vendor AIRPLUS		0x1011  Airplus
 vendor ANALOG		0x1110	Analog Devices
 vendor TENX		0x1130	Ten X Technology, Inc.
 vendor ISSC		0x1131	Integrated System Solution Corp.
@@ -561,6 +562,7 @@ vendor JRC		0x1145	Japan Radio Company
 vendor SPHAIRON		0x114b	Sphairon Access Systems GmbH
 vendor DELORME		0x1163	DeLorme
 vendor SERVERWORKS	0x1166	ServerWorks
+vendor DLINK3		0x1186	Dlink
 vendor ACERCM		0x1189	Acer Communications & Multimedia
 vendor SIERRA		0x1199	Sierra Wireless
 vendor TOPFIELD		0x11db	Topfield Co., Ltd
@@ -609,6 +611,7 @@ vendor SPARKLAN		0x15a9	SparkLAN
 vendor SOHOWARE		0x15e8	SOHOware
 vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
+vendor AMOI		0x1614	Amoi Electronics
 vendor GOODWAY		0x1631	Good Way Technology
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics
@@ -628,10 +631,15 @@ vendor LINKSYS3		0x1915	Linksys
 vendor QUALCOMMINC	0x19d2	Qualcomm, Incorporated
 vendor WCH2		0x1a86	QinHeng Electronics
 vendor STELERA		0x1a8d	Stelera Wireless
+vendor TCTMOBILE	0x1bbb  TCT Mobile
+vendor TELIT		0x1bc7  Telit
 vendor MPMAN		0x1cae	MpMan
 vendor DRESDENELEKTRONIK 0x1cf1 dresden elektronik
+vendor QISDA		0x1da5  Qisda
+vendor ALINK		0x1e0e  Alink
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
+vendor TLAYTECH		0x20b9	Tlay Tech
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
 vendor TRIPPLITE	0x2478	Tripp-Lite
@@ -739,6 +747,7 @@ product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
 product ACERP ACERSCAN_4300U	0x20b0	Benq 3300U/4300U
 product ACERP ACERSCAN_640BT	0x20be	Acerscan 640BT
 product ACERP ACERSCAN_1240U	0x20c0	Acerscan 1240U
+product ACERP H10		0x4068	AWL400 Wireless Adapter
 product ACERP ATAPI		0x6003	ATA/ATAPI Adapter
 product ACERP AWL300		0x9000	AWL300 Wireless Adapter
 product ACERP AWL400		0x9001	AWL400 Wireless Adapter
@@ -815,6 +824,9 @@ product AIPTEK POCKETCAM3M	0x2011	PocketCAM 3Mega
 product AIPTEK2 PENCAM_MEGA_1_3 0x504a	PenCam Mega 1.3
 product AIPTEK2 SUNPLUS_TECH	0x0c15	Sunplus Technology Inc.
 
+/* AirPlis products */
+product AIRPLUS MCD650		0x3198	MCD650 modem
+
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
 
@@ -833,12 +845,22 @@ product ALCOR SM_KBD		0x9410	MicroConnectors/StrongMan Keyboard
 product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
 product ALCOR AU6390	0x6390	AU6390 USB-IDE converter
 
+/* Alink products */
+product ALINK DWM652U5		0xce16	DWM-652
+product ALINK 3G		0x9000	3G modem
+product ALINK 3GU		0x9200	3G modem
+
 /* Altec Lansing products */
 product ALTEC ADA70		0x0070	ADA70 Speakers
 product ALTEC ASC495		0xff05	ASC495 Speakers
 
 /* Allied Telesyn International products */
 product ALLIEDTELESYN ATUSB100	0xb100	AT-USB100
+
+/* Amoi products */
+product AMOI H01		0x0800	H01 3G modem
+product AMOI H01A		0x7002	H01A 3G modem
+product AMOI H02		0x0802	H02 3G modem
 
 /* American Power Conversion products */
 product APC UPS			0x0002	Uninterruptible Power Supply
@@ -855,6 +877,7 @@ product ANCHOR EZUSB		0x2131	EZUSB
 product ANCHOR EZLINK		0x2720	EZLINK
 
 /* AnyData products */
+product ANYDATA ADU_620UW	0x6202	CDMA 2000 EV-DO USB Modem
 product ANYDATA ADU_E100X	0x6501	CDMA 2000 1xRTT/EV-DO USB Modem
 product ANYDATA ADU_500A	0x6502	CDMA 2000 EV-DO USB Modem
 
@@ -1149,7 +1172,22 @@ product DELL BC02		0x8000	BC02 Bluetooth USB Adapter
 product DELL PRISM_GT_1		0x8102	PrismGT USB 2.0 WLAN
 product DELL TM350		0x8103	TrueMobile 350 Bluetooth USB Adapter
 product DELL PRISM_GT_2		0x8104	PrismGT USB 2.0 WLAN
+product DELL U5700		0x8114	Dell 5700 3G
+product DELL U5500		0x8115	Dell 5500 3G
+product DELL U5505		0x8116	Dell 5505 3G
+product DELL U5700_2		0x8117	Dell 5700 3G
+product DELL U5510		0x8118	Dell 5510 3G
+product DELL U5700_3		0x8128	Dell 5700 3G
+product DELL U5700_4		0x8129	Dell 5700 3G
+product DELL U5720		0x8133	Dell 5720 3G
+product DELL U5720_2		0x8134	Dell 5720 3G
 product DELL U740		0x8135	Dell U740 CDMA
+product DELL U5520		0x8136	Dell 5520 3G
+product DELL U5520_2		0x8137	Dell 5520 3G
+product DELL U5520_3		0x8138	Dell 5520 3G
+product DELL U5730		0x8180	Dell 5730 3G
+product DELL U5730_2		0x8181	Dell 5730 3G
+product DELL U5730_3		0x8182	Dell 5730 3G
 
 /* Delorme Paublishing products */
 product DELORME EARTHMATE	0x0100	Earthmate GPS
@@ -1198,6 +1236,7 @@ product DLINK2 DWLG122C1	0x3c03	DWL-G122 c1
 product DLINK2 WUA1340		0x3c04	WUA-1340
 product DLINK2 DWA111		0x3c06	DWA-111
 product DLINK2 DWA110		0x3c07	DWA-110
+product DLINK3 DWM652		0x3e04	DWM-652
 
 /* DMI products */
 product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
@@ -1489,6 +1528,7 @@ product HP P1100		0x3102	Photosmart P1100
 product HP OJ4215		0x3d11	OfficeJet 4215
 product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
+product HP EV2200		0x1b1d  ev2200 HSDPA (aka MC5720)
 product HP HS2300		0x1e1d  hs2300 HSDPA (aka MC8775)
 
 /* HTC products */
@@ -1499,7 +1539,71 @@ product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
 product HUAWEI E220		0x1003	Huawei HSDPA modem
+product HUAWEI E220BIS		0x1004	Huawei HSDPA modem
+product HUAWEI E1401		0x1401	3G modem
+product HUAWEI E1402		0x1402	3G modem
+product HUAWEI E1403		0x1403	3G modem
+product HUAWEI E1404		0x1404	3G modem
+product HUAWEI E1405		0x1405	3G modem
+product HUAWEI E1406		0x1406	3G modem
+product HUAWEI E1407		0x1407	3G modem
+product HUAWEI E1408		0x1408	3G modem
+product HUAWEI E1409		0x1409	3G modem
+product HUAWEI E140A		0x140a	3G modem
+product HUAWEI E140B		0x140b	3G modem
 product HUAWEI E180V		0x140c	Huawei Mobile E180V
+product HUAWEI E140D		0x140d	3G modem
+product HUAWEI E140E		0x140e	3G modem
+product HUAWEI E140F		0x140f	3G modem
+product HUAWEI E1410		0x1410	3G modem
+product HUAWEI E1411		0x1411	3G modem
+product HUAWEI E1412		0x1412	3G modem
+product HUAWEI E1413		0x1413	3G modem
+product HUAWEI E1414		0x1414	3G modem
+product HUAWEI E1415		0x1415	3G modem
+product HUAWEI E1416		0x1416	3G modem
+product HUAWEI E1417		0x1417	3G modem
+product HUAWEI E1418		0x1418	3G modem
+product HUAWEI E1419		0x1419	3G modem
+product HUAWEI E141A		0x141a	3G modem
+product HUAWEI E141B		0x141b	3G modem
+product HUAWEI E141C		0x141c	3G modem
+product HUAWEI E141D		0x141d	3G modem
+product HUAWEI E141E		0x141e	3G modem
+product HUAWEI E141F		0x141f	3G modem
+product HUAWEI E1420		0x1420	3G modem
+product HUAWEI E1421		0x1421	3G modem
+product HUAWEI E1422		0x1422	3G modem
+product HUAWEI E1423		0x1423	3G modem
+product HUAWEI E1424		0x1424	3G modem
+product HUAWEI E1425		0x1425	3G modem
+product HUAWEI E1426		0x1426	3G modem
+product HUAWEI E1427		0x1427	3G modem
+product HUAWEI E1428		0x1428	3G modem
+product HUAWEI E1429		0x1429	3G modem
+product HUAWEI E142A		0x142a	3G modem
+product HUAWEI E142B		0x142b	3G modem
+product HUAWEI E142C		0x142c	3G modem
+product HUAWEI E142D		0x142d	3G modem
+product HUAWEI E142E		0x142e	3G modem
+product HUAWEI E142F		0x142f	3G modem
+product HUAWEI E1430		0x1430	3G modem
+product HUAWEI E1431		0x1431	3G modem
+product HUAWEI E1432		0x1432	3G modem
+product HUAWEI E1433		0x1433	3G modem
+product HUAWEI E1434		0x1434	3G modem
+product HUAWEI E1435		0x1435	3G modem
+product HUAWEI E1436		0x1436	3G modem
+product HUAWEI E1437		0x1437	3G modem
+product HUAWEI E1438		0x1438	3G modem
+product HUAWEI E1439		0x1439	3G modem
+product HUAWEI E143A		0x143a	3G modem
+product HUAWEI E143B		0x143b	3G modem
+product HUAWEI E143C		0x143c	3G modem
+product HUAWEI E143D		0x143d	3G modem
+product HUAWEI E143E		0x143e	3G modem
+product HUAWEI E143F		0x143f	3G modem
+product HUAWEI E14AC		0x14ac	3G modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -1640,6 +1744,7 @@ product KYOCERA FINECAM_S5	0x0103	Finecam S5
 product KYOCERA FINECAM_L3	0x0105	Finecam L3
 product KYOCERA AHK3001V	0x0203	AH-K3001V
 product KYOCERA2 CDMA_MSM_K	0x17da	Qualcomm Kyocera CDMA Technologies MSM
+product KYOCERA2 KPC680		0x180a	Qualcomm Kyocera CDMA Technologies MSM
 
 /* LaCie products */
 product LACIE HD		0xa601	Hard Disk
@@ -1908,7 +2013,6 @@ product NOVATECH RT2573		0x9021	RT2573
 
 /* Novatel Wireless products */
 product NOVATEL V640		0x1100	Merlin V620
-product NOVATEL CDMA_MODEM	0x1110	Novatel Wireless Merlin CDMA
 product NOVATEL V620		0x1110	Merlin V620
 product NOVATEL V740		0x1120	Merlin V740
 product NOVATEL V720		0x1130	Merlin V720
@@ -1917,13 +2021,20 @@ product NOVATEL U740_2		0x1410	Merlin U740
 product NOVATEL U870		0x1420	Merlin U870
 product NOVATEL XU870		0x1430	Merlin XU870
 product NOVATEL X950D		0x1450	Merlin X950D
-product NOVATEL ES620		0x2100	ES620 CDMA
+product NOVATEL ES620		0x2100	Expedite ES620
+product NOVATEL E725		0x2120	Expedite E725
+product NOVATEL ES620_2		0x2130	Expedite ES620
 product NOVATEL U720		0x2110	Merlin U720
+product NOVATEL EU730		0x2400	Expedite EU730
+product NOVATEL EU740		0x2410	Expedite EU740
+product NOVATEL EU870D		0x2420	Expedite EU870D
 product NOVATEL U727		0x4100	Merlin U727 CDMA
 product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
+product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
+product NOVATEL MC760		0x6002	Novatel MC760
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
@@ -1960,6 +2071,24 @@ product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 product OPTION GTMAXHSUPAE	0x6901	GlobeTrotter HSUPA PCIe
 product OPTION GTMAX380HSUPAE	0x7211	GlobeTrotter 380HSUPA PCIe
+product OPTION GT3G_1		0x6050	3G modem
+product OPTION GT3G_2		0x6100	3G modem
+product OPTION GT3G_3		0x6150	3G modem
+product OPTION GT3G_4		0x6200	3G modem
+product OPTION GT3G_5		0x6250	3G modem
+product OPTION GT3G_6		0x6350	3G modem
+product OPTION E6500		0x6500	3G modem
+product OPTION E6501		0x6501	3G modem
+product OPTION E6601		0x6601	3G modem
+product OPTION E6721		0x6721	3G modem
+product OPTION E6741		0x6741	3G modem
+product OPTION E6761		0x6761	3G modem
+product OPTION E6800		0x6800	3G modem
+product OPTION E7021		0x7021	3G modem
+product OPTION E7041		0x7041	3G modem
+product OPTION E7061		0x7061	3G modem
+product OPTION E7100		0x7100	3G modem
+product OPTION GTM380		0x7201	3G modem
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface
@@ -2080,13 +2209,96 @@ product QCOM RT2573		0x6196	RT2573
 product QCOM RT2573_2		0x6229	RT2573
 product QCOM RT2573_3		0x6238	RT2573
 
+/* Qisda products */
+product QISDA H21_1		0x4512	3G modem
+product QISDA H21_2		0x4523	3G modem
+product QISDA H20_1		0x4515	3G modem
+product QISDA H20_2		0x4519	3G modem
+
 /* Qualcomm products */
 product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
 product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
+product QUALCOMM2 AC8700	0x6000	AC8700
+product QUALCOMM2 MF330		0x6613	MF330
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
 product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
+product QUALCOMMINC AC8710	0xfff1	3G modem
+product QUALCOMMINC AC2726	0xfff5	3G modem
 product QUALCOMMINC AC8700	0xfffe	CDMA 1xEVDO USB modem
+product QUALCOMMINC E0002	0x0002	3G modem
+product QUALCOMMINC E0003	0x0003	3G modem
+product QUALCOMMINC E0004	0x0004	3G modem
+product QUALCOMMINC E0005	0x0005	3G modem
+product QUALCOMMINC E0006	0x0006	3G modem
+product QUALCOMMINC E0007	0x0007	3G modem
+product QUALCOMMINC E0008	0x0008	3G modem
+product QUALCOMMINC E0009	0x0009	3G modem
+product QUALCOMMINC E000A	0x000a	3G modem
+product QUALCOMMINC E000B	0x000b	3G modem
+product QUALCOMMINC E000C	0x000c	3G modem
+product QUALCOMMINC E000D	0x000d	3G modem
+product QUALCOMMINC E000E	0x000e	3G modem
+product QUALCOMMINC E000F	0x000f	3G modem
+product QUALCOMMINC E0010	0x0010	3G modem
+product QUALCOMMINC E0011	0x0011	3G modem
+product QUALCOMMINC E0012	0x0012	3G modem
+product QUALCOMMINC E0013	0x0013	3G modem
+product QUALCOMMINC E0014	0x0014	3G modem
+product QUALCOMMINC MF628	0x0015	3G modem
+product QUALCOMMINC E0016	0x0016	3G modem
+product QUALCOMMINC E0017	0x0017	3G modem
+product QUALCOMMINC E0018	0x0018	3G modem
+product QUALCOMMINC E0019	0x0019	3G modem
+product QUALCOMMINC E0020	0x0020	3G modem
+product QUALCOMMINC E0021	0x0021	3G modem
+product QUALCOMMINC E0022	0x0022	3G modem
+product QUALCOMMINC E0023	0x0023	3G modem
+product QUALCOMMINC E0024	0x0024	3G modem
+product QUALCOMMINC E0025	0x0025	3G modem
+product QUALCOMMINC E0026	0x0026	3G modem
+product QUALCOMMINC E0027	0x0027	3G modem
+product QUALCOMMINC E0028	0x0028	3G modem
+product QUALCOMMINC E0029	0x0029	3G modem
+product QUALCOMMINC E0030	0x0030	3G modem
+product QUALCOMMINC MF626	0x0031	3G modem
+product QUALCOMMINC E0032	0x0032	3G modem
+product QUALCOMMINC E0033	0x0033	3G modem
+product QUALCOMMINC E0037	0x0037	3G modem
+product QUALCOMMINC E0039	0x0039	3G modem
+product QUALCOMMINC E0042	0x0042	3G modem
+product QUALCOMMINC E0043	0x0043	3G modem
+product QUALCOMMINC E0048	0x0048	3G modem
+product QUALCOMMINC E0049	0x0049	3G modem
+product QUALCOMMINC E0051	0x0051	3G modem
+product QUALCOMMINC E0052	0x0052	3G modem
+product QUALCOMMINC E0054	0x0054	3G modem
+product QUALCOMMINC E0055	0x0055	3G modem
+product QUALCOMMINC E0057	0x0057	3G modem
+product QUALCOMMINC E0058	0x0058	3G modem
+product QUALCOMMINC E0059	0x0059	3G modem
+product QUALCOMMINC E0060	0x0060	3G modem
+product QUALCOMMINC E0061	0x0061	3G modem
+product QUALCOMMINC E0062	0x0062	3G modem
+product QUALCOMMINC E0063	0x0063	3G modem
+product QUALCOMMINC E0064	0x0064	3G modem
+product QUALCOMMINC E0066	0x0066	3G modem
+product QUALCOMMINC E0069	0x0069	3G modem
+product QUALCOMMINC E0070	0x0070	3G modem
+product QUALCOMMINC E0073	0x0073	3G modem
+product QUALCOMMINC E0076	0x0076	3G modem
+product QUALCOMMINC E0078	0x0078	3G modem
+product QUALCOMMINC E0082	0x0082	3G modem
+product QUALCOMMINC E0086	0x0086	3G modem
+product QUALCOMMINC E2002	0x2002	3G modem
+product QUALCOMMINC E2003	0x2003	3G modem
+
+/* Quanta products */
+product QUANTA Q101		0xea02	HSDPA modem
+product QUANTA Q111		0xea03	HSDPA modem
+product QUANTA GLX		0xea04	HSDPA modem
+product QUANTA GKE		0xea05	HSDPA modem
+product QUANTA GLE		0xea06	HSDPA modem
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2210,33 +2422,62 @@ product SIEMENS3 X65		0x0003	X65
 product SIEMENS3 X75		0x0004	X75
 
 /* Sierra Wireless products */
-product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
+product SIERRA EM5625		0x0017	EM5625
+product SIERRA MC5720_2		0x0018	MC5720
+product SIERRA MC5725		0x0020	MC5725
 product SIERRA AIRCARD595	0x0019	Sierra Wireless AirCard 595
-product SIERRA AC595U		0x0120	Sierra Wireless AirCard 595U
 product SIERRA AC597E		0x0021	Sierra Wireless AirCard 597E
+product SIERRA EM5725		0x0022	EM5725
 product SIERRA C597		0x0023	Sierra Wireless Compass 597
+product SIERRA MC5727		0x0024	MC5727
+product SIERRA T598		0x0025	T598
+product SIERRA T11		0x0026	T11
+product SIERRA AC402		0x0027	AC402
+product SIERRA MC5728		0x0028	MC5728
+product SIERRA E0029		0x0029	E0029
+product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
+product SIERRA AC595U		0x0120	Sierra Wireless AirCard 595U
+product SIERRA MC5720		0x0218	MC5720 Wireless Modem
+product SIERRA MINI5725		0x0220	Sierra Wireless miniPCI 5275
+product SIERRA MC5727_2		0x0224	MC5727
+product SIERRA MC8755_2		0x6802	MC8755
+product SIERRA MC8765		0x6803	MC8765
+product SIERRA MC8755		0x6804	MC8755
+product SIERRA MC8765_2		0x6805	MC8765
+product SIERRA MC8755_4		0x6808	MC8755
+product SIERRA MC8765_3		0x6809	MC8765
+product SIERRA AC875U		0x6812	AC875U HSDPA USB Modem
+product SIERRA MC8755_3		0x6813	MC8755 HSDPA
+product SIERRA MC8775_2		0x6815	MC8775
+product SIERRA MC8775		0x6816	MC8775
 product SIERRA AC875		0x6820	Sierra Wireless AirCard 875
+product SIERRA AC875U_2		0x6821	AC875U
+product SIERRA AC875E		0x6822	AC875E
+product SIERRA MC8780		0x6832	MC8780
+product SIERRA MC8781		0x6833	MC8781
+product SIERRA MC8780_2		0x6834	MC8780
+product SIERRA MC8781_2		0x6835	MC8781
+product SIERRA MC8780_3		0x6838	MC8780
+product SIERRA MC8781_3		0x6839	MC8781
+product SIERRA MC8785		0x683A	MC8785
+product SIERRA MC8785_2		0x683B	MC8785
+product SIERRA MC8790		0x683C	MC8790
+product SIERRA MC8791		0x683D	MC8791
+product SIERRA MC8792		0x683E	MC8792
 product SIERRA AC880		0x6850	Sierra Wireless AirCard 880
 product SIERRA AC881		0x6851	Sierra Wireless AirCard 881
 product SIERRA AC880E		0x6852	Sierra Wireless AirCard 880E
 product SIERRA AC881E		0x6853	Sierra Wireless AirCard 881E
 product SIERRA AC880U		0x6855	Sierra Wireless AirCard 880U
 product SIERRA AC881U		0x6856	Sierra Wireless AirCard 881U
+product SIERRA AC885E		0x6859	AC885E
+product SIERRA AC885E_2		0x685A	AC885E
 product SIERRA AC885U		0x6880	Sierra Wireless AirCard 885U
-product SIERRA EM5625		0x0017	EM5625
-product SIERRA MC5720		0x0218	MC5720 Wireless Modem
-product SIERRA MC5720_2		0x0018	MC5720
-product SIERRA MC5725		0x0020	MC5725
-product SIERRA MINI5725		0x0220	Sierra Wireless miniPCI 5275
-product SIERRA MC8755_2		0x6802	MC8755
-product SIERRA MC8765		0x6803	MC8765
-product SIERRA MC8755		0x6804	MC8755
-product SIERRA AC875U		0x6812	AC875U HSDPA USB Modem
-product SIERRA MC8755_3		0x6813	MC8755 HSDPA
-product SIERRA MC8775_2		0x6815	MC8775
+product SIERRA C888		0x6890	C888
+product SIERRA C22		0x6891	C22
+product SIERRA E6892		0x6892	E6892
+product SIERRA E6893		0x6893	E6893
 product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
-product SIERRA MC8780		0x6832	MC8780
-product SIERRA MC8781		0x6833	MC8781
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
 
 /* Sigmatel products */
@@ -2351,6 +2592,22 @@ product SPHAIRON UB801R		0x0110	UB801R
 /* Stelera Wireless products */
 product STELERA ZEROCD		0x1000	Zerocd Installer
 product STELERA C105		0x1002	Stelera/Bandrish C105 USB
+product STELERA E1003		0x1003	3G modem
+product STELERA E1004		0x1004	3G modem
+product STELERA E1005		0x1005	3G modem
+product STELERA E1006		0x1006	3G modem
+product STELERA E1007		0x1007	3G modem
+product STELERA E1008		0x1008	3G modem
+product STELERA E1009		0x1009	3G modem
+product STELERA E100A		0x100a	3G modem
+product STELERA E100B		0x100b	3G modem
+product STELERA E100C		0x100c	3G modem
+product STELERA E100D		0x100d	3G modem
+product STELERA E100E		0x100e	3G modem
+product STELERA E100F		0x100f	3G modem
+product STELERA E1010		0x1010	3G modem
+product STELERA E1011		0x1011	3G modem
+product STELERA E1012		0x1012	3G modem
 
 /* MpMan products */
 product MPMAN MPF400_1		0x36d0	MPF400 Music Player 1Go
@@ -2407,6 +2664,9 @@ product TAPWAVE ZODIAC		0x0100	Zodiac
 /* Taugagreining products */
 product TAUGA CAMERAMATE	0x0005	CameraMate (DPCM_USB)
 
+/* TCTMobile products */
+product TCTMOBILE X060S		0x0000	X060S 3G modem
+
 /* TDK products */
 product TDK UPA9664		0x0115	USB-PDC Adapter UPA9664
 product TDK UCA1464		0x0116	USB-cdmaOne Adapter UCA1464
@@ -2425,6 +2685,10 @@ product TEKRAM ZD1211_2		0x6630	ZD1211
 /* Telex Communications products */
 product TELEX MIC1		0x0001	Enhanced USB Microphone
 
+/* Telit products */
+product TELIT UC864E		0x1003	UC864E 3G modem
+product TELIT UC864G		0x1004	UC864G 3G modem
+
 /* Ten X Technology, Inc. */
 product TENX UAUDIO0		0xf211	USB audio headset
 
@@ -2435,11 +2699,16 @@ product TI TUSB2046		0x2046	TUSB2046 hub
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
 
+/* TLayTech products */
+product TLAYTECH TEU800		0x1682	TEU800 3G modem
+
 /* Topre Corporation products */
 product TOPRE HHKB		0x0100	HHKB Professional
 
 /* Toshiba Corporation products */
 product TOSHIBA POCKETPC_E740	0x0706	PocketPC e740
+product TOSHIBA G450		0x0d45	G450 modem
+product TOSHIBA HSDPA		0x1302	G450 modem
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
