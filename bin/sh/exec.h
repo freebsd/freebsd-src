@@ -71,6 +71,6 @@ void deletefuncs(void);
 void addcmdentry(const char *, struct cmdentry *);
 void defun(const char *, union node *);
 int unsetfunc(const char *);
-int typecmd_impl(int, char **, int);
+int typecmd_impl(int, char **, int, const char *);
 int typecmd(int, char **);
 void clearcmdentry(int);

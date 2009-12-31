@@ -720,7 +720,7 @@ unsetfunc(const char *name)
  */
 
 int
-typecmd_impl(int argc, char **argv, int cmd)
+typecmd_impl(int argc, char **argv, int cmd, const char *path)
 {
 	struct cmdentry entry;
 	struct tblentry *cmdp;
@@ -728,6 +728,9 @@ typecmd_impl(int argc, char **argv, int cmd)
 	struct alias *ap;
 	int i;
 	int error1 = 0;
+
+	if (path != pathval())
+		clearcmdentry(0);
 
 	for (i = 1; i < argc; i++) {
 		/* First look at the keywords */
@@ -761,17 +764,17 @@ typecmd_impl(int argc, char **argv, int cmd)
 		}
 		else {
 			/* Finally use brute force */
-			find_command(argv[i], &entry, 0, pathval());
+			find_command(argv[i], &entry, 0, path);
 		}
 
 		switch (entry.cmdtype) {
 		case CMDNORMAL: {
 			if (strchr(argv[i], '/') == NULL) {
-				const char *path = pathval();
+				const char *path2 = path;
 				char *name;
 				int j = entry.u.index;
 				do {
-					name = padvance(&path, argv[i]);
+					name = padvance(&path2, argv[i]);
 					stunalloc(name);
 				} while (--j >= 0);
 				if (cmd == TYPECMD_SMALLV)
@@ -821,6 +824,10 @@ typecmd_impl(int argc, char **argv, int cmd)
 			break;
 		}
 	}
+
+	if (path != pathval())
+		clearcmdentry(0);
+
 	return error1;
 }
 
@@ -831,5 +838,5 @@ typecmd_impl(int argc, char **argv, int cmd)
 int
 typecmd(int argc, char **argv)
 {
-	return typecmd_impl(argc, argv, TYPECMD_TYPE);
+	return typecmd_impl(argc, argv, TYPECMD_TYPE, pathval());
 }
