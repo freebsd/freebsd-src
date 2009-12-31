@@ -941,6 +941,7 @@ product ASUS RT2573_2		0x1724	RT2573
 product ASUS LCM		0x1726	LCM display
 product ASUS P535		0x420f	ASUS P535 PDA
 product	ASUS GMSC		0x422f	ASUS Generic Mass Storage
+product ASUS RT2570		0x1706	RT2500USB Wireless Adapter
 
 /* ATen products */
 product ATEN UC1284		0x2001	Parallel printer
