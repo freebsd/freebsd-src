@@ -1909,7 +1909,7 @@ sched_sleep(struct thread *td, int prio)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 
 	td->td_slptick = ticks;
-	if (TD_IS_SUSPENDED(td) || prio <= PSOCK)
+	if (TD_IS_SUSPENDED(td) || prio >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
 	if (static_boost == 1 && prio)
 		sched_prio(td, prio);
