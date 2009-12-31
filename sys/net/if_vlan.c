@@ -188,7 +188,7 @@ static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_unconfig_locked(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
-static	void vlan_link_state(struct ifnet *ifp, int link);
+static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
 static	void vlan_trunk_capabilities(struct ifnet *ifp);
 
@@ -525,7 +525,7 @@ restart:
 extern	void (*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* For if_link_state_change() eyes only... */
-extern	void (*vlan_link_state_p)(struct ifnet *, int);
+extern	void (*vlan_link_state_p)(struct ifnet *);
 
 static int
 vlan_modevent(module_t mod, int type, void *data)
@@ -1231,7 +1231,7 @@ vlan_setflags(struct ifnet *ifp, int status)
 
 /* Inform all vlans that their parent has changed link state */
 static void
-vlan_link_state(struct ifnet *ifp, int link)
+vlan_link_state(struct ifnet *ifp)
 {
 	struct ifvlantrunk *trunk = ifp->if_vlantrunk;
 	struct ifvlan *ifv;
