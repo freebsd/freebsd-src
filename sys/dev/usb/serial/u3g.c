@@ -122,7 +122,12 @@ static void u3g_stop_read(struct ucom_softc *ucom);
 static void u3g_start_write(struct ucom_softc *ucom);
 static void u3g_stop_write(struct ucom_softc *ucom);
 
+
+static void u3g_test_autoinst(void *, struct usb_device *,
+		struct usb_attach_arg *);
 static int u3g_driver_loaded(struct module *mod, int what, void *arg);
+
+static eventhandler_tag u3g_etag;
 
 static const struct usb_config u3g_config[U3G_N_TRANSFER] = {
 
@@ -360,58 +365,48 @@ u3g_sael_m460_init(struct usb_device *udev)
 	}
 }
 
-static int
-u3g_lookup_huawei(struct usb_attach_arg *uaa)
-{
-	/* Calling the lookup function will also set the driver info! */
-	return (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
-}
-
 /*
  * The following function handles 3G modem devices (E220, Mobile,
  * etc.) with auto-install flash disks for Windows/MacOSX on the first
  * interface.  After some command or some delay they change appearance
  * to a modem.
  */
-static usb_error_t
-u3g_test_huawei_autoinst(struct usb_device *udev,
+static void
+u3g_test_autoinst(void *arg, struct usb_device *udev,
     struct usb_attach_arg *uaa)
 {
 	struct usb_interface *iface;
 	struct usb_interface_descriptor *id;
 	uint32_t flags;
 
-	if (udev == NULL) {
-		return (USB_ERR_INVAL);
-	}
+	if (uaa->dev_state != UAA_DEV_READY)
+		return;
+
 	iface = usbd_get_iface(udev, 0);
-	if (iface == NULL) {
-		return (USB_ERR_INVAL);
-	}
+	if (iface == NULL)
+		return;
 	id = iface->idesc;
-	if (id == NULL) {
-		return (USB_ERR_INVAL);
-	}
-	if (id->bInterfaceClass != UICLASS_MASS) {
-		return (USB_ERR_INVAL);
-	}
-	if (u3g_lookup_huawei(uaa)) {
+	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
+		return;
+	if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa)) {
 		/* no device match */
-		return (USB_ERR_INVAL);
+		return;
 	}
 	flags = USB_GET_DRIVER_INFO(uaa);
 
 	if (flags & U3GFL_HUAWEI_INIT) {
 		u3g_huawei_init(udev);
 	} else if (flags & U3GFL_SCSI_EJECT) {
-		return (usb_test_autoinstall(udev, 0, 1));
+		if (usb_test_autoinstall(udev, 0, 1) != 0)
+			return;
 	} else if (flags & U3GFL_SIERRA_INIT) {
 		u3g_sierra_init(udev);
 	} else {
 		/* no quirks */
-		return (USB_ERR_INVAL);
+		return;
 	}
-	return (0);			/* success */
+	uaa->dev_state = UAA_DEV_EJECTING;
+	return;		/* success */
 }
 
 static int
@@ -420,10 +415,11 @@ u3g_driver_loaded(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		/* register our autoinstall handler */
-		usb_test_huawei_autoinst_p = &u3g_test_huawei_autoinst;
+		u3g_etag = EVENTHANDLER_REGISTER(usb_dev_configured,
+		    u3g_test_autoinst, NULL, EVENTHANDLER_PRI_ANY);
 		break;
 	case MOD_UNLOAD:
-		usb_test_huawei_unload(NULL);
+		EVENTHANDLER_DEREGISTER(usb_dev_configured, u3g_etag);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -445,7 +441,7 @@ u3g_probe(device_t self)
 	if (uaa->info.bInterfaceClass != UICLASS_VENDOR) {
 		return (ENXIO);
 	}
-	return (u3g_lookup_huawei(uaa));
+	return (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
 }
 
 static int

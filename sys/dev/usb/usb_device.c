@@ -1204,6 +1204,7 @@ usb_init_attach_arg(struct usb_device *udev,
 	uaa->device = udev;
 	uaa->usb_mode = udev->flags.usb_mode;
 	uaa->port = udev->port_no;
+	uaa->dev_state = UAA_DEV_READY;
 
 	uaa->info.idVendor = UGETW(udev->ddesc.idVendor);
 	uaa->info.idProduct = UGETW(udev->ddesc.idProduct);
@@ -1453,6 +1454,9 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	size_t scratch_size;
 	usb_error_t err;
 	uint8_t device_index;
+	uint8_t config_index;
+	uint8_t config_quirk;
+	uint8_t set_config_failed;
 
 	DPRINTF("parent_dev=%p, bus=%p, parent_hub=%p, depth=%u, "
 	    "port_index=%u, port_no=%u, speed=%u, usb_mode=%u\n",
@@ -1732,96 +1736,91 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	/* fetch the vendor and product strings from the device */
 	usbd_set_device_strings(udev);
 
-	if (udev->flags.usb_mode == USB_MODE_HOST) {
-		uint8_t config_index;
-		uint8_t config_quirk;
-		uint8_t set_config_failed = 0;
+	if (udev->flags.usb_mode == USB_MODE_DEVICE) {
+		/* USB device mode setup is complete */
+		err = 0;
+		goto config_done;
+	}
 
-		/*
-		 * Most USB devices should attach to config index 0 by
-		 * default
-		 */
-		if (usb_test_quirk(&uaa, UQ_CFG_INDEX_0)) {
-			config_index = 0;
-			config_quirk = 1;
-		} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_1)) {
-			config_index = 1;
-			config_quirk = 1;
-		} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_2)) {
-			config_index = 2;
-			config_quirk = 1;
-		} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_3)) {
-			config_index = 3;
-			config_quirk = 1;
-		} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_4)) {
-			config_index = 4;
-			config_quirk = 1;
-		} else {
-			config_index = 0;
-			config_quirk = 0;
-		}
+	/*
+	 * Most USB devices should attach to config index 0 by
+	 * default
+	 */
+	if (usb_test_quirk(&uaa, UQ_CFG_INDEX_0)) {
+		config_index = 0;
+		config_quirk = 1;
+	} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_1)) {
+		config_index = 1;
+		config_quirk = 1;
+	} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_2)) {
+		config_index = 2;
+		config_quirk = 1;
+	} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_3)) {
+		config_index = 3;
+		config_quirk = 1;
+	} else if (usb_test_quirk(&uaa, UQ_CFG_INDEX_4)) {
+		config_index = 4;
+		config_quirk = 1;
+	} else {
+		config_index = 0;
+		config_quirk = 0;
+	}
 
+	set_config_failed = 0;
 repeat_set_config:
 
-		DPRINTF("setting config %u\n", config_index);
+	DPRINTF("setting config %u\n", config_index);
 
-		/* get the USB device configured */
-		err = usbd_set_config_index(udev, config_index);
-		if (err) {
-			if (udev->ddesc.bNumConfigurations != 0) {
-				if (!set_config_failed) {
-					set_config_failed = 1;
-					/* XXX try to re-enumerate the device */
-					err = usbd_req_re_enumerate(
-					    udev, NULL);
-					if (err == 0)
-					    goto repeat_set_config;
-				}
-				DPRINTFN(0, "Failure selecting "
-				    "configuration index %u: %s, port %u, "
-				    "addr %u (ignored)\n",
-				    config_index, usbd_errstr(err), udev->port_no,
-				    udev->address);
+	/* get the USB device configured */
+	err = usbd_set_config_index(udev, config_index);
+	if (err) {
+		if (udev->ddesc.bNumConfigurations != 0) {
+			if (!set_config_failed) {
+				set_config_failed = 1;
+				/* XXX try to re-enumerate the device */
+				err = usbd_req_re_enumerate(udev, NULL);
+				if (err == 0)
+					goto repeat_set_config;
 			}
+			DPRINTFN(0, "Failure selecting configuration index %u:"
+			    "%s, port %u, addr %u (ignored)\n",
+			    config_index, usbd_errstr(err), udev->port_no,
+			    udev->address);
+		}
+		/*
+		 * Some USB devices do not have any configurations. Ignore any
+		 * set config failures!
+		 */
+		err = 0;
+		goto config_done;
+	}
+	if (!config_quirk && config_index + 1 < udev->ddesc.bNumConfigurations) {
+		if ((udev->cdesc->bNumInterface < 2) &&
+		    usbd_get_no_descriptors(udev->cdesc, UDESC_ENDPOINT) == 0) {
+			DPRINTFN(0, "Found no endpoints, trying next config\n");
+			config_index++;
+			goto repeat_set_config;
+		}
+		if (config_index == 0) {
 			/*
-			 * Some USB devices do not have any
-			 * configurations. Ignore any set config
-			 * failures!
+			 * Try to figure out if we have an
+			 * auto-install disk there:
 			 */
-			err = 0;
-		} else if (config_quirk) {
-			/* user quirk selects configuration index */
-		} else if ((config_index + 1) < udev->ddesc.bNumConfigurations) {
-
-			if ((udev->cdesc->bNumInterface < 2) &&
-			    (usbd_get_no_descriptors(udev->cdesc,
-			    UDESC_ENDPOINT) == 0)) {
-				DPRINTFN(0, "Found no endpoints "
-				    "(trying next config)\n");
+			if (usb_test_autoinstall(udev, 0, 0) == 0) {
+				DPRINTFN(0, "Found possible auto-install "
+				    "disk (trying next config)\n");
 				config_index++;
 				goto repeat_set_config;
 			}
-			if (config_index == 0) {
-				/*
-				 * Try to figure out if we have an
-				 * auto-install disk there:
-				 */
-				if (usb_test_autoinstall(udev, 0, 0) == 0) {
-					DPRINTFN(0, "Found possible auto-install "
-					    "disk (trying next config)\n");
-					config_index++;
-					goto repeat_set_config;
-				}
-			}
-		} else if (usb_test_huawei_autoinst_p(udev, &uaa) == 0) {
-			DPRINTFN(0, "Found Huawei auto-install disk\n");
-			/* leave device unconfigured */
-			usb_unconfigure(udev, 0);
 		}
-	} else {
-		err = 0;		/* set success */
+	}
+	EVENTHANDLER_INVOKE(usb_dev_configured, udev, &uaa);
+	if (uaa.dev_state != UAA_DEV_READY) {
+		/* leave device unconfigured */
+		usb_unconfigure(udev, 0);
 	}
 
+config_done:
 	DPRINTF("new dev (addr %d), udev=%p, parent_hub=%p\n",
 	    udev->address, udev, udev->parent_hub);
 
