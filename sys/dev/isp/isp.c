@@ -8350,11 +8350,6 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 	    ISP2400_NVRAM_FIRMWARE_OPTIONS3(nvram_data));
 
 	wwn = ISP2400_NVRAM_PORT_NAME(nvram_data);
-	if (wwn) {
-		if ((wwn >> 60) != 2 && (wwn >> 60) != 5) {
-			wwn = 0;
-		}
-	}
 	fcp->isp_wwpn_nvram = wwn;
 
 	wwn = ISP2400_NVRAM_NODE_NAME(nvram_data);
@@ -8362,6 +8357,10 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 		if ((wwn >> 60) != 2 && (wwn >> 60) != 5) {
 			wwn = 0;
 		}
+	}
+	if (wwn == 0 && (fcp->isp_wwpn_nvram >> 60) == 2) {
+		wwn = fcp->isp_wwpn_nvram;
+		wwn &= ~((uint64_t) 0xfff << 48);
 	}
 	fcp->isp_wwnn_nvram = wwn;
 
