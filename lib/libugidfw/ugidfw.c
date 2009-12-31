@@ -770,7 +770,6 @@ bsde_parse_fsid(char *spec, struct fsid *fsid, size_t buflen, char *errstr)
 {
 	size_t len;
 	struct statfs buf;
-	int i;
 
 	if (statfs(spec, &buf) < 0) {
 		len = snprintf(errstr, buflen, "Unable to get id for %s: %s",
