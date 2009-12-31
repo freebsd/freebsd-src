@@ -1023,7 +1023,7 @@ commandcmd(int argc, char **argv)
 	if (cmd != -1) {
 		if (argc != 1)
 			error("wrong number of arguments");
-		return typecmd_impl(2, argv - 1, cmd);
+		return typecmd_impl(2, argv - 1, cmd, path);
 	}
 	if (argc != 0) {
 		old = handler;
