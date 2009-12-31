@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2009
+.Dd December 31, 2009
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2137,7 +2137,7 @@ and not found.
 For aliases the alias expansion is printed;
 for commands and tracked aliases
 the complete pathname of the command is printed.
-.It Ic ulimit Oo Fl HSabcdflmnpstuv Oc Op Ar limit
+.It Ic ulimit Oo Fl HSabcdflmnpstuvw Oc Op Ar limit
 Set or display resource limits (see
 .Xr getrlimit 2 ) .
 If
@@ -2201,6 +2201,9 @@ The maximal amount of CPU time to be used by each process, in seconds.
 The maximal number of simultaneous processes for this user ID.
 .It Fl v Ar virtualmem
 The maximal virtual size of a process, in kilobytes.
+.It Fl w Ar swapuse
+The maximum amount of swap space reserved or used for this user ID,
+in kilobytes.
 .El
 .It Ic umask Oo Fl S Oc Op Ar mask
 Set the file creation mask (see
