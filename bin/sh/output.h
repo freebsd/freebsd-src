@@ -46,11 +46,12 @@ struct output {
 	short flags;
 };
 
-extern struct output output;
-extern struct output errout;
+extern struct output output; /* to fd 1 */
+extern struct output errout; /* to fd 2 */
 extern struct output memout;
-extern struct output *out1;
-extern struct output *out2;
+extern struct output *out1; /* &memout if backquote, otherwise &output */
+extern struct output *out2; /* &memout if backquote with 2>&1, otherwise
+			       &errout */
 
 void out1str(const char *);
 void out1qstr(const char *);
