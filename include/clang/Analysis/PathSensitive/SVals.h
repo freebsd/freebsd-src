@@ -58,7 +58,7 @@ protected:
 
 public:
   SVal() : Data(0), Kind(0) {}
-  ~SVal() {};
+  ~SVal() {}
 
   /// BufferTy - A temporary buffer to hold a set of SVals.
   typedef llvm::SmallVector<SVal,5> BufferTy;
@@ -244,7 +244,8 @@ public:
   }
 
   static inline bool IsLocType(QualType T) {
-    return T->isAnyPointerType() || T->isBlockPointerType();
+    return T->isAnyPointerType() || T->isBlockPointerType() || 
+           T->isReferenceType();
   }
 };
 

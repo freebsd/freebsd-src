@@ -1,4 +1,4 @@
-// RUN: clang -cc1 -triple i386-apple-darwin9 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -fsyntax-only -verify %s
 
 @interface I 
 {
@@ -51,5 +51,14 @@ typedef id BYObjectIdentifier;
   void *isa;
 }
 @property(copy) BYObjectIdentifier identifier;
+@end
+
+@interface Foo2 
+{
+  int ivar;
+}
+@property int treeController;  // expected-note {{property declared here}}
+@property int ivar;	// OK
+@property int treeController;  // expected-error {{property has a previous declaration}}
 @end
 

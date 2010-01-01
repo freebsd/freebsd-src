@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // ---------------------------------------------------------------------
 // C++ Functional Casts
@@ -21,8 +21,8 @@ struct FunctionalCast0 {
 
 template struct FunctionalCast0<5>;
 
-struct X { // expected-note 2 {{candidate function}}
-  X(int, int); // expected-note 2 {{candidate function}}
+struct X { // expected-note 3 {{candidate function}}
+  X(int, int); // expected-note 3 {{candidate function}}
 };
 
 template<int N, int M>
@@ -84,6 +84,20 @@ template struct New2<X, int, float>;
 template struct New2<X, int, int*>; // expected-note{{instantiation}}
 // FIXME: template struct New2<int, int, float>;
 
+// PR5833
+struct New3 {
+  New3();
+
+  void *operator new[](__SIZE_TYPE__) __attribute__((unavailable)); // expected-note{{explicitly made unavailable}}
+};
+
+template<class C>
+void* object_creator() {
+  return new C(); // expected-error{{call to unavailable function 'operator new[]'}}
+}
+
+template void *object_creator<New3[4]>(); // expected-note{{instantiation}}
+
 template<typename T>
 struct Delete0 {
   void f(T t) {
@@ -119,7 +133,7 @@ struct Throw1 {
   }
 };
 
-struct Incomplete; // expected-note{{forward}}
+struct Incomplete; // expected-note 2{{forward}}
 
 template struct Throw1<int>;
 template struct Throw1<int*>;
@@ -129,7 +143,6 @@ template struct Throw1<Incomplete*>; // expected-note{{instantiation}}
 // typeid expressions
 // ---------------------------------------------------------------------
 
-// FIXME: This should really include <typeinfo>, but we don't have that yet.
 namespace std {
   class type_info;
 }
@@ -140,7 +153,7 @@ struct TypeId0 {
     if (ptr)
       return typeid(ptr);
     else
-      return typeid(T);
+      return typeid(T); // expected-error{{'typeid' of incomplete type 'struct Incomplete'}}
   }
 };
 
@@ -149,7 +162,7 @@ struct Abstract {
 };
 
 template struct TypeId0<int>;
-template struct TypeId0<Incomplete>;
+template struct TypeId0<Incomplete>; // expected-note{{instantiation of member function}}
 template struct TypeId0<Abstract>;
 
 // ---------------------------------------------------------------------
@@ -293,7 +306,7 @@ template struct NonDepMemberCall0<float&>; // expected-note{{instantiation}}
 template<typename T>
 struct QualifiedDeclRef0 {
   T f() {
-    return is_pod<X>::value; // expected-error{{initialized}}
+    return is_pod<X>::value; // expected-error{{non-const lvalue reference to type 'int' cannot bind to a value of unrelated type 'bool const'}}
   }
 };
 

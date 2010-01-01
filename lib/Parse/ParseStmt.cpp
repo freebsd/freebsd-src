@@ -131,7 +131,7 @@ Parser::ParseStatementOrDeclaration(bool OnlyStatement) {
     }
     // Otherwise, eat the semicolon.
     ExpectAndConsume(tok::semi, diag::err_expected_semi_after_expr);
-    return Actions.ActOnExprStmt(Actions.FullExpr(Expr));
+    return Actions.ActOnExprStmt(Actions.MakeFullExpr(Expr));
   }
 
   case tok::kw_case:                // C99 6.8.1: labeled-statement
@@ -494,7 +494,7 @@ Parser::OwningStmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
         // Eat the semicolon at the end of stmt and convert the expr into a
         // statement.
         ExpectAndConsume(tok::semi, diag::err_expected_semi_after_expr);
-        R = Actions.ActOnExprStmt(Actions.FullExpr(Res));
+        R = Actions.ActOnExprStmt(Actions.MakeFullExpr(Res));
       }
     }
 
@@ -593,7 +593,7 @@ Parser::OwningStmtResult Parser::ParseIfStatement(AttributeList *Attr) {
   if (ParseParenExprOrCondition(CondExp, CondVar))
     return StmtError();
 
-  FullExprArg FullCondExp(Actions.FullExpr(CondExp));
+  FullExprArg FullCondExp(Actions.MakeFullExpr(CondExp));
 
   // C99 6.8.4p3 - In C99, the body of the if statement is a scope, even if
   // there is no compound stmt.  C90 does not have this clause.  We only do this
@@ -720,7 +720,7 @@ Parser::OwningStmtResult Parser::ParseSwitchStatement(AttributeList *Attr) {
   if (ParseParenExprOrCondition(Cond, CondVar))
     return StmtError();
 
-  FullExprArg FullCond(Actions.FullExpr(Cond));
+  FullExprArg FullCond(Actions.MakeFullExpr(Cond));
   
   OwningStmtResult Switch = Actions.ActOnStartOfSwitchStmt(FullCond, CondVar);
 
@@ -801,7 +801,7 @@ Parser::OwningStmtResult Parser::ParseWhileStatement(AttributeList *Attr) {
   if (ParseParenExprOrCondition(Cond, CondVar))
     return StmtError();
 
-  FullExprArg FullCond(Actions.FullExpr(Cond));
+  FullExprArg FullCond(Actions.MakeFullExpr(Cond));
 
   // C99 6.8.5p5 - In C99, the body of the if statement is a scope, even if
   // there is no compound stmt.  C90 does not have this clause.  We only do this
@@ -993,7 +993,7 @@ Parser::OwningStmtResult Parser::ParseForStatement(AttributeList *Attr) {
 
     // Turn the expression into a stmt.
     if (!Value.isInvalid())
-      FirstPart = Actions.ActOnExprStmt(Actions.FullExpr(Value));
+      FirstPart = Actions.ActOnExprStmt(Actions.MakeFullExpr(Value));
 
     if (Tok.is(tok::semi)) {
       ConsumeToken();
@@ -1060,8 +1060,8 @@ Parser::OwningStmtResult Parser::ParseForStatement(AttributeList *Attr) {
 
   if (!ForEach)
     return Actions.ActOnForStmt(ForLoc, LParenLoc, move(FirstPart),
-                                Actions.FullExpr(SecondPart), SecondVar,
-                                Actions.FullExpr(ThirdPart), RParenLoc, 
+                                Actions.MakeFullExpr(SecondPart), SecondVar,
+                                Actions.MakeFullExpr(ThirdPart), RParenLoc, 
                                 move(Body));
 
   return Actions.ActOnObjCForCollectionStmt(ForLoc, LParenLoc,
@@ -1232,7 +1232,6 @@ Parser::OwningStmtResult Parser::ParseAsmStatement(bool &msAsm) {
 
   // Remember if this was a volatile asm.
   bool isVolatile = DS.getTypeQualifiers() & DeclSpec::TQ_volatile;
-  bool isSimple = false;
   if (Tok.isNot(tok::l_paren)) {
     Diag(Tok, diag::err_expected_lparen_after) << "asm";
     SkipUntil(tok::r_paren);
@@ -1249,53 +1248,73 @@ Parser::OwningStmtResult Parser::ParseAsmStatement(bool &msAsm) {
   ExprVector Exprs(Actions);
   ExprVector Clobbers(Actions);
 
-  unsigned NumInputs = 0, NumOutputs = 0;
-
-  SourceLocation RParenLoc;
   if (Tok.is(tok::r_paren)) {
-    // We have a simple asm expression
-    isSimple = true;
-
-    RParenLoc = ConsumeParen();
-  } else {
-    // Parse Outputs, if present.
-    if (ParseAsmOperandsOpt(Names, Constraints, Exprs))
-        return StmtError();
-
-    NumOutputs = Names.size();
-
-    // Parse Inputs, if present.
-    if (ParseAsmOperandsOpt(Names, Constraints, Exprs))
-        return StmtError();
-
-    assert(Names.size() == Constraints.size() &&
-           Constraints.size() == Exprs.size()
-           && "Input operand size mismatch!");
-
-    NumInputs = Names.size() - NumOutputs;
-
-    // Parse the clobbers, if present.
-    if (Tok.is(tok::colon)) {
-      ConsumeToken();
-
-      // Parse the asm-string list for clobbers.
-      while (1) {
-        OwningExprResult Clobber(ParseAsmStringLiteral());
-
-        if (Clobber.isInvalid())
-          break;
-
-        Clobbers.push_back(Clobber.release());
-
-        if (Tok.isNot(tok::comma)) break;
-        ConsumeToken();
-      }
-    }
-
-    RParenLoc = MatchRHSPunctuation(tok::r_paren, Loc);
+    // We have a simple asm expression like 'asm("foo")'.
+    SourceLocation RParenLoc = ConsumeParen();
+    return Actions.ActOnAsmStmt(AsmLoc, /*isSimple*/ true, isVolatile,
+                                /*NumOutputs*/ 0, /*NumInputs*/ 0, 0, 
+                                move_arg(Constraints), move_arg(Exprs),
+                                move(AsmString), move_arg(Clobbers),
+                                RParenLoc);
   }
 
-  return Actions.ActOnAsmStmt(AsmLoc, isSimple, isVolatile,
+  // Parse Outputs, if present.
+  bool AteExtraColon = false;
+  if (Tok.is(tok::colon) || Tok.is(tok::coloncolon)) {
+    // In C++ mode, parse "::" like ": :".
+    AteExtraColon = Tok.is(tok::coloncolon);
+    ConsumeToken();
+  
+    if (!AteExtraColon &&
+        ParseAsmOperandsOpt(Names, Constraints, Exprs))
+      return StmtError();
+  }
+  
+  unsigned NumOutputs = Names.size();
+
+  // Parse Inputs, if present.
+  if (AteExtraColon ||
+      Tok.is(tok::colon) || Tok.is(tok::coloncolon)) {
+    // In C++ mode, parse "::" like ": :".
+    if (AteExtraColon)
+      AteExtraColon = false;
+    else {
+      AteExtraColon = Tok.is(tok::coloncolon);
+      ConsumeToken();
+    }
+    
+    if (!AteExtraColon &&
+        ParseAsmOperandsOpt(Names, Constraints, Exprs))
+      return StmtError();
+  }
+
+  assert(Names.size() == Constraints.size() &&
+         Constraints.size() == Exprs.size() &&
+         "Input operand size mismatch!");
+
+  unsigned NumInputs = Names.size() - NumOutputs;
+
+  // Parse the clobbers, if present.
+  if (AteExtraColon || Tok.is(tok::colon)) {
+    if (!AteExtraColon)
+      ConsumeToken();
+
+    // Parse the asm-string list for clobbers.
+    while (1) {
+      OwningExprResult Clobber(ParseAsmStringLiteral());
+
+      if (Clobber.isInvalid())
+        break;
+
+      Clobbers.push_back(Clobber.release());
+
+      if (Tok.isNot(tok::comma)) break;
+      ConsumeToken();
+    }
+  }
+
+  SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, Loc);
+  return Actions.ActOnAsmStmt(AsmLoc, false, isVolatile,
                               NumOutputs, NumInputs, Names.data(),
                               move_arg(Constraints), move_arg(Exprs),
                               move(AsmString), move_arg(Clobbers),
@@ -1303,8 +1322,7 @@ Parser::OwningStmtResult Parser::ParseAsmStatement(bool &msAsm) {
 }
 
 /// ParseAsmOperands - Parse the asm-operands production as used by
-/// asm-statement.  We also parse a leading ':' token.  If the leading colon is
-/// not present, we do not parse anything.
+/// asm-statement, assuming the leading ':' token was eaten.
 ///
 /// [GNU] asm-operands:
 ///         asm-operand
@@ -1319,10 +1337,6 @@ Parser::OwningStmtResult Parser::ParseAsmStatement(bool &msAsm) {
 bool Parser::ParseAsmOperandsOpt(llvm::SmallVectorImpl<std::string> &Names,
                                  llvm::SmallVectorImpl<ExprTy*> &Constraints,
                                  llvm::SmallVectorImpl<ExprTy*> &Exprs) {
-  // Only do anything if this operand is present.
-  if (Tok.isNot(tok::colon)) return false;
-  ConsumeToken();
-
   // 'asm-operands' isn't present?
   if (!isTokenStringLiteral() && Tok.isNot(tok::l_square))
     return false;

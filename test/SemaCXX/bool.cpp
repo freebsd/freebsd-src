@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 
 // Bool literals can be enum values.
 enum {
@@ -14,7 +14,7 @@ void test(bool b)
   --b; // expected-error {{cannot decrement expression of type bool}}
   b--; // expected-error {{cannot decrement expression of type bool}}
 
-  bool *b1 = (int *)0; // expected-error{{expected 'bool *'}}
+  bool *b1 = (int *)0; // expected-error{{cannot initialize}}
 }
 
 // static_assert_arg_is_bool(x) compiles only if x is a bool.

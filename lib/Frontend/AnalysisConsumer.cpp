@@ -14,9 +14,9 @@
 #include "clang/Frontend/AnalysisConsumer.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ParentMap.h"
-#include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/LocalCheckers.h"
@@ -228,6 +228,19 @@ void AnalysisConsumer::HandleTopLevelSingleDecl(Decl *D) {
       break;
     }
 
+    case Decl::CXXMethod: {
+      CXXMethodDecl *CXXMD = cast<CXXMethodDecl>(D);
+
+      if (Opts.AnalyzeSpecificFunction.size() > 0 &&
+          Opts.AnalyzeSpecificFunction != CXXMD->getName())
+        return;
+
+      Stmt *Body = CXXMD->getBody();
+      if (Body)
+        HandleCode(CXXMD, Body, FunctionActions);
+      break;
+    }
+
     default:
       break;
   }
@@ -240,7 +253,7 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
   if (!TranslationUnitActions.empty()) {  
     // Find the entry function definition (if any).
     FunctionDecl *FD = 0;
-    
+    // Must specify an entry function.
     if (!Opts.AnalyzeSpecificFunction.empty()) {
       for (DeclContext::decl_iterator I=TU->decls_begin(), E=TU->decls_end();
            I != E; ++I) {
@@ -253,9 +266,11 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
       }
     }
 
-    for (Actions::iterator I = TranslationUnitActions.begin(), 
-         E = TranslationUnitActions.end(); I != E; ++I)
-      (*I)(*this, *Mgr, FD);  
+    if (FD) {
+      for (Actions::iterator I = TranslationUnitActions.begin(), 
+             E = TranslationUnitActions.end(); I != E; ++I)
+        (*I)(*this, *Mgr, FD);  
+    }
   }
 
   if (!ObjCImplementationActions.empty()) {
@@ -358,7 +373,7 @@ static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
   if (C.Opts.EnableExperimentalChecks)
     RegisterExperimentalChecks(Eng);
   
-  Eng.setTransferFunctions(tf);  
+  Eng.setTransferFunctionsAndCheckers(tf);  
 
   // Set the graph auditor.
   llvm::OwningPtr<ExplodedNode::Auditor> Auditor;
@@ -475,8 +490,36 @@ static void ActionWarnSizeofPointer(AnalysisConsumer &C, AnalysisManager &mgr,
 
 static void ActionInlineCall(AnalysisConsumer &C, AnalysisManager &mgr,
                              Decl *D) {
+  // FIXME: This is largely copy of ActionGRExprEngine. Needs cleanup.  
+  // Display progress.
+  C.DisplayFunction(D);
+
+  GRExprEngine Eng(mgr);
+
+  if (C.Opts.EnableExperimentalInternalChecks)
+    RegisterExperimentalInternalChecks(Eng);
   
-  ActionGRExprEngine(C, mgr, D, CreateCallInliner(mgr.getASTContext()));
+  RegisterAppleChecks(Eng, *D);
+  
+  if (C.Opts.EnableExperimentalChecks)
+    RegisterExperimentalChecks(Eng);
+  
+  // Make a fake transfer function. The GRTransferFunc interface will be 
+  // removed.
+  Eng.setTransferFunctionsAndCheckers(new GRTransferFuncs());  
+
+  // Register call inliner as the last checker.
+  RegisterCallInliner(Eng);
+
+  // Execute the worklist algorithm.
+  Eng.ExecuteWorkList(mgr.getStackFrame(D));
+
+  // Visualize the exploded graph.
+  if (mgr.shouldVisualizeGraphviz())
+    Eng.ViewGraph(mgr.shouldTrimGraph());
+
+  // Display warnings.
+  Eng.getBugReporter().FlushReports();
 }
 
 //===----------------------------------------------------------------------===//

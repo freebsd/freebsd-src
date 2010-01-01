@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 template<typename T> struct A { };
 
@@ -15,7 +15,7 @@ void test_f1(int *ip, float fv) {
   f1(ip, fv);
 }
 
-template<typename T> void f2(T*, T*);
+template<typename T> void f2(T*, T*); // expected-note 2 {{candidate function}}
 
 struct ConvToIntPtr {
   operator int*() const;

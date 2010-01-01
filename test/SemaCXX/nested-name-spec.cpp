@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -std=c++98 -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -std=c++98 -verify %s 
 namespace A {
   struct C {
     static int cx;
@@ -178,7 +178,7 @@ bool (foo_S::value);
 
 
 namespace somens {
-  struct a { };
+  struct a { }; // expected-note{{candidate function}}
 }
 
 template <typename T>
@@ -189,8 +189,34 @@ class foo {
 // PR4452 / PR4451
 foo<somens:a> a2;  // expected-error {{unexpected ':' in nested name specifier}}
 
-somens::a a3 = a2; // expected-error {{cannot initialize 'a3' with an lvalue of type 'foo<somens::a>'}}
+somens::a a3 = a2; // expected-error {{no viable conversion}}
 
+// typedefs and using declarations.
+namespace test1 {
+  namespace ns {
+    class Counter { static int count; };
+    typedef Counter counter;
+  }
+  using ns::counter;
 
+  class Test {
+    void test1() {
+      counter c;
+      c.count++;
+      counter::count++;
+    }
+  };
+}
 
+// We still need to do lookup in the lexical scope, even if we push a
+// non-lexical scope.
+namespace test2 {
+  namespace ns {
+    int *count_ptr;
+  }
+  namespace {
+    int count = 0;
+  }
 
+  int *ns::count_ptr = &count;
+}

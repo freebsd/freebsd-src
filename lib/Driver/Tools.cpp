@@ -230,7 +230,7 @@ static const char *getARMTargetCPU(const ArgList &Args) {
     if (MArch == "armv5e" || MArch == "armv5te")
       return "arm1026ejs";
     if (MArch == "armv5tej")
-      return "arm926ejs";
+      return "arm926ej-s";
     if (MArch == "armv6" || MArch == "armv6k")
       return "arm1136jf-s";
     if (MArch == "armv6j")
@@ -338,7 +338,7 @@ static bool isSignedCharDefault(const llvm::Triple &Triple) {
 
 void Clang::AddARMTargetArgs(const ArgList &Args,
                              ArgStringList &CmdArgs) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
 
   // Select the ABI to use.
   //
@@ -367,7 +367,7 @@ void Clang::AddARMTargetArgs(const ArgList &Args,
   CmdArgs.push_back(ABIName);
 
   // Set the CPU based on -march= and -mcpu=.
-  CmdArgs.push_back("-mcpu");
+  CmdArgs.push_back("-target-cpu");
   CmdArgs.push_back(getARMTargetCPU(Args));
 
   // Select the float ABI as determined by -msoft-float, -mhard-float, and
@@ -432,6 +432,53 @@ void Clang::AddARMTargetArgs(const ArgList &Args,
     CmdArgs.push_back("-mfloat-abi");
     CmdArgs.push_back("hard");
   }
+
+  // Set appropriate target features for floating point mode.
+  //
+  // FIXME: Note, this is a hack, the LLVM backend doesn't actually use these
+  // yet (it uses the -mfloat-abi and -msoft-float options above), and it is
+  // stripped out by the ARM target.
+
+  // Use software floating point operations?
+  if (FloatABI == "soft") {
+    CmdArgs.push_back("-target-feature");
+    CmdArgs.push_back("+soft-float");
+  }
+
+  // Use software floating point argument passing?
+  if (FloatABI != "hard") {
+    CmdArgs.push_back("-target-feature");
+    CmdArgs.push_back("+soft-float-abi");
+  }
+
+  // Honor -mfpu=.
+  //
+  // FIXME: Centralize feature selection, defaulting shouldn't be also in the
+  // frontend target.
+  if (const Arg *A = Args.getLastArg(options::OPT_mfpu_EQ)) {
+    llvm::StringRef FPU = A->getValue(Args);
+
+    // Set the target features based on the FPU.
+    if (FPU == "fpa" || FPU == "fpe2" || FPU == "fpe3" || FPU == "maverick") {
+      // Disable any default FPU support.
+      CmdArgs.push_back("-target-feature");
+      CmdArgs.push_back("-vfp2");
+      CmdArgs.push_back("-target-feature");
+      CmdArgs.push_back("-vfp3");
+      CmdArgs.push_back("-target-feature");
+      CmdArgs.push_back("-neon");
+    } else if (FPU == "vfp") {
+      CmdArgs.push_back("-target-feature");
+      CmdArgs.push_back("+vfp2");
+    } else if (FPU == "vfp3") {
+      CmdArgs.push_back("-target-feature");
+      CmdArgs.push_back("+vfp3");
+    } else if (FPU == "neon") {
+      CmdArgs.push_back("-target-feature");
+      CmdArgs.push_back("+neon");
+    } else
+      D.Diag(clang::diag::err_drv_clang_unsupported) << A->getAsString(Args);
+  }
 }
 
 void Clang::AddX86TargetArgs(const ArgList &Args,
@@ -480,7 +527,7 @@ void Clang::AddX86TargetArgs(const ArgList &Args,
   }
 
   if (CPUName) {
-    CmdArgs.push_back("-mcpu");
+    CmdArgs.push_back("-target-cpu");
     CmdArgs.push_back(CPUName);
   }
 
@@ -589,7 +636,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                          const InputInfoList &Inputs,
                          const ArgList &Args,
                          const char *LinkingOutput) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
   assert(Inputs.size() == 1 && "Unable to handle multiple inputs.");
@@ -945,6 +992,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!Args.hasFlag(options::OPT_fbuiltin, options::OPT_fno_builtin))
     CmdArgs.push_back("-fno-builtin");
 
+  if (!Args.hasFlag(options::OPT_fassume_sane_operator_new,
+                    options::OPT_fno_assume_sane_operator_new))
+    CmdArgs.push_back("-fno-assume-sane-operator-new");
+
   // -fblocks=0 is default.
   if (Args.hasFlag(options::OPT_fblocks, options::OPT_fno_blocks,
                    getToolChain().IsBlocksDefault())) {
@@ -1039,9 +1090,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Arg *A = Args.getLastArg(options::OPT_fdollars_in_identifiers,
                                options::OPT_fno_dollars_in_identifiers)) {
     if (A->getOption().matches(options::OPT_fdollars_in_identifiers))
-      CmdArgs.push_back("-fdollars-in-identifiers=1");
+      CmdArgs.push_back("-fdollars-in-identifiers");
     else
-      CmdArgs.push_back("-fdollars-in-identifiers=0");
+      CmdArgs.push_back("-fno-dollars-in-identifiers");
   }
 
   // -funit-at-a-time is default, and we don't support -fno-unit-at-a-time for
@@ -1105,6 +1156,20 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, "clang"));
+
+  // Optionally embed the -cc1 level arguments into the debug info, for build
+  // analysis.
+  if (getToolChain().UseDwarfDebugFlags()) {
+    llvm::SmallString<256> Flags;
+    Flags += Exec;
+    for (unsigned i = 0, e = CmdArgs.size(); i != e; ++i) {
+      Flags += " ";
+      Flags += CmdArgs[i];
+    }
+    CmdArgs.push_back("-dwarf-debug-flags");
+    CmdArgs.push_back(Args.MakeArgString(Flags.str()));
+  }
+
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
 
   // Explicitly warn that these options are unsupported, even though
@@ -1135,7 +1200,7 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
                                const InputInfoList &Inputs,
                                const ArgList &Args,
                                const char *LinkingOutput) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
   for (ArgList::const_iterator
@@ -1155,7 +1220,7 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
 
   // If using a driver driver, force the arch.
   const std::string &Arch = getToolChain().getArchName();
-  if (getToolChain().getHost().useDriverDriver()) {
+  if (getToolChain().getTriple().getOS() == llvm::Triple::Darwin) {
     CmdArgs.push_back("-arch");
 
     // FIXME: Remove these special cases.
@@ -1223,8 +1288,7 @@ void gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
       II.getInputArg().render(Args, CmdArgs);
   }
 
-  const char *GCCName =
-    getToolChain().getHost().getDriver().CCCGenericGCCName.c_str();
+  const char *GCCName = getToolChain().getDriver().CCCGenericGCCName.c_str();
   const char *Exec =
     Args.MakeArgString(getToolChain().GetProgramPath(C, GCCName));
   Dest.addCommand(new Command(JA, *this, Exec, CmdArgs));
@@ -1304,7 +1368,7 @@ darwin::CC1::getDependencyFileName(const ArgList &Args,
 
 void darwin::CC1::AddCC1Args(const ArgList &Args,
                              ArgStringList &CmdArgs) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
 
   CheckCodeGenerationOptions(D, Args);
 
@@ -1333,7 +1397,7 @@ void darwin::CC1::AddCC1Args(const ArgList &Args,
 void darwin::CC1::AddCC1OptionsArgs(const ArgList &Args, ArgStringList &CmdArgs,
                                     const InputInfoList &Inputs,
                                     const ArgStringList &OutputArgs) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
 
   // Derived from cc1_options spec.
   if (Args.hasArg(options::OPT_fast) ||
@@ -1481,7 +1545,7 @@ void darwin::CC1::AddCPPOptionsArgs(const ArgList &Args, ArgStringList &CmdArgs,
 void darwin::CC1::AddCPPUniqueOptionsArgs(const ArgList &Args,
                                           ArgStringList &CmdArgs,
                                           const InputInfoList &Inputs) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
 
   CheckPreprocessingOptions(D, Args);
 
@@ -1624,7 +1688,7 @@ void darwin::Compile::ConstructJob(Compilation &C, const JobAction &JA,
                                    const InputInfoList &Inputs,
                                    const ArgList &Args,
                                    const char *LinkingOutput) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
   assert(Inputs.size() == 1 && "Unexpected number of inputs!");
@@ -1873,7 +1937,7 @@ void darwin::DarwinTool::AddDarwinSubArch(const ArgList &Args,
 
 void darwin::Link::AddLinkArgs(const ArgList &Args,
                                ArgStringList &CmdArgs) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
 
   // Derived from the "link" spec.
   Args.AddAllArgs(CmdArgs, options::OPT_static);
@@ -2159,7 +2223,7 @@ void darwin::Link::ConstructJob(Compilation &C, const JobAction &JA,
       !Args.hasArg(options::OPT_nodefaultlibs)) {
     // FIXME: g++ is more complicated here, it tries to put -lstdc++
     // before -lm, for example.
-    if (getToolChain().getHost().getDriver().CCCIsCXX)
+    if (getToolChain().getDriver().CCCIsCXX)
       CmdArgs.push_back("-lstdc++");
 
     // link_ssp spec is empty.
@@ -2273,7 +2337,7 @@ void auroraux::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                   const InputInfoList &Inputs,
                                   const ArgList &Args,
                                   const char *LinkingOutput) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
   if ((!Args.hasArg(options::OPT_nostdlib)) &&
@@ -2404,7 +2468,7 @@ void openbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                  const InputInfoList &Inputs,
                                  const ArgList &Args,
                                  const char *LinkingOutput) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
   if ((!Args.hasArg(options::OPT_nostdlib)) &&
@@ -2539,7 +2603,7 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                  const InputInfoList &Inputs,
                                  const ArgList &Args,
                                  const char *LinkingOutput) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
   if (Args.hasArg(options::OPT_static)) {
@@ -2691,7 +2755,7 @@ void dragonfly::Link::ConstructJob(Compilation &C, const JobAction &JA,
                                  const InputInfoList &Inputs,
                                  const ArgList &Args,
                                  const char *LinkingOutput) const {
-  const Driver &D = getToolChain().getHost().getDriver();
+  const Driver &D = getToolChain().getDriver();
   ArgStringList CmdArgs;
 
   if (Args.hasArg(options::OPT_static)) {

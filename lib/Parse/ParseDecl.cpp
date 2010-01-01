@@ -550,13 +550,17 @@ Parser::DeclPtrTy Parser::ParseDeclarationAfterDeclarator(Declarator &D,
       SourceLocation DelLoc = ConsumeToken();
       Actions.SetDeclDeleted(ThisDecl, DelLoc);
     } else {
-      if (getLang().CPlusPlus)
+      if (getLang().CPlusPlus && D.getCXXScopeSpec().isSet()) {
+        EnterScope(0);
         Actions.ActOnCXXEnterDeclInitializer(CurScope, ThisDecl);
+      }
 
       OwningExprResult Init(ParseInitializer());
 
-      if (getLang().CPlusPlus)
+      if (getLang().CPlusPlus && D.getCXXScopeSpec().isSet()) {
         Actions.ActOnCXXExitDeclInitializer(CurScope, ThisDecl);
+        ExitScope();
+      }
 
       if (Init.isInvalid()) {
         SkipUntil(tok::semi, true, true);
@@ -570,14 +574,30 @@ Parser::DeclPtrTy Parser::ParseDeclarationAfterDeclarator(Declarator &D,
     ExprVector Exprs(Actions);
     CommaLocsTy CommaLocs;
 
+    if (getLang().CPlusPlus && D.getCXXScopeSpec().isSet()) {
+      EnterScope(0);
+      Actions.ActOnCXXEnterDeclInitializer(CurScope, ThisDecl);
+    }
+
     if (ParseExpressionList(Exprs, CommaLocs)) {
       SkipUntil(tok::r_paren);
+
+      if (getLang().CPlusPlus && D.getCXXScopeSpec().isSet()) {
+        Actions.ActOnCXXExitDeclInitializer(CurScope, ThisDecl);
+        ExitScope();
+      }
     } else {
       // Match the ')'.
       SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
 
       assert(!Exprs.empty() && Exprs.size()-1 == CommaLocs.size() &&
              "Unexpected number of commas!");
+
+      if (getLang().CPlusPlus && D.getCXXScopeSpec().isSet()) {
+        Actions.ActOnCXXExitDeclInitializer(CurScope, ThisDecl);
+        ExitScope();
+      }
+
       Actions.AddCXXDirectInitializerToDecl(ThisDecl, LParenLoc,
                                             move_arg(Exprs),
                                             CommaLocs.data(), RParenLoc);
@@ -2349,7 +2369,7 @@ void Parser::ParseDirectDeclarator(Declarator &D) {
       if (ParseUnqualifiedId(D.getCXXScopeSpec(), 
                              /*EnteringContext=*/true, 
                              /*AllowDestructorName=*/true, 
-                   /*AllowConstructorName=*/!D.getDeclSpec().hasTypeSpecifier(), 
+                   /*AllowConstructorName=*/!D.getDeclSpec().hasTypeSpecifier(),
                              /*ObjectType=*/0,
                              D.getName())) {
         D.SetIdentifier(0, Tok.getLocation());

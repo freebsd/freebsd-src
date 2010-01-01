@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 // PR5057
 namespace test0 {
@@ -96,4 +96,14 @@ namespace test4 {
   void f() {
     f(A<int>()); // expected-note {{in instantiation of function template specialization}}
   }
+}
+
+namespace test5 {
+  class outer {
+    class foo;
+    template <typename T> friend struct cache;
+  };
+  class outer::foo {
+    template <typename T> friend struct cache;
+  };
 }

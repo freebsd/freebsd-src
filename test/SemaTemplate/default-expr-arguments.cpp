@@ -1,14 +1,13 @@
-// RUN: clang-cc -fsyntax-only -verify %s
-
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 template<typename T>
 class C { C(int a0 = 0); };
 
 template<>
 C<char>::C(int a0);
 
-struct S { };
+struct S { }; // expected-note 3 {{candidate function}}
 
-template<typename T> void f1(T a, T b = 10) { } // expected-error{{cannot initialize 'b' with an rvalue of type 'int'}}
+template<typename T> void f1(T a, T b = 10) { } // expected-error{{no viable conversion}}
 
 template<typename T> void f2(T a, T b = T()) { }
 
@@ -26,8 +25,8 @@ void g() {
 }
 
 template<typename T> struct F {
-  F(T t = 10); // expected-error{{cannot initialize 't' with an rvalue of type 'int'}}
-  void f(T t = 10); // expected-error{{cannot initialize 't' with an rvalue of type 'int'}}
+  F(T t = 10); // expected-error{{no viable conversion}}
+  void f(T t = 10); // expected-error{{no viable conversion}}
 };
 
 struct FD : F<int> { };
@@ -100,7 +99,7 @@ void test_x2(X2<int> x2i, X2<NotDefaultConstructible> x2n) {
 // PR5283
 namespace PR5283 {
 template<typename T> struct A {
-  A(T = 1); // expected-error 3 {{incompatible type initializing 'int', expected 'int *'}}
+  A(T = 1); // expected-error 3 {{cannot initialize a parameter of type 'int *' with an rvalue of type 'int'}}
 };
 
 struct B : A<int*> { 
@@ -144,3 +143,37 @@ namespace pr5301 {
   }
 }
 
+// PR5810
+namespace PR5810 {
+  template<typename T>
+  struct allocator {
+    allocator() { int a[sizeof(T) ? -1 : -1]; } // expected-error2 {{array size is negative}}
+  };
+  
+  template<typename T>
+  struct vector {
+    vector(const allocator<T>& = allocator<T>()) {} // expected-note2 {{instantiation of}}
+  };
+  
+  struct A { };
+  struct B { };
+
+  template<typename>
+  void FilterVTs() {
+    vector<A> Result;
+  }
+  
+  void f() {
+    vector<A> Result;
+  }
+
+  template<typename T>
+  struct X {
+    vector<B> bs;
+    X() { }
+  };
+
+  void f2() {
+    X<float> x; // expected-note{{member function}}
+  }
+}

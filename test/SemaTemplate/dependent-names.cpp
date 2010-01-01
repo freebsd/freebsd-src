@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 
 typedef double A;
 template<typename T> class B {
@@ -83,4 +83,18 @@ namespace test0 {
     d2.test2(); // expected-note {{in instantiation of member function}}
     d2.test3(); // expected-note {{in instantiation of member function}}
   }
+}
+
+namespace test1 {
+  template <class T> struct Base {
+    void foo(T); // expected-note {{must qualify identifier to find this declaration in dependent base class}}
+  };
+
+  template <class T> struct Derived : Base<T> {
+    void doFoo(T v) {
+      foo(v); // expected-error {{use of undeclared identifier}}
+    }
+  };
+
+  template struct Derived<int>; // expected-note {{requested here}}
 }

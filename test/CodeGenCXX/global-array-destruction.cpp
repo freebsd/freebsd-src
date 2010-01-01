@@ -1,4 +1,4 @@
-// RUN: clang-cc -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
 // RUN: FileCheck -check-prefix LP64 --input-file=%t-64.s %s
 
 extern "C" int printf(...);
@@ -23,11 +23,11 @@ static S sarr1[4];
 S s2;
 S arr3[3];
 
-// CHECK-LP64: call     ___cxa_atexit
-// CHECK-LP64: call     ___cxa_atexit
-// CHECK-LP64: call     ___cxa_atexit
-// CHECK-LP64: call     ___cxa_atexit
-// CHECK-LP64: call     ___cxa_atexit
-// CHECK-LP64: call     ___cxa_atexit
-// CHECK-LP64: call     ___cxa_atexit
-// CHECK-LP64: call     ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit
+// CHECK-LP64: callq    ___cxa_atexit

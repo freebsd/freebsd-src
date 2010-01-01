@@ -1149,7 +1149,11 @@ RetainSummary* RetainSummaryManager::getSummary(FunctionDecl* FD) {
     // [PR 3337] Use 'getAs<FunctionType>' to strip away any typedefs on the
     // function's type.
     const FunctionType* FT = FD->getType()->getAs<FunctionType>();
-    const char* FName = FD->getIdentifier()->getNameStart();
+    const IdentifierInfo *II = FD->getIdentifier();
+    if (!II)
+      break;
+    
+    const char* FName = II->getNameStart();
 
     // Strip away preceding '_'.  Doing this here will effect all the checks
     // down below.
@@ -2937,6 +2941,17 @@ void CFRefCount::EvalSummary(ExplodedNodeSet& Dst,
       // that are returned by value.
 
       QualType T = Ex->getType();
+
+      // For CallExpr, use the result type to know if it returns a reference.
+      if (const CallExpr *CE = dyn_cast<CallExpr>(Ex)) {
+        const Expr *Callee = CE->getCallee();
+        if (const FunctionDecl *FD = state->getSVal(Callee).getAsFunctionDecl())
+          T = FD->getResultType();
+      }
+      else if (const ObjCMessageExpr *ME = dyn_cast<ObjCMessageExpr>(Ex)) {
+        if (const ObjCMethodDecl *MD = ME->getMethodDecl())
+          T = MD->getResultType();
+      }
 
       if (Loc::IsLocType(T) || (T->isIntegerType() && T->isScalarType())) {
         unsigned Count = Builder.getCurrentBlockCount();

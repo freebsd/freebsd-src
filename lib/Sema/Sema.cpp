@@ -350,7 +350,7 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
   : LangOpts(pp.getLangOptions()), PP(pp), Context(ctxt), Consumer(consumer),
     Diags(PP.getDiagnostics()), SourceMgr(PP.getSourceManager()),
     ExternalSource(0), CodeCompleter(CodeCompleter), CurContext(0), 
-    PreDeclaratorDC(0), CurBlock(0), PackContext(0), ParsingDeclDepth(0),
+    CurBlock(0), PackContext(0), ParsingDeclDepth(0),
     IdResolver(pp.getLangOptions()), StdNamespace(0), StdBadAlloc(0),
     GlobalNewDeleteDeclared(false), 
     CompleteTranslationUnit(CompleteTranslationUnit),
@@ -386,12 +386,6 @@ static bool getIntProperties(ASTContext &C, const Type *T,
 
     BitWidth = C.getIntWidth(QualType(T, 0));
     Signed = BT->isSignedInteger();
-    return true;
-  }
-
-  if (const FixedWidthIntType *FWIT = dyn_cast<FixedWidthIntType>(T)) {
-    BitWidth = FWIT->getWidth();
-    Signed = FWIT->isSigned();
     return true;
   }
 
@@ -655,8 +649,7 @@ static void CheckImplicitConversion(Sema &S, Expr *E, QualType T) {
     }
 
     // If the target is integral, always warn.
-    if ((TargetBT && TargetBT->isInteger()) ||
-        isa<FixedWidthIntType>(Target))
+    if ((TargetBT && TargetBT->isInteger()))
       // TODO: don't warn for integer values?
       return DiagnoseImpCast(S, E, T, diag::warn_impcast_float_integer);
 
@@ -815,7 +808,7 @@ void Sema::ActOnEndOfTranslationUnit() {
 //===----------------------------------------------------------------------===//
 
 DeclContext *Sema::getFunctionLevelDeclContext() {
-  DeclContext *DC = PreDeclaratorDC ? PreDeclaratorDC : CurContext;
+  DeclContext *DC = CurContext;
 
   while (isa<BlockDecl>(DC))
     DC = DC->getParent();

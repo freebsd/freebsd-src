@@ -25,6 +25,7 @@
 #include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/ExprCXX.h"
 
 namespace clang {
 
@@ -79,7 +80,7 @@ class GRExprEngine : public GRSubEngine {
   typedef llvm::DenseMap<void *, unsigned> CheckerMap;
   CheckerMap CheckerM;
   
-  typedef std::vector<std::pair<void *, Checker*> >CheckersOrdered;
+  typedef std::vector<std::pair<void *, Checker*> > CheckersOrdered;
   CheckersOrdered Checkers;
 
   /// BR - The BugReporter associated with this engine.  It is important that
@@ -110,10 +111,10 @@ public:
   GRStmtNodeBuilder &getBuilder() { assert(Builder); return *Builder; }
 
   /// setTransferFunctions
-  void setTransferFunctions(GRTransferFuncs* tf);
+  void setTransferFunctionsAndCheckers(GRTransferFuncs* tf);
 
   void setTransferFunctions(GRTransferFuncs& tf) {
-    setTransferFunctions(&tf);
+    setTransferFunctionsAndCheckers(&tf);
   }
 
   /// ViewGraph - Visualize the ExplodedGraph created by executing the
@@ -149,7 +150,7 @@ public:
 
   /// ProcessStmt - Called by GRCoreEngine. Used to generate new successor
   ///  nodes by processing the 'effects' of a block-level statement.
-  void ProcessStmt(Stmt* S, GRStmtNodeBuilder& builder);
+  void ProcessStmt(CFGElement E, GRStmtNodeBuilder& builder);
 
   /// ProcessBlockEntrance - Called by GRCoreEngine when start processing
   ///  a CFGBlock.  This method returns true if the analysis should continue
@@ -203,9 +204,10 @@ protected:
   }
 
 public:
-  ExplodedNode* MakeNode(ExplodedNodeSet& Dst, Stmt* S, ExplodedNode* Pred, const GRState* St,
-                   ProgramPoint::Kind K = ProgramPoint::PostStmtKind,
-                   const void *tag = 0);
+  ExplodedNode* MakeNode(ExplodedNodeSet& Dst, Stmt* S, ExplodedNode* Pred, 
+                         const GRState* St,
+                         ProgramPoint::Kind K = ProgramPoint::PostStmtKind,
+                         const void *tag = 0);
 protected:
   /// CheckerVisit - Dispatcher for performing checker-specific logic
   ///  at specific statements.
@@ -263,15 +265,11 @@ protected:
   /// VisitCall - Transfer function for function calls.
   void VisitCall(CallExpr* CE, ExplodedNode* Pred,
                  CallExpr::arg_iterator AI, CallExpr::arg_iterator AE,
-                 ExplodedNodeSet& Dst);
-  void VisitCallRec(CallExpr* CE, ExplodedNode* Pred,
-                    CallExpr::arg_iterator AI, CallExpr::arg_iterator AE,
-                    ExplodedNodeSet& Dst, const FunctionProtoType *,
-                    unsigned ParamIdx = 0);
+                 ExplodedNodeSet& Dst, bool asLValue);
 
   /// VisitCast - Transfer function logic for all casts (implicit and explicit).
   void VisitCast(Expr* CastE, Expr* Ex, ExplodedNode* Pred,
-                 ExplodedNodeSet& Dst);
+                 ExplodedNodeSet& Dst, bool asLValue);
 
   /// VisitCompoundLiteralExpr - Transfer function logic for compound literals.
   void VisitCompoundLiteralExpr(CompoundLiteralExpr* CL, ExplodedNode* Pred,
@@ -295,6 +293,11 @@ protected:
   void VisitGuardedExpr(Expr* Ex, Expr* L, Expr* R, ExplodedNode* Pred,
                         ExplodedNodeSet& Dst);
 
+  /// VisitCondInit - Transfer function for handling the initialization
+  ///  of a condition variable in an IfStmt, SwitchStmt, etc.
+  void VisitCondInit(VarDecl *VD, Stmt *S, ExplodedNode *Pred,
+                     ExplodedNodeSet& Dst);
+  
   void VisitInitListExpr(InitListExpr* E, ExplodedNode* Pred,
                          ExplodedNodeSet& Dst);
 
@@ -315,19 +318,24 @@ protected:
   void VisitObjCForCollectionStmt(ObjCForCollectionStmt* S, ExplodedNode* Pred,
                                   ExplodedNodeSet& Dst);
 
-  void VisitObjCForCollectionStmtAux(ObjCForCollectionStmt* S, ExplodedNode* Pred,
+  void VisitObjCForCollectionStmtAux(ObjCForCollectionStmt* S, 
+                                     ExplodedNode* Pred,
                                      ExplodedNodeSet& Dst, SVal ElementV);
 
   /// VisitObjCMessageExpr - Transfer function for ObjC message expressions.
-  void VisitObjCMessageExpr(ObjCMessageExpr* ME, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitObjCMessageExpr(ObjCMessageExpr* ME, ExplodedNode* Pred, 
+                            ExplodedNodeSet& Dst, bool asLValue);
 
   void VisitObjCMessageExprArgHelper(ObjCMessageExpr* ME,
                                      ObjCMessageExpr::arg_iterator I,
                                      ObjCMessageExpr::arg_iterator E,
-                                     ExplodedNode* Pred, ExplodedNodeSet& Dst);
+                                     ExplodedNode* Pred, ExplodedNodeSet& Dst,
+                                     bool asLValue);
 
-  void VisitObjCMessageExprDispatchHelper(ObjCMessageExpr* ME, ExplodedNode* Pred,
-                                          ExplodedNodeSet& Dst);
+  void VisitObjCMessageExprDispatchHelper(ObjCMessageExpr* ME, 
+                                          ExplodedNode* Pred,
+                                          ExplodedNodeSet& Dst,
+                                          bool asLValue);
 
   /// VisitReturnStmt - Transfer function logic for return statements.
   void VisitReturnStmt(ReturnStmt* R, ExplodedNode* Pred, ExplodedNodeSet& Dst);
@@ -337,8 +345,11 @@ protected:
                               ExplodedNodeSet& Dst);
 
   /// VisitUnaryOperator - Transfer function logic for unary operators.
-  void VisitUnaryOperator(UnaryOperator* B, ExplodedNode* Pred, ExplodedNodeSet& Dst,
-                          bool asLValue);
+  void VisitUnaryOperator(UnaryOperator* B, ExplodedNode* Pred, 
+                          ExplodedNodeSet& Dst, bool asLValue);
+
+  void VisitCXXThisExpr(CXXThisExpr *TE, ExplodedNode *Pred, 
+                        ExplodedNodeSet & Dst);
 
   /// EvalEagerlyAssume - Given the nodes in 'Src', eagerly assume symbolic
   ///  expressions of the form 'x != 0' and generate new nodes (stored in Dst)
@@ -353,9 +364,6 @@ protected:
     return X.isValid() ? SVator.EvalComplement(cast<NonLoc>(X)) : X;
   }
 
-  bool EvalBuiltinFunction(const FunctionDecl *FD, CallExpr *CE,
-                           ExplodedNode *Pred, ExplodedNodeSet &Dst);
-
 public:
 
   SVal EvalBinOp(const GRState *state, BinaryOperator::Opcode op,
@@ -365,7 +373,7 @@ public:
 
   SVal EvalBinOp(const GRState *state, BinaryOperator::Opcode op,
                  NonLoc L, SVal R, QualType T) {
-    return R.isValid() ? SVator.EvalBinOpNN(state, op, L, cast<NonLoc>(R), T) : R;
+    return R.isValid() ? SVator.EvalBinOpNN(state,op,L, cast<NonLoc>(R), T) : R;
   }
 
   SVal EvalBinOp(const GRState *ST, BinaryOperator::Opcode Op,
@@ -399,15 +407,19 @@ public:
 
   // FIXME: 'tag' should be removed, and a LocationContext should be used
   // instead.
-  void EvalLocation(ExplodedNodeSet &Dst, Stmt *S, ExplodedNode* Pred,
-                       const GRState* St, SVal location,
-                       const void *tag, bool isLoad);
-
-  // FIXME: 'tag' should be removed, and a LocationContext should be used
-  // instead.
   void EvalStore(ExplodedNodeSet& Dst, Expr* AssignE, Expr* StoreE,
                  ExplodedNode* Pred, const GRState* St, SVal TargetLV, SVal Val,
                  const void *tag = 0);
+private:  
+  void EvalLoadCommon(ExplodedNodeSet& Dst, Expr* Ex, ExplodedNode* Pred,
+                      const GRState* St, SVal location, const void *tag,
+                      QualType LoadTy);
+
+  // FIXME: 'tag' should be removed, and a LocationContext should be used
+  // instead.
+  void EvalLocation(ExplodedNodeSet &Dst, Stmt *S, ExplodedNode* Pred,
+                    const GRState* St, SVal location,
+                    const void *tag, bool isLoad);
 };
 
 } // end clang namespace

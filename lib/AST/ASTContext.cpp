@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
@@ -55,44 +56,43 @@ ASTContext::ASTContext(const LangOptions& LOpts, SourceManager &SM,
 }
 
 ASTContext::~ASTContext() {
-  // Deallocate all the types.
-  while (!Types.empty()) {
-    Types.back()->Destroy(*this);
-    Types.pop_back();
-  }
+  if (FreeMemory) {
+    // Deallocate all the types.
+    while (!Types.empty()) {
+      Types.back()->Destroy(*this);
+      Types.pop_back();
+    }
 
-  {
-    llvm::FoldingSet<ExtQuals>::iterator
-      I = ExtQualNodes.begin(), E = ExtQualNodes.end();
-    while (I != E)
+    for (llvm::FoldingSet<ExtQuals>::iterator
+         I = ExtQualNodes.begin(), E = ExtQualNodes.end(); I != E; ) {
+      // Increment in loop to prevent using deallocated memory.
       Deallocate(&*I++);
-  }
-
-  {
-    llvm::DenseMap<const RecordDecl*, const ASTRecordLayout*>::iterator
-      I = ASTRecordLayouts.begin(), E = ASTRecordLayouts.end();
-    while (I != E) {
-      ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second);
-      delete R;
     }
   }
 
-  {
-    llvm::DenseMap<const ObjCContainerDecl*, const ASTRecordLayout*>::iterator
-      I = ObjCLayouts.begin(), E = ObjCLayouts.end();
-    while (I != E) {
-      ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second);
-      delete R;
-    }
+  for (llvm::DenseMap<const RecordDecl*, const ASTRecordLayout*>::iterator
+       I = ASTRecordLayouts.begin(), E = ASTRecordLayouts.end(); I != E; ) {
+    // Increment in loop to prevent using deallocated memory.
+    ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second);
+    delete R;
+  }
+
+  for (llvm::DenseMap<const ObjCContainerDecl*,
+                      const ASTRecordLayout*>::iterator
+       I = ObjCLayouts.begin(), E = ObjCLayouts.end(); I != E; ) {
+    // Increment in loop to prevent using deallocated memory.
+    ASTRecordLayout *R = const_cast<ASTRecordLayout*>((I++)->second);
+    delete R;
   }
 
   // Destroy nested-name-specifiers.
   for (llvm::FoldingSet<NestedNameSpecifier>::iterator
          NNS = NestedNameSpecifiers.begin(),
          NNSEnd = NestedNameSpecifiers.end();
-       NNS != NNSEnd;
-       /* Increment in loop */)
+       NNS != NNSEnd; ) {
+    // Increment in loop to prevent using deallocated memory.
     (*NNS++).Destroy(*this);
+  }
 
   if (GlobalNestedNameSpecifier)
     GlobalNestedNameSpecifier->Destroy(*this);
@@ -694,13 +694,6 @@ ASTContext::getTypeInfo(const Type *T) {
       break;
     }
     break;
-  case Type::FixedWidthInt:
-    // FIXME: This isn't precisely correct; the width/alignment should depend
-    // on the available types for the target
-    Width = cast<FixedWidthIntType>(T)->getWidth();
-    Width = std::max(llvm::NextPowerOf2(Width - 1), (uint64_t)8);
-    Align = Width;
-    break;
   case Type::ObjCObjectPointer:
     Width = Target.getPointerWidth(0);
     Align = Target.getPointerAlign(0);
@@ -816,6 +809,15 @@ ASTContext::getTypeInfo(const Type *T) {
 
   assert(Align && (Align & (Align-1)) == 0 && "Alignment must be power of 2");
   return std::make_pair(Width, Align);
+}
+
+/// getTypeSizeInChars - Return the size of the specified type, in characters.
+/// This method does not work on incomplete types.
+CharUnits ASTContext::getTypeSizeInChars(QualType T) {
+  return CharUnits::fromRaw(getTypeSize(T) / getCharWidth());
+}
+CharUnits ASTContext::getTypeSizeInChars(const Type *T) {
+  return CharUnits::fromRaw(getTypeSize(T) / getCharWidth());
 }
 
 /// getPreferredTypeAlign - Return the "preferred" alignment of the specified
@@ -1056,9 +1058,7 @@ ASTContext::getObjCLayout(const ObjCInterfaceDecl *D,
 
   // Add in synthesized ivar count if laying out an implementation.
   if (Impl) {
-    unsigned FieldCount = D->ivar_size();
     unsigned SynthCount = CountSynthesizedIvars(D);
-    FieldCount += SynthCount;
     // If there aren't any sythesized ivars then reuse the interface
     // entry. Note we can't cache this because we simply free all
     // entries later; however we shouldn't look up implementations
@@ -1265,15 +1265,6 @@ QualType ASTContext::getComplexType(QualType T) {
   Types.push_back(New);
   ComplexTypes.InsertNode(New, InsertPos);
   return QualType(New, 0);
-}
-
-QualType ASTContext::getFixedWidthIntType(unsigned Width, bool Signed) {
-  llvm::DenseMap<unsigned, FixedWidthIntType*> &Map = Signed ?
-     SignedFixedWidthIntTypes : UnsignedFixedWidthIntTypes;
-  FixedWidthIntType *&Entry = Map[Width];
-  if (!Entry)
-    Entry = new FixedWidthIntType(Width, Signed);
-  return QualType(Entry, 0);
 }
 
 /// getPointerType - Return the uniqued reference to the type for a pointer to
@@ -2381,6 +2372,42 @@ CanQualType ASTContext::getCanonicalType(QualType T) {
                                                      VAT->getBracketsRange()));
 }
 
+QualType ASTContext::getUnqualifiedArrayType(QualType T,
+                                             Qualifiers &Quals) {
+  assert(T.isCanonical() && "Only operates on canonical types");
+  if (!isa<ArrayType>(T)) {
+    Quals = T.getLocalQualifiers();
+    return T.getLocalUnqualifiedType();
+  }
+
+  assert(!T.hasQualifiers() && "canonical array type has qualifiers!");
+  const ArrayType *AT = cast<ArrayType>(T);
+  QualType Elt = AT->getElementType();
+  QualType UnqualElt = getUnqualifiedArrayType(getCanonicalType(Elt), Quals);
+  if (Elt == UnqualElt)
+    return T;
+
+  if (const ConstantArrayType *CAT = dyn_cast<ConstantArrayType>(T)) {
+    return getConstantArrayType(UnqualElt, CAT->getSize(),
+                                CAT->getSizeModifier(), 0);
+  }
+
+  if (const IncompleteArrayType *IAT = dyn_cast<IncompleteArrayType>(T)) {
+    return getIncompleteArrayType(UnqualElt, IAT->getSizeModifier(), 0);
+  }
+
+  if (const VariableArrayType *VAT = dyn_cast<VariableArrayType>(T)) {
+    return getVariableArrayType(UnqualElt, VAT->getSizeExpr()->Retain(),
+                                VAT->getSizeModifier(), 0,
+                                SourceRange());
+  }
+
+  const DependentSizedArrayType *DSAT = cast<DependentSizedArrayType>(T);
+  return getDependentSizedArrayType(UnqualElt, DSAT->getSizeExpr()->Retain(),
+                                    DSAT->getSizeModifier(), 0,
+                                    SourceRange());
+}
+
 DeclarationName ASTContext::getNameForTemplate(TemplateName Name) {
   if (TemplateDecl *TD = Name.getAsTemplateDecl())
     return TD->getDeclName();
@@ -2681,12 +2708,6 @@ unsigned ASTContext::getIntegerRank(Type *T) {
 
   if (T->isSpecificBuiltinType(BuiltinType::Char32))
     T = getFromTargetType(Target.getChar32Type()).getTypePtr();
-
-  // There are two things which impact the integer rank: the width, and
-  // the ordering of builtins.  The builtin ordering is encoded in the
-  // bottom three bits; the width is encoded in the bits above that.
-  if (FixedWidthIntType* FWIT = dyn_cast<FixedWidthIntType>(T))
-    return FWIT->getWidth() << 3;
 
   switch (cast<BuiltinType>(T)->getKind()) {
   default: assert(0 && "getIntegerRank(): not a built-in integer");
@@ -4500,9 +4521,6 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
 
     return QualType();
   }
-  case Type::FixedWidthInt:
-    // Distinct fixed-width integers are not compatible.
-    return QualType();
   case Type::TemplateSpecialization:
     assert(false && "Dependent types have no size");
     break;
@@ -4518,9 +4536,6 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS) {
 unsigned ASTContext::getIntWidth(QualType T) {
   if (T->isBooleanType())
     return 1;
-  if (FixedWidthIntType *FWIT = dyn_cast<FixedWidthIntType>(T)) {
-    return FWIT->getWidth();
-  }
   if (EnumType *ET = dyn_cast<EnumType>(T))
     T = ET->getDecl()->getIntegerType();
   // For builtin types, just use the standard type sizing method

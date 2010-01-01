@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 namespace A
 {
     namespace B
@@ -137,4 +137,4 @@ struct a {
 
 a a;
 
-int a::sa = a.a;
+int a::sa = a.a; // expected-error {{invalid use of nonstatic data member 'a'}}

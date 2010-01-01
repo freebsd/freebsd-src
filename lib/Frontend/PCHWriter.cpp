@@ -69,12 +69,6 @@ void PCHTypeWriter::VisitBuiltinType(const BuiltinType *T) {
   assert(false && "Built-in types are never serialized");
 }
 
-void PCHTypeWriter::VisitFixedWidthIntType(const FixedWidthIntType *T) {
-  Record.push_back(T->getWidth());
-  Record.push_back(T->isSigned());
-  Code = pch::TYPE_FIXED_WIDTH_INT;
-}
-
 void PCHTypeWriter::VisitComplexType(const ComplexType *T) {
   Writer.AddTypeRef(T->getElementType(), Record);
   Code = pch::TYPE_COMPLEX;
@@ -144,6 +138,7 @@ void PCHTypeWriter::VisitExtVectorType(const ExtVectorType *T) {
 
 void PCHTypeWriter::VisitFunctionType(const FunctionType *T) {
   Writer.AddTypeRef(T->getResultType(), Record);
+  Record.push_back(T->getNoReturnAttr());
 }
 
 void PCHTypeWriter::VisitFunctionNoProtoType(const FunctionNoProtoType *T) {
@@ -280,9 +275,6 @@ void TypeLocWriter::VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
   // nothing to do
 }
 void TypeLocWriter::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
-  Writer.AddSourceLocation(TL.getNameLoc(), Record);
-}
-void TypeLocWriter::VisitFixedWidthIntTypeLoc(FixedWidthIntTypeLoc TL) {
   Writer.AddSourceLocation(TL.getNameLoc(), Record);
 }
 void TypeLocWriter::VisitComplexTypeLoc(ComplexTypeLoc TL) {
@@ -558,7 +550,6 @@ void PCHWriter::WriteBlockInfoBlock() {
   // Decls and Types block.
   BLOCK(DECLTYPES_BLOCK);
   RECORD(TYPE_EXT_QUAL);
-  RECORD(TYPE_FIXED_WIDTH_INT);
   RECORD(TYPE_COMPLEX);
   RECORD(TYPE_POINTER);
   RECORD(TYPE_BLOCK_POINTER);
@@ -1645,10 +1636,10 @@ public:
       II->hasMacroDefinition() &&
       !PP.getMacroInfo(const_cast<IdentifierInfo *>(II))->isBuiltinMacro();
     Bits = (uint32_t)II->getObjCOrBuiltinID();
-    Bits = (Bits << 1) | hasMacroDefinition;
-    Bits = (Bits << 1) | II->isExtensionToken();
-    Bits = (Bits << 1) | II->isPoisoned();
-    Bits = (Bits << 1) | II->isCPlusPlusOperatorKeyword();
+    Bits = (Bits << 1) | unsigned(hasMacroDefinition);
+    Bits = (Bits << 1) | unsigned(II->isExtensionToken());
+    Bits = (Bits << 1) | unsigned(II->isPoisoned());
+    Bits = (Bits << 1) | unsigned(II->isCPlusPlusOperatorKeyword());
     clang::io::Emit16(Out, Bits);
 
     if (hasMacroDefinition)

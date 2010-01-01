@@ -14,7 +14,7 @@
 #define LLVM_CLANG_SEMA_INIT_H
 
 #include "SemaOverload.h"
-#include "clang/AST/TypeLoc.h"
+#include "clang/AST/Type.h"
 #include "clang/Parse/Action.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/PointerIntPair.h"
@@ -47,72 +47,79 @@ public:
     /// \brief The entity being initialized is an exception object that
     /// is being thrown.
     EK_Exception,
+    /// \brief The entity being initialized is an object (or array of
+    /// objects) allocated via new.
+    EK_New,
     /// \brief The entity being initialized is a temporary object.
     EK_Temporary,
     /// \brief The entity being initialized is a base member subobject.
     EK_Base,
     /// \brief The entity being initialized is a non-static data member 
     /// subobject.
-    EK_Member
+    EK_Member,
+    /// \brief The entity being initialized is an element of an array
+    /// or vector.
+    EK_ArrayOrVectorElement
   };
   
 private:
   /// \brief The kind of entity being initialized.
   EntityKind Kind;
 
-  /// \brief The type of the object or reference being initialized along with 
-  /// its location information.
-  TypeLoc TL;
+  /// \brief If non-NULL, the parent entity in which this
+  /// initialization occurs.
+  const InitializedEntity *Parent;
+
+  /// \brief The type of the object or reference being initialized.
+  QualType Type;
   
   union {
     /// \brief When Kind == EK_Variable, EK_Parameter, or EK_Member, 
     /// the VarDecl, ParmVarDecl, or FieldDecl, respectively.
     DeclaratorDecl *VariableOrMember;
     
-    /// \brief When Kind == EK_Result or EK_Exception, the location of the 
-    /// 'return' or 'throw' keyword, respectively. When Kind == EK_Temporary,
-    /// the location where the temporary is being created.
+    /// \brief When Kind == EK_Result, EK_Exception, or EK_New, the
+    /// location of the 'return', 'throw', or 'new' keyword,
+    /// respectively. When Kind == EK_Temporary, the location where
+    /// the temporary is being created.
     unsigned Location;
     
     /// \brief When Kind == EK_Base, the base specifier that provides the 
     /// base class.
     CXXBaseSpecifier *Base;
+
+    /// \brief When Kind = EK_ArrayOrVectorElement, the index of the
+    /// array or vector element being initialized.
+    unsigned Index;
   };
 
   InitializedEntity() { }
 
   /// \brief Create the initialization entity for a variable.
   InitializedEntity(VarDecl *Var)
-    : Kind(EK_Variable), 
-      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Var)) 
-  {
-    InitDeclLoc();
-  }
+    : Kind(EK_Variable), Parent(0), Type(Var->getType()),
+      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Var)) { }
   
   /// \brief Create the initialization entity for a parameter.
   InitializedEntity(ParmVarDecl *Parm)
-    : Kind(EK_Parameter), 
-      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Parm)) 
-  { 
-    InitDeclLoc();
-  }
+    : Kind(EK_Parameter), Parent(0), Type(Parm->getType().getUnqualifiedType()),
+      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Parm)) { }
   
-  /// \brief Create the initialization entity for the result of a function,
-  /// throwing an object, or performing an explicit cast.
-  InitializedEntity(EntityKind Kind, SourceLocation Loc, TypeLoc TL)
-    : Kind(Kind), TL(TL), Location(Loc.getRawEncoding()) { }
+  /// \brief Create the initialization entity for the result of a
+  /// function, throwing an object, performing an explicit cast, or
+  /// initializing a parameter for which there is no declaration.
+  InitializedEntity(EntityKind Kind, SourceLocation Loc, QualType Type)
+    : Kind(Kind), Parent(0), Type(Type), Location(Loc.getRawEncoding()) { }
   
   /// \brief Create the initialization entity for a member subobject.
-  InitializedEntity(FieldDecl *Member) 
-    : Kind(EK_Member), 
-      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Member))
-  { 
-    InitDeclLoc();
-  }
+  InitializedEntity(FieldDecl *Member, const InitializedEntity *Parent) 
+    : Kind(EK_Member), Parent(Parent), Type(Member->getType()),
+      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Member)) { }
   
-  /// \brief Initialize type-location information from a declaration.
-  void InitDeclLoc();
-  
+  /// \brief Create the initialization entity for an array element.
+  InitializedEntity(ASTContext &Context, unsigned Index, 
+                    const InitializedEntity &Parent);
+
 public:
   /// \brief Create the initialization entity for a variable.
   static InitializedEntity InitializeVariable(VarDecl *Var) {
@@ -124,38 +131,69 @@ public:
     return InitializedEntity(Parm);
   }
 
+  /// \brief Create the initialization entity for a parameter that is
+  /// only known by its type.
+  static InitializedEntity InitializeParameter(QualType Type) {
+    return InitializedEntity(EK_Parameter, SourceLocation(), Type);
+  }
+
   /// \brief Create the initialization entity for the result of a function.
   static InitializedEntity InitializeResult(SourceLocation ReturnLoc,
-                                            TypeLoc TL) {
-    return InitializedEntity(EK_Result, ReturnLoc, TL);
+                                            QualType Type) {
+    return InitializedEntity(EK_Result, ReturnLoc, Type);
   }
 
   /// \brief Create the initialization entity for an exception object.
   static InitializedEntity InitializeException(SourceLocation ThrowLoc,
-                                               TypeLoc TL) {
-    return InitializedEntity(EK_Exception, ThrowLoc, TL);
+                                               QualType Type) {
+    return InitializedEntity(EK_Exception, ThrowLoc, Type);
+  }
+
+  /// \brief Create the initialization entity for an object allocated via new.
+  static InitializedEntity InitializeNew(SourceLocation NewLoc, QualType Type) {
+    return InitializedEntity(EK_New, NewLoc, Type);
   }
   
   /// \brief Create the initialization entity for a temporary.
-  static InitializedEntity InitializeTemporary(EntityKind Kind, TypeLoc TL) {
-    return InitializedEntity(Kind, SourceLocation(), TL);
+  static InitializedEntity InitializeTemporary(QualType Type) {
+    return InitializedEntity(EK_Temporary, SourceLocation(), Type);
   }
   
   /// \brief Create the initialization entity for a base class subobject.
   static InitializedEntity InitializeBase(ASTContext &Context,
                                           CXXBaseSpecifier *Base);
   
-  /// \brief Create the initialize entity for a member subobject.
-  static InitializedEntity InitializeMember(FieldDecl *Member) {
-    return InitializedEntity(Member);
+  /// \brief Create the initialization entity for a member subobject.
+  static InitializedEntity InitializeMember(FieldDecl *Member,
+                                          const InitializedEntity *Parent = 0) {
+    return InitializedEntity(Member, Parent);
   }
   
+  /// \brief Create the initialization entity for an array element.
+  static InitializedEntity InitializeElement(ASTContext &Context, 
+                                             unsigned Index, 
+                                             const InitializedEntity &Parent) {
+    return InitializedEntity(Context, Index, Parent);
+  }
+
   /// \brief Determine the kind of initialization.
   EntityKind getKind() const { return Kind; }
   
+  /// \brief Retrieve the parent of the entity being initialized, when
+  /// the initialization itself is occuring within the context of a
+  /// larger initialization.
+  const InitializedEntity *getParent() const { return Parent; }
+
   /// \brief Retrieve type being initialized.
-  TypeLoc getType() const { return TL; }
+  QualType getType() const { return Type; }
   
+  /// \brief Retrieve the name of the entity being initialized.
+  DeclarationName getName() const;
+
+  /// \brief Retrieve the variable, parameter, or field being
+  /// initialized.
+  DeclaratorDecl *getDecl() const;
+
   /// \brief Determine the location of the 'return' keyword when initializing
   /// the result of a function call.
   SourceLocation getReturnLoc() const {
@@ -168,6 +206,13 @@ public:
   SourceLocation getThrowLoc() const {
     assert(getKind() == EK_Exception && "No 'throw' location!");
     return SourceLocation::getFromRawEncoding(Location);
+  }
+
+  /// \brief If this is already the initializer for an array or vector
+  /// element, sets the element index.
+  void setElementIndex(unsigned Index) {
+    assert(getKind() == EK_ArrayOrVectorElement);
+    this->Index = Index;
   }
 };
   
@@ -191,6 +236,7 @@ private:
     SIK_Copy = IK_Copy,       ///< Copy initialization
     SIK_Default = IK_Default, ///< Default initialization
     SIK_Value = IK_Value,     ///< Value initialization
+    SIK_ImplicitValue,        ///< Implicit value initialization
     SIK_DirectCast,  ///< Direct initialization due to a cast
     /// \brief Direct initialization due to a C-style or functional cast.
     SIK_DirectCStyleOrFunctionalCast
@@ -242,15 +288,19 @@ public:
   /// \brief Create a value initialization.
   static InitializationKind CreateValue(SourceLocation InitLoc,
                                         SourceLocation LParenLoc,
-                                        SourceLocation RParenLoc) {
-    return InitializationKind(SIK_Value, InitLoc, LParenLoc, RParenLoc);
+                                        SourceLocation RParenLoc,
+                                        bool isImplicit = false) {
+    return InitializationKind(isImplicit? SIK_ImplicitValue : SIK_Value, 
+                              InitLoc, LParenLoc, RParenLoc);
   }
   
   /// \brief Determine the initialization kind.
   InitKind getKind() const {
-    if (Kind > SIK_Value)
+    if (Kind > SIK_ImplicitValue)
       return IK_Direct;
-    
+    if (Kind == SIK_ImplicitValue)
+      return IK_Value;
+
     return (InitKind)Kind;
   }
   
@@ -263,7 +313,12 @@ public:
   bool isCStyleOrFunctionalCast() const { 
     return Kind == SIK_DirectCStyleOrFunctionalCast; 
   }
-  
+
+  /// \brief Determine whether this initialization is an implicit
+  /// value-initialization, e.g., as occurs during aggregate
+  /// initialization.
+  bool isImplicitValueInit() const { return Kind == SIK_ImplicitValue; }
+
   /// \brief Retrieve the location at which initialization is occurring.
   SourceLocation getLocation() const { return Locations[0]; }
   
@@ -319,7 +374,19 @@ public:
     ListInitialization,
     
     /// \brief Zero-initialization.
-    ZeroInitialization
+    ZeroInitialization,
+    
+    /// \brief No initialization required.
+    NoInitialization,
+    
+    /// \brief Standard conversion sequence.
+    StandardConversion,
+
+    /// \brief C conversion sequence.
+    CAssignment,
+
+    /// \brief String initialization
+    StringInit
   };
   
   /// \brief Describes the kind of a particular step in an initialization
@@ -350,7 +417,11 @@ public:
     /// \brief Perform initialization via a constructor.
     SK_ConstructorInitialization,
     /// \brief Zero-initialize the object
-    SK_ZeroInitialization
+    SK_ZeroInitialization,
+    /// \brief C assignment
+    SK_CAssignment,
+    /// \brief Initialization by string
+    SK_StringInit
   };
   
   /// \brief A single step in the initialization sequence.
@@ -420,7 +491,9 @@ public:
     /// \brief Overloading for a user-defined conversion failed.
     FK_UserConversionOverloadFailed,
     /// \brief Overloaded for initialization by constructor failed.
-    FK_ConstructorOverloadFailed
+    FK_ConstructorOverloadFailed,
+    /// \brief Default-initialization of a 'const' object.
+    FK_DefaultInitOfConst
   };
   
 private:
@@ -551,6 +624,16 @@ public:
   /// \brief Add a zero-initialization step.
   void AddZeroInitializationStep(QualType T);
   
+  /// \brief Add a C assignment step.
+  //
+  // FIXME: It isn't clear whether this should ever be needed;
+  // ideally, we would handle everything needed in C in the common
+  // path. However, that isn't the case yet.
+  void AddCAssignmentStep(QualType T);
+
+  /// \brief Add a string init step.
+  void AddStringInitStep(QualType T);
+
   /// \brief Note that this initialization sequence failed.
   void SetFailed(FailureKind Failure) {
     SequenceKind = FailedSequence;

@@ -1,6 +1,6 @@
-// RUN: clang-cc -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
 // RUN: FileCheck -check-prefix LP64 --input-file=%t-64.s %s
-// RUN: clang-cc -triple i386-apple-darwin -std=c++0x -S %s -o %t-32.s
+// RUN: %clang_cc1 -triple i386-apple-darwin -std=c++0x -S %s -o %t-32.s
 // RUN: FileCheck -check-prefix LP32 --input-file=%t-32.s %s
 
 extern "C" int printf(...);
@@ -45,9 +45,9 @@ int main() {
   g(3);           // g(X(3))
 }
 
-// CHECK-LP64: call     __ZN1XC1Ei
-// CHECK-LP64: call     __ZN1XC1EPKci
-// CHECK-LP64: call     __ZN1XC1Ev
+// CHECK-LP64: callq    __ZN1XC1Ei
+// CHECK-LP64: callq    __ZN1XC1EPKci
+// CHECK-LP64: callq    __ZN1XC1Ev
 
 // CHECK-LP32: call     L__ZN1XC1Ei
 // CHECK-LP32: call     L__ZN1XC1EPKci

@@ -711,6 +711,11 @@ void Driver::BuildActions(const ArgList &Args, ActionList &Actions) const {
   // Add a link action if necessary.
   if (!LinkerInputs.empty())
     Actions.push_back(new LinkJobAction(LinkerInputs, types::TY_Image));
+
+  // If we are linking, claim any options which are obviously only used for
+  // compilation.
+  if (FinalPhase == phases::Link)
+    Args.ClaimAllArgs(options::OPT_CompileOnly_Group);
 }
 
 Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
@@ -734,6 +739,10 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
   case phases::Precompile:
     return new PrecompileJobAction(Input, types::TY_PCH);
   case phases::Compile: {
+    bool HasO4 = false;
+    if (const Arg *A = Args.getLastArg(options::OPT_O_Group))
+      HasO4 = A->getOption().matches(options::OPT_O4);
+
     if (Args.hasArg(options::OPT_fsyntax_only)) {
       return new CompileJobAction(Input, types::TY_Nothing);
     } else if (Args.hasArg(options::OPT__analyze, options::OPT__analyze_auto)) {
@@ -741,8 +750,7 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
     } else if (Args.hasArg(options::OPT_emit_ast)) {
       return new CompileJobAction(Input, types::TY_AST);
     } else if (Args.hasArg(options::OPT_emit_llvm) ||
-               Args.hasArg(options::OPT_flto) ||
-               Args.hasArg(options::OPT_O4)) {
+               Args.hasArg(options::OPT_flto) || HasO4) {
       types::ID Output =
         Args.hasArg(options::OPT_S) ? types::TY_LLVMAsm : types::TY_LLVMBC;
       return new CompileJobAction(Input, Output);
@@ -768,10 +776,8 @@ void Driver::BuildJobs(Compilation &C) const {
     UsePipes = false;
 
   // -save-temps inhibits pipes.
-  if (SaveTemps && UsePipes) {
+  if (SaveTemps && UsePipes)
     Diag(clang::diag::warn_drv_pipe_ignored_with_save_temps);
-    UsePipes = true;
-  }
 
   Arg *FinalOutput = C.getArgs().getLastArg(options::OPT_o);
 
@@ -906,14 +912,12 @@ void Driver::BuildJobsForAction(Compilation &C,
   // See if we should use an integrated preprocessor. We do so when we have
   // exactly one input, since this is the only use case we care about
   // (irrelevant since we don't support combine yet).
-  bool UseIntegratedCPP = false;
   const ActionList *Inputs = &A->getInputs();
   if (Inputs->size() == 1 && isa<PreprocessJobAction>(*Inputs->begin())) {
     if (!C.getArgs().hasArg(options::OPT_no_integrated_cpp) &&
         !C.getArgs().hasArg(options::OPT_traditional_cpp) &&
         !C.getArgs().hasArg(options::OPT_save_temps) &&
         T.hasIntegratedCPP()) {
-      UseIntegratedCPP = true;
       Inputs = &(*Inputs)[0]->getInputs();
     }
   }

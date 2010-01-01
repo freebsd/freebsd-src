@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s -faccess-control
+// RUN: %clang_cc1 -fsyntax-only -verify %s -faccess-control
 
 struct A { };
 
@@ -7,6 +7,5 @@ void f() {
   
   B b;
   
-  A *a = &b; // expected-error{{conversion from 'struct B' to inaccessible base class 'struct A'}} \
-                expected-error{{incompatible type initializing 'struct B *', expected 'struct A *'}}
+  A *a = &b; // expected-error{{conversion from 'struct B' to inaccessible base class 'struct A'}}
 }

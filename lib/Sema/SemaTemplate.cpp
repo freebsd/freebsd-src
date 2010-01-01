@@ -102,7 +102,8 @@ TemplateNameKind Sema::isTemplateName(Scope *S,
 
   QualType ObjectType = QualType::getFromOpaquePtr(ObjectTypePtr);
 
-  LookupResult R(*this, TName, SourceLocation(), LookupOrdinaryName);
+  LookupResult R(*this, TName, Name.getSourceRange().getBegin(), 
+                 LookupOrdinaryName);
   R.suppressDiagnostics();
   LookupTemplateName(R, S, SS, ObjectType, EnteringContext);
   if (R.empty())
@@ -201,6 +202,29 @@ void Sema::LookupTemplateName(LookupResult &Found,
   // FIXME: Cope with ambiguous name-lookup results.
   assert(!Found.isAmbiguous() &&
          "Cannot handle template name-lookup ambiguities");
+
+  if (Found.empty()) {
+    // If we did not find any names, attempt to correct any typos.
+    DeclarationName Name = Found.getLookupName();
+    if (CorrectTypo(Found, S, &SS, LookupCtx)) {
+      FilterAcceptableTemplateNames(Context, Found);
+      if (!Found.empty() && isa<TemplateDecl>(*Found.begin())) {
+        if (LookupCtx)
+          Diag(Found.getNameLoc(), diag::err_no_member_template_suggest)
+            << Name << LookupCtx << Found.getLookupName() << SS.getRange()
+            << CodeModificationHint::CreateReplacement(Found.getNameLoc(),
+                                          Found.getLookupName().getAsString());
+        else
+          Diag(Found.getNameLoc(), diag::err_no_template_suggest)
+            << Name << Found.getLookupName()
+            << CodeModificationHint::CreateReplacement(Found.getNameLoc(),
+                                          Found.getLookupName().getAsString());
+      } else
+        Found.clear();
+    } else {
+      Found.clear();
+    }
+  }
 
   FilterAcceptableTemplateNames(Context, Found);
   if (Found.empty())
@@ -691,37 +715,6 @@ Sema::CheckClassTemplate(Scope *S, unsigned TagSpec, TagUseKind TUK,
   if (Previous.begin() != Previous.end())
     PrevDecl = *Previous.begin();
 
-  if (PrevDecl && TUK == TUK_Friend) {
-    // C++ [namespace.memdef]p3:
-    //   [...] When looking for a prior declaration of a class or a function 
-    //   declared as a friend, and when the name of the friend class or 
-    //   function is neither a qualified name nor a template-id, scopes outside
-    //   the innermost enclosing namespace scope are not considered.
-    DeclContext *OutermostContext = CurContext;
-    while (!OutermostContext->isFileContext())
-      OutermostContext = OutermostContext->getLookupParent();
-    
-    if (OutermostContext->Equals(PrevDecl->getDeclContext()) ||
-        OutermostContext->Encloses(PrevDecl->getDeclContext())) {
-      SemanticContext = PrevDecl->getDeclContext();
-    } else {
-      // Declarations in outer scopes don't matter. However, the outermost
-      // context we computed is the semantic context for our new 
-      // declaration.
-      PrevDecl = 0;
-      SemanticContext = OutermostContext;
-    }
-    
-    if (CurContext->isDependentContext()) {
-      // If this is a dependent context, we don't want to link the friend
-      // class template to the template in scope, because that would perform
-      // checking of the template parameter lists that can't be performed
-      // until the outer context is instantiated.
-      PrevDecl = 0;
-    }
-  } else if (PrevDecl && !isDeclInScope(PrevDecl, SemanticContext, S))
-    PrevDecl = 0;
-
   // If there is a previous declaration with the same name, check
   // whether this is a valid redeclaration.
   ClassTemplateDecl *PrevClassTemplate
@@ -741,6 +734,38 @@ Sema::CheckClassTemplate(Scope *S, unsigned TagSpec, TagUseKind TUK,
             ->getSpecializedTemplate();
     }
   }
+
+  if (TUK == TUK_Friend) {
+    // C++ [namespace.memdef]p3:
+    //   [...] When looking for a prior declaration of a class or a function 
+    //   declared as a friend, and when the name of the friend class or 
+    //   function is neither a qualified name nor a template-id, scopes outside
+    //   the innermost enclosing namespace scope are not considered.
+    DeclContext *OutermostContext = CurContext;
+    while (!OutermostContext->isFileContext())
+      OutermostContext = OutermostContext->getLookupParent();
+
+    if (PrevDecl &&
+        (OutermostContext->Equals(PrevDecl->getDeclContext()) ||
+         OutermostContext->Encloses(PrevDecl->getDeclContext()))) {
+      SemanticContext = PrevDecl->getDeclContext();
+    } else {
+      // Declarations in outer scopes don't matter. However, the outermost
+      // context we computed is the semantic context for our new 
+      // declaration.
+      PrevDecl = PrevClassTemplate = 0;
+      SemanticContext = OutermostContext;
+    }
+    
+    if (CurContext->isDependentContext()) {
+      // If this is a dependent context, we don't want to link the friend
+      // class template to the template in scope, because that would perform
+      // checking of the template parameter lists that can't be performed
+      // until the outer context is instantiated.
+      PrevDecl = PrevClassTemplate = 0;
+    }
+  } else if (PrevDecl && !isDeclInScope(PrevDecl, SemanticContext, S))
+    PrevDecl = PrevClassTemplate = 0;
 
   if (PrevClassTemplate) {
     // Ensure that the template parameter lists are compatible.
@@ -2188,6 +2213,9 @@ bool Sema::CheckTemplateArgument(TemplateTypeParmDecl *Param,
     Diag(SR.getBegin(), diag::err_template_arg_unnamed_type) << SR;
     Diag(Tag->getDecl()->getLocation(), diag::note_template_unnamed_type_here);
     return true;
+  } else if (Context.hasSameUnqualifiedType(Arg, Context.OverloadTy)) {
+    SourceRange SR = ArgInfo->getTypeLoc().getFullSourceRange();
+    return Diag(SR.getBegin(), diag::err_template_arg_overload_type) << SR;
   }
 
   return false;
@@ -2484,7 +2512,14 @@ bool Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
 
       // Check that we don't overflow the template parameter type.
       unsigned AllowedBits = Context.getTypeSize(IntegerType);
-      if (Value.getActiveBits() > AllowedBits) {
+      unsigned RequiredBits;
+      if (IntegerType->isUnsignedIntegerType())
+        RequiredBits = Value.getActiveBits();
+      else if (Value.isUnsigned())
+        RequiredBits = Value.getActiveBits() + 1;
+      else
+        RequiredBits = Value.getMinSignedBits();
+      if (RequiredBits > AllowedBits) {
         Diag(Arg->getSourceRange().getBegin(),
              diag::err_template_arg_too_large)
           << Value.toString(10) << Param->getType()

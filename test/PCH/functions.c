@@ -1,9 +1,9 @@
 // Test this without pch.
-// RUN: clang-cc -include %S/functions.h -fsyntax-only -verify %s
+// RUN: %clang_cc1 -include %S/functions.h -fsyntax-only -verify %s
 
 // Test with pch.
-// RUN: clang-cc -emit-pch -o %t %S/functions.h
-// RUN: clang-cc -include-pch %t -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -emit-pch -o %t %S/functions.h
+// RUN: %clang_cc1 -include-pch %t -fsyntax-only -verify %s 
 
 int f0(int x0, int y0, ...) { return x0 + y0; }
 
@@ -18,3 +18,8 @@ void test_g0(int *x, float * y) {
   g0(y); // expected-warning{{incompatible pointer types passing 'float *', expected 'int *'}}
   g0(x); 
 }
+
+void __attribute__((noreturn)) test_abort(int code) {
+  do_abort(code);
+}
+  

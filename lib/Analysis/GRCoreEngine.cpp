@@ -122,8 +122,8 @@ void GRCoreEngine::ProcessEndPath(GREndPathNodeBuilder& Builder) {
   SubEngine.ProcessEndPath(Builder);
 }
 
-void GRCoreEngine::ProcessStmt(Stmt* S, GRStmtNodeBuilder& Builder) {
-  SubEngine.ProcessStmt(S, Builder);
+void GRCoreEngine::ProcessStmt(CFGElement E, GRStmtNodeBuilder& Builder) {
+  SubEngine.ProcessStmt(E, Builder);
 }
 
 bool GRCoreEngine::ProcessBlockEntrance(CFGBlock* Blk, const GRState* State,
@@ -213,9 +213,9 @@ void GRCoreEngine::HandleBlockEdge(const BlockEdge& L, ExplodedNode* Pred) {
   CFGBlock* Blk = L.getDst();
 
   // Check if we are entering the EXIT block.
-  if (Blk == &(Pred->getLocationContext()->getCFG()->getExit())) {
+  if (Blk == &(L.getLocationContext()->getCFG()->getExit())) {
 
-    assert (Pred->getLocationContext()->getCFG()->getExit().size() == 0
+    assert (L.getLocationContext()->getCFG()->getExit().size() == 0
             && "EXIT block cannot contain Stmts.");
 
     // Process the final state transition.
@@ -241,10 +241,10 @@ void GRCoreEngine::HandleBlockEntrance(const BlockEntrance& L,
   WList->setBlockCounter(Counter);
 
   // Process the entrance of the block.
-  if (Stmt* S = L.getFirstStmt()) {
+  if (CFGElement E = L.getFirstElement()) {
     GRStmtNodeBuilder Builder(L.getBlock(), 0, Pred, this,
                               SubEngine.getStateManager());
-    ProcessStmt(S, Builder);
+    ProcessStmt(E, Builder);
   }
   else
     HandleBlockExit(L.getBlock(), Pred);
@@ -447,7 +447,7 @@ GRStmtNodeBuilder::generateNodeInternal(const Stmt* S, const GRState* state,
                                         ProgramPoint::Kind K,
                                         const void *tag) {
   
-  const ProgramPoint &L = GetProgramPoint(S, K, Pred->getLocationContext(),tag);  
+  const ProgramPoint &L = GetProgramPoint(S, K, Pred->getLocationContext(),tag);
   return generateNodeInternal(L, state, Pred);
 }
 

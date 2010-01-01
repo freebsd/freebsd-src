@@ -1114,6 +1114,8 @@ clang_getCompletionChunkKind(CXCompletionString completion_string,
     return CXCompletionChunk_Placeholder;
   case CodeCompletionString::CK_Informative:
     return CXCompletionChunk_Informative;
+  case CodeCompletionString::CK_ResultType:
+    return CXCompletionChunk_ResultType;
   case CodeCompletionString::CK_CurrentParameter:
     return CXCompletionChunk_CurrentParameter;
   case CodeCompletionString::CK_LeftParen:
@@ -1161,6 +1163,7 @@ const char *clang_getCompletionChunkText(CXCompletionString completion_string,
   case CodeCompletionString::CK_LeftAngle:
   case CodeCompletionString::CK_RightAngle:
   case CodeCompletionString::CK_Comma:
+  case CodeCompletionString::CK_ResultType:
     return (*CCStr)[chunk_number].Text;
 
   case CodeCompletionString::CK_Optional:
@@ -1194,6 +1197,7 @@ clang_getCompletionChunkCompletionString(CXCompletionString completion_string,
   case CodeCompletionString::CK_LeftAngle:
   case CodeCompletionString::CK_RightAngle:
   case CodeCompletionString::CK_Comma:
+  case CodeCompletionString::CK_ResultType:
     return 0;
 
   case CodeCompletionString::CK_Optional:
@@ -1220,17 +1224,23 @@ static bool ReadUnsigned(const char *&Memory, const char *MemoryEnd,
   return false;
 }
 
-void clang_codeComplete(CXIndex CIdx,
-                        const char *source_filename,
-                        int num_command_line_args,
-                        const char **command_line_args,
-                        unsigned num_unsaved_files,
-                        struct CXUnsavedFile *unsaved_files,
-                        const char *complete_filename,
-                        unsigned complete_line,
-                        unsigned complete_column,
-                        CXCompletionIterator completion_iterator,
-                        CXClientData client_data)  {
+/// \brief The CXCodeCompleteResults structure we allocate internally;
+/// the client only sees the initial CXCodeCompleteResults structure.
+struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
+  /// \brief The memory buffer from which we parsed the results. We
+  /// retain this buffer because the completion strings point into it.
+  llvm::MemoryBuffer *Buffer;
+};
+
+CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx,
+                                          const char *source_filename,
+                                          int num_command_line_args,
+                                          const char **command_line_args,
+                                          unsigned num_unsaved_files,
+                                          struct CXUnsavedFile *unsaved_files,
+                                          const char *complete_filename,
+                                          unsigned complete_line,
+                                          unsigned complete_column) {
   // The indexer, which is mainly used to determine where diagnostics go.
   CIndexer *CXXIdx = static_cast<CIndexer *>(CIdx);
 
@@ -1353,7 +1363,9 @@ void clang_codeComplete(CXIndex CIdx,
   // Parse the resulting source file to find code-completion results.
   using llvm::MemoryBuffer;
   using llvm::StringRef;
+  AllocatedCXCodeCompleteResults *Results = 0;
   if (MemoryBuffer *F = MemoryBuffer::getFile(ResultsFile.c_str())) {
+    llvm::SmallVector<CXCompletionResult, 4> CompletionResults;
     StringRef Buffer = F->getBuffer();
     for (const char *Str = Buffer.data(), *StrEnd = Str + Buffer.size();
          Str < StrEnd;) {
@@ -1371,17 +1383,41 @@ void clang_codeComplete(CXIndex CIdx,
         CXCompletionResult Result;
         Result.CursorKind = (CXCursorKind)KindValue;
         Result.CompletionString = CCStr;
-        if (completion_iterator)
-          completion_iterator(&Result, client_data);
+        CompletionResults.push_back(Result);
       }
-
-      delete CCStr;
     };
-    delete F;
+
+    // Allocate the results.
+    Results = new AllocatedCXCodeCompleteResults;
+    Results->Results = new CXCompletionResult [CompletionResults.size()];
+    Results->NumResults = CompletionResults.size();
+    memcpy(Results->Results, CompletionResults.data(),
+           CompletionResults.size() * sizeof(CXCompletionResult));
+    Results->Buffer = F;
   }
 
   for (unsigned i = 0, e = TemporaryFiles.size(); i != e; ++i)
     TemporaryFiles[i].eraseFromDisk();
+
+  return Results;
+}
+
+void clang_disposeCodeCompleteResults(CXCodeCompleteResults *ResultsIn) {
+  if (!ResultsIn)
+    return;
+
+  AllocatedCXCodeCompleteResults *Results
+    = static_cast<AllocatedCXCodeCompleteResults*>(ResultsIn);
+
+  for (unsigned I = 0, N = Results->NumResults; I != N; ++I)
+    delete (CXCompletionString *)Results->Results[I].CompletionString;
+  delete [] Results->Results;
+
+  Results->Results = 0;
+  Results->NumResults = 0;
+  delete Results->Buffer;
+  Results->Buffer = 0;
+  delete Results;
 }
 
 } // end extern "C"

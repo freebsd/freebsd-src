@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 void f1()
 {
@@ -51,4 +51,10 @@ void f4() {
   switch (Kind) {
     case Type: i = 7; break;  // no error.
   }
+}
+
+// PR5500
+void f5() {
+  asm volatile ("":: :"memory");
+  asm volatile ("": ::"memory");
 }

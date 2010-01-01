@@ -1761,11 +1761,6 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     return Context->getQualifiedType(Base, Quals);
   }
 
-  case pch::TYPE_FIXED_WIDTH_INT: {
-    assert(Record.size() == 2 && "Incorrect encoding of fixed-width int type");
-    return Context->getFixedWidthIntType(Record[0], Record[1]);
-  }
-
   case pch::TYPE_COMPLEX: {
     assert(Record.size() == 1 && "Incorrect encoding of complex type");
     QualType ElemType = GetType(Record[0]);
@@ -1854,17 +1849,18 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
   }
 
   case pch::TYPE_FUNCTION_NO_PROTO: {
-    if (Record.size() != 1) {
+    if (Record.size() != 2) {
       Error("incorrect encoding of no-proto function type");
       return QualType();
     }
     QualType ResultType = GetType(Record[0]);
-    return Context->getFunctionNoProtoType(ResultType);
+    return Context->getFunctionNoProtoType(ResultType, Record[1]);
   }
 
   case pch::TYPE_FUNCTION_PROTO: {
     QualType ResultType = GetType(Record[0]);
-    unsigned Idx = 1;
+    bool NoReturn = Record[1];
+    unsigned Idx = 2;
     unsigned NumParams = Record[Idx++];
     llvm::SmallVector<QualType, 16> ParamTypes;
     for (unsigned I = 0; I != NumParams; ++I)
@@ -1880,7 +1876,7 @@ QualType PCHReader::ReadTypeRecord(uint64_t Offset) {
     return Context->getFunctionType(ResultType, ParamTypes.data(), NumParams,
                                     isVariadic, Quals, hasExceptionSpec,
                                     hasAnyExceptionSpec, NumExceptions,
-                                    Exceptions.data());
+                                    Exceptions.data(), NoReturn);
   }
 
   case pch::TYPE_UNRESOLVED_USING:
@@ -1984,9 +1980,6 @@ void TypeLocReader::VisitQualifiedTypeLoc(QualifiedTypeLoc TL) {
   // nothing to do
 }
 void TypeLocReader::VisitBuiltinTypeLoc(BuiltinTypeLoc TL) {
-  TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
-}
-void TypeLocReader::VisitFixedWidthIntTypeLoc(FixedWidthIntTypeLoc TL) {
   TL.setNameLoc(SourceLocation::getFromRawEncoding(Record[Idx++]));
 }
 void TypeLocReader::VisitComplexTypeLoc(ComplexTypeLoc TL) {

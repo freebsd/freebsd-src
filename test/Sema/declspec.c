@@ -1,4 +1,4 @@
-// RUN: clang-cc %s -verify -fsyntax-only
+// RUN: %clang_cc1 %s -verify -fsyntax-only
 typedef char T[4];
 
 T foo(int n, int m) {  }  // expected-error {{cannot return array or function}}
@@ -21,3 +21,4 @@ __restrict__ f* v2;  // expected-error {{restrict requires a pointer or referenc
 __restrict__ fptr v3; // expected-error {{pointer to function type 'f' (aka 'int (void)') may not be 'restrict' qualified}}
 f *__restrict__ v4;   // expected-error {{pointer to function type 'f' (aka 'int (void)') may not be 'restrict' qualified}}
 
+restrict struct hallo; // expected-error {{restrict requires a pointer or reference}}

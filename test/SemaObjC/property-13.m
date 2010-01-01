@@ -1,4 +1,4 @@
-// RUN: clang -cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s
 
 @interface NSObject 
 + alloc;
@@ -44,6 +44,7 @@
 - (void) setOptional_getter_attr:(int)value { ivar = value; }
 @end
 
+void abort(void);
 int main ()
 {
 	Test *x = [[Test alloc] init];

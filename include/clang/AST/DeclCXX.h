@@ -1178,14 +1178,14 @@ public:
   ///   X(const X&);
   /// };
   /// @endcode
-  bool isCopyConstructor(ASTContext &Context, unsigned &TypeQuals) const;
+  bool isCopyConstructor(unsigned &TypeQuals) const;
 
   /// isCopyConstructor - Whether this constructor is a copy
   /// constructor (C++ [class.copy]p2, which can be used to copy the
   /// class.
-  bool isCopyConstructor(ASTContext &Context) const {
+  bool isCopyConstructor() const {
     unsigned TypeQuals = 0;
-    return isCopyConstructor(Context, TypeQuals);
+    return isCopyConstructor(TypeQuals);
   }
 
   /// isConvertingConstructor - Whether this constructor is a
@@ -1338,11 +1338,16 @@ private:
   // Location of the 'friend' specifier.
   SourceLocation FriendLoc;
 
+  // FIXME: Hack to keep track of whether this was a friend function
+  // template specialization.
+  bool WasSpecialization;
+
   FriendDecl(DeclContext *DC, SourceLocation L, FriendUnion Friend,
              SourceLocation FriendL)
     : Decl(Decl::Friend, DC, L),
       Friend(Friend),
-      FriendLoc(FriendL) {
+      FriendLoc(FriendL),
+      WasSpecialization(false) {
   }
 
 public:
@@ -1368,6 +1373,9 @@ public:
   SourceLocation getFriendLoc() const {
     return FriendLoc;
   }
+
+  bool wasSpecialization() const { return WasSpecialization; }
+  void setSpecialization(bool WS) { WasSpecialization = WS; }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {

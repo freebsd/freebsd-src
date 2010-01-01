@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 typedef int INT;
 typedef INT REALLY_INT; // expected-note {{previous definition is here}}
 typedef REALLY_INT REALLY_REALLY_INT;
@@ -29,3 +29,11 @@ typedef I I;
 
 struct s { };
 
+// PR5874
+namespace test1 {
+  typedef int foo;
+  namespace a { using test1::foo; };
+  typedef int foo;
+  using namespace a; 
+  foo x;
+}

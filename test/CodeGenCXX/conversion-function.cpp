@@ -1,6 +1,6 @@
-// RUN: clang-cc -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -std=c++0x -S %s -o %t-64.s
 // RUN: FileCheck -check-prefix LP64 --input-file=%t-64.s %s
-// RUN: clang-cc -triple i386-apple-darwin -std=c++0x -S %s -o %t-32.s
+// RUN: %clang_cc1 -triple i386-apple-darwin -std=c++0x -S %s -o %t-32.s
 // RUN: FileCheck -check-prefix LP32 --input-file=%t-32.s %s
 
 extern "C" int printf(...);
@@ -12,6 +12,9 @@ S::operator int() {
   return 10;
 }
 
+int f(S s) {
+  return s;
+}
 
 class X { // ...
   public: operator int() { printf("operator int()\n"); return iX; }
@@ -94,15 +97,18 @@ void f(Yb& a) {
   char ch = a;  // OK. calls Yb::operator char();
 }
 
+struct A {
+  operator int() const;
+};
 
 // CHECK-LP64: .globl __ZN1ScviEv
 // CHECK-LP64-NEXT: __ZN1ScviEv:
-// CHECK-LP64: call __ZN1Ycv1ZEv
-// CHECK-LP64: call __ZN1Zcv1XEv
-// CHECK-LP64: call __ZN1XcviEv
-// CHECK-LP64: call __ZN1XcvfEv
-// CHECK-LP64: call __ZN2XBcviEv
-// CHECK-LP64: call __ZN2YbcvcEv
+// CHECK-LP64: callq __ZN1Ycv1ZEv
+// CHECK-LP64: callq __ZN1Zcv1XEv
+// CHECK-LP64: callq __ZN1XcviEv
+// CHECK-LP64: callq __ZN1XcvfEv
+// CHECK-LP64: callq __ZN2XBcviEv
+// CHECK-LP64: callq __ZN2YbcvcEv
 
 // CHECK-LP32: .globl  __ZN1ScviEv
 // CHECK-LP32-NEXT: __ZN1ScviEv:

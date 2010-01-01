@@ -30,6 +30,7 @@
 #include "llvm/CallingConv.h"
 #include "llvm/Module.h"
 #include "llvm/Intrinsics.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace clang;
@@ -546,7 +547,7 @@ bool CodeGenModule::MayDeferGeneration(const ValueDecl *Global) {
     // static, static inline, always_inline, and extern inline functions can
     // always be deferred.  Normal inline functions can be deferred in C99/C++.
     if (Linkage == GVA_Internal || Linkage == GVA_C99Inline ||
-        Linkage == GVA_CXXInline)
+        Linkage == GVA_CXXInline || Linkage == GVA_TemplateInstantiation)
       return true;
     return false;
   }
@@ -1089,9 +1090,8 @@ static void ReplaceUsesOfNonProtoTypeWithRealFunction(llvm::GlobalValue *Old,
       CI->replaceAllUsesWith(NewCall);
 
     // Copy any custom metadata attached with CI.
-    llvm::MetadataContext &TheMetadata = CI->getContext().getMetadata();
-    TheMetadata.copyMD(CI, NewCall);
-
+    if (llvm::MDNode *DbgNode = CI->getMetadata("dbg"))
+      NewCall->setMetadata("dbg", DbgNode);
     CI->eraseFromParent();
   }
 }

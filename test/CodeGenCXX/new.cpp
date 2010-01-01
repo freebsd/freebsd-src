@@ -1,4 +1,4 @@
-// RUN: clang-cc -triple x86_64-unknown-unknown %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-unknown-unknown %s -emit-llvm -o - | FileCheck %s
 #include <stddef.h>
 
 void t1() {
@@ -90,3 +90,9 @@ A* t10() {
   return new(1, 2, 3.45, 100) A;
 }
 
+struct B { };
+void t11() {
+  // CHECK: call noalias i8* @_Znwm
+  // CHECK: call void @llvm.memset.i64(
+  B* b = new B();
+}

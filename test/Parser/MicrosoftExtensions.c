@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify -fms-extensions -x objective-c++ %s
+// RUN: %clang_cc1 -fsyntax-only -verify -fms-extensions -x objective-c++ %s
 __stdcall int func0();
 int __stdcall func();
 typedef int (__cdecl *tptr)();
@@ -28,3 +28,9 @@ void foo() {
 }
 
 typedef bool (__stdcall __stdcall *blarg)(int);
+
+
+// Charify extension.
+#define FOO(x) #@x
+char x = FOO(a);
+

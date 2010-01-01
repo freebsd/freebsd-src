@@ -1,4 +1,4 @@
-// RUN: clang-cc -emit-llvm %s -o - -triple=x86_64-apple-darwin9 | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm %s -o - -triple=x86_64-apple-darwin9 -fblocks | FileCheck %s
 
 struct X { };
 struct Y { };
@@ -141,7 +141,7 @@ int f(struct a *x) {
 // PR5017
 extern "C" {
 struct Debug {
- const Debug& operator<< (unsigned a) const { }
+  const Debug& operator<< (unsigned a) const { return *this; }
 };
 Debug dbg;
 // CHECK: @_ZNK5DebuglsEj
@@ -229,6 +229,22 @@ template void ft8<int>();
 // CHECK: @_Z3ft8IPvEN11__enable_ifIXsr11__is_scalarIT_E7__valueEvE6__typeEv
 template void ft8<void*>();
 
+// PR5796
+namespace PR5796 {
+template<typename> struct __is_scalar {
+  enum { __value = 0 };
+};
+
+template<bool, typename> struct __enable_if {};
+template<typename T> struct __enable_if<true, T> { typedef T __type; };
+template<typename T>
+
+// CHECK: define linkonce_odr void @_ZN6PR57968__fill_aIiEENS_11__enable_ifIXntsrNS_11__is_scalarIT_EE7__valueEvE6__typeEv
+typename __enable_if<!__is_scalar<T>::__value, void>::__type __fill_a() { };
+
+void f() { __fill_a<int>(); }
+}
+
 namespace Expressions {
 // Unary operators.
 
@@ -254,5 +270,42 @@ template void f4<1>(int (*)[4]);
 // CHECK: define void @_ZN11Expressions2f4ILb1EEEvPAquT_Li1ELi2E_i
 template <bool b> void f4(int (*)[b ? 1 : 2]) { };
 template void f4<true>(int (*)[1]);
-
 }
+
+struct Ops {
+  Ops& operator+(const Ops&);
+  Ops& operator-(const Ops&);
+  Ops& operator&(const Ops&);
+  Ops& operator*(const Ops&);
+  
+  void *v;
+};
+
+// CHECK: define %struct.Ops* @_ZN3OpsplERKS_
+Ops& Ops::operator+(const Ops&) { return *this; }
+// CHECK: define %struct.Ops* @_ZN3OpsmiERKS_
+Ops& Ops::operator-(const Ops&) { return *this; }
+// CHECK: define %struct.Ops* @_ZN3OpsanERKS_
+Ops& Ops::operator&(const Ops&) { return *this; }
+// CHECK: define %struct.Ops* @_ZN3OpsmlERKS_
+Ops& Ops::operator*(const Ops&) { return *this; }
+
+// PR5861
+namespace PR5861 {
+template<bool> class P;
+template<> class P<true> {};
+
+template<template <bool> class, bool>
+struct Policy { };
+
+template<typename T, typename = Policy<P, true> > class Alloc
+{
+  T *allocate(int, const void*) { return 0; }
+};
+
+// CHECK: define i8* @_ZN6PR58615AllocIcNS_6PolicyINS_1PELb1EEEE8allocateEiPKv
+template class Alloc<char>;
+}
+
+// CHECK: define void @_Z1fU13block_pointerFiiiE
+void f(int (^)(int, int)) { }

@@ -899,7 +899,7 @@ TryStaticImplicitCast(Sema &Self, Expr *&SrcExpr, QualType DestType,
   // The conversion is possible, so commit to it.
   Kind = CastExpr::CK_NoOp;
   msg = 0;
-  return Self.PerformImplicitConversion(SrcExpr, DestType, ICS, "casting",
+  return Self.PerformImplicitConversion(SrcExpr, DestType, ICS, Sema::AA_Casting,
                                         /*IgnoreBaseAccess*/CStyle) ?
       TC_Failed : TC_Success;
 }
@@ -959,8 +959,9 @@ static TryCastResult TryConstCast(Sema &Self, Expr *SrcExpr, QualType DestType,
   // as must be the final pointee type.
   while (SrcType != DestType &&
          Self.UnwrapSimilarPointerTypes(SrcType, DestType)) {
-    SrcType = SrcType.getUnqualifiedType();
-    DestType = DestType.getUnqualifiedType();
+    Qualifiers Quals;
+    SrcType = Self.Context.getUnqualifiedArrayType(SrcType, Quals);
+    DestType = Self.Context.getUnqualifiedArrayType(DestType, Quals);
   }
 
   // Since we're dealing in canonical types, the remainder must be the same.
@@ -975,8 +976,6 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
                                         const SourceRange &OpRange,
                                         unsigned &msg,
                                         CastExpr::CastKind &Kind) {
-  QualType OrigDestType = DestType, OrigSrcType = SrcExpr->getType();
-
   DestType = Self.Context.getCanonicalType(DestType);
   QualType SrcType = SrcExpr->getType();
   if (const ReferenceType *DestTypeTmp = DestType->getAs<ReferenceType>()) {
@@ -1053,8 +1052,11 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
       return TC_NotApplicable;
 
     // If both types have the same size, we can successfully cast.
-    if (Self.Context.getTypeSize(SrcType) == Self.Context.getTypeSize(DestType))
+    if (Self.Context.getTypeSize(SrcType)
+          == Self.Context.getTypeSize(DestType)) {
+      Kind = CastExpr::CK_BitCast;
       return TC_Success;
+    }
     
     if (destIsScalar)
       msg = diag::err_bad_cxx_cast_vector_to_scalar_different_size;
@@ -1083,6 +1085,7 @@ static TryCastResult TryReinterpretCast(Sema &Self, Expr *SrcExpr,
     // to the same type. However, the behavior of compilers is pretty consistent
     // on this point: allow same-type conversion if the involved types are
     // pointers, disallow otherwise.
+    Kind = CastExpr::CK_NoOp;
     return TC_Success;
   }
 

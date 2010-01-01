@@ -17,6 +17,7 @@
 #define CLANG_C_INDEX_H
 
 #include <sys/stat.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -555,23 +556,16 @@ enum CXCompletionChunkKind {
   /**
    * \brief A comma separator (',').
    */
-  CXCompletionChunk_Comma
+  CXCompletionChunk_Comma,
+  /**
+   * \brief Text that specifies the result type of a given result. 
+   *
+   * This special kind of informative chunk is not meant to be inserted into
+   * the text buffer. Rather, it is meant to illustrate the type that an 
+   * expression using the given completion string would have.
+   */
+  CXCompletionChunk_ResultType
 };
-
-/**
- * \brief Callback function that receives a single code-completion result.
- *
- * This callback will be invoked by \c clang_codeComplete() for each
- * code-completion result.
- *
- * \param completion_result a pointer to the current code-completion result,
- * providing one possible completion. The pointer itself is only valid
- * during the execution of the completion callback.
- *
- * \param client_data the client data provided to \c clang_codeComplete().
- */
-typedef void (*CXCompletionIterator)(CXCompletionResult *completion_result,
-                                     CXClientData client_data);
   
 /**
  * \brief Determine the kind of a particular chunk within a completion string.
@@ -623,6 +617,26 @@ CINDEX_LINKAGE unsigned
 clang_getNumCompletionChunks(CXCompletionString completion_string);
 
 /**
+ * \brief Contains the results of code-completion.
+ *
+ * This data structure contains the results of code completion, as
+ * produced by \c clang_codeComplete. Its contents must be freed by 
+ * \c clang_disposeCodeCompleteResults.
+ */
+typedef struct {
+  /**
+   * \brief The code-completion results.
+   */
+  CXCompletionResult *Results;
+
+  /**
+   * \brief The number of code-completion results stored in the
+   * \c Results array.
+   */
+  unsigned NumResults;
+} CXCodeCompleteResults;
+
+/**
  * \brief Perform code completion at a given location in a source file.
  *
  * This function performs code completion at a particular file, line, and
@@ -634,7 +648,7 @@ clang_getNumCompletionChunks(CXCompletionString completion_string);
  * to the parser, which recognizes this token and determines, based on the
  * current location in the C/Objective-C/C++ grammar and the state of 
  * semantic analysis, what completions to provide. These completions are
- * enumerated through a callback interface to the client.
+ * returned via a new \c CXCodeCompleteResults structure.
  *
  * Code completion itself is meant to be triggered by the client when the
  * user types punctuation characters or whitespace, at which point the 
@@ -649,7 +663,7 @@ clang_getNumCompletionChunks(CXCompletionString completion_string);
  * the ">" (e.g., pointing at the "g") to this code-completion hook. Then, the
  * client can filter the results based on the current token text ("get"), only
  * showing those results that start with "get". The intent of this interface
- * is to separate the relatively high-latency acquisition of code-competion
+ * is to separate the relatively high-latency acquisition of code-completion
  * results from the filtering of results on a per-character basis, which must
  * have a lower latency.
  *
@@ -690,24 +704,27 @@ clang_getNumCompletionChunks(CXCompletionString completion_string);
  * Note that the column should point just after the syntactic construct that
  * initiated code completion, and not in the middle of a lexical token.
  *
- * \param completion_iterator a callback function that will receive 
- * code-completion results.
- *
- * \param client_data client-specific data that will be passed back via the
- * code-completion callback function.
+ * \returns if successful, a new CXCodeCompleteResults structure
+ * containing code-completion results, which should eventually be
+ * freed with \c clang_disposeCodeCompleteResults(). If code
+ * completion fails, returns NULL.
  */
-CINDEX_LINKAGE void clang_codeComplete(CXIndex CIdx, 
-                                       const char *source_filename,
-                                       int num_command_line_args, 
-                                       const char **command_line_args,
-                                       unsigned num_unsaved_files,
-                                       struct CXUnsavedFile *unsaved_files,
-                                       const char *complete_filename,
-                                       unsigned complete_line,
-                                       unsigned complete_column,
-                                       CXCompletionIterator completion_iterator,
-                                       CXClientData client_data);
-    
+CINDEX_LINKAGE 
+CXCodeCompleteResults *clang_codeComplete(CXIndex CIdx, 
+                                          const char *source_filename,
+                                          int num_command_line_args, 
+                                          const char **command_line_args,
+                                          unsigned num_unsaved_files,
+                                          struct CXUnsavedFile *unsaved_files,
+                                          const char *complete_filename,
+                                          unsigned complete_line,
+                                          unsigned complete_column);
+  
+/**
+ * \brief Free the given set of code-completion results.
+ */
+CINDEX_LINKAGE 
+void clang_disposeCodeCompleteResults(CXCodeCompleteResults *Results);
   
 #ifdef __cplusplus
 }

@@ -61,8 +61,12 @@ public:
     return Eng;
   }
 
+  AnalysisManager &getAnalysisManager() {
+    return Eng.getAnalysisManager();
+  }
+
   ConstraintManager &getConstraintManager() {
-      return Eng.getConstraintManager();
+    return Eng.getConstraintManager();
   }
 
   StoreManager &getStoreManager() {
@@ -264,6 +268,11 @@ public:
 
   virtual bool EvalCallExpr(CheckerContext &C, const CallExpr *CE) {
     return false;
+  }
+
+  virtual const GRState *EvalAssume(const GRState *state, SVal Cond, 
+                                    bool Assumption) {
+    return state;
   }
 };
 } // end clang namespace

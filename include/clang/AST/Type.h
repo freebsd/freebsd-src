@@ -531,7 +531,12 @@ public:
   /// \brief Retrieve the set of CVR (const-volatile-restrict) qualifiers 
   /// applied to this type.
   unsigned getCVRQualifiers() const;
-  
+
+  /// \brief Retrieve the set of CVR (const-volatile-restrict) qualifiers
+  /// applied to this type, looking through any number of unqualified array
+  /// types to their element types' qualifiers.
+  unsigned getCVRQualifiersThroughArrayTypes() const;
+
   bool isConstant(ASTContext& Ctx) const {
     return QualType::isConstant(*this, Ctx);
   }
@@ -1047,28 +1052,6 @@ public:
 
   static bool classof(const Type *T) { return T->getTypeClass() == Builtin; }
   static bool classof(const BuiltinType *) { return true; }
-};
-
-/// FixedWidthIntType - Used for arbitrary width types that we either don't
-/// want to or can't map to named integer types.  These always have a lower
-/// integer rank than builtin types of the same width.
-class FixedWidthIntType : public Type {
-private:
-  unsigned Width;
-  bool Signed;
-public:
-  FixedWidthIntType(unsigned W, bool S) : Type(FixedWidthInt, QualType(), false),
-                                          Width(W), Signed(S) {}
-
-  unsigned getWidth() const { return Width; }
-  bool isSigned() const { return Signed; }
-  const char *getName() const;
-
-  bool isSugared() const { return false; }
-  QualType desugar() const { return QualType(this, 0); }
-
-  static bool classof(const Type *T) { return T->getTypeClass() == FixedWidthInt; }
-  static bool classof(const FixedWidthIntType *) { return true; }
 };
 
 /// ComplexType - C99 6.2.5p11 - Complex values.  This supports the C99 complex
@@ -2708,7 +2691,20 @@ inline unsigned QualType::getCVRQualifiers() const {
   return getLocalCVRQualifiers() | 
               getTypePtr()->getCanonicalTypeInternal().getLocalCVRQualifiers();
 }
-  
+
+/// getCVRQualifiersThroughArrayTypes - If there are CVR qualifiers for this
+/// type, returns them. Otherwise, if this is an array type, recurses
+/// on the element type until some qualifiers have been found or a non-array
+/// type reached.
+inline unsigned QualType::getCVRQualifiersThroughArrayTypes() const {
+  if (unsigned Quals = getCVRQualifiers())
+    return Quals;
+  QualType CT = getTypePtr()->getCanonicalTypeInternal();
+  if (const ArrayType *AT = dyn_cast<ArrayType>(CT))
+    return AT->getElementType().getCVRQualifiersThroughArrayTypes();
+  return 0;
+}
+
 inline void QualType::removeConst() {
   removeFastQualifiers(Qualifiers::Const);
 }
@@ -2808,8 +2804,8 @@ inline bool QualType::getNoReturnAttr() const {
 /// int".
 inline bool QualType::isMoreQualifiedThan(QualType Other) const {
   // FIXME: work on arbitrary qualifiers
-  unsigned MyQuals = this->getCVRQualifiers();
-  unsigned OtherQuals = Other.getCVRQualifiers();
+  unsigned MyQuals = this->getCVRQualifiersThroughArrayTypes();
+  unsigned OtherQuals = Other.getCVRQualifiersThroughArrayTypes();
   if (getAddressSpace() != Other.getAddressSpace())
     return false;
   return MyQuals != OtherQuals && (MyQuals | OtherQuals) == MyQuals;
@@ -2821,8 +2817,8 @@ inline bool QualType::isMoreQualifiedThan(QualType Other) const {
 /// "int", and "const volatile int".
 inline bool QualType::isAtLeastAsQualifiedAs(QualType Other) const {
   // FIXME: work on arbitrary qualifiers
-  unsigned MyQuals = this->getCVRQualifiers();
-  unsigned OtherQuals = Other.getCVRQualifiers();
+  unsigned MyQuals = this->getCVRQualifiersThroughArrayTypes();
+  unsigned OtherQuals = Other.getCVRQualifiersThroughArrayTypes();
   if (getAddressSpace() != Other.getAddressSpace())
     return false;
   return (MyQuals | OtherQuals) == MyQuals;

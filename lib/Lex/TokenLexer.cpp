@@ -175,7 +175,7 @@ void TokenLexer::ExpandFunctionArguments() {
       // avoids some work in common cases.
       const Token *ArgTok = ActualArgs->getUnexpArgument(ArgNo);
       if (ActualArgs->ArgNeedsPreexpansion(ArgTok, PP))
-        ResultArgToks = &ActualArgs->getPreExpArgument(ArgNo, PP)[0];
+        ResultArgToks = &ActualArgs->getPreExpArgument(ArgNo, Macro, PP)[0];
       else
         ResultArgToks = ArgTok;  // Use non-preexpanded tokens.
 
@@ -414,7 +414,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
     ResultTokTmp.startToken();
 
     // Claim that the tmp token is a string_literal so that we can get the
-    // character pointer back from CreateString.
+    // character pointer back from CreateString in getLiteralData().
     ResultTokTmp.setKind(tok::string_literal);
     PP.CreateString(&Buffer[0], Buffer.size(), ResultTokTmp);
     SourceLocation ResultTokLoc = ResultTokTmp.getLocation();

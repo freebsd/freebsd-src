@@ -38,6 +38,7 @@ namespace clang {
   class FileManager;
   class ASTRecordLayout;
   class BlockExpr;
+  class CharUnits;
   class Expr;
   class ExternalASTSource;
   class IdentifierTable;
@@ -113,9 +114,6 @@ class ASTContext {
   
   /// \brief Mapping from ObjCContainers to their ObjCImplementations.
   llvm::DenseMap<ObjCContainerDecl*, ObjCImplDecl*> ObjCImpls;
-
-  llvm::DenseMap<unsigned, FixedWidthIntType*> SignedFixedWidthIntTypes;
-  llvm::DenseMap<unsigned, FixedWidthIntType*> UnsignedFixedWidthIntTypes;
 
   /// BuiltinVaListType - built-in va list type.
   /// This is initially null and set by Sema::LazilyCreateBuiltin when
@@ -724,8 +722,6 @@ public:
   void setBuiltinVaListType(QualType T);
   QualType getBuiltinVaListType() const { return BuiltinVaListType; }
 
-  QualType getFixedWidthIntType(unsigned Width, bool Signed);
-
   /// getCVRQualifiedType - Returns a type with additional const,
   /// volatile, or restrict qualifiers.
   QualType getCVRQualifiedType(QualType T, unsigned CVR) {
@@ -812,19 +808,15 @@ public:
     return getTypeInfo(T).first;
   }
 
-  /// getByteWidth - Return the size of a byte, in bits
-  uint64_t getByteSize() {
+  /// getCharWidth - Return the size of the character type, in bits
+  uint64_t getCharWidth() {
     return getTypeSize(CharTy);
   }
   
-  /// getTypeSizeInBytes - Return the size of the specified type, in bytes.
+  /// getTypeSizeInChars - Return the size of the specified type, in characters.
   /// This method does not work on incomplete types.
-  uint64_t getTypeSizeInBytes(QualType T) {
-    return getTypeSize(T) / getByteSize();
-  }
-  uint64_t getTypeSizeInBytes(const Type *T) {
-    return getTypeSize(T) / getByteSize();
-  }
+  CharUnits getTypeSizeInChars(QualType T);
+  CharUnits getTypeSizeInChars(const Type *T);
 
   /// getTypeAlign - Return the ABI-specified alignment of a type, in bits.
   /// This method does not work on incomplete types.
@@ -906,12 +898,29 @@ public:
     return getCanonicalType(T1) == getCanonicalType(T2);
   }
 
+  /// \brief Returns this type as a completely-unqualified array type, capturing
+  /// the qualifiers in Quals. This only operates on canonical types in order
+  /// to ensure the ArrayType doesn't itself have qualifiers.
+  ///
+  /// \param T is the canonicalized QualType, which may be an ArrayType
+  ///
+  /// \param Quals will receive the full set of qualifiers that were
+  /// applied to the element type of the array.
+  ///
+  /// \returns if this is an array type, the completely unqualified array type
+  /// that corresponds to it. Otherwise, returns this->getUnqualifiedType().
+  QualType getUnqualifiedArrayType(QualType T, Qualifiers &Quals);
+
   /// \brief Determine whether the given types are equivalent after
   /// cvr-qualifiers have been removed.
   bool hasSameUnqualifiedType(QualType T1, QualType T2) {
     CanQualType CT1 = getCanonicalType(T1);
     CanQualType CT2 = getCanonicalType(T2);
-    return CT1.getUnqualifiedType() == CT2.getUnqualifiedType();
+
+    Qualifiers Quals;
+    QualType UnqualT1 = getUnqualifiedArrayType(CT1, Quals);
+    QualType UnqualT2 = getUnqualifiedArrayType(CT2, Quals);
+    return UnqualT1 == UnqualT2;
   }
 
   /// \brief Retrieves the "canonical" declaration of
@@ -1251,7 +1260,8 @@ inline void *operator new[](size_t Bytes, clang::ASTContext& C,
 /// invoking it directly; see the new[] operator for more details. This operator
 /// is called implicitly by the compiler if a placement new[] expression using
 /// the ASTContext throws in the object constructor.
-inline void operator delete[](void *Ptr, clang::ASTContext &C) throw () {
+inline void operator delete[](void *Ptr, clang::ASTContext &C, size_t)
+              throw () {
   C.Deallocate(Ptr);
 }
 

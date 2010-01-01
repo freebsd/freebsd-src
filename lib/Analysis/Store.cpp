@@ -98,7 +98,6 @@ const MemRegion *StoreManager::CastRegion(const MemRegion *R, QualType CastToTy)
     }
 
     case MemRegion::StringRegionKind:
-    case MemRegion::ObjCObjectRegionKind:
       // FIXME: Need to handle arbitrary downcasts.
     case MemRegion::SymbolicRegionKind:
     case MemRegion::AllocaRegionKind:
@@ -106,6 +105,7 @@ const MemRegion *StoreManager::CastRegion(const MemRegion *R, QualType CastToTy)
     case MemRegion::FieldRegionKind:
     case MemRegion::ObjCIvarRegionKind:
     case MemRegion::VarRegionKind:
+    case MemRegion::CXXObjectRegionKind:
       return MakeElementRegion(R, PointeeTy);
 
     case MemRegion::ElementRegionKind: {
@@ -198,11 +198,21 @@ const MemRegion *StoreManager::CastRegion(const MemRegion *R, QualType CastToTy)
 ///  as another region.
 SVal  StoreManager::CastRetrievedVal(SVal V, const TypedRegion *R,
                                      QualType castTy) {
+  
+#ifndef NDEBUG
   if (castTy.isNull())
     return V;
+  
+  ASTContext &Ctx = ValMgr.getContext();
+  QualType T = R->getValueType(Ctx);
 
-  assert(ValMgr.getContext().hasSameUnqualifiedType(castTy,
-                                         R->getValueType(ValMgr.getContext())));
+  // Automatically translate references to pointers.
+  if (const ReferenceType *RT = T->getAs<ReferenceType>())
+    T = Ctx.getPointerType(RT->getPointeeType());
+
+  assert(ValMgr.getContext().hasSameUnqualifiedType(castTy, T));
+#endif
+
   return V;
 }
 
@@ -229,4 +239,9 @@ const GRState *StoreManager::InvalidateRegions(const GRState *state,
 SVal StoreManager::getLValueCompoundLiteral(const CompoundLiteralExpr* CL,
                                             const LocationContext *LC) {
   return loc::MemRegionVal(MRMgr.getCompoundLiteralRegion(CL, LC));
+}
+
+Loc StoreManager::getThisObject(QualType T) {
+  const CXXObjectRegion *R = MRMgr.getCXXObjectRegion(T);
+  return loc::MemRegionVal(R);
 }

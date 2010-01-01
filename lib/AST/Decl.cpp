@@ -19,6 +19,7 @@
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/IdentifierTable.h"
@@ -89,6 +90,34 @@ ParmVarDecl *ParmVarDecl::Create(ASTContext &C, DeclContext *DC,
                                  QualType T, TypeSourceInfo *TInfo,
                                  StorageClass S, Expr *DefArg) {
   return new (C) ParmVarDecl(ParmVar, DC, L, Id, T, TInfo, S, DefArg);
+}
+
+Expr *ParmVarDecl::getDefaultArg() {
+  assert(!hasUnparsedDefaultArg() && "Default argument is not yet parsed!");
+  assert(!hasUninstantiatedDefaultArg() &&
+         "Default argument is not yet instantiated!");
+  
+  Expr *Arg = getInit();
+  if (CXXExprWithTemporaries *E = dyn_cast_or_null<CXXExprWithTemporaries>(Arg))
+    return E->getSubExpr();
+  
+  return Arg;
+}
+
+unsigned ParmVarDecl::getNumDefaultArgTemporaries() const {
+  if (const CXXExprWithTemporaries *E = 
+        dyn_cast<CXXExprWithTemporaries>(getInit()))
+    return E->getNumTemporaries();
+
+  return 0;
+}
+
+CXXTemporary *ParmVarDecl::getDefaultArgTemporary(unsigned i) {
+  assert(getNumDefaultArgTemporaries() && 
+         "Default arguments does not have any temporaries!");
+
+  CXXExprWithTemporaries *E = cast<CXXExprWithTemporaries>(getInit());
+  return E->getTemporary(i);
 }
 
 SourceRange ParmVarDecl::getDefaultArgRange() const {
@@ -182,6 +211,9 @@ TypedefDecl *TypedefDecl::Create(ASTContext &C, DeclContext *DC,
                                  TypeSourceInfo *TInfo) {
   return new (C) TypedefDecl(DC, L, Id, TInfo);
 }
+
+// Anchor TypedefDecl's vtable here.
+TypedefDecl::~TypedefDecl() {}
 
 EnumDecl *EnumDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                            IdentifierInfo *Id, SourceLocation TKL,
@@ -426,11 +458,6 @@ std::string NamedDecl::getQualifiedNameAsString(const PrintingPolicy &P) const {
     return getNameAsString();
 
   while (Ctx) {
-    if (Ctx->isFunctionOrMethod())
-      // FIXME: That probably will happen, when D was member of local
-      // scope class/struct/union. How do we handle this case?
-      break;
-
     if (const ClassTemplateSpecializationDecl *Spec
           = dyn_cast<ClassTemplateSpecializationDecl>(Ctx)) {
       const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
@@ -440,6 +467,48 @@ std::string NamedDecl::getQualifiedNameAsString(const PrintingPolicy &P) const {
                                            TemplateArgs.flat_size(),
                                            P);
       Names.push_back(Spec->getIdentifier()->getNameStart() + TemplateArgsStr);
+    } else if (const NamespaceDecl *ND = dyn_cast<NamespaceDecl>(Ctx)) {
+      if (ND->isAnonymousNamespace())
+        Names.push_back("<anonymous namespace>");
+      else
+        Names.push_back(ND->getNameAsString());
+    } else if (const RecordDecl *RD = dyn_cast<RecordDecl>(Ctx)) {
+      if (!RD->getIdentifier()) {
+        std::string RecordString = "<anonymous ";
+        RecordString += RD->getKindName();
+        RecordString += ">";
+        Names.push_back(RecordString);
+      } else {
+        Names.push_back(RD->getNameAsString());
+      }
+    } else if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(Ctx)) {
+      std::string Proto = FD->getNameAsString();
+
+      const FunctionProtoType *FT = 0;
+      if (FD->hasWrittenPrototype())
+        FT = dyn_cast<FunctionProtoType>(FD->getType()->getAs<FunctionType>());
+
+      Proto += "(";
+      if (FT) {
+        llvm::raw_string_ostream POut(Proto);
+        unsigned NumParams = FD->getNumParams();
+        for (unsigned i = 0; i < NumParams; ++i) {
+          if (i)
+            POut << ", ";
+          std::string Param;
+          FD->getParamDecl(i)->getType().getAsStringInternal(Param, P);
+          POut << Param;
+        }
+
+        if (FT->isVariadic()) {
+          if (NumParams > 0)
+            POut << ", ";
+          POut << "...";
+        }
+      }
+      Proto += ")";
+
+      Names.push_back(Proto);
     } else if (const NamedDecl *ND = dyn_cast<NamedDecl>(Ctx))
       Names.push_back(ND->getNameAsString());
     else

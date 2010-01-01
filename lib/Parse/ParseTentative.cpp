@@ -680,10 +680,11 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
     // Otherwise, not a typename.
     return TPResult::False();
 
-  case tok::coloncolon:   // ::foo::bar
-      if (NextToken().is(tok::kw_new) ||    // ::new
-          NextToken().is(tok::kw_delete))   // ::delete
-        return TPResult::False();
+  case tok::coloncolon: {    // ::foo::bar
+    const Token &Next = NextToken();
+    if (Next.is(tok::kw_new) ||    // ::new
+        Next.is(tok::kw_delete))   // ::delete
+      return TPResult::False();
 
     // Annotate typenames and C++ scope specifiers.  If we get one, just
     // recurse to handle whatever we get.
@@ -691,7 +692,8 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
       return isCXXDeclarationSpecifier();
     // Otherwise, not a typename.
     return TPResult::False();
-
+  }
+      
     // decl-specifier:
     //   storage-class-specifier
     //   type-specifier
@@ -699,7 +701,6 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
     //   'friend'
     //   'typedef'
     //   'constexpr'
-
   case tok::kw_friend:
   case tok::kw_typedef:
   case tok::kw_constexpr:
@@ -749,6 +750,12 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
   case tok::kw___ptr64:
   case tok::kw___forceinline:
     return TPResult::True();
+
+  case tok::annot_cxxscope: // foo::bar or ::foo::bar, but already parsed
+    // We've already annotated a scope; try to annotate a type.
+    if (!(TryAnnotateTypeOrScopeToken() && Tok.is(tok::annot_typename)))
+      return TPResult::False();
+    // If that succeeded, fallthrough into the generic simple-type-id case.
 
     // The ambiguity resides in a simple-type-specifier/typename-specifier
     // followed by a '('. The '(' could either be the start of:

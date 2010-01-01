@@ -149,21 +149,39 @@ static void CopyObject(CodeGenFunction &CGF, const Expr *E,
       CGF.EmitAggExpr(E, This, false);
     } else if (CXXConstructorDecl *CopyCtor
                = RD->getCopyConstructor(CGF.getContext(), 0)) {
-      llvm::BasicBlock *PrevLandingPad = CGF.getInvokeDest();
+      llvm::Value *CondPtr = 0;
       if (CGF.Exceptions) {
         CodeGenFunction::EHCleanupBlock Cleanup(CGF);
         llvm::Constant *FreeExceptionFn = getFreeExceptionFn(CGF);
         
+        llvm::BasicBlock *CondBlock = CGF.createBasicBlock("cond.free");
+        llvm::BasicBlock *Cont = CGF.createBasicBlock("cont");
+        CondPtr = CGF.CreateTempAlloca(llvm::Type::getInt1Ty(CGF.getLLVMContext()),
+                                       "doEHfree");
+
+        CGF.Builder.CreateCondBr(CGF.Builder.CreateLoad(CondPtr),
+                                 CondBlock, Cont);
+        CGF.EmitBlock(CondBlock);
+
         // Load the exception pointer.
         llvm::Value *ExceptionPtr = CGF.Builder.CreateLoad(ExceptionPtrPtr);
         CGF.Builder.CreateCall(FreeExceptionFn, ExceptionPtr);
+
+        CGF.EmitBlock(Cont);
       }
 
+      if (CondPtr)
+        CGF.Builder.CreateStore(llvm::ConstantInt::getTrue(CGF.getLLVMContext()),
+                                CondPtr);
+
       llvm::Value *Src = CGF.EmitLValue(E).getAddress();
-      CGF.setInvokeDest(PrevLandingPad);
+        
+      if (CondPtr)
+        CGF.Builder.CreateStore(llvm::ConstantInt::getFalse(CGF.getLLVMContext()),
+                                CondPtr);
 
       llvm::BasicBlock *TerminateHandler = CGF.getTerminateHandler();
-      PrevLandingPad = CGF.getInvokeDest();
+      llvm::BasicBlock *PrevLandingPad = CGF.getInvokeDest();
       CGF.setInvokeDest(TerminateHandler);
 
       // Stolen from EmitClassAggrMemberwiseCopy
@@ -179,7 +197,7 @@ static void CopyObject(CodeGenFunction &CGF, const Expr *E,
       QualType ResultType =
         CopyCtor->getType()->getAs<FunctionType>()->getResultType();
       CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
-                   Callee, CallArgs, CopyCtor);
+                   Callee, ReturnValueSlot(), CallArgs, CopyCtor);
       CGF.setInvokeDest(PrevLandingPad);
     } else
       llvm_unreachable("uncopyable object");
@@ -189,14 +207,22 @@ static void CopyObject(CodeGenFunction &CGF, const Expr *E,
 // CopyObject - Utility to copy an object.  Calls copy constructor as necessary.
 // N is casted to the right type.
 static void CopyObject(CodeGenFunction &CGF, QualType ObjectType,
-                       bool WasPointer, llvm::Value *E, llvm::Value *N) {
+                       bool WasPointer, bool WasPointerReference,
+                       llvm::Value *E, llvm::Value *N) {
   // Store the throw exception in the exception object.
   if (WasPointer || !CGF.hasAggregateLLVMType(ObjectType)) {
     llvm::Value *Value = E;
     if (!WasPointer)
       Value = CGF.Builder.CreateLoad(Value);
     const llvm::Type *ValuePtrTy = Value->getType()->getPointerTo(0);
-    CGF.Builder.CreateStore(Value, CGF.Builder.CreateBitCast(N, ValuePtrTy));
+    if (WasPointerReference) {
+      llvm::Value *Tmp = CGF.CreateTempAlloca(Value->getType(), "catch.param");
+      CGF.Builder.CreateStore(Value, Tmp);
+      Value = Tmp;
+      ValuePtrTy = Value->getType()->getPointerTo(0);
+    }
+    N = CGF.Builder.CreateBitCast(N, ValuePtrTy);
+    CGF.Builder.CreateStore(Value, N);
   } else {
     const llvm::Type *Ty = CGF.ConvertType(ObjectType)->getPointerTo(0);
     const CXXRecordDecl *RD;
@@ -221,7 +247,7 @@ static void CopyObject(CodeGenFunction &CGF, QualType ObjectType,
       QualType ResultType =
         CopyCtor->getType()->getAs<FunctionType>()->getResultType();
       CGF.EmitCall(CGF.CGM.getTypes().getFunctionInfo(ResultType, CallArgs),
-                   Callee, CallArgs, CopyCtor);
+                   Callee, ReturnValueSlot(), CallArgs, CopyCtor);
     } else
       llvm_unreachable("uncopyable object");
   }
@@ -264,7 +290,7 @@ void CodeGenFunction::EmitCXXThrowExpr(const CXXThrowExpr *E) {
 
   // Now throw the exception.
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(getLLVMContext());
-  llvm::Constant *TypeInfo = CGM.GenerateRTTI(ThrowType);
+  llvm::Constant *TypeInfo = CGM.GetAddrOfRTTIDescriptor(ThrowType);
   llvm::Constant *Dtor = llvm::Constant::getNullValue(Int8PtrTy);
 
   if (getInvokeDest()) {
@@ -347,8 +373,9 @@ void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
 
   for (unsigned i = 0; i < Proto->getNumExceptions(); ++i) {
     QualType Ty = Proto->getExceptionType(i);
-    llvm::Value *EHType
-      = CGM.GenerateRTTI(Ty.getNonReferenceType());
+    QualType ExceptType
+      = Ty.getNonReferenceType().getUnqualifiedType();
+    llvm::Value *EHType = CGM.GetAddrOfRTTIDescriptor(ExceptType);
     SelectorArgs.push_back(EHType);
   }
   if (Proto->getNumExceptions())
@@ -487,9 +514,12 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
     const CXXCatchStmt *C = S.getHandler(i);
     VarDecl *CatchParam = C->getExceptionDecl();
     if (CatchParam) {
-      llvm::Value *EHType
-        = CGM.GenerateRTTI(C->getCaughtType().getNonReferenceType());
-      SelectorArgs.push_back(EHType);
+      // C++ [except.handle]p3 indicates that top-level cv-qualifiers
+      // are ignored.
+      QualType CaughtType = C->getCaughtType().getNonReferenceType();
+      llvm::Value *EHTypeInfo
+        = CGM.GetAddrOfRTTIDescriptor(CaughtType.getUnqualifiedType());
+      SelectorArgs.push_back(EHTypeInfo);
     } else {
       // null indicates catch all
       SelectorArgs.push_back(Null);
@@ -541,7 +571,12 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
         QualType CatchType = CatchParam->getType().getNonReferenceType();
         setInvokeDest(TerminateHandler);
         bool WasPointer = true;
-        if (!CatchType.getTypePtr()->isPointerType()) {
+        bool WasPointerReference = false;
+        CatchType = CGM.getContext().getCanonicalType(CatchType);
+        if (CatchType.getTypePtr()->isPointerType()) {
+          if (isa<ReferenceType>(CatchParam->getType()))
+            WasPointerReference = true;
+        } else {
           if (!isa<ReferenceType>(CatchParam->getType()))
             WasPointer = false;
           CatchType = getContext().getPointerType(CatchType);
@@ -552,7 +587,8 @@ void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
         // cleanup doesn't start until after the ctor completes, use a decl
         // init?
         CopyObject(*this, CatchParam->getType().getNonReferenceType(),
-                   WasPointer, ExcObject, GetAddrOfLocalVar(CatchParam));
+                   WasPointer, WasPointerReference, ExcObject,
+                   GetAddrOfLocalVar(CatchParam));
         setInvokeDest(MatchHandler);
       }
 

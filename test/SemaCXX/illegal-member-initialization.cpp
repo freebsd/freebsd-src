@@ -1,4 +1,4 @@
-// RUN: clang-cc -fsyntax-only -verify %s 
+// RUN: %clang_cc1 -fsyntax-only -verify %s 
 
 struct A {
    A() : value(), cvalue() { } // expected-error {{cannot initialize the member to null in default constructor because reference member 'value' cannot be null-initialized}} \
@@ -19,4 +19,14 @@ struct X {
    const int cvalue; // expected-note{{declared at}}
    B& b; // expected-note{{declared at}}
    const B cb; // expected-note{{declared at}}
+};
+
+
+// PR5924
+struct bar {};
+bar xxx();
+
+struct foo {
+  foo_t a;  // expected-error {{unknown type name 'foo_t'}}
+  foo() : a(xxx()) {}  // no error here.
 };
